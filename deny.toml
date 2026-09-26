@@ -1,0 +1,38 @@
+# cargo-deny config — Handbook DoD #4 + security S5 (gate dependency network/ban).
+# Project: GPL-3.0-or-later → allow-list các license compatible.
+# Ref: docs/10-shared/P0-1-repo-and-workflow.md §5 (CI gates).
+
+[advisories]
+yanked = "deny"
+
+[licenses]
+# Ghi chú: license text của project ở LICENSE + LICENSES/GPL-3.0-or-later.txt (REUSE).
+allow = [
+    "GPL-3.0-or-later",
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unlicense",
+    "CC0-1.0",
+    "MIT-0",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "CDLA-Permissive-2.0",
+]
+
+[bans]
+multiple-versions = "warn"
+# workspace path-dep (`vietime-* = { path = ... }`) bị cargo-deny coi là wildcard —
+# không phải rủi ro thật (crates.io wildcard thật vẫn hiện warning để review).
+wildcards = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
