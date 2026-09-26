@@ -11,7 +11,7 @@
 | **0 — Nền tảng chung** (repo, FFI, schema, strategy, test) | `10-shared/P0-*.md` | ✅ Reviewed | 2/2 → `10-shared/P0-REVIEW-LOG.md` |
 | **1 — Windows** | `20-windows/P1-*.md` | ✅ Reviewed | 2/2 → `20-windows/P1-REVIEW-LOG.md` |
 | **2 — macOS** | `30-macos/P2-*.md` | ✅ Reviewed | 2/2 → `30-macos/P2-REVIEW-LOG.md` |
-| **3 — Linux** | `40-linux/P3-*.md` | ⬜ Chưa bắt đầu | — |
+| **3 — Linux** | `40-linux/P3-*.md` | ✅ Reviewed | 2/2 → `40-linux/P3-REVIEW-LOG.md` |
 
 > Quy tắc: **không bắt đầu phần N+1 khi phần N chưa đạt 2/2 review.**
 
@@ -62,7 +62,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 | Kiểu gõ | `telex`, `vni`, `viqr`, `simple_telex` |
 | Bundle macOS | `~/Library/Input Methods/VietIME-IM.app` (IMK) · `/Applications/VietIME.app` (settings/menu bar) · bundle id `vn.vietime.im` |
 | Config/Socket macOS | `~/Library/Application Support/VietIME/{config.json, state.json, appdb.json, ipc.sock}` · log `~/Library/Logs/VietIME/` |
-| Config/Socket Linux | `~/.config/VietIME/` + `ipc.sock` (chi tiết chốt ở Phần 3) |
+| Config/Socket Linux | `~/.config/VietIME/{config.json, state.json, appdb.json, ipc.sock}` · log `~/.local/state/VietIME/log/` (chốt `40-linux/P3-0 §2`) |
+| Binary Linux | `vietime` (CLI), `vietime-tray`, `vietime-x11`, `vietime-ibus-engine`, `libvietime-fcitx5.so` |
 
 ## 5. Changelog của chỉ mục
 
@@ -77,3 +78,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   `P0-2` (C-ABI `ime_appdb_verify`/`ime_strategy_resolve` cho adapter không phải Rust),
   `P0-3` (đường dẫn per-OS + `engine_owner` + IPC transport per-OS), `P1-5` (tên rc-checklist-win),
   `adr/README` (ADR-006 Accepted, thêm ADR-011). ADR-006 chốt: IMK primary + CGEventTap opt-in.
+- 2026-09-27: Phần 3 (Linux) hoàn thành — 8 file solution + 50 task `LNX-*` (P3-0…P3-7,
+  nhóm task `T0–T6`); Review 1 (12 finding) + Review 2 (3 finding) → **đạt 2/2** → `40-linux/P3-REVIEW-LOG.md`.
+  Sửa bổ sung cross-part: `P0-1` (layout linux-common/linux-x11/tools-linux/packaging-linux + CLI `purge`),
+  `P0-3` (`engine_owner` += `x11`, `inject_mode` += `keycode_ascii`, bỏ hedge path Linux),
+  `adr/README` (**ADR-007 Accepted**: IBus + Fcitx5 dual, không grab Wayland, X11 opt-in).
+  **Hoàn tất roadmap 3 phần** (0 → Windows → macOS → Linux); sang giai đoạn implement theo task ID.

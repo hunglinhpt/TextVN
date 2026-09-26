@@ -49,8 +49,10 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 │   │       # Tuyệt đối KHÔNG nhúng hook vào tray (UI lag = gõ lag).
 │   ├── macos-imk/                         # Phần 2 (Swift package, không nằm Rust workspace)
 │   ├── macos-tap/                         # Phần 2 (Swift, CGEventTap opt-in — xem P2-2)
-│   ├── linux-ibus/                        # Phần 3 (C)
-│   └── linux-fcitx5/                      # Phần 3 (C++)
+│   ├── linux-ibus/                        # Phần 3 (C) — engine IBus
+│   ├── linux-fcitx5/                      # Phần 3 (C++) — addon fcitx5
+│   ├── linux-common/                      # Phần 3 (C) — AT-SPI field detect + ipc/log helpers
+│   └── linux-x11/                         # Phần 3 (Rust: crate vietime-x11) — fallback opt-in (P3-3)
 ├── tray/                                  # crate: vietime-tray → bin "vietime-tray.exe" (egui)
 │   └── src/{main.rs, tray_icon.rs, ui/{settings.rs, apps.rs, macros.rs, about.rs}, svc.rs}
 ├── updater/                               # crate: vietime-updater (lib) — verify Ed25519 + spawn setup
@@ -75,7 +77,9 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 ├── fuzz/{ffi_key,config_parse,appdb_parse}/
 ├── packaging/windows/{vietime.iss, sign.ps1}
 ├── packaging/homebrew/vietime.rb          # cask — Phần 2 (P2-4 §8)
+├── packaging/linux/{vietime.spec, ci-install.sh, uninstall-check.sh, aur/}  # Phần 3 (P3-5)
 ├── tools/mac/                             # ax-driver (Swift), soak.sh, mem-check.sh, uninstall-check.sh — P2-5
+├── tools/linux/                           # atspi-driver, smoke-ibus.sh, soak.sh, mem-check.sh — P3-6
 ├── tools/appcomptest/                     # crate: vietime-appcomptest — UIA driver (Rust) — xem P1-5
 ├── tools/bench/                           # crate: vietime-bench — perf microbench (P1-5 §5)
 ├── tools/win/                             # script PowerShell: smoke-tsf.ps1, soak.ps1, mem-check.ps1
@@ -99,7 +103,7 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 | `vietime-win-hook` | WH_KEYBOARD_LL + inject | ffi, strategy, config, windows | block > 2ms trong callback |
 | `vietime-tray` | Tray + settings(egui) + IPC server + spawn hook + updater | mọi crate config/appdb | chạy trong process app khác |
 | `vietime-field-detect` | `FieldContext` → app_id/role/strategy lookup (chuẩn hoá exe, UIA rules Win) | appdb, config (read-only) | OS API (adapter cung cấp element/cache) |
-| `vietime-cli` | `doctor`(`--export/--stats`) / `replay` / `verify` / `register` / `uninstall` / `config init+validate` / `ipc probe` / `tray --stop` / `sizes` | ffi, config, appdb | — |
+| `vietime-cli` | `doctor`(`--export/--stats`) / `replay` / `verify` / `register` / `uninstall` / `purge` / `config init+validate` / `ipc probe` / `tray --stop` / `sizes` | ffi, config, appdb | — |
 
 *(dependency = "phụ thuộc"; giữ nguyên thuật ngữ `dependency` trong code).*
 

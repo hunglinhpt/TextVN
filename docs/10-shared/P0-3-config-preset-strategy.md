@@ -9,7 +9,7 @@
 |---|---|---|
 | Windows | `%APPDATA%\VietIME\` | `%LOCALAPPDATA%\VietIME\logs\` |
 | macOS | `~/Library/Application Support/VietIME/` | `~/Library/Logs/VietIME/` |
-| Linux | `~/.config/VietIME/` (XDG — chốt chi tiết ở Phần 3) | `~/.local/state/VietIME/log/` (đề xuất, chốt ở P3) |
+| Linux | `~/.config/VietIME/` (config/state/appdb — chốt `P3-0 §2`) | `~/.local/state/VietIME/log/` |
 
 *(Nhãn tiêu đề bảng trên tham chiếu Windows cho ngắn; nội dung bảng là nguồn sự thật cho mọi OS.)*
 
@@ -116,9 +116,9 @@ Hot-reload: tray watch file (debounce 300ms) → gửi `ConfigReload` qua IPC (�
 }
 ```
 
-- `engine_owner`: `"tsf"|"hook"|"imk"|"tap"|"ibus"|"fcitx5"` (optional; mặc định theo OS: Win=`tsf`,
+- `engine_owner`: `"tsf"|"hook"|"imk"|"tap"|"ibus"|"fcitx5"|"x11"` (optional; mặc định theo OS: Win=`tsf`,
   macOS=`imk`, Linux=`ibus`) — adapter nào được xử lý app này; mục đích là chống xử lý đôi
-  (luật: `P1-2 §6` Windows, `P2-2 §6` macOS).
+  (luật: `P1-2 §6` Windows, `P2-2 §6` macOS, `P3-3 §6.1` Linux).
 - `strategy`: `"Preedit" | "BackspaceType" | "SelectionReplace" | "ForwardAsCommit" | "Passthrough"` (P0-3 §3).
 - **Mapping `field_role` (JSON) ↔ `IME_FIELD_*` (FFI) — bắt buộc 1-1:**
 
@@ -131,7 +131,7 @@ Hot-reload: tray watch file (debounce 300ms) → gửi `ConfigReload` qua IPC (�
   | `search` | `IME_FIELD_SEARCH (4)` | `secure` | `IME_FIELD_SECURE (10)` |
   | `candidate` | `IME_FIELD_CANDIDATE (6)` | | |
 
-- `inject_mode` (chỉ adapter hook dùng): `"unicode"` (KEYEVENTF_UNICODE) | `"vk_then_unicode"` (gửi VK thật cho ASCII → app nhìn thấy key event thật, quan trọng với autocomplete) | `"selection"` (Shift+Left rồi chèn).
+- `inject_mode` (adapter inject: hook/tap/x11): `"unicode"` (gửi chuỗi Unicode — KEYEVENTF_UNICODE/CGEvent/…) | `"vk_then_unicode"` (gửi VK/keycode thật cho ASCII → app nhìn thấy key event thật, quan trọng với autocomplete) | `"selection"` (Shift+Left rồi chèn) | `"keycode_ascii"` (chỉ keycode theo layout hiện tại — X11, dùng khi spike chốt, xem `P3-3 §5.4`).
 - **Matching:** adapter chuyển OS → `app_id` chuẩn (Win: `exe` thường chữ thường; macOS: bundle id; Linux: WM_CLASS) → tìm entry khớp **theo thứ tự file, entry đầu khớp thắng**; `when.field_role` lọc thêm.
 - **User override** (`%APPDATA%\VietIME\appdb.json`) merge: field nào user đặt → **giành quyền tuyệt đối**.
 
@@ -209,7 +209,7 @@ Trạng thái người dùng đổi chỗ nào? → **tray là source of truth**
   |---|---|---|
   | Windows | named pipe `\\.\pipe\vietime-ipc-v1` (message mode, `CreateNamedPipe`) | DACL = chỉ current user SID |
   | macOS | unix socket `~/Library/Application Support/VietIME/ipc.sock` | dir 0700, sock 0600 + check uid |
-  | Linux | unix socket `~/.config/VietIME/ipc.sock` (chốt ở Phần 3) | 0600 + `SO_PEERCRED` |
+  | Linux | unix socket `~/.config/VietIME/ipc.sock` (chốt `P3-0 §2`) | 0600 + `SO_PEERCRED` |
 
   **Không TCP/HTTP ở mọi OS.**
 - **Codec:** 1 message = 1 frame JSON (u32 length prefix + UTF-8), validate schema trước xử lý.
