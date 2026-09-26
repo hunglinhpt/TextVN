@@ -2,7 +2,7 @@
 
 > Giao thức: `../00-INDEX.md §3`. Review 1 = *Đúng & Đủ*, Review 2 = *Nhất quán & Sẵn sàng*.
 > Phạm vi review: `00-INDEX.md`, `01-AGENT-HANDBOOK.md`, `P0-1`, `P0-2`, `P0-3`, `P0-4`,
-> `../adr/README.md`, `../specs/oracle-unikey.md` + độ khớp với `../PLAN.md`.
+> `../adr/README.md`, `../specs/oracle-unikey.md` + độ khớp với `../../PLAN.md`.
 
 ---
 
@@ -39,7 +39,7 @@
 | F0-011 | **major** | `PLAN §4.1` vẫn chốt "Windows TSF: **C++/WRL** (hoặc Rust…)" mâu thuẫn quyết định đã chốt **Rust + windows crate** | ✅ Fixed | Cập nhật bảng `PLAN §4.1`, ghi rõ chỉ quay lại C++ nếu spike `WIN-002` chặn (ADR-005) |
 | F0-012 | **major** | `PLAN §3.6/§4.1` còn "Shell_NotifyIcon/WinUI 3 dialog" mâu thuẫn **egui** (ADR-004) | ✅ Fixed | 2 bảng sửa theo egui (tray-icon crate + egui settings) |
 | F0-013 | minor | `PLAN §4.3` nói corpus `.keys → .expected` (file riêng) vs `P0-4` assertion inline | ✅ Fixed | Sửa `PLAN §4.3` theo `P0-4` |
-| F0-014 | **major** | `P0-2` tham chiếu `P1-1` (§6 apply_replace) và `P1-2` (§5 injection modes) nhưng file Phần 1 chưa tồn tại → ràng buộc phải giữ đúng tên/số mục | ⏳ Fixed-by-constraint | Ghi ràng buộc bắt buộc cho Phần 1: **`P1-1-tsf.md` phải có §6 `apply_replace`, `P1-2-hook.md` phải có §5 `Injection modes`**; sẽ verify lại bằng grep trong Review 2 của Phần 1 |
+| F0-014 | **major** | `P0-2` tham chiếu `P1-1` (§6 apply_replace) và `P1-2` (§5 injection modes) nhưng file Phần 1 chưa tồn tại → ràng buộc phải giữ đúng tên/số mục | ✅ Verified (Review tổng thể #3) | Ràng buộc đã thoả: `P1-1-tsf.md` có `## 6. apply_replace`, `P1-2-hook.md` có `## 5. Injection modes` (grep 2026-09-27) |
 | F0-015 | **major** | `ime_instance_new` với config sai: `P0-2 §1` không nói gì, `§5` nói "engine fallback" → không rõ instance có được tạo không (adapter có thể deref NULL) | ✅ Fixed | Chốt **non-fatal**: vẫn tạo instance với config mặc định, trả `IME_ERR_CONFIG`, `*out` luôn set; ghi ngay trong header comment + `§5` |
 | F0-016 | minor | `adr/README.md` và `specs/oracle-unikey.md` được `P0-4 §6`/`Handbook §7` refer nhưng chưa tồn tại | ✅ Fixed | Tạo 2 file (ADR index 10 mục; oracle UniKey 3 cách + quy tắc ghi nguồn) |
 | F0-018 | minor | Cross-check bằng grep: `ime_init`/`ime_abi(`/`appdb.toml`/`.expected`/`C++/WRL` còn sót ở `PLAN` | ✅ Fixed | Đã sửa hết (grep lại = 0 match, trừ mô tả khách quan về Bamboo Viet) |
@@ -64,3 +64,37 @@
 - [x] `00-INDEX` trạng thái cập nhật: Phần 0 → ✅ 2/2
 
 **Kết luận tổng:** Phần 0 **ĐẠT 2/2** → mở Phần 1 (Windows).
+
+---
+
+## Review tổng thể đợt 3 (full sweep 34 file docs + tiếp nhận scaffold) — 2026-09-27
+
+**Phạm vi:** toàn bộ `docs/` (34 md) + `PLAN.md`; kiểm tự động bằng script (CJK, placeholder,
+finding chưa-fix, path ref, task ID, §-ref, tên crate) + đối chiếu scaffold Rust thật của agent kia.
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F0-014 | (đã ghi Review 2) | Ràng buộc `P1-1 §6`/`P1-2 §5` chờ verify | ✅ Verified | Grep xác nhận: `P1-1-tsf.md` có `## 6. apply_replace`, `P1-2-hook.md` có `## 5. Injection modes` |
+| F0-019 | minor | `00-INDEX` changelog ghi "Phần 1 … **66 task** `WIN-*`" — thực tế `P1-6` chỉ có **46** heading (khoảng trống đánh số cố ý: 009, 020–029, 036–039, 046–049, 059) | ✅ Fixed | Sửa thành "46 task (đánh số có khoảng trống cố ý)" |
+| F0-020 | minor | `P0-REVIEW-LOG` header tham chiếu `../PLAN.md` (= `docs/PLAN.md` — không tồn tại); PLAN.md ở repo root | ✅ Fixed | → `../../PLAN.md` |
+
+**Kết quả kiểm tự động (sweep 3):**
+- [x] CJK: 0 mới (chỉ còn trích dẫn lịch sử có chủ đích trong REVIEW-LOG + `越南` test `P1-5 §2`).
+- [x] Placeholder: 0 thật (toàn bộ match là mẫu protocol `F0-xxx`/`WIN-xxx`).
+- [x] §-ref chéo `P0-P3`: 0 hỏng (file + số mục tồn tại).
+- [x] Finding chưa-fix: chỉ F0-014 (đã verify).
+- [x] Task ID: WIN=46, MAC=46, LNX=50 — không có ID nào được tham chiếu nhưng thiếu
+      (WIN-020/MAC-045 chỉ nằm trong trích dẫn finding lịch sử).
+- [x] Tên crate khớp `P0-1 §2` ↔ scaffold thật: `vietime-{core,strategy,config,ffi,cli}` ✓.
+- [x] Path ref chưa tồn tại = **task deliverable** (spike specs, rc/parity checklists, `docs/compat.md`,
+      `env-*.md`) — đúng quy tắc deliverable, không phải lỗi.
+
+**Tiếp nhận scaffold (agent kia) — kết quả:**
+- [x] `cargo test --workspace` → **58/58 pass** (core 30, strategy 9, ffi 6, config 5, cli 8); FFI size/offset test đúng 20/532 (P0-2 §6).
+- [x] `cargo clippy --workspace --all-targets` → 0 warning.
+- [x] fail-open/`catch_unwind`/config-sai-non-fatal đúng P0-2 §0/§5 (có test).
+- [ ] `cargo run -p vietime-cli -- sizes` **chưa implement** (P0-1 §3, P0-2 §6 — F2-003 đã định nghĩa) → giao lại agent cli (đang active), **không đụng** để tránh conflict.
+- [ ] `rust-toolchain.toml` để `channel = "stable"` chưa pin version (chính file có TODO(WIN-001)) — giữ theo TODO.
+
+**Kết luận:** docs đạt; scaffold accepted (chờ `sizes`). Mở development Windows (task `P1-6`) theo phân chia:
+agent kia giữ `core/ffi/cli/config/strategy`, tôi nhận `adapters/windows-*`, `tools/win/`, `corpus/win/`.

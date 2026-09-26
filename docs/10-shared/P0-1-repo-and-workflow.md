@@ -28,7 +28,8 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 │       ├── post/{restore_en,caps,macro,emoji}.rs
 │       └── suggest.rs                     # (Should) offline suggestion — tách feature flag
 ├── ffi/                                   # crate: vietime-ffi → staticlib "vietime_ffi"
-│   ├── Cargo.toml                         # crate-type = ["staticlib","cdylib"] (cdylib chỉ để fuzz)
+│   ├── Cargo.toml                         # crate-type = ["staticlib","cdylib","rlib"]
+│   │                                      #   (cdylib chỉ để fuzz; rlib để CLI/integration test Rust link)
 │   ├── src/lib.rs                         # C-ABI duy nhất, xem P0-2
 │   └── include/vietime_ffi.h              # header C, generate bằng cbindgen + review tay
 ├── strategy/                              # crate: vietime-strategy (không depend OS)

@@ -68,7 +68,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 ## 5. Changelog của chỉ mục
 
 - 2026-09-27: Phần 0 hoàn thành, Review 1 (11 finding) + Review 2 (7 finding) → **đạt 2/2** → bắt đầu Phần 1 (Windows).
-- 2026-09-27: Phần 1 (Windows) hoàn thành — 7 file solution + 66 task `WIN-*`;
+- 2026-09-27: Phần 1 (Windows) hoàn thành — 7 file solution + 46 task `WIN-*` (P1-0…P1-6, đánh số có khoảng trống cố ý);
   Review 1 (10 finding) + Review 2 (14 finding) → **đạt 2/2** → `20-windows/P1-REVIEW-LOG.md`.
   Sửa bổ sung P0 theo yêu cầu cross-part: `P0-1` (3 crate mới + CLI subcommand + `tools/win`),
   `P0-4` (`--adapter` values), `P0-REVIEW-LOG`/`specs/oracle-unikey` (task ID → WIN-007/008).
@@ -84,3 +84,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   `P0-3` (`engine_owner` += `x11`, `inject_mode` += `keycode_ascii`, bỏ hedge path Linux),
   `adr/README` (**ADR-007 Accepted**: IBus + Fcitx5 dual, không grab Wayland, X11 opt-in).
   **Hoàn tất roadmap 3 phần** (0 → Windows → macOS → Linux); sang giai đoạn implement theo task ID.
+- 2026-09-27: **W0 implement (nền P0)** — workspace Rust `strategy`/`config`/`core`/`ffi`/`cli`:
+  58 unit test xanh (cli 6 · config 5 · core 30 · ffi 8 · strategy 9), `clippy --workspace -- -D warnings`
+  + `fmt --check` sạch; `vietime replay` (parser `.keys` + simulator, P0-4) chạy `corpus/shared` +
+  `corpus/win` (9 case, exit 0) với `--adapter headless|win|mac`, `--json`, `--filter`.
+  Deviation nhỏ so với `P0-1 §1`: `vietime-ffi` thêm `rlib` vào crate-type (để CLI/integration test
+  Rust link được) — `P0-1 §1` đã cập nhật tương ứng.
