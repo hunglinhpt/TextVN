@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "vietime-strategy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

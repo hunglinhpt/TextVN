@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "vietime-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# P0-1 §1 liệt kê ["staticlib","cdylib"]; bổ sung "rlib" để `vietime-cli` và
+# integration test link được (Rust không depend được crate chỉ có staticlib/cdylib).
+# → P0-1 §1 cập nhật theo (2026-09-27, ghi ở 00-INDEX §5).
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+vietime-core = { path = "../core" }
+vietime-config = { path = "../config" }
+vietime-strategy = { path = "../strategy" }

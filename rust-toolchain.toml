@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# P0-1 §1: "stable, pinned" — TODO(WIN-001): chốt version chính xác (1.98.1)
+# sau khi mọi dev machine thống nhất, tránh lệch toolchain giữa các agent.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-pc-windows-msvc"]

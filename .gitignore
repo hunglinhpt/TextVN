@@ -1,0 +1,18 @@
+# --- Rust build artifacts ---
+/target/
+
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- graphify: tái tạo được / máy-locale ---
+/graphify-out/cache/
+/graphify-out/*.html
+/graphify-out/merged-*
+
+# --- IDE / OS ---
+.vs/
+.idea/
+*.pdb
+Thumbs.db
+.DS_Store
