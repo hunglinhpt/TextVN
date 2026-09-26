@@ -116,7 +116,7 @@ Regression >10% so với baseline `perf/baseline-win.json` → CI fail (chỉ 3 
 - [ ] Ký số: mọi binary chạy được có chữ ký hợp lệ (`Get-AuthenticodeSignature`).
 - [ ] Docs: README, compat 20 app, changelog tiếng Việt.
 
-## 7. Manual checklist (trước RC — ai đó chạy tay, ghi kết quả vào `docs/release/rc-checklist.md`)
+## 7. Manual checklist (trước RC — ai đó chạy tay, ghi kết quả vào `docs/release/rc-checklist-win.md`)
 
 1. Cài per-user trên VM Win10 22H2 + Win11 24H2 (2 máy/VM).
 2. Chọn VietIME bằng Win+Space → gõ Telex/VNI trong Notepad, Chrome, Word.
@@ -134,6 +134,6 @@ Regression >10% so với baseline `perf/baseline-win.json` → CI fail (chỉ 3 
 | Job | Trigger | Nội dung |
 |---|---|---|
 | `ci-shared.yml` | PR/push | fmt, clippy -D warnings, test 3 OS, build 3 target, corpus replay (3 OS), cargo-deny, docs |
-| `ci-windows.yml` | PR/push | build+test windows, `ime sizes` (P0-2 §6), smoke-tsf (nếu RW5 ok), perf bench 3 mục |
+| `ci-windows.yml` | PR/push | build+test windows, `vietime sizes` (P0-2 §6), smoke-tsf (nếu RW5 ok), perf bench 3 mục |
 | `ci-nightly-win.yml` | schedule 02:00 UTC | appcomptest `--suite ci` (12 app), soak 2h, fuzz 60', report → artifact + Issue |
 | `ci-release.yml` | tag `v*` | build, sign (SignPath), tạo GitHub Release + SHA256SUMS, winget manifest PR |

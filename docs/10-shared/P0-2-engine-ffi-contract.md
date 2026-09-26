@@ -149,6 +149,15 @@ int32_t      ime_suggest(ime_instance *inst, const uint32_t *word, uint32_t word
 const char  *ime_last_error(const ime_instance *inst);  /* UTF-8, hợp lệ đến lần gọi kế tiếp
                                                            trên CÙNG instance; không chứa text
                                                            người dùng */
+
+/* ---- Preset & resolve — cho adapter KHÔNG phải Rust (macOS Swift, Linux C/C++)
+ * và để giữ ĐÚNG 1 implementation thuật toán (P0-3 §3.1). Hàm tĩnh, thread-safe,
+ * không giữ state toàn cục, không alloc xuyên FFI (kết quả ra out-param). ---- */
+int32_t      ime_appdb_verify(const uint8_t *json, size_t json_len,
+                              const uint8_t *sig, size_t sig_len);    /* 0 = OK (Ed25519, key preset.pub) */
+int32_t      ime_strategy_resolve(const ime_context_v1 *ctx,
+                                  const uint8_t *appdb_utf8, size_t len,
+                                  int64_t *out_strategy);             /* P0-3 §3.1; *out = id 0..4 */
 #ifdef __cplusplus
 }
 #endif

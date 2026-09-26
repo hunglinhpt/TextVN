@@ -10,7 +10,7 @@
 |---|---|---|---|
 | **0 — Nền tảng chung** (repo, FFI, schema, strategy, test) | `10-shared/P0-*.md` | ✅ Reviewed | 2/2 → `10-shared/P0-REVIEW-LOG.md` |
 | **1 — Windows** | `20-windows/P1-*.md` | ✅ Reviewed | 2/2 → `20-windows/P1-REVIEW-LOG.md` |
-| **2 — macOS** | `30-macos/P2-*.md` | ⬜ Chưa bắt đầu | — |
+| **2 — macOS** | `30-macos/P2-*.md` | ✅ Reviewed | 2/2 → `30-macos/P2-REVIEW-LOG.md` |
 | **3 — Linux** | `40-linux/P3-*.md` | ⬜ Chưa bắt đầu | — |
 
 > Quy tắc: **không bắt đầu phần N+1 khi phần N chưa đạt 2/2 review.**
@@ -60,6 +60,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 | Preset người dùng | `%APPDATA%\VietIME\appdb.json`; mặc định cài: `<install>\data\appdb.default.json` |
 | Log | `%LOCALAPPDATA%\VietIME\logs\` — **không bao giờ ghi nội dung phím** |
 | Kiểu gõ | `telex`, `vni`, `viqr`, `simple_telex` |
+| Bundle macOS | `~/Library/Input Methods/VietIME-IM.app` (IMK) · `/Applications/VietIME.app` (settings/menu bar) · bundle id `vn.vietime.im` |
+| Config/Socket macOS | `~/Library/Application Support/VietIME/{config.json, state.json, appdb.json, ipc.sock}` · log `~/Library/Logs/VietIME/` |
+| Config/Socket Linux | `~/.config/VietIME/` + `ipc.sock` (chi tiết chốt ở Phần 3) |
 
 ## 5. Changelog của chỉ mục
 
@@ -68,3 +71,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   Review 1 (10 finding) + Review 2 (14 finding) → **đạt 2/2** → `20-windows/P1-REVIEW-LOG.md`.
   Sửa bổ sung P0 theo yêu cầu cross-part: `P0-1` (3 crate mới + CLI subcommand + `tools/win`),
   `P0-4` (`--adapter` values), `P0-REVIEW-LOG`/`specs/oracle-unikey` (task ID → WIN-007/008).
+- 2026-09-27: Phần 2 (macOS) hoàn thành — 7 file solution + 46 task `MAC-*` (P2-0…P2-6);
+  Review 1 (14 finding) + Review 2 (4 finding) → **đạt 2/2** → `30-macos/P2-REVIEW-LOG.md`.
+  Sửa bổ sung P0/P1 cross-part: `P0-1` (layout macos-tap/tools-mac/homebrew/docs/perf + `vietime sizes`/`uninstall`),
+  `P0-2` (C-ABI `ime_appdb_verify`/`ime_strategy_resolve` cho adapter không phải Rust),
+  `P0-3` (đường dẫn per-OS + `engine_owner` + IPC transport per-OS), `P1-5` (tên rc-checklist-win),
+  `adr/README` (ADR-006 Accepted, thêm ADR-011). ADR-006 chốt: IMK primary + CGEventTap opt-in.

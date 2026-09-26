@@ -3,7 +3,15 @@
 > Phần 0 · Nguồn sự thật cho `schemas/config.v1.schema.json`, `schemas/appdb.v1.schema.json`,
 > `schemas/ipc.v1.md`. Mọi nền tảng dùng **cùng một định dạng file** (kế thừa GoTiengViet parity).
 
-## 1. Config người dùng — `%APPDATA%\VietIME\config.json`
+## 1. Config người dùng — đường dẫn per-OS (1 nơi duy nhất cho mỗi OS)
+
+| OS | `config.json` / `appdb.json` / `state.json` | Log |
+|---|---|---|
+| Windows | `%APPDATA%\VietIME\` | `%LOCALAPPDATA%\VietIME\logs\` |
+| macOS | `~/Library/Application Support/VietIME/` | `~/Library/Logs/VietIME/` |
+| Linux | `~/.config/VietIME/` (XDG — chốt chi tiết ở Phần 3) | `~/.local/state/VietIME/log/` (đề xuất, chốt ở P3) |
+
+*(Nhãn tiêu đề bảng trên tham chiếu Windows cho ngắn; nội dung bảng là nguồn sự thật cho mọi OS.)*
 
 ### 1.1 Bảng trường (bắt buộc đánh số version để migrate)
 
@@ -108,6 +116,9 @@ Hot-reload: tray watch file (debounce 300ms) → gửi `ConfigReload` qua IPC (�
 }
 ```
 
+- `engine_owner`: `"tsf"|"hook"|"imk"|"tap"|"ibus"|"fcitx5"` (optional; mặc định theo OS: Win=`tsf`,
+  macOS=`imk`, Linux=`ibus`) — adapter nào được xử lý app này; mục đích là chống xử lý đôi
+  (luật: `P1-2 §6` Windows, `P2-2 §6` macOS).
 - `strategy`: `"Preedit" | "BackspaceType" | "SelectionReplace" | "ForwardAsCommit" | "Passthrough"` (P0-3 §3).
 - **Mapping `field_role` (JSON) ↔ `IME_FIELD_*` (FFI) — bắt buộc 1-1:**
 
@@ -192,7 +203,15 @@ Trạng thái người dùng đổi chỗ nào? → **tray là source of truth**
 
 ## 5. IPC — `\\.\pipe\vietime-ipc-v1` (`schemas/ipc.v1.md`)
 
-- **Transport:** named pipe, message mode, **DACL = chỉ user hiện tại** (`CreateNamedPipe` với security descriptor của current user SID). Không TCP/HTTP.
+- **Transport per-OS — cùng 1 schema (`schemas/ipc.v1.md`):**
+
+  | OS | Endpoint | Bảo vệ |
+  |---|---|---|
+  | Windows | named pipe `\\.\pipe\vietime-ipc-v1` (message mode, `CreateNamedPipe`) | DACL = chỉ current user SID |
+  | macOS | unix socket `~/Library/Application Support/VietIME/ipc.sock` | dir 0700, sock 0600 + check uid |
+  | Linux | unix socket `~/.config/VietIME/ipc.sock` (chốt ở Phần 3) | 0600 + `SO_PEERCRED` |
+
+  **Không TCP/HTTP ở mọi OS.**
 - **Codec:** 1 message = 1 frame JSON (u32 length prefix + UTF-8), validate schema trước xử lý.
 - **Server:** `vietime-tray.exe`. **Client:** mỗi instance `vietime-tsf.dll` (theo process), `vietime-hook`.
 

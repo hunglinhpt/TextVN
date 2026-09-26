@@ -48,6 +48,7 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 │   │       # PROCESS RIÊNG (crash-isolated): tray spawn + watchdog restart <500ms.
 │   │       # Tuyệt đối KHÔNG nhúng hook vào tray (UI lag = gõ lag).
 │   ├── macos-imk/                         # Phần 2 (Swift package, không nằm Rust workspace)
+│   ├── macos-tap/                         # Phần 2 (Swift, CGEventTap opt-in — xem P2-2)
 │   ├── linux-ibus/                        # Phần 3 (C)
 │   └── linux-fcitx5/                      # Phần 3 (C++)
 ├── tray/                                  # crate: vietime-tray → bin "vietime-tray.exe" (egui)
@@ -59,7 +60,11 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 │   ├── tables/{telex,vni,viqr,simple_telex}.toml   # nguồn → gen bằng xtask
 │   ├── appdb.default.json                 # preset mặc định (có chữ ký trong release)
 │   ├── preset.pub                         # pubkey verify preset update
-│   └── spelling/, emoji.tsv, stop_en.txt
+│   └── spelling/, emoji.tsv, stop_en.txt, games_blocklist.txt   # blocklist game (P1-2 §8 / P2-2 §7)
+├── docs/                                  # tài liệu dự án: 00-INDEX, handbook, PLAN, adr/, specs/,
+│                                          #   security/, release/, compliance/ + 10-shared/20-windows/
+│                                          #   30-macos/40-linux (P0/P1/P2/P3)
+├── perf/                                  # baseline-{win,mac,linux}.json — ngưỡng P1-5 §5 / P2-5 §5
 ├── schemas/
 │   ├── ffi.v1.md                          # copy có chú giải của include/vietime_ffi.h
 │   ├── config.v1.schema.json
@@ -69,6 +74,8 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 ├── tests/conformance/                     # chạy replay trên nhiều "adapter mode"
 ├── fuzz/{ffi_key,config_parse,appdb_parse}/
 ├── packaging/windows/{vietime.iss, sign.ps1}
+├── packaging/homebrew/vietime.rb          # cask — Phần 2 (P2-4 §8)
+├── tools/mac/                             # ax-driver (Swift), soak.sh, mem-check.sh, uninstall-check.sh — P2-5
 ├── tools/appcomptest/                     # crate: vietime-appcomptest — UIA driver (Rust) — xem P1-5
 ├── tools/bench/                           # crate: vietime-bench — perf microbench (P1-5 §5)
 ├── tools/win/                             # script PowerShell: smoke-tsf.ps1, soak.ps1, mem-check.ps1
@@ -92,7 +99,7 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 | `vietime-win-hook` | WH_KEYBOARD_LL + inject | ffi, strategy, config, windows | block > 2ms trong callback |
 | `vietime-tray` | Tray + settings(egui) + IPC server + spawn hook + updater | mọi crate config/appdb | chạy trong process app khác |
 | `vietime-field-detect` | `FieldContext` → app_id/role/strategy lookup (chuẩn hoá exe, UIA rules Win) | appdb, config (read-only) | OS API (adapter cung cấp element/cache) |
-| `vietime-cli` | `doctor`(`--export/--stats`) / `replay` / `verify` / `register` / `config init|validate` / `ipc probe` / `tray --stop` | ffi, config, appdb | — |
+| `vietime-cli` | `doctor`(`--export/--stats`) / `replay` / `verify` / `register` / `uninstall` / `config init+validate` / `ipc probe` / `tray --stop` / `sizes` | ffi, config, appdb | — |
 
 *(dependency = "phụ thuộc"; giữ nguyên thuật ngữ `dependency` trong code).*
 
@@ -101,13 +108,15 @@ vietime/                                   # monorepo, Rust workspace + 1 số a
 ```bash
 # --- build ---
 cargo build --workspace --target x86_64-pc-windows-msvc      # Win
-cargo build --release -p vietime-win-tsf                     # ra vietime-tsf.dll (static CRT: see P1-4)
+cargo build --release -p vietime-win-tsf                     # ra vietime-tsf.dll (static CRT)
 cargo xtask gen-tables                                       # gen bảng transform từ data/tables/*.toml
 cargo xtask cbindgen                                         # regenerate ffi/include/vietime_ffi.h (rồi review tay)
 
 # --- test ---
 cargo test --workspace                                        # unit + integration
 cargo run -p vietime-cli -- replay corpus/shared --adapter headless   # golden corpus
+cargo run -p vietime-cli -- sizes   # in + verify size struct FFI (20/532) — exit 1 nếu lệch (P0-2 §6)
+cargo run -p vietime-cli -- replay corpus/mac --adapter mac           # corpus macOS (P2-5)
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 cargo deny check
@@ -121,6 +130,10 @@ cargo fuzz run config_parse -- -max_total_time=60
 cargo run -p vietime-cli -- register --install-dir "C:\Program Files\VietIME"   # đăng ký TIP (per-user)
 cargo run -p vietime-cli -- doctor                                              # chẩn đoán env
 cargo test -p vietime-win-tsf -- --ignored                                       # test cần desktop session
+
+# --- macOS-only (Phần 2) ---
+./adapters/macos-imk/build-rust.sh                          # staticlib universal (aarch64 + x86_64)
+cd adapters/macos-imk && swift build && swift test          # IMK bundle (corpus mac: xem mục test trên)
 ```
 
 > **Lưu ý môi trường dev:** target `x86_64-pc-windows-msvc` (không dùng gnu) vì TSF/COM link thẳng SDK.
