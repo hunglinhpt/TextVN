@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# repo-hygiene — giữ repo SẠCH sau mỗi lần code (00-WORKFLOW.md §12, rule G13).
+# KHÁC ci-shared.yml (agent core/FFI): ci-shared = build/test Rust
+# (fmt/clippy/test 3 OS/deny/reuse/fuzz…); file này chỉ lo "sạch" — doc link,
+# secret, file tạm, quy ước .ps1, conflict marker, file quá lớn. Không chạy cargo.
+name: repo-hygiene
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: repo hygiene (7 checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 1. conflict marker còn sót
+        run: |
+          if git grep -nE '^(<<<<<<< |>>>>>>> )' -- ':!graphify-out'; then
+            echo "::error::Conflict marker chưa xử lý ở file trên"
+            exit 1
+          fi
+          echo "OK"
+
+      - name: 2. file tạm / debug không được commit
+        run: |
+          bad=$(git ls-files | grep -E '\.(log|bak|tmp|swp|orig|rej)$|(^|/)(\.DS_Store|Thumbs\.db|desktop\.ini)$|(^|/)(dbg_|debug_|tmp_|temp_)' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::File tạm/debug không được commit:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK"
+
+      - name: 3. .ps1 ASCII-only (G7 / common-errors A5)
+        run: |
+          bad=$(git ls-files -z '*.ps1' | xargs -0 -r grep -lP '[^\x00-\x7F]' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::.ps1 phải ASCII-only:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "OK (không có file .ps1 vi phạm)"
+
+      - name: 4. secret / token / private key
+        run: |
+          if git grep -nIE 'gh[po]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----' -- ':!graphify-out'; then
+            echo "::error::Secret/key bị đẩy vào repo — thu hồi ngay + sửa commit"
+            exit 1
+          fi
+          echo "OK"
+
+      - name: 5. markdown link tương đối không hỏng
+        run: python3 .github/scripts/check_doc_links.py
+
+      - name: 6. file quy trình bắt buộc tồn tại
+        run: |
+          for f in PLAN.md docs/00-WORKFLOW.md docs/00-INDEX.md docs/01-AGENT-HANDBOOK.md docs/specs/verified-ops.md docs/specs/win-test-common-errors.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Thiếu file quy trình bắt buộc: $f"
+              exit 1
+            fi
+          done
+          echo "OK"
+
+      - name: 7. file > 1.5MB không được commit (loại graphify-out/)
+        run: |
+          big=""
+          while IFS= read -r f; do
+            case "$f" in graphify-out/*) continue ;; esac
+            [ -f "$f" ] || continue
+            sz=$(stat -c%s "$f")
+            if [ "$sz" -gt 1500000 ]; then
+              big="${big}${f} (${sz} bytes)"$'\n'
+            fi
+          done < <(git ls-files)
+          if [ -n "$big" ]; then
+            echo "::error::File quá lớn:"
+            printf '%s' "$big"
+            exit 1
+          fi
+          echo "OK"
