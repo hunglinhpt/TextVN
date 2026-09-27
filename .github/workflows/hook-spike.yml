@@ -1,0 +1,35 @@
+# WIN-005 (hook spike): do WH_KEYBOARD_LL + SendInput + UIA tren GHA windows-latest.
+# Muc dich: verify risk RW5 (P1-5 §1) - runner co desktop session khong, SendInput/UIA co
+# chay duoc khong -> quyet dinh nightly appcomptest o dau.
+# Chi chay khi dispatch thu cong (khong phai gate PR/push).
+name: hook-spike
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hook probe (LL hook + SendInput + UIA cross-process)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File spikes\hook-probe\hook_probe.ps1
+
+      - name: Show probe output
+        if: always()
+        shell: powershell
+        run: Get-Content (Join-Path $env:TEMP 'hook_probe_out.txt') -ErrorAction SilentlyContinue
+
+      - name: Upload probe output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hook-probe-out
+          path: ${{ runner.temp }}/hook_probe_out.txt
+          if-no-files-found: warn

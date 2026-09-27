@@ -79,7 +79,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 
 | Agent | Vùng |
 |---|---|
-| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/scripts/` |
+| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/workflows/hook-spike.yml`, `.github/scripts/` |
 | Agent core/FFI | `core/`, `ffi/`, `cli/`, `config/`, `strategy/`, `corpus/`, `appdb/`, `.github/workflows/ci-shared.yml` |
 | Chung (vẫn áp G11 khi có WIP) | `PLAN.md`, `docs/00-*`, `docs/01-*`, `docs/20-windows/*` (ngoài spike specs), `docs/specs/*` còn lại |
 
@@ -89,6 +89,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 |---|---|---|
 | 2026-09-27 | Tạo v1 (workflow + ground rules + sổ verified-ops) theo yêu cầu user | — |
 | 2026-09-27 | v2: G13/G14 + §8 audit 2 vòng 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions (`repo-hygiene` + tham chiếu Rust/SLSA/CMake) | — |
+| 2026-09-27 | v2.1: thêm `hook-spike` workflow (WIN-005, dispatch-only) vào §6 ownership + §12.1 | — |
 | — | Review 2 chờ agent thứ hai | `FW-{n}` |
 
 ## 8. Audit 2 vòng — 5W1H
@@ -159,6 +160,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 | Workflow | File | Chủ | Chạy khi | Việc làm |
 |---|---|---|---|---|
 | `repo-hygiene` | `.github/workflows/repo-hygiene.yml` | Agent Windows/spike | push `main` + PR + dispatch | 7 check "sạch" (§12.2) — **không** build Rust |
+| `hook-spike` | `.github/workflows/hook-spike.yml` | Agent Windows/spike | **chỉ dispatch** | WIN-005: probe WH_KEYBOARD_LL + SendInput + UIA trên `windows-latest` (verify RW5, `P1-5 §1`) — không gate PR |
 | `ci-shared` | `.github/workflows/ci-shared.yml` | Agent core/FFI | push `main` + PR + dispatch | Rust CI: fmt · clippy · abi-sizes · check-tables · verify header · perf · cargo-deny · reuse · **test 3 OS** · replay 3 OS · fuzz |
 | `ci-{windows,macos,linux}` | chưa tạo | phân công sau | — | adapter theo OS (P1-5) |
 
