@@ -212,6 +212,15 @@ if command -v gtk-update-icon-cache &>/dev/null; then
     gtk-update-icon-cache -q -t -f "$(dirname "$TARGET_ICONS")" || true
 fi
 
+# Install udev rule if system mode
+if [[ "$INSTALL_MODE" == "system" ]] && [[ -f "$ROOT_DIR/packaging/linux/udev/99-textvn-uinput.rules" ]]; then
+    install -m 0644 "$ROOT_DIR/packaging/linux/udev/99-textvn-uinput.rules" "/etc/udev/rules.d/99-textvn-uinput.rules"
+    if command -v udevadm &>/dev/null; then
+        udevadm control --reload-rules && udevadm trigger || true
+    fi
+    echo -e "   + Đã cài udev uinput rules: /etc/udev/rules.d/99-textvn-uinput.rules"
+fi
+
 echo -e "\n${YELLOW}--> 5. Khởi động lại dịch vụ Input Method...${NC}"
 if [[ "$AUTO_RESTART" == true ]]; then
     # Restart Fcitx5 if running

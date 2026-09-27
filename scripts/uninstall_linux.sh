@@ -108,6 +108,14 @@ for file in "${FILES_TO_REMOVE[@]}"; do
     fi
 done
 
+if [[ "$UNINSTALL_MODE" == "system" ]] && [[ -f "/etc/udev/rules.d/99-textvn-uinput.rules" ]]; then
+    rm -f "/etc/udev/rules.d/99-textvn-uinput.rules"
+    if command -v udevadm &>/dev/null; then
+        udevadm control --reload-rules || true
+    fi
+    echo -e "   - Đã xóa udev rule: /etc/udev/rules.d/99-textvn-uinput.rules"
+fi
+
 if [[ -d "$TARGET_LIB" ]] && [[ -z "$(ls -A "$TARGET_LIB" 2>/dev/null)" ]]; then
     rmdir "$TARGET_LIB" || true
 fi

@@ -15,7 +15,8 @@ FieldContext ◄──────┼── Fcitx5 addon: cùng helper (dùng ch
   engine_owner)
 ```
 
-- **Caps:** IBus/Fcitx5 = `PREEDIT|SELECTION|FIELD_DETECT`; X11 = `SELECTION|FIELD_DETECT|INJECT_VK`.
+- **Caps:** IBus/Fcitx5 = `PREEDIT|SELECTION|FIELD_DETECT|SURROUNDING_TEXT`; X11 = `SELECTION|FIELD_DETECT|INJECT_VK`.
+- **Chế độ Gõ Không Gạch Chân (Non-preedit — kế thừa Lotus):** Khi `SURROUNDING_TEXT` có mặt và người dùng bật tùy chọn Non-preedit, strategy ưu tiên `NonPreedit` (commit trực tiếp + `deleteSurroundingText`) để loại bỏ hoàn toàn đường gạch chân giật cục.
 - **`engine_owner`:** `ibus` (mặc định) | `fcitx5` | `x11` — trường `P0-3 §2.1`;
   ánh xạ luật chống đôi: `P3-1` (framework active), `P3-2 §7`, `P3-3 §6.1`.
 - **Normalize:** desktop-file-id lowercase (VD `org.gnome.TextEditor`); không có →

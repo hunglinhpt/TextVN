@@ -11,8 +11,9 @@
 | **Review 1 — Đúng & Đủ** | P3-0…P3-7 vs PLAN/P0/ADR + cross-part | 12 | 0 | 3 | 9 | ✅ 12/12 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng** | Tham chiếu chéo, nhãn nhóm/milestone, enum schema, placeholder | 3 | 0 | 2 | 1 | ✅ 3/3 đã fix |
 | **Review 3 — Đối chuẩn 3 Repo** | BambooMintKey, ibus-bamboo, OpenKey + UniKey UI Parity | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
+| **Review 4 — Tinh hoa Fcitx5 & Lotus** | fcitx/fcitx5, fcitx5-lotus, Non-preedit, Bug Prevention Matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 
-**→ Phần 3 đạt 3/3 review (đối chuẩn toàn diện).** 0 `blocker`/`major` mở.
+**→ Phần 3 đạt 4/4 review (đối chuẩn và phòng ngừa toàn diện).** 0 `blocker`/`major` mở.
 
 ---
 
@@ -48,6 +49,14 @@
 | F3-016 | major | Thiếu cơ chế cài đặt rootless không cần `sudo` (`~/.local/`), chỉ có `/usr/` trong spec đóng gói → user thông thường hoặc máy hạn chế quyền không cài được | ✅ Fixed | Bổ sung bảng đường dẫn Rootless `~/.local/` song song `/usr/` (`P3-0 §2.1`); bổ sung `scripts/install_linux.sh` và `scripts/uninstall_linux.sh` (LNX-054). |
 | F3-017 | major | Thiếu phân tích kiến trúc lý giải vì sao mô hình hook của OpenKey sụp đổ trên Wayland và vì sao Fcitx5 vượt trội hơn IBus trên Wayland (`text-input-v3`) | ✅ Fixed | Bổ sung phân tích kiến trúc đối chuẩn 3 repo vào `P3-0 §2.1`, `P3-2 §2`, `P3-3 §1`. |
 | F3-018 | major | Settings GTK4 chưa có chuẩn layout UniKey 4.6 RC2 Compact/Expanded đồng bộ với Windows và chưa có quy chuẩn SVG icon badges theo màu chuẩn (Image 3) | ✅ Fixed | Quy chuẩn hóa layout Compact (~505x245px) và Expanded (~505x490px) trong `P3-5 §3`, `P3-7 LNX-050/LNX-052`, icon `textvn_v.svg` (crimson/purple) và `textvn_e.svg` (vibrant blue). |
+
+## Review 4 — Tinh hoa Fcitx5 & Lotus (Gõ Không Gạch Chân & Phòng chống Bug Lịch sử)
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F3-019 | major | Gạch chân preedit gây giật con trỏ và layout reflow trong Discord/LibreOffice/Web (Underline bug) | ✅ Fixed | Kế thừa giải pháp từ `fcitx5-lotus` & `fcitx5`: Thiết lập **Chế độ gõ không gạch chân (Non-preedit Mode)** dùng `CapabilityFlag::SurroundingText` + `deleteSurroundingText` xóa lùi trực tiếp, và Clean Preedit không gán `TextFormatFlag::Underline` (`P3-2 §5`, `P3-5 §3`). |
+| F3-020 | major | Cần bảng tổng hợp phòng chống triệt để các bug lịch sử (B1, B2, B6, B8/B11, B10, B13) để đội ngũ triển khai không lặp lại sai lầm của các bộ gõ đi trước | ✅ Fixed | Xây dựng bảng **Bug Prevention Matrix** chi tiết tại `P3-0 §2.2`: Commit-before-hide cho Enter trong chat (B2), SelectionReplace không gửi Backspace vào thanh địa chỉ (B1), Early modifier filter cho phím hệ thống (B6), Multi-window instance isolation (B13). |
+| F3-021 | major | Thiếu giải pháp cho ứng dụng không hỗ trợ bất kỳ IM protocol nào (Wine, game fullscreen) | ✅ Fixed | Kế thừa kỹ thuật `uinput` từ `fcitx5-lotus`: Bổ sung `packaging/linux/udev/99-textvn-uinput.rules` và tùy chọn kernel uinput trong Settings GTK4 / scripts cài đặt. |
 
 ## Kiểm chứng sau fix (Review 2 cuối)
 

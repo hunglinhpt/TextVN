@@ -34,9 +34,9 @@ Watcher: config/appdb/state (debounce 300ms) → broadcast ConfigReload/StateUpd
 Offline: client đọc file — không block (P0-3 §4)
 ```
 
-## 3. Settings — GTK4 (UniKey 4.6 RC2 Parity + Advanced Tabs)
+## 3. Settings — GTK4 (UniKey 4.6 RC2 Parity + Chế độ Gõ Không Gạch Chân)
 
-Giao diện bảng điều khiển chính trên Linux bằng GTK4 được thiết kế theo đúng chuẩn phong cách UniKey 4.6 RC2 (nhất quán với phiên bản Windows vừa triển khai), mang lại trải nghiệm thân thuộc nhất cho người dùng:
+Bảng điều khiển GTK4 trên Linux được thiết kế chuẩn xác theo bố cục **UniKey 4.6 RC2**, đảm bảo độ thân thuộc và tiện dụng cao nhất:
 
 ### 3.1 Chế độ Thu gọn (Compact View ~505x245px)
 - **GroupBox "Điều khiển"**:
@@ -55,6 +55,7 @@ Giao diện bảng điều khiển chính trên Linux bằng GTK4 được thi�
   - `[x]` Tự động khôi phục phím với từ sai.
   - `[ ]` Bật tính năng gõ tắt (Macro).
   - `[x]` Đặt dấu tự do.
+  - `[x]` **Gõ không gạch chân (Non-preedit — kế thừa Lotus & Fcitx5):** Loại bỏ đường gạch chân khó chịu khi gõ từ có dấu.
   - `[ ]` Cho phép gõ tự do (Modern layout).
   - `[ ]` Sử dụng OOA, EEE cho dấu nháy.
   - `[x]` Chèn dấu tức thì (Immediate accent).
@@ -67,6 +68,7 @@ Giao diện bảng điều khiển chính trên Linux bằng GTK4 được thi�
   - `[x]` Khởi động cùng hệ thống (Linux autostart).
   - `[ ]` Ẩn biểu tượng trên khay hệ thống.
   - `[x]` Tự động kiểm tra cập nhật.
+  - `[ ]` **Cho phép ảo hóa kernel uinput:** Hỗ trợ Game / Wine fullscreen (`/dev/uinput`).
 - **Thanh chân trang (Bottom Bar)**:
   - `[ 📖 Hướng dẫn ]`, `[ ℹ Thông tin ]` (About modal), `[ 🔄 Mặc định ]`.
   - Hyperlink dẫn tới repo chính thức: `https://github.com/hunglinhpt/TextVN`.
@@ -83,8 +85,6 @@ Shutdown tray: đóng socket; client nhận EOF → offline mode (không mất g
 
 ## 5. Cài đặt & Phân phối (Distribution & Packaging)
 
-TextVN trên Linux cung cấp hai phương thức cài đặt độc lập và bổ trợ:
-
 ### 5.1 Cài đặt nhanh 1 lệnh không cần Root (`scripts/install_linux.sh` — đối chuẩn BambooMintKey)
 - Cài đặt rootless trực tiếp vào `~/.local/`:
   - `~/.local/lib/textvn/textvn-ibus-engine`
@@ -94,7 +94,7 @@ TextVN trên Linux cung cấp hai phương thức cài đặt độc lập và b
   - `~/.local/share/icons/hicolor/scalable/apps/textvn_{v,e}.svg`
   - `~/.local/share/applications/textvn-settings.desktop`
   - `~/.config/autostart/textvn-tray.desktop`
-- Tự động nhận diện distro (`Ubuntu/Debian`, `Fedora/RHEL`, `Arch/Manjaro`), kiểm tra và hướng dẫn cài dependencies thiếu.
+- Tự động nhận diện distro (`Ubuntu/Debian`, `Fedora/RHEL`, `Arch/Manjaro`), kiểm tra và hướng dẫn cài dependencies.
 - Tự động phát hiện daemon đang hoạt động và nạp lại cấu hình:
   - Nếu Fcitx5: gọi `fcitx5 -r -d`
   - Nếu IBus: gọi `ibus restart`

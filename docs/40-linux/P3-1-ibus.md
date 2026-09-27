@@ -126,13 +126,10 @@ ReplaceEditPlan (chỉ preedit):
   # KHÔNG bao giờ giả lập Backspace → autocomplete không bị kích hoạt lại (cùng lý do P1-1 §6.2)
 ```
 
-### 6.3 `BackspaceType` (dùng khi không có preedit/selection — fallback đối chuẩn `ibus-bamboo`)
+### 6.3 `BackspaceType` (dùng khi không có preedit/selection — fallback)
 ```text
   if (đã probe được surrounding mode):
-      // Bài học từ ibus-bamboo: chuyển đổi cursor offset và character count chính xác:
-      // IBus định dạng offset là khoảng cách ký tự (negative offset cho backward deletion):
-      ibus_engine_delete_surrounding_text(e, -delete_count, delete_count);
-      commit_text(insert);
+      ibus_engine_delete_surrounding_text(e, -delete_count, 0)   # không cần inject phím
   else:
       strategy fallback đã bị downgrade ở resolve (P0-3 §3.1) → chỉ được dùng Preedit/Commit;
       nếu preset bắt BackspaceType mà không surrounding → commit trước (không bao giờ
@@ -159,36 +156,30 @@ commit_text: IBusText từ UTF-32 (khớp ime_result.insert, ime_result.insert_l
 
 Corpus: `bug_B2_enter_commit`, `bug_B13_focus_loss` (`P3-6 §2`).
 
-## 8. Component XML & đăng ký (System & Rootless Per-User)
+## 8. Component XML & đăng ký
 
 ```xml
-<!-- /usr/share/ibus/component/textvn.xml hoặc ~/.local/share/ibus/component/textvn.xml -->
+<!-- /usr/share/ibus/component/textvn.xml (spec đóng gói — P3-0 §2) -->
 <component>
   <name>TextVN</name><exec>/usr/lib/textvn/textvn-ibus-engine</exec>
   <version>1.0</version><author>TextVN contributors</author>
-  <license>GPL-3.0-or-later</license><homepage>https://github.com/hunglinhpt/TextVN</homepage>
+  <license>GPL-3.0-or-later</license><homepage>…</homepage>
   <textdomain>textvn</textdomain>
   <engines><engine>
     <name>textvn</name><longname>TextVN (Telex/VNI/VIQR)</longname>
     <language>vi</language><layout>us</layout><symbol>VN</symbol><rank>0</rank>
-    <icon>textvn_v</icon>
+    <icon>textvn</icon>
   </engine></engines>
 </component>
 ```
 
 ```text
-Cài đặt System (/usr):
-  postinst .deb: if pgrep ibus-daemon → ibus restart (ignore fail)
-Cài đặt Rootless User (~/.local):
-  install_linux.sh: cp vào ~/.local/share/ibus/component/textvn.xml
-                   + exec path trỏ ~/.local/lib/textvn/textvn-ibus-engine
-                   + ibus restart
-Kích hoạt:
-  GNOME: Settings → Keyboard → Input Sources → Add "Vietnamese (TextVN)"
+postinst .deb: if pgrep ibus-daemon → ibus restart (ignore fail) + in hướng dẫn:
+  GNOME: Settings → Keyboard → Input Sources → Add "TextVN"
   KDE: System Settings → Input Method → Add IBus → TextVN
 gỡ: xóa XML + binary → ibus restart — 0 residue (P3-6 §6)
 ```
-- `textvn doctor` (P3-5 §6) kiểm: XML tồn tại (cả /usr và ~/.local)? daemon chạy? env `GTK_IM_MODULE` đúng?
+- `textvn doctor` (P3-5 §6) kiểm: XML tồn tại? daemon chạy? env `GTK_IM_MODULE` đúng?
 
 ## 9. Spike checklist (tasks `LNX-002/003/004/005/008` — tuần 1–2, chặn WS1)
 
