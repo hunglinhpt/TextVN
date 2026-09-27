@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "cli/src/main.rs": {
-    "mtime": 1790459748.569842,
-    "seen": 1790472166.050806,
-    "ast_hash": "5fc7ada2adfdde2e47e6614548f23edf",
+    "mtime": 1790480992.200308,
+    "seen": 1790481082.3200262,
+    "ast_hash": "69870f393f0399a7ef2eea9fafd69b84",
     "semantic_hash": ""
   },
   "cli/src/replay.rs": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790480768.137583,
-    "seen": 1790480802.1339822,
-    "ast_hash": "c4698dac62609f66d8134183bcd5dfac",
+    "mtime": 1790481043.5424633,
+    "seen": 1790481082.345656,
+    "ast_hash": "13540a25c98fc26ddd5a6ab11efd440b",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -672,9 +672,9 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1790479104.9524417,
-    "seen": 1790479267.8097782,
-    "ast_hash": "e639d7feb5a5886233104eed26632429",
+    "mtime": 1790480847.7646632,
+    "seen": 1790481082.345656,
+    "ast_hash": "3436b7e61b6fbaab159e81714c9b26bf",
     "semantic_hash": ""
   },
   "docs/compliance/naming-check.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790480760.1767814,
-    "seen": 1790480802.1398797,
-    "ast_hash": "9b5e1908a62132b99f27d8f0e8be6552",
+    "mtime": 1790481027.84356,
+    "seen": 1790481082.364576,
+    "ast_hash": "69fe7286bf72dcdd70539b46951cae66",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -861,6 +861,12 @@
     "mtime": 1790480663.2578917,
     "seen": 1790480802.1329813,
     "ast_hash": "e0f61a2b87765a6ab38cc72bf4c75144",
+    "semantic_hash": ""
+  },
+  "cli/src/doctor.rs": {
+    "mtime": 1790480992.197288,
+    "seen": 1790481082.3200262,
+    "ast_hash": "c3a3e9ca1c4a40363c5aca11cd4b052a",
     "semantic_hash": ""
   }
 }

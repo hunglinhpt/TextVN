@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790481043.5424633,
-    "seen": 1790481082.345656,
-    "ast_hash": "13540a25c98fc26ddd5a6ab11efd440b",
+    "mtime": 1790481278.0790918,
+    "seen": 1790481311.7307746,
+    "ast_hash": "ec6fdb66a27022d03a7c562323df42c0",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790481027.84356,
-    "seen": 1790481082.364576,
-    "ast_hash": "69fe7286bf72dcdd70539b46951cae66",
+    "mtime": 1790481267.1133144,
+    "seen": 1790481311.7612865,
+    "ast_hash": "ddf1fc6f48f69385337d3d16da6fc88a",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -834,9 +834,9 @@
     "semantic_hash": ""
   },
   "tray/src/lib.rs": {
-    "mtime": 1790480667.6440644,
-    "seen": 1790480802.1329813,
-    "ast_hash": "5bf12ff71b273f50284c82b8491826d2",
+    "mtime": 1790481191.1743705,
+    "seen": 1790481311.7207894,
+    "ast_hash": "625651f135dd397666888868c244906b",
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
@@ -867,6 +867,24 @@
     "mtime": 1790480992.197288,
     "seen": 1790481082.3200262,
     "ast_hash": "c3a3e9ca1c4a40363c5aca11cd4b052a",
+    "semantic_hash": ""
+  },
+  "tools/win/lib/win32-uia.lib.ps1": {
+    "mtime": 1790481181.494981,
+    "seen": 1790481311.717775,
+    "ast_hash": "08408d0ac18c118871b8d39469a8ec87",
+    "semantic_hash": ""
+  },
+  "tray/src/settings.rs": {
+    "mtime": 1790481238.633036,
+    "seen": 1790481311.7217884,
+    "ast_hash": "d18940baef187b73c28d79cf5dc876fc",
+    "semantic_hash": ""
+  },
+  "docs/release/parity-checklist.md": {
+    "mtime": 1790481175.109441,
+    "seen": 1790481311.7552848,
+    "ast_hash": "c985b3f343b75a7fcdb6d2b81d4fa271",
     "semantic_hash": ""
   }
 }
