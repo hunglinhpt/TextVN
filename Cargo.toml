@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [workspace]
 resolver = "2"
-members = ["core", "strategy", "config", "ffi", "cli"]
+members = [
+    "core", "strategy", "config", "appdb", "ipc", "field-detect", "ffi", "cli", "xtask", "tools/bench",
+    "adapters/windows-tsf", "adapters/windows-hook",
+]
 
 [workspace.package]
 version = "0.1.0"

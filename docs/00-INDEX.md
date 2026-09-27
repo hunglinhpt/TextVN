@@ -226,3 +226,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `WIN-042`: Cơ chế inject phím qua `SendInput` cho `BackspaceType`, `ForwardAsCommit`, `SelectionReplace`, UTF-16 Unicode mode.
   - `WIN-044`: Rule `engine_owner` phía hook: app có `engine_owner=tsf` được hook pass-thru 100%, tránh double handling.
   - Đạt 10 Quality Gates: 5/5 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 974/974 compliant.
+- 2026-09-27: **W11 — Windows Tray M4 hoàn thiện: WIN-050..051**:
+  - Tạo crate `vietime-tray` (`tray/`) sinh binary `vietime-tray.exe` (~1.1MB).
+  - `WIN-050`: Single-instance mutex `Local\VietIMETray`, Win32 `Shell_NotifyIconW`, menu 9 mục chuẩn (bật/tắt toàn cục, kiểu gõ Telex/VNI/VIQR/Simple Telex, kiểu dấu, per-app toggle, hook compat mode, settings, health status, uninstall, exit).
+  - `WIN-051`: IPC Server trên Named Pipe `\\.\pipe\vietime-ipc-v1`, đa client đồng thời, broadcast `ConfigReload` và `StateUpdate`, quản lý watchdog hook process.
+  - Svc layer in-process quản lý state/config `%APPDATA%\VietIME\{config.json, state.json}` với ghi nguyên tử (atomic write).
+  - Đạt 10 Quality Gates: 6/6 tests pass (tổng cộng 26/26 tests cho cả bộ 3 Windows crates), clippy 0 warning, fmt sạch, REUSE 981/981 compliant.
