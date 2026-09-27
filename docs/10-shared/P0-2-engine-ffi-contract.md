@@ -1,7 +1,7 @@
 # P0-2 — Hợp đồng FFI v1 (nguồn sự thật duy nhất)
 
 > Mọi adapter (Windows/macOS/Linux) và mọi test harness giao tiếp với engine **chỉ** qua ABI này.
-> Header chính thức: `ffi/include/vietime_ffi.h` (generate bằng `cargo xtask cbindgen`, CI có test
+> Header chính thức: `ffi/include/textvn_ffi.h` (generate bằng `cargo xtask cbindgen`, CI có test
 > `abi_size` đối chiếu). Tài liệu này giải thích **ngữ nghĩa** — khi mâu thuẫn, **header + test size thắng**.
 
 ## 0. Bất biến (invariants)
@@ -12,14 +12,14 @@
 4. **Không network, không I/O, không global mutable state** trong instance (ngoại trừ bảng const).
 5. **Không ghi text người dùng vào `ime_last_error()`**.
 
-## 1. Header (bản 1:1 với `ffi/include/vietime_ffi.h`)
+## 1. Header (bản 1:1 với `ffi/include/textvn_ffi.h`)
 
 ```c
-/* vietime_ffi.h — VietIME engine C ABI v1
+/* textvn_ffi.h — TextVN engine C ABI v1
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#ifndef VIETIME_FFI_H
-#define VIETIME_FFI_H
+#ifndef TEXTVN_FFI_H
+#define TEXTVN_FFI_H
 #include <stdint.h>
 #include <stddef.h>
 
@@ -161,7 +161,7 @@ int32_t      ime_strategy_resolve(const ime_context_v1 *ctx,
 #ifdef __cplusplus
 }
 #endif
-#endif /* VIETIME_FFI_H */
+#endif /* TEXTVN_FFI_H */
 ```
 
 ## 2. Ngữ nghĩa `action` — adapter PHẢI làm đúng bảng này
@@ -213,10 +213,10 @@ Adapter có 2 cách hiện chữ; **chọn theo strategy** (P0-3 §3):
 | `IME_OK` | Hợp lệ (kể cả `IME_FLAG_ERROR`) | Đọc `out->action` |
 | `IME_ERR_INVALID_ARG` | tham số NULL/sai size | Log (không text), treat mọi phím là PASS cho tới `ime_reset` |
 | `IME_ERR_CONFIG` | config không hợp lệ schema | **Không fatal**: engine đã tự chạy default (xem §1); log `ime_last_error`, hiện banner trong tray, **tiếp tục chạy** |
-| `IME_ERR_ABI` | `abi_version` của struct đầu vào không khớp lib | Không dùng instance; hiện cảnh báo trong `vietime doctor` |
+| `IME_ERR_ABI` | `abi_version` của struct đầu vào không khớp lib | Không dùng instance; hiện cảnh báo trong `textvn doctor` |
 | `IME_ERR_INTERNAL` | panic đã bị `catch_unwind` nuốt | Gọi `ime_reset()`, fail-open, tạo crash counter → tray cảnh báo |
 
-> Panic policy: `panic = "unwind"` ở `vietime-ffi` + `catch_unwind` quanh mọi entry point (đây là lý do
+> Panic policy: `panic = "unwind"` ở `textvn-ffi` + `catch_unwind` quanh mọi entry point (đây là lý do
 > **không** đặt `panic=abort` cho staticlib).
 
 ## 6. Versioning & kiểm chứng bằng CI
@@ -227,7 +227,7 @@ Adapter có 2 cách hiện chữ; **chọn theo strategy** (P0-3 §3):
    `assert_eq!(size_of::<ime_result_v1>(), 532);` · `assert_eq!(size_of::<ime_key_v1>(), 20);`
    + `offset_of!` từng field (chống đổi thứ tự field ngoài ý muốn).
    Thứ tự khai báo `#[no_mangle]` khớp khối `/* ---- API ---- */` trong header
-   (verify → resolve → last_error ở cuối) — `vietime verify` tầng 4 enforce,
+   (verify → resolve → last_error ở cuối) — `textvn verify` tầng 4 enforce,
    có test đọc cả `ffi/src/lib.rs` thật để đối chiếu.
 3. Test C: `tests/conformance/abi_size.c` compile header thật, `_Static_assert(sizeof(ime_result_v1)==532)`.
 4. `cargo xtask cbindgen` + `git diff --exit-code` → header không được lệch so với source.

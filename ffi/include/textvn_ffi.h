@@ -1,12 +1,12 @@
-/* vietime_ffi.h — VietIME engine C ABI v1
+/* textvn_ffi.h — TextVN engine C ABI v1
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * NGUỒN SỰ THẬT: docs/10-shared/P0-2-engine-ffi-contract.md §1.
  * Sau này do `cargo xtask cbindgen` regenerate (P0-1 §3) — hiện file này là
  * bản chép tay đã review; CI test `abi_size` đối chiếu (P0-2 §6).
  */
-#ifndef VIETIME_FFI_H
-#define VIETIME_FFI_H
+#ifndef TEXTVN_FFI_H
+#define TEXTVN_FFI_H
 #include <stdint.h>
 #include <stddef.h>
 
@@ -148,5 +148,5 @@ const char  *ime_last_error(const ime_instance *inst);  /* UTF-8, hợp lệ đ�
 #ifdef __cplusplus
 }
 #endif
-#endif /* VIETIME_FFI_H */
+#endif /* TEXTVN_FFI_H */
 

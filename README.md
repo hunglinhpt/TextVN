@@ -1,9 +1,9 @@
-# VietIME — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)
+# TextVN — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Build](https://img.shields.io/badge/build-Windows%20x64-brightgreen)](docs/)
 
-> **VietIME** là bộ gõ tiếng Việt mã nguồn mở, hiệu năng cao, tích hợp sâu vào Windows qua Text Services Framework (TSF). Hỗ trợ Telex, VNI, VIQR và Simple Telex với latency < 5ms.
+> **TextVN** là bộ gõ tiếng Việt mã nguồn mở cho Windows. Dự án cung cấp Telex, VNI, VIQR, Simple Telex, khay hệ thống và cấu hình theo ứng dụng. Hiện vẫn đang trong giai đoạn phát triển; xem phần “Trạng thái phát hành” trước khi dùng làm bộ gõ chính.
 
 ---
 
@@ -11,18 +11,22 @@
 
 | Tính năng | Trạng thái |
 |-----------|-----------|
-| Telex / VNI / VIQR / Simple Telex | ✅ |
+| Telex / VNI / VIQR / Simple Telex (engine + corpus) | ✅ |
 | Kiểu bỏ dấu: Chuẩn mới / Cổ điển | ✅ |
 | Tray icon (minimize to system tray) | ✅ |
 | Per-app enable/disable | ✅ |
-| Named Pipe IPC (TSF ↔ Tray) | ✅ |
+| Named Pipe IPC (TextVN components) | ✅ |
 | Auto-start cùng Windows | ✅ |
 | Không cần quyền Admin (per-user install) | ✅ |
-| `vietime doctor` — chẩn đoán môi trường | ✅ |
-| `vietime register/unregister` — cài TSF | ✅ |
-| Inno Setup installer | ✅ |
+| `textvn-cli doctor` — chẩn đoán môi trường | ✅ |
+| `textvn-cli register/unregister` — đăng ký TSF per-user | 🧪 |
+| Inno Setup installer | 🧪 |
 | Emoji shortcut | 🔄 Đang phát triển |
 | MacOS / Linux | 🔄 Đang phát triển |
+
+## Trạng thái phát hành
+
+TextVN chưa phải bản phát hành production. Engine và corpus chạy ổn định trong CI, nhưng UI Automation native, vòng đời composition TSF, DACL cho IPC và ký AppDB vẫn đang hoàn thiện. Không dùng bản build hiện tại để nhập mật khẩu hoặc dữ liệu quan trọng.
 
 ---
 
@@ -38,18 +42,18 @@
 
 ### Cách 1 — Installer (khuyến nghị)
 
-1. Tải file `vietime-setup-X.Y.Z.exe` từ [Releases](https://github.com/hunglinhpt/TextVN/releases)
+1. Tải file `TextVN-setup-X.Y.Z-windows-x64.exe` từ [Releases](https://github.com/hunglinhpt/TextVN/releases), khi release có đánh dấu hỗ trợ.
 2. Chạy installer — **không cần Admin**
-3. VietIME tự động khởi động cùng Windows
-4. Nhấn `Win+Space` để chọn VietIME
+3. TextVN tự động khởi động cùng Windows
+4. Nhấn `Win+Space` để chọn TextVN sau khi đã đăng ký TSF.
 
 ### Cách 2 — Portable (không cài đặt)
 
 ```powershell
-# Giải nén vietime-portable-X.Y.Z.zip
+# Giải nén TextVN-portable-X.Y.Z.zip
 # Chạy trong PowerShell:
-.\vietime-tray.exe          # Khởi động tray
-.\vietime.exe register      # Đăng ký TSF (chỉ cần 1 lần)
+.\TextVN.exe                # Khởi động tray
+.\textvn-cli.exe register   # Đăng ký TSF (chỉ cần 1 lần)
 ```
 
 ---
@@ -59,7 +63,7 @@
 ### Chuyển đổi chế độ gõ
 
 - **Chuột phải vào icon tray** → chọn "Chế độ gõ"
-- Hoặc dùng phím tắt `Win+Space` để toggle VietIME / bàn phím hệ thống
+- Hoặc dùng phím tắt `Win+Space` để toggle TextVN / bàn phím hệ thống
 
 ### Tắt/Bật tiếng Việt
 
@@ -74,15 +78,15 @@
 ### CLI
 
 ```powershell
-vietime --help                    # Danh sách lệnh
-vietime doctor                    # Chẩn đoán môi trường
-vietime doctor --export diag.zip  # Xuất báo cáo chẩn đoán
-vietime register                  # Đăng ký TSF TIP (nếu cần)
-vietime unregister                # Hủy đăng ký
-vietime register status           # Kiểm tra trạng thái
-vietime config default            # Xem config mặc định
-vietime config init               # Tạo config lần đầu
-vietime config validate cfg.json  # Kiểm tra file config
+textvn-cli --help                    # Danh sách lệnh
+textvn-cli doctor                    # Chẩn đoán môi trường
+textvn-cli doctor --export diag.zip  # Xuất báo cáo chẩn đoán
+textvn-cli register                  # Đăng ký TSF TIP (nếu cần)
+textvn-cli unregister                # Hủy đăng ký
+textvn-cli register status           # Kiểm tra trạng thái
+textvn-cli config default            # Xem config mặc định
+textvn-cli config init               # Tạo config lần đầu
+textvn-cli config validate cfg.json  # Kiểm tra file config
 ```
 
 ---
@@ -93,7 +97,6 @@ vietime config validate cfg.json  # Kiểm tra file config
 
 - [Rust](https://rustup.rs/) stable (1.78+) với target `x86_64-pc-windows-msvc`
 - Visual Studio 2022 (Build Tools) với C++ workload
-- [LLVM/Clang](https://releases.llvm.org/) (cho bindgen)
 
 ### Cài đặt Rust target
 
@@ -114,30 +117,26 @@ cargo build --release --workspace --target x86_64-pc-windows-msvc
 ```
 
 Binary output trong `target/x86_64-pc-windows-msvc/release/`:
-- `vietime.exe` — CLI
-- `vietime-tray.exe` — Tray app
-- `vietime-tsf.dll` — TSF TIP (đăng ký với Windows)
-
-### Build với icon nhúng
-
-```powershell
-cargo build --release -p vietime-tray --features embed-resources
-```
+- `textvn-cli.exe` — CLI
+- `TextVN.exe` — Tray app
+- `textvn-tsf.dll` — TSF TIP (đăng ký với Windows)
 
 ### Build installer (Inno Setup)
 
 ```powershell
 # Cài Inno Setup 6: https://jrsoftware.org/isdl.php
-iscc installer\windows\vietime-setup.iss
+iscc installer\windows\TextVN-setup.iss
 ```
 
 ### Chạy tests
 
 ```powershell
 cargo test --workspace                        # Tất cả tests
-cargo test -p vietime-cli                     # Chỉ CLI
-cargo test -p vietime-tray                    # Chỉ Tray
+cargo test -p textvn-cli                     # Chỉ CLI
+cargo test -p textvn-tray                    # Chỉ Tray
 cargo clippy --workspace                      # Lint
+cargo run -p textvn-cli -- verify             # Kiểm tra ABI C/Rust
+cargo run -p textvn-cli -- replay corpus/shared corpus/win --adapter win
 ```
 
 ---
@@ -146,11 +145,11 @@ cargo clippy --workspace                      # Lint
 
 ```
 TextVN/
-├── cli/                    # vietime CLI (register, doctor, replay, config)
-├── tray/                   # vietime-tray (system tray, IPC server, menu)
+├── cli/                    # TextVN CLI (register, doctor, replay, config)
+├── tray/                   # TextVN tray (system tray, IPC server, menu)
 ├── adapters/
-│   ├── windows-tsf/        # vietime-tsf.dll (TSF Text Input Processor)
-│   └── windows-hook/       # vietime-hook.exe (WH_KEYBOARD_LL hook)
+│   ├── windows-tsf/        # textvn-tsf.dll (TSF Text Input Processor)
+│   └── windows-hook/       # textvn-hook.exe (WH_KEYBOARD_LL hook)
 ├── engine/                 # Core IME engine (platform-agnostic)
 ├── config/                 # Config schema + parser
 ├── ffi/                    # C ABI headers
@@ -165,7 +164,7 @@ TextVN/
 
 ## File cấu hình
 
-Mặc định: `%APPDATA%\VietIME\config.json`
+Mặc định: `%APPDATA%\TextVN\config.json`
 
 ```json
 {
@@ -177,22 +176,32 @@ Mặc định: `%APPDATA%\VietIME\config.json`
 }
 ```
 
+## Bảng điều khiển
+
+Mở **Bảng điều khiển** từ menu chuột phải của icon TextVN. Tất cả tùy chọn đều ghi vào cấu hình hiện hành và phát thông báo reload tới các component đang kết nối.
+
+- **Bảng mã:** Unicode dựng sẵn, Unicode tổ hợp, TCVN3 hoặc VNI Windows.
+- **Kiểu gõ:** Telex, VNI, VIQR hoặc Simple Telex.
+- **Tùy chọn gõ:** đặt dấu tự do, khôi phục từ tiếng Anh, dấu mới/cũ và bật/tắt tiếng Việt toàn cục.
+- **Hệ thống:** khởi động cùng Windows, khôi phục mặc định, đóng về khay hoặc kết thúc ứng dụng.
+- **Hướng dẫn / Thông tin:** mô tả nhanh, giấy phép GPL và tác giả `hunglinhpt`.
+
 ---
 
 ## Gỡ cài đặt
 
 ### Qua installer:
-- Windows Settings → Apps → VietIME → Uninstall
-- Hoặc chạy lại `vietime-setup.exe` → Uninstall
+- Windows Settings → Apps → TextVN → Uninstall
+- Hoặc chạy lại `TextVN-setup.exe` → Uninstall
 
 ### Thủ công:
 ```powershell
-vietime-tray.exe --stop          # Dừng tray
-vietime.exe unregister           # Hủy đăng ký TSF
+TextVN.exe --stop                # Dừng tray
+textvn-cli.exe unregister        # Hủy đăng ký TSF
 # Xóa thư mục cài đặt
 ```
 
-> **Lưu ý**: Cấu hình người dùng (`%APPDATA%\VietIME\`) **không bị xóa** khi gỡ cài đặt (theo [S9](SECURITY.md)).
+> **Lưu ý**: Cấu hình người dùng (`%APPDATA%\TextVN\`) **không bị xóa** khi gỡ cài đặt (theo [S9](SECURITY.md)).
 
 ---
 
@@ -202,4 +211,4 @@ Xem [CONTRIBUTING.md](CONTRIBUTING.md) để biết cách đóng góp.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE) © 2024 VietIME Contributors
+[GPL-3.0-or-later](LICENSE) © 2026 hunglinhpt

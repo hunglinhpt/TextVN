@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Ứng dụng khay hệ thống VietIME Tray (WIN-050 / WIN-051 / WIN-053 — P1-4 §1).
+//! Ứng dụng khay hệ thống TextVN Tray (WIN-050 / WIN-051 / WIN-053 — P1-4 §1).
 //!
-//! Chạy 1 instance duy nhất với Mutex `Local\VietIMETray`.
+//! Chạy 1 instance duy nhất với Mutex `Local\TextVNTray`.
 //! Lắng nghe IPC pipe, điều phối cấu hình & trạng thái, hiển thị tray icon và menu ngữ cảnh.
 
 // Tray = Windows-only: trên non-Windows item Win32 không có caller (xem lib.rs).
@@ -15,11 +15,11 @@ use std::sync::Arc;
 #[cfg(windows)]
 use std::time::Duration;
 
-use vietime_tray::ipc_server::{IpcServer, PIPE_NAME};
-use vietime_tray::menu::TrayMenu;
+use textvn_tray::ipc_server::{IpcServer, PIPE_NAME};
+use textvn_tray::menu::TrayMenu;
 #[cfg(windows)]
-use vietime_tray::menu::ID_EXIT;
-use vietime_tray::svc::SvcManager;
+use textvn_tray::menu::ID_EXIT;
+use textvn_tray::svc::SvcManager;
 
 #[cfg(windows)]
 use windows::core::*;
@@ -141,13 +141,8 @@ fn ensure_hook_running() {
         .encode_utf16()
         .chain(Some(0))
         .collect();
-    let existing_mutex = unsafe {
-        OpenMutexW(
-            MUTEX_ALL_ACCESS,
-            false,
-            PCWSTR(mutex_name_wide.as_ptr()),
-        )
-    };
+    let existing_mutex =
+        unsafe { OpenMutexW(MUTEX_ALL_ACCESS, false, PCWSTR(mutex_name_wide.as_ptr())) };
     if let Ok(h) = existing_mutex {
         let _ = unsafe { CloseHandle(h) };
         return;
@@ -157,11 +152,13 @@ fn ensure_hook_running() {
     if let Ok(mut exe) = std::env::current_exe() {
         exe.pop();
         candidates.push(exe.join("textvn-hook.exe"));
-        candidates.push(exe.join("vietime-hook.exe"));
+        candidates.push(exe.join("textvn-hook.exe"));
     }
     candidates.push(std::path::PathBuf::from("textvn-hook.exe"));
     candidates.push(std::path::PathBuf::from("target/release/textvn-hook.exe"));
-    candidates.push(std::path::PathBuf::from("target/x86_64-pc-windows-msvc/release/textvn-hook.exe"));
+    candidates.push(std::path::PathBuf::from(
+        "target/x86_64-pc-windows-msvc/release/textvn-hook.exe",
+    ));
 
     for path in candidates {
         if path.exists() {
@@ -191,7 +188,7 @@ fn main() {
                 return;
             }
             "--help" | "-h" => {
-                println!("TextVN - Bo go Tieng Viet chuyen nghiep (LBS Viet Nam)");
+                println!("TextVN - Bo go Tieng Viet chuyen nghiep");
                 println!("Usage: TextVN [OPTIONS]");
                 println!("Options:");
                 println!("  --autostart   Khoi dong ngam tu Windows Startup (mini to tray)");
@@ -240,7 +237,7 @@ fn run_tray_app() {
                     unsafe {
                         let _ = PostMessageW(
                             Some(h),
-                            vietime_tray::WM_OPEN_SETTINGS,
+                            textvn_tray::WM_OPEN_SETTINGS,
                             WPARAM(0),
                             LPARAM(0),
                         );
@@ -299,11 +296,11 @@ fn run_tray_app() {
         }
     };
 
-    vietime_tray::TRAY_HWND.store(hwnd.0 as isize, Ordering::Release);
+    textvn_tray::TRAY_HWND.store(hwnd.0 as isize, Ordering::Release);
 
     // Nạp icon chế độ: 'V' (Tím) cho tiếng Việt, 'E' (Xanh) cho tiếng Anh
-    let icon_vi = load_app_icon(h_instance.into(), IDI_ICON_V, "vietime_v.ico");
-    let icon_en = load_app_icon(h_instance.into(), IDI_ICON_E, "vietime_e.ico");
+    let icon_vi = load_app_icon(h_instance.into(), IDI_ICON_V, "textvn_v.ico");
+    let icon_en = load_app_icon(h_instance.into(), IDI_ICON_E, "textvn_e.ico");
 
     let _ = APP_INSTANCE.set(TrayApp {
         svc: svc.clone(),
@@ -342,7 +339,7 @@ fn run_tray_app() {
     // Nếu người dùng khởi chạy thủ công (không phải từ --autostart),
     // hiển thị ngay Bảng điều khiển (Control Panel) trên màn hình theo đúng chuẩn UniKey / GoTiengViet
     if !is_autostart {
-        vietime_tray::settings_dialog::show_settings_dialog(svc.clone(), ipc.clone());
+        textvn_tray::settings_dialog::show_settings_dialog(svc.clone(), ipc.clone());
     }
 
     // 5. Message Loop
@@ -355,7 +352,7 @@ fn run_tray_app() {
 
     // 6. Dọn dẹp trước khi thoát
     let _ = unsafe { Shell_NotifyIconW(NIM_DELETE, &nid) };
-    vietime_tray::TRAY_HWND.store(0, Ordering::Release);
+    textvn_tray::TRAY_HWND.store(0, Ordering::Release);
     ipc.stop();
     let _ = unsafe { CloseHandle(mutex) };
 }
@@ -389,7 +386,7 @@ unsafe extern "system" fn wnd_proc(
                 WM_LBUTTONDBLCLK => {
                     // Double-click chuột trái: Mở Bảng điều khiển (chuẩn UniKey/EVKey)
                     if let Some(app) = APP_INSTANCE.get() {
-                        vietime_tray::settings_dialog::show_settings_dialog(
+                        textvn_tray::settings_dialog::show_settings_dialog(
                             app.svc.clone(),
                             app.ipc.clone(),
                         );
@@ -399,15 +396,15 @@ unsafe extern "system" fn wnd_proc(
             }
             LRESULT(0)
         }
-        vietime_tray::WM_UPDATE_TRAY_STATE => {
+        textvn_tray::WM_UPDATE_TRAY_STATE => {
             if let Some(app) = APP_INSTANCE.get() {
                 update_tray_icon(hwnd, app);
             }
             LRESULT(0)
         }
-        vietime_tray::WM_OPEN_SETTINGS => {
+        textvn_tray::WM_OPEN_SETTINGS => {
             if let Some(app) = APP_INSTANCE.get() {
-                vietime_tray::settings_dialog::show_settings_dialog(
+                textvn_tray::settings_dialog::show_settings_dialog(
                     app.svc.clone(),
                     app.ipc.clone(),
                 );
@@ -458,18 +455,18 @@ fn check_status() {
         .open(PIPE_NAME)
     {
         Ok(mut stream) => {
-            let ping = vietime_ipc::Message::Ping;
-            if let Ok(frame) = vietime_ipc::encode_frame(&ping) {
+            let ping = textvn_ipc::Message::Ping;
+            if let Ok(frame) = textvn_ipc::encode_frame(&ping) {
                 if stream.write_all(&frame).is_ok() && stream.flush().is_ok() {
                     let mut len_buf = [0u8; 4];
                     if stream.read_exact(&mut len_buf).is_ok() {
                         let len = u32::from_le_bytes(len_buf) as usize;
-                        if len <= vietime_ipc::MAX_FRAME_BYTES {
+                        if len <= textvn_ipc::MAX_FRAME_BYTES {
                             let mut buf = vec![0u8; 4 + len];
                             buf[..4].copy_from_slice(&len_buf);
                             if stream.read_exact(&mut buf[4..]).is_ok() {
-                                if let Ok(vietime_ipc::Message::Pong { uptime_ms }) =
-                                    vietime_ipc::decode_exact_frame(&buf)
+                                if let Ok(textvn_ipc::Message::Pong { uptime_ms }) =
+                                    textvn_ipc::decode_exact_frame(&buf)
                                 {
                                     println!("TextVN IPC Server: RUNNING");
                                     println!("  Pipe: {}", PIPE_NAME);
@@ -516,10 +513,7 @@ fn stop_running_instance() {
                         let err = unsafe { GetLastError() };
                         let _ = unsafe { CloseHandle(m) };
                         if err != ERROR_ALREADY_EXISTS {
-                            println!(
-                                "TextVN stopped successfully (after {}ms).",
-                                (i + 1) * 100
-                            );
+                            println!("TextVN stopped successfully (after {}ms).", (i + 1) * 100);
                             return;
                         }
                     }

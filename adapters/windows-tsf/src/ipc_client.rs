@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Non-blocking, offline-tolerant IPC client cho VietIME TSF (WIN-016).
+//! Non-blocking, offline-tolerant IPC client cho TextVN TSF (WIN-016).
 //!
-//! Kết nối tới `\\.\pipe\vietime-ipc-v1`. Nếu Tray chưa bật hoặc pipe không mở,
+//! Kết nối tới `\\.\pipe\textvn-ipc-v1`. Nếu Tray chưa bật hoặc pipe không mở,
 //! client fail-open ngay lập tức (offline-tolerant), không bao giờ block STA thread
 //! của client app. Khi nhận `ConfigReload`, thông báo để engine reload config.
 
@@ -11,9 +11,9 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
 
-pub const PIPE_NAME: &str = r"\\.\pipe\vietime-ipc-v1";
+pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
 /// Trạng thái IPC được chia sẻ giữa background thread và STA thread của TSF.
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl IpcClient {
         let worker_stop = Arc::clone(&stop_signal);
 
         let worker = std::thread::Builder::new()
-            .name("vietime-tsf-ipc".into())
+            .name("textvn-tsf-ipc".into())
             .spawn(move || {
                 run_client_loop(app_id, worker_state, worker_stop);
             })
@@ -141,7 +141,7 @@ fn run_client_loop(app_id: String, state: Arc<IpcState>, stop: Arc<AtomicBool>) 
                 // Gửi Hello
                 let hello = Message::Hello {
                     pid,
-                    abi: vietime_ffi::IME_ABI_VERSION,
+                    abi: textvn_ffi::IME_ABI_VERSION,
                     version: env!("CARGO_PKG_VERSION").into(),
                 };
                 if send_message(&mut stream, &hello).is_err() {

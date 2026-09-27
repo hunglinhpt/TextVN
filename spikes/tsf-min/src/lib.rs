@@ -20,7 +20,7 @@ use windows::Win32::System::Com::*;
 use windows::Win32::UI::TextServices::*;
 
 /// CLSID TIP — cùng giá trị với `tsf-min-register` (spike; sẽ là GUID khác ở WIN-010).
-pub const CLSID_VIETIME_TIP: GUID = GUID::from_u128(0x6b7e_1f80_4a2d_4e93_9c55_1f0a_7d2e_9c11);
+pub const CLSID_TEXTVN_TIP: GUID = GUID::from_u128(0x6b7e_1f80_4a2d_4e93_9c55_1f0a_7d2e_9c11);
 /// GUID language profile (spike, LANGID 0x042A = tiếng Việt).
 pub const PROFILE_GUID: GUID = GUID::from_u128(0x9d4c_2a71_83be_4f66_b0aa_55c9_d1e7_ab30);
 
@@ -51,14 +51,14 @@ impl Drop for ObjGuard {
     }
 }
 
-/// Ghi log phụ trợ spike vào `%LOCALAPPDATA%\VietIME\logs\tsf-min.log` (S2: không text người dùng).
+/// Ghi log phụ trợ spike vào `%LOCALAPPDATA%\TextVN\logs\tsf-min.log` (S2: không text người dùng).
 fn log(msg: &str) {
     use std::io::Write;
     let Some(base) = std::env::var_os("LOCALAPPDATA") else {
         return;
     };
     let mut dir = std::path::PathBuf::from(base);
-    dir.push("VietIME");
+    dir.push("TextVN");
     dir.push("logs");
     if std::fs::create_dir_all(&dir).is_err() {
         return;
@@ -347,7 +347,7 @@ pub unsafe extern "system" fn DllGetClassObject(
         return HR_E_POINTER;
     }
     unsafe { *ppv = std::ptr::null_mut() };
-    if unsafe { *rclsid } != CLSID_VIETIME_TIP {
+    if unsafe { *rclsid } != CLSID_TEXTVN_TIP {
         return HR_CLASSNOTAVAILABLE;
     }
     let factory: IClassFactory = ClassFactory {

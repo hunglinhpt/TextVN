@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
-name = "vietime-cli"
+name = "textvn-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,8 +10,8 @@ name = "textvn-cli"
 path = "src/main.rs"
 
 [dependencies]
-vietime-ffi = { path = "../ffi" }
-vietime-config = { path = "../config" }
+textvn-ffi = { path = "../ffi" }
+textvn-config = { path = "../config" }
 
 [target.'cfg(windows)'.dependencies]
 windows-core = "0.61"

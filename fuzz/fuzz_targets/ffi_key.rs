@@ -14,7 +14,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use vietime_ffi::*;
+use textvn_ffi::*;
 
 /// Chia `data` thành từng byte → trường của `ime_key_v1`.
 struct ByteCursor<'a> {

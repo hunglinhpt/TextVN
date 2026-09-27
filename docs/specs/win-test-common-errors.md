@@ -62,7 +62,7 @@
 | E2 | Dùng `GetStart(ec)` làm anchor cho composition | Text bị ghi vào **đầu document** thay vì caret | Anchor = `GetSelection(TF_DEFAULT_SELECTION)`; `GetStart` = document start |
 | E3 | Gọi `EnableLanguageProfileByDefault` không elevation rồi tưởng fail | `E_FAIL 0x80004005` | API ghi HKLM — ở user context fail là **bình thường**, bỏ qua (S3-3) |
 | E4 | Đảo thứ tự `InstallLayoutOrTip` / `EnableLanguageProfileByDefault` | Enabled flag biến mất | Thứ tự cố định: InstallLayoutOrTip → Enable → Activate |
-| E5 | Debug tiến trình elevated bằng console output | Không thấy gì (console bị ẩn) | Ghi log file %LOCALAPPDATA%\VietIME\logs\*.log qua helper `say()` |
+| E5 | Debug tiến trình elevated bằng console output | Không thấy gì (console bị ẩn) | Ghi log file %LOCALAPPDATA%\TextVN\logs\*.log qua helper `say()` |
 | E6 | Giả định `OnTestKeyDown` luôn tồn tại | App khác nhau trả khác nhau (bảng `tsf-spike.md` #5) | Logic ăn phím đúng ở **cả 2 pha**; `TRUE` ở test ⇒ `OnKeyDown` **phải** xử lý thật |
 
 ## F. Quy trình

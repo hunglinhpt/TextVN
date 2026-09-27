@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `ITfEditSession` implementation for VietIME TSF (WIN-012/013/018).
+//! `ITfEditSession` implementation for TextVN TSF (WIN-012/013/018).
 
 #[cfg(windows)]
 use windows::core::*;

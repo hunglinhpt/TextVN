@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! State machine thuần cho `vietime-hook.exe` (WIN-040/041/044).
+//! State machine thuần cho `textvn-hook.exe` (WIN-040/041/044).
 //!
 //! Không gọi Win32 trong crate này: callback native chỉ snapshot event rồi hỏi
 //! policy ở đây. Vì vậy mọi đường không đủ bằng chứng (focus pending, secure,
@@ -8,12 +8,12 @@
 
 use std::time::Duration;
 
-use vietime_appdb::{AppDb, EngineOwner};
-use vietime_ffi::{
+use textvn_appdb::{AppDb, EngineOwner};
+use textvn_ffi::{
     ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reload_config,
     ime_result_v1, ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
 };
-use vietime_field_detect::{FieldContext, SecurityState};
+use textvn_field_detect::{FieldContext, SecurityState};
 
 /// Chế độ từ config. `Auto` chỉ chạy với preset `engine_owner: hook`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -261,7 +261,7 @@ fn is_hook_owned(field: &FieldContext, appdb: Option<&AppDb>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vietime_strategy::{IME_CAP_FIELD_DETECT, IME_CAP_PREEDIT, IME_FIELD_BODY};
+    use textvn_strategy::{IME_CAP_FIELD_DETECT, IME_CAP_PREEDIT, IME_FIELD_BODY};
 
     fn hook_db() -> AppDb {
         AppDb::parse(

@@ -5,7 +5,7 @@
 //! 1. `AppDb::parse` không panic với bất kỳ UTF-8 nào (kể cả rác).
 //! 2. appdb hợp lệ → strategy id luôn trong tập đã công bố (0..=4).
 //!
-//! Target này cố ý không link `vietime-ffi`: libFuzzer MSVC thêm `/include:main`
+//! Target này cố ý không link `textvn-ffi`: libFuzzer MSVC thêm `/include:main`
 //! và không thể link cùng crate có artifact `cdylib`. Đường FFI được kiểm bởi
 //! `ffi/tests/abi_invariants.rs` trên stable; `ffi_key`/`config_parse` fuzz ở
 //! runner Unix với feature `ffi-fuzz`.
@@ -21,7 +21,7 @@ fuzz_target!(|data: &[u8]| {
         return;
     };
 
-    let parsed = vietime_appdb::AppDb::parse(s);
+    let parsed = textvn_appdb::AppDb::parse(s);
 
     // ---- 1/2: không panic; nếu hợp lệ thì strategy vẫn thuộc ABI công bố ----
     if let Ok(db) = &parsed {

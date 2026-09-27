@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::time::Duration;
-use vietime_appdb::AppDb;
-use vietime_strategy::{ResolveInput, Strategy, IME_FIELD_SECURE, IME_FIELD_UNKNOWN};
+use textvn_appdb::AppDb;
+use textvn_strategy::{ResolveInput, Strategy, IME_FIELD_SECURE, IME_FIELD_UNKNOWN};
 
 pub mod rules_win;
 
@@ -142,7 +142,7 @@ impl FieldContext {
         };
         match appdb {
             Some(db) => db.resolve(input, &self.app_id),
-            None => vietime_strategy::resolve(input),
+            None => textvn_strategy::resolve(input),
         }
     }
 }
@@ -162,7 +162,7 @@ pub fn normalize_app_id(value: &str) -> String {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use vietime_strategy::{
+    use textvn_strategy::{
         IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY,
     };
 

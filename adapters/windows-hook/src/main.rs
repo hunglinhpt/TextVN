@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-hook.exe` — Process-isolated Low-Level Keyboard Hook adapter cho Windows (WIN-040..045).
+//! `textvn-hook.exe` — Process-isolated Low-Level Keyboard Hook adapter cho Windows (WIN-040..045).
 //!
 //! Vai trò: chế độ tương thích cho app không dùng được TSF (console cmd/pwsh, terminal cũ, game).
 //! Chạy trong tiến trình độc lập, kết nối tới Tray qua IPC pipe, có watchdog heartbeat và orphan timeout (30s).
@@ -17,12 +17,10 @@ mod hook_app {
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
-    use vietime_appdb::AppDb;
-    use vietime_ffi::{ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
-    use vietime_field_detect::SecurityState;
-    use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
-    use vietime_strategy::IME_FIELD_BODY;
-    use vietime_win_hook::{
+    use textvn_appdb::AppDb;
+    use textvn_ffi::{ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+    use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+    use textvn_win_hook::{
         CallbackDecision, EngineOutcome, HookEngine, HookMode, HookState, KeyEvent,
     };
 
@@ -32,7 +30,7 @@ mod hook_app {
     use windows::Win32::UI::Input::KeyboardAndMouse::*;
     use windows::Win32::UI::WindowsAndMessaging::*;
 
-    /// Cờ bảo vệ chống đệ quy khi chính VietIME đang gọi `SendInput` (WIN-041).
+    /// Cờ bảo vệ chống đệ quy khi chính TextVN đang gọi `SendInput` (WIN-041).
     static IN_INJECTION: AtomicBool = AtomicBool::new(false);
 
     /// Trạng thái phím Ctrl + Shift cho chuyển đổi chế độ gõ
@@ -47,11 +45,15 @@ mod hook_app {
 
     fn load_user_config() -> Option<String> {
         if let Some(appdata) = std::env::var_os("APPDATA") {
-            let p = std::path::PathBuf::from(&appdata).join("TextVN").join("config.json");
+            let p = std::path::PathBuf::from(&appdata)
+                .join("TextVN")
+                .join("config.json");
             if p.exists() {
                 return std::fs::read_to_string(p).ok();
             }
-            let old_p = std::path::PathBuf::from(&appdata).join("VietIME").join("config.json");
+            let old_p = std::path::PathBuf::from(&appdata)
+                .join("TextVN")
+                .join("config.json");
             if old_p.exists() {
                 return std::fs::read_to_string(old_p).ok();
             }
@@ -62,14 +64,10 @@ mod hook_app {
     fn trigger_global_toggle() {
         std::thread::spawn(|| {
             use std::io::Write;
-            use vietime_ipc::{encode_frame, Message};
-            let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\vietime-ipc-v1"];
+            use textvn_ipc::{encode_frame, Message};
+            let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\textvn-ipc-v1"];
             for &p in &pipe_names {
-                if let Ok(mut stream) = std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(p)
-                {
+                if let Ok(mut stream) = std::fs::OpenOptions::new().read(true).write(true).open(p) {
                     let msg = Message::ToggleGlobal;
                     if let Ok(frame) = encode_frame(&msg) {
                         let _ = stream.write_all(&frame);
@@ -121,9 +119,11 @@ mod hook_app {
             HookEngine::new().unwrap()
         };
 
-        // Khởi tạo state ban đầu; mặc định HookMode::Always để gõ ngay lập tức trên bản portable
+        // Safe default: chưa có UIA verdict thì HookMode::Auto + FieldContext
+        // pending sẽ forward toàn bộ key. Không được biến password field chưa
+        // probe thành body/non-secure chỉ để "gõ ngay".
         let appdb = load_default_appdb();
-        let state = HookState::new("unknown.exe", 0, HookMode::Always, Duration::ZERO);
+        let state = HookState::new("unknown.exe", 0, HookMode::Auto, Duration::ZERO);
 
         HOOK_CTX.with(|cell| {
             *cell.borrow_mut() = Some(GlobalHookContext {
@@ -291,9 +291,10 @@ mod hook_app {
                 ctx.current_hwnd = fg_hwnd;
                 ctx.current_app_id = get_process_name_for_window(fg_hwnd);
                 let gen = ctx.state.begin_focus(&ctx.current_app_id, 0);
-                // Với hook auto: mặc định coi là body non-secure để có thể gõ
-                ctx.state
-                    .publish_probe(gen, IME_FIELD_BODY, SecurityState::NonSecure);
+                // UIA worker phải publish verdict khớp generation. Trong lúc
+                // pending/unknown, policy fail-open để password/secure field
+                // không bao giờ bị transform bởi hook.
+                let _ = gen;
             }
 
             let ch = vk_to_unicode(vk);
@@ -317,7 +318,12 @@ mod hook_app {
                 .process(&ctx.state, event, ctx.appdb.as_ref(), &mut result);
 
             let elapsed = start_cb.elapsed();
-            let _ = ctx.state.record_callback_duration(elapsed);
+            if ctx.state.record_callback_duration(elapsed) == CallbackDecision::SelfDisabled {
+                // Đã tốn quá budget liên tiếp: không inject outcome hiện hành;
+                // caller forward key gốc và để watchdog/tray xử lý tiếp.
+                outcome_to_inject = None;
+                return;
+            }
 
             if matches!(outcome, EngineOutcome::Transform) {
                 outcome_to_inject = Some(result);
@@ -326,15 +332,18 @@ mod hook_app {
 
         // 4. Nếu engine yêu cầu thay đổi ký tự -> nuốt phím gốc (return 1) và thực hiện inject
         if let Some(res) = outcome_to_inject {
-            inject_engine_result(&res);
-            return LRESULT(1);
+            // Chỉ nuốt key gốc sau khi SendInput xác nhận đã gửi đủ event.
+            // Nếu inject bị UIPI/partial failure, forward key gốc thay vì mất text.
+            if inject_engine_result(&res) {
+                return LRESULT(1);
+            }
         }
 
         CallNextHookEx(None, code, wparam, lparam)
     }
 
     /// Bơm phím thay thế qua SendInput với loop guard an toàn (WIN-042).
-    fn inject_engine_result(result: &vietime_ffi::ime_result_v1) {
+    fn inject_engine_result(result: &textvn_ffi::ime_result_v1) -> bool {
         IN_INJECTION.store(true, Ordering::Release);
 
         let delete_count = result.delete_count as usize;
@@ -409,14 +418,17 @@ mod hook_app {
             });
         }
 
-        if !inputs.is_empty() {
+        let sent_all = if !inputs.is_empty() {
             // SAFETY: inputs là mảng INPUT hợp lệ
             unsafe {
-                let _ = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+                SendInput(&inputs, std::mem::size_of::<INPUT>() as i32) as usize == inputs.len()
             }
-        }
+        } else {
+            false
+        };
 
         IN_INJECTION.store(false, Ordering::Release);
+        sent_all
     }
 
     fn get_active_modifiers() -> u32 {
@@ -502,9 +514,9 @@ mod hook_app {
         AppDb::parse(default_json).ok()
     }
 
-    fn empty_ime_result() -> vietime_ffi::ime_result_v1 {
-        vietime_ffi::ime_result_v1 {
-            abi_version: vietime_ffi::IME_ABI_VERSION,
+    fn empty_ime_result() -> textvn_ffi::ime_result_v1 {
+        textvn_ffi::ime_result_v1 {
+            abi_version: textvn_ffi::IME_ABI_VERSION,
             action: ACTION_PASS,
             delete_count: 0,
             insert_len: 0,
@@ -519,7 +531,7 @@ mod hook_app {
     /// Vòng lặp IPC Heartbeat: kết nối pipe tới Tray, nhận Snapshot, StateUpdate, ConfigReload, Shutdown (WIN-040).
     fn run_ipc_heartbeat_loop(running: Arc<AtomicBool>) {
         let pid = std::process::id();
-        let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\vietime-ipc-v1"];
+        let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\textvn-ipc-v1"];
 
         while running.load(Ordering::Acquire) {
             let mut stream_opt = None;
@@ -534,7 +546,7 @@ mod hook_app {
                 Some(mut stream) => {
                     let hello = Message::Hello {
                         pid,
-                        abi: vietime_ffi::IME_ABI_VERSION,
+                        abi: textvn_ffi::IME_ABI_VERSION,
                         version: env!("CARGO_PKG_VERSION").into(),
                     };
                     if send_message(&mut stream, &hello).is_err() {

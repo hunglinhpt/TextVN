@@ -10,7 +10,7 @@
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
-use vietime_config::{DiacriticStyle, Method, OutputCharset};
+use textvn_config::{DiacriticStyle, Method, OutputCharset};
 
 use crate::autostart;
 use crate::ipc_server::IpcServer;
@@ -41,6 +41,8 @@ const ID_RAD_DIACRITIC_OLD: isize = 2008;
 const ID_BTN_CLOSE: isize = 2010;
 const ID_BTN_DEFAULT: isize = 2011;
 const ID_BTN_EXIT: isize = 2012;
+const ID_BTN_HELP: isize = 2013;
+const ID_BTN_ABOUT: isize = 2014;
 
 // Win32 Button Styles & Messages
 const BS_GROUPBOX: u32 = 0x00000007;
@@ -71,7 +73,7 @@ fn with_ctx<R>(f: impl FnOnce(&DialogContext) -> R) -> Option<R> {
     DIALOG_CTX.read().ok()?.as_ref().map(f)
 }
 
-/// Hiển thị cửa sổ Bảng điều khiển VietIME (nếu đang ẩn thì hiện và đưa lên trước).
+/// Hiển thị cửa sổ Bảng điều khiển TextVN (nếu đang ẩn thì hiện và đưa lên trước).
 #[cfg(windows)]
 pub fn show_settings_dialog(svc: Arc<SvcManager>, ipc: Arc<IpcServer>) {
     let existing_raw = SETTINGS_HWND.load(Ordering::Acquire);
@@ -106,7 +108,7 @@ fn w(s: &str) -> Vec<u16> {
 #[cfg(windows)]
 fn create_and_show_window() {
     let class_name = w(SETTINGS_CLASS_NAME);
-    let title = w("TextVN - Bảng điều khiển (LBS Viet Nam)");
+    let title = w("TextVN - Bảng điều khiển");
     let h_instance = unsafe { GetModuleHandleW(None).unwrap_or_default() };
 
     let wc = WNDCLASSW {
@@ -120,9 +122,9 @@ fn create_and_show_window() {
 
     let _ = unsafe { RegisterClassW(&wc) };
 
-    // Kích thước chuẩn gọn gàng kiểu UniKey: 440 x 360
+    // Bố cục điều khiển gọn, theo mô hình compact của các bộ gõ Windows.
     let width = 450;
-    let height = 370;
+    let height = 410;
 
     // Canh giữa màn hình
     let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
@@ -268,7 +270,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
     // 2. Nhóm Tùy chọn gõ
     let gb2 = create_control(
         "BUTTON",
-        "Tùy chọn",
+        "Tùy chọn gõ",
         BS_GROUPBOX,
         15,
         115,
@@ -377,7 +379,32 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         h_instance,
     );
 
-    // 3. Nút hành động
+    // 3. Nút hành động. Đặt rõ tại chân cửa sổ để không phải tìm trong menu tray.
+    let btn_help = create_control(
+        "BUTTON",
+        "Hướng dẫn",
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        20,
+        320,
+        90,
+        30,
+        parent,
+        ID_BTN_HELP,
+        h_instance,
+    );
+    let btn_about = create_control(
+        "BUTTON",
+        "Thông tin",
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        120,
+        320,
+        90,
+        30,
+        parent,
+        ID_BTN_ABOUT,
+        h_instance,
+    );
+    // Nút Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
     let btn_close = create_control(
         "BUTTON",
         "Đóng",
@@ -429,6 +456,8 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         chk_global,
         rad_new,
         rad_old,
+        btn_help,
+        btn_about,
         btn_close,
         btn_default,
         btn_exit,
@@ -562,6 +591,22 @@ unsafe extern "system" fn dialog_wnd_proc(
                     PostQuitMessage(0);
                     return LRESULT(0);
                 }
+                ID_BTN_HELP => {
+                    show_information(
+                        hwnd,
+                        "Hướng dẫn TextVN",
+                        "Chọn kiểu gõ và bảng mã, sau đó bật/tắt tiếng Việt từ khay hệ thống.\r\n\r\nPhím tắt Win+Space dùng để chọn bộ gõ TextVN trong Windows.",
+                    );
+                    return LRESULT(0);
+                }
+                ID_BTN_ABOUT => {
+                    show_information(
+                        hwnd,
+                        "Thông tin TextVN",
+                        "TextVN — Bộ gõ tiếng Việt cho Windows\r\n\r\nPhát triển bởi: hunglinhpt\r\nGiấy phép: GPL-3.0-or-later\r\nhttps://github.com/hunglinhpt/TextVN",
+                    );
+                    return LRESULT(0);
+                }
                 ID_BTN_DEFAULT => {
                     with_ctx(|ctx| {
                         ctx.svc.set_method(Method::Telex);
@@ -660,6 +705,21 @@ unsafe extern "system" fn dialog_wnd_proc(
     }
 }
 
+#[cfg(windows)]
+fn show_information(owner: HWND, title: &str, content: &str) {
+    let title = w(title);
+    let content = w(content);
+    // SAFETY: buffers are NUL-terminated and live for this synchronous call.
+    unsafe {
+        let _ = MessageBoxW(
+            Some(owner),
+            PCWSTR(content.as_ptr()),
+            PCWSTR(title.as_ptr()),
+            MB_OK | MB_ICONINFORMATION,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -678,11 +738,13 @@ mod tests {
             ID_BTN_CLOSE,
             ID_BTN_DEFAULT,
             ID_BTN_EXIT,
+            ID_BTN_HELP,
+            ID_BTN_ABOUT,
         ];
         let mut set = std::collections::HashSet::new();
         for id in ids {
             assert!(set.insert(id), "Duplicate dialog control ID: {id}");
         }
-        assert_eq!(ids.len(), 11);
+        assert_eq!(ids.len(), 13);
     }
 }

@@ -10,7 +10,7 @@
 
 | # | Quy tắc | Lý do |
 |---|---|---|
-| **S1** | `vietime-core` **không có** network, file I/O, thread spawn, logging nội dung text | Engine chạy trong-process của app người dùng; auditable |
+| **S1** | `textvn-core` **không có** network, file I/O, thread spawn, logging nội dung text | Engine chạy trong-process của app người dùng; auditable |
 | **S2** | **Không bao giờ** ghi nội dung phím/từ ra log/telemetry/crash dump | IME reputation = an toàn (bài học EVKey) |
 | **S3** | **Không bao giờ** xử lý chuỗi khi `context.secure == 1` (ô mật khẩu) | Tránh đọc mật khẩu |
 | **S4** | Core **fail-open**: mọi lỗi/panic → trả `PASS` (phím đi thẳng), không bao giờ chặn phím | Crash IME = mất bàn phím người dùng |
@@ -36,7 +36,7 @@ Lưu ý: **không** viết nguyên văn khoá SPDX trong prose hoặc trong `$co
 ## 2. Cấu trúc thư mục & nơi đặt tài liệu
 
 ```
-vietime/
+textvn/
 ├── PLAN.md                     # plan tổng (ngoài repo docs/)
 ├── docs/
 │   ├── 00-INDEX.md             # chỉ mục + giao thức review
@@ -48,14 +48,14 @@ vietime/
 │   ├── adr/                    # ADR-001, 002, ... (mỗi quyết định 1 file)
 │   ├── specs/                  # spec clean-room (behavior lấy từ dự án khác, viết mới)
 │   └── compat.md               # app compatibility matrix (public)
-├── core/                       # Rust: vietime-core, vietime-ffi, vietime-strategy, ...
+├── core/                       # Rust: textvn-core, textvn-ffi, textvn-strategy, ...
 ├── adapters/
-│   ├── windows-tsf/            # vietime-win-tsf (cdylib)
-│   ├── windows-hook/           # vietime-win-hook
+│   ├── windows-tsf/            # textvn-win-tsf (cdylib)
+│   ├── windows-hook/           # textvn-win-hook
 │   ├── macos-imk/              # (Phần 2)
 │   └── linux-ibus/, linux-fcitx5/  # (Phần 3)
-├── tray/                       # vietime-tray (egui) — Win đầu, sau tái dùng ý tưởng cho mac/linux
-├── cli/                        # vietime.exe (doctor / replay / verify)
+├── tray/                       # textvn-tray (egui) — Win đầu, sau tái dùng ý tưởng cho mac/linux
+├── cli/                        # textvn.exe (doctor / replay / verify)
 ├── data/                       # appdb.default.json, tables/*.toml, spelling/, emoji.tsv
 ├── schemas/                    # config.v1.schema.json, appdb.v1.schema.json, ffi.v1.md, ipc.v1.md
 ├── corpus/                     # golden test: *.keys → *.expect
@@ -84,7 +84,7 @@ Mọi quyết định kiến trúc → **ADR** (template trong §7), không vi�
 Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 mục**:
 
 1. Code + unit test xanh trên máy bạn (`cargo test --workspace`).
-2. Golden corpus thêm/truyền case tương ứng (nếu đổi hành vi gõ) → `vietime replay corpus/` pass.
+2. Golden corpus thêm/truyền case tương ứng (nếu đổi hành vi gõ) → `textvn replay corpus/` pass.
 3. `cargo clippy --all-targets -- -D warnings` và `cargo fmt --check` pass.
 4. `cargo deny check` + REUSE lint pass.
 5. Doc liên quan cập nhật (spec/ADR/compat.md) **hoặc** ghi rõ "không cần" trong PR.
@@ -101,7 +101,7 @@ Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 
 - [ ] Failure mode đã nêu? (crash, permission denied, OS update đổi API)
 
 **Review 2 — Nhất quán & Sẵn sàng**
-- [ ] `grep` toàn bộ tên struct (`ime_result_v1`…), crate (`vietime-*`), GUID, pipe, path → khớp 100% giữa các file?
+- [ ] `grep` toàn bộ tên struct (`ime_result_v1`…), crate (`textvn-*`), GUID, pipe, path → khớp 100% giữa các file?
 - [ ] Không mâu thuẫn giữa PLAN.md ↔ P0 ↔ P1?
 - [ ] Thứ tự bước thực hiện có tự chặn (agent làm theo từng bước không bị chờ task chưa có)?
 - [ ] Corpus/test command chạy được ngay (không thiếu flag)?
@@ -137,7 +137,7 @@ Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 
 
 | Term | Nghĩa |
 |---|---|
-| **Engine/ core** | `vietime-core` — biến đổi phím → chữ, không biết OS |
+| **Engine/ core** | `textvn-core` — biến đổi phím → chữ, không biết OS |
 | **Adapter** | phần OS-specific nhận sự kiện phím & đẩy chữ ra app |
 | **Strategy** | cách đẩy chữ ra app: `Preedit`, `BackspaceType`, `SelectionReplace`, `ForwardAsCommit`, `Passthrough` |
 | **Preset / appdb** | dữ liệu cấu hình theo từng ứng dụng (chứa strategy) |

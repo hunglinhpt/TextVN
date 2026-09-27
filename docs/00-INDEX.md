@@ -1,4 +1,4 @@
-# VietIME — Chỉ mục tài liệu & Giao thức Review
+# TextVN — Chỉ mục tài liệu & Giao thức Review
 
 > **Mục tiêu dự án:** bộ gõ tiếng Việt mã nguồn mở, chạy Windows → macOS → Linux,
 > kế thừa tinh hoa & fix bug của UniKey/x-unikey · EVKey · GoTiengViet · WinVNKey · Gõ Nhanh · Bamboo Viet.
@@ -51,19 +51,19 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 
 | Hạng mục | Giá trị |
 |---|---|
-| Tên sản phẩm / brand | **VietIME** (tên public cuối cùng chốt trước khi release, xem ADR) |
-| Tên kho | `vietime` (monorepo, Git) |
-| Crate Rust | `vietime-core`, `vietime-ffi`, `vietime-strategy`, `vietime-config`, `vietime-appdb`, `vietime-ipc`, `vietime-field-detect`, `vietime-win-tsf`, `vietime-win-hook`, `vietime-tray`, `vietime-updater`, `vietime-cli` (+ tool: `vietime-appcomptest`, `vietime-bench`) |
-| Binary Windows | `vietime-tsf.dll`, `vietime-tray.exe`, `vietime-hook.exe`, `vietime.exe` (CLI), `vietime-setup.exe` |
-| Pipe IPC | `\\.\pipe\vietime-ipc-v1` |
-| Config người dùng | `%APPDATA%\VietIME\config.json` |
-| Preset người dùng | `%APPDATA%\VietIME\appdb.json`; mặc định cài: `<install>\data\appdb.default.json` |
-| Log | `%LOCALAPPDATA%\VietIME\logs\` — **không bao giờ ghi nội dung phím** |
+| Tên sản phẩm / brand | **TextVN** (tên public cuối cùng chốt trước khi release, xem ADR) |
+| Tên kho | `textvn` (monorepo, Git) |
+| Crate Rust | `textvn-core`, `textvn-ffi`, `textvn-strategy`, `textvn-config`, `textvn-appdb`, `textvn-ipc`, `textvn-field-detect`, `textvn-win-tsf`, `textvn-win-hook`, `textvn-tray`, `textvn-updater`, `textvn-cli` (+ tool: `textvn-appcomptest`, `textvn-bench`) |
+| Binary Windows | `textvn-tsf.dll`, `textvn-tray.exe`, `textvn-hook.exe`, `textvn.exe` (CLI), `textvn-setup.exe` |
+| Pipe IPC | `\\.\pipe\textvn-ipc-v1` |
+| Config người dùng | `%APPDATA%\TextVN\config.json` |
+| Preset người dùng | `%APPDATA%\TextVN\appdb.json`; mặc định cài: `<install>\data\appdb.default.json` |
+| Log | `%LOCALAPPDATA%\TextVN\logs\` — **không bao giờ ghi nội dung phím** |
 | Kiểu gõ | `telex`, `vni`, `viqr`, `simple_telex` |
-| Bundle macOS | `~/Library/Input Methods/VietIME-IM.app` (IMK) · `/Applications/VietIME.app` (settings/menu bar) · bundle id `vn.vietime.im` |
-| Config/Socket macOS | `~/Library/Application Support/VietIME/{config.json, state.json, appdb.json, ipc.sock}` · log `~/Library/Logs/VietIME/` |
-| Config/Socket Linux | `~/.config/VietIME/{config.json, state.json, appdb.json, ipc.sock}` · log `~/.local/state/VietIME/log/` (chốt `40-linux/P3-0 §2`) |
-| Binary Linux | `vietime` (CLI), `vietime-tray`, `vietime-x11`, `vietime-ibus-engine`, `libvietime-fcitx5.so` |
+| Bundle macOS | `~/Library/Input Methods/TextVN-IM.app` (IMK) · `/Applications/TextVN.app` (settings/menu bar) · bundle id `vn.textvn.im` |
+| Config/Socket macOS | `~/Library/Application Support/TextVN/{config.json, state.json, appdb.json, ipc.sock}` · log `~/Library/Logs/TextVN/` |
+| Config/Socket Linux | `~/.config/TextVN/{config.json, state.json, appdb.json, ipc.sock}` · log `~/.local/state/TextVN/log/` (chốt `40-linux/P3-0 §2`) |
+| Binary Linux | `textvn` (CLI), `textvn-tray`, `textvn-x11`, `textvn-ibus-engine`, `libtextvn-fcitx5.so` |
 
 ## 5. Changelog của chỉ mục
 
@@ -74,7 +74,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   `P0-4` (`--adapter` values), `P0-REVIEW-LOG`/`specs/oracle-unikey` (task ID → WIN-007/008).
 - 2026-09-27: Phần 2 (macOS) hoàn thành — 7 file solution + 46 task `MAC-*` (P2-0…P2-6);
   Review 1 (14 finding) + Review 2 (4 finding) → **đạt 2/2** → `30-macos/P2-REVIEW-LOG.md`.
-  Sửa bổ sung P0/P1 cross-part: `P0-1` (layout macos-tap/tools-mac/homebrew/docs/perf + `vietime sizes`/`uninstall`),
+  Sửa bổ sung P0/P1 cross-part: `P0-1` (layout macos-tap/tools-mac/homebrew/docs/perf + `textvn sizes`/`uninstall`),
   `P0-2` (C-ABI `ime_appdb_verify`/`ime_strategy_resolve` cho adapter không phải Rust),
   `P0-3` (đường dẫn per-OS + `engine_owner` + IPC transport per-OS), `P1-5` (tên rc-checklist-win),
   `adr/README` (ADR-006 Accepted, thêm ADR-011). ADR-006 chốt: IMK primary + CGEventTap opt-in.
@@ -86,9 +86,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   **Hoàn tất roadmap 3 phần** (0 → Windows → macOS → Linux); sang giai đoạn implement theo task ID.
 - 2026-09-27: **W0 implement (nền P0)** — workspace Rust `strategy`/`config`/`core`/`ffi`/`cli`:
   58 unit test xanh (cli 6 · config 5 · core 30 · ffi 8 · strategy 9), `clippy --workspace -- -D warnings`
-  + `fmt --check` sạch; `vietime replay` (parser `.keys` + simulator, P0-4) chạy `corpus/shared` +
+  + `fmt --check` sạch; `textvn replay` (parser `.keys` + simulator, P0-4) chạy `corpus/shared` +
   `corpus/win` (9 case, exit 0) với `--adapter headless|win|mac`, `--json`, `--filter`.
-  Deviation nhỏ so với `P0-1 §1`: `vietime-ffi` thêm `rlib` vào crate-type (để CLI/integration test
+  Deviation nhỏ so với `P0-1 §1`: `textvn-ffi` thêm `rlib` vào crate-type (để CLI/integration test
   Rust link được) — `P0-1 §1` đã cập nhật tương ứng.
 - 2026-09-27: **W1 implement (P1-6 core feature set)** — `core`: thêm 3 method gõ
   (`vni`, `viqr`, `simple_telex`; `telex` tách `fold_with` để tái dùng), `validate.rs`
@@ -119,7 +119,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - **L4 fuzz** (P0-4 §1): crate `fuzz/` riêng (không thuộc workspace) với 3 target
     `ffi_key` · `config_parse` · `appdb_parse`, assert **invariant thật** (không chỉ "no panic"):
     `insert_len ≤ IME_MAX_TEXT`, fail-open `rc≠OK ⇒ PASS`, phím injected luôn PASS, abi lệch ⇒
-    `IME_ERR_ABI`, NULL ⇒ `IME_ERR_INVALID_ARG`, FFI và `vietime-config` cùng kết luận,
+    `IME_ERR_ABI`, NULL ⇒ `IME_ERR_INVALID_ARG`, FFI và `textvn-config` cùng kết luận,
     `last_error` không echo nội dung config (S2), appdb verify fail-closed.
   - **Stress test chạy được trên stable** (thay cho "chờ nightly"): `ffi/tests/abi_invariants.rs`
     — 200 vòng × 64 phím + ~250 input config, cùng bộ invariant, chạy **mọi PR** 3 OS.
@@ -132,21 +132,21 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
     → `reuse lint` **554/554 file, exit 0**.
   - **`schemas/ffi.v1.md`** (deliverable `P0-1 §1` còn thiếu): copy **nguyên văn** header C
     (đã verify khớp 1-1) + bất biến, bảng áp action, bảng lỗi thường gặp B1–B13, điều kiện bump ABI.
-  - `vietime-ffi` re-export `ACTION_*` từ core (1 nguồn sự thật, test/fuzz không chép số tay).
+  - `textvn-ffi` re-export `ACTION_*` từ core (1 nguồn sự thật, test/fuzz không chép số tay).
   **Ghi nhận:** `cargo fmt --all` cũng đã chỉnh 1 file của agent khác
   (`field-detect/src/rules_win.rs`, chỉ whitespace) — nếu không, gate `fmt --check` mới sẽ đỏ.
   **Còn thiếu (chưa làm, ghi rõ):** `cargo xtask cbindgen` (cần crate `cbindgen` + nightly —
-    header FFI vẫn do người giữ tay, kiểm bằng `vietime verify` + `vietime sizes`),
+    header FFI vẫn do người giữ tay, kiểm bằng `textvn verify` + `textvn sizes`),
     `docs/compat.md` đã tạo khung nhưng **chưa có kết quả chạy thật** (L7 cần 40 app × 3 OS).
 - 2026-09-27: **W3 implement (gate chất lượng + tài liệu)** — 3 task, đều có bằng chứng chạy thật:
-  - **`vietime verify`** (P0-1 §2 liệt kê `verify` nhưng chưa có): kiểm header C
-    (`ffi/include/vietime_ffi.h`) khớp code Rust theo **3 tầng** — `sizeof`, **43 hằng
+  - **`textvn verify`** (P0-1 §2 liệt kê `verify` nhưng chưa có): kiểm header C
+    (`ffi/include/textvn_ffi.h`) khớp code Rust theo **3 tầng** — `sizeof`, **43 hằng
     `IME_*`** (giá trị), và **tên/thứ tự trường** của 4 struct. Danh sách trường lấy từ
     `stringify!` của struct Rust nên thêm/bớt trường mà quên header → **hỏng build**.
     Đã thử bằng chứng: sửa header (đổi `IME_FLAG_ERROR` + thêm trường) → exit 1 + liệt kê
-    sai lệch; hoàn nguyên → exit 0. `vietime-ffi` re-export thêm `IME_MOD_*`/`IME_FIELD_*`/
+    sai lệch; hoàn nguyên → exit 0. `textvn-ffi` re-export thêm `IME_MOD_*`/`IME_FIELD_*`/
     `IME_CAP_*`/`IME_STRATEGY_*` (1 nguồn sự thật, không chép số tay). + 5 unit test cho parser.
-  - **`tools/bench`** (`vietime-bench`, P1-5 §5): đo `ime_key` (chuỗi gõ thật) /
+  - **`tools/bench`** (`textvn-bench`, P1-5 §5): đo `ime_key` (chuỗi gõ thật) /
     `parse_config` / `ime_strategy_resolve`, **0 dependency** (không criterion) → sinh
     `perf/baseline-win.json` và gate hồi quy. **Thiết kế sửa 3 lần sau khi đo thật**: (1) so
     `p99` với ngưỡng 10% → báo hồi quy 84% ngay sau khi ghi baseline (p99 ở thang ns bị nhiễu
@@ -157,13 +157,13 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - **`docs/compat.md`** (L7 `P0-4 §1`): khung ma trận 60 app (20 Windows + 20 macOS +
     20 Linux, lấy đúng từ `P1-5/P2-5/P3-6 §3`) + 8 bước kiểm bắt buộc + quy tắc ghi chú
     (chuỗi phím lỗi phải tái hiện được) + bảng tổng kết release candidate.
-  - `ci-shared.yml` giờ **11 job** (thêm `abi-header` = `vietime verify`, `perf` = bench gate).
+  - `ci-shared.yml` giờ **11 job** (thêm `abi-header` = `textvn verify`, `perf` = bench gate).
     Job `perf` để `continue-on-error` vì runner GHA dùng chung; gate cứng để dành runner
     self-hosted (risk RW5) — ghi rõ trong `P1-5 §5` thay vì giả vờ gate đã chạy.
 - 2026-09-27: **W4 — BUG config do chính gate mới phát hiện** (ghi lại vì nó là bằng chứng
   gate có tác dụng, không phải để khoe):
   - **Lỗ hổng schema**: `Config` có `#[serde(default)]` nên serde lấp cả `config_version` →
-    **mọi** JSON đều "hợp lệ". Phát hiện khi thử `vietime config validate perf/baseline-win.json`
+    **mọi** JSON đều "hợp lệ". Phát hiện khi thử `textvn config validate perf/baseline-win.json`
     → báo **OK** cho một file không phải config. Đã sửa: `config_version` nay là trường
     **bắt buộc** (probe `VersionProbe` riêng), còn các trường khác vẫn tuỳ chọn (P0-3 §1).
     +3 test (thiếu version / JSON không phải config / version sai). Sau khi sửa: file bench
@@ -195,7 +195,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
     `schema_ghi_dung_mac_dinh_cua_code`. Test config 9 → **13**.
   - **Đã thử bằng chứng**: xoá 2 giá trị enum `method` → test đỏ; bỏ `config_version` khỏi
     `required` → test đỏ; khôi phục → xanh.
-- 2026-09-27: **W7 — `vietime verify` tầng 4: drift hàm export** (lỗ hổng thật của
+- 2026-09-27: **W7 — `textvn verify` tầng 4: drift hàm export** (lỗ hổng thật của
   header giữ tay — size/offset/hằng/trường struct đều không bắt được đổi tên
   hay đảo thứ tự hàm):
   - `cli/src/verify.rs`: `abi_exports()` (11 hàm chuẩn, khớp P0-2 §1) +
@@ -215,24 +215,24 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `schemas/ffi.v1.md` + `P0-2 §6`: ghi gate mới (bump ABI khi đổi export).
 - 2026-09-27: **W9 — Windows TSF M1 hoàn thiện: WIN-015..019**:
   - `WIN-015`: Preserved key toggle EN/VN (`Ctrl+Shift+Space`) qua `ITfKeystrokeMgr::PreserveKey`/`UnpreserveKey` và callback `OnPreservedKey`/`OnKeyDown`. Reset buffer engine dứt điểm khi tắt tiếng Việt.
-  - `WIN-016`: Background IPC client non-blocking, offline-tolerant (`\\.\pipe\vietime-ipc-v1`) nhận `ConfigReload`, `Snapshot`, reload cấu hình engine runtime qua C-ABI `ime_reload_config`.
+  - `WIN-016`: Background IPC client non-blocking, offline-tolerant (`\\.\pipe\textvn-ipc-v1`) nhận `ConfigReload`, `Snapshot`, reload cấu hình engine runtime qua C-ABI `ime_reload_config`.
   - `WIN-017`: Bảo vệ nghiêm ngặt ô mật khẩu (`is_password == true` / `SecurityState::Secure` theo S3) ép sang `Strategy::Passthrough`, bypass engine hoàn toàn.
   - `WIN-018`: `SelectionReplace` cho URL bar / Excel (bug B1), triệt tiêu phím Backspace gây autocomplete.
   - `WIN-019`: `ForwardAsCommit` cho Windows Terminal (bug B8), không StartComposition.
   - Đạt 10 Quality Gates: 15/15 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 973/973 compliant.
 - 2026-09-27: **W10 — Windows Hook M3 hoàn thiện: WIN-040..045**:
-  - `WIN-040`: Tạo binary độc lập `vietime-hook.exe` (`adapters/windows-hook/src/main.rs`), tích hợp IPC heartbeat watchdog và orphan timeout 30s.
+  - `WIN-040`: Tạo binary độc lập `textvn-hook.exe` (`adapters/windows-hook/src/main.rs`), tích hợp IPC heartbeat watchdog và orphan timeout 30s.
   - `WIN-041`: Low-level hook callback `WH_KEYBOARD_LL`, loop guard kép qua cờ OS `LLKHF_INJECTED` và `IN_INJECTION` atomic flag, timebox 2ms.
   - `WIN-042`: Cơ chế inject phím qua `SendInput` cho `BackspaceType`, `ForwardAsCommit`, `SelectionReplace`, UTF-16 Unicode mode.
   - `WIN-044`: Rule `engine_owner` phía hook: app có `engine_owner=tsf` được hook pass-thru 100%, tránh double handling.
   - Đạt 10 Quality Gates: 5/5 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 974/974 compliant.
 - 2026-09-27: **W11 & W12 — Windows Tray & IPC Server M4 hoàn thiện: WIN-050, WIN-051, WIN-053**:
-  - `WIN-050`: Khởi tạo crate `vietime-tray` -> binary `vietime-tray.exe` (1.15MB). Single-instance mutex `Local\VietIMETray`, Win32 `Shell_NotifyIconW`, menu ngữ cảnh 9 mục chuẩn P1-4 §1.
-  - `WIN-051`: IPC Named Pipe Server `\\.\pipe\vietime-ipc-v1` đa luồng, hỗ trợ đa client TSF/Hook/CLI, broadcast `ConfigReload` và `StateUpdate` khi trạng thái/cấu hình thay đổi.
-  - `WIN-053`: Autostart per-user qua registry key `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\VietIME` mà không cần quyền Admin (tuân thủ Rule S5). SvcManager quản lý `%APPDATA%\VietIME\{config.json, state.json}` với atomic write.
+  - `WIN-050`: Khởi tạo crate `textvn-tray` -> binary `textvn-tray.exe` (1.15MB). Single-instance mutex `Local\TextVNTray`, Win32 `Shell_NotifyIconW`, menu ngữ cảnh 9 mục chuẩn P1-4 §1.
+  - `WIN-051`: IPC Named Pipe Server `\\.\pipe\textvn-ipc-v1` đa luồng, hỗ trợ đa client TSF/Hook/CLI, broadcast `ConfigReload` và `StateUpdate` khi trạng thái/cấu hình thay đổi.
+  - `WIN-053`: Autostart per-user qua registry key `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TextVN` mà không cần quyền Admin (tuân thủ Rule S5). SvcManager quản lý `%APPDATA%\TextVN\{config.json, state.json}` với atomic write.
   - Đạt 10 Quality Gates: 29/29 Windows platform tests pass 100% (TSF 15, Hook 5, Tray 9), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 982/982 compliant.
 - 2026-09-27: **W13 — Diagnostics & Support Export hoàn thiện: WIN-058**:
-  - `WIN-058`: Cài đặt lệnh `vietime doctor [--json] [--export <path.zip>]` (`cli/src/doctor.rs`).
+  - `WIN-058`: Cài đặt lệnh `textvn doctor [--json] [--export <path.zip>]` (`cli/src/doctor.rs`).
   - Tích hợp bộ đóng gói ZIP PKZIP Stored thuần Rust zero-dependency (`build_pkzip`) và thuật toán tính CRC32 chuẩn ISO 3309.
   - Thu thập và đóng gói an toàn các artifact chẩn đoán: `version.json`, `config.redacted.json` (tự động redact tên người dùng và đường dẫn cá nhân theo Rule S2), `system_info.json` (kiểm tra trạng thái Pipe, Tray, Hook, TIP registry), `hook_stats.json`, `tsf_tail.log` (200 dòng log TSF tail an toàn).
   - Đạt 10 Quality Gates: 25/25 tests pass (thêm 4 tests mới cho ZIP structure, CRC32, path redaction và grep test), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 983/983 compliant.
@@ -243,8 +243,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - Tạo tài liệu chuẩn `docs/release/parity-checklist.md` đối chiếu 1-1 từng control với struct `Config` và ma trận đồng bộ 3 hệ điều hành Windows / macOS / Linux.
   - Đạt 10 Quality Gates: 33/33 Windows platform tests pass 100% (TSF 15, Hook 5, Tray 13), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 986/986 compliant.
 - 2026-09-27: **W15 — Windows Packaging & Installer hoàn thiện: WIN-054, WIN-055**:
-  - `WIN-054`: Viết Inno Setup 6 installer script `installer/windows/vietime-setup.iss` đóng gói 4 binary artifacts (`vietime-tsf.dll`, `vietime-hook.exe`, `vietime-tray.exe`, `vietime.exe`) và thư mục `data\`. Hỗ trợ 2 chế độ: Per-user (mặc định không cần admin theo S5) và System mode.
-  - Tích hợp lifecycle cài/gỡ hoàn chỉnh: `vietime register`, `config init`, `vietime-tray --stop`, `vietime unregister`, bảo toàn dữ liệu cấu hình `%APPDATA%\VietIME` theo Rule S9.
+  - `WIN-054`: Viết Inno Setup 6 installer script `installer/windows/textvn-setup.iss` đóng gói 4 binary artifacts (`textvn-tsf.dll`, `textvn-hook.exe`, `textvn-tray.exe`, `textvn.exe`) và thư mục `data\`. Hỗ trợ 2 chế độ: Per-user (mặc định không cần admin theo S5) và System mode.
+  - Tích hợp lifecycle cài/gỡ hoàn chỉnh: `textvn register`, `config init`, `textvn-tray --stop`, `textvn unregister`, bảo toàn dữ liệu cấu hình `%APPDATA%\TextVN` theo Rule S9.
   - `WIN-055`: Tạo application manifest `installer/windows/app.manifest` (Windows 10/11, PerMonitorV2 DPI awareness, UTF-8 code page, asInvoker).
   - Tạo script điều phối `installer/windows/build_installer.ps1` kiểm tra artifacts và compile installer (tuân thủ Rule G7).
   - Đạt 10 Quality Gates: 991/991 files compliant REUSE, toàn bộ test Windows pass 100%.

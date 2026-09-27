@@ -16,23 +16,23 @@
 
 | # | Hành vi trong package | Heuristics AV gọi là | Vị trí (đã xác minh) |
 |---|---|---|---|
-| T1 | `vietime-hook.exe`: `SetWindowsHookExW(WH_KEYBOARD_LL)` toàn cục + `SendInput` gõ giả lập | **Keylogger / Keyinject** (T1056.001) — nghi ngờ nặng nhất | `adapters/windows-hook`, `P1-2 §1`; **có trong installer** (`vietime-setup.iss` dòng 51), không có trong portable zip |
-| T2 | `vietime.exe register` chạy `runhidden` → ghi registry COM/TSF (HKCR CLSID + TextServicesFramework category) | Kiểu regsvr32-style COM persistence | `vietime-setup.iss` `[Run]` dòng 68–70 |
-| T3 | `Software\Microsoft\Windows\CurrentVersion\Run` + `--autostart` | Autostart persistence (T1547.001) | `vietime-setup.iss` `[Registry]` dòng 64 |
-| T4 | `vietime-tsf.dll` được load vào mọi process (explorer, browser, Office…) | DLL injection-like | thiết kế TSF (bắt buộc) |
+| T1 | `textvn-hook.exe`: `SetWindowsHookExW(WH_KEYBOARD_LL)` toàn cục + `SendInput` gõ giả lập | **Keylogger / Keyinject** (T1056.001) — nghi ngờ nặng nhất | `adapters/windows-hook`, `P1-2 §1`; **có trong installer** (`textvn-setup.iss` dòng 51), không có trong portable zip |
+| T2 | `textvn.exe register` chạy `runhidden` → ghi registry COM/TSF (HKCR CLSID + TextServicesFramework category) | Kiểu regsvr32-style COM persistence | `textvn-setup.iss` `[Run]` dòng 68–70 |
+| T3 | `Software\Microsoft\Windows\CurrentVersion\Run` + `--autostart` | Autostart persistence (T1547.001) | `textvn-setup.iss` `[Registry]` dòng 64 |
+| T4 | `textvn-tsf.dll` được load vào mọi process (explorer, browser, Office…) | DLL injection-like | thiết kế TSF (bắt buộc) |
 | T5 | **Toàn bộ artifact `NotSigned`** + publisher vô danh, không reputation | Static heuristics bắn mạnh khi + không cert | `Get-AuthenticodeSignature` = `NotSigned` trên mọi exe/dll (verify 2026-09-27) |
-| T6 | Inno Setup nén LZMA ultra, `runhidden`, zip download (Mark-of-the-Web) | Packed/installer heuristic + SmartScreen "uncommon" | `vietime-setup.iss` `[Setup]` |
+| T6 | Inno Setup nén LZMA ultra, `runhidden`, zip download (Mark-of-the-Web) | Packed/installer heuristic + SmartScreen "uncommon" | `textvn-setup.iss` `[Setup]` |
 
 → Đúng dự báo `RW3`: *"hook + SendInput = hành vi keyinject"*. **Không có hành vi tải code từ mạng / anti-debug / che giấu** trong package (đã review `build_installer.ps1`, `install.ps1`, `.iss`) — FP thuần vì hành vi IME + chưa ký.
 
 ## 3. SHA256 artifacts hiện tại (dùng cho AV-1 submit)
 
 ```
-7B59448840B68FE4ED4BCC6F9621DE4AC6137C30F058B4BDC8D259EEAE6894FC  dist\vietime-portable-0.1.0-windows-x64\vietime-tray.exe
-FC5DE5FFC914382C37413279C50169038CA4E20EF15201D3E8C1A7BF6C1C1F6A  dist\vietime-portable-0.1.0-windows-x64\vietime-tsf.dll
-C165CFC21C5C3C7812EFAF6ECF1B098726FA9CD29B01053B568B3FF36C271E4C  dist\vietime-portable-0.1.0-windows-x64\vietime.exe
-69A80238A96D0D7263824540A2BD4938F9A41BACD2174C5C70BFA57F185A69C7  dist\vietime-portable-0.1.0-windows-x64\vietime_ffi.dll
-5410E2745D8A9D0FACBBAC4D3296C9C44254DBB5A6E5A9E9D4B6D71F79A73DEA  dist\vietime-portable-0.1.0-windows-x64.zip
+7B59448840B68FE4ED4BCC6F9621DE4AC6137C30F058B4BDC8D259EEAE6894FC  dist\textvn-portable-0.1.0-windows-x64\textvn-tray.exe
+FC5DE5FFC914382C37413279C50169038CA4E20EF15201D3E8C1A7BF6C1C1F6A  dist\textvn-portable-0.1.0-windows-x64\textvn-tsf.dll
+C165CFC21C5C3C7812EFAF6ECF1B098726FA9CD29B01053B568B3FF36C271E4C  dist\textvn-portable-0.1.0-windows-x64\textvn.exe
+69A80238A96D0D7263824540A2BD4938F9A41BACD2174C5C70BFA57F185A69C7  dist\textvn-portable-0.1.0-windows-x64\textvn_ffi.dll
+5410E2745D8A9D0FACBBAC4D3296C9C44254DBB5A6E5A9E9D4B6D71F79A73DEA  dist\textvn-portable-0.1.0-windows-x64.zip
 ```
 
 Regenerate sau mỗi build: `Get-FileHash -Algorithm SHA256 <file>` (installer: script in sẵn — `build_installer.ps1` bước `[AV-3]`).
@@ -41,8 +41,8 @@ Regenerate sau mỗi build: `Get-FileHash -Algorithm SHA256 <file>` (installer: 
 
 | ID | Việc | Khi nào | Người |
 |---|---|---|---|
-| **AV-1** | **Submit false positive cho Kaspersky** — bước cụ thể ở §5; lặp lại với hash của `vietime-setup.exe` khi build | Ngay (không cần cert) | User (máy có Kaspersky) |
-| **AV-2** | **Ký code — SignPath OSS** (fix thật, đúng `P1-4 §5` + `WIN-055`): ký `vietime.exe`, `vietime-tray.exe`, `vietime-hook.exe`, `vietime-tsf.dll`, `vietime-setup.exe` | Trung hạn | Cần user đăng ký account → giao agent |
+| **AV-1** | **Submit false positive cho Kaspersky** — bước cụ thể ở §5; lặp lại với hash của `textvn-setup.exe` khi build | Ngay (không cần cert) | User (máy có Kaspersky) |
+| **AV-2** | **Ký code — SignPath OSS** (fix thật, đúng `P1-4 §5` + `WIN-055`): ký `textvn.exe`, `textvn-tray.exe`, `textvn-hook.exe`, `textvn-tsf.dll`, `textvn-setup.exe` | Trung hạn | Cần user đăng ký account → giao agent |
 | **AV-3** | Release gate: trước khi publish → in SHA256 (đã gắn vào `build_installer.ps1`) → submit scan (Kaspersky OpenTip / VT) → ghi `docs/release/signing-status.md` (`P1-4 §5`) | Mỗi release | Agent (CI/release) |
 | **AV-4** | Các trigger **đã cân nhắc KHÔNG làm** (xem §4.1) | — | — |
 | **AV-5** | Lấy **tên detection + file chính xác** từ máy Kaspersky → cập nhật §1/§2 rồi chốt lại trigger chính | Khi có thông tin | User |
@@ -51,7 +51,7 @@ Regenerate sau mỗi build: `Get-FileHash -Algorithm SHA256 <file>` (installer: 
 
 | Phương án | Kết luận | Lý do |
 |---|---|---|
-| Bỏ `vietime-hook.exe` khỏi installer | **Không** | Đây là runtime feature (fallback cho game/app legacy/elevated — `P1-2 §1`), tray có watchdog spawn nó (`tray/src/ipc_server.rs:263`), `doctor` check nó chạy. Bỏ = hỏng tính năng |
+| Bỏ `textvn-hook.exe` khỏi installer | **Không** | Đây là runtime feature (fallback cho game/app legacy/elevated — `P1-2 §1`), tray có watchdog spawn nó (`tray/src/ipc_server.rs:263`), `doctor` check nó chạy. Bỏ = hỏng tính năng |
 | Đổi mặc định task `autostart` → unchecked | **Hoãn** | Lợi ích AV ở tầng behavior rất nhỏ (static scan installer vẫn thấy entry `[Registry]` bất kể default); đổi UX cần chủ đích. Revisit sau AV-5 nếu Kaspersky flag chính installer |
 | Tách hook thành component tùy chọn trong installer | **Hoãn** | File vẫn nằm trong installer → static analysis không đổi; chỉ benefit khi người dùng không bật. Revisit cùng AV-4 |
 
@@ -77,6 +77,6 @@ Regenerate sau mỗi build: `Get-FileHash -Algorithm SHA256 <file>` (installer: 
 
 ## 7. Bang ghi chu
 
-- `installer/windows/vietime-setup.iss` + `installer/windows/build_installer.ps1` = khu vực agent kia; task này được user override ("Tôi làm luôn") ngày 2026-09-27. Các thay đổi đi kèm: `build_installer.ps1` thêm in SHA256 installer (bước `[AV-3]`) + file doc này.
+- `installer/windows/textvn-setup.iss` + `installer/windows/build_installer.ps1` = khu vực agent kia; task này được user override ("Tôi làm luôn") ngày 2026-09-27. Các thay đổi đi kèm: `build_installer.ps1` thêm in SHA256 installer (bước `[AV-3]`) + file doc này.
 - `build-release.ps1` (root) đang `M` = WIP của agent kia → **không đụng**.
 - S2: doc này không chứa log phím/người dùng — chỉ hash, tên file, hành vi đã công khai trong source.

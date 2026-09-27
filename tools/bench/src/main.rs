@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-bench` — micro-bench engine (P1-5 §5).
+//! `textvn-bench` — micro-bench engine (P1-5 §5).
 //!
 //! ```bash
-//! cargo run -p vietime-bench --release -- write  perf/baseline-win.json   # ghi baseline
-//! cargo run -p vietime-bench --release -- check  perf/baseline-win.json   # CI: >10% chậm hơn → exit 1
-//! cargo run -p vietime-bench --release                                    # in p50/p99
+//! cargo run -p textvn-bench --release -- write  perf/baseline-win.json   # ghi baseline
+//! cargo run -p textvn-bench --release -- check  perf/baseline-win.json   # CI: >10% chậm hơn → exit 1
+//! cargo run -p textvn-bench --release                                    # in p50/p99
 //! ```
 //!
 //! Ngân sách (P0-3 §3.3 / PLAN §3.3): `ime_key` p99 < 0.5 ms, `resolve` p99 < 2 ms.
@@ -15,8 +15,8 @@ use std::fmt::Write as _;
 use std::hint::black_box;
 use std::time::Instant;
 
-use vietime_ffi::*;
-use vietime_field_detect::{FieldContext, ProbeCache, ProbeSnapshot, SecurityState};
+use textvn_ffi::*;
+use textvn_field_detect::{FieldContext, ProbeCache, ProbeSnapshot, SecurityState};
 
 /// Ngưỡng hồi quy (P1-5 §5): chậm hơn baseline trên 10% là fail.
 const REGRESSION_PCT: f64 = 10.0;
@@ -225,7 +225,7 @@ fn platform() -> &'static str {
 }
 
 fn render(all: &[Measurement], with_platform: bool) -> String {
-    let mut s = String::from("{\n  \"schema\": \"vietime-bench.v1\",\n");
+    let mut s = String::from("{\n  \"schema\": \"textvn-bench.v1\",\n");
     if with_platform {
         let _ = writeln!(s, "  \"platform\": \"{}\",", platform());
     }
@@ -371,7 +371,7 @@ fn main() -> std::process::ExitCode {
         }
         "write" => {
             let Some(p) = path else {
-                eprintln!("usage: vietime-bench write <file.json>");
+                eprintln!("usage: textvn-bench write <file.json>");
                 return ExitCode::FAILURE;
             };
             if let Some(dir) = std::path::Path::new(&p).parent() {
@@ -387,7 +387,7 @@ fn main() -> std::process::ExitCode {
         }
         "check" => {
             let Some(p) = path else {
-                eprintln!("usage: vietime-bench check <file.json>");
+                eprintln!("usage: textvn-bench check <file.json>");
                 return ExitCode::FAILURE;
             };
             let Ok(old) = std::fs::read_to_string(&p) else {

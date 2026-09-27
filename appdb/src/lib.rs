@@ -3,10 +3,10 @@
 //!
 //! Adapter phải verify chữ ký trước khi đưa JSON không tin cậy vào `AppDb`.
 //! Resolver chỉ nhận database đã được caller tin cậy và luôn giữ gate secure/
-//! disabled/capability trong `vietime-strategy`.
+//! disabled/capability trong `textvn-strategy`.
 
 use serde::Deserialize;
-use vietime_strategy::{ResolveInput, Strategy};
+use textvn_strategy::{ResolveInput, Strategy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppDbError {
@@ -223,7 +223,7 @@ impl AppDb {
     /// Resolve với toàn bộ gate của strategy crate; appdb chỉ cấp bước preset hệ thống.
     pub fn resolve(&self, mut input: ResolveInput, app_id: &str) -> Strategy {
         input.system_preset = self.strategy_for(app_id, input.field_role);
-        vietime_strategy::resolve(input)
+        textvn_strategy::resolve(input)
     }
 }
 
@@ -315,7 +315,7 @@ fn parse_engine_owner(value: &str) -> Result<EngineOwner, AppDbError> {
 }
 
 fn parse_role(value: &str) -> Result<u32, AppDbError> {
-    vietime_strategy::parse_field_role(value).ok_or(AppDbError::Schema)
+    textvn_strategy::parse_field_role(value).ok_or(AppDbError::Schema)
 }
 
 /// AppDB phải không đổi hành vi của engine cũ. Dùng version của workspace để
@@ -351,7 +351,7 @@ fn parse_version(value: &str) -> Result<(u32, u32, u32), AppDbError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vietime_strategy::{
+    use textvn_strategy::{
         IME_CAP_FIELD_DETECT, IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR,
         IME_FIELD_BODY,
     };
@@ -527,7 +527,7 @@ mod tests {
         .unwrap();
         let merged = AppDb::with_user_overrides(&system, &user);
         assert_eq!(
-            merged.preset_for("pwsh.exe", vietime_strategy::IME_FIELD_TERMINAL),
+            merged.preset_for("pwsh.exe", textvn_strategy::IME_FIELD_TERMINAL),
             Some(Preset {
                 strategy: Some(Strategy::Passthrough),
                 engine_owner: Some(EngineOwner::Hook),
@@ -556,7 +556,7 @@ mod tests {
             })
         );
         assert_eq!(
-            db.preset_for("pwsh.exe", vietime_strategy::IME_FIELD_TERMINAL)
+            db.preset_for("pwsh.exe", textvn_strategy::IME_FIELD_TERMINAL)
                 .unwrap()
                 .engine_owner,
             Some(EngineOwner::Hook)

@@ -1,10 +1,10 @@
-# `ffi.v1` — VietIME engine C-ABI v1 (bản chú giải cho adapter)
+# `ffi.v1` — TextVN engine C-ABI v1 (bản chú giải cho adapter)
 
-> **Đây là bản chép + chú giải của `ffi/include/vietime_ffi.h`** (deliverable `P0-1 §1`).
+> **Đây là bản chép + chú giải của `ffi/include/textvn_ffi.h`** (deliverable `P0-1 §1`).
 > Nguồn sự thật vẫn là header C + `docs/10-shared/P0-2-engine-ffi-contract.md`:
 > - Sửa **header** → sửa file này theo (hoặc `cargo xtask cbindgen` regenerate cả hai, `P0-1 §3`).
 > - **Không** thêm hằng/struct/hàm chỉ ở file này — đó là cách chắc chắn nhất để lệch ABI.
-> - CI gate: `cargo run -p vietime-cli -- sizes` (20/532) + `cargo run -p vietime-cli -- verify`
+> - CI gate: `cargo run -p textvn-cli -- sizes` (20/532) + `cargo run -p textvn-cli -- verify`
 >   (hằng + trường struct + **thứ tự 11 hàm export**) + `ffi/tests/abi_invariants.rs` + fuzz `ffi_key`.
 
 ## 1. Bất biến (P0-2 §0) — đọc trước khi viết adapter
@@ -18,20 +18,20 @@
 | 5 | **`ime_last_error` không chứa text người dùng** (S2) | Chỉ log *kind* lỗi; không kỳ vọng thấy nội dung. |
 | 6 | **`secure=1` ⇒ luôn PASS** (S3) | Không gửi chuỗi vào ô mật khẩu; engine tự chặn, adapter không cần lọc. |
 
-## 2. Header (nguyên văn — sinh từ `ffi/include/vietime_ffi.h`)
+## 2. Header (nguyên văn — sinh từ `ffi/include/textvn_ffi.h`)
 
-<!-- BEGIN vietime_ffi.h (copy — sửa header rồi copy lại, đừng sửa trong khối này) -->
+<!-- BEGIN textvn_ffi.h (copy — sửa header rồi copy lại, đừng sửa trong khối này) -->
 
 ```c
-/* vietime_ffi.h — VietIME engine C ABI v1
+/* textvn_ffi.h — TextVN engine C ABI v1
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * NGUỒN SỰ THẬT: docs/10-shared/P0-2-engine-ffi-contract.md §1.
  * Sau này do `cargo xtask cbindgen` regenerate (P0-1 §3) — hiện file này là
  * bản chép tay đã review; CI test `abi_size` đối chiếu (P0-2 §6).
  */
-#ifndef VIETIME_FFI_H
-#define VIETIME_FFI_H
+#ifndef TEXTVN_FFI_H
+#define TEXTVN_FFI_H
 #include <stdint.h>
 #include <stddef.h>
 
@@ -173,10 +173,10 @@ const char  *ime_last_error(const ime_instance *inst);  /* UTF-8, hợp lệ đ�
 #ifdef __cplusplus
 }
 #endif
-#endif /* VIETIME_FFI_H */
+#endif /* TEXTVN_FFI_H */
 
 ```
-<!-- END vietime_ffi.h -->
+<!-- END textvn_ffi.h -->
 
 ## 3. Chú giải: vòng đời chuẩn của adapter
 
@@ -236,6 +236,6 @@ Sửa **bất kỳ** trường nào của `ime_key_v1` / `ime_result_v1`, đổi
 trường mới vào struct, **đổi tên/thêm/bớt/đảo thứ tự hàm export** → bump `IME_ABI_VERSION` (P0-2 §6).
 Adapter kiểm tra qua
 `ime_abi_version()` và `abi_version` trong mọi struct; lệch là `IME_ERR_ABI` + PASS.
-Gate phát hiện: `cargo run -p vietime-cli -- sizes` (exit 1 khi size lệch 20/532)
-+ `cargo run -p vietime-cli -- verify` (exit 1 khi hằng/trường/thứ tự hàm lệch).
+Gate phát hiện: `cargo run -p textvn-cli -- sizes` (exit 1 khi size lệch 20/532)
++ `cargo run -p textvn-cli -- verify` (exit 1 khi hằng/trường/thứ tự hàm lệch).
 

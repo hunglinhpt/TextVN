@@ -5,7 +5,7 @@
 //! snapshot rồi publish đúng generation vào `FieldContext` owner thread.
 
 use crate::SecurityState;
-use vietime_strategy::{
+use textvn_strategy::{
     IME_FIELD_ADDRESS_BAR, IME_FIELD_CANDIDATE, IME_FIELD_COMBO, IME_FIELD_EDITBOX,
     IME_FIELD_SEARCH, IME_FIELD_SECURE, IME_FIELD_TERMINAL, IME_FIELD_TEXTAREA, IME_FIELD_UNKNOWN,
     IME_FIELD_WEB,

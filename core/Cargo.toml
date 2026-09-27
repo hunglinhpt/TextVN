@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
-name = "vietime-core"
+name = "textvn-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-# Alias nội bộ — package vẫn đúng tên chuẩn `vietime-strategy` (00-INDEX §4)
-strategy = { package = "vietime-strategy", path = "../strategy" }
+# Alias nội bộ — package vẫn đúng tên chuẩn `textvn-strategy` (00-INDEX §4)
+strategy = { package = "textvn-strategy", path = "../strategy" }
 

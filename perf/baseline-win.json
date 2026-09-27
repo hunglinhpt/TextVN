@@ -1,5 +1,5 @@
 {
-  "schema": "vietime-bench.v1",
+  "schema": "textvn-bench.v1",
   "platform": "win",
   "regression_pct": 10,
   "measurements": [

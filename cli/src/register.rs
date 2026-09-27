@@ -15,10 +15,10 @@ use std::process::Command;
 
 // ─── CLSID / Profile strings (text-only; dùng được trên cả non-Windows cho tests) ──────────────
 
-/// CLSID của VietIME TIP — khớp với `adapters/windows-tsf/src/guids.rs`.
+/// CLSID của TextVN TIP — khớp với `adapters/windows-tsf/src/guids.rs`.
 #[cfg_attr(not(windows), allow(dead_code))] // non-Windows: chỉ test dùng (bin không gọi)
 pub const CLSID_STR: &str = "{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
-/// Profile GUID của VietIME TIP.
+/// Profile GUID của TextVN TIP.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const PROFILE_STR: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 
@@ -41,11 +41,11 @@ pub fn layout_spec(lang: u16) -> String {
     format!("0x{lang:04X}:{CLSID_STR}{PROFILE_STR}")
 }
 
-/// Tìm đường dẫn DLL `vietime-tsf.dll` (hoặc `vietime_win_tsf.dll`).
+/// Tìm đường dẫn DLL `textvn-tsf.dll` (hoặc `textvn_win_tsf.dll`).
 ///
 /// Ưu tiên:
 /// 1. `custom` nếu được cung cấp và file tồn tại.
-/// 2. Cùng thư mục với `vietime.exe` (cạnh CLI binary).
+/// 2. Cùng thư mục với `textvn.exe` (cạnh CLI binary).
 /// 3. Lỗi nếu không tìm thấy.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
@@ -61,7 +61,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|e| format!("Không xác định được current_exe: {e}"))?;
     dir.pop();
 
-    for name in &["textvn-tsf.dll", "vietime-tsf.dll", "vietime_win_tsf.dll"] {
+    for name in &["textvn-tsf.dll", "textvn-tsf.dll", "textvn_win_tsf.dll"] {
         let candidate = dir.join(name);
         if candidate.exists() {
             return Ok(candidate);
@@ -69,7 +69,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
     }
 
     Err(format!(
-        "Không tìm thấy textvn-tsf.dll (hoặc vietime-tsf.dll) trong {}\n\
+        "Không tìm thấy textvn-tsf.dll (hoặc textvn-tsf.dll) trong {}\n\
          Dùng --dll <path> để chỉ định thủ công hoặc chạy `cargo build` trước.",
         dir.display()
     ))
@@ -189,7 +189,7 @@ mod win_impl {
 
         // Bước 1: HKCU COM registry
         let k = clsid_registry_key();
-        let mut ok = reg_cmd(&["add", &k, "/ve", "/d", "TextVN TSF (LBS Viet Nam)", "/f"]);
+        let mut ok = reg_cmd(&["add", &k, "/ve", "/d", "TextVN TSF", "/f"]);
         ok &= reg_cmd(&[
             "add",
             &format!(r"{k}\InprocServer32"),
@@ -283,7 +283,7 @@ mod win_impl {
             // Không hiện trên taskbar: gỡ layout khỏi danh sách bàn phím hệ thống
             uninstall_layout_or_tip(LANGID_VI);
             uninstall_layout_or_tip(LANGID_EN);
-            say("=== Đăng ký hoàn tất (không hiện menu taskbar). VietIME chạy qua khay hệ thống (Tray Icon). ===");
+            say("=== Đăng ký hoàn tất (không hiện menu taskbar). TextVN chạy qua khay hệ thống (Tray Icon). ===");
         } else {
             // Bước 3: InstallLayoutOrTip (HKCU, không cần admin)
             install_layout_or_tip(LANGID_VI);
@@ -304,13 +304,13 @@ mod win_impl {
                 }
             }
 
-            say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn VietIME. ===");
+            say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn TextVN. ===");
         }
         0
     }
 
     pub fn do_unregister() -> i32 {
-        say("=== VietIME unregister ===");
+        say("=== TextVN unregister ===");
 
         // Bước 1: Gỡ khỏi danh sách layout của người dùng (input.dll UNINSTALL) - tránh ghost keyboard
         uninstall_layout_or_tip(LANGID_VI);
@@ -365,7 +365,7 @@ mod win_impl {
     }
 
     pub fn do_status() -> i32 {
-        say("=== VietIME status ===");
+        say("=== TextVN status ===");
         let k = clsid_registry_key();
         say(&format!("CLSID key: {k}"));
         let _ = Command::new("reg").args(["query", &k]).status();
@@ -509,7 +509,7 @@ mod tests {
 
     #[test]
     fn resolve_dll_path_nonexistent_returns_err() {
-        let p = std::path::Path::new(r"C:\does\not\exist\vietime-tsf.dll");
+        let p = std::path::Path::new(r"C:\does\not\exist\textvn-tsf.dll");
         let res = resolve_dll_path(Some(p));
         assert!(res.is_err(), "file không tồn tại phải trả Err");
     }
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn resolve_dll_path_valid_file_succeeds() {
         // Tạo file tạm để test path resolution
-        let tmp = std::env::temp_dir().join("vietime-tsf-test.dll");
+        let tmp = std::env::temp_dir().join("textvn-tsf-test.dll");
         std::fs::write(&tmp, b"").unwrap();
         let res = resolve_dll_path(Some(&tmp));
         std::fs::remove_file(&tmp).ok();

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Crate `vietime-tray` — Ứng dụng khay hệ thống, IPC server và điều phối runtime cho VietIME (Windows).
+//! Crate `textvn-tray` — Ứng dụng khay hệ thống, IPC server và điều phối runtime cho TextVN (Windows).
 //!
 //! Bao gồm các module chức năng:
 //! - [`svc`]: Service layer in-process quản lý trạng thái (`state.json`) và cấu hình (`config.json`).
-//! - [`ipc_server`]: Named Pipe server `\\.\pipe\vietime-ipc-v1`, broadcast cấu hình và giám sát hook.
+//! - [`ipc_server`]: Named Pipe server `\\.\pipe\textvn-ipc-v1`, broadcast cấu hình và giám sát hook.
 //! - [`menu`]: Menu ngữ cảnh khay hệ thống (9 mục chuẩn Win32).
-//! - [`autostart`]: Quản lý registry key tự khởi động `HKCU\...\Run\VietIME` (per-user).
+//! - [`autostart`]: Quản lý registry key tự khởi động `HKCU\...\Run\TextVN` (per-user).
 
 // Tray = Windows-only (P1-4): trên non-Windows chỉ build để gate CI --workspace,
 // các item Win32 không có caller là bình thường — không phải dead code thật.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-config` — load/validate `config.v1` (P0-3 §1).
+//! `textvn-config` — load/validate `config.v1` (P0-3 §1).
 //!
 //! Slice 1: subset trường **engine** dùng; các trường UI (hotkeys, macros, updates, …)
 //! chấp nhận khi parse (serde bỏ unknown) nhưng chưa hành xử — schema JSON đầy đủ
@@ -148,7 +148,7 @@ impl std::fmt::Display for ConfigError {
 ///
 /// Vì sao không kiểm trong `Config` được: struct có `#[serde(default)]` nên serde lấp cả
 /// `config_version` bằng `Default::default() = 1` — nghĩa là **mọi** JSON kể cả `{}` hay file
-/// không phải config đều "hợp lệ", và `vietime config validate` báo OK nhầm.
+/// không phải config đều "hợp lệ", và `textvn config validate` báo OK nhầm.
 #[derive(serde::Deserialize)]
 struct VersionProbe {
     config_version: u32,
@@ -257,7 +257,7 @@ mod tests {
         for bad in [
             "{}",
             r#"{"method":"telex"}"#,
-            r#"{"schema":"vietime-bench.v1","measurements":[]}"#,
+            r#"{"schema":"textvn-bench.v1","measurements":[]}"#,
             r#"{"appdb_version":1,"entries":[]}"#,
             "[]",
             "null",
@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn json_khong_phai_config_bi_bat() {
         // Bằng chứng thực tế: file baseline perf trong repo từng validate "OK" — giờ phải lỗi.
-        let bench_like = r#"{"schema":"vietime-bench.v1","platform":"win","measurements":[]}"#;
+        let bench_like = r#"{"schema":"textvn-bench.v1","platform":"win","measurements":[]}"#;
         assert_eq!(parse_config(bench_like), Err(ConfigError::Schema));
     }
 

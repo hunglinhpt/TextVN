@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Menu khay hệ thống 9 mục cho VietIME Tray (WIN-050 — P1-4 §1).
+//! Menu khay hệ thống 9 mục cho TextVN Tray (WIN-050 — P1-4 §1).
 //!
 //! Định nghĩa đầy đủ 9 mục menu chuột phải theo bảng chuẩn:
 //! 1. Bật/Tắt gõ tiếng Việt (toggle global)
@@ -9,11 +9,11 @@
 //! 5. Game / Compat mode (bật/tắt hook)
 //! 6. Cài đặt... (Mở Settings GUI)
 //! 7. Sức khỏe / Trạng thái (Health submenu: Engine, Hook, Pipe, Version)
-//! 8. Gỡ cài đặt (vietime-setup.exe /UNINSTALL)
+//! 8. Gỡ cài đặt (textvn-setup.exe /UNINSTALL)
 //! 9. Thoát (Đóng tray và dừng hook)
 
 use std::sync::Arc;
-use vietime_config::{DiacriticStyle, Method};
+use textvn_config::{DiacriticStyle, Method};
 
 use crate::ipc_server::IpcServer;
 use crate::svc::SvcManager;

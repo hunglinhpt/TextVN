@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime` — CLI (P0-1 §2).
+//! `textvn` — CLI (P0-1 §2).
 //!
 //! Slice 1: `replay` (golden corpus, P0-4). Slice này thêm: `sizes` (verify ABI — P0-2 §6),
 //! `config init|validate|default` (P0-1 §2, P0-3 §1), `doctor`. `register` (TIP) thuộc
@@ -13,7 +13,7 @@ mod verify;
 use std::path::PathBuf;
 use std::process::exit;
 
-const USAGE: &str = r#"textvn-cli — TextVN CLI (LBS Viet Nam)
+const USAGE: &str = r#"textvn-cli — TextVN CLI
 
 Usage:
   textvn-cli replay <dir-or-file...> [--adapter headless|win|mac|linux] [--json] [--filter <substring>]
@@ -103,7 +103,7 @@ fn cmd_replay(rest: &[String]) -> i32 {
     replay::run(&paths, &adapter, json, filter.as_deref())
 }
 
-/// `verify` — header C (`ffi/include/vietime_ffi.h`) khớp code Rust? (P0-2 §6).
+/// `verify` — header C (`ffi/include/textvn_ffi.h`) khớp code Rust? (P0-2 §6).
 /// Header đang giữ tay (chưa có `xtask cbindgen`) nên đây là gate thay thế:
 /// thêm/bớt trường hoặc đổi hằng ở một bên mà quên bên kia → exit 1.
 fn cmd_verify(rest: &[String]) -> i32 {
@@ -159,9 +159,9 @@ fn cmd_verify(rest: &[String]) -> i32 {
 /// nên chỉ theo platform — không nằm trong điều kiện `ok`.
 fn abi_sizes() -> (usize, usize, usize, bool) {
     use std::mem::size_of;
-    let key = size_of::<vietime_ffi::ime_key_v1>();
-    let result = size_of::<vietime_ffi::ime_result_v1>();
-    let context = size_of::<vietime_ffi::ime_context_v1>();
+    let key = size_of::<textvn_ffi::ime_key_v1>();
+    let result = size_of::<textvn_ffi::ime_result_v1>();
+    let context = size_of::<textvn_ffi::ime_context_v1>();
     (key, result, context, key == 20 && result == 532)
 }
 
@@ -184,12 +184,12 @@ fn cmd_sizes(rest: &[String]) -> i32 {
     if json_out {
         println!(
             "{{\"abi\":{},\"key\":{key},\"result\":{result},\"context\":{context},\"ok\":{ok}}}",
-            vietime_ffi::IME_ABI_VERSION
+            textvn_ffi::IME_ABI_VERSION
         );
         return i32::from(!ok);
     }
 
-    println!("ABI v{} (IME_ABI_VERSION)", vietime_ffi::IME_ABI_VERSION);
+    println!("ABI v{} (IME_ABI_VERSION)", textvn_ffi::IME_ABI_VERSION);
     println!(
         "  ime_key_v1      {key:>4} bytes  {}",
         if key == 20 {
@@ -209,10 +209,10 @@ fn cmd_sizes(rest: &[String]) -> i32 {
     println!("  ime_context_v1  {context:>4} bytes  (theo platform — P0-2 §1 không assert)");
     println!(
         "  offsets: result.insert={} result.preedit={} key.ch={} key.mods={}",
-        offset_of!(vietime_ffi::ime_result_v1, insert),
-        offset_of!(vietime_ffi::ime_result_v1, preedit),
-        offset_of!(vietime_ffi::ime_key_v1, ch),
-        offset_of!(vietime_ffi::ime_key_v1, mods),
+        offset_of!(textvn_ffi::ime_result_v1, insert),
+        offset_of!(textvn_ffi::ime_result_v1, preedit),
+        offset_of!(textvn_ffi::ime_key_v1, ch),
+        offset_of!(textvn_ffi::ime_key_v1, mods),
     );
     if !ok {
         eprintln!("error: struct ABI lệch — sửa struct = bump IME_ABI_VERSION (P0-2 §6)");
@@ -225,7 +225,7 @@ fn cmd_sizes(rest: &[String]) -> i32 {
 fn cmd_config(rest: &[String]) -> i32 {
     match rest.first().map(String::as_str) {
         Some("default") => {
-            println!("{}", vietime_config::default_json());
+            println!("{}", textvn_config::default_json());
             0
         }
         Some("init") => {
@@ -237,7 +237,7 @@ fn cmd_config(rest: &[String]) -> i32 {
             };
             if path.exists() {
                 eprintln!(
-                    "config đã tồn tại: {} — không ghi đè (kiểm tra bằng `vietime config validate {}`)",
+                    "config đã tồn tại: {} — không ghi đè (kiểm tra bằng `textvn config validate {}`)",
                     path.display(),
                     path.display()
                 );
@@ -251,7 +251,7 @@ fn cmd_config(rest: &[String]) -> i32 {
                 eprintln!("error: không tạo được {}: {e}", parent.display());
                 return 2;
             }
-            if let Err(e) = std::fs::write(&path, vietime_config::default_json() + "\n") {
+            if let Err(e) = std::fs::write(&path, textvn_config::default_json() + "\n") {
                 eprintln!("error: không ghi được {}: {e}", path.display());
                 return 2;
             }
@@ -270,7 +270,7 @@ fn cmd_config(rest: &[String]) -> i32 {
                     return 2;
                 }
             };
-            match vietime_config::parse_config(&text) {
+            match textvn_config::parse_config(&text) {
                 Ok(cfg) => {
                     println!(
                         "OK  {path}: config_version={} method={} diacritic_style={:?} macros={} emoji={}",
@@ -301,7 +301,7 @@ fn config_path() -> Option<PathBuf> {
     {
         std::env::var_os("APPDATA").map(|p| {
             let primary = PathBuf::from(&p).join("TextVN").join("config.json");
-            let legacy = PathBuf::from(&p).join("VietIME").join("config.json");
+            let legacy = PathBuf::from(&p).join("TextVN").join("config.json");
             if !primary.exists() && legacy.exists() {
                 legacy
             } else {
@@ -343,7 +343,7 @@ fn cmd_doctor(rest: &[String]) -> i32 {
             }
             other => {
                 eprintln!("error: `doctor` không nhận tham số `{other}`");
-                eprintln!("Usage: vietime doctor [--json] [--export <path.zip>]");
+                eprintln!("Usage: textvn doctor [--json] [--export <path.zip>]");
                 return 2;
             }
         }
@@ -399,7 +399,7 @@ fn cmd_register(rest: &[String]) -> i32 {
             other => {
                 eprintln!("error: `register` không nhận tham số `{other}`");
                 eprintln!(
-                    "Usage: vietime register [--scope user|machine] [--dll <path>] [--no-taskbar]"
+                    "Usage: textvn register [--scope user|machine] [--dll <path>] [--no-taskbar]"
                 );
                 return 2;
             }
@@ -433,7 +433,7 @@ fn cmd_unregister(rest: &[String]) -> i32 {
             }
             other => {
                 eprintln!("error: `unregister` không nhận tham số `{other}`");
-                eprintln!("Usage: vietime unregister [--scope user|machine]");
+                eprintln!("Usage: textvn unregister [--scope user|machine]");
                 return 2;
             }
         }

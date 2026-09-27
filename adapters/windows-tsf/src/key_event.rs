@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `ITfKeyEventSink` implementation for VietIME TSF (WIN-011).
+//! `ITfKeyEventSink` implementation for TextVN TSF (WIN-011).
 
 #[cfg(windows)]
 use std::cell::RefCell;
@@ -25,9 +25,9 @@ use crate::ipc_client::IpcClient;
 #[cfg(windows)]
 use crate::{should_bypass_engine, ThreadState};
 #[cfg(windows)]
-use vietime_ffi::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+use textvn_ffi::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
 #[cfg(windows)]
-use vietime_strategy::Strategy;
+use textvn_strategy::Strategy;
 
 #[cfg(windows)]
 #[implement(ITfKeyEventSink)]

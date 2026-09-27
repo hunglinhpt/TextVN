@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vietime.dev/schemas/config.v1.schema.json",
-  "title": "VietIME user configuration v1",
-  "$comment": "VietIME config.v1. SPDX header cua file nay nam trong REUSE.toml (khong dat trong JSON - reuse lint se doc nham).",
+  "$id": "https://textvn.dev/schemas/config.v1.schema.json",
+  "title": "TextVN user configuration v1",
+  "$comment": "TextVN config.v1. SPDX header cua file nay nam trong REUSE.toml (khong dat trong JSON - reuse lint se doc nham).",
   "type": "object",
   "required": ["config_version"],
   "additionalProperties": true,

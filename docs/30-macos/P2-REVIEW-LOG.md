@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | F2-001 | major | `adr/README`: ADR-006 (IMK primary + tap opt-in) vẫn `⬜ Proposed` nhưng P2-0/P2-1/P2-2 đã dùng làm nền tảng — vi phạm quy tắc "ADR phải Accepted trước khi task liên quan bắt đầu" | ✅ Fixed | ADR-006 → ✅ Accepted, tóm tắt + `Chi tiết ở` trỏ P2-0/P2-1/P2-2 |
 | F2-002 | major | `P2-6 MAC-018` trỏ `ADR-007` (= Linux dual adapter, sai chủ đề) cho quyết định hotkey mac | ✅ Fixed | Thêm `ADR-011` (macOS toggle hotkey, ⬜ Proposed, chốt ở spike MAC-018) + sửa ref |
-| F2-003 | major | `ime sizes` / `ime_sizes()` được dùng ở `P1-5 §8`, `P2-1 §9`, `P2-5 §8`, `P2-6 MAC-003` nhưng **không tồn tại** trong FFI/CLI | ✅ Fixed | Định nghĩa subcommand `vietime sizes` (in + verify size struct 20/532 theo P0-2 §6) trong `P0-1 §2/§3`; sửa 4 chỗ tham chiếu |
+| F2-003 | major | `ime sizes` / `ime_sizes()` được dùng ở `P1-5 §8`, `P2-1 §9`, `P2-5 §8`, `P2-6 MAC-003` nhưng **không tồn tại** trong FFI/CLI | ✅ Fixed | Định nghĩa subcommand `textvn sizes` (in + verify size struct 20/532 theo P0-2 §6) trong `P0-1 §2/§3`; sửa 4 chỗ tham chiếu |
 | F2-004 | major | `P0-1 §1` layout thiếu các mục P2 tham chiếu: `adapters/macos-tap/`, `tools/mac/`, `packaging/homebrew/`, `docs/`, `perf/` | ✅ Fixed | Bổ sung đủ vào layout + ownership |
 | F2-005 | major | `engine_owner` được P1-2/P1-3/P2-2/P2-3 dùng nhưng **không có** trong schema `appdb.v1` (P0-3 §2.1) | ✅ Fixed | Thêm field optional + enum per-OS (`tsf\|hook\|imk\|tap\|ibus\|fcitx5`), default theo OS |
 | F2-006 | major | P0-3 §5 chỉ mô tả transport named pipe (Windows); P2-4 dùng unix socket | ✅ Fixed | Bảng transport per-OS trong P0-3 §5 (Windows pipe / mac+Linux unix socket), **cùng 1 schema ipc.v1**, vẫn cấm TCP/HTTP |
@@ -40,14 +40,14 @@
 |---|---|---|---|---|
 | F2-015 | minor | `P2-4 §2` còn placeholder `F2-xxx` (chưa trỏ ID thật) | ✅ Fixed | Trỏ F2-006 |
 | F2-016 | minor | Dependency graph `P2-0` tham chiếu `MAC-040..045` — MAC-045 không tồn tại | ✅ Fixed | `MAC-040..044`, dep từ MAC-009 (khớp P2-6/P2-2) |
-| F2-017 | minor | `vietime uninstall` (P2-4 §4) không có trong bảng CLI của `P0-1 §2` | ✅ Fixed | Bổ sung `uninstall` |
+| F2-017 | minor | `textvn uninstall` (P2-4 §4) không có trong bảng CLI của `P0-1 §2` | ✅ Fixed | Bổ sung `uninstall` |
 | F2-018 | minor | Bất nhất tên file RC checklist: P1-5 `rc-checklist.md` vs P2-5 `rc-checklist-mac.md` | ✅ Fixed | P1-5 → `rc-checklist-win.md`; P2-5 ghi chú cross-ref (cross-part, sửa cả Phần 1) |
 
 ## Kiểm chứng sau fix (Review 2 cuối)
 
 - [x] `grep "[CJK]" docs/` → 0 (trừ `越南` **có chủ đích** trong test UTF-8 `P1-5 §2` + trích dẫn finding trong log).
 - [x] Mọi `MAC-xxx` được tham chiếu trong P2-0…P2-5 đều có trong `P2-6-TASKS.md` (040..044, 050..058, 060..066 — không còn `MAC-045`).
-- [x] `grep "ime sizes|ime_sizes"` → chỉ còn dạng đúng `vietime sizes`.
+- [x] `grep "ime sizes|ime_sizes"` → chỉ còn dạng đúng `textvn sizes`.
 - [x] `grep "F2-xxx|F0-xxx|F1-xxx"` trong P0/P1/P2 → 0 (chỉ còn trong các REVIEW-LOG như trích dẫn lịch sử).
 - [x] `IME_CAP_{PREEDIT,SELECTION,FIELD_DETECT,INJECT_VK}` trong P2 khớp `P0-2 §1`.
 - [x] Tham chiếu `§` nội bộ P2-0…P2-6 đối chiếu đầu mục (P2-1 §1/§6/§9, P2-2 §4/§6, P2-3 §2/§3/§4/§5, P2-4 §1…§9, P2-5 §1…§8) — không còn trỏ sai.

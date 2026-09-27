@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# PowerShell build script cho VietIME Windows Installer (WIN-054).
+# PowerShell build script cho TextVN Windows Installer (WIN-054).
 # Tuan thu Rule G7: ASCII-only. Chay bang: powershell -NoProfile -ExecutionPolicy Bypass -File build_installer.ps1
 
 [CmdletBinding()]
@@ -20,7 +20,7 @@ Write-Host "Build Profile: $Profile"
 # 1. Build cac thanh phan Windows neu chua co
 if (-not $SkipBuild) {
     Write-Host "`n[1/3] Building Rust binaries..." -ForegroundColor Yellow
-    $CargoArgs = @("build", "-p", "vietime-cli", "-p", "vietime-win-tsf", "-p", "vietime-win-hook", "-p", "vietime-tray")
+    $CargoArgs = @("build", "-p", "textvn-cli", "-p", "textvn-win-tsf", "-p", "textvn-win-hook", "-p", "textvn-tray")
     if ($Profile -eq "release") {
         $CargoArgs += "--release"
     }
@@ -38,7 +38,7 @@ $RequiredFiles = @(
     "TextVN.exe",
     "textvn-hook.exe",
     "textvn-cli.exe",
-    "vietime_win_tsf.dll"
+    "textvn_win_tsf.dll"
 )
 
 foreach ($f in $RequiredFiles) {

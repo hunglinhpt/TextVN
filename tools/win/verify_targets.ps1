@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $Only = @($Only | ForEach-Object { $_ -split ',' } | Where-Object { $_ -ne '' })
 . (Join-Path $PSScriptRoot 'lib\targets.lib.ps1')
 . (Join-Path $PSScriptRoot 'lib\win32-uia.lib.ps1')
-Initialize-VietimeUiA
+Initialize-TextVNUiA
 
 $AE = [System.Windows.Automation.AutomationElement]
 $rows = New-Object System.Collections.Generic.List[object]
@@ -51,7 +51,7 @@ $script:VtTempProfiles = New-Object System.Collections.Generic.List[string]   # 
 function Get-FixtureUri {
     # trang test nho (contenteditable) - chromium khong expose Document voi about:blank
     if ($script:FixtureUri) { return $script:FixtureUri }
-    $p = Join-Path $env:TEMP 'vietime_verify_page.html'
+    $p = Join-Path $env:TEMP 'textvn_verify_page.html'
     $html = '<!doctype html><meta charset="utf-8"><title>verify</title><div contenteditable="true">x</div>'
     [System.IO.File]::WriteAllText($p, $html, [System.Text.UTF8Encoding]::new($false))
     $script:FixtureUri = ([System.Uri]$p).AbsoluteUri

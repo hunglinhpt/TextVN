@@ -3,10 +3,10 @@
 # Chi tra ve ten element/hwnd (S2 - khong log text/nguoi dung).
 #
 # Usage:  . (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
-#         Initialize-VietimeUiA
+#         Initialize-TextVNUiA
 
 # --- 1. UIA assemblies (idempotent) -----------------------------------------
-function Initialize-VietimeUiA {
+function Initialize-TextVNUiA {
     if (-not ('System.Windows.Automation.AutomationElement' -as [type])) {
         Add-Type -AssemblyName UIAutomationClient
         Add-Type -AssemblyName UIAutomationTypes
@@ -145,7 +145,7 @@ function Focus-UiAWindow([IntPtr]$hwnd) { [VtFocus]::Focus($hwnd) }
 # Field.locators = mang uu tien: locator dau tien tim thay thang (fallback chain).
 # Rust harness (WIN-060) + field-detect phai mo ta cung nghia nay (G15 - 1 semantics).
 function Find-UiAElementByLocator($root, $locator) {
-    Initialize-VietimeUiA
+    Initialize-TextVNUiA
     $AE = [System.Windows.Automation.AutomationElement]
     $TS = [System.Windows.Automation.TreeScope]::Descendants
     $conds = New-Object System.Collections.Generic.List[object]

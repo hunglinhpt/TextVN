@@ -9,8 +9,8 @@
 ```
                     ┌── IBus engine process: app_id từ focused AT-SPI app (LNX-005 chốt attr)
 FieldContext ◄──────┼── Fcitx5 addon: cùng helper (dùng chung linux-common — §5)
- (app_id,           └── vietime-x11: WM_CLASS của _NET_ACTIVE_WINDOW (không qua AT-SPI)
-  field_role,                 (1 codebase rules trong libvietime-linux-common.a)
+ (app_id,           └── textvn-x11: WM_CLASS của _NET_ACTIVE_WINDOW (không qua AT-SPI)
+  field_role,                 (1 codebase rules trong libtextvn-linux-common.a)
   secure, caps,
   engine_owner)
 ```
@@ -82,7 +82,7 @@ lần đầu bật "App-compat thông minh (AT-SPI)" trong Settings:
 ```
 - Không bao giờ block gõ vì thiếu permission (fail-open, `P0-3 §3.1` bước 5).
 
-## 5. Module dùng chung `libvietime-linux-common.a` (C)
+## 5. Module dùng chung `libtextvn-linux-common.a` (C)
 
 ```c
 /* adapters/linux-common/include/linux_common.h — link bởi ibus(C) + fcitx5(C++) + x11(Rust bindgen) */
@@ -101,12 +101,12 @@ int  lc_env_check(char *out, size_t len);             /* §7 env matrix cho doct
 |---|---|
 | role `secure` (AT-SPI R1) → `secure=1` | 1 (không override được — S3) |
 | `config.ignore_apps[]` + `state.json` toggle → `ctx.enabled` | 2 |
-| User `~/.config/VietIME/appdb.json` | 3 |
+| User `~/.config/TextVN/appdb.json` | 3 |
 | Preset hệ thống (§3) | 4 |
 | Field-role default + `ctx.caps` (downgrade — `P0-3 §3.1`) | 5 |
 | Fallback BackspaceType | 6 |
 
-## 7. Env matrix & detect framework (dùng cho `vietime doctor` — `PLAN §5.3`)
+## 7. Env matrix & detect framework (dùng cho `textvn doctor` — `PLAN §5.3`)
 
 | Biến | Giá trị gợi ý (IBus) | Giá trị (Fcitx5) | Ai cần |
 |---|---|---|---|
@@ -117,7 +117,7 @@ int  lc_env_check(char *out, size_t len);             /* §7 env matrix cho doct
 
 - **detect `linux_framework` "auto"** (P3-2 §7): ưu tiên `QT_IM_MODULE`/`GTK_IM_MODULE` trỏ tới
   fcitx5 → `fcitx5`, còn lại → `ibus` (GNOME Wayland luôn `ibus` nếu `XDG_CURRENT_DESKTOP=GNOME`).
-- `vietime doctor` in bảng: biến nào sai → đề nghị fix (export trong shell profile/`~/.profile`,
+- `textvn doctor` in bảng: biến nào sai → đề nghị fix (export trong shell profile/`~/.profile`,
   hoặc `.desktop` `env` line) — không tự sửa file của user (S9).
 
 ## 8. Test

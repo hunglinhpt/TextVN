@@ -56,7 +56,7 @@ Chỉ dùng khi A/B không khả thi cho case cụ thể → ghi `:note "oracle=
 
 1. **Mỗi case corpus phải ghi nguồn kỳ vọng** trong comment đầu file:
    `# oracle: unikey-windows-4.3-rc5 | x-unikey-1.0.4 telex | unikey362 manual | spec quy-tắc-đặt-dấu-2024`
-2. Nếu VietIME khác oracle → **phải** có ADR/spec giải thích (ví dụ: kiểu dấu mới `hoà` là chủ đích,
+2. Nếu TextVN khác oracle → **phải** có ADR/spec giải thích (ví dụ: kiểu dấu mới `hoà` là chủ đích,
    UniKey mặc định kiểu cũ) — không được "im lặng sửa expect".
 3. Không commit binary UniKey vào repo. Script tải+build để trong `tools/oracle/` (dùng URL chính thức,
    verify checksum ghi trong script).

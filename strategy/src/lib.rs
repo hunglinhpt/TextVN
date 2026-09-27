@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-strategy` — chọn strategy xuất chữ cho một key event.
+//! `textvn-strategy` — chọn strategy xuất chữ cho một key event.
 //!
 //! Nguồn sự thật: `docs/10-shared/P0-3-config-preset-strategy.md §3.1` (quy tắc phân quyền)
 //! và `docs/10-shared/P0-2-engine-ffi-contract.md §1` (giá trị hằng số).

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-ffi` — C-ABI v1, **nguồn sự thật duy nhất**: `docs/10-shared/P0-2-engine-ffi-contract.md`.
+//! `textvn-ffi` — C-ABI v1, **nguồn sự thật duy nhất**: `docs/10-shared/P0-2-engine-ffi-contract.md`.
 //!
 //! Bất biến (P0-2 §0):
 //! 1. Không alloc chéo ranh giới — mọi `*_v1` do caller cấp phát.
@@ -19,21 +19,21 @@ use std::ffi::{c_char, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
 
-use vietime_config::{parse_config, Config};
-use vietime_core::{Action, Context, Engine, EngineOptions, KeyEvent, Outcome};
-use vietime_strategy::{ResolveInput, Strategy};
+use textvn_config::{parse_config, Config};
+use textvn_core::{Action, Context, Engine, EngineOptions, KeyEvent, Outcome};
+use textvn_strategy::{ResolveInput, Strategy};
 
 /// Hằng modifier — header C gọi là `IME_MOD_*` (`P0-2 §1`).
-pub use vietime_core::keymap::{
+pub use textvn_core::keymap::{
     MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_FN, MOD_META, MOD_SHIFT, MOD_SUPER,
 };
 /// Hằng **action** — 1 nguồn sự thật: `core` định nghĩa, header C khai báo `IME_ACTION_*`
 /// với cùng giá trị (P0-2 §6). Re-export để adapter Rust, test và fuzz target không
 /// phải chép số trần — chép tay là nguồn lệch ABI kinh điển.
-pub use vietime_core::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+pub use textvn_core::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
 /// Hằng `field_role` / capability / strategy — header C khai báo đúng tên này
-/// (`P0-2 §1`, `P0-3 §2.1`). Nguồn sự thật là crate `vietime-strategy`.
-pub use vietime_strategy::{
+/// (`P0-2 §1`, `P0-3 §2.1`). Nguồn sự thật là crate `textvn-strategy`.
+pub use textvn_strategy::{
     IME_CAP_FIELD_DETECT, IME_CAP_INJECT_VK, IME_CAP_PREEDIT, IME_CAP_SELECTION,
     IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_CANDIDATE, IME_FIELD_COMBO, IME_FIELD_EDITBOX,
     IME_FIELD_SEARCH, IME_FIELD_SECURE, IME_FIELD_TERMINAL, IME_FIELD_TEXTAREA, IME_FIELD_UNKNOWN,
@@ -122,41 +122,41 @@ pub struct ime_instance {
 fn options_from_config(cfg: &Config) -> EngineOptions {
     EngineOptions {
         method: match cfg.method {
-            vietime_config::Method::Telex => vietime_core::Method::Telex,
-            vietime_config::Method::Vni => vietime_core::Method::Vni,
-            vietime_config::Method::Viqr => vietime_core::Method::Viqr,
-            vietime_config::Method::SimpleTelex => vietime_core::Method::SimpleTelex,
+            textvn_config::Method::Telex => textvn_core::Method::Telex,
+            textvn_config::Method::Vni => textvn_core::Method::Vni,
+            textvn_config::Method::Viqr => textvn_core::Method::Viqr,
+            textvn_config::Method::SimpleTelex => textvn_core::Method::SimpleTelex,
         },
         diacritic_style: match cfg.diacritic_style {
-            vietime_config::DiacriticStyle::New => vietime_core::DiacriticStyle::New,
-            vietime_config::DiacriticStyle::Old => vietime_core::DiacriticStyle::Old,
+            textvn_config::DiacriticStyle::New => textvn_core::DiacriticStyle::New,
+            textvn_config::DiacriticStyle::Old => textvn_core::DiacriticStyle::Old,
         },
         free_marking: cfg.free_marking,
         enabled: cfg.enabled,
         auto_restore_english: cfg.auto_restore_english,
         auto_capitalize: cfg.auto_capitalize,
         macro_trigger: match cfg.macro_trigger {
-            vietime_config::MacroTrigger::Tab => vietime_core::MacroTrigger::Tab,
-            vietime_config::MacroTrigger::Space => vietime_core::MacroTrigger::Space,
+            textvn_config::MacroTrigger::Tab => textvn_core::MacroTrigger::Tab,
+            textvn_config::MacroTrigger::Space => textvn_core::MacroTrigger::Space,
         },
         allow_macro_when_vi_off: cfg.allow_macro_when_vi_off,
         // `config.macros[]` / `config.emoji[]` (P0-3 §1.1) — gõ tắt/emoji
         macros: cfg
             .macros
             .iter()
-            .map(|m| vietime_core::MacroDef {
+            .map(|m| textvn_core::MacroDef {
                 trigger: m.trigger.clone(),
                 expand: m.expand.clone(),
                 when: match m.when {
-                    vietime_config::MacroWhen::Always => vietime_core::MacroWhen::Always,
-                    vietime_config::MacroWhen::ViOn => vietime_core::MacroWhen::ViOn,
+                    textvn_config::MacroWhen::Always => textvn_core::MacroWhen::Always,
+                    textvn_config::MacroWhen::ViOn => textvn_core::MacroWhen::ViOn,
                 },
             })
             .collect(),
         emoji: cfg
             .emoji
             .iter()
-            .map(|e| vietime_core::Emoji {
+            .map(|e| textvn_core::Emoji {
                 trigger: e.trigger.clone(),
                 glyph: e.glyph.clone(),
             })
@@ -405,7 +405,7 @@ pub extern "C" fn ime_reload_config(inst: *mut ime_instance, cfg: *const u8, len
     let bytes = unsafe { slice::from_raw_parts(cfg, len) };
     let parsed = match std::str::from_utf8(bytes) {
         Ok(s) => parse_config(s),
-        Err(_) => Err(vietime_config::ConfigError::Schema),
+        Err(_) => Err(textvn_config::ConfigError::Schema),
     };
     match parsed {
         Ok(c) => {
@@ -449,7 +449,7 @@ pub extern "C" fn ime_suggest(
 /// nên được gọi sau khi loader nhận `IME_OK` ở một bản phát hành có public key.
 ///
 /// Thứ tự khai báo khớp khối `/* ---- API ---- */` trong header
-/// (verify → resolve → last_error, P0-2 §1) — `vietime verify` enforce.
+/// (verify → resolve → last_error, P0-2 §1) — `textvn verify` enforce.
 #[no_mangle]
 pub extern "C" fn ime_appdb_verify(
     json: *const u8,
@@ -469,7 +469,7 @@ pub extern "C" fn ime_appdb_verify(
         Ok(value) => value,
         Err(_) => return IME_ERR_CONFIG,
     };
-    if vietime_appdb::AppDb::parse(text).is_err() {
+    if textvn_appdb::AppDb::parse(text).is_err() {
         return IME_ERR_CONFIG;
     }
     let _signature = unsafe { slice::from_raw_parts(sig, sig_len) };
@@ -498,7 +498,7 @@ pub extern "C" fn ime_strategy_resolve(
     if ctx.abi_version != IME_ABI_VERSION {
         return IME_ERR_ABI;
     }
-    if ctx.field_role > vietime_strategy::IME_FIELD_SECURE {
+    if ctx.field_role > textvn_strategy::IME_FIELD_SECURE {
         return IME_ERR_INVALID_ARG;
     }
 
@@ -518,7 +518,7 @@ pub extern "C" fn ime_strategy_resolve(
             Ok(value) => value,
             Err(_) => return IME_ERR_CONFIG,
         };
-        match vietime_appdb::AppDb::parse(json) {
+        match textvn_appdb::AppDb::parse(json) {
             Ok(value) => Some(value),
             Err(_) => return IME_ERR_CONFIG,
         }
@@ -535,7 +535,7 @@ pub extern "C" fn ime_strategy_resolve(
     };
     match catch_unwind(AssertUnwindSafe(|| match db {
         Some(db) => db.resolve(input, app_id),
-        None => vietime_strategy::resolve(input),
+        None => textvn_strategy::resolve(input),
     })) {
         Ok(strategy) => {
             unsafe { *out_strategy = strategy.id() };
@@ -548,7 +548,7 @@ pub extern "C" fn ime_strategy_resolve(
 /// Trả NULL thay vì panic khi instance NULL (adapter không được crash).
 ///
 /// Đứng cuối file export — khớp khối `/* ---- API ---- */` trong header
-/// (verify → resolve → last_error, P0-2 §1). `vietime verify` enforce thứ tự.
+/// (verify → resolve → last_error, P0-2 §1). `textvn verify` enforce thứ tự.
 #[no_mangle]
 pub extern "C" fn ime_last_error(inst: *const ime_instance) -> *const c_char {
     if inst.is_null() {
@@ -759,22 +759,22 @@ mod tests {
         }"#;
         let mut ctx = resolve_context(
             app_id.as_ptr(),
-            vietime_strategy::IME_FIELD_ADDRESS_BAR,
-            vietime_strategy::IME_CAP_SELECTION,
+            textvn_strategy::IME_FIELD_ADDRESS_BAR,
+            textvn_strategy::IME_CAP_SELECTION,
         );
         let mut strategy = -1;
         assert_eq!(
             ime_strategy_resolve(&ctx, db.as_ptr(), db.len(), &mut strategy),
             IME_OK
         );
-        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_SELECTION_REPLACE);
+        assert_eq!(strategy, textvn_strategy::IME_STRATEGY_SELECTION_REPLACE);
 
         ctx.secure = 1;
         assert_eq!(
             ime_strategy_resolve(&ctx, db.as_ptr(), db.len(), &mut strategy),
             IME_OK
         );
-        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+        assert_eq!(strategy, textvn_strategy::IME_STRATEGY_PASSTHROUGH);
     }
 
     #[test]
@@ -782,20 +782,20 @@ mod tests {
         let mut strategy = -1;
         let ctx = resolve_context(
             std::ptr::null(),
-            vietime_strategy::IME_FIELD_BODY,
-            vietime_strategy::IME_CAP_PREEDIT,
+            textvn_strategy::IME_FIELD_BODY,
+            textvn_strategy::IME_CAP_PREEDIT,
         );
         let malformed = b"{}";
         assert_eq!(
             ime_strategy_resolve(&ctx, malformed.as_ptr(), malformed.len(), &mut strategy),
             IME_ERR_CONFIG
         );
-        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+        assert_eq!(strategy, textvn_strategy::IME_STRATEGY_PASSTHROUGH);
         assert_eq!(
             ime_strategy_resolve(&ctx, std::ptr::null(), 1, &mut strategy),
             IME_ERR_INVALID_ARG
         );
-        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+        assert_eq!(strategy, textvn_strategy::IME_STRATEGY_PASSTHROUGH);
     }
 
     #[test]

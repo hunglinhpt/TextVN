@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Application Manifest cho VietIME (WIN-055 — P1-4 §4). -->
+<!-- Application Manifest cho TextVN (WIN-055 — P1-4 §4). -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
     version="0.1.0.0"
     processorArchitecture="*"
-    name="VietIME.VietIME"
+    name="TextVN.TextVN"
     type="win32"
   />
-  <description>VietIME - Bộ gõ tiếng Việt hiện đại</description>
+  <description>TextVN - Bộ gõ tiếng Việt hiện đại</description>
 
   <!-- Yêu cầu quyền thực thi: asInvoker cho per-user (không đòi hỏi admin - Rule S5) -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">

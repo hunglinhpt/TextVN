@@ -1,6 +1,6 @@
 # PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)
 
-> Tên tạm định (working name): **VietIME** — repo `github.com/<org>/vietime`
+> Tên tạm định (working name): **TextVN** — repo `github.com/<org>/textvn`
 > Tài liệu này tổng hợp góc nhìn của 6 vai trò: **Product Owner · Solution Architect · Engineer · Technical · Audit · Chuyên gia lĩnh vực**.
 > Kỳ vọng: bản **v1.0 production** sau **~6–8 tháng** với team 4–6 người.
 
@@ -27,7 +27,7 @@
 
 ### 1.1 Bảng tổng hợp
 
-| Dự án | Giấy phép | Kiến trúc | Điểm HOẠT HẠNG kế thừa | Bug/nhược điểm cần TRÁNH hoặc SỬA | Cái gì lấy vào VietIME |
+| Dự án | Giấy phép | Kiến trúc | Điểm HOẠT HẠNG kế thừa | Bug/nhược điểm cần TRÁNH hoặc SỬA | Cái gì lấy vào TextVN |
 |---|---|---|---|---|---|
 | **UniKey / x-unikey** (unikey.org) | **GPL** | Lõi C thuần (engine trong gói `x-unikey-1.0.4`), Win32 hook gửi phím | Engine Telex/VNI thuần C đã battle-test 20+ năm; UVConverter (13 bảng mã); cấu hình file | Gửi phím kiểu *keyboard hook + SendInput* → lỗi **dính chữ thanh địa chỉ Chrome, gợi ý Excel**; UniKey **không mở source bản mới** nữa (bị lợi dụng GPL); GUI cũ | **Lấy core engine làm golden reference/test oracle** (GPL → hợp pháp), chuẩn behaviour khi migrate |
 | **UniKey 3.62 source** | GPL | Win32, engine đời cũ | Mã tham chiếu cho free-marking, chuyển chế độ | Engine cũ (không phải bản mới nhất) | Chỉ dùng để đối chiếu hành vi, **không** copy blind |
@@ -54,7 +54,7 @@
 
 ### 1.3 Ma trận bug kinh niên → kế hoạch xử lý (Đây là "bài toán thật" của dự án)
 
-| # | Bug kinh niên | Xuất hiện ở | Chiến lược fix trong VietIME | Nguồn học |
+| # | Bug kinh niên | Xuất hiện ở | Chiến lược fix trong TextVN | Nguồn học |
 |---|---|---|---|---|
 | B1 | Dính chữ / lặp dấu ở **thanh địa chỉ & ô gợi ý** (Chrome/Edge/Firefox/Safari, Excel, Word, JetBrains) | UniKey, EVKey, mọi bộ gõ backspace | **Strategy `SelectionReplace`** khi detect field là ComboBox/SearchField/autocomplete (AX trên macOS, UIA trên Windows, AT-SPI trên Linux) + preset theo bundle-id/exe | gonhanh |
 | B2 | **Lặp từ cuối khi Enter** trong Messenger/Slack/Telegram/Zalo | IBus/Fcitx5 | **Commit-before-hide**: luôn commit preedit trước khi mất focus/ẩn | bamboo-viet |
@@ -80,7 +80,7 @@
 
 **Khác biệt hóa so với đối thủ:**
 
-| Đối thủ | Họ làm tốt | VietIME thắng bằng gì |
+| Đối thủ | Họ làm tốt | TextVN thắng bằng gì |
 |---|---|---|
 | UniKey | Phổ biến, engine chuẩn | Cross-platform + browser fix + mở source + auto-update |
 | EVKey | Nhiều tính năng Windows | **Auditable & GPL-compliant** (điểm yếu chí mạng của họ) |
@@ -175,7 +175,7 @@
        └─────┬───────────┬───────────┬─────────┘
              │ key events / text slots
    ┌─────────▼───────────────────────────────┐
-   │                VietIME                  │
+   │                TextVN                  │
    │  Core Engine · Strategy · PresetDB      │
    │  Tray/Settings · Updater · Diagnostics  │
    └────┬───────────────┬───────────────┬────┘
@@ -188,9 +188,9 @@
 ### 3.2 C4 — Containers (Monorepo) — *bản layout chính thức đã chốt ở `docs/10-shared/P0-1-repo-and-workflow.md`; dưới đây là bản rút gọn*
 
 ```
-vietime/
+textvn/
 ├── core/                    # Rust — engine thuần, KHÔNG std I/O, KHÔNG network, no_std-friendly
-├── ffi/                     # crate vietime-ffi — C-ABI duy nhất (header include/vietime_ffi.h)
+├── ffi/                     # crate textvn-ffi — C-ABI duy nhất (header include/textvn_ffi.h)
 │   └── src/{normalize,buffer,validate,transform,marking,word,macro,spelling}/ ← nằm trong core/
 ├── strategy/                # Rust — output strategy state machine (per context)
 ├── config/, appdb/, ipc/    # crate load config · preset ký số · codec IPC
@@ -203,7 +203,7 @@ vietime/
 │   ├── macos-tap/           # Swift — CGEventTap optional           (Phần 2)
 │   ├── linux-ibus/          # C — ibus engine                      (Phần 3)
 │   └── linux-fcitx5/        # C++ — fcitx5 addon                   (Phần 3)
-├── tray/                    # vietime-tray (egui) + updater + CLI   (đã chốt: ADR-004)
+├── tray/                    # textvn-tray (egui) + updater + CLI   (đã chốt: ADR-004)
 ├── tools/appcomptest/       # driver UIA/AX/AT-SPI cho app-compat test
 ├── fuzz/, xtask/, docs/, packaging/, corpus/
 └── .github/workflows/       # ci-shared, ci-{linux,windows,macos}, release.yml (signed)
@@ -327,7 +327,7 @@ Lớp 1  Unit + property test (proptest) trong core            — nhanh
 Lớp 2  Golden corpus: file .keys có assertion inline (:expect) — spec: docs/10-shared/P0-4  — đối chiếu UNIKEY ENGINE
         (dùng x-unikey/UniKey 3.6 build CLI để sinh oracle)
 Lớp 3  Cross-platform conformance: cùng corpus chạy trên 3 adapter qua CLI harness
-        `vietime replay --keys corpus/*.keys --adapter headless`
+        `textvn replay --keys corpus/*.keys --adapter headless`
 Lớp 4  Fuzz: cargo-fuzz + libFuzzer trên ime_key/FFI/JSON config parser (sanitizers ASan/UBSan)
 Lớp 5  App-compat automation (tools/appcomptest):
         - Windows: UIAutomation type vào Chrome address bar / Excel cell / VS Code
@@ -362,7 +362,7 @@ Lớp 7  Manual matrix trên 40 app × 3 OS trước mỗi release (checklist tr
 
 ### 5.2 Env compatibility (được yêu cầu đặc biệt)
 
-- **Linux env vars** phải được detect & hướng dẫn: `GTK_IM_MODULE`, `QT_IM_MODULE`, `XMODIFIERS`; document matrix app-by-app (Chromium dùng IM riêng,某些 GTK app cần `gtk-im-module=fcitx`…); có `vietime doctor` CLI chẩn đoán env và đề nghị fix.
+- **Linux env vars** phải được detect & hướng dẫn: `GTK_IM_MODULE`, `QT_IM_MODULE`, `XMODIFIERS`; document matrix app-by-app (Chromium dùng IM riêng,某些 GTK app cần `gtk-im-module=fcitx`…); có `textvn doctor` CLI chẩn đoán env và đề nghị fix.
 - **Windows**: UAC/Secure Desktop không gõ được (đúng — báo rõ cho user), app elevated cần uiAccess, RDP/Conhost không hỗ trợ TSF → fallback hook.
 - **macOS**: Secure Input (mật khẩu) → IMK tự pause; App Sandbox/TCC không ảnh hưởng vì IMK hợp lệ.
 - **Terminal**: mọi terminal dùng `ForwardAsCommit`.
@@ -403,7 +403,7 @@ Chrome · Edge · Firefox · Safari · Word · Excel · PowerPoint · Outlook ·
 
 | Threat | Scenario | Control |
 |---|---|---|
-| **Keylogger trojan** | Bản lậu bị chèn code đọc phím | GPL toàn phần + reproducible build + signer key offline + publish hash/SBOM; encourage build-from-source; `vietime verify` |
+| **Keylogger trojan** | Bản lậu bị chèn code đọc phím | GPL toàn phần + reproducible build + signer key offline + publish hash/SBOM; encourage build-from-source; `textvn verify` |
 | **Supply chain** | Dependency/npm/cargo bị compromise | `cargo-deny`, lockfile, minimal deps, vendoring option, CodeQL, Dependabot, provenance attestation (SLSA L2+) |
 | **Updater giả mạo** | MITM push binary độc | Ed25519 signature (minisign/Sparkle-style), HTTPS only, HTTPS + hash kép, **rollback không nhận bản ký sai**, auto-update off default cho enterprise |
 | **Installer privilege escalation** | Yêu cầu admin không cần thiết | Per-user install mặc định; uiAccess chỉ khi ký + Program Files |

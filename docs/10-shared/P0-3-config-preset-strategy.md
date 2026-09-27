@@ -7,9 +7,9 @@
 
 | OS | `config.json` / `appdb.json` / `state.json` | Log |
 |---|---|---|
-| Windows | `%APPDATA%\VietIME\` | `%LOCALAPPDATA%\VietIME\logs\` |
-| macOS | `~/Library/Application Support/VietIME/` | `~/Library/Logs/VietIME/` |
-| Linux | `~/.config/VietIME/` (config/state/appdb — chốt `P3-0 §2`) | `~/.local/state/VietIME/log/` |
+| Windows | `%APPDATA%\TextVN\` | `%LOCALAPPDATA%\TextVN\logs\` |
+| macOS | `~/Library/Application Support/TextVN/` | `~/Library/Logs/TextVN/` |
+| Linux | `~/.config/TextVN/` (config/state/appdb — chốt `P3-0 §2`) | `~/.local/state/TextVN/log/` |
 
 *(Nhãn tiêu đề bảng trên tham chiếu Windows cho ngắn; nội dung bảng là nguồn sự thật cho mọi OS.)*
 
@@ -47,7 +47,7 @@
   "open_settings": "Ctrl+Shift+O"
 }
 ```
-> Hotkey **không được trùng phím tắt hệ thống** (check trong `vietime doctor`, bug B6):
+> Hotkey **không được trùng phím tắt hệ thống** (check trong `textvn doctor`, bug B6):
 > list blacklist `Ctrl+C/V/X/Z`, `Alt+Tab`, `Win+L`, `Cmd+Q`… validator từ chối với lỗi rõ ràng.
 
 ### 1.2 Ví dụ đầy đủ
@@ -77,7 +77,7 @@
 }
 ```
 
-**Validation:** `vietime-config` validate bằng JSON Schema **trước** đưa vào engine.
+**Validation:** `textvn-config` validate bằng JSON Schema **trước** đưa vào engine.
 Sai schema → giữ file cũ, tạo `config.invalid.json` để debug, engine chạy default, tray hiện banner.
 Hot-reload: tray watch file (debounce 300ms) → gửi `ConfigReload` qua IPC (§5) → adapter gọi `ime_reload_config`.
 
@@ -134,7 +134,7 @@ Hot-reload: tray watch file (debounce 300ms) → gửi `ConfigReload` qua IPC (�
 
 - `inject_mode` (adapter inject: hook/tap/x11): `"unicode"` (gửi chuỗi Unicode — KEYEVENTF_UNICODE/CGEvent/…) | `"vk_then_unicode"` (gửi VK/keycode thật cho ASCII → app nhìn thấy key event thật, quan trọng với autocomplete) | `"selection"` (Shift+Left rồi chèn) | `"keycode_ascii"` (chỉ keycode theo layout hiện tại — X11, dùng khi spike chốt, xem `P3-3 §5.4`).
 - **Matching:** adapter chuyển OS → `app_id` chuẩn (Win: `exe` thường chữ thường; macOS: bundle id; Linux: WM_CLASS) → tìm entry khớp **theo thứ tự file, entry đầu khớp thắng**; `when.field_role` lọc thêm.
-- **User override** (`%APPDATA%\VietIME\appdb.json`) merge: field nào user đặt → **giành quyền tuyệt đối**.
+- **User override** (`%APPDATA%\TextVN\appdb.json`) merge: field nào user đặt → **giành quyền tuyệt đối**.
 
 ### 2.2 Ký số & cập nhật
 
@@ -202,19 +202,19 @@ Trạng thái người dùng đổi chỗ nào? → **tray là source of truth**
 | Adapter mới kết nối (mở app mới) | gọi `GetSnapshot` → nhận config_version + state + presets_version |
 | Tray không chạy | adapter đọc file trực tiếp khi khởi tạo; **không block** |
 
-## 5. IPC — `\\.\pipe\vietime-ipc-v1` (`schemas/ipc.v1.md`)
+## 5. IPC — `\\.\pipe\textvn-ipc-v1` (`schemas/ipc.v1.md`)
 
 - **Transport per-OS — cùng 1 schema (`schemas/ipc.v1.md`):**
 
   | OS | Endpoint | Bảo vệ |
   |---|---|---|
-  | Windows | named pipe `\\.\pipe\vietime-ipc-v1` (message mode, `CreateNamedPipe`) | DACL = chỉ current user SID |
-  | macOS | unix socket `~/Library/Application Support/VietIME/ipc.sock` | dir 0700, sock 0600 + check uid |
-  | Linux | unix socket `~/.config/VietIME/ipc.sock` (chốt `P3-0 §2`) | 0600 + `SO_PEERCRED` |
+  | Windows | named pipe `\\.\pipe\textvn-ipc-v1` (message mode, `CreateNamedPipe`) | DACL = chỉ current user SID |
+  | macOS | unix socket `~/Library/Application Support/TextVN/ipc.sock` | dir 0700, sock 0600 + check uid |
+  | Linux | unix socket `~/.config/TextVN/ipc.sock` (chốt `P3-0 §2`) | 0600 + `SO_PEERCRED` |
 
   **Không TCP/HTTP ở mọi OS.**
 - **Codec:** 1 message = 1 frame JSON (u32 length prefix + UTF-8), validate schema trước xử lý.
-- **Server:** `vietime-tray.exe`. **Client:** mỗi instance `vietime-tsf.dll` (theo process), `vietime-hook`.
+- **Server:** `textvn-tray.exe`. **Client:** mỗi instance `textvn-tsf.dll` (theo process), `textvn-hook`.
 
 | Message (client→server) | Payload | Server trả |
 |---|---|---|

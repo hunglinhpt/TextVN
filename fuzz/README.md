@@ -25,7 +25,7 @@ hoặc corpus `.keys` trước khi fix (Handbook §9: reproduces trước, fix s
 | Target | Bất biến |
 |---|---|
 | `ffi_key` | `insert_len`/`preedit_len`/`delete_count` ≤ `IME_MAX_TEXT` (adapter đọc tràn?); `action`/`rc` thuộc tập công bố; **fail-open**: `rc ≠ OK ⇒ action = PASS` (S4); phím `is_injected` luôn PASS (chống loop); abi lệch ⇒ `IME_ERR_ABI`; NULL args ⇒ `IME_ERR_INVALID_ARG` |
-| `config_parse` | config sai vẫn tạo instance (không panic, không NULL); **FFI và `vietime-config` cùng kết luận**; `ime_reload_config` nhất quán; `ime_last_error` không echo nội dung config (S2); `ime_suggest` (feature tắt) không trả item |
+| `config_parse` | config sai vẫn tạo instance (không panic, không NULL); **FFI và `textvn-config` cùng kết luận**; `ime_reload_config` nhất quán; `ime_last_error` không echo nội dung config (S2); `ime_suggest` (feature tắt) không trả item |
 | `appdb_parse` | `AppDb::parse` không panic với rác; strategy id luôn trong tập header công bố. Trên Windows target này không link FFI vì libFuzzer MSVC không link được dependency `cdylib`; invariant FFI tương ứng chạy stable trong `ffi/tests/abi_invariants.rs`, còn Unix CI fuzz `ffi_key`/`config_parse` với `ffi-fuzz`. |
 
 ## Kiểm chứng trên máy không có cargo-fuzz

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `ITfTextInputProcessorEx` and `ITfThreadMgrEventSink` implementation for VietIME TSF (WIN-010/014).
+//! `ITfTextInputProcessorEx` and `ITfThreadMgrEventSink` implementation for TextVN TSF (WIN-010/014).
 
 #[cfg(windows)]
 use std::cell::{RefCell, UnsafeCell};
@@ -134,7 +134,7 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
             .unwrap_or_else(|| "unknown.exe".into());
 
-        let state = match ThreadState::new(exe_name.clone(), vietime_strategy::IME_CAP_PREEDIT) {
+        let state = match ThreadState::new(exe_name.clone(), textvn_strategy::IME_CAP_PREEDIT) {
             Ok(s) => Rc::new(RefCell::new(s)),
             Err(e) => return Err(Error::from_hresult(HRESULT(e))),
         };

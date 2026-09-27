@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
-name = "vietime-win-hook"
+name = "textvn-win-hook"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
 
 [dependencies]
-vietime-appdb = { path = "../../appdb" }
-vietime-field-detect = { path = "../../field-detect" }
-vietime-ffi = { path = "../../ffi" }
-vietime-ipc = { path = "../../ipc" }
-vietime-strategy = { path = "../../strategy" }
+textvn-appdb = { path = "../../appdb" }
+textvn-field-detect = { path = "../../field-detect" }
+textvn-ffi = { path = "../../ffi" }
+textvn-ipc = { path = "../../ipc" }
+textvn-strategy = { path = "../../strategy" }
 
 [[bin]]
 name = "textvn-hook"

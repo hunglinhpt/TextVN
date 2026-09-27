@@ -3,8 +3,8 @@
 > WS2 · `adapters/linux-fcitx5/` (**C++** — `PLAN §4.1`: "Linux Fcitx5: C++, addon API C++").
 > ADR-007: dual adapter. Fcitx5 là mặc định của nhiều distro (KDE neon, Arch, openSUSE) →
 > bắt buộc có để đủ matrix người dùng (`PLAN §5.3`).
-> Định dạng chung với `P3-1-ibus.md`; bản thân engine/thư viện dùng chung: `libvietime_ffi.a` +
-> `libvietime-linux-common.a` — **không viết lại logic core** (P0-2).
+> Định dạng chung với `P3-1-ibus.md`; bản thân engine/thư viện dùng chung: `libtextvn_ffi.a` +
+> `libtextvn-linux-common.a` — **không viết lại logic core** (P0-2).
 
 ## 1. Quyết định & capability
 
@@ -22,23 +22,23 @@
 adapters/linux-fcitx5/
 ├── CMakeLists.txt                  # find_package(Fcitx5Core REQUIRED) + pkg-config glib
 ├── src/
-│   ├── addon.cpp                    # AddonInstance "vietime": đọc config, tạo engine factory
+│   ├── addon.cpp                    # AddonInstance "textvn": đọc config, tạo engine factory
 │   ├── engine.cpp                   # InputMethodEngine (keyEvent/reset/activateEvent/focusEvent)
 │   ├── keymap.cpp                   # fcitx::Key → ime_key_v1 (chung khung với P3-1 §5.1)
 │   ├── apply.cpp                    # §5 — preedit/commit/surrounding (dùng linux-common helpers)
 │   └── instance_map.cpp             # IC* → ime_instance* (§3)
-├── conf/vietime.conf.in             # addon descriptor cho fcitx5 (/usr/share/fcitx5/addon/)
-├── conf/vietime.inputmethod?        # nếu cần đăng ký IM — verify ở spike LNX-006
+├── conf/textvn.conf.in             # addon descriptor cho fcitx5 (/usr/share/fcitx5/addon/)
+├── conf/textvn.inputmethod?        # nếu cần đăng ký IM — verify ở spike LNX-006
 └── tests/                           # unit keymap + instance lifecycle (link mock fcitx5 API)
 ```
 
-- **Không** phụ thuộc IBus (2 addon song song, loại trừ nhau qua env/`vietime doctor` — `P3-4 §7`).
+- **Không** phụ thuộc IBus (2 addon song song, loại trừ nhau qua env/`textvn doctor` — `P3-4 §7`).
 
 ## 3. Vòng đời
 
 ```text
-cài .deb → /usr/share/fcitx5/addon/vietime.conf + /usr/lib/fcitx5/libvietime-fcitx5.so
-fcitx5 khởi động → load addon → vietime::AddonInstance init:
+cài .deb → /usr/share/fcitx5/addon/textvn.conf + /usr/lib/fcitx5/libtextvn-fcitx5.so
+fcitx5 khởi động → load addon → textvn::AddonInstance init:
   1. EngineShared.ensure(): đọc config 1 lần (cache qua FileWatcher — P3-5 §3)
   2. ipc connect → GetSnapshot (offline nếu tray chưa mở — P0-3 §4)
 focusIn(ic) / activate(ic):
@@ -83,13 +83,13 @@ bool keyEvent(engine, InputContext *ic, const fcitx::Key &key)
 ## 6. Link FFI từ C++ (RL10 — spike `LNX-003`)
 
 ```cmake
-target_link_libraries(vietime-fcitx5 PRIVATE
-    ${CMAKE_SOURCE_DIR}/../../target/release/libvietime_ffi.a      # hoặc .so (fallback)
-    vietime-linux-common)
+target_link_libraries(textvn-fcitx5 PRIVATE
+    ${CMAKE_SOURCE_DIR}/../../target/release/libtextvn_ffi.a      # hoặc .so (fallback)
+    textvn-linux-common)
 # FFI header có extern "C" sẵn (P0-2 §1) — chỉ cần include, không wrapper mới
 ```
 - Trường hợp fcitx5 link `-fno-exceptions` / xung đột symbol → fallback dùng `cdylib`
-  `libvietime_ffi.so` (P0-2 đã cho crate-type cả hai) — **không đổi FFI**.
+  `libtextvn_ffi.so` (P0-2 đã cho crate-type cả hai) — **không đổi FFI**.
 
 ## 7. Tương thích 2 adapter song song (điều phối IBus + Fcitx5)
 
@@ -112,7 +112,7 @@ Quy tắc: CHỈ MỘT framework active tại 1 thời điểm (người dùng c
 | F3 | `keyEvent` nhận đủ key (có key-up không? state flags?) | ghi |
 | F4 | Preedit hiển thị qua classic/GTK/Qt UI | ✅ trong gedit + konsole |
 | F5 | `commitString` thay selection? `surroundingText().deleteAround` hoạt động ở GTK/Qt? | bảng |
-| F6 | Link `libvietime_ffi.a` + exceptions/symbols (RL10) | ✅ hoặc chốt fallback `.so` |
+| F6 | Link `libtextvn_ffi.a` + exceptions/symbols (RL10) | ✅ hoặc chốt fallback `.so` |
 | F7 | 2 addon (IBus+Fcitx5) cùng cài trên 1 máy → conflict? | ghi cách xử lý (§7) |
 | F8 | fcitx5 crash khi engine ném exception giữa keyEvent? (bẫy `catch(...)`) | 0 crash |
 
@@ -136,7 +136,7 @@ Quy tắc: CHỈ MỘT framework active tại 1 thời điểm (người dùng c
 |---|---|
 | Ném C++ exception trong callback | `try/catch(...)` từng callback → false + counter (không lan ra fcitx5 — RL7) |
 | API khác version (RL2) | `#if FCITX_VERSION` + pin tối thiểu trong `Depends:` của .deb |
-| Xung đột symbol / `-fno-exceptions` (RL10) | Fallback `libvietime_ffi.so` (P0-2 crate-type) |
+| Xung đột symbol / `-fno-exceptions` (RL10) | Fallback `libtextvn_ffi.so` (P0-2 crate-type) |
 | Surrounding không hỗ trợ (RL5) | probe → caps → resolve downgrade (giống P3-1) |
 | Cả 2 framework cùng chạy | state `linux_framework` (§7) + corpus `owner_no_double` |
 | fcitx5 bị user tắt giữa preedit | commit-before-hide ở `deactivate`/shutdown |

@@ -28,7 +28,7 @@ allow = [
 
 [bans]
 multiple-versions = "warn"
-# workspace path-dep (`vietime-* = { path = ... }`) bị cargo-deny coi là wildcard —
+# workspace path-dep (`textvn-* = { path = ... }`) bị cargo-deny coi là wildcard —
 # không phải rủi ro thật (crates.io wildcard thật vẫn hiện warning để review).
 wildcards = "warn"
 

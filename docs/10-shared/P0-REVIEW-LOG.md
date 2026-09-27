@@ -12,7 +12,7 @@
 
 | ID | Mức | Finding | Trạng thái | Fix |
 |---|---|---|---|---|
-| F0-001 | **blocker** | Mâu thuẫn process model của hook: `P0-1` ghi `vietime-win-hook` là lib nhúng vào tray, `P0-3 §5` liệt kê `vietime-hook` là IPC client riêng → agent không biết viết exe nào | ✅ Fixed | Chốt **process riêng `vietime-hook.exe`** (crash-isolated, tray spawn + watchdog <500ms); sửa `P0-1 §1`, thêm `vietime-hook.exe` vào bảng naming `00-INDEX §4` |
+| F0-001 | **blocker** | Mâu thuẫn process model của hook: `P0-1` ghi `textvn-win-hook` là lib nhúng vào tray, `P0-3 §5` liệt kê `textvn-hook` là IPC client riêng → agent không biết viết exe nào | ✅ Fixed | Chốt **process riêng `textvn-hook.exe`** (crash-isolated, tray spawn + watchdog <500ms); sửa `P0-1 §1`, thêm `textvn-hook.exe` vào bảng naming `00-INDEX §4` |
 | F0-002 | **major** | `ime_context_v1.hint` mập mờ ("engine tự resolve" nhưng engine không biết adapter có preedit/selection hay không) → resolve strategy sai cho adapter thiếu capability | ✅ Fixed | Thêm `uint32_t caps` + `IME_CAP_PREEDIT/SELECTION/FIELD_DETECT/INJECT_VK`, `hint` = strategy id 0..4 hoặc -1; `P0-3 §3.1` bước 5 gate theo `ctx.caps` |
 | F0-003 | minor | Walkthrough TSF trong `P0-2 §7` trỏ nhầm `P1-2 §5` (file hook) | ✅ Fixed | Sửa thành `P1-1 §6` |
 | F0-004 | **major** | `P0-3 §3.1` bước 3 trỏ "user override cho app_id" nhưng `config.app_overrides` chỉ chứa `method/diacritic_style`, **không chứa strategy** → nhầm nguồn override | ✅ Fixed | Sửa thành "User preset override (user `appdb.json` §2.1)" |
@@ -47,7 +47,7 @@
 **Kết luận Review 2:** hết major → **Phần 0 đạt 2/2**.
 **Rủi ro còn lại (chấp nhận, theo dõi):**
 1. Oracle UniKey chưa build thử (F0-001 rủi ro carry-over) → task **WIN-007** (P1-6).
-2. Namespace `VietIME` chưa kiểm tra trademark/name collision → task **WIN-008** (P1-6) trước khi public release.
+2. Namespace `TextVN` chưa kiểm tra trademark/name collision → task **WIN-008** (P1-6) trước khi public release.
 3. `ime_suggest` chỉ khai báo (feature `suggest` tắt mặc định) — không block adapter v1.
 
 ---
@@ -55,7 +55,7 @@
 ## Cross-check checklist (Review 2) — kết quả
 
 - [x] `grep "ime_init\|ime_abi(\|appdb.toml\|\.expected"` → 0 lỗi mâu thuẫn còn lại
-- [x] Tên crate/binary khớp giữa `00-INDEX §4`, `P0-1 §1`, `P0-3 §5` (kể cả `vietime-hook.exe`)
+- [x] Tên crate/binary khớp giữa `00-INDEX §4`, `P0-1 §1`, `P0-3 §5` (kể cả `textvn-hook.exe`)
 - [x] `ime_result_v1`=532, `ime_key_v1`=20, `IME_MAX_TEXT`=64 — nhất quán `PLAN §3.3` ↔ `P0-2`
 - [x] Strategy enum 5 giá trị — nhất quán `P0-2` ↔ `P0-3 §3` ↔ `PLAN §3.4` ↔ `appdb` JSON
 - [x] Bảng role JSON↔FFI có đủ 11 role
@@ -85,7 +85,7 @@ finding chưa-fix, path ref, task ID, §-ref, tên crate) + đối chiếu scaff
 - [x] Finding chưa-fix: chỉ F0-014 (đã verify).
 - [x] Task ID: WIN=46, MAC=46, LNX=50 — không có ID nào được tham chiếu nhưng thiếu
       (WIN-020/MAC-045 chỉ nằm trong trích dẫn finding lịch sử).
-- [x] Tên crate khớp `P0-1 §2` ↔ scaffold thật: `vietime-{core,strategy,config,ffi,cli}` ✓.
+- [x] Tên crate khớp `P0-1 §2` ↔ scaffold thật: `textvn-{core,strategy,config,ffi,cli}` ✓.
 - [x] Path ref chưa tồn tại = **task deliverable** (spike specs, rc/parity checklists, `docs/compat.md`,
       `env-*.md`) — đúng quy tắc deliverable, không phải lỗi.
 
@@ -93,7 +93,7 @@ finding chưa-fix, path ref, task ID, §-ref, tên crate) + đối chiếu scaff
 - [x] `cargo test --workspace` → **58/58 pass** (core 30, strategy 9, ffi 6, config 5, cli 8); FFI size/offset test đúng 20/532 (P0-2 §6).
 - [x] `cargo clippy --workspace --all-targets` → 0 warning.
 - [x] fail-open/`catch_unwind`/config-sai-non-fatal đúng P0-2 §0/§5 (có test).
-- [x] `cargo run -p vietime-cli -- sizes` **đã implement** (P0-1 §3, P0-2 §6 — F2-003 định nghĩa): verify `ime_key_v1=20` · `ime_result_v1=532`, in offset, hỗ trợ `--json`; lệch → exit 1. Kèm `config validate|default` + `doctor` (check ABI + config người dùng, không in nội dung config — S2).
+- [x] `cargo run -p textvn-cli -- sizes` **đã implement** (P0-1 §3, P0-2 §6 — F2-003 định nghĩa): verify `ime_key_v1=20` · `ime_result_v1=532`, in offset, hỗ trợ `--json`; lệch → exit 1. Kèm `config validate|default` + `doctor` (check ABI + config người dùng, không in nội dung config — S2).
 - [ ] `rust-toolchain.toml` để `channel = "stable"` chưa pin version (chính file có TODO(WIN-001)) — giữ theo TODO.
 
 **Kết luận:** docs đạt; scaffold accepted (chờ `sizes`). Mở development Windows (task `P1-6`) theo phân chia:

@@ -1,4 +1,4 @@
-# Performance Audit — VietIME Windows Platform
+# Performance Audit — TextVN Windows Platform
 
 Tài liệu này ghi lại các yêu cầu hiệu năng (NFR), điểm đo lường, và kết quả audit cho Windows platform.
 
@@ -11,10 +11,10 @@ Tài liệu này ghi lại các yêu cầu hiệu năng (NFR), điểm đo lư�
 | NFR-P1 | Hook callback latency (WH_KEYBOARD_LL) | < 2ms (timebox cứng) |
 | NFR-P2 | TSF key event processing | < 5ms end-to-end |
 | NFR-P3 | IPC roundtrip (TSF → Tray → TSF) | < 10ms |
-| NFR-P4 | Startup time (`vietime-tray.exe`) | < 1 giây |
+| NFR-P4 | Startup time (`textvn-tray.exe`) | < 1 giây |
 | NFR-P5 | CPU idle (tray không gõ) | < 0.1% |
-| NFR-P6 | RAM working set (`vietime-tray.exe`) | < 20 MB |
-| NFR-P7 | RAM working set (`vietime-tsf.dll` trong host) | < 5 MB thêm |
+| NFR-P6 | RAM working set (`textvn-tray.exe`) | < 20 MB |
+| NFR-P7 | RAM working set (`textvn-tsf.dll` trong host) | < 5 MB thêm |
 | NFR-P8 | DLL first-load (Activate) | < 200ms |
 
 ---
@@ -24,7 +24,7 @@ Tài liệu này ghi lại các yêu cầu hiệu năng (NFR), điểm đo lư�
 ### 2a. WH_KEYBOARD_LL Hook Callback
 
 ```
-vietime-hook.exe:
+textvn-hook.exe:
   low_level_keyboard_proc()
   ├── [GUARD] IN_INJECTION.load() → 1 atomic op ~1ns
   ├── [GUARD] timebox check: Instant::now() vs 2ms budget
@@ -45,7 +45,7 @@ vietime-hook.exe:
 ### 2b. TSF Key Event Sink
 
 ```
-vietime-tsf.dll:
+textvn-tsf.dll:
   KeySink::OnKeyDown()
   ├── KeySink::is_passthrough() → password field check (MSAA call, ~1ms)
   ├── engine.process_key() → same as above
@@ -89,9 +89,9 @@ TSF → Tray:
 
 | Component | Estimated RSS | Notes |
 |-----------|--------------|-------|
-| `vietime-tray.exe` | ~8-12 MB | Win32 + pipe server + config cache |
-| `vietime-tsf.dll` (trong host) | ~3-5 MB | TSF COM objects + IPC client |
-| `vietime-hook.exe` | ~4-6 MB | Hook + engine state |
+| `textvn-tray.exe` | ~8-12 MB | Win32 + pipe server + config cache |
+| `textvn-tsf.dll` (trong host) | ~3-5 MB | TSF COM objects + IPC client |
+| `textvn-hook.exe` | ~4-6 MB | Hook + engine state |
 | Config JSON | < 50 KB | Parsed once, cached |
 
 ---
@@ -130,7 +130,7 @@ TSF → Tray:
 
 Chạy benchmark với:
 ```powershell
-cargo bench -p vietime-bench
+cargo bench -p textvn-bench
 ```
 
 Expected output:
@@ -147,7 +147,7 @@ Target: < 5ms cho 1000 keystrokes (5µs/keystroke average).
 
 > [!WARNING]
 > `timeBeginPeriod(1)` (1ms timer resolution) tăng CPU interrupt rate toàn hệ thống.
-> VietIME **không** gọi `timeBeginPeriod` — dùng blocking I/O thay vì polling.
+> TextVN **không** gọi `timeBeginPeriod` — dùng blocking I/O thay vì polling.
 
 ---
 

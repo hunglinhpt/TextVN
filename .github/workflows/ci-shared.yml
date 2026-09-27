@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -q -p vietime-cli -- sizes
+      - run: cargo run -q -p textvn-cli -- sizes
 
   gen-tables:
     # Bảng transform/method phải khớp `data/tables/*.toml` (P0-1 §3) — gate chống
@@ -63,12 +63,12 @@ jobs:
 
   abi-header:
     # Header C giữ tay (chưa có `xtask cbindgen`) → verify header ↔ code Rust (P0-2 §6).
-    name: vietime verify (header C)
+    name: textvn verify (header C)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -q -p vietime-cli -- verify
+      - run: cargo run -q -p textvn-cli -- verify
 
   perf:
     # P1-5 §5: regression >10% so `perf/baseline-win.json` → fail.
@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -q --release -p vietime-bench -- check perf/baseline-win.json
+      - run: cargo run -q --release -p textvn-bench -- check perf/baseline-win.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo run -q -p vietime-cli -- replay corpus/shared --adapter headless
+      - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
 
   fuzz:
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.

@@ -1,6 +1,6 @@
 # P1-2 — HOOK ADAPTER (Windows) — Solution chi tiết
 
-> WS3 · crate `vietime-win-hook` → **`vietime-hook.exe` (process riêng)** — theo `P0-1 §1` (F0-001).
+> WS3 · crate `textvn-win-hook` → **`textvn-hook.exe` (process riêng)** — theo `P0-1 §1` (F0-001).
 > Vai trò: chế độ tương thích cho app **không dùng được TSF** (game, một số app legacy, app elevated).
 > Mục tiêu phụ: không bao giờ trở thành bottleneck hay vòng lặp tự gõ.
 
@@ -17,7 +17,7 @@
 ## 2. Kiến trúc tiến trình
 
 ```
-vietime-tray.exe ──spawn──► vietime-hook.exe
+textvn-tray.exe ──spawn──► textvn-hook.exe
                               ├── main: đọc config, kết nối pipe (IPC server = tray)
                               ├── Hook thread (COMSTA, CoInitialize):
                               │     SetWindowsHookExW(WH_KEYBOARD_LL, cb, self, 0)
@@ -125,7 +125,7 @@ rule: app có engine_owner = "hook" → TSF dll (nếu app có load): ime_set_co
 | Tình huống | Hành vi |
 |---|---|
 | App medium-integrity (bình thường) | SendInput hoạt động |
-| App elevated (admin) | UIPI chặn SendInput của process medium → **v2.0 dùng uiAccess**; v1.0: tray có tùy chọn "Chạy VietIME với quyền Admin" (như OpenKey cũ) + cảnh báo bảo mật |
+| App elevated (admin) | UIPI chặn SendInput của process medium → **v2.0 dùng uiAccess**; v1.0: tray có tùy chọn "Chạy TextVN với quyền Admin" (như OpenKey cũ) + cảnh báo bảo mật |
 | Manifest `uiAccess="true"` | Chỉ có hiệu lực khi: binary **đã ký** + nằm trong Program Files (secure path) → installer ở `P1-4 §4` bật cờ này khi cài system-wide |
 | Secure desktop (UAC, Ctrl+Alt+Del) | Không gõ được — đúng kỳ vọng, document rõ |
 
@@ -141,9 +141,9 @@ Task: `WIN-055` (manifest + test trên VM admin).
 
 ## 9. Chẩn đoán
 
-- `VIETIME_HOOK_DEBUG=1` → log `%LOCALAPPDATA%\VietIME\logs\hook.log` (action, ms, role — **không text**).
+- `TEXTVN_HOOK_DEBUG=1` → log `%LOCALAPPDATA%\TextVN\logs\hook.log` (action, ms, role — **không text**).
 - Counters qua IPC `Ping/Pong` + file `hook-stats.json` (đổi mỗi 5s): callback p50/p99, injected count, self-disable count.
-- `vietime doctor` hiển thị: hook running? mode? foreground owner? UIA ok?
+- `textvn doctor` hiển thị: hook running? mode? foreground owner? UIA ok?
 
 ## 10. Mapping task (chi tiết `P1-6-TASKS.md`)
 

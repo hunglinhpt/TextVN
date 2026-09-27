@@ -17,8 +17,8 @@ use std::ffi::CStr;
 use std::ptr;
 
 use libfuzzer_sys::fuzz_target;
-use vietime_config::parse_config;
-use vietime_ffi::*;
+use textvn_config::parse_config;
+use textvn_ffi::*;
 
 fuzz_target!(|data: &[u8]| {
     // JSON bắt buộc UTF-8; byte vô nghĩa thì bỏ qua (không phải đường hợp thú vị).
@@ -42,7 +42,7 @@ fuzz_target!(|data: &[u8]| {
     assert_eq!(
         rc_new == IME_OK,
         parsed_ok,
-        "FFI và vietime-config phải cùng kết luận về 1 config"
+        "FFI và textvn-config phải cùng kết luận về 1 config"
     );
 
     // ---- 4: S2 — lỗi không echo text người dùng ----

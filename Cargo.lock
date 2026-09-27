@@ -98,125 +98,125 @@ dependencies = [
 ]
 
 [[package]]
+name = "textvn-appdb"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "textvn-strategy",
+]
+
+[[package]]
+name = "textvn-bench"
+version = "0.1.0"
+dependencies = [
+ "textvn-config",
+ "textvn-core",
+ "textvn-ffi",
+ "textvn-field-detect",
+]
+
+[[package]]
+name = "textvn-cli"
+version = "0.1.0"
+dependencies = [
+ "textvn-config",
+ "textvn-ffi",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
+name = "textvn-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "textvn-core"
+version = "0.1.0"
+dependencies = [
+ "textvn-strategy",
+]
+
+[[package]]
+name = "textvn-ffi"
+version = "0.1.0"
+dependencies = [
+ "textvn-appdb",
+ "textvn-config",
+ "textvn-core",
+ "textvn-strategy",
+]
+
+[[package]]
+name = "textvn-field-detect"
+version = "0.1.0"
+dependencies = [
+ "textvn-appdb",
+ "textvn-strategy",
+]
+
+[[package]]
+name = "textvn-ipc"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "textvn-strategy"
+version = "0.1.0"
+
+[[package]]
+name = "textvn-tray"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "textvn-appdb",
+ "textvn-config",
+ "textvn-ipc",
+ "textvn-strategy",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
+name = "textvn-win-hook"
+version = "0.1.0"
+dependencies = [
+ "textvn-appdb",
+ "textvn-ffi",
+ "textvn-field-detect",
+ "textvn-ipc",
+ "textvn-strategy",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
+name = "textvn-win-tsf"
+version = "0.1.0"
+dependencies = [
+ "textvn-appdb",
+ "textvn-config",
+ "textvn-ffi",
+ "textvn-field-detect",
+ "textvn-ipc",
+ "textvn-strategy",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d245f478577f809a851594d02313b640fb437e0bb33866753cff937863096954"
-
-[[package]]
-name = "vietime-appdb"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "vietime-strategy",
-]
-
-[[package]]
-name = "vietime-bench"
-version = "0.1.0"
-dependencies = [
- "vietime-config",
- "vietime-core",
- "vietime-ffi",
- "vietime-field-detect",
-]
-
-[[package]]
-name = "vietime-cli"
-version = "0.1.0"
-dependencies = [
- "vietime-config",
- "vietime-ffi",
- "windows",
- "windows-core",
-]
-
-[[package]]
-name = "vietime-config"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "vietime-core"
-version = "0.1.0"
-dependencies = [
- "vietime-strategy",
-]
-
-[[package]]
-name = "vietime-ffi"
-version = "0.1.0"
-dependencies = [
- "vietime-appdb",
- "vietime-config",
- "vietime-core",
- "vietime-strategy",
-]
-
-[[package]]
-name = "vietime-field-detect"
-version = "0.1.0"
-dependencies = [
- "vietime-appdb",
- "vietime-strategy",
-]
-
-[[package]]
-name = "vietime-ipc"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "vietime-strategy"
-version = "0.1.0"
-
-[[package]]
-name = "vietime-tray"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "vietime-appdb",
- "vietime-config",
- "vietime-ipc",
- "vietime-strategy",
- "windows",
- "windows-core",
-]
-
-[[package]]
-name = "vietime-win-hook"
-version = "0.1.0"
-dependencies = [
- "vietime-appdb",
- "vietime-ffi",
- "vietime-field-detect",
- "vietime-ipc",
- "vietime-strategy",
- "windows",
- "windows-core",
-]
-
-[[package]]
-name = "vietime-win-tsf"
-version = "0.1.0"
-dependencies = [
- "vietime-appdb",
- "vietime-config",
- "vietime-ffi",
- "vietime-field-detect",
- "vietime-ipc",
- "vietime-strategy",
- "windows",
- "windows-core",
-]
 
 [[package]]
 name = "windows"

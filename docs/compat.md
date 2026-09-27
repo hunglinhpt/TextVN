@@ -13,14 +13,14 @@
 
 | Bước | Thao tác | Kỳ vọng |
 |---|---|---|
-| 1 | Bật VietIME, mở app, gõ `duocj` | `được` (Telex mặc định) |
+| 1 | Bật TextVN, mở app, gõ `duocj` | `được` (Telex mặc định) |
 | 2 | Gõ tiếng Anh: `text` + Space | giữ nguyên `text` (B5 auto-restore) |
 | 3 | Ô có autocomplete (address bar / search / cell) | không xoá, không nhân đôi text |
 | 4 | Enter giữa văn bản (chat) | gửi tin nhắn đúng, không mất dấu |
 | 5 | Ctrl+Z / ⌘Z sau khi gõ tiếng Việt | undo đúng 1 bước |
 | 6 | Ô mật khẩu (nếu app có) | **không** hiển thị/ghi ký tự gõ (S2/S3) |
 | 7 | Chuyển app qua lại (Alt+Tab) | gõ tiếp vẫn đúng, không mất dấu (B2) |
-| 8 | Bật/tắt VietIME giữa lúc gõ | không kẹt phím, không crash |
+| 8 | Bật/tắt TextVN giữa lúc gõ | không kẹt phím, không crash |
 
 > Bước 3 và 7 là hai chỗ **B1/B2** hỏng nhiều nhất — đừng bỏ qua dù app "chạy được".
 > Mỗi lần fail: ghi **chuỗi phím gõ lại được** (Handbook §9) + tạo issue theo mẫu.
@@ -105,7 +105,7 @@
 |---|---|
 | Chuỗi phím lỗi | Ghi **chính xác** chuỗi đã gõ (vd `duocj` → sai thành `duoc`), không mô tả chung chung — Handbook §9 |
 | OS + phiên bản app | Bắt buộc (vd `Windows 11 23H2 · Chrome 128.0.6613`) |
-| Có bật VietIME không | Ghi rõ; lỗi khi **tắt** IME cũng là bug (fail-open) |
+| Có bật TextVN không | Ghi rõ; lỗi khi **tắt** IME cũng là bug (fail-open) |
 | Nhiều máy | Ghi cả mac + Windows + Linux nếu app chạy đa nền tảng |
 | Bug mới | Tạo issue theo mẫu + **corpus `.keys`** tái hiện được (`P0-4 §2`) — không có corpus thì chưa fix |
 | Ảnh/video | Chỉ khi lỗi hiển thị (preedit, nhân đôi ký tự) |

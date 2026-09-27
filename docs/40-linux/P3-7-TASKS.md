@@ -20,10 +20,10 @@ Mẫu engine C → sửa: key → preedit → commit trong gedit; component XML 
 - **Acceptance:** `docs/specs/linux-spike.md` S1/S2 (`P3-1 §9`): demo `được` trong gedit;
   ghi số `IBusEngine` object khi 2 app cùng gõ (verify §1 instance model).
 
-### LNX-003 · SPIKE: link `libvietime_ffi.a` từ C và C++ (M, dep: LNX-001) — **RL10**
-CMake link vào binary C (ibus) + `.so` C++ (fcitx5), `vietime sizes` pass.
+### LNX-003 · SPIKE: link `libtextvn_ffi.a` từ C và C++ (M, dep: LNX-001) — **RL10**
+CMake link vào binary C (ibus) + `.so` C++ (fcitx5), `textvn sizes` pass.
 - **Acceptance:** smoke `ime_instance_new/ime_key` không crash ở cả 2; nếu symbol/exception conflict →
-  chốt fallback `libvietime_ffi.so` (cdylib), ghi trong spike (không đổi FFI).
+  chốt fallback `libtextvn_ffi.so` (cdylib), ghi trong spike (không đổi FFI).
 
 ### LNX-004 · SPIKE: keyval/shift + selection + surrounding (M, dep: LNX-002) — **RL1/RL5**
 Test thật: shift+letter keyval? commit thay selection? `delete_surrounding` GTK/Qt/Chromium?
@@ -149,7 +149,7 @@ Hotkey `Ctrl+Shift+Space` (parity 3 OS — ADR-011).
 - **Acceptance:** 9/9; instance thứ 2 → hiện cửa sổ đang mở; có systemd lẫn không systemd đều chạy được.
 
 ### LNX-051 · IPC server + watcher + health (L) — `P3-5 §2/§4`
-- **Acceptance:** `vietime ipc probe` thấy 3 client; kill engine → hiện lỗi + restart được.
+- **Acceptance:** `textvn ipc probe` thấy 3 client; kill engine → hiện lỗi + restart được.
 
 ### LNX-052 · Settings GTK4 6 tab + parity checklist (L) — `P3-5 §3`
 - **Acceptance:** `docs/release/parity-checklist.md` đủ PLAN §2.3 (M6) + §8; debounce 300ms.

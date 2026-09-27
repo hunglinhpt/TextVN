@@ -7,7 +7,7 @@ if (Test-Path $out) { Remove-Item $out -Force }
 function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
 # G15: dot-source lib dung chung (UW7 -> VtWin, Add-Type lap lai truoc do)
 . (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
-Initialize-VietimeUiA
+Initialize-TextVNUiA
 $AE = [System.Windows.Automation.AutomationElement]
 $TS = [System.Windows.Automation.TreeScope]::Descendants
 $PC = [System.Windows.Automation.PropertyCondition]

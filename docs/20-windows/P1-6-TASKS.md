@@ -17,8 +17,8 @@ TIP tối thiểu trong `spikes/tsf-min/`: đăng ký → Notepad nhận 1 `OnKe
 - Nếu #2/#4 ❌ → mở ADR-005b (C++/WRL glue) ngay, ghi lý do.
 
 ### WIN-003 · SPIKE: đăng ký TIP per-user (M, dep: WIN-002)
-`vietime register --scope user` trên VM không admin; xác nhận API ghi ở đâu (HKCU/HKLM).
-- **Acceptance:** `docs/specs/tsf-registration-spike.md` ghi registry paths thực tế + Win+Space thấy "VietIME".
+`textvn register --scope user` trên VM không admin; xác nhận API ghi ở đâu (HKCU/HKLM).
+- **Acceptance:** `docs/specs/tsf-registration-spike.md` ghi registry paths thực tế + Win+Space thấy "TextVN".
 
 ### WIN-004 · SPIKE: UIA latency & IsPassword (M, dep: WIN-001)
 Query role/IsPassword trên 10 phần tử (Chrome, Word, Excel, Terminal, Explorer, KeePass…).
@@ -30,21 +30,21 @@ WH_KEYBOARD_LL + SendInput + UIA trên `windows-latest` (kiểm chứng RW5) và
 
 ### WIN-006 · Corpus `corpus/win/` đầu tiên (M, dep: —, song song)
 Viết ≥ 60 case: `bug_B1/B2/B3/B6/B7/B8`, `secure_field_passthrough`, `owner_no_double` (theo `P1-5 §2`).
-- **Acceptance:** `vietime replay corpus/win --adapter win` chạy được (kể cả khi fail — reproduct trước khi fix).
+- **Acceptance:** `textvn replay corpus/win --adapter win` chạy được (kể cả khi fail — reproduct trước khi fix).
 
 ### WIN-007 · Xác nhận oracle UniKey (rủi ro carry-over từ Phần 0) (S, dep: —)
 Xác nhận tên binary/flag UniKey trên Windows, cập nhật `../specs/oracle-unikey.md`.
 - **Acceptance:** 1 corpus case lấy output thật từ UniKey Windows, ghi nguồn.
 
-### WIN-008 · Kiểm tra tên/tên miền VietIME (rủi ro carry-over từ Phần 0) (S, dep: —)
-Kiểm tra `VietIME` (GitHub repo đã có), trademark/namespace, đăng ký tên cho release.
+### WIN-008 · Kiểm tra tên/tên miền TextVN (rủi ro carry-over từ Phần 0) (S, dep: —)
+Kiểm tra `TextVN` (GitHub repo đã có), trademark/namespace, đăng ký tên cho release.
 - **Acceptance:** ghi `docs/compliance/naming-check.md`.
 
 ## M1 — TSF core (tuần 3–6) — dep: WIN-002, WIN-003
 
 ### WIN-010 · TIP skeleton + COM lifecycle (L)
 `class.rs`/`tip.rs`/`thread.rs` theo `P1-1 §3`: DllGetClassObject, ActivateEx/Deactivate (advise/unadvise đủ).
-- **Acceptance:** đăng ký → Notepad không crash; `vietime doctor` thấy TIP; test `activate_deactivate ×100` không rò cookie (debug build đếm object).
+- **Acceptance:** đăng ký → Notepad không crash; `textvn doctor` thấy TIP; test `activate_deactivate ×100` không rò cookie (debug build đếm object).
 
 ### WIN-011 · Key sink + engine PASS (M)
 `key_event.rs`: system/chord check → `ime_key`; toàn bộ PASS trả `*eaten=FALSE`.
@@ -78,7 +78,7 @@ Hello/GetSnapshot/Subscribe/ConfigReload; offline-tolerant.
 ## M2 — Field detect + AppDB (tuần 7–10) — dep: WIN-004, WIN-006
 
 ### WIN-030 · crate `field-detect` + rules R1–R10 (M) — `P1-3 §2`
-- **Acceptance:** `cargo test -p vietime-field-detect` ≥ 30 case mock element pass.
+- **Acceptance:** `cargo test -p textvn-field-detect` ≥ 30 case mock element pass.
 
 ### WIN-031 · Cache + invalidation + budget 2ms (M)
 - **Acceptance:** benchmark ghi vào `perf/`: 200 switch app → p99 resolve < 2ms; 0 query đồng bộ trong hook cb (assert qua log counter).
@@ -93,11 +93,11 @@ Hello/GetSnapshot/Subscribe/ConfigReload; offline-tolerant.
 - **Acceptance:** bảng preset đầy đủ 20 dòng; `replay corpus/win` pass 100%; notes trỏ bug `Bn`.
 
 ### WIN-035 · Settings: "thêm preset từ app đang chạy" (S, dep: WIN-052)
-- **Acceptance:** UI lưu được appdb user hợp lệ (validate qua `vietime config validate`).
+- **Acceptance:** UI lưu được appdb user hợp lệ (validate qua `textvn config validate`).
 
 ## M3 — Hook (tuần 7–11, song song M2) — dep: WIN-005
 
-### WIN-040 · `vietime-hook.exe` skeleton + IPC + heartbeat (M) — `P1-2 §2`
+### WIN-040 · `textvn-hook.exe` skeleton + IPC + heartbeat (M) — `P1-2 §2`
 - **Acceptance:** spawn/kill/restart từ tray < 500ms (test tự động trong `hook_smoke`); doctor thấy PID/uptime.
 
 ### WIN-041 · Callback theo `P1-2 §3` (L)
@@ -121,7 +121,7 @@ Hello/GetSnapshot/Subscribe/ConfigReload; offline-tolerant.
 - **Acceptance:** 9/9 mục hoạt động; single-instance (mở 2 lần → 1 process, lần 2 focus Settings).
 
 ### WIN-051 · IPC server + state/watch + watchdog hook (L) — `P1-4 §2/§6`
-- **Acceptance:** `vietime ipc probe` thấy 2 client; kill hook → tự restart < 500ms × 5 lần liên tiếp đều OK; kill tray → hook exit sau ≤ 30s.
+- **Acceptance:** `textvn ipc probe` thấy 2 client; kill hook → tự restart < 500ms × 5 lần liên tiếp đều OK; kill tray → hook exit sau ≤ 30s.
 
 ### WIN-052 · Settings egui 6 tab + parity checklist (L) — `P1-4 §3`
 - **Acceptance:** `docs/release/parity-checklist.md` đủ mục theo `PLAN §2.3 (M6)` + `PLAN §8`; debounce 300ms (unit test counter).
@@ -139,9 +139,9 @@ Hello/GetSnapshot/Subscribe/ConfigReload; offline-tolerant.
 - **Acceptance:** test trên pre-release: update OK; giả lập fail (sai hash) → giữ bản cũ, có log; kill giữa update → lần mở sau rollback tự động.
 
 ### WIN-057 · winget manifest + submit (S, dep: WIN-056, release đầu)
-- **Acceptance:** `winget install VietIME` trên VM sạch pass; manifest PR mở trong `packaging/winget/`.
+- **Acceptance:** `winget install TextVN` trên VM sạch pass; manifest PR mở trong `packaging/winget/`.
 
-### WIN-058 · `vietime doctor --export` (M) — `P1-4 §9`
+### WIN-058 · `textvn doctor --export` (M) — `P1-4 §9`
 - **Acceptance:** zip export không chứa nội dung text (test grep chuỗi đã gõ trong corpus) + có đủ 8 hạng mục chẩn đoán.
 
 ## M5 — Test automation & hardening (tuần 15–18, kéo dài đến RC)

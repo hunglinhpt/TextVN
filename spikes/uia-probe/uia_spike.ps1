@@ -8,7 +8,7 @@ function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
 
 # G15: dot-source lib dung chung (truoc do script tu define class UW + Add-Type - trung lap)
 . (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
-Initialize-VietimeUiA
+Initialize-TextVNUiA
 if (-not ('System.Windows.Automation.TreeScope' -as [type])) { throw 'UIA types khong load duoc' }
 
 $AE = [System.Windows.Automation.AutomationElement]
@@ -140,7 +140,7 @@ if ($hChrome -ne [IntPtr]::Zero) {
 
 # === 4: Notepad ===
 $txt = Join-Path $env:TEMP 'uia_spike_note.txt'
-Set-Content -Path $txt -Value ' VietIME UIA spike note' -Encoding ASCII
+Set-Content -Path $txt -Value ' TextVN UIA spike note' -Encoding ASCII
 $np = Start-Process notepad.exe -ArgumentList ('"' + $txt + '"') -PassThru
 $spawned.Add($np.Id)
 $hNp = Wait-Win $np.Id '*' 30

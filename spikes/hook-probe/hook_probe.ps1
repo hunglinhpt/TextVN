@@ -8,7 +8,7 @@ function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
 
 # G15: dot-source lib dung chung (Add-Type UIA + focus helper - truoc do trung lap trong HK.Focus)
 . (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
-Initialize-VietimeUiA
+Initialize-TextVNUiA
 Add-Type @'
 using System;
 using System.Text;

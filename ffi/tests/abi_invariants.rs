@@ -12,13 +12,13 @@
 //!   4. **Fail-open**: rc ≠ OK ⇒ `action == PASS` (S4).
 //!   5. phím `is_injected` luôn PASS (chống loop — P0-3 §6).
 //!   6. abi lệch ⇒ `IME_ERR_ABI` + PASS; NULL args ⇒ `IME_ERR_INVALID_ARG`.
-//!   7. config sai vẫn tạo instance; FFI và `vietime-config` cùng kết luận.
+//!   7. config sai vẫn tạo instance; FFI và `textvn-config` cùng kết luận.
 //!   8. `ime_last_error` không chứa text người dùng (S2).
 
 use std::ffi::CStr;
 use std::ptr;
 
-use vietime_ffi::*;
+use textvn_ffi::*;
 
 /// xorshift64* — không dependency, đủ để sinh dữ liệu giống fuzz.
 struct Rng(u64);
@@ -195,7 +195,7 @@ fn abi_invariants_giu_duoi_input_ngau_nhien() {
     }
 }
 
-/// Input config ngẫu nhiên: FFI và `vietime-config` phải **cùng kết luận**,
+/// Input config ngẫu nhiên: FFI và `textvn-config` phải **cùng kết luận**,
 /// và config sai vẫn phải ra instance (fail-open) + lỗi không echo text (S2).
 #[test]
 fn config_paths_fail_open_va_khong_echo_text() {
@@ -235,7 +235,7 @@ fn config_paths_fail_open_va_khong_echo_text() {
     }
 
     for s in &cases {
-        let parsed_ok = vietime_config::parse_config(s).is_ok();
+        let parsed_ok = textvn_config::parse_config(s).is_ok();
 
         let mut inst: *mut ime_instance = ptr::null_mut();
         let rc_new = ime_instance_new(s.as_ptr(), s.len(), &mut inst);
@@ -247,7 +247,7 @@ fn config_paths_fail_open_va_khong_echo_text() {
         assert_eq!(
             rc_new == IME_OK,
             parsed_ok,
-            "FFI và vietime-config lệch kết luận cho {s:?}"
+            "FFI và textvn-config lệch kết luận cho {s:?}"
         );
 
         if rc_new == IME_ERR_CONFIG {

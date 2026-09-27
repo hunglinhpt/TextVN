@@ -1,4 +1,4 @@
-# VietIME IPC v1
+# TextVN IPC v1
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -12,7 +12,7 @@ là protocol violation: đóng kết nối, không retry frame đó.
 Transport phải giữ local-only: Windows named pipe với DACL current-user; macOS
 unix socket với `getpeereid`; Linux unix socket với `SO_PEERCRED`. Không dùng
 TCP/HTTP. Authentication peer và timeout 2s là trách nhiệm transport, không
-nằm trong `vietime-ipc`.
+nằm trong `textvn-ipc`.
 
 ## Messages
 
@@ -29,6 +29,6 @@ mới yêu cầu protocol version/schema review trước.
 
 ## Implementation
 
-[`vietime-ipc`](../ipc/src/lib.rs) owns JSON model và codec. Adapter phải dùng
+[`textvn-ipc`](../ipc/src/lib.rs) owns JSON model và codec. Adapter phải dùng
 `encode_frame`/`decode_exact_frame`; không được tự diễn giải JSON hay bỏ qua
 frame lỗi.

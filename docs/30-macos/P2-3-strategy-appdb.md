@@ -80,7 +80,7 @@ từ chối → ghi `ax_permission: denied` trong `state.json`, preset vẫn ch�
 |---|---|
 | Secure input mode / AX secure field → `secure=1` | 1 (không override được — S3) |
 | `config.ignore_apps[]` + `state.json` toggle → `ctx.enabled` | 2 |
-| User `~/Library/Application Support/VietIME/appdb.json` | 3 |
+| User `~/Library/Application Support/TextVN/appdb.json` | 3 |
 | Preset hệ thống (§3) | 4 |
 | Field-role default + `ctx.caps` (downgrade rule `P0-3 §3.1`) | 5 |
 | Fallback BackspaceType | 6 |
@@ -97,7 +97,7 @@ func resolve(cfg: Config, appdb: AppDb) -> ime_context_v1   // cache theo (pid, 
 ```
 
 **Quan trọng (chống phân kỳ thuật toán):** Swift **không viết lại** logic parse/verify preset hay
-quy tắc resolve 6 bước. Dùng 2 C-ABI có sẵn trong `vietime_ffi.h` (P0-2 §1):
+quy tắc resolve 6 bước. Dùng 2 C-ABI có sẵn trong `textvn_ffi.h` (P0-2 §1):
 `ime_appdb_verify(json,sig,…)` (Ed25519) + `ime_strategy_resolve(ctx, appdb_json, …)` → strategy id.
 Swift chỉ: detect AX role (§2) → dựng `ime_context_v1` → gọi resolve → áp `P2-1 §6`.
 Cùng implementation với Windows/Linux (test chung `strategy::resolve` unit + corpus `--adapter mac`).
@@ -119,6 +119,6 @@ Cùng implementation với Windows/Linux (test chung `strategy::resolve` unit + 
 | MAC-030 | `FieldDetect` rules R1–R10 + mock tests | Unit ≥ 30 case pass |
 | MAC-031 | Cache/observer/budget 2s | Benchmark ghi `P2-5 §5`; 0 query đồng bộ trong callback |
 | MAC-032 | Preset §3 (20 mục) + corpus ≥ 40 case | `replay corpus/mac` pass |
-| MAC-033 | Loader + Ed25519 verify (dùng `vietime-appdb` — không viết lại) | Sai chữ ký → từ chối + warning |
+| MAC-033 | Loader + Ed25519 verify (dùng `textvn-appdb` — không viết lại) | Sai chữ ký → từ chối + warning |
 | MAC-034 | Override chain §4 (path mac) | Unit thứ tự 6 bước |
 | MAC-035 | Settings: thêm preset từ app đang chạy (P2-4 §3) | Lưu appdb user hợp lệ |

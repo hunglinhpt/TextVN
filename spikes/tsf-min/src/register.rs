@@ -4,7 +4,7 @@
 //! - Viết CLSID vào **HKCU**\Software\Classes\CLSID (không cần admin → checklist #6).
 //! - Gọi `ITfCategoryMgr::RegisterCategory` (GUID_TFCAT_TIP_KEYBOARD) +
 //!   `ITfInputProcessorProfiles::{Register, AddLanguageProfile, ActivateLanguageProfile}`
-//!   (LANGID 0x042A = vi-VN) → checklist #7 (Win+Space thấy "VietIME").
+//!   (LANGID 0x042A = vi-VN) → checklist #7 (Win+Space thấy "TextVN").
 //!
 //! Dùng: `tsf-min-register install|uninstall|status`
 
@@ -15,7 +15,7 @@ use windows::Win32::System::Com::*;
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 use windows::Win32::UI::TextServices::*;
 
-use tsf_min::{CLSID_VIETIME_TIP, PROFILE_GUID};
+use tsf_min::{CLSID_TEXTVN_TIP, PROFILE_GUID};
 
 const LANGID_VI: u16 = 0x042A;
 const LANGID_EN: u16 = 0x0409;
@@ -40,7 +40,7 @@ fn guid_str(g: &GUID) -> String {
 fn clsid_key() -> String {
     format!(
         "HKCU\\Software\\Classes\\CLSID\\{}",
-        guid_str(&CLSID_VIETIME_TIP)
+        guid_str(&CLSID_TEXTVN_TIP)
     )
 }
 
@@ -51,7 +51,7 @@ fn dll_path() -> std::path::PathBuf {
     p
 }
 
-/// Ghi log vào file (output elevated bị ẩn console) — %LOCALAPPDATA%\VietIME\logs\tsf-register.log
+/// Ghi log vào file (output elevated bị ẩn console) — %LOCALAPPDATA%\TextVN\logs\tsf-register.log
 fn say(msg: &str) {
     use std::io::Write;
     println!("{msg}");
@@ -59,7 +59,7 @@ fn say(msg: &str) {
         return;
     };
     let mut dir = std::path::PathBuf::from(base);
-    dir.push("VietIME");
+    dir.push("TextVN");
     dir.push("logs");
     let _ = std::fs::create_dir_all(&dir);
     dir.push("tsf-register.log");
@@ -107,7 +107,7 @@ fn install() -> Result<()> {
 
     // 1) CLSID (HKCU — checklist #6: VM không admin)
     let k = clsid_key();
-    let mut ok = reg(&["add", &k, "/ve", "/d", "VietIME TSF spike", "/f"]);
+    let mut ok = reg(&["add", &k, "/ve", "/d", "TextVN TSF spike", "/f"]);
     ok &= reg(&[
         "add",
         &format!("{k}\\InprocServer32"),
@@ -155,7 +155,7 @@ fn install() -> Result<()> {
 
         // Dọn đăng ký cũ (hồi phục Description bị hỏng) rồi đăng ký lại sạch.
         for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-            match prof.RemoveLanguageProfile(&CLSID_VIETIME_TIP, lang, &PROFILE_GUID) {
+            match prof.RemoveLanguageProfile(&CLSID_TEXTVN_TIP, lang, &PROFILE_GUID) {
                 Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
                 Err(e) => say(&format!(
                     "  RemoveLanguageProfile({tag}) → FAIL {:#010x}",
@@ -164,7 +164,7 @@ fn install() -> Result<()> {
             }
         }
 
-        match prof.Register(&CLSID_VIETIME_TIP) {
+        match prof.Register(&CLSID_TEXTVN_TIP) {
             Ok(()) => say("  Profiles.Register → OK"),
             Err(e) => say(&format!("  Profiles.Register → FAIL {:#010x}", e.code().0)),
         }
@@ -173,12 +173,12 @@ fn install() -> Result<()> {
         // → ghi rác heap vào Description; icon &[] = ptr 0x2 → AV, process chết giữa chừng).
         // Mẹo: slice đúng length nhưng allocation có sẵn số 0 phía sau → hài hòa cả
         // "dùng cch" lẫn "wcslen" (2 semantics).
-        let raw: Vec<u16> = "VietIME".encode_utf16().collect();
+        let raw: Vec<u16> = "TextVN".encode_utf16().collect();
         let desc_buf: Vec<u16> = raw.iter().copied().chain(std::iter::once(0)).collect();
         let desc = &desc_buf[..raw.len()];
         let icon_pad = [0u16; 4];
         let icon = &icon_pad[..0];
-        match prof.AddLanguageProfile(&CLSID_VIETIME_TIP, LANGID_VI, &PROFILE_GUID, desc, icon, 0) {
+        match prof.AddLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_VI, &PROFILE_GUID, desc, icon, 0) {
             Ok(()) => say("  AddLanguageProfile(VI) → OK"),
             Err(e) => say(&format!(
                 "  AddLanguageProfile(VI) → FAIL {:#010x}",
@@ -190,7 +190,7 @@ fn install() -> Result<()> {
         // Đăng ký cả dưới ngôn ngữ HIỆN TẠI của session (en-US 0x0409) —
         // Keyman wiki: TIP đăng ký ở locale khác ngôn ngữ user → không load được
         // (InstallLayoutOrTip trả success nhưng không Loaded).
-        match prof.AddLanguageProfile(&CLSID_VIETIME_TIP, LANGID_EN, &PROFILE_GUID, desc, icon, 0) {
+        match prof.AddLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_EN, &PROFILE_GUID, desc, icon, 0) {
             Ok(()) => say("  AddLanguageProfile(EN) → OK"),
             Err(e) => say(&format!(
                 "  AddLanguageProfile(EN) → FAIL {:#010x}",
@@ -200,7 +200,7 @@ fn install() -> Result<()> {
         readback(&prof, LANGID_EN, "EN sau add");
 
         match prof.EnableLanguageProfileByDefault(
-            &CLSID_VIETIME_TIP,
+            &CLSID_TEXTVN_TIP,
             LANGID_VI,
             &PROFILE_GUID,
             true,
@@ -214,7 +214,7 @@ fn install() -> Result<()> {
         readback(&prof, LANGID_VI, "VI sau enable");
 
         match prof.EnableLanguageProfileByDefault(
-            &CLSID_VIETIME_TIP,
+            &CLSID_TEXTVN_TIP,
             LANGID_EN,
             &PROFILE_GUID,
             true,
@@ -228,9 +228,9 @@ fn install() -> Result<()> {
         readback(&prof, LANGID_EN, "EN sau enable");
 
         match cat.RegisterCategory(
-            &CLSID_VIETIME_TIP,
+            &CLSID_TEXTVN_TIP,
             &GUID_TFCAT_TIP_KEYBOARD,
-            &CLSID_VIETIME_TIP,
+            &CLSID_TEXTVN_TIP,
         ) {
             Ok(()) => say("  RegisterCategory(TIP_KEYBOARD) → OK"),
             Err(e) => say(&format!("  RegisterCategory → FAIL {:#010x}", e.code().0)),
@@ -242,7 +242,7 @@ fn install() -> Result<()> {
 
 /// Đọc lại Description ngay sau mỗi API call — xác định call nào làm hỏng chuỗi.
 fn readback(prof: &ITfInputProcessorProfiles, lang: u16, tag: &str) {
-    match unsafe { prof.GetLanguageProfileDescription(&CLSID_VIETIME_TIP, lang, &PROFILE_GUID) } {
+    match unsafe { prof.GetLanguageProfileDescription(&CLSID_TEXTVN_TIP, lang, &PROFILE_GUID) } {
         Ok(b) => {
             let s = b.to_string();
             let hex: String = s.encode_utf16().map(|c| format!("{c:04x} ")).collect();
@@ -259,20 +259,20 @@ fn uninstall() -> Result<()> {
             let cat: ITfCategoryMgr =
                 CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
             match cat.UnregisterCategory(
-                &CLSID_VIETIME_TIP,
+                &CLSID_TEXTVN_TIP,
                 &GUID_TFCAT_TIP_KEYBOARD,
-                &CLSID_VIETIME_TIP,
+                &CLSID_TEXTVN_TIP,
             ) {
                 Ok(()) => println!("  UnregisterCategory → OK"),
                 Err(e) => println!("  UnregisterCategory → FAIL {:#010x}", e.code().0),
             }
             let prof: ITfInputProcessorProfiles =
                 CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
-            match prof.RemoveLanguageProfile(&CLSID_VIETIME_TIP, LANGID_VI, &PROFILE_GUID) {
+            match prof.RemoveLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_VI, &PROFILE_GUID) {
                 Ok(()) => println!("  RemoveLanguageProfile → OK"),
                 Err(e) => println!("  RemoveLanguageProfile → FAIL {:#010x}", e.code().0),
             }
-            match prof.Unregister(&CLSID_VIETIME_TIP) {
+            match prof.Unregister(&CLSID_TEXTVN_TIP) {
                 Ok(()) => println!("  Profiles.Unregister → OK"),
                 Err(e) => println!("  Profiles.Unregister → FAIL {:#010x}", e.code().0),
             }
@@ -302,13 +302,13 @@ fn status() {
                     return;
                 }
             };
-            match prof.IsEnabledLanguageProfile(&CLSID_VIETIME_TIP, LANGID_VI, &PROFILE_GUID) {
+            match prof.IsEnabledLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_VI, &PROFILE_GUID) {
                 Ok(b) => println!("IsEnabledLanguageProfile = {}", b.0),
                 Err(e) => println!("IsEnabledLanguageProfile FAIL {:#010x}", e.code().0),
             }
             let mut lang: u16 = 0;
             let mut pg = GUID::zeroed();
-            match prof.GetActiveLanguageProfile(&CLSID_VIETIME_TIP, &mut lang, &mut pg) {
+            match prof.GetActiveLanguageProfile(&CLSID_TEXTVN_TIP, &mut lang, &mut pg) {
                 Ok(()) => println!("ActiveProfile langid={lang:#06x} guid={pg:?}"),
                 Err(e) => println!("GetActiveLanguageProfile FAIL {:#010x}", e.code().0),
             }
@@ -339,7 +339,7 @@ fn install_layout_or_tip(lang: u16) {
         let pfn: Pfn = std::mem::transmute(fp);
         let spec = format!(
             "0x{lang:04X}:{}{}",
-            guid_str(&CLSID_VIETIME_TIP),
+            guid_str(&CLSID_TEXTVN_TIP),
             guid_str(&PROFILE_GUID)
         );
         let wide: Vec<u16> = spec.encode_utf16().chain(std::iter::once(0)).collect();
@@ -375,7 +375,7 @@ fn activate() -> Result<()> {
     install_layout_or_tip(LANGID_EN);
     for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
         match unsafe {
-            prof.EnableLanguageProfileByDefault(&CLSID_VIETIME_TIP, lang, &PROFILE_GUID, true)
+            prof.EnableLanguageProfileByDefault(&CLSID_TEXTVN_TIP, lang, &PROFILE_GUID, true)
         } {
             Ok(()) => println!("  EnableLanguageProfileByDefault({tag}) → OK"),
             Err(e) => println!(
@@ -386,7 +386,7 @@ fn activate() -> Result<()> {
     }
 
     // Session đang en-US → activate dưới 0x0409 (locale khác = không load, xem Keyman wiki).
-    match unsafe { prof.ActivateLanguageProfile(&CLSID_VIETIME_TIP, LANGID_EN, &PROFILE_GUID) } {
+    match unsafe { prof.ActivateLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_EN, &PROFILE_GUID) } {
         Ok(()) => println!("  ActivateLanguageProfile(en-US) → OK"),
         Err(e) => println!(
             "  ActivateLanguageProfile(en-US) → FAIL {:#010x}",
@@ -395,12 +395,12 @@ fn activate() -> Result<()> {
     }
     let mut lang: u16 = 0;
     let mut pg = GUID::zeroed();
-    match unsafe { prof.GetActiveLanguageProfile(&CLSID_VIETIME_TIP, &mut lang, &mut pg) } {
+    match unsafe { prof.GetActiveLanguageProfile(&CLSID_TEXTVN_TIP, &mut lang, &mut pg) } {
         Ok(()) => println!("  ActiveProfile langid={lang:#06x}"),
         Err(e) => println!("  GetActiveLanguageProfile FAIL {:#010x}", e.code().0),
     }
     let d =
-        unsafe { prof.GetLanguageProfileDescription(&CLSID_VIETIME_TIP, LANGID_EN, &PROFILE_GUID) };
+        unsafe { prof.GetLanguageProfileDescription(&CLSID_TEXTVN_TIP, LANGID_EN, &PROFILE_GUID) };
     match d {
         Ok(b) => println!("  description = {b:?}"),
         Err(e) => println!("  GetLanguageProfileDescription FAIL {:#010x}", e.code().0),

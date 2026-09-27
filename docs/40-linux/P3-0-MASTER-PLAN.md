@@ -13,7 +13,7 @@
 2. **App matrix Linux 20 app ≥ 95%** (B1/B2/B6/B8/B10/B13 không còn open) — `P3-6 §3`.
 3. Cả 2 adapter cùng sống: IBus **và** Fcitx5 cài được, gõ được, không xử lý đôi.
 4. Wayland (GNOME/KDE) gõ tốt qua framework chuẩn; X11 fallback hoạt động cho app legacy (opt-in).
-5. Đóng gói `.deb` (primary) + `.rpm` + AUR; `vietime doctor` chẩn đoán env (`GTK_IM_MODULE`…).
+5. Đóng gói `.deb` (primary) + `.rpm` + AUR; `textvn doctor` chẩn đoán env (`GTK_IM_MODULE`…).
 6. CI `ci-linux.yml` xanh trên matrix distro (Ubuntu LTS, Fedora, Arch).
 7. Review 2/2 của Phần 3 hoàn tất.
 
@@ -25,23 +25,23 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 
 ```
 ┌─ Wayland / X11 text app (GTK, Qt, Chromium, Electron…) ─────────────────────┐
-│  ┌── ibus-daemon ── spawn ──► vietime-ibus-engine (process riêng, C)        │
+│  ┌── ibus-daemon ── spawn ──► textvn-ibus-engine (process riêng, C)        │
 │  │     IBusEngine.process_key_event → ime_key() → preedit/commit/surrounding │
-│  └── fcitx5 ── load addon ──► libvietime-fcitx5.so (trong process fcitx5, C++)│
+│  └── fcitx5 ── load addon ──► libtextvn-fcitx5.so (trong process fcitx5, C++)│
 │        keyEvent → ime_key() → preedit/commit (instance per InputContext chung │
 │        main loop — 1 instance, reset theo context)                           │
-│     Cả 2 link: libvietime-linux-common.a (AT-SPI field detect + helpers)     │
-│              + libvietime_ffi.a (engine) → ipc client unix socket            │
+│     Cả 2 link: libtextvn-linux-common.a (AT-SPI field detect + helpers)     │
+│              + libtextvn_ffi.a (engine) → ipc client unix socket            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌─ X11 legacy / game (opt-in, KHÔNG chạy mặc định, KHÔNG dùng trên Wayland) ──┐
-│  vietime-x11 (process riêng, Rust, spawn + watchdog bởi tray)                │
+│  textvn-x11 (process riêng, Rust, spawn + watchdog bởi tray)                │
 │    XGrabKeyboard khi app mục tiêu focus → ime_key() (instance riêng/tuần)    │
 │    → inject bằng XTEST (marker chống loop)                                   │
 └──────────────────────────────────────────────────────────────────────────────┘
-┌─ vietime-tray (GTK4 + StatusNotifier — SOURCE OF TRUTH) ─────────────────────┐
+┌─ textvn-tray (GTK4 + StatusNotifier — SOURCE OF TRUTH) ─────────────────────┐
 │  • tray menu + Settings GTK4 (ui-model JSON chung) • IPC server (unix socket) │
 │  • watcher config/appdb/state • systemd user service (autostart)              │
-│  • doctor (env vars, component xml, addon) • spawn/kill vietime-x11           │
+│  • doctor (env vars, component xml, addon) • spawn/kill textvn-x11           │
 │  • updater: KHÔNG self-update — báo bản mới + mở trang package manager       │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -50,12 +50,12 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 
 | Hạng mục | Đường dẫn |
 |---|---|
-| Config/state/appdb | `~/.config/VietIME/{config.json, state.json, appdb.json}` |
-| IPC socket | `~/.config/VietIME/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
-| Log | `~/.local/state/VietIME/log/` — không bao giờ ghi nội dung phím (S2) |
-| IBus component | `/usr/share/ibus/component/vietime.xml` + engine binary `/usr/lib/vietime/vietime-ibus-engine` |
-| Fcitx5 addon | `/usr/share/fcitx5/addon/vietime.conf` + `/usr/lib/fcitx5/libvietime-fcitx5.so` |
-| Tray/autostart | `/usr/share/applications/vietime-settings.desktop` + `/etc/xdg/autostart/vietime-tray.desktop` (gói system) hoặc `~/.config/autostart/` (gói user) |
+| Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
+| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
+| Log | `~/.local/state/TextVN/log/` — không bao giờ ghi nội dung phím (S2) |
+| IBus component | `/usr/share/ibus/component/textvn.xml` + engine binary `/usr/lib/textvn/textvn-ibus-engine` |
+| Fcitx5 addon | `/usr/share/fcitx5/addon/textvn.conf` + `/usr/lib/fcitx5/libtextvn-fcitx5.so` |
+| Tray/autostart | `/usr/share/applications/textvn-settings.desktop` + `/etc/xdg/autostart/textvn-tray.desktop` (gói system) hoặc `~/.config/autostart/` (gói user) |
 
 > Quy tắc: đường dẫn system **chỉ** nằm trong spec đóng gói (`packaging/linux/`),
 > code nhận qua `--prefix`/env; đường dẫn user hardcode 1 chỗ (module paths trong crate config).
@@ -64,11 +64,11 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 
 | WS | Tên | File solution | Sản phẩm |
 |---|---|---|---|
-| WS1 | IBus adapter (primary) | **`P3-1-ibus.md`** | `vietime-ibus-engine` gõ Telex trong gedit (demo M1) |
+| WS1 | IBus adapter (primary) | **`P3-1-ibus.md`** | `textvn-ibus-engine` gõ Telex trong gedit (demo M1) |
 | WS2 | Fcitx5 addon (dual) | **`P3-2-fcitx5.md`** | addon chạy trên fcitx5 ≥ 5.0.x |
-| WS3 | X11 fallback (opt-in) | **`P3-3-x11.md`** | `vietime-x11` cho app legacy/game X11 |
+| WS3 | X11 fallback (opt-in) | **`P3-3-x11.md`** | `textvn-x11` cho app legacy/game X11 |
 | WS4 | AT-SPI field detect + AppDB | **`P3-4-strategy-appdb.md`** | rules AT-SPI + 20 preset Linux + doctor env |
-| WS5 | Tray/Settings/IPC/Package | **`P3-5-ui-packaging-release.md`** | `vietime-tray` GTK4 + `.deb/.rpm/AUR` |
+| WS5 | Tray/Settings/IPC/Package | **`P3-5-ui-packaging-release.md`** | `textvn-tray` GTK4 + `.deb/.rpm/AUR` |
 | WS6 | Test & automation | **`P3-6-test-plan.md`** | AT-SPI driver + matrix + CI 3 distro |
 | WS7 | Task & điều phối | **`P3-7-TASKS.md`** | LNX-001…LNX-066 |
 
@@ -112,8 +112,8 @@ LNX-060..066 (harness/test) bắt đầu tuần 3, chặn release
 | RL6 | Đóng gói đa distro (glibc, system paths, systemd user unit) | Trung/Trung | `.deb` primary; spec paths tách `packaging/linux/`; test cài trên Ubuntu 22.04/24.04 + Fedora + Arch (CI matrix) |
 | RL7 | Engine process chết làm mất gõ giữa chừng | Trung/Trung | IBus: engine process riêng → ibus-daemon respawn; fcitx5: addon crash = fcitx5 crash → `catch` mọi callback + soak 24h; tray hiện heartbeat |
 | RL8 | **XTEST/opt-in bị coi là keylogger** | Trung/Cao | Không cài mặc định (`PLAN §3.7`), mô tả quyền rõ (`docs/security/x11-grant.md`), không chạy trên Wayland, blocklist game sẵn |
-| RL9 | Đụng `GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS` sai → app không thấy IM | Trung/Trung | `vietime doctor` detect + đề nghị fix từng app (dùng `PLAN §5.3` env matrix); preset ghi chú env cần thiết |
-| RL10 | Link **staticlib Rust** vào C/C++ addon (symbol conflicts với fcitx5, `-fno-exceptions`?) | Trung/Trung | Spike `LNX-003`: `libvietime_ffi.a` + `linux-common` vào C và C++ smoke; fallback `cdylib` (`libvietime_ffi.so`) — FFI giữ nguyên (`P0-2`) |
+| RL9 | Đụng `GTK_IM_MODULE`/`QT_IM_MODULE`/`XMODIFIERS` sai → app không thấy IM | Trung/Trung | `textvn doctor` detect + đề nghị fix từng app (dùng `PLAN §5.3` env matrix); preset ghi chú env cần thiết |
+| RL10 | Link **staticlib Rust** vào C/C++ addon (symbol conflicts với fcitx5, `-fno-exceptions`?) | Trung/Trung | Spike `LNX-003`: `libtextvn_ffi.a` + `linux-common` vào C và C++ smoke; fallback `cdylib` (`libtextvn_ffi.so`) — FFI giữ nguyên (`P0-2`) |
 
 ## 7. Definition of Done cho PHẦN 3
 

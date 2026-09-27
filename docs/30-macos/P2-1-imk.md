@@ -1,9 +1,9 @@
 # P2-1 — IMK ADAPTER (macOS) — Solution chi tiết
 
-> WS1 · `adapters/macos-imk/` (**Swift package + bundle `VietIME-IM.app`** — theo `PLAN §4.1`: macOS IMK = Swift;
+> WS1 · `adapters/macos-imk/` (**Swift package + bundle `TextVN-IM.app`** — theo `PLAN §4.1`: macOS IMK = Swift;
 > không nằm Rust workspace — `P0-1 §1`). ADR-006: IMK primary.
 > Hợp đồng core: `../10-shared/P0-2-engine-ffi-contract.md` (đọc lại trước khi code).
-> Engine link static qua `libvietime_ffi.a` (xác minh ở spike `MAC-003`, xem RM1).
+> Engine link static qua `libtextvn_ffi.a` (xác minh ở spike `MAC-003`, xem RM1).
 
 ## 1. Quyết định & capability
 
@@ -23,30 +23,30 @@ adapters/macos-imk/
 ├── Sources/
 │   ├── IMKApp/
 │   │   ├── main.swift                # khởi tạo IMKServer(name:bundleIdentifier:)
-│   │   ├── VietIMEInputController.swift   # IMKInputController: handle/activateServer/…
+│   │   ├── TextVNInputController.swift   # IMKInputController: handle/activateServer/…
 │   │   ├── KeyTranslator.swift       # UCKeyTranslate + modifierFlags → ime_key_v1
 │   │   ├── ApplyReplace.swift        # §6 — nơi duy nhất sửa text
 │   │   ├── Marked.swift              # §7 — quản lý marked text/commit ngắn (B11/B13)
 │   │   ├── FieldDetect.swift         # AX query (opt-in) → FieldContext
 │   │   ├── IpcClient.swift           # unix socket, schema ipc.v1.md
 │   │   └── Diagnostics.swift         # log (không text), heartbeat
-│   └── CoreBridge/                   # Swift wrapper quanh vietime_ffi.h (modulemap)
+│   └── CoreBridge/                   # Swift wrapper quanh textvn_ffi.h (modulemap)
 ├── Resources/Info.plist              # §8 — keys đăng ký IMK
 ├── build-rust.sh                     # cargo build --release --target aarch64/x86_64-apple-darwin
-└── VietIME-IM.entitlements           # hardened runtime (khi ký)
+└── TextVN-IM.entitlements           # hardened runtime (khi ký)
 ```
 
-- `build-rust.sh` build cả 2 arch → `lipo` → `libvietime_ffi.a` (universal). CI chạy script này trước khi `swift build`.
+- `build-rust.sh` build cả 2 arch → `lipo` → `libtextvn_ffi.a` (universal). CI chạy script này trước khi `swift build`.
 - Swift file **không** giữ state cục bộ ngoài `Engine` singleton; mọi trạng thái ngữ nghĩa nằm trong engine (P0-2 §3).
 
 ## 3. Vòng đời IMK
 
 ```text
 launch (system spawn khi user chọn input source)
-  main.swift: IMKServer(name: "VietIME-IM_Connection", bundleIdentifier: "vn.vietime.im")
+  main.swift: IMKServer(name: "TextVN-IM_Connection", bundleIdentifier: "vn.textvn.im")
 IMKInputController.init(server:…)
 activateServer(sender)                  # client focus →
-  1. Engine.shared.ensureInstance(): đọc config (Application Support/VietIME/config.json)
+  1. Engine.shared.ensureInstance(): đọc config (Application Support/TextVN/config.json)
   2. ipc connect unix socket → GetSnapshot (thất bại → offline, không block — P0-3 §4)
   3. AppContext.current = FieldDetect.resolve(focused pid) → ime_set_context
 deactivateServer(sender)                # mất focus →
@@ -79,7 +79,7 @@ Idle ─────────────────────────
 ```text
 override func recognizedEvents(_:) -> [.keyDown, .flagsChanged]
 override func handle(_ event: NSEvent!, client sender: Any!) -> Bool
-  0. event.cgEvent?.userData == kVietIMEInjectedMarker → return false   (chống loop — P2-2 §6)
+  0. event.cgEvent?.userData == kTextVNInjectedMarker → return false   (chống loop — P2-2 §6)
   1. Cmd/Option+phím tắt hệ thống, Cmd+Tab… → return false (B6, không nuốt hotkey)
   2. flagsChanged → chỉ ghi modifier state (để Ctrl+Shift+Space toggle) → return false
   3. ch = KeyTranslator.translate(event) (UCKeyTranslate theo layout hiện tại — không hardcode ABC)
@@ -151,16 +151,16 @@ Corpus: `bug_B11_marked_commit`, `bug_B13_focus_loss` (`P2-5 §2`).
 
 ```xml
 <!-- Resources/Info.plist — keys chính (xác minh lại bằng spike MAC-002 từ template Xcode Input Method) -->
-<key>InputMethodConnectionName</key>   <string>VietIME-IM_Connection</string>
-<key>InputMethodServerControllerClass</key> <string>VietIMEInputController</string>
-<key>TISInputSourceID</key>            <string>vn.vietime.inputmethod.VietIMEIM</string>
+<key>InputMethodConnectionName</key>   <string>TextVN-IM_Connection</string>
+<key>InputMethodServerControllerClass</key> <string>TextVNInputController</string>
+<key>TISInputSourceID</key>            <string>vn.textvn.inputmethod.TextVNIM</string>
 <key>TISIntendedLanguage</key>         <string>vi</string>
 <key>tsInputMethodIconFileKey</key>    <string>vieste.icns</string>
 <key>ComponentInputModeDict</key>      <!-- nếu cần list mode: tsInputModeListKey, default state -->
 ```
 
 ```text
-Cài (pkg, per-user):  copy VietIME-IM.app → ~/Library/Input Methods/
+Cài (pkg, per-user):  copy TextVN-IM.app → ~/Library/Input Methods/
 Đăng ký hiển thị menu: spike MAC-007 chốt 1 trong:
    (a) TIS API đăng ký lại (nếu còn API hợp lệ)
    (b) pkill TextInputMenuAgent (Settings > Keyboard tự reload)
@@ -168,7 +168,7 @@ Cài (pkg, per-user):  copy VietIME-IM.app → ~/Library/Input Methods/
 Gỡ: xóa bundle + (nếu có API) unregister — 0 residue (P2-5 §6)
 ```
 - **Không bao giờ** ghi `/Library/Input Methods/` (system) ở chế độ per-user (PLAN §3.7).
-- Sau khi cài: app hiện hướng dẫn bật **System Settings → Keyboard → Input Sources → Add VietIME**
+- Sau khi cài: app hiện hướng dẫn bật **System Settings → Keyboard → Input Sources → Add TextVN**
   (macOS không cho add tự động — ghi vào `P2-4 §4`).
 
 ## 9. Spike checklist (tasks `MAC-002/003/004/005/007` — tuần 1–2, chặn mọi task khác)
@@ -177,7 +177,7 @@ Gỡ: xóa bundle + (nếu có API) unregister — 0 residue (P2-5 §6)
 |---|---|---|---|
 | S1 | Tạo project **Input Method** (Xcode template) chạy được, TextEdit hiện "được" với marked text | ✅ demo | MAC-002 |
 | S2 | Đúng Info.plist keys (so với template thật) → list hiện trong Input menu | ✅ | MAC-002 |
-| S3 | **SwiftPM link `libvietime_ffi.a`** (modulemap + 2 arch lipo) → gọi `ime_key` từ Swift, verify size bằng `vietime sizes` | ✅ | MAC-003 |
+| S3 | **SwiftPM link `libtextvn_ffi.a`** (modulemap + 2 arch lipo) → gọi `ime_key` từ Swift, verify size bằng `textvn sizes` | ✅ | MAC-003 |
 | S4 | `handle()` nhận keyDown, `UCKeyTranslate` ra đúng char theo layout ABC/VNI | ✅ | MAC-002 |
 | S5 | **Cơ chế xóa N ký tự**: selector nào dùng được? synthetic CGEvent có loop không (marker)? | chốt (a)/(b)/(c) | MAC-004 |
 | S6 | `client.selectedRange()` trong Safari address bar / Spotlight có trả selection? | ✅/ghi | MAC-004 |
@@ -206,9 +206,9 @@ Gỡ: xóa bundle + (nếu có API) unregister — 0 residue (P2-5 §6)
 
 ## 11. Chẩn đoán
 
-- `VIETIME_LOG=1` → `~/Library/Logs/VietIME/im-<pid>.log` (state transition, action, **độ dài** — không text, S2).
+- `TEXTVN_LOG=1` → `~/Library/Logs/TextVN/im-<pid>.log` (state transition, action, **độ dài** — không text, S2).
 - Menu bar → "Sức khỏe": IMK process PID + heartbeat, AX permission state, pipe/socket state.
-- `vietime doctor` (CLI mac build): input source registered? socket? caps? (task MAC-058).
+- `textvn doctor` (CLI mac build): input source registered? socket? caps? (task MAC-058).
 
 ## 12. Failure modes
 

@@ -25,21 +25,21 @@ hoặc chỉ bump version đúng `P0-2 §6` — để Phần 3 (Linux) cắm và
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ App người dùng (TextEdit, Safari, VS Code, Terminal…)                     │
-│   └── VietIME-IM.app  (~/Library/Input Methods/, process IMK server)     │
+│   └── TextVN-IM.app  (~/Library/Input Methods/, process IMK server)     │
 │         • IMKInputController.handle() → ime_key() → marked/insertText     │
 │         • AX field detect (opt-in Accessibility) → ime_set_context        │
 │         • ipc client → unix socket  ~/Library/Application Support/        │
-│                                 VietIME/ipc.sock  (schema ipc.v1.md)      │
+│                                 TextVN/ipc.sock  (schema ipc.v1.md)      │
 │         • (opt-in) CGEventTap fallback — xem P2-2                         │
 └──────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ VietIME.app  (NSStatusItem, LSUIElement — SOURCE OF TRUTH, như tray Win)  │
+│ TextVN.app  (NSStatusItem, LSUIElement — SOURCE OF TRUTH, như tray Win)  │
 │   • menu trạng thái + Settings (SwiftUI, ui-model JSON chung)             │
 │   • IPC server (unix socket) • watcher config/appdb/state                 │
 │   • login item (SMAppService) • updater (Ed25519, Sparkle-style)          │
 │   • diagnostics export • spawn/kill module IMK khi cần (restart IME)      │
 └──────────────────────────────────────────────────────────────────────────┘
-        Core engine (vietime-core + vietime-ffi) link STATIC vào từng binary
+        Core engine (textvn-core + textvn-ffi) link STATIC vào từng binary
         qua staticlib — hot path không qua IPC (giống Windows, P1-0 §2).
 ```
 
@@ -47,12 +47,12 @@ hoặc chỉ bump version đúng `P0-2 §6` — để Phần 3 (Linux) cắm và
 
 | Hạng mục | Đường dẫn |
 |---|---|
-| Config / state / appdb user | `~/Library/Application Support/VietIME/{config.json, state.json, appdb.json}` |
-| IPC socket | `~/Library/Application Support/VietIME/ipc.sock` (0600, đúng user — tinh thần DACL của `P0-3 §5`) |
-| Log | `~/Library/Logs/VietIME/` — không bao giờ ghi nội dung phím (S2) |
-| Input method | `~/Library/Input Methods/VietIME-IM.app` |
-| Settings app | `/Applications/VietIME.app` |
-| Staging update | `~/Library/Caches/VietIME/staging/<ver>/` |
+| Config / state / appdb user | `~/Library/Application Support/TextVN/{config.json, state.json, appdb.json}` |
+| IPC socket | `~/Library/Application Support/TextVN/ipc.sock` (0600, đúng user — tinh thần DACL của `P0-3 §5`) |
+| Log | `~/Library/Logs/TextVN/` — không bao giờ ghi nội dung phím (S2) |
+| Input method | `~/Library/Input Methods/TextVN-IM.app` |
+| Settings app | `/Applications/TextVN.app` |
+| Staging update | `~/Library/Caches/TextVN/staging/<ver>/` |
 
 > Quy tắc: mọi path trên **chỉ** được hardcode trong 1 module paths (trong crate config);
 > bảng per-OS chính thức: `P0-3 §1` (đã bổ sung trong review Phần 2 — finding F2-007).
@@ -61,10 +61,10 @@ hoặc chỉ bump version đúng `P0-2 §6` — để Phần 3 (Linux) cắm và
 
 | WS | Tên | File solution | Sản phẩm |
 |---|---|---|---|
-| WS1 | IMK adapter | **`P2-1-imk.md`** | `VietIME-IM.app` gõ được Telex trong TextEdit/Safari |
+| WS1 | IMK adapter | **`P2-1-imk.md`** | `TextVN-IM.app` gõ được Telex trong TextEdit/Safari |
 | WS2 | EventTap fallback (opt-in) | **`P2-2-eventtap.md`** | `macos-tap` module, có permission UX |
 | WS3 | AX field detect + AppDB mac | **`P2-3-strategy-appdb.md`** | rules AX + 20 preset mac |
-| WS4 | Menu bar/Settings/IPC/Update | **`P2-4-ui-packaging-release.md`** | `VietIME.app` + `.pkg` + notarization + brew |
+| WS4 | Menu bar/Settings/IPC/Update | **`P2-4-ui-packaging-release.md`** | `TextVN.app` + `.pkg` + notarization + brew |
 | WS5 | Test & automation | **`P2-5-test-plan.md`** | AX harness + matrix + CI macos |
 | WS6 | Task & điều phối | **`P2-6-TASKS.md`** | MAC-001…MAC-066 |
 

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """
-Script tạo file icon .ico cho VietIME:
-- vietime_v.ico: Chữ 'V' màu trắng trên nền Tím (#7B1FA2), bo góc nhẹ.
-- vietime_e.ico: Chữ 'E' màu trắng trên nền Xanh (#1565C0), bo góc nhẹ.
+Script tạo file icon .ico cho TextVN:
+- textvn_v.ico: Chữ 'V' màu trắng trên nền Tím (#7B1FA2), bo góc nhẹ.
+- textvn_e.ico: Chữ 'E' màu trắng trên nền Xanh (#1565C0), bo góc nhẹ.
 Chứa các size: 256x256, 128x128, 64x64, 48x48, 32x32, 24x24, 20x20, 16x16.
 """
 
@@ -71,18 +71,18 @@ def main():
     out_dir = os.path.join(os.path.dirname(__file__), "..", "tray", "resources")
     os.makedirs(out_dir, exist_ok=True)
 
-    v_ico = os.path.join(out_dir, "vietime_v.ico")
-    e_ico = os.path.join(out_dir, "vietime_e.ico")
+    v_ico = os.path.join(out_dir, "textvn_v.ico")
+    e_ico = os.path.join(out_dir, "textvn_e.ico")
 
     generate_ico("V", purple, v_ico)
     generate_ico("E", blue, e_ico)
 
-    # Cập nhật default vietime.ico cho installer và tray
+    # Cập nhật default textvn.ico cho installer và tray
     installer_dir = os.path.join(os.path.dirname(__file__), "..", "installer", "windows", "resources")
     os.makedirs(installer_dir, exist_ok=True)
-    shutil.copyfile(v_ico, os.path.join(out_dir, "vietime.ico"))
-    shutil.copyfile(v_ico, os.path.join(installer_dir, "vietime.ico"))
-    print("Updated default vietime.ico in tray and installer resources.")
+    shutil.copyfile(v_ico, os.path.join(out_dir, "textvn.ico"))
+    shutil.copyfile(v_ico, os.path.join(installer_dir, "textvn.ico"))
+    print("Updated default textvn.ico in tray and installer resources.")
 
 if __name__ == "__main__":
     main()

@@ -89,7 +89,7 @@ FieldContext ◄──────┤                    field_role ← cache fi
 |---|---|---|
 | UIA `IsPassword` → `ctx.secure=1` | 1 → Passthrough (không override được — S3) | KeePassXC |
 | `config.ignore_apps[]` (disable_vi/force_vi/passthrough) + `state.json` toggle → tính `ctx.enabled` | 2 → `!enabled` Passthrough (macro theo `allow_macro_when_vi_off`) | dev: `code.exe → disable_vi` |
-| User `appdb.json` (`%APPDATA%\VietIME\appdb.json`) | 3 → strategy user thắng preset hệ thống | `code.exe → enabled=true` |
+| User `appdb.json` (`%APPDATA%\TextVN\appdb.json`) | 3 → strategy user thắng preset hệ thống | `code.exe → enabled=true` |
 | Preset hệ thống (§3 `appdb.default.json`) | 4 | |
 | Field-role default + `ctx.caps` (P0-3 §3.1 bước 5) | 5 | |
 | Fallback BackspaceType | 6 | |
@@ -104,7 +104,7 @@ FieldContext ◄──────┤                    field_role ← cache fi
 ## 5. Tích hợp với adapter — API nội bộ chung
 
 ```rust
-// crate vietime-field-detect (field-detect/ — P0-1 §1), 1 codebase dùng cho cả TSF & hook
+// crate textvn-field-detect (field-detect/ — P0-1 §1), 1 codebase dùng cho cả TSF & hook
 pub struct FieldContext { pub app_id: String, pub field_role: u32, pub secure: bool,
                           pub caps: u32, pub engine_owner: EngineOwner }
 impl FieldContext {
@@ -131,7 +131,7 @@ impl FieldContext {
 |---|---|---|
 | WIN-004 | Spike UIA: query role/IsPassword + đo latency 10 phần tử phổ biến | `docs/specs/uia-spike.md` (kèm số ms) |
 | WIN-030 | crate `field-detect` + rules R1–R10 | Unit rules pass |
-| WIN-031 | Cache + invalidation + budget 2ms | `cargo run --release -p vietime-bench -- field-switch --iters 20000` mô phỏng 200 hwnd/app; p99 cache+resolve < 2ms, không gọi UIA đồng bộ |
+| WIN-031 | Cache + invalidation + budget 2ms | `cargo run --release -p textvn-bench -- field-switch --iters 20000` mô phỏng 200 hwnd/app; p99 cache+resolve < 2ms, không gọi UIA đồng bộ |
 | WIN-032 | `engine_owner` + override chain §4 | Unit test thứ tự ưu tiên |
 | WIN-033 | appdb loader + verify chữ ký Ed25519 (P0-3 §2.2) | Test file sai chữ ký bị từ chối |
 | WIN-034 | Preset §3 (20 mục) + corpus tương ứng ≥ 40 case | `replay corpus/win` pass |

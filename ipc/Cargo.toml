@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
-name = "vietime-ipc"
+name = "textvn-ipc"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -10,9 +10,9 @@
 //! Quy tắc bất di bất dịc: **không sửa tay** file có header `GENERATED`.
 //! Đổi bảng → sửa `data/tables/*.toml` rồi chạy `gen-tables`.
 //!
-//! `cbindgen` (sinh lại `ffi/include/vietime_ffi.h`) **chưa có** trong xtask: cần
+//! `cbindgen` (sinh lại `ffi/include/textvn_ffi.h`) **chưa có** trong xtask: cần
 //! crate `cbindgen` + nightly. Header hiện do người viết giữ tay và CI kiểm bằng
-//! `vietime sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
+//! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
 mod gen_win_corpus;
 mod toml;
@@ -77,7 +77,7 @@ fn main() -> ExitCode {
 }
 
 fn usage() -> &'static str {
-    "xtask — công cụ build của VietIME (P0-1 §3)\n\n\
+    "xtask — công cụ build của TextVN (P0-1 §3)\n\n\
      Usage:\n  \
      cargo xtask gen-tables       # data/tables/*.toml → core (ghi file)\n  \
      cargo xtask check-tables     # kiểm tra file đã sinh có khớp nguồn (exit 1 nếu lệch)\n  \

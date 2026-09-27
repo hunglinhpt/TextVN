@@ -6,13 +6,13 @@
 //! được SelectionReplace selection của người dùng nếu nó không thuộc text mà
 //! adapter vừa tạo trong composition hiện hành.
 
-use vietime_appdb::{AppDb, EngineOwner};
-use vietime_ffi::{
+use textvn_appdb::{AppDb, EngineOwner};
+use textvn_ffi::{
     ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reset,
     ime_result_v1, IME_ABI_VERSION, IME_OK,
 };
-use vietime_field_detect::{rules_win::UiaElement, FieldContext};
-use vietime_strategy::Strategy;
+use textvn_field_detect::{rules_win::UiaElement, FieldContext};
+use textvn_strategy::Strategy;
 
 #[cfg(windows)]
 pub mod class;
@@ -57,7 +57,7 @@ pub unsafe extern "system" fn DllGetClassObject(
     }
     // SAFETY: ppv non-null
     unsafe { *ppv = std::ptr::null_mut() };
-    if unsafe { *rclsid } != guids::CLSID_VIETIME_TIP {
+    if unsafe { *rclsid } != guids::CLSID_TEXTVN_TIP {
         return HR_CLASSNOTAVAILABLE;
     }
     let factory: IClassFactory = class::ClassFactory::new().into();
@@ -286,7 +286,7 @@ impl ThreadState {
         )
     }
 
-    /// Nạp lại cấu hình từ file %APPDATA%\VietIME\config.json khi nhận thông báo IPC.
+    /// Nạp lại cấu hình từ file %APPDATA%\TextVN\config.json khi nhận thông báo IPC.
     pub fn reload_config_from_file(&mut self) -> Result<(), i32> {
         if let Some(path) = config_file_path() {
             if let Ok(bytes) = std::fs::read(path) {
@@ -297,13 +297,17 @@ impl ThreadState {
     }
 }
 
-/// Trả về đường dẫn %APPDATA%\VietIME\config.json nếu có.
+/// Trả về cấu hình TextVN, hoặc cấu hình TextVN cũ khi cần migration.
 pub fn config_file_path() -> Option<std::path::PathBuf> {
     std::env::var_os("APPDATA").map(|appdata| {
-        let mut p = std::path::PathBuf::from(appdata);
-        p.push("VietIME");
-        p.push("config.json");
-        p
+        let root = std::path::PathBuf::from(appdata);
+        let primary = root.join("TextVN").join("config.json");
+        let legacy = root.join("TextVN").join("config.json");
+        if !primary.exists() && legacy.exists() {
+            legacy
+        } else {
+            primary
+        }
     })
 }
 
@@ -320,8 +324,8 @@ impl EngineSession {
     /// Nạp lại cấu hình engine runtime qua C-ABI ime_reload_config.
     pub fn reload_config(&mut self, config_utf8: &[u8]) -> Result<(), i32> {
         let status =
-            vietime_ffi::ime_reload_config(self.instance, config_utf8.as_ptr(), config_utf8.len());
-        if status == vietime_ffi::IME_OK {
+            textvn_ffi::ime_reload_config(self.instance, config_utf8.as_ptr(), config_utf8.len());
+        if status == textvn_ffi::IME_OK {
             Ok(())
         } else {
             Err(status)
@@ -424,7 +428,7 @@ impl Drop for EngineSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vietime_strategy::{IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR};
+    use textvn_strategy::{IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR};
 
     #[test]
     fn rejected_edit_session_requires_engine_reset() {
@@ -514,7 +518,7 @@ mod tests {
         assert_ne!(old_generation, current_generation);
         let normal_edit = UiaElement {
             is_password: Some(false),
-            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            control_type: textvn_field_detect::rules_win::ControlType::Edit,
             keyboard_focusable: true,
             control_element: true,
             ..Default::default()
@@ -522,12 +526,12 @@ mod tests {
         assert!(!state.publish_uia(old_generation, Some(&normal_edit)));
         assert_eq!(
             state.field_context().security,
-            vietime_field_detect::SecurityState::Unknown
+            textvn_field_detect::SecurityState::Unknown
         );
         assert!(state.publish_uia(current_generation, Some(&normal_edit)));
         assert_eq!(
             state.field_context().security,
-            vietime_field_detect::SecurityState::NonSecure
+            textvn_field_detect::SecurityState::NonSecure
         );
     }
 
@@ -548,7 +552,7 @@ mod tests {
 
         let address_bar = UiaElement {
             is_password: Some(false),
-            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            control_type: textvn_field_detect::rules_win::ControlType::Edit,
             keyboard_focusable: true,
             control_element: true,
             automation_id: "addressbar".into(),
@@ -602,7 +606,7 @@ mod tests {
         let mut state = ThreadState::new("code.exe", IME_CAP_PREEDIT).unwrap();
         let web_document = UiaElement {
             is_password: Some(false),
-            control_type: vietime_field_detect::rules_win::ControlType::Document,
+            control_type: textvn_field_detect::rules_win::ControlType::Document,
             class_name: "Chrome_RenderWidgetHostHWND".into(),
             ..Default::default()
         };
@@ -636,7 +640,7 @@ mod tests {
         // Mặc định là Telex: gõ 'a' + 's' -> 'á' (ACTION_REPLACE)
         let _ = state.engine.key_char('a').unwrap();
         let res = state.engine.key_char('s').unwrap();
-        assert_eq!(res.action, vietime_ffi::ACTION_REPLACE);
+        assert_eq!(res.action, textvn_ffi::ACTION_REPLACE);
 
         // Nạp config chuyển sang VNI (WIN-016 acceptance test)
         let vni_config = br#"{"config_version":1,"method":"vni"}"#;
@@ -648,7 +652,7 @@ mod tests {
         // Sau khi đổi sang VNI: gõ 'a' + '1' -> 'á' (VNI dùng 1 cho dấu sắc)
         let _ = state.engine.key_char('a').unwrap();
         let res_vni = state.engine.key_char('1').unwrap();
-        assert_eq!(res_vni.action, vietime_ffi::ACTION_REPLACE);
+        assert_eq!(res_vni.action, textvn_ffi::ACTION_REPLACE);
 
         // Reset buffer cho từ mới
         state.engine.reject_edit_session();
@@ -656,7 +660,7 @@ mod tests {
         // Phím 's' trong VNI không còn là dấu sắc -> trả ACTION_PASS (0)
         let _ = state.engine.key_char('a').unwrap();
         let res_s = state.engine.key_char('s').unwrap();
-        assert_eq!(res_s.action, vietime_ffi::ACTION_PASS);
+        assert_eq!(res_s.action, textvn_ffi::ACTION_PASS);
     }
 
     #[test]
@@ -665,7 +669,7 @@ mod tests {
         let mut state = ThreadState::new("notepad.exe", IME_CAP_PREEDIT).unwrap();
         let regular_edit = UiaElement {
             is_password: Some(false),
-            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            control_type: textvn_field_detect::rules_win::ControlType::Edit,
             class_name: "Edit".into(),
             ..Default::default()
         };
@@ -707,7 +711,7 @@ mod tests {
             ThreadState::new("keepassxc.exe", IME_CAP_PREEDIT | IME_CAP_SELECTION).unwrap();
         let password_element = UiaElement {
             is_password: Some(true),
-            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            control_type: textvn_field_detect::rules_win::ControlType::Edit,
             class_name: "PasswordBox".into(),
             ..Default::default()
         };

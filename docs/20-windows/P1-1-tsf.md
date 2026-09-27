@@ -1,6 +1,6 @@
 # P1-1 — TSF ADAPTER (Windows) — Solution chi tiết
 
-> WS2 · crate `vietime-win-tsf` → `vietime-tsf.dll` (cdylib, static CRT).
+> WS2 · crate `textvn-win-tsf` → `textvn-tsf.dll` (cdylib, static CRT).
 > Chốt theo **ADR-005**: Rust + `windows` crate. Nếu spike `WIN-002` chặn → ADR-005b (C++/WRL glue),
 > **giữ nguyên FFI & corpus** (chỉ đổi lớp COM).
 > Hợp đồng với core: `../10-shared/P0-2-engine-ffi-contract.md` (đọc lại trước khi code).
@@ -19,9 +19,9 @@
 
 ```rust
 // adapters/windows-tsf/src/guids.rs — tạo 1 lần, commit, không regenerate
-pub const CLSID_VIETIME_TIP: GUID = GUID::from_u128(0x6F2B9C31_8E47_4D2A_9C84_1D5A3E70F9B8);
-pub const PROFILE_VIETIME:  GUID = GUID::from_u128(0xC4A91F52_77B3_4E19_8A6D_2F8C0B6E5A13);
-pub const DISPATTR_VIETIME: GUID = GUID::from_u128(0x9D2E7A44_1B5C_4F63_A086_33D15E4C7B21);
+pub const CLSID_TEXTVN_TIP: GUID = GUID::from_u128(0x6F2B9C31_8E47_4D2A_9C84_1D5A3E70F9B8);
+pub const PROFILE_TEXTVN:  GUID = GUID::from_u128(0xC4A91F52_77B3_4E19_8A6D_2F8C0B6E5A13);
+pub const DISPATTR_TEXTVN: GUID = GUID::from_u128(0x9D2E7A44_1B5C_4F63_A086_33D15E4C7B21);
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
 ```
 
@@ -38,7 +38,7 @@ adapters/windows-tsf/src/
 ├── key_event.rs    # OnTestKeyDown/OnKeyDown → ime_key → quyết định eaten + kế hoạch sửa
 ├── composition.rs  # start/ensure/end composition, set preedit, commit
 ├── display_attr.rs # ITfDisplayAttributeInfo (gạch chân) + đăng ký GUID_PROP_ATTRIBUTE
-├── register.rs     # logic đăng ký (gọi từ `vietime register`, xem §8)
+├── register.rs     # logic đăng ký (gọi từ `textvn register`, xem §8)
 └── ipc_client.rs   # pipe client: Hello/GetSnapshot/Subscribe/ConfigReload
 ```
 
@@ -50,14 +50,14 @@ adapters/windows-tsf/src/
 ## 3. Vòng đời COM (lifecycle)
 
 ```
-DLL nạp ─► DllGetClassObject(CLSID_VIETIME_TIP) ─► ClassFactory ─► Tip (per thread làm việc)
+DLL nạp ─► DllGetClassObject(CLSID_TEXTVN_TIP) ─► ClassFactory ─► Tip (per thread làm việc)
 Tip::ActivateEx(clientId, dwFlags)
   1. CoCreateInstance(CLSID_TF_ThreadMgr) → ITfThreadMgr  (KHÔNG giữ global; theo thread)
   2. QI → ITfKeystrokeMgr → AdviseKeyEventSink(clientId, tip, TRUE)   [verify: WIN-002]
   3. QI → ITfSource → AdviseSink(IID_ITfThreadMgrEventSink, …)         (OnSetFocus)
   4. CreateDocumentMgr + Push (context tạo on-demand, xem §6)
-  5. ime_instance_new(config đọc từ %APPDATA%\VietIME\config.json)
-  6. ipc_client::connect(\\.\pipe\vietime-ipc-v1) + Subscribe   (thất bại → chạy offline, không block)
+  5. ime_instance_new(config đọc từ %APPDATA%\TextVN\config.json)
+  6. ipc_client::connect(\\.\pipe\textvn-ipc-v1) + Subscribe   (thất bại → chạy offline, không block)
 Tip::Deactivate()
   1. UnadviseKeyEventSink / UnadviseSink (bắt buộc — rò rỉ cookie = crash lần activate sau)
   2. end composition đang dở (COMMIT text, bug B2)
@@ -150,21 +150,21 @@ DoEditSession(ec):
 
 ## 7. Hiển thị preedit & display attribute
 
-1. `display_attr.rs` implement `ITfDisplayAttributeInfo` cho `DISPATTR_VIETIME` (gạch chân, màu theo theme).
+1. `display_attr.rs` implement `ITfDisplayAttributeInfo` cho `DISPATTR_TEXTVN` (gạch chân, màu theo theme).
 2. Đăng ký provider: `ITfCategoryMgr::RegisterCategory(CLSID, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID)` (§8).
-3. Khi preedit đổi: set property `GUID_PROP_ATTRIBUTE` của range composition = `VT_CLSID` chứa `DISPATTR_VIETIME`.
+3. Khi preedit đổi: set property `GUID_PROP_ATTRIBUTE` của range composition = `VT_CLSID` chứa `DISPATTR_TEXTVN`.
 4. Text preedit = `SetText(..., r.preedit)` (P0-2 §4: preedit là chuỗi **hoàn chỉnh**).
 
-## 8. Đăng ký TIP (gọi từ `vietime register`, xem P1-4 §4 installer)
+## 8. Đăng ký TIP (gọi từ `textvn register`, xem P1-4 §4 installer)
 
 ```text
-vietime register [--scope user|machine]
- 1. [scope] CoCreate ITfInputProcessorProfiles → Register(CLSID_VIETIME_TIP)
- 2. AddLanguageProfile(CLSID, LANGID_VI, PROFILE_VIETIME, L"VietIME", icon=<install>\vietime.ico, idx 0)
- 3. ITfCategoryMgr::RegisterCategory(CLSID, GUID_TFCAT_TIP_KEYBOARD, CLSID_VIETIME_TIP)
- 4. ITfCategoryMgr::RegisterCategory(CLSID, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_VIETIME_TIP)
+textvn register [--scope user|machine]
+ 1. [scope] CoCreate ITfInputProcessorProfiles → Register(CLSID_TEXTVN_TIP)
+ 2. AddLanguageProfile(CLSID, LANGID_VI, PROFILE_TEXTVN, L"TextVN", icon=<install>\textvn.ico, idx 0)
+ 3. ITfCategoryMgr::RegisterCategory(CLSID, GUID_TFCAT_TIP_KEYBOARD, CLSID_TEXTVN_TIP)
+ 4. ITfCategoryMgr::RegisterCategory(CLSID, GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER, CLSID_TEXTVN_TIP)
  5. [scope=user] đăng ký COM server: HKCU\Software\Classes\CLSID\{CLSID}\InprocServer32 = <path> (REG_SZ, ThreadingModel=Apartment)
-vietime unregister  → đảo ngược 5 bước; KHÔNG đụng key của app khác
+textvn unregister  → đảo ngược 5 bước; KHÔNG đụng key của app khác
 ```
 
 - **Spike WIN-003 phải xác nhận**: bước 1–4 chạy được từ user context không cần admin
@@ -184,8 +184,8 @@ Mỗi dòng: API → đã dùng được? (✅/❌) → ghi vào `docs/specs/tsf
 | 3 | `CreateDocumentMgr/CreateContext/Push` + `GetStart/GetSelection` trong edit session | ✅ |
 | 4 | `ITfContextComposition::StartComposition` → `ITfRange::SetText` → `EndComposition` hiện chữ trong Notepad | ✅ |
 | 5 | `OnTestKeyDown` vs `OnKeyDown`: app nào ăn `TRUE` ở test (Word/Chrome) | ghi bảng |
-| 6 | `vietime register` scope=user có hoạt động ở VM sạch không admin? | ✅ hoặc ghi fallback |
-| 7 | Win+Space hiển thị "VietIME"; `ActivateProfile` chuyển được | ✅ |
+| 6 | `textvn register` scope=user có hoạt động ở VM sạch không admin? | ✅ hoặc ghi fallback |
+| 7 | Win+Space hiển thị "TextVN"; `ActivateProfile` chuyển được | ✅ |
 | 8 | Chrome address bar: composition có bị autocomplete can thiệp không? (chính là B1) | ghi kết quả → quyết định preset |
 | 9 | Password field: TSF có được focus không? UIA `IsPassword` đọc được từ process khác? | ghi kết quả → P1-3 |
 | 10 | Hook (`P1-2`) với app elevated: SendInput bị UIPI chặn như dự kiến? | ghi → uiAccess plan (P1-4) |
@@ -210,9 +210,9 @@ Mỗi dòng: API → đã dùng được? (✅/❌) → ghi vào `docs/specs/tsf
 
 ## 11. Chế độ test & chẩn đoán
 
-- `VIETIME_TSF_DEBUG=1` (env) → log vào `%LOCALAPPDATA%\VietIME\logs\tsf-<pid>.log`
+- `TEXTVN_TSF_DEBUG=1` (env) → log vào `%LOCALAPPDATA%\TextVN\logs\tsf-<pid>.log`
   (mức info: state transition, action, delete/insert **độ dài**, **không nội dung** — S2).
-- `vietime doctor` liệt kê: TIP đã đăng ký? profile active? pipe connected? caps?
+- `textvn doctor` liệt kê: TIP đã đăng ký? profile active? pipe connected? caps?
 - Manual smoke script: `tools/win/smoke-tsf.ps1` (mở Notepad, gửi chuỗi qua SendInput, so clipboard —
   chi tiết ở `P1-5 §4.1`).
 

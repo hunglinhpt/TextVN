@@ -2,15 +2,15 @@
 
 > WS1 · `adapters/linux-ibus/` (**C** — `PLAN §4.1`: "Linux IBus: C, chuẩn IBus; Rust bindings chưa ổn định").
 > ADR-007: IBus + Fcitx5 dual; IBus là adapter primary trên GNOME (GNOME Wayland dùng IBus mặc định).
-> Hợp đồng core: `../10-shared/P0-2-engine-ffi-contract.md`. Engine link `libvietime_ffi.a`
-> (xác minh spike `LNX-003`, xem RL10) + `libvietime-linux-common.a` (AT-SPI — `P3-4 §5`).
+> Hợp đồng core: `../10-shared/P0-2-engine-ffi-contract.md`. Engine link `libtextvn_ffi.a`
+> (xác minh spike `LNX-003`, xem RL10) + `libtextvn-linux-common.a` (AT-SPI — `P3-4 §5`).
 
 ## 1. Quyết định & capability
 
 | Quyết định | Nội dung | Vì sao |
 |---|---|---|
 | Đi chuẩn IM protocol, **không grab phím** | Mọi text app qua `ibus-daemon` → engine process | `PLAN §5.2`, fix B10 (Wayland không cho grab) |
-| IBus engine = **process riêng** (XML `<exec>`) | Crash của engine không giết ibus-daemon; daemon respawn | RL7; giống mô hình `vietime-hook.exe` tách process (P1-0 §2) |
+| IBus engine = **process riêng** (XML `<exec>`) | Crash của engine không giết ibus-daemon; daemon respawn | RL7; giống mô hình `textvn-hook.exe` tách process (P1-0 §2) |
 | Caps của IBus v1 | `IME_CAP_PREEDIT \| IME_CAP_SELECTION \| IME_CAP_FIELD_DETECT` | Preedit/selection/native; field detect qua AT-SPI (`P3-4`) |
 | 1 instance / context, 1 thread | Mỗi `IBusEngine` object (= 1 input context) có **1 `ime_instance` riêng** (callback cùng main loop → đúng P0-2 §3 thread-model); giải phóng khi `finalize` | P0-2 §3; multi-window không đạp nhau (B13) — verify số object ở spike LNX-002 |
 | Gõ tắt/emoji/khôi phục EN | Toàn bộ trong core (không code riêng Linux) | Một implementation 3 OS (P0-2 §3) |
@@ -21,7 +21,7 @@
 adapters/linux-ibus/
 ├── Cargo.toml-build/ (không có — thuần C)
 ├── meson.build | CMakeLists.txt        # build với pkg-config: ibus-1.0, glib-2.0
-├── include/vietime_ibus_engine.h
+├── include/textvn_ibus_engine.h
 ├── src/
 │   ├── main.c                          # ibus_main loop: connect bus, register component
 │   ├── engine.c                        # IBusEngine subclass — mọi callback (§3–§6)
@@ -32,20 +32,20 @@ adapters/linux-ibus/
 └── tests/unit/                         # keymap + apply với mock IBusText
 ```
 
-- `libvietime-linux-common.a` (C, `adapters/linux-common/` — **dùng chung** với fcitx5/x11):
+- `libtextvn-linux-common.a` (C, `adapters/linux-common/` — **dùng chung** với fcitx5/x11):
   AT-SPI field detect (`P3-4 §5`), IPC client, log (không text), env doctor helper.
 - Engine **không** phụ thuộc GTK/Qt (chỉ glib + ibus) → chạy được trên mọi distro.
 
 ## 3. Vòng đời IBus
 
 ```text
-cài .deb → /usr/share/ibus/component/vietime.xml → postinst: ibus restart (nếu daemon đang chạy)
-ibus-daemon đọc XML → spawn /usr/lib/vietime/vietime-ibus-engine (process)
+cài .deb → /usr/share/ibus/component/textvn.xml → postinst: ibus restart (nếu daemon đang chạy)
+ibus-daemon đọc XML → spawn /usr/lib/textvn/textvn-ibus-engine (process)
   main(): ibus_bus_new() → ibus_bus_register_component(bus, component) → ibus_main()
   IBusEngine.new(engine, connection, object_path)          # mỗi context 1 object → 1 instance (§1)
 enable()  / focus_in(engine):
-  1. engine_shared.ensure_instance(this): đọc ~/.config/VietIME/config.json (một lần/process, cache)
-  2. ipc connect ~/.config/VietIME/ipc.sock → GetSnapshot (thất bại → offline — P0-3 §4)
+  1. engine_shared.ensure_instance(this): đọc ~/.config/TextVN/config.json (một lần/process, cache)
+  2. ipc connect ~/.config/TextVN/ipc.sock → GetSnapshot (thất bại → offline — P0-3 §4)
   3. AT-SPI: focused element (thread riêng, cache) → ime_set_context{app_id=WM_CLASS/DESKTOP_FILE,
      field_role, secure, caps}
   4. đọc surrounding_text (nếu bus báo hỗ trợ) → capability hint (RL5)
@@ -133,7 +133,7 @@ ReplaceEditPlan (chỉ preedit):
   else:
       strategy fallback đã bị downgrade ở resolve (P0-3 §3.1) → chỉ được dùng Preedit/Commit;
       nếu preset bắt BackspaceType mà không surrounding → commit trước (không bao giờ
-      giả lập phím qua XTEST trong adapter IBus — XTEST chỉ nằm ở vietime-x11, P3-3)
+      giả lập phím qua XTEST trong adapter IBus — XTEST chỉ nằm ở textvn-x11, P3-3)
 ```
 - RL5: probe surrounding tại `focus_in` (bus có `surrounding-text` capability không, app có
   set không) → giữ trong `ctx.caps` — không hỗ trợ → resolve downgrade (P0-3 §3.1).
@@ -159,27 +159,27 @@ Corpus: `bug_B2_enter_commit`, `bug_B13_focus_loss` (`P3-6 §2`).
 ## 8. Component XML & đăng ký
 
 ```xml
-<!-- /usr/share/ibus/component/vietime.xml (spec đóng gói — P3-0 §2) -->
+<!-- /usr/share/ibus/component/textvn.xml (spec đóng gói — P3-0 §2) -->
 <component>
-  <name>VietIME</name><exec>/usr/lib/vietime/vietime-ibus-engine</exec>
-  <version>1.0</version><author>VietIME contributors</author>
+  <name>TextVN</name><exec>/usr/lib/textvn/textvn-ibus-engine</exec>
+  <version>1.0</version><author>TextVN contributors</author>
   <license>GPL-3.0-or-later</license><homepage>…</homepage>
-  <textdomain>vietime</textdomain>
+  <textdomain>textvn</textdomain>
   <engines><engine>
-    <name>vietime</name><longname>VietIME (Telex/VNI/VIQR)</longname>
+    <name>textvn</name><longname>TextVN (Telex/VNI/VIQR)</longname>
     <language>vi</language><layout>us</layout><symbol>VN</symbol><rank>0</rank>
-    <icon>vietime</icon>
+    <icon>textvn</icon>
   </engine></engines>
 </component>
 ```
 
 ```text
 postinst .deb: if pgrep ibus-daemon → ibus restart (ignore fail) + in hướng dẫn:
-  GNOME: Settings → Keyboard → Input Sources → Add "VietIME"
-  KDE: System Settings → Input Method → Add IBus → VietIME
+  GNOME: Settings → Keyboard → Input Sources → Add "TextVN"
+  KDE: System Settings → Input Method → Add IBus → TextVN
 gỡ: xóa XML + binary → ibus restart — 0 residue (P3-6 §6)
 ```
-- `vietime doctor` (P3-5 §6) kiểm: XML tồn tại? daemon chạy? env `GTK_IM_MODULE` đúng?
+- `textvn doctor` (P3-5 §6) kiểm: XML tồn tại? daemon chạy? env `GTK_IM_MODULE` đúng?
 
 ## 9. Spike checklist (tasks `LNX-002/003/004/005/008` — tuần 1–2, chặn WS1)
 
@@ -187,7 +187,7 @@ gỡ: xóa XML + binary → ibus restart — 0 residue (P3-6 §6)
 |---|---|---|---|
 | S1 | Project IBus engine C tối thiểu (mẫu `ibusengine` của ibus) gõ được, preedit hiện trong gedit | ✅ demo | LNX-002 |
 | S2 | Đúng component XML → hiện trong Input Sources | ✅ | LNX-002 |
-| S3 | Link `libvietime_ffi.a` từ **C** (cmake/meson + pkg-config) → gọi `ime_key`, `vietime sizes` pass | ✅ | LNX-003 |
+| S3 | Link `libtextvn_ffi.a` từ **C** (cmake/meson + pkg-config) → gọi `ime_key`, `textvn sizes` pass | ✅ | LNX-003 |
 | S4 | **keyval/shift semantics** thật (§5.1) — 3 layout | ghi rõ | LNX-004 |
 | S5 | `commit_text` có tự thay **selection** trong GTK Entry/Chromium address bar? | ✅/ghi | LNX-004 |
 | S6 | `delete_surrounding_text` hoạt động ở GTK/Qt/Chromium? (RL5) | bảng kết quả | LNX-004 |
@@ -216,9 +216,9 @@ gỡ: xóa XML + binary → ibus restart — 0 residue (P3-6 §6)
 
 ## 11. Chẩn đoán
 
-- `VIETIME_LOG=1` → `~/.local/state/VietIME/log/ibus-<pid>.log` (state, action, **độ dài** — không text, S2).
+- `TEXTVN_LOG=1` → `~/.local/state/TextVN/log/ibus-<pid>.log` (state, action, **độ dài** — không text, S2).
 - Tray → "Sức khỏe": engine PID + heartbeat, AT-SPI permission, socket state.
-- `vietime doctor` (P3-5 §6): component XML? env matrix? daemon state? (task LNX-055).
+- `textvn doctor` (P3-5 §6): component XML? env matrix? daemon state? (task LNX-055).
 
 ## 12. Failure modes
 

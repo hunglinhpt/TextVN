@@ -1,4 +1,4 @@
-# build-release.ps1 - Build release TextVN (LBS Viet Nam) cho Windows
+# build-release.ps1 - Build release TextVN cho Windows
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Usage:
@@ -30,7 +30,7 @@ if ($Version -eq "") {
         $Version = "0.1.0"
     }
 }
-Write-Step "TextVN (LBS Viet Nam) Release Build v$Version"
+Write-Step "TextVN Release Build v$Version"
 
 $Target = "x86_64-pc-windows-msvc"
 $ReleaseDir = "target\$Target\release"
@@ -63,7 +63,7 @@ Write-Ok "Build release DONE"
 
 # Dung cac tien trinh TextVN dang chay de tranh file locked
 Write-Step "Check running processes"
-Get-Process -Name "TextVN", "textvn-hook", "textvn-cli", "textvn", "vietime-tray", "vietime-hook", "vietime" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name "TextVN", "textvn-hook", "textvn-cli", "textvn", "textvn-tray", "textvn-hook", "textvn" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 300
 Write-Ok "Process lock check DONE"
 
@@ -81,8 +81,8 @@ $BinFiles = @(
     @{ src = "TextVN.exe";           dst = "TextVN.exe" },
     @{ src = "textvn-hook.exe";      dst = "textvn-hook.exe" },
     @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
-    @{ src = "vietime_win_tsf.dll";  dst = "textvn-tsf.dll" },
-    @{ src = "vietime_ffi.dll";      dst = "textvn_ffi.dll" }
+    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
+    @{ src = "textvn_ffi.dll";      dst = "textvn_ffi.dll" }
 )
 
 foreach ($entry in $BinFiles) {
@@ -106,7 +106,7 @@ $resSrc = "tray\resources"
 $resDst = "$ZipDir\resources"
 if (Test-Path $resSrc) {
     Copy-Item $resSrc $resDst -Recurse -Force
-    Write-Ok "Copied tray resources (vietime_v.ico, vietime_e.ico)"
+    Write-Ok "Copied TextVN tray resources"
 }
 
 # Copy docs
@@ -119,7 +119,7 @@ foreach ($doc in @("README.md", "CHANGELOG.md", "LICENSE")) {
 
 # Tao HUONG_DAN_SU_DUNG.txt
 $quickstartContent = "=================================================================`r`n" +
-    "TextVN - LBS Viet Nam (Bo go Tieng Viet hien dai, ma nguon mo)`r`n" +
+    "TextVN (Bo go Tieng Viet hien dai, ma nguon mo)`r`n" +
     "=================================================================`r`n`r`n" +
     "1. SU DUNG NGAY (KHONG CAN CAI DAT):`r`n" +
     "   - Nhan dup chuot vao file TextVN.exe`r`n" +
@@ -147,10 +147,10 @@ foreach ($entry in $BinFiles) {
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
-        if ($vi.CompanyName -eq "TextVN Project - LBS Viet Nam") {
+        if ($vi.CompanyName -eq "hunglinhpt") {
             Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
         } else {
-            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'TextVN Project - LBS Viet Nam')"
+            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'hunglinhpt')"
         }
     }
 }

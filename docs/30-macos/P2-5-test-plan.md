@@ -8,10 +8,10 @@
 | Lớp | Chạy ở đâu | Lệnh | Gate |
 |---|---|---|---|
 | Unit (core/strategy/field/AX rules) | mỗi PR, 3 OS | `cargo test --workspace` + `swift test --package-path adapters/macos-imk` | PR |
-| Corpus replay (`--adapter mac`) | mỗi PR | `cargo run -p vietime-cli -- replay corpus/ --adapter mac` | PR |
+| Corpus replay (`--adapter mac`) | mỗi PR | `cargo run -p textvn-cli -- replay corpus/ --adapter mac` | PR |
 | Fuzz | PR 15' + nightly 60' | `cargo +nightly fuzz run key_event -- -max_total_time=900` | PR/nightly |
 | AX harness (12 app) | **macos-latest nếu RM5 pass**, khác → local nightly (ghi lý do) | `tools/mac/ax-driver --suite ci` | nightly |
-| Perf bench | mỗi PR (3 bench chính) | `cargo bench -p vietime-bench` | PR (ngưỡng §5) |
+| Perf bench | mỗi PR (3 bench chính) | `cargo bench -p textvn-bench` | PR (ngưỡng §5) |
 | Soak 24h | weekly (local Mac thật) | `tools/mac/soak.sh -Hours 24` | weekly → Issue |
 | Manual | trước RC | `§7` | release |
 
@@ -89,11 +89,11 @@ ax-driver --suite ci|full --only <app_id> --report out/report.json
 
 | Metric | Nguồn | Ngưỡng |
 |---|---|---|
-| `ime_key` p99 | `cargo bench -p vietime-bench -- key_latency` | < 0.5 ms |
+| `ime_key` p99 | `cargo bench -p textvn-bench -- key_latency` | < 0.5 ms |
 | Strategy resolve p99 | bench `resolve` | < 2 ms |
 | Tap callback p99 (nếu bật) | doctor counter | < 2 ms, 0 self-disable |
 | Glyph latency (ax-driver) | `t_glyph_ms` | p95 < 50 ms |
-| RSS steady (2 process) | `tools/mac/mem-check.sh` | IMK < 60MB, VietIME.app < 80MB |
+| RSS steady (2 process) | `tools/mac/mem-check.sh` | IMK < 60MB, TextVN.app < 80MB |
 | CPU idle | `top -l 2` 60s | 0% poll nóng |
 
 Regression >10% vs `perf/baseline-mac.json` → fail (3 bench chính trên PR).
@@ -120,7 +120,7 @@ Regression >10% vs `perf/baseline-mac.json` → fail (3 bench chính trên PR).
 5. Quyền AX: cấp/từ chối → preset fallback đúng (RM4); tap opt-in: cấp quyền → app không-IMK gõ được.
 6. Update beta → stable qua updater; kill giữa chừng → rollback.
 7. Gỡ (giữ config) → cài lại → config còn; input source không còn trong menu.
-8. `vietime doctor --export` không có text content.
+8. `textvn doctor --export` không có text content.
 9. Gatekeeper: cài từ `.pkg` tải về trên VM khác (không cần `xattr` manual) → notarization OK.
 
 ## 8. CI jobs
@@ -128,6 +128,6 @@ Regression >10% vs `perf/baseline-mac.json` → fail (3 bench chính trên PR).
 | Job | Trigger | Nội dung |
 |---|---|---|
 | `ci-shared.yml` | PR/push | (P0-1) 3 OS incl. macOS: fmt/clippy/test/corpus |
-| `ci-macos.yml` | PR chạm `adapters/macos*`, `corpus/mac/` | `swift build/test` (arch arm64 + x86_64 check), `replay corpus/mac`, `smoke-imk` (nếu GUI OK), `vietime sizes` |
+| `ci-macos.yml` | PR chạm `adapters/macos*`, `corpus/mac/` | `swift build/test` (arch arm64 + x86_64 check), `replay corpus/mac`, `smoke-imk` (nếu GUI OK), `textvn sizes` |
 | `ci-nightly-mac.yml` | schedule | ax-driver `--suite ci` (hoặc fallback ghi reason), fuzz 60', soak 2h, report → Issue |
 | `ci-release.yml` | tag `v*` | build universal (lipo), codesign + notarytool, `.pkg` + SHA256SUMS + cask file |

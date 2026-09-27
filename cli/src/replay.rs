@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use vietime_ffi::{
+use textvn_ffi::{
     ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
     ime_reload_config, ime_reset, ime_result_v1, ime_set_context, IME_ABI_VERSION, IME_OK,
 };
@@ -1332,7 +1332,7 @@ mod tests {
         );
 
         // phải parse lại được bằng crate config thật (schema khớp, không chỉ là chuỗi)
-        let cfg = vietime_config::parse_config(&json).expect("JSON build ra phải hợp lệ");
+        let cfg = textvn_config::parse_config(&json).expect("JSON build ra phải hợp lệ");
         assert_eq!(cfg.macros.len(), 1);
         assert_eq!(cfg.macros[0].expand, "Công ty TNHH");
         assert_eq!(cfg.emoji[0].glyph, "😀");
@@ -1349,7 +1349,7 @@ mod tests {
             "json sai schema: {json}"
         );
         // Dấu phẩy thừa (`["a",]`) là JSON hỏng → rc=-2, nên test này chặn đúng lỗi đó.
-        let cfg = vietime_config::parse_config(&json).expect("JSON phải parse được");
+        let cfg = textvn_config::parse_config(&json).expect("JSON phải parse được");
         assert_eq!(
             cfg.english_words,
             vec!["text".to_string(), "nest".to_string()]

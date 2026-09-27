@@ -1,13 +1,13 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
-; Script dong goi bo cai dat TextVN (LBS Viet Nam) cho Windows bang Inno Setup 6 (WIN-054 / P1-4 §4).
+; Script dong goi bo cai dat TextVN cho Windows bang Inno Setup 6 (WIN-054 / P1-4 §4).
 ; Ho tro cai dat linh hoat:
 ; - Mac dinh per-user (khong yeu cau quyen Administrator).
 ; - Che do All Users khi chay elevated.
 
 #define MyAppName "TextVN"
-#define MyAppFullName "TextVN - LBS Viet Nam"
+#define MyAppFullName "TextVN"
 #define MyAppVersion "0.1.0"
-#define MyAppPublisher "TextVN Project - LBS Viet Nam"
+#define MyAppPublisher "hunglinhpt"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"
 
@@ -51,8 +51,8 @@ Name: "autostart"; Description: "Tu dong khoi dong TextVN cung Windows"; GroupDe
 Source: "{#TargetDir}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"
 Source: "{#TargetDir}\textvn-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-hook.exe"
 Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"
-Source: "{#TargetDir}\vietime_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
-Source: "{#TargetDir}\vietime_ffi.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn_ffi.dll"
+Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
+Source: "{#TargetDir}\textvn_ffi.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn_ffi.dll"
 Source: "..\..\tray\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion

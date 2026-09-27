@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime-core` — engine gõ tiếng Việt, thuần logic (P0-1 §2).
+//! `textvn-core` — engine gõ tiếng Việt, thuần logic (P0-1 §2).
 //!
 //! Bất biến (Handbook S1–S4, P0-2 §0):
 //! - **Không** network / file I/O / spawn thread / log nội dung text.
@@ -82,7 +82,7 @@ impl Outcome {
     }
 }
 
-/// Options từ `config.v1` (vietime-config đã validate — ffi dịch sang đây).
+/// Options từ `config.v1` (textvn-config đã validate — ffi dịch sang đây).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EngineOptions {
     pub method: Method,

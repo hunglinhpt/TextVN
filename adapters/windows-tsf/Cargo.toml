@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 [package]
-name = "vietime-win-tsf"
+name = "textvn-win-tsf"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,12 +9,12 @@ license.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-vietime-appdb = { path = "../../appdb" }
-vietime-config = { path = "../../config" }
-vietime-field-detect = { path = "../../field-detect" }
-vietime-ffi = { path = "../../ffi" }
-vietime-ipc = { path = "../../ipc" }
-vietime-strategy = { path = "../../strategy" }
+textvn-appdb = { path = "../../appdb" }
+textvn-config = { path = "../../config" }
+textvn-field-detect = { path = "../../field-detect" }
+textvn-ffi = { path = "../../ffi" }
+textvn-ipc = { path = "../../ipc" }
+textvn-strategy = { path = "../../strategy" }
 
 [target.'cfg(windows)'.dependencies]
 windows-core = "0.61"

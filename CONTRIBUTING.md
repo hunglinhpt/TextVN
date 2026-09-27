@@ -1,6 +1,6 @@
-# Đóng góp cho VietIME
+# Đóng góp cho TextVN
 
-Cảm ơn bạn đã quan tâm đến VietIME! Mọi đóng góp đều được hoan nghênh — từ báo cáo lỗi, đề xuất tính năng, cải thiện tài liệu, đến code.
+Cảm ơn bạn đã quan tâm đến TextVN! Mọi đóng góp đều được hoan nghênh — từ báo cáo lỗi, đề xuất tính năng, cải thiện tài liệu, đến code.
 
 ---
 
@@ -13,10 +13,10 @@ Dự án này tuân thủ [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT
 ## Cách báo cáo lỗi (Bug Report)
 
 1. **Kiểm tra Issues** — Xem lỗi đã được báo cáo chưa
-2. **Chạy `vietime doctor`** và đính kèm output (hoặc file `.zip` từ `--export`)
+2. **Chạy `textvn-cli doctor`** và đính kèm output (hoặc file `.zip` từ `--export`)
 3. **Mô tả chi tiết**:
    - Phiên bản Windows (Settings → About)
-   - Phiên bản VietIME (`vietime-tray.exe --version`)
+   - Phiên bản TextVN (`TextVN.exe --version`)
    - Các bước tái hiện lỗi
    - Hành vi mong đợi vs thực tế
 4. **Không đính kèm text/nội dung bạn đã gõ** — Chúng tôi nghiêm túc bảo vệ quyền riêng tư
@@ -132,7 +132,7 @@ docs(readme): add build instructions for Windows
 |-------|-------|---------|-------|-------|
 | `engine` | Core IME (Telex/VNI/...) | ✅ | 🔄 | 🔄 |
 | `config` | Config schema + parser | ✅ | ✅ | ✅ |
-| `cli` | `vietime` CLI | ✅ | 🔄 | 🔄 |
+| `cli` | `textvn-cli` CLI | ✅ | 🔄 | 🔄 |
 | `tray` | System tray app | ✅ Windows only | ❌ | ❌ |
 | `adapters/windows-tsf` | TSF TIP (Windows Input) | ✅ Windows only | ❌ | ❌ |
 | `adapters/windows-hook` | Low-level keyboard hook | ✅ Windows only | ❌ | ❌ |

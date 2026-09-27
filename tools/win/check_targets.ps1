@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\targets.lib.ps1')
 . (Join-Path $PSScriptRoot 'lib\win32-uia.lib.ps1')
-Initialize-VietimeUiA
+Initialize-TextVNUiA
 
 # 12 app CI (P1-5 sec 3 - cot "CI?")
 $ciApps = @('notepad', 'word', 'vscode', 'chrome', 'edge', 'firefox',

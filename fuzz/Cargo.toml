@@ -4,7 +4,7 @@
 # Chạy:  cargo +nightly fuzz run ffi_key        (P0-4: 60s ở PR, 10' ở nightly)
 #       cargo +nightly fuzz run config_parse
 [package]
-name = "vietime-fuzz"
+name = "textvn-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -18,13 +18,13 @@ cargo-fuzz = true
 # `cdylib` vào cùng target làm linker cố export `main` từ DLL. Tách hai fuzz
 # target FFI ra feature này để `appdb_parse` (parser thuần) vẫn chạy trên
 # Windows. CI Unix bật `ffi-fuzz` cho `ffi_key` và `config_parse`.
-ffi-fuzz = ["dep:vietime-ffi"]
+ffi-fuzz = ["dep:textvn-ffi"]
 
 [dependencies]
 libfuzzer-sys = "0.4"
-vietime-ffi = { path = "../ffi", optional = true }
-vietime-config = { path = "../config" }
-vietime-appdb = { path = "../appdb" }
+textvn-ffi = { path = "../ffi", optional = true }
+textvn-config = { path = "../config" }
+textvn-appdb = { path = "../appdb" }
 
 [[bin]]
 name = "ffi_key"

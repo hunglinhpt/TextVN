@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Service layer quản lý State & Config in-process cho VietIME Tray (P1-4 §1/§2).
+//! Service layer quản lý State & Config in-process cho TextVN Tray (P1-4 §1/§2).
 //!
-//! Một nguồn sự thật duy nhất (Single Source of Truth) cho file `%APPDATA%\VietIME\{config.json, state.json}`.
+//! Một nguồn sự thật duy nhất (Single Source of Truth) cho file `%APPDATA%\TextVN\{config.json, state.json}`.
 //! Các thao tác cập nhật cấu hình và trạng thái per-app đi qua đây, được ghi nguyên tử (atomic write qua file tạm)
 //! và tăng version đơn điệu để broadcast tới các TSF TIP và Hook qua IPC.
 
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
-use vietime_config::{Config, DiacriticStyle, Method};
+use textvn_config::{Config, DiacriticStyle, Method};
 
 /// Dữ liệu trạng thái bật/tắt gõ per-app lưu trong `state.json`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -30,7 +30,7 @@ pub struct SvcManager {
 }
 
 impl SvcManager {
-    /// Khởi tạo service manager với đường dẫn thư mục cấu hình (mặc định `%APPDATA%\VietIME`).
+    /// Khởi tạo service manager với đường dẫn thư mục cấu hình (mặc định `%APPDATA%\TextVN`).
     pub fn new(config_dir: Option<PathBuf>) -> Arc<Self> {
         let dir = config_dir.unwrap_or_else(default_config_dir);
         let _ = fs::create_dir_all(&dir);
@@ -39,7 +39,7 @@ impl SvcManager {
         let initial_config = if config_file.exists() {
             fs::read_to_string(&config_file)
                 .ok()
-                .and_then(|s| vietime_config::parse_config(&s).ok())
+                .and_then(|s| textvn_config::parse_config(&s).ok())
                 .unwrap_or_default()
         } else {
             let default_cfg = Config::default();
@@ -153,7 +153,7 @@ impl SvcManager {
     }
 
     /// Đổi bảng mã xuất (Unicode, Unicode tổ hợp, VNI Windows, TCVN3, VIQR).
-    pub fn set_output_charset(&self, charset: vietime_config::OutputCharset) -> u64 {
+    pub fn set_output_charset(&self, charset: textvn_config::OutputCharset) -> u64 {
         let mut cfg = self.config.write().unwrap();
         cfg.output_charset = charset;
         let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
@@ -194,11 +194,11 @@ impl SvcManager {
     }
 }
 
-/// Trả về đường dẫn %APPDATA%\TextVN mặc định (hoặc legacy %APPDATA%\VietIME nếu đã tồn tại).
+/// Trả về đường dẫn %APPDATA%\TextVN mặc định (hoặc legacy %APPDATA%\TextVN nếu đã tồn tại).
 pub fn default_config_dir() -> PathBuf {
     if let Some(appdata) = std::env::var_os("APPDATA") {
         let primary = PathBuf::from(&appdata).join("TextVN");
-        let legacy = PathBuf::from(&appdata).join("VietIME");
+        let legacy = PathBuf::from(&appdata).join("TextVN");
         if !primary.exists() && legacy.exists() {
             legacy
         } else {
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn svc_manager_initializes_and_toggles_state() {
-        let temp_dir = std::env::temp_dir().join(format!("vietime_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("textvn_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
 
         assert!(svc.is_global_enabled());
@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn svc_manager_switches_method_and_increments_version() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_test_method_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_test_method_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
 
         assert_eq!(svc.config().method, Method::Telex);

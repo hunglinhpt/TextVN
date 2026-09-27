@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Module chẩn đoán môi trường và xuất báo cáo `vietime doctor [--json] [--export <path>]` (WIN-058 / P1-4 §9).
+//! Module chẩn đoán môi trường và xuất báo cáo `textvn doctor [--json] [--export <path>]` (WIN-058 / P1-4 §9).
 //!
 //! Chẩn đoán:
 //! 1. FFI ABI struct sizes (P0-2 §6)
-//! 2. Cấu hình người dùng `%APPDATA%\VietIME\config.json` (redacted đường dẫn khi export — Rule S2)
-//! 3. Trạng thái IPC Named Pipe `\\.\pipe\vietime-ipc-v1`
-//! 4. Trạng thái tiến trình `vietime-hook.exe` và `vietime-tray.exe`
+//! 2. Cấu hình người dùng `%APPDATA%\TextVN\config.json` (redacted đường dẫn khi export — Rule S2)
+//! 3. Trạng thái IPC Named Pipe `\\.\pipe\textvn-ipc-v1`
+//! 4. Trạng thái tiến trình `textvn-hook.exe` và `textvn-tray.exe`
 //! 5. Trạng thái đăng ký TIP (Windows Text Services Framework)
 //!
 //! Xuất file ZIP chẩn đoán:
@@ -80,7 +80,7 @@ pub fn collect_report() -> DoctorReport {
     if let Some(p) = &cfg_path {
         if p.exists() {
             config_status = match std::fs::read_to_string(p) {
-                Ok(text) => match vietime_config::parse_config(&text) {
+                Ok(text) => match textvn_config::parse_config(&text) {
                     Ok(_) => "hợp lệ".into(),
                     Err(e) => {
                         problems.push("config.json không hợp lệ (P0-3 §1.3)".into());
@@ -98,13 +98,13 @@ pub fn collect_report() -> DoctorReport {
     let data_dir_exists = PathBuf::from("data").is_dir();
     let pipe_listening = check_pipe_listening();
     let hook_running =
-        check_process_running("textvn-hook.exe") || check_process_running("vietime-hook.exe");
+        check_process_running("textvn-hook.exe") || check_process_running("textvn-hook.exe");
     let tray_running =
-        check_process_running("TextVN.exe") || check_process_running("vietime-tray.exe");
+        check_process_running("TextVN.exe") || check_process_running("textvn-tray.exe");
     let tip_registered = check_tip_registered();
 
     DoctorReport {
-        abi_version: vietime_ffi::IME_ABI_VERSION,
+        abi_version: textvn_ffi::IME_ABI_VERSION,
         sizes_ok,
         key_size,
         result_size,
@@ -236,9 +236,10 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
 
     // 4. hook_stats.json (nếu có)
     if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
-        let stats_path = PathBuf::from(local_appdata)
-            .join("VietIME")
-            .join("hook-stats.json");
+        let root = PathBuf::from(local_appdata);
+        let primary = root.join("TextVN").join("hook-stats.json");
+        let legacy = root.join("TextVN").join("hook-stats.json");
+        let stats_path = if primary.exists() { primary } else { legacy };
         if let Ok(content) = std::fs::read(stats_path) {
             zip_entries.push(("hook_stats.json".to_string(), content));
         }
@@ -268,16 +269,17 @@ pub fn redact_sensitive_paths(input: &str) -> String {
     out
 }
 
-/// Lấy 200 dòng cuối từ log TSF / VietIME (không log text gõ - S2).
+/// Lấy 200 dòng cuối từ log TSF / TextVN (không log text gõ - S2).
 fn collect_log_tail(max_lines: usize) -> String {
     let mut log_path = None;
     if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
-        let p = PathBuf::from(local_appdata)
-            .join("VietIME")
-            .join("logs")
-            .join("tsf-min.log");
-        if p.exists() {
-            log_path = Some(p);
+        let root = PathBuf::from(local_appdata);
+        let primary = root.join("TextVN").join("logs").join("tsf-min.log");
+        let legacy = root.join("TextVN").join("logs").join("tsf-min.log");
+        if primary.exists() {
+            log_path = Some(primary);
+        } else if legacy.exists() {
+            log_path = Some(legacy);
         }
     }
 
@@ -300,7 +302,7 @@ pub fn config_path() -> Option<PathBuf> {
     {
         std::env::var_os("APPDATA").map(|p| {
             let primary = PathBuf::from(&p).join("TextVN").join("config.json");
-            let legacy = PathBuf::from(&p).join("VietIME").join("config.json");
+            let legacy = PathBuf::from(&p).join("TextVN").join("config.json");
             if !primary.exists() && legacy.exists() {
                 legacy
             } else {
@@ -320,9 +322,9 @@ pub fn config_path() -> Option<PathBuf> {
 }
 
 pub fn abi_sizes() -> (usize, usize, usize, bool) {
-    let key = std::mem::size_of::<vietime_ffi::ime_key_v1>();
-    let result = std::mem::size_of::<vietime_ffi::ime_result_v1>();
-    let context = std::mem::size_of::<vietime_ffi::ime_context_v1>();
+    let key = std::mem::size_of::<textvn_ffi::ime_key_v1>();
+    let result = std::mem::size_of::<textvn_ffi::ime_result_v1>();
+    let context = std::mem::size_of::<textvn_ffi::ime_context_v1>();
     let ok = key == 20 && result == 532;
     (key, result, context, ok)
 }
@@ -339,7 +341,7 @@ fn check_pipe_listening() -> bool {
             || OpenOptions::new()
                 .read(true)
                 .write(true)
-                .open(r"\\.\pipe\vietime-ipc-v1")
+                .open(r"\\.\pipe\textvn-ipc-v1")
                 .is_ok()
     }
     #[cfg(not(windows))]
@@ -370,7 +372,7 @@ fn check_process_running(exe_name: &str) -> bool {
 fn check_tip_registered() -> bool {
     #[cfg(windows)]
     {
-        // Kiểm tra CLSID VietIME trong HKCU\Software\Classes\CLSID
+        // Kiểm tra CLSID TextVN trong HKCU\Software\Classes\CLSID
         let clsid = "{3E076C56-D752-44BB-9321-AEF4955AA3A6}";
         let path = format!(r"Software\Classes\CLSID\{clsid}");
         let mut cmd = std::process::Command::new("reg");
@@ -489,7 +491,7 @@ mod tests {
     #[test]
     fn pkzip_builder_creates_valid_structure() {
         let files = vec![
-            ("hello.txt".to_string(), b"Hello VietIME".to_vec()),
+            ("hello.txt".to_string(), b"Hello TextVN".to_vec()),
             ("sub/data.json".to_string(), b"{\"status\":\"ok\"}".to_vec()),
         ];
 
@@ -508,8 +510,7 @@ mod tests {
     fn redact_paths_replaces_username() {
         if let Some(user) = std::env::var_os("USERNAME") {
             if let Some(user_str) = user.to_str() {
-                let test_input =
-                    format!(r"C:\Users\{user_str}\AppData\Roaming\VietIME\config.json");
+                let test_input = format!(r"C:\Users\{user_str}\AppData\Roaming\TextVN\config.json");
                 let redacted = redact_sensitive_paths(&test_input);
                 assert!(!redacted.contains(user_str));
                 assert!(redacted.contains("<REDACTED_USER>"));
@@ -519,8 +520,7 @@ mod tests {
 
     #[test]
     fn export_diagnostics_zip_creates_zip_file_without_user_text() {
-        let temp_zip =
-            std::env::temp_dir().join(format!("vietime_diag_{}.zip", std::process::id()));
+        let temp_zip = std::env::temp_dir().join(format!("textvn_diag_{}.zip", std::process::id()));
         let report = collect_report();
 
         let bytes_written = export_diagnostics_zip(&report, &temp_zip).unwrap();

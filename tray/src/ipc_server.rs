@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! IPC Server cho VietIME Tray (WIN-051 — P0-3 §4 / P1-4 §2).
+//! IPC Server cho TextVN Tray (WIN-051 — P0-3 §4 / P1-4 §2).
 //!
-//! Lắng nghe trên Named Pipe `\\.\pipe\vietime-ipc-v1`. Quản lý các client kết nối
+//! Lắng nghe trên Named Pipe `\\.\pipe\textvn-ipc-v1`. Quản lý các client kết nối
 //! (in-process TSF DLLs, Hook process, CLI probe...), broadcast `ConfigReload` và `StateUpdate`,
-//! theo dõi sức khỏe và quản lý watchdog cho tiến trình `vietime-hook.exe`.
+//! theo dõi sức khỏe và quản lý watchdog cho tiến trình `textvn-hook.exe`.
 
 use std::io::{Read, Write};
 #[cfg(windows)]
@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::time::Instant;
 
-use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
 
 use crate::svc::SvcManager;
 
@@ -175,6 +175,10 @@ impl IpcServer {
                 break;
             }
             if connected.is_ok() || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED {
+                let Some(peer_pid) = connected_client_pid(handle) else {
+                    let _ = unsafe { CloseHandle(handle) };
+                    continue;
+                };
                 let file = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
                 let stream = Arc::new(Mutex::new(file));
 
@@ -183,7 +187,7 @@ impl IpcServer {
                 let stream_clone = stream.clone();
 
                 std::thread::spawn(move || {
-                    this.handle_client_connection(stream_clone);
+                    this.handle_client_connection(stream_clone, peer_pid);
                     this.active_clients.fetch_sub(1, Ordering::SeqCst);
                 });
             } else {
@@ -192,9 +196,8 @@ impl IpcServer {
         }
     }
 
-    fn handle_client_connection(&self, stream: Arc<Mutex<std::fs::File>>) {
+    fn handle_client_connection(&self, stream: Arc<Mutex<std::fs::File>>, peer_pid: u32) {
         let mut subscribed = false;
-        let mut client_pid = 0u32;
 
         loop {
             if !self.running.load(Ordering::Acquire) {
@@ -212,18 +215,28 @@ impl IpcServer {
                 }
             };
 
+            // PID trong wire protocol chỉ để chẩn đoán. Không bao giờ tin giá trị
+            // do client tự khai báo: lấy PID từ named-pipe kernel handle để tránh
+            // client giả mạo subscriber khác rồi gỡ nhầm subscription của họ.
+            match &msg {
+                Message::Hello { pid, .. } | Message::Subscribe { pid } if *pid != peer_pid => {
+                    break;
+                }
+                _ => {}
+            }
+
             let response = match msg {
                 Message::Hello { pid, .. } => {
-                    client_pid = pid;
+                    debug_assert_eq!(pid, peer_pid);
                     Some(self.build_snapshot())
                 }
                 Message::GetSnapshot => Some(self.build_snapshot()),
                 Message::Subscribe { pid } => {
                     subscribed = true;
-                    client_pid = pid;
+                    debug_assert_eq!(pid, peer_pid);
                     let mut subs = self.subscribers.lock().unwrap();
                     subs.push(ClientSink {
-                        pid,
+                        pid: peer_pid,
                         stream: stream.clone(),
                     });
                     Some(Message::Ack)
@@ -268,7 +281,7 @@ impl IpcServer {
 
         if subscribed {
             let mut subs = self.subscribers.lock().unwrap();
-            subs.retain(|c| c.pid != client_pid);
+            subs.retain(|c| c.pid != peer_pid);
         }
     }
 
@@ -281,13 +294,25 @@ impl IpcServer {
         }
     }
 
-    /// Watchdog quản lý tiến trình `vietime-hook.exe` (P1-4 §6).
+    /// Watchdog quản lý tiến trình `textvn-hook.exe` (P1-4 §6).
     #[cfg(windows)]
     fn hook_watchdog_loop(self: Arc<Self>) {
         while self.running.load(Ordering::Acquire) {
             std::thread::sleep(Duration::from_secs(5));
         }
     }
+}
+
+/// PID được kernel liên kết với đầu client của named pipe. Đây là bằng chứng
+/// cục bộ đáng tin cậy hơn các trường `pid` trong IPC message.
+#[cfg(windows)]
+fn connected_client_pid(pipe: HANDLE) -> Option<u32> {
+    let mut pid = 0u32;
+    // SAFETY: `pipe` là server handle còn mở sau ConnectNamedPipe và `pid` là
+    // vùng nhớ ghi hợp lệ.
+    unsafe { GetNamedPipeClientProcessId(pipe, &mut pid) }
+        .ok()
+        .and((pid != 0).then_some(pid))
 }
 
 fn read_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
@@ -316,8 +341,7 @@ mod tests {
 
     #[test]
     fn server_builds_valid_snapshot() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("vietime_ipc_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("textvn_ipc_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let server = IpcServer::new(svc.clone());
 
@@ -360,7 +384,7 @@ mod tests {
     #[test]
     fn crash_counter_increments_atomically() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_crash_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_crash_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let server = IpcServer::new(svc);
 
@@ -375,7 +399,7 @@ mod tests {
     #[cfg(windows)]
     fn server_starts_and_stops_cleanly() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_startstop_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_startstop_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let server = IpcServer::new(svc);
 

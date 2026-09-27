@@ -8,11 +8,11 @@
 | Lớp | Chạy ở đâu | Lệnh | Gate |
 |---|---|---|---|
 | Unit (core/strategy/field/AT-SPI rules/C helpers) | mỗi PR | `cargo test --workspace` + `cmake --build && ctest` (linux-common, ibus, fcitx5 unit) | PR |
-| Corpus replay (`--adapter linux`) | mỗi PR | `cargo run -p vietime-cli -- replay corpus/ --adapter linux` | PR |
+| Corpus replay (`--adapter linux`) | mỗi PR | `cargo run -p textvn-cli -- replay corpus/ --adapter linux` | PR |
 | Fuzz | PR 15' + nightly 60' | `cargo +nightly fuzz run key_event -- -max_total_time=900` | PR/nightly |
 | IBus smoke (xvfb) | mỗi PR (ubuntu-latest) | `xvfb-run ./tools/linux/smoke-ibus.sh` (gedit 5 case) | PR |
 | AT-SPI driver 12 app | **nightly** (GHA xvfb nếu spike LNX-008 pass → `P3-6 §4`) | `tools/linux/atspi-driver --suite ci` | nightly |
-| Perf bench | mỗi PR (3 bench chính) | `cargo bench -p vietime-bench` | PR (ngưỡng §5) |
+| Perf bench | mỗi PR (3 bench chính) | `cargo bench -p textvn-bench` | PR (ngưỡng §5) |
 | Soak 24h | weekly (VM X11 + VM Wayland) | `tools/linux/soak.sh -hours 24` | weekly → Issue |
 | Matrix 3 distro cài đặt | trước RC | `packaging/linux/ci-install.sh` trên Ubuntu/Fedora/Arch | release |
 | Manual | trước RC | `§7` | release |
@@ -27,7 +27,7 @@
 | `bug_B2_libreoffice_dbus.keys` | matrix bamboo: 6 key liên tiếp LibreOffice không nhảy chữ | B2 |
 | `bug_B3_jetbrains_completion.keys` | role=candidate (R5) | B3 |
 | `bug_B8_terminal.keys` | gnome-terminal/konsole ForwardAsCommit + UTF-8 | B8 |
-| `bug_B10_wayland_guard.keys` | Wayland: vietime-x11 không khởi động; gõ qua framework OK | B10 |
+| `bug_B10_wayland_guard.keys` | Wayland: textvn-x11 không khởi động; gõ qua framework OK | B10 |
 | `bug_B11_short_preedit.keys` | preedit ngắn, commit ở word boundary | B11 |
 | `bug_B13_focus_loss.keys` | click sang ô khác khi preedit → không mất chữ | B13 |
 | `secure_field_passthrough.keys` | password (AT-SPI R1 / GTK input-purpose) → PASS | S3 |
@@ -94,7 +94,7 @@ atspi-driver --suite ci|full --only <app_id> --report out/report.json
 
 | Metric | Nguồn | Ngưỡng |
 |---|---|---|
-| `ime_key` p99 | `cargo bench -p vietime-bench -- key_latency` | < 0.5 ms |
+| `ime_key` p99 | `cargo bench -p textvn-bench -- key_latency` | < 0.5 ms |
 | Strategy resolve p99 | bench `resolve` | < 2 ms |
 | AT-SPI resolve p99 | `lc_field_detect` bench (C) | < 2 ms |
 | Glyph latency (driver) | `t_glyph_ms` | p95 < 50 ms |
@@ -113,14 +113,14 @@ Regression >10% vs `perf/baseline-linux.json` → fail.
 - [ ] Perf §5 đạt, không regression >10%.
 - [ ] Cài/gỡ trên **Ubuntu 22.04/24.04 + Fedora + Arch**: 0 residue system
       (`packaging/linux/uninstall-check.sh`); input source vẫn/đã biến mất đúng.
-- [ ] Wayland verify: GNOME Wayland + KDE Wayland gõ tốt; `vietime-x11` **không** khởi động (B10).
+- [ ] Wayland verify: GNOME Wayland + KDE Wayland gõ tốt; `textvn-x11` **không** khởi động (B10).
 - [ ] Security checklist S1–S9 (Handbook §8) + audit `docs/security/x11-grant.md`.
 - [ ] License audit: REUSE/`cargo deny` + IBus/Fcitx5/GTK deps compatible GPL-3.
 - [ ] `docs/compat.md` có số liệu Linux; README Linux section (cài + chọn input source + env matrix).
 
 ## 7. Manual checklist (trước RC — ghi `docs/release/rc-checklist-linux.md`)
 
-1. Cài `.deb` trên Ubuntu VM sạch (Wayland) → `ibus restart` → **Thêm VietIME** trong Settings → gõ Telex (gedit/Firefox/Settings search).
+1. Cài `.deb` trên Ubuntu VM sạch (Wayland) → `ibus restart` → **Thêm TextVN** trong Settings → gõ Telex (gedit/Firefox/Settings search).
 2. Cài trên KDE VM → fcitx5 path → Konsole/Kate gõ đúng; chọn framework trong tray.
 3. Gõ Telex/VNI: LibreOffice Writer/Calc, VS Code, terminal, chat app (Enter không lặp — B2).
 4. Toggle EN/VN hoạt động; `restore_en` chạy (B5).
@@ -128,15 +128,15 @@ Regression >10% vs `perf/baseline-linux.json` → fail.
 6. AT-SPI on/off → preset fallback đúng (RL4); Wayland: doctor giải thích giới hạn x11 (B10).
 7. X11 opt-in: chọn game blocklist → gõ được (nếu spike cho phép) / bị giới hạn → warning đúng; tắt → phím tự nhiên.
 8. Update-notify: bản mới → mở trang release; `apt/dnf upgrade` qua bản mới (§7).
-9. Gỡ (`apt remove`) → 0 residue system; config giữ; `vietime purge` có xác nhận.
-10. `vietime doctor --export` không chứa text content.
+9. Gỡ (`apt remove`) → 0 residue system; config giữ; `textvn purge` có xác nhận.
+10. `textvn doctor --export` không chứa text content.
 
 ## 8. CI jobs
 
 | Job | Trigger | Nội dung |
 |---|---|---|
 | `ci-shared.yml` | PR/push | (P0-1) 3 OS: fmt/clippy/test/corpus |
-| `ci-linux.yml` | PR chạm `adapters/linux*`, `tray/`, `corpus/linux/` | build C/C++/Rust, unit (CTest+cargo), `replay corpus/linux`, `smoke-ibus` (xvfb), `vietime sizes` |
+| `ci-linux.yml` | PR chạm `adapters/linux*`, `tray/`, `corpus/linux/` | build C/C++/Rust, unit (CTest+cargo), `replay corpus/linux`, `smoke-ibus` (xvfb), `textvn sizes` |
 | `ci-dist-matrix.yml` | nightly | build trong container `ubuntu:22.04`, `fedora:latest`, `archlinux:latest` + `ci-install.sh` (cài/gỡ check) |
 | `ci-nightly-linux.yml` | schedule | atspi-driver `--suite ci` (ho fallback ghi reason), fuzz 60', soak 2h, report → Issue |
 | `ci-release.yml` | tag `v*` | build `.deb` + `.rpm` + AUR pkgver bump + SHA256SUMS |

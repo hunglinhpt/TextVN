@@ -54,6 +54,6 @@
 | Control | Kiểu UI | Nguồn dữ liệu | Windows (egui) | macOS (SwiftUI) | Linux (GTK4) | Test Case |
 |---|---|---|---|---|---|---|
 | Thông tin phiên bản & ABI | Label | `env!("CARGO_PKG_VERSION")`, `IME_ABI_VERSION` | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_version` |
-| Nút "Xuất file chẩn đoán (Export Diagnostics)" | Button | `vietime doctor --export` | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_export_doctor` |
-| Nút "Mở thư mục nhật ký (Open Logs Folder)" | Button | `%LOCALAPPDATA%\VietIME\logs` | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_open_logs` |
-| Giấy phép & Tác giả | Markdown link | GPL-3.0-or-later, VietIME Authors | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_license` |
+| Nút "Xuất file chẩn đoán (Export Diagnostics)" | Button | `textvn doctor --export` | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_export_doctor` |
+| Nút "Mở thư mục nhật ký (Open Logs Folder)" | Button | `%LOCALAPPDATA%\TextVN\logs` | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_open_logs` |
+| Giấy phép & Tác giả | Markdown link | GPL-3.0-or-later, TextVN Authors | ✓ Hoàn thành | ⏳ Planned | ⏳ Planned | `test_cfg_about_license` |

@@ -25,12 +25,12 @@
 | F3-004 | minor | `P3-0 §4` ghi "Bảng spike 12 mục" — thật = 10 (`P3-1 §9`) + 8 (`P3-2 §8`) = **18** | ✅ Fixed | → "18 mục (10 + 8)" |
 | F3-005 | minor | Dependency graph `P3-0 §5` sai range: `LNX-010..017` / `020..024` / `040..043` trong khi task tới 019/025/044 | ✅ Fixed | Sửa cả 3 range |
 | F3-006 | major | `engine_owner` enum `P0-3 §2.1` thiếu `"x11"` (P3-3/P3-4 dùng `owner: x11`) | ✅ Fixed | Thêm `"x11"` vào enum + trỏ luật chống đôi `P3-3 §6.1` |
-| F3-007 | major | `P0-1 §1` layout thiếu mục P3 tham chiếu: `adapters/linux-common/`, `adapters/linux-x11/` (crate `vietime-x11`), `tools/linux/`, `packaging/linux/` | ✅ Fixed | Bổ sung đủ 4 dòng |
-| F3-008 | minor | `vietime purge` (`P3-5 §5`) không có trong bảng CLI `P0-1 §2` | ✅ Fixed | Bổ sung `purge` |
+| F3-007 | major | `P0-1 §1` layout thiếu mục P3 tham chiếu: `adapters/linux-common/`, `adapters/linux-x11/` (crate `textvn-x11`), `tools/linux/`, `packaging/linux/` | ✅ Fixed | Bổ sung đủ 4 dòng |
+| F3-008 | minor | `textvn purge` (`P3-5 §5`) không có trong bảng CLI `P0-1 §2` | ✅ Fixed | Bổ sung `purge` |
 | F3-009 | minor | `P0-3 §1/§5` còn hedge "(chốt ở Phần 3)/(đề xuất, chốt ở P3)" — Phần 3 đã chốt đường dẫn | ✅ Fixed | Bỏ hedge, trỏ `P3-0 §2` |
 | F3-010 | minor | `00-INDEX §4` dòng Linux còn "(chi tiết chốt ở Phần 3)" | ✅ Fixed | Trỏ `40-linux/P3-0 §2` |
 | F3-011 | minor | `P3-6 §3` dòng #7 tên app sloppy ("GNOME Calculator? / …") | ✅ Fixed | → "Text Editor (2 window gõ xen kẽ)" |
-| F3-012 | minor | `00-INDEX §4` thiếu dòng Binary Linux (`vietime-tray`, `vietime-x11`, `vietime-ibus-engine`, `libvietime-fcitx5.so`) | ✅ Fixed | Thêm dòng |
+| F3-012 | minor | `00-INDEX §4` thiếu dòng Binary Linux (`textvn-tray`, `textvn-x11`, `textvn-ibus-engine`, `libtextvn-fcitx5.so`) | ✅ Fixed | Thêm dòng |
 
 ## Review 2 — Nhất quán & Sẵn sàng
 

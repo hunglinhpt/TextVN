@@ -10,13 +10,13 @@
 |---|---|
 | Opt-in per-app | Chỉ chạy tap cho app có `engine_owner: "tap"` trong preset/user override (P2-3 §3) |
 | Quyền riêng | `AXIsProcessTrustedWithOptions(prompt:)` + hướng dẫn System Settings → Privacy & Security → Accessibility; từ chối = tắt tính năng, IMK vẫn chạy |
-| Process | Tap chạy **trong `VietIME-IM.app` nhưng thread riêng** với **instance engine riêng** (P0-2 §3: 1 instance = 1 thread) |
+| Process | Tap chạy **trong `TextVN-IM.app` nhưng thread riêng** với **instance engine riêng** (P0-2 §3: 1 instance = 1 thread) |
 | Không xung với IMK | App `owner=tap` → IMK `handle()` trả PASS (`enabled=0` cho context đó) — mirror rule `P1-2 §6` |
 
 ## 2. Kiến trúc
 
 ```
-VietIME-IM.app
+TextVN-IM.app
 ├── main thread       : IMKServer + ime_instance A  (P2-1)
 └── Tap thread        : CFRunLoop + CGEvent.tapCreate + ime_instance B
       ├── pre-build tap list theo 3 bước (§4.0)
@@ -32,7 +32,7 @@ VietIME-IM.app
 ```text
 func tapCallback(proxy, type, event, refcon) -> Unmanaged<CGEvent>?:
   0. type == .tapDisabledByTimeout / .tapDisabledByUserInput → tapEnable lại (§9) → return event
-  1. CGEventSourceGetUserData(event) == kVietIMEInjectedMarker → return event   (chống loop §6)
+  1. CGEventSourceGetUserData(event) == kTextVNInjectedMarker → return event   (chống loop §6)
   2. type != .keyDown/.keyUp                                 → return event
   3. keyUp → return event (engine chỉ xử lý down; luôn cho qua up)
   4. Chord Cmd+…, hệ thống (Cmd+Tab, Cmd+Space, brightness…)  → return event (B6)
@@ -66,7 +66,7 @@ func tapCallback(proxy, type, event, refcon) -> Unmanaged<CGEvent>?:
 
 ## 5. Injection modes (đối chiếu `P1-2 §5`)
 
-Mọi event post kèm `CGEventSourceSetUserData(evt, kVietIMEInjectedMarker)` + đặt `is_injected=1` cho engine.
+Mọi event post kèm `CGEventSourceSetUserData(evt, kTextVNInjectedMarker)` + đặt `is_injected=1` cho engine.
 
 ### 5.1 `BackspaceType`
 ```text

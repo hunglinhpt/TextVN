@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Settings Controller & UI Model cho VietIME Tray (WIN-052 — P1-4 §3 / PLAN §2.3 M6).
+//! Settings Controller & UI Model cho TextVN Tray (WIN-052 — P1-4 §3 / PLAN §2.3 M6).
 //!
 //! Quản lý 6 tabs cài đặt:
 //! 1. General (Kiểu gõ, kiểu dấu, khôi phục từ tiếng Anh, tự động viết hoa)
@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use vietime_config::{Config, DiacriticStyle, MacroTrigger, Method, OutputCharset};
+use textvn_config::{Config, DiacriticStyle, MacroTrigger, Method, OutputCharset};
 
 use crate::ipc_server::IpcServer;
 use crate::svc::SvcManager;
@@ -224,8 +224,7 @@ mod tests {
 
     #[test]
     fn settings_controller_switches_tabs() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("vietime_cfg_test_{}", std::process::id()));
+        let temp_dir = std::env::temp_dir().join(format!("textvn_cfg_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let ipc = IpcServer::new(svc.clone());
         let mut ctrl = SettingsController::new(svc, ipc);
@@ -242,7 +241,7 @@ mod tests {
     #[test]
     fn settings_controller_modifies_draft_and_flushes() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_flush_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_flush_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let ipc = IpcServer::new(svc.clone());
         let mut ctrl = SettingsController::new(svc.clone(), ipc);
@@ -262,7 +261,7 @@ mod tests {
     #[test]
     fn settings_controller_hotkey_conflict_validation() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_hotkey_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_hotkey_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let ipc = IpcServer::new(svc.clone());
         let ctrl = SettingsController::new(svc, ipc);
@@ -276,7 +275,7 @@ mod tests {
     #[test]
     fn settings_controller_per_app_state_management() {
         let temp_dir =
-            std::env::temp_dir().join(format!("vietime_appstate_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("textvn_appstate_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
         let ipc = IpcServer::new(svc.clone());
         let mut ctrl = SettingsController::new(svc.clone(), ipc);

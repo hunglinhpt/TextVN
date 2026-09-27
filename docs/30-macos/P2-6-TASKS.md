@@ -13,14 +13,14 @@ SwiftPM, `swift-format`.
   ghi version vào `docs/30-macos/env-mac.md`.
 
 ### MAC-002 · SPIKE: IMK tối thiểu (L, dep: MAC-001) — **chặn mọi task WS1**
-Xcode template *Input Method* → sửa thành VietIME-IM tối thiểu: handle keyDown → marked → insertText.
+Xcode template *Input Method* → sửa thành TextVN-IM tối thiểu: handle keyDown → marked → insertText.
 - **Acceptance:** `docs/specs/macos-spike.md` có S1/S2/S4 (P2-1 §9): demo `được` trong TextEdit;
   input source hiện trong menu; list Info.plist keys **đối chiếu template thật**.
 
 ### MAC-003 · SPIKE: Swift ↔ Rust staticlib (L, dep: MAC-001) — **RM1**
 `build-rust.sh` (2 arch + lipo) + `module.modulemap` + gọi `ime_key` từ Swift.
 - **Acceptance:** smoke test Swift gọi `ime_instance_new/ime_key` không crash; size struct kiểm bằng
-  `cargo run -p vietime-cli -- sizes` (P0-2 §6: 532/20) pass; ghi cách link vào `docs/specs/macos-spike.md`;
+  `cargo run -p textvn-cli -- sizes` (P0-2 §6: 532/20) pass; ghi cách link vào `docs/specs/macos-spike.md`;
   fail → mở ADR (xcframework hoặc C dylib) trong 3 ngày, không lan ra.
 
 ### MAC-004 · SPIKE: cơ chế xóa/phím + selection (M, dep: MAC-002) — **RM2**
@@ -34,7 +34,7 @@ Query AX từ process IMK: bị chặn? prompt thế nào? secure field detect? 
 
 ### MAC-006 · Corpus `corpus/mac/` đầu tiên (M, dep: —, song song)
 ≥ 60 case theo `P2-5 §2` (B1/B2/B3/B11/B13/B8/secure/owner_no_double).
-- **Acceptance:** `vietime replay corpus/mac --adapter mac` chạy được (fail OK — reproduce trước fix).
+- **Acceptance:** `textvn replay corpus/mac --adapter mac` chạy được (fail OK — reproduce trước fix).
 
 ### MAC-007 · SPIKE: đăng ký input source + GHA GUI/TCC (M, dep: MAC-002)
 Cách menu cập nhật sau khi copy bundle (kill TextInputMenuAgent / TIS API / logout); thử ax-driver trên `macos-latest`.
@@ -80,7 +80,7 @@ Hotkey chốt: `Ctrl+Shift+Space` (hoặc CapsLock dual-role — quyết định
 - **Acceptance:** toggle hoạt động mọi app; corpus `restore_en_*` pass (B5).
 
 ### MAC-019 · IpcClient unix socket (M) — `P2-4 §2`
-- **Acceptance:** đổi method trong Settings → gõ đổi <1s; kill VietIME.app → gõ vẫn được (offline).
+- **Acceptance:** đổi method trong Settings → gõ đổi <1s; kill TextVN.app → gõ vẫn được (offline).
 
 ## A2 — Field detect + AppDB (tuần 7–10) — dep: MAC-005/006
 
@@ -95,14 +95,14 @@ Hotkey chốt: `Ctrl+Shift+Space` (hoặc CapsLock dual-role — quyết định
 ### MAC-032 · Preset 20 app + corpus ≥ 40 case (M) — `P2-3 §3`
 - **Acceptance:** bảng 20 dòng đủ; `replay corpus/mac` pass 100%; `notes` trỏ `Bn`.
 
-### MAC-033 · Appdb loader + Ed25519 (S) — dùng `vietime-appdb`, không viết lại
+### MAC-033 · Appdb loader + Ed25519 (S) — dùng `textvn-appdb`, không viết lại
 - **Acceptance:** file sai chữ ký → từ chối + warning trong status menu, không crash.
 
 ### MAC-034 · Override chain `P2-3 §4` (path mac) (M)
 - **Acceptance:** unit test thứ tự 6 bước; `ignore_apps` mode 3 loại đúng (EVKey spec #1).
 
 ### MAC-035 · Settings "thêm app đang chạy" (S, dep: MAC-052)
-- **Acceptance:** lưu appdb user hợp lệ (`vietime config validate`).
+- **Acceptance:** lưu appdb user hợp lệ (`textvn config validate`).
 
 ## A2b — EventTap opt-in (tuần 8–11, song song) — dep: MAC-009
 
@@ -123,11 +123,11 @@ Hotkey chốt: `Ctrl+Shift+Space` (hoặc CapsLock dual-role — quyết định
 
 ## A3 — Menu bar / Settings / Packaging (tuần 11–14)
 
-### MAC-050 · VietIME.app skeleton + status menu 9 mục (M) — `P2-4 §1`
+### MAC-050 · TextVN.app skeleton + status menu 9 mục (M) — `P2-4 §1`
 - **Acceptance:** 9/9 mục; single instance.
 
 ### MAC-051 · IPC server unix socket + watcher + health (L) — `P2-4 §2/§6`
-- **Acceptance:** `vietime ipc probe` thấy 2 client; kill IMK → menu hiện "IME chưa hoạt động" + restart được.
+- **Acceptance:** `textvn ipc probe` thấy 2 client; kill IMK → menu hiện "IME chưa hoạt động" + restart được.
 
 ### MAC-052 · Settings SwiftUI 6 tab + parity checklist (L) — `P2-4 §3`
 - **Acceptance:** `docs/release/parity-checklist.md` đủ mục `PLAN §2.3 (M6)` + `§8`; debounce 300ms.
@@ -147,9 +147,9 @@ Hotkey chốt: `Ctrl+Shift+Space` (hoặc CapsLock dual-role — quyết định
 - **Acceptance:** update pre-release OK; sai hash → giữ bản cũ + log; kill giữa apply → rollback bằng `staging/<old>`.
 
 ### MAC-057 · Homebrew cask + submit (S, dep: MAC-056, release đầu)
-- **Acceptance:** `brew install --cask vietime` trên VM sạch; `brew audit --strict` pass.
+- **Acceptance:** `brew install --cask textvn` trên VM sạch; `brew audit --strict` pass.
 
-### MAC-058 · `vietime doctor --export` bản mac (M) — `P2-4 §9`
+### MAC-058 · `textvn doctor --export` bản mac (M) — `P2-4 §9`
 - **Acceptance:** zip không chứa text content (grep test) + đủ 8 hạng mục chẩn đoán.
 
 ## A4 — Test & hardening (tuần 15–18)

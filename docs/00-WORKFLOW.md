@@ -1,4 +1,4 @@
-# VietIME — Workflow & Ground Rules thống nhất cho mọi agent
+# TextVN — Workflow & Ground Rules thống nhất cho mọi agent
 
 > **Phạm vi:** mọi agent (người hoặc AI) làm việc trong repo này — đây là *quy trình vận hành hằng ngày*.
 > **Nguồn gốc:** yêu cầu thống nhất workflow (user, 2026-09-27).
@@ -144,7 +144,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 - [ ] **File tạm `%TEMP%`:** evidence cần giữ → copy vào repo (spec / `spikes/`) trước khi xóa.
 - [ ] **Repo:** `git status` không còn file debug/tạm (`dbg_*`, `*.tmp`…) trong vùng mình; file cần giữ → commit hoặc `.gitignore` có lý do.
 - [ ] **CI:** push cuối phiên → `repo-hygiene` + `ci-shared` xanh (G13); đỏ → xử lý ngay.
-- [ ] **Đăng ký hệ thống:** spike còn TIP "VietIME" registered (đang là default input) → **hỏi user trước khi unregister**.
+- [ ] **Đăng ký hệ thống:** spike còn TIP "TextVN" registered (đang là default input) → **hỏi user trước khi unregister**.
 
 ## 11. Cập nhật docs & nghiệp vụ — checklist khi "xong"
 
@@ -187,5 +187,5 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 | Action / mẫu Marketplace | Nhà phát hành | Quyết định áp dụng |
 |---|---|---|
 | **Rust** — "Build and test a Rust project with Cargo" | GitHub Actions | ✅ **Đã có** qua `ci-shared.yml` (`dtolnay/rust-toolchain@stable` + cargo fmt/clippy/test matrix 3 OS/deny/reuse/fuzz) — **không** tạo thêm workflow trùng |
-| **SLSA Generic generator** — "Generate SLSA3 provenance for your existing release workflows" | OpenSSF | 📅 **Kế hoạch** cho release workflow (P1-4 packaging): job `provenance` gọi `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` với input `base64-subjects` + `upload-assets: true`, permissions `actions: read` / `id-token: write` / `contents: write` → đính kèm `provenance.intoto.jsonl` cho `slsa-verifier` verify `vietime-setup.exe`. **Bắt buộc tag `@vX.Y.Z`** (SHA pin sẽ fail) |
+| **SLSA Generic generator** — "Generate SLSA3 provenance for your existing release workflows" | OpenSSF | 📅 **Kế hoạch** cho release workflow (P1-4 packaging): job `provenance` gọi `slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0` với input `base64-subjects` + `upload-assets: true`, permissions `actions: read` / `id-token: write` / `contents: write` → đính kèm `provenance.intoto.jsonl` cho `slsa-verifier` verify `textvn-setup.exe`. **Bắt buộc tag `@vX.Y.Z`** (SHA pin sẽ fail) |
 | **CMake based, multi-platform projects** | GitHub Actions | ❌ **Không áp dụng** — repo là Cargo workspace, không dùng CMake. Ghi rõ ở đây để khỏi cân nhắc lại |

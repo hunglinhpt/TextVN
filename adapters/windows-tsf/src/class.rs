@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `IClassFactory` implementation for VietIME TSF (WIN-010).
+//! `IClassFactory` implementation for TextVN TSF (WIN-010).
 
 #[cfg(windows)]
 use std::sync::atomic::{AtomicI32, Ordering};

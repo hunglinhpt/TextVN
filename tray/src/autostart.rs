@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Quản lý Autostart cho VietIME Tray (WIN-053 — P1-4 §1).
+//! Quản lý Autostart cho TextVN Tray (WIN-053 — P1-4 §1).
 //!
 //! Ghi / đọc / xoá registry key:
-//! `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\VietIME` = `"<path>\vietime-tray.exe" --autostart`
+//! `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TextVN` = `"<path>\textvn-tray.exe" --autostart`
 //! Tuân thủ Rule S5: Phạm vi per-user, không yêu cầu quyền Administrator.
 
 use std::path::Path;
@@ -16,7 +16,7 @@ use windows::Win32::System::Registry::*;
 
 pub const RUN_KEY_PATH: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 pub const APP_RUN_VALUE_NAME: &str = "TextVN";
-pub const LEGACY_APP_RUN_VALUE_NAME: &str = "VietIME";
+pub const LEGACY_APP_RUN_VALUE_NAME: &str = "TextVN";
 
 /// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng Windows không.
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
@@ -36,11 +36,12 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
                 return Ok(false);
             }
 
+            // TextVN là primary; chỉ đọc key TextVN để migration không làm mất
+            // autostart của bản cũ trước khi người dùng lưu cấu hình mới.
+            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let mut val_type = REG_VALUE_TYPE::default();
             let mut data_len = 0u32;
 
-            // Kiểm tra key TextVN trước
-            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let mut query_status = RegQueryValueExW(
                 hkey,
                 PCWSTR(val_name_wide.as_ptr()),
@@ -50,7 +51,6 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
                 Some(&mut data_len),
             );
 
-            // Fallback kiểm tra key legacy VietIME
             if query_status != ERROR_SUCCESS {
                 let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
                 query_status = RegQueryValueExW(
@@ -74,7 +74,7 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     }
 }
 
-/// Bật tự khởi động cùng Windows cho VietIME Tray.
+/// Bật tự khởi động cùng Windows cho TextVN Tray.
 pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
@@ -134,7 +134,7 @@ pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), Stri
     }
 }
 
-/// Tắt tự khởi động cùng Windows cho VietIME Tray.
+/// Tắt tự khởi động cùng Windows cho TextVN Tray.
 pub fn disable_autostart() -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
@@ -154,7 +154,6 @@ pub fn disable_autostart() -> std::result::Result<(), String> {
 
             let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let del_status = RegDeleteValueW(hkey, PCWSTR(val_name_wide.as_ptr()));
-            // Cũng xóa key cũ VietIME nếu còn tồn tại
             let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
             let _ = RegDeleteValueW(hkey, PCWSTR(legacy_name_wide.as_ptr()));
             let _ = RegCloseKey(hkey);
@@ -189,16 +188,13 @@ mod tests {
             r"Software\Microsoft\Windows\CurrentVersion\Run"
         );
         assert_eq!(APP_RUN_VALUE_NAME, "TextVN");
-        assert_eq!(LEGACY_APP_RUN_VALUE_NAME, "VietIME");
+        assert_eq!(LEGACY_APP_RUN_VALUE_NAME, "TextVN");
     }
 
     #[test]
     fn autostart_command_string_formatting() {
         let fake_path = PathBuf::from(r"C:\Program Files\TextVN\TextVN.exe");
         let cmd = format!("\"{}\" --autostart", fake_path.display());
-        assert_eq!(
-            cmd,
-            r#""C:\Program Files\TextVN\TextVN.exe" --autostart"#
-        );
+        assert_eq!(cmd, r#""C:\Program Files\TextVN\TextVN.exe" --autostart"#);
     }
 }

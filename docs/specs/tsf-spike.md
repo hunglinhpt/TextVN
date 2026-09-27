@@ -7,7 +7,7 @@
 **Tóm tắt:** #1–#8 ✅ dùng được → **ADR-005b (C++/WRL fallback) KHÔNG kích hoạt**
 (#2/#4 pass như điều kiện kích hoạt). #9 có kết quả rõ → ghi `P1-3`. #10 xem dòng cuối bảng.
 
-Log bằng chứng: `%LOCALAPPDATA%\VietIME\logs\tsf-min.log` (chỉ ghi vk + HRESULT — **không
+Log bằng chứng: `%LOCALAPPDATA%\TextVN\logs\tsf-min.log` (chỉ ghi vk + HRESULT — **không
 ghi nội dung phím**, S2 Handbook).
 
 ## Bảng kết quả 10 mục
@@ -20,7 +20,7 @@ ghi nội dung phím**, S2 Handbook).
 | 4 | `StartComposition` → `SetText` → `EndComposition` | ✅ | Notepad → `đượcđượđượca` (spike gõ cứng, không có engine); Chrome omnibox → `được` |
 | 5 | `OnTestKeyDown` vs `OnKeyDown` theo app | ✅ bảng ở dưới | log pha TEST/KEYDOWN |
 | 6 | `register` scope=user ở máy sạch không admin | ✅ + fallback đã chứng minh | `tsf-register.log`: CLSID HKCU OK; API ghi HKLM cần elevation; đường không-elevation = InstallLayoutOrTip |
-| 7 | Win+Space thấy "VietIME"; `ActivateProfile` chuyển được | ✅ (readback registry) | registry `0x0409`+`0x042A` `Enable=1`, readback `VietIME` sạch; verify trực quan Win+Space còn optional |
+| 7 | Win+Space thấy "TextVN"; `ActivateProfile` chuyển được | ✅ (readback registry) | registry `0x0409`+`0x042A` `Enable=1`, readback `TextVN` sạch; verify trực quan Win+Space còn optional |
 | 8 | Chrome address bar: autocomplete có đè composition không? (B1) | ✅ — KHÔNG đè | composition sống sót trong omnibox, popup (`list=1`) không đè khi insert; **Enter-commit còn mở** → chốt cho WIN-008 |
 | 9 | Password field: TSF có focus? UIA `IsPassword` cross-process? | ✅ có kết quả → P1-3 | xem §#9 bên dưới |
 | 10 | SendInput đến app elevated có bị UIPI chặn? | xem §#10 bên dưới | xem §#10 bên dưới |
@@ -113,15 +113,15 @@ cố ý của spike, không có engine); **Chrome omnibox** hiện `được`.
 |---|---|---|---|
 | COM server `HKCU\Software\Classes\CLSID\{…}\InprocServer32` | HKCU | ✅ OK | write/readback OK |
 | `ITfInputProcessorProfiles::Register` | **HKLM** (CTF) | ❌ cần elevation | elevate mới OK |
-| `AddLanguageProfile` | **HKLM** | ❌ cần elevation | elevate mới OK; readback `VietIME` (utf16 sạch) |
+| `AddLanguageProfile` | **HKLM** | ❌ cần elevation | elevate mới OK; readback `TextVN` (utf16 sạch) |
 | `EnableLanguageProfileByDefault` | **HKLM** | ❌ → `E_FAIL 0x80004005` | lỗi **vô hại** ở user context |
 | `ITfCategoryMgr::RegisterCategory` | **HKLM** | ❌ cần elevation | elevate mới OK |
 | **`InstallLayoutOrTip`** (input.dll) | **HKCU user input list** | ✅ **OK, KHÔNG cần elevation** | `InstallLayoutOrTip(0x0409:{CLSID}{ProfileGUID}, DEFPROFILE) → OK` |
 
-**Fallback đã chứng minh (dùng cho `vietime register --scope user`):** chạy elevated **một
+**Fallback đã chứng minh (dùng cho `textvn register --scope user`):** chạy elevated **một
 lần** cho 4 API ghi HKLM, rồi mọi thứ về sau không-elevated qua `InstallLayoutOrTip`
 + key `HKCU\Software\Microsoft\CTF\...` (Assemblies). Toàn bộ output ghi
-`%LOCALAPPDATA%\VietIME\logs\tsf-register.log` qua `say()` — output của tiến trình
+`%LOCALAPPDATA%\TextVN\logs\tsf-register.log` qua `say()` — output của tiến trình
 elevated bị ẩn, không ghi log sẽ không đọc lại được.
 
 ### #7 — Win+Space + `ActivateProfile`
@@ -130,12 +130,12 @@ elevated bị ẩn, không ghi log sẽ không đọc lại được.
 // Thứ tự BẮT BUỘC (không đảo — cập nhật input list có thể reset enabled flag):
 install_layout_or_tip(LANGID_VI);   // 1. input.dll → KHÔNG cần elevation
 install_layout_or_tip(LANGID_EN);
-prof.EnableLanguageProfileByDefault(&CLSID_VIETIME_TIP, lang, &PROFILE_GUID, true)?; // 2.
-prof.ActivateLanguageProfile(&CLSID_VIETIME_TIP, LANGID_EN, &PROFILE_GUID)?;          // 3.
+prof.EnableLanguageProfileByDefault(&CLSID_TEXTVN_TIP, lang, &PROFILE_GUID, true)?; // 2.
+prof.ActivateLanguageProfile(&CLSID_TEXTVN_TIP, LANGID_EN, &PROFILE_GUID)?;          // 3.
 // Activate dưới locale đang chạy (en-US/0x0409) — locale khác = không load (Keyman wiki).
 ```
 
-Evidence: registry cả `0x0409` và `0x042A` có `Enable=1`; readback mô tả = `VietIME`.
+Evidence: registry cả `0x0409` và `0x042A` có `Enable=1`; readback mô tả = `TextVN`.
 Verify trực quan Win+Space (thấy tên trong flyout) là **optional còn lại** — không chặn exit.
 
 ### #8 — Chrome address bar vs autocomplete (bug B1)
@@ -184,7 +184,7 @@ cần đọc chéo process. Cùng binary chạy 2 lần: 1 lần `runas` (elevat
    focus** vào elevated window từ tiến trình medium (test tự động phải yêu cầu user click tay).
 3. `WM_GETTEXT` cross-process sang elevated = 0 → **không đọc được text elevated** bằng
    message; UIA từ medium cũng không thấy control (dùng UIA là `Edit` → 0 kết quả).
-4. **Hệ quả uiAccess (`P1-4`):** hook/injector của VietIME chạy medium sẽ **không** gõ
+4. **Hệ quả uiAccess (`P1-4`):** hook/injector của TextVN chạy medium sẽ **không** gõ
    được vào app elevated → muốn gõ được phải có binary signed + `uiAccess=true` + manifest
    (đúng hướng đã plan); nếu không làm uiAccess thì mặc định **fail-open = gõ thẳng**,
    không can thiệp — chấp nhận được.

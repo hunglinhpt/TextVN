@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `vietime verify` — chứng minh **header C khớp code Rust** (P0-2 §6).
+//! `textvn verify` — chứng minh **header C khớp code Rust** (P0-2 §6).
 //!
-//! Vì sao cần: `ffi/include/vietime_ffi.h` đang được giữ **tay** (chưa có `xtask cbindgen` —
+//! Vì sao cần: `ffi/include/textvn_ffi.h` đang được giữ **tay** (chưa có `xtask cbindgen` —
 //! cần crate `cbindgen` + nightly). Nguy cơ thật là sửa struct/hằng ở một bên quên bên kia;
 //! test `size_of` không bắt được (thêm 1 trường `u8` có thể không đổi size do padding).
 //!
@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::mem::{offset_of, size_of};
 
-use vietime_ffi::*;
+use textvn_ffi::*;
 
 /// Tên trường của struct Rust, **tự suy ra lúc biên dịch**: thêm/bớt trường mà quên
 /// cập nhật chỗ này → hỏng build (đúng ý đồ: bắt buộc phải xem lại header).
@@ -94,12 +94,12 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
 
 /// Danh sách hàm C xuất ra — **1 nguồn sự thật cho cả 2 phía** (P0-2 §1/§6).
 /// Thứ tự là thứ tự **chuẩn** (canonical): khớp khối `/* ---- API ---- */`
-/// trong `ffi/include/vietime_ffi.h` (vốn theo P0-2 §1: verify → resolve →
+/// trong `ffi/include/textvn_ffi.h` (vốn theo P0-2 §1: verify → resolve →
 /// last_error ở cuối) và khớp thứ tự khai báo `#[no_mangle] pub extern "C"`
 /// trong `ffi/src/lib.rs`. Đổi thứ tự/thêm/bớt/đổi tên hàm ở một bên mà quên
 /// bên kia → `verify` đỏ.
 ///
-/// Vì sao cần: `ffi/include/vietime_ffi.h` đang giữ **tay** (chưa có
+/// Vì sao cần: `ffi/include/textvn_ffi.h` đang giữ **tay** (chưa có
 /// `cargo xtask cbindgen`). Test size/offset không bắt được việc đổi tên hàm
 /// (`ime_reset` → `ime_clear`) hay đảo thứ tự khai báo — nhưng adapter C/C++
 /// link theo tên, còn người đọc header tin vào thứ tự để hiểu vòng đời.
@@ -499,7 +499,7 @@ fn report(
 
 /// Header mặc định — tìm cạnh binary (`../include/...`) rồi tới gốc repo.
 pub fn default_header() -> String {
-    const REL: &str = "ffi/include/vietime_ffi.h";
+    const REL: &str = "ffi/include/textvn_ffi.h";
     let mut dir = std::env::current_dir().unwrap_or_default();
     loop {
         let cand = dir.join(REL);
@@ -522,7 +522,7 @@ mod tests {
 #define IME_ABI_VERSION      1u
 #define IME_MAX_TEXT         64
 #define IME_FLAG_ERROR      0x4u   /* lỗi engine */
-#define VIETIME_FFI_H              /* guard: không có giá trị → bỏ qua */
+#define TEXTVN_FFI_H              /* guard: không có giá trị → bỏ qua */
 #define IME_FLAG_WEIRD 0x10u
 typedef struct ime_key {
   uint32_t abi_version;
@@ -551,7 +551,7 @@ typedef struct ime_result {
             "hằng trong comment phải lấy đúng"
         );
         assert!(
-            !d.contains_key("VIETIME_FFI_H"),
+            !d.contains_key("TEXTVN_FFI_H"),
             "#define không có giá trị phải bỏ qua"
         );
     }
@@ -575,7 +575,7 @@ typedef struct ime_result {
 
     #[test]
     fn verify_header_that_bat_doi_chieu_hang_moi() {
-        // Header thật trong repo phải khớp (gate CI chạy lệnh này qua `vietime verify`).
+        // Header thật trong repo phải khớp (gate CI chạy lệnh này qua `textvn verify`).
         let path = default_header();
         assert!(
             std::path::Path::new(&path).is_file(),

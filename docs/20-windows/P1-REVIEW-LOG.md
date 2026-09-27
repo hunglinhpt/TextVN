@@ -13,8 +13,8 @@
 | F1-001 | **major** | Task ID ma `P0-005`/`P0-006` được refer từ `specs/oracle-unikey.md` + `P0-REVIEW-LOG` nhưng không tồn tại ở đâu → agent không nhận việc được | ✅ Fixed | Định nghĩa task thật **WIN-007/WIN-008** trong `P1-6`, sửa mọi tham chiếu (2 file P0) trỏ về `P1-6` |
 | F1-002 | **major** | `P1-5/P1-6` dùng `replay … --adapter win` nhưng spec CLI `P0-4 §4` chỉ có `headless` → CLI không biết giá trị `win` | ✅ Fixed | `P0-4 §4`: `[--adapter headless\|win\|mac\|linux]` + định nghĩa "profile mô phỏng capability", giá trị lạ → exit 2 |
 | F1-003 | minor | `P1-1 §11` trỏ `P1-5 §4.2` — không tồn tại (smoke script nằm §4.1) | ✅ Fixed | Sửa → `P1-5 §4.1` |
-| F1-004 | **major** | Subcommand mới (`config init\|validate`, `ipc probe`, `tray --stop`, `doctor --stats/--export`) không có trong responsibility `vietime-cli` (`P0-1 §2`) → CLI viết tự phát, lệch naming | ✅ Fixed | `P0-1 §2` liệt kê đủ subcommand + bổ sung `src/{config.rs, ipc.rs, tray.rs}` vào layout |
-| F1-005 | **major** | Crate mới `vietime-field-detect`, `vietime-appcomptest`, `vietime-bench` không có trong repo layout/responsibility `P0-1` (nguồn sự thật về tên crate) | ✅ Fixed | Thêm `field-detect/`, `tools/bench/`, đặt tên crate `vietime-appcomptest` + bảng responsibility `vietime-field-detect` |
+| F1-004 | **major** | Subcommand mới (`config init\|validate`, `ipc probe`, `tray --stop`, `doctor --stats/--export`) không có trong responsibility `textvn-cli` (`P0-1 §2`) → CLI viết tự phát, lệch naming | ✅ Fixed | `P0-1 §2` liệt kê đủ subcommand + bổ sung `src/{config.rs, ipc.rs, tray.rs}` vào layout |
+| F1-005 | **major** | Crate mới `textvn-field-detect`, `textvn-appcomptest`, `textvn-bench` không có trong repo layout/responsibility `P0-1` (nguồn sự thật về tên crate) | ✅ Fixed | Thêm `field-detect/`, `tools/bench/`, đặt tên crate `textvn-appcomptest` + bảng responsibility `textvn-field-detect` |
 | F1-006 | minor | `P1-0 §3` WS7 ghi task "WIN-001…WIN-04x" nhưng `P1-6` có tới WIN-066 | ✅ Fixed | Sửa → "WIN-001…WIN-066" |
 | F1-007 | minor | `P1-0` W5 exit criterion trỏ `P1-5 §7` (manual checklist) thay vì §6 (release gate) | ✅ Fixed | Sửa → `P1-5 §6` |
 | F1-008 | minor | Ký tự Trung Quốc lọt vào `P1-4 §6` (`10s一次`) | ✅ Fixed | → "10s một lần" |
@@ -37,8 +37,8 @@ section refs ↔ heading thật · PLAN section numbers ↔ heading thật · sy
 | F1-013 | **major** | `P1-0 §5` dependency graph trỏ task **không tồn tại**: `WIN-020..024`, `WIN-035..038`, range `WIN-050..056` sai | ✅ Fixed | Graph viết lại theo đúng range P1-6 (010→019, 030..033 → 034..035, 040..045, 050..058, 060..066) |
 | F1-014 | minor | `P1-0` L48 trỏ `P1-2 §4` (focus/UIA) cho giới hạn 2ms — đúng phải §3 (callback timebox) | ✅ Fixed | Sửa → `P1-2 §3` |
 | F1-015 | minor | Tên file health lệch nhau: `P1-4 §6` = `hook-heartbeat.json`, `P1-2 §9` = `hook-stats.json` | ✅ Fixed | Thống nhất **`hook-stats.json`** (P1-4 §6), `Pong` không chứa health của hook |
-| F1-016 | **major** | `P1-4` bịa thêm binary `vietime-win-updater.exe` mâu thuẫn `P0-1` (`vietime-updater` là **lib**) — 2 process updater thừa, routing Apply mơ hồ | ✅ Fixed | Updater = lib chạy trong tray; apply qua `vietime-setup.exe /SILENT /UPDATE`; sửa title §0/§5/§7 + viết lại flow Apply/Rollback (§7 bước 4) |
-| F1-017 | minor | `P1-5 §1` dùng `cargo run -p appcomptest` — sai package name (đã đặt `vietime-appcomptest`) | ✅ Fixed | Sửa → `-p vietime-appcomptest` |
+| F1-016 | **major** | `P1-4` bịa thêm binary `textvn-win-updater.exe` mâu thuẫn `P0-1` (`textvn-updater` là **lib**) — 2 process updater thừa, routing Apply mơ hồ | ✅ Fixed | Updater = lib chạy trong tray; apply qua `textvn-setup.exe /SILENT /UPDATE`; sửa title §0/§5/§7 + viết lại flow Apply/Rollback (§7 bước 4) |
+| F1-017 | minor | `P1-5 §1` dùng `cargo run -p appcomptest` — sai package name (đã đặt `textvn-appcomptest`) | ✅ Fixed | Sửa → `-p textvn-appcomptest` |
 | F1-018 | minor | `tools/win/{smoke-tsf,soak,mem-check}.ps1` chưa có trong layout `P0-1` | ✅ Fixed | Thêm dòng `tools/win/` |
 | F1-019 | minor | `P1-6 WIN-016` trỏ `P1-1 §3.6` — mục con không tồn tại | ✅ Fixed | Sửa → `P1-1 §3` (bước 5–6) |
 | F1-020 | minor | Ký tự CJK còn sót: `adr/README` (`暴露`), `P1-6` (`接手`), `P1-4` (`申請` — sửa 1 lần vẫn còn) | ✅ Fixed | Thay hết bằng tiếng Việt/Anh; grep lại = 0 (trừ `越南` **có chủ đích** trong test UTF-8 của `P1-5 §2`) |

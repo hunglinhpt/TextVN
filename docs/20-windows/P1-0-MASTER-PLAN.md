@@ -12,7 +12,7 @@
    bảng đầy đủ ở `P1-5 §3`.
 3. Cài per-user (không admin), gỡ sạch, ký số, update có rollback.
 4. CI `ci-windows.yml` + `ci-shared.yml` xanh; nightly fuzz/soak chạy định kỳ.
-5. `docs/compat.md` có số liệu thật; `vietime doctor` chẩn đoán được env.
+5. `docs/compat.md` có số liệu thật; `textvn doctor` chẩn đoán được env.
 6. Review 2/2 của Phần 1 hoàn tất.
 
 **Không nằm trong Phần 1:** gợi ý AI, Hán-Nôm, chính tả gạch đỏ (mặc định Should),
@@ -23,22 +23,22 @@ macOS/Linux adapter (Phần 2/3), nhưng **không được phá vỡ FFI/schema*
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ Process của app người dùng (Notepad, Chrome, Word, VS Code…)             │
-│   └── vietime-tsf.dll   (in-proc COM TIP, Rust + windows crate)          │
+│   └── textvn-tsf.dll   (in-proc COM TIP, Rust + windows crate)          │
 │         • ITfKeystrokeMgr sink → ime_key() → composition/replace          │
-│         • ipc client → pipe vietime-ipc-v1 (nhận config/state)            │
+│         • ipc client → pipe textvn-ipc-v1 (nhận config/state)            │
 └──────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ vietime-hook.exe   (process RIÊNG — WH_KEYBOARD_LL, game/elevated mode)   │
+│ textvn-hook.exe   (process RIÊNG — WH_KEYBOARD_LL, game/elevated mode)   │
 │   • hook thread timeboxed <2ms → ime_key() → SendInput                    │
 │   • UIA focus cache → field_role + IsPassword → ime_set_context           │
 │   • fail: crash → tray restart <500ms; quá thời gian → fail-open          │
 └──────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ vietime-tray.exe   (autostart, egui) — SOURCE OF TRUTH                    │
+│ textvn-tray.exe   (autostart, egui) — SOURCE OF TRUTH                    │
 │   • tray menu + Settings (egui) • IPC server • config/appdb watcher        │
 │   • spawn + watchdog hook • updater (Ed25519) • diagnostics export         │
 └──────────────────────────────────────────────────────────────────────────┘
-         Core engine (vietime-core + vietime-ffi) được link STATIC
+         Core engine (textvn-core + textvn-ffi) được link STATIC
          vào từng process — không có engine chạy chung (không IPC trong hot path).
 ```
 
@@ -52,10 +52,10 @@ macOS/Linux adapter (Phần 2/3), nhưng **không được phá vỡ FFI/schema*
 | WS | Tên | File solution | Sản phẩm chính |
 |---|---|---|---|
 | **WS1** | Core readiness cho Win | `P1-5` (test) + `P0-*` | corpus `win/` chạy được trên headless |
-| **WS2** | TSF adapter | **`P1-1-tsf.md`** | `vietime-tsf.dll` gõ được Telex trong 5 app chuẩn |
-| **WS3** | Hook fallback | **`P1-2-hook.md`** | `vietime-hook.exe` cho game/app elevated |
+| **WS2** | TSF adapter | **`P1-1-tsf.md`** | `textvn-tsf.dll` gõ được Telex trong 5 app chuẩn |
+| **WS3** | Hook fallback | **`P1-2-hook.md`** | `textvn-hook.exe` cho game/app elevated |
 | **WS4** | Strategy + AppDB Win | **`P1-3-strategy-appdb.md`** | UIA field detect + 20 preset đầu |
-| **WS5** | Tray/Settings/IPC/Update | **`P1-4-ui-packaging-release.md`** | `vietime-tray.exe` + installer + updater |
+| **WS5** | Tray/Settings/IPC/Update | **`P1-4-ui-packaging-release.md`** | `textvn-tray.exe` + installer + updater |
 | **WS6** | Test & automation | **`P1-5-test-plan.md`** | `tools/appcomptest` + matrix + CI |
 | **WS7** | Task & điều phối | **`P1-6-TASKS.md`** | WIN-001…WIN-066, dependencies |
 
