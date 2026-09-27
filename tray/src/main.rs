@@ -151,27 +151,12 @@ fn ensure_hook_running() {
         return;
     }
 
-    let mut candidates = Vec::new();
-    if let Ok(mut exe) = std::env::current_exe() {
-        exe.pop();
-        candidates.push(exe.join("textvn-hook.exe"));
-        candidates.push(exe.join("textvn-hook.exe"));
-    }
-    candidates.push(std::path::PathBuf::from("textvn-hook.exe"));
-    candidates.push(std::path::PathBuf::from("target/release/textvn-hook.exe"));
-    candidates.push(std::path::PathBuf::from(
-        "target/x86_64-pc-windows-msvc/release/textvn-hook.exe",
-    ));
-
-    for path in candidates {
-        if path.exists() {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            let _ = std::process::Command::new(path)
-                .creation_flags(CREATE_NO_WINDOW)
-                .spawn();
-            break;
-        }
+    if let Some(path) = textvn_tray::compatibility_hook_path() {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let _ = std::process::Command::new(path)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn();
     }
 }
 
@@ -259,8 +244,8 @@ fn run_tray_app() {
     // Khởi động background Named Pipe loop
     ipc.start();
 
-    // Tự động khởi chạy background hook engine nếu chưa có
-    ensure_hook_running();
+    // TSF là đường gõ chuẩn mặc định. Low-level global hook chỉ được khởi động
+    // khi người dùng chọn "Bật chế độ tương thích" trong menu khay.
 
     // 3. Đăng ký Win32 Window Class & Tạo Hidden Message Window
     let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
@@ -412,6 +397,10 @@ unsafe extern "system" fn wnd_proc(
                     app.ipc.clone(),
                 );
             }
+            LRESULT(0)
+        }
+        textvn_tray::WM_START_COMPATIBILITY_HOOK => {
+            ensure_hook_running();
             LRESULT(0)
         }
         textvn_tray::WM_REQUEST_EXIT => {

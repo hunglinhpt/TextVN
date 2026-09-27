@@ -113,13 +113,20 @@ cargo build --workspace
 ### Build release (production)
 
 ```powershell
-cargo build --release --workspace --target x86_64-pc-windows-msvc
+# TSF-only mac dinh: khong build hay dong goi global Hook legacy
+powershell -File .\build-release.ps1
+
+# Chi dung khi can tuong thich game/app cu (global Hook legacy)
+powershell -File .\build-release.ps1 -IncludeCompatibilityHook
 ```
 
 Binary output trong `target/x86_64-pc-windows-msvc/release/`:
 - `textvn-cli.exe` — CLI
 - `TextVN.exe` — Tray app
 - `textvn-tsf.dll` — TSF TIP (đăng ký với Windows)
+
+Gói phát hành mặc định là **TSF-only**. `textvn-hook.exe` chỉ thuộc gói
+Compatibility tùy chọn và chỉ chạy khi người dùng bật nó từ menu khay.
 
 ### Build installer (Inno Setup)
 
@@ -149,7 +156,7 @@ TextVN/
 ├── tray/                   # TextVN tray (system tray, IPC server, menu)
 ├── adapters/
 │   ├── windows-tsf/        # textvn-tsf.dll (TSF Text Input Processor)
-│   └── windows-hook/       # textvn-hook.exe (WH_KEYBOARD_LL hook)
+│   └── windows-hook/       # Hook legacy (chi phat hanh trong goi Compatibility)
 ├── engine/                 # Core IME engine (platform-agnostic)
 ├── config/                 # Config schema + parser
 ├── ffi/                    # C ABI headers

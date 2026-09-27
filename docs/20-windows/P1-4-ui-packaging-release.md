@@ -17,7 +17,7 @@
 | Chế độ gõ (Telex/VNI/VIQR/…) | svc → ghi `config.json` → broadcast `ConfigReload` |
 | Dấu (đậm/nghiêng/…) | submenu toggle `typo_*` |
 | Cửa sổ đang gõ (tên app) + Enable cho app này | → state.json per-app |
-| Game/Compat mode (bật hook) | `hook.mode` auto⇄off → spawn/kill `textvn-hook.exe` |
+| Game/Compat mode (bật hook) | Hook legacy chỉ được bật chủ động theo phiên; release mặc định là TSF-only |
 | Cài đặt… | Mở egui Settings (§3) |
 | Sức khỏe / Trạng thái | Submenu: engine, hook (PID/uptime), pipe, version |
 | Gỡ cài đặt | Chạy `textvn-setup.exe /UNINSTALL` |
@@ -67,7 +67,7 @@ File sai schema → **giữ config cũ**, ghi warning + hiện trong Settings (k
 
 ```text
 [Run]
-1.  Copy: textvn-tsf.dll, textvn-hook.exe, textvn-tray.exe, textvn.exe, updater, data\
+1.  Copy release mặc định: textvn-tsf.dll, textvn-tray.exe, textvn.exe, updater, data\. `textvn-hook.exe` chỉ có trong gói Compatibility được yêu cầu rõ ràng.
 2.  "<dir>\textvn.exe" register --scope user     ← P1-1 §8 (đăng ký TIP + COM per-user)
 3.  "<dir>\textvn.exe" config init               ← tạo %APPDATA%\TextVN\{config.json, appdb.json} nếu chưa có
 4.  Tạo Start Menu + Desktop (optional)
@@ -105,7 +105,7 @@ Task `WIN-055` test đủ 2 mode trên VM sạch.
 ## 6. Watchdog & process orchestration (tray)
 
 ```text
-tray spawn: CreateProcessW(textvn-hook.exe) → lưu PID + start time
+tray chỉ spawn `textvn-hook.exe` sau khi người dùng chọn chế độ Compatibility → lưu PID + start time
 health: file %LOCALAPPDATA%\TextVN\hook-stats.json (hook ghi mỗi 5s: ts, p50/p99 — xem P1-2 §9)
 tray check 10s một lần:
   - PID chết hoặc `hook-stats.json` cũ >15s → restart (exponential backoff 0.5s→5s, max 5 lần/phút)

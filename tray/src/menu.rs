@@ -146,12 +146,24 @@ impl TrayMenu {
                 );
             }
 
-            // 5. Game / Compat mode (Hook)
+            // 5. Hook legacy chỉ theo yêu cầu rõ ràng. Hook toàn cục + SendInput
+            // là fallback cho game/app cũ, không phải đường mặc định TSF.
+            let hook_available = crate::compatibility_hook_path().is_some();
+            let hook_label = if hook_available {
+                "Bật chế độ tương thích (Hook; phiên này)"
+            } else {
+                "Chế độ tương thích (cần gói Compatibility)"
+            };
+            let hook_flags = if hook_available {
+                MF_STRING
+            } else {
+                MF_STRING | MF_GRAYED
+            };
             let _ = AppendMenuW(
                 menu,
-                MF_STRING,
+                hook_flags,
                 ID_HOOK_COMPAT_MODE as usize,
-                PCWSTR(w("Chế độ Game / Tương thích (Hook)").as_ptr()),
+                PCWSTR(w(hook_label).as_ptr()),
             );
 
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
@@ -248,6 +260,11 @@ impl TrayMenu {
                     let cur = self.svc.is_app_enabled(app);
                     let ver = self.svc.set_app_enabled(app, !cur);
                     self.ipc.broadcast_state_update(app, !cur, ver);
+                }
+            }
+            ID_HOOK_COMPAT_MODE => {
+                if crate::compatibility_hook_path().is_some() {
+                    crate::notify_start_compatibility_hook();
                 }
             }
             ID_OPEN_SETTINGS => {

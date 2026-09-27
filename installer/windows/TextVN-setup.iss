@@ -49,7 +49,9 @@ Name: "autostart"; Description: "Tu dong khoi dong TextVN cung Windows"; GroupDe
 
 [Files]
 Source: "{#TargetDir}\TextVN.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "TextVN.exe"
+#ifdef IncludeCompatibilityHook
 Source: "{#TargetDir}\textvn-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-hook.exe"
+#endif
 Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"
 Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
 Source: "{#TargetDir}\textvn_ffi.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn_ffi.dll"

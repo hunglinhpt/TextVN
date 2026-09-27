@@ -5,7 +5,8 @@
 [CmdletBinding()]
 param(
     [string]$Profile = "release",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$IncludeCompatibilityHook
 )
 
 $ErrorActionPreference = "Stop"
@@ -20,7 +21,8 @@ Write-Host "Build Profile: $Profile"
 # 1. Build cac thanh phan Windows neu chua co
 if (-not $SkipBuild) {
     Write-Host "`n[1/3] Building Rust binaries..." -ForegroundColor Yellow
-    $CargoArgs = @("build", "-p", "textvn-cli", "-p", "textvn-win-tsf", "-p", "textvn-win-hook", "-p", "textvn-tray")
+    $CargoArgs = @("build", "-p", "textvn-cli", "-p", "textvn-win-tsf", "-p", "textvn-tray")
+    if ($IncludeCompatibilityHook) { $CargoArgs += @("-p", "textvn-win-hook") }
     if ($Profile -eq "release") {
         $CargoArgs += "--release"
     }
@@ -36,11 +38,11 @@ Write-Host "`n[2/3] Checking artifacts..." -ForegroundColor Yellow
 $TargetDir = Join-Path $RepoRoot "target\$Profile"
 $RequiredFiles = @(
     "TextVN.exe",
-    "textvn-hook.exe",
     "textvn-cli.exe",
     "textvn_win_tsf.dll",
     "textvn_ffi.dll"
 )
+if ($IncludeCompatibilityHook) { $RequiredFiles += "textvn-hook.exe" }
 
 foreach ($f in $RequiredFiles) {
     $p = Join-Path $TargetDir $f
@@ -76,7 +78,10 @@ $IssScript = Join-Path $ScriptDir "TextVN-setup.iss"
 
 if ($FoundIscc) {
     Write-Host "Compiling installer using: $FoundIscc" -ForegroundColor Green
-    & $FoundIscc "$IssScript"
+    $IsccArgs = @()
+    if ($IncludeCompatibilityHook) { $IsccArgs += "/DIncludeCompatibilityHook=1" }
+    $IsccArgs += "$IssScript"
+    & $FoundIscc @IsccArgs
     if ($LASTEXITCODE -eq 0) {
         Write-Host "`nInstaller built successfully!" -ForegroundColor Green
     } else {
