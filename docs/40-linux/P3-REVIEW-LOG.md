@@ -10,10 +10,12 @@
 |---|---|---|---|---|---|---|
 | **Review 1 — Đúng & Đủ (Spec)** | P3-0…P3-7 vs PLAN/P0/ADR + cross-part | 12 | 0 | 3 | 9 | ✅ 12/12 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng (Spec)** | Tham chiếu chéo, nhãn nhóm/milestone, enum schema, placeholder | 3 | 0 | 2 | 1 | ✅ 3/3 đã fix |
-| **Review 1 — Đúng & Đủ (Code)** | `linux-common` & `linux-fcitx5` (FFI P0-2, AT-SPI, IPC, S2, B2, B6, B13) | 2 | 0 | 1 | 1 | ✅ 2/2 đã fix |
-| **Review 2 — Nhất quán & Sẵn sàng (Code)** | Build/test matrix, naming, lifecycle leak (LNX-020), workspace check | 3 | 0 | 1 | 2 | ✅ 3/3 đã fix |
+| **Review 1 — Đúng & Đủ (Code Fcitx5)** | `linux-common` & `linux-fcitx5` (FFI P0-2, AT-SPI, IPC, S2, B2, B6, B13) | 2 | 0 | 1 | 1 | ✅ 2/2 đã fix |
+| **Review 2 — Nhất quán & Sẵn sàng (Code Fcitx5)** | Build/test matrix, naming, lifecycle leak (LNX-020), workspace check | 3 | 0 | 1 | 2 | ✅ 3/3 đã fix |
+| **Review 1 — Đúng & Đủ (Code IBus)** | `linux-ibus` (Non-preedit surrounding fallback, FFI P0-2, caps, S2, B2, B6, S8) | 2 | 0 | 1 | 1 | ✅ 2/2 đã fix |
+| **Review 2 — Nhất quán & Sẵn sàng (Code IBus)** | Unit test `test_ibus_engine`, GObject finalize lifecycle, workspace verification | 1 | 0 | 0 | 1 | ✅ 1/1 đã fix |
 
-**→ Toàn bộ Phần 3 (Spec & Implementation) đạt chuẩn.** 0 `blocker`, 0 `major` mở.
+**→ Toàn bộ Phần 3 (Spec, Fcitx5 & IBus) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở.
 
 ---
 
@@ -76,6 +78,9 @@
 | F3-016 | major | `adapters/linux-fcitx5/CMakeLists.txt` đặt `OUTPUT_NAME "textvn"` với `PREFIX ""` sinh `textvn.so`, trong khi `conf/textvn.conf.in` ghi `Library=libtextvn.so`, và `00-INDEX`/`P3-2 §3`/`uninstall_linux.sh` quy ước `libtextvn-fcitx5.so` → fcitx5 không nạp được thư viện | ✅ Fixed | Sửa `CMakeLists.txt` thành `OUTPUT_NAME "textvn-fcitx5"` (sinh `libtextvn-fcitx5.so`); cập nhật `conf/textvn.conf.in` thành `Library=libtextvn-fcitx5.so` |
 | F3-020 | minor | `engine.cpp` khởi tạo `caps` chỉ bật `IME_CAP_PREEDIT` khi `hasSurrounding` là true; thực tế Fcitx5 engine luôn hỗ trợ Preedit độc lập với SurroundingText | ✅ Fixed | `caps` bật sẵn `IME_CAP_PREEDIT \| IME_CAP_FIELD_DETECT \| IME_CAP_SELECTION`, surrounding probe dùng trực tiếp trong `apply_result` |
 
+| F3-021 | major | `adapters/linux-ibus/src/apply.c` chạy nhánh Non-preedit không kiểm tra `self->has_surrounding`. Trong app không hỗ trợ surrounding, `delete_surrounding` bị bỏ qua trong khi `commit_text` vẫn gọi → lặp ký tự (gõ `as` ra `aá`) | ✅ Fixed | Sửa điều kiện thành `if (self->non_preedit && self->has_surrounding)`; khi không có surrounding tự động fallback về Preedit có gạch chân chuẩn IBus; bổ sung unit test `test_apply_fallback_preedit_when_no_surrounding` |
+| F3-022 | minor | `adapters/linux-ibus/src/engine.c` line 104 gán `IME_CAP_PREEDIT` phụ thuộc vào `self->has_surrounding`. IBus luôn hỗ trợ hiển thị Preedit độc lập với surrounding; việc tắt preedit khiến core strategy downgrade nhầm sang `BackspaceType` | ✅ Fixed | Gán mặc định `ctx.caps = IME_CAP_PREEDIT \| IME_CAP_FIELD_DETECT \| IME_CAP_SELECTION;` |
+
 ## Code Review Round 2 — Nhất quán & Sẵn sàng (Mã nguồn & Kiểm thử)
 
 | ID | Mức | Finding | Trạng thái | Cách fix |
@@ -83,6 +88,7 @@
 | F3-017 | major | `TextVNEngine::destroyContext` được viết nhưng không bao giờ đăng ký lắng nghe sự kiện hủy của `InputContext` (`InputContext::Destroyed`) → rò rỉ bộ nhớ và `ime_instance` khi mở/đóng app liên tục (vi phạm DoD `LNX-020`) | ✅ Fixed | Đăng ký callback `ic->connect<fcitx::InputContext::Destroyed>` ngay khi tạo context trong `getOrCreateContext()`; bổ sung mock signal và unit test `test_lifecycle_context_destroy()` kiểm chứng 0 leak |
 | F3-018 | minor | `CMakeLists.txt` cài đặt file cấu hình `conf/textvn-addon.conf.in` vào thư mục `inputmethod/` dưới tên `textvn-addon.conf` thay vì `textvn.conf` theo định danh sub-IM | ✅ Fixed | Đổi tên file build thành `conf/textvn-im.conf` và chỉ định `RENAME textvn.conf` khi install vào `${CMAKE_INSTALL_DATADIR}/fcitx5/inputmethod` |
 | F3-019 | minor | `adapters/windows-hook/Cargo.toml` thiếu feature `Win32_Security` khiến `CreateMutexW` không tìm thấy trong scope khi build toàn workspace | ✅ Fixed | Bổ sung `"Win32_Security"` vào `windows` dependencies của `textvn-win-hook` |
+| F3-023 | minor | `adapters/linux-ibus/tests/ibus_mock.h` `g_object_unref` chỉ gọi `free(p)` không gọi `finalize` class method → test phải giải phóng thủ công `self->inst` thay vì kiểm chứng vòng đời GObject tự động dọn rác | ✅ Fixed | Bổ sung `s_mock_finalize` hook vào `g_object_unref` và `G_DEFINE_TYPE`; cập nhật toàn bộ test trong `test_ibus_engine.c` gọi `g_object_unref(e)` |
 
 ---
 
