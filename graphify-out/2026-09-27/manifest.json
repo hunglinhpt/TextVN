@@ -1,14 +1,14 @@
 {
   "adapters/windows-tsf/Cargo.toml": {
-    "mtime": 1790478030.9799216,
-    "seen": 1790478389.6753926,
-    "ast_hash": "18829f42df9b82ebc934b7df4b700ddd",
+    "mtime": 1790478643.7007446,
+    "seen": 1790479267.8037982,
+    "ast_hash": "fac48ff0a9fc16e2e4a253f4085e3e15",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1790478212.871722,
-    "seen": 1790478389.6753926,
-    "ast_hash": "27b35a73aff1ae60aced6c23254d9666",
+    "mtime": 1790479186.2559617,
+    "seen": 1790479267.8037982,
+    "ast_hash": "a6aba2399dbc52ea246987f2826fcc55",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790478345.2674034,
-    "seen": 1790478389.685898,
-    "ast_hash": "cc0cf83c4a4e5b9ba9a14bfeccbcf09f",
+    "mtime": 1790479236.1401153,
+    "seen": 1790479267.8097782,
+    "ast_hash": "0ab92af4ab74883b39d815dfdaed11fc",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -672,9 +672,9 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1790477274.5505292,
-    "seen": 1790477974.8279288,
-    "ast_hash": "7feda5f4b040aaff70dfa319b5b9aa3f",
+    "mtime": 1790479104.9524417,
+    "seen": 1790479267.8097782,
+    "ast_hash": "e639d7feb5a5886233104eed26632429",
     "semantic_hash": ""
   },
   "docs/compliance/naming-check.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790478292.8291025,
-    "seen": 1790478389.6893733,
-    "ast_hash": "ecdfbe7f0c355363da164da1f951d8fe",
+    "mtime": 1790479224.9299288,
+    "seen": 1790479267.812794,
+    "ast_hash": "7997a247bfdd7ce0f4d09c3ccf234c7a",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -720,33 +720,33 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/class.rs": {
-    "mtime": 1790478175.0476665,
-    "seen": 1790478389.6753926,
-    "ast_hash": "3b788e5dc82b71a0589b48c6e89cc3cd",
+    "mtime": 1790478576.3459322,
+    "seen": 1790479267.8037982,
+    "ast_hash": "c5b2eb65009dc0ca94fc26f24a7f3b16",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1790478212.8662052,
-    "seen": 1790478389.6753926,
-    "ast_hash": "330a1ac3c4b76249b2ff2b4c2bc6dd26",
+    "mtime": 1790478900.1091073,
+    "seen": 1790479267.8037982,
+    "ast_hash": "dcc0d88c01b393f09db8b0033baa6cef",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
-    "mtime": 1790477707.016982,
-    "seen": 1790477974.7839704,
-    "ast_hash": "a69cace3e8d6022c8812a16f433f85d2",
+    "mtime": 1790479042.2751856,
+    "seen": 1790479267.8037982,
+    "ast_hash": "b16cc40e4bf307d4f033cb6b2fc9930e",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1790478212.8671956,
-    "seen": 1790478389.6753926,
-    "ast_hash": "c1f1fba0096592d6f2357bf44327fd38",
+    "mtime": 1790479151.60393,
+    "seen": 1790479267.8037982,
+    "ast_hash": "cf3d91b264d4e4a21c795340e46aa0b8",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
-    "mtime": 1790478192.0501328,
-    "seen": 1790478389.6753926,
-    "ast_hash": "c3890f8d1ac3116fd651fb5e2f3cba7d",
+    "mtime": 1790479186.2569778,
+    "seen": 1790479267.8037982,
+    "ast_hash": "c68f570b5dc6c697ff7ccc22d4715334",
     "semantic_hash": ""
   },
   "spikes/uia-probe/controltype_ids.ps1": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1790478283.21177,
-    "seen": 1790478389.6882925,
-    "ast_hash": "609c62d4db071fed0035b9aeea717ce8",
+    "mtime": 1790479216.5531964,
+    "seen": 1790479267.812794,
+    "ast_hash": "aecd71149b4a31f097ea632cc51a885b",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -786,15 +786,27 @@
     "semantic_hash": ""
   },
   "spikes/hook-probe/hook_probe.ps1": {
-    "mtime": 1790478341.023474,
-    "seen": 1790478389.6828988,
-    "ast_hash": "448e713f7b56e1ac7a5034da4a33f816",
+    "mtime": 1790479257.5162127,
+    "seen": 1790479267.8067913,
+    "ast_hash": "baaaf23fbe15ad6d1a13a19f8e3ab91a",
     "semantic_hash": ""
   },
   "tools/win/check_reuse.ps1": {
-    "mtime": 1790478232.5999792,
-    "seen": 1790478389.6849017,
-    "ast_hash": "5ba34ef1a98d1e6d99c032a992263f94",
+    "mtime": 1790478576.3469317,
+    "seen": 1790479267.8087757,
+    "ast_hash": "0ec51a5af3fa8dad193b321033bae51a",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/ipc_client.rs": {
+    "mtime": 1790479186.2500231,
+    "seen": 1790479267.8037982,
+    "ast_hash": "a15585f74a8754a10973c6eff5d592b0",
+    "semantic_hash": ""
+  },
+  ".github/workflows/hook-spike.yml": {
+    "mtime": 1790479052.9828334,
+    "seen": 1790479267.8087757,
+    "ast_hash": "643540c460bf981c33a839991a1adfdc",
     "semantic_hash": ""
   }
 }
