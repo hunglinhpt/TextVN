@@ -342,15 +342,15 @@
     "semantic_hash": ""
   },
   "tools/bench/Cargo.toml": {
-    "mtime": 1790459858.310432,
-    "seen": 1790472166.050806,
-    "ast_hash": "089e4ef8038246fe4142dac8caa5c4ee",
+    "mtime": 1790475995.507963,
+    "seen": 1790477021.1471915,
+    "ast_hash": "77d458030befdcc54bfb71eab9d4a8e7",
     "semantic_hash": ""
   },
   "tools/bench/src/main.rs": {
-    "mtime": 1790460390.6661763,
-    "seen": 1790472166.050806,
-    "ast_hash": "6b63dfaa2778d821169d37cc2b444351",
+    "mtime": 1790476011.8581169,
+    "seen": 1790477021.1471915,
+    "ast_hash": "1832cfae1bd9ac38bf321354c013e12c",
     "semantic_hash": ""
   },
   "xtask/Cargo.toml": {
@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "xtask/src/main.rs": {
-    "mtime": 1790473338.7714617,
-    "seen": 1790475723.6049886,
-    "ast_hash": "99042204d647ee4b178f79ce2bcca157",
+    "mtime": 1790476991.9364352,
+    "seen": 1790477021.1481698,
+    "ast_hash": "1cb7078735179f72166d74badb97ce97",
     "semantic_hash": ""
   },
   "xtask/src/toml.rs": {
@@ -372,9 +372,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci-shared.yml": {
-    "mtime": 1790460179.4721289,
-    "seen": 1790472166.050806,
-    "ast_hash": "09d4c9b97b5f818cfa81fe561991c4f9",
+    "mtime": 1790475787.7580986,
+    "seen": 1790477021.1481698,
+    "ast_hash": "580cc80ebf90fa23fb5a995e332255b8",
     "semantic_hash": ""
   },
   "LICENSES/GPL-3.0-or-later.txt": {
@@ -426,9 +426,9 @@
     "semantic_hash": ""
   },
   "docs/10-shared/P0-4-test-and-corpus.md": {
-    "mtime": 1790450386.5181367,
-    "seen": 1790472166.050806,
-    "ast_hash": "45341ac1a8f234d90d7c415cbc307090",
+    "mtime": 1790475846.6227176,
+    "seen": 1790477021.1481698,
+    "ast_hash": "d14f7dd170c157c13391870f860db6f6",
     "semantic_hash": ""
   },
   "docs/10-shared/P0-REVIEW-LOG.md": {
@@ -456,9 +456,9 @@
     "semantic_hash": ""
   },
   "docs/20-windows/P1-3-strategy-appdb.md": {
-    "mtime": 1790450764.358538,
-    "seen": 1790472166.050806,
-    "ast_hash": "56419d143dd4316abdb9c0567ebdaed5",
+    "mtime": 1790476028.9526613,
+    "seen": 1790477021.1491687,
+    "ast_hash": "3cd1016bc46a8c3a5e1f169c6842e0e0",
     "semantic_hash": ""
   },
   "docs/20-windows/P1-4-ui-packaging-release.md": {
@@ -468,9 +468,9 @@
     "semantic_hash": ""
   },
   "docs/20-windows/P1-5-test-plan.md": {
-    "mtime": 1790460423.3974924,
-    "seen": 1790472166.050806,
-    "ast_hash": "a9aa59bc3aa39edb178e5aa242a34ed3",
+    "mtime": 1790476030.2081356,
+    "seen": 1790477021.1491687,
+    "ast_hash": "1f17ba41c40e912f203bd9398d897070",
     "semantic_hash": ""
   },
   "docs/20-windows/P1-6-TASKS.md": {
@@ -672,9 +672,9 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1790475603.1302016,
-    "seen": 1790475723.6069915,
-    "ast_hash": "b25daf68eeefcb58b4f5750d743b475d",
+    "mtime": 1790476931.74208,
+    "seen": 1790477021.1481698,
+    "ast_hash": "7feda5f4b040aaff70dfa319b5b9aa3f",
     "semantic_hash": ""
   },
   "docs/compliance/naming-check.md": {
@@ -684,9 +684,39 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790475650.5842502,
-    "seen": 1790475723.6175067,
-    "ast_hash": "55681ae15909d08c0a7558349a70cdac",
+    "mtime": 1790476993.284817,
+    "seen": 1790477021.1511855,
+    "ast_hash": "b65ab7501004d86a7ffe3bf3d216dfea",
+    "semantic_hash": ""
+  },
+  ".github/scripts/check_doc_links.py": {
+    "mtime": 1790476490.2472124,
+    "seen": 1790477021.14117,
+    "ast_hash": "b0539b32576c9b1d95344a59d8f5a7a7",
+    "semantic_hash": ""
+  },
+  "adapters/windows-hook/Cargo.toml": {
+    "mtime": 1790476146.5500302,
+    "seen": 1790477021.14117,
+    "ast_hash": "ea8931f090f53ab1ee00f40f0ee6e595",
+    "semantic_hash": ""
+  },
+  "adapters/windows-hook/src/lib.rs": {
+    "mtime": 1790476932.9999776,
+    "seen": 1790477021.14117,
+    "ast_hash": "e7257d8352fa72dc8c48dfc7a7e6153e",
+    "semantic_hash": ""
+  },
+  "fuzz/corpus/appdb_parse/basic.json": {
+    "mtime": 1790475752.3821864,
+    "seen": 1790477021.146181,
+    "ast_hash": "116ad4abdee5b394ad9c267da7b97d8d",
+    "semantic_hash": ""
+  },
+  ".github/workflows/repo-hygiene.yml": {
+    "mtime": 1790476828.385928,
+    "seen": 1790477021.1481698,
+    "ast_hash": "2c77850724251fb177c9ee0facefd36c",
     "semantic_hash": ""
   }
 }
