@@ -11,7 +11,6 @@
 //! Tham khảo: `spikes/tsf-min/src/register.rs` + `docs/specs/tsf-registration-spike.md`.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 // ─── CLSID / Profile strings (text-only; dùng được trên cả non-Windows cho tests) ──────────────
 
@@ -98,23 +97,6 @@ fn say(msg: &str) {
     }
 }
 
-// ─── reg.exe wrapper ─────────────────────────────────────────────────────────────────────────────
-
-#[cfg_attr(not(windows), allow(dead_code))]
-fn reg_cmd(args: &[&str]) -> bool {
-    let ok = Command::new("reg")
-        .args(args)
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-    say(&format!(
-        "  reg {} → {}",
-        args.join(" "),
-        if ok { "OK" } else { "FAIL" }
-    ));
-    ok
-}
-
 // ─── Windows-only COM/TSF impl ────────────────────────────────────────────────────────────────────
 
 #[cfg(windows)]
@@ -122,8 +104,10 @@ mod win_impl {
     use super::*;
 
     use windows::core::*;
+    use windows::Win32::Foundation::*;
     use windows::Win32::System::Com::*;
     use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+    use windows::Win32::System::Registry::*;
     use windows::Win32::UI::TextServices::*;
 
     // Freeze GUIDs — khớp adapters/windows-tsf/src/guids.rs
@@ -134,6 +118,96 @@ mod win_impl {
     const ILOT_UNINSTALL: u32 = 0x0000_0001;
     /// `InstallLayoutOrTip` flag ILOT_DEFPROFILE — đặt profile làm default.
     const ILOT_DEFPROFILE: u32 = 0x0000_0002;
+
+    fn hkcu_subkey(path: &str) -> &str {
+        path.strip_prefix(r"HKCU\").unwrap_or(path)
+    }
+
+    /// Ghi registry COM per-user qua Win32 API, không spawn `reg.exe`. Đây là
+    /// cách chính thức để installer/app tạo HKCU\Software\Classes và giúp
+    /// phân biệt lỗi ACL thực sự với policy chặn child process.
+    fn set_registry_string(path: &str, value_name: Option<&str>, value: &str) -> bool {
+        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
+        let mut key = HKEY::default();
+        let create = unsafe {
+            RegCreateKeyExW(
+                HKEY_CURRENT_USER,
+                PCWSTR(subkey.as_ptr()),
+                None,
+                PCWSTR::null(),
+                REG_OPTION_NON_VOLATILE,
+                KEY_SET_VALUE,
+                None,
+                &mut key,
+                None,
+            )
+        };
+        if create != ERROR_SUCCESS {
+            say(&format!(
+                "  Registry create {path} → FAIL {:#010x}",
+                create.0
+            ));
+            return false;
+        }
+
+        let data: Vec<u16> = value.encode_utf16().chain(Some(0)).collect();
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                data.as_ptr() as *const u8,
+                std::mem::size_of_val(data.as_slice()),
+            )
+        };
+        let value_name_wide =
+            value_name.map(|name| name.encode_utf16().chain(Some(0)).collect::<Vec<u16>>());
+        let value_name_ptr = value_name_wide
+            .as_ref()
+            .map_or(PCWSTR::null(), |wide| PCWSTR(wide.as_ptr()));
+        let status = unsafe { RegSetValueExW(key, value_name_ptr, None, REG_SZ, Some(bytes)) };
+        let _ = unsafe { RegCloseKey(key) };
+        if status == ERROR_SUCCESS {
+            say(&format!("  Registry write {path} → OK"));
+            true
+        } else {
+            say(&format!(
+                "  Registry write {path} → FAIL {:#010x}",
+                status.0
+            ));
+            false
+        }
+    }
+
+    fn registry_key_exists(path: &str) -> bool {
+        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
+        let mut key = HKEY::default();
+        let status = unsafe {
+            RegOpenKeyExW(
+                HKEY_CURRENT_USER,
+                PCWSTR(subkey.as_ptr()),
+                None,
+                KEY_READ,
+                &mut key,
+            )
+        };
+        if status == ERROR_SUCCESS {
+            let _ = unsafe { RegCloseKey(key) };
+            true
+        } else {
+            false
+        }
+    }
+
+    fn delete_registry_tree(path: &str) {
+        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
+        let status = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, PCWSTR(subkey.as_ptr())) };
+        if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
+            say(&format!("  Registry delete {path} → OK"));
+        } else {
+            say(&format!(
+                "  Registry delete {path} → FAIL {:#010x}",
+                status.0
+            ));
+        }
+    }
 
     pub fn com_init() -> bool {
         unsafe {
@@ -189,26 +263,10 @@ mod win_impl {
 
         // Bước 1: HKCU COM registry
         let k = clsid_registry_key();
-        let mut ok = reg_cmd(&["add", &k, "/ve", "/d", "TextVN TSF", "/f"]);
-        ok &= reg_cmd(&[
-            "add",
-            &format!(r"{k}\InprocServer32"),
-            "/ve",
-            "/d",
-            &dll_s,
-            "/f",
-        ]);
-        ok &= reg_cmd(&[
-            "add",
-            &format!(r"{k}\InprocServer32"),
-            "/v",
-            "ThreadingModel",
-            "/t",
-            "REG_SZ",
-            "/d",
-            "Apartment",
-            "/f",
-        ]);
+        let inproc_key = format!(r"{k}\InprocServer32");
+        let mut ok = set_registry_string(&k, None, "TextVN TSF");
+        ok &= set_registry_string(&inproc_key, None, &dll_s);
+        ok &= set_registry_string(&inproc_key, Some("ThreadingModel"), "Apartment");
         if !ok {
             say("FAIL: không ghi được registry CLSID");
             return 1;
@@ -283,27 +341,37 @@ mod win_impl {
             // Không hiện trên taskbar: gỡ layout khỏi danh sách bàn phím hệ thống
             uninstall_layout_or_tip(LANGID_VI);
             uninstall_layout_or_tip(LANGID_EN);
-            say("=== Đăng ký hoàn tất (không hiện menu taskbar). TextVN chạy qua khay hệ thống (Tray Icon). ===");
         } else {
             // Bước 3: InstallLayoutOrTip (HKCU, không cần admin)
             install_layout_or_tip(LANGID_VI);
             install_layout_or_tip(LANGID_EN);
+        }
 
-            // Kích hoạt ngay trong session hiện tại (WIN-003)
-            if com_init() {
-                if let Ok(prof) = unsafe {
-                    CoCreateInstance::<_, ITfInputProcessorProfiles>(
-                        &CLSID_TF_InputProcessorProfiles,
-                        None,
-                        CLSCTX_INPROC_SERVER,
-                    )
-                } {
-                    let _ = unsafe {
-                        prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID)
-                    };
+        // Kích hoạt ngay trong session hiện tại, kể cả bản tray-only. Trước đây
+        // nhánh --no-taskbar bỏ qua bước này nên TIP đã đăng ký nhưng không
+        // nhận bất kỳ sự kiện phím nào.
+        if com_init() {
+            if let Ok(prof) = unsafe {
+                CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                    &CLSID_TF_InputProcessorProfiles,
+                    None,
+                    CLSCTX_INPROC_SERVER,
+                )
+            } {
+                match unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) }
+                {
+                    Ok(()) => say("  ActivateLanguageProfile(VI) → OK"),
+                    Err(e) => say(&format!(
+                        "  ActivateLanguageProfile(VI) → FAIL {:#010x}",
+                        e.code().0
+                    )),
                 }
             }
+        }
 
+        if no_taskbar {
+            say("=== Đăng ký hoàn tất (tray-only, profile đã được kích hoạt). ===");
+        } else {
             say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn TextVN. ===");
         }
         0
@@ -358,7 +426,7 @@ mod win_impl {
 
         // Bước 3: Xóa registry CLSID
         let k = clsid_registry_key();
-        reg_cmd(&["delete", &k, "/f"]);
+        delete_registry_tree(&k);
 
         say("=== Hủy đăng ký hoàn tất. ===");
         0
@@ -368,7 +436,14 @@ mod win_impl {
         say("=== TextVN status ===");
         let k = clsid_registry_key();
         say(&format!("CLSID key: {k}"));
-        let _ = Command::new("reg").args(["query", &k]).status();
+        say(&format!(
+            "Registry key: {}",
+            if registry_key_exists(&k) {
+                "present"
+            } else {
+                "missing"
+            }
+        ));
 
         if com_init() {
             unsafe {

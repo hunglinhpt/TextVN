@@ -43,6 +43,7 @@
       ],
       "default": "unicode_precomposed"
     },
+    "show_dialog_on_startup": { "type": "boolean", "default": true },
     "english_words": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Za-z]+$" },

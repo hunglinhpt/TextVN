@@ -72,7 +72,7 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 
 [Run]
 Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden
-Filename: "{app}\textvn-cli.exe"; Parameters: "register --no-taskbar"; Flags: runhidden
+Filename: "{app}\textvn-cli.exe"; Parameters: "register"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

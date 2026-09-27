@@ -104,6 +104,13 @@ pub struct Config {
     /// là ca mơ hồ (xem `core/src/post/restore_en.rs`; mẫu: `data/stop_en.txt`).
     #[serde(default)]
     pub english_words: Vec<String>,
+    /// Bật hội thoại này khi khởi động (UniKey 4.6 RC2 parity). Mặc định true.
+    #[serde(default = "default_true")]
+    pub show_dialog_on_startup: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Config {
@@ -122,6 +129,7 @@ impl Default for Config {
             macros: Vec::new(),
             emoji: Vec::new(),
             english_words: Vec::new(),
+            show_dialog_on_startup: true,
         }
     }
 }

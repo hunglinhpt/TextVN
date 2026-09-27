@@ -31,6 +31,8 @@ use windows::Win32::Foundation::*;
 #[cfg(windows)]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
+use windows::Win32::System::Registry::*;
+#[cfg(windows)]
 use windows::Win32::System::Threading::*;
 #[cfg(windows)]
 use windows::Win32::UI::Shell::*;
@@ -39,6 +41,8 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 const MUTEX_NAME: &str = r"Local\TextVNTray";
 const WINDOW_CLASS_NAME: &str = "TextVNTrayWndClass";
+#[cfg(windows)]
+const TSF_TIP_REGISTRY_KEY: &str = r"Software\Classes\CLSID\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
@@ -160,12 +164,59 @@ fn ensure_hook_running() {
     }
 }
 
+/// TSF là đường gõ mặc định nên phải có TIP profile trước khi tray chạy. Bản
+/// portable trước đây chỉ có `install.ps1`; nếu người dùng mở thẳng TextVN.exe
+/// thì registry chưa tồn tại và Windows không thể đưa phím vào `KeySink`.
+/// Lần đầu chạy đăng ký per-user bằng CLI cạnh executable, không tạo console
+/// và không cần quyền Administrator.
+#[cfg(windows)]
+fn ensure_tsf_tip_registered() {
+    let key_wide: Vec<u16> = TSF_TIP_REGISTRY_KEY.encode_utf16().chain(Some(0)).collect();
+    let mut key = HKEY::default();
+    let exists = unsafe {
+        let status = RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            PCWSTR(key_wide.as_ptr()),
+            None,
+            KEY_READ,
+            &mut key,
+        );
+        if status == ERROR_SUCCESS {
+            let _ = RegCloseKey(key);
+            true
+        } else {
+            false
+        }
+    };
+    if exists {
+        return;
+    }
+
+    let Ok(mut cli_path) = std::env::current_exe() else {
+        return;
+    };
+    cli_path.set_file_name("textvn-cli.exe");
+    if !cli_path.is_file() {
+        return;
+    }
+
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let _ = std::process::Command::new(cli_path)
+        .arg("register")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         match args[1].as_str() {
             "--autostart" => {
-                // Khởi động từ Windows Startup, tiếp tục chạy ngầm vào tray
+                // Khởi động từ OS Startup, tiếp tục chạy ngầm vào tray
+            }
+            "--settings" => {
+                // Mở Bảng điều khiển cài đặt
             }
             "--status" => {
                 check_status();
@@ -179,7 +230,8 @@ fn main() {
                 println!("TextVN - Bo go Tieng Viet chuyen nghiep");
                 println!("Usage: TextVN [OPTIONS]");
                 println!("Options:");
-                println!("  --autostart   Khoi dong ngam tu Windows Startup (mini to tray)");
+                println!("  --autostart   Khoi dong ngam tu OS Startup (mini to tray)");
+                println!("  --settings    Mo Bang dieu khien cai dat");
                 println!("  --status      Kiem tra trang thai IPC server");
                 println!("  --stop        Yeu cau dung instance dang chay");
                 println!("  --help        Hien thi tro giup");
@@ -211,11 +263,12 @@ fn run_tray_app() {
     };
 
     let is_autostart = std::env::args().any(|a| a == "--autostart");
+    let is_settings = std::env::args().any(|a| a == "--settings");
 
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
         let _ = unsafe { CloseHandle(mutex) };
         if !is_autostart {
-            // Nếu người dùng click chạy app khi đã chạy ngầm -> mở Bảng điều khiển
+            // Nếu người dùng click chạy app hoặc --settings khi đã chạy ngầm -> mở Bảng điều khiển
             let class_name_wide: Vec<u16> =
                 WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
             let existing_hwnd =
@@ -243,6 +296,8 @@ fn run_tray_app() {
 
     // Khởi động background Named Pipe loop
     ipc.start();
+
+    ensure_tsf_tip_registered();
 
     // TSF là đường gõ chuẩn mặc định. Low-level global hook chỉ được khởi động
     // khi người dùng chọn "Bật chế độ tương thích" trong menu khay.
@@ -324,9 +379,11 @@ fn run_tray_app() {
 
     let _ = unsafe { Shell_NotifyIconW(NIM_ADD, &nid) };
 
-    // Nếu người dùng khởi chạy thủ công (không phải từ --autostart),
-    // hiển thị ngay Bảng điều khiển (Control Panel) trên màn hình theo đúng chuẩn UniKey / GoTiengViet
-    if !is_autostart {
+    // Xử lý mở hộp thoại Bảng điều khiển:
+    // - Khi có cờ --autostart: Khởi động chế độ chạy ngầm minimized to tray (không bật popup hộp thoại).
+    // - Khi khởi động bình thường (không có --autostart): Kiểm tra cấu hình show_dialog_on_startup,
+    //   nếu true hoặc có cờ --settings thì hiển thị bảng điều khiển, nếu false thì thu về khay.
+    if !is_autostart && (is_settings || svc.config().show_dialog_on_startup) {
         textvn_tray::settings_dialog::show_settings_dialog(svc.clone(), ipc.clone());
     }
 

@@ -54,6 +54,7 @@ const ID_BTN_DEFAULT: isize = 2011;
 const ID_BTN_EXIT: isize = 2012;
 const ID_BTN_HELP: isize = 2013;
 const ID_BTN_ABOUT: isize = 2014;
+const ID_BTN_SETUP_TSF: isize = 2015;
 
 // Win32 Button Styles & Messages
 const BS_GROUPBOX: u32 = 0x00000007;
@@ -257,9 +258,9 @@ fn create_control(
     }
 }
 
-/// Font GUI 7pt theo DPI hiện tại. Compact dialog cần font nhỏ hơn nhưng vẫn
-/// đủ khoảng thở và không chồng lên control @96 DPI.
-/// nên với PerMonitorV2 (DPI > 96) chữ sẽ nhỏ hơn tương đối - cần tạo font
+/// Font GUI 9pt theo DPI hiện tại. Đây là cỡ chữ chuẩn, dễ đọc cho dialog
+/// compact; không dùng cỡ 7pt vì bị quá nhỏ ở màn hình mật độ cao.
+/// Với PerMonitorV2 cần tạo font theo DPI thay vì dựa vào stock font.
 /// theo DPI. Font sống trong static để xóa khi dialog destroy (tránh leak
 /// GDI handle); nếu tạo thất bại thì dùng lại stock font.
 #[cfg(windows)]
@@ -278,7 +279,7 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
         if got == 0 {
             stock
         } else {
-            lf.lfHeight = -(7 * dpi / 72); // 7pt tại DPI hiện tại
+            lf.lfHeight = -(9 * dpi / 72); // 9pt tại DPI hiện tại
             let f = CreateFontIndirectW(&lf);
             if f.is_invalid() {
                 stock
@@ -315,7 +316,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         BS_GROUPBOX,
         k(15),
         k(12),
-        k(870),
+        k(860),
         k(95),
         parent,
         0,
@@ -328,7 +329,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(32),
         k(49),
         k(85),
-        k(20),
+        k(30),
         parent,
         0,
         h_instance,
@@ -352,7 +353,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(470),
         k(49),
         k(85),
-        k(20),
+        k(30),
         parent,
         0,
         h_instance,
@@ -377,7 +378,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         BS_GROUPBOX,
         k(15),
         k(122),
-        k(870),
+        k(860),
         k(240),
         parent,
         0,
@@ -390,7 +391,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(32),
         k(158),
         k(420),
-        k(22),
+        k(32),
         parent,
         ID_CHK_AUTO_RESTORE,
         h_instance,
@@ -402,7 +403,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(32),
         k(205),
         k(420),
-        k(22),
+        k(32),
         parent,
         ID_CHK_FREE_MARKING,
         h_instance,
@@ -414,7 +415,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(32),
         k(252),
         k(420),
-        k(22),
+        k(32),
         parent,
         ID_CHK_AUTOSTART,
         h_instance,
@@ -426,7 +427,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(32),
         k(299),
         k(420),
-        k(22),
+        k(32),
         parent,
         ID_CHK_GLOBAL_ENABLED,
         h_instance,
@@ -439,7 +440,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(510),
         k(163),
         k(350),
-        k(22),
+        k(32),
         parent,
         ID_RAD_DIACRITIC_NEW,
         h_instance,
@@ -451,32 +452,32 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         k(510),
         k(210),
         k(350),
-        k(22),
+        k(32),
         parent,
         ID_RAD_DIACRITIC_OLD,
         h_instance,
     );
 
-    let _lbl_shortcut_title = create_control(
+    let lbl_shortcut_title = create_control(
         "STATIC",
         "Phím chuyển:",
         0,
         k(510),
         k(262),
         k(350),
-        k(20),
+        k(30),
         parent,
         0,
         h_instance,
     );
-    let _lbl_shortcut_val = create_control(
+    let lbl_shortcut_val = create_control(
         "STATIC",
         "[ Ctrl + Shift ]",
         0,
         k(510),
         k(286),
         k(350),
-        k(22),
+        k(32),
         parent,
         0,
         h_instance,
@@ -489,9 +490,9 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         "Hướng dẫn",
         BS_PUSHBUTTON | WS_TABSTOP.0,
         k(25),
-        k(470),
+        k(440),
         k(130),
-        k(40),
+        k(48),
         parent,
         ID_BTN_HELP,
         h_instance,
@@ -501,11 +502,23 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         "Thông tin",
         BS_PUSHBUTTON | WS_TABSTOP.0,
         k(165),
-        k(470),
+        k(440),
         k(130),
-        k(40),
+        k(48),
         parent,
         ID_BTN_ABOUT,
+        h_instance,
+    );
+    let btn_setup_tsf = create_control(
+        "BUTTON",
+        "Cài & bật TSF",
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        k(305),
+        k(440),
+        k(170),
+        k(48),
+        parent,
+        ID_BTN_SETUP_TSF,
         h_instance,
     );
     // Nút Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
@@ -514,9 +527,9 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         "Đóng",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
         k(655),
-        k(470),
+        k(440),
         k(115),
-        k(40),
+        k(48),
         parent,
         ID_BTN_CLOSE,
         h_instance,
@@ -526,9 +539,9 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         "Mặc định",
         BS_PUSHBUTTON | WS_TABSTOP.0,
         k(530),
-        k(470),
+        k(440),
         k(115),
-        k(40),
+        k(48),
         parent,
         ID_BTN_DEFAULT,
         h_instance,
@@ -537,10 +550,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         "BUTTON",
         "Kết thúc",
         BS_PUSHBUTTON | WS_TABSTOP.0,
-        k(775),
-        k(470),
-        k(110),
-        k(40),
+        k(765),
+        k(440),
+        k(105),
+        k(48),
         parent,
         ID_BTN_EXIT,
         h_instance,
@@ -560,8 +573,11 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         chk_global,
         rad_new,
         rad_old,
+        lbl_shortcut_title,
+        lbl_shortcut_val,
         btn_help,
         btn_about,
+        btn_setup_tsf,
         btn_close,
         btn_default,
         btn_exit,
@@ -699,7 +715,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                     show_information(
                         hwnd,
                         "Hướng dẫn TextVN",
-                        "Chọn kiểu gõ và bảng mã, sau đó bật/tắt tiếng Việt từ khay hệ thống.\r\n\r\nPhím chuyển mặc định: Ctrl + Shift.\r\nTextVN không yêu cầu mở cửa sổ Terminal.",
+                        "Chọn kiểu gõ và bảng mã, sau đó bật/tắt tiếng Việt từ khay hệ thống.\r\n\r\nNếu đây là lần dùng đầu tiên hoặc chưa gõ được, bấm [Cài & bật TSF].\r\nPhím chuyển mặc định: Ctrl + Shift.\r\nTextVN không yêu cầu mở cửa sổ Terminal.",
                     );
                     return LRESULT(0);
                 }
@@ -709,6 +725,22 @@ unsafe extern "system" fn dialog_wnd_proc(
                         "Thông tin TextVN",
                         "TextVN — Bộ gõ tiếng Việt cho Windows\r\n\r\nPhát triển bởi: hunglinhpt\r\nGiấy phép: GPL-3.0-or-later\r\nhttps://github.com/hunglinhpt/TextVN",
                     );
+                    return LRESULT(0);
+                }
+                ID_BTN_SETUP_TSF => {
+                    if register_and_activate_tsf() {
+                        show_information(
+                            hwnd,
+                            "TextVN TSF",
+                            "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, kiểm tra phần mềm bảo mật hoặc quyền ghi HKCU của tài khoản Windows.",
+                        );
+                    } else {
+                        show_information(
+                            hwnd,
+                            "Không thể đăng ký TextVN TSF",
+                            "Windows đã từ chối đăng ký bộ gõ cho tài khoản hiện tại. TextVN không thể nhận phím cho đến khi TSF được đăng ký.\r\n\r\nKiểm tra quyền ghi HKCU\\Software\\Classes\\CLSID và chính sách phần mềm bảo mật, sau đó bấm [Cài & bật TSF] lại.",
+                        );
+                    }
                     return LRESULT(0);
                 }
                 ID_BTN_DEFAULT => {
@@ -832,6 +864,27 @@ fn show_information(owner: HWND, title: &str, content: &str) {
     }
 }
 
+/// Đăng ký TIP theo user từ chính dialog để lỗi quyền hiện rõ trong UI thay vì
+/// thất bại im lặng. CLI là thành phần cùng gói và được chạy ẩn.
+#[cfg(windows)]
+fn register_and_activate_tsf() -> bool {
+    let Ok(mut cli_path) = std::env::current_exe() else {
+        return false;
+    };
+    cli_path.set_file_name("textvn-cli.exe");
+    if !cli_path.is_file() {
+        return false;
+    }
+
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    std::process::Command::new(cli_path)
+        .arg("register")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .is_ok_and(|status| status.success())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -852,11 +905,12 @@ mod tests {
             ID_BTN_EXIT,
             ID_BTN_HELP,
             ID_BTN_ABOUT,
+            ID_BTN_SETUP_TSF,
         ];
         let mut set = std::collections::HashSet::new();
         for id in ids {
             assert!(set.insert(id), "Duplicate dialog control ID: {id}");
         }
-        assert_eq!(ids.len(), 13);
+        assert_eq!(ids.len(), 14);
     }
 }

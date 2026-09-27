@@ -322,8 +322,8 @@ foreach ($entry in $BinFiles) {
 # Tao install.ps1 script trong ZIP
 $installContent = "# install.ps1 - Dang ky TextVN TSF TIP tuy chon`r`n" +
     "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Dang ky TextVN TSF TIP vao he thong (no-taskbar)...'`r`n" +
-    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'register --no-taskbar'`r`n" +
+    "Write-Host 'Dang ky va kich hoat TextVN TSF TIP vao he thong...'`r`n" +
+    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'register'`r`n" +
     "if (`$r.ExitCode -eq 0) {`r`n" +
     "    Write-Host 'Dang ky TSF thanh cong! Khoi dong TextVN...'`r`n" +
     "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
