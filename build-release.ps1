@@ -5,12 +5,15 @@
 #   powershell -File build-release.ps1
 #   powershell -File build-release.ps1 -SkipTests
 #   powershell -File build-release.ps1 -BuildInstaller
+#   powershell -File build-release.ps1 -IncludeCompatibilityHook
 #   powershell -File build-release.ps1 -Version "0.1.0"
 #   powershell -File build-release.ps1 -Channel candidate
 
 param(
     [switch]$SkipTests,
     [switch]$BuildInstaller,
+    # Hook WH_KEYBOARD_LL legacy chi co trong goi Compatibility duoc yeu cau.
+    [switch]$IncludeCompatibilityHook,
     [string]$Version = "",
     [ValidateSet("candidate", "production")]
     [string]$Channel = "candidate"
@@ -51,9 +54,10 @@ $GitTreeClean = ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace(($GitDirt
 $ProductionBlockers = @(
     "Native UI Automation is not integrated in the TSF/Hook runtime",
     "TSF composition lifecycle is not verified end-to-end",
-    "Named-pipe DACL and release signing are not production-verified"
+    "Named-pipe DACL and Authenticode release signing are not production-verified"
 )
 $ReleaseChecks = [ordered]@{}
+$FeatureProfile = if ($IncludeCompatibilityHook) { "tsf-plus-legacy-hook" } else { "tsf-only" }
 
 # Kiem tra rust target
 Write-Step "Check Rust target $Target"
@@ -72,7 +76,14 @@ cargo fmt --check
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo fmt --check FAIL" }
 $ReleaseChecks["format"] = "passed"
 
-cargo clippy --workspace --all-targets -- -D warnings
+$CargoWorkspaceScope = @("--workspace")
+if (-not $IncludeCompatibilityHook) {
+    # Release mac dinh khong build/phan phoi raw global hook. Day la giam
+    # false-positive theo kien truc, khong che giau hay ne AV.
+    $CargoWorkspaceScope += @("--exclude", "textvn-win-hook")
+}
+
+cargo clippy @CargoWorkspaceScope --all-targets -- -D warnings
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo clippy FAIL" }
 $ReleaseChecks["clippy"] = "passed"
 
@@ -86,7 +97,7 @@ $ReleaseChecks["windows_corpus"] = "passed"
 
 if (-not $SkipTests) {
     Write-Step "Running tests --workspace"
-    cargo test --workspace
+    cargo test @CargoWorkspaceScope
     if ($LASTEXITCODE -ne 0) { Write-Fail "Tests FAIL" }
     Write-Ok "All tests PASS"
     $ReleaseChecks["workspace_tests"] = "passed"
@@ -96,7 +107,7 @@ if (-not $SkipTests) {
 
 # Build release
 Write-Step "Build release --workspace --target $Target"
-cargo build --release --workspace --target $Target
+cargo build --release @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 Write-Ok "Build release DONE"
@@ -132,19 +143,14 @@ if (Get-Process -Id $smokeProcess.Id -ErrorAction SilentlyContinue) {
     & $trayExe --stop *> $null
     Write-Fail "Runtime smoke did not stop cleanly: $smokeStop"
 }
-# Hook được tray tạo trong smoke test phải rời desktop trước khi copy binary.
-# `Shutdown` là best-effort và Hook có orphan timeout 30s khi IPC bị đóng;
-# chờ rõ ràng ở đây thay vì tạo ZIP thiếu textvn-hook.exe.
-for ($second = 0; $second -lt 35; $second++) {
-    $smokeHooks = @(Get-Process -Name "textvn-hook" -ErrorAction SilentlyContinue)
-    if ($smokeHooks.Count -eq 0) { break }
-    Start-Sleep -Seconds 1
-}
-if (@(Get-Process -Name "textvn-hook" -ErrorAction SilentlyContinue).Count -gt 0) {
-    Write-Fail "Runtime smoke left textvn-hook.exe running; refusing to package a locked release."
-}
 $ReleaseChecks["windows_runtime_smoke"] = "passed"
-Write-Ok "Start, IPC status, tray and hook shutdown PASS"
+if ($IncludeCompatibilityHook) {
+    $ReleaseChecks["compatibility_hook"] = "included-on-explicit-request"
+    Write-Ok "Start and IPC status PASS (Compatibility Hook is opt-in)"
+} else {
+    $ReleaseChecks["compatibility_hook"] = "excluded-from-default-release"
+    Write-Ok "Start and IPC status PASS (TSF-only release; legacy Hook excluded)"
+}
 
 # Tao thu muc dist
 New-Item -ItemType Directory -Force $DistDir | Out-Null
@@ -160,11 +166,13 @@ New-Item -ItemType Directory -Force $ZipDir | Out-Null
 
 $BinFiles = @(
     @{ src = "TextVN.exe";           dst = "TextVN.exe" },
-    @{ src = "textvn-hook.exe";      dst = "textvn-hook.exe" },
     @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
     @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
     @{ src = "textvn_ffi.dll";      dst = "textvn_ffi.dll" }
 )
+if ($IncludeCompatibilityHook) {
+    $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }
+}
 
 foreach ($entry in $BinFiles) {
     $src = "$ReleaseDir\$($entry.src)"
@@ -231,6 +239,7 @@ $ReleaseReport = [ordered]@{
     git_commit = $GitCommit.Trim()
     source_tree_clean = $GitTreeClean
     target = $Target
+    feature_profile = $FeatureProfile
     status = "release-candidate"
     checks = $ReleaseChecks
     production_blockers = $ProductionBlockers
@@ -266,7 +275,7 @@ $installContent = "# install.ps1 - Dang ky TextVN TSF TIP tuy chon`r`n" +
     "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
     "} else {`r`n" +
     "    Write-Host ('Dang ky TSF that bai, ma loi=' + `$r.ExitCode)`r`n" +
-    "    Write-Host 'TextVN van chay binh thuong qua che do Hook...'`r`n" +
+    "    Write-Host 'TextVN su dung TSF. Kiem tra loi dang ky o tren neu chua go duoc.'`r`n" +
     "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
     "}`r`n"
 [System.IO.File]::WriteAllText("$ZipDir\install.ps1", $installContent, [System.Text.Encoding]::ASCII)
@@ -328,7 +337,10 @@ if ($BuildInstaller) {
         Write-Warn "iscc.exe not found - install Inno Setup 6 from https://jrsoftware.org/isdl.php"
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
-        iscc.exe "/DMyAppVersion=$Version" $targetDirArg "installer\windows\TextVN-setup.iss"
+        $installerArgs = @("/DMyAppVersion=$Version", $targetDirArg)
+        if ($IncludeCompatibilityHook) { $installerArgs += "/DIncludeCompatibilityHook=1" }
+        $installerArgs += "installer\windows\TextVN-setup.iss"
+        iscc.exe @installerArgs
         $setupExe = "dist\TextVN-setup-$Version-windows-x64.exe"
         if (Test-Path $setupExe) {
             Write-Ok "Installer: $setupExe"
