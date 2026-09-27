@@ -231,3 +231,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `WIN-051`: IPC Named Pipe Server `\\.\pipe\vietime-ipc-v1` đa luồng, hỗ trợ đa client TSF/Hook/CLI, broadcast `ConfigReload` và `StateUpdate` khi trạng thái/cấu hình thay đổi.
   - `WIN-053`: Autostart per-user qua registry key `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\VietIME` mà không cần quyền Admin (tuân thủ Rule S5). SvcManager quản lý `%APPDATA%\VietIME\{config.json, state.json}` với atomic write.
   - Đạt 10 Quality Gates: 29/29 Windows platform tests pass 100% (TSF 15, Hook 5, Tray 9), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 982/982 compliant.
+- 2026-09-27: **W13 — Diagnostics & Support Export hoàn thiện: WIN-058**:
+  - `WIN-058`: Cài đặt lệnh `vietime doctor [--json] [--export <path.zip>]` (`cli/src/doctor.rs`).
+  - Tích hợp bộ đóng gói ZIP PKZIP Stored thuần Rust zero-dependency (`build_pkzip`) và thuật toán tính CRC32 chuẩn ISO 3309.
+  - Thu thập và đóng gói an toàn các artifact chẩn đoán: `version.json`, `config.redacted.json` (tự động redact tên người dùng và đường dẫn cá nhân theo Rule S2), `system_info.json` (kiểm tra trạng thái Pipe, Tray, Hook, TIP registry), `hook_stats.json`, `tsf_tail.log` (200 dòng log TSF tail an toàn).
+  - Đạt 10 Quality Gates: 25/25 tests pass (thêm 4 tests mới cho ZIP structure, CRC32, path redaction và grep test), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 983/983 compliant.
