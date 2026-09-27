@@ -888,9 +888,9 @@
     "semantic_hash": ""
   },
   "installer/windows/build_installer.ps1": {
-    "mtime": 1790481722.9628334,
-    "seen": 1790483703.5281873,
-    "ast_hash": "b412d97805fb8a890cb7c75708edf6a9",
+    "mtime": 1790489182.3747149,
+    "seen": 1790489235.5996222,
+    "ast_hash": "bcdb316832bc4a010c7d25639b58503b",
     "semantic_hash": ""
   },
   "tools/win/check_targets.ps1": {
@@ -1053,6 +1053,12 @@
     "mtime": 1790486836.7686634,
     "seen": 1790487249.220345,
     "ast_hash": "2b05ddf8733d5e225d802ea7bbaea938",
+    "semantic_hash": ""
+  },
+  "docs/specs/antivirus-false-positive.md": {
+    "mtime": 1790489168.1454182,
+    "seen": 1790489235.6652431,
+    "ast_hash": "3e243a214570ab55b50c53d8b8e6c8b2",
     "semantic_hash": ""
   }
 }
