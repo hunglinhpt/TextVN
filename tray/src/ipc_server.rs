@@ -524,9 +524,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
+    #[cfg(windows)]
+    static TEST_PIPE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     #[cfg(windows)]
     fn server_starts_and_stops_cleanly() {
+        let _guard = TEST_PIPE_LOCK.lock().unwrap();
         let temp_dir =
             std::env::temp_dir().join(format!("textvn_startstop_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
@@ -542,6 +546,12 @@ mod tests {
         // Stop phai unblock va chuyen is_running ve false sach se
         server.stop();
         assert!(!server.is_running());
+        // Unblock pending ConnectNamedPipe so the worker thread observes running=false and terminates
+        let _ = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(PIPE_NAME);
+        std::thread::sleep(Duration::from_millis(50));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -552,6 +562,7 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn broadcast_reaches_subscriber() {
+        let _guard = TEST_PIPE_LOCK.lock().unwrap();
         use std::io::Write as _;
 
         let temp_dir =
@@ -563,11 +574,19 @@ mod tests {
 
         let (tx, rx) = std::sync::mpsc::channel();
         let client = std::thread::spawn(move || {
-            let mut file = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(PIPE_NAME)
-                .expect("client pipe open");
+            let mut file = None;
+            for _ in 0..20 {
+                if let Ok(f) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(PIPE_NAME)
+                {
+                    file = Some(f);
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            let mut file = file.expect("client pipe open");
             let pid = std::process::id();
             let sub = encode_frame(&Message::Subscribe { pid }).unwrap();
             file.write_all(&sub).unwrap();
@@ -603,6 +622,11 @@ mod tests {
 
         client.join().unwrap();
         server.stop();
+        let _ = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(PIPE_NAME);
+        std::thread::sleep(Duration::from_millis(50));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
