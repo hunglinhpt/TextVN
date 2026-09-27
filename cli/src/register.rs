@@ -292,7 +292,8 @@ mod win_impl {
                     CLSCTX_INPROC_SERVER,
                 )
             } {
-                let _ = unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) };
+                let _ =
+                    unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) };
             }
         }
 

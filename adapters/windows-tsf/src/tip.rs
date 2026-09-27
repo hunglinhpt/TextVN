@@ -163,10 +163,8 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
         let (source_opt, sink_cookie) = match source {
             Ok(src) => {
                 let event_sink: ITfThreadMgrEventSink = self.to_interface();
-                let cookie = unsafe {
-                    src.AdviseSink(&ITfThreadMgrEventSink::IID, &event_sink)
-                }
-                .unwrap_or(0);
+                let cookie = unsafe { src.AdviseSink(&ITfThreadMgrEventSink::IID, &event_sink) }
+                    .unwrap_or(0);
                 (Some(src), cookie)
             }
             Err(_) => (None, 0),

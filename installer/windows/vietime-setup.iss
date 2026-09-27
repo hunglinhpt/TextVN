@@ -43,16 +43,20 @@ DisableWelcomePage=no
 Name: "vietnamese"; MessagesFile: "compiler:Languages\Vietnamese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+#ifndef TargetDir
+#define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
+#endif
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "autostart"; Description: "Tự động khởi động VietIME cùng Windows"; GroupDescription: "Tùy chọn khởi động:"; Flags: checkedonce
 
 [Files]
-; Artifacts binary đã build từ target/release hoặc target/debug
-Source: "..\..\target\release\vietime-tray.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-tray.exe"
-Source: "..\..\target\release\vietime-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-hook.exe"
-Source: "..\..\target\release\vietime_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-tsf.dll"
-Source: "..\..\target\release\vietime.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime.exe"
+; Artifacts binary đã build từ target/release hoặc target/x86_64-pc-windows-msvc/release
+Source: "{#TargetDir}\vietime-tray.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-tray.exe"
+Source: "{#TargetDir}\vietime-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-hook.exe"
+Source: "{#TargetDir}\vietime_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime-tsf.dll"
+Source: "{#TargetDir}\vietime.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "vietime.exe"
 Source: "..\..\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

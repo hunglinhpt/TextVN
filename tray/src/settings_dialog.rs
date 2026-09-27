@@ -165,6 +165,7 @@ fn create_and_show_window() {
 }
 
 #[cfg(windows)]
+#[allow(clippy::too_many_arguments)]
 fn create_control(
     class: &str,
     text: &str,
@@ -203,32 +204,209 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
     let default_font = unsafe { GetStockObject(DEFAULT_GUI_FONT) };
 
     // 1. Nhóm Điều khiển
-    let gb1 = create_control("BUTTON", "Điều khiển", BS_GROUPBOX, 15, 10, 405, 95, parent, 0, h_instance);
-    let lbl_charset = create_control("STATIC", "Bảng mã:", 0, 30, 35, 75, 20, parent, 0, h_instance);
-    let cb_charset = create_control("COMBOBOX", "", CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0, 110, 32, 290, 150, parent, ID_COMBO_CHARSET, h_instance);
-    let lbl_method = create_control("STATIC", "Kiểu gõ:", 0, 30, 68, 75, 20, parent, 0, h_instance);
-    let cb_method = create_control("COMBOBOX", "", CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0, 110, 65, 290, 150, parent, ID_COMBO_METHOD, h_instance);
+    let gb1 = create_control(
+        "BUTTON",
+        "Điều khiển",
+        BS_GROUPBOX,
+        15,
+        10,
+        405,
+        95,
+        parent,
+        0,
+        h_instance,
+    );
+    let lbl_charset = create_control(
+        "STATIC",
+        "Bảng mã:",
+        0,
+        30,
+        35,
+        75,
+        20,
+        parent,
+        0,
+        h_instance,
+    );
+    let cb_charset = create_control(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
+        110,
+        32,
+        290,
+        150,
+        parent,
+        ID_COMBO_CHARSET,
+        h_instance,
+    );
+    let lbl_method = create_control(
+        "STATIC",
+        "Kiểu gõ:",
+        0,
+        30,
+        68,
+        75,
+        20,
+        parent,
+        0,
+        h_instance,
+    );
+    let cb_method = create_control(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
+        110,
+        65,
+        290,
+        150,
+        parent,
+        ID_COMBO_METHOD,
+        h_instance,
+    );
 
     // 2. Nhóm Tùy chọn gõ
-    let gb2 = create_control("BUTTON", "Tùy chọn", BS_GROUPBOX, 15, 115, 405, 140, parent, 0, h_instance);
-    let chk_restore = create_control("BUTTON", "Khôi phục từ tiếng Anh khi gõ sai", BS_AUTOCHECKBOX | WS_TABSTOP.0, 30, 138, 230, 20, parent, ID_CHK_AUTO_RESTORE, h_instance);
-    let chk_free = create_control("BUTTON", "Đặt dấu tự do", BS_AUTOCHECKBOX | WS_TABSTOP.0, 30, 163, 230, 20, parent, ID_CHK_FREE_MARKING, h_instance);
-    let chk_auto = create_control("BUTTON", "Khởi động cùng Windows", BS_AUTOCHECKBOX | WS_TABSTOP.0, 30, 188, 230, 20, parent, ID_CHK_AUTOSTART, h_instance);
-    let chk_global = create_control("BUTTON", "Bật gõ tiếng Việt", BS_AUTOCHECKBOX | WS_TABSTOP.0, 30, 213, 230, 20, parent, ID_CHK_GLOBAL_ENABLED, h_instance);
+    let gb2 = create_control(
+        "BUTTON",
+        "Tùy chọn",
+        BS_GROUPBOX,
+        15,
+        115,
+        405,
+        140,
+        parent,
+        0,
+        h_instance,
+    );
+    let chk_restore = create_control(
+        "BUTTON",
+        "Khôi phục từ tiếng Anh khi gõ sai",
+        BS_AUTOCHECKBOX | WS_TABSTOP.0,
+        30,
+        138,
+        230,
+        20,
+        parent,
+        ID_CHK_AUTO_RESTORE,
+        h_instance,
+    );
+    let chk_free = create_control(
+        "BUTTON",
+        "Đặt dấu tự do",
+        BS_AUTOCHECKBOX | WS_TABSTOP.0,
+        30,
+        163,
+        230,
+        20,
+        parent,
+        ID_CHK_FREE_MARKING,
+        h_instance,
+    );
+    let chk_auto = create_control(
+        "BUTTON",
+        "Khởi động cùng Windows",
+        BS_AUTOCHECKBOX | WS_TABSTOP.0,
+        30,
+        188,
+        230,
+        20,
+        parent,
+        ID_CHK_AUTOSTART,
+        h_instance,
+    );
+    let chk_global = create_control(
+        "BUTTON",
+        "Bật gõ tiếng Việt",
+        BS_AUTOCHECKBOX | WS_TABSTOP.0,
+        30,
+        213,
+        230,
+        20,
+        parent,
+        ID_CHK_GLOBAL_ENABLED,
+        h_instance,
+    );
 
-    let rad_new = create_control("BUTTON", "Dấu mới (hoà, thuỷ)", BS_AUTORADIOBUTTON | WS_TABSTOP.0, 270, 142, 140, 20, parent, ID_RAD_DIACRITIC_NEW, h_instance);
-    let rad_old = create_control("BUTTON", "Dấu cũ (hòa, thủy)", BS_AUTORADIOBUTTON, 270, 168, 140, 20, parent, ID_RAD_DIACRITIC_OLD, h_instance);
+    let rad_new = create_control(
+        "BUTTON",
+        "Dấu mới (hoà, thuỷ)",
+        BS_AUTORADIOBUTTON | WS_TABSTOP.0,
+        270,
+        142,
+        140,
+        20,
+        parent,
+        ID_RAD_DIACRITIC_NEW,
+        h_instance,
+    );
+    let rad_old = create_control(
+        "BUTTON",
+        "Dấu cũ (hòa, thủy)",
+        BS_AUTORADIOBUTTON,
+        270,
+        168,
+        140,
+        20,
+        parent,
+        ID_RAD_DIACRITIC_OLD,
+        h_instance,
+    );
 
     // 3. Nút hành động
-    let btn_close = create_control("BUTTON", "Đóng", BS_DEFPUSHBUTTON | WS_TABSTOP.0, 135, 275, 85, 30, parent, ID_BTN_CLOSE, h_instance);
-    let btn_default = create_control("BUTTON", "Mặc định", BS_PUSHBUTTON | WS_TABSTOP.0, 230, 275, 85, 30, parent, ID_BTN_DEFAULT, h_instance);
-    let btn_exit = create_control("BUTTON", "Kết thúc", BS_PUSHBUTTON | WS_TABSTOP.0, 325, 275, 85, 30, parent, ID_BTN_EXIT, h_instance);
+    let btn_close = create_control(
+        "BUTTON",
+        "Đóng",
+        BS_DEFPUSHBUTTON | WS_TABSTOP.0,
+        135,
+        275,
+        85,
+        30,
+        parent,
+        ID_BTN_CLOSE,
+        h_instance,
+    );
+    let btn_default = create_control(
+        "BUTTON",
+        "Mặc định",
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        230,
+        275,
+        85,
+        30,
+        parent,
+        ID_BTN_DEFAULT,
+        h_instance,
+    );
+    let btn_exit = create_control(
+        "BUTTON",
+        "Kết thúc",
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        325,
+        275,
+        85,
+        30,
+        parent,
+        ID_BTN_EXIT,
+        h_instance,
+    );
 
     // Gán font chuẩn Windows cho toàn bộ controls
     let controls = [
-        gb1, lbl_charset, cb_charset, lbl_method, cb_method,
-        gb2, chk_restore, chk_free, chk_auto, chk_global,
-        rad_new, rad_old, btn_close, btn_default, btn_exit,
+        gb1,
+        lbl_charset,
+        cb_charset,
+        lbl_method,
+        cb_method,
+        gb2,
+        chk_restore,
+        chk_free,
+        chk_auto,
+        chk_global,
+        rad_new,
+        rad_old,
+        btn_close,
+        btn_default,
+        btn_exit,
     ];
     for &ctrl in &controls {
         unsafe {
@@ -301,7 +479,11 @@ fn populate_controls_from_config(hwnd: HWND) {
         // Checkboxes
         set_chk(hwnd, ID_CHK_AUTO_RESTORE, cfg.auto_restore_english);
         set_chk(hwnd, ID_CHK_FREE_MARKING, cfg.free_marking);
-        set_chk(hwnd, ID_CHK_AUTOSTART, autostart::is_autostart_enabled().unwrap_or(false));
+        set_chk(
+            hwnd,
+            ID_CHK_AUTOSTART,
+            autostart::is_autostart_enabled().unwrap_or(false),
+        );
         set_chk(hwnd, ID_CHK_GLOBAL_ENABLED, ctx.svc.is_global_enabled());
 
         // Diacritic radio
@@ -359,7 +541,8 @@ unsafe extern "system" fn dialog_wnd_proc(
                     with_ctx(|ctx| {
                         ctx.svc.set_method(Method::Telex);
                         ctx.svc.set_diacritic_style(DiacriticStyle::New);
-                        ctx.svc.set_output_charset(OutputCharset::UnicodePrecomposed);
+                        ctx.svc
+                            .set_output_charset(OutputCharset::UnicodePrecomposed);
                         populate_controls_from_config(hwnd);
                         ctx.ipc.broadcast_config_reload(1);
                     });

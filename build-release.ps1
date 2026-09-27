@@ -64,6 +64,12 @@ if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 Write-Ok "Build release DONE"
 
+# Dung cac tien trinh VietIME dang chay de tranh file locked
+Write-Step "Check running processes"
+Get-Process -Name "vietime-tray", "vietime-hook", "vietime" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 300
+Write-Ok "Process lock check DONE"
+
 # Tao thu muc dist
 New-Item -ItemType Directory -Force $DistDir | Out-Null
 
@@ -145,7 +151,8 @@ if ($BuildInstaller) {
     if (-not $isccExe) {
         Write-Warn "iscc.exe not found - install Inno Setup 6 from https://jrsoftware.org/isdl.php"
     } else {
-        iscc.exe "/DMyAppVersion=$Version" "installer\windows\vietime-setup.iss"
+        $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
+        iscc.exe "/DMyAppVersion=$Version" $targetDirArg "installer\windows\vietime-setup.iss"
         $setupExe = "dist\vietime-setup-$Version.exe"
         if (Test-Path "Output\vietime-setup.exe") {
             Move-Item "Output\vietime-setup.exe" $setupExe -Force
