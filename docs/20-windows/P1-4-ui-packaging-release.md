@@ -29,7 +29,7 @@
 
 ```text
 tokio (feature "net") task, named pipe \\.\pipe\vietime-ipc-v1 (DWORD mode PIPE_ACCESS_DUPLEX)
-- Accept loop → per-connection framed msgpack
+- Accept loop → per-connection frame `u32 little-endian length + JSON UTF-8` theo `schemas/ipc.v1.md`
 - `Hello{pid, abi, version}` → `Snapshot{config_version, state, appdb_version, channel}`
 - `GetSnapshot{}` → `Snapshot{...}` · `Subscribe{pid}` → ack (push `StateUpdate`/`ConfigReload` khi đổi)
 - `ToggleViEn{app_id, enabled}` → ack + broadcast `StateUpdate`

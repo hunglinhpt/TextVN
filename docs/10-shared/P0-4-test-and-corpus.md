@@ -11,7 +11,7 @@
 | L1 Unit + property | core, config, strategy, appdb | `cargo test --workspace` | mọi PR |
 | L2 **Golden corpus** | `.keys` → simulator → so `:expect` | `cargo run -p vietime-cli -- replay corpus/shared` | mọi PR |
 | L3 Cross-OS conformance | cùng corpus, 3 adapter mode (headless sim) | `replay corpus/shared corpus/{win,mac,linux}` trên 3 CI OS | mọi PR |
-| L4 Fuzz | `ffi_key`, `config_parse`, `appdb_parse` | `cargo fuzz run <t> -- -max_total_time=60` | PR chạm parser; 10p nightly |
+| L4 Fuzz | `ffi_key`, `config_parse`, `appdb_parse` | `cargo fuzz run ffi_key --features ffi-fuzz -- -max_total_time=60` (tương tự `config_parse`); `cargo fuzz run appdb_parse -- -max_total_time=60` | PR chạm parser; 10p nightly |
 | L5 **App-compat automation** | gõ thật vào app qua UIA/AX/AT-SPI | `tools/appcomptest` (P1-5) | PR chạm adapter; nightly 12 app |
 | L6 Soak | replay 24h + leak check | `nightly.yml` | nightly |
 | L7 Manual matrix | 40 app × 3 OS checklist | `docs/compat.md` | trước release |

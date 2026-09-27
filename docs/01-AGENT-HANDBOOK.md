@@ -15,10 +15,21 @@
 | **S3** | **Không bao giờ** xử lý chuỗi khi `context.secure == 1` (ô mật khẩu) | Tránh đọc mật khẩu |
 | **S4** | Core **fail-open**: mọi lỗi/panic → trả `PASS` (phím đi thẳng), không bao giờ chặn phím | Crash IME = mất bàn phím người dùng |
 | **S5** | Không thêm dependency network (http/ws/mqtt) vào crate trong `core/`, `strategy/`, `adapters/*` | Gate CI `cargo-deny` |
-| **S6** | Mọi file có SPDX header (REUSE) <!-- REUSE-IgnoreStart -->: `// SPDX-License-Identifier: GPL-3.0-or-later`<!-- REUSE-IgnoreEnd --> | Tuân thủ license |
+| **S6** | Mọi file có SPDX header (REUSE) — mẫu ở khối code dưới bảng | Tuân thủ license |
 | **S7** | Không copy code từ EVKey/WinVNKey (đóng/ambiguous). Ý tưởng → ghi spec clean-room vào `docs/specs/` → viết mới | Tránh scandal license |
 | **S8** | FFI: **không malloc chéo ranh giới**; struct POD, caller-allocated | Tránh double-free giữa Rust/C++/Swift |
 | **S9** | Không đăng ký hotkey/hook global trừ khi adapter có justification trong ADR | Xung đột phím tắt hệ thống (bug B6) |
+
+Mẫu SPDX header (Rust/C), phải nằm ở dòng đầu tiên của file:
+
+```rust
+// SPDX-License-Identifier: GPL-3.0-or-later
+```
+
+File không phải mã (`.md`, `.json`, `.yml`…) được phủ bởi `REUSE.toml` — không cần header.
+Lưu ý: **không** viết nguyên văn khoá SPDX trong prose hoặc trong `$comment` của JSON
+(các chỗ không có cú pháp comment chuẩn) — `reuse lint` sẽ đọc nhầm thành header thật rồi báo
+"Invalid SPDX License Expressions".
 
 ---
 

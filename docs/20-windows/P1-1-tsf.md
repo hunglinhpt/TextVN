@@ -105,7 +105,9 @@ ITfKeyEventSink::OnKeyDown(ctx, w, l, eaten)
 ```
 
 > **Quy tắc:** mọi sửa text **chỉ** trong `ITfEditSession::DoEditSession` (TSF không cho sửa ngoài edit session).
-> `RequestEditSession(TF_ES_READWRITE | TF_ES_SYNC)`; nếu bị từ chối (EC_READONLY) → fail-open: *eaten=FALSE*.
+> `RequestEditSession(TF_ES_READWRITE | TF_ES_SYNC)`; nếu bị từ chối (EC_READONLY) →
+> gọi `ime_reset()` **trước key kế tiếp** rồi fail-open: `*eaten=FALSE`. Engine đã tính
+> outcome trước khi TSF từ chối; không reset sẽ làm key sau replace text chưa từng được app nhận.
 
 ## 6. `apply_replace` — 3 cách sửa text (mục P0-2 trỏ vào đây)
 
@@ -125,10 +127,11 @@ DoEditSession(ec):
 ### 6.2 `SelectionReplace` (address bar / Excel — bug B1)
 
 ```text
-  1. Lấy selection hiện tại (nếu app không cho chọn → fallback §6.1 + preset notes)
-  2. Nếu selection rỗng → mở rộng selection về TRỚI bằng Shift+movement đúng delete_count ký tự
-  3. SetText(ec, NULL, insert_len, text)  → TSF thay đúng vùng chọn
-  4. KHÔNG gửi phím Backspace (app autocomplete không bị kích hoạt lại — đây là lý do tồn tại của strategy)
+  1. Chỉ dùng range adapter đang sở hữu từ composition/insert engine; selection của user khác range đó → PASS + reset,
+     không fallback sau khi đã xóa.
+  2. Nếu selection rỗng → chỉ mở rộng về TRÁI trong suffix owned, đúng delete_count ký tự.
+  3. SetText(ec, NULL, insert_len, text)  → TSF thay đúng range owned.
+  4. KHÔNG gửi phím Backspace (app autocomplete không bị kích hoạt lại — đây là lý do tồn tại của strategy).
 ```
 
 ### 6.3 `ForwardAsCommit` (terminal — bug B8)

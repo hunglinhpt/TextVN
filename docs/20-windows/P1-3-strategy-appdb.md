@@ -35,6 +35,11 @@ FieldContext ◄──────┤                    field_role ← cache fi
 | R9 | Terminal class (`CASCADIA_HOSTING_WINDOW_CLASS`, `PuTTY`, `xterm`, `WezTerm`) | `terminal` | 0 |
 | R10 | Không xác định được | `unknown` | 0 |
 
+> **Ghi chú vocab R6/R8 (F6-1):** `TextArea` ở đây = **variant enum nội bộ** `field-detect::rules_win::ControlType`,
+> `multiline` = field snapshot do UIA adapter map (P1-2 §4) — KHÔNG phải static .NET/PowerShell UIA
+> (`[ControlType]::TextArea` = silent NULL, xem `docs/specs/win-test-common-errors.md` **A15**).
+> Locator JSON của harness dùng `ControlType=Edit` + check multiline.
+
 **Heuristic phụ (khi UIA không trả gì):** theo `ClassName` của hwnd foreground
 (`Chrome_WidgetWin_1` → `web`, `OpusApp` → `textarea`…) — bảng lưu trong appdb preset theo app
 (không hard-code trong rules engine).
@@ -126,7 +131,7 @@ impl FieldContext {
 |---|---|---|
 | WIN-004 | Spike UIA: query role/IsPassword + đo latency 10 phần tử phổ biến | `docs/specs/uia-spike.md` (kèm số ms) |
 | WIN-030 | crate `field-detect` + rules R1–R10 | Unit rules pass |
-| WIN-031 | Cache + invalidation + budget 2ms | Benchmark ghi trong `P1-5 §5` |
+| WIN-031 | Cache + invalidation + budget 2ms | `cargo run --release -p vietime-bench -- field-switch --iters 20000` mô phỏng 200 hwnd/app; p99 cache+resolve < 2ms, không gọi UIA đồng bộ |
 | WIN-032 | `engine_owner` + override chain §4 | Unit test thứ tự ưu tiên |
 | WIN-033 | appdb loader + verify chữ ký Ed25519 (P0-3 §2.2) | Test file sai chữ ký bị từ chối |
 | WIN-034 | Preset §3 (20 mục) + corpus tương ứng ≥ 40 case | `replay corpus/win` pass |

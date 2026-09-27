@@ -17,7 +17,7 @@
 
 | Trường | Type | Default | Ghi chú |
 |---|---|---|---|
-| `config_version` | int | `1` | migrate tự động, backup `.bak` |
+| `config_version` | int | `1` | migrate tự động, backup `.bak`. **Bắt buộc phải có** — thiếu thì `config: invalid schema` (không đoán version) |
 | `enabled` | bool | `true` | master switch |
 | `method` | `"telex"\|"vni"\|"viqr"\|"simple_telex"` | `"telex"` | |
 | `diacritic_style` | `"new"\|"old"` | `"new"` | `hoà` vs `hòa` (B12) |
@@ -30,6 +30,7 @@
 | `hotkeys` | object | xem dưới | |
 | `macros[]` | `[{trigger, expand, when}]` | `[]` | `when: "always"\|"vi_on"` |
 | `emoji[]` | `[{trigger, glyph}]` | `[]` | |
+| `english_words[]` | `["text", ...]` (chữ cái ASCII) | `[]` | nhánh từ điển của B5 — **mặc định rỗng, opt-in** (xem `data/stop_en.txt`; `test`→`tết` là ca mơ hồ nên không bật sẵn) |
 | `ignore_apps[]` | `[{match:"exe"\|"bundle"\|"class", value, mode:"disable_vi"\|"force_vi"\|"passthrough"}]` | `[]` | EVKey spec #1 / P2 persona |
 | `app_overrides` | `{app_id: {method?, diacritic_style?, ...}}` | `{}` | per-app ghi đè |
 | `secure_fields` | `"always_pass"` | `"always_pass"` | **không cho đổi** (giữ S3) |

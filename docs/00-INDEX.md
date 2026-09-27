@@ -248,3 +248,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `WIN-055`: Tạo application manifest `installer/windows/app.manifest` (Windows 10/11, PerMonitorV2 DPI awareness, UTF-8 code page, asInvoker).
   - Tạo script điều phối `installer/windows/build_installer.ps1` kiểm tra artifacts và compile installer (tuân thủ Rule G7).
   - Đạt 10 Quality Gates: 991/991 files compliant REUSE, toàn bộ test Windows pass 100%.
+- 2026-09-27: **Tiếp quản WIP engine/infra + WIN-061 Harness Targets + AV/FP**:
+  - WIP engine/infra (agent A): multi-method `vni`/`viqr`/`simple_telex` + `keys_generated`, `core/src/post/`, `validate.rs`; crates mới `appdb`/`corpus`/`ipc`/`field-detect`/`perf`/`fuzz`/`xtask`/`tools/bench`; `schemas/`, `data/`, `REUSE.toml` (thay `.reuse/dep5`), `.github/workflows/ci-shared.yml`, `docs/compat.md`, `docs/compliance/`.
+  - `WIN-061`: Harness targets JSON 12 app — `tools\win\verify_targets.ps1` (spawn app theo `launch.profile`, per-field readiness F6-10, bỏ owned popup F6-9, Firefox TOU F6-13) + `tools\win\check_targets.ps1`; GHA `targets-verify.yml` run **36297278626** = 2/2 PASS.
+  - AV/FP: `docs/specs/antivirus-false-positive.md` (6 trigger T1–T6, SHA256 5 artifact, runbook Kaspersky §5, kế hoạch SignPath AV-1…AV-5) + bước `[AV-3]` in SHA256 trong `installer/windows/build_installer.ps1`.
+  - Hoàn tất WIP dở dang: khôi phục file bị xóa trắng (`README.md` fix 2 link relative, `CHANGELOG`/`CONTRIBUTING`/`SECURITY`/`build-release.ps1`/`register.rs`/`performance-audit`/`gen_icon`), xóa `tray/build.rs` + manifest (feature `embed-resources` đã bỏ), bỏ lệnh `--features embed-resources` khỏi `build-release.ps1`, bổ sung ghi chú R6/R8 (`P1-3`), sửa lệnh harness + RW5 (`P1-5`), thêm ops `C14`.

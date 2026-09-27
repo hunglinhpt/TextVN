@@ -226,6 +226,9 @@ Adapter có 2 cách hiện chữ; **chọn theo strategy** (P0-3 §3):
 2. Test Rust trong `ffi`:
    `assert_eq!(size_of::<ime_result_v1>(), 532);` · `assert_eq!(size_of::<ime_key_v1>(), 20);`
    + `offset_of!` từng field (chống đổi thứ tự field ngoài ý muốn).
+   Thứ tự khai báo `#[no_mangle]` khớp khối `/* ---- API ---- */` trong header
+   (verify → resolve → last_error ở cuối) — `vietime verify` tầng 4 enforce,
+   có test đọc cả `ffi/src/lib.rs` thật để đối chiếu.
 3. Test C: `tests/conformance/abi_size.c` compile header thật, `_Static_assert(sizeof(ime_result_v1)==532)`.
 4. `cargo xtask cbindgen` + `git diff --exit-code` → header không được lệch so với source.
 5. Fuzz targets: `fuzz/ffi_key` (nguồn: `ime_key` với byte ngẫu nhiên + corpus replay cũ),

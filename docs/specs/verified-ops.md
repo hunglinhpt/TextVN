@@ -53,6 +53,7 @@
 | C11 | Hook spike: local `spikes\hook-probe\hook_probe.ps1` + GHA `gh workflow run hook-spike.yml` (dispatch, artifact `hook-probe-out`) | ✓ local PASS + **3 run GHA xanh** (2026-09-27: 36291058821, 36291164891, 36291348415) | kết luận RW5 = `hook-spike.md` §3; script tự dọn notepad mới mở, giữ notepad sẵn có |
 | C12 | `vietime-tray.exe` & IPC Named Pipe server (`\\.\pipe\vietime-ipc-v1`) | ✓ binary 1.15MB, 9 mục menu, autostart registry HKCU (2026-09-27) | WIN-050, WIN-051, WIN-053 hoàn thiện, Single-instance Mutex `Local\VietIMETray` |
 | C13 | Inno Setup 6 script (`installer/windows/vietime-setup.iss`) & app manifest (`app.manifest`) | ✓ Verified 4 binary artifacts, per-user/all-users support, Rule S9 uninstall preserve (2026-09-27) | WIN-054, WIN-055 hoàn thiện |
+| C14 | Harness targets JSON 12 app: local `powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1`; CI `gh workflow run targets-verify.yml` | ✓ **12/12 OK, 0 MISS** local (2026-09-27); GHA run **36297278626** = 3/3 job xanh (`upgrade-cycle` + `cross-image` 2022/2025 + firefox) | `tools/appcomptest/targets/README.md` (F6-9…F6-13, schema `launch.profile`); check: `tools\win\check_targets.ps1` |
 
 ## D. Môi trường máy dev (snapshot 2026-09-27) — khỏi kiểm tra lại
 

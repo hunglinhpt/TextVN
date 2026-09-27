@@ -93,7 +93,7 @@ finding chưa-fix, path ref, task ID, §-ref, tên crate) + đối chiếu scaff
 - [x] `cargo test --workspace` → **58/58 pass** (core 30, strategy 9, ffi 6, config 5, cli 8); FFI size/offset test đúng 20/532 (P0-2 §6).
 - [x] `cargo clippy --workspace --all-targets` → 0 warning.
 - [x] fail-open/`catch_unwind`/config-sai-non-fatal đúng P0-2 §0/§5 (có test).
-- [ ] `cargo run -p vietime-cli -- sizes` **chưa implement** (P0-1 §3, P0-2 §6 — F2-003 đã định nghĩa) → giao lại agent cli (đang active), **không đụng** để tránh conflict.
+- [x] `cargo run -p vietime-cli -- sizes` **đã implement** (P0-1 §3, P0-2 §6 — F2-003 định nghĩa): verify `ime_key_v1=20` · `ime_result_v1=532`, in offset, hỗ trợ `--json`; lệch → exit 1. Kèm `config validate|default` + `doctor` (check ABI + config người dùng, không in nội dung config — S2).
 - [ ] `rust-toolchain.toml` để `channel = "stable"` chưa pin version (chính file có TODO(WIN-001)) — giữ theo TODO.
 
 **Kết luận:** docs đạt; scaffold accepted (chờ `sizes`). Mở development Windows (task `P1-6`) theo phân chia:

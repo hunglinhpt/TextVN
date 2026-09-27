@@ -121,9 +121,14 @@ cargo xtask cbindgen                                         # regenerate ffi/in
 cargo test --workspace                                        # unit + integration
 cargo run -p vietime-cli -- replay corpus/shared --adapter headless   # golden corpus
 cargo run -p vietime-cli -- sizes   # in + verify size struct FFI (20/532) — exit 1 nếu lệch (P0-2 §6)
+cargo run -p vietime-cli -- verify  # header C khớp code Rust? (hằng + trường struct) — exit 1 nếu lệch
 cargo run -p vietime-cli -- replay corpus/mac --adapter mac           # corpus macOS (P2-5)
+cargo run -p vietime-bench --release -- write perf/baseline-win.json # ghi baseline (P1-5 §5)
+cargo run -p vietime-bench --release -- check perf/baseline-win.json # hồi quy >10% → exit 1
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
+cargo run -p xtask -- check-tables   # data/tables/*.toml ↔ core/*_generated.rs (gate drift)
+cargo run -p xtask -- gen-tables     # sửa data/tables/*.toml rồi sinh lại (KHÔNG sửa tay file GENERATED)
 cargo deny check
 reuse lint                                                    # SPDX
 
