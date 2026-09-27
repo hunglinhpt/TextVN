@@ -29,6 +29,12 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
+/// Kích thước cơ sở Bảng điều khiển @96 DPI (pixel thật vì manifest là
+/// PerMonitorV2): bề rộng gấp đôi bản 450x410 cũ, chiều cao thêm ~1/3.
+/// Toàn bộ tọa độ layout tính trên cơ sở này rồi nhân DPI-scale lúc tạo.
+const DIALOG_BASE_WIDTH: i32 = 900;
+const DIALOG_BASE_HEIGHT: i32 = 550;
+
 // Control IDs
 const ID_COMBO_CHARSET: isize = 2001;
 const ID_COMBO_METHOD: isize = 2002;
@@ -105,6 +111,51 @@ fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
 
+/// DPI hiện tại (pixel/inch). Manifest PerMonitorV2 nên LOGPIXELSX trả DPI
+/// thật; fallback 96 nếu không lấy được DC.
+#[cfg(windows)]
+fn system_dpi() -> i32 {
+    unsafe {
+        let hdc = GetDC(None);
+        if hdc.is_invalid() {
+            return 96;
+        }
+        let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX);
+        let _ = ReleaseDC(None, hdc);
+        if dpi <= 0 {
+            96
+        } else {
+            dpi
+        }
+    }
+}
+
+/// Tọa độ (x, y) để cửa sổ `width`x`height` nằm giữa vùng làm việc của
+/// màn hình chính (tránh thanh tác vụ). Lấy work area qua
+/// SystemParametersInfoW(SPI_GETWORKAREA), fallback về tâm màn hình chính.
+#[cfg(windows)]
+fn center_on_work_area(width: i32, height: i32) -> (i32, i32) {
+    let mut wa: RECT = unsafe { std::mem::zeroed() };
+    let ok = unsafe {
+        SystemParametersInfoW(
+            SPI_GETWORKAREA,
+            0,
+            Some(&mut wa as *mut RECT as *mut std::ffi::c_void),
+            SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS(0),
+        )
+    };
+    let (cx, cy) = match ok {
+        Ok(()) => ((wa.left + wa.right) / 2, (wa.top + wa.bottom) / 2),
+        Err(_) => unsafe {
+            (
+                GetSystemMetrics(SM_CXSCREEN) / 2,
+                GetSystemMetrics(SM_CYSCREEN) / 2,
+            )
+        },
+    };
+    (cx - width / 2, cy - height / 2)
+}
+
 #[cfg(windows)]
 fn create_and_show_window() {
     let class_name = w(SETTINGS_CLASS_NAME);
@@ -122,15 +173,15 @@ fn create_and_show_window() {
 
     let _ = unsafe { RegisterClassW(&wc) };
 
-    // Bố cục điều khiển gọn, theo mô hình compact của các bộ gõ Windows.
-    let width = 450;
-    let height = 410;
+    // Kích thước theo DPI: 900x550 @96 DPI nhân hệ số DPI hệ thống
+    // (PerMonitorV2 -> tọa độ pixel thật, Windows không scale hộ).
+    let dpi = system_dpi();
+    let scale = dpi as f64 / 96.0;
+    let width = ((DIALOG_BASE_WIDTH as f64) * scale).round() as i32;
+    let height = ((DIALOG_BASE_HEIGHT as f64) * scale).round() as i32;
 
-    // Canh giữa màn hình
-    let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
-    let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
+    // Canh giữa vùng làm việc (không bị thanh tác vụ che)
+    let (x, y) = center_on_work_area(width, height);
 
     let hwnd = match unsafe {
         CreateWindowExW(
@@ -157,7 +208,7 @@ fn create_and_show_window() {
 
     SETTINGS_HWND.store(hwnd.0 as isize, Ordering::Release);
 
-    create_dialog_controls(hwnd, h_instance.into());
+    create_dialog_controls(hwnd, h_instance.into(), dpi);
     populate_controls_from_config(hwnd);
 
     unsafe {
@@ -201,19 +252,65 @@ fn create_control(
     }
 }
 
+/// Font GUI 9pt theo DPI hiện tại. Stock DEFAULT_GUI_FONT luôn là 9pt@96dpi
+/// nên với PerMonitorV2 (DPI > 96) chữ sẽ nhỏ hơn tương đối - cần tạo font
+/// theo DPI. Font sống trong static để xóa khi dialog destroy (tránh leak
+/// GDI handle); nếu tạo thất bại thì dùng lại stock font.
 #[cfg(windows)]
-fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
-    let default_font = unsafe { GetStockObject(DEFAULT_GUI_FONT) };
+static UI_FONT: AtomicIsize = AtomicIsize::new(0);
 
-    // 1. Nhóm Điều khiển
+#[cfg(windows)]
+fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
+    let new_font = unsafe {
+        let stock = GetStockObject(DEFAULT_GUI_FONT);
+        let mut lf: LOGFONTW = std::mem::zeroed();
+        let got = GetObjectW(
+            stock,
+            std::mem::size_of::<LOGFONTW>() as i32,
+            Some(&mut lf as *mut LOGFONTW as *mut std::ffi::c_void),
+        );
+        if got == 0 {
+            stock
+        } else {
+            lf.lfHeight = -(9 * dpi / 72); // 9pt tại DPI hiện tại
+            let f = CreateFontIndirectW(&lf);
+            if f.is_invalid() {
+                stock
+            } else {
+                HGDIOBJ(f.0)
+            }
+        }
+    };
+    if new_font.is_invalid() {
+        return unsafe { GetStockObject(DEFAULT_GUI_FONT) };
+    }
+    // Đóng font cũ (nếu có) để không rò rỉ handle giữa các lần mở dialog.
+    let old = UI_FONT.swap(new_font.0 as isize, Ordering::AcqRel);
+    if old != 0 && old != new_font.0 as isize {
+        unsafe {
+            let _ = DeleteObject(HGDIOBJ(old as *mut std::ffi::c_void));
+        }
+    }
+    new_font
+}
+
+#[cfg(windows)]
+fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
+    let scale = dpi as f64 / 96.0;
+    // Scale tọa độ/size từ bố cục cơ sở 900x550 @96 DPI sang DPI hiện tại.
+    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+
+    let default_font = scaled_gui_font(dpi);
+
+    // 1. Nhóm Điều khiển: 2 cột song song (Bảng mã | Kiểu gõ), tận dụng bề rộng 900
     let gb1 = create_control(
         "BUTTON",
         "Điều khiển",
         BS_GROUPBOX,
-        15,
-        10,
-        405,
-        95,
+        k(15),
+        k(12),
+        k(870),
+        k(95),
         parent,
         0,
         h_instance,
@@ -222,10 +319,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "STATIC",
         "Bảng mã:",
         0,
-        30,
-        35,
-        75,
-        20,
+        k(32),
+        k(49),
+        k(85),
+        k(20),
         parent,
         0,
         h_instance,
@@ -234,10 +331,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "COMBOBOX",
         "",
         CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
-        110,
-        32,
-        290,
-        150,
+        k(122),
+        k(46),
+        k(300),
+        k(200),
         parent,
         ID_COMBO_CHARSET,
         h_instance,
@@ -246,10 +343,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "STATIC",
         "Kiểu gõ:",
         0,
-        30,
-        68,
-        75,
-        20,
+        k(470),
+        k(49),
+        k(85),
+        k(20),
         parent,
         0,
         h_instance,
@@ -258,24 +355,24 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "COMBOBOX",
         "",
         CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
-        110,
-        65,
-        290,
-        150,
+        k(560),
+        k(46),
+        k(300),
+        k(200),
         parent,
         ID_COMBO_METHOD,
         h_instance,
     );
 
-    // 2. Nhóm Tùy chọn gõ
+    // 2. Nhóm Tùy chọn gõ: 4 checkbox cột trái, radio + phím tắt cột phải
     let gb2 = create_control(
         "BUTTON",
         "Tùy chọn gõ",
         BS_GROUPBOX,
-        15,
-        115,
-        405,
-        140,
+        k(15),
+        k(122),
+        k(870),
+        k(240),
         parent,
         0,
         h_instance,
@@ -284,10 +381,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Khôi phục từ tiếng Anh khi gõ sai",
         BS_AUTOCHECKBOX | WS_TABSTOP.0,
-        30,
-        138,
-        230,
-        20,
+        k(32),
+        k(158),
+        k(420),
+        k(22),
         parent,
         ID_CHK_AUTO_RESTORE,
         h_instance,
@@ -296,10 +393,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Đặt dấu tự do",
         BS_AUTOCHECKBOX | WS_TABSTOP.0,
-        30,
-        163,
-        230,
-        20,
+        k(32),
+        k(205),
+        k(420),
+        k(22),
         parent,
         ID_CHK_FREE_MARKING,
         h_instance,
@@ -308,10 +405,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Khởi động cùng Windows",
         BS_AUTOCHECKBOX | WS_TABSTOP.0,
-        30,
-        188,
-        230,
-        20,
+        k(32),
+        k(252),
+        k(420),
+        k(22),
         parent,
         ID_CHK_AUTOSTART,
         h_instance,
@@ -320,10 +417,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Bật gõ tiếng Việt",
         BS_AUTOCHECKBOX | WS_TABSTOP.0,
-        30,
-        213,
-        230,
-        20,
+        k(32),
+        k(299),
+        k(420),
+        k(22),
         parent,
         ID_CHK_GLOBAL_ENABLED,
         h_instance,
@@ -333,10 +430,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Dấu mới (hoà, thuỷ)",
         BS_AUTORADIOBUTTON | WS_TABSTOP.0,
-        270,
-        142,
-        140,
-        20,
+        k(510),
+        k(163),
+        k(350),
+        k(22),
         parent,
         ID_RAD_DIACRITIC_NEW,
         h_instance,
@@ -345,10 +442,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Dấu cũ (hòa, thủy)",
         BS_AUTORADIOBUTTON,
-        270,
-        168,
-        140,
-        20,
+        k(510),
+        k(210),
+        k(350),
+        k(22),
         parent,
         ID_RAD_DIACRITIC_OLD,
         h_instance,
@@ -358,10 +455,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "STATIC",
         "Phím chuyển:",
         0,
-        270,
-        196,
-        140,
-        18,
+        k(510),
+        k(262),
+        k(350),
+        k(20),
         parent,
         0,
         h_instance,
@@ -370,24 +467,25 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "STATIC",
         "[ Ctrl + Shift ]",
         0,
-        270,
-        214,
-        140,
-        20,
+        k(510),
+        k(286),
+        k(350),
+        k(22),
         parent,
         0,
         h_instance,
     );
 
-    // 3. Nút hành động. Đặt rõ tại chân cửa sổ để không phải tìm trong menu tray.
+    // 3. Nút hành động. Hàng chân cửa sổ: nhóm thông tin (trái),
+    //    nhóm thao tác (phải) - không phải tìm trong menu tray.
     let btn_help = create_control(
         "BUTTON",
         "Hướng dẫn",
         BS_PUSHBUTTON | WS_TABSTOP.0,
-        20,
-        320,
-        90,
-        30,
+        k(25),
+        k(470),
+        k(130),
+        k(40),
         parent,
         ID_BTN_HELP,
         h_instance,
@@ -396,10 +494,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Thông tin",
         BS_PUSHBUTTON | WS_TABSTOP.0,
-        120,
-        320,
-        90,
-        30,
+        k(165),
+        k(470),
+        k(130),
+        k(40),
         parent,
         ID_BTN_ABOUT,
         h_instance,
@@ -409,10 +507,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Đóng",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        135,
-        275,
-        85,
-        30,
+        k(655),
+        k(470),
+        k(115),
+        k(40),
         parent,
         ID_BTN_CLOSE,
         h_instance,
@@ -421,10 +519,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Mặc định",
         BS_PUSHBUTTON | WS_TABSTOP.0,
-        230,
-        275,
-        85,
-        30,
+        k(530),
+        k(470),
+        k(115),
+        k(40),
         parent,
         ID_BTN_DEFAULT,
         h_instance,
@@ -433,10 +531,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         "BUTTON",
         "Kết thúc",
         BS_PUSHBUTTON | WS_TABSTOP.0,
-        325,
-        275,
-        85,
-        30,
+        k(775),
+        k(470),
+        k(110),
+        k(40),
         parent,
         ID_BTN_EXIT,
         h_instance,
@@ -699,6 +797,14 @@ unsafe extern "system" fn dialog_wnd_proc(
         }
         WM_DESTROY => {
             SETTINGS_HWND.store(0, Ordering::Release);
+            // Controls con đã bị hủy trước khi parent nhận WM_DESTROY
+            // nên font không còn được tham chiếu - an toàn để xóa.
+            let font = UI_FONT.swap(0, Ordering::AcqRel);
+            if font != 0 {
+                unsafe {
+                    let _ = DeleteObject(HGDIOBJ(font as *mut std::ffi::c_void));
+                }
+            }
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),

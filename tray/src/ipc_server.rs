@@ -7,7 +7,7 @@
 
 use std::io::{Read, Write};
 #[cfg(windows)]
-use std::os::windows::io::FromRawHandle;
+use std::os::windows::io::{AsRawHandle, FromRawHandle};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 #[cfg(windows)]
@@ -28,6 +28,99 @@ use windows::Win32::Storage::FileSystem::*;
 use windows::Win32::System::Pipes::*;
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
+
+/// Ghi frame tới toàn bộ subscriber đang Subscribe. Xóa subscriber ghi lỗi
+/// (client chết / pipe vỡ) khỏi danh sách.
+///
+/// **Bẫy deadlock đã repro (2026-09):** một `ReadFile` sync đang pending trên
+/// kernel file object của pipe sẽ serialize chặn mọi `WriteFile` trên handle
+/// dup (`try_clone`) cùng object — kể cả khi buffer rỗng và client đang chờ
+/// đọc. Nên handler KHÔNG BAO GIỜ được block trong `read_message` khi còn
+/// subscriber cần broadcast: đọc phải được gate bằng `PeekNamedPipe`
+/// (xem `try_read_pipe_frame`).
+fn write_frame_to_subscribers(subscribers: Arc<Mutex<Vec<ClientSink>>>, frame: Vec<u8>) {
+    let Ok(mut subs) = subscribers.lock() else {
+        return;
+    };
+    subs.retain_mut(|client| {
+        let Ok(mut stream) = client.stream.lock() else {
+            return false;
+        };
+        stream.write_all(&frame).is_ok() && stream.flush().is_ok()
+    });
+}
+
+/// Trạng thái đọc một khung từ pipe **không bao giờ block vô hạn**.
+enum PipeFrame {
+    /// Chưa đủ byte — ngủ poll rồi thử lại.
+    Empty,
+    Frame(Message),
+    /// Pipe vỡ / dữ liệu hỏng framing.
+    Eof,
+}
+
+/// Số byte đang buffer trong pipe, hoặc `None` nếu pipe đã vỡ.
+fn peek_available(reader: &std::fs::File) -> Option<u32> {
+    let mut total = 0u32;
+    let ok = unsafe {
+        PeekNamedPipe(
+            HANDLE(reader.as_raw_handle()),
+            None,
+            0,
+            None,
+            Some(&mut total),
+            None,
+        )
+    };
+    ok.ok().map(|_| total)
+}
+
+/// Đọc một khung IPC theo kiểu poll: chỉ gọi `ReadFile` khi `PeekNamedPipe`
+/// xác nhận đủ byte, nên handler không bao giờ giữ read-pending trên pipe —
+/// nhờ đó thread broadcast ghi được song song (xem `write_frame_to_subscribers`).
+fn try_read_pipe_frame(reader: &std::fs::File, running: &AtomicBool) -> PipeFrame {
+    let Some(avail) = peek_available(reader) else {
+        return PipeFrame::Eof;
+    };
+    if avail < 4 {
+        return PipeFrame::Empty;
+    }
+
+    // 4 byte length đã có sẵn → read_exact trả về ngay, không pending.
+    let mut conn = reader;
+    let mut len_buf = [0u8; 4];
+    if conn.read_exact(&mut len_buf).is_err() {
+        return PipeFrame::Eof;
+    }
+    let length = u32::from_le_bytes(len_buf) as usize;
+    if length == 0 || length > MAX_FRAME_BYTES {
+        return PipeFrame::Eof;
+    }
+
+    // Payload chưa đủ: poll tiếp mà KHÔNG giữ read pending.
+    loop {
+        if !running.load(Ordering::Acquire) {
+            return PipeFrame::Eof;
+        }
+        let Some(avail) = peek_available(reader) else {
+            return PipeFrame::Eof;
+        };
+        if avail as usize >= length {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+
+    let mut frame = vec![0u8; 4 + length];
+    frame[..4].copy_from_slice(&len_buf);
+    if conn.read_exact(&mut frame[4..]).is_err() {
+        return PipeFrame::Eof;
+    }
+    match decode_exact_frame(&frame) {
+        Ok(m) => PipeFrame::Frame(m),
+        Err(_) => PipeFrame::Eof,
+    }
+}
 
 /// Kênh gửi message broadcast tới một client đã Subscribe.
 struct ClientSink {
@@ -79,16 +172,12 @@ impl IpcServer {
     }
 
     pub fn stop(&self) {
-        if self.running.swap(false, Ordering::SeqCst) {
-            #[cfg(windows)]
-            {
-                // Unblock ConnectNamedPipe bằng kết nối dummy cục bộ (WIN-051)
-                let _ = std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(PIPE_NAME);
-            }
-        }
+        // Do not open a synchronous "dummy" pipe connection here. `CreateFile`
+        // can wait indefinitely when no instance is currently available, which
+        // used to deadlock tray shutdown before it could release the singleton
+        // mutex. The server thread observes this flag; process teardown closes
+        // its pending pipe handle without blocking the UI thread.
+        self.running.store(false, Ordering::SeqCst);
     }
 
     /// Broadcast thông báo cấu hình thay đổi tới toàn bộ client đang Subscribe (P0-3 §4).
@@ -108,20 +197,36 @@ impl IpcServer {
     }
 
     /// Broadcast thông báo tắt ứng dụng tới toàn bộ client (Hook, TSF).
+    ///
+    /// Khác với các broadcast thường, lần này đợi worker ghi xong frame (tối đa
+    /// 200ms) trước khi trả về: ngay sau đó process sẽ thoát, mà thread vừa
+    /// spawn nếu bị kill trước khi kịp flush thì Hook không bao giờ nhận được
+    /// Shutdown và thành mồ côi tới tận heartbeat timeout.
     pub fn broadcast_shutdown(&self) {
         let msg = Message::Shutdown;
-        self.broadcast_message(&msg);
+        let Ok(frame) = encode_frame(&msg) else {
+            return;
+        };
+        let subscribers = self.subscribers.clone();
+        let worker = std::thread::spawn(move || {
+            write_frame_to_subscribers(subscribers, frame);
+        });
+        let deadline = Instant::now() + Duration::from_millis(200);
+        while !worker.is_finished() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        // Worker kẹt (client chết chiếm pipe buffer) thì detach — đã chờ đủ.
     }
 
     fn broadcast_message(&self, msg: &Message) {
         let Ok(frame) = encode_frame(msg) else { return };
-        let mut subs = self.subscribers.lock().unwrap();
-        subs.retain_mut(|client| {
-            if let Ok(mut stream) = client.stream.lock() {
-                stream.write_all(&frame).is_ok() && stream.flush().is_ok()
-            } else {
-                false
-            }
+        let subscribers = self.subscribers.clone();
+
+        // Named-pipe writes are synchronous and a subscriber can stop consuming
+        // at any point.  Never perform one on the tray window thread: doing so
+        // would turn a stale Hook/TSF client into a frozen Exit/Settings UI.
+        std::thread::spawn(move || {
+            write_frame_to_subscribers(subscribers, frame);
         });
     }
 
@@ -179,15 +284,22 @@ impl IpcServer {
                     let _ = unsafe { CloseHandle(handle) };
                     continue;
                 };
-                let file = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
-                let stream = Arc::new(Mutex::new(file));
+                let reader = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
+                // Một client đọc thường chờ vô hạn trong `read_exact`. Writer phải
+                // là handle riêng để broadcast Shutdown/StateUpdate không bị giữ
+                // mutex bởi reader và làm treo UI thread lúc thoát ứng dụng.
+                let writer = match reader.try_clone() {
+                    Ok(file) => file,
+                    Err(_) => continue,
+                };
+                let stream = Arc::new(Mutex::new(writer));
 
                 self.active_clients.fetch_add(1, Ordering::SeqCst);
                 let this = self.clone();
                 let stream_clone = stream.clone();
 
                 std::thread::spawn(move || {
-                    this.handle_client_connection(stream_clone, peer_pid);
+                    this.handle_client_connection(reader, stream_clone, peer_pid);
                     this.active_clients.fetch_sub(1, Ordering::SeqCst);
                 });
             } else {
@@ -196,7 +308,12 @@ impl IpcServer {
         }
     }
 
-    fn handle_client_connection(&self, stream: Arc<Mutex<std::fs::File>>, peer_pid: u32) {
+    fn handle_client_connection(
+        &self,
+        reader: std::fs::File,
+        stream: Arc<Mutex<std::fs::File>>,
+        peer_pid: u32,
+    ) {
         let mut subscribed = false;
 
         loop {
@@ -204,15 +321,15 @@ impl IpcServer {
                 break;
             }
 
-            let msg = {
-                let mut file = match stream.lock() {
-                    Ok(f) => f,
-                    Err(_) => break,
-                };
-                match read_message(&mut *file) {
-                    Ok(m) => m,
-                    Err(_) => break,
+            // Đọc poll-gated: không bao giờ block vô hạn với read-pending trên
+            // pipe (read-pending serialize chặn broadcast write → hook mồ côi).
+            let msg = match try_read_pipe_frame(&reader, &self.running) {
+                PipeFrame::Empty => {
+                    std::thread::sleep(Duration::from_millis(10));
+                    continue;
                 }
+                PipeFrame::Eof => break,
+                PipeFrame::Frame(m) => m,
             };
 
             // PID trong wire protocol chỉ để chẩn đoán. Không bao giờ tin giá trị
@@ -265,6 +382,10 @@ impl IpcServer {
                     self.crash_counter.fetch_add(1, Ordering::Relaxed);
                     Some(Message::Ack)
                 }
+                Message::Shutdown => {
+                    crate::notify_tray_exit_requested();
+                    Some(Message::Ack)
+                }
                 _ => None,
             };
 
@@ -315,6 +436,7 @@ fn connected_client_pid(pipe: HANDLE) -> Option<u32> {
         .and((pid != 0).then_some(pid))
 }
 
+#[cfg(test)]
 fn read_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
     let mut len_buf = [0u8; 4];
     reader.read_exact(&mut len_buf)?;
@@ -338,6 +460,8 @@ fn read_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn bdbg(_s: &str) {}
 
     #[test]
     fn server_builds_valid_snapshot() {
@@ -414,6 +538,217 @@ mod tests {
         server.stop();
         assert!(!server.is_running());
 
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// DEBUG ONLY (temporary): xác nhận giả thuyết write trên dup handle bị
+    /// chặn bởi ReadFile pending trên cùng kernel file object.
+    #[test]
+    #[ignore]
+    #[cfg(windows)]
+    fn debug_dup_write_while_read_pending() {
+        use std::io::{Read, Write as _};
+
+        bdbg("=== minimal repro start ===");
+
+        let server = std::thread::spawn(|| {
+            let name: Vec<u16> = r"\\.\pipe\textvn_minrepro"
+                .encode_utf16()
+                .chain(Some(0))
+                .collect();
+            let handle = unsafe {
+                CreateNamedPipeW(
+                    PCWSTR(name.as_ptr()),
+                    PIPE_ACCESS_DUPLEX,
+                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                    1,
+                    65536,
+                    65536,
+                    0,
+                    None,
+                )
+            };
+            assert!(!handle.is_invalid(), "create pipe");
+            let connected = unsafe { ConnectNamedPipe(handle, None) };
+            assert!(connected.is_ok() || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED);
+            let mut reader = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
+            let writer = reader.try_clone().unwrap();
+            bdbg("min: server connected");
+
+            let mut b = [0u8; 5];
+            let mut r1 = reader.try_clone().unwrap();
+            r1.read_exact(&mut b).unwrap();
+            bdbg("min: server read PING1");
+
+            // Write ACK truoc khi co read pending (nhu handler that)
+            let mut w1 = writer.try_clone().unwrap();
+            w1.write_all(b"ACK!!").unwrap();
+            w1.flush().ok();
+            bdbg("min: ACK written (no pending read)");
+
+            // Thread W: viet BROADCAST tren dup handle
+            let wthread = std::thread::spawn(move || {
+                let mut w = writer;
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                bdbg("min: wthread writing BROADCAST");
+                let r = w.write_all(b"BROADCAST-FRAME-01234567890123456789012345");
+                bdbg(&format!(
+                    "min: wthread write done ok={} err={:?}",
+                    r.is_ok(),
+                    r.as_ref().err()
+                ));
+            });
+
+            // Handler emulation: read pending NGAY trong khi wthread write
+            bdbg("min: server starting PENDING read");
+            let mut b2 = [0u8; 5];
+            let r = reader.read(&mut b2);
+            bdbg(&format!(
+                "min: pending read returned ok={:?} err={:?}",
+                r.as_ref().ok().copied(),
+                r.as_ref().err()
+            ));
+            wthread.join().unwrap();
+            bdbg("min: server thread done");
+        });
+
+        // CLIENT (retry cho den khi server tao instance)
+        let mut c = None;
+        for _ in 0..40 {
+            if let Ok(f) = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(r"\\.\pipe\textvn_minrepro")
+            {
+                c = Some(f);
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let mut c = c.expect("client open");
+        c.write_all(b"PING1").unwrap();
+        c.flush().ok();
+        bdbg("min: client sent PING1");
+        let mut ack = [0u8; 5];
+        c.read_exact(&mut ack).unwrap();
+        bdbg(&format!(
+            "min: client got {}",
+            String::from_utf8_lossy(&ack)
+        ));
+
+        // Reader thread ghi nhan broadcast qua channel (co timeout)
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut cread = c.try_clone().unwrap();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 64];
+            loop {
+                match cread.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        if tx.send(buf[..n].to_vec()).is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        // Ngu1s: trong do wthread co write (tu 200ms) + server co read pending
+        let before = rx.recv_timeout(std::time::Duration::from_millis(1000));
+        bdbg(&format!(
+            "min: broadcast BEFORE PING2? {:?}",
+            before
+                .as_ref()
+                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .map_err(|e| format!("{e}"))
+        ));
+
+        c.write_all(b"PING2").unwrap();
+        c.flush().ok();
+        bdbg("min: client sent PING2 (unblocks server pending read)");
+
+        let mut got = Vec::new();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(3000);
+        while std::time::Instant::now() < deadline {
+            match rx.recv_timeout(std::time::Duration::from_millis(500)) {
+                Ok(v) => got.extend_from_slice(&v),
+                Err(_) => {
+                    if !got.is_empty() {
+                        break;
+                    }
+                }
+            }
+        }
+        bdbg(&format!(
+            "min: client total after PING2: {:?}",
+            String::from_utf8_lossy(&got)
+        ));
+
+        server.join().unwrap();
+        bdbg("=== minimal repro end ===");
+    }
+
+    /// Broadcast phải thực sự tới được subscriber qua named pipe.
+    /// Regression: WIP shutdown từng gửi Ack nhưng frame broadcast không tới
+    /// client khiến hook mồ côi sau khi tray thoát.
+    #[test]
+    #[cfg(windows)]
+    fn broadcast_reaches_subscriber() {
+        use std::io::Write as _;
+
+        let temp_dir =
+            std::env::temp_dir().join(format!("textvn_bcast_test_{}", std::process::id()));
+        let svc = SvcManager::new(Some(temp_dir.clone()));
+        let server = IpcServer::new(svc);
+        server.start();
+        std::thread::sleep(Duration::from_millis(100));
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let client = std::thread::spawn(move || {
+            let mut file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(PIPE_NAME)
+                .expect("client pipe open");
+            let pid = std::process::id();
+            let sub = encode_frame(&Message::Subscribe { pid }).unwrap();
+            file.write_all(&sub).unwrap();
+            file.flush().unwrap();
+
+            let ack = read_message(&mut file).expect("ack frame");
+            bdbg("client got ack");
+            tx.send(ack).unwrap();
+            bdbg("client waiting broadcast");
+            let update = read_message(&mut file).expect("broadcast frame");
+            bdbg("client got broadcast");
+            tx.send(update).unwrap();
+        });
+
+        let ack = rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("Ack within 3s");
+        assert_eq!(ack, Message::Ack);
+
+        server.broadcast_state_update("*", false, 2);
+        let update = rx
+            .recv_timeout(Duration::from_secs(3))
+            .expect("StateUpdate broadcast within 3s");
+        match update {
+            Message::StateUpdate {
+                app_id,
+                enabled,
+                version,
+            } => {
+                assert_eq!(app_id, "*");
+                assert!(!enabled);
+                assert_eq!(version, 2);
+            }
+            other => panic!("expected StateUpdate, got {other:?}"),
+        }
+
+        client.join().unwrap();
+        server.stop();
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }

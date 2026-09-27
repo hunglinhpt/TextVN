@@ -411,6 +411,14 @@ unsafe extern "system" fn wnd_proc(
             }
             LRESULT(0)
         }
+        textvn_tray::WM_REQUEST_EXIT => {
+            if let Some(app) = APP_INSTANCE.get() {
+                app.ipc.broadcast_shutdown();
+            }
+            RUNNING.store(false, Ordering::Release);
+            PostQuitMessage(0);
+            LRESULT(0)
+        }
         WM_COMMAND => {
             let cmd_id = (wparam.0 & 0xffff) as u32;
             if cmd_id == ID_EXIT {
@@ -498,9 +506,40 @@ fn stop_running_instance() {
         let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
         if let Ok(h) = hwnd {
             if !h.0.is_null() {
-                println!("Found TextVN window. Sending exit command...");
+                println!("Found TextVN window. Requesting a graceful close...");
+                // The named-pipe request is the primary control path. It enters
+                // the app's own IPC worker, then requests exit on the tray thread.
+                if let Ok(mut stream) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(PIPE_NAME)
+                {
+                    if let Ok(frame) = textvn_ipc::encode_frame(&textvn_ipc::Message::Shutdown) {
+                        let _ = stream.write_all(&frame);
+                        let _ = stream.flush();
+                    }
+                }
+                let mut window_pid = 0u32;
+                // GetWindowThreadProcessId trả thread ID qua return value; tham số
+                // out là PID. Trộn hai giá trị này gửi WM_QUIT vào PID thay vì
+                // queue UI, khiến `--stop` luôn phải rơi xuống TerminateProcess.
+                let thread_id = unsafe { GetWindowThreadProcessId(h, Some(&mut window_pid)) };
+                if thread_id == 0 {
+                    println!("TextVN window owner thread could not be resolved.");
+                    return;
+                }
                 unsafe {
-                    let _ = PostMessageW(Some(h), WM_COMMAND, WPARAM(ID_EXIT as usize), LPARAM(0));
+                    // Đây là command-line control path, không phải thao tác UI:
+                    // đặt WM_QUIT trực tiếp vào queue của owner thread để message
+                    // loop rời đi và chạy cleanup nội bộ. Message-only windows
+                    // không được desktop routing xử lý đáng tin cậy qua WM_CLOSE.
+                    if let Err(error) = PostThreadMessageW(thread_id, WM_QUIT, WPARAM(0), LPARAM(0))
+                    {
+                        println!(
+                            "WM_QUIT could not be queued for tray thread {thread_id}: {error}"
+                        );
+                        return;
+                    }
                 }
 
                 // Chờ tối đa 3 giây xem tiến trình đã giải phóng mutex chưa
@@ -518,7 +557,24 @@ fn stop_running_instance() {
                         }
                     }
                 }
-                println!("TextVN signalled, but process did not exit within 3s.");
+                // `--stop` là lệnh quản trị tường minh. Nếu UI thread bị treo,
+                // không để tray/hook bị orphan vô hạn: terminate đúng PID sở hữu
+                // cửa sổ TextVN đã định danh ở trên.
+                if window_pid != 0 {
+                    if let Ok(process) =
+                        unsafe { OpenProcess(PROCESS_TERMINATE, false, window_pid) }
+                    {
+                        let terminated = unsafe { TerminateProcess(process, 0) }.is_ok();
+                        let _ = unsafe { CloseHandle(process) };
+                        if terminated {
+                            println!(
+                                "TextVN did not close gracefully; terminated PID {window_pid}."
+                            );
+                            return;
+                        }
+                    }
+                }
+                println!("TextVN could not be stopped within 3s.");
                 return;
             }
         }

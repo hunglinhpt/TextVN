@@ -51,12 +51,6 @@ mod hook_app {
             if p.exists() {
                 return std::fs::read_to_string(p).ok();
             }
-            let old_p = std::path::PathBuf::from(&appdata)
-                .join("TextVN")
-                .join("config.json");
-            if old_p.exists() {
-                return std::fs::read_to_string(old_p).ok();
-            }
         }
         None
     }
@@ -65,15 +59,15 @@ mod hook_app {
         std::thread::spawn(|| {
             use std::io::Write;
             use textvn_ipc::{encode_frame, Message};
-            let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\textvn-ipc-v1"];
-            for &p in &pipe_names {
-                if let Ok(mut stream) = std::fs::OpenOptions::new().read(true).write(true).open(p) {
-                    let msg = Message::ToggleGlobal;
-                    if let Ok(frame) = encode_frame(&msg) {
-                        let _ = stream.write_all(&frame);
-                        let _ = stream.flush();
-                    }
-                    break;
+            if let Ok(mut stream) = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(r"\\.\pipe\textvn-ipc-v1")
+            {
+                let msg = Message::ToggleGlobal;
+                if let Ok(frame) = encode_frame(&msg) {
+                    let _ = stream.write_all(&frame);
+                    let _ = stream.flush();
                 }
             }
         });
@@ -531,16 +525,13 @@ mod hook_app {
     /// Vòng lặp IPC Heartbeat: kết nối pipe tới Tray, nhận Snapshot, StateUpdate, ConfigReload, Shutdown (WIN-040).
     fn run_ipc_heartbeat_loop(running: Arc<AtomicBool>) {
         let pid = std::process::id();
-        let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\textvn-ipc-v1"];
-
+        let mut last_tray_contact = Instant::now();
         while running.load(Ordering::Acquire) {
-            let mut stream_opt = None;
-            for name in &pipe_names {
-                if let Ok(s) = OpenOptions::new().read(true).write(true).open(name) {
-                    stream_opt = Some(s);
-                    break;
-                }
-            }
+            let stream_opt = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(r"\\.\pipe\textvn-ipc-v1")
+                .ok();
 
             match stream_opt {
                 Some(mut stream) => {
@@ -553,6 +544,7 @@ mod hook_app {
                         std::thread::sleep(Duration::from_millis(500));
                         continue;
                     }
+                    last_tray_contact = Instant::now();
 
                     let sub = Message::Subscribe { pid };
                     if send_message(&mut stream, &sub).is_err() {
@@ -567,6 +559,7 @@ mod hook_app {
                                     RELOAD_CONFIG_PENDING.store(true, Ordering::Release);
                                 }
                                 Message::Snapshot { ref state, .. } => {
+                                    last_tray_contact = Instant::now();
                                     if let Some(&enabled) = state.get("*") {
                                         GLOBAL_ENABLED.store(enabled, Ordering::Release);
                                     }
@@ -577,6 +570,7 @@ mod hook_app {
                                     enabled,
                                     ..
                                 } => {
+                                    last_tray_contact = Instant::now();
                                     if app_id == "*" {
                                         GLOBAL_ENABLED.store(enabled, Ordering::Release);
                                     }
@@ -610,6 +604,17 @@ mod hook_app {
                     }
                 }
                 None => {
+                    if last_tray_contact.elapsed() >= Duration::from_secs(30) {
+                        // Không giữ low-level hook mồ côi sau khi tray đã dừng.
+                        running.store(false, Ordering::Release);
+                        let tid = HOOK_MAIN_THREAD_ID.load(Ordering::Acquire);
+                        if tid != 0 {
+                            unsafe {
+                                let _ = PostThreadMessageW(tid, WM_QUIT, WPARAM(0), LPARAM(0));
+                            }
+                        }
+                        return;
+                    }
                     // Pipe chưa sẵn sàng, ngủ một lát rồi thử lại
                     for _ in 0..10 {
                         if !running.load(Ordering::Acquire) {

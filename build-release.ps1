@@ -6,11 +6,14 @@
 #   powershell -File build-release.ps1 -SkipTests
 #   powershell -File build-release.ps1 -BuildInstaller
 #   powershell -File build-release.ps1 -Version "0.1.0"
+#   powershell -File build-release.ps1 -Channel candidate
 
 param(
     [switch]$SkipTests,
     [switch]$BuildInstaller,
-    [string]$Version = ""
+    [string]$Version = "",
+    [ValidateSet("candidate", "production")]
+    [string]$Channel = "candidate"
 )
 
 Set-StrictMode -Version Latest
@@ -35,6 +38,22 @@ Write-Step "TextVN Release Build v$Version"
 $Target = "x86_64-pc-windows-msvc"
 $ReleaseDir = "target\$Target\release"
 $DistDir = "dist"
+$BuildStartedUtc = (Get-Date).ToUniversalTime().ToString("o")
+$BuildId = (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmmss")
+$GitCommit = (git rev-parse HEAD 2>$null)
+if ($LASTEXITCODE -ne 0) { $GitCommit = "unknown" }
+$GitDirtyOutput = (git status --porcelain 2>$null)
+$GitTreeClean = ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace(($GitDirtyOutput -join "`n")))
+
+# Những hạng mục này phải được chứng minh trên máy Windows thật trước khi
+# artifact có thể được gọi là production. Unit/corpus test không thay thế UIA,
+# TSF composition, DACL pipe hay ký phát hành.
+$ProductionBlockers = @(
+    "Native UI Automation is not integrated in the TSF/Hook runtime",
+    "TSF composition lifecycle is not verified end-to-end",
+    "Named-pipe DACL and release signing are not production-verified"
+)
+$ReleaseChecks = [ordered]@{}
 
 # Kiem tra rust target
 Write-Step "Check Rust target $Target"
@@ -46,12 +65,33 @@ if ($installedTargets -notcontains $Target) {
 }
 Write-Ok "Target $Target OK"
 
-# Chay tests
+# Release gate: mọi build đều chạy các kiểm tra tĩnh, ABI và corpus. `-SkipTests`
+# chỉ bỏ test workspace để hỗ trợ chẩn đoán cục bộ; artifact vẫn là candidate.
+Write-Step "Running release checks"
+cargo fmt --check
+if ($LASTEXITCODE -ne 0) { Write-Fail "cargo fmt --check FAIL" }
+$ReleaseChecks["format"] = "passed"
+
+cargo clippy --workspace --all-targets -- -D warnings
+if ($LASTEXITCODE -ne 0) { Write-Fail "cargo clippy FAIL" }
+$ReleaseChecks["clippy"] = "passed"
+
+cargo run -q -p textvn-cli -- verify
+if ($LASTEXITCODE -ne 0) { Write-Fail "ABI verify FAIL" }
+$ReleaseChecks["abi_verify"] = "passed"
+
+cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter win
+if ($LASTEXITCODE -ne 0) { Write-Fail "Windows corpus replay FAIL" }
+$ReleaseChecks["windows_corpus"] = "passed"
+
 if (-not $SkipTests) {
     Write-Step "Running tests --workspace"
     cargo test --workspace
     if ($LASTEXITCODE -ne 0) { Write-Fail "Tests FAIL" }
     Write-Ok "All tests PASS"
+    $ReleaseChecks["workspace_tests"] = "passed"
+} else {
+    $ReleaseChecks["workspace_tests"] = "skipped"
 }
 
 # Build release
@@ -72,9 +112,11 @@ New-Item -ItemType Directory -Force $DistDir | Out-Null
 
 # Tao portable ZIP
 Write-Step "Package portable ZIP"
-$ZipName = "TextVN-portable-$Version-windows-x64"
+$ZipName = "TextVN-portable-$Version-windows-x64-$BuildId"
 $ZipDir  = "$DistDir\$ZipName"
-if (Test-Path $ZipDir) { Remove-Item $ZipDir -Recurse -Force }
+# Artifact bất biến: không xóa release cũ vì Windows/Explorer có thể đang giữ
+# một EXE trong đó. Mỗi build nhận Build ID riêng để có thể truy vết và rollback.
+if (Test-Path $ZipDir) { Write-Fail "Artifact directory already exists: $ZipDir" }
 New-Item -ItemType Directory -Force $ZipDir | Out-Null
 
 $BinFiles = @(
@@ -140,6 +182,29 @@ $quickstartContent = "==========================================================
     "   - De go bo TSF: Chay file uninstall.ps1.`r`n"
 [System.IO.File]::WriteAllText("$ZipDir\HUONG_DAN_SU_DUNG.txt", $quickstartContent, [System.Text.Encoding]::UTF8)
 Write-Ok "Created HUONG_DAN_SU_DUNG.txt"
+
+# Evidence report travels inside every ZIP. It makes the release state explicit
+# and prevents a locally-built candidate from being misrepresented as production.
+$ReleaseReport = [ordered]@{
+    schema_version = 1
+    product = "TextVN"
+    version = $Version
+    build_id = $BuildId
+    channel_requested = $Channel
+    build_started_utc = $BuildStartedUtc
+    git_commit = $GitCommit.Trim()
+    source_tree_clean = $GitTreeClean
+    target = $Target
+    status = "release-candidate"
+    checks = $ReleaseChecks
+    production_blockers = $ProductionBlockers
+}
+[System.IO.File]::WriteAllText(
+    "$ZipDir\RELEASE_REPORT.json",
+    ($ReleaseReport | ConvertTo-Json -Depth 5),
+    [System.Text.Encoding]::UTF8
+)
+Write-Ok "Created RELEASE_REPORT.json (release-candidate)"
 
 # Verify PE metadata cho toan bo binary
 Write-Step "Verify PE metadata and VersionInfo"
@@ -228,12 +293,8 @@ if ($BuildInstaller) {
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
         iscc.exe "/DMyAppVersion=$Version" $targetDirArg "installer\windows\TextVN-setup.iss"
-        $setupExe = "dist\TextVN-setup-$Version.exe"
-        if (Test-Path "target\installer\TextVN-setup-$Version.exe") {
-            Copy-Item "target\installer\TextVN-setup-$Version.exe" $setupExe -Force
-            Write-Ok "Installer: $setupExe"
-        } elseif (Test-Path "Output\TextVN-setup.exe") {
-            Move-Item "Output\TextVN-setup.exe" $setupExe -Force
+        $setupExe = "dist\TextVN-setup-$Version-windows-x64.exe"
+        if (Test-Path $setupExe) {
             Write-Ok "Installer: $setupExe"
         } else {
             Write-Warn "Installer output not found"
@@ -246,7 +307,7 @@ Write-Host ""
 Write-Host "Output:" -ForegroundColor White
 Write-Host "  Portable ZIP : $ZipPath" -ForegroundColor Green
 if ($BuildInstaller) {
-    $installerPath = "$DistDir\TextVN-setup-$Version.exe"
+    $installerPath = "$DistDir\TextVN-setup-$Version-windows-x64.exe"
     if (Test-Path $installerPath) {
         Write-Host "  Installer    : $installerPath" -ForegroundColor Green
     }
@@ -254,3 +315,9 @@ if ($BuildInstaller) {
 Write-Host ""
 Write-Host "To test portable build:" -ForegroundColor White
 Write-Host "  Extract $ZipPath and double-click TextVN.exe" -ForegroundColor Gray
+
+if ($Channel -eq "production") {
+    Write-Host "Production promotion blocked:" -ForegroundColor Yellow
+    $ProductionBlockers | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+    exit 2
+}

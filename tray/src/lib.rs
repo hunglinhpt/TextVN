@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 pub static TRAY_HWND: AtomicIsize = AtomicIsize::new(0);
 pub const WM_UPDATE_TRAY_STATE: u32 = 0x8000 + 2;
 pub const WM_OPEN_SETTINGS: u32 = 0x8000 + 3;
+pub const WM_REQUEST_EXIT: u32 = 0x8000 + 4;
 
 /// Gửi thông điệp cập nhật icon và tooltip cho Tray Window (thread-safe).
 pub fn notify_tray_state_changed() {
@@ -58,6 +59,22 @@ pub fn notify_open_settings() {
             let hwnd = HWND(raw as *mut _);
             unsafe {
                 let _ = PostMessageW(Some(hwnd), WM_OPEN_SETTINGS, WPARAM(0), LPARAM(0));
+            }
+        }
+    }
+}
+
+/// Request orderly tray shutdown from an IPC worker thread.
+pub fn notify_tray_exit_requested() {
+    #[cfg(windows)]
+    {
+        let raw = TRAY_HWND.load(Ordering::Acquire);
+        if raw != 0 {
+            use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+            use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
+            let hwnd = HWND(raw as *mut _);
+            unsafe {
+                let _ = PostMessageW(Some(hwnd), WM_REQUEST_EXIT, WPARAM(0), LPARAM(0));
             }
         }
     }

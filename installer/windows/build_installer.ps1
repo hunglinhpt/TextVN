@@ -38,7 +38,8 @@ $RequiredFiles = @(
     "TextVN.exe",
     "textvn-hook.exe",
     "textvn-cli.exe",
-    "textvn_win_tsf.dll"
+    "textvn_win_tsf.dll",
+    "textvn_ffi.dll"
 )
 
 foreach ($f in $RequiredFiles) {
