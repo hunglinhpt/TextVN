@@ -8,7 +8,7 @@
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
@@ -41,7 +41,7 @@ impl Default for IpcState {
 pub struct IpcClient {
     state: Arc<IpcState>,
     stop_signal: Arc<AtomicBool>,
-    worker: Option<std::thread::JoinHandle<()>>,
+    worker: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 impl IpcClient {
@@ -64,7 +64,7 @@ impl IpcClient {
         Self {
             state,
             stop_signal,
-            worker,
+            worker: Mutex::new(worker),
         }
     }
 
@@ -101,10 +101,12 @@ impl IpcClient {
     }
 
     /// Dừng client và ngắt kết nối an toàn.
-    pub fn stop(&mut self) {
+    pub fn stop(&self) {
         self.stop_signal.store(true, Ordering::Release);
-        if let Some(handle) = self.worker.take() {
-            let _ = handle.join();
+        if let Ok(mut lock) = self.worker.lock() {
+            if let Some(handle) = lock.take() {
+                let _ = handle.join();
+            }
         }
     }
 }
@@ -238,7 +240,7 @@ mod tests {
 
     #[test]
     fn ipc_client_offline_tolerant_starts_and_stops_cleanly() {
-        let mut client = IpcClient::start("notepad.exe".into());
+        let client = IpcClient::start("notepad.exe".into());
         // Không có tray server: connected = false, nhưng không block, không crash
         assert!(!client.is_connected());
         assert_eq!(client.check_config_reload(), None);
@@ -255,7 +257,7 @@ mod tests {
         let client = IpcClient {
             state: Arc::new(state),
             stop_signal: Arc::new(AtomicBool::new(false)),
-            worker: None,
+            worker: Mutex::new(None),
         };
 
         assert_eq!(client.check_config_reload(), Some(42));

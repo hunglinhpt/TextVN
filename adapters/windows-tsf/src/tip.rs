@@ -77,15 +77,13 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
     }
 
     fn Deactivate(&self) -> Result<()> {
-        let (tid, keymgr, mut ipc) = self.with(|i| (i.tid, i.keymgr.take(), i.ipc.take()));
+        let (tid, keymgr, ipc) = self.with(|i| (i.tid, i.keymgr.take(), i.ipc.take()));
         self.with(|i| {
             i._sink.take();
             i.thread_state.take();
         });
-        if let Some(mut client) = ipc.take() {
-            if let Some(c) = Arc::get_mut(&mut client) {
-                c.stop();
-            }
+        if let Some(client) = ipc {
+            client.stop();
         }
         if let Some(km) = keymgr {
             // WIN-015: Unpreserve hotkey toggle
