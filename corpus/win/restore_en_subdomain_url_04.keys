@@ -1,0 +1,6 @@
+# corpus/win/restore_en_subdomain_url_04.keys — Domain name typing in address bar (P1-5 §2)
+:config method=telex diacritic_style=new auto_capitalize=false english_words=docs
+:caps field_detect,selection
+:app chrome.exe field=address_bar
+:type "docs.rs"
+:expect "docs.rs"

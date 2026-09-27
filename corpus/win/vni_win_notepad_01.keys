@@ -1,0 +1,6 @@
+# corpus/win/vni_win_notepad_01.keys — VNI input method on Windows Notepad (P1-5 §2)
+:config method=vni diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "d9u7o7ng2"
+:expect "đường"

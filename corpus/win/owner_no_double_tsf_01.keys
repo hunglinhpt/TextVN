@@ -1,0 +1,6 @@
+# corpus/win/owner_no_double_tsf_01.keys — TSF active context owns input (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection,field_detect
+:app notepad.exe field=body
+:type "nguwowif"
+:expect "người"

@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_urlbar_edge_01.keys — bug B1 Edge URL bar (P1-5 §2)
+:config method=telex
+:caps field_detect,inject_vk,selection
+:app msedge.exe field=address_bar
+:type "viet"
+:expect "viêt"
+:key Space
+:type "nam"
+:expect "viêt nam"

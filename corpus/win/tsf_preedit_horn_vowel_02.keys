@@ -1,0 +1,6 @@
+# corpus/win/tsf_preedit_horn_vowel_02.keys — Horn vowel creation via w (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "ow"
+:expect "ơ"

@@ -1,0 +1,9 @@
+# corpus/win/bug_B7_notion_01.keys — Notion Electron desktop app (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notion.exe field=body
+:type "ghi"
+:expect "ghi"
+:key Space
+:type "chus"
+:expect "ghi chú"

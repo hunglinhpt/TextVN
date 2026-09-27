@@ -31,10 +31,6 @@ const WINDOW_CLASS_NAME: &str = "VietIMETrayWndClass";
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
 
-/// Resource ID của icon VietIME nhúng trong binary (xem tray/resources/vietime.ico + build.rs).
-/// RC_ICON_VIETIME = 1 là thứ tự khai báo trong winresource.
-const IDR_VIETIME_ICON: u16 = 1;
-
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
 struct TrayApp {
@@ -153,33 +149,13 @@ fn run_tray_app() {
     };
 
     // 4. Thêm icon vào khay hệ thống
-    // Thử load icon nhúng từ resource (winresource feature); fallback IDI_APPLICATION
-    let h_icon = unsafe {
-        // LoadImageW với hInstance = module của chính binary → load embedded .ico
-        let loaded = LoadImageW(
-            Some(h_instance.into()),
-            PCWSTR(IDR_VIETIME_ICON as usize as *const u16),
-            IMAGE_ICON,
-            0, // cx=0 → dùng SM_CXSMICON
-            0, // cy=0 → dùng SM_CYSMICON
-            LR_DEFAULTCOLOR,
-        );
-        match loaded {
-            Ok(h) => HICON(h.0),
-            Err(_) => {
-                // Fallback: icon mặc định Windows nếu resource chưa được nhúng (dev build)
-                LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
-            }
-        }
-    };
-
     let mut nid = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
         uID: TRAY_ICON_UID,
         uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage: WM_TRAYICON,
-        hIcon: h_icon,
+        hIcon: unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() },
         ..Default::default()
     };
 
@@ -282,7 +258,11 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 
 fn check_status() {
     println!("Checking VietIME IPC pipe: {}", PIPE_NAME);
-    match std::fs::OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+    match std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(PIPE_NAME)
+    {
         Ok(mut stream) => {
             let ping = vietime_ipc::Message::Ping;
             if let Ok(frame) = vietime_ipc::encode_frame(&ping) {
@@ -323,15 +303,13 @@ fn stop_running_instance() {
     #[cfg(windows)]
     {
         println!("Checking for running VietIME Tray instance...");
-        let class_name_wide: Vec<u16> =
-            WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
+        let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
         let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
         if let Ok(h) = hwnd {
             if !h.0.is_null() {
                 println!("Found VietIME Tray window. Sending exit command...");
                 unsafe {
-                    let _ =
-                        PostMessageW(Some(h), WM_COMMAND, WPARAM(ID_EXIT as usize), LPARAM(0));
+                    let _ = PostMessageW(Some(h), WM_COMMAND, WPARAM(ID_EXIT as usize), LPARAM(0));
                 }
 
                 // Chờ tối đa 3 giây xem tiến trình đã giải phóng mutex chưa

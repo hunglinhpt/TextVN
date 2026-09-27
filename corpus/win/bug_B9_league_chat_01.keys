@@ -1,0 +1,6 @@
+# corpus/win/bug_B9_league_chat_01.keys — League of Legends in-game chat (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app leagueoflegends.exe field=editbox
+:type "ddanhs"
+:expect "đánh"

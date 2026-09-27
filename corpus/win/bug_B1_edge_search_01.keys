@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_edge_search_01.keys — Edge search flyout field (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app msedge.exe field=search
+:type "hoaf"
+:expect "hoà"
+:key Space
+:type "binhf"
+:expect "hoà bình"

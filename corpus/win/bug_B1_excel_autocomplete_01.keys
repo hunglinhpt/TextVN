@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_excel_autocomplete_01.keys — B1 Excel cell formula & autocomplete (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app excel.exe field=editbox
+:type "tieenf"
+:expect "tiền"
+:key Space
+:type "luong"
+:expect "tiền lương"

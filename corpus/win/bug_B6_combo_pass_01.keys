@@ -1,0 +1,8 @@
+# corpus/win/bug_B6_combo_pass_01.keys — B6 Shortcut combinations pass through (P1-5 §2)
+:config method=telex
+:combo Ctrl+C
+:expect_action PASS
+:combo Ctrl+V
+:expect_action PASS
+:combo Ctrl+Z
+:expect_action PASS

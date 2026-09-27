@@ -1,0 +1,9 @@
+# corpus/win/bug_B9_game_chat_02.keys — B9 Game non-chat field passthrough (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app cs2.exe field=unknown
+# Adapter đã nhận diện đây là gameplay ngoài ô chat → tắt context (B9).
+:enabled off
+:type "wasd"
+:expect "wasd"
+:expect_action PASS

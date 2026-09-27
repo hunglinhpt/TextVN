@@ -1,0 +1,10 @@
+{
+  "schema": "vietime-bench.v1",
+  "platform": "win",
+  "regression_pct": 10,
+  "measurements": [
+    {"name":"ime_key","samples":20000,"p50_ns":687,"p99_ns":1737,"mean_ns":764,"budget_ns":500000},
+    {"name":"parse_config","samples":5000,"p50_ns":781,"p99_ns":1700,"mean_ns":891,"budget_ns":0},
+    {"name":"ime_strategy_resolve","samples":20000,"p50_ns":11,"p99_ns":32,"mean_ns":12,"budget_ns":2000000}
+  ]
+}

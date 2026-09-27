@@ -1,0 +1,6 @@
+# corpus/shared/caps_after_enter_01.keys — tự viết hoa sau Enter (auto_capitalize)
+:config method=telex diacritic_style=new auto_capitalize=true
+:type "chao"
+:key Enter
+:type "ban"
+:expect "chao\nBan"

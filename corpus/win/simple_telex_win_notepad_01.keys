@@ -1,0 +1,6 @@
+# corpus/win/simple_telex_win_notepad_01.keys — Simple Telex on Windows Notepad (P1-5 §2)
+:config method=simple_telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "duongw"
+:expect "đươngw"

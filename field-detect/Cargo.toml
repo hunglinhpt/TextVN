@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "vietime-field-detect"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vietime-appdb = { path = "../appdb" }
+vietime-strategy = { path = "../strategy" }

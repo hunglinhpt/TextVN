@@ -1,0 +1,6 @@
+# corpus/win/bug_B6_combo_pass_03.keys — B6 Windows key shortcuts (P1-5 §2)
+:config method=telex
+:combo Win+L
+:expect_action PASS
+:combo Win+Space
+:expect_action PASS

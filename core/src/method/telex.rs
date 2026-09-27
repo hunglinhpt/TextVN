@@ -14,34 +14,47 @@
 //! Mỗi key xử lý O(len từ) — từ tiếng Việt ngắn, nằm trong ngân sách
 //! `ime_key` < 0.5 ms p99 (P0-3 §3.3).
 
+use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
-use crate::transform::pick_tone_target;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::{apply_tone, is_vowel, key_to_tone, tone_of};
-use crate::transform::undo::unmark;
-use crate::transform::vowel_table::{
-    form_like, locate, A, A_BREVE, A_CIRC, E, E_CIRC, O, O_CIRC, O_HOOK, U, U_HOOK, Y,
-};
+use crate::transform::tone::{apply_key, is_vowel, tone_of};
+use crate::transform::vowel_table::{form_like, locate, E, E_CIRC, O_CIRC, O_HOOK, U, U_HOOK, Y};
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
+    fold_with(raw, style, free_marking, true)
+}
+
+/// `w_marker = false` → "simple telex": `w` là **chữ thường** (không có ă/ơ/ư qua `w`),
+/// nên `ww` → `ww` (không nuốt lặp). Dùng bởi `method/simple_telex.rs` (P0-1 §1).
+pub fn fold_with(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    w_marker: bool,
+) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
     for &c in raw {
-        push_key(&mut out, c, style, free_marking);
+        push_key(&mut out, c, style, free_marking, w_marker);
     }
     out
 }
 
-fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
-    // 1) Key dấu thanh
-    if let Some(tone) = key_to_tone(c) {
-        apply_tone_key(out, tone, c, style, free);
+fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool, w_marker: bool) {
+    // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
+    let tone = if w_marker {
+        keys::tone_of_key(c)
+    } else {
+        keys_st::tone_of_key(c)
+    };
+    if let Some(tone) = tone {
+        apply_key(out, tone, c, style, free);
         return;
     }
 
-    // 2) 'w' — horn / undo horn / nuốt lặp
-    if c == 'w' {
-        match horn(out) {
+    // 2) 'w' — horn / undo horn / nuốt lặp (simple telex: không phải marker → đi tiếp)
+    if c == 'w' && w_marker {
+        match horn(out, &keys::HORN) {
             Horn::Applied | Horn::Undone => return,
             Horn::No => {
                 if out.last() == Some(&'w') {
@@ -56,6 +69,19 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
     // 3) Đôi circumflex: ee→ê (eee→e), aa→â, oo→ô
     if let Some((plain, circ)) = circum_pair(c) {
         if let Some(&last) = out.last() {
+            // `uo` được fold tạm thành `ươ` để `duocj` → `được`. Khi người
+            // dùng tiếp tục `oo` (chuoi → chuôi), o thứ hai xác nhận vần uô,
+            // nên đảo cặp tạm này thay vì để thành `ươo`.
+            if c.eq_ignore_ascii_case(&'o')
+                && out.len() >= 2
+                && matches!(locate(last), Some((O_HOOK, _)))
+                && matches!(locate(out[out.len() - 2]), Some((U_HOOK, 0)))
+            {
+                let idx = out.len() - 1;
+                out[idx - 1] = form_like(out[idx - 1], U, 0);
+                out[idx] = form_like(last, O_CIRC, tone_of(last).unwrap_or(0));
+                return;
+            }
             if let Some((le, lt)) = locate(last) {
                 if le == circ {
                     let idx = out.len() - 1;
@@ -120,12 +146,16 @@ fn post_fixes(out: &mut [char]) {
         return;
     }
 
-    // iet: e trước t (và trước e là i) → ê (P0-4 ví dụ B1: viet → viêt)
+    // `iet` → `iêt` (P0-4 B1); với `e` đã mang dấu thanh trước phụ âm cuối
+    // `t`, Telex cũng hiểu đó là `ê` (texts: te + x + t + s → tết).
+    // Phải giữ tone đang có khi đổi e → ê.
     if (last == 't' || last == 'T') && len >= 3 {
         let e_char = out[len - 2];
         let i_char = out[len - 3];
-        if (i_char == 'i' || i_char == 'I') && (e_char == 'e' || e_char == 'E') {
-            out[len - 2] = if e_char == 'E' { 'Ê' } else { 'ê' };
+        if let Some((entry, tone)) = locate(e_char) {
+            if entry == E && (i_char == 'i' || i_char == 'I' || tone != 0) {
+                out[len - 2] = form_like(e_char, E_CIRC, tone);
+            }
         }
     }
 }
@@ -137,7 +167,8 @@ enum Horn {
 }
 
 /// `w`: aw→ă · ow→ơ · uw→ư; đã sừng → về gốc; không hợp lệ → No.
-fn horn(out: &mut [char]) -> Horn {
+/// Cặp (âm gốc → âm sừng) lấy từ bảng `telex::HORN` trong `data/tables/telex.toml`.
+fn horn(out: &mut [char], table: &[(char, usize, usize)]) -> Horn {
     let Some(idx) = out.iter().rposition(|&c| is_vowel(c)) else {
         return Horn::No;
     };
@@ -145,54 +176,25 @@ fn horn(out: &mut [char]) -> Horn {
     let Some((e, t)) = locate(ch) else {
         return Horn::No;
     };
-    let new_e = match e {
-        A => A_BREVE,
-        O => O_HOOK,
-        U => U_HOOK,
-        A_BREVE | O_HOOK | U_HOOK => {
-            let base = match e {
-                A_BREVE => A,
-                O_HOOK => O,
-                _ => U,
-            };
-            out[idx] = form_like(ch, base, t); // undo horn, giữ dấu thanh
+    for &(_, from, to) in table {
+        if e == to {
+            out[idx] = form_like(ch, from, t); // undo horn, giữ dấu thanh
             return Horn::Undone;
         }
-        _ => return Horn::No,
-    };
-    out[idx] = form_like(ch, new_e, t);
-    Horn::Applied
+        if e == from {
+            out[idx] = form_like(ch, to, t);
+            return Horn::Applied;
+        }
+    }
+    Horn::No
 }
 
+/// Cặp đôi âm → mũ: `aa`→â · `ee`→ê · `oo`→ô (bảng `telex::CIRCUMFLEX`).
 fn circum_pair(c: char) -> Option<(usize, usize)> {
-    match c {
-        'a' | 'A' => Some((A, A_CIRC)),
-        'e' | 'E' => Some((E, E_CIRC)),
-        'o' | 'O' => Some((O, O_CIRC)),
-        _ => None,
-    }
-}
-
-/// Áp một key dấu thanh vào `out`.
-fn apply_tone_key(out: &mut Vec<char>, tone: usize, key: char, style: DiacriticStyle, free: bool) {
-    // free_marking=false (Telex chặt): key phải nằm ngay sau âm
-    if !free && !out.last().map(|&l| is_vowel(l)).unwrap_or(false) {
-        out.push(key);
-        return;
-    }
-    let Some(tidx) = pick_tone_target(out, style) else {
-        out.push(key); // chưa có âm nào → đây là chữ thường ("sun")
-        return;
-    };
-    let cur = tone_of(out[tidx]).unwrap_or(0);
-    if cur == tone {
-        // Bấm lại đúng dấu → bỏ dấu + gõ literal (ass → as)
-        out[tidx] = unmark(out[tidx]);
-        out.push(key);
-    } else {
-        // Áp / thay dấu (free_marking)
-        out[tidx] = apply_tone(out[tidx], tone);
-    }
+    keys::CIRCUMFLEX
+        .iter()
+        .find(|&&(k, _, _)| k.eq_ignore_ascii_case(&c))
+        .map(|&(_, from, to)| (from, to))
 }
 
 #[cfg(test)]
@@ -267,6 +269,7 @@ mod tests {
     fn viet_ie_t_rule_p0_4_b1() {
         assert_eq!(n("viet"), "viêt");
         assert_eq!(n("mien"), "mien"); // không có t → không đổi
+        assert_eq!(n("texts"), "tết"); // dấu x có trước t vẫn giữ khi e → ê
     }
 
     #[test]

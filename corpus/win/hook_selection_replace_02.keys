@@ -1,0 +1,6 @@
+# corpus/win/hook_selection_replace_02.keys — Hook SelectionReplace mode (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk,selection
+:app legacy_app.exe field=editbox
+:type "duocj"
+:expect "được"

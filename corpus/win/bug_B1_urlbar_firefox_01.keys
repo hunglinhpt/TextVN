@@ -1,0 +1,11 @@
+# corpus/win/bug_B1_urlbar_firefox_01.keys — bug B1 Firefox Gecko address bar (P1-5 §2)
+:config method=telex
+:caps field_detect,inject_vk,selection
+:app firefox.exe field=address_bar
+:type "tin"
+:expect "tin"
+:key Space
+:type "tuwcs"
+:expect "tin tức"
+
+

@@ -1,0 +1,6 @@
+# corpus/win/bug_B6_system_hotkeys_01.keys — Alt and Win modifier pass-through (P1-5 §2)
+:config method=telex
+:combo Ctrl+Shift+Space
+:expect_action PASS
+:combo Ctrl+Alt+Delete
+:expect_action PASS

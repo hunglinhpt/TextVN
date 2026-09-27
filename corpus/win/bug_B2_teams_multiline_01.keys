@@ -1,0 +1,9 @@
+# corpus/win/bug_B2_teams_multiline_01.keys — Teams multiline formatting (P1-5 §2)
+:config method=telex diacritic_style=new auto_capitalize=false
+:caps preedit,selection
+:app teams.exe field=body
+:type "mootj"
+:expect "một"
+:key Enter
+:type "hais"
+:expect "một\nhái"

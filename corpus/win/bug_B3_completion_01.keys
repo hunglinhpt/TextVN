@@ -1,0 +1,6 @@
+# corpus/win/bug_B3_completion_01.keys — B3 Candidate popup active (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,selection
+:app code.exe field=candidate
+:type "dd"
+:expect "đ"

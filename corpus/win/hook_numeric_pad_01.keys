@@ -1,0 +1,6 @@
+# corpus/win/hook_numeric_pad_01.keys — Hook number keys unchanged (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app calc.exe field=editbox
+:type "12345"
+:expect "12345"

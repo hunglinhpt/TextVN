@@ -1,0 +1,8 @@
+# corpus/win/tsf_preedit_accent_switch_02.keys — Switch accent mark in place (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "toons"
+:expect "tốn"
+:type "f"
+:expect "tồn"

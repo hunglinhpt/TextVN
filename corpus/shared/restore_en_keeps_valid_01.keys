@@ -1,0 +1,6 @@
+# corpus/shared/restore_en_keeps_valid_01.keys — auto-restore KHÔNG được phá từ Việt hợp lệ
+:config method=telex diacritic_style=new auto_restore_english=true
+:type "duocj"
+:expect "được"
+:key Space
+:expect "được "

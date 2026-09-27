@@ -1,0 +1,10 @@
+# corpus/win/hook_vk_backspace_series_01.keys — Sequential backspace deletes (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app legacy.exe field=editbox
+:type "abc"
+:expect "abc"
+:key Backspace
+:expect "ab"
+:key Backspace
+:expect "a"

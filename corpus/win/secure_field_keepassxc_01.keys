@@ -1,0 +1,8 @@
+# corpus/win/secure_field_keepassxc_01.keys — Secure field KeePassXC password (P1-5 §2)
+:config method=telex
+:app keepassxc.exe field=secure
+:secure on
+:type "P@ssw0rd"
+:expect "P@ssw0rd"
+:expect_action PASS
+:secure off

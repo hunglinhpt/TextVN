@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "xtask"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# CỐ Ý KHÔNG có dependency: `xtask` là công cụ build, thêm dep vào workspace
+# sẽ kéo theo lockfile + `cargo deny` cho tất cả crate khác. Parser TOML ở đây
+# chỉ cần đúng schema `data/tables/*.toml` (xem `toml.rs`).
+[dependencies]
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"

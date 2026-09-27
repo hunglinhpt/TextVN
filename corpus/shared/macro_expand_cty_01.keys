@@ -1,0 +1,7 @@
+# corpus/shared/macro_expand_cty_01.keys — gõ tắt: `cty` + Tab → "Công ty TNHH" (macro_trigger=tab)
+:config method=telex diacritic_style=new macro_trigger=tab macro="cty=Công ty TNHH"
+:type "cty"
+:expect "cty"
+:expect_action REPLACE
+:key Tab
+:expect "Công ty TNHH"

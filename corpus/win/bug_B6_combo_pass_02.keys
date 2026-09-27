@@ -1,0 +1,6 @@
+# corpus/win/bug_B6_combo_pass_02.keys — B6 Navigation and function shortcuts (P1-5 §2)
+:config method=telex
+:combo Alt+Tab
+:expect_action PASS
+:combo Ctrl+Shift+Escape
+:expect_action PASS

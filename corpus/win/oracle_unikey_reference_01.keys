@@ -1,0 +1,8 @@
+# corpus/win/oracle_unikey_reference_01.keys — WIN-007 Oracle validation (P1-6 §M0)
+# oracle: UniKeyNT.exe 4.3 RC5 (Windows 11 x64, 2026-09-27)
+:config method=telex
+:app notepad.exe field=body
+:type "duocj"
+:expect "được"
+:note "oracle=unikey-windows-4.3-rc5"
+

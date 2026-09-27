@@ -1,0 +1,9 @@
+# corpus/win/restore_en_english_app_01.keys — Auto restore in English context (P1-5 §2)
+:config method=telex diacritic_style=new auto_restore_english=true
+:caps preedit,selection
+:app terminal.exe field=terminal
+:type "asdf"
+:expect "àd"
+:expect_action RESTORE
+:key Space
+:expect "asdf "

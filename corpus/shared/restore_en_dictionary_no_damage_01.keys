@@ -1,0 +1,11 @@
+# corpus/shared/restore_en_dictionary_no_damage_01.keys — danh sách KHÔNG được phá tiếng Việt
+# `test` → `tết` là ca MƠ HỒ (tết là từ Việt thật) → mặc định KHÔNG bật sẵn.
+# Ở đây danh sách chỉ chứa `text`, nên gõ `test` vẫn ra `tết` (giữ nguyên tiếng Việt).
+:config method=telex diacritic_style=new auto_restore_english=true english_words=text
+:type "test"
+:expect "tết"
+:key Space
+:expect "tết "
+:expect_action PASS
+:type "toi"
+:expect "tết toi"

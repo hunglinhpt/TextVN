@@ -133,6 +133,15 @@ int32_t      ime_reset(ime_instance *inst);             /* xóa buffer (word bou
 int32_t      ime_reload_config(ime_instance *inst, const uint8_t *cfg, size_t len);
 int32_t      ime_suggest(ime_instance *inst, const uint32_t *word, uint32_t word_len,
                          ime_suggest_v1 *out);          /* trả IME_ERR_INTERNAL nếu feature tắt */
+/* Chỉ trả IME_OK khi Ed25519 hợp lệ với data/preset.pub của release. Bản chưa
+ * provision public key sẽ từ chối (IME_ERR_INTERNAL), không được fail-open. */
+int32_t      ime_appdb_verify(const uint8_t *json, size_t json_len,
+                              const uint8_t *sig, size_t sig_len);
+/* Resolver dùng chung cho adapter không phải Rust. appdb_utf8=NULL,len=0 nghĩa
+ * là không preset; mọi lỗi vẫn đặt *out_strategy=IME_STRATEGY_PASSTHROUGH. */
+int32_t      ime_strategy_resolve(const ime_context_v1 *ctx,
+                                  const uint8_t *appdb_utf8, size_t len,
+                                  int64_t *out_strategy);
 const char  *ime_last_error(const ime_instance *inst);  /* UTF-8, hợp lệ đến lần gọi kế tiếp
                                                            trên CÙNG instance; không chứa text
                                                            người dùng */

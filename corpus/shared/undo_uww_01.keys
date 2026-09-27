@@ -1,0 +1,4 @@
+# corpus/shared/telex_golden_uww.keys — ư + w → về u (undo horn)
+:config method=telex diacritic_style=new
+:type "uww"
+:expect "u"

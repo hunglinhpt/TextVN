@@ -1,0 +1,6 @@
+# corpus/shared/simple_telex_w_literal_01.keys — Simple Telex: `w` là chữ thường (không sừng)
+:config method=simple_telex diacritic_style=new
+:type "tuw"
+:expect "tuw"
+:type "o"
+:expect "tuwo"

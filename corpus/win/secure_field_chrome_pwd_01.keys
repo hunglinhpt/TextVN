@@ -1,0 +1,8 @@
+# corpus/win/secure_field_chrome_pwd_01.keys — Chrome HTML password input field (P1-5 §2)
+:config method=telex
+:app chrome.exe field=secure
+:secure on
+:type "SecretPass"
+:expect "SecretPass"
+:expect_action PASS
+:secure off

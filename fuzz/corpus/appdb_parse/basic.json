@@ -1,0 +1,1 @@
+{"appdb_version":1,"entries":[{"match":{"exe":"chrome.exe"},"when":{"field_role":"address_bar"},"strategy":"SelectionReplace"}]}

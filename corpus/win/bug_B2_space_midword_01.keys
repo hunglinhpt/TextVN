@@ -1,0 +1,9 @@
+# corpus/win/bug_B2_space_midword_01.keys — B2 Space midword (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app wordpad.exe field=body
+:type "tieengs"
+:expect "tiếng"
+:key Space
+:type "vieetj"
+:expect "tiếng việt"

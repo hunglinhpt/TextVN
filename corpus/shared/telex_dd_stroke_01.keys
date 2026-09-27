@@ -1,0 +1,4 @@
+# corpus/shared/telex_golden_dd.keys — dd → đ (stroke)
+:config method=telex diacritic_style=new
+:type "dd"
+:expect "đ"

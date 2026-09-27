@@ -1,0 +1,6 @@
+# corpus/win/bug_B9_game_chat_01.keys — B9 Game chat active vs WASD (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app valorant.exe field=editbox
+:type "cuwsu"
+:expect "cứu"

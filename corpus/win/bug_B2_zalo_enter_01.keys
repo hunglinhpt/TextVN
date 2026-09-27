@@ -1,0 +1,8 @@
+# corpus/win/bug_B2_zalo_enter_01.keys — Zalo PC chat enter (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app zalo.exe field=body
+:type "chaof"
+:expect "chào"
+:key Enter
+:expect "chào\n"

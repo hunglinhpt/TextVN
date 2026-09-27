@@ -1,0 +1,6 @@
+# corpus/win/bug_B3_rider_candidate_01.keys — JetBrains Rider completion popup (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,selection
+:app rider64.exe field=candidate
+:type "dd"
+:expect "đ"

@@ -1,0 +1,154 @@
+# CI phần dùng chung (P0-1 §4) — gate: 100% pass.
+# Phạm vi: core/ffi/strategy/config/appdb/cli + corpus/shared.
+# KHÔNG gồm ci-windows/ci-macos/ci-linux (thuộc adapter từng OS).
+name: ci-shared
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Log không bao giờ chứa nội dung phím (S2) — biến này để tắt log nóng của engine.
+  RUST_LOG: warn
+
+concurrency:
+  group: ci-shared-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: clippy (-D warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  abi-sizes:
+    # P0-2 §6: struct FFI lệch kích thước = sửa ABI mà chưa bump IME_ABI_VERSION.
+    name: abi sizes (20/532)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -q -p vietime-cli -- sizes
+
+  gen-tables:
+    # Bảng transform/method phải khớp `data/tables/*.toml` (P0-1 §3) — gate chống
+    # "sửa data nhưng quên gen" và ngược lại.
+    name: xtask check-tables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo run -q -p xtask -- check-tables
+
+  abi-header:
+    # Header C giữ tay (chưa có `xtask cbindgen`) → verify header ↔ code Rust (P0-2 §6).
+    name: vietime verify (header C)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -q -p vietime-cli -- verify
+
+  perf:
+    # P1-5 §5: regression >10% so `perf/baseline-win.json` → fail.
+    # Lưu ý thẳng thắn: runner GHA dùng **chung** (2 vCPU) nên nhiễu nền lớn; job để
+    # `continue-on-error` + upload số đo, còn gate cứng chạy trên runner self-hosted
+    # (xem risk RW5 trong `P1-5 §1`) — số liệu luôn được gửi artifact để so tay.
+    name: perf regression (P1-5 §5)
+    runs-on: windows-latest      # baseline là của Windows
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -q --release -p vietime-bench -- check perf/baseline-win.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-baseline-win-report
+          path: perf/baseline-win.json
+
+  deny:
+    # S5: gate dependency (network/http/ws/mqtt trong core/strategy/adapters).
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-deny
+      - run: cargo deny check
+
+  reuse:
+    name: reuse (SPDX)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fsfe/reuse-action@v3
+
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+
+  replay:
+    # L2 golden corpus + L3 cross-OS conformance (P0-4 §1).
+    name: replay corpus/shared (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo run -q -p vietime-cli -- replay corpus/shared --adapter headless
+
+  fuzz:
+    # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.
+    name: fuzz smoke (60s)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+      - uses: taiki-e/install-action@cargo-fuzz
+      - name: fuzz ffi_key
+        run: cargo fuzz run ffi_key --features ffi-fuzz -- -max_total_time=60
+      - name: fuzz config_parse
+        run: cargo fuzz run config_parse --features ffi-fuzz -- -max_total_time=60
+      - name: fuzz appdb_parse
+        run: cargo fuzz run appdb_parse -- -max_total_time=60
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore

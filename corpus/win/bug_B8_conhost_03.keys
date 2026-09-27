@@ -1,0 +1,6 @@
+# corpus/win/bug_B8_conhost_03.keys — B8 Legacy console host conhost.exe (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk,field_detect
+:app conhost.exe field=terminal
+:type "thoat"
+:expect "thoat"

@@ -1,0 +1,6 @@
+# corpus/win/hook_unicode_inject_03.keys — Hook pure unicode inject (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app custom_win32.exe field=body
+:type "chaof"
+:expect "chào"

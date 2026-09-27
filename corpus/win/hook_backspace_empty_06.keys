@@ -1,0 +1,7 @@
+# corpus/win/hook_backspace_empty_06.keys — Hook Backspace at start of buffer (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app legacy.exe field=editbox
+:key Backspace
+:expect ""
+:expect_action PASS

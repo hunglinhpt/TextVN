@@ -1,0 +1,9 @@
+# corpus/win/hook_delete_key_07.keys — Hook Delete removes character at cursor (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app legacy.exe field=editbox
+:type "a"
+:expect "a"
+:key Left
+:key Delete
+:expect ""

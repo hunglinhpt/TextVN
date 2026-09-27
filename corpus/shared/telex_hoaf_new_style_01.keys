@@ -1,0 +1,7 @@
+# corpus/shared/telex_golden_hoaf.keys — hoaf → hoà (style new) + action REPLACE ở phím dấu
+:config method=telex diacritic_style=new
+:type "hoa"
+:expect "hoa"
+:expect_action REPLACE
+:type "f"
+:expect "hoà"

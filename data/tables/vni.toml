@@ -1,0 +1,34 @@
+# VNI — kiểu gõ dùng CHỮ SỐ. Nguồn: `core/src/method/vni.rs` (P0-1 §1).
+#
+# Quy tắc thuật toán (không phải bảng) — ở `core/src/method/vni.rs`:
+#   * `d` + `d` → `đ` (giữ thói quen gõ đôi), `9` → `đ` cho `d` gần nhất.
+#   * `7` trên cụm `uo` → `ươ` (xử lý trong `transform::undo::mark_horn`).
+#   * `0` xoá toàn bộ dấu của từ đang gõ (thanh + mũ/sừng/breve + `đ`).
+#   * chữ số là MỘT PHẦN của từ (không phải ranh giới) → `method::is_word_char`.
+
+[method]
+name = "vni"
+display = "VNI"
+w_marker = false
+tone = ["1", "2", "3", "4", "5"]
+stroke_key = "9"
+stroke_double = false
+remove_marks_key = "0"
+
+# 6 → mũ trên â/ê/ô
+[[circumflex]]
+key = "6"
+from = ["A", "E", "O"]
+to = ["A_CIRC", "E_CIRC", "O_CIRC"]
+
+# 7 → sừng ơ/ư
+[[horn]]
+key = "7"
+from = ["O", "U"]
+to = ["O_HOOK", "U_HOOK"]
+
+# 8 → breve ă
+[[breve]]
+key = "8"
+from = ["A"]
+to = ["A_BREVE"]

@@ -1,0 +1,8 @@
+# corpus/win/bug_B2_telegram_enter_02.keys — Telegram desktop chat enter (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app telegram.exe field=body
+:type "dzoi"
+:expect "dzoi"
+:key Enter
+:expect "dzoi\n"

@@ -1,0 +1,6 @@
+# corpus/shared/vni_duong_01.keys — VNI cơ bản: d9uo7ng2 → đường (P0-1 §1 method/vni.rs)
+:config method=vni diacritic_style=new
+:app notepad.exe field=body
+:type "d9uo7ng2"
+:expect "đường"
+:expect_preedit "đường"

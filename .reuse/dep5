@@ -1,8 +1,0 @@
-Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: VietIME
-Upstream-Contact: https://github.com/hunglinhpt
-Source: https://github.com/hunglinhpt/TextVN
-
-Files: *
-Copyright: 2026 VietIME contributors
-License: GPL-3.0-or-later

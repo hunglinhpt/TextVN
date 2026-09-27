@@ -1,0 +1,8 @@
+# corpus/win/restore_en_powershell_cmdlet_01.keys — PowerShell cmdlet in terminal (P1-5 §2)
+:config method=telex diacritic_style=new english_words=process
+:caps inject_vk,field_detect
+:app pwsh.exe field=terminal
+:type "Get-Process"
+:expect "Get-Proces"
+:key Space
+:expect "Get-Process "

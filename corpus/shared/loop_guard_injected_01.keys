@@ -1,0 +1,6 @@
+# corpus/shared/injected_no_loop.keys — chống loop (P0-3 §6 / P0-4 §2.3)
+:type "abc"
+:reset
+# phím do adapter tự bơm (is_injected=1) phải PASS nguyên vẹn
+:injected "s"
+:expect "abc"

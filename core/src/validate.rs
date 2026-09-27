@@ -1,0 +1,199 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Validate âm tiết — **stage 5** pipeline (PLAN §4.2): "5 quy tắc âm tiết".
+//!
+//! Dùng cho `post/restore_en.rs` (bug B5: gõ tiếng Anh ra dấu) và cho `doctor`/tooling.
+//! 5 quy tắc (đủ để từ tiếng Anh gõ Telex bị coi là **không hợp lệ**):
+//!
+//! 1. `has_vowel` — phải có ít nhất 1 nguyên âm.
+//! 2. `valid_onset` — âm đầu thuộc bảng phụ âm đầu hợp lệ (kể cả rỗng).
+//! 3. `valid_nucleus` — vần (cụm nguyên âm, đã bỏ dấu thanh) thuộc bảng vần hợp lệ.
+//! 4. `valid_coda` — âm cuối thuộc bảng phụ âm cuối hợp lệ (kể cả rỗng).
+//! 5. `tone_marks_ok` — tối đa **1** nguyên âm mang dấu thanh.
+//!
+//! Nguồn: cấu trúc âm tiết Việt (âm đầu + vần + âm cuộc) theo `PLAN §4.2` stage 5;
+//! bảng vần viết tay (chưa có `data/tables/` — deviation ghi `docs/00-INDEX §5`).
+
+use crate::transform::tone::{is_vowel, tone_of};
+use crate::transform::undo::unmark;
+
+/// Phụ âm đầu hợp lệ (P0-1 §1 `validate.rs`).
+pub const ONSETS: [&str; 28] = [
+    "", "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng", "ngh",
+    "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x",
+];
+
+/// Phụ âm cuối hợp lệ (chuẩn: 8 phụ âm cuối, viết dạng đôi `ch/nh/ng`).
+pub const CODAS: [&str; 9] = ["", "c", "ch", "m", "n", "ng", "nh", "p", "t"];
+
+/// Bảng vần hợp lệ (đã bỏ dấu thanh; giữ dạng viết `iê/uô/ươ`).
+pub const NUCLEI: [&str; 57] = [
+    // nguyên âm đơn
+    "a", "ă", "â", "e", "ê", "i", "o", "ô", "ơ", "u", "ư", "y", //
+    // 2 nguyên âm
+    "ai", "ao", "au", "ay", "âu", "ây", "eo", "êu", "ia", "iê", "iu", "oa", "oă", "oe", "oi", "ôi",
+    "ơi", "oo", "ua", "uâ", "uê", "ui", "uô", "uơ", "uy", "ưa", "ưi", "ưu", "ươ", "ya",
+    "yê", //
+    // 3 nguyên âm
+    "iêu", "oai", "oao", "oay", "oeo", "uai", "uây", "uôi", "uya", "uyê", "uyu", "ươi", "ươu",
+    "yêu",
+];
+
+/// Cấu trúc tách được: `[onset][nucleus][coda]` (chỉ số trong `cs`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Structure {
+    pub onset_end: usize,
+    pub nucleus_end: usize,
+}
+
+/// Tách `cs` thành âm đầu / vần / âm cuối. `None` khi không có nguyên âm (rule 1).
+///
+/// Xử lý riêng `qu` (âm đầu `qu`, `u` **không** thuộc vần: `quy`, `quà`).
+pub fn decompose(cs: &[char]) -> Option<Structure> {
+    let vstart = cs.iter().position(|&c| is_vowel(c))?;
+    let vend = cs.iter().rposition(|&c| is_vowel(c))?;
+    // `qu`: âm đầu gồm cả `u` → vần bắt đầu sau `u`
+    let onset_end = if vstart == 1 && matches!(cs[0], 'q' | 'Q') && matches!(cs[1], 'u' | 'U') {
+        2
+    } else {
+        vstart
+    };
+    if onset_end > vend {
+        return None; // `qu` mà không còn nguyên âm (`qu`) → không phải âm tiết
+    }
+    Some(Structure {
+        onset_end,
+        nucleus_end: vend,
+    })
+}
+
+fn lower(c: char) -> char {
+    c.to_lowercase().next().unwrap_or(c)
+}
+
+fn lower_str(cs: &[char]) -> String {
+    cs.iter().copied().map(lower).collect()
+}
+
+/// Rule 1 — có ít nhất 1 nguyên âm.
+pub fn has_vowel(cs: &[char]) -> bool {
+    cs.iter().any(|&c| is_vowel(c))
+}
+
+/// Rule 2 — âm đầu hợp lệ.
+pub fn valid_onset(cs: &[char], st: Structure) -> bool {
+    ONSETS.contains(&lower_str(&cs[..st.onset_end]).as_str())
+}
+
+/// Rule 3 — vần hợp lệ (bỏ dấu thanh trước khi tra bảng).
+pub fn valid_nucleus(cs: &[char], st: Structure) -> bool {
+    let nucleus: Vec<char> = cs[st.onset_end..=st.nucleus_end]
+        .iter()
+        .map(|&c| unmark(c))
+        .collect();
+    NUCLEI.contains(&lower_str(&nucleus).as_str())
+}
+
+/// Rule 4 — âm cuối hợp lệ.
+pub fn valid_coda(cs: &[char], st: Structure) -> bool {
+    CODAS.contains(&lower_str(&cs[st.nucleus_end + 1..]).as_str())
+}
+
+/// Rule 5 — tối đa 1 nguyên âm mang dấu thanh.
+pub fn tone_marks_ok(cs: &[char]) -> bool {
+    cs.iter()
+        .filter(|&&c| tone_of(c).is_some_and(|t| t > 0))
+        .count()
+        <= 1
+}
+
+/// **5 quy tắc âm tiết** — `true` nếu `cs` là một âm tiết Việt hợp lệ.
+pub fn is_valid_word(cs: &[char]) -> bool {
+    let Some(st) = decompose(cs) else {
+        return false;
+    };
+    has_vowel(cs)
+        && valid_onset(cs, st)
+        && valid_nucleus(cs, st)
+        && valid_coda(cs, st)
+        && tone_marks_ok(cs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn v(s: &str) -> bool {
+        is_valid_word(&s.chars().collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn valid_vietnamese_words() {
+        for w in [
+            "được",
+            "đường",
+            "hoà",
+            "hòa",
+            "nguyễn",
+            "quy",
+            "quà",
+            "qua",
+            "y",
+            "ăn",
+            "tiếng",
+            "việt",
+            "trường",
+            "khuỷu",
+            "xoong",
+            "thuở",
+            "già",
+            "gìn",
+            "hoa",
+            "loan",
+            "mía",
+        ] {
+            assert!(v(w), "`{w}` phải hợp lệ");
+        }
+    }
+
+    #[test]
+    fn invalid_english_and_typos() {
+        for w in [
+            "àd", "as", "text", "hello", "bs", "qaa", "ngx", "a?", "abc7",
+        ] {
+            assert!(!v(w), "`{w}` phải KHÔNG hợp lệ");
+        }
+    }
+
+    #[test]
+    fn rule_by_rule() {
+        let cs: Vec<char> = "duoc".chars().collect();
+        let st = decompose(&cs).expect("có nguyên âm");
+        assert_eq!((st.onset_end, st.nucleus_end), (1, 2)); // "d" + "uo" + "c"
+        assert!(has_vowel(&cs) && valid_onset(&cs, st) && valid_coda(&cs, st));
+
+        let cs: Vec<char> = "asdf".chars().collect();
+        let st = decompose(&cs).expect("có nguyên âm");
+        assert!(!valid_coda(&cs, st), "'f' không phải âm cuối hợp lệ");
+    }
+
+    #[test]
+    fn qu_nucleus_starts_after_u() {
+        let cs: Vec<char> = "quy".chars().collect();
+        let st = decompose(&cs).unwrap();
+        assert_eq!(st.onset_end, 2, "`qu` là âm đầu");
+        assert!(valid_nucleus(&cs, st));
+    }
+
+    #[test]
+    fn no_vowel_is_invalid() {
+        assert!(!v("bcd"));
+        assert!(!v("b"));
+        assert!(!v(""));
+    }
+
+    #[test]
+    fn at_most_one_toned_vowel() {
+        assert!(v("hoà"));
+        assert!(!is_valid_word(&"ấề".chars().collect::<Vec<_>>()));
+    }
+}

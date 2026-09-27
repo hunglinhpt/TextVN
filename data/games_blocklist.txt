@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Windows game executables: hook/tap adapters must not inject outside an
+# explicitly confirmed chat box. AppDB mirrors these as win.game.chat.
+cs2.exe
+dota2.exe
+valorant-win64-shipping.exe
+leagueclientux.exe

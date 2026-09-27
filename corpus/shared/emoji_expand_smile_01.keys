@@ -1,0 +1,8 @@
+# corpus/shared/emoji_expand_smile_01.keys — emoji: `:smile` + Space → 😀 (macro_trigger=space)
+:config method=telex diacritic_style=new macro_trigger=space emoji=":smile=😀"
+:type ":smile"
+:expect ":smile"
+:expect_action REPLACE
+:key Space
+:expect "😀"
+

@@ -1,0 +1,6 @@
+# corpus/win/bug_B1_explorer_address_01.keys — B1 Explorer path address bar (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app explorer.exe field=address_bar
+:type "duocj"
+:expect "được"

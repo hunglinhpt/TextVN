@@ -1,0 +1,8 @@
+# corpus/win/tsf_preedit_commit_enter_02.keys — TSF commit on enter (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "nam"
+:expect "nam"
+:key Enter
+:expect "nam\n"

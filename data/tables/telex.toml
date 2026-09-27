@@ -1,0 +1,43 @@
+# Telex — bảng phím → tác vụ (data-driven, sinh ra `core/src/method/keys_generated.rs`).
+# Nguồn: Wikipedia Telex + golden UniKey x-unikey (`docs/specs/oracle-unikey.md`).
+#
+# Lưu ý: các quy tắc **thuật toán** (không phải bảng) vẫn nằm trong
+# `core/src/method/telex.rs` và được ghi ở đây để người đọc biết data chỉ mô tả phần bảng:
+#   * `w` sau a/o/u → ă/ơ/ư; bấm lại `w` → gỡ; `ww` → `w` (nuốt lặp khi không có âm đích).
+#   * cặp `uo` → `ư`+`ơ` (đọc từ phải sang trái trong `fold_with`).
+#   * `d` ngay trước âm viết (trừ `y`) → `đ`; `dd` → `đ`; `ddd` → `d`.
+#   * `iet` → `ê` (rule B1, ví dụ `viet` → `viêt`).
+
+[method]
+name = "telex"
+display = "Telex"
+w_marker = true
+# index 0 → tone 1 (sắc) … index 4 → tone 5 (nặng); key chữ thường, chữ hoa không phải dấu
+tone = ["s", "f", "r", "x", "j"]
+# `stroke_key` gõ đôi (dd) → đ
+stroke_key = "d"
+stroke_double = true
+# Telex không có phím xoá toàn bộ dấu (đó là VNI `0`)
+remove_marks_key = ""
+
+# Đôi âm → mũ: aa→â, ee→ê, oo→ô
+[[circumflex]]
+key = "a"
+from = ["A"]
+to = ["A_CIRC"]
+
+[[circumflex]]
+key = "e"
+from = ["E"]
+to = ["E_CIRC"]
+
+[[circumflex]]
+key = "o"
+from = ["O"]
+to = ["O_CIRC"]
+
+# `w` sau âm gốc: aw→ă, ow→ơ, uw→ư
+[[horn]]
+key = "w"
+from = ["A", "O", "U"]
+to = ["A_BREVE", "O_HOOK", "U_HOOK"]

@@ -1,0 +1,10 @@
+# corpus/win/bug_B2_chat_enter_02.keys — B2 Consecutive chat enters (P1-5 §2)
+:config method=telex diacritic_style=new auto_capitalize=false
+:caps preedit,selection
+:app teams.exe field=body
+:type "xong"
+:expect "xong"
+:key Enter
+:expect "xong\n"
+:type "roofi"
+:expect "xong\nrồi"

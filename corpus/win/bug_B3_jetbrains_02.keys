@@ -1,0 +1,6 @@
+# corpus/win/bug_B3_jetbrains_02.keys — B3 IDE editor typing outside candidate (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection,field_detect
+:app idea64.exe field=body
+:type "bieens"
+:expect "biến"

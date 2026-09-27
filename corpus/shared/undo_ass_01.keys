@@ -1,0 +1,4 @@
+# corpus/shared/telex_golden_undo.keys — double key = undo (bug B2)
+:config method=telex diacritic_style=new
+:type "ass"
+:expect "as"

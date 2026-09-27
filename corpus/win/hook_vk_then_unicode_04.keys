@@ -1,0 +1,6 @@
+# corpus/win/hook_vk_then_unicode_04.keys — Hook vk backspace + unicode (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app custom_win32.exe field=body
+:type "nhaf"
+:expect "nhà"

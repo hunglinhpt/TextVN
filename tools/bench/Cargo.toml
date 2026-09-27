@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# P1-5 §5 — micro-bench của engine, **0 dependency** (không criterion): đo trực tiếp
+# `ime_key` / `ime_strategy_resolve` / `parse_config` rồi tự tính p50/p99.
+# Không thêm dep vì repo có gate `cargo deny` (S5) và cần chạy được 3 OS trong CI.
+[package]
+name = "vietime-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+vietime-ffi = { path = "../../ffi" }
+vietime-config = { path = "../../config" }
+vietime-core = { path = "../../core" }
+vietime-field-detect = { path = "../../field-detect" }
+
+[[bin]]
+name = "vietime-bench"
+path = "src/main.rs"

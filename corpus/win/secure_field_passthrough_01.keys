@@ -1,0 +1,8 @@
+# corpus/win/secure_field_passthrough.keys — S3 (P0-4 §2.3): secure field → PASS nguyên vẹn
+:config method=telex
+:app browser.exe field=secure
+:secure on
+:type "ass"
+:expect "ass"
+:expect_action PASS
+:secure off

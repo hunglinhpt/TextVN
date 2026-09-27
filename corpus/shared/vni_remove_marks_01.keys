@@ -1,0 +1,7 @@
+# corpus/shared/vni_remove_marks_01.keys — VNI `0` = xoá toàn bộ dấu (thanh + dạng âm + đ)
+:config method=vni diacritic_style=new
+:type "d9uo7ng2"
+:expect "đường"
+:expect_action REPLACE
+:type "0"
+:expect "duong"

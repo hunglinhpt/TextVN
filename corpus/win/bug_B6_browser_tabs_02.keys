@@ -1,0 +1,6 @@
+# corpus/win/bug_B6_browser_tabs_02.keys — Browser tab shortcut passes through (P1-5 §2)
+:config method=telex
+:combo Ctrl+T
+:expect_action PASS
+:combo Ctrl+W
+:expect_action PASS

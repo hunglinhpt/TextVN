@@ -1,0 +1,9 @@
+# corpus/win/bug_B2_space_midword_02.keys — B2 Space commit followed by vowel (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "hocj"
+:expect "học"
+:key Space
+:type "an"
+:expect "học an"

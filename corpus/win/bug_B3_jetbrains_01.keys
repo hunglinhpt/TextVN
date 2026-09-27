@@ -1,0 +1,6 @@
+# corpus/win/bug_B3_jetbrains_01.keys — B3 JetBrains IntelliJ autocomplete (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,selection
+:app idea64.exe field=candidate
+:type "ddang"
+:expect "đang"

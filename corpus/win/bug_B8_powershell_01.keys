@@ -1,0 +1,12 @@
+# corpus/win/bug_B8_powershell_01.keys — PowerShell 7 Windows Terminal (P1-5 §2)
+:config method=telex diacritic_style=new english_words=dir,data
+:caps inject_vk,field_detect
+:app pwsh.exe field=terminal
+:type "dir"
+:expect "đỉ"
+:key Space
+:expect "dir "
+:type "data"
+:expect "dir đata"
+:key Space
+:expect "dir data "

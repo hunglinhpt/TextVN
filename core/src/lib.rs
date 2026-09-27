@@ -9,10 +9,14 @@
 pub mod buffer;
 pub mod keymap;
 pub mod method;
+pub mod post;
 pub mod transform;
+pub mod validate;
 
 pub use keymap::KeyEvent;
 pub use method::Method;
+pub use post::emoji::Emoji;
+pub use post::r#macro::{MacroDef, MacroTrigger, MacroWhen};
 pub use strategy::{ActionKind, Strategy};
 pub use transform::DiacriticStyle;
 
@@ -86,8 +90,25 @@ pub struct EngineOptions {
     pub free_marking: bool,
     /// Master switch `config.enabled`.
     pub enabled: bool,
-    /// Dự trữ cho `post/restore_en.rs` (bug B5) — slice sau.
+    /// `config.auto_restore_english` (bug B5) — xem `post/restore_en.rs`.
     pub auto_restore_english: bool,
+    /// `config.auto_capitalize` (P0-3 §1.1) — sau `. ! ?` + Enter.
+    pub auto_capitalize: bool,
+    /// `config.macro_trigger` — phím mở rộng macro/emoji.
+    pub macro_trigger: MacroTrigger,
+    /// `config.allow_macro_when_vi_off` (EVKey spec #5).
+    pub allow_macro_when_vi_off: bool,
+    /// `config.macros[]`.
+    pub macros: Vec<MacroDef>,
+    /// `config.emoji[]`.
+    pub emoji: Vec<Emoji>,
+    /// `config.english_words[]` — danh sách từ **tiếng Anh** mà chủ gõ muốn giữ nguyên
+    /// khi Telex biến nó thành chuỗi trông như tiếng Việt (`text` → `tết`).
+    ///
+    /// **Mặc định RỔNG** (không tự bật) vì đây là ca *mơ hồ*: `test` → `tết` đúng là từ
+    /// Việt thật, bật sẵn sẽ phá người đang gõ "Tết". Đây là lựa chọn của người dùng
+    /// (mẫu danh sách: `data/stop_en.txt`) — xem `post/restore_en.rs`.
+    pub english_words: Vec<String>,
 }
 
 impl Default for EngineOptions {
@@ -98,6 +119,12 @@ impl Default for EngineOptions {
             free_marking: true,
             enabled: true,
             auto_restore_english: true,
+            auto_capitalize: true,
+            macro_trigger: MacroTrigger::Tab,
+            allow_macro_when_vi_off: false,
+            macros: Vec::new(),
+            emoji: Vec::new(),
+            english_words: Vec::new(),
         }
     }
 }
@@ -125,11 +152,22 @@ impl Default for Context {
     }
 }
 
+/// Số ký tự tối đa engine nhớ để khớp trigger macro/emoji (đủ cho mọi trigger hợp lý).
+const RECENT_MAX: usize = 64;
+
+/// Giới hạn `insert`/`preedit` của `ime_result_v1` — P0-2 §2: **engine tự giữ** ≤ 64
+/// (FFI còn một lưới an toàn cuối; macro dài hơn 64 ký tự bị cắt tại đây).
+pub const MAX_TEXT: usize = 64;
+
 /// Engine — 1 instance = 1 thread (P0-2 §3).
 pub struct Engine {
     opts: EngineOptions,
     ctx: Context,
     word: buffer::Word,
+    /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji.
+    recent: Vec<char>,
+    /// Cờ "chữ cái kế tiếp viết hoa" (sau `. ! ?` / Enter) — `post/caps.rs`.
+    caps_pending: bool,
 }
 
 impl Engine {
@@ -138,6 +176,8 @@ impl Engine {
             opts,
             ctx: Context::default(),
             word: buffer::Word::default(),
+            recent: Vec::new(),
+            caps_pending: false,
         }
     }
 
@@ -145,6 +185,8 @@ impl Engine {
     pub fn set_options(&mut self, opts: EngineOptions) {
         self.opts = opts;
         self.word.clear();
+        self.recent.clear();
+        self.caps_pending = false;
     }
 
     pub fn options(&self) -> &EngineOptions {
@@ -162,6 +204,45 @@ impl Engine {
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
         self.word.clear();
+        self.recent.clear();
+        self.caps_pending = false;
+    }
+
+    /// Cập nhật đuôi text: xoá `delete` ký tự cuối rồi thêm `insert` (giữ tối đa `RECENT_MAX`).
+    fn recent_replace(&mut self, delete: usize, insert: &[char]) {
+        let keep = self.recent.len().saturating_sub(delete);
+        self.recent.truncate(keep);
+        self.recent.extend_from_slice(insert);
+        if self.recent.len() > RECENT_MAX {
+            let drop = self.recent.len() - RECENT_MAX;
+            self.recent.drain(..drop);
+        }
+    }
+
+    /// Ghi nhận một phím **PASS** (adapter tự chèn) vào đuôi text cho macro/emoji.
+    ///
+    /// Ô mật khẩu (`secure`) → **không** giữ tail nào (S3).
+    fn note_pass(&mut self, k: &KeyEvent) {
+        if self.ctx.secure {
+            return;
+        }
+        match k.vk {
+            keymap::vk::BACK => {
+                self.recent.pop();
+            }
+            keymap::vk::DELETE
+            | keymap::vk::LEFT
+            | keymap::vk::RIGHT
+            | keymap::vk::UP
+            | keymap::vk::DOWN => self.recent.clear(),
+            _ => {
+                if let Some(c) = k.printable() {
+                    if !c.is_control() || matches!(c, ' ' | '\n' | '\t') {
+                        self.recent_replace(0, &[c]);
+                    }
+                }
+            }
+        }
     }
 
     /// Resolve strategy hiện tại (P0-3 §3.1).
@@ -216,10 +297,21 @@ impl Engine {
         }
 
         let strategy = self.strategy();
+        let vi_on = self.opts.enabled && self.ctx.enabled;
+
+        // Gõ tắt / emoji (P0-3 §1.1) — chạy cả khi VN tắt nếu `allow_macro_when_vi_off`
+        // (EVKey spec #5); `secure` tuyệt đối không (S3).
+        if let Some(out) = self.try_macro(k, strategy, vi_on) {
+            return out;
+        }
+
         if strategy == Strategy::Passthrough {
             if !self.word.is_empty() {
                 self.word.clear();
             }
+            // Vẫn ghi nhận text đi thẳng: macro `always` có thể chạy khi VN tắt
+            // (`allow_macro_when_vi_off`) — EVKey spec #5.
+            self.note_pass(k);
             return Outcome::pass();
         }
 
@@ -234,26 +326,52 @@ impl Engine {
         }
 
         let Some(c) = k.printable() else {
-            // Delete/arrow/F-key…: PASS, từ giữ nguyên
+            // Delete/arrow/F-key…: app có thể đã đổi selection/cursor mà engine
+            // không quan sát được. Bỏ composition ownership trước khi PASS; nếu
+            // giữ `word`, key kế tiếp sẽ REPLACE một suffix ở vị trí cũ (B7).
+            self.word.clear();
+            self.note_pass(k);
             return Outcome::pass();
         };
 
-        if !c.is_alphabetic() {
-            // Số/punctuation: đóng từ (nếu có) rồi cho ký tự đi thẳng.
-            if self.word.is_empty() {
-                return Outcome::pass();
-            }
+        if !method::is_word_char(c, self.opts.method) {
+            // Số/punctuation (theo method): đóng từ (nếu có) rồi cho ký tự đi thẳng.
             return self.on_boundary(c, strategy);
         }
 
         // --- Chữ cái: fold path ---
+        // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ngay sau `. ! ?` / Enter.
+        let mut caps_fired = false;
+        let c = if self.opts.auto_capitalize && self.caps_pending && self.word.is_empty() {
+            caps_fired = true;
+            self.caps_pending = false;
+            post::caps::capitalize(c)
+        } else {
+            c
+        };
+
         self.word.raw.push(c);
         let display = self.fold_current();
 
         if !self.word.active && display == self.word.raw {
             // Chưa có transform nào → chữ đi thẳng (tiếng Anh không đổi — WIN-011).
             self.word.passed.push(c);
-            self.word.display = display;
+            self.word.display = display.clone();
+            if caps_fired {
+                // Chữ đã bị engine ĐỔI (hoa) → không thể PASS (PASS = adapter chèn phím gốc).
+                // `delete_count = 0`: chèn `insert` tại con trỏ; `passed` giữ đúng ký tự này
+                // để lần activate sau xoá đúng số ký tự engine đã đưa vào document.
+                self.recent_replace(0, &display);
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: 0,
+                        insert: display,
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED,
+                };
+            }
+            self.recent_replace(0, &[c]);
             return Outcome::pass();
         }
 
@@ -266,6 +384,7 @@ impl Engine {
         self.word.passed.clear();
         self.word.display = display.clone();
         self.word.owned = display.len();
+        self.recent_replace(delete as usize, &display);
         Outcome {
             action: Action::Replace {
                 delete_count: delete,
@@ -276,10 +395,70 @@ impl Engine {
         }
     }
 
-    /// Ranh giới từ: Space/Enter/Tab/punct (P0-2 §4, bug B2 cho Enter+Preedit).
-    fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
-        let was_active = self.word.active;
+    /// Trigger key của macro/emoji → mở rộng text (P0-3 §1.1, `post/macro.rs`).
+    ///
+    /// Trigger key bị **nuốt**; `Shift`+trigger = combo hệ thống → không đụng (S9, bug B6).
+    fn try_macro(&mut self, k: &KeyEvent, strategy: Strategy, vi_on: bool) -> Option<Outcome> {
+        let is_trigger = matches!(
+            (k.vk, self.opts.macro_trigger),
+            (keymap::vk::TAB, MacroTrigger::Tab) | (keymap::vk::SPACE, MacroTrigger::Space)
+        );
+        if !is_trigger || k.mods & keymap::MOD_SHIFT != 0 {
+            return None;
+        }
+        if strategy == Strategy::Passthrough
+            && !(self.opts.allow_macro_when_vi_off && !self.ctx.secure)
+        {
+            return None;
+        }
+        let (len, text) =
+            post::r#macro::find(&self.opts.macros, &self.opts.emoji, &self.recent, vi_on)?;
+        let insert: Vec<char> = text.chars().take(MAX_TEXT).collect();
         self.word.clear();
+        self.recent_replace(len, &insert);
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: len as u16,
+                insert: insert.clone(),
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+        })
+    }
+
+    /// Ranh giới từ: Space/Enter/Tab/punct (P0-2 §4, bug B2 cho Enter+Preedit).
+    ///
+    /// Thứ tự (stage 7 pipeline): caps (`. ! ?` + Enter) → auto-restore EN (B5) → đóng từ.
+    fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
+        // `.` `!` `?` `\n` → chữ cái kế tiếp viết hoa (P0-3 §1.1)
+        if post::caps::is_sentence_end(c) {
+            self.caps_pending = true;
+        }
+        let was_active = self.word.active;
+
+        // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
+        if was_active && self.opts.auto_restore_english {
+            let raw = self.word.raw.clone();
+            let display = self.word.display.clone();
+            if post::restore_en::should_restore(&raw, &display, &self.opts.english_words) {
+                let delete = self.word.owned as u16;
+                let mut insert = raw;
+                insert.push(c); // ranh giới vẫn phải vào document (RESTORE = REPLACE — P0-4 §3)
+                self.word.clear();
+                self.recent_replace(delete as usize, &insert);
+                return Outcome {
+                    action: Action::Restore {
+                        delete_count: delete,
+                        insert,
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED | FLAG_WORD_END,
+                };
+            }
+        }
+
+        self.word.clear();
+        self.recent_replace(0, &[c]);
         if !was_active {
             return Outcome {
                 action: Action::Pass,
@@ -311,6 +490,7 @@ impl Engine {
         let raw = self.word.raw.clone();
         let delete = self.word.owned as u16;
         self.word.clear();
+        self.recent_replace(delete as usize, &raw);
         Outcome {
             action: Action::Restore {
                 delete_count: delete,
@@ -328,6 +508,7 @@ impl Engine {
             let delete = self.word.owned as u16;
             if self.word.raw.is_empty() {
                 self.word.clear();
+                self.recent_replace(delete as usize, &[]);
                 return Outcome {
                     action: Action::Replace {
                         delete_count: delete,
@@ -340,6 +521,7 @@ impl Engine {
             let display = self.fold_current();
             self.word.display = display.clone();
             self.word.owned = display.len();
+            self.recent_replace(delete as usize, &display);
             return Outcome {
                 action: Action::Replace {
                     delete_count: delete,
@@ -350,9 +532,20 @@ impl Engine {
             };
         }
         // Chưa activate: bỏ 1 ký tự đã gõ thẳng
+        // Nếu người dùng vừa xóa dấu kết câu thì không được giữ cờ viết hoa
+        // cho ký tự kế tiếp (ví dụ `hi.<Backspace>ban` phải là `hiban`).
+        if self.word.is_empty()
+            && self
+                .recent
+                .last()
+                .is_some_and(|&c| post::caps::is_sentence_end(c))
+        {
+            self.caps_pending = false;
+        }
         self.word.raw.pop();
         self.word.passed.pop();
         self.word.display.clear();
+        self.recent.pop();
         Outcome::pass()
     }
 }
@@ -505,6 +698,21 @@ mod tests {
     }
 
     #[test]
+    fn navigation_cancels_preedit_before_next_typing() {
+        let mut e = engine();
+        let (buf, _) = type_keys(&mut e, "tooi");
+        assert_eq!(buf, "tôi");
+
+        assert_eq!(
+            e.key(&KeyEvent::key_down(keymap::vk::LEFT)).action,
+            Action::Pass
+        );
+        // Không còn owner range sau khi cursor đã di chuyển; x phải PASS, không
+        // được REPLACE `tôi` bằng delete_count theo vị trí con trỏ cũ.
+        assert_eq!(e.key(&KeyEvent::char_down('x')).action, Action::Pass);
+    }
+
+    #[test]
     fn boundary_space_pass_with_default_caps() {
         let mut e = engine(); // caps=0 → BackspaceType → ranh giới = PASS
         let mut buf: Vec<char> = Vec::new();
@@ -550,6 +758,132 @@ mod tests {
         assert_eq!(buf.into_iter().collect::<String>(), "được ");
     }
 
+    /// Gõ chuỗi ký tự và trả **buffer** (để test tiếp ranh giới/trigger key).
+    fn type_buf(e: &mut Engine, input: &str) -> Vec<char> {
+        let mut buf: Vec<char> = Vec::new();
+        for c in input.chars() {
+            let k = KeyEvent::char_down(c);
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+        }
+        buf
+    }
+
+    /// Bấm 1 phím đặc biệt, trả action (đã áp vào `buf`).
+    fn press(e: &mut Engine, buf: &mut Vec<char>, vk: u32) -> Action {
+        let k = KeyEvent::key_down(vk);
+        let o = e.key(&k);
+        apply(buf, &o.action, &k);
+        o.action
+    }
+
+    fn text(buf: &[char]) -> String {
+        buf.iter().collect()
+    }
+
+    // ---- stage 7: auto-restore EN (bug B5) ----
+
+    #[test]
+    fn restore_en_at_boundary_on_invalid_word() {
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "asdf");
+        assert_eq!(text(&buf), "àd"); // fold tạm: không phải âm tiết Việt
+        let action = press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(action.kind(), ActionKind::Restore);
+        assert_eq!(text(&buf), "asdf "); // trả lại chuỗi gõ + ranh giới
+    }
+
+    #[test]
+    fn restore_en_keeps_valid_vietnamese() {
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "duocj");
+        assert_eq!(text(&buf), "được");
+        let action = press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(action, Action::Pass, "từ hợp lệ → không restore");
+        assert_eq!(text(&buf), "được ");
+    }
+
+    #[test]
+    fn restore_en_can_be_disabled() {
+        let mut e = Engine::new(EngineOptions {
+            auto_restore_english: false,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "asdf");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "àd "); // tắt option → giữ kết quả fold
+    }
+
+    /// Nhánh từ điển B5: danh sách từ EN do chủ gõ khai báo → `text` trả lại `text`
+    /// dù kết quả fold (`tết`) **hợp lệ về cấu trúc**.
+    #[test]
+    fn restore_en_danh_sach_tieng_anh() {
+        let mut e = Engine::new(EngineOptions {
+            english_words: vec!["text".to_string()],
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "text");
+        assert_eq!(text(&buf), "tễt"); // trước ranh giới: vẫn là kết quả fold
+        let action = press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "text "); // Space → trả lại chuỗi gõ
+        assert!(matches!(action, Action::Restore { .. }), "phải RESTORE");
+    }
+
+    /// Bật danh sách **không** được phá tiếng Việt: từ không có trong danh sách thì giữ fold.
+    #[test]
+    fn danh_sach_khong_dung_cho_tu_khac() {
+        let mut e = Engine::new(EngineOptions {
+            english_words: vec!["text".to_string()],
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "test");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "tết "); // `test` không có trong danh sách → giữ `tết`
+
+        // và từ Việt thật vẫn đúng
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "duocj");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "được ");
+    }
+
+    // ---- stage 7: auto-capitalize (P0-3 §1.1) ----
+
+    #[test]
+    fn auto_capitalize_after_dot_and_enter() {
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "chao.");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        buf.extend(type_buf(&mut e, "ban"));
+        assert_eq!(text(&buf), "chao. Ban"); // sau `.` → viết hoa
+
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "chao");
+        press(&mut e, &mut buf, keymap::vk::RETURN);
+        buf.extend(type_buf(&mut e, "ban"));
+        assert_eq!(text(&buf), "chao\nBan"); // sau Enter → viết hoa
+    }
+
+    #[test]
+    fn auto_capitalize_only_first_letter_of_word() {
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "hi.");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        buf.extend(type_buf(&mut e, "bAn"));
+        assert_eq!(text(&buf), "hi. BAn"); // chỉ chữ đầu bị đổi
+    }
+
+    #[test]
+    fn backspace_after_sentence_end_cancels_auto_capitalize() {
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "hi.");
+        press(&mut e, &mut buf, keymap::vk::BACK);
+        // `press` mô phỏng engine action; BACK là PASS nên app mới là bên xóa glyph.
+        buf.pop();
+        buf.extend(type_buf(&mut e, "ban"));
+        assert_eq!(text(&buf), "hiban");
+    }
+
     #[test]
     fn keyup_does_not_change_state() {
         let mut e = engine();
@@ -561,5 +895,128 @@ mod tests {
         assert_eq!(e.key(&k).action, Action::Pass);
         let (buf, _) = type_keys(&mut e, "d");
         assert_eq!(buf, "d");
+    }
+
+    // ---- stage 7: gõ tắt / emoji ----
+
+    fn macro_opts(trigger: MacroTrigger) -> EngineOptions {
+        EngineOptions {
+            macro_trigger: trigger,
+            macros: vec![MacroDef {
+                trigger: "cty".into(),
+                expand: "Công ty TNHH".into(),
+                when: MacroWhen::Always,
+            }],
+            emoji: vec![Emoji {
+                trigger: ":smile".into(),
+                glyph: "😊".into(),
+            }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn macro_expands_on_tab_and_eats_trigger() {
+        let mut e = Engine::new(macro_opts(MacroTrigger::Tab));
+        let mut buf = type_buf(&mut e, "cty");
+        let action = press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(
+            action,
+            Action::Replace {
+                delete_count: 3,
+                insert: "Công ty TNHH".chars().collect()
+            }
+        );
+        assert_eq!(text(&buf), "Công ty TNHH");
+    }
+
+    #[test]
+    fn emoji_expands_on_space_trigger() {
+        let mut e = Engine::new(macro_opts(MacroTrigger::Space));
+        let mut buf = type_buf(&mut e, ":smile");
+        let action = press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(
+            action,
+            Action::Replace {
+                delete_count: 6,
+                insert: "😊".chars().collect()
+            }
+        );
+        assert_eq!(text(&buf), "😊");
+    }
+
+    #[test]
+    fn macro_trigger_without_match_passes_through() {
+        let mut e = Engine::new(macro_opts(MacroTrigger::Tab));
+        let mut buf = type_buf(&mut e, "abc");
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+        assert_eq!(text(&buf), "abc\t");
+    }
+
+    #[test]
+    fn macro_when_vi_off_follows_allow_flag() {
+        // VN tắt + không cho phép → Tab đi thẳng
+        let mut opts = macro_opts(MacroTrigger::Tab);
+        opts.enabled = false;
+        let mut e = Engine::new(opts.clone());
+        let mut buf = type_buf(&mut e, "cty");
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+        assert_eq!(text(&buf), "cty\t");
+
+        // VN tắt + allow_macro_when_vi_off → macro vẫn chạy (EVKey spec #5)
+        opts.allow_macro_when_vi_off = true;
+        let mut e = Engine::new(opts);
+        let mut buf = type_buf(&mut e, "cty");
+        assert_eq!(
+            press(&mut e, &mut buf, keymap::vk::TAB).kind(),
+            ActionKind::Replace
+        );
+        assert_eq!(text(&buf), "Công ty TNHH");
+    }
+
+    #[test]
+    fn macro_never_runs_in_secure_field() {
+        let mut opts = macro_opts(MacroTrigger::Tab);
+        opts.allow_macro_when_vi_off = true;
+        let mut e = Engine::new(opts);
+        e.set_context(Context {
+            secure: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "cty");
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+        assert_eq!(text(&buf), "cty\t");
+    }
+
+    // ---- method khác đi qua engine (digit/marker là ký tự của từ) ----
+
+    #[test]
+    fn vni_digits_are_word_chars() {
+        let mut e = Engine::new(EngineOptions {
+            method: Method::Vni,
+            ..Default::default()
+        });
+        let buf = type_buf(&mut e, "d9uo7ng2");
+        assert_eq!(text(&buf), "đường");
+    }
+
+    #[test]
+    fn viqr_markers_are_word_chars() {
+        let mut e = Engine::new(EngineOptions {
+            method: Method::Viqr,
+            ..Default::default()
+        });
+        let buf = type_buf(&mut e, "ddu+o+ng`");
+        assert_eq!(text(&buf), "đường");
+    }
+
+    #[test]
+    fn simple_telex_w_is_literal_through_engine() {
+        let mut e = Engine::new(EngineOptions {
+            method: Method::SimpleTelex,
+            ..Default::default()
+        });
+        let buf = type_buf(&mut e, "tuw");
+        assert_eq!(text(&buf), "tuw");
     }
 }

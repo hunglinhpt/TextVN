@@ -1,0 +1,6 @@
+# corpus/win/hook_special_symbols_01.keys — Special programming characters pass-through (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app code.exe field=body
+:type "[]{}()<>=;"
+:expect "[]{}()<>=;"

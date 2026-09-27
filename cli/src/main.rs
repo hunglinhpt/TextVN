@@ -6,6 +6,7 @@
 //! WIN-003/WIN-010+ (cần Windows API) và `doctor --export` thuộc WIN-058 — chưa có.
 
 mod doctor;
+mod register;
 mod replay;
 mod verify;
 
@@ -22,17 +23,18 @@ Usage:
   vietime config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
   vietime config validate <file.json>     # validate config.v1 (P0-3 §1)
   vietime doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
+  vietime register [--scope user|machine] [--dll <path>] # đăng ký Text Services Framework TIP (WIN-003)
+  vietime unregister [--scope user|machine]             # hủy đăng ký TSF TIP
   vietime --help
 
 Exit codes:
-  replay : 0 pass hết · 1 có case fail · 2 lỗi dùng/parse (P0-4 §4)
-  verify : 0 header khớp · 1 lệch · 2 lỗi dùng/đọc file
-  sizes  : 0 khớp · 1 lệch (đổi struct = bump IME_ABI_VERSION — P0-2 §6)
-  config : 0 hợp lệ · 1 không hợp lệ/tồn tại · 2 lỗi dùng/đọc-ghi file
-  doctor : 0 mọi check pass · 1 có check fail · 2 lỗi xuất file
-
-Chưa có (task sau — không bịa flag): `register` (WIN-003),
-`ipc probe`/`tray --stop`/`uninstall`/`purge` (phụ thuộc adapter/crate khác).
+  replay     : 0 pass hết · 1 có case fail · 2 lỗi dùng/parse (P0-4 §4)
+  verify     : 0 header khớp · 1 lệch · 2 lỗi dùng/đọc file
+  sizes      : 0 khớp · 1 lệch (đổi struct = bump IME_ABI_VERSION — P0-2 §6)
+  config     : 0 hợp lệ · 1 không hợp lệ/tồn tại · 2 lỗi dùng/đọc-ghi file
+  doctor     : 0 mọi check pass · 1 có check fail · 2 lỗi xuất file
+  register   : 0 thành công · 1 lỗi đăng ký/không thấy file · 2 lỗi dùng
+  unregister : 0 thành công · 1 lỗi hủy · 2 lỗi dùng
 "#;
 
 fn main() {
@@ -43,6 +45,8 @@ fn main() {
         Some("sizes") => exit(cmd_sizes(&args[2..])),
         Some("config") => exit(cmd_config(&args[2..])),
         Some("doctor") => exit(cmd_doctor(&args[2..])),
+        Some("register") => exit(cmd_register(&args[2..])),
+        Some("unregister") => exit(cmd_unregister(&args[2..])),
         Some("--help") | Some("-h") => print!("{USAGE}"),
         Some(other) => {
             eprintln!("error: lệnh lạ `{other}`");
@@ -339,4 +343,111 @@ fn cmd_doctor(rest: &[String]) -> i32 {
     }
 
     doctor::run_doctor(json_out, export_path.as_deref())
+}
+
+/// `register` — đăng ký Text Services Framework TIP vào hệ thống (WIN-003 / P1-1 §8).
+fn cmd_register(rest: &[String]) -> i32 {
+    let mut scope = "user".to_string();
+    let mut dll_path: Option<PathBuf> = None;
+    let mut i = 0;
+
+    if rest.first().map(String::as_str) == Some("status") {
+        return register::status_tip(&scope);
+    }
+
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--scope" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(s) if s == "user" || s == "machine" => scope = s.clone(),
+                    Some(other) => {
+                        eprintln!("error: --scope phải là `user` hoặc `machine` (nhận `{other}`)");
+                        return 2;
+                    }
+                    None => {
+                        eprintln!("error: --scope cần giá trị `user` hoặc `machine`");
+                        return 2;
+                    }
+                }
+            }
+            "--dll" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(p) => dll_path = Some(PathBuf::from(p)),
+                    None => {
+                        eprintln!("error: --dll cần đường dẫn file");
+                        return 2;
+                    }
+                }
+            }
+            "status" => {
+                return register::status_tip(&scope);
+            }
+            other => {
+                eprintln!("error: `register` không nhận tham số `{other}`");
+                eprintln!("Usage: vietime register [--scope user|machine] [--dll <path>]");
+                return 2;
+            }
+        }
+        i += 1;
+    }
+
+    register::register_tip(&scope, dll_path.as_deref())
+}
+
+/// `unregister` — hủy đăng ký Text Services Framework TIP khỏi hệ thống (WIN-010 / P1-1 §8).
+fn cmd_unregister(rest: &[String]) -> i32 {
+    let mut scope = "user".to_string();
+    let mut i = 0;
+
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--scope" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(s) if s == "user" || s == "machine" => scope = s.clone(),
+                    Some(other) => {
+                        eprintln!("error: --scope phải là `user` hoặc `machine` (nhận `{other}`)");
+                        return 2;
+                    }
+                    None => {
+                        eprintln!("error: --scope cần giá trị `user` hoặc `machine`");
+                        return 2;
+                    }
+                }
+            }
+            other => {
+                eprintln!("error: `unregister` không nhận tham số `{other}`");
+                eprintln!("Usage: vietime unregister [--scope user|machine]");
+                return 2;
+            }
+        }
+        i += 1;
+    }
+
+    register::unregister_tip(&scope)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cmd_register_invalid_scope_returns_2() {
+        let args = vec!["--scope".to_string(), "invalid_scope".to_string()];
+        assert_eq!(cmd_register(&args), 2);
+    }
+
+    #[test]
+    fn cmd_register_unknown_flag_returns_2() {
+        let args = vec!["--unknown".to_string()];
+        assert_eq!(cmd_register(&args), 2);
+    }
+
+    #[test]
+    fn cmd_unregister_invalid_scope_returns_2() {
+        let args = vec!["--scope".to_string(), "invalid_scope".to_string()];
+        assert_eq!(cmd_unregister(&args), 2);
+    }
 }

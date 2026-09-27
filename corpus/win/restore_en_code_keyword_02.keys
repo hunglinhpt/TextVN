@@ -1,0 +1,8 @@
+# corpus/win/restore_en_code_keyword_02.keys — Code keyword typed in editor (P1-5 §2)
+:config method=telex diacritic_style=new auto_restore_english=true english_words=qwert
+:caps preedit,selection
+:app code.exe field=body
+:type "qwert"
+:expect "qwểt"
+:key Space
+:expect "qwert "

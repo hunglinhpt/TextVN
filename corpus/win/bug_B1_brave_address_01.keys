@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_brave_address_01.keys — Brave browser address bar (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app brave.exe field=address_bar
+:type "tieengs"
+:expect "tiếng"
+:key Space
+:type "vietj"
+:expect "tiếng việt"

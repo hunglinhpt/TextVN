@@ -1,0 +1,6 @@
+# corpus/win/tsf_preedit_multiletter_04.keys — TSF multi-syllable typing (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app word.exe field=body
+:type "tooi"
+:expect "tôi"

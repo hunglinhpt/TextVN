@@ -15,14 +15,30 @@
 
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
 
 use vietime_config::{parse_config, Config};
-use vietime_core::{
-    Action, Context, Engine, EngineOptions, KeyEvent, Outcome, ACTION_COMMIT, ACTION_PASS,
-    ACTION_REPLACE, ACTION_RESTORE,
+use vietime_core::{Action, Context, Engine, EngineOptions, KeyEvent, Outcome};
+use vietime_strategy::{ResolveInput, Strategy};
+
+/// Hằng modifier — header C gọi là `IME_MOD_*` (`P0-2 §1`).
+pub use vietime_core::keymap::{
+    MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_FN, MOD_META, MOD_SHIFT, MOD_SUPER,
+};
+/// Hằng **action** — 1 nguồn sự thật: `core` định nghĩa, header C khai báo `IME_ACTION_*`
+/// với cùng giá trị (P0-2 §6). Re-export để adapter Rust, test và fuzz target không
+/// phải chép số trần — chép tay là nguồn lệch ABI kinh điển.
+pub use vietime_core::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+/// Hằng `field_role` / capability / strategy — header C khai báo đúng tên này
+/// (`P0-2 §1`, `P0-3 §2.1`). Nguồn sự thật là crate `vietime-strategy`.
+pub use vietime_strategy::{
+    IME_CAP_FIELD_DETECT, IME_CAP_INJECT_VK, IME_CAP_PREEDIT, IME_CAP_SELECTION,
+    IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_CANDIDATE, IME_FIELD_COMBO, IME_FIELD_EDITBOX,
+    IME_FIELD_SEARCH, IME_FIELD_SECURE, IME_FIELD_TERMINAL, IME_FIELD_TEXTAREA, IME_FIELD_UNKNOWN,
+    IME_FIELD_WEB, IME_STRATEGY_BACKSPACE_TYPE, IME_STRATEGY_FORWARD_AS_COMMIT,
+    IME_STRATEGY_PASSTHROUGH, IME_STRATEGY_PREEDIT, IME_STRATEGY_SELECTION_REPLACE,
 };
 
 // ---- hằng số (bản 1-1 với header) ----
@@ -118,6 +134,35 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         free_marking: cfg.free_marking,
         enabled: cfg.enabled,
         auto_restore_english: cfg.auto_restore_english,
+        auto_capitalize: cfg.auto_capitalize,
+        macro_trigger: match cfg.macro_trigger {
+            vietime_config::MacroTrigger::Tab => vietime_core::MacroTrigger::Tab,
+            vietime_config::MacroTrigger::Space => vietime_core::MacroTrigger::Space,
+        },
+        allow_macro_when_vi_off: cfg.allow_macro_when_vi_off,
+        // `config.macros[]` / `config.emoji[]` (P0-3 §1.1) — gõ tắt/emoji
+        macros: cfg
+            .macros
+            .iter()
+            .map(|m| vietime_core::MacroDef {
+                trigger: m.trigger.clone(),
+                expand: m.expand.clone(),
+                when: match m.when {
+                    vietime_config::MacroWhen::Always => vietime_core::MacroWhen::Always,
+                    vietime_config::MacroWhen::ViOn => vietime_core::MacroWhen::ViOn,
+                },
+            })
+            .collect(),
+        emoji: cfg
+            .emoji
+            .iter()
+            .map(|e| vietime_core::Emoji {
+                trigger: e.trigger.clone(),
+                glyph: e.glyph.clone(),
+            })
+            .collect(),
+        // `config.english_words[]` — danh sách từ EN giữ nguyên (opt-in, xem core/post/restore_en.rs)
+        english_words: cfg.english_words.clone(),
     }
 }
 
@@ -398,7 +443,112 @@ pub extern "C" fn ime_suggest(
     IME_ERR_INTERNAL
 }
 
+/// Kiểm tra appdb trước khi adapter dùng nó. Chưa có `data/preset.pub` trong
+/// repository/release artifact, nên hàm cố ý từ chối mọi chữ ký (fail-closed)
+/// thay vì nhận một khóa tự sinh hoặc xác thực giả. `ime_strategy_resolve` chỉ
+/// nên được gọi sau khi loader nhận `IME_OK` ở một bản phát hành có public key.
+///
+/// Thứ tự khai báo khớp khối `/* ---- API ---- */` trong header
+/// (verify → resolve → last_error, P0-2 §1) — `vietime verify` enforce.
+#[no_mangle]
+pub extern "C" fn ime_appdb_verify(
+    json: *const u8,
+    json_len: usize,
+    sig: *const u8,
+    sig_len: usize,
+) -> i32 {
+    if (json.is_null() && json_len != 0) || (sig.is_null() && sig_len != 0) {
+        return IME_ERR_INVALID_ARG;
+    }
+    if json.is_null() || sig.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+
+    let json = unsafe { slice::from_raw_parts(json, json_len) };
+    let text = match std::str::from_utf8(json) {
+        Ok(value) => value,
+        Err(_) => return IME_ERR_CONFIG,
+    };
+    if vietime_appdb::AppDb::parse(text).is_err() {
+        return IME_ERR_CONFIG;
+    }
+    let _signature = unsafe { slice::from_raw_parts(sig, sig_len) };
+    IME_ERR_INTERNAL
+}
+
+/// Resolve strategy tập trung cho các adapter Swift/C/C++. Không giữ state và
+/// không tin dữ liệu appdb: lỗi UTF-8/schema trả `IME_ERR_CONFIG`, còn `*out`
+/// luôn được đặt Passthrough trước để adapter có thể fail-open an toàn.
+#[no_mangle]
+pub extern "C" fn ime_strategy_resolve(
+    ctx: *const ime_context_v1,
+    appdb_utf8: *const u8,
+    len: usize,
+    out_strategy: *mut i64,
+) -> i32 {
+    if out_strategy.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    unsafe { *out_strategy = Strategy::Passthrough.id() };
+    if ctx.is_null() || (appdb_utf8.is_null() && len != 0) {
+        return IME_ERR_INVALID_ARG;
+    }
+
+    let ctx = unsafe { &*ctx };
+    if ctx.abi_version != IME_ABI_VERSION {
+        return IME_ERR_ABI;
+    }
+    if ctx.field_role > vietime_strategy::IME_FIELD_SECURE {
+        return IME_ERR_INVALID_ARG;
+    }
+
+    let app_id = if ctx.app_id.is_null() {
+        ""
+    } else {
+        match unsafe { CStr::from_ptr(ctx.app_id) }.to_str() {
+            Ok(value) => value,
+            Err(_) => return IME_ERR_INVALID_ARG,
+        }
+    };
+    let db = if appdb_utf8.is_null() {
+        None
+    } else {
+        let bytes = unsafe { slice::from_raw_parts(appdb_utf8, len) };
+        let json = match std::str::from_utf8(bytes) {
+            Ok(value) => value,
+            Err(_) => return IME_ERR_CONFIG,
+        };
+        match vietime_appdb::AppDb::parse(json) {
+            Ok(value) => Some(value),
+            Err(_) => return IME_ERR_CONFIG,
+        }
+    };
+
+    let input = ResolveInput {
+        secure: ctx.secure != 0,
+        enabled: ctx.enabled != 0,
+        user_preset: None,
+        system_preset: None,
+        hint: ctx.hint,
+        field_role: ctx.field_role,
+        caps: ctx.caps,
+    };
+    match catch_unwind(AssertUnwindSafe(|| match db {
+        Some(db) => db.resolve(input, app_id),
+        None => vietime_strategy::resolve(input),
+    })) {
+        Ok(strategy) => {
+            unsafe { *out_strategy = strategy.id() };
+            IME_OK
+        }
+        Err(_) => IME_ERR_INTERNAL,
+    }
+}
+
 /// Trả NULL thay vì panic khi instance NULL (adapter không được crash).
+///
+/// Đứng cuối file export — khớp khối `/* ---- API ---- */` trong header
+/// (verify → resolve → last_error, P0-2 §1). `vietime verify` enforce thứ tự.
 #[no_mangle]
 pub extern "C" fn ime_last_error(inst: *const ime_instance) -> *const c_char {
     if inst.is_null() {
@@ -475,6 +625,19 @@ mod tests {
             .iter()
             .filter_map(|&u| char::from_u32(u))
             .collect()
+    }
+
+    fn resolve_context(app_id: *const c_char, field_role: u32, caps: u32) -> ime_context_v1 {
+        ime_context_v1 {
+            abi_version: IME_ABI_VERSION,
+            enabled: 1,
+            secure: 0,
+            field_role,
+            caps,
+            app_id,
+            element_name: std::ptr::null(),
+            hint: -1,
+        }
     }
 
     #[test]
@@ -581,5 +744,71 @@ mod tests {
         );
         assert_eq!(s.count, 0);
         ime_instance_free(inst);
+    }
+
+    #[test]
+    fn strategy_resolve_uses_appdb_and_applies_gates() {
+        let app_id = c"chrome.exe";
+        let db = br#"{
+          "appdb_version": 1,
+          "entries": [{
+            "match": {"exe": "chrome.exe"},
+            "when": {"field_role": "address_bar"},
+            "strategy": "SelectionReplace"
+          }]
+        }"#;
+        let mut ctx = resolve_context(
+            app_id.as_ptr(),
+            vietime_strategy::IME_FIELD_ADDRESS_BAR,
+            vietime_strategy::IME_CAP_SELECTION,
+        );
+        let mut strategy = -1;
+        assert_eq!(
+            ime_strategy_resolve(&ctx, db.as_ptr(), db.len(), &mut strategy),
+            IME_OK
+        );
+        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_SELECTION_REPLACE);
+
+        ctx.secure = 1;
+        assert_eq!(
+            ime_strategy_resolve(&ctx, db.as_ptr(), db.len(), &mut strategy),
+            IME_OK
+        );
+        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+    }
+
+    #[test]
+    fn strategy_resolve_rejects_bad_input_with_safe_output() {
+        let mut strategy = -1;
+        let ctx = resolve_context(
+            std::ptr::null(),
+            vietime_strategy::IME_FIELD_BODY,
+            vietime_strategy::IME_CAP_PREEDIT,
+        );
+        let malformed = b"{}";
+        assert_eq!(
+            ime_strategy_resolve(&ctx, malformed.as_ptr(), malformed.len(), &mut strategy),
+            IME_ERR_CONFIG
+        );
+        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+        assert_eq!(
+            ime_strategy_resolve(&ctx, std::ptr::null(), 1, &mut strategy),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(strategy, vietime_strategy::IME_STRATEGY_PASSTHROUGH);
+    }
+
+    #[test]
+    fn appdb_verify_is_fail_closed_without_release_public_key() {
+        let db = br#"{"appdb_version":1,"entries":[]}"#;
+        let signature = [0_u8; 64];
+        assert_eq!(
+            ime_appdb_verify(db.as_ptr(), db.len(), signature.as_ptr(), signature.len()),
+            IME_ERR_INTERNAL
+        );
+        assert_eq!(
+            ime_appdb_verify(std::ptr::null(), 0, signature.as_ptr(), signature.len()),
+            IME_ERR_INVALID_ARG
+        );
     }
 }

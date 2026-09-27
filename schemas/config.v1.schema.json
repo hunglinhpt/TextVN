@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vietime.dev/schemas/config.v1.schema.json",
+  "title": "VietIME user configuration v1",
+  "$comment": "VietIME config.v1. SPDX header cua file nay nam trong REUSE.toml (khong dat trong JSON - reuse lint se doc nham).",
+  "type": "object",
+  "required": ["config_version"],
+  "additionalProperties": true,
+  "properties": {
+    "config_version": {
+      "const": 1,
+      "$comment": "BAT BUOC (P0-3 §1): thieu = schema error. Version khac = can migrate."
+    },
+    "enabled": { "type": "boolean", "default": true },
+    "method": {
+      "enum": ["telex", "vni", "viqr", "simple_telex"],
+      "default": "telex"
+    },
+    "diacritic_style": {
+      "enum": ["new", "old"],
+      "default": "new",
+      "$comment": "new = hoà (dau o am cuoi), old = hòa (dau o am dau) - bug B12"
+    },
+    "free_marking": { "type": "boolean", "default": true },
+    "auto_restore_english": {
+      "type": "boolean",
+      "default": true,
+      "$comment": "fix bug B5: tra lai chuoi giong khi fold ra khong phai am tiet Viet"
+    },
+    "auto_capitalize": {
+      "type": "boolean",
+      "default": true,
+      "$comment": "viet hoa sau . ! ? va Enter"
+    },
+    "macro_trigger": { "enum": ["tab", "space"], "default": "tab" },
+    "allow_macro_when_vi_off": { "type": "boolean", "default": false },
+    "output_charset": {
+      "enum": [
+        "unicode_precomposed",
+        "unicode_decomposed",
+        "tcvn3",
+        "vni_windows"
+      ],
+      "default": "unicode_precomposed"
+    },
+    "english_words": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z]+$" },
+      "default": [],
+      "$comment": "Tu tieng Anh giu nguyen khi Telex bien thanh chuoi co dau trong nhu tieng Viet (text -> tễt). MAC DINH RONG va khong bat san: `test` -> `tết` la ca mo ho nguoc lai (tết la tu Viet that) - bat san se pha tieng Viet. Mau: data/stop_en.txt"
+    },
+    "macros": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": ["trigger", "expand"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": { "type": "string", "minLength": 1 },
+          "expand": { "type": "string", "minLength": 1 },
+          "when": { "enum": ["always", "vi_on"], "default": "always" }
+        }
+      }
+    },
+    "emoji": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "required": ["trigger", "glyph"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": { "type": "string", "minLength": 1 },
+          "glyph": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# corpus/shared/telex_horn_w_01.keys — Telex: `uw` → ư (đối chứng với simple_telex)
+:config method=telex diacritic_style=new
+:type "tuw"
+:expect "tư"
+:expect_preedit "tư"

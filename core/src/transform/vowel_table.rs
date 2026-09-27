@@ -1,80 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Bảng 72 entry âm Việt: 12 âm gốc × 6 dạng (không dấu + 5 dấu thanh).
+//! Tra cứu âm Việt: bảng 72 ký tự + hàm tìm vị trí (dùng chung mọi method).
 //!
-//! **TẠM viết tay** — theo P0-1 §3 file này eventually là output của
-//! `cargo xtask gen-tables` từ `data/tables/*.toml` (không edit tay sau khi xtask có).
-//! Thứ tự tone: `[không dấu, sắc, huyền, hỏi, ngã, nặng]` = index 0..=5.
+//! **Bảng dữ liệu** (72 ký tự, hằng index âm) là GENERATED từ `data/tables/vowels.toml`
+//! qua `cargo xtask gen-tables` — nằm ở `transform/vowel_table_generated.rs`.
+//! File này chỉ chứa **logic** (tìm vị trí, gỡ dạng âm) — sửa bảng thì sửa `.toml`.
+//!
+//! Thứ tự tone trong mỗi dạng: `[không dấu, sắc, huyền, hỏi, ngã, nặng]` = index 0..=5.
 
-/// Một dòng bảng: âm gốc + 6 dạng.
+/// Một dòng bảng: âm gốc + 6 dạng (sinh ra từ `.toml`).
 pub struct VowelEntry {
     pub base: char,
     pub forms: [char; 6],
 }
 
-/// Index âm trong bảng (dùng cho map w-horn / circumflex).
-pub const A: usize = 0;
-pub const A_BREVE: usize = 1; // ă
-pub const A_CIRC: usize = 2; // â
-pub const E: usize = 3;
-pub const E_CIRC: usize = 4; // ê
-pub const I: usize = 5;
-pub const O: usize = 6;
-pub const O_CIRC: usize = 7; // ô
-pub const O_HOOK: usize = 8; // ơ
-pub const U: usize = 9;
-pub const U_HOOK: usize = 10; // ư
-pub const Y: usize = 11;
-
-pub const VOWELS: [VowelEntry; 12] = [
-    VowelEntry {
-        base: 'a',
-        forms: ['a', 'á', 'à', 'ả', 'ã', 'ạ'],
-    },
-    VowelEntry {
-        base: 'ă',
-        forms: ['ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ'],
-    },
-    VowelEntry {
-        base: 'â',
-        forms: ['â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ'],
-    },
-    VowelEntry {
-        base: 'e',
-        forms: ['e', 'é', 'è', 'ẻ', 'ẽ', 'ẹ'],
-    },
-    VowelEntry {
-        base: 'ê',
-        forms: ['ê', 'ế', 'ề', 'ể', 'ễ', 'ệ'],
-    },
-    VowelEntry {
-        base: 'i',
-        forms: ['i', 'í', 'ì', 'ỉ', 'ĩ', 'ị'],
-    },
-    VowelEntry {
-        base: 'o',
-        forms: ['o', 'ó', 'ò', 'ỏ', 'õ', 'ọ'],
-    },
-    VowelEntry {
-        base: 'ô',
-        forms: ['ô', 'ố', 'ồ', 'ổ', 'ỗ', 'ộ'],
-    },
-    VowelEntry {
-        base: 'ơ',
-        forms: ['ơ', 'ớ', 'ờ', 'ở', 'ỡ', 'ợ'],
-    },
-    VowelEntry {
-        base: 'u',
-        forms: ['u', 'ú', 'ù', 'ủ', 'ũ', 'ụ'],
-    },
-    VowelEntry {
-        base: 'ư',
-        forms: ['ư', 'ứ', 'ừ', 'ử', 'ữ', 'ự'],
-    },
-    VowelEntry {
-        base: 'y',
-        forms: ['y', 'ý', 'ỳ', 'ỷ', 'ỹ', 'ỵ'],
-    },
-];
+// Bảng + hằng index âm đã sinh từ data (không viết lại ở đây).
+pub use super::vowel_table_generated::{
+    A, A_BREVE, A_CIRC, E, E_CIRC, I, O, O_CIRC, O_HOOK, TONES_PER_VOWEL, U, U_HOOK, VOWELS,
+    VOWEL_ENTRY_COUNT, Y,
+};
 
 /// Tra ký tự bất kỳ → (index âm, index tone 0..=6). Không phải âm → `None`.
 /// Chấp nhận cả IN HOA ('Á' → ('a'-entry, tone 1)) để gõ HOA vẫn đặt dấu được.
@@ -90,6 +33,18 @@ pub fn locate(c: char) -> Option<(usize, usize)> {
         }
     }
     None
+}
+
+/// Entry "gốc" (không mũ/sừng/breve) của một entry: â→a · ă→a · ê→e · ô→o · ơ→o · ư→u.
+/// Dùng khi gỡ dạng âm (undo marker `w`/`6`/`7`/`8`/`^`/`+`/`(` và VNI `0`).
+pub fn base_entry(e: usize) -> usize {
+    match e {
+        A_BREVE | A_CIRC => A,
+        E_CIRC => E,
+        O_CIRC | O_HOOK => O,
+        U_HOOK => U,
+        other => other,
+    }
 }
 
 /// Dạng lowercase của âm `entry` với tone `tone`.
@@ -136,5 +91,16 @@ mod tests {
         assert_eq!(form_like('a', A, 1), 'á'); // sample thường → output thường
         assert_eq!(form_like('A', A, 1), 'Á'); // sample HOA → output HOA
         assert_eq!(form_like('ơ', O_HOOK, 5), 'ợ');
+    }
+
+    #[test]
+    fn base_entry_maps_modified_forms() {
+        assert_eq!(base_entry(A_CIRC), A);
+        assert_eq!(base_entry(A_BREVE), A);
+        assert_eq!(base_entry(E_CIRC), E);
+        assert_eq!(base_entry(O_HOOK), O);
+        assert_eq!(base_entry(O_CIRC), O);
+        assert_eq!(base_entry(U_HOOK), U);
+        assert_eq!(base_entry(I), I);
     }
 }

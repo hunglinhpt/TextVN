@@ -1,0 +1,8 @@
+# corpus/win/tsf_preedit_punctuation_05.keys — Punctuation terminates preedit (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "xong"
+:expect "xong"
+:type "."
+:expect "xong."

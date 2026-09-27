@@ -1,0 +1,9 @@
+# corpus/win/tsf_preedit_cursor_mid_01.keys — Left arrow navigates inside preedit buffer (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "tooi"
+:expect "tôi"
+:key Left
+:type "x"
+:expect "tôxi"

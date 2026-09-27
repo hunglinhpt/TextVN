@@ -1,0 +1,9 @@
+# corpus/win/bug_B7_slack_thread_01.keys — Slack thread reply composer (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app slack.exe field=body
+:type "ddoongf"
+:expect "đồng"
+:key Space
+:type "ys"
+:expect "đồng ý"

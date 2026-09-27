@@ -1,0 +1,30 @@
+# Simple Telex — Telex nhưng `w` là CHỮ THƯỜNG, không phải marker.
+# Nguồn: `core/src/method/simple_telex.rs` (P0-1 §1) — `telex::fold_with(w_marker=false)`.
+# Vì `w_marker = false`: `tuw` → `tuw` (không phải `tư`), và `ww` → `ww` (không nuốt lặp).
+# Dấu thanh + đôi âm + `dd` giống hệt Telex → dùng chung bảng với `telex`.
+
+[method]
+name = "simple_telex"
+display = "Simple Telex"
+w_marker = false
+tone = ["s", "f", "r", "x", "j"]
+stroke_key = "d"
+stroke_double = true
+remove_marks_key = ""
+
+[[circumflex]]
+key = "a"
+from = ["A"]
+to = ["A_CIRC"]
+
+[[circumflex]]
+key = "e"
+from = ["E"]
+to = ["E_CIRC"]
+
+[[circumflex]]
+key = "o"
+from = ["O"]
+to = ["O_CIRC"]
+
+# Cố ý KHÔNG có [[horn]]: `w` là chữ thường nên không có cặp (key, âm) nào.

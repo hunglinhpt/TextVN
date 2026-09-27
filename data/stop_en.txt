@@ -1,0 +1,84 @@
+# data/stop_en.txt — từ TIẾNG ANH mà Telex biến thành chuỗi **có dấu trông như tiếng Việt**.
+#
+# Dùng để đóng nhánh từ điển của bug B5 (xem `core/src/post/restore_en.rs`).
+# BẬT SẴN KHÔNG AN TOÀN: `test` → `tết` và `list` → `lít` đều là từ Việt thật — bật danh
+# sách này sẽ phá người đang gõ tiếng Việt. Vì vậy `config.english_words` **mặc định rỗng**;
+# file này là **mẫu để người dùng chọn**, không phải preset bật sẵn.
+#
+# Sinh bằng CHÍNH ENGINE (Telex fold → kiểm âm tiết hợp lệ về cấu trúc), không gõ tay cảm
+# tính. Test `data_stop_en_file_is_self_consistent` kiểm lại từng dòng mỗi lần build.
+#
+# fold của từng từ (để dễ đối chiếu khi thêm/sửa — dòng này là ghi chú, không phải data):
+#   text → tễt
+#   next → nễt
+#   rest → rết
+#   pest → pết
+#   test → tết
+#   nest → nết
+#   sort → sỏt
+#   port → pỏt
+#   root → rôt
+#   best → bết
+#   must → mút
+#   dust → đút
+#   rust → rút
+#   gust → gút
+#   list → lít
+#   mist → mít
+#   cost → cót
+#   lost → lót
+#   most → mót
+#   host → hót
+#   post → pót
+#   keep → kêp
+#   deep → đêp
+#   art → ảt
+#   part → pảt
+#   cart → cảt
+#   dart → đảt
+#   hart → hảt
+#   chart → chảt
+#   seem → sêm
+#   nose → nóe
+#   low → lơ
+#   own → ơn
+#   town → tơn
+#   now → nơ
+#   how → hơ
+
+text
+next
+rest
+pest
+test
+nest
+sort
+port
+root
+best
+must
+dust
+rust
+gust
+list
+mist
+cost
+lost
+most
+host
+post
+keep
+deep
+art
+part
+cart
+dart
+hart
+chart
+seem
+nose
+low
+own
+town
+now
+how

@@ -1,0 +1,9 @@
+# corpus/win/bug_B8_terminal_utf8_02.keys — B8 Terminal UTF-8 text handling (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk,field_detect
+:app windowsterminal.exe field=terminal
+:type "chaof"
+:expect "chào"
+:key Space
+:type "banj"
+:expect "chào bạn"

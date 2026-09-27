@@ -1,0 +1,8 @@
+# corpus/win/tsf_preedit_backspace_03.keys — TSF backspace inside preedit (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "da"
+:expect "đa"
+:key Backspace
+:expect "d"

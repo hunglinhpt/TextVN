@@ -1,0 +1,34 @@
+# VIQR — kiểu gõ dùng KÝ TỰ DẤU CÂU. Nguồn: `core/src/method/viqr.rs` (P0-1 §1).
+#
+# Quy tắc thuật toán (không phải bảng) — ở `core/src/method/viqr.rs`:
+#   * `dd` → `đ`, `ddd` → `d` (giống Telex).
+#   * `+` trên cụm `uo` → `ươ` (xử lý trong `transform::undo::mark_horn`).
+#   * marker là MỘT PHẦN của từ → `.`/`?` gõ trong câu vẫn đi qua engine;
+#     gõ lặp cùng dấu → gỡ dấu + literal (`hoa..` → `hoa.`).
+
+[method]
+name = "viqr"
+display = "VIQR"
+w_marker = false
+tone = ["'", "`", "?", "~", "."]
+stroke_key = "d"
+stroke_double = true
+remove_marks_key = ""
+
+# ^ → mũ trên â/ê/ô
+[[circumflex]]
+key = "^"
+from = ["A", "E", "O"]
+to = ["A_CIRC", "E_CIRC", "O_CIRC"]
+
+# + → sừng ơ/ư
+[[horn]]
+key = "+"
+from = ["O", "U"]
+to = ["O_HOOK", "U_HOOK"]
+
+# ( → breve ă
+[[breve]]
+key = "("
+from = ["A"]
+to = ["A_BREVE"]

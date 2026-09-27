@@ -1,0 +1,8 @@
+# corpus/shared/restore_en_invalid_01.keys — bug B5: fold không phải âm tiết Việt → Space trả lại chuỗi gõ
+:config method=telex diacritic_style=new auto_restore_english=true
+:app notepad.exe field=body
+:type "asdf"
+:expect "àd"
+:expect_action RESTORE
+:key Space
+:expect "asdf "

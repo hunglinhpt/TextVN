@@ -1,0 +1,6 @@
+# corpus/win/bug_B3_visualstudio_01.keys — Visual Studio Intellisense popup (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,selection
+:app devenv.exe field=candidate
+:type "ddem"
+:expect "đem"

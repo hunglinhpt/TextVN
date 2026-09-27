@@ -1,0 +1,9 @@
+# corpus/win/bug_B7_electron_slack_01.keys — B7 Slack Electron message typing (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app slack.exe field=body
+:type "hom"
+:expect "hom"
+:key Space
+:type "nay"
+:expect "hom nay"

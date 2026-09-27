@@ -1,0 +1,6 @@
+# corpus/win/bug_B9_dota_chat_01.keys — Dota 2 team chat typing (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app dota2.exe field=editbox
+:type "ddi"
+:expect "đi"

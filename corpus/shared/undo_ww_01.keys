@@ -1,0 +1,4 @@
+# corpus/shared/telex_golden_ww.keys — w đơn lẻ = chữ w (bug B2, golden)
+:config method=telex diacritic_style=new
+:type "ww"
+:expect "w"

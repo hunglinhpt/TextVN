@@ -35,6 +35,38 @@ enum Cmd {
     Note(String),
 }
 
+/// Khả năng mặc định của mỗi adapter trong replay (P0-4 §4).
+///
+/// Lệnh `:caps` trong corpus luôn ghi đè các giá trị này để một ca có thể mô
+/// phỏng capability bị thiếu. Preset theo AppDB chưa được suy diễn ở CLI: nó
+/// phải được kiểm thử qua resolver AppDB dùng chung, không được nhân bản ở đây.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct AdapterProfile {
+    default_caps: u32,
+}
+
+fn adapter_profile(adapter: &str) -> AdapterProfile {
+    const PREEDIT: u32 = 0x1;
+    const SELECTION: u32 = 0x2;
+    const FIELD_DETECT: u32 = 0x4;
+    const INJECT_VK: u32 = 0x8;
+
+    match adapter {
+        "headless" => AdapterProfile { default_caps: 0 },
+        // TSF supports composition and native ranges. `INJECT_VK` is included
+        // for the hook fallback, which shares the Windows corpus profile.
+        "win" => AdapterProfile {
+            default_caps: PREEDIT | SELECTION | FIELD_DETECT | INJECT_VK,
+        },
+        // IMK/IBus/Fcitx5 expose preedit and selection when their platform
+        // field-detection integration is available.
+        "mac" | "linux" => AdapterProfile {
+            default_caps: PREEDIT | SELECTION | FIELD_DETECT,
+        },
+        _ => unreachable!("CLI validates --adapter before replay::run"),
+    }
+}
+
 #[derive(Debug)]
 struct ParseError {
     file: String,
@@ -161,6 +193,19 @@ fn key_by_name(name: &str) -> Option<(u32, u32)> {
         "Super" => (0x5B, 0),
         "CapsLock" => (0x14, 0),
         _ => {
+            // Một combo kết thúc bằng chữ/số (Ctrl+T, Win+L, Alt+Tab...) là
+            // shortcut hợp lệ. Giữ case của `ch`, còn VK chuẩn hoá uppercase
+            // để mô phỏng virtual-key Windows; khi có Ctrl/Alt/Win engine sẽ
+            // bypass nên ký tự không được dùng để biến đổi text.
+            if name.len() == 1 && name.as_bytes()[0].is_ascii_alphanumeric() {
+                let ch = name.as_bytes()[0] as char;
+                let vk = if ch.is_ascii_alphabetic() {
+                    ch.to_ascii_uppercase() as u32
+                } else {
+                    ch as u32
+                };
+                return Some((vk, ch as u32));
+            }
             if let Some(n) = name.strip_prefix('F') {
                 if let Ok(i) = n.parse::<u32>() {
                     if (1..=12).contains(&i) {
@@ -195,8 +240,27 @@ fn parse_combo(s: &str) -> Result<(u32, u32, u32), String> {
     Ok((mods, vk, ch))
 }
 
-/// Bảng config scalar hợp lệ cho `:config` (P0-3 §1.1).
-fn config_value_ok(key: &str, value: &str) -> Result<(), String> {
+/// Bảng config hợp lệ cho `:config` (P0-3 §1.1). Trả **giá trị đã chuẩn hoá** để build JSON.
+///
+/// `macro` / `emoji` (P0-4 §2.3b bổ sung — ghi `P0-REVIEW-LOG`): mỗi dòng thêm **1 entry**,
+/// giá trị phải ở dạng chuỗi có ngoặc kép `"trigger=expand"` (`=` phân tách) — vì `expand`
+/// thường chứa dấu cách.
+fn config_value(key: &str, value: &str) -> Result<String, String> {
+    if key == "macro" || key == "emoji" {
+        let inner = value
+            .strip_prefix('"')
+            .and_then(|v| v.strip_suffix('"'))
+            .ok_or_else(|| {
+                format!("`{key}` cần giá trị trong ngoặc kép: {key}=\"trigger=text\"")
+            })?;
+        let Some((trigger, text)) = inner.split_once('=') else {
+            return Err(format!("`{key}` cần `trigger=text`, nhận `{inner}`"));
+        };
+        if trigger.is_empty() || text.is_empty() {
+            return Err(format!("`{key}`: trigger và text phải khác rỗng"));
+        }
+        return Ok(inner.to_string());
+    }
     let ok = match key {
         "method" => matches!(value, "telex" | "vni" | "viqr" | "simple_telex"),
         "diacritic_style" => matches!(value, "new" | "old"),
@@ -213,10 +277,24 @@ fn config_value_ok(key: &str, value: &str) -> Result<(), String> {
         _ => return Err(format!("config key lạ `{key}`")),
     };
     if ok {
-        Ok(())
+        Ok(value.to_string())
     } else {
         Err(format!("config value không hợp lệ `{key}={value}`"))
     }
+}
+
+/// `english_words=w1,w2` — danh sách từ EN giữ nguyên (opt-in, P0-3 §1.1; mẫu
+/// `data/stop_en.txt`). Giá trị rỗng = danh sách rỗng (tắt). Từ chứa dấu phẩy/dấu
+/// nháy kép thì không biểu diễn được trong DSL → báo lỗi tường minh thay vì cắt sai.
+fn config_english_words(value: &str) -> Result<String, String> {
+    for w in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        if !w.chars().all(|c| c.is_ascii_alphabetic()) {
+            return Err(format!(
+                "`english_words` chỉ nhận chữ cái ASCII, từng từ cách nhau bằng `,` (lỗi ở `{w}`)"
+            ));
+        }
+    }
+    Ok(value.to_string())
 }
 
 /// `field_role` chuỗi → số FFI (bảng 1-1 P0-3 §2.1 — giữ inline để cli không phụ thuộc strategy).
@@ -256,8 +334,12 @@ fn parse_line(line: &str) -> Result<Option<Cmd>, String> {
                 let Some((k, v)) = a.split_once('=') else {
                     return Err(format!("`:config` cần k=v, nhận `{a}`"));
                 };
-                config_value_ok(k, v)?;
-                pairs.push((k.to_string(), v.to_string()));
+                let v = if k == "english_words" {
+                    config_english_words(v)?
+                } else {
+                    config_value(k, v)?
+                };
+                pairs.push((k.to_string(), v));
             }
             if pairs.is_empty() {
                 return Err("`:config` cần ít nhất 1 k=v".into());
@@ -555,15 +637,15 @@ struct SimFailure {
 }
 
 impl Sim {
-    fn new() -> Sim {
+    fn new(profile: AdapterProfile) -> Sim {
         let mut inst: *mut ime_instance = std::ptr::null_mut();
         let rc = ime_instance_new(std::ptr::null(), 0, &mut inst);
         assert_eq!(rc, IME_OK, "ime_instance_new default phải OK");
-        Sim {
+        let mut sim = Sim {
             inst,
             settings: Vec::new(),
             field: 0,
-            caps: 0,
+            caps: profile.default_caps,
             enabled: true,
             secure: false,
             buf: Vec::new(),
@@ -573,7 +655,11 @@ impl Sim {
             pending_action: None,
             last_action: "PASS".into(),
             failures: Vec::new(),
-        }
+        };
+        // Context mặc định cũng phải mang capability profile: corpus không có
+        // `:app`/`:caps` vẫn cần mô phỏng adapter đã chọn.
+        sim.push_ctx(0);
+        sim
     }
 
     fn fail(&mut self, line: usize, msg: String) {
@@ -611,29 +697,20 @@ impl Sim {
         }
     }
 
-    /// Gộp `:config k=v` vào settings rồi reload (JSON build thủ công — value đã validate).
+    /// Gộp `:config k=v` vào settings rồi reload (JSON build ở `build_json` — value đã validate).
     fn apply_config(&mut self, pairs: &[(String, String)], line: usize) {
         for (k, v) in pairs {
+            // `macro`/`emoji` lặp được (mỗi dòng 1 entry) — không gộp đè
+            if k == "macro" || k == "emoji" {
+                self.settings.push((k.clone(), v.clone()));
+                continue;
+            }
             match self.settings.iter_mut().find(|(ek, _)| ek == k) {
                 Some(slot) => slot.1 = v.clone(),
                 None => self.settings.push((k.clone(), v.clone())),
             }
         }
-        let mut json = String::from("{\"config_version\":1");
-        for (k, v) in &self.settings {
-            json.push(',');
-            json.push('"');
-            json.push_str(k);
-            json.push_str("\":");
-            if v == "true" || v == "false" {
-                json.push_str(v);
-            } else {
-                json.push('"');
-                json.push_str(v);
-                json.push('"');
-            }
-        }
-        json.push('}');
+        let json = build_json(&self.settings);
         let rc = ime_reload_config(self.inst, json.as_ptr(), json.len());
         if rc != IME_OK {
             self.fail(
@@ -751,20 +828,94 @@ impl Sim {
     }
 }
 
+impl Drop for Sim {
+    fn drop(&mut self) {
+        ime_instance_free(self.inst);
+    }
+}
+
+/// Chuỗi JSON an toàn (escape `"` `\` và ký tự điều khiển) — text người dùng trong macro/emoji.
+fn json_str(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// JSON `config.v1` từ `:config` — `macro`/`emoji` (lặp được) gom vào `macros[]`/`emoji[]`.
 fn build_json(settings: &[(String, String)]) -> String {
     let mut json = String::from("{\"config_version\":1");
+    let mut macros: Vec<String> = Vec::new();
+    let mut emoji: Vec<String> = Vec::new();
+    let mut english_words = String::new();
     for (k, v) in settings {
+        if k == "macro" || k == "emoji" {
+            let Some((trigger, text)) = v.split_once('=') else {
+                continue; // đã validate ở parser
+            };
+            if k == "macro" {
+                macros.push(format!(
+                    "{{\"trigger\":{},\"expand\":{},\"when\":\"always\"}}",
+                    json_str(trigger),
+                    json_str(text)
+                ));
+            } else {
+                emoji.push(format!(
+                    "{{\"trigger\":{},\"glyph\":{}}}",
+                    json_str(trigger),
+                    json_str(text)
+                ));
+            }
+            continue;
+        }
+        // `english_words=w1,w2` → phần tử bên trong ngoặc (không dấu phẩy thừa —
+        // `["a",]` là JSON hỏng, đó là lý do `rc=-2` lúc đầu). Lần sau **thay thế** lần trước.
+        if k == "english_words" {
+            let inner = v
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(json_str)
+                .collect::<Vec<_>>()
+                .join(",");
+            english_words = inner;
+            continue;
+        }
         json.push(',');
-        json.push('"');
-        json.push_str(k);
-        json.push_str("\":");
+        json.push_str(&json_str(k));
+        json.push(':');
         if v == "true" || v == "false" {
             json.push_str(v);
         } else {
-            json.push('"');
-            json.push_str(v);
-            json.push('"');
+            json.push_str(&json_str(v));
         }
+    }
+    if !macros.is_empty() {
+        json.push_str(",\"macros\":[");
+        json.push_str(&macros.join(","));
+        json.push(']');
+    }
+    if !emoji.is_empty() {
+        json.push_str(",\"emoji\":[");
+        json.push_str(&emoji.join(","));
+        json.push(']');
+    }
+    // `:config english_words=...` — lần xuất hiện sau thắng; ghi ra đúng 1 mảng.
+    if !english_words.is_empty() {
+        json.push_str(",\"english_words\":[");
+        json.push_str(&english_words);
+        json.push(']');
     }
     json.push('}');
     json
@@ -795,9 +946,9 @@ fn mod_bit(name: &str) -> u32 {
 }
 
 /// Chạy 1 case → (pass?, failures, ms).
-fn run_case(case: &Case) -> (bool, Vec<SimFailure>, u128) {
+fn run_case(case: &Case, profile: AdapterProfile) -> (bool, Vec<SimFailure>, u128) {
     let start = Instant::now();
-    let mut sim = Sim::new();
+    let mut sim = Sim::new(profile);
     for &(line, ref cmd) in &case.cmds {
         match cmd {
             Cmd::Config(pairs) => sim.apply_config(pairs, line),
@@ -911,12 +1062,9 @@ fn run_case(case: &Case) -> (bool, Vec<SimFailure>, u128) {
             );
         }
     }
-    ime_instance_free(sim.inst);
-    (
-        sim.failures.is_empty(),
-        sim.failures,
-        start.elapsed().as_millis(),
-    )
+    let failures = std::mem::take(&mut sim.failures);
+    let ok = failures.is_empty();
+    (ok, failures, start.elapsed().as_millis())
 }
 
 // ---- báo cáo ----
@@ -959,9 +1107,7 @@ fn print_failures(case: &Case, failures: &[SimFailure]) {
 
 /// Entrypoint replay (P0-4 §4). Exit: 0/1/2.
 pub fn run(paths: &[String], adapter: &str, json: bool, filter: Option<&str>) -> i32 {
-    // TODO slice sau: profile win/mac/linux set caps/preset mặc định (P0-4 §4).
-    // Hiện tất cả profile chạy cùng engine headless — giữ giá trị để corpus dùng `--adapter win`.
-    let _ = adapter;
+    let profile = adapter_profile(adapter);
 
     let (cases, errors) = load_cases(paths, filter);
     if !errors.is_empty() {
@@ -978,7 +1124,7 @@ pub fn run(paths: &[String], adapter: &str, json: bool, filter: Option<&str>) ->
     let mut failed = 0usize;
     let mut json_items: Vec<String> = Vec::new();
     for case in &cases {
-        let (ok, failures, ms) = run_case(case);
+        let (ok, failures, ms) = run_case(case, profile);
         let (first_exp, first_act) = failures
             .first()
             .map(|f| {
@@ -1098,6 +1244,11 @@ mod tests {
         assert_eq!(mods, 0x3);
         assert_eq!(vk, 0x20);
         assert_eq!(ch, ' ' as u32);
+        assert_eq!(
+            parse_combo("Ctrl+T").unwrap(),
+            (0x2, 'T' as u32, 'T' as u32)
+        );
+        assert_eq!(parse_combo("Win+L").unwrap(), (0x8, 'L' as u32, 'L' as u32));
         assert!(parse_combo("Space").is_err()); // thiếu modifier
         assert!(parse_combo("Hyper+Space").is_err());
         assert_eq!(
@@ -1140,6 +1291,7 @@ mod tests {
             assert!(key_by_name(n).is_some(), "{n} phải hợp lệ");
         }
         assert!(key_by_name("f13").is_none());
+        assert_eq!(key_by_name("a"), Some(('A' as u32, 'a' as u32)));
         assert!(key_by_name("Return").is_none()); // chuẩn là Enter
     }
 
@@ -1148,5 +1300,93 @@ mod tests {
         assert!(parse_line("").unwrap().is_none());
         assert!(parse_line("   # comment").unwrap().is_none());
         assert!(parse_line(":note \"giữ chỗ\"").unwrap().is_some());
+    }
+
+    #[test]
+    fn config_p1_keys_va_json_khop_schema() {
+        // P1-6: method mới + `macro`/`emoji` lặp, giá trị quoted chứa dấu cách
+        let c = parse_line(
+            ":config method=simple_telex macro_trigger=space macro=\"cty=Công ty TNHH\" emoji=\":smile=😀\"",
+        )
+        .unwrap()
+        .unwrap();
+        let settings = match c {
+            Cmd::Config(s) => s,
+            other => panic!("mong Cmd::Config, nhận {other:?}"),
+        };
+        assert_eq!(settings[0], ("method".into(), "simple_telex".into()));
+        assert_eq!(settings[2], ("macro".into(), "cty=Công ty TNHH".into()));
+
+        let json = build_json(&settings);
+        assert!(json.contains("\"method\":\"simple_telex\""), "{json}");
+        assert!(json.contains("\"macro_trigger\":\"space\""), "{json}");
+        assert!(
+            json.contains(
+                r#""macros":[{"trigger":"cty","expand":"Công ty TNHH","when":"always"}]"#
+            ),
+            "{json}"
+        );
+        assert!(
+            json.contains(r#""emoji":[{"trigger":":smile","glyph":"😀"}]"#),
+            "{json}"
+        );
+
+        // phải parse lại được bằng crate config thật (schema khớp, không chỉ là chuỗi)
+        let cfg = vietime_config::parse_config(&json).expect("JSON build ra phải hợp lệ");
+        assert_eq!(cfg.macros.len(), 1);
+        assert_eq!(cfg.macros[0].expand, "Công ty TNHH");
+        assert_eq!(cfg.emoji[0].glyph, "😀");
+    }
+
+    #[test]
+    fn english_words_vao_json_dung_schema() {
+        let json = build_json(&[
+            ("method".into(), "telex".into()),
+            ("english_words".into(), "text,nest".into()),
+        ]);
+        assert!(
+            json.contains(r#""english_words":["text","nest"]"#),
+            "json sai schema: {json}"
+        );
+        // Dấu phẩy thừa (`["a",]`) là JSON hỏng → rc=-2, nên test này chặn đúng lỗi đó.
+        let cfg = vietime_config::parse_config(&json).expect("JSON phải parse được");
+        assert_eq!(
+            cfg.english_words,
+            vec!["text".to_string(), "nest".to_string()]
+        );
+    }
+
+    #[test]
+    fn english_words_gi_a_re_ban() {
+        assert!(config_english_words("text, nest ").is_ok());
+        assert!(config_english_words("").is_ok(), "rỗng = tắt, hợp lệ");
+        assert!(
+            config_english_words("a-b").is_err(),
+            "từ lạ phải báo lỗi tường minh"
+        );
+        assert!(
+            config_english_words("tôi").is_err(),
+            "chỉ nhận chữ cái ASCII"
+        );
+    }
+
+    #[test]
+    fn config_p1_bool_flags() {
+        for line in [
+            ":config auto_capitalize=false",
+            ":config auto_restore_english=false",
+            ":config allow_macro_when_vi_off=true",
+            ":config method=viqr",
+            ":config method=vni",
+        ] {
+            assert!(
+                parse_line(line).unwrap().is_some(),
+                "phải chấp nhận `{line}`"
+            );
+        }
+        assert!(parse_line(":config auto_capitalize=maybe").is_err());
+        assert!(parse_line(":config macro=thiếu-nháy").is_err());
+        // `=` cuối → text rỗng → schema config từ chối.
+        assert!(parse_line(":config macro=\"khongcoadau=\"").is_err());
     }
 }

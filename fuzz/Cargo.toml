@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# L4 fuzz (P0-4 §1) — crate RIÊNG, không thuộc workspace chính:
+# cargo-fuzz cần nightly + sanitizer, workspace chính build bằng stable (P0-1 §4).
+# Chạy:  cargo +nightly fuzz run ffi_key        (P0-4: 60s ở PR, 10' ở nightly)
+#       cargo +nightly fuzz run config_parse
+[package]
+name = "vietime-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[package.metadata]
+cargo-fuzz = true
+
+[features]
+# `cargo-fuzz` trên MSVC truyền `/include:main`; kéo một dependency có
+# `cdylib` vào cùng target làm linker cố export `main` từ DLL. Tách hai fuzz
+# target FFI ra feature này để `appdb_parse` (parser thuần) vẫn chạy trên
+# Windows. CI Unix bật `ffi-fuzz` cho `ffi_key` và `config_parse`.
+ffi-fuzz = ["dep:vietime-ffi"]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+vietime-ffi = { path = "../ffi", optional = true }
+vietime-config = { path = "../config" }
+vietime-appdb = { path = "../appdb" }
+
+[[bin]]
+name = "ffi_key"
+path = "fuzz_targets/ffi_key.rs"
+test = false
+doc = false
+required-features = ["ffi-fuzz"]
+
+[[bin]]
+name = "config_parse"
+path = "fuzz_targets/config_parse.rs"
+test = false
+doc = false
+required-features = ["ffi-fuzz"]
+
+[[bin]]
+name = "appdb_parse"
+path = "fuzz_targets/appdb_parse.rs"
+test = false
+doc = false
+
+# Tách workspace: `cargo build --workspace` ở root KHÔNG đụng tới crate này
+[workspace]

@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_vivaldi_address_02.keys — Vivaldi browser address bar (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app vivaldi.exe field=address_bar
+:type "vieetj"
+:expect "việt"
+:key Space
+:type "nam"
+:expect "việt nam"

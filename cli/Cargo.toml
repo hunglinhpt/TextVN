@@ -12,3 +12,12 @@ path = "src/main.rs"
 [dependencies]
 vietime-ffi = { path = "../ffi" }
 vietime-config = { path = "../config" }
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.61"
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_TextServices",
+] }

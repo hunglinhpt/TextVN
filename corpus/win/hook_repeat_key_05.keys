@@ -1,0 +1,6 @@
+# corpus/win/hook_repeat_key_05.keys — Hook repeat double letter transformation (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app custom_win32.exe field=body
+:type "dd"
+:expect "đ"

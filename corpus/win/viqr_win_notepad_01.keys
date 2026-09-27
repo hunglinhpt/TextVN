@@ -1,0 +1,6 @@
+# corpus/win/viqr_win_notepad_01.keys — VIQR input method on Windows Notepad (P1-5 §2)
+:config method=viqr diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "ddo^`ng"
+:expect "đồng"

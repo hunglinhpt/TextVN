@@ -1,0 +1,6 @@
+# corpus/win/bug_B8_terminal_01.keys — B8 Windows Terminal ForwardAsCommit (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk,field_detect
+:app windowsterminal.exe field=terminal
+:type "duocj"
+:expect "được"

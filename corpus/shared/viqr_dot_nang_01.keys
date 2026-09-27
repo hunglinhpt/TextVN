@@ -1,0 +1,6 @@
+# corpus/shared/viqr_dot_nang_01.keys — VIQR `.` = dấu nặng; gõ `.` lần 2 → gỡ dấu + literal
+:config method=viqr diacritic_style=new
+:type "hoa."
+:expect "hoạ"
+:type "."
+:expect "hoa."

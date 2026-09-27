@@ -1,0 +1,8 @@
+# corpus/win/secure_field_bitwarden_02.keys — Secure master password field (P1-5 §2)
+:config method=telex
+:app bitwarden.exe field=secure
+:secure on
+:type "SecretKey"
+:expect "SecretKey"
+:expect_action PASS
+:secure off

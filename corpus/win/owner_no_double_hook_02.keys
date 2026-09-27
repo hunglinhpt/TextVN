@@ -1,0 +1,6 @@
+# corpus/win/owner_no_double_hook_02.keys — Fallback hook owns input for legacy edit (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app cmd.exe field=terminal
+:type "thoat"
+:expect "thoat"

@@ -1,0 +1,70 @@
+# Bảng âm Việt — NGUỒN SỰ THẬT cho `core/src/transform/vowel_table.rs`
+# (sinh bằng `cargo xtask gen-tables` — P0-1 §3; sau khi có file này, KHÔNG sửa tay
+#  file Rust tương ứng).
+#
+# 12 âm gốc × 6 dạng = 72 ký tự. Thứ tự `tones` = index tone 0..=5.
+# `order` là THỨ TỰ index âm — engine dùng số index này ở nhiều nơi
+# (`mark_vowel`, `mark_horn`, `circum_pair`), nên đổi thứ tự = đổi hành vi.
+
+tones = ["none", "acute", "grave", "hook", "tilde", "dot"]
+order = ["A", "A_BREVE", "A_CIRC", "E", "E_CIRC", "I", "O", "O_CIRC", "O_HOOK", "U", "U_HOOK", "Y"]
+
+[[vowel]]
+name = "A"
+base = "a"
+forms = ["a", "á", "à", "ả", "ã", "ạ"]
+
+[[vowel]]
+name = "A_BREVE"
+base = "ă"
+forms = ["ă", "ắ", "ằ", "ẳ", "ẵ", "ặ"]
+
+[[vowel]]
+name = "A_CIRC"
+base = "â"
+forms = ["â", "ấ", "ầ", "ẩ", "ẫ", "ậ"]
+
+[[vowel]]
+name = "E"
+base = "e"
+forms = ["e", "é", "è", "ẻ", "ẽ", "ẹ"]
+
+[[vowel]]
+name = "E_CIRC"
+base = "ê"
+forms = ["ê", "ế", "ề", "ể", "ễ", "ệ"]
+
+[[vowel]]
+name = "I"
+base = "i"
+forms = ["i", "í", "ì", "ỉ", "ĩ", "ị"]
+
+[[vowel]]
+name = "O"
+base = "o"
+forms = ["o", "ó", "ò", "ỏ", "õ", "ọ"]
+
+[[vowel]]
+name = "O_CIRC"
+base = "ô"
+forms = ["ô", "ố", "ồ", "ổ", "ỗ", "ộ"]
+
+[[vowel]]
+name = "O_HOOK"
+base = "ơ"
+forms = ["ơ", "ớ", "ờ", "ở", "ỡ", "ợ"]
+
+[[vowel]]
+name = "U"
+base = "u"
+forms = ["u", "ú", "ù", "ủ", "ũ", "ụ"]
+
+[[vowel]]
+name = "U_HOOK"
+base = "ư"
+forms = ["ư", "ứ", "ừ", "ử", "ữ", "ự"]
+
+[[vowel]]
+name = "Y"
+base = "y"
+forms = ["y", "ý", "ỳ", "ỷ", "ỹ", "ỵ"]

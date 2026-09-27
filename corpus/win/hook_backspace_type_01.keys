@@ -1,0 +1,6 @@
+# corpus/win/hook_backspace_type_01.keys — Hook BackspaceType replacement (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps inject_vk
+:app legacy_app.exe field=editbox
+:type "tooi"
+:expect "tôi"

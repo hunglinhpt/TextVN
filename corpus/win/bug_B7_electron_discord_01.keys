@@ -1,0 +1,9 @@
+# corpus/win/bug_B7_electron_discord_01.keys — B7 Discord preedit & commit (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app discord.exe field=body
+:type "chaof"
+:expect "chào"
+:key Space
+:type "banj"
+:expect "chào bạn"

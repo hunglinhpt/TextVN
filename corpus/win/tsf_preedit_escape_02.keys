@@ -1,0 +1,8 @@
+# corpus/win/tsf_preedit_escape_02.keys — TSF cancel via Escape (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app notepad.exe field=body
+:type "dang"
+:expect "đang"
+:key Escape
+:expect "dang"

@@ -1,0 +1,6 @@
+# corpus/shared/caps_after_dot_01.keys — tự viết hoa sau `.` + Space (auto_capitalize)
+:config method=telex diacritic_style=new auto_capitalize=true
+:type "chao."
+:key Space
+:type "ban"
+:expect "chao. Ban"

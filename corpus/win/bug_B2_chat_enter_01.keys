@@ -1,0 +1,11 @@
+# corpus/win/bug_B2_chat_enter_01.keys — B2 Enter commits chat without duplicating (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps preedit,selection
+:app slack.exe field=body
+:type "chaof"
+:expect "chào"
+:key Space
+:type "banj"
+:expect "chào bạn"
+:key Enter
+:expect "chào bạn\n"

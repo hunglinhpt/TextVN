@@ -1,0 +1,9 @@
+# corpus/win/chrome_address_bar_01.keys — bug B1 (P0-4 §2.3)
+:config method=telex
+:caps field_detect,inject_vk,selection     # adapter này có UIA + chọn vùng
+:app chrome.exe field=address_bar
+:type "viet"
+:expect "viêt"
+:key Space
+:type "nam"
+:expect "viêt nam"

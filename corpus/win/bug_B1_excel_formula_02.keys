@@ -1,0 +1,9 @@
+# corpus/win/bug_B1_excel_formula_02.keys — B1 Excel formula bar typing (P1-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect,inject_vk,selection
+:app excel.exe field=editbox
+:type "toongr"
+:expect "tổng"
+:key Space
+:type "soos"
+:expect "tổng số"

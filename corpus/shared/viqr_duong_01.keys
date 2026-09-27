@@ -1,0 +1,5 @@
+# corpus/shared/viqr_duong_01.keys — VIQR: ddu+o+ng` → đường (P0-1 §1 method/viqr.rs)
+:config method=viqr diacritic_style=new
+:app notepad.exe field=body
+:type "ddu+o+ng`"
+:expect "đường"
