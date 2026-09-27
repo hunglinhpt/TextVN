@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790480111.9757438,
-    "seen": 1790480149.4243443,
-    "ast_hash": "b3f3c0a0f8f37b05412c0890d58df8a6",
+    "mtime": 1790480768.137583,
+    "seen": 1790480802.1339822,
+    "ast_hash": "c4698dac62609f66d8134183bcd5dfac",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790480079.4517126,
-    "seen": 1790480149.4283557,
-    "ast_hash": "f526fed2e403bf2db3b2b69d2694f52d",
+    "mtime": 1790480760.1767814,
+    "seen": 1790480802.1398797,
+    "ast_hash": "9b5e1908a62132b99f27d8f0e8be6552",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -816,9 +816,9 @@
     "semantic_hash": ""
   },
   "tray/Cargo.toml": {
-    "mtime": 1790479743.387856,
-    "seen": 1790479767.6280947,
-    "ast_hash": "",
+    "mtime": 1790480629.9615684,
+    "seen": 1790480802.1329813,
+    "ast_hash": "ad7834299d004cf724c7a1b7b0d71241",
     "semantic_hash": ""
   },
   "docs/specs/hook-spike.md": {
@@ -828,33 +828,39 @@
     "semantic_hash": ""
   },
   "tray/src/ipc_server.rs": {
-    "mtime": 1790480051.6931777,
-    "seen": 1790480149.4233441,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790480647.2844918,
+    "seen": 1790480802.1329813,
+    "ast_hash": "81e6fb026d679dc9eec217e56b6ac8ce",
     "semantic_hash": ""
   },
   "tray/src/lib.rs": {
-    "mtime": 1790480051.6951792,
-    "seen": 1790480149.4233441,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790480667.6440644,
+    "seen": 1790480802.1329813,
+    "ast_hash": "5bf12ff71b273f50284c82b8491826d2",
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
-    "mtime": 1790480051.6961715,
-    "seen": 1790480149.4233441,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790480679.8404274,
+    "seen": 1790480802.1329813,
+    "ast_hash": "65e52e29b222c0076f2e7f1762171137",
     "semantic_hash": ""
   },
   "tray/src/menu.rs": {
-    "mtime": 1790480051.7386918,
-    "seen": 1790480149.4233441,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790480656.9425776,
+    "seen": 1790480802.1329813,
+    "ast_hash": "782f489c8eb9fa87e16641386268080b",
     "semantic_hash": ""
   },
   "tray/src/svc.rs": {
-    "mtime": 1790480051.7406914,
-    "seen": 1790480149.4233441,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790480638.8940825,
+    "seen": 1790480802.1329813,
+    "ast_hash": "4a7e9dce7969503fb42496b16b1b8df6",
+    "semantic_hash": ""
+  },
+  "tray/src/autostart.rs": {
+    "mtime": 1790480663.2578917,
+    "seen": 1790480802.1329813,
+    "ast_hash": "e0f61a2b87765a6ab38cc72bf4c75144",
     "semantic_hash": ""
   }
 }
