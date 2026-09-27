@@ -1,14 +1,14 @@
 {
   "adapters/windows-tsf/Cargo.toml": {
-    "mtime": 1790478643.7007446,
-    "seen": 1790479267.8037982,
-    "ast_hash": "fac48ff0a9fc16e2e4a253f4085e3e15",
+    "mtime": 1790479684.0629368,
+    "seen": 1790479767.621543,
+    "ast_hash": "1a83f16cc7ef073055ea850a9d2e5921",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1790479186.2559617,
-    "seen": 1790479267.8037982,
-    "ast_hash": "a6aba2399dbc52ea246987f2826fcc55",
+    "mtime": 1790479684.0639327,
+    "seen": 1790479767.621543,
+    "ast_hash": "5eb45eeb18be052c8ce593c2a674b956",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790479468.2216785,
-    "seen": 1790479506.3492208,
-    "ast_hash": "125a2d4d97a07a38b22b4ce7e49bdabb",
+    "mtime": 1790479560.4782271,
+    "seen": 1790479767.6290946,
+    "ast_hash": "6bf3d54c84ba5360bf70151ad61438a6",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790479458.1127756,
-    "seen": 1790479506.3522203,
-    "ast_hash": "c59e2239064a02dfa662798f8a11598f",
+    "mtime": 1790479716.0749118,
+    "seen": 1790479767.6320949,
+    "ast_hash": "b8082334ac357a2139d1d4f2b63bca12",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -696,9 +696,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-hook/Cargo.toml": {
-    "mtime": 1790479359.9486134,
-    "seen": 1790479506.341004,
-    "ast_hash": "ac176be6d610c99d855d7e9df214d8e0",
+    "mtime": 1790479684.0619333,
+    "seen": 1790479767.621543,
+    "ast_hash": "9c10d947f3e861aa736ac65d131f7817",
     "semantic_hash": ""
   },
   "adapters/windows-hook/src/lib.rs": {
@@ -726,27 +726,27 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1790478900.1091073,
-    "seen": 1790479267.8037982,
+    "mtime": 1790479684.0629368,
+    "seen": 1790479767.621543,
     "ast_hash": "dcc0d88c01b393f09db8b0033baa6cef",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
-    "mtime": 1790479042.2751856,
-    "seen": 1790479267.8037982,
+    "mtime": 1790479684.0639327,
+    "seen": 1790479767.621543,
     "ast_hash": "b16cc40e4bf307d4f033cb6b2fc9930e",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1790479151.60393,
-    "seen": 1790479267.8037982,
+    "mtime": 1790479684.0639327,
+    "seen": 1790479767.621543,
     "ast_hash": "cf3d91b264d4e4a21c795340e46aa0b8",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
-    "mtime": 1790479186.2569778,
-    "seen": 1790479267.8037982,
-    "ast_hash": "c68f570b5dc6c697ff7ccc22d4715334",
+    "mtime": 1790479684.0654361,
+    "seen": 1790479767.621543,
+    "ast_hash": "2f0f2b135afaaa96381fd63091864edc",
     "semantic_hash": ""
   },
   "spikes/uia-probe/controltype_ids.ps1": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1790479216.5531964,
-    "seen": 1790479267.812794,
-    "ast_hash": "aecd71149b4a31f097ea632cc51a885b",
+    "mtime": 1790479560.4792216,
+    "seen": 1790479767.6320949,
+    "ast_hash": "609c62d4db071fed0035b9aeea717ce8",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/ipc_client.rs": {
-    "mtime": 1790479186.2500231,
-    "seen": 1790479267.8037982,
-    "ast_hash": "a15585f74a8754a10973c6eff5d592b0",
+    "mtime": 1790479684.0639327,
+    "seen": 1790479767.621543,
+    "ast_hash": "b4204f2c36b12f94623db14da86ddfdf",
     "semantic_hash": ""
   },
   ".github/workflows/hook-spike.yml": {
@@ -810,9 +810,21 @@
     "semantic_hash": ""
   },
   "adapters/windows-hook/src/main.rs": {
-    "mtime": 1790479439.3623657,
-    "seen": 1790479506.341004,
-    "ast_hash": "1c24204331a730978ee2a9aed9c65df1",
+    "mtime": 1790479684.0629368,
+    "seen": 1790479767.621543,
+    "ast_hash": "0bc791ca8b08edcb6984cefaf6fbba0a",
+    "semantic_hash": ""
+  },
+  "tray/Cargo.toml": {
+    "mtime": 1790479743.387856,
+    "seen": 1790479767.6280947,
+    "ast_hash": "11e62503c28930976330d232ac18a8c0",
+    "semantic_hash": ""
+  },
+  "docs/specs/hook-spike.md": {
+    "mtime": 1790479704.2844,
+    "seen": 1790479767.6320949,
+    "ast_hash": "136f643a08621580015ad04f4b8b7e70",
     "semantic_hash": ""
   }
 }

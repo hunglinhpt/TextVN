@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790479236.1401153,
-    "seen": 1790479267.8097782,
-    "ast_hash": "0ab92af4ab74883b39d815dfdaed11fc",
+    "mtime": 1790479468.2216785,
+    "seen": 1790479506.3492208,
+    "ast_hash": "125a2d4d97a07a38b22b4ce7e49bdabb",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790479224.9299288,
-    "seen": 1790479267.812794,
-    "ast_hash": "7997a247bfdd7ce0f4d09c3ccf234c7a",
+    "mtime": 1790479458.1127756,
+    "seen": 1790479506.3522203,
+    "ast_hash": "c59e2239064a02dfa662798f8a11598f",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -696,9 +696,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-hook/Cargo.toml": {
-    "mtime": 1790476146.5500302,
-    "seen": 1790477021.14117,
-    "ast_hash": "ea8931f090f53ab1ee00f40f0ee6e595",
+    "mtime": 1790479359.9486134,
+    "seen": 1790479506.341004,
+    "ast_hash": "ac176be6d610c99d855d7e9df214d8e0",
     "semantic_hash": ""
   },
   "adapters/windows-hook/src/lib.rs": {
@@ -786,9 +786,9 @@
     "semantic_hash": ""
   },
   "spikes/hook-probe/hook_probe.ps1": {
-    "mtime": 1790479257.5162127,
-    "seen": 1790479267.8067913,
-    "ast_hash": "baaaf23fbe15ad6d1a13a19f8e3ab91a",
+    "mtime": 1790479466.377853,
+    "seen": 1790479506.3463244,
+    "ast_hash": "a8e1fe6225554f12ac514aef1e8a8cd4",
     "semantic_hash": ""
   },
   "tools/win/check_reuse.ps1": {
@@ -807,6 +807,12 @@
     "mtime": 1790479052.9828334,
     "seen": 1790479267.8087757,
     "ast_hash": "643540c460bf981c33a839991a1adfdc",
+    "semantic_hash": ""
+  },
+  "adapters/windows-hook/src/main.rs": {
+    "mtime": 1790479439.3623657,
+    "seen": 1790479506.341004,
+    "ast_hash": "1c24204331a730978ee2a9aed9c65df1",
     "semantic_hash": ""
   }
 }
