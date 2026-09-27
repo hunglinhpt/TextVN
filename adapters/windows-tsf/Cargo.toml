@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "vietime-win-tsf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vietime-appdb = { path = "../../appdb" }
+vietime-field-detect = { path = "../../field-detect" }
+vietime-ffi = { path = "../../ffi" }
+vietime-strategy = { path = "../../strategy" }
+
+[target.'cfg(windows)'.dependencies]
+windows-core = "0.61"
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_UI_TextServices",
+    "Win32_UI_Input_KeyboardAndMouse",
+] }

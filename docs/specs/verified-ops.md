@@ -25,6 +25,13 @@
 | B3 | Kill process tree chỉ cho app test mình mở | `taskkill /PID <id> /T /F`; với Chrome theo profile: `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'"` → lọc `CommandLine -like '*<profile>%'` | **không** kill Chrome/Explorer của người dùng |
 | B4 | Tìm cửa sổ (EnumWindows theo pid/class/title) | C# `Add-Type` mẫu `UW`/`UW2`… trong script spike (`%TEMP%\opencode\uia_*.ps1`) | tái sử dụng pattern này, không viết lại |
 | B5 | Xem process giữ lock DLL | `tasklist /m tsf_min.dll` | rebuild cdylib bị lock → đóng app giữ lock trước |
+| B6 | `reuse lint` qua `tools/win/check_reuse.ps1` | ✓ 970/970 files compliant (2026-09-27) | set UTF-8 tránh crash Windows charmap (E1) |
+| B7 | `cargo run -p xtask -- check-tables` | ✓ Khớp 100% `data/tables/*.toml` → `core/` (2026-09-27) | verify tự động tables sinh code |
+| B8 | `cargo run -p vietime-cli -- verify` | ✓ FFI ABI 4 tầng + 11 export functions khớp 100% (2026-09-27) | `vietime_ffi.h` đồng bộ tuyệt đối Rust ABI |
+| B9 | `cargo run -p vietime-cli -- replay corpus/shared corpus/win` | ✓ 100/100 test cases pass (2026-09-27) | test suite cho B1-B9, secure context, hook, tsf preedit |
+| B10 | `cargo run -p vietime-bench` | ✓ ime_key p50=5.7µs (<500µs), resolve p50=57ns (<2ms) (2026-09-27) | đạt budget performance vượt trội |
+| B11 | `cargo build -p vietime-win-tsf` | ✓ Sinh `target/debug/vietime_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |
+
 
 ## C. Windows platform (chi tiết → spike specs)
 
