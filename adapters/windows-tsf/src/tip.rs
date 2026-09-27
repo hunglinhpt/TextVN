@@ -33,6 +33,8 @@ struct TipInner {
     _sink: Option<ITfKeyEventSink>,
     thread_state: Option<Rc<RefCell<ThreadState>>>,
     ipc: Option<Arc<IpcClient>>,
+    source: Option<ITfSource>,
+    sink_cookie: u32,
 }
 
 #[cfg(windows)]
@@ -53,6 +55,8 @@ impl Tip {
                 _sink: None,
                 thread_state: None,
                 ipc: None,
+                source: None,
+                sink_cookie: 0,
             }),
         }
     }
@@ -77,11 +81,27 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
     }
 
     fn Deactivate(&self) -> Result<()> {
-        let (tid, keymgr, ipc) = self.with(|i| (i.tid, i.keymgr.take(), i.ipc.take()));
+        let (tid, keymgr, ipc, source, sink_cookie) = self.with(|i| {
+            (
+                i.tid,
+                i.keymgr.take(),
+                i.ipc.take(),
+                i.source.take(),
+                std::mem::take(&mut i.sink_cookie),
+            )
+        });
         self.with(|i| {
             i._sink.take();
             i.thread_state.take();
         });
+        if let Some(src) = source {
+            if sink_cookie != 0 {
+                // SAFETY: Unadvising ITfThreadMgrEventSink registered during ActivateEx.
+                unsafe {
+                    let _ = src.UnadviseSink(sink_cookie);
+                }
+            }
+        }
         if let Some(client) = ipc {
             client.stop();
         }
@@ -138,12 +158,28 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
             let _ = keymgr.PreserveKey(tid, &GUID_PRESERVED_TOGGLE, &pkey, &desc);
         }
 
+        // WIN-014: Đăng ký ITfThreadMgrEventSink để lắng nghe OnSetFocus (Bug B2 - commit-before-hide)
+        let source: Result<ITfSource> = mgr.cast();
+        let (source_opt, sink_cookie) = match source {
+            Ok(src) => {
+                let event_sink: ITfThreadMgrEventSink = self.to_interface();
+                let cookie = unsafe {
+                    src.AdviseSink(&ITfThreadMgrEventSink::IID, &event_sink)
+                }
+                .unwrap_or(0);
+                (Some(src), cookie)
+            }
+            Err(_) => (None, 0),
+        };
+
         self.with(|i| {
             i.tid = tid;
             i.keymgr = Some(keymgr);
             i._sink = Some(sink);
             i.thread_state = Some(state);
             i.ipc = Some(ipc);
+            i.source = source_opt;
+            i.sink_cookie = sink_cookie;
         });
 
         Ok(())
