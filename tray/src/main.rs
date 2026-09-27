@@ -4,8 +4,10 @@
 //! Chạy 1 instance duy nhất với Mutex `Local\VietIMETray`.
 //! Lắng nghe IPC pipe, điều phối cấu hình & trạng thái, hiển thị tray icon và menu ngữ cảnh.
 
+use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use vietime_tray::ipc_server::{IpcServer, PIPE_NAME};
 use vietime_tray::menu::{TrayMenu, ID_EXIT};
@@ -256,10 +258,84 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 
 fn check_status() {
     println!("Checking VietIME IPC pipe: {}", PIPE_NAME);
+    match std::fs::OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+        Ok(mut stream) => {
+            let ping = vietime_ipc::Message::Ping;
+            if let Ok(frame) = vietime_ipc::encode_frame(&ping) {
+                if stream.write_all(&frame).is_ok() && stream.flush().is_ok() {
+                    let mut len_buf = [0u8; 4];
+                    if stream.read_exact(&mut len_buf).is_ok() {
+                        let len = u32::from_le_bytes(len_buf) as usize;
+                        if len <= vietime_ipc::MAX_FRAME_BYTES {
+                            let mut buf = vec![0u8; 4 + len];
+                            buf[..4].copy_from_slice(&len_buf);
+                            if stream.read_exact(&mut buf[4..]).is_ok() {
+                                if let Ok(vietime_ipc::Message::Pong { uptime_ms }) =
+                                    vietime_ipc::decode_exact_frame(&buf)
+                                {
+                                    println!("VietIME IPC Server: RUNNING");
+                                    println!("  Pipe: {}", PIPE_NAME);
+                                    println!(
+                                        "  Uptime: {} ms ({:.1}s)",
+                                        uptime_ms,
+                                        uptime_ms as f64 / 1000.0
+                                    );
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            println!("VietIME IPC Server: Connected, but response was invalid.");
+        }
+        Err(e) => {
+            println!("VietIME IPC Server: OFFLINE ({e})");
+        }
+    }
 }
 
 fn stop_running_instance() {
-    println!("Stopping VietIME Tray instance...");
+    #[cfg(windows)]
+    {
+        println!("Checking for running VietIME Tray instance...");
+        let class_name_wide: Vec<u16> =
+            WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
+        let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
+        if let Ok(h) = hwnd {
+            if !h.0.is_null() {
+                println!("Found VietIME Tray window. Sending exit command...");
+                unsafe {
+                    let _ =
+                        PostMessageW(Some(h), WM_COMMAND, WPARAM(ID_EXIT as usize), LPARAM(0));
+                }
+
+                // Chờ tối đa 3 giây xem tiến trình đã giải phóng mutex chưa
+                let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
+                for i in 0..30 {
+                    std::thread::sleep(Duration::from_millis(100));
+                    let h_mutex =
+                        unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
+                    if let Ok(m) = h_mutex {
+                        let err = unsafe { GetLastError() };
+                        let _ = unsafe { CloseHandle(m) };
+                        if err != ERROR_ALREADY_EXISTS {
+                            println!(
+                                "VietIME Tray stopped successfully (after {}ms).",
+                                (i + 1) * 100
+                            );
+                            return;
+                        }
+                    }
+                }
+                println!("VietIME Tray signalled, but process did not exit within 3s.");
+                return;
+            }
+        }
+        println!("No running VietIME Tray instance detected.");
+    }
+    #[cfg(not(windows))]
+    println!("Stopping tray instance is only supported on Windows.");
 }
 
 #[cfg(test)]

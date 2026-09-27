@@ -76,7 +76,16 @@ impl IpcServer {
     }
 
     pub fn stop(&self) {
-        self.running.store(false, Ordering::Release);
+        if self.running.swap(false, Ordering::SeqCst) {
+            #[cfg(windows)]
+            {
+                // Unblock ConnectNamedPipe bằng kết nối dummy cục bộ (WIN-051)
+                let _ = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(PIPE_NAME);
+            }
+        }
     }
 
     /// Broadcast thông báo cấu hình thay đổi tới toàn bộ client đang Subscribe (P0-3 §4).
@@ -152,6 +161,10 @@ impl IpcServer {
 
             // SAFETY: Đợi client kết nối
             let connected = unsafe { ConnectNamedPipe(handle, None) };
+            if !self.running.load(Ordering::Acquire) {
+                let _ = unsafe { CloseHandle(handle) };
+                break;
+            }
             if connected.is_ok() || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED {
                 let file = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
                 let stream = Arc::new(Mutex::new(file));
@@ -333,6 +346,28 @@ mod tests {
         assert_eq!(server.crash_count(), 0);
         server.crash_counter.fetch_add(1, Ordering::SeqCst);
         assert_eq!(server.crash_count(), 1);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn server_starts_and_stops_cleanly() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("vietime_startstop_test_{}", std::process::id()));
+        let svc = SvcManager::new(Some(temp_dir.clone()));
+        let server = IpcServer::new(svc);
+
+        assert!(!server.is_running());
+        server.start();
+        assert!(server.is_running());
+
+        // Cho pipe loop vao ConnectNamedPipe
+        std::thread::sleep(Duration::from_millis(50));
+
+        // Stop phai unblock va chuyen is_running ve false sach se
+        server.stop();
+        assert!(!server.is_running());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
