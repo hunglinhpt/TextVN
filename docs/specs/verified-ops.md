@@ -31,9 +31,6 @@
 | B9 | `cargo run -p vietime-cli -- replay corpus/shared corpus/win` | ✓ 100/100 test cases pass (2026-09-27) | test suite cho B1-B9, secure context, hook, tsf preedit |
 | B10 | `cargo run -p vietime-bench` | ✓ ime_key p50=5.7µs (<500µs), resolve p50=57ns (<2ms) (2026-09-27) | đạt budget performance vượt trội |
 | B11 | `cargo build -p vietime-win-tsf` | ✓ Sinh `target/debug/vietime_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |
-| B12 | `cargo test -p vietime-win-tsf` | ✓ 15/15 tests pass (2026-09-27) | Kiểm chứng WIN-010..019: COM lifecycle, IPC client, SelectionReplace, ForwardAsCommit, hotkey toggle EN/VN, secure field |
-| B13 | `cargo clippy -p vietime-win-tsf --all-targets -- -D warnings` | ✓ 0 warnings, 0 errors (2026-09-27) | Đảm bảo an toàn bộ nhớ và chuẩn coding Rust nghiêm ngặt |
-| B14 | `cargo build -p vietime-win-hook --bin vietime-hook` | ✓ Sinh `target/debug/vietime-hook.exe` (988KB) (2026-09-27) | Hook adapter binary độc lập (WIN-040..045): WH_KEYBOARD_LL, loop guard, SendInput injection, IPC heartbeat |
 
 
 ## C. Windows platform (chi tiết → spike specs)
@@ -50,6 +47,7 @@
 | C8 | Chrome test với profile riêng: `--user-data-dir=%TEMP%\<rieng>` + `file://` fixture HTML | ✓ (2026-09-27) | launch ≥2 web content xuất hiện trong UIA; launch 1 profile mới có thể KHÔNG thấy ≥8s → `uia-spike.md` S4-3 |
 | C9 | Chrome SingletonLock: spawn 2 lần cùng profile → lần 2 forward sang instance cũ, pid mới **không có window** | ✓ đã gặp (2026-09-27) | kill sạch theo profile ở ĐẦU script (B3) rồi mới spawn |
 | C10 | Spike UIA reproduce từ repo: `powershell -NoProfile -ExecutionPolicy Bypass -File spikes\uia-probe\{controltype_ids,probe_conditions,uia_spike}.ps1` | ✓ **3/3 chạy OK** (2026-09-27; run 2 đầy đủ = `uia-spike.md` §1.1) | output `%TEMP%\uia_probe_conditions_out.txt` / `%TEMP%\uia_spike_out.txt`; Office+Chrome tự mở, tự dọn sau khi chạy |
+| C11 | Hook spike: local `spikes\hook-probe\hook_probe.ps1` + GHA `gh workflow run hook-spike.yml` (dispatch, artifact `hook-probe-out`) | ✓ local PASS + **3 run GHA xanh** (2026-09-27: 36291058821, 36291164891, 36291348415) | kết luận RW5 = `hook-spike.md` §3; script tự dọn notepad mới mở, giữ notepad sẵn có |
 
 ## D. Môi trường máy dev (snapshot 2026-09-27) — khỏi kiểm tra lại
 
