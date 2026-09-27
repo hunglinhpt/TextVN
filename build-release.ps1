@@ -104,6 +104,14 @@ foreach ($entry in $BinFiles) {
     }
 }
 
+# Copy resources
+$resSrc = "tray\resources"
+$resDst = "$ZipDir\resources"
+if (Test-Path $resSrc) {
+    Copy-Item $resSrc $resDst -Recurse -Force
+    Write-Ok "Copied tray resources (vietime_v.ico, vietime_e.ico)"
+}
+
 # Copy docs
 foreach ($doc in @("README.md", "CHANGELOG.md", "LICENSE")) {
     if (Test-Path $doc) {
@@ -112,11 +120,25 @@ foreach ($doc in @("README.md", "CHANGELOG.md", "LICENSE")) {
     }
 }
 
-# Tao install.ps1 script trong ZIP
+# Verify PE metadata cho toan bo binary de tranh bao dong gia Antivirus
+Write-Step "Verify PE metadata and VersionInfo"
+foreach ($entry in $BinFiles) {
+    $dst = "$ZipDir\$($entry.dst)"
+    if (Test-Path $dst) {
+        $vi = (Get-Item $dst).VersionInfo
+        if ($vi.CompanyName -eq "VietIME Open Source Project") {
+            Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
+        } else {
+            Write-Warn "$($entry.dst): CompanyName not set or missing resource info!"
+        }
+    }
+}
+
+# Tao install.ps1 script trong ZIP (mac dinh --no-taskbar khong lam rac taskbar)
 $installContent = "# install.ps1 - Install VietIME portable`r`n" +
     "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Registering VietIME TSF TIP...'`r`n" +
-    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\vietime.exe`" -ArgumentList 'register'`r`n" +
+    "Write-Host 'Registering VietIME TSF TIP (no-taskbar)...'`r`n" +
+    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\vietime.exe`" -ArgumentList 'register --no-taskbar'`r`n" +
     "if (`$r.ExitCode -eq 0) {`r`n" +
     "    Write-Host 'Registration OK! Starting tray...'`r`n" +
     "    Start-Process -FilePath `"`$dir\vietime-tray.exe`"`r`n" +
@@ -137,12 +159,42 @@ $uninstallContent = "# uninstall.ps1 - Uninstall VietIME portable`r`n" +
 
 Write-Ok "install.ps1 + uninstall.ps1 created"
 
-# Nen thanh ZIP
+# Nen thanh ZIP (cho Defender/AV scan xong roi moi nen de tranh lock)
+Start-Sleep -Milliseconds 600
 $ZipPath = "$DistDir\$ZipName.zip"
-if (Test-Path $ZipPath) { Remove-Item $ZipPath }
-Compress-Archive -Path "$ZipDir\*" -DestinationPath $ZipPath
+if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+
+$zipSuccess = $false
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+    try {
+        Compress-Archive -Path "$ZipDir\*" -DestinationPath $ZipPath -ErrorAction Stop
+        $zipSuccess = $true
+        break
+    } catch {
+        Write-Warn "Compress-Archive attempt $attempt failed ($($_)), retrying in 500ms..."
+        Start-Sleep -Milliseconds 500
+    }
+}
+if (-not $zipSuccess) {
+    Write-Fail "Compress-Archive failed after 5 attempts"
+}
 $zipSz = [math]::Round((Get-Item $ZipPath).Length / 1024)
 Write-Ok "ZIP: $ZipPath ($zipSz KB)"
+
+# Tao ma bam SHA256 checksums de xac thuc an toan (Antivirus Whitelist standard)
+Write-Step "Generate SHA256 Checksums"
+$shaFile = "$DistDir\SHA256SUMS.txt"
+$hashLines = @()
+$fullZipDir = (Resolve-Path $ZipDir).Path
+Get-ChildItem -Path $ZipDir -File -Recurse | ForEach-Object {
+    $h = Get-FileHash -Path $_.FullName -Algorithm SHA256
+    $rel = $_.FullName.Substring($fullZipDir.Length).TrimStart('\', '/')
+    $hashLines += "$($h.Hash)  $rel"
+}
+$zipHash = Get-FileHash -Path $ZipPath -Algorithm SHA256
+$hashLines += "$($zipHash.Hash)  $ZipName.zip"
+[System.IO.File]::WriteAllLines($shaFile, $hashLines, [System.Text.Encoding]::ASCII)
+Write-Ok "SHA256 checksums saved to $shaFile"
 
 # Build installer Inno Setup (optional)
 if ($BuildInstaller) {

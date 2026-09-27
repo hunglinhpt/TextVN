@@ -223,8 +223,20 @@ impl IpcServer {
                     Some(Message::Ack)
                 }
                 Message::ToggleViEn { app_id, enabled } => {
-                    let ver = self.svc.set_app_enabled(&app_id, enabled);
+                    let ver = if app_id == "*" {
+                        let (_, v) = self.svc.set_global_enabled(enabled);
+                        crate::notify_tray_state_changed();
+                        v
+                    } else {
+                        self.svc.set_app_enabled(&app_id, enabled)
+                    };
                     self.broadcast_state_update(&app_id, enabled, ver);
+                    Some(Message::Ack)
+                }
+                Message::ToggleGlobal => {
+                    let (enabled, ver) = self.svc.toggle_global_enabled();
+                    self.broadcast_state_update("*", enabled, ver);
+                    crate::notify_tray_state_changed();
                     Some(Message::Ack)
                 }
                 Message::Ping => Some(Message::Pong {

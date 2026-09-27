@@ -72,8 +72,8 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 [Run]
 ; 1. Khởi tạo cấu hình mặc định (không ghi đè nếu đã tồn tại)
 Filename: "{app}\vietime.exe"; Parameters: "config init"; Flags: runhidden
-; 2. Đăng ký Text Services Framework (TSF TIP)
-Filename: "{app}\vietime.exe"; Parameters: "register"; Flags: runhidden
+; 2. Đăng ký Text Services Framework (TSF TIP) không làm rác menu ngôn ngữ taskbar
+Filename: "{app}\vietime.exe"; Parameters: "register --no-taskbar"; Flags: runhidden
 ; 3. Chạy khay hệ thống VietIME Tray
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 

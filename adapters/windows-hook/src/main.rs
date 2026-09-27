@@ -11,7 +11,7 @@
 mod hook_app {
     use std::cell::RefCell;
     use std::path::Path;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
@@ -31,6 +31,30 @@ mod hook_app {
 
     /// Cờ bảo vệ chống đệ quy khi chính VietIME đang gọi `SendInput` (WIN-041).
     static IN_INJECTION: AtomicBool = AtomicBool::new(false);
+
+    /// Trạng thái phím Ctrl + Shift cho chuyển đổi chế độ gõ
+    static CTRL_DOWN: AtomicBool = AtomicBool::new(false);
+    static SHIFT_DOWN: AtomicBool = AtomicBool::new(false);
+    static OTHER_KEY_DOWN: AtomicBool = AtomicBool::new(false);
+    static LAST_TOGGLE_MS: AtomicU64 = AtomicU64::new(0);
+
+    fn trigger_global_toggle() {
+        std::thread::spawn(|| {
+            use std::io::Write;
+            use vietime_ipc::{encode_frame, Message};
+            if let Ok(mut stream) = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(r"\\.\pipe\vietime-ipc-v1")
+            {
+                let msg = Message::ToggleGlobal;
+                if let Ok(frame) = encode_frame(&msg) {
+                    let _ = stream.write_all(&frame);
+                    let _ = stream.flush();
+                }
+            }
+        });
+    }
 
     /// Trạng thái Hook toàn cục trong thread hook của tiến trình.
     struct GlobalHookContext {
@@ -130,13 +154,57 @@ mod hook_app {
             return CallNextHookEx(None, code, wparam, lparam);
         }
 
-        // 2. Chỉ xử lý khi key down (WM_KEYDOWN hoặc WM_SYSKEYDOWN)
+        let vk = kbd.vkCode;
+        let is_ctrl =
+            vk == VK_CONTROL.0 as u32 || vk == VK_LCONTROL.0 as u32 || vk == VK_RCONTROL.0 as u32;
+        let is_shift =
+            vk == VK_SHIFT.0 as u32 || vk == VK_LSHIFT.0 as u32 || vk == VK_RSHIFT.0 as u32;
+
         let is_down = wparam.0 == WM_KEYDOWN as usize || wparam.0 == WM_SYSKEYDOWN as usize;
+        let is_up = wparam.0 == WM_KEYUP as usize || wparam.0 == WM_SYSKEYUP as usize;
+
+        // Xử lý Hotkey chuyển đổi chế độ gõ Ctrl + Shift (chuẩn UniKey / EVKey)
+        if is_down {
+            if is_ctrl {
+                CTRL_DOWN.store(true, Ordering::Release);
+            } else if is_shift {
+                SHIFT_DOWN.store(true, Ordering::Release);
+            } else {
+                OTHER_KEY_DOWN.store(true, Ordering::Release);
+            }
+        } else if is_up && (is_ctrl || is_shift) {
+            let ctrl = CTRL_DOWN.load(Ordering::Acquire);
+            let shift = SHIFT_DOWN.load(Ordering::Acquire);
+            let other = OTHER_KEY_DOWN.load(Ordering::Acquire);
+
+            if ctrl && shift && !other {
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                let last_ms = LAST_TOGGLE_MS.load(Ordering::Acquire);
+                if now_ms.saturating_sub(last_ms) >= 250 {
+                    LAST_TOGGLE_MS.store(now_ms, Ordering::Release);
+                    trigger_global_toggle();
+                }
+                OTHER_KEY_DOWN.store(true, Ordering::Release);
+            }
+
+            if is_ctrl {
+                CTRL_DOWN.store(false, Ordering::Release);
+            }
+            if is_shift {
+                SHIFT_DOWN.store(false, Ordering::Release);
+            }
+            if !CTRL_DOWN.load(Ordering::Acquire) && !SHIFT_DOWN.load(Ordering::Acquire) {
+                OTHER_KEY_DOWN.store(false, Ordering::Release);
+            }
+        }
+
+        // 2. Chỉ xử lý khi key down (WM_KEYDOWN hoặc WM_SYSKEYDOWN)
         if !is_down {
             return CallNextHookEx(None, code, wparam, lparam);
         }
-
-        let vk = kbd.vkCode;
         let mods = get_active_modifiers();
 
         // 3. Chord hệ thống (Ctrl, Alt, Win) -> PASS lập tức (B6)

@@ -38,6 +38,7 @@ pub enum Message {
         app_id: String,
         enabled: bool,
     },
+    ToggleGlobal,
     CrashReport {
         code: String,
         count: u32,
@@ -114,6 +115,17 @@ mod tests {
         assert_eq!(
             std::str::from_utf8(&frame[4..]).unwrap(),
             r#"{"type":"ToggleViEn","app_id":"chrome.exe","enabled":false}"#
+        );
+        assert_eq!(decode_exact_frame(&frame), Ok(message));
+    }
+
+    #[test]
+    fn toggle_global_round_trip() {
+        let message = Message::ToggleGlobal;
+        let frame = encode_frame(&message).unwrap();
+        assert_eq!(
+            std::str::from_utf8(&frame[4..]).unwrap(),
+            r#"{"type":"ToggleGlobal"}"#
         );
         assert_eq!(decode_exact_frame(&frame), Ok(message));
     }

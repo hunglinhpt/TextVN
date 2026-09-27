@@ -39,6 +39,8 @@ const WINDOW_CLASS_NAME: &str = "VietIMETrayWndClass";
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
+const IDI_ICON_V: usize = 1;
+const IDI_ICON_E: usize = 2;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
@@ -46,16 +48,99 @@ struct TrayApp {
     svc: Arc<SvcManager>,
     ipc: Arc<IpcServer>,
     menu: TrayMenu,
+    icon_vi: isize,
+    icon_en: isize,
 }
 
 static APP_INSTANCE: std::sync::OnceLock<TrayApp> = std::sync::OnceLock::new();
+
+#[cfg(windows)]
+fn load_app_icon(h_instance: HINSTANCE, res_id: usize, file_name: &str) -> HICON {
+    unsafe {
+        // 1. Thử nạp từ Win32 PE Resource (đã nhúng qua tray.rc)
+        let icon_res = LoadImageW(
+            Some(h_instance),
+            PCWSTR(res_id as *const u16),
+            IMAGE_ICON,
+            0,
+            0,
+            LR_DEFAULTSIZE | LR_SHARED,
+        );
+        if let Ok(handle) = icon_res {
+            let hicon = HICON(handle.0);
+            if !hicon.is_invalid() {
+                return hicon;
+            }
+        }
+
+        // 2. Fallback: nạp từ file resources/<file_name> cạnh exe hoặc thư mục dự án
+        let mut candidates = Vec::new();
+        if let Ok(mut exe) = std::env::current_exe() {
+            exe.pop();
+            candidates.push(exe.join("resources").join(file_name));
+            candidates.push(exe.join(file_name));
+        }
+        candidates.push(std::path::PathBuf::from("tray/resources").join(file_name));
+        candidates.push(std::path::PathBuf::from("resources").join(file_name));
+
+        for path in candidates {
+            if path.exists() {
+                let path_w: Vec<u16> = path
+                    .to_string_lossy()
+                    .encode_utf16()
+                    .chain(Some(0))
+                    .collect();
+                let icon_file = LoadImageW(
+                    None,
+                    PCWSTR(path_w.as_ptr()),
+                    IMAGE_ICON,
+                    0,
+                    0,
+                    LR_LOADFROMFILE | LR_DEFAULTSIZE,
+                );
+                if let Ok(handle) = icon_file {
+                    let hicon = HICON(handle.0);
+                    if !hicon.is_invalid() {
+                        return hicon;
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback cuối cùng: default application icon
+        LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
+    }
+}
+
+#[cfg(windows)]
+fn update_tray_icon(hwnd: HWND, app: &TrayApp) {
+    let enabled = app.svc.is_global_enabled();
+    let raw_icon = if enabled { app.icon_vi } else { app.icon_en };
+    let h_icon = HICON(raw_icon as *mut std::ffi::c_void);
+    let tip = if enabled {
+        "VietIME - Tiếng Việt [V] (Tím)"
+    } else {
+        "VietIME - English [E] (Xanh)"
+    };
+
+    let mut nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ICON_UID,
+        uFlags: NIF_ICON | NIF_TIP,
+        hIcon: h_icon,
+        ..Default::default()
+    };
+    copy_to_wide_buf(&mut nid.szTip, tip);
+    let _ = unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         match args[1].as_str() {
             "--autostart" => {
-                // Khởi động từ Windows Startup, tiếp tục chạy bình thường
+                // Khởi động từ Windows Startup, tiếp tục chạy ngầm vào tray
             }
             "--status" => {
                 check_status();
@@ -100,9 +185,29 @@ fn run_tray_app() {
         }
     };
 
+    let is_autostart = std::env::args().any(|a| a == "--autostart");
+
     if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
-        println!("VietIME Tray already running in background.");
         let _ = unsafe { CloseHandle(mutex) };
+        if !is_autostart {
+            // Nếu người dùng click chạy app khi đã chạy ngầm -> mở Bảng điều khiển
+            let class_name_wide: Vec<u16> =
+                WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
+            let existing_hwnd =
+                unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), PCWSTR::null()) };
+            if let Ok(h) = existing_hwnd {
+                if !h.is_invalid() {
+                    unsafe {
+                        let _ = PostMessageW(
+                            Some(h),
+                            vietime_tray::WM_OPEN_SETTINGS,
+                            WPARAM(0),
+                            LPARAM(0),
+                        );
+                    }
+                }
+            }
+        }
         return;
     }
 
@@ -113,12 +218,6 @@ fn run_tray_app() {
 
     // Khởi động background Named Pipe loop
     ipc.start();
-
-    let _ = APP_INSTANCE.set(TrayApp {
-        svc: svc.clone(),
-        ipc: ipc.clone(),
-        menu,
-    });
 
     // 3. Đăng ký Win32 Window Class & Tạo Hidden Message Window
     let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
@@ -157,21 +256,41 @@ fn run_tray_app() {
         }
     };
 
-    // 4. Thêm icon vào khay hệ thống
+    vietime_tray::TRAY_HWND.store(hwnd.0 as isize, Ordering::Release);
+
+    // Nạp icon chế độ: 'V' (Tím) cho tiếng Việt, 'E' (Xanh) cho tiếng Anh
+    let icon_vi = load_app_icon(h_instance.into(), IDI_ICON_V, "vietime_v.ico");
+    let icon_en = load_app_icon(h_instance.into(), IDI_ICON_E, "vietime_e.ico");
+
+    let _ = APP_INSTANCE.set(TrayApp {
+        svc: svc.clone(),
+        ipc: ipc.clone(),
+        menu,
+        icon_vi: icon_vi.0 as isize,
+        icon_en: icon_en.0 as isize,
+    });
+
+    // 4. Thêm icon vào khay hệ thống (mặc định tiếng Việt [V] Tím)
+    let initial_icon = if svc.is_global_enabled() {
+        icon_vi
+    } else {
+        icon_en
+    };
+
     let mut nid = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
         uID: TRAY_ICON_UID,
         uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage: WM_TRAYICON,
-        hIcon: unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() },
+        hIcon: initial_icon,
         ..Default::default()
     };
 
     let tip = if svc.is_global_enabled() {
-        "VietIME - Tiếng Việt (Bật)"
+        "VietIME - Tiếng Việt [V] (Tím)"
     } else {
-        "VietIME - Tiếng Việt (Tắt)"
+        "VietIME - English [E] (Xanh)"
     };
     copy_to_wide_buf(&mut nid.szTip, tip);
 
@@ -187,6 +306,7 @@ fn run_tray_app() {
 
     // 6. Dọn dẹp trước khi thoát
     let _ = unsafe { Shell_NotifyIconW(NIM_DELETE, &nid) };
+    vietime_tray::TRAY_HWND.store(0, Ordering::Release);
     ipc.stop();
     let _ = unsafe { CloseHandle(mutex) };
 }
@@ -210,26 +330,11 @@ unsafe extern "system" fn wnd_proc(
                     }
                 }
                 WM_LBUTTONUP => {
-                    // Click chuột trái: Bật/Tắt nhanh tiếng Việt
+                    // Click chuột trái: Bật/Tắt nhanh tiếng Việt và đổi icon V (Tím) <-> E (Xanh)
                     if let Some(app) = APP_INSTANCE.get() {
                         let (enabled, ver) = app.svc.toggle_global_enabled();
                         app.ipc.broadcast_state_update("*", enabled, ver);
-
-                        // Cập nhật tooltip
-                        let mut nid = NOTIFYICONDATAW {
-                            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-                            hWnd: hwnd,
-                            uID: TRAY_ICON_UID,
-                            uFlags: NIF_TIP,
-                            ..Default::default()
-                        };
-                        let tip = if enabled {
-                            "VietIME - Tiếng Việt (Bật)"
-                        } else {
-                            "VietIME - Tiếng Việt (Tắt)"
-                        };
-                        copy_to_wide_buf(&mut nid.szTip, tip);
-                        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
+                        update_tray_icon(hwnd, app);
                     }
                 }
                 WM_LBUTTONDBLCLK => {
@@ -245,6 +350,21 @@ unsafe extern "system" fn wnd_proc(
             }
             LRESULT(0)
         }
+        vietime_tray::WM_UPDATE_TRAY_STATE => {
+            if let Some(app) = APP_INSTANCE.get() {
+                update_tray_icon(hwnd, app);
+            }
+            LRESULT(0)
+        }
+        vietime_tray::WM_OPEN_SETTINGS => {
+            if let Some(app) = APP_INSTANCE.get() {
+                vietime_tray::settings_dialog::show_settings_dialog(
+                    app.svc.clone(),
+                    app.ipc.clone(),
+                );
+            }
+            LRESULT(0)
+        }
         WM_COMMAND => {
             let cmd_id = (wparam.0 & 0xffff) as u32;
             if cmd_id == ID_EXIT {
@@ -254,6 +374,7 @@ unsafe extern "system" fn wnd_proc(
             }
             if let Some(app) = APP_INSTANCE.get() {
                 app.menu.handle_command(cmd_id, None);
+                update_tray_icon(hwnd, app);
             }
             LRESULT(0)
         }

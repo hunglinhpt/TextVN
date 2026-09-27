@@ -94,10 +94,11 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         let vk = wparam.0 as u32;
         let mods = get_active_modifiers();
 
-        // WIN-015: Hotkey toggle EN/VN (Ctrl + Shift + Space)
+        // WIN-015: Hotkey toggle EN/VN
         if vk == VK_SPACE.0 as u32 && (mods & 0x3) == 0x3 {
             let mut state = self.state.borrow_mut();
             let _ = state.toggle_enabled();
+            self.ipc.request_toggle_global();
             return Ok(BOOL::from(true));
         }
 

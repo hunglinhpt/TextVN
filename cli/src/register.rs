@@ -182,7 +182,7 @@ mod win_impl {
         }
     }
 
-    pub fn do_register(dll_path: &Path) -> i32 {
+    pub fn do_register(dll_path: &Path, no_taskbar: bool) -> i32 {
         say("=== VietIME register (per-user, HKCU) ===");
         let dll_s = dll_path.to_string_lossy().to_string();
         say(&format!("DLL: {dll_s}"));
@@ -279,25 +279,33 @@ mod win_impl {
             return 1;
         }
 
-        // Bước 3: InstallLayoutOrTip (HKCU, không cần admin)
-        install_layout_or_tip(LANGID_VI);
-        install_layout_or_tip(LANGID_EN);
+        if no_taskbar {
+            // Không hiện trên taskbar: gỡ layout khỏi danh sách bàn phím hệ thống
+            uninstall_layout_or_tip(LANGID_VI);
+            uninstall_layout_or_tip(LANGID_EN);
+            say("=== Đăng ký hoàn tất (không hiện menu taskbar). VietIME chạy qua khay hệ thống (Tray Icon). ===");
+        } else {
+            // Bước 3: InstallLayoutOrTip (HKCU, không cần admin)
+            install_layout_or_tip(LANGID_VI);
+            install_layout_or_tip(LANGID_EN);
 
-        // Kích hoạt ngay trong session hiện tại (WIN-003)
-        if com_init() {
-            if let Ok(prof) = unsafe {
-                CoCreateInstance::<_, ITfInputProcessorProfiles>(
-                    &CLSID_TF_InputProcessorProfiles,
-                    None,
-                    CLSCTX_INPROC_SERVER,
-                )
-            } {
-                let _ =
-                    unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) };
+            // Kích hoạt ngay trong session hiện tại (WIN-003)
+            if com_init() {
+                if let Ok(prof) = unsafe {
+                    CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                        &CLSID_TF_InputProcessorProfiles,
+                        None,
+                        CLSCTX_INPROC_SERVER,
+                    )
+                } {
+                    let _ = unsafe {
+                        prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID)
+                    };
+                }
             }
-        }
 
-        say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn VietIME. ===");
+            say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn VietIME. ===");
+        }
         0
     }
 
@@ -404,7 +412,7 @@ mod win_impl {
 
 /// Đăng ký TSF TIP. `scope`: `"user"` | `"machine"` (hiện chỉ hỗ trợ per-user).
 /// Trả về exit code: 0 thành công, 1 lỗi đăng ký, 2 lỗi tham số.
-pub fn register_tip(scope: &str, dll: Option<&Path>) -> i32 {
+pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
     if scope == "machine" {
         eprintln!("error: --scope machine chưa hỗ trợ (cần elevation riêng — xem WIN-056)");
         return 2;
@@ -419,12 +427,12 @@ pub fn register_tip(scope: &str, dll: Option<&Path>) -> i32 {
                 return 1;
             }
         };
-        win_impl::do_register(&dll_path)
+        win_impl::do_register(&dll_path, no_taskbar)
     }
 
     #[cfg(not(windows))]
     {
-        let _ = dll;
+        let _ = (dll, no_taskbar);
         eprintln!("error: `register` chỉ hỗ trợ trên Windows");
         1
     }
@@ -518,7 +526,7 @@ mod tests {
 
     #[test]
     fn register_machine_scope_returns_2() {
-        assert_eq!(register_tip("machine", None), 2);
+        assert_eq!(register_tip("machine", None, false), 2);
     }
 
     #[test]

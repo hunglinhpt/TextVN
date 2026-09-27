@@ -23,7 +23,7 @@ Usage:
   vietime config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
   vietime config validate <file.json>     # validate config.v1 (P0-3 §1)
   vietime doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
-  vietime register [--scope user|machine] [--dll <path>] # đăng ký Text Services Framework TIP (WIN-003)
+  vietime register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   vietime unregister [--scope user|machine]             # hủy đăng ký TSF TIP
   vietime --help
 
@@ -349,6 +349,7 @@ fn cmd_doctor(rest: &[String]) -> i32 {
 fn cmd_register(rest: &[String]) -> i32 {
     let mut scope = "user".to_string();
     let mut dll_path: Option<PathBuf> = None;
+    let mut no_taskbar = false;
     let mut i = 0;
 
     if rest.first().map(String::as_str) == Some("status") {
@@ -381,19 +382,24 @@ fn cmd_register(rest: &[String]) -> i32 {
                     }
                 }
             }
+            "--no-taskbar" => {
+                no_taskbar = true;
+            }
             "status" => {
                 return register::status_tip(&scope);
             }
             other => {
                 eprintln!("error: `register` không nhận tham số `{other}`");
-                eprintln!("Usage: vietime register [--scope user|machine] [--dll <path>]");
+                eprintln!(
+                    "Usage: vietime register [--scope user|machine] [--dll <path>] [--no-taskbar]"
+                );
                 return 2;
             }
         }
         i += 1;
     }
 
-    register::register_tip(&scope, dll_path.as_deref())
+    register::register_tip(&scope, dll_path.as_deref(), no_taskbar)
 }
 
 /// `unregister` — hủy đăng ký Text Services Framework TIP khỏi hệ thống (WIN-010 / P1-1 §8).

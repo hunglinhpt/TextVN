@@ -352,6 +352,31 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE) {
         h_instance,
     );
 
+    let _lbl_shortcut_title = create_control(
+        "STATIC",
+        "Phím chuyển:",
+        0,
+        270,
+        196,
+        140,
+        18,
+        parent,
+        0,
+        h_instance,
+    );
+    let _lbl_shortcut_val = create_control(
+        "STATIC",
+        "[ Ctrl + Shift ]",
+        0,
+        270,
+        214,
+        140,
+        20,
+        parent,
+        0,
+        h_instance,
+    );
+
     // 3. Nút hành động
     let btn_close = create_control(
         "BUTTON",
@@ -546,6 +571,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                         populate_controls_from_config(hwnd);
                         ctx.ipc.broadcast_config_reload(1);
                     });
+                    crate::notify_tray_state_changed();
                     return LRESULT(0);
                 }
                 ID_COMBO_METHOD if notify_code == CBN_SELCHANGE => {
@@ -603,6 +629,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                         let (_, ver) = ctx.svc.set_global_enabled(checked);
                         ctx.ipc.broadcast_state_update("*", checked, ver);
                     });
+                    crate::notify_tray_state_changed();
                 }
                 ID_RAD_DIACRITIC_NEW => {
                     with_ctx(|ctx| {

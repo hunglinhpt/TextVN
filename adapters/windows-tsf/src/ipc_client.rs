@@ -100,6 +100,18 @@ impl IpcClient {
         }
     }
 
+    /// Gửi yêu cầu đảo trạng thái tiếng Việt toàn cục lên Tray UI.
+    pub fn request_toggle_global(&self) {
+        std::thread::spawn(|| {
+            if let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+                if let Ok(frame) = encode_frame(&Message::ToggleGlobal) {
+                    let _ = stream.write_all(&frame);
+                    let _ = stream.flush();
+                }
+            }
+        });
+    }
+
     /// Dừng client và ngắt kết nối an toàn.
     pub fn stop(&self) {
         self.stop_signal.store(true, Ordering::Release);
