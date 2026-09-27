@@ -45,7 +45,7 @@
 - viqr.rs
 - HookState
 - P2-1 — IMK ADAPTER (macOS) — Solution chi tiết
-- VietIME — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)
+- TextVN — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)
 - cli/src/main.rs
 - P0-3 — Config schema · Preset (appdb) · Strategy model · IPC
 - P2-2 — CGEVENTTAP FALLBACK (macOS, opt-in) — Solution chi tiết
@@ -65,7 +65,7 @@
 - P2-4 — UI, Config, IPC, Packaging & Release (macOS) — Solution chi tiết
 - properties
 - $defs
-- VietIME — Workflow & Ground Rules thống nhất cho mọi agent
+- TextVN — Workflow & Ground Rules thống nhất cho mọi agent
 - AGENT HANDBOOK — Quy ước làm việc cho mọi agent/contributor
 - P1-5 — TEST PLAN (Windows) — Solution chi tiết
 - M1 — TSF core (tuần 3–6) — dep: WIN-002, WIN-003
@@ -85,7 +85,7 @@
 - A3 — Menu bar / Settings / Packaging (tuần 11–14)
 - T0 — Spike & môi trường (tuần 1–2)
 - config_paths_fail_open_va_khong_echo_text
-- vietime-ffi
+- textvn-ffi
 - items
 - ime_suggest
 - P1-0 — WINDOWS MASTER PLAN (Phần 1)
@@ -108,7 +108,7 @@
 - appdb.v1.schema.json
 - config.v1.schema.json
 - Verified Ops — sổ thao tác / tool đã kiểm chứng
-- VietIME — Chỉ mục tài liệu & Giao thức Review
+- TextVN — Chỉ mục tài liệu & Giao thức Review
 - M2 — Field detect + AppDB (tuần 7–10) — dep: WIN-004, WIN-006
 - M3 — Hook (tuần 7–11, song song M2) — dep: WIN-005
 - A2 — Field detect + AppDB (tuần 7–10) — dep: MAC-005/006
@@ -126,7 +126,7 @@
 - SvcManager
 - when
 - P1 — REVIEW LOG (Phần 1: Windows)
-- VietIME IPC v1
+- TextVN IPC v1
 - entry
 - id
 - auto_capitalize
@@ -144,7 +144,7 @@
 - tsf-min
 - class.rs
 - xtask
-- WIN-008 — Báo cáo kiểm tra tên và không gian tên "VietIME"
+- WIN-008 — Báo cáo kiểm tra tên và không gian tên "TextVN"
 - P3-3 — X11 FALLBACK (Linux, opt-in) — Solution chi tiết
 - .new
 - method/mod.rs
@@ -182,7 +182,7 @@
 - settings.rs
 - verify_targets.ps1
 - .process
-- Performance Audit — VietIME Windows Platform
+- Performance Audit — TextVN Windows Platform
 - HookEngine
 - os
 - Targets JSON — `tools/appcomptest/targets/` (WIN-061)
@@ -210,15 +210,15 @@
 
 ## Surprising Connections (you probably didn't know these)
 - `5. Changelog của chỉ mục` --references--> `ime_key`  [INFERRED]
-  docs/00-INDEX.md → ffi/include/vietime_ffi.h
+  docs/00-INDEX.md → ffi/include/textvn_ffi.h
 - `3.3 Chi phí (budget mọi adapter phải tuân)` --references--> `ime_key`  [INFERRED]
-  docs/10-shared/P0-3-config-preset-strategy.md → ffi/include/vietime_ffi.h
+  docs/10-shared/P0-3-config-preset-strategy.md → ffi/include/textvn_ffi.h
 - `10. Playbook triển khai (mapping sang task — chi tiết ở `P1-6-TASKS.md`)` --references--> `ime_key`  [INFERRED]
-  docs/20-windows/P1-1-tsf.md → ffi/include/vietime_ffi.h
+  docs/20-windows/P1-1-tsf.md → ffi/include/textvn_ffi.h
 - `12. Failure modes & xử lý` --references--> `ime_key`  [INFERRED]
-  docs/20-windows/P1-1-tsf.md → ffi/include/vietime_ffi.h
+  docs/20-windows/P1-1-tsf.md → ffi/include/textvn_ffi.h
 - `5. Perf (ngưỡng — liên kết `PLAN §5.5`)` --references--> `ime_key`  [INFERRED]
-  docs/20-windows/P1-5-test-plan.md → ffi/include/vietime_ffi.h
+  docs/20-windows/P1-5-test-plan.md → ffi/include/textvn_ffi.h
 
 ## Import Cycles
 - 2-file cycle: `core/src/transform/vowel_table.rs -> core/src/transform/vowel_table_generated.rs -> core/src/transform/vowel_table.rs`
@@ -231,7 +231,7 @@ Nodes (60): Vec, Word, Action, ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTIO
 
 ### Community 1 - "tsf-min/src/lib.rs"
 Cohesion: 0.06
-Nodes (50): ClassFactory, ClassFactory_Impl, CLSID_VIETIME_TIP, CompSink, CompSink_Impl, DllCanUnloadNow(), DllGetClassObject(), EditSession (+42 more)
+Nodes (50): ClassFactory, ClassFactory_Impl, CLSID_TEXTVN_TIP, CompSink, CompSink_Impl, DllCanUnloadNow(), DllGetClassObject(), EditSession (+42 more)
 
 ### Community 2 - "replay.rs"
 Cohesion: 0.10
@@ -319,7 +319,7 @@ Nodes (15): canh_bao_cai_muc_mo_ho(), chars(), danh_sach_khong_pha_tieng_viet_th
 
 ### Community 23 - "ime_key"
 Cohesion: 0.12
-Nodes (18): 0. Bất biến (invariants), 1. Header (bản 1:1 với `ffi/include/vietime_ffi.h`), 2. Ngữ nghĩa `action` — adapter PHẢI làm đúng bảng này, 3. Vòng đời & thread model, 4. Mapping sang adapter preedit-vs-replace (quan trọng), 5. Mã lỗi & hành vi khi lỗi, 6. Versioning & kiểm chứng bằng CI, 7. Adapter walkthrough (Windows TSF — mẫu để adapter khác làm theo) (+10 more)
+Nodes (18): 0. Bất biến (invariants), 1. Header (bản 1:1 với `ffi/include/textvn_ffi.h`), 2. Ngữ nghĩa `action` — adapter PHẢI làm đúng bảng này, 3. Vòng đời & thread model, 4. Mapping sang adapter preedit-vs-replace (quan trọng), 5. Mã lỗi & hành vi khi lỗi, 6. Versioning & kiểm chứng bằng CI, 7. Adapter walkthrough (Windows TSF — mẫu để adapter khác làm theo) (+10 more)
 
 ### Community 24 - "P1-1 — TSF ADAPTER (Windows) — Solution chi tiết"
 Cohesion: 0.11
@@ -341,7 +341,7 @@ Nodes (18): a_fast_callback_resets_slow_streak(), auto_only_processes_hook_owned
 Cohesion: 0.12
 Nodes (16): 10. Playbook triển khai (mapping `P2-6-TASKS.md`), 11. Chẩn đoán, 12. Failure modes, 2. Cấu trúc bundle & repo, 3. Vòng đời IMK, 4. State machine (giống `P1-1 §4`, marked text thay composition), 5. Key flow, 6.1 `Preedit` (mặc định — strategy `Preedit`) (+8 more)
 
-### Community 29 - "VietIME — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)"
+### Community 29 - "TextVN — Bộ gõ Tiếng Việt cho Windows (Text Services Framework)"
 Cohesion: 0.04
 Nodes (46): 1. Fork & Clone, 2. Tạo branch, 3. Phát triển, 4. Commit message, Cách báo cáo lỗi (Bug Report), Cấu trúc dự án & ownership, Hỏi & Hỗ trợ, License (+38 more)
 
@@ -403,15 +403,15 @@ Nodes (14): Item, Iterator, Result, String, run(), all_cases(), CASES_PART1, CAS
 
 ### Community 44 - "ime_instance"
 Cohesion: 0.18
-Nodes (11): 2. Kiến trúc tiến trình, 1. Quyết định & capability, 1. Quyết định & capability, 1. Quyết định & phạm vi, ime_instance, 1. Bất biến (P0-2 §0) — đọc trước khi viết adapter, 2. Header (nguyên văn — sinh từ `ffi/include/vietime_ffi.h`), 3. Chú giải: vòng đời chuẩn của adapter (+3 more)
+Nodes (11): 2. Kiến trúc tiến trình, 1. Quyết định & capability, 1. Quyết định & capability, 1. Quyết định & phạm vi, ime_instance, 1. Bất biến (P0-2 §0) — đọc trước khi viết adapter, 2. Header (nguyên văn — sinh từ `ffi/include/textvn_ffi.h`), 3. Chú giải: vòng đời chuẩn của adapter (+3 more)
 
 ### Community 45 - "P1-4 — UI, Config, IPC, Packaging & Release (Windows) — Solution chi tiết"
 Cohesion: 0.17
-Nodes (11): 10. Mapping task, 1. Tray — `vietime-tray.exe` (chạy 1 instance, notify icon), 2. IPC server (P0-3 §4) — chạy trong tray, 3. Settings — egui (cửa sổ 1, tab dọc), 4. Cài đặt — `vietime-setup.exe` (Inno Setup 6, x86_64), 5. Ký số & nguồn gốc (RW3 — antivirus), 6. Watchdog & process orchestration (tray), 7. Updater — crate `vietime-updater` (lib, chạy trong `vietime-tray.exe`) (+3 more)
+Nodes (11): 10. Mapping task, 1. Tray — `textvn-tray.exe` (chạy 1 instance, notify icon), 2. IPC server (P0-3 §4) — chạy trong tray, 3. Settings — egui (cửa sổ 1, tab dọc), 4. Cài đặt — `textvn-setup.exe` (Inno Setup 6, x86_64), 5. Ký số & nguồn gốc (RW3 — antivirus), 6. Watchdog & process orchestration (tray), 7. Updater — crate `textvn-updater` (lib, chạy trong `textvn-tray.exe`) (+3 more)
 
 ### Community 46 - "P2-4 — UI, Config, IPC, Packaging & Release (macOS) — Solution chi tiết"
 Cohesion: 0.17
-Nodes (11): 10. Task (chi tiết `P2-6-TASKS.md`), 1. Status menu — `VietIME.app` (LSUIElement, 1 instance), 2. IPC server (mirror `P1-4 §2`) — unix socket, 3. Settings — SwiftUI (cửa sổ 1, sidebar 6 tab — parity với `P2-0`/PLAN §2.3 M6), 4. Cài đặt & gỡ — `.pkg` (per-user, không sudo — PLAN §3.7), 5. Ký số & Gatekeeper (RM3), 6. Health & restart, 7. Updater (Ed25519 "Sparkle-style" — `PLAN §3.7`) (+3 more)
+Nodes (11): 10. Task (chi tiết `P2-6-TASKS.md`), 1. Status menu — `TextVN.app` (LSUIElement, 1 instance), 2. IPC server (mirror `P1-4 §2`) — unix socket, 3. Settings — SwiftUI (cửa sổ 1, sidebar 6 tab — parity với `P2-0`/PLAN §2.3 M6), 4. Cài đặt & gỡ — `.pkg` (per-user, không sudo — PLAN §3.7), 5. Ký số & Gatekeeper (RM3), 6. Health & restart, 7. Updater (Ed25519 "Sparkle-style" — `PLAN §3.7`) (+3 more)
 
 ### Community 47 - "properties"
 Cohesion: 0.17
@@ -421,7 +421,7 @@ Nodes (12): const, items, type, $ref, $ref, properties, appdb_version, entries (
 Cohesion: 0.17
 Nodes (12): maxLength, minLength, type, $defs, appIdentifier, fieldRole, matcher, semver (+4 more)
 
-### Community 49 - "VietIME — Workflow & Ground Rules thống nhất cho mọi agent"
+### Community 49 - "TextVN — Workflow & Ground Rules thống nhất cho mọi agent"
 Cohesion: 0.17
 Nodes (11): 10. Dọn dẹp — checklist trước khi đóng phiên / tick Done, 11. Cập nhật docs & nghiệp vụ — checklist khi "xong", 1. Ground rules (G-IDs) — áp dụng mọi lúc, 2. Bắt buộc đọc — trình tự mỗi phiên, 3. Common errors — ghi ở đâu, ghi như thế nào, 4. Verified ops — sổ thao tác đã kiểm chứng, 5. Workflow 8 bước — mọi task, 6. Vùng sở hữu file (snapshot 2026-09-27 — cập nhật §7 khi đổi) (+3 more)
 
@@ -431,7 +431,7 @@ Nodes (10): 1. Nguyên tắc bất di bất dịch (vi phạm = reject PR), 2. C
 
 ### Community 51 - "P1-5 — TEST PLAN (Windows) — Solution chi tiết"
 Cohesion: 0.18
-Nodes (10): 1. Ma trận test (test pyramid), 2. Corpus Windows — `corpus/win/` (mục tiêu ≥ 300 case), 3. App matrix (bằng chứng `PLAN §5.4` — Windows subset 20 app), 4.1 Smoke script (PR không cần app matrix), 4. UIA harness — `tools/appcomptest` (crate `vietime-appcomptest`), 5. Perf (ngưỡng — liên kết `PLAN §5.5`), 6. Release gate (cổng ra RC), 7. Manual checklist (trước RC — ai đó chạy tay, ghi kết quả vào `docs/release/rc-checklist-win.md`) (+2 more)
+Nodes (10): 1. Ma trận test (test pyramid), 2. Corpus Windows — `corpus/win/` (mục tiêu ≥ 300 case), 3. App matrix (bằng chứng `PLAN §5.4` — Windows subset 20 app), 4.1 Smoke script (PR không cần app matrix), 4. UIA harness — `tools/appcomptest` (crate `textvn-appcomptest`), 5. Perf (ngưỡng — liên kết `PLAN §5.5`), 6. Release gate (cổng ra RC), 7. Manual checklist (trước RC — ai đó chạy tay, ghi kết quả vào `docs/release/rc-checklist-win.md`) (+2 more)
 
 ### Community 52 - "M1 — TSF core (tuần 3–6) — dep: WIN-002, WIN-003"
 Cohesion: 0.18
@@ -455,11 +455,11 @@ Nodes (22): abi_sizes(), build_pkzip(), check_pipe_listening(), check_process_ru
 
 ### Community 57 - "P3-4 — AT-SPI FIELD DETECT & APP PRESET (Linux) — Solution chi tiết"
 Cohesion: 0.18
-Nodes (10): 1. Nguồn `FieldContext` trên Linux, 2. Bảng AT-SPI → `IME_FIELD_*` (module trong `linux-common/src/field_detect.c`), 3. App preset mặc định — `data/appdb.default.json` (phần Linux), 4. Permission & fallback (RL4), 5. Module dùng chung `libvietime-linux-common.a` (C), 6. Override & state (khớm `P0-3 §3.1` — path Linux), 7. Env matrix & detect framework (dùng cho `vietime doctor` — `PLAN §5.3`), 8. Test (+2 more)
+Nodes (10): 1. Nguồn `FieldContext` trên Linux, 2. Bảng AT-SPI → `IME_FIELD_*` (module trong `linux-common/src/field_detect.c`), 3. App preset mặc định — `data/appdb.default.json` (phần Linux), 4. Permission & fallback (RL4), 5. Module dùng chung `libtextvn-linux-common.a` (C), 6. Override & state (khớm `P0-3 §3.1` — path Linux), 7. Env matrix & detect framework (dùng cho `textvn doctor` — `PLAN §5.3`), 8. Test (+2 more)
 
 ### Community 58 - "P3-5 — TRAY, CONFIG, IPC, PACKAGING & RELEASE (Linux) — Solution chi tiết"
 Cohesion: 0.18
-Nodes (10): 1. Tray — StatusNotifier/AppIndicator (`PLAN §3.6`), 2. IPC server (mirror `P1-4 §2`, `P2-4 §2`), 3. Settings — GTK4 (cửa sổ 1, sidebar 6 tab — parity `P1-4 §3`, `P2-4 §3`), 4. IPC/state/health (mirror `P2-4 §6`), 5. Cài đặt & gỡ — `.deb` (primary), 6. `vietime doctor` (bản Linux — `PLAN §5.3`), 7. Update — **không self-update** (quyết định riêng của Linux), 8. Phân phối (+2 more)
+Nodes (10): 1. Tray — StatusNotifier/AppIndicator (`PLAN §3.6`), 2. IPC server (mirror `P1-4 §2`, `P2-4 §2`), 3. Settings — GTK4 (cửa sổ 1, sidebar 6 tab — parity `P1-4 §3`, `P2-4 §3`), 4. IPC/state/health (mirror `P2-4 §6`), 5. Cài đặt & gỡ — `.deb` (primary), 6. `textvn doctor` (bản Linux — `PLAN §5.3`), 7. Update — **không self-update** (quyết định riêng của Linux), 8. Phân phối (+2 more)
 
 ### Community 59 - "P3-6 — TEST PLAN (Linux) — Solution chi tiết"
 Cohesion: 0.18
@@ -491,19 +491,19 @@ Nodes (10): A0 — Spike & môi trường (tuần 1–2), MAC-001 · Môi trư�
 
 ### Community 66 - "A3 — Menu bar / Settings / Packaging (tuần 11–14)"
 Cohesion: 0.20
-Nodes (10): A3 — Menu bar / Settings / Packaging (tuần 11–14), MAC-050 · VietIME.app skeleton + status menu 9 mục (M) — `P2-4 §1`, MAC-051 · IPC server unix socket + watcher + health (L) — `P2-4 §2/§6`, MAC-052 · Settings SwiftUI 6 tab + parity checklist (L) — `P2-4 §3`, MAC-053 · Login item + config init + hot-reload (M), MAC-054 · `.pkg` cài/gỡ sạch (L) — `P2-4 §4`, dep: MAC-007, MAC-055 · Developer ID + hardened runtime + notarization (M, dep: MAC-008) — **RM3**, MAC-056 · Updater Ed25519 + rollback (L) — `P2-4 §7` (+2 more)
+Nodes (10): A3 — Menu bar / Settings / Packaging (tuần 11–14), MAC-050 · TextVN.app skeleton + status menu 9 mục (M) — `P2-4 §1`, MAC-051 · IPC server unix socket + watcher + health (L) — `P2-4 §2/§6`, MAC-052 · Settings SwiftUI 6 tab + parity checklist (L) — `P2-4 §3`, MAC-053 · Login item + config init + hot-reload (M), MAC-054 · `.pkg` cài/gỡ sạch (L) — `P2-4 §4`, dep: MAC-007, MAC-055 · Developer ID + hardened runtime + notarization (M, dep: MAC-008) — **RM3**, MAC-056 · Updater Ed25519 + rollback (L) — `P2-4 §7` (+2 more)
 
 ### Community 67 - "T0 — Spike & môi trường (tuần 1–2)"
 Cohesion: 0.20
-Nodes (10): LNX-001 · Môi trường build Linux (S, dep: —), LNX-002 · SPIKE: IBus engine C tối thiểu (L, dep: LNX-001) — **chặn WS1**, LNX-003 · SPIKE: link `libvietime_ffi.a` từ C và C++ (M, dep: LNX-001) — **RL10**, LNX-004 · SPIKE: keyval/shift + selection + surrounding (M, dep: LNX-002) — **RL1/RL5**, LNX-005 · SPIKE: AT-SPI + a11y permission (M, dep: LNX-002), LNX-006 · SPIKE: Fcitx5 addon API + version pin (L, dep: LNX-003) — **RL2**, LNX-007 · SPIKE: XGrabKeyboard + XTEST glyph + Wayland detect (L, dep: LNX-001) — **RL3/B10**, LNX-008 · SPIKE: GHA xvfb + AT-SPI trên runner (M, dep: LNX-002/005) (+2 more)
+Nodes (10): LNX-001 · Môi trường build Linux (S, dep: —), LNX-002 · SPIKE: IBus engine C tối thiểu (L, dep: LNX-001) — **chặn WS1**, LNX-003 · SPIKE: link `libtextvn_ffi.a` từ C và C++ (M, dep: LNX-001) — **RL10**, LNX-004 · SPIKE: keyval/shift + selection + surrounding (M, dep: LNX-002) — **RL1/RL5**, LNX-005 · SPIKE: AT-SPI + a11y permission (M, dep: LNX-002), LNX-006 · SPIKE: Fcitx5 addon API + version pin (L, dep: LNX-003) — **RL2**, LNX-007 · SPIKE: XGrabKeyboard + XTEST glyph + Wayland detect (L, dep: LNX-001) — **RL3/B10**, LNX-008 · SPIKE: GHA xvfb + AT-SPI trên runner (M, dep: LNX-002/005) (+2 more)
 
 ### Community 68 - "config_paths_fail_open_va_khong_echo_text"
 Cohesion: 0.25
 Nodes (9): cstr, abi_invariants_giu_duoi_input_ngau_nhien(), assert_sane(), config_paths_fail_open_va_khong_echo_text(), new_result(), Rng, Self, parse_config (+1 more)
 
-### Community 69 - "vietime-ffi"
+### Community 69 - "textvn-ffi"
 Cohesion: 0.40
-Nodes (13): vietime-appdb, vietime-bench, vietime-cli, vietime-config, vietime-core, vietime-ffi, vietime-field-detect, vietime-fuzz (+5 more)
+Nodes (13): textvn-appdb, textvn-bench, textvn-cli, textvn-config, textvn-core, textvn-ffi, textvn-field-detect, textvn-fuzz (+5 more)
 
 ### Community 70 - "items"
 Cohesion: 0.24
@@ -593,9 +593,9 @@ Nodes (7): additionalProperties, $comment, $id, required, $schema, title, type
 Cohesion: 0.29
 Nodes (6): A. Repo · Git · Graphify, B. Build · Test · Script, C. Windows platform (chi tiết → spike specs), D. Môi trường máy dev (snapshot 2026-09-27) — khỏi kiểm tra lại, E. Fixture / app test sẵn có (không dựng lại), Verified Ops — sổ thao tác / tool đã kiểm chứng
 
-### Community 92 - "VietIME — Chỉ mục tài liệu & Giao thức Review"
+### Community 92 - "TextVN — Chỉ mục tài liệu & Giao thức Review"
 Cohesion: 0.29
-Nodes (6): 1. Trạng thái các phần, 2. Thứ tự đọc cho agent mới (bắt buộc), 3. Giao thức Review (bắt buộc cho mọi phần), 4. Quy ước đặt tên (không đổi sau khi đã viết docs), 5. Changelog của chỉ mục, VietIME — Chỉ mục tài liệu & Giao thức Review
+Nodes (6): 1. Trạng thái các phần, 2. Thứ tự đọc cho agent mới (bắt buộc), 3. Giao thức Review (bắt buộc cho mọi phần), 4. Quy ước đặt tên (không đổi sau khi đã viết docs), 5. Changelog của chỉ mục, TextVN — Chỉ mục tài liệu & Giao thức Review
 
 ### Community 93 - "M2 — Field detect + AppDB (tuần 7–10) — dep: WIN-004, WIN-006"
 Cohesion: 0.29
@@ -603,11 +603,11 @@ Nodes (7): M2 — Field detect + AppDB (tuần 7–10) — dep: WIN-004, WIN-006
 
 ### Community 94 - "M3 — Hook (tuần 7–11, song song M2) — dep: WIN-005"
 Cohesion: 0.29
-Nodes (7): M3 — Hook (tuần 7–11, song song M2) — dep: WIN-005, WIN-040 · `vietime-hook.exe` skeleton + IPC + heartbeat (M) — `P1-2 §2`, WIN-041 · Callback theo `P1-2 §3` (L), WIN-042 · Inject engine 3 modes + modifier restore (L) — `P1-2 §5`, WIN-043 · Focus + UIA worker (M) — `P1-2 §4`, WIN-044 · Rule `engine_owner` phía hook (S, dep: WIN-032), WIN-045 · Game/legacy presets + blocklist (M) — `P1-2 §8`
+Nodes (7): M3 — Hook (tuần 7–11, song song M2) — dep: WIN-005, WIN-040 · `textvn-hook.exe` skeleton + IPC + heartbeat (M) — `P1-2 §2`, WIN-041 · Callback theo `P1-2 §3` (L), WIN-042 · Inject engine 3 modes + modifier restore (L) — `P1-2 §5`, WIN-043 · Focus + UIA worker (M) — `P1-2 §4`, WIN-044 · Rule `engine_owner` phía hook (S, dep: WIN-032), WIN-045 · Game/legacy presets + blocklist (M) — `P1-2 §8`
 
 ### Community 95 - "A2 — Field detect + AppDB (tuần 7–10) — dep: MAC-005/006"
 Cohesion: 0.29
-Nodes (7): A2 — Field detect + AppDB (tuần 7–10) — dep: MAC-005/006, MAC-030 · FieldDetect rules R1–R10 + mock tests (M) — `P2-3 §2`, MAC-031 · Cache + AXObserver + budget (M), MAC-032 · Preset 20 app + corpus ≥ 40 case (M) — `P2-3 §3`, MAC-033 · Appdb loader + Ed25519 (S) — dùng `vietime-appdb`, không viết lại, MAC-034 · Override chain `P2-3 §4` (path mac) (M), MAC-035 · Settings "thêm app đang chạy" (S, dep: MAC-052)
+Nodes (7): A2 — Field detect + AppDB (tuần 7–10) — dep: MAC-005/006, MAC-030 · FieldDetect rules R1–R10 + mock tests (M) — `P2-3 §2`, MAC-031 · Cache + AXObserver + budget (M), MAC-032 · Preset 20 app + corpus ≥ 40 case (M) — `P2-3 §3`, MAC-033 · Appdb loader + Ed25519 (S) — dùng `textvn-appdb`, không viết lại, MAC-034 · Override chain `P2-3 §4` (path mac) (M), MAC-035 · Settings "thêm app đang chạy" (S, dep: MAC-052)
 
 ### Community 96 - "P2-REVIEW-LOG — Phần 2 (macOS)"
 Cohesion: 0.29
@@ -665,9 +665,9 @@ Nodes (6): oneOf, field_role, when, additionalProperties, properties, type
 Cohesion: 0.40
 Nodes (4): Cross-check checklist (Review 2) — kết quả, P1 — REVIEW LOG (Phần 1: Windows), REVIEW 1 — *Đúng & Đủ* (2026-09-27), REVIEW 2 — *Nhất quán & Sẵn sàng* (2026-09-27)
 
-### Community 110 - "VietIME IPC v1"
+### Community 110 - "TextVN IPC v1"
 Cohesion: 0.40
-Nodes (4): Implementation, Messages, VietIME IPC v1, Wire framing
+Nodes (4): Implementation, Messages, TextVN IPC v1, Wire framing
 
 ### Community 111 - "entry"
 Cohesion: 0.50
@@ -713,9 +713,9 @@ Nodes (3): default, type, macros
 Cohesion: 0.32
 Nodes (7): HR_E_NOTIMPL, HR_E_POINTER, HR_S_OK, OBJECT_COUNT, AtomicI32, HRESULT, textservices
 
-### Community 129 - "WIN-008 — Báo cáo kiểm tra tên và không gian tên "VietIME""
+### Community 129 - "WIN-008 — Báo cáo kiểm tra tên và không gian tên "TextVN""
 Cohesion: 0.33
-Nodes (5): 1. Mục tiêu và phạm vi kiểm tra, 2. Kết quả kiểm tra chi tiết theo kênh, 3. Khác biệt và đối chiếu với các bộ gõ tiền nhiệm, 4. Quyết định & Kết luận, WIN-008 — Báo cáo kiểm tra tên và không gian tên "VietIME"
+Nodes (5): 1. Mục tiêu và phạm vi kiểm tra, 2. Kết quả kiểm tra chi tiết theo kênh, 3. Khác biệt và đối chiếu với các bộ gõ tiền nhiệm, 4. Quyết định & Kết luận, WIN-008 — Báo cáo kiểm tra tên và không gian tên "TextVN"
 
 ### Community 130 - "P3-3 — X11 FALLBACK (Linux, opt-in) — Solution chi tiết"
 Cohesion: 0.12
@@ -755,7 +755,7 @@ Nodes (13): fill_result(), flow_new_key_reset_free(), ime_instance_free(), ime_k
 
 ### Community 142 - "guids.rs"
 Cohesion: 0.39
-Nodes (7): CLSID_VIETIME_TIP, DISPATTR_VIETIME, GUID_PRESERVED_TOGGLE, LANGID_EN, LANGID_VI, PROFILE_VIETIME, GUID
+Nodes (7): CLSID_TEXTVN_TIP, DISPATTR_TEXTVN, GUID_PRESERVED_TOGGLE, LANGID_EN, LANGID_VI, PROFILE_TEXTVN, GUID
 
 ### Community 143 - "uia_spike.ps1"
 Cohesion: 0.60
@@ -827,7 +827,7 @@ Nodes (4): FieldContext, Option, SecurityState, ProbeResult
 
 ### Community 165 - "win32-uia.lib.ps1"
 Cohesion: 0.36
-Nodes (4): Find-UiAElementByLocator(), Get-UiAControlType(), Initialize-VietimeUiA(), New-UiACond()
+Nodes (4): Find-UiAElementByLocator(), Get-UiAControlType(), Initialize-TextVNUiA(), New-UiACond()
 
 ### Community 166 - "main"
 Cohesion: 0.25
@@ -847,7 +847,7 @@ Nodes (8): 3.1 C4 — Context, 3.2 C4 — Containers (Monorepo) — *bản layou
 
 ### Community 171 - "settings.rs"
 Cohesion: 0.21
-Nodes (8): time, Arc, Self, settings_controller_hotkey_conflict_validation(), settings_controller_per_app_state_management(), settings_controller_switches_tabs(), SettingsTab, vietime_config
+Nodes (8): time, Arc, Self, settings_controller_hotkey_conflict_validation(), settings_controller_per_app_state_management(), settings_controller_switches_tabs(), SettingsTab, textvn_config
 
 ### Community 172 - "verify_targets.ps1"
 Cohesion: 0.38
@@ -857,9 +857,9 @@ Nodes (10): Expand-Path(), Find-AppWindow(), Get-AppVersion(), Get-FixtureUri(),
 Cohesion: 0.43
 Nodes (5): CallbackDecision, EngineOutcome, is_hook_owned(), KeyEvent, Option
 
-### Community 174 - "Performance Audit — VietIME Windows Platform"
+### Community 174 - "Performance Audit — TextVN Windows Platform"
 Cohesion: 0.22
-Nodes (8): 1. Non-Functional Requirements (NFR), 4. Memory Footprint, 6. Optimization Checklist, 7. Benchmark targets, 8. Windows System Timers, Cần làm (TODO), Done ✅, Performance Audit — VietIME Windows Platform
+Nodes (8): 1. Non-Functional Requirements (NFR), 4. Memory Footprint, 6. Optimization Checklist, 7. Benchmark targets, 8. Windows System Timers, Cần làm (TODO), Done ✅, Performance Audit — TextVN Windows Platform
 
 ### Community 175 - "HookEngine"
 Cohesion: 0.29
@@ -907,7 +907,7 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SettingsController` connect `SettingsController` to `config/src/lib.rs`, `SvcManager`, `settings.rs`, `IpcServer`?**
   _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Why does `ime_key` connect `ime_key` to `A0 — Spike & môi trường (tuần 1–2)`, `PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)`, `3. SOLUTION ARCHITECT VIEW`, `ime_instance`, `P2-1 — IMK ADAPTER (macOS) — Solution chi tiết`, `ime_context`, `P1-5 — TEST PLAN (Windows) — Solution chi tiết`, `M1 — TSF core (tuần 3–6) — dep: WIN-002, WIN-003`, `P2-5 — TEST PLAN (macOS) — Solution chi tiết`, `A1 — IMK core (tuần 3–6) — dep: MAC-002/003/004`, `P3-2 — FCITX5 ADDON (Linux) — Solution chi tiết`, `P1-1 — TSF ADAPTER (Windows) — Solution chi tiết`, `P3-1 — IBUS ADAPTER (Linux) — Solution chi tiết`, `P3-6 — TEST PLAN (Linux) — Solution chi tiết`, `VietIME — Chỉ mục tài liệu & Giao thức Review`, `P0-3 — Config schema · Preset (appdb) · Strategy model · IPC`?**
+- **Why does `ime_key` connect `ime_key` to `A0 — Spike & môi trường (tuần 1–2)`, `PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)`, `3. SOLUTION ARCHITECT VIEW`, `ime_instance`, `P2-1 — IMK ADAPTER (macOS) — Solution chi tiết`, `ime_context`, `P1-5 — TEST PLAN (Windows) — Solution chi tiết`, `M1 — TSF core (tuần 3–6) — dep: WIN-002, WIN-003`, `P2-5 — TEST PLAN (macOS) — Solution chi tiết`, `A1 — IMK core (tuần 3–6) — dep: MAC-002/003/004`, `P3-2 — FCITX5 ADDON (Linux) — Solution chi tiết`, `P1-1 — TSF ADAPTER (Windows) — Solution chi tiết`, `P3-1 — IBUS ADAPTER (Linux) — Solution chi tiết`, `P3-6 — TEST PLAN (Linux) — Solution chi tiết`, `TextVN — Chỉ mục tài liệu & Giao thức Review`, `P0-3 — Config schema · Preset (appdb) · Strategy model · IPC`?**
   _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Why does `SvcManager` connect `SvcManager` to `config/src/lib.rs`, `IpcServer`, `settings.rs`, `tray/src/main.rs`, `menu.rs`, `SettingsController`, `ipc_server.rs`, `.new`, `TrayMenu`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._

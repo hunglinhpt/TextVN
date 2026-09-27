@@ -203,7 +203,7 @@
     "ast_hash": "e7250780c515fb14c7a00ac93d60f132",
     "semantic_hash": ""
   },
-  "ffi/include/vietime_ffi.h": {
+  "ffi/include/textvn_ffi.h": {
     "mtime": 1790459827.529956,
     "seen": 1790472166.050806,
     "ast_hash": "31551b4350d491f034c77e87531e72b7",

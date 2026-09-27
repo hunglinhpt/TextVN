@@ -4,7 +4,7 @@
   "graph": {},
   "nodes": [
     {
-      "id": "ffi_include_vietime_ffi_ime_result",
+      "id": "ffi_include_textvn_ffi_ime_result",
       "label": "ime_result",
       "_callable": true,
       "_callable_class": true,
@@ -13,11 +13,11 @@
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "ime_result",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L105"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key",
+      "id": "ffi_include_textvn_ffi_ime_key",
       "label": "ime_key",
       "_callable": true,
       "_callable_class": true,
@@ -26,11 +26,11 @@
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "ime_key",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L79"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_instance",
+      "id": "ffi_include_textvn_ffi_ime_instance",
       "label": "ime_instance",
       "_callable": true,
       "_callable_class": true,
@@ -39,11 +39,11 @@
       "community_name": "ime_instance",
       "file_type": "code",
       "norm_label": "ime_instance",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L77"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_suggest",
+      "id": "ffi_include_textvn_ffi_ime_suggest",
       "label": "ime_suggest",
       "_callable": true,
       "_callable_class": true,
@@ -52,11 +52,11 @@
       "community_name": "ime_suggest",
       "file_type": "code",
       "norm_label": "ime_suggest",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L117"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context",
+      "id": "ffi_include_textvn_ffi_ime_context",
       "label": "ime_context",
       "_callable": true,
       "_callable_class": true,
@@ -65,7 +65,7 @@
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "ime_context",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L90"
     },
     {
@@ -2315,13 +2315,13 @@
       "source_location": "L330"
     },
     {
-      "id": "spikes_tsf_min_src_lib_clsid_vietime_tip",
-      "label": "CLSID_VIETIME_TIP",
+      "id": "spikes_tsf_min_src_lib_clsid_textvn_tip",
+      "label": "CLSID_TEXTVN_TIP",
       "_origin": "ast",
       "community": 1,
       "community_name": "tsf-min/src/lib.rs",
       "file_type": "code",
-      "norm_label": "clsid_vietime_tip",
+      "norm_label": "clsid_textvn_tip",
       "source_file": "spikes/tsf-min/src/lib.rs",
       "source_location": "L23"
     },
@@ -4582,7 +4582,7 @@
       "label": "ipc.v1.md",
       "_origin": "ast",
       "community": 110,
-      "community_name": "VietIME IPC v1",
+      "community_name": "TextVN IPC v1",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "ipc.v1.md",
@@ -4594,7 +4594,7 @@
       "label": "Implementation",
       "_origin": "ast",
       "community": 110,
-      "community_name": "VietIME IPC v1",
+      "community_name": "TextVN IPC v1",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "implementation",
@@ -4606,7 +4606,7 @@
       "label": "Messages",
       "_origin": "ast",
       "community": 110,
-      "community_name": "VietIME IPC v1",
+      "community_name": "TextVN IPC v1",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "messages",
@@ -4614,14 +4614,14 @@
       "source_location": "L17"
     },
     {
-      "id": "schemas_ipc_v1_vietime_ipc_v1",
-      "label": "VietIME IPC v1",
+      "id": "schemas_ipc_v1_textvn_ipc_v1",
+      "label": "TextVN IPC v1",
       "_origin": "ast",
       "community": 110,
-      "community_name": "VietIME IPC v1",
+      "community_name": "TextVN IPC v1",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "vietime ipc v1",
+      "norm_label": "textvn ipc v1",
       "source_file": "schemas/ipc.v1.md",
       "source_location": "L1"
     },
@@ -4630,7 +4630,7 @@
       "label": "Wire framing",
       "_origin": "ast",
       "community": 110,
-      "community_name": "VietIME IPC v1",
+      "community_name": "TextVN IPC v1",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "wire framing",
@@ -5462,14 +5462,14 @@
       "source_location": "L1"
     },
     {
-      "id": "docs_adr_readme_adr_index_c\u00e1c_quy\u1ebft_\u0111\u1ecbnh_ki\u1ebfn_tr\u00fac_c\u1ee7a_vietime",
-      "label": "ADR Index \u2014 C\u00e1c quy\u1ebft \u0111\u1ecbnh ki\u1ebfn tr\u00fac c\u1ee7a VietIME",
+      "id": "docs_adr_readme_adr_index_c\u00e1c_quy\u1ebft_\u0111\u1ecbnh_ki\u1ebfn_tr\u00fac_c\u1ee7a_textvn",
+      "label": "ADR Index \u2014 C\u00e1c quy\u1ebft \u0111\u1ecbnh ki\u1ebfn tr\u00fac c\u1ee7a TextVN",
       "_origin": "ast",
       "community": 124,
       "community_name": "adr/README.md",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "adr index \u2014 cac quyet \u0111inh kien truc cua vietime",
+      "norm_label": "adr index \u2014 cac quyet \u0111inh kien truc cua textvn",
       "source_file": "docs/adr/README.md",
       "source_location": "L1"
     },
@@ -5593,7 +5593,7 @@
       "label": "naming-check.md",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "naming-check.md",
@@ -5605,7 +5605,7 @@
       "label": "1. M\u1ee5c ti\u00eau v\u00e0 ph\u1ea1m vi ki\u1ec3m tra",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. muc tieu va pham vi kiem tra",
@@ -5617,7 +5617,7 @@
       "label": "2. K\u1ebft qu\u1ea3 ki\u1ec3m tra chi ti\u1ebft theo k\u00eanh",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. ket qua kiem tra chi tiet theo kenh",
@@ -5629,7 +5629,7 @@
       "label": "3. Kh\u00e1c bi\u1ec7t v\u00e0 \u0111\u1ed1i chi\u1ebfu v\u1edbi c\u00e1c b\u1ed9 g\u00f5 ti\u1ec1n nhi\u1ec7m",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. khac biet va \u0111oi chieu voi cac bo go tien nhiem",
@@ -5641,7 +5641,7 @@
       "label": "4. Quy\u1ebft \u0111\u1ecbnh & K\u1ebft lu\u1eadn",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "4. quyet \u0111inh & ket luan",
@@ -5649,14 +5649,14 @@
       "source_location": "L57"
     },
     {
-      "id": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
-      "label": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "id": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
+      "label": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "_origin": "ast",
       "community": 129,
-      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"VietIME\"",
+      "community_name": "WIN-008 \u2014 B\u00e1o c\u00e1o ki\u1ec3m tra t\u00ean v\u00e0 kh\u00f4ng gian t\u00ean \"TextVN\"",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "win-008 \u2014 bao cao kiem tra ten va khong gian ten \"vietime\"",
+      "norm_label": "win-008 \u2014 bao cao kiem tra ten va khong gian ten \"textvn\"",
       "source_file": "docs/compliance/naming-check.md",
       "source_location": "L1"
     },
@@ -7859,24 +7859,24 @@
       "source_location": "L1"
     },
     {
-      "id": "adapters_windows_tsf_src_guids_clsid_vietime_tip",
-      "label": "CLSID_VIETIME_TIP",
+      "id": "adapters_windows_tsf_src_guids_clsid_textvn_tip",
+      "label": "CLSID_TEXTVN_TIP",
       "_origin": "ast",
       "community": 142,
       "community_name": "guids.rs",
       "file_type": "code",
-      "norm_label": "clsid_vietime_tip",
+      "norm_label": "clsid_textvn_tip",
       "source_file": "adapters/windows-tsf/src/guids.rs",
       "source_location": "L8"
     },
     {
-      "id": "adapters_windows_tsf_src_guids_dispattr_vietime",
-      "label": "DISPATTR_VIETIME",
+      "id": "adapters_windows_tsf_src_guids_dispattr_textvn",
+      "label": "DISPATTR_TEXTVN",
       "_origin": "ast",
       "community": 142,
       "community_name": "guids.rs",
       "file_type": "code",
-      "norm_label": "dispattr_vietime",
+      "norm_label": "dispattr_textvn",
       "source_file": "adapters/windows-tsf/src/guids.rs",
       "source_location": "L12"
     },
@@ -7914,13 +7914,13 @@
       "source_location": "L13"
     },
     {
-      "id": "adapters_windows_tsf_src_guids_profile_vietime",
-      "label": "PROFILE_VIETIME",
+      "id": "adapters_windows_tsf_src_guids_profile_textvn",
+      "label": "PROFILE_TEXTVN",
       "_origin": "ast",
       "community": 142,
       "community_name": "guids.rs",
       "file_type": "code",
-      "norm_label": "profile_vietime",
+      "norm_label": "profile_textvn",
       "source_file": "adapters/windows-tsf/src/guids.rs",
       "source_location": "L10"
     },
@@ -10636,102 +10636,102 @@
       "source_location": "L49"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_abi_version",
+      "id": "ffi_include_textvn_ffi_ime_result_abi_version",
       "label": "abi_version",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "abi_version",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L106"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_action",
+      "id": "ffi_include_textvn_ffi_ime_result_action",
       "label": "action",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "action",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L107"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_delete_count",
+      "id": "ffi_include_textvn_ffi_ime_result_delete_count",
       "label": "delete_count",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "delete_count",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L108"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_flags",
+      "id": "ffi_include_textvn_ffi_ime_result_flags",
       "label": "flags",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "flags",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L112"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_insert",
+      "id": "ffi_include_textvn_ffi_ime_result_insert",
       "label": "insert",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "insert",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L113"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_insert_len",
+      "id": "ffi_include_textvn_ffi_ime_result_insert_len",
       "label": "insert_len",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "insert_len",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L109"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_preedit",
+      "id": "ffi_include_textvn_ffi_ime_result_preedit",
       "label": "preedit",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "preedit",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L114"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_preedit_len",
+      "id": "ffi_include_textvn_ffi_ime_result_preedit_len",
       "label": "preedit_len",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "preedit_len",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L110"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_result_reserved",
+      "id": "ffi_include_textvn_ffi_ime_result_reserved",
       "label": "_reserved",
       "_origin": "ast",
       "community": 160,
       "community_name": "ime_result",
       "file_type": "code",
       "norm_label": "_reserved",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L111"
     },
     {
@@ -11151,13 +11151,13 @@
       "source_location": "L105"
     },
     {
-      "id": "tools_win_lib_win32_uia_lib_initialize_vietimeuia",
-      "label": "Initialize-VietimeUiA()",
+      "id": "tools_win_lib_win32_uia_lib_initialize_textvnuia",
+      "label": "Initialize-TextVNUiA()",
       "_origin": "ast",
       "community": 165,
       "community_name": "win32-uia.lib.ps1",
       "file_type": "code",
-      "norm_label": "initialize-vietimeuia()",
+      "norm_label": "initialize-textvnuia()",
       "source_file": "tools/win/lib/win32-uia.lib.ps1",
       "source_location": "L9"
     },
@@ -11723,7 +11723,7 @@
       "label": "performance-audit.md",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "performance-audit.md",
@@ -11735,7 +11735,7 @@
       "label": "1. Non-Functional Requirements (NFR)",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. non-functional requirements (nfr)",
@@ -11747,7 +11747,7 @@
       "label": "4. Memory Footprint",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "4. memory footprint",
@@ -11759,7 +11759,7 @@
       "label": "6. Optimization Checklist",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "6. optimization checklist",
@@ -11771,7 +11771,7 @@
       "label": "7. Benchmark targets",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "7. benchmark targets",
@@ -11783,7 +11783,7 @@
       "label": "8. Windows System Timers",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "8. windows system timers",
@@ -11795,7 +11795,7 @@
       "label": "C\u1ea7n l\u00e0m (TODO)",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "can lam (todo)",
@@ -11807,7 +11807,7 @@
       "label": "Done \u2705",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "done \u2705",
@@ -11815,14 +11815,14 @@
       "source_location": "L112"
     },
     {
-      "id": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
-      "label": "Performance Audit \u2014 VietIME Windows Platform",
+      "id": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
+      "label": "Performance Audit \u2014 TextVN Windows Platform",
       "_origin": "ast",
       "community": 174,
-      "community_name": "Performance Audit \u2014 VietIME Windows Platform",
+      "community_name": "Performance Audit \u2014 TextVN Windows Platform",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "performance audit \u2014 vietime windows platform",
+      "norm_label": "performance audit \u2014 textvn windows platform",
       "source_file": "docs/specs/performance-audit.md",
       "source_location": "L1"
     },
@@ -14331,91 +14331,91 @@
       "source_location": "L72"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_abi_version",
+      "id": "ffi_include_textvn_ffi_ime_key_abi_version",
       "label": "abi_version",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "abi_version",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L80"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_ch",
+      "id": "ffi_include_textvn_ffi_ime_key_ch",
       "label": "ch",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "ch",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L82"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_is_injected",
+      "id": "ffi_include_textvn_ffi_ime_key_is_injected",
       "label": "is_injected",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "is_injected",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L86"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_is_repeat",
+      "id": "ffi_include_textvn_ffi_ime_key_is_repeat",
       "label": "is_repeat",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "is_repeat",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L85"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_key_down",
+      "id": "ffi_include_textvn_ffi_ime_key_key_down",
       "label": "key_down",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "key_down",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L84"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_mods",
+      "id": "ffi_include_textvn_ffi_ime_key_mods",
       "label": "mods",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "mods",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L83"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_reserved",
+      "id": "ffi_include_textvn_ffi_ime_key_reserved",
       "label": "_reserved",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "_reserved",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L87"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_key_vk",
+      "id": "ffi_include_textvn_ffi_ime_key_vk",
       "label": "vk",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "code",
       "norm_label": "vk",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L81"
     },
     {
@@ -14443,14 +14443,14 @@
       "source_location": "L7"
     },
     {
-      "id": "docs_10_shared_p0_2_engine_ffi_contract_1_header_b\u1ea3n_1_1_v\u1edbi_ffi_include_vietime_ffi_h",
-      "label": "1. Header (b\u1ea3n 1:1 v\u1edbi `ffi/include/vietime_ffi.h`)",
+      "id": "docs_10_shared_p0_2_engine_ffi_contract_1_header_b\u1ea3n_1_1_v\u1edbi_ffi_include_textvn_ffi_h",
+      "label": "1. Header (b\u1ea3n 1:1 v\u1edbi `ffi/include/textvn_ffi.h`)",
       "_origin": "ast",
       "community": 23,
       "community_name": "ime_key",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "1. header (ban 1:1 voi `ffi/include/vietime_ffi.h`)",
+      "norm_label": "1. header (ban 1:1 voi `ffi/include/textvn_ffi.h`)",
       "source_file": "docs/10-shared/P0-2-engine-ffi-contract.md",
       "source_location": "L15"
     },
@@ -14719,14 +14719,14 @@
       "source_location": "L151"
     },
     {
-      "id": "docs_20_windows_p1_1_tsf_8_\u0111\u0103ng_k\u00fd_tip_g\u1ecdi_t\u1eeb_vietime_register_xem_p1_4_4_installer",
-      "label": "8. \u0110\u0103ng k\u00fd TIP (g\u1ecdi t\u1eeb `vietime register`, xem P1-4 \u00a74 installer)",
+      "id": "docs_20_windows_p1_1_tsf_8_\u0111\u0103ng_k\u00fd_tip_g\u1ecdi_t\u1eeb_textvn_register_xem_p1_4_4_installer",
+      "label": "8. \u0110\u0103ng k\u00fd TIP (g\u1ecdi t\u1eeb `textvn register`, xem P1-4 \u00a74 installer)",
       "_origin": "ast",
       "community": 24,
       "community_name": "P1-1 \u2014 TSF ADAPTER (Windows) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "8. \u0111ang ky tip (goi tu `vietime register`, xem p1-4 \u00a74 installer)",
+      "norm_label": "8. \u0111ang ky tip (goi tu `textvn register`, xem p1-4 \u00a74 installer)",
       "source_file": "docs/20-windows/P1-1-tsf.md",
       "source_location": "L158"
     },
@@ -15608,7 +15608,7 @@
       "label": "CONTRIBUTING.md",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "contributing.md",
@@ -15620,7 +15620,7 @@
       "label": "1. Fork & Clone",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. fork & clone",
@@ -15632,7 +15632,7 @@
       "label": "2. T\u1ea1o branch",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. tao branch",
@@ -15644,7 +15644,7 @@
       "label": "3. Ph\u00e1t tri\u1ec3n",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. phat trien",
@@ -15656,7 +15656,7 @@
       "label": "4. Commit message",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "4. commit message",
@@ -15668,7 +15668,7 @@
       "label": "C\u00e1ch b\u00e1o c\u00e1o l\u1ed7i (Bug Report)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cach bao cao loi (bug report)",
@@ -15680,7 +15680,7 @@
       "label": "C\u1ea5u tr\u00fac d\u1ef1 \u00e1n & ownership",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cau truc du an & ownership",
@@ -15692,7 +15692,7 @@
       "label": "H\u1ecfi & H\u1ed7 tr\u1ee3",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "hoi & ho tro",
@@ -15704,7 +15704,7 @@
       "label": "License",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "license",
@@ -15716,7 +15716,7 @@
       "label": "Quy tr\u00ecnh ph\u00e1t tri\u1ec3n",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "quy trinh phat trien",
@@ -15728,7 +15728,7 @@
       "label": "Quy t\u1eafc \u1ee9ng x\u1eed",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "quy tac ung xu",
@@ -15740,7 +15740,7 @@
       "label": "Rust",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "rust",
@@ -15752,7 +15752,7 @@
       "label": "Tests",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tests",
@@ -15764,7 +15764,7 @@
       "label": "Ti\u00eau chu\u1ea9n code",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tieu chuan code",
@@ -15776,7 +15776,7 @@
       "label": "Windows API",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "windows api",
@@ -15784,14 +15784,14 @@
       "source_location": "L114"
     },
     {
-      "id": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
-      "label": "\u0110\u00f3ng g\u00f3p cho VietIME",
+      "id": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
+      "label": "\u0110\u00f3ng g\u00f3p cho TextVN",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "\u0111ong gop cho vietime",
+      "norm_label": "\u0111ong gop cho textvn",
       "source_file": "CONTRIBUTING.md",
       "source_location": "L1"
     },
@@ -15800,7 +15800,7 @@
       "label": "\u0110\u1ec1 xu\u1ea5t t\u00ednh n\u0103ng (Feature Request)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "\u0111e xuat tinh nang (feature request)",
@@ -15812,7 +15812,7 @@
       "label": "README.md",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "readme.md",
@@ -15824,7 +15824,7 @@
       "label": "Build debug (ph\u00e1t tri\u1ec3n)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "build debug (phat trien)",
@@ -15836,7 +15836,7 @@
       "label": "Build installer (Inno Setup)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "build installer (inno setup)",
@@ -15848,7 +15848,7 @@
       "label": "Build release (production)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "build release (production)",
@@ -15860,7 +15860,7 @@
       "label": "Build t\u1eeb source",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "build tu source",
@@ -15872,7 +15872,7 @@
       "label": "Build v\u1edbi icon nh\u00fang",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "build voi icon nhung",
@@ -15884,7 +15884,7 @@
       "label": "Chuy\u1ec3n \u0111\u1ed5i ch\u1ebf \u0111\u1ed9 g\u00f5",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "chuyen \u0111oi che \u0111o go",
@@ -15896,7 +15896,7 @@
       "label": "Ch\u1ea1y tests",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "chay tests",
@@ -15908,7 +15908,7 @@
       "label": "CLI",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cli",
@@ -15920,7 +15920,7 @@
       "label": "C\u00e0i \u0111\u1eb7t nhanh (cho ng\u01b0\u1eddi d\u00f9ng)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cai \u0111at nhanh (cho nguoi dung)",
@@ -15932,7 +15932,7 @@
       "label": "C\u00e0i \u0111\u1eb7t Rust target",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cai \u0111at rust target",
@@ -15944,7 +15944,7 @@
       "label": "C\u00e1ch 1 \u2014 Installer (khuy\u1ebfn ngh\u1ecb)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cach 1 \u2014 installer (khuyen nghi)",
@@ -15956,7 +15956,7 @@
       "label": "C\u00e1ch 2 \u2014 Portable (kh\u00f4ng c\u00e0i \u0111\u1eb7t)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cach 2 \u2014 portable (khong cai \u0111at)",
@@ -15968,7 +15968,7 @@
       "label": "C\u1ea5u tr\u00fac d\u1ef1 \u00e1n",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cau truc du an",
@@ -15980,7 +15980,7 @@
       "label": "File c\u1ea5u h\u00ecnh",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "file cau hinh",
@@ -15992,7 +15992,7 @@
       "label": "G\u1ee1 c\u00e0i \u0111\u1eb7t",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "go cai \u0111at",
@@ -16004,7 +16004,7 @@
       "label": "H\u01b0\u1edbng d\u1eabn s\u1eed d\u1ee5ng",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "huong dan su dung",
@@ -16016,7 +16016,7 @@
       "label": "License",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "license",
@@ -16028,7 +16028,7 @@
       "label": "Qua installer:",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "qua installer:",
@@ -16040,7 +16040,7 @@
       "label": "Th\u1ee7 c\u00f4ng:",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "thu cong:",
@@ -16052,7 +16052,7 @@
       "label": "T\u00ednh n\u0103ng",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tinh nang",
@@ -16064,7 +16064,7 @@
       "label": "T\u1eaft/B\u1eadt ti\u1ebfng Vi\u1ec7t",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tat/bat tieng viet",
@@ -16076,7 +16076,7 @@
       "label": "T\u1eaft cho t\u1eebng \u1ee9ng d\u1ee5ng",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tat cho tung ung dung",
@@ -16084,14 +16084,14 @@
       "source_location": "L69"
     },
     {
-      "id": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
-      "label": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "id": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "label": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "vietime \u2014 bo go tieng viet cho windows (text services framework)",
+      "norm_label": "textvn \u2014 bo go tieng viet cho windows (text services framework)",
       "source_file": "README.md",
       "source_location": "L1"
     },
@@ -16100,7 +16100,7 @@
       "label": "Y\u00eau c\u1ea7u",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "yeu cau",
@@ -16112,7 +16112,7 @@
       "label": "Y\u00eau c\u1ea7u h\u1ec7 th\u1ed1ng",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "yeu cau he thong",
@@ -16124,7 +16124,7 @@
       "label": "\u0110\u00f3ng g\u00f3p",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "\u0111ong gop",
@@ -16136,7 +16136,7 @@
       "label": "SECURITY.md",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "security.md",
@@ -16148,7 +16148,7 @@
       "label": "B\u00e1o c\u00e1o l\u1ed7 h\u1ed5ng b\u1ea3o m\u1eadt",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "bao cao lo hong bao mat",
@@ -16160,7 +16160,7 @@
       "label": "C\u00e1c phi\u00ean b\u1ea3n \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "cac phien ban \u0111uoc ho tro",
@@ -16172,7 +16172,7 @@
       "label": "Security Design",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "security design",
@@ -16184,7 +16184,7 @@
       "label": "Security Policy",
       "_origin": "ast",
       "community": 29,
-      "community_name": "VietIME \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
+      "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 Ti\u1ebfng Vi\u1ec7t cho Windows (Text Services Framework)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "security policy",
@@ -16875,14 +16875,14 @@
       "source_location": "L193"
     },
     {
-      "id": "docs_10_shared_p0_3_config_preset_strategy_5_ipc_pipe_vietime_ipc_v1_schemas_ipc_v1_md",
-      "label": "5. IPC \u2014 `\\\\.\\pipe\\vietime-ipc-v1` (`schemas/ipc.v1.md`)",
+      "id": "docs_10_shared_p0_3_config_preset_strategy_5_ipc_pipe_textvn_ipc_v1_schemas_ipc_v1_md",
+      "label": "5. IPC \u2014 `\\\\.\\pipe\\textvn-ipc-v1` (`schemas/ipc.v1.md`)",
       "_origin": "ast",
       "community": 31,
       "community_name": "P0-3 \u2014 Config schema \u00b7 Preset (appdb) \u00b7 Strategy model \u00b7 IPC",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "5. ipc \u2014 `\\\\.\\pipe\\vietime-ipc-v1` (`schemas/ipc.v1.md`)",
+      "norm_label": "5. ipc \u2014 `\\\\.\\pipe\\textvn-ipc-v1` (`schemas/ipc.v1.md`)",
       "source_file": "docs/10-shared/P0-3-config-preset-strategy.md",
       "source_location": "L205"
     },
@@ -19509,14 +19509,14 @@
       "source_location": "L10"
     },
     {
-      "id": "schemas_ffi_v1_2_header_nguy\u00ean_v\u0103n_sinh_t\u1eeb_ffi_include_vietime_ffi_h",
-      "label": "2. Header (nguy\u00ean v\u0103n \u2014 sinh t\u1eeb `ffi/include/vietime_ffi.h`)",
+      "id": "schemas_ffi_v1_2_header_nguy\u00ean_v\u0103n_sinh_t\u1eeb_ffi_include_textvn_ffi_h",
+      "label": "2. Header (nguy\u00ean v\u0103n \u2014 sinh t\u1eeb `ffi/include/textvn_ffi.h`)",
       "_origin": "ast",
       "community": 44,
       "community_name": "ime_instance",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "2. header (nguyen van \u2014 sinh tu `ffi/include/vietime_ffi.h`)",
+      "norm_label": "2. header (nguyen van \u2014 sinh tu `ffi/include/textvn_ffi.h`)",
       "source_file": "schemas/ffi.v1.md",
       "source_location": "L21"
     },
@@ -19557,14 +19557,14 @@
       "source_location": "L233"
     },
     {
-      "id": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
-      "label": "`ffi.v1` \u2014 VietIME engine C-ABI v1 (b\u1ea3n ch\u00fa gi\u1ea3i cho adapter)",
+      "id": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "label": "`ffi.v1` \u2014 TextVN engine C-ABI v1 (b\u1ea3n ch\u00fa gi\u1ea3i cho adapter)",
       "_origin": "ast",
       "community": 44,
       "community_name": "ime_instance",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "`ffi.v1` \u2014 vietime engine c-abi v1 (ban chu giai cho adapter)",
+      "norm_label": "`ffi.v1` \u2014 textvn engine c-abi v1 (ban chu giai cho adapter)",
       "source_file": "schemas/ffi.v1.md",
       "source_location": "L1"
     },
@@ -19593,14 +19593,14 @@
       "source_location": "L145"
     },
     {
-      "id": "docs_20_windows_p1_4_ui_packaging_release_1_tray_vietime_tray_exe_ch\u1ea1y_1_instance_notify_icon",
-      "label": "1. Tray \u2014 `vietime-tray.exe` (ch\u1ea1y 1 instance, notify icon)",
+      "id": "docs_20_windows_p1_4_ui_packaging_release_1_tray_textvn_tray_exe_ch\u1ea1y_1_instance_notify_icon",
+      "label": "1. Tray \u2014 `textvn-tray.exe` (ch\u1ea1y 1 instance, notify icon)",
       "_origin": "ast",
       "community": 45,
       "community_name": "P1-4 \u2014 UI, Config, IPC, Packaging & Release (Windows) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "1. tray \u2014 `vietime-tray.exe` (chay 1 instance, notify icon)",
+      "norm_label": "1. tray \u2014 `textvn-tray.exe` (chay 1 instance, notify icon)",
       "source_file": "docs/20-windows/P1-4-ui-packaging-release.md",
       "source_location": "L6"
     },
@@ -19629,14 +19629,14 @@
       "source_location": "L46"
     },
     {
-      "id": "docs_20_windows_p1_4_ui_packaging_release_4_c\u00e0i_\u0111\u1eb7t_vietime_setup_exe_inno_setup_6_x86_64",
-      "label": "4. C\u00e0i \u0111\u1eb7t \u2014 `vietime-setup.exe` (Inno Setup 6, x86_64)",
+      "id": "docs_20_windows_p1_4_ui_packaging_release_4_c\u00e0i_\u0111\u1eb7t_textvn_setup_exe_inno_setup_6_x86_64",
+      "label": "4. C\u00e0i \u0111\u1eb7t \u2014 `textvn-setup.exe` (Inno Setup 6, x86_64)",
       "_origin": "ast",
       "community": 45,
       "community_name": "P1-4 \u2014 UI, Config, IPC, Packaging & Release (Windows) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "4. cai \u0111at \u2014 `vietime-setup.exe` (inno setup 6, x86_64)",
+      "norm_label": "4. cai \u0111at \u2014 `textvn-setup.exe` (inno setup 6, x86_64)",
       "source_file": "docs/20-windows/P1-4-ui-packaging-release.md",
       "source_location": "L64"
     },
@@ -19665,14 +19665,14 @@
       "source_location": "L105"
     },
     {
-      "id": "docs_20_windows_p1_4_ui_packaging_release_7_updater_crate_vietime_updater_lib_ch\u1ea1y_trong_vietime_tray_exe",
-      "label": "7. Updater \u2014 crate `vietime-updater` (lib, ch\u1ea1y trong `vietime-tray.exe`)",
+      "id": "docs_20_windows_p1_4_ui_packaging_release_7_updater_crate_textvn_updater_lib_ch\u1ea1y_trong_textvn_tray_exe",
+      "label": "7. Updater \u2014 crate `textvn-updater` (lib, ch\u1ea1y trong `textvn-tray.exe`)",
       "_origin": "ast",
       "community": 45,
       "community_name": "P1-4 \u2014 UI, Config, IPC, Packaging & Release (Windows) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "7. updater \u2014 crate `vietime-updater` (lib, chay trong `vietime-tray.exe`)",
+      "norm_label": "7. updater \u2014 crate `textvn-updater` (lib, chay trong `textvn-tray.exe`)",
       "source_file": "docs/20-windows/P1-4-ui-packaging-release.md",
       "source_location": "L116"
     },
@@ -19737,14 +19737,14 @@
       "source_location": "L126"
     },
     {
-      "id": "docs_30_macos_p2_4_ui_packaging_release_1_status_menu_vietime_app_lsuielement_1_instance",
-      "label": "1. Status menu \u2014 `VietIME.app` (LSUIElement, 1 instance)",
+      "id": "docs_30_macos_p2_4_ui_packaging_release_1_status_menu_textvn_app_lsuielement_1_instance",
+      "label": "1. Status menu \u2014 `TextVN.app` (LSUIElement, 1 instance)",
       "_origin": "ast",
       "community": 46,
       "community_name": "P2-4 \u2014 UI, Config, IPC, Packaging & Release (macOS) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "1. status menu \u2014 `vietime.app` (lsuielement, 1 instance)",
+      "norm_label": "1. status menu \u2014 `textvn.app` (lsuielement, 1 instance)",
       "source_file": "docs/30-macos/P2-4-ui-packaging-release.md",
       "source_location": "L7"
     },
@@ -20125,7 +20125,7 @@
       "label": "00-WORKFLOW.md",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "00-workflow.md",
@@ -20137,7 +20137,7 @@
       "label": "10. D\u1ecdn d\u1eb9p \u2014 checklist tr\u01b0\u1edbc khi \u0111\u00f3ng phi\u00ean / tick Done",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "10. don dep \u2014 checklist truoc khi \u0111ong phien / tick done",
@@ -20149,7 +20149,7 @@
       "label": "11. C\u1eadp nh\u1eadt docs & nghi\u1ec7p v\u1ee5 \u2014 checklist khi \"xong\"",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "11. cap nhat docs & nghiep vu \u2014 checklist khi \"xong\"",
@@ -20161,7 +20161,7 @@
       "label": "1. Ground rules (G-IDs) \u2014 \u00e1p d\u1ee5ng m\u1ecdi l\u00fac",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. ground rules (g-ids) \u2014 ap dung moi luc",
@@ -20173,7 +20173,7 @@
       "label": "2. B\u1eaft bu\u1ed9c \u0111\u1ecdc \u2014 tr\u00ecnh t\u1ef1 m\u1ed7i phi\u00ean",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. bat buoc \u0111oc \u2014 trinh tu moi phien",
@@ -20185,7 +20185,7 @@
       "label": "3. Common errors \u2014 ghi \u1edf \u0111\u00e2u, ghi nh\u01b0 th\u1ebf n\u00e0o",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. common errors \u2014 ghi o \u0111au, ghi nhu the nao",
@@ -20197,7 +20197,7 @@
       "label": "4. Verified ops \u2014 s\u1ed5 thao t\u00e1c \u0111\u00e3 ki\u1ec3m ch\u1ee9ng",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "4. verified ops \u2014 so thao tac \u0111a kiem chung",
@@ -20209,7 +20209,7 @@
       "label": "5. Workflow 8 b\u01b0\u1edbc \u2014 m\u1ecdi task",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "5. workflow 8 buoc \u2014 moi task",
@@ -20221,7 +20221,7 @@
       "label": "6. V\u00f9ng s\u1edf h\u1eefu file (snapshot 2026-09-27 \u2014 c\u1eadp nh\u1eadt \u00a77 khi \u0111\u1ed5i)",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "6. vung so huu file (snapshot 2026-09-27 \u2014 cap nhat \u00a77 khi \u0111oi)",
@@ -20233,7 +20233,7 @@
       "label": "7. Review & change log",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "7. review & change log",
@@ -20245,7 +20245,7 @@
       "label": "9. Fixbug chu\u1ea9n ho\u00e1 \u2014 5 b\u01b0\u1edbc",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "9. fixbug chuan hoa \u2014 5 buoc",
@@ -20253,14 +20253,14 @@
       "source_location": "L129"
     },
     {
-      "id": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
-      "label": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "id": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "label": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "_origin": "ast",
       "community": 49,
-      "community_name": "VietIME \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
+      "community_name": "TextVN \u2014 Workflow & Ground Rules th\u1ed1ng nh\u1ea5t cho m\u1ecdi agent",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "vietime \u2014 workflow & ground rules thong nhat cho moi agent",
+      "norm_label": "textvn \u2014 workflow & ground rules thong nhat cho moi agent",
       "source_file": "docs/00-WORKFLOW.md",
       "source_location": "L1"
     },
@@ -20831,14 +20831,14 @@
       "source_location": "L94"
     },
     {
-      "id": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_vietime_appcomptest",
-      "label": "4. UIA harness \u2014 `tools/appcomptest` (crate `vietime-appcomptest`)",
+      "id": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_textvn_appcomptest",
+      "label": "4. UIA harness \u2014 `tools/appcomptest` (crate `textvn-appcomptest`)",
       "_origin": "ast",
       "community": 51,
       "community_name": "P1-5 \u2014 TEST PLAN (Windows) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "4. uia harness \u2014 `tools/appcomptest` (crate `vietime-appcomptest`)",
+      "norm_label": "4. uia harness \u2014 `tools/appcomptest` (crate `textvn-appcomptest`)",
       "source_file": "docs/20-windows/P1-5-test-plan.md",
       "source_location": "L68"
     },
@@ -21766,14 +21766,14 @@
       "source_location": "L74"
     },
     {
-      "id": "docs_40_linux_p3_4_strategy_appdb_5_module_d\u00f9ng_chung_libvietime_linux_common_a_c",
-      "label": "5. Module d\u00f9ng chung `libvietime-linux-common.a` (C)",
+      "id": "docs_40_linux_p3_4_strategy_appdb_5_module_d\u00f9ng_chung_libtextvn_linux_common_a_c",
+      "label": "5. Module d\u00f9ng chung `libtextvn-linux-common.a` (C)",
       "_origin": "ast",
       "community": 57,
       "community_name": "P3-4 \u2014 AT-SPI FIELD DETECT & APP PRESET (Linux) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "5. module dung chung `libvietime-linux-common.a` (c)",
+      "norm_label": "5. module dung chung `libtextvn-linux-common.a` (c)",
       "source_file": "docs/40-linux/P3-4-strategy-appdb.md",
       "source_location": "L85"
     },
@@ -21790,14 +21790,14 @@
       "source_location": "L98"
     },
     {
-      "id": "docs_40_linux_p3_4_strategy_appdb_7_env_matrix_detect_framework_d\u00f9ng_cho_vietime_doctor_plan_5_3",
-      "label": "7. Env matrix & detect framework (d\u00f9ng cho `vietime doctor` \u2014 `PLAN \u00a75.3`)",
+      "id": "docs_40_linux_p3_4_strategy_appdb_7_env_matrix_detect_framework_d\u00f9ng_cho_textvn_doctor_plan_5_3",
+      "label": "7. Env matrix & detect framework (d\u00f9ng cho `textvn doctor` \u2014 `PLAN \u00a75.3`)",
       "_origin": "ast",
       "community": 57,
       "community_name": "P3-4 \u2014 AT-SPI FIELD DETECT & APP PRESET (Linux) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "7. env matrix & detect framework (dung cho `vietime doctor` \u2014 `plan \u00a75.3`)",
+      "norm_label": "7. env matrix & detect framework (dung cho `textvn doctor` \u2014 `plan \u00a75.3`)",
       "source_file": "docs/40-linux/P3-4-strategy-appdb.md",
       "source_location": "L109"
     },
@@ -21910,14 +21910,14 @@
       "source_location": "L58"
     },
     {
-      "id": "docs_40_linux_p3_5_ui_packaging_release_6_vietime_doctor_b\u1ea3n_linux_plan_5_3",
-      "label": "6. `vietime doctor` (b\u1ea3n Linux \u2014 `PLAN \u00a75.3`)",
+      "id": "docs_40_linux_p3_5_ui_packaging_release_6_textvn_doctor_b\u1ea3n_linux_plan_5_3",
+      "label": "6. `textvn doctor` (b\u1ea3n Linux \u2014 `PLAN \u00a75.3`)",
       "_origin": "ast",
       "community": 58,
       "community_name": "P3-5 \u2014 TRAY, CONFIG, IPC, PACKAGING & RELEASE (Linux) \u2014 Solution chi ti\u1ebft",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "6. `vietime doctor` (ban linux \u2014 `plan \u00a75.3`)",
+      "norm_label": "6. `textvn doctor` (ban linux \u2014 `plan \u00a75.3`)",
       "source_file": "docs/40-linux/P3-5-ui-packaging-release.md",
       "source_location": "L78"
     },
@@ -23574,14 +23574,14 @@
       "source_location": "L141"
     },
     {
-      "id": "docs_20_windows_p1_6_tasks_win_058_vietime_doctor_export_m_p1_4_9",
-      "label": "WIN-058 \u00b7 `vietime doctor --export` (M) \u2014 `P1-4 \u00a79`",
+      "id": "docs_20_windows_p1_6_tasks_win_058_textvn_doctor_export_m_p1_4_9",
+      "label": "WIN-058 \u00b7 `textvn doctor --export` (M) \u2014 `P1-4 \u00a79`",
       "_origin": "ast",
       "community": 64,
       "community_name": "M4 \u2014 Tray / Settings / Packaging (tu\u1ea7n 11\u201314) \u2014 dep: WIN-016 (IPC contract \u0111\u00e3 ch\u1ed1t t\u1eeb P0)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "win-058 \u00b7 `vietime doctor --export` (m) \u2014 `p1-4 \u00a79`",
+      "norm_label": "win-058 \u00b7 `textvn doctor --export` (m) \u2014 `p1-4 \u00a79`",
       "source_file": "docs/20-windows/P1-6-TASKS.md",
       "source_location": "L144"
     },
@@ -23718,14 +23718,14 @@
       "source_location": "L124"
     },
     {
-      "id": "docs_30_macos_p2_6_tasks_mac_050_vietime_app_skeleton_status_menu_9_m\u1ee5c_m_p2_4_1",
-      "label": "MAC-050 \u00b7 VietIME.app skeleton + status menu 9 m\u1ee5c (M) \u2014 `P2-4 \u00a71`",
+      "id": "docs_30_macos_p2_6_tasks_mac_050_textvn_app_skeleton_status_menu_9_m\u1ee5c_m_p2_4_1",
+      "label": "MAC-050 \u00b7 TextVN.app skeleton + status menu 9 m\u1ee5c (M) \u2014 `P2-4 \u00a71`",
       "_origin": "ast",
       "community": 66,
       "community_name": "A3 \u2014 Menu bar / Settings / Packaging (tu\u1ea7n 11\u201314)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "mac-050 \u00b7 vietime.app skeleton + status menu 9 muc (m) \u2014 `p2-4 \u00a71`",
+      "norm_label": "mac-050 \u00b7 textvn.app skeleton + status menu 9 muc (m) \u2014 `p2-4 \u00a71`",
       "source_file": "docs/30-macos/P2-6-TASKS.md",
       "source_location": "L126"
     },
@@ -23814,14 +23814,14 @@
       "source_location": "L149"
     },
     {
-      "id": "docs_30_macos_p2_6_tasks_mac_058_vietime_doctor_export_b\u1ea3n_mac_m_p2_4_9",
-      "label": "MAC-058 \u00b7 `vietime doctor --export` b\u1ea3n mac (M) \u2014 `P2-4 \u00a79`",
+      "id": "docs_30_macos_p2_6_tasks_mac_058_textvn_doctor_export_b\u1ea3n_mac_m_p2_4_9",
+      "label": "MAC-058 \u00b7 `textvn doctor --export` b\u1ea3n mac (M) \u2014 `P2-4 \u00a79`",
       "_origin": "ast",
       "community": 66,
       "community_name": "A3 \u2014 Menu bar / Settings / Packaging (tu\u1ea7n 11\u201314)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "mac-058 \u00b7 `vietime doctor --export` ban mac (m) \u2014 `p2-4 \u00a79`",
+      "norm_label": "mac-058 \u00b7 `textvn doctor --export` ban mac (m) \u2014 `p2-4 \u00a79`",
       "source_file": "docs/30-macos/P2-6-TASKS.md",
       "source_location": "L152"
     },
@@ -23850,14 +23850,14 @@
       "source_location": "L18"
     },
     {
-      "id": "docs_40_linux_p3_7_tasks_lnx_003_spike_link_libvietime_ffi_a_t\u1eeb_c_v\u00e0_c_m_dep_lnx_001_rl10",
-      "label": "LNX-003 \u00b7 SPIKE: link `libvietime_ffi.a` t\u1eeb C v\u00e0 C++ (M, dep: LNX-001) \u2014 **RL10**",
+      "id": "docs_40_linux_p3_7_tasks_lnx_003_spike_link_libtextvn_ffi_a_t\u1eeb_c_v\u00e0_c_m_dep_lnx_001_rl10",
+      "label": "LNX-003 \u00b7 SPIKE: link `libtextvn_ffi.a` t\u1eeb C v\u00e0 C++ (M, dep: LNX-001) \u2014 **RL10**",
       "_origin": "ast",
       "community": 67,
       "community_name": "T0 \u2014 Spike & m\u00f4i tr\u01b0\u1eddng (tu\u1ea7n 1\u20132)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "lnx-003 \u00b7 spike: link `libvietime_ffi.a` tu c va c++ (m, dep: lnx-001) \u2014 **rl10**",
+      "norm_label": "lnx-003 \u00b7 spike: link `libtextvn_ffi.a` tu c va c++ (m, dep: lnx-001) \u2014 **rl10**",
       "source_file": "docs/40-linux/P3-7-TASKS.md",
       "source_location": "L23"
     },
@@ -24100,171 +24100,171 @@
       "source_location": "L39"
     },
     {
-      "id": "pkg_vietime_appdb",
-      "label": "vietime-appdb",
+      "id": "pkg_textvn_appdb",
+      "label": "textvn-appdb",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-appdb",
+      "norm_label": "textvn-appdb",
       "source_file": "appdb/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_bench",
-      "label": "vietime-bench",
+      "id": "pkg_textvn_bench",
+      "label": "textvn-bench",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-bench",
+      "norm_label": "textvn-bench",
       "source_file": "tools/bench/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_cli",
-      "label": "vietime-cli",
+      "id": "pkg_textvn_cli",
+      "label": "textvn-cli",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-cli",
+      "norm_label": "textvn-cli",
       "source_file": "cli/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_config",
-      "label": "vietime-config",
+      "id": "pkg_textvn_config",
+      "label": "textvn-config",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-config",
+      "norm_label": "textvn-config",
       "source_file": "config/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_core",
-      "label": "vietime-core",
+      "id": "pkg_textvn_core",
+      "label": "textvn-core",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-core",
+      "norm_label": "textvn-core",
       "source_file": "core/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_ffi",
-      "label": "vietime-ffi",
+      "id": "pkg_textvn_ffi",
+      "label": "textvn-ffi",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-ffi",
+      "norm_label": "textvn-ffi",
       "source_file": "ffi/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_field_detect",
-      "label": "vietime-field-detect",
+      "id": "pkg_textvn_field_detect",
+      "label": "textvn-field-detect",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-field-detect",
+      "norm_label": "textvn-field-detect",
       "source_file": "field-detect/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_fuzz",
-      "label": "vietime-fuzz",
+      "id": "pkg_textvn_fuzz",
+      "label": "textvn-fuzz",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-fuzz",
+      "norm_label": "textvn-fuzz",
       "source_file": "fuzz/Cargo.toml",
       "source_location": "L1",
       "type": "package",
       "version": "0.0.0"
     },
     {
-      "id": "pkg_vietime_ipc",
-      "label": "vietime-ipc",
+      "id": "pkg_textvn_ipc",
+      "label": "textvn-ipc",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-ipc",
+      "norm_label": "textvn-ipc",
       "source_file": "ipc/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_strategy",
-      "label": "vietime-strategy",
+      "id": "pkg_textvn_strategy",
+      "label": "textvn-strategy",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-strategy",
+      "norm_label": "textvn-strategy",
       "source_file": "strategy/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_tray",
-      "label": "vietime-tray",
+      "id": "pkg_textvn_tray",
+      "label": "textvn-tray",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-tray",
+      "norm_label": "textvn-tray",
       "source_file": "tray/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_win_hook",
-      "label": "vietime-win-hook",
+      "id": "pkg_textvn_win_hook",
+      "label": "textvn-win-hook",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-win-hook",
+      "norm_label": "textvn-win-hook",
       "source_file": "adapters/windows-hook/Cargo.toml",
       "source_location": "L1",
       "type": "package"
     },
     {
-      "id": "pkg_vietime_win_tsf",
-      "label": "vietime-win-tsf",
+      "id": "pkg_textvn_win_tsf",
+      "label": "textvn-win-tsf",
       "_origin": "ast",
       "community": 69,
-      "community_name": "vietime-ffi",
+      "community_name": "textvn-ffi",
       "ecosystem": "cargo",
       "file_type": "code",
-      "norm_label": "vietime-win-tsf",
+      "norm_label": "textvn-win-tsf",
       "source_file": "adapters/windows-tsf/Cargo.toml",
       "source_location": "L1",
       "type": "package"
@@ -24710,47 +24710,47 @@
       "source_location": "L66"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_suggest_abi_version",
+      "id": "ffi_include_textvn_ffi_ime_suggest_abi_version",
       "label": "abi_version",
       "_origin": "ast",
       "community": 71,
       "community_name": "ime_suggest",
       "file_type": "code",
       "norm_label": "abi_version",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L118"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_suggest_count",
+      "id": "ffi_include_textvn_ffi_ime_suggest_count",
       "label": "count",
       "_origin": "ast",
       "community": 71,
       "community_name": "ime_suggest",
       "file_type": "code",
       "norm_label": "count",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L119"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_suggest_items",
+      "id": "ffi_include_textvn_ffi_ime_suggest_items",
       "label": "items",
       "_origin": "ast",
       "community": 71,
       "community_name": "ime_suggest",
       "file_type": "code",
       "norm_label": "items",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L121"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_suggest_lens",
+      "id": "ffi_include_textvn_ffi_ime_suggest_lens",
       "label": "lens",
       "_origin": "ast",
       "community": 71,
       "community_name": "ime_suggest",
       "file_type": "code",
       "norm_label": "lens",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L120"
     },
     {
@@ -25246,14 +25246,14 @@
       "source_location": "L35"
     },
     {
-      "id": "docs_20_windows_p1_6_tasks_win_008_ki\u1ec3m_tra_t\u00ean_t\u00ean_mi\u1ec1n_vietime_r\u1ee7i_ro_carry_over_t\u1eeb_ph\u1ea7n_0_s_dep",
-      "label": "WIN-008 \u00b7 Ki\u1ec3m tra t\u00ean/t\u00ean mi\u1ec1n VietIME (r\u1ee7i ro carry-over t\u1eeb Ph\u1ea7n 0) (S, dep: \u2014)",
+      "id": "docs_20_windows_p1_6_tasks_win_008_ki\u1ec3m_tra_t\u00ean_t\u00ean_mi\u1ec1n_textvn_r\u1ee7i_ro_carry_over_t\u1eeb_ph\u1ea7n_0_s_dep",
+      "label": "WIN-008 \u00b7 Ki\u1ec3m tra t\u00ean/t\u00ean mi\u1ec1n TextVN (r\u1ee7i ro carry-over t\u1eeb Ph\u1ea7n 0) (S, dep: \u2014)",
       "_origin": "ast",
       "community": 74,
       "community_name": "M0 \u2014 Spike & n\u1ec1n (tu\u1ea7n 1\u20132)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "win-008 \u00b7 kiem tra ten/ten mien vietime (rui ro carry-over tu phan 0) (s, dep: \u2014)",
+      "norm_label": "win-008 \u00b7 kiem tra ten/ten mien textvn (rui ro carry-over tu phan 0) (s, dep: \u2014)",
       "source_file": "docs/20-windows/P1-6-TASKS.md",
       "source_location": "L39"
     },
@@ -25582,102 +25582,102 @@
       "source_location": "L1"
     },
     {
-      "id": "ffi_include_vietime_ffi",
-      "label": "vietime_ffi.h",
+      "id": "ffi_include_textvn_ffi",
+      "label": "textvn_ffi.h",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
-      "norm_label": "vietime_ffi.h",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "norm_label": "textvn_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L1"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_abi_version",
+      "id": "ffi_include_textvn_ffi_ime_context_abi_version",
       "label": "abi_version",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "abi_version",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L91"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_app_id",
+      "id": "ffi_include_textvn_ffi_ime_context_app_id",
       "label": "app_id",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "app_id",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L99"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_caps",
+      "id": "ffi_include_textvn_ffi_ime_context_caps",
       "label": "caps",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "caps",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L95"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_element_name",
+      "id": "ffi_include_textvn_ffi_ime_context_element_name",
       "label": "element_name",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "element_name",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L100"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_enabled",
+      "id": "ffi_include_textvn_ffi_ime_context_enabled",
       "label": "enabled",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "enabled",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L92"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_field_role",
+      "id": "ffi_include_textvn_ffi_ime_context_field_role",
       "label": "field_role",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "field_role",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L94"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_hint",
+      "id": "ffi_include_textvn_ffi_ime_context_hint",
       "label": "hint",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "hint",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L101"
     },
     {
-      "id": "ffi_include_vietime_ffi_ime_context_secure",
+      "id": "ffi_include_textvn_ffi_ime_context_secure",
       "label": "secure",
       "_origin": "ast",
       "community": 78,
       "community_name": "ime_context",
       "file_type": "code",
       "norm_label": "secure",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L93"
     },
     {
@@ -28082,7 +28082,7 @@
       "label": "00-INDEX.md",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "00-index.md",
@@ -28094,7 +28094,7 @@
       "label": "1. Tr\u1ea1ng th\u00e1i c\u00e1c ph\u1ea7n",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. trang thai cac phan",
@@ -28106,7 +28106,7 @@
       "label": "2. Th\u1ee9 t\u1ef1 \u0111\u1ecdc cho agent m\u1edbi (b\u1eaft bu\u1ed9c)",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. thu tu \u0111oc cho agent moi (bat buoc)",
@@ -28118,7 +28118,7 @@
       "label": "3. Giao th\u1ee9c Review (b\u1eaft bu\u1ed9c cho m\u1ecdi ph\u1ea7n)",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. giao thuc review (bat buoc cho moi phan)",
@@ -28130,7 +28130,7 @@
       "label": "4. Quy \u01b0\u1edbc \u0111\u1eb7t t\u00ean (kh\u00f4ng \u0111\u1ed5i sau khi \u0111\u00e3 vi\u1ebft docs)",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "4. quy uoc \u0111at ten (khong \u0111oi sau khi \u0111a viet docs)",
@@ -28142,7 +28142,7 @@
       "label": "5. Changelog c\u1ee7a ch\u1ec9 m\u1ee5c",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "5. changelog cua chi muc",
@@ -28150,14 +28150,14 @@
       "source_location": "L68"
     },
     {
-      "id": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
-      "label": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "id": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "label": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "_origin": "ast",
       "community": 92,
-      "community_name": "VietIME \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
+      "community_name": "TextVN \u2014 Ch\u1ec9 m\u1ee5c t\u00e0i li\u1ec7u & Giao th\u1ee9c Review",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "vietime \u2014 chi muc tai lieu & giao thuc review",
+      "norm_label": "textvn \u2014 chi muc tai lieu & giao thuc review",
       "source_file": "docs/00-INDEX.md",
       "source_location": "L1"
     },
@@ -28258,14 +28258,14 @@
       "source_location": "L98"
     },
     {
-      "id": "docs_20_windows_p1_6_tasks_win_040_vietime_hook_exe_skeleton_ipc_heartbeat_m_p1_2_2",
-      "label": "WIN-040 \u00b7 `vietime-hook.exe` skeleton + IPC + heartbeat (M) \u2014 `P1-2 \u00a72`",
+      "id": "docs_20_windows_p1_6_tasks_win_040_textvn_hook_exe_skeleton_ipc_heartbeat_m_p1_2_2",
+      "label": "WIN-040 \u00b7 `textvn-hook.exe` skeleton + IPC + heartbeat (M) \u2014 `P1-2 \u00a72`",
       "_origin": "ast",
       "community": 94,
       "community_name": "M3 \u2014 Hook (tu\u1ea7n 7\u201311, song song M2) \u2014 dep: WIN-005",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "win-040 \u00b7 `vietime-hook.exe` skeleton + ipc + heartbeat (m) \u2014 `p1-2 \u00a72`",
+      "norm_label": "win-040 \u00b7 `textvn-hook.exe` skeleton + ipc + heartbeat (m) \u2014 `p1-2 \u00a72`",
       "source_file": "docs/20-windows/P1-6-TASKS.md",
       "source_location": "L100"
     },
@@ -28378,14 +28378,14 @@
       "source_location": "L95"
     },
     {
-      "id": "docs_30_macos_p2_6_tasks_mac_033_appdb_loader_ed25519_s_d\u00f9ng_vietime_appdb_kh\u00f4ng_vi\u1ebft_l\u1ea1i",
-      "label": "MAC-033 \u00b7 Appdb loader + Ed25519 (S) \u2014 d\u00f9ng `vietime-appdb`, kh\u00f4ng vi\u1ebft l\u1ea1i",
+      "id": "docs_30_macos_p2_6_tasks_mac_033_appdb_loader_ed25519_s_d\u00f9ng_textvn_appdb_kh\u00f4ng_vi\u1ebft_l\u1ea1i",
+      "label": "MAC-033 \u00b7 Appdb loader + Ed25519 (S) \u2014 d\u00f9ng `textvn-appdb`, kh\u00f4ng vi\u1ebft l\u1ea1i",
       "_origin": "ast",
       "community": 95,
       "community_name": "A2 \u2014 Field detect + AppDB (tu\u1ea7n 7\u201310) \u2014 dep: MAC-005/006",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "mac-033 \u00b7 appdb loader + ed25519 (s) \u2014 dung `vietime-appdb`, khong viet lai",
+      "norm_label": "mac-033 \u00b7 appdb loader + ed25519 (s) \u2014 dung `textvn-appdb`, khong viet lai",
       "source_file": "docs/30-macos/P2-6-TASKS.md",
       "source_location": "L98"
     },
@@ -28798,14 +28798,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_field_detect",
-      "label": "vietime_field_detect",
+      "id": "textvn_field_detect",
+      "label": "textvn_field_detect",
       "_origin": "semantic",
       "community": 12,
       "community_name": "bench/src/main.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_field_detect",
+      "norm_label": "textvn_field_detect",
       "source_file": "",
       "type": "external"
     },
@@ -29062,14 +29062,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_config",
-      "label": "vietime_config",
+      "id": "textvn_config",
+      "label": "textvn_config",
       "_origin": "semantic",
       "community": 155,
       "community_name": "SettingsController",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_config",
+      "norm_label": "textvn_config",
       "source_file": "",
       "type": "external"
     },
@@ -29146,14 +29146,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_ipc",
-      "label": "vietime_ipc",
+      "id": "textvn_ipc",
+      "label": "textvn_ipc",
       "_origin": "semantic",
       "community": 156,
       "community_name": "ipc_server.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_ipc",
+      "norm_label": "textvn_ipc",
       "source_file": "",
       "type": "external"
     },
@@ -29278,14 +29278,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_appdb",
-      "label": "vietime_appdb",
+      "id": "textvn_appdb",
+      "label": "textvn_appdb",
       "_origin": "semantic",
       "community": 21,
       "community_name": "windows-tsf/src/lib.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_appdb",
+      "norm_label": "textvn_appdb",
       "source_file": "",
       "type": "external"
     },
@@ -29470,14 +29470,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_win_hook",
-      "label": "vietime_win_hook",
+      "id": "textvn_win_hook",
+      "label": "textvn_win_hook",
       "_origin": "semantic",
       "community": 6,
       "community_name": "windows-hook/src/main.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_win_hook",
+      "norm_label": "textvn_win_hook",
       "source_file": "",
       "type": "external"
     },
@@ -29698,14 +29698,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_strategy",
-      "label": "vietime_strategy",
+      "id": "textvn_strategy",
+      "label": "textvn_strategy",
       "_origin": "semantic",
       "community": 88,
       "community_name": "rules_win.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_strategy",
+      "norm_label": "textvn_strategy",
       "source_file": "",
       "type": "external"
     },
@@ -29746,14 +29746,14 @@
       "type": "external"
     },
     {
-      "id": "vietime_core",
-      "label": "vietime_core",
+      "id": "textvn_core",
+      "label": "textvn_core",
       "_origin": "semantic",
       "community": 9,
       "community_name": "ffi/src/lib.rs",
       "external": true,
       "file_type": "concept",
-      "norm_label": "vietime_core",
+      "norm_label": "textvn_core",
       "source_file": "",
       "type": "external"
     },
@@ -38074,8 +38074,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_appdb",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_appdb",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38086,8 +38086,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_bench",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_bench",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38098,8 +38098,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_bench",
-      "target": "pkg_vietime_core",
+      "source": "pkg_textvn_bench",
+      "target": "pkg_textvn_core",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38110,8 +38110,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_bench",
-      "target": "pkg_vietime_ffi",
+      "source": "pkg_textvn_bench",
+      "target": "pkg_textvn_ffi",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38122,8 +38122,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_bench",
-      "target": "pkg_vietime_field_detect",
+      "source": "pkg_textvn_bench",
+      "target": "pkg_textvn_field_detect",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38134,8 +38134,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_cli",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_cli",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38146,8 +38146,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_cli",
-      "target": "pkg_vietime_ffi",
+      "source": "pkg_textvn_cli",
+      "target": "pkg_textvn_ffi",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38158,8 +38158,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_ffi",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_ffi",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38170,8 +38170,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_ffi",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_ffi",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38182,8 +38182,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_ffi",
-      "target": "pkg_vietime_core",
+      "source": "pkg_textvn_ffi",
+      "target": "pkg_textvn_core",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38194,8 +38194,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_ffi",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_ffi",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38206,8 +38206,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_field_detect",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_field_detect",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38218,8 +38218,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_field_detect",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_field_detect",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38230,8 +38230,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_fuzz",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_fuzz",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38242,8 +38242,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_fuzz",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_fuzz",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38254,8 +38254,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_fuzz",
-      "target": "pkg_vietime_ffi",
+      "source": "pkg_textvn_fuzz",
+      "target": "pkg_textvn_ffi",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38266,8 +38266,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_tray",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_tray",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38278,8 +38278,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_tray",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_tray",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38290,8 +38290,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_tray",
-      "target": "pkg_vietime_ipc",
+      "source": "pkg_textvn_tray",
+      "target": "pkg_textvn_ipc",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38302,8 +38302,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_tray",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_tray",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38314,8 +38314,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_hook",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_win_hook",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38326,8 +38326,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_hook",
-      "target": "pkg_vietime_ffi",
+      "source": "pkg_textvn_win_hook",
+      "target": "pkg_textvn_ffi",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38338,8 +38338,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_hook",
-      "target": "pkg_vietime_field_detect",
+      "source": "pkg_textvn_win_hook",
+      "target": "pkg_textvn_field_detect",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38350,8 +38350,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_hook",
-      "target": "pkg_vietime_ipc",
+      "source": "pkg_textvn_win_hook",
+      "target": "pkg_textvn_ipc",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38362,8 +38362,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_hook",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_win_hook",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38374,8 +38374,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_appdb",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_appdb",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38386,8 +38386,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_config",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_config",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38398,8 +38398,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_ffi",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_ffi",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38410,8 +38410,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_field_detect",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_field_detect",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38422,8 +38422,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_ipc",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_ipc",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38434,8 +38434,8 @@
       "weight": 1.0
     },
     {
-      "source": "pkg_vietime_win_tsf",
-      "target": "pkg_vietime_strategy",
+      "source": "pkg_textvn_win_tsf",
+      "target": "pkg_textvn_strategy",
       "relation": "depends_on",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -38446,350 +38446,350 @@
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_element_name",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_element_name",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L100",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_hint",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_hint",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L101",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_abi_version",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_abi_version",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L91",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_enabled",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_enabled",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L92",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_secure",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_secure",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L93",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_field_role",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_field_role",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L94",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_caps",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_caps",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L95",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_context",
-      "target": "ffi_include_vietime_ffi_ime_context_app_id",
+      "source": "ffi_include_textvn_ffi_ime_context",
+      "target": "ffi_include_textvn_ffi_ime_context_app_id",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L99",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_abi_version",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_abi_version",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L80",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_vk",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_vk",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L81",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_ch",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_ch",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L82",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_mods",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_mods",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L83",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_key_down",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_key_down",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L84",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_is_repeat",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_is_repeat",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L85",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_is_injected",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_is_injected",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L86",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_key",
-      "target": "ffi_include_vietime_ffi_ime_key_reserved",
+      "source": "ffi_include_textvn_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key_reserved",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L87",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_abi_version",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_abi_version",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L106",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_action",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_action",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L107",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_delete_count",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_delete_count",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L108",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_insert_len",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_insert_len",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L109",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_preedit_len",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_preedit_len",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L110",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_reserved",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_reserved",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L111",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_flags",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_flags",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L112",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_insert",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_insert",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L113",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_result",
-      "target": "ffi_include_vietime_ffi_ime_result_preedit",
+      "source": "ffi_include_textvn_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result_preedit",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L114",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_suggest",
-      "target": "ffi_include_vietime_ffi_ime_suggest_abi_version",
+      "source": "ffi_include_textvn_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest_abi_version",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L118",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_suggest",
-      "target": "ffi_include_vietime_ffi_ime_suggest_count",
+      "source": "ffi_include_textvn_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest_count",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L119",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_suggest",
-      "target": "ffi_include_vietime_ffi_ime_suggest_lens",
+      "source": "ffi_include_textvn_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest_lens",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L120",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi_ime_suggest",
-      "target": "ffi_include_vietime_ffi_ime_suggest_items",
+      "source": "ffi_include_textvn_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest_items",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "field",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L121",
       "weight": 1.0
     },
@@ -39082,7 +39082,7 @@
       "weight": 1.0
     },
     {
-      "source": "adapters_windows_tsf_src_guids_clsid_vietime_tip",
+      "source": "adapters_windows_tsf_src_guids_clsid_textvn_tip",
       "target": "adapters_windows_tsf_src_guids_rs_guid",
       "relation": "references",
       "_origin": "ast",
@@ -39094,7 +39094,7 @@
       "weight": 1.0
     },
     {
-      "source": "adapters_windows_tsf_src_guids_dispattr_vietime",
+      "source": "adapters_windows_tsf_src_guids_dispattr_textvn",
       "target": "adapters_windows_tsf_src_guids_rs_guid",
       "relation": "references",
       "_origin": "ast",
@@ -39118,7 +39118,7 @@
       "weight": 1.0
     },
     {
-      "source": "adapters_windows_tsf_src_guids_profile_vietime",
+      "source": "adapters_windows_tsf_src_guids_profile_textvn",
       "target": "adapters_windows_tsf_src_guids_rs_guid",
       "relation": "references",
       "_origin": "ast",
@@ -40198,7 +40198,7 @@
       "weight": 1.0
     },
     {
-      "source": "spikes_tsf_min_src_lib_clsid_vietime_tip",
+      "source": "spikes_tsf_min_src_lib_clsid_textvn_tip",
       "target": "spikes_tsf_min_src_lib_rs_guid",
       "relation": "references",
       "_origin": "ast",
@@ -44062,26 +44062,26 @@
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
+      "source": "ffi_include_textvn_ffi",
       "target": "stdint",
       "relation": "imports",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "import",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L10",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
+      "source": "ffi_include_textvn_ffi",
       "target": "stddef",
       "relation": "imports",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "context": "import",
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L11",
       "weight": 1.0
     },
@@ -44123,7 +44123,7 @@
     },
     {
       "source": "adapters_windows_hook_src_lib",
-      "target": "vietime_appdb",
+      "target": "textvn_appdb",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44135,7 +44135,7 @@
     },
     {
       "source": "adapters_windows_hook_src_lib",
-      "target": "vietime_field_detect",
+      "target": "textvn_field_detect",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44159,7 +44159,7 @@
     },
     {
       "source": "adapters_windows_hook_src_lib",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44279,7 +44279,7 @@
     },
     {
       "source": "adapters_windows_hook_src_main",
-      "target": "vietime_win_hook",
+      "target": "textvn_win_hook",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44495,7 +44495,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_ipc_client",
-      "target": "vietime_ipc",
+      "target": "textvn_ipc",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44687,7 +44687,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_lib",
-      "target": "vietime_field_detect",
+      "target": "textvn_field_detect",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44747,7 +44747,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_lib",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44759,7 +44759,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_lib",
-      "target": "vietime_appdb",
+      "target": "textvn_appdb",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -44915,7 +44915,7 @@
     },
     {
       "source": "appdb_src_lib",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -45995,7 +45995,7 @@
     },
     {
       "source": "ffi_src_lib",
-      "target": "vietime_config",
+      "target": "textvn_config",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46019,7 +46019,7 @@
     },
     {
       "source": "ffi_src_lib",
-      "target": "vietime_core",
+      "target": "textvn_core",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46031,7 +46031,7 @@
     },
     {
       "source": "ffi_src_lib",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46127,7 +46127,7 @@
     },
     {
       "source": "field_detect_src_lib",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46187,7 +46187,7 @@
     },
     {
       "source": "field_detect_src_rules_win",
-      "target": "vietime_strategy",
+      "target": "textvn_strategy",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46607,7 +46607,7 @@
     },
     {
       "source": "tools_bench_src_main",
-      "target": "vietime_field_detect",
+      "target": "textvn_field_detect",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -46763,7 +46763,7 @@
     },
     {
       "source": "tray_src_ipc_server",
-      "target": "vietime_ipc",
+      "target": "textvn_ipc",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -47135,7 +47135,7 @@
     },
     {
       "source": "tray_src_menu",
-      "target": "vietime_config",
+      "target": "textvn_config",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -47267,7 +47267,7 @@
     },
     {
       "source": "tray_src_settings",
-      "target": "vietime_config",
+      "target": "textvn_config",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -47339,7 +47339,7 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "vietime_config",
+      "target": "textvn_config",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -47507,7 +47507,7 @@
     },
     {
       "source": "tray_src_svc",
-      "target": "vietime_config",
+      "target": "textvn_config",
       "relation": "imports_from",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -54609,7 +54609,7 @@
     },
     {
       "source": "tools_win_lib_win32_uia_lib_find_uiaelementbylocator",
-      "target": "tools_win_lib_win32_uia_lib_initialize_vietimeuia",
+      "target": "tools_win_lib_win32_uia_lib_initialize_textvnuia",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -55192,7 +55192,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_guids",
-      "target": "adapters_windows_tsf_src_guids_profile_vietime",
+      "target": "adapters_windows_tsf_src_guids_profile_textvn",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -55203,7 +55203,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_guids",
-      "target": "adapters_windows_tsf_src_guids_dispattr_vietime",
+      "target": "adapters_windows_tsf_src_guids_dispattr_textvn",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -55247,7 +55247,7 @@
     },
     {
       "source": "adapters_windows_tsf_src_guids",
-      "target": "adapters_windows_tsf_src_guids_clsid_vietime_tip",
+      "target": "adapters_windows_tsf_src_guids_clsid_textvn_tip",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -57909,7 +57909,7 @@
     },
     {
       "source": "contributing",
-      "target": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "target": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -58007,7 +58007,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_ti\u00eau_chu\u1ea9n_code",
       "relation": "contains",
       "_origin": "ast",
@@ -58018,7 +58018,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_c\u1ea5u_tr\u00fac_d\u1ef1_\u00e1n_ownership",
       "relation": "contains",
       "_origin": "ast",
@@ -58029,7 +58029,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_c\u00e1ch_b\u00e1o_c\u00e1o_l\u1ed7i_bug_report",
       "relation": "contains",
       "_origin": "ast",
@@ -58040,7 +58040,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_license",
       "relation": "contains",
       "_origin": "ast",
@@ -58051,7 +58051,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_h\u1ecfi_h\u1ed7_tr\u1ee3",
       "relation": "contains",
       "_origin": "ast",
@@ -58062,7 +58062,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_\u0111\u1ec1_xu\u1ea5t_t\u00ednh_n\u0103ng_feature_request",
       "relation": "contains",
       "_origin": "ast",
@@ -58073,7 +58073,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_quy_tr\u00ecnh_ph\u00e1t_tri\u1ec3n",
       "relation": "contains",
       "_origin": "ast",
@@ -58084,7 +58084,7 @@
       "weight": 1.0
     },
     {
-      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_vietime",
+      "source": "contributing_\u0111\u00f3ng_g\u00f3p_cho_textvn",
       "target": "contributing_quy_t\u1eafc_\u1ee9ng_x\u1eed",
       "relation": "contains",
       "_origin": "ast",
@@ -60868,7 +60868,7 @@
     },
     {
       "source": "docs_00_index",
-      "target": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "target": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -60878,7 +60878,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "source": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "target": "docs_00_index_2_th\u1ee9_t\u1ef1_\u0111\u1ecdc_cho_agent_m\u1edbi_b\u1eaft_bu\u1ed9c",
       "relation": "contains",
       "_origin": "ast",
@@ -60889,7 +60889,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "source": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "target": "docs_00_index_3_giao_th\u1ee9c_review_b\u1eaft_bu\u1ed9c_cho_m\u1ecdi_ph\u1ea7n",
       "relation": "contains",
       "_origin": "ast",
@@ -60900,7 +60900,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "source": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "target": "docs_00_index_4_quy_\u01b0\u1edbc_\u0111\u1eb7t_t\u00ean_kh\u00f4ng_\u0111\u1ed5i_sau_khi_\u0111\u00e3_vi\u1ebft_docs",
       "relation": "contains",
       "_origin": "ast",
@@ -60911,7 +60911,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "source": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "target": "docs_00_index_5_changelog_c\u1ee7a_ch\u1ec9_m\u1ee5c",
       "relation": "contains",
       "_origin": "ast",
@@ -60922,7 +60922,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_index_vietime_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
+      "source": "docs_00_index_textvn_ch\u1ec9_m\u1ee5c_t\u00e0i_li\u1ec7u_giao_th\u1ee9c_review",
       "target": "docs_00_index_1_tr\u1ea1ng_th\u00e1i_c\u00e1c_ph\u1ea7n",
       "relation": "contains",
       "_origin": "ast",
@@ -60934,7 +60934,7 @@
     },
     {
       "source": "docs_00_workflow",
-      "target": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "target": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -60999,7 +60999,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_1_ground_rules_g_ids_\u00e1p_d\u1ee5ng_m\u1ecdi_l\u00fac",
       "relation": "contains",
       "_origin": "ast",
@@ -61010,7 +61010,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_9_fixbug_chu\u1ea9n_ho\u00e1_5_b\u01b0\u1edbc",
       "relation": "contains",
       "_origin": "ast",
@@ -61021,7 +61021,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_10_d\u1ecdn_d\u1eb9p_checklist_tr\u01b0\u1edbc_khi_\u0111\u00f3ng_phi\u00ean_tick_done",
       "relation": "contains",
       "_origin": "ast",
@@ -61032,7 +61032,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_11_c\u1eadp_nh\u1eadt_docs_nghi\u1ec7p_v\u1ee5_checklist_khi_xong",
       "relation": "contains",
       "_origin": "ast",
@@ -61043,7 +61043,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_12_github_actions_gi\u1eef_repo_s\u1ea1ch_sau_m\u1ed7i_l\u1ea7n_code",
       "relation": "contains",
       "_origin": "ast",
@@ -61054,7 +61054,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_2_b\u1eaft_bu\u1ed9c_\u0111\u1ecdc_tr\u00ecnh_t\u1ef1_m\u1ed7i_phi\u00ean",
       "relation": "contains",
       "_origin": "ast",
@@ -61065,7 +61065,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_3_common_errors_ghi_\u1edf_\u0111\u00e2u_ghi_nh\u01b0_th\u1ebf_n\u00e0o",
       "relation": "contains",
       "_origin": "ast",
@@ -61076,7 +61076,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_4_verified_ops_s\u1ed5_thao_t\u00e1c_\u0111\u00e3_ki\u1ec3m_ch\u1ee9ng",
       "relation": "contains",
       "_origin": "ast",
@@ -61087,7 +61087,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_5_workflow_8_b\u01b0\u1edbc_m\u1ecdi_task",
       "relation": "contains",
       "_origin": "ast",
@@ -61098,7 +61098,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_6_v\u00f9ng_s\u1edf_h\u1eefu_file_snapshot_2026_09_27_c\u1eadp_nh\u1eadt_7_khi_\u0111\u1ed5i",
       "relation": "contains",
       "_origin": "ast",
@@ -61109,7 +61109,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_7_review_change_log",
       "relation": "contains",
       "_origin": "ast",
@@ -61120,7 +61120,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_00_workflow_vietime_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
+      "source": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
       "target": "docs_00_workflow_8_audit_2_v\u00f2ng_5w1h",
       "relation": "contains",
       "_origin": "ast",
@@ -61330,7 +61330,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_p0_2_h\u1ee3p_\u0111\u1ed3ng_ffi_v1_ngu\u1ed3n_s\u1ef1_th\u1eadt_duy_nh\u1ea5t",
-      "target": "docs_10_shared_p0_2_engine_ffi_contract_1_header_b\u1ea3n_1_1_v\u1edbi_ffi_include_vietime_ffi_h",
+      "target": "docs_10_shared_p0_2_engine_ffi_contract_1_header_b\u1ea3n_1_1_v\u1edbi_ffi_include_textvn_ffi_h",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -61539,7 +61539,7 @@
     },
     {
       "source": "docs_10_shared_p0_3_config_preset_strategy_p0_3_config_schema_preset_appdb_strategy_model_ipc",
-      "target": "docs_10_shared_p0_3_config_preset_strategy_5_ipc_pipe_vietime_ipc_v1_schemas_ipc_v1_md",
+      "target": "docs_10_shared_p0_3_config_preset_strategy_5_ipc_pipe_textvn_ipc_v1_schemas_ipc_v1_md",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62001,7 +62001,7 @@
     },
     {
       "source": "docs_20_windows_p1_1_tsf_p1_1_tsf_adapter_windows_solution_chi_ti\u1ebft",
-      "target": "docs_20_windows_p1_1_tsf_8_\u0111\u0103ng_k\u00fd_tip_g\u1ecdi_t\u1eeb_vietime_register_xem_p1_4_4_installer",
+      "target": "docs_20_windows_p1_1_tsf_8_\u0111\u0103ng_k\u00fd_tip_g\u1ecdi_t\u1eeb_textvn_register_xem_p1_4_4_installer",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62408,7 +62408,7 @@
     },
     {
       "source": "docs_20_windows_p1_4_ui_packaging_release_p1_4_ui_config_ipc_packaging_release_windows_solution_chi_ti\u1ebft",
-      "target": "docs_20_windows_p1_4_ui_packaging_release_7_updater_crate_vietime_updater_lib_ch\u1ea1y_trong_vietime_tray_exe",
+      "target": "docs_20_windows_p1_4_ui_packaging_release_7_updater_crate_textvn_updater_lib_ch\u1ea1y_trong_textvn_tray_exe",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62474,7 +62474,7 @@
     },
     {
       "source": "docs_20_windows_p1_4_ui_packaging_release_p1_4_ui_config_ipc_packaging_release_windows_solution_chi_ti\u1ebft",
-      "target": "docs_20_windows_p1_4_ui_packaging_release_1_tray_vietime_tray_exe_ch\u1ea1y_1_instance_notify_icon",
+      "target": "docs_20_windows_p1_4_ui_packaging_release_1_tray_textvn_tray_exe_ch\u1ea1y_1_instance_notify_icon",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62485,7 +62485,7 @@
     },
     {
       "source": "docs_20_windows_p1_4_ui_packaging_release_p1_4_ui_config_ipc_packaging_release_windows_solution_chi_ti\u1ebft",
-      "target": "docs_20_windows_p1_4_ui_packaging_release_4_c\u00e0i_\u0111\u1eb7t_vietime_setup_exe_inno_setup_6_x86_64",
+      "target": "docs_20_windows_p1_4_ui_packaging_release_4_c\u00e0i_\u0111\u1eb7t_textvn_setup_exe_inno_setup_6_x86_64",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62517,7 +62517,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_vietime_appcomptest",
+      "source": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_textvn_appcomptest",
       "target": "docs_20_windows_p1_5_test_plan_4_1_smoke_script_pr_kh\u00f4ng_c\u1ea7n_app_matrix",
       "relation": "contains",
       "_origin": "ast",
@@ -62595,7 +62595,7 @@
     },
     {
       "source": "docs_20_windows_p1_5_test_plan_p1_5_test_plan_windows_solution_chi_ti\u1ebft",
-      "target": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_vietime_appcomptest",
+      "target": "docs_20_windows_p1_5_test_plan_4_uia_harness_tools_appcomptest_crate_textvn_appcomptest",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62694,7 +62694,7 @@
     },
     {
       "source": "docs_20_windows_p1_6_tasks_m0_spike_n\u1ec1n_tu\u1ea7n_1_2",
-      "target": "docs_20_windows_p1_6_tasks_win_008_ki\u1ec3m_tra_t\u00ean_t\u00ean_mi\u1ec1n_vietime_r\u1ee7i_ro_carry_over_t\u1eeb_ph\u1ea7n_0_s_dep",
+      "target": "docs_20_windows_p1_6_tasks_win_008_ki\u1ec3m_tra_t\u00ean_t\u00ean_mi\u1ec1n_textvn_r\u1ee7i_ro_carry_over_t\u1eeb_ph\u1ea7n_0_s_dep",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -62892,7 +62892,7 @@
     },
     {
       "source": "docs_20_windows_p1_6_tasks_m3_hook_tu\u1ea7n_7_11_song_song_m2_dep_win_005",
-      "target": "docs_20_windows_p1_6_tasks_win_040_vietime_hook_exe_skeleton_ipc_heartbeat_m_p1_2_2",
+      "target": "docs_20_windows_p1_6_tasks_win_040_textvn_hook_exe_skeleton_ipc_heartbeat_m_p1_2_2",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -63046,7 +63046,7 @@
     },
     {
       "source": "docs_20_windows_p1_6_tasks_m4_tray_settings_packaging_tu\u1ea7n_11_14_dep_win_016_ipc_contract_\u0111\u00e3_ch\u1ed1t_t\u1eeb_p0",
-      "target": "docs_20_windows_p1_6_tasks_win_058_vietime_doctor_export_m_p1_4_9",
+      "target": "docs_20_windows_p1_6_tasks_win_058_textvn_doctor_export_m_p1_4_9",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -63860,7 +63860,7 @@
     },
     {
       "source": "docs_30_macos_p2_4_ui_packaging_release_p2_4_ui_config_ipc_packaging_release_macos_solution_chi_ti\u1ebft",
-      "target": "docs_30_macos_p2_4_ui_packaging_release_1_status_menu_vietime_app_lsuielement_1_instance",
+      "target": "docs_30_macos_p2_4_ui_packaging_release_1_status_menu_textvn_app_lsuielement_1_instance",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -64289,7 +64289,7 @@
     },
     {
       "source": "docs_30_macos_p2_6_tasks_a2_field_detect_appdb_tu\u1ea7n_7_10_dep_mac_005_006",
-      "target": "docs_30_macos_p2_6_tasks_mac_033_appdb_loader_ed25519_s_d\u00f9ng_vietime_appdb_kh\u00f4ng_vi\u1ebft_l\u1ea1i",
+      "target": "docs_30_macos_p2_6_tasks_mac_033_appdb_loader_ed25519_s_d\u00f9ng_textvn_appdb_kh\u00f4ng_vi\u1ebft_l\u1ea1i",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -64355,7 +64355,7 @@
     },
     {
       "source": "docs_30_macos_p2_6_tasks_a3_menu_bar_settings_packaging_tu\u1ea7n_11_14",
-      "target": "docs_30_macos_p2_6_tasks_mac_050_vietime_app_skeleton_status_menu_9_m\u1ee5c_m_p2_4_1",
+      "target": "docs_30_macos_p2_6_tasks_mac_050_textvn_app_skeleton_status_menu_9_m\u1ee5c_m_p2_4_1",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -64443,7 +64443,7 @@
     },
     {
       "source": "docs_30_macos_p2_6_tasks_a3_menu_bar_settings_packaging_tu\u1ea7n_11_14",
-      "target": "docs_30_macos_p2_6_tasks_mac_058_vietime_doctor_export_b\u1ea3n_mac_m_p2_4_9",
+      "target": "docs_30_macos_p2_6_tasks_mac_058_textvn_doctor_export_b\u1ea3n_mac_m_p2_4_9",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -65279,7 +65279,7 @@
     },
     {
       "source": "docs_40_linux_p3_4_strategy_appdb_p3_4_at_spi_field_detect_app_preset_linux_solution_chi_ti\u1ebft",
-      "target": "docs_40_linux_p3_4_strategy_appdb_7_env_matrix_detect_framework_d\u00f9ng_cho_vietime_doctor_plan_5_3",
+      "target": "docs_40_linux_p3_4_strategy_appdb_7_env_matrix_detect_framework_d\u00f9ng_cho_textvn_doctor_plan_5_3",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -65356,7 +65356,7 @@
     },
     {
       "source": "docs_40_linux_p3_4_strategy_appdb_p3_4_at_spi_field_detect_app_preset_linux_solution_chi_ti\u1ebft",
-      "target": "docs_40_linux_p3_4_strategy_appdb_5_module_d\u00f9ng_chung_libvietime_linux_common_a_c",
+      "target": "docs_40_linux_p3_4_strategy_appdb_5_module_d\u00f9ng_chung_libtextvn_linux_common_a_c",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -65466,7 +65466,7 @@
     },
     {
       "source": "docs_40_linux_p3_5_ui_packaging_release_p3_5_tray_config_ipc_packaging_release_linux_solution_chi_ti\u1ebft",
-      "target": "docs_40_linux_p3_5_ui_packaging_release_6_vietime_doctor_b\u1ea3n_linux_plan_5_3",
+      "target": "docs_40_linux_p3_5_ui_packaging_release_6_textvn_doctor_b\u1ea3n_linux_plan_5_3",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -65719,7 +65719,7 @@
     },
     {
       "source": "docs_40_linux_p3_7_tasks_t0_spike_m\u00f4i_tr\u01b0\u1eddng_tu\u1ea7n_1_2",
-      "target": "docs_40_linux_p3_7_tasks_lnx_003_spike_link_libvietime_ffi_a_t\u1eeb_c_v\u00e0_c_m_dep_lnx_001_rl10",
+      "target": "docs_40_linux_p3_7_tasks_lnx_003_spike_link_libtextvn_ffi_a_t\u1eeb_c_v\u00e0_c_m_dep_lnx_001_rl10",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -66313,7 +66313,7 @@
     },
     {
       "source": "docs_adr_readme",
-      "target": "docs_adr_readme_adr_index_c\u00e1c_quy\u1ebft_\u0111\u1ecbnh_ki\u1ebfn_tr\u00fac_c\u1ee7a_vietime",
+      "target": "docs_adr_readme_adr_index_c\u00e1c_quy\u1ebft_\u0111\u1ecbnh_ki\u1ebfn_tr\u00fac_c\u1ee7a_textvn",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -66401,7 +66401,7 @@
     },
     {
       "source": "docs_compliance_naming_check",
-      "target": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
+      "target": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -66411,7 +66411,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
+      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
       "target": "docs_compliance_naming_check_1_m\u1ee5c_ti\u00eau_v\u00e0_ph\u1ea1m_vi_ki\u1ec3m_tra",
       "relation": "contains",
       "_origin": "ast",
@@ -66422,7 +66422,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
+      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
       "target": "docs_compliance_naming_check_2_k\u1ebft_qu\u1ea3_ki\u1ec3m_tra_chi_ti\u1ebft_theo_k\u00eanh",
       "relation": "contains",
       "_origin": "ast",
@@ -66433,7 +66433,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
+      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
       "target": "docs_compliance_naming_check_3_kh\u00e1c_bi\u1ec7t_v\u00e0_\u0111\u1ed1i_chi\u1ebfu_v\u1edbi_c\u00e1c_b\u1ed9_g\u00f5_ti\u1ec1n_nhi\u1ec7m",
       "relation": "contains",
       "_origin": "ast",
@@ -66444,7 +66444,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_vietime",
+      "source": "docs_compliance_naming_check_win_008_b\u00e1o_c\u00e1o_ki\u1ec3m_tra_t\u00ean_v\u00e0_kh\u00f4ng_gian_t\u00ean_textvn",
       "target": "docs_compliance_naming_check_4_quy\u1ebft_\u0111\u1ecbnh_k\u1ebft_lu\u1eadn",
       "relation": "contains",
       "_origin": "ast",
@@ -66786,7 +66786,7 @@
     },
     {
       "source": "docs_specs_performance_audit",
-      "target": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "target": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -66884,7 +66884,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_6_optimization_checklist",
       "relation": "contains",
       "_origin": "ast",
@@ -66895,7 +66895,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_7_benchmark_targets",
       "relation": "contains",
       "_origin": "ast",
@@ -66906,7 +66906,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_8_windows_system_timers",
       "relation": "contains",
       "_origin": "ast",
@@ -66917,7 +66917,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_2_ph\u00e2n_t\u00edch_hot_path",
       "relation": "contains",
       "_origin": "ast",
@@ -66928,7 +66928,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_1_non_functional_requirements_nfr",
       "relation": "contains",
       "_origin": "ast",
@@ -66939,7 +66939,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_3_cpu_usage_analysis",
       "relation": "contains",
       "_origin": "ast",
@@ -66950,7 +66950,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_4_memory_footprint",
       "relation": "contains",
       "_origin": "ast",
@@ -66961,7 +66961,7 @@
       "weight": 1.0
     },
     {
-      "source": "docs_specs_performance_audit_performance_audit_vietime_windows_platform",
+      "source": "docs_specs_performance_audit_performance_audit_textvn_windows_platform",
       "target": "docs_specs_performance_audit_5_startup_time_budget",
       "relation": "contains",
       "_origin": "ast",
@@ -67456,57 +67456,57 @@
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
-      "target": "ffi_include_vietime_ffi_ime_result",
+      "source": "ffi_include_textvn_ffi",
+      "target": "ffi_include_textvn_ffi_ime_result",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L105",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
-      "target": "ffi_include_vietime_ffi_ime_suggest",
+      "source": "ffi_include_textvn_ffi",
+      "target": "ffi_include_textvn_ffi_ime_suggest",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L117",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "source": "ffi_include_textvn_ffi",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L77",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "source": "ffi_include_textvn_ffi",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L79",
       "weight": 1.0
     },
     {
-      "source": "ffi_include_vietime_ffi",
-      "target": "ffi_include_vietime_ffi_ime_context",
+      "source": "ffi_include_textvn_ffi",
+      "target": "ffi_include_textvn_ffi_ime_context",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
-      "source_file": "ffi/include/vietime_ffi.h",
+      "source_file": "ffi/include/textvn_ffi.h",
       "source_location": "L90",
       "weight": 1.0
     },
@@ -69063,7 +69063,7 @@
     },
     {
       "source": "readme",
-      "target": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "target": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -69238,7 +69238,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_t\u00ednh_n\u0103ng",
       "relation": "contains",
       "_origin": "ast",
@@ -69249,7 +69249,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_c\u1ea5u_tr\u00fac_d\u1ef1_\u00e1n",
       "relation": "contains",
       "_origin": "ast",
@@ -69260,7 +69260,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_file_c\u1ea5u_h\u00ecnh",
       "relation": "contains",
       "_origin": "ast",
@@ -69271,7 +69271,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_g\u1ee1_c\u00e0i_\u0111\u1eb7t",
       "relation": "contains",
       "_origin": "ast",
@@ -69282,7 +69282,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_\u0111\u00f3ng_g\u00f3p",
       "relation": "contains",
       "_origin": "ast",
@@ -69293,7 +69293,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_license",
       "relation": "contains",
       "_origin": "ast",
@@ -69304,7 +69304,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_y\u00eau_c\u1ea7u_h\u1ec7_th\u1ed1ng",
       "relation": "contains",
       "_origin": "ast",
@@ -69315,7 +69315,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_c\u00e0i_\u0111\u1eb7t_nhanh_cho_ng\u01b0\u1eddi_d\u00f9ng",
       "relation": "contains",
       "_origin": "ast",
@@ -69326,7 +69326,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_h\u01b0\u1edbng_d\u1eabn_s\u1eed_d\u1ee5ng",
       "relation": "contains",
       "_origin": "ast",
@@ -69337,7 +69337,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_vietime_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
+      "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_cho_windows_text_services_framework",
       "target": "readme_build_t\u1eeb_source",
       "relation": "contains",
       "_origin": "ast",
@@ -71010,7 +71010,7 @@
     },
     {
       "source": "schemas_ffi_v1",
-      "target": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "target": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -71020,7 +71020,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "source": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
       "target": "schemas_ffi_v1_1_b\u1ea5t_bi\u1ebfn_p0_2_0_\u0111\u1ecdc_tr\u01b0\u1edbc_khi_vi\u1ebft_adapter",
       "relation": "contains",
       "_origin": "ast",
@@ -71031,7 +71031,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "source": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
       "target": "schemas_ffi_v1_3_ch\u00fa_gi\u1ea3i_v\u00f2ng_\u0111\u1eddi_chu\u1ea9n_c\u1ee7a_adapter",
       "relation": "contains",
       "_origin": "ast",
@@ -71042,8 +71042,8 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
-      "target": "schemas_ffi_v1_2_header_nguy\u00ean_v\u0103n_sinh_t\u1eeb_ffi_include_vietime_ffi_h",
+      "source": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "target": "schemas_ffi_v1_2_header_nguy\u00ean_v\u0103n_sinh_t\u1eeb_ffi_include_textvn_ffi_h",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -71053,7 +71053,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "source": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
       "target": "schemas_ffi_v1_4_l\u1ed7i_th\u01b0\u1eddng_g\u1eb7p_r\u00fat_t\u1eeb_bug_b1_b13",
       "relation": "contains",
       "_origin": "ast",
@@ -71064,7 +71064,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ffi_v1_ffi_v1_vietime_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
+      "source": "schemas_ffi_v1_ffi_v1_textvn_engine_c_abi_v1_b\u1ea3n_ch\u00fa_gi\u1ea3i_cho_adapter",
       "target": "schemas_ffi_v1_5_khi_n\u00e0o_ph\u1ea3i_bump_ime_abi_version",
       "relation": "contains",
       "_origin": "ast",
@@ -71076,7 +71076,7 @@
     },
     {
       "source": "schemas_ipc_v1",
-      "target": "schemas_ipc_v1_vietime_ipc_v1",
+      "target": "schemas_ipc_v1_textvn_ipc_v1",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -71086,7 +71086,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ipc_v1_vietime_ipc_v1",
+      "source": "schemas_ipc_v1_textvn_ipc_v1",
       "target": "schemas_ipc_v1_messages",
       "relation": "contains",
       "_origin": "ast",
@@ -71097,7 +71097,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ipc_v1_vietime_ipc_v1",
+      "source": "schemas_ipc_v1_textvn_ipc_v1",
       "target": "schemas_ipc_v1_implementation",
       "relation": "contains",
       "_origin": "ast",
@@ -71108,7 +71108,7 @@
       "weight": 1.0
     },
     {
-      "source": "schemas_ipc_v1_vietime_ipc_v1",
+      "source": "schemas_ipc_v1_textvn_ipc_v1",
       "target": "schemas_ipc_v1_wire_framing",
       "relation": "contains",
       "_origin": "ast",
@@ -71241,7 +71241,7 @@
     },
     {
       "source": "spikes_tsf_min_src_lib",
-      "target": "spikes_tsf_min_src_lib_clsid_vietime_tip",
+      "target": "spikes_tsf_min_src_lib_clsid_textvn_tip",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -72462,7 +72462,7 @@
     },
     {
       "source": "tools_win_lib_win32_uia_lib",
-      "target": "tools_win_lib_win32_uia_lib_initialize_vietimeuia",
+      "target": "tools_win_lib_win32_uia_lib_initialize_textvnuia",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -78578,7 +78578,7 @@
     },
     {
       "source": "docs_20_windows_p1_2_hook_2_ki\u1ebfn_tr\u00fac_ti\u1ebfn_tr\u00ecnh",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78590,7 +78590,7 @@
     },
     {
       "source": "docs_30_macos_p2_1_imk_1_quy\u1ebft_\u0111\u1ecbnh_capability",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78602,7 +78602,7 @@
     },
     {
       "source": "docs_40_linux_p3_1_ibus_1_quy\u1ebft_\u0111\u1ecbnh_capability",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78614,7 +78614,7 @@
     },
     {
       "source": "docs_40_linux_p3_3_x11_1_quy\u1ebft_\u0111\u1ecbnh_ph\u1ea1m_vi",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78626,7 +78626,7 @@
     },
     {
       "source": "schemas_ffi_v1_1_b\u1ea5t_bi\u1ebfn_p0_2_0_\u0111\u1ecdc_tr\u01b0\u1edbc_khi_vi\u1ebft_adapter",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78638,7 +78638,7 @@
     },
     {
       "source": "schemas_ffi_v1_4_l\u1ed7i_th\u01b0\u1eddng_g\u1eb7p_r\u00fat_t\u1eeb_bug_b1_b13",
-      "target": "ffi_include_vietime_ffi_ime_instance",
+      "target": "ffi_include_textvn_ffi_ime_instance",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78650,7 +78650,7 @@
     },
     {
       "source": "docs_00_index_5_changelog_c\u1ee7a_ch\u1ec9_m\u1ee5c",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78662,7 +78662,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_3_v\u00f2ng_\u0111\u1eddi_thread_model",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78674,7 +78674,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_4_mapping_sang_adapter_preedit_vs_replace_quan_tr\u1ecdng",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78686,7 +78686,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_6_versioning_ki\u1ec3m_ch\u1ee9ng_b\u1eb1ng_ci",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78698,7 +78698,7 @@
     },
     {
       "source": "docs_10_shared_p0_3_config_preset_strategy_3_3_chi_ph\u00ed_budget_m\u1ecdi_adapter_ph\u1ea3i_tu\u00e2n",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78710,7 +78710,7 @@
     },
     {
       "source": "docs_20_windows_p1_1_tsf_10_playbook_tri\u1ec3n_khai_mapping_sang_task_chi_ti\u1ebft_\u1edf_p1_6_tasks_md",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78722,7 +78722,7 @@
     },
     {
       "source": "docs_20_windows_p1_1_tsf_12_failure_modes_x\u1eed_l\u00fd",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78734,7 +78734,7 @@
     },
     {
       "source": "docs_20_windows_p1_5_test_plan_5_perf_ng\u01b0\u1ee1ng_li\u00ean_k\u1ebft_plan_5_5",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78746,7 +78746,7 @@
     },
     {
       "source": "docs_20_windows_p1_6_tasks_win_011_key_sink_engine_pass_m",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78758,7 +78758,7 @@
     },
     {
       "source": "docs_30_macos_p2_1_imk_10_playbook_tri\u1ec3n_khai_mapping_p2_6_tasks_md",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78770,7 +78770,7 @@
     },
     {
       "source": "docs_30_macos_p2_1_imk_12_failure_modes",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78782,7 +78782,7 @@
     },
     {
       "source": "docs_30_macos_p2_1_imk_5_key_flow",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78794,7 +78794,7 @@
     },
     {
       "source": "docs_30_macos_p2_1_imk_9_spike_checklist_tasks_mac_002_003_004_005_007_tu\u1ea7n_1_2_ch\u1eb7n_m\u1ecdi_task_kh\u00e1c",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78806,7 +78806,7 @@
     },
     {
       "source": "docs_30_macos_p2_5_test_plan_5_perf_ng\u01b0\u1ee1ng_plan_5_5",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78818,7 +78818,7 @@
     },
     {
       "source": "docs_30_macos_p2_6_tasks_mac_003_spike_swift_rust_staticlib_l_dep_mac_001_rm1",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78830,7 +78830,7 @@
     },
     {
       "source": "docs_30_macos_p2_6_tasks_mac_011_handle_ime_key_pass_m",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78842,7 +78842,7 @@
     },
     {
       "source": "docs_40_linux_p3_1_ibus_12_failure_modes",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78854,7 +78854,7 @@
     },
     {
       "source": "docs_40_linux_p3_1_ibus_9_spike_checklist_tasks_lnx_002_003_004_005_008_tu\u1ea7n_1_2_ch\u1eb7n_ws1",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78866,7 +78866,7 @@
     },
     {
       "source": "docs_40_linux_p3_2_fcitx5_1_quy\u1ebft_\u0111\u1ecbnh_capability",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78878,7 +78878,7 @@
     },
     {
       "source": "docs_40_linux_p3_6_test_plan_5_perf_ng\u01b0\u1ee1ng_plan_5_5",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78890,7 +78890,7 @@
     },
     {
       "source": "plan_3_3_h\u1ee3p_\u0111\u1ed3ng_ffi_v1_b\u1ea3n_ch\u00ednh_th\u1ee9c_\u0111\u00e3_ch\u1ed1t_docs_10_shared_p0_2_engine_ffi_contract_md",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78902,7 +78902,7 @@
     },
     {
       "source": "plan_5_5_performance_budget",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78914,7 +78914,7 @@
     },
     {
       "source": "schemas_ffi_v1_3_ch\u00fa_gi\u1ea3i_v\u00f2ng_\u0111\u1eddi_chu\u1ea9n_c\u1ee7a_adapter",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78926,7 +78926,7 @@
     },
     {
       "source": "schemas_ffi_v1_4_l\u1ed7i_th\u01b0\u1eddng_g\u1eb7p_r\u00fat_t\u1eeb_bug_b1_b13",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78938,7 +78938,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_0_b\u1ea5t_bi\u1ebfn_invariants",
-      "target": "ffi_include_vietime_ffi_ime_key",
+      "target": "ffi_include_textvn_ffi_ime_key",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78950,7 +78950,7 @@
     },
     {
       "source": "docs_40_linux_p3_2_fcitx5_5_apply_replace_\u0111\u1ed1i_chi\u1ebfu_p3_1_6_c\u00f9ng_semantics_api_kh\u00e1c",
-      "target": "ffi_include_vietime_ffi_ime_result",
+      "target": "ffi_include_textvn_ffi_ime_result",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78962,7 +78962,7 @@
     },
     {
       "source": "docs_10_shared_p0_2_engine_ffi_contract_8_ngo\u00e0i_ph\u1ea1m_vi_v1_kh\u00f4ng_t\u1ef1_th\u00eam",
-      "target": "ffi_include_vietime_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78974,7 +78974,7 @@
     },
     {
       "source": "docs_10_shared_p0_review_log_review_2_nh\u1ea5t_qu\u00e1n_s\u1eb5n_s\u00e0ng_2026_09_27",
-      "target": "ffi_include_vietime_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78986,7 +78986,7 @@
     },
     {
       "source": "fuzz_readme_b\u1ea5t_bi\u1ebfn_m\u1ed7i_target_assert_kh\u00f4ng_ch\u1ec9_kh\u00f4ng_panic",
-      "target": "ffi_include_vietime_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
@@ -78998,7 +78998,7 @@
     },
     {
       "source": "plan_3_3_h\u1ee3p_\u0111\u1ed3ng_ffi_v1_b\u1ea3n_ch\u00ednh_th\u1ee9c_\u0111\u00e3_ch\u1ed1t_docs_10_shared_p0_2_engine_ffi_contract_md",
-      "target": "ffi_include_vietime_ffi_ime_suggest",
+      "target": "ffi_include_textvn_ffi_ime_suggest",
       "relation": "references",
       "_origin": "ast",
       "confidence": "INFERRED",
