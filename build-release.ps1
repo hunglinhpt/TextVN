@@ -6,6 +6,7 @@
 #   powershell -File build-release.ps1 -SkipTests
 #   powershell -File build-release.ps1 -BuildInstaller
 #   powershell -File build-release.ps1 -IncludeCompatibilityHook
+#   powershell -File build-release.ps1 -SigningCertificateThumbprint "<SHA1>"
 #   powershell -File build-release.ps1 -Version "0.1.0"
 #   powershell -File build-release.ps1 -Channel candidate
 
@@ -14,6 +15,9 @@ param(
     [switch]$BuildInstaller,
     # Hook WH_KEYBOARD_LL legacy chi co trong goi Compatibility duoc yeu cau.
     [switch]$IncludeCompatibilityHook,
+    # SHA-1 thumbprint cua Authenticode code-signing certificate trong CurrentUser\My
+    # hoac LocalMachine\My. Khong ghi private key vao repo hay artifact.
+    [string]$SigningCertificateThumbprint = "",
     [string]$Version = "",
     [ValidateSet("candidate", "production")]
     [string]$Channel = "candidate"
@@ -26,6 +30,30 @@ function Write-Step($msg) { Write-Host "" ; Write-Host "== $msg ==" -ForegroundC
 function Write-Ok($msg)   { Write-Host "   OK: $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "   WARN: $msg" -ForegroundColor Yellow }
 function Write-Fail($msg) { Write-Host "   FAIL: $msg" -ForegroundColor Red; exit 1 }
+
+function Resolve-SignTool {
+    $command = Get-Command "signtool.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $command) { return $command.Source }
+
+    $candidates = @(
+        "${env:ProgramFiles(x86)}\Windows Kits\10\bin\x64\signtool.exe",
+        "${env:ProgramFiles}\Windows Kits\10\bin\x64\signtool.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $candidate }
+    }
+    return $null
+}
+
+function Sign-TextVNFile([string]$SignTool, [string]$Thumbprint, [string]$Path) {
+    & $SignTool sign /sha1 $Thumbprint /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $Path
+    if ($LASTEXITCODE -ne 0) { Write-Fail "Authenticode signing failed: $Path" }
+    $signature = Get-AuthenticodeSignature -FilePath $Path
+    if ($signature.Status -ne "Valid") {
+        Write-Fail "Authenticode signature is not valid for $Path (status: $($signature.Status))"
+    }
+    Write-Ok "Authenticode signed: $(Split-Path -Leaf $Path)"
+}
 
 # Xac dinh version tu Cargo.toml
 if ($Version -eq "") {
@@ -54,8 +82,12 @@ $GitTreeClean = ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace(($GitDirt
 $ProductionBlockers = @(
     "Native UI Automation is not integrated in the TSF/Hook runtime",
     "TSF composition lifecycle is not verified end-to-end",
-    "Named-pipe DACL and Authenticode release signing are not production-verified"
+    "Named-pipe DACL is not production-verified"
 )
+$SigningRequested = -not [string]::IsNullOrWhiteSpace($SigningCertificateThumbprint)
+if (-not $SigningRequested) {
+    $ProductionBlockers += "Authenticode release signing was not requested"
+}
 $ReleaseChecks = [ordered]@{}
 $FeatureProfile = if ($IncludeCompatibilityHook) { "tsf-plus-legacy-hook" } else { "tsf-only" }
 
@@ -111,6 +143,28 @@ cargo build --release @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 Write-Ok "Build release DONE"
+
+# Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
+# cach phat hanh chuan de xay dung reputation; khong co co che che giau binary.
+$ReleaseSignFiles = @(
+    "$ReleaseDir\TextVN.exe",
+    "$ReleaseDir\textvn-cli.exe",
+    "$ReleaseDir\textvn_win_tsf.dll",
+    "$ReleaseDir\textvn_ffi.dll"
+)
+if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
+if ($SigningRequested) {
+    Write-Step "Sign release binaries with Authenticode"
+    $signTool = Resolve-SignTool
+    if ($null -eq $signTool) { Write-Fail "signtool.exe was not found; install the Windows SDK signing tools or remove -SigningCertificateThumbprint" }
+    foreach ($binary in $ReleaseSignFiles) {
+        if (-not (Test-Path $binary)) { Write-Fail "Cannot sign missing binary: $binary" }
+        Sign-TextVNFile $signTool $SigningCertificateThumbprint $binary
+    }
+    $ReleaseChecks["authenticode"] = "passed"
+} else {
+    $ReleaseChecks["authenticode"] = "not-signed"
+}
 
 # Khong duoc tu y tat bo go dang dung cua nguoi dung. Neu artifact dang bi khoa,
 # dung build va yeu cau dong instance truoc khi tiep tuc.
@@ -343,6 +397,9 @@ if ($BuildInstaller) {
         iscc.exe @installerArgs
         $setupExe = "dist\TextVN-setup-$Version-windows-x64.exe"
         if (Test-Path $setupExe) {
+            if ($SigningRequested) {
+                Sign-TextVNFile $signTool $SigningCertificateThumbprint $setupExe
+            }
             Write-Ok "Installer: $setupExe"
         } else {
             Write-Warn "Installer output not found"
