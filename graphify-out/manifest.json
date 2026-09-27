@@ -1,7 +1,7 @@
 {
   "adapters/windows-tsf/Cargo.toml": {
-    "mtime": 1790474081.7809947,
-    "seen": 1790475723.5790014,
+    "mtime": 1790477633.1824076,
+    "seen": 1790477974.7839704,
     "ast_hash": "8a67a67f911d1d7dc1c58388ba563e52",
     "semantic_hash": ""
   },
@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "xtask/src/main.rs": {
-    "mtime": 1790476991.9364352,
-    "seen": 1790477021.1481698,
-    "ast_hash": "1cb7078735179f72166d74badb97ce97",
+    "mtime": 1790477673.713104,
+    "seen": 1790477974.8249323,
+    "ast_hash": "be4e6b625aacd8024e48d47171a590d4",
     "semantic_hash": ""
   },
   "xtask/src/toml.rs": {
@@ -396,8 +396,8 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790462657.8518388,
-    "seen": 1790472166.050806,
+    "mtime": 1790477274.5322318,
+    "seen": 1790477974.8279288,
     "ast_hash": "6bf3d54c84ba5360bf70151ad61438a6",
     "semantic_hash": ""
   },
@@ -672,8 +672,8 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1790476931.74208,
-    "seen": 1790477021.1481698,
+    "mtime": 1790477274.5505292,
+    "seen": 1790477974.8279288,
     "ast_hash": "7feda5f4b040aaff70dfa319b5b9aa3f",
     "semantic_hash": ""
   },
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790476993.284817,
-    "seen": 1790477021.1511855,
-    "ast_hash": "b65ab7501004d86a7ffe3bf3d216dfea",
+    "mtime": 1790477892.2789204,
+    "seen": 1790477974.861384,
+    "ast_hash": "9a77d502f1d2fd21ed2773c2216e5093",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -702,8 +702,8 @@
     "semantic_hash": ""
   },
   "adapters/windows-hook/src/lib.rs": {
-    "mtime": 1790476932.9999776,
-    "seen": 1790477021.14117,
+    "mtime": 1790477855.8897488,
+    "seen": 1790477974.7839704,
     "ast_hash": "e7257d8352fa72dc8c48dfc7a7e6153e",
     "semantic_hash": ""
   },
@@ -714,9 +714,75 @@
     "semantic_hash": ""
   },
   ".github/workflows/repo-hygiene.yml": {
-    "mtime": 1790476828.385928,
-    "seen": 1790477021.1481698,
+    "mtime": 1790477274.5202293,
+    "seen": 1790477974.8269293,
     "ast_hash": "2c77850724251fb177c9ee0facefd36c",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/class.rs": {
+    "mtime": 1790477717.8922334,
+    "seen": 1790477974.7839704,
+    "ast_hash": "2813f4058957de4099052ff69b031099",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/edit_session.rs": {
+    "mtime": 1790477733.3720145,
+    "seen": 1790477974.7839704,
+    "ast_hash": "1188e848dbccc61e3f32a00fa4e19fc6",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/guids.rs": {
+    "mtime": 1790477707.016982,
+    "seen": 1790477974.7839704,
+    "ast_hash": "a69cace3e8d6022c8812a16f433f85d2",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/key_event.rs": {
+    "mtime": 1790477743.800347,
+    "seen": 1790477974.7839704,
+    "ast_hash": "0d6d51134d17115fa4411a74a8413e2d",
+    "semantic_hash": ""
+  },
+  "adapters/windows-tsf/src/tip.rs": {
+    "mtime": 1790477758.975463,
+    "seen": 1790477974.7839704,
+    "ast_hash": "58a2b1dd6a20883359ef2746aac56eac",
+    "semantic_hash": ""
+  },
+  "spikes/uia-probe/controltype_ids.ps1": {
+    "mtime": 1790477584.2512367,
+    "seen": 1790477974.8177452,
+    "ast_hash": "9a2a1900ce5a62575a7bd9c0744debf9",
+    "semantic_hash": ""
+  },
+  "spikes/uia-probe/probe_conditions.ps1": {
+    "mtime": 1790477584.270236,
+    "seen": 1790477974.8177452,
+    "ast_hash": "9359b187375b6e1333a829c13a02e3cc",
+    "semantic_hash": ""
+  },
+  "spikes/uia-probe/uia_spike.ps1": {
+    "mtime": 1790477576.5915532,
+    "seen": 1790477974.8177452,
+    "ast_hash": "d5f0e382b044c6bc42880d1e51403a2c",
+    "semantic_hash": ""
+  },
+  "docs/specs/project-common-errors.md": {
+    "mtime": 1790477633.2091243,
+    "seen": 1790477974.8593824,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "docs/specs/uia-spike.md": {
+    "mtime": 1790477828.0612125,
+    "seen": 1790477974.861384,
+    "ast_hash": "1465515f7f91d8665fd13731f13669b4",
+    "semantic_hash": ""
+  },
+  "spikes/uia-probe/uia_fixture.html": {
+    "mtime": 1790477584.2512367,
+    "seen": 1790477974.8653944,
+    "ast_hash": "773e5ce8ea10b677f7c4e47c10b37859",
     "semantic_hash": ""
   }
 }
