@@ -33,6 +33,7 @@
 | B11 | `cargo build -p vietime-win-tsf` | ✓ Sinh `target/debug/vietime_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |
 | B12 | `cargo test -p vietime-win-tsf` | ✓ 15/15 tests pass (2026-09-27) | Kiểm chứng WIN-010..019: COM lifecycle, IPC client, SelectionReplace, ForwardAsCommit, hotkey toggle EN/VN, secure field |
 | B13 | `cargo clippy -p vietime-win-tsf --all-targets -- -D warnings` | ✓ 0 warnings, 0 errors (2026-09-27) | Đảm bảo an toàn bộ nhớ và chuẩn coding Rust nghiêm ngặt |
+| B14 | `cargo build -p vietime-win-hook --bin vietime-hook` | ✓ Sinh `target/debug/vietime-hook.exe` (988KB) (2026-09-27) | Hook adapter binary độc lập (WIN-040..045): WH_KEYBOARD_LL, loop guard, SendInput injection, IPC heartbeat |
 
 
 ## C. Windows platform (chi tiết → spike specs)

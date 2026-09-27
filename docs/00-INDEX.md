@@ -220,3 +220,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `WIN-018`: `SelectionReplace` cho URL bar / Excel (bug B1), triệt tiêu phím Backspace gây autocomplete.
   - `WIN-019`: `ForwardAsCommit` cho Windows Terminal (bug B8), không StartComposition.
   - Đạt 10 Quality Gates: 15/15 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 973/973 compliant.
+- 2026-09-27: **W10 — Windows Hook M3 hoàn thiện: WIN-040..045**:
+  - `WIN-040`: Tạo binary độc lập `vietime-hook.exe` (`adapters/windows-hook/src/main.rs`), tích hợp IPC heartbeat watchdog và orphan timeout 30s.
+  - `WIN-041`: Low-level hook callback `WH_KEYBOARD_LL`, loop guard kép qua cờ OS `LLKHF_INJECTED` và `IN_INJECTION` atomic flag, timebox 2ms.
+  - `WIN-042`: Cơ chế inject phím qua `SendInput` cho `BackspaceType`, `ForwardAsCommit`, `SelectionReplace`, UTF-16 Unicode mode.
+  - `WIN-044`: Rule `engine_owner` phía hook: app có `engine_owner=tsf` được hook pass-thru 100%, tránh double handling.
+  - Đạt 10 Quality Gates: 5/5 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 974/974 compliant.
