@@ -92,6 +92,20 @@ function PumpSleep([int]$ms) {
         Start-Sleep -Milliseconds 10
     }
 }
+# doc do dai text qua UIA (chi tra ve LENGTH - khong log noi dung, S2)
+# -1 = element null; -2 = khong co pattern nao doc duoc
+function ReadLen($el) {
+    if (-not $el) { return -1 }
+    try {
+        $vp = $el.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+        if ($vp) { $v = $vp.Current.Value; if ($null -ne $v) { return $v.Length }; return -1 }
+    } catch { }
+    try {
+        $tp = $el.GetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern)
+        if ($tp) { $t = $tp.DocumentRange.GetText(256); if ($null -ne $t) { return $t.Length }; return -1 }
+    } catch { }
+    return -2
+}
 
 # === 3) SendInput -> hook nhan? (target: cua so minh dang focus - khong phim vao app cua user) ===
 $kiD = New-Object HK+KEYBDINPUT; $kiD.wVk = 0x41   # 'A'
@@ -153,41 +167,40 @@ Log ("notepad window: hwnd=" + $hn.ToInt64() + " wpid=$wpid (runner session=$ses
 if ($hn -eq [IntPtr]::Zero) {
     Log "notepad: KHONG tim thay window trong 6s (khong desktop session?) -> RW5 chan nightly tren GHA"
 } else {
+    PumpSleep 300   # cho notepad khoi tao control truoc khi query
     $sw3 = [System.Diagnostics.Stopwatch]::StartNew()
     $root = [System.Windows.Automation.AutomationElement]::FromHandle($hn)
     $sw3.Stop()
     $ms2 = [math]::Round($sw3.Elapsed.TotalMilliseconds, 1)
     $ctp = [System.Windows.Automation.AutomationElement]::ControlTypeProperty
-    # Win11 Notepad (packaged): editor = Document(50030); Notepad legacy/GHA co the = Edit(50004) -> chain ca hai
+    # chain tim element: Edit(50004) -> Document(50030) -> ClassName 'Edit'
+    # (Win11 packaged Notepad = Document; runner Server 2022 = Pane(50033) cls='Edit')
     $editCond = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @($ctp, [System.Windows.Automation.ControlType]::Edit)
     $docCond = New-Object System.Windows.Automation.PropertyCondition -ArgumentList @($ctp, [System.Windows.Automation.ControlType]::Document)
     $sw4 = [System.Diagnostics.Stopwatch]::StartNew()
     $ed = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $editCond)
     $which = 'Edit'
     if (-not $ed) { $ed = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $docCond); $which = 'Document' }
-    $sw4.Stop()
-    $ms3 = [math]::Round($sw4.Elapsed.TotalMilliseconds, 1)
-    $found = 'KHONG'; if ($ed) { $found = $which }
-    Log ("notepad UIA: FromHandle=" + $ms2 + "ms Find(Edit->Document)=" + $ms3 + "ms -> $found")
     if (-not $ed) {
-        # khong tim thay Edit/Document -> dump tree (chi cls/aId, khong log name de an toan S2)
+        # dump tree (chi cls/aId, khong log name de an toan S2) + tim theo ClassName
         $all2 = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
         $ids = @(); $exs = @()
         foreach ($e in $all2) {
             $cid = $e.Current.ControlType.Id
             if ($ids -notcontains $cid) { $ids += $cid }
             if ($exs.Count -lt 8) { $exs += ("ctId=" + $cid + " cls='" + $e.Current.ClassName + "' aId='" + $e.Current.AutomationId + "'") }
+            if ((-not $ed) -and $e.Current.ClassName -eq 'Edit') { $ed = $e; $which = 'ClassName=Edit(ctId=' + $cid + ')' }
         }
         Log ("tree dump: count=" + $all2.Count + " ctIds=[" + ($ids -join ',') + "]")
         foreach ($x in $exs) { Log ("  " + $x) }
     }
+    $sw4.Stop()
+    $ms3 = [math]::Round($sw4.Elapsed.TotalMilliseconds, 1)
+    $found = 'KHONG'; if ($ed) { $found = $which }
+    Log ("notepad UIA: FromHandle=" + $ms2 + "ms Find(chain)=" + $ms3 + "ms -> $found")
     # doc truoc khi inject (Notepad co session restore -> chi so sanh DELTA)
-    $len0 = -1
-    if ($ed) {
-        $vp0 = $ed.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-        if ($vp0 -and $null -ne $vp0.Current.Value) { $len0 = $vp0.Current.Value.Length }
-    }
-    Log ("value truoc inject: len=$len0")
+    $len0 = ReadLen $ed
+    Log ("value truoc inject: len=$len0 (-2 = khong co pattern doc duoc)")
     [void][HK]::Focus($hn)
     PumpSleep 300
     Log ("focus notepad: fg=" + [HK]::GetForegroundWindow().ToInt64() + " (mong doi $hn)")
@@ -195,18 +208,9 @@ if ($hn -eq [IntPtr]::Zero) {
     $r2 = [HK]::SendInput(2, @($d, $u), $sz)
     PumpSleep 600
     Log ("SendInput vao notepad=$r2/2 -> hook nhan them: " + ([HK]::HookCount - $t1))
-    $val = 'null'
-    if ($ed) {
-        try {
-            $vp = $ed.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-            if ($vp) {
-                $v = $vp.Current.Value
-                if ($null -eq $v) { $val = 'value=null' }
-                else { $val = "len0=$len0 len1=" + $v.Length + " injectNhan=" + ($v.Length -eq ($len0 + 1)) }
-            } else { $val = 'khong co ValuePattern' }
-        } catch { $val = 'doc loi: ' + ($_.Exception.Message -replace "`n", ' ') }
-    }
-    Log ("doc lai tu notepad qua UIA: $val")
+    $len1 = ReadLen $ed
+    $nhan = ($len0 -ge 0 -and $len1 -eq ($len0 + 1))
+    Log ("doc lai tu notepad qua UIA: len0=$len0 len1=$len1 injectNhan=$nhan")
     # cleanup: chi kill notepad MOI (khong dot cua nguoi dung)
     Get-Process -Name notepad -ErrorAction SilentlyContinue | ForEach-Object {
         if ($before -notcontains $_.Id) { try { Stop-Process -Id $_.Id -Force } catch { } }
