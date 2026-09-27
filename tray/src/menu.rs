@@ -1,0 +1,312 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Menu khay hệ thống 9 mục cho VietIME Tray (WIN-050 — P1-4 §1).
+//!
+//! Định nghĩa đầy đủ 9 mục menu chuột phải theo bảng chuẩn:
+//! 1. Bật/Tắt gõ tiếng Việt (toggle global)
+//! 2. Chế độ gõ (Telex, VNI, VIQR, Simple Telex)
+//! 3. Dấu (Chuẩn mới / Cổ điển)
+//! 4. Cửa sổ đang gõ (Tên app foreground + enable riêng)
+//! 5. Game / Compat mode (bật/tắt hook)
+//! 6. Cài đặt... (Mở Settings GUI)
+//! 7. Sức khỏe / Trạng thái (Health submenu: Engine, Hook, Pipe, Version)
+//! 8. Gỡ cài đặt (vietime-setup.exe /UNINSTALL)
+//! 9. Thoát (Đóng tray và dừng hook)
+
+use std::sync::Arc;
+use vietime_config::{DiacriticStyle, Method};
+
+use crate::ipc_server::IpcServer;
+use crate::svc::SvcManager;
+
+#[cfg(windows)]
+use windows::core::*;
+#[cfg(windows)]
+use windows::Win32::Foundation::*;
+#[cfg(windows)]
+use windows::Win32::UI::WindowsAndMessaging::*;
+
+pub const ID_TOGGLE_GLOBAL: u32 = 1001;
+pub const ID_METHOD_TELEX: u32 = 1010;
+pub const ID_METHOD_VNI: u32 = 1011;
+pub const ID_METHOD_VIQR: u32 = 1012;
+pub const ID_METHOD_SIMPLE_TELEX: u32 = 1013;
+pub const ID_DIACRITIC_NEW: u32 = 1020;
+pub const ID_DIACRITIC_OLD: u32 = 1021;
+pub const ID_CURRENT_APP_TOGGLE: u32 = 1030;
+pub const ID_HOOK_COMPAT_MODE: u32 = 1040;
+pub const ID_OPEN_SETTINGS: u32 = 1050;
+pub const ID_HEALTH_STATUS: u32 = 1060;
+pub const ID_UNINSTALL: u32 = 1070;
+pub const ID_EXIT: u32 = 1080;
+
+pub struct TrayMenu {
+    svc: Arc<SvcManager>,
+    ipc: Arc<IpcServer>,
+}
+
+impl TrayMenu {
+    pub fn new(svc: Arc<SvcManager>, ipc: Arc<IpcServer>) -> Self {
+        Self { svc, ipc }
+    }
+
+    #[cfg(windows)]
+    pub fn show_popup(&self, hwnd: HWND, x: i32, y: i32, current_app: Option<&str>) {
+        // SAFETY: Tạo Win32 Popup Menu
+        unsafe {
+            let menu = match CreatePopupMenu() {
+                Ok(m) => m,
+                Err(_) => return,
+            };
+
+            // 1. Bật/Tắt gõ tiếng Việt
+            let global_enabled = self.svc.is_global_enabled();
+            let toggle_text = if global_enabled {
+                w("Bật gõ tiếng Việt (Đang bật)")
+            } else {
+                w("Bật gõ tiếng Việt (Đang tắt)")
+            };
+            let mut flags = MF_STRING;
+            if global_enabled {
+                flags |= MF_CHECKED;
+            }
+            let _ = AppendMenuW(
+                menu,
+                flags,
+                ID_TOGGLE_GLOBAL as usize,
+                PCWSTR(toggle_text.as_ptr()),
+            );
+            let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
+
+            // 2. Chế độ gõ (Submenu: Telex, VNI, VIQR, Simple Telex)
+            let method_menu = CreatePopupMenu().unwrap_or_default();
+            let cur_method = self.svc.config().method;
+            add_radio_menu_item(
+                method_menu,
+                "Telex",
+                ID_METHOD_TELEX,
+                cur_method == Method::Telex,
+            );
+            add_radio_menu_item(method_menu, "VNI", ID_METHOD_VNI, cur_method == Method::Vni);
+            add_radio_menu_item(
+                method_menu,
+                "VIQR",
+                ID_METHOD_VIQR,
+                cur_method == Method::Viqr,
+            );
+            add_radio_menu_item(
+                method_menu,
+                "Simple Telex",
+                ID_METHOD_SIMPLE_TELEX,
+                cur_method == Method::SimpleTelex,
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                method_menu.0 as usize,
+                PCWSTR(w("Chế độ gõ").as_ptr()),
+            );
+
+            // 3. Kiểu bỏ dấu (Submenu: Chuẩn mới / Cổ điển)
+            let diacritic_menu = CreatePopupMenu().unwrap_or_default();
+            let cur_style = self.svc.config().diacritic_style;
+            add_radio_menu_item(
+                diacritic_menu,
+                "Chuẩn mới (hoà, thuỷ)",
+                ID_DIACRITIC_NEW,
+                cur_style == DiacriticStyle::New,
+            );
+            add_radio_menu_item(
+                diacritic_menu,
+                "Cổ điển (hòa, thủy)",
+                ID_DIACRITIC_OLD,
+                cur_style == DiacriticStyle::Old,
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                diacritic_menu.0 as usize,
+                PCWSTR(w("Kiểu bỏ dấu").as_ptr()),
+            );
+
+            let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
+
+            // 4. Cửa sổ đang gõ (Per-app toggle)
+            if let Some(app) = current_app {
+                let app_enabled = self.svc.is_app_enabled(app);
+                let app_label = format!("Bật tiếng Việt cho {app}");
+                let mut app_flags = MF_STRING;
+                if app_enabled {
+                    app_flags |= MF_CHECKED;
+                }
+                let _ = AppendMenuW(
+                    menu,
+                    app_flags,
+                    ID_CURRENT_APP_TOGGLE as usize,
+                    PCWSTR(w(&app_label).as_ptr()),
+                );
+            }
+
+            // 5. Game / Compat mode (Hook)
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_HOOK_COMPAT_MODE as usize,
+                PCWSTR(w("Chế độ Game / Tương thích (Hook)").as_ptr()),
+            );
+
+            let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
+
+            // 6. Cài đặt...
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_OPEN_SETTINGS as usize,
+                PCWSTR(w("Cài đặt...").as_ptr()),
+            );
+
+            // 7. Sức khỏe / Trạng thái (Submenu)
+            let health_menu = CreatePopupMenu().unwrap_or_default();
+            let clients_count = self.ipc.active_clients();
+            let clients_label = format!("Clients kết nối: {clients_count}");
+            let _ = AppendMenuW(
+                health_menu,
+                MF_STRING | MF_GRAYED,
+                0,
+                PCWSTR(w(&clients_label).as_ptr()),
+            );
+            let ver_label = format!("Phiên bản: {}", env!("CARGO_PKG_VERSION"));
+            let _ = AppendMenuW(
+                health_menu,
+                MF_STRING | MF_GRAYED,
+                0,
+                PCWSTR(w(&ver_label).as_ptr()),
+            );
+            let _ = AppendMenuW(
+                menu,
+                MF_POPUP,
+                health_menu.0 as usize,
+                PCWSTR(w("Sức khỏe / Trạng thái").as_ptr()),
+            );
+
+            let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
+
+            // 8. Gỡ cài đặt
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_UNINSTALL as usize,
+                PCWSTR(w("Gỡ cài đặt").as_ptr()),
+            );
+
+            // 9. Thoát
+            let _ = AppendMenuW(
+                menu,
+                MF_STRING,
+                ID_EXIT as usize,
+                PCWSTR(w("Thoát").as_ptr()),
+            );
+
+            let _ = SetForegroundWindow(hwnd);
+            let _ = TrackPopupMenuEx(menu, TPM_RIGHTBUTTON.0, x, y, hwnd, None);
+            let _ = DestroyMenu(menu);
+        }
+    }
+
+    /// Xử lý các command ID khi người dùng click vào mục menu.
+    pub fn handle_command(&self, cmd_id: u32, current_app: Option<&str>) {
+        match cmd_id {
+            ID_TOGGLE_GLOBAL => {
+                let (enabled, ver) = self.svc.toggle_global_enabled();
+                self.ipc.broadcast_state_update("*", enabled, ver);
+            }
+            ID_METHOD_TELEX => {
+                let ver = self.svc.set_method(Method::Telex);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_METHOD_VNI => {
+                let ver = self.svc.set_method(Method::Vni);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_METHOD_VIQR => {
+                let ver = self.svc.set_method(Method::Viqr);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_METHOD_SIMPLE_TELEX => {
+                let ver = self.svc.set_method(Method::SimpleTelex);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_DIACRITIC_NEW => {
+                let ver = self.svc.set_diacritic_style(DiacriticStyle::New);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_DIACRITIC_OLD => {
+                let ver = self.svc.set_diacritic_style(DiacriticStyle::Old);
+                self.ipc.broadcast_config_reload(ver);
+            }
+            ID_CURRENT_APP_TOGGLE => {
+                if let Some(app) = current_app {
+                    let cur = self.svc.is_app_enabled(app);
+                    let ver = self.svc.set_app_enabled(app, !cur);
+                    self.ipc.broadcast_state_update(app, !cur, ver);
+                }
+            }
+            ID_OPEN_SETTINGS => {}
+            ID_UNINSTALL => {
+                let _ = std::process::Command::new("vietime-setup.exe")
+                    .arg("/UNINSTALL")
+                    .spawn();
+            }
+            ID_EXIT => {
+                #[cfg(windows)]
+                unsafe {
+                    PostQuitMessage(0);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(windows)]
+fn add_radio_menu_item(menu: HMENU, label: &str, id: u32, checked: bool) {
+    let mut flags = MF_STRING;
+    if checked {
+        flags |= MF_CHECKED;
+    }
+    unsafe {
+        let _ = AppendMenuW(menu, flags, id as usize, PCWSTR(w(label).as_ptr()));
+    }
+}
+
+fn w(s: &str) -> Vec<u16> {
+    s.encode_utf16().chain(Some(0)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menu_ids_are_distinct_and_sequential() {
+        let ids = [
+            ID_TOGGLE_GLOBAL,
+            ID_METHOD_TELEX,
+            ID_METHOD_VNI,
+            ID_METHOD_VIQR,
+            ID_METHOD_SIMPLE_TELEX,
+            ID_DIACRITIC_NEW,
+            ID_DIACRITIC_OLD,
+            ID_CURRENT_APP_TOGGLE,
+            ID_HOOK_COMPAT_MODE,
+            ID_OPEN_SETTINGS,
+            ID_HEALTH_STATUS,
+            ID_UNINSTALL,
+            ID_EXIT,
+        ];
+        let mut set = std::collections::HashSet::new();
+        for id in ids {
+            assert!(set.insert(id), "Duplicate menu ID: {id}");
+        }
+        assert_eq!(ids.len(), 13);
+    }
+}
