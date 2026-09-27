@@ -250,7 +250,9 @@ impl TrayMenu {
                     self.ipc.broadcast_state_update(app, !cur, ver);
                 }
             }
-            ID_OPEN_SETTINGS => {}
+            ID_OPEN_SETTINGS => {
+                crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
+            }
             ID_UNINSTALL => {
                 let _ = std::process::Command::new("vietime-setup.exe")
                     .arg("/UNINSTALL")

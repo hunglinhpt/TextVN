@@ -125,6 +125,15 @@ impl SvcManager {
         next_ver
     }
 
+    /// Đặt trạng thái bật/tắt toàn cục tiếng Việt có giá trị chỉ định.
+    pub fn set_global_enabled(&self, enabled: bool) -> (bool, u64) {
+        let mut st = self.state.write().unwrap();
+        st.global_enabled = enabled;
+        let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
+        self.persist_state(&st);
+        (st.global_enabled, next_ver)
+    }
+
     /// Đổi kiểu gõ (Telex, VNI, VIQR, Simple Telex) (P1-4 §1).
     pub fn set_method(&self, method: Method) -> u64 {
         let mut cfg = self.config.write().unwrap();
@@ -138,6 +147,33 @@ impl SvcManager {
     pub fn set_diacritic_style(&self, style: DiacriticStyle) -> u64 {
         let mut cfg = self.config.write().unwrap();
         cfg.diacritic_style = style;
+        let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
+        self.persist_config(&cfg);
+        next_ver
+    }
+
+    /// Đổi bảng mã xuất (Unicode, Unicode tổ hợp, VNI Windows, TCVN3, VIQR).
+    pub fn set_output_charset(&self, charset: vietime_config::OutputCharset) -> u64 {
+        let mut cfg = self.config.write().unwrap();
+        cfg.output_charset = charset;
+        let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
+        self.persist_config(&cfg);
+        next_ver
+    }
+
+    /// Bật/tắt tự động khôi phục từ tiếng Anh khi gõ sai.
+    pub fn set_auto_restore_english(&self, enable: bool) -> u64 {
+        let mut cfg = self.config.write().unwrap();
+        cfg.auto_restore_english = enable;
+        let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
+        self.persist_config(&cfg);
+        next_ver
+    }
+
+    /// Bật/tắt đặt dấu tự do (free marking).
+    pub fn set_free_marking(&self, enable: bool) -> u64 {
+        let mut cfg = self.config.write().unwrap();
+        cfg.free_marking = enable;
         let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
         self.persist_config(&cfg);
         next_ver

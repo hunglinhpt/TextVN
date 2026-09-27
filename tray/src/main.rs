@@ -232,6 +232,15 @@ unsafe extern "system" fn wnd_proc(
                         let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
                     }
                 }
+                WM_LBUTTONDBLCLK => {
+                    // Double-click chuột trái: Mở Bảng điều khiển (chuẩn UniKey/EVKey)
+                    if let Some(app) = APP_INSTANCE.get() {
+                        vietime_tray::settings_dialog::show_settings_dialog(
+                            app.svc.clone(),
+                            app.ipc.clone(),
+                        );
+                    }
+                }
                 _ => {}
             }
             LRESULT(0)

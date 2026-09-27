@@ -15,10 +15,12 @@ pub mod autostart;
 pub mod ipc_server;
 pub mod menu;
 pub mod settings;
+pub mod settings_dialog;
 pub mod svc;
 
 pub use autostart::{disable_autostart, enable_autostart, is_autostart_enabled};
 pub use ipc_server::IpcServer;
 pub use menu::TrayMenu;
 pub use settings::{SettingsController, SettingsTab};
+pub use settings_dialog::show_settings_dialog;
 pub use svc::{StateData, SvcManager};
