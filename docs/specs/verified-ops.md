@@ -39,6 +39,7 @@
 | C7 | UIA (`System.Windows.Automation`): **bắt buộc** load cả `UIAutomationClient` **và** `UIAutomationTypes` | ✓ (2026-09-27) | `ControlType` nằm ở Types — thiếu → `TypeNotFound` |
 | C8 | Chrome test với profile riêng: `--user-data-dir=%TEMP%\<rieng>` + `file://` fixture HTML | ✓ (2026-09-27) | launch ≥2 web content xuất hiện trong UIA; launch 1 profile mới có thể KHÔNG thấy ≥8s → `uia-spike.md` S4-3 |
 | C9 | Chrome SingletonLock: spawn 2 lần cùng profile → lần 2 forward sang instance cũ, pid mới **không có window** | ✓ đã gặp (2026-09-27) | kill sạch theo profile ở ĐẦU script (B3) rồi mới spawn |
+| C10 | Spike UIA reproduce từ repo: `powershell -NoProfile -ExecutionPolicy Bypass -File spikes\uia-probe\{controltype_ids,probe_conditions,uia_spike}.ps1` | ✓ **3/3 chạy OK** (2026-09-27; run 2 đầy đủ = `uia-spike.md` §1.1) | output `%TEMP%\uia_probe_conditions_out.txt` / `%TEMP%\uia_spike_out.txt`; Office+Chrome tự mở, tự dọn sau khi chạy |
 
 ## D. Môi trường máy dev (snapshot 2026-09-27) — khỏi kiểm tra lại
 
