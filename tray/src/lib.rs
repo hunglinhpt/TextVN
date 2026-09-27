@@ -7,6 +7,10 @@
 //! - [`menu`]: Menu ngữ cảnh khay hệ thống (9 mục chuẩn Win32).
 //! - [`autostart`]: Quản lý registry key tự khởi động `HKCU\...\Run\VietIME` (per-user).
 
+// Tray = Windows-only (P1-4): trên non-Windows chỉ build để gate CI --workspace,
+// các item Win32 không có caller là bình thường — không phải dead code thật.
+#![cfg_attr(not(windows), allow(dead_code))]
+
 pub mod autostart;
 pub mod ipc_server;
 pub mod menu;

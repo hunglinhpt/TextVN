@@ -4,13 +4,21 @@
 //! Chạy 1 instance duy nhất với Mutex `Local\VietIMETray`.
 //! Lắng nghe IPC pipe, điều phối cấu hình & trạng thái, hiển thị tray icon và menu ngữ cảnh.
 
+// Tray = Windows-only: trên non-Windows item Win32 không có caller (xem lib.rs).
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+#[cfg(windows)] // chỉ xài trong vòng lặp message Windows
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+#[cfg(windows)]
 use std::time::Duration;
 
 use vietime_tray::ipc_server::{IpcServer, PIPE_NAME};
-use vietime_tray::menu::{TrayMenu, ID_EXIT};
+use vietime_tray::menu::TrayMenu;
+#[cfg(windows)]
+use vietime_tray::menu::ID_EXIT;
 use vietime_tray::svc::SvcManager;
 
 #[cfg(windows)]
@@ -28,6 +36,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 const MUTEX_NAME: &str = r"Local\VietIMETray";
 const WINDOW_CLASS_NAME: &str = "VietIMETrayWndClass";
+#[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
 
@@ -348,6 +357,9 @@ mod tests {
     fn constants_are_valid() {
         assert_eq!(MUTEX_NAME, r"Local\VietIMETray");
         assert_eq!(WINDOW_CLASS_NAME, "VietIMETrayWndClass");
-        const { assert!(WM_TRAYICON >= WM_APP) };
+        #[cfg(windows)]
+        const {
+            assert!(WM_TRAYICON >= WM_APP)
+        };
     }
 }
