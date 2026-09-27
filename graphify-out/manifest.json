@@ -1,14 +1,14 @@
 {
   "adapters/windows-tsf/Cargo.toml": {
-    "mtime": 1790477633.1824076,
-    "seen": 1790477974.7839704,
-    "ast_hash": "8a67a67f911d1d7dc1c58388ba563e52",
+    "mtime": 1790478030.9799216,
+    "seen": 1790478389.6753926,
+    "ast_hash": "18829f42df9b82ebc934b7df4b700ddd",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1790475147.2101343,
-    "seen": 1790475723.5790014,
-    "ast_hash": "5dc15360917b531feef8d11dae224af0",
+    "mtime": 1790478212.871722,
+    "seen": 1790478389.6753926,
+    "ast_hash": "27b35a73aff1ae60aced6c23254d9666",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790477274.5322318,
-    "seen": 1790477974.8279288,
-    "ast_hash": "6bf3d54c84ba5360bf70151ad61438a6",
+    "mtime": 1790478345.2674034,
+    "seen": 1790478389.685898,
+    "ast_hash": "cc0cf83c4a4e5b9ba9a14bfeccbcf09f",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "docs/specs/win-test-common-errors.md": {
-    "mtime": 1790475686.2052374,
-    "seen": 1790475723.6175067,
-    "ast_hash": "ecf350121dfcaf15e62ff37bb550eb75",
+    "mtime": 1790478341.0209663,
+    "seen": 1790478389.6893733,
+    "ast_hash": "bc82056cd0b3cec78cecdb636fc93806",
     "semantic_hash": ""
   },
   "fuzz/README.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790477892.2789204,
-    "seen": 1790477974.861384,
-    "ast_hash": "9a77d502f1d2fd21ed2773c2216e5093",
+    "mtime": 1790478292.8291025,
+    "seen": 1790478389.6893733,
+    "ast_hash": "ecdfbe7f0c355363da164da1f951d8fe",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -720,15 +720,15 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/class.rs": {
-    "mtime": 1790477717.8922334,
-    "seen": 1790477974.7839704,
-    "ast_hash": "2813f4058957de4099052ff69b031099",
+    "mtime": 1790478175.0476665,
+    "seen": 1790478389.6753926,
+    "ast_hash": "3b788e5dc82b71a0589b48c6e89cc3cd",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1790477733.3720145,
-    "seen": 1790477974.7839704,
-    "ast_hash": "1188e848dbccc61e3f32a00fa4e19fc6",
+    "mtime": 1790478212.8662052,
+    "seen": 1790478389.6753926,
+    "ast_hash": "330a1ac3c4b76249b2ff2b4c2bc6dd26",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -738,15 +738,15 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1790477743.800347,
-    "seen": 1790477974.7839704,
-    "ast_hash": "0d6d51134d17115fa4411a74a8413e2d",
+    "mtime": 1790478212.8671956,
+    "seen": 1790478389.6753926,
+    "ast_hash": "c1f1fba0096592d6f2357bf44327fd38",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
-    "mtime": 1790477758.975463,
-    "seen": 1790477974.7839704,
-    "ast_hash": "58a2b1dd6a20883359ef2746aac56eac",
+    "mtime": 1790478192.0501328,
+    "seen": 1790478389.6753926,
+    "ast_hash": "c3890f8d1ac3116fd651fb5e2f3cba7d",
     "semantic_hash": ""
   },
   "spikes/uia-probe/controltype_ids.ps1": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1790477633.2091243,
-    "seen": 1790477974.8593824,
-    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "mtime": 1790478283.21177,
+    "seen": 1790478389.6882925,
+    "ast_hash": "609c62d4db071fed0035b9aeea717ce8",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -783,6 +783,18 @@
     "mtime": 1790477584.2512367,
     "seen": 1790477974.8653944,
     "ast_hash": "773e5ce8ea10b677f7c4e47c10b37859",
+    "semantic_hash": ""
+  },
+  "spikes/hook-probe/hook_probe.ps1": {
+    "mtime": 1790478341.023474,
+    "seen": 1790478389.6828988,
+    "ast_hash": "448e713f7b56e1ac7a5034da4a33f816",
+    "semantic_hash": ""
+  },
+  "tools/win/check_reuse.ps1": {
+    "mtime": 1790478232.5999792,
+    "seen": 1790478389.6849017,
+    "ast_hash": "5ba34ef1a98d1e6d99c032a992263f94",
     "semantic_hash": ""
   }
 }
