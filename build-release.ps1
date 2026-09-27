@@ -45,9 +45,9 @@ if ($LASTEXITCODE -ne 0) { $GitCommit = "unknown" }
 $GitDirtyOutput = (git status --porcelain 2>$null)
 $GitTreeClean = ($LASTEXITCODE -eq 0 -and [string]::IsNullOrWhiteSpace(($GitDirtyOutput -join "`n")))
 
-# Những hạng mục này phải được chứng minh trên máy Windows thật trước khi
-# artifact có thể được gọi là production. Unit/corpus test không thay thế UIA,
-# TSF composition, DACL pipe hay ký phát hành.
+# Nhung hang muc nay phai duoc chung minh tren may Windows that truoc khi
+# artifact co the duoc goi la production. Unit/corpus test khong thay the UIA,
+# TSF composition, DACL pipe hay ky phat hanh.
 $ProductionBlockers = @(
     "Native UI Automation is not integrated in the TSF/Hook runtime",
     "TSF composition lifecycle is not verified end-to-end",
@@ -65,8 +65,8 @@ if ($installedTargets -notcontains $Target) {
 }
 Write-Ok "Target $Target OK"
 
-# Release gate: mọi build đều chạy các kiểm tra tĩnh, ABI và corpus. `-SkipTests`
-# chỉ bỏ test workspace để hỗ trợ chẩn đoán cục bộ; artifact vẫn là candidate.
+# Release gate: moi build deu chay cac kiem tra tinh, ABI va corpus. `-SkipTests`
+# chi bo test workspace de ho tro chan doan cuc bo; artifact van la candidate.
 Write-Step "Running release checks"
 cargo fmt --check
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo fmt --check FAIL" }
@@ -101,11 +101,39 @@ if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 Write-Ok "Build release DONE"
 
-# Dung cac tien trinh TextVN dang chay de tranh file locked
-Write-Step "Check running processes"
-Get-Process -Name "TextVN", "textvn-hook", "textvn-cli", "textvn", "textvn-tray", "textvn-hook", "textvn" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Milliseconds 300
-Write-Ok "Process lock check DONE"
+# Khong duoc tu y tat bo go dang dung cua nguoi dung. Neu artifact dang bi khoa,
+# dung build va yeu cau dong instance truoc khi tiep tuc.
+Write-Step "Check running TextVN processes"
+$runningTextVN = @(
+    Get-Process -Name "TextVN", "textvn-hook", "textvn-cli", "textvn", "textvn-tray" -ErrorAction SilentlyContinue
+)
+if ($runningTextVN.Count -gt 0) {
+    $runningIds = ($runningTextVN | Select-Object -ExpandProperty Id) -join ", "
+    Write-Fail "TextVN process(es) still running (PID: $runningIds). Close them, then build again."
+}
+$ReleaseChecks["no_running_textvn_processes"] = "passed"
+Write-Ok "No TextVN process is running"
+
+# Runtime gate on the exact release binary, before it is packaged. It verifies
+# the Windows tray can start, expose its IPC endpoint, and shut down gracefully.
+Write-Step "Windows runtime smoke test"
+$trayExe = Join-Path $ReleaseDir "TextVN.exe"
+if (-not (Test-Path $trayExe)) { Write-Fail "Runtime smoke binary missing: $trayExe" }
+$smokeProcess = Start-Process -FilePath $trayExe -ArgumentList "--autostart" -WorkingDirectory $ReleaseDir -WindowStyle Hidden -PassThru
+Start-Sleep -Seconds 2
+$smokeStatus = (& $trayExe --status 2>&1 | Out-String)
+if ($smokeStatus -notmatch "TextVN IPC Server: RUNNING") {
+    & $trayExe --stop *> $null
+    Write-Fail "Runtime smoke did not expose a running IPC server: $smokeStatus"
+}
+$smokeStop = (& $trayExe --stop 2>&1 | Out-String)
+Start-Sleep -Milliseconds 500
+if (Get-Process -Id $smokeProcess.Id -ErrorAction SilentlyContinue) {
+    & $trayExe --stop *> $null
+    Write-Fail "Runtime smoke did not stop cleanly: $smokeStop"
+}
+$ReleaseChecks["windows_runtime_smoke"] = "passed"
+Write-Ok "Start, IPC status, and graceful shutdown PASS"
 
 # Tao thu muc dist
 New-Item -ItemType Directory -Force $DistDir | Out-Null
