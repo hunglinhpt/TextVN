@@ -51,6 +51,10 @@ pub enum EditAction {
     Preedit { preedit: Vec<u16> },
     /// Đóng composition và commit text cuối cùng.
     Commit { insert: Vec<u16> },
+    /// Thay thế vùng chọn do adapter sở hữu (address bar / Excel - Bug B1).
+    SelectionReplace { delete_count: u16, insert: Vec<u16> },
+    /// Gõ trực tiếp không composition (terminal / console - Bug B8).
+    ForwardAsCommit { insert: Vec<u16> },
 }
 
 #[cfg(windows)]
@@ -136,6 +140,44 @@ impl ITfEditSession_Impl for ReplaceEditSession_Impl {
                 }
             }
             EditAction::Commit { insert } => {
+                let mut tbuf = insert.clone();
+                tbuf.push(0);
+                // SAFETY: range is valid in edit session ec.
+                unsafe {
+                    range.SetText(ec, 0, &tbuf[..insert.len()])?;
+                    range.Collapse(ec, TF_ANCHOR_END)?;
+                    sel[0].style.ase = TF_AE_END;
+                    let _ = self.ctx.SetSelection(ec, &sel);
+                }
+            }
+            EditAction::SelectionReplace {
+                delete_count,
+                insert,
+            } => {
+                if *delete_count > 0 {
+                    let mut shifted: i32 = 0;
+                    // Lùi start sang trái delete_count ký tự UTF-16 mà không gửi phím Backspace
+                    // SAFETY: range and ec are valid inside DoEditSession.
+                    unsafe {
+                        range.ShiftStart(
+                            ec,
+                            -i32::from(*delete_count),
+                            &mut shifted,
+                            std::ptr::null(),
+                        )
+                    }?;
+                }
+                let mut tbuf = insert.clone();
+                tbuf.push(0);
+                // SAFETY: tbuf is null-terminated and range is valid.
+                unsafe {
+                    range.SetText(ec, 0, &tbuf[..insert.len()])?;
+                    range.Collapse(ec, TF_ANCHOR_END)?;
+                    sel[0].style.ase = TF_AE_END;
+                    let _ = self.ctx.SetSelection(ec, &sel);
+                }
+            }
+            EditAction::ForwardAsCommit { insert } => {
                 let mut tbuf = insert.clone();
                 tbuf.push(0);
                 // SAFETY: range is valid in edit session ec.

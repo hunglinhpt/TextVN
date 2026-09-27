@@ -5,6 +5,8 @@
 use std::cell::RefCell;
 #[cfg(windows)]
 use std::rc::Rc;
+#[cfg(windows)]
+use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::core::*;
@@ -19,9 +21,13 @@ use crate::class::ObjGuard;
 #[cfg(windows)]
 use crate::edit_session::{EditAction, ReplaceEditSession};
 #[cfg(windows)]
+use crate::ipc_client::IpcClient;
+#[cfg(windows)]
 use crate::{should_bypass_engine, ThreadState};
 #[cfg(windows)]
 use vietime_ffi::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+#[cfg(windows)]
+use vietime_strategy::Strategy;
 
 #[cfg(windows)]
 #[implement(ITfKeyEventSink)]
@@ -29,15 +35,17 @@ pub struct KeySink {
     _guard: ObjGuard,
     tid: u32,
     state: Rc<RefCell<ThreadState>>,
+    ipc: Arc<IpcClient>,
 }
 
 #[cfg(windows)]
 impl KeySink {
-    pub fn new(tid: u32, state: Rc<RefCell<ThreadState>>) -> Self {
+    pub fn new(tid: u32, state: Rc<RefCell<ThreadState>>, ipc: Arc<IpcClient>) -> Self {
         Self {
             _guard: ObjGuard::new(),
             tid,
             state,
+            ipc,
         }
     }
 }
@@ -59,6 +67,15 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         if should_bypass_engine(vk, mods) {
             return Ok(BOOL::from(false));
         }
+        // WIN-015: Nhận diện hotkey toggle Ctrl+Shift+Space
+        if vk == VK_SPACE.0 as u32 && (mods & 0x3) == 0x3 {
+            return Ok(BOOL::from(true));
+        }
+        let state = self.state.borrow();
+        let strategy = state.resolve_strategy_with_state(self.ipc.app_enabled_override(), None);
+        if strategy == Strategy::Passthrough {
+            return Ok(BOOL::from(false));
+        }
         // Logic ăn phím: nếu là chữ cái gõ được thì báo TRUE để app gửi OnKeyDown
         let is_typing_char = (0x30..=0x5A).contains(&vk) || (0xBA..=0xDF).contains(&vk);
         Ok(BOOL::from(is_typing_char))
@@ -77,13 +94,32 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         let vk = wparam.0 as u32;
         let mods = get_active_modifiers();
 
+        // WIN-015: Hotkey toggle EN/VN (Ctrl + Shift + Space)
+        if vk == VK_SPACE.0 as u32 && (mods & 0x3) == 0x3 {
+            let mut state = self.state.borrow_mut();
+            let _ = state.toggle_enabled();
+            return Ok(BOOL::from(true));
+        }
+
         // Bước 1: Kiểm tra chord hệ thống (Ctrl/Alt/Win) -> PASS lập tức (B6)
         if should_bypass_engine(vk, mods) {
             return Ok(BOOL::from(false));
         }
 
-        let ch = vk_to_unicode(vk);
         let mut state = self.state.borrow_mut();
+
+        // Kiểm tra tín hiệu reload config từ Tray UI qua IPC (WIN-016)
+        if let Some(_ver) = self.ipc.check_config_reload() {
+            let _ = state.reload_config_from_file();
+        }
+
+        // Kiểm tra strategy: Nếu Passthrough (do secure field theo WIN-017 hoặc disabled) -> PASS ngay
+        let strategy = state.resolve_strategy_with_state(self.ipc.app_enabled_override(), None);
+        if strategy == Strategy::Passthrough {
+            return Ok(BOOL::from(false));
+        }
+
+        let ch = vk_to_unicode(vk);
 
         // Bước 2: Đẩy key vào engine session
         let outcome = state.engine.key_or_bypass(vk, ch, mods);
@@ -102,12 +138,32 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
             Err(_) => return Ok(BOOL::from(false)),
         };
 
-        let insert_utf16 = utf32_to_utf16(&result.insert[..result.insert_len as usize]);
+        let insert_slice = &result.insert[..result.insert_len as usize];
+        let insert_utf16 = utf32_to_utf16(insert_slice);
+
+        let preedit_slice = &result.preedit[..result.preedit_len as usize];
+        let preedit_utf16 = utf32_to_utf16(preedit_slice);
 
         let edit_action = match result.action {
-            ACTION_REPLACE => EditAction::BackspaceType {
-                delete_count: result.delete_count,
-                insert: insert_utf16,
+            ACTION_REPLACE => match strategy {
+                Strategy::SelectionReplace => EditAction::SelectionReplace {
+                    delete_count: result.delete_count,
+                    insert: insert_utf16,
+                },
+                Strategy::ForwardAsCommit => EditAction::ForwardAsCommit {
+                    insert: insert_utf16,
+                },
+                Strategy::Preedit => EditAction::Preedit {
+                    preedit: if preedit_utf16.is_empty() {
+                        insert_utf16
+                    } else {
+                        preedit_utf16
+                    },
+                },
+                _ => EditAction::BackspaceType {
+                    delete_count: result.delete_count,
+                    insert: insert_utf16,
+                },
             },
             ACTION_COMMIT => EditAction::Commit {
                 insert: insert_utf16,
@@ -139,7 +195,17 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         Ok(BOOL::from(false))
     }
 
-    fn OnPreservedKey(&self, _pic: Ref<'_, ITfContext>, _rguid: *const GUID) -> Result<BOOL> {
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    fn OnPreservedKey(&self, _pic: Ref<'_, ITfContext>, rguid: *const GUID) -> Result<BOOL> {
+        if !rguid.is_null() {
+            // SAFETY: rguid is provided by TSF callback, checked non-null above
+            let guid = unsafe { *rguid };
+            if guid == crate::guids::GUID_PRESERVED_TOGGLE {
+                let mut state = self.state.borrow_mut();
+                let _ = state.toggle_enabled();
+                return Ok(BOOL::from(true));
+            }
+        }
         Ok(BOOL::from(false))
     }
 }

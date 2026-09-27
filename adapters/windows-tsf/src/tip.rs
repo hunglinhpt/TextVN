@@ -5,14 +5,22 @@
 use std::cell::{RefCell, UnsafeCell};
 #[cfg(windows)]
 use std::rc::Rc;
+#[cfg(windows)]
+use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::core::*;
+#[cfg(windows)]
+use windows::Win32::UI::Input::KeyboardAndMouse::VK_SPACE;
 #[cfg(windows)]
 use windows::Win32::UI::TextServices::*;
 
 #[cfg(windows)]
 use crate::class::ObjGuard;
+#[cfg(windows)]
+use crate::guids::GUID_PRESERVED_TOGGLE;
+#[cfg(windows)]
+use crate::ipc_client::IpcClient;
 #[cfg(windows)]
 use crate::key_event::KeySink;
 #[cfg(windows)]
@@ -24,6 +32,7 @@ struct TipInner {
     keymgr: Option<ITfKeystrokeMgr>,
     _sink: Option<ITfKeyEventSink>,
     thread_state: Option<Rc<RefCell<ThreadState>>>,
+    ipc: Option<Arc<IpcClient>>,
 }
 
 #[cfg(windows)]
@@ -43,6 +52,7 @@ impl Tip {
                 keymgr: None,
                 _sink: None,
                 thread_state: None,
+                ipc: None,
             }),
         }
     }
@@ -67,14 +77,25 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
     }
 
     fn Deactivate(&self) -> Result<()> {
-        let (tid, keymgr) = self.with(|i| (i.tid, i.keymgr.take()));
+        let (tid, keymgr, mut ipc) = self.with(|i| (i.tid, i.keymgr.take(), i.ipc.take()));
         self.with(|i| {
             i._sink.take();
             i.thread_state.take();
         });
+        if let Some(mut client) = ipc.take() {
+            if let Some(c) = Arc::get_mut(&mut client) {
+                c.stop();
+            }
+        }
         if let Some(km) = keymgr {
-            // SAFETY: Unadvising key sink registered during Activate.
+            // WIN-015: Unpreserve hotkey toggle
+            let pkey = TF_PRESERVEDKEY {
+                uVKey: VK_SPACE.0 as u32,
+                uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
+            };
+            // SAFETY: Unadvising key sink and unpreserving hotkey registered during Activate.
             unsafe {
+                let _ = km.UnpreserveKey(&GUID_PRESERVED_TOGGLE, &pkey);
                 let _ = km.UnadviseKeyEventSink(tid);
             }
         }
@@ -95,20 +116,36 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
             .unwrap_or_else(|| "unknown.exe".into());
 
-        let state = match ThreadState::new(exe_name, vietime_strategy::IME_CAP_PREEDIT) {
+        let state = match ThreadState::new(exe_name.clone(), vietime_strategy::IME_CAP_PREEDIT) {
             Ok(s) => Rc::new(RefCell::new(s)),
             Err(e) => return Err(Error::from_hresult(HRESULT(e))),
         };
 
-        let sink: ITfKeyEventSink = KeySink::new(tid, state.clone()).into();
+        let ipc = Arc::new(IpcClient::start(exe_name));
+        let sink: ITfKeyEventSink = KeySink::new(tid, state.clone(), ipc.clone()).into();
         // SAFETY: keymgr is a valid ITfKeystrokeMgr interface.
         unsafe { keymgr.AdviseKeyEventSink(tid, &sink, true) }?;
+
+        // WIN-015: Đăng ký hotkey preserve Ctrl+Shift+Space
+        let pkey = TF_PRESERVEDKEY {
+            uVKey: VK_SPACE.0 as u32,
+            uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
+        };
+        let desc: [u16; 15] = [
+            'V' as u16, 'i' as u16, 'e' as u16, 't' as u16, 'I' as u16, 'M' as u16, 'E' as u16,
+            ' ' as u16, 'T' as u16, 'o' as u16, 'g' as u16, 'g' as u16, 'l' as u16, 'e' as u16, 0,
+        ];
+        // SAFETY: keymgr is valid ITfKeystrokeMgr.
+        unsafe {
+            let _ = keymgr.PreserveKey(tid, &GUID_PRESERVED_TOGGLE, &pkey, &desc);
+        }
 
         self.with(|i| {
             i.tid = tid;
             i.keymgr = Some(keymgr);
             i._sink = Some(sink);
             i.thread_state = Some(state);
+            i.ipc = Some(ipc);
         });
 
         Ok(())

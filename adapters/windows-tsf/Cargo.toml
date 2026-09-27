@@ -10,8 +10,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 vietime-appdb = { path = "../../appdb" }
+vietime-config = { path = "../../config" }
 vietime-field-detect = { path = "../../field-detect" }
 vietime-ffi = { path = "../../ffi" }
+vietime-ipc = { path = "../../ipc" }
 vietime-strategy = { path = "../../strategy" }
 
 [target.'cfg(windows)'.dependencies]

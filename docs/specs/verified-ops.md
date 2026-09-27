@@ -31,6 +31,8 @@
 | B9 | `cargo run -p vietime-cli -- replay corpus/shared corpus/win` | ✓ 100/100 test cases pass (2026-09-27) | test suite cho B1-B9, secure context, hook, tsf preedit |
 | B10 | `cargo run -p vietime-bench` | ✓ ime_key p50=5.7µs (<500µs), resolve p50=57ns (<2ms) (2026-09-27) | đạt budget performance vượt trội |
 | B11 | `cargo build -p vietime-win-tsf` | ✓ Sinh `target/debug/vietime_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |
+| B12 | `cargo test -p vietime-win-tsf` | ✓ 15/15 tests pass (2026-09-27) | Kiểm chứng WIN-010..019: COM lifecycle, IPC client, SelectionReplace, ForwardAsCommit, hotkey toggle EN/VN, secure field |
+| B13 | `cargo clippy -p vietime-win-tsf --all-targets -- -D warnings` | ✓ 0 warnings, 0 errors (2026-09-27) | Đảm bảo an toàn bộ nhớ và chuẩn coding Rust nghiêm ngặt |
 
 
 ## C. Windows platform (chi tiết → spike specs)

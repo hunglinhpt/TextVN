@@ -213,18 +213,10 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
     (cả header-mẫu lẫn Rust-mẫu), thiếu hàm bị phát hiện, header thật +
     `ffi/src/lib.rs` thật khớp `abi_exports()`.
   - `schemas/ffi.v1.md` + `P0-2 §6`: ghi gate mới (bump ABI khi đổi export).
-- 2026-09-27: **W8 — Windows TSF Core Adapter (WIN-010..014) & Fix lỗi syntax/clippy**:
-  - `adapters/windows-hook/src/lib.rs`: Sửa lỗi cú pháp dấu `}` thừa ở `empty_result()`, chuẩn hoá fmt.
-  - `adapters/windows-tsf`: Triển khai đầy đủ COM server theo chuẩn Windows TSF P1-1:
-    - `guids.rs`: Khai báo `CLSID_VIETIME_TIP`, `PROFILE_VIETIME`, `DISPATTR_VIETIME`, `LANGID_VI`.
-    - `class.rs`: `ClassFactory` (IClassFactory) + `ObjGuard` đếm object COM toàn cục.
-    - `edit_session.rs`: `ReplaceEditSession` (ITfEditSession) & `CompSink` (ITfCompositionSink), tuân thủ finding S3-1 (GetSelection) & S3-2 (null terminator).
-    - `key_event.rs`: `KeySink` (ITfKeyEventSink) lọc system chords (B6) và forward key vào `ThreadState`.
-    - `tip.rs`: `Tip` implementing `ITfTextInputProcessorEx`, `ITfTextInputProcessor`, `ITfThreadMgrEventSink` xử lý focus change và commit-before-hide (B2).
-    - `lib.rs`: Kết nối 5 module, export `DllGetClassObject` và `DllCanUnloadNow` chuẩn C-ABI Windows COM.
-    - `Cargo.toml`: Cấu hình `crate-type = ["cdylib", "rlib"]`, kéo `windows 0.61.3` + `windows-core 0.61.2` dưới `[target.'cfg(windows)'.dependencies]` để bảo toàn CI cross-platform.
-    - Biên dịch thành công `target/debug/vietime_win_tsf.dll` (~1MB).
-  - Hoàn thiện sổ lỗi `docs/specs/project-common-errors.md` (E1–E6) và cập nhật `docs/specs/verified-ops.md` (B6–B11).
-  - Tạo `tools/win/check_reuse.ps1` chạy `reuse lint` an toàn với UTF-8 trên Windows console (E1).
-  - Vượt qua 10/10 Quality Gates: 196 tests PASS, clippy 0 warning, fmt clean, reuse lint 971/971 compliant, deny ok, bench pass.
-
+- 2026-09-27: **W9 — Windows TSF M1 hoàn thiện: WIN-015..019**:
+  - `WIN-015`: Preserved key toggle EN/VN (`Ctrl+Shift+Space`) qua `ITfKeystrokeMgr::PreserveKey`/`UnpreserveKey` và callback `OnPreservedKey`/`OnKeyDown`. Reset buffer engine dứt điểm khi tắt tiếng Việt.
+  - `WIN-016`: Background IPC client non-blocking, offline-tolerant (`\\.\pipe\vietime-ipc-v1`) nhận `ConfigReload`, `Snapshot`, reload cấu hình engine runtime qua C-ABI `ime_reload_config`.
+  - `WIN-017`: Bảo vệ nghiêm ngặt ô mật khẩu (`is_password == true` / `SecurityState::Secure` theo S3) ép sang `Strategy::Passthrough`, bypass engine hoàn toàn.
+  - `WIN-018`: `SelectionReplace` cho URL bar / Excel (bug B1), triệt tiêu phím Backspace gây autocomplete.
+  - `WIN-019`: `ForwardAsCommit` cho Windows Terminal (bug B8), không StartComposition.
+  - Đạt 10 Quality Gates: 15/15 tests pass, `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 973/973 compliant.

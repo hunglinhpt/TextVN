@@ -21,6 +21,8 @@ pub mod edit_session;
 #[cfg(windows)]
 pub mod guids;
 #[cfg(windows)]
+pub mod ipc_client;
+#[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]
 pub mod tip;
@@ -180,6 +182,7 @@ pub struct ThreadState {
     pub engine: EngineSession,
     field: FieldContext,
     generation: u64,
+    user_enabled: Option<bool>,
 }
 
 impl ThreadState {
@@ -189,6 +192,7 @@ impl ThreadState {
             engine: EngineSession::new()?,
             field: FieldContext::pending(app_id, caps, generation),
             generation,
+            user_enabled: None,
         })
     }
 
@@ -237,8 +241,33 @@ impl ThreadState {
         user_enabled: Option<bool>,
         appdb: Option<&AppDb>,
     ) -> Strategy {
+        let eff = user_enabled.or(self.user_enabled);
         self.field
-            .resolve_strategy(self.effective_enabled(user_enabled, appdb), appdb)
+            .resolve_strategy(self.effective_enabled(eff, appdb), appdb)
+    }
+
+    /// Đảo trạng thái bộ gõ (WIN-015). Khi chuyển sang tắt, dọn sạch buffer engine ngay.
+    pub fn toggle_enabled(&mut self) -> bool {
+        let current = self.effective_enabled(self.user_enabled, None);
+        let next = !current;
+        self.user_enabled = Some(next);
+        if !next {
+            self.engine.reject_edit_session();
+        }
+        next
+    }
+
+    /// Đặt trạng thái bật/tắt do người dùng chỉ định.
+    pub fn set_user_enabled(&mut self, enabled: bool) {
+        self.user_enabled = Some(enabled);
+        if !enabled {
+            self.engine.reject_edit_session();
+        }
+    }
+
+    /// Trạng thái người dùng đã chọn (nếu có).
+    pub fn user_enabled(&self) -> Option<bool> {
+        self.user_enabled
     }
 
     /// TSF là owner mặc định khi AppDB không nói khác. Hook/adapter khác phải
@@ -256,6 +285,26 @@ impl ThreadState {
                 | Some(EngineOwner::X11)
         )
     }
+
+    /// Nạp lại cấu hình từ file %APPDATA%\VietIME\config.json khi nhận thông báo IPC.
+    pub fn reload_config_from_file(&mut self) -> Result<(), i32> {
+        if let Some(path) = config_file_path() {
+            if let Ok(bytes) = std::fs::read(path) {
+                return self.engine.reload_config(&bytes);
+            }
+        }
+        Err(-1)
+    }
+}
+
+/// Trả về đường dẫn %APPDATA%\VietIME\config.json nếu có.
+pub fn config_file_path() -> Option<std::path::PathBuf> {
+    std::env::var_os("APPDATA").map(|appdata| {
+        let mut p = std::path::PathBuf::from(appdata);
+        p.push("VietIME");
+        p.push("config.json");
+        p
+    })
 }
 
 impl EngineSession {
@@ -266,6 +315,17 @@ impl EngineSession {
             return Err(result);
         }
         Ok(Self { instance })
+    }
+
+    /// Nạp lại cấu hình engine runtime qua C-ABI ime_reload_config.
+    pub fn reload_config(&mut self, config_utf8: &[u8]) -> Result<(), i32> {
+        let status =
+            vietime_ffi::ime_reload_config(self.instance, config_utf8.as_ptr(), config_utf8.len());
+        if status == vietime_ffi::IME_OK {
+            Ok(())
+        } else {
+            Err(status)
+        }
     }
 
     pub fn key_char(&mut self, ch: char) -> Result<ime_result_v1, i32> {
@@ -567,6 +627,98 @@ mod tests {
         assert_eq!(
             state.resolve_strategy_with_state(Some(true), Some(&db)),
             Strategy::Passthrough
+        );
+    }
+
+    #[test]
+    fn runtime_config_reload_updates_engine_method() {
+        let mut state = ThreadState::new("notepad.exe", IME_CAP_PREEDIT).unwrap();
+        // Mặc định là Telex: gõ 'a' + 's' -> 'á' (ACTION_REPLACE)
+        let _ = state.engine.key_char('a').unwrap();
+        let res = state.engine.key_char('s').unwrap();
+        assert_eq!(res.action, vietime_ffi::ACTION_REPLACE);
+
+        // Nạp config chuyển sang VNI (WIN-016 acceptance test)
+        let vni_config = br#"{"config_version":1,"method":"vni"}"#;
+        assert!(state.engine.reload_config(vni_config).is_ok());
+
+        // Reset buffer cho từ mới
+        state.engine.reject_edit_session();
+
+        // Sau khi đổi sang VNI: gõ 'a' + '1' -> 'á' (VNI dùng 1 cho dấu sắc)
+        let _ = state.engine.key_char('a').unwrap();
+        let res_vni = state.engine.key_char('1').unwrap();
+        assert_eq!(res_vni.action, vietime_ffi::ACTION_REPLACE);
+
+        // Reset buffer cho từ mới
+        state.engine.reject_edit_session();
+
+        // Phím 's' trong VNI không còn là dấu sắc -> trả ACTION_PASS (0)
+        let _ = state.engine.key_char('a').unwrap();
+        let res_s = state.engine.key_char('s').unwrap();
+        assert_eq!(res_s.action, vietime_ffi::ACTION_PASS);
+    }
+
+    #[test]
+    fn hotkey_toggle_switches_enabled_state_and_resets_buffer() {
+        // WIN-015: Toggle EN/VN (Ctrl+Shift+Space)
+        let mut state = ThreadState::new("notepad.exe", IME_CAP_PREEDIT).unwrap();
+        let regular_edit = UiaElement {
+            is_password: Some(false),
+            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            class_name: "Edit".into(),
+            ..Default::default()
+        };
+        let generation = state.field_context().generation;
+        assert!(state.publish_uia(generation, Some(&regular_edit)));
+
+        // Mặc định bật tiếng Việt
+        assert_eq!(
+            state.resolve_strategy_with_state(None, None),
+            Strategy::Preedit
+        );
+
+        // Đang gõ dở 'a'
+        let _ = state.engine.key_char('a').unwrap();
+
+        // Nhấn hotkey toggle -> tắt tiếng Việt (chuyển sang EN)
+        let new_state = state.toggle_enabled();
+        assert!(!new_state, "Sau lần toggle 1, phải chuyển sang false (EN)");
+        assert_eq!(
+            state.resolve_strategy_with_state(None, None),
+            Strategy::Passthrough,
+            "Khi tắt tiếng Việt, strategy phải là Passthrough"
+        );
+
+        // Toggle lại -> bật lại tiếng Việt (VN)
+        let new_state2 = state.toggle_enabled();
+        assert!(new_state2, "Sau lần toggle 2, phải chuyển sang true (VN)");
+        assert_eq!(
+            state.resolve_strategy_with_state(None, None),
+            Strategy::Preedit,
+            "Khi bật lại tiếng Việt, strategy quay lại Preedit"
+        );
+    }
+
+    #[test]
+    fn secure_field_strictly_forces_passthrough() {
+        // WIN-017 / Rule S3: Ô mật khẩu bắt buộc Passthrough
+        let mut state =
+            ThreadState::new("keepassxc.exe", IME_CAP_PREEDIT | IME_CAP_SELECTION).unwrap();
+        let password_element = UiaElement {
+            is_password: Some(true),
+            control_type: vietime_field_detect::rules_win::ControlType::Edit,
+            class_name: "PasswordBox".into(),
+            ..Default::default()
+        };
+        let generation = state.field_context().generation;
+        assert!(state.publish_uia(generation, Some(&password_element)));
+
+        // Security gate S3: Tuyệt đối không can thiệp, bất kể user_enabled = true
+        assert_eq!(
+            state.resolve_strategy_with_state(Some(true), None),
+            Strategy::Passthrough,
+            "Ô mật khẩu (IsPassword=true) bắt buộc Passthrough"
         );
     }
 }
