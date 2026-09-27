@@ -1,0 +1,15 @@
+[Unit]
+Description=TextVN Vietnamese Input Method Tray & Configuration Daemon
+Documentation=https://github.com/hunglinhpt/TextVN
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/textvn-tray
+Restart=on-failure
+RestartSec=3s
+KillMode=process
+
+[Install]
+WantedBy=graphical-session.target

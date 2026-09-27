@@ -14,8 +14,10 @@
 | **Review 2 — Nhất quán & Sẵn sàng (Code Fcitx5)** | Build/test matrix, naming, lifecycle leak (LNX-020), workspace check | 3 | 0 | 1 | 2 | ✅ 3/3 đã fix |
 | **Review 1 — Đúng & Đủ (Code IBus)** | `linux-ibus` (Non-preedit surrounding fallback, FFI P0-2, caps, S2, B2, B6, S8) | 2 | 0 | 1 | 1 | ✅ 2/2 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng (Code IBus)** | Unit test `test_ibus_engine`, GObject finalize lifecycle, workspace verification | 1 | 0 | 0 | 1 | ✅ 1/1 đã fix |
+| **Review 1 — Đúng & Đủ (Settings & Packaging)** | `linux-settings` & `scripts/` (Charset schema, JSON spaces, CMake builds, Fcitx5 IM) | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
+| **Review 2 — Nhất quán & Sẵn sàng (Settings & Packaging)** | Clippy doc-lazy, uninstaller residue, uninstall-check.sh, uinput cleanup | 3 | 0 | 0 | 3 | ✅ 3/3 đã fix |
 
-**→ Toàn bộ Phần 3 (Spec, Fcitx5 & IBus) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở.
+**→ Toàn bộ Phần 3 (Spec, Fcitx5, IBus, Settings & Packaging) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở.
 
 ---
 
@@ -80,6 +82,9 @@
 
 | F3-021 | major | `adapters/linux-ibus/src/apply.c` chạy nhánh Non-preedit không kiểm tra `self->has_surrounding`. Trong app không hỗ trợ surrounding, `delete_surrounding` bị bỏ qua trong khi `commit_text` vẫn gọi → lặp ký tự (gõ `as` ra `aá`) | ✅ Fixed | Sửa điều kiện thành `if (self->non_preedit && self->has_surrounding)`; khi không có surrounding tự động fallback về Preedit có gạch chân chuẩn IBus; bổ sung unit test `test_apply_fallback_preedit_when_no_surrounding` |
 | F3-022 | minor | `adapters/linux-ibus/src/engine.c` line 104 gán `IME_CAP_PREEDIT` phụ thuộc vào `self->has_surrounding`. IBus luôn hỗ trợ hiển thị Preedit độc lập với surrounding; việc tắt preedit khiến core strategy downgrade nhầm sang `BackspaceType` | ✅ Fixed | Gán mặc định `ctx.caps = IME_CAP_PREEDIT \| IME_CAP_FIELD_DETECT \| IME_CAP_SELECTION;` |
+| F3-024 | major | `adapters/linux-settings/src/settings_window.h` & `settings_window.c` gán bảng mã thứ 4 là `TEXTVN_CHARSET_VIQR` thay vì `TEXTVN_CHARSET_UNICODE_DECOMPOSED` (Unicode tổ hợp), vi phạm schema `config.v1.schema.json` và enum `OutputCharset` của `textvn-config` | ✅ Fixed | Đổi enum thành `TEXTVN_CHARSET_UNICODE_DECOMPOSED`, ánh xạ `"unicode_decomposed"` và nhãn "4. Unicode tổ hợp" |
+| F3-025 | major | `adapters/linux-settings/src/settings_window.c` hàm `textvn_settings_load_from_json` dùng `strstr` tìm key-value không có khoảng trắng (`"method":"vni"`), trong khi `to_json` và serde sinh chuẩn có khoảng trắng (`"method": "vni"`) → load luôn fallback về Telex/Unicode | ✅ Fixed | Viết helper `json_get_str_val` bóc tách chuỗi độc lập khoảng trắng / thụt dòng; kiểm chứng 100% qua `test_settings_window.c` |
+| F3-026 | major | `scripts/install_linux.sh` gọi `cargo build --release --bin textvn --bin textvn-tray` (không tồn tại trong Cargo target), bỏ sót biên dịch CMake adapters (`textvn-ibus-engine`, `libtextvn-fcitx5.so`, `textvn-settings`), và không cài đặt Fcitx5 inputmethod config (`inputmethod/textvn.conf`) | ✅ Fixed | Cập nhật `cargo build --release --workspace`, thêm nhánh build CMake cho IBus/Fcitx5/GTK4 khi có dependencies, cài đặt đúng `textvn-cli` → `textvn`, `TextVN` → `textvn-tray`, `textvn-settings`, `libtextvn-fcitx5.so`, `textvn-ibus-engine`, Fcitx5 addon + IM descriptors, và systemd user service |
 
 ## Code Review Round 2 — Nhất quán & Sẵn sàng (Mã nguồn & Kiểm thử)
 
@@ -89,6 +94,9 @@
 | F3-018 | minor | `CMakeLists.txt` cài đặt file cấu hình `conf/textvn-addon.conf.in` vào thư mục `inputmethod/` dưới tên `textvn-addon.conf` thay vì `textvn.conf` theo định danh sub-IM | ✅ Fixed | Đổi tên file build thành `conf/textvn-im.conf` và chỉ định `RENAME textvn.conf` khi install vào `${CMAKE_INSTALL_DATADIR}/fcitx5/inputmethod` |
 | F3-019 | minor | `adapters/windows-hook/Cargo.toml` thiếu feature `Win32_Security` khiến `CreateMutexW` không tìm thấy trong scope khi build toàn workspace | ✅ Fixed | Bổ sung `"Win32_Security"` vào `windows` dependencies của `textvn-win-hook` |
 | F3-023 | minor | `adapters/linux-ibus/tests/ibus_mock.h` `g_object_unref` chỉ gọi `free(p)` không gọi `finalize` class method → test phải giải phóng thủ công `self->inst` thay vì kiểm chứng vòng đời GObject tự động dọn rác | ✅ Fixed | Bổ sung `s_mock_finalize` hook vào `g_object_unref` và `G_DEFINE_TYPE`; cập nhật toàn bộ test trong `test_ibus_engine.c` gọi `g_object_unref(e)` |
+| F3-027 | minor | `tray/src/autostart.rs` vi phạm linter `clippy::doc-lazy-continuation` trên ghi chú Rule S5, gây chặn `-D warnings` khi build workspace | ✅ Fixed | Chèn dòng trống phân cách đoạn doc và chạy `cargo fmt` chuẩn hóa |
+| F3-028 | minor | `scripts/uninstall_linux.sh` thiếu xóa `textvn-settings`, `inputmethod/textvn.conf`, `textvn.desktop`, `textvn-tray.service`; thiếu script kiểm chứng LNX-054 | ✅ Fixed | Bổ sung đủ danh mục file gỡ sạch trong `scripts/uninstall_linux.sh`; tạo script `packaging/linux/uninstall-check.sh` xác thực 0 residue (LNX-054) |
+| F3-029 | minor | `packaging/linux/udev/99-textvn-uinput.rules` là file rỗng 0-byte tồn đọng sau khi loại bỏ uinput grabbing theo ADR-007 (zero key grabbing trên Wayland) | ✅ Fixed | Xóa file rỗng và thư mục `udev/` khỏi repo để đảm bảo vệ sinh mã nguồn |
 
 ---
 

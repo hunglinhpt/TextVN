@@ -90,15 +90,18 @@ if [[ "$INSTALL_MODE" == "user" ]]; then
     TARGET_BIN="$HOME/.local/bin"
     TARGET_LIB="$HOME/.local/lib/textvn"
     TARGET_FCITX5_ADDON="$HOME/.local/share/fcitx5/addon"
+    TARGET_FCITX5_IM="$HOME/.local/share/fcitx5/inputmethod"
     TARGET_FCITX5_LIB="$HOME/.local/lib/fcitx5"
     TARGET_IBUS_COMPONENT="$HOME/.local/share/ibus/component"
     TARGET_ICONS="$HOME/.local/share/icons/hicolor/scalable/apps"
     TARGET_APPS="$HOME/.local/share/applications"
     TARGET_AUTOSTART="$HOME/.config/autostart"
+    TARGET_SYSTEMD="$HOME/.config/systemd/user"
 else
     TARGET_BIN="/usr/bin"
     TARGET_LIB="/usr/lib/textvn"
     TARGET_FCITX5_ADDON="/usr/share/fcitx5/addon"
+    TARGET_FCITX5_IM="/usr/share/fcitx5/inputmethod"
     if [[ -d "/usr/lib/x86_64-linux-gnu" ]]; then
         TARGET_FCITX5_LIB="/usr/lib/x86_64-linux-gnu/fcitx5"
     else
@@ -108,6 +111,7 @@ else
     TARGET_ICONS="/usr/share/icons/hicolor/scalable/apps"
     TARGET_APPS="/usr/share/applications"
     TARGET_AUTOSTART="/etc/xdg/autostart"
+    TARGET_SYSTEMD="/usr/lib/systemd/user"
 fi
 
 echo -e "\n${YELLOW}--> 1. Kiểm tra công cụ biên dịch và dependencies...${NC}"
@@ -140,53 +144,80 @@ fi
 echo -e "${GREEN}   ✓ Công cụ build đã sẵn sàng.${NC}"
 
 echo -e "\n${YELLOW}--> 2. Tạo thư mục đích...${NC}"
-mkdir -p "$TARGET_BIN" "$TARGET_LIB" "$TARGET_FCITX5_ADDON" "$TARGET_FCITX5_LIB" \
-         "$TARGET_IBUS_COMPONENT" "$TARGET_ICONS" "$TARGET_APPS" "$TARGET_AUTOSTART"
+mkdir -p "$TARGET_BIN" "$TARGET_LIB" "$TARGET_FCITX5_ADDON" "$TARGET_FCITX5_IM" "$TARGET_FCITX5_LIB" \
+         "$TARGET_IBUS_COMPONENT" "$TARGET_ICONS" "$TARGET_APPS" "$TARGET_AUTOSTART" "$TARGET_SYSTEMD"
 echo -e "${GREEN}   ✓ Đã tạo các thư mục cài đặt.${NC}"
 
 echo -e "\n${YELLOW}--> 3. Biên dịch TextVN Core & Adapters...${NC}"
 cd "$ROOT_DIR"
-cargo build --release --bin textvn --bin textvn-tray 2>&1 | tail -n 10
+cargo build --release --workspace 2>&1 | tail -n 10
 echo -e "${GREEN}   ✓ Đã biên dịch xong các thành phần Rust.${NC}"
+
+# Compile IBus engine if ibus dev packages exist
+if pkg-config --exists ibus-1.0 glib-2.0 2>/dev/null; then
+    echo -e "   Biên dịch IBus engine C adapter..."
+    cmake -B "$ROOT_DIR/adapters/linux-ibus/build" -S "$ROOT_DIR/adapters/linux-ibus" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$ROOT_DIR/adapters/linux-ibus/build"
+fi
+
+# Compile Fcitx5 addon if fcitx5 dev packages exist
+if pkg-config --exists Fcitx5Core xkbcommon 2>/dev/null; then
+    echo -e "   Biên dịch Fcitx5 C++ addon adapter..."
+    cmake -B "$ROOT_DIR/adapters/linux-fcitx5/build" -S "$ROOT_DIR/adapters/linux-fcitx5" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$ROOT_DIR/adapters/linux-fcitx5/build"
+fi
+
+# Compile GTK4 settings if gtk4 dev package exists
+if pkg-config --exists gtk4 2>/dev/null; then
+    echo -e "   Biên dịch GTK4 Settings panel..."
+    cmake -B "$ROOT_DIR/adapters/linux-settings/build" -S "$ROOT_DIR/adapters/linux-settings" -DCMAKE_BUILD_TYPE=Release
+    cmake --build "$ROOT_DIR/adapters/linux-settings/build"
+fi
 
 echo -e "\n${YELLOW}--> 4. Cài đặt các file nhị phân & cấu hình...${NC}"
 
 # Install CLI and Tray
-if [[ -f "$ROOT_DIR/target/release/textvn" ]]; then
-    install -m 0755 "$ROOT_DIR/target/release/textvn" "$TARGET_BIN/textvn"
-    echo -e "   + Đã cài: $TARGET_BIN/textvn"
+if [[ -f "$ROOT_DIR/target/release/textvn-cli" ]]; then
+    install -m 0755 "$ROOT_DIR/target/release/textvn-cli" "$TARGET_BIN/textvn"
+    echo -e "   + Đã cài CLI: $TARGET_BIN/textvn"
 fi
 
-if [[ -f "$ROOT_DIR/target/release/textvn-tray" ]]; then
-    install -m 0755 "$ROOT_DIR/target/release/textvn-tray" "$TARGET_BIN/textvn-tray"
-    echo -e "   + Đã cài: $TARGET_BIN/textvn-tray"
+if [[ -f "$ROOT_DIR/target/release/TextVN" ]]; then
+    install -m 0755 "$ROOT_DIR/target/release/TextVN" "$TARGET_BIN/textvn-tray"
+    echo -e "   + Đã cài Tray: $TARGET_BIN/textvn-tray"
 fi
 
-# Install Icons (Crimson V and Blue E)
-if [[ -d "$ROOT_DIR/resources/icons" ]]; then
-    if [[ -f "$ROOT_DIR/resources/icons/textvn_v.svg" ]]; then
-        install -m 0644 "$ROOT_DIR/resources/icons/textvn_v.svg" "$TARGET_ICONS/textvn_v.svg"
-        install -m 0644 "$ROOT_DIR/resources/icons/textvn_v.svg" "$TARGET_ICONS/textvn.svg"
-        echo -e "   + Đã cài icon [V]: $TARGET_ICONS/textvn_v.svg"
-    fi
-    if [[ -f "$ROOT_DIR/resources/icons/textvn_e.svg" ]]; then
-        install -m 0644 "$ROOT_DIR/resources/icons/textvn_e.svg" "$TARGET_ICONS/textvn_e.svg"
-        echo -e "   + Đã cài icon [E]: $TARGET_ICONS/textvn_e.svg"
-    fi
+if [[ -f "$ROOT_DIR/adapters/linux-settings/build/textvn-settings" ]]; then
+    install -m 0755 "$ROOT_DIR/adapters/linux-settings/build/textvn-settings" "$TARGET_BIN/textvn-settings"
+    echo -e "   + Đã cài Settings UI: $TARGET_BIN/textvn-settings"
 fi
 
-# Install Fcitx5 Addon Conf
-if [[ -f "$ROOT_DIR/packaging/linux/fcitx5/textvn.conf" ]]; then
-    install -m 0644 "$ROOT_DIR/packaging/linux/fcitx5/textvn.conf" "$TARGET_FCITX5_ADDON/textvn.conf"
+if [[ -f "$ROOT_DIR/adapters/linux-ibus/build/textvn-ibus-engine" ]]; then
+    install -m 0755 "$ROOT_DIR/adapters/linux-ibus/build/textvn-ibus-engine" "$TARGET_LIB/textvn-ibus-engine"
+    echo -e "   + Đã cài IBus Engine: $TARGET_LIB/textvn-ibus-engine"
+fi
+
+if [[ -f "$ROOT_DIR/adapters/linux-fcitx5/build/libtextvn-fcitx5.so" ]]; then
+    install -m 0755 "$ROOT_DIR/adapters/linux-fcitx5/build/libtextvn-fcitx5.so" "$TARGET_FCITX5_LIB/libtextvn-fcitx5.so"
+    echo -e "   + Đã cài Fcitx5 Module: $TARGET_FCITX5_LIB/libtextvn-fcitx5.so"
+fi
+
+# Install Fcitx5 Conf files (addon & inputmethod)
+if [[ -f "$ROOT_DIR/packaging/linux/fcitx5/addon/textvn.conf" ]]; then
+    install -m 0644 "$ROOT_DIR/packaging/linux/fcitx5/addon/textvn.conf" "$TARGET_FCITX5_ADDON/textvn.conf"
     echo -e "   + Đã cài Fcitx5 addon descriptor: $TARGET_FCITX5_ADDON/textvn.conf"
+fi
+if [[ -f "$ROOT_DIR/packaging/linux/fcitx5/inputmethod/textvn.conf" ]]; then
+    install -m 0644 "$ROOT_DIR/packaging/linux/fcitx5/inputmethod/textvn.conf" "$TARGET_FCITX5_IM/textvn.conf"
+    echo -e "   + Đã cài Fcitx5 inputmethod descriptor: $TARGET_FCITX5_IM/textvn.conf"
 fi
 
 # Install IBus Component XML
 if [[ -f "$ROOT_DIR/packaging/linux/ibus/textvn.xml" ]]; then
-    # Generate component xml with correct exec path for user or system
     TMP_XML=$(mktemp)
     if [[ "$INSTALL_MODE" == "user" ]]; then
-        sed "s|/usr/lib/textvn/textvn-ibus-engine|$TARGET_LIB/textvn-ibus-engine|g" \
+        sed -e "s|/usr/lib/textvn/textvn-ibus-engine|$TARGET_LIB/textvn-ibus-engine|g" \
+            -e "s|/usr/bin/textvn-tray|$TARGET_BIN/textvn-tray|g" \
             "$ROOT_DIR/packaging/linux/ibus/textvn.xml" > "$TMP_XML"
     else
         cp "$ROOT_DIR/packaging/linux/ibus/textvn.xml" "$TMP_XML"
@@ -194,6 +225,12 @@ if [[ -f "$ROOT_DIR/packaging/linux/ibus/textvn.xml" ]]; then
     install -m 0644 "$TMP_XML" "$TARGET_IBUS_COMPONENT/textvn.xml"
     rm -f "$TMP_XML"
     echo -e "   + Đã cài IBus component descriptor: $TARGET_IBUS_COMPONENT/textvn.xml"
+fi
+
+# Install Systemd user service
+if [[ -f "$ROOT_DIR/packaging/linux/systemd/textvn-tray.service" ]]; then
+    install -m 0644 "$ROOT_DIR/packaging/linux/systemd/textvn-tray.service" "$TARGET_SYSTEMD/textvn-tray.service"
+    echo -e "   + Đã cài Systemd user service: $TARGET_SYSTEMD/textvn-tray.service"
 fi
 
 # Install Desktop files

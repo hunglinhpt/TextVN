@@ -30,12 +30,22 @@ rm -rf "${STAGE_DIR}"
 mkdir -p "${STAGE_DIR}/bin" "${STAGE_DIR}/share/icons" "${STAGE_DIR}/share/applications" "${STAGE_DIR}/scripts"
 
 # Copy binaries
-cp "${ROOT_DIR}/target/release/textvn" "${STAGE_DIR}/bin/"
-cp "${ROOT_DIR}/target/release/textvn-tray" "${STAGE_DIR}/bin/"
+if [[ -f "${ROOT_DIR}/target/release/textvn-cli" ]]; then
+    cp "${ROOT_DIR}/target/release/textvn-cli" "${STAGE_DIR}/bin/textvn"
+fi
+if [[ -f "${ROOT_DIR}/target/release/TextVN" ]]; then
+    cp "${ROOT_DIR}/target/release/TextVN" "${STAGE_DIR}/bin/textvn-tray"
+fi
 
 # Copy resources & icons
 if [[ -d "${ROOT_DIR}/resources/icons" ]]; then
     cp -r "${ROOT_DIR}/resources/icons/"* "${STAGE_DIR}/share/icons/"
+fi
+
+# Copy packaging metadata
+if [[ -d "${ROOT_DIR}/packaging/linux" ]]; then
+    mkdir -p "${STAGE_DIR}/packaging"
+    cp -r "${ROOT_DIR}/packaging/linux" "${STAGE_DIR}/packaging/"
 fi
 
 # Copy scripts & documentation

@@ -71,34 +71,42 @@ if [[ "$UNINSTALL_MODE" == "user" ]]; then
     TARGET_BIN="$HOME/.local/bin"
     TARGET_LIB="$HOME/.local/lib/textvn"
     TARGET_FCITX5_ADDON="$HOME/.local/share/fcitx5/addon"
+    TARGET_FCITX5_IM="$HOME/.local/share/fcitx5/inputmethod"
     TARGET_FCITX5_LIB="$HOME/.local/lib/fcitx5"
     TARGET_IBUS_COMPONENT="$HOME/.local/share/ibus/component"
     TARGET_ICONS="$HOME/.local/share/icons/hicolor/scalable/apps"
     TARGET_APPS="$HOME/.local/share/applications"
     TARGET_AUTOSTART="$HOME/.config/autostart"
+    TARGET_SYSTEMD="$HOME/.config/systemd/user"
 else
     TARGET_BIN="/usr/bin"
     TARGET_LIB="/usr/lib/textvn"
     TARGET_FCITX5_ADDON="/usr/share/fcitx5/addon"
+    TARGET_FCITX5_IM="/usr/share/fcitx5/inputmethod"
     TARGET_FCITX5_LIB="/usr/lib/fcitx5"
     TARGET_IBUS_COMPONENT="/usr/share/ibus/component"
     TARGET_ICONS="/usr/share/icons/hicolor/scalable/apps"
     TARGET_APPS="/usr/share/applications"
     TARGET_AUTOSTART="/etc/xdg/autostart"
+    TARGET_SYSTEMD="/usr/lib/systemd/user"
 fi
 
 FILES_TO_REMOVE=(
     "$TARGET_BIN/textvn"
     "$TARGET_BIN/textvn-tray"
+    "$TARGET_BIN/textvn-settings"
     "$TARGET_LIB/textvn-ibus-engine"
     "$TARGET_FCITX5_LIB/libtextvn-fcitx5.so"
     "$TARGET_FCITX5_ADDON/textvn.conf"
+    "$TARGET_FCITX5_IM/textvn.conf"
     "$TARGET_IBUS_COMPONENT/textvn.xml"
     "$TARGET_ICONS/textvn_v.svg"
     "$TARGET_ICONS/textvn_e.svg"
     "$TARGET_ICONS/textvn.svg"
     "$TARGET_APPS/textvn-settings.desktop"
     "$TARGET_AUTOSTART/textvn-tray.desktop"
+    "$TARGET_AUTOSTART/textvn.desktop"
+    "$TARGET_SYSTEMD/textvn-tray.service"
 )
 
 for file in "${FILES_TO_REMOVE[@]}"; do

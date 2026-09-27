@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Quản lý Autostart cho TextVN Tray (WIN-053 — P1-4 §1).
+//! Quản lý Autostart đa nền tảng cho TextVN Tray (WIN-053 — P1-4 §1 / LNX-050).
 //!
-//! Ghi / đọc / xoá registry key:
-//! `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TextVN` = `"<path>\textvn-tray.exe" --autostart`
-//! Tuân thủ Rule S5: Phạm vi per-user, không yêu cầu quyền Administrator.
+//! - Windows: Ghi / đọc / xoá registry key:
+//!   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TextVN` = `"<path>\textvn-tray.exe" --autostart`
+//! - Linux: Ghi / đọc / xoá file desktop entry:
+//!   `~/.config/autostart/textvn.desktop` (Freedesktop autostart spec)
+//!
+//! Tuân thủ Rule S5: Phạm vi per-user, không yêu cầu quyền Administrator / sudo.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[cfg(windows)]
 use windows::core::PCWSTR;
@@ -17,8 +20,91 @@ use windows::Win32::System::Registry::*;
 pub const RUN_KEY_PATH: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 pub const APP_RUN_VALUE_NAME: &str = "TextVN";
 pub const LEGACY_APP_RUN_VALUE_NAME: &str = "TextVN";
+pub const LINUX_DESKTOP_FILENAME: &str = "textvn.desktop";
 
-/// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng Windows không.
+/// Lấy thư mục autostart trên Linux theo chuẩn XDG (~/.config/autostart).
+pub fn linux_autostart_dir() -> PathBuf {
+    if let Ok(xdg_config) = std::env::var("XDG_CONFIG_HOME") {
+        if !xdg_config.is_empty() {
+            return PathBuf::from(xdg_config).join("autostart");
+        }
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        if !home.is_empty() {
+            return PathBuf::from(home).join(".config").join("autostart");
+        }
+    }
+    PathBuf::from("/tmp").join("autostart")
+}
+
+/// Đường dẫn file textvn.desktop trên Linux.
+pub fn linux_autostart_desktop_path() -> PathBuf {
+    linux_autostart_dir().join(LINUX_DESKTOP_FILENAME)
+}
+
+/// Sinh nội dung desktop entry cho Linux Autostart.
+pub fn generate_linux_desktop_entry(exe_path: &Path) -> String {
+    format!(
+        "[Desktop Entry]\n\
+         Type=Application\n\
+         Name=TextVN\n\
+         Comment=Vietnamese Input Method Tray\n\
+         Exec=\"{}\" --autostart\n\
+         Icon=textvn\n\
+         Terminal=false\n\
+         Categories=Utility;\n\
+         X-GNOME-Autostart-enabled=true\n",
+        exe_path.display()
+    )
+}
+
+/// Kiểm tra autostart trong một thư mục chỉ định (cho Linux và unit tests).
+pub fn is_linux_autostart_enabled_in_dir(
+    autostart_dir: &Path,
+) -> std::result::Result<bool, String> {
+    let desktop_file = autostart_dir.join(LINUX_DESKTOP_FILENAME);
+    if !desktop_file.exists() {
+        return Ok(false);
+    }
+    let content = std::fs::read_to_string(&desktop_file)
+        .map_err(|e| format!("Failed to read autostart desktop file: {e}"))?;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.eq_ignore_ascii_case("X-GNOME-Autostart-enabled=false")
+            || trimmed.eq_ignore_ascii_case("Hidden=true")
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// Bật autostart trong một thư mục chỉ định (cho Linux và unit tests).
+pub fn enable_linux_autostart_in_dir(
+    autostart_dir: &Path,
+    exe_path: &Path,
+) -> std::result::Result<(), String> {
+    std::fs::create_dir_all(autostart_dir)
+        .map_err(|e| format!("Failed to create autostart directory: {e}"))?;
+    let desktop_file = autostart_dir.join(LINUX_DESKTOP_FILENAME);
+    let content = generate_linux_desktop_entry(exe_path);
+    std::fs::write(&desktop_file, content)
+        .map_err(|e| format!("Failed to write autostart desktop file: {e}"))?;
+    Ok(())
+}
+
+/// Tắt autostart trong một thư mục chỉ định (cho Linux và unit tests).
+pub fn disable_linux_autostart_in_dir(autostart_dir: &Path) -> std::result::Result<(), String> {
+    let desktop_file = autostart_dir.join(LINUX_DESKTOP_FILENAME);
+    if desktop_file.exists() {
+        std::fs::remove_file(&desktop_file)
+            .map_err(|e| format!("Failed to remove autostart desktop file: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng OS không.
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     #[cfg(windows)]
     {
@@ -36,8 +122,6 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
                 return Ok(false);
             }
 
-            // TextVN là primary; chỉ đọc key TextVN để migration không làm mất
-            // autostart của bản cũ trước khi người dùng lưu cấu hình mới.
             let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let mut val_type = REG_VALUE_TYPE::default();
             let mut data_len = 0u32;
@@ -68,13 +152,17 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
             Ok(query_status == ERROR_SUCCESS && data_len > 0)
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    {
+        is_linux_autostart_enabled_in_dir(&linux_autostart_dir())
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         Ok(false)
     }
 }
 
-/// Bật tự khởi động cùng Windows cho TextVN Tray.
+/// Bật tự khởi động cùng OS cho TextVN Tray.
 pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
@@ -127,14 +215,24 @@ pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), Stri
             Ok(())
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    {
+        let path = match exe_path {
+            Some(p) => p.to_path_buf(),
+            None => {
+                std::env::current_exe().map_err(|e| format!("Cannot get current exe path: {e}"))?
+            }
+        };
+        enable_linux_autostart_in_dir(&linux_autostart_dir(), &path)
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         let _ = exe_path;
         Ok(())
     }
 }
 
-/// Tắt tự khởi động cùng Windows cho TextVN Tray.
+/// Tắt tự khởi động cùng OS cho TextVN Tray.
 pub fn disable_autostart() -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
@@ -165,7 +263,11 @@ pub fn disable_autostart() -> std::result::Result<(), String> {
             Ok(())
         }
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    {
+        disable_linux_autostart_in_dir(&linux_autostart_dir())
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         Ok(())
     }
@@ -179,7 +281,6 @@ fn to_wide(s: &str) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     #[test]
     fn run_key_path_and_value_name_constants() {
@@ -196,5 +297,36 @@ mod tests {
         let fake_path = PathBuf::from(r"C:\Program Files\TextVN\TextVN.exe");
         let cmd = format!("\"{}\" --autostart", fake_path.display());
         assert_eq!(cmd, r#""C:\Program Files\TextVN\TextVN.exe" --autostart"#);
+    }
+
+    #[test]
+    fn linux_desktop_entry_generation() {
+        let fake_path = PathBuf::from("/usr/bin/textvn");
+        let entry = generate_linux_desktop_entry(&fake_path);
+        assert!(entry.contains("Exec=\"/usr/bin/textvn\" --autostart"));
+        assert!(entry.contains("Type=Application"));
+        assert!(entry.contains("Name=TextVN"));
+        assert!(entry.contains("X-GNOME-Autostart-enabled=true"));
+    }
+
+    #[test]
+    fn linux_autostart_lifecycle_in_dir() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("textvn_test_autostart_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+
+        // Ban đầu chưa có file
+        assert_eq!(is_linux_autostart_enabled_in_dir(&temp_dir), Ok(false));
+
+        // Bật autostart
+        let fake_bin = PathBuf::from("/usr/bin/textvn");
+        assert_eq!(enable_linux_autostart_in_dir(&temp_dir, &fake_bin), Ok(()));
+        assert_eq!(is_linux_autostart_enabled_in_dir(&temp_dir), Ok(true));
+
+        // Tắt autostart
+        assert_eq!(disable_linux_autostart_in_dir(&temp_dir), Ok(()));
+        assert_eq!(is_linux_autostart_enabled_in_dir(&temp_dir), Ok(false));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
