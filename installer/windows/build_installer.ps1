@@ -87,4 +87,13 @@ if ($FoundIscc) {
     Write-Host "To compile installer manually, install Inno Setup 6: winget install JRSoftware.InnoSetup" -ForegroundColor Gray
 }
 
+# 4. Release gate (AV-3): in SHA256 cua installer de submit scan truoc khi publish
+# (xem docs/specs/antivirus-false-positive.md - RW3)
+$SetupPath = Join-Path $RepoRoot "target\installer\vietime-setup-0.1.0.exe"
+if (Test-Path $SetupPath) {
+    $setupHash = (Get-FileHash -Path $SetupPath -Algorithm SHA256).Hash
+    Write-Host "`n[AV-3] SHA256 vietime-setup-0.1.0.exe:" -ForegroundColor Cyan
+    Write-Host "  $setupHash"
+}
+
 Write-Host "`nDone." -ForegroundColor Cyan

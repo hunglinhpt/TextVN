@@ -1,5 +1,7 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ; Script đóng gói bộ cài đặt VietIME cho Windows bằng Inno Setup 6 (WIN-054 / P1-4 §4).
+; AV/FP (RW3): hanh vi cai nay (register hidden + Run key + hook exe) bi antivirus hieu nham
+;   - phan tich + ke hoach: docs/specs/antivirus-false-positive.md
 ; Hỗ trợ cài đặt linh hoạt:
 ; - Mặc định per-user (không yêu cầu quyền Administrator — tuân thủ S5 và PLAN §3.7/§8).
 ; - Chế độ All Users (System mode) khi chạy elevated hoặc chỉ định /ALLUSERS.
