@@ -169,6 +169,18 @@ if ($hn -eq [IntPtr]::Zero) {
     $ms3 = [math]::Round($sw4.Elapsed.TotalMilliseconds, 1)
     $found = 'KHONG'; if ($ed) { $found = $which }
     Log ("notepad UIA: FromHandle=" + $ms2 + "ms Find(Edit->Document)=" + $ms3 + "ms -> $found")
+    if (-not $ed) {
+        # khong tim thay Edit/Document -> dump tree (chi cls/aId, khong log name de an toan S2)
+        $all2 = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+        $ids = @(); $exs = @()
+        foreach ($e in $all2) {
+            $cid = $e.Current.ControlType.Id
+            if ($ids -notcontains $cid) { $ids += $cid }
+            if ($exs.Count -lt 8) { $exs += ("ctId=" + $cid + " cls='" + $e.Current.ClassName + "' aId='" + $e.Current.AutomationId + "'") }
+        }
+        Log ("tree dump: count=" + $all2.Count + " ctIds=[" + ($ids -join ',') + "]")
+        foreach ($x in $exs) { Log ("  " + $x) }
+    }
     # doc truoc khi inject (Notepad co session restore -> chi so sanh DELTA)
     $len0 = -1
     if ($ed) {
