@@ -46,19 +46,36 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Đường dẫn chuẩn Linux (bổ sung `P0-3 §1` — đã có sẵn từ review Phần 2):**
+### 2.1 Đối chuẩn kiến trúc với 3 repo tham chiếu
 
-| Hạng mục | Đường dẫn |
-|---|---|
-| Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
-| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
-| Log | `~/.local/state/TextVN/log/` — không bao giờ ghi nội dung phím (S2) |
-| IBus component | `/usr/share/ibus/component/textvn.xml` + engine binary `/usr/lib/textvn/textvn-ibus-engine` |
-| Fcitx5 addon | `/usr/share/fcitx5/addon/textvn.conf` + `/usr/lib/fcitx5/libtextvn-fcitx5.so` |
-| Tray/autostart | `/usr/share/applications/textvn-settings.desktop` + `/etc/xdg/autostart/textvn-tray.desktop` (gói system) hoặc `~/.config/autostart/` (gói user) |
+Nhằm xây dựng giải pháp Linux đạt độ tin cậy và tiện dụng cao nhất, kiến trúc TextVN được đối chuẩn và kế thừa tinh hoa từ 3 dự án mã nguồn mở hàng đầu:
 
-> Quy tắc: đường dẫn system **chỉ** nằm trong spec đóng gói (`packaging/linux/`),
-> code nhận qua `--prefix`/env; đường dẫn user hardcode 1 chỗ (module paths trong crate config).
+| Dự án | Kiến trúc & Cơ chế | Điểm mạnh học hỏi | Giới hạn & Giải pháp của TextVN |
+|---|---|---|---|
+| **BambooMintKey** (`thatislg/BambooMintKey`) | Fcitx5 C-ABI Addon (`libbamboomintkey.so`), build CMake, cài đặt rootless `~/.local` hoặc system `/usr`. | • **Rootless per-user install:** cho phép dev/user cài ngay không cần `sudo`.<br>• **Script cài đặt 1 lệnh (`install_linux.sh`):** tự nhận diện distro (Ubuntu, Fedora, Arch) và tự restart `fcitx5 -r -d`.<br>• **Badge icon SVG chuẩn:** badge màu theo mode. | TextVN kế thừa trọn vẹn mô hình rootless + system dual path và script cài 1 chạm, đồng thời bổ sung adapter IBus để phủ trọn GNOME mặc định. |
+| **ibus-bamboo** (`bambooengine/ibus-bamboo`) | IBus Engine truyền thống viết bằng C/Go, hỗ trợ preedit và surrounding text mode. | • **Kỹ thuật surrounding text:** `ibus_engine_delete_surrounding_text` chuẩn xác khi app hỗ trợ.<br>• **Phân định rõ ranh giới Wayland:** ibus-bamboo ghi nhận Fcitx5 vượt trội hơn IBus trên Wayland (`text-input-v3` không lệch con trỏ). | TextVN thiết kế Fcitx5 làm adapter khuyến nghị cho Wayland (KDE/Fedora/Arch/Ubuntu Fcitx5) và IBus làm native cho GNOME Ubuntu; dùng chung core Rust FFI. |
+| **OpenKey** (`tuyenvm/OpenKey`) | Hook toàn cục (Windows: `SetWindowsHookEx`, macOS: `CGEventTap`, Linux: `XRecord`/`XTest`/`XGrabKeyboard`) + backspace simulation. | • **Thuật toán xử lý phím tiếng Việt nhanh gọn:** khôi phục từ tiếng Anh, kiểm tra chính tả. | • **Thất bại trên Wayland:** cơ chế hook toàn cục của OpenKey **hoàn toàn vô hiệu trên Wayland** do cơ chế sandbox bảo mật chặn snoop/grab phím giữa các client.<br>• **Giải pháp TextVN:** tuyệt đối **không dùng global hook trên Wayland**; đi chuẩn giao thức Input Method (Fcitx5 + IBus); X11 fallback chỉ là tiến trình riêng biệt opt-in cho game/legacy X11. |
+
+**Đường dẫn chuẩn Linux (System vs Rootless Per-User):**
+
+| Hạng mục | Đường dẫn System (`/usr`) | Đường dẫn Rootless User (`~/.local`) |
+|---|---|---|
+| Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
+| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
+| Log | `~/.local/state/TextVN/log/` | `~/.local/state/TextVN/log/` |
+| IBus component | `/usr/share/ibus/component/textvn.xml` | `~/.local/share/ibus/component/textvn.xml` |
+| IBus engine binary | `/usr/lib/textvn/textvn-ibus-engine` | `~/.local/lib/textvn/textvn-ibus-engine` |
+| Fcitx5 addon config | `/usr/share/fcitx5/addon/textvn.conf` | `~/.local/share/fcitx5/addon/textvn.conf` |
+| Fcitx5 addon `.so` | `/usr/lib/fcitx5/libtextvn-fcitx5.so` | `~/.local/lib/fcitx5/libtextvn-fcitx5.so` |
+| Icon SVG (V/E badge) | `/usr/share/icons/hicolor/scalable/apps/` | `~/.local/share/icons/hicolor/scalable/apps/` |
+| Tray/Settings desktop | `/usr/share/applications/textvn-settings.desktop` | `~/.local/share/applications/textvn-settings.desktop` |
+| Autostart desktop | `/etc/xdg/autostart/textvn-tray.desktop` | `~/.config/autostart/textvn-tray.desktop` |
+| Binaries (`textvn`, `textvn-tray`) | `/usr/bin/` | `~/.local/bin/` |
+
+> Quy tắc: Bộ cài `scripts/install_linux.sh` hỗ trợ cả 2 chế độ:
+> - Mặc định (hoặc truyền flag `--user`): cài rootless vào `~/.local/`, **không đòi hỏi quyền root / sudo**.
+> - Truyền flag `--system`: cài vào `/usr/` thông qua `sudo` hoặc package manager (`.deb`, `.rpm`, AUR).
+
 
 ## 3. Workstream & file solution
 

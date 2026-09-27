@@ -461,8 +461,6 @@ fn read_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 mod tests {
     use super::*;
 
-    fn bdbg(_s: &str) {}
-
     #[test]
     fn server_builds_valid_snapshot() {
         let temp_dir = std::env::temp_dir().join(format!("textvn_ipc_test_{}", std::process::id()));
@@ -541,154 +539,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
-    /// DEBUG ONLY (temporary): xác nhận giả thuyết write trên dup handle bị
-    /// chặn bởi ReadFile pending trên cùng kernel file object.
-    #[test]
-    #[ignore]
-    #[cfg(windows)]
-    fn debug_dup_write_while_read_pending() {
-        use std::io::{Read, Write as _};
-
-        bdbg("=== minimal repro start ===");
-
-        let server = std::thread::spawn(|| {
-            let name: Vec<u16> = r"\\.\pipe\textvn_minrepro"
-                .encode_utf16()
-                .chain(Some(0))
-                .collect();
-            let handle = unsafe {
-                CreateNamedPipeW(
-                    PCWSTR(name.as_ptr()),
-                    PIPE_ACCESS_DUPLEX,
-                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-                    1,
-                    65536,
-                    65536,
-                    0,
-                    None,
-                )
-            };
-            assert!(!handle.is_invalid(), "create pipe");
-            let connected = unsafe { ConnectNamedPipe(handle, None) };
-            assert!(connected.is_ok() || unsafe { GetLastError() } == ERROR_PIPE_CONNECTED);
-            let mut reader = unsafe { std::fs::File::from_raw_handle(handle.0 as _) };
-            let writer = reader.try_clone().unwrap();
-            bdbg("min: server connected");
-
-            let mut b = [0u8; 5];
-            let mut r1 = reader.try_clone().unwrap();
-            r1.read_exact(&mut b).unwrap();
-            bdbg("min: server read PING1");
-
-            // Write ACK truoc khi co read pending (nhu handler that)
-            let mut w1 = writer.try_clone().unwrap();
-            w1.write_all(b"ACK!!").unwrap();
-            w1.flush().ok();
-            bdbg("min: ACK written (no pending read)");
-
-            // Thread W: viet BROADCAST tren dup handle
-            let wthread = std::thread::spawn(move || {
-                let mut w = writer;
-                std::thread::sleep(std::time::Duration::from_millis(200));
-                bdbg("min: wthread writing BROADCAST");
-                let r = w.write_all(b"BROADCAST-FRAME-01234567890123456789012345");
-                bdbg(&format!(
-                    "min: wthread write done ok={} err={:?}",
-                    r.is_ok(),
-                    r.as_ref().err()
-                ));
-            });
-
-            // Handler emulation: read pending NGAY trong khi wthread write
-            bdbg("min: server starting PENDING read");
-            let mut b2 = [0u8; 5];
-            let r = reader.read(&mut b2);
-            bdbg(&format!(
-                "min: pending read returned ok={:?} err={:?}",
-                r.as_ref().ok().copied(),
-                r.as_ref().err()
-            ));
-            wthread.join().unwrap();
-            bdbg("min: server thread done");
-        });
-
-        // CLIENT (retry cho den khi server tao instance)
-        let mut c = None;
-        for _ in 0..40 {
-            if let Ok(f) = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\textvn_minrepro")
-            {
-                c = Some(f);
-                break;
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        let mut c = c.expect("client open");
-        c.write_all(b"PING1").unwrap();
-        c.flush().ok();
-        bdbg("min: client sent PING1");
-        let mut ack = [0u8; 5];
-        c.read_exact(&mut ack).unwrap();
-        bdbg(&format!(
-            "min: client got {}",
-            String::from_utf8_lossy(&ack)
-        ));
-
-        // Reader thread ghi nhan broadcast qua channel (co timeout)
-        let (tx, rx) = std::sync::mpsc::channel();
-        let mut cread = c.try_clone().unwrap();
-        std::thread::spawn(move || {
-            let mut buf = [0u8; 64];
-            loop {
-                match cread.read(&mut buf) {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        if tx.send(buf[..n].to_vec()).is_err() {
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-
-        // Ngu1s: trong do wthread co write (tu 200ms) + server co read pending
-        let before = rx.recv_timeout(std::time::Duration::from_millis(1000));
-        bdbg(&format!(
-            "min: broadcast BEFORE PING2? {:?}",
-            before
-                .as_ref()
-                .map(|v| String::from_utf8_lossy(v).into_owned())
-                .map_err(|e| format!("{e}"))
-        ));
-
-        c.write_all(b"PING2").unwrap();
-        c.flush().ok();
-        bdbg("min: client sent PING2 (unblocks server pending read)");
-
-        let mut got = Vec::new();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(3000);
-        while std::time::Instant::now() < deadline {
-            match rx.recv_timeout(std::time::Duration::from_millis(500)) {
-                Ok(v) => got.extend_from_slice(&v),
-                Err(_) => {
-                    if !got.is_empty() {
-                        break;
-                    }
-                }
-            }
-        }
-        bdbg(&format!(
-            "min: client total after PING2: {:?}",
-            String::from_utf8_lossy(&got)
-        ));
-
-        server.join().unwrap();
-        bdbg("=== minimal repro end ===");
-    }
-
     /// Broadcast phải thực sự tới được subscriber qua named pipe.
     /// Regression: WIP shutdown từng gửi Ack nhưng frame broadcast không tới
     /// client khiến hook mồ côi sau khi tray thoát.
@@ -717,11 +567,8 @@ mod tests {
             file.flush().unwrap();
 
             let ack = read_message(&mut file).expect("ack frame");
-            bdbg("client got ack");
             tx.send(ack).unwrap();
-            bdbg("client waiting broadcast");
             let update = read_message(&mut file).expect("broadcast frame");
-            bdbg("client got broadcast");
             tx.send(update).unwrap();
         });
 

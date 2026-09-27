@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component type="desktop-application">
+  <id>io.github.hunglinhpt.textvn</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>TextVN</name>
+  <summary>Vietnamese Input Method Engine for Linux (Fcitx5 &amp; IBus)</summary>
+  <description>
+    <p>
+      TextVN (LBS Viet Nam) is a high-performance, modern Vietnamese input method engine for Linux,
+      designed for flawless compatibility with Wayland and X11 across GNOME, KDE Plasma, and other desktop environments.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Support for Telex, VNI, VIQR, and customizable input methods.</li>
+      <li>First-class Wayland support via Fcitx5 (text-input-v3) without key grab issues.</li>
+      <li>Native IBus engine integration for Ubuntu GNOME desktops.</li>
+      <li>Smart application compatibility engine preventing duplicate character bugs in address bars, terminals, and games.</li>
+      <li>UniKey 4.6 RC2 classic control panel layout.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">textvn-settings.desktop</launchable>
+  <url type="homepage">https://github.com/hunglinhpt/TextVN</url>
+  <url type="bugtracker">https://github.com/hunglinhpt/TextVN/issues</url>
+  <developer_name>hunglinhpt</developer_name>
+  <provides>
+    <binary>textvn</binary>
+    <binary>textvn-tray</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-09-27">
+      <description>
+        <p>Initial release of TextVN with UniKey 4.6 RC2 UI parity and dual Fcitx5/IBus support.</p>
+      </description>
+    </release>
+  </releases>
+</component>

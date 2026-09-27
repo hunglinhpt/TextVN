@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <name>io.github.hunglinhpt.textvn</name>
+  <description>TextVN Vietnamese Input Method</description>
+  <version>0.1.0</version>
+  <license>GPL-3.0-or-later</license>
+  <author>hunglinhpt &lt;https://github.com/hunglinhpt/TextVN&gt;</author>
+  <homepage>https://github.com/hunglinhpt/TextVN</homepage>
+  <exec>/usr/lib/textvn/textvn-ibus-engine</exec>
+  <textdomain>textvn</textdomain>
+  <engines>
+    <engine>
+      <name>textvn</name>
+      <longname>Vietnamese (TextVN)</longname>
+      <description>Vietnamese Input Method (Telex, VNI, VIQR)</description>
+      <language>vi</language>
+      <license>GPL-3.0-or-later</license>
+      <author>hunglinhpt</author>
+      <icon>textvn_v</icon>
+      <layout>us</layout>
+      <symbol>VN</symbol>
+      <rank>99</rank>
+    </engine>
+  </engines>
+</component>

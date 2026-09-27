@@ -508,7 +508,8 @@ fn stop_running_instance() {
             if !h.0.is_null() {
                 println!("Found TextVN window. Requesting a graceful close...");
                 // The named-pipe request is the primary control path. It enters
-                // the app's own IPC worker, then requests exit on the tray thread.
+                // the app's own IPC worker, then requests exit on the tray thread
+                // (tray broadcast Shutdown cho Hook rồi mới PostQuitMessage).
                 if let Ok(mut stream) = std::fs::OpenOptions::new()
                     .read(true)
                     .write(true)
@@ -528,11 +529,42 @@ fn stop_running_instance() {
                     println!("TextVN window owner thread could not be resolved.");
                     return;
                 }
+
+                let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
+                // Đợi tiến trình giải phóng mutex; hết `iterations` mà vẫn giữ → false.
+                let wait_released = |iterations: u32| -> bool {
+                    for i in 0..iterations {
+                        std::thread::sleep(Duration::from_millis(100));
+                        let h_mutex =
+                            unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
+                        if let Ok(m) = h_mutex {
+                            let err = unsafe { GetLastError() };
+                            let _ = unsafe { CloseHandle(m) };
+                            if err != ERROR_ALREADY_EXISTS {
+                                println!(
+                                    "TextVN stopped successfully (after {}ms).",
+                                    (i + 1) * 100
+                                );
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                };
+
+                // Ưu tiên graceful: đợi tray tự xử lý WM_REQUEST_EXIT — broadcast
+                // Shutdown cho Hook phải chạy trước khi message loop rời đi. Gửi
+                // WM_QUIT ngay sau frame sẽ đua: quit tới trước khi IPC worker kịp
+                // đọc frame → không broadcast → Hook mồ côi tới heartbeat timeout.
+                if wait_released(20) {
+                    return;
+                }
+
                 unsafe {
-                    // Đây là command-line control path, không phải thao tác UI:
-                    // đặt WM_QUIT trực tiếp vào queue của owner thread để message
-                    // loop rời đi và chạy cleanup nội bộ. Message-only windows
-                    // không được desktop routing xử lý đáng tin cậy qua WM_CLOSE.
+                    // Command-line control path: khi graceful treo, đặt WM_QUIT
+                    // trực tiếp vào queue của owner thread để message loop rời đi
+                    // và chạy cleanup nội bộ. Message-only windows không được
+                    // desktop routing xử lý đáng tin cậy qua WM_CLOSE.
                     if let Err(error) = PostThreadMessageW(thread_id, WM_QUIT, WPARAM(0), LPARAM(0))
                     {
                         println!(
@@ -541,21 +573,8 @@ fn stop_running_instance() {
                         return;
                     }
                 }
-
-                // Chờ tối đa 3 giây xem tiến trình đã giải phóng mutex chưa
-                let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
-                for i in 0..30 {
-                    std::thread::sleep(Duration::from_millis(100));
-                    let h_mutex =
-                        unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
-                    if let Ok(m) = h_mutex {
-                        let err = unsafe { GetLastError() };
-                        let _ = unsafe { CloseHandle(m) };
-                        if err != ERROR_ALREADY_EXISTS {
-                            println!("TextVN stopped successfully (after {}ms).", (i + 1) * 100);
-                            return;
-                        }
-                    }
+                if wait_released(10) {
+                    return;
                 }
                 // `--stop` là lệnh quản trị tường minh. Nếu UI thread bị treo,
                 // không để tray/hook bị orphan vô hạn: terminate đúng PID sở hữu

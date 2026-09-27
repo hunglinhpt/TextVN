@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="v_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FCE4EC"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#880E4F" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Rounded badge background -->
+  <rect x="8" y="8" width="112" height="112" rx="24" ry="24" fill="url(#v_bg)" stroke="#C2185B" stroke-width="8" filter="url(#shadow)"/>
+  <!-- Bold letter V -->
+  <text x="64" y="93" font-family="'Segoe UI', Roboto, Ubuntu, sans-serif" font-size="82" font-weight="900" text-anchor="middle" fill="#880E4F">V</text>
+</svg>

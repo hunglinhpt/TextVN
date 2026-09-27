@@ -13,7 +13,10 @@ textvn-tray (1 instance — flock ~/.config/TextVN/tray.lock):
   menu (mirror P1-4 §1 / P2-4 §1 — 9 mục):
     Bật/Tắt gõ tiếng Việt · Chế độ gõ · Dấu · App đang gõ + Enable app này ·
     Chọn framework (ibus/fcitx5/auto — P3-2 §7) · Cài đặt… · Sức khỏe · Gỡ cài đặt… · Thoát
-  icon: pixel-art template (adwaita-compatible) — on/off/error badge
+  icon: SVG Vector badge (đối chuẩn BambooMintKey & Image 3):
+    • [V] - Crimson/Purple badge cho tiếng Việt (`textvn_v.svg`)
+    • [E] - Vibrant Blue badge cho tiếng Anh (`textvn_e.svg`)
+    Cài đặt tại `~/.local/share/icons/hicolor/scalable/apps/` (user) hoặc `/usr/share/icons/` (system).
   "Thoát" = đóng socket + dừng textvn-x11 (nếu đang chạy); KHÔNG kill daemon của desktop
 ```
 
@@ -31,19 +34,42 @@ Watcher: config/appdb/state (debounce 300ms) → broadcast ConfigReload/StateUpd
 Offline: client đọc file — không block (P0-3 §4)
 ```
 
-## 3. Settings — GTK4 (cửa sổ 1, sidebar 6 tab — parity `P1-4 §3`, `P2-4 §3`)
+## 3. Settings — GTK4 (UniKey 4.6 RC2 Parity + Advanced Tabs)
 
-| Tab | Nội dung (đối chiếu) |
-|---|---|
-| General | `enabled_default`, method, typo options, `free_marking`, `spellcheck`, language |
-| Applications | `app_overrides` + `ignore_apps` + "Thêm app đang chạy" + preset override |
-| App-compat (riêng Linux) | Bật AT-SPI (a11y), framework `ibus/fcitx5/auto`, opt-in `textvn-x11` (X11), hiện trạng thái env matrix |
-| Hotkeys | Toggle EN/VN, sửa, check conflict |
-| Update & About | Kiểm tra bản mới (§7 — **mở trang PM thay vì tự update**), changelog, export diagnostics, version |
+Giao diện bảng điều khiển chính trên Linux bằng GTK4 được thiết kế theo đúng chuẩn phong cách UniKey 4.6 RC2 (nhất quán với phiên bản Windows vừa triển khai), mang lại trải nghiệm thân thuộc nhất cho người dùng:
 
-- Sinh từ **cùng `ui-model` JSON** (ADR-004) → `docs/release/parity-checklist.md` điền đủ
-  (không bịa số control — như P1/P2).
-- Mọi thay đổi → svc layer → file → broadcast (một nguồn ghi).
+### 3.1 Chế độ Thu gọn (Compact View ~505x245px)
+- **GroupBox "Điều khiển"**:
+  - Bảng mã: Unicode (dựng sẵn), TCVN3 (ABC), VNI Windows, VIQR...
+  - Kiểu gõ: Telex, VNI, VIQR, Tự do...
+  - Nút `[...]`: Mở nhanh bảng tùy chọn mở rộng.
+  - Phím chuyển đổi: `(•) CTRL + SHIFT` hoặc `( ) ALT + Z`.
+- **Hàng nút tác vụ (Góc trên phải)**:
+  - `[ ✔ Đóng ]`: Thu nhỏ về khay hệ thống (Tray).
+  - `[ 🚪 Kết thúc ]`: Thoát hoàn toàn ứng dụng.
+  - `[ ⬇ Mở rộng ]`: Chuyển sang chế độ mở rộng đầy đủ.
+
+### 3.2 Chế độ Mở rộng (Expanded View ~505x490px)
+- **GroupBox "Tùy chọn khác"**:
+  - `[x]` Bật kiểm tra chính tả.
+  - `[x]` Tự động khôi phục phím với từ sai.
+  - `[ ]` Bật tính năng gõ tắt (Macro).
+  - `[x]` Đặt dấu tự do.
+  - `[ ]` Cho phép gõ tự do (Modern layout).
+  - `[ ]` Sử dụng OOA, EEE cho dấu nháy.
+  - `[x]` Chèn dấu tức thì (Immediate accent).
+- **GroupBox "Tùy chọn gõ tắt"**:
+  - `[x]` Cho phép gõ tắt cả khi tắt tiếng Việt.
+  - `[ ]` Sử dụng clipboard cho macro dài.
+  - `[ Bảng gõ tắt... ]`: Mở hộp thoại quản lý bảng từ viết tắt.
+- **GroupBox "Hệ thống"**:
+  - `[x]` Bật hội thoại này khi khởi động.
+  - `[x]` Khởi động cùng hệ thống (Linux autostart).
+  - `[ ]` Ẩn biểu tượng trên khay hệ thống.
+  - `[x]` Tự động kiểm tra cập nhật.
+- **Thanh chân trang (Bottom Bar)**:
+  - `[ 📖 Hướng dẫn ]`, `[ ℹ Thông tin ]` (About modal), `[ 🔄 Mặc định ]`.
+  - Hyperlink dẫn tới repo chính thức: `https://github.com/hunglinhpt/TextVN`.
 
 ## 4. IPC/state/health (mirror `P2-4 §6`)
 
@@ -55,25 +81,35 @@ tray check 10s: heartbeat cũ >15s → hiện "Engine chưa hoạt động" + n�
 Shutdown tray: đóng socket; client nhận EOF → offline mode (không mất gõ)
 ```
 
-## 5. Cài đặt & gỡ — `.deb` (primary)
+## 5. Cài đặt & Phân phối (Distribution & Packaging)
 
-```text
-textvn_1.x.y_amd64.deb
-  /usr/share/ibus/component/textvn.xml          + /usr/lib/textvn/textvn-ibus-engine
-  /usr/share/fcitx5/addon/textvn.conf           + /usr/lib/fcitx5/libtextvn-fcitx5.so
-  /usr/bin/textvn (CLI), /usr/bin/textvn-x11, /usr/lib/textvn/textvn-tray
-  /usr/share/applications/textvn-settings.desktop
-  /usr/lib/systemd/user/textvn-tray.service
-  /usr/share/doc/textvn/{README,compat,security}…
-  /usr/share/metainfo/textvn.appdata.xml        (AppStream — required for good distros)
+TextVN trên Linux cung cấp hai phương thức cài đặt độc lập và bổ trợ:
 
-postinst: ibus restart (ignore fail nếu không chạy); systemctl --global enable textvn-tray
-           ; update-desktop-database; update-mime-database (nếu có)
-prerm/postrm: ibus restart; systemctl --global disable; xóa mọi file đã cài
-gỡ sạch: 0 residue system (P3-6 §6 script check)
-config user: KHÔNG đụng khi gỡ (giữ — S9); chỉ `purge` hỏi (textvn purge --yes xóa
-             ~/.config/TextVN + ~/.local/state/TextVN sau khi xác nhận)
-```
+### 5.1 Cài đặt nhanh 1 lệnh không cần Root (`scripts/install_linux.sh` — đối chuẩn BambooMintKey)
+- Cài đặt rootless trực tiếp vào `~/.local/`:
+  - `~/.local/lib/textvn/textvn-ibus-engine`
+  - `~/.local/lib/fcitx5/libtextvn-fcitx5.so`
+  - `~/.local/share/fcitx5/addon/textvn.conf`
+  - `~/.local/share/ibus/component/textvn.xml`
+  - `~/.local/share/icons/hicolor/scalable/apps/textvn_{v,e}.svg`
+  - `~/.local/share/applications/textvn-settings.desktop`
+  - `~/.config/autostart/textvn-tray.desktop`
+- Tự động nhận diện distro (`Ubuntu/Debian`, `Fedora/RHEL`, `Arch/Manjaro`), kiểm tra và hướng dẫn cài dependencies thiếu.
+- Tự động phát hiện daemon đang hoạt động và nạp lại cấu hình:
+  - Nếu Fcitx5: gọi `fcitx5 -r -d`
+  - Nếu IBus: gọi `ibus restart`
+- Script gỡ bỏ sạch sẽ: `scripts/uninstall_linux.sh` (xóa toàn bộ file khỏi `~/.local/` mà không để lại rác).
+
+### 5.2 Đóng gói cấp Hệ thống (Package Managers)
+- **Debian / Ubuntu (`.deb`)**:
+  - Biên dịch với debhelper, cài vào `/usr/share/` và `/usr/lib/`.
+  - `postinst`: kích hoạt systemd user unit, `update-desktop-database`, `ibus restart`.
+- **Fedora / RHEL / openSUSE (`.rpm`)**:
+  - File spec đóng gói chuẩn RPM.
+- **Arch Linux (AUR `PKGBUILD`)**:
+  - Gói `textvn-git` hoặc `textvn-bin` phân phối qua Arch User Repository.
+- **AppStream Metainfo**:
+  - File `/usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml` cho GNOME Software và KDE Discover.
 
 ## 6. `textvn doctor` (bản Linux — `PLAN §5.3`)
 

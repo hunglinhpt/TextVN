@@ -10,8 +10,9 @@
 |---|---|---|---|---|---|---|
 | **Review 1 — Đúng & Đủ** | P3-0…P3-7 vs PLAN/P0/ADR + cross-part | 12 | 0 | 3 | 9 | ✅ 12/12 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng** | Tham chiếu chéo, nhãn nhóm/milestone, enum schema, placeholder | 3 | 0 | 2 | 1 | ✅ 3/3 đã fix |
+| **Review 3 — Đối chuẩn 3 Repo** | BambooMintKey, ibus-bamboo, OpenKey + UniKey UI Parity | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 
-**→ Phần 3 đạt 2/2 review.** 0 `blocker`/`major` mở.
+**→ Phần 3 đạt 3/3 review (đối chuẩn toàn diện).** 0 `blocker`/`major` mở.
 
 ---
 
@@ -39,6 +40,14 @@
 | F3-013 | major | `inject_mode` enum (`P0-3 §2.1`) không có `keycode_ascii` (P3-3 §5.4/P3-4 §3 dùng) + ghi "(chỉ adapter hook dùng)" nhưng hook/tap/x11 đều dùng | ✅ Fixed | Enum += `keycode_ascii` (trỏ `P3-3 §5.4`); sửa mô tả thành "adapter inject: hook/tap/x11" |
 | F3-014 | major | `P3-7` đánh dấu nhóm task `L0–L6` **đụng namespace milestone `L0–L5`** của `P3-0 §4` (khác nội dung) + module X11 không xuất hiện trong bảng milestone | ✅ Fixed | Đổi nhãn nhóm → `T0–T6` + bảng ánh xạ T↔L ở đầu `P3-7`; `P3-0 §4` thêm "X11 fallback opt-in (LNX-040..044)" vào L2 |
 | F3-015 | minor | `00-INDEX §4` dòng Config/Socket Linux tham chiếu thừa `30-macos/P2-0` | ✅ Fixed | Chỉ trỏ `40-linux/P3-0 §2` |
+
+## Review 3 — Đối chuẩn 3 Repo Tham chiếu (BambooMintKey, ibus-bamboo, OpenKey) & Parity UniKey
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F3-016 | major | Thiếu cơ chế cài đặt rootless không cần `sudo` (`~/.local/`), chỉ có `/usr/` trong spec đóng gói → user thông thường hoặc máy hạn chế quyền không cài được | ✅ Fixed | Bổ sung bảng đường dẫn Rootless `~/.local/` song song `/usr/` (`P3-0 §2.1`); bổ sung `scripts/install_linux.sh` và `scripts/uninstall_linux.sh` (LNX-054). |
+| F3-017 | major | Thiếu phân tích kiến trúc lý giải vì sao mô hình hook của OpenKey sụp đổ trên Wayland và vì sao Fcitx5 vượt trội hơn IBus trên Wayland (`text-input-v3`) | ✅ Fixed | Bổ sung phân tích kiến trúc đối chuẩn 3 repo vào `P3-0 §2.1`, `P3-2 §2`, `P3-3 §1`. |
+| F3-018 | major | Settings GTK4 chưa có chuẩn layout UniKey 4.6 RC2 Compact/Expanded đồng bộ với Windows và chưa có quy chuẩn SVG icon badges theo màu chuẩn (Image 3) | ✅ Fixed | Quy chuẩn hóa layout Compact (~505x245px) và Expanded (~505x490px) trong `P3-5 §3`, `P3-7 LNX-050/LNX-052`, icon `textvn_v.svg` (crimson/purple) và `textvn_e.svg` (vibrant blue). |
 
 ## Kiểm chứng sau fix (Review 2 cuối)
 

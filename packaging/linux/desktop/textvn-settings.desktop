@@ -1,0 +1,15 @@
+[Desktop Entry]
+# SPDX-License-Identifier: GPL-3.0-or-later
+Name=TextVN
+Name[vi]=TextVN - Bộ gõ Tiếng Việt
+Comment=Vietnamese Input Method Settings & Control Panel
+Comment[vi]=Bảng điều khiển và cài đặt bộ gõ tiếng Việt TextVN
+Exec=textvn-tray --settings
+Icon=textvn_v
+Terminal=false
+Type=Application
+Categories=Settings;Utility;TextTools;
+Keywords=Vietnamese;IME;Input;Telex;VNI;UniKey;
+StartupNotify=true
+StartupWMClass=textvn-tray
+X-GNOME-UsesNotifications=true

@@ -20,25 +20,31 @@
 
 ```
 adapters/linux-fcitx5/
-├── CMakeLists.txt                  # find_package(Fcitx5Core REQUIRED) + pkg-config glib
+├── CMakeLists.txt                  # find_package(Fcitx5Core REQUIRED) + C-ABI linking
 ├── src/
 │   ├── addon.cpp                    # AddonInstance "textvn": đọc config, tạo engine factory
-│   ├── engine.cpp                   # InputMethodEngine (keyEvent/reset/activateEvent/focusEvent)
-│   ├── keymap.cpp                   # fcitx::Key → ime_key_v1 (chung khung với P3-1 §5.1)
+│   ├── engine.cpp                   # InputMethodEngineV2 (keyEvent/reset/activateEvent/focusEvent)
+│   ├── keymap.cpp                   # fcitx::Key → ime_key_v1 (xkbcommon mapping)
 │   ├── apply.cpp                    # §5 — preedit/commit/surrounding (dùng linux-common helpers)
 │   └── instance_map.cpp             # IC* → ime_instance* (§3)
-├── conf/textvn.conf.in             # addon descriptor cho fcitx5 (/usr/share/fcitx5/addon/)
-├── conf/textvn.inputmethod?        # nếu cần đăng ký IM — verify ở spike LNX-006
+├── conf/textvn.conf.in             # addon descriptor (/usr/share/fcitx5/addon/ hoặc ~/.local/share/fcitx5/addon/)
+├── icons/                          # SVG icon badge (Image 3: crimson V, blue E)
+│   ├── textvn_v.svg                # [V] badge
+│   └── textvn_e.svg                # [E] badge
 └── tests/                           # unit keymap + instance lifecycle (link mock fcitx5 API)
 ```
 
 - **Không** phụ thuộc IBus (2 addon song song, loại trừ nhau qua env/`textvn doctor` — `P3-4 §7`).
+- **Ưu điểm Wayland (đối chuẩn BambooMintKey & ibus-bamboo):** Fcitx5 giao tiếp trực tiếp qua giao thức `text-input-v3` / `wayland-im`, giúp hiển thị preedit bám sát con trỏ văn bản, không bị lỗi cursor drift hay mất phím như các bộ gõ phụ thuộc vào IBus trên một số bản GNOME Wayland cũ.
 
-## 3. Vòng đời
+## 3. Vòng đời (System & Rootless Per-User)
 
 ```text
-cài .deb → /usr/share/fcitx5/addon/textvn.conf + /usr/lib/fcitx5/libtextvn-fcitx5.so
-fcitx5 khởi động → load addon → textvn::AddonInstance init:
+Cài đặt System (/usr):
+  /usr/share/fcitx5/addon/textvn.conf + /usr/lib/fcitx5/libtextvn-fcitx5.so
+Cài đặt Rootless User (~/.local):
+  ~/.local/share/fcitx5/addon/textvn.conf + ~/.local/lib/fcitx5/libtextvn-fcitx5.so
+fcitx5 khởi động (hoặc hot-reload qua `fcitx5 -r -d`) → load addon → textvn::AddonInstance init:
   1. EngineShared.ensure(): đọc config 1 lần (cache qua FileWatcher — P3-5 §3)
   2. ipc connect → GetSnapshot (offline nếu tray chưa mở — P0-3 §4)
 focusIn(ic) / activate(ic):

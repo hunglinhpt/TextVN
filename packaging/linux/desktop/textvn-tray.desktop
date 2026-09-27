@@ -1,0 +1,14 @@
+[Desktop Entry]
+# SPDX-License-Identifier: GPL-3.0-or-later
+Name=TextVN Tray
+Comment=TextVN System Tray Indicator & IPC Service
+Comment[vi]=Dịch vụ khay hệ thống TextVN
+Exec=textvn-tray
+Icon=textvn_v
+Terminal=false
+Type=Application
+Categories=Utility;
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel
+StartupNotify=false
+NoDisplay=true

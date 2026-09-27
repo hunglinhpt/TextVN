@@ -145,24 +145,28 @@ Hotkey `Ctrl+Shift+Space` (parity 3 OS — ADR-011).
 
 ## T5 — Tray / Settings / Packaging (tuần 11–14)
 
-### LNX-050 · Tray SNI + menu 9 mục + single instance (M) — `P3-5 §1`
-- **Acceptance:** 9/9; instance thứ 2 → hiện cửa sổ đang mở; có systemd lẫn không systemd đều chạy được.
+### LNX-050 · Tray SNI + menu 9 mục + SVG Badges (M) — `P3-5 §1`
+- **Acceptance:** 9/9 mục menu; instance thứ 2 → hiện cửa sổ đang mở; SVG icons `textvn_v.svg` (crimson/purple) và `textvn_e.svg` (vibrant blue) hiển thị sắc nét trên cả X11 và Wayland; có systemd lẫn không systemd đều chạy được.
 
 ### LNX-051 · IPC server + watcher + health (L) — `P3-5 §2/§4`
 - **Acceptance:** `textvn ipc probe` thấy 3 client; kill engine → hiện lỗi + restart được.
 
-### LNX-052 · Settings GTK4 6 tab + parity checklist (L) — `P3-5 §3`
-- **Acceptance:** `docs/release/parity-checklist.md` đủ PLAN §2.3 (M6) + §8; debounce 300ms.
+### LNX-052 · Settings GTK4: UniKey 4.6 RC2 Parity + Compact/Expanded Layout (L) — `P3-5 §3`
+- **Acceptance:** Giao diện GTK4 tái hiện chuẩn xác bố cục UniKey 4.6 RC2:
+  - Compact mode (~505x245px) với GroupBox "Điều khiển", Bảng mã, Kiểu gõ, Phím chuyển `Ctrl+Shift` / `Alt+Z`, 3 nút góc trên phải `[ ✔ Đóng ]`, `[ 🚪 Kết thúc ]`, `[ ⬇ Mở rộng ]`.
+  - Expanded mode (~505x490px) với "Tùy chọn khác", "Tùy chọn gõ tắt" (kèm Macro table dialog), "Hệ thống", thanh chân trang `[ 📖 Hướng dẫn ]`, `[ ℹ Thông tin ]`, `[ 🔄 Mặc định ]`, link repo `TextVN`.
+  - Đồng bộ cấu hình thời gian thực qua IPC unix socket; debounce 300ms.
 
 ### LNX-053 · systemd user unit + config init + hot-reload (M)
 - **Acceptance:** `systemctl --global enable` từ postinst; sửa config tay → <1s; file sai → giữ bản cũ + warning.
 
-### LNX-054 · `.deb` cài/gỡ sạch (L) — `P3-5 §5`
-- **Acceptance:** Ubuntu VM: cài → thêm input source → gỡ = 0 residue system
-  (`packaging/linux/uninstall-check.sh`); config giữ khi remove (S9).
+### LNX-054 · Cài đặt Rootless 1 lệnh (`install_linux.sh`) & Đóng gói `.deb` (L) — `P3-5 §5`
+- **Acceptance:**
+  - `scripts/install_linux.sh` (đối chuẩn BambooMintKey): tự nhận diện distro, biên dịch và cài rootless vào `~/.local/` không cần `sudo`, tự restart Fcitx5/IBus; `scripts/uninstall_linux.sh` dọn sạch 100%.
+  - Gói `.deb` (system): cài vào `/usr` qua `dpkg -i` trên Ubuntu VM sạch, gỡ sạch 0 residue system (`packaging/linux/uninstall-check.sh`); config user giữ nguyên khi remove (S9).
 
 ### LNX-055 · `doctor` full (M) — `P3-5 §6`
-- **Acceptance:** 6 hạng mục; `--export` không text content (grep test).
+- **Acceptance:** 6 hạng mục (env, session, framework daemon, at-spi a11y, socket, version); `--export` không text content (grep test).
 
 ### LNX-056 · Update-notify + `.rpm` + AUR (M) — `P3-5 §7/§8`
 - **Acceptance:** notify đúng version + mở trang; `dnf install` pass (Fedora VM);
