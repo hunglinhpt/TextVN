@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use vietime_appdb::{AppDb, EngineOwner};
 use vietime_ffi::{
-    ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_result_v1,
-    ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
+    ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reload_config,
+    ime_result_v1, ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
 };
 use vietime_field_detect::{FieldContext, SecurityState};
 
@@ -59,12 +59,33 @@ pub struct HookEngine {
 
 impl HookEngine {
     pub fn new() -> Result<Self, i32> {
+        Self::new_with_config("")
+    }
+
+    pub fn new_with_config(config_json: &str) -> Result<Self, i32> {
         let mut instance = std::ptr::null_mut();
-        let status = ime_instance_new(std::ptr::null(), 0, &mut instance);
+        let (ptr, len) = if config_json.is_empty() {
+            (std::ptr::null(), 0)
+        } else {
+            (config_json.as_ptr(), config_json.len())
+        };
+        let status = ime_instance_new(ptr, len, &mut instance);
         if instance.is_null() {
             return Err(status);
         }
         Ok(Self { instance })
+    }
+
+    pub fn reload_config(&mut self, config_json: &str) -> Result<(), i32> {
+        if self.instance.is_null() {
+            return Err(-1);
+        }
+        let status = ime_reload_config(self.instance, config_json.as_ptr(), config_json.len());
+        if status == IME_OK {
+            Ok(())
+        } else {
+            Err(status)
+        }
     }
 
     /// Chỉ forward result transform cho injection layer. FFI error hoặc flag

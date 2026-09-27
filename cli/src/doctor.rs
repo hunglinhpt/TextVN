@@ -97,8 +97,10 @@ pub fn collect_report() -> DoctorReport {
 
     let data_dir_exists = PathBuf::from("data").is_dir();
     let pipe_listening = check_pipe_listening();
-    let hook_running = check_process_running("vietime-hook.exe");
-    let tray_running = check_process_running("vietime-tray.exe");
+    let hook_running =
+        check_process_running("textvn-hook.exe") || check_process_running("vietime-hook.exe");
+    let tray_running =
+        check_process_running("TextVN.exe") || check_process_running("vietime-tray.exe");
     let tip_registered = check_tip_registered();
 
     DoctorReport {
@@ -120,7 +122,7 @@ pub fn collect_report() -> DoctorReport {
 
 impl DoctorReport {
     pub fn print_text(&self) {
-        println!("VietIME doctor (Windows)");
+        println!("TextVN doctor (Windows)");
         println!(
             "  ABI         : key={} result={} context={} (kỳ vọng 20/532) — {}",
             self.key_size,
@@ -147,7 +149,7 @@ impl DoctorReport {
         println!(
             "  IPC pipe    : {}",
             if self.pipe_listening {
-                "đang lắng nghe (\\.\\pipe\\vietime-ipc-v1)"
+                r"đang lắng nghe (\\.\pipe\textvn-ipc-v1)"
             } else {
                 "chưa kết nối (tray chưa chạy)"
             }
@@ -296,16 +298,24 @@ fn collect_log_tail(max_lines: usize) -> String {
 pub fn config_path() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("APPDATA").map(|p| PathBuf::from(p).join("VietIME").join("config.json"))
+        std::env::var_os("APPDATA").map(|p| {
+            let primary = PathBuf::from(&p).join("TextVN").join("config.json");
+            let legacy = PathBuf::from(&p).join("VietIME").join("config.json");
+            if !primary.exists() && legacy.exists() {
+                legacy
+            } else {
+                primary
+            }
+        })
     }
     #[cfg(target_os = "macos")]
     {
         std::env::var_os("HOME")
-            .map(|h| PathBuf::from(h).join("Library/Application Support/VietIME/config.json"))
+            .map(|h| PathBuf::from(h).join("Library/Application Support/TextVN/config.json"))
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/VietIME/config.json"))
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/TextVN/config.json"))
     }
 }
 
@@ -324,8 +334,13 @@ fn check_pipe_listening() -> bool {
         OpenOptions::new()
             .read(true)
             .write(true)
-            .open(r"\\.\pipe\vietime-ipc-v1")
+            .open(r"\\.\pipe\textvn-ipc-v1")
             .is_ok()
+            || OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(r"\\.\pipe\vietime-ipc-v1")
+                .is_ok()
     }
     #[cfg(not(windows))]
     {

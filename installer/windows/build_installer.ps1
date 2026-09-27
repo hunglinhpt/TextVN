@@ -13,7 +13,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $RepoRoot = Resolve-Path "$ScriptDir\..\.."
 Set-Location $RepoRoot
 
-Write-Host "=== VietIME Windows Installer Builder ===" -ForegroundColor Cyan
+Write-Host "=== TextVN Windows Installer Builder ===" -ForegroundColor Cyan
 Write-Host "Repo Root: $RepoRoot"
 Write-Host "Build Profile: $Profile"
 
@@ -35,9 +35,9 @@ if (-not $SkipBuild) {
 Write-Host "`n[2/3] Checking artifacts..." -ForegroundColor Yellow
 $TargetDir = Join-Path $RepoRoot "target\$Profile"
 $RequiredFiles = @(
-    "vietime.exe",
-    "vietime-tray.exe",
-    "vietime-hook.exe",
+    "TextVN.exe",
+    "textvn-hook.exe",
+    "textvn-cli.exe",
     "vietime_win_tsf.dll"
 )
 
@@ -71,7 +71,7 @@ foreach ($path in $IsccPaths) {
     }
 }
 
-$IssScript = Join-Path $ScriptDir "vietime-setup.iss"
+$IssScript = Join-Path $ScriptDir "TextVN-setup.iss"
 
 if ($FoundIscc) {
     Write-Host "Compiling installer using: $FoundIscc" -ForegroundColor Green
@@ -88,11 +88,10 @@ if ($FoundIscc) {
 }
 
 # 4. Release gate (AV-3): in SHA256 cua installer de submit scan truoc khi publish
-# (xem docs/specs/antivirus-false-positive.md - RW3)
-$SetupPath = Join-Path $RepoRoot "target\installer\vietime-setup-0.1.0.exe"
+$SetupPath = Join-Path $RepoRoot "dist\TextVN-setup-0.1.0-windows-x64.exe"
 if (Test-Path $SetupPath) {
     $setupHash = (Get-FileHash -Path $SetupPath -Algorithm SHA256).Hash
-    Write-Host "`n[AV-3] SHA256 vietime-setup-0.1.0.exe:" -ForegroundColor Cyan
+    Write-Host "`n[AV-3] SHA256 TextVN-setup-0.1.0-windows-x64.exe:" -ForegroundColor Cyan
     Write-Host "  $setupHash"
 }
 

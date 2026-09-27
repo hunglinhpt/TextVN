@@ -27,7 +27,7 @@ use windows::Win32::Storage::FileSystem::*;
 #[cfg(windows)]
 use windows::Win32::System::Pipes::*;
 
-pub const PIPE_NAME: &str = r"\\.\pipe\vietime-ipc-v1";
+pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
 /// Kênh gửi message broadcast tới một client đã Subscribe.
 struct ClientSink {
@@ -104,6 +104,12 @@ impl IpcServer {
             enabled,
             version,
         };
+        self.broadcast_message(&msg);
+    }
+
+    /// Broadcast thông báo tắt ứng dụng tới toàn bộ client (Hook, TSF).
+    pub fn broadcast_shutdown(&self) {
+        let msg = Message::Shutdown;
         self.broadcast_message(&msg);
     }
 

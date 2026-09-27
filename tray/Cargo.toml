@@ -7,7 +7,7 @@ license.workspace = true
 publish = false
 
 [[bin]]
-name = "vietime-tray"
+name = "TextVN"
 path = "src/main.rs"
 
 [dependencies]

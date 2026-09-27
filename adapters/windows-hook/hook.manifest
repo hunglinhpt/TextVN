@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-  <assemblyIdentity type="win32" name="VietIME.Hook" version="0.1.0.0" processorArchitecture="*"/>
-  <description>VietIME Keyboard Hook Engine</description>
+  <assemblyIdentity type="win32" name="TextVN.Hook" version="0.1.0.0" processorArchitecture="*"/>
+  <description>TextVN Keyboard Hook Engine (LBS Viet Nam)</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>

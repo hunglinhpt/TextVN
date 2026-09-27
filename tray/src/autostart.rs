@@ -15,9 +15,10 @@ use windows::Win32::Foundation::*;
 use windows::Win32::System::Registry::*;
 
 pub const RUN_KEY_PATH: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-pub const APP_RUN_VALUE_NAME: &str = "VietIME";
+pub const APP_RUN_VALUE_NAME: &str = "TextVN";
+pub const LEGACY_APP_RUN_VALUE_NAME: &str = "VietIME";
 
-/// Kiểm tra xem VietIME có đang được cấu hình tự khởi động cùng Windows không.
+/// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng Windows không.
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     #[cfg(windows)]
     {
@@ -35,11 +36,12 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
                 return Ok(false);
             }
 
-            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let mut val_type = REG_VALUE_TYPE::default();
             let mut data_len = 0u32;
 
-            let query_status = RegQueryValueExW(
+            // Kiểm tra key TextVN trước
+            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
+            let mut query_status = RegQueryValueExW(
                 hkey,
                 PCWSTR(val_name_wide.as_ptr()),
                 None,
@@ -47,6 +49,19 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
                 None,
                 Some(&mut data_len),
             );
+
+            // Fallback kiểm tra key legacy VietIME
+            if query_status != ERROR_SUCCESS {
+                let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
+                query_status = RegQueryValueExW(
+                    hkey,
+                    PCWSTR(legacy_name_wide.as_ptr()),
+                    None,
+                    Some(&mut val_type),
+                    None,
+                    Some(&mut data_len),
+                );
+            }
 
             let _ = RegCloseKey(hkey);
 
@@ -139,6 +154,9 @@ pub fn disable_autostart() -> std::result::Result<(), String> {
 
             let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
             let del_status = RegDeleteValueW(hkey, PCWSTR(val_name_wide.as_ptr()));
+            // Cũng xóa key cũ VietIME nếu còn tồn tại
+            let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
+            let _ = RegDeleteValueW(hkey, PCWSTR(legacy_name_wide.as_ptr()));
             let _ = RegCloseKey(hkey);
 
             if del_status != ERROR_SUCCESS && del_status != ERROR_FILE_NOT_FOUND {
@@ -170,16 +188,17 @@ mod tests {
             RUN_KEY_PATH,
             r"Software\Microsoft\Windows\CurrentVersion\Run"
         );
-        assert_eq!(APP_RUN_VALUE_NAME, "VietIME");
+        assert_eq!(APP_RUN_VALUE_NAME, "TextVN");
+        assert_eq!(LEGACY_APP_RUN_VALUE_NAME, "VietIME");
     }
 
     #[test]
     fn autostart_command_string_formatting() {
-        let fake_path = PathBuf::from(r"C:\Program Files\VietIME\vietime-tray.exe");
+        let fake_path = PathBuf::from(r"C:\Program Files\TextVN\TextVN.exe");
         let cmd = format!("\"{}\" --autostart", fake_path.display());
         assert_eq!(
             cmd,
-            r#""C:\Program Files\VietIME\vietime-tray.exe" --autostart"#
+            r#""C:\Program Files\TextVN\TextVN.exe" --autostart"#
         );
     }
 }

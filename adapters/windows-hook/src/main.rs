@@ -10,6 +10,8 @@
 #[cfg(windows)]
 mod hook_app {
     use std::cell::RefCell;
+    use std::fs::OpenOptions;
+    use std::io::{Read, Write};
     use std::path::Path;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::Arc;
@@ -18,6 +20,7 @@ mod hook_app {
     use vietime_appdb::AppDb;
     use vietime_ffi::{ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
     use vietime_field_detect::SecurityState;
+    use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
     use vietime_strategy::IME_FIELD_BODY;
     use vietime_win_hook::{
         CallbackDecision, EngineOutcome, HookEngine, HookMode, HookState, KeyEvent,
@@ -38,19 +41,41 @@ mod hook_app {
     static OTHER_KEY_DOWN: AtomicBool = AtomicBool::new(false);
     static LAST_TOGGLE_MS: AtomicU64 = AtomicU64::new(0);
 
+    static GLOBAL_ENABLED: AtomicBool = AtomicBool::new(true);
+    static RELOAD_CONFIG_PENDING: AtomicBool = AtomicBool::new(false);
+    static HOOK_MAIN_THREAD_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+    fn load_user_config() -> Option<String> {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            let p = std::path::PathBuf::from(&appdata).join("TextVN").join("config.json");
+            if p.exists() {
+                return std::fs::read_to_string(p).ok();
+            }
+            let old_p = std::path::PathBuf::from(&appdata).join("VietIME").join("config.json");
+            if old_p.exists() {
+                return std::fs::read_to_string(old_p).ok();
+            }
+        }
+        None
+    }
+
     fn trigger_global_toggle() {
         std::thread::spawn(|| {
             use std::io::Write;
             use vietime_ipc::{encode_frame, Message};
-            if let Ok(mut stream) = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\vietime-ipc-v1")
-            {
-                let msg = Message::ToggleGlobal;
-                if let Ok(frame) = encode_frame(&msg) {
-                    let _ = stream.write_all(&frame);
-                    let _ = stream.flush();
+            let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\vietime-ipc-v1"];
+            for &p in &pipe_names {
+                if let Ok(mut stream) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(p)
+                {
+                    let msg = Message::ToggleGlobal;
+                    if let Ok(frame) = encode_frame(&msg) {
+                        let _ = stream.write_all(&frame);
+                        let _ = stream.flush();
+                    }
+                    break;
                 }
             }
         });
@@ -71,17 +96,34 @@ mod hook_app {
         static HOOK_CTX: RefCell<Option<GlobalHookContext>> = const { RefCell::new(None) };
     }
 
-    /// Entry point chính của `vietime-hook.exe`.
+    /// Entry point chính của `textvn-hook.exe`.
     pub fn run() -> Result<()> {
-        let now = Instant::now();
-        let engine = match HookEngine::new() {
-            Ok(e) => e,
+        let mutex_name_wide: Vec<u16> = r"Local\TextVNHookMutex"
+            .encode_utf16()
+            .chain(Some(0))
+            .collect();
+        let mutex_handle = unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
+        let mutex = match mutex_handle {
+            Ok(h) => h,
             Err(_) => return Ok(()),
         };
+        if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+            let _ = unsafe { CloseHandle(mutex) };
+            return Ok(());
+        }
 
-        // Khởi tạo state ban đầu với appdb mặc định nếu có
+        HOOK_MAIN_THREAD_ID.store(unsafe { GetCurrentThreadId() }, Ordering::Release);
+
+        let now = Instant::now();
+        let engine = if let Some(ref json) = load_user_config() {
+            HookEngine::new_with_config(json).unwrap_or_else(|_| HookEngine::new().unwrap())
+        } else {
+            HookEngine::new().unwrap()
+        };
+
+        // Khởi tạo state ban đầu; mặc định HookMode::Always để gõ ngay lập tức trên bản portable
         let appdb = load_default_appdb();
-        let state = HookState::new("unknown.exe", 0, HookMode::Auto, Duration::ZERO);
+        let state = HookState::new("unknown.exe", 0, HookMode::Always, Duration::ZERO);
 
         HOOK_CTX.with(|cell| {
             *cell.borrow_mut() = Some(GlobalHookContext {
@@ -133,6 +175,8 @@ mod hook_app {
             }
         });
 
+        let _ = unsafe { CloseHandle(mutex) };
+
         Ok(())
     }
 
@@ -152,6 +196,17 @@ mod hook_app {
         // 1. Loop guard: bỏ qua phím do phần mềm tự inject (LLKHF_INJECTED = 0x01)
         if (kbd.flags.0 & 0x01) != 0 || IN_INJECTION.load(Ordering::Acquire) {
             return CallNextHookEx(None, code, wparam, lparam);
+        }
+
+        // Tự động nạp lại config nếu có thông báo từ IPC hoặc file thay đổi
+        if RELOAD_CONFIG_PENDING.swap(false, Ordering::AcqRel) {
+            if let Some(cfg) = load_user_config() {
+                HOOK_CTX.with(|cell| {
+                    if let Some(ctx) = cell.borrow_mut().as_mut() {
+                        let _ = ctx.engine.reload_config(&cfg);
+                    }
+                });
+            }
         }
 
         let vk = kbd.vkCode;
@@ -199,6 +254,11 @@ mod hook_app {
             if !CTRL_DOWN.load(Ordering::Acquire) && !SHIFT_DOWN.load(Ordering::Acquire) {
                 OTHER_KEY_DOWN.store(false, Ordering::Release);
             }
+        }
+
+        // Nếu bộ gõ đang ở chế độ Tiếng Anh (off), không can thiệp, chuyển ngay cho OS
+        if !GLOBAL_ENABLED.load(Ordering::Acquire) {
+            return CallNextHookEx(None, code, wparam, lparam);
         }
 
         // 2. Chỉ xử lý khi key down (WM_KEYDOWN hoặc WM_SYSKEYDOWN)
@@ -456,19 +516,125 @@ mod hook_app {
         }
     }
 
-    /// Vòng lặp IPC Heartbeat: gửi Ping, nhận Pong, kiểm tra orphan timeout (WIN-040).
+    /// Vòng lặp IPC Heartbeat: kết nối pipe tới Tray, nhận Snapshot, StateUpdate, ConfigReload, Shutdown (WIN-040).
     fn run_ipc_heartbeat_loop(running: Arc<AtomicBool>) {
+        let pid = std::process::id();
+        let pipe_names = [r"\\.\pipe\textvn-ipc-v1", r"\\.\pipe\vietime-ipc-v1"];
+
         while running.load(Ordering::Acquire) {
-            std::thread::sleep(Duration::from_secs(5));
-            HOOK_CTX.with(|cell| {
-                let mut borrow = cell.borrow_mut();
-                if let Some(ctx) = borrow.as_mut() {
-                    let now_dur = ctx.start_time.elapsed();
-                    // Giả lập nhận heartbeat pong để giữ hook sống nếu tray chưa bật
-                    ctx.state.on_pong(now_dur);
+            let mut stream_opt = None;
+            for name in &pipe_names {
+                if let Ok(s) = OpenOptions::new().read(true).write(true).open(name) {
+                    stream_opt = Some(s);
+                    break;
                 }
-            });
+            }
+
+            match stream_opt {
+                Some(mut stream) => {
+                    let hello = Message::Hello {
+                        pid,
+                        abi: vietime_ffi::IME_ABI_VERSION,
+                        version: env!("CARGO_PKG_VERSION").into(),
+                    };
+                    if send_message(&mut stream, &hello).is_err() {
+                        std::thread::sleep(Duration::from_millis(500));
+                        continue;
+                    }
+
+                    let sub = Message::Subscribe { pid };
+                    if send_message(&mut stream, &sub).is_err() {
+                        std::thread::sleep(Duration::from_millis(500));
+                        continue;
+                    }
+
+                    while running.load(Ordering::Acquire) {
+                        match read_next_message(&mut stream) {
+                            Ok(msg) => match msg {
+                                Message::ConfigReload { .. } => {
+                                    RELOAD_CONFIG_PENDING.store(true, Ordering::Release);
+                                }
+                                Message::Snapshot { ref state, .. } => {
+                                    if let Some(&enabled) = state.get("*") {
+                                        GLOBAL_ENABLED.store(enabled, Ordering::Release);
+                                    }
+                                    RELOAD_CONFIG_PENDING.store(true, Ordering::Release);
+                                }
+                                Message::StateUpdate {
+                                    ref app_id,
+                                    enabled,
+                                    ..
+                                } => {
+                                    if app_id == "*" {
+                                        GLOBAL_ENABLED.store(enabled, Ordering::Release);
+                                    }
+                                }
+                                Message::Shutdown => {
+                                    running.store(false, Ordering::Release);
+                                    let tid = HOOK_MAIN_THREAD_ID.load(Ordering::Acquire);
+                                    if tid != 0 {
+                                        unsafe {
+                                            let _ = PostThreadMessageW(
+                                                tid,
+                                                WM_QUIT,
+                                                WPARAM(0),
+                                                LPARAM(0),
+                                            );
+                                        }
+                                    }
+                                    return;
+                                }
+                                Message::Ping => {
+                                    let pong = Message::Pong { uptime_ms: 0 };
+                                    let _ = send_message(&mut stream, &pong);
+                                }
+                                _ => {}
+                            },
+                            Err(_) => {
+                                // Mất kết nối hoặc tray đóng pipe
+                                break;
+                            }
+                        }
+                    }
+                }
+                None => {
+                    // Pipe chưa sẵn sàng, ngủ một lát rồi thử lại
+                    for _ in 0..10 {
+                        if !running.load(Ordering::Acquire) {
+                            return;
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                }
+            }
         }
+    }
+
+    fn send_message<W: Write>(writer: &mut W, msg: &Message) -> std::io::Result<()> {
+        let frame = encode_frame(msg)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}")))?;
+        writer.write_all(&frame)?;
+        writer.flush()?;
+        Ok(())
+    }
+
+    fn read_next_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
+        let mut len_buf = [0u8; 4];
+        reader.read_exact(&mut len_buf)?;
+        let length = u32::from_le_bytes(len_buf) as usize;
+        if length > MAX_FRAME_BYTES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Frame oversize",
+            ));
+        }
+
+        let mut frame = vec![0u8; 4 + length];
+        frame[..4].copy_from_slice(&len_buf);
+        reader.read_exact(&mut frame[4..])?;
+
+        decode_exact_frame(&frame)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{e:?}")))
     }
 }
 
@@ -476,12 +642,12 @@ fn main() {
     #[cfg(windows)]
     {
         if let Err(e) = hook_app::run() {
-            eprintln!("VietIME hook error: {e:?}");
+            eprintln!("TextVN hook error: {e:?}");
             std::process::exit(1);
         }
     }
     #[cfg(not(windows))]
     {
-        eprintln!("VietIME hook chỉ hỗ trợ trên hệ điều hành Windows.");
+        eprintln!("TextVN hook chỉ hỗ trợ trên hệ điều hành Windows.");
     }
 }

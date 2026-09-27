@@ -194,12 +194,18 @@ impl SvcManager {
     }
 }
 
-/// Trả về đường dẫn %APPDATA%\VietIME mặc định.
+/// Trả về đường dẫn %APPDATA%\TextVN mặc định (hoặc legacy %APPDATA%\VietIME nếu đã tồn tại).
 pub fn default_config_dir() -> PathBuf {
     if let Some(appdata) = std::env::var_os("APPDATA") {
-        PathBuf::from(appdata).join("VietIME")
+        let primary = PathBuf::from(&appdata).join("TextVN");
+        let legacy = PathBuf::from(&appdata).join("VietIME");
+        if !primary.exists() && legacy.exists() {
+            legacy
+        } else {
+            primary
+        }
     } else {
-        PathBuf::from(".vietime")
+        PathBuf::from(".textvn")
     }
 }
 

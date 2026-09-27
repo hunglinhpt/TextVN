@@ -61,7 +61,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|e| format!("Không xác định được current_exe: {e}"))?;
     dir.pop();
 
-    for name in &["vietime-tsf.dll", "vietime_win_tsf.dll"] {
+    for name in &["textvn-tsf.dll", "vietime-tsf.dll", "vietime_win_tsf.dll"] {
         let candidate = dir.join(name);
         if candidate.exists() {
             return Ok(candidate);
@@ -69,7 +69,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
     }
 
     Err(format!(
-        "Không tìm thấy vietime-tsf.dll trong {}\n\
+        "Không tìm thấy textvn-tsf.dll (hoặc vietime-tsf.dll) trong {}\n\
          Dùng --dll <path> để chỉ định thủ công hoặc chạy `cargo build` trước.",
         dir.display()
     ))
@@ -81,10 +81,10 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
 fn say(msg: &str) {
     use std::io::Write;
     println!("{msg}");
-    // Ghi log vào %LOCALAPPDATA%\VietIME\logs\register.log (output khi elevated bị ẩn console)
+    // Ghi log vào %LOCALAPPDATA%\TextVN\logs\register.log (output khi elevated bị ẩn console)
     if let Some(base) = std::env::var_os("LOCALAPPDATA") {
         let mut dir = PathBuf::from(base);
-        dir.push("VietIME");
+        dir.push("TextVN");
         dir.push("logs");
         let _ = std::fs::create_dir_all(&dir);
         dir.push("register.log");
@@ -183,13 +183,13 @@ mod win_impl {
     }
 
     pub fn do_register(dll_path: &Path, no_taskbar: bool) -> i32 {
-        say("=== VietIME register (per-user, HKCU) ===");
+        say("=== TextVN register (per-user, HKCU) ===");
         let dll_s = dll_path.to_string_lossy().to_string();
         say(&format!("DLL: {dll_s}"));
 
         // Bước 1: HKCU COM registry
         let k = clsid_registry_key();
-        let mut ok = reg_cmd(&["add", &k, "/ve", "/d", "VietIME TSF", "/f"]);
+        let mut ok = reg_cmd(&["add", &k, "/ve", "/d", "TextVN TSF (LBS Viet Nam)", "/f"]);
         ok &= reg_cmd(&[
             "add",
             &format!(r"{k}\InprocServer32"),
@@ -243,7 +243,7 @@ mod win_impl {
                 say("  Profiles.Register → OK");
 
                 // Null-terminated buffer — tránh wcslen() heap corruption (S3-2)
-                let raw: Vec<u16> = "VietIME".encode_utf16().collect();
+                let raw: Vec<u16> = "TextVN".encode_utf16().collect();
                 let desc_buf: Vec<u16> = raw.iter().copied().chain(std::iter::once(0)).collect();
                 let desc = &desc_buf[..raw.len()];
                 let icon_pad = [0u16; 4];

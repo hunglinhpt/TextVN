@@ -27,7 +27,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-const SETTINGS_CLASS_NAME: &str = "VietIMESettingsDialogClass";
+const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
 // Control IDs
 const ID_COMBO_CHARSET: isize = 2001;
@@ -95,7 +95,7 @@ pub fn show_settings_dialog(svc: Arc<SvcManager>, ipc: Arc<IpcServer>) {
 
 #[cfg(not(windows))]
 pub fn show_settings_dialog(_svc: Arc<SvcManager>, _ipc: Arc<IpcServer>) {
-    println!("Cài đặt VietIME chỉ khả dụng trên Windows.");
+    println!("Cài đặt TextVN chỉ khả dụng trên Windows.");
 }
 
 #[cfg(windows)]
@@ -106,7 +106,7 @@ fn w(s: &str) -> Vec<u16> {
 #[cfg(windows)]
 fn create_and_show_window() {
     let class_name = w(SETTINGS_CLASS_NAME);
-    let title = w("VietIME - Bảng điều khiển");
+    let title = w("TextVN - Bảng điều khiển (LBS Viet Nam)");
     let h_instance = unsafe { GetModuleHandleW(None).unwrap_or_default() };
 
     let wc = WNDCLASSW {

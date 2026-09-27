@@ -1,11 +1,11 @@
-# build-release.ps1 - Build release VietIME cho Windows
+# build-release.ps1 - Build release TextVN (LBS Viet Nam) cho Windows
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Usage:
 #   powershell -File build-release.ps1
 #   powershell -File build-release.ps1 -SkipTests
 #   powershell -File build-release.ps1 -BuildInstaller
-#   powershell -File build-release.ps1 -Version "0.2.0"
+#   powershell -File build-release.ps1 -Version "0.1.0"
 
 param(
     [switch]$SkipTests,
@@ -27,10 +27,10 @@ if ($Version -eq "") {
     if ($cargoContent -match 'version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
         $Version = $Matches[1]
     } else {
-        $Version = "0.0.0"
+        $Version = "0.1.0"
     }
 }
-Write-Step "VietIME Release Build v$Version"
+Write-Step "TextVN (LBS Viet Nam) Release Build v$Version"
 
 $Target = "x86_64-pc-windows-msvc"
 $ReleaseDir = "target\$Target\release"
@@ -59,14 +59,11 @@ Write-Step "Build release --workspace --target $Target"
 cargo build --release --workspace --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
-# Build tray - GHI CHU (AV/FP): feature embed-resources da bo o tray/Cargo.toml (icon
-# chi can cho installer qua installer/windows/resources/vietime.ico) - khong build rieng nua.
-
 Write-Ok "Build release DONE"
 
-# Dung cac tien trinh VietIME dang chay de tranh file locked
+# Dung cac tien trinh TextVN dang chay de tranh file locked
 Write-Step "Check running processes"
-Get-Process -Name "vietime-tray", "vietime-hook", "vietime" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name "TextVN", "textvn-hook", "textvn-cli", "textvn", "vietime-tray", "vietime-hook", "vietime" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 300
 Write-Ok "Process lock check DONE"
 
@@ -75,17 +72,17 @@ New-Item -ItemType Directory -Force $DistDir | Out-Null
 
 # Tao portable ZIP
 Write-Step "Package portable ZIP"
-$ZipName = "vietime-portable-$Version-windows-x64"
+$ZipName = "TextVN-portable-$Version-windows-x64"
 $ZipDir  = "$DistDir\$ZipName"
 if (Test-Path $ZipDir) { Remove-Item $ZipDir -Recurse -Force }
 New-Item -ItemType Directory -Force $ZipDir | Out-Null
 
 $BinFiles = @(
-    @{ src = "vietime.exe";          dst = "vietime.exe" },
-    @{ src = "vietime-tray.exe";     dst = "vietime-tray.exe" },
-    @{ src = "vietime_win_tsf.dll";  dst = "vietime-tsf.dll" },
-    @{ src = "vietime_ffi.dll";      dst = "vietime_ffi.dll" },
-    @{ src = "vietime-hook.exe";     dst = "vietime-hook.exe" }
+    @{ src = "TextVN.exe";           dst = "TextVN.exe" },
+    @{ src = "textvn-hook.exe";      dst = "textvn-hook.exe" },
+    @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
+    @{ src = "vietime_win_tsf.dll";  dst = "textvn-tsf.dll" },
+    @{ src = "vietime_ffi.dll";      dst = "textvn_ffi.dll" }
 )
 
 foreach ($entry in $BinFiles) {
@@ -120,46 +117,72 @@ foreach ($doc in @("README.md", "CHANGELOG.md", "LICENSE")) {
     }
 }
 
-# Verify PE metadata cho toan bo binary de tranh bao dong gia Antivirus
+# Tao HUONG_DAN_SU_DUNG.txt
+$quickstartContent = "=================================================================`r`n" +
+    "TextVN - LBS Viet Nam (Bo go Tieng Viet hien dai, ma nguon mo)`r`n" +
+    "=================================================================`r`n`r`n" +
+    "1. SU DUNG NGAY (KHONG CAN CAI DAT):`r`n" +
+    "   - Nhan dup chuot vao file TextVN.exe`r`n" +
+    "   - Bang dieu khien TextVN se hien thi ngay tren man hinh.`r`n" +
+    "   - Ban co the tuy chon Bang ma (Unicode, TCVN3, VNI...), Kieu go (Telex, VNI...), phim chuyen.`r`n" +
+    "   - Khi nhan [Dong] hoac tat cua so, TextVN se thu gon vao khay he thong (System Tray).`r`n`r`n" +
+    "2. CHUYEN DOI TIENG VIET / TIENG ANH:`r`n" +
+    "   - Phim tat mac dinh: Ctrl + Shift (hoac Alt + Z)`r`n" +
+    "   - Icon khay he thong:`r`n" +
+    "       + Chu [V] mau TIM: Dang bat go Tieng Viet`r`n" +
+    "       + Chu [E] mau XANH: Che do Tieng Anh (tat go Tieng Viet)`r`n`r`n" +
+    "3. BANG DIEU KHIEN & MENU:`r`n" +
+    "   - Click chuot phai hoac chuot trai vao icon khay he thong de mo Bảng điều khiển / Menu lua chon.`r`n" +
+    "   - De thoat han ung dung: Chon [Ket thuc] tren Bang dieu khien hoac Menu khay he thong.`r`n`r`n" +
+    "4. DANG KY TSF HE THONG (TUY CHON):`r`n" +
+    "   - Neu ban muon tich hop Text Services Framework (TSF) vao Windows:`r`n" +
+    "     Chay file install.ps1 bang PowerShell.`r`n" +
+    "   - De go bo TSF: Chay file uninstall.ps1.`r`n"
+[System.IO.File]::WriteAllText("$ZipDir\HUONG_DAN_SU_DUNG.txt", $quickstartContent, [System.Text.Encoding]::UTF8)
+Write-Ok "Created HUONG_DAN_SU_DUNG.txt"
+
+# Verify PE metadata cho toan bo binary
 Write-Step "Verify PE metadata and VersionInfo"
 foreach ($entry in $BinFiles) {
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
-        if ($vi.CompanyName -eq "VietIME Open Source Project") {
+        if ($vi.CompanyName -eq "TextVN Project - LBS Viet Nam") {
             Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
         } else {
-            Write-Warn "$($entry.dst): CompanyName not set or missing resource info!"
+            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'TextVN Project - LBS Viet Nam')"
         }
     }
 }
 
-# Tao install.ps1 script trong ZIP (mac dinh --no-taskbar khong lam rac taskbar)
-$installContent = "# install.ps1 - Install VietIME portable`r`n" +
+# Tao install.ps1 script trong ZIP
+$installContent = "# install.ps1 - Dang ky TextVN TSF TIP tuy chon`r`n" +
     "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Registering VietIME TSF TIP (no-taskbar)...'`r`n" +
-    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\vietime.exe`" -ArgumentList 'register --no-taskbar'`r`n" +
+    "Write-Host 'Dang ky TextVN TSF TIP vao he thong (no-taskbar)...'`r`n" +
+    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'register --no-taskbar'`r`n" +
     "if (`$r.ExitCode -eq 0) {`r`n" +
-    "    Write-Host 'Registration OK! Starting tray...'`r`n" +
-    "    Start-Process -FilePath `"`$dir\vietime-tray.exe`"`r`n" +
+    "    Write-Host 'Dang ky TSF thanh cong! Khoi dong TextVN...'`r`n" +
+    "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
     "} else {`r`n" +
-    "    Write-Host ('FAIL exit=' + `$r.ExitCode)`r`n" +
+    "    Write-Host ('Dang ky TSF that bai, ma loi=' + `$r.ExitCode)`r`n" +
+    "    Write-Host 'TextVN van chay binh thuong qua che do Hook...'`r`n" +
+    "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
     "}`r`n"
 [System.IO.File]::WriteAllText("$ZipDir\install.ps1", $installContent, [System.Text.Encoding]::ASCII)
 
-$uninstallContent = "# uninstall.ps1 - Uninstall VietIME portable`r`n" +
+$uninstallContent = "# uninstall.ps1 - Go dang ky TextVN TSF TIP`r`n" +
     "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Stopping tray...'`r`n" +
-    "Start-Process -Wait -FilePath `"`$dir\vietime-tray.exe`" -ArgumentList '--stop' -ErrorAction SilentlyContinue`r`n" +
+    "Write-Host 'Dung tien trinh TextVN...'`r`n" +
+    "Start-Process -Wait -FilePath `"`$dir\TextVN.exe`" -ArgumentList '--stop' -ErrorAction SilentlyContinue`r`n" +
     "Start-Sleep -Milliseconds 500`r`n" +
-    "Write-Host 'Unregistering TSF TIP...'`r`n" +
-    "Start-Process -Wait -FilePath `"`$dir\vietime.exe`" -ArgumentList 'unregister'`r`n" +
-    "Write-Host 'Done. Config in %APPDATA%\VietIME\ is kept.'`r`n"
+    "Write-Host 'Huy dang ky TSF TIP...'`r`n" +
+    "Start-Process -Wait -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'unregister'`r`n" +
+    "Write-Host 'Hoan tat. Cau hinh tai %APPDATA%\TextVN\ van duoc giu lai.'`r`n"
 [System.IO.File]::WriteAllText("$ZipDir\uninstall.ps1", $uninstallContent, [System.Text.Encoding]::ASCII)
 
 Write-Ok "install.ps1 + uninstall.ps1 created"
 
-# Nen thanh ZIP (cho Defender/AV scan xong roi moi nen de tranh lock)
+# Nen thanh ZIP
 Start-Sleep -Milliseconds 600
 $ZipPath = "$DistDir\$ZipName.zip"
 if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
@@ -204,10 +227,13 @@ if ($BuildInstaller) {
         Write-Warn "iscc.exe not found - install Inno Setup 6 from https://jrsoftware.org/isdl.php"
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
-        iscc.exe "/DMyAppVersion=$Version" $targetDirArg "installer\windows\vietime-setup.iss"
-        $setupExe = "dist\vietime-setup-$Version.exe"
-        if (Test-Path "Output\vietime-setup.exe") {
-            Move-Item "Output\vietime-setup.exe" $setupExe -Force
+        iscc.exe "/DMyAppVersion=$Version" $targetDirArg "installer\windows\TextVN-setup.iss"
+        $setupExe = "dist\TextVN-setup-$Version.exe"
+        if (Test-Path "target\installer\TextVN-setup-$Version.exe") {
+            Copy-Item "target\installer\TextVN-setup-$Version.exe" $setupExe -Force
+            Write-Ok "Installer: $setupExe"
+        } elseif (Test-Path "Output\TextVN-setup.exe") {
+            Move-Item "Output\TextVN-setup.exe" $setupExe -Force
             Write-Ok "Installer: $setupExe"
         } else {
             Write-Warn "Installer output not found"
@@ -220,12 +246,11 @@ Write-Host ""
 Write-Host "Output:" -ForegroundColor White
 Write-Host "  Portable ZIP : $ZipPath" -ForegroundColor Green
 if ($BuildInstaller) {
-    $installerPath = "$DistDir\vietime-setup-$Version.exe"
+    $installerPath = "$DistDir\TextVN-setup-$Version.exe"
     if (Test-Path $installerPath) {
         Write-Host "  Installer    : $installerPath" -ForegroundColor Green
     }
 }
 Write-Host ""
 Write-Host "To test portable build:" -ForegroundColor White
-Write-Host "  Expand-Archive $ZipPath -DestinationPath .\test-portable" -ForegroundColor Gray
-Write-Host "  .\test-portable\vietime.exe doctor" -ForegroundColor Gray
+Write-Host "  Extract $ZipPath and double-click TextVN.exe" -ForegroundColor Gray

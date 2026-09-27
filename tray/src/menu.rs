@@ -254,7 +254,7 @@ impl TrayMenu {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
             }
             ID_UNINSTALL => {
-                let _ = std::process::Command::new("vietime-setup.exe")
+                let _ = std::process::Command::new("TextVN-setup.exe")
                     .arg("/UNINSTALL")
                     .spawn();
             }

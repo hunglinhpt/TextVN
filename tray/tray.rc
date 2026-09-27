@@ -21,13 +21,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "VietIME Open Source Project"
-            VALUE "FileDescription", "VietIME Tray - Modern Vietnamese Input Method"
+            VALUE "CompanyName", "TextVN Project - LBS Viet Nam"
+            VALUE "FileDescription", "TextVN - Bo go Tieng Viet Chuyen Nghiep (LBS Viet Nam)"
             VALUE "FileVersion", "0.1.0.0"
-            VALUE "InternalName", "vietime-tray"
-            VALUE "LegalCopyright", "Copyright (C) 2026 VietIME Contributors. GPL-3.0-or-later"
-            VALUE "OriginalFilename", "vietime-tray.exe"
-            VALUE "ProductName", "VietIME"
+            VALUE "InternalName", "TextVN"
+            VALUE "LegalCopyright", "Copyright (C) 2026 TextVN Contributors. Open Source under GPL-3.0-or-later"
+            VALUE "OriginalFilename", "TextVN.exe"
+            VALUE "ProductName", "TextVN (LBS Viet Nam)"
             VALUE "ProductVersion", "0.1.0.0"
         END
     END

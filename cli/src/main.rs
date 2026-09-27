@@ -13,19 +13,19 @@ mod verify;
 use std::path::PathBuf;
 use std::process::exit;
 
-const USAGE: &str = r#"vietime — VietIME CLI
+const USAGE: &str = r#"textvn-cli — TextVN CLI (LBS Viet Nam)
 
 Usage:
-  vietime replay <dir-or-file...> [--adapter headless|win|mac|linux] [--json] [--filter <substring>]
-  vietime verify [--header <path>] [--json]  # header C khớp code Rust? (P0-2 §6) + sizeof/offset
-  vietime sizes [--json]                  # verify struct ABI (P0-2 §6): ime_key_v1=20 · ime_result_v1=532
-  vietime config default                  # in config mặc định ra stdout
-  vietime config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
-  vietime config validate <file.json>     # validate config.v1 (P0-3 §1)
-  vietime doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
-  vietime register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
-  vietime unregister [--scope user|machine]             # hủy đăng ký TSF TIP
-  vietime --help
+  textvn-cli replay <dir-or-file...> [--adapter headless|win|mac|linux] [--json] [--filter <substring>]
+  textvn-cli verify [--header <path>] [--json]  # header C khớp code Rust? (P0-2 §6) + sizeof/offset
+  textvn-cli sizes [--json]                  # verify struct ABI (P0-2 §6): ime_key_v1=20 · ime_result_v1=532
+  textvn-cli config default                  # in config mặc định ra stdout
+  textvn-cli config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
+  textvn-cli config validate <file.json>     # validate config.v1 (P0-3 §1)
+  textvn-cli doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
+  textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
+  textvn-cli unregister [--scope user|machine]             # hủy đăng ký TSF TIP
+  textvn-cli --help
 
 Exit codes:
   replay     : 0 pass hết · 1 có case fail · 2 lỗi dùng/parse (P0-4 §4)
@@ -299,16 +299,24 @@ fn cmd_config(rest: &[String]) -> i32 {
 fn config_path() -> Option<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        std::env::var_os("APPDATA").map(|p| PathBuf::from(p).join("VietIME").join("config.json"))
+        std::env::var_os("APPDATA").map(|p| {
+            let primary = PathBuf::from(&p).join("TextVN").join("config.json");
+            let legacy = PathBuf::from(&p).join("VietIME").join("config.json");
+            if !primary.exists() && legacy.exists() {
+                legacy
+            } else {
+                primary
+            }
+        })
     }
     #[cfg(target_os = "macos")]
     {
         std::env::var_os("HOME")
-            .map(|h| PathBuf::from(h).join("Library/Application Support/VietIME/config.json"))
+            .map(|h| PathBuf::from(h).join("Library/Application Support/TextVN/config.json"))
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/VietIME/config.json"))
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config/TextVN/config.json"))
     }
 }
 
@@ -327,10 +335,10 @@ fn cmd_doctor(rest: &[String]) -> i32 {
                         export_path = Some(PathBuf::from(next));
                         i += 1;
                     } else {
-                        export_path = Some(PathBuf::from("vietime-diagnostics.zip"));
+                        export_path = Some(PathBuf::from("textvn-diagnostics.zip"));
                     }
                 } else {
-                    export_path = Some(PathBuf::from("vietime-diagnostics.zip"));
+                    export_path = Some(PathBuf::from("textvn-diagnostics.zip"));
                 }
             }
             other => {

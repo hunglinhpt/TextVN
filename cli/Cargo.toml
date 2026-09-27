@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "vietime"
+name = "textvn-cli"
 path = "src/main.rs"
 
 [dependencies]

@@ -39,6 +39,7 @@ pub enum Message {
         enabled: bool,
     },
     ToggleGlobal,
+    Shutdown,
     CrashReport {
         code: String,
         count: u32,
@@ -126,6 +127,17 @@ mod tests {
         assert_eq!(
             std::str::from_utf8(&frame[4..]).unwrap(),
             r#"{"type":"ToggleGlobal"}"#
+        );
+        assert_eq!(decode_exact_frame(&frame), Ok(message));
+    }
+
+    #[test]
+    fn shutdown_round_trip() {
+        let message = Message::Shutdown;
+        let frame = encode_frame(&message).unwrap();
+        assert_eq!(
+            std::str::from_utf8(&frame[4..]).unwrap(),
+            r#"{"type":"Shutdown"}"#
         );
         assert_eq!(decode_exact_frame(&frame), Ok(message));
     }

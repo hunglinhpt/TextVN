@@ -34,8 +34,8 @@ use windows::Win32::UI::Shell::*;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
-const MUTEX_NAME: &str = r"Local\VietIMETray";
-const WINDOW_CLASS_NAME: &str = "VietIMETrayWndClass";
+const MUTEX_NAME: &str = r"Local\TextVNTray";
+const WINDOW_CLASS_NAME: &str = "TextVNTrayWndClass";
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
@@ -118,9 +118,9 @@ fn update_tray_icon(hwnd: HWND, app: &TrayApp) {
     let raw_icon = if enabled { app.icon_vi } else { app.icon_en };
     let h_icon = HICON(raw_icon as *mut std::ffi::c_void);
     let tip = if enabled {
-        "VietIME - Tiếng Việt [V] (Tím)"
+        "TextVN - Tiếng Việt [V] (Tím)"
     } else {
-        "VietIME - English [E] (Xanh)"
+        "TextVN - English [E] (Xanh)"
     };
 
     let mut nid = NOTIFYICONDATAW {
@@ -133,6 +133,46 @@ fn update_tray_icon(hwnd: HWND, app: &TrayApp) {
     };
     copy_to_wide_buf(&mut nid.szTip, tip);
     let _ = unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
+}
+
+#[cfg(windows)]
+fn ensure_hook_running() {
+    let mutex_name_wide: Vec<u16> = r"Local\TextVNHookMutex"
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let existing_mutex = unsafe {
+        OpenMutexW(
+            MUTEX_ALL_ACCESS,
+            false,
+            PCWSTR(mutex_name_wide.as_ptr()),
+        )
+    };
+    if let Ok(h) = existing_mutex {
+        let _ = unsafe { CloseHandle(h) };
+        return;
+    }
+
+    let mut candidates = Vec::new();
+    if let Ok(mut exe) = std::env::current_exe() {
+        exe.pop();
+        candidates.push(exe.join("textvn-hook.exe"));
+        candidates.push(exe.join("vietime-hook.exe"));
+    }
+    candidates.push(std::path::PathBuf::from("textvn-hook.exe"));
+    candidates.push(std::path::PathBuf::from("target/release/textvn-hook.exe"));
+    candidates.push(std::path::PathBuf::from("target/x86_64-pc-windows-msvc/release/textvn-hook.exe"));
+
+    for path in candidates {
+        if path.exists() {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            let _ = std::process::Command::new(path)
+                .creation_flags(CREATE_NO_WINDOW)
+                .spawn();
+            break;
+        }
+    }
 }
 
 fn main() {
@@ -151,10 +191,10 @@ fn main() {
                 return;
             }
             "--help" | "-h" => {
-                println!("VietIME Tray - Khay he thong va IPC Server cho VietIME");
-                println!("Usage: vietime-tray [OPTIONS]");
+                println!("TextVN - Bo go Tieng Viet chuyen nghiep (LBS Viet Nam)");
+                println!("Usage: TextVN [OPTIONS]");
                 println!("Options:");
-                println!("  --autostart   Khoi dong ngam tu Windows Startup");
+                println!("  --autostart   Khoi dong ngam tu Windows Startup (mini to tray)");
                 println!("  --status      Kiem tra trang thai IPC server");
                 println!("  --stop        Yeu cau dung instance dang chay");
                 println!("  --help        Hien thi tro giup");
@@ -168,7 +208,7 @@ fn main() {
     run_tray_app();
 
     #[cfg(not(windows))]
-    println!("VietIME Tray chi ho tro he dieu hanh Windows.");
+    println!("TextVN chi ho tro he dieu hanh Windows.");
 }
 
 #[cfg(windows)]
@@ -180,7 +220,7 @@ fn run_tray_app() {
     let mutex = match mutex_handle {
         Ok(h) => h,
         Err(_) => {
-            eprintln!("VietIME Tray is already running.");
+            eprintln!("TextVN is already running.");
             return;
         }
     };
@@ -218,6 +258,9 @@ fn run_tray_app() {
 
     // Khởi động background Named Pipe loop
     ipc.start();
+
+    // Tự động khởi chạy background hook engine nếu chưa có
+    ensure_hook_running();
 
     // 3. Đăng ký Win32 Window Class & Tạo Hidden Message Window
     let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
@@ -288,13 +331,19 @@ fn run_tray_app() {
     };
 
     let tip = if svc.is_global_enabled() {
-        "VietIME - Tiếng Việt [V] (Tím)"
+        "TextVN - Tiếng Việt [V] (Tím)"
     } else {
-        "VietIME - English [E] (Xanh)"
+        "TextVN - English [E] (Xanh)"
     };
     copy_to_wide_buf(&mut nid.szTip, tip);
 
     let _ = unsafe { Shell_NotifyIconW(NIM_ADD, &nid) };
+
+    // Nếu người dùng khởi chạy thủ công (không phải từ --autostart),
+    // hiển thị ngay Bảng điều khiển (Control Panel) trên màn hình theo đúng chuẩn UniKey / GoTiengViet
+    if !is_autostart {
+        vietime_tray::settings_dialog::show_settings_dialog(svc.clone(), ipc.clone());
+    }
 
     // 5. Message Loop
     let mut msg = MSG::default();
@@ -368,6 +417,9 @@ unsafe extern "system" fn wnd_proc(
         WM_COMMAND => {
             let cmd_id = (wparam.0 & 0xffff) as u32;
             if cmd_id == ID_EXIT {
+                if let Some(app) = APP_INSTANCE.get() {
+                    app.ipc.broadcast_shutdown();
+                }
                 RUNNING.store(false, Ordering::Release);
                 PostQuitMessage(0);
                 return LRESULT(0);
@@ -379,6 +431,9 @@ unsafe extern "system" fn wnd_proc(
             LRESULT(0)
         }
         WM_DESTROY | WM_CLOSE => {
+            if let Some(app) = APP_INSTANCE.get() {
+                app.ipc.broadcast_shutdown();
+            }
             RUNNING.store(false, Ordering::Release);
             PostQuitMessage(0);
             LRESULT(0)
@@ -396,7 +451,7 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 }
 
 fn check_status() {
-    println!("Checking VietIME IPC pipe: {}", PIPE_NAME);
+    println!("Checking TextVN IPC pipe: {}", PIPE_NAME);
     match std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -416,7 +471,7 @@ fn check_status() {
                                 if let Ok(vietime_ipc::Message::Pong { uptime_ms }) =
                                     vietime_ipc::decode_exact_frame(&buf)
                                 {
-                                    println!("VietIME IPC Server: RUNNING");
+                                    println!("TextVN IPC Server: RUNNING");
                                     println!("  Pipe: {}", PIPE_NAME);
                                     println!(
                                         "  Uptime: {} ms ({:.1}s)",
@@ -430,10 +485,10 @@ fn check_status() {
                     }
                 }
             }
-            println!("VietIME IPC Server: Connected, but response was invalid.");
+            println!("TextVN IPC Server: Connected, but response was invalid.");
         }
         Err(e) => {
-            println!("VietIME IPC Server: OFFLINE ({e})");
+            println!("TextVN IPC Server: OFFLINE ({e})");
         }
     }
 }
@@ -441,12 +496,12 @@ fn check_status() {
 fn stop_running_instance() {
     #[cfg(windows)]
     {
-        println!("Checking for running VietIME Tray instance...");
+        println!("Checking for running TextVN Tray instance...");
         let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
         let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
         if let Ok(h) = hwnd {
             if !h.0.is_null() {
-                println!("Found VietIME Tray window. Sending exit command...");
+                println!("Found TextVN window. Sending exit command...");
                 unsafe {
                     let _ = PostMessageW(Some(h), WM_COMMAND, WPARAM(ID_EXIT as usize), LPARAM(0));
                 }
@@ -462,18 +517,18 @@ fn stop_running_instance() {
                         let _ = unsafe { CloseHandle(m) };
                         if err != ERROR_ALREADY_EXISTS {
                             println!(
-                                "VietIME Tray stopped successfully (after {}ms).",
+                                "TextVN stopped successfully (after {}ms).",
                                 (i + 1) * 100
                             );
                             return;
                         }
                     }
                 }
-                println!("VietIME Tray signalled, but process did not exit within 3s.");
+                println!("TextVN signalled, but process did not exit within 3s.");
                 return;
             }
         }
-        println!("No running VietIME Tray instance detected.");
+        println!("No running TextVN instance detected.");
     }
     #[cfg(not(windows))]
     println!("Stopping tray instance is only supported on Windows.");
@@ -485,8 +540,8 @@ mod tests {
 
     #[test]
     fn constants_are_valid() {
-        assert_eq!(MUTEX_NAME, r"Local\VietIMETray");
-        assert_eq!(WINDOW_CLASS_NAME, "VietIMETrayWndClass");
+        assert_eq!(MUTEX_NAME, r"Local\TextVNTray");
+        assert_eq!(WINDOW_CLASS_NAME, "TextVNTrayWndClass");
         #[cfg(windows)]
         const {
             assert!(WM_TRAYICON >= WM_APP)

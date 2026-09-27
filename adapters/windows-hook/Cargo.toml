@@ -14,7 +14,7 @@ vietime-ipc = { path = "../../ipc" }
 vietime-strategy = { path = "../../strategy" }
 
 [[bin]]
-name = "vietime-hook"
+name = "textvn-hook"
 path = "src/main.rs"
 
 [target.'cfg(windows)'.dependencies]
