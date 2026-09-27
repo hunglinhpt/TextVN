@@ -33,6 +33,7 @@
 | B11 | `cargo build -p vietime-win-tsf` | ✓ Sinh `target/debug/vietime_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |
 | B12 | `cargo test -p vietime-win-tsf -p vietime-win-hook -p vietime-tray` | ✓ 29/29 Windows platform tests pass 100% (2026-09-27) | Bộ 3 thành phần Windows (TSF 15, Hook 5, Tray 9) hoạt động đồng bộ |
 | B13 | `cargo run -p vietime-cli -- doctor --export` | ✓ Xuất file ZIP PKZIP stored hợp lệ, pass grep test S2 không chứa text thô (2026-09-27) | WIN-058 diagnostics report xuất zip 4 file: version, config.redacted, system_info, tsf_tail |
+| B14 | `cargo test -p vietime-tray` | ✓ 13/13 tests pass 100% (2026-09-27) | WIN-052 SettingsController debounce 300ms, 6 tabs model, hotkey validation, parity-checklist.md |
 
 
 ## C. Windows platform (chi tiết → spike specs)

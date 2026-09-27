@@ -236,3 +236,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - Tích hợp bộ đóng gói ZIP PKZIP Stored thuần Rust zero-dependency (`build_pkzip`) và thuật toán tính CRC32 chuẩn ISO 3309.
   - Thu thập và đóng gói an toàn các artifact chẩn đoán: `version.json`, `config.redacted.json` (tự động redact tên người dùng và đường dẫn cá nhân theo Rule S2), `system_info.json` (kiểm tra trạng thái Pipe, Tray, Hook, TIP registry), `hook_stats.json`, `tsf_tail.log` (200 dòng log TSF tail an toàn).
   - Đạt 10 Quality Gates: 25/25 tests pass (thêm 4 tests mới cho ZIP structure, CRC32, path redaction và grep test), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 983/983 compliant.
+- 2026-09-27: **W14 — Settings UI Controller & Parity Checklist hoàn thiện: WIN-052**:
+  - `WIN-052`: Cài đặt `SettingsController` (`tray/src/settings.rs`) quản lý 6 tabs UI: General, Applications, Hotkeys, Hook & Game, Update, About / Help theo P1-4 §3 và PLAN §2.3 (M6).
+  - Tích hợp cơ chế debounce 300ms theo chuẩn P0-3 §4: gom cụm thay đổi người dùng rồi ghi atomic qua in-process `SvcManager` và broadcast `ConfigReload`/`StateUpdate` qua IPC server.
+  - Kiểm tra xung đột phím tắt hệ thống (`validate_hotkey` loại trừ `Ctrl+C`, `Ctrl+V`, `Ctrl+X`).
+  - Tạo tài liệu chuẩn `docs/release/parity-checklist.md` đối chiếu 1-1 từng control với struct `Config` và ma trận đồng bộ 3 hệ điều hành Windows / macOS / Linux.
+  - Đạt 10 Quality Gates: 33/33 Windows platform tests pass 100% (TSF 15, Hook 5, Tray 13), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 986/986 compliant.
