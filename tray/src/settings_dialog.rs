@@ -7,11 +7,15 @@
 //! - Nút "Đóng" hoặc nút [X] tự động ẩn về khay (Minimize to Tray).
 //! - Đồng bộ trạng thái tức thì với SvcManager và broadcast IPC reload.
 
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::AtomicIsize;
+#[cfg(windows)]
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+#[cfg(windows)]
 use textvn_config::{DiacriticStyle, Method, OutputCharset};
 
+#[cfg(windows)]
 use crate::autostart;
 use crate::ipc_server::IpcServer;
 use crate::svc::SvcManager;
@@ -30,10 +34,11 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
 /// Kích thước cơ sở Bảng điều khiển @96 DPI (pixel thật vì manifest là
-/// PerMonitorV2): bề rộng gấp đôi bản 450x410 cũ, chiều cao thêm ~1/3.
+/// PerMonitorV2): compact 600x367 @96 DPI, khoảng 2/3 bản trước.
 /// Toàn bộ tọa độ layout tính trên cơ sở này rồi nhân DPI-scale lúc tạo.
-const DIALOG_BASE_WIDTH: i32 = 900;
-const DIALOG_BASE_HEIGHT: i32 = 550;
+const DIALOG_BASE_WIDTH: i32 = 600;
+const DIALOG_BASE_HEIGHT: i32 = 367;
+const COMPACT_SCALE: f64 = 2.0 / 3.0;
 
 // Control IDs
 const ID_COMBO_CHARSET: isize = 2001;
@@ -173,7 +178,7 @@ fn create_and_show_window() {
 
     let _ = unsafe { RegisterClassW(&wc) };
 
-    // Kích thước theo DPI: 900x550 @96 DPI nhân hệ số DPI hệ thống
+    // Kích thước compact theo DPI: 600x367 @96 DPI nhân hệ số DPI hệ thống
     // (PerMonitorV2 -> tọa độ pixel thật, Windows không scale hộ).
     let dpi = system_dpi();
     let scale = dpi as f64 / 96.0;
@@ -252,7 +257,8 @@ fn create_control(
     }
 }
 
-/// Font GUI 9pt theo DPI hiện tại. Stock DEFAULT_GUI_FONT luôn là 9pt@96dpi
+/// Font GUI 7pt theo DPI hiện tại. Compact dialog cần font nhỏ hơn nhưng vẫn
+/// đủ khoảng thở và không chồng lên control @96 DPI.
 /// nên với PerMonitorV2 (DPI > 96) chữ sẽ nhỏ hơn tương đối - cần tạo font
 /// theo DPI. Font sống trong static để xóa khi dialog destroy (tránh leak
 /// GDI handle); nếu tạo thất bại thì dùng lại stock font.
@@ -272,7 +278,7 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
         if got == 0 {
             stock
         } else {
-            lf.lfHeight = -(9 * dpi / 72); // 9pt tại DPI hiện tại
+            lf.lfHeight = -(7 * dpi / 72); // 7pt tại DPI hiện tại
             let f = CreateFontIndirectW(&lf);
             if f.is_invalid() {
                 stock
@@ -297,8 +303,8 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
 #[cfg(windows)]
 fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
     let scale = dpi as f64 / 96.0;
-    // Scale tọa độ/size từ bố cục cơ sở 900x550 @96 DPI sang DPI hiện tại.
-    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+    // Thu toàn bộ bố cục 900x550 cũ xuống đúng 2/3 rồi scale DPI.
+    let k = |v: i32| -> i32 { ((v as f64) * COMPACT_SCALE * scale).round() as i32 };
 
     let default_font = scaled_gui_font(dpi);
 
@@ -693,7 +699,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                     show_information(
                         hwnd,
                         "Hướng dẫn TextVN",
-                        "Chọn kiểu gõ và bảng mã, sau đó bật/tắt tiếng Việt từ khay hệ thống.\r\n\r\nPhím tắt Win+Space dùng để chọn bộ gõ TextVN trong Windows.",
+                        "Chọn kiểu gõ và bảng mã, sau đó bật/tắt tiếng Việt từ khay hệ thống.\r\n\r\nPhím chuyển mặc định: Ctrl + Shift.\r\nTextVN không yêu cầu mở cửa sổ Terminal.",
                     );
                     return LRESULT(0);
                 }

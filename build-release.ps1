@@ -132,8 +132,19 @@ if (Get-Process -Id $smokeProcess.Id -ErrorAction SilentlyContinue) {
     & $trayExe --stop *> $null
     Write-Fail "Runtime smoke did not stop cleanly: $smokeStop"
 }
+# Hook được tray tạo trong smoke test phải rời desktop trước khi copy binary.
+# `Shutdown` là best-effort và Hook có orphan timeout 30s khi IPC bị đóng;
+# chờ rõ ràng ở đây thay vì tạo ZIP thiếu textvn-hook.exe.
+for ($second = 0; $second -lt 35; $second++) {
+    $smokeHooks = @(Get-Process -Name "textvn-hook" -ErrorAction SilentlyContinue)
+    if ($smokeHooks.Count -eq 0) { break }
+    Start-Sleep -Seconds 1
+}
+if (@(Get-Process -Name "textvn-hook" -ErrorAction SilentlyContinue).Count -gt 0) {
+    Write-Fail "Runtime smoke left textvn-hook.exe running; refusing to package a locked release."
+}
 $ReleaseChecks["windows_runtime_smoke"] = "passed"
-Write-Ok "Start, IPC status, and graceful shutdown PASS"
+Write-Ok "Start, IPC status, tray and hook shutdown PASS"
 
 # Tao thu muc dist
 New-Item -ItemType Directory -Force $DistDir | Out-Null
@@ -142,8 +153,8 @@ New-Item -ItemType Directory -Force $DistDir | Out-Null
 Write-Step "Package portable ZIP"
 $ZipName = "TextVN-portable-$Version-windows-x64-$BuildId"
 $ZipDir  = "$DistDir\$ZipName"
-# Artifact bất biến: không xóa release cũ vì Windows/Explorer có thể đang giữ
-# một EXE trong đó. Mỗi build nhận Build ID riêng để có thể truy vết và rollback.
+# Artifact bat bien: khong xoa release cu vi Windows/Explorer co the dang giu
+# mot EXE trong do. Moi build nhan Build ID rieng de co the truy vet va rollback.
 if (Test-Path $ZipDir) { Write-Fail "Artifact directory already exists: $ZipDir" }
 New-Item -ItemType Directory -Force $ZipDir | Out-Null
 
@@ -158,16 +169,13 @@ $BinFiles = @(
 foreach ($entry in $BinFiles) {
     $src = "$ReleaseDir\$($entry.src)"
     $dst = "$ZipDir\$($entry.dst)"
-    if (Test-Path $src) {
-        try {
-            Copy-Item $src $dst -ErrorAction Stop
-            $sz = [math]::Round((Get-Item $src).Length / 1024)
-            Write-Ok "$($entry.src) -> $($entry.dst) ($sz KB)"
-        } catch {
-            Write-Warn "$($entry.src) copy FAIL (file locked?): $_"
-        }
-    } else {
-        Write-Warn "$($entry.src) not found (skip)"
+    if (-not (Test-Path $src)) { Write-Fail "Required release binary is missing: $src" }
+    try {
+        Copy-Item $src $dst -ErrorAction Stop
+        $sz = [math]::Round((Get-Item $src).Length / 1024)
+        Write-Ok "$($entry.src) -> $($entry.dst) ($sz KB)"
+    } catch {
+        Write-Fail "$($entry.src) copy FAIL (file locked?): $_"
     }
 }
 
@@ -202,7 +210,7 @@ $quickstartContent = "==========================================================
     "       + Chu [V] mau TIM: Dang bat go Tieng Viet`r`n" +
     "       + Chu [E] mau XANH: Che do Tieng Anh (tat go Tieng Viet)`r`n`r`n" +
     "3. BANG DIEU KHIEN & MENU:`r`n" +
-    "   - Click chuot phai hoac chuot trai vao icon khay he thong de mo Bảng điều khiển / Menu lua chon.`r`n" +
+    "   - Click chuot phai hoac chuot trai vao icon khay he thong de mo Bang dieu khien / Menu lua chon.`r`n" +
     "   - De thoat han ung dung: Chon [Ket thuc] tren Bang dieu khien hoac Menu khay he thong.`r`n`r`n" +
     "4. DANG KY TSF HE THONG (TUY CHON):`r`n" +
     "   - Neu ban muon tich hop Text Services Framework (TSF) vao Windows:`r`n" +

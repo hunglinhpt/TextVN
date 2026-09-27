@@ -4,6 +4,7 @@
 //! Chạy 1 instance duy nhất với Mutex `Local\TextVNTray`.
 //! Lắng nghe IPC pipe, điều phối cấu hình & trạng thái, hiển thị tray icon và menu ngữ cảnh.
 
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 // Tray = Windows-only: trên non-Windows item Win32 không có caller (xem lib.rs).
 #![cfg_attr(not(windows), allow(dead_code))]
 

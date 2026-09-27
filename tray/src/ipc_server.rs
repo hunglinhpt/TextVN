@@ -5,16 +5,19 @@
 //! (in-process TSF DLLs, Hook process, CLI probe...), broadcast `ConfigReload` và `StateUpdate`,
 //! theo dõi sức khỏe và quản lý watchdog cho tiến trình `textvn-hook.exe`.
 
-use std::io::{Read, Write};
+#[cfg(any(windows, test))]
+use std::io::Read;
+use std::io::Write;
 #[cfg(windows)]
 use std::os::windows::io::{AsRawHandle, FromRawHandle};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-#[cfg(windows)]
 use std::time::Duration;
 use std::time::Instant;
 
-use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+#[cfg(any(windows, test))]
+use textvn_ipc::{decode_exact_frame, MAX_FRAME_BYTES};
+use textvn_ipc::{encode_frame, Message};
 
 use crate::svc::SvcManager;
 
@@ -51,6 +54,7 @@ fn write_frame_to_subscribers(subscribers: Arc<Mutex<Vec<ClientSink>>>, frame: V
 }
 
 /// Trạng thái đọc một khung từ pipe **không bao giờ block vô hạn**.
+#[cfg(windows)]
 enum PipeFrame {
     /// Chưa đủ byte — ngủ poll rồi thử lại.
     Empty,
@@ -60,6 +64,7 @@ enum PipeFrame {
 }
 
 /// Số byte đang buffer trong pipe, hoặc `None` nếu pipe đã vỡ.
+#[cfg(windows)]
 fn peek_available(reader: &std::fs::File) -> Option<u32> {
     let mut total = 0u32;
     let ok = unsafe {
@@ -78,6 +83,7 @@ fn peek_available(reader: &std::fs::File) -> Option<u32> {
 /// Đọc một khung IPC theo kiểu poll: chỉ gọi `ReadFile` khi `PeekNamedPipe`
 /// xác nhận đủ byte, nên handler không bao giờ giữ read-pending trên pipe —
 /// nhờ đó thread broadcast ghi được song song (xem `write_frame_to_subscribers`).
+#[cfg(windows)]
 fn try_read_pipe_frame(reader: &std::fs::File, running: &AtomicBool) -> PipeFrame {
     let Some(avail) = peek_available(reader) else {
         return PipeFrame::Eof;
@@ -308,6 +314,7 @@ impl IpcServer {
         }
     }
 
+    #[cfg(windows)]
     fn handle_client_connection(
         &self,
         reader: std::fs::File,

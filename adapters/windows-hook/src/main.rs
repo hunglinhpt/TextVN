@@ -14,11 +14,13 @@ mod hook_app {
     use std::io::{Read, Write};
     use std::path::Path;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::mpsc::{self, Receiver, Sender};
     use std::sync::Arc;
     use std::time::{Duration, Instant};
 
     use textvn_appdb::AppDb;
-    use textvn_ffi::{ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
+    use textvn_ffi::{ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE, IME_FIELD_BODY};
+    use textvn_field_detect::SecurityState;
     use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
     use textvn_win_hook::{
         CallbackDecision, EngineOutcome, HookEngine, HookMode, HookState, KeyEvent,
@@ -26,7 +28,9 @@ mod hook_app {
 
     use windows::core::*;
     use windows::Win32::Foundation::*;
+    use windows::Win32::System::Com::*;
     use windows::Win32::System::Threading::*;
+    use windows::Win32::UI::Accessibility::*;
     use windows::Win32::UI::Input::KeyboardAndMouse::*;
     use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -42,6 +46,13 @@ mod hook_app {
     static GLOBAL_ENABLED: AtomicBool = AtomicBool::new(true);
     static RELOAD_CONFIG_PENDING: AtomicBool = AtomicBool::new(false);
     static HOOK_MAIN_THREAD_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+    #[derive(Clone, Copy)]
+    struct FocusProbe {
+        generation: u64,
+        field_role: u32,
+        security: SecurityState,
+    }
 
     fn load_user_config() -> Option<String> {
         if let Some(appdata) = std::env::var_os("APPDATA") {
@@ -82,6 +93,8 @@ mod hook_app {
         start_time: Instant,
         current_hwnd: HWND,
         current_app_id: String,
+        focus_probe_tx: Sender<FocusProbe>,
+        focus_probe_rx: Receiver<FocusProbe>,
     }
 
     thread_local! {
@@ -113,11 +126,12 @@ mod hook_app {
             HookEngine::new().unwrap()
         };
 
-        // Safe default: chưa có UIA verdict thì HookMode::Auto + FieldContext
-        // pending sẽ forward toàn bộ key. Không được biến password field chưa
-        // probe thành body/non-secure chỉ để "gõ ngay".
+        // Hook is the usable fallback when the TSF TIP is not selected. The
+        // pending security gate still blocks every key until native UIA has
+        // classified the focused element; `Always` never bypasses that gate.
         let appdb = load_default_appdb();
-        let state = HookState::new("unknown.exe", 0, HookMode::Auto, Duration::ZERO);
+        let state = HookState::new("unknown.exe", 0, HookMode::Always, Duration::ZERO);
+        let (focus_probe_tx, focus_probe_rx) = mpsc::channel();
 
         HOOK_CTX.with(|cell| {
             *cell.borrow_mut() = Some(GlobalHookContext {
@@ -128,6 +142,8 @@ mod hook_app {
                 start_time: now,
                 current_hwnd: HWND::default(),
                 current_app_id: String::new(),
+                focus_probe_tx,
+                focus_probe_rx,
             });
         });
 
@@ -279,16 +295,29 @@ mod hook_app {
             let start_cb = Instant::now();
             let _now_dur = ctx.start_time.elapsed();
 
+            // Apply only UIA results that match the active focus generation.
+            // A delayed worker result therefore cannot unlock a newer field.
+            while let Ok(probe) = ctx.focus_probe_rx.try_recv() {
+                let _ = ctx
+                    .state
+                    .publish_probe(probe.generation, probe.field_role, probe.security);
+            }
+
             // Cập nhật foreground app nếu cửa sổ đổi
             let fg_hwnd = GetForegroundWindow();
             if fg_hwnd != ctx.current_hwnd {
                 ctx.current_hwnd = fg_hwnd;
                 ctx.current_app_id = get_process_name_for_window(fg_hwnd);
                 let gen = ctx.state.begin_focus(&ctx.current_app_id, 0);
-                // UIA worker phải publish verdict khớp generation. Trong lúc
-                // pending/unknown, policy fail-open để password/secure field
-                // không bao giờ bị transform bởi hook.
-                let _ = gen;
+                let tx = ctx.focus_probe_tx.clone();
+                std::thread::spawn(move || {
+                    let (field_role, security) = probe_focused_element();
+                    let _ = tx.send(FocusProbe {
+                        generation: gen,
+                        field_role,
+                        security,
+                    });
+                });
             }
 
             let ch = vk_to_unicode(vk);
@@ -506,6 +535,29 @@ mod hook_app {
     fn load_default_appdb() -> Option<AppDb> {
         let default_json = include_str!("../../../data/appdb.default.json");
         AppDb::parse(default_json).ok()
+    }
+
+    /// Query UIA off the keyboard-hook thread. On any COM/UIA failure this
+    /// returns Unknown, which keeps the hook fail-open instead of risking a
+    /// password field. UIA's IsPassword property is the security authority.
+    fn probe_focused_element() -> (u32, SecurityState) {
+        let initialized = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_ok();
+        if !initialized {
+            return (IME_FIELD_BODY, SecurityState::Unknown);
+        }
+        let result = (|| {
+            let automation: IUIAutomation =
+                unsafe { CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()? };
+            let element = unsafe { automation.GetFocusedElement().ok()? };
+            let is_password = unsafe { element.CurrentIsPassword().ok()? }.as_bool();
+            Some(if is_password {
+                (IME_FIELD_BODY, SecurityState::Secure)
+            } else {
+                (IME_FIELD_BODY, SecurityState::NonSecure)
+            })
+        })();
+        unsafe { CoUninitialize() };
+        result.unwrap_or((IME_FIELD_BODY, SecurityState::Unknown))
     }
 
     fn empty_ime_result() -> textvn_ffi::ime_result_v1 {

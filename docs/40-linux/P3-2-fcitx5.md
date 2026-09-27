@@ -68,68 +68,17 @@ bool keyEvent(engine, InputContext *ic, const fcitx::Key &key)
 
 - Fcitx5 tự xử lý `Commit`/`Backspace` cho app qua preedit → strategy giữ nguyên như IBus.
 
-## 5. `apply_replace` & Trải nghiệm Gõ Không Gạch Chân (Non-Preedit)
+## 5. `apply_replace` (đối chiếu `P3-1 §6` — cùng semantics, API khác)
 
-Kế thừa tinh hoa từ upstream **`fcitx/fcitx5`** và **`fcitx5-lotus`**, TextVN thiết kế cơ chế xử lý văn bản đa tầng linh hoạt, loại bỏ hoàn toàn cảm giác giật cục của đường gạch chân:
-
-| Strategy | Fcitx5 API Thực tế | Cơ chế & Trải nghiệm người dùng |
+| Strategy | Fcitx5 API (concept) | Ghi chú |
 |---|---|---|
-| **Non-Preedit (Mặc định)** | `ic->deleteSurroundingText(-len, len)` + `ic->commitString(insert)` | **Trải nghiệm gõ mượt mà như Lotus/UniKey:** Chữ xuất hiện trực tiếp trong văn bản. Khi biến đổi âm/dấu, TextVN xóa lùi qua surrounding text và commit ký tự mới. **Hoàn toàn không có đường gạch chân (no underline), không popup giật giọt**. Yêu cầu `CapabilityFlag::SurroundingText`. |
-| **Clean Preedit** | `ic->inputPanel().setClientPreedit(text)` (Không gán cờ Underline) | Dùng cho ứng dụng không hỗ trợ Surrounding Text. Preedit hiển thị inline tự nhiên không gạch chân, commit ngay khi dứt từ (Space/Enter). |
-| **SelectionReplace** | `ic->commitString(insert)` | Dùng cho thanh địa chỉ trình duyệt (Firefox, Chrome), ô tìm kiếm (`lin.*.url` — **B1**). Không sinh Backspace giả lập, giữ nguyên dropdown autocomplete. |
-| **ForwardAsCommit** | `ic->commitString(raw_key)` | Dùng riêng cho terminal (`gnome-terminal`, `konsole`, `kitty`, `alacritty` — **B8/B11**). |
-| **Kernel Uinput** (Opt-in) | Gửi scan code qua `/dev/uinput` device | Dành cho Wine, Proton, Game fullscreen hoặc app không hỗ trợ bất kỳ IM protocol nào. |
+| Preedit | `ic->inputPanel().setClientPreedit(text)` + `updatePreedit()` | underline attrs qua `TextFormatFlag::Underline` |
+| SelectionReplace | `commitString(insert)` — commit thay selection (verify LNX-006: GTK/Qt/Chromium) | KHÔNG giả lập phím (B1) |
+| BackspaceType | `ic->surroundingText().deleteAround(offset, len)` nếu probe OK; không OK → resolve downgrade | RL5, đối chiếu `P3-1 §6.3` |
+| ForwardAsCommit | `commitString` không preedit | terminal (B8/B11) |
+| Passthrough | trả false cho mọi phím | secure / EN mode |
 
-### 5.1 Giải thuật Chuyển đổi và Xử lý Surrounding Text (Đối chuẩn `fcitx5-lotus`)
-
-```cpp
-void apply_replace(fcitx::InputContext* ic, const ime_result* out, bool non_preedit_mode) {
-    if (non_preedit_mode && ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText)) {
-        // 1. Chế độ gõ không gạch chân (Non-preedit):
-        // Xóa các ký tự tiền tố cần sửa đổi thông qua surrounding text
-        if (out->delete_count > 0) {
-            ic->deleteSurroundingText(-static_cast<int>(out->delete_count), out->delete_count);
-        }
-        // Commit chuỗi ký tự tiếng Việt mới trực tiếp vào ứng dụng
-        if (out->insert_len > 0) {
-            std::string utf8_text = utf32_to_utf8(out->insert, out->insert_len);
-            ic->commitString(utf8_text);
-        }
-        ic->inputPanel().reset();
-        ic->updatePreedit();
-    } else {
-        // 2. Chế độ Preedit (Clean Preedit):
-        if (out->action == IME_ACTION_COMMIT) {
-            std::string utf8_text = utf32_to_utf8(out->insert, out->insert_len);
-            ic->commitString(utf8_text);
-            ic->inputPanel().reset();
-            ic->updatePreedit();
-        } else {
-            std::string preedit_str = utf32_to_utf8(out->insert, out->insert_len);
-            fcitx::Text preeditText(preedit_str);
-            // KHÔNG thêm TextFormatFlag::Underline để tránh giật giao diện (kế thừa Lotus)
-            ic->inputPanel().setClientPreedit(preeditText);
-            ic->updatePreedit();
-        }
-    }
-}
-```
-
-### 5.2 Xử lý phím Enter trong Chat Apps (Triệt tiêu triệt để Bug B2)
-
-```cpp
-bool handle_enter_key(fcitx::InputContext* ic, ime_instance* inst) {
-    // Nếu đang ở Non-preedit mode: Văn bản ĐÃ được commit sẵn trong app,
-    // sự kiện Enter chỉ đóng vai trò gửi tin nhắn -> PASS Enter bình thường (return false).
-    // Nếu đang ở Preedit mode: Commit ngay chuỗi buffer dở, xóa preedit và nuốt Enter (return true)
-    // để tránh việc tin nhắn bị gửi 2 lần hoặc nhân đôi từ cuối.
-    if (has_uncommitted_buffer(inst)) {
-        commit_current_buffer(ic, inst);
-        return true; // Nuốt Enter để bảo vệ chat
-    }
-    return false; // Cho phép Enter gửi tin nhắn
-}
-```
+`ime_result` → UTF-8/UTF-32 convert **dùng chung helper linux-common** (không viết 2 lần).
 
 ## 6. Link FFI từ C++ (RL10 — spike `LNX-003`)
 

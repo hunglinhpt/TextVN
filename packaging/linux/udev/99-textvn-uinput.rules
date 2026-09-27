@@ -1,3 +1,0 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
-# TextVN - uinput device permissions for kernel-level virtual input injection (Games & Wine)
-KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput", MODE="0660", GROUP="input"

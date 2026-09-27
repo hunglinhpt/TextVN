@@ -46,50 +46,19 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.1 Đối chuẩn & Kế thừa Tinh hoa từ các Repo Mã nguồn mở Hàng đầu
+**Đường dẫn chuẩn Linux (bổ sung `P0-3 §1` — đã có sẵn từ review Phần 2):**
 
-Nhằm xây dựng giải pháp gõ tiếng Việt trên Linux toàn diện và mượt mà nhất, kiến trúc TextVN được đối chuẩn và kế thừa tinh hoa từ 5 dự án mã nguồn mở chủ chốt:
+| Hạng mục | Đường dẫn |
+|---|---|
+| Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
+| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
+| Log | `~/.local/state/TextVN/log/` — không bao giờ ghi nội dung phím (S2) |
+| IBus component | `/usr/share/ibus/component/textvn.xml` + engine binary `/usr/lib/textvn/textvn-ibus-engine` |
+| Fcitx5 addon | `/usr/share/fcitx5/addon/textvn.conf` + `/usr/lib/fcitx5/libtextvn-fcitx5.so` |
+| Tray/autostart | `/usr/share/applications/textvn-settings.desktop` + `/etc/xdg/autostart/textvn-tray.desktop` (gói system) hoặc `~/.config/autostart/` (gói user) |
 
-| Dự án tham chiếu | Kiến trúc & Công nghệ | Điểm mạnh kế thừa | Giới hạn & Giải pháp nâng cấp của TextVN |
-|---|---|---|---|
-| **fcitx/fcitx5** (Official Upstream) | Framework bộ gõ hiện đại thế hệ mới của Linux; hỗ trợ Wayland (`text-input-v3`), C++ C-ABI, `InputMethodEngineV2`, `CapabilityFlags`. | • Kiến trúc module hóa cực cao, độ trễ tiệm cận 0ms.<br>• Hỗ trợ đầy đủ các cờ `CapabilityFlag::SurroundingText`, `CapabilityFlag::FormattedPreedit`, `CapabilityFlag::ClientSideInputPanel`.<br>• Giao thức Wayland chuẩn xác không cần snoop phím. | TextVN tuân thủ 100% chuẩn C++ Addon API của Fcitx5, tận dụng khả năng probe `CapabilityFlags` để điều tiết chế độ hiển thị linh hoạt theo từng cửa sổ. |
-| **fcitx5-lotus** (`LotusInputMethod/fcitx5-lotus`) | Bộ gõ tiếng Việt cho Linux tối ưu hóa từ VMK, hướng đến trải nghiệm **gõ không gạch chân (Non-preedit) mượt mà**, tích hợp `uinput` virtual keyboard. | • **Gõ không gạch chân (Non-preedit):** Loại bỏ hoàn toàn đường gạch chân khó chịu khi gõ, chữ xuất hiện tự nhiên như gõ phím trực tiếp.<br>• **Hỗ trợ `uinput`:** Cho phép gửi phím cấp kernel ảo đối với các app/game không hỗ trợ IM framework.<br>• Tránh giật con trỏ và xung đột giao diện. | TextVN kế thừa triết lý **Gõ không gạch chân (Non-preedit Mode)**: Khi ứng dụng hỗ trợ Surrounding Text (`CapabilityFlag::SurroundingText`), TextVN thực hiện Direct Commit + `deleteSurroundingText`, mang lại trải nghiệm mượt mà không gạch chân; đồng thời cung cấp tùy chọn `uinput` cho Game/Wine. |
-| **BambooMintKey** (`thatislg/BambooMintKey`) | Fcitx5 C-ABI Addon (`libbamboomintkey.so`), build CMake, cài đặt rootless `~/.local` hoặc system `/usr`. | • **Rootless per-user install:** Cho phép user/dev cài đặt ngay không cần `sudo`.<br>• **Script cài đặt 1 lệnh (`install_linux.sh`):** Tự phát hiện distro (Ubuntu, Fedora, Arch) và hot-reload `fcitx5 -r -d`.<br>• **Badge icon SVG vector:** Sắc nét ở mọi độ phân giải. | TextVN kế thừa trọn vẹn mô hình rootless + system dual path và script cài 1 chạm, đồng thời bổ sung adapter IBus để hỗ trợ mặc định cho Ubuntu GNOME. |
-| **ibus-bamboo** (`bambooengine/ibus-bamboo`) | IBus Engine truyền thống viết bằng C/Go, hỗ trợ preedit và surrounding text mode. | • **Kỹ thuật Surrounding text:** Xử lý `ibus_engine_delete_surrounding_text` chuẩn xác khi ứng dụng hỗ trợ.<br>• **Phân định rõ ranh giới Wayland:** ibus-bamboo ghi nhận Fcitx5 vượt trội hơn IBus trên Wayland (`text-input-v3` không lệch con trỏ). | TextVN thiết kế Fcitx5 làm adapter khuyến nghị cho Wayland (KDE/Fedora/Arch/Ubuntu Fcitx5) và IBus làm native cho GNOME Ubuntu; dùng chung core Rust FFI. |
-| **OpenKey** (`tuyenvm/OpenKey`) | Hook toàn cục (Windows: `SetWindowsHookEx`, macOS: `CGEventTap`, Linux: `XRecord`/`XTest`/`XGrabKeyboard`) + backspace simulation. | • **Bộ giải thuật gõ tiếng Việt nhanh gọn:** Tự phục hồi từ tiếng Anh, kiểm tra chính tả. | • **Thất bại trên Wayland:** Cơ chế hook toàn cục của OpenKey **hoàn toàn vô hiệu trên Wayland** do kiến trúc bảo mật cô lập input giữa các client.<br>• **Giải pháp TextVN:** Tuyệt đối **không dùng global hook trên Wayland** (fix triệt để bug B10); đi chuẩn giao thức Input Method (Fcitx5 + IBus); `textvn-x11` chỉ là tiến trình riêng biệt opt-in cho game/legacy X11. |
-
-### 2.2 Bảng Phòng chống Triệt để các Bug Lịch sử (Bug Prevention Matrix)
-
-| Mã Bug | Hiện tượng gặp phải trên các bộ gõ cũ | Nguyên nhân gốc rễ | Giải pháp Triệt để của TextVN |
-|---|---|---|---|
-| **Underline Bug** (Gạch chân giật cục) | Khi gõ từ có dấu, đường gạch chân dashed/solid liên tục co giãn, làm giật con trỏ và nhảy layout trong Discord, LibreOffice, Web browsers. | Bộ gõ luôn gán cờ `TextFormatFlag::Underline` vào chuỗi composition preedit, kích hoạt liên tục reflow layout của toolkit UI. | **Chế độ Gõ Không Gạch Chân (Non-preedit Mode — kế thừa Lotus):**<br>1. Nếu app hỗ trợ `SurroundingText`: TextVN commit thẳng ký tự và xóa lùi bằng `deleteSurroundingText(-len, len)` → Không gạch chân, không popup, mượt mà 100%.<br>2. Nếu app cần preedit: Bỏ cờ `Underline` (`setClientPreedit` trơn không gạch chân). |
-| **Bug B1** (Autocomplete dropdown nhảy loạn) | Gõ URL trên thanh địa chỉ Firefox/Chrome bị mất chữ, nhảy về đầu dòng, hoặc gợi ý tìm kiếm nhấp nháy liên tục. | Bộ gõ phát sinh phím Backspace giả lập khiến thanh địa chỉ hủy cache gợi ý và reset vị trí con trỏ caret. | Áp dụng chiến lược `SelectionReplace` (thay thế trực tiếp vùng chọn) hoặc Direct Commit; tuyệt đối không gửi phím Backspace giả lập vào thanh địa chỉ. |
-| **Bug B2** (Lặp từ cuối khi Enter) | Đang gõ dở trong Messenger, Telegram, Discord, nhấn Enter để gửi tin nhắn thì từ cuối cùng bị nhân đôi (ví dụ `xin chào chào`). | Khi phím Enter đến, bộ gõ vừa commit chuỗi preedit còn tồn đọng vừa cho phím Enter đi qua ứng dụng, dẫn đến ứng dụng nhận text 2 lần. | Thực thi nguyên tắc **Commit-Before-Hide**: Khi Enter nhấn xuống, nếu đang có buffer chưa commit thì commit ngay và nuốt/hủy sự kiện Enter nếu là xác nhận từ; trong chế độ Non-preedit, text đã nằm trong văn bản từ trước nên Enter gửi đi an toàn tuyệt đối. |
-| **Bug B6** (Nuốt nhầm hotkey hệ thống) | Không thể bấm `Alt+Tab`, `Super+D`, `Ctrl+Shift+T` khi đang bật bộ gõ tiếng Việt. | Bộ gõ chặn và kiểm tra toàn bộ key-down mà không bỏ qua các modifier hệ thống. | Bộ lọc sớm ngay dòng đầu của `process_key_event`: Nếu có `Super`, `Alt` hoặc `Ctrl` đi kèm các phím điều hướng/hệ thống → Trả về `PASS` (false) ngay lập tức, không qua engine. |
-| **Bug B8 & B11** (Hỏng phím trong Terminal) | Gõ tiếng Việt trong Terminal (`gnome-terminal`, `konsole`, `kitty`, `alacritty`) bị vỡ mã ANSI escape hoặc kẹt ký tự lạ. | Preedit inline xung đột với cơ chế raw pty của terminal emulator. | Preset tự động nhận diện vai trò `TERMINAL` qua AT-SPI hoặc tên ứng dụng, tự động chuyển sang chiến lược `ForwardAsCommit` hoặc Non-preedit không buffer. |
-| **Bug B10** (Mất gõ / Treo trên Wayland) | Ứng dụng chạy trên Wayland (Ubuntu 22.04+, Fedora 38+) không nhận tiếng Việt hoặc bộ gõ tự crash. | Bộ gõ cố gắng gọi hàm X11 `XGrabKeyboard` hoặc `XRecord` trong phiên Wayland, bị compositor chặn vì lý do an ninh. | Tuyệt đối không gọi hook X11 trên Wayland; sử dụng Fcitx5 C-ABI Addon tích hợp qua giao thức Wayland native `text-input-v3` / `wayland-im`. |
-| **Bug B13** (Xung đột đa cửa sổ / Multi-window bleed) | Gõ một nửa từ ở app A rồi chuyển sang app B (Alt+Tab), từ gõ dở bị chèn vào app B. | Bộ gõ dùng chung 1 engine instance / bộ đệm duy nhất cho mọi cửa sổ. | Thiết kế **1 instance per InputContext (`IC* → ime_instance*`)**: Mỗi cửa sổ có bộ đệm riêng biệt; sự kiện `focus_out` tự động kích hoạt commit chuỗi hiện tại và reset bộ đệm của context đó. |
-
-**Đường dẫn chuẩn Linux (System vs Rootless Per-User):**
-
-| Hạng mục | Đường dẫn System (`/usr`) | Đường dẫn Rootless User (`~/.local`) |
-|---|---|---|
-| Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
-| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
-| Log | `~/.local/state/TextVN/log/` | `~/.local/state/TextVN/log/` |
-| IBus component | `/usr/share/ibus/component/textvn.xml` | `~/.local/share/ibus/component/textvn.xml` |
-| IBus engine binary | `/usr/lib/textvn/textvn-ibus-engine` | `~/.local/lib/textvn/textvn-ibus-engine` |
-| Fcitx5 addon config | `/usr/share/fcitx5/addon/textvn.conf` | `~/.local/share/fcitx5/addon/textvn.conf` |
-| Fcitx5 addon `.so` | `/usr/lib/fcitx5/libtextvn-fcitx5.so` | `~/.local/lib/fcitx5/libtextvn-fcitx5.so` |
-| Icon SVG (V/E badge) | `/usr/share/icons/hicolor/scalable/apps/` | `~/.local/share/icons/hicolor/scalable/apps/` |
-| Tray/Settings desktop | `/usr/share/applications/textvn-settings.desktop` | `~/.local/share/applications/textvn-settings.desktop` |
-| Autostart desktop | `/etc/xdg/autostart/textvn-tray.desktop` | `~/.config/autostart/textvn-tray.desktop` |
-| Binaries (`textvn`, `textvn-tray`) | `/usr/bin/` | `~/.local/bin/` |
-
-> Quy tắc: Bộ cài `scripts/install_linux.sh` hỗ trợ cả 2 chế độ:
-> - Mặc định (hoặc truyền flag `--user`): cài rootless vào `~/.local/`, **không đòi hỏi quyền root / sudo**.
-> - Truyền flag `--system`: cài vào `/usr/` thông qua `sudo` hoặc package manager (`.deb`, `.rpm`, AUR).
-
+> Quy tắc: đường dẫn system **chỉ** nằm trong spec đóng gói (`packaging/linux/`),
+> code nhận qua `--prefix`/env; đường dẫn user hardcode 1 chỗ (module paths trong crate config).
 
 ## 3. Workstream & file solution
 

@@ -25,7 +25,9 @@ pub use settings::{SettingsController, SettingsTab};
 pub use settings_dialog::show_settings_dialog;
 pub use svc::{StateData, SvcManager};
 
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::AtomicIsize;
+#[cfg(windows)]
+use std::sync::atomic::Ordering;
 
 pub static TRAY_HWND: AtomicIsize = AtomicIsize::new(0);
 pub const WM_UPDATE_TRAY_STATE: u32 = 0x8000 + 2;

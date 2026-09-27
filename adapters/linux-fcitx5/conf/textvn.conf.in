@@ -1,0 +1,11 @@
+[Addon]
+Name=TextVN
+Comment=Vietnamese Input Method Engine for Fcitx5
+Category=InputMethod
+Type=SharedLibrary
+OnDemand=True
+Configurable=True
+Library=libtextvn-fcitx5.so
+
+[Addon/Dependencies]
+0=core

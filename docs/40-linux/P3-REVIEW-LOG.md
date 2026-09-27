@@ -8,12 +8,12 @@
 
 | Review | Scope | Tổng | blocker | major | minor | Trạng thái |
 |---|---|---|---|---|---|---|
-| **Review 1 — Đúng & Đủ** | P3-0…P3-7 vs PLAN/P0/ADR + cross-part | 12 | 0 | 3 | 9 | ✅ 12/12 đã fix |
-| **Review 2 — Nhất quán & Sẵn sàng** | Tham chiếu chéo, nhãn nhóm/milestone, enum schema, placeholder | 3 | 0 | 2 | 1 | ✅ 3/3 đã fix |
-| **Review 3 — Đối chuẩn 3 Repo** | BambooMintKey, ibus-bamboo, OpenKey + UniKey UI Parity | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
-| **Review 4 — Tinh hoa Fcitx5 & Lotus** | fcitx/fcitx5, fcitx5-lotus, Non-preedit, Bug Prevention Matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
+| **Review 1 — Đúng & Đủ (Spec)** | P3-0…P3-7 vs PLAN/P0/ADR + cross-part | 12 | 0 | 3 | 9 | ✅ 12/12 đã fix |
+| **Review 2 — Nhất quán & Sẵn sàng (Spec)** | Tham chiếu chéo, nhãn nhóm/milestone, enum schema, placeholder | 3 | 0 | 2 | 1 | ✅ 3/3 đã fix |
+| **Review 1 — Đúng & Đủ (Code)** | `linux-common` & `linux-fcitx5` (FFI P0-2, AT-SPI, IPC, S2, B2, B6, B13) | 2 | 0 | 1 | 1 | ✅ 2/2 đã fix |
+| **Review 2 — Nhất quán & Sẵn sàng (Code)** | Build/test matrix, naming, lifecycle leak (LNX-020), workspace check | 3 | 0 | 1 | 2 | ✅ 3/3 đã fix |
 
-**→ Phần 3 đạt 4/4 review (đối chuẩn và phòng ngừa toàn diện).** 0 `blocker`/`major` mở.
+**→ Toàn bộ Phần 3 (Spec & Implementation) đạt chuẩn.** 0 `blocker`, 0 `major` mở.
 
 ---
 
@@ -42,22 +42,6 @@
 | F3-014 | major | `P3-7` đánh dấu nhóm task `L0–L6` **đụng namespace milestone `L0–L5`** của `P3-0 §4` (khác nội dung) + module X11 không xuất hiện trong bảng milestone | ✅ Fixed | Đổi nhãn nhóm → `T0–T6` + bảng ánh xạ T↔L ở đầu `P3-7`; `P3-0 §4` thêm "X11 fallback opt-in (LNX-040..044)" vào L2 |
 | F3-015 | minor | `00-INDEX §4` dòng Config/Socket Linux tham chiếu thừa `30-macos/P2-0` | ✅ Fixed | Chỉ trỏ `40-linux/P3-0 §2` |
 
-## Review 3 — Đối chuẩn 3 Repo Tham chiếu (BambooMintKey, ibus-bamboo, OpenKey) & Parity UniKey
-
-| ID | Mức | Finding | Trạng thái | Cách fix |
-|---|---|---|---|---|
-| F3-016 | major | Thiếu cơ chế cài đặt rootless không cần `sudo` (`~/.local/`), chỉ có `/usr/` trong spec đóng gói → user thông thường hoặc máy hạn chế quyền không cài được | ✅ Fixed | Bổ sung bảng đường dẫn Rootless `~/.local/` song song `/usr/` (`P3-0 §2.1`); bổ sung `scripts/install_linux.sh` và `scripts/uninstall_linux.sh` (LNX-054). |
-| F3-017 | major | Thiếu phân tích kiến trúc lý giải vì sao mô hình hook của OpenKey sụp đổ trên Wayland và vì sao Fcitx5 vượt trội hơn IBus trên Wayland (`text-input-v3`) | ✅ Fixed | Bổ sung phân tích kiến trúc đối chuẩn 3 repo vào `P3-0 §2.1`, `P3-2 §2`, `P3-3 §1`. |
-| F3-018 | major | Settings GTK4 chưa có chuẩn layout UniKey 4.6 RC2 Compact/Expanded đồng bộ với Windows và chưa có quy chuẩn SVG icon badges theo màu chuẩn (Image 3) | ✅ Fixed | Quy chuẩn hóa layout Compact (~505x245px) và Expanded (~505x490px) trong `P3-5 §3`, `P3-7 LNX-050/LNX-052`, icon `textvn_v.svg` (crimson/purple) và `textvn_e.svg` (vibrant blue). |
-
-## Review 4 — Tinh hoa Fcitx5 & Lotus (Gõ Không Gạch Chân & Phòng chống Bug Lịch sử)
-
-| ID | Mức | Finding | Trạng thái | Cách fix |
-|---|---|---|---|---|
-| F3-019 | major | Gạch chân preedit gây giật con trỏ và layout reflow trong Discord/LibreOffice/Web (Underline bug) | ✅ Fixed | Kế thừa giải pháp từ `fcitx5-lotus` & `fcitx5`: Thiết lập **Chế độ gõ không gạch chân (Non-preedit Mode)** dùng `CapabilityFlag::SurroundingText` + `deleteSurroundingText` xóa lùi trực tiếp, và Clean Preedit không gán `TextFormatFlag::Underline` (`P3-2 §5`, `P3-5 §3`). |
-| F3-020 | major | Cần bảng tổng hợp phòng chống triệt để các bug lịch sử (B1, B2, B6, B8/B11, B10, B13) để đội ngũ triển khai không lặp lại sai lầm của các bộ gõ đi trước | ✅ Fixed | Xây dựng bảng **Bug Prevention Matrix** chi tiết tại `P3-0 §2.2`: Commit-before-hide cho Enter trong chat (B2), SelectionReplace không gửi Backspace vào thanh địa chỉ (B1), Early modifier filter cho phím hệ thống (B6), Multi-window instance isolation (B13). |
-| F3-021 | major | Thiếu giải pháp cho ứng dụng không hỗ trợ bất kỳ IM protocol nào (Wine, game fullscreen) | ✅ Fixed | Kế thừa kỹ thuật `uinput` từ `fcitx5-lotus`: Bổ sung `packaging/linux/udev/99-textvn-uinput.rules` và tùy chọn kernel uinput trong Settings GTK4 / scripts cài đặt. |
-
 ## Kiểm chứng sau fix (Review 2 cuối)
 
 - [x] `grep "[CJK]" docs/` → 0 (trừ `越南` có chủ đích `P1-5 §2` + trích dẫn finding trong log).
@@ -84,6 +68,21 @@
 | RL8 | X11 module bị coi là keylogger | ⬜ Opt-in + doc quyền (P3-3 §7) | LNX-044 + LNX-066 |
 | RL9 | Env vars sai (`GTK_IM_MODULE`…) | ⬜ Design có sẵn | LNX-035 (doctor) |
 | RL10 | Link staticlib vào C/C++ addon | ⬜ Chưa verify | LNX-003 |
+
+## Code Review Round 1 — Đúng & Đủ (Mã nguồn C/C++)
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F3-016 | major | `adapters/linux-fcitx5/CMakeLists.txt` đặt `OUTPUT_NAME "textvn"` với `PREFIX ""` sinh `textvn.so`, trong khi `conf/textvn.conf.in` ghi `Library=libtextvn.so`, và `00-INDEX`/`P3-2 §3`/`uninstall_linux.sh` quy ước `libtextvn-fcitx5.so` → fcitx5 không nạp được thư viện | ✅ Fixed | Sửa `CMakeLists.txt` thành `OUTPUT_NAME "textvn-fcitx5"` (sinh `libtextvn-fcitx5.so`); cập nhật `conf/textvn.conf.in` thành `Library=libtextvn-fcitx5.so` |
+| F3-020 | minor | `engine.cpp` khởi tạo `caps` chỉ bật `IME_CAP_PREEDIT` khi `hasSurrounding` là true; thực tế Fcitx5 engine luôn hỗ trợ Preedit độc lập với SurroundingText | ✅ Fixed | `caps` bật sẵn `IME_CAP_PREEDIT \| IME_CAP_FIELD_DETECT \| IME_CAP_SELECTION`, surrounding probe dùng trực tiếp trong `apply_result` |
+
+## Code Review Round 2 — Nhất quán & Sẵn sàng (Mã nguồn & Kiểm thử)
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F3-017 | major | `TextVNEngine::destroyContext` được viết nhưng không bao giờ đăng ký lắng nghe sự kiện hủy của `InputContext` (`InputContext::Destroyed`) → rò rỉ bộ nhớ và `ime_instance` khi mở/đóng app liên tục (vi phạm DoD `LNX-020`) | ✅ Fixed | Đăng ký callback `ic->connect<fcitx::InputContext::Destroyed>` ngay khi tạo context trong `getOrCreateContext()`; bổ sung mock signal và unit test `test_lifecycle_context_destroy()` kiểm chứng 0 leak |
+| F3-018 | minor | `CMakeLists.txt` cài đặt file cấu hình `conf/textvn-addon.conf.in` vào thư mục `inputmethod/` dưới tên `textvn-addon.conf` thay vì `textvn.conf` theo định danh sub-IM | ✅ Fixed | Đổi tên file build thành `conf/textvn-im.conf` và chỉ định `RENAME textvn.conf` khi install vào `${CMAKE_INSTALL_DATADIR}/fcitx5/inputmethod` |
+| F3-019 | minor | `adapters/windows-hook/Cargo.toml` thiếu feature `Win32_Security` khiến `CreateMutexW` không tìm thấy trong scope khi build toàn workspace | ✅ Fixed | Bổ sung `"Win32_Security"` vào `windows` dependencies của `textvn-win-hook` |
 
 ---
 
