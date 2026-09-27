@@ -130,6 +130,8 @@ mod win_impl {
     pub const CLSID_TIP: GUID = GUID::from_u128(0x6F2B9C31_8E47_4D2A_9C84_1D5A3E70F9B8);
     pub const PROFILE_GUID: GUID = GUID::from_u128(0xC4A91F52_77B3_4E19_8A6D_2F8C0B6E5A13);
 
+    /// `InstallLayoutOrTip` flag ILOT_UNINSTALL — hủy đăng ký khỏi danh sách bàn phím người dùng.
+    const ILOT_UNINSTALL: u32 = 0x0000_0001;
     /// `InstallLayoutOrTip` flag ILOT_DEFPROFILE — đặt profile làm default.
     const ILOT_DEFPROFILE: u32 = 0x0000_0002;
 
@@ -143,6 +145,15 @@ mod win_impl {
 
     /// Gọi `InstallLayoutOrTip` từ `input.dll` (không import lib, dùng LoadLibrary).
     pub fn install_layout_or_tip(lang: u16) {
+        call_layout_or_tip(lang, ILOT_DEFPROFILE, "DEFPROFILE");
+    }
+
+    /// Gỡ layout khỏi danh sách bàn phím người dùng (tránh để lại ghost keyboard sau khi unregister).
+    pub fn uninstall_layout_or_tip(lang: u16) {
+        call_layout_or_tip(lang, ILOT_UNINSTALL, "UNINSTALL");
+    }
+
+    fn call_layout_or_tip(lang: u16, flags: u32, label: &str) {
         unsafe {
             let hmod = match LoadLibraryW(w!("input.dll")) {
                 Ok(h) => h,
@@ -162,9 +173,9 @@ mod win_impl {
             let pfn: Pfn = std::mem::transmute(fp);
             let spec = layout_spec(lang);
             let wide: Vec<u16> = spec.encode_utf16().chain(std::iter::once(0)).collect();
-            let ret = pfn(wide.as_ptr(), ILOT_DEFPROFILE);
+            let ret = pfn(wide.as_ptr(), flags);
             say(&format!(
-                "  InstallLayoutOrTip({spec}, DEFPROFILE) → {}",
+                "  InstallLayoutOrTip({spec}, {label}) → {}",
                 if ret != 0 { "OK" } else { "FAIL" }
             ));
             // Không FreeLibrary — process thoát ngay, vô hại
@@ -272,6 +283,19 @@ mod win_impl {
         install_layout_or_tip(LANGID_VI);
         install_layout_or_tip(LANGID_EN);
 
+        // Kích hoạt ngay trong session hiện tại (WIN-003)
+        if com_init() {
+            if let Ok(prof) = unsafe {
+                CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                    &CLSID_TF_InputProcessorProfiles,
+                    None,
+                    CLSCTX_INPROC_SERVER,
+                )
+            } {
+                let _ = unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) };
+            }
+        }
+
         say("=== Đăng ký hoàn tất. Dùng Win+Space để chọn VietIME. ===");
         0
     }
@@ -279,6 +303,11 @@ mod win_impl {
     pub fn do_unregister() -> i32 {
         say("=== VietIME unregister ===");
 
+        // Bước 1: Gỡ khỏi danh sách layout của người dùng (input.dll UNINSTALL) - tránh ghost keyboard
+        uninstall_layout_or_tip(LANGID_VI);
+        uninstall_layout_or_tip(LANGID_EN);
+
+        // Bước 2: Dọn dẹp COM categories & language profiles
         if com_init() {
             let com_result = (|| -> Result<()> {
                 unsafe {
@@ -318,7 +347,7 @@ mod win_impl {
             }
         }
 
-        // Xóa registry CLSID
+        // Bước 3: Xóa registry CLSID
         let k = clsid_registry_key();
         reg_cmd(&["delete", &k, "/f"]);
 
