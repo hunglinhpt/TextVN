@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790481278.0790918,
-    "seen": 1790481311.7307746,
-    "ast_hash": "ec6fdb66a27022d03a7c562323df42c0",
+    "mtime": 1790481417.6207833,
+    "seen": 1790481459.66091,
+    "ast_hash": "94650a13f1e0103fa27cfbd46ccee1b6",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790481267.1133144,
-    "seen": 1790481311.7612865,
-    "ast_hash": "ddf1fc6f48f69385337d3d16da6fc88a",
+    "mtime": 1790481405.60501,
+    "seen": 1790481459.6764703,
+    "ast_hash": "418e73b5bf18f7997a1d82a9fa29bc99",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -885,6 +885,24 @@
     "mtime": 1790481175.109441,
     "seen": 1790481311.7552848,
     "ast_hash": "c985b3f343b75a7fcdb6d2b81d4fa271",
+    "semantic_hash": ""
+  },
+  "installer/windows/build_installer.ps1": {
+    "mtime": 1790481378.5013714,
+    "seen": 1790481459.650349,
+    "ast_hash": "a5bb78c4a1fb63ab5fd35666f808e861",
+    "semantic_hash": ""
+  },
+  "tools/win/check_targets.ps1": {
+    "mtime": 1790481364.633229,
+    "seen": 1790481459.6543295,
+    "ast_hash": "3a3a504bbcaef20276c309e6f8b68722",
+    "semantic_hash": ""
+  },
+  "tools/win/lib/targets.lib.ps1": {
+    "mtime": 1790481364.6322434,
+    "seen": 1790481459.6543295,
+    "ast_hash": "9e55d96fd619c1e831da0f66cccec413",
     "semantic_hash": ""
   }
 }
