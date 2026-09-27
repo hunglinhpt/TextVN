@@ -1,5 +1,13 @@
 # --- Rust build artifacts ---
+# --- cargo-fuzz (L4, P0-4 §1) ---
+/fuzz/artifacts/
+/fuzz/coverage/
+
 /target/
+# workspace con (spikes/, tools/) cũng có target/ riêng — build artifact KHÔNG được track
+target/
+# release artifacts di qua GitHub Releases, khong track trong repo (AV-3)
+/dist/
 
 # --- Python ---
 __pycache__/

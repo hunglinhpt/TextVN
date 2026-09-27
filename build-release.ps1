@@ -59,18 +59,8 @@ Write-Step "Build release --workspace --target $Target"
 cargo build --release --workspace --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
-# Build tray voi icon nhung
-Write-Step "Build tray with embedded icon (feature embed-resources)"
-try {
-    $null = cargo build --release -p vietime-tray --target $Target --features embed-resources 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Ok "embed-resources OK"
-    } else {
-        Write-Warn "embed-resources FAIL (exit $LASTEXITCODE) - using default icon fallback"
-    }
-} catch {
-    Write-Warn "embed-resources skipped: $_"
-}
+# Build tray - GHI CHU (AV/FP): feature embed-resources da bo o tray/Cargo.toml (icon
+# chi can cho installer qua installer/windows/resources/vietime.ico) - khong build rieng nua.
 
 Write-Ok "Build release DONE"
 

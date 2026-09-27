@@ -38,7 +38,7 @@
 
 ### Cách 1 — Installer (khuyến nghị)
 
-1. Tải file `vietime-setup-X.Y.Z.exe` từ [Releases](../../releases)
+1. Tải file `vietime-setup-X.Y.Z.exe` từ [Releases](https://github.com/hunglinhpt/TextVN/releases)
 2. Chạy installer — **không cần Admin**
 3. VietIME tự động khởi động cùng Windows
 4. Nhấn `Win+Space` để chọn VietIME
@@ -192,7 +192,7 @@ vietime.exe unregister           # Hủy đăng ký TSF
 # Xóa thư mục cài đặt
 ```
 
-> **Lưu ý**: Cấu hình người dùng (`%APPDATA%\VietIME\`) **không bị xóa** khi gỡ cài đặt (theo [S9](docs/specs/security.md)).
+> **Lưu ý**: Cấu hình người dùng (`%APPDATA%\VietIME\`) **không bị xóa** khi gỡ cài đặt (theo [S9](SECURITY.md)).
 
 ---
 

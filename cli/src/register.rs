@@ -50,8 +50,8 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
     }
 
     // Thư mục chứa binary hiện tại
-    let mut dir = std::env::current_exe()
-        .map_err(|e| format!("Không xác định được current_exe: {e}"))?;
+    let mut dir =
+        std::env::current_exe().map_err(|e| format!("Không xác định được current_exe: {e}"))?;
     dir.pop();
 
     for name in &["vietime-tsf.dll", "vietime_win_tsf.dll"] {
@@ -80,7 +80,11 @@ fn say(msg: &str) {
         dir.push("logs");
         let _ = std::fs::create_dir_all(&dir);
         dir.push("register.log");
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dir) {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(dir)
+        {
             let _ = writeln!(f, "[pid={}] {msg}", std::process::id());
         }
     }
@@ -94,7 +98,11 @@ fn reg_cmd(args: &[&str]) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    say(&format!("  reg {} → {}", args.join(" "), if ok { "OK" } else { "FAIL" }));
+    say(&format!(
+        "  reg {} → {}",
+        args.join(" "),
+        if ok { "OK" } else { "FAIL" }
+    ));
     ok
 }
 
@@ -110,10 +118,8 @@ mod win_impl {
     use windows::Win32::UI::TextServices::*;
 
     // Freeze GUIDs — khớp adapters/windows-tsf/src/guids.rs
-    pub const CLSID_TIP: GUID =
-        GUID::from_u128(0x6F2B9C31_8E47_4D2A_9C84_1D5A3E70F9B8);
-    pub const PROFILE_GUID: GUID =
-        GUID::from_u128(0xC4A91F52_77B3_4E19_8A6D_2F8C0B6E5A13);
+    pub const CLSID_TIP: GUID = GUID::from_u128(0x6F2B9C31_8E47_4D2A_9C84_1D5A3E70F9B8);
+    pub const PROFILE_GUID: GUID = GUID::from_u128(0xC4A91F52_77B3_4E19_8A6D_2F8C0B6E5A13);
 
     /// `InstallLayoutOrTip` flag ILOT_DEFPROFILE — đặt profile làm default.
     const ILOT_DEFPROFILE: u32 = 0x0000_0002;
@@ -195,55 +201,58 @@ mod win_impl {
             return 1;
         }
         // Bọc trong closure trả về Result để dùng được operator ?
-        let com_result = (|| -> Result<()> { unsafe {
-            let cat: ITfCategoryMgr =
-                CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-            let prof: ITfInputProcessorProfiles =
-                CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
+        let com_result = (|| -> Result<()> {
+            unsafe {
+                let cat: ITfCategoryMgr =
+                    CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+                let prof: ITfInputProcessorProfiles =
+                    CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
 
-            // Dọn profile cũ (tránh hỏng Description)
-            for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
-                    Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
-                    Err(e) => say(&format!(
-                        "  RemoveLanguageProfile({tag}) → {:#010x} (bỏ qua)",
-                        e.code().0
-                    )),
+                // Dọn profile cũ (tránh hỏng Description)
+                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
+                    match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
+                        Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
+                        Err(e) => say(&format!(
+                            "  RemoveLanguageProfile({tag}) → {:#010x} (bỏ qua)",
+                            e.code().0
+                        )),
+                    }
                 }
+
+                prof.Register(&CLSID_TIP)?;
+                say("  Profiles.Register → OK");
+
+                // Null-terminated buffer — tránh wcslen() heap corruption (S3-2)
+                let raw: Vec<u16> = "VietIME".encode_utf16().collect();
+                let desc_buf: Vec<u16> = raw.iter().copied().chain(std::iter::once(0)).collect();
+                let desc = &desc_buf[..raw.len()];
+                let icon_pad = [0u16; 4];
+                let icon = &icon_pad[..0];
+
+                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
+                    match prof.AddLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID, desc, icon, 0) {
+                        Ok(()) => say(&format!("  AddLanguageProfile({tag}) → OK")),
+                        Err(e) => say(&format!(
+                            "  AddLanguageProfile({tag}) → FAIL {:#010x}",
+                            e.code().0
+                        )),
+                    }
+                    match prof.EnableLanguageProfileByDefault(&CLSID_TIP, lang, &PROFILE_GUID, true)
+                    {
+                        Ok(()) => say(&format!("  EnableLanguageProfileByDefault({tag}) → OK")),
+                        Err(e) => say(&format!(
+                            "  EnableLanguageProfileByDefault({tag}) → FAIL {:#010x}",
+                            e.code().0
+                        )),
+                    }
+                }
+
+                cat.RegisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP)?;
+                say("  RegisterCategory(TIP_KEYBOARD) → OK");
+
+                Ok(())
             }
-
-            prof.Register(&CLSID_TIP)?;
-            say("  Profiles.Register → OK");
-
-            // Null-terminated buffer — tránh wcslen() heap corruption (S3-2)
-            let raw: Vec<u16> = "VietIME".encode_utf16().collect();
-            let desc_buf: Vec<u16> = raw.iter().copied().chain(std::iter::once(0)).collect();
-            let desc = &desc_buf[..raw.len()];
-            let icon_pad = [0u16; 4];
-            let icon = &icon_pad[..0];
-
-            for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                match prof.AddLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID, desc, icon, 0) {
-                    Ok(()) => say(&format!("  AddLanguageProfile({tag}) → OK")),
-                    Err(e) => say(&format!(
-                        "  AddLanguageProfile({tag}) → FAIL {:#010x}",
-                        e.code().0
-                    )),
-                }
-                match prof.EnableLanguageProfileByDefault(&CLSID_TIP, lang, &PROFILE_GUID, true) {
-                    Ok(()) => say(&format!("  EnableLanguageProfileByDefault({tag}) → OK")),
-                    Err(e) => say(&format!(
-                        "  EnableLanguageProfileByDefault({tag}) → FAIL {:#010x}",
-                        e.code().0
-                    )),
-                }
-            }
-
-            cat.RegisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP)?;
-            say("  RegisterCategory(TIP_KEYBOARD) → OK");
-
-            Ok(())
-        }})();
+        })();
 
         if let Err(e) = com_result {
             say(&format!("COM error: {:#010x}", e.code().0));
@@ -262,31 +271,39 @@ mod win_impl {
         say("=== VietIME unregister ===");
 
         if com_init() {
-            let com_result = (|| -> Result<()> { unsafe {
-                let cat: ITfCategoryMgr =
-                    CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-                match cat.UnregisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP) {
-                    Ok(()) => say("  UnregisterCategory → OK"),
-                    Err(e) => say(&format!("  UnregisterCategory → FAIL {:#010x}", e.code().0)),
-                }
+            let com_result = (|| -> Result<()> {
+                unsafe {
+                    let cat: ITfCategoryMgr =
+                        CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+                    match cat.UnregisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP) {
+                        Ok(()) => say("  UnregisterCategory → OK"),
+                        Err(e) => say(&format!("  UnregisterCategory → FAIL {:#010x}", e.code().0)),
+                    }
 
-                let prof: ITfInputProcessorProfiles =
-                    CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
-                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                    match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
-                        Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
+                    let prof: ITfInputProcessorProfiles = CoCreateInstance(
+                        &CLSID_TF_InputProcessorProfiles,
+                        None,
+                        CLSCTX_INPROC_SERVER,
+                    )?;
+                    for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
+                        match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
+                            Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
+                            Err(e) => say(&format!(
+                                "  RemoveLanguageProfile({tag}) → {:#010x}",
+                                e.code().0
+                            )),
+                        }
+                    }
+                    match prof.Unregister(&CLSID_TIP) {
+                        Ok(()) => say("  Profiles.Unregister → OK"),
                         Err(e) => say(&format!(
-                            "  RemoveLanguageProfile({tag}) → {:#010x}",
+                            "  Profiles.Unregister → FAIL {:#010x}",
                             e.code().0
                         )),
                     }
+                    Ok(())
                 }
-                match prof.Unregister(&CLSID_TIP) {
-                    Ok(()) => say("  Profiles.Unregister → OK"),
-                    Err(e) => say(&format!("  Profiles.Unregister → FAIL {:#010x}", e.code().0)),
-                }
-                Ok(())
-            }})();
+            })();
             if let Err(e) = com_result {
                 say(&format!("COM error: {:#010x}", e.code().0));
             }
@@ -315,7 +332,10 @@ mod win_impl {
                 ) {
                     Ok(p) => p,
                     Err(e) => {
-                        say(&format!("CoCreateInstance(profiles) FAIL {:#010x}", e.code().0));
+                        say(&format!(
+                            "CoCreateInstance(profiles) FAIL {:#010x}",
+                            e.code().0
+                        ));
                         return 1;
                     }
                 };
@@ -417,10 +437,7 @@ mod tests {
             spec.starts_with("0x042A:"),
             "phải bắt đầu bằng 0x042A: — got: {spec}"
         );
-        assert!(
-            spec.contains(CLSID_STR),
-            "phải chứa CLSID — got: {spec}"
-        );
+        assert!(spec.contains(CLSID_STR), "phải chứa CLSID — got: {spec}");
         assert!(
             spec.contains(PROFILE_STR),
             "phải chứa Profile GUID — got: {spec}"
