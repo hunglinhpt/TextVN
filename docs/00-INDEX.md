@@ -242,3 +242,9 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - Kiểm tra xung đột phím tắt hệ thống (`validate_hotkey` loại trừ `Ctrl+C`, `Ctrl+V`, `Ctrl+X`).
   - Tạo tài liệu chuẩn `docs/release/parity-checklist.md` đối chiếu 1-1 từng control với struct `Config` và ma trận đồng bộ 3 hệ điều hành Windows / macOS / Linux.
   - Đạt 10 Quality Gates: 33/33 Windows platform tests pass 100% (TSF 15, Hook 5, Tray 13), `clippy --all-targets` 0 warning, `fmt --check` sạch, `reuse lint` 986/986 compliant.
+- 2026-09-27: **W15 — Windows Packaging & Installer hoàn thiện: WIN-054, WIN-055**:
+  - `WIN-054`: Viết Inno Setup 6 installer script `installer/windows/vietime-setup.iss` đóng gói 4 binary artifacts (`vietime-tsf.dll`, `vietime-hook.exe`, `vietime-tray.exe`, `vietime.exe`) và thư mục `data\`. Hỗ trợ 2 chế độ: Per-user (mặc định không cần admin theo S5) và System mode.
+  - Tích hợp lifecycle cài/gỡ hoàn chỉnh: `vietime register`, `config init`, `vietime-tray --stop`, `vietime unregister`, bảo toàn dữ liệu cấu hình `%APPDATA%\VietIME` theo Rule S9.
+  - `WIN-055`: Tạo application manifest `installer/windows/app.manifest` (Windows 10/11, PerMonitorV2 DPI awareness, UTF-8 code page, asInvoker).
+  - Tạo script điều phối `installer/windows/build_installer.ps1` kiểm tra artifacts và compile installer (tuân thủ Rule G7).
+  - Đạt 10 Quality Gates: 991/991 files compliant REUSE, toàn bộ test Windows pass 100%.

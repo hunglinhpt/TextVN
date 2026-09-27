@@ -52,6 +52,7 @@
 | C10 | Spike UIA reproduce từ repo: `powershell -NoProfile -ExecutionPolicy Bypass -File spikes\uia-probe\{controltype_ids,probe_conditions,uia_spike}.ps1` | ✓ **3/3 chạy OK** (2026-09-27; run 2 đầy đủ = `uia-spike.md` §1.1) | output `%TEMP%\uia_probe_conditions_out.txt` / `%TEMP%\uia_spike_out.txt`; Office+Chrome tự mở, tự dọn sau khi chạy |
 | C11 | Hook spike: local `spikes\hook-probe\hook_probe.ps1` + GHA `gh workflow run hook-spike.yml` (dispatch, artifact `hook-probe-out`) | ✓ local PASS + **3 run GHA xanh** (2026-09-27: 36291058821, 36291164891, 36291348415) | kết luận RW5 = `hook-spike.md` §3; script tự dọn notepad mới mở, giữ notepad sẵn có |
 | C12 | `vietime-tray.exe` & IPC Named Pipe server (`\\.\pipe\vietime-ipc-v1`) | ✓ binary 1.15MB, 9 mục menu, autostart registry HKCU (2026-09-27) | WIN-050, WIN-051, WIN-053 hoàn thiện, Single-instance Mutex `Local\VietIMETray` |
+| C13 | Inno Setup 6 script (`installer/windows/vietime-setup.iss`) & app manifest (`app.manifest`) | ✓ Verified 4 binary artifacts, per-user/all-users support, Rule S9 uninstall preserve (2026-09-27) | WIN-054, WIN-055 hoàn thiện |
 
 ## D. Môi trường máy dev (snapshot 2026-09-27) — khỏi kiểm tra lại
 
