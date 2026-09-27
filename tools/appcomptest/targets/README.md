@@ -1,0 +1,120 @@
+# Targets JSON — `tools/appcomptest/targets/` (WIN-061)
+
+Quy tắc locate **field** cần focus khi test 12 app CI (P1-5 §3 matrix) — input cho harness
+`appcomptest` (WIN-060, P1-5 §4). File cùng format với preset (`P0-3 §2.1`) để **reuse**
+(`match` / `field_role` / link `preset`).
+
+> **G15 — reuse tối đa:** ngữ nghĩa locator ở đây là **một spec duy nhất** cho mọi consumer:
+> script PowerShell (`tools/win/verify_targets.ps1`) và crate Rust harness (WIN-060) + rules
+> `field-detect` (WIN-030) **phải diễn giải y hệt** (§ Locator semantics). Không copy logic từng nơi.
+
+## 1. File & schema
+
+Một file/app: `<app_id>.json` — 12 file CI = `notepad, word, vscode, chrome, edge, firefox,
+excel, terminal, explorer, slack, discord, jetbrains`.
+
+```jsonc
+{
+  "targets_version": 1,
+  "app_id": "chrome",                        // = ten file (check chot)
+  "match": { "any": [ { "exe": "chrome.exe" } ] },   // app_id normalize (P1-3 §2)
+  "launch": {
+    "kind": "exe | com | shell",             // exe: Start-Process paths; com: COM (Word/Excel);
+                                             // shell: lenh (wt.exe, explorer.exe)
+    "paths": [ "...", "%LOCALAPPDATA%\\..." ],  // co wildcard (app-*\x.exe) + PATH fallback
+    "args": [ "--new-window", "{fixture}" ],    // {fixture} = trang test contenteditable %TEMP%
+    "com_prog_id": "Word.Application",       // chi kind=com
+    "com_add": "doc | wb",
+    "ready_class": "Chrome_WidgetWin_1",     // tim/san sang cua so
+    "process": "olk.exe",                    // tuy chon: doi ten process (mac dinh = match.exe)
+    "appx_package": "Microsoft.WindowsTerminal", // tuy chon: version qua Get-AppxPackage (f6-5)
+    "close": "never",                        // tuy chon: explorer (KHONG dong)
+    "focus_before_probe": true               // tuy chon: focus truoc khi doc UIA (WT)
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",           // whitelist P0-3 §2.1 (11 role)
+      "preset": "win.chrome.url",            // link preset (reuse)
+      "locators": [ { ... }, { ... } ],      // >= 2 selector, thu tu = uu tien
+      "notes": "..."
+    }
+  ]
+}
+```
+
+### Locator keys (AND trong 1 locator, OR = thứ tự mảng)
+
+| key | nghĩa |
+|---|---|
+| `control_type` | ControlType UIA (**39 type của .NET — KHÔNG có `TextArea`/`Grid`**, xem F6-1) |
+| `automation_id`, `name`, `class_name` | so đúng (PropertyCondition exact) |
+| `name_regex`, `class_regex` | regex — filter client-side (S4: `PropertyCondition` .NET không có Contains) |
+
+**Readiness:** poll ≤10s tới khi bất kỳ locator nào resolve (UIA tree render async — S4).
+**Focus:** `focus_before_probe` → `Focus-UiAWindow` (AttachThreadInput) — **WT: `TermControl`
+chỉ xuất hiện SAU focus** (verify diag3).
+
+## 2. Cách chạy
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\check_targets.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1 -Only chrome,word
+```
+
+Shared lib (G15): `tools/win/lib/win32-uia.lib.ps1` (EnumWindows/UIA/focus/locator eval) +
+`tools/win/lib/targets.lib.ps1` (load/schema) — dot-source, không copy.
+
+## 3. Acceptance (WIN-061)
+
+| # | Acceptance | Trạng thái | Evidence |
+|---|---|---|---|
+| 1 | Mỗi app ≥ 2 locator | ✅ **PASS** | `check_targets.ps1` → `PASS - 12 file, moi app >= 2 locator` |
+| 2 | Chạy lại sau upgrade app version không vỡ (1 app) | 🔄 workflow `targets-verify.yml` (dispatch-only) đã dựng: job `upgrade-cycle` (uninstall → cài VS Code bản cũ → verify → `winget upgrade` → verify lại, assert version đổi + locator OK) + job `cross-image` (windows-2022 vs 2025 — cùng JSON, app version khác nhau). **Không đụng app trên máy local** (user rule 2026-09-27). Kết quả: xem run/artifact của workflow (cập nhật ID vào đây sau lần dispatch đầu) |
+
+**Verify local** (2026-09-27, Win11 26100, máy dev): **12/12 field rows OK, 0 FIELD_MISS**
+(15 dòng = chrome/edge/excel có 2 field) — xem `verify-evidence.md` (auto-generated, S2: chỉ
+ControlType/ClassName/chi-số, không ghi Name). App chưa cài (slack/discord/jetbrains) = ghi
+`NOT_INSTALLED` — locator chưa verify local (limitation §5).
+
+Hit thực tế (locator #0 trỏ đúng đối tượng):
+
+| app | field | hit | resolves |
+|---|---|---|---|
+| notepad | body | `Document/RichEditD2DPT` | 1/3 |
+| word | body | `Document/_WwG` | **3/3** |
+| vscode | body | `Document/` | 2/3 |
+| chrome | address_bar / web | `Edit/OmniboxViewViews` / `Document` | 2/3 · 1/3 |
+| edge | address_bar / web | `Edit/OmniboxViewViews` / `Document` | **3/3** · 1/3 |
+| firefox | address_bar | `ComboBox/urlbar-input textbox-input` | 2/3 |
+| excel | candidate / editbox | `DataGrid/XLSpreadsheetGrid` / `Edit/XLFormulaBarEditor` | 1/3 · **2/2** |
+| terminal | terminal | `Text/TermControl` (sau focus) | 1/3 |
+| explorer | address_bar | `Edit/TextBox` (hoặc `UISmartProperty`) | 1/3 |
+
+`resolves n/m` < full là **đúng thiết kế**: fallback locator nhắm **app version khác**
+(GHA conhost = `Pane/Edit` [S5], legacy notepad = `Edit`) nên không resolve đồng thời trên
+một version.
+
+## 4. Findings
+
+| ID | Finding | Xử lý |
+|---|---|---|
+| **F6-1** | `P1-3 §2 R8` dùng `ControlType == TextArea` — **không tồn tại** trên .NET UIA (39 statics, không TextArea/Grid; `GetProperty` sai vì statics là **FIELD**) → rule chạy runtime sẽ ra NULL | Locator JSON đã tránh (`Document`/`Edit`+`class`). **Cần sửa R8 khi `P1-3` hết WIP** (báo agent kia — G11) |
+| **F6-2** | App **self-update ngay khi launch** (Discord 1.0.9257 → 9259 sau vài giây) → không dùng làm đối tượng upgrade-test | Chọn VS Code (control được, không tự update giữa chừng) trên **runner ephemeral**; local không cài/upgrade app nào |
+| **F6-3** | Chromium **không expose `Document` với `about:blank`** (trang rỗng) → spawn `{fixture}` (contenteditable) thay about:blank | đã áp chrome/edge `launch.args` |
+| **F6-4** | Win11 Notepad UIA tree render **async** — query ngay khi cửa sổ vừa mở = 0/3 | readiness poll ≤10s trong verify (S4: tree nóng sau render) |
+| **F6-5** | `wt.exe` là **app-execution-alias** → `VersionInfo.ProductVersion` rỗng → cột version trống, mất dữ liệu so sánh version trên CI | key `launch.appx_package` optional → `Get-AppxPackage` (`terminal.json` = `1.24.11911.0`) |
+| **F6-6** | Workflow GHA dễ fail ngầm: wrapper đọc `$LASTEXITCODE` **cuối** step → winget exit ≠ 0 (`0x8A15002B` khi "không có upgrade") làm fail step oan; thiếu `permissions`/`timeout-minutes` so với `hook-spike.yml`; bản cũ VS Code còn sót ở `Program Files` sẽ che `paths[0]` sau khi winget cài về `%LOCALAPPDATA%` | `exit 0` tường minh ở cuối step winget; `permissions: contents: read` + timeout; bước dọn `Program Files` nếu version ≠ baseline (chỉ trên runner ephemeral) |
+| **F6-7** | `Write-Output 'text ' + $x` (thiếu ngoặc) → PowerShell tách thành nhiều argument → message sai/chữi | Luôn `Write-Output ('text ' + $x)` — paren bọc expression (A10-family) |
+| **F6-8** | Step summary markdown: header 6 cột nhưng row evidence 7 cột (thiếu `ms`) → bảng render sai | Đổi header khớp đúng 7 cột của `verify-evidence.md` |
+
+## 5. Limitation / follow-up
+
+- slack, discord, jetbrains: **chưa cài local** → locator suy từ R7/R8 + chuẩn Electron/Swing,
+  chưa verify thật. Verify trên app có sẵn khi nào cài (CI image không có Office/Slack…).
+- Locale-dependent `name_regex` (S4: Name exact) — runner image = en-US; máy khác locale cần
+  re-verify.
+- `verify-evidence.md` regenerate mỗi lần chạy (máy/phiên khác nhau → khác nhau, không phải
+  diff regression).
+- WIN-060 (harness crate Rust) consume JSON này — build theo **cùng locator semantics** (G15);
+  `field-detect` (WIN-030) tái dùng thay vì viết lại.

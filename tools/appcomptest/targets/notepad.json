@@ -1,0 +1,23 @@
+{
+  "targets_version": 1,
+  "app_id": "notepad",
+  "match": { "any": [ { "exe": "notepad.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [ "%SystemRoot%\\System32\\notepad.exe" ],
+    "args": [],
+    "ready_class": "Notepad"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "win.notepad",
+      "locators": [
+        { "control_type": "Document" },
+        { "control_type": "Pane", "class_name": "Edit" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "Smoke app. Win11 packaged editor = Document(50030) [S4]; GHA degraded tree = Pane cls=Edit [S5]; legacy notepad = Edit."
+    }
+  ]
+}

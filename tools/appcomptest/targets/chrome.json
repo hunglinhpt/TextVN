@@ -1,0 +1,36 @@
+{
+  "targets_version": 1,
+  "app_id": "chrome",
+  "match": { "any": [ { "exe": "chrome.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [
+      "%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe",
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+    ],
+    "args": [ "--new-window", "{fixture}" ],
+    "ready_class": "Chrome_WidgetWin_1"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "win.chrome.url",
+      "locators": [
+        { "control_type": "Edit", "name_regex": "(?i)address and search bar" },
+        { "control_type": "ComboBox" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "B1 omnibox autocomplete. Name exact 'Address and search bar' verified [S4 probe_conditions]."
+    },
+    {
+      "field_role": "web",
+      "preset": "win.chrome.body",
+      "locators": [
+        { "control_type": "Document" },
+        { "control_type": "Pane", "class_name": "Chrome_RenderWidgetHostHWND" },
+        { "control_type": "Edit", "class_name": "Chrome_RenderWidgetHostHWND" }
+      ],
+      "notes": "R7 Chromium renderer. VERIFY: about blank expose khong Document -> spawn {fixture} (page that that)."
+    }
+  ]
+}

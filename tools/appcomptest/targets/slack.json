@@ -1,0 +1,23 @@
+{
+  "targets_version": 1,
+  "app_id": "slack",
+  "match": { "any": [ { "exe": "slack.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [ "%LOCALAPPDATA%\\slack\\slack.exe" ],
+    "args": [],
+    "ready_class": "Chrome_WidgetWin_1"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "win.slack",
+      "locators": [
+        { "control_type": "Edit", "name_regex": "(?i)message" },
+        { "control_type": "Edit", "class_name": "Chrome_RenderWidgetHostHWND" },
+        { "control_type": "Document" }
+      ],
+      "notes": "B2 Enter lap, B7 Electron. UNTESTED locally (app chua cai)."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "targets_version": 1,
+  "app_id": "terminal",
+  "match": { "any": [ { "exe": "windowsterminal.exe" } ] },
+  "launch": {
+    "kind": "shell",
+    "command": "wt.exe",
+    "args": [],
+    "ready_class": "CASCADIA_HOSTING_WINDOW_CLASS",
+    "appx_package": "Microsoft.WindowsTerminal",
+    "focus_before_probe": true
+  },
+  "fields": [
+    {
+      "field_role": "terminal",
+      "preset": "win.wt",
+      "locators": [
+        { "control_type": "Text", "class_name": "TermControl" },
+        { "control_type": "Document" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "B8 khong co preedit -> ForwardAsCommit. TermControl (Text) chi xuat hien SAU FOCUS [verify diag3]; conhost legacy tree = Pane cls=Edit [S5]."
+    }
+  ]
+}

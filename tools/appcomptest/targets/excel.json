@@ -1,0 +1,37 @@
+{
+  "targets_version": 1,
+  "app_id": "excel",
+  "match": { "any": [ { "exe": "excel.exe" } ] },
+  "launch": {
+    "kind": "com",
+    "paths": [
+      "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+      "C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\EXCEL.EXE"
+    ],
+    "com_prog_id": "Excel.Application",
+    "com_add": "wb",
+    "args": [],
+    "ready_class": "XLMAIN"
+  },
+  "fields": [
+    {
+      "field_role": "candidate",
+      "preset": "win.excel.cell",
+      "locators": [
+        { "control_type": "DataGrid" },
+        { "control_type": "Table" },
+        { "class_regex": "(?i)^(XLGRID|EXCEL7)$" }
+      ],
+      "notes": "B1 autocomplete in cell. R5: doc class tu hwnd goc khi element khong tro duoc."
+    },
+    {
+      "field_role": "editbox",
+      "preset": "win.excel.cell",
+      "locators": [
+        { "control_type": "Edit", "name_regex": "(?i)formula bar" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "Formula bar (P1-5 matrix). Second locator = first Edit heuristic, verify to confirm order."
+    }
+  ]
+}

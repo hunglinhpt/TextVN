@@ -1,0 +1,24 @@
+{
+  "targets_version": 1,
+  "app_id": "explorer",
+  "match": { "any": [ { "exe": "explorer.exe" } ] },
+  "launch": {
+    "kind": "shell",
+    "command": "explorer.exe",
+    "args": [],
+    "ready_class": "CabinetWClass",
+    "close": "never"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "win.explorer",
+      "locators": [
+        { "control_type": "Edit" },
+        { "control_type": "ComboBox", "name_regex": "(?i)address" },
+        { "class_name": "Address Band Root" }
+      ],
+      "notes": "B1 explorer address + search. KHONG BAO GIO kill explorer.exe (shell)."
+    }
+  ]
+}

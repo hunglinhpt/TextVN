@@ -1,0 +1,36 @@
+{
+  "targets_version": 1,
+  "app_id": "edge",
+  "match": { "any": [ { "exe": "msedge.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [
+      "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+      "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
+    ],
+    "args": [ "--new-window", "{fixture}" ],
+    "ready_class": "Chrome_WidgetWin_1"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "win.chrome.url",
+      "locators": [
+        { "control_type": "Edit", "name_regex": "(?i)address and search bar" },
+        { "control_type": "ComboBox" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "B1 - Chromium engine, same UIA shape as Chrome but different UA/path."
+    },
+    {
+      "field_role": "web",
+      "preset": "win.chrome.body",
+      "locators": [
+        { "control_type": "Document" },
+        { "control_type": "Pane", "class_name": "Chrome_RenderWidgetHostHWND" },
+        { "control_type": "Edit", "class_name": "Chrome_RenderWidgetHostHWND" }
+      ],
+      "notes": "R7 Chromium renderer; spawn {fixture} page that that."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "targets_version": 1,
+  "app_id": "word",
+  "match": { "any": [ { "exe": "winword.exe" } ] },
+  "launch": {
+    "kind": "com",
+    "paths": [
+      "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+      "C:\\Program Files (x86)\\Microsoft Office\\root\\Office16\\WINWORD.EXE"
+    ],
+    "com_prog_id": "Word.Application",
+    "com_add": "doc",
+    "args": [ "/w" ],
+    "ready_class": "OpusApp"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "win.word.body",
+      "locators": [
+        { "control_type": "Document" },
+        { "class_regex": "^_WwG" },
+        { "control_type": "Edit" }
+      ],
+      "notes": "B2 suggestions at end of sentence. _WwG = classic Word edit class (version-robust fallback)."
+    }
+  ]
+}

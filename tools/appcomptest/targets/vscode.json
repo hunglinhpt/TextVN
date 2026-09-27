@@ -1,0 +1,26 @@
+{
+  "targets_version": 1,
+  "app_id": "vscode",
+  "match": { "any": [ { "exe": "code.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [
+      "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+      "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe"
+    ],
+    "args": [ "--new-window" ],
+    "ready_class": "Chrome_WidgetWin_1"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "win.vscode",
+      "locators": [
+        { "control_type": "Document" },
+        { "control_type": "Edit", "class_name": "Chrome_RenderWidgetHostHWND" },
+        { "control_type": "Pane" }
+      ],
+      "notes": "B7 Electron, P2 dev prefers EN. Monaco: visible code = Document, hidden input = Edit (S4: textarea = Edit(50004))."
+    }
+  ]
+}

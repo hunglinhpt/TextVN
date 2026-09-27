@@ -26,6 +26,7 @@
 | G12 | **Trước khi commit: `git diff --cached --name-only`** — đối chiếu đúng list mong muốn, không có file lạ | sai lúc add nhầm WIP là mất công ngược |
 | G13 | **Push đỏ CI → xử lý ngay trong phiên** (`repo-hygiene` + `ci-shared`, §12) — chưa xanh thì chưa Done, không nhận task mới | giữ repo sạch sau mỗi lần code (yêu cầu user 2026-09-27) |
 | G14 | **Kết thúc phiên/task → qua checklist dọn dẹp §10** (kill process test, dồn evidence, `git status` sạch, CI xanh) | tránh rò process/file tạm sang phiên sau |
+| G15 | **Phần trùng lặp → bắt buộc viết thành lib/module dùng chung, KHÔNG viết riêng từng nơi** — code sạch, reuse tối đa: logic nào dùng ở ≥2 chỗ thì tách thành module chung (crate chung Rust / script lib chung) ngay từ đầu | user rule 2026-09-27; chống copy-paste (vd locator/rules UIA: field-detect ↔ appcomptest phải dùng chung 1 lib) |
 
 ## 2. Bắt buộc đọc — trình tự mỗi phiên
 
@@ -90,6 +91,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 | 2026-09-27 | Tạo v1 (workflow + ground rules + sổ verified-ops) theo yêu cầu user | — |
 | 2026-09-27 | v2: G13/G14 + §8 audit 2 vòng 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions (`repo-hygiene` + tham chiếu Rust/SLSA/CMake) | — |
 | 2026-09-27 | v2.1: thêm `hook-spike` workflow (WIN-005, dispatch-only) vào §6 ownership + §12.1 | — |
+| 2026-09-27 | v2.2: thêm **G15** — phần trùng lặp bắt buộc là lib dùng chung, code sạch + reuse tối đa (user rule) | — |
 | — | Review 2 chờ agent thứ hai | `FW-{n}` |
 
 ## 8. Audit 2 vòng — 5W1H

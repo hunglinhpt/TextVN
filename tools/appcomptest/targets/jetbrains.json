@@ -1,0 +1,26 @@
+{
+  "targets_version": 1,
+  "app_id": "jetbrains",
+  "match": { "any": [ { "exe": "idea64.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [
+      "%LOCALAPPDATA%\\Programs\\IntelliJ IDEA Community Edition\\bin\\idea64.exe",
+      "%ProgramFiles%\\JetBrains\\IntelliJ IDEA\\bin\\idea64.exe"
+    ],
+    "args": [],
+    "ready_class": "SunAwtFrame"
+  },
+  "fields": [
+    {
+      "field_role": "editbox",
+      "preset": "win.jetbrains",
+      "locators": [
+        { "control_type": "Edit", "class_regex": "(?i)(sunawt|jetbrains|editor)" },
+        { "control_type": "Document" },
+        { "control_type": "Text" }
+      ],
+      "notes": "B3 code completion popup. UNTESTED locally (app chua cai)."
+    }
+  ]
+}

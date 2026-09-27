@@ -1,0 +1,26 @@
+{
+  "targets_version": 1,
+  "app_id": "firefox",
+  "match": { "any": [ { "exe": "firefox.exe" } ] },
+  "launch": {
+    "kind": "exe",
+    "paths": [
+      "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+      "%LOCALAPPDATA%\\Mozilla Firefox\\firefox.exe"
+    ],
+    "args": [ "-new-window", "about:blank" ],
+    "ready_class": "MozillaWindowClass"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "win.firefox.url",
+      "locators": [
+        { "control_type": "Edit", "name_regex": "(?i)(search with google or enter|search or enter address|address)" },
+        { "control_type": "ComboBox", "class_regex": "(?i)urlbar" },
+        { "control_type": "ComboBox" }
+      ],
+      "notes": "B1 Gecko (khong Chromium). FF156: urlbar = ComboBox cls 'urlbar-input textbox-input' (verify); Edit ten theo phien ban."
+    }
+  ]
+}

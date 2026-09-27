@@ -1,0 +1,116 @@
+# WIN-061 - verify targets tren 2 runner image + upgrade-cycle tren CI.
+# Quy tac 2026-09-27: KHONG cai/update/downgrade app tren may local - runner tu huy sau job.
+# Dispatch-only (giong hook-spike) - khong gate PR.
+name: targets-verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      vscode_old_version:
+        description: 'VS Code phien ban cu dung cho upgrade-cycle baseline'
+        required: false
+        default: '1.137.0'
+
+permissions:
+  contents: read
+
+jobs:
+  # Cung 1 bo JSON phai resolve tren 2 image (Edge/Chrome/Notepad/VS Code khac version) =
+  # chung minh locator khong veo theo version app - khong can cai gi.
+  cross-image:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: check_targets (static schema)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\check_targets.ps1
+      - name: verify_targets (live probe)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1 -OutMd verify-evidence-${{ matrix.os }}.md
+      - name: upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-cross-${{ matrix.os }}
+          path: verify-evidence-${{ matrix.os }}.md
+          if-no-files-found: ignore
+
+  # Acceptance WIN-061 #2: chay lai sau upgrade app version khong vef.
+  # Tat ca tren runner epheeral: uninstall -> cai ban cu -> verify -> winget upgrade -> verify lai.
+  upgrade-cycle:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: install VS Code old version (runner disposable)
+        shell: powershell
+        env:
+          OLD_V: ${{ inputs.vscode_old_version }}
+        run: |
+          winget uninstall Microsoft.VisualStudioCode --silent
+          winget install Microsoft.VisualStudioCode --version $env:OLD_V --silent --accept-package-agreements --accept-source-agreements
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Runner epheeral: neu van con ban moi hon o Program Files (uninstall that bai) thi xoa
+          # - de verify khong cham vao ban moi hon (paths[0] = Program Files).
+          $pf = 'C:\Program Files\Microsoft VS Code'
+          if (Test-Path "$pf\Code.exe") {
+            $v = (Get-Item "$pf\Code.exe").VersionInfo.ProductVersion
+            if ($v -notlike ($env:OLD_V + '*')) {
+              Remove-Item $pf -Recurse -Force
+              Write-Output ('da xoa ban moi hon ' + $v + ' o Program Files')
+            }
+          }
+      - name: verify baseline (before upgrade)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1 -Only vscode -OutMd verify-before.md
+      - name: winget upgrade
+        shell: powershell
+        run: |
+          # Khong fail o day: winget exit khac 0 khi "khong co upgrade" (0x8A15002B).
+          # Cong boi buoc compare ben duoi (version truoc/sau phai khac + ca 2 deu OK).
+          winget upgrade Microsoft.VisualStudioCode --silent --accept-package-agreements --accept-source-agreements
+          Write-Output ('winget upgrade exit = ' + $LASTEXITCODE)
+          # GHIRO nhung: wrapper cua GHA doc $LASTEXITCODE cuoi cung -> phai exit 0 ro rang
+          exit 0
+      - name: verify after upgrade
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\verify_targets.ps1 -Only vscode -OutMd verify-after.md
+      - name: compare before/after
+        shell: powershell
+        env:
+          OLD_V: ${{ inputs.vscode_old_version }}
+        run: |
+          $b = Get-Content verify-before.md -Raw
+          $a = Get-Content verify-after.md -Raw
+          $vb = 'MISS'; $va = 'MISS'
+          if ($b -match '\|\s*vscode\s*\|\s*OK\s*\|\s*([^\s|]+)') { $vb = $Matches[1] }
+          if ($a -match '\|\s*vscode\s*\|\s*OK\s*\|\s*([^\s|]+)') { $va = $Matches[1] }
+          $sum = @()
+          $sum += '### WIN-061 upgrade-cycle (runner epheeral)'
+          $sum += ''
+          $sum += '- before: vscode **' + $vb + '** (mong doi: ' + $env:OLD_V + ')'
+          $sum += '- after : vscode **' + $va + '** (da upgrade)'
+          $sum += '- locator truoc/sau deu OK = khong veo sau upgrade'
+          $sum += ''
+          $sum += '| | status | version | field | hit | resolves | ms |'
+          $sum += '|---|---|---|---|---|---|---|'
+          foreach ($line in ($a -split "`r?`n" | Where-Object { $_ -match '^\|\s*vscode' })) { $sum += $line }
+          $sum | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($vb -eq 'MISS') { Write-Error 'baseline khong OK'; exit 1 }
+          if ($va -eq 'MISS') { Write-Error 'sau upgrade khong OK'; exit 1 }
+          if ($vb -ne $env:OLD_V) { Write-Error ('ban cu khong tai duoc (thay ' + $vb + ')'); exit 1 }
+          if ($vb -eq $va) { Write-Error ('khong upgrade duoc (' + $va + ')'); exit 1 }
+          Write-Output ('PASS: upgrade ' + $vb + ' -> ' + $va + ', locator khong veo')
+          exit 0
+      - name: upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-upgrade-cycle
+          path: verify-*.md
+          if-no-files-found: ignore
