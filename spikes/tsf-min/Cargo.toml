@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Spike WIN-002 (P1-1 §9) — DETACHED workspace: tách khỏi root workspace
+# để không đụng Cargo.toml gốc (phát triển song song 2 agent).
+[workspace]
+
+[package]
+name = "tsf-min"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+# rlib để bin `tsf-min-register` dùng chung CLSID/PROFILE_GUID.
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "tsf-min-register"
+path = "src/register.rs"
+
+[dependencies]
+# `#[implement]` sinh code tham chiếu `::windows_core::…` → cần crate trực tiếp
+# (cùng version với windows 0.61 → cargo unify 0.61.x).
+windows-core = "0.61.2"
+
+[dependencies.windows]
+version = "0.61"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_UI_TextServices",
+]
