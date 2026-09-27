@@ -68,7 +68,10 @@ fn assert_result_sane(rc: i32, out: &ime_result_v1, ctx: &str) {
         "{ctx}: action {} lạ",
         out.action
     );
-    assert_eq!(out.abi_version, IME_ABI_VERSION, "{ctx}: abi_version phải set");
+    assert_eq!(
+        out.abi_version, IME_ABI_VERSION,
+        "{ctx}: abi_version phải set"
+    );
     // Fail-open: không phải OK thì phím phải đi thẳng (PASS), không nuốt.
     if rc != IME_OK {
         assert_eq!(
@@ -78,7 +81,6 @@ fn assert_result_sane(rc: i32, out: &ime_result_v1, ctx: &str) {
         );
     }
 }
-
 
 fuzz_target!(|data: &[u8]| {
     // Cần ≥ 2 byte: byte 0 chọn config, byte 1 khởi tạo context. libFuzzer sinh

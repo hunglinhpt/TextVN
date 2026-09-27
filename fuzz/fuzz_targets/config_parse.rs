@@ -17,8 +17,8 @@ use std::ffi::CStr;
 use std::ptr;
 
 use libfuzzer_sys::fuzz_target;
-use vietime_ffi::*;
 use vietime_config::parse_config;
+use vietime_ffi::*;
 
 fuzz_target!(|data: &[u8]| {
     // JSON bắt buộc UTF-8; byte vô nghĩa thì bỏ qua (không phải đường hợp thú vị).
@@ -50,20 +50,15 @@ fuzz_target!(|data: &[u8]| {
         let err = unsafe { CStr::from_ptr(ime_last_error(inst)) }
             .to_string_lossy()
             .to_string();
-        assert!(!err.is_empty(), "lỗi phải có mô tả (kind), không rỗng");
-        // Kiểm tra theo **hình dạng** chứ không so khớp chuỗi: input hợp lệ vẫn có
-        // thể trùng từ với thông báo lỗi → so khớp sẽ báo động giả.
-        assert!(err.len() <= 64, "last_error quá dài — nghi echo input: {err}");
-        assert!(
-            !err.contains('{') && !err.contains('"'),
-            "last_error chứa ký tự JSON — nghi echo nội dung config: {err}"
+        // So khớp **chính xác** message static thay cho heuristic substring/độ
+        // dài (F6-16: input `: invalid schema` trùng substring của đúng message
+        // "config: invalid schema" → báo động giả). Equal một chuỗi cố định =>
+        // echo input không thể xảy ra; đổi message ở `ime_instance_new` sẽ
+        // fail fuzz cố ý (contract — xem ffi/src/lib.rs, set_error chỉ chứa kind).
+        assert_eq!(
+            err, "config: invalid schema",
+            "last_error của IME_ERR_CONFIG phải đúng message static (S2): {err}"
         );
-        if s.len() >= 16 {
-            assert!(
-                !err.contains(&s[..16]),
-                "last_error chứa 16 ký tự đầu của input (S2): {err}"
-            );
-        }
     }
 
     // ---- 3: reload — cùng bytes, phải cho kết luận nhất quán ----
@@ -128,7 +123,10 @@ fuzz_target!(|data: &[u8]| {
     }
     assert!((sug.count as usize) <= IME_MAX_SUGGEST);
     for i in 0..sug.count as usize {
-        assert!((sug.lens[i] as usize) <= IME_MAX_TEXT, "lens vượt IME_MAX_TEXT");
+        assert!(
+            (sug.lens[i] as usize) <= IME_MAX_TEXT,
+            "lens vượt IME_MAX_TEXT"
+        );
     }
 
     ime_instance_free(inst);

@@ -36,5 +36,4 @@ fuzz_target!(|data: &[u8]| {
             }
         }
     }
-
 });
