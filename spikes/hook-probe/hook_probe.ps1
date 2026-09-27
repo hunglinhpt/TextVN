@@ -6,8 +6,9 @@ $out = Join-Path $env:TEMP 'hook_probe_out.txt'
 if (Test-Path $out) { Remove-Item $out -Force }
 function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
 
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
+# G15: dot-source lib dung chung (Add-Type UIA + focus helper - truoc do trung lap trong HK.Focus)
+. (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
+Initialize-VietimeUiA
 Add-Type @'
 using System;
 using System.Text;
@@ -18,7 +19,6 @@ public class HK {
     [DllImport("user32.dll")] public static extern IntPtr SetWindowsHookExW(int idHook, LowLevelProc lpfn, IntPtr hMod, uint dwThreadId);
     [DllImport("user32.dll")] public static extern bool UnhookWindowsHookEx(IntPtr hhk);
     [DllImport("user32.dll")] public static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [StructLayout(LayoutKind.Sequential)]
     public struct KBDLLHOOKSTRUCT { public uint vkCode; public uint scanCode; public uint flags; public uint time; public IntPtr dwExtraInfo; }
     [StructLayout(LayoutKind.Sequential)]
@@ -26,13 +26,6 @@ public class HK {
     [StructLayout(LayoutKind.Sequential)]
     public struct INPUT { public uint type; public KEYBDINPUT ki; public IntPtr _unionTail; }
     [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint n, INPUT[] p, int cb);
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
-    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
-    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool f);
-    [DllImport("kernel32.dll")] public static extern uint GetCurrentProcessId();
     [DllImport("kernel32.dll")] public static extern uint WTSGetActiveConsoleSessionId();
 
     public static List<uint> Recv = new List<uint>();
@@ -47,34 +40,22 @@ public class HK {
         }
         return CallNextHookEx(Hook, nCode, wParam, lParam);
     }
-    public static bool Focus(IntPtr h) {
-        IntPtr fg = GetForegroundWindow(); uint fpid;
-        uint fgTid = GetWindowThreadProcessId(fg, out fpid);
-        uint tpid; uint tTid = GetWindowThreadProcessId(h, out tpid);
-        uint my = GetCurrentThreadId();
-        AttachThreadInput(my, fgTid, true);
-        AttachThreadInput(my, tTid, true);
-        ShowWindow(h, 9); BringWindowToTop(h);
-        bool ok = SetForegroundWindow(h);
-        AttachThreadInput(my, fgTid, false);
-        AttachThreadInput(my, tTid, false);
-        return ok;
-    }
+
 }
 '@
 
 Log ("hook spike local - " + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
 
 # === 1) Session check (RW5 context) ===
-$fg = [HK]::GetForegroundWindow()
-$fgpid = 0; [void][HK]::GetWindowThreadProcessId($fg, [ref]$fgpid)
+$fg = [VtFocus]::GetForegroundWindow()
+$fgpid = 0; [void][VtFocus]::GetWindowThreadProcessId($fg, [ref]$fgpid)
 $session = (Get-Process -Id $PID).SessionId
 Log ("interactive session: GetForegroundWindow=" + $fg.ToInt64() + " fgpid=$fgpid (pid=$PID session=$session)")
 Log ("WTSGetActiveConsoleSessionId=" + [HK]::WTSGetActiveConsoleSessionId() + " UserInteractive=" + [Environment]::UserInteractive + " user=" + ([Security.Principal.WindowsIdentity]::GetCurrent().Name))
 Log ("desktop window class (neu 0/blocked -> session 0 khac user): " + $(if ($fg -eq [IntPtr]::Zero) { 'KHONG CO FOREGROUND' } else { 'co' }))
 
 # === 2) Install WH_KEYBOARD_LL (khong can dll rieng - callback trong process) ===
-$mod = [HK]::GetCurrentThreadId()
+# (G15) bo dong chet $mod = [HK]::GetCurrentThreadId() - khong ai dung, member da chuyen sang lib
 [HK]::Proc = [HK+LowLevelProc]{ param($nc, $wp, $lp) [HK]::Callback($nc, $wp, $lp) }
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 [HK]::Hook = [HK]::SetWindowsHookExW(13, [HK]::Proc, [IntPtr]::Zero, 0)   # 13 = WH_KEYBOARD_LL
@@ -121,9 +102,9 @@ $f.Width = 300; $f.Height = 100
 $f.Show()
 PumpSleep 500
 $fh = $f.Handle
-[void][HK]::Focus($fh)
+[void](Focus-UiAWindow $fh)
 PumpSleep 400
-Log ("focus truoc send: hwnd=" + $fh.ToInt64() + " fg=" + [HK]::GetForegroundWindow().ToInt64())
+Log ("focus truoc send: hwnd=" + $fh.ToInt64() + " fg=" + [VtFocus]::GetForegroundWindow().ToInt64())
 
 $t0 = [HK]::HookCount
 $ret = [HK]::SendInput(2, @($d, $u), $sz)
@@ -152,7 +133,9 @@ Log ("UIA FocusedElement (cung process): " + $ms1 + "ms controlType=$ct isPasswo
 $before = @(); Get-Process -Name notepad -ErrorAction SilentlyContinue | ForEach-Object { $before += $_.Id }
 [void](Start-Process -FilePath 'notepad.exe')
 $hn = [IntPtr]::Zero; $wpid = 0
-$deadline = [DateTime]::UtcNow.AddSeconds(6)
+# 15s (truoc do 6s): Win11 notepad packaged cold-start co the > 6s luc may dang tai ->
+# luc do notepad "thua" con song, lan sau $before loai mat pid co window -> false negative (f6-12)
+$deadline = [DateTime]::UtcNow.AddSeconds(15)
 while ([DateTime]::UtcNow -lt $deadline -and $hn -eq [IntPtr]::Zero) {
     Start-Sleep -Milliseconds 250
     foreach ($q in @(Get-Process -Name notepad -ErrorAction SilentlyContinue)) {
@@ -165,7 +148,7 @@ while ([DateTime]::UtcNow -lt $deadline -and $hn -eq [IntPtr]::Zero) {
 }
 Log ("notepad window: hwnd=" + $hn.ToInt64() + " wpid=$wpid (runner session=$session)")
 if ($hn -eq [IntPtr]::Zero) {
-    Log "notepad: KHONG tim thay window trong 6s (khong desktop session?) -> RW5 chan nightly tren GHA"
+    Log "notepad: KHONG tim thay window trong 15s (khong desktop session?) -> RW5 chan nightly tren GHA"
 } else {
     PumpSleep 300   # cho notepad khoi tao control truoc khi query
     $sw3 = [System.Diagnostics.Stopwatch]::StartNew()
@@ -201,9 +184,9 @@ if ($hn -eq [IntPtr]::Zero) {
     # doc truoc khi inject (Notepad co session restore -> chi so sanh DELTA)
     $len0 = ReadLen $ed
     Log ("value truoc inject: len=$len0 (-2 = khong co pattern doc duoc)")
-    [void][HK]::Focus($hn)
+    [void](Focus-UiAWindow $hn)
     PumpSleep 300
-    Log ("focus notepad: fg=" + [HK]::GetForegroundWindow().ToInt64() + " (mong doi $hn)")
+    Log ("focus notepad: fg=" + [VtFocus]::GetForegroundWindow().ToInt64() + " (mong doi $hn)")
     $t1 = [HK]::HookCount
     $r2 = [HK]::SendInput(2, @($d, $u), $sz)
     PumpSleep 600

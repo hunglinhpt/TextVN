@@ -5,35 +5,9 @@ $ErrorActionPreference = 'Stop'
 $out = Join-Path $env:TEMP 'uia_probe_conditions_out.txt'
 if (Test-Path $out) { Remove-Item $out -Force }
 function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
-Add-Type @'
-using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-public class UW7 {
-    public delegate bool EnumProc(IntPtr h, IntPtr l);
-    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f, IntPtr l);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
-    public static List<string> WinsAll() {
-        var r = new List<string>();
-        EnumWindows((h, l) => {
-            if (IsWindowVisible(h)) {
-                var c = new StringBuilder(256); GetClassName(h, c, 256);
-                var t = new StringBuilder(512); GetWindowText(h, t, 512);
-                uint p; GetWindowThreadProcessId(h, out p);
-                r.Add(h.ToInt64() + "|" + p + "|" + c + "|" + t);
-            }
-            return true;
-        }, IntPtr.Zero);
-        return r;
-    }
-}
-'@
+# G15: dot-source lib dung chung (UW7 -> VtWin, Add-Type lap lai truoc do)
+. (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
+Initialize-VietimeUiA
 $AE = [System.Windows.Automation.AutomationElement]
 $TS = [System.Windows.Automation.TreeScope]::Descendants
 $PC = [System.Windows.Automation.PropertyCondition]
@@ -52,7 +26,7 @@ $ch = Start-Process 'C:\Program Files\Google\Chrome\Application\chrome.exe' `
     -ArgumentList @('--user-data-dir="' + $ud + '"', '--new-window', '--no-first-run', $fix) -PassThru
 $hChrome = [IntPtr]::Zero
 for ($i = 0; $i -lt 40 -and $hChrome -eq [IntPtr]::Zero; $i++) {
-    foreach ($w in [UW7]::WinsAll()) { $s = $w.Split('|'); if ($s[2] -like 'Chrome_WidgetWin*' -and $s[3] -like '*fixture*') { $hChrome = [IntPtr][long]$s[0]; break } }
+    foreach ($w in [VtWin]::WinsAll()) { $s = $w.Split('|'); if ($s[2] -like 'Chrome_WidgetWin*' -and $s[3] -like '*fixture*') { $hChrome = [IntPtr][long]$s[0]; break } }
     if ($hChrome -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 500 }
 }
 Log ("hwnd=" + $hChrome.ToInt64())

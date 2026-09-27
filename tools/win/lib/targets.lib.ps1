@@ -49,6 +49,12 @@ function Test-TargetSchema($o, [string]$file) {
             if (-not $hasPath) { $e.Add($file + ': launch.kind=' + $o.launch.kind + ' thieu paths') }
         }
         if (-not $o.launch.ready_class) { $e.Add($file + ': thieu launch.ready_class') }
+        # launch.profile tuy chon (f6-13): phai co args[] (vd Firefox: -no-remote -profile {profile_dir})
+        if ($o.launch.profile) {
+            $pa = @()
+            try { $pa = @($o.launch.profile.args) } catch {}
+            if ($pa.Count -eq 0) { $e.Add($file + ': launch.profile co nhung thieu args[]') }
+        }
     }
     # fields
     $fields = @()

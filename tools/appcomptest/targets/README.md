@@ -29,7 +29,11 @@ excel, terminal, explorer, slack, discord, jetbrains`.
     "process": "olk.exe",                    // tuy chon: doi ten process (mac dinh = match.exe)
     "appx_package": "Microsoft.WindowsTerminal", // tuy chon: version qua Get-AppxPackage (f6-5)
     "close": "never",                        // tuy chon: explorer (KHONG dong)
-    "focus_before_probe": true               // tuy chon: focus truoc khi doc UIA (WT)
+    "focus_before_probe": true,              // tuy chon: focus truoc khi doc UIA (WT)
+    "profile": {                             // tuy chon: profile TAM + user.js (f6-13)
+      "prefs": { "browser.preonboarding.enabled": false }, // user_pref truoc khi chay
+      "args": [ "-no-remote", "-profile", "{profile_dir}" ] // {profile_dir} = thu muc tam %TEMP%
+    }
   },
   "fields": [
     {
@@ -50,7 +54,8 @@ excel, terminal, explorer, slack, discord, jetbrains`.
 | `automation_id`, `name`, `class_name` | so đúng (PropertyCondition exact) |
 | `name_regex`, `class_regex` | regex — filter client-side (S4: `PropertyCondition` .NET không có Contains) |
 
-**Readiness:** poll ≤10s tới khi bất kỳ locator nào resolve (UIA tree render async — S4).
+**Readiness (per-field):** mỗi field poll chính locator của nó ≤10s trước khi đánh giá (F6-10 —
+readiness ANY-field cũ đánh giá `address_bar` khi mới có `Document` → MISS sớm trên runner).
 **Focus:** `focus_before_probe` → `Focus-UiAWindow` (AttachThreadInput) — **WT: `TermControl`
 chỉ xuất hiện SAU focus** (verify diag3).
 
@@ -70,7 +75,7 @@ Shared lib (G15): `tools/win/lib/win32-uia.lib.ps1` (EnumWindows/UIA/focus/locat
 | # | Acceptance | Trạng thái | Evidence |
 |---|---|---|---|
 | 1 | Mỗi app ≥ 2 locator | ✅ **PASS** | `check_targets.ps1` → `PASS - 12 file, moi app >= 2 locator` |
-| 2 | Chạy lại sau upgrade app version không vỡ (1 app) | 🔄 workflow `targets-verify.yml` (dispatch-only) đã dựng: job `upgrade-cycle` (uninstall → cài VS Code bản cũ → verify → `winget upgrade` → verify lại, assert version đổi + locator OK) + job `cross-image` (windows-2022 vs 2025 — cùng JSON, app version khác nhau). **Không đụng app trên máy local** (user rule 2026-09-27). Kết quả: xem run/artifact của workflow (cập nhật ID vào đây sau lần dispatch đầu) |
+| 2 | Chạy lại sau upgrade app version không vỡ (1 app) | 🟡 **upgrade-cycle GREEN** — run **36296260485** (2026-09-27): cài VS Code `1.137.0` (direct download từ manifest winget-pkgs) → verify OK → upgrade `.exe` chính thức → verify lại → version đổi + locator OK. **cross-image** run 36296260485: windows-2022 + 2025 — chrome/edge/explorer/notepad/terminal **OK cả 2 image** (version khác nhau: chrome 153/154, edge 152/154, explorer `SearchEditBox`/`TextBox`), chỉ **firefox MISS** = modal `TOU_ONBOARDING` fresh profile → **đã fix `launch.profile` prefs (F6-13)**, dispatch lần 3 để chốt. **Không đụng app trên máy local** (user rule 2026-09-27) |
 
 **Verify local** (2026-09-27, Win11 26100, máy dev): **12/12 field rows OK, 0 FIELD_MISS**
 (15 dòng = chrome/edge/excel có 2 field) — xem `verify-evidence.md` (auto-generated, S2: chỉ
@@ -110,6 +115,8 @@ một version.
 | **F6-9** | `Find-AppWindow` chọn **cửa sổ đầu tiên** khớp class+proc → bắt nhầm **popup owned** cùng class (Chrome fresh mở "Translate this page?" = `TranslateBubbleView`, 17 node, không omnibox/Document) thay vì cửa sổ chính | `VtWin.GetOwner` (GW_OWNER) + **2 pha**: bỏ qua owned, chỉ fallbackowned khi không có unowned. Chứng minh local diag7/diag8: bắt đúng cửa sổ → omnibox HIT |
 | **F6-10** | Readiness **ANY-field** cũ cho phép evaluate `address_bar` khi mới chỉ `Document` (renderer) xong → field chưa render bị MISS sớm trên runner chậm | readiness **theo từng field**: poll chính locator của field đó ≤10s trước khi đánh giá; MISS → dump ≤25 node (ct/cls/aId, S2) vào log CI |
 | **F6-11** | `winget` trên runner fresh fail: prompt thỏa thuận msstore không đọc được input (`0x8a150042`) + source hỏng (`0x8a15000f Data required by the source is missing`) → install/uninstall/upgrade đều đỏ | `upgrade-cycle` bỏ hẳn winget: cài bản cũ từ URL trong manifest winget-pkgs (GitHub raw), upgrade bằng `.exe` chính thức `?os=win32-x64-user` (in-place cùng thư mục) |
+| **F6-12** | Win11 Notepad packaged **cold-start có thể >6s** lúc máy tải → spawn không tìm thấy window; lần chạy sau `$before` loại mất pid đã có window → false negative | `hook_probe` timeout 6s → 15s; verify dùng readiness poll ≤10s/field |
+| **F6-13** | **Firefox profile MỚI mở modal `TOU_ONBOARDING`** (Terms of Use, bug 1964544) che toàn bộ toolbar → cây chỉ 51 node (36 Menu + modal), **không có `ComboBox`/`Edit`** → `address_bar` MISS 0/3 trên runner + local fresh. Pref `browser.aboutwelcome.enabled=false` **không** tắt được | key `launch.profile {prefs, args}` → verify tự tạo profile tạm + `user.js` với `browser.preonboarding.enabled=false` + `termsofuse.bypassNotification=true` (+`acceptedVersion=999`) → diag9: modal gone, cây 1012 node, urlbar HIT. Cleanup xóa profile tạm |
 
 ## 5. Limitation / follow-up
 

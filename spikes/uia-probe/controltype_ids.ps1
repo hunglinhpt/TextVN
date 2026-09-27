@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Dump id ControlType static cua UIA2 (.NET) - bang ground truth cho uia-spike.md.
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
+# G15: dot-source lib dung chung (truoc do moi script tu Add-Type - trung lap)
+. (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
+Initialize-VietimeUiA
 $ct = [System.Windows.Automation.ControlType]
 $flags = [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static -bor [System.Reflection.BindingFlags]::FlattenHierarchy
 $names = New-Object System.Collections.Generic.List[string]

@@ -6,62 +6,21 @@ $out = Join-Path $env:TEMP 'uia_spike_out.txt'
 if (Test-Path $out) { Remove-Item $out -Force }
 function Log([string]$m) { Write-Output $m; Add-Content -Path $out -Value $m }
 
-Add-Type -AssemblyName UIAutomationClient
-Add-Type -AssemblyName UIAutomationTypes
-Add-Type -AssemblyName System.Windows.Forms
+# G15: dot-source lib dung chung (truoc do script tu define class UW + Add-Type - trung lap)
+. (Join-Path $PSScriptRoot '..\..\tools\win\lib\win32-uia.lib.ps1')
+Initialize-VietimeUiA
 if (-not ('System.Windows.Automation.TreeScope' -as [type])) { throw 'UIA types khong load duoc' }
-Add-Type @'
-using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-public class UW {
-    public delegate bool EnumProc(IntPtr h, IntPtr l);
-    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc f, IntPtr l);
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
-    public static List<string> WinsOf(uint pid) {
-        var r = new List<string>();
-        EnumWindows((h, l) => {
-            uint p; GetWindowThreadProcessId(h, out p);
-            if (p == pid && IsWindowVisible(h)) {
-                var c = new StringBuilder(256); GetClassName(h, c, 256);
-                var t = new StringBuilder(512); GetWindowText(h, t, 512);
-                r.Add(h.ToInt64() + "|" + c + "|" + t);
-            }
-            return true;
-        }, IntPtr.Zero);
-        return r;
-    }
-    public static List<string> WinsByClass(string cls) {
-        var r = new List<string>();
-        EnumWindows((h, l) => {
-            if (!IsWindowVisible(h)) return true;
-            var c = new StringBuilder(256); GetClassName(h, c, 256);
-            if (c.ToString() == cls) {
-                var t = new StringBuilder(512); GetWindowText(h, t, 512);
-                r.Add(h.ToInt64() + "|" + c + "|" + t);
-            }
-            return true;
-        }, IntPtr.Zero);
-        return r;
-    }
-}
-'@
 
 $AE = [System.Windows.Automation.AutomationElement]
 $TS = [System.Windows.Automation.TreeScope]::Descendants
-$PC = [System.Windows.Automation.PropertyCondition]
 
 # NOTE (common-error A10): phai goi [Type]::StaticProp bang ngoac () khi truyen vao function,
 # vi PowerShell parse [Type]::Member trong argument mode khong nhu expression mode.
-function PCC($prop, $val) { New-Object $PC $prop, $val }
+# G15: ham local nay da go bo - dung New-UiACond cua lib (win32-uia.lib).
 
 function Wait-Win([uint32]$pidWant, [string]$titleLike, [int]$sec = 30) {
     for ($i = 0; $i -lt $sec; $i++) {
-        $wins = [UW]::WinsOf($pidWant)
+        $wins = [VtWin]::WinsOf($pidWant)
         foreach ($w in $wins) {
             $p = $w.Split('|')
             if ($titleLike -eq '' -or $p[2] -like $titleLike) { return [IntPtr][long]$p[0] }
@@ -144,31 +103,31 @@ $ch = Start-Process 'C:\Program Files\Google\Chrome\Application\chrome.exe' `
 $spawned.Add($ch.Id)
 $hChrome = Wait-Win $ch.Id '*fixture*' 30
 if ($hChrome -eq [IntPtr]::Zero) {
-    foreach ($w in [UW]::WinsOf($ch.Id)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*') { $hChrome = [IntPtr][long]$p[0]; break } }
+    foreach ($w in [VtWin]::WinsOf($ch.Id)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*') { $hChrome = [IntPtr][long]$p[0]; break } }
 }
 if ($hChrome -eq [IntPtr]::Zero) {
     # fallback: chrome co the forward sang instance cu (SingletonLock) -> tim toan bo theo title
     $all = Get-Process chrome -EA SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*fixture*' } | Select-Object -First 1
     if ($all) {
-        foreach ($w in [UW]::WinsOf([uint32]$all.Id)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*' -and $p[2] -like '*fixture*') { $hChrome = [IntPtr][long]$p[0]; break } }
+        foreach ($w in [VtWin]::WinsOf([uint32]$all.Id)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*' -and $p[2] -like '*fixture*') { $hChrome = [IntPtr][long]$p[0]; break } }
     }
 }
 Log ("Chrome window = " + $hChrome.ToInt64())
 Test-Target 'chrome_omnibox (R3 address_bar)' $hChrome {
     param($w)
-    $c = PCC ([System.Windows.Automation.AutomationElement]::NameProperty) 'address'
+    $c = New-UiACond ([System.Windows.Automation.AutomationElement]::NameProperty) 'address'
     $e = $w.FindFirst($TS, $c)
-    if (-not $e) { $c2 = PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit); $e = $w.FindFirst($TS, $c2) }
+    if (-not $e) { $c2 = New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit); $e = $w.FindFirst($TS, $c2) }
     $e
 }
 Test-Target 'chrome_input_password (R1 secure)' $hChrome {
     param($w)
-    $c = PCC ([System.Windows.Automation.AutomationElement]::IsPasswordProperty) $true
+    $c = New-UiACond ([System.Windows.Automation.AutomationElement]::IsPasswordProperty) $true
     $w.FindFirst($TS, $c)
 }
 Test-Target 'chrome_textarea (R8)' $hChrome {
     param($w)
-    $c = PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea)
+    $c = New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea)
     $w.FindFirst($TS, $c)
 }
 
@@ -185,12 +144,12 @@ Set-Content -Path $txt -Value ' VietIME UIA spike note' -Encoding ASCII
 $np = Start-Process notepad.exe -ArgumentList ('"' + $txt + '"') -PassThru
 $spawned.Add($np.Id)
 $hNp = Wait-Win $np.Id '*' 30
-if ($hNp -eq [IntPtr]::Zero) { foreach ($cand in [UW]::WinsByClass('Notepad')) { $hNp = [IntPtr][long]$cand.Split('|')[0]; break } }
+if ($hNp -eq [IntPtr]::Zero) { foreach ($cand in [VtWin]::WinsByClass('Notepad')) { $hNp = [IntPtr][long]$cand.Split('|')[0]; break } }
 Test-Target 'notepad_edit (R6 editbox)' $hNp {
     param($w)
-    $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document))) }
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea))) }
+    $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document))) }
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea))) }
     $e
 }
 
@@ -202,14 +161,14 @@ try {
     $doc = $word.Documents.Add()
     Start-Sleep -Seconds 2
     $hWord = [IntPtr]::Zero
-    foreach ($w in [UW]::WinsByClass('OpusApp')) { $hWord = [IntPtr][long]$w.Split('|')[0]; break }
+    foreach ($w in [VtWin]::WinsByClass('OpusApp')) { $hWord = [IntPtr][long]$w.Split('|')[0]; break }
     $wpidObj = Get-Process WINWORD -EA SilentlyContinue | Select-Object -First 1
     if ($wpidObj) { $spawned.Add($wpidObj.Id) }
     if ($hWord -eq [IntPtr]::Zero) { $hWord = Wait-Win ([uint32]$wpidObj.Id) '*' 20 }
     Test-Target 'word_document (R6 body)' $hWord {
         param($w)
-        $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document)))
-        if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea))) }
+        $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document)))
+        if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea))) }
         $e
     }
 } catch { Log ("Word: LOI " + $_.Exception.Message.Split("`n")[0]) }
@@ -222,27 +181,27 @@ try {
     $wb = $xl.Workbooks.Add()
     Start-Sleep -Seconds 2
     $hXl = [IntPtr]::Zero
-    foreach ($w in [UW]::WinsByClass('XLMAIN')) { $hXl = [IntPtr][long]$w.Split('|')[0]; break }
+    foreach ($w in [VtWin]::WinsByClass('XLMAIN')) { $hXl = [IntPtr][long]$w.Split('|')[0]; break }
     $xpidObj = Get-Process EXCEL -EA SilentlyContinue | Select-Object -First 1
     if ($xpidObj) { $spawned.Add($xpidObj.Id) }
     if ($hXl -eq [IntPtr]::Zero) { $hXl = Wait-Win ([uint32]$xpidObj.Id) '*' 20 }
     Test-Target 'excel_grid (R5 candidate)' $hXl {
         param($w)
-        $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Grid)))
-        if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Table))) }
-        if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::DataItem))) }
+        $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Grid)))
+        if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Table))) }
+        if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::DataItem))) }
         $e
     }
 } catch { Log ("Excel: LOI " + $_.Exception.Message.Split("`n")[0]) }
 
 # === 7: Windows Terminal (dang chay) ===
 $hTerm = [IntPtr]::Zero
-foreach ($cand in [UW]::WinsByClass('CASCADIA_HOSTING_WINDOW_CLASS')) { $hTerm = [IntPtr][long]$cand.Split('|')[0]; break }
+foreach ($cand in [VtWin]::WinsByClass('CASCADIA_HOSTING_WINDOW_CLASS')) { $hTerm = [IntPtr][long]$cand.Split('|')[0]; break }
 Test-Target 'terminal (R9)' $hTerm {
     param($w)
-    $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document)))
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit))) }
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Pane))) }
+    $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document)))
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit))) }
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Pane))) }
     $e
 }
 
@@ -250,27 +209,27 @@ Test-Target 'terminal (R9)' $hTerm {
 $hVs = [IntPtr]::Zero
 $codePid = (Get-Process code -EA SilentlyContinue | Select-Object -First 1).Id
 if ($codePid) {
-    foreach ($w in [UW]::WinsOf([uint32]$codePid)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*') { $hVs = [IntPtr][long]$p[0]; break } }
+    foreach ($w in [VtWin]::WinsOf([uint32]$codePid)) { $p = $w.Split('|'); if ($p[1] -like 'Chrome_WidgetWin*') { $hVs = [IntPtr][long]$p[0]; break } }
 }
 Test-Target 'vscode_editor (R7 web/electron)' $hVs {
     param($w)
-    $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea)))
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document))) }
+    $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::TextArea)))
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Document))) }
     $e
 }
 
 # === 9: Explorer (shell explorer.exe - khong kill!) ===
 $hEx = [IntPtr]::Zero
-foreach ($cand in [UW]::WinsByClass('CabinetWClass')) { $hEx = [IntPtr][long]$cand.Split('|')[0]; break }
+foreach ($cand in [VtWin]::WinsByClass('CabinetWClass')) { $hEx = [IntPtr][long]$cand.Split('|')[0]; break }
 if ($hEx -eq [IntPtr]::Zero) {
     Start-Process explorer.exe
     Start-Sleep -Seconds 4
-    foreach ($cand in [UW]::WinsByClass('CabinetWClass')) { $hEx = [IntPtr][long]$cand.Split('|')[0]; break }
+    foreach ($cand in [VtWin]::WinsByClass('CabinetWClass')) { $hEx = [IntPtr][long]$cand.Split('|')[0]; break }
 }
 Test-Target 'explorer_address (R3/R4 address_bar+combo)' $hEx {
     param($w)
-    $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
-    if (-not $e) { $e = $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::ComboBox))) }
+    $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
+    if (-not $e) { $e = $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::ComboBox))) }
     $e
 }
 
@@ -280,11 +239,11 @@ try { $hc = Start-Process conhost.exe -ArgumentList 'cmd.exe' -PassThru } catch 
 $hCon = [IntPtr]::Zero
 if ($hc) { $spawned.Add($hc.Id); $hCon = Wait-Win $hc.Id '*' 15 }
 if ($hCon -eq [IntPtr]::Zero) {
-    foreach ($cand in [UW]::WinsByClass('ConsoleWindowClass')) { $hCon = [IntPtr][long]$cand.Split('|')[0]; break }
+    foreach ($cand in [VtWin]::WinsByClass('ConsoleWindowClass')) { $hCon = [IntPtr][long]$cand.Split('|')[0]; break }
 }
 Test-Target 'conhost_legacy (R9/R10)' $hCon {
     param($w)
-    $w.FindFirst($TS, (PCC ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
+    $w.FindFirst($TS, (New-UiACond ([System.Windows.Automation.AutomationElement]::ControlTypeProperty) ([System.Windows.Automation.ControlType]::Edit)))
 }
 
 # === duong thuc hook that: FocusedElement ===

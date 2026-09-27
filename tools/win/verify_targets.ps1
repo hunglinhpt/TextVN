@@ -47,6 +47,7 @@ function Find-AppWindow($o) {
 }
 function Expand-Path([string]$p) { [Environment]::ExpandEnvironmentVariables($p) }
 $script:FixtureUri = ''
+$script:VtTempProfiles = New-Object System.Collections.Generic.List[string]   # profile tam de cleanup (f6-13)
 function Get-FixtureUri {
     # trang test nho (contenteditable) - chromium khong expose Document voi about:blank
     if ($script:FixtureUri) { return $script:FixtureUri }
@@ -56,10 +57,37 @@ function Get-FixtureUri {
     $script:FixtureUri = ([System.Uri]$p).AbsoluteUri
     return $script:FixtureUri
 }
+function New-ProfileDir($o) {
+    # profile tam + user.js (f6-13): Firefox profile MOI bi modal TOU_ONBOARDING che toan bo
+    # toolbar/urlbar (36 Menu + modal, khong co ComboBox/Edit) -> dat pref truoc khi chay.
+    $pd = Join-Path $env:TEMP ('vt_prof_' + $o.app_id + '_' + [guid]::NewGuid().ToString('N').Substring(0, 6))
+    New-Item -ItemType Directory -Force -Path $pd | Out-Null
+    $prefs = $null
+    try { $prefs = $o.launch.profile.prefs } catch {}
+    if ($prefs) {
+        $jl = New-Object System.Collections.Generic.List[string]
+        foreach ($pn in $prefs.PSObject.Properties.Name) {
+            $pv = $prefs.PSObject.Properties[$pn].Value
+            $jl.Add('user_pref("' + $pn + '", ' + (ConvertTo-Json $pv) + ');')
+        }
+        [System.IO.File]::WriteAllLines((Join-Path $pd 'user.js'), $jl, [System.Text.UTF8Encoding]::new($false))
+    }
+    $script:VtTempProfiles.Add($pd)
+    return $pd
+}
 function Get-ResolvedArgs($o) {
     $r = @()
     foreach ($a in @($o.launch.args)) {
         if ($a -eq '{fixture}') { $r += (Get-FixtureUri) } else { $r += $a }
+    }
+    # launch.profile: tao profile tam + append args (co the chua {profile_dir}) - kieu Firefox
+    $prof = $null
+    try { $prof = $o.launch.profile } catch {}
+    if ($prof) {
+        $pd = New-ProfileDir $o
+        foreach ($a in @($prof.args)) {
+            if ($a -eq '{profile_dir}') { $r += $pd } else { $r += $a }
+        }
     }
     return $r
 }
@@ -271,6 +299,10 @@ foreach ($s in $spawnedHwnds) {
     if ($alive) {
         try { & taskkill /PID $s.pid /T /F 2>&1 | Out-Null } catch {}
     }
+}
+# profile tam (f6-13) - xoa sau khi app da dong (khong dot profile that cua user)
+foreach ($d in $script:VtTempProfiles) {
+    try { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
 
 # === report ===

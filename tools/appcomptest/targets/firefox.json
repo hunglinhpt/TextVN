@@ -9,7 +9,16 @@
       "%LOCALAPPDATA%\\Mozilla Firefox\\firefox.exe"
     ],
     "args": [ "-new-window", "about:blank" ],
-    "ready_class": "MozillaWindowClass"
+    "ready_class": "MozillaWindowClass",
+    "profile": {
+      "prefs": {
+        "browser.preonboarding.enabled": false,
+        "termsofuse.bypassNotification": true,
+        "termsofuse.acceptedVersion": 999,
+        "browser.aboutwelcome.enabled": false
+      },
+      "args": [ "-no-remote", "-profile", "{profile_dir}" ]
+    }
   },
   "fields": [
     {
