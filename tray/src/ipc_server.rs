@@ -6,10 +6,13 @@
 //! theo dõi sức khỏe và quản lý watchdog cho tiến trình `vietime-hook.exe`.
 
 use std::io::{Read, Write};
+#[cfg(windows)]
 use std::os::windows::io::FromRawHandle;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+#[cfg(windows)]
+use std::time::Duration;
+use std::time::Instant;
 
 use vietime_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
 

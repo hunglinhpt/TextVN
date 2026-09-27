@@ -3,7 +3,7 @@
 // Nguồn: data/tables/*.toml · sinh bằng `cargo xtask gen-tables` (P0-1 §3).
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
-//! Nguồn: `data/tables/vowels.toml` (digest FNV-1a 64 = `0xc1cc04cde5287ab9`).
+//! Nguồn: `data/tables/vowels.toml` (digest FNV-1a 64 = `0xfe5318e15330844d`).
 //!
 //! Index âm trong bảng là **hợp đồng** với `transform::undo` (`mark_vowel`,
 //! `mark_horn`) — đổi thứ tự trong `.toml` là đổi hành vi gõ.

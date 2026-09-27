@@ -87,7 +87,11 @@ fn usage() -> &'static str {
 }
 
 fn read(rel: &str) -> Result<String, String> {
-    fs::read_to_string(rel).map_err(|e| format!("không đọc được `{rel}`: {e}"))
+    // chuẩn hoá line ending TRƯỚC khi parse/digest (FNV-1a trên bytes thô):
+    // local Windows hay checkout CRLF, CI Linux LF — digest/embedded hash phải giống nhau.
+    fs::read_to_string(rel)
+        .map(|s| s.replace("\r\n", "\n"))
+        .map_err(|e| format!("không đọc được `{rel}`: {e}"))
 }
 
 /// `write = true` → ghi file; `false` → so với file đang có, lệch thì `Err`.

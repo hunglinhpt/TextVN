@@ -4,7 +4,7 @@
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
 //! Nguồn: `data/tables/{telex,simple_telex,vni,viqr}.toml`
-//!   (digest FNV-1a 64 = `0xddfb5dda4593baa6`; bảng âm = `0xc1cc04cde5287ab9`).
+//!   (digest FNV-1a 64 = `0x15a445f2cb625b5b`; bảng âm = `0xfe5318e15330844d`).
 //!
 //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`, `iet`…)
 //! vẫn nằm trong `method/telex.rs`, `vni.rs`, `viqr.rs` — bảng ở đây chỉ mô tả phần bảng.

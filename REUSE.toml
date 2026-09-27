@@ -4,7 +4,7 @@ SPDX-PackageSupplier = "https://github.com/hunglinhpt"
 SPDX-PackageDownloadLocation = "https://github.com/hunglinhpt/TextVN"
 
 [[annotations]]
-path = "**"
+path = ["**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 VietIME contributors"
 SPDX-License-Identifier = "GPL-3.0-or-later"

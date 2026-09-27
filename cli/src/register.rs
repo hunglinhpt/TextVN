@@ -16,21 +16,27 @@ use std::process::Command;
 // ─── CLSID / Profile strings (text-only; dùng được trên cả non-Windows cho tests) ──────────────
 
 /// CLSID của VietIME TIP — khớp với `adapters/windows-tsf/src/guids.rs`.
+#[cfg_attr(not(windows), allow(dead_code))] // non-Windows: chỉ test dùng (bin không gọi)
 pub const CLSID_STR: &str = "{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
 /// Profile GUID của VietIME TIP.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const PROFILE_STR: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
+#[cfg_attr(not(windows), allow(dead_code))]
 pub const LANGID_EN: u16 = 0x0409; // en-US
 
 // ─── Helpers (cross-platform phần text) ──────────────────────────────────────────────────────────
 
 /// `HKCU\Software\Classes\CLSID\{CLSID}` — registry key đăng ký COM per-user.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn clsid_registry_key() -> String {
     format!(r"HKCU\Software\Classes\CLSID\{CLSID_STR}")
 }
 
 /// Format spec `InstallLayoutOrTip`: `"0x{lang:04X}:{CLSID}{Profile}"`.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn layout_spec(lang: u16) -> String {
     format!("0x{lang:04X}:{CLSID_STR}{PROFILE_STR}")
 }
@@ -41,6 +47,7 @@ pub fn layout_spec(lang: u16) -> String {
 /// 1. `custom` nếu được cung cấp và file tồn tại.
 /// 2. Cùng thư mục với `vietime.exe` (cạnh CLI binary).
 /// 3. Lỗi nếu không tìm thấy.
+#[cfg_attr(not(windows), allow(dead_code))]
 pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
     if let Some(p) = custom {
         if p.exists() {
@@ -70,6 +77,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
 
 // ─── Ghi log ra console + file ───────────────────────────────────────────────────────────────────
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn say(msg: &str) {
     use std::io::Write;
     println!("{msg}");
@@ -92,6 +100,7 @@ fn say(msg: &str) {
 
 // ─── reg.exe wrapper ─────────────────────────────────────────────────────────────────────────────
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn reg_cmd(args: &[&str]) -> bool {
     let ok = Command::new("reg")
         .args(args)

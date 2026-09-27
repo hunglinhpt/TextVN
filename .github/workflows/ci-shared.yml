@@ -103,7 +103,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: fsfe/reuse-action@v3
+      # @v6 = reuse-tool 6.x (spec 3.3, đọc REUSE.toml) — @v3 = tool 3.0 CHỈ
+      # đọc .reuse/dep5 → fail 0/302 copyright (đã reproduce local, F6-14).
+      - uses: fsfe/reuse-action@v6
 
   test:
     name: test (${{ matrix.os }})
@@ -139,13 +141,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
-      - uses: taiki-e/install-action@cargo-fuzz
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
       - name: fuzz ffi_key
-        run: cargo fuzz run ffi_key --features ffi-fuzz -- -max_total_time=60
+        run: cargo +nightly fuzz run ffi_key --features ffi-fuzz -- -max_total_time=60
       - name: fuzz config_parse
-        run: cargo fuzz run config_parse --features ffi-fuzz -- -max_total_time=60
+        run: cargo +nightly fuzz run config_parse --features ffi-fuzz -- -max_total_time=60
       - name: fuzz appdb_parse
-        run: cargo fuzz run appdb_parse -- -max_total_time=60
+        run: cargo +nightly fuzz run appdb_parse -- -max_total_time=60
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
