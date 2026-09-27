@@ -8,7 +8,7 @@
       "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
       "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"
     ],
-    "args": [ "--new-window", "{fixture}" ],
+    "args": [ "--no-first-run", "--new-window", "{fixture}" ],
     "ready_class": "Chrome_WidgetWin_1"
   },
   "fields": [

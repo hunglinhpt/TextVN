@@ -107,6 +107,9 @@ một version.
 | **F6-6** | Workflow GHA dễ fail ngầm: wrapper đọc `$LASTEXITCODE` **cuối** step → winget exit ≠ 0 (`0x8A15002B` khi "không có upgrade") làm fail step oan; thiếu `permissions`/`timeout-minutes` so với `hook-spike.yml`; bản cũ VS Code còn sót ở `Program Files` sẽ che `paths[0]` sau khi winget cài về `%LOCALAPPDATA%` | `exit 0` tường minh ở cuối step winget; `permissions: contents: read` + timeout; bước dọn `Program Files` nếu version ≠ baseline (chỉ trên runner ephemeral) |
 | **F6-7** | `Write-Output 'text ' + $x` (thiếu ngoặc) → PowerShell tách thành nhiều argument → message sai/chữi | Luôn `Write-Output ('text ' + $x)` — paren bọc expression (A10-family) |
 | **F6-8** | Step summary markdown: header 6 cột nhưng row evidence 7 cột (thiếu `ms`) → bảng render sai | Đổi header khớp đúng 7 cột của `verify-evidence.md` |
+| **F6-9** | `Find-AppWindow` chọn **cửa sổ đầu tiên** khớp class+proc → bắt nhầm **popup owned** cùng class (Chrome fresh mở "Translate this page?" = `TranslateBubbleView`, 17 node, không omnibox/Document) thay vì cửa sổ chính | `VtWin.GetOwner` (GW_OWNER) + **2 pha**: bỏ qua owned, chỉ fallbackowned khi không có unowned. Chứng minh local diag7/diag8: bắt đúng cửa sổ → omnibox HIT |
+| **F6-10** | Readiness **ANY-field** cũ cho phép evaluate `address_bar` khi mới chỉ `Document` (renderer) xong → field chưa render bị MISS sớm trên runner chậm | readiness **theo từng field**: poll chính locator của field đó ≤10s trước khi đánh giá; MISS → dump ≤25 node (ct/cls/aId, S2) vào log CI |
+| **F6-11** | `winget` trên runner fresh fail: prompt thỏa thuận msstore không đọc được input (`0x8a150042`) + source hỏng (`0x8a15000f Data required by the source is missing`) → install/uninstall/upgrade đều đỏ | `upgrade-cycle` bỏ hẳn winget: cài bản cũ từ URL trong manifest winget-pkgs (GitHub raw), upgrade bằng `.exe` chính thức `?os=win32-x64-user` (in-place cùng thư mục) |
 
 ## 5. Limitation / follow-up
 

@@ -32,12 +32,18 @@ function Find-AppWindow($o) {
     $wantProc = $null
     try { if ($o.launch.process) { $wantProc = [System.IO.Path]::GetFileNameWithoutExtension($o.launch.process) } } catch {}
     if (-not $wantProc) { $wantProc = [System.IO.Path]::GetFileNameWithoutExtension(@($o.match.any)[0].exe) }
+    # 2 pha (f6-9): truoc chon cua so khong owner (loai popup/dialog vd "Translate this page?"
+    # Chrome_WidgetWin_1 cung class), neu khong co thi moi chap nhan cua so co owner.
+    $owned = [IntPtr]::Zero
     foreach ($cand in [VtWin]::WinsByClass($o.launch.ready_class)) {
         $p = $cand.Split('|')
         $h = [IntPtr][long]$p[0]
-        if ((Get-ProcNameOfHwnd $h) -ieq $wantProc) { return $h }
+        if ((Get-ProcNameOfHwnd $h) -ieq $wantProc) {
+            if ([VtWin]::GetOwner($h) -eq [IntPtr]::Zero) { return $h }
+            if ($owned -eq [IntPtr]::Zero) { $owned = $h }
+        }
     }
-    return [IntPtr]::Zero
+    return $owned
 }
 function Expand-Path([string]$p) { [Environment]::ExpandEnvironmentVariables($p) }
 $script:FixtureUri = ''
@@ -190,19 +196,17 @@ foreach ($f in $files) {
     $focusFirst = $false
     try { $focusFirst = [bool]$o.launch.focus_before_probe } catch {}
     if ($focusFirst) { [void](Focus-UiAWindow $h); Start-Sleep -Milliseconds 800 }
-    # readiness: UIA tree chua san (notepad/renderer load async) -> poll toi da 10s
-    # cho den khi bat ky locator nao cua bat ky field nao resolve (S4: tree nong sau khi render)
-    $ready = $false
-    for ($i = 0; $i -lt 20 -and -not $ready; $i++) {
-        foreach ($fl0 in @($o.fields)) {
-            foreach ($l0 in @($fl0.locators)) {
-                if (Find-UiAElementByLocator $root $l0) { $ready = $true; break }
-            }
-            if ($ready) { break }
-        }
-        if (-not $ready) { Start-Sleep -Milliseconds 500 }
-    }
+    # (f6-10) readiness theo TUNG field: readiness ANY-truoc do cho phep evaluate address_bar
+    # khi moi Document (renderer) render truoc -> field chua xuat hien bi MISS som.
+    # Moi field poll CHIN locators cua no toi da 10s truoc khi danh gia (S4).
     foreach ($fl in @($o.fields)) {
+        $fieldReady = $false
+        for ($i = 0; $i -lt 20 -and -not $fieldReady; $i++) {
+            foreach ($l0 in @($fl.locators)) {
+                if (Find-UiAElementByLocator $root $l0) { $fieldReady = $true; break }
+            }
+            if (-not $fieldReady) { Start-Sleep -Milliseconds 500 }
+        }
         $hitIdx = -1; $hitInfo = ''; $hitMs = 0.0; $ok = 0; $total = 0
         $li = 0
         foreach ($l in @($fl.locators)) {
@@ -230,6 +234,21 @@ foreach ($f in $files) {
             Resolves = ($ok.ToString() + '/' + $total)
             Ms = $hitMs
         })
+        # dump cay ngan khi MISS de chan doan tren CI (S2: chi ControlType/ClassName/aId, khong Name)
+        if ($fstatus -eq 'FIELD_MISS') {
+            try {
+                $allD = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                    [System.Windows.Automation.Condition]::TrueCondition)
+                Write-Output ('  [MISS-DUMP] ' + $o.app_id + '/' + $fl.field_role + ' total=' + $allD.Count)
+                $dn = 0
+                foreach ($eD in $allD) {
+                    if ($dn -ge 25) { break }
+                    $ctD = $eD.Current.ControlType.ProgrammaticName -replace 'ControlType_', ''
+                    Write-Output ('    ct=' + $ctD + " cls='" + $eD.Current.ClassName + "' aId='" + $eD.Current.AutomationId + "'")
+                    $dn++
+                }
+            } catch { Write-Output ('  [MISS-DUMP] loi doc cay: ' + $_.Exception.Message) }
+        }
     }
 }
 

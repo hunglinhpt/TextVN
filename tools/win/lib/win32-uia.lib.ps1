@@ -28,6 +28,9 @@ public class VtWin {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
+    // cua so so huu owner = popup/dialog (vd Chrome "Translate this page?") - bo qua khi chon cua so chinh
+    public static IntPtr GetOwner(IntPtr h) { return GetWindow(h, 4); /* GW_OWNER */ }
     // format: hwnd|class|title
     public static List<string> WinsOf(uint pid) {
         var r = new List<string>();
