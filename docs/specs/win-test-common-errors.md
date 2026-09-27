@@ -2,6 +2,7 @@
 
 > Mục đích: ghi các lỗi **thật đã mắc** trong quá trình chạy spike TSF trên Windows 11,
 > để agent/task sau không mất hàng giờ debug lại. Mọi mục đều có bằng chứng chạy thật.
+> Quy ước ghi (G3, ID `A{n}` liền mạch, không xóa): `../00-WORKFLOW.md §3`.
 > Liên quan: `tsf-spike.md`, `tsf-registration-spike.md`, `../20-windows/P1-5-test-plan.md`.
 
 ## A. PowerShell & C# interop
@@ -15,6 +16,9 @@
 | A5 | Script `.ps1` chứa Unicode/emoji | Chữ mojibake trong console/log | `.ps1` **ASCII-only** (quy ước Handlog); unicode test data đặt trong console output codepoint `U+XXXX` |
 | A6 | Redirect `*>` ra file rồi đọc bằng read-tool | `Cannot read binary file` | File là **UTF-16** → đọc `Get-Content -Encoding Unicode` |
 | A7 | C# trong `Add-Type` thừa biến | `CS0219` warning → fail (some hosts treat as error) | Xóa biến thừa; biến dùng 1 lần đặt tên `_` không được trong C# → dùng ngay |
+| A8 | **Truy cập static member qua biến holding type** | `$UAE = [AutomationElement]` rồi `$UAE.NameProperty` → **`$null` im lặng** (PowerShell không resolve static qua instance lookup) → `PropertyCondition` ctor lỗi "Value cannot be null" | Luôn dùng `[Namespace.Type]::StaticMember`; biến type chỉ để truyền kiểu, không để lấy static. (Đã mất 2 lần chạy vì lỗi này.) |
+| A9 | `[UAE]::Method()` với type accelerator tự đặt | `Unable to find type [UAE]` | Type accelerator phải đăng ký thật; biến `$UAE` không dùng được trong `[...]` → ghi đủ namespace hoặc alias có thật |
+| A10 | **`[Type]::Member` truyền vào function không bọc ngoặc** | `PCC [System.X]::NameProperty 'v'` → PowerShell parse `[System.X]` thành type literal rời, `::NameProperty` thành arg riêng → ctor "Cannot find an overload ... argument count 2" | Luôn `PCC ([System.X]::NameProperty) 'v'` — bọc ngoặc `()` quanh `[Type]::Member` khi truyền vào function/scriptblock |
 
 ## B. Gửi phím & focus (dạng sai gây "phím bay vào app của user")
 
