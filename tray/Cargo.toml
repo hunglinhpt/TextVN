@@ -5,6 +5,14 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+build = "build.rs"
+
+[build-dependencies]
+winresource = { version = "0.1", optional = true }
+
+[features]
+embed-resources = ["winresource"]
+
 
 [[bin]]
 name = "vietime-tray"

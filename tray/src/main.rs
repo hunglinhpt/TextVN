@@ -31,6 +31,10 @@ const WINDOW_CLASS_NAME: &str = "VietIMETrayWndClass";
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
 
+/// Resource ID của icon VietIME nhúng trong binary (xem tray/resources/vietime.ico + build.rs).
+/// RC_ICON_VIETIME = 1 là thứ tự khai báo trong winresource.
+const IDR_VIETIME_ICON: u16 = 1;
+
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
 struct TrayApp {
@@ -149,13 +153,33 @@ fn run_tray_app() {
     };
 
     // 4. Thêm icon vào khay hệ thống
+    // Thử load icon nhúng từ resource (winresource feature); fallback IDI_APPLICATION
+    let h_icon = unsafe {
+        // LoadImageW với hInstance = module của chính binary → load embedded .ico
+        let loaded = LoadImageW(
+            Some(h_instance.into()),
+            PCWSTR(IDR_VIETIME_ICON as usize as *const u16),
+            IMAGE_ICON,
+            0, // cx=0 → dùng SM_CXSMICON
+            0, // cy=0 → dùng SM_CYSMICON
+            LR_DEFAULTCOLOR,
+        );
+        match loaded {
+            Ok(h) => HICON(h.0),
+            Err(_) => {
+                // Fallback: icon mặc định Windows nếu resource chưa được nhúng (dev build)
+                LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
+            }
+        }
+    };
+
     let mut nid = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
         uID: TRAY_ICON_UID,
         uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage: WM_TRAYICON,
-        hIcon: unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() },
+        hIcon: h_icon,
         ..Default::default()
     };
 
