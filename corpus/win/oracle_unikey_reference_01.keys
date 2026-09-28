@@ -2,7 +2,7 @@
 # oracle: UniKeyNT.exe 4.3 RC5 (Windows 11 x64, 2026-09-27)
 :config method=telex
 :app notepad.exe field=body
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :note "oracle=unikey-windows-4.3-rc5"
 

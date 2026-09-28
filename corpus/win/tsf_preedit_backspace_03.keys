@@ -2,7 +2,7 @@
 :config method=telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type "da"
+:type "dda"
 :expect "đa"
 :key Backspace
-:expect "d"
+:expect "đ"

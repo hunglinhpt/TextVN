@@ -170,8 +170,8 @@ int main(void) {
     }
 
     int ok = 1;
-    type(ic, "duocj ");
-    ok &= check("telex duocj+space", "được ");
+    type(ic, "dduocj ");
+    ok &= check("telex dduocj+space", "được ");
     clear(ic);
     type(ic, "Vieetj Nam");
     ok &= check("preedit giữ cả từ", "Việt Nam");
@@ -180,7 +180,7 @@ int main(void) {
     type(ic, "chaof banj\n");
     ok &= check("Enter commit (B2)", "chào bạn\n");
     clear(ic);
-    type(ic, "duocj\b ");
+    type(ic, "dduocj\b ");
     ok &= check("Backspace trong từ", "đươc ");
     clear(ic);
     type(ic, "hello world ");

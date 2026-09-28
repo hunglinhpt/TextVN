@@ -22,6 +22,9 @@
 | R10 | Tự viết hoa sai với nguyên âm có dấu (OpenKey #320) | viết hoa trên ký tự đã dựng sẵn | Viết hoa trên ký tự đầu từ trước khi fold | replay: `xin. as` → `xin. Á`, `xin. uwowng` → `xin. Ương` |
 | R11 | Chữ dính gợi ý ở thanh địa chỉ/Excel (B1, UniKey/EVKey) | Backspace giả + autocomplete chèn chữ | TSF composition / preedit, không Backspace giả | corpus `bug_B1_*` qua `--adapter tsf` |
 | R12 | Không gõ được ở ô tìm kiếm Start/Settings/app Store (TSF) | thiếu category Immersive + DLL không đọc được từ AppContainer | Đăng ký `IMMERSIVESUPPORT` + ACL AppContainer | `cli/src/register.rs` |
+| R13 | Đặt dấu sai vị trí (`cuả`, `nghiã`, `thủy` ở kiểu mới; `đựơc` ở kiểu cũ) — lỗi kinh điển của bộ gõ tự viết | chọn vị trí theo "âm cuối cụm" thay vì quy tắc chính tả | Quy tắc đầy đủ: gi/qu là phụ âm, ưu tiên nguyên âm có dấu phụ, có âm cuối → âm cuối cụm, vần 3 âm → giữa, `oa/oe/uy` theo kiểu dấu, còn lại → âm đầu; dời dấu khi gõ tiếp | `transform/diacritic_style.rs`, `core/tests/common_words.rs` (~330 từ × Telex/VNI/kiểu cũ/uow/dấu giữa từ) |
+| R14 | `d` + nguyên âm tự thành `đ` → không gõ được `dân`, `dạy`, `dưới` (lỗi của chính TextVN bản trước, do ghi chép oracle sai) | quy tắc "thông minh" không có trong Telex chuẩn | `đ` chỉ qua `dd` như UniKey/OpenKey/Bamboo | corpus `telex_d_plain_01`, test `d_only_becomes_stroke_when_doubled` |
+| R15 | Gõ tắt xoá nhầm chữ sau Home/End/Ctrl+V (bộ gõ giữ "đuôi text" cũ) | đuôi text engine nhớ không còn nằm trước con trỏ | Quên đuôi text khi có phím điều hướng/chord; gõ tắt chỉ khớp đầu từ | `macro_not_expanded_after_caret_jump_or_chord` |
 
 ## 2. Tính năng tham chiếu → trạng thái
 
@@ -34,8 +37,13 @@
 | ESC khôi phục phím gõ | – | – | – | ✅ |
 | Gõ tắt (macro) | ✅ | ✅ | ✅ | ✅ |
 | Tự viết hoa đầu câu | – | ✅ | – | ✅ |
-| Bảng mã Unicode tổ hợp / TCVN3 / VNI Windows | ✅ | ✅ | ✅ | ⏳ task riêng (cần đổi đơn vị `delete_count`) |
-| Quick Telex (`cc→ch, gg→gi, kk→kh, nn→ng, qq→qu, pp→ph, tt→th`) | – | ✅ | – | ⏳ |
+| Bảng mã Unicode tổ hợp / TCVN3 / VNI Windows | ✅ | ✅ | ✅ | ✅ (`output_charset`, bảng UniKey — corpus `charset_*`) |
+| Quick Telex (`cc→ch, gg→gi, kk→kh, nn→ng, qq→qu, pp→ph, tt→th`) | – | ✅ | – | ✅ (`quick_telex`) |
+| Telex `z` gỡ dấu thanh | ✅ | ✅ | ✅ | ✅ |
+| `uow` → `ươ` (`nguowif` → `người`) | ✅ | ✅ | ✅ | ✅ |
+| Gõ tắt cả khi tắt tiếng Việt | – | ✅ | – | ✅ (`allow_macro_when_vi_off`) |
+| Soạn bảng gõ tắt trong bảng điều khiển | ✅ | ✅ | ✅ | ✅ (Windows + Linux, báo dòng lỗi) |
+| Nhớ trạng thái V/E qua lần khởi động | ✅ | ✅ | – | ✅ (`state.json`, cả Windows và Linux) |
 | Bật/tắt theo từng ứng dụng | – | ✅ | ✅ | ✅ Windows (menu khay) |
 | Phím chuyển Ctrl+Shift | ✅ | ✅ | – | ✅ Windows TSF, IBus, Fcitx5, hook |
 | Preedit / không gạch chân | – | – | ✅ (6 chế độ) | Preedit (an toàn nhất, xem R1) |

@@ -1,0 +1,5 @@
+# corpus/shared/telex_z_uow_01.keys — `z` gỡ dấu thanh (UniKey); thói quen `uow` → `ươ`;
+# `e` mang dấu trước `t` không tự thành `ê` (`ghét`, không phải `ghết`).
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "toansz nguowif truowngf ghest "
+:expect "toan người trường ghét "

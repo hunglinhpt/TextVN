@@ -19,6 +19,8 @@ stroke_key = "d"
 stroke_double = true
 # Telex không có phím xoá toàn bộ dấu (đó là VNI `0`)
 remove_marks_key = ""
+# `z` gỡ DẤU THANH của từ (UniKey vneTone0: `toansz` → `toan`); từ chưa có dấu → chữ `z`.
+tone_remove_key = "z"
 
 # Đôi âm → mũ: aa→â, ee→ê, oo→ô
 [[circumflex]]

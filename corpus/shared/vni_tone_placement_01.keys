@@ -1,0 +1,4 @@
+# corpus/shared/vni_tone_placement_01.keys — VNI: cùng quy tắc đặt dấu; `quo7` → `quơ`.
+:config method=vni diacritic_style=new auto_capitalize=false
+:type "cua3 nghia4 giao1 giu7a4 quy1 quo73 thuo73 d9u7o7c5 "
+:expect "của nghĩa giáo giữa quý quở thuở được "

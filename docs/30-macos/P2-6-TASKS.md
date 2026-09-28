@@ -58,7 +58,7 @@ Theo `P2-1 §2/§3`: main.swift, controller lifecycle, Info.plist §8.
 - **Acceptance:** corpus `combo_pass` (shared) pass trên TextEdit/Safari.
 
 ### MAC-012 · Preedit qua marked + commit ngắn (L) — `P2-1 §6.1/§7`
-- **Acceptance:** `duocj` → `được` trong TextEdit; corpus `imk_preedit_*` ≥ 40 case + `bug_B11_*` pass.
+- **Acceptance:** `dduocj` → `được` trong TextEdit; corpus `imk_preedit_*` ≥ 40 case + `bug_B11_*` pass.
 
 ### MAC-013 · KeyTranslator (UCKeyTranslate) + đổi layout (M)
 - **Acceptance:** gõ đúng với layout ABC + Tiếng Việt (VNI Windows); unit test translate 100 phím.

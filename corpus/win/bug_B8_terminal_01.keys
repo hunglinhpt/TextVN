@@ -2,5 +2,5 @@
 :config method=telex diacritic_style=new
 :caps inject_vk,field_detect
 :app windowsterminal.exe field=terminal
-:type "duocj"
+:type "dduocj"
 :expect "được"

@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn telex_word_is_composed_then_committed_on_space() {
-        let doc = run(NO_CAPS, "duocj ");
+        let doc = run(NO_CAPS, "dduocj ");
         assert_eq!(doc.text(), "được ");
         assert!(doc.comp.is_empty());
     }
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn backspace_inside_word_refolds_and_empty_word_ends_composition() {
-        let doc = run(NO_CAPS, "duocj\u{8}");
+        let doc = run(NO_CAPS, "dduocj\u{8}");
         assert_eq!(doc.text(), "đươc");
         let doc = run(NO_CAPS, "ab\u{8}\u{8}\u{8}");
         assert_eq!(doc.text(), "");
@@ -440,8 +440,8 @@ mod tests {
 
     #[test]
     fn escape_restores_raw_keys() {
-        let doc = run(NO_CAPS, "duocj\u{1b}");
-        assert_eq!(doc.text(), "duocj");
+        let doc = run(NO_CAPS, "dduocj\u{1b}");
+        assert_eq!(doc.text(), "dduocj");
         assert!(doc.comp.is_empty());
     }
 

@@ -195,7 +195,7 @@ Gỡ: xóa bundle + (nếu có API) unregister — 0 residue (P2-5 §6)
 | 1 | MAC-001..009 | Env + 7 spike + corpus mac đầu | `docs/specs/macos-*-spike.md` đủ 10 mục §9 |
 | 2 | MAC-010 | Bundle + IMKServer + controller rỗng | Cài vào Input menu, TextEdit không crash |
 | 3 | MAC-011 | handle → `ime_key` PASS toàn bộ | Gõ tiếng Anh không đổi (corpus `combo_pass`) |
-| 4 | MAC-012 | Preedit qua marked text + commit ngắn (§7) | `duocj` → `được` trong TextEdit; corpus `tsf_preedit_*` bản mac |
+| 4 | MAC-012 | Preedit qua marked text + commit ngắn (§7) | `dduocj` → `được` trong TextEdit; corpus `tsf_preedit_*` bản mac |
 | 5 | MAC-013 | Key translator (UCKeyTranslate) + layout đổi | Gõ với layout Tiếng Việt (VNI Windows) không sai |
 | 6 | MAC-014 | SelectionReplace §6.2 | corpus `bug_B1_safari_url`, `bug_B1_spotlight` pass |
 | 7 | MAC-015 | BackspaceType theo S5 + RESTORE | corpus `mac/*_bs_type` ≥ 30 case |

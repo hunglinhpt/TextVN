@@ -658,7 +658,7 @@ mod tests {
     fn flow_new_key_reset_free() {
         let inst = new_default();
         let mut buf: Vec<char> = Vec::new();
-        for c in "duocj".chars() {
+        for c in "dduocj".chars() {
             let r = key_char(inst, c);
             match r.action {
                 ACTION_PASS => buf.push(c),

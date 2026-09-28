@@ -7,8 +7,11 @@
 //! - `aw`→ă · `ow`→ơ · `uw`→ư; bấm lại `w` khi đã sừng → về gốc (`uww`→`u`);
 //!   `w` không có âm đích → chữ thường, key lặp bị nuốt (`ww` → `w`).
 //! - Đôi: `aa`→â · `ee`→ê · `oo`→ô · `dd`→đ; bấm lại → gỡ (`eee`→`e`, `ddd`→`d`).
-//! - `d` ngay trước âm viết → `đ` (golden `duocj`→`được`; `y` KHÔNG tính).
-//! - Cặp `uo`: gõ `o` ngay sau `u` → `ư`+`ơ` (golden `duocj`, `duong`→`đường`).
+//! - `đ` CHỈ qua `dd` (như UniKey/OpenKey/Bamboo): `d` + nguyên âm giữ nguyên `d` —
+//!   bản cũ tự đổi thành `đ` nên không gõ được `dân`, `dạy`, `dưới`, `dược`….
+//! - Cặp `uo`: gõ `o` ngay sau `u` → `ư`+`ơ` (`dduocj`→`được`, `dduongf`→`đường`), trừ
+//!   `qu` (phụ âm `qu` + `ơ`: `quowr`→`quở`); `w` đầu tiên sau cặp tự tạo là xác nhận
+//!   (`nguowif`→`người`). `ươ` đứng cuối từ là vần `uơ` (`thuowr`→`thuở`, `huow`→`huơ`).
 //! - `iet`: `e` ngay trước `t` mà trước nữa là `i` → `ê` (ví dụ B1 P0-4: `viet`→`viêt`).
 //!
 //! Mỗi key xử lý O(len từ) — từ tiếng Việt ngắn, nằm trong ngân sách
@@ -17,8 +20,9 @@
 use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::{apply_key, is_vowel, tone_of};
-use crate::transform::vowel_table::{form_like, locate, E, E_CIRC, O_CIRC, O_HOOK, U, U_HOOK, Y};
+use crate::transform::tone::{apply_key, is_vowel, strip_tone, tone_of};
+use crate::transform::undo::unmark as unmark_tone;
+use crate::transform::vowel_table::{form_like, locate, E, E_CIRC, O_CIRC, O_HOOK, U, U_HOOK};
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
@@ -34,13 +38,28 @@ pub fn fold_with(
     w_marker: bool,
 ) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
+    let mut w_seen = false;
     for &c in raw {
-        push_key(&mut out, c, style, free_marking, w_marker);
+        push_key(&mut out, c, style, free_marking, w_marker, &mut w_seen);
     }
     out
 }
 
-fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool, w_marker: bool) {
+/// Từ đang có cặp `ươ` (do rule `uo` tự tạo khi chưa có `w` nào).
+fn has_uo_pair(out: &[char]) -> bool {
+    out.windows(2).any(|p| {
+        matches!(locate(p[0]), Some((U_HOOK, _))) && matches!(locate(p[1]), Some((O_HOOK, _)))
+    })
+}
+
+fn push_key(
+    out: &mut Vec<char>,
+    c: char,
+    style: DiacriticStyle,
+    free: bool,
+    w_marker: bool,
+    w_seen: &mut bool,
+) {
     // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
     let tone = if w_marker {
         keys::tone_of_key(c)
@@ -52,8 +71,33 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool, w_m
         return;
     }
 
+    // 1b) `z` — gỡ dấu thanh (UniKey vneTone0: `toansz` → `toan`, mũ/sừng giữ nguyên).
+    //     Từ chưa có dấu thanh → `z` là chữ thường (`pizza`, `zoo`).
+    let tone_remove = if w_marker {
+        keys::TONE_REMOVE_KEY
+    } else {
+        keys_st::TONE_REMOVE_KEY
+    };
+    if tone_remove == Some(c) {
+        if let Some(idx) = out
+            .iter()
+            .position(|&ch| tone_of(ch).is_some_and(|t| t > 0))
+        {
+            out[idx] = strip_tone(out[idx]);
+            return;
+        }
+    }
+
     // 2) 'w' — horn / undo horn / nuốt lặp (simple telex: không phải marker → đi tiếp)
     if c == 'w' && w_marker {
+        // `uo` đã được rule tự đổi thành `ươ`: `w` đầu tiên của từ là XÁC NHẬN, không
+        // phải bấm lại để gỡ — thói quen UniKey `nguowif` → `người`, `dduowcj` → `được`
+        // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
+        let first_w = !*w_seen;
+        *w_seen = true;
+        if first_w && has_uo_pair(out) {
+            return;
+        }
         match horn(out, &keys::HORN) {
             Horn::Applied | Horn::Undone => return,
             Horn::No => {
@@ -129,31 +173,22 @@ fn post_fixes(out: &mut [char]) {
     let prev = out[len - 2];
     let last = out[len - 1];
 
-    // d + âm viết (trừ y) → đ — golden `duocj`; 'y' loại để khỏi phá "dying/dynamics"
-    if is_plain_d(prev) && is_vowel(last) {
-        if let Some((e, _)) = locate(last) {
-            if e != Y {
-                out[len - 2] = to_stroke(prev);
-            }
-        }
-        return;
-    }
-
-    // Cặp uo: o ngay sau u → ư + ơ (golden duocj / duong)
-    if (last == 'o' || last == 'O') && (prev == 'u' || prev == 'U') {
+    // Cặp uo: o ngay sau u → ư + ơ (`dduocj` → `được`) — trừ `qu` (u thuộc phụ âm đầu).
+    let after_q = len >= 3 && matches!(out[len - 3], 'q' | 'Q');
+    if (last == 'o' || last == 'O') && (prev == 'u' || prev == 'U') && !after_q {
         out[len - 2] = form_like(prev, U_HOOK, tone_of(prev).unwrap_or(0));
         out[len - 1] = form_like(last, O_HOOK, tone_of(last).unwrap_or(0));
         return;
     }
 
-    // `iet` → `iêt` (P0-4 B1); với `e` đã mang dấu thanh trước phụ âm cuối
-    // `t`, Telex cũng hiểu đó là `ê` (texts: te + x + t + s → tết).
-    // Phải giữ tone đang có khi đổi e → ê.
+    // `iet` → `iêt` (P0-4 B1: `viet` → `viêt`; `iet` không có trong tiếng Việt). Giữ dấu
+    // thanh đang có. Bản cũ đổi cả `e` mang dấu trước `t` thành `ê` → `ghest`/`hest`/`mest`
+    // ra `ghết`/`hết`/`mết` thay vì `ghét`/`hét`/`mét`.
     if (last == 't' || last == 'T') && len >= 3 {
         let e_char = out[len - 2];
         let i_char = out[len - 3];
         if let Some((entry, tone)) = locate(e_char) {
-            if entry == E && (i_char == 'i' || i_char == 'I' || tone != 0) {
+            if entry == E && matches!(unmark_tone(i_char), 'i' | 'I') {
                 out[len - 2] = form_like(e_char, E_CIRC, tone);
             }
         }
@@ -212,9 +247,92 @@ mod tests {
     }
 
     #[test]
+    fn d_only_becomes_stroke_when_doubled() {
+        // Bản cũ: `d` + nguyên âm tự thành `đ` → không gõ được các từ này.
+        for (keys, want) in [
+            ("daan", "dân"),
+            ("dajy", "dạy"),
+            ("daif", "dài"),
+            ("deex", "dễ"),
+            ("duf", "dù"),
+            ("duwowis", "dưới"),
+            ("duocj", "dược"),
+            ("dichj", "dịch"),
+            ("ddi", "đi"),
+            ("ddaan", "đân"),
+            ("dddi", "di"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+    }
+
+    #[test]
+    fn qu_and_open_uo() {
+        // Đi qua `method::fold` (chuẩn hoá `qư`/`ươ` cuối từ dùng chung mọi kiểu gõ).
+        let n = |s: &str| -> String {
+            crate::method::fold(
+                &s.chars().collect::<Vec<_>>(),
+                crate::method::Method::Telex,
+                DiacriticStyle::New,
+                true,
+            )
+            .into_iter()
+            .collect()
+        };
+        assert_eq!(n("quowr"), "quở");
+        assert_eq!(n("quowf"), "quờ");
+        assert_eq!(n("quoocs"), "quốc");
+        assert_eq!(n("thuowr"), "thuở");
+        assert_eq!(n("huow"), "huơ");
+        assert_eq!(n("thuowng"), "thương");
+        assert_eq!(n("muoons"), "muốn");
+        assert_eq!(n("chuoongf"), "chuồng");
+    }
+
+    #[test]
+    fn uow_like_unikey() {
+        assert_eq!(n("dduowcj"), "được");
+        assert_eq!(n("nguoiwf"), "người", "w sau cả cụm uoi");
+        assert_eq!(n("nguowif"), "người");
+        assert_eq!(n("truowngf"), "trường");
+        assert_eq!(n("dduocwj"), "được", "w sau phụ âm cuối vẫn xác nhận ươ");
+        assert_eq!(n("huowng"), "hương");
+        // Cách gõ đầy đủ vẫn đúng như trước.
+        assert_eq!(n("nguwowif"), "người");
+        assert_eq!(n("dduwowcj"), "được");
+        assert_eq!(n("dduocj"), "được");
+        // w thứ hai mới gỡ sừng.
+        assert_eq!(n("uoww"), "ưo");
+    }
+
+    #[test]
+    fn z_removes_tone_only() {
+        assert_eq!(n("toansz"), "toan");
+        assert_eq!(n("vieetjz"), "viêt", "mũ giữ nguyên, chỉ gỡ dấu thanh");
+        assert_eq!(n("dduowcjz"), "đươc");
+        assert_eq!(n("asz"), "a");
+        assert_eq!(n("aszz"), "az", "đã hết dấu → z là chữ");
+        assert_eq!(n("pizza"), "pizza");
+        assert_eq!(n("zoo"), "zô");
+        assert_eq!(n("Z"), "Z", "Z hoa không phải phím dấu (như s f r x j)");
+        let simple = |s: &str| -> String {
+            fold_with(
+                &s.chars().collect::<Vec<_>>(),
+                DiacriticStyle::New,
+                true,
+                false,
+            )
+            .into_iter()
+            .collect()
+        };
+        assert_eq!(simple("toansz"), "toan");
+    }
+
+    #[test]
     fn golden_duocj() {
-        // P0-4 §2.3 / PLAN §8
-        assert_eq!(n("duocj"), "được");
+        // P0-4 §2.3 / PLAN §8 — `đ` chỉ qua `dd` (UniKey); `duocj` là từ `dược`.
+        assert_eq!(n("dduocj"), "được");
+        assert_eq!(n("duocj"), "dược");
     }
 
     #[test]
@@ -243,9 +361,10 @@ mod tests {
     fn stroke_dd_and_d_vowel() {
         assert_eq!(n("dd"), "đ");
         // dùng escape cho âm sừng để không phụ thuộc normalization của literal
-        assert_eq!(n("duong"), "\u{111}\u{1B0}\u{1A1}ng");
+        assert_eq!(n("dduong"), "\u{111}\u{1B0}\u{1A1}ng");
+        assert_eq!(n("duong"), "d\u{1B0}\u{1A1}ng", "d đơn giữ nguyên (dương)");
         assert_eq!(n("ddo"), "đo");
-        assert_eq!(n("dy"), "dy"); // y không kích hoạt đ
+        assert_eq!(n("dy"), "dy");
     }
 
     #[test]
@@ -269,13 +388,15 @@ mod tests {
     fn viet_ie_t_rule_p0_4_b1() {
         assert_eq!(n("viet"), "viêt");
         assert_eq!(n("mien"), "mien"); // không có t → không đổi
-        assert_eq!(n("texts"), "tết"); // dấu x có trước t vẫn giữ khi e → ê
+        assert_eq!(n("teexts"), "tết");
+        assert_eq!(n("ghest"), "ghét", "e mang dấu trước t KHÔNG tự thành ê");
+        assert_eq!(n("viets"), "viết");
     }
 
     #[test]
     fn tone_rules() {
-        // "duocs" → đ + ư + ớ(c) + c — dùng escape âm sừng/toned
-        assert_eq!(n("duocs"), "\u{111}\u{1B0}\u{1EDB}c");
+        // "dduocs" → đ + ư + ớ + c — dùng escape âm sừng/toned
+        assert_eq!(n("dduocs"), "\u{111}\u{1B0}\u{1EDB}c");
         assert_eq!(n("hoaf"), "hoà");
         assert_eq!(n("viets"), "viết"); // tone trên ê sau rule iet (fold từng key một)
         assert_eq!(n("asf"), "à"); // dấu khác thay nhau: sắc → huyền (không literal)
@@ -284,7 +405,8 @@ mod tests {
 
     #[test]
     fn uppercase_supported() {
-        assert_eq!(n("Duocj"), "Được");
+        assert_eq!(n("DDuocj"), "Được");
+        assert_eq!(n("Dduocj"), "Được");
         assert_eq!(n("NGAf"), "NGÀ"); // key f thường vẫn đặt dấu lên 'A' IN HOA
         assert_eq!(n("NGAF"), "NGAF"); // key IN HOA = chữ thường lệ, không phải dấu
     }
@@ -292,13 +414,13 @@ mod tests {
     #[test]
     fn strict_mode_requires_adjacent_marker() {
         let strict = fold(
-            &"duocj".chars().collect::<Vec<_>>(),
+            &"dduocj".chars().collect::<Vec<_>>(),
             DiacriticStyle::New,
             false,
         );
         // strict: 'j' không nằm ngay sau âm → literal; đ/cặp uo vẫn áp (không thuộc free_marking)
         assert_eq!(strict.iter().collect::<String>(), "đươcj");
         // free marking (mặc định): dấu tự do
-        assert_eq!(f("duocj", DiacriticStyle::New), "được");
+        assert_eq!(f("dduocj", DiacriticStyle::New), "được");
     }
 }

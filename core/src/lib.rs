@@ -648,7 +648,7 @@ mod tests {
     #[test]
     fn golden_duocj_with_preedit() {
         let mut e = engine();
-        let (buf, preedit) = type_keys(&mut e, "duocj");
+        let (buf, preedit) = type_keys(&mut e, "dduocj");
         assert_eq!(buf, "được");
         assert_eq!(preedit, "được");
     }
@@ -711,11 +711,11 @@ mod tests {
     #[test]
     fn backspace_folds_back() {
         let mut e = engine();
-        let (buf, _) = type_keys(&mut e, "duocj");
+        let (buf, _) = type_keys(&mut e, "dduocj");
         assert_eq!(buf, "được");
-        // Backspace ×4 → raw "duoc"→"đươc", "duo"→"đuơ", "du"→"đu", "d"→"d"
+        // Backspace ×5 → raw "dduoc"→"đươc", "dduo"→"đuơ", "ddu"→"đu", "dd"→"đ", "d"→"d"
         let mut buf: Vec<char> = buf.chars().collect();
-        for _ in 0..4 {
+        for _ in 0..5 {
             let k = KeyEvent::key_down(keymap::vk::BACK);
             let o = e.key(&k);
             apply(&mut buf, &o.action, &k);
@@ -726,14 +726,14 @@ mod tests {
     #[test]
     fn escape_restores_raw() {
         let mut e = engine();
-        let (buf, _) = type_keys(&mut e, "duocj");
+        let (buf, _) = type_keys(&mut e, "dduocj");
         assert_eq!(buf, "được");
         let mut buf: Vec<char> = buf.chars().collect();
         let k = KeyEvent::key_down(keymap::vk::ESCAPE);
         let o = e.key(&k);
         assert_eq!(o.action.kind(), ActionKind::Restore);
         apply(&mut buf, &o.action, &k);
-        assert_eq!(buf.into_iter().collect::<String>(), "duocj");
+        assert_eq!(buf.into_iter().collect::<String>(), "dduocj");
     }
 
     #[test]
@@ -755,7 +755,7 @@ mod tests {
     fn boundary_space_pass_with_default_caps() {
         let mut e = engine(); // caps=0 → BackspaceType → ranh giới = PASS
         let mut buf: Vec<char> = Vec::new();
-        for c in "duocj".chars() {
+        for c in "dduocj".chars() {
             let k = KeyEvent::char_down(c);
             let o = e.key(&k);
             apply(&mut buf, &o.action, &k);
@@ -781,7 +781,7 @@ mod tests {
         });
         assert_eq!(e.strategy(), Strategy::Preedit);
         let mut buf: Vec<char> = Vec::new();
-        for c in "duocj".chars() {
+        for c in "dduocj".chars() {
             let k = KeyEvent::char_down(c);
             let o = e.key(&k);
             apply(&mut buf, &o.action, &k);
@@ -835,7 +835,7 @@ mod tests {
     #[test]
     fn restore_en_keeps_valid_vietnamese() {
         let mut e = engine();
-        let mut buf = type_buf(&mut e, "duocj");
+        let mut buf = type_buf(&mut e, "dduocj");
         assert_eq!(text(&buf), "được");
         let action = press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(action, Action::Pass, "từ hợp lệ → không restore");
@@ -862,7 +862,7 @@ mod tests {
             ..Default::default()
         });
         let mut buf = type_buf(&mut e, "text");
-        assert_eq!(text(&buf), "tễt"); // trước ranh giới: vẫn là kết quả fold
+        assert_eq!(text(&buf), "tẽt"); // trước ranh giới: vẫn là kết quả fold
         let action = press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "text "); // Space → trả lại chuỗi gõ
         assert!(matches!(action, Action::Restore { .. }), "phải RESTORE");
@@ -877,11 +877,11 @@ mod tests {
         });
         let mut buf = type_buf(&mut e, "test");
         press(&mut e, &mut buf, keymap::vk::SPACE);
-        assert_eq!(text(&buf), "tết "); // `test` không có trong danh sách → giữ `tết`
+        assert_eq!(text(&buf), "tét "); // `test` không có trong danh sách → giữ `tét`
 
         // và từ Việt thật vẫn đúng
         let mut e = engine();
-        let mut buf = type_buf(&mut e, "duocj");
+        let mut buf = type_buf(&mut e, "dduocj");
         press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "được ");
     }

@@ -1,6 +1,6 @@
 # corpus/shared/charset_vni_windows_01.keys — bảng mã xuất vni_windows (bảng: data/tables/charsets.tsv từ UniKey)
 :config method=telex diacritic_style=new output_charset=vni_windows auto_capitalize=false
-:type "duocj"
+:type "dduocj"
 :expect "ñöôïc"
 :key Backspace
 :expect "ñöôc"

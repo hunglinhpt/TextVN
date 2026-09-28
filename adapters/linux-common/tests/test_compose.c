@@ -139,14 +139,14 @@ static void test_classify(void) {
 }
 
 static void test_typing(void) {
-    expect(NO_CAPS, "duocj ", "được ");
+    expect(NO_CAPS, "dduocj ", "được ");
     expect(NO_CAPS, "Vieetj Nam", "Việt Nam");
     expect(NO_CAPS, "hello world ", "hello world ");
     expect(NO_CAPS, "chaof banj\n", "chào bạn\n");
-    expect(NO_CAPS, "duocj\b", "đươc");
+    expect(NO_CAPS, "dduocj\b", "đươc");
     expect(NO_CAPS, "ab\b\b\b", "");
     expect(NO_CAPS, "ab \b\b", "a");
-    expect(NO_CAPS, "duocj\x1b", "duocj");
+    expect(NO_CAPS, "dduocj\x1b", "dduocj");
     expect(NO_CAPS, "vieetj2026.", "việt2026.");
     expect("{\"config_version\":1,\"auto_capitalize\":false,\"auto_restore_english\":true}",
            "asdf ", "asdf ");

@@ -13,7 +13,7 @@
 
 | Bước | Thao tác | Kỳ vọng |
 |---|---|---|
-| 1 | Bật TextVN, mở app, gõ `duocj` | `được` (Telex mặc định) |
+| 1 | Bật TextVN, mở app, gõ `dduocj` | `được` (Telex mặc định) |
 | 2 | Gõ tiếng Anh: `text` + Space | giữ nguyên `text` (B5 auto-restore) |
 | 3 | Ô có autocomplete (address bar / search / cell) | không xoá, không nhân đôi text |
 | 4 | Enter giữa văn bản (chat) | gửi tin nhắn đúng, không mất dấu |
@@ -103,7 +103,7 @@
 
 | Mục | Quy tắc |
 |---|---|
-| Chuỗi phím lỗi | Ghi **chính xác** chuỗi đã gõ (vd `duocj` → sai thành `duoc`), không mô tả chung chung — Handbook §9 |
+| Chuỗi phím lỗi | Ghi **chính xác** chuỗi đã gõ (vd `dduocj` → sai thành `dduoc`), không mô tả chung chung — Handbook §9 |
 | OS + phiên bản app | Bắt buộc (vd `Windows 11 23H2 · Chrome 128.0.6613`) |
 | Có bật TextVN không | Ghi rõ; lỗi khi **tắt** IME cũng là bug (fail-open) |
 | Nhiều máy | Ghi cả mac + Windows + Linux nếu app chạy đa nền tảng |

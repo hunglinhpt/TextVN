@@ -420,6 +420,7 @@ struct Method {
     stroke_key: char,
     stroke_double: bool,
     remove_marks_key: Option<char>,
+    tone_remove_key: Option<char>,
     circumflex: Vec<Map>,
     horn: Vec<Map>,
     breve: Vec<Map>,
@@ -440,6 +441,7 @@ fn parse_method(vowels: &[Vowel], src: &str, rel: &str) -> Result<Method, String
         tone.push(key_char(t, &format!("{rel}: tone"))?);
     }
     let remove = m.str("remove_marks_key")?;
+    let tone_remove = m.str("tone_remove_key")?;
     Ok(Method {
         name: m.str("name")?,
         display: m.str("display")?,
@@ -451,6 +453,11 @@ fn parse_method(vowels: &[Vowel], src: &str, rel: &str) -> Result<Method, String
             None
         } else {
             Some(key_char(&remove, &format!("{rel}: remove_marks_key"))?)
+        },
+        tone_remove_key: if tone_remove.is_empty() {
+            None
+        } else {
+            Some(key_char(&tone_remove, &format!("{rel}: tone_remove_key"))?)
         },
         circumflex: parse_maps(&doc, "circumflex", vowels, rel)?,
         horn: parse_maps(&doc, "horn", vowels, rel)?,
@@ -543,6 +550,13 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
             )),
             None => s.push_str("    /// Kiểu gõ này không có phím xoá toàn bộ dấu.\n    pub const REMOVE_MARKS_KEY: Option<char> = None;\n"),
         }
+        match m.tone_remove_key {
+            Some(k) => s.push_str(&format!(
+                "    /// Key gỡ **dấu thanh** của từ (Telex `z`); từ chưa có dấu → chữ thường.\n    pub const TONE_REMOVE_KEY: Option<char> = Some({});\n",
+                rust_char(k)
+            )),
+            None => s.push_str("    /// Kiểu gõ này không có phím gỡ riêng dấu thanh.\n    pub const TONE_REMOVE_KEY: Option<char> = None;\n"),
+        }
         s.push_str(&format!(
             "    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).\n    pub const W_MARKER: bool = {};\n",
             m.w_marker
@@ -554,6 +568,7 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
         s.push_str("            || HORN.iter().any(|&(k, _, _)| k == c)\n");
         s.push_str("            || BREVE.iter().any(|&(k, _, _)| k == c)\n");
         s.push_str("            || REMOVE_MARKS_KEY == Some(c)\n");
+        s.push_str("            || TONE_REMOVE_KEY == Some(c)\n");
         s.push_str(
             "            // `stroke` 1 phím (VNI `9`) là marker; `dd` thì không (chữ cái vốn\n",
         );

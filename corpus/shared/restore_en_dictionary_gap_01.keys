@@ -1,8 +1,8 @@
 # corpus/shared/restore_en_dictionary_gap_01.keys — GAP đã ghi nhận (P0-REVIEW-LOG B5):
-# "texts" → "tết" là âm tiết Việt HỢP LỆ nên cấu trúc không bắt được; cần từ điển EN mới restore.
+# "texts" → "tét" là âm tiết Việt HỢP LỆ nên cấu trúc không bắt được; cần từ điển EN mới restore.
 # Case này chốt hành vi HIỆN TẠI — sẽ đổi kỳ vọng khi từ điển EN (P1) vào.
 :config method=telex diacritic_style=new auto_restore_english=true
 :type "texts"
-:expect "tết"
+:expect "tét"
 :key Space
-:expect "tết "
+:expect "tét "

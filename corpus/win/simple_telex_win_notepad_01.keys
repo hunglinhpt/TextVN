@@ -2,5 +2,5 @@
 :config method=simple_telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type "duongw"
+:type "dduongw"
 :expect "đươngw"

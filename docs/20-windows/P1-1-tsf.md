@@ -205,7 +205,7 @@ Mỗi dòng: API → đã dùng được? (✅/❌) → ghi vào `docs/specs/tsf
 | 1 | WIN-002/003/004/005 | Spike (TSF, register, UIA, hook) | `docs/specs/*-spike.md` 10/10 kết quả |
 | 2 | WIN-010 | DllGetClassObject + ClassFactory + ActivateEx rỗng | Build, đăng ký, Notepad không crash |
 | 3 | WIN-011 | Key sink + `ime_key` PASS toàn bộ | Gõ tiếng Anh không đổi hành vi (corpus `combo_pass`) |
-| 4 | WIN-012 | ReplaceEditSession §6.1 | `duocj` → `được` trong Notepad |
+| 4 | WIN-012 | ReplaceEditSession §6.1 | `dduocj` → `được` trong Notepad |
 | 5 | WIN-013 | Composition + preedit + display attr | Gạch chân đúng, commit khi Space/Enter |
 | 6 | WIN-014 | Focus/commit-before-hide + `ime_reset` | corpus `bug_B2_chat_enter` pass |
 | 7 | WIN-015 | Hotkey preserve + toggle EN/VN (`Ctrl+Shift+Space`) | `combo_pass` + toggle hoạt động mọi app |

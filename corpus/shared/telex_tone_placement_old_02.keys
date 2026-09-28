@@ -1,0 +1,5 @@
+# corpus/shared/telex_tone_placement_old_02.keys — kiểu dấu CŨ chỉ đổi vần mở oa/oe/uy;
+# `được` vẫn là `được` (bản cũ ra `đựơc`), dấu gõ trước âm cuối được dời lại (`hoafn` → `hoàn`).
+:config method=telex diacritic_style=old auto_capitalize=false
+:type "hoaf khoer thuyr dduowcj hoafn thuyreenf "
+:expect "hòa khỏe thủy được hoàn thuyền "

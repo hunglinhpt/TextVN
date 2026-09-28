@@ -14,6 +14,7 @@ tone = ["1", "2", "3", "4", "5"]
 stroke_key = "9"
 stroke_double = false
 remove_marks_key = "0"
+tone_remove_key = ""
 
 # 6 → mũ trên â/ê/ô
 [[circumflex]]

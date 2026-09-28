@@ -1,6 +1,6 @@
 # corpus/shared/telex_basic_01.keys — ví dụ chuẩn P0-4 §2.3 (Telex cơ bản)
 :config method=telex diacritic_style=new
 :app notepad.exe field=body
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_preedit "được"
