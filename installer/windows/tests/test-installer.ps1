@@ -14,6 +14,11 @@ $inproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
 $app = Join-Path $env:LOCALAPPDATA 'Programs\TextVN'
 $log = Join-Path $env:TEMP 'textvn-setup.log'
 
+# Phim tat doi bo cuc cua Windows ve mac dinh (Ctrl+Shift) de kiem tac vu "Danh Ctrl + Shift".
+$toggle = 'HKCU:\Keyboard Layout\Toggle'
+if (-not (Test-Path $toggle)) { New-Item -Path $toggle -Force | Out-Null }
+Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
+
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/LOG=$log") -Wait -PassThru
 if ($p.ExitCode -ne 0) { Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40; throw "setup exit $($p.ExitCode)" }
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
@@ -23,7 +28,9 @@ $v = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
 if ($v -ne (Join-Path $app 'textvn-tsf.dll')) { throw "TSF CLSID not registered to installed DLL (got '$v')" }
 $run = (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).TextVN
 if (-not $run -or $run -notlike '*TextVN.exe*--autostart*') { throw "autostart Run key missing (got '$run')" }
-Write-Host 'PASS silent per-user install (files, TSF, autostart)'
+$layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
+if ($layout -eq '2') { throw 'installer did not free Ctrl+Shift from the Windows layout hotkey' }
+Write-Host 'PASS silent per-user install (files, TSF, autostart, Ctrl+Shift for TextVN)'
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $app
 
