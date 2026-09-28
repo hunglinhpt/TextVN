@@ -130,9 +130,9 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 
 | ID | Mức độ | Finding | Trạng thái |
 |---|---|---|---|
-| Farch-1 | major | Doc này stale so với kiến trúc opt-in `tsf-only`: §2 T1 "có trong installer", T2/T3 sai số dòng, §4.1 "watchdog spawn" + "Hoãn tách component" | còn mở |
-| Farch-2 | major | Chưa có mục ghi nhận chính sách kiến trúc hành vi (nguyên tắc user 2026-09-28) → agent sau có thể vô tình phá | còn mở |
-| Farch-3 | major | Không có regression guard API cấm (G-rule: không guard = chưa Done) | còn mở |
+| Farch-1 | major | Doc này stale so với kiến trúc opt-in `tsf-only`: §2 T1 "có trong installer", T2/T3 sai số dòng, §4.1 "watchdog spawn" + "Hoãn tách component" | fixed @b061778 |
+| Farch-2 | major | Chưa có mục ghi nhận chính sách kiến trúc hành vi (nguyên tắc user 2026-09-28) → agent sau có thể vô tình phá | fixed @b061778 |
+| Farch-3 | major | Không có regression guard API cấm (G-rule: không guard = chưa Done) | fixed @b061778 |
 | Farch-4 | minor | macOS chưa có adapter IMK (đường chính thống macOS) — chưa bắt đầu, không phải bug | còn mở (roadmap) |
 | Farch-5 | minor | Verify: không có auto-spawn hook — chuỗi opt-in đầy đủ (menu → `WM_START_COMPATIBILITY_HOOK` → spawn; watchdog no-op) | đóng / verified 2026-09-28 |
-| Farch-6 | minor | Vòng 2: `docs/specs/verified-ops.md` A5 vẫn ghi "7 check / 7/7" sau khi thêm check #8 | còn mở |
+| Farch-6 | minor | Vòng 2: `docs/specs/verified-ops.md` A5 vẫn ghi "7 check / 7/7" sau khi thêm check #8 | fixed @b061778 |
