@@ -15,6 +15,9 @@ pub struct Word {
     pub display: Vec<char>,
     pub active: bool,
     pub owned: usize,
+    /// Có phím nào của từ được gõ khi Caps Lock bật → phím dấu viết hoa (S F R X J W Z)
+    /// vẫn là phím dấu, như UniKey. Gõ hoa bằng Shift (`USA`) thì vẫn là chữ.
+    pub caps_lock: bool,
 }
 
 impl Word {
@@ -24,6 +27,7 @@ impl Word {
         self.display.clear();
         self.active = false;
         self.owned = 0;
+        self.caps_lock = false;
     }
 
     pub fn is_empty(&self) -> bool {

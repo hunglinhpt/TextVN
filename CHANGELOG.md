@@ -9,15 +9,70 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+Mục tiêu: bản release candidate dùng được hằng ngày trên Windows và Linux. Kết quả kiểm thử:
+[docs/release/build-release-report.md](docs/release/build-release-report.md).
+
 ### Added
-- **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2
-- **CLI**: `textvn-cli register` / `textvn-cli unregister` — đăng ký/hủy TSF TIP per-user (WIN-003, WIN-010)
-- **CLI**: `textvn-cli register status` — kiểm tra trạng thái đăng ký TSF
-- **Windows manifest**: asInvoker (không cần admin), Windows 10/11 compatibility
+- **Linux chạy được thật**: adapter IBus và Fcitx5 dựng, nạp và gõ được tiếng Việt (kiểm
+  bằng ibus-daemon 1.5.29 và fcitx5 5.1.7 thật — `scripts/e2e-linux.sh`, job CI `linux-adapters`).
+- **Gói Linux** `TextVN-<ver>-linux-<arch>.tar.gz`: `./install.sh` (per-user mặc định, `--system`)
+  tự thêm TextVN vào danh sách bộ gõ GNOME/IBus/Fcitx5; `./textvn-portable.sh` chạy ngay từ
+  thư mục giải nén (kể cả chỉ đọc); `uninstall.sh` gỡ đúng file đã cài (`--purge` xoá cấu hình).
+- **Bảng điều khiển thống nhất** Windows (Win32) và Linux (GTK4): cùng tuỳ chọn, nhãn, bố cục
+  ([ui-spec](docs/release/ui-spec.md)); trình sửa **Gõ tắt** (`gõ tắt = nội dung`, báo lỗi từng dòng).
+- Engine: bảng mã xuất **Unicode tổ hợp, TCVN3 (ABC), VNI Windows** (bảng lấy từ UniKey);
+  **Quick Telex**; Telex `z` xoá dấu; gõ được khi bật **Caps Lock** (`VIEETJ` → VIỆT) mà vẫn
+  giữ nguyên chữ viết tắt gõ bằng Shift (`USA`, `JSON`).
+- Trạng thái V/E lưu ở `state.json` trên cả hai nền tảng; phím **Ctrl+Shift** (nhấn-nhả) kiểu
+  UniKey trong TSF, IBus, Fcitx5.
+- Kiểm thử gói Windows trên máy Windows thật (job CI `windows-package`): `build-release.ps1`,
+  kịch bản **cài đặt** (Inno Setup im lặng) và **giải nén dùng ngay** (zip), mỗi kịch bản gõ
+  thật qua TSF vào Notepad/WordPad rồi gỡ sạch.
+- Kiểm thử từ vựng thật `core/tests/common_words.rs` (~400 từ × Telex/VNI/kiểu cũ/`uow`/giữa
+  từ/Caps Lock); corpus 113 kịch bản × 5 adapter.
+- `TEXTVN_TSF_TRACE=<file>`: nhật ký chẩn đoán key sink TSF (tắt mặc định, không ghi nội dung gõ).
+- Tài liệu: [hướng dẫn sử dụng](docs/user-guide.md), [hướng dẫn phát triển](docs/developer-guide.md),
+  [đối chiếu bộ gõ tham chiếu và bug đã biết](docs/specs/reference-parity.md).
 
 ### Fixed
-- `cli/src/register.rs` bị empty do overwrite — viết lại hoàn toàn với full TSF registration flow
-- Unsafe COM blocks bọc trong closure để dùng `?` operator đúng cách
+- **Windows TSF không gõ được tiếng Việt** (`docs/specs/tsf-typing-overhaul.md`, Ftsf-1…14):
+  security gate không bao giờ mở; đăng ký per-user dừng trước `InstallLayoutOrTip`; composition
+  mở mới mỗi phím; app treo khi Deactivate; hotkey đảo 2 lần; Delete/F-key/mũi tên bị coi là
+  chữ; `doctor` kiểm sai CLSID.
+- TSF: dấu cách/dấu câu được chốt **cùng** từ; Enter/Tab/phím điều hướng ở ứng dụng Win32
+  cổ điển (Notepad, WinForms… qua CUAS) được xử lý ở pha `OnKeyDown` — trước đây các phím này
+  ra **trước** chữ (" được", "\nchào").
+- TSF: Ctrl+Shift chuyển V/E được cả ở ứng dụng TSF-aware (Word, WordPad): phím chuyển bố cục
+  của Windows nuốt Shift trước key sink, nay nhận qua `ITfKeyTraceEventSink`. Báo trạng thái
+  tuyệt đối cho tray thay vì "đảo".
+- Gỡ bản portable (menu khay hoặc `uninstall.ps1`) bỏ luôn mục tự khởi động trỏ vào thư mục đó.
+- Ctrl+Shift "lúc được lúc không" khi ngôn ngữ của TextVN có hơn một bàn phím: phím tắt đổi bố
+  cục mặc định của Windows (cũng là Ctrl+Shift) chuyển đi mất TextVN mỗi lần bấm thứ hai. Tuỳ
+  chọn **Dành Ctrl + Shift cho TextVN** (bảng điều khiển, bộ cài chọn sẵn, `TextVN.exe
+  --free-ctrl-shift`), `doctor` báo khi Windows còn giữ phím này.
+- Đặt dấu sai chính tả: `của`→cuả, `nghĩa`→nghiã, `thuỷ`/`thủy` theo kiểu dấu, `được`→đựơc
+  (kiểu cũ); dấu tự dời khi gõ thêm chữ (`hòa`+`n` → hoàn).
+- `d` + nguyên âm tự thành `đ` (không gõ được dân, dạy, dưới…): `đ` giờ chỉ từ `dd` như
+  UniKey/OpenKey/Bamboo. Sửa `gi`+nguyên âm (giữa, giờ), `qu`+ơ, `thuở`, `uow` → ươ.
+- Gõ tắt không còn bung sau Home/End/F-key hay tổ hợp Ctrl/Alt (có thể xoá nhầm chỗ).
+- Linux: engine reset mỗi lần caret đổi (không biến đổi được chữ nào), mất chữ khi Enter/focus,
+  addon Fcitx5 không bao giờ nạp, IBus sai bus name, cấu hình từ bảng điều khiển không được
+  đọc, bảng điều khiển ghi đè mất gõ tắt; per-user IBus không hiện sau đăng nhập lại (cache
+  registry của ibus-daemon).
+- Tray Windows: mất icon khi Explorer khởi động lại; lưu cấu hình làm mất khoá người dùng và
+  ghi đè file hỏng; menu **Gỡ cài đặt** cho bản cài lẫn bản portable.
+- Installer: thiếu bản dịch tiếng Việt của Inno Setup nên không biên dịch được; cài im lặng
+  không còn bật UAC.
+- Giảm bề mặt bị phần mềm diệt virus nghi ngờ: không `SendInput` trong gói mặc định,
+  `input.dll` chỉ nạp từ System32, không `TerminateProcess`, pipe từ chối client từ xa.
+
+### Changed
+- Tra bảng nguyên âm trên đường phím nóng: nhánh ASCII + tìm kiếm nhị phân thay vì duyệt tuyến tính.
+- Gói Windows mặc định **TSF-only**; hook tương thích chỉ có trong gói Compatibility (opt-in).
+
+### Known limitations
+- macOS chưa có bản chạy được.
+- Bản dựng CI chưa ký số Authenticode (Windows SmartScreen sẽ cảnh báo lần đầu).
 
 ---
 

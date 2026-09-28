@@ -16,7 +16,7 @@ use std::process::exit;
 const USAGE: &str = r#"textvn-cli — TextVN CLI
 
 Usage:
-  textvn-cli replay <dir-or-file...> [--adapter headless|win|mac|linux] [--json] [--filter <substring>]
+  textvn-cli replay <dir-or-file...> [--adapter headless|win|tsf|mac|linux] [--json] [--filter <substring>]
   textvn-cli verify [--header <path>] [--json]  # header C khớp code Rust? (P0-2 §6) + sizeof/offset
   textvn-cli sizes [--json]                  # verify struct ABI (P0-2 §6): ime_key_v1=20 · ime_result_v1=532
   textvn-cli config default                  # in config mặc định ra stdout
@@ -96,8 +96,11 @@ fn cmd_replay(rest: &[String]) -> i32 {
         return 2;
     }
     // Giá trị lạ → exit 2 (P0-4 §4)
-    if !matches!(adapter.as_str(), "headless" | "win" | "mac" | "linux") {
-        eprintln!("error: --adapter phải là headless|win|mac|linux (nhận `{adapter}`)");
+    if !matches!(
+        adapter.as_str(),
+        "headless" | "win" | "tsf" | "mac" | "linux"
+    ) {
+        eprintln!("error: --adapter phải là headless|win|tsf|mac|linux (nhận `{adapter}`)");
         return 2;
     }
     replay::run(&paths, &adapter, json, filter.as_deref())

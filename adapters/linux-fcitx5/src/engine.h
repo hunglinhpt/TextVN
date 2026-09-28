@@ -1,53 +1,97 @@
-/* engine.h — Fcitx5 InputMethodEngineV2 implementation for TextVN
+/* engine.h — Engine Fcitx5 của TextVN
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * Addon loại InputMethod: chính object này là InputMethodEngine (không có API
+ * "registerInputMethod" trong Fcitx5 — entry lấy từ inputmethod/textvn.conf).
+ * Mô hình preedit dùng chung: lc_compose.h.
  */
 
 #ifndef TEXTVN_FCITX5_ENGINE_H
 #define TEXTVN_FCITX5_ENGINE_H
 
+#include <fcitx/action.h>
+#include <fcitx/addonfactory.h>
+#include <fcitx/addonmanager.h>
+#include <fcitx/inputcontextproperty.h>
 #include <fcitx/inputmethodengine.h>
 #include <fcitx/instance.h>
-#include <unordered_map>
+
+#include <cstdint>
 #include <memory>
 #include <string>
 
+#include "lc_compose.h"
 #include "linux_common.h"
 #include "textvn_ffi.h"
 
 namespace textvn {
 
-struct ContextData {
+class TextVNEngine;
+
+/* State per InputContext: engine riêng + preedit + config đã nạp. */
+class TextVNState : public fcitx::InputContextProperty {
+public:
+    explicit TextVNState(fcitx::InputContext *ic);
+    ~TextVNState() override;
+    TextVNState(const TextVNState &) = delete;
+    TextVNState &operator=(const TextVNState &) = delete;
+
+    fcitx::InputContext *ic;
     ime_instance *inst = nullptr;
-    bool          vi_enabled = true;
-    bool          non_preedit = true; /* Default: Gõ không gạch chân (fcitx5-lotus style) */
-    uint32_t      field_role = IME_FIELD_UNKNOWN;
-    int64_t       strategy_hint = -1;
+    lc_comp comp{};
+    lc_config_state config{};
+    lc_modifier_toggle toggle{};
+    int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {
 public:
-    TextVNEngine(fcitx::Instance *instance);
+    explicit TextVNEngine(fcitx::Instance *instance);
     ~TextVNEngine() override;
 
     void keyEvent(const fcitx::InputMethodEntry &entry, fcitx::KeyEvent &keyEvent) override;
-    void reset(const fcitx::InputMethodEntry &entry, fcitx::InputContextEvent &event) override;
     void activate(const fcitx::InputMethodEntry &entry, fcitx::InputContextEvent &event) override;
-    void deactivate(const fcitx::InputMethodEntry &entry, fcitx::InputContextEvent &event) override;
-
-    bool isViEnabled(fcitx::InputContext *ic) const;
-    void toggleViEn(fcitx::InputContext *ic);
-    bool isNonPreedit(fcitx::InputContext *ic) const;
-    size_t contextCount() const { return contexts_.size(); }
+    void deactivate(const fcitx::InputMethodEntry &entry,
+                    fcitx::InputContextEvent &event) override;
+    void reset(const fcitx::InputMethodEntry &entry, fcitx::InputContextEvent &event) override;
+    std::string subModeLabelImpl(const fcitx::InputMethodEntry &entry,
+                                 fcitx::InputContext &ic) override;
 
 private:
-    ContextData *getOrCreateContext(fcitx::InputContext *ic);
-    void destroyContext(fcitx::InputContext *ic);
+    TextVNState *state(fcitx::InputContext *ic);
+    void finishWord(TextVNState *st);
+    void endWord(TextVNState *st, const fcitx::InputContextEvent &event);
+    void commitText(TextVNState *st, const uint32_t *text, size_t len);
+    void showPreedit(TextVNState *st, const uint32_t *text, size_t len);
+    void toggleVietnamese(TextVNState *st);
+    void setVietnamese(TextVNState *st, bool on, bool persist);
+    void syncState(TextVNState *st);
+    void updateModeAction(fcitx::InputContext *ic);
+    /* `key` = phím đã chuẩn hoá (chữ hoa theo Shift/Caps Lock); `rawStates` = trạng thái
+     * gốc — Key::normalize() của Fcitx5 bỏ bit CapsLock nên phải lấy từ rawKey(). */
+    bool handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyStates rawStates,
+                   bool isRelease);
 
     fcitx::Instance *instance_;
-    lc_ipc_client   *ipc_client_;
-    std::unordered_map<fcitx::InputContext*, ContextData> contexts_;
-    std::string current_config_json_;
+    lc_ipc_client *ipc_ = nullptr;
+    /* VN/EN chung cho mọi input context, lưu ở state.json (như tray Windows). */
+    bool viEnabled_ = true;
+    lc_config_state stateWatch_{};
+    fcitx::FactoryFor<TextVNState> factory_;
+    std::unique_ptr<fcitx::SimpleAction> modeAction_;
+    std::unique_ptr<fcitx::SimpleAction> settingsAction_;
 };
+
+class TextVNEngineFactory : public fcitx::AddonFactory {
+public:
+    fcitx::AddonInstance *create(fcitx::AddonManager *manager) override;
+};
+
+/* Tiện ích thuần (test được không cần Fcitx5 chạy). */
+void mapFcitxKey(const fcitx::Key &key, uint32_t *vk, uint32_t *ch);
+uint32_t fcitxMods(fcitx::KeyStates states);
+lc_modifier fcitxModifierKind(fcitx::KeySym sym);
+std::string utf32ToUtf8(const uint32_t *text, size_t len);
 
 } // namespace textvn
 

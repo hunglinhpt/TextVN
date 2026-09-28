@@ -1,26 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Non-blocking, offline-tolerant IPC client cho TextVN TSF (WIN-016).
+//! IPC client của TSF (WIN-016) — **một client cho mỗi process**, không block app.
 //!
-//! Kết nối tới `\\.\pipe\textvn-ipc-v1`. Nếu Tray chưa bật hoặc pipe không mở,
-//! client fail-open ngay lập tức (offline-tolerant), không bao giờ block STA thread
-//! của client app. Khi nhận `ConfigReload`, thông báo để engine reload config.
+//! Kết nối `\\.\pipe\textvn-ipc-v1`; tray chưa chạy → dùng trạng thái đọc từ
+//! `%APPDATA%\TextVN\state.json` và thử lại định kỳ (offline-tolerant).
+//!
+//! Bất biến quan trọng:
+//! - Thread nền **không bao giờ bị join** từ thread UI của app. Bản trước join
+//!   trong `Deactivate` trong khi thread đang chặn ở `read_exact` → app treo khi
+//!   đổi bộ gõ/đóng cửa sổ. Thread sống theo process; `DllCanUnloadNow` giữ DLL
+//!   trong bộ nhớ khi thread đã chạy ([`worker_started`]).
+//! - Trạng thái bật/tắt = `global && app_override.unwrap_or(true)`: tắt toàn cục
+//!   từ tray (`app_id = "*"`) có hiệu lực ở mọi app; per-app chỉ tắt riêng app.
 
+use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
-/// Trạng thái IPC được chia sẻ giữa background thread và STA thread của TSF.
+/// Khóa trong map trạng thái đại diện cho công tắc toàn cục (khớp tray).
+pub const GLOBAL_KEY: &str = "*";
+
+static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
+static CLIENT: OnceLock<IpcClient> = OnceLock::new();
+
+/// `true` khi thread IPC nền của process đã được tạo (DLL không được unload).
+pub fn worker_started() -> bool {
+    WORKER_STARTED.load(Ordering::Acquire)
+}
+
+/// Trạng thái chia sẻ giữa thread IPC và các thread UI dùng TSF.
 #[derive(Debug)]
 pub struct IpcState {
     pub connected: AtomicBool,
-    pub latest_config_version: AtomicU64,
-    pub last_handled_config_version: AtomicU64,
+    /// Tăng mỗi khi tray báo config đổi; thread TSF so với bản đã áp của nó.
+    pub config_version: AtomicU64,
+    pub global_enabled: AtomicBool,
     pub app_enabled: AtomicBool,
     pub has_app_override: AtomicBool,
 }
@@ -29,193 +49,197 @@ impl Default for IpcState {
     fn default() -> Self {
         Self {
             connected: AtomicBool::new(false),
-            latest_config_version: AtomicU64::new(0),
-            last_handled_config_version: AtomicU64::new(0),
+            config_version: AtomicU64::new(0),
+            global_enabled: AtomicBool::new(true),
             app_enabled: AtomicBool::new(true),
             has_app_override: AtomicBool::new(false),
         }
     }
 }
 
-/// Handle quản lý IPC client gắn với vòng đời của Tip.
-pub struct IpcClient {
-    state: Arc<IpcState>,
-    stop_signal: Arc<AtomicBool>,
-    worker: Mutex<Option<std::thread::JoinHandle<()>>>,
-}
-
-impl IpcClient {
-    /// Bắt đầu IPC client nền. Nếu Tray không chạy, tiến trình nền tự động
-    /// ngủ và thử lại theo chu kỳ dài (3s), tuyệt đối không block luồng gọi.
-    pub fn start(app_id: String) -> Self {
-        let state = Arc::new(IpcState::default());
-        let stop_signal = Arc::new(AtomicBool::new(false));
-
-        let worker_state = Arc::clone(&state);
-        let worker_stop = Arc::clone(&stop_signal);
-
-        let worker = std::thread::Builder::new()
-            .name("textvn-tsf-ipc".into())
-            .spawn(move || {
-                run_client_loop(app_id, worker_state, worker_stop);
-            })
-            .ok();
-
-        Self {
-            state,
-            stop_signal,
-            worker: Mutex::new(worker),
+impl IpcState {
+    /// Áp map trạng thái (Snapshot từ tray hoặc `state.json`).
+    fn apply_states(&self, app_id: &str, states: &BTreeMap<String, bool>) {
+        if let Some(&global) = states.get(GLOBAL_KEY) {
+            self.global_enabled.store(global, Ordering::Release);
+        }
+        match states.get(app_id) {
+            Some(&enabled) => {
+                self.app_enabled.store(enabled, Ordering::Release);
+                self.has_app_override.store(true, Ordering::Release);
+            }
+            None => self.has_app_override.store(false, Ordering::Release),
         }
     }
 
-    /// Trả về true nếu pipe đang kết nối tới Tray UI.
+    fn apply_update(&self, app_id: &str, update_app: &str, enabled: bool) {
+        if update_app == GLOBAL_KEY {
+            self.global_enabled.store(enabled, Ordering::Release);
+        } else if update_app.eq_ignore_ascii_case(app_id) {
+            self.app_enabled.store(enabled, Ordering::Release);
+            self.has_app_override.store(true, Ordering::Release);
+        }
+    }
+}
+
+/// Handle tới trạng thái IPC của process.
+pub struct IpcClient {
+    state: Arc<IpcState>,
+}
+
+impl IpcClient {
+    /// Client dùng chung của process; lần gọi đầu nạp `state.json` và khởi
+    /// động thread nền. Không bao giờ block thread gọi.
+    pub fn global(app_id: &str) -> &'static IpcClient {
+        CLIENT.get_or_init(|| {
+            let state = Arc::new(IpcState::default());
+            let app_id = textvn_field_detect::normalize_app_id(app_id);
+            if let Some(states) = read_state_file() {
+                state.apply_states(&app_id, &states);
+            }
+            let worker_state = Arc::clone(&state);
+            let spawned = std::thread::Builder::new()
+                .name("textvn-tsf-ipc".into())
+                .spawn(move || run_client_loop(app_id, worker_state));
+            if spawned.is_ok() {
+                WORKER_STARTED.store(true, Ordering::Release);
+            }
+            IpcClient { state }
+        })
+    }
+
+    /// Client không có thread nền — cho unit test.
+    #[cfg(test)]
+    fn detached() -> IpcClient {
+        IpcClient {
+            state: Arc::new(IpcState::default()),
+        }
+    }
+
     pub fn is_connected(&self) -> bool {
         self.state.connected.load(Ordering::Acquire)
     }
 
-    /// Kiểm tra xem có cấu hình mới cần nạp vào engine không.
-    /// Nếu có, trả về version mới và đánh dấu đã tiêu thụ.
-    pub fn check_config_reload(&self) -> Option<u64> {
-        let latest = self.state.latest_config_version.load(Ordering::Acquire);
-        let handled = self
-            .state
-            .last_handled_config_version
-            .load(Ordering::Acquire);
-        if latest > handled {
-            self.state
-                .last_handled_config_version
-                .store(latest, Ordering::Release);
-            Some(latest)
-        } else {
-            None
-        }
+    /// Phiên bản config mới nhất tray đã báo (0 = chưa có tín hiệu).
+    pub fn config_version(&self) -> u64 {
+        self.state.config_version.load(Ordering::Acquire)
     }
 
-    /// Trạng thái bật/tắt do Tray UI chỉ định cho app hiện tại (nếu có override).
-    pub fn app_enabled_override(&self) -> Option<bool> {
-        if self.state.has_app_override.load(Ordering::Acquire) {
-            Some(self.state.app_enabled.load(Ordering::Acquire))
+    /// Bộ gõ có đang bật cho app hiện tại không.
+    pub fn is_enabled(&self) -> bool {
+        let global = self.state.global_enabled.load(Ordering::Acquire);
+        let app = if self.state.has_app_override.load(Ordering::Acquire) {
+            self.state.app_enabled.load(Ordering::Acquire)
         } else {
-            None
-        }
+            true
+        };
+        global && app
     }
 
-    /// Gửi yêu cầu đảo trạng thái tiếng Việt toàn cục lên Tray UI.
-    pub fn request_toggle_global(&self) {
-        std::thread::spawn(|| {
+    /// Hotkey trong TSF: đổi ngay trong process (phản hồi tức thì, kể cả khi
+    /// tray không chạy) rồi báo tray; tray broadcast lại giá trị chuẩn cho mọi app.
+    pub fn toggle_global(&self) -> bool {
+        let next = !self.state.global_enabled.load(Ordering::Acquire);
+        self.state.global_enabled.store(next, Ordering::Release);
+        // Gửi giá trị TUYỆT ĐỐI (không phải "đảo"): nếu tray và process này lệch nhau
+        // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
+        // ngược với cái người dùng vừa thấy.
+        std::thread::spawn(move || {
             if let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
-                if let Ok(frame) = encode_frame(&Message::ToggleGlobal) {
-                    let _ = stream.write_all(&frame);
-                    let _ = stream.flush();
-                }
+                let _ = send_message(
+                    &mut stream,
+                    &Message::ToggleViEn {
+                        app_id: GLOBAL_KEY.to_string(),
+                        enabled: next,
+                    },
+                );
             }
         });
+        next
     }
+}
 
-    /// Dừng client và ngắt kết nối an toàn.
-    pub fn stop(&self) {
-        self.stop_signal.store(true, Ordering::Release);
-        if let Ok(mut lock) = self.worker.lock() {
-            if let Some(handle) = lock.take() {
-                let _ = handle.join();
+/// `%APPDATA%\TextVN\state.json` → map trạng thái (`"*"` = toàn cục).
+fn read_state_file() -> Option<BTreeMap<String, bool>> {
+    let path = std::path::PathBuf::from(std::env::var_os("APPDATA")?)
+        .join("TextVN")
+        .join("state.json");
+    let bytes = std::fs::read(path).ok()?;
+    parse_state_json(&bytes)
+}
+
+fn parse_state_json(bytes: &[u8]) -> Option<BTreeMap<String, bool>> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let mut states = BTreeMap::new();
+    if let Some(global) = value.get("global_enabled").and_then(|v| v.as_bool()) {
+        states.insert(GLOBAL_KEY.to_string(), global);
+    }
+    if let Some(apps) = value.get("apps").and_then(|v| v.as_object()) {
+        for (app, enabled) in apps {
+            if let Some(enabled) = enabled.as_bool() {
+                states.insert(app.to_ascii_lowercase(), enabled);
             }
         }
     }
+    Some(states)
 }
 
-impl Drop for IpcClient {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
-
-fn run_client_loop(app_id: String, state: Arc<IpcState>, stop: Arc<AtomicBool>) {
+fn run_client_loop(app_id: String, state: Arc<IpcState>) {
     let pid = std::process::id();
+    let mut idle_ms: u64 = 2_000;
 
-    while !stop.load(Ordering::Acquire) {
-        // Cố gắng mở named pipe (read + write)
-        match OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
-            Ok(mut stream) => {
-                state.connected.store(true, Ordering::Release);
+    loop {
+        let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) else {
+            state.connected.store(false, Ordering::Release);
+            std::thread::sleep(Duration::from_millis(idle_ms));
+            // Tray tắt lâu: giãn nhịp thử lại để không đánh thức CPU vô ích.
+            idle_ms = (idle_ms * 2).min(10_000);
+            continue;
+        };
+        idle_ms = 2_000;
 
-                // Gửi Hello
-                let hello = Message::Hello {
-                    pid,
-                    abi: textvn_ffi::IME_ABI_VERSION,
-                    version: env!("CARGO_PKG_VERSION").into(),
-                };
-                if send_message(&mut stream, &hello).is_err() {
-                    state.connected.store(false, Ordering::Release);
-                    std::thread::sleep(Duration::from_millis(500));
-                    continue;
+        let hello = Message::Hello {
+            pid,
+            abi: textvn_ffi::IME_ABI_VERSION,
+            version: env!("CARGO_PKG_VERSION").into(),
+        };
+        if send_message(&mut stream, &hello).is_err()
+            || send_message(&mut stream, &Message::Subscribe { pid }).is_err()
+        {
+            std::thread::sleep(Duration::from_millis(500));
+            continue;
+        }
+        state.connected.store(true, Ordering::Release);
+
+        // Thread daemon: chặn ở read là chủ đích; pipe vỡ (tray thoát) → thử lại.
+        while let Ok(msg) = read_next_message(&mut stream) {
+            match msg {
+                Message::ConfigReload { version } => {
+                    state.config_version.store(version, Ordering::Release);
                 }
-
-                // Gửi Subscribe
-                let sub = Message::Subscribe { pid };
-                if send_message(&mut stream, &sub).is_err() {
-                    state.connected.store(false, Ordering::Release);
-                    std::thread::sleep(Duration::from_millis(500));
-                    continue;
+                Message::Snapshot {
+                    config_version,
+                    state: app_states,
+                    ..
+                } => {
+                    state
+                        .config_version
+                        .store(config_version, Ordering::Release);
+                    state.apply_states(&app_id, &app_states);
                 }
-
-                // Vòng lặp nhận thông điệp từ Tray
-                while !stop.load(Ordering::Acquire) {
-                    match read_next_message(&mut stream) {
-                        Ok(msg) => match msg {
-                            Message::ConfigReload { version } => {
-                                state
-                                    .latest_config_version
-                                    .store(version, Ordering::Release);
-                            }
-                            Message::Snapshot {
-                                config_version,
-                                state: app_states,
-                                ..
-                            } => {
-                                state
-                                    .latest_config_version
-                                    .store(config_version, Ordering::Release);
-                                if let Some(&enabled) = app_states.get(&app_id) {
-                                    state.app_enabled.store(enabled, Ordering::Release);
-                                    state.has_app_override.store(true, Ordering::Release);
-                                }
-                            }
-                            Message::StateUpdate {
-                                app_id: ref update_app,
-                                enabled,
-                                ..
-                            } => {
-                                if update_app == &app_id {
-                                    state.app_enabled.store(enabled, Ordering::Release);
-                                    state.has_app_override.store(true, Ordering::Release);
-                                }
-                            }
-                            Message::Ping => {
-                                let pong = Message::Pong { uptime_ms: 0 };
-                                let _ = send_message(&mut stream, &pong);
-                            }
-                            _ => {}
-                        },
-                        Err(_) => {
-                            // Mất kết nối hoặc Tray thoát
-                            break;
-                        }
-                    }
+                Message::StateUpdate {
+                    app_id: update_app,
+                    enabled,
+                    ..
+                } => state.apply_update(&app_id, &update_app, enabled),
+                Message::Ping => {
+                    let _ = send_message(&mut stream, &Message::Pong { uptime_ms: 0 });
                 }
-
-                state.connected.store(false, Ordering::Release);
-            }
-            Err(_) => {
-                // Pipe chưa sẵn sàng: ngủ 2 giây rồi thử lại
-                state.connected.store(false, Ordering::Release);
-                for _ in 0..20 {
-                    if stop.load(Ordering::Acquire) {
-                        return;
-                    }
-                    std::thread::sleep(Duration::from_millis(100));
-                }
+                _ => {}
             }
         }
+        state.connected.store(false, Ordering::Release);
+        std::thread::sleep(Duration::from_millis(500));
     }
 }
 
@@ -250,30 +274,63 @@ fn read_next_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn ipc_client_offline_tolerant_starts_and_stops_cleanly() {
-        let client = IpcClient::start("notepad.exe".into());
-        // Không có tray server: connected = false, nhưng không block, không crash
-        assert!(!client.is_connected());
-        assert_eq!(client.check_config_reload(), None);
-        assert_eq!(client.app_enabled_override(), None);
-        client.stop();
+    fn map(pairs: &[(&str, bool)]) -> BTreeMap<String, bool> {
+        pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect()
     }
 
     #[test]
-    fn ipc_state_reload_detection() {
-        let state = IpcState::default();
-        assert_eq!(state.latest_config_version.load(Ordering::Acquire), 0);
-        state.latest_config_version.store(42, Ordering::Release);
+    fn global_switch_from_tray_disables_every_app() {
+        let client = IpcClient::detached();
+        assert!(client.is_enabled());
+        client.state.apply_update("notepad.exe", GLOBAL_KEY, false);
+        assert!(!client.is_enabled(), "tắt toàn cục phải có hiệu lực ở TSF");
+        client.state.apply_update("notepad.exe", GLOBAL_KEY, true);
+        assert!(client.is_enabled());
+    }
 
-        let client = IpcClient {
-            state: Arc::new(state),
-            stop_signal: Arc::new(AtomicBool::new(false)),
-            worker: Mutex::new(None),
-        };
+    #[test]
+    fn per_app_override_only_disables_its_app() {
+        let client = IpcClient::detached();
+        client
+            .state
+            .apply_update("notepad.exe", "chrome.exe", false);
+        assert!(client.is_enabled(), "override của app khác không ảnh hưởng");
+        client
+            .state
+            .apply_update("notepad.exe", "NOTEPAD.EXE", false);
+        assert!(!client.is_enabled());
+    }
 
-        assert_eq!(client.check_config_reload(), Some(42));
-        // Lần thứ hai không báo lại phiên bản cũ
-        assert_eq!(client.check_config_reload(), None);
+    #[test]
+    fn snapshot_restores_global_and_clears_stale_override() {
+        let client = IpcClient::detached();
+        client
+            .state
+            .apply_states("code.exe", &map(&[("*", true), ("code.exe", false)]));
+        assert!(!client.is_enabled());
+        client.state.apply_states("code.exe", &map(&[("*", true)]));
+        assert!(client.is_enabled(), "snapshot mới không còn override");
+        client.state.apply_states("code.exe", &map(&[("*", false)]));
+        assert!(!client.is_enabled());
+    }
+
+    #[test]
+    fn local_toggle_flips_immediately_without_tray() {
+        let client = IpcClient::detached();
+        assert!(!client.toggle_global());
+        assert!(!client.is_enabled());
+        assert!(client.toggle_global());
+        assert!(client.is_enabled());
+    }
+
+    #[test]
+    fn state_file_parsing_matches_tray_schema() {
+        let parsed =
+            parse_state_json(br#"{"global_enabled":false,"apps":{"Zalo.exe":true,"bad":"x"}}"#)
+                .unwrap();
+        assert_eq!(parsed.get("*"), Some(&false));
+        assert_eq!(parsed.get("zalo.exe"), Some(&true));
+        assert!(!parsed.contains_key("bad"));
+        assert!(parse_state_json(b"not json").is_none());
     }
 }

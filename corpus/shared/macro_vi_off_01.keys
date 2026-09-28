@@ -1,0 +1,10 @@
+# corpus/shared/macro_vi_off_01.keys — gõ tắt khi TẮT tiếng Việt (allow_macro_when_vi_off,
+# EVKey/OpenKey): chữ gõ đi thẳng không biến đổi, Tab vẫn bung gõ tắt.
+:config method=telex diacritic_style=new auto_capitalize=false allow_macro_when_vi_off=true macro="vn=Việt Nam"
+:enabled off
+:type "xin vieetj vn"
+:expect "xin vieetj vn"
+:key Tab
+:expect "xin vieetj Việt Nam"
+:type " ok"
+:expect "xin vieetj Việt Nam ok"

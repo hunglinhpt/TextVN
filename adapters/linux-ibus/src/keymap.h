@@ -1,25 +1,24 @@
-/* keymap.h — Map IBus keyval and state to TextVN ime_key_v1
+/* keymap.h — IBus keyval/state → phím chuẩn hóa của TextVN
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef TEXTVN_IBUS_KEYMAP_H
 #define TEXTVN_IBUS_KEYMAP_H
 
-#if defined(TEXTVN_IBUS_MOCK)
-#include "ibus_mock.h"
-#else
 #include <ibus.h>
-#endif
 
-#include "textvn_ffi.h"
+#include "lc_compose.h"
 
 G_BEGIN_DECLS
 
-/**
- * Maps an incoming IBus key event (keyval, keycode, state) to ime_key_v1.
- * Returns TRUE if key is valid for engine processing, FALSE otherwise.
- */
-gboolean ibus_keyval_to_ime_key(guint keyval, guint keycode, guint state, ime_key_v1 *out);
+/* VK canonical + ký tự Unicode của keysym (0 nếu không sinh ký tự). */
+void textvn_ibus_map_key(guint keyval, uint32_t *vk, uint32_t *ch);
+
+/* `IME_MOD_*` từ state mask. NumLock (MOD2) và AltGr (MOD5) không phải chord. */
+uint32_t textvn_ibus_mods(guint state);
+
+/* Ctrl/Shift/modifier khác/phím thường — cho phím chuyển Ctrl+Shift. */
+lc_modifier textvn_ibus_modifier_kind(guint keyval);
 
 G_END_DECLS
 

@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(SOURCES
+    src/compose.c
     src/field_detect.c
     src/ipc_client.c
     src/log.c
@@ -24,4 +25,21 @@ if(MSVC)
     target_compile_options(textvn-linux-common PRIVATE /W4)
 else()
     target_compile_options(textvn-linux-common PRIVATE -Wall -Wextra -Werror -pedantic -fPIC)
+endif()
+
+# Engine Rust (staticlib) cho test chạy engine thật: `cargo build --release -p textvn-ffi`.
+if(NOT TEXTVN_FFI_LIB)
+    set(TEXTVN_FFI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release" CACHE PATH "Rust target/release")
+    find_library(TEXTVN_FFI_LIB NAMES libtextvn_ffi.a textvn_ffi PATHS ${TEXTVN_FFI_DIR} NO_DEFAULT_PATH)
+endif()
+
+if(TEXTVN_FFI_LIB AND NOT TEXTVN_LINUX_COMMON_NO_TESTS)
+    enable_testing()
+    foreach(t test_compose test_env test_ipc_client test_field_detect)
+        add_executable(${t} tests/${t}.c)
+        # Test phải giữ assert kể cả bản Release (NDEBUG).
+        target_compile_options(${t} PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+        target_link_libraries(${t} PRIVATE textvn-linux-common ${TEXTVN_FFI_LIB} pthread dl m)
+        add_test(NAME ${t} COMMAND ${t})
+    endforeach()
 endif()

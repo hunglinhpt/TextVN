@@ -21,18 +21,68 @@ pub use super::vowel_table_generated::{
 
 /// Tra ký tự bất kỳ → (index âm, index tone 0..=6). Không phải âm → `None`.
 /// Chấp nhận cả IN HOA ('Á' → ('a'-entry, tone 1)) để gõ HOA vẫn đặt dấu được.
+///
+/// Đường nóng của engine (gọi cho mọi ký tự của từ ở mỗi phím): phụ âm ASCII loại ngay,
+/// nguyên âm ASCII tra trực tiếp, ký tự có dấu tra bảng chỉ mục trực tiếp theo code point
+/// (mọi dạng có dấu nằm trong U+00C0..U+1EFF) dựng một lần — bản cũ quét tuyến tính
+/// 72 dạng + `to_lowercase` cho từng ký tự.
 pub fn locate(c: char) -> Option<(usize, usize)> {
-    let lc = if c.is_uppercase() {
-        c.to_lowercase().next()?
-    } else {
-        c
-    };
-    for (e, entry) in VOWELS.iter().enumerate() {
-        if let Some(t) = entry.forms.iter().position(|&f| f == lc) {
-            return Some((e, t));
-        }
+    if c.is_ascii() {
+        return match c.to_ascii_lowercase() {
+            'a' => Some((A, 0)),
+            'e' => Some((E, 0)),
+            'i' => Some((I, 0)),
+            'o' => Some((O, 0)),
+            'u' => Some((U, 0)),
+            'y' => Some((Y, 0)),
+            _ => None,
+        };
     }
-    None
+    let idx = (c as usize).checked_sub(MARKED_FIRST)?;
+    let packed = *marked_forms().get(idx)?;
+    (packed != 0).then(|| {
+        let v = usize::from(packed - 1);
+        (v / TONES_PER_VOWEL, v % TONES_PER_VOWEL)
+    })
+}
+
+/// Code point đầu của vùng chứa mọi dạng có dấu (`À`).
+const MARKED_FIRST: usize = 0xC0;
+
+/// `table[c - MARKED_FIRST]` = `entry * 6 + tone + 1` cho mọi dạng không phải ASCII
+/// (thường và HOA), `0` = không phải âm.
+fn marked_forms() -> &'static [u16] {
+    static TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut forms = Vec::with_capacity(VOWEL_ENTRY_COUNT * TONES_PER_VOWEL * 2);
+        for (e, entry) in VOWELS.iter().enumerate() {
+            for (t, &f) in entry.forms.iter().enumerate() {
+                if f.is_ascii() {
+                    continue;
+                }
+                forms.push((f, e, t));
+                for up in f.to_uppercase() {
+                    if up != f {
+                        forms.push((up, e, t));
+                    }
+                }
+            }
+        }
+        let last = forms
+            .iter()
+            .map(|&(ch, _, _)| ch as usize)
+            .max()
+            .unwrap_or(0);
+        let mut table = vec![0u16; last + 1 - MARKED_FIRST];
+        for (ch, e, t) in forms {
+            let slot = &mut table[ch as usize - MARKED_FIRST];
+            // Trùng ký tự: giữ dạng gặp trước (thứ tự bảng — như cách quét tuyến tính).
+            if *slot == 0 {
+                *slot = (e * TONES_PER_VOWEL + t + 1) as u16;
+            }
+        }
+        table
+    })
 }
 
 /// Entry "gốc" (không mũ/sừng/breve) của một entry: â→a · ă→a · ê→e · ô→o · ơ→o · ư→u.
@@ -65,6 +115,36 @@ pub fn form_like(sample: char, entry: usize, tone: usize) -> char {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Tra nhanh phải cho đúng kết quả như cách quét tuyến tính cũ, với mọi ký tự BMP.
+    #[test]
+    fn fast_locate_matches_linear_scan() {
+        // (Bỏ qua ký tự hạ thành NHIỀU ký tự như `İ` U+0130 → "i̇": bản cũ lấy ký tự đầu nên
+        // nhận nhầm là `i`; bản mới trả None — đúng hơn.)
+        let slow = |c: char| -> Option<(usize, usize)> {
+            if c.to_lowercase().count() != 1 {
+                return None;
+            }
+            let lc = if c.is_uppercase() {
+                c.to_lowercase().next()?
+            } else {
+                c
+            };
+            VOWELS
+                .iter()
+                .enumerate()
+                .find_map(|(e, entry)| entry.forms.iter().position(|&f| f == lc).map(|t| (e, t)))
+        };
+        for cp in 0u32..0x2000 {
+            if let Some(c) = char::from_u32(cp) {
+                assert_eq!(locate(c), slow(c), "U+{cp:04X}");
+            }
+        }
+        for cp in 0x1E00u32..0x1F00 {
+            let c = char::from_u32(cp).unwrap();
+            assert_eq!(locate(c), slow(c), "U+{cp:04X}");
+        }
+    }
 
     #[test]
     fn table_has_72_distinct_forms() {

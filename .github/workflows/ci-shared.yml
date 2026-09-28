@@ -131,6 +131,78 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
+      # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
+      - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+
+  linux-adapters:
+    # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với
+    # ibus-daemon / fcitx5 chạy thật trong dbus-run-session.
+    name: Linux IBus/Fcitx5 (build + e2e + gói cài/chạy ngay)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
+      - run: scripts/e2e-linux.sh
+      # Tarball thật + 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng
+      # textvn-portable.sh) × IBus + Fcitx5 thật, trong HOME tạm.
+      - run: scripts/build-linux.sh --skip-tests
+      - run: scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: textvn-linux-x86_64
+          path: dist/TextVN-*-linux-*.tar.gz*
+          if-no-files-found: error
+
+  windows-package:
+    # Hai kịch bản người dùng trên Windows thật (runner GitHub, có desktop session — RW5
+    # đã verify): (1) giải nén zip portable rồi chạy, (2) cài bằng Inno Setup im lặng
+    # per-user. Mỗi kịch bản gõ tiếng Việt THẬT qua TSF vào Notepad (SendInput VK) rồi gỡ.
+    name: Windows package (portable + installer, gõ TSF thật)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - name: Inno Setup 6 (bản dịch tiếng Việt cần ≥ 6.5)
+        shell: powershell
+        run: |
+          choco upgrade innosetup --no-progress -y | Out-Null
+          $dir = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          if (-not (Test-Path "$dir\ISCC.exe")) { throw "ISCC.exe not found in $dir" }
+          $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: build-release.ps1 (fmt, clippy, verify, replay, build, smoke, zip, installer)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -SkipTests -BuildInstaller
+      - name: Kịch bản 2 — giải nén ra dùng luôn (portable zip)
+        shell: powershell
+        run: |
+          $zip = Get-ChildItem dist\TextVN-portable-*.zip | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Kịch bản 1 — cài đặt (Inno Setup, im lặng, per-user)
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
+          if (-not $setup) { throw 'installer was not built' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: textvn-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: warn
 
   fuzz:
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.

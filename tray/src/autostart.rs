@@ -232,6 +232,84 @@ pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), Stri
     }
 }
 
+/// Lệnh tự khởi động đang đăng ký (`HKCU\...\Run\TextVN`), nếu có.
+#[cfg(windows)]
+pub fn autostart_command() -> Option<String> {
+    // SAFETY: buffer đủ `len` byte do chính RegQueryValueExW báo; key được đóng mọi nhánh.
+    unsafe {
+        let mut hkey = HKEY::default();
+        let subkey_wide = to_wide(RUN_KEY_PATH);
+        if RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            PCWSTR(subkey_wide.as_ptr()),
+            None,
+            KEY_READ,
+            &mut hkey,
+        ) != ERROR_SUCCESS
+        {
+            return None;
+        }
+        let name = to_wide(APP_RUN_VALUE_NAME);
+        let mut len = 0u32;
+        let mut buf: Vec<u16> = Vec::new();
+        let mut ok = RegQueryValueExW(
+            hkey,
+            PCWSTR(name.as_ptr()),
+            None,
+            None,
+            None,
+            Some(&mut len),
+        ) == ERROR_SUCCESS;
+        if ok && len > 0 {
+            buf = vec![0u16; (len as usize).div_ceil(2)];
+            ok = RegQueryValueExW(
+                hkey,
+                PCWSTR(name.as_ptr()),
+                None,
+                None,
+                Some(buf.as_mut_ptr() as *mut u8),
+                Some(&mut len),
+            ) == ERROR_SUCCESS;
+        }
+        let _ = RegCloseKey(hkey);
+        if !ok {
+            return None;
+        }
+        let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        Some(String::from_utf16_lossy(&buf[..end]))
+    }
+}
+
+/// `true` nếu lệnh tự khởi động chạy một file nằm trong `dir`.
+pub fn command_points_into(command: &str, dir: &Path) -> bool {
+    let dir = dir
+        .to_string_lossy()
+        .trim_end_matches(['\\', '/'])
+        .to_lowercase();
+    let exe = command.trim().trim_start_matches('"').to_lowercase();
+    !dir.is_empty()
+        && exe
+            .strip_prefix(&dir)
+            .is_some_and(|rest| rest.starts_with(['\\', '/']))
+}
+
+/// Gỡ bản portable: bỏ tự khởi động NẾU nó trỏ vào thư mục sắp xoá — không đụng mục
+/// tự khởi động của một bản TextVN khác (ví dụ bản đã cài).
+pub fn disable_autostart_for_dir(dir: &Path) -> std::result::Result<(), String> {
+    #[cfg(windows)]
+    {
+        match autostart_command() {
+            Some(cmd) if command_points_into(&cmd, dir) => disable_autostart(),
+            _ => Ok(()),
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = dir;
+        Ok(())
+    }
+}
+
 /// Tắt tự khởi động cùng OS cho TextVN Tray.
 pub fn disable_autostart() -> std::result::Result<(), String> {
     #[cfg(windows)]
@@ -281,6 +359,28 @@ fn to_wide(s: &str) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn autostart_owner_check_matches_only_that_folder() {
+        let dir = Path::new(r"D:\Tools\TextVN");
+        assert!(command_points_into(
+            r#""D:\Tools\TextVN\TextVN.exe" --autostart"#,
+            dir
+        ));
+        assert!(command_points_into(
+            r#""d:\tools\textvn\TextVN.exe" --autostart"#,
+            dir
+        ));
+        assert!(!command_points_into(
+            r#""D:\Tools\TextVN2\TextVN.exe" --autostart"#,
+            dir
+        ));
+        assert!(!command_points_into(
+            r#""C:\Users\a\AppData\Local\Programs\TextVN\TextVN.exe" --autostart"#,
+            dir
+        ));
+        assert!(!command_points_into("", Path::new("")));
+    }
 
     #[test]
     fn run_key_path_and_value_name_constants() {

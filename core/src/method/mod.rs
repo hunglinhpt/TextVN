@@ -55,11 +55,49 @@ pub fn is_word_char(c: char, method: Method) -> bool {
 /// Fold toàn bộ chuỗi phím của một từ → chuỗi hiển thị.
 /// `raw` gồm cả marker đã bị nuốt; kết quả khác `raw` nghĩa là có biến đổi.
 pub fn fold(raw: &[char], method: Method, style: DiacriticStyle, free_marking: bool) -> Vec<char> {
-    match method {
-        Method::Telex => telex::fold(raw, style, free_marking),
-        Method::SimpleTelex => simple_telex::fold(raw, style, free_marking),
+    fold_caps(raw, method, style, free_marking, false)
+}
+
+/// Như [`fold`]; `caps_lock` = từ được gõ khi Caps Lock bật: phím dấu Telex viết hoa
+/// (`VIEETJ` → `VIỆT`) vẫn là phím dấu. VNI/VIQR dùng số/dấu câu nên không phụ thuộc.
+pub fn fold_caps(
+    raw: &[char],
+    method: Method,
+    style: DiacriticStyle,
+    free_marking: bool,
+    caps_lock: bool,
+) -> Vec<char> {
+    let mut out = match method {
+        Method::Telex => telex::fold_with_caps(raw, style, free_marking, true, caps_lock),
+        Method::SimpleTelex => telex::fold_with_caps(raw, style, free_marking, false, caps_lock),
         Method::Vni => vni::fold(raw, style, free_marking),
         Method::Viqr => viqr::fold(raw, style, free_marking),
+    };
+    fix_uo(&mut out);
+    // Dấu thanh gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`): dời về đúng chỗ.
+    crate::transform::tone::normalize_tone(&mut out, style);
+    out
+}
+
+/// Chuẩn hoá cặp `u`/`ư` + `ơ` sau khi fold (mọi kiểu gõ):
+/// - `qư` không tồn tại: `u` của `qu` là phụ âm → `quơ`, `quở` (VNI `quo7`, Telex `quow`).
+/// - `ươ` không đứng cuối âm tiết (luôn có âm cuối: ươc, ươi, ương…), còn `uơ` thì có
+///   (`thuở`, `huơ`, `khuơ`) → cặp `ươ` ở cuối từ là `uơ`. Từ còn gõ tiếp thì fold lại từ
+///   đầu nên `thuow` → `thuơ` rồi `thuowng` → `thương`.
+fn fix_uo(out: &mut [char]) {
+    use crate::transform::tone::tone_of;
+    use crate::transform::vowel_table::{form_like, locate};
+    use crate::transform::vowel_table_generated::{O_HOOK, U, U_HOOK};
+    let is = |c: char, e: usize| matches!(locate(c), Some((x, _)) if x == e);
+    for i in 1..out.len() {
+        if matches!(out[i - 1], 'q' | 'Q') && is(out[i], U_HOOK) {
+            out[i] = form_like(out[i], U, tone_of(out[i]).unwrap_or(0));
+        }
+    }
+    let len = out.len();
+    if len >= 2 && is(out[len - 1], O_HOOK) && is(out[len - 2], U_HOOK) {
+        let u = out[len - 2];
+        out[len - 2] = form_like(u, U, tone_of(u).unwrap_or(0));
     }
 }
 
@@ -87,10 +125,10 @@ mod tests {
 
     #[test]
     fn every_method_folds_duong() {
-        assert_eq!(f("duocj", Method::Telex), "được");
+        assert_eq!(f("dduocj", Method::Telex), "được");
         assert_eq!(f("d9uo7c5", Method::Vni), "được");
         assert_eq!(f("ddu+o+c.", Method::Viqr), "được");
-        assert_eq!(f("duocj", Method::SimpleTelex), "được");
+        assert_eq!(f("dduocj", Method::SimpleTelex), "được");
     }
 
     #[test]

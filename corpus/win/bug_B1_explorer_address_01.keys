@@ -2,5 +2,5 @@
 :config method=telex diacritic_style=new
 :caps field_detect,inject_vk,selection
 :app explorer.exe field=address_bar
-:type "duocj"
+:type "dduocj"
 :expect "được"

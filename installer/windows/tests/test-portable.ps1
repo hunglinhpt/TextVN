@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# test-portable.ps1 -Zip <TextVN-portable-*.zip>
+#
+# Kich ban "giai nen ra dung luon": giai nen vao thu muc tam -> chay TextVN.exe (tu dang
+# ky TSF per-user tu chinh thu muc do) -> go tieng Viet that trong Notepad -> uninstall.ps1
+# -> dang ky TSF da go, cau hinh nguoi dung van con.
+
+param(
+    [Parameter(Mandatory = $true)][string]$Zip
+)
+$ErrorActionPreference = 'Stop'
+$clsid = '{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}'
+$inproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
+
+$dir = Join-Path $env:RUNNER_TEMP ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
+if (-not $env:RUNNER_TEMP) { $dir = Join-Path $env:TEMP ('textvn-portable-' + [guid]::NewGuid().ToString('N')) }
+Expand-Archive -Path $Zip -DestinationPath $dir
+foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')) {
+    if (-not (Test-Path (Join-Path $dir $f))) { throw "portable zip is missing $f" }
+}
+Write-Host "PASS zip layout ($dir)"
+
+# Nhan dup TextVN.exe: tray tu dang ky TIP tro vao DLL trong thu muc giai nen.
+Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -WorkingDirectory $dir | Out-Null
+$registered = $false
+for ($i = 0; $i -lt 40 -and -not $registered; $i++) {
+    Start-Sleep -Milliseconds 500
+    $v = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
+    $registered = ($v -eq (Join-Path $dir 'textvn-tsf.dll'))
+}
+if (-not $registered) { throw 'TextVN.exe did not register the TSF TIP from the extracted folder' }
+Write-Host 'PASS TextVN.exe registered TSF from the extracted folder'
+
+& (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $dir
+
+# Go dang ky nhu nguoi dung (uninstall.ps1 trong zip).
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'uninstall.ps1')
+Start-Sleep -Seconds 1
+if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) { throw 'tray still running after uninstall.ps1' }
+if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall.ps1' }
+if (-not (Test-Path (Join-Path $env:APPDATA 'TextVN'))) { throw 'user config was not kept' }
+Write-Host 'PASS portable: extract -> run -> type -> unregister'

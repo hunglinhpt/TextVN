@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- <name> PHẢI trùng tên bus mà textvn-ibus-engine xin (TEXTVN_IBUS_COMPONENT trong
+     adapters/linux-ibus/src/main.c): ibus-daemon chờ đúng tên này khi khởi chạy <exec>. -->
 <component>
   <name>io.github.hunglinhpt.textvn</name>
   <description>TextVN Vietnamese Input Method</description>
@@ -7,7 +9,7 @@
   <license>GPL-3.0-or-later</license>
   <author>hunglinhpt &lt;https://github.com/hunglinhpt/TextVN&gt;</author>
   <homepage>https://github.com/hunglinhpt/TextVN</homepage>
-  <exec>/usr/lib/textvn/textvn-ibus-engine</exec>
+  <exec>/usr/lib/textvn/textvn-ibus-engine --ibus</exec>
   <textdomain>textvn</textdomain>
   <engines>
     <engine>
@@ -18,8 +20,9 @@
       <license>GPL-3.0-or-later</license>
       <author>hunglinhpt</author>
       <icon>textvn_v</icon>
-      <layout>us</layout>
+      <layout>default</layout>
       <symbol>VN</symbol>
+      <setup>/usr/bin/textvn-settings</setup>
       <rank>99</rank>
     </engine>
   </engines>

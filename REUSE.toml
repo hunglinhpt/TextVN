@@ -8,3 +8,11 @@ path = ["**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 hunglinhpt"
 SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# Bản dịch tiếng Việt của Inno Setup (jrsoftware/issrc Files/Languages/Unofficial) — giữ
+# nguyên giấy phép Inno Setup của nó, không phải GPL của TextVN.
+[[annotations]]
+path = ["installer/windows/languages/Vietnamese.isl"]
+precedence = "override"
+SPDX-FileCopyrightText = ["1997-2026 Jordan Russell", "2023 memecoder (Vietnamese translation)"]
+SPDX-License-Identifier = "LicenseRef-InnoSetup"

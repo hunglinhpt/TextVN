@@ -3,6 +3,6 @@
 :caps preedit,selection
 :app code.exe field=body
 :type "qwert"
-:expect "qwểt"
+:expect "qwẻt"
 :key Space
 :expect "qwert "

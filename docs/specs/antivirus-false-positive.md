@@ -114,7 +114,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Đọc/ghi bộ nhớ process khác | `WriteProcessMemory`, `VirtualAllocEx`, `NtWriteVirtualMemory`, `process_vm_writev`, `PTRACE_ATTACH` |
 | Hook non-LL (inject DLL vào process đích) | `WH_KEYBOARD`, `WH_MOUSE` (không phải `*_LL`) |
 
-Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (chỉ trong gói tương thích opt-in, có loop-guard), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`).
+Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (chỉ trong gói tương thích opt-in, có loop-guard), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`), `PostMessageW` tới cửa sổ trong chính process của app (trả phím cho app CUAS, A8).
 
 ### 8.4. Bằng chứng audit (2026-09-28)
 
@@ -136,3 +136,19 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Farch-4 | minor | macOS chưa có adapter IMK (đường chính thống macOS) — chưa bắt đầu, không phải bug | còn mở (roadmap) |
 | Farch-5 | minor | Verify: không có auto-spawn hook — chuỗi opt-in đầy đủ (menu → `WM_START_COMPATIBILITY_HOOK` → spawn; watchdog no-op) | đóng / verified 2026-09-28 |
 | Farch-6 | minor | Vòng 2: `docs/specs/verified-ops.md` A5 vẫn ghi "7 check / 7/7" sau khi thêm check #8 | fixed @b061778 |
+
+## 9. Cập nhật 2026-09-28 — giảm bề mặt heuristic trong gói mặc định
+
+Chi tiết + lý do: `tsf-typing-overhaul.md` §3. Tóm tắt:
+
+| # | Thay đổi | Trạng thái |
+|---|---|---|
+| A8 | TSF sửa text bằng composition (không `SendInput`, không Backspace giả) — gói `tsf-only` không còn API gõ giả lập nào. Riêng app IMM32 chạy qua CUAS: phím ranh giới (Enter, Tab, điều hướng, Ctrl+…) của chính người dùng mà CUAS đổi thành `VK_PROCESSKEY` được trả lại bằng `PostMessageW(WM_KEYDOWN)` tới cửa sổ đang focus **trong cùng process/thread** (`adapters/windows-tsf/src/replay.rs`) — không xuyên process, không đi qua hàng đợi input hệ thống | ✅ |
+| A9 | DLL TSF không UIA/không đọc process khác; gate mật khẩu dùng InputScope + `ES_PASSWORD` in-proc | ✅ |
+| A10 | `input.dll` chỉ nạp từ System32 (`LoadLibraryExW` + `LOAD_LIBRARY_SEARCH_SYSTEM32`) | ✅ |
+| A11 | `TextVN --stop` không còn `OpenProcess(PROCESS_TERMINATE)`/`TerminateProcess` | ✅ |
+| A12 | `textvn_ffi.dll` không còn trong portable/installer (bảng SHA256 §3 có dòng này là của build cũ) | ✅ |
+| A13 | Named pipe `PIPE_REJECT_REMOTE_CLIENTS` | ✅ |
+
+Việc còn lại **không làm được bằng code**: ký Authenticode (AV-2) và submit FP (AV-1) — vẫn là yếu tố lớn nhất với Kaspersky/SmartScreen cho binary chưa có reputation.
+

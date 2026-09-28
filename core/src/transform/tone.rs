@@ -71,15 +71,48 @@ pub fn apply_key(out: &mut Vec<char>, tone: usize, key: char, style: DiacriticSt
         out.push(key); // chưa có âm nào → đây là chữ thường
         return;
     };
-    let cur = tone_of(out[tidx]).unwrap_or(0);
+    // Dấu hiện có có thể nằm ở âm khác (vị trí đích đổi khi gõ thêm chữ).
+    let cur = current_tone(out);
     if cur == tone {
         // Bấm lại đúng dấu → bỏ dấu + gõ literal (ass → as)
-        out[tidx] = unmark(out[tidx]);
+        strip_all_tones(out);
         out.push(key);
     } else {
-        // Áp / thay dấu (free_marking)
+        // Áp / thay dấu (free_marking) — một từ chỉ có một dấu thanh.
+        strip_all_tones(out);
         out[tidx] = apply_tone(out[tidx], tone);
     }
+}
+
+/// Dấu thanh đang có trong từ (0 = chưa có).
+pub fn current_tone(out: &[char]) -> usize {
+    out.iter()
+        .filter_map(|&c| tone_of(c))
+        .find(|&t| t > 0)
+        .unwrap_or(0)
+}
+
+fn strip_all_tones(out: &mut [char]) {
+    for c in out.iter_mut() {
+        *c = unmark(*c);
+    }
+}
+
+/// Dời dấu thanh về đúng vị trí sau khi từ đổi hình (gõ thêm âm cuối, thêm dấu phụ…):
+/// `hòa` + `n` → `hoàn`, `thủy` → gõ tiếp `ên` → `thuyền`. Gọi ở cuối mỗi lần fold.
+pub fn normalize_tone(out: &mut [char], style: DiacriticStyle) {
+    let tone = current_tone(out);
+    if tone == 0 {
+        return;
+    }
+    let Some(tidx) = pick_tone_target(out, style) else {
+        return;
+    };
+    if tone_of(out[tidx]) == Some(tone) {
+        return;
+    }
+    strip_all_tones(out);
+    out[tidx] = apply_tone(out[tidx], tone);
 }
 
 #[cfg(test)]

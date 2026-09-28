@@ -51,7 +51,7 @@ Kiểm tra `TextVN` (GitHub repo đã có), trademark/namespace, đăng ký tên
 - **Acceptance:** corpus `combo_pass` (shared) pass trên Notepad; tiếng Anh không đổi hành vi 1 chữ.
 
 ### WIN-012 · ReplaceEditSession `BackspaceType` (L) — `P1-1 §6.1`
-- **Acceptance:** Notepad: `duocj` → `được`, `muownf` → `muốn`; corpus `win/*_bs_type` ≥ 20 case.
+- **Acceptance:** Notepad: `dduocj` → `được`, `muownf` → `muốn`; corpus `win/*_bs_type` ≥ 20 case.
 
 ### WIN-013 · Composition + preedit + display attribute (L) — `P1-1 §7`
 - **Acceptance:** gạch chân preedit trong Notepad/Word; Space/Enter → commit; corpus `tsf_preedit_*` ≥ 40 case.

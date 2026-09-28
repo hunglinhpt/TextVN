@@ -1,0 +1,5 @@
+# corpus/shared/telex_d_plain_01.keys — `đ` chỉ qua `dd` (UniKey/OpenKey/Bamboo/Wikipedia Telex).
+# oracle: spec Telex (dd → đ). Bản cũ tự đổi mọi `d` + nguyên âm thành `đ` → không gõ được các từ này.
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "daan dajy dduowcj duocj duwowis "
+:expect "dân dạy được dược dưới "

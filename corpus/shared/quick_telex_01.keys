@@ -1,0 +1,13 @@
+# corpus/shared/quick_telex_01.keys — Quick Telex (OpenKey): phụ âm đầu gõ đôi
+:config method=telex diacritic_style=new quick_telex=true auto_capitalize=false
+:type "nnayf"
+:expect "ngày"
+:key Space
+:type "ccaos"
+:expect "ngày cháo"
+:key Space
+:type "ttuwowngf"
+:expect "ngày cháo thường"
+:key Space
+:type "ggas"
+:expect "ngày cháo thường giá"

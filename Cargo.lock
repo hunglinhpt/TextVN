@@ -122,6 +122,7 @@ version = "0.1.0"
 dependencies = [
  "textvn-config",
  "textvn-ffi",
+ "textvn-win-tsf",
  "windows",
  "windows-core",
 ]
@@ -202,6 +203,7 @@ dependencies = [
 name = "textvn-win-tsf"
 version = "0.1.0"
 dependencies = [
+ "serde_json",
  "textvn-appdb",
  "textvn-config",
  "textvn-ffi",

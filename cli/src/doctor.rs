@@ -29,6 +29,8 @@ pub struct DoctorReport {
     pub hook_running: bool,
     pub tray_running: bool,
     pub tip_registered: bool,
+    /// Windows giữ Ctrl + Shift để đổi bàn phím (tranh phím chuyển V/E). `None` ngoài Windows.
+    pub ctrl_shift_taken: Option<bool>,
     pub problems: Vec<String>,
 }
 
@@ -97,11 +99,16 @@ pub fn collect_report() -> DoctorReport {
 
     let data_dir_exists = PathBuf::from("data").is_dir();
     let pipe_listening = check_pipe_listening();
-    let hook_running =
-        check_process_running("textvn-hook.exe") || check_process_running("textvn-hook.exe");
-    let tray_running =
-        check_process_running("TextVN.exe") || check_process_running("textvn-tray.exe");
-    let tip_registered = check_tip_registered();
+    let hook_running = check_instance_mutex(r"Local\TextVNHookMutex");
+    let tray_running = check_instance_mutex(r"Local\TextVNTray");
+    let tip_registered = crate::register::tip_registration_ok();
+    let ctrl_shift_taken = crate::register::ctrl_shift_taken_by_windows();
+    if cfg!(windows) && !tip_registered {
+        problems.push(
+            "TSF TIP chưa đăng ký hoặc trỏ tới DLL không còn tồn tại — chạy `textvn-cli register`"
+                .into(),
+        );
+    }
 
     DoctorReport {
         abi_version: textvn_ffi::IME_ABI_VERSION,
@@ -116,6 +123,7 @@ pub fn collect_report() -> DoctorReport {
         hook_running,
         tray_running,
         tip_registered,
+        ctrl_shift_taken,
         problems,
     }
 }
@@ -178,6 +186,17 @@ impl DoctorReport {
                 "chưa đăng ký"
             }
         );
+        if let Some(taken) = self.ctrl_shift_taken {
+            println!(
+                "  Ctrl+Shift  : {}",
+                if taken {
+                    "Windows đang dùng để đổi bàn phím — bật \"Dành Ctrl + Shift cho TextVN\" \
+                     trong Bảng điều khiển (hoặc `TextVN.exe --free-ctrl-shift`)"
+                } else {
+                    "dành cho TextVN"
+                }
+            );
+        }
     }
 
     pub fn to_json(&self) -> String {
@@ -350,41 +369,29 @@ fn check_pipe_listening() -> bool {
     }
 }
 
-fn check_process_running(exe_name: &str) -> bool {
+/// Tray/hook giữ mutex đơn-instance của chính TextVN trong suốt vòng đời. Mở
+/// mutex đó thay vì spawn `tasklist` — không liệt kê process của người dùng
+/// (hành vi AV soi) và không phụ thuộc tên file exe.
+fn check_instance_mutex(name: &str) -> bool {
     #[cfg(windows)]
     {
-        let mut cmd = std::process::Command::new("tasklist");
-        cmd.args(["/FI", &format!("IMAGENAME eq {exe_name}"), "/NH"]);
-        if let Ok(output) = cmd.output() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            stdout.to_lowercase().contains(&exe_name.to_lowercase())
-        } else {
-            false
+        use windows::core::HSTRING;
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::{OpenMutexW, SYNCHRONIZATION_SYNCHRONIZE};
+        // SAFETY: tên là HSTRING hợp lệ; handle mở được thì đóng ngay.
+        unsafe {
+            match OpenMutexW(SYNCHRONIZATION_SYNCHRONIZE, false, &HSTRING::from(name)) {
+                Ok(handle) => {
+                    let _ = CloseHandle(handle);
+                    true
+                }
+                Err(_) => false,
+            }
         }
     }
     #[cfg(not(windows))]
     {
-        let _ = exe_name;
-        false
-    }
-}
-
-fn check_tip_registered() -> bool {
-    #[cfg(windows)]
-    {
-        // Kiểm tra CLSID TextVN trong HKCU\Software\Classes\CLSID
-        let clsid = "{3E076C56-D752-44BB-9321-AEF4955AA3A6}";
-        let path = format!(r"Software\Classes\CLSID\{clsid}");
-        let mut cmd = std::process::Command::new("reg");
-        cmd.args(["query", &format!(r"HKCU\{path}")]);
-        if let Ok(output) = cmd.output() {
-            output.status.success()
-        } else {
-            false
-        }
-    }
-    #[cfg(not(windows))]
-    {
+        let _ = name;
         false
     }
 }

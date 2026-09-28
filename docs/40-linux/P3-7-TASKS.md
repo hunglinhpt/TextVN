@@ -61,7 +61,7 @@ Build + replay + demo app trên `ubuntu-latest`; pyatspi vs Rust atspi → chố
 - **Acceptance:** corpus `combo_pass` (shared) pass trên gedit + Firefox.
 
 ### LNX-012 · Preedit + commit ngắn (L) — `P3-1 §6.1/§7`
-- **Acceptance:** `duocj` → `được`; corpus `ibus_preedit_*` ≥ 40 + `bug_B11_*` pass.
+- **Acceptance:** `dduocj` → `được`; corpus `ibus_preedit_*` ≥ 40 + `bug_B11_*` pass.
 
 ### LNX-013 · keymap translate + đổi layout (M) — `P3-1 §5.1`
 - **Acceptance:** unit 100 phím; gõ đúng với layout us + tieng viet (typewriter) theo spike LNX-004.

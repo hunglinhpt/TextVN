@@ -8,4 +8,5 @@
 pub mod caps;
 pub mod emoji;
 pub mod r#macro;
+pub mod quick_telex;
 pub mod restore_en;

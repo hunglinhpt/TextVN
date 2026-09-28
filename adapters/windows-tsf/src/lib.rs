@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Lõi state machine an toàn cho TSF edit session.
 //!
-//! COM/TSF calls sẽ nằm ở các task WIN-010..019. Module không-OS này khóa hai
-//! invariant trước: RequestEditSession bị từ chối phải reset engine, và không
-//! được SelectionReplace selection của người dùng nếu nó không thuộc text mà
-//! adapter vừa tạo trong composition hiện hành.
+//! Phần không-OS (test được trên mọi nền tảng):
+//! - [`compose`]: mô hình composition — engine → kế hoạch sửa text cho mỗi phím;
+//! - [`classify_tsf_field`]: security gate từ tín hiệu TSF in-proc (InputScope,
+//!   read-only, style `ES_PASSWORD`) — không cần UIA xuyên process;
+//! - [`ThreadState`]/[`EngineSession`]: engine per-thread + gate S3.
+//!
+//! Phần COM (`cfg(windows)`) nằm ở `tip.rs`, `key_event.rs`, `edit_session.rs`.
 
 use textvn_appdb::{AppDb, EngineOwner};
 use textvn_ffi::{
-    ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reset,
-    ime_result_v1, IME_ABI_VERSION, IME_OK,
+    ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
+    ime_reset, ime_result_v1, ime_set_context, IME_ABI_VERSION, IME_OK,
 };
-use textvn_field_detect::{rules_win::UiaElement, FieldContext};
-use textvn_strategy::Strategy;
+use textvn_field_detect::{rules_win::UiaElement, FieldContext, ProbeSnapshot, SecurityState};
+use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_SEARCH};
+
+pub mod compose;
 
 #[cfg(windows)]
 pub mod class;
@@ -20,12 +25,14 @@ pub mod class;
 pub mod edit_session;
 #[cfg(windows)]
 pub mod guids;
-#[cfg(windows)]
 pub mod ipc_client;
 #[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]
+pub mod replay;
+#[cfg(windows)]
 pub mod tip;
+pub mod trace;
 
 #[cfg(windows)]
 use windows::core::{Interface, GUID, HRESULT};
@@ -71,7 +78,11 @@ pub unsafe extern "system" fn DllGetClassObject(
 #[cfg(windows)]
 #[no_mangle]
 pub unsafe extern "system" fn DllCanUnloadNow() -> HRESULT {
-    if class::OBJECT_COUNT.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+    // Thread IPC nền sống suốt đời process (không bao giờ join trên STA của app):
+    // DLL phải ở lại bộ nhớ để code của thread đó không bị unmap.
+    if class::OBJECT_COUNT.load(std::sync::atomic::Ordering::SeqCst) == 0
+        && !ipc_client::worker_started()
+    {
         HR_S_OK
     } else {
         HR_S_FALSE
@@ -96,6 +107,67 @@ impl TextRange {
 
     pub fn is_empty(self) -> bool {
         self.start == self.end
+    }
+}
+
+/// `InputScope` (Win32 `IS_*`) mà TSF adapter quan tâm — giá trị cố định trong SDK
+/// (`InputScope.h`); test `cfg(windows)` trong `edit_session.rs` đối chiếu crate `windows`.
+pub mod input_scope {
+    pub const IS_URL: i32 = 1;
+    pub const IS_PASSWORD: i32 = 31;
+    pub const IS_SEARCH: i32 = 50;
+    pub const IS_NUMERIC_PASSWORD: i32 = 63;
+    pub const IS_NUMERIC_PIN: i32 = 64;
+    pub const IS_ALPHANUMERIC_PIN: i32 = 65;
+    pub const IS_ALPHANUMERIC_PIN_SET: i32 = 66;
+}
+
+/// Tín hiệu field đọc được ngay trong process của app, trên thread UI, trong edit
+/// session — không UIA, không truy cập process khác.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TsfFieldSignals {
+    /// `GUID_PROP_INPUTSCOPE` của vùng chọn (rỗng = app không khai báo).
+    pub input_scopes: Vec<i32>,
+    /// `TS_SD_READONLY` trong `ITfContext::GetStatus`.
+    pub read_only: bool,
+    /// HWND có focus là Edit/RichEdit có style `ES_PASSWORD`.
+    pub password_style: bool,
+}
+
+/// Security gate S3 cho TSF. Ô mật khẩu/PIN → `Secure`; context chỉ đọc → `Unknown`
+/// (gate đóng, không sửa text); còn lại `NonSecure`. Không có tín hiệu nào = field
+/// văn bản bình thường: TSF không activate trong secure desktop/CredUI
+/// (`docs/specs/tsf-spike.md` #9), nên mặc định an toàn là gõ được.
+pub fn classify_tsf_field(signals: &TsfFieldSignals) -> ProbeSnapshot {
+    use input_scope::*;
+    let secure = signals.password_style
+        || signals.input_scopes.iter().any(|s| {
+            matches!(
+                *s,
+                IS_PASSWORD
+                    | IS_NUMERIC_PASSWORD
+                    | IS_NUMERIC_PIN
+                    | IS_ALPHANUMERIC_PIN
+                    | IS_ALPHANUMERIC_PIN_SET
+            )
+        });
+    let field_role = if signals.input_scopes.contains(&IS_URL) {
+        IME_FIELD_ADDRESS_BAR
+    } else if signals.input_scopes.contains(&IS_SEARCH) {
+        IME_FIELD_SEARCH
+    } else {
+        IME_FIELD_BODY
+    };
+    let security = if secure {
+        SecurityState::Secure
+    } else if signals.read_only {
+        SecurityState::Unknown
+    } else {
+        SecurityState::NonSecure
+    };
+    ProbeSnapshot {
+        field_role,
+        security,
     }
 }
 
@@ -173,6 +245,8 @@ pub fn after_request_edit_session(success: bool) -> EditSessionResult {
 /// được app nhận.
 pub struct EngineSession {
     instance: *mut ime_instance,
+    /// `ime_context_v1.enabled` đã đẩy vào engine (mặc định engine: bật).
+    ctx_enabled: bool,
 }
 
 /// State thuộc một TSF thread. Focus mới luôn tạo `FieldContext::pending`, vì
@@ -183,6 +257,8 @@ pub struct ThreadState {
     field: FieldContext,
     generation: u64,
     user_enabled: Option<bool>,
+    /// `config.allow_macro_when_vi_off` của lần nạp config hợp lệ gần nhất.
+    macro_when_off: bool,
 }
 
 impl ThreadState {
@@ -193,6 +269,7 @@ impl ThreadState {
             field: FieldContext::pending(app_id, caps, generation),
             generation,
             user_enabled: None,
+            macro_when_off: false,
         })
     }
 
@@ -206,6 +283,17 @@ impl ThreadState {
 
     pub fn publish_uia(&mut self, generation: u64, element: Option<&UiaElement>) -> bool {
         self.field.apply_windows_uia(generation, element)
+    }
+
+    /// Verdict đồng bộ từ tín hiệu TSF in-proc, đọc lại ở MỖI phím trong edit
+    /// session: một context TSF (Chrome/Edge) có thể dùng chung cho nhiều field,
+    /// nên verdict không được cache qua phím.
+    pub fn apply_tsf_probe(&mut self, snapshot: ProbeSnapshot) -> bool {
+        let app_id = self.field.app_id.clone();
+        let caps = self.field.caps;
+        let generation = self.begin_focus(app_id, caps);
+        self.field
+            .apply_probe(generation, snapshot.field_role, snapshot.security)
     }
 
     pub fn field_context(&self) -> &FieldContext {
@@ -290,24 +378,37 @@ impl ThreadState {
     pub fn reload_config_from_file(&mut self) -> Result<(), i32> {
         if let Some(path) = config_file_path() {
             if let Ok(bytes) = std::fs::read(path) {
-                return self.engine.reload_config(&bytes);
+                return self.reload_config_bytes(&bytes);
             }
         }
         Err(-1)
     }
+
+    /// Nạp config vào engine; config hỏng → engine giữ config cũ (P0-3 §1.3), cờ cũng giữ.
+    pub fn reload_config_bytes(&mut self, bytes: &[u8]) -> Result<(), i32> {
+        self.engine.reload_config(bytes)?;
+        if let Some(cfg) = std::str::from_utf8(bytes)
+            .ok()
+            .and_then(|s| textvn_config::parse_config(s).ok())
+        {
+            self.macro_when_off = cfg.allow_macro_when_vi_off;
+        }
+        Ok(())
+    }
+
+    /// "Gõ tắt cả khi tắt tiếng Việt": khi VN tắt phím vẫn qua engine (passthrough)
+    /// để bung gõ tắt; chữ thường đi thẳng không biến đổi.
+    pub fn macro_when_off(&self) -> bool {
+        self.macro_when_off
+    }
 }
 
-/// Trả về cấu hình TextVN, hoặc cấu hình TextVN cũ khi cần migration.
+/// `%APPDATA%\TextVN\config.json` — file tray là nguồn sự thật (P1-4 §1).
 pub fn config_file_path() -> Option<std::path::PathBuf> {
     std::env::var_os("APPDATA").map(|appdata| {
-        let root = std::path::PathBuf::from(appdata);
-        let primary = root.join("TextVN").join("config.json");
-        let legacy = root.join("TextVN").join("config.json");
-        if !primary.exists() && legacy.exists() {
-            legacy
-        } else {
-            primary
-        }
+        std::path::PathBuf::from(appdata)
+            .join("TextVN")
+            .join("config.json")
     })
 }
 
@@ -318,7 +419,32 @@ impl EngineSession {
         if instance.is_null() {
             return Err(result);
         }
-        Ok(Self { instance })
+        Ok(Self {
+            instance,
+            ctx_enabled: true,
+        })
+    }
+
+    /// Chế độ tiếng Việt của engine. Tắt → engine chạy passthrough: chữ PASS nguyên văn,
+    /// chỉ gõ tắt còn bung (nếu `allow_macro_when_vi_off`). Chỉ gọi FFI khi đổi.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        if enabled == self.ctx_enabled {
+            return;
+        }
+        let ctx = ime_context_v1 {
+            abi_version: IME_ABI_VERSION,
+            enabled: enabled as u32,
+            secure: 0,
+            field_role: 0,
+            caps: 0,
+            app_id: std::ptr::null(),
+            element_name: std::ptr::null(),
+            hint: -1,
+        };
+        if ime_set_context(self.instance, &ctx) == IME_OK {
+            self.ctx_enabled = enabled;
+            let _ = ime_reset(self.instance);
+        }
     }
 
     /// Nạp lại cấu hình engine runtime qua C-ABI ime_reload_config.
@@ -334,6 +460,16 @@ impl EngineSession {
 
     pub fn key_char(&mut self, ch: char) -> Result<ime_result_v1, i32> {
         self.key_event(0, ch as u32, 0)
+    }
+
+    /// Phím đã phân loại bởi adapter (`compose::KeyKind`): `vk` + ký tự in được.
+    pub fn key_event_raw(&mut self, vk: u32, ch: u32, mods: u32) -> Result<ime_result_v1, i32> {
+        self.key_event(vk, ch, mods)
+    }
+
+    /// Xóa từ đang gõ (focus change, composition bị app kết thúc, chord…).
+    pub fn reset(&mut self) {
+        let _ = ime_reset(self.instance);
     }
 
     /// OnKeyDown gọi hàm này sau khi đã lấy `ToUnicodeEx`. `None` nghĩa là key
@@ -664,6 +800,47 @@ mod tests {
     }
 
     #[test]
+    fn macro_when_vi_off_runs_engine_in_passthrough() {
+        let mut state = ThreadState::new("notepad.exe", 0).unwrap();
+        assert!(!state.macro_when_off());
+        state
+            .reload_config_bytes(
+                r#"{"config_version":1,"allow_macro_when_vi_off":true,
+                    "macros":[{"trigger":"vn","expand":"Việt Nam"}]}"#
+                    .as_bytes(),
+            )
+            .unwrap();
+        assert!(state.macro_when_off());
+        // Config hỏng: engine giữ config cũ → cờ cũng giữ.
+        assert!(state.reload_config_bytes(b"{oops").is_err());
+        assert!(state.macro_when_off());
+
+        state.engine.set_enabled(false);
+        let r = state.engine.key_char('a').unwrap();
+        assert_eq!(r.action, textvn_ffi::ACTION_PASS, "VN tắt: chữ đi thẳng");
+        for c in [' ', 'v', 'n'] {
+            state.engine.key_char(c).unwrap();
+        }
+        let tab = state.engine.key_event_raw(0x09, '\t' as u32, 0).unwrap();
+        assert_eq!(
+            tab.action,
+            textvn_ffi::ACTION_REPLACE,
+            "Tab vẫn bung gõ tắt"
+        );
+        assert_eq!(tab.delete_count, 2);
+
+        state.engine.set_enabled(true);
+        let r = state.engine.key_char('a').unwrap();
+        assert_eq!(r.action, textvn_ffi::ACTION_PASS);
+        let r = state.engine.key_char('s').unwrap();
+        assert_eq!(
+            r.action,
+            textvn_ffi::ACTION_REPLACE,
+            "bật lại: Telex hoạt động"
+        );
+    }
+
+    #[test]
     fn hotkey_toggle_switches_enabled_state_and_resets_buffer() {
         // WIN-015: Toggle EN/VN (Ctrl+Shift+Space)
         let mut state = ThreadState::new("notepad.exe", IME_CAP_PREEDIT).unwrap();
@@ -701,6 +878,72 @@ mod tests {
             state.resolve_strategy_with_state(None, None),
             Strategy::Preedit,
             "Khi bật lại tiếng Việt, strategy quay lại Preedit"
+        );
+    }
+
+    #[test]
+    fn tsf_signals_close_gate_for_password_and_read_only_fields() {
+        use input_scope::*;
+        let normal = classify_tsf_field(&TsfFieldSignals::default());
+        assert_eq!(normal.security, SecurityState::NonSecure);
+        assert_eq!(normal.field_role, IME_FIELD_BODY);
+
+        for scope in [
+            IS_PASSWORD,
+            IS_NUMERIC_PASSWORD,
+            IS_NUMERIC_PIN,
+            IS_ALPHANUMERIC_PIN,
+            IS_ALPHANUMERIC_PIN_SET,
+        ] {
+            let s = classify_tsf_field(&TsfFieldSignals {
+                input_scopes: vec![0, scope],
+                ..Default::default()
+            });
+            assert_eq!(s.security, SecurityState::Secure, "scope {scope}");
+        }
+        let style = classify_tsf_field(&TsfFieldSignals {
+            password_style: true,
+            ..Default::default()
+        });
+        assert_eq!(style.security, SecurityState::Secure);
+        let ro = classify_tsf_field(&TsfFieldSignals {
+            read_only: true,
+            ..Default::default()
+        });
+        assert_eq!(ro.security, SecurityState::Unknown);
+
+        let url = classify_tsf_field(&TsfFieldSignals {
+            input_scopes: vec![IS_URL],
+            ..Default::default()
+        });
+        assert_eq!(url.field_role, IME_FIELD_ADDRESS_BAR);
+        assert_eq!(url.security, SecurityState::NonSecure);
+    }
+
+    #[test]
+    fn tsf_probe_opens_gate_per_key_and_password_closes_it() {
+        let mut state = ThreadState::new("notepad.exe", IME_CAP_PREEDIT).unwrap();
+        assert_eq!(
+            state.resolve_strategy_with_state(Some(true), None),
+            Strategy::Passthrough,
+            "chưa probe = fail-safe"
+        );
+        assert!(state.apply_tsf_probe(classify_tsf_field(&TsfFieldSignals::default())));
+        assert_eq!(
+            state.resolve_strategy_with_state(Some(true), None),
+            Strategy::Preedit
+        );
+        assert!(state.apply_tsf_probe(classify_tsf_field(&TsfFieldSignals {
+            input_scopes: vec![input_scope::IS_PASSWORD],
+            ..Default::default()
+        })));
+        assert_eq!(
+            state.resolve_strategy_with_state(Some(true), None),
+            Strategy::Passthrough
+        );
+        assert_eq!(
+            state.resolve_strategy_with_state(Some(false), None),
+            Strategy::Passthrough
         );
     }
 

@@ -1,0 +1,13 @@
+# corpus/shared/charset_tcvn3_01.keys — bảng mã xuất tcvn3 (bảng: data/tables/charsets.tsv từ UniKey)
+:config method=telex diacritic_style=new output_charset=tcvn3 auto_capitalize=false
+:type "dduocj"
+:expect "®­îc"
+:key Backspace
+:expect "®­¬c"
+:key Space
+:type "Vieetj Nam"
+:expect "®­¬c ViÖt Nam"
+:key Space
+:type "tieengs"
+:key Escape
+:expect "®­¬c ViÖt Nam tieengs"

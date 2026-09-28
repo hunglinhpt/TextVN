@@ -205,7 +205,7 @@ gỡ: xóa XML + binary → ibus restart — 0 residue (P3-6 §6)
 | 1 | LNX-001..009 | Env + 7 spike + corpus linux đầu | `docs/specs/linux-spike.md` đủ 10 mục §9 |
 | 2 | LNX-010 | Component + engine rỗng | Cài vào Input Sources, gedit không crash |
 | 3 | LNX-011 | process_key_event → PASS toàn bộ | corpus `combo_pass` trên gedit/Firefox |
-| 4 | LNX-012 | Preedit + commit ngắn (§6.1) | `duocj` → `được`; corpus `ibus_preedit_*` ≥ 40 case |
+| 4 | LNX-012 | Preedit + commit ngắn (§6.1) | `dduocj` → `được`; corpus `ibus_preedit_*` ≥ 40 case |
 | 5 | LNX-013 | keymap (§5.1) + layout đổi | Unit 100 phím; layout vi/typewriter OK |
 | 6 | LNX-014 | SelectionReplace §6.2 | corpus `bug_B1_*` (Firefox/Chrome/ô tìm kiếm) pass |
 | 7 | LNX-015 | BackspaceType qua surrounding §6.3 | corpus `linux_bs_*` ≥ 30 case |

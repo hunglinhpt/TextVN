@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn rest_of_telex_unchanged() {
-        assert_eq!(n("duocj"), "được");
+        assert_eq!(n("dduocj"), "được");
         assert_eq!(n("caan"), "cân");
         assert_eq!(n("viet"), "viêt");
         assert_eq!(n("hoaf"), "hoà");

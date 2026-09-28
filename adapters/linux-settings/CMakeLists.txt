@@ -9,65 +9,52 @@ include(GNUInstallDirs)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(GTK4 gtk4)
-    pkg_check_modules(GLIB glib-2.0 gobject-2.0)
 endif()
 
-# Locate libtextvn_ffi from Rust build output (P0-2 §1)
-set(TEXTVN_FFI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release" CACHE PATH "Path to Rust target/release directory")
-find_library(TEXTVN_FFI_LIB NAMES textvn_ffi libtextvn_ffi PATHS ${TEXTVN_FFI_DIR} NO_DEFAULT_PATH)
+# Engine Rust (staticlib): chứa cả C API cấu hình (ffi/include/textvn_settings.h).
 if(NOT TEXTVN_FFI_LIB)
-    find_library(TEXTVN_FFI_LIB NAMES textvn_ffi libtextvn_ffi)
+    set(TEXTVN_FFI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release" CACHE PATH "Rust target/release")
+    find_library(TEXTVN_FFI_LIB NAMES libtextvn_ffi.a textvn_ffi PATHS ${TEXTVN_FFI_DIR} NO_DEFAULT_PATH)
+endif()
+if(NOT TEXTVN_FFI_LIB)
+    message(FATAL_ERROR "Chưa có libtextvn_ffi.a — chạy: cargo build --release -p textvn-ffi")
 endif()
 
-# Subdirectory for linux-common
 if(NOT TARGET textvn-linux-common)
+    set(TEXTVN_LINUX_COMMON_NO_TESTS ON)
     add_subdirectory(../linux-common ${CMAKE_CURRENT_BINARY_DIR}/linux-common)
 endif()
 
-# Main executable for Linux system with GTK4
-if(GTK4_FOUND AND GLIB_FOUND)
-    add_executable(textvn-settings
-        src/main.c
-        src/settings_window.c
-    )
+# Phiên bản hiển thị ở "Thông tin" = version workspace Cargo (một nguồn sự thật).
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../Cargo.toml" _ver_line REGEX "^version = \"[^\"]+\"" LIMIT_COUNT 1)
+string(REGEX REPLACE "^version = \"([^\"]+)\"" "\\1" TEXTVN_VERSION "${_ver_line}")
 
-    target_include_directories(textvn-settings PRIVATE
-        src
-        ${CMAKE_CURRENT_SOURCE_DIR}/../linux-common/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/../../ffi/include
-        ${GTK4_INCLUDE_DIRS}
-        ${GLIB_INCLUDE_DIRS}
-    )
+set(TEXTVN_SETTINGS_WARN -Wall -Wextra -Werror)
 
-    target_link_libraries(textvn-settings PRIVATE
-        textvn-linux-common
-        ${GTK4_LIBRARIES}
-        ${GLIB_LIBRARIES}
-        pthread
-        m
-    )
-
-    install(TARGETS textvn-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
-endif()
-
-# Standalone UI logic test target with mock GTK4
-add_executable(test_settings_ui
-    tests/test_settings.c
-    src/settings_window.c
-)
-
-target_compile_definitions(test_settings_ui PRIVATE TEXTVN_GTK_MOCK=1)
-
-target_include_directories(test_settings_ui PRIVATE
+# Logic không-GTK (test được trên CI không có màn hình).
+add_library(textvn-settings-model STATIC src/settings_model.c)
+target_include_directories(textvn-settings-model PUBLIC
     src
-    tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../linux-common/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../ffi/include
 )
+target_compile_options(textvn-settings-model PRIVATE ${TEXTVN_SETTINGS_WARN})
+target_link_libraries(textvn-settings-model PUBLIC textvn-linux-common ${TEXTVN_FFI_LIB} pthread dl m)
 
-target_link_libraries(test_settings_ui PRIVATE
-    textvn-linux-common
-)
+if(GTK4_FOUND)
+    add_executable(textvn-settings src/main.c src/settings_window.c)
+    target_include_directories(textvn-settings PRIVATE ${GTK4_INCLUDE_DIRS})
+    target_compile_definitions(textvn-settings PRIVATE TEXTVN_VERSION="${TEXTVN_VERSION}")
+    target_compile_options(textvn-settings PRIVATE ${TEXTVN_SETTINGS_WARN} ${GTK4_CFLAGS_OTHER})
+    target_link_libraries(textvn-settings PRIVATE textvn-settings-model ${GTK4_LDFLAGS})
+    install(TARGETS textvn-settings DESTINATION "${CMAKE_INSTALL_BINDIR}")
+else()
+    message(STATUS "gtk4 không có — chỉ build logic + test (không có textvn-settings)")
+endif()
 
 enable_testing()
-add_test(NAME test_settings_ui COMMAND test_settings_ui)
+add_executable(test_settings_model tests/test_settings_model.c)
+# Test phải giữ assert kể cả bản Release (NDEBUG).
+target_compile_options(test_settings_model PRIVATE ${TEXTVN_SETTINGS_WARN} -UNDEBUG)
+target_link_libraries(test_settings_model PRIVATE textvn-settings-model)
+add_test(NAME test_settings_model COMMAND test_settings_model)

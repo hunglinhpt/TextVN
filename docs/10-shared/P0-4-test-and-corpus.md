@@ -35,7 +35,7 @@
 | `:caps <flags>` | `:caps preedit,selection,field_detect,inject_vk` | Set `ime_context.caps` (mặc định: `field_detect,inject_vk` — **không** có preedit) |
 | `:enabled on\|off` | `:enabled off` | `ime_context.enabled` |
 | `:secure on\|off` | `:secure on` | `ime_context.secure` → mọi phím sau PASS tới khi `:secure off` |
-| `:type "<chuỗi>"` | `:type "duocj"` | Gõ từng ký tự (mỗi ký tự = key down/up có `ch`) |
+| `:type "<chuỗi>"` | `:type "dduocj"` | Gõ từng ký tự (mỗi ký tự = key down/up có `ch`) |
 | `:key <tên>` | `:key Enter` · `:key Escape` · `:key Backspace` · `:key Tab` · `:key Space` | Phím đặc biệt (danh sách §2.4) |
 | `:combo <chuỗi phím tắt>` | `:combo Ctrl+Shift+Space` | Phím tắt modifier — luôn kỳ vọng `PASS` (nếu engine nuốt = FAIL) |
 | `:expect "<chuỗi>"` | `:expect "được"` | So nội dung buffer mô phỏng (§3) tại thời điểm này |
@@ -51,7 +51,7 @@
 # corpus/shared/telex_basic_01.keys
 :config method=telex diacritic_style=new
 :app notepad.exe field=body
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_preedit "được"
 

@@ -11,6 +11,8 @@ tone = ["s", "f", "r", "x", "j"]
 stroke_key = "d"
 stroke_double = true
 remove_marks_key = ""
+# `z` gỡ dấu thanh như Telex.
+tone_remove_key = "z"
 
 [[circumflex]]
 key = "a"

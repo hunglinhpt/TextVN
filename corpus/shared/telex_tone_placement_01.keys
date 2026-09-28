@@ -1,0 +1,5 @@
+# corpus/shared/telex_tone_placement_01.keys — vị trí dấu thanh theo chính tả (kiểu dấu mới).
+# oracle: spec quy tắc đặt dấu (gi/qu là phụ âm, nguyên âm có dấu phụ, vần mở ua/ia/ưa → âm đầu).
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "cuar cuwar nghiax kiaf giaos giuwax giowf quys quowr thuowr ngoaif khuya ngoeof "
+:expect "của cửa nghĩa kìa giáo giữa giờ quý quở thuở ngoài khuya ngoèo "

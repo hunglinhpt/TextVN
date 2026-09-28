@@ -4,7 +4,7 @@
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
 //! Nguồn: `data/tables/{telex,simple_telex,vni,viqr}.toml`
-//!   (digest FNV-1a 64 = `0x15a445f2cb625b5b`; bảng âm = `0xfe5318e15330844d`).
+//!   (digest FNV-1a 64 = `0xcfc8f5c5440aeb72`; bảng âm = `0xfe5318e15330844d`).
 //!
 //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`, `iet`…)
 //! vẫn nằm trong `method/telex.rs`, `vni.rs`, `viqr.rs` — bảng ở đây chỉ mô tả phần bảng.
@@ -40,6 +40,8 @@ pub mod telex {
     pub const STROKE_DOUBLE: bool = true;
     /// Kiểu gõ này không có phím xoá toàn bộ dấu.
     pub const REMOVE_MARKS_KEY: Option<char> = None;
+    /// Key gỡ **dấu thanh** của từ (Telex `z`); từ chưa có dấu → chữ thường.
+    pub const TONE_REMOVE_KEY: Option<char> = Some('z');
     /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
     pub const W_MARKER: bool = true;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
@@ -49,6 +51,7 @@ pub mod telex {
             || HORN.iter().any(|&(k, _, _)| k == c)
             || BREVE.iter().any(|&(k, _, _)| k == c)
             || REMOVE_MARKS_KEY == Some(c)
+            || TONE_REMOVE_KEY == Some(c)
             // `stroke` 1 phím (VNI `9`) là marker; `dd` thì không (chữ cái vốn
             // đã thuộc từ) — nên chỉ nhận khi STROKE_DOUBLE = false.
             || (!STROKE_DOUBLE && STROKE_KEY == c)
@@ -81,6 +84,8 @@ pub mod simple_telex {
     pub const STROKE_DOUBLE: bool = true;
     /// Kiểu gõ này không có phím xoá toàn bộ dấu.
     pub const REMOVE_MARKS_KEY: Option<char> = None;
+    /// Key gỡ **dấu thanh** của từ (Telex `z`); từ chưa có dấu → chữ thường.
+    pub const TONE_REMOVE_KEY: Option<char> = Some('z');
     /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
@@ -90,6 +95,7 @@ pub mod simple_telex {
             || HORN.iter().any(|&(k, _, _)| k == c)
             || BREVE.iter().any(|&(k, _, _)| k == c)
             || REMOVE_MARKS_KEY == Some(c)
+            || TONE_REMOVE_KEY == Some(c)
             // `stroke` 1 phím (VNI `9`) là marker; `dd` thì không (chữ cái vốn
             // đã thuộc từ) — nên chỉ nhận khi STROKE_DOUBLE = false.
             || (!STROKE_DOUBLE && STROKE_KEY == c)
@@ -129,6 +135,8 @@ pub mod vni {
     pub const STROKE_DOUBLE: bool = false;
     /// Key xoá toàn bộ dấu của từ (VNI `0`).
     pub const REMOVE_MARKS_KEY: Option<char> = Some('0');
+    /// Kiểu gõ này không có phím gỡ riêng dấu thanh.
+    pub const TONE_REMOVE_KEY: Option<char> = None;
     /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
@@ -138,6 +146,7 @@ pub mod vni {
             || HORN.iter().any(|&(k, _, _)| k == c)
             || BREVE.iter().any(|&(k, _, _)| k == c)
             || REMOVE_MARKS_KEY == Some(c)
+            || TONE_REMOVE_KEY == Some(c)
             // `stroke` 1 phím (VNI `9`) là marker; `dd` thì không (chữ cái vốn
             // đã thuộc từ) — nên chỉ nhận khi STROKE_DOUBLE = false.
             || (!STROKE_DOUBLE && STROKE_KEY == c)
@@ -177,6 +186,8 @@ pub mod viqr {
     pub const STROKE_DOUBLE: bool = true;
     /// Kiểu gõ này không có phím xoá toàn bộ dấu.
     pub const REMOVE_MARKS_KEY: Option<char> = None;
+    /// Kiểu gõ này không có phím gỡ riêng dấu thanh.
+    pub const TONE_REMOVE_KEY: Option<char> = None;
     /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
@@ -186,6 +197,7 @@ pub mod viqr {
             || HORN.iter().any(|&(k, _, _)| k == c)
             || BREVE.iter().any(|&(k, _, _)| k == c)
             || REMOVE_MARKS_KEY == Some(c)
+            || TONE_REMOVE_KEY == Some(c)
             // `stroke` 1 phím (VNI `9`) là marker; `dd` thì không (chữ cái vốn
             // đã thuộc từ) — nên chỉ nhận khi STROKE_DOUBLE = false.
             || (!STROKE_DOUBLE && STROKE_KEY == c)

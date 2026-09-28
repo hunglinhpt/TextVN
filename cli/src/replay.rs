@@ -6,6 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+use textvn_win_tsf::compose::{is_modifier_vk, plan_key, text_after, EngineStep, KeyKind};
 
 use textvn_ffi::{
     ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
@@ -43,6 +44,8 @@ enum Cmd {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct AdapterProfile {
     default_caps: u32,
+    /// Mô phỏng mô hình composition của TSF adapter thay vì áp action trực tiếp.
+    tsf_composition: bool,
 }
 
 fn adapter_profile(adapter: &str) -> AdapterProfile {
@@ -52,16 +55,27 @@ fn adapter_profile(adapter: &str) -> AdapterProfile {
     const INJECT_VK: u32 = 0x8;
 
     match adapter {
-        "headless" => AdapterProfile { default_caps: 0 },
+        "headless" => AdapterProfile {
+            default_caps: 0,
+            tsf_composition: false,
+        },
         // TSF supports composition and native ranges. `INJECT_VK` is included
         // for the hook fallback, which shares the Windows corpus profile.
         "win" => AdapterProfile {
             default_caps: PREEDIT | SELECTION | FIELD_DETECT | INJECT_VK,
+            tsf_composition: false,
+        },
+        // TSF thật: cả từ nằm trong composition, commit ở ranh giới
+        // (`textvn_win_tsf::compose`) — cùng kế hoạch mà DLL áp trong edit session.
+        "tsf" => AdapterProfile {
+            default_caps: PREEDIT | SELECTION | FIELD_DETECT,
+            tsf_composition: true,
         },
         // IMK/IBus/Fcitx5 expose preedit and selection when their platform
         // field-detection integration is available.
         "mac" | "linux" => AdapterProfile {
             default_caps: PREEDIT | SELECTION | FIELD_DETECT,
+            tsf_composition: false,
         },
         _ => unreachable!("CLI validates --adapter before replay::run"),
     }
@@ -115,6 +129,7 @@ fn parse_quoted(s: &str) -> Result<String, String> {
                 '"' => out.push('"'),
                 '\\' => out.push('\\'),
                 'n' => out.push('\n'),
+                't' => out.push('\t'),
                 other => return Err(format!("escape không hợp lệ `\\{other}`")),
             }
             escape = false;
@@ -273,6 +288,7 @@ fn config_value(key: &str, value: &str) -> Result<String, String> {
         | "free_marking"
         | "auto_restore_english"
         | "auto_capitalize"
+        | "quick_telex"
         | "allow_macro_when_vi_off" => matches!(value, "true" | "false"),
         _ => return Err(format!("config key lạ `{key}`")),
     };
@@ -467,7 +483,7 @@ fn parse_line(line: &str) -> Result<Option<Cmd>, String> {
                 ("-", rest) => (false, rest),
                 _ => return Err(format!("`:mods` cần +/-, nhận `{s}`")),
             };
-            if !matches!(name, "Shift" | "Ctrl" | "Alt" | "Super") {
+            if !matches!(name, "Shift" | "Ctrl" | "Alt" | "Super" | "CapsLock") {
                 return Err(format!("modifier lạ `{name}`"));
             }
             Cmd::Mods {
@@ -627,6 +643,15 @@ struct Sim {
     pending_action: Option<(usize, String)>,
     last_action: String,
     failures: Vec<SimFailure>,
+    /// `Some` khi mô phỏng TSF: text composition đang mở (nằm trong `buf` tại
+    /// `comp_start`, caret ở cuối composition).
+    tsf: Option<TsfComposition>,
+}
+
+#[derive(Default)]
+struct TsfComposition {
+    start: usize,
+    text: Vec<char>,
 }
 
 struct SimFailure {
@@ -655,6 +680,7 @@ impl Sim {
             pending_action: None,
             last_action: "PASS".into(),
             failures: Vec::new(),
+            tsf: profile.tsf_composition.then(TsfComposition::default),
         };
         // Context mặc định cũng phải mang capability profile: corpus không có
         // `:app`/`:caps` vẫn cần mô phỏng adapter đã chọn.
@@ -743,7 +769,9 @@ impl Sim {
             if down == 0 {
                 continue;
             }
-            if !injected {
+            if self.tsf.is_some() {
+                self.apply_tsf(vk, ch, mods, injected, &out, line);
+            } else if !injected {
                 if out.action == 0 {
                     self.apply_pass(vk, ch);
                 } else {
@@ -761,6 +789,79 @@ impl Sim {
                     );
                 }
             }
+        }
+    }
+
+    fn setting_is_true(&self, key: &str) -> bool {
+        self.settings.iter().any(|(k, v)| k == key && v == "true")
+    }
+
+    /// Đóng composition TSF (text giữ nguyên trong buffer).
+    fn tsf_end(&mut self) {
+        if let Some(comp) = self.tsf.as_mut() {
+            comp.text.clear();
+        }
+    }
+
+    /// Mô phỏng TSF adapter: cùng thứ tự quyết định như `key_event.rs` và cùng
+    /// kế hoạch `plan_key` như `edit_session.rs`.
+    fn apply_tsf(
+        &mut self,
+        vk: u32,
+        ch: u32,
+        mods: u32,
+        injected: bool,
+        out: &ime_result_v1,
+        line: usize,
+    ) {
+        if is_modifier_vk(vk) {
+            return;
+        }
+        // Chord / phím bơm (VK_PACKET) / field bị gate / tắt VN (trừ khi còn gõ tắt —
+        // `allow_macro_when_vi_off`): commit rồi app nhận phím.
+        let macro_only = !self.enabled && self.setting_is_true("allow_macro_when_vi_off");
+        if injected || mods & 0xE != 0 || self.secure || !(self.enabled || macro_only) {
+            self.tsf_end();
+            if !injected {
+                self.apply_pass(vk, ch);
+            }
+            return;
+        }
+        let Some(comp) = self.tsf.as_mut() else {
+            return;
+        };
+        let key = KeyKind::classify(vk, ch);
+        let current = comp.text.clone();
+        let mut start = if current.is_empty() {
+            self.cursor
+        } else {
+            comp.start
+        };
+        let plan = plan_key(&current, key, &EngineStep::from_result(out));
+        if plan.delete_before > 0 {
+            let n = usize::from(plan.delete_before);
+            if n > start {
+                self.fail(
+                    line,
+                    format!("TSF delete_before({n}) vượt text trước composition"),
+                );
+                return;
+            }
+            self.buf.drain(start - n..start);
+            start -= n;
+        }
+        if let Some(text) = &plan.text {
+            let end = start + current.len();
+            self.buf.splice(start..end, text.iter().copied());
+            self.cursor = start + text.len();
+        }
+        let next = text_after(&current, &plan);
+        if let Some(comp) = self.tsf.as_mut() {
+            comp.start = start;
+            comp.text = if plan.end { Vec::new() } else { next };
+        }
+        if !plan.eaten {
+            self.apply_pass(vk, ch);
         }
     }
 
@@ -941,6 +1042,8 @@ fn mod_bit(name: &str) -> u32 {
         "Ctrl" => 0x2,
         "Alt" => 0x4,
         "Super" => 0x8,
+        // Trạng thái Caps Lock bật (IME_MOD_CAPS) — `:mods +CapsLock`.
+        "CapsLock" => 0x20,
         _ => 0,
     }
 }
@@ -1021,6 +1124,8 @@ fn run_case(case: &Case, profile: AdapterProfile) -> (bool, Vec<SimFailure>, u12
             Cmd::Reset => {
                 ime_reset(sim.inst);
                 sim.preedit.clear();
+                // TSF: focus đổi ⇒ composition được commit (OnSetFocus).
+                sim.tsf_end();
             }
             Cmd::EngineNew => {
                 ime_instance_free(sim.inst);

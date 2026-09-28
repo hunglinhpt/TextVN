@@ -51,12 +51,12 @@ pub struct Structure {
 pub fn decompose(cs: &[char]) -> Option<Structure> {
     let vstart = cs.iter().position(|&c| is_vowel(c))?;
     let vend = cs.iter().rposition(|&c| is_vowel(c))?;
-    // `qu`: âm đầu gồm cả `u` → vần bắt đầu sau `u`
-    let onset_end = if vstart == 1 && matches!(cs[0], 'q' | 'Q') && matches!(cs[1], 'u' | 'U') {
-        2
-    } else {
-        vstart
-    };
+    // `qu`: âm đầu gồm cả `u` → vần bắt đầu sau `u`. `gi` + nguyên âm khác: `i` thuộc âm
+    // đầu `gi` (`giáo`, `giữa`, `giường`); `gì`/`gìn` thì `i` là vần.
+    let qu = vstart == 1 && matches!(cs[0], 'q' | 'Q') && matches!(cs[1], 'u' | 'U');
+    let gi =
+        vstart == 1 && vend > 1 && matches!(cs[0], 'g' | 'G') && matches!(unmark(cs[1]), 'i' | 'I');
+    let onset_end = if qu || gi { 2 } else { vstart };
     if onset_end > vend {
         return None; // `qu` mà không còn nguyên âm (`qu`) → không phải âm tiết
     }
@@ -131,6 +131,15 @@ mod tests {
         for w in [
             "được",
             "đường",
+            "giáo",
+            "giữa",
+            "giường",
+            "giờ",
+            "gì",
+            "gìn",
+            "giếng",
+            "quở",
+            "thuở",
             "hoà",
             "hòa",
             "nguyễn",

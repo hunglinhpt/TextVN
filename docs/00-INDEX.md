@@ -4,6 +4,16 @@
 > kế thừa tinh hoa & fix bug của UniKey/x-unikey · EVKey · GoTiengViet · WinVNKey · Gõ Nhanh · Bamboo Viet.
 > Plan tổng: `../PLAN.md` (đọc trước khi bắt tay vào việc).
 
+## 0. Tài liệu cho người dùng & phát hành
+
+| Tài liệu | Cho ai |
+|---|---|
+| [user-guide.md](user-guide.md) | Người dùng: cài, gỡ, gõ, bảng điều khiển, xử lý sự cố (Windows + Linux) |
+| [developer-guide.md](developer-guide.md) | Người phát triển: kiến trúc, dựng, kiểm thử, quy ước, phát hành |
+| [release/build-release-report.md](release/build-release-report.md) | Kết quả dựng & kiểm thử của phiên bản hiện tại |
+| [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
+| [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
+
 ## 1. Trạng thái các phần
 
 | Phần | Tài liệu | Trạng thái | Review |
@@ -256,3 +266,4 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - Sửa `ci-shared` lần chạy đầu đỏ 8/11 job: bump `fsfe/reuse-action@v3`→`@v6` (**F6-14**: tool 3.0 chưa đọc `REUSE.toml` → 0/302 copyright, reproduce local `reuse==3.0.0`), cfg-gate `std::os::windows` + dead-code non-Windows (`tray/ipc_server`, `cli/register`), normalize CRLF **trước** digest FNV-1a trong `xtask read()` (check-tables lệch CI, chạy lại `gen-tables`), fuzz: `tool: cargo-fuzz` tường minh + `cargo +nightly` (vì `rust-toolchain.toml` = stable).
   - Sửa `ci-shared` round 2–4 (sim cross-target local `--target linux-gnu` + `aarch64-darwin` trước khi push): tray `lib.rs`/`main.rs` thêm `#![cfg_attr(not(windows), allow(dead_code))]` + gate `WM_TRAYICON`/import Win32 (cross-OS), **F6-15** `install-action` cài cargo-fuzz static musl → tự lấy target musl → ASAN "incompatible with statically linked libc" → khai báo `--target x86_64-unknown-linux-gnu` tường minh (rust-fuzz/cargo-fuzz#398), **F6-16** fuzz target `config_parse` assert substring heuristic báo động giả (input `: invalid schema` trùng substring của message static `config: invalid schema`) → chuyển sang `assert_eq!` exact static message (echo không thể xảy ra, đổi message ở FFI sẽ fail fuzz cố ý).
 - 2026-09-28: **Kiến trúc AV anti-heuristic (Farch-1…Farch-5, audit 2 vòng §8)**: làm mới `docs/specs/antivirus-false-positive.md` (T1–T3 + §4.1 hết stale so với opt-in `tsf-only`), thêm §8 chính sách behavioral — TSF mặc định, hook opt-in 2 lớp + filter fail-safe, cấm API injection, macOS IMK = roadmap — kèm guard CI `repo-hygiene` check #8 (`.github/scripts/check_no_injection_apis.py`, selftest 8/8); verify không auto-spawn hook (chỉ menu → `WM_START_COMPATIBILITY_HOOK` → spawn; watchdog no-op).
+- 2026-09-28: **TSF typing overhaul (Ftsf-1…12)** — `docs/specs/tsf-typing-overhaul.md`: sửa gate S3 không bao giờ mở, đăng ký TIP per-user, mô hình composition (commit tại ranh giới), IPC không join trên thread UI, toggle toàn cục `"*"`, hotkey, phân loại phím, category Immersive + ACL AppContainer; `replay --adapter tsf` 100/100 trong CI; bổ sung `antivirus-false-positive.md` §9.

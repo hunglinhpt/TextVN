@@ -125,6 +125,8 @@ $ReleaseChecks["abi_verify"] = "passed"
 
 cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter win
 if ($LASTEXITCODE -ne 0) { Write-Fail "Windows corpus replay FAIL" }
+cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+if ($LASTEXITCODE -ne 0) { Write-Fail "TSF composition corpus replay FAIL" }
 $ReleaseChecks["windows_corpus"] = "passed"
 
 if (-not $SkipTests) {
@@ -149,8 +151,7 @@ Write-Ok "Build release DONE"
 $ReleaseSignFiles = @(
     "$ReleaseDir\TextVN.exe",
     "$ReleaseDir\textvn-cli.exe",
-    "$ReleaseDir\textvn_win_tsf.dll",
-    "$ReleaseDir\textvn_ffi.dll"
+    "$ReleaseDir\textvn_win_tsf.dll"
 )
 if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
 if ($SigningRequested) {
@@ -221,8 +222,7 @@ New-Item -ItemType Directory -Force $ZipDir | Out-Null
 $BinFiles = @(
     @{ src = "TextVN.exe";           dst = "TextVN.exe" },
     @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
-    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
-    @{ src = "textvn_ffi.dll";      dst = "textvn_ffi.dll" }
+    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" }
 )
 if ($IncludeCompatibilityHook) {
     $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }
@@ -257,29 +257,12 @@ foreach ($doc in @("README.md", "CHANGELOG.md", "LICENSE")) {
     }
 }
 
-# Tao HUONG_DAN_SU_DUNG.txt
-$quickstartContent = "=================================================================`r`n" +
-    "TextVN (Bo go Tieng Viet hien dai, ma nguon mo)`r`n" +
-    "=================================================================`r`n`r`n" +
-    "1. SU DUNG NGAY (KHONG CAN CAI DAT):`r`n" +
-    "   - Nhan dup chuot vao file TextVN.exe`r`n" +
-    "   - Bang dieu khien TextVN se hien thi ngay tren man hinh.`r`n" +
-    "   - Ban co the tuy chon Bang ma (Unicode, TCVN3, VNI...), Kieu go (Telex, VNI...), phim chuyen.`r`n" +
-    "   - Khi nhan [Dong] hoac tat cua so, TextVN se thu gon vao khay he thong (System Tray).`r`n`r`n" +
-    "2. CHUYEN DOI TIENG VIET / TIENG ANH:`r`n" +
-    "   - Phim tat mac dinh: Ctrl + Shift (hoac Alt + Z)`r`n" +
-    "   - Icon khay he thong:`r`n" +
-    "       + Chu [V] mau TIM: Dang bat go Tieng Viet`r`n" +
-    "       + Chu [E] mau XANH: Che do Tieng Anh (tat go Tieng Viet)`r`n`r`n" +
-    "3. BANG DIEU KHIEN & MENU:`r`n" +
-    "   - Click chuot phai hoac chuot trai vao icon khay he thong de mo Bang dieu khien / Menu lua chon.`r`n" +
-    "   - De thoat han ung dung: Chon [Ket thuc] tren Bang dieu khien hoac Menu khay he thong.`r`n`r`n" +
-    "4. DANG KY TSF HE THONG (TUY CHON):`r`n" +
-    "   - Neu ban muon tich hop Text Services Framework (TSF) vao Windows:`r`n" +
-    "     Chay file install.ps1 bang PowerShell.`r`n" +
-    "   - De go bo TSF: Chay file uninstall.ps1.`r`n"
-[System.IO.File]::WriteAllText("$ZipDir\HUONG_DAN_SU_DUNG.txt", $quickstartContent, [System.Text.Encoding]::UTF8)
-Write-Ok "Created HUONG_DAN_SU_DUNG.txt"
+# Huong dan + script cai/go cua ban portable: file that trong installer\windows\portable
+# (review duoc, test duoc) thay vi chuoi sinh trong script nay.
+foreach ($f in @("HUONG_DAN_SU_DUNG.txt", "install.ps1", "uninstall.ps1")) {
+    Copy-Item "installer\windows\portable\$f" "$ZipDir\" -ErrorAction Stop
+}
+Write-Ok "Copied HUONG_DAN_SU_DUNG.txt, install.ps1, uninstall.ps1"
 
 # Evidence report travels inside every ZIP. It makes the release state explicit
 # and prevents a locally-built candidate from being misrepresented as production.
@@ -318,33 +301,6 @@ foreach ($entry in $BinFiles) {
         }
     }
 }
-
-# Tao install.ps1 script trong ZIP
-$installContent = "# install.ps1 - Dang ky TextVN TSF TIP tuy chon`r`n" +
-    "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Dang ky va kich hoat TextVN TSF TIP vao he thong...'`r`n" +
-    "`$r = Start-Process -Wait -PassThru -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'register'`r`n" +
-    "if (`$r.ExitCode -eq 0) {`r`n" +
-    "    Write-Host 'Dang ky TSF thanh cong! Khoi dong TextVN...'`r`n" +
-    "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
-    "} else {`r`n" +
-    "    Write-Host ('Dang ky TSF that bai, ma loi=' + `$r.ExitCode)`r`n" +
-    "    Write-Host 'TextVN su dung TSF. Kiem tra loi dang ky o tren neu chua go duoc.'`r`n" +
-    "    Start-Process -FilePath `"`$dir\TextVN.exe`"`r`n" +
-    "}`r`n"
-[System.IO.File]::WriteAllText("$ZipDir\install.ps1", $installContent, [System.Text.Encoding]::ASCII)
-
-$uninstallContent = "# uninstall.ps1 - Go dang ky TextVN TSF TIP`r`n" +
-    "`$dir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n" +
-    "Write-Host 'Dung tien trinh TextVN...'`r`n" +
-    "Start-Process -Wait -FilePath `"`$dir\TextVN.exe`" -ArgumentList '--stop' -ErrorAction SilentlyContinue`r`n" +
-    "Start-Sleep -Milliseconds 500`r`n" +
-    "Write-Host 'Huy dang ky TSF TIP...'`r`n" +
-    "Start-Process -Wait -FilePath `"`$dir\textvn-cli.exe`" -ArgumentList 'unregister'`r`n" +
-    "Write-Host 'Hoan tat. Cau hinh tai %APPDATA%\TextVN\ van duoc giu lai.'`r`n"
-[System.IO.File]::WriteAllText("$ZipDir\uninstall.ps1", $uninstallContent, [System.Text.Encoding]::ASCII)
-
-Write-Ok "install.ps1 + uninstall.ps1 created"
 
 # Nen thanh ZIP
 Start-Sleep -Milliseconds 600

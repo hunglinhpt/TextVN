@@ -17,10 +17,16 @@ Theo task `WIN-007` (`docs/20-windows/P1-6-TASKS.md`), bảng thông tin chi ti�
 | **x-unikey 1.0.4 (Linux engine wrapper)** | `ukconv` / `x-unikey` | Headless CLI / X11 | Bản port GPL có công cụ dòng lệnh `ukconv` hỗ trợ biến đổi bảng mã và phân tích engine qua pipe. |
 
 ### Xác nhận Oracle Case trên Windows (Task Acceptance)
-- **Chuỗi gõ vào:** `d u o c j` (phương pháp gõ Telex)
+- **Chuỗi gõ vào:** `d d u o c j` (phương pháp gõ Telex)
 - **Cấu hình:** Bảng mã Unicode dựng sẵn (Unicode Precomposed), kiểu gõ Telex, bật kiểm tra chính tả tự do.
-- **Kết quả thực tế từ UniKey trên Windows:** `được`
+- **Kết quả kỳ vọng:** `được`
 - **Ghi nhận nguồn:** `corpus/win/oracle_unikey_reference_01.keys` (kèm comment chứng minh nguồn gốc `:note "oracle=unikey-windows-4.3-rc5"`).
+
+> **Đính chính 2026-09-28.** Bản trước ghi `d u o c j` → `được` là kết quả UniKey. Telex của
+> UniKey/OpenKey/Bamboo chỉ tạo `đ` bằng `dd`; `d` đơn + nguyên âm giữ nguyên `d` (`duocj` là
+> từ `dược`). Engine từng cài theo ghi chép sai này (tự đổi `d`+nguyên âm → `đ`) nên không gõ
+> được `dân`, `dạy`, `dài`, `dưới`…; đã sửa, xem `docs/specs/reference-parity.md` và
+> `core/tests/common_words.rs` (hồi quy ~330 từ thông dụng, Telex/VNI/kiểu cũ).
 
 ---
 
@@ -35,7 +41,7 @@ cd x-unikey-1.0.4
 # 2. Build phần engine/CLI (không cần X11 nếu chỉ dùng lib transform)
 make -C src ukconv
 # 3. Sinh kỳ vọng cho một case
-printf 'duocj' | ./ukconv -m telex -u > /tmp/expect.txt
+printf 'dduocj' | ./ukconv -m telex -u > /tmp/expect.txt
 ```
 
 ### Cách B: UniKey Windows trên VM/Desktop (Áp dụng cho WIN-007)

@@ -43,6 +43,9 @@ const MUTEX_NAME: &str = r"Local\TextVNTray";
 const WINDOW_CLASS_NAME: &str = "TextVNTrayWndClass";
 #[cfg(windows)]
 const TSF_TIP_REGISTRY_KEY: &str = r"Software\Classes\CLSID\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+/// Khóa TIP của CTF (tương đối HKLM\SOFTWARE / HKCU\Software) — khớp `textvn-cli register`.
+#[cfg(windows)]
+const TSF_CTF_TIP_KEY: &str = r"Software\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
@@ -50,6 +53,11 @@ const IDI_ICON_V: usize = 1;
 const IDI_ICON_E: usize = 2;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+/// ID message `TaskbarCreated` (RegisterWindowMessageW) — Explorer broadcast khi khởi động lại.
+#[cfg(windows)]
+static TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+#[cfg(windows)]
+const TIMER_TRAY_RETRY: usize = 1;
 
 struct TrayApp {
     svc: Arc<SvcManager>,
@@ -119,6 +127,31 @@ fn load_app_icon(h_instance: HINSTANCE, res_id: usize, file_name: &str) -> HICON
     }
 }
 
+/// `NIM_ADD` icon khay theo trạng thái hiện tại. `false` khi shell chưa sẵn sàng.
+#[cfg(windows)]
+fn add_tray_icon(hwnd: HWND, app: &TrayApp) -> bool {
+    let enabled = app.svc.is_global_enabled();
+    let raw_icon = if enabled { app.icon_vi } else { app.icon_en };
+    let mut nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ICON_UID,
+        uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
+        uCallbackMessage: WM_TRAYICON,
+        hIcon: HICON(raw_icon as *mut std::ffi::c_void),
+        ..Default::default()
+    };
+    copy_to_wide_buf(
+        &mut nid.szTip,
+        if enabled {
+            "TextVN - Tiếng Việt [V] (Tím)"
+        } else {
+            "TextVN - English [E] (Xanh)"
+        },
+    );
+    unsafe { Shell_NotifyIconW(NIM_ADD, &nid) }.as_bool()
+}
+
 #[cfg(windows)]
 fn update_tray_icon(hwnd: HWND, app: &TrayApp) {
     let enabled = app.svc.is_global_enabled();
@@ -165,37 +198,29 @@ fn ensure_hook_running() {
 }
 
 /// TSF là đường gõ mặc định nên phải có TIP profile trước khi tray chạy. Bản
-/// portable trước đây chỉ có `install.ps1`; nếu người dùng mở thẳng TextVN.exe
-/// thì registry chưa tồn tại và Windows không thể đưa phím vào `KeySink`.
-/// Lần đầu chạy đăng ký per-user bằng CLI cạnh executable, không tạo console
-/// và không cần quyền Administrator.
+/// portable có thể được mở thẳng hoặc bị chuyển thư mục; khi đó registry thiếu
+/// hoặc trỏ tới DLL cũ và Windows không thể nạp TIP → không gõ được tiếng Việt.
+/// Mỗi lần khởi động kiểm tra lại và đăng ký per-user bằng CLI cạnh executable
+/// (không tạo console, không cần quyền Administrator).
 #[cfg(windows)]
 fn ensure_tsf_tip_registered() {
-    let key_wide: Vec<u16> = TSF_TIP_REGISTRY_KEY.encode_utf16().chain(Some(0)).collect();
-    let mut key = HKEY::default();
-    let exists = unsafe {
-        let status = RegOpenKeyExW(
-            HKEY_CURRENT_USER,
-            PCWSTR(key_wide.as_ptr()),
-            None,
-            KEY_READ,
-            &mut key,
-        );
-        if status == ERROR_SUCCESS {
-            let _ = RegCloseKey(key);
-            true
-        } else {
-            false
-        }
+    let Ok(exe) = std::env::current_exe() else {
+        return;
     };
-    if exists {
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let Some(dll) = ["textvn-tsf.dll", "textvn_win_tsf.dll"]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|p| p.is_file())
+    else {
+        return;
+    };
+    if tsf_registration_is_current(&dll) {
         return;
     }
-
-    let Ok(mut cli_path) = std::env::current_exe() else {
-        return;
-    };
-    cli_path.set_file_name("textvn-cli.exe");
+    let cli_path = dir.join("textvn-cli.exe");
     if !cli_path.is_file() {
         return;
     }
@@ -204,8 +229,64 @@ fn ensure_tsf_tip_registered() {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let _ = std::process::Command::new(cli_path)
         .arg("register")
+        .arg("--dll")
+        .arg(&dll)
         .creation_flags(CREATE_NO_WINDOW)
         .status();
+}
+
+/// COM server trỏ đúng DLL đang có + profile TIP tồn tại (HKLM hoặc fallback HKCU).
+#[cfg(windows)]
+fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
+    let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
+    let server = read_registry_string(HKEY_CURRENT_USER, &inproc)
+        .or_else(|| read_registry_string(HKEY_LOCAL_MACHINE, &inproc));
+    let server_ok = server.is_some_and(|p| {
+        p.eq_ignore_ascii_case(&dll.to_string_lossy()) && std::path::Path::new(&p).is_file()
+    });
+    server_ok
+        && (registry_key_exists(HKEY_LOCAL_MACHINE, TSF_CTF_TIP_KEY)
+            || registry_key_exists(HKEY_CURRENT_USER, TSF_CTF_TIP_KEY))
+}
+
+#[cfg(windows)]
+fn registry_key_exists(root: HKEY, path: &str) -> bool {
+    let key_wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+    let mut key = HKEY::default();
+    // SAFETY: buffer nul-terminated; key đóng ngay khi mở được.
+    unsafe {
+        if RegOpenKeyExW(root, PCWSTR(key_wide.as_ptr()), None, KEY_READ, &mut key) == ERROR_SUCCESS
+        {
+            let _ = RegCloseKey(key);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+#[cfg(windows)]
+fn read_registry_string(root: HKEY, path: &str) -> Option<String> {
+    let key_wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+    let mut buf = [0u16; 1024];
+    let mut size = std::mem::size_of_val(&buf) as u32;
+    // SAFETY: buffer/kích thước khớp nhau; RRF_RT_REG_SZ bảo đảm chuỗi kết thúc nul.
+    let status = unsafe {
+        RegGetValueW(
+            root,
+            PCWSTR(key_wide.as_ptr()),
+            PCWSTR::null(),
+            RRF_RT_REG_SZ,
+            None,
+            Some(buf.as_mut_ptr() as *mut _),
+            Some(&mut size),
+        )
+    };
+    if status != ERROR_SUCCESS {
+        return None;
+    }
+    let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    Some(String::from_utf16_lossy(&buf[..len]))
 }
 
 fn main() {
@@ -226,6 +307,11 @@ fn main() {
                 stop_running_instance();
                 return;
             }
+            "--free-ctrl-shift" => {
+                // Dành Ctrl + Shift cho TextVN: gỡ phím tắt đổi bố cục/ngôn ngữ của Windows
+                // (installer gọi khi người dùng chọn; `hotkey.rs`).
+                std::process::exit(free_ctrl_shift_cli());
+            }
             "--help" | "-h" => {
                 println!("TextVN - Bo go Tieng Viet chuyen nghiep");
                 println!("Usage: TextVN [OPTIONS]");
@@ -234,6 +320,7 @@ fn main() {
                 println!("  --settings    Mo Bang dieu khien cai dat");
                 println!("  --status      Kiem tra trang thai IPC server");
                 println!("  --stop        Yeu cau dung instance dang chay");
+                println!("  --free-ctrl-shift  Danh Ctrl+Shift cho TextVN (go phim tat doi ban phim cua Windows)");
                 println!("  --help        Hien thi tro giup");
                 return;
             }
@@ -246,6 +333,25 @@ fn main() {
 
     #[cfg(not(windows))]
     println!("TextVN chi ho tro he dieu hanh Windows.");
+}
+
+#[cfg(windows)]
+fn free_ctrl_shift_cli() -> i32 {
+    match textvn_tray::hotkey::free_ctrl_shift() {
+        Ok(()) => {
+            println!("Ctrl+Shift: danh cho TextVN");
+            0
+        }
+        Err(e) => {
+            eprintln!("Ctrl+Shift: {e}");
+            1
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn free_ctrl_shift_cli() -> i32 {
+    0
 }
 
 #[cfg(windows)]
@@ -325,7 +431,11 @@ fn run_tray_app() {
             0,
             0,
             0,
-            Some(HWND_MESSAGE),
+            // Cửa sổ top-level ẨN (không bao giờ ShowWindow), KHÔNG phải message-only:
+            // message-only không nhận broadcast `TaskbarCreated` (icon khay mất vĩnh viễn
+            // khi Explorer khởi động lại — bug OpenKey #288/#307) và FindWindowW không tìm
+            // thấy nó (mở TextVN lần 2 không bật được Bảng điều khiển).
+            None,
             None,
             Some(h_instance.into()),
             None,
@@ -353,31 +463,17 @@ fn run_tray_app() {
         icon_en: icon_en.0 as isize,
     });
 
-    // 4. Thêm icon vào khay hệ thống (mặc định tiếng Việt [V] Tím)
-    let initial_icon = if svc.is_global_enabled() {
-        icon_vi
-    } else {
-        icon_en
-    };
-
-    let mut nid = NOTIFYICONDATAW {
-        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-        hWnd: hwnd,
-        uID: TRAY_ICON_UID,
-        uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
-        uCallbackMessage: WM_TRAYICON,
-        hIcon: initial_icon,
-        ..Default::default()
-    };
-
-    let tip = if svc.is_global_enabled() {
-        "TextVN - Tiếng Việt [V] (Tím)"
-    } else {
-        "TextVN - English [E] (Xanh)"
-    };
-    copy_to_wide_buf(&mut nid.szTip, tip);
-
-    let _ = unsafe { Shell_NotifyIconW(NIM_ADD, &nid) };
+    // 4. Thêm icon vào khay hệ thống. Khi tự khởi động cùng Windows, Explorer có thể
+    // chưa sẵn sàng: thử lại theo timer thay vì bỏ cuộc/crash (OpenKey #273/#308).
+    TASKBAR_CREATED.store(
+        unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) },
+        Ordering::Release,
+    );
+    if let Some(app) = APP_INSTANCE.get() {
+        if !add_tray_icon(hwnd, app) {
+            let _ = unsafe { SetTimer(Some(hwnd), TIMER_TRAY_RETRY, 2000, None) };
+        }
+    }
 
     // Xử lý mở hộp thoại Bảng điều khiển:
     // - Khi có cờ --autostart: Khởi động chế độ chạy ngầm minimized to tray (không bật popup hộp thoại).
@@ -391,11 +487,21 @@ fn run_tray_app() {
     let mut msg = MSG::default();
     while RUNNING.load(Ordering::Acquire) && unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool()
     {
+        // Tab/Esc/Enter trong bảng điều khiển và cửa sổ Gõ tắt.
+        if textvn_tray::settings_dialog::pre_translate_message(&msg) {
+            continue;
+        }
         let _ = unsafe { TranslateMessage(&msg) };
         let _ = unsafe { DispatchMessageW(&msg) };
     }
 
     // 6. Dọn dẹp trước khi thoát
+    let nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ICON_UID,
+        ..Default::default()
+    };
     let _ = unsafe { Shell_NotifyIconW(NIM_DELETE, &nid) };
     textvn_tray::TRAY_HWND.store(0, Ordering::Release);
     ipc.stop();
@@ -445,6 +551,8 @@ unsafe extern "system" fn wnd_proc(
             if let Some(app) = APP_INSTANCE.get() {
                 update_tray_icon(hwnd, app);
             }
+            // Ctrl+Shift / menu khay / IPC đổi trạng thái → bảng điều khiển đang mở cập nhật theo.
+            textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }
         textvn_tray::WM_OPEN_SETTINGS => {
@@ -490,6 +598,23 @@ unsafe extern "system" fn wnd_proc(
             }
             RUNNING.store(false, Ordering::Release);
             PostQuitMessage(0);
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == TIMER_TRAY_RETRY => {
+            if let Some(app) = APP_INSTANCE.get() {
+                if add_tray_icon(hwnd, app) {
+                    let _ = KillTimer(Some(hwnd), TIMER_TRAY_RETRY);
+                }
+            }
+            LRESULT(0)
+        }
+        m if m != 0 && m == TASKBAR_CREATED.load(Ordering::Acquire) => {
+            // Explorer vừa khởi động lại: icon cũ đã mất, thêm lại.
+            if let Some(app) = APP_INSTANCE.get() {
+                if !add_tray_icon(hwnd, app) {
+                    let _ = SetTimer(Some(hwnd), TIMER_TRAY_RETRY, 2000, None);
+                }
+            }
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
@@ -625,24 +750,12 @@ fn stop_running_instance() {
                 if wait_released(10) {
                     return;
                 }
-                // `--stop` là lệnh quản trị tường minh. Nếu UI thread bị treo,
-                // không để tray/hook bị orphan vô hạn: terminate đúng PID sở hữu
-                // cửa sổ TextVN đã định danh ở trên.
-                if window_pid != 0 {
-                    if let Ok(process) =
-                        unsafe { OpenProcess(PROCESS_TERMINATE, false, window_pid) }
-                    {
-                        let terminated = unsafe { TerminateProcess(process, 0) }.is_ok();
-                        let _ = unsafe { CloseHandle(process) };
-                        if terminated {
-                            println!(
-                                "TextVN did not close gracefully; terminated PID {window_pid}."
-                            );
-                            return;
-                        }
-                    }
-                }
-                println!("TextVN could not be stopped within 3s.");
+                // Không TerminateProcess: một exe mở handle PROCESS_TERMINATE tới
+                // process khác là mẫu hành vi AV soi (process killer), và dừng
+                // cưỡng bức bỏ lỡ cleanup (icon khay, broadcast Shutdown).
+                println!(
+                    "TextVN (PID {window_pid}) did not stop within 3s; close it from the tray menu."
+                );
                 return;
             }
         }
