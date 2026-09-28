@@ -2,8 +2,9 @@
 //! Mô hình composition thuần của TSF adapter (không gọi Win32 — test được mọi OS).
 //!
 //! **Quyết định kiến trúc:** mọi ký tự của từ đang gõ nằm trong MỘT `ITfComposition`
-//! do TIP sở hữu; tới ranh giới từ (Space, dấu câu, Enter, phím điều hướng, chord…)
-//! composition được đóng (commit) rồi phím ranh giới mới đi tới app.
+//! do TIP sở hữu; tới ranh giới từ composition được đóng (commit). Ranh giới in được
+//! (Space, dấu câu, số) được commit CÙNG từ và phím bị ăn; Enter, Tab, phím điều hướng,
+//! chord… thì commit rồi phím gốc mới đi tới app.
 //!
 //! Lý do: engine trả kết quả theo mô hình "xóa `delete_count` ký tự trước con trỏ
 //! rồi chèn `insert`". Với app không hỗ trợ TSF đầy đủ (IMM32 qua CUAS: Win32 Edit,
@@ -88,10 +89,11 @@ impl KeyKind {
         }
     }
 
-    /// Ký tự ranh giới engine gắn vào cuối `insert` khi RESTORE/COMMIT tại ranh giới.
-    fn boundary_char(self) -> Option<char> {
+    /// Ranh giới engine gắn vào cuối `insert` khi RESTORE/COMMIT mà app phải nhận
+    /// dưới dạng PHÍM thật (không chèn thành text). Ký tự in được không nằm ở đây:
+    /// chúng được commit cùng từ.
+    fn native_boundary_char(self) -> Option<char> {
         match self {
-            KeyKind::Char(c) => Some(c),
             KeyKind::Enter => Some('\n'),
             KeyKind::Tab => Some('\t'),
             _ => None,
@@ -238,6 +240,21 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     eaten: true,
                 }
             }
+            // Ranh giới in được (Space, dấu câu, số) khi đang composing: ký tự ranh giới
+            // vào cuối composition rồi commit CÙNG từ, phím bị ăn. Để app tự chèn ký tự
+            // thì với app IMM32 (CUAS: Notepad cổ điển, WinForms…) kết quả composition
+            // tới SAU WM_CHAR → " được" thay vì "được " (bắt được bằng test gõ thật trên
+            // Windows). Một lần commit nguyên khối đúng thứ tự ở mọi loại app.
+            KeyKind::Char(c) if composing => {
+                let mut text = current.to_vec();
+                text.push(c);
+                CompositionPlan {
+                    delete_before: 0,
+                    text: Some(text),
+                    end: true,
+                    eaten: true,
+                }
+            }
             // Engine đã bỏ 1 ký tự chưa biến đổi khỏi từ → bỏ khỏi composition.
             KeyKind::Backspace if composing => {
                 let mut text = current.to_vec();
@@ -267,11 +284,12 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
             text.extend_from_slice(&step.insert);
             let mut eaten = true;
             // RESTORE/COMMIT ở ranh giới: engine đặt ký tự ranh giới cuối `insert`.
-            // Bỏ nó ra và để app nhận phím gốc — Enter phải là phím Enter thật
-            // (chat gửi tin), không phải ký tự `\n` chèn vào text.
+            // Ký tự in được ở lại trong text commit (phím bị ăn, như nhánh PASS ở trên).
+            // Enter/Tab thì bỏ ra và để app nhận phím gốc — Enter phải là phím Enter
+            // thật (chat gửi tin), không phải ký tự `\n` chèn vào text.
             // REPLACE có WORD_END là macro/emoji: trigger bị nuốt theo P0-3 §1.1.
             if step.word_end() && step.action != ACTION_REPLACE {
-                if let Some(b) = key.boundary_char() {
+                if let Some(b) = key.native_boundary_char() {
                     if text.last() == Some(&b) {
                         text.pop();
                         eaten = false;
@@ -401,6 +419,36 @@ mod tests {
         let doc = run(NO_CAPS, "dduocj ");
         assert_eq!(doc.text(), "được ");
         assert!(doc.comp.is_empty());
+    }
+
+    #[test]
+    fn printable_boundary_is_committed_with_the_word_enter_stays_native() {
+        // App IMM32 (CUAS) nhận kết quả composition SAU WM_CHAR của phím không bị ăn:
+        // ký tự ranh giới in được phải nằm trong chính lần commit, đúng thứ tự.
+        let cfg = br#"{"config_version":1,"auto_capitalize":false,"auto_restore_english":true}"#;
+        for (input, word) in [("dduocj", "được"), ("asdf", "asdf"), ("hello", "hello")] {
+            let mut engine = EngineSession::new().unwrap();
+            engine.reload_config(cfg).unwrap();
+            let mut doc = Doc::default();
+            type_str(&mut doc, &mut engine, input);
+            let plan = press(&mut doc, &mut engine, 0xBC, ',' as u32);
+            let want: Vec<char> = format!("{word},").chars().collect();
+            assert_eq!(plan.text.as_deref(), Some(&want[..]), "{input}");
+            assert!(plan.eaten && plan.end, "{input}: {plan:?}");
+
+            let mut engine = EngineSession::new().unwrap();
+            engine.reload_config(cfg).unwrap();
+            let mut doc = Doc::default();
+            type_str(&mut doc, &mut engine, input);
+            let plan = press(&mut doc, &mut engine, vk::RETURN, 0);
+            assert!(!plan.eaten && plan.end, "{input}: Enter phải tới app");
+            assert_eq!(doc.text(), format!("{word}\n"));
+        }
+        // Không composing: phím đi thẳng như bàn phím thường.
+        let mut engine = EngineSession::new().unwrap();
+        let mut doc = Doc::default();
+        let plan = press(&mut doc, &mut engine, 0x20, ' ' as u32);
+        assert!(!plan.eaten && !plan.end && plan.text.is_none());
     }
 
     #[test]

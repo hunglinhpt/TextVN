@@ -56,11 +56,16 @@ public static class TvKeys {
     public static void Down(ushort vk) { SendInput(1, new[] { Key(vk, false) }, Marshal.SizeOf(typeof(INPUT))); Thread.Sleep(30); }
     public static void Up(ushort vk) { SendInput(1, new[] { Key(vk, true) }, Marshal.SizeOf(typeof(INPUT))); Thread.Sleep(30); }
 
-    // Go chuoi ASCII: chu hoa = Shift + phim (tru khi Caps Lock dang bat), ' ' = Space.
+    // Go chuoi ASCII: chu hoa = Shift + phim (tru khi Caps Lock dang bat), ' ' = Space,
+    // '\n' = Enter, '\t' = Tab, ',' '.' = phim dau cau (layout US).
     public static void Type(string s) {
         bool caps = (GetKeyState(0x14) & 1) != 0;
         foreach (char c in s) {
             if (c == ' ') { Tap(0x20); continue; }
+            if (c == '\n') { Tap(0x0D); continue; }
+            if (c == '\t') { Tap(0x09); continue; }
+            if (c == ',') { Tap(0xBC); continue; }
+            if (c == '.') { Tap(0xBE); continue; }
             ushort vk = (ushort)char.ToUpperInvariant(c);
             bool shift = char.IsUpper(c) != caps && char.IsLetter(c);
             if (shift) Down(0x10);
@@ -125,71 +130,96 @@ for ($i = 0; $i -lt 30 -and -not $ready; $i++) {
 }
 if (-not $ready) { throw 'TextVN tray did not start' }
 
-$np = Start-Process notepad.exe -PassThru
-$main = [IntPtr]::Zero
-for ($i = 0; $i -lt 40 -and $main -eq [IntPtr]::Zero; $i++) {
-    Start-Sleep -Milliseconds 250
-    $np.Refresh()
-    $main = $np.MainWindowHandle
-}
-if ($main -eq [IntPtr]::Zero) { throw 'Notepad window not found' }
-$edit = [TvKeys]::EditOf($main)
-if ($edit -eq [IntPtr]::Zero) { throw 'Notepad edit control not found' }
-
 # Kich hoat profile TextVN cho phien (giong nguoi dung chon TextVN o thanh ngon ngu).
 & $cli register | Out-Host
-$null = [TvKeys]::Focus($main)
 
 $cases = @(
     @{ name = 'telex dduocj';      keys = 'dduocj ';       want = (U '\u0111\u01b0\u1ee3c ') },
     @{ name = 'Vieetj Nam';        keys = 'Vieetj Nam ';   want = (U 'Vi\u1ec7t Nam ') },
     @{ name = 'nguowif (uow)';     keys = 'nguowif ';      want = (U 'ng\u01b0\u1eddi ') },
     @{ name = 'cuar (tone rule)';  keys = 'cuar ';         want = (U 'c\u1ee7a ') },
-    @{ name = 'english hello';     keys = 'hello ';        want = 'hello ' }
+    @{ name = 'english hello';     keys = 'hello ';        want = 'hello ' },
+    @{ name = 'comma boundary';    keys = 'Vieetj, Nam ';  want = (U 'Vi\u1ec7t, Nam ') },
+    # Enter phai toi app nhu phim that; sau Enter chu dau cau tu viet hoa (mac dinh).
+    @{ name = 'Enter boundary';    keys = "chaof`nbanj ";  want = (U "ch\u00e0o`nB\u1ea1n ") },
+    @{ name = 'Tab boundary';      keys = "tieengs`tx ";   want = (U "ti\u1ebfng`tx ") }
 )
 
-$fail = 0
-function Check([string]$name, [string]$want) {
+$script:fail = 0
+# Edit tra "\r\n", RichEdit tra "\r": quy ve "\n" truoc khi so.
+function Norm([string]$s) { ($s -replace "`r`n", "`n") -replace "`r", "`n" }
+function Check($app, [string]$name, [string]$want) {
     Start-Sleep -Milliseconds 400
-    $got = [TvKeys]::Text($edit)
+    $got = Norm ([TvKeys]::Text($app.Edit))
     if ($got -ceq $want) {
-        Write-Host ("PASS {0}" -f $name)
+        Write-Host ("PASS [{0}] {1}" -f $app.Name, $name)
     } else {
-        Write-Host ("FAIL {0}: want [{1}] got [{2}]" -f $name, (Codes $want), (Codes $got))
+        Write-Host ("FAIL [{0}] {1}: want [{2}] got [{3}]" -f $app.Name, $name, (Codes $want), (Codes $got))
         $script:fail++
     }
-    [TvKeys]::Clear($edit)
-    $null = [TvKeys]::Focus($main)
+    [TvKeys]::Clear($app.Edit)
+    $null = [TvKeys]::Focus($app.Main)
 }
 
-foreach ($c in $cases) {
-    $null = [TvKeys]::Focus($main)
-    [TvKeys]::Type($c.keys)
-    Check $c.name $c.want
+function Open-App([string]$name, [string]$exe) {
+    $p = Start-Process $exe -PassThru
+    $main = [IntPtr]::Zero
+    for ($i = 0; $i -lt 40 -and $main -eq [IntPtr]::Zero; $i++) {
+        Start-Sleep -Milliseconds 250
+        $p.Refresh()
+        $main = $p.MainWindowHandle
+    }
+    if ($main -eq [IntPtr]::Zero) { throw "$name window not found" }
+    $edit = [IntPtr]::Zero
+    for ($i = 0; $i -lt 20 -and $edit -eq [IntPtr]::Zero; $i++) {
+        $edit = [TvKeys]::EditOf($main)
+        if ($edit -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 250 }
+    }
+    if ($edit -eq [IntPtr]::Zero) { throw "$name edit control not found" }
+    @{ Name = $name; Proc = $p; Main = $main; Edit = $edit }
 }
 
-# Ctrl+Shift: tat tieng Viet roi bat lai.
-[TvKeys]::CtrlShiftTap()
-[TvKeys]::Type('as ')
-Check 'Ctrl+Shift -> EN' 'as '
-[TvKeys]::CtrlShiftTap()
-[TvKeys]::Type('as ')
-Check 'Ctrl+Shift -> VN' (U '\u00e1 ')
+# Notepad (Win32 Edit, IMM32 qua CUAS) va WordPad (RichEdit, TSF-aware) neu co.
+$apps = @(@{ Name = 'notepad'; Exe = 'notepad.exe' })
+$wordpad = Join-Path $env:ProgramFiles 'Windows NT\Accessories\wordpad.exe'
+if (Test-Path $wordpad) { $apps += @{ Name = 'wordpad'; Exe = $wordpad } }
 
-# Caps Lock: phim dau viet hoa van la phim dau.
-[TvKeys]::Tap(0x14)
-[TvKeys]::Type('VIEETJ ')
-[TvKeys]::Tap(0x14)
-Check 'Caps Lock VIEETJ' (U 'VI\u1ec6T ')
+foreach ($a in $apps) {
+    $app = Open-App $a.Name $a.Exe
+    $null = [TvKeys]::Focus($app.Main)
+    [TvKeys]::Clear($app.Edit)
 
-if ($fail -gt 0) {
+    foreach ($c in $cases) {
+        $null = [TvKeys]::Focus($app.Main)
+        [TvKeys]::Type($c.keys)
+        Check $app $c.name $c.want
+    }
+
+    # Ctrl+Shift: tat tieng Viet roi bat lai.
+    [TvKeys]::CtrlShiftTap()
+    [TvKeys]::Type('as ')
+    Check $app 'Ctrl+Shift -> EN' 'as '
+    [TvKeys]::CtrlShiftTap()
+    [TvKeys]::Type('as ')
+    Check $app 'Ctrl+Shift -> VN' (U '\u00e1 ')
+
+    # Caps Lock: phim dau viet hoa van la phim dau.
+    [TvKeys]::Tap(0x14)
+    [TvKeys]::Type('VIEETJ ')
+    [TvKeys]::Tap(0x14)
+    Check $app 'Caps Lock VIEETJ' (U 'VI\u1ec6T ')
+
+    if ($script:fail -gt 0) {
+        $npPid = [uint32]0
+        $npTid = [TvKeys]::GetWindowThreadProcessId($app.Main, [ref]$npPid)
+        Write-Host ('{0} HKL = 0x{1:X}' -f $app.Name, [TvKeys]::GetKeyboardLayout($npTid).ToInt64())
+    }
+    Stop-Process -Id $app.Proc.Id -Force -ErrorAction SilentlyContinue
+}
+
+if ($script:fail -gt 0) {
     Write-Host '--- diagnostics'
-    $npPid = [uint32]0
-    $npTid = [TvKeys]::GetWindowThreadProcessId($main, [ref]$npPid)
-    Write-Host ('notepad HKL = 0x{0:X}' -f [TvKeys]::GetKeyboardLayout($npTid).ToInt64())
     & $cli doctor 2>&1 | Out-Host
+    throw "$($script:fail) typing case(s) failed"
 }
-
-Stop-Process -Id $np.Id -Force -ErrorAction SilentlyContinue
-if ($fail -gt 0) { throw "$fail typing case(s) failed" }
 Write-Host 'typing: OK'
