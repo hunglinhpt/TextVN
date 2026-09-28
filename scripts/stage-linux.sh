@@ -19,6 +19,9 @@ ADAPTERS="${2:-$ROOT/target/linux-adapters}"
 VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "$ROOT/Cargo.toml" | head -n1)"
 
 [[ -x "$ROOT/target/release/textvn-cli" ]] || { echo "thiếu target/release/textvn-cli" >&2; exit 1; }
+case "$(realpath -m "$STAGE")" in
+    /|"$HOME"|"$ROOT") echo "thư mục stage không hợp lệ: $STAGE" >&2; exit 1 ;;
+esac
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 inst() { install -D -m "$1" "$2" "$STAGE/$3"; }

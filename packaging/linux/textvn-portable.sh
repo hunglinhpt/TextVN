@@ -73,7 +73,13 @@ stop)
     ;;
 esac
 
-mkdir -p "$RUNTIME"
+mkdir -p -m 0700 "$RUNTIME"
+# Không có XDG_RUNTIME_DIR thì thư mục nằm trong /tmp (tên đoán được): chỉ dùng nếu
+# đúng là thư mục thật của mình, không phải symlink/thư mục người khác tạo sẵn.
+if [[ -L "$RUNTIME" || ! -d "$RUNTIME" || ! -O "$RUNTIME" ]]; then
+    tv_err "$RUNTIME không thuộc về bạn — dừng lại vì an toàn."
+    exit 1
+fi
 chmod 0700 "$RUNTIME"
 SETTINGS="$PKG_DIR/bin/textvn-settings"
 
