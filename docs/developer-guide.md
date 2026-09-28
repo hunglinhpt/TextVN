@@ -27,8 +27,8 @@ Tài liệu cho người sửa code, đóng gói và phát hành. Người dùng
 | `config` | Parse/validate `config.v1`; `SettingsDoc` (vá từng khoá, ghi nguyên tử); `macro_text` (định dạng bảng gõ tắt). |
 | `ffi` | C ABI engine (`ffi/include/textvn_ffi.h`, bất biến P0-2) + C API cấu hình (`textvn_settings.h`). |
 | `strategy`, `appdb`, `field-detect` | Chọn chiến lược theo ứng dụng/ô nhập, cổng bảo mật ô mật khẩu. |
-| `adapters/windows-tsf` | TIP: key sink, edit session, composition (`compose.rs` là mô hình thuần, có test). |
-| `tray` | Khay hệ thống, IPC server, bảng điều khiển Win32 (`settings_dialog.rs`), `svc.rs` (config/state). |
+| `adapters/windows-tsf` | TIP: key sink + key trace (`key_event.rs`), edit session, composition (`compose.rs` là mô hình thuần, có test), trả phím cho app CUAS (`replay.rs`), nhật ký chẩn đoán (`trace.rs`). |
+| `tray` | Khay hệ thống, IPC server, bảng điều khiển Win32 (`settings_dialog.rs`), `svc.rs` (config/state), phím tắt Ctrl+Shift của Windows (`hotkey.rs`). |
 | `adapters/windows-hook` | Hook tương thích (chỉ gói Compatibility, opt-in). |
 | `adapters/linux-*` | IBus/Fcitx5/Settings (C/C++, CMake), link tĩnh `libtextvn_ffi.a`. |
 | `cli` | `textvn-cli`: `register`, `doctor`, `replay`, `verify`, `config`. |
