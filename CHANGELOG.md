@@ -49,8 +49,7 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - Ctrl+Shift "lúc được lúc không" khi ngôn ngữ của TextVN có hơn một bàn phím: phím tắt đổi bố
   cục mặc định của Windows (cũng là Ctrl+Shift) chuyển đi mất TextVN mỗi lần bấm thứ hai. Tuỳ
   chọn **Dành Ctrl + Shift cho TextVN** (bảng điều khiển, bộ cài chọn sẵn, `TextVN.exe
-  --free-ctrl-shift`), `doctor` báo khi Windows còn giữ phím này; TextVN chỉ còn đăng ký trong
-  ngôn ngữ Tiếng Việt (không nằm cạnh bàn phím US trong en-US).
+  --free-ctrl-shift`), `doctor` báo khi Windows còn giữ phím này.
 - Đặt dấu sai chính tả: `của`→cuả, `nghĩa`→nghiã, `thuỷ`/`thủy` theo kiểu dấu, `được`→đựơc
   (kiểu cũ); dấu tự dời khi gõ thêm chữ (`hòa`+`n` → hoàn).
 - `d` + nguyên âm tự thành `đ` (không gõ được dân, dạy, dưới…): `đ` giờ chỉ từ `dd` như

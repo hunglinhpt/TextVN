@@ -26,13 +26,14 @@ pub const PROFILE_STR: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
 #[cfg_attr(not(windows), allow(dead_code))]
-pub const LANGID_EN: u16 = 0x0409; // en-US — chỉ còn để gỡ bản đăng ký cũ.
+pub const LANGID_EN: u16 = 0x0409; // en-US
 
-/// Ngôn ngữ đăng ký TextVN. Chỉ vi-VN: nằm thêm trong en-US (cạnh bàn phím US) thì phím
-/// tắt đổi bố cục mặc định của Windows (Ctrl + Shift) nhảy qua lại giữa US và TextVN —
-/// đúng phím chuyển V/E của TextVN (xem `tray/src/hotkey.rs`).
+/// Ngôn ngữ đăng ký TextVN. Cả en-US: Windows tiếng Anh (phần lớn máy) dùng được TextVN
+/// ngay sau khi cài; chỉ vi-VN thì app mới mở vẫn chạy bàn phím US (test gõ thật trên
+/// Windows). Nằm cạnh bàn phím US nghĩa là phím tắt đổi bố cục Ctrl + Shift của Windows
+/// nhảy qua lại giữa hai bàn phím — "Dành Ctrl + Shift cho TextVN" (`tray/src/hotkey.rs`).
 #[cfg_attr(not(windows), allow(dead_code))]
-pub const REGISTER_LANGS: [(&str, u16); 1] = [("VI", LANGID_VI)];
+pub const REGISTER_LANGS: [(&str, u16); 2] = [("VI", LANGID_VI), ("EN", LANGID_EN)];
 
 // ─── Helpers (cross-platform phần text) ──────────────────────────────────────────────────────────
 
@@ -634,9 +635,9 @@ mod win_impl {
             call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL");
             call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
         } else {
-            call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
-            // Bản trước còn thêm TextVN vào en-US: gỡ để Ctrl + Shift không đổi sang US.
-            call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
+            for (_, lang) in REGISTER_LANGS {
+                call_layout_or_tip(lang, ILOT_DEFPROFILE, "DEFPROFILE");
+            }
         }
 
         // Bước 4: kích hoạt ngay cho session (kể cả bản tray-only).
