@@ -57,7 +57,7 @@ public static class TvKeys {
     public static void Up(ushort vk) { SendInput(1, new[] { Key(vk, true) }, Marshal.SizeOf(typeof(INPUT))); Thread.Sleep(30); }
 
     // Go chuoi ASCII: chu hoa = Shift + phim (tru khi Caps Lock dang bat), ' ' = Space,
-    // '\n' = Enter, '\t' = Tab, ',' '.' = phim dau cau (layout US).
+    // '\n' = Enter, '\t' = Tab, ',' '.' = phim dau cau (layout US), '^' = Home.
     public static void Type(string s) {
         bool caps = (GetKeyState(0x14) & 1) != 0;
         foreach (char c in s) {
@@ -66,6 +66,7 @@ public static class TvKeys {
             if (c == '\t') { Tap(0x09); continue; }
             if (c == ',') { Tap(0xBC); continue; }
             if (c == '.') { Tap(0xBE); continue; }
+            if (c == '^') { Tap(0x24); continue; }  // Home
             ushort vk = (ushort)char.ToUpperInvariant(c);
             bool shift = char.IsUpper(c) != caps && char.IsLetter(c);
             if (shift) Down(0x10);
@@ -142,7 +143,9 @@ $cases = @(
     @{ name = 'comma boundary';    keys = 'Vieetj, Nam ';  want = (U 'Vi\u1ec7t, Nam ') },
     # Enter phai toi app nhu phim that; sau Enter chu dau cau tu viet hoa (mac dinh).
     @{ name = 'Enter boundary';    keys = "chaof`nbanj ";  want = (U "ch\u00e0o`nB\u1ea1n ") },
-    @{ name = 'Tab boundary';      keys = "tieengs`tx ";   want = (U "ti\u1ebfng`tx ") }
+    @{ name = 'Tab boundary';      keys = "tieengs`tx ";   want = (U "ti\u1ebfng`tx ") },
+    # Phim dieu huong khi dang go: tu duoc chot tai cho, Home di dung ve dau dong.
+    @{ name = 'Home mid-word';     keys = 'chaof^x ';      want = (U 'x ch\u00e0o') }
 )
 
 $script:fail = 0
