@@ -265,7 +265,8 @@ impl IpcServer {
                 CreateNamedPipeW(
                     PCWSTR(pipe_name_wide.as_ptr()),
                     PIPE_ACCESS_DUPLEX,
-                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                    // Chỉ phục vụ client cục bộ (TSF/Hook/CLI cùng máy).
+                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
                     PIPE_UNLIMITED_INSTANCES,
                     MAX_FRAME_BYTES as u32,
                     MAX_FRAME_BYTES as u32,
@@ -414,9 +415,13 @@ impl IpcServer {
     }
 
     fn build_snapshot(&self) -> Message {
+        // `"*"` = công tắc toàn cục (cùng khóa với StateUpdate). Thiếu khóa này,
+        // client kết nối sau khi người dùng tắt tiếng Việt vẫn gõ tiếng Việt.
+        let mut state = self.svc.app_states();
+        state.insert("*".into(), self.svc.is_global_enabled());
         Message::Snapshot {
             config_version: self.svc.config_version(),
-            state: self.svc.app_states(),
+            state,
             appdb_version: 1,
             channel: "stable".into(),
         }
@@ -486,6 +491,7 @@ mod tests {
             } => {
                 assert_eq!(config_version, svc.config_version());
                 assert_eq!(state.get("chrome.exe"), Some(&false));
+                assert_eq!(state.get("*"), Some(&svc.is_global_enabled()));
                 assert_eq!(appdb_version, 1);
                 assert_eq!(channel, "stable");
             }

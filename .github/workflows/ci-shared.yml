@@ -131,6 +131,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
+      # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
+      - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
 
   fuzz:
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.

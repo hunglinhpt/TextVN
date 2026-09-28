@@ -54,7 +54,6 @@ Source: "{#TargetDir}\textvn-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; 
 #endif
 Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"
 Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
-Source: "{#TargetDir}\textvn_ffi.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn_ffi.dll"
 Source: "..\..\tray\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -72,14 +71,50 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 
 [Run]
 Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden
-Filename: "{app}\textvn-cli.exe"; Parameters: "register"; Flags: runhidden
+; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
+; HKLM (neu co quyen) truoc, per-user sau.
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden
-Filename: "{app}\textvn-cli.exe"; Parameters: "unregister"; Flags: runhidden
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden; RunOnceId: "StopTray"
+Filename: "{app}\textvn-cli.exe"; Parameters: "unregister"; Flags: runhidden; RunOnceId: "UnregisterUser"
+Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine"; Flags: runhidden; Check: IsAdminInstallMode; RunOnceId: "UnregisterMachine"
 
 [Code]
+const
+  TipKey = 'SOFTWARE\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}';
+
+function CliPath(): String;
+begin
+  Result := ExpandConstant('{app}\textvn-cli.exe');
+end;
+
+// Profile TSF chuan duoc Windows luu o HKLM (ITfInputProcessorProfileMgr).
+// Cai per-user khong co quyen do: hoi nguoi dung cap quyen MOT lan. Tu choi thi
+// CLI van dung fallback per-user (HKCU) - bo go van cai dat day du.
+procedure RegisterTextServices();
+var
+  ResultCode: Integer;
+begin
+  if IsAdminInstallMode then
+    Exec(CliPath(), 'register --scope machine', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
+  else if not RegKeyExists(HKLM, TipKey) then
+  begin
+    if SuppressibleMsgBox('TextVN can dang ky bo go voi Windows (Text Services Framework).' + #13#10 +
+        'Buoc nay can quyen quan tri MOT lan de TextVN go duoc trong moi ung dung.' + #13#10#13#10 +
+        'Tiep tuc?', mbConfirmation, MB_YESNO, IDYES) = IDYES then
+      ShellExec('runas', CliPath(), 'register --scope machine', '', SW_HIDE,
+        ewWaitUntilTerminated, ResultCode);
+  end;
+  Exec(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    RegisterTextServices();
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then

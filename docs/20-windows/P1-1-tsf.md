@@ -111,6 +111,12 @@ ITfKeyEventSink::OnKeyDown(ctx, w, l, eaten)
 
 ## 6. `apply_replace` — 3 cách sửa text (mục P0-2 trỏ vào đây)
 
+> **Cập nhật 2026-09-28 (Ftsf-3, `../specs/tsf-typing-overhaul.md` §2):** triển khai TSF dùng
+> **mô hình composition** cho MỌI strategy ≠ `Passthrough`: cả từ nằm trong một `ITfComposition`,
+> `delete_count` áp trong composition, commit tại ranh giới từ. Lý do: app IMM32/CUAS chỉ expose
+> composition — `ShiftStart` về text đã commit (§6.1/§6.2) không hoạt động ở đó. Các mục §6.1–§6.3
+> dưới đây giữ làm tham chiếu thiết kế ban đầu; không quay lại sửa text ngoài composition.
+
 ### 6.1 `BackspaceType` (dùng `ITfRange`)
 
 ```text

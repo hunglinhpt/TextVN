@@ -125,6 +125,8 @@ $ReleaseChecks["abi_verify"] = "passed"
 
 cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter win
 if ($LASTEXITCODE -ne 0) { Write-Fail "Windows corpus replay FAIL" }
+cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+if ($LASTEXITCODE -ne 0) { Write-Fail "TSF composition corpus replay FAIL" }
 $ReleaseChecks["windows_corpus"] = "passed"
 
 if (-not $SkipTests) {
@@ -149,8 +151,7 @@ Write-Ok "Build release DONE"
 $ReleaseSignFiles = @(
     "$ReleaseDir\TextVN.exe",
     "$ReleaseDir\textvn-cli.exe",
-    "$ReleaseDir\textvn_win_tsf.dll",
-    "$ReleaseDir\textvn_ffi.dll"
+    "$ReleaseDir\textvn_win_tsf.dll"
 )
 if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
 if ($SigningRequested) {
@@ -221,8 +222,7 @@ New-Item -ItemType Directory -Force $ZipDir | Out-Null
 $BinFiles = @(
     @{ src = "TextVN.exe";           dst = "TextVN.exe" },
     @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
-    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
-    @{ src = "textvn_ffi.dll";      dst = "textvn_ffi.dll" }
+    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" }
 )
 if ($IncludeCompatibilityHook) {
     $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }

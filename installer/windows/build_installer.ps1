@@ -39,8 +39,7 @@ $TargetDir = Join-Path $RepoRoot "target\$Profile"
 $RequiredFiles = @(
     "TextVN.exe",
     "textvn-cli.exe",
-    "textvn_win_tsf.dll",
-    "textvn_ffi.dll"
+    "textvn_win_tsf.dll"
 )
 if ($IncludeCompatibilityHook) { $RequiredFiles += "textvn-hook.exe" }
 

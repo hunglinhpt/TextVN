@@ -1,15 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `ITfKeyEventSink` implementation for TextVN TSF (WIN-011).
+//! `ITfKeyEventSink` của TextVN TSF (WIN-011/014/015).
+//!
+//! Hai pha `OnTestKeyDown`/`OnKeyDown`: app như Word/Win32 Edit gọi cả hai, còn
+//! Notepad (Win11)/Chrome/VS Code chỉ gọi `OnKeyDown` (`docs/specs/tsf-spike.md` #5).
+//! Phím được xử lý ĐÚNG MỘT LẦN ở pha tới trước; nếu pha test đã ăn phím thì
+//! `OnKeyDown` cùng VK chỉ xác nhận `TRUE` (test TRUE ⇒ app không gửi lại phím,
+//! nên không bao giờ "test TRUE rồi keydown bỏ rơi" — finding E6).
 
 #[cfg(windows)]
-use std::cell::RefCell;
+use std::cell::Cell;
 #[cfg(windows)]
 use std::rc::Rc;
-#[cfg(windows)]
-use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::core::*;
+#[cfg(windows)]
 use windows::Win32::Foundation::{LPARAM, WPARAM};
 #[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
@@ -19,33 +24,25 @@ use windows::Win32::UI::TextServices::*;
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
-use crate::edit_session::{EditAction, ReplaceEditSession};
+use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
-use crate::ipc_client::IpcClient;
+use crate::edit_session::{EndCompositionSession, KeyEditSession, TsfShared};
 #[cfg(windows)]
-use crate::{should_bypass_engine, ThreadState};
-#[cfg(windows)]
-use textvn_ffi::{ACTION_COMMIT, ACTION_PASS, ACTION_REPLACE, ACTION_RESTORE};
-#[cfg(windows)]
-use textvn_strategy::Strategy;
+use textvn_ffi::{ACTION_PASS, MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
 
 #[cfg(windows)]
 #[implement(ITfKeyEventSink)]
 pub struct KeySink {
     _guard: ObjGuard,
-    tid: u32,
-    state: Rc<RefCell<ThreadState>>,
-    ipc: Arc<IpcClient>,
+    shared: Rc<TsfShared>,
 }
 
 #[cfg(windows)]
 impl KeySink {
-    pub fn new(tid: u32, state: Rc<RefCell<ThreadState>>, ipc: Arc<IpcClient>) -> Self {
+    pub fn new(shared: Rc<TsfShared>) -> Self {
         Self {
             _guard: ObjGuard::new(),
-            tid,
-            state,
-            ipc,
+            shared,
         }
     }
 }
@@ -58,206 +55,203 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
 
     fn OnTestKeyDown(
         &self,
-        _pic: Ref<'_, ITfContext>,
+        pic: Ref<'_, ITfContext>,
         wparam: WPARAM,
-        _lparam: LPARAM,
+        lparam: LPARAM,
     ) -> Result<BOOL> {
         let vk = wparam.0 as u32;
-        let mods = get_active_modifiers();
-        if should_bypass_engine(vk, mods) {
-            return Ok(BOOL::from(false));
+        if self.shared.pending_eaten_vk.get() == Some(vk) {
+            return Ok(true.into());
         }
-        // WIN-015: Nhận diện hotkey toggle Ctrl+Shift+Space
-        if vk == VK_SPACE.0 as u32 && (mods & 0x3) == 0x3 {
-            return Ok(BOOL::from(true));
+        self.shared.pending_eaten_vk.set(None);
+        let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
+        if eaten {
+            self.shared.pending_eaten_vk.set(Some(vk));
         }
-        let state = self.state.borrow();
-        let strategy = state.resolve_strategy_with_state(self.ipc.app_enabled_override(), None);
-        if strategy == Strategy::Passthrough {
-            return Ok(BOOL::from(false));
-        }
-        // Logic ăn phím: nếu là chữ cái gõ được thì báo TRUE để app gửi OnKeyDown
-        let is_typing_char = (0x30..=0x5A).contains(&vk) || (0xBA..=0xDF).contains(&vk);
-        Ok(BOOL::from(is_typing_char))
+        Ok(eaten.into())
     }
 
-    fn OnTestKeyUp(
-        &self,
-        _pic: Ref<'_, ITfContext>,
-        _wparam: WPARAM,
-        _lparam: LPARAM,
-    ) -> Result<BOOL> {
-        Ok(BOOL::from(false))
+    fn OnTestKeyUp(&self, _pic: Ref<'_, ITfContext>, _w: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        Ok(false.into())
     }
 
-    fn OnKeyDown(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
+    fn OnKeyDown(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let vk = wparam.0 as u32;
-        let mods = get_active_modifiers();
-
-        // WIN-015: Hotkey toggle EN/VN
-        if vk == VK_SPACE.0 as u32 && (mods & 0x3) == 0x3 {
-            let mut state = self.state.borrow_mut();
-            let _ = state.toggle_enabled();
-            self.ipc.request_toggle_global();
-            return Ok(BOOL::from(true));
+        if self.shared.pending_eaten_vk.take() == Some(vk) {
+            return Ok(true.into());
         }
-
-        // Bước 1: Kiểm tra chord hệ thống (Ctrl/Alt/Win) -> PASS lập tức (B6)
-        if should_bypass_engine(vk, mods) {
-            return Ok(BOOL::from(false));
-        }
-
-        let mut state = self.state.borrow_mut();
-
-        // Kiểm tra tín hiệu reload config từ Tray UI qua IPC (WIN-016)
-        if let Some(_ver) = self.ipc.check_config_reload() {
-            let _ = state.reload_config_from_file();
-        }
-
-        // Kiểm tra strategy: Nếu Passthrough (do secure field theo WIN-017 hoặc disabled) -> PASS ngay
-        let strategy = state.resolve_strategy_with_state(self.ipc.app_enabled_override(), None);
-        if strategy == Strategy::Passthrough {
-            return Ok(BOOL::from(false));
-        }
-
-        let ch = vk_to_unicode(vk);
-
-        // Bước 2: Đẩy key vào engine session
-        let outcome = state.engine.key_or_bypass(vk, ch, mods);
-        let result = match outcome {
-            Ok(Some(r)) => r,
-            _ => return Ok(BOOL::from(false)),
-        };
-
-        // Bước 3: Xử lý hành động từ kết quả engine
-        if result.action == ACTION_PASS {
-            return Ok(BOOL::from(false));
-        }
-
-        let ctx = match pic.ok() {
-            Ok(c) => c.clone(),
-            Err(_) => return Ok(BOOL::from(false)),
-        };
-
-        let insert_slice = &result.insert[..result.insert_len as usize];
-        let insert_utf16 = utf32_to_utf16(insert_slice);
-
-        let preedit_slice = &result.preedit[..result.preedit_len as usize];
-        let preedit_utf16 = utf32_to_utf16(preedit_slice);
-
-        let edit_action = match result.action {
-            ACTION_REPLACE => match strategy {
-                Strategy::SelectionReplace => EditAction::SelectionReplace {
-                    delete_count: result.delete_count,
-                    insert: insert_utf16,
-                },
-                Strategy::ForwardAsCommit => EditAction::ForwardAsCommit {
-                    insert: insert_utf16,
-                },
-                Strategy::Preedit => EditAction::Preedit {
-                    preedit: if preedit_utf16.is_empty() {
-                        insert_utf16
-                    } else {
-                        preedit_utf16
-                    },
-                },
-                _ => EditAction::BackspaceType {
-                    delete_count: result.delete_count,
-                    insert: insert_utf16,
-                },
-            },
-            ACTION_COMMIT => EditAction::Commit {
-                insert: insert_utf16,
-            },
-            ACTION_RESTORE => EditAction::BackspaceType {
-                delete_count: result.delete_count,
-                insert: insert_utf16,
-            },
-            _ => return Ok(BOOL::from(false)),
-        };
-
-        let session: ITfEditSession = ReplaceEditSession::new(ctx.clone(), edit_action).into();
-
-        // SAFETY: ctx is valid and RequestEditSession is standard TSF call.
-        let hr =
-            unsafe { ctx.RequestEditSession(self.tid, &session, TF_ES_READWRITE | TF_ES_SYNC) };
-
-        match hr {
-            Ok(code) if code.0 >= 0 => Ok(BOOL::from(true)),
-            _ => {
-                // RequestEditSession bị từ chối: reset buffer engine (P1-1 §5 note)
-                state.engine.reject_edit_session();
-                Ok(BOOL::from(false))
-            }
-        }
+        Ok(guarded(|| handle_key(&self.shared, pic, vk, lparam)).into())
     }
 
-    fn OnKeyUp(&self, _pic: Ref<'_, ITfContext>, _wparam: WPARAM, _lparam: LPARAM) -> Result<BOOL> {
-        Ok(BOOL::from(false))
+    fn OnKeyUp(&self, _pic: Ref<'_, ITfContext>, _w: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        Ok(false.into())
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    fn OnPreservedKey(&self, _pic: Ref<'_, ITfContext>, rguid: *const GUID) -> Result<BOOL> {
-        if !rguid.is_null() {
-            // SAFETY: rguid is provided by TSF callback, checked non-null above
-            let guid = unsafe { *rguid };
-            if guid == crate::guids::GUID_PRESERVED_TOGGLE {
-                let mut state = self.state.borrow_mut();
-                let _ = state.toggle_enabled();
-                return Ok(BOOL::from(true));
+    fn OnPreservedKey(&self, pic: Ref<'_, ITfContext>, rguid: *const GUID) -> Result<BOOL> {
+        if rguid.is_null() {
+            return Ok(false.into());
+        }
+        // SAFETY: rguid do TSF cấp, đã kiểm non-null.
+        if unsafe { *rguid } != crate::guids::GUID_PRESERVED_TOGGLE {
+            return Ok(false.into());
+        }
+        // WIN-015: chỉ xử lý ở đây (không xử lý lại trong OnKeyDown → không toggle 2 lần).
+        guarded(|| {
+            end_composition(&self.shared, pic.ok().ok());
+            self.shared.reset_engine();
+            self.shared.ipc.toggle_global();
+            true
+        });
+        Ok(true.into())
+    }
+}
+
+/// Mọi đường phím: panic không được thoát qua ranh giới COM (abort app).
+#[cfg(windows)]
+fn guarded(f: impl FnOnce() -> bool) -> bool {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(false)
+}
+
+/// Xử lý 1 phím, trả `eaten`. Mọi nhánh lỗi → `false` (phím tới app nguyên vẹn).
+#[cfg(windows)]
+fn handle_key(shared: &Rc<TsfShared>, pic: Ref<'_, ITfContext>, vk: u32, lparam: LPARAM) -> bool {
+    if is_modifier_vk(vk) {
+        return false;
+    }
+    let ctx = pic.ok().ok();
+    let mods = active_modifiers();
+
+    // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
+    // xử lý: commit từ đang gõ rồi để app nhận phím.
+    if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 || vk == vkc::PACKET || vk == vkc::PROCESSKEY {
+        end_composition(shared, ctx);
+        shared.reset_engine();
+        return false;
+    }
+
+    // Reload config xóa từ trong engine → chỉ làm ở ranh giới từ.
+    if !shared.is_composing() {
+        shared.sync_config();
+    }
+    if !shared.ipc.is_enabled() {
+        end_composition(shared, ctx);
+        shared.reset_engine();
+        return false;
+    }
+
+    let key = KeyKind::classify(vk, translate_key(vk, lparam));
+    if !shared.is_composing() && !key.needs_session_when_idle() {
+        // Backspace/Esc/điều hướng khi không composing: chỉ cho engine dọn trạng thái.
+        if let Ok(mut thread) = shared.thread.try_borrow_mut() {
+            let passed = matches!(
+                thread.engine.key_event_raw(vk, key.engine_ch(), mods),
+                Ok(r) if r.action == ACTION_PASS
+            );
+            if !passed {
+                thread.engine.reset();
             }
         }
-        Ok(BOOL::from(false))
+        return false;
+    }
+
+    let Some(ctx) = ctx else {
+        return false;
+    };
+    let result = Rc::new(Cell::new(None));
+    let session: ITfEditSession =
+        KeyEditSession::new(shared.clone(), ctx.clone(), vk, mods, key, result.clone()).into();
+    // SAFETY: ctx hợp lệ; session đồng bộ để biết `eaten` trước khi trả lời TSF.
+    let hr = unsafe { ctx.RequestEditSession(shared.tid, &session, TF_ES_SYNC | TF_ES_READWRITE) };
+    match (hr, result.get()) {
+        (Ok(code), Some(eaten)) if code.is_ok() => eaten,
+        // Không được cấp lock đồng bộ: engine chưa thấy phím → không lệch buffer.
+        _ => false,
+    }
+}
+
+/// Kết thúc composition đang mở (nếu có) — ưu tiên đồng bộ để app nhận phím sau
+/// khi text đã commit (B2); không được thì xin session bất đồng bộ.
+#[cfg(windows)]
+pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
+    let Some(comp) = shared.take_composition() else {
+        return;
+    };
+    // SAFETY: composition thuộc TIP; context lấy từ chính range của nó.
+    unsafe {
+        let ctx = comp
+            .GetRange()
+            .and_then(|r| r.GetContext())
+            .ok()
+            .or_else(|| fallback_ctx.cloned());
+        let Some(ctx) = ctx else {
+            return;
+        };
+        let session: ITfEditSession = EndCompositionSession::new(comp).into();
+        let sync = ctx.RequestEditSession(shared.tid, &session, TF_ES_SYNC | TF_ES_READWRITE);
+        if !matches!(sync, Ok(code) if code.is_ok()) {
+            let _ =
+                ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE);
+        }
     }
 }
 
 #[cfg(windows)]
-fn get_active_modifiers() -> u32 {
+fn active_modifiers() -> u32 {
+    let down = |vk: VIRTUAL_KEY| {
+        // SAFETY: GetKeyState đọc trạng thái phím của message queue thread hiện tại.
+        (unsafe { GetKeyState(vk.0 as i32) } as u16 & 0x8000) != 0
+    };
     let mut mods = 0u32;
-    // SAFETY: GetKeyState reads calling thread's message queue state.
-    unsafe {
-        if (GetKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0 {
-            mods |= 0x1;
-        }
-        if (GetKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0 {
-            mods |= 0x2;
-        }
-        if (GetKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0 {
-            mods |= 0x4;
-        }
-        if (GetKeyState(VK_LWIN.0 as i32) as u16 & 0x8000) != 0
-            || (GetKeyState(VK_RWIN.0 as i32) as u16 & 0x8000) != 0
-        {
-            mods |= 0x8;
-        }
+    if down(VK_SHIFT) {
+        mods |= MOD_SHIFT;
+    }
+    if down(VK_CONTROL) {
+        mods |= MOD_CTRL;
+    }
+    if down(VK_MENU) {
+        mods |= MOD_ALT;
+    }
+    if down(VK_LWIN) || down(VK_RWIN) {
+        mods |= MOD_SUPER;
     }
     mods
 }
 
+/// VK → ký tự theo layout bàn phím hiện hành của thread (hỗ trợ layout khác US).
+/// `wFlags = 0x4` (Win10 1607+): KHÔNG đổi trạng thái dead-key của app. Trả 0 khi
+/// phím không sinh đúng một ký tự (bản cũ trả `vk` → Delete thành '.', F1 thành 'p').
 #[cfg(windows)]
-fn vk_to_unicode(vk: u32) -> u32 {
-    let mut kbd_state = [0u8; 256];
-    let mut chars = [0u16; 8];
-    // SAFETY: pointers to fixed stack arrays.
-    let count = unsafe {
-        let _ = GetKeyboardState(&mut kbd_state);
-        ToUnicode(vk, 0, Some(&kbd_state), &mut chars, 0)
-    };
-    if count == 1 {
-        chars[0] as u32
-    } else {
-        vk
+fn translate_key(vk: u32, lparam: LPARAM) -> u32 {
+    const TOUNICODE_NO_STATE_CHANGE: u32 = 0x4;
+    let raw = lparam.0 as u32;
+    let mut scan = (raw >> 16) & 0xFF;
+    if raw & (1 << 24) != 0 {
+        scan |= 0xE000;
     }
-}
-
-#[cfg(windows)]
-fn utf32_to_utf16(slice: &[u32]) -> Vec<u16> {
-    slice
-        .iter()
-        .filter_map(|&c| char::from_u32(c))
-        .flat_map(|ch| {
-            let mut buf = [0u16; 2];
-            ch.encode_utf16(&mut buf).to_vec()
-        })
-        .collect()
+    let mut state = [0u8; 256];
+    let mut buf = [0u16; 8];
+    // SAFETY: buffer cố định trên stack; layout của chính thread UI.
+    let n = unsafe {
+        if GetKeyboardState(&mut state).is_err() {
+            return 0;
+        }
+        ToUnicodeEx(
+            vk,
+            scan,
+            &state,
+            &mut buf,
+            TOUNICODE_NO_STATE_CHANGE,
+            Some(GetKeyboardLayout(0)),
+        )
+    };
+    match n {
+        1 => u32::from(buf[0]),
+        // Ký tự ngoài BMP (cặp surrogate); hai ký tự rời (ligature) → không nhận.
+        2 if (0xD800..0xDC00).contains(&buf[0]) => char::decode_utf16(buf[..2].iter().copied())
+            .next()
+            .and_then(|r| r.ok())
+            .map_or(0, u32::from),
+        _ => 0,
+    }
 }

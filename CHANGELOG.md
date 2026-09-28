@@ -16,6 +16,15 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - **Windows manifest**: asInvoker (không cần admin), Windows 10/11 compatibility
 
 ### Fixed
+- **Windows TSF không gõ được tiếng Việt** (chi tiết `docs/specs/tsf-typing-overhaul.md`, Ftsf-1…12):
+  security gate không bao giờ mở; đăng ký per-user dừng trước `InstallLayoutOrTip`; composition
+  mở mới mỗi phím, không commit; app treo khi Deactivate (join thread IPC); tắt tiếng Việt từ khay
+  không có hiệu lực; hotkey Ctrl+Shift+Space đảo 2 lần; Delete/F-key/mũi tên bị coi là chữ;
+  không gõ được ở Start search/Settings/app Store.
+- TSF dùng mô hình composition (cả từ trong một composition, commit tại ranh giới) — chạy cả
+  app TSF-aware lẫn IMM32/CUAS; `replay --adapter tsf` kiểm toàn bộ corpus qua mô hình này.
+- Giảm heuristic AV: bỏ `TerminateProcess` khỏi `--stop`, bỏ `textvn_ffi.dll` khỏi gói Windows,
+  `input.dll` chỉ nạp từ System32, pipe từ chối client từ xa.
 - `cli/src/register.rs` bị empty do overwrite — viết lại hoàn toàn với full TSF registration flow
 - Unsafe COM blocks bọc trong closure để dùng `?` operator đúng cách
 

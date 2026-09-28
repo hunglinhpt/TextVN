@@ -320,7 +320,7 @@ mod hook_app {
                 });
             }
 
-            let ch = vk_to_unicode(vk);
+            let ch = vk_to_unicode(vk, kbd.scanCode);
             let event = KeyEvent {
                 key_down: true,
                 injected: false,
@@ -476,18 +476,30 @@ mod hook_app {
         mods
     }
 
-    fn vk_to_unicode(vk: u32) -> u32 {
+    /// VK → ký tự theo layout của cửa sổ foreground. `wFlags = 0x4`: không đổi
+    /// trạng thái dead-key. Phím không sinh ký tự trả 0 — bản cũ trả `vk`, biến
+    /// Delete thành '.', F1 thành 'p' và làm engine nuốt/biến đổi nhầm.
+    fn vk_to_unicode(vk: u32, scan: u32) -> u32 {
+        const TOUNICODE_NO_STATE_CHANGE: u32 = 0x4;
         let mut kbd_state = [0u8; 256];
         let mut chars = [0u16; 8];
-        // SAFETY: Pointer to stack buffers
+        // SAFETY: buffer cố định trên stack; HKL của thread sở hữu cửa sổ foreground.
         let count = unsafe {
             let _ = GetKeyboardState(&mut kbd_state);
-            ToUnicode(vk, 0, Some(&kbd_state), &mut chars, 0)
+            let fg_thread = GetWindowThreadProcessId(GetForegroundWindow(), None);
+            ToUnicodeEx(
+                vk,
+                scan,
+                &kbd_state,
+                &mut chars,
+                TOUNICODE_NO_STATE_CHANGE,
+                Some(GetKeyboardLayout(fg_thread)),
+            )
         };
-        if count == 1 {
-            chars[0] as u32
+        if count == 1 && chars[0] >= 0x20 && chars[0] != 0x7F {
+            u32::from(chars[0])
         } else {
-            vk
+            0
         }
     }
 

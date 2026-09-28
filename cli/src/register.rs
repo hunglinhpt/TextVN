@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Đăng ký và hủy đăng ký TSF TIP (WIN-003 / WIN-010 / P1-1 §8).
 //!
-//! Quy trình per-user (không cần admin):
-//!   1. Ghi `HKCU\Software\Classes\CLSID\{CLSID}\InprocServer32` → đường dẫn DLL.
-//!   2. Gọi COM: `ITfCategoryMgr::RegisterCategory`, `ITfInputProcessorProfiles::Register`,
-//!      `AddLanguageProfile`, `EnableLanguageProfileByDefault`.
-//!   3. Gọi `InstallLayoutOrTip` từ `input.dll` (không cần elevation) để thêm vào danh
-//!      sách input method của user (HKCU).
+//! Quy trình (mỗi bước độc lập — một bước lỗi không chặn bước sau):
+//!   1. COM server `...\Software\Classes\CLSID\{CLSID}\InprocServer32` (HKCU, hoặc HKLM
+//!      với `--scope machine`) + ACL cho AppContainer đọc DLL.
+//!   2. Profile + category qua `ITfInputProcessorProfileMgr::RegisterProfile` /
+//!      `ITfCategoryMgr::RegisterCategory` (ghi HKLM). Không có quyền admin → fallback
+//!      layout CTF per-user dưới `HKCU\Software\Microsoft\CTF\TIP\{CLSID}` (P1-1 §8).
+//!   3. `InstallLayoutOrTip` (input.dll, HKCU) — thêm vào danh sách bàn phím của user.
+//!   4. `ActivateProfile(..., TF_IPPMF_FORSESSION)` — dùng được ngay.
 //!
 //! Tham khảo: `spikes/tsf-min/src/register.rs` + `docs/specs/tsf-registration-spike.md`.
 
@@ -97,6 +99,45 @@ fn say(msg: &str) {
     }
 }
 
+// ─── Layout registry TSF (text-only — test được mọi OS) ───────────────────────────────────────────
+
+/// `GUID_TFCAT_TIP_KEYBOARD` — TIP bàn phím.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CAT_TIP_KEYBOARD: &str = "{34745C63-B2F0-4784-8B67-5E12C8701A31}";
+/// `GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT` — cho phép TIP nạp trong app immersive/AppContainer
+/// (ô tìm kiếm Start, Settings, app Store). Thiếu category này = không gõ được ở đó.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CAT_IMMERSIVE: &str = "{13A016DF-560B-46CD-947A-4C3AF1E0E35D}";
+/// `GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT` — hiện trong input indicator của taskbar (Win8+).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CAT_SYSTRAY: &str = "{25504FB4-7BAB-4BC1-9C69-CF81890F0EF5}";
+
+/// Khóa TIP của CTF, tương đối với HKLM\SOFTWARE hoặc HKCU\Software.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn ctf_tip_key() -> String {
+    format!(r"Software\Microsoft\CTF\TIP\{CLSID_STR}")
+}
+
+/// `...\LanguageProfile\0x0000042a\{PROFILE}` — nơi chứa Description/IconFile/Enable.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn ctf_profile_key(lang: u16) -> String {
+    format!(
+        r"{}\LanguageProfile\0x{:08x}\{PROFILE_STR}",
+        ctf_tip_key(),
+        u32::from(lang)
+    )
+}
+
+/// Cặp khóa category CTF (`Category\Category\{cat}\{clsid}` + `Category\Item\{clsid}\{cat}`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn ctf_category_keys(cat: &str) -> [String; 2] {
+    let tip = ctf_tip_key();
+    [
+        format!(r"{tip}\Category\Category\{cat}\{CLSID_STR}"),
+        format!(r"{tip}\Category\Item\{CLSID_STR}\{cat}"),
+    ]
+}
+
 // ─── Windows-only COM/TSF impl ────────────────────────────────────────────────────────────────────
 
 #[cfg(windows)]
@@ -105,9 +146,16 @@ mod win_impl {
 
     use windows::core::*;
     use windows::Win32::Foundation::*;
+    use windows::Win32::Security::Authorization::*;
+    use windows::Win32::Security::{
+        ACL, DACL_SECURITY_INFORMATION, NO_INHERITANCE, PSECURITY_DESCRIPTOR, PSID,
+    };
     use windows::Win32::System::Com::*;
-    use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+    use windows::Win32::System::LibraryLoader::{
+        GetProcAddress, LoadLibraryExW, LOAD_LIBRARY_SEARCH_SYSTEM32,
+    };
     use windows::Win32::System::Registry::*;
+    use windows::Win32::UI::Input::KeyboardAndMouse::HKL;
     use windows::Win32::UI::TextServices::*;
 
     // Freeze GUIDs — khớp adapters/windows-tsf/src/guids.rs
@@ -119,19 +167,47 @@ mod win_impl {
     /// `InstallLayoutOrTip` flag ILOT_DEFPROFILE — đặt profile làm default.
     const ILOT_DEFPROFILE: u32 = 0x0000_0002;
 
-    fn hkcu_subkey(path: &str) -> &str {
-        path.strip_prefix(r"HKCU\").unwrap_or(path)
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub enum Scope {
+        User,
+        Machine,
     }
 
-    /// Ghi registry COM per-user qua Win32 API, không spawn `reg.exe`. Đây là
-    /// cách chính thức để installer/app tạo HKCU\Software\Classes và giúp
-    /// phân biệt lỗi ACL thực sự với policy chặn child process.
-    fn set_registry_string(path: &str, value_name: Option<&str>, value: &str) -> bool {
-        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
+    impl Scope {
+        fn root(self) -> HKEY {
+            match self {
+                Scope::User => HKEY_CURRENT_USER,
+                Scope::Machine => HKEY_LOCAL_MACHINE,
+            }
+        }
+        fn label(self) -> &'static str {
+            match self {
+                Scope::User => "HKCU",
+                Scope::Machine => "HKLM",
+            }
+        }
+    }
+
+    fn wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(Some(0)).collect()
+    }
+
+    /// `Software\Classes\CLSID\{CLSID}` — tương đối với HKCU hoặc HKLM tùy scope.
+    fn clsid_key() -> String {
+        clsid_registry_key()
+            .trim_start_matches(r"HKCU\")
+            .to_string()
+    }
+
+    /// Ghi registry qua Win32 API, không spawn `reg.exe` (AV soi child process
+    /// sửa registry; lỗi ACL cũng phân biệt được).
+    fn set_reg_value(root: HKEY, path: &str, name: Option<&str>, value: RegValue<'_>) -> bool {
+        let subkey = wide(path);
         let mut key = HKEY::default();
+        // SAFETY: con trỏ tới buffer UTF-16 có nul; key được đóng ngay bên dưới.
         let create = unsafe {
             RegCreateKeyExW(
-                HKEY_CURRENT_USER,
+                root,
                 PCWSTR(subkey.as_ptr()),
                 None,
                 PCWSTR::null(),
@@ -149,45 +225,58 @@ mod win_impl {
             ));
             return false;
         }
-
-        let data: Vec<u16> = value.encode_utf16().chain(Some(0)).collect();
-        let bytes = unsafe {
-            std::slice::from_raw_parts(
-                data.as_ptr() as *const u8,
-                std::mem::size_of_val(data.as_slice()),
-            )
+        let status = match value {
+            RegValue::None => ERROR_SUCCESS,
+            RegValue::Sz(text) => {
+                let data = wide(text);
+                // SAFETY: đọc đúng kích thước của `data` dưới dạng byte.
+                let bytes = unsafe {
+                    std::slice::from_raw_parts(
+                        data.as_ptr() as *const u8,
+                        std::mem::size_of_val(data.as_slice()),
+                    )
+                };
+                let name_w = name.map(wide);
+                let name_ptr = name_w
+                    .as_ref()
+                    .map_or(PCWSTR::null(), |w| PCWSTR(w.as_ptr()));
+                // SAFETY: key mở ở trên; buffer hợp lệ.
+                unsafe { RegSetValueExW(key, name_ptr, None, REG_SZ, Some(bytes)) }
+            }
+            RegValue::Dword(v) => {
+                let bytes = v.to_le_bytes();
+                let name_w = name.map(wide);
+                let name_ptr = name_w
+                    .as_ref()
+                    .map_or(PCWSTR::null(), |w| PCWSTR(w.as_ptr()));
+                // SAFETY: key mở ở trên; 4 byte DWORD.
+                unsafe { RegSetValueExW(key, name_ptr, None, REG_DWORD, Some(&bytes)) }
+            }
         };
-        let value_name_wide =
-            value_name.map(|name| name.encode_utf16().chain(Some(0)).collect::<Vec<u16>>());
-        let value_name_ptr = value_name_wide
-            .as_ref()
-            .map_or(PCWSTR::null(), |wide| PCWSTR(wide.as_ptr()));
-        let status = unsafe { RegSetValueExW(key, value_name_ptr, None, REG_SZ, Some(bytes)) };
+        // SAFETY: key hợp lệ.
         let _ = unsafe { RegCloseKey(key) };
-        if status == ERROR_SUCCESS {
-            say(&format!("  Registry write {path} → OK"));
-            true
-        } else {
+        if status != ERROR_SUCCESS {
             say(&format!(
                 "  Registry write {path} → FAIL {:#010x}",
                 status.0
             ));
-            false
+            return false;
         }
+        true
     }
 
-    fn registry_key_exists(path: &str) -> bool {
-        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
+    enum RegValue<'a> {
+        None,
+        Sz(&'a str),
+        Dword(u32),
+    }
+
+    pub fn reg_key_exists(root: HKEY, path: &str) -> bool {
+        let subkey = wide(path);
         let mut key = HKEY::default();
-        let status = unsafe {
-            RegOpenKeyExW(
-                HKEY_CURRENT_USER,
-                PCWSTR(subkey.as_ptr()),
-                None,
-                KEY_READ,
-                &mut key,
-            )
-        };
+        // SAFETY: buffer nul-terminated; key đóng ngay nếu mở được.
+        let status =
+            unsafe { RegOpenKeyExW(root, PCWSTR(subkey.as_ptr()), None, KEY_READ, &mut key) };
         if status == ERROR_SUCCESS {
             let _ = unsafe { RegCloseKey(key) };
             true
@@ -196,9 +285,33 @@ mod win_impl {
         }
     }
 
-    fn delete_registry_tree(path: &str) {
-        let subkey: Vec<u16> = hkcu_subkey(path).encode_utf16().chain(Some(0)).collect();
-        let status = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, PCWSTR(subkey.as_ptr())) };
+    pub fn reg_read_string(root: HKEY, path: &str) -> Option<String> {
+        let subkey = wide(path);
+        let mut buf = [0u16; 1024];
+        let mut size = std::mem::size_of_val(&buf) as u32;
+        // SAFETY: buffer và kích thước khớp nhau; RRF_RT_REG_SZ đảm bảo kết thúc nul.
+        let status = unsafe {
+            RegGetValueW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR::null(),
+                RRF_RT_REG_SZ,
+                None,
+                Some(buf.as_mut_ptr() as *mut _),
+                Some(&mut size),
+            )
+        };
+        if status != ERROR_SUCCESS {
+            return None;
+        }
+        let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        Some(String::from_utf16_lossy(&buf[..len]))
+    }
+
+    fn delete_tree(root: HKEY, path: &str) {
+        let subkey = wide(path);
+        // SAFETY: buffer nul-terminated.
+        let status = unsafe { RegDeleteTreeW(root, PCWSTR(subkey.as_ptr())) };
         if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
             say(&format!("  Registry delete {path} → OK"));
         } else {
@@ -210,164 +323,292 @@ mod win_impl {
     }
 
     pub fn com_init() -> bool {
+        // SAFETY: khởi tạo COM STA cho thread chính của CLI.
+        let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+        // S_FALSE (đã init rồi) hoặc RPC_E_CHANGED_MODE → vẫn dùng được
+        hr.0 >= 0 || hr.0 == (0x8001_0106u32 as i32)
+    }
+
+    /// `InstallLayoutOrTip` (input.dll) — thêm/gỡ TIP khỏi danh sách bàn phím của
+    /// user (HKCU, không cần admin). Không có import lib nên resolve động, nhưng
+    /// CHỈ từ System32 (LOAD_LIBRARY_SEARCH_SYSTEM32) để không nạp nhầm DLL giả mạo.
+    fn call_layout_or_tip(lang: u16, flags: u32, label: &str) -> bool {
+        // SAFETY: input.dll là DLL hệ thống; chữ ký hàm theo tài liệu Microsoft
+        // `BOOL InstallLayoutOrTip(LPCWSTR psz, DWORD dwFlags)`.
         unsafe {
-            let hr = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
-            // S_FALSE (đã init rồi) hoặc RPC_E_CHANGED_MODE → vẫn dùng được
-            hr.0 >= 0 || hr.0 == (0x8001_0106u32 as i32)
-        }
-    }
-
-    /// Gọi `InstallLayoutOrTip` từ `input.dll` (không import lib, dùng LoadLibrary).
-    pub fn install_layout_or_tip(lang: u16) {
-        call_layout_or_tip(lang, ILOT_DEFPROFILE, "DEFPROFILE");
-    }
-
-    /// Gỡ layout khỏi danh sách bàn phím người dùng (tránh để lại ghost keyboard sau khi unregister).
-    pub fn uninstall_layout_or_tip(lang: u16) {
-        call_layout_or_tip(lang, ILOT_UNINSTALL, "UNINSTALL");
-    }
-
-    fn call_layout_or_tip(lang: u16, flags: u32, label: &str) {
-        unsafe {
-            let hmod = match LoadLibraryW(w!("input.dll")) {
+            let hmod = match LoadLibraryExW(w!("input.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32) {
                 Ok(h) => h,
                 Err(e) => {
                     say(&format!(
-                        "  InstallLayoutOrTip LoadLibrary FAIL {:#010x}",
+                        "  InstallLayoutOrTip: nạp input.dll FAIL {:#010x}",
                         e.code().0
                     ));
-                    return;
+                    return false;
                 }
             };
             let Some(fp) = GetProcAddress(hmod, s!("InstallLayoutOrTip")) else {
-                say("  InstallLayoutOrTip: GetProcAddress = None");
-                return;
+                say("  InstallLayoutOrTip: không có trong input.dll");
+                return false;
             };
             type Pfn = unsafe extern "system" fn(*const u16, u32) -> i32;
             let pfn: Pfn = std::mem::transmute(fp);
             let spec = layout_spec(lang);
-            let wide: Vec<u16> = spec.encode_utf16().chain(std::iter::once(0)).collect();
-            let ret = pfn(wide.as_ptr(), flags);
+            let spec_w = wide(&spec);
+            let ok = pfn(spec_w.as_ptr(), flags) != 0;
             say(&format!(
                 "  InstallLayoutOrTip({spec}, {label}) → {}",
-                if ret != 0 { "OK" } else { "FAIL" }
+                if ok { "OK" } else { "FAIL" }
             ));
-            // Không FreeLibrary — process thoát ngay, vô hại
+            ok
         }
     }
 
-    pub fn do_register(dll_path: &Path, no_taskbar: bool) -> i32 {
-        say("=== TextVN register (per-user, HKCU) ===");
+    /// Icon cho Win+Space / input indicator: TextVN.exe cạnh DLL nếu có.
+    fn icon_path(dll_path: &Path) -> String {
+        dll_path
+            .parent()
+            .map(|d| d.join("TextVN.exe"))
+            .filter(|p| p.is_file())
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default()
+    }
+
+    /// Cho phép process AppContainer (app Store, Start search, Settings) đọc+nạp DLL.
+    /// Cài per-user nằm trong %LOCALAPPDATA% — mặc định AppContainer không đọc được,
+    /// nên TIP không nạp và người dùng không gõ được tiếng Việt ở các ô đó.
+    fn grant_appcontainer_read(dll_path: &Path) {
+        let path_w = wide(&dll_path.to_string_lossy());
+        for sid_str in ["S-1-15-2-1", "S-1-15-2-2"] {
+            // SAFETY: mọi con trỏ do API cấp được LocalFree đúng một lần; không
+            // giữ tham chiếu sau khi giải phóng.
+            unsafe {
+                let mut sid = PSID::default();
+                if ConvertStringSidToSidW(&HSTRING::from(sid_str), &mut sid).is_err() {
+                    continue;
+                }
+                let mut old_dacl: *mut ACL = std::ptr::null_mut();
+                let mut sd = PSECURITY_DESCRIPTOR::default();
+                let got = GetNamedSecurityInfoW(
+                    PCWSTR(path_w.as_ptr()),
+                    SE_FILE_OBJECT,
+                    DACL_SECURITY_INFORMATION,
+                    None,
+                    None,
+                    Some(&mut old_dacl),
+                    None,
+                    &mut sd,
+                );
+                if got == ERROR_SUCCESS {
+                    let access = EXPLICIT_ACCESS_W {
+                        grfAccessPermissions: (GENERIC_READ.0 | GENERIC_EXECUTE.0),
+                        grfAccessMode: GRANT_ACCESS,
+                        grfInheritance: NO_INHERITANCE,
+                        Trustee: TRUSTEE_W {
+                            TrusteeForm: TRUSTEE_IS_SID,
+                            TrusteeType: TRUSTEE_IS_WELL_KNOWN_GROUP,
+                            ptstrName: PWSTR(sid.0 as *mut u16),
+                            ..Default::default()
+                        },
+                    };
+                    let mut new_dacl: *mut ACL = std::ptr::null_mut();
+                    if SetEntriesInAclW(Some(&[access]), Some(old_dacl), &mut new_dacl)
+                        == ERROR_SUCCESS
+                    {
+                        let set = SetNamedSecurityInfoW(
+                            PCWSTR(path_w.as_ptr()),
+                            SE_FILE_OBJECT,
+                            DACL_SECURITY_INFORMATION,
+                            None,
+                            None,
+                            Some(new_dacl),
+                            None,
+                        );
+                        say(&format!(
+                            "  ACL {sid_str} đọc DLL → {}",
+                            if set == ERROR_SUCCESS { "OK" } else { "FAIL" }
+                        ));
+                        let _ = LocalFree(Some(HLOCAL(new_dacl as *mut _)));
+                    }
+                    let _ = LocalFree(Some(HLOCAL(sd.0)));
+                }
+                let _ = LocalFree(Some(HLOCAL(sid.0)));
+            }
+        }
+    }
+
+    /// Đăng ký profile + category qua API TSF (ghi HKLM → cần quyền admin).
+    fn register_with_tsf_api(desc: &str, icon: &str) -> bool {
+        let desc_w = wide(desc);
+        let icon_w = wide(icon);
+        // Slice đúng độ dài nhưng allocation có nul đệm sau (S3-2: TSF đọc wcslen()).
+        let desc_s = &desc_w[..desc_w.len() - 1];
+        let icon_s = &icon_w[..icon_w.len() - 1];
+        // SAFETY: COM đã init; mọi interface do CoCreateInstance trả về.
+        let result = (|| -> Result<()> {
+            unsafe {
+                let mgr: ITfInputProcessorProfileMgr =
+                    CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
+                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
+                    mgr.RegisterProfile(
+                        &CLSID_TIP,
+                        lang,
+                        &PROFILE_GUID,
+                        desc_s,
+                        icon_s,
+                        0,
+                        HKL::default(),
+                        0,
+                        true,
+                        0,
+                    )?;
+                    say(&format!("  RegisterProfile({tag}) → OK"));
+                }
+                let cat: ITfCategoryMgr =
+                    CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
+                for (name, guid) in [
+                    ("TIP_KEYBOARD", GUID_TFCAT_TIP_KEYBOARD),
+                    ("IMMERSIVESUPPORT", GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT),
+                    ("SYSTRAYSUPPORT", GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT),
+                ] {
+                    cat.RegisterCategory(&CLSID_TIP, &guid, &CLSID_TIP)?;
+                    say(&format!("  RegisterCategory({name}) → OK"));
+                }
+                Ok(())
+            }
+        })();
+        match result {
+            Ok(()) => true,
+            Err(e) => {
+                say(&format!(
+                    "  Đăng ký qua API TSF → {:#010x} (cần quyền admin cho HKLM)",
+                    e.code().0
+                ));
+                false
+            }
+        }
+    }
+
+    /// Fallback per-user (P1-1 §8): ghi đúng layout TIP của CTF dưới HKCU khi API
+    /// không ghi được HKLM. Không đụng key của TIP khác.
+    fn register_ctf_per_user(desc: &str, icon: &str) -> bool {
+        let mut ok = set_reg_value(HKEY_CURRENT_USER, &ctf_tip_key(), None, RegValue::None);
+        for lang in [LANGID_VI, LANGID_EN] {
+            let key = ctf_profile_key(lang);
+            ok &= set_reg_value(
+                HKEY_CURRENT_USER,
+                &key,
+                Some("Description"),
+                RegValue::Sz(desc),
+            );
+            ok &= set_reg_value(
+                HKEY_CURRENT_USER,
+                &key,
+                Some("IconFile"),
+                RegValue::Sz(icon),
+            );
+            ok &= set_reg_value(
+                HKEY_CURRENT_USER,
+                &key,
+                Some("IconIndex"),
+                RegValue::Dword(0),
+            );
+            ok &= set_reg_value(HKEY_CURRENT_USER, &key, Some("Enable"), RegValue::Dword(1));
+        }
+        for cat in [CAT_TIP_KEYBOARD, CAT_IMMERSIVE, CAT_SYSTRAY] {
+            for key in ctf_category_keys(cat) {
+                ok &= set_reg_value(HKEY_CURRENT_USER, &key, None, RegValue::None);
+            }
+        }
+        say(&format!(
+            "  CTF TIP per-user (HKCU) → {}",
+            if ok { "OK" } else { "FAIL" }
+        ));
+        ok
+    }
+
+    /// Kích hoạt profile cho cả session (không chỉ thread của CLI).
+    fn activate_for_session() {
+        // SAFETY: COM đã init.
+        unsafe {
+            let Ok(mgr) = CoCreateInstance::<_, ITfInputProcessorProfileMgr>(
+                &CLSID_TF_InputProcessorProfiles,
+                None,
+                CLSCTX_INPROC_SERVER,
+            ) else {
+                return;
+            };
+            let r = mgr.ActivateProfile(
+                TF_PROFILETYPE_INPUTPROCESSOR,
+                LANGID_VI,
+                &CLSID_TIP,
+                &PROFILE_GUID,
+                HKL::default(),
+                TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE,
+            );
+            match r {
+                Ok(()) => say("  ActivateProfile(VI, session) → OK"),
+                Err(e) => say(&format!("  ActivateProfile(VI) → {:#010x}", e.code().0)),
+            }
+        }
+    }
+
+    pub fn do_register(dll_path: &Path, no_taskbar: bool, scope: Scope) -> i32 {
+        say(&format!("=== TextVN register ({}) ===", scope.label()));
         let dll_s = dll_path.to_string_lossy().to_string();
         say(&format!("DLL: {dll_s}"));
 
-        // Bước 1: HKCU COM registry
-        let k = clsid_registry_key();
-        let inproc_key = format!(r"{k}\InprocServer32");
-        let mut ok = set_registry_string(&k, None, "TextVN TSF");
-        ok &= set_registry_string(&inproc_key, None, &dll_s);
-        ok &= set_registry_string(&inproc_key, Some("ThreadingModel"), "Apartment");
+        // Bước 1: COM server (bắt buộc — thiếu thì TSF không tạo được TIP).
+        let root = scope.root();
+        let k = clsid_key();
+        let inproc = format!(r"{k}\InprocServer32");
+        let ok = set_reg_value(root, &k, None, RegValue::Sz("TextVN TSF"))
+            && set_reg_value(root, &inproc, None, RegValue::Sz(&dll_s))
+            && set_reg_value(
+                root,
+                &inproc,
+                Some("ThreadingModel"),
+                RegValue::Sz("Apartment"),
+            );
         if !ok {
+            if scope == Scope::Machine {
+                say("FAIL: không ghi được HKLM — chạy lại với quyền Administrator");
+                return 3;
+            }
             say("FAIL: không ghi được registry CLSID");
             return 1;
         }
-        say("CHK#6 HKCU CLSID → OK (không cần admin)");
+        say(&format!("  COM server {} → OK", scope.label()));
 
-        // Bước 2: COM TSF
         if !com_init() {
             say("!! CoInitializeEx fail");
             return 1;
         }
-        // Bọc trong closure trả về Result để dùng được operator ?
-        let com_result = (|| -> Result<()> {
-            unsafe {
-                let cat: ITfCategoryMgr =
-                    CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-                let prof: ITfInputProcessorProfiles =
-                    CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
 
-                // Dọn profile cũ (tránh hỏng Description)
-                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                    match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
-                        Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
-                        Err(e) => say(&format!(
-                            "  RemoveLanguageProfile({tag}) → {:#010x} (bỏ qua)",
-                            e.code().0
-                        )),
-                    }
-                }
+        grant_appcontainer_read(dll_path);
 
-                prof.Register(&CLSID_TIP)?;
-                say("  Profiles.Register → OK");
-
-                // Null-terminated buffer — tránh wcslen() heap corruption (S3-2)
-                let raw: Vec<u16> = "TextVN".encode_utf16().collect();
-                let desc_buf: Vec<u16> = raw.iter().copied().chain(std::iter::once(0)).collect();
-                let desc = &desc_buf[..raw.len()];
-                let icon_pad = [0u16; 4];
-                let icon = &icon_pad[..0];
-
-                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                    match prof.AddLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID, desc, icon, 0) {
-                        Ok(()) => say(&format!("  AddLanguageProfile({tag}) → OK")),
-                        Err(e) => say(&format!(
-                            "  AddLanguageProfile({tag}) → FAIL {:#010x}",
-                            e.code().0
-                        )),
-                    }
-                    match prof.EnableLanguageProfileByDefault(&CLSID_TIP, lang, &PROFILE_GUID, true)
-                    {
-                        Ok(()) => say(&format!("  EnableLanguageProfileByDefault({tag}) → OK")),
-                        Err(e) => say(&format!(
-                            "  EnableLanguageProfileByDefault({tag}) → FAIL {:#010x}",
-                            e.code().0
-                        )),
-                    }
-                }
-
-                cat.RegisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP)?;
-                say("  RegisterCategory(TIP_KEYBOARD) → OK");
-
-                Ok(())
+        // Bước 2: profile + category. Mỗi bước độc lập — bản trước dừng ở
+        // `Register()?` (HKLM) nên cài per-user KHÔNG bao giờ tới InstallLayoutOrTip.
+        let icon = icon_path(dll_path);
+        let api_ok = register_with_tsf_api("TextVN", &icon);
+        let machine_registered = reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_tip_key());
+        if !api_ok && !machine_registered {
+            if scope == Scope::Machine {
+                return 3;
             }
-        })();
-
-        if let Err(e) = com_result {
-            say(&format!("COM error: {:#010x}", e.code().0));
-            return 1;
+            register_ctf_per_user("TextVN", &icon);
         }
 
+        // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
         if no_taskbar {
-            // Không hiện trên taskbar: gỡ layout khỏi danh sách bàn phím hệ thống
-            uninstall_layout_or_tip(LANGID_VI);
-            uninstall_layout_or_tip(LANGID_EN);
+            call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL");
+            call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
         } else {
-            // Bước 3: InstallLayoutOrTip (HKCU, không cần admin)
-            install_layout_or_tip(LANGID_VI);
-            install_layout_or_tip(LANGID_EN);
+            call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
+            call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
         }
 
-        // Kích hoạt ngay trong session hiện tại, kể cả bản tray-only. Trước đây
-        // nhánh --no-taskbar bỏ qua bước này nên TIP đã đăng ký nhưng không
-        // nhận bất kỳ sự kiện phím nào.
-        if com_init() {
-            if let Ok(prof) = unsafe {
-                CoCreateInstance::<_, ITfInputProcessorProfiles>(
-                    &CLSID_TF_InputProcessorProfiles,
-                    None,
-                    CLSCTX_INPROC_SERVER,
-                )
-            } {
-                match unsafe { prof.ActivateLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) }
-                {
-                    Ok(()) => say("  ActivateLanguageProfile(VI) → OK"),
-                    Err(e) => say(&format!(
-                        "  ActivateLanguageProfile(VI) → FAIL {:#010x}",
-                        e.code().0
-                    )),
-                }
-            }
-        }
+        // Bước 4: kích hoạt ngay cho session (kể cả bản tray-only).
+        activate_for_session();
 
         if no_taskbar {
             say("=== Đăng ký hoàn tất (tray-only, profile đã được kích hoạt). ===");
@@ -377,56 +618,58 @@ mod win_impl {
         0
     }
 
-    pub fn do_unregister() -> i32 {
-        say("=== TextVN unregister ===");
+    pub fn do_unregister(scope: Scope) -> i32 {
+        say(&format!("=== TextVN unregister ({}) ===", scope.label()));
 
-        // Bước 1: Gỡ khỏi danh sách layout của người dùng (input.dll UNINSTALL) - tránh ghost keyboard
-        uninstall_layout_or_tip(LANGID_VI);
-        uninstall_layout_or_tip(LANGID_EN);
+        // Bước 1: gỡ khỏi danh sách layout của user — tránh ghost keyboard.
+        call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL");
+        call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
 
-        // Bước 2: Dọn dẹp COM categories & language profiles
+        // Bước 2: profile/category qua API (HKLM; user thường sẽ FAIL — vô hại).
         if com_init() {
-            let com_result = (|| -> Result<()> {
-                unsafe {
-                    let cat: ITfCategoryMgr =
-                        CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
-                    match cat.UnregisterCategory(&CLSID_TIP, &GUID_TFCAT_TIP_KEYBOARD, &CLSID_TIP) {
-                        Ok(()) => say("  UnregisterCategory → OK"),
-                        Err(e) => say(&format!("  UnregisterCategory → FAIL {:#010x}", e.code().0)),
+            // SAFETY: COM đã init; interface do CoCreateInstance cấp.
+            unsafe {
+                if let Ok(cat) = CoCreateInstance::<_, ITfCategoryMgr>(
+                    &CLSID_TF_CategoryMgr,
+                    None,
+                    CLSCTX_INPROC_SERVER,
+                ) {
+                    for guid in [
+                        GUID_TFCAT_TIP_KEYBOARD,
+                        GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
+                        GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
+                    ] {
+                        let _ = cat.UnregisterCategory(&CLSID_TIP, &guid, &CLSID_TIP);
                     }
-
-                    let prof: ITfInputProcessorProfiles = CoCreateInstance(
-                        &CLSID_TF_InputProcessorProfiles,
-                        None,
-                        CLSCTX_INPROC_SERVER,
-                    )?;
-                    for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
-                        match prof.RemoveLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
-                            Ok(()) => say(&format!("  RemoveLanguageProfile({tag}) → OK")),
-                            Err(e) => say(&format!(
-                                "  RemoveLanguageProfile({tag}) → {:#010x}",
-                                e.code().0
-                            )),
-                        }
+                }
+                if let Ok(mgr) = CoCreateInstance::<_, ITfInputProcessorProfileMgr>(
+                    &CLSID_TF_InputProcessorProfiles,
+                    None,
+                    CLSCTX_INPROC_SERVER,
+                ) {
+                    for lang in [LANGID_VI, LANGID_EN] {
+                        let _ = mgr.UnregisterProfile(&CLSID_TIP, lang, &PROFILE_GUID, 0);
                     }
+                }
+                if let Ok(prof) = CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                    &CLSID_TF_InputProcessorProfiles,
+                    None,
+                    CLSCTX_INPROC_SERVER,
+                ) {
                     match prof.Unregister(&CLSID_TIP) {
                         Ok(()) => say("  Profiles.Unregister → OK"),
-                        Err(e) => say(&format!(
-                            "  Profiles.Unregister → FAIL {:#010x}",
-                            e.code().0
-                        )),
+                        Err(e) => say(&format!("  Profiles.Unregister → {:#010x}", e.code().0)),
                     }
-                    Ok(())
                 }
-            })();
-            if let Err(e) = com_result {
-                say(&format!("COM error: {:#010x}", e.code().0));
             }
         }
 
-        // Bước 3: Xóa registry CLSID
-        let k = clsid_registry_key();
-        delete_registry_tree(&k);
+        // Bước 3: registry của chính TextVN.
+        delete_tree(HKEY_CURRENT_USER, &ctf_tip_key());
+        delete_tree(HKEY_CURRENT_USER, &clsid_key());
+        if scope == Scope::Machine {
+            delete_tree(HKEY_LOCAL_MACHINE, &clsid_key());
+        }
 
         say("=== Hủy đăng ký hoàn tất. ===");
         0
@@ -434,48 +677,41 @@ mod win_impl {
 
     pub fn do_status() -> i32 {
         say("=== TextVN status ===");
-        let k = clsid_registry_key();
-        say(&format!("CLSID key: {k}"));
+        let inproc = format!(r"{}\InprocServer32", clsid_key());
+        let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
+            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
+        match &server {
+            Some(p) => say(&format!(
+                "COM server: {p} ({})",
+                if Path::new(p).is_file() {
+                    "OK"
+                } else {
+                    "FILE MISSING"
+                }
+            )),
+            None => say("COM server: missing"),
+        }
         say(&format!(
-            "Registry key: {}",
-            if registry_key_exists(&k) {
-                "present"
-            } else {
-                "missing"
-            }
+            "TIP profile: HKLM={} HKCU={}",
+            reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_tip_key()),
+            reg_key_exists(HKEY_CURRENT_USER, &ctf_profile_key(LANGID_VI))
         ));
 
         if com_init() {
+            // SAFETY: COM đã init.
             unsafe {
-                let prof = match CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                if let Ok(prof) = CoCreateInstance::<_, ITfInputProcessorProfiles>(
                     &CLSID_TF_InputProcessorProfiles,
                     None,
                     CLSCTX_INPROC_SERVER,
                 ) {
-                    Ok(p) => p,
-                    Err(e) => {
-                        say(&format!(
-                            "CoCreateInstance(profiles) FAIL {:#010x}",
+                    match prof.IsEnabledLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) {
+                        Ok(b) => say(&format!("IsEnabledLanguageProfile(VI) = {}", b.as_bool())),
+                        Err(e) => say(&format!(
+                            "IsEnabledLanguageProfile FAIL {:#010x}",
                             e.code().0
-                        ));
-                        return 1;
+                        )),
                     }
-                };
-                match prof.IsEnabledLanguageProfile(&CLSID_TIP, LANGID_VI, &PROFILE_GUID) {
-                    Ok(b) => say(&format!("IsEnabledLanguageProfile(VI) = {}", b.as_bool())),
-                    Err(e) => say(&format!(
-                        "IsEnabledLanguageProfile FAIL {:#010x}",
-                        e.code().0
-                    )),
-                }
-                let mut lang: u16 = 0;
-                let mut pg = GUID::zeroed();
-                match prof.GetActiveLanguageProfile(&CLSID_TIP, &mut lang, &mut pg) {
-                    Ok(()) => say(&format!("ActiveProfile langid={lang:#06x}")),
-                    Err(e) => say(&format!(
-                        "GetActiveLanguageProfile FAIL {:#010x}",
-                        e.code().0
-                    )),
                 }
             }
         }
@@ -485,16 +721,16 @@ mod win_impl {
 
 // ─── Public API (cross-platform stubs cho non-Windows) ───────────────────────────────────────────
 
-/// Đăng ký TSF TIP. `scope`: `"user"` | `"machine"` (hiện chỉ hỗ trợ per-user).
-/// Trả về exit code: 0 thành công, 1 lỗi đăng ký, 2 lỗi tham số.
+/// Đăng ký TSF TIP. `scope`: `"user"` (mặc định, không cần admin) | `"machine"` (HKLM, cần admin).
+/// Exit code: 0 thành công, 1 lỗi đăng ký, 2 lỗi tham số, 3 cần quyền Administrator.
 pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
-    if scope == "machine" {
-        eprintln!("error: --scope machine chưa hỗ trợ (cần elevation riêng — xem WIN-056)");
-        return 2;
-    }
-
     #[cfg(windows)]
     {
+        let scope = match scope {
+            "user" => win_impl::Scope::User,
+            "machine" => win_impl::Scope::Machine,
+            _ => return 2,
+        };
         let dll_path = match resolve_dll_path(dll) {
             Ok(p) => p,
             Err(e) => {
@@ -502,31 +738,31 @@ pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
                 return 1;
             }
         };
-        win_impl::do_register(&dll_path, no_taskbar)
+        win_impl::do_register(&dll_path, no_taskbar, scope)
     }
 
     #[cfg(not(windows))]
     {
-        let _ = (dll, no_taskbar);
+        let _ = (scope, dll, no_taskbar);
         eprintln!("error: `register` chỉ hỗ trợ trên Windows");
         1
     }
 }
 
-/// Hủy đăng ký TSF TIP. Trả về exit code: 0 thành công, 1 lỗi.
+/// Hủy đăng ký TSF TIP. Trả về exit code: 0 thành công, 1 lỗi, 2 lỗi tham số.
 pub fn unregister_tip(scope: &str) -> i32 {
-    if scope == "machine" {
-        eprintln!("error: --scope machine chưa hỗ trợ (cần elevation riêng — xem WIN-056)");
-        return 2;
-    }
-
     #[cfg(windows)]
     {
-        win_impl::do_unregister()
+        match scope {
+            "user" => win_impl::do_unregister(win_impl::Scope::User),
+            "machine" => win_impl::do_unregister(win_impl::Scope::Machine),
+            _ => 2,
+        }
     }
 
     #[cfg(not(windows))]
     {
+        let _ = scope;
         eprintln!("error: `unregister` chỉ hỗ trợ trên Windows");
         1
     }
@@ -600,12 +836,20 @@ mod tests {
     }
 
     #[test]
-    fn register_machine_scope_returns_2() {
-        assert_eq!(register_tip("machine", None, false), 2);
-    }
-
-    #[test]
-    fn unregister_machine_scope_returns_2() {
-        assert_eq!(unregister_tip("machine"), 2);
+    fn ctf_layout_matches_tsf_registry_schema() {
+        assert_eq!(
+            ctf_tip_key(),
+            format!(r"Software\Microsoft\CTF\TIP\{CLSID_STR}")
+        );
+        let vi = ctf_profile_key(LANGID_VI);
+        assert!(
+            vi.ends_with(&format!(r"\LanguageProfile\0x0000042a\{PROFILE_STR}")),
+            "{vi}"
+        );
+        let [by_cat, by_item] = ctf_category_keys(CAT_TIP_KEYBOARD);
+        assert!(by_cat.contains(&format!(
+            r"\Category\Category\{CAT_TIP_KEYBOARD}\{CLSID_STR}"
+        )));
+        assert!(by_item.contains(&format!(r"\Category\Item\{CLSID_STR}\{CAT_TIP_KEYBOARD}")));
     }
 }

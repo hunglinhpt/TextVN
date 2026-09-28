@@ -43,6 +43,9 @@ const MUTEX_NAME: &str = r"Local\TextVNTray";
 const WINDOW_CLASS_NAME: &str = "TextVNTrayWndClass";
 #[cfg(windows)]
 const TSF_TIP_REGISTRY_KEY: &str = r"Software\Classes\CLSID\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+/// Khóa TIP của CTF (tương đối HKLM\SOFTWARE / HKCU\Software) — khớp `textvn-cli register`.
+#[cfg(windows)]
+const TSF_CTF_TIP_KEY: &str = r"Software\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
@@ -165,37 +168,29 @@ fn ensure_hook_running() {
 }
 
 /// TSF là đường gõ mặc định nên phải có TIP profile trước khi tray chạy. Bản
-/// portable trước đây chỉ có `install.ps1`; nếu người dùng mở thẳng TextVN.exe
-/// thì registry chưa tồn tại và Windows không thể đưa phím vào `KeySink`.
-/// Lần đầu chạy đăng ký per-user bằng CLI cạnh executable, không tạo console
-/// và không cần quyền Administrator.
+/// portable có thể được mở thẳng hoặc bị chuyển thư mục; khi đó registry thiếu
+/// hoặc trỏ tới DLL cũ và Windows không thể nạp TIP → không gõ được tiếng Việt.
+/// Mỗi lần khởi động kiểm tra lại và đăng ký per-user bằng CLI cạnh executable
+/// (không tạo console, không cần quyền Administrator).
 #[cfg(windows)]
 fn ensure_tsf_tip_registered() {
-    let key_wide: Vec<u16> = TSF_TIP_REGISTRY_KEY.encode_utf16().chain(Some(0)).collect();
-    let mut key = HKEY::default();
-    let exists = unsafe {
-        let status = RegOpenKeyExW(
-            HKEY_CURRENT_USER,
-            PCWSTR(key_wide.as_ptr()),
-            None,
-            KEY_READ,
-            &mut key,
-        );
-        if status == ERROR_SUCCESS {
-            let _ = RegCloseKey(key);
-            true
-        } else {
-            false
-        }
+    let Ok(exe) = std::env::current_exe() else {
+        return;
     };
-    if exists {
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let Some(dll) = ["textvn-tsf.dll", "textvn_win_tsf.dll"]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|p| p.is_file())
+    else {
+        return;
+    };
+    if tsf_registration_is_current(&dll) {
         return;
     }
-
-    let Ok(mut cli_path) = std::env::current_exe() else {
-        return;
-    };
-    cli_path.set_file_name("textvn-cli.exe");
+    let cli_path = dir.join("textvn-cli.exe");
     if !cli_path.is_file() {
         return;
     }
@@ -204,8 +199,64 @@ fn ensure_tsf_tip_registered() {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let _ = std::process::Command::new(cli_path)
         .arg("register")
+        .arg("--dll")
+        .arg(&dll)
         .creation_flags(CREATE_NO_WINDOW)
         .status();
+}
+
+/// COM server trỏ đúng DLL đang có + profile TIP tồn tại (HKLM hoặc fallback HKCU).
+#[cfg(windows)]
+fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
+    let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
+    let server = read_registry_string(HKEY_CURRENT_USER, &inproc)
+        .or_else(|| read_registry_string(HKEY_LOCAL_MACHINE, &inproc));
+    let server_ok = server.is_some_and(|p| {
+        p.eq_ignore_ascii_case(&dll.to_string_lossy()) && std::path::Path::new(&p).is_file()
+    });
+    server_ok
+        && (registry_key_exists(HKEY_LOCAL_MACHINE, TSF_CTF_TIP_KEY)
+            || registry_key_exists(HKEY_CURRENT_USER, TSF_CTF_TIP_KEY))
+}
+
+#[cfg(windows)]
+fn registry_key_exists(root: HKEY, path: &str) -> bool {
+    let key_wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+    let mut key = HKEY::default();
+    // SAFETY: buffer nul-terminated; key đóng ngay khi mở được.
+    unsafe {
+        if RegOpenKeyExW(root, PCWSTR(key_wide.as_ptr()), None, KEY_READ, &mut key) == ERROR_SUCCESS
+        {
+            let _ = RegCloseKey(key);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+#[cfg(windows)]
+fn read_registry_string(root: HKEY, path: &str) -> Option<String> {
+    let key_wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+    let mut buf = [0u16; 1024];
+    let mut size = std::mem::size_of_val(&buf) as u32;
+    // SAFETY: buffer/kích thước khớp nhau; RRF_RT_REG_SZ bảo đảm chuỗi kết thúc nul.
+    let status = unsafe {
+        RegGetValueW(
+            root,
+            PCWSTR(key_wide.as_ptr()),
+            PCWSTR::null(),
+            RRF_RT_REG_SZ,
+            None,
+            Some(buf.as_mut_ptr() as *mut _),
+            Some(&mut size),
+        )
+    };
+    if status != ERROR_SUCCESS {
+        return None;
+    }
+    let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    Some(String::from_utf16_lossy(&buf[..len]))
 }
 
 fn main() {
@@ -625,24 +676,12 @@ fn stop_running_instance() {
                 if wait_released(10) {
                     return;
                 }
-                // `--stop` là lệnh quản trị tường minh. Nếu UI thread bị treo,
-                // không để tray/hook bị orphan vô hạn: terminate đúng PID sở hữu
-                // cửa sổ TextVN đã định danh ở trên.
-                if window_pid != 0 {
-                    if let Ok(process) =
-                        unsafe { OpenProcess(PROCESS_TERMINATE, false, window_pid) }
-                    {
-                        let terminated = unsafe { TerminateProcess(process, 0) }.is_ok();
-                        let _ = unsafe { CloseHandle(process) };
-                        if terminated {
-                            println!(
-                                "TextVN did not close gracefully; terminated PID {window_pid}."
-                            );
-                            return;
-                        }
-                    }
-                }
-                println!("TextVN could not be stopped within 3s.");
+                // Không TerminateProcess: một exe mở handle PROCESS_TERMINATE tới
+                // process khác là mẫu hành vi AV soi (process killer), và dừng
+                // cưỡng bức bỏ lỡ cleanup (icon khay, broadcast Shutdown).
+                println!(
+                    "TextVN (PID {window_pid}) did not stop within 3s; close it from the tray menu."
+                );
                 return;
             }
         }

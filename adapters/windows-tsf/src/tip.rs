@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `ITfTextInputProcessorEx` and `ITfThreadMgrEventSink` implementation for TextVN TSF (WIN-010/014).
+//! `ITfTextInputProcessorEx` + `ITfThreadMgrEventSink` của TextVN TSF (WIN-010/014/015).
 
 #[cfg(windows)]
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::RefCell;
 #[cfg(windows)]
 use std::rc::Rc;
-#[cfg(windows)]
-use std::sync::Arc;
 
 #[cfg(windows)]
 use windows::core::*;
@@ -18,21 +16,29 @@ use windows::Win32::UI::TextServices::*;
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
+use crate::edit_session::TsfShared;
+#[cfg(windows)]
 use crate::guids::GUID_PRESERVED_TOGGLE;
 #[cfg(windows)]
 use crate::ipc_client::IpcClient;
 #[cfg(windows)]
-use crate::key_event::KeySink;
+use crate::key_event::{end_composition, KeySink};
 #[cfg(windows)]
 use crate::ThreadState;
 
+/// Hotkey bật/tắt tiếng Việt trong TSF (khớp `config.hotkeys.toggle_vi_en`).
 #[cfg(windows)]
+const TOGGLE_KEY: TF_PRESERVEDKEY = TF_PRESERVEDKEY {
+    uVKey: VK_SPACE.0 as u32,
+    uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
+};
+
+#[cfg(windows)]
+#[derive(Default)]
 struct TipInner {
     tid: u32,
     keymgr: Option<ITfKeystrokeMgr>,
-    _sink: Option<ITfKeyEventSink>,
-    thread_state: Option<Rc<RefCell<ThreadState>>>,
-    ipc: Option<Arc<IpcClient>>,
+    shared: Option<Rc<TsfShared>>,
     source: Option<ITfSource>,
     sink_cookie: u32,
 }
@@ -41,7 +47,7 @@ struct TipInner {
 #[implement(ITfTextInputProcessorEx, ITfTextInputProcessor, ITfThreadMgrEventSink)]
 pub struct Tip {
     _guard: ObjGuard,
-    inner: UnsafeCell<TipInner>,
+    inner: RefCell<TipInner>,
 }
 
 #[cfg(windows)]
@@ -49,21 +55,12 @@ impl Tip {
     pub fn new() -> Self {
         Self {
             _guard: ObjGuard::new(),
-            inner: UnsafeCell::new(TipInner {
-                tid: 0,
-                keymgr: None,
-                _sink: None,
-                thread_state: None,
-                ipc: None,
-                source: None,
-                sink_cookie: 0,
-            }),
+            inner: RefCell::new(TipInner::default()),
         }
     }
 
-    fn with<R>(&self, f: impl FnOnce(&mut TipInner) -> R) -> R {
-        // SAFETY: TSF callbacks for a given TIP occur on the same STA thread.
-        f(unsafe { &mut *self.inner.get() })
+    fn shared(&self) -> Option<Rc<TsfShared>> {
+        self.inner.try_borrow().ok().and_then(|i| i.shared.clone())
     }
 }
 
@@ -75,48 +72,42 @@ impl Default for Tip {
 }
 
 #[cfg(windows)]
+fn current_exe_name() -> String {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
+        .unwrap_or_else(|| "unknown.exe".into())
+}
+
+#[cfg(windows)]
 impl ITfTextInputProcessor_Impl for Tip_Impl {
     fn Activate(&self, ptim: Ref<'_, ITfThreadMgr>, tid: u32) -> Result<()> {
         self.ActivateEx(ptim, tid, 0)
     }
 
     fn Deactivate(&self) -> Result<()> {
-        let (tid, keymgr, ipc, source, sink_cookie) = self.with(|i| {
-            (
-                i.tid,
-                i.keymgr.take(),
-                i.ipc.take(),
-                i.source.take(),
-                std::mem::take(&mut i.sink_cookie),
-            )
-        });
-        self.with(|i| {
-            i._sink.take();
-            i.thread_state.take();
-        });
-        if let Some(src) = source {
-            if sink_cookie != 0 {
-                // SAFETY: Unadvising ITfThreadMgrEventSink registered during ActivateEx.
-                unsafe {
-                    let _ = src.UnadviseSink(sink_cookie);
+        let Ok(mut inner) = self.inner.try_borrow_mut() else {
+            return Ok(());
+        };
+        let inner = std::mem::take(&mut *inner);
+        if let Some(shared) = &inner.shared {
+            // B2: không bỏ lại chữ đang soạn khi người dùng đổi bộ gõ.
+            end_composition(shared, None);
+            shared.reset_engine();
+        }
+        // SAFETY: gỡ đúng các sink/hotkey đã đăng ký trong ActivateEx.
+        unsafe {
+            if let Some(src) = &inner.source {
+                if inner.sink_cookie != 0 {
+                    let _ = src.UnadviseSink(inner.sink_cookie);
                 }
             }
-        }
-        if let Some(client) = ipc {
-            client.stop();
-        }
-        if let Some(km) = keymgr {
-            // WIN-015: Unpreserve hotkey toggle
-            let pkey = TF_PRESERVEDKEY {
-                uVKey: VK_SPACE.0 as u32,
-                uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
-            };
-            // SAFETY: Unadvising key sink and unpreserving hotkey registered during Activate.
-            unsafe {
-                let _ = km.UnpreserveKey(&GUID_PRESERVED_TOGGLE, &pkey);
-                let _ = km.UnadviseKeyEventSink(tid);
+            if let Some(km) = &inner.keymgr {
+                let _ = km.UnpreserveKey(&GUID_PRESERVED_TOGGLE, &TOGGLE_KEY);
+                let _ = km.UnadviseKeyEventSink(inner.tid);
             }
         }
+        // IPC client là của process và KHÔNG bị join ở đây (join từng treo app).
         Ok(())
     }
 }
@@ -125,44 +116,39 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
 impl ITfTextInputProcessorEx_Impl for Tip_Impl {
     fn ActivateEx(&self, ptim: Ref<'_, ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
         let mgr = ptim.ok()?.clone();
-
         let keymgr: ITfKeystrokeMgr = mgr.cast()?;
 
-        // Khởi tạo ThreadState cho tiến trình hiện hành
-        let exe_name = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()))
-            .unwrap_or_else(|| "unknown.exe".into());
+        let exe_name = current_exe_name();
+        let mut thread = ThreadState::new(exe_name.clone(), textvn_strategy::IME_CAP_PREEDIT)
+            .map_err(|e| Error::from_hresult(HRESULT(e)))?;
+        // Config của người dùng có hiệu lực ngay cả khi tray chưa chạy.
+        let _ = thread.reload_config_from_file();
 
-        let state = match ThreadState::new(exe_name.clone(), textvn_strategy::IME_CAP_PREEDIT) {
-            Ok(s) => Rc::new(RefCell::new(s)),
-            Err(e) => return Err(Error::from_hresult(HRESULT(e))),
-        };
+        let ipc = IpcClient::global(&exe_name);
+        let shared = Rc::new(TsfShared::new(tid, ipc, thread));
+        shared.config_seen.set(ipc.config_version());
 
-        let ipc = Arc::new(IpcClient::start(exe_name));
-        let sink: ITfKeyEventSink = KeySink::new(tid, state.clone(), ipc.clone()).into();
-        // SAFETY: keymgr is a valid ITfKeystrokeMgr interface.
+        let sink: ITfKeyEventSink = KeySink::new(shared.clone()).into();
+        // SAFETY: keymgr là ITfKeystrokeMgr hợp lệ của thread hiện tại.
         unsafe { keymgr.AdviseKeyEventSink(tid, &sink, true) }?;
 
-        // WIN-015: Đăng ký hotkey preserve Ctrl+Shift+Space
-        let pkey = TF_PRESERVEDKEY {
-            uVKey: VK_SPACE.0 as u32,
-            uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
-        };
-        let desc: [u16; 15] = [
-            'V' as u16, 'i' as u16, 'e' as u16, 't' as u16, 'I' as u16, 'M' as u16, 'E' as u16,
-            ' ' as u16, 'T' as u16, 'o' as u16, 'g' as u16, 'g' as u16, 'l' as u16, 'e' as u16, 0,
-        ];
-        // SAFETY: keymgr is valid ITfKeystrokeMgr.
+        // WIN-015: Ctrl+Shift+Space. Mô tả null-terminated (S3-2: TSF đọc bằng wcslen).
+        let desc: Vec<u16> = "TextVN Toggle".encode_utf16().chain(Some(0)).collect();
+        // SAFETY: keymgr hợp lệ; desc sống tới hết lời gọi.
         unsafe {
-            let _ = keymgr.PreserveKey(tid, &GUID_PRESERVED_TOGGLE, &pkey, &desc);
+            let _ = keymgr.PreserveKey(
+                tid,
+                &GUID_PRESERVED_TOGGLE,
+                &TOGGLE_KEY,
+                &desc[..desc.len() - 1],
+            );
         }
 
-        // WIN-014: Đăng ký ITfThreadMgrEventSink để lắng nghe OnSetFocus (Bug B2 - commit-before-hide)
-        let source: Result<ITfSource> = mgr.cast();
-        let (source_opt, sink_cookie) = match source {
+        // WIN-014: OnSetFocus → commit trước khi đổi document (B2).
+        let (source, sink_cookie) = match mgr.cast::<ITfSource>() {
             Ok(src) => {
                 let event_sink: ITfThreadMgrEventSink = self.to_interface();
+                // SAFETY: src hợp lệ; cookie được Unadvise trong Deactivate.
                 let cookie = unsafe { src.AdviseSink(&ITfThreadMgrEventSink::IID, &event_sink) }
                     .unwrap_or(0);
                 (Some(src), cookie)
@@ -170,16 +156,15 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
             Err(_) => (None, 0),
         };
 
-        self.with(|i| {
-            i.tid = tid;
-            i.keymgr = Some(keymgr);
-            i._sink = Some(sink);
-            i.thread_state = Some(state);
-            i.ipc = Some(ipc);
-            i.source = source_opt;
-            i.sink_cookie = sink_cookie;
-        });
-
+        if let Ok(mut inner) = self.inner.try_borrow_mut() {
+            *inner = TipInner {
+                tid,
+                keymgr: Some(keymgr),
+                shared: Some(shared),
+                source,
+                sink_cookie,
+            };
+        }
         Ok(())
     }
 }
@@ -196,17 +181,15 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
 
     fn OnSetFocus(
         &self,
-        pdimnew: Ref<'_, ITfDocumentMgr>,
+        _pdimnew: Ref<'_, ITfDocumentMgr>,
         _pdimprev: Ref<'_, ITfDocumentMgr>,
     ) -> Result<()> {
-        // Bug B2 (commit-before-hide): nếu mất focus (pdimnew == NULL), reset engine buffer
-        if pdimnew.is_null() {
-            self.with(|i| {
-                if let Some(state) = &i.thread_state {
-                    let mut s = state.borrow_mut();
-                    let _ = s.engine.reject_edit_session();
-                }
-            });
+        // Mọi lần đổi document (kể cả mất focus): commit từ đang soạn vào đúng
+        // document cũ, rồi bắt đầu sạch ở document mới — không mang buffer sang.
+        if let Some(shared) = self.shared() {
+            end_composition(&shared, None);
+            shared.reset_engine();
+            shared.pending_eaten_vk.set(None);
         }
         Ok(())
     }

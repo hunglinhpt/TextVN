@@ -136,3 +136,19 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Farch-4 | minor | macOS chưa có adapter IMK (đường chính thống macOS) — chưa bắt đầu, không phải bug | còn mở (roadmap) |
 | Farch-5 | minor | Verify: không có auto-spawn hook — chuỗi opt-in đầy đủ (menu → `WM_START_COMPATIBILITY_HOOK` → spawn; watchdog no-op) | đóng / verified 2026-09-28 |
 | Farch-6 | minor | Vòng 2: `docs/specs/verified-ops.md` A5 vẫn ghi "7 check / 7/7" sau khi thêm check #8 | fixed @b061778 |
+
+## 9. Cập nhật 2026-09-28 — giảm bề mặt heuristic trong gói mặc định
+
+Chi tiết + lý do: `tsf-typing-overhaul.md` §3. Tóm tắt:
+
+| # | Thay đổi | Trạng thái |
+|---|---|---|
+| A8 | TSF sửa text bằng composition (không `SendInput`, không Backspace giả) — gói `tsf-only` không còn API gõ giả lập nào | ✅ |
+| A9 | DLL TSF không UIA/không đọc process khác; gate mật khẩu dùng InputScope + `ES_PASSWORD` in-proc | ✅ |
+| A10 | `input.dll` chỉ nạp từ System32 (`LoadLibraryExW` + `LOAD_LIBRARY_SEARCH_SYSTEM32`) | ✅ |
+| A11 | `TextVN --stop` không còn `OpenProcess(PROCESS_TERMINATE)`/`TerminateProcess` | ✅ |
+| A12 | `textvn_ffi.dll` không còn trong portable/installer (bảng SHA256 §3 có dòng này là của build cũ) | ✅ |
+| A13 | Named pipe `PIPE_REJECT_REMOTE_CLIENTS` | ✅ |
+
+Việc còn lại **không làm được bằng code**: ký Authenticode (AV-2) và submit FP (AV-1) — vẫn là yếu tố lớn nhất với Kaspersky/SmartScreen cho binary chưa có reputation.
+
