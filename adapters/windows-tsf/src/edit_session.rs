@@ -30,7 +30,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
-use crate::compose::{plan_key, text_after, CompositionPlan, EngineStep, KeyKind};
+use crate::compose::{plan_key, text_after, CompositionPlan, EngineStep, KeyKind, ModifierToggle};
 #[cfg(windows)]
 use crate::ipc_client::IpcClient;
 #[cfg(windows)]
@@ -58,6 +58,8 @@ pub struct TsfShared {
     pub config_seen: Cell<u64>,
     /// App/TSF kết thúc composition của ta (OnCompositionTerminated).
     pub terminated: Cell<bool>,
+    /// Phím chuyển Ctrl+Shift kiểu UniKey.
+    pub modifier_toggle: Cell<ModifierToggle>,
 }
 
 #[cfg(windows)]
@@ -72,6 +74,7 @@ impl TsfShared {
             pending_eaten_vk: Cell::new(None),
             config_seen: Cell::new(0),
             terminated: Cell::new(false),
+            modifier_toggle: Cell::new(ModifierToggle::default()),
         }
     }
 

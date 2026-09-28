@@ -675,6 +675,17 @@ mod win_impl {
         0
     }
 
+    /// COM server trỏ tới DLL còn tồn tại + profile TIP có ở HKLM hoặc fallback HKCU.
+    pub fn registration_ok() -> bool {
+        let inproc = format!(r"{}\InprocServer32", clsid_key());
+        let server_ok = reg_read_string(HKEY_CURRENT_USER, &inproc)
+            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc))
+            .is_some_and(|p| Path::new(&p).is_file());
+        server_ok
+            && (reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_tip_key())
+                || reg_key_exists(HKEY_CURRENT_USER, &ctf_tip_key()))
+    }
+
     pub fn do_status() -> i32 {
         say("=== TextVN status ===");
         let inproc = format!(r"{}\InprocServer32", clsid_key());
@@ -765,6 +776,18 @@ pub fn unregister_tip(scope: &str) -> i32 {
         let _ = scope;
         eprintln!("error: `unregister` chỉ hỗ trợ trên Windows");
         1
+    }
+}
+
+/// TIP đã đăng ký đủ để Windows nạp được (dùng cho `doctor`). Non-Windows: `false`.
+pub fn tip_registration_ok() -> bool {
+    #[cfg(windows)]
+    {
+        win_impl::registration_ok()
+    }
+    #[cfg(not(windows))]
+    {
+        false
     }
 }
 

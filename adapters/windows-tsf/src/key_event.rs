@@ -71,7 +71,8 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         Ok(eaten.into())
     }
 
-    fn OnTestKeyUp(&self, _pic: Ref<'_, ITfContext>, _w: WPARAM, _l: LPARAM) -> Result<BOOL> {
+    fn OnTestKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
         Ok(false.into())
     }
 
@@ -83,7 +84,9 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         Ok(guarded(|| handle_key(&self.shared, pic, vk, lparam)).into())
     }
 
-    fn OnKeyUp(&self, _pic: Ref<'_, ITfContext>, _w: WPARAM, _l: LPARAM) -> Result<BOOL> {
+    fn OnKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        // Pha nào tới trước xử lý; `ModifierToggle` chỉ trả true một lần.
+        guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
         Ok(false.into())
     }
 
@@ -97,14 +100,37 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
             return Ok(false.into());
         }
         // WIN-015: chỉ xử lý ở đây (không xử lý lại trong OnKeyDown → không toggle 2 lần).
+        // Space của Ctrl+Shift+Space không tới key sink → hủy Ctrl+Shift đang chờ,
+        // nếu không nhả Ctrl/Shift sẽ toggle lần nữa.
+        let mut pending = self.shared.modifier_toggle.get();
+        pending.reset();
+        self.shared.modifier_toggle.set(pending);
         guarded(|| {
-            end_composition(&self.shared, pic.ok().ok());
-            self.shared.reset_engine();
-            self.shared.ipc.toggle_global();
+            toggle_vietnamese(&self.shared, pic.ok().ok());
             true
         });
         Ok(true.into())
     }
+}
+
+/// Đảo bật/tắt tiếng Việt: commit từ đang gõ, đổi ngay trong process, báo tray.
+#[cfg(windows)]
+fn toggle_vietnamese(shared: &TsfShared, ctx: Option<&ITfContext>) {
+    end_composition(shared, ctx);
+    shared.reset_engine();
+    shared.ipc.toggle_global();
+}
+
+/// Nhả phím: chỉ dùng cho phím chuyển Ctrl+Shift; không bao giờ ăn phím.
+#[cfg(windows)]
+fn handle_key_up(shared: &TsfShared, pic: Ref<'_, ITfContext>, vk: u32) -> bool {
+    let mut toggle = shared.modifier_toggle.get();
+    let fire = toggle.on_key_up(vk);
+    shared.modifier_toggle.set(toggle);
+    if fire {
+        toggle_vietnamese(shared, pic.ok().ok());
+    }
+    false
 }
 
 /// Mọi đường phím: panic không được thoát qua ranh giới COM (abort app).
@@ -116,11 +142,19 @@ fn guarded(f: impl FnOnce() -> bool) -> bool {
 /// Xử lý 1 phím, trả `eaten`. Mọi nhánh lỗi → `false` (phím tới app nguyên vẹn).
 #[cfg(windows)]
 fn handle_key(shared: &Rc<TsfShared>, pic: Ref<'_, ITfContext>, vk: u32, lparam: LPARAM) -> bool {
+    let mods = active_modifiers();
+    let mut toggle = shared.modifier_toggle.get();
+    toggle.on_key_down(
+        vk,
+        mods & MOD_CTRL != 0,
+        mods & MOD_SHIFT != 0,
+        mods & (MOD_ALT | MOD_SUPER) != 0,
+    );
+    shared.modifier_toggle.set(toggle);
     if is_modifier_vk(vk) {
         return false;
     }
     let ctx = pic.ok().ok();
-    let mods = active_modifiers();
 
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.

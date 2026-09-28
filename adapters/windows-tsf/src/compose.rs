@@ -112,6 +112,52 @@ pub fn is_modifier_vk(vk: u32) -> bool {
     ) || (vk::LSHIFT..=vk::RMENU).contains(&vk)
 }
 
+fn is_ctrl_vk(vk: u32) -> bool {
+    matches!(vk, vk::CONTROL | 0xA2 | 0xA3)
+}
+
+fn is_shift_vk(vk: u32) -> bool {
+    matches!(vk, vk::SHIFT | vk::LSHIFT | 0xA1)
+}
+
+/// Phím chuyển kiểu UniKey/EVKey: nhấn Ctrl và Shift (thứ tự bất kỳ) rồi nhả, KHÔNG
+/// kèm phím nào khác. Hộp thoại cài đặt và hook đều hứa "Ctrl + Shift"; TSF trước đây
+/// chỉ có Ctrl+Shift+Space nên phím chuyển quen thuộc không có tác dụng.
+/// Không bao giờ ăn phím modifier — chỉ quan sát.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ModifierToggle {
+    armed: bool,
+}
+
+impl ModifierToggle {
+    /// Key-down bất kỳ. `ctrl_down`/`shift_down` = trạng thái phím còn lại của cặp
+    /// (đã được xử lý trước phím hiện tại); `alt_or_win` = Alt/Win đang giữ.
+    pub fn on_key_down(&mut self, vk: u32, ctrl_down: bool, shift_down: bool, alt_or_win: bool) {
+        self.armed = if is_ctrl_vk(vk) {
+            shift_down && !alt_or_win
+        } else if is_shift_vk(vk) {
+            ctrl_down && !alt_or_win
+        } else {
+            false
+        };
+    }
+
+    /// Key-up: `true` đúng MỘT lần khi nhả Ctrl/Shift của một lần bấm hợp lệ
+    /// (gọi lại ở pha thứ hai `OnKeyUp` sẽ trả `false`).
+    pub fn on_key_up(&mut self, vk: u32) -> bool {
+        if (is_ctrl_vk(vk) || is_shift_vk(vk)) && self.armed {
+            self.armed = false;
+            return true;
+        }
+        false
+    }
+
+    /// Focus đổi / hotkey khác đã xử lý: hủy lần bấm đang chờ.
+    pub fn reset(&mut self) {
+        self.armed = false;
+    }
+}
+
 /// Kết quả engine đã giải mã (không phụ thuộc layout C của `ime_result_v1`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EngineStep {
@@ -443,6 +489,40 @@ mod tests {
     fn auto_capitalize_goes_into_composition() {
         let cfg = br#"{"config_version":1,"auto_capitalize":true}"#;
         assert_eq!(run(cfg, "chao. ban").text(), "chao. Ban");
+    }
+
+    #[test]
+    fn ctrl_shift_tap_toggles_once_and_only_without_other_keys() {
+        let mut t = ModifierToggle::default();
+        // Ctrl ↓, Shift ↓, Shift ↑ → toggle; pha thứ hai (OnKeyUp) không toggle lại.
+        t.on_key_down(0xA2, false, false, false);
+        t.on_key_down(0xA0, true, false, false);
+        assert!(t.on_key_up(0xA0));
+        assert!(!t.on_key_up(0xA0));
+        assert!(!t.on_key_up(0xA2));
+
+        // Shift trước Ctrl cũng được; auto-repeat của modifier giữ trạng thái.
+        t.on_key_down(vk::SHIFT, false, false, false);
+        t.on_key_down(vk::CONTROL, false, true, false);
+        t.on_key_down(vk::CONTROL, false, true, false);
+        assert!(t.on_key_up(vk::CONTROL));
+
+        // Ctrl+Shift+Z (redo) / Ctrl+Shift+Space: phím thứ ba hủy lần bấm.
+        t.on_key_down(vk::CONTROL, false, false, false);
+        t.on_key_down(vk::SHIFT, true, false, false);
+        t.on_key_down(0x5A, true, true, false);
+        assert!(!t.on_key_up(vk::SHIFT));
+
+        // Kèm Alt/Win không tính; reset() hủy khi focus đổi.
+        t.on_key_down(vk::SHIFT, true, false, true);
+        assert!(!t.on_key_up(vk::SHIFT));
+        t.on_key_down(vk::SHIFT, true, false, false);
+        t.reset();
+        assert!(!t.on_key_up(vk::SHIFT));
+
+        // Chỉ một modifier: không toggle.
+        t.on_key_down(vk::SHIFT, false, false, false);
+        assert!(!t.on_key_up(vk::SHIFT));
     }
 
     #[test]

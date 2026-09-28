@@ -21,6 +21,8 @@
 | Ftsf-10 | minor | Portable chuyển thư mục → TIP trỏ DLL cũ | Tray chỉ kiểm tra key CLSID tồn tại | Kiểm tra `InprocServer32` = DLL cạnh exe + file tồn tại + profile TIP (HKLM/HKCU) |
 | Ftsf-11 | minor | Config (VNI…) bị bỏ qua khi tray tắt | Engine TSF khởi tạo default, chỉ reload khi có IPC | Nạp `config.json` lúc Activate; reload chỉ ở ranh giới từ (reload giữa từ xóa buffer engine) |
 | Ftsf-12 | minor | Panic trong callback COM = abort app | Không có `catch_unwind` ở `ITfKeyEventSink`/`DoEditSession` | `guarded()`/`catch_unwind` + `try_borrow*` (không panic vì RefCell) |
+| Ftsf-13 | major | Bấm Ctrl+Shift (phím chuyển hộp thoại cài đặt hướng dẫn, hook cũng dùng) không đổi V/E trong app TSF | TSF chỉ đăng ký preserved key Ctrl+Shift+Space | `compose::ModifierToggle`: nhấn Ctrl+Shift rồi nhả, không kèm phím khác → đảo trạng thái (không ăn phím modifier); Ctrl+Shift+Space vẫn dùng được, preserved key hủy lần bấm đang chờ để không đảo 2 lần |
+| Ftsf-14 | minor | `textvn-cli doctor` luôn báo "TIP chưa đăng ký"; spawn `reg.exe`/`tasklist.exe` | Kiểm tra CLSID sai (`{3E076C56-…}`); liệt kê process qua child process | Dùng `register::tip_registration_ok()` (Win32 registry API, CLSID thật, DLL còn tồn tại, profile HKLM/HKCU); tray/hook kiểm tra bằng `OpenMutexW` mutex đơn-instance của chính TextVN |
 
 ## 2. Mô hình composition (quyết định kiến trúc)
 
@@ -51,3 +53,4 @@ hợp lệ cho cả app TSF-aware lẫn IMM32/CUAS; `SelectionReplace`/`ForwardA
 | Bỏ `textvn_ffi.dll` (export `ime_key`…) khỏi gói Windows | Runtime link engine tĩnh; DLL rời chỉ thêm bề mặt quét |
 | Pipe `PIPE_REJECT_REMOTE_CLIENTS` | Chỉ client cục bộ |
 | Registry ghi bằng Win32 API, không spawn `reg.exe` | Child process sửa registry là tín hiệu persistence |
+| `doctor` không spawn `tasklist`/`reg`, kiểm tra mutex của chính TextVN | Liệt kê process của người dùng là tín hiệu recon |

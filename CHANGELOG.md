@@ -25,6 +25,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   app TSF-aware lẫn IMM32/CUAS; `replay --adapter tsf` kiểm toàn bộ corpus qua mô hình này.
 - Giảm heuristic AV: bỏ `TerminateProcess` khỏi `--stop`, bỏ `textvn_ffi.dll` khỏi gói Windows,
   `input.dll` chỉ nạp từ System32, pipe từ chối client từ xa.
+- TSF nhận phím chuyển **Ctrl+Shift** kiểu UniKey (hộp thoại cài đặt và hook đã dùng) bên cạnh
+  Ctrl+Shift+Space (Ftsf-13).
+- `textvn-cli doctor` kiểm tra đúng CLSID/đăng ký TIP bằng Win32 API, không spawn `reg`/`tasklist`
+  (Ftsf-14).
 - `cli/src/register.rs` bị empty do overwrite — viết lại hoàn toàn với full TSF registration flow
 - Unsafe COM blocks bọc trong closure để dùng `?` operator đúng cách
 
