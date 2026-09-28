@@ -29,6 +29,8 @@ pub mod ipc_client;
 #[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]
+pub mod replay;
+#[cfg(windows)]
 pub mod tip;
 pub mod trace;
 

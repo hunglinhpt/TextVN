@@ -30,6 +30,7 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
   thật qua TSF vào Notepad/WordPad rồi gỡ sạch.
 - Kiểm thử từ vựng thật `core/tests/common_words.rs` (~400 từ × Telex/VNI/kiểu cũ/`uow`/giữa
   từ/Caps Lock); corpus 113 kịch bản × 5 adapter.
+- `TEXTVN_TSF_TRACE=<file>`: nhật ký chẩn đoán key sink TSF (tắt mặc định, không ghi nội dung gõ).
 - Tài liệu: [hướng dẫn sử dụng](docs/user-guide.md), [hướng dẫn phát triển](docs/developer-guide.md),
   [đối chiếu bộ gõ tham chiếu và bug đã biết](docs/specs/reference-parity.md).
 
@@ -38,8 +39,13 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
   security gate không bao giờ mở; đăng ký per-user dừng trước `InstallLayoutOrTip`; composition
   mở mới mỗi phím; app treo khi Deactivate; hotkey đảo 2 lần; Delete/F-key/mũi tên bị coi là
   chữ; `doctor` kiểm sai CLSID.
-- TSF: dấu cách/dấu câu được chốt **cùng** từ — trước đây ứng dụng Win32 cổ điển (Notepad,
-  WinForms…) nhận dấu cách trước chữ (" được" thay vì "được ").
+- TSF: dấu cách/dấu câu được chốt **cùng** từ; Enter/Tab/phím điều hướng ở ứng dụng Win32
+  cổ điển (Notepad, WinForms… qua CUAS) được xử lý ở pha `OnKeyDown` — trước đây các phím này
+  ra **trước** chữ (" được", "\nchào").
+- TSF: Ctrl+Shift chuyển V/E được cả ở ứng dụng TSF-aware (Word, WordPad): phím chuyển bố cục
+  của Windows nuốt Shift trước key sink, nay nhận qua `ITfKeyTraceEventSink`. Báo trạng thái
+  tuyệt đối cho tray thay vì "đảo".
+- Gỡ bản portable (menu khay hoặc `uninstall.ps1`) bỏ luôn mục tự khởi động trỏ vào thư mục đó.
 - Đặt dấu sai chính tả: `của`→cuả, `nghĩa`→nghiã, `thuỷ`/`thủy` theo kiểu dấu, `được`→đựơc
   (kiểu cũ); dấu tự dời khi gõ thêm chữ (`hòa`+`n` → hoàn).
 - `d` + nguyên âm tự thành `đ` (không gõ được dân, dạy, dưới…): `đ` giờ chỉ từ `dd` như

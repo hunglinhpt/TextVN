@@ -94,8 +94,14 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
             trace_key(&self.shared, "down", vk, "confirm");
             return Ok(true.into());
         }
-        self.shared.deferred_vk.set(None);
+        let deferred = self.shared.deferred_vk.take() == Some(vk);
         let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
+        // CUAS đã đổi phím thành VK_PROCESSKEY vì pha test nhận nó: từ đã commit, giờ trả
+        // phím gốc về cho app, xếp SAU kết quả composition (`replay.rs`).
+        if deferred && !eaten && guarded(|| crate::replay::schedule(vk, lparam)) {
+            trace_key(&self.shared, "down", vk, "replayed");
+            return Ok(true.into());
+        }
         trace_key(&self.shared, "down", vk, eaten_label(eaten));
         Ok(eaten.into())
     }
@@ -170,9 +176,9 @@ fn eaten_label(eaten: bool) -> &'static str {
 /// App IMM32 chạy qua CUAS (Notepad cổ điển, WinForms, Delphi…): khi pha test đóng
 /// composition rồi trả "không ăn", kết quả composition tới cửa sổ SAU phím gốc
 /// (Enter/Tab ra trước chữ — bắt được bằng test gõ thật). Với phím sẽ đóng composition
-/// và đi tới app (Enter, Tab, điều hướng, chord), pha test chỉ nhận phím; việc thật
-/// làm ở `OnKeyDown`, lúc CUAS đang dịch phím (`ImeToAsciiEx`) nên kết quả composition
-/// và phím gốc ra đúng thứ tự. App TSF-aware không bị ảnh hưởng.
+/// và đi tới app (Enter, Tab, điều hướng, Ctrl+…), pha test nhận phím; `OnKeyDown` commit
+/// từ (lúc CUAS đang dịch phím) rồi trả phím gốc qua `replay.rs`. Alt/Win+… là
+/// `WM_SYSKEYDOWN`/phím hệ thống — không giữ lại. App TSF-aware không bị ảnh hưởng.
 #[cfg(windows)]
 fn defer_to_key_down(
     shared: &TsfShared,
@@ -191,7 +197,11 @@ fn defer_to_key_down(
     if !transitory {
         return false;
     }
-    if active_modifiers() & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 {
+    let mods = active_modifiers();
+    if mods & (MOD_ALT | MOD_SUPER) != 0 {
+        return false;
+    }
+    if mods & MOD_CTRL != 0 {
         return true;
     }
     matches!(

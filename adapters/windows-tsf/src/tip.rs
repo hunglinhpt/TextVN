@@ -111,6 +111,8 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
                 let _ = km.UnadviseKeyEventSink(inner.tid);
             }
         }
+        // Phím CUAS còn chờ trả cho app được giao luôn; huỷ cửa sổ message-only của thread.
+        crate::replay::shutdown();
         // IPC client là của process và KHÔNG bị join ở đây (join từng treo app).
         Ok(())
     }
