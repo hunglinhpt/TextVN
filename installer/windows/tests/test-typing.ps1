@@ -173,12 +173,19 @@ function Check($app, [string]$name, [string]$want) {
 function Open-App([string]$name, [string]$exe) {
     $p = Start-Process $exe -PassThru
     $main = [IntPtr]::Zero
-    for ($i = 0; $i -lt 40 -and $main -eq [IntPtr]::Zero; $i++) {
-        Start-Sleep -Milliseconds 250
+    # Runner lanh co khi can >10 s moi hien cua so (WordPad); tien trinh khoi chay co the
+    # chuyen sang tien trinh khac cung ten - lay cua so chinh cua bat ky tien trinh nao.
+    for ($i = 0; $i -lt 60 -and $main -eq [IntPtr]::Zero; $i++) {
+        Start-Sleep -Milliseconds 500
         $p.Refresh()
         $main = $p.MainWindowHandle
+        if ($main -eq [IntPtr]::Zero) {
+            $other = Get-Process -Name $name -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
+            if ($other) { $p = $other; $main = $other.MainWindowHandle }
+        }
     }
-    if ($main -eq [IntPtr]::Zero) { throw "$name window not found" }
+    if ($main -eq [IntPtr]::Zero) { throw "$name window not found after 30 s" }
     $edit = [IntPtr]::Zero
     for ($i = 0; $i -lt 20 -and $edit -eq [IntPtr]::Zero; $i++) {
         $edit = [TvKeys]::EditOf($main)
