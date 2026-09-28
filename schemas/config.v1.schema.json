@@ -44,6 +44,11 @@
       "default": "unicode_precomposed"
     },
     "show_dialog_on_startup": { "type": "boolean", "default": true },
+    "quick_telex": {
+      "type": "boolean",
+      "default": false,
+      "$comment": "OpenKey Quick Telex: cc->ch gg->gi kk->kh nn->ng qq->qu pp->ph tt->th (phu am dau, chi Telex)"
+    },
     "english_words": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[A-Za-z]+$" },

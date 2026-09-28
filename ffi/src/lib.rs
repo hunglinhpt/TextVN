@@ -163,6 +163,17 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
             .collect(),
         // `config.english_words[]` — danh sách từ EN giữ nguyên (opt-in, xem core/post/restore_en.rs)
         english_words: cfg.english_words.clone(),
+        quick_telex: cfg.quick_telex,
+        output_charset: match cfg.output_charset {
+            textvn_config::OutputCharset::UnicodePrecomposed => {
+                textvn_core::OutputCharset::UnicodePrecomposed
+            }
+            textvn_config::OutputCharset::UnicodeDecomposed => {
+                textvn_core::OutputCharset::UnicodeDecomposed
+            }
+            textvn_config::OutputCharset::Tcvn3 => textvn_core::OutputCharset::Tcvn3,
+            textvn_config::OutputCharset::VniWindows => textvn_core::OutputCharset::VniWindows,
+        },
     }
 }
 

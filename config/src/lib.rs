@@ -107,6 +107,10 @@ pub struct Config {
     /// Bật hội thoại này khi khởi động (UniKey 4.6 RC2 parity). Mặc định true.
     #[serde(default = "default_true")]
     pub show_dialog_on_startup: bool,
+    /// Quick Telex (OpenKey): phụ âm đầu gõ đôi → cụm phụ âm
+    /// (`cc→ch gg→gi kk→kh nn→ng qq→qu pp→ph tt→th`). Chỉ Telex/Simple Telex; mặc định tắt.
+    #[serde(default)]
+    pub quick_telex: bool,
 }
 
 fn default_true() -> bool {
@@ -130,6 +134,7 @@ impl Default for Config {
             emoji: Vec::new(),
             english_words: Vec::new(),
             show_dialog_on_startup: true,
+            quick_telex: false,
         }
     }
 }

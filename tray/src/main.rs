@@ -53,6 +53,11 @@ const IDI_ICON_V: usize = 1;
 const IDI_ICON_E: usize = 2;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+/// ID message `TaskbarCreated` (RegisterWindowMessageW) — Explorer broadcast khi khởi động lại.
+#[cfg(windows)]
+static TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+#[cfg(windows)]
+const TIMER_TRAY_RETRY: usize = 1;
 
 struct TrayApp {
     svc: Arc<SvcManager>,
@@ -120,6 +125,31 @@ fn load_app_icon(h_instance: HINSTANCE, res_id: usize, file_name: &str) -> HICON
         // 3. Fallback cuối cùng: default application icon
         LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
     }
+}
+
+/// `NIM_ADD` icon khay theo trạng thái hiện tại. `false` khi shell chưa sẵn sàng.
+#[cfg(windows)]
+fn add_tray_icon(hwnd: HWND, app: &TrayApp) -> bool {
+    let enabled = app.svc.is_global_enabled();
+    let raw_icon = if enabled { app.icon_vi } else { app.icon_en };
+    let mut nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ICON_UID,
+        uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
+        uCallbackMessage: WM_TRAYICON,
+        hIcon: HICON(raw_icon as *mut std::ffi::c_void),
+        ..Default::default()
+    };
+    copy_to_wide_buf(
+        &mut nid.szTip,
+        if enabled {
+            "TextVN - Tiếng Việt [V] (Tím)"
+        } else {
+            "TextVN - English [E] (Xanh)"
+        },
+    );
+    unsafe { Shell_NotifyIconW(NIM_ADD, &nid) }.as_bool()
 }
 
 #[cfg(windows)]
@@ -376,7 +406,11 @@ fn run_tray_app() {
             0,
             0,
             0,
-            Some(HWND_MESSAGE),
+            // Cửa sổ top-level ẨN (không bao giờ ShowWindow), KHÔNG phải message-only:
+            // message-only không nhận broadcast `TaskbarCreated` (icon khay mất vĩnh viễn
+            // khi Explorer khởi động lại — bug OpenKey #288/#307) và FindWindowW không tìm
+            // thấy nó (mở TextVN lần 2 không bật được Bảng điều khiển).
+            None,
             None,
             Some(h_instance.into()),
             None,
@@ -404,31 +438,17 @@ fn run_tray_app() {
         icon_en: icon_en.0 as isize,
     });
 
-    // 4. Thêm icon vào khay hệ thống (mặc định tiếng Việt [V] Tím)
-    let initial_icon = if svc.is_global_enabled() {
-        icon_vi
-    } else {
-        icon_en
-    };
-
-    let mut nid = NOTIFYICONDATAW {
-        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-        hWnd: hwnd,
-        uID: TRAY_ICON_UID,
-        uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
-        uCallbackMessage: WM_TRAYICON,
-        hIcon: initial_icon,
-        ..Default::default()
-    };
-
-    let tip = if svc.is_global_enabled() {
-        "TextVN - Tiếng Việt [V] (Tím)"
-    } else {
-        "TextVN - English [E] (Xanh)"
-    };
-    copy_to_wide_buf(&mut nid.szTip, tip);
-
-    let _ = unsafe { Shell_NotifyIconW(NIM_ADD, &nid) };
+    // 4. Thêm icon vào khay hệ thống. Khi tự khởi động cùng Windows, Explorer có thể
+    // chưa sẵn sàng: thử lại theo timer thay vì bỏ cuộc/crash (OpenKey #273/#308).
+    TASKBAR_CREATED.store(
+        unsafe { RegisterWindowMessageW(w!("TaskbarCreated")) },
+        Ordering::Release,
+    );
+    if let Some(app) = APP_INSTANCE.get() {
+        if !add_tray_icon(hwnd, app) {
+            let _ = unsafe { SetTimer(Some(hwnd), TIMER_TRAY_RETRY, 2000, None) };
+        }
+    }
 
     // Xử lý mở hộp thoại Bảng điều khiển:
     // - Khi có cờ --autostart: Khởi động chế độ chạy ngầm minimized to tray (không bật popup hộp thoại).
@@ -447,6 +467,12 @@ fn run_tray_app() {
     }
 
     // 6. Dọn dẹp trước khi thoát
+    let nid = NOTIFYICONDATAW {
+        cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+        hWnd: hwnd,
+        uID: TRAY_ICON_UID,
+        ..Default::default()
+    };
     let _ = unsafe { Shell_NotifyIconW(NIM_DELETE, &nid) };
     textvn_tray::TRAY_HWND.store(0, Ordering::Release);
     ipc.stop();
@@ -541,6 +567,23 @@ unsafe extern "system" fn wnd_proc(
             }
             RUNNING.store(false, Ordering::Release);
             PostQuitMessage(0);
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == TIMER_TRAY_RETRY => {
+            if let Some(app) = APP_INSTANCE.get() {
+                if add_tray_icon(hwnd, app) {
+                    let _ = KillTimer(Some(hwnd), TIMER_TRAY_RETRY);
+                }
+            }
+            LRESULT(0)
+        }
+        m if m != 0 && m == TASKBAR_CREATED.load(Ordering::Acquire) => {
+            // Explorer vừa khởi động lại: icon cũ đã mất, thêm lại.
+            if let Some(app) = APP_INSTANCE.get() {
+                if !add_tray_icon(hwnd, app) {
+                    let _ = SetTimer(Some(hwnd), TIMER_TRAY_RETRY, 2000, None);
+                }
+            }
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),

@@ -287,6 +287,7 @@ fn config_value(key: &str, value: &str) -> Result<String, String> {
         | "free_marking"
         | "auto_restore_english"
         | "auto_capitalize"
+        | "quick_telex"
         | "allow_macro_when_vi_off" => matches!(value, "true" | "false"),
         _ => return Err(format!("config key lạ `{key}`")),
     };

@@ -1,0 +1,13 @@
+# corpus/shared/charset_unicode_decomposed_01.keys — bảng mã xuất unicode_decomposed (bảng: data/tables/charsets.tsv từ UniKey)
+:config method=telex diacritic_style=new output_charset=unicode_decomposed auto_capitalize=false
+:type "duocj"
+:expect "được"
+:key Backspace
+:expect "đươc"
+:key Space
+:type "Vieetj Nam"
+:expect "đươc Việt Nam"
+:key Space
+:type "tieengs"
+:key Escape
+:expect "đươc Việt Nam tieengs"

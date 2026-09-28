@@ -1,0 +1,8 @@
+# corpus/shared/quick_telex_off_02.keys — Quick Telex TẮT (mặc định) + gõ 3 lần lấy chữ đôi khi BẬT
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "cc"
+:expect "cc"
+:key Space
+:config quick_telex=true
+:type "ccc"
+:expect "cc cc"

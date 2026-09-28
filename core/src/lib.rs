@@ -18,7 +18,7 @@ pub use method::Method;
 pub use post::emoji::Emoji;
 pub use post::r#macro::{MacroDef, MacroTrigger, MacroWhen};
 pub use strategy::{ActionKind, Strategy};
-pub use transform::DiacriticStyle;
+pub use transform::{DiacriticStyle, OutputCharset};
 
 /// `ime_result_v1.action` — khớp hằng số P0-2 §1.
 pub const ACTION_PASS: u32 = 0;
@@ -109,6 +109,11 @@ pub struct EngineOptions {
     /// Việt thật, bật sẵn sẽ phá người đang gõ "Tết". Đây là lựa chọn của người dùng
     /// (mẫu danh sách: `data/stop_en.txt`) — xem `post/restore_en.rs`.
     pub english_words: Vec<String>,
+    /// Quick Telex (OpenKey): `cc→ch gg→gi kk→kh nn→ng qq→qu pp→ph tt→th` ở phụ âm đầu.
+    /// Chỉ áp cho Telex/Simple Telex (VNI/VIQR không gõ phụ âm đôi). Mặc định tắt.
+    pub quick_telex: bool,
+    /// `config.output_charset` — bảng mã chữ đi ra document (`transform/charset.rs`).
+    pub output_charset: OutputCharset,
 }
 
 impl Default for EngineOptions {
@@ -125,6 +130,8 @@ impl Default for EngineOptions {
             macros: Vec::new(),
             emoji: Vec::new(),
             english_words: Vec::new(),
+            quick_telex: false,
+            output_charset: OutputCharset::UnicodePrecomposed,
         }
     }
 }
@@ -260,19 +267,30 @@ impl Engine {
 
     fn preedit(&self) -> Vec<char> {
         if self.word.active {
-            self.word.display.clone()
+            self.emit(&self.word.display)
         } else {
             Vec::new()
         }
     }
 
+    /// Chữ đi ra document theo bảng mã xuất. `word.owned`/`delete_count`/`recent` luôn
+    /// đếm trên chuỗi này (một chữ Việt có thể là 2 ký tự ở VNI Windows/Unicode tổ hợp).
+    fn emit(&self, text: &[char]) -> Vec<char> {
+        transform::charset::encode(text, self.opts.output_charset)
+    }
+
     fn fold_current(&self) -> Vec<char> {
-        method::fold(
+        let mut display = method::fold(
             &self.word.raw,
             self.opts.method,
             self.opts.diacritic_style,
             self.opts.free_marking,
-        )
+        );
+        if self.opts.quick_telex && matches!(self.opts.method, Method::Telex | Method::SimpleTelex)
+        {
+            post::quick_telex::apply(&mut display);
+        }
+        display
     }
 }
 
@@ -361,11 +379,12 @@ impl Engine {
                 // Chữ đã bị engine ĐỔI (hoa) → không thể PASS (PASS = adapter chèn phím gốc).
                 // `delete_count = 0`: chèn `insert` tại con trỏ; `passed` giữ đúng ký tự này
                 // để lần activate sau xoá đúng số ký tự engine đã đưa vào document.
-                self.recent_replace(0, &display);
+                let out = self.emit(&display);
+                self.recent_replace(0, &out);
                 return Outcome {
                     action: Action::Replace {
                         delete_count: 0,
-                        insert: display,
+                        insert: out,
                     },
                     preedit: Vec::new(),
                     flags: FLAG_CONSUMED,
@@ -382,15 +401,16 @@ impl Engine {
         };
         self.word.active = true;
         self.word.passed.clear();
-        self.word.display = display.clone();
-        self.word.owned = display.len();
-        self.recent_replace(delete as usize, &display);
+        let out = self.emit(&display);
+        self.word.display = display;
+        self.word.owned = out.len();
+        self.recent_replace(delete as usize, &out);
         Outcome {
             action: Action::Replace {
                 delete_count: delete,
-                insert: display.clone(),
+                insert: out.clone(),
             },
-            preedit: display,
+            preedit: out,
             flags: FLAG_CONSUMED,
         }
     }
@@ -413,7 +433,8 @@ impl Engine {
         }
         let (len, text) =
             post::r#macro::find(&self.opts.macros, &self.opts.emoji, &self.recent, vi_on)?;
-        let insert: Vec<char> = text.chars().take(MAX_TEXT).collect();
+        let expanded: Vec<char> = text.chars().collect();
+        let insert: Vec<char> = self.emit(&expanded).into_iter().take(MAX_TEXT).collect();
         self.word.clear();
         self.recent_replace(len, &insert);
         Some(Outcome {
@@ -519,15 +540,16 @@ impl Engine {
                 };
             }
             let display = self.fold_current();
-            self.word.display = display.clone();
-            self.word.owned = display.len();
-            self.recent_replace(delete as usize, &display);
+            let out = self.emit(&display);
+            self.word.display = display;
+            self.word.owned = out.len();
+            self.recent_replace(delete as usize, &out);
             return Outcome {
                 action: Action::Replace {
                     delete_count: delete,
-                    insert: display.clone(),
+                    insert: out.clone(),
                 },
-                preedit: display,
+                preedit: out,
                 flags: FLAG_CONSUMED,
             };
         }
