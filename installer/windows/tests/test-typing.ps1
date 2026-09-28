@@ -133,6 +133,9 @@ if (-not $ready) { throw 'TextVN tray did not start' }
 
 # Kich hoat profile TextVN cho phien (giong nguoi dung chon TextVN o thanh ngon ngu).
 & $cli register | Out-Host
+# "Danh Ctrl + Shift cho TextVN" (installer mac dinh chon; ban portable: o trong Bang dieu
+# khien): phim tat doi bo cuc cua Windows khong con nuot Ctrl+Shift.
+& $tray --free-ctrl-shift | Out-Host
 
 $cases = @(
     @{ name = 'telex dduocj';      keys = 'dduocj ';       want = (U '\u0111\u01b0\u1ee3c ') },

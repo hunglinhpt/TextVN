@@ -307,6 +307,11 @@ fn main() {
                 stop_running_instance();
                 return;
             }
+            "--free-ctrl-shift" => {
+                // Dành Ctrl + Shift cho TextVN: gỡ phím tắt đổi bố cục/ngôn ngữ của Windows
+                // (installer gọi khi người dùng chọn; `hotkey.rs`).
+                std::process::exit(free_ctrl_shift_cli());
+            }
             "--help" | "-h" => {
                 println!("TextVN - Bo go Tieng Viet chuyen nghiep");
                 println!("Usage: TextVN [OPTIONS]");
@@ -315,6 +320,7 @@ fn main() {
                 println!("  --settings    Mo Bang dieu khien cai dat");
                 println!("  --status      Kiem tra trang thai IPC server");
                 println!("  --stop        Yeu cau dung instance dang chay");
+                println!("  --free-ctrl-shift  Danh Ctrl+Shift cho TextVN (go phim tat doi ban phim cua Windows)");
                 println!("  --help        Hien thi tro giup");
                 return;
             }
@@ -327,6 +333,25 @@ fn main() {
 
     #[cfg(not(windows))]
     println!("TextVN chi ho tro he dieu hanh Windows.");
+}
+
+#[cfg(windows)]
+fn free_ctrl_shift_cli() -> i32 {
+    match textvn_tray::hotkey::free_ctrl_shift() {
+        Ok(()) => {
+            println!("Ctrl+Shift: danh cho TextVN");
+            0
+        }
+        Err(e) => {
+            eprintln!("Ctrl+Shift: {e}");
+            1
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn free_ctrl_shift_cli() -> i32 {
+    0
 }
 
 #[cfg(windows)]

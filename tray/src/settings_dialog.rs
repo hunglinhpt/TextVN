@@ -40,7 +40,7 @@ const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 /// Kích thước dưới đây là **vùng client**; khung cửa sổ tính bằng AdjustWindowRectEx
 /// để thanh tiêu đề dày/mỏng (theme, DPI) không cắt mất hàng nút cuối.
 const CLIENT_DESIGN_WIDTH: i32 = 900;
-const CLIENT_DESIGN_HEIGHT: i32 = 518;
+const CLIENT_DESIGN_HEIGHT: i32 = 560;
 const MACRO_DESIGN_WIDTH: i32 = 720;
 const MACRO_DESIGN_HEIGHT: i32 = 560;
 const COMPACT_SCALE: f64 = 2.0 / 3.0;
@@ -65,6 +65,7 @@ const ID_CHK_QUICK_TELEX: isize = 2017;
 const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
 const ID_CHK_SHOW_ON_STARTUP: isize = 2019;
 const ID_BTN_MACROS: isize = 2020;
+const ID_CHK_CTRL_SHIFT: isize = 2021;
 // Control IDs — cửa sổ Gõ tắt
 const ID_EDIT_MACROS: isize = 2101;
 const ID_RAD_TRIGGER_TAB: isize = 2102;
@@ -521,7 +522,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
             ID_CHK_MACRO_WHEN_OFF,
         ),
         // 3. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
-        ctl("BUTTON", "Hệ thống", BS_GROUPBOX, (15, 357, 870, 82), 0),
+        ctl("BUTTON", "Hệ thống", BS_GROUPBOX, (15, 357, 870, 124), 0),
         ctl(
             "BUTTON",
             "Khởi động cùng Windows",
@@ -536,34 +537,41 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
             (R, 391, 400, 32),
             ID_CHK_SHOW_ON_STARTUP,
         ),
+        ctl(
+            "BUTTON",
+            "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
+            CHK,
+            (L, 433, 830, 32),
+            ID_CHK_CTRL_SHIFT,
+        ),
         // 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-        ctl("BUTTON", "Hướng dẫn", BTN, (15, 455, 120, 48), ID_BTN_HELP),
+        ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 120, 48), ID_BTN_HELP),
         ctl(
             "BUTTON",
             "Thông tin",
             BTN,
-            (143, 455, 120, 48),
+            (143, 497, 120, 48),
             ID_BTN_ABOUT,
         ),
         ctl(
             "BUTTON",
             "Gõ tắt...",
             BTN,
-            (271, 455, 120, 48),
+            (271, 497, 120, 48),
             ID_BTN_MACROS,
         ),
         ctl(
             "BUTTON",
             "Cài & bật TSF",
             BTN,
-            (399, 455, 160, 48),
+            (399, 497, 160, 48),
             ID_BTN_SETUP_TSF,
         ),
         ctl(
             "BUTTON",
             "Mặc định",
             BTN,
-            (567, 455, 105, 48),
+            (567, 497, 105, 48),
             ID_BTN_DEFAULT,
         ),
         // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
@@ -571,10 +579,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
             "BUTTON",
             "Đóng",
             BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-            (680, 455, 100, 48),
+            (680, 497, 100, 48),
             ID_BTN_CLOSE,
         ),
-        ctl("BUTTON", "Kết thúc", BTN, (788, 455, 97, 48), ID_BTN_EXIT),
+        ctl("BUTTON", "Kết thúc", BTN, (788, 497, 97, 48), ID_BTN_EXIT),
     ];
     for c in &layout {
         let (x, y, cw, ch) = c.rect;
@@ -637,6 +645,11 @@ fn populate_controls_from_config(hwnd: HWND) {
             autostart::is_autostart_enabled().unwrap_or(false),
         );
         set_chk(hwnd, ID_CHK_SHOW_ON_STARTUP, cfg.show_dialog_on_startup);
+        set_chk(
+            hwnd,
+            ID_CHK_CTRL_SHIFT,
+            !crate::hotkey::current().ctrl_shift_taken(),
+        );
 
         let is_new = cfg.diacritic_style == DiacriticStyle::New;
         set_chk(hwnd, ID_RAD_DIACRITIC_NEW, is_new);
@@ -817,6 +830,21 @@ unsafe extern "system" fn dialog_wnd_proc(
                             hwnd,
                             ID_CHK_AUTOSTART,
                             autostart::is_autostart_enabled().unwrap_or(false),
+                        );
+                    }
+                }
+                ID_CHK_CTRL_SHIFT => {
+                    // Phím tắt đổi bố cục của Windows nuốt Ctrl + Shift trước TextVN.
+                    let result = if get_chk(hwnd, ID_CHK_CTRL_SHIFT) {
+                        crate::hotkey::free_ctrl_shift()
+                    } else {
+                        crate::hotkey::restore_windows_ctrl_shift()
+                    };
+                    if result.is_err() {
+                        set_chk(
+                            hwnd,
+                            ID_CHK_CTRL_SHIFT,
+                            !crate::hotkey::current().ctrl_shift_taken(),
                         );
                     }
                 }
@@ -1189,6 +1217,7 @@ mod tests {
             ID_CHK_AUTO_RESTORE,
             ID_CHK_FREE_MARKING,
             ID_CHK_AUTOSTART,
+            ID_CHK_CTRL_SHIFT,
             ID_CHK_GLOBAL_ENABLED,
             ID_RAD_DIACRITIC_NEW,
             ID_RAD_DIACRITIC_OLD,

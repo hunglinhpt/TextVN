@@ -26,7 +26,13 @@ pub const PROFILE_STR: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
 #[cfg_attr(not(windows), allow(dead_code))]
-pub const LANGID_EN: u16 = 0x0409; // en-US
+pub const LANGID_EN: u16 = 0x0409; // en-US — chỉ còn để gỡ bản đăng ký cũ.
+
+/// Ngôn ngữ đăng ký TextVN. Chỉ vi-VN: nằm thêm trong en-US (cạnh bàn phím US) thì phím
+/// tắt đổi bố cục mặc định của Windows (Ctrl + Shift) nhảy qua lại giữa US và TextVN —
+/// đúng phím chuyển V/E của TextVN (xem `tray/src/hotkey.rs`).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const REGISTER_LANGS: [(&str, u16); 1] = [("VI", LANGID_VI)];
 
 // ─── Helpers (cross-platform phần text) ──────────────────────────────────────────────────────────
 
@@ -308,6 +314,31 @@ mod win_impl {
         Some(String::from_utf16_lossy(&buf[..len]))
     }
 
+    /// Đọc giá trị REG_SZ có tên `name` trong `path` (`None` = không có).
+    pub fn reg_read_named(root: HKEY, path: &str, name: &str) -> Option<String> {
+        let subkey = wide(path);
+        let value = wide(name);
+        let mut buf = [0u16; 256];
+        let mut size = std::mem::size_of_val(&buf) as u32;
+        // SAFETY: buffer và kích thước khớp nhau; RRF_RT_REG_SZ đảm bảo kết thúc nul.
+        let status = unsafe {
+            RegGetValueW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR(value.as_ptr()),
+                RRF_RT_REG_SZ,
+                None,
+                Some(buf.as_mut_ptr() as *mut _),
+                Some(&mut size),
+            )
+        };
+        if status != ERROR_SUCCESS {
+            return None;
+        }
+        let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        Some(String::from_utf16_lossy(&buf[..len]).trim().to_string())
+    }
+
     fn delete_tree(root: HKEY, path: &str) {
         let subkey = wide(path);
         // SAFETY: buffer nul-terminated.
@@ -448,7 +479,7 @@ mod win_impl {
             unsafe {
                 let mgr: ITfInputProcessorProfileMgr =
                     CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
-                for (tag, lang) in [("VI", LANGID_VI), ("EN", LANGID_EN)] {
+                for (tag, lang) in REGISTER_LANGS {
                     mgr.RegisterProfile(
                         &CLSID_TIP,
                         lang,
@@ -492,7 +523,7 @@ mod win_impl {
     /// không ghi được HKLM. Không đụng key của TIP khác.
     fn register_ctf_per_user(desc: &str, icon: &str) -> bool {
         let mut ok = set_reg_value(HKEY_CURRENT_USER, &ctf_tip_key(), None, RegValue::None);
-        for lang in [LANGID_VI, LANGID_EN] {
+        for (_, lang) in REGISTER_LANGS {
             let key = ctf_profile_key(lang);
             ok &= set_reg_value(
                 HKEY_CURRENT_USER,
@@ -604,7 +635,8 @@ mod win_impl {
             call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
         } else {
             call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
-            call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
+            // Bản trước còn thêm TextVN vào en-US: gỡ để Ctrl + Shift không đổi sang US.
+            call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
         }
 
         // Bước 4: kích hoạt ngay cho session (kể cả bản tray-only).
@@ -788,6 +820,25 @@ pub fn tip_registration_ok() -> bool {
     #[cfg(not(windows))]
     {
         false
+    }
+}
+
+/// Windows có đang giữ Ctrl + Shift cho việc đổi ngôn ngữ/bố cục bàn phím không
+/// (`HKCU\Keyboard Layout\Toggle`; thiếu `Layout Hotkey` = mặc định = Ctrl + Shift).
+/// Cùng quy tắc với `tray/src/hotkey.rs` (tray sửa được; doctor chỉ báo). `None` ngoài Windows.
+pub fn ctrl_shift_taken_by_windows() -> Option<bool> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Registry::HKEY_CURRENT_USER;
+        const PATH: &str = r"Keyboard Layout\Toggle";
+        let get = |name| win_impl::reg_read_named(HKEY_CURRENT_USER, PATH, name);
+        let language = get("Language Hotkey").or_else(|| get("Hotkey"));
+        let layout = get("Layout Hotkey");
+        Some(language.as_deref() == Some("2") || layout.as_deref().is_none_or(|v| v == "2"))
+    }
+    #[cfg(not(windows))]
+    {
+        None
     }
 }
 

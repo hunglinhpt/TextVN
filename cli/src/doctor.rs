@@ -29,6 +29,8 @@ pub struct DoctorReport {
     pub hook_running: bool,
     pub tray_running: bool,
     pub tip_registered: bool,
+    /// Windows giữ Ctrl + Shift để đổi bàn phím (tranh phím chuyển V/E). `None` ngoài Windows.
+    pub ctrl_shift_taken: Option<bool>,
     pub problems: Vec<String>,
 }
 
@@ -100,6 +102,7 @@ pub fn collect_report() -> DoctorReport {
     let hook_running = check_instance_mutex(r"Local\TextVNHookMutex");
     let tray_running = check_instance_mutex(r"Local\TextVNTray");
     let tip_registered = crate::register::tip_registration_ok();
+    let ctrl_shift_taken = crate::register::ctrl_shift_taken_by_windows();
     if cfg!(windows) && !tip_registered {
         problems.push(
             "TSF TIP chưa đăng ký hoặc trỏ tới DLL không còn tồn tại — chạy `textvn-cli register`"
@@ -120,6 +123,7 @@ pub fn collect_report() -> DoctorReport {
         hook_running,
         tray_running,
         tip_registered,
+        ctrl_shift_taken,
         problems,
     }
 }
@@ -182,6 +186,17 @@ impl DoctorReport {
                 "chưa đăng ký"
             }
         );
+        if let Some(taken) = self.ctrl_shift_taken {
+            println!(
+                "  Ctrl+Shift  : {}",
+                if taken {
+                    "Windows đang dùng để đổi bàn phím — bật \"Dành Ctrl + Shift cho TextVN\" \
+                     trong Bảng điều khiển (hoặc `TextVN.exe --free-ctrl-shift`)"
+                } else {
+                    "dành cho TextVN"
+                }
+            );
+        }
     }
 
     pub fn to_json(&self) -> String {
