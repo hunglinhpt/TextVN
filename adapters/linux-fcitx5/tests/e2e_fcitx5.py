@@ -7,6 +7,8 @@ Chạy qua scripts/e2e-linux.sh: fcitx5 nạp libtextvn-fcitx5.so từ thư mụ
 phím engine không nuốt thì "app" tự xử lý.
 """
 
+import json
+import os
 import sys
 import time
 
@@ -17,6 +19,7 @@ from gi.repository import GLib
 KEY = {
     "\n": 0xFF0D,
     "\b": 0xFF08,
+    "\t": 0xFF09,
     " ": 0x20,
 }
 CTRL_L, SHIFT_L = 0xFFE3, 0xFFE1
@@ -195,13 +198,74 @@ check("reset commit 1 lần", "tiếng")
 doc.clear()
 preedit[0] = ""
 
+CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
+                          "TextVN")
+
+
+def write_textvn_file(name, data):
+    """Ghi như bảng cài đặt (tmp → rename); chờ để mtime chắc chắn khác lần trước."""
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    time.sleep(0.02)
+    tmp = os.path.join(CONFIG_DIR, f".{name}.e2e.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, os.path.join(CONFIG_DIR, name))
+
+
+def state_says(enabled):
+    global ok
+    try:
+        with open(os.path.join(CONFIG_DIR, "state.json"), encoding="utf-8") as f:
+            got = json.load(f).get("global_enabled")
+    except OSError:
+        got = None
+    good = got is enabled
+    ok &= good
+    print(f"{'PASS' if good else 'FAIL'} state.json global_enabled={enabled}")
+
+
+# Ctrl+Shift đổi VN/EN và lưu vào state.json (nhớ qua lần khởi động sau).
 ctrl_shift_tap()
 type_("as ")
 check("Ctrl+Shift → EN", "as ")
+state_says(False)
 clear()
 ctrl_shift_tap()
 type_("as ")
 check("Ctrl+Shift → VN", "á ")
+state_says(True)
+clear()
+
+# Bảng cài đặt đổi state.json khi IME đang chạy → theo ngay ở phím kế tiếp.
+write_textvn_file("state.json", {"global_enabled": False})
+type_("as ")
+check("state.json → EN", "as ")
+write_textvn_file("state.json", {"global_enabled": True})
+type_("as ")
+check("state.json → VN", "as á ")
+clear()
+
+MACROS = [{"trigger": "vn", "expand": "Việt Nam"}]
+write_textvn_file("config.json", {"config_version": 1, "auto_capitalize": False, "macros": MACROS})
+type_("xin vn\t")
+check("gõ tắt khi bật VN", "xin Việt Nam")
+clear()
+write_textvn_file("state.json", {"global_enabled": False})
+type_("xin vn\t")
+check("tắt VN: không gõ tắt", "xin vn\t")
+clear()
+write_textvn_file("config.json", {"config_version": 1, "auto_capitalize": False,
+                                  "allow_macro_when_vi_off": True, "macros": MACROS})
+type_("xin vieetj vn\t")
+check("tắt VN + gõ tắt", "xin vieetj Việt Nam")
+clear()
+type_("hello world\n")
+check("tắt VN: chữ Anh nguyên vẹn", "hello world\n")
+clear()
+write_textvn_file("state.json", {"global_enabled": True})
+write_textvn_file("config.json", {"config_version": 1})
+type_("as ")
+check("trở lại VN", "á ")
 clear()
 
 ic.SetCapability(dbus.UInt64(CAP_PREEDIT | CAP_FORMATTED | CAP_PASSWORD))

@@ -28,8 +28,10 @@ struct _TextVNIbusEngine {
     lc_config_state    config;    /* mtime config.json đã nạp */
     lc_modifier_toggle toggle;    /* Ctrl+Shift kiểu UniKey */
     gboolean           secure;    /* input purpose password/PIN */
+    int                ctx_enabled; /* ime_context_v1.enabled đã đẩy vào engine */
     IBusPropList      *props;
     IBusProperty      *mode_prop;
+    IBusProperty      *setup_prop;
 };
 
 struct _TextVNIbusEngineClass {

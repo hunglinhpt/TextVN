@@ -242,13 +242,15 @@ impl Engine {
             | keymap::vk::RIGHT
             | keymap::vk::UP
             | keymap::vk::DOWN => self.recent.clear(),
-            _ => {
-                if let Some(c) = k.printable() {
-                    if !c.is_control() || matches!(c, ' ' | '\n' | '\t') {
-                        self.recent_replace(0, &[c]);
-                    }
+            _ => match k.printable() {
+                Some(c) if !c.is_control() || matches!(c, ' ' | '\n' | '\t') => {
+                    self.recent_replace(0, &[c]);
                 }
-            }
+                Some(_) => {}
+                // Home/End/PageUp/F-key…: con trỏ có thể đã nhảy — đuôi text engine nhớ
+                // không còn nằm ngay trước con trỏ, gõ tắt sau đó sẽ xoá nhầm chỗ.
+                None => self.recent.clear(),
+            },
         }
     }
 
@@ -310,7 +312,13 @@ impl Engine {
             return Outcome::pass();
         }
         // Chord hệ thống / modifier đơn (S9, bug B6) — không bao giờ nuốt.
-        if k.is_chord() || k.is_modifier() {
+        if k.is_modifier() {
+            return Outcome::pass();
+        }
+        if k.is_chord() {
+            // Ctrl+V/Ctrl+Z/Alt+Tab… đổi text quanh con trỏ mà engine không thấy: quên đuôi
+            // text để gõ tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
+            self.recent.clear();
             return Outcome::pass();
         }
 
@@ -330,7 +338,16 @@ impl Engine {
             // Vẫn ghi nhận text đi thẳng: macro `always` có thể chạy khi VN tắt
             // (`allow_macro_when_vi_off`) — EVKey spec #5.
             self.note_pass(k);
-            return Outcome::pass();
+            // Ranh giới từ (Space, dấu câu, Enter, phím điều hướng…) báo WORD_END: adapter
+            // giữ từ trong composition để bung gõ tắt khi VN tắt sẽ commit từ ở đây thay vì
+            // kéo gạch chân sang từ kế tiếp.
+            let boundary = k
+                .printable()
+                .is_none_or(|c| !method::is_word_char(c, self.opts.method));
+            return Outcome {
+                flags: if boundary { FLAG_WORD_END } else { 0 },
+                ..Outcome::pass()
+            };
         }
 
         match k.vk {
@@ -973,6 +990,65 @@ mod tests {
         let mut buf = type_buf(&mut e, "abc");
         assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
         assert_eq!(text(&buf), "abc\t");
+    }
+
+    #[test]
+    fn macro_not_expanded_after_caret_jump_or_chord() {
+        // `vn` rồi Home (0x24) → con trỏ đã ở đầu dòng: Tab không được xoá 2 ký tự
+        // của dòng trước. Tương tự sau Ctrl+V (text dán vào engine không thấy).
+        const HOME: u32 = 0x24;
+        let mut opts = macro_opts(MacroTrigger::Tab);
+        opts.macros.push(MacroDef {
+            trigger: "vn".into(),
+            expand: "Việt Nam".into(),
+            when: MacroWhen::Always,
+        });
+        let mut e = Engine::new(opts.clone());
+        let mut buf = type_buf(&mut e, "vn");
+        let _ = e.key(&KeyEvent::key_down(HOME));
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+
+        let mut e = Engine::new(opts.clone());
+        let _ = type_buf(&mut e, "vn");
+        let paste = KeyEvent {
+            vk: 0x56,
+            ch: 'v' as u32,
+            mods: keymap::MOD_CTRL,
+            key_down: true,
+            ..Default::default()
+        };
+        let _ = e.key(&paste);
+        let mut buf = Vec::new();
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+
+        // Không có bước nhảy → vẫn bung bình thường.
+        let mut e = Engine::new(opts);
+        let mut buf = type_buf(&mut e, "vn");
+        assert_eq!(
+            press(&mut e, &mut buf, keymap::vk::TAB).kind(),
+            ActionKind::Replace
+        );
+        assert_eq!(text(&buf), "Việt Nam");
+    }
+
+    #[test]
+    fn passthrough_marks_word_boundaries() {
+        let mut e = Engine::new(EngineOptions {
+            enabled: false,
+            ..Default::default()
+        });
+        let letter = e.key(&KeyEvent::char_down('a'));
+        assert_eq!(letter.action, Action::Pass);
+        assert_eq!(letter.flags & FLAG_WORD_END, 0);
+        for k in [
+            KeyEvent::char_down(' '),
+            KeyEvent::char_down('.'),
+            KeyEvent::key_down(keymap::vk::LEFT),
+        ] {
+            let o = e.key(&k);
+            assert_eq!(o.action, Action::Pass);
+            assert_ne!(o.flags & FLAG_WORD_END, 0, "{k:?}");
+        }
     }
 
     #[test]

@@ -6,6 +6,10 @@
  *   chord/secure/tắt VN → commit preedit nguyên văn, phím đi thẳng (B6, S3)
  *   còn lại → ime_key → lc_plan_key → cập nhật/commit preedit → eaten?
  *
+ * Trạng thái VN/EN nằm ở ~/.config/TextVN/state.json (như tray Windows): nhớ qua lần
+ * khởi động sau, và bảng cài đặt đổi được khi IME đang chạy. Tắt VN nhưng bật
+ * "Gõ tắt cả khi tắt tiếng Việt" → phím vẫn qua engine (passthrough) để bung gõ tắt.
+ *
  * Commit-before-hide (B2): preedit gửi với IBUS_ENGINE_PREEDIT_COMMIT nên ibus-daemon
  * commit nó khi client reset / mất focus; engine chỉ quên từ ở các sự kiện đó.
  * Các commit chủ động (ranh giới từ, chord, tắt VN, disable) do engine làm.
@@ -21,10 +25,13 @@
 G_DEFINE_TYPE(TextVNIbusEngine, textvn_ibus_engine, IBUS_TYPE_ENGINE)
 
 /* Trạng thái VN/EN dùng chung cho mọi input context của process (như UniKey). */
-static gboolean       s_vi_enabled = TRUE;
-static lc_ipc_client *s_ipc = NULL;
+static gboolean        s_vi_enabled = TRUE;
+static gboolean        s_state_loaded = FALSE;
+static lc_config_state s_state_watch;
+static lc_ipc_client  *s_ipc = NULL;
 
-#define PROP_MODE "TextVN.InputMode"
+#define PROP_MODE  "TextVN.InputMode"
+#define PROP_SETUP "TextVN.Setup"
 
 /* ---- Tiện ích text ---- */
 
@@ -77,27 +84,71 @@ static void update_mode_prop(TextVNIbusEngine *self) {
                             ibus_text_new_from_static_string(s_vi_enabled ? "VN" : "EN"));
     ibus_property_set_symbol(self->mode_prop,
                              ibus_text_new_from_static_string(s_vi_enabled ? "V" : "E"));
+    ibus_property_set_icon(self->mode_prop, s_vi_enabled ? "textvn_v" : "textvn_e");
     ibus_engine_update_property((IBusEngine *)self, self->mode_prop);
 }
 
-static void toggle_vietnamese(TextVNIbusEngine *self) {
+static void set_vietnamese(TextVNIbusEngine *self, gboolean on, gboolean persist) {
+    if (on == s_vi_enabled) return;
     finish_word(self);
-    s_vi_enabled = !s_vi_enabled;
-    if (s_ipc) lc_ipc_client_toggle_vi_en(s_ipc, "*", s_vi_enabled ? 1 : 0);
+    s_vi_enabled = on;
+    if (persist) {
+        lc_state_write_enabled(NULL, on ? 1 : 0);
+        int ignored = on;
+        lc_state_sync(&s_state_watch, NULL, &ignored); /* hấp thụ lần ghi của chính mình */
+    }
+    if (s_ipc) lc_ipc_client_toggle_vi_en(s_ipc, "*", on ? 1 : 0);
     update_mode_prop(self);
 }
 
-static void push_context(TextVNIbusEngine *self) {
+static void toggle_vietnamese(TextVNIbusEngine *self) {
+    set_vietnamese(self, !s_vi_enabled, TRUE);
+}
+
+/* Bảng cài đặt vừa đổi state.json → theo ngay (một stat mỗi lần gọi). */
+static void sync_state(TextVNIbusEngine *self) {
+    if (!s_state_loaded) {
+        s_vi_enabled = lc_state_read_enabled(NULL, 1) ? TRUE : FALSE;
+        s_state_loaded = TRUE;
+    }
+    int enabled = s_vi_enabled;
+    if (lc_state_sync(&s_state_watch, NULL, &enabled)) {
+        set_vietnamese(self, enabled ? TRUE : FALSE, FALSE);
+    }
+}
+
+static void push_context(TextVNIbusEngine *self, int enabled) {
     if (!self->inst) return;
     ime_context_v1 ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.abi_version = IME_ABI_VERSION;
-    ctx.enabled = 1;
+    ctx.enabled = enabled ? 1 : 0;
     ctx.secure = 0;
     ctx.field_role = IME_FIELD_BODY;
     ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
     ctx.hint = -1;
     ime_set_context(self->inst, &ctx);
+    self->ctx_enabled = enabled ? 1 : 0;
+}
+
+/* Mở bảng điều khiển (textvn-settings cạnh bản cài / trong PATH). */
+static void launch_settings(void) {
+    gchar *exe = g_file_read_link("/proc/self/exe", NULL);
+    gchar *dir = exe ? g_path_get_dirname(exe) : NULL;
+    char path[1024];
+    if (lc_find_settings_binary(path, sizeof(path), dir) == 0) {
+        gchar *argv[] = {path, NULL};
+        GError *err = NULL;
+        /* Không DO_NOT_REAP: GLib tự thu dọn tiến trình con (không để zombie). */
+        if (!g_spawn_async(NULL, argv, NULL, G_SPAWN_DEFAULT, NULL, NULL, NULL, &err)) {
+            lc_log(LC_LOG_WARN, "IBus", "cannot launch textvn-settings");
+            g_clear_error(&err);
+        }
+    } else {
+        lc_log(LC_LOG_WARN, "IBus", "textvn-settings not found");
+    }
+    g_free(dir);
+    g_free(exe);
 }
 
 /* ---- GObject ---- */
@@ -113,8 +164,12 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
         self->inst = NULL;
     }
     lc_config_sync(self->inst, &self->config, NULL);
-    push_context(self);
+    push_context(self, 1);
     if (!s_ipc) s_ipc = lc_ipc_client_new("ibus", NULL);
+    if (!s_state_loaded) {
+        s_vi_enabled = lc_state_read_enabled(NULL, 1) ? TRUE : FALSE;
+        s_state_loaded = TRUE;
+    }
 
     self->props = ibus_prop_list_new();
     g_object_ref_sink(self->props);
@@ -125,6 +180,14 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
                                         TRUE, TRUE, PROP_STATE_UNCHECKED, NULL);
     g_object_ref_sink(self->mode_prop);
     ibus_prop_list_append(self->props, self->mode_prop);
+    self->setup_prop = ibus_property_new(PROP_SETUP, PROP_TYPE_NORMAL,
+                                         ibus_text_new_from_static_string("Cài đặt TextVN…"),
+                                         "preferences-system",
+                                         ibus_text_new_from_static_string(
+                                             "Mở bảng điều khiển TextVN"),
+                                         TRUE, TRUE, PROP_STATE_UNCHECKED, NULL);
+    g_object_ref_sink(self->setup_prop);
+    ibus_prop_list_append(self->props, self->setup_prop);
 }
 
 static void textvn_ibus_engine_finalize(GObject *object) {
@@ -134,6 +197,7 @@ static void textvn_ibus_engine_finalize(GObject *object) {
         self->inst = NULL;
     }
     g_clear_object(&self->mode_prop);
+    g_clear_object(&self->setup_prop);
     g_clear_object(&self->props);
     G_OBJECT_CLASS(textvn_ibus_engine_parent_class)->finalize(object);
 }
@@ -150,6 +214,7 @@ static void forget_word(TextVNIbusEngine *self) {
 static void engine_focus_in(IBusEngine *engine) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
     lc_config_sync(self->inst, &self->config, NULL);
+    sync_state(self);
     int app_enabled = 1;
     if (s_ipc && lc_ipc_client_get_app_override(s_ipc, &app_enabled)) {
         s_vi_enabled = app_enabled != 0;
@@ -189,6 +254,10 @@ static void engine_property_activate(IBusEngine *engine, const gchar *name, guin
         toggle_vietnamese((TextVNIbusEngine *)engine);
         return;
     }
+    if (g_strcmp0(name, PROP_SETUP) == 0) {
+        launch_settings();
+        return;
+    }
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->property_activate(engine, name, state);
 }
 
@@ -221,14 +290,20 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         return TRUE;
     }
 
-    /* B6: chord hệ thống; S3: ô mật khẩu; VN tắt; engine hỏng → commit, phím đi thẳng. */
+    if (self->comp.len == 0) {
+        lc_config_sync(self->inst, &self->config, NULL);
+        sync_state(self);
+    }
+
+    /* B6: chord hệ thống; S3: ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng →
+     * commit, phím đi thẳng. */
+    gboolean macro_only = !s_vi_enabled && self->config.allow_macro_when_vi_off;
     if ((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) || self->secure ||
-        !s_vi_enabled || !self->inst) {
+        !(s_vi_enabled || macro_only) || !self->inst) {
         finish_word(self);
         return FALSE;
     }
-
-    if (self->comp.len == 0) lc_config_sync(self->inst, &self->config, NULL);
+    if (self->ctx_enabled != (s_vi_enabled ? 1 : 0)) push_context(self, s_vi_enabled);
 
     uint32_t vk = 0, ch = 0;
     textvn_ibus_map_key(keyval, &vk, &ch);

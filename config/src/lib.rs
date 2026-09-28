@@ -9,6 +9,11 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod doc;
+pub mod macro_text;
+
+pub use doc::{DocError, DocKind, SettingsDoc};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Method {

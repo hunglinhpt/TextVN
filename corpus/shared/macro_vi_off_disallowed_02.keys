@@ -1,0 +1,7 @@
+# corpus/shared/macro_vi_off_disallowed_02.keys — TẮT tiếng Việt, KHÔNG cho gõ tắt (mặc định):
+# Tab là Tab, không bung.
+:config method=telex diacritic_style=new auto_capitalize=false macro="vn=Việt Nam"
+:enabled off
+:type "xin vn"
+:key Tab
+:expect "xin vn\t"

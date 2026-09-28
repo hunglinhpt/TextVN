@@ -11,8 +11,8 @@
 
 use textvn_appdb::{AppDb, EngineOwner};
 use textvn_ffi::{
-    ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reset,
-    ime_result_v1, IME_ABI_VERSION, IME_OK,
+    ime_context_v1, ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1,
+    ime_reset, ime_result_v1, ime_set_context, IME_ABI_VERSION, IME_OK,
 };
 use textvn_field_detect::{rules_win::UiaElement, FieldContext, ProbeSnapshot, SecurityState};
 use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_SEARCH};
@@ -242,6 +242,8 @@ pub fn after_request_edit_session(success: bool) -> EditSessionResult {
 /// được app nhận.
 pub struct EngineSession {
     instance: *mut ime_instance,
+    /// `ime_context_v1.enabled` đã đẩy vào engine (mặc định engine: bật).
+    ctx_enabled: bool,
 }
 
 /// State thuộc một TSF thread. Focus mới luôn tạo `FieldContext::pending`, vì
@@ -252,6 +254,8 @@ pub struct ThreadState {
     field: FieldContext,
     generation: u64,
     user_enabled: Option<bool>,
+    /// `config.allow_macro_when_vi_off` của lần nạp config hợp lệ gần nhất.
+    macro_when_off: bool,
 }
 
 impl ThreadState {
@@ -262,6 +266,7 @@ impl ThreadState {
             field: FieldContext::pending(app_id, caps, generation),
             generation,
             user_enabled: None,
+            macro_when_off: false,
         })
     }
 
@@ -370,10 +375,28 @@ impl ThreadState {
     pub fn reload_config_from_file(&mut self) -> Result<(), i32> {
         if let Some(path) = config_file_path() {
             if let Ok(bytes) = std::fs::read(path) {
-                return self.engine.reload_config(&bytes);
+                return self.reload_config_bytes(&bytes);
             }
         }
         Err(-1)
+    }
+
+    /// Nạp config vào engine; config hỏng → engine giữ config cũ (P0-3 §1.3), cờ cũng giữ.
+    pub fn reload_config_bytes(&mut self, bytes: &[u8]) -> Result<(), i32> {
+        self.engine.reload_config(bytes)?;
+        if let Some(cfg) = std::str::from_utf8(bytes)
+            .ok()
+            .and_then(|s| textvn_config::parse_config(s).ok())
+        {
+            self.macro_when_off = cfg.allow_macro_when_vi_off;
+        }
+        Ok(())
+    }
+
+    /// "Gõ tắt cả khi tắt tiếng Việt": khi VN tắt phím vẫn qua engine (passthrough)
+    /// để bung gõ tắt; chữ thường đi thẳng không biến đổi.
+    pub fn macro_when_off(&self) -> bool {
+        self.macro_when_off
     }
 }
 
@@ -393,7 +416,32 @@ impl EngineSession {
         if instance.is_null() {
             return Err(result);
         }
-        Ok(Self { instance })
+        Ok(Self {
+            instance,
+            ctx_enabled: true,
+        })
+    }
+
+    /// Chế độ tiếng Việt của engine. Tắt → engine chạy passthrough: chữ PASS nguyên văn,
+    /// chỉ gõ tắt còn bung (nếu `allow_macro_when_vi_off`). Chỉ gọi FFI khi đổi.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        if enabled == self.ctx_enabled {
+            return;
+        }
+        let ctx = ime_context_v1 {
+            abi_version: IME_ABI_VERSION,
+            enabled: enabled as u32,
+            secure: 0,
+            field_role: 0,
+            caps: 0,
+            app_id: std::ptr::null(),
+            element_name: std::ptr::null(),
+            hint: -1,
+        };
+        if ime_set_context(self.instance, &ctx) == IME_OK {
+            self.ctx_enabled = enabled;
+            let _ = ime_reset(self.instance);
+        }
     }
 
     /// Nạp lại cấu hình engine runtime qua C-ABI ime_reload_config.
@@ -746,6 +794,47 @@ mod tests {
         let _ = state.engine.key_char('a').unwrap();
         let res_s = state.engine.key_char('s').unwrap();
         assert_eq!(res_s.action, textvn_ffi::ACTION_PASS);
+    }
+
+    #[test]
+    fn macro_when_vi_off_runs_engine_in_passthrough() {
+        let mut state = ThreadState::new("notepad.exe", 0).unwrap();
+        assert!(!state.macro_when_off());
+        state
+            .reload_config_bytes(
+                r#"{"config_version":1,"allow_macro_when_vi_off":true,
+                    "macros":[{"trigger":"vn","expand":"Việt Nam"}]}"#
+                    .as_bytes(),
+            )
+            .unwrap();
+        assert!(state.macro_when_off());
+        // Config hỏng: engine giữ config cũ → cờ cũng giữ.
+        assert!(state.reload_config_bytes(b"{oops").is_err());
+        assert!(state.macro_when_off());
+
+        state.engine.set_enabled(false);
+        let r = state.engine.key_char('a').unwrap();
+        assert_eq!(r.action, textvn_ffi::ACTION_PASS, "VN tắt: chữ đi thẳng");
+        for c in [' ', 'v', 'n'] {
+            state.engine.key_char(c).unwrap();
+        }
+        let tab = state.engine.key_event_raw(0x09, '\t' as u32, 0).unwrap();
+        assert_eq!(
+            tab.action,
+            textvn_ffi::ACTION_REPLACE,
+            "Tab vẫn bung gõ tắt"
+        );
+        assert_eq!(tab.delete_count, 2);
+
+        state.engine.set_enabled(true);
+        let r = state.engine.key_char('a').unwrap();
+        assert_eq!(r.action, textvn_ffi::ACTION_PASS);
+        let r = state.engine.key_char('s').unwrap();
+        assert_eq!(
+            r.action,
+            textvn_ffi::ACTION_REPLACE,
+            "bật lại: Telex hoạt động"
+        );
     }
 
     #[test]

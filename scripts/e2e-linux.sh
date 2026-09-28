@@ -31,6 +31,9 @@ done
 
 run_ibus() {
     local log; log="$(mktemp)"
+    # config.json/state.json của phiên test — không đụng cấu hình thật của người chạy.
+    local t; t="$(mktemp -d)"
+    export XDG_CONFIG_HOME="$t/config"
     ibus-daemon --panel=disable --xim=false --config=default --replace --single >"$log" 2>&1 &
     local daemon=$!
     sleep 2

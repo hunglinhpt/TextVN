@@ -462,6 +462,10 @@ fn run_tray_app() {
     let mut msg = MSG::default();
     while RUNNING.load(Ordering::Acquire) && unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool()
     {
+        // Tab/Esc/Enter trong bảng điều khiển và cửa sổ Gõ tắt.
+        if textvn_tray::settings_dialog::pre_translate_message(&msg) {
+            continue;
+        }
         let _ = unsafe { TranslateMessage(&msg) };
         let _ = unsafe { DispatchMessageW(&msg) };
     }
@@ -522,6 +526,8 @@ unsafe extern "system" fn wnd_proc(
             if let Some(app) = APP_INSTANCE.get() {
                 update_tray_icon(hwnd, app);
             }
+            // Ctrl+Shift / menu khay / IPC đổi trạng thái → bảng điều khiển đang mở cập nhật theo.
+            textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }
         textvn_tray::WM_OPEN_SETTINGS => {

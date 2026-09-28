@@ -91,6 +91,19 @@ impl TsfShared {
     }
 
     /// Xóa từ đang gõ trong engine (không đụng text của app).
+    /// `Some(vi_on)` = phím đi qua engine (VN bật, hoặc VN tắt nhưng còn gõ tắt —
+    /// `allow_macro_when_vi_off`); `None` = phím đi thẳng cho app.
+    pub fn engine_mode(&self) -> Option<bool> {
+        let vi_on = self.ipc.is_enabled();
+        let macro_only = !vi_on
+            && self
+                .thread
+                .try_borrow()
+                .map(|t| t.macro_when_off())
+                .unwrap_or(false);
+        (vi_on || macro_only).then_some(vi_on)
+    }
+
     pub fn reset_engine(&self) {
         if let Ok(mut thread) = self.thread.try_borrow_mut() {
             thread.engine.reset();
@@ -255,13 +268,20 @@ impl KeyEditSession {
 
         // Security gate S3, đọc lại ở mỗi phím (context có thể dùng chung nhiều field).
         let signals = read_field_signals(&self.ctx, ec, &sel);
-        let allowed = match shared.thread.try_borrow_mut() {
-            Ok(mut thread) => {
+        let mode = shared.engine_mode();
+        let allowed = match (mode, shared.thread.try_borrow_mut()) {
+            (Some(vi_on), Ok(mut thread)) => {
                 thread.apply_tsf_probe(classify_tsf_field(&signals));
-                thread.resolve_strategy_with_state(Some(shared.ipc.is_enabled()), None)
-                    != Strategy::Passthrough
+                // Gate bảo mật luôn xét như đang bật: ô mật khẩu không bao giờ qua engine,
+                // kể cả khi chỉ để bung gõ tắt.
+                let open =
+                    thread.resolve_strategy_with_state(Some(true), None) != Strategy::Passthrough;
+                if open {
+                    thread.engine.set_enabled(vi_on);
+                }
+                open
             }
-            Err(_) => false,
+            _ => false,
         };
         if !allowed {
             finish(ec, comp, shared);

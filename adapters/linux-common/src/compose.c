@@ -5,11 +5,13 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "lc_compose.h"
+#include "textvn_settings.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 /* ---- Phân loại phím ---- */
 
@@ -203,18 +205,79 @@ void lc_modifier_toggle_reset(lc_modifier_toggle *t) {
 
 /* ---- config.json ---- */
 
-int lc_config_resolve_path(char *out, size_t max_len) {
-    if (!out || max_len == 0) return -1;
+int lc_textvn_file_path(char *out, size_t max_len, const char *name) {
+    if (!out || max_len == 0 || !name) return -1;
     const char *xdg = getenv("XDG_CONFIG_HOME");
     int n;
     if (xdg && xdg[0] == '/') {
-        n = snprintf(out, max_len, "%s/TextVN/config.json", xdg);
+        n = snprintf(out, max_len, "%s/TextVN/%s", xdg, name);
     } else {
         const char *home = getenv("HOME");
         if (!home || !home[0]) return -1;
-        n = snprintf(out, max_len, "%s/.config/TextVN/config.json", home);
+        n = snprintf(out, max_len, "%s/.config/TextVN/%s", home, name);
     }
     return (n > 0 && (size_t)n < max_len) ? 0 : -1;
+}
+
+int lc_config_resolve_path(char *out, size_t max_len) {
+    return lc_textvn_file_path(out, max_len, "config.json");
+}
+
+int lc_state_resolve_path(char *out, size_t max_len) {
+    return lc_textvn_file_path(out, max_len, "state.json");
+}
+
+/* stat → (mtime_ns, size); 0 nếu là file thường. */
+static int file_stamp(const char *path, long long *mtime_ns, long long *size) {
+    struct stat sb;
+    if (stat(path, &sb) != 0 || !S_ISREG(sb.st_mode)) return -1;
+    *mtime_ns = (long long)sb.st_mtim.tv_sec * 1000000000LL + sb.st_mtim.tv_nsec;
+    *size = (long long)sb.st_size;
+    return 0;
+}
+
+int lc_state_read_enabled(const char *path, int default_enabled) {
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return default_enabled;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_STATE);
+    if (!s) return default_enabled;
+    int v = ime_settings_get_bool(s, "global_enabled");
+    ime_settings_free(s);
+    return v < 0 ? default_enabled : v;
+}
+
+int lc_state_write_enabled(const char *path, int enabled) {
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return -1;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_STATE);
+    if (!s) return -1;
+    int rc = ime_settings_set_bool(s, "global_enabled", enabled ? 1 : 0);
+    if (rc == IME_OK) rc = ime_settings_save(s, path);
+    ime_settings_free(s);
+    return rc == IME_OK ? 0 : -1;
+}
+
+int lc_state_sync(lc_config_state *st, const char *path, int *enabled) {
+    if (!st || !enabled) return 0;
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return 0;
+        path = buf;
+    }
+    long long mtime_ns = 0, size = 0;
+    if (file_stamp(path, &mtime_ns, &size) != 0) return 0;
+    if (st->loaded && st->mtime_ns == mtime_ns && st->size == size) return 0;
+    st->mtime_ns = mtime_ns;
+    st->size = size;
+    st->loaded = 1;
+    *enabled = lc_state_read_enabled(path, *enabled);
+    return 1;
 }
 
 #define LC_CONFIG_MAX_BYTES (256 * 1024)
@@ -226,28 +289,76 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
         if (lc_config_resolve_path(buf_path, sizeof(buf_path)) != 0) return 0;
         path = buf_path;
     }
-    struct stat sb;
-    if (stat(path, &sb) != 0 || !S_ISREG(sb.st_mode)) return 0;
-    long long mtime_ns = (long long)sb.st_mtim.tv_sec * 1000000000LL + sb.st_mtim.tv_nsec;
-    if (st->loaded && st->mtime_ns == mtime_ns && st->size == (long long)sb.st_size) return 0;
-    if (sb.st_size <= 0 || sb.st_size > LC_CONFIG_MAX_BYTES) return 0;
+    long long mtime_ns = 0, size = 0;
+    if (file_stamp(path, &mtime_ns, &size) != 0) return 0;
+    if (st->loaded && st->mtime_ns == mtime_ns && st->size == size) return 0;
+    if (size <= 0 || size > LC_CONFIG_MAX_BYTES) return 0;
 
     FILE *f = fopen(path, "rb");
     if (!f) return 0;
-    char *data = (char *)malloc((size_t)sb.st_size);
+    char *data = (char *)malloc((size_t)size);
     if (!data) {
         fclose(f);
         return 0;
     }
-    size_t got = fread(data, 1, (size_t)sb.st_size, f);
+    size_t got = fread(data, 1, (size_t)size, f);
     fclose(f);
 
     /* Config sai schema → engine giữ config cũ (P0-3 §1.3); vẫn ghi nhận mtime để
      * không đọc lại file hỏng ở mỗi phím. */
-    (void)ime_reload_config(inst, (const uint8_t *)data, got);
+    if (ime_reload_config(inst, (const uint8_t *)data, got) == IME_OK) {
+        ime_settings *s = ime_settings_load(path, IME_SETTINGS_CONFIG);
+        if (s) {
+            st->allow_macro_when_vi_off = ime_settings_get_bool(s, "allow_macro_when_vi_off") == 1;
+            ime_settings_free(s);
+        }
+    }
     free(data);
     st->mtime_ns = mtime_ns;
-    st->size = (long long)sb.st_size;
+    st->size = size;
     st->loaded = 1;
     return 1;
+}
+
+/* ---- Bảng cài đặt ---- */
+
+static int is_executable(const char *path) {
+    struct stat sb;
+    return stat(path, &sb) == 0 && S_ISREG(sb.st_mode) && access(path, X_OK) == 0;
+}
+
+static int try_candidate(char *out, size_t max_len, const char *dir, const char *rel) {
+    if (!dir || !dir[0]) return -1;
+    int n = snprintf(out, max_len, "%s/%s", dir, rel);
+    if (n <= 0 || (size_t)n >= max_len) return -1;
+    return is_executable(out) ? 0 : -1;
+}
+
+int lc_find_settings_binary(char *out, size_t max_len, const char *self_dir) {
+    if (!out || max_len == 0) return -1;
+    if (try_candidate(out, max_len, self_dir, "textvn-settings") == 0) return 0;
+    if (try_candidate(out, max_len, self_dir, "../../bin/textvn-settings") == 0) return 0;
+
+    const char *path = getenv("PATH");
+    if (path) {
+        char dir[1024];
+        const char *p = path;
+        while (*p) {
+            const char *colon = strchr(p, ':');
+            size_t len = colon ? (size_t)(colon - p) : strlen(p);
+            /* Chỉ nhận thư mục tuyệt đối: "" hay "." trong PATH là thư mục hiện hành. */
+            if (len > 0 && len < sizeof(dir) && p[0] == '/') {
+                memcpy(dir, p, len);
+                dir[len] = '\0';
+                if (try_candidate(out, max_len, dir, "textvn-settings") == 0) return 0;
+            }
+            if (!colon) break;
+            p = colon + 1;
+        }
+    }
+    const char *home = getenv("HOME");
+    if (home && home[0] == '/') {
+        if (try_candidate(out, max_len, home, ".local/bin/textvn-settings") == 0) return 0;
+    }
+    return -1;
 }

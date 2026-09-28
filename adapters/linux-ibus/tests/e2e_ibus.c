@@ -78,6 +78,7 @@ static void type(IBusInputContext *ic, const char *s) {
         switch (*p) {
         case '\n': kv = IBUS_KEY_Return; break;
         case '\b': kv = IBUS_KEY_BackSpace; break;
+        case '\t': kv = IBUS_KEY_Tab; break;
         case ' ': kv = IBUS_KEY_space; break;
         default: kv = (guint)(unsigned char)*p; break;
         }
@@ -92,6 +93,43 @@ static int check(const char *label, const char *want) {
     printf("%s %-28s want=\"%s\" got=\"%s\"\n", ok ? "PASS" : "FAIL", label, want, all->str);
     g_string_free(all, TRUE);
     return ok;
+}
+
+/* ~/.config/TextVN/<name> của phiên test (e2e-linux.sh đặt XDG_CONFIG_HOME tạm). */
+static gchar *textvn_file(const char *name) {
+    gchar *dir = g_build_filename(g_get_user_config_dir(), "TextVN", NULL);
+    g_mkdir_with_parents(dir, 0700);
+    gchar *path = g_build_filename(dir, name, NULL);
+    g_free(dir);
+    return path;
+}
+
+/* Ghi như bảng cài đặt (nguyên tử). Chờ chút để mtime chắc chắn khác lần trước. */
+static void write_textvn_file(const char *name, const char *json) {
+    gchar *path = textvn_file(name);
+    g_usleep(20000);
+    g_file_set_contents(path, json, -1, NULL);
+    g_free(path);
+}
+
+static int state_says(gboolean enabled) {
+    gchar *path = textvn_file("state.json");
+    gchar *text = NULL;
+    int ok = g_file_get_contents(path, &text, NULL, NULL) &&
+             strstr(text, enabled ? "\"global_enabled\": true" : "\"global_enabled\": false");
+    printf("%s state.json global_enabled=%s\n", ok ? "PASS" : "FAIL", enabled ? "true" : "false");
+    g_free(text);
+    g_free(path);
+    return ok;
+}
+
+static void ctrl_shift_tap(IBusInputContext *ic) {
+    press(ic, IBUS_KEY_Control_L, 0);
+    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0, IBUS_CONTROL_MASK);
+    pump();
+    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0,
+                                         IBUS_CONTROL_MASK | IBUS_SHIFT_MASK | IBUS_RELEASE_MASK);
+    pump();
 }
 
 static void clear(IBusInputContext *ic) {
@@ -176,24 +214,53 @@ int main(void) {
     pump();
     clear(ic);
 
-    /* Ctrl+Shift (nhấn rồi nhả) tắt tiếng Việt, bấm lại để bật. */
-    press(ic, IBUS_KEY_Control_L, 0);
-    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0, IBUS_CONTROL_MASK);
-    pump();
-    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0,
-                                         IBUS_CONTROL_MASK | IBUS_SHIFT_MASK | IBUS_RELEASE_MASK);
-    pump();
+    /* Ctrl+Shift (nhấn rồi nhả) tắt tiếng Việt, bấm lại để bật; trạng thái được lưu
+     * vào state.json (nhớ qua lần khởi động sau, bảng cài đặt đọc được). */
+    ctrl_shift_tap(ic);
     type(ic, "as ");
     ok &= check("Ctrl+Shift → EN", "as ");
+    ok &= state_says(FALSE);
     clear(ic);
-    press(ic, IBUS_KEY_Control_L, 0);
-    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0, IBUS_CONTROL_MASK);
-    pump();
-    ibus_input_context_process_key_event(ic, IBUS_KEY_Shift_L, 0,
-                                         IBUS_CONTROL_MASK | IBUS_SHIFT_MASK | IBUS_RELEASE_MASK);
-    pump();
+    ctrl_shift_tap(ic);
     type(ic, "as ");
     ok &= check("Ctrl+Shift → VN", "á ");
+    ok &= state_says(TRUE);
+    clear(ic);
+
+    /* Bảng cài đặt đổi state.json khi IME đang chạy → theo ngay ở phím kế tiếp. */
+    write_textvn_file("state.json", "{\"global_enabled\": false}");
+    type(ic, "as ");
+    ok &= check("state.json → EN", "as ");
+    write_textvn_file("state.json", "{\"global_enabled\": true}");
+    type(ic, "as ");
+    ok &= check("state.json → VN", "as á ");
+    clear(ic);
+
+    /* Gõ tắt (Tab bung, Tab bị nuốt) — config.json do bảng cài đặt ghi. */
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"macros\":[{\"trigger\":\"vn\",\"expand\":\"Việt Nam\"}]}");
+    type(ic, "xin vn\t");
+    ok &= check("gõ tắt khi bật VN", "xin Việt Nam");
+    clear(ic);
+    write_textvn_file("state.json", "{\"global_enabled\": false}");
+    type(ic, "xin vn\t");
+    ok &= check("tắt VN: không gõ tắt", "xin vn");
+    clear(ic);
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"allow_macro_when_vi_off\":true,"
+                      "\"macros\":[{\"trigger\":\"vn\",\"expand\":\"Việt Nam\"}]}");
+    type(ic, "xin vieetj vn\t");
+    ok &= check("tắt VN + gõ tắt", "xin vieetj Việt Nam");
+    clear(ic);
+    type(ic, "hello world\n");
+    ok &= check("tắt VN: chữ Anh nguyên vẹn", "hello world\n");
+    clear(ic);
+    write_textvn_file("state.json", "{\"global_enabled\": true}");
+    write_textvn_file("config.json", "{\"config_version\":1}");
+    type(ic, "as ");
+    ok &= check("trở lại VN", "á ");
     clear(ic);
 
     /* Ô mật khẩu: không biến đổi. */

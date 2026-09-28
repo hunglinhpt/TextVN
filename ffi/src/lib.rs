@@ -15,6 +15,9 @@
 
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
+/// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
+pub mod settings;
+
 use std::ffi::{c_char, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;

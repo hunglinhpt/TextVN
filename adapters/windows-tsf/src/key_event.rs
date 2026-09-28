@@ -168,16 +168,17 @@ fn handle_key(shared: &Rc<TsfShared>, pic: Ref<'_, ITfContext>, vk: u32, lparam:
     if !shared.is_composing() {
         shared.sync_config();
     }
-    if !shared.ipc.is_enabled() {
+    let Some(vi_on) = shared.engine_mode() else {
         end_composition(shared, ctx);
         shared.reset_engine();
         return false;
-    }
+    };
 
     let key = KeyKind::classify(vk, translate_key(vk, lparam));
     if !shared.is_composing() && !key.needs_session_when_idle() {
         // Backspace/Esc/điều hướng khi không composing: chỉ cho engine dọn trạng thái.
         if let Ok(mut thread) = shared.thread.try_borrow_mut() {
+            thread.engine.set_enabled(vi_on);
             let passed = matches!(
                 thread.engine.key_event_raw(vk, key.engine_ch(), mods),
                 Ok(r) if r.action == ACTION_PASS

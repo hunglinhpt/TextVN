@@ -110,18 +110,38 @@ void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
 int  lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which);
 void lc_modifier_toggle_reset(lc_modifier_toggle *t);
 
-/* ---- config.json (do textvn-settings ghi) ---- */
+/* ---- config.json / state.json (do textvn-settings ghi — cùng định dạng tray Windows) ---- */
 typedef struct lc_config_state {
     long long mtime_ns;
     long long size;
     int       loaded;
+    /* config.allow_macro_when_vi_off của lần nạp hợp lệ gần nhất (adapter cần biết để
+     * vẫn đưa phím qua engine khi tắt tiếng Việt). */
+    int       allow_macro_when_vi_off;
 } lc_config_state;
 
+/* $XDG_CONFIG_HOME/TextVN/<name> hoặc ~/.config/TextVN/<name>. */
+int lc_textvn_file_path(char *out, size_t max_len, const char *name);
 /* $XDG_CONFIG_HOME/TextVN/config.json hoặc ~/.config/TextVN/config.json. */
 int lc_config_resolve_path(char *out, size_t max_len);
 /* Nạp lại config vào engine khi file đổi (mtime/size). Trả 1 nếu đã nạp lại.
  * `path` NULL = đường dẫn mặc định. Rẻ (một stat) — gọi ở focus-in và đầu mỗi từ. */
 int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path);
+
+/* state.json: {"global_enabled": bool, "apps": {...}} — trạng thái bật/tắt tiếng Việt,
+ * nhớ qua các lần khởi động và chia sẻ với bảng cài đặt (giống tray Windows). */
+int lc_state_resolve_path(char *out, size_t max_len);
+/* global_enabled; file thiếu/hỏng → `default_enabled`. `path` NULL = mặc định. */
+int lc_state_read_enabled(const char *path, int default_enabled);
+/* Ghi global_enabled nguyên tử (giữ các khoá khác). 0 = OK. */
+int lc_state_write_enabled(const char *path, int enabled);
+/* File đổi kể từ lần trước → đọc lại, gán *enabled, trả 1. Không đổi/không có → 0. */
+int lc_state_sync(lc_config_state *st, const char *path, int *enabled);
+
+/* Tìm binary bảng cài đặt `textvn-settings` (theo thứ tự): cạnh `self_dir`,
+ * `self_dir/../../bin` (prefix/lib/textvn → prefix/bin), $PATH, ~/.local/bin.
+ * `self_dir` có thể NULL. 0 = tìm thấy (đường dẫn tuyệt đối trong `out`). */
+int lc_find_settings_binary(char *out, size_t max_len, const char *self_dir);
 
 #ifdef __cplusplus
 }

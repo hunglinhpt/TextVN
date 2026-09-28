@@ -9,6 +9,7 @@
 #ifndef TEXTVN_FCITX5_ENGINE_H
 #define TEXTVN_FCITX5_ENGINE_H
 
+#include <fcitx/action.h>
 #include <fcitx/addonfactory.h>
 #include <fcitx/addonmanager.h>
 #include <fcitx/inputcontextproperty.h>
@@ -16,6 +17,7 @@
 #include <fcitx/instance.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "lc_compose.h"
@@ -39,6 +41,7 @@ public:
     lc_comp comp{};
     lc_config_state config{};
     lc_modifier_toggle toggle{};
+    int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {
@@ -61,12 +64,19 @@ private:
     void commitText(TextVNState *st, const uint32_t *text, size_t len);
     void showPreedit(TextVNState *st, const uint32_t *text, size_t len);
     void toggleVietnamese(TextVNState *st);
+    void setVietnamese(TextVNState *st, bool on, bool persist);
+    void syncState(TextVNState *st);
+    void updateModeAction(fcitx::InputContext *ic);
     bool handleKey(TextVNState *st, const fcitx::Key &key, bool isRelease);
 
     fcitx::Instance *instance_;
     lc_ipc_client *ipc_ = nullptr;
+    /* VN/EN chung cho mọi input context, lưu ở state.json (như tray Windows). */
     bool viEnabled_ = true;
+    lc_config_state stateWatch_{};
     fcitx::FactoryFor<TextVNState> factory_;
+    std::unique_ptr<fcitx::SimpleAction> modeAction_;
+    std::unique_ptr<fcitx::SimpleAction> settingsAction_;
 };
 
 class TextVNEngineFactory : public fcitx::AddonFactory {

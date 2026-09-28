@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 typedef struct doc {
@@ -240,8 +241,114 @@ static void test_config_sync(void) {
     doc_text(&d, got, sizeof(got));
     assert(strcmp(got, "\xc3\xa1 ") == 0 && "VNI từ config.json");
     assert(lc_config_sync(inst, &st, "/nonexistent/config.json") == 0);
+    assert(st.allow_macro_when_vi_off == 0);
+
+    /* Đổi file → nạp lại và đọc cờ gõ tắt khi tắt VN. */
+    const char *with_flag = "{\"config_version\":1,\"method\":\"vni\",\"allow_macro_when_vi_off\":true}";
+    FILE *f = fopen(path, "wb");
+    assert(f && fwrite(with_flag, 1, strlen(with_flag), f) == strlen(with_flag));
+    fclose(f);
+    assert(lc_config_sync(inst, &st, path) == 1);
+    assert(st.allow_macro_when_vi_off == 1);
+
+    /* Config hỏng: engine giữ config cũ → cờ cũng giữ nguyên. */
+    f = fopen(path, "wb");
+    assert(f && fwrite("{oops", 1, 5, f) == 5);
+    fclose(f);
+    assert(lc_config_sync(inst, &st, path) == 1);
+    assert(st.allow_macro_when_vi_off == 1);
     ime_instance_free(inst);
     unlink(path);
+}
+
+static void test_state_file(void) {
+    char dir[] = "/tmp/textvn_state_XXXXXX";
+    assert(mkdtemp(dir));
+    char path[256];
+    snprintf(path, sizeof(path), "%s/sub/state.json", dir);
+
+    assert(lc_state_read_enabled(path, 1) == 1 && "chưa có file → mặc định");
+    assert(lc_state_read_enabled(path, 0) == 0);
+    lc_config_state st;
+    memset(&st, 0, sizeof(st));
+    int enabled = 1;
+    assert(lc_state_sync(&st, path, &enabled) == 0);
+
+    assert(lc_state_write_enabled(path, 0) == 0 && "tạo cả thư mục cha");
+    assert(lc_state_read_enabled(path, 1) == 0);
+    assert(lc_state_sync(&st, path, &enabled) == 1 && enabled == 0);
+    assert(lc_state_sync(&st, path, &enabled) == 0);
+
+    /* Giữ khoá khác (apps{} do tray Windows / người dùng ghi). */
+    FILE *f = fopen(path, "wb");
+    const char *js = "{\"global_enabled\":false,\"apps\":{\"x\":true}}";
+    assert(f && fwrite(js, 1, strlen(js), f) == strlen(js));
+    fclose(f);
+    assert(lc_state_write_enabled(path, 1) == 0);
+    f = fopen(path, "rb");
+    char buf[512] = {0};
+    assert(f && fread(buf, 1, sizeof(buf) - 1, f) > 0);
+    fclose(f);
+    assert(strstr(buf, "\"apps\"") && strstr(buf, "\"global_enabled\": true"));
+    assert(lc_state_sync(&st, path, &enabled) == 1 && enabled == 1);
+
+    char cmd[300];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", dir);
+    assert(system(cmd) == 0);
+}
+
+/* Gõ tắt khi tắt tiếng Việt: engine chạy passthrough, từ nằm trong preedit tới ranh giới,
+ * Tab bung gõ tắt ngay trong preedit — không xoá chữ đã commit của app. */
+static void test_macro_when_vi_off(void) {
+    ime_instance *inst = engine_with(
+        "{\"config_version\":1,\"auto_capitalize\":false,\"allow_macro_when_vi_off\":true,"
+        "\"macros\":[{\"trigger\":\"vn\",\"expand\":\"Vi\u1ec7t Nam\"}]}");
+    ime_context_v1 ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.abi_version = IME_ABI_VERSION;
+    ctx.enabled = 0;
+    ctx.field_role = IME_FIELD_BODY;
+    ctx.caps = IME_CAP_PREEDIT;
+    ctx.hint = -1;
+    assert(ime_set_context(inst, &ctx) == IME_OK);
+
+    doc d;
+    memset(&d, 0, sizeof(d));
+    type_str(&d, inst, "xin vieet vn\t");
+    char got[128];
+    doc_text(&d, got, sizeof(got));
+    if (strcmp(got, "xin vieet Vi\xe1\xbb\x87t Nam") != 0) {
+        fprintf(stderr, "macro vi-off: got=%s\n", got);
+        abort();
+    }
+    assert(d.comp.len == 0);
+    ime_instance_free(inst);
+}
+
+static void test_find_settings_binary(void) {
+    char dir[] = "/tmp/textvn_bin_XXXXXX";
+    assert(mkdtemp(dir));
+    char bin[300], out[512];
+    snprintf(bin, sizeof(bin), "%s/textvn-settings", dir);
+    FILE *f = fopen(bin, "wb");
+    assert(f && fputs("#!/bin/sh\n", f) >= 0);
+    fclose(f);
+    assert(lc_find_settings_binary(out, sizeof(out), dir) != 0 || strcmp(out, bin) != 0);
+    assert(chmod(bin, 0755) == 0);
+    assert(lc_find_settings_binary(out, sizeof(out), dir) == 0 && strcmp(out, bin) == 0);
+
+    /* Tìm qua PATH khi không có self_dir. */
+    const char *old = getenv("PATH");
+    char saved[4096];
+    snprintf(saved, sizeof(saved), "%s", old ? old : "");
+    char newpath[4400];
+    snprintf(newpath, sizeof(newpath), ".:%s:%s", dir, saved);
+    setenv("PATH", newpath, 1);
+    assert(lc_find_settings_binary(out, sizeof(out), NULL) == 0 && strcmp(out, bin) == 0);
+    setenv("PATH", saved, 1);
+
+    unlink(bin);
+    rmdir(dir);
 }
 
 int main(void) {
@@ -251,6 +358,9 @@ int main(void) {
     test_plan_edge_cases();
     test_modifier_toggle();
     test_config_sync();
+    test_state_file();
+    test_macro_when_vi_off();
+    test_find_settings_binary();
     printf("test_compose: OK\n");
     return 0;
 }

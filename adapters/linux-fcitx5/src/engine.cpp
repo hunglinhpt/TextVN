@@ -9,14 +9,20 @@
 
 #include <fcitx-utils/capabilityflags.h>
 #include <fcitx-utils/keysym.h>
+#include <fcitx-utils/misc.h>
 #include <fcitx-utils/utf8.h>
 #include <fcitx/inputcontext.h>
 #include <fcitx/inputcontextmanager.h>
 #include <fcitx/inputpanel.h>
+#include <fcitx/statusarea.h>
 #include <fcitx/text.h>
 #include <fcitx/userinterface.h>
+#include <fcitx/userinterfacemanager.h>
+
+#include <dlfcn.h>
 
 #include <cstring>
+#include <string>
 
 namespace textvn {
 
@@ -138,12 +144,53 @@ TextVNState::~TextVNState() {
 
 /* ---- Engine ---- */
 
+/* Thư mục chứa chính libtextvn-fcitx5.so — để tìm textvn-settings của cùng bản cài. */
+static std::string selfDir() {
+    Dl_info info{};
+    if (dladdr(reinterpret_cast<void *>(&selfDir), &info) == 0 || !info.dli_fname) return {};
+    std::string path(info.dli_fname);
+    const auto slash = path.rfind('/');
+    return slash == std::string::npos ? std::string() : path.substr(0, slash);
+}
+
+static void launchSettings() {
+    char path[1024];
+    const std::string dir = selfDir();
+    if (lc_find_settings_binary(path, sizeof(path), dir.empty() ? nullptr : dir.c_str()) == 0) {
+        fcitx::startProcess({path});
+    } else {
+        lc_log(LC_LOG_WARN, "Fcitx5", "textvn-settings not found");
+    }
+}
+
 TextVNEngine::TextVNEngine(fcitx::Instance *instance)
     : instance_(instance),
       factory_([](fcitx::InputContext &ic) { return new TextVNState(&ic); }) {
     lc_log_init("fcitx5-textvn");
     ipc_ = lc_ipc_client_new("fcitx5", nullptr);
+    viEnabled_ = lc_state_read_enabled(nullptr, 1) != 0;
     instance_->inputContextManager().registerProperty("textvnState", &factory_);
+
+    modeAction_ = std::make_unique<fcitx::SimpleAction>();
+    modeAction_->connect<fcitx::SimpleAction::Activated>([this](fcitx::InputContext *ic) {
+        try {
+            if (auto *st = state(ic)) toggleVietnamese(st);
+        } catch (...) {
+        }
+    });
+    instance_->userInterfaceManager().registerAction("textvn-mode", modeAction_.get());
+
+    settingsAction_ = std::make_unique<fcitx::SimpleAction>();
+    settingsAction_->setShortText("Cài đặt TextVN…");
+    settingsAction_->setIcon("preferences-system");
+    settingsAction_->connect<fcitx::SimpleAction::Activated>([](fcitx::InputContext *) {
+        try {
+            launchSettings();
+        } catch (...) {
+        }
+    });
+    instance_->userInterfaceManager().registerAction("textvn-settings", settingsAction_.get());
+    updateModeAction(nullptr);
 }
 
 TextVNEngine::~TextVNEngine() {
@@ -187,12 +234,37 @@ void TextVNEngine::finishWord(TextVNState *st) {
     if (st->inst) ime_reset(st->inst);
 }
 
-void TextVNEngine::toggleVietnamese(TextVNState *st) {
+void TextVNEngine::updateModeAction(fcitx::InputContext *ic) {
+    if (!modeAction_) return;
+    modeAction_->setShortText(viEnabled_ ? "Tiếng Việt (bấm để tắt)" : "Tiếng Anh (bấm để bật)");
+    modeAction_->setLongText("Bật/tắt tiếng Việt: Ctrl+Shift hoặc Ctrl+Shift+Space");
+    modeAction_->setIcon(viEnabled_ ? "textvn_v" : "textvn_e");
+    if (ic) modeAction_->update(ic);
+}
+
+void TextVNEngine::setVietnamese(TextVNState *st, bool on, bool persist) {
+    if (on == viEnabled_) return;
     finishWord(st);
-    viEnabled_ = !viEnabled_;
-    if (ipc_) lc_ipc_client_toggle_vi_en(ipc_, "*", viEnabled_ ? 1 : 0);
-    st->ic->updateUserInterface(fcitx::UserInterfaceComponent::StatusArea);
-    instance_->showInputMethodInformation(st->ic);
+    viEnabled_ = on;
+    if (persist) {
+        lc_state_write_enabled(nullptr, on ? 1 : 0);
+        int ignored = on ? 1 : 0;
+        lc_state_sync(&stateWatch_, nullptr, &ignored); /* hấp thụ lần ghi của chính mình */
+    }
+    if (ipc_) lc_ipc_client_toggle_vi_en(ipc_, "*", on ? 1 : 0);
+    if (st && st->ic) {
+        updateModeAction(st->ic);
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::StatusArea);
+        instance_->showInputMethodInformation(st->ic);
+    }
+}
+
+void TextVNEngine::toggleVietnamese(TextVNState *st) { setVietnamese(st, !viEnabled_, true); }
+
+/* Bảng cài đặt vừa đổi state.json → theo ngay (một stat mỗi lần gọi). */
+void TextVNEngine::syncState(TextVNState *st) {
+    int enabled = viEnabled_ ? 1 : 0;
+    if (lc_state_sync(&stateWatch_, nullptr, &enabled)) setVietnamese(st, enabled != 0, false);
 }
 
 std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
@@ -202,13 +274,18 @@ std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
 
 void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        auto *st = state(event.inputContext());
+        auto *ic = event.inputContext();
+        auto *st = state(ic);
         if (!st) return;
         lc_config_sync(st->inst, &st->config, nullptr);
+        syncState(st);
         int appEnabled = 1;
         if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
             viEnabled_ = appEnabled != 0;
         }
+        updateModeAction(ic);
+        ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, modeAction_.get());
+        ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, settingsAction_.get());
     } catch (...) {
     }
 }
@@ -267,15 +344,31 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, bool isRele
         return true;
     }
 
+    if (st->comp.len == 0) {
+        lc_config_sync(st->inst, &st->config, nullptr);
+        syncState(st);
+    }
+
+    /* B6 chord; S3 ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng → phím đi thẳng. */
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
+    const bool macroOnly = !viEnabled_ && st->config.allow_macro_when_vi_off;
     if ((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) || secure ||
-        !viEnabled_ || !st->inst) {
+        !(viEnabled_ || macroOnly) || !st->inst) {
         finishWord(st);
         return false;
     }
-
-    if (st->comp.len == 0) lc_config_sync(st->inst, &st->config, nullptr);
+    if (st->ctxEnabled != (viEnabled_ ? 1 : 0)) {
+        ime_context_v1 ctx;
+        std::memset(&ctx, 0, sizeof(ctx));
+        ctx.abi_version = IME_ABI_VERSION;
+        ctx.enabled = viEnabled_ ? 1 : 0;
+        ctx.field_role = IME_FIELD_BODY;
+        ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
+        ctx.hint = -1;
+        ime_set_context(st->inst, &ctx);
+        st->ctxEnabled = ctx.enabled;
+    }
 
     uint32_t vk = 0, ch = 0;
     mapFcitxKey(key, &vk, &ch);

@@ -129,6 +129,7 @@ fn parse_quoted(s: &str) -> Result<String, String> {
                 '"' => out.push('"'),
                 '\\' => out.push('\\'),
                 'n' => out.push('\n'),
+                't' => out.push('\t'),
                 other => return Err(format!("escape không hợp lệ `\\{other}`")),
             }
             escape = false;
@@ -791,6 +792,10 @@ impl Sim {
         }
     }
 
+    fn setting_is_true(&self, key: &str) -> bool {
+        self.settings.iter().any(|(k, v)| k == key && v == "true")
+    }
+
     /// Đóng composition TSF (text giữ nguyên trong buffer).
     fn tsf_end(&mut self) {
         if let Some(comp) = self.tsf.as_mut() {
@@ -812,8 +817,10 @@ impl Sim {
         if is_modifier_vk(vk) {
             return;
         }
-        // Chord / phím bơm (VK_PACKET) / field bị gate: commit rồi app nhận phím.
-        if injected || mods & 0xE != 0 || self.secure || !self.enabled {
+        // Chord / phím bơm (VK_PACKET) / field bị gate / tắt VN (trừ khi còn gõ tắt —
+        // `allow_macro_when_vi_off`): commit rồi app nhận phím.
+        let macro_only = !self.enabled && self.setting_is_true("allow_macro_when_vi_off");
+        if injected || mods & 0xE != 0 || self.secure || !(self.enabled || macro_only) {
             self.tsf_end();
             if !injected {
                 self.apply_pass(vk, ch);
