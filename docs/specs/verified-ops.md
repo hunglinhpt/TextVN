@@ -14,7 +14,7 @@
 | A2 | `git push origin main` (HTTPS) | ✓ (2026-09-27) — commit `5572c74`, `a8f89c2` | luôn add list tường minh (G2/G12) |
 | A3 | `graphify update .` tại repo root | ✓ 1767 nodes · 2795 edges · 129 communities (2026-09-27) | chạy sau mỗi push; commit `graphify-out/` riêng |
 | A4 | REUSE: SPDX header dòng 1 (`// SPDX-…` / `# SPDX-…` / `<!-- SPDX-… -->`) | ✓ `reuse lint` 888/888 (2026-09-27) | hoạt động cả chế độ `.reuse/dep5` lẫn `REUSE.toml` (WIP agent kia) |
-| A5 | GitHub Action **`repo-hygiene`** — 7 check "sạch" repo (`00-WORKFLOW.md §12`) | ✓ run **đầu tiên = success** (2026-09-27, [run 36289296482](https://github.com/hunglinhpt/TextVN/actions/runs/36289296482), commit `a4d80e4`) | chạy local trước khi push: 7/7 pass (git-bash giả định + `python .github/scripts/check_doc_links.py`) — công thức "pre-check local → push → xem run" |
+| A5 | GitHub Action **`repo-hygiene`** — 8 check "sạch" repo (`00-WORKFLOW.md §12`) | ✓ run **đầu tiên = success** (2026-09-27, [run 36289296482](https://github.com/hunglinhpt/TextVN/actions/runs/36289296482), commit `a4d80e4`; lúc đó 7 check) | chạy local trước khi push: 8/8 pass (git-bash giả định + `python .github/scripts/check_doc_links.py` + `python .github/scripts/check_no_injection_apis.py`) — công thức "pre-check local → push → xem run" |
 
 ## B. Build · Test · Script
 

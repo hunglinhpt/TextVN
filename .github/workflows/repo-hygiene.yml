@@ -2,7 +2,8 @@
 # repo-hygiene — giữ repo SẠCH sau mỗi lần code (00-WORKFLOW.md §12, rule G13).
 # KHÁC ci-shared.yml (agent core/FFI): ci-shared = build/test Rust
 # (fmt/clippy/test 3 OS/deny/reuse/fuzz…); file này chỉ lo "sạch" — doc link,
-# secret, file tạm, quy ước .ps1, conflict marker, file quá lớn. Không chạy cargo.
+# secret, file tạm, quy ước .ps1, conflict marker, file quá lớn, API inject
+# (Farch-3). Không chạy cargo.
 name: repo-hygiene
 
 on:
@@ -20,7 +21,7 @@ concurrency:
 
 jobs:
   hygiene:
-    name: repo hygiene (7 checks)
+    name: repo hygiene (8 checks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,3 +92,6 @@ jobs:
             exit 1
           fi
           echo "OK"
+
+      - name: 8. API inject / giong malware bi cam (Farch-3)
+        run: python3 .github/scripts/check_no_injection_apis.py
