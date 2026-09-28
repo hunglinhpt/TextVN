@@ -282,11 +282,12 @@ impl Engine {
     }
 
     fn fold_current(&self) -> Vec<char> {
-        let mut display = method::fold(
+        let mut display = method::fold_caps(
             &self.word.raw,
             self.opts.method,
             self.opts.diacritic_style,
             self.opts.free_marking,
+            self.word.caps_lock,
         );
         if self.opts.quick_telex && matches!(self.opts.method, Method::Telex | Method::SimpleTelex)
         {
@@ -385,6 +386,9 @@ impl Engine {
             c
         };
 
+        if k.mods & keymap::MOD_CAPS != 0 {
+            self.word.caps_lock = true;
+        }
         self.word.raw.push(c);
         let display = self.fold_current();
 

@@ -23,7 +23,7 @@ KEY = {
     " ": 0x20,
 }
 CTRL_L, SHIFT_L = 0xFFE3, 0xFFE1
-STATE_SHIFT, STATE_CTRL = 1 << 0, 1 << 2
+STATE_SHIFT, STATE_CAPS, STATE_CTRL = 1 << 0, 1 << 1, 1 << 2
 CAP_PREEDIT, CAP_FORMATTED, CAP_PASSWORD = 1 << 1, 1 << 4, 1 << 3
 CAP_UNFOCUS_COMMIT = 1 << 5
 
@@ -266,6 +266,21 @@ write_textvn_file("state.json", {"global_enabled": True})
 write_textvn_file("config.json", {"config_version": 1})
 type_("as ")
 check("trở lại VN", "á ")
+clear()
+
+# Caps Lock bật: phím dấu hoa vẫn là phím dấu; Shift (không Caps Lock) giữ chữ viết tắt.
+for ch in "VIEETJ ":
+    keysym = KEY.get(ch, ord(ch))
+    handled = send(keysym, STATE_CAPS, False)
+    pump()
+    if not handled:
+        app_handles(ch)
+    send(keysym, STATE_CAPS, True)
+    pump()
+check("Caps Lock VIEETJ", "VIỆT ")
+clear()
+type_("USA ")
+check("Shift USA giữ nguyên", "USA ")
 clear()
 
 ic.SetCapability(dbus.UInt64(CAP_PREEDIT | CAP_FORMATTED | CAP_PASSWORD))

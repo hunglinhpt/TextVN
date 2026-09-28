@@ -31,6 +31,10 @@ công cảm xin lỗi chào tạm biệt hẹn gặp lại nghĩa nghĩ ngẫm n
 khăn thuận lợi thuỷ loà gửi gương gần gũi ghét ghi kẻ kể kiến kìa phía phim phố phương
 rõ ràng rộng rãi sông suối sớm muộn trưa tối đêm ngày tháng tuổi xe đạp xăng dầu vẫn
 nghỉ ngơi ngoài oai oán uyển chuyện khuyết thiếu yếu yến xiếc hiếu kiêu ngạo
+doanh hoạch huých huênh hoẵng tuân khuất khuya liệng yểm cướm mướp ướt buồm tuốt
+chừng mực vườn kênh ếch xinh thích hành sạch tắm lâm thơm tôm xóm kem đêm tìm đẹp
+xếp kịp họp hộp lớp búp đáp cặp tập mét hết ít một hớt bút mứt mát mặt thật ngoắt
+khoét ngoẹo quạ quạt quyến quýnh huấn luyện thuyết nguội tuổi xuôi người ngượng
 ";
 
 /// (âm cơ bản, phím dấu phụ) của một chữ cái — Telex.
@@ -99,9 +103,16 @@ fn keys_for(word: &str, method: Method) -> String {
 }
 
 fn type_word(e: &mut Engine, keys: &str) -> String {
+    type_word_mods(e, keys, 0)
+}
+
+fn type_word_mods(e: &mut Engine, keys: &str, mods: u32) -> String {
     let mut buf: Vec<char> = Vec::new();
     for c in keys.chars().chain(std::iter::once(' ')) {
-        let k = KeyEvent::char_down(c);
+        let k = KeyEvent {
+            mods,
+            ..KeyEvent::char_down(c)
+        };
         match e.key(&k).action {
             Action::Pass => buf.push(c),
             Action::Replace {
@@ -232,4 +243,58 @@ fn telex_old_style() {
         }
     }
     assert_none("Telex kiểu cũ", failures);
+}
+
+/// Chữ hoa đầu từ (Shift): `Vieetj` → `Việt`, `DDaf` → `Đà`.
+#[test]
+fn telex_capitalized_with_shift() {
+    let mut failures = Vec::new();
+    for word in [
+        "Việt", "Nam", "Hà", "Nội", "Đà", "Nẵng", "Huế", "Quảng", "Giang", "Ưng", "Ước",
+    ] {
+        let keys = keys_for(&word.to_lowercase(), Method::Telex);
+        let mut cs = keys.chars();
+        let first: String = cs.next().unwrap().to_uppercase().collect();
+        let rest: String = cs.collect();
+        // `Đ` = Shift+`d` hai lần.
+        let keys = if word.starts_with('Đ') {
+            format!("{first}{}{}", rest[..1].to_uppercase(), &rest[1..])
+        } else {
+            format!("{first}{rest}")
+        };
+        let mut e = engine(Method::Telex);
+        let got = type_word(&mut e, &keys);
+        if got != format!("{word} ") {
+            failures.push(format!("{keys:>12} → {got:?} (cần {word:?})"));
+        }
+    }
+    assert_none("Telex chữ hoa đầu", failures);
+}
+
+/// Caps Lock bật: gõ toàn chữ hoa, phím dấu hoa vẫn là phím dấu (`VIEETJ` → `VIỆT`).
+/// Tắt Caps Lock, chữ hoa gõ bằng Shift là chữ thường lệ (`USA` giữ nguyên).
+#[test]
+fn telex_caps_lock_and_shift_acronyms() {
+    const MOD_CAPS: u32 = 0x20;
+    let mut failures = Vec::new();
+    for word in WORDS.split_whitespace() {
+        let keys = keys_for(word, Method::Telex).to_uppercase();
+        let want = format!("{} ", word.to_uppercase());
+        let mut e = engine(Method::Telex);
+        let got = type_word_mods(&mut e, &keys, MOD_CAPS);
+        if got != want {
+            failures.push(format!("{keys:>12} → {got:?} (cần {want:?})"));
+        }
+    }
+    assert_none("Telex Caps Lock", failures);
+
+    const MOD_SHIFT: u32 = 0x1;
+    for acronym in ["USA", "JSON", "CSS", "HTML", "DNS", "AWS", "OK", "IDE"] {
+        let mut e = engine(Method::Telex);
+        assert_eq!(
+            type_word_mods(&mut e, acronym, MOD_SHIFT),
+            format!("{acronym} "),
+            "chữ viết tắt gõ bằng Shift phải giữ nguyên"
+        );
+    }
 }

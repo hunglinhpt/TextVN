@@ -28,7 +28,7 @@ use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
 use crate::edit_session::{EndCompositionSession, KeyEditSession, TsfShared};
 #[cfg(windows)]
-use textvn_ffi::{ACTION_PASS, MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
+use textvn_ffi::{ACTION_PASS, MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
 
 #[cfg(windows)]
 #[implement(ITfKeyEventSink)]
@@ -249,6 +249,11 @@ fn active_modifiers() -> u32 {
     }
     if down(VK_LWIN) || down(VK_RWIN) {
         mods |= MOD_SUPER;
+    }
+    // Caps Lock đang bật (bit toggle): engine coi phím dấu Telex viết hoa là phím dấu.
+    // SAFETY: như trên.
+    if (unsafe { GetKeyState(VK_CAPITAL.0 as i32) } & 1) != 0 {
+        mods |= MOD_CAPS;
     }
     mods
 }

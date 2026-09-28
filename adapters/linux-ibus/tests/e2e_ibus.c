@@ -263,6 +263,18 @@ int main(void) {
     ok &= check("trở lại VN", "á ");
     clear(ic);
 
+    /* Caps Lock bật (IBUS_LOCK_MASK): phím dấu hoa vẫn là phím dấu. */
+    for (const char *p = "VIEETJ "; *p; ++p) {
+        guint kv = *p == ' ' ? IBUS_KEY_space : (guint)(unsigned char)*p;
+        press(ic, kv, IBUS_LOCK_MASK);
+    }
+    ok &= check("Caps Lock VIEETJ", "VIỆT ");
+    clear(ic);
+    /* Shift (không Caps Lock): chữ viết tắt giữ nguyên. */
+    type(ic, "USA ");
+    ok &= check("Shift USA giữ nguyên", "USA ");
+    clear(ic);
+
     /* Ô mật khẩu: không biến đổi. */
     ibus_input_context_set_content_type(ic, IBUS_INPUT_PURPOSE_PASSWORD, 0);
     pump();

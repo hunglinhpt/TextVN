@@ -321,7 +321,8 @@ void TextVNEngine::reset(const fcitx::InputMethodEntry &, fcitx::InputContextEve
     }
 }
 
-bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, bool isRelease) {
+bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyStates rawStates,
+                             bool isRelease) {
     const fcitx::KeyStates states = key.states();
     const lc_modifier which = fcitxModifierKind(key.sym());
 
@@ -335,7 +336,9 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, bool isRele
                                 states.test(fcitx::KeyState::Super));
     if (which != LC_MOD_NONE) return false;
 
-    const uint32_t mods = fcitxMods(states);
+    uint32_t mods = fcitxMods(states);
+    /* Caps Lock bật: engine coi phím dấu Telex viết hoa là phím dấu (VIEETJ → VIỆT). */
+    if (rawStates.test(fcitx::KeyState::CapsLock)) mods |= IME_MOD_CAPS;
 
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
@@ -411,7 +414,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, bool isRele
 void TextVNEngine::keyEvent(const fcitx::InputMethodEntry &, fcitx::KeyEvent &keyEvent) {
     try {
         auto *st = state(keyEvent.inputContext());
-        if (st && handleKey(st, keyEvent.key(), keyEvent.isRelease())) {
+        if (st && handleKey(st, keyEvent.key(), keyEvent.rawKey().states(),
+                            keyEvent.isRelease())) {
             keyEvent.filterAndAccept();
         }
     } catch (...) {

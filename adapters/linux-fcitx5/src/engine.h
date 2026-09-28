@@ -67,7 +67,10 @@ private:
     void setVietnamese(TextVNState *st, bool on, bool persist);
     void syncState(TextVNState *st);
     void updateModeAction(fcitx::InputContext *ic);
-    bool handleKey(TextVNState *st, const fcitx::Key &key, bool isRelease);
+    /* `key` = phím đã chuẩn hoá (chữ hoa theo Shift/Caps Lock); `rawStates` = trạng thái
+     * gốc — Key::normalize() của Fcitx5 bỏ bit CapsLock nên phải lấy từ rawKey(). */
+    bool handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyStates rawStates,
+                   bool isRelease);
 
     fcitx::Instance *instance_;
     lc_ipc_client *ipc_ = nullptr;

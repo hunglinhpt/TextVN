@@ -55,9 +55,21 @@ pub fn is_word_char(c: char, method: Method) -> bool {
 /// Fold toàn bộ chuỗi phím của một từ → chuỗi hiển thị.
 /// `raw` gồm cả marker đã bị nuốt; kết quả khác `raw` nghĩa là có biến đổi.
 pub fn fold(raw: &[char], method: Method, style: DiacriticStyle, free_marking: bool) -> Vec<char> {
+    fold_caps(raw, method, style, free_marking, false)
+}
+
+/// Như [`fold`]; `caps_lock` = từ được gõ khi Caps Lock bật: phím dấu Telex viết hoa
+/// (`VIEETJ` → `VIỆT`) vẫn là phím dấu. VNI/VIQR dùng số/dấu câu nên không phụ thuộc.
+pub fn fold_caps(
+    raw: &[char],
+    method: Method,
+    style: DiacriticStyle,
+    free_marking: bool,
+    caps_lock: bool,
+) -> Vec<char> {
     let mut out = match method {
-        Method::Telex => telex::fold(raw, style, free_marking),
-        Method::SimpleTelex => simple_telex::fold(raw, style, free_marking),
+        Method::Telex => telex::fold_with_caps(raw, style, free_marking, true, caps_lock),
+        Method::SimpleTelex => telex::fold_with_caps(raw, style, free_marking, false, caps_lock),
         Method::Vni => vni::fold(raw, style, free_marking),
         Method::Viqr => viqr::fold(raw, style, free_marking),
     };

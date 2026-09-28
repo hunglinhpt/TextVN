@@ -37,10 +37,30 @@ pub fn fold_with(
     free_marking: bool,
     w_marker: bool,
 ) -> Vec<char> {
+    fold_with_caps(raw, style, free_marking, w_marker, false)
+}
+
+/// `caps_lock` = từ gõ khi Caps Lock bật: phím dấu viết hoa `S F R X J W Z` vẫn là phím
+/// dấu (UniKey). Tắt Caps Lock thì chữ hoa (gõ bằng Shift) là chữ thường lệ (`USA`, `NGAF`).
+pub fn fold_with_caps(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    w_marker: bool,
+    caps_lock: bool,
+) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
     let mut w_seen = false;
     for &c in raw {
-        push_key(&mut out, c, style, free_marking, w_marker, &mut w_seen);
+        push_key(
+            &mut out,
+            c,
+            style,
+            free_marking,
+            w_marker,
+            caps_lock,
+            &mut w_seen,
+        );
     }
     out
 }
@@ -58,13 +78,16 @@ fn push_key(
     style: DiacriticStyle,
     free: bool,
     w_marker: bool,
+    caps_lock: bool,
     w_seen: &mut bool,
 ) {
+    // Phím dấu so theo chữ thường khi Caps Lock bật; ký tự gõ literal vẫn là `c` gốc.
+    let key = if caps_lock { c.to_ascii_lowercase() } else { c };
     // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
     let tone = if w_marker {
-        keys::tone_of_key(c)
+        keys::tone_of_key(key)
     } else {
-        keys_st::tone_of_key(c)
+        keys_st::tone_of_key(key)
     };
     if let Some(tone) = tone {
         apply_key(out, tone, c, style, free);
@@ -78,7 +101,7 @@ fn push_key(
     } else {
         keys_st::TONE_REMOVE_KEY
     };
-    if tone_remove == Some(c) {
+    if tone_remove == Some(key) {
         if let Some(idx) = out
             .iter()
             .position(|&ch| tone_of(ch).is_some_and(|t| t > 0))
@@ -89,7 +112,7 @@ fn push_key(
     }
 
     // 2) 'w' — horn / undo horn / nuốt lặp (simple telex: không phải marker → đi tiếp)
-    if c == 'w' && w_marker {
+    if key == 'w' && w_marker {
         // `uo` đã được rule tự đổi thành `ươ`: `w` đầu tiên của từ là XÁC NHẬN, không
         // phải bấm lại để gỡ — thói quen UniKey `nguowif` → `người`, `dduowcj` → `được`
         // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
@@ -101,7 +124,7 @@ fn push_key(
         match horn(out, &keys::HORN) {
             Horn::Applied | Horn::Undone => return,
             Horn::No => {
-                if out.last() == Some(&'w') {
+                if out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'w')) {
                     return; // ww → w
                 }
                 out.push(c);

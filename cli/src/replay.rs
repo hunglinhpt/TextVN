@@ -483,7 +483,7 @@ fn parse_line(line: &str) -> Result<Option<Cmd>, String> {
                 ("-", rest) => (false, rest),
                 _ => return Err(format!("`:mods` cần +/-, nhận `{s}`")),
             };
-            if !matches!(name, "Shift" | "Ctrl" | "Alt" | "Super") {
+            if !matches!(name, "Shift" | "Ctrl" | "Alt" | "Super" | "CapsLock") {
                 return Err(format!("modifier lạ `{name}`"));
             }
             Cmd::Mods {
@@ -1042,6 +1042,8 @@ fn mod_bit(name: &str) -> u32 {
         "Ctrl" => 0x2,
         "Alt" => 0x4,
         "Super" => 0x8,
+        // Trạng thái Caps Lock bật (IME_MOD_CAPS) — `:mods +CapsLock`.
+        "CapsLock" => 0x20,
         _ => 0,
     }
 }

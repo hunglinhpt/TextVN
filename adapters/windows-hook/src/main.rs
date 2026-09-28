@@ -321,6 +321,10 @@ mod hook_app {
             }
 
             let ch = vk_to_unicode(vk, kbd.scanCode);
+            // Caps Lock: suy từ ký tự layout trả về (hoa mà không giữ Shift, hoặc ngược lại)
+            // — trạng thái toggle đọc từ thread hook không đáng tin. Engine cần biết để
+            // `VIEETJ` (Caps Lock) → `VIỆT` mà `USA` (Shift) vẫn là `USA`.
+            let mods = mods | caps_lock_bit(ch, mods);
             let event = KeyEvent {
                 key_down: true,
                 injected: false,
@@ -452,6 +456,16 @@ mod hook_app {
 
         IN_INJECTION.store(false, Ordering::Release);
         sent_all
+    }
+
+    /// `IME_MOD_CAPS` nếu chữ cái gõ ra có hoa/thường ngược với trạng thái Shift.
+    fn caps_lock_bit(ch: u32, mods: u32) -> u32 {
+        const MOD_SHIFT: u32 = 0x1;
+        const MOD_CAPS: u32 = 0x20;
+        match char::from_u32(ch) {
+            Some(c) if c.is_alphabetic() && c.is_uppercase() != (mods & MOD_SHIFT != 0) => MOD_CAPS,
+            _ => 0,
+        }
     }
 
     fn get_active_modifiers() -> u32 {

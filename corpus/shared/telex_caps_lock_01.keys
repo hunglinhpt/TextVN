@@ -1,0 +1,12 @@
+# corpus/shared/telex_caps_lock_01.keys — Caps Lock bật: phím dấu viết hoa vẫn là phím dấu
+# (UniKey/OpenKey). Tắt Caps Lock: chữ hoa gõ bằng Shift là chữ thường lệ (`USA`).
+:config method=telex diacritic_style=new auto_capitalize=false
+:mods +CapsLock
+:type "VIEETJ NAM DDUWOWNGF "
+:expect "VIỆT NAM ĐƯỜNG "
+:mods -CapsLock
+:mods +Shift
+:type "USA"
+:mods -Shift
+:type " "
+:expect "VIỆT NAM ĐƯỜNG USA "
