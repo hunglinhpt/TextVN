@@ -5,6 +5,12 @@ $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Write-Host 'Tat TextVN...'
 Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList '--stop' -ErrorAction SilentlyContinue
 for ($i = 0; $i -lt 20 -and (Get-Process -Name TextVN -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 250 }
+# Tu khoi dong tro vao thu muc nay thi bo (khong dung toi ban TextVN da cai o noi khac).
+$run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$cmd = (Get-ItemProperty -Path $run -Name 'TextVN' -ErrorAction SilentlyContinue).TextVN
+if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    Remove-ItemProperty -Path $run -Name 'TextVN' -ErrorAction SilentlyContinue
+}
 Write-Host 'Go dang ky TSF...'
 Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
 Write-Host 'Xong. Neu Windows bao textvn-tsf.dll dang duoc dung, hay dang xuat roi xoa thu muc.'

@@ -314,6 +314,8 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
     if answer != IDYES {
         return;
     }
+    // Mục tự khởi động trỏ vào thư mục sắp xoá thì bỏ luôn (bản cài khác giữ nguyên).
+    let _ = crate::autostart::disable_autostart_for_dir(&dir);
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let _ = std::process::Command::new(dir.join("textvn-cli.exe"))
