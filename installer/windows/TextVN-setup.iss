@@ -36,7 +36,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 DisableWelcomePage=no
 
 [Languages]
-Name: "vietnamese"; MessagesFile: "compiler:Languages\Vietnamese.isl"
+Name: "vietnamese"; MessagesFile: "languages\Vietnamese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 #ifndef TargetDir
@@ -92,6 +92,7 @@ end;
 // Profile TSF chuan duoc Windows luu o HKLM (ITfInputProcessorProfileMgr).
 // Cai per-user khong co quyen do: hoi nguoi dung cap quyen MOT lan. Tu choi thi
 // CLI van dung fallback per-user (HKCU) - bo go van cai dat day du.
+// Cai im lang (/SUPPRESSMSGBOXES) mac dinh KHONG hien UAC: chi dang ky per-user.
 procedure RegisterTextServices();
 var
   ResultCode: Integer;
@@ -102,7 +103,7 @@ begin
   begin
     if SuppressibleMsgBox('TextVN can dang ky bo go voi Windows (Text Services Framework).' + #13#10 +
         'Buoc nay can quyen quan tri MOT lan de TextVN go duoc trong moi ung dung.' + #13#10#13#10 +
-        'Tiep tuc?', mbConfirmation, MB_YESNO, IDYES) = IDYES then
+        'Tiep tuc?', mbConfirmation, MB_YESNO, IDNO) = IDYES then
       ShellExec('runas', CliPath(), 'register --scope machine', '', SW_HIDE,
         ewWaitUntilTerminated, ResultCode);
   end;

@@ -1,0 +1,31 @@
+TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
+============================================================
+
+1. BẮT ĐẦU
+   - Nhấn đúp TextVN.exe. Lần đầu, TextVN tự đăng ký bộ gõ với Windows cho tài khoản
+     của bạn (không cần quyền quản trị) và mở Bảng điều khiển.
+   - Nếu chưa gõ được: bấm [Cài & bật TSF] trong Bảng điều khiển, rồi chọn TextVN trong
+     danh sách bộ gõ (Win + Space).
+
+2. BẬT / TẮT TIẾNG VIỆT
+   - Nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space.
+   - Hoặc bấm biểu tượng ở khay hệ thống: V = đang gõ tiếng Việt, E = tiếng Anh.
+
+3. KIỂU GÕ
+   - Telex: aa=â aw=ă ee=ê oo=ô ow=ơ uw=ư dd=đ; s f r x j = sắc huyền hỏi ngã nặng; z = xoá dấu.
+   - VNI: 1-5 = sắc huyền hỏi ngã nặng; 6 = mũ; 7 = móc (ơ ư); 8 = trăng (ă); 9 = đ; 0 = xoá dấu.
+   - Gõ tắt: Bảng điều khiển → [Gõ tắt...], mỗi dòng "gõ tắt = nội dung", nhấn Tab để bung.
+
+4. BẢNG ĐIỀU KHIỂN
+   - Nhấn vào biểu tượng khay. [Đóng] thu về khay, [Kết thúc] thoát hẳn.
+
+5. GỠ BỎ BẢN CHẠY NGAY
+   - Chạy uninstall.ps1 (chuột phải → Run with PowerShell): tắt TextVN và gỡ đăng ký bộ gõ.
+   - Sau đó xoá thư mục. Nếu Windows báo textvn-tsf.dll đang được dùng, đăng xuất rồi xoá.
+   - Cấu hình của bạn (gõ tắt, tuỳ chọn) ở %APPDATA%\TextVN được giữ lại.
+
+6. DI CHUYỂN THƯ MỤC
+   - Chạy uninstall.ps1 trước khi di chuyển; ở chỗ mới nhấn đúp TextVN.exe là xong.
+
+Kiểm tra sự cố: chạy "textvn-cli.exe doctor" trong thư mục này.
+Mã nguồn & báo lỗi: https://github.com/hunglinhpt/TextVN
