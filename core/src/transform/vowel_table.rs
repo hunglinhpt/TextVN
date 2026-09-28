@@ -23,8 +23,9 @@ pub use super::vowel_table_generated::{
 /// Chấp nhận cả IN HOA ('Á' → ('a'-entry, tone 1)) để gõ HOA vẫn đặt dấu được.
 ///
 /// Đường nóng của engine (gọi cho mọi ký tự của từ ở mỗi phím): phụ âm ASCII loại ngay,
-/// nguyên âm ASCII tra trực tiếp, ký tự có dấu tra nhị phân trong bảng 144 dạng
-/// (thường + HOA) dựng một lần — bản cũ quét tuyến tính 72 dạng + `to_lowercase`.
+/// nguyên âm ASCII tra trực tiếp, ký tự có dấu tra bảng chỉ mục trực tiếp theo code point
+/// (mọi dạng có dấu nằm trong U+00C0..U+1EFF) dựng một lần — bản cũ quét tuyến tính
+/// 72 dạng + `to_lowercase` cho từng ký tự.
 pub fn locate(c: char) -> Option<(usize, usize)> {
     if c.is_ascii() {
         return match c.to_ascii_lowercase() {
@@ -37,34 +38,50 @@ pub fn locate(c: char) -> Option<(usize, usize)> {
             _ => None,
         };
     }
-    let table = marked_forms();
-    table
-        .binary_search_by_key(&c, |&(ch, _, _)| ch)
-        .ok()
-        .map(|i| (table[i].1, table[i].2))
+    let idx = (c as usize).checked_sub(MARKED_FIRST)?;
+    let packed = *marked_forms().get(idx)?;
+    (packed != 0).then(|| {
+        let v = usize::from(packed - 1);
+        (v / TONES_PER_VOWEL, v % TONES_PER_VOWEL)
+    })
 }
 
-/// Mọi dạng không phải ASCII (thường và HOA), sắp theo ký tự.
-fn marked_forms() -> &'static [(char, usize, usize)] {
-    static TABLE: std::sync::OnceLock<Vec<(char, usize, usize)>> = std::sync::OnceLock::new();
+/// Code point đầu của vùng chứa mọi dạng có dấu (`À`).
+const MARKED_FIRST: usize = 0xC0;
+
+/// `table[c - MARKED_FIRST]` = `entry * 6 + tone + 1` cho mọi dạng không phải ASCII
+/// (thường và HOA), `0` = không phải âm.
+fn marked_forms() -> &'static [u16] {
+    static TABLE: std::sync::OnceLock<Vec<u16>> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
-        let mut v = Vec::with_capacity(VOWEL_ENTRY_COUNT * TONES_PER_VOWEL * 2);
+        let mut forms = Vec::with_capacity(VOWEL_ENTRY_COUNT * TONES_PER_VOWEL * 2);
         for (e, entry) in VOWELS.iter().enumerate() {
             for (t, &f) in entry.forms.iter().enumerate() {
                 if f.is_ascii() {
                     continue;
                 }
-                v.push((f, e, t));
+                forms.push((f, e, t));
                 for up in f.to_uppercase() {
                     if up != f {
-                        v.push((up, e, t));
+                        forms.push((up, e, t));
                     }
                 }
             }
         }
-        v.sort_by_key(|&(ch, _, _)| ch);
-        v.dedup_by_key(|&mut (ch, _, _)| ch);
-        v
+        let last = forms
+            .iter()
+            .map(|&(ch, _, _)| ch as usize)
+            .max()
+            .unwrap_or(0);
+        let mut table = vec![0u16; last + 1 - MARKED_FIRST];
+        for (ch, e, t) in forms {
+            let slot = &mut table[ch as usize - MARKED_FIRST];
+            // Trùng ký tự: giữ dạng gặp trước (thứ tự bảng — như cách quét tuyến tính).
+            if *slot == 0 {
+                *slot = (e * TONES_PER_VOWEL + t + 1) as u16;
+            }
+        }
+        table
     })
 }
 
