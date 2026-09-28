@@ -77,12 +77,17 @@ scripts/build-linux.sh          # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha2
 | ABI | `cargo run -p textvn-cli -- verify` | header C ↔ Rust |
 | Linux e2e | `scripts/e2e-linux.sh` | ibus-daemon + fcitx5 thật: gõ, focus-out, reset, Ctrl+Shift, state.json, gõ tắt, Caps Lock, ô mật khẩu |
 | Gói Linux | `scripts/test-linux-package.sh dist/TextVN-*.tar.gz` | cài → gõ → gỡ sạch; portable (thư mục chỉ đọc) → gõ → stop; × IBus + Fcitx5 |
-| Gói Windows | CI job *Windows package* (`installer/windows/tests/*.ps1`) | build-release, zip portable và Inno Setup: đăng ký TSF, gõ thật vào Notepad bằng SendInput, gỡ sạch |
+| Gói Windows | CI job *Windows package* (`installer/windows/tests/*.ps1`) | build-release, zip portable và Inno Setup: đăng ký TSF, gõ thật bằng SendInput vào Notepad (IMM32/CUAS) và WordPad (TSF-aware), gỡ sạch |
 | Bảng điều khiển Linux | `ctest` trong `target/linux-adapters/settings` | `settings_model` (vá khoá, gõ tắt, file hỏng) |
 
 Thêm case corpus: `corpus/shared/<chủ đề>_NN.keys` (cú pháp: `docs/10-shared/P0-4-test-and-corpus.md`,
 `:mods +CapsLock` cho Caps Lock, `:enabled off` cho chế độ E). Mỗi thay đổi hành vi gõ
 phải có case corpus chạy qua **cả 5 adapter**.
+
+Chẩn đoán key sink TSF: đặt `TEXTVN_TSF_TRACE=<file>` cho process của app (ví dụ chạy
+`set TEXTVN_TSF_TRACE=%TEMP%\tsf.log && notepad`) — ghi pha `test`/`down`/`up`, kết quả
+eaten, lần chuyển V/E; phím sinh ký tự chỉ ghi `chr` (không lộ nội dung gõ). Test gõ Windows
+bật sẵn và in ra khi có case lỗi.
 
 Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd :5` rồi
 `GDK_BACKEND=broadway BROADWAY_DISPLAY=:5 textvn-settings`, mở `http://127.0.0.1:8085`.

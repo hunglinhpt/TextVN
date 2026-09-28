@@ -4,6 +4,16 @@
 > kế thừa tinh hoa & fix bug của UniKey/x-unikey · EVKey · GoTiengViet · WinVNKey · Gõ Nhanh · Bamboo Viet.
 > Plan tổng: `../PLAN.md` (đọc trước khi bắt tay vào việc).
 
+## 0. Tài liệu cho người dùng & phát hành
+
+| Tài liệu | Cho ai |
+|---|---|
+| [user-guide.md](user-guide.md) | Người dùng: cài, gỡ, gõ, bảng điều khiển, xử lý sự cố (Windows + Linux) |
+| [developer-guide.md](developer-guide.md) | Người phát triển: kiến trúc, dựng, kiểm thử, quy ước, phát hành |
+| [release/build-release-report.md](release/build-release-report.md) | Kết quả dựng & kiểm thử của phiên bản hiện tại |
+| [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
+| [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
+
 ## 1. Trạng thái các phần
 
 | Phần | Tài liệu | Trạng thái | Review |
