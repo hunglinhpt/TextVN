@@ -26,6 +26,11 @@ fn sink() -> Option<&'static Mutex<std::fs::File>> {
     .as_ref()
 }
 
+/// Nhật ký có bật không (để caller khỏi dựng chuỗi khi tắt).
+pub fn enabled() -> bool {
+    sink().is_some()
+}
+
 /// Ghi một dòng (`pid tid ms sự-kiện`). Không làm gì khi tắt.
 pub fn event(tid: u32, args: std::fmt::Arguments<'_>) {
     let Some(file) = sink() else { return };

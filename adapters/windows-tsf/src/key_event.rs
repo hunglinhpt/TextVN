@@ -145,6 +145,9 @@ fn toggle_vietnamese(shared: &TsfShared, ctx: Option<&ITfContext>) {
 
 #[cfg(windows)]
 fn trace_key(shared: &TsfShared, phase: &str, vk: u32, result: &str) {
+    if !trace::enabled() {
+        return;
+    }
     trace::event(
         shared.tid,
         format_args!(
