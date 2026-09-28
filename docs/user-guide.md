@@ -133,6 +133,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 |---|---|
 | Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` để xem bước nào lỗi. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
+| Windows: Ctrl + Shift vừa chuyển V/E vừa đổi sang bàn phím khác | Windows cũng dùng Ctrl + Shift để đổi bố cục bàn phím khi một ngôn ngữ có nhiều bố cục. Tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*, hoặc chuyển V/E bằng **Ctrl + Shift + Space**. |
 | Windows: phần mềm diệt virus cảnh báo | TextVN không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |

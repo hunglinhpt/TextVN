@@ -25,6 +25,8 @@
 | R13 | Đặt dấu sai vị trí (`cuả`, `nghiã`, `thủy` ở kiểu mới; `đựơc` ở kiểu cũ) — lỗi kinh điển của bộ gõ tự viết | chọn vị trí theo "âm cuối cụm" thay vì quy tắc chính tả | Quy tắc đầy đủ: gi/qu là phụ âm, ưu tiên nguyên âm có dấu phụ, có âm cuối → âm cuối cụm, vần 3 âm → giữa, `oa/oe/uy` theo kiểu dấu, còn lại → âm đầu; dời dấu khi gõ tiếp | `transform/diacritic_style.rs`, `core/tests/common_words.rs` (~330 từ × Telex/VNI/kiểu cũ/uow/dấu giữa từ) |
 | R14 | `d` + nguyên âm tự thành `đ` → không gõ được `dân`, `dạy`, `dưới` (lỗi của chính TextVN bản trước, do ghi chép oracle sai) | quy tắc "thông minh" không có trong Telex chuẩn | `đ` chỉ qua `dd` như UniKey/OpenKey/Bamboo | corpus `telex_d_plain_01`, test `d_only_becomes_stroke_when_doubled` |
 | R15 | Gõ tắt xoá nhầm chữ sau Home/End/Ctrl+V (bộ gõ giữ "đuôi text" cũ) | đuôi text engine nhớ không còn nằm trước con trỏ | Quên đuôi text khi có phím điều hướng/chord; gõ tắt chỉ khớp đầu từ | `macro_not_expanded_after_caret_jump_or_chord` |
+| R16 | Dấu cách/Enter/Tab ra **trước** chữ vừa gõ ở app Win32 cổ điển (`␣được`) — lỗi của TSF TIP khi đóng composition rồi để app nhận phím | app IMM32 (qua CUAS) nhận kết quả composition sau `WM_CHAR` của phím không bị ăn | Ký tự ranh giới in được commit cùng từ (phím bị ăn); Enter/Tab/điều hướng ở app CUAS xử lý ở pha `OnKeyDown` | `installer/windows/tests/test-typing.ps1` (Notepad + WordPad thật) |
+| R17 | Ctrl+Shift không chuyển V/E ở app TSF-aware (Word, WordPad) | phím chuyển bố cục Ctrl+Shift của Windows nuốt Shift trước key sink | `ITfKeyTraceEventSink` quan sát mọi phím; hướng dẫn tắt phím tắt đổi bố cục của Windows | như trên (case Ctrl+Shift ở WordPad) |
 
 ## 2. Tính năng tham chiếu → trạng thái
 
