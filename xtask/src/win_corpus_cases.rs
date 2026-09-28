@@ -40,7 +40,7 @@ pub const CASES_PART1: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps field_detect,inject_vk,selection
 :app excel.exe field=editbox
-:type \"tongj\"
+:type \"toongr\"
 :expect \"tổng\"
 :key Space
 :type \"soos\"
@@ -96,14 +96,14 @@ pub const CASES_PART1: &[CorpusCase] = &[
         name: "bug_B2_chat_enter_02.keys",
         content: "\
 # corpus/win/bug_B2_chat_enter_02.keys — B2 Consecutive chat enters (P1-5 §2)
-:config method=telex diacritic_style=new
+:config method=telex diacritic_style=new auto_capitalize=false
 :caps preedit,selection
 :app teams.exe field=body
 :type \"xong\"
 :expect \"xong\"
 :key Enter
 :expect \"xong\\n\"
-:type \"rooid\"
+:type \"roofi\"
 :expect \"xong\\nrồi\"
 ",
     },
@@ -168,7 +168,7 @@ pub const CASES_PART2: &[CorpusCase] = &[
         name: "bug_B2_teams_multiline_01.keys",
         content: "\
 # corpus/win/bug_B2_teams_multiline_01.keys — Teams multiline formatting (P1-5 §2)
-:config method=telex diacritic_style=new
+:config method=telex diacritic_style=new auto_capitalize=false
 :caps preedit,selection
 :app teams.exe field=body
 :type \"mootj\"
@@ -255,7 +255,7 @@ pub const CASES_PART2: &[CorpusCase] = &[
 :config method=telex
 :combo Alt+Tab
 :expect_action PASS
-:combo Ctrl+Shift+Esc
+:combo Ctrl+Shift+Escape
 :expect_action PASS
 ",
     },
@@ -404,14 +404,17 @@ pub const CASES_PART3: &[CorpusCase] = &[
         name: "bug_B8_powershell_01.keys",
         content: "\
 # corpus/win/bug_B8_powershell_01.keys — PowerShell 7 Windows Terminal (P1-5 §2)
-:config method=telex diacritic_style=new
+:config method=telex diacritic_style=new english_words=dir,data
 :caps inject_vk,field_detect
 :app pwsh.exe field=terminal
 :type \"dir\"
-:expect \"dir\"
+:expect \"đỉ\"
 :key Space
+:expect \"dir \"
 :type \"data\"
-:expect \"dir data\"
+:expect \"dir đata\"
+:key Space
+:expect \"dir data \"
 ",
     },
     CorpusCase {
@@ -435,7 +438,7 @@ pub const CASES_PART3: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps inject_vk
 :app valorant.exe field=editbox
-:type \"cuus\"
+:type \"cuwsu\"
 :expect \"cứu\"
 ",
     },
@@ -446,6 +449,8 @@ pub const CASES_PART3: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps inject_vk
 :app cs2.exe field=unknown
+# Adapter đã nhận diện đây là gameplay ngoài ô chat → tắt context (B9).
+:enabled off
 :type \"wasd\"
 :expect \"wasd\"
 :expect_action PASS
@@ -586,7 +591,7 @@ pub const CASES_PART4: &[CorpusCase] = &[
 :caps preedit,selection
 :app notepad.exe field=body
 :type \"da\"
-:expect \"da\"
+:expect \"đa\"
 :key Backspace
 :expect \"d\"
 ",
@@ -637,7 +642,7 @@ pub const CASES_PART5: &[CorpusCase] = &[
 :caps preedit,selection
 :app notepad.exe field=body
 :type \"dang\"
-:expect \"dang\"
+:expect \"đang\"
 :key Escape
 :expect \"dang\"
 ",
@@ -863,11 +868,11 @@ pub const CASES_PART7: &[CorpusCase] = &[
         name: "restore_en_code_keyword_02.keys",
         content: "\
 # corpus/win/restore_en_code_keyword_02.keys — Code keyword typed in editor (P1-5 §2)
-:config method=telex diacritic_style=new auto_restore_english=true
+:config method=telex diacritic_style=new auto_restore_english=true english_words=qwert
 :caps preedit,selection
 :app code.exe field=body
 :type \"qwert\"
-:expect \"qwert\"
+:expect \"qwểt\"
 :key Space
 :expect \"qwert \"
 ",
@@ -876,18 +881,20 @@ pub const CASES_PART7: &[CorpusCase] = &[
         name: "restore_en_powershell_cmdlet_01.keys",
         content: "\
 # corpus/win/restore_en_powershell_cmdlet_01.keys — PowerShell cmdlet in terminal (P1-5 §2)
-:config method=telex diacritic_style=new
+:config method=telex diacritic_style=new english_words=process
 :caps inject_vk,field_detect
 :app pwsh.exe field=terminal
 :type \"Get-Process\"
-:expect \"Get-Process\"
+:expect \"Get-Proces\"
+:key Space
+:expect \"Get-Process \"
 ",
     },
     CorpusCase {
         name: "restore_en_subdomain_url_04.keys",
         content: "\
 # corpus/win/restore_en_subdomain_url_04.keys — Domain name typing in address bar (P1-5 §2)
-:config method=telex diacritic_style=new
+:config method=telex diacritic_style=new auto_capitalize=false english_words=docs
 :caps field_detect,selection
 :app chrome.exe field=address_bar
 :type \"docs.rs\"
@@ -901,7 +908,7 @@ pub const CASES_PART7: &[CorpusCase] = &[
 :config method=vni diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type \"du7o7ng2\"
+:type \"d9u7o7ng2\"
 :expect \"đường\"
 ",
     },
@@ -924,7 +931,7 @@ pub const CASES_PART7: &[CorpusCase] = &[
 :caps preedit,selection
 :app notepad.exe field=body
 :type \"duongw\"
-:expect \"duongw\"
+:expect \"đươngw\"
 ",
     },
 ];

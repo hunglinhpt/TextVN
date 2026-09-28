@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_vieetj_04 — BackspaceType việt (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "vieetj"
+:expect "việt"

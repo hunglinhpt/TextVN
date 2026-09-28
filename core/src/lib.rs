@@ -8,6 +8,7 @@
 
 pub mod buffer;
 pub mod keymap;
+pub mod keymap_mac_generated;
 pub mod method;
 pub mod post;
 pub mod transform;

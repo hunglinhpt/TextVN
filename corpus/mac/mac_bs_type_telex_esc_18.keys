@@ -1,0 +1,9 @@
+# corpus/mac/mac_bs_type_telex_esc_18 — BackspaceType Escape → RESTORE raw (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "dang"
+:expect "đang"
+:key Escape
+:expect "dang"

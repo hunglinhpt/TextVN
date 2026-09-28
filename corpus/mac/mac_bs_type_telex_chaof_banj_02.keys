@@ -1,0 +1,9 @@
+# corpus/mac/mac_bs_type_telex_chaof_banj_02 — BackspaceType hai từ (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "chaof"
+:key Space
+:type "banj"
+:expect "chào bạn"

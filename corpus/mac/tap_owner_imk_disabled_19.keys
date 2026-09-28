@@ -1,0 +1,7 @@
+# corpus/mac/tap_owner_imk_disabled_19 — owner=tap → IMK disabled, tap gõ bình thường (counter 0 inject từ IMK) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "cuwsu"
+:expect "cứu"

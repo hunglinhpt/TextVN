@@ -1,0 +1,8 @@
+# corpus/mac/tap_body_vni_duoc_03 — tap VNI được (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:config method=vni diacritic_style=new
+:type "d9u7o7c5"
+:expect "được"

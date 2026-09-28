@@ -1,0 +1,7 @@
+# corpus/mac/tap_address_chrome_12 — tap SelectionReplace Chrome URL (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.google.chrome field=address_bar
+
+:type "tieengs"
+:expect "tiếng"

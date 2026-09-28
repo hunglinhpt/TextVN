@@ -97,7 +97,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | A4 | **Cấm process injection** — không `CreateRemoteThread` / `WriteProcessMemory` / `VirtualAllocEx` / … (§8.3); regression guard = `repo-hygiene` **check #8** mỗi push (Farch-3) | ✅ |
 | A5 | **Không log phím/text người dùng** (S2) — log chỉ PID/heartbeat/kết quả | ✅ |
 | A6 | **Linux: framework IME chính thống** — fcitx5/ibus (`adapters/linux-*`) | ✅ |
-| A7 | **macOS: InputMethodKit (IMK)** — repo chưa có adapter macOS | ⏳ Farch-4 (roadmap) |
+| A7 | **macOS: InputMethodKit (IMK)** — adapter macOS đã có code: `adapters/macos-imk/` (IMK primary, ADR-006) + `adapters/macos-tap/` (CGEventTap **opt-in per-app**, marker loop-guard, self-disable — P2-2); policy tap = mirror §8.1 A3 (opt-in, filter chain, không private API). Trạng thái verify trên máy Mac thật: `docs/30-macos/IMPLEMENTATION-STATUS.md` | 🔄 Farch-4 (code xong, chờ verify máy thật) |
 
 ### 8.2. Regression guard (Farch-3)
 
@@ -133,7 +133,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Farch-1 | major | Doc này stale so với kiến trúc opt-in `tsf-only`: §2 T1 "có trong installer", T2/T3 sai số dòng, §4.1 "watchdog spawn" + "Hoãn tách component" | fixed @b061778 |
 | Farch-2 | major | Chưa có mục ghi nhận chính sách kiến trúc hành vi (nguyên tắc user 2026-09-28) → agent sau có thể vô tình phá | fixed @b061778 |
 | Farch-3 | major | Không có regression guard API cấm (G-rule: không guard = chưa Done) | fixed @b061778 |
-| Farch-4 | minor | macOS chưa có adapter IMK (đường chính thống macOS) — chưa bắt đầu, không phải bug | còn mở (roadmap) |
+| Farch-4 | minor | macOS chưa có adapter IMK (đường chính thống macOS) — chưa bắt đầu, không phải bug | **in-progress**: code IMK + tap opt-in đã có (`adapters/macos-imk/`, `adapters/macos-tap/`) theo đúng A7; còn verify máy Mac thật + spikes MAC-002..009 → `docs/30-macos/IMPLEMENTATION-STATUS.md` |
 | Farch-5 | minor | Verify: không có auto-spawn hook — chuỗi opt-in đầy đủ (menu → `WM_START_COMPATIBILITY_HOOK` → spawn; watchdog no-op) | đóng / verified 2026-09-28 |
 | Farch-6 | minor | Vòng 2: `docs/specs/verified-ops.md` A5 vẫn ghi "7 check / 7/7" sau khi thêm check #8 | fixed @b061778 |
 

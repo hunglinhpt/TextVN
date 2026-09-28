@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_telex_hoa_old_06 — hòa kiểu cũ (tone trên a) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=telex diacritic_style=old
+:type "hoaf"
+:expect "hòa"

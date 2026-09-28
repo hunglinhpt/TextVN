@@ -1,0 +1,9 @@
+# corpus/mac/bug_B1_chrome_url_01 — B1 Chrome address bar (com.google.chrome) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.google.chrome field=address_bar
+
+:type "tieengs"
+:expect "tiếng"
+:key Space
+:type "vietj"
+:expect "tiếng việt"

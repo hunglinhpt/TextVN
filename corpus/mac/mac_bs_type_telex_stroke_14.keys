@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_stroke_14 — BackspaceType đ đơn (d+vowel) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "dong"
+:expect "đong"

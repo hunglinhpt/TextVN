@@ -1,0 +1,9 @@
+# corpus/mac/bug_B1_spotlight_01 — B1 Spotlight search field (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.spotlight field=search
+
+:type "hoaf"
+:expect "hoà"
+:key Space
+:type "binhf"
+:expect "hoà bình"

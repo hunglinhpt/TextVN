@@ -1,0 +1,10 @@
+# corpus/mac/bug_B11_marked_commit_space_01 — B11 Space kết thúc từ → commit ngay, marked không sống qua Space (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.notes field=textarea
+
+:type "chaof"
+:expect "chào"
+:expect_preedit "chào"
+:key Space
+:expect "chào "
+:expect_preedit ""

@@ -1,0 +1,10 @@
+# corpus/mac/tap_address_safari_11 — tap SelectionReplace Safari URL (B1 app không-IMK) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.apple.safari field=address_bar
+
+:type "viet"
+:expect "viêt"
+:key Space
+:type "nam"
+:expect "viêt nam"

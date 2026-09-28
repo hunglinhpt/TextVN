@@ -1,0 +1,8 @@
+# corpus/mac/mac_bs_type_viqr_viet_28 — BackspaceType VIQR việt (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=viqr diacritic_style=new
+:type "vie^t."
+:expect "việt"

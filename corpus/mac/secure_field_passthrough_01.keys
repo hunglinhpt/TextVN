@@ -1,0 +1,8 @@
+# corpus/mac/secure_field_passthrough_01 — S3 secure input (AXSecureTextField) → mọi phím PASS (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.safari field=editbox
+
+:secure on
+:type "matkhau321"
+:expect "matkhau321"
+:expect_action PASS

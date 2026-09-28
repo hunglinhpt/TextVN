@@ -1,0 +1,9 @@
+# corpus/mac/tap_body_backspace_08 — tap Backspace fold-back (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "chaof"
+:expect "chào"
+:key Backspace
+:expect "chao"

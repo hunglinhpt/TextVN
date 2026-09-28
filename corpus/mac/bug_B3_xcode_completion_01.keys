@@ -1,0 +1,6 @@
+# corpus/mac/bug_B3_xcode_completion_01 — B3 Xcode completion (role=candidate → SelectionReplace) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.dt.xcode field=candidate
+
+:type "ddang"
+:expect "đang"

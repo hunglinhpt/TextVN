@@ -1,0 +1,10 @@
+# corpus/mac/bug_B11_marked_commit_enter_02 — B11 Enter commit marked (không giữ marked qua Enter) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "duocj"
+:expect "được"
+:expect_preedit "được"
+:key Enter
+:expect "được\n"
+:expect_preedit ""

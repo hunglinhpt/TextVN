@@ -24,3 +24,9 @@ __pycache__/
 *.pdb
 Thumbs.db
 .DS_Store
+
+# --- Swift / macOS (adapters/macos-imk, macos-tap) ---
+.build/
+adapters/macos-imk/target/
+adapters/macos-imk/lib/
+adapters/macos-imk/build/

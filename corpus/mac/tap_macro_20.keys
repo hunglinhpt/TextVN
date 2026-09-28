@@ -1,0 +1,9 @@
+# corpus/mac/tap_macro_20 — tap macro mở rộng (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:config method=telex diacritic_style=new macro_trigger=space macro="cty=Công ty TNHH"
+:type "cty"
+:key Space
+:expect "Công ty TNHH"

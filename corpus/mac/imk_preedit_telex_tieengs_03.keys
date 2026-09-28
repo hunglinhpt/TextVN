@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_telex_tieengs_03 — tiếng — iet + tone giữa marked (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.safari field=web
+
+:type "tieengs"
+:expect "tiếng"

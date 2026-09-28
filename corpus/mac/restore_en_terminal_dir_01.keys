@@ -1,0 +1,13 @@
+# corpus/mac/restore_en_terminal_dir_01 — B5 lệnh EN trong iTerm2 được auto-restore (english_words) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.googlecode.iterm2 field=terminal
+
+:config method=telex diacritic_style=new english_words=dir,data
+:type "dir"
+:expect "đỉ"
+:key Space
+:expect "dir "
+:type "data"
+:expect "dir đata"
+:key Space
+:expect "dir data "

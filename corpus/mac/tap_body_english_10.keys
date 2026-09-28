@@ -1,0 +1,7 @@
+# corpus/mac/tap_body_english_10 — tap EN pass-through (từ không chứa marker Telex) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "hello"
+:expect "hello"

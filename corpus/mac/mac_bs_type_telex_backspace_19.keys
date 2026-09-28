@@ -1,0 +1,9 @@
+# corpus/mac/mac_bs_type_telex_backspace_19 — BackspaceType Backspace fold-back (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "chaof"
+:expect "chào"
+:key Backspace
+:expect "chao"

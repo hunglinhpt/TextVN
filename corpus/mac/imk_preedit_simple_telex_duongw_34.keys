@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_simple_telex_duongw_34 — Simple Telex: w là chữ thường (duongw → đươngw) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=simple_telex diacritic_style=new
+:type "duongw"
+:expect "đươngw"

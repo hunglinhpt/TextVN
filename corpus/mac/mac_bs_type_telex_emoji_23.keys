@@ -1,0 +1,9 @@
+# corpus/mac/mac_bs_type_telex_emoji_23 — BackspaceType emoji vẫn chạy (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=telex diacritic_style=new macro_trigger=space emoji=":smile=😀"
+:type ":smile"
+:key Space
+:expect "😀"

@@ -9,7 +9,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
-Mục tiêu: bản release candidate dùng được hằng ngày trên Windows và Linux. Kết quả kiểm thử:
+Mục tiêu: bản release candidate dùng được hằng ngày trên Windows và Linux, hoàn thiện nền tảng macOS (Farch-4). Kết quả kiểm thử:
 [docs/release/build-release-report.md](docs/release/build-release-report.md).
 
 ### Added
@@ -33,6 +33,41 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - `TEXTVN_TSF_TRACE=<file>`: nhật ký chẩn đoán key sink TSF (tắt mặc định, không ghi nội dung gõ).
 - Tài liệu: [hướng dẫn sử dụng](docs/user-guide.md), [hướng dẫn phát triển](docs/developer-guide.md),
   [đối chiếu bộ gõ tham chiếu và bug đã biết](docs/specs/reference-parity.md).
+- **macOS IMK adapter** (`adapters/macos-imk/`, Swift): `TextVN-IM.app` — IMKServer +
+  `TextVNInputController` theo P2-1 (marked text lifecycle, commit-before-hide B13,
+  marked ≤8 grapheme B11, SelectionReplace không-backspace B1, fail-open S4)
+- **macOS CGEventTap fallback** (`adapters/macos-tap/`, Swift): tap opt-in per-app
+  `engine_owner: "tap"`, marker loop-guard `TXVN`, self-disable khi chậm 2ms ×50,
+  injector BackspaceType/SelectionReplace (P2-2)
+- **Bảng keycode macOS → VK canonical** duy nhất `data/tables/keymap_mac.toml`
+  → generate cả Rust (`core/src/keymap_mac_generated.rs`) lẫn Swift
+  (`KeyMapMacGenerated.swift`) qua `cargo xtask gen-tables` — 92 phím
+- **Bảng keycode macOS → VK canonical** duy nhất `data/tables/keymap_mac.toml`
+  → generate cả Rust (`core/src/keymap_mac_generated.rs`) lẫn Swift
+  (`KeyMapMacGenerated.swift`) qua `cargo xtask gen-tables` — 92 phím
+- **AppDB preset macOS** 20 mục (`mac.safari.url`…`mac.game.nokbd`, engine_owner
+  `imk`/`tap`) trong `data/appdb.default.json`
+- **Corpus macOS 114 case** `corpus/mac/` (P2-5 §2: B1/B2/B3/B8/B11/B13/secure/
+  owner/imk_preedit 40/mac_bs_type 30/tap 20) — gen bằng `cargo xtask gen-mac-corpus`,
+  replay `--adapter mac` pass 114/114 headless mọi OS
+- **CI `ci-macos.yml`**: build staticlib 2 arch + lipo, swift build/test cả 2 package,
+  replay corpus mac, ABI gates; `ci-shared` replay thêm `--adapter mac`
+- Tài liệu: `docs/30-macos/IMPLEMENTATION-STATUS.md` (trạng thái trung thực),
+  `docs/30-macos/env-mac.md` (MAC-001)
+
+### Fixed
+- Corpus win drift: 14 case trong `xtask/src/win_corpus_cases.rs` lệch với
+  `corpus/win/*.keys` đã sửa tay (tổng `tongj`→`toongr`, `rooid`→`roofi`,
+  thiếu `auto_capitalize=false`, combo `Esc`→`Escape`…) — `check-win-corpus`
+  nay pass và đã vào CI replay
+- `cargo xtask` TOML parser hỗ trợ hex `0x…` cho bảng keycode
+
+### Added (trước đó)
+- **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2
+- **CLI**: `textvn-cli register` / `textvn-cli unregister` — đăng ký/hủy TSF TIP per-user (WIN-003, WIN-010)
+- **CLI**: `textvn-cli register status` — kiểm tra trạng thái đăng ký TSF
+- **Windows manifest**: asInvoker (không cần admin), Windows 10/11 compatibility
+>>>>>>> 4f85056 (feat(macos): adapter IMK + tap opt-in, keymap mac, appdb preset mac, corpus mac 114 case (MAC-001..044 code-complete))
 
 ### Fixed
 - **Windows TSF không gõ được tiếng Việt** (`docs/specs/tsf-typing-overhaul.md`, Ftsf-1…14):

@@ -1,0 +1,9 @@
+# corpus/mac/bug_B1_excel_cell_01 — B1 Excel cell autocomplete (com.microsoft.excel) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.microsoft.excel field=editbox
+
+:type "tieenf"
+:expect "tiền"
+:key Space
+:type "luong"
+:expect "tiền lương"

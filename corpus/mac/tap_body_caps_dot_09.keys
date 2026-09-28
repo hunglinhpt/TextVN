@@ -1,0 +1,10 @@
+# corpus/mac/tap_body_caps_dot_09 — tap auto-capitalize sau chấm (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:config method=telex diacritic_style=new auto_capitalize=true
+:type "chao."
+:key Space
+:type "ban"
+:expect "chao. Ban"

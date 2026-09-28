@@ -1,0 +1,7 @@
+# corpus/mac/tap_terminal_forward_16 — tap terminal ForwardAsCommit (chỉ chèn, không xóa) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.apple.terminal field=terminal
+
+:type "duocj"
+:expect "được"

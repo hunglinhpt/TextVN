@@ -1,0 +1,10 @@
+# corpus/mac/mac_bs_type_enter_multi_29 — BackspaceType Enter giữa 2 từ (B2 bản BackspaceType) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "xong"
+:key Enter
+:type "roofi"
+:expect "xong\nrồi"

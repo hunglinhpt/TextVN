@@ -1,0 +1,7 @@
+# corpus/mac/restore_en_safari_docs_02 — B5 tên miền docs.rs không bị biến dạng (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.safari field=address_bar
+
+:config method=telex diacritic_style=new auto_capitalize=false english_words=docs
+:type "docs.rs"
+:expect "docs.rs"

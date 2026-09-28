@@ -1,0 +1,9 @@
+# corpus/mac/tap_body_telex_chaof_02 — tap hai từ có dấu (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "chaof"
+:key Space
+:type "banj"
+:expect "chào bạn"

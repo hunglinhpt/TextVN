@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_app_word_body_39 — preset mac.word.body (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.microsoft.word field=body
+
+:type "toong"
+:expect "tông"

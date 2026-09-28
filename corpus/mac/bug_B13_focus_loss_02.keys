@@ -1,0 +1,11 @@
+# corpus/mac/bug_B13_focus_loss_02 — B13 focus đổi giữa 2 ô: không còn dấu dư từ raw cũ (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.notes field=textarea
+
+:type "dang"
+:expect "đang"
+:expect_preedit "đang"
+:reset
+:type "duocj"
+:expect "đangđược"
+:expect_preedit "được"

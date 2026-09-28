@@ -1,0 +1,8 @@
+# corpus/mac/tap_body_viqr_toi_04 — tap VIQR tôi (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:config method=viqr diacritic_style=new
+:type "to^i"
+:expect "tôi"

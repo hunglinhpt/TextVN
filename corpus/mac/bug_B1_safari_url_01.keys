@@ -1,0 +1,9 @@
+# corpus/mac/bug_B1_safari_url_01 — B1 Safari address bar — SelectionReplace, không backspace ảo (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.safari field=address_bar
+
+:type "viet"
+:expect "viêt"
+:key Space
+:type "nam"
+:expect "viêt nam"

@@ -1,0 +1,10 @@
+# corpus/mac/emoji_expand_smile_01 — emoji shortcut :smile + Space → 😀 (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.notes field=textarea
+
+:config method=telex diacritic_style=new macro_trigger=space emoji=":smile=😀"
+:type ":smile"
+:expect ":smile"
+:expect_action REPLACE
+:key Space
+:expect "😀"

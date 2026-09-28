@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Resources/Info.plist — keys đăng ký input source macOS (P2-1 §8).
+  MAC-002 spike phải đối chiếu lại với template Xcode "Input Method" thật
+  trước khi release (S2); bundle id = vn.textvn.im (P2-0 §2).
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>vi</string>
+	<key>CFBundleExecutable</key>
+	<string>TextVN-IM</string>
+	<key>CFBundleIdentifier</key>
+	<string>vn.textvn.im</string>
+	<key>CFBundleName</key>
+	<string>TextVN-IM</string>
+	<key>CFBundleDisplayName</key>
+	<string>TextVN</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSBackgroundOnly</key>
+	<true/>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+
+	<!-- ==== IMK registration (P2-1 §8) ==== -->
+	<key>InputMethodConnectionName</key>
+	<string>TextVN-IM_Connection</string>
+	<key>InputMethodServerControllerClass</key>
+	<string>TextVNInputController</string>
+	<key>TISInputSourceID</key>
+	<string>vn.textvn.inputmethod.TextVNIM</string>
+	<key>TISIntendedLanguage</key>
+	<string>vi</string>
+	<key>tsInputMethodIconFileKey</key>
+	<string>vieste.icns</string>
+	<key>CFBundleIconFile</key>
+	<string>vieste</string>
+</dict>
+</plist>

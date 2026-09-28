@@ -1,0 +1,15 @@
+# corpus/mac/bug_B2_imessage_enter_01 — B2 Messages (com.apple.ichat): Enter ×3 không lặp từ (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.ichat field=body
+
+:type "chaof"
+:expect "chào"
+:key Space
+:type "banj"
+:expect "chào bạn"
+:key Enter
+:expect "chào bạn\n"
+:key Enter
+:expect "chào bạn\n\n"
+:key Enter
+:expect "chào bạn\n\n\n"

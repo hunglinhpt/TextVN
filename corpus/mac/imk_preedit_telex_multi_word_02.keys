@@ -1,0 +1,9 @@
+# corpus/mac/imk_preedit_telex_multi_word_02 — hai từ nối tiếp, mỗi Space commit một từ (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "chaof"
+:key Space
+:type "banj"
+:expect "chào bạn"
+:expect_preedit "bạn"

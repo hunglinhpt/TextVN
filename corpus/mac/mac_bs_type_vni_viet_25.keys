@@ -1,0 +1,8 @@
+# corpus/mac/mac_bs_type_vni_viet_25 — BackspaceType VNI việt (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=vni diacritic_style=new
+:type "vie6t5"
+:expect "việt"

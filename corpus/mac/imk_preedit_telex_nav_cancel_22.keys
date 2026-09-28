@@ -1,0 +1,9 @@
+# corpus/mac/imk_preedit_telex_nav_cancel_22 — Left arrow → PASS, preedit nhả, chữ giữ nguyên (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "chaof"
+:expect "chào"
+:key Left
+:expect "chào"
+:expect_preedit ""

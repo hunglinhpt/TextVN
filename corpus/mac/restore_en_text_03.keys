@@ -1,0 +1,9 @@
+# corpus/mac/restore_en_text_03 — B5 từ `text` → `tết` rồi restore khi hết từ (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=telex diacritic_style=new english_words=text
+:type "text"
+:expect "tễt"
+:key Space
+:expect "text "

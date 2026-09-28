@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_app_textedit_37 — preset mac.textedit (body → Preedit) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "hoanf"
+:expect "hoàn"

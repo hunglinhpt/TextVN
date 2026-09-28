@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_telex_undo_ass_16 — bấm lại tone key → gỡ dấu + literal (ass→as) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "ass"
+:expect "as"

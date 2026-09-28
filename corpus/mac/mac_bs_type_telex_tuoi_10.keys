@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_tuoi_10 — BackspaceType tươi (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "tuoi"
+:expect "tươi"

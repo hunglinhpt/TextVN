@@ -181,6 +181,12 @@ fn parse_value(raw: &str) -> Result<Value, String> {
     if let Ok(i) = s.parse::<i64>() {
         return Ok(Value::Int(i));
     }
+    // Hex `0x…` — bảng keycode (`keymap_mac.toml`) viết theo tài liệu Apple.
+    if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        return u32::from_str_radix(hex, 16)
+            .map(|v| Value::Int(v as i64))
+            .map_err(|_| format!("giá trị hex không hợp lệ: {s}"));
+    }
     Err(format!("giá trị không hợp lệ: {s}"))
 }
 
@@ -323,5 +329,14 @@ tone = 2
     fn digest_phat_hien_thay_doi_1_byte() {
         assert_ne!(digest(b"abc"), digest(b"abd"));
         assert_eq!(digest(b"abc"), digest(b"abc"));
+    }
+
+    #[test]
+    fn hex_int_cho_bang_keycode() {
+        let d = parse("kvk = 0x31\nvk = 0X20\n").unwrap();
+        assert_eq!(d.root.get("kvk").unwrap(), &Value::Int(0x31));
+        assert_eq!(d.root.get("vk").unwrap(), &Value::Int(0x20));
+        assert!(parse("k = 0xZZ").is_err(), "hex rác phải lỗi");
+        assert!(parse("k = 0x1FFFFFFFF").is_err(), "tràn u32 phải lỗi");
     }
 }

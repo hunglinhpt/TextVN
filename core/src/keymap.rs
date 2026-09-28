@@ -3,6 +3,10 @@
 //!
 //! `vk` dùng **giá trị Win VK làm canonical** (P0-2 §1: "Win VK / mac keycode / keysym" —
 //! adapter macOS/Linux chuẩn hóa về đây trước khi gọi engine).
+//!
+//! Bảng keycode macOS → VK canonical nằm ở [`crate::keymap_mac_generated`]
+//! (sinh từ `data/tables/keymap_mac.toml`) — dùng chung với Swift adapter
+//! (`adapters/macos-imk/Sources/CoreBridge/KeyMapMacGenerated.swift`).
 
 /// Virtual key canonical (Win VK code — adapter khác map về đây).
 pub mod vk {

@@ -1,0 +1,9 @@
+# corpus/mac/imk_preedit_telex_caps_enter_24 — tự viết hoa sau Enter (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=telex diacritic_style=new auto_capitalize=true
+:type "xong"
+:key Enter
+:type "roofi"
+:expect "xong\nRồi"

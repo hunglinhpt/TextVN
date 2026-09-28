@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_vni_duoc_25 — VNI được (du7o7c5) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=vni diacritic_style=new
+:type "d9u7o7c5"
+:expect "được"

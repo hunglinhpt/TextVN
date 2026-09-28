@@ -1,0 +1,10 @@
+# corpus/mac/bug_B2_slack_enter_01 — B2 Slack (com.tinyspeck.slackmacgap) Enter commit (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.tinyspeck.slackmacgap field=body
+
+:config method=telex diacritic_style=new auto_capitalize=false
+:type "xong"
+:expect "xong"
+:key Enter
+:type "roofi"
+:expect "xong\nrồi"

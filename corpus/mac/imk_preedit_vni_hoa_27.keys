@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_vni_hoa_27 — VNI hoà (hoa2) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=vni diacritic_style=new
+:type "hoa2"
+:expect "hoà"

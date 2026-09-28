@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_undo_uww_17 — BackspaceType uww→u (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "uww"
+:expect "u"

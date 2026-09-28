@@ -1,0 +1,6 @@
+# corpus/mac/bug_B8_terminal_01 — B8 Terminal.app ForwardAsCommit + UTF-8 (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.terminal field=terminal
+
+:type "duocj"
+:expect "được"

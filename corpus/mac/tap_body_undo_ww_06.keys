@@ -1,0 +1,7 @@
+# corpus/mac/tap_body_undo_ww_06 — tap undo ww→w (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "ww"
+:expect "w"

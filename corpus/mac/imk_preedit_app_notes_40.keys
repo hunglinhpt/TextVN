@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_app_notes_40 — preset mac.notes (textarea) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.notes field=textarea
+
+:type "ghif"
+:expect "ghì"

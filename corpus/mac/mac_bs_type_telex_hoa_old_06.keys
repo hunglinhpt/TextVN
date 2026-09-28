@@ -1,0 +1,8 @@
+# corpus/mac/mac_bs_type_telex_hoa_old_06 — BackspaceType hòa (old style) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=telex diacritic_style=old
+:type "hoaf"
+:expect "hòa"

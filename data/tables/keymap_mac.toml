@@ -1,0 +1,488 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# keymap_mac.toml — keycode macOS (Carbon `kVK_*`, HIToolbox/Events.h) →
+# VK canonical Windows (core/src/keymap.rs, P0-2 §1: "Win VK là canonical —
+# adapter macOS chuẩn hóa về đây trước khi gọi engine").
+#
+# Nguồn sự thật duy nhất cho adapter macOS: `cargo xtask gen-tables` sinh
+#   - core/src/keymap_mac_generated.rs
+#   - adapters/macos-imk/Sources/CoreBridge/KeyMapMacGenerated.swift
+# Sửa bảng → chạy lại gen-tables; `check-tables` (CI) chặn lệch nguồn.
+#
+# Chỉ map phím cần cho engine (chữ/số/dấu, điều hướng, modifier, F-keys).
+# Keypad và media keys cố ý KHÔNG map → KeyTranslator trả nil → adapter PASS.
+# Modifier trái/phải map về cùng VK (engine phân biệt qua IME_MOD_*).
+
+# ---- chữ cái (kVK_ANSI_A..Z → VK 'A'..'Z' = 0x41..0x5A) ----
+
+[[key]]
+name = "ANSI_A"
+kvk = 0x00
+vk = 0x41
+
+[[key]]
+name = "ANSI_S"
+kvk = 0x01
+vk = 0x53
+
+[[key]]
+name = "ANSI_D"
+kvk = 0x02
+vk = 0x44
+
+[[key]]
+name = "ANSI_F"
+kvk = 0x03
+vk = 0x46
+
+[[key]]
+name = "ANSI_H"
+kvk = 0x04
+vk = 0x48
+
+[[key]]
+name = "ANSI_G"
+kvk = 0x05
+vk = 0x47
+
+[[key]]
+name = "ANSI_Z"
+kvk = 0x06
+vk = 0x5A
+
+[[key]]
+name = "ANSI_X"
+kvk = 0x07
+vk = 0x58
+
+[[key]]
+name = "ANSI_C"
+kvk = 0x08
+vk = 0x43
+
+[[key]]
+name = "ANSI_V"
+kvk = 0x09
+vk = 0x56
+
+[[key]]
+name = "ANSI_B"
+kvk = 0x0B
+vk = 0x42
+
+[[key]]
+name = "ANSI_Q"
+kvk = 0x0C
+vk = 0x51
+
+[[key]]
+name = "ANSI_W"
+kvk = 0x0D
+vk = 0x57
+
+[[key]]
+name = "ANSI_E"
+kvk = 0x0E
+vk = 0x45
+
+[[key]]
+name = "ANSI_R"
+kvk = 0x0F
+vk = 0x52
+
+[[key]]
+name = "ANSI_Y"
+kvk = 0x10
+vk = 0x59
+
+[[key]]
+name = "ANSI_T"
+kvk = 0x11
+vk = 0x54
+
+[[key]]
+name = "ANSI_O"
+kvk = 0x1F
+vk = 0x4F
+
+[[key]]
+name = "ANSI_U"
+kvk = 0x20
+vk = 0x55
+
+[[key]]
+name = "ANSI_I"
+kvk = 0x22
+vk = 0x49
+
+[[key]]
+name = "ANSI_P"
+kvk = 0x23
+vk = 0x50
+
+[[key]]
+name = "ANSI_L"
+kvk = 0x25
+vk = 0x4C
+
+[[key]]
+name = "ANSI_J"
+kvk = 0x26
+vk = 0x4A
+
+[[key]]
+name = "ANSI_K"
+kvk = 0x28
+vk = 0x4B
+
+[[key]]
+name = "ANSI_N"
+kvk = 0x2D
+vk = 0x4E
+
+[[key]]
+name = "ANSI_M"
+kvk = 0x2E
+vk = 0x4D
+
+# ---- chữ số (VK '0'..'9' = 0x30..0x39) ----
+
+[[key]]
+name = "ANSI_1"
+kvk = 0x12
+vk = 0x31
+
+[[key]]
+name = "ANSI_2"
+kvk = 0x13
+vk = 0x32
+
+[[key]]
+name = "ANSI_3"
+kvk = 0x14
+vk = 0x33
+
+[[key]]
+name = "ANSI_4"
+kvk = 0x15
+vk = 0x34
+
+[[key]]
+name = "ANSI_5"
+kvk = 0x17
+vk = 0x35
+
+[[key]]
+name = "ANSI_6"
+kvk = 0x16
+vk = 0x36
+
+[[key]]
+name = "ANSI_7"
+kvk = 0x1A
+vk = 0x37
+
+[[key]]
+name = "ANSI_8"
+kvk = 0x1C
+vk = 0x38
+
+[[key]]
+name = "ANSI_9"
+kvk = 0x19
+vk = 0x39
+
+[[key]]
+name = "ANSI_0"
+kvk = 0x1D
+vk = 0x30
+
+# ---- dấu câu (VK_OEM_* — engine dùng `ch`, VK chỉ để chuẩn hoá/log) ----
+
+[[key]]
+name = "ANSI_Equal"
+kvk = 0x18
+vk = 0xBB
+
+[[key]]
+name = "ANSI_Minus"
+kvk = 0x1B
+vk = 0xBD
+
+[[key]]
+name = "ANSI_LeftBracket"
+kvk = 0x21
+vk = 0xDB
+
+[[key]]
+name = "ANSI_RightBracket"
+kvk = 0x1E
+vk = 0xDD
+
+[[key]]
+name = "ANSI_Backslash"
+kvk = 0x2A
+vk = 0xDC
+
+[[key]]
+name = "ANSI_Semicolon"
+kvk = 0x29
+vk = 0xBA
+
+[[key]]
+name = "ANSI_Quote"
+kvk = 0x27
+vk = 0xDE
+
+[[key]]
+name = "ANSI_Comma"
+kvk = 0x2B
+vk = 0xBC
+
+[[key]]
+name = "ANSI_Period"
+kvk = 0x2F
+vk = 0xBE
+
+[[key]]
+name = "ANSI_Slash"
+kvk = 0x2C
+vk = 0xBF
+
+[[key]]
+name = "ANSI_Grave"
+kvk = 0x32
+vk = 0xC0
+
+[[key]]
+name = "ISO_Section"
+kvk = 0x0A
+vk = 0xE2
+
+# ---- phím điều khiển cốt lõi (engine special-case) ----
+
+[[key]]
+name = "Return"
+kvk = 0x24
+vk = 0x0D
+
+[[key]]
+name = "Tab"
+kvk = 0x30
+vk = 0x09
+
+[[key]]
+name = "Space"
+kvk = 0x31
+vk = 0x20
+
+[[key]]
+name = "Delete"        # kVK_Delete = Backspace
+kvk = 0x33
+vk = 0x08
+
+[[key]]
+name = "ForwardDelete"
+kvk = 0x75
+vk = 0x2E
+
+[[key]]
+name = "Escape"
+kvk = 0x35
+vk = 0x1B
+
+[[key]]
+name = "KeypadEnter"
+kvk = 0x4C
+vk = 0x0D
+
+# ---- modifier (trái/phải về cùng VK; phân biệt qua IME_MOD_*) ----
+
+[[key]]
+name = "Command"       # Cmd ≈ Win key (canonical SUPER); mods đi IME_MOD_META
+kvk = 0x37
+vk = 0x5B
+
+[[key]]
+name = "RightCommand"
+kvk = 0x36
+vk = 0x5C
+
+[[key]]
+name = "Shift"
+kvk = 0x38
+vk = 0x10
+
+[[key]]
+name = "RightShift"
+kvk = 0x3C
+vk = 0x10
+
+[[key]]
+name = "Option"        # Alt
+kvk = 0x3A
+vk = 0x12
+
+[[key]]
+name = "RightOption"
+kvk = 0x3D
+vk = 0x12
+
+[[key]]
+name = "Control"
+kvk = 0x3B
+vk = 0x11
+
+[[key]]
+name = "RightControl"
+kvk = 0x3E
+vk = 0x11
+
+[[key]]
+name = "CapsLock"
+kvk = 0x39
+vk = 0x14
+
+# ---- điều hướng con trỏ (engine clear preedit/recent trên các phím này) ----
+
+[[key]]
+name = "LeftArrow"
+kvk = 0x7B
+vk = 0x25
+
+[[key]]
+name = "RightArrow"
+kvk = 0x7C
+vk = 0x27
+
+[[key]]
+name = "DownArrow"
+kvk = 0x7D
+vk = 0x28
+
+[[key]]
+name = "UpArrow"
+kvk = 0x7E
+vk = 0x26
+
+[[key]]
+name = "Home"
+kvk = 0x73
+vk = 0x24
+
+[[key]]
+name = "End"
+kvk = 0x77
+vk = 0x23
+
+[[key]]
+name = "PageUp"
+kvk = 0x74
+vk = 0x21
+
+[[key]]
+name = "PageDown"
+kvk = 0x79
+vk = 0x22
+
+# ---- phím chức năng (VK F1..F24 = 0x70..0x87) ----
+
+[[key]]
+name = "F1"
+kvk = 0x7A
+vk = 0x70
+
+[[key]]
+name = "F2"
+kvk = 0x78
+vk = 0x71
+
+[[key]]
+name = "F3"
+kvk = 0x63
+vk = 0x72
+
+[[key]]
+name = "F4"
+kvk = 0x76
+vk = 0x73
+
+[[key]]
+name = "F5"
+kvk = 0x60
+vk = 0x74
+
+[[key]]
+name = "F6"
+kvk = 0x61
+vk = 0x75
+
+[[key]]
+name = "F7"
+kvk = 0x62
+vk = 0x76
+
+[[key]]
+name = "F8"
+kvk = 0x64
+vk = 0x77
+
+[[key]]
+name = "F9"
+kvk = 0x65
+vk = 0x78
+
+[[key]]
+name = "F10"
+kvk = 0x6D
+vk = 0x79
+
+[[key]]
+name = "F11"
+kvk = 0x67
+vk = 0x7A
+
+[[key]]
+name = "F12"
+kvk = 0x6F
+vk = 0x7B
+
+[[key]]
+name = "F13"
+kvk = 0x69
+vk = 0x7C
+
+[[key]]
+name = "F14"
+kvk = 0x6B
+vk = 0x7D
+
+[[key]]
+name = "F15"
+kvk = 0x71
+vk = 0x7E
+
+[[key]]
+name = "F16"
+kvk = 0x6A
+vk = 0x7F
+
+[[key]]
+name = "F17"
+kvk = 0x40
+vk = 0x80
+
+[[key]]
+name = "F18"
+kvk = 0x4F
+vk = 0x81
+
+[[key]]
+name = "F19"
+kvk = 0x50
+vk = 0x82
+
+[[key]]
+name = "F20"
+kvk = 0x5A
+vk = 0x83

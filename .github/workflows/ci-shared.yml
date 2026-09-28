@@ -121,7 +121,8 @@ jobs:
 
   replay:
     # L2 golden corpus + L3 cross-OS conformance (P0-4 §1).
-    name: replay corpus/shared (${{ matrix.os }})
+    # Adapter mac chạy headless mọi OS (P2-5 §2) — cùng job, 2 run.
+    name: replay corpus (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -133,6 +134,8 @@ jobs:
       - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
       # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
       - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
+      - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/mac --adapter mac
+      - run: cargo run -q -p xtask -- check-mac-corpus
 
   linux-adapters:
     # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với

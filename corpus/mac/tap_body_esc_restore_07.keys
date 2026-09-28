@@ -1,0 +1,9 @@
+# corpus/mac/tap_body_esc_restore_07 — tap Escape RESTORE (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.valvesoftware.steam field=editbox
+
+:type "dang"
+:expect "đang"
+:key Escape
+:expect "dang"

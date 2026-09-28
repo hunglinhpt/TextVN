@@ -1,0 +1,11 @@
+# corpus/mac/bug_B8_iterm2_02 — B8 iTerm2 ForwardAsCommit, không xóa (P2-3 §3 #11) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.googlecode.iterm2 field=terminal
+
+:type "chaof"
+:expect "chào"
+:key Space
+:type "banj"
+:expect "chào bạn"
+:key Enter
+:expect "chào bạn\n"

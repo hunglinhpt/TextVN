@@ -21,6 +21,26 @@
     {"id":"win.figma","match":{"any":[{"exe":"figma.exe"},{"exe":"canva.exe"}]},"when":{"field_role":"web"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true},
     {"id":"win.rdp","match":{"exe":"mstsc.exe"},"when":{"field_role":"unknown"},"strategy":"BackspaceType","inject_mode":"unicode","engine_owner":"tsf","enabled_default":true},
     {"id":"win.game.chat","match":{"any":[{"exe":"cs2.exe"},{"exe":"dota2.exe"},{"exe":"valorant-win64-shipping.exe"},{"exe":"leagueclientux.exe"}]},"strategy":"Passthrough","engine_owner":"hook","enabled_default":false,"notes":"B9; hook enables only after chat detection"},
-    {"id":"win.terminal.legacy","match":{"any":[{"exe":"putty.exe"},{"exe":"mintty.exe"}]},"when":{"field_role":"terminal"},"strategy":"ForwardAsCommit","inject_mode":"unicode","engine_owner":"hook","enabled_default":true}
+    {"id":"win.terminal.legacy","match":{"any":[{"exe":"putty.exe"},{"exe":"mintty.exe"}]},"when":{"field_role":"terminal"},"strategy":"ForwardAsCommit","inject_mode":"unicode","engine_owner":"hook","enabled_default":true},
+    {"id":"mac.safari.url","match":{"bundle":"com.apple.safari"},"when":{"field_role":["address_bar","search"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.chromium.url","match":{"any":[{"bundle":"com.google.chrome"},{"bundle":"com.microsoft.edgemac"},{"bundle":"com.brave.browser"}]},"when":{"field_role":["address_bar","search"]},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.firefox.url","match":{"any":[{"bundle":"org.mozilla.firefox"},{"bundle":"org.mozilla.firefoxdeveloperedition"}]},"when":{"field_role":["address_bar","search"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.spotlight","match":{"any":[{"bundle":"com.apple.spotlight"},{"bundle":"com.apple.systemuiserver"}]},"when":{"field_role":["search","combo"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.game.nokbd","match":{"any":[{"bundle":"com.valvesoftware.steam"}]},"strategy":"Passthrough","engine_owner":"tap","enabled_default":false,"notes":"B9,RM8; app khong di qua IMK — user opt-in qua Settings (P2-2 §7), mo rong bundle id qua Settings"},
+    {"id":"mac.safari.body","match":{"bundle":"com.apple.safari"},"when":{"field_role":["web","body"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":true},
+    {"id":"mac.excel.cell","match":{"bundle":"com.microsoft.excel"},"when":{"field_role":["candidate","editbox"]},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.word.body","match":{"bundle":"com.microsoft.word"},"when":{"field_role":["body","textarea"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
+    {"id":"mac.notes","match":{"bundle":"com.apple.notes"},"when":{"field_role":"textarea"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true},
+    {"id":"mac.textedit","match":{"bundle":"com.apple.textedit"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true},
+    {"id":"mac.terminal","match":{"bundle":"com.apple.terminal"},"when":{"field_role":"terminal"},"strategy":"ForwardAsCommit","engine_owner":"imk","enabled_default":true,"notes":"B8,B11"},
+    {"id":"mac.iterm2","match":{"bundle":"com.googlecode.iterm2"},"when":{"field_role":"terminal"},"strategy":"ForwardAsCommit","engine_owner":"imk","enabled_default":true,"notes":"B8,B11"},
+    {"id":"mac.vscode","match":{"bundle":"com.microsoft.vscode"},"when":{"field_role":["body","web"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":false},
+    {"id":"mac.xcode","match":{"bundle":"com.apple.dt.xcode"},"when":{"field_role":["body","candidate"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B3"},
+    {"id":"mac.jetbrains","match":{"any":[{"bundle":"com.jetbrains.intellij"},{"bundle":"com.jetbrains.pycharm"},{"bundle":"com.jetbrains.clion"}]},"when":{"field_role":"candidate"},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"imk","enabled_default":true,"notes":"B3"},
+    {"id":"mac.slack","match":{"bundle":"com.tinyspeck.slackmacgap"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
+    {"id":"mac.discord","match":{"bundle":"com.hnc.discord"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2,B7"},
+    {"id":"mac.messages","match":{"bundle":"com.apple.ichat"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
+    {"id":"mac.finder.rename","match":{"bundle":"com.apple.finder"},"when":{"field_role":["editbox","combo"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.systemsettings","match":{"bundle":"com.apple.systempreferences"},"when":{"field_role":["search","editbox"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true}
   ]
 }

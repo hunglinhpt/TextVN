@@ -1,0 +1,10 @@
+# corpus/mac/imk_preedit_telex_duocj_01 — TextEdit golden duocj → được (setMarkedText) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "duocj"
+:expect "được"
+:expect_preedit "được"
+:key Space
+:expect "được "
+:expect_preedit ""

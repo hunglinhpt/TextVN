@@ -1,0 +1,8 @@
+# corpus/mac/bug_B6_combo_pass_mac_01 — B6 chord hệ thống luôn PASS (engine không nuốt) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.finder field=editbox
+
+:combo Alt+Tab
+:expect_action PASS
+:combo Ctrl+Shift+Escape
+:expect_action PASS

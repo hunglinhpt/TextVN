@@ -1,0 +1,6 @@
+# corpus/mac/imk_preedit_app_safari_web_38 — preset mac.safari.body (web → Preedit) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.safari field=web
+
+:type "vieetj"
+:expect "việt"

@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_duocj_01 — BackspaceType duocj → được (n backspace + gõ lại) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "duocj"
+:expect "được"

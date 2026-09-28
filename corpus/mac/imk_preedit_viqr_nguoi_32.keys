@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_viqr_nguoi_32 — VIQR người (ngu+o+`i) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=viqr diacritic_style=new
+:type "ngu+o+`i"
+:expect "người"

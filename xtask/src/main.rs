@@ -14,7 +14,9 @@
 //! crate `cbindgen` + nightly. Header hiện do người viết giữ tay và CI kiểm bằng
 //! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
+mod gen_mac_corpus;
 mod gen_win_corpus;
+mod mac_corpus_cases;
 mod toml;
 mod win_corpus_cases;
 
@@ -34,6 +36,10 @@ const METHODS_TOML: [&str; 4] = [
 
 const VOWELS_OUT: &str = "core/src/transform/vowel_table_generated.rs";
 const KEYS_OUT: &str = "core/src/method/keys_generated.rs";
+/// Nguồn: keycode macOS → VK canonical (P2-1 §5 — KeyTranslator dùng).
+const KEYMAP_MAC_TOML: &str = "data/tables/keymap_mac.toml";
+const KEYMAP_MAC_OUT_RUST: &str = "core/src/keymap_mac_generated.rs";
+const KEYMAP_MAC_OUT_SWIFT: &str = "adapters/macos-imk/Sources/CoreBridge/KeyMapMacGenerated.swift";
 
 /// License đóng dấu vào header file sinh ra. Khoá định danh được tạo động vì scanner
 /// của REUSE quét chuỗi định danh nằm trong chú thích thành header bản quyền thật
@@ -61,6 +67,8 @@ fn main() -> ExitCode {
         "check-tables" => gen_tables(false),
         "gen-win-corpus" => gen_win_corpus::run(true),
         "check-win-corpus" => gen_win_corpus::run(false),
+        "gen-mac-corpus" => gen_mac_corpus::run(true),
+        "check-mac-corpus" => gen_mac_corpus::run(false),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -83,6 +91,8 @@ fn usage() -> &'static str {
      cargo xtask check-tables     # kiểm tra file đã sinh có khớp nguồn (exit 1 nếu lệch)\n  \
      cargo xtask gen-win-corpus   # sinh corpus/win/*.keys (WIN-006)\n  \
      cargo xtask check-win-corpus # kiểm tra corpus/win/*.keys có khớp chuẩn\n  \
+     cargo xtask gen-mac-corpus   # sinh corpus/mac/*.keys (MAC-006)\n  \
+     cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask help\n"
 }
 
@@ -190,8 +200,130 @@ fn gen_tables(write: bool) -> Result<(), String> {
         toml::digest(methods_src.as_bytes()),
     );
     emit(KEYS_OUT, &format_rust(&keys)?, write)?;
+
+    let mac_src = read(KEYMAP_MAC_TOML)?;
+    let (mac, digest_m) = parse_keymap_mac(&mac_src)?;
+    emit(
+        KEYMAP_MAC_OUT_RUST,
+        &format_rust(&render_keymap_mac_rust(&mac, digest_m))?,
+        write,
+    )?;
+    // Swift không qua rustfmt — emit trực tiếp (định dạng do generator giữ).
+    emit(
+        KEYMAP_MAC_OUT_SWIFT,
+        &render_keymap_mac_swift(&mac, digest_m),
+        write,
+    )?;
     println!("  xong.");
     Ok(())
+}
+
+/// Một dòng keymap mac đã kiểm tra: (tên kVK, keycode mac, VK canonical).
+pub struct MacKey {
+    name: String,
+    kvk: u32,
+    vk: u32,
+}
+
+fn parse_keymap_mac(src: &str) -> Result<(Vec<MacKey>, u64), String> {
+    let doc = toml::parse(src)?;
+    let rows = doc.array("key")?;
+    let mut out = Vec::with_capacity(rows.len());
+    let mut seen = std::collections::HashSet::new();
+    for row in rows {
+        let name = row.str("name")?;
+        let kvk = row.get("kvk")?;
+        let vk = row.get("vk")?;
+        let (toml::Value::Int(kvk), toml::Value::Int(vk)) = (kvk, vk) else {
+            return Err(format!("[[key]] {name}: kvk/vk phải là số nguyên"));
+        };
+        if !(0..=0x7F).contains(kvk) {
+            return Err(format!("[[key]] {name}: kvk={kvk:#x} ngoài 0x00..0x7F"));
+        }
+        if !(1..=0xFFFF).contains(vk) {
+            return Err(format!("[[key]] {name}: vk={vk:#x} ngoài 0x01..0xFFFF"));
+        }
+        if !seen.insert(*kvk as u32) {
+            return Err(format!(
+                "[[key]] {name}: keycode trùng kvk={kvk:#x} — tra sẽ sai"
+            ));
+        }
+        out.push(MacKey {
+            name,
+            kvk: *kvk as u32,
+            vk: *vk as u32,
+        });
+    }
+    // Bắt buộc có đủ nhóm phím engine special-case — thiếu là adapter mac gõ sai âm thầm.
+    let required = [
+        "Return", "Tab", "Space", "Delete", "Escape", "Shift", "Control", "Option",
+    ];
+    for req in required {
+        if !out.iter().any(|k| k.name == req) {
+            return Err(format!("bảng thiếu phím bắt buộc `{req}`"));
+        }
+    }
+    Ok((out, toml::digest(src.as_bytes())))
+}
+
+fn render_keymap_mac_rust(mac: &[MacKey], digest: u64) -> String {
+    let mut s = banner();
+    s.push_str(&format!(
+        "//! Nguồn: `{KEYMAP_MAC_TOML}` (digest FNV-1a 64 = `0x{digest:016x}`).\n\
+         //!\n\
+         //! Keycode macOS (`kVK_*` Carbon) → VK canonical Windows (`keymap::vk`).\n\
+         //! Adapter macOS phải chuẩn hóa về đây trước khi gọi engine (P0-2 §1).\n\
+         //! Phím không có trong bảng → `None` → adapter PASS (không đoán).\n\n"
+    ));
+    s.push_str("/// Số keycode đã map trong bảng.\n");
+    s.push_str(&format!(
+        "pub const MAC_KEY_COUNT: usize = {};\n\n",
+        mac.len()
+    ));
+    s.push_str("/// `kVK_*` → VK canonical; `None` = không map (engine coi như phím lạ → PASS).\n");
+    s.push_str("pub fn mac_to_canonical(kvk: u32) -> Option<u32> {\n");
+    s.push_str("    match kvk {\n");
+    for k in mac {
+        s.push_str(&format!(
+            "        {:#04x} => Some({:#04x}), // {}\n",
+            k.kvk, k.vk, k.name
+        ));
+    }
+    s.push_str("        _ => None,\n");
+    s.push_str("    }\n");
+    s.push_str("}\n");
+    s
+}
+
+fn render_keymap_mac_swift(mac: &[MacKey], digest: u64) -> String {
+    let mut s = String::new();
+    s.push_str(&format!(
+        "// {SPDX_KEY}: {LICENSE}\n{}\n",
+        concat!(
+            "// == GENERATED FILE — KHÔNG SỬA TAY ==\n",
+            "// Nguồn: data/tables/keymap_mac.toml · sinh bằng `cargo xtask gen-tables` (P0-1 §3).\n",
+            "// Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.\n",
+            "// `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.\n",
+        )
+    ));
+    s.push_str(&format!(
+        "/// Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = 0x{digest:016x}).\n\
+         /// Keycode macOS (Carbon `kVK_*`) → VK canonical Windows (P0-2 §1).\n\
+         /// Phím không có trong bảng → nil → adapter PASS (không đoán).\n\
+         enum KeyMapMacGenerated {{\n\
+         \x20   static let keyCount = {count}\n\n\
+         \x20   static func canonicalVK(_ kvk: UInt32) -> UInt32? {{\n\
+         \x20       switch kvk {{\n",
+        count = mac.len()
+    ));
+    for k in mac {
+        s.push_str(&format!(
+            "        case {:#04x}: return {:#04x} // {}\n",
+            k.kvk, k.vk, k.name
+        ));
+    }
+    s.push_str("        default: return nil\n        }\n    }\n}\n");
+    s
 }
 
 /// Một dòng bảng âm đã kiểm tra (tên + base + 6 dạng).

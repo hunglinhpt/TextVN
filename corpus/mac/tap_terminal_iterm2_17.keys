@@ -1,0 +1,9 @@
+# corpus/mac/tap_terminal_iterm2_17 — tap iTerm2 nhiều từ (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.googlecode.iterm2 field=terminal
+
+:type "chaof"
+:key Space
+:type "banj"
+:expect "chào bạn"

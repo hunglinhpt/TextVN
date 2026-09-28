@@ -1,0 +1,7 @@
+# corpus/mac/mac_bs_type_telex_luong_08 — BackspaceType lương (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:type "luong"
+:expect "lương"

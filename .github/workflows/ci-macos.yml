@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ci-macos — CI cho adapter macOS (P2-5 §8, MAC-064).
+#
+# Chạy khi PR/push chạm adapters/macos* hoặc corpus/mac:
+#  - cargo engine 2 arch mac (aarch64 + x86_64) + lipo (MAC-003)
+#  - swift build + swift test cả 2 package (IMK + tap)
+#  - replay corpus (shared + mac) --adapter mac — headless, chạy được trên runner
+#  - ABI gates (sizes/verify) — header ↔ Rust không được lệch
+name: ci-macos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "adapters/macos-imk/**"
+      - "adapters/macos-tap/**"
+      - "corpus/mac/**"
+      - "data/tables/keymap_mac.toml"
+      - ".github/workflows/ci-macos.yml"
+  pull_request:
+    paths:
+      - "adapters/macos-imk/**"
+      - "adapters/macos-tap/**"
+      - "corpus/mac/**"
+      - "data/tables/keymap_mac.toml"
+      - ".github/workflows/ci-macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine-static:
+    name: engine staticlib universal (2 arch + lipo)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain + mac targets (MAC-001)
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustc --version
+
+      - name: Build staticlib 2 arch + lipo
+        run: |
+          cd adapters/macos-imk
+          ./build-rust.sh --lib-only
+          lipo -info lib/libtextvn_ffi.a | grep -E "x86_64.*arm64|arm64.*x86_64"
+
+  swift:
+    name: swift build + test (${{ matrix.arch }})
+    runs-on: macos-latest
+    needs: engine-static
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (lib link cho swift test)
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustup target add ${{ matrix.arch }}-apple-darwin
+
+      - name: Build static lib cho arch hiện tại
+        run: |
+          cd adapters/macos-imk
+          cargo build --target ${{ matrix.arch }}-apple-darwin -p textvn-ffi
+          mkdir -p lib
+          cp target/${{ matrix.arch }}-apple-darwin/debug/libtextvn_ffi.a lib/
+
+      - name: swift build + test (IMK adapter — MAC-030)
+        working-directory: adapters/macos-imk
+        run: |
+          swift build --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
+
+      - name: swift build + test (tap opt-in — P2-2 §8)
+        working-directory: adapters/macos-tap
+        run: |
+          swift build --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
+
+  corpus-mac:
+    name: replay corpus --adapter mac
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: gen-tables + corpus check (nguồn không được lệch)
+        run: |
+          cargo run -q -p xtask -- check-tables
+          cargo run -q -p xtask -- check-mac-corpus
+          cargo run -q -p xtask -- check-win-corpus
+      - name: replay shared + mac (P2-5 §1 — lớp corpus)
+        run: |
+          cargo run -q -p textvn-cli -- replay corpus/shared --adapter mac
+          cargo run -q -p textvn-cli -- replay corpus/mac    --adapter mac
+
+      - name: ABI gates (P0-2 §6)
+        run: |
+          cargo run -q -p textvn-cli -- sizes
+          cargo run -q -p textvn-cli -- verify

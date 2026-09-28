@@ -1,0 +1,11 @@
+# corpus/mac/bug_B13_focus_loss_01 — B13 deactivateServer: adapter commit marked rồi ime_reset — từ sau reset phải sạch (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "chaof"
+:expect "chào"
+:expect_preedit "chào"
+:reset
+:type "rooif"
+:expect "chàorồi"
+:expect_preedit "rồi"

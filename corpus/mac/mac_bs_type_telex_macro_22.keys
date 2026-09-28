@@ -1,0 +1,9 @@
+# corpus/mac/mac_bs_type_telex_macro_22 — BackspaceType macro vẫn chạy (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps field_detect
+:app com.apple.finder field=editbox
+
+:config method=telex diacritic_style=new macro_trigger=space macro="cty=Công ty TNHH"
+:type "cty"
+:key Space
+:expect "Công ty TNHH"

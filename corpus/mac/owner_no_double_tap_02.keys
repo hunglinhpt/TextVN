@@ -1,0 +1,8 @@
+# corpus/mac/owner_no_double_tap_02 — owner=tap: IMK ctx.enabled=0 → mọi phím PASS, tap xử lý (P2-2 §6) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.valvesoftware.steam field=editbox
+
+:enabled off
+:type "wasd"
+:expect "wasd"
+:expect_action PASS

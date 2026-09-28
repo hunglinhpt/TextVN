@@ -353,7 +353,7 @@ mod tests {
     use super::*;
     use textvn_strategy::{
         IME_CAP_FIELD_DETECT, IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR,
-        IME_FIELD_BODY,
+        IME_FIELD_BODY, IME_FIELD_TERMINAL, IME_FIELD_UNKNOWN,
     };
 
     const DB: &str = r#"{
@@ -544,9 +544,10 @@ mod tests {
     }
 
     #[test]
-    fn shipped_windows_preset_has_twenty_ordered_entries() {
+    fn shipped_preset_has_forty_ordered_entries() {
         let db = AppDb::parse(include_str!("../../data/appdb.default.json")).unwrap();
-        assert_eq!(db.entry_count(), 20);
+        // 20 Windows + 20 macOS (P2-3 §3) — thêm preset phải kèm corpus case.
+        assert_eq!(db.entry_count(), 40);
         assert_eq!(
             db.preset_for("chrome.exe", IME_FIELD_ADDRESS_BAR),
             Some(Preset {
@@ -566,6 +567,25 @@ mod tests {
                 .unwrap()
                 .enabled_default,
             Some(false)
+        );
+        // Preset mac: match theo bundle id, không phân biệt hoa/thường (P2-3 §1).
+        assert_eq!(
+            db.preset_for("com.apple.safari", IME_FIELD_ADDRESS_BAR)
+                .unwrap()
+                .strategy,
+            Some(Strategy::SelectionReplace)
+        );
+        assert_eq!(
+            db.preset_for("com.apple.terminal", IME_FIELD_TERMINAL)
+                .unwrap()
+                .strategy,
+            Some(Strategy::ForwardAsCommit)
+        );
+        assert_eq!(
+            db.preset_for("com.valvesoftware.steam", IME_FIELD_UNKNOWN)
+                .unwrap()
+                .engine_owner,
+            Some(EngineOwner::Tap)
         );
     }
 }

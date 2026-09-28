@@ -1,0 +1,6 @@
+# corpus/mac/bug_B3_jetbrains_completion_01 — B3 JetBrains candidate (vk_then_unicode cho tap; imk vẫn SelectionReplace) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.jetbrains.intellij field=candidate
+
+:type "tieenf"
+:expect "tiền"

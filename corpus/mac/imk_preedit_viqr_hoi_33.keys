@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_viqr_hoi_33 — VIQR hỏi (hoi?) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=viqr diacritic_style=new
+:type "hoi?"
+:expect "hỏi"

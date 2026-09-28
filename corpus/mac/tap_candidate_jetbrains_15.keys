@@ -1,0 +1,7 @@
+# corpus/mac/tap_candidate_jetbrains_15 — tap candidate JetBrains (vk_then_unicode ở tap) (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.jetbrains.intellij field=candidate
+
+:type "tieenf"
+:expect "tiền"

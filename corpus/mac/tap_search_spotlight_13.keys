@@ -1,0 +1,7 @@
+# corpus/mac/tap_search_spotlight_13 — tap Spotlight search (P2-5 §2)
+:config method=telex diacritic_style=new
+:caps selection,field_detect,inject_vk
+:app com.apple.spotlight field=search
+
+:type "hoaf"
+:expect "hoà"

@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_vni_tuoi_28 — VNI tưới (tu7o7i1) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=vni diacritic_style=new
+:type "tu7o7i1"
+:expect "tưới"

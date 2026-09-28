@@ -1,0 +1,12 @@
+# corpus/mac/bug_B2_space_midword_01 — B2 Space giữa từ commit ngay (marked ngắn — B11) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:type "tieengs"
+:expect "tiếng"
+:expect_preedit "tiếng"
+:key Space
+:expect "tiếng "
+:expect_preedit ""
+:type "vietj"
+:expect "tiếng việt"

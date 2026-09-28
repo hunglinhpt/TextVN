@@ -1,0 +1,7 @@
+# corpus/mac/imk_preedit_simple_telex_duocj_35 — Simple Telex vẫn giữ tone/double (duocj → được) (P2-5 §2)
+:config method=telex diacritic_style=new
+:app com.apple.textedit field=body
+
+:config method=simple_telex diacritic_style=new
+:type "duocj"
+:expect "được"
