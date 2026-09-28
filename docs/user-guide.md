@@ -97,6 +97,7 @@ Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 | Quick Telex | như trên |
 | Gõ tắt cả khi tắt tiếng Việt | gõ tắt vẫn bung khi đang ở chế độ E |
 | Khởi động cùng Windows / Bật hội thoại này khi khởi động | chỉ Windows |
+| Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows |
 
 Mọi thay đổi lưu ngay, không cần khởi động lại. **Mặc định** đưa mọi tuỳ chọn về ban đầu
 nhưng giữ nguyên bảng gõ tắt.
@@ -133,7 +134,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 |---|---|
 | Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` để xem bước nào lỗi. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
-| Windows: Ctrl + Shift vừa chuyển V/E vừa đổi sang bàn phím khác | Windows cũng dùng Ctrl + Shift để đổi bố cục bàn phím khi một ngôn ngữ có nhiều bố cục. Tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*, hoặc chuyển V/E bằng **Ctrl + Shift + Space**. |
+| Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 | Windows: phần mềm diệt virus cảnh báo | TextVN không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |

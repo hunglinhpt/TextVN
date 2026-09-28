@@ -21,6 +21,7 @@
 │ └───────────────────────────────────────────────────────────────────┘ │
 │ ┌ Hệ thống (chỉ Windows) ───────────────────────────────────────────┐ │
 │ │ [ ] Khởi động cùng Windows            [x] Bật hội thoại này khi khởi động │
+│ │ [x] Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)  │ │
 │ └───────────────────────────────────────────────────────────────────┘ │
 │ [Hướng dẫn] [Thông tin] [Gõ tắt...] [Cài & bật TSF]¹  [Mặc định] [Đóng] [Kết thúc]¹ │
 └───────────────────────────────────────────────────────────────────────┘
@@ -45,6 +46,7 @@ launcher ứng dụng.
 | Gõ tắt cả khi tắt tiếng Việt | `config.allow_macro_when_vi_off` | tắt |
 | Khởi động cùng Windows | `HKCU\…\Run\TextVN` | tắt |
 | Bật hội thoại này khi khởi động | `config.show_dialog_on_startup` | bật |
+| Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (`Layout Hotkey`/`Language Hotkey` ≠ Ctrl + Shift) — cài đặt của Windows, không nằm trong config | bộ cài chọn sẵn |
 | Gõ tắt... | `config.macros[]`, `config.macro_trigger` (`tab`/`space`) | trống, Tab |
 
 File: Windows `%APPDATA%\TextVN\`, Linux `$XDG_CONFIG_HOME/TextVN/` (mặc định `~/.config/TextVN/`).
