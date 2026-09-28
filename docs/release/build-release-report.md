@@ -71,6 +71,7 @@ TSF-aware), rồi đọc lại nội dung:
 | Dấu câu | `Vieetj, Nam␣` | `Việt, Nam␣` | WIN_T6N | WIN_T6W |
 | Enter + viết hoa đầu câu | `chaof⏎banj␣` | `chào⏎Bạn␣` | WIN_T7N | WIN_T7W |
 | Tab | `tieengs⇥x␣` | `tiếng⇥x␣` | WIN_T8N | WIN_T8W |
+| Home giữa từ | `chaof` Home `x␣` | `x␣chào` | WIN_T11N | WIN_T11W |
 | Ctrl+Shift → E / → V | `as␣` | `as␣` / `á␣` | WIN_T9N | WIN_T9W |
 | Caps Lock | `VIEETJ␣` | `VIỆT␣` | WIN_T10N | WIN_T10W |
 
@@ -79,7 +80,9 @@ TSF-aware), rồi đọc lại nội dung:
 | Tìm bởi | Lỗi | Sửa |
 |---|---|---|
 | Gõ thật Windows (Notepad) | Dấu cách/dấu câu ra **trước** chữ (`␣được`): app IMM32 nhận kết quả composition sau phím không bị ăn | Ký tự ranh giới in được commit cùng từ (`compose.rs`) |
-| Gõ thật Windows (Notepad) | Enter/Tab ra trước chữ | App CUAS: phím ranh giới xử lý ở pha `OnKeyDown` (`key_event.rs`) |
+| Gõ thật Windows (Notepad) | Enter/Tab ra trước chữ, rồi (khi giữ phím ở pha test) mất hẳn Enter/Tab | App CUAS: commit từ ở `OnKeyDown` rồi trả phím gốc cho cửa sổ trong cùng process (`replay.rs`) |
+| Gõ thật Windows (WordPad) | Ctrl+Shift không chuyển V/E ở app TSF-aware | `ITfKeyTraceEventSink` (`key_event.rs`) |
+| Kịch bản cài đặt sau khi gỡ bản portable | Ctrl+Shift lúc được lúc không: phím tắt đổi bố cục của Windows chuyển đi mất TextVN | Chỉ đăng ký trong vi-VN; tuỳ chọn "Dành Ctrl + Shift cho TextVN" (`tray/src/hotkey.rs`) |
 | `common_words.rs` | Đặt dấu sai (`cuả`, `nghiã`, `đựơc`…), `d` tự thành `đ`, `gi`/`qu`, `uow` | Viết lại theo quy tắc chính tả |
 | e2e ibus/fcitx5 thật | Engine reset mỗi lần caret đổi, addon Fcitx5 không nạp, sai bus name IBus | `1e54df6` |
 | Kịch bản cài Linux | ibus-daemon giữ cache registry, bản per-user không hiện sau đăng nhập lại | Xoá cache khi cài/gỡ |

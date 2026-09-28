@@ -37,6 +37,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 |---|---|---|---|---|
 | Khởi động cùng Windows | `HKCU\…\Run\TextVN` | ✓ | — (IBus/Fcitx5 tự chạy) | ✗ |
 | Bật hội thoại này khi khởi động | `show_dialog_on_startup` | ✓ | — (không có tiến trình khay) | ✗ |
+| Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (cài đặt Windows) | ✓ | — | ✗ |
 | Hướng dẫn / Thông tin | — | ✓ | ✓ | ✗ |
 | Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | ✗ |
 | Cài & bật TSF | `textvn-cli register` | ✓ | — | — |
