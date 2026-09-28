@@ -1,7 +1,0 @@
-[InputMethod]
-Name=TextVN
-Icon=textvn
-LangCode=vi_VN
-Addon=textvn
-Configurable=True
-Label=VN

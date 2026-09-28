@@ -134,6 +134,21 @@ jobs:
       # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
       - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
 
+  linux-adapters:
+    # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với
+    # ibus-daemon / fcitx5 chạy thật trong dbus-run-session.
+    name: Linux IBus/Fcitx5 (build + e2e)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
+      - run: scripts/e2e-linux.sh
+
   fuzz:
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.
     name: fuzz smoke (60s)

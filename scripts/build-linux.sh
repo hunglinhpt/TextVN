@@ -17,24 +17,27 @@ echo "--> 1. Kiểm tra môi trường..."
 rustc --version
 cargo --version
 
-echo "--> 2. Chạy test workspace..."
+echo "--> 2. Test engine + adapter (unit + e2e với ibus-daemon/fcitx5 thật)..."
 cargo test --workspace
+"${SCRIPT_DIR}/e2e-linux.sh" "${ROOT_DIR}/target/linux-adapters"
 
-echo "--> 3. Biên dịch release..."
-cargo build --release --workspace
+echo "--> 3. Biên dịch release CLI..."
+cargo build --release -p textvn-cli
 
 echo "--> 4. Đóng gói Tarball Portable cho Linux..."
 PKG_NAME="TextVN-linux-x86_64-v${VERSION}"
 STAGE_DIR="${DIST_DIR}/${PKG_NAME}"
+ADAPTERS="${ROOT_DIR}/target/linux-adapters"
 rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}/bin" "${STAGE_DIR}/share/icons" "${STAGE_DIR}/share/applications" "${STAGE_DIR}/scripts"
+mkdir -p "${STAGE_DIR}/bin" "${STAGE_DIR}/lib/textvn" "${STAGE_DIR}/lib/fcitx5" \
+         "${STAGE_DIR}/share/icons" "${STAGE_DIR}/share/applications"
 
-# Copy binaries
-if [[ -f "${ROOT_DIR}/target/release/textvn-cli" ]]; then
-    cp "${ROOT_DIR}/target/release/textvn-cli" "${STAGE_DIR}/bin/textvn"
-fi
-if [[ -f "${ROOT_DIR}/target/release/TextVN" ]]; then
-    cp "${ROOT_DIR}/target/release/TextVN" "${STAGE_DIR}/bin/textvn-tray"
+# Binaries: CLI + IBus engine + Fcitx5 addon (tray là thành phần Windows — không đóng gói).
+cp "${ROOT_DIR}/target/release/textvn-cli" "${STAGE_DIR}/bin/textvn"
+cp "${ADAPTERS}/ibus/textvn-ibus-engine" "${STAGE_DIR}/lib/textvn/"
+cp "${ADAPTERS}/fcitx5/libtextvn-fcitx5.so" "${STAGE_DIR}/lib/fcitx5/"
+if [[ -f "${ADAPTERS}/settings/textvn-settings" ]]; then
+    cp "${ADAPTERS}/settings/textvn-settings" "${STAGE_DIR}/bin/"
 fi
 
 # Copy resources & icons

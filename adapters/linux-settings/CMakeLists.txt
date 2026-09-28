@@ -57,6 +57,8 @@ add_executable(test_settings_ui
 )
 
 target_compile_definitions(test_settings_ui PRIVATE TEXTVN_GTK_MOCK=1)
+# Test phải giữ assert kể cả bản Release (NDEBUG).
+target_compile_options(test_settings_ui PRIVATE -UNDEBUG)
 
 target_include_directories(test_settings_ui PRIVATE
     src

@@ -4,6 +4,11 @@
  * NGUỒN SỰ THẬT: schemas/ipc.v1.md & docs/10-shared/P0-3-config-preset-strategy.md §5
  */
 
+/* struct ucred (SO_PEERCRED) chỉ khai báo khi có _GNU_SOURCE. */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "linux_common.h"
 
 #include <stdio.h>
@@ -217,13 +222,16 @@ static int try_connect(lc_ipc_client *client) {
 #if defined(__linux__) || defined(__unix__)
     client->last_connect_attempt_ms = get_time_ms();
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) return -1;
-
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, client->sock_path, sizeof(addr.sun_path) - 1);
+    /* Đường dẫn dài hơn sun_path: không cắt âm thầm (sẽ nối tới socket khác). */
+    size_t path_len = strlen(client->sock_path);
+    if (path_len >= sizeof(addr.sun_path)) return -1;
+    memcpy(addr.sun_path, client->sock_path, path_len + 1);
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
 
     if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
         close(fd);

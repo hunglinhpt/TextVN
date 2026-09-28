@@ -108,6 +108,9 @@ FILES_TO_REMOVE=(
     "$TARGET_AUTOSTART/textvn.desktop"
     "$TARGET_SYSTEMD/textvn-tray.service"
 )
+if [[ "$INSTALL_MODE" == "user" ]]; then
+    FILES_TO_REMOVE+=("$HOME/.config/environment.d/60-textvn.conf")
+fi
 
 for file in "${FILES_TO_REMOVE[@]}"; do
     if [[ -f "$file" ]]; then

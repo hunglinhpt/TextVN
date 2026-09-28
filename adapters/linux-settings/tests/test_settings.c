@@ -157,6 +157,32 @@ static void test_file_persistence_roundtrip(void) {
     unlink(test_path);
 }
 
+/* Lần lưu đầu: ~/.config/TextVN chưa tồn tại → phải tự tạo, ghi nguyên tử. */
+static void test_save_creates_missing_config_dir(void) {
+    char dir[] = "/tmp/textvn_cfgdir_XXXXXX";
+    assert(mkdtemp(dir) != NULL);
+    char path[256];
+    snprintf(path, sizeof(path), "%s/TextVN/config.json", dir);
+
+    TextVNSettings s;
+    textvn_settings_set_defaults(&s);
+    s.method = TEXTVN_METHOD_VNI;
+    assert(textvn_settings_save_file(&s, path) == 0);
+
+    TextVNSettings back;
+    assert(textvn_settings_load_file(&back, path) == 0);
+    assert(back.method == TEXTVN_METHOD_VNI);
+
+    char tmp[300];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    assert(access(tmp, F_OK) != 0 && "không để lại file tạm");
+
+    unlink(path);
+    snprintf(tmp, sizeof(tmp), "%s/TextVN", dir);
+    rmdir(tmp);
+    rmdir(dir);
+}
+
 static void test_window_creation_and_initial_state(void) {
     const char *test_path = "test_textvn_win_tmp.json";
     unlink(test_path);
@@ -292,6 +318,7 @@ int main(void) {
     test_json_parsing();
     test_json_serialization();
     test_file_persistence_roundtrip();
+    test_save_creates_missing_config_dir();
     test_window_creation_and_initial_state();
     test_toggle_compact_expanded();
     test_reset_to_defaults();

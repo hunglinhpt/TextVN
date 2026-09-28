@@ -1,20 +1,17 @@
 /* textvn_ibus_engine.h — TextVN IBus Engine public header
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * NGUỒN SỰ THẬT: docs/40-linux/P3-1-ibus.md §2-§6
+ * NGUỒN SỰ THẬT: docs/40-linux/P3-1-ibus.md §2-§6, mô hình preedit: lc_compose.h
  */
 
 #ifndef TEXTVN_IBUS_ENGINE_H
 #define TEXTVN_IBUS_ENGINE_H
 
-#if defined(TEXTVN_IBUS_MOCK)
-#include "ibus_mock.h"
-#else
 #include <ibus.h>
-#endif
 
 #include "textvn_ffi.h"
 #include "linux_common.h"
+#include "lc_compose.h"
 
 G_BEGIN_DECLS
 
@@ -23,17 +20,16 @@ G_BEGIN_DECLS
 typedef struct _TextVNIbusEngine TextVNIbusEngine;
 typedef struct _TextVNIbusEngineClass TextVNIbusEngineClass;
 
+/* ibus-daemon tạo MỘT engine object cho mỗi input context. */
 struct _TextVNIbusEngine {
-    IBusEngine    parent;
-    ime_instance *inst;
-    lc_ipc_client *ipc_client;
-    gboolean      vi_enabled;
-    gboolean      non_preedit;
-    gboolean      has_surrounding;
-    uint32_t      field_role;
-    uint32_t      secure;
-    int64_t       strategy_hint;
-    guint         cursor_pos;
+    IBusEngine         parent;
+    ime_instance      *inst;
+    lc_comp            comp;      /* preedit đang mở (len == 0: không composing) */
+    lc_config_state    config;    /* mtime config.json đã nạp */
+    lc_modifier_toggle toggle;    /* Ctrl+Shift kiểu UniKey */
+    gboolean           secure;    /* input purpose password/PIN */
+    IBusPropList      *props;
+    IBusProperty      *mode_prop;
 };
 
 struct _TextVNIbusEngineClass {
@@ -41,11 +37,6 @@ struct _TextVNIbusEngineClass {
 };
 
 GType textvn_ibus_engine_get_type(void);
-
-/**
- * Instantiate a new TextVN IBusEngine object.
- */
-IBusEngine *textvn_ibus_engine_new(void);
 
 G_END_DECLS
 

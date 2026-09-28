@@ -33,7 +33,6 @@ static void ensure_parent_dirs(const char *file_path) {
     if (!slash) return;
     *slash = '\0';
 
-    char sub[512];
     for (char *p = path + 1; *p; ++p) {
         if (*p == '/') {
             *p = '\0';
@@ -64,7 +63,8 @@ void lc_log_init(const char *app_tag) {
         if (home && home[0] != '\0') {
             snprintf(log_path, sizeof(log_path), "%s/%s", home, LC_LOG_DEFAULT_REL);
         } else {
-            strncpy(log_path, "/tmp/textvn.log", sizeof(log_path) - 1);
+            /* Không có HOME: KHÔNG ghi vào /tmp dùng chung (symlink attack) — bỏ log. */
+            return;
         }
     }
 

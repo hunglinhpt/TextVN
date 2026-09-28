@@ -5,10 +5,14 @@
  * Compact: ~505x245px | Expanded: ~505x490px
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include "settings_window.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void textvn_settings_set_defaults(TextVNSettings *s) {
     if (!s) return;
@@ -230,6 +234,24 @@ int textvn_settings_load_file(TextVNSettings *s, const char *custom_path) {
     return rc;
 }
 
+/* mkdir -p thư mục cha của `path` (0700: config riêng của người dùng). */
+static void ensure_parent_dir(const char *path) {
+    char dir[512];
+    size_t n = strlen(path);
+    if (n >= sizeof(dir)) return;
+    memcpy(dir, path, n + 1);
+    for (char *p = dir + 1; *p; ++p) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(dir, 0700);
+            *p = '/';
+        }
+    }
+}
+
+/* Ghi NGUYÊN TỬ (tmp → fsync → rename): IBus/Fcitx5 nạp lại config.json theo mtime,
+ * đọc trúng file đang ghi dở sẽ bỏ lỡ thay đổi. Tạo ~/.config/TextVN nếu chưa có —
+ * trước đây lần lưu đầu tiên thất bại âm thầm. */
 int textvn_settings_save_file(const TextVNSettings *s, const char *custom_path) {
     char path[512];
     resolve_config_path(path, sizeof(path), custom_path);
@@ -237,18 +259,25 @@ int textvn_settings_save_file(const TextVNSettings *s, const char *custom_path) 
     char *json = textvn_settings_to_json(s);
     if (!json) return -1;
 
-    FILE *f = fopen(path, "wb");
+    char tmp[600];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    ensure_parent_dir(path);
+
+    FILE *f = fopen(tmp, "wb");
     if (!f) {
         free(json);
         return -1;
     }
-
     size_t len = strlen(json);
     size_t written = fwrite(json, 1, len, f);
-    fclose(f);
+    int ok = written == len && fflush(f) == 0 && fsync(fileno(f)) == 0;
+    ok = (fclose(f) == 0) && ok;
     free(json);
-
-    return (written == len) ? 0 : -1;
+    if (!ok || rename(tmp, path) != 0) {
+        unlink(tmp);
+        return -1;
+    }
+    return 0;
 }
 
 void textvn_settings_window_toggle_expanded(TextVNSettingsWindow *win) {

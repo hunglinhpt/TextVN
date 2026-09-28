@@ -1,291 +1,333 @@
-/* engine.cpp — Fcitx5 InputMethodEngineV2 implementation for TextVN
+/* engine.cpp — Engine Fcitx5 của TextVN
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Implements:
- * - Non-preedit typing (Gõ không gạch chân — fcitx5-lotus style)
- * - Enter key handling for Bug B2 (anti-duplication in chat apps)
- * - Hotkey toggle Ctrl+Shift+Space (ADR-011)
- * - System shortcuts passthrough (Bug B6)
- * - Fail-open (S4) exception boundary
+ * Cùng mô hình với IBus (lc_compose.h): cả từ trong preedit, commit ở ranh giới.
+ * Mọi đường lỗi fail-open: không bao giờ ném exception ra khỏi callback của Fcitx5.
  */
 
 #include "engine.h"
-#include "keymap.h"
-#include "apply.h"
 
-#include <fcitx/inputcontext.h>
-#include <fcitx/inputpanel.h>
 #include <fcitx-utils/capabilityflags.h>
 #include <fcitx-utils/keysym.h>
+#include <fcitx-utils/utf8.h>
+#include <fcitx/inputcontext.h>
+#include <fcitx/inputcontextmanager.h>
+#include <fcitx/inputpanel.h>
+#include <fcitx/text.h>
+#include <fcitx/userinterface.h>
 
 #include <cstring>
 
 namespace textvn {
 
-TextVNEngine::TextVNEngine(fcitx::Instance *instance)
-    : fcitx::InputMethodEngineV2(instance), instance_(instance), ipc_client_(nullptr)
-{
-    lc_log_init("fcitx5-textvn");
-    ipc_client_ = lc_ipc_client_new("fcitx5", nullptr);
-    lc_log(LC_LOG_INFO, "Engine", "TextVNEngine initialized (Fcitx5 Addon)");
+/* ---- Tiện ích thuần ---- */
+
+std::string utf32ToUtf8(const uint32_t *text, size_t len) {
+    std::string out;
+    for (size_t i = 0; i < len; ++i) {
+        out += fcitx::utf8::UCS4ToUTF8(text[i]);
+    }
+    return out;
 }
 
-TextVNEngine::~TextVNEngine() {
-    for (auto &pair : contexts_) {
-        if (pair.second.inst) {
-            ime_instance_free(pair.second.inst);
-            pair.second.inst = nullptr;
-        }
+void mapFcitxKey(const fcitx::Key &key, uint32_t *vk, uint32_t *ch) {
+    const fcitx::KeySym sym = key.sym();
+    switch (sym) {
+    case FcitxKey_BackSpace:
+        *vk = LC_VK_BACK;
+        *ch = 0;
+        return;
+    case FcitxKey_Tab:
+    case FcitxKey_KP_Tab:
+    case FcitxKey_ISO_Left_Tab:
+        *vk = LC_VK_TAB;
+        *ch = 0;
+        return;
+    case FcitxKey_Return:
+    case FcitxKey_KP_Enter:
+    case FcitxKey_ISO_Enter:
+        *vk = LC_VK_RETURN;
+        *ch = 0;
+        return;
+    case FcitxKey_Escape:
+        *vk = LC_VK_ESCAPE;
+        *ch = 0;
+        return;
+    case FcitxKey_KP_Space:
+        *vk = LC_VK_SPACE;
+        *ch = ' ';
+        return;
+    default:
+        break;
     }
-    contexts_.clear();
-
-    if (ipc_client_) {
-        lc_ipc_client_free(ipc_client_);
-        ipc_client_ = nullptr;
-    }
-    lc_log(LC_LOG_INFO, "Engine", "TextVNEngine destroyed");
-    lc_log_close();
-}
-
-ContextData *TextVNEngine::getOrCreateContext(fcitx::InputContext *ic) {
-    if (!ic) return nullptr;
-
-    auto it = contexts_.find(ic);
-    if (it != contexts_.end()) {
-        return &it->second;
-    }
-
-    ContextData data;
-    data.vi_enabled = true;
-    data.non_preedit = true; /* Lotus-style non-preedit by default */
-    data.field_role = IME_FIELD_UNKNOWN;
-    data.strategy_hint = -1;
-
-    /* Initialize core IME instance via C-ABI */
-    int32_t rc = ime_instance_new(nullptr, 0, &data.inst);
-    if (rc != IME_OK && rc != IME_ERR_CONFIG) {
-        lc_log(LC_LOG_ERROR, "Engine", "Failed to create ime_instance: rc=%d", (int)rc);
-        data.inst = nullptr;
-    }
-
-    auto inserted = contexts_.emplace(ic, data);
-
-    /* Connect destruction callback to free ime_instance and prevent leaks (LNX-020) */
-    ic->connect<fcitx::InputContext::Destroyed>([this, ic]() {
-        destroyContext(ic);
-    });
-
-    return &inserted.first->second;
-}
-
-void TextVNEngine::destroyContext(fcitx::InputContext *ic) {
-    auto it = contexts_.find(ic);
-    if (it != contexts_.end()) {
-        if (it->second.inst) {
-            ime_instance_free(it->second.inst);
-            it->second.inst = nullptr;
-        }
-        contexts_.erase(it);
+    /* keySymToUnicode trả 0 cho phím không sinh ký tự (mũi tên, F-key, Delete…). */
+    *ch = fcitx::Key::keySymToUnicode(sym);
+    if (sym >= FcitxKey_a && sym <= FcitxKey_z) {
+        *vk = static_cast<uint32_t>(sym - FcitxKey_a + 'A');
+    } else if (static_cast<uint32_t>(sym) < 0x80) {
+        *vk = static_cast<uint32_t>(sym);
+    } else {
+        *vk = 0;
     }
 }
 
-bool TextVNEngine::isViEnabled(fcitx::InputContext *ic) const {
-    auto it = contexts_.find(ic);
-    if (it != contexts_.end()) {
-        return it->second.vi_enabled;
+uint32_t fcitxMods(fcitx::KeyStates states) {
+    uint32_t mods = 0;
+    if (states.test(fcitx::KeyState::Shift)) mods |= IME_MOD_SHIFT;
+    if (states.test(fcitx::KeyState::Ctrl)) mods |= IME_MOD_CTRL;
+    if (states.test(fcitx::KeyState::Alt)) mods |= IME_MOD_ALT;
+    if (states.test(fcitx::KeyState::Super) || states.test(fcitx::KeyState::Super2) ||
+        states.test(fcitx::KeyState::Hyper) || states.test(fcitx::KeyState::Hyper2)) {
+        mods |= IME_MOD_SUPER;
     }
-    return true;
+    if (states.test(fcitx::KeyState::Meta)) mods |= IME_MOD_META;
+    if (states.test(fcitx::KeyState::CapsLock)) mods |= IME_MOD_CAPS;
+    return mods;
 }
 
-bool TextVNEngine::isNonPreedit(fcitx::InputContext *ic) const {
-    auto it = contexts_.find(ic);
-    if (it != contexts_.end()) {
-        return it->second.non_preedit;
+lc_modifier fcitxModifierKind(fcitx::KeySym sym) {
+    switch (sym) {
+    case FcitxKey_Control_L:
+    case FcitxKey_Control_R:
+        return LC_MOD_KEY_CTRL;
+    case FcitxKey_Shift_L:
+    case FcitxKey_Shift_R:
+        return LC_MOD_KEY_SHIFT;
+    case FcitxKey_Alt_L:
+    case FcitxKey_Alt_R:
+    case FcitxKey_Meta_L:
+    case FcitxKey_Meta_R:
+    case FcitxKey_Super_L:
+    case FcitxKey_Super_R:
+    case FcitxKey_Hyper_L:
+    case FcitxKey_Hyper_R:
+    case FcitxKey_Caps_Lock:
+    case FcitxKey_Shift_Lock:
+    case FcitxKey_Num_Lock:
+    case FcitxKey_ISO_Level3_Shift:
+    case FcitxKey_ISO_Level5_Shift:
+    case FcitxKey_Mode_switch:
+        return LC_MOD_KEY_OTHER_MODIFIER;
+    default:
+        return LC_MOD_NONE;
     }
-    return true;
 }
 
-void TextVNEngine::toggleViEn(fcitx::InputContext *ic) {
-    auto *data = getOrCreateContext(ic);
-    if (!data) return;
+/* ---- State per IC ---- */
 
-    data->vi_enabled = !data->vi_enabled;
-    lc_log(LC_LOG_INFO, "Engine", "Toggled VI mode for app '%s': %s",
-           ic->program().c_str(), data->vi_enabled ? "ON" : "OFF");
-
-    if (ipc_client_) {
-        lc_ipc_client_toggle_vi_en(ipc_client_, ic->program().c_str(), data->vi_enabled ? 1 : 0);
+TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
+    if (ime_instance_new(nullptr, 0, &inst) != IME_OK) {
+        inst = nullptr;
     }
-
-    /* Reset buffer on language toggle */
-    if (data->inst) {
-        ime_reset(data->inst);
-    }
-    apply_commit_and_reset(ic);
-}
-
-void TextVNEngine::activate(const fcitx::InputMethodEntry &/*entry*/, fcitx::InputContextEvent &event) {
-    try {
-        auto *ic = event.inputContext();
-        if (!ic) return;
-
-        auto *data = getOrCreateContext(ic);
-        if (!data || !data->inst) return;
-
-        /* Check for configuration hot-reload from tray */
-        uint64_t new_config_ver = 0;
-        if (ipc_client_ && lc_ipc_client_check_config_reload(ipc_client_, &new_config_ver)) {
-            lc_log(LC_LOG_INFO, "Engine", "Reloading config version %llu", (unsigned long long)new_config_ver);
-            ime_reload_config(data->inst, nullptr, 0);
-        }
-
-        /* Check app-specific enabled override from tray */
-        int app_override = 0;
-        if (ipc_client_ && lc_ipc_client_get_app_override(ipc_client_, &app_override)) {
-            data->vi_enabled = (app_override != 0);
-        }
-
-        /* Probe capability flags */
-        bool hasSurrounding = ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText);
-        uint32_t caps = IME_CAP_PREEDIT | IME_CAP_FIELD_DETECT | IME_CAP_SELECTION;
-        (void)hasSurrounding; /* Surrounding capability utilized directly by apply_result */
-
-        /* Detect text field context via AT-SPI or heuristics */
-        lc_field_ctx fctx;
-        lc_classify_field(ic->program().c_str(), nullptr, 0, nullptr, nullptr, &fctx);
-
-        data->field_role = fctx.field_role;
-        data->strategy_hint = fctx.strategy_hint;
-
-        /* Configure context in engine */
+    lc_config_sync(inst, &config, nullptr);
+    if (inst) {
         ime_context_v1 ctx;
         std::memset(&ctx, 0, sizeof(ctx));
         ctx.abi_version = IME_ABI_VERSION;
-        ctx.enabled = data->vi_enabled ? 1 : 0;
-        ctx.secure = fctx.secure;
-        ctx.field_role = fctx.field_role;
-        ctx.caps = caps;
-        ctx.app_id = ic->program().c_str();
-        ctx.hint = fctx.strategy_hint;
-
-        ime_set_context(data->inst, &ctx);
-    } catch (...) {
-        /* Fail-open S4 */
+        ctx.enabled = 1;
+        ctx.field_role = IME_FIELD_BODY;
+        ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
+        ctx.hint = -1;
+        ime_set_context(inst, &ctx);
     }
 }
 
-void TextVNEngine::deactivate(const fcitx::InputMethodEntry &/*entry*/, fcitx::InputContextEvent &event) {
+TextVNState::~TextVNState() {
+    if (inst) ime_instance_free(inst);
+}
+
+/* ---- Engine ---- */
+
+TextVNEngine::TextVNEngine(fcitx::Instance *instance)
+    : instance_(instance),
+      factory_([](fcitx::InputContext &ic) { return new TextVNState(&ic); }) {
+    lc_log_init("fcitx5-textvn");
+    ipc_ = lc_ipc_client_new("fcitx5", nullptr);
+    instance_->inputContextManager().registerProperty("textvnState", &factory_);
+}
+
+TextVNEngine::~TextVNEngine() {
+    if (ipc_) lc_ipc_client_free(ipc_);
+    lc_log_close();
+}
+
+TextVNState *TextVNEngine::state(fcitx::InputContext *ic) {
+    return ic ? ic->propertyFor(&factory_) : nullptr;
+}
+
+void TextVNEngine::showPreedit(TextVNState *st, const uint32_t *text, size_t len) {
+    auto &panel = st->ic->inputPanel();
+    fcitx::Text preedit;
+    if (len > 0) {
+        const std::string utf8 = utf32ToUtf8(text, len);
+        preedit.append(utf8, fcitx::TextFormatFlag::Underline);
+        preedit.setCursor(static_cast<int>(utf8.size()));
+    }
+    /* Client không vẽ được preedit → Fcitx5 hiển thị trong panel của nó. */
+    if (st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) {
+        panel.setClientPreedit(preedit);
+    } else {
+        panel.setPreedit(preedit);
+    }
+    st->ic->updatePreedit();
+    st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+}
+
+void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len) {
+    showPreedit(st, nullptr, 0);
+    if (len > 0) st->ic->commitString(utf32ToUtf8(text, len));
+}
+
+void TextVNEngine::finishWord(TextVNState *st) {
+    if (!st) return;
+    if (st->comp.len > 0) {
+        commitText(st, st->comp.text, st->comp.len);
+        st->comp.len = 0;
+    }
+    if (st->inst) ime_reset(st->inst);
+}
+
+void TextVNEngine::toggleVietnamese(TextVNState *st) {
+    finishWord(st);
+    viEnabled_ = !viEnabled_;
+    if (ipc_) lc_ipc_client_toggle_vi_en(ipc_, "*", viEnabled_ ? 1 : 0);
+    st->ic->updateUserInterface(fcitx::UserInterfaceComponent::StatusArea);
+    instance_->showInputMethodInformation(st->ic);
+}
+
+std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
+                                           fcitx::InputContext &) {
+    return viEnabled_ ? "V" : "E";
+}
+
+void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        auto *ic = event.inputContext();
-        if (!ic) return;
-
-        /* Bug B13 & Bug B2 protection (Commit-before-hide) */
-        apply_commit_and_reset(ic);
-
-        auto it = contexts_.find(ic);
-        if (it != contexts_.end() && it->second.inst) {
-            ime_reset(it->second.inst);
+        auto *st = state(event.inputContext());
+        if (!st) return;
+        lc_config_sync(st->inst, &st->config, nullptr);
+        int appEnabled = 1;
+        if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
+            viEnabled_ = appEnabled != 0;
         }
     } catch (...) {
-        /* Fail-open S4 */
     }
 }
 
-void TextVNEngine::reset(const fcitx::InputMethodEntry &/*entry*/, fcitx::InputContextEvent &event) {
+/* FOCUS-OUT: client không có CapabilityFlag::ClientUnfocusCommit thì Fcitx5 core đã
+ * commit client preedit TRƯỚC khi gọi engine — engine chỉ xóa panel (nếu để nguyên,
+ * Reset kế tiếp core commit lần nữa = chữ lặp) và quên từ. Client có cờ đó tự commit.
+ * Reset / đổi bộ gõ: core không commit → engine commit (không mất chữ — B2).
+ * Cả hai nhánh kiểm chứng bằng tests/e2e_fcitx5.py với fcitx5 thật. */
+void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &event) {
+    if (!st) return;
+    if (event.type() == fcitx::EventType::InputContextFocusOut) {
+        if (st->comp.len > 0) showPreedit(st, nullptr, 0);
+        st->comp.len = 0;
+        if (st->inst) ime_reset(st->inst);
+    } else {
+        finishWord(st);
+    }
+    lc_modifier_toggle_reset(&st->toggle);
+}
+
+void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        auto *ic = event.inputContext();
-        if (!ic) return;
-
-        apply_commit_and_reset(ic);
-
-        auto it = contexts_.find(ic);
-        if (it != contexts_.end() && it->second.inst) {
-            ime_reset(it->second.inst);
-        }
+        endWord(state(event.inputContext()), event);
     } catch (...) {
-        /* Fail-open S4 */
     }
 }
 
-void TextVNEngine::keyEvent(const fcitx::InputMethodEntry &/*entry*/, fcitx::KeyEvent &keyEvent) {
+void TextVNEngine::reset(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        auto *ic = keyEvent.inputContext();
-        if (!ic) return;
+        endWord(state(event.inputContext()), event);
+    } catch (...) {
+    }
+}
 
-        const auto &key = keyEvent.key();
+bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, bool isRelease) {
+    const fcitx::KeyStates states = key.states();
+    const lc_modifier which = fcitxModifierKind(key.sym());
 
-        /* Ignore key-up (only handle key-down) */
-        if (key.isRelease()) {
-            return;
+    if (isRelease) {
+        if (lc_modifier_toggle_up(&st->toggle, which)) toggleVietnamese(st);
+        return false;
+    }
+    lc_modifier_toggle_down(&st->toggle, which, states.test(fcitx::KeyState::Ctrl),
+                            states.test(fcitx::KeyState::Shift),
+                            states.test(fcitx::KeyState::Alt) ||
+                                states.test(fcitx::KeyState::Super));
+    if (which != LC_MOD_NONE) return false;
+
+    const uint32_t mods = fcitxMods(states);
+
+    /* Ctrl+Shift+Space (ADR-011). */
+    if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
+        (key.sym() == FcitxKey_space || key.sym() == FcitxKey_KP_Space)) {
+        toggleVietnamese(st);
+        return true;
+    }
+
+    const bool secure =
+        st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
+    if ((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) || secure ||
+        !viEnabled_ || !st->inst) {
+        finishWord(st);
+        return false;
+    }
+
+    if (st->comp.len == 0) lc_config_sync(st->inst, &st->config, nullptr);
+
+    uint32_t vk = 0, ch = 0;
+    mapFcitxKey(key, &vk, &ch);
+    const lc_key k = lc_key_classify(vk, ch);
+    ime_key_v1 ik;
+    lc_key_to_ime(k, vk, mods & (IME_MOD_SHIFT | IME_MOD_CAPS), &ik);
+
+    ime_result_v1 r;
+    if (ime_key(st->inst, &ik, &r) != IME_OK || (r.flags & IME_FLAG_ERROR)) {
+        finishWord(st);
+        return false;
+    }
+
+    lc_plan plan;
+    lc_plan_key(&st->comp, k, &r, &plan);
+
+    if (plan.delete_before > 0) {
+        const bool surrounding =
+            st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
+            st->ic->surroundingText().isValid();
+        if (!surrounding) {
+            finishWord(st);
+            return false;
         }
+        st->ic->deleteSurroundingText(-static_cast<int>(plan.delete_before), plan.delete_before);
+    }
 
-        /* Hotkey: Ctrl+Shift+Space to toggle Vietnamese/English (ADR-011) */
-        if (key.check(FcitxKey_space) &&
-            key.hasModifier(fcitx::KeyModifier::Ctrl) &&
-            key.hasModifier(fcitx::KeyModifier::Shift)) {
-            toggleViEn(ic);
+    if (plan.end) {
+        size_t n = 0;
+        const uint32_t *t = lc_plan_commit_text(&st->comp, &plan, &n);
+        commitText(st, t, n);
+    } else if (plan.has_text) {
+        showPreedit(st, plan.text, plan.text_len);
+    }
+    lc_comp_apply(&st->comp, &plan);
+    if (plan.reset_engine) ime_reset(st->inst);
+    return plan.eaten != 0;
+}
+
+void TextVNEngine::keyEvent(const fcitx::InputMethodEntry &, fcitx::KeyEvent &keyEvent) {
+    try {
+        auto *st = state(keyEvent.inputContext());
+        if (st && handleKey(st, keyEvent.key(), keyEvent.isRelease())) {
             keyEvent.filterAndAccept();
-            return;
         }
-
-        /* Bug B6: System shortcuts & hotkeys (Ctrl/Alt/Super combinations)
-         * Must pass through directly to avoid breaking Ctrl+C, Ctrl+V, Alt+Tab, etc. */
-        if (key.hasModifier(fcitx::KeyModifier::Ctrl) ||
-            key.hasModifier(fcitx::KeyModifier::Alt)  ||
-            key.hasModifier(fcitx::KeyModifier::Super)) {
-            auto *data = getOrCreateContext(ic);
-            if (data && data->inst) {
-                ime_reset(data->inst);
-            }
-            apply_commit_and_reset(ic);
-            return; /* Let application handle hotkey */
-        }
-
-        /* Bug B2: Enter key handling in chat applications (Slack, Discord, Telegram, Zalo)
-         * If user presses Enter while composing, finish/commit the word immediately
-         * and DO NOT consume the Enter key, allowing it to submit the message cleanly. */
-        if (key.check(FcitxKey_Return) || key.check(FcitxKey_KP_Enter)) {
-            auto *data = getOrCreateContext(ic);
-            if (data && data->inst) {
-                ime_reset(data->inst);
-            }
-            apply_commit_and_reset(ic);
-            return; /* Do not filterAndAccept: Enter passes through to send message */
-        }
-
-        /* Map Fcitx5 key to standardized ime_key_v1 */
-        ime_key_v1 k;
-        if (!map_fcitx_key_to_ime(key, k)) {
-            return;
-        }
-
-        /* If Vietnamese mode is disabled, let key pass through */
-        auto *data = getOrCreateContext(ic);
-        if (!data || !data->vi_enabled || !data->inst) {
-            return;
-        }
-
-        /* Send key to core Rust engine via C-ABI */
-        ime_result_v1 result;
-        int32_t rc = ime_key(data->inst, &k, &result);
-        if (rc != IME_OK || (result.flags & IME_FLAG_ERROR)) {
-            /* Fail-open: pass key on any engine error */
-            return;
-        }
-
-        /* If engine chose PASS action, forward key to application */
-        if (result.action == IME_ACTION_PASS) {
-            return;
-        }
-
-        /* Apply result to application */
-        apply_result(ic, result, data->non_preedit);
-        keyEvent.filterAndAccept();
-
     } catch (...) {
-        /* Fail-open S4: Never crash the host Fcitx5 process */
-        return;
+        /* S4: fail-open — không bao giờ làm sập tiến trình fcitx5. */
     }
+}
+
+fcitx::AddonInstance *TextVNEngineFactory::create(fcitx::AddonManager *manager) {
+    return new TextVNEngine(manager->instance());
 }
 
 } // namespace textvn
