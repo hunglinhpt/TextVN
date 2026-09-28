@@ -1,70 +1,44 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# TextVN - Master Linux Build & Packaging Script
+# build-linux.sh — dựng gói Linux dist/TextVN-<version>-linux-<arch>.tar.gz
+#
+# Gói dùng được theo HAI cách (xem README trong gói):
+#   1. Cài:           ./install.sh            (per-user, không cần root; --system cho /usr)
+#   2. Chạy ngay:     ./textvn-portable.sh    (không cài gì, tắt bằng `stop`)
+#
+#   scripts/build-linux.sh [--skip-tests]
+#
+# Kiểm thử cả hai kịch bản với IBus/Fcitx5 thật: scripts/test-linux-package.sh <tarball>.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DIST_DIR="${ROOT_DIR}/dist"
-VERSION="0.1.0"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SKIP_TESTS=0
+[[ "${1:-}" == "--skip-tests" ]] && SKIP_TESTS=1
+VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "$ROOT/Cargo.toml" | head -n1)"
+ARCH="$(uname -m)"
+DIST="$ROOT/dist"
+NAME="TextVN-$VERSION-linux-$ARCH"
+ADAPTERS="$ROOT/target/linux-adapters"
 
-echo "=== TextVN Linux Build v${VERSION} ==="
-
-mkdir -p "${DIST_DIR}"
-
-echo "--> 1. Kiểm tra môi trường..."
-rustc --version
-cargo --version
-
-echo "--> 2. Test engine + adapter (unit + e2e với ibus-daemon/fcitx5 thật)..."
-cargo test --workspace
-"${SCRIPT_DIR}/e2e-linux.sh" "${ROOT_DIR}/target/linux-adapters"
-
-echo "--> 3. Biên dịch release CLI..."
-cargo build --release -p textvn-cli
-
-echo "--> 4. Đóng gói Tarball Portable cho Linux..."
-PKG_NAME="TextVN-linux-x86_64-v${VERSION}"
-STAGE_DIR="${DIST_DIR}/${PKG_NAME}"
-ADAPTERS="${ROOT_DIR}/target/linux-adapters"
-rm -rf "${STAGE_DIR}"
-mkdir -p "${STAGE_DIR}/bin" "${STAGE_DIR}/lib/textvn" "${STAGE_DIR}/lib/fcitx5" \
-         "${STAGE_DIR}/share/icons" "${STAGE_DIR}/share/applications"
-
-# Binaries: CLI + IBus engine + Fcitx5 addon (tray là thành phần Windows — không đóng gói).
-cp "${ROOT_DIR}/target/release/textvn-cli" "${STAGE_DIR}/bin/textvn"
-cp "${ADAPTERS}/ibus/textvn-ibus-engine" "${STAGE_DIR}/lib/textvn/"
-cp "${ADAPTERS}/fcitx5/libtextvn-fcitx5.so" "${STAGE_DIR}/lib/fcitx5/"
-if [[ -f "${ADAPTERS}/settings/textvn-settings" ]]; then
-    cp "${ADAPTERS}/settings/textvn-settings" "${STAGE_DIR}/bin/"
+echo "=== TextVN $VERSION — gói Linux ($ARCH) ==="
+if [[ "$SKIP_TESTS" == 0 ]]; then
+    cargo test --workspace --manifest-path "$ROOT/Cargo.toml"
+    # Build adapter (Release) + ctest + e2e với ibus-daemon/fcitx5 thật.
+    "$ROOT/scripts/e2e-linux.sh" "$ADAPTERS"
+else
+    cargo build --release -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
+    for a in ibus fcitx5 settings; do
+        cmake -S "$ROOT/adapters/linux-$a" -B "$ADAPTERS/$a" -DCMAKE_BUILD_TYPE=Release >/dev/null
+        cmake --build "$ADAPTERS/$a" -j"$(nproc)"
+    done
 fi
+cargo build --release -p textvn-cli --manifest-path "$ROOT/Cargo.toml"
 
-# Copy resources & icons
-if [[ -d "${ROOT_DIR}/resources/icons" ]]; then
-    cp -r "${ROOT_DIR}/resources/icons/"* "${STAGE_DIR}/share/icons/"
-fi
-
-# Copy packaging metadata
-if [[ -d "${ROOT_DIR}/packaging/linux" ]]; then
-    mkdir -p "${STAGE_DIR}/packaging"
-    cp -r "${ROOT_DIR}/packaging/linux" "${STAGE_DIR}/packaging/"
-fi
-
-# Copy scripts & documentation
-cp "${ROOT_DIR}/scripts/install_linux.sh" "${STAGE_DIR}/"
-cp "${ROOT_DIR}/scripts/uninstall_linux.sh" "${STAGE_DIR}/"
-chmod +x "${STAGE_DIR}/install_linux.sh" "${STAGE_DIR}/uninstall_linux.sh"
-cp "${ROOT_DIR}/README.md" "${STAGE_DIR}/"
-cp "${ROOT_DIR}/LICENSE" "${STAGE_DIR}/"
-
-cd "${DIST_DIR}"
-tar -czvf "${PKG_NAME}.tar.gz" "${PKG_NAME}"
-rm -rf "${PKG_NAME}"
-
-echo "--> 5. Sinh mã băm SHA256..."
-sha256sum "${PKG_NAME}.tar.gz" > "${DIST_DIR}/SHA256SUMS-linux.txt"
-cat "${DIST_DIR}/SHA256SUMS-linux.txt"
-
-echo "=== Build Linux Thành Công! ==="
-echo "Artifact: ${DIST_DIR}/${PKG_NAME}.tar.gz"
+mkdir -p "$DIST"
+"$ROOT/scripts/stage-linux.sh" "$DIST/$NAME" "$ADAPTERS"
+tar -C "$DIST" -czf "$DIST/$NAME.tar.gz" "$NAME"
+rm -rf "${DIST:?}/$NAME"
+(cd "$DIST" && sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256")
+echo "=== Xong: $DIST/$NAME.tar.gz ==="
+cat "$DIST/$NAME.tar.gz.sha256"

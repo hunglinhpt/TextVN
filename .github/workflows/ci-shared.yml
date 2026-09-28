@@ -137,7 +137,7 @@ jobs:
   linux-adapters:
     # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với
     # ibus-daemon / fcitx5 chạy thật trong dbus-run-session.
-    name: Linux IBus/Fcitx5 (build + e2e)
+    name: Linux IBus/Fcitx5 (build + e2e + gói cài/chạy ngay)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -148,6 +148,15 @@ jobs:
             libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
             libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
       - run: scripts/e2e-linux.sh
+      # Tarball thật + 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng
+      # textvn-portable.sh) × IBus + Fcitx5 thật, trong HOME tạm.
+      - run: scripts/build-linux.sh --skip-tests
+      - run: scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: textvn-linux-x86_64
+          path: dist/TextVN-*-linux-*.tar.gz*
+          if-no-files-found: error
 
   fuzz:
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.
