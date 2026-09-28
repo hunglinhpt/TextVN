@@ -9,8 +9,9 @@ và từ máy dựng Linux. Cập nhật file này ở mỗi lần phát hành (
 
 | | |
 |---|---|
-| Nhánh / commit kiểm | `claude/windows-input-method-upgrade-f8bwkv` @ `WIN_COMMIT` |
-| Lần chạy CI | WIN_RUN |
+| Nhánh / commit kiểm | `claude/windows-input-method-upgrade-f8bwkv` @ `766029e` |
+| Ghi chú | Các commit sau `766029e` chỉ sửa tài liệu và kịch bản test; CI của PR #1 chạy lại toàn bộ trên commit cuối |
+| Lần chạy CI | [ci-shared #36458803476](https://github.com/hunglinhpt/TextVN/actions/runs/36458803476) — mọi job PASS (Windows package, Linux adapters…) trừ job hiệu năng tham khảo, xem §5 |
 | Toolchain | Rust 1.98.1 stable · MSVC (windows-2022) · GCC/CMake (ubuntu-24.04) |
 | Inno Setup | 6.5+ (bản dịch tiếng Việt đi kèm repo) |
 
@@ -43,7 +44,7 @@ Gói Windows mặc định **TSF-only** (không hook bàn phím toàn cục, kh�
 
 | Nền tảng | Các bước được kiểm tự động | Kết quả |
 |---|---|---|
-| Windows (windows-2022, CI job *Windows package*) | Cài im lặng per-user bằng setup `.exe` → file đã cài, CLSID TSF, khởi động cùng Windows → **gõ thật qua TSF** (xem bảng gõ bên dưới) → gỡ im lặng → không còn file/đăng ký, chỉ giữ cấu hình người dùng | WIN_INSTALL |
+| Windows (windows-2022, CI job *Windows package*) | Cài im lặng per-user bằng setup `.exe` → file đã cài, CLSID TSF, khởi động cùng Windows → **gõ thật qua TSF** (xem bảng gõ bên dưới) → gỡ im lặng → không còn file/đăng ký, chỉ giữ cấu hình người dùng | **PASS** |
 | Linux IBus | `./install.sh` (per-user) → TextVN có trong danh sách bộ gõ → gõ qua ibus-daemon thật → `uninstall.sh` → không còn file nào ngoài cấu hình | **PASS** |
 | Linux Fcitx5 | như trên với fcitx5 thật (profile Fcitx5 được thêm/bỏ TextVN) | **PASS** |
 
@@ -51,11 +52,13 @@ Gói Windows mặc định **TSF-only** (không hook bàn phím toàn cục, kh�
 
 | Nền tảng | Các bước được kiểm tự động | Kết quả |
 |---|---|---|
-| Windows | Giải nén zip → chạy `TextVN.exe` (tự đăng ký TSF từ thư mục giải nén) → **gõ thật qua TSF** → `uninstall.ps1` → hết đăng ký, cấu hình giữ nguyên | WIN_PORTABLE |
+| Windows | Giải nén zip → chạy `TextVN.exe` (tự đăng ký TSF từ thư mục giải nén) → **gõ thật qua TSF** → `uninstall.ps1` → hết đăng ký, cấu hình giữ nguyên | **PASS** |
 | Linux IBus | Giải nén vào thư mục **chỉ đọc** → `./textvn-portable.sh` → gõ → `stop` → không ghi gì vào `~/.local` | **PASS** |
 | Linux Fcitx5 | như trên | **PASS** |
 
 ### Gõ thật trên Windows (mỗi kịch bản, mỗi ứng dụng)
+
+Kết quả dưới đây đúng cho **cả hai** kịch bản (giải nén dùng ngay và cài đặt) trong lần chạy CI ở trên.
 
 `installer/windows/tests/test-typing.ps1` gửi phím bằng `SendInput` (VK + scan code như bàn
 phím thật) vào **Notepad** (Win32 Edit — app IMM32 qua CUAS) và **WordPad** (RichEdit —
@@ -63,17 +66,17 @@ TSF-aware), rồi đọc lại nội dung:
 
 | Case | Phím | Kỳ vọng | Notepad | WordPad |
 |---|---|---|---|---|
-| Telex cơ bản | `dduocj␣` | `được␣` | WIN_T1N | WIN_T1W |
-| Chữ hoa đầu | `Vieetj Nam␣` | `Việt Nam␣` | WIN_T2N | WIN_T2W |
-| `uow` | `nguowif␣` | `người␣` | WIN_T3N | WIN_T3W |
-| Vị trí dấu | `cuar␣` | `của␣` | WIN_T4N | WIN_T4W |
-| Tiếng Anh | `hello␣` | `hello␣` | WIN_T5N | WIN_T5W |
-| Dấu câu | `Vieetj, Nam␣` | `Việt, Nam␣` | WIN_T6N | WIN_T6W |
-| Enter + viết hoa đầu câu | `chaof⏎banj␣` | `chào⏎Bạn␣` | WIN_T7N | WIN_T7W |
-| Tab | `tieengs⇥x␣` | `tiếng⇥x␣` | WIN_T8N | WIN_T8W |
-| Home giữa từ | `chaof` Home `x␣` | `x␣chào` | WIN_T11N | WIN_T11W |
-| Ctrl+Shift → E / → V | `as␣` | `as␣` / `á␣` | WIN_T9N | WIN_T9W |
-| Caps Lock | `VIEETJ␣` | `VIỆT␣` | WIN_T10N | WIN_T10W |
+| Telex cơ bản | `dduocj␣` | `được␣` | PASS | PASS |
+| Chữ hoa đầu | `Vieetj Nam␣` | `Việt Nam␣` | PASS | PASS |
+| `uow` | `nguowif␣` | `người␣` | PASS | PASS |
+| Vị trí dấu | `cuar␣` | `của␣` | PASS | PASS |
+| Tiếng Anh | `hello␣` | `hello␣` | PASS | PASS |
+| Dấu câu | `Vieetj, Nam␣` | `Việt, Nam␣` | PASS | PASS |
+| Enter + viết hoa đầu câu | `chaof⏎banj␣` | `chào⏎Bạn␣` | PASS | PASS |
+| Tab | `tieengs⇥x␣` | `tiếng⇥x␣` | PASS | PASS |
+| Home giữa từ | `chaof` Home `x␣` | `x␣chào` | PASS | PASS |
+| Ctrl+Shift → E / → V | `as␣` | `as␣` / `á␣` | PASS | PASS |
+| Caps Lock | `VIEETJ␣` | `VIỆT␣` | PASS | PASS |
 
 ## 3. Lỗi tìm ra nhờ kiểm thử thật (đã sửa trong bản này)
 
