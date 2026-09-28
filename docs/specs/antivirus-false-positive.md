@@ -114,7 +114,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Đọc/ghi bộ nhớ process khác | `WriteProcessMemory`, `VirtualAllocEx`, `NtWriteVirtualMemory`, `process_vm_writev`, `PTRACE_ATTACH` |
 | Hook non-LL (inject DLL vào process đích) | `WH_KEYBOARD`, `WH_MOUSE` (không phải `*_LL`) |
 
-Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (chỉ trong gói tương thích opt-in, có loop-guard), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`).
+Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (chỉ trong gói tương thích opt-in, có loop-guard), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`), `PostMessageW` tới cửa sổ trong chính process của app (trả phím cho app CUAS, A8).
 
 ### 8.4. Bằng chứng audit (2026-09-28)
 
@@ -143,7 +143,7 @@ Chi tiết + lý do: `tsf-typing-overhaul.md` §3. Tóm tắt:
 
 | # | Thay đổi | Trạng thái |
 |---|---|---|
-| A8 | TSF sửa text bằng composition (không `SendInput`, không Backspace giả) — gói `tsf-only` không còn API gõ giả lập nào | ✅ |
+| A8 | TSF sửa text bằng composition (không `SendInput`, không Backspace giả) — gói `tsf-only` không còn API gõ giả lập nào. Riêng app IMM32 chạy qua CUAS: phím ranh giới (Enter, Tab, điều hướng, Ctrl+…) của chính người dùng mà CUAS đổi thành `VK_PROCESSKEY` được trả lại bằng `PostMessageW(WM_KEYDOWN)` tới cửa sổ đang focus **trong cùng process/thread** (`adapters/windows-tsf/src/replay.rs`) — không xuyên process, không đi qua hàng đợi input hệ thống | ✅ |
 | A9 | DLL TSF không UIA/không đọc process khác; gate mật khẩu dùng InputScope + `ES_PASSWORD` in-proc | ✅ |
 | A10 | `input.dll` chỉ nạp từ System32 (`LoadLibraryExW` + `LOAD_LIBRARY_SEARCH_SYSTEM32`) | ✅ |
 | A11 | `TextVN --stop` không còn `OpenProcess(PROCESS_TERMINATE)`/`TerminateProcess` | ✅ |

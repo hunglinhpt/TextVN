@@ -13,7 +13,8 @@ chọn và cùng file cấu hình trên cả hai nền tảng.
   ở ranh giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
   trên Chrome, Electron, Excel, thanh địa chỉ.
 - **Tránh bị phần mềm diệt virus nhận nhầm**: gói mặc định không hook bàn phím toàn cục,
-  không tiêm mã, không bơm phím giả ([lý do](docs/specs/antivirus-false-positive.md)).
+  không tiêm mã vào process khác, không giả lập phím bằng `SendInput`
+  ([lý do](docs/specs/antivirus-false-positive.md)).
 - **Tiện ích**: bảng mã TCVN3/VNI Windows/Unicode tổ hợp, gõ tắt, Quick Telex, khôi phục từ
   tiếng Anh, tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E.
 
