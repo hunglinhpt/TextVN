@@ -146,17 +146,20 @@ $cases = @(
 )
 
 $script:fail = 0
+$script:results = New-Object System.Collections.Generic.List[string]
 # Edit tra "\r\n", RichEdit tra "\r": quy ve "\n" truoc khi so.
 function Norm([string]$s) { ($s -replace "`r`n", "`n") -replace "`r", "`n" }
 function Check($app, [string]$name, [string]$want) {
     Start-Sleep -Milliseconds 400
     $got = Norm ([TvKeys]::Text($app.Edit))
     if ($got -ceq $want) {
-        Write-Host ("PASS [{0}] {1}" -f $app.Name, $name)
+        $line = "PASS [{0}] {1}" -f $app.Name, $name
     } else {
-        Write-Host ("FAIL [{0}] {1}: want [{2}] got [{3}]" -f $app.Name, $name, (Codes $want), (Codes $got))
+        $line = "FAIL [{0}] {1}: want [{2}] got [{3}]" -f $app.Name, $name, (Codes $want), (Codes $got)
         $script:fail++
     }
+    Write-Host $line
+    $script:results.Add($line)
     [TvKeys]::Clear($app.Edit)
     $null = [TvKeys]::Focus($app.Main)
 }
@@ -227,9 +230,11 @@ if ($script:fail -gt 0) {
     Write-Host '--- diagnostics'
     & $cli doctor 2>&1 | Out-Host
     if (Test-Path $trace) {
-        Write-Host '--- TSF key trace (TEXTVN_TSF_TRACE)'
-        Get-Content $trace -Tail 400 | Out-Host
+        Write-Host '--- TSF key trace (TEXTVN_TSF_TRACE, chi phim dieu khien)'
+        Get-Content $trace | Where-Object { $_ -notmatch ' chr ' } | Select-Object -Last 150 | Out-Host
     }
+    Write-Host '--- summary'
+    $script:results | Out-Host
     throw "$($script:fail) typing case(s) failed"
 }
 Write-Host 'typing: OK'

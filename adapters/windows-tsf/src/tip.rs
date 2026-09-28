@@ -22,7 +22,7 @@ use crate::guids::GUID_PRESERVED_TOGGLE;
 #[cfg(windows)]
 use crate::ipc_client::IpcClient;
 #[cfg(windows)]
-use crate::key_event::{end_composition, KeySink};
+use crate::key_event::{end_composition, KeySink, KeyTraceSink};
 #[cfg(windows)]
 use crate::ThreadState;
 
@@ -41,6 +41,7 @@ struct TipInner {
     shared: Option<Rc<TsfShared>>,
     source: Option<ITfSource>,
     sink_cookie: u32,
+    trace_cookie: u32,
 }
 
 #[cfg(windows)]
@@ -101,6 +102,9 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
                 if inner.sink_cookie != 0 {
                     let _ = src.UnadviseSink(inner.sink_cookie);
                 }
+                if inner.trace_cookie != 0 {
+                    let _ = src.UnadviseSink(inner.trace_cookie);
+                }
             }
             if let Some(km) = &inner.keymgr {
                 let _ = km.UnpreserveKey(&GUID_PRESERVED_TOGGLE, &TOGGLE_KEY);
@@ -145,15 +149,19 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
         }
 
         // WIN-014: OnSetFocus → commit trước khi đổi document (B2).
-        let (source, sink_cookie) = match mgr.cast::<ITfSource>() {
+        // Ctrl+Shift ở app TSF-aware chỉ thấy được qua key trace (xem `KeyTraceSink`).
+        let (source, sink_cookie, trace_cookie) = match mgr.cast::<ITfSource>() {
             Ok(src) => {
                 let event_sink: ITfThreadMgrEventSink = self.to_interface();
+                let trace_sink: ITfKeyTraceEventSink = KeyTraceSink::new(shared.clone()).into();
                 // SAFETY: src hợp lệ; cookie được Unadvise trong Deactivate.
                 let cookie = unsafe { src.AdviseSink(&ITfThreadMgrEventSink::IID, &event_sink) }
                     .unwrap_or(0);
-                (Some(src), cookie)
+                let trace =
+                    unsafe { src.AdviseSink(&ITfKeyTraceEventSink::IID, &trace_sink) }.unwrap_or(0);
+                (Some(src), cookie, trace)
             }
-            Err(_) => (None, 0),
+            Err(_) => (None, 0, 0),
         };
 
         if let Ok(mut inner) = self.inner.try_borrow_mut() {
@@ -163,6 +171,7 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
                 shared: Some(shared),
                 source,
                 sink_cookie,
+                trace_cookie,
             };
         }
         Ok(())

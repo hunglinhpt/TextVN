@@ -84,7 +84,7 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
 
     fn OnTestKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
         trace_key(&self.shared, "test-up", wparam.0 as u32, "");
-        guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
+        guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
         Ok(false.into())
     }
 
@@ -103,7 +103,7 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
     fn OnKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
         // Pha nào tới trước xử lý; `ModifierToggle` chỉ trả true một lần.
         trace_key(&self.shared, "up", wparam.0 as u32, "");
-        guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
+        guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
         Ok(false.into())
     }
 
@@ -199,14 +199,68 @@ fn defer_to_key_down(
 
 /// Nhả phím: chỉ dùng cho phím chuyển Ctrl+Shift; không bao giờ ăn phím.
 #[cfg(windows)]
-fn handle_key_up(shared: &TsfShared, pic: Ref<'_, ITfContext>, vk: u32) -> bool {
+fn handle_key_up(shared: &TsfShared, ctx: Option<&ITfContext>, vk: u32) -> bool {
     let mut toggle = shared.modifier_toggle.get();
     let fire = toggle.on_key_up(vk);
     shared.modifier_toggle.set(toggle);
     if fire {
-        toggle_vietnamese(shared, pic.ok().ok());
+        toggle_vietnamese(shared, ctx);
     }
     false
+}
+
+/// Nhấn phím: cập nhật máy trạng thái Ctrl+Shift (gọi lại cùng phím không đổi kết quả).
+#[cfg(windows)]
+fn observe_key_down(shared: &TsfShared, vk: u32, mods: u32) {
+    let mut toggle = shared.modifier_toggle.get();
+    toggle.on_key_down(
+        vk,
+        mods & MOD_CTRL != 0,
+        mods & MOD_SHIFT != 0,
+        mods & (MOD_ALT | MOD_SUPER) != 0,
+    );
+    shared.modifier_toggle.set(toggle);
+}
+
+/// Thấy MỌI phím trước khi TSF xử lý. Ở app TSF-aware (WordPad, Word…) phím chuyển bố cục
+/// Ctrl+Shift của Windows nuốt Shift trước key sink (thấy bằng `TEXTVN_TSF_TRACE` trên
+/// Windows thật) nên chỉ nơi này nhận ra lần bấm Ctrl+Shift. Chỉ quan sát, không ăn phím;
+/// key sink vẫn cập nhật cùng máy trạng thái — ai thấy lần nhả trước thì chuyển, đúng một lần.
+#[cfg(windows)]
+#[implement(ITfKeyTraceEventSink)]
+pub struct KeyTraceSink {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+}
+
+#[cfg(windows)]
+impl KeyTraceSink {
+    pub fn new(shared: Rc<TsfShared>) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfKeyTraceEventSink_Impl for KeyTraceSink_Impl {
+    fn OnKeyTraceDown(&self, wparam: WPARAM, _lparam: LPARAM) -> Result<()> {
+        let vk = wparam.0 as u32;
+        trace_key(&self.shared, "ktrace", vk, "");
+        guarded(|| {
+            observe_key_down(&self.shared, vk, active_modifiers());
+            false
+        });
+        Ok(())
+    }
+
+    fn OnKeyTraceUp(&self, wparam: WPARAM, _lparam: LPARAM) -> Result<()> {
+        let vk = wparam.0 as u32;
+        trace_key(&self.shared, "ktrace-up", vk, "");
+        guarded(|| handle_key_up(&self.shared, None, vk));
+        Ok(())
+    }
 }
 
 /// Mọi đường phím: panic không được thoát qua ranh giới COM (abort app).
@@ -219,14 +273,7 @@ fn guarded(f: impl FnOnce() -> bool) -> bool {
 #[cfg(windows)]
 fn handle_key(shared: &Rc<TsfShared>, pic: Ref<'_, ITfContext>, vk: u32, lparam: LPARAM) -> bool {
     let mods = active_modifiers();
-    let mut toggle = shared.modifier_toggle.get();
-    toggle.on_key_down(
-        vk,
-        mods & MOD_CTRL != 0,
-        mods & MOD_SHIFT != 0,
-        mods & (MOD_ALT | MOD_SUPER) != 0,
-    );
-    shared.modifier_toggle.set(toggle);
+    observe_key_down(shared, vk, mods);
     if is_modifier_vk(vk) {
         return false;
     }
