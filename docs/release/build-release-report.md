@@ -106,7 +106,7 @@ TSF-aware), rồi đọc lại nội dung:
 | Đo | main | bản này | Ghi chú |
 |---|---|---|---|
 | `ime_key` (Linux, máy dựng) | 465 ns | 475 ns | +2 %: quy tắc đặt dấu/Caps Lock làm thêm việc, bù bằng tra bảng nguyên âm trực tiếp |
-| `ime_key` (runner Windows) | WIN_PERF_MAIN | WIN_PERF_BRANCH | runner dùng chung, dao động lớn |
+| `ime_key` (runner Windows, cùng ngày) | 762 ns | 775 ns | runner dùng chung; baseline cũ 687 ns — `main` cũng vượt ngưỡng 10 % |
 | `parse_config` (runner Windows) | +56 % so với baseline | tương đương main | trôi của runner: cùng mã trên `main` cũng vượt ngưỡng hôm nay |
 
 Job hiệu năng trên runner GitHub là tham khảo (`continue-on-error`); cổng cứng chạy trên

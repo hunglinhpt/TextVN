@@ -52,7 +52,9 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
 
 ## 2. Bật/tắt tiếng Việt
 
-- Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey.
+- Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey. Windows mặc định cũng
+  dùng Ctrl + Shift để đổi bàn phím: bộ cài đã chọn sẵn **Dành Ctrl + Shift cho TextVN**; bản
+  portable thì bật ô này trong Bảng điều khiển.
 - Hoặc **Ctrl + Shift + Space**.
 - Hoặc bấm biểu tượng: khay hệ thống (Windows), thanh IBus/Fcitx5 (Linux). **V** = tiếng
   Việt, **E** = tiếng Anh.
@@ -135,15 +137,16 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` để xem bước nào lỗi. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
-| Windows: phần mềm diệt virus cảnh báo | TextVN không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
+| Windows: phần mềm diệt virus cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
 Báo lỗi: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
-(ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm `textvn-cli doctor
---export diag.zip` (không chứa nội dung bạn gõ).
+(ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm — Windows: file tạo bởi
+`textvn-cli doctor --export diag.zip`; Linux: `~/.local/state/TextVN/log/textvn.log`. Cả hai
+không chứa nội dung bạn gõ.
 
 ## Trạng thái từng nền tảng
 

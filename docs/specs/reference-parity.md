@@ -11,7 +11,7 @@
 | # | Bug (nguồn) | Nguyên nhân gốc | TextVN | Bằng chứng |
 |---|---|---|---|---|
 | R1 | Lặp chữ ở Messenger/Facebook trên Chrome (ibus-bamboo #352) | chế độ không gạch chân: xóa lùi qua surrounding text/ForwardKey khi app báo caret sai | Mặc định **preedit cả từ**, không xóa lùi text đã commit | `scripts/e2e-linux.sh` (IBus + Fcitx5 thật) |
-| R2 | Không gõ được ở VS Code/Electron, Brave (ibus-bamboo #49, #559) | app Electron/Chromium không nạp IM module (thiếu `GTK_IM_MODULE`, Wayland cần `--enable-wayland-ime`) | Engine đúng chuẩn; `textvn doctor` kiểm biến môi trường (P3-4 §7) + hướng dẫn user guide | `docs/user-guide.md` §Linux |
+| R2 | Không gõ được ở VS Code/Electron, Brave (ibus-bamboo #49, #559) | app Electron/Chromium không nạp IM module (thiếu `GTK_IM_MODULE`, Wayland cần `--enable-wayland-ime`) | Engine đúng chuẩn; hướng dẫn cấu hình trong user guide (hàm `lc_env_check` của linux-common có sẵn nhưng **chưa** nối vào `doctor`) | `docs/user-guide.md` §7 |
 | R3 | Popup "Allow remote interaction" khi chơi game (ibus-bamboo #487) | chế độ gửi phím qua XTest/uinput → portal RemoteDesktop | Không dùng XTest/uinput/SendInput trong đường gõ Linux | review `adapters/linux-*` |
 | R4 | Enter lặp từ cuối trong chat (B2, ibus/fcitx) | commit preedit trùng với commit của daemon | IBus `PREEDIT_COMMIT` + chỉ quên ở focus-out/reset; Fcitx5 phân biệt FocusOut/Reset | e2e "Enter commit", "focus-out", "reset 1 lần" |
 | R5 | Addon "Not Available" (BambooMintKey Issue 010) | `.so` phụ thuộc thư viện riêng không tìm thấy | Engine link **tĩnh** vào `libtextvn-fcitx5.so`, chỉ phụ thuộc Fcitx5 | `--exclude-libs,ALL`, e2e nạp từ thư mục per-user |
