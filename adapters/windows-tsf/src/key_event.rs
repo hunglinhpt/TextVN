@@ -28,6 +28,8 @@ use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
 use crate::edit_session::{EndCompositionSession, KeyEditSession, TsfShared};
 #[cfg(windows)]
+use crate::trace;
+#[cfg(windows)]
 use textvn_ffi::{ACTION_PASS, MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
 
 #[cfg(windows)]
@@ -60,18 +62,28 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         lparam: LPARAM,
     ) -> Result<BOOL> {
         let vk = wparam.0 as u32;
-        if self.shared.pending_eaten_vk.get() == Some(vk) {
+        if self.shared.pending_eaten_vk.get() == Some(vk)
+            || self.shared.deferred_vk.get() == Some(vk)
+        {
             return Ok(true.into());
         }
         self.shared.pending_eaten_vk.set(None);
+        self.shared.deferred_vk.set(None);
+        if guarded(|| defer_to_key_down(&self.shared, pic.ok().ok(), vk, lparam)) {
+            self.shared.deferred_vk.set(Some(vk));
+            trace_key(&self.shared, "test", vk, "deferred");
+            return Ok(true.into());
+        }
         let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
         if eaten {
             self.shared.pending_eaten_vk.set(Some(vk));
         }
+        trace_key(&self.shared, "test", vk, eaten_label(eaten));
         Ok(eaten.into())
     }
 
     fn OnTestKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        trace_key(&self.shared, "test-up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
         Ok(false.into())
     }
@@ -79,13 +91,18 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
     fn OnKeyDown(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, lparam: LPARAM) -> Result<BOOL> {
         let vk = wparam.0 as u32;
         if self.shared.pending_eaten_vk.take() == Some(vk) {
+            trace_key(&self.shared, "down", vk, "confirm");
             return Ok(true.into());
         }
-        Ok(guarded(|| handle_key(&self.shared, pic, vk, lparam)).into())
+        self.shared.deferred_vk.set(None);
+        let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
+        trace_key(&self.shared, "down", vk, eaten_label(eaten));
+        Ok(eaten.into())
     }
 
     fn OnKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
         // Pha nào tới trước xử lý; `ModifierToggle` chỉ trả true một lần.
+        trace_key(&self.shared, "up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic, wparam.0 as u32));
         Ok(false.into())
     }
@@ -105,6 +122,7 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         let mut pending = self.shared.modifier_toggle.get();
         pending.reset();
         self.shared.modifier_toggle.set(pending);
+        trace::event(self.shared.tid, format_args!("preserved toggle"));
         guarded(|| {
             toggle_vietnamese(&self.shared, pic.ok().ok());
             true
@@ -118,7 +136,65 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
 fn toggle_vietnamese(shared: &TsfShared, ctx: Option<&ITfContext>) {
     end_composition(shared, ctx);
     shared.reset_engine();
-    shared.ipc.toggle_global();
+    let on = shared.ipc.toggle_global();
+    trace::event(
+        shared.tid,
+        format_args!("toggle -> {}", if on { "VI" } else { "EN" }),
+    );
+}
+
+#[cfg(windows)]
+fn trace_key(shared: &TsfShared, phase: &str, vk: u32, result: &str) {
+    trace::event(
+        shared.tid,
+        format_args!(
+            "{phase} {} {result} composing={}",
+            trace::vk_label(vk),
+            shared.is_composing()
+        ),
+    );
+}
+
+#[cfg(windows)]
+fn eaten_label(eaten: bool) -> &'static str {
+    if eaten {
+        "eaten"
+    } else {
+        "pass"
+    }
+}
+
+/// App IMM32 chạy qua CUAS (Notepad cổ điển, WinForms, Delphi…): khi pha test đóng
+/// composition rồi trả "không ăn", kết quả composition tới cửa sổ SAU phím gốc
+/// (Enter/Tab ra trước chữ — bắt được bằng test gõ thật). Với phím sẽ đóng composition
+/// và đi tới app (Enter, Tab, điều hướng, chord), pha test chỉ nhận phím; việc thật
+/// làm ở `OnKeyDown`, lúc CUAS đang dịch phím (`ImeToAsciiEx`) nên kết quả composition
+/// và phím gốc ra đúng thứ tự. App TSF-aware không bị ảnh hưởng.
+#[cfg(windows)]
+fn defer_to_key_down(
+    shared: &TsfShared,
+    ctx: Option<&ITfContext>,
+    vk: u32,
+    lparam: LPARAM,
+) -> bool {
+    if !shared.is_composing() || is_modifier_vk(vk) {
+        return false;
+    }
+    let Some(ctx) = ctx else { return false };
+    // SAFETY: ctx hợp lệ trong callback của key sink.
+    let transitory = unsafe { ctx.GetStatus() }
+        .map(|st| st.dwStaticFlags & TF_SS_TRANSITORY != 0)
+        .unwrap_or(false);
+    if !transitory {
+        return false;
+    }
+    if active_modifiers() & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 {
+        return true;
+    }
+    matches!(
+        KeyKind::classify(vk, translate_key(vk, lparam)),
+        KeyKind::Enter | KeyKind::Tab | KeyKind::Other
+    )
 }
 
 /// Nhả phím: chỉ dùng cho phím chuyển Ctrl+Shift; không bao giờ ăn phím.

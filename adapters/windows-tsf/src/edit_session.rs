@@ -54,6 +54,9 @@ pub struct TsfShared {
     pub comp_text: RefCell<Vec<char>>,
     /// VK đã được ăn ở `OnTestKeyDown`, chờ `OnKeyDown` tương ứng.
     pub pending_eaten_vk: Cell<Option<u32>>,
+    /// VK được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app IMM32/CUAS,
+    /// xem `key_event::defer_to_key_down`).
+    pub deferred_vk: Cell<Option<u32>>,
     /// Phiên bản config đã nạp vào engine của thread này.
     pub config_seen: Cell<u64>,
     /// App/TSF kết thúc composition của ta (OnCompositionTerminated).
@@ -72,6 +75,7 @@ impl TsfShared {
             composition: RefCell::new(None),
             comp_text: RefCell::new(Vec::new()),
             pending_eaten_vk: Cell::new(None),
+            deferred_vk: Cell::new(None),
             config_seen: Cell::new(0),
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),

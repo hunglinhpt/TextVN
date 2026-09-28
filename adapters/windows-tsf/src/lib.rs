@@ -30,6 +30,7 @@ pub mod ipc_client;
 pub mod key_event;
 #[cfg(windows)]
 pub mod tip;
+pub mod trace;
 
 #[cfg(windows)]
 use windows::core::{Interface, GUID, HRESULT};

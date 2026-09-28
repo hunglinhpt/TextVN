@@ -141,9 +141,18 @@ impl IpcClient {
     pub fn toggle_global(&self) -> bool {
         let next = !self.state.global_enabled.load(Ordering::Acquire);
         self.state.global_enabled.store(next, Ordering::Release);
-        std::thread::spawn(|| {
+        // Gửi giá trị TUYỆT ĐỐI (không phải "đảo"): nếu tray và process này lệch nhau
+        // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
+        // ngược với cái người dùng vừa thấy.
+        std::thread::spawn(move || {
             if let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
-                let _ = send_message(&mut stream, &Message::ToggleGlobal);
+                let _ = send_message(
+                    &mut stream,
+                    &Message::ToggleViEn {
+                        app_id: GLOBAL_KEY.to_string(),
+                        enabled: next,
+                    },
+                );
             }
         });
         next

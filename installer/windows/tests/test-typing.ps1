@@ -184,7 +184,13 @@ $apps = @(@{ Name = 'notepad'; Exe = 'notepad.exe' })
 $wordpad = Join-Path $env:ProgramFiles 'Windows NT\Accessories\wordpad.exe'
 if (Test-Path $wordpad) { $apps += @{ Name = 'wordpad'; Exe = $wordpad } }
 
+# Nhat ky chan doan cua key sink (khong chua noi dung go) - app ke thua bien moi truong.
+$trace = Join-Path $env:TEMP 'textvn-tsf-trace.log'
+Remove-Item $trace -ErrorAction SilentlyContinue
+$env:TEXTVN_TSF_TRACE = $trace
+
 foreach ($a in $apps) {
+    Add-Content -Path $trace -Value ("=== " + $a.Name)
     $app = Open-App $a.Name $a.Exe
     $null = [TvKeys]::Focus($app.Main)
     [TvKeys]::Clear($app.Edit)
@@ -220,6 +226,10 @@ foreach ($a in $apps) {
 if ($script:fail -gt 0) {
     Write-Host '--- diagnostics'
     & $cli doctor 2>&1 | Out-Host
+    if (Test-Path $trace) {
+        Write-Host '--- TSF key trace (TEXTVN_TSF_TRACE)'
+        Get-Content $trace -Tail 400 | Out-Host
+    }
     throw "$($script:fail) typing case(s) failed"
 }
 Write-Host 'typing: OK'
