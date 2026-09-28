@@ -9,7 +9,7 @@
 //! 5. Game / Compat mode (bật/tắt hook)
 //! 6. Cài đặt... (Mở Settings GUI)
 //! 7. Sức khỏe / Trạng thái (Health submenu: Engine, Hook, Pipe, Version)
-//! 8. Gỡ cài đặt (textvn-setup.exe /UNINSTALL)
+//! 8. Gỡ cài đặt (bản cài: `unins000.exe`; bản portable: gỡ đăng ký TSF rồi thoát)
 //! 9. Thoát (Đóng tray và dừng hook)
 
 use std::sync::Arc;
@@ -270,11 +270,7 @@ impl TrayMenu {
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
             }
-            ID_UNINSTALL => {
-                let _ = std::process::Command::new("TextVN-setup.exe")
-                    .arg("/UNINSTALL")
-                    .spawn();
-            }
+            ID_UNINSTALL => uninstall(),
             ID_EXIT => {
                 #[cfg(windows)]
                 unsafe {
@@ -285,6 +281,51 @@ impl TrayMenu {
         }
     }
 }
+
+/// "Gỡ cài đặt": bản cài bằng Inno Setup có `unins000.exe` cạnh `TextVN.exe`; bản portable
+/// không có trình gỡ → hỏi xác nhận, gỡ đăng ký TSF (HKCU) rồi thoát, để người dùng xoá
+/// thư mục. Bản cũ gọi `TextVN-setup.exe /UNINSTALL` — file không tồn tại, bấm không có gì.
+#[cfg(windows)]
+fn uninstall() {
+    let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+    else {
+        return;
+    };
+    let unins = dir.join("unins000.exe");
+    if unins.is_file() {
+        let _ = std::process::Command::new(unins).spawn();
+        return;
+    }
+    let text = w("Đây là bản TextVN chạy ngay (portable).\r\n\r\n\
+Gỡ đăng ký bộ gõ TextVN khỏi Windows và thoát? Sau đó bạn có thể xoá thư mục; \
+cấu hình trong %APPDATA%\\TextVN được giữ lại.");
+    let title = w("Gỡ TextVN");
+    // SAFETY: chuỗi NUL-terminated sống suốt lời gọi đồng bộ.
+    let answer = unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(text.as_ptr()),
+            PCWSTR(title.as_ptr()),
+            MB_YESNO | MB_ICONQUESTION,
+        )
+    };
+    if answer != IDYES {
+        return;
+    }
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let _ = std::process::Command::new(dir.join("textvn-cli.exe"))
+        .arg("unregister")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+    // SAFETY: chỉ post message vào hàng đợi của thread UI hiện tại.
+    unsafe { PostQuitMessage(0) };
+}
+
+#[cfg(not(windows))]
+fn uninstall() {}
 
 #[cfg(windows)]
 fn add_radio_menu_item(menu: HMENU, label: &str, id: u32, checked: bool) {
