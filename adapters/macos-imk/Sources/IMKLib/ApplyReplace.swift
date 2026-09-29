@@ -10,12 +10,24 @@
 //! | `ForwardAsCommit` | giống BackspaceType — xem ghi chú §6.3-below      |
 //! | `Passthrough`     | không đụng text                                   |
 //!
-//! Quyết định ForwardAsCommit trên macOS (khác TSF): P0-2 §4 nói "gõ insert
-//! ngay, không xóa" — đó là trick range của TSF (`SetText` trên range thu hẹp).
+//! ## Quy ước đơn vị (review R1 F7 — P2-1 §6.4)
+//! - `delete_count` của engine đếm **code point** (Rust `char` = scalar).
+//! - So sánh với `delete_count` → luôn dùng `unicodeScalars.count`.
+//! - Lập `NSRange` → luôn dùng `utf16.count`.
+//! - Giới hạn B11 đếm **grapheme** (`String.count`) — theo đúng spec.
+//!
+//! ## Công thức cốt lõi (review R1 F3/F4)
+//! Engine: `owned = passed(chữ thật đã vào document) + marked(đang hiển thị)`.
+//! `delete_count = owned` ⇒ phần "chữ thật" cần xóa thật = `delete_count - markedCP`,
+//! phần marked xử lý bằng cách **thu hồi composition** (`setMarkedText("")` —
+//! AppKit gỡ glyph mà KHÔNG commit; `unmarkText()` thì NGƯỢC LẠI: chấp nhận
+//! marked thành text thật — dùng nhầm là nhân đôi chữ).
+//!
+//! Quyết định ForwardAsCommit trên macOS (khác TSF): P0-2 §4 nói "gõ ngay
+//! không xóa" — đó là trick range của TSF (`SetText` trên range thu hẹp).
 //! IMK `insertText` không có range tương đương đáng tin; delete_count của engine
-//! là số ký tự engine **chắc chắn** đã đưa vào document (buffer.rs `owned`/
-//! `pending_delete`) nên xóa bằng key binding chuẩn là đúng ngữ nghĩa trên cả
-//! Terminal.app lẫn iTerm2. Corpus `mac_bs_type_*`/`bug_B8_*` chốt hành vi này.
+//! là số ký tự engine **chắc chắn** sở hữu nên xóa bằng key binding chuẩn là
+//! đúng ngữ nghĩa trên cả Terminal.app lẫn iTerm2. Corpus `mac_bs_type_*`/`bug_B8_*` chốt hành vi.
 
 import CoreBridge
 import Foundation
@@ -40,9 +52,13 @@ public enum ApplyReplace {
 
     /// Áp 1 outcome cho target. Trả `true` nếu đã sửa text; ném lỗi khi cơ chế
     /// xóa fail → caller fail-open (forward phím + `ime_reset`, P2-1 §12).
+    ///
+    /// `onReset` — callback gọi khi adapter tự quyết định reset engine
+    /// (commit-early B11). Tách khỏi caller để không kéo engine vào đây.
     public static func apply(
         _ outcome: KeyOutcome, strategy: OutputStrategy,
-        target: TextTarget, marked: MarkedState
+        target: TextTarget, marked: MarkedState,
+        onReset: () -> Void
     ) throws {
         switch outcome.action {
         case .pass:
@@ -51,8 +67,15 @@ public enum ApplyReplace {
         case let .replace(deleteCount, insert, preedit):
             switch strategy {
             case .preedit:
-                try preeditReplace(preedit: preedit.isEmpty ? insert : preedit,
-                                   target: target, marked: marked)
+                if preedit.isEmpty {
+                    // F5: REPLACE + preedit rỗng = thay đổi text THẬT (macro,
+                    // auto-capitalize) — KHÔNG phải composition.
+                    try backspaceType(deleteCount: deleteCount, insert: insert,
+                                      target: target, marked: marked)
+                } else {
+                    try preeditReplace(deleteCount: deleteCount, preedit: preedit,
+                                       target: target, marked: marked, onReset: onReset)
+                }
             case .selectionReplace:
                 try selectionReplace(deleteCount: deleteCount, insert: insert,
                                      target: target, marked: marked)
@@ -64,48 +87,58 @@ public enum ApplyReplace {
             }
 
         case let .commit(insert):
-            // P0-2 §4: COMMIT = preedit hiện tại thành text vĩnh viễn + chèn `insert`.
-            // Trên IMK: insertText với replacementRange = markedRange thay marked
-            // bằng text cuối + ký tự ranh giới (bug B2 — Enter không nhân từ).
-            let pending = marked.text
-            let payload = pending + insert
-            target.insert(payload, replacementRange: .notFound)
-            marked.clear()
+            try commit(insert: insert, target: target, marked: marked)
 
         case let .restore(deleteCount, insert):
-            // B5 / ESC: trả lại chuỗi gõ gốc.
-            switch strategy {
-            case .preedit:
-                // marked đang hiển thị → thay trực tiếp bằng chuỗi gốc.
-                let pending = marked.text
-                if pending.isEmpty {
-                    try backspaceType(deleteCount: deleteCount, insert: insert,
-                                      target: target, marked: marked)
-                } else {
-                    target.insert(insert, replacementRange: target.markedRange())
-                    marked.clear()
-                }
-            default:
-                try backspaceType(deleteCount: deleteCount, insert: insert,
-                                  target: target, marked: marked)
-            }
+            // B5 / ESC: trả lại chuỗi gõ gốc. Unified: thu hồi marked (nếu có)
+            // rồi xóa phần chữ thật + chèn raw — đúng cho mọi strategy.
+            try backspaceType(deleteCount: deleteCount, insert: insert,
+                              target: target, marked: marked)
         }
     }
 
     // ------------------------------------------------------------- §6.1 preedit
 
     private static func preeditReplace(
-        preedit: String, target: TextTarget, marked: MarkedState
+        deleteCount: Int, preedit: String, target: TextTarget,
+        marked: MarkedState, onReset: () -> Void
     ) throws {
         guard !MarkedState.exceedsLimit(preedit) else {
-            // B11: marked quá dài → commit-early phần hiện có, bắt đầu từ mới.
+            // B11 (P2-1 §7): marked vượt 8 grapheme → **commit phần đầu**
+            // (marked hiện tại thành text thật) + reset engine — từ mới bắt đầu
+            // sạch. Không reset thì owned lệch mãi (review R1 F6).
             Diagnostics.log("preedit exceeds limit (\(preedit.count) graphemes) — commit early")
-            target.insert(preedit, replacementRange: .notFound)
-            marked.clear()
+            commitMarkedHead(target: target, marked: marked)
+            onReset()
             return
         }
-        target.setMarked(preedit, selectionRange: NSRange(location: preedit.count, length: 0))
-        marked.text = preedit
+
+        // F3: delete_count gồm cả passed prefix (chữ THẬT đã nằm trong document
+        // từ các phím PASS trước khi từ activate) — phải xóa thật, không thể
+        // "thay bằng marked".
+        let real = max(0, deleteCount - marked.scalarCount)
+        if real > 0 {
+            guard target.deleteBackward(count: real) else {
+                throw ApplyError.cannotDelete
+            }
+        }
+        target.setMarked(
+            preedit,
+            selectionRange: NSRange(location: preedit.utf16Count, length: 0)
+        )
+        marked.set(preedit)
+    }
+
+    /// Commit marked đang hiển thị thành text thật (dùng cho commit-early B11).
+    private static func commitMarkedHead(target: TextTarget, marked: MarkedState) {
+        guard !marked.isEmpty else { return }
+        let range = target.markedRange()
+        if range.location != NSNotFound {
+            // Thay marked range bằng chính text đó = chuyển thành text thật.
+            target.insert(marked.text, replacementRange: range)
+        }
+        // markedRange notFound = app đã tự commit → không chèn nữa (tránh nhân đôi).
+        marked.clear()
     }
 
     // ------------------------------------------------------- §6.2 selectionReplace
@@ -114,40 +147,63 @@ public enum ApplyReplace {
         deleteCount: Int, insert: String, target: TextTarget, marked: MarkedState
     ) throws {
         let sel = target.selectionRange()
-        if sel.location != NSNotFound, sel.length > 0 {
+        if sel.location != NSNotFound, sel.length > 0, marked.isEmpty {
             // B1: app giữ selection thật → thay selection, không gửi backspace
             // (autocomplete không bị kích hoạt lại — P2-1 §6.2).
             target.insert(insert, replacementRange: sel)
-            marked.clear()
             return
         }
-        // Fallback §6.3 (preset đã cảnh báo app không giữ selection).
+        // Fallback §6.3 (app không giữ selection / marked còn treo).
         try backspaceType(deleteCount: deleteCount, insert: insert,
                           target: target, marked: marked)
     }
 
     // ------------------------------------------------------- §6.3 backspaceType
 
+    /// Cơ chế xóa + chèn dùng chung (BackspaceType / ForwardAsCommit / macro /
+    /// RESTORE). Xem công thức cốt lõi ở header file.
     private static func backspaceType(
         deleteCount: Int, insert: String, target: TextTarget, marked: MarkedState
     ) throws {
-        let pending = marked.text.count // marked đang hiển thị cũng là text "của" engine
-        var toDelete = max(0, deleteCount - pending)
-
-        if marked.text.isEmpty == false {
-            // Marked chưa commit: app chưa coi là text — nhả marked rồi xóa phần dư.
-            target.unmark()
+        let markedCP = marked.scalarCount
+        if markedCP > 0 {
+            // Thu hồi composition: setMarkedText("") gỡ glyph marked mà KHÔNG
+            // commit (unmarkText() sẽ commit — review R1 F4).
+            target.setMarked("", selectionRange: NSRange(location: 0, length: 0))
             marked.clear()
         }
-
+        // Phần chữ thật cần xóa = delete_count - phần marked vừa thu hồi.
+        let toDelete = max(0, deleteCount - markedCP)
         if toDelete > 0 {
             guard target.deleteBackward(count: toDelete) else {
-                // §6.3 fail → lỗi cho caller fail-open (không cố inject mù).
                 Diagnostics.log("deleteBackward rejected (\(toDelete)) — fail-open")
                 throw ApplyError.cannotDelete
             }
-            toDelete = 0
         }
         target.insert(insert, replacementRange: .notFound)
+    }
+
+    // ------------------------------------------------------------- COMMIT (B2)
+
+    /// COMMIT: marked hiện tại trở thành text vĩnh viễn + chèn ký tự ranh giới
+    /// (P0-2 §4, bug B2 — Enter không nhân từ).
+    private static func commit(
+        insert: String, target: TextTarget, marked: MarkedState
+    ) throws {
+        let pending = marked.text
+        if pending.isEmpty {
+            target.insert(insert, replacementRange: .notFound)
+        } else {
+            let range = target.markedRange()
+            if range.location != NSNotFound {
+                // Thay nguyên marked range bằng text cuối + ký tự ranh giới.
+                target.insert(pending + insert, replacementRange: range)
+            } else {
+                // App đã tự commit marked (NSTextView hay làm khi mất focus) —
+                // chỉ chèn ký tự ranh giới, chèn thêm pending là nhân đôi (F9).
+                target.insert(insert, replacementRange: .notFound)
+            }
+        }
+        marked.clear()
     }
 }

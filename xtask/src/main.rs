@@ -36,7 +36,8 @@ const METHODS_TOML: [&str; 4] = [
 
 const VOWELS_OUT: &str = "core/src/transform/vowel_table_generated.rs";
 const KEYS_OUT: &str = "core/src/method/keys_generated.rs";
-/// Nguồn: keycode macOS → VK canonical (P2-1 §5 — KeyTranslator dùng).
+/// Nguồn: keycode macOS → VK canonical — bảng duy nhất `data/tables/keymap_mac.toml`
+/// (P0-2 §1: Win VK là canonical; KeyTranslator Swift đọc bản sinh song song).
 const KEYMAP_MAC_TOML: &str = "data/tables/keymap_mac.toml";
 const KEYMAP_MAC_OUT_RUST: &str = "core/src/keymap_mac_generated.rs";
 const KEYMAP_MAC_OUT_SWIFT: &str = "adapters/macos-imk/Sources/CoreBridge/KeyMapMacGenerated.swift";
@@ -255,8 +256,22 @@ fn parse_keymap_mac(src: &str) -> Result<(Vec<MacKey>, u64), String> {
         });
     }
     // Bắt buộc có đủ nhóm phím engine special-case — thiếu là adapter mac gõ sai âm thầm.
+    // ForwardDelete + 4 arrow: engine clear preedit/recent trên các phím này
+    // (buffer.rs note_pass) — corpus imk_preedit_telex_nav_cancel phụ thuộc.
     let required = [
-        "Return", "Tab", "Space", "Delete", "Escape", "Shift", "Control", "Option",
+        "Return",
+        "Tab",
+        "Space",
+        "Delete",
+        "ForwardDelete",
+        "Escape",
+        "Shift",
+        "Control",
+        "Option",
+        "LeftArrow",
+        "RightArrow",
+        "UpArrow",
+        "DownArrow",
     ];
     for req in required {
         if !out.iter().any(|k| k.name == req) {

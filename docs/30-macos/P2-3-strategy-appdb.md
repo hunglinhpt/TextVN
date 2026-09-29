@@ -52,8 +52,8 @@ từ chối → ghi `ax_permission: denied` trong `state.json`, preset vẫn ch�
 | # | id | match (bundle id) | field khi | S | I | O | EN | Ghi chú |
 |---|---|---|---|---|---|---|---|---|
 | 1 | `mac.safari.url` | `com.apple.safari` | address_bar, search | SelectionReplace | — | imk | ✓ | **B1** |
-| 2 | `mac.chrome.url` | `com.google.chrome`, `com.microsoft.edgemac`, `com.brave.browser` | address_bar, search | SelectionReplace | vk_then_unicode | imk | ✓ | **B1** |
-| 3 | `mac.firefox.url` | `org.mozilla.firefox`, `org.mozilla.firefox-developer-edition` | address_bar, search | SelectionReplace | — | imk | ✓ | **B1** |
+| 2 | `mac.chromium.url` | `com.google.chrome`, `com.microsoft.edgemac`, `com.brave.browser` | address_bar, search | SelectionReplace | vk_then_unicode | imk | ✓ | **B1** |
+| 3 | `mac.firefox.url` | `org.mozilla.firefox`, `org.mozilla.firefoxdeveloperedition` | address_bar, search | SelectionReplace | — | imk | ✓ | **B1** |
 | 4 | `mac.spotlight` | `com.apple.spotlight`, `com.apple.systemuiserver` (Spotlight menu) | search, combo | SelectionReplace | — | imk | ✓ | **B1** (Spotlight = thanh tìm kiếm hệ thống) |
 | 5 | `mac.safari.body` | `com.apple.safari` | web, body | Preedit | — | imk | ✓ | |
 | 6 | `mac.excel.cell` | `com.microsoft.excel` | candidate, editbox | SelectionReplace | vk_then_unicode | imk | ✓ | **B1** |

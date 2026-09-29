@@ -1,6 +1,7 @@
-# corpus/mac/owner_no_double_imk_01 — owner=imk: IMK xử lý bình thường (preset mac.terminal) (P2-5 §2)
+# corpus/mac/owner_no_double_imk_01 — owner=imk: IMK xử lý bình thường (preset mac.terminal) — hành vi ≠ passthrough (P2-5 §2)
 :config method=telex diacritic_style=new
 :app com.apple.terminal field=terminal
 
 :type "duocj"
 :expect "được"
+:expect_action REPLACE

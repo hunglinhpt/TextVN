@@ -1,9 +1,11 @@
-# corpus/mac/imk_preedit_english_mixed_36 — từ EN thuần PASS nguyên vẹn, từ VN vẫn biến đổi (P2-5 §2)
+# corpus/mac/imk_preedit_english_mixed_36 — từ EN chứa tone-key (master→mátẻ) được restore khi hết từ — không phá EN (P2-5 §2)
 :config method=telex diacritic_style=new
 :app com.apple.textedit field=body
 
-:type "hello"
-:expect "hello"
+:config method=telex diacritic_style=new english_words=master
+:type "master"
+:expect "mátẻ"
 :key Space
+:expect "master "
 :type "duocj"
-:expect "hello được"
+:expect "master được"

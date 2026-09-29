@@ -1,4 +1,4 @@
-# corpus/mac/bug_B6_combo_pass_mac_01 — B6 chord hệ thống luôn PASS (engine không nuốt) (P2-5 §2)
+# corpus/mac/bug_B6_combo_pass_mac_01 — B6 chord hệ thống luôn PASS (engine không nuốt; Ctrl/Alt đại diện cho is_chord) (P2-5 §2)
 :config method=telex diacritic_style=new
 :app com.apple.finder field=editbox
 

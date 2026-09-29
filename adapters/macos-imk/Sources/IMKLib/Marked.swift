@@ -38,11 +38,21 @@ public final class MarkedState {
 
     public var isEmpty: Bool { text.isEmpty }
     public var graphemeCount: Int { text.count }
+    /// Số **code point** (scalar) — đơn vị engine dùng cho `delete_count`
+    /// (Rust `char` = Unicode scalar). Mọi phép trừ với delete_count dùng cái này.
+    public var scalarCount: Int { text.unicodeScalars.count }
+    /// Số UTF-16 code unit — đơn vị của NSRange (P2-1 §6.4).
+    public var utf16Count: Int { (text as NSString).length }
 
     public init() {}
 
     public func clear() {
         text = ""
+    }
+
+    /// Ghi text marked (duy nhất qua đây để giữ invariant).
+    public func set(_ text: String) {
+        self.text = text
     }
 
     /// `true` nếu text mới vượt giới hạn B11 → caller phải commit-early.

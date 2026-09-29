@@ -3,7 +3,7 @@
 // Nguồn: data/tables/*.toml · sinh bằng `cargo xtask gen-tables` (P0-1 §3).
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
-//! Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = `0x1061a2f78ed6d967`).
+//! Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = `0x6a6f2f15251c8911`).
 //!
 //! Keycode macOS (`kVK_*` Carbon) → VK canonical Windows (`keymap::vk`).
 //! Adapter macOS phải chuẩn hóa về đây trước khi gọi engine (P0-2 §1).

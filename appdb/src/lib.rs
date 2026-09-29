@@ -587,5 +587,22 @@ mod tests {
                 .engine_owner,
             Some(EngineOwner::Tap)
         );
+        // Thứ tự entry là hợp đồng "first match wins" (P0-3 §2.1): entry RỘNG
+        // `mac.game.nokbd` (không `when`) phải đứng CUỐI mac block (review R1
+        // finding 4/13) — nếu ai dời lên trước, preset hẹp của Safari… vẫn ổn
+        // (app id khác) nhưng pattern sai sẽ tàn phá khi thêm bundle game.
+        let raw: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/appdb.default.json")).unwrap();
+        let ids: Vec<&str> = raw["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|e| e["id"].as_str())
+            .collect();
+        assert_eq!(ids.last().copied(), Some("mac.game.nokbd"));
+        // Safari body phải đứng TRƯỚC game.nokbd (hẹp trước — P2-3 §3).
+        let safari_body = ids.iter().position(|&id| id == "mac.safari.body").unwrap();
+        let game = ids.iter().position(|&id| id == "mac.game.nokbd").unwrap();
+        assert!(safari_body < game);
     }
 }

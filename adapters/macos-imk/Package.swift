@@ -9,10 +9,17 @@
 //  - IMKLib     : logic adapter (controller, translator, field detect, IPC, marked).
 //  - IMKApp     : TextVN-IM.app executable (IMKServer — main.swift mỏng).
 //
-// Link engine: `build-rust.sh` (cargo 2 arch + lipo) đặt `libtextvn_ffi.a`
-// vào `lib/` trước khi `swift build` (MAC-003, RM1).
+// Link engine (MAC-003/RM1): `build-rust.sh` đặt `libtextvn_ffi.a` vào `<pkg>/lib/`
+// trước khi `swift build`. linkerSettings đặt trên **CoreBridge** (nơi symbol
+// `ime_*` được tham chiếu) để SwiftPM propagate flag xuống MỌI link point —
+// gồm cả test bundle (review R1 F2: đặt trên executable làm swift test thiếu flag).
+// Đường dẫn **tuyệt đối** qua #filePath — `swift test --package-path …` chạy từ
+// CWD nào cũng đúng.
 
 import PackageDescription
+
+let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let libDir = packageRoot.appendingPathComponent("lib").path
 
 let package = Package(
     name: "textvn-imk",
@@ -29,7 +36,13 @@ let package = Package(
         .target(
             name: "CoreBridge",
             dependencies: ["CTextVNFFI"],
-            path: "Sources/CoreBridge"
+            path: "Sources/CoreBridge",
+            linkerSettings: [
+                .unsafeFlags(
+                    ["-L\(libDir)", "-ltextvn_ffi"],
+                    .when(platforms: [.macOS])
+                ),
+            ]
         ),
         .target(
             name: "IMKLib",
@@ -39,13 +52,7 @@ let package = Package(
         .executableTarget(
             name: "IMKApp",
             dependencies: ["IMKLib"],
-            path: "Sources/IMKApp",
-            linkerSettings: [
-                .unsafeFlags(
-                    ["-L", "lib", "-ltextvn_ffi"],
-                    .when(platforms: [.macOS])
-                ),
-            ]
+            path: "Sources/IMKApp"
         ),
         .testTarget(
             name: "IMKLibTests",

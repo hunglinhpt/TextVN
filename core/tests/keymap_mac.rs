@@ -47,6 +47,36 @@ fn phim_dieu_khien_loi_dung_win_vk() {
     assert_eq!(mac_to_canonical(0x7C), Some(0x27)); // Right
     assert_eq!(mac_to_canonical(0x7D), Some(0x28)); // Down
     assert_eq!(mac_to_canonical(0x7E), Some(0x26)); // Up
+                                                    // Navigation phụ — pin để không regress im lặng (Home/End/PgUp/PgDn).
+    assert_eq!(mac_to_canonical(0x73), Some(0x24)); // Home → VK_HOME
+    assert_eq!(mac_to_canonical(0x77), Some(0x23)); // End → VK_END
+    assert_eq!(mac_to_canonical(0x74), Some(0x21)); // PageUp → VK_PRIOR
+    assert_eq!(mac_to_canonical(0x79), Some(0x22)); // PageDown → VK_NEXT
+                                                    // KeypadEnter: mapping "lẻ" duy nhất trong nhóm keypad — dễ bị xoá nhầm.
+    assert_eq!(mac_to_canonical(0x4C), Some(0x0D));
+}
+
+#[test]
+fn punctuation_oem_dung_bang_win() {
+    // VIQR gõ nhiều phím dấu — VK OEM chỉ để chuẩn hoá/log nhưng sai bảng là
+    // sai âm thầm; pin từng cặp (review R1 finding 6).
+    let oem: [(u32, u32); 12] = [
+        (0x18, 0xBB), // Equal  → VK_OEM_PLUS
+        (0x1B, 0xBD), // Minus  → VK_OEM_MINUS
+        (0x21, 0xDB), // [      → VK_OEM_4
+        (0x1E, 0xDD), // ]      → VK_OEM_6
+        (0x2A, 0xDC), // \      → VK_OEM_5
+        (0x29, 0xBA), // ;      → VK_OEM_1
+        (0x27, 0xDE), // '      → VK_OEM_7
+        (0x2B, 0xBC), // ,      → VK_OEM_COMMA
+        (0x2F, 0xBE), // .      → VK_OEM_PERIOD
+        (0x2C, 0xBF), // /      → VK_OEM_2
+        (0x32, 0xC0), // `      → VK_OEM_3
+        (0x0A, 0xE2), // ISO    → VK_OEM_102
+    ];
+    for (kvk, vk) in oem {
+        assert_eq!(mac_to_canonical(kvk), Some(vk), "kvk {kvk:#x}");
+    }
 }
 
 #[test]
@@ -88,7 +118,7 @@ fn f_key_va_phim_khong_map() {
 #[test]
 fn bang_khong_vi_pham_kich_thuoc() {
     // 92 entry hiện tại; biên dưới chỉ chặn "bảng bị xoá trắng".
-    assert!(MAC_KEY_COUNT >= 80, "bảng quá ít: {MAC_KEY_COUNT}");
+    const { assert!(MAC_KEY_COUNT >= 80) };
     // Quét toàn dải keycode 0..=0x7F: không panic, không map sai kiểu.
     let mapped: Vec<u32> = (0u32..=0x7F).filter_map(mac_to_canonical).collect();
     assert_eq!(mapped.len(), MAC_KEY_COUNT);

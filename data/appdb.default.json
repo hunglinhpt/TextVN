@@ -26,7 +26,6 @@
     {"id":"mac.chromium.url","match":{"any":[{"bundle":"com.google.chrome"},{"bundle":"com.microsoft.edgemac"},{"bundle":"com.brave.browser"}]},"when":{"field_role":["address_bar","search"]},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"imk","enabled_default":true,"notes":"B1"},
     {"id":"mac.firefox.url","match":{"any":[{"bundle":"org.mozilla.firefox"},{"bundle":"org.mozilla.firefoxdeveloperedition"}]},"when":{"field_role":["address_bar","search"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
     {"id":"mac.spotlight","match":{"any":[{"bundle":"com.apple.spotlight"},{"bundle":"com.apple.systemuiserver"}]},"when":{"field_role":["search","combo"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
-    {"id":"mac.game.nokbd","match":{"any":[{"bundle":"com.valvesoftware.steam"}]},"strategy":"Passthrough","engine_owner":"tap","enabled_default":false,"notes":"B9,RM8; app khong di qua IMK — user opt-in qua Settings (P2-2 §7), mo rong bundle id qua Settings"},
     {"id":"mac.safari.body","match":{"bundle":"com.apple.safari"},"when":{"field_role":["web","body"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":true},
     {"id":"mac.excel.cell","match":{"bundle":"com.microsoft.excel"},"when":{"field_role":["candidate","editbox"]},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"imk","enabled_default":true,"notes":"B1"},
     {"id":"mac.word.body","match":{"bundle":"com.microsoft.word"},"when":{"field_role":["body","textarea"]},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
@@ -40,7 +39,8 @@
     {"id":"mac.slack","match":{"bundle":"com.tinyspeck.slackmacgap"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
     {"id":"mac.discord","match":{"bundle":"com.hnc.discord"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2,B7"},
     {"id":"mac.messages","match":{"bundle":"com.apple.ichat"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"imk","enabled_default":true,"notes":"B2"},
-    {"id":"mac.finder.rename","match":{"bundle":"com.apple.finder"},"when":{"field_role":["editbox","combo"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
-    {"id":"mac.systemsettings","match":{"bundle":"com.apple.systempreferences"},"when":{"field_role":["search","editbox"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true}
+    {"id":"mac.finder.rename","match":{"bundle":"com.apple.finder"},"when":{"field_role":"editbox"},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true,"notes":"B1"},
+    {"id":"mac.systemsettings","match":{"bundle":"com.apple.systempreferences"},"when":{"field_role":["search","editbox"]},"strategy":"SelectionReplace","engine_owner":"imk","enabled_default":true},
+    {"id":"mac.game.nokbd","match":{"any":[{"bundle":"com.valvesoftware.steam"}]},"strategy":"Passthrough","engine_owner":"tap","enabled_default":false,"notes":"B9,RM8; entry RỘNG (không when) nên ĐỨNG CUỐI mac block — first-match-wins; app khong di qua IMK — user opt-in qua Settings (P2-2 §7); TODO: đồng bộ bundle mac từ data/games_blocklist.txt khi có danh sách đã verify"}
   ]
 }

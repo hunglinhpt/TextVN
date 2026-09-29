@@ -11,7 +11,9 @@
 #
 # Chỉ map phím cần cho engine (chữ/số/dấu, điều hướng, modifier, F-keys).
 # Keypad và media keys cố ý KHÔNG map → KeyTranslator trả nil → adapter PASS.
-# Modifier trái/phải map về cùng VK (engine phân biệt qua IME_MOD_*).
+# Modifier trái/phải map về cùng VK (engine phân biệt qua IME_MOD_*);
+# NGOẠI LỆ: Command/RightCommand → LWIN/RWIN (0x5B/0x5C) — giữ 2 VK riêng
+# để keylog/doctor phân biệt phía trái/phải (mods vẫn là IME_MOD_META).
 
 # ---- chữ cái (kVK_ANSI_A..Z → VK 'A'..'Z' = 0x41..0x5A) ----
 

@@ -4,7 +4,7 @@
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
 
-/// Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = 0x1061a2f78ed6d967).
+/// Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = 0x6a6f2f15251c8911).
 /// Keycode macOS (Carbon `kVK_*`) → VK canonical Windows (P0-2 §1).
 /// Phím không có trong bảng → nil → adapter PASS (không đoán).
 enum KeyMapMacGenerated {

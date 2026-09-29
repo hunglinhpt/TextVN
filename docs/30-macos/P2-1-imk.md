@@ -84,7 +84,9 @@ override func handle(_ event: NSEvent!, client sender: Any!) -> Bool
   2. flagsChanged → chỉ ghi modifier state (để Ctrl+Shift+Space toggle) → return false
   3. ch = KeyTranslator.translate(event) (UCKeyTranslate theo layout hiện tại — không hardcode ABC)
   4. ctx = Engine.context (secure/enabled/app_id/field_role/caps) từ FieldDetect cache
-  5. r = ime_key(inst, {vk: event.keyCode, ch, mods, key_down:1}, &out)
+  5. r = ime_key(inst, {vk: canonicalVK(event.keyCode), ch, mods, key_down:1}, &out)
+     # canonicalVK = bảng `data/tables/keymap_mac.toml` (sinh song song Rust+Swift
+     # qua `cargo xtask gen-tables`) — Win VK là canonical (P0-2 §1).
   6. match out.action:
        PASS     → return false
        REPLACE  → ApplyReplace.apply(r, client) → return true   (§6)

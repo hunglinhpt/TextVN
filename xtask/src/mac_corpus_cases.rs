@@ -47,7 +47,7 @@ fn tap(name: &'static str, desc: &str, app: &str, field: &str, body: &str) -> Co
     case(name, desc, &full)
 }
 
-// 112 case khai báo tuyến tính — push tuần tự dễ đọc hơn `vec![]` khổng lồ.
+// 114 case khai báo tuyến tính — push tuần tự dễ đọc hơn `vec![]` khổng lồ.
 #[allow(clippy::vec_init_then_push)]
 pub fn all_cases() -> Vec<CorpusCase> {
     let mut v: Vec<CorpusCase> = Vec::new();
@@ -257,25 +257,29 @@ pub fn all_cases() -> Vec<CorpusCase> {
     // ───────────────────────── secure field — S3: mật khẩu PASS tuyệt đối ─────────────────────────
     v.push(imk(
         "secure_field_passthrough_01",
-        "S3 secure input (AXSecureTextField) → mọi phím PASS",
+        "S3 secure input (AXSecureTextField) → mọi phím PASS (từ có marker Telex — phân biệt được với không-secure)",
         "com.apple.safari",
         "editbox",
         r#"
 :secure on
-:type "matkhau321"
-:expect "matkhau321"
+:type "duocj321"
+:expect "duocj321"
 :expect_action PASS"#,
     ));
 
     // ───────────────────────── owner rule (P2-2 §6) — không xử lý đôi IMK/tap ─────────────────────────
+    // Lưu ý: headless replay chỉ mô phỏng được 1 engine — 2 case dưới pin hành vi
+    // TỪNG phía (imk xử lý / tap xử lý thì IMK phải PASS); tích hợp thật do
+    // corpus tap + test Swift `OwnerRuleTests` + ax-driver `owner_no_double` bảo vệ.
     v.push(imk(
         "owner_no_double_imk_01",
-        "owner=imk: IMK xử lý bình thường (preset mac.terminal)",
+        "owner=imk: IMK xử lý bình thường (preset mac.terminal) — hành vi ≠ passthrough",
         "com.apple.terminal",
         "terminal",
         r#"
 :type "duocj"
-:expect "được""#,
+:expect "được"
+:expect_action REPLACE"#,
     ));
     v.push(imk(
         "owner_no_double_tap_02",
@@ -330,9 +334,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
 
     // ───────────────────────── B6 — không nuốt chord/hotkey ─────────────────────────
+    // DSL corpus chưa có modifier `Cmd` (P0-4 §2.4) — dùng chord Ctrl/Alt đại
+    // diện để pin engine-level `is_chord`; chord Cmd riêng do Swift adapter
+    // tự chặn ở `handle()` bước 1 (TextVNInputController, test trên máy thật).
     v.push(imk(
         "bug_B6_combo_pass_mac_01",
-        "B6 chord hệ thống luôn PASS (engine không nuốt)",
+        "B6 chord hệ thống luôn PASS (engine không nuốt; Ctrl/Alt đại diện cho is_chord)",
         "com.apple.finder",
         "editbox",
         r#"
@@ -721,15 +728,17 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_english_mixed_36",
-        "từ EN thuần PASS nguyên vẹn, từ VN vẫn biến đổi",
+        "từ EN chứa tone-key (master→mátẻ) được restore khi hết từ — không phá EN",
         "com.apple.textedit",
         "body",
         r#"
-:type "hello"
-:expect "hello"
+:config method=telex diacritic_style=new english_words=master
+:type "master"
+:expect "mátẻ"
 :key Space
+:expect "master "
 :type "duocj"
-:expect "hello được""#,
+:expect "master được""#,
     ));
     v.push(imk(
         "imk_preedit_app_textedit_37",
@@ -961,12 +970,15 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_telex_english_21",
-        "BackspaceType EN pass-through",
+        "BackspaceType EN chứa tone-key được restore (master)",
         "com.apple.finder",
         "editbox",
         r#"
-:type "hello"
-:expect "hello""#,
+:config method=telex diacritic_style=new english_words=master
+:type "master"
+:expect "mátẻ"
+:key Space
+:expect "master ""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_macro_22",
@@ -1159,12 +1171,15 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(tap(
         "tap_body_english_10",
-        "tap EN pass-through (từ không chứa marker Telex)",
+        "tap EN chứa tone-key được restore (master) — không phá EN",
         "com.valvesoftware.steam",
         "editbox",
         r#"
-:type "hello"
-:expect "hello""#,
+:config method=telex diacritic_style=new english_words=master
+:type "master"
+:expect "mátẻ"
+:key Space
+:expect "master ""#,
     ));
     v.push(tap(
         "tap_address_safari_11",

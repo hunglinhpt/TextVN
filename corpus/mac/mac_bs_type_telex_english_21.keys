@@ -1,7 +1,10 @@
-# corpus/mac/mac_bs_type_telex_english_21 — BackspaceType EN pass-through (P2-5 §2)
+# corpus/mac/mac_bs_type_telex_english_21 — BackspaceType EN chứa tone-key được restore (master) (P2-5 §2)
 :config method=telex diacritic_style=new
 :caps field_detect
 :app com.apple.finder field=editbox
 
-:type "hello"
-:expect "hello"
+:config method=telex diacritic_style=new english_words=master
+:type "master"
+:expect "mátẻ"
+:key Space
+:expect "master "
