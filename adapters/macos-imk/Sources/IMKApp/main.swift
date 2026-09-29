@@ -19,7 +19,7 @@ app.setActivationPolicy(.prohibited)
 
 let server = IMKServer(
     name: "TextVN-IM_Connection",        // = Info.plist InputMethodConnectionName
-    bundleIdentifier: "vn.textvn.im"
+    bundleIdentifier: Bundle.main.bundleIdentifier ?? "vn.textvn.im"
 )
 if server == nil {
     Diagnostics.log("IMKServer init failed — exiting")

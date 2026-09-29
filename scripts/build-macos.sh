@@ -56,15 +56,21 @@ else
 fi
 
 # 4. Build Swift Packages
+SWIFT_ARCH_ARGS=()
+if [ "$HAS_ARM" -eq 1 ] && [ "$HAS_X86" -eq 1 ]; then
+    SWIFT_ARCH_ARGS=(--arch arm64 --arch x86_64)
+fi
+SWIFT_SAFE=("${SWIFT_ARCH_ARGS[@]+"${SWIFT_ARCH_ARGS[@]}"}")
+
 echo "Building TextVN-IM input method..."
-swift build -c release --package-path "$ROOT/adapters/macos-imk"
+swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-imk"
 
 echo "Building TextVN menu bar & settings app..."
-swift build -c release --package-path "$ROOT/adapters/macos-app"
+swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-app"
 
 # 5. Assemble Application Bundles
-IM_BIN="$(swift build -c release --package-path "$ROOT/adapters/macos-imk" --show-bin-path)/TextVN-IM"
-APP_BIN="$(swift build -c release --package-path "$ROOT/adapters/macos-app" --show-bin-path)/TextVN"
+IM_BIN="$(swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-imk" --show-bin-path)/TextVN-IM"
+APP_BIN="$(swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-app" --show-bin-path)/TextVN"
 
 IM_BUNDLE="$STAGE_DIR/TextVN-IM.app"
 APP_BUNDLE="$STAGE_DIR/TextVN.app"
@@ -78,9 +84,11 @@ cp "$APP_BIN" "$APP_BUNDLE/Contents/MacOS/TextVN"
 cp "$ROOT/packaging/macos/Info-IM.plist" "$IM_BUNDLE/Contents/Info.plist"
 cp "$ROOT/packaging/macos/Info-App.plist" "$APP_BUNDLE/Contents/Info.plist"
 
-# Include uninstaller in TextVN.app bundle resources
+# Include uninstaller & residue checker in TextVN.app bundle resources
 cp "$ROOT/scripts/uninstall_macos.sh" "$APP_BUNDLE/Contents/Resources/"
 chmod +x "$APP_BUNDLE/Contents/Resources/uninstall_macos.sh"
+cp "$ROOT/packaging/macos/uninstall-check.sh" "$APP_BUNDLE/Contents/Resources/"
+chmod +x "$APP_BUNDLE/Contents/Resources/uninstall-check.sh"
 
 # 6. Codesign (Ad-hoc or Developer ID)
 SIGN_IDENTITY="${DEVELOPER_ID:--}"

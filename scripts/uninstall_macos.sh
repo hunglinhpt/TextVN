@@ -53,6 +53,9 @@ fi
 # 6. Verify 0 system residue
 CHECK_SCRIPT="$ROOT/packaging/macos/uninstall-check.sh"
 if [ ! -f "$CHECK_SCRIPT" ]; then
+    CHECK_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/uninstall-check.sh"
+fi
+if [ ! -f "$CHECK_SCRIPT" ]; then
     CHECK_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/../Resources/uninstall-check.sh"
 fi
 

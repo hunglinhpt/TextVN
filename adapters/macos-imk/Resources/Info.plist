@@ -32,7 +32,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 
-	<!-- ==== IMK registration (P2-1 §8) ==== -->
+	<!-- IMK Input Source Registration (P2-1 §8) -->
 	<key>InputMethodConnectionName</key>
 	<string>TextVN-IM_Connection</string>
 	<key>InputMethodServerControllerClass</key>
@@ -41,9 +41,26 @@
 	<string>vn.textvn.inputmethod.TextVNIM</string>
 	<key>TISIntendedLanguage</key>
 	<string>vi</string>
-	<key>tsInputMethodIconFileKey</key>
-	<string>vieste.icns</string>
+	<key>tsInputMethodCharacterRepertoireKey</key>
+	<array>
+		<string>Latn</string>
+	</array>
+	<key>ComponentInputModeDict</key>
+	<dict>
+		<key>tsInputModeListKey</key>
+		<dict>
+			<key>vn.textvn.inputmethod.Vietnamese</key>
+			<dict>
+				<key>tsInputModeIsVisibleKey</key>
+				<true/>
+				<key>tsInputModePrimaryInScriptKey</key>
+				<true/>
+				<key>tsInputModeScriptKey</key>
+				<string>smRoman</string>
+			</dict>
+		</dict>
+	</dict>
 	<key>CFBundleIconFile</key>
-	<string>vieste</string>
+	<string>TextVN</string>
 </dict>
 </plist>

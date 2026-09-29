@@ -14,6 +14,7 @@ on:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
+      - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "data/tables/keymap_mac.toml"
       - ".github/workflows/ci-macos.yml"
@@ -21,6 +22,7 @@ on:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
+      - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "data/tables/keymap_mac.toml"
       - ".github/workflows/ci-macos.yml"
@@ -48,6 +50,7 @@ jobs:
       - name: Build staticlib 2 arch + lipo
         run: |
           cd adapters/macos-imk
+          chmod +x ./build-rust.sh
           ./build-rust.sh --lib-only
           lipo -info lib/libtextvn_ffi.a | grep -E "x86_64.*arm64|arm64.*x86_64"
 
@@ -58,21 +61,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [arm64, x86_64]
+        include:
+          - arch: arm64
+            rust_target: aarch64-apple-darwin
+          - arch: x86_64
+            rust_target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain (lib link cho swift test)
         run: |
-          rustup target add aarch64-apple-darwin x86_64-apple-darwin
-          rustup target add ${{ matrix.arch }}-apple-darwin
+          rustup target add ${{ matrix.rust_target }}
 
       - name: Build static lib cho arch hiện tại
         run: |
-          cd adapters/macos-imk
-          cargo build --target ${{ matrix.arch }}-apple-darwin -p textvn-ffi
-          mkdir -p lib
-          cp target/${{ matrix.arch }}-apple-darwin/debug/libtextvn_ffi.a lib/
+          cargo build --target ${{ matrix.rust_target }} -p textvn-ffi
+          mkdir -p adapters/macos-imk/lib
+          cp target/${{ matrix.rust_target }}/debug/libtextvn_ffi.a adapters/macos-imk/lib/
 
       - name: swift build + test (IMK adapter — MAC-030)
         working-directory: adapters/macos-imk
@@ -82,6 +87,12 @@ jobs:
 
       - name: swift build + test (tap opt-in — P2-2 §8)
         working-directory: adapters/macos-tap
+        run: |
+          swift build --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
+
+      - name: swift build + test (menu bar app — MAC-044)
+        working-directory: adapters/macos-app
         run: |
           swift build --arch ${{ matrix.arch }}
           swift test --arch ${{ matrix.arch }}
