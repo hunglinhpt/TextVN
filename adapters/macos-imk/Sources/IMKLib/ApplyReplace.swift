@@ -58,7 +58,7 @@ public enum ApplyReplace {
     public static func apply(
         _ outcome: KeyOutcome, strategy: OutputStrategy,
         target: TextTarget, marked: MarkedState,
-        onReset: () -> Void
+        onReset: () -> Void = {}
     ) throws {
         switch outcome.action {
         case .pass:

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>vi</string>
+	<key>CFBundleExecutable</key>
+	<string>TextVN</string>
+	<key>CFBundleIdentifier</key>
+	<string>vn.textvn.app</string>
+	<key>CFBundleName</key>
+	<string>TextVN</string>
+	<key>CFBundleDisplayName</key>
+	<string>TextVN</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<!-- LSUIElement: Run as menu bar agent without Dock icon (P2-4 §1) -->
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 TextVN Contributors. GPL-3.0.</string>
+	<key>CFBundleIconFile</key>
+	<string>TextVN</string>
+</dict>
+</plist>

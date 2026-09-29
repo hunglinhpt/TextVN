@@ -2,7 +2,7 @@
 :config method=telex diacritic_style=new
 :app com.apple.textedit field=body
 
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_preedit "được"
 :key Space

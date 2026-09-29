@@ -3,5 +3,5 @@
 :app com.apple.textedit field=body
 
 :config method=simple_telex diacritic_style=new
-:type "duocj"
+:type "dduocj"
 :expect "được"

@@ -177,7 +177,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.terminal",
         "terminal",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được""#,
     ));
     v.push(imk(
@@ -215,7 +215,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.textedit",
         "body",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_preedit "được"
 :key Enter
@@ -244,11 +244,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.notes",
         "textarea",
         r#"
-:type "dang"
+:type "ddang"
 :expect "đang"
 :expect_preedit "đang"
 :reset
-:type "duocj"
+:type "dduocj"
 :expect "đangđược"
 :expect_preedit "được"
 "#,
@@ -277,7 +277,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.terminal",
         "terminal",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_action REPLACE"#,
     ));
@@ -302,11 +302,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         r#"
 :config method=telex diacritic_style=new english_words=dir,data
 :type "dir"
-:expect "đỉ"
+:expect "dỉ"
 :key Space
 :expect "dir "
 :type "data"
-:expect "dir đata"
+:expect "dir data"
 :key Space
 :expect "dir data ""#,
     ));
@@ -328,7 +328,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         r#"
 :config method=telex diacritic_style=new english_words=text
 :type "text"
-:expect "tễt"
+:expect "tẽt"
 :key Space
 :expect "text ""#,
     ));
@@ -384,7 +384,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.textedit",
         "body",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được"
 :expect_preedit "được"
 :key Space
@@ -563,10 +563,10 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.textedit",
         "body",
         r#"
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang"
+:expect "ddang"
 :expect_preedit """#,
     ));
     v.push(imk(
@@ -713,7 +713,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "body",
         r#"
 :config method=simple_telex diacritic_style=new
-:type "duongw"
+:type "dduongw"
 :expect "đươngw""#,
     ));
     v.push(imk(
@@ -723,7 +723,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "body",
         r#"
 :config method=simple_telex diacritic_style=new
-:type "duocj"
+:type "dduocj"
 :expect "được""#,
     ));
     v.push(imk(
@@ -734,10 +734,10 @@ pub fn all_cases() -> Vec<CorpusCase> {
         r#"
 :config method=telex diacritic_style=new english_words=master
 :type "master"
-:expect "mátẻ"
+:expect "matẻ"
 :key Space
 :expect "master "
-:type "duocj"
+:type "dduocj"
 :expect "master được""#,
     ));
     v.push(imk(
@@ -784,7 +784,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.finder",
         "editbox",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được""#,
     ));
     v.push(bs(
@@ -904,7 +904,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.finder",
         "editbox",
         r#"
-:type "dong"
+:type "ddong"
 :expect "đong""#,
     ));
     v.push(bs(
@@ -940,10 +940,10 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.finder",
         "editbox",
         r#"
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang""#,
+:expect "ddang""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_backspace_19",
@@ -976,7 +976,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         r#"
 :config method=telex diacritic_style=new english_words=master
 :type "master"
-:expect "mátẻ"
+:expect "matẻ"
 :key Space
 :expect "master ""#,
     ));
@@ -1071,7 +1071,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
-:type "duongw"
+:type "dduongw"
 :expect "đươngw""#,
     ));
 
@@ -1082,7 +1082,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.valvesoftware.steam",
         "editbox",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được""#,
     ));
     v.push(tap(
@@ -1123,7 +1123,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
-:type "duongw"
+:type "dduongw"
 :expect "đươngw""#,
     ));
     v.push(tap(
@@ -1141,10 +1141,10 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.valvesoftware.steam",
         "editbox",
         r#"
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang""#,
+:expect "ddang""#,
     ));
     v.push(tap(
         "tap_body_backspace_08",
@@ -1177,7 +1177,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         r#"
 :config method=telex diacritic_style=new english_words=master
 :type "master"
-:expect "mátẻ"
+:expect "matẻ"
 :key Space
 :expect "master ""#,
     ));
@@ -1235,7 +1235,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.terminal",
         "terminal",
         r#"
-:type "duocj"
+:type "dduocj"
 :expect "được""#,
     ));
     v.push(tap(

@@ -5,6 +5,6 @@
 
 :config method=telex diacritic_style=new english_words=master
 :type "master"
-:expect "mátẻ"
+:expect "matẻ"
 :key Space
 :expect "master "

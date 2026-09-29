@@ -9,7 +9,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
-Mục tiêu: bản release candidate dùng được hằng ngày trên Windows và Linux, hoàn thiện nền tảng macOS (Farch-4). Kết quả kiểm thử:
+Mục tiêu: bản release candidate dùng được hằng ngày trên Windows, Linux và macOS (Farch-4). Kết quả kiểm thử:
 [docs/release/build-release-report.md](docs/release/build-release-report.md).
 
 ### Added
@@ -18,7 +18,7 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - **Gói Linux** `TextVN-<ver>-linux-<arch>.tar.gz`: `./install.sh` (per-user mặc định, `--system`)
   tự thêm TextVN vào danh sách bộ gõ GNOME/IBus/Fcitx5; `./textvn-portable.sh` chạy ngay từ
   thư mục giải nén (kể cả chỉ đọc); `uninstall.sh` gỡ đúng file đã cài (`--purge` xoá cấu hình).
-- **Bảng điều khiển thống nhất** Windows (Win32) và Linux (GTK4): cùng tuỳ chọn, nhãn, bố cục
+- **Bảng điều khiển thống nhất** Windows (Win32), Linux (GTK4), macOS (SwiftUI): cùng tuỳ chọn, nhãn, bố cục
   ([ui-spec](docs/release/ui-spec.md)); trình sửa **Gõ tắt** (`gõ tắt = nội dung`, báo lỗi từng dòng).
 - Engine: bảng mã xuất **Unicode tổ hợp, TCVN3 (ABC), VNI Windows** (bảng lấy từ UniKey);
   **Quick Telex**; Telex `z` xoá dấu; gõ được khi bật **Caps Lock** (`VIEETJ` → VIỆT) mà vẫn
@@ -33,15 +33,15 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - `TEXTVN_TSF_TRACE=<file>`: nhật ký chẩn đoán key sink TSF (tắt mặc định, không ghi nội dung gõ).
 - Tài liệu: [hướng dẫn sử dụng](docs/user-guide.md), [hướng dẫn phát triển](docs/developer-guide.md),
   [đối chiếu bộ gõ tham chiếu và bug đã biết](docs/specs/reference-parity.md).
+
+### Added (macOS — Farch-4)
+
 - **macOS IMK adapter** (`adapters/macos-imk/`, Swift): `TextVN-IM.app` — IMKServer +
   `TextVNInputController` theo P2-1 (marked text lifecycle, commit-before-hide B13,
   marked ≤8 grapheme B11, SelectionReplace không-backspace B1, fail-open S4)
 - **macOS CGEventTap fallback** (`adapters/macos-tap/`, Swift): tap opt-in per-app
   `engine_owner: "tap"`, marker loop-guard `TXVN`, self-disable khi chậm 2ms ×50,
   injector BackspaceType/SelectionReplace (P2-2)
-- **Bảng keycode macOS → VK canonical** duy nhất `data/tables/keymap_mac.toml`
-  → generate cả Rust (`core/src/keymap_mac_generated.rs`) lẫn Swift
-  (`KeyMapMacGenerated.swift`) qua `cargo xtask gen-tables` — 92 phím
 - **Bảng keycode macOS → VK canonical** duy nhất `data/tables/keymap_mac.toml`
   → generate cả Rust (`core/src/keymap_mac_generated.rs`) lẫn Swift
   (`KeyMapMacGenerated.swift`) qua `cargo xtask gen-tables` — 92 phím
@@ -67,7 +67,6 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - **CLI**: `textvn-cli register` / `textvn-cli unregister` — đăng ký/hủy TSF TIP per-user (WIN-003, WIN-010)
 - **CLI**: `textvn-cli register status` — kiểm tra trạng thái đăng ký TSF
 - **Windows manifest**: asInvoker (không cần admin), Windows 10/11 compatibility
->>>>>>> 4f85056 (feat(macos): adapter IMK + tap opt-in, keymap mac, appdb preset mac, corpus mac 114 case (MAC-001..044 code-complete))
 
 ### Fixed
 - **Windows TSF không gõ được tiếng Việt** (`docs/specs/tsf-typing-overhaul.md`, Ftsf-1…14):
@@ -106,7 +105,7 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows v
 - Gói Windows mặc định **TSF-only**; hook tương thích chỉ có trong gói Compatibility (opt-in).
 
 ### Known limitations
-- macOS chưa có bản chạy được.
+- macOS: adapter IMK, CGEventTap, Menu Bar App, Settings SwiftUI và kịch bản đóng gói/cài đặt đã hoàn thiện mã nguồn và kiểm thử logic/replay (114/114 case pass); cần máy macOS vật lý để kiểm chứng giao diện đồ họa và cấp chứng chỉ Apple Developer ID.
 - Bản dựng CI chưa ký số Authenticode (Windows SmartScreen sẽ cảnh báo lần đầu).
 
 ---

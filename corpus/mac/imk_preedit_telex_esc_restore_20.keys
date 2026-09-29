@@ -2,8 +2,8 @@
 :config method=telex diacritic_style=new
 :app com.apple.textedit field=body
 
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang"
+:expect "ddang"
 :expect_preedit ""

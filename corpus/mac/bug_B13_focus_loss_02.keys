@@ -2,10 +2,10 @@
 :config method=telex diacritic_style=new
 :app com.apple.notes field=textarea
 
-:type "dang"
+:type "ddang"
 :expect "đang"
 :expect_preedit "đang"
 :reset
-:type "duocj"
+:type "dduocj"
 :expect "đangđược"
 :expect_preedit "được"

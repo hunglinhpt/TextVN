@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>vi</string>
+	<key>CFBundleExecutable</key>
+	<string>TextVN-IM</string>
+	<key>CFBundleIdentifier</key>
+	<string>vn.textvn.im</string>
+	<key>CFBundleName</key>
+	<string>TextVN-IM</string>
+	<key>CFBundleDisplayName</key>
+	<string>TextVN</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSBackgroundOnly</key>
+	<true/>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+
+	<!-- IMK Input Source Registration (P2-1 §8) -->
+	<key>InputMethodConnectionName</key>
+	<string>TextVN-IM_Connection</string>
+	<key>InputMethodServerControllerClass</key>
+	<string>TextVNInputController</string>
+	<key>TISInputSourceID</key>
+	<string>vn.textvn.inputmethod.TextVNIM</string>
+	<key>TISIntendedLanguage</key>
+	<string>vi</string>
+	<key>tsInputMethodCharacterRepertoireKey</key>
+	<array>
+		<string>Latn</string>
+	</array>
+	<key>ComponentInputModeDict</key>
+	<dict>
+		<key>tsInputModeListKey</key>
+		<dict>
+			<key>vn.textvn.inputmethod.Vietnamese</key>
+			<dict>
+				<key>tsInputModeIsVisibleKey</key>
+				<true/>
+				<key>tsInputModePrimaryInScriptKey</key>
+				<true/>
+				<key>tsInputModeScriptKey</key>
+				<string>smRoman</string>
+			</dict>
+		</dict>
+	</dict>
+	<key>CFBundleIconFile</key>
+	<string>TextVN</string>
+</dict>
+</plist>

@@ -3,7 +3,7 @@
 :caps selection,field_detect,inject_vk
 :app com.valvesoftware.steam field=editbox
 
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang"
+:expect "ddang"

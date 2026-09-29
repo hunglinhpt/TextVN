@@ -3,5 +3,5 @@
 :caps field_detect
 :app com.apple.finder field=editbox
 
-:type "duocj"
+:type "dduocj"
 :expect "được"

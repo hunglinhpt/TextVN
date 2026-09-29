@@ -2,5 +2,5 @@
 :config method=telex diacritic_style=new
 :app com.apple.terminal field=terminal
 
-:type "duocj"
+:type "dduocj"
 :expect "được"

@@ -3,5 +3,5 @@
 :caps selection,field_detect,inject_vk
 :app com.apple.terminal field=terminal
 
-:type "duocj"
+:type "dduocj"
 :expect "được"

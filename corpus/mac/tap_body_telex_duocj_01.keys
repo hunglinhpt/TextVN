@@ -3,5 +3,5 @@
 :caps selection,field_detect,inject_vk
 :app com.valvesoftware.steam field=editbox
 
-:type "duocj"
+:type "dduocj"
 :expect "được"

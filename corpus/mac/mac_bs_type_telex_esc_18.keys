@@ -3,7 +3,7 @@
 :caps field_detect
 :app com.apple.finder field=editbox
 
-:type "dang"
+:type "ddang"
 :expect "đang"
 :key Escape
-:expect "dang"
+:expect "ddang"

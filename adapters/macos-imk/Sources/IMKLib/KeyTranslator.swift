@@ -68,9 +68,9 @@ public final class KeyTranslator {
 
         var chars = [UniChar](repeating: 0, count: 4)
         var len = 0
-        let shift = (mods & FFI.modShift != 0) ? UInt32(alphaShift) : 0
-        let option = (mods & FFI.modAlt != 0) ? UInt32(optionKey) : 0
-        let control = (mods & FFI.modCtrl != 0) ? UInt32(controlKey) : 0
+        let shift = (mods & FFI.modShift != 0) ? (UInt32(shiftKey) >> 8) : 0
+        let option = (mods & FFI.modAlt != 0) ? (UInt32(optionKey) >> 8) : 0
+        let control = (mods & FFI.modCtrl != 0) ? (UInt32(controlKey) >> 8) : 0
 
         let status = withUnsafeMutablePointer(to: &deadKeyState) { dead in
             UCKeyTranslate(

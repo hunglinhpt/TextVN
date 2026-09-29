@@ -81,7 +81,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func activateServer(_ sender: Any!) {
         super.activateServer(sender)
         marked.clear()
-        engine.reset()
+        engine?.reset()
         gatherContext(from: sender, force: true)
         Diagnostics.log("activateServer pid=\(clientPid(sender))")
     }
@@ -89,7 +89,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Mất focus → commit-before-hide (B13) + reset (P2-1 §3).
     public override func deactivateServer(_ sender: Any!) {
         commitBeforeHide(sender)
-        engine.reset()
+        engine?.reset()
         Diagnostics.log("deactivateServer — committed-before-hide (B13)")
         super.deactivateServer(sender)
     }
@@ -97,7 +97,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Client đóng app → commit + reset.
     public override func didClose(_ client: Any!) {
         commitBeforeHide(client)
-        engine.reset()
+        engine?.reset()
     }
 
     public override func menu(_ sender: Any!) -> NSMenu! {
@@ -178,7 +178,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         if marked.text.isEmpty == false, target.markedRange().location == NSNotFound {
             Diagnostics.log("self-heal: marked desync — ime_reset")
             marked.clear()
-            engine.reset()
+            engine?.reset()
         }
 
         switch outcome.action {
@@ -187,13 +187,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         case .replace, .commit, .restore:
             do {
                 try ApplyReplace.apply(outcome, strategy: strategy,
-                                       target: target, marked: marked)
+                                       target: target, marked: marked,
+                                       onReset: { [weak self] in self?.engine?.reset() })
                 logAction(outcome)
                 return true
             } catch {
                 // 7. Fail-open: forward phím, engine không được treo (S4, P2-1 §12).
                 Diagnostics.log("apply failed (\(error)) — fail-open")
-                engine.reset()
+                engine?.reset()
                 return false
             }
         }

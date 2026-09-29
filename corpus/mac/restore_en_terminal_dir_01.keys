@@ -4,10 +4,10 @@
 
 :config method=telex diacritic_style=new english_words=dir,data
 :type "dir"
-:expect "đỉ"
+:expect "dỉ"
 :key Space
 :expect "dir "
 :type "data"
-:expect "dir đata"
+:expect "dir data"
 :key Space
 :expect "dir data "

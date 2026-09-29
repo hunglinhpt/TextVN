@@ -16,6 +16,10 @@
 | IMK adapter (controller, marked, apply, field detect, IPC, translator) | `adapters/macos-imk/Sources/IMKLib/` | MAC-010…019 (phần code) | `swift test` (logic thuần) + smoke trên máy thật ⏳ |
 | Info.plist + entitlements + build-rust.sh (2 arch + lipo) | `adapters/macos-imk/` | MAC-001/003 (phần build) | CI `ci-macos.yml` |
 | CGEventTap opt-in (tap thread, marker loop-guard, self-disable, injector 3 mode, permission poll) | `adapters/macos-tap/` | MAC-040…044 (phần code) | `swift test` (logic) + manual trên máy thật ⏳ |
+| Menu Bar App (NSStatusItem, badge V/E, menu 9 mục, IPC server unix socket, autostart Rule S5) | `adapters/macos-app/` | MAC-050…053 (phần code) | `swift test` (`TextVNAppTests`) |
+| Bảng điều khiển Settings SwiftUI (UniKey 4.6 RC2 parity: 505x245 / 505x490, macro editor) | `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift` | MAC-052 (phần code) | `swift test` (`TextVNAppTests`) |
+| Cấu hình đóng gói & Homebrew Cask (Info-IM, Info-App, Entitlements, uninstall-check, textvn.rb) | `packaging/macos/`, `packaging/homebrew/` | MAC-054/056/057 | `uninstall-check.sh` + CI |
+| Kịch bản đóng gói & cài đặt (`build-macos.sh`, `install_macos.sh`, `uninstall_macos.sh`) | `scripts/` | MAC-054/056 | bash syntax check + CI |
 | CI macOS | `.github/workflows/ci-macos.yml` | MAC-064 (job chính) | xanh trên GitHub ⏳ |
 | Replay mac trong ci-shared | `.github/workflows/ci-shared.yml` (replay job + `--adapter mac`) | — | ⏳ |
 
@@ -58,4 +62,4 @@
 1. Chạy MAC-001/002 trên máy Mac thật → điền `env-mac.md`, `macos-spike.md`.
 2. MAC-004 chốt cơ chế xóa → nếu cần mở `IME_CAP_INJECT_VK`, cập nhật caps + replay profile.
 3. MAC-030/031 nâng FieldDetect lên AXObserver + cache chi tiết (hiện: gather async v1).
-4. MAC-052 Settings SwiftUI + IPC server `TextVN.app` (P2-4) — phần UI chưa code.
+4. MAC-060…063 Chạy AX harness trên 12 app macOS, soak test 24h và đo perf baseline trên máy Mac thật.

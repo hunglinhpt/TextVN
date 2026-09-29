@@ -266,9 +266,9 @@ final class TapTranslator {
         var chars = [UniChar](repeating: 0, count: 4)
         var len = 0
         var modifiers: UInt32 = 0
-        if shift { modifiers |= UInt32(alphaShift) }
-        if option { modifiers |= UInt32(optionKey) }
-        if control { modifiers |= UInt32(controlKey) }
+        if shift { modifiers |= (UInt32(shiftKey) >> 8) }
+        if option { modifiers |= (UInt32(optionKey) >> 8) }
+        if control { modifiers |= (UInt32(controlKey) >> 8) }
         let status = withUnsafeMutablePointer(to: &deadKeyState) { dead in
             UCKeyTranslate(
                 layoutData, keyCode, UInt16(kUCKeyActionDown), modifiers,

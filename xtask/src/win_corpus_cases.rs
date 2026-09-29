@@ -15,7 +15,7 @@ pub const CASES_PART1: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps field_detect,inject_vk,selection
 :app explorer.exe field=address_bar
-:type \"duocj\"
+:type \"dduocj\"
 :expect \"được\"
 ",
     },
@@ -371,7 +371,7 @@ pub const CASES_PART3: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps inject_vk,field_detect
 :app windowsterminal.exe field=terminal
-:type \"duocj\"
+:type \"dduocj\"
 :expect \"được\"
 ",
     },
@@ -408,11 +408,11 @@ pub const CASES_PART3: &[CorpusCase] = &[
 :caps inject_vk,field_detect
 :app pwsh.exe field=terminal
 :type \"dir\"
-:expect \"đỉ\"
+:expect \"dỉ\"
 :key Space
 :expect \"dir \"
 :type \"data\"
-:expect \"dir đata\"
+:expect \"dir data\"
 :key Space
 :expect \"dir data \"
 ",
@@ -590,10 +590,10 @@ pub const CASES_PART4: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type \"da\"
+:type \"dda\"
 :expect \"đa\"
 :key Backspace
-:expect \"d\"
+:expect \"đ\"
 ",
     },
     CorpusCase {
@@ -641,10 +641,10 @@ pub const CASES_PART5: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type \"dang\"
+:type \"ddang\"
 :expect \"đang\"
 :key Escape
-:expect \"dang\"
+:expect \"ddang\"
 ",
     },
     CorpusCase {
@@ -746,7 +746,7 @@ pub const CASES_PART6: &[CorpusCase] = &[
 :config method=telex diacritic_style=new
 :caps inject_vk,selection
 :app legacy_app.exe field=editbox
-:type \"duocj\"
+:type \"dduocj\"
 :expect \"được\"
 ",
     },
@@ -872,7 +872,7 @@ pub const CASES_PART7: &[CorpusCase] = &[
 :caps preedit,selection
 :app code.exe field=body
 :type \"qwert\"
-:expect \"qwểt\"
+:expect \"qwẻt\"
 :key Space
 :expect \"qwert \"
 ",
@@ -930,7 +930,7 @@ pub const CASES_PART7: &[CorpusCase] = &[
 :config method=simple_telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
-:type \"duongw\"
+:type \"dduongw\"
 :expect \"đươngw\"
 ",
     },
