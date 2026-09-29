@@ -56,21 +56,20 @@ else
 fi
 
 # 4. Build Swift Packages
-SWIFT_ARCH_ARGS=()
+SWIFT_ARCH_FLAGS=""
 if [ "$HAS_ARM" -eq 1 ] && [ "$HAS_X86" -eq 1 ]; then
-    SWIFT_ARCH_ARGS=(--arch arm64 --arch x86_64)
+    SWIFT_ARCH_FLAGS="--arch arm64 --arch x86_64"
 fi
-SWIFT_SAFE=("${SWIFT_ARCH_ARGS[@]+"${SWIFT_ARCH_ARGS[@]}"}")
 
 echo "Building TextVN-IM input method..."
-swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-imk"
+swift build -c release $SWIFT_ARCH_FLAGS --package-path "$ROOT/adapters/macos-imk"
 
 echo "Building TextVN menu bar & settings app..."
-swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-app"
+swift build -c release $SWIFT_ARCH_FLAGS --package-path "$ROOT/adapters/macos-app"
 
 # 5. Assemble Application Bundles
-IM_BIN="$(swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-imk" --show-bin-path)/TextVN-IM"
-APP_BIN="$(swift build -c release "${SWIFT_SAFE[@]}" --package-path "$ROOT/adapters/macos-app" --show-bin-path)/TextVN"
+IM_BIN="$(swift build -c release $SWIFT_ARCH_FLAGS --package-path "$ROOT/adapters/macos-imk" --show-bin-path)/TextVN-IM"
+APP_BIN="$(swift build -c release $SWIFT_ARCH_FLAGS --package-path "$ROOT/adapters/macos-app" --show-bin-path)/TextVN"
 
 IM_BUNDLE="$STAGE_DIR/TextVN-IM.app"
 APP_BUNDLE="$STAGE_DIR/TextVN.app"

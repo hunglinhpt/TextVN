@@ -18,18 +18,15 @@ cd "$(dirname "$0")"
 
 LIB_DIR="lib"
 MODE_LIB_ONLY=0
-PROFILE=()
+PROFILE_FLAG=""
 
 for arg in "$@"; do
   case "$arg" in
     --lib-only) MODE_LIB_ONLY=1 ;;
-    --release) PROFILE=(--release) ;;
+    --release) PROFILE_FLAG="--release" ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
-
-# bash 3.2 (macOS) an toàn với mảng rỗng dưới `set -u`.
-EMPTY_SAFE=("${PROFILE[@]+"${PROFILE[@]}"}")
 
 ROOT_DIR="$(cd ../.. && pwd)"
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/target}"
@@ -38,12 +35,12 @@ mkdir -p Sources/CTextVNFFI/include
 cp "$ROOT_DIR/ffi/include/textvn_ffi.h" Sources/CTextVNFFI/include/textvn_ffi.h
 
 echo "== [1/4] cargo build 2 arch (P2-1 §2) =="
-cargo build "${EMPTY_SAFE[@]}" --target aarch64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
-cargo build "${EMPTY_SAFE[@]}" --target x86_64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
+cargo build $PROFILE_FLAG --target aarch64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
+cargo build $PROFILE_FLAG --target x86_64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
 
 # staticlib output: target/<triple>/{debug|release}/libtextvn_ffi.a
 SUBDIR="debug"
-if [ "${PROFILE[*]:-}" == "--release" ]; then SUBDIR="release"; fi
+if [ "$PROFILE_FLAG" = "--release" ]; then SUBDIR="release"; fi
 
 echo "== [2/4] lipo universal libtextvn_ffi.a =="
 mkdir -p "$LIB_DIR"
@@ -59,7 +56,7 @@ if [ "$MODE_LIB_ONLY" -eq 1 ]; then
 fi
 
 echo "== [3/4] swift build (SwiftPM) =="
-BIN_DIR="$(swift build "${EMPTY_SAFE[@]}" --show-bin-path)"
+BIN_DIR="$(swift build $PROFILE_FLAG --show-bin-path)"
 BIN="$BIN_DIR/TextVN-IM"
 test -x "$BIN" || { echo "swift build output missing: $BIN" >&2; exit 1; }
 

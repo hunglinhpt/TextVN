@@ -139,6 +139,7 @@
 | F2-046 | minor | `adapters/macos-imk/Resources/Info.plist` chưa đồng bộ đầy đủ các key với `packaging/macos/Info-IM.plist` (thiếu `ComponentInputModeDict`, script `smRoman`, repertoire `Latn`, icon TextVN) | ✅ Fixed | Đồng bộ hoàn toàn `Info.plist` theo chuẩn macOS Input Method Kit của Apple |
 | F2-047 | minor | `scripts/build-macos.sh` chưa sao chép `uninstall-check.sh` vào `TextVN.app/Contents/Resources/`, và `scripts/uninstall_macos.sh` thiếu tìm kiếm checker nội bộ bundle | ✅ Fixed | Sao chép cả `uninstall_macos.sh` và `uninstall-check.sh` vào bundle resources, thêm cơ chế tìm kiếm fallback cục bộ |
 | F2-048 | minor | `IMKApp/main.swift` hardcode `bundleIdentifier: "vn.textvn.im"` thay vì ưu tiên `Bundle.main.bundleIdentifier` | ✅ Fixed | Cập nhật sang `Bundle.main.bundleIdentifier ?? "vn.textvn.im"` hỗ trợ đóng gói động |
+| F2-049 | blocker | `adapters/macos-imk/build-rust.sh:41` dùng cú pháp mở rộng mảng rỗng `"${EMPTY_SAFE[@]}"` dưới `set -u` trên bash 3.2 (macOS runner) bị lỗi `EMPTY_SAFE[@]: unbound variable` (Run 36515652209) | ✅ Fixed | Chuyển toàn bộ các cờ tùy chọn sang biến vô hướng (scalar flags) `PROFILE_FLAG` và `SWIFT_ARCH_FLAGS` mở rộng an toàn 100% trên bash 3.2 không kích hoạt lỗi `set -u` |
 
 ---
 
