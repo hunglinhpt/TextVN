@@ -1,10 +1,9 @@
 # Hướng dẫn sử dụng TextVN
 
-TextVN là bộ gõ tiếng Việt mã nguồn mở cho **Windows** (Text Services Framework) và
-**Linux** (IBus, Fcitx5). Hai nền tảng dùng chung một engine, một bảng điều khiển với cùng
-tuỳ chọn và cùng file cấu hình — học một lần, dùng ở đâu cũng giống nhau.
-
-> macOS chưa có bản chạy được (xem [trạng thái](#trạng-thái-từng-nền-tảng)).
+TextVN là bộ gõ tiếng Việt mã nguồn mở cho **Windows** (Text Services Framework),
+**macOS** (Input Method Kit) và **Linux** (IBus, Fcitx5). Ba nền tảng dùng chung một engine,
+một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình — học một lần, dùng ở đâu cũng
+giống nhau.
 
 ---
 
@@ -27,6 +26,35 @@ Gỡ: *Settings → Apps → TextVN → Uninstall* (bản cài) hoặc chuột p
 *Run with PowerShell* rồi xoá thư mục (bản portable). Menu khay **Gỡ cài đặt** làm đúng việc
 tương ứng cho cả hai loại.
 
+### macOS (13 Ventura trở lên — Apple Silicon và Intel)
+
+**Yêu cầu**: macOS 13+. Không cần cài thêm gì — `TextVN-IM.app` là một bundled executable
+hoàn chỉnh (engine Rust universal đã nhúng trong app).
+
+**Cài đặt:**
+
+```bash
+# 1. Tải và giải nén TextVN-<ver>-macos-universal.zip
+# 2. Kéo TextVN-IM.app vào ~/Library/Input Methods/
+cp -R TextVN-IM.app ~/Library/Input\ Methods/
+
+# 3. Bật trong System Settings → Keyboard → Input Sources → Add (+)
+#    Tìm "TextVN" trong danh sách → thêm vào
+```
+
+**Chuyển bộ gõ**: `Control + Space` (macOS default) hoặc menu Input Source trên menu bar.
+
+**Gỡ cài đặt:**
+
+```bash
+# Tắt bộ gõ trong System Settings → Keyboard → Input Sources → xoá TextVN
+# Sau đó:
+rm -rf ~/Library/Input\ Methods/TextVN-IM.app
+```
+
+> **Lưu ý beta**: Bản phát hành chưa được ký với Apple Developer ID — macOS Gatekeeper có thể
+> cảnh báo lần đầu mở. Để bypass: click phải → Open → Open anyway.
+
 ### Linux
 
 Tải `TextVN-<phiên bản>-linux-x86_64.tar.gz`, giải nén:
@@ -47,6 +75,8 @@ Thêm `--purge` nếu muốn xoá cả cấu hình.
 Yêu cầu: IBus ≥ 1.5 hoặc Fcitx5 ≥ 5.0, glibc tương đương Ubuntu 24.04 trở lên cho bản dựng
 sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`, xem
 [developer guide](developer-guide.md)). Bảng điều khiển cần GTK 4.
+
+
 
 ---
 

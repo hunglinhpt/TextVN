@@ -27,6 +27,9 @@ Tài liệu cho người sửa code, đóng gói và phát hành. Người dùng
 | `config` | Parse/validate `config.v1`; `SettingsDoc` (vá từng khoá, ghi nguyên tử); `macro_text` (định dạng bảng gõ tắt). |
 | `ffi` | C ABI engine (`ffi/include/textvn_ffi.h`, bất biến P0-2) + C API cấu hình (`textvn_settings.h`). |
 | `strategy`, `appdb`, `field-detect` | Chọn chiến lược theo ứng dụng/ô nhập, cổng bảo mật ô mật khẩu. |
+| `adapters/macos-imk` | **IMK adapter** (Swift): `TextVN-IM.app` (IMKServer + `TextVNInputController`), marked text lifecycle, commit-before-hide, SelectionReplace, CGEventTap fallback. |
+| `adapters/macos-tap` | **CGEventTap fallback** (Swift): opt-in per-app, loop-guard marker, self-disable khi chậm. |
+| `adapters/macos-app` | **Menu Bar App** (Swift/AppKit): cài đặt, V/E indicator, per-app toggle. |
 | `adapters/windows-tsf` | TIP: key sink + key trace (`key_event.rs`), edit session, composition (`compose.rs` là mô hình thuần, có test), trả phím cho app CUAS (`replay.rs`), nhật ký chẩn đoán (`trace.rs`). |
 | `tray` | Khay hệ thống, IPC server, bảng điều khiển Win32 (`settings_dialog.rs`), `svc.rs` (config/state), phím tắt Ctrl+Shift của Windows (`hotkey.rs`). |
 | `adapters/windows-hook` | Hook tương thích (chỉ gói Compatibility, opt-in). |
@@ -56,6 +59,41 @@ powershell -File .\build-release.ps1 -BuildInstaller    # + Inno Setup 6.5+ (isc
 Gói mặc định **TSF-only**; `-IncludeCompatibilityHook` thêm hook legacy.
 `-SigningCertificateThumbprint <SHA1>` ký Authenticode mọi PE. Trên Linux có thể kiểm tra
 code Windows: `cargo clippy --target x86_64-pc-windows-msvc --workspace --all-targets`.
+
+### macOS (13+)
+
+Cần Xcode CLT 15+ (`xcode-select --install`) và rustup với 2 Mac targets:
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+```
+
+**Dựng toàn bộ (engine Rust universal + swift build + assemble .app):**
+
+```bash
+cd adapters/macos-imk
+./build-rust.sh                   # debug — TextVN-IM.app trong adapters/macos-imk/build/
+./build-rust.sh --release         # release
+./build-rust.sh --lib-only        # chỉ build libtextvn_ffi.a (cho swift test nhanh)
+```
+
+Script `build-rust.sh`:
+1. `cargo build` × 2 arch (aarch64 + x86_64) từ workspace root
+2. `lipo -create` → `lib/libtextvn_ffi.a` universal
+3. `swift build` (SwiftPM đọc `-L lib -ltextvn_ffi` từ `Package.swift`)
+4. Assemble `TextVN-IM.app` bundle
+
+**Chạy swift test đơn lẻ:**
+
+```bash
+cd adapters/macos-imk
+./build-rust.sh --lib-only        # bước 1&2 trước
+swift test --arch arm64           # arm64
+swift test --arch x86_64          # x86_64
+```
+
+**Vấn đề đã biết (MAC-031)**: `Package.swift` dùng `String.components(separatedBy:)`
+thay `URL` vì `Foundation` không khả dụng trong `PackageDescription` scope trên Xcode 26.6+.
 
 ### Linux (Ubuntu/Debian)
 
@@ -120,7 +158,9 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 
 ## 6. Tài liệu liên quan
 
-- Đặc tả: `docs/10-shared/` (ABI, config, corpus), `docs/20-windows/`, `docs/40-linux/`
+- Đặc tả: `docs/10-shared/` (ABI, config, corpus), `docs/20-windows/`, `docs/30-macos/`, `docs/40-linux/`
+- macOS: [`docs/30-macos/P2-0-MASTER-PLAN.md`](30-macos/P2-0-MASTER-PLAN.md), [`docs/30-macos/IMPLEMENTATION-STATUS.md`](30-macos/IMPLEMENTATION-STATUS.md), [`docs/30-macos/P2-REVIEW-LOG.md`](30-macos/P2-REVIEW-LOG.md)
 - Đối chiếu bộ gõ tham chiếu & bug đã biết: [specs/reference-parity.md](specs/reference-parity.md)
 - TSF: [specs/tsf-typing-overhaul.md](specs/tsf-typing-overhaul.md)
 - Antivirus: [specs/antivirus-false-positive.md](specs/antivirus-false-positive.md)
+

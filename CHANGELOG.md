@@ -69,6 +69,17 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows, 
   - Thêm helper `ImeEngine.string(fromUTF32:len:)` trong `CoreBridge`.
   - Đảm bảo an toàn bộ nhớ ARM64 (Apple Silicon) bằng `loadUnaligned` khi giải mã frame IPC.
   - Hủy `retryTimer` khi `IpcClient.tearDown()`, hỗ trợ toggle toàn cục `appID.isEmpty`.
+- **macOS CI fix MAC-031** (commit `f10eb1a` — 2026-09-29):
+  - `adapters/macos-imk/Package.swift`: thay `URL(fileURLWithPath: #filePath)` bằng
+    `String.components(separatedBy:)` thuần — `URL`/`Foundation` không khả dụng trong
+    `PackageDescription` scope trên Xcode 26.6 / Swift 6.
+  - `adapters/macos-imk/build-rust.sh`: thêm `PKG_DIR`/`ROOT_DIR` tuyệt đối; thay mảng
+    `PROFILE=()`/`EMPTY_SAFE` bằng scalar `PROFILE_FLAG=""` — bash 3.2 macOS ném
+    `unbound variable` khi expand mảng rỗng dưới `set -u`.
+  - `.github/workflows/ci-macos.yml`: matrix `arch: [arm64, x86_64]` → `include` với
+    `rust_target: aarch64-apple-darwin`/`x86_64-apple-darwin`; `cargo build` chạy từ
+    workspace root; copy FFI header bước riêng.
+
 
 ### Added (trước đó)
 - **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2

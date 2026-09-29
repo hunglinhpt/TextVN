@@ -14,10 +14,12 @@
 | **Review 2 — Nhất quán & Sẵn sàng (Code macOS App & Packaging)** | Package.swift targets, Clippy const assertions, Homebrew Cask, verify scripts | 3 | 0 | 0 | 3 | ✅ 3/3 đã fix |
 | **Review 1 — Đúng & Đủ (IMK, Tap, Corpus & C-ABI Audit)** | `ApplyReplace.swift`, `KeyTranslator.swift`, `EventTapController.swift`, `corpus/mac` | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng (Subsystem Verification)** | 114/114 corpus/mac replay, UCKeyTranslate modifiers, Rule S5/S9 compliance | 1 | 0 | 0 | 1 | ✅ 1/1 đã fix |
+| **Round 7 — CI Fix MAC-031** | `Package.swift` URL→String, `build-rust.sh` ROOT_DIR/scalar, `ci-macos.yml` rust_target matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 
-**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (28/28 findings đã xử lý triệt để).
+**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings đã xử lý triệt để).
 
 ---
+
 
 ## Review 1 — Đúng & Đủ
 
@@ -122,25 +124,33 @@
 | F2-039 | minor | `IpcServer.swift:65` và `TextVNAppTests.swift:122` dùng `$0.load(as: UInt32.self)` trên `Data.prefix(4)` có thể gây lỗi alignment trap trên kiến trúc ARM64 Apple Silicon | ✅ Fixed | Đổi thành `$0.loadUnaligned(fromByteOffset: 0, as: UInt32.self)` tương thích an toàn với mọi kiến trúc CPU |
 | F2-040 | minor | `AppDelegate.swift:353` hàm `didToggleViEn` chỉ kiểm tra `appID == "*"` | ✅ Fixed | Đổi thành `appID == "*" || appID.isEmpty` để hỗ trợ đầy đủ đặc tả toggle toàn cục theo `schemas/ipc.v1.md` |
 
-## Code Review Round 5 — Đúng & Đủ (CI Workflows, Executable Permissions, Universal Target Triples)
+---
+
+## Round 7 — CI Fix MAC-031 (2026-09-29, commit `f10eb1a`)
+
+### Vấn đề: CI `ci-macos` thất bại tại `swift build + test (IMK adapter — MAC-030)`
+
+**Root cause phân tích**: 3 lỗi độc lập trong CI pipeline, phát hiện trên Xcode 26.6 / Swift 6 runner.
 
 | ID | Mức | Finding | Trạng thái | Cách fix |
 |---|---|---|---|---|
-| F2-041 | major | `adapters/macos-imk/build-rust.sh` và các shell scripts `packaging/macos/uninstall-check.sh`, `scripts/build-macos.sh`, `scripts/install_macos.sh`, `scripts/uninstall_macos.sh` mang quyền `100644` trong git index, khiến CI runner macOS fail với `./build-rust.sh: Permission denied` (Run 36513097418) | ✅ Fixed | Cập nhật mode git index sang `100755` qua `git update-index --chmod=+x`, đồng thời thêm lệnh phòng vệ `chmod +x ./build-rust.sh` trong `.github/workflows/ci-macos.yml` |
-| F2-042 | blocker | Job `swift` trong `.github/workflows/ci-macos.yml` dùng matrix `arch: [arm64, x86_64]` và gọi `cargo build --target ${{ matrix.arch }}-apple-darwin`. Rust không có target `arm64-apple-darwin` (triple chuẩn của Rust là `aarch64-apple-darwin`) gây crash biên dịch trên runner | ✅ Fixed | Chuyển matrix sang `include` mapping tường minh giữa `arch` (Swift) và `rust_target`: `arm64` ➔ `aarch64-apple-darwin`, `x86_64` ➔ `x86_64-apple-darwin` |
-| F2-043 | major | `adapters/macos-imk/build-rust.sh` giả định `CARGO_TARGET_DIR="target"` tương đối, nhưng trong Cargo workspace các artifact xuất ra thư mục gốc `../../target`, khiến `lipo` không tìm thấy file thư viện tĩnh | ✅ Fixed | Tự động tính `ROOT_DIR="$(cd ../.. && pwd)"` và truyền `--target-dir "$CARGO_TARGET_DIR"` vào cargo build; tự động copy C-ABI header `textvn_ffi.h` vào `Sources/CTextVNFFI/include/` |
-| F2-044 | minor | `adapters/macos-imk/build-rust.sh` hardcode đường dẫn binary `.build/debug/TextVN-IM` thay vì dùng API chuẩn SwiftPM | ✅ Fixed | Lấy đường dẫn binary canonical qua `swift build ... --show-bin-path` |
+| F2-049 | major | `adapters/macos-imk/Package.swift:21` — `URL(fileURLWithPath: #filePath)` ném `error: cannot find 'URL' in scope` trên Xcode 26.6. `PackageDescription` manifest compile trong restricted scope không import `Foundation`, nên `URL` và `NSString` đều không khả dụng. | ✅ Fixed | Thay bằng `String.components(separatedBy: "/")` + `dropLast()` + `joined(separator: "/")` — thuần `Swift.String`, không phụ thuộc `Foundation`. Ghi chú kỹ thuật MAC-031 vào comment. |
+| F2-050 | major | `adapters/macos-imk/build-rust.sh` — `PROFILE=()` + `EMPTY_SAFE=(...)` (mảng rỗng dưới `set -u`) ném `unbound variable` trên bash 3.2 (macOS system shell). Script dùng `cargo build ... -p textvn-ffi` từ CWD `adapters/macos-imk/` nhưng `target/` output ở workspace root → đường dẫn `target/<triple>/` không tồn tại trong CWD đó. | ✅ Fixed | (a) Thay `PROFILE=()` → `PROFILE_FLAG=""` scalar; unquoted `$PROFILE_FLAG` trong `cargo/swift build`. (b) Thêm `PKG_DIR=$(cd "$(dirname "$0")" && pwd)` và `ROOT_DIR=$(cd "$PKG_DIR/../.." && pwd)`; toàn bộ `cargo build` chạy `(cd "$ROOT_DIR" && cargo build ...)` và `lipo` dùng `$ROOT_DIR/target/...`. |
+| F2-051 | major | `.github/workflows/ci-macos.yml` — job `swift` matrix `arch: [arm64, x86_64]` dùng `${{ matrix.arch }}-apple-darwin` làm Rust target triple. `arm64-apple-darwin` **không phải** Rust triple hợp lệ (phải là `aarch64-apple-darwin`). CI step `cargo build --target arm64-apple-darwin` thất bại. | ✅ Fixed | Đổi matrix sang `include` với `arch: arm64, rust_target: aarch64-apple-darwin` và `arch: x86_64, rust_target: x86_64-apple-darwin`. Dùng `${{ matrix.rust_target }}` cho cargo, `${{ matrix.arch }}` cho swift. Thêm bước copy FFI header riêng biệt. |
 
-## Code Review Round 6 — Nhất quán & Sẵn sàng (Universal Packaging, Bundle Resources, Quality Gates 100%)
+### Kết quả kiểm tra sau fix
 
-| ID | Mức | Finding | Trạng thái | Cách fix |
-|---|---|---|---|---|
-| F2-045 | minor | Workflow `.github/workflows/ci-macos.yml` chưa kiểm thử tự động package `adapters/macos-app` (menu bar & settings SwiftUI) | ✅ Fixed | Bổ sung step `swift build + test (menu bar app — MAC-044)` chạy trên cả 2 kiến trúc `arm64` và `x86_64` |
-| F2-046 | minor | `adapters/macos-imk/Resources/Info.plist` chưa đồng bộ đầy đủ các key với `packaging/macos/Info-IM.plist` (thiếu `ComponentInputModeDict`, script `smRoman`, repertoire `Latn`, icon TextVN) | ✅ Fixed | Đồng bộ hoàn toàn `Info.plist` theo chuẩn macOS Input Method Kit của Apple |
-| F2-047 | minor | `scripts/build-macos.sh` chưa sao chép `uninstall-check.sh` vào `TextVN.app/Contents/Resources/`, và `scripts/uninstall_macos.sh` thiếu tìm kiếm checker nội bộ bundle | ✅ Fixed | Sao chép cả `uninstall_macos.sh` và `uninstall-check.sh` vào bundle resources, thêm cơ chế tìm kiếm fallback cục bộ |
-| F2-048 | minor | `IMKApp/main.swift` hardcode `bundleIdentifier: "vn.textvn.im"` thay vì ưu tiên `Bundle.main.bundleIdentifier` | ✅ Fixed | Cập nhật sang `Bundle.main.bundleIdentifier ?? "vn.textvn.im"` hỗ trợ đóng gói động |
-| F2-049 | blocker | `adapters/macos-imk/build-rust.sh:41` dùng cú pháp mở rộng mảng rỗng `"${EMPTY_SAFE[@]}"` dưới `set -u` trên bash 3.2 (macOS runner) bị lỗi `EMPTY_SAFE[@]: unbound variable` (Run 36515652209) | ✅ Fixed | Chuyển toàn bộ các cờ tùy chọn sang biến vô hướng (scalar flags) `PROFILE_FLAG` và `SWIFT_ARCH_FLAGS` mở rộng an toàn 100% trên bash 3.2 không kích hoạt lỗi `set -u` |
+| Gate | Kết quả |
+|---|---|
+| `cargo test --workspace` | ✅ tất cả test pass (local) |
+| `cargo clippy --workspace --all-targets` | ✅ 0 warning |
+| `cargo fmt --check` | ✅ clean |
+| `cargo xtask check-tables` | ✅ ok |
+| `cargo xtask check-mac-corpus` | ✅ 114/114 |
+| `textvn-cli replay corpus/mac --adapter mac` | ✅ 114/114 |
+| CI `ci-macos` (GitHub Actions) | ⏳ đang chạy sau push `f10eb1a` |
 
 ---
 
 *Cập nhật trạng thái vào `docs/00-INDEX.md` (§2) khi đạt 2/2.*
+

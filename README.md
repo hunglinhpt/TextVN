@@ -1,10 +1,11 @@
-# TextVN — Bộ gõ tiếng Việt cho Windows và Linux
+# TextVN — Bộ gõ tiếng Việt cho Windows, macOS và Linux
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![CI macOS](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml/badge.svg)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml)
 
 TextVN là bộ gõ tiếng Việt mã nguồn mở. Một engine Rust dùng chung cho **Windows**
-(Text Services Framework) và **Linux** (IBus, Fcitx5), một bảng điều khiển với cùng tuỳ
-chọn và cùng file cấu hình trên cả hai nền tảng.
+(Text Services Framework), **macOS** (Input Method Kit) và **Linux** (IBus, Fcitx5),
+một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình trên cả ba nền tảng.
 
 - **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả
   (`hoà`/`hòa`), `uow` → ươ, `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi
@@ -23,6 +24,7 @@ chọn và cùng file cấu hình trên cả hai nền tảng.
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
 | Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` — không cần quyền quản trị | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
+| macOS 13+ (Apple Silicon / Intel) | `TextVN-<ver>-macos-universal.zip` → kéo `TextVN-IM.app` vào `~/Library/Input Methods/` | xem [Hướng dẫn sử dụng macOS](docs/30-macos/P2-4-ui-packaging-release.md) |
 | Linux (IBus / Fcitx5) | `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, không cần root) | cùng tarball → `./textvn-portable.sh` |
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
@@ -31,9 +33,9 @@ Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn s�
 
 | Nền tảng | Trạng thái |
 |---|---|
-| Windows 10/11 x64 (TSF) | Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows cho cả bản cài và bản portable. Bản phát hành chưa được ký số Authenticode. |
-| Linux IBus / Fcitx5 | Release candidate — CI kiểm tra với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. |
-| macOS | Chưa có bản chạy được — mới có thiết kế (`docs/30-macos/`). |
+| Windows 10/11 x64 (TSF) | ✅ Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows. |
+| macOS 13+ Apple Silicon / Intel | 🔧 Beta — IMK adapter + CGEventTap fallback hoàn chỉnh; engine Rust universal (arm64 + x86_64), corpus 114 case. CI đang ổn định. |
+| Linux IBus / Fcitx5 | ✅ Release candidate — CI kiểm tra với ibus-daemon và fcitx5 thật. |
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
 thay đổi: [CHANGELOG.md](CHANGELOG.md).
@@ -43,6 +45,14 @@ thay đổi: [CHANGELOG.md](CHANGELOG.md).
 ```powershell
 # Windows: Rust stable + VS 2022 Build Tools (C++)
 powershell -File .\build-release.ps1 -BuildInstaller   # cần Inno Setup 6.5+
+```
+
+```bash
+# macOS 13+: Xcode CLT 15+, rustup với targets aarch64-apple-darwin + x86_64-apple-darwin
+cd adapters/macos-imk
+./build-rust.sh                   # build engine + swift build + assemble TextVN-IM.app
+./build-rust.sh --lib-only        # chỉ build libtextvn_ffi.a (cho swift test)
+./build-rust.sh --release         # build bản release
 ```
 
 ```bash
@@ -58,11 +68,12 @@ Kiến trúc, kiểm thử, quy ước và quy trình phát hành: **[Hướng d
 ```
 core/              engine (Telex/VNI/VIQR, đặt dấu, bảng mã, gõ tắt) — không phụ thuộc OS
 config/  ffi/      cấu hình config.v1 · C ABI cho adapter
-adapters/          windows-tsf · windows-hook (gói Compatibility) · linux-ibus · linux-fcitx5
-                   linux-common · linux-settings (bảng điều khiển GTK4)
+adapters/          macos-imk · macos-tap · macos-app
+                   windows-tsf · windows-hook (gói Compatibility)
+                   linux-ibus · linux-fcitx5 · linux-common · linux-settings (GTK4)
 tray/  cli/        khay + bảng điều khiển Windows · textvn-cli (register, doctor, replay)
-corpus/            kịch bản gõ chạy qua mô phỏng của mọi adapter
-installer/  packaging/linux/  scripts/    đóng gói và kiểm thử gói
+corpus/            kịch bản gõ chạy qua mô phỏng của mọi adapter (mac: 114, win: 78, shared: 35)
+installer/  packaging/  scripts/    đóng gói và kiểm thử gói
 docs/              đặc tả (10-shared, 20-windows, 30-macos, 40-linux), specs/, release/
 ```
 
