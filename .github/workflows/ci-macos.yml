@@ -14,7 +14,6 @@ on:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
-      - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "data/tables/keymap_mac.toml"
       - ".github/workflows/ci-macos.yml"
@@ -22,7 +21,6 @@ on:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
-      - "adapters/macos-app/**"
       - "corpus/mac/**"
       - "data/tables/keymap_mac.toml"
       - ".github/workflows/ci-macos.yml"
@@ -50,7 +48,6 @@ jobs:
       - name: Build staticlib 2 arch + lipo
         run: |
           cd adapters/macos-imk
-          chmod +x ./build-rust.sh
           ./build-rust.sh --lib-only
           lipo -info lib/libtextvn_ffi.a | grep -E "x86_64.*arm64|arm64.*x86_64"
 
@@ -62,6 +59,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # arch  = Swift/lipo arch name   rust_target = Rust target triple
           - arch: arm64
             rust_target: aarch64-apple-darwin
           - arch: x86_64
@@ -73,29 +71,28 @@ jobs:
         run: |
           rustup target add ${{ matrix.rust_target }}
 
-      - name: Build static lib cho arch hiện tại
+      - name: Build static lib cho arch hiện tại (MAC-031)
         run: |
           cargo build --target ${{ matrix.rust_target }} -p textvn-ffi
           mkdir -p adapters/macos-imk/lib
           cp target/${{ matrix.rust_target }}/debug/libtextvn_ffi.a adapters/macos-imk/lib/
 
+      - name: Copy FFI header vào CTextVNFFI (MAC-031)
+        run: |
+          mkdir -p adapters/macos-imk/Sources/CTextVNFFI/include
+          cp ffi/include/textvn_ffi.h adapters/macos-imk/Sources/CTextVNFFI/include/
+
       - name: swift build + test (IMK adapter — MAC-030)
         working-directory: adapters/macos-imk
         run: |
           swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
+          swift test  --arch ${{ matrix.arch }}
 
       - name: swift build + test (tap opt-in — P2-2 §8)
         working-directory: adapters/macos-tap
         run: |
           swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
-
-      - name: swift build + test (menu bar app — MAC-044)
-        working-directory: adapters/macos-app
-        run: |
-          swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
+          swift test  --arch ${{ matrix.arch }}
 
   corpus-mac:
     name: replay corpus --adapter mac

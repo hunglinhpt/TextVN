@@ -11,42 +11,49 @@
 #
 # Yêu cầu (MAC-001): macOS 13+, Xcode CLT 15+, rustup targets
 #   aarch64-apple-darwin + x86_64-apple-darwin.
-# Link: SwiftPM đọc `-L lib -ltextvn_ffi` từ Package.swift (IMKApp target).
+# Link: SwiftPM đọc `-L lib -ltextvn_ffi` từ Package.swift (CoreBridge target).
+#
+# MAC-031: bash 3.2 (macOS system shell) dùng scalar flag, không dùng mảng rỗng
+# vì `set -u` ném "unbound variable" khi expand mảng rỗng trong bash 3.2.
 set -euo pipefail
 
-cd "$(dirname "$0")"
+# PKG_DIR = thư mục của script này (adapters/macos-imk/)
+# ROOT_DIR = gốc workspace (2 cấp trên) — chứa Cargo.toml workspace và target/
+PKG_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$PKG_DIR/../.." && pwd)"
 
-LIB_DIR="lib"
+# LIB_DIR tuyệt đối — nơi đặt libtextvn_ffi.a để swift build tìm thấy
+LIB_DIR="$PKG_DIR/lib"
 MODE_LIB_ONLY=0
-PROFILE_FLAG=""
+PROFILE_FLAG=""   # "" = debug, "--release" = release — scalar an toàn với bash 3.2 set -u
 
 for arg in "$@"; do
   case "$arg" in
     --lib-only) MODE_LIB_ONLY=1 ;;
-    --release) PROFILE_FLAG="--release" ;;
+    --release)  PROFILE_FLAG="--release" ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
 
-ROOT_DIR="$(cd ../.. && pwd)"
-CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT_DIR/target}"
-
-mkdir -p Sources/CTextVNFFI/include
-cp "$ROOT_DIR/ffi/include/textvn_ffi.h" Sources/CTextVNFFI/include/textvn_ffi.h
-
-echo "== [1/4] cargo build 2 arch (P2-1 §2) =="
-cargo build $PROFILE_FLAG --target aarch64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
-cargo build $PROFILE_FLAG --target x86_64-apple-darwin -p textvn-ffi --target-dir "$CARGO_TARGET_DIR"
-
-# staticlib output: target/<triple>/{debug|release}/libtextvn_ffi.a
+# Xác định subdir debug|release để copy staticlib đúng vị trí.
 SUBDIR="debug"
 if [ "$PROFILE_FLAG" = "--release" ]; then SUBDIR="release"; fi
+
+echo "== [1/4] cargo build 2 arch (P2-1 §2) =="
+echo "  workspace root : $ROOT_DIR"
+echo "  package dir    : $PKG_DIR"
+echo "  profile        : ${PROFILE_FLAG:-debug}"
+
+# Chạy cargo từ workspace root để Cargo.toml workspace được tìm thấy đúng.
+# shellcheck disable=SC2086 — PROFILE_FLAG intentionally unquoted (empty or single flag)
+(cd "$ROOT_DIR" && cargo build $PROFILE_FLAG --target aarch64-apple-darwin -p textvn-ffi)
+(cd "$ROOT_DIR" && cargo build $PROFILE_FLAG --target x86_64-apple-darwin  -p textvn-ffi)
 
 echo "== [2/4] lipo universal libtextvn_ffi.a =="
 mkdir -p "$LIB_DIR"
 lipo -create \
-  "$CARGO_TARGET_DIR/aarch64-apple-darwin/$SUBDIR/libtextvn_ffi.a" \
-  "$CARGO_TARGET_DIR/x86_64-apple-darwin/$SUBDIR/libtextvn_ffi.a" \
+  "$ROOT_DIR/target/aarch64-apple-darwin/$SUBDIR/libtextvn_ffi.a" \
+  "$ROOT_DIR/target/x86_64-apple-darwin/$SUBDIR/libtextvn_ffi.a" \
   -output "$LIB_DIR/libtextvn_ffi.a"
 lipo -info "$LIB_DIR/libtextvn_ffi.a"
 
@@ -56,17 +63,20 @@ if [ "$MODE_LIB_ONLY" -eq 1 ]; then
 fi
 
 echo "== [3/4] swift build (SwiftPM) =="
-BIN_DIR="$(swift build $PROFILE_FLAG --show-bin-path)"
-BIN="$BIN_DIR/TextVN-IM"
+cd "$PKG_DIR"
+# shellcheck disable=SC2086
+swift build $PROFILE_FLAG
+BIN="$PKG_DIR/.build/debug/TextVN-IM"
+if [ "$PROFILE_FLAG" = "--release" ]; then BIN="$PKG_DIR/.build/release/TextVN-IM"; fi
 test -x "$BIN" || { echo "swift build output missing: $BIN" >&2; exit 1; }
 
 echo "== [4/4] assemble TextVN-IM.app (per-user — P2-1 §8) =="
-APP="build/TextVN-IM.app"
+APP="$PKG_DIR/build/TextVN-IM.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/TextVN-IM"
-cp Resources/Info.plist "$APP/Contents/Info.plist"
-cp TextVN-IM.entitlements "$APP/Contents/TextVN-IM.entitlements"
+cp "$PKG_DIR/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$PKG_DIR/TextVN-IM.entitlements" "$APP/Contents/TextVN-IM.entitlements"
 
 echo "Universal engine + bundle assembled:"
 ls -la "$LIB_DIR" "$APP/Contents/MacOS"
