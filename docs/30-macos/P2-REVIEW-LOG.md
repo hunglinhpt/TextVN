@@ -100,6 +100,28 @@
 |---|---|---|---|---|
 | F2-028 | minor | Cần kiểm chứng toàn diện tính tuân thủ quy tắc bảo mật S2 (không log phím), S5 (cài đặt per-user không cần sudo, phân quyền `0700`/`0600`), S9 (0 tàn dư hệ thống khi gỡ cài đặt trừ khi `--purge`) và tỷ lệ vượt qua test suite | ✅ Fixed | Đã xác minh: toàn bộ workspace Rust 177/177 test đỗ 100%, 114/114 corpus mac đỗ 100%, 35/35 corpus shared đỗ 100%, 78/78 corpus win đỗ 100%, clippy 0 warning, fmt sạch, script `uninstall-check.sh` và Homebrew formula tuân thủ S5/S9 |
 
+## Code Review Round 3 — Đúng & Đủ (Rà soát chi tiết từng dòng Carbon, IMK XPC, Protocol Invariants)
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F2-029 | major | `ApplyReplace.swift:127` gọi `preedit.utf16Count` trên kiểu `String`, nhưng `utf16Count` chỉ được định nghĩa trên `MarkedState` | ✅ Fixed | Khai báo `extension String { public var utf16Count: Int { utf16.count } }` trong `Marked.swift` |
+| F2-030 | major | `ApplyReplace.swift`, `IMKTextTarget.swift`, `TextVNInputController.swift` truyền `.notFound` cho `NSRange`, nhưng chuẩn Cocoa không có thuộc tính tĩnh này | ✅ Fixed | Khai báo `extension NSRange { public static let notFound = NSRange(location: NSNotFound, length: 0) }` trong `Marked.swift` |
+| F2-031 | major | `IMKTextTarget.swift:54-57` ép kiểu `client as? NSResponder` để gọi `doCommand(by:)`. Với IMK out-of-process server, `client` là XPC proxy (`IMKInputSession`) tuân thủ protocol `IMKTextInput` mà không kế thừa từ `NSResponder` | ✅ Fixed | Gọi trực tiếp `client.doCommand(by: selector)` theo định nghĩa của giao thức `IMKTextInput` mà không cần ép kiểu `NSResponder` |
+| F2-032 | major | `KeyTranslator.swift:76` và `EventTapController.swift:273` truyền trực tiếp `Data` vào `UCKeyTranslate`, trong khi API Carbon yêu cầu con trỏ `UnsafePointer<UCKeyboardLayout>` | ✅ Fixed | Bọc bằng `layout.withUnsafeBytes { raw in let layoutPtr = raw.baseAddress!.bindMemory(to: UCKeyboardLayout.self, capacity: 1) ... }` |
+| F2-033 | major | `IMKApp/main.swift` gọi `Diagnostics` từ `CoreBridge` nhưng thiếu `import CoreBridge`, và `Package.swift` target `IMKApp` thiếu dependency `CoreBridge` | ✅ Fixed | Thêm `CoreBridge` vào dependencies của `IMKApp` trong `Package.swift` và thêm `import CoreBridge` trong `main.swift` |
+| F2-034 | major | `EventTapController.swift:180` gọi `CGEvent.tapEnable(tap: proxy, enable: true)` với `proxy: CGEventTapProxy`. Tuy nhiên `CGEvent.tapEnable` yêu cầu `CFMachPort` | ✅ Fixed | Đổi thuộc tính `tap` thành `fileprivate var tap: CFMachPort?` và gọi `CGEvent.tapEnable(tap: port, enable: true)` qua port đã lưu |
+| F2-035 | major | `TextVNInputController.swift:86` gọi `clientPid(sender)` nhưng phương thức tĩnh `clientPid()` không nhận tham số | ✅ Fixed | Đổi khai báo thành `static func clientPid(_ sender: Any? = nil) -> pid_t` và gọi `Self.clientPid(sender)` |
+| F2-036 | major | `IMKLibTests.swift:204` gọi `ImeEngine.string(fromUTF32:len:)` nhưng phương thức này chưa được định nghĩa trong `CoreBridge.swift` | ✅ Fixed | Hiện thực hàm trợ giúp `public static func string(fromUTF32 points: [UInt32], len: Int) -> String` trong `CoreBridge.swift` |
+| F2-037 | major | `IMKLibTests.swift:235, 248` gán trực tiếp thuộc tính `marked.text = "..."` vốn có quyền ghi private (`public private(set) var text: String`) | ✅ Fixed | Chuyển sang gọi hàm `marked.set("...")` theo đúng invariant |
+
+## Code Review Round 4 — Nhất quán & Sẵn sàng (Toàn vẹn ABI, ARM64 Memory Alignment, Quality Gate)
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F2-038 | minor | `IpcClient.swift:335` hàm `tearDown()` không hủy `retryTimer` có thể gây rò rỉ timer hoặc re-connect ngoài ý muốn sau khi ngắt kết nối | ✅ Fixed | Gọi `cancelRetry()` bên trong `tearDown()` |
+| F2-039 | minor | `IpcServer.swift:65` và `TextVNAppTests.swift:122` dùng `$0.load(as: UInt32.self)` trên `Data.prefix(4)` có thể gây lỗi alignment trap trên kiến trúc ARM64 Apple Silicon | ✅ Fixed | Đổi thành `$0.loadUnaligned(fromByteOffset: 0, as: UInt32.self)` tương thích an toàn với mọi kiến trúc CPU |
+| F2-040 | minor | `AppDelegate.swift:353` hàm `didToggleViEn` chỉ kiểm tra `appID == "*"` | ✅ Fixed | Đổi thành `appID == "*" || appID.isEmpty` để hỗ trợ đầy đủ đặc tả toggle toàn cục theo `schemas/ipc.v1.md` |
+
 ---
 
 *Cập nhật trạng thái vào `docs/00-INDEX.md` (§2) khi đạt 2/2.*

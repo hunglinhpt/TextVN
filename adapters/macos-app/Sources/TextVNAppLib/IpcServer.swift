@@ -62,7 +62,7 @@ public final class IpcServer {
         var messages: [[String: Any]] = []
 
         while buffer.count >= 4 {
-            let length = buffer.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian
+            let length = buffer.prefix(4).withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt32.self) }.littleEndian
             let totalLength = 4 + Int(length)
 
             if length == 0 || length > UInt32(maxFrameLength) {

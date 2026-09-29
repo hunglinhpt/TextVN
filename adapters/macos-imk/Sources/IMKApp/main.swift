@@ -6,6 +6,7 @@
 //! ký observer nào ngoài IMK (P2-1 §3 — tránh retain cycle giữ process sống).
 
 import AppKit
+import CoreBridge
 import IMKLib
 import InputMethodKit
 

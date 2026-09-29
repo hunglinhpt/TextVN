@@ -274,4 +274,4 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `packaging/macos` & `packaging/homebrew`: Info-IM.plist, Info-App.plist, TextVN.entitlements, `uninstall-check.sh` (zero residue S9), `textvn.rb` Homebrew Cask.
   - `scripts/`: `build-macos.sh` (Universal lipo arm64+x86_64), `install_macos.sh`, `uninstall_macos.sh`.
   - `corpus/mac`: 114/114 test sequences pass 100%, đồng bộ tuyệt đối với `xtask/src/mac_corpus_cases.rs`.
-  - Review 2 vòng: 28/28 findings xử lý triệt để (0 blocker, 0 major) → `docs/30-macos/P2-REVIEW-LOG.md`.
+  - Review 4 vòng (Round 1..4): 40/40 findings xử lý triệt để (0 blocker, 0 major) → `docs/30-macos/P2-REVIEW-LOG.md`.

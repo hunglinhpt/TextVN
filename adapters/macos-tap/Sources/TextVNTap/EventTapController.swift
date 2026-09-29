@@ -45,7 +45,7 @@ public final class EventTapController {
     public static let slowLimitStreak = 50
 
     private let handler: TapKeyHandler
-    private var tap: CFMachPort?
+    fileprivate var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var runLoop: CFRunLoop?
     private var slowStreak = 0
@@ -177,7 +177,9 @@ enum TapCallback {
 
         // 0. Tap bị system disable (callback chậm/user input) → enable lại (§9).
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            CGEvent.tapEnable(tap: proxy, enable: true)
+            if let port = controller.tap {
+                CGEvent.tapEnable(tap: port, enable: true)
+            }
             controller.noteReEnable()
             DiagnosticsLog.log("tap re-enabled after \(type)")
             return Unmanaged.passRetained(event)
@@ -269,12 +271,16 @@ final class TapTranslator {
         if shift { modifiers |= (UInt32(shiftKey) >> 8) }
         if option { modifiers |= (UInt32(optionKey) >> 8) }
         if control { modifiers |= (UInt32(controlKey) >> 8) }
-        let status = withUnsafeMutablePointer(to: &deadKeyState) { dead in
-            UCKeyTranslate(
-                layoutData, keyCode, UInt16(kUCKeyActionDown), modifiers,
-                UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysMask),
-                dead, 4, &len, &chars
-            )
+        let status: OSStatus = layoutData.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { return OSStatus(paramErr) }
+            let layoutPtr = base.bindMemory(to: UCKeyboardLayout.self, capacity: 1)
+            return withUnsafeMutablePointer(to: &deadKeyState) { dead in
+                UCKeyTranslate(
+                    layoutPtr, keyCode, UInt16(kUCKeyActionDown), modifiers,
+                    UInt32(LMGetKbdType()), UInt32(kUCKeyTranslateNoDeadKeysMask),
+                    dead, 4, &len, &chars
+                )
+            }
         }
         guard status == noErr, len > 0 else { return 0 }
         let string = String(utf16CodeUnits: chars, count: len)

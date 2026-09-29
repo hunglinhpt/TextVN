@@ -83,7 +83,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         marked.clear()
         engine?.reset()
         gatherContext(from: sender, force: true)
-        Diagnostics.log("activateServer pid=\(clientPid(sender))")
+        Diagnostics.log("activateServer pid=\(Self.clientPid(sender))")
     }
 
     /// Mất focus → commit-before-hide (B13) + reset (P2-1 §3).
@@ -314,7 +314,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// PID của app đang focus (frontmost) — app_id cho preset (P2-3 §1).
     /// IMK không expose pid client trực tiếp; NSWorkspace frontmost là nguồn
     /// đáng tin khi `activateServer`/`handle` (client == app đang gõ).
-    static func clientPid() -> pid_t {
+    static func clientPid(_ sender: Any? = nil) -> pid_t {
         NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
     }
 

@@ -119,7 +119,7 @@ final class TextVNAppTests: XCTestCase {
 
         // Check 4-byte header length
         XCTAssertGreaterThan(frame.count, 4)
-        let length = frame.prefix(4).withUnsafeBytes { $0.load(as: UInt32.self) }.littleEndian
+        let length = frame.prefix(4).withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt32.self) }.littleEndian
         XCTAssertEqual(Int(length), frame.count - 4)
 
         // Parse single frame

@@ -350,7 +350,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     // MARK: - IpcServerDelegate
 
     public func ipcServer(_ server: IpcServer, didToggleViEn appID: String, enabled: Bool) {
-        if appID == "*" {
+        if appID == "*" || appID.isEmpty {
             self.isVietnameseMode = enabled
             self.configStore.config.enabled = enabled
             self.configStore.persist()

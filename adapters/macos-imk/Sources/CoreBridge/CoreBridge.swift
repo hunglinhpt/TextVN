@@ -246,6 +246,18 @@ public final class ImeEngine {
         Array(text.unicodeScalars).map { $0.value }
     }
 
+    /// [UInt32] → String (dùng cho test roundtrip UTF-32 và mock engine).
+    public static func string(fromUTF32 points: [UInt32], len: Int) -> String {
+        var scalars: [Unicode.Scalar] = []
+        scalars.reserveCapacity(min(max(0, len), points.count))
+        for i in 0..<min(max(0, len), points.count) {
+            if let s = Unicode.Scalar(points[i]) {
+                scalars.append(s)
+            }
+        }
+        return String(String.UnicodeScalarView(scalars))
+    }
+
     /// String → mảng CChar NUL-terminated (app_id / element_name của context).
     static func cString(from text: String) -> [CChar] {
         var out = Array(text.utf8CString)

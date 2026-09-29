@@ -333,6 +333,7 @@ public final class IpcClient {
 
     /// Hủy nguồn + đóng fd + clear buffer. Gọi từ bất kỳ thread (có queue lock).
     private func tearDown() {
+        cancelRetry()
         readSource?.cancel()
         readSource = nil
         if fd >= 0 {

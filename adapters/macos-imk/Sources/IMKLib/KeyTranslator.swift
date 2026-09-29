@@ -72,13 +72,17 @@ public final class KeyTranslator {
         let option = (mods & FFI.modAlt != 0) ? (UInt32(optionKey) >> 8) : 0
         let control = (mods & FFI.modCtrl != 0) ? (UInt32(controlKey) >> 8) : 0
 
-        let status = withUnsafeMutablePointer(to: &deadKeyState) { dead in
-            UCKeyTranslate(
-                layout, keyCode, UInt16(kUCKeyActionDown),
-                shift | option | control, UInt32(LMGetKbdType()),
-                UInt32(kUCKeyTranslateNoDeadKeysMask), dead,
-                4, &len, &chars
-            )
+        let status: OSStatus = layout.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { return OSStatus(paramErr) }
+            let layoutPtr = base.bindMemory(to: UCKeyboardLayout.self, capacity: 1)
+            return withUnsafeMutablePointer(to: &deadKeyState) { dead in
+                UCKeyTranslate(
+                    layoutPtr, keyCode, UInt16(kUCKeyActionDown),
+                    shift | option | control, UInt32(LMGetKbdType()),
+                    UInt32(kUCKeyTranslateNoDeadKeysMask), dead,
+                    4, &len, &chars
+                )
+            }
         }
         guard status == noErr, len > 0 else { return nil }
 

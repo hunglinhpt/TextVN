@@ -48,16 +48,11 @@ final class IMKTextTarget: TextTarget {
 
     func deleteBackward(count: Int) -> Bool {
         guard count > 0 else { return true }
-        // Cơ chế (a) — P2-1 §6.3: key binding chuẩn, không quyền, không CGEvent.
-        // `doCommand(by:)` thuộc NSResponder; client IMK là NSView/NSResponder
-        // nên cast được. Fail → ApplyReplace fail-open (P2-1 §12).
-        guard let responder = client as? NSResponder else {
-            Diagnostics.log("deleteBackward: client not NSResponder")
-            return false
-        }
+        // Cơ chế (a) — P2-1 §6.3: key binding chuẩn qua IMKTextInput.doCommand(by:),
+        // không cần quyền Accessibility, tương thích cả in-process NSView lẫn out-of-process XPC session.
         let selector = #selector(NSResponder.deleteBackward(_:))
         for _ in 0..<count {
-            responder.doCommand(by: selector)
+            client.doCommand(by: selector)
         }
         return true
     }

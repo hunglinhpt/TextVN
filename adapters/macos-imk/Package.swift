@@ -51,7 +51,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "IMKApp",
-            dependencies: ["IMKLib"],
+            dependencies: ["IMKLib", "CoreBridge"],
             path: "Sources/IMKApp"
         ),
         .testTarget(

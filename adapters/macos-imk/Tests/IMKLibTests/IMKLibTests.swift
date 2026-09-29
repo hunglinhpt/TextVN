@@ -232,7 +232,7 @@ final class ApplyReplaceTests: XCTestCase {
     func testPreeditCommitInsertsBoundary() throws {
         let target = MockTextTarget()
         let marked = MarkedState()
-        marked.text = "chào"
+        marked.set("chào")
         try ApplyReplace.apply(
             outcome(.commit(insert: "\n")),
             strategy: .preedit, target: target, marked: marked
@@ -245,7 +245,7 @@ final class ApplyReplaceTests: XCTestCase {
     func testPreeditRestore() throws {
         let target = MockTextTarget()
         let marked = MarkedState()
-        marked.text = "đang"
+        marked.set("đang")
         try ApplyReplace.apply(
             outcome(.restore(deleteCount: 4, insert: "dang")),
             strategy: .preedit, target: target, marked: marked

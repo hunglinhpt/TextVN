@@ -61,6 +61,14 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows, 
   thiếu `auto_capitalize=false`, combo `Esc`→`Escape`…) — `check-win-corpus`
   nay pass và đã vào CI replay
 - `cargo xtask` TOML parser hỗ trợ hex `0x…` cho bảng keycode
+- **macOS subsystem audit review round 3&4** (F2-029…F2-040):
+  - Bọc con trỏ Carbon `UCKeyTranslate` (`UnsafePointer<UCKeyboardLayout>`) qua `layout.withUnsafeBytes`.
+  - Dispatch trực tiếp `client.doCommand(by:)` trên `IMKTextInput` thay vì ép kiểu `NSResponder` (tránh fail trên out-of-process XPC session).
+  - Khai báo mở rộng `NSRange.notFound` và `String.utf16Count`.
+  - Sửa `CGEvent.tapEnable` gọi đúng `CFMachPort` thay vì proxy.
+  - Thêm helper `ImeEngine.string(fromUTF32:len:)` trong `CoreBridge`.
+  - Đảm bảo an toàn bộ nhớ ARM64 (Apple Silicon) bằng `loadUnaligned` khi giải mã frame IPC.
+  - Hủy `retryTimer` khi `IpcClient.tearDown()`, hỗ trợ toggle toàn cục `appID.isEmpty`.
 
 ### Added (trước đó)
 - **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2

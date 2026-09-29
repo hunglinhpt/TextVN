@@ -60,3 +60,11 @@ public final class MarkedState {
         candidate.count > maxGraphemes
     }
 }
+
+extension String {
+    public var utf16Count: Int { utf16.count }
+}
+
+extension NSRange {
+    public static let notFound = NSRange(location: NSNotFound, length: 0)
+}
