@@ -156,6 +156,9 @@ restore_portable_state() {
 
 fcitx5_has_textvn() { # 0 = đã nạp IM textvn, 1 = chưa, 2 = không có công cụ DBus để kiểm
     local out=""
+    # Không có tiến trình → đừng gọi DBus: gọi tới org.fcitx.Fcitx5 sẽ DBus-activate
+    # một Fcitx5 mới (không có addon portable).
+    tv_running fcitx5 || return 1
     if command -v gdbus >/dev/null 2>&1; then
         out="$(gdbus call --session --dest org.fcitx.Fcitx5 --object-path /controller \
             --method org.fcitx.Fcitx.Controller1.AvailableInputMethods 2>/dev/null)" || return 1

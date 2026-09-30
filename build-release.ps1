@@ -354,6 +354,9 @@ if ($BuildInstaller) {
         if ($IncludeCompatibilityHook) { $installerArgs += "/DIncludeCompatibilityHook=1" }
         $installerArgs += "installer\windows\TextVN-setup.iss"
         iscc.exe @installerArgs
+        # -BuildInstaller la yeu cau ro rang: ISCC loi thi dung, khong WARN roi
+        # bao "Build COMPLETE" (loi [Code] cua .iss tung lot qua nhu vay).
+        if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
         $setupExe = "dist\TextVN-setup-$Version-windows-x64.exe"
         if (Test-Path $setupExe) {
             if ($SigningRequested) {
@@ -361,7 +364,7 @@ if ($BuildInstaller) {
             }
             Write-Ok "Installer: $setupExe"
         } else {
-            Write-Warn "Installer output not found"
+            throw "Installer output not found: $setupExe"
         }
     }
 }

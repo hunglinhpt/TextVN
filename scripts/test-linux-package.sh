@@ -262,7 +262,9 @@ scenario_portable() {
     if [[ "$fw" == ibus ]]; then
         ! ibus engine >/dev/null 2>&1 || fail "stop portable da de lai IBus khi ban dau IBus tat"
     else
-        ! fcitx5-remote -n >/dev/null 2>&1 || fail "stop portable da de lai Fcitx5 khi ban dau Fcitx5 tat"
+        # Kiểm tiến trình, KHÔNG gọi fcitx5-remote: lệnh đó kích hoạt DBus
+        # (org.fcitx.Fcitx5) → tự bật lại Fcitx5 ngay sau khi stop đã tắt đúng.
+        ! pgrep -x -u "$(id -u)" fcitx5 >/dev/null 2>&1 || fail "stop portable da de lai Fcitx5 khi ban dau Fcitx5 tat"
         # TextVN có sẵn do cài thường không thuộc quyền xóa của portable.
         fcitx_profile
         printf '\n[Groups/0/Items/1]\nName=textvn\nLayout=\n' >> "$XDG_CONFIG_HOME/fcitx5/profile"

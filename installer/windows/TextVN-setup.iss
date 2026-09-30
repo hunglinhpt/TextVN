@@ -129,15 +129,26 @@ begin
     if not RegistrationOK then
     begin
       Log('TextVN was installed but not started because TSF registration did not complete.');
-      if WizardSilent then
-        SetErrorFlag
-      else
+      // Cai im lang: bao loi qua exit code (GetCustomSetupExitCode ben duoi).
+      // Inno Setup khong co 'SetErrorFlag' - ban truoc khong compile duoc.
+      if not WizardSilent then
         SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
           'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
           'Mo "TextVN Doctor" sau khi sua chinh sach/quyen registry roi chon "Cai & bat TSF".',
           mbError, MB_OK, IDOK);
     end;
   end;
+end;
+
+// Event function Inno Setup 6: chi duoc goi khi Setup chay xong va exit code se
+// la 0. Tra khac 0 khi dang ky TSF that bai de script/CI cai im lang nhan ra
+// "da chep file nhung khong go duoc". 10 nam ngoai dai ma Inno dung san (0..8).
+function GetCustomSetupExitCode(): Integer;
+begin
+  if RegistrationOK then
+    Result := 0
+  else
+    Result := 10;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
