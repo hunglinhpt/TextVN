@@ -7,6 +7,63 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.2] — 2026-09-30
+
+Bản vá nghiêm túc cho bản 0.2.1: **ưu tiên cao nhất** là F3-13 — khi TextVN tự
+khởi động theo login item trên macOS, cửa sổ **Cài đặt không còn tự bật lên**
+nữa. Gói vẫn chưa ký số, chưa có smoke GUI trên máy Mac thật nên **không phải
+production**.
+
+### Fixed (macOS — ưu tiên bản này)
+- **F3-13 · login launch không mở Cài đặt**: `SMAppService` **không** truyền
+  `--autostart` vào argv, nên cờ mở dialog trước đây hiểu nhầm là khởi động thủ
+  công. Thêm `AutostartManager.isAutostartConfigured()` coi cả trạng thái
+  `.requiresApproval` là “đã đăng ký”, cộng `config.autostart`; `NSLog` ghi rõ
+  `settings/loginLaunch/showDialogOnStartup` để chẩn đoán. Trade-off đã ghi trong
+  review log: mở tay sau khi bật autostart cũng không tự mở Settings.
+- **F3-6 · fallback LaunchAgent thật sự hoạt động**: trước đây `setAutostart(true)`
+  coi là xong khi `SMAppService.register()` trả về mà status vẫn `.requiresApproval`,
+  khiến plist fallback không bao giờ được ghi → bật autostart rồi restart là mất.
+  Nay đo lại `status == .enabled`, chỉ ghi plist khi SM **không** nhận.
+- **F3-8 · menu bar theo `ui-spec`**: icon là SF Symbol **template** (tự đổi màu
+  sáng/tối, badge `error` màu cam khi IMK crash), submenu **Dấu** đầy đủ, mục
+  **Bật tiếng Việt cho {app}** đọc app foreground gần nhất, mỗi mục có đánh dấu
+  trạng thái riêng, và **Sức khoẻ** in PID tiến trình IMK + tuổi heartbeat.
+- **Nit F3-15/16/17/18/19/20/21**: vòng quan sát workspace được huỷ khi terminate
+  (hết retain cycle), hotkey `Ctrl+Shift+Space` so **mask** nên vẫn toggle khi
+  Caps Lock bật, `IMKApp` huỷ observer khi thoát, Secure Input tính lại **trước**
+  khi nuốt `keyDown`, `Diagnostics` đọc Int đúng kiểu và có fallback,
+  `KeyTranslator` dùng mask modifier, `setAutostart` không gọi hai lần, bỏ nhánh
+  `SettingsController` chết.
+- `applyReplace` escape XML đường dẫn LaunchAgent; `IpcClient` ghi log chẩn đoán
+  khi socket lỗi; `ipcServer(_:didChangeEnabled:)` phát `ConfigReload` để IMK
+  nạp lại `config.enabled` (trước đó bật/tắt ở menu không tới IMK).
+
+### Fixed (Windows)
+- **Thông báo lỗi attachment sai**: danh sách dò DLL trong `textvn register` lặp
+  `textvn-tsf.dll` hai lần và câu lỗi ghi “(hoặc `textvn-tsf.dll`)” — tức **tên
+  đúng** `textvn_win_tsf.dll` mà gói phát hành mang lại không bao giờ hiện ra
+  đúng ở phần giải thích. Bỏ trùng lặp, sửa câu lỗi, và hộp thoại “Cài & bật TSF”
+  giờ hiện **lý do thật** lấy từ đuôi `register.log` kèm gợi ý đúng nguyên nhân
+  (thiếu quyền Administrator / `ACCESS_DENIED` khi ghi HKCU / thiếu DLL cạnh
+  `textvn-cli.exe`) thay vì luôn đổ lỗi cho ACL.
+
+### Fixed (macOS — tiếp)
+- `EventTapController.start()` là idempotent (gọi hai lần không rò tap/thread) và
+  `stop()` chặn race với thread chưa gắn runloop; app foreground đọc từ **cache**
+  cập nhật qua notification thay vì gọi `NSWorkspace.frontmostApplication` — vốn là
+  XPC từ khoá 2ms trong callback event tap.
+
+### Changed
+- Job `perf regression` trên CI vẫn `continue-on-error` (runner dùng chung, số đo
+  nhiễu). Đo trên máy local: `ime_key` p50 687 → **500 ns (−27,2%)**,
+  `parse_config` 781 → 768 ns (−1,7%) — **không có hồi quy**; xem
+  [báo cáo build](docs/release/build-release-report.md).
+
+### Housekeeping
+- Dọn file temp của phiên làm việc, `.gitignore` thêm `/build/` và `.vscode/`
+  (artifact CMake và cấu hình IDE máy-locale trước đó lọt vào untracked).
+
 ## [0.2.1] — 2026-09-30
 
 Release candidate bảo trì: macOS không tự bật Settings ở phiên login qua
@@ -225,7 +282,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0

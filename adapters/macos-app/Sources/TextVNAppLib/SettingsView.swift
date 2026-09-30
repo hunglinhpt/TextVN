@@ -6,8 +6,41 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject public var store: ConfigStore
     @State private var isExpanded: Bool = false
-    @State private var showAboutAlert: Bool = false
+    @State private var activeAlert: ActiveAlert?
     @State private var showMacroSheet: Bool = false
+    /// Khi lỗi autostart, ta set `store.config.autostart` về giá trị cũ — cờ này
+    /// chặn `onChange` chạy lại vòng 2 (F4-03).
+    @State private var suppressAutostartChange = false
+
+    /// Một nguồn alert duy nhất — SwiftUI không đảm bảo nhiều `.alert` cùng view.
+    private enum ActiveAlert: Identifiable {
+        case about
+        case autostartFailed(String)
+
+        var id: String {
+            switch self {
+            case .about: return "about"
+            case let .autostartFailed(message): return "autostart:" + message
+            }
+        }
+
+        var alert: Alert {
+            switch self {
+            case .about:
+                return Alert(
+                    title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),
+                    message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\n\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."),
+                    dismissButton: .default(Text("Đồng ý"))
+                )
+            case let .autostartFailed(message):
+                return Alert(
+                    title: Text("Không đổi được 'Khởi động cùng OS'"),
+                    message: Text(message),
+                    dismissButton: .default(Text("Đóng"))
+                )
+            }
+        }
+    }
 
     public var onClose: (() -> Void)?
     /// Báo host đổi cỡ cửa sổ khi Mở rộng/Thu nhỏ: `NSHostingView` KHÔNG tự
@@ -129,7 +162,7 @@ public struct SettingsView: View {
                     }
 
                     Button(action: {
-                        showAboutAlert = true
+                        activeAlert = .about
                     }) {
                         Text("Thông tin")
                             .frame(width: 100)
@@ -158,13 +191,24 @@ public struct SettingsView: View {
                                 }
                                 .font(.system(size: 11))
                             }
-                            Toggle("Bỏ dấu kiểu mới (òa, ùy)", isOn: Binding(
-                                get: { store.config.diacritic_style == "new" },
-                                set: {
-                                    store.config.diacritic_style = $0 ? "new" : "old"
+                            // Nhãn khớp ui-spec §2 + Linux/Windows (F3-8; thay toggle
+                            // "Bỏ dấu kiểu mới" cũ gây nghĩa ngược).
+                            HStack(spacing: 12) {
+                                RadioButton(
+                                    title: "Dấu mới (hoà, thuỷ)",
+                                    isSelected: store.config.diacritic_style == "new"
+                                ) {
+                                    store.config.diacritic_style = "new"
                                     persistAndNotify()
                                 }
-                            ))
+                                RadioButton(
+                                    title: "Dấu cũ (hòa, thủy)",
+                                    isSelected: store.config.diacritic_style == "old"
+                                ) {
+                                    store.config.diacritic_style = "old"
+                                    persistAndNotify()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 4)
@@ -177,8 +221,20 @@ public struct SettingsView: View {
                                 .onChange(of: store.config.show_dialog_on_startup) { _ in persistAndNotify() }
                             Toggle("Khởi động cùng OS", isOn: $store.config.autostart)
                                 .onChange(of: store.config.autostart) { newValue in
-                                    try? AutostartManager.shared.setAutostart(enabled: newValue)
-                                    persistAndNotify()
+                                    guard !suppressAutostartChange else { return }
+                                    do {
+                                        try AutostartManager.shared.setAutostart(enabled: newValue)
+                                        persistAndNotify()
+                                    } catch {
+                                        // Không ghi được SM/LaunchAgent → trả công tắc
+                                        // về trạng thái THẬT thay vì "bật ảo"
+                                        // (review F4-03).
+                                        suppressAutostartChange = true
+                                        store.config.autostart = !newValue
+                                        suppressAutostartChange = false
+                                        store.persist()
+                                        activeAlert = .autostartFailed(error.localizedDescription)
+                                    }
                                 }
                             Toggle("Gõ không gạch chân (Non-preedit)", isOn: $store.config.non_preedit)
                                 .onChange(of: store.config.non_preedit) { _ in persistAndNotify() }
@@ -198,13 +254,7 @@ public struct SettingsView: View {
             alignment: .topLeading
         )
         .onChange(of: isExpanded) { expanded in onExpandedChange?(expanded) }
-        .alert(isPresented: $showAboutAlert) {
-            Alert(
-                title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),
-                message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\n\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."),
-                dismissButton: .default(Text("Đồng ý"))
-            )
-        }
+        .alert(item: $activeAlert) { $0.alert }
         .sheet(isPresented: $showMacroSheet) {
             MacroEditorSheet(store: store)
         }
@@ -263,6 +313,7 @@ public struct MacroEditorSheet: View {
                         Button(action: {
                             store.config.macros.removeAll { $0.trigger == macro.trigger }
                             store.persist()
+                            MacroEditorSheet.notifyConfigChanged()
                         }) {
                             Image(systemName: "trash")
                                 .foregroundColor(.red)

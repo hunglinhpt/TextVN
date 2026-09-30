@@ -1,6 +1,48 @@
 # Audit tiếp diễn — TextVN, 2026-09-30
 
-## Vòng 10 — delta từ `v0.2.0` đến `v0.2.1`
+## Vòng 11 — `v0.2.2`: đóng F3-13 (mở nhầm Cài đặt lúc login), F3-8 và nit
+
+Bản 0.2.1 đã vá F3-13 một cách **chưa đủ**: điều kiện “khởi động theo login
+item” dựa trên `SMAppService.mainApp.status == .enabled`, nhưng với bản **chưa
+ký số** (đúng trạng thái release hiện tại) status thường là `.requiresApproval`
+dù login item **vẫn chạy** → app hiểu là khởi động tay và bật cửa sổ Cài đặt mỗi
+lần đăng nhập. Vòng này sửa tận gốc và đóng nốt F3-8 cùng nhóm nit.
+
+| What / Where | Why (nguyên nhân) | Who chịu ảnh hưởng | When | How xử lý / xác minh |
+|---|---|---|---|---|
+| **F3-13 (lần 2, ưu tiên cao nhất)** · `AutostartManager.swift`, `AppDelegate.swift` | `.requiresApproval` bị coi là “chưa đăng ký” → login launch bị hiểu thành khởi động thủ công | **Mọi** người dùng macOS 13+ bật login item trên bản chưa ký | Mỗi lần đăng nhập máy | `isAutostartConfigured()` coi `.enabled` **và** `.requiresApproval` + plist LaunchAgent là “đã cấu hình”, cộng ý định `config.autostart`. `NSLog` ghi `settings/loginLaunch/showDialogOnStartup`. Test Swift + chờ smoke GUI Mac |
+| **F3-6 (phần bật)** · `AutostartManager.setAutostart(true)` | Coi `SMAppService.register()` trả về là xong, bỏ qua status còn `.requiresApproval` → plist fallback không bao giờ được ghi | Người bật autostart rồi restart | Mỗi lần bật | Đo lại `status == .enabled`; chỉ ghi plist khi SM **không** nhận |
+| **F3-8** · `AppDelegate.swift`, `SettingsView.swift` | Menu bar thiếu submenu Dấu / mục per-app; badge vẽ tay không đổi màu theo theme; Sức khoẻ thiếu PID IMK | Người dùng macOS nhìn menu bar | Mỗi lần mở menu | `NSMenuDelegate` dựng lại menu; SF Symbol **template** + `contentTintColor`, badge `error` khi crash; Sức khoẻ in PID IMK + tuổi heartbeat; toggle “Bật dấu kiểu mới” đổi thành radio khớp ui-spec §2. Unit test badge/health/heartbeat/per-app |
+| `register` báo sai tên DLL · `cli/src/register.rs` | Danh sách dò lặp `textvn-tsf.dll`, câu lỗi ghi “(hoặc `textvn-tsf.dll`)” — tên thật của gói là `textvn_win_tsf.dll` | Người dùng Windows gặp lỗi đăng ký | Khi CLI không tìm thấy DLL | Bỏ trùng lặp, sửa câu lỗi; hộp thoại tray hiện **lý do thật** từ đuôi `register.log` + gợi ý theo nguyên nhân thay vì luôn đổ lỗi cho ACL. Test `advice_matches_real_cause` |
+| Tap vỡ khi bật lại nhiều lần · `EventTapController.swift` | `start()` không idempotent; `stop()` race với thread chưa gắn runloop; `frontmostApplication` (XPC) gọi trong callback | Người bật/tắt event tap | Khi doctor bật lại tap | Cờ `stopRequested`, khóa kiểm tra `tap != nil`, cache app foreground qua notification. Unit test |
+| Nit macOS · nhiều file | Retain cycle observer, hotkey chết khi Caps Lock, Secure Input dùng cache cũ, `Diagnostics` đọc Int, `SettingsController` chết | Ít ảnh hưởng người dùng | Rải rác | Sửa hết; xem [review log](../30-macos/P2-REVIEW-LOG.md) “Vòng 10” |
+
+### Perf — job `perf regression` vẫn đỏ trên CI, **không phải** hồi quy
+
+Job này cố ý `continue-on-error` (runner Windows GHA dùng chung 2 vCPU, số đo nhiễu;
+gate cứng nằm ở runner self-hosted). Đo lại trên máy local của phiên này:
+
+| Phép đo | Baseline p50 | Hiện tại p50 | Chênh lệch |
+|---|---|---|---|
+| `ime_key` | 687 ns | **500 ns** | **−27,2%** |
+| `parse_config` | 781 ns | 768 ns | −1,7% |
+| `ime_strategy_resolve` | — | 10 ns | dưới ngưỡng đo (không tính %) |
+
+Kết luận: **không có hồi quy hiệu năng**; số đỏ trên runner dùng chung là nhiễu môi
+trường, không phải bằng chứng chậm. Không nới lỏng cấu hình job.
+
+### Ranh giới xác minh
+
+Toàn bộ kiểm chứng Rust chạy trên host Windows: `cargo fmt`/`clippy -D warnings`
+sạch, **342 test** pass, replay 149/149 (mac) + 78/78 (win), `check-version-sync`
+14 chỗ = 0.2.2, `verify` ABI khớp header, perf như bảng trên.
+
+**Swift chưa được compile ở vòng này** — host là Windows, không có toolchain
+Swift/SDK macOS. Mọi test Swift mới (F3-8, F3-13, `ViState`, toggle theo config,
+observer lifecycle) lần đầu được xác nhận ở `ci-macos` sau khi push. Cùng vậy,
+chưa thể khẳng định typing GUI Mac, Developer ID, notarization hay AV thực tế.
+
+### Vòng 10 — delta từ `v0.2.0` đến `v0.2.1`
 
 Đối chiếu HEAD `30d5273`, tag `v0.2.0`, các thay đổi Graphify còn pending và
 release GitHub: `v0.2.0` đã có 7 asset (Windows portable/setup, Linux tar,

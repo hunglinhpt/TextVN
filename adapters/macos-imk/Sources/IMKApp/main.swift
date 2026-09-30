@@ -12,6 +12,8 @@ import InputMethodKit
 
 Diagnostics.start()
 Diagnostics.log("TextVN-IM launch (pid \(ProcessInfo.processInfo.processIdentifier))")
+// Heartbeat 5s/lần cho mục "Sức khỏe hệ thống" của TextVN.app (P2-4 §6).
+Diagnostics.startHeartbeat()
 
 let app = NSApplication.shared
 // IMK process không hiện Dock icon; không activate chính nó.

@@ -793,21 +793,17 @@ unsafe extern "system" fn dialog_wnd_proc(
                     ),
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
-                ID_BTN_SETUP_TSF => {
-                    if register_and_activate_tsf() {
-                        show_information(
-                            hwnd,
-                            "TextVN TSF",
-                            "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
-                        );
-                    } else {
-                        show_information(
-                            hwnd,
-                            "Không thể đăng ký TextVN TSF",
-                            "Windows đã từ chối đăng ký bộ gõ cho tài khoản hiện tại. TextVN không thể nhận phím cho đến khi TSF được đăng ký.\r\n\r\nKiểm tra quyền ghi HKCU\\Software\\Classes\\CLSID và chính sách phần mềm bảo mật, sau đó bấm [Cài & bật TSF] lại.",
-                        );
+                ID_BTN_SETUP_TSF => match register_and_activate_tsf() {
+                    Ok(()) => show_information(
+                        hwnd,
+                        "TextVN TSF",
+                        "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
+                    ),
+                    Err(reason) => {
+                        show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
                     }
-                }
+                },
+
                 ID_BTN_DEFAULT => {
                     if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
                         populate_controls_from_config(hwnd);
@@ -1219,23 +1215,104 @@ fn show_information(owner: HWND, title: &str, content: &str) {
 
 /// Đăng ký TIP theo user từ chính dialog để lỗi quyền hiện rõ trong UI thay vì
 /// thất bại im lặng. CLI là thành phần cùng gói và được chạy ẩn.
+///
+/// Trả `Err(lý do thật)`: exit code + đuôi `register.log` — trước đây dialog luôn
+/// đổ cho "quyền ghi HKCU" kể cả khi nguyên nhân là thiếu DLL/CLI, khiến người
+/// dùng sửa sai chỗ (ảnh lỗi thực tế: sandbox chặn HKCU + thiếu log).
 #[cfg(windows)]
-fn register_and_activate_tsf() -> bool {
+fn register_and_activate_tsf() -> std::result::Result<(), String> {
     let Ok(mut cli_path) = std::env::current_exe() else {
-        return false;
+        return Err("Không xác định được thư mục cài đặt (current_exe lỗi). \
+                    Hãy mở TextVN từ đúng thư mục đã cài/giải nén."
+            .to_string());
     };
     cli_path.set_file_name("textvn-cli.exe");
     if !cli_path.is_file() {
-        return false;
+        return Err(format!(
+            "Thiếu textvn-cli.exe cạnh TextVN.exe ({}).\r\n\r\nGói cài/portable bị thiếu tệp — \
+             hãy tải lại gói đầy đủ và bấm [Cài & bật TSF] lại.",
+            cli_path.display()
+        ));
     }
 
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    std::process::Command::new(cli_path)
+    let status = std::process::Command::new(&cli_path)
         .arg("register")
         .creation_flags(CREATE_NO_WINDOW)
-        .status()
-        .is_ok_and(|status| status.success())
+        .status();
+    let exit_code = match status {
+        Ok(st) if st.success() => return Ok(()),
+        Ok(st) => st.code().unwrap_or(-1),
+        Err(err) => return Err(format!("Không chạy được textvn-cli.exe: {err}")),
+    };
+
+    let mut message = format!("textvn-cli register thất bại (exit code {exit_code}).\r\n");
+    let log_path = register_log_path();
+    match &log_path {
+        Some(path) => {
+            if let Some(tail) = read_log_tail(path, 12) {
+                message.push_str("\r\nChi tiết từ register.log:\r\n");
+                message.push_str(&tail);
+            } else {
+                message.push_str("\r\nKhông đọc được register.log (file trống/thiếu quyền).");
+            }
+            message.push_str(&format!("\r\n\r\nLog đầy đủ: {}", path.display()));
+        }
+        None => message.push_str("\r\nKhông xác định được %LOCALAPPDATA% để đọc register.log."),
+    }
+    message.push_str("\r\n\r\n");
+    message.push_str(&advice_for_failure(exit_code, &message));
+    Err(message)
+}
+
+/// `%LOCALAPPDATA%\TextVN\logs\register.log` — CLI ghi mọi bước vào đây (kể cả
+/// khi setup chạy CLI ẩn console, lý do thật chỉ nằm trong file).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn register_log_path() -> Option<std::path::PathBuf> {
+    let base = std::env::var_os("LOCALAPPDATA")?;
+    Some(
+        std::path::PathBuf::from(base)
+            .join("TextVN")
+            .join("logs")
+            .join("register.log"),
+    )
+}
+
+/// `max_lines` dòng cuối của log (thuần path → test được trên mọi OS).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn read_log_tail(path: &std::path::Path, max_lines: usize) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    let start = lines.len().saturating_sub(max_lines);
+    Some(lines[start..].join("\r\n"))
+}
+
+/// Gợi ý theo nguyên nhân THẬT trong log/exit code (giữ cả gợi ý HKCU cho lỗi
+/// ACL thật — `ERROR_ACCESS_DENIED (5)` khi tài khoản bị policy chặn ghi).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn advice_for_failure(exit_code: i32, detail: &str) -> String {
+    if exit_code == 3 {
+        return "Thiếu quyền Administrator cho phạm vi máy (--scope machine). \
+                Hãy bấm [Cài & bật TSF] từ tài khoản thường (đăng ký per-user không cần admin)."
+            .to_string();
+    }
+    if detail.contains("ACCESS_DENIED") {
+        return "Windows từ chối ghi HKCU\\Software\\Classes\\CLSID cho tài khoản hiện tại.\r\n\
+                Kiểm tra quyền tài khoản và chính sách phần mềm bảo mật, sau đó bấm [Cài & bật TSF] lại."
+            .to_string();
+    }
+    if detail.contains("Không tìm thấy textvn-tsf.dll") {
+        return "Thiếu textvn-tsf.dll cạnh textvn-cli.exe.\r\n\
+                Hãy cài lại bằng installer hoặc giải nén lại gói portable đầy đủ rồi thử lại."
+            .to_string();
+    }
+    "Xem register.log (đường dẫn ở trên) để biết bước thất bại; \
+     nếu cần hỗ trợ, gửi kèm file log này."
+        .to_string()
 }
 
 #[cfg(test)]
@@ -1314,5 +1391,44 @@ mod tests {
     fn crlf_conversion_round_trips() {
         let lf = "vn = Việt Nam\ncty = Công ty\n";
         assert_eq!(to_crlf(lf).replace("\r\n", "\n"), lf);
+    }
+
+    /// Lỗi đăng ký TSF: dialog phải hiện lý do THẬT từ `register.log` thay vì
+    /// luôn đổ cho HKCU ACL. `read_log_tail` là hàm thuần path → test mọi OS.
+    #[test]
+    fn register_log_tail_reads_last_lines() {
+        let dir = std::env::temp_dir().join(format!("textvn-reglog-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let log = dir.join("register.log");
+        let content = (1..=20)
+            .map(|i| format!("line-{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&log, content).unwrap();
+        let tail = read_log_tail(&log, 5).expect("phải đọc được log");
+        assert_eq!(tail.lines().count(), 5, "chỉ lấy 5 dòng cuối");
+        assert!(tail.contains("line-20"), "dòng mới nhất phải có");
+        assert!(!tail.contains("line-14"), "dòng cũ hơn ngoài cửa sổ bị cắt");
+
+        std::fs::write(&log, "  \n\n").unwrap();
+        assert!(read_log_tail(&log, 5).is_none(), "log rỗng → None");
+        assert!(read_log_tail(&dir.join("missing.log"), 5).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Gợi ý phải khớp nguyên nhân THẬT (exit code 3 / ACL / thiếu DLL).
+    #[test]
+    fn advice_matches_real_cause() {
+        assert!(advice_for_failure(3, "").contains("Administrator"));
+        assert!(advice_for_failure(
+            1,
+            "RegCreateKeyExW HKCU\\...\\CLSID → ERROR_ACCESS_DENIED (5)"
+        )
+        .contains("Classes\\CLSID"));
+        assert!(
+            advice_for_failure(1, "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll)")
+                .contains("textvn-tsf.dll")
+        );
+        assert!(advice_for_failure(1, "lỗi lạ").contains("register.log"));
     }
 }

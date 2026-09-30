@@ -554,4 +554,50 @@ final class MarkedStateUnitTests: XCTestCase {
         XCTAssertTrue(marked.isEmpty)
     }
 }
+
+/// Trạng thái EN/VN + hotkey toggle — logic tách khỏi IMKServer để CI macOS
+/// chạy được (F3-13 / ADR-011 / per-app state).
+final class ViStateAndHotkeyTests: XCTestCase {
+    func testToggleChordIgnoresCapsAndFn() {
+        let ctrlShift = FFI.modCtrl | FFI.modShift
+        XCTAssertTrue(TextVNInputController.isToggleChord(mods: ctrlShift, keyCode: UInt16(kVK_Space)))
+        XCTAssertTrue(
+            TextVNInputController.isToggleChord(
+                mods: ctrlShift | FFI.modCaps | FFI.modFn, keyCode: UInt16(kVK_Space)),
+            "Caps Lock/Fn bật vẫn phải toggle được (ADR-011) — so mask, không so =="
+        )
+        XCTAssertFalse(TextVNInputController.isToggleChord(mods: FFI.modCtrl, keyCode: UInt16(kVK_Space)))
+        XCTAssertFalse(
+            TextVNInputController.isToggleChord(
+                mods: ctrlShift | FFI.modAlt, keyCode: UInt16(kVK_Space)),
+            "thêm Alt = chord khác, không toggle"
+        )
+        XCTAssertFalse(
+            TextVNInputController.isToggleChord(mods: ctrlShift, keyCode: UInt16(kVK_ANSI_A)))
+    }
+
+    func testViStateSnapshotAndPerAppOverrides() {
+        var state = ViState(globalEnabled: true)
+        state.apply(snapshot: ["*": false, "com.apple.safari": true])
+        XCTAssertFalse(state.globalEnabled)
+        XCTAssertTrue(state.enabled(for: "com.apple.safari"), "override per-app thắng mặc định")
+        XCTAssertFalse(state.enabled(for: "com.apple.TextEdit"))
+
+        // IMK bản cũ gửi "" — quy về "*" (một quy ước, R3 F3-1).
+        state.apply(stateUpdate: "", enabled: true)
+        XCTAssertTrue(state.globalEnabled)
+
+        state.apply(stateUpdate: "com.google.chrome", enabled: false)
+        XCTAssertFalse(state.enabled(for: "com.google.chrome"))
+        XCTAssertTrue(state.enabled(for: nil))
+    }
+
+    func testConfigEnabledParsing() {
+        XCTAssertEqual(
+            TextVNInputController.configEnabled(in: Data("{\"enabled\":false}".utf8)), false)
+        XCTAssertNil(TextVNInputController.configEnabled(in: Data("{\"method\":\"vni\"}".utf8)))
+        XCTAssertNil(TextVNInputController.configEnabled(in: nil))
+        XCTAssertNil(TextVNInputController.configEnabled(in: Data("not json".utf8)))
+    }
+}
   

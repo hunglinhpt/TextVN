@@ -4,7 +4,7 @@
 import Cocoa
 import SwiftUI
 
-public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelegate {
+public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelegate, NSMenuDelegate {
     public static let shared = AppDelegate()
 
     private var statusItem: NSStatusItem?
@@ -13,6 +13,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     private let ipcServer = IpcServer.shared
     private let autostartManager = AutostartManager.shared
     private var configWatcher: ConfigWatcher?
+    private var workspaceObserver: NSObjectProtocol?
+    /// App foreground gần nhất (không phải TextVN) — dùng cho mục per-app (F3-8).
+    private var lastFrontAppID: String?
+    private var lastFrontAppName: String = "app hiện tại"
+    /// Số crash report IMK gửi qua IPC → badge `error` (P2-4 §1).
+    private var crashCount: UInt32 = 0
 
     private var isVietnameseMode: Bool = true {
         didSet {
@@ -27,8 +33,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         let isSettings = CommandLine.arguments.contains("--settings")
+        // F3-13: SMAppService KHÔNG truyền `--autostart` và trạng thái SM có thể
+        // chỉ là `.requiresApproval` (bản chưa ký) ngay khi login item vẫn chạy →
+        // không thể chỉ dựa `isAutostartEnabled()`. Thêm ý định trong config
+        // (`autostart: true`) để login launch LUÔN yên lặng, không mở Cài đặt.
         let isLoginLaunch = CommandLine.arguments.contains("--autostart")
-            || autostartManager.isAutostartEnabled()
+            || autostartManager.isAutostartConfigured()
+            || configStore.config.autostart
+        NSLog("[TextVN] launch: settings=%d loginLaunch=%d showDialogOnStartup=%d",
+              isSettings ? 1 : 0, isLoginLaunch ? 1 : 0,
+              configStore.config.show_dialog_on_startup ? 1 : 0)
         // 1. Single Instance Check (P2-4 §1)
         if isAnotherInstanceRunning() {
             // SMAppService does not forward --autostart. A duplicate login launch
@@ -51,6 +65,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             name: Notification.Name("vn.textvn.awake"),
             object: nil
         )
+
+        // Nhớ app foreground gần nhất (bỏ chính TextVN) cho mục per-app (F3-8).
+        refreshForegroundApp()
+        workspaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            else { return }
+            self?.rememberForegroundApp(app)
+        }
 
         // 2. Start IPC Server (P2-4 §2)
         ipcServer.delegate = self
@@ -92,6 +118,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        if let workspaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)
+        }
         configWatcher?.stop()
         ipcServer.stop()
     }
@@ -106,7 +135,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             isVietnameseMode = configStore.config.enabled // didSet dựng lại menu
             ipcServer.broadcastStateUpdate(appID: IpcServer.globalAppID, enabled: isVietnameseMode, version: ver)
         } else {
-            buildMenu()
+            rebuildMenu()
         }
         ipcServer.broadcastConfigReload(version: ver)
     }
@@ -132,53 +161,54 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         isVietnameseMode = configStore.config.enabled
         updateStatusIcon()
-        buildMenu()
+        let menu = NSMenu(title: "TextVN")
+        menu.delegate = self // menuNeedsUpdate → làm mới mục "app đang gõ" (F3-8)
+        statusItem?.menu = menu
+        rebuildMenu()
+    }
+
+    /// Tên SF Symbol template theo trạng thái (P2-4 §1): badge `vn-on`/`vn-off`/`error`.
+    /// Dùng symbol template (không vẽ bitmap) → tự hợp theme sáng/tối, không lệch màu.
+    static func badgeSymbolName(isVietnamese: Bool, hasError: Bool) -> String {
+        if hasError { return "exclamationmark.triangle" }
+        return isVietnamese ? "keyboard" : "keyboard.badge.ellipsis"
     }
 
     private func updateStatusIcon() {
         guard let button = statusItem?.button else { return }
-
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size, flipped: false) { rect in
-            let letter = self.isVietnameseMode ? "V" : "E"
-            let badgeColor: NSColor = self.isVietnameseMode
-                ? NSColor(calibratedRed: 0.65, green: 0.12, blue: 0.65, alpha: 1.0) // Crimson / Purple
-                : NSColor(calibratedRed: 0.10, green: 0.45, blue: 0.85, alpha: 1.0) // Blue
-
-            // Background pill
-            let bgPath = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 4, yRadius: 4)
-            badgeColor.setFill()
-            bgPath.fill()
-
-            // Centered Letter
-            let font = NSFont.systemFont(ofSize: 11, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.white
-            ]
-            let str = NSAttributedString(string: letter, attributes: attrs)
-            let strSize = str.size()
-            let strRect = NSRect(
-                x: (rect.width - strSize.width) / 2.0,
-                y: (rect.height - strSize.height) / 2.0,
-                width: strSize.width,
-                height: strSize.height
-            )
-            str.draw(in: strRect)
-
-            return true
-        }
-
-        image.isTemplate = false
+        let symbol = Self.badgeSymbolName(isVietnamese: isVietnameseMode, hasError: crashCount > 0)
+        // Tên symbol lạ (macOS cũ hơn) → fallback `keyboard` để icon không biến mất.
+        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+            ?? NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
+        image?.isTemplate = true
         button.image = image
+        // Template chỉ đổi màu qua contentTintColor (không phải bitmap vẽ tay).
+        if crashCount > 0 {
+            button.contentTintColor = .systemOrange
+        } else {
+            button.contentTintColor = isVietnameseMode ? .controlAccentColor : .secondaryLabelColor
+        }
         button.toolTip = "TextVN - Bộ gõ tiếng Việt (\(isVietnameseMode ? "Tiếng Việt" : "Tiếng Anh"))"
     }
 
-    // MARK: - Context Menu (9 Standard Items)
+    // MARK: - Context Menu (P2-4 §1 — menu bar)
 
-    private func buildMenu() {
-        let menu = NSMenu(title: "TextVN")
+    /// Menu mở lại mỗi lần bấm → mục "app đang gõ" luôn đúng app foreground
+    /// (F3-8). Không dựng lại `NSMenu` mới (statusItem giữ nguyên instance).
+    public func menuNeedsUpdate(_ menu: NSMenu) {
+        refreshForegroundApp()
+        rebuildMenu()
+    }
 
+    private func rebuildMenu() {
+        guard let menu = statusItem?.menu else { return }
+        menu.removeAllItems()
+        populate(menu)
+    }
+
+    /// Menu 10 mục (P2-4 §1, mirror P1-4 §1): thêm submenu "Dấu" + mục
+    /// "Bật tiếng Việt cho <app>" (per-app — F3-8).
+    private func populate(_ menu: NSMenu) {
         // 1. Bật/Tắt tiếng Việt
         let toggleItem = NSMenuItem(
             title: isVietnameseMode ? "✓ Tiếng Việt" : "  Tiếng Anh",
@@ -226,9 +256,26 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         }
         charsetItem.submenu = charsetMenu
         menu.addItem(charsetItem)
+
+        // 4. Dấu (Submenu) — nhãn khớp ui-spec §2 (Dấu mới/Dấu cũ — F3-8).
+        let diacriticItem = NSMenuItem(title: "Dấu", action: nil, keyEquivalent: "")
+        let diacriticMenu = NSMenu(title: "Dấu")
+        let diacritics = [
+            ("Dấu mới (hoà, thuỷ)", "new"),
+            ("Dấu cũ (hòa, thủy)", "old")
+        ]
+        for (name, id) in diacritics {
+            let dItem = NSMenuItem(title: name, action: #selector(selectDiacritic(_:)), keyEquivalent: "")
+            dItem.target = self
+            dItem.representedObject = id
+            dItem.state = (configStore.config.diacritic_style == id) ? .on : .off
+            diacriticMenu.addItem(dItem)
+        }
+        diacriticItem.submenu = diacriticMenu
+        menu.addItem(diacriticItem)
         menu.addItem(NSMenuItem.separator())
 
-        // 4. Quyền Accessibility
+        // 5. Quyền Accessibility
         let axTrusted = AXIsProcessTrusted()
         let axItem = NSMenuItem(
             title: axTrusted ? "✓ Quyền Accessibility (Đã cấp)" : "⚠️ Yêu cầu quyền Accessibility...",
@@ -238,38 +285,88 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         axItem.target = self
         menu.addItem(axItem)
 
-        // 5. Cài đặt...
+        // 6. App đang gõ + bật/tắt riêng cho app đó (state per-app — F3-8).
+        let appItem = NSMenuItem(
+            title: "Bật tiếng Việt cho \(lastFrontAppName)",
+            action: #selector(toggleFrontApp),
+            keyEquivalent: ""
+        )
+        appItem.target = self
+        appItem.representedObject = lastFrontAppID ?? ""
+        appItem.state = frontAppEnabled ? .on : .off
+        appItem.isEnabled = lastFrontAppID != nil
+        menu.addItem(appItem)
+
+        // 7. Cài đặt...
         let settingsItem = NSMenuItem(title: "Cài đặt...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        // 6. Sức khỏe
+        // 8. Sức khỏe
         let healthItem = NSMenuItem(title: "Sức khỏe hệ thống...", action: #selector(showHealth), keyEquivalent: "")
         healthItem.target = self
         menu.addItem(healthItem)
         menu.addItem(NSMenuItem.separator())
 
-        // 7. Gỡ cài đặt...
+        // 9. Gỡ cài đặt...
         let uninstallItem = NSMenuItem(title: "Gỡ cài đặt TextVN...", action: #selector(promptUninstall), keyEquivalent: "")
         uninstallItem.target = self
         menu.addItem(uninstallItem)
 
-        // 8. Thông tin
+        // 10. Thông tin
         let aboutItem = NSMenuItem(title: "Thông tin TextVN", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
         menu.addItem(NSMenuItem.separator())
 
-        // 9. Thoát
+        // 11. Thoát
         let quitItem = NSMenuItem(title: "Thoát TextVN", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
+    }
 
-        statusItem?.menu = menu
+    /// Trạng thái hiệu dụng của app foreground: override per-app (nếu có) →
+    /// mặc định theo toggle toàn cục (mirror IMK: `appStates[app] ?? viEnabled`).
+    private var frontAppEnabled: Bool {
+        guard let appID = lastFrontAppID else { return isVietnameseMode }
+        return ipcServer.appState(for: appID) ?? isVietnameseMode
+    }
+
+    /// Nhớ app foreground gần nhất KHÔNG phải TextVN. Lúc người dùng bấm status
+    /// item, app này là foreground — cùng vấn đề Windows tray gặp với taskbar
+    /// (R3-6), nên phải nhớ từ notification `didActivateApplication`.
+    func rememberForegroundApp(_ app: NSRunningApplication) {
+        let ownBundleID = Bundle.main.bundleIdentifier ?? "vn.textvn.app"
+        if app.bundleIdentifier == ownBundleID { return }
+        let id = Self.normalizeAppID(
+            bundleID: app.bundleIdentifier,
+            executableName: app.executableURL?.lastPathComponent
+        )
+        guard id != "unknown" else { return }
+        lastFrontAppID = id
+        lastFrontAppName = app.localizedName ?? id
+    }
+
+    /// Cùng quy tắc `FieldDetect.normalizeAppID` (IMK — P2-3 §1): bundle id
+    /// lowercase, fallback executable basename. `app_id` 2 phía PHẢI khớp nhau.
+    static func normalizeAppID(bundleID: String?, executableName: String?) -> String {
+        if let bundleID, !bundleID.isEmpty {
+            return bundleID.lowercased()
+        }
+        if let executableName, !executableName.isEmpty {
+            return (executableName as NSString).lastPathComponent.lowercased()
+        }
+        return "unknown"
+    }
+
+    private func refreshForegroundApp() {
+        if let app = NSWorkspace.shared.frontmostApplication {
+            rememberForegroundApp(app)
+        }
     }
 
     private func updateMenuState() {
-        buildMenu()
+        rebuildMenu()
     }
 
     // MARK: - Actions
@@ -300,6 +397,26 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             ipcServer.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
             updateMenuState()
         }
+    }
+
+    @objc private func selectDiacritic(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? String {
+            configStore.config.diacritic_style = id
+            configStore.persist()
+            ipcServer.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
+            updateMenuState()
+        }
+    }
+
+    /// Bật/tắt gõ tiếng Việt cho RIÊNG app đang gõ (state per-app — F3-8).
+    /// Trạng thái giữ trong bộ nhớ IPC server (macOS chưa có `state.json` per-app
+    /// — parity-checklist ghi rõ); IMK áp theo `app_id` qua `StateUpdate`.
+    @objc private func toggleFrontApp(_ sender: NSMenuItem) {
+        guard let appID = sender.representedObject as? String, !appID.isEmpty else { return }
+        let newValue = !frontAppEnabled
+        ipcServer.broadcastStateUpdate(
+            appID: appID, enabled: newValue, version: UInt64(Date().timeIntervalSince1970))
+        updateMenuState()
     }
 
     @objc private func checkAccessibilityPermission() {
@@ -358,17 +475,43 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     @objc private func showHealth() {
         let alert = NSAlert()
         alert.messageText = "Sức khỏe hệ thống TextVN"
+        let imkPids = Self.imkProcessIds(from: NSWorkspace.shared.runningApplications)
+        let heartbeatURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/TextVN/im-heartbeat.json")
         let status = """
         • Phiên bản: \(AppInfo.displayVersion)
         • IPC Socket: \(IpcServer.defaultSocketURL().path)
         • Trạng thái IPC: \(ipcServer.isRunning ? "Đang chạy (Online)" : "Chưa kích hoạt")
         • Số client kết nối: \(ipcServer.connectedClientsCount)
+        • IMK (vn.textvn.im): \(imkPids.isEmpty ? "không thấy tiến trình" : imkPids.map { String($0) }.joined(separator: ", "))
+        • Heartbeat IMK: \(Self.heartbeatSummary(fileURL: heartbeatURL))
         • Quyền Accessibility: \(AXIsProcessTrusted() ? "Đã cấp" : "Chưa cấp")
         • Tự khởi động cùng OS: \(autostartManager.isAutostartEnabled() ? "Đã bật" : "Tắt")
         """
         alert.informativeText = status
         alert.alertStyle = .informational
         alert.runModal()
+    }
+
+    /// PID các tiến trình TextVN-IM đang chạy (bundle `vn.textvn.im`) — P2-4 §6.
+    /// Best-effort: macOS có thể không liệt kê IMK trong `runningApplications`
+    /// (tiến trình do `imklaunchagent` spawn) → trả rỗng thay vì crash.
+    static func imkProcessIds(from apps: [NSRunningApplication]) -> [pid_t] {
+        apps.filter { $0.bundleIdentifier == "vn.textvn.im" }
+            .map { $0.processIdentifier }
+            .sorted()
+    }
+
+    /// Tóm tắt heartbeat file do TextVN-IM ghi 5s/lần (P2-4 §6).
+    static func heartbeatSummary(fileURL: URL, now: Date = Date()) -> String {
+        guard let data = try? Data(contentsOf: fileURL),
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let pid = obj["pid"] as? Int,
+              let ts = obj["timestamp_ms"] as? Double else {
+            return "chưa có (IMK chưa chạy hoặc bản cũ)"
+        }
+        let age = max(0, now.timeIntervalSince1970 * 1000 - ts) / 1000
+        return String(format: "pid %d, cập nhật %.0fs trước%@", pid, age, age > 15 ? " ⚠️" : "")
     }
 
     @objc private func promptUninstall() {
@@ -415,10 +558,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             self.isVietnameseMode = enabled
             self.configStore.config.enabled = enabled
             self.configStore.persist()
+            // Đồng bộ `opts.enabled` của MỌI IMK (engine đọc config). Thiếu bước
+            // này, bật VN bằng Ctrl+Shift+Space sau khi config tắt sẽ không gõ
+            // được (IMK chỉ đổi `ctx.enabled`, engine còn gate theo config).
+            server.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
         }
     }
 
     public func ipcServer(_ server: IpcServer, didReceiveCrashReport code: UInt32, count: UInt32) {
         NSLog("[TextVN] Received crash report: code=%u count=%u", code, count)
+        crashCount += 1
+        updateStatusIcon()
     }
 }

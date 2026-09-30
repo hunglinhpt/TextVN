@@ -154,7 +154,7 @@ public final class IpcClient {
     /// hardcode "0.1.0" làm handshake hiển thị sai version sau bump).
     public static let clientVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.1"
+        ?? "0.2.2"
     /// Backoff reconnect (P0-3 §4 offline-first — retry nhẹ nhàng).
     public static let retryInterval: TimeInterval = 2.0
 
@@ -225,6 +225,10 @@ public final class IpcClient {
         connected = true
         send(.hello(pid: ProcessInfo.processInfo.processIdentifier,
                     abi: FFI.abiVersion, version: Self.clientVersion))
+        // Snapshot state ban đầu (P0-3 §5: Hello → GetSnapshot → Subscribe, mirror
+        // `ipc_client.c`). Thiếu bước này, toggle toàn cục/per-app đặt TRƯỚC khi
+        // kết nối (hoặc từ tray trước đó) không bao giờ tới IMK.
+        send(.getSnapshot)
         send(.subscribe(pid: ProcessInfo.processInfo.processIdentifier))
 
         let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
@@ -273,6 +277,8 @@ public final class IpcClient {
             if !ok {
                 Diagnostics.log("ipc write failed — going offline")
                 self.tearDown()
+                self.notifyDisconnect()
+                self.scheduleRetry()
             }
         }
     }
@@ -296,8 +302,12 @@ public final class IpcClient {
         var chunk = [UInt8](repeating: 0, count: 4096)
         let n = read(fd, &chunk, chunk.count)
         guard n > 0 else {
+            if n < 0 && errno == EINTR { return }
+            // EOF = server tắt/restart → offline rồi THỬ LẠI. Trước đây `tearDown()`
+            // hủy retryTimer mà không arm lại → client offline vĩnh viễn.
             tearDown()
-            delegate?.ipcClientDidDisconnect(self)
+            notifyDisconnect()
+            scheduleRetry()
             return
         }
         buffer.append(contentsOf: chunk[0..<n])
@@ -308,7 +318,7 @@ public final class IpcClient {
                     // JSON/type lạ = protocol violation → đóng, không retry (ipc.v1.md).
                     Diagnostics.log("ipc protocol violation — closing")
                     tearDown()
-                    delegate?.ipcClientDidDisconnect(self)
+                    notifyDisconnect()
                     return
                 }
                 // Marshal về main queue: delegate là main-thread IMK object (F16).
@@ -325,7 +335,7 @@ public final class IpcClient {
             case .violation:
                 Diagnostics.log("ipc frame length violation — closing")
                 tearDown()
-                delegate?.ipcClientDidDisconnect(self)
+                notifyDisconnect()
                 return
             }
         }
@@ -371,5 +381,18 @@ public final class IpcClient {
         }
         connected = false
         buffer.removeAll()
+    }
+
+    /// Delegate disconnect LUÔN trên main queue (thread contract F16 — controller
+    /// là main-thread object; trước đây callback chạy thẳng trên IPC queue).
+    private func notifyDisconnect() {
+        if Thread.isMainThread {
+            delegate?.ipcClientDidDisconnect(self)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.delegate?.ipcClientDidDisconnect(self)
+            }
+        }
     }
 }

@@ -69,7 +69,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
         std::env::current_exe().map_err(|e| format!("Không xác định được current_exe: {e}"))?;
     dir.pop();
 
-    for name in &["textvn-tsf.dll", "textvn-tsf.dll", "textvn_win_tsf.dll"] {
+    for name in &["textvn-tsf.dll", "textvn_win_tsf.dll"] {
         let candidate = dir.join(name);
         if candidate.exists() {
             return Ok(candidate);
@@ -77,7 +77,7 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
     }
 
     Err(format!(
-        "Không tìm thấy textvn-tsf.dll (hoặc textvn-tsf.dll) trong {}\n\
+        "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll) trong {}\n\
          Dùng --dll <path> để chỉ định thủ công hoặc chạy `cargo build` trước.",
         dir.display()
     ))

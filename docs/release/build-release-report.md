@@ -1,9 +1,57 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
-> `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản mới nằm ngay
-> dưới đây, trong [audit 2026-09-30](cross-platform-audit-2026-09-30.md), run CI
-> trên đúng commit và `RELEASE_REPORT.json` trong ZIP. Không dùng số liệu 0.1.0
-> ở các phần lịch sử phía dưới làm bằng chứng production cho 0.2.1.
+> `v0.2.2` là bản mới nhất. Bằng chứng của nó nằm trong
+> [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
+>
+> `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
+> các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
+> production cho 0.2.x.
+
+## Bản 0.2.2 — vá F3-13 (mở nhầm Cài đặt lúc login) + F3-8, nit
+
+**Mục tiêu bản này:** 0.2.1 đã cố vá F3-13 nhưng còn sót — với bản **chưa ký số**
+đúng trạng thái release hiện tại, `SMAppService.mainApp.status` là
+`.requiresApproval` dù login item vẫn chạy, nên TextVN hiểu là khởi động tay và
+**bật cửa sổ Cài đặt mỗi lần đăng nhập**. Đây là lỗi được ưu tiên cao nhất và
+đã sửa tận gốc. Đồng thời đóng nốt F3-8 (menu bar lệch spec) và nhóm nit.
+
+### Kiểm chứng chạy trên host Windows (trước commit)
+
+| Gate | Kết quả |
+|---|---|
+| `cargo fmt --all -- --check` | ✅ sạch |
+| `cargo clippy --workspace --all-targets -- -D warnings` | ✅ 0 warning |
+| `cargo test --workspace` | ✅ **342 test pass** |
+| `cargo run -q -p xtask -- check-version-sync` | ✅ 14 chỗ = 0.2.2 |
+| `check-tables` · `check-mac-corpus` (114) · `check-win-corpus` (72) · `check-mac-targets` (12) | ✅ |
+| `replay corpus/shared corpus/mac --adapter mac` | ✅ 149/149 |
+| `replay corpus/win --adapter win` | ✅ 78/78 |
+| `cargo run -q -p textvn-cli -- verify` | ✅ ABI v1 ↔ header: `ime_key_v1=20`, `ime_result_v1=532`, offsets + 11 export khớp |
+
+### Perf — job `perf regression` đỏ trên CI là **nhiễu runner**, không phải hồi quy
+
+Job cố ý để `continue-on-error` (runner Windows GHA dùng chung, 2 vCPU; gate cứng
+chạy trên self-hosted theo risk RW5 của P1-5 §1). Đo lại trên máy local:
+
+| Phép đo | Baseline p50 | Hiện tại p50 | Chênh lệch |
+|---|---|---|---|
+| `ime_key` | 687 ns | **500 ns** | **−27,2%** |
+| `parse_config` | 781 ns | 768 ns | −1,7% |
+| `ime_strategy_resolve` | — | 10 ns | dưới ngưỡng đo |
+
+Không có hồi quy sản phẩm; cấu hình job **không** được nới lỏng. Chi tiết và
+ranh giới xác minh: [audit Vòng 11](cross-platform-audit-2026-09-30.md).
+
+### Trạng thái
+
+- **Release candidate, không production.** Chưa có Authenticode (host không có
+  code-signing certificate có private key), chưa có Developer ID, notarization.
+- **Swift chưa compile ở vòng này**: host Windows không có toolchain macOS.
+  Test Swift mới (F3-8, F3-13, `ViState`, toggle theo config, lifecycle observer)
+  chỉ được xác nhận ở `ci-macos` sau khi push; GUI smoke trên máy Mac thật vẫn
+  là **điều kiện production**.
+- Số liệu CI và binary artifact của bản này được bổ sung sau khi workflow
+  `release-candidate` chạy từ tag sạch.
 
 ## Bản 0.2.1 — phát hành pre-release đã xác minh
 

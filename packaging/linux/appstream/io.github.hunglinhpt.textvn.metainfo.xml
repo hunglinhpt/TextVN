@@ -30,6 +30,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.2" date="2026-09-30">
+      <description>
+        <p>Fixes the macOS login launch showing the Settings window at sign-in, and refreshes the macOS menu bar, per-app toggles, and Windows IME registration. Unsigned cross-platform release.</p>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-09-30">
       <description>
         <p>Unsigned release candidate for Windows, macOS and Linux; macOS GUI validation remains pending.</p>

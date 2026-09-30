@@ -52,6 +52,14 @@ public final class EventTapController {
     private var slowStreak = 0
     private var selfDisabled = false
     private let lock = NSLock()
+    /// Cache app foreground (bundle id lowercase) — callback KHÔNG được gọi
+    /// `NSWorkspace.frontmostApplication` (XPC, có thể vượt 2ms — P2-2 §3.5);
+    /// cập nhật bằng notification `didActivateApplication`.
+    private var frontAppID: String = "unknown"
+    private var appObserver: NSObjectProtocol?
+    /// `stop()` đã được gọi trước khi thread kịp gán `runLoop` → thread thoát
+    /// thay vì `CFRunLoopRun()` vô hạn với source đã invalidate.
+    private var stopRequested = false
     /// Tap type đã create thành công (doctor hiển thị — P2-2 §4).
     public private(set) var tapTypeName: String?
     /// Số lần bị system disable rồi re-enable (doctor — P2-2 §9).
@@ -59,6 +67,38 @@ public final class EventTapController {
 
     public init(handler: TapKeyHandler) {
         self.handler = handler
+        // Seed cache từ trạng thái hiện tại (loại chính TextVN/tap).
+        let ownBundleID = Bundle.main.bundleIdentifier ?? "vn.textvn.tap"
+        if let app = NSWorkspace.shared.frontmostApplication,
+           app.bundleIdentifier != ownBundleID {
+            frontAppID = (app.bundleIdentifier ?? "unknown").lowercased()
+        }
+        appObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            guard let self,
+                  let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            else { return }
+            let id = (app.bundleIdentifier ?? "unknown").lowercased()
+            self.lock.lock()
+            self.frontAppID = id
+            self.lock.unlock()
+        }
+    }
+
+    deinit {
+        if let appObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(appObserver)
+        }
+    }
+
+    /// App foreground đã cache — callback event tap đọc (không XPC).
+    var currentFrontAppID: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return frontAppID
     }
 
     public var isActive: Bool {
@@ -77,6 +117,10 @@ public final class EventTapController {
     /// HID → Session → Annotated. Loại nào create được dùng loại đó.
     @discardableResult
     public func start() -> Bool {
+        lock.lock()
+        let alreadyRunning = tap != nil
+        lock.unlock()
+        if alreadyRunning { return true } // start() 2 lần không rò tap/thread cũ
         let attempts: [(CGEventTapLocation, String)] = [
             (.cghidEventTap, "HID"),
             (.cgSessionEventTap, "Session"),
@@ -113,11 +157,18 @@ public final class EventTapController {
         runLoopSource = source
         selfDisabled = false
         slowStreak = 0
+        stopRequested = false
         lock.unlock()
         let thread = Thread { [weak self] in
             guard let self else { return }
             let rl = CFRunLoopGetCurrent()
             self.lock.lock()
+            if self.stopRequested {
+                // stop() chạy trước khi thread gán runLoop → thoát, không chạy
+                // CFRunLoopRun() vô hạn với source đã invalidate.
+                self.lock.unlock()
+                return
+            }
             self.runLoop = rl
             self.lock.unlock()
             CFRunLoopAddSource(rl, source, .commonModes)
@@ -133,6 +184,7 @@ public final class EventTapController {
     public func stop() {
         lock.lock()
         defer { lock.unlock() }
+        stopRequested = true
         if let port = tap {
             CGEvent.tapEnable(tap: port, enable: false)
             CFMachPortInvalidate(port)
@@ -214,8 +266,10 @@ enum TapCallback {
         guard !controller.isSelfDisabled else {
             return Unmanaged.passUnretained(event)
         }
-        let frontApp = NSWorkspace.shared.frontmostApplication
-        let appID = (frontApp?.bundleIdentifier ?? "unknown").lowercased()
+        // App foreground đọc từ CACHE (notification cập nhật) — gọi
+        // `NSWorkspace.frontmostApplication` ở đây là XPC, có thể vượt timebox
+        // 2ms trong callback (P2-2 §3.5).
+        let appID = controller.currentFrontAppID
         guard controller.handler.tapShouldProcess(appID: appID) else {
             return Unmanaged.passUnretained(event)
         }

@@ -16,8 +16,9 @@
 | **Review 2 — Nhất quán & Sẵn sàng (Subsystem Verification)** | 114/114 corpus/mac replay, UCKeyTranslate modifiers, Rule S5/S9 compliance | 1 | 0 | 0 | 1 | ✅ 1/1 đã fix |
 | **Round 7 — CI Fix MAC-031** | `Package.swift` URL→String, `build-rust.sh` ROOT_DIR/scalar, `ci-macos.yml` rust_target matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 | **Round 9 — Review vòng 3 (F3-* macOS + R3-* Win/Linux)** | macos-app, IpcClient, packaging macOS/Linux, tray Win32, xtask, version-sync | 40 | 1 | 7 | 17 | ✅ 25 đã fix (1 blocker, 7 major, 15 minor, 2 nit) · hoãn có lý do: 2 minor (F3-8, F3-13) + 13 nit |
+| **Round 10 — Đóng nốt mục hoãn, `v0.2.2`** | macos-app, AutostartManager, tap, IMK, tray, cli | — | 0 | 0 | 0 | ✅ F3-8 + F3-13 đóng; nit macOS/Windows đóng; còn nit Win/Linux vô hại |
 
-**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings vòng 1–7 + 25 findings Round 9 đã xử lý; còn 2 minor + 13 nit hoãn có lý do — xem Round 9). `ci-macos` xanh lần đầu ở Round 9b (`66cbd98`).
+**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings vòng 1–7 + 25 findings Round 9 + **F3-8/F3-13 Round 10** đã xử lý; còn nhóm nit Windows/Linux vô hại — xem Round 10). `ci-macos` xanh lần đầu ở Round 9b (`66cbd98`).
 
 ---
 
@@ -243,13 +244,16 @@ blocker + major, các minor được chọn; phần còn lại ghi rõ lý do �
 | F3-3 | major | Server bỏ qua JSON sai / type lạ, không đóng kết nối (trái `ipc.v1.md`) | ✅ Fixed | `parseFramesChecked` trả cờ violation (length sai, JSON không phải object, thiếu `type`); type lạ / `ToggleViEn` sai field → `closeClient` |
 | F3-4 | major | `IpcClient` không `SO_NOSIGPIPE` → SIGPIPE có thể kill TextVN-IM | ✅ Fixed | `setsockopt(SO_NOSIGPIPE)` ngay sau `socket()`; đọc length frame bằng `UInt32(littleEndian:)` tường minh |
 | F3-5 | major | Thiếu watcher hot-reload MAC-053 | ✅ Fixed | `ConfigWatcher.swift`: DispatchSource trên thư mục (bắt lưu atomic/rename) + trên file (ghi tại chỗ), debounce 300ms, mở lại fd sau mỗi lần fire. `ConfigStore.reloadFromDisk()`: hợp lệ và khác → áp + broadcast `ConfigReload` (+ `StateUpdate "*"` nếu `enabled` đổi); sai schema / chính app vừa ghi → giữ nguyên |
-| F3-6 | minor | Tắt autostart không xoá LaunchAgent fallback khi SM `.notRegistered` | ✅ Fixed | Tắt luôn gỡ cả 2 nguồn; bật SM thành công thì gỡ plist cũ |
+| F3-6 | minor | Tắt autostart không xoá LaunchAgent fallback khi SM `.notRegistered` | ✅ Fixed | Tắt luôn gỡ cả 2 nguồn; bật SM thành công thì gỡ plist cũ. **v0.2.2 vá tiếp phần *bật***: `setAutostart(true)` trước đây coi `register()` trả về là xong, bỏ qua việc status còn `.requiresApproval` → plist fallback không bao giờ được ghi (bật autostart rồi restart là mất). Nay đo lại `status == .enabled`, chỉ ghi plist khi SM **không** nhận |
 | F3-7 | minor | Uninstall chưa "0 residue": SM login item, receipt pkg, `/Library/Input Methods`, log khi `--purge`, broken symlink | ✅ Fixed | (a) app unregister SM trước khi chạy script; (b) `pkgutil --forget` (volume `$HOME` + system, in hướng dẫn sudo nếu thiếu quyền); (c) xoá + kiểm scope system, không để `set -e` dừng giữa chừng khi thiếu quyền; (d) check verify `Logs/TextVN` khi `--purge`; `present()` = `-e` hoặc `-L`; check receipt |
 | F3-9 | minor | Server không kiểm peer uid | ✅ Fixed | `getpeereid` sau `accept`, từ chối uid ≠ `getuid()` |
 | F3-10 | minor | Không có gate Cargo.toml ↔ Info.plist | ✅ Fixed | `cargo xtask check-version-sync` (3 plist + 3 fallback Swift + iss + 4 manifest + IBus xml + cask + AppStream) chạy ở `ci-shared` — mọi OS, không cần runner Mac |
 | F3-11 | minor | `component.plist` có `--` trong comment XML, không nằm trong lint | ✅ Fixed | Viết lại comment; `ci-macos` lint thêm `component.plist` + parse strict bằng `plistlib` (plutil nuốt lỗi này) |
 | F3-12 | minor | `Snapshot` thừa `uptime_ms`, `state` có key rỗng | ✅ Fixed | `snapshotMessage()` đúng 5 field v1, lọc key `""` (giữ `"*"` — xem F3-1) |
+| F3-13 | major | Login launch mở nhầm cửa sổ Cài đặt ở mỗi lần đăng nhập | ✅ Fixed | `SMAppService.mainApp` **không** truyền `--autostart` vào argv, nên mọi lần macOS chạy login item bị hiểu thành khởi động thủ công. `AutostartManager.isAutostartConfigured()` mới coi `.requiresApproval` (bản chưa ký — trạng thái phổ biến khi login item vẫn chạy) **và** plist LaunchAgent là "đã cấu hình"; `applicationDidFinishLaunching` cộng thêm ý định `config.autostart`, nên login launch luôn yên lặng. `NSLog` ghi `settings/loginLaunch/showDialogOnStartup` để chẩn đoán. `--settings` vẫn mở rõ ràng. Test: `testLoginLaunchStaysSilent…` |
 | F3-14 | minor | Config hỏng thay im lặng bằng default → mất macro ở lần persist kế | ✅ Fixed | Lúc khởi động: dời sang `config.json.corrupt-<ts>` + log (giống `.bak` bên Windows); decode khoan dung khoá thiếu (config bản cũ/mới hơn không bị coi là hỏng) |
+| F3-8 | major | Menu bar lệch spec: thiếu submenu Dấu / mục per-app, badge vẽ tay (không phải template), Sức khoẻ thiếu PID IMK | ✅ Fixed | `AppDelegate` theo `NSMenuDelegate` → `menuNeedsUpdate` dựng lại mục **Dấu** (2 radio `diacritic_style`) + mục **Bật tiếng Việt cho {app}** đọc app foreground gần nhất (observer `NSWorkspace.didActivateApplication`, huỷ khi terminate), mỗi mục có dấu trạng thái riêng. Icon: SF Symbol **template** (`badgeSymbolName` + `contentTintColor`, badge `error` cam khi nhận crash report) thay bitmap tự vẽ. Sức khoẻ in PID IMK (`imkProcessIds`) + tuổi `im-heartbeat.json`. Thay toggle "Bật dấu kiểu mới" trùng nghĩa bằng radio khớp ui-spec §2 + Linux/Windows. Unit test cho `badgeSymbolName`, `imkProcessIds`, `heartbeatSummary`, trạng thái per-app |
+| F3-9 | minor | Server không kiểm peer uid | ✅ Fixed | `getpeereid` sau `accept`, từ chối uid ≠ `getuid()` |
 | F3-17 | nit | Dir socket có sẵn không được `chmod 0700` | ✅ Fixed | `chmod(dir, 0o700)` sau `createDirectory` |
 | F3-22 | nit | `USER_HOME="${HOME:-~}"` | ✅ Fixed | `${HOME:?…}` ở `uninstall_macos.sh` + `uninstall-check.sh` |
 
@@ -258,35 +262,57 @@ Test Swift mới (`TextVNAppTests`): violation frame, Snapshot schema đóng, ch
 sai, cỡ Settings. **Chưa compile được trên host Windows** — CI `ci-macos` là nơi
 xác nhận đầu tiên.
 
-### Chưa fix trong vòng này (có lý do)
+### Vòng 10 — đóng nốt các mục hoãn (phát hành `v0.2.2`)
 
-- **F3-8** (menu thiếu submenu Dấu / per-app, badge không phải SF Symbol template,
-  health thiếu IMK PID) còn mở. **F3-13** được xử lý ở v0.2.1: khi login item
-  được đăng ký, app khởi động yên lặng; `--settings` vẫn mở cửa sổ. Trade-off:
-  khởi chạy thủ công sau khi đã bật autostart nhưng app chưa chạy cũng không tự
-  mở Settings; người dùng mở từ menu bar. `ci-macos` trên `ca22eba` đã compile
-  và pass test Swift arm64/x86_64; vẫn cần smoke GUI Mac xác nhận.
-- Nit **F3-15/16/18/19/20/21** và **R3-12…R3-18**: vô hại thực tế (retain cycle
-  singleton, đọc Int không sync, trạng thái AX trong menu cũ, `setAutostart` gọi 2
-  lần, hint postinstall, policy ghi đè SHA256SUMS, JSON grammar lỏng trong xtask,
-  comment `toggle_reset`, `SettingsController` không dùng, `WM_DPICHANGED`, dấu
-  radio menu, mktemp e2e, test-typing đổi HKCU).
+Trong `v0.2.1` còn 2 mục hoãn và một loạt nit. `v0.2.2` đóng hết phần có thể
+đóng trên host; các mục R3 vẫn ghi lại dưới đây.
 
-### Kiểm chứng (host Windows, cây làm việc trước commit)
+- **F3-8** (menu macOS lệch spec) — ✅ đóng. Menu bar giờ do `NSMenuDelegate`
+  dựng lại mỗi lần mở: submenu **Dấu** (2 radio `diacritic_style`, khớp ui-spec
+  §2 và Linux/Windows), mục **Bật tiếng Việt cho {app}** với app foreground gần
+  nhất, dấu trạng thái theo từng mục. Icon là SF Symbol **template** nên tự đổi
+  màu theo theme, badge `error` tô cam khi nhận crash report từ IMK. **Sức khoẻ**
+  in PID tiến trình IMK và tuổi heartbeat.
+- **F3-13** (mở Cài đặt khi login) — ✅ đóng, xem dòng F3-13. Đây là lỗi được
+  ưu tiên cao nhất của bản này.
+- **F3-15/16/18/19/20/21** — ✅ đóng phần liên quan macOS/Windows trong phạm vi
+  cây làm việc:
+  - *retain cycle singleton* → `workspaceObserver` của `AppDelegate` và
+    `appObserver` của `EventTapController` đều được huỷ khi terminate/deinit.
+  - *đọc Int không sync* → `Diagnostics` đọc đúng kiểu, có fallback.
+  - *`setAutostart` gọi 2 lần* → viết lại thành một đường: bật → thử SM, chỉ ghi
+    plist khi SM không nhận; tắt → gỡ cả hai nguồn.
+  - *hotkey chết khi Caps Lock bật* → `Ctrl+Shift+Space` so **mask** modifier,
+    khớp `engine.cpp` bên Linux.
+  - *Secure Input dùng cache cũ* → tính lại `IsSecureEventInputEnabled()` ngay
+    trước khi nuốt `keyDown`, không phụ thuộc tầng AX async.
+  - *`SettingsController` không dùng* → bỏ.
+  - Phần còn lại của nhóm này là **Windows/Linux** (`WM_DPICHANGED`, dấu radio
+    menu, hint postinstall, policy ghi đè SHA256SUMS, JSON grammar lỏng trong
+    xtask, `toggle_reset`, mktemp e2e, test-typing đổi HKCU) — **vẫn hoãn**,
+    vô hại thực tế, không chặn phát hành.
+
+**Trade-off F3-13 (chấp nhận có chủ đích):** vì điều kiện mở dialog giờ dựa
+trên *ý định đã cấu hình autostart*, nếu người dùng **tự mở app tay** sau khi đã
+bật autostart (app đang không chạy) thì Settings **không** tự bật — người dùng
+mở từ menu bar. Đây là hệ quả không tránh được nếu muốn login launch luôn yên
+lặng; ưu tiên của phiên bản này là không bật cửa sổ sai lúc đăng nhập.
+
+### Kiểm chứng vòng 10 (host Windows, trước commit)
 
 | Gate | Kết quả |
 |---|---|
 | `cargo fmt --all -- --check` | ✅ sạch |
 | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ 0 warning |
-| `cargo test --workspace` | ✅ 29/29 suite, 340 test pass |
+| `cargo test --workspace` | ✅ 342 test pass (thêm 2 test `register_log_tail_reads_last_lines`, `advice_matches_real_cause`) |
 | `check-tables` / `check-mac-corpus` (114) / `check-win-corpus` (72) / `check-mac-targets` (12) | ✅ |
-| `check-version-sync` | ✅ 14 chỗ = 0.2.0 |
+| `check-version-sync` | ✅ 14 chỗ = 0.2.2 |
 | `replay corpus/shared corpus/mac --adapter mac` / `replay corpus/win --adapter win` | ✅ 149/149 · 78/78 |
-| `bash -n` toàn bộ script tracked + postinstall | ✅ 21/21 |
-| PowerShell parser toàn bộ `*.ps1` | ✅ 0 lỗi |
-| `plistlib` strict 6 plist/entitlements (gồm `component.plist`) | ✅ |
-| Swift build/test, CMake Linux, gói 3 OS | ✅ CI trên `66cbd98` — xem Round 9b |
-| GUI macOS trên máy thật | ⏳ chưa có máy Mac — điều kiện production |
+| `cargo run -p textvn-cli -- verify` (ABI v1 ↔ header) | ✅ sizeof 20/532, offsets khớp, 11 export |
+| `perf check perf/baseline-win.json` (máy local) | ✅ `ime_key` p50 687→500 ns (−27,2%), `parse_config` 781→768 ns (−1,7%) — **không hồi quy** |
+| Test Swift mới (badge/health/heartbeat, per-app state, login-launch, `ViState`, IMK toggle theo config) | ⏳ **chưa compile trên host Windows** — CI `ci-macos` là nơi xác nhận đầu tiên |
+| Swift build/test, CMake Linux, gói 3 OS | ⏳ chạy sau khi push tag |
+| GUI macOS trên máy thật | ⏳ chưa có máy Mac — **điều kiện production** |
 
 ### Round 9b — Đưa CI 3 nền tảng về xanh trước tag (MAC-032)
 

@@ -317,4 +317,69 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(compact.width, expanded.width)
         XCTAssertGreaterThan(expanded.height, compact.height)
     }
+
+    // MARK: - 6. F3-8 (badge/health/menu) + F3-13 (login launch)
+
+    /// F3-13: điều kiện mở Cài đặt lúc launch — login launch (mọi nguồn cấu
+    /// hình autostart) phải YÊN LẶNG; `--settings` luôn mở; tắt "hội thoại khởi
+    /// động" thì không tự mở.
+    func testStartupDialogDecisionMatrix() {
+        XCTAssertFalse(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN"], autostartEnabled: true, showDialogOnStartup: true),
+            "login launch → không mở Cài đặt")
+        XCTAssertTrue(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN", "--settings"], autostartEnabled: true, showDialogOnStartup: false),
+            "--settings luôn mở, kể cả khi autostart")
+        XCTAssertFalse(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN"], autostartEnabled: false, showDialogOnStartup: false))
+        XCTAssertTrue(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN"], autostartEnabled: false, showDialogOnStartup: true))
+    }
+
+    /// F3-8: badge dùng SF Symbol template (không bitmap vẽ tay).
+    func testBadgeSymbolSelection() {
+        XCTAssertEqual(AppDelegate.badgeSymbolName(isVietnamese: true, hasError: false), "keyboard")
+        XCTAssertEqual(AppDelegate.badgeSymbolName(isVietnamese: false, hasError: false), "keyboard.badge.ellipsis")
+        XCTAssertEqual(AppDelegate.badgeSymbolName(isVietnamese: false, hasError: true), "exclamationmark.triangle")
+    }
+
+    /// F3-8: `app_id` menu bar PHẢI khớp `FieldDetect.normalizeAppID` của IMK.
+    func testAppIDNormalizationMatchesIMKRule() {
+        XCTAssertEqual(
+            AppDelegate.normalizeAppID(bundleID: "Com.Apple.Safari", executableName: nil),
+            "com.apple.safari")
+        XCTAssertEqual(
+            AppDelegate.normalizeAppID(bundleID: nil, executableName: "/usr/bin/login"), "login")
+        XCTAssertEqual(AppDelegate.normalizeAppID(bundleID: nil, executableName: nil), "unknown")
+    }
+
+    /// F3-8: health đọc heartbeat do IMK ghi 5s/lần (P2-4 §6).
+    func testHeartbeatSummaryReadsPidAndFlagsStale() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_heartbeat_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let url = tempDir.appendingPathComponent("im-heartbeat.json")
+        let now = Date(timeIntervalSince1970: 10_000)
+        let fresh: [String: Any] = [
+            "pid": 4242,
+            "timestamp_ms": (now.timeIntervalSince1970 - 3) * 1000,
+        ]
+        try JSONSerialization.data(withJSONObject: fresh).write(to: url)
+        let freshSummary = AppDelegate.heartbeatSummary(fileURL: url, now: now)
+        XCTAssertTrue(freshSummary.contains("pid 4242"))
+        XCTAssertFalse(freshSummary.contains("⚠️"))
+
+        let stale: [String: Any] = [
+            "pid": 7,
+            "timestamp_ms": (now.timeIntervalSince1970 - 60) * 1000,
+        ]
+        try JSONSerialization.data(withJSONObject: stale).write(to: url)
+        XCTAssertTrue(AppDelegate.heartbeatSummary(fileURL: url, now: now).contains("⚠️"))
+
+        XCTAssertTrue(
+            AppDelegate.heartbeatSummary(
+                fileURL: tempDir.appendingPathComponent("missing.json"), now: now
+            ).contains("chưa có"))
+    }
 }

@@ -112,7 +112,9 @@ public final class KeyTranslator {
     }
 
     private static func sourceID(of source: TISInputSource) -> String? {
-        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyLocalizedName) else {
+        // `InputSourceID` là định danh DUY NHẤT (vd `com.apple.keylayout.US`);
+        // `LocalizedName` có thể trùng giữa hai layout → cache trả layout cũ sai.
+        guard let ptr = TISGetInputSourceProperty(source, kTISPropertyInputSourceID) else {
             return nil
         }
         let name = Unmanaged<CFString>.fromOpaque(ptr).takeUnretainedValue() as String

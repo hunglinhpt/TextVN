@@ -18,7 +18,7 @@ public final class IpcServer {
     /// fallback hằng khi chạy trong swift test (R2 finding 2).
     public static let serverVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.1"
+        ?? "0.2.2"
 
     public weak var delegate: IpcServerDelegate?
 
@@ -321,6 +321,16 @@ public final class IpcServer {
     /// nâng cấp) gửi `""` — quy về `"*"` để chỉ còn MỘT quy ước (review R3 F3-1).
     static func normalizedAppID(_ appID: String) -> String {
         appID.isEmpty ? globalAppID : appID
+    }
+
+    /// Trạng thái per-app đã biết (menu bar đọc để hiển thị check — F3-8).
+    public func appState(for appID: String) -> Bool? {
+        queue.sync { appStates[Self.normalizedAppID(appID)] }
+    }
+
+    /// Ảnh chụp toàn bộ state per-app (test + chẩn đoán).
+    public func appStatesSnapshot() -> [String: Bool] {
+        queue.sync { appStates }
     }
 
     /// Payload `Snapshot` đúng bảng v1 đóng — không field thừa (review R3 F3-12).

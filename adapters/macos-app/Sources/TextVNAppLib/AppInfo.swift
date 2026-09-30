@@ -9,5 +9,5 @@ enum AppInfo {
     /// chạy trong swift test (Bundle.main không có Info.plist app).
     static let displayVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.1"
+        ?? "0.2.2"
 }

@@ -52,16 +52,20 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Modifier state hiện tại (cho toggle hotkey — P2-1 §5 bước 2).
     private var heldMods: UInt32 = 0
 
-    /// Snapshot từ IPC server; offline = giữ giá trị cuối (P0-3 §4).
-    private var viEnabled = true
+    /// Trạng thái bật/tắt: toàn cục + override per-app từ Snapshot/StateUpdate
+    /// (P0-3 §4). Offline = giữ giá trị cuối.
+    private var viState = ViState()
     private var appdbJSON: Data = Data()
+    /// Secure Input mode — đọc mỗi keyDown (Carbon, rẻ) để bịt khoảng trễ của
+    /// cache FieldDetect trước khi async AX gather xong (S8).
     private var secureMode = false
 
     public override init(server: IMKServer!, delegate: Any!, client: Any!) {
         // Config user trước; hỏng → engine default. Không bao giờ để IMK chết
         // vì config (S4, P0-3 §1.3). ABI lệch → engine nil, mọi phím PASS.
+        let cfgData = Self.loadConfig()
         let engine: ImeEngine?
-        if let cfg = Self.loadConfig(), let e = try? ImeEngine(configJSON: cfg) {
+        if let cfg = cfgData, let e = try? ImeEngine(configJSON: cfg) {
             engine = e
         } else {
             engine = try? ImeEngine(configJSON: nil)
@@ -72,6 +76,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             }
         }
         self.engine = engine
+        // Toggle khởi tạo theo `config.enabled` (bản cũ hardcode `true`): khi
+        // config tắt VN, hotkey Ctrl+Shift+Space bị lệch một nhịp (bật → vẫn tắt).
+        self.viState = ViState(globalEnabled: Self.configEnabled(in: cfgData) ?? true)
         super.init(server: server, delegate: delegate, client: client)
         Diagnostics.log("controller init — caps=\(caps)")
         ipc.delegate = self
@@ -145,7 +152,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
 
         // Toggle EN/VN: Ctrl+Shift+Space (P2-6 MAC-018; ADR-011 cho CapsLock mode).
-        if mods == (FFI.modCtrl | FFI.modShift), event.keyCode == kVK_Space {
+        // So MASK (bỏ bit Caps/Fn) — Caps Lock bật vẫn toggle được; so bằng `==`
+        // làm hotkey chết khi CapsLock on. Linux so mask y hệt (`engine.cpp` §3).
+        if Self.isToggleChord(mods: mods, keyCode: event.keyCode) {
             return toggleVietnamese()
         }
 
@@ -164,9 +173,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         // 4–5. Context + strategy (không I/O đồng bộ trong handle).
         let context = gatherContext(from: sender, force: false)
+        // Secure Input mode là trạng thái HỆ THỐNG, đọc trực tiếp mỗi keyDown
+        // (Carbon, không AX) — bịt cửa sổ trước khi async gather điền cache (S8).
+        secureMode = IsSecureEventInputEnabled()
         let hint = resolveStrategy(context: context)
         engine?.setContext(
-            enabled: viEnabled, secure: context.secure || secureMode,
+            enabled: viState.enabled(for: context.appID), secure: context.secure || secureMode,
             fieldRole: context.role, caps: caps,
             appId: context.appID,
             elementName: nil,
@@ -231,7 +243,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         let rc: Int32 = appdbJSON.withUnsafeBytes { raw -> Int32 in
             var ctx = ime_context_v1()
             ctx.abi_version = FFI.abiVersion
-            ctx.enabled = viEnabled ? 1 : 0
+            ctx.enabled = viState.enabled(for: context.appID) ? 1 : 0
             ctx.secure = (context.secure || secureMode) ? 1 : 0
             ctx.field_role = context.role
             ctx.caps = caps
@@ -277,15 +289,21 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             Diagnostics.log("ipc ConfigReload v\(version)")
             if let cfg = Self.loadConfig() {
                 engine?.reloadConfig(cfg)
+                // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
+                // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
+                if let enabled = Self.configEnabled(in: cfg) {
+                    viState.apply(stateUpdate: IpcMessage.globalAppID, enabled: enabled)
+                }
             }
         case let .stateUpdate(appID, enabled, _):
-            // Toàn cục = `IpcMessage.globalAppID` ("*"), cùng quy ước với Windows TSF
-            // (`GLOBAL_KEY`) — menu bar toggle phải tới được IMK (review R3 F3-1).
-            if appID == IpcMessage.globalAppID {
-                viEnabled = enabled
-            }
-        case .snapshot:
-            Diagnostics.log("ipc snapshot received")
+            // Toàn cục = `IpcMessage.globalAppID` ("*") — MỘT quy ước (R3 F3-1);
+            // app khác → override per-app (menu bar "Bật tiếng Việt cho <app>").
+            viState.apply(stateUpdate: appID, enabled: enabled)
+        case let .snapshot(_, state, appdbVersion, _):
+            // Server gửi Snapshot sau `GetSnapshot` — áp cả "*" lẫn per-app;
+            // trước đây bỏ qua hoàn toàn nên state ban đầu không bao giờ được áp.
+            Diagnostics.log("ipc snapshot received (\(state.count) entries, appdb \(appdbVersion))")
+            viState.apply(snapshot: state)
         default:
             break
         }
@@ -299,12 +317,21 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     // ------------------------------------------------------------- helpers
 
     private func toggleVietnamese() -> Bool {
-        viEnabled.toggle()
-        Diagnostics.log("toggle vi=\(viEnabled)")
+        let newValue = !viState.globalEnabled
+        viState.apply(stateUpdate: IpcMessage.globalAppID, enabled: newValue)
+        Diagnostics.log("toggle vi=\(newValue)")
         // Client gửi ToggleViEn (client→server — review R1 F15); server broadcast
         // StateUpdate lại cho mọi client. Gửi .stateUpdate là sai chiều → disconnect.
-        ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: viEnabled))
+        ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: newValue))
         return true // nuốt Space toggle
+    }
+
+    /// Ctrl+Shift+Space — so MASK, bỏ bit Caps/Fn (ADR-011: CapsLock là kiểu gõ
+    /// hoa, không được làm chết hotkey). Tách static để test không cần IMKServer.
+    static func isToggleChord(mods: UInt32, keyCode: UInt16) -> Bool {
+        let ignore = FFI.modCaps | FFI.modFn
+        return keyCode == kVK_Space
+            && (mods & ~ignore) == (FFI.modCtrl | FFI.modShift)
     }
 
     private func logAction(_ outcome: KeyOutcome) {
@@ -351,6 +378,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         return try? Data(contentsOf: url)
     }
 
+    /// Đọc `enabled` từ config.json (thiếu khoá → nil = giữ mặc định hiện tại).
+    static func configEnabled(in data: Data?) -> Bool? {
+        guard let data,
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return nil }
+        return obj["enabled"] as? Bool
+    }
+
     /// Gather AX bất đồng bộ (không block handle). V1: role từ focused element
     /// nếu query được; MAC-030/031 nâng cấp qua AXObserver + cache chi tiết hơn.
     static func gatherAX(for pid: pid_t, fieldDetect: FieldDetect) {
@@ -362,9 +397,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 let rc = AXUIElementCopyAttributeValue(
                     app, kAXFocusedUIElementAttribute as CFString, &value
                 )
-                if rc == .success, let element = value {
-                    // AXUIElement là CF class — downcast từ CFTypeRef an toàn ở đây
-                    // vì attribute đã trả đúng kiểu (rc == .success).
+                if rc == .success, let element = value,
+                   CFGetTypeID(element) == AXUIElementGetTypeID() {
+                    // Kiểm CFTypeID TRƯỚC khi downcast: app trả kiểu khác làm
+                    // `unsafeDowncast` trap → giết IMK; fail-open (S4) nên bỏ qua,
+                    // giữ context mặc định.
                     let ax = unsafeDowncast(element as AnyObject, to: AXUIElement.self)
                     let snapshot = Self.axSnapshot(of: ax)
                     let (role, secure) = FieldRules.map(snapshot)
@@ -389,7 +426,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             description: attr(kAXDescriptionAttribute),
             title: attr(kAXTitleAttribute),
             identifier: attr(kAXIdentifierAttribute),
-            secureInputMode: false
+            // Secure Input mode hệ thống (Terminal sudo/ssh hỏi mật khẩu...):
+            // trước đây hardcode `false` nên FieldRules không bao giờ thấy secure
+            // khi app không lộ subrole AXSecureTextField (S8).
+            secureInputMode: IsSecureEventInputEnabled()
         )
     }
 }

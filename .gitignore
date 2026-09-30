@@ -27,6 +27,11 @@ Thumbs.db
 
 # --- Swift / macOS (adapters/macos-imk, macos-tap) ---
 .build/
+/build/
 adapters/macos-imk/target/
 adapters/macos-imk/lib/
 adapters/macos-imk/build/
+
+# --- IDE: cấu hình cá nhân, máy-locale ---
+.vscode/
+.cline/

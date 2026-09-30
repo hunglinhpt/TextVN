@@ -59,4 +59,42 @@ public enum Diagnostics {
         try? fileHandle?.close()
         fileHandle = nil
     }
+
+    // MARK: - Heartbeat (P2-4 §6)
+
+    private static let heartbeatLock = NSLock()
+    private static var heartbeatTimer: DispatchSourceTimer?
+
+    /// Ghi `~/Library/Application Support/TextVN/im-heartbeat.json` mỗi `interval`
+    /// giây (pid + timestamp). TextVN.app đọc file này ở mục "Sức khỏe hệ thống"
+    /// — thiếu nó, health không biết IMK còn sống hay không.
+    public static func startHeartbeat(interval: TimeInterval = 5) {
+        heartbeatLock.lock()
+        defer { heartbeatLock.unlock() }
+        guard heartbeatTimer == nil else { return }
+        let queue = DispatchQueue(label: "vn.textvn.im.heartbeat", qos: .utility)
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: interval, leeway: .seconds(1))
+        timer.setEventHandler { writeHeartbeat() }
+        heartbeatTimer = timer
+        timer.resume()
+    }
+
+    /// Một lần ghi heartbeat (tách để test/đọc trực tiếp).
+    public static func writeHeartbeat(now: Date = Date()) {
+        let fm = FileManager.default
+        let dir = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/TextVN", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [
+            .posixPermissions: 0o700
+        ])
+        let payload: [String: Any] = [
+            "pid": Int(ProcessInfo.processInfo.processIdentifier),
+            "timestamp_ms": now.timeIntervalSince1970 * 1000,
+            "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        let url = dir.appendingPathComponent("im-heartbeat.json")
+        try? data.write(to: url, options: .atomic)
+    }
 }
