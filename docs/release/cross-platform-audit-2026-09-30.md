@@ -5,7 +5,7 @@ trong từng ZIP và không tự nâng một bản candidate thành production. 
 chưa được xác nhận bởi CI trên commit cuối cho đến khi workflow chạy lại.
 
 Windows release build trên host hiện tại đã tạo
-[`TextVN-portable-0.1.0-windows-x64-20260930020615.zip`](../../dist/TextVN-portable-0.1.0-windows-x64-20260930020615.zip)
+`dist/TextVN-portable-0.1.0-windows-x64-20260930020615.zip` (artifact cục bộ, không commit)
 (SHA-256 `8055E29000A0278F597A015EF560E58F1988C2E79B76BBE0D2C4391032F8150F`).
 `RELEASE_REPORT.json` trong ZIP ghi `release-candidate`, TSF-only, unit/corpus,
 format, clippy, ABI và smoke start/IPC/stop pass; cây nguồn còn dirty, chưa ký
