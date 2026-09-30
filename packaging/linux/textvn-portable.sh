@@ -260,17 +260,26 @@ if [[ "$FW" == ibus ]]; then
         > "$RUNTIME/ibus/component/textvn.xml"
     tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
         rollback_start ibus "Không thể khởi động lại IBus cho TextVN portable."
-    # Chọn TextVN cho phiên này (không sửa danh sách bộ gõ lâu dài).
-    active=0
-    for _ in 1 2 3 4 5; do
-        if ibus engine textvn >/dev/null 2>&1 && [[ "$(ibus engine 2>/dev/null)" == textvn ]]; then
-            active=1
+    # Bắt buộc: daemon đã nạp engine TextVN từ component portable — sai component
+    # path mới là lỗi thật cần rollback.
+    registered=0
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        if ibus list-engine 2>/dev/null | grep -qw textvn; then
+            registered=1
             break
         fi
         sleep 1
     done
-    if [[ "$active" != 1 ]]; then
-        rollback_start ibus "IBus không kích hoạt được TextVN; không đánh dấu phiên portable là thành công."
+    if [[ "$registered" != 1 ]]; then
+        rollback_start ibus "IBus không nạp được engine TextVN; không đánh dấu phiên portable là thành công."
+    fi
+    # Chọn TextVN cho phiên này (không sửa danh sách bộ gõ lâu dài) — best-effort:
+    # phiên không có ô nhập đang focus (headless/CI) hoặc GNOME tự quản input
+    # source có thể từ chối `ibus engine` dù TextVN vẫn chọn được từ menu bộ gõ.
+    if ibus engine textvn >/dev/null 2>&1 && [[ "$(ibus engine 2>/dev/null)" == textvn ]]; then
+        tv_ok "Đã chọn TextVN cho phiên này."
+    else
+        tv_say "IBus đã nạp TextVN — chọn TextVN trong menu bộ gõ nếu chưa tự chuyển."
     fi
 else
     [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]] || { tv_err "Gói không có addon Fcitx5."; exit 1; }

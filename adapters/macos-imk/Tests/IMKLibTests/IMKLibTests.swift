@@ -297,7 +297,7 @@ final class ApplyReplaceTests: XCTestCase {
         target.allowDeleteBackward = false
         let marked = MarkedState()
         XCTAssertThrowsError(
-            ApplyReplace.apply(
+            try ApplyReplace.apply(
                 outcome(.replace(deleteCount: 2, insert: "được", preedit: "")),
                 strategy: .backspaceType, target: target, marked: marked
             )

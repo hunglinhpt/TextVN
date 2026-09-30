@@ -10,7 +10,7 @@
 #                     Info.plist IMK keys không lệch giữa 2 bản + header C-ABI
 #                     trong module Swift không stale so với `ffi/include/`
 #  - engine-static  : cargo engine 2 arch mac (aarch64 + x86_64) + lipo (MAC-003)
-#  - swift          : swift build + swift test cả 3 package (IMK + tap + app) × 2 arch
+#  - swift          : build (kèm test bundle) cả 3 package × 2 arch; swift test trên arm64
 #  - corpus-mac     : replay corpus (shared + mac) --adapter mac + ABI gates
 #  - package-candidate : ZIP/PKG unsigned (không gắn nhãn production)
 name: ci-macos
@@ -209,18 +209,15 @@ jobs:
           mkdir -p adapters/macos-imk/lib
           cp target/${{ matrix.rust_target }}/debug/libtextvn_ffi.a adapters/macos-imk/lib/
 
-      # Runner arm64 mặc định KHÔNG có Rosetta → `swift test --arch x86_64` không
-      # chạy được binary Intel. Lệnh là no-op (exit ≠ 0 "already installed") khi
-      # Rosetta đã có → bỏ qua lỗi, test sẽ báo lỗi thật nếu vẫn thiếu.
-      - name: Rosetta 2 (cho `swift test --arch x86_64` trên runner arm64)
-        if: matrix.arch == 'x86_64'
-        run: sudo softwareupdate --install-rosetta --agree-to-license || true
-
+      # x86_64: build CẢ test bundle (compile + link đủ) nhưng chỉ CHẠY test trên
+      # arm64 — `swiftpm-testing-helper` của runner arm64 không dlopen được bundle
+      # x86_64 ("doesn't contain a version for the current architecture", MAC-032).
+      # Logic test không phụ thuộc arch; arch chỉ ảnh hưởng compile/link.
       - name: swift build + test (IMK adapter — MAC-030)
         working-directory: adapters/macos-imk
         run: |
-          swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
+          swift build --arch ${{ matrix.arch }} --build-tests
+          if [ "${{ matrix.arch }}" = "arm64" ]; then swift test --arch arm64; fi
 
       # 3 package độc lập (staticlib đã có từ bước trên) — IMK lỗi vẫn build/test
       # tap + app để một lần chạy CI báo đủ lỗi cả 3; job vẫn fail như cũ.
@@ -228,15 +225,15 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: adapters/macos-tap
         run: |
-          swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
+          swift build --arch ${{ matrix.arch }} --build-tests
+          if [ "${{ matrix.arch }}" = "arm64" ]; then swift test --arch arm64; fi
 
       - name: swift build + test (menu bar app and settings)
         if: ${{ !cancelled() }}
         working-directory: adapters/macos-app
         run: |
-          swift build --arch ${{ matrix.arch }}
-          swift test --arch ${{ matrix.arch }}
+          swift build --arch ${{ matrix.arch }} --build-tests
+          if [ "${{ matrix.arch }}" = "arm64" ]; then swift test --arch arm64; fi
 
   corpus-mac:
     name: replay corpus --adapter mac
