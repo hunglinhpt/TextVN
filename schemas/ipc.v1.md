@@ -24,7 +24,10 @@ Mọi JSON có discriminator `type`. Danh sách v1 đóng:
 | Server → client | `Snapshot { config_version, state, appdb_version, channel }`, `Ack`, `ConfigReload { version }`, `StateUpdate { app_id, enabled, version }`, `Pong { uptime_ms }` |
 
 `CrashReport.code` là mã phân loại, không được chứa text đang gõ. `state` là map
-`app_id → enabled`; `StateUpdate` là push cho client đã Subscribe. Thêm message
+`app_id → enabled`; `StateUpdate` là push cho client đã Subscribe. `app_id = "*"`
+là trạng thái **toàn cục** (bật/tắt tiếng Việt) trong `ToggleViEn`, `StateUpdate`
+và `state` — một quy ước cho mọi nền tảng; server macOS chuẩn hoá `""` của IMK bản
+cũ về `"*"`. Thêm message
 mới yêu cầu protocol version/schema review trước.
 
 ## Implementation

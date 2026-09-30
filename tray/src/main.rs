@@ -396,6 +396,9 @@ fn run_tray_app() {
     // 1. Single Instance Check qua Mutex
     let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
     let mutex_handle = unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
+    // GetLastError phải chụp NGAY sau CreateMutexW — lời gọi khác (alloc, match)
+    // có thể đè last-error làm mất cờ đã-chạy (review R3 minor 4).
+    let mutex_error = unsafe { GetLastError() };
 
     let mutex = match mutex_handle {
         Ok(h) => h,
@@ -408,7 +411,7 @@ fn run_tray_app() {
     let is_autostart = std::env::args().any(|a| a == "--autostart");
     let is_settings = std::env::args().any(|a| a == "--settings");
 
-    if unsafe { GetLastError() } == ERROR_ALREADY_EXISTS {
+    if mutex_error == ERROR_ALREADY_EXISTS {
         let _ = unsafe { CloseHandle(mutex) };
         if !is_autostart {
             // Nếu người dùng click chạy app hoặc --settings khi đã chạy ngầm -> mở Bảng điều khiển
@@ -517,6 +520,10 @@ fn run_tray_app() {
         }
     }
 
+    // App foreground gần nhất cho mục menu "Bật tiếng Việt cho {app}" (review R3
+    // minor 6). Giữ guard tới hết hàm: drop → UnhookWinEvent.
+    let _foreground_tracker = textvn_tray::foreground::ForegroundTracker::start();
+
     // Xử lý mở hộp thoại Bảng điều khiển:
     // - Khi có cờ --autostart: Khởi động chế độ chạy ngầm minimized to tray (không bật popup hộp thoại).
     // - Khi khởi động bình thường (không có --autostart): Kiểm tra cấu hình show_dialog_on_startup,
@@ -526,9 +533,17 @@ fn run_tray_app() {
     }
 
     // 5. Message Loop
+    // GetMessageW trả -1 khi lỗi — `.as_bool()` vẫn true → loop dispatch MSG
+    // rác vô hạn (review R3 minor 5). Chuẩn: r <= 0 (−1 lỗi, 0 WM_QUIT) thoát.
     let mut msg = MSG::default();
-    while RUNNING.load(Ordering::Acquire) && unsafe { GetMessageW(&mut msg, None, 0, 0) }.as_bool()
-    {
+    loop {
+        if !RUNNING.load(Ordering::Acquire) {
+            break;
+        }
+        let r = unsafe { GetMessageW(&mut msg, None, 0, 0) };
+        if r.0 <= 0 {
+            break;
+        }
         // Tab/Esc/Enter trong bảng điều khiển và cửa sổ Gõ tắt.
         if textvn_tray::settings_dialog::pre_translate_message(&msg) {
             continue;
@@ -565,7 +580,9 @@ unsafe extern "system" fn wnd_proc(
                     let mut pt = POINT::default();
                     let _ = GetCursorPos(&mut pt);
                     if let Some(app) = APP_INSTANCE.get() {
-                        app.menu.show_popup(hwnd, pt.x, pt.y, None);
+                        let current_app = textvn_tray::foreground::last_app();
+                        app.menu
+                            .show_popup(hwnd, pt.x, pt.y, current_app.as_deref());
                     }
                 }
                 WM_LBUTTONUP => {
@@ -629,7 +646,8 @@ unsafe extern "system" fn wnd_proc(
                 return LRESULT(0);
             }
             if let Some(app) = APP_INSTANCE.get() {
-                app.menu.handle_command(cmd_id, None);
+                let current_app = textvn_tray::foreground::last_app();
+                app.menu.handle_command(cmd_id, current_app.as_deref());
                 update_tray_icon(hwnd, app);
             }
             LRESULT(0)

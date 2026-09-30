@@ -268,7 +268,7 @@ static int try_connect(lc_ipc_client *client) {
     char hello[256];
     uint32_t pid = (uint32_t)getpid();
     snprintf(hello, sizeof(hello),
-             "{\"type\":\"Hello\",\"pid\":%u,\"abi\":1,\"version\":\"0.1.0\"}", pid);
+             "{\"type\":\"Hello\",\"pid\":%u,\"abi\":1,\"version\":\"" TEXTVN_VERSION "\"}", pid);
     lc_ipc_send_frame(fd, hello, strlen(hello));
 
     char sub[128];

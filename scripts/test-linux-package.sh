@@ -90,7 +90,9 @@ scenario_install() {
     }
     trap stop_session_daemon EXIT
     t="$(new_home)"
-    export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_DATA_HOME="$t/home/.local/share"
+    # XDG_CONFIG_HOME KHÁC ~/.config: bắt lệch path environment.d giữa install và
+    # uninstall (review R3 major 2 — trước đây 60-textvn.conf sót lại sau khi gỡ).
+    export HOME="$t/home" XDG_CONFIG_HOME="$t/home/xdg-config" XDG_DATA_HOME="$t/home/.local/share"
     export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
     unset IBUS_COMPONENT_PATH FCITX_ADDON_DIRS
     mkdir -p "$t/x"
@@ -160,7 +162,8 @@ scenario_install() {
     "$pre/share/textvn/uninstall.sh" --no-restart >"$t/un.log" 2>&1 || { cat "$t/un.log"; fail "uninstall.sh"; }
     local left
     # Dữ liệu người dùng (cấu hình, nhật ký) được giữ lại khi gỡ — chỉ file cài đặt phải hết.
-    left="$(find "$HOME" \( -path "$HOME/.config/TextVN" -o -path "$HOME/.local/state/TextVN" \) -prune \
+    left="$(find "$HOME" \( -path "$HOME/.config/TextVN" -o -path "$XDG_CONFIG_HOME/TextVN" \
+        -o -path "$HOME/.local/state/TextVN" \) -prune \
         -o \( -iname '*textvn*' -print \) | grep -v fake-gsettings || true)"
     [[ -z "$left" ]] || fail "còn sót sau khi gỡ: $left"
     if grep -q "'textvn'" "$HOME/.fake-gsettings" 2>/dev/null; then

@@ -130,7 +130,8 @@ impl TrayMenu {
 
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
-            // 4. Cửa sổ đang gõ (Per-app toggle)
+            // 4. Per-app toggle cho app foreground gần nhất — nguồn là
+            // `foreground::last_app()` (EVENT_SYSTEM_FOREGROUND, bỏ qua shell/tray).
             if let Some(app) = current_app {
                 let app_enabled = self.svc.is_app_enabled(app);
                 let app_label = format!("Bật tiếng Việt cho {app}");
@@ -220,6 +221,9 @@ impl TrayMenu {
 
             let _ = SetForegroundWindow(hwnd);
             let _ = TrackPopupMenuEx(menu, TPM_RIGHTBUTTON.0, x, y, hwnd, None);
+            // KB135788: sau TrackPopupMenuEx phải PostMessageW(WM_NULL) — nếu không
+            // tray giữ foreground và click kế tiếp bị nuốt một lần (review R3 minor 7).
+            let _ = PostMessageW(Some(hwnd), WM_NULL, WPARAM(0), LPARAM(0));
             let _ = DestroyMenu(menu);
         }
     }
@@ -265,7 +269,8 @@ impl TrayMenu {
                 if let Some(app) = current_app {
                     let cur = self.svc.is_app_enabled(app);
                     let ver = self.svc.set_app_enabled(app, !cur);
-                    self.ipc.broadcast_state_update(app, !cur, ver);
+                    let actual = self.svc.is_app_enabled(app);
+                    self.ipc.broadcast_state_update(app, actual, ver);
                 }
             }
             ID_HOOK_COMPAT_MODE => {

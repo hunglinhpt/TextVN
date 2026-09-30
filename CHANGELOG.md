@@ -80,6 +80,25 @@ Mục tiêu: bản release candidate dùng được hằng ngày trên Windows, 
     `rust_target: aarch64-apple-darwin`/`x86_64-apple-darwin`; `cargo build` chạy từ
     workspace root; copy FFI header bước riêng.
 
+### Fixed (review vòng 3 — trước tag v0.2.0)
+
+Chi tiết: [P2-REVIEW-LOG — Round 9](docs/30-macos/P2-REVIEW-LOG.md).
+
+- **Installer Windows kẹt 0.1.0** (blocker): `#define MyAppVersion` cứng đè `/DMyAppVersion`
+  của script release → nay `#ifndef`; hết version-skew ở manifest Win32, component IBus,
+  Hello IPC Linux, cask Homebrew, AppStream. Gate mới `cargo xtask check-version-sync`.
+- **macOS**: bật/tắt tiếng Việt từ menu bar nay tới được IMK (quy ước `app_id = "*"` toàn
+  cục chung mọi nền tảng); cửa sổ Cài đặt "Mở rộng" không còn bị cắt; TextVN-IM không còn
+  có thể chết vì SIGPIPE; sửa `config.json` ngoài app có hiệu lực ngay (hot-reload
+  MAC-053); config hỏng được giữ lại `config.json.corrupt-<ts>` thay vì bị ghi đè mất
+  macro; IPC server đóng kết nối khi vi phạm giao thức và kiểm uid peer; tắt tự khởi động
+  gỡ cả LaunchAgent fallback; gỡ cài đặt sạch cả scope hệ thống, Login Item và receipt pkg.
+- **Windows tray**: mục menu "Bật tiếng Việt cho {app}" hoạt động (nhớ app đang gõ trước khi
+  click khay); click đầu sau khi đóng menu không bị nuốt; ghi `state.json` lỗi không còn
+  phát trạng thái sai; chống 2 instance khi `GetLastError` bị đè; vòng message thoát đúng
+  khi `GetMessageW` lỗi.
+- **Linux**: `60-textvn.conf` không còn sót sau khi gỡ khi `XDG_CONFIG_HOME` khác mặc định;
+  gỡ bản `--system` bỏ TextVN khỏi danh sách bộ gõ; cảnh báo khi Fcitx5 sẽ không nạp addon.
 
 ### Added (trước đó)
 - **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2

@@ -15,8 +15,9 @@
 | **Review 1 — Đúng & Đủ (IMK, Tap, Corpus & C-ABI Audit)** | `ApplyReplace.swift`, `KeyTranslator.swift`, `EventTapController.swift`, `corpus/mac` | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 | **Review 2 — Nhất quán & Sẵn sàng (Subsystem Verification)** | 114/114 corpus/mac replay, UCKeyTranslate modifiers, Rule S5/S9 compliance | 1 | 0 | 0 | 1 | ✅ 1/1 đã fix |
 | **Round 7 — CI Fix MAC-031** | `Package.swift` URL→String, `build-rust.sh` ROOT_DIR/scalar, `ci-macos.yml` rust_target matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
+| **Round 9 — Review vòng 3 (F3-* macOS + R3-* Win/Linux)** | macos-app, IpcClient, packaging macOS/Linux, tray Win32, xtask, version-sync | 40 | 1 | 7 | 17 | ✅ 25 đã fix (1 blocker, 7 major, 15 minor, 2 nit) · hoãn có lý do: 2 minor (F3-8, F3-13) + 13 nit |
 
-**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings đã xử lý triệt để).
+**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings vòng 1–7 + 25 findings Round 9 đã xử lý; còn 2 minor + 13 nit hoãn có lý do — xem Round 9). Swift của Round 9 chờ CI `ci-macos` xác nhận.
 
 ---
 
@@ -208,3 +209,79 @@ pre-release version (workspace hiện chỉ số sạch).
 CI macOS (`ci-macos`) xanh + smoke GUI trên máy Mac thật (TextEdit/Safari/secure
 field/cài-gỡ .pkg) + notarization — đúng như `docs/release/build-release-report.md`
 và `cross-platform-audit-2026-09-30.md` đã ghi.
+
+## Round 9 — Fix review vòng 3 trước tag v0.2.0 (2026-09-30)
+
+Nguồn finding: 2 báo cáo review vòng 3 độc lập trên HEAD `9ec9bf4` — (A) macOS
+app + packaging + tools + CI, ID `F3-1…F3-22`; (B) line-cơ Windows tray / xtask /
+Linux packaging, ID `R3-1…R3-18`. Người fix khác người review. Phạm vi fix: toàn bộ
+blocker + major, các minor được chọn; phần còn lại ghi rõ lý do ở cuối.
+
+### (B) Windows / xtask / Linux — `R3-*`
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| R3-1 | blocker | `TextVN-setup.iss` `#define MyAppVersion "0.1.0"` cứng đè `/DMyAppVersion` → installer 0.1.0, `build-release.ps1` không tìm thấy setup 0.2.0 | ✅ Fixed | `#ifndef MyAppVersion` quanh fallback; `build_installer.ps1` resolve version từ `[workspace.package]` **trước** nhánh ISCC (gate AV-3 cũng dùng), không fallback số cứng; `build-release.ps1` regex neo đầu dòng + `throw` thay fallback `0.1.0` |
+| R3-1b | blocker (cụm) | Version-skew còn lại: `app.manifest`, `textvn.xml`, và (phát hiện thêm khi quét) `tray/cli/hook.manifest`, Hello IPC + component IBus trong C (`"0.1.0"`), cask Homebrew, AppStream, fallback `${VERSION:-0.1.0}` ở 2 script macOS | ✅ Fixed | Bump 0.2.0(.0); C lấy `TEXTVN_VERSION` từ Cargo.toml qua CMake (PUBLIC define ở `linux-common`, giống `linux-settings`); AppStream thêm release 0.2.0; script macOS fail sớm nếu không đọc được version. Gate mới `cargo xtask check-version-sync` (14 chỗ) trong `ci-shared` |
+| R3-2 | major | `install.sh` ghi `$HOME/.config/environment.d` còn `uninstall.sh` dùng `XDG_CONFIG_HOME` → allowlist chặn, `60-textvn.conf` sót | ✅ Fixed | `install.sh` dùng `${XDG_CONFIG_HOME:-$HOME/.config}`; kịch bản cài đặt của `test-linux-package.sh` nay chạy với `XDG_CONFIG_HOME` ≠ `~/.config` (regression) |
+| R3-3 | major | Gỡ bản `--system` không `tv_deactivate_ibus` dù cài có `tv_activate_ibus` | ✅ Fixed | Bỏ điều kiện `PREFIX != /usr`, vẫn gate bởi `had_ibus` |
+| R3-4 | minor | `GetLastError()` đọc sau alloc/match → mất cờ `ERROR_ALREADY_EXISTS` | ✅ Fixed | Chụp ngay sau `CreateMutexW` |
+| R3-5 | minor | `GetMessageW` = −1 vẫn `.as_bool()` true → loop rác | ✅ Fixed | `r.0 <= 0` thoát |
+| R3-6 | minor | Mục menu 4 "Bật tiếng Việt cho {app}" là code chết (`current_app` luôn `None`) | ✅ Fixed | Module mới `tray/src/foreground.rs`: `SetWinEventHook(EVENT_SYSTEM_FOREGROUND, OUTOFCONTEXT + SKIPOWNPROCESS)` nhớ app foreground gần nhất, bỏ lớp cửa sổ shell/taskbar (lúc click khay foreground luôn là taskbar); `app_id` = tên exe viết thường, khớp TSF. Test thuần cho parse tên + lọc lớp shell |
+| R3-7 | minor | Thiếu `PostMessageW(WM_NULL)` sau `TrackPopupMenuEx` (KB135788) | ✅ Fixed | Thêm post `WM_NULL` |
+| R3-8 | minor | `state.json` ghi lỗi vẫn bump version + broadcast | ✅ Fixed | Persist trước; lỗi → rollback RAM, giữ version; 4 call-site broadcast **state thật** sau khi lưu (TSF áp `StateUpdate` không so version). Test `failed_state_save_keeps_memory_and_version_unchanged` |
+| R3-9 | minor | `default_config_dir()` nhánh legacy chết | ✅ Fixed | Xoá nhánh |
+| R3-10 | minor | `targets_version` so `*n as i64` → `1.9` lọt | ✅ Fixed | So `== 1.0`; test `validate_targets_version_phai_dung_1` |
+| R3-11 | minor | Cài system trên distro ngoài danh sách multiarch: Fcitx5 không nạp addon, im lặng | ✅ Fixed | `tv_err` kèm hướng dẫn (cài per-user hoặc đặt `FCITX_ADDON_DIRS`) |
+
+### (A) macOS app / IMK / packaging / CI — `F3-*`
+
+| ID | Mức | Finding | Trạng thái | Cách fix |
+|---|---|---|---|---|
+| F3-1 | major | Toggle menu bar broadcast `"*"`, IMK chỉ nhận `""` → không tới IMK | ✅ Fixed | **Một** quy ước `"*"` = toàn cục cho mọi nền tảng — trùng `GLOBAL_KEY` của Windows TSF (khác gợi ý `""` của reviewer vì Windows đã dùng `"*"` cả trong `Snapshot.state`). IMK nhận/gửi `IpcMessage.globalAppID`; server chuẩn hoá `""` (IMK bản cũ còn chạy tới khi logout) về `"*"`; ghi quy ước vào `schemas/ipc.v1.md` |
+| F3-2 | major | Settings "Mở rộng" bị cắt nửa dưới (`NSHostingView` không resize window) | ✅ Fixed | `SettingsView.contentSize(expanded:)` là nguồn cỡ duy nhất + callback `onExpandedChange` → `AppDelegate.resizeSettingsWindow` (`setFrame` giữ mép trên, animate) |
+| F3-3 | major | Server bỏ qua JSON sai / type lạ, không đóng kết nối (trái `ipc.v1.md`) | ✅ Fixed | `parseFramesChecked` trả cờ violation (length sai, JSON không phải object, thiếu `type`); type lạ / `ToggleViEn` sai field → `closeClient` |
+| F3-4 | major | `IpcClient` không `SO_NOSIGPIPE` → SIGPIPE có thể kill TextVN-IM | ✅ Fixed | `setsockopt(SO_NOSIGPIPE)` ngay sau `socket()`; đọc length frame bằng `UInt32(littleEndian:)` tường minh |
+| F3-5 | major | Thiếu watcher hot-reload MAC-053 | ✅ Fixed | `ConfigWatcher.swift`: DispatchSource trên thư mục (bắt lưu atomic/rename) + trên file (ghi tại chỗ), debounce 300ms, mở lại fd sau mỗi lần fire. `ConfigStore.reloadFromDisk()`: hợp lệ và khác → áp + broadcast `ConfigReload` (+ `StateUpdate "*"` nếu `enabled` đổi); sai schema / chính app vừa ghi → giữ nguyên |
+| F3-6 | minor | Tắt autostart không xoá LaunchAgent fallback khi SM `.notRegistered` | ✅ Fixed | Tắt luôn gỡ cả 2 nguồn; bật SM thành công thì gỡ plist cũ |
+| F3-7 | minor | Uninstall chưa "0 residue": SM login item, receipt pkg, `/Library/Input Methods`, log khi `--purge`, broken symlink | ✅ Fixed | (a) app unregister SM trước khi chạy script; (b) `pkgutil --forget` (volume `$HOME` + system, in hướng dẫn sudo nếu thiếu quyền); (c) xoá + kiểm scope system, không để `set -e` dừng giữa chừng khi thiếu quyền; (d) check verify `Logs/TextVN` khi `--purge`; `present()` = `-e` hoặc `-L`; check receipt |
+| F3-9 | minor | Server không kiểm peer uid | ✅ Fixed | `getpeereid` sau `accept`, từ chối uid ≠ `getuid()` |
+| F3-10 | minor | Không có gate Cargo.toml ↔ Info.plist | ✅ Fixed | `cargo xtask check-version-sync` (3 plist + 3 fallback Swift + iss + 4 manifest + IBus xml + cask + AppStream) chạy ở `ci-shared` — mọi OS, không cần runner Mac |
+| F3-11 | minor | `component.plist` có `--` trong comment XML, không nằm trong lint | ✅ Fixed | Viết lại comment; `ci-macos` lint thêm `component.plist` + parse strict bằng `plistlib` (plutil nuốt lỗi này) |
+| F3-12 | minor | `Snapshot` thừa `uptime_ms`, `state` có key rỗng | ✅ Fixed | `snapshotMessage()` đúng 5 field v1, lọc key `""` (giữ `"*"` — xem F3-1) |
+| F3-14 | minor | Config hỏng thay im lặng bằng default → mất macro ở lần persist kế | ✅ Fixed | Lúc khởi động: dời sang `config.json.corrupt-<ts>` + log (giống `.bak` bên Windows); decode khoan dung khoá thiếu (config bản cũ/mới hơn không bị coi là hỏng) |
+| F3-17 | nit | Dir socket có sẵn không được `chmod 0700` | ✅ Fixed | `chmod(dir, 0o700)` sau `createDirectory` |
+| F3-22 | nit | `USER_HOME="${HOME:-~}"` | ✅ Fixed | `${HOME:?…}` ở `uninstall_macos.sh` + `uninstall-check.sh` |
+
+Test Swift mới (`TextVNAppTests`): violation frame, Snapshot schema đóng, chuẩn hoá
+`"*"`, quarantine config hỏng, decode thiếu khoá, hot-reload giữ bản cũ khi file
+sai, cỡ Settings. **Chưa compile được trên host Windows** — CI `ci-macos` là nơi
+xác nhận đầu tiên.
+
+### Chưa fix trong vòng này (có lý do)
+
+- **F3-8** (menu thiếu submenu Dấu / per-app, badge không phải SF Symbol template,
+  health thiếu IMK PID) và **F3-13** (đường SMAppService không truyền được
+  `--autostart` → Settings bật lên mỗi lần login khi `show_dialog_on_startup=true`):
+  thay đổi UI/hành vi cần chốt lại spec P2-4 §1 — để vòng sau. F3-13 là ưu tiên
+  cao nhất trong số còn mở.
+- Nit **F3-15/16/18/19/20/21** và **R3-12…R3-18**: vô hại thực tế (retain cycle
+  singleton, đọc Int không sync, trạng thái AX trong menu cũ, `setAutostart` gọi 2
+  lần, hint postinstall, policy ghi đè SHA256SUMS, JSON grammar lỏng trong xtask,
+  comment `toggle_reset`, `SettingsController` không dùng, `WM_DPICHANGED`, dấu
+  radio menu, mktemp e2e, test-typing đổi HKCU).
+
+### Kiểm chứng (host Windows, cây làm việc trước commit)
+
+| Gate | Kết quả |
+|---|---|
+| `cargo fmt --all -- --check` | ✅ sạch |
+| `cargo clippy --workspace --all-targets -- -D warnings` | ✅ 0 warning |
+| `cargo test --workspace` | ✅ 29/29 suite, 340 test pass |
+| `check-tables` / `check-mac-corpus` (114) / `check-win-corpus` (72) / `check-mac-targets` (12) | ✅ |
+| `check-version-sync` | ✅ 14 chỗ = 0.2.0 |
+| `replay corpus/shared corpus/mac --adapter mac` / `replay corpus/win --adapter win` | ✅ 149/149 · 78/78 |
+| `bash -n` toàn bộ script tracked + postinstall | ✅ 21/21 |
+| PowerShell parser toàn bộ `*.ps1` | ✅ 0 lỗi |
+| `plistlib` strict 6 plist/entitlements (gồm `component.plist`) | ✅ |
+| Swift build/test, GUI macOS, CMake Linux | ⏳ chờ CI `ci-macos` / `ci-linux` (không chạy được trên host Windows) |

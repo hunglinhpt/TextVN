@@ -344,11 +344,9 @@ fn validate_doc(file: &str, text: &str, appdb: &Json) -> Vec<String> {
         None => out.push(format!("{file}: thiếu `app_id`")),
     }
 
-    let version = doc.get("targets_version").and_then(|v| match v {
-        Json::Num(n) => Some(*n as i64),
-        _ => None,
-    });
-    if version != Some(1) {
+    // So đúng giá trị số: `*n as i64` cắt thập phân → `1.9` từng lọt (review R3 minor 10).
+    let version_ok = matches!(doc.get("targets_version"), Some(Json::Num(n)) if *n == 1.0);
+    if !version_ok {
         out.push(format!("{file}: `targets_version` phải = 1"));
     }
 
@@ -562,6 +560,26 @@ mod tests {
         ] {
             assert!(P::parse(bad).is_err(), "phải báo lỗi: {bad}");
         }
+    }
+
+    #[test]
+    fn validate_targets_version_phai_dung_1() {
+        for bad in ["1.9", "1.5", "2", "0"] {
+            let doc = mutated(
+                "\"targets_version\": 1",
+                &format!("\"targets_version\": {bad}"),
+            );
+            let errs = validate_doc("textedit.json", &doc, &appdb());
+            assert!(
+                errs.iter().any(|e| e.contains("targets_version")),
+                "phải báo targets_version = {bad}: {errs:?}"
+            );
+        }
+        let ok = mutated("\"targets_version\": 1", "\"targets_version\": 1.0");
+        assert_eq!(
+            validate_doc("textedit.json", &ok, &appdb()),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

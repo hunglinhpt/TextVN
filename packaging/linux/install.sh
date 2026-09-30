@@ -100,6 +100,12 @@ if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
     put 0644 "$PKG_DIR/share/fcitx5/addon/textvn.conf" "$SHARE/fcitx5/addon/textvn.conf"
     put 0644 "$PKG_DIR/share/fcitx5/inputmethod/textvn.conf" "$SHARE/fcitx5/inputmethod/textvn.conf"
     HAS_FCITX5=1
+    if [[ "$MODE" == system && -z "$SYS_FCITX_ADDONS" ]]; then
+        # Distro ngoài danh sách multiarch: addon nằm ở $LIBDIR/fcitx5 mà bản hệ
+        # thống không khai báo FCITX_ADDON_DIRS → Fcitx5 sẽ không nạp (review R3 minor 11).
+        tv_err "Không tìm thấy thư mục addon Fcitx5 hệ thống — Fcitx5 sẽ KHÔNG nạp TextVN."
+        tv_err "Cài per-user (bỏ --system) hoặc thêm FCITX_ADDON_DIRS=$FCITX_LIB vào môi trường phiên."
+    fi
 fi
 for f in icons/hicolor/scalable/apps/textvn_v.svg icons/hicolor/scalable/apps/textvn_e.svg \
          applications/textvn-settings.desktop metainfo/io.github.hunglinhpt.textvn.metainfo.xml; do
@@ -116,7 +122,9 @@ put 0644 "$PKG_DIR/textvn-common.sh" "$SHARE/textvn/textvn-common.sh"
 # phiên đăng nhập sau qua environment.d (GNOME, KDE, mọi phiên systemd).
 ENV_FILE=""
 if [[ "$MODE" == user ]]; then
-    ENV_FILE="$HOME/.config/environment.d/60-textvn.conf"
+    # Cùng công thức với uninstall.sh / tv_textvn_install_path — lệch XDG_CONFIG_HOME
+    # làm allowlist chặn file này lúc gỡ (review R3 major 2).
+    ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/60-textvn.conf"
     mkdir -p "$(dirname "$ENV_FILE")"
     {
         echo "# TextVN (cài per-user) — tạo bởi install.sh, gỡ bởi uninstall.sh"

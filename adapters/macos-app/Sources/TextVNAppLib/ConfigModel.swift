@@ -68,8 +68,38 @@ public struct TextVNConfig: Codable, Equatable {
         self.macros = macros
     }
 
+    /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
+    /// không bị coi là hỏng); khoá sai KIỂU vẫn throw → `.corrupt` (review R3 F3-14).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = TextVNConfig()
+        config_version = try c.decodeIfPresent(Int.self, forKey: .config_version) ?? d.config_version
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
+        method = try c.decodeIfPresent(String.self, forKey: .method) ?? d.method
+        diacritic_style = try c.decodeIfPresent(String.self, forKey: .diacritic_style) ?? d.diacritic_style
+        free_marking = try c.decodeIfPresent(Bool.self, forKey: .free_marking) ?? d.free_marking
+        auto_restore_english = try c.decodeIfPresent(Bool.self, forKey: .auto_restore_english) ?? d.auto_restore_english
+        auto_capitalize = try c.decodeIfPresent(Bool.self, forKey: .auto_capitalize) ?? d.auto_capitalize
+        macro_trigger = try c.decodeIfPresent(String.self, forKey: .macro_trigger) ?? d.macro_trigger
+        allow_macro_when_vi_off = try c.decodeIfPresent(Bool.self, forKey: .allow_macro_when_vi_off) ?? d.allow_macro_when_vi_off
+        output_charset = try c.decodeIfPresent(String.self, forKey: .output_charset) ?? d.output_charset
+        show_dialog_on_startup = try c.decodeIfPresent(Bool.self, forKey: .show_dialog_on_startup) ?? d.show_dialog_on_startup
+        autostart = try c.decodeIfPresent(Bool.self, forKey: .autostart) ?? d.autostart
+        non_preedit = try c.decodeIfPresent(Bool.self, forKey: .non_preedit) ?? d.non_preedit
+        run_in_tray = try c.decodeIfPresent(Bool.self, forKey: .run_in_tray) ?? d.run_in_tray
+        switch_key = try c.decodeIfPresent(String.self, forKey: .switch_key) ?? d.switch_key
+        macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
+    }
+
     public static func `default`() -> TextVNConfig {
         TextVNConfig()
+    }
+
+    public enum LoadError: Error {
+        /// File chưa tồn tại / không đọc được.
+        case missing
+        /// File có nhưng không phải config hợp lệ.
+        case corrupt
     }
 
     public static func defaultConfigURL() -> URL {
@@ -78,16 +108,46 @@ public struct TextVNConfig: Codable, Equatable {
         return textvnDir.appendingPathComponent("config.json")
     }
 
+    /// Đọc thuần — không đụng file. Dùng cho hot-reload (MAC-053): lỗi → caller giữ
+    /// bản đang dùng.
+    public static func read(from url: URL? = nil) -> Result<TextVNConfig, LoadError> {
+        let fileURL = url ?? defaultConfigURL()
+        guard let data = try? Data(contentsOf: fileURL) else { return .failure(.missing) }
+        guard let cfg = try? JSONDecoder().decode(TextVNConfig.self, from: data) else {
+            return .failure(.corrupt)
+        }
+        return .success(cfg)
+    }
+
+    /// Nạp lúc khởi động. File hỏng → dời sang `config.json.corrupt-<ts>` rồi dùng
+    /// mặc định: trước đây bản lỗi nằm yên tới lần persist kế và bị ghi đè → mất
+    /// macro của người dùng (review R3 F3-14). Giống `.bak` bên tray Windows.
     public static func load(from url: URL? = nil) -> TextVNConfig {
         let fileURL = url ?? defaultConfigURL()
-        guard let data = try? Data(contentsOf: fileURL) else {
+        switch read(from: fileURL) {
+        case let .success(cfg):
+            return cfg
+        case .failure(.missing):
+            return .default()
+        case .failure(.corrupt):
+            let backup = quarantineCorrupt(fileURL)
+            NSLog("[TextVN] config.json hỏng — đã giữ bản lỗi ở %@, dùng mặc định",
+                  backup?.path ?? "(không dời được)")
             return .default()
         }
+    }
+
+    /// Dời file hỏng sang tên `<file>.corrupt-<unix-ts>`; trả đường dẫn mới.
+    @discardableResult
+    static func quarantineCorrupt(_ fileURL: URL) -> URL? {
+        let ts = Int(Date().timeIntervalSince1970)
+        let dst = fileURL.deletingLastPathComponent()
+            .appendingPathComponent("\(fileURL.lastPathComponent).corrupt-\(ts)")
         do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(TextVNConfig.self, from: data)
+            try FileManager.default.moveItem(at: fileURL, to: dst)
+            return dst
         } catch {
-            return .default()
+            return nil
         }
     }
 
@@ -124,6 +184,18 @@ public final class ConfigStore: ObservableObject {
 
     public func reload() {
         self.config = TextVNConfig.load(from: customURL)
+    }
+
+    /// Hot-reload (MAC-053, P2-4 §2): file hợp lệ và KHÁC bản đang dùng → áp dụng,
+    /// trả `true`. File thiếu/sai schema → GIỮ bản đang dùng, không dời file (người
+    /// dùng có thể đang sửa dở). Chính `persist()` ghi ra → bằng nhau → `false`.
+    @discardableResult
+    public func reloadFromDisk() -> Bool {
+        guard case let .success(cfg) = TextVNConfig.read(from: customURL), cfg != config else {
+            return false
+        }
+        config = cfg
+        return true
     }
 
     public func persist() {

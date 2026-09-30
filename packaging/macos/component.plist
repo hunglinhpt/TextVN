@@ -3,7 +3,8 @@
 <!--
   SPDX-License-Identifier: GPL-3.0-or-later
 
-  component.plist — component list cho `pkgbuild --component-plist` (MAC-054, P2-4 §4).
+  component.plist — component list cho pkgbuild, tham số component-plist (MAC-054, P2-4 §4).
+  Không viết hai dấu gạch liền nhau trong comment XML: sai well-formed (review R3 F3-11).
   `BundleIsRelocatable=false` là **bắt buộc**: nếu để true, Installer có thể "tìm thấy"
   bản TextVN.app/TextVN-IM.app ở nơi khác rồi ghi đè ở đó thay vì vị trí trong payload.
 -->

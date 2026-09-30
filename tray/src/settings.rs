@@ -214,7 +214,9 @@ impl SettingsController {
         if self.dirty_state {
             for (app, &enabled) in &self.draft_apps {
                 let ver = self.svc.set_app_enabled(app, enabled);
-                self.ipc.broadcast_state_update(app, enabled, ver);
+                // Phát state thật (persist lỗi → giữ state cũ, review R3 minor 8).
+                let actual = self.svc.is_app_enabled(app);
+                self.ipc.broadcast_state_update(app, actual, ver);
             }
             self.dirty_state = false;
         }

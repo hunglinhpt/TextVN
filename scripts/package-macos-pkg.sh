@@ -15,7 +15,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(grep -m1 '^version = "' "$ROOT/Cargo.toml" | cut -d'"' -f2)"
-VERSION="${VERSION:-0.1.0}"
+[ -n "$VERSION" ] || { echo "❌ không đọc được version từ Cargo.toml" >&2; exit 1; }
 DIST_DIR="$ROOT/dist/macos"
 STAGE_DIR="$DIST_DIR/stage"
 PKG_ROOT="$DIST_DIR/pkgroot"

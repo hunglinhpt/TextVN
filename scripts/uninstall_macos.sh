@@ -5,7 +5,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-USER_HOME="${HOME:-~}"
+# `~` trong "${HOME:-~}" không expand → fail sớm thay vì xoá path lạ (review R3 F3-22).
+USER_HOME="${HOME:?HOME chưa được đặt}"
+PKG_ID="vn.textvn.pkg"
 
 PURGE_MODE=0
 for arg in "$@"; do
@@ -30,11 +32,35 @@ if [ -f "$PLIST_PATH" ]; then
     rm -f "$PLIST_PATH"
 fi
 
-# 3. Remove application bundles
+# 3. Remove application bundles — cả scope user lẫn system (review R3 F3-7c).
+# Bundle system (/Applications, /Library/Input Methods) cần quyền admin: không để
+# `set -e` làm dừng giữa chừng — in hướng dẫn, uninstall-check sẽ báo residue.
+remove_path() {
+    local p="$1"
+    [ -e "$p" ] || [ -L "$p" ] || return 0
+    if rm -rf "$p" 2>/dev/null && [ ! -e "$p" ] && [ ! -L "$p" ]; then
+        echo "  removed $p"
+    else
+        echo "⚠️  Không xoá được $p (cần quyền admin): sudo rm -rf \"$p\""
+    fi
+}
 echo "Removing application bundles..."
-rm -rf "$USER_HOME/Library/Input Methods/TextVN-IM.app"
-rm -rf "/Applications/TextVN.app"
-rm -rf "$USER_HOME/Applications/TextVN.app"
+remove_path "$USER_HOME/Library/Input Methods/TextVN-IM.app"
+remove_path "/Library/Input Methods/TextVN-IM.app"
+remove_path "/Applications/TextVN.app"
+remove_path "$USER_HOME/Applications/TextVN.app"
+
+# 3b. Quên receipt pkg — nếu không, cài lại bị coi là upgrade và receipt tồn mãi
+# (review R3 F3-7b). Receipt per-user (enable_currentUserHome) nằm ở volume $HOME.
+if command -v pkgutil >/dev/null 2>&1; then
+    if pkgutil --volume "$USER_HOME" --pkg-info "$PKG_ID" >/dev/null 2>&1; then
+        pkgutil --volume "$USER_HOME" --forget "$PKG_ID" >/dev/null 2>&1 || true
+    fi
+    if pkgutil --pkg-info "$PKG_ID" >/dev/null 2>&1; then
+        pkgutil --forget "$PKG_ID" >/dev/null 2>&1 ||
+            echo "⚠️  Receipt hệ thống cần quyền admin: sudo pkgutil --forget $PKG_ID"
+    fi
+fi
 
 # 4. Remove active IPC socket
 rm -f "$USER_HOME/Library/Application Support/TextVN/ipc.sock"

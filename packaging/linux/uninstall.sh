@@ -48,10 +48,9 @@ had_fcitx5=0
 grep -q '/ibus/component/textvn.xml$' "$MANIFEST" && had_ibus=1
 grep -q 'libtextvn-fcitx5.so$' "$MANIFEST" && had_fcitx5=1
 
-# Bỏ khỏi danh sách bộ gõ trước (bản per-user đã tự thêm lúc cài).
-if [[ "$PREFIX" != /usr ]]; then
-    [[ "$had_ibus" == 1 ]] && tv_deactivate_ibus
-fi
+# Bỏ khỏi danh sách bộ gõ trước. install.sh gọi tv_activate_ibus cho CẢ bản hệ thống
+# (gsettings là per-user) → gỡ cũng phải đối xứng (review R3 major 3).
+[[ "$had_ibus" == 1 ]] && tv_deactivate_ibus
 
 # Manifest là dữ liệu trên đĩa, không phải danh sách lệnh xoá được tin cậy. Chỉ
 # gỡ các path install.sh có thể đã tạo; một manifest hỏng không được phép xoá

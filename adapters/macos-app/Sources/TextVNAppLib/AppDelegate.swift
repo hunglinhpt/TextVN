@@ -12,6 +12,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     private let configStore = ConfigStore.shared
     private let ipcServer = IpcServer.shared
     private let autostartManager = AutostartManager.shared
+    private var configWatcher: ConfigWatcher?
 
     private var isVietnameseMode: Bool = true {
         didSet {
@@ -52,6 +53,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             NSLog("[TextVN] Failed to start IPC server: %@", error.localizedDescription)
         }
 
+        // Hot-reload config.json sửa ngoài UI → broadcast tới IMK (MAC-053; review R3 F3-5).
+        let watcher = ConfigWatcher(fileURL: TextVNConfig.defaultConfigURL()) { [weak self] in
+            self?.handleConfigFileChanged()
+        }
+        watcher.start()
+        configWatcher = watcher
+
         // 3. Initialize Status Item & Menu
         setupStatusItem()
 
@@ -65,7 +73,23 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     }
 
     public func applicationWillTerminate(_ notification: Notification) {
+        configWatcher?.stop()
         ipcServer.stop()
+    }
+
+    /// config.json đổi trên đĩa (đã debounce). File sai schema / chính app vừa ghi
+    /// → `reloadFromDisk()` trả false, không broadcast.
+    private func handleConfigFileChanged() {
+        let wasEnabled = configStore.config.enabled
+        guard configStore.reloadFromDisk() else { return }
+        let ver = UInt64(Date().timeIntervalSince1970)
+        if configStore.config.enabled != wasEnabled {
+            isVietnameseMode = configStore.config.enabled // didSet dựng lại menu
+            ipcServer.broadcastStateUpdate(appID: IpcServer.globalAppID, enabled: isVietnameseMode, version: ver)
+        } else {
+            buildMenu()
+        }
+        ipcServer.broadcastConfigReload(version: ver)
     }
 
     // MARK: - Single Instance Enforcement
@@ -236,7 +260,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         configStore.config.enabled = isVietnameseMode
         configStore.persist()
         let ver = UInt64(Date().timeIntervalSince1970)
-        ipcServer.broadcastStateUpdate(appID: "*", enabled: isVietnameseMode, version: ver)
+        // "*" = toàn cục, IMK nay nhận đúng quy ước này (review R3 F3-1).
+        ipcServer.broadcastStateUpdate(appID: IpcServer.globalAppID, enabled: isVietnameseMode, version: ver)
         ipcServer.broadcastConfigReload(version: ver)
     }
 
@@ -277,12 +302,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     public func showSettingsWindow() {
         if settingsWindow == nil {
-            let view = SettingsView(store: configStore) { [weak self] in
-                self?.settingsWindow?.close()
-            }
+            let view = SettingsView(
+                store: configStore,
+                onClose: { [weak self] in self?.settingsWindow?.close() },
+                onExpandedChange: { [weak self] expanded in self?.resizeSettingsWindow(expanded: expanded) }
+            )
             let hosting = NSHostingView(rootView: view)
+            let initial = SettingsView.contentSize(expanded: false)
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 505, height: 245),
+                contentRect: NSRect(origin: .zero, size: initial),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
@@ -296,6 +324,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Đổi cỡ cửa sổ theo Mở rộng/Thu nhỏ, giữ nguyên mép trên (review R3 F3-2).
+    private func resizeSettingsWindow(expanded: Bool) {
+        guard let win = settingsWindow else { return }
+        let content = NSRect(origin: .zero, size: SettingsView.contentSize(expanded: expanded))
+        var frame = win.frameRect(forContentRect: content)
+        frame.origin.x = win.frame.origin.x
+        frame.origin.y = win.frame.maxY - frame.height
+        win.setFrame(frame, display: true, animate: true)
     }
 
     @objc private func showHealth() {
@@ -323,6 +361,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         alert.alertStyle = .warning
 
         if alert.runModal() == .alertSecondButtonReturn {
+            // Login Item qua SMAppService (BTM) không bị script xoá plist gỡ theo —
+            // phải unregister từ chính app trước khi xoá bundle (review R3 F3-7a).
+            try? autostartManager.setAutostart(enabled: false)
             let scriptPath = Bundle.main.bundlePath + "/Contents/Resources/uninstall_macos.sh"
             if FileManager.default.fileExists(atPath: scriptPath) {
                 let process = Process()
@@ -350,7 +391,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     // MARK: - IpcServerDelegate
 
     public func ipcServer(_ server: IpcServer, didToggleViEn appID: String, enabled: Bool) {
-        if appID == "*" || appID.isEmpty {
+        // IpcServer đã chuẩn hoá "" (IMK bản cũ) về "*" — một quy ước (review R3 F3-1).
+        if appID == IpcServer.globalAppID {
             self.isVietnameseMode = enabled
             self.configStore.config.enabled = enabled
             self.configStore.persist()

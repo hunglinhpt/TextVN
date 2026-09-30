@@ -7,7 +7,7 @@
 #   powershell -File build-release.ps1 -BuildInstaller
 #   powershell -File build-release.ps1 -IncludeCompatibilityHook
 #   powershell -File build-release.ps1 -SigningCertificateThumbprint "<SHA1>"
-#   powershell -File build-release.ps1 -Version "0.1.0"
+#   powershell -File build-release.ps1 -Version "0.2.0"
 #   powershell -File build-release.ps1 -Channel candidate
 
 param(
@@ -58,10 +58,12 @@ function Sign-TextVNFile([string]$SignTool, [string]$Thumbprint, [string]$Path) 
 # Xac dinh version tu Cargo.toml
 if ($Version -eq "") {
     $cargoContent = Get-Content Cargo.toml -Raw
-    if ($cargoContent -match 'version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+    # Neo dau dong = [workspace.package] version; khong fallback so cung
+    # (review R3: fallback 0.1.0 gay version-skew im lang).
+    if ($cargoContent -match '(?m)^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
         $Version = $Matches[1]
     } else {
-        $Version = "0.1.0"
+        throw "Cannot read workspace version from Cargo.toml"
     }
 }
 Write-Step "TextVN Release Build v$Version"

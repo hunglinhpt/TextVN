@@ -12,6 +12,7 @@
 #![cfg_attr(not(windows), allow(dead_code))]
 
 pub mod autostart;
+pub mod foreground;
 pub mod hotkey;
 pub mod ipc_server;
 pub mod menu;

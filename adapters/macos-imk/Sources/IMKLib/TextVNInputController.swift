@@ -275,7 +275,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 engine?.reloadConfig(cfg)
             }
         case let .stateUpdate(appID, enabled, _):
-            viEnabled = appID.isEmpty ? enabled : viEnabled
+            // Toàn cục = `IpcMessage.globalAppID` ("*"), cùng quy ước với Windows TSF
+            // (`GLOBAL_KEY`) — menu bar toggle phải tới được IMK (review R3 F3-1).
+            if appID == IpcMessage.globalAppID {
+                viEnabled = enabled
+            }
         case .snapshot:
             Diagnostics.log("ipc snapshot received")
         default:
@@ -295,7 +299,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         Diagnostics.log("toggle vi=\(viEnabled)")
         // Client gửi ToggleViEn (client→server — review R1 F15); server broadcast
         // StateUpdate lại cho mọi client. Gửi .stateUpdate là sai chiều → disconnect.
-        ipc.send(.toggleViEn(appID: "", enabled: viEnabled))
+        ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: viEnabled))
         return true // nuốt Space toggle
     }
 

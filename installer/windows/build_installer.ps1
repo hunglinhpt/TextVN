@@ -75,9 +75,19 @@ foreach ($path in $IsccPaths) {
 
 $IssScript = Join-Path $ScriptDir "TextVN-setup.iss"
 
+# Version tu [workspace.package] Cargo.toml (nguon su that) - resolve TRUOC nhanh
+# ISCC vi gate AV-3 ben duoi cung dung; .iss dung #ifndef de /DMyAppVersion thang
+# (review R3 blocker 1). Khong fallback so cung: sai la dung.
+$cargoContent = Get-Content (Join-Path $RepoRoot "Cargo.toml") -Raw
+if ($cargoContent -notmatch '(?m)^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+    Write-Error "Cannot read workspace version from Cargo.toml"
+    exit 1
+}
+$Version = $Matches[1]
+
 if ($FoundIscc) {
-    Write-Host "Compiling installer using: $FoundIscc" -ForegroundColor Green
-    $IsccArgs = @()
+    Write-Host "Compiling installer $Version using: $FoundIscc" -ForegroundColor Green
+    $IsccArgs = @("/DMyAppVersion=$Version")
     if ($IncludeCompatibilityHook) { $IsccArgs += "/DIncludeCompatibilityHook=1" }
     $IsccArgs += "$IssScript"
     & $FoundIscc @IsccArgs
@@ -93,10 +103,11 @@ if ($FoundIscc) {
 }
 
 # 4. Release gate (AV-3): in SHA256 cua installer de submit scan truoc khi publish
-$SetupPath = Join-Path $RepoRoot "dist\TextVN-setup-0.1.0-windows-x64.exe"
+# Ten file theo version da resolve (khong hardcode - review R3 blocker 1).
+$SetupPath = Join-Path $RepoRoot "dist\TextVN-setup-$Version-windows-x64.exe"
 if (Test-Path $SetupPath) {
     $setupHash = (Get-FileHash -Path $SetupPath -Algorithm SHA256).Hash
-    Write-Host "`n[AV-3] SHA256 TextVN-setup-0.1.0-windows-x64.exe:" -ForegroundColor Cyan
+    Write-Host "`n[AV-3] SHA256 TextVN-setup-$Version-windows-x64.exe:" -ForegroundColor Cyan
     Write-Host "  $setupHash"
 }
 

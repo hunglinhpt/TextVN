@@ -870,8 +870,8 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ID_CHK_GLOBAL_ENABLED => {
                     let checked = get_chk(hwnd, ID_CHK_GLOBAL_ENABLED);
                     with_ctx(|ctx| {
-                        let (_, ver) = ctx.svc.set_global_enabled(checked);
-                        ctx.ipc.broadcast_state_update("*", checked, ver);
+                        let (actual, ver) = ctx.svc.set_global_enabled(checked);
+                        ctx.ipc.broadcast_state_update("*", actual, ver);
                     });
                     crate::notify_tray_state_changed();
                 }

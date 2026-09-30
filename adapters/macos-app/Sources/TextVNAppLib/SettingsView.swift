@@ -10,10 +10,23 @@ public struct SettingsView: View {
     @State private var showMacroSheet: Bool = false
 
     public var onClose: (() -> Void)?
+    /// Báo host đổi cỡ cửa sổ khi Mở rộng/Thu nhỏ: `NSHostingView` KHÔNG tự
+    /// resize `NSWindow` — trước đây nửa dưới (nhóm "Hệ thống") bị cắt (review R3 F3-2).
+    public var onExpandedChange: ((Bool) -> Void)?
 
-    public init(store: ConfigStore = .shared, onClose: (() -> Void)? = nil) {
+    /// Cỡ nội dung theo trạng thái — nguồn duy nhất cho view và cửa sổ host.
+    public static func contentSize(expanded: Bool) -> CGSize {
+        CGSize(width: 505, height: expanded ? 490 : 245)
+    }
+
+    public init(
+        store: ConfigStore = .shared,
+        onClose: (() -> Void)? = nil,
+        onExpandedChange: ((Bool) -> Void)? = nil
+    ) {
         self.store = store
         self.onClose = onClose
+        self.onExpandedChange = onExpandedChange
     }
 
     public var body: some View {
@@ -180,10 +193,11 @@ public struct SettingsView: View {
         }
         .padding(14)
         .frame(
-            width: 505,
-            height: isExpanded ? 490 : 245,
+            width: Self.contentSize(expanded: isExpanded).width,
+            height: Self.contentSize(expanded: isExpanded).height,
             alignment: .topLeading
         )
+        .onChange(of: isExpanded) { expanded in onExpandedChange?(expanded) }
         .alert(isPresented: $showAboutAlert) {
             Alert(
                 title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),

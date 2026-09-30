@@ -367,14 +367,17 @@ impl IpcServer {
                     Some(Message::Ack)
                 }
                 Message::ToggleViEn { app_id, enabled } => {
-                    let ver = if app_id == "*" {
-                        let (_, v) = self.svc.set_global_enabled(enabled);
+                    // Phát state thật sau khi lưu: persist lỗi → state cũ giữ nguyên
+                    // (review R3 minor 8), TSF áp StateUpdate không so version.
+                    let (actual, ver) = if app_id == "*" {
+                        let r = self.svc.set_global_enabled(enabled);
                         crate::notify_tray_state_changed();
-                        v
+                        r
                     } else {
-                        self.svc.set_app_enabled(&app_id, enabled)
+                        let v = self.svc.set_app_enabled(&app_id, enabled);
+                        (self.svc.is_app_enabled(&app_id), v)
                     };
-                    self.broadcast_state_update(&app_id, enabled, ver);
+                    self.broadcast_state_update(&app_id, actual, ver);
                     Some(Message::Ack)
                 }
                 Message::ToggleGlobal => {

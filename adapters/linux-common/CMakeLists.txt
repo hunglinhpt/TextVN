@@ -15,6 +15,15 @@ set(SOURCES
 
 add_library(textvn-linux-common STATIC ${SOURCES})
 
+# Version handshake/IBus component = version workspace Cargo (một nguồn sự thật,
+# giống linux-settings). PUBLIC để ibus/fcitx5 link vào cũng thấy TEXTVN_VERSION.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../Cargo.toml" _ver_line REGEX "^version = \"[^\"]+\"" LIMIT_COUNT 1)
+string(REGEX REPLACE "^version = \"([^\"]+)\"" "\\1" TEXTVN_VERSION "${_ver_line}")
+if(NOT TEXTVN_VERSION)
+    message(FATAL_ERROR "Không đọc được version từ Cargo.toml")
+endif()
+target_compile_definitions(textvn-linux-common PUBLIC TEXTVN_VERSION="${TEXTVN_VERSION}")
+
 target_include_directories(textvn-linux-common PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ffi/include>

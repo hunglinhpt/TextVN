@@ -15,6 +15,7 @@
 //! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
 mod check_mac_targets;
+mod check_version_sync;
 mod gen_mac_corpus;
 mod gen_win_corpus;
 mod mac_corpus_cases;
@@ -72,6 +73,7 @@ fn main() -> ExitCode {
         "gen-mac-corpus" => gen_mac_corpus::run(true),
         "check-mac-corpus" => gen_mac_corpus::run(false),
         "check-mac-targets" => check_mac_targets::run(),
+        "check-version-sync" => check_version_sync::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -96,8 +98,8 @@ fn usage() -> &'static str {
      cargo xtask check-win-corpus # kiểm tra corpus/win/*.keys có khớp chuẩn\n  \
      cargo xtask gen-mac-corpus   # sinh corpus/mac/*.keys (MAC-006)\n  \
      cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
-     cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)
-  \
+     cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
+     cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
      cargo xtask help\n"
 }
 

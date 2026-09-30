@@ -18,6 +18,10 @@ import Foundation
 /// Mỗi case một struct riêng: tránh lẫn kiểu field giữa các message
 /// (review R1 F14: `version` của Hello là String, của ConfigReload/StateUpdate là UInt64).
 public enum IpcMessage: Equatable {
+    /// `app_id` toàn cục trong `ToggleViEn`/`StateUpdate`/`Snapshot.state` — một quy
+    /// ước duy nhất cho mọi nền tảng (Windows TSF `GLOBAL_KEY`, review R3 F3-1).
+    public static let globalAppID = "*"
+
     // ---- client → server
     case hello(pid: Int32, abi: UInt32, version: String)
     case getSnapshot
@@ -186,6 +190,15 @@ public final class IpcClient {
         let raw = socket(AF_UNIX, SOCK_STREAM, 0)
         guard raw >= 0 else { scheduleRetry(); return }
         fd = raw
+        // Server đóng kết nối giữa 2 lần write → SIGPIPE mặc định KILL TextVN-IM
+        // giữa lúc gõ. Mirror server (IpcServer đặt SO_NOSIGPIPE) — review R3 F3-4.
+        var noSigPipe: Int32 = 1
+        guard setsockopt(raw, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe,
+                         socklen_t(MemoryLayout<Int32>.size)) == 0 else {
+            closeSocket()
+            scheduleRetry()
+            return
+        }
 
         var addr = sockaddr_un()
         addr.sun_family = sa_family_t(AF_UNIX)
@@ -330,7 +343,7 @@ public final class IpcClient {
         let le = buffer.withUnsafeBytes { raw in
             raw.loadUnaligned(fromByteOffset: 0, as: UInt32.self)
         }
-        let frameLen = Int(le)
+        let frameLen = Int(UInt32(littleEndian: le))
         guard frameLen > 0, frameLen <= maxFrameLength else { return .violation }
         guard buffer.count >= 4 + frameLen else { return .needMore }
         let payload = buffer.subdata(in: 4..<(4 + frameLen))

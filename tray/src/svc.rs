@@ -105,29 +105,53 @@ impl SvcManager {
     }
 
     /// Đảo trạng thái bật/tắt toàn cục tiếng Việt (WIN-015 / P1-4 §1).
+    ///
+    /// Chuẩn "lưu xong mới bump" (giống `update_config` — review R3 minor 8):
+    /// persist thất bại thì KHÔNG bump version/không broadcast, TSF giữ state cũ
+    /// nhất quán giữa RAM và đĩa.
     pub fn toggle_global_enabled(&self) -> (bool, u64) {
         let mut st = self.state.write().unwrap();
         st.global_enabled = !st.global_enabled;
+        if self.persist_state(&st).is_err() {
+            st.global_enabled = !st.global_enabled; // rollback RAM
+            eprintln!("TextVN: persist state.json thất bại — giữ state cũ");
+            return (st.global_enabled, self.state_version.load(Ordering::SeqCst));
+        }
         let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
-        self.persist_state(&st);
         (st.global_enabled, next_ver)
     }
 
     /// Đặt trạng thái bật/tắt riêng cho từng app.
     pub fn set_app_enabled(&self, app_id: &str, enabled: bool) -> u64 {
         let mut st = self.state.write().unwrap();
-        st.apps.insert(app_id.to_lowercase(), enabled);
-        let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
-        self.persist_state(&st);
-        next_ver
+        let prev = st.apps.insert(app_id.to_lowercase(), enabled);
+        if self.persist_state(&st).is_err() {
+            // rollback RAM theo chuẩn persist-first (review R3 minor 8)
+            match prev {
+                Some(v) => {
+                    st.apps.insert(app_id.to_lowercase(), v);
+                }
+                None => {
+                    st.apps.remove(&app_id.to_lowercase());
+                }
+            }
+            eprintln!("TextVN: persist state.json thất bại — giữ state cũ");
+            return self.state_version.load(Ordering::SeqCst);
+        }
+        self.state_version.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     /// Đặt trạng thái bật/tắt toàn cục tiếng Việt có giá trị chỉ định.
     pub fn set_global_enabled(&self, enabled: bool) -> (bool, u64) {
         let mut st = self.state.write().unwrap();
+        let prev = st.global_enabled;
         st.global_enabled = enabled;
+        if self.persist_state(&st).is_err() {
+            st.global_enabled = prev;
+            eprintln!("TextVN: persist state.json thất bại — giữ state cũ");
+            return (st.global_enabled, self.state_version.load(Ordering::SeqCst));
+        }
         let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
-        self.persist_state(&st);
         (st.global_enabled, next_ver)
     }
 
@@ -226,26 +250,19 @@ impl SvcManager {
         doc.save(&path)
     }
 
-    fn persist_state(&self, state: &StateData) {
+    fn persist_state(&self, state: &StateData) -> Result<(), DocError> {
         let path = self.config_dir.join("state.json");
-        if let Ok(json) = serde_json::to_string_pretty(state) {
-            let _ = atomic_write_file(&path, json.as_bytes());
-        }
+        let json = serde_json::to_string_pretty(state).map_err(|_| DocError::Io)?;
+        atomic_write_file(&path, json.as_bytes()).map_err(|_| DocError::Io)
     }
 }
 
-/// Trả về đường dẫn %APPDATA%\TextVN mặc định (hoặc legacy %APPDATA%\TextVN nếu đã tồn tại).
+/// Trả về đường dẫn `%APPDATA%\TextVN` mặc định (review R3 minor 9: bỏ nhánh
+/// "legacy" dead-code — primary và legacy từng trùng nhau).
 pub fn default_config_dir() -> PathBuf {
-    if let Some(appdata) = std::env::var_os("APPDATA") {
-        let primary = PathBuf::from(&appdata).join("TextVN");
-        let legacy = PathBuf::from(&appdata).join("TextVN");
-        if !primary.exists() && legacy.exists() {
-            legacy
-        } else {
-            primary
-        }
-    } else {
-        PathBuf::from(".textvn")
+    match std::env::var_os("APPDATA") {
+        Some(appdata) => PathBuf::from(appdata).join("TextVN"),
+        None => PathBuf::from(".textvn"),
     }
 }
 
@@ -350,6 +367,28 @@ mod tests {
         assert_eq!(svc.set_method(Method::Vni), Err(DocError::Io));
         assert_eq!(svc.config(), before);
         assert_eq!(svc.config_version(), version);
+
+        let _ = fs::remove_file(&path);
+    }
+
+    #[test]
+    fn failed_state_save_keeps_memory_and_version_unchanged() {
+        let path =
+            std::env::temp_dir().join(format!("textvn_test_state_failure_{}", std::process::id()));
+        let _ = fs::remove_file(&path);
+        fs::write(&path, "not a directory").unwrap();
+        let svc = SvcManager::new(Some(path.clone()));
+
+        let enabled = svc.is_global_enabled();
+        let app = svc.is_app_enabled("chrome.exe");
+        let version = svc.state_version();
+
+        assert_eq!(svc.toggle_global_enabled(), (enabled, version));
+        assert_eq!(svc.set_global_enabled(!enabled), (enabled, version));
+        assert_eq!(svc.set_app_enabled("chrome.exe", !app), version);
+        assert_eq!(svc.is_global_enabled(), enabled);
+        assert_eq!(svc.is_app_enabled("chrome.exe"), app);
+        assert_eq!(svc.state_version(), version);
 
         let _ = fs::remove_file(&path);
     }

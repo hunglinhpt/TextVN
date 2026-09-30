@@ -12,12 +12,17 @@ for arg in "$@"; do
 done
 
 RESIDUE_FOUND=0
-USER_HOME="${HOME:-~}"
+USER_HOME="${HOME:?HOME chưa được đặt}"
+PKG_ID="vn.textvn.pkg"
+
+# `-e` bỏ sót symlink hỏng — kiểm cả `-L` (review R3 F3-7).
+present() { [ -e "$1" ] || [ -L "$1" ]; }
 
 echo "=== TextVN macOS Uninstall Residue Verification ==="
 
 CHECK_TARGETS=(
     "$USER_HOME/Library/Input Methods/TextVN-IM.app"
+    "/Library/Input Methods/TextVN-IM.app"
     "$USER_HOME/Applications/TextVN.app"
     "/Applications/TextVN.app"
     "$USER_HOME/Library/LaunchAgents/vn.textvn.app.plist"
@@ -25,7 +30,7 @@ CHECK_TARGETS=(
 )
 
 for target in "${CHECK_TARGETS[@]}"; do
-    if [ -e "$target" ]; then
+    if present "$target"; then
         echo "❌ [RESIDUE] Found unexpected residual file/bundle: $target"
         RESIDUE_FOUND=1
     else
@@ -33,14 +38,29 @@ for target in "${CHECK_TARGETS[@]}"; do
     fi
 done
 
-CONFIG_DIR="$USER_HOME/Library/Application Support/TextVN"
-if [ "$PURGE_MODE" -eq 1 ]; then
-    if [ -d "$CONFIG_DIR" ]; then
-        echo "❌ [RESIDUE] Purge mode specified, but config directory still exists: $CONFIG_DIR"
+# Receipt pkg (user volume + system) — review R3 F3-7b.
+if command -v pkgutil >/dev/null 2>&1; then
+    if pkgutil --volume "$USER_HOME" --pkg-info "$PKG_ID" >/dev/null 2>&1 ||
+       pkgutil --pkg-info "$PKG_ID" >/dev/null 2>&1; then
+        echo "❌ [RESIDUE] pkg receipt still registered: $PKG_ID"
         RESIDUE_FOUND=1
     else
-        echo "✅ [CLEAN] Config directory purged as requested."
+        echo "✅ [CLEAN] No pkg receipt: $PKG_ID"
     fi
+fi
+
+CONFIG_DIR="$USER_HOME/Library/Application Support/TextVN"
+LOG_DIR="$USER_HOME/Library/Logs/TextVN"
+if [ "$PURGE_MODE" -eq 1 ]; then
+    # --purge xoá cả config lẫn log → verify cả hai (review R3 F3-7d).
+    for d in "$CONFIG_DIR" "$LOG_DIR"; do
+        if present "$d"; then
+            echo "❌ [RESIDUE] Purge mode specified, but directory still exists: $d"
+            RESIDUE_FOUND=1
+        else
+            echo "✅ [CLEAN] Purged as requested: $d"
+        fi
+    done
 else
     if [ -d "$CONFIG_DIR" ]; then
         echo "ℹ️ [RULE S9 PRESERVED] User configuration directory safely preserved: $CONFIG_DIR"

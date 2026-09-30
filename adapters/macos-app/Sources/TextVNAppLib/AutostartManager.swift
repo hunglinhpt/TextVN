@@ -76,6 +76,7 @@ public final class AutostartManager {
 
     public func setAutostart(enabled: Bool, executablePath: String? = nil) throws {
         let exe = executablePath ?? Bundle.main.executablePath ?? "/Applications/TextVN.app/Contents/MacOS/TextVN"
+        let agents = Self.defaultLaunchAgentsDirectory()
 
         if #available(macOS 13.0, *) {
             do {
@@ -83,18 +84,21 @@ public final class AutostartManager {
                     if SMAppService.mainApp.status != .enabled {
                         try SMAppService.mainApp.register()
                     }
-                } else {
-                    if SMAppService.mainApp.status == .enabled {
-                        try SMAppService.mainApp.unregister()
-                    }
+                    // SM đã nhận → plist fallback cũ là nguồn thứ 2, gỡ để khỏi chạy đôi.
+                    try? Self.disableLaunchAgent(inDir: agents)
+                } else if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
                 }
             } catch {
                 NSLog("[TextVN] SMAppService failed (%@), using LaunchAgent fallback", error.localizedDescription)
                 if enabled {
-                    try Self.enableLaunchAgent(inDir: Self.defaultLaunchAgentsDirectory(), executablePath: exe)
-                } else {
-                    try Self.disableLaunchAgent(inDir: Self.defaultLaunchAgentsDirectory())
+                    try Self.enableLaunchAgent(inDir: agents, executablePath: exe)
                 }
+            }
+            // Tắt phải gỡ CẢ 2 nguồn: plist fallback (đăng ký lúc register() từng
+            // throw) vẫn tồn tại khi SM báo `.notRegistered` (review R3 F3-6).
+            if !enabled {
+                try Self.disableLaunchAgent(inDir: agents)
             }
         } else {
             if enabled {

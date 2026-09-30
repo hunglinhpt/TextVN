@@ -6,7 +6,13 @@
 
 #define MyAppName "TextVN"
 #define MyAppFullName "TextVN"
-#define MyAppVersion "0.1.0"
+; Version: build-release.ps1 / build_installer.ps1 truyen /DMyAppVersion=<ver>
+; (doc tu Cargo.toml). #ifndef de /D cua ISCC thang - #define tinh se de tham so
+; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
+; `cargo xtask check-version-sync` giu khop Cargo.toml.
+#ifndef MyAppVersion
+  #define MyAppVersion "0.2.0"
+#endif
 #define MyAppPublisher "hunglinhpt"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"

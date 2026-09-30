@@ -63,6 +63,9 @@ jobs:
       # tools/mac/targets/*.json (MAC-061) là nguồn sự thật của harness AX — gate
       # preset/role/locator chạy được trên mọi OS, không cần máy Mac.
       - run: cargo run -q -p xtask -- check-mac-targets
+      # Plist/manifest/iss/cask/AppStream ghi version tay phải khớp Cargo.toml
+      # (review R3 F3-10 + blocker 1: installer kẹt 0.1.0 khi exe đã 0.2.0).
+      - run: cargo run -q -p xtask -- check-version-sync
 
   abi-header:
     # Header C giữ tay (chưa có `xtask cbindgen`) → verify header ↔ code Rust (P0-2 §6).

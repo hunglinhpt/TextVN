@@ -11,6 +11,9 @@ public protocol IpcServerDelegate: AnyObject {
 public final class IpcServer {
     public static let shared = IpcServer()
     public static let maxFrameLength: Int = 65_536
+    /// `app_id` toàn cục — cùng quy ước với IMK (`IpcMessage.globalAppID`) và
+    /// Windows TSF (`GLOBAL_KEY`) (review R3 F3-1).
+    public static let globalAppID = "*"
     /// Version gửi trong `Hello`/`Snapshot` — đọc từ Info.plist của TextVN.app,
     /// fallback hằng khi chạy trong swift test (R2 finding 2).
     public static let serverVersion: String =
@@ -63,6 +66,16 @@ public final class IpcServer {
     }
 
     public static func parseFrames(from buffer: inout Data) -> [[String: Any]] {
+        parseFramesChecked(from: &buffer).messages
+    }
+
+    /// Tách frame + báo protocol violation (length sai, JSON không phải object,
+    /// thiếu `type`). `violation == true` → caller PHẢI đóng kết nối, mirror
+    /// `IpcClient` (ipc.v1.md; review R3 F3-3). Các message hợp lệ đứng trước
+    /// frame lỗi vẫn được trả về theo thứ tự.
+    public static func parseFramesChecked(from buffer: inout Data)
+        -> (messages: [[String: Any]], violation: Bool)
+    {
         var messages: [[String: Any]] = []
 
         while buffer.count >= 4 {
@@ -70,24 +83,23 @@ public final class IpcServer {
             let totalLength = 4 + Int(length)
 
             if length == 0 || length > UInt32(maxFrameLength) {
-                // Protocol violation: clear buffer
                 buffer.removeAll()
-                break
+                return (messages, true)
             }
 
-            if buffer.count >= totalLength {
-                let payload = buffer.subdata(in: 4..<totalLength)
-                buffer.removeSubrange(0..<totalLength)
+            guard buffer.count >= totalLength else { break }
+            let payload = buffer.subdata(in: 4..<totalLength)
+            buffer.removeSubrange(0..<totalLength)
 
-                if let json = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any] {
-                    messages.append(json)
-                }
-            } else {
-                break
+            guard let json = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any],
+                  json["type"] is String else {
+                buffer.removeAll()
+                return (messages, true)
             }
+            messages.append(json)
         }
 
-        return messages
+        return (messages, false)
     }
 
     // MARK: - Server Lifecycle
@@ -100,6 +112,9 @@ public final class IpcServer {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [
                 .posixPermissions: 0o700
             ])
+            // `attributes` chỉ áp khi TẠO MỚI — dir có sẵn với quyền rộng hơn cũng
+            // phải về 0700 (review R3 F3-17).
+            chmod(dir.path, 0o700)
             let pathBytes = Array(socketURL.path.utf8)
             guard pathBytes.count < MemoryLayout.size(ofValue: sockaddr_un().sun_path) else {
                 throw NSError(domain: "TextVN", code: -1,
@@ -229,6 +244,16 @@ public final class IpcServer {
 
             guard clientFd >= 0 else { break }
 
+            // Transport auth (ipc.v1.md, P2-4 §2): chỉ nhận peer cùng uid. Socket
+            // 0600 đã chặn cross-user; getpeereid là lớp thứ hai (review R3 F3-9).
+            var peerUID: uid_t = 0
+            var peerGID: gid_t = 0
+            guard getpeereid(clientFd, &peerUID, &peerGID) == 0, peerUID == getuid() else {
+                NSLog("[TextVN] IPC: từ chối peer khác uid user hiện tại")
+                close(clientFd)
+                continue
+            }
+
             var noSigPipe: Int32 = 1
             guard setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe,
                              socklen_t(MemoryLayout<Int32>.size)) == 0 else {
@@ -265,10 +290,15 @@ public final class IpcServer {
         if bytesRead > 0 {
             clientBuffers[cfd]?.append(buf, count: bytesRead)
             if var clientBuffer = clientBuffers[cfd] {
-                let msgs = Self.parseFrames(from: &clientBuffer)
+                let (msgs, violation) = Self.parseFramesChecked(from: &clientBuffer)
                 clientBuffers[cfd] = clientBuffer
                 for msg in msgs {
+                    // Message trước có thể đã làm đóng client (violation/short write).
+                    guard clientSources[cfd] != nil else { return }
                     handleClientMessage(msg, from: cfd)
+                }
+                if violation, clientSources[cfd] != nil {
+                    protocolViolation(cfd, "frame")
                 }
             }
         } else if bytesRead == 0 || (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -287,35 +317,55 @@ public final class IpcServer {
 
     // MARK: - Protocol Message Handling
 
+    /// Chuẩn hoá `app_id` toàn cục: IMK bản cũ (còn chạy tới khi logout sau khi
+    /// nâng cấp) gửi `""` — quy về `"*"` để chỉ còn MỘT quy ước (review R3 F3-1).
+    static func normalizedAppID(_ appID: String) -> String {
+        appID.isEmpty ? globalAppID : appID
+    }
+
+    /// Payload `Snapshot` đúng bảng v1 đóng — không field thừa (review R3 F3-12).
+    static func snapshotMessage(configVersion: UInt64, state: [String: Bool]) -> [String: Any] {
+        [
+            "type": "Snapshot",
+            "config_version": configVersion,
+            "state": state.filter { !$0.key.isEmpty },
+            "appdb_version": "1.0",
+            "channel": "stable",
+        ]
+    }
+
+    /// ipc.v1.md: violation → đóng kết nối, không retry (review R3 F3-3).
+    private func protocolViolation(_ cfd: Int32, _ reason: String) {
+        NSLog("[TextVN] IPC protocol violation (%@) — đóng kết nối", reason)
+        closeClient(cfd)
+    }
+
     private func handleClientMessage(_ msg: [String: Any], from cfd: Int32) {
-        guard let type = msg["type"] as? String else { return }
+        guard let type = msg["type"] as? String else {
+            protocolViolation(cfd, "thiếu type")
+            return
+        }
 
         switch type {
         case "Hello":
             sendFrame(["type": "Ack"], to: cfd)
         case "GetSnapshot":
-            let uptime = UInt64(Date().timeIntervalSince(startTime) * 1000)
-            let snapshot: [String: Any] = [
-                "type": "Snapshot",
-                "config_version": configVersion,
-                "state": appStates,
-                "appdb_version": "1.0",
-                "channel": "stable",
-                "uptime_ms": uptime
-            ]
-            sendFrame(snapshot, to: cfd)
+            sendFrame(Self.snapshotMessage(configVersion: configVersion, state: appStates), to: cfd)
         case "Subscribe":
             subscribers.insert(cfd)
             sendFrame(["type": "Ack"], to: cfd)
         case "ToggleViEn":
-            if let appID = msg["app_id"] as? String, let enabled = msg["enabled"] as? Bool {
-                appStates[appID] = enabled
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    self.delegate?.ipcServer(self, didToggleViEn: appID, enabled: enabled)
-                }
-                broadcastStateUpdate(appID: appID, enabled: enabled, version: configVersion)
+            guard let rawAppID = msg["app_id"] as? String, let enabled = msg["enabled"] as? Bool else {
+                protocolViolation(cfd, "ToggleViEn sai field")
+                return
             }
+            let appID = Self.normalizedAppID(rawAppID)
+            appStates[appID] = enabled
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.delegate?.ipcServer(self, didToggleViEn: appID, enabled: enabled)
+            }
+            broadcastStateUpdate(appID: appID, enabled: enabled, version: configVersion)
         case "Ping":
             let uptime = UInt64(Date().timeIntervalSince(startTime) * 1000)
             sendFrame(["type": "Pong", "uptime_ms": uptime], to: cfd)
@@ -328,7 +378,8 @@ public final class IpcServer {
             }
             sendFrame(["type": "Ack"], to: cfd)
         default:
-            break
+            // Danh sách v1 đóng: type lạ = violation (review R3 F3-3).
+            protocolViolation(cfd, "type lạ \(type)")
         }
     }
 
@@ -364,10 +415,11 @@ public final class IpcServer {
     public func broadcastStateUpdate(appID: String, enabled: Bool, version: UInt64) {
         queue.async { [weak self] in
             guard let self = self else { return }
-            self.appStates[appID] = enabled
+            let key = Self.normalizedAppID(appID)
+            self.appStates[key] = enabled
             let msg: [String: Any] = [
                 "type": "StateUpdate",
-                "app_id": appID,
+                "app_id": key,
                 "enabled": enabled,
                 "version": version
             ]

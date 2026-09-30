@@ -121,14 +121,24 @@ jobs:
           fi
           echo "ok  không có cú pháp bash 4+"
 
-      - name: plutil -lint (plist + entitlements)
+      - name: plutil -lint + XML strict (plist + entitlements + component.plist)
         run: |
-          for f in packaging/macos/Info-IM.plist packaging/macos/Info-App.plist \
-                   packaging/macos/TextVN.entitlements \
-                   adapters/macos-imk/Resources/Info.plist \
-                   adapters/macos-imk/TextVN-IM.entitlements ; do
+          files="packaging/macos/Info-IM.plist packaging/macos/Info-App.plist
+                 packaging/macos/TextVN.entitlements packaging/macos/component.plist
+                 adapters/macos-imk/Resources/Info.plist
+                 adapters/macos-imk/TextVN-IM.entitlements"
+          for f in $files; do
             plutil -lint "$f"
           done
+          # plutil/CFPropertyList nuốt được XML sai well-formed (vd hai dấu gạch
+          # liền nhau trong comment) — parser strict thì không (review R3 F3-11).
+          python3 - $files <<'PY'
+          import plistlib, sys
+          for f in sys.argv[1:]:
+              with open(f, "rb") as fh:
+                  plistlib.load(fh)
+              print("ok  strict", f)
+          PY
 
       - name: Info.plist IMK keys khớp giữa 2 bản (lệch = input source không hiện)
         run: |

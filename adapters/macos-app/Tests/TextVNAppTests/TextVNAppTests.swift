@@ -187,4 +187,112 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(store.config.method, "telex")
         XCTAssertEqual(store.config.output_charset, "unicode_precomposed")
     }
+
+    // MARK: - 5. Review R3 regressions
+
+    private func rawFrame(_ payload: Data) -> Data {
+        var len = UInt32(payload.count).littleEndian
+        var frame = Data(bytes: &len, count: 4)
+        frame.append(payload)
+        return frame
+    }
+
+    /// F3-3: JSON sai / thiếu `type` là violation → server phải đóng kết nối.
+    func testParseFramesCheckedFlagsViolations() {
+        guard let ping = IpcServer.encodeFrame(["type": "Ping"]) else {
+            XCTFail("encode Ping")
+            return
+        }
+        var badJSON = ping + rawFrame(Data("not json".utf8))
+        let r1 = IpcServer.parseFramesChecked(from: &badJSON)
+        XCTAssertTrue(r1.violation)
+        XCTAssertEqual(r1.messages.count, 1, "frame hợp lệ đứng trước vẫn được giữ")
+        XCTAssertTrue(badJSON.isEmpty)
+
+        var noType = rawFrame(Data("{\"app_id\":\"x\"}".utf8))
+        XCTAssertTrue(IpcServer.parseFramesChecked(from: &noType).violation)
+
+        var partial = Data(ping.prefix(3))
+        let r3 = IpcServer.parseFramesChecked(from: &partial)
+        XCTAssertFalse(r3.violation, "frame chưa đủ byte không phải violation")
+        XCTAssertTrue(r3.messages.isEmpty)
+    }
+
+    /// F3-12: Snapshot đúng bảng v1 đóng — không `uptime_ms`, không key rỗng.
+    func testSnapshotMessageMatchesClosedSchema() {
+        let msg = IpcServer.snapshotMessage(
+            configVersion: 7, state: ["": true, "*": false, "com.apple.Safari": true])
+        XCTAssertEqual(Set(msg.keys), ["type", "config_version", "state", "appdb_version", "channel"])
+        let state = msg["state"] as? [String: Bool]
+        XCTAssertEqual(state, ["*": false, "com.apple.Safari": true])
+    }
+
+    /// F3-1: một quy ước toàn cục "*" (IMK bản cũ gửi "" vẫn được hiểu).
+    func testGlobalAppIDNormalization() {
+        XCTAssertEqual(IpcServer.globalAppID, "*")
+        XCTAssertEqual(IpcServer.normalizedAppID(""), "*")
+        XCTAssertEqual(IpcServer.normalizedAppID("*"), "*")
+        XCTAssertEqual(IpcServer.normalizedAppID("com.apple.TextEdit"), "com.apple.TextEdit")
+    }
+
+    /// F3-14: config hỏng được dời sang `.corrupt-<ts>`, không bị ghi đè mất.
+    func testCorruptConfigIsQuarantinedNotOverwritten() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_corrupt_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        try Data("{ \"macros\": [ broken".utf8).write(to: fileURL)
+
+        let loaded = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(loaded, TextVNConfig.default())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+        let names = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+        let backups = names.filter { $0.hasPrefix("config.json.corrupt-") }
+        XCTAssertEqual(backups.count, 1)
+        let kept = try String(contentsOf: tempDir.appendingPathComponent(backups[0]), encoding: .utf8)
+        XCTAssertEqual(kept, "{ \"macros\": [ broken")
+    }
+
+    /// F3-14: thiếu khoá (config bản cũ/mới hơn) KHÔNG bị coi là hỏng.
+    func testConfigWithMissingKeysUsesDefaults() throws {
+        let data = Data("{ \"method\": \"vni\", \"macros\": [ { \"trigger\": \"vn\", \"expand\": \"Việt Nam\" } ] }".utf8)
+        let cfg = try JSONDecoder().decode(TextVNConfig.self, from: data)
+        XCTAssertEqual(cfg.method, "vni")
+        XCTAssertEqual(cfg.macros.count, 1)
+        XCTAssertEqual(cfg.output_charset, TextVNConfig.default().output_charset)
+        XCTAssertThrowsError(try JSONDecoder().decode(TextVNConfig.self, from: Data("{ \"enabled\": \"yes\" }".utf8)))
+    }
+
+    /// F3-5: hot-reload áp bản hợp lệ, GIỮ bản đang dùng khi file sai schema.
+    func testReloadFromDiskKeepsCurrentOnInvalidFile() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_reload_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let store = ConfigStore(url: fileURL)
+        store.config.method = "vni"
+        store.persist()
+        XCTAssertFalse(store.reloadFromDisk(), "chính app vừa ghi → không đổi")
+
+        var external = store.config
+        external.method = "viqr"
+        try external.save(to: fileURL)
+        XCTAssertTrue(store.reloadFromDisk())
+        XCTAssertEqual(store.config.method, "viqr")
+
+        try Data("garbage".utf8).write(to: fileURL)
+        XCTAssertFalse(store.reloadFromDisk())
+        XCTAssertEqual(store.config.method, "viqr")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fileURL.path), "hot-reload không dời file")
+    }
+
+    /// F3-2: cửa sổ host và view dùng chung một nguồn cỡ.
+    func testSettingsContentSizeGrowsWhenExpanded() {
+        let compact = SettingsView.contentSize(expanded: false)
+        let expanded = SettingsView.contentSize(expanded: true)
+        XCTAssertEqual(compact.width, expanded.width)
+        XCTAssertGreaterThan(expanded.height, compact.height)
+    }
 }
