@@ -20,7 +20,17 @@ if (-not (Test-Path $toggle)) { New-Item -Path $toggle -Force | Out-Null }
 Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
 
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/LOG=$log") -Wait -PassThru
-if ($p.ExitCode -ne 0) { Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40; throw "setup exit $($p.ExitCode)" }
+if ($p.ExitCode -ne 0) {
+    Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
+    # Exit 10 = textvn-cli register that bai (GetCustomSetupExitCode); setup chay
+    # CLI an console nen ly do chi nam trong register.log.
+    $regLog = Join-Path $env:LOCALAPPDATA 'TextVN\logs\register.log'
+    if (Test-Path $regLog) {
+        Write-Host '--- register.log ---'
+        Get-Content $regLog -ErrorAction SilentlyContinue | Select-Object -Last 60
+    }
+    throw "setup exit $($p.ExitCode)"
+}
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
     if (-not (Test-Path (Join-Path $app $f))) { throw "installed file missing: $f" }
 }

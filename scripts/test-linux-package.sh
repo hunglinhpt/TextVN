@@ -275,9 +275,12 @@ scenario_portable() {
         "$pkg/textvn-portable.sh" stop >"$t/preexisting-stop.log" 2>&1 || {
             cat "$t/preexisting-stop.log"; fail "portable stop voi TextVN Fcitx5 co san";
         }
-        cmp -s "$t/profile-preexisting-textvn" "$XDG_CONFIG_HOME/fcitx5/profile" ||
-            fail "portable da xoa TextVN Fcitx5 co san"
-        ! fcitx5-remote -n >/dev/null 2>&1 || fail "portable preexisting da de lai Fcitx5"
+        # So nội dung ngữ nghĩa, không so byte: Fcitx5 tự ghi lại profile theo định
+        # dạng của nó khi thoát (xem tv_restart_fcitx5) dù TextVN vẫn nguyên.
+        grep -qx 'Name=textvn' "$XDG_CONFIG_HOME/fcitx5/profile" ||
+            { diff "$t/profile-preexisting-textvn" "$XDG_CONFIG_HOME/fcitx5/profile" || true;
+              fail "portable da xoa TextVN Fcitx5 co san"; }
+        ! pgrep -x -u "$(id -u)" fcitx5 >/dev/null 2>&1 || fail "portable preexisting da de lai Fcitx5"
     fi
     chmod -R u+w "$pkg"
     trap - EXIT
