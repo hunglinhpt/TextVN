@@ -21,7 +21,7 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Releases](https://github.com/hunglinhpt/TextVN/releases)**
+Bản mới nhất: **[GitHub Release v0.2.1](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.1)**
 (0.2.1 — release candidate, build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |

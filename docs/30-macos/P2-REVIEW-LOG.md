@@ -264,7 +264,8 @@ xác nhận đầu tiên.
   health thiếu IMK PID) còn mở. **F3-13** được xử lý ở v0.2.1: khi login item
   được đăng ký, app khởi động yên lặng; `--settings` vẫn mở cửa sổ. Trade-off:
   khởi chạy thủ công sau khi đã bật autostart nhưng app chưa chạy cũng không tự
-  mở Settings; người dùng mở từ menu bar. Cần smoke GUI Mac xác nhận.
+  mở Settings; người dùng mở từ menu bar. `ci-macos` trên `ca22eba` đã compile
+  và pass test Swift arm64/x86_64; vẫn cần smoke GUI Mac xác nhận.
 - Nit **F3-15/16/18/19/20/21** và **R3-12…R3-18**: vô hại thực tế (retain cycle
   singleton, đọc Int không sync, trạng thái AX trong menu cũ, `setAutostart` gọi 2
   lần, hint postinstall, policy ghi đè SHA256SUMS, JSON grammar lỏng trong xtask,

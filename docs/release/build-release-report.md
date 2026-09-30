@@ -1,9 +1,34 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
-> `v0.2.1` đang ở giai đoạn build/CI. Bằng chứng của bản mới nằm trong
-> [audit 2026-09-30](cross-platform-audit-2026-09-30.md), run CI trên đúng commit
-> và `RELEASE_REPORT.json` trong ZIP. Không dùng số liệu 0.1.0 ở dưới làm bằng
-> chứng production cho 0.2.1.
+> `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản mới nằm ngay
+> dưới đây, trong [audit 2026-09-30](cross-platform-audit-2026-09-30.md), run CI
+> trên đúng commit và `RELEASE_REPORT.json` trong ZIP. Không dùng số liệu 0.1.0
+> ở các phần lịch sử phía dưới làm bằng chứng production cho 0.2.1.
+
+## Bản 0.2.1 — phát hành pre-release đã xác minh
+
+- Source/tag: `ca22eba2239d9736f51548169f0ce33417954f7a` / `v0.2.1`.
+- CI cùng commit: [ci-shared #36718542260](https://github.com/hunglinhpt/TextVN/actions/runs/36718542260),
+  [ci-macos #36718542232](https://github.com/hunglinhpt/TextVN/actions/runs/36718542232),
+  [repo-hygiene #36718542268](https://github.com/hunglinhpt/TextVN/actions/runs/36718542268) —
+  tổng thể đều `success`. Windows portable/installer gõ TSF thật, Linux
+  IBus/Fcitx5 chạy package e2e, macOS Swift arm64+x86_64 build/test và đóng gói
+  unsigned universal. Chưa có smoke GUI/macOS thật ngoài runner.
+- [release-candidate #36719431897](https://github.com/hunglinhpt/TextVN/actions/runs/36719431897)
+  build lại từ tag sạch; Windows/Linux/macOS/publish đều `success`.
+  [GitHub Release v0.2.1](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.1)
+  là **pre-release**, có sáu binary archive/installer + `SHA256SUMS.txt`.
+- Checksum đã tải lại và so với digest trên GitHub; Windows portable ZIP
+  `e5e5b4fb2062f1c18b5c444247d131276b560d95d7e801f336f92b0f8a9d93b3`,
+  setup EXE `f6996d6fba97cf387119f25ddba6c216c9deda582987b9ea2301504b23e34dce`,
+  macOS universal ZIP `728788ef1454d213505276b42efc0f897d08580d00f90dd030c428d9c4abbb4e`.
+  Mã băm còn lại nằm trong asset `SHA256SUMS.txt` của release.
+- Trạng thái: **release candidate, không production**. Chưa có Authenticode
+  (host không có code-signing certificate với private key), Developer ID,
+  notarization, macOS GUI smoke. Job `perf regression` tham khảo thất bại:
+  runner Windows `parse_config` p50 781→1231 ns (+57,6%); đo local
+  781→1050 ns (+34,4%). `ci-shared` cấu hình `continue-on-error` cho job này;
+  cần đo đối chứng trên cùng phần cứng trước khi kết luận hồi quy sản phẩm.
 
 Trạng thái: **release candidate** cho Windows 10/11 x64 và Linux x86_64 (IBus, Fcitx5).
 macOS: mã nguồn đang ở beta; chưa có bằng chứng GUI/package production trên máy Mac thật.

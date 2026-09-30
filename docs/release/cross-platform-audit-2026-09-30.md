@@ -6,7 +6,11 @@
 release GitHub: `v0.2.0` đã có 7 asset (Windows portable/setup, Linux tar,
 macOS zip/tar/pkg, SHA256SUMS), nhưng mô tả tự nhận candidate chưa ký số trong
 khi GitHub đánh dấu latest. Đã sửa metadata thành **pre-release**; không ghi đè
-binary cũ. Kết quả v0.2.1 chỉ có hiệu lực sau khi CI trên tag/commit mới xanh.
+binary cũ. `v0.2.1` đã được build/test lại từ tag sạch qua
+[release-candidate #36719431897](https://github.com/hunglinhpt/TextVN/actions/runs/36719431897)
+và có [GitHub Release](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.1)
+dạng pre-release với SHA256SUMS. Xem
+[báo cáo build](build-release-report.md) để phân biệt rõ CI và local ZIP dirty.
 
 | What / Where | Why (nguyên nhân) | Who chịu ảnh hưởng | When | How xử lý / xác minh |
 |---|---|---|---|---|
@@ -35,7 +39,7 @@ SHA-256 `F54B2F34681543873B9E5F384E63843F08E434CAACEAA13194F8EC71C63C949D`.
 Trong ZIP, `RELEASE_REPORT.json` ghi `source_tree_clean=false`,
 `status=release-candidate`, `authenticode=not-signed`, runtime IPC smoke pass.
 **Không đưa ZIP local này lên GitHub**; release workflow phải tạo ZIP mới từ
-tag sạch và chạy thêm typing thực tế trên runner Windows.
+tag sạch và chạy thêm typing thực tế trên runner Windows; workflow đã pass.
 
 Đây là bằng chứng cho **checkout hiện tại**, không thay thế `RELEASE_REPORT.json`
 trong từng ZIP và không tự nâng một bản candidate thành production. Các thay đổi

@@ -158,11 +158,13 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 5. macOS: `scripts/build-macos.sh` và `scripts/package-macos-pkg.sh` trên runner Mac;
    chỉ ký/notarize khi có Developer ID thật và đã smoke GUI trên Mac.
 6. Chỉ sau khi `ci-shared`, `ci-macos`, `repo-hygiene` xanh trên **cùng commit**,
-   tạo tag `v<version>`, tải artifact của đúng commit, kiểm SHA-256 và
-   `RELEASE_REPORT.json`, rồi đính kèm ZIP Windows, setup `.exe`, Linux tarball,
-   macOS ZIP/tar/PKG và `SHA256SUMS.txt` vào GitHub Release. Gắn pre-release
-   nếu còn unsigned/native GUI blocker; không đổi nhãn thành production bằng
-   cách chỉ sửa metadata GitHub.
+   tạo và push tag `v<version>`. `.github/workflows/release.yml` tự build lại
+   từ tag, test gói ba nền tảng, kiểm `RELEASE_REPORT.json`, tính SHA-256 rồi
+   đính kèm ZIP Windows, setup `.exe`, Linux tarball, macOS ZIP/tar/PKG và
+   `SHA256SUMS.txt` vào GitHub Release dạng pre-release. Nếu workflow lỗi,
+   sửa nguyên nhân và phát hành phiên bản mới; không ghi đè binary của tag cũ.
+   Chỉ bỏ nhãn pre-release sau khi đã có ký số, notarization và smoke GUI native;
+   không đổi nhãn thành production bằng cách chỉ sửa metadata GitHub.
 
 ## 6. Tài liệu liên quan
 
