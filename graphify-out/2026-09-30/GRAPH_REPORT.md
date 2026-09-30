@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-09-30)
 
 ## Corpus Check
-- 306 files · ~291,105 words
+- 306 files · ~291,963 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 267 file(s) not represented in the graph (top: .keys 227, .toml 9, .rc 5)
 
@@ -250,7 +250,7 @@
 - quick_telex.rs
 - P3-6 — TEST PLAN (Linux) — Solution chi tiết
 - Hướng dẫn phát triển TextVN
-- Báo cáo dựng & kiểm thử — TextVN 0.1.0 (release candidate)
+- Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 - mac_corpus_cases.rs
 - rules_win.rs
 - ime_key
@@ -1199,9 +1199,9 @@ Nodes (9): 1. Ma trận test, 2. Corpus Linux — `corpus/linux/` (mục tiêu �
 Cohesion: 0.20
 Nodes (10): 1. Kiến trúc, 2. Dựng, 3. Kiểm thử, 4. Quy ước bắt buộc (CI chặn), 5. Phát hành, 6. Tài liệu liên quan, Hướng dẫn phát triển TextVN, Linux (Ubuntu/Debian) (+2 more)
 
-### Community 243 - "Báo cáo dựng & kiểm thử — TextVN 0.1.0 (release candidate)"
+### Community 243 - "Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)"
 Cohesion: 0.20
-Nodes (10): 1. Gói phát hành, 2. Kết quả kiểm thử, 3. Lỗi tìm ra nhờ kiểm thử thật (đã sửa trong bản này), 4. Phạm vi chưa kiểm tự động, 5. Hiệu năng, 6. Tái lập, Báo cáo dựng & kiểm thử — TextVN 0.1.0 (release candidate), Gõ thật trên Windows (mỗi kịch bản, mỗi ứng dụng) (+2 more)
+Nodes (10): 1. Gói phát hành, 2. Kết quả kiểm thử, 3. Lỗi tìm ra nhờ kiểm thử thật (đã sửa trong bản này), 4. Phạm vi chưa kiểm tự động, 5. Hiệu năng, 6. Tái lập, Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử), Gõ thật trên Windows (mỗi kịch bản, mỗi ứng dụng) (+2 more)
 
 ### Community 244 - "mac_corpus_cases.rs"
 Cohesion: 0.49
@@ -1380,11 +1380,11 @@ Nodes (5): APP_INSTANCE, Arc, IpcServer, OnceLock, TrayApp
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `lc_field_detect()` connect `stdio` to `T3 — Field detect + AppDB (tuần 7–10) — dep: LNX-005`?**
-  _High betweenness centrality (0.099) - this node is a cross-community bridge._
+  _High betweenness centrality (0.100) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `EventTapController`, `ConfigWatcher`, `AppDelegate`, `Foundation`, `OwnerRule`, `SettingsView`, `TextVNInputController`, `AXSnapshot`, `IpcMessage`, `TextVNConfig`, `.inject`, `NSRange`, `AutostartManager`, `FieldContext`, `KeyTranslator`, `MarkedState`, `ImeEngine`, `TextVNAppTests`, `Bool`?**
   _High betweenness centrality (0.099) - this node is a cross-community bridge._
 - **Why does `Hướng dẫn phát triển TextVN` connect `Hướng dẫn phát triển TextVN` to `developer-guide.md`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Are the 19 inferred relationships involving `MarkedState` (e.g. with `TextVNInputController` and `.testBackspaceTypeDeletesRealPrefixBeyondMarked()`) actually correct?**
   _`MarkedState` has 19 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `ic`, `inst`, `comp` to the rest of the system?**

@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "docs/release/parity-checklist.md": {
-    "mtime": 1790641184.7153225,
-    "seen": 1790741385.9670825,
-    "ast_hash": "aadbfc4cd00e8213f9b2115bff2b078a",
+    "mtime": 1790772799.9987128,
+    "seen": 1790773084.333464,
+    "ast_hash": "f6999fc1217c74b7823eb5ddfc3da1ba",
     "semantic_hash": ""
   },
   "installer/windows/build_installer.ps1": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1790772606.9996617,
-    "seen": 1790772701.999037,
-    "ast_hash": "03ac82ba00037972de3db9da47f8f84f",
+    "mtime": 1790773124.974643,
+    "seen": 1790773160.0732715,
+    "ast_hash": "afe7c3e26395024ab4fafc775cbd1fbd",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1686,9 +1686,9 @@
     "semantic_hash": ""
   },
   "scripts/notarize-macos.sh": {
-    "mtime": 1790744761.8047771,
-    "seen": 1790772702.003051,
-    "ast_hash": "e9f6c3943463555fe537eda9c92d89b7",
+    "mtime": 1790773125.8169794,
+    "seen": 1790773160.0792687,
+    "ast_hash": "adca8ff16139b5af8abb774c3d921045",
     "semantic_hash": ""
   },
   "scripts/package-macos-pkg.sh": {
@@ -1854,21 +1854,21 @@
     "semantic_hash": ""
   },
   "docs/developer-guide.md": {
-    "mtime": 1790685513.658663,
-    "seen": 1790741385.9670825,
-    "ast_hash": "680e11a44a28b9737ace68fc3f5b989d",
+    "mtime": 1790772801.025402,
+    "seen": 1790773084.333464,
+    "ast_hash": "f5ce870360bd993efcac6ba14effc6d3",
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790733949.3517067,
-    "seen": 1790741385.9670825,
-    "ast_hash": "8dc74a9ef3c795decd8173ca45f65649",
+    "mtime": 1790772801.9972856,
+    "seen": 1790773084.333464,
+    "ast_hash": "a0e6f53f5d3202338ed1fc9500cfc604",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
-    "mtime": 1790772676.287133,
-    "seen": 1790772702.0842824,
-    "ast_hash": "97e02e1a0dae527965bbd1d8877003b3",
+    "mtime": 1790773016.4279413,
+    "seen": 1790773084.333464,
+    "ast_hash": "61550ddb5d269560b0123f089cef1560",
     "semantic_hash": ""
   },
   "docs/release/ui-spec.md": {
@@ -1929,6 +1929,12 @@
     "mtime": 1790745307.1133184,
     "seen": 1790772702.0311794,
     "ast_hash": "8a9db48f87cbc3c2fa21f73c7f8916bd",
+    "semantic_hash": ""
+  },
+  ".github/workflows/release.yml": {
+    "mtime": 1790772910.230422,
+    "seen": 1790773084.3064787,
+    "ast_hash": "19b8a386b962a5785a83b4a82b21c832",
     "semantic_hash": ""
   }
 }
