@@ -12,8 +12,9 @@ $ErrorActionPreference = 'Stop'
 $clsid = '{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}'
 $inproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
 
-$dir = Join-Path $env:RUNNER_TEMP ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
-if (-not $env:RUNNER_TEMP) { $dir = Join-Path $env:TEMP ('textvn-portable-' + [guid]::NewGuid().ToString('N')) }
+$tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
+$dir = Join-Path $tempRoot ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
+try {
 Expand-Archive -Path $Zip -DestinationPath $dir
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')) {
     if (-not (Test-Path (Join-Path $dir $f))) { throw "portable zip is missing $f" }
@@ -31,6 +32,14 @@ for ($i = 0; $i -lt 40 -and -not $registered; $i++) {
 if (-not $registered) { throw 'TextVN.exe did not register the TSF TIP from the extracted folder' }
 Write-Host 'PASS TextVN.exe registered TSF from the extracted folder'
 
+# Release test-typing.ps1 owns its own tray instance; do not attach to this one.
+& (Join-Path $dir 'TextVN.exe') --stop | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'TextVN tray did not stop before typing test' }
+Start-Sleep -Milliseconds 500
+if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) {
+    throw 'TextVN tray is still running before typing test'
+}
+
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $dir
 
 # Go dang ky nhu nguoi dung (uninstall.ps1 trong zip).
@@ -40,3 +49,25 @@ if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) { throw 'tray still 
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall.ps1' }
 if (-not (Test-Path (Join-Path $env:APPDATA 'TextVN'))) { throw 'user config was not kept' }
 Write-Host 'PASS portable: extract -> run -> type -> unregister'
+} finally {
+    $trayPath = Join-Path $dir 'TextVN.exe'
+    if (Test-Path -LiteralPath $trayPath) {
+        & $trayPath --stop *> $null
+    }
+    Start-Sleep -Milliseconds 300
+    $ownedProcess = Get-Process -Name TextVN -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase) }
+    $registeredPath = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
+    $registeredHere = $registeredPath -and $registeredPath.StartsWith($dir, [System.StringComparison]::OrdinalIgnoreCase)
+    if ((Test-Path -LiteralPath $dir) -and -not $ownedProcess -and -not $registeredHere) {
+        $resolvedTemp = [System.IO.Path]::GetFullPath($tempRoot).TrimEnd('\') + '\'
+        $resolvedDir = (Resolve-Path -LiteralPath $dir).Path
+        if (-not $resolvedDir.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Unsafe portable test cleanup path: $resolvedDir"
+        }
+        Remove-Item -LiteralPath $resolvedDir -Recurse -Force
+        Write-Host 'PASS portable: temporary extraction cleaned'
+    } elseif (Test-Path -LiteralPath $dir) {
+        Write-Warning "Portable test files retained because TextVN or TSF registration still uses $dir"
+    }
+}

@@ -14,6 +14,7 @@
 //! crate `cbindgen` + nightly. Header hiện do người viết giữ tay và CI kiểm bằng
 //! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
+mod check_mac_targets;
 mod gen_mac_corpus;
 mod gen_win_corpus;
 mod mac_corpus_cases;
@@ -70,6 +71,7 @@ fn main() -> ExitCode {
         "check-win-corpus" => gen_win_corpus::run(false),
         "gen-mac-corpus" => gen_mac_corpus::run(true),
         "check-mac-corpus" => gen_mac_corpus::run(false),
+        "check-mac-targets" => check_mac_targets::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())
@@ -94,6 +96,8 @@ fn usage() -> &'static str {
      cargo xtask check-win-corpus # kiểm tra corpus/win/*.keys có khớp chuẩn\n  \
      cargo xtask gen-mac-corpus   # sinh corpus/mac/*.keys (MAC-006)\n  \
      cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
+     cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)
+  \
      cargo xtask help\n"
 }
 

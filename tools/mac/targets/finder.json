@@ -1,0 +1,23 @@
+{
+  "targets_version": 1,
+  "app_id": "finder",
+  "match": { "any": [ { "bundle_id": "com.apple.finder" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/System/Library/CoreServices/Finder.app" ],
+    "args": [],
+    "ready_role": "AXTextField"
+  },
+  "fields": [
+    {
+      "field_role": "editbox",
+      "preset": "mac.finder.rename",
+      "locators": [
+        { "control_type": "AXTextField" },
+        { "control_type": "AXSheet" },
+        { "control_type": "AXWindow" }
+      ],
+      "notes": "Bug B1: rename inline (⌘⇧N/Enter) + 'Go to folder' (⌘⇧G) — cả 2 dùng AXTextField nhưng KHÁC window; spike MAC-004 chốt cách phân biệt. Mở fixture: mở 1 thư mục tạm rồi bấm Enter lên 1 file."
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "targets_version": 1,
+  "app_id": "safari",
+  "match": { "any": [ { "bundle_id": "com.apple.Safari" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Safari.app" ],
+    "args": [],
+    "ready_role": "AXTextField"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "mac.safari.url",
+      "locators": [
+        { "control_type": "AXTextField", "automation_id": "WEB_BROWSER_ADDRESS_AND_SEARCH_FIELD" },
+        { "control_type": "AXTextField" }
+      ],
+      "notes": "Bug B1: selection phải thay cả chuỗi URL cũ (không backspace từng ký tự). AXIdentifier của ô địa chỉ Safari chưa verify trên máy thật."
+    },
+    {
+      "field_role": "body",
+      "preset": "mac.safari.body",
+      "locators": [
+        { "control_type": "AXWebArea" },
+        { "control_type": "AXTextArea", "class_name": "AXContentEditable" }
+      ],
+      "notes": "Web form/contenteditable (fixture HTML). class_name = AXSubrole (xem tools/mac/README.md §1)."
+    }
+  ]
+}

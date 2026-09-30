@@ -1,0 +1,22 @@
+{
+  "targets_version": 1,
+  "app_id": "discord",
+  "match": { "any": [ { "bundle_id": "com.hnc.Discord" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Discord.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.discord",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Bug B7 (Electron): Enter gửi, Shift+Enter xuống dòng. Chưa verify máy thật."
+    }
+  ]
+}

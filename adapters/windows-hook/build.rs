@@ -56,10 +56,49 @@ fn main() {
     let rc_file = manifest_dir.join("hook.rc");
     let res_file = out_dir.join("hook.res");
 
+    // PE VersionInfo theo **CARGO_PKG_VERSION** — build.rs patch bản sao .rc
+    // trong OUT_DIR (file .rc tĩnh chỉ là mẫu; bump version chỉ sửa Cargo.toml).
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_default();
+    let version_commas = format!("{version},0");
+    let generated = match std::fs::read_to_string(&rc_file) {
+        Ok(content) => content
+            .lines()
+            .map(|line| {
+                let t = line.trim_start();
+                if t.starts_with("FILEVERSION ") {
+                    return format!("FILEVERSION {version_commas}");
+                }
+                if t.starts_with("PRODUCTVERSION ") {
+                    return format!("PRODUCTVERSION {version_commas}");
+                }
+                if t.contains("\"FileVersion\"") {
+                    return format!("            VALUE \"FileVersion\", \"{version}.0\"");
+                }
+                if t.contains("\"ProductVersion\"") {
+                    return format!("            VALUE \"ProductVersion\", \"{version}.0\"");
+                }
+                line.to_string()
+            })
+            .collect::<Vec<_>>()
+            .join("\r\n"),
+        Err(e) => {
+            println!("cargo:warning=Không đọc được {}: {e}", rc_file.display());
+            return;
+        }
+    };
+    let generated_rc = out_dir.join("hook_versioned.rc");
+    if let Err(e) = std::fs::write(&generated_rc, &generated) {
+        println!(
+            "cargo:warning=Không ghi được {}: {e}",
+            generated_rc.display()
+        );
+        return;
+    }
+
     let status = Command::new(&rc_exe)
         .arg("/nologo")
         .arg(format!("/fo{}", res_file.display()))
-        .arg(&rc_file)
+        .arg(&generated_rc)
         .current_dir(&manifest_dir)
         .status();
 

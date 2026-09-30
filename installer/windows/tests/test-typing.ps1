@@ -49,12 +49,13 @@ public static class TvKeys {
     }
 
     public static void Tap(ushort vk) {
-        SendInput(2, new[] { Key(vk, false), Key(vk, true) }, Marshal.SizeOf(typeof(INPUT)));
+        if (SendInput(2, new[] { Key(vk, false), Key(vk, true) }, Marshal.SizeOf(typeof(INPUT))) != 2)
+            throw new InvalidOperationException("SendInput failed");
         Thread.Sleep(40);
     }
 
-    public static void Down(ushort vk) { SendInput(1, new[] { Key(vk, false) }, Marshal.SizeOf(typeof(INPUT))); Thread.Sleep(30); }
-    public static void Up(ushort vk) { SendInput(1, new[] { Key(vk, true) }, Marshal.SizeOf(typeof(INPUT))); Thread.Sleep(30); }
+    public static void Down(ushort vk) { if (SendInput(1, new[] { Key(vk, false) }, Marshal.SizeOf(typeof(INPUT))) != 1) throw new InvalidOperationException("SendInput failed"); Thread.Sleep(30); }
+    public static void Up(ushort vk) { if (SendInput(1, new[] { Key(vk, true) }, Marshal.SizeOf(typeof(INPUT))) != 1) throw new InvalidOperationException("SendInput failed"); Thread.Sleep(30); }
 
     // Go chuoi ASCII: chu hoa = Shift + phim (tru khi Caps Lock dang bat), ' ' = Space,
     // '\n' = Enter, '\t' = Tab, ',' '.' = phim dau cau (layout US), '^' = Home.
@@ -120,10 +121,13 @@ $cli = Join-Path $Dir 'textvn-cli.exe'
 $tray = Join-Path $Dir 'TextVN.exe'
 foreach ($f in @($cli, $tray)) { if (-not (Test-Path $f)) { throw "missing $f" } }
 
-# Tray (IPC, trang thai bat/tat) - tu dang ky TSF per-user neu can.
-if (-not (Get-Process -Name TextVN -ErrorAction SilentlyContinue)) {
-    Start-Process -FilePath $tray -ArgumentList '--autostart' -WorkingDirectory $Dir | Out-Null
+# Smoke test thay doi input source va mode; khong dung instance cua nguoi dung.
+if (Get-Process -Name TextVN,notepad,wordpad -ErrorAction SilentlyContinue) {
+    throw 'Close existing TextVN/Notepad/WordPad before running the destructive typing smoke test'
 }
+$ownedTray = Start-Process -FilePath $tray -ArgumentList '--autostart' -WorkingDirectory $Dir -WindowStyle Hidden -PassThru
+$script:ownedEditor = $null
+try {
 $ready = $false
 for ($i = 0; $i -lt 30 -and -not $ready; $i++) {
     Start-Sleep -Milliseconds 500
@@ -133,9 +137,11 @@ if (-not $ready) { throw 'TextVN tray did not start' }
 
 # Kich hoat profile TextVN cho phien (giong nguoi dung chon TextVN o thanh ngon ngu).
 & $cli register | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "TextVN TSF registration failed ($LASTEXITCODE)" }
 # "Danh Ctrl + Shift cho TextVN" (installer mac dinh chon; ban portable: o trong Bang dieu
 # khien): phim tat doi bo cuc cua Windows khong con nuot Ctrl+Shift.
 & $tray --free-ctrl-shift | Out-Host
+if ($LASTEXITCODE -ne 0) { throw "TextVN Ctrl+Shift configuration failed ($LASTEXITCODE)" }
 
 $cases = @(
     @{ name = 'telex dduocj';      keys = 'dduocj ';       want = (U '\u0111\u01b0\u1ee3c ') },
@@ -172,18 +178,14 @@ function Check($app, [string]$name, [string]$want) {
 
 function Open-App([string]$name, [string]$exe) {
     $p = Start-Process $exe -PassThru
+    $script:ownedEditor = $p
     $main = [IntPtr]::Zero
-    # Runner lanh co khi can >10 s moi hien cua so (WordPad); tien trinh khoi chay co the
-    # chuyen sang tien trinh khac cung ten - lay cua so chinh cua bat ky tien trinh nao.
+    # Never attach to another user's document if the newly started process
+    # hands off to an existing editor instance.
     for ($i = 0; $i -lt 60 -and $main -eq [IntPtr]::Zero; $i++) {
         Start-Sleep -Milliseconds 500
         $p.Refresh()
         $main = $p.MainWindowHandle
-        if ($main -eq [IntPtr]::Zero) {
-            $other = Get-Process -Name $name -ErrorAction SilentlyContinue |
-                Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1
-            if ($other) { $p = $other; $main = $other.MainWindowHandle }
-        }
     }
     if ($main -eq [IntPtr]::Zero) { throw "$name window not found after 30 s" }
     $edit = [IntPtr]::Zero
@@ -237,6 +239,7 @@ foreach ($a in $apps) {
         Write-Host ('{0} HKL = 0x{1:X}' -f $app.Name, [TvKeys]::GetKeyboardLayout($npTid).ToInt64())
     }
     Stop-Process -Id $app.Proc.Id -Force -ErrorAction SilentlyContinue
+    $script:ownedEditor = $null
 }
 
 if ($script:fail -gt 0) {
@@ -251,3 +254,9 @@ if ($script:fail -gt 0) {
     throw "$($script:fail) typing case(s) failed"
 }
 Write-Host 'typing: OK'
+} finally {
+    if ($script:ownedEditor) {
+        Stop-Process -Id $script:ownedEditor.Id -Force -ErrorAction SilentlyContinue
+    }
+    & $tray --stop | Out-Null
+}

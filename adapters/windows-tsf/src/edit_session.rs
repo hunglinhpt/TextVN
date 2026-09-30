@@ -54,9 +54,9 @@ pub struct TsfShared {
     pub comp_text: RefCell<Vec<char>>,
     /// VK đã được ăn ở `OnTestKeyDown`, chờ `OnKeyDown` tương ứng.
     pub pending_eaten_vk: Cell<Option<u32>>,
-    /// VK được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app IMM32/CUAS,
-    /// xem `key_event::defer_to_key_down`).
-    pub deferred_vk: Cell<Option<u32>>,
+    /// Phím/đích được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app
+    /// IMM32/CUAS, xem `key_event::defer_to_key_down`).
+    pub deferred_replay: Cell<Option<crate::replay::DeferredReplay>>,
     /// Phiên bản config đã nạp vào engine của thread này.
     pub config_seen: Cell<u64>,
     /// App/TSF kết thúc composition của ta (OnCompositionTerminated).
@@ -75,7 +75,7 @@ impl TsfShared {
             composition: RefCell::new(None),
             comp_text: RefCell::new(Vec::new()),
             pending_eaten_vk: Cell::new(None),
-            deferred_vk: Cell::new(None),
+            deferred_replay: Cell::new(None),
             config_seen: Cell::new(0),
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
@@ -130,8 +130,9 @@ impl TsfShared {
         let latest = self.ipc.config_version();
         if latest != 0 && latest != self.config_seen.get() {
             if let Ok(mut thread) = self.thread.try_borrow_mut() {
-                let _ = thread.reload_config_from_file();
-                self.config_seen.set(latest);
+                if thread.reload_config_from_file().is_ok() {
+                    self.config_seen.set(latest);
+                }
             }
         }
     }
@@ -490,9 +491,10 @@ fn set_caret_after(ctx: &ITfContext, ec: u32, range: &ITfRange) {
     }
 }
 
-/// Caret/selection còn nằm trong composition? Chỉ trả `false` khi CHẮC CHẮN nằm
-/// ngoài (click chuột sang chỗ khác, app tự đổi selection). Lỗi API của text store
-/// tối giản (CUAS) coi như còn trong: commit nhầm mỗi phím còn tệ hơn.
+/// Chỉ tiếp tục sửa composition khi selection là caret rỗng đúng tại cuối range
+/// của TIP. Click vào giữa từ hoặc chọn một phần composition phải commit trước,
+/// nếu không `apply_plan` sẽ ghi đè phần người dùng đang sửa/chọn. Với text store
+/// tối giản không trả được vị trí, giữ chính sách cũ: không tự chữa chỉ vì lỗi đọc.
 #[cfg(windows)]
 fn caret_at_composition_end(ec: u32, comp: &ITfComposition, sel: &ITfRange) -> bool {
     // SAFETY: gọi trong edit session.
@@ -500,17 +502,18 @@ fn caret_at_composition_end(ec: u32, comp: &ITfComposition, sel: &ITfRange) -> b
         let Ok(range) = comp.GetRange() else {
             return true;
         };
-        // start(comp) > start(sel): selection bắt đầu trước composition.
-        let starts_before = range
-            .CompareStart(ec, sel, TF_ANCHOR_START)
-            .map(|c| c > 0)
-            .unwrap_or(false);
-        // end(comp) < end(sel): selection kéo ra sau composition.
-        let ends_after = range
+        // Cả start và end của selection phải trùng comp.end. Điều này đồng thời
+        // yêu cầu selection rỗng; bất kỳ kết quả khác 0 nào đều là caret/selection
+        // do app hoặc người dùng di chuyển.
+        let start_at_end = range
+            .CompareEnd(ec, sel, TF_ANCHOR_START)
+            .map(|c| c == 0)
+            .unwrap_or(true);
+        let end_at_end = range
             .CompareEnd(ec, sel, TF_ANCHOR_END)
-            .map(|c| c < 0)
-            .unwrap_or(false);
-        !(starts_before || ends_after)
+            .map(|c| c == 0)
+            .unwrap_or(true);
+        start_at_end && end_at_end
     }
 }
 

@@ -326,7 +326,8 @@ Write-Ok "ZIP: $ZipPath ($zipSz KB)"
 
 # Tao ma bam SHA256 checksums de xac thuc an toan (Antivirus Whitelist standard)
 Write-Step "Generate SHA256 Checksums"
-$shaFile = "$DistDir\SHA256SUMS.txt"
+$shaFile = "$DistDir\SHA256SUMS-$BuildId.txt"
+if (Test-Path $shaFile) { Write-Fail "Checksum file already exists: $shaFile" }
 $hashLines = @()
 $fullZipDir = (Resolve-Path $ZipDir).Path
 Get-ChildItem -Path $ZipDir -File -Recurse | ForEach-Object {

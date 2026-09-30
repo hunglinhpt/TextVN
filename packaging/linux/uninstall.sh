@@ -32,6 +32,7 @@ done
 # Script nằm ở <prefix>/share/textvn/ khi đã cài.
 [[ -z "$PREFIX" ]] && PREFIX="$(cd "$HERE/../.." && pwd)"
 MANIFEST="$PREFIX/share/textvn/install-manifest.txt"
+ENV_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/60-textvn.conf"
 if [[ ! -f "$MANIFEST" ]]; then
     tv_err "Không tìm thấy $MANIFEST — TextVN chưa được cài ở $PREFIX?"
     exit 1
@@ -52,10 +53,16 @@ if [[ "$PREFIX" != /usr ]]; then
     [[ "$had_ibus" == 1 ]] && tv_deactivate_ibus
 fi
 
-# Xoá theo manifest; chỉ đụng tới file do install.sh ghi ra.
+# Manifest là dữ liệu trên đĩa, không phải danh sách lệnh xoá được tin cậy. Chỉ
+# gỡ các path install.sh có thể đã tạo; một manifest hỏng không được phép xoá
+# file bất kỳ của người dùng hay của hệ thống.
 while IFS= read -r f; do
-    [[ -n "$f" && "$f" == /* ]] || continue
-    rm -f -- "$f"
+    [[ -n "$f" ]] || continue
+    if tv_textvn_install_path "$PREFIX" "$f" "$ENV_FILE"; then
+        rm -f -- "$f"
+    else
+        tv_err "Bỏ qua path không thuộc TextVN trong manifest: $f"
+    fi
 done < "$MANIFEST"
 for d in "$PREFIX/lib/textvn/fcitx5" "$PREFIX/lib/textvn" "$PREFIX/share/textvn" \
          "$PREFIX/share/doc/textvn"; do

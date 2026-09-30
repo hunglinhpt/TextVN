@@ -27,7 +27,7 @@ if server == nil {
     exit(1)
 }
 
-// CRashReport engine hook: counter cho status item (P2-1 §12).
+// CrashReport hook: counter cho status item (P2-1 §12).
 NSSetUncaughtExceptionHandler { exception in
     Diagnostics.recordCrash()
     Diagnostics.log("uncaught exception: \(exception.name.rawValue)")

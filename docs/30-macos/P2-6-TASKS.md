@@ -158,7 +158,9 @@ Hotkey chốt: `Ctrl+Shift+Space` (hoặc CapsLock dual-role — quyết định
 - **Acceptance:** `--suite ci` 12 app × 5 case = 60 case 1 lệnh; report JSON cùng format Windows; 0 case >15s.
 
 ### MAC-061 · Targets JSON 12 app (cùng format Windows) (M)
-- **Acceptance:** mỗi app ≥ 2 locator; upgrade 1 app → chạy lại OK.
+- **Acceptance:** mỗi app ≥ 2 locator; upgrade 1 app → chạy lại OK;
+  `cargo run -q -p xtask -- check-mac-targets` xanh (gate mọi OS — bắt `preset` ảo,
+  `control_type` Windows lọt sang, thiếu app CI; chạy trong job `xtask check-tables`).
 
 ### MAC-062 · Perf bench + `perf/baseline-mac.json` (M) — `P2-5 §5`
 - **Acceptance:** CI so baseline, regression >10% → fail.

@@ -25,6 +25,12 @@ public enum InjectedMarker {
     public static let userData: Int64 = 0x5458_564E // "TXVN"
 }
 
+/// `@objc(TextVNInputController)` (review R1 F10): IMKServer instantiate
+/// controller qua `NSClassFromString` với tên trong Info.plist
+/// `InputMethodServerControllerClass` — Swift class không có tên ObjC tường
+/// minh resolve thành tên mangled `IMKLib.TextVNInputController` → IM
+/// **không bao giờ** được tạo. Pitfall kinh điển IMK+Swift.
+@objc(TextVNInputController)
 public final class TextVNInputController: IMKInputController, IpcClientDelegate {
     // ------------------------------------------------------------- state
 
@@ -287,7 +293,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private func toggleVietnamese() -> Bool {
         viEnabled.toggle()
         Diagnostics.log("toggle vi=\(viEnabled)")
-        ipc.send(.stateUpdate(appID: "", enabled: viEnabled, version: 0))
+        // Client gửi ToggleViEn (client→server — review R1 F15); server broadcast
+        // StateUpdate lại cho mọi client. Gửi .stateUpdate là sai chiều → disconnect.
+        ipc.send(.toggleViEn(appID: "", enabled: viEnabled))
         return true // nuốt Space toggle
     }
 

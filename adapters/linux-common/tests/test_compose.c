@@ -218,6 +218,16 @@ static void test_modifier_toggle(void) {
     lc_modifier_toggle_down(&t, LC_MOD_KEY_SHIFT, 1, 0, 0);
     lc_modifier_toggle_reset(&t);
     assert(lc_modifier_toggle_up(&t, LC_MOD_KEY_SHIFT) == 0);
+
+    /* Ctrl+Shift+Space is a separate shortcut. Adapters disarm the pending
+     * modifier-only chord before handling it, so neither key release can
+     * toggle a second time. */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 0, 0);
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_SHIFT, 1, 0, 0);
+    lc_modifier_toggle_down(&t, LC_MOD_NONE, 1, 1, 0); /* Space */
+    lc_modifier_toggle_reset(&t);
+    assert(lc_modifier_toggle_up(&t, LC_MOD_KEY_SHIFT) == 0);
+    assert(lc_modifier_toggle_up(&t, LC_MOD_KEY_CTRL) == 0);
 }
 
 static void test_config_sync(void) {

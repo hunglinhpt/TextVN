@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # ci-macos — CI cho adapter macOS (P2-5 §8, MAC-064).
 #
-# Chạy khi PR/push chạm adapters/macos* hoặc corpus/mac:
-#  - cargo engine 2 arch mac (aarch64 + x86_64) + lipo (MAC-003)
-#  - swift build + swift test cả 2 package (IMK + tap)
-#  - replay corpus (shared + mac) --adapter mac — headless, chạy được trên runner
-#  - ABI gates (sizes/verify) — header ↔ Rust không được lệch
+# Trigger: PR/push chạm adapter macOS, corpus mac/shared, hoặc phần dùng chung mà
+# job ở đây chạy (core/config/ffi/cli/xtask). Trước đây thiếu `core/**` nên sửa
+# engine không hề chạy gate macOS.
+#
+# Jobs:
+#  - packaging-lint : `bash -n` script macOS (shell 3.2) + `plutil -lint` plist +
+#                     Info.plist IMK keys không lệch giữa 2 bản + header C-ABI
+#                     trong module Swift không stale so với `ffi/include/`
+#  - engine-static  : cargo engine 2 arch mac (aarch64 + x86_64) + lipo (MAC-003)
+#  - swift          : swift build + swift test cả 3 package (IMK + tap + app) × 2 arch
+#  - corpus-mac     : replay corpus (shared + mac) --adapter mac + ABI gates
+#  - package-candidate : ZIP/PKG unsigned (không gắn nhãn production)
 name: ci-macos
 
 on:
@@ -14,17 +21,51 @@ on:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
+      - "adapters/macos-app/**"
       - "corpus/mac/**"
+      - "corpus/shared/**"
+      - "core/**"
+      - "config/**"
+      - "ffi/**"
+      - "cli/**"
+      - "xtask/**"
       - "data/tables/keymap_mac.toml"
+      - "scripts/build-macos.sh"
+      - "scripts/install_macos.sh"
+      - "scripts/uninstall_macos.sh"
+      - "scripts/package-macos-pkg.sh"
+      - "scripts/notarize-macos.sh"
+      - "tools/mac/**"
+      - "packaging/macos/**"
       - ".github/workflows/ci-macos.yml"
   pull_request:
     paths:
       - "adapters/macos-imk/**"
       - "adapters/macos-tap/**"
+      - "adapters/macos-app/**"
       - "corpus/mac/**"
+      - "corpus/shared/**"
+      - "core/**"
+      - "config/**"
+      - "ffi/**"
+      - "cli/**"
+      - "xtask/**"
       - "data/tables/keymap_mac.toml"
+      - "scripts/build-macos.sh"
+      - "scripts/install_macos.sh"
+      - "scripts/uninstall_macos.sh"
+      - "scripts/package-macos-pkg.sh"
+      - "scripts/notarize-macos.sh"
+      - "tools/mac/**"
+      - "packaging/macos/**"
       - ".github/workflows/ci-macos.yml"
   workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # S2: log không bao giờ chứa nội dung phím.
+  RUST_LOG: warn
 
 permissions:
   contents: read
@@ -34,9 +75,88 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Rẻ nhất, bắt lớp lỗi "chỉ lộ lúc release": script sai cú pháp bash 3.2,
+  # plist/entitlements hỏng, header C-ABI trong package Swift bị stale.
+  packaging-lint:
+    name: scripts + plist + header C-ABI
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash -n (cú pháp bash của mọi script macOS)
+        run: |
+          # /bin/bash trên runner = 3.2 — đúng shell mà máy macOS có sẵn.
+          /bin/bash --version | head -1
+          for f in \
+            adapters/macos-imk/build-rust.sh \
+            scripts/build-macos.sh \
+            scripts/install_macos.sh \
+            scripts/uninstall_macos.sh \
+            scripts/package-macos-pkg.sh \
+            scripts/notarize-macos.sh \
+            packaging/macos/pkg-scripts/postinstall \
+            packaging/macos/uninstall-check.sh \
+            tools/mac/soak.sh \
+            tools/mac/smoke-imk.sh \
+            tools/mac/mem-check.sh ; do
+            { [ -f "$f" ] && /bin/bash -n "$f"; } || { echo "::error file=$f::bash -n lệch cú pháp"; exit 1; }
+            echo "ok  bash -n $f"
+          done
+
+      - name: Lint cú pháp bash 4+ (script phải chạy được trên bash 3.2 của macOS)
+        run: |
+          # macOS chỉ có bash 3.2: các cú pháp bash 4+ dưới đây chết ở *runtime*
+          # (không phải syntax error) nên `bash -n` bằng bash 5 không bắt được.
+          # shellcheck disable=SC2086 — cố ý tách word cho danh sách file
+          PATTERNS='declare -A|local -A|readarray|mapfile|\$\{[A-Za-z_][A-Za-z0-9_]*(,,|\^\^)\}|&>>|;;&'
+          FILES='adapters/macos-imk/build-rust.sh scripts/build-macos.sh
+                 scripts/install_macos.sh scripts/uninstall_macos.sh
+                 scripts/package-macos-pkg.sh packaging/macos/uninstall-check.sh
+                 scripts/notarize-macos.sh packaging/macos/pkg-scripts/postinstall
+                 tools/mac/soak.sh tools/mac/smoke-imk.sh tools/mac/mem-check.sh'
+          if printf '%s\n' $FILES | xargs grep -nE "$PATTERNS" ; then
+            echo "::error::có cú pháp bash 4+ — macOS chỉ có bash 3.2"
+            exit 1
+          fi
+          echo "ok  không có cú pháp bash 4+"
+
+      - name: plutil -lint (plist + entitlements)
+        run: |
+          for f in packaging/macos/Info-IM.plist packaging/macos/Info-App.plist \
+                   packaging/macos/TextVN.entitlements \
+                   adapters/macos-imk/Resources/Info.plist \
+                   adapters/macos-imk/TextVN-IM.entitlements ; do
+            plutil -lint "$f"
+          done
+
+      - name: Info.plist IMK keys khớp giữa 2 bản (lệch = input source không hiện)
+        run: |
+          for key in CFBundleIdentifier InputMethodConnectionName \
+                     InputMethodServerControllerClass TISInputSourceID ; do
+            a="$(plutil -extract "$key" raw -o - packaging/macos/Info-IM.plist)"
+            b="$(plutil -extract "$key" raw -o - adapters/macos-imk/Resources/Info.plist)"
+            if [ "$a" != "$b" ]; then
+              echo "::error::plist lệch key $key — packaging/macos/Info-IM.plist='$a' vs Resources/Info.plist='$b'"
+              exit 1
+            fi
+            echo "ok  $key = $a"
+          done
+
+      - name: header C-ABI trong module Swift không được lệch ffi/include/
+        run: |
+          cp ffi/include/textvn_ffi.h adapters/macos-imk/Sources/CTextVNFFI/include/
+          if ! git diff --quiet -- adapters/macos-imk/Sources/CTextVNFFI/include/textvn_ffi.h; then
+            echo "::error::header C-ABI stale — copy lại từ ffi/include/textvn_ffi.h rồi commit"
+            git --no-pager diff --stat -- adapters/macos-imk/Sources/CTextVNFFI/include/textvn_ffi.h
+            exit 1
+          fi
+          echo "ok  header C-ABI khớp ffi/include/"
+
   engine-static:
     name: engine staticlib universal (2 arch + lipo)
     runs-on: macos-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +179,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # arch  = Swift/lipo arch name   rust_target = Rust target triple
+          # arch        = tên Swift/lipo (arm64)
+          # rust_target = triple Rust (**aarch64**, KHÔNG phải arm64) — MAC-031
           - arch: arm64
             rust_target: aarch64-apple-darwin
           - arch: x86_64
@@ -68,39 +189,51 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Rust toolchain (lib link cho swift test)
-        run: |
-          rustup target add ${{ matrix.rust_target }}
+        run: rustup target add ${{ matrix.rust_target }}
 
-      - name: Build static lib cho arch hiện tại (MAC-031)
+      # Chạy cargo từ **workspace root**: `target/` nằm ở gốc repo — không phải
+      # trong `adapters/macos-imk/` (bug MAC-031/F2-050).
+      - name: Build staticlib cho arch này
         run: |
           cargo build --target ${{ matrix.rust_target }} -p textvn-ffi
           mkdir -p adapters/macos-imk/lib
           cp target/${{ matrix.rust_target }}/debug/libtextvn_ffi.a adapters/macos-imk/lib/
 
-      - name: Copy FFI header vào CTextVNFFI (MAC-031)
-        run: |
-          mkdir -p adapters/macos-imk/Sources/CTextVNFFI/include
-          cp ffi/include/textvn_ffi.h adapters/macos-imk/Sources/CTextVNFFI/include/
+      # Runner arm64 mặc định KHÔNG có Rosetta → `swift test --arch x86_64` không
+      # chạy được binary Intel. Lệnh là no-op (exit ≠ 0 "already installed") khi
+      # Rosetta đã có → bỏ qua lỗi, test sẽ báo lỗi thật nếu vẫn thiếu.
+      - name: Rosetta 2 (cho `swift test --arch x86_64` trên runner arm64)
+        if: matrix.arch == 'x86_64'
+        run: sudo softwareupdate --install-rosetta --agree-to-license || true
 
       - name: swift build + test (IMK adapter — MAC-030)
         working-directory: adapters/macos-imk
         run: |
           swift build --arch ${{ matrix.arch }}
-          swift test  --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
 
       - name: swift build + test (tap opt-in — P2-2 §8)
         working-directory: adapters/macos-tap
         run: |
           swift build --arch ${{ matrix.arch }}
-          swift test  --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
+
+      - name: swift build + test (menu bar app and settings)
+        working-directory: adapters/macos-app
+        run: |
+          swift build --arch ${{ matrix.arch }}
+          swift test --arch ${{ matrix.arch }}
 
   corpus-mac:
     name: replay corpus --adapter mac
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - name: gen-tables + corpus check (nguồn không được lệch)
         run: |
           cargo run -q -p xtask -- check-tables
@@ -115,3 +248,27 @@ jobs:
         run: |
           cargo run -q -p textvn-cli -- sizes
           cargo run -q -p textvn-cli -- verify
+
+  package-candidate:
+    name: unsigned macOS package candidate (2 arch)
+    runs-on: macos-latest
+    needs: [packaging-lint, swift, corpus-mac]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build bundles and package
+        run: |
+          scripts/build-macos.sh
+          scripts/package-macos-pkg.sh
+      - name: Keep candidate artifacts for native GUI/signing review
+        uses: actions/upload-artifact@v4
+        with:
+          name: TextVN-macos-candidate-${{ github.sha }}
+          path: |
+            dist/macos/*.zip
+            dist/macos/*.tar.gz
+            dist/macos/*.pkg
+            dist/macos/SHA256SUMS*.txt
+          if-no-files-found: error

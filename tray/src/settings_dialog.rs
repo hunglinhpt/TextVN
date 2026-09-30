@@ -13,7 +13,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 #[cfg(windows)]
-use textvn_config::{DiacriticStyle, MacroTrigger, Method, OutputCharset};
+use textvn_config::{DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset};
 
 #[cfg(windows)]
 use crate::autostart;
@@ -720,7 +720,11 @@ fn get_chk(parent: HWND, id: isize) -> bool {
 
 /// Checkbox tuỳ chọn gõ → setter tương ứng (trả version để broadcast `ConfigReload`).
 #[cfg(windows)]
-fn apply_option_checkbox(svc: &SvcManager, id: isize, checked: bool) -> Option<u64> {
+fn apply_option_checkbox(
+    svc: &SvcManager,
+    id: isize,
+    checked: bool,
+) -> Option<std::result::Result<u64, DocError>> {
     Some(match id {
         ID_CHK_AUTO_RESTORE => svc.set_auto_restore_english(checked),
         ID_CHK_FREE_MARKING => svc.set_free_marking(checked),
@@ -730,6 +734,28 @@ fn apply_option_checkbox(svc: &SvcManager, id: isize, checked: bool) -> Option<u
         ID_CHK_SHOW_ON_STARTUP => svc.set_show_dialog_on_startup(checked),
         _ => return None,
     })
+}
+
+/// Chỉ báo TSF reload sau khi config đã lưu thành công. Nếu lỗi I/O, trả control
+/// về giá trị thật thay vì hiển thị lựa chọn mà engine không thể dùng.
+#[cfg(windows)]
+fn save_config_change(
+    hwnd: HWND,
+    change: impl FnOnce(&DialogContext) -> std::result::Result<u64, DocError>,
+) -> bool {
+    match with_ctx(|ctx| change(ctx).map(|ver| ctx.ipc.broadcast_config_reload(ver))) {
+        Some(Ok(())) => true,
+        Some(Err(_)) => {
+            populate_controls_from_config(hwnd);
+            show_information(
+                hwnd,
+                "Không thể lưu cấu hình TextVN",
+                "Thay đổi chưa được áp dụng. Kiểm tra dung lượng đĩa và quyền thư mục AppData rồi thử lại.",
+            );
+            false
+        }
+        None => false,
+    }
 }
 
 #[cfg(windows)]
@@ -783,12 +809,10 @@ unsafe extern "system" fn dialog_wnd_proc(
                     }
                 }
                 ID_BTN_DEFAULT => {
-                    with_ctx(|ctx| {
-                        let ver = ctx.svc.reset_config_defaults();
-                        ctx.ipc.broadcast_config_reload(ver);
-                    });
-                    populate_controls_from_config(hwnd);
-                    crate::notify_tray_state_changed();
+                    if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
+                        populate_controls_from_config(hwnd);
+                        crate::notify_tray_state_changed();
+                    }
                 }
                 ID_COMBO_METHOD if notify_code == CBN_SELCHANGE => {
                     let sel = send_dlg_msg(hwnd, ID_COMBO_METHOD, CB_GETCURSEL, 0, 0).0;
@@ -798,11 +822,9 @@ unsafe extern "system" fn dialog_wnd_proc(
                         3 => Method::SimpleTelex,
                         _ => Method::Telex,
                     };
-                    with_ctx(|ctx| {
-                        let ver = ctx.svc.set_method(m);
-                        ctx.ipc.broadcast_config_reload(ver);
-                    });
-                    crate::notify_tray_state_changed();
+                    if save_config_change(hwnd, |ctx| ctx.svc.set_method(m)) {
+                        crate::notify_tray_state_changed();
+                    }
                 }
                 ID_COMBO_CHARSET if notify_code == CBN_SELCHANGE => {
                     let sel = send_dlg_msg(hwnd, ID_COMBO_CHARSET, CB_GETCURSEL, 0, 0).0;
@@ -812,10 +834,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                         3 => OutputCharset::VniWindows,
                         _ => OutputCharset::UnicodePrecomposed,
                     };
-                    with_ctx(|ctx| {
-                        let ver = ctx.svc.set_output_charset(cs);
-                        ctx.ipc.broadcast_config_reload(ver);
-                    });
+                    let _ = save_config_change(hwnd, |ctx| ctx.svc.set_output_charset(cs));
                 }
                 ID_CHK_AUTOSTART => {
                     let checked = get_chk(hwnd, ID_CHK_AUTOSTART);
@@ -862,18 +881,22 @@ unsafe extern "system" fn dialog_wnd_proc(
                     } else {
                         DiacriticStyle::Old
                     };
-                    with_ctx(|ctx| {
-                        let ver = ctx.svc.set_diacritic_style(style);
-                        ctx.ipc.broadcast_config_reload(ver);
-                    });
+                    let _ = save_config_change(hwnd, |ctx| ctx.svc.set_diacritic_style(style));
                 }
                 id => {
                     let checked = get_chk(hwnd, id);
-                    with_ctx(|ctx| {
-                        if let Some(ver) = apply_option_checkbox(&ctx.svc, id, checked) {
-                            ctx.ipc.broadcast_config_reload(ver);
-                        }
+                    let saved = with_ctx(|ctx| {
+                        apply_option_checkbox(&ctx.svc, id, checked)
+                            .map(|result| result.map(|ver| ctx.ipc.broadcast_config_reload(ver)))
                     });
+                    if matches!(saved, Some(Some(Err(_)))) {
+                        populate_controls_from_config(hwnd);
+                        show_information(
+                            hwnd,
+                            "Không thể lưu cấu hình TextVN",
+                            "Thay đổi chưa được áp dụng. Kiểm tra dung lượng đĩa và quyền thư mục AppData rồi thử lại.",
+                        );
+                    }
                 }
             }
             LRESULT(0)
@@ -1090,17 +1113,27 @@ fn save_macros(hwnd: HWND) -> bool {
     let result = with_ctx(|ctx| {
         let previous = ctx.svc.config().macros;
         match textvn_config::macro_text::parse(&text, &previous) {
-            Ok(macros) => {
-                let ver = ctx.svc.set_macros(macros, trigger);
-                ctx.ipc.broadcast_config_reload(ver);
-                Ok(())
-            }
-            Err(e) => Err(e),
+            Ok(macros) => match ctx.svc.set_macros(macros, trigger) {
+                Ok(ver) => {
+                    ctx.ipc.broadcast_config_reload(ver);
+                    Ok(())
+                }
+                Err(_) => Err(None),
+            },
+            Err(e) => Err(Some(e)),
         }
     });
     match result {
         Some(Ok(())) | None => true,
-        Some(Err(e)) => {
+        Some(Err(None)) => {
+            show_information(
+                hwnd,
+                "Không thể lưu bảng gõ tắt TextVN",
+                "Bảng gõ tắt chưa được áp dụng. Kiểm tra dung lượng đĩa và quyền thư mục AppData rồi thử lại.",
+            );
+            false
+        }
+        Some(Err(Some(e))) => {
             unsafe {
                 let line = e.line.saturating_sub(1);
                 let start = SendMessageW(edit, EM_LINEINDEX, Some(WPARAM(line)), Some(LPARAM(0))).0;

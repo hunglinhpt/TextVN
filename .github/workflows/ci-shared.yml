@@ -60,6 +60,9 @@ jobs:
         with:
           components: rustfmt
       - run: cargo run -q -p xtask -- check-tables
+      # tools/mac/targets/*.json (MAC-061) là nguồn sự thật của harness AX — gate
+      # preset/role/locator chạy được trên mọi OS, không cần máy Mac.
+      - run: cargo run -q -p xtask -- check-mac-targets
 
   abi-header:
     # Header C giữ tay (chưa có `xtask cbindgen`) → verify header ↔ code Rust (P0-2 §6).
@@ -204,7 +207,7 @@ jobs:
           path: |
             dist/*.zip
             dist/*.exe
-            dist/SHA256SUMS.txt
+            dist/SHA256SUMS-*.txt
           if-no-files-found: warn
 
 

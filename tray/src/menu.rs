@@ -232,28 +232,34 @@ impl TrayMenu {
                 self.ipc.broadcast_state_update("*", enabled, ver);
             }
             ID_METHOD_TELEX => {
-                let ver = self.svc.set_method(Method::Telex);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_method(Method::Telex) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_METHOD_VNI => {
-                let ver = self.svc.set_method(Method::Vni);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_method(Method::Vni) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_METHOD_VIQR => {
-                let ver = self.svc.set_method(Method::Viqr);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_method(Method::Viqr) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_METHOD_SIMPLE_TELEX => {
-                let ver = self.svc.set_method(Method::SimpleTelex);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_method(Method::SimpleTelex) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_DIACRITIC_NEW => {
-                let ver = self.svc.set_diacritic_style(DiacriticStyle::New);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_diacritic_style(DiacriticStyle::New) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_DIACRITIC_OLD => {
-                let ver = self.svc.set_diacritic_style(DiacriticStyle::Old);
-                self.ipc.broadcast_config_reload(ver);
+                if let Ok(ver) = self.svc.set_diacritic_style(DiacriticStyle::Old) {
+                    self.ipc.broadcast_config_reload(ver);
+                }
             }
             ID_CURRENT_APP_TOGGLE => {
                 if let Some(app) = current_app {

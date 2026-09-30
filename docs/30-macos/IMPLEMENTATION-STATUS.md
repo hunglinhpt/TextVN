@@ -1,10 +1,20 @@
 # IMPLEMENTATION STATUS — adapter macOS (Farch-4)
 
-> Cập nhật: 2026-09-29 · Tương ứng task MAC-001…066 (`P2-6-TASKS.md`).
+> Cập nhật audit: 2026-09-30 · Tương ứng task MAC-001…066 (`P2-6-TASKS.md`).
 > Nguyên tắc ghi nhận: **trung thực** — code xong ≠ verified; spike cần máy
 > Mac thật thì ghi rõ, không tick trước.
 
-## Đã code hoàn chỉnh (code-complete, chạy trên CI macOS runner)
+## Đã triển khai ở mức mã nguồn (không đồng nghĩa đã pass CI hoặc GUI)
+
+Audit 2026-09-30 sửa đồng bộ EN/VN IMK ↔ app (ToggleViEn, Snapshot, StateUpdate),
+thứ tự self-heal trước engine, truyền IPC frame đầy đủ, retry khi mất kết nối,
+smoke TextEdit không đụng tài liệu đang mở, nhãn kiến trúc artifact và gate
+notarization. Chưa thể khẳng định những sửa này hoạt động thực tế cho đến khi
+`swift build/test` trên macOS runner và smoke GUI trên máy Mac hoàn tất.
+Workflow `ci-macos.yml` nay build/test cả `macos-app` và tạo ZIP/PKG **candidate
+chưa ký** để kiểm; artifact CI này không phải bản production/notarized.
+Script build/package từ chối ghi đè ZIP/PKG cùng version; khi phát hành bản mới
+cần tăng version trong `Cargo.toml` hoặc lưu bản cũ trước.
 
 | Thành phần | Vị trí | Task | Verify |
 |---|---|---|---|
@@ -20,6 +30,9 @@
 | Bảng điều khiển Settings SwiftUI (UniKey 4.6 RC2 parity: 505x245 / 505x490, macro editor) | `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift` | MAC-052 (phần code) | `swift test` (`TextVNAppTests`) |
 | Cấu hình đóng gói & Homebrew Cask (Info-IM, Info-App, Entitlements, uninstall-check, textvn.rb) | `packaging/macos/`, `packaging/homebrew/` | MAC-054/056/057 | `uninstall-check.sh` + CI |
 | Kịch bản đóng gói & cài đặt (`build-macos.sh`, `install_macos.sh`, `uninstall_macos.sh`) | `scripts/` | MAC-054/056 | bash syntax check + CI |
+| Đóng gói `.pkg` + notarize (`package-macos-pkg.sh`, `notarize-macos.sh`, `component.plist`, `distribution.xml`, `pkg-scripts/postinstall`) | `scripts/`, `packaging/macos/` | MAC-054/055 | `bash -n` + `plutil` lint (job `packaging-lint`) · chạy thật ⏳ |
+| Harness macOS + targets 12 app (`soak.sh`, `smoke-imk.sh`, `mem-check.sh`, `targets/*.json`) | `tools/mac/` | MAC-061…063 · P2-5 §4/§5 | `bash -n` + `cargo run -p xtask -- check-mac-targets` (mọi OS) · chạy máy thật ⏳ |
+| Gate schema targets mac trong xtask (parser JSON 0 dependency + 9 unit test) | `xtask/src/check_mac_targets.rs` | MAC-061 | `cargo test -p xtask` · job `xtask check-tables` (`ci-shared.yml`) |
 | CI macOS | `.github/workflows/ci-macos.yml` | MAC-064 (job chính) | xanh trên GitHub ⏳ |
 | Replay mac trong ci-shared | `.github/workflows/ci-shared.yml` (replay job + `--adapter mac`) | — | ⏳ |
 
@@ -34,7 +47,7 @@
 | Đăng ký input source (kill TextInputMenuAgent / logout) | MAC-007 (S9) | manual |
 | Notarization / Developer ID | MAC-008, MAC-055 | cần cert |
 | CGEventTap thật với quyền grant/revoke | MAC-009, MAC-043 | manual |
-| AX harness 12 app, soak 24h, perf baseline-mac | MAC-060…063 | máy thật + GUI |
+| AX harness 12 app (Swift `ax-driver` **chưa viết** — không build được ngoài Mac), soak 24h, perf baseline-mac | MAC-060…063 | máy thật + GUI — riêng schema `targets/*.json` đã gate headless bằng `cargo xtask check-mac-targets` |
 | `.pkg` cài/gỡ sạch, updater, Homebrew cask | MAC-054/056/057 | release phase |
 
 ## Quyết định kỹ thuật đã chốt trong code (ghi lại cho review)

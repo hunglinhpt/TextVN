@@ -24,7 +24,7 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
 | Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` — không cần quyền quản trị | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
-| macOS 13+ (Apple Silicon / Intel) | `TextVN-<ver>-macos-universal.zip` → kéo `TextVN-IM.app` vào `~/Library/Input Methods/` | xem [Hướng dẫn sử dụng macOS](docs/30-macos/P2-4-ui-packaging-release.md) |
+| macOS 13+ (Apple Silicon / Intel) | `TextVN-mac-v<ver>.pkg` → `installer -pkg … -target CurrentUserHomeDirectory` (không sudo); zip `TextVN-macos-<universal\|arm64\|x86_64>-v<ver>.zip` → kéo `TextVN-IM.app` vào `~/Library/Input Methods/` | xem [Hướng dẫn sử dụng macOS](docs/30-macos/P2-4-ui-packaging-release.md) |
 | Linux (IBus / Fcitx5) | `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, không cần root) | cùng tarball → `./textvn-portable.sh` |
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
@@ -34,7 +34,7 @@ Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn s�
 | Nền tảng | Trạng thái |
 |---|---|
 | Windows 10/11 x64 (TSF) | ✅ Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows. |
-| macOS 13+ Apple Silicon / Intel | 🔧 Beta — IMK adapter + CGEventTap fallback hoàn chỉnh; engine Rust universal (arm64 + x86_64), corpus 114 case. CI đang ổn định. |
+| macOS 13+ Apple Silicon / Intel | 🔧 Beta — IMK adapter + CGEventTap opt-in; corpus headless 114 case. Build Swift, GUI typing, cài/gỡ `.pkg` và notarization còn cần xác thực trên máy Mac thật; không coi là production. |
 | Linux IBus / Fcitx5 | ✅ Release candidate — CI kiểm tra với ibus-daemon và fcitx5 thật. |
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
@@ -53,6 +53,15 @@ cd adapters/macos-imk
 ./build-rust.sh                   # build engine + swift build + assemble TextVN-IM.app
 ./build-rust.sh --lib-only        # chỉ build libtextvn_ffi.a (cho swift test)
 ./build-rust.sh --release         # build bản release
+```
+
+```bash
+# macOS — đóng gói phát hành (từ thư mục gốc repo; script tự kiểm tool khi chạy)
+scripts/build-macos.sh                            # universal nếu đủ 2 arch; nếu không, tên zip ghi arch thực tế
+scripts/package-macos-pkg.sh --rebuild            # .pkg per-user (pkgbuild + productbuild, không sudo)
+scripts/package-macos-pkg.sh --rebuild --notarize # thêm productsign (Developer ID Installer, env
+                                                  #   DEVELOPER_ID_INSTALLER) + notarytool + staple
+scripts/notarize-macos.sh dist/macos/TextVN-mac-v<ver>.pkg   # notarize riêng lẻ (tuỳ chọn)
 ```
 
 ```bash

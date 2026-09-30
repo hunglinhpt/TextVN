@@ -1,0 +1,23 @@
+{
+  "targets_version": 1,
+  "app_id": "terminal",
+  "match": { "any": [ { "bundle_id": "com.apple.Terminal" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/System/Applications/Utilities/Terminal.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "terminal",
+      "preset": "mac.terminal",
+      "locators": [
+        { "control_type": "AXTextArea", "class_name": "AXTerminal" },
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Bug B8: terminal dùng ForwardAsCommit (chỉ chèn text, KHÔNG xoá). class_name = AXSubrole nếu Terminal khai báo."
+    }
+  ]
+}

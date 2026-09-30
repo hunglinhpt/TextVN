@@ -12,6 +12,10 @@ if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [St
     Remove-ItemProperty -Path $run -Name 'TextVN' -ErrorAction SilentlyContinue
 }
 Write-Host 'Go dang ky TSF...'
-Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
+$r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
+if ($r.ExitCode -ne 0) {
+    Write-Error ('Huy dang ky TSF that bai, ma loi ' + $r.ExitCode + '. Khong xoa thu muc portable cho den khi "textvn-cli.exe doctor" bao ro nguyen nhan.')
+    exit $r.ExitCode
+}
 Write-Host 'Xong. Neu Windows bao textvn-tsf.dll dang duoc dung, hay dang xuat roi xoa thu muc.'
 Write-Host 'Cau hinh (go tat, tuy chon) van o %APPDATA%\TextVN.'

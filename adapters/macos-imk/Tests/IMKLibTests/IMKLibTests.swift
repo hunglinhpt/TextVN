@@ -341,3 +341,211 @@ final class MarkedStateTests: XCTestCase {
         XCTAssertFalse(MarkedState.exceedsLimit("được"))
     }
 }
+
+// ---------------------------------------------------------------- IPC codec (R1)
+
+final class IpcCodecTests: XCTestCase {
+    func testDecodeWireSamplesIpcV1() {
+        // ConfigReload: version LÀ SỐ — decode String làm rớt kết nối (R1 F14).
+        let reload = Data("{\"type\":\"ConfigReload\",\"version\":42}".utf8)
+        XCTAssertEqual(IpcMessage.decode(reload), .configReload(version: 42))
+        // StateUpdate: version số + per-app.
+        let update = Data("{\"type\":\"StateUpdate\",\"app_id\":\"com.apple.safari\",\"enabled\":false,\"version\":7}".utf8)
+        XCTAssertEqual(
+            IpcMessage.decode(update),
+            .stateUpdate(appID: "com.apple.safari", enabled: false, version: 7)
+        )
+        // Hello: version là CHUỖI.
+        let hello = Data("{\"type\":\"Hello\",\"pid\":123,\"abi\":1,\"version\":\"0.2.0\"}".utf8)
+        XCTAssertEqual(IpcMessage.decode(hello), .hello(pid: 123, abi: 1, version: "0.2.0"))
+        // ToggleViEn: chiều client→server.
+        let toggle = Data("{\"type\":\"ToggleViEn\",\"app_id\":\"*\",\"enabled\":true}".utf8)
+        XCTAssertEqual(IpcMessage.decode(toggle), .toggleViEn(appID: "*", enabled: true))
+    }
+
+    func testDecodeRejectsMalformed() {
+        // pid tràn Int32 → từ chối, KHÔNG trap (`Int32.init(Int)` tràn là crash).
+        let overflow = Data("{\"type\":\"Hello\",\"pid\":2147483648,\"abi\":1,\"version\":\"x\"}".utf8)
+        XCTAssertNil(IpcMessage.decode(overflow))
+        // type lạ → violation (danh sách v1 đóng — ipc.v1.md).
+        XCTAssertNil(IpcMessage.decode(Data("{\"type\":\"Mystery\"}".utf8)))
+        // JSON hỏng → violation.
+        XCTAssertNil(IpcMessage.decode(Data("not json".utf8)))
+        // thiếu field bắt buộc.
+        XCTAssertNil(IpcMessage.decode(Data("{\"type\":\"ToggleViEn\",\"app_id\":\"*\"}".utf8)))
+    }
+
+    // ---- nextFrame: u32 LE prefix (R1 F17) ----
+
+    private func push(_ payload: String, into buffer: inout Data) {
+        var frame = Data(count: 4)
+        frame.withUnsafeMutableBytes { raw in
+            raw.storeBytes(of: UInt32(payload.utf8.count).littleEndian, as: UInt32.self)
+        }
+        frame.append(Data(payload.utf8))
+        buffer.append(frame)
+    }
+
+    func testNextFrameSplitsCorrectly() {
+        var buffer = Data()
+        push("abc", into: &buffer)
+        push("được", into: &buffer)
+        guard case let .frame(first) = IpcClient.nextFrame(from: &buffer) else {
+            return XCTFail("cần frame đầu")
+        }
+        XCTAssertEqual(first, Data("abc".utf8))
+        guard case let .frame(second) = IpcClient.nextFrame(from: &buffer) else {
+            return XCTFail("cần frame thứ hai")
+        }
+        XCTAssertEqual(second, Data("được".utf8))
+        if case .needMore = IpcClient.nextFrame(from: &buffer) {} else {
+            XCTFail("buffer rỗng → needMore")
+        }
+    }
+
+    func testNextFrameViolations() {
+        // length = 0 → violation.
+        var zero = Data(count: 8)
+        zero.withUnsafeMutableBytes { $0.storeBytes(of: UInt32(0).littleEndian, as: UInt32.self) }
+        if case .violation = IpcClient.nextFrame(from: &zero) {} else {
+            XCTFail("length 0 → violation")
+        }
+        // length > max → violation.
+        var tooBig = Data(count: 4)
+        tooBig.withUnsafeMutableBytes { $0.storeBytes(of: UInt32(70_000).littleEndian, as: UInt32.self) }
+        if case .violation = IpcClient.nextFrame(from: &tooBig) {} else {
+            XCTFail("length > max → violation")
+        }
+        // đủ 4 byte length nhưng payload chưa đủ → needMore.
+        var partial = Data(count: 4)
+        partial.withUnsafeMutableBytes { $0.storeBytes(of: UInt32(10).littleEndian, as: UInt32.self) }
+        partial.append(Data("abc".utf8))
+        if case .needMore = IpcClient.nextFrame(from: &partial) {} else {
+            XCTFail("payload thiếu → needMore")
+        }
+    }
+}
+
+// ---------------------------------------------------------------- ApplyReplace regressions (R1)
+
+final class ApplyReplaceRegressionTests: XCTestCase {
+    private func outcome(
+        _ action: KeyOutcome.Action, flags: UInt32 = FFI.flagConsumed
+    ) -> KeyOutcome {
+        KeyOutcome(action: action, flags: flags)
+    }
+
+    /// F3 — activate-transition: marked rỗng + delete_count 4 (chữ thật "duoc"
+    /// đã vào document qua PASS) → xóa thật 4 ký tự rồi mới setMarked.
+    func testPreeditReplaceDeletesPassedPrefix() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 4, insert: "duọc", preedit: "duọc")),
+            strategy: .preedit, target: target, marked: marked
+        )
+        XCTAssertEqual(target.deletedTotal, 4, "passed prefix phải xóa THẬT (F3)")
+        XCTAssertEqual(marked.text, "duọc")
+        XCTAssertEqual(target.inserted.count, 0)
+    }
+
+    /// F4 — marked active + BackspaceType: thu hồi marked (setMarkedText("")),
+    /// KHÔNG unmark-commit → không nhân đôi ("duđu").
+    func testBackspaceTypeWithMarkedActiveDoesNotDuplicate() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        marked.set("du")
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 2, insert: "đu", preedit: "")),
+            strategy: .backspaceType, target: target, marked: marked
+        )
+        XCTAssertEqual(target.deletedTotal, 0, "marked thu hồi bằng composition")
+        XCTAssertEqual(target.inserted.map(\.text), ["đu"], "chỉ 1 lần chèn")
+        XCTAssertTrue(marked.isEmpty)
+    }
+
+    /// F4 variant — owned > marked: xóa đúng phần chữ thật.
+    func testBackspaceTypeDeletesRealPrefixBeyondMarked() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        marked.set("ưo")
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 5, insert: "được", preedit: "")),
+            strategy: .backspaceType, target: target, marked: marked
+        )
+        XCTAssertEqual(target.deletedTotal, 3, "5 owned - 2 marked = 3 chữ thật")
+        XCTAssertEqual(target.inserted.map(\.text), ["được"])
+    }
+
+    /// F5 — REPLACE + preedit rỗng (macro) dưới strategy Preedit → backspaceType,
+    /// macro KHÔNG được gạch chân marked.
+    func testPreeditStrategyWithEmptyPreeditUsesBackspaceMechanics() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 4, insert: "Cảm ơn", preedit: "")),
+            strategy: .preedit, target: target, marked: marked
+        )
+        XCTAssertEqual(target.deletedTotal, 4)
+        XCTAssertEqual(target.inserted.map(\.text), ["Cảm ơn"])
+        XCTAssertTrue(marked.isEmpty)
+    }
+
+    /// F6 — commit-early B11 phải gọi onReset, chỉ commit phần đầu đang marked.
+    func testMarkedLimitCommitsEarlyAndResets() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        marked.set("abcdefgh")
+        var resetCalled = false
+        let long = "abcdefghi" // 9 graphemes → vượt limit
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 8, insert: long, preedit: long)),
+            strategy: .preedit, target: target, marked: marked,
+            onReset: { resetCalled = true }
+        )
+        XCTAssertTrue(resetCalled, "commit-early phải reset engine (F6)")
+        XCTAssertEqual(target.inserted.first?.text, "abcdefgh", "commit PHẦN ĐẦU đang marked")
+        XCTAssertTrue(marked.isEmpty)
+    }
+
+    /// COMMIT khi app đã tự commit marked (markedRange notFound) → chỉ chèn
+    /// boundary, KHÔNG nhân đôi pending (F9).
+    func testCommitWhenAppAlreadyCommittedMarked() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        marked.set("chào")
+        target.markedRangeValue = NSRange(location: NSNotFound, length: 0)
+        try ApplyReplace.apply(
+            outcome(.commit(insert: "\n")),
+            strategy: .preedit, target: target, marked: marked
+        )
+        XCTAssertEqual(target.inserted.map(\.text), ["\n"], "chỉ boundary — marked đã do app commit")
+    }
+
+    /// Đơn vị đếm (F7): marked có emoji — scalar (engine) ≠ utf16 (NSRange) ≠ grapheme.
+    func testUnitConsistencyWithEmoji() throws {
+        let target = MockTextTarget()
+        let marked = MarkedState()
+        marked.set("😀x") // 2 scalar / 3 utf16 / 2 grapheme
+        try ApplyReplace.apply(
+            outcome(.replace(deleteCount: 2, insert: "OK", preedit: "")),
+            strategy: .backspaceType, target: target, marked: marked
+        )
+        XCTAssertEqual(target.deletedTotal, 0, "2 owned = 2 scalar marked → 0 chữ thật")
+        XCTAssertEqual(target.inserted.map(\.text), ["OK"])
+    }
+}
+
+final class MarkedStateUnitTests: XCTestCase {
+    /// Ba đơn vị đếm khác nhau (F7): scalar (engine) vs utf16 (NSRange) vs grapheme (B11).
+    func testThreeCountingUnits() {
+        let marked = MarkedState()
+        marked.set("đư😀") // 3 scalar, 4 utf16, 3 grapheme
+        XCTAssertEqual(marked.scalarCount, 3)
+        XCTAssertEqual(marked.utf16Count, 4)
+        XCTAssertEqual(marked.graphemeCount, 3)
+        marked.clear()
+        XCTAssertTrue(marked.isEmpty)
+    }
+}
+  

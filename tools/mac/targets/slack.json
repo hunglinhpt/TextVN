@@ -1,0 +1,23 @@
+{
+  "targets_version": 1,
+  "app_id": "slack",
+  "match": { "any": [ { "bundle_id": "com.tinyspeck.slackmacgap" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Slack.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.slack",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXWebArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Bug B7 (Electron) + B2: Enter gửi tin — sau Enter engine phải reset (không lặp từ). Chưa verify máy thật."
+    }
+  ]
+}

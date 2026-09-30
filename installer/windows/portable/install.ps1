@@ -8,6 +8,7 @@ $r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir
 if ($r.ExitCode -eq 0) {
     Write-Host 'Da dang ky. Mo TextVN...'
 } else {
-    Write-Host ('Dang ky that bai, ma loi ' + $r.ExitCode + '. Chay "textvn-cli.exe doctor" de xem nguyen nhan.')
+    Write-Error ('Dang ky that bai, ma loi ' + $r.ExitCode + '. TextVN khong duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet. Chay "textvn-cli.exe doctor" de xem nguyen nhan.')
+    exit $r.ExitCode
 }
 Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -WorkingDirectory $dir

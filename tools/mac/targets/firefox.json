@@ -1,0 +1,32 @@
+{
+  "targets_version": 1,
+  "app_id": "firefox",
+  "match": { "any": [ { "bundle_id": "org.mozilla.firefox" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Firefox.app" ],
+    "args": [ "--new-window" ],
+    "ready_role": "AXTextField"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "mac.firefox.url",
+      "locators": [
+        { "control_type": "AXTextField", "automation_id": "urlbar-input" },
+        { "control_type": "AXComboBox" },
+        { "control_type": "AXTextField" }
+      ],
+      "notes": "Gecko: tuỳ version expose AXTextField hoặc AXComboBox → 3 locator fallback (mirror F6-3 bản Windows: Firefox không expose Document với about:blank)."
+    },
+    {
+      "field_role": "body",
+      "preset": "mac.safari.body",
+      "locators": [
+        { "control_type": "AXWebArea" },
+        { "control_type": "AXTextArea", "class_name": "AXContentEditable" }
+      ],
+      "notes": "Reuse preset body WebKit/Blink (G15) — Gecko cùng semantics preedit."
+    }
+  ]
+}

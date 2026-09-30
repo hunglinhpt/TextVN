@@ -46,6 +46,10 @@ const TSF_TIP_REGISTRY_KEY: &str = r"Software\Classes\CLSID\{6F2B9C31-8E47-4D2A-
 /// Khóa TIP của CTF (tương đối HKLM\SOFTWARE / HKCU\Software) — khớp `textvn-cli register`.
 #[cfg(windows)]
 const TSF_CTF_TIP_KEY: &str = r"Software\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+#[cfg(windows)]
+const TSF_PROFILE_GUID: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
+#[cfg(windows)]
+const TSF_LANGS: [u16; 2] = [0x042A, 0x0409];
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
@@ -227,15 +231,21 @@ fn ensure_tsf_tip_registered() {
 
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let _ = std::process::Command::new(cli_path)
+    let status = std::process::Command::new(cli_path)
         .arg("register")
         .arg("--dll")
         .arg(&dll)
         .creation_flags(CREATE_NO_WINDOW)
         .status();
+    if !status.is_ok_and(|s| s.success()) {
+        // Không hiện hộp thoại khi autostart (tránh làm phiền mỗi lần đăng nhập),
+        // nhưng lần mở Settings người dùng có nút "Cài & bật TSF" với lỗi rõ ràng.
+        eprintln!("TextVN: TSF registration did not complete; open Settings to repair it.");
+    }
 }
 
-/// COM server trỏ đúng DLL đang có + profile TIP tồn tại (HKLM hoặc fallback HKCU).
+/// COM server trỏ đúng DLL đang có + đầy đủ profile VI/EN. Một CTF root rỗng
+/// từng khiến tray bỏ qua sửa chữa dù TextVN chưa thể gõ được.
 #[cfg(windows)]
 fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
     let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
@@ -244,9 +254,15 @@ fn tsf_registration_is_current(dll: &std::path::Path) -> bool {
     let server_ok = server.is_some_and(|p| {
         p.eq_ignore_ascii_case(&dll.to_string_lossy()) && std::path::Path::new(&p).is_file()
     });
-    server_ok
-        && (registry_key_exists(HKEY_LOCAL_MACHINE, TSF_CTF_TIP_KEY)
-            || registry_key_exists(HKEY_CURRENT_USER, TSF_CTF_TIP_KEY))
+    server_ok && TSF_LANGS.iter().all(|lang| tsf_profile_is_current(*lang))
+}
+
+#[cfg(windows)]
+fn tsf_profile_is_current(lang: u16) -> bool {
+    let key = format!(r"{TSF_CTF_TIP_KEY}\LanguageProfile\0x{lang:08x}\{TSF_PROFILE_GUID}");
+    let user_ok = registry_key_exists(HKEY_CURRENT_USER, &key)
+        && read_registry_dword(HKEY_CURRENT_USER, &key, "Enable").is_some_and(|v| v != 0);
+    user_ok || registry_key_exists(HKEY_LOCAL_MACHINE, &key)
 }
 
 #[cfg(windows)]
@@ -287,6 +303,27 @@ fn read_registry_string(root: HKEY, path: &str) -> Option<String> {
     }
     let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
     Some(String::from_utf16_lossy(&buf[..len]))
+}
+
+#[cfg(windows)]
+fn read_registry_dword(root: HKEY, path: &str, name: &str) -> Option<u32> {
+    let key_wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+    let name_wide: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+    let mut value = 0u32;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    // SAFETY: key/name NUL-terminated; `value` đúng kích thước REG_DWORD.
+    let status = unsafe {
+        RegGetValueW(
+            root,
+            PCWSTR(key_wide.as_ptr()),
+            PCWSTR(name_wide.as_ptr()),
+            RRF_RT_REG_DWORD,
+            None,
+            Some((&mut value as *mut u32).cast()),
+            Some(&mut size),
+        )
+    };
+    (status == ERROR_SUCCESS && size == std::mem::size_of::<u32>() as u32).then_some(value)
 }
 
 fn main() {
@@ -403,7 +440,12 @@ fn run_tray_app() {
     // Khởi động background Named Pipe loop
     ipc.start();
 
-    ensure_tsf_tip_registered();
+    // Build/release smoke must prove tray IPC lifecycle without rewriting the
+    // developer's active TSF registration to a transient target\release DLL.
+    // Normal user launches still repair a missing or stale per-user registration.
+    if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
+        ensure_tsf_tip_registered();
+    }
 
     // TSF là đường gõ chuẩn mặc định. Low-level global hook chỉ được khởi động
     // khi người dùng chọn "Bật chế độ tương thích" trong menu khay.

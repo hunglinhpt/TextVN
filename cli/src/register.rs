@@ -340,6 +340,29 @@ mod win_impl {
         Some(String::from_utf16_lossy(&buf[..len]).trim().to_string())
     }
 
+    /// Đọc DWORD có tên trong registry. `Enable=1` của fallback HKCU là một
+    /// postcondition bắt buộc: chỉ có key CTF gốc không có nghĩa Windows đã có
+    /// profile TIP dùng được.
+    fn reg_read_dword(root: HKEY, path: &str, name: &str) -> Option<u32> {
+        let subkey = wide(path);
+        let value = wide(name);
+        let mut out = 0u32;
+        let mut size = std::mem::size_of::<u32>() as u32;
+        // SAFETY: buffer `out` có đúng bốn byte, tên/key UTF-16 kết thúc nul.
+        let status = unsafe {
+            RegGetValueW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR(value.as_ptr()),
+                RRF_RT_REG_DWORD,
+                None,
+                Some((&mut out as *mut u32).cast()),
+                Some(&mut size),
+            )
+        };
+        (status == ERROR_SUCCESS && size == std::mem::size_of::<u32>() as u32).then_some(out)
+    }
+
     fn delete_tree(root: HKEY, path: &str) {
         let subkey = wide(path);
         // SAFETY: buffer nul-terminated.
@@ -558,8 +581,9 @@ mod win_impl {
         ok
     }
 
-    /// Kích hoạt profile cho cả session (không chỉ thread của CLI).
-    fn activate_for_session() {
+    /// Kích hoạt profile cho cả session (không chỉ thread của CLI), trả kết quả
+    /// để caller không báo cài đặt thành công khi Windows từ chối profile.
+    fn activate_for_session() -> bool {
         // SAFETY: COM đã init.
         unsafe {
             let Ok(mgr) = CoCreateInstance::<_, ITfInputProcessorProfileMgr>(
@@ -567,7 +591,8 @@ mod win_impl {
                 None,
                 CLSCTX_INPROC_SERVER,
             ) else {
-                return;
+                say("  ActivateProfile(VI): không tạo được profile manager");
+                return false;
             };
             let r = mgr.ActivateProfile(
                 TF_PROFILETYPE_INPUTPROCESSOR,
@@ -578,10 +603,50 @@ mod win_impl {
                 TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE,
             );
             match r {
-                Ok(()) => say("  ActivateProfile(VI, session) → OK"),
-                Err(e) => say(&format!("  ActivateProfile(VI) → {:#010x}", e.code().0)),
+                Ok(()) => {
+                    say("  ActivateProfile(VI, session) → OK");
+                    true
+                }
+                Err(e) => {
+                    say(&format!("  ActivateProfile(VI) → {:#010x}", e.code().0));
+                    false
+                }
             }
         }
+    }
+
+    /// Windows đã nhận profile để dùng cho một ngôn ngữ chưa. Đây là kiểm tra
+    /// sau `InstallLayoutOrTip`, không chỉ là kiểm tra key registry có tồn tại.
+    fn profile_is_enabled(lang: u16) -> bool {
+        if !com_init() {
+            return false;
+        }
+        // SAFETY: COM được khởi tạo ở trên; interface do hệ thống cấp.
+        unsafe {
+            CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                &CLSID_TF_InputProcessorProfiles,
+                None,
+                CLSCTX_INPROC_SERVER,
+            )
+            .and_then(|profiles| profiles.IsEnabledLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID))
+            .map(|enabled| enabled.as_bool())
+            .unwrap_or(false)
+        }
+    }
+
+    fn profile_metadata_ok(lang: u16) -> bool {
+        let key = ctf_profile_key(lang);
+        // Profile do API machine-wide tạo không luôn có `Enable` dưới HKLM;
+        // fallback per-user của TextVN thì phải có nó và đặt thành 1.
+        let user_ok = reg_key_exists(HKEY_CURRENT_USER, &key)
+            && reg_read_dword(HKEY_CURRENT_USER, &key, "Enable").is_some_and(|v| v != 0);
+        user_ok || reg_key_exists(HKEY_LOCAL_MACHINE, &key)
+    }
+
+    fn registration_metadata_ok() -> bool {
+        REGISTER_LANGS
+            .iter()
+            .all(|(_, lang)| profile_metadata_ok(*lang))
     }
 
     pub fn do_register(dll_path: &Path, no_taskbar: bool, scope: Scope) -> i32 {
@@ -622,26 +687,46 @@ mod win_impl {
         // `Register()?` (HKLM) nên cài per-user KHÔNG bao giờ tới InstallLayoutOrTip.
         let icon = icon_path(dll_path);
         let api_ok = register_with_tsf_api("TextVN", &icon);
-        let machine_registered = reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_tip_key());
-        if !api_ok && !machine_registered {
+        let machine_registered = registration_metadata_ok();
+        let profiles_ok = if !api_ok && !machine_registered {
             if scope == Scope::Machine {
                 return 3;
             }
-            register_ctf_per_user("TextVN", &icon);
+            register_ctf_per_user("TextVN", &icon)
+        } else {
+            true
+        };
+        if !profiles_ok || !registration_metadata_ok() {
+            say("FAIL: profile TSF chưa được đăng ký đầy đủ");
+            return if scope == Scope::Machine { 3 } else { 1 };
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
-        if no_taskbar {
-            call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL");
-            call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL");
+        let layouts_ok = if no_taskbar {
+            call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
+                && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
         } else {
-            for (_, lang) in REGISTER_LANGS {
-                call_layout_or_tip(lang, ILOT_DEFPROFILE, "DEFPROFILE");
-            }
+            REGISTER_LANGS
+                .iter()
+                .all(|(_, lang)| call_layout_or_tip(*lang, ILOT_DEFPROFILE, "DEFPROFILE"))
+        };
+        if !layouts_ok {
+            say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");
+            return 1;
         }
 
         // Bước 4: kích hoạt ngay cho session (kể cả bản tray-only).
-        activate_for_session();
+        if !activate_for_session() {
+            say("FAIL: Windows không kích hoạt được profile TextVN cho phiên hiện tại");
+            return 1;
+        }
+
+        // `--no-taskbar` chủ động gỡ layout khỏi danh sách; không đòi hỏi
+        // IsEnabledLanguageProfile trong trường hợp dành riêng cho tray.
+        if !no_taskbar && !registration_ok() {
+            say("FAIL: hậu kiểm đăng ký TSF không đạt");
+            return 1;
+        }
 
         if no_taskbar {
             say("=== Đăng ký hoàn tất (tray-only, profile đã được kích hoạt). ===");
@@ -708,15 +793,18 @@ mod win_impl {
         0
     }
 
-    /// COM server trỏ tới DLL còn tồn tại + profile TIP có ở HKLM hoặc fallback HKCU.
+    /// COM server trỏ tới DLL còn tồn tại + cả profile VI/EN được Windows bật.
+    /// Không coi một CTF root rỗng/đăng ký dở là thành công.
     pub fn registration_ok() -> bool {
         let inproc = format!(r"{}\InprocServer32", clsid_key());
         let server_ok = reg_read_string(HKEY_CURRENT_USER, &inproc)
             .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc))
             .is_some_and(|p| Path::new(&p).is_file());
         server_ok
-            && (reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_tip_key())
-                || reg_key_exists(HKEY_CURRENT_USER, &ctf_tip_key()))
+            && registration_metadata_ok()
+            && REGISTER_LANGS
+                .iter()
+                .all(|(_, lang)| profile_is_enabled(*lang))
     }
 
     pub fn do_status() -> i32 {
@@ -759,7 +847,13 @@ mod win_impl {
                 }
             }
         }
-        0
+        if registration_ok() {
+            say("TIP registration: OK");
+            0
+        } else {
+            say("TIP registration: INCOMPLETE");
+            1
+        }
     }
 }
 

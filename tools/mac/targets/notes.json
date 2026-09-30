@@ -1,0 +1,22 @@
+{
+  "targets_version": 1,
+  "app_id": "notes",
+  "match": { "any": [ { "bundle_id": "com.apple.Notes" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/System/Applications/Notes.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.notes",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Bug B11 (marked ngắn → commit ngay) + B13 (mất focus khi đổi note đang marked)."
+    }
+  ]
+}

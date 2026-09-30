@@ -16,12 +16,14 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
-	<key>LSBackgroundOnly</key>
+	<!-- LSUIElement (KHÔNG LSBackgroundOnly): process IMK phải dựng được
+	     IMKCandidateWindow/mode popup — background-only cấm window (R1 F11). -->
+	<key>LSUIElement</key>
 	<true/>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
@@ -33,8 +35,11 @@
 	<string>TextVNInputController</string>
 	<key>TISInputSourceID</key>
 	<string>vn.textvn.inputmethod.TextVNIM</string>
+	<!-- TISIntendedLanguage là ARRAY (phần tử đầu = primary) theo TextInputSources.h (R1 F12). -->
 	<key>TISIntendedLanguage</key>
-	<string>vi</string>
+	<array>
+		<string>vi</string>
+	</array>
 	<key>tsInputMethodCharacterRepertoireKey</key>
 	<array>
 		<string>Latn</string>

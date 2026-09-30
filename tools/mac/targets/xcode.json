@@ -1,0 +1,32 @@
+{
+  "targets_version": 1,
+  "app_id": "xcode",
+  "match": { "any": [ { "bundle_id": "com.apple.dt.Xcode" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Xcode.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.xcode",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Editor source (role thật phụ thuộc Xcode version — chưa verify máy thật)."
+    },
+    {
+      "field_role": "candidate",
+      "preset": "mac.xcode",
+      "locators": [
+        { "control_type": "AXList" },
+        { "control_type": "AXTable" },
+        { "control_type": "AXWindow", "name_regex": "ompletion|gợi ý" }
+      ],
+      "notes": "Bug B3: popup autocomplete — engine phải PASS, không xen vào danh sách gợi ý (mirror role=candidate bản Windows)."
+    }
+  ]
+}

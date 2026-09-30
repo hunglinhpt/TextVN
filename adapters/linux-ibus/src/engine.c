@@ -286,6 +286,11 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
         (keyval == IBUS_KEY_space || keyval == IBUS_KEY_KP_Space)) {
+        /* The modifiers were armed for the Ctrl+Shift tap before Space arrived.
+         * This shortcut already toggles now, so disarm it before the later
+         * key-release notifications; otherwise releasing Shift/Control toggles
+         * a second time and leaves the mode unchanged. */
+        lc_modifier_toggle_reset(&self->toggle);
         toggle_vietnamese(self);
         return TRUE;
     }

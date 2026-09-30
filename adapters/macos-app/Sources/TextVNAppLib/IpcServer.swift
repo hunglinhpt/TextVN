@@ -11,7 +11,11 @@ public protocol IpcServerDelegate: AnyObject {
 public final class IpcServer {
     public static let shared = IpcServer()
     public static let maxFrameLength: Int = 65_536
-    public static let serverVersion = "0.1.0"
+    /// Version gửi trong `Hello`/`Snapshot` — đọc từ Info.plist của TextVN.app,
+    /// fallback hằng khi chạy trong swift test (R2 finding 2).
+    public static let serverVersion: String =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        ?? "0.2.0"
 
     public weak var delegate: IpcServerDelegate?
 
@@ -96,9 +100,48 @@ public final class IpcServer {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [
                 .posixPermissions: 0o700
             ])
+            let pathBytes = Array(socketURL.path.utf8)
+            guard pathBytes.count < MemoryLayout.size(ofValue: sockaddr_un().sun_path) else {
+                throw NSError(domain: "TextVN", code: -1,
+                              userInfo: [NSLocalizedDescriptionKey: "Socket path too long"])
+            }
 
-            // Remove existing stale socket if present
+            // A second app instance must not unlink the live server's socket.
+            // Never remove a regular file or symlink at this path either.
             if FileManager.default.fileExists(atPath: socketURL.path) {
+                var info = stat()
+                guard lstat(socketURL.path, &info) == 0,
+                      (info.st_mode & mode_t(S_IFMT)) == mode_t(S_IFSOCK) else {
+                    throw NSError(domain: "TextVN", code: -2,
+                                  userInfo: [NSLocalizedDescriptionKey: "IPC path is not a socket"])
+                }
+                let probe = socket(AF_UNIX, SOCK_STREAM, 0)
+                guard probe >= 0 else {
+                    throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                                  userInfo: [NSLocalizedDescriptionKey: "Cannot inspect IPC socket"])
+                }
+                do {
+                    var probeAddr = sockaddr_un()
+                    probeAddr.sun_family = sa_family_t(AF_UNIX)
+                    withUnsafeMutableBytes(of: &probeAddr.sun_path) { dst in
+                        dst.baseAddress?.copyBytes(from: pathBytes)
+                    }
+                    let connected = withUnsafePointer(to: &probeAddr) { ptr in
+                        ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                            connect(probe, sa, socklen_t(MemoryLayout<sockaddr_un>.size)) == 0
+                        }
+                    }
+                    let probeError = errno
+                    close(probe)
+                    if connected {
+                        throw NSError(domain: "TextVN", code: -3,
+                                      userInfo: [NSLocalizedDescriptionKey: "IPC server already running"])
+                    }
+                    guard probeError == ECONNREFUSED || probeError == ENOENT else {
+                        throw NSError(domain: NSPOSIXErrorDomain, code: Int(probeError),
+                                      userInfo: [NSLocalizedDescriptionKey: "Cannot verify stale IPC socket"])
+                    }
+                }
                 try? FileManager.default.removeItem(at: socketURL)
             }
 
@@ -113,11 +156,6 @@ public final class IpcServer {
 
             var addr = sockaddr_un()
             addr.sun_family = sa_family_t(AF_UNIX)
-            let pathBytes = Array(socketURL.path.utf8)
-            guard pathBytes.count < MemoryLayout.size(ofValue: addr.sun_path) else {
-                close(fd)
-                throw NSError(domain: "TextVN", code: -1, userInfo: [NSLocalizedDescriptionKey: "Socket path too long"])
-            }
             withUnsafeMutableBytes(of: &addr.sun_path) { dst in
                 dst.baseAddress?.copyBytes(from: pathBytes)
             }
@@ -167,7 +205,6 @@ public final class IpcServer {
 
             for (cfd, source) in clientSources {
                 source.cancel()
-                close(cfd)
             }
             clientSources.removeAll()
             clientBuffers.removeAll()
@@ -191,6 +228,13 @@ public final class IpcServer {
             }
 
             guard clientFd >= 0 else { break }
+
+            var noSigPipe: Int32 = 1
+            guard setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe,
+                             socklen_t(MemoryLayout<Int32>.size)) == 0 else {
+                close(clientFd)
+                continue
+            }
 
             var flags = fcntl(clientFd, F_GETFL, 0)
             _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
@@ -290,8 +334,14 @@ public final class IpcServer {
 
     private func sendFrame(_ json: [String: Any], to cfd: Int32) {
         guard let frame = Self.encodeFrame(json) else { return }
-        frame.withUnsafeBytes { ptr in
-            _ = write(cfd, ptr.baseAddress, frame.count)
+        let written = frame.withUnsafeBytes { ptr -> Int in
+            guard let base = ptr.baseAddress else { return -1 }
+            return write(cfd, base, ptr.count)
+        }
+        // A short write leaves a truncated frame. Drop this client instead of
+        // sending another frame on a corrupted stream; it will reconnect.
+        if written != frame.count {
+            closeClient(cfd)
         }
     }
 
@@ -305,7 +355,7 @@ public final class IpcServer {
                 "type": "ConfigReload",
                 "version": version
             ]
-            for subFd in self.subscribers {
+            for subFd in Array(self.subscribers) {
                 self.sendFrame(msg, to: subFd)
             }
         }
@@ -321,7 +371,7 @@ public final class IpcServer {
                 "enabled": enabled,
                 "version": version
             ]
-            for subFd in self.subscribers {
+            for subFd in Array(self.subscribers) {
                 self.sendFrame(msg, to: subFd)
             }
         }

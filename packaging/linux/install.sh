@@ -62,14 +62,23 @@ if [[ "$MODE" == system && -n "$SYS_FCITX_ADDONS" ]]; then
 else
     FCITX_LIB="$LIBDIR/fcitx5"
 fi
+FCITX_DIRS="$FCITX_LIB${SYS_FCITX_ADDONS:+:$SYS_FCITX_ADDONS}"
+[[ "$MODE" == system ]] && FCITX_DIRS=""
 
 tv_say "Cài TextVN $(tv_version "$PKG_DIR") ($MODE) vào $PREFIX"
 
 mkdir -p "$SHARE/textvn"
-: > "$MANIFEST.new"
+MANIFEST_NEW="$MANIFEST.new"
+OLD_MANIFEST=""
+if [[ -f "$MANIFEST" ]]; then
+    OLD_MANIFEST="$(mktemp "$SHARE/textvn/.install-manifest.old.XXXXXX")"
+    cp -- "$MANIFEST" "$OLD_MANIFEST"
+fi
+trap 'rm -f -- "$MANIFEST_NEW" "${OLD_MANIFEST:-}"' EXIT
+: > "$MANIFEST_NEW"
 put() { # put <mode> <src> <dst>
     install -D -m "$1" "$2" "$3"
-    echo "$3" >> "$MANIFEST.new"
+    echo "$3" >> "$MANIFEST_NEW"
 }
 
 put 0755 "$PKG_DIR/bin/textvn" "$BIN/textvn"
@@ -111,23 +120,48 @@ if [[ "$MODE" == user ]]; then
     mkdir -p "$(dirname "$ENV_FILE")"
     {
         echo "# TextVN (cài per-user) — tạo bởi install.sh, gỡ bởi uninstall.sh"
-        echo "IBUS_COMPONENT_PATH=$SHARE/ibus/component:/usr/share/ibus/component"
-        if [[ -n "$SYS_FCITX_ADDONS" ]]; then
-            echo "FCITX_ADDON_DIRS=$FCITX_LIB:$SYS_FCITX_ADDONS"
+        if [[ "$HAS_IBUS" == 1 ]]; then
+            echo "IBUS_COMPONENT_PATH=$SHARE/ibus/component:/usr/share/ibus/component"
+        fi
+        if [[ "$HAS_FCITX5" == 1 ]]; then
+            # Không được phụ thuộc vào việc tìm được libdir hệ thống: trên distro
+            # không nằm trong danh sách hard-code, addon per-user vẫn phải được
+            # Fcitx nạp được ở phiên đăng nhập sau. Giữ cả các addon directory
+            # người dùng đã khai báo trước TextVN.
+            printf 'FCITX_ADDON_DIRS=%s${FCITX_ADDON_DIRS:+:$FCITX_ADDON_DIRS}\n' "$FCITX_DIRS"
         fi
     } > "$ENV_FILE"
-    echo "$ENV_FILE" >> "$MANIFEST.new"
+    echo "$ENV_FILE" >> "$MANIFEST_NEW"
 fi
-mv "$MANIFEST.new" "$MANIFEST"
+
+# Publish manifest của bản mới trước, rồi mới dọn residue của bản cũ. Nếu lệnh
+# bị ngắt, bản uninstall vẫn biết chính xác những file bản mới đang sở hữu.
+mv -- "$MANIFEST_NEW" "$MANIFEST"
 echo "$MANIFEST" >> "$MANIFEST"
+
+# Nâng cấp có thể bỏ một adapter hay UI phụ. Manifest cũ là dữ liệu có thể bị
+# hỏng/sửa tay nên chỉ xóa path nằm trong allowlist TextVN, không theo symlink và
+# không xóa thư mục đệ quy. Điều này đặc biệt quan trọng với `sudo --system`.
+if [[ -n "$OLD_MANIFEST" ]]; then
+    while IFS= read -r old; do
+        [[ -n "$old" && "$old" != "$MANIFEST" ]] || continue
+        grep -Fqx -- "$old" "$MANIFEST" && continue
+        if tv_textvn_install_path "$PREFIX" "$old" "$ENV_FILE"; then
+            rm -f -- "$old"
+        else
+            tv_err "Bỏ qua path không thuộc TextVN trong manifest cũ: $old"
+        fi
+    done < "$OLD_MANIFEST"
+    rm -f -- "$OLD_MANIFEST"
+    OLD_MANIFEST=""
+fi
+trap - EXIT
 
 command -v gtk-update-icon-cache >/dev/null 2>&1 &&
     gtk-update-icon-cache -q -t -f "$SHARE/icons/hicolor" 2>/dev/null || true
 
 # Áp dụng ngay cho phiên hiện tại (không cần đăng xuất): khởi động lại framework đang
 # chạy với đúng biến môi trường; thêm TextVN vào danh sách bộ gõ (trừ --no-activate).
-FCITX_DIRS="$FCITX_LIB${SYS_FCITX_ADDONS:+:$SYS_FCITX_ADDONS}"
-[[ "$MODE" == system ]] && FCITX_DIRS=""
 if [[ "$HAS_IBUS" == 1 ]]; then
     if [[ "$RESTART" == 1 ]] && tv_running ibus-daemon; then
         if [[ "$MODE" == user ]]; then

@@ -77,13 +77,31 @@ uninstall (textvn uninstall):
   4. log xóa: ~/Library/Logs/TextVN (hỏi nốt) — 0 residue: check bằng script tools/mac/uninstall-check.sh
 ```
 
+**Flow build thật hiện có trong repo — 3 script nối tiếp:**
+
+```text
+scripts/build-macos.sh            # cargo + swift (universal fat qua lipo) → dist/macos/stage
+                                  # · ký per-component với entitlements thật (KHÔNG --deep — RM3)
+                                  #   identity = $DEVELOPER_ID hoặc ad-hoc `-` khi dev
+                                  # · .icns tự sinh từ PNG nếu chưa có icon; bundle thêm
+                                  #   uninstall_macos.sh + uninstall-check.sh
+scripts/package-macos-pkg.sh      # pkgbuild + productbuild → dist/macos/TextVN-mac-v<ver>.pkg
+   --rebuild                      #   chạy build-macos.sh trước
+   --notarize                     #   ký .pkg (Developer ID Installer) + notarize + staple
+scripts/notarize-macos.sh         # notarytool submit --wait + stapler staple (gọi riêng cũng được)
+
+Cài per-user (KHÔNG sudo):  installer -pkg dist/macos/TextVN-mac-v<ver>.pkg -target CurrentUserHomeDirectory
+Cài toàn máy (admin, VM test): sudo installer -pkg … -target /
+→ packaging/macos/distribution.xml chốt 2 scheme; pkg-scripts/postinstall đăng ký LaunchServices
+```
+
 ## 5. Ký số & Gatekeeper (RM3)
 
 | Hạng mục | Quyết định |
 |---|---|
-| Dev hằng ngày | `codesign --force --deep -s -` (ad-hoc) + `xattr -dr com.apple.quarantine` khi dev từ source; **không** phân phối ad-hoc |
+| Dev hằng ngày | `scripts/build-macos.sh` ký **từng bundle** ad-hoc (`$DEVELOPER_ID` trống → `-s -`; **không** `--deep` — Apple deprecated) + `xattr -dr com.apple.quarantine` khi dev từ source; **không** phân phối ad-hoc |
 | Release | **Developer ID Application** (2 binary: `TextVN.app`, `TextVN-IM.app`) + **hardened runtime** + entitlements tối thiểu (`com.apple.security.automation.apple-events` nếu cần AX observer) |
-| Notarization | `xcrun notarytool submit --wait` + `xcrun stapler staple` — **bắt buộc trước public** (gate `P2-5 §6`) |
+| Notarization | `scripts/notarize-macos.sh` (hoặc `package-macos-pkg.sh --notarize`): `xcrun notarytool submit --wait` + `xcrun stapler staple` — **bắt buộc trước public** (gate `P2-5 §6`) |
 | Kiểm chứng | `spctl -a -vv`, `codesign --verify --deep --strict`, install từ `.pkg` tải về trên VM sạch |
 | Không có cert lúc dev | ghi vào `docs/release/signing-status-mac.md` (task MAC-055) — không release khi còn ad-hoc |
 

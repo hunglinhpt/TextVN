@@ -63,18 +63,24 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
     ) -> Result<BOOL> {
         let vk = wparam.0 as u32;
         if self.shared.pending_eaten_vk.get() == Some(vk)
-            || self.shared.deferred_vk.get() == Some(vk)
+            || self
+                .shared
+                .deferred_replay
+                .get()
+                .is_some_and(|event| event.matches_vk(vk))
         {
             return Ok(true.into());
         }
         self.shared.pending_eaten_vk.set(None);
-        self.shared.deferred_vk.set(None);
-        if guarded(|| defer_to_key_down(&self.shared, pic.ok().ok(), vk, lparam)) {
-            self.shared.deferred_vk.set(Some(vk));
+        self.shared.deferred_replay.set(None);
+        if let Some(event) =
+            guarded_option(|| defer_to_key_down(&self.shared, pic.ok().ok(), vk, lparam))
+        {
+            self.shared.deferred_replay.set(Some(event));
             trace_key(&self.shared, "test", vk, "deferred");
             return Ok(true.into());
         }
-        let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
+        let eaten = guarded(|| handle_key(&self.shared, pic.ok().ok(), vk, lparam));
         if eaten {
             self.shared.pending_eaten_vk.set(Some(vk));
         }
@@ -83,6 +89,14 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
     }
 
     fn OnTestKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        if self
+            .shared
+            .deferred_replay
+            .get()
+            .is_some_and(|event| event.matches_vk(wparam.0 as u32))
+        {
+            self.shared.deferred_replay.set(None);
+        }
         trace_key(&self.shared, "test-up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
         Ok(false.into())
@@ -94,12 +108,28 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
             trace_key(&self.shared, "down", vk, "confirm");
             return Ok(true.into());
         }
-        let deferred = self.shared.deferred_vk.take() == Some(vk);
-        let eaten = guarded(|| handle_key(&self.shared, pic, vk, lparam));
+        let deferred = self
+            .shared
+            .deferred_replay
+            .take()
+            .filter(|event| event.matches_vk(vk));
+        // Giữ reference trước khi `handle_key` nhận ownership Ref của callback;
+        // nhánh deferred cần nó để commit dự phòng nếu edit session không chạy.
+        let fallback_ctx = pic.ok().ok();
+        let eaten = guarded(|| handle_key(&self.shared, fallback_ctx, vk, lparam));
         // CUAS đã đổi phím thành VK_PROCESSKEY vì pha test nhận nó: từ đã commit, giờ trả
         // phím gốc về cho app, xếp SAU kết quả composition (`replay.rs`).
-        if deferred && !eaten && guarded(|| crate::replay::schedule(vk, lparam)) {
-            trace_key(&self.shared, "down", vk, "replayed");
+        if let Some(event) = deferred {
+            if !eaten {
+                // Nếu lock/session đã fail sau test TRUE, vẫn đóng composition
+                // trước khi replay; CUAS không còn đường nào tự trả phím gốc.
+                end_composition(&self.shared, fallback_ctx);
+            }
+            if guarded(|| crate::replay::schedule(event)) {
+                trace_key(&self.shared, "down", vk, "replayed");
+            } else {
+                trace_key(&self.shared, "down", vk, "target-closed");
+            }
             return Ok(true.into());
         }
         trace_key(&self.shared, "down", vk, eaten_label(eaten));
@@ -107,6 +137,14 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
     }
 
     fn OnKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+        if self
+            .shared
+            .deferred_replay
+            .get()
+            .is_some_and(|event| event.matches_vk(wparam.0 as u32))
+        {
+            self.shared.deferred_replay.set(None);
+        }
         // Pha nào tới trước xử lý; `ModifierToggle` chỉ trả true một lần.
         trace_key(&self.shared, "up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
@@ -185,29 +223,30 @@ fn defer_to_key_down(
     ctx: Option<&ITfContext>,
     vk: u32,
     lparam: LPARAM,
-) -> bool {
+) -> Option<crate::replay::DeferredReplay> {
     if !shared.is_composing() || is_modifier_vk(vk) {
-        return false;
+        return None;
     }
-    let Some(ctx) = ctx else { return false };
+    let ctx = ctx?;
     // SAFETY: ctx hợp lệ trong callback của key sink.
     let transitory = unsafe { ctx.GetStatus() }
         .map(|st| st.dwStaticFlags & TF_SS_TRANSITORY != 0)
         .unwrap_or(false);
     if !transitory {
-        return false;
+        return None;
     }
     let mods = active_modifiers();
     if mods & (MOD_ALT | MOD_SUPER) != 0 {
-        return false;
+        return None;
     }
-    if mods & MOD_CTRL != 0 {
-        return true;
-    }
-    matches!(
-        KeyKind::classify(vk, translate_key(vk, lparam)),
-        KeyKind::Enter | KeyKind::Tab | KeyKind::Other
-    )
+    let needs_replay = mods & MOD_CTRL != 0
+        || matches!(
+            KeyKind::classify(vk, translate_key(vk, lparam)),
+            KeyKind::Enter | KeyKind::Tab | KeyKind::Other
+        );
+    needs_replay
+        .then(|| crate::replay::prepare(vk, lparam))
+        .flatten()
 }
 
 /// Nhả phím: chỉ dùng cho phím chuyển Ctrl+Shift; không bao giờ ăn phím.
@@ -282,16 +321,21 @@ fn guarded(f: impl FnOnce() -> bool) -> bool {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(false)
 }
 
+#[cfg(windows)]
+fn guarded_option<T>(f: impl FnOnce() -> Option<T>) -> Option<T> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
+        .ok()
+        .flatten()
+}
+
 /// Xử lý 1 phím, trả `eaten`. Mọi nhánh lỗi → `false` (phím tới app nguyên vẹn).
 #[cfg(windows)]
-fn handle_key(shared: &Rc<TsfShared>, pic: Ref<'_, ITfContext>, vk: u32, lparam: LPARAM) -> bool {
+fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam: LPARAM) -> bool {
     let mods = active_modifiers();
     observe_key_down(shared, vk, mods);
     if is_modifier_vk(vk) {
         return false;
     }
-    let ctx = pic.ok().ok();
-
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.
     if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 || vk == vkc::PACKET || vk == vkc::PROCESSKEY {

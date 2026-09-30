@@ -27,8 +27,8 @@ use windows::Win32::System::LibraryLoader::{
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, PostMessageW, RegisterClassW, HWND_MESSAGE,
-    WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WM_KEYDOWN, WNDCLASSW,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, IsWindow, PostMessageW, RegisterClassW,
+    HWND_MESSAGE, WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WM_KEYDOWN, WNDCLASSW,
 };
 
 const CLASS_NAME: PCWSTR = w!("TextVN.TsfKeyReplay");
@@ -42,31 +42,83 @@ struct Pending {
     lparam: isize,
 }
 
+/// Phím đã được CUAS giữ ở `OnTestKeyDown`. Capture target/lParam ngay trong
+/// callback test để không gửi phím tới control mới nếu commit làm app đổi focus.
+#[derive(Clone, Copy)]
+pub struct DeferredReplay {
+    target: isize,
+    vk: u32,
+    lparam: isize,
+}
+
+impl DeferredReplay {
+    pub fn matches_vk(self, vk: u32) -> bool {
+        self.vk == vk
+    }
+}
+
 thread_local! {
     static WINDOW: Cell<isize> = const { Cell::new(0) };
     static QUEUE: RefCell<VecDeque<Pending>> = const { RefCell::new(VecDeque::new()) };
 }
 
-/// Hẹn trả phím `vk` (lparam gốc) cho cửa sổ đang focus. `false` = không làm được
-/// (không có focus, không tạo được cửa sổ) — caller để phím đi như cũ.
-pub fn schedule(vk: u32, lparam: LPARAM) -> bool {
+/// Dành trước đích replay trước khi `OnTestKeyDown` trả TRUE. Nếu không tạo được
+/// message window hoặc không có focus thì caller phải để phím đi thẳng; sau TRUE
+/// CUAS đã thay nó bằng VK_PROCESSKEY và không thể "fail open" nữa.
+pub fn prepare(vk: u32, lparam: LPARAM) -> Option<DeferredReplay> {
     // SAFETY: gọi trên thread UI của app (callback key sink).
     let target = unsafe { GetFocus() };
     if target.is_invalid() {
+        return None;
+    }
+    window()?;
+    Some(DeferredReplay {
+        target: target.0 as isize,
+        vk,
+        lparam: lparam.0,
+    })
+}
+
+/// Hẹn trả phím đã preflight. Khi message-only window bất ngờ không nhận post,
+/// thử post trực tiếp tới đúng HWND đã capture. Kết quả `false` chỉ còn khi đích
+/// đã đóng; caller vẫn trả TRUE vì CUAS đã nuốt phím gốc.
+pub fn schedule(event: DeferredReplay) -> bool {
+    let target = HWND(event.target as *mut _);
+    // SAFETY: HWND đã capture từ GetFocus trên cùng UI thread. IsWindow bảo vệ
+    // trường hợp control đã bị phá hủy re-entrant giữa hai callback.
+    if unsafe { !IsWindow(Some(target)).as_bool() } {
         return false;
     }
-    let Some(wnd) = window() else { return false };
+    let Some(wnd) = window() else {
+        return unsafe {
+            PostMessageW(
+                Some(target),
+                WM_KEYDOWN,
+                WPARAM(event.vk as usize),
+                LPARAM(event.lparam),
+            )
+            .is_ok()
+        };
+    };
     QUEUE.with(|q| {
         q.borrow_mut().push_back(Pending {
-            target: target.0 as isize,
-            vk: vk as usize,
-            lparam: lparam.0,
+            target: event.target,
+            vk: event.vk as usize,
+            lparam: event.lparam,
         })
     });
     // SAFETY: cửa sổ message-only của chính thread này.
     if unsafe { PostMessageW(Some(wnd), WM_REPLAY, WPARAM(HOPS), LPARAM(0)) }.is_err() {
         QUEUE.with(|q| q.borrow_mut().pop_back());
-        return false;
+        return unsafe {
+            PostMessageW(
+                Some(target),
+                WM_KEYDOWN,
+                WPARAM(event.vk as usize),
+                LPARAM(event.lparam),
+            )
+            .is_ok()
+        };
     }
     true
 }

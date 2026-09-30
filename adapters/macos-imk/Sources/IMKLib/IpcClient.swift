@@ -88,14 +88,16 @@ public enum IpcMessage: Equatable {
 
         switch type {
         case "Hello":
-            guard let pid = obj["pid"] as? Int32 ?? (obj["pid"] as? Int).map(Int32.init),
+            // Int32(exactly:) — pid tràn phải bị TỪ CHỐI, không được trap
+            // (review R1: `Int32.init(Int)` tràn là runtime crash).
+            guard let pid = (obj["pid"] as? Int).flatMap({ Int32(exactly: $0) }),
                   let abi = asUInt64(obj["abi"] ?? 0), abi <= UInt32.max,
                   let version = obj["version"] as? String else { return nil }
             return .hello(pid: pid, abi: UInt32(abi), version: version)
         case "GetSnapshot":
             return .getSnapshot
         case "Subscribe":
-            guard let pid = obj["pid"] as? Int32 ?? (obj["pid"] as? Int).map(Int32.init) else {
+            guard let pid = (obj["pid"] as? Int).flatMap({ Int32(exactly: $0) }) else {
                 return nil
             }
             return .subscribe(pid: pid)
@@ -143,7 +145,12 @@ public protocol IpcClientDelegate: AnyObject {
 
 public final class IpcClient {
     public static let maxFrameLength = 65_536
-    public static let clientVersion = "0.1.0"
+    /// Version gửi trong `Hello` — đọc từ Info.plist của bundle đang chạy
+    /// (TextVN-IM.app), fallback hằng khi chạy trong swift test (R2 finding 2:
+    /// hardcode "0.1.0" làm handshake hiển thị sai version sau bump).
+    public static let clientVersion: String =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        ?? "0.2.0"
     /// Backoff reconnect (P0-3 §4 offline-first — retry nhẹ nhàng).
     public static let retryInterval: TimeInterval = 2.0
 

@@ -423,13 +423,23 @@ mod tests {
                 .as_deref(),
             Some("vni")
         );
-        // Không để lại file tạm.
-        let leftovers: Vec<_> = std::fs::read_dir(path.parent().unwrap())
-            .unwrap()
-            .filter_map(|e| e.ok())
-            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
-            .collect();
-        assert!(leftovers.is_empty());
+        // Không để lại file tạm. Trên Windows, `.tmp` sau rename có thể còn
+        // hiện trong namespace một nhịp khi Defender/indexer giữ handle
+        // (audit R2 finding 3 — flake 1/3 lần) → retry trước khi fail.
+        let mut leftovers_empty = false;
+        for _ in 0..3 {
+            leftovers_empty = std::fs::read_dir(path.parent().unwrap())
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+                .count()
+                == 0;
+            if leftovers_empty {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert!(leftovers_empty, "atomic_write không được để lại .tmp");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -1,0 +1,31 @@
+{
+  "targets_version": 1,
+  "app_id": "chrome",
+  "match": { "any": [ { "bundle_id": "com.google.Chrome" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/Applications/Google Chrome.app" ],
+    "args": [ "--new-window" ],
+    "ready_role": "AXTextField"
+  },
+  "fields": [
+    {
+      "field_role": "address_bar",
+      "preset": "mac.chromium.url",
+      "locators": [
+        { "control_type": "AXTextField", "automation_id": "omnibox" },
+        { "control_type": "AXTextField" }
+      ],
+      "notes": "Chromium expose omnibox dạng AXTextField; AXIdentifier + menu bar tiếng Việt chưa verify trên máy thật (name_regex phụ thuộc locale nên KHÔNG đặt ở locator[0])."
+    },
+    {
+      "field_role": "body",
+      "preset": "mac.safari.body",
+      "locators": [
+        { "control_type": "AXWebArea" },
+        { "control_type": "AXTextArea", "class_name": "AXContentEditable" }
+      ],
+      "notes": "Dùng lại preset body của WebKit (Blink cùng semantics preedit) — G15 reuse, không tạo preset mac.chrome.body trùng."
+    }
+  ]
+}

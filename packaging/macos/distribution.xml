@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  distribution.xml — distribution cho `productbuild` (MAC-054, P2-4 §4).
+  `domains enable_currentUserHome="true"` là **điểm mấu chốt**: cho phép
+
+      installer -pkg TextVN-mac-vX.pkg -target CurrentUserHomeDirectory
+
+  → cài vào `~/Applications` + `~/Library/Input Methods` **không cần sudo** (PLAN §3.7);
+  `enable_localSystem="true"` cho phép bản VM test `sudo installer … -target /`.
+  Version của pkg do component pkg (pkgbuild) mang sang — không hardcode ở đây.
+-->
+<installer-gui-script minSpecVersion="1">
+	<title>TextVN</title>
+	<organization>vn.textvn</organization>
+	<domains enable_anywhere="false" enable_currentUserHome="true" enable_localSystem="true"/>
+	<options customize="never" require-scripts="false"/>
+
+	<choices-outline>
+		<line choice="textvn"/>
+	</choices-outline>
+	<choice id="textvn" visible="false" title="TextVN">
+		<pkg-ref id="vn.textvn.pkg"/>
+	</choice>
+
+	<pkg-ref id="vn.textvn.pkg" onConclusion="none">textvn-component.pkg</pkg-ref>
+</installer-gui-script>

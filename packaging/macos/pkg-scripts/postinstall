@@ -1,0 +1,45 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# pkg-scripts/postinstall — chạy sau khi Installer giải nén payload (MAC-054, P2-4 §4).
+#
+# Chạy được ở **cả 2 scope**:
+#   - per-user  : `installer -pkg textvn-mac.pkg -target CurrentUserHomeDirectory` (KHÔNG cần sudo)
+#   - system    : `sudo installer -pkg textvn-mac.pkg -target /`  (cần admin)
+#
+# Nguyên tắc:
+#   - KHÔNG tự bật login item / KHÔNG tự bật input source (user tự làm trong Settings — P2-4 §4.4).
+#   - KHÔNG chặn cài đặt: mọi lỗi ở đây đều `|| true` (postinstall fail = Installer rollback).
+set -u
+
+echo "[TextVN postinstall] đăng ký bundle với LaunchServices…"
+
+# Xác định "ngôi nhà" đích: khi Installer chạy dưới root (scope system) thì $HOME=/var/root,
+# nên lấy user đang đăng nhập console.
+TARGET_HOME="${HOME:-}"
+if [ "$(id -u)" -eq 0 ]; then
+    CONSOLE_USER="$(stat -f%Su /dev/console 2>/dev/null || true)"
+    if [ -n "$CONSOLE_USER" ] && [ "$CONSOLE_USER" != "root" ]; then
+        TARGET_HOME="$(dscl . -read "/Users/$CONSOLE_USER" NFSHomeDirectory 2>/dev/null | sed -n 's/^NFSHomeDirectory: //p' | head -n 1)"
+    fi
+fi
+
+IM_BUNDLE="$TARGET_HOME/Library/Input Methods/TextVN-IM.app"
+if [ ! -d "$IM_BUNDLE" ]; then
+    # scope system → bundle nằm ở /Library; scope per-user → trong ~.
+    IM_BUNDLE="/Library/Input Methods/TextVN-IM.app"
+fi
+
+LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+if [ -x "$LSREGISTER" ] && [ -d "$IM_BUNDLE" ]; then
+    "$LSREGISTER" -f "$IM_BUNDLE" || true
+    echo "[TextVN postinstall] đã đăng ký: $IM_BUNDLE"
+fi
+
+echo ""
+echo "✅ TextVN đã được cài. Còn 1 bước để gõ được tiếng Việt:"
+echo "   System Settings → Keyboard → Input Sources → Edit… → (+) → Vietnamese → TextVN"
+echo "   (sau đó chọn TextVN ở menu input source, hoặc Ctrl+Space)"
+echo ""
+echo "   Gỡ cài đặt: ~/Applications/TextVN.app/Contents/Resources/uninstall_macos.sh"
+exit 0

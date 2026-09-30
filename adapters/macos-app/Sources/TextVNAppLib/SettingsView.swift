@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// SettingsView.swift — UniKey 4.6 RC2 parity SwiftUI Settings Panel for macOS (P2-4 §3, PLAN §4.1)
+// SettingsView.swift — TextVN SwiftUI Settings Panel for macOS (P2-4 §3, PLAN §4.1)
 
 import SwiftUI
 
@@ -186,8 +186,8 @@ public struct SettingsView: View {
         )
         .alert(isPresented: $showAboutAlert) {
             Alert(
-                title: Text("TextVN 0.1.0 (macOS)"),
-                message: Text("Bộ gõ tiếng Việt chuyên nghiệp, hiệu năng cao, bảo mật tuyệt đối.\n\nBản quyền © 2026 TextVN Contributors.\nGiấy phép: GNU General Public License v3."),
+                title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),
+                message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\n\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."),
                 dismissButton: .default(Text("Đồng ý"))
             )
         }

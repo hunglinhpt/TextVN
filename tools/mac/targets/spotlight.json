@@ -1,0 +1,22 @@
+{
+  "targets_version": 1,
+  "app_id": "spotlight",
+  "match": { "any": [ { "bundle_id": "com.apple.Spotlight" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/System/Library/CoreServices/Spotlight.app" ],
+    "args": [],
+    "ready_role": "AXTextField"
+  },
+  "fields": [
+    {
+      "field_role": "search",
+      "preset": "mac.spotlight",
+      "locators": [
+        { "control_type": "AXTextField" },
+        { "control_type": "AXSearchField" }
+      ],
+      "notes": "Bug B1: Spotlight là ô search 1 dòng, đổi query liên tục → chốt cơ chế xoá ở MAC-004 (không có selection chuẩn). Mở bằng ⌘Space."
+    }
+  ]
+}

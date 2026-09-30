@@ -201,6 +201,7 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
             end_composition(&shared, None);
             shared.reset_engine();
             shared.pending_eaten_vk.set(None);
+            shared.deferred_replay.set(None);
             shared.modifier_toggle.set(Default::default());
         }
         Ok(())

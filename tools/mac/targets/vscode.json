@@ -1,0 +1,25 @@
+{
+  "targets_version": 1,
+  "app_id": "vscode",
+  "match": { "any": [ { "bundle_id": "com.microsoft.VSCode" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [
+      "/Applications/Visual Studio Code.app",
+      "$HOME/Applications/Visual Studio Code.app"
+    ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.vscode",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "Bug B7 (Electron) + B11: editor là textarea ẩn của Electron → preedit xuất hiện ở đó; debug console/terminal tích hợp có role khác nên KHÔNG khớp locator này."
+    }
+  ]
+}

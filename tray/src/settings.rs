@@ -198,14 +198,17 @@ impl SettingsController {
     pub fn flush_now(&mut self) {
         if self.dirty_config {
             // 1. Cập nhật vào SvcManager (Single Source of Truth)
-            let ver = self.svc.set_method(self.draft_config.method);
-            let _ = self
-                .svc
-                .set_diacritic_style(self.draft_config.diacritic_style);
-
-            // 2. Broadcast reload tới toàn bộ TSF và Hook client
-            self.ipc.broadcast_config_reload(ver);
-            self.dirty_config = false;
+            // Chỉ broadcast sau khi cả thay đổi đã thực sự ghi được; lỗi I/O giữ
+            // dirty để debounce thử lại, không đánh lừa TSF/UI bằng version ảo.
+            if self.svc.set_method(self.draft_config.method).is_ok()
+                && self
+                    .svc
+                    .set_diacritic_style(self.draft_config.diacritic_style)
+                    .is_ok()
+            {
+                self.ipc.broadcast_config_reload(self.svc.config_version());
+                self.dirty_config = false;
+            }
         }
 
         if self.dirty_state {

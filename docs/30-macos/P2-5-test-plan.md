@@ -78,6 +78,10 @@ ax-driver --suite ci|full --only <app_id> --report out/report.json
 7. Cleanup: ⌘Q app, dọn clipboard
 ```
 - Timeout 15s/case → fail, không treo suite.
+- **Schema gate (mọi OS, làm trước khi có Mac):** `cargo run -q -p xtask -- check-mac-targets`
+  — `targets/*.json` đúng schema `tools/mac/README.md §1`, `preset` phải là `id` **có thật**
+  trong `data/appdb.default.json`, mỗi field ≥ 2 locator AX, đủ 12 app CI
+  (chạy trong job `xtask check-tables` của `ci-shared.yml` + 9 unit test `cargo test -p xtask`).
 - Đo latency: timestamp trước khi post key → poll AX text đổi (1ms) → `t_glyph_ms` (p50/p99).
 - **RM5:** lần đầu chạy trên GHA `macos-latest` (task MAC-007 S10) — nếu TCC chặn →
   ghi vào report "AX harness = local nightly", gate PR vẫn bằng corpus headless.

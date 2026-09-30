@@ -343,6 +343,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
         (key.sym() == FcitxKey_space || key.sym() == FcitxKey_KP_Space)) {
+        // Ctrl+Shift was already armed before Space arrived. This shortcut
+        // toggles immediately, so prevent the two subsequent releases from
+        // interpreting the same chord as the Ctrl+Shift toggle again.
+        lc_modifier_toggle_reset(&st->toggle);
         toggleVietnamese(st);
         return true;
     }

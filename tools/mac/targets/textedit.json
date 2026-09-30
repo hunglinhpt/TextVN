@@ -1,0 +1,22 @@
+{
+  "targets_version": 1,
+  "app_id": "textedit",
+  "match": { "any": [ { "bundle_id": "com.apple.TextEdit" } ] },
+  "launch": {
+    "kind": "app",
+    "paths": [ "/System/Applications/TextEdit.app" ],
+    "args": [],
+    "ready_role": "AXTextArea"
+  },
+  "fields": [
+    {
+      "field_role": "body",
+      "preset": "mac.textedit",
+      "locators": [
+        { "control_type": "AXTextArea" },
+        { "control_type": "AXScrollArea" }
+      ],
+      "notes": "App smoke của macOS. Rich text và plain text đều expose AXTextArea; chưa verify trên máy thật (chờ MAC-060)."
+    }
+  ]
+}

@@ -75,8 +75,9 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden; Tasks: freectrlshift
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
-; HKLM (neu co quyen) truoc, per-user sau.
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; per-user sau. Khong nang quyen binary trong {app}: voi cai per-user, day la thu muc
+; nguoi dung ghi duoc va ShellExec('runas') se mo lo hong leo thang dac quyen.
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
 
 [UninstallRun]
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden; RunOnceId: "StopTray"
@@ -92,31 +93,45 @@ begin
   Result := ExpandConstant('{app}\textvn-cli.exe');
 end;
 
-// Profile TSF chuan duoc Windows luu o HKLM (ITfInputProcessorProfileMgr).
-// Cai per-user khong co quyen do: hoi nguoi dung cap quyen MOT lan. Tu choi thi
-// CLI van dung fallback per-user (HKCU) - bo go van cai dat day du.
-// Cai im lang (/SUPPRESSMSGBOXES) mac dinh KHONG hien UAC: chi dang ky per-user.
-procedure RegisterTextServices();
+var
+  RegistrationOK: Boolean;
+
+// Dang ky per-user khong can UAC. Khong tu dong ShellExec('runas') mot executable
+// nam trong {app}, vi {app} cua cai per-user co the bi user/process khac thay doi.
+// Machine scope chi nen duoc cap boi mot installer/helper da ky, o thu muc tin cay.
+function RegisterTextServices(): Boolean;
 var
   ResultCode: Integer;
 begin
-  if IsAdminInstallMode then
-    Exec(CliPath(), 'register --scope machine', '', SW_HIDE, ewWaitUntilTerminated, ResultCode)
-  else if not RegKeyExists(HKLM, TipKey) then
-  begin
-    if SuppressibleMsgBox('TextVN can dang ky bo go voi Windows (Text Services Framework).' + #13#10 +
-        'Buoc nay can quyen quan tri MOT lan de TextVN go duoc trong moi ung dung.' + #13#10#13#10 +
-        'Tiep tuc?', mbConfirmation, MB_YESNO, IDNO) = IDYES then
-      ShellExec('runas', CliPath(), 'register --scope machine', '', SW_HIDE,
-        ewWaitUntilTerminated, ResultCode);
-  end;
-  Exec(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  ResultCode := -1;
+  Result := Exec(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+    (ResultCode = 0);
+  if not Result then
+    Log(Format('TextVN per-user TSF registration failed (exit code %d).', [ResultCode]));
+end;
+
+function RegistrationSucceeded(): Boolean;
+begin
+  Result := RegistrationOK;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
-    RegisterTextServices();
+  begin
+    RegistrationOK := RegisterTextServices();
+    if not RegistrationOK then
+    begin
+      Log('TextVN was installed but not started because TSF registration did not complete.');
+      if WizardSilent then
+        SetErrorFlag
+      else
+        SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
+          'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
+          'Mo "TextVN Doctor" sau khi sua chinh sach/quyen registry roi chon "Cai & bat TSF".',
+          mbError, MB_OK, IDOK);
+    end;
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

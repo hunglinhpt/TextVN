@@ -73,7 +73,22 @@ export -f fail
 
 # ---- A. Cài đặt ----------------------------------------------------------------------
 scenario_install() {
-    local fw="$1" t
+    local fw="$1" t daemon_pid=""
+    stop_session_daemon() {
+        # dbus-run-session cô lập bus của mỗi kịch bản; dừng qua DBus xử lý cả
+        # daemon đã được portable restart mà PID $! ban đầu không còn trỏ tới.
+        if [[ "$fw" == ibus ]]; then
+            ibus exit >/dev/null 2>&1 || true
+        else
+            fcitx5-remote -e >/dev/null 2>&1 || true
+        fi
+        if [[ -n "$daemon_pid" ]] && kill -0 "$daemon_pid" 2>/dev/null; then
+            kill "$daemon_pid" 2>/dev/null || true
+            wait "$daemon_pid" 2>/dev/null || true
+        fi
+        daemon_pid=""
+    }
+    trap stop_session_daemon EXIT
     t="$(new_home)"
     export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_DATA_HOME="$t/home/.local/share"
     export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
@@ -97,11 +112,27 @@ scenario_install() {
         fail "component IBus không trỏ vào engine đã cài"
     local envf="$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
     [[ -f "$envf" ]] || fail "thiếu $envf"
+    grep -Fq "FCITX_ADDON_DIRS=$pre/lib/textvn/fcitx5" "$envf" ||
+        fail "environment.d không giữ đường dẫn addon Fcitx5 per-user"
     if [[ "$fw" == ibus ]]; then
         grep -q "'textvn'" "$HOME/.fake-gsettings" || fail "install.sh không thêm textvn vào IBus"
     else
         grep -qx 'Name=textvn' "$XDG_CONFIG_HOME/fcitx5/profile" || fail "install.sh không thêm textvn vào Fcitx5"
     fi
+
+    # Regression upgrade: file chỉ còn trong manifest cũ phải bị dọn khi bản mới
+    # không còn phân phối nó; nếu không nó sống sót tới nhiều lần nâng cấp/gỡ.
+    stale="$pre/share/doc/textvn/legacy.md"
+    mkdir -p "$(dirname "$stale")"
+    printf 'old package residue\n' > "$stale"
+    echo "$stale" >> "$pre/share/textvn/install-manifest.txt"
+    # Manifest hỏng không được phép xóa file bất kỳ nằm trong prefix.
+    sentinel="$pre/bin/not-textvn"
+    printf 'must survive\n' > "$sentinel"
+    echo "$sentinel" >> "$pre/share/textvn/install-manifest.txt"
+    "$pkg/install.sh" --no-restart >"$t/upgrade.log" 2>&1 || { cat "$t/upgrade.log"; fail "install.sh upgrade"; }
+    [[ ! -e "$stale" ]] || fail "nâng cấp để lại file stale trong manifest cũ"
+    [[ -f "$sentinel" ]] || fail "manifest hỏng đã xóa file không thuộc TextVN"
 
     # "Đăng nhập lại": phiên mới nạp environment.d.
     set -a
@@ -111,16 +142,17 @@ scenario_install() {
     local rc=0
     if [[ "$fw" == ibus ]]; then
         ibus-daemon --panel=disable --xim=false --config=default --replace --single >"$t/d.log" 2>&1 &
+        daemon_pid=$!
         sleep 2
         "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
         pgrep -af textvn-ibus-engine | grep -q "$pre/lib/textvn/textvn-ibus-engine" ||
             { rc=1; echo "engine không chạy từ bản đã cài"; }
-        pkill -x ibus-daemon || true
     else
         fcitx5 --disable=all --enable=dbus,dbusfrontend,keyboard,textvn >"$t/d.log" 2>&1 &
+        daemon_pid=$!
         "$PY" "$ROOT/adapters/linux-fcitx5/tests/e2e_fcitx5.py" >"$t/e2e.log" 2>&1 || rc=$?
-        pkill -x fcitx5 || true
     fi
+    stop_session_daemon
     sleep 1
     [[ $rc -eq 0 ]] || { cat "$t/e2e.log" "$t/d.log"; fail "gõ sau khi cài ($fw)"; }
     tail -n1 "$t/e2e.log"
@@ -137,13 +169,29 @@ scenario_install() {
     if [[ "$fw" == fcitx5 ]]; then
         grep -qx 'Name=textvn' "$XDG_CONFIG_HOME/fcitx5/profile" && fail "gỡ xong vẫn còn textvn trong profile Fcitx5"
     fi
+    trap - EXIT
     echo "PASS kịch bản CÀI ĐẶT ($fw): cài → gõ → gỡ sạch"
 }
 export -f scenario_install
 
 # ---- B. Chạy ngay từ thư mục giải nén -----------------------------------------------
 scenario_portable() {
-    local fw="$1" t
+    local fw="$1" t daemon_pid=""
+    stop_session_daemon() {
+        # Chỉ dừng daemon trên bus DBus riêng của dbus-run-session, tuyệt đối
+        # không pkill IME của desktop thật ngoài kịch bản kiểm thử.
+        if [[ "$fw" == ibus ]]; then
+            ibus exit >/dev/null 2>&1 || true
+        else
+            fcitx5-remote -e >/dev/null 2>&1 || true
+        fi
+        if [[ -n "$daemon_pid" ]] && kill -0 "$daemon_pid" 2>/dev/null; then
+            kill "$daemon_pid" 2>/dev/null || true
+            wait "$daemon_pid" 2>/dev/null || true
+        fi
+        daemon_pid=""
+    }
+    trap stop_session_daemon EXIT
     t="$(new_home)"
     export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_DATA_HOME="$t/home/.local/share"
     export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
@@ -154,11 +202,22 @@ scenario_portable() {
     pkg="$(echo "$t"/x/TextVN-*)"
     chmod -R a-w "$pkg"   # thư mục giải nén chỉ đọc: portable không được ghi vào đó
 
+    # Không có marker portable: stop phải là no-op, không được khởi động lại IME
+    # hoặc gỡ TextVN của bản cài thường trong profile Fcitx5. Kiểm tra này được
+    # lặp lại sau khi daemon nền đã chạy, vì đó mới là trường hợp dễ gây hại.
+    if [[ "$fw" == fcitx5 ]]; then
+        fcitx_profile
+        cp "$XDG_CONFIG_HOME/fcitx5/profile" "$t/profile-before-stop"
+    fi
+
     local rc=0
     if [[ "$fw" == ibus ]]; then
         # Phiên đang chạy IBus bình thường (chưa biết TextVN).
         ibus-daemon --panel=disable --xim=false --config=default --replace --single >"$t/d.log" 2>&1 &
+        daemon_pid=$!
         sleep 2
+        "$pkg/textvn-portable.sh" stop >"$t/pre-stop.log" 2>&1 || { cat "$t/pre-stop.log"; fail "portable stop khi chua bat"; }
+        kill -0 "$daemon_pid" 2>/dev/null || fail "portable stop khi chua bat da dung IBus nen"
         "$pkg/textvn-portable.sh" --ibus >"$t/p.log" 2>&1 || { cat "$t/p.log"; fail "textvn-portable.sh --ibus"; }
         sleep 1
         "$E2E_IBUS" >"$t/e2e.log" 2>&1 || rc=$?
@@ -167,7 +226,12 @@ scenario_portable() {
     else
         fcitx_profile
         fcitx5 --disable=all --enable=dbus,dbusfrontend,keyboard,textvn >"$t/d.log" 2>&1 &
+        daemon_pid=$!
         sleep 2
+        "$pkg/textvn-portable.sh" stop >"$t/pre-stop.log" 2>&1 || { cat "$t/pre-stop.log"; fail "portable stop khi chua bat"; }
+        kill -0 "$daemon_pid" 2>/dev/null || fail "portable stop khi chua bat da dung Fcitx5 nen"
+        cmp -s "$t/profile-before-stop" "$XDG_CONFIG_HOME/fcitx5/profile" ||
+            fail "portable stop khi chua bat da sua profile Fcitx5"
         "$pkg/textvn-portable.sh" --fcitx5 >"$t/p.log" 2>&1 || { cat "$t/p.log"; fail "textvn-portable.sh --fcitx5"; }
         grep -qx 'Name=textvn' "$XDG_CONFIG_HOME/fcitx5/profile" || fail "portable không thêm textvn vào nhóm Fcitx5"
         "$PY" "$ROOT/adapters/linux-fcitx5/tests/e2e_fcitx5.py" >"$t/e2e.log" 2>&1 || rc=$?
@@ -184,10 +248,32 @@ scenario_portable() {
     local stray
     stray="$(find "$HOME/.local" -path "$HOME/.local/state/TextVN" -prune -o -iname '*textvn*' -print 2>/dev/null || true)"
     [[ -z "$stray" ]] || fail "portable đã ghi file cài đặt vào ~/.local: $stray"
-    pkill -x ibus-daemon 2>/dev/null || true
-    pkill -x fcitx5 2>/dev/null || true
+    # Sau stop thường, daemon nền được portable khởi động lại. Dừng nó trên DBus
+    # test để kiểm tra nhánh "portable tự mở IME từ trạng thái tắt".
+    stop_session_daemon
     sleep 1
+    "$pkg/textvn-portable.sh" "--$fw" >"$t/idle-start.log" 2>&1 || { cat "$t/idle-start.log"; fail "portable start khi IME dang tat"; }
+    "$pkg/textvn-portable.sh" stop >"$t/idle-stop.log" 2>&1 || { cat "$t/idle-stop.log"; fail "portable stop khi IME da tat ban dau"; }
+    if [[ "$fw" == ibus ]]; then
+        ! ibus engine >/dev/null 2>&1 || fail "stop portable da de lai IBus khi ban dau IBus tat"
+    else
+        ! fcitx5-remote -n >/dev/null 2>&1 || fail "stop portable da de lai Fcitx5 khi ban dau Fcitx5 tat"
+        # TextVN có sẵn do cài thường không thuộc quyền xóa của portable.
+        fcitx_profile
+        printf '\n[Groups/0/Items/1]\nName=textvn\nLayout=\n' >> "$XDG_CONFIG_HOME/fcitx5/profile"
+        cp "$XDG_CONFIG_HOME/fcitx5/profile" "$t/profile-preexisting-textvn"
+        "$pkg/textvn-portable.sh" --fcitx5 >"$t/preexisting-start.log" 2>&1 || {
+            cat "$t/preexisting-start.log"; fail "portable start voi TextVN Fcitx5 co san";
+        }
+        "$pkg/textvn-portable.sh" stop >"$t/preexisting-stop.log" 2>&1 || {
+            cat "$t/preexisting-stop.log"; fail "portable stop voi TextVN Fcitx5 co san";
+        }
+        cmp -s "$t/profile-preexisting-textvn" "$XDG_CONFIG_HOME/fcitx5/profile" ||
+            fail "portable da xoa TextVN Fcitx5 co san"
+        ! fcitx5-remote -n >/dev/null 2>&1 || fail "portable preexisting da de lai Fcitx5"
+    fi
     chmod -R u+w "$pkg"
+    trap - EXIT
     echo "PASS kịch bản CHẠY NGAY ($fw): giải nén (chỉ đọc) → portable → gõ → stop sạch"
 }
 export -f scenario_portable

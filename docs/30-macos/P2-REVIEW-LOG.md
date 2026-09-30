@@ -154,3 +154,57 @@
 
 *Cập nhật trạng thái vào `docs/00-INDEX.md` (§2) khi đạt 2/2.*
 
+
+## Round 8 — Audit phát hành 0.2.0 (2026-09-30, 2 vòng cuốn chiếu)
+
+Hai vòng review độc lập trên working tree phát hành 0.2.0 (khoảng cách commit
+`1ad7c32` + các fix pending), thực hiện bởi agent auditor khác người code (XP style).
+
+### Round 8.1 — Audit vòng 1 (3 mảng song song)
+
+**Rust/data (verdict PASS, 13 findings — đã xử lý hết trong các commit a31afef + working tree):**
+bảng keymap 92 phím khớp chuẩn Apple; corpus 114 case khớp golden có chủ ý;
+13 findings test-quality/spec-drift (case secure vô dụng, case EN identity,
+thiếu `preset_matrix`, `mac.game.nokbd` đặt sai vị trí, P2-1 §5 stale về
+`canonicalVK`, thiếu pin punctuation/KeypadEnter/Home-End, required-key guard
+thiếu ForwardDelete/arrows, comment sai số case, orphan-file check, comment
+modifier Cmd sai...).
+
+**Swift IMK (verdict NEEDS-FIX, 26 findings):** các blocker — package không
+compile (setter private, helper thiếu), `@objc` thiếu (IM không instantiate được),
+bug ngữ nghĩa NSTextInput (activate-transition nhân đôi chữ F3, unmark-commit F4,
+macro bị marked F5, commit-early thiếu reset F6, đơn vị đếm F7), IPC protocol
+(version type lệch F14, toggle sai chiều F15, data race F16, violation không
+disconnect F17, snapshot/appdb bỏ qua F18/F19, thiếu reconnect F20). **Đã xử lý
+toàn bộ** — phần lớn khớp với commit `a31afef`/`a260333` (2 luồng sửa hội tụ),
+phần còn lại vá trực tiếp: `@objc(TextVNInputController)`, `.toggleViEn` đúng
+chiều, `Int32(exactly:)` chống trap, `LSUIElement` + `TISIntendedLanguage` array
+(cả 2 plist), `ime_reset` khi engine lỗi, `seekToEndOfFile`, `responds(to:)` cho
+`deleteBackward`, `clientVersion` đọc Info.plist, 40 unit test (regression F3–F7,
+IPC codec `nextFrame`, decode wire samples).
+
+**Tap/CI/docs (agent hết quota — tự review):** `Unmanaged.passRetained` mỗi
+event = leak/keystroke → `passUnretained` (khớp contract C, đã có trong
+`a260333`); note thread-safety cho `NSWorkspace.frontmostApplication` và
+`TapTranslator` (serialized trên tap runloop).
+
+### Round 8.2 — Audit vòng 2 (final gate, verdict PASS)
+
+Verify chạy thật trên cây chốt: `cargo test --workspace` 29/29 suite OK ·
+clippy `-D warnings` sạch · fmt sạch · `check-tables`/`check-mac-corpus` (114)/
+`check-win-corpus` (72) · `replay --adapter mac` 149/149 · `--adapter win` 78/78 ·
+`check-mac-targets` (12 app) · guard injection OK · 3 plist hợp lệ khớp `@objc` ·
+Cargo.lock sync 0.2.0 · **PE metadata exe = 0.2.0.0** (build.rs mới patch .rc từ
+`CARGO_PKG_VERSION` — fix ZIP tên 0.2.0 nhưng PE kẹt 0.1.0.0).
+
+Findings round 2 (đã xử lý trước commit): link refs `[0.2.0]` cuối CHANGELOG;
+5 chuỗi "0.1.0" hardcode trong Swift → `AppInfo`/Bundle reading; `CFBundleVersion`
+lệch giữa 2 plist; test `config/src/doc.rs` flake trên Windows → retry 3×50ms.
+Nit còn mở có chủ ý: `FILEVERSION {version},0` sẽ cần bổ sung nếu sau này dùng
+pre-release version (workspace hiện chỉ số sạch).
+
+### Điều kiện production còn lại (bằng chứng bắt buộc)
+
+CI macOS (`ci-macos`) xanh + smoke GUI trên máy Mac thật (TextEdit/Safari/secure
+field/cài-gỡ .pkg) + notarization — đúng như `docs/release/build-release-report.md`
+và `cross-platform-audit-2026-09-30.md` đã ghi.

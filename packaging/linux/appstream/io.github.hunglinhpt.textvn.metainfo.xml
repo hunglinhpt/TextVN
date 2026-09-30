@@ -17,7 +17,7 @@
       <li>First-class Wayland support via Fcitx5 (text-input-v3) without key grab issues.</li>
       <li>Native IBus engine integration for Ubuntu GNOME desktops.</li>
       <li>Smart application compatibility engine preventing duplicate character bugs in address bars, terminals, and games.</li>
-      <li>UniKey 4.6 RC2 classic control panel layout.</li>
+      <li>Classic Vietnamese input method control panel layout.</li>
     </ul>
   </description>
   <launchable type="desktop-id">textvn-settings.desktop</launchable>
@@ -32,7 +32,7 @@
   <releases>
     <release version="0.1.0" date="2026-09-27">
       <description>
-        <p>Initial release of TextVN with UniKey 4.6 RC2 UI parity and dual Fcitx5/IBus support.</p>
+        <p>Initial release of TextVN with a compact control panel and dual Fcitx5/IBus support.</p>
       </description>
     </release>
   </releases>

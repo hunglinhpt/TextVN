@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use textvn_config::{
-    Config, DiacriticStyle, DocKind, MacroEntry, MacroTrigger, Method, SettingsDoc,
+    Config, DiacriticStyle, DocError, DocKind, MacroEntry, MacroTrigger, Method, SettingsDoc,
 };
 
 /// Dữ liệu trạng thái bật/tắt gõ per-app lưu trong `state.json`.
@@ -131,62 +131,73 @@ impl SvcManager {
         (st.global_enabled, next_ver)
     }
 
-    /// Sửa config trong bộ nhớ, ghi file, trả version mới để broadcast `ConfigReload`.
-    fn update_config(&self, f: impl FnOnce(&mut Config)) -> u64 {
+    /// Ghi config mới trước rồi mới publish trong bộ nhớ/version. Nếu lưu thất bại
+    /// (đĩa đầy, ACL, thư mục bị thay bằng file…), UI và TSF phải tiếp tục dùng
+    /// cấu hình cũ thay vì báo đã đổi kiểu gõ nhưng engine không thể nạp lại.
+    fn update_config(&self, f: impl FnOnce(&mut Config)) -> Result<u64, DocError> {
         let mut cfg = self.config.write().unwrap();
-        f(&mut cfg);
+        let mut candidate = cfg.clone();
+        f(&mut candidate);
+        self.persist_config(&candidate)?;
+        *cfg = candidate;
         let next_ver = self.config_version.fetch_add(1, Ordering::SeqCst) + 1;
-        self.persist_config(&cfg);
-        next_ver
+        Ok(next_ver)
     }
 
     /// Đổi kiểu gõ (Telex, VNI, VIQR, Telex đơn giản) (P1-4 §1).
-    pub fn set_method(&self, method: Method) -> u64 {
+    pub fn set_method(&self, method: Method) -> Result<u64, DocError> {
         self.update_config(|c| c.method = method)
     }
 
     /// Đổi kiểu bỏ dấu (mới `hoà` / cũ `hòa`).
-    pub fn set_diacritic_style(&self, style: DiacriticStyle) -> u64 {
+    pub fn set_diacritic_style(&self, style: DiacriticStyle) -> Result<u64, DocError> {
         self.update_config(|c| c.diacritic_style = style)
     }
 
     /// Đổi bảng mã xuất (Unicode dựng sẵn/tổ hợp, TCVN3, VNI Windows).
-    pub fn set_output_charset(&self, charset: textvn_config::OutputCharset) -> u64 {
+    pub fn set_output_charset(
+        &self,
+        charset: textvn_config::OutputCharset,
+    ) -> Result<u64, DocError> {
         self.update_config(|c| c.output_charset = charset)
     }
 
     /// Bật/tắt tự động khôi phục từ tiếng Anh khi gõ sai.
-    pub fn set_auto_restore_english(&self, enable: bool) -> u64 {
+    pub fn set_auto_restore_english(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.auto_restore_english = enable)
     }
 
     /// Bật/tắt đặt dấu tự do (free marking).
-    pub fn set_free_marking(&self, enable: bool) -> u64 {
+    pub fn set_free_marking(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.free_marking = enable)
     }
 
     /// Bật/tắt tự viết hoa chữ đầu câu.
-    pub fn set_auto_capitalize(&self, enable: bool) -> u64 {
+    pub fn set_auto_capitalize(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.auto_capitalize = enable)
     }
 
     /// Bật/tắt Quick Telex (`cc→ch`, `nn→ng`, …).
-    pub fn set_quick_telex(&self, enable: bool) -> u64 {
+    pub fn set_quick_telex(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.quick_telex = enable)
     }
 
     /// Cho phép gõ tắt cả khi đang tắt tiếng Việt.
-    pub fn set_allow_macro_when_vi_off(&self, enable: bool) -> u64 {
+    pub fn set_allow_macro_when_vi_off(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.allow_macro_when_vi_off = enable)
     }
 
     /// Bật hội thoại cài đặt khi khởi động tray.
-    pub fn set_show_dialog_on_startup(&self, enable: bool) -> u64 {
+    pub fn set_show_dialog_on_startup(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.show_dialog_on_startup = enable)
     }
 
     /// Thay bảng gõ tắt và phím mở rộng.
-    pub fn set_macros(&self, macros: Vec<MacroEntry>, trigger: MacroTrigger) -> u64 {
+    pub fn set_macros(
+        &self,
+        macros: Vec<MacroEntry>,
+        trigger: MacroTrigger,
+    ) -> Result<u64, DocError> {
         self.update_config(|c| {
             c.macros = macros;
             c.macro_trigger = trigger;
@@ -195,7 +206,7 @@ impl SvcManager {
 
     /// Nút "Mặc định": mọi tuỳ chọn gõ về mặc định; giữ bảng gõ tắt, emoji, từ tiếng Anh
     /// (UniKey cũng không xoá bảng gõ tắt khi bấm Mặc định).
-    pub fn reset_config_defaults(&self) -> u64 {
+    pub fn reset_config_defaults(&self) -> Result<u64, DocError> {
         self.update_config(|c| {
             let keep = (
                 std::mem::take(&mut c.macros),
@@ -208,11 +219,11 @@ impl SvcManager {
     }
 
     /// Vá các trường engine biết lên file hiện có (giữ khoá lạ do người dùng thêm).
-    fn persist_config(&self, cfg: &Config) {
+    fn persist_config(&self, cfg: &Config) -> Result<(), DocError> {
         let path = self.config_dir.join("config.json");
         let mut doc = SettingsDoc::load(&path, DocKind::Config);
         doc.merge_config(cfg);
-        let _ = doc.save(&path);
+        doc.save(&path)
     }
 
     fn persist_state(&self, state: &StateData) {
@@ -272,7 +283,7 @@ mod tests {
         let svc = SvcManager::new(Some(temp_dir.clone()));
 
         assert_eq!(svc.config().method, Method::Telex);
-        let next_ver = svc.set_method(Method::Vni);
+        let next_ver = svc.set_method(Method::Vni).unwrap();
         assert_eq!(next_ver, 2);
         assert_eq!(svc.config().method, Method::Vni);
 
@@ -291,15 +302,15 @@ mod tests {
         )
         .unwrap();
         let svc = SvcManager::new(Some(dir.clone()));
-        svc.set_quick_telex(true);
-        svc.set_method(Method::Vni);
+        svc.set_quick_telex(true).unwrap();
+        svc.set_method(Method::Vni).unwrap();
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
         assert_eq!(on_disk["hotkeys"]["toggle_vi_en"], "Ctrl+Shift+Space");
         assert_eq!(on_disk["quick_telex"], true);
         assert_eq!(on_disk["macros"][0]["expand"], "Việt Nam");
 
-        svc.reset_config_defaults();
+        svc.reset_config_defaults().unwrap();
         let cfg = svc.config();
         assert_eq!(cfg.method, Method::Telex);
         assert!(!cfg.quick_telex);
@@ -324,5 +335,22 @@ mod tests {
                 .is_ok()
         );
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn failed_config_save_keeps_memory_and_version_unchanged() {
+        let path =
+            std::env::temp_dir().join(format!("textvn_test_save_failure_{}", std::process::id()));
+        let _ = fs::remove_file(&path);
+        fs::write(&path, "not a directory").unwrap();
+        let svc = SvcManager::new(Some(path.clone()));
+
+        let before = svc.config();
+        let version = svc.config_version();
+        assert_eq!(svc.set_method(Method::Vni), Err(DocError::Io));
+        assert_eq!(svc.config(), before);
+        assert_eq!(svc.config_version(), version);
+
+        let _ = fs::remove_file(&path);
     }
 }

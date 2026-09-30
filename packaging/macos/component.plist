@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  component.plist — component list cho `pkgbuild --component-plist` (MAC-054, P2-4 §4).
+  `BundleIsRelocatable=false` là **bắt buộc**: nếu để true, Installer có thể "tìm thấy"
+  bản TextVN.app/TextVN-IM.app ở nơi khác rồi ghi đè ở đó thay vì vị trí trong payload.
+-->
+<plist version="1.0">
+<array>
+	<dict>
+		<key>BundleHasStrictIdentifier</key>
+		<true/>
+		<key>BundleIsRelocatable</key>
+		<false/>
+		<key>BundleIsVersionChecked</key>
+		<false/>
+		<key>BundleOverwriteAction</key>
+		<string>upgrade</string>
+		<key>RootRelativeBundlePath</key>
+		<string>Applications/TextVN.app</string>
+	</dict>
+	<dict>
+		<key>BundleHasStrictIdentifier</key>
+		<true/>
+		<key>BundleIsRelocatable</key>
+		<false/>
+		<key>BundleIsVersionChecked</key>
+		<false/>
+		<key>BundleOverwriteAction</key>
+		<string>upgrade</string>
+		<key>RootRelativeBundlePath</key>
+		<string>Library/Input Methods/TextVN-IM.app</string>
+	</dict>
+</array>
+</plist>

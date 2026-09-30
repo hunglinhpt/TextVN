@@ -47,6 +47,8 @@ public enum Diagnostics {
             fm.createFile(atPath: url.path, contents: nil)
         }
         fileHandle = FileHandle(forWritingAtPath: url.path)
+        // F25: append thay vì ghi đè từ byte 0 (relaunch giữ log cũ).
+        try? fileHandle?.seekToEndOfFile()
         log("TextVN-IM log opened (pid \(ProcessInfo.processInfo.processIdentifier))")
     }
 

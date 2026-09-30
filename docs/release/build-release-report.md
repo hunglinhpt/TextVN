@@ -1,7 +1,15 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (release candidate)
 
 Trạng thái: **release candidate** cho Windows 10/11 x64 và Linux x86_64 (IBus, Fcitx5).
-macOS: chưa có bản chạy được.
+macOS: mã nguồn đang ở beta; chưa có bằng chứng GUI/package production trên máy Mac thật.
+
+> Audit tiếp diễn 2026-09-30: bảng kết quả CI bên dưới là **bằng chứng lịch sử cho
+> commit `766029e`**, không chứng nhận checkout hiện tại hoặc bản ZIP mới. Các sửa
+> Windows/Linux/macOS sau commit đó cần CI chạy lại và smoke GUI trên từng hệ điều
+> hành. `RELEASE_REPORT.json` nằm trong mỗi ZIP Windows là nguồn trạng thái của
+> **chính ZIP ấy**; nếu `status=release-candidate` thì không phát hành là production.
+> Xem [audit đa nền tảng 2026-09-30](cross-platform-audit-2026-09-30.md)
+> để biết các sửa sau commit lịch sử và phần native chưa xác thực.
 
 Mọi số liệu dưới đây lấy từ CI (`.github/workflows/ci-shared.yml`, workflow `ci-shared`)
 và từ máy dựng Linux. Cập nhật file này ở mỗi lần phát hành (xem
@@ -24,7 +32,7 @@ và từ máy dựng Linux. Cập nhật file này ở mỗi lần phát hành (
 | `TextVN-0.1.0-linux-x86_64.tar.gz` | `scripts/build-linux.sh` | adapter IBus + Fcitx5, `textvn-settings` (GTK4), `install.sh`, `uninstall.sh`, `textvn-portable.sh` |
 
 Gói Windows mặc định **TSF-only** (không hook bàn phím toàn cục, không `SendInput`). Mã băm:
-`SHA256SUMS.txt` (Windows) và `*.tar.gz.sha256` (Linux), đính kèm cùng artifact CI.
+`SHA256SUMS-<build>.txt` (Windows) và `*.tar.gz.sha256` (Linux), đính kèm cùng artifact CI.
 
 ## 2. Kết quả kiểm thử
 

@@ -167,6 +167,9 @@ public final class ImeEngine {
         var out = ime_result_v1() // zero-init chuẩn cho struct C import
         let rc = ime_key(instance, &k, &out)
         guard rc == IME_OK else {
+            // P0-2 §5: ERR_INTERNAL → gọi reset (engine fail-open) rồi PASS+flag
+            // cho adapter (review R1 F24).
+            ime_reset(instance)
             return KeyOutcome(action: .pass, flags: FFI.flagError)
         }
         return Self.decode(out)

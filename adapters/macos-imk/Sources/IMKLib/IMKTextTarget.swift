@@ -51,6 +51,13 @@ final class IMKTextTarget: TextTarget {
         // Cơ chế (a) — P2-1 §6.3: key binding chuẩn qua IMKTextInput.doCommand(by:),
         // không cần quyền Accessibility, tương thích cả in-process NSView lẫn out-of-process XPC session.
         let selector = #selector(NSResponder.deleteBackward(_:))
+        // F8: doCommand không có giá trị trả về — client không implement
+        // `deleteBackward:` phải báo `false` để ApplyReplace fail-open,
+        // không xóa-thiếu âm thầm.
+        guard (client as NSObject).responds(to: selector) else {
+            Diagnostics.log("deleteBackward: client không implement key binding")
+            return false
+        }
         for _ in 0..<count {
             client.doCommand(by: selector)
         }

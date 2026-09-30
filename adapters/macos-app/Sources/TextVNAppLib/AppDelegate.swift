@@ -302,7 +302,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         let alert = NSAlert()
         alert.messageText = "Sức khỏe hệ thống TextVN"
         let status = """
-        • Phiên bản: 0.1.0 (Universal)
+        • Phiên bản: \(AppInfo.displayVersion)
         • IPC Socket: \(IpcServer.defaultSocketURL().path)
         • Trạng thái IPC: \(ipcServer.isRunning ? "Đang chạy (Online)" : "Chưa kích hoạt")
         • Số client kết nối: \(ipcServer.connectedClientsCount)
@@ -336,8 +336,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText = "TextVN 0.1.0"
-        alert.informativeText = "Bộ gõ tiếng Việt chuyên nghiệp cho macOS.\nBản quyền © 2026 TextVN Contributors.\nGiấy phép: GNU General Public License v3."
+        alert.messageText = "TextVN \(AppInfo.displayVersion)"
+        alert.informativeText = "Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."
         alert.alertStyle = .informational
         alert.runModal()
     }
