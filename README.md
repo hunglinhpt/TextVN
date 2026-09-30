@@ -22,8 +22,9 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 ## Tải và cài
 
 Bản mới nhất: **[GitHub Release v0.2.2](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.2)**
-(0.2.2 — vá F3-13: macOS login launch không còn tự mở cửa sổ Cài đặt; build bởi CI,
-kèm `SHA256SUMS.txt`; chưa ký số).
+(0.2.2 — vá F3-13: macOS login launch không còn tự mở cửa sổ Cài đặt; hộp thoại
+“Cài & bật TSF” trên Windows hiện đúng nguyên nhân thật khi đăng ký lỗi; build
+bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
