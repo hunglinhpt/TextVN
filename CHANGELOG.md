@@ -99,6 +99,11 @@ Chi tiết: [P2-REVIEW-LOG — Round 9](docs/30-macos/P2-REVIEW-LOG.md).
   khi `GetMessageW` lỗi.
 - **Linux**: `60-textvn.conf` không còn sót sau khi gỡ khi `XDG_CONFIG_HOME` khác mặc định;
   gỡ bản `--system` bỏ TextVN khỏi danh sách bộ gõ; cảnh báo khi Fcitx5 sẽ không nạp addon.
+- **CI xanh cả 3 nền tảng lần đầu** (MAC-032): code macOS (IMK, tap, app) nay build + test
+  trên Xcode 26.6 cả arm64/x86_64 và đóng gói `.pkg`; sửa kèm lỗi thật lộ ra khi chạy:
+  gõ từ dài hơn 8 ký tự ở chế độ preedit không còn mất ký tự thứ 9; tap CGEvent không rò
+  bộ nhớ mỗi phím; installer Windows compile được và báo lỗi (exit 10) khi đăng ký TSF
+  thất bại; `textvn-portable.sh` không rollback nhầm trên phiên chưa có ô nhập đang focus.
 
 ### Added (trước đó)
 - **Tray Icon**: Icon TextVN 16/32/48px nhúng qua winresource, manifest DPI PerMonitorV2

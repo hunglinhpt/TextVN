@@ -17,7 +17,7 @@
 | **Round 7 — CI Fix MAC-031** | `Package.swift` URL→String, `build-rust.sh` ROOT_DIR/scalar, `ci-macos.yml` rust_target matrix | 3 | 0 | 3 | 0 | ✅ 3/3 đã fix |
 | **Round 9 — Review vòng 3 (F3-* macOS + R3-* Win/Linux)** | macos-app, IpcClient, packaging macOS/Linux, tray Win32, xtask, version-sync | 40 | 1 | 7 | 17 | ✅ 25 đã fix (1 blocker, 7 major, 15 minor, 2 nit) · hoãn có lý do: 2 minor (F3-8, F3-13) + 13 nit |
 
-**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings vòng 1–7 + 25 findings Round 9 đã xử lý; còn 2 minor + 13 nit hoãn có lý do — xem Round 9). Swift của Round 9 chờ CI `ci-macos` xác nhận.
+**→ Toàn bộ Phần 2 (Spec, IMK, Tap, Menu Bar & Settings App, Packaging, Scripts, Corpus, CI) đạt chuẩn chất lượng cao nhất.** 0 `blocker`, 0 `major` mở (31/31 findings vòng 1–7 + 25 findings Round 9 đã xử lý; còn 2 minor + 13 nit hoãn có lý do — xem Round 9). `ci-macos` xanh lần đầu ở Round 9b (`66cbd98`).
 
 ---
 
@@ -284,4 +284,40 @@ xác nhận đầu tiên.
 | `bash -n` toàn bộ script tracked + postinstall | ✅ 21/21 |
 | PowerShell parser toàn bộ `*.ps1` | ✅ 0 lỗi |
 | `plistlib` strict 6 plist/entitlements (gồm `component.plist`) | ✅ |
-| Swift build/test, GUI macOS, CMake Linux | ⏳ chờ CI `ci-macos` / `ci-linux` (không chạy được trên host Windows) |
+| Swift build/test, CMake Linux, gói 3 OS | ✅ CI trên `66cbd98` — xem Round 9b |
+| GUI macOS trên máy thật | ⏳ chưa có máy Mac — điều kiện production |
+
+### Round 9b — Đưa CI 3 nền tảng về xanh trước tag (MAC-032)
+
+Khi đẩy các fix trên lên CI mới phát hiện: **`ci-macos` chưa từng xanh** kể từ khi
+code macOS vào repo (6/6 run trước đều đỏ ở manifest `macos-imk`) — nghĩa là toàn
+bộ Swift của các vòng 1–8 chưa từng được compile trên CI; commit `9ec9bf4` (chưa
+push) cũng mang theo các thay đổi Windows/Linux chưa qua CI. Sửa cuốn chiếu tới
+khi xanh thật:
+
+| Khu vực | Lỗi CI thật | Cách fix |
+|---|---|---|
+| macOS manifest | `String.components(separatedBy:)` là API Foundation — manifest không import được | `lastIndex(of:)` + slice (stdlib) |
+| IMK compile | `IMKTextInput` không có `unmarkText`/`doCommand(by:)`; `didClose`/`menu(_:)` không phải API `IMKInputController`; gán `UnsafeMutablePointer` vào `const char*`; `copyBytes` thiếu `count`; `connect` trùng method; `KeyMapMacGenerated` internal khác module; thiếu `import CTextVNFFI`; closure nhiều lệnh thiếu `return` | Dùng đúng API IMK (`inputControllerWillClose()`, `menu()`), `doCommandBySelector:` qua protocol `@objc` sau `respondsToSelector:` (chạy cả với proxy XPC, vẫn fail-open), buffer pointer bất biến, `Darwin.connect`, generator xtask sinh `public`, dependency `CTextVNFFI` |
+| Tap compile | `.cgHIDEventTap` (tên Swift là `.cghidEventTap`), `handler` private với callback C, keycode `Int64` | Sửa tên/visibility/`truncatingIfNeeded`; callback trả event bằng `passUnretained` (R8 ghi đã sửa nhưng code vẫn `passRetained` → rò 1 CGEvent/phím) |
+| IMK test (chạy lần đầu, 4/40 đỏ) | Commit-early B11 commit phần marked cũ rồi nuốt phím → **mất ký tự thứ 9**; mock thiếu marked range; kỳ vọng UTF-32 sai | Commit toàn bộ preedit mới + reset (spec P2-1 cập nhật); mock giống app thật |
+| CI x86_64 | `swiftpm-testing-helper` arm64 không dlopen bundle x86_64 | x86_64 build kèm `--build-tests`, `swift test` chạy trên arm64 |
+| Package candidate (chạy lần đầu) | Target header-only `CTextVNFFI` không sinh object khi build universal; `package-macos-pkg.sh`/`postinstall` thiếu bit thực thi | `shim.c`; `git update-index --chmod=+x` (6 script) |
+| Windows installer | `.iss` gọi `SetErrorFlag` (không tồn tại) → installer 0.2.0 **chưa từng compile**; `build-release.ps1` chỉ WARN rồi báo COMPLETE | `GetCustomSetupExitCode` (exit 10 khi đăng ký TSF lỗi); release script `throw` khi ISCC lỗi |
+| Windows register | CLI do setup im lặng chạy: `ActivateProfile(VI) → 0x80004005` dù đăng ký đủ | Bản thường: cảnh báo (đã có trong danh sách bàn phím, tray/Win+Space kích hoạt); `--no-taskbar` vẫn bắt buộc |
+| Windows test | Caps Lock: `GetKeyState` của thread PowerShell trễ sau `SendInput` → gõ `việt`; dọn thư mục tạm fail vì DLL TSF còn nạp | Truyền trạng thái Caps tường minh; dọn tạm best-effort |
+| Linux portable | `ibus engine`/`fcitx5-remote -s` bị từ chối khi không có ô focus (headless) → rollback | Bắt buộc: daemon đã nạp engine (`ibus list-engine`, `Controller1.AvailableInputMethods`); chuyển engine best-effort như bản `1ad7c32` |
+| Linux test | Sentinel `not-textvn` bị residue check bắt; `fcitx5-remote -n` tự DBus-activate Fcitx5; so profile Fcitx5 theo byte dù Fcitx5 tự ghi lại khi thoát | Đổi tên sentinel + kiểm còn sau gỡ; `pgrep`; kiểm `Name=textvn` |
+| Docs | Link tương đối tới zip trong `dist/` (không commit) | Đổi thành text |
+
+**Kết quả trên commit `66cbd98`:** `ci-shared` ✅ (fmt, clippy, test 3 OS, replay 3
+OS, ABI, deny, reuse, fuzz, **Linux IBus/Fcitx5 5/5 kịch bản gói**, **Windows
+portable + installer gõ TSF thật**) · `ci-macos` ✅ (**lần đầu**: build + test IMK /
+tap / app × arm64 + x86_64, gói `.pkg`/`.zip` unsigned) · `repo-hygiene` ✅.
+`perf regression` đỏ nhưng là `continue-on-error` theo thiết kế (runner chung 2
+vCPU); đo local cùng baseline: `ime_key` p50 500 ns (−27%), `parse_config` 762 ns
+(−2.4%) — không hồi quy.
+
+Còn lại trước khi gọi là production (không đổi so với Round 8): ký Authenticode /
+Developer ID + notarize, smoke GUI trên máy Mac thật (TextEdit/Safari, ô mật khẩu,
+cài/gỡ `.pkg`), smoke gõ trên phiên desktop Windows/Linux thật ngoài CI.
