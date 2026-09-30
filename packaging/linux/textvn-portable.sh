@@ -154,6 +154,20 @@ restore_portable_state() {
     esac
 }
 
+fcitx5_has_textvn() { # 0 = đã nạp IM textvn, 1 = chưa, 2 = không có công cụ DBus để kiểm
+    local out=""
+    if command -v gdbus >/dev/null 2>&1; then
+        out="$(gdbus call --session --dest org.fcitx.Fcitx5 --object-path /controller \
+            --method org.fcitx.Fcitx.Controller1.AvailableInputMethods 2>/dev/null)" || return 1
+    elif command -v dbus-send >/dev/null 2>&1; then
+        out="$(dbus-send --session --print-reply --dest=org.fcitx.Fcitx5 /controller \
+            org.fcitx.Fcitx.Controller1.AvailableInputMethods 2>/dev/null)" || return 1
+    else
+        return 2
+    fi
+    grep -qE "['\"]textvn['\"]" <<< "$out"
+}
+
 rollback_start() { # <framework> <message>
     local fw="$1" message="$2"
     printf '%s\n' "$fw" > "$RECOVERY"
@@ -303,19 +317,28 @@ else
             setsid fcitx5 -d >/dev/null 2>&1 || true
         sleep 1
     fi
-    active=0
-    if command -v fcitx5-remote >/dev/null 2>&1; then
-        for _ in 1 2 3 4 5; do
-            if fcitx5-remote -s textvn >/dev/null 2>&1 &&
-                fcitx5-remote -n 2>/dev/null | grep -qi '^textvn$'; then
-                active=1
-                break
-            fi
-            sleep 1
-        done
+    # Bắt buộc: Fcitx5 đã nạp IM textvn (Controller1.AvailableInputMethods — cùng
+    # interface e2e dùng). Không có gdbus/dbus-send thì không kiểm được → bỏ qua.
+    registered=0
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        rc=0
+        fcitx5_has_textvn || rc=$?
+        if [[ "$rc" == 0 || "$rc" == 2 ]]; then
+            registered=1
+            break
+        fi
+        sleep 1
+    done
+    if [[ "$registered" != 1 ]]; then
+        rollback_start fcitx5 "Fcitx5 không nạp được TextVN; không đánh dấu phiên portable là thành công."
     fi
-    if [[ "$active" != 1 ]]; then
-        rollback_start fcitx5 "Fcitx5 không kích hoạt được TextVN; không đánh dấu phiên portable là thành công."
+    # Chuyển IM hiện tại — best-effort như IBus: phiên không có ô nhập đang focus
+    # (headless/CI) từ chối `fcitx5-remote -s` dù TextVN chọn được từ menu.
+    if command -v fcitx5-remote >/dev/null 2>&1 && fcitx5-remote -s textvn >/dev/null 2>&1 &&
+        fcitx5-remote -n 2>/dev/null | grep -qi '^textvn$'; then
+        tv_ok "Đã chọn TextVN cho phiên này."
+    else
+        tv_say "Fcitx5 đã nạp TextVN — chọn TextVN trong menu bộ gõ nếu chưa tự chuyển."
     fi
 fi
 echo "$FW" > "$MARK"

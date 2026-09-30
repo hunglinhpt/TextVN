@@ -65,8 +65,15 @@ Write-Host 'PASS portable: extract -> run -> type -> unregister'
         if (-not $resolvedDir.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw "Unsafe portable test cleanup path: $resolvedDir"
         }
-        Remove-Item -LiteralPath $resolvedDir -Recurse -Force
-        Write-Host 'PASS portable: temporary extraction cleaned'
+        # TSF da go dang ky nhung textvn-tsf.dll van nap trong tien trinh dang chay
+        # (ctfmon, editor) toi khi chung thoat - dung nhu uninstall.ps1 bao nguoi
+        # dung. Don tam la best-effort, khong lam fail kich ban da PASS.
+        try {
+            Remove-Item -LiteralPath $resolvedDir -Recurse -Force -ErrorAction Stop
+            Write-Host 'PASS portable: temporary extraction cleaned'
+        } catch {
+            Write-Warning "Temporary extraction kept ($($_.Exception.Message)): $resolvedDir"
+        }
     } elseif (Test-Path -LiteralPath $dir) {
         Write-Warning "Portable test files retained because TextVN or TSF registration still uses $dir"
     }
