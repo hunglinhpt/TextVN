@@ -1,6 +1,7 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
-> `v0.2.2` là bản mới nhất. Bằng chứng của nó nằm trong
+> `v0.2.2` **đã publish** 2026-09-30 dạng pre-release. Bằng chứng của bản đó
+> nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
@@ -79,16 +80,45 @@ chạy trên self-hosted theo risk RW5 của P1-5 §1). Đo lại trên máy loc
 Không có hồi quy sản phẩm; cấu hình job **không** được nới lỏng. Chi tiết và
 ranh giới xác minh: [audit Vòng 11](cross-platform-audit-2026-09-30.md).
 
+### Phát hành — v0.2.2 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.2` @ `96083d5` (gồm fix đăng ký `291c6ed`). Workflow
+  [release-candidate #36745978568](https://github.com/hunglinhpt/TextVN/actions/runs/36745978568)
+  build + test cả 3 nền tảng rồi publish: 4/4 job `success` (windows · linux ·
+  macos · publish). Job windows chạy đúng bộ smoke gõ thật (`test-portable.ps1`
+  + `test-installer.ps1`) và **xanh**.
+- **Release:** [TextVN 0.2.2 (release candidate)](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.2)
+  (pre-release) — 7 asset, publish job đã kiểm `RELEASE_REPORT.json`
+  (`version=0.2.2`, `git_commit` = tag, `source_tree_clean=true`,
+  `status=release-candidate`) và ZIP mặc định không chứa legacy hook.
+- **Checksums pin** (từ `SHA256SUMS.txt` đính kèm release):
+
+| Asset | SHA-256 |
+|---|---|
+| `TextVN-portable-0.2.2-windows-x64-20260930164128.zip` | `f21ba90d373ef94a35c43a75825edb73cc3b263dc242f7d59f9fe4dd84305dcf` |
+| `TextVN-setup-0.2.2-windows-x64.exe` | `4efe356920020988948d2e76be80b83229ef15cf5429215c8619ce17622b2bed` |
+| `TextVN-0.2.2-linux-x86_64.tar.gz` | `95fe3b33d544261b4b07dfdbb390dae9bd2ea8fdb540a88a316d13da3c1cbfdc` |
+| `TextVN-mac-v0.2.2.pkg` | `903befdbaf83a7564a71c1f05e35e1a520a535c7f102304b227e31c4a50dfadc` |
+| `TextVN-macos-universal-v0.2.2.zip` | `907af7f71dfbc03fe31c5668ec96017e65d6ce505a86dab22ebe1a0c3664e198` |
+
+- **CI cùng commit fix (`291c6ed`):** `ci-macos` ✅ (Swift arm64 build + test với
+  fix mới), `repo-hygiene` ✅. `ci-shared` — mọi job Rust/test/replay/package
+  xanh, riêng job **typing smoke "Windows package" đỏ chớp trên runner dùng
+  chung** (symptom khác mỗi run: notepad nhận `[]`, wordpad desync; cùng commit
+  rerun xanh, và release run chạy đúng bộ test này vẫn xanh) — đã ghi sổ
+  [B5](../specs/win-test-common-errors.md). Job `perf regression` đỏ là
+  `continue-on-error` theo thiết kế (nhiễu runner; đo local không hồi quy —
+  bảng phía trên), **không** làm đỏ run.
+
 ### Trạng thái
 
 - **Release candidate, không production.** Chưa có Authenticode (host không có
   code-signing certificate có private key), chưa có Developer ID, notarization.
-- **Swift chưa compile ở vòng này**: host Windows không có toolchain macOS.
-  Test Swift mới (F3-8, F3-13, `ViState`, toggle theo config, lifecycle observer)
-  chỉ được xác nhận ở `ci-macos` sau khi push; GUI smoke trên máy Mac thật vẫn
-  là **điều kiện production**.
-- Số liệu CI và binary artifact của bản này được bổ sung sau khi workflow
-  `release-candidate` chạy từ tag sạch.
+- **Swift đã compile + test trên CI** cho commit fix (`ci-macos` ✅ `291c6ed`).
+  GUI smoke trên máy Mac thật vẫn là **điều kiện production**.
+- Người dùng cài bản này lên máy có TSF cũ trỏ DLL đã xoá (thấy qua
+  `textvn-cli register status`: `COM server … (FILE MISSING)`): bấm
+  **[Cài & bật TSF]** sẽ repoint CLSID sang DLL mới của bản cài.
 
 ## Bản 0.2.1 — phát hành pre-release đã xác minh
 
