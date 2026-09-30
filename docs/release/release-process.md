@@ -53,6 +53,10 @@ python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in 
 # A6. (nếu đụng docs) link + inject check như repo-hygiene
 python .github/scripts/check_doc_links.py
 python .github/scripts/check_no_injection_apis.py
+
+# A7. Cross-check Linux trên host Windows (E9): bắt lỗi cfg(windows) mà clippy
+# Windows không nhìn thấy — BẮT BUỘC khi đụng cfg-gate/import liên platform.
+cargo check --workspace --exclude textvn-win-hook --all-targets   --target x86_64-unknown-linux-gnu
 ```
 
 **Kịch bản build release trên Windows (tuỳ chọn nhưng khuyến nghị cho bản có

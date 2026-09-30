@@ -18,6 +18,10 @@ use std::sync::Arc;
 #[cfg(windows)]
 use std::time::Duration;
 
+// cfg(windows): load_app_icon là Win32 (HICON) — bin vẫn build trên Linux/macOS
+// cho gate CI --workspace; thiếu cfg làm ubuntu CI fail E0432 (bắt được ở
+// ci-shared 2026-09-30, không bắt được bằng clippy trên host Windows).
+#[cfg(windows)]
 use textvn_tray::icons::{load_app_icon, IDI_ICON_E, IDI_ICON_V};
 use textvn_tray::ipc_server::{IpcServer, PIPE_NAME};
 use textvn_tray::menu::TrayMenu;
