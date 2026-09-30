@@ -222,13 +222,17 @@ jobs:
           swift build --arch ${{ matrix.arch }}
           swift test --arch ${{ matrix.arch }}
 
+      # 3 package độc lập (staticlib đã có từ bước trên) — IMK lỗi vẫn build/test
+      # tap + app để một lần chạy CI báo đủ lỗi cả 3; job vẫn fail như cũ.
       - name: swift build + test (tap opt-in — P2-2 §8)
+        if: ${{ !cancelled() }}
         working-directory: adapters/macos-tap
         run: |
           swift build --arch ${{ matrix.arch }}
           swift test --arch ${{ matrix.arch }}
 
       - name: swift build + test (menu bar app and settings)
+        if: ${{ !cancelled() }}
         working-directory: adapters/macos-app
         run: |
           swift build --arch ${{ matrix.arch }}

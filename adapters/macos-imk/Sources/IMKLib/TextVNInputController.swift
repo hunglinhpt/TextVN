@@ -16,6 +16,7 @@
 import AppKit
 import Carbon.HIToolbox
 import CoreBridge
+import CTextVNFFI // ime_context_v1 / ime_strategy_resolve dùng trực tiếp (MAC-032)
 import Foundation
 import InputMethodKit
 
@@ -100,13 +101,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         super.deactivateServer(sender)
     }
 
-    /// Client đóng app → commit + reset.
-    public override func didClose(_ client: Any!) {
-        commitBeforeHide(client)
+    /// Client đóng app → commit + reset. IMKInputController không có `didClose(_:)`
+    /// — hook đúng là `inputControllerWillClose()` (MAC-032).
+    public override func inputControllerWillClose() {
+        commitBeforeHide(client())
         engine?.reset()
+        super.inputControllerWillClose()
     }
 
-    public override func menu(_ sender: Any!) -> NSMenu! {
+    public override func menu() -> NSMenu! {
         // Menu do TextVN.app quản — IMK không thêm mục riêng (P2-4 §1).
         return nil
     }
@@ -114,7 +117,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     // ------------------------------------------------------------- key flow
 
     public override func recognizedEvents(_ sender: Any!) -> Int {
-        [.keyDown, .flagsChanged].rawValue
+        Int(NSEvent.EventTypeMask([.keyDown, .flagsChanged]).rawValue)
     }
 
     public override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {

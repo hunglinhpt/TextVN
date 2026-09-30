@@ -7,10 +7,11 @@
 /// Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = 0x6a6f2f15251c8911).
 /// Keycode macOS (Carbon `kVK_*`) → VK canonical Windows (P0-2 §1).
 /// Phím không có trong bảng → nil → adapter PASS (không đoán).
-enum KeyMapMacGenerated {
-    static let keyCount = 92
+/// `public`: dùng từ module IMKLib, khác module CoreBridge (MAC-032).
+public enum KeyMapMacGenerated {
+    public static let keyCount = 92
 
-    static func canonicalVK(_ kvk: UInt32) -> UInt32? {
+    public static func canonicalVK(_ kvk: UInt32) -> UInt32? {
         switch kvk {
         case 0x00: return 0x41 // ANSI_A
         case 0x01: return 0x53 // ANSI_S

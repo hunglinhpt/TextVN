@@ -128,8 +128,9 @@ scenario_install() {
     mkdir -p "$(dirname "$stale")"
     printf 'old package residue\n' > "$stale"
     echo "$stale" >> "$pre/share/textvn/install-manifest.txt"
-    # Manifest hỏng không được phép xóa file bất kỳ nằm trong prefix.
-    sentinel="$pre/bin/not-textvn"
+    # Manifest hỏng không được phép xóa file bất kỳ nằm trong prefix. Tên KHÔNG chứa
+    # "textvn" — nếu không kiểm tra "còn sót sau khi gỡ" (-iname '*textvn*') bắt nhầm.
+    sentinel="$pre/bin/user-tool-must-survive"
     printf 'must survive\n' > "$sentinel"
     echo "$sentinel" >> "$pre/share/textvn/install-manifest.txt"
     "$pkg/install.sh" --no-restart >"$t/upgrade.log" 2>&1 || { cat "$t/upgrade.log"; fail "install.sh upgrade"; }
@@ -166,6 +167,7 @@ scenario_install() {
         -o -path "$HOME/.local/state/TextVN" \) -prune \
         -o \( -iname '*textvn*' -print \) | grep -v fake-gsettings || true)"
     [[ -z "$left" ]] || fail "còn sót sau khi gỡ: $left"
+    [[ -f "$sentinel" ]] || fail "uninstall.sh đã xóa file không thuộc TextVN (manifest hỏng)"
     if grep -q "'textvn'" "$HOME/.fake-gsettings" 2>/dev/null; then
         fail "gỡ xong vẫn còn textvn trong danh sách engine IBus"
     fi

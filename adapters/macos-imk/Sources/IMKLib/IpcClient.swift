@@ -208,12 +208,12 @@ public final class IpcClient {
             return
         }
         withUnsafeMutableBytes(of: &addr.sun_path) { dst in
-            dst.baseAddress?.copyBytes(from: pathBytes)
+            dst.copyBytes(from: pathBytes)
         }
         let len = socklen_t(MemoryLayout<sockaddr_un>.size)
         let rc = withUnsafePointer(to: &addr) { ptr in
             ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
-                connect(fd, sa, len)
+                Darwin.connect(fd, sa, len) // không phải method `connect()` của IpcClient
             }
         }
         guard rc == 0 else {

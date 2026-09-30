@@ -11,6 +11,14 @@ import CoreBridge
 import Foundation
 import InputMethodKit
 
+/// `doCommandBySelector:` thuộc `NSTextInputClient`, KHÔNG có trong protocol
+/// `IMKTextInput` (MAC-032: Xcode 26.6 báo "no member 'doCommand'"). Gửi qua
+/// protocol @objc riêng = objc_msgSend thuần — chạy cả với client in-process
+/// (NSObject) lẫn proxy XPC (NSProxy, nơi `as NSObject` thất bại).
+@objc protocol TextCommandTarget {
+    @objc(doCommandBySelector:) func doCommand(by selector: Selector)
+}
+
 final class IMKTextTarget: TextTarget {
     /// client thật của IMK (`IMKInputController.handle(event:client:)`).
     private let client: IMKTextInput
@@ -34,8 +42,13 @@ final class IMKTextTarget: TextTarget {
         )
     }
 
+    /// `IMKTextInput` không có `unmarkText` — commit marked hiện có bằng cách
+    /// chèn lại đúng text đó lên range marked (chỉ dùng API IMKTextInput).
     func unmark() {
-        client.unmarkText()
+        let range = client.markedRange()
+        guard range.location != NSNotFound, range.length > 0,
+              let text = client.attributedSubstring(from: range)?.string else { return }
+        client.insertText(text as Any, replacementRange: range)
     }
 
     func markedRange() -> NSRange {
@@ -51,15 +64,17 @@ final class IMKTextTarget: TextTarget {
         // Cơ chế (a) — P2-1 §6.3: key binding chuẩn qua IMKTextInput.doCommand(by:),
         // không cần quyền Accessibility, tương thích cả in-process NSView lẫn out-of-process XPC session.
         let selector = #selector(NSResponder.deleteBackward(_:))
-        // F8: doCommand không có giá trị trả về — client không implement
-        // `deleteBackward:` phải báo `false` để ApplyReplace fail-open,
+        // F8: doCommand không có giá trị trả về — client không nhận
+        // `doCommandBySelector:` phải báo `false` để ApplyReplace fail-open,
         // không xóa-thiếu âm thầm.
-        guard (client as NSObject).responds(to: selector) else {
-            Diagnostics.log("deleteBackward: client không implement key binding")
+        let object = client as AnyObject
+        guard object.responds(to: #selector(TextCommandTarget.doCommand(by:))) else {
+            Diagnostics.log("deleteBackward: client không nhận doCommandBySelector:")
             return false
         }
+        let target = unsafeBitCast(object, to: TextCommandTarget.self)
         for _ in 0..<count {
-            client.doCommand(by: selector)
+            target.doCommand(by: selector)
         }
         return true
     }

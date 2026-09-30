@@ -331,9 +331,10 @@ fn render_keymap_mac_swift(mac: &[MacKey], digest: u64) -> String {
         "/// Nguồn: `data/tables/keymap_mac.toml` (digest FNV-1a 64 = 0x{digest:016x}).\n\
          /// Keycode macOS (Carbon `kVK_*`) → VK canonical Windows (P0-2 §1).\n\
          /// Phím không có trong bảng → nil → adapter PASS (không đoán).\n\
-         enum KeyMapMacGenerated {{\n\
-         \x20   static let keyCount = {count}\n\n\
-         \x20   static func canonicalVK(_ kvk: UInt32) -> UInt32? {{\n\
+         /// `public`: dùng từ module IMKLib, khác module CoreBridge (MAC-032).\n\
+         public enum KeyMapMacGenerated {{\n\
+         \x20   public static let keyCount = {count}\n\n\
+         \x20   public static func canonicalVK(_ kvk: UInt32) -> UInt32? {{\n\
          \x20       switch kvk {{\n",
         count = mac.len()
     ));

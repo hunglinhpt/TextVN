@@ -57,7 +57,7 @@ let package = Package(
         ),
         .target(
             name: "IMKLib",
-            dependencies: ["CoreBridge"],
+            dependencies: ["CoreBridge", "CTextVNFFI"],
             path: "Sources/IMKLib"
         ),
         .executableTarget(

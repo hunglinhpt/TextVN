@@ -139,7 +139,7 @@ public final class IpcServer {
                     var probeAddr = sockaddr_un()
                     probeAddr.sun_family = sa_family_t(AF_UNIX)
                     withUnsafeMutableBytes(of: &probeAddr.sun_path) { dst in
-                        dst.baseAddress?.copyBytes(from: pathBytes)
+                        dst.copyBytes(from: pathBytes)
                     }
                     let connected = withUnsafePointer(to: &probeAddr) { ptr in
                         ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
@@ -172,7 +172,7 @@ public final class IpcServer {
             var addr = sockaddr_un()
             addr.sun_family = sa_family_t(AF_UNIX)
             withUnsafeMutableBytes(of: &addr.sun_path) { dst in
-                dst.baseAddress?.copyBytes(from: pathBytes)
+                dst.copyBytes(from: pathBytes)
             }
 
             let len = socklen_t(MemoryLayout<sockaddr_un>.size)
