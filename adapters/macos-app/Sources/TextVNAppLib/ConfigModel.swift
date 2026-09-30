@@ -44,7 +44,7 @@ public struct TextVNConfig: Codable, Equatable {
         allow_macro_when_vi_off: Bool = false,
         output_charset: String = "unicode_precomposed",
         show_dialog_on_startup: Bool = true,
-        autostart: Bool = true,
+        autostart: Bool = false,
         non_preedit: Bool = true,
         run_in_tray: Bool = true,
         switch_key: String = "ctrl_shift",

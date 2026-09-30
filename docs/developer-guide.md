@@ -147,14 +147,22 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 
 ## 5. Phát hành
 
-1. Cập nhật `version` trong `Cargo.toml` (workspace) và `installer/windows/TextVN-setup.iss`.
+1. Cập nhật `version` trong `Cargo.toml` (workspace), mọi manifest/plist/fallback
+   Swift, rồi chạy `cargo run -q -p xtask -- check-version-sync`.
 2. `CHANGELOG.md`, [build-release-report.md](release/build-release-report.md) (điền số liệu
    kiểm thử thật của lần build).
 3. Windows: `build-release.ps1 -BuildInstaller -SigningCertificateThumbprint …` trên máy có
    chứng chỉ; `RELEASE_REPORT.json` trong zip ghi trạng thái (`release-candidate` cho tới khi
    hết `production_blockers`).
 4. Linux: `scripts/build-linux.sh` trên Ubuntu 24.04 (glibc của máy dựng là mức tối thiểu).
-5. Đính kèm zip, setup `.exe`, tarball và file SHA256 vào GitHub Release.
+5. macOS: `scripts/build-macos.sh` và `scripts/package-macos-pkg.sh` trên runner Mac;
+   chỉ ký/notarize khi có Developer ID thật và đã smoke GUI trên Mac.
+6. Chỉ sau khi `ci-shared`, `ci-macos`, `repo-hygiene` xanh trên **cùng commit**,
+   tạo tag `v<version>`, tải artifact của đúng commit, kiểm SHA-256 và
+   `RELEASE_REPORT.json`, rồi đính kèm ZIP Windows, setup `.exe`, Linux tarball,
+   macOS ZIP/tar/PKG và `SHA256SUMS.txt` vào GitHub Release. Gắn pre-release
+   nếu còn unsigned/native GUI blocker; không đổi nhãn thành production bằng
+   cách chỉ sửa metadata GitHub.
 
 ## 6. Tài liệu liên quan
 

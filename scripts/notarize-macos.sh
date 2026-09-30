@@ -3,7 +3,7 @@
 # notarize-macos.sh — notarize + staple artifact macOS (MAC-055, P2-4 §5, gate P2-5 §6).
 #
 # Dùng:
-#   scripts/notarize-macos.sh dist/macos/TextVN-mac-v0.2.0.pkg
+#   scripts/notarize-macos.sh dist/macos/TextVN-mac-v<version>.pkg
 #   scripts/notarize-macos.sh dist/macos/stage/TextVN.app     # staple app rồi mới zip
 #
 # Xác thực notarytool — chọn 1 trong 2 (không dùng mật khẩu Apple ID):

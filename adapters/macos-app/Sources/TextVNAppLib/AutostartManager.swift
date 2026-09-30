@@ -17,7 +17,13 @@ public final class AutostartManager {
     }
 
     public static func generateLaunchAgentPlist(executablePath: String) -> String {
-        """
+        let escapedPath = executablePath
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&apos;")
+        return """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -26,7 +32,7 @@ public final class AutostartManager {
             <string>\(label)</string>
             <key>ProgramArguments</key>
             <array>
-                <string>\(executablePath)</string>
+                <string>\(escapedPath)</string>
                 <string>--autostart</string>
             </array>
             <key>RunAtLoad</key>

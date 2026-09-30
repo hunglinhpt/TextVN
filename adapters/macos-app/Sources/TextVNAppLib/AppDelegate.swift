@@ -26,14 +26,21 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        let isSettings = CommandLine.arguments.contains("--settings")
+        let isLoginLaunch = CommandLine.arguments.contains("--autostart")
+            || autostartManager.isAutostartEnabled()
         // 1. Single Instance Check (P2-4 §1)
         if isAnotherInstanceRunning() {
-            DistributedNotificationCenter.default().postNotificationName(
-                Notification.Name("vn.textvn.awake"),
-                object: nil,
-                userInfo: nil,
-                deliverImmediately: true
-            )
+            // SMAppService does not forward --autostart. A duplicate login launch
+            // must not open Settings in the instance already running.
+            if isSettings || !isLoginLaunch {
+                DistributedNotificationCenter.default().postNotificationName(
+                    Notification.Name("vn.textvn.awake"),
+                    object: nil,
+                    userInfo: nil,
+                    deliverImmediately: true
+                )
+            }
             NSApp.terminate(nil)
             return
         }
@@ -64,12 +71,24 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         setupStatusItem()
 
         // 4. Initial Launch Behavior
-        let isAutostart = CommandLine.arguments.contains("--autostart")
-        let isSettings = CommandLine.arguments.contains("--settings")
-
-        if isSettings || (!isAutostart && configStore.config.show_dialog_on_startup) {
+        if Self.shouldShowSettingsOnLaunch(
+            arguments: CommandLine.arguments,
+            autostartEnabled: isLoginLaunch,
+            showDialogOnStartup: configStore.config.show_dialog_on_startup
+        ) {
             showSettingsWindow()
         }
+    }
+
+    /// SMAppService launches the main app without custom arguments. When login
+    /// startup is enabled, keep that path quiet; --settings remains explicit.
+    public static func shouldShowSettingsOnLaunch(
+        arguments: [String],
+        autostartEnabled: Bool,
+        showDialogOnStartup: Bool
+    ) -> Bool {
+        arguments.contains("--settings")
+            || (showDialogOnStartup && !autostartEnabled && !arguments.contains("--autostart"))
     }
 
     public func applicationWillTerminate(_ notification: Notification) {

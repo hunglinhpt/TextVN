@@ -1,5 +1,42 @@
 # Audit tiếp diễn — TextVN, 2026-09-30
 
+## Vòng 10 — delta từ `v0.2.0` đến `v0.2.1`
+
+Đối chiếu HEAD `30d5273`, tag `v0.2.0`, các thay đổi Graphify còn pending và
+release GitHub: `v0.2.0` đã có 7 asset (Windows portable/setup, Linux tar,
+macOS zip/tar/pkg, SHA256SUMS), nhưng mô tả tự nhận candidate chưa ký số trong
+khi GitHub đánh dấu latest. Đã sửa metadata thành **pre-release**; không ghi đè
+binary cũ. Kết quả v0.2.1 chỉ có hiệu lực sau khi CI trên tag/commit mới xanh.
+
+| What / Where | Why (nguyên nhân) | Who chịu ảnh hưởng | When | How xử lý / xác minh |
+|---|---|---|---|---|
+| F3-13 · `AppDelegate.swift` | `SMAppService.mainApp` không truyền `--autostart`, nên cờ mở dialog bị hiểu thành khởi động thủ công | Người dùng macOS 13+ bật login item | Mỗi lần login; cả khi instance trùng | Giữ app yên khi autostart đã đăng ký, `--settings` vẫn mở rõ ràng; thêm unit test, chờ CI Swift + smoke Mac GUI |
+| F4-01 · `AutostartManager.swift` | Đường dẫn app ghép thẳng vào XML plist | Người đặt app trong thư mục có `&`, `<`, `>` | Khi bật fallback LaunchAgent | Escape XML và test đường dẫn đặc biệt; CI Swift |
+| F4-02 · `SettingsView.swift` | Nhãn “kiểm tra chính tả” gắn nhầm `free_marking` | Người chỉnh tuỳ chọn macOS | Khi mở rộng Settings | Đổi đúng nhãn “Đặt dấu tự do” khớp schema và UI Linux/Windows |
+| F4-03 · `ConfigModel.swift`, `install_macos.sh` | Default `autostart=true` nhưng installer không đăng ký login item, trái spec opt-in | Người cài Mac lần đầu | Sau cài | Default false; không tự sửa cấu hình cũ, giữ quyền lựa chọn người dùng |
+| F4-04 · `build-release.ps1` | `-BuildInstaller` không có ISCC vẫn báo build hoàn tất; ZIP cùng tên có thể bị ghi đè | Người phát hành Windows | Khi build | Thiếu ISCC là lỗi cứng, tên ZIP đã tồn tại là lỗi cứng; kiểm cú pháp và CI package |
+
+Ranh giới xác minh: Rust test trên Windows chỉ chứng nhận engine/chung; Swift
+chỉ chạy trên CI macOS. Không thể khẳng định typing GUI Mac, Authenticode,
+Developer ID/notarization hay AV thực tế từ host Windows. Chữ ký cần chứng chỉ
+của chính chủ sở hữu; không dùng chứng chỉ giả, không né AV bằng kỹ thuật ẩn mã.
+
+Graphify đã chạy `graphify update .` sau sửa code: 4.520 node, 8.359 cạnh,
+311 community (94% extracted). Báo cáo tại
+[`graphify-out/GRAPH_REPORT.md`](../../graphify-out/GRAPH_REPORT.md). Công cụ
+không phân loại 267 file (đa số `.keys`/TOML/plist) và parser báo 7 header C
+có thể trích thiếu; đây là **giới hạn phân tích**, không tự suy ra compile fail.
+Graph được lập từ cây có pending changes, nên dòng `Built from commit` chỉ
+thể hiện base Git, không đủ để chứng nhận artifact đã phát hành.
+
+Build Windows cục bộ sau sửa (`-SkipTests`, nhưng `cargo test --workspace` chạy
+riêng đã pass): `dist/TextVN-portable-0.2.1-windows-x64-20260930125208.zip`,
+SHA-256 `F54B2F34681543873B9E5F384E63843F08E434CAACEAA13194F8EC71C63C949D`.
+Trong ZIP, `RELEASE_REPORT.json` ghi `source_tree_clean=false`,
+`status=release-candidate`, `authenticode=not-signed`, runtime IPC smoke pass.
+**Không đưa ZIP local này lên GitHub**; release workflow phải tạo ZIP mới từ
+tag sạch và chạy thêm typing thực tế trên runner Windows.
+
 Đây là bằng chứng cho **checkout hiện tại**, không thay thế `RELEASE_REPORT.json`
 trong từng ZIP và không tự nâng một bản candidate thành production. Các thay đổi
 chưa được xác nhận bởi CI trên commit cuối cho đến khi workflow chạy lại.

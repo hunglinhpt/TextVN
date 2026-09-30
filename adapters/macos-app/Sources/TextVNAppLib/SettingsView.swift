@@ -145,7 +145,7 @@ public struct SettingsView: View {
                     // Group: Tùy chọn gõ
                     GroupBox(label: Text("Tùy chọn gõ").font(.system(size: 12, weight: .semibold))) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Toggle("Bật kiểm tra chính tả", isOn: $store.config.free_marking)
+                            Toggle("Đặt dấu tự do", isOn: $store.config.free_marking)
                                 .onChange(of: store.config.free_marking) { _ in persistAndNotify() }
                             Toggle("Tự động khôi phục phím cho từ sai", isOn: $store.config.auto_restore_english)
                                 .onChange(of: store.config.auto_restore_english) { _ in persistAndNotify() }

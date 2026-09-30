@@ -30,9 +30,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.1" date="2026-09-30">
+      <description>
+        <p>Unsigned release candidate for Windows, macOS and Linux; macOS GUI validation remains pending.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-09-30">
       <description>
-        <p>Production build for Windows, macOS and Linux; version synchronised across all packages.</p>
+        <p>Unsigned cross-platform release candidate with synchronised package versions.</p>
       </description>
     </release>
     <release version="0.1.0" date="2026-09-27">

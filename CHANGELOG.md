@@ -7,6 +7,14 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.1] — 2026-09-30
+
+Release candidate bảo trì: macOS không tự bật Settings ở phiên login qua
+`SMAppService`; đường dẫn LaunchAgent được XML-escape; mặc định khởi động cùng
+macOS là opt-in và UI “Đặt dấu tự do” ghi đúng khoá. Windows `-BuildInstaller`
+giờ dừng nếu không tìm thấy Inno Setup và không ghi đè ZIP đã tồn tại.
+Gói chưa ký số và chưa có smoke GUI trên macOS nên **không phải production**.
+
 ## [0.2.0] — 2026-09-30
 
 Mục tiêu: bản release candidate dùng được hằng ngày trên Windows, Linux và macOS (Farch-4). Kết quả kiểm thử:
@@ -217,6 +225,7 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0

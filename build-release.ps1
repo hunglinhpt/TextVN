@@ -307,7 +307,7 @@ foreach ($entry in $BinFiles) {
 # Nen thanh ZIP
 Start-Sleep -Milliseconds 600
 $ZipPath = "$DistDir\$ZipName.zip"
-if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
+if (Test-Path $ZipPath) { Write-Fail "Artifact ZIP already exists: $ZipPath" }
 
 $zipSuccess = $false
 for ($attempt = 1; $attempt -le 5; $attempt++) {
@@ -347,7 +347,7 @@ if ($BuildInstaller) {
     Write-Step "Build Inno Setup installer"
     $isccExe = Get-Command iscc.exe -ErrorAction SilentlyContinue
     if (-not $isccExe) {
-        Write-Warn "iscc.exe not found - install Inno Setup 6 from https://jrsoftware.org/isdl.php"
+        throw "-BuildInstaller requires iscc.exe (Inno Setup 6); installer was not produced"
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
         $installerArgs = @("/DMyAppVersion=$Version", $targetDirArg)

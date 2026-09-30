@@ -35,14 +35,14 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 
 | Control | Khoá / hành động | Windows | Linux | macOS |
 |---|---|---|---|---|
-| Khởi động cùng Windows | `HKCU\…\Run\TextVN` | ✓ | — (IBus/Fcitx5 tự chạy) | ✗ |
-| Bật hội thoại này khi khởi động | `show_dialog_on_startup` | ✓ | — (không có tiến trình khay) | ✗ |
+| Khởi động cùng hệ điều hành | Windows `HKCU\…\Run\TextVN`; macOS `SMAppService`/LaunchAgent | ✓ | — (IBus/Fcitx5 tự chạy) | ✓ (opt-in; cần GUI smoke) |
+| Bật hội thoại này khi khởi động | `show_dialog_on_startup` | ✓ | — (không có tiến trình khay) | ✓ (chỉ khi không autostart; cần GUI smoke) |
 | Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (cài đặt Windows) | ✓ | — | ✗ |
-| Hướng dẫn / Thông tin | — | ✓ | ✓ | ✗ |
-| Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | ✗ |
+| Hướng dẫn / Thông tin | — | ✓ | ✓ | Thông tin ✓; Hướng dẫn ✗ |
+| Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | Nút Mặc định ✓, chưa xác nhận giữ macro |
 | Cài & bật TSF | `textvn-cli register` | ✓ | — | — |
-| Đóng / Kết thúc | ẩn về khay / thoát tray | ✓ | Đóng | ✗ |
-| Mở bảng từ menu bộ gõ | "Cài đặt TextVN…" | tray | IBus property · Fcitx5 status action | ✗ |
+| Đóng / Kết thúc | ẩn về khay / thoát tray | ✓ | Đóng | ✓ (menu bar; cần GUI smoke) |
+| Mở bảng từ menu bộ gõ | "Cài đặt TextVN…" | tray | IBus property · Fcitx5 status action | ✓ (NSStatusItem; cần GUI smoke) |
 
 ## 4. Chưa có trên UI (chỉ sửa được trong file)
 

@@ -21,7 +21,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertFalse(config.allow_macro_when_vi_off)
         XCTAssertEqual(config.output_charset, "unicode_precomposed")
         XCTAssertTrue(config.show_dialog_on_startup)
-        XCTAssertTrue(config.autostart)
+        XCTAssertFalse(config.autostart)
         XCTAssertTrue(config.non_preedit)
         XCTAssertTrue(config.run_in_tray)
         XCTAssertEqual(config.switch_key, "ctrl_shift")
@@ -77,6 +77,28 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(plist.contains("<true/>"))
         XCTAssertTrue(plist.contains("<key>ProcessType</key>"))
         XCTAssertTrue(plist.contains("<string>Interactive</string>"))
+    }
+
+    func testAutostartPlistEscapesExecutablePath() {
+        let path = "/Applications/Research & Development/<TextVN>.app/Contents/MacOS/TextVN"
+        let plist = AutostartManager.generateLaunchAgentPlist(executablePath: path)
+        XCTAssertTrue(plist.contains("Research &amp; Development/&lt;TextVN&gt;.app"))
+        XCTAssertFalse(plist.contains("Research & Development"))
+    }
+
+    func testStartupDialogIsQuietForSMAppServiceAndLaunchAgent() {
+        XCTAssertFalse(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN"], autostartEnabled: true, showDialogOnStartup: true
+        ))
+        XCTAssertFalse(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN", "--autostart"], autostartEnabled: false, showDialogOnStartup: true
+        ))
+        XCTAssertTrue(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN", "--settings"], autostartEnabled: true, showDialogOnStartup: true
+        ))
+        XCTAssertTrue(AppDelegate.shouldShowSettingsOnLaunch(
+            arguments: ["TextVN"], autostartEnabled: false, showDialogOnStartup: true
+        ))
     }
 
     func testLaunchAgentLifecycleInDir() throws {

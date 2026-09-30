@@ -62,7 +62,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "allow_macro_when_vi_off": false,
   "output_charset": "unicode_precomposed",
   "show_dialog_on_startup": true,
-  "autostart": true,
+  "autostart": false,
   "non_preedit": true,
   "run_in_tray": true,
   "switch_key": "ctrl_shift",

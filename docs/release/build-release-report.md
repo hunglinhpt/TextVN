@@ -1,4 +1,9 @@
-# Báo cáo dựng & kiểm thử — TextVN 0.1.0 (release candidate)
+# Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
+
+> `v0.2.1` đang ở giai đoạn build/CI. Bằng chứng của bản mới nằm trong
+> [audit 2026-09-30](cross-platform-audit-2026-09-30.md), run CI trên đúng commit
+> và `RELEASE_REPORT.json` trong ZIP. Không dùng số liệu 0.1.0 ở dưới làm bằng
+> chứng production cho 0.2.1.
 
 Trạng thái: **release candidate** cho Windows 10/11 x64 và Linux x86_64 (IBus, Fcitx5).
 macOS: mã nguồn đang ở beta; chưa có bằng chứng GUI/package production trên máy Mac thật.

@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# A tag produces one immutable, unsigned release candidate. Production requires
+# separate signing/notarization and native GUI approval (docs/developer-guide.md).
+name: release-candidate
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco upgrade innosetup --no-progress -y | Out-Null
+          $dir = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          if (-not (Test-Path "$dir\ISCC.exe")) { throw 'ISCC.exe missing' }
+          $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build and test Windows candidate
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -BuildInstaller
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $zip = Get-ChildItem dist\TextVN-portable-*.zip | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            dist/TextVN-portable-*.zip
+            dist/TextVN-setup-*.exe
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install adapter dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
+      - name: Build and test Linux candidate
+        run: |
+          cargo run -q -p xtask -- check-version-sync
+          scripts/e2e-linux.sh
+          scripts/build-linux.sh --skip-tests
+          scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: dist/TextVN-*-linux-*.tar.gz
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - name: Build and test macOS candidate
+        run: |
+          scripts/build-macos.sh
+          scripts/package-macos-pkg.sh
+          for package in adapters/macos-imk adapters/macos-tap adapters/macos-app; do
+            (cd "$package" && swift test --arch arm64)
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            dist/macos/*.zip
+            dist/macos/*.tar.gz
+            dist/macos/*.pkg
+          if-no-files-found: error
+
+  publish:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Validate tag, payload, checksums and publish pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          test "${GITHUB_REF_NAME}" = "v${version}"
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-*.tar.gz' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name '*.pkg' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l)" -ge 2
+          portable="$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' -print -quit)"
+          unzip -p "$portable" RELEASE_REPORT.json | jq -e \
+            --arg version "$version" --arg commit "$GITHUB_SHA" \
+            '.product == "TextVN" and .version == $version and .git_commit == $commit and .source_tree_clean == true and .status == "release-candidate"'
+          if unzip -Z1 "$portable" | grep -qi 'textvn-hook.exe'; then
+            echo 'Default release must not contain the compatibility hook.' >&2
+            exit 1
+          fi
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo 'Release exists; refusing to overwrite immutable assets.' >&2
+            exit 1
+          fi
+          (cd release-assets && sha256sum * > SHA256SUMS.txt)
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --verify-tag --prerelease --title "TextVN ${version} (release candidate)" \
+            --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
