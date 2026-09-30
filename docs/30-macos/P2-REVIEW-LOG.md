@@ -314,6 +314,15 @@ lặng; ưu tiên của phiên bản này là không bật cửa sổ sai lúc �
 | Swift build/test, CMake Linux, gói 3 OS | ⏳ chạy sau khi push tag |
 | GUI macOS trên máy thật | ⏳ chưa có máy Mac — **điều kiện production** |
 
+> **Bài học CI đáng ghi lại:** lần push đầu của vòng 10 làm `ci-macos` **đỏ**
+> vì hai lỗi chỉ lộ ra khi compile thật — (1) `MacroEditorSheet.notifyConfigChanged()`
+> là hàm **tôi tự bịa ra** trong khi sửa, không tồn tại trong codebase; (2) test
+> dùng hằng `kVK_Space`/`kVK_ANSI_A` mà thiếu `import Carbon.HIToolbox`. Cả hai
+> đều là loại lỗi mà `grep`/`clippy` không bắt được. Đã sửa ở commit
+> `fix(macos): … (0.2.2)` kế tiếp: thay bằng `persistAndNotify()` thật (lưu **và**
+> broadcast `ConfigReload`, còn thiếu ở cả nhánh Thêm/Xoá macro — trước đó IMK
+> giữ bảng gõ tắt cũ) và thêm import. Không có lý do bỏ qua CI macOS khi phát hành.
+
 ### Round 9b — Đưa CI 3 nền tảng về xanh trước tag (MAC-032)
 
 Khi đẩy các fix trên lên CI mới phát hiện: **`ci-macos` chưa từng xanh** kể từ khi

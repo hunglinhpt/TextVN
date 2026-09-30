@@ -294,6 +294,14 @@ public struct MacroEditorSheet: View {
     @State private var newTrigger: String = ""
     @State private var newExpand: String = ""
 
+    /// Lưu + phát `ConfigReload` để IMK nạp lại `config.macros`.
+    /// `store.persist()` chỉ ghi file; nếu thiếu broadcast thì tiến trình IMK
+    /// đang chạy giữ bảng gõ tắt cũ tới lần khởi động sau.
+    private func persistAndNotify() {
+        store.persist()
+        IpcServer.shared.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
+    }
+
     public var body: some View {
         VStack(spacing: 12) {
             Text("Bảng gõ tắt")
@@ -312,8 +320,7 @@ public struct MacroEditorSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button(action: {
                             store.config.macros.removeAll { $0.trigger == macro.trigger }
-                            store.persist()
-                            MacroEditorSheet.notifyConfigChanged()
+                            persistAndNotify()
                         }) {
                             Image(systemName: "trash")
                                 .foregroundColor(.red)
@@ -336,7 +343,7 @@ public struct MacroEditorSheet: View {
                         store.config.macros.append(MacroEntry(trigger: trig, expand: exp))
                         newTrigger = ""
                         newExpand = ""
-                        store.persist()
+                        persistAndNotify()
                     }
                 }
                 .disabled(newTrigger.trimmingCharacters(in: .whitespaces).isEmpty || newExpand.trimmingCharacters(in: .whitespaces).isEmpty)

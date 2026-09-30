@@ -6,6 +6,9 @@
 
 import AppKit
 import XCTest
+// Hằng `kVK_Space` / `kVK_ANSI_A` nằm ở Carbon.HIToolbox; test dùng chúng để
+// kiểm chord toggle mà không cần dựng IMKServer.
+import Carbon.HIToolbox
 
 @testable import CoreBridge
 @testable import IMKLib
