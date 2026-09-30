@@ -232,8 +232,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             ctx.field_role = context.role
             ctx.caps = caps
             ctx.hint = -1
-            var appIdC = Array(context.appID.utf8CString)
-            appIdC.withUnsafeMutableBufferPointer { buf in
+            let appIdC = Array(context.appID.utf8CString)
+            appIdC.withUnsafeBufferPointer { buf in
                 ctx.app_id = buf.baseAddress
                 ime_strategy_resolve(
                     &ctx,

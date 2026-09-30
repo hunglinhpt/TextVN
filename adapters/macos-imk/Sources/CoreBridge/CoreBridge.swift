@@ -136,16 +136,19 @@ public final class ImeEngine {
         ctx.caps = caps
         ctx.hint = hint
 
-        var appIdC = Self.cString(from: appId)
-        var elC: [CChar]? = elementName.map(Self.cString(from:))
+        let appIdC = Self.cString(from: appId)
+        let elC: [CChar]? = elementName.map(Self.cString(from:))
 
-        appIdC.withUnsafeMutableBufferPointer { appBuf in
+        // `const char*` trong C = `UnsafePointer<CChar>` → buffer pointer KHÔNG
+        // mutable (MAC-032: Xcode 26.6 từ chối gán UnsafeMutablePointer).
+        appIdC.withUnsafeBufferPointer { appBuf in
             ctx.app_id = appBuf.baseAddress
-            elC?.withUnsafeMutableBufferPointer { elBuf in
-                ctx.element_name = elBuf.baseAddress
-                ime_set_context(instance, &ctx)
-            }
-            if elC == nil {
+            if let elC = elC {
+                elC.withUnsafeBufferPointer { elBuf in
+                    ctx.element_name = elBuf.baseAddress
+                    ime_set_context(instance, &ctx)
+                }
+            } else {
                 ctx.element_name = nil
                 ime_set_context(instance, &ctx)
             }
