@@ -105,6 +105,7 @@ blockers chưa được chứng minh).
 | Publish fail lúc upload asset | Mạng/quota runner | Rerun workflow — release ở trạng thái draft được phép upload tiếp (`--clobber`); chỉ release đã public mới bị chặn ghi đè |
 | `check-version-sync` fail | Bump thiếu chỗ (14 chỗ ghi tay) | Sửa đúng file báo lỗi; nguyên tắc: Cargo.toml trước, xtask báo tên từng file |
 | `source_tree_clean=false` bị publish job chặn | Đã tag khi tree dirty | Tag lại: xóa tag (`git push origin :vN.N.N` + `git tag -d`), commit sạch, tag lại |
+| Release run fail ở job macos: `library 'textvn_ffi' not found` | `swift test` chạy trước `scripts/build-macos.sh` — test của macos-app link `libtextvn_ffi` từ `adapters/macos-imk/lib` do build-macos.sh dựng | Thứ tự bắt buộc job macos của release.yml: **build-macos.sh → swift test → package-macos-pkg.sh** (test vẫn trước package) |
 
 ## Bằng chứng quy trình chạy thành công
 

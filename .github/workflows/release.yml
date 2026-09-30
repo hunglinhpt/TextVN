@@ -78,16 +78,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
-      # Test Swift TRƯỚC khi đóng gói: fail test thì đừng đốt thời gian package.
+      # THỨ TỰ BẮT BUỘC: build-macos.sh dựng staticlib vào adapters/macos-imk/lib
+      # trước — swift test của macos-app link libtextvn_ffi từ đó (đảo thứ tự từng
+      # làm release run fail: "library 'textvn_ffi' not found"). swift test vẫn
+      # chạy TRƯỚC package-macos-pkg.sh để fail test thì đừng đốt thời gian gói.
+      - name: Build macOS candidate (staticlib + bundles)
+        run: scripts/build-macos.sh
       - name: Test Swift packages (arm64)
         run: |
           for package in adapters/macos-imk adapters/macos-tap adapters/macos-app; do
             (cd "$package" && swift test --arch arm64)
           done
-      - name: Build and package macOS candidate
-        run: |
-          scripts/build-macos.sh
-          scripts/package-macos-pkg.sh
+      - name: Package pkg installer
+        run: scripts/package-macos-pkg.sh
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos
