@@ -16,22 +16,20 @@
 // Đường dẫn **tuyệt đối** qua #filePath — `swift test --package-path …` chạy từ
 // CWD nào cũng đúng.
 //
-// NOTE (MAC-031): PackageDescription trên Xcode 26.6+ (Swift 6) chạy trong môi
-// trường restricted — Foundation KHÔNG được import nên `URL` và `NSString` không
-// khả dụng. Dùng String thuần (components/dropLast/joined) để tính parent dir từ
-// #filePath mà không cần import thêm bất kỳ module nào.
+// NOTE (MAC-031/MAC-032): PackageDescription trên Xcode 26.6+ (Swift 6) chạy trong
+// môi trường restricted — Foundation KHÔNG được import nên `URL`, `NSString` và cả
+// `String.components(separatedBy:)` (API Foundation, CI 36520642917 báo "no member
+// 'components'") đều không khả dụng. Chỉ dùng stdlib: `lastIndex(of:)` + slice.
 
 import PackageDescription
 
 // Tính absolute path tới thư mục lib/ của package từ #filePath (= Package.swift).
-// String-only, không phụ thuộc Foundation — hoạt động trong PackageDescription scope.
+// Chỉ Swift stdlib — hoạt động trong PackageDescription scope.
 let libDir: String = {
     let filePath = "\(#filePath)"  // StaticString → String
-    // Tách theo "/" rồi bỏ component cuối (tên file Package.swift)
-    var parts = filePath.components(separatedBy: "/")
-    if !parts.isEmpty { parts.removeLast() }
-    let packageRoot = parts.joined(separator: "/")  // "" nếu ở root (hiếm)
-    return (packageRoot.isEmpty ? "" : packageRoot) + "/lib"
+    // Bỏ component cuối (tên file Package.swift): cắt tại dấu "/" cuối cùng.
+    guard let slash = filePath.lastIndex(of: "/") else { return "lib" }
+    return String(filePath[..<slash]) + "/lib"
 }()
 
 let package = Package(
