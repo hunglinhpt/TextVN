@@ -33,6 +33,7 @@
 | B2 | Chọn sai target window | `FindTopByPid` bắt window ẩn/`MainWindowHandle` = launcher stub → focus fail âm thầm | Lọc `IsWindowVisible` + class không phải `Chrome_*`; xác nhận `GetForegroundWindow` pid khớp |
 | B3 | Gửi rồi không đọc kết quả | `SendInput=2/2` nhưng text rỗng → tưởng TIP lỗi | Sau send: poll text (`WM_GETTEXT`) **và** log TIP; nếu text rỗng mà `SendInput` thành công → nghi struct/focus (A1/A2/B1), **không** vội kết luận TIP fail |
 | B4 | Dùng `SendKeys` làm bằng chứng cho UIPI test | `SendKeys` đi đường khác, kết quả không nói lên `SendInput` bị chặn | Test #10 phải test đúng API cần kết luận; `keybd_event`/`SendKeys` chỉ dùng để đối chiếu |
+| B5 | **Tin kết quả typing smoke 1 lần trên runner GHA dùng chung** | Job "Windows package" của `ci-shared` đỏ chớp theo kiểu khác nhau mỗi run: `FAIL [notepad] english hello: want […] got []` (không nhận phím nào — focus chưa lên) hoặc wordpad telex nhận dư/khuyết ký tự (desync, ec1ac2b) — **cùng commit rerun lại xanh**; release workflow chạy **đúng bộ test này** (`test-portable.ps1` + `test-installer.ps1`) vẫn xanh trong lúc ci-shared đỏ (2026-09-30: run 36745978568 xanh vs 36746161581 đỏ) | Runner `windows-2022` 2 vCPU dùng chung → focus/UIA/poll chậm, không phải hồi quy engine. Rerun `--failed` trước khi kết luận; chỉ điều tra thật (theo B1/B3) khi đỏ ≥2 lần liên tiếp trên cùng commit hoặc release run cùng lúc cũng đỏ |
 
 ## C. UIA & ứng dụng test
 
