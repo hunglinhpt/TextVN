@@ -1300,7 +1300,11 @@ fn advice_for_failure(exit_code: i32, detail: &str) -> String {
                 Hãy bấm [Cài & bật TSF] từ tài khoản thường (đăng ký per-user không cần admin)."
             .to_string();
     }
-    if detail.contains("ACCESS_DENIED") {
+    if detail.contains("ACCESS_DENIED") || detail.contains("0x00000005") {
+        // Nhánh phải khớp log THẬT: CLI bản mới in
+        // `FAIL 0x00000005 (ERROR_ACCESS_DENIED)`, bản 0.2.0/0.2.1 đã cài chỉ in
+        // hex `FAIL 0x00000005` — thiếu hex thì nhánh này là dead code và người
+        // dùng bị ACL thật luôn nhận gợi ý generic.
         return "Windows từ chối ghi HKCU\\Software\\Classes\\CLSID cho tài khoản hiện tại.\r\n\
                 Kiểm tra quyền tài khoản và chính sách phần mềm bảo mật, sau đó bấm [Cài & bật TSF] lại."
             .to_string();
@@ -1416,15 +1420,25 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Gợi ý phải khớp nguyên nhân THẬT (exit code 3 / ACL / thiếu DLL).
+    /// Gợi ý phải khớp nguyên nhân THẬT (exit code 3 / ACL / thiếu DLL), kể cả
+    /// định dạng log của bản cũ đã cài trên máy người dùng.
     #[test]
     fn advice_matches_real_cause() {
         assert!(advice_for_failure(3, "").contains("Administrator"));
+        // Bản mới: log in tên ký hiệu kèm hex.
         assert!(advice_for_failure(
             1,
-            "RegCreateKeyExW HKCU\\...\\CLSID → ERROR_ACCESS_DENIED (5)"
+            "  Registry create HKCU\\Software\\Classes\\CLSID\\{6F2B…} → \
+             FAIL 0x00000005 (ERROR_ACCESS_DENIED)"
         )
         .contains("Classes\\CLSID"));
+        // Bản 0.2.0/0.2.1: log chỉ in hex — vẫn phải nhận gợi ý ACL đúng chỗ.
+        assert!(advice_for_failure(
+            1,
+            "  Registry create Software\\Classes\\CLSID\\{…} → FAIL 0x00000005"
+        )
+        .contains("Classes\\CLSID"));
+        assert!(advice_for_failure(1, "FAIL 0x0000002e").contains("register.log"));
         assert!(
             advice_for_failure(1, "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll)")
                 .contains("textvn-tsf.dll")

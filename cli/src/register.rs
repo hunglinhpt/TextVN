@@ -199,6 +199,40 @@ mod win_impl {
         s.encode_utf16().chain(Some(0)).collect()
     }
 
+    fn root_label(h: HKEY) -> &'static str {
+        if h == HKEY_CURRENT_USER {
+            "HKCU"
+        } else if h == HKEY_LOCAL_MACHINE {
+            "HKLM"
+        } else {
+            "REG"
+        }
+    }
+
+    /// Tên ký hiệu của mã lỗi Win32 registry thường gặp. Log chỉ in `0x00000005`
+    /// thì hộp thoại tray không ghép được gợi ý theo nguyên nhân (nhánh advice
+    /// `ACCESS_DENIED` thành dead code) — dòng log phải mang cả tên ký hiệu.
+    pub fn lstatus_name(code: u32) -> Option<&'static str> {
+        Some(match code {
+            2 => "ERROR_FILE_NOT_FOUND",
+            3 => "ERROR_PATH_NOT_FOUND",
+            5 => "ERROR_ACCESS_DENIED",
+            6 => "ERROR_INVALID_HANDLE",
+            32 => "ERROR_SHARING_VIOLATION",
+            87 => "ERROR_INVALID_PARAMETER",
+            183 => "ERROR_ALREADY_EXISTS",
+            _ => return None,
+        })
+    }
+
+    /// `0x00000005 (ERROR_ACCESS_DENIED)` — hex cho máy đọc, tên cho người/người máy đọc.
+    fn lstatus_text(code: u32) -> String {
+        match lstatus_name(code) {
+            Some(name) => format!("{code:#010x} ({name})"),
+            None => format!("{code:#010x}"),
+        }
+    }
+
     /// `Software\Classes\CLSID\{CLSID}` — tương đối với HKCU hoặc HKLM tùy scope.
     fn clsid_key() -> String {
         clsid_registry_key()
@@ -227,8 +261,10 @@ mod win_impl {
         };
         if create != ERROR_SUCCESS {
             say(&format!(
-                "  Registry create {path} → FAIL {:#010x}",
-                create.0
+                "  Registry create {}\\{} → FAIL {}",
+                root_label(root),
+                path,
+                lstatus_text(create.0)
             ));
             return false;
         }
@@ -264,8 +300,10 @@ mod win_impl {
         let _ = unsafe { RegCloseKey(key) };
         if status != ERROR_SUCCESS {
             say(&format!(
-                "  Registry write {path} → FAIL {:#010x}",
-                status.0
+                "  Registry write {}\\{} → FAIL {}",
+                root_label(root),
+                path,
+                lstatus_text(status.0)
             ));
             return false;
         }
@@ -368,11 +406,17 @@ mod win_impl {
         // SAFETY: buffer nul-terminated.
         let status = unsafe { RegDeleteTreeW(root, PCWSTR(subkey.as_ptr())) };
         if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
-            say(&format!("  Registry delete {path} → OK"));
+            say(&format!(
+                "  Registry delete {}\\{} → OK",
+                root_label(root),
+                path
+            ));
         } else {
             say(&format!(
-                "  Registry delete {path} → FAIL {:#010x}",
-                status.0
+                "  Registry delete {}\\{} → FAIL {}",
+                root_label(root),
+                path,
+                lstatus_text(status.0)
             ));
         }
     }
@@ -668,10 +712,17 @@ mod win_impl {
             );
         if !ok {
             if scope == Scope::Machine {
-                say("FAIL: không ghi được HKLM — chạy lại với quyền Administrator");
+                say(&format!(
+                    "FAIL: RegCreateKeyExW không ghi được {}\\{k} — chạy lại với quyền Administrator",
+                    scope.label()
+                ));
                 return 3;
             }
-            say("FAIL: không ghi được registry CLSID");
+            say(&format!(
+                "FAIL: RegCreateKeyExW không ghi được {} — \
+                 nguyên nhân thật ở dòng \"Registry create\" phía trên",
+                clsid_registry_key()
+            ));
             return 1;
         }
         say(&format!("  COM server {} → OK", scope.label()));
@@ -1028,5 +1079,17 @@ mod tests {
             r"\Category\Category\{CAT_TIP_KEYBOARD}\{CLSID_STR}"
         )));
         assert!(by_item.contains(&format!(r"\Category\Item\{CLSID_STR}\{CAT_TIP_KEYBOARD}")));
+    }
+
+    /// Dòng log registry phải mang tên ký hiệu của mã lỗi: hộp thoại tray ghép
+    /// gợi ý theo nguyên nhân từ đuôi log — log chỉ in hex thì nhánh gợi ý ACL
+    /// (`ACCESS_DENIED`) thành dead code, người dùng nhận gợi ý sai chỗ.
+    #[cfg(windows)]
+    #[test]
+    fn lstatus_name_covers_acl_and_common_registry_errors() {
+        assert_eq!(win_impl::lstatus_name(5), Some("ERROR_ACCESS_DENIED"));
+        assert_eq!(win_impl::lstatus_name(2), Some("ERROR_FILE_NOT_FOUND"));
+        assert_eq!(win_impl::lstatus_name(87), Some("ERROR_INVALID_PARAMETER"));
+        assert_eq!(win_impl::lstatus_name(0x1234_5678), None);
     }
 }

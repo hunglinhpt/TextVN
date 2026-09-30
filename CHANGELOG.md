@@ -47,6 +47,16 @@ production**.
   giờ hiện **lý do thật** lấy từ đuôi `register.log` kèm gợi ý đúng nguyên nhân
   (thiếu quyền Administrator / `ACCESS_DENIED` khi ghi HKCU / thiếu DLL cạnh
   `textvn-cli.exe`) thay vì luôn đổ lỗi cho ACL.
+- **Gợi ý lỗi đăng ký khớp log thật (triệt để hóa đợt trên)**: log CLI in lỗi
+  registry chỉ dạng hex `FAIL 0x00000005` không kèm tên ký hiệu, nên nhánh gợi ý
+  `ACCESS_DENIED` trong hộp thoại là **dead code** — lỗi ACL thật (sandbox, AV,
+  policy chặn ghi `HKCU\Software\Classes\CLSID`) vẫn luôn nhận gợi ý generic.
+  Nay mỗi dòng log registry mang đủ ngữ cảnh
+  `Registry create HKCU\…\CLSID → FAIL 0x00000005 (ERROR_ACCESS_DENIED)`, dòng
+  FAIL nêu đúng khoá bị chặn, và hộp thoại khớp **cả hai** định dạng log (bản
+  mới có tên ký hiệu, bản 0.2.0/0.2.1 đã cài chỉ có hex). Test mới
+  `lstatus_name_covers_acl_and_common_registry_errors`; `advice_matches_real_cause`
+  được mở rộng với đúng chuỗi log thật thay vì chuỗi mô phỏng.
 
 ### Fixed (macOS — tiếp)
 - `EventTapController.start()` là idempotent (gọi hai lần không rò tap/thread) và

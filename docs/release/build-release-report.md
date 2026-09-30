@@ -28,6 +28,43 @@
 | `replay corpus/win --adapter win` | ✅ 78/78 |
 | `cargo run -q -p textvn-cli -- verify` | ✅ ABI v1 ↔ header: `ime_key_v1=20`, `ime_result_v1=532`, offsets + 11 export khớp |
 
+### Bổ sung sau commit `ec1ac2b` — triệt để hóa gợi ý lỗi đăng ký TSF (ảnh lỗi của người dùng)
+
+Vòng 11 đã sửa hộp thoại “Cài & bật TSF” hiện **lý do thật** từ đuôi
+`register.log`, nhưng còn sót một lỗ: log CLI in lỗi registry chỉ dạng hex
+`FAIL 0x00000005` không kèm tên ký hiệu, nên nhánh gợi ý `ACCESS_DENIED` là
+**dead code** — đúng ca lỗi trong ảnh người dùng gửi (Windows từ chối đăng ký
+bộ gõ ở `HKCU\Software\Classes\CLSID`, sandbox/AV/policy chặn ghi) vẫn luôn
+rơi vào gợi ý generic. Đã sửa 2 đầu:
+
+- `cli/src/register.rs`: dòng log registry in đủ
+  `Registry create HKCU\…\CLSID → FAIL 0x00000005 (ERROR_ACCESS_DENIED)`
+  (bảng `lstatus_name` cho các mã registry thường gặp), dòng FAIL nêu đúng
+  khoá bị chặn kèm lệnh/API gây ra.
+- `tray/src/settings_dialog.rs`: `advice_for_failure` khớp **cả hai** định dạng
+  log — bản mới có tên ký hiệu, bản 0.2.0/0.2.1 đã cài trên máy người dùng chỉ
+  có hex `0x00000005`.
+
+Kiểm chứng lại toàn bộ gate trên host Windows sau thay đổi (2026-09-30):
+
+| Gate | Kết quả |
+|---|---|
+| `cargo fmt --all -- --check` | ✅ sạch |
+| `cargo clippy --workspace --exclude textvn-win-hook --all-targets -- -D warnings` | ✅ 0 warning |
+| `cargo test --workspace` | ✅ **343 test pass** (342 + 1 test mới `lstatus_name_covers_acl_and_common_registry_errors`) |
+| `cargo run -q -p xtask -- check-version-sync` | ✅ 14 chỗ = 0.2.2 |
+| `cargo run -q -p textvn-cli -- verify` | ✅ ABI v1 ↔ header khớp |
+| `replay corpus/shared corpus/mac --adapter mac` | ✅ 149/149 |
+| `replay corpus/shared corpus/win --adapter win` | ✅ 113/113 (35 shared + 78 win) |
+| `replay corpus/shared corpus/win --adapter tsf` | ✅ 113/113 |
+| Regression guard | ✅ `advice_matches_real_cause` mở rộng với đúng chuỗi log thật (bản mới + bản đã cài) |
+
+Kiểm tra registry trên máy phát hành: `reg query` cho thấy TextVN TSF của
+người dùng đang trỏ vào portable 0.2.0 cũ (`D:\New folder (2)\…`); máy cho ghi
+`HKCU\Software\Classes\CLSID` (probe key tạo/xoá sạch) — xác nhận lỗi trong ảnh
+là môi trường chặn ghi, không phải máy không đăng ký được, và bản 0.2.2 cài đè
+sẽ repoint CLSID sang DLL mới khi bấm [Cài & bật TSF].
+
 ### Perf — job `perf regression` đỏ trên CI là **nhiễu runner**, không phải hồi quy
 
 Job cố ý để `continue-on-error` (runner Windows GHA dùng chung, 2 vCPU; gate cứng
