@@ -142,7 +142,7 @@ insertText(utf32_to_String(out.insert), replacementRange: NSNotFound)
 | Sự kiện | Hành động |
 |---|---|
 | Engine trả preedit có dấu cách/word boundary | COMMIT ngay `insertText` (không để marked sống qua Space) |
-| Gõ giữa từ với preedit dài | Giới hạn marked ≤ 8 grapheme; vượt → commit phần đầu |
+| Gõ giữa từ với preedit dài | Giới hạn marked ≤ 8 grapheme; vượt → commit toàn bộ preedit (gồm phím vừa gõ) + reset engine — không nuốt ký tự (MAC-032) |
 | Phím Backspace sửa preedit | gửi vào engine (không cho app sửa marked trực tiếp) |
 | Click/focus sang ô khác | `deactivateServer` → COMMIT (B13) |
 | App từ chối marked (terminal…) | Phát hiện `setMarkedText` không có effect (kiểm qua `markedRange`) → fallback strategy `ForwardAsCommit` cho app này (preset override) |

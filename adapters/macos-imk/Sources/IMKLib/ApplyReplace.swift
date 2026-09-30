@@ -104,11 +104,14 @@ public enum ApplyReplace {
         marked: MarkedState, onReset: () -> Void
     ) throws {
         guard !MarkedState.exceedsLimit(preedit) else {
-            // B11 (P2-1 §7): marked vượt 8 grapheme → **commit phần đầu**
-            // (marked hiện tại thành text thật) + reset engine — từ mới bắt đầu
-            // sạch. Không reset thì owned lệch mãi (review R1 F6).
+            // B11 (P2-1 §7): marked vượt 8 grapheme → commit TOÀN BỘ preedit mới
+            // (gồm phím vừa gõ) thành text thật + reset engine — từ mới bắt đầu
+            // sạch; không reset thì owned lệch mãi (review R1 F6). Chỉ commit phần
+            // marked cũ rồi nuốt phím = MẤT ký tự thứ 9 (MAC-032, lần đầu test
+            // chạy thật trên CI).
             Diagnostics.log("preedit exceeds limit (\(preedit.count) graphemes) — commit early")
-            commitMarkedHead(target: target, marked: marked)
+            try commitEarly(deleteCount: deleteCount, text: preedit,
+                            target: target, marked: marked)
             onReset()
             return
         }
@@ -130,14 +133,21 @@ public enum ApplyReplace {
     }
 
     /// Commit marked đang hiển thị thành text thật (dùng cho commit-early B11).
-    private static func commitMarkedHead(target: TextTarget, marked: MarkedState) {
-        guard !marked.isEmpty else { return }
+    /// Chuyển `text` (preedit mới) thành text thật. Còn marked range → thay range
+    /// đó, chỉ xóa phần chữ thật ngoài marked. Không còn marked range (app đã tự
+    /// commit, F9) → mọi ký tự engine sở hữu đều là chữ thật: xóa đủ rồi chèn.
+    private static func commitEarly(
+        deleteCount: Int, text: String, target: TextTarget, marked: MarkedState
+    ) throws {
         let range = target.markedRange()
-        if range.location != NSNotFound {
-            // Thay marked range bằng chính text đó = chuyển thành text thật.
-            target.insert(marked.text, replacementRange: range)
+        let hasMarked = range.location != NSNotFound
+        let real = hasMarked ? max(0, deleteCount - marked.scalarCount) : deleteCount
+        if real > 0 {
+            guard target.deleteBackward(count: real) else {
+                throw ApplyError.cannotDelete
+            }
         }
-        // markedRange notFound = app đã tự commit → không chèn nữa (tránh nhân đôi).
+        target.insert(text, replacementRange: hasMarked ? range : .notFound)
         marked.clear()
     }
 

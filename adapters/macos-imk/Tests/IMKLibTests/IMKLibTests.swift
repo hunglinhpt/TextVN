@@ -200,7 +200,7 @@ final class KeyMapMacTests: XCTestCase {
     func testUtf32Roundtrip() {
         let text = "được😀"
         let points = ImeEngine.utf32(text)
-        XCTAssertEqual(points.count, 6) // đ,ư,ơ,c + 2 units của 😀
+        XCTAssertEqual(points.count, 5) // đ,ư,ợ,c + 😀 — UTF-32: 1 unit/scalar
         let decoded = ImeEngine.string(fromUTF32: points, len: points.count)
         XCTAssertEqual(decoded, text)
     }
@@ -233,6 +233,8 @@ final class ApplyReplaceTests: XCTestCase {
         let target = MockTextTarget()
         let marked = MarkedState()
         marked.set("chào")
+        // App thật đang giữ marked range tương ứng (thiếu = kịch bản F9).
+        target.setMarked("chào", selectionRange: NSRange(location: 4, length: 0))
         try ApplyReplace.apply(
             outcome(.commit(insert: "\n")),
             strategy: .preedit, target: target, marked: marked
@@ -316,6 +318,7 @@ final class ApplyReplaceTests: XCTestCase {
         )
         XCTAssertEqual(target.inserted.first?.text, long, "vượt limit → commit-early")
         XCTAssertEqual(target.markedSet, 0, "không setMarked khi vượt limit")
+        XCTAssertEqual(target.deletedTotal, 9, "không còn marked → 9 ký tự owned là chữ thật")
     }
 
     /// ForwardAsCommit = BackspaceType mechanics (quyết định ApplyReplace §6.3).
@@ -496,6 +499,7 @@ final class ApplyReplaceRegressionTests: XCTestCase {
         let target = MockTextTarget()
         let marked = MarkedState()
         marked.set("abcdefgh")
+        target.setMarked("abcdefgh", selectionRange: NSRange(location: 8, length: 0))
         var resetCalled = false
         let long = "abcdefghi" // 9 graphemes → vượt limit
         try ApplyReplace.apply(
@@ -504,7 +508,9 @@ final class ApplyReplaceRegressionTests: XCTestCase {
             onReset: { resetCalled = true }
         )
         XCTAssertTrue(resetCalled, "commit-early phải reset engine (F6)")
-        XCTAssertEqual(target.inserted.first?.text, "abcdefgh", "commit PHẦN ĐẦU đang marked")
+        // Commit cả phím thứ 9 — không được nuốt mất ký tự (MAC-032).
+        XCTAssertEqual(target.inserted.first?.text, "abcdefghi", "commit toàn bộ preedit mới")
+        XCTAssertEqual(target.deletedTotal, 0, "marked range được thay, không xóa chữ thật")
         XCTAssertTrue(marked.isEmpty)
     }
 
