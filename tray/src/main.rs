@@ -18,6 +18,7 @@ use std::sync::Arc;
 #[cfg(windows)]
 use std::time::Duration;
 
+use textvn_tray::icons::{load_app_icon, IDI_ICON_E, IDI_ICON_V};
 use textvn_tray::ipc_server::{IpcServer, PIPE_NAME};
 use textvn_tray::menu::TrayMenu;
 #[cfg(windows)]
@@ -53,8 +54,6 @@ const TSF_LANGS: [u16; 2] = [0x042A, 0x0409];
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
 const TRAY_ICON_UID: u32 = 100;
-const IDI_ICON_V: usize = 1;
-const IDI_ICON_E: usize = 2;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 /// ID message `TaskbarCreated` (RegisterWindowMessageW) — Explorer broadcast khi khởi động lại.
@@ -72,64 +71,6 @@ struct TrayApp {
 }
 
 static APP_INSTANCE: std::sync::OnceLock<TrayApp> = std::sync::OnceLock::new();
-
-#[cfg(windows)]
-fn load_app_icon(h_instance: HINSTANCE, res_id: usize, file_name: &str) -> HICON {
-    unsafe {
-        // 1. Thử nạp từ Win32 PE Resource (đã nhúng qua tray.rc)
-        let icon_res = LoadImageW(
-            Some(h_instance),
-            PCWSTR(res_id as *const u16),
-            IMAGE_ICON,
-            0,
-            0,
-            LR_DEFAULTSIZE | LR_SHARED,
-        );
-        if let Ok(handle) = icon_res {
-            let hicon = HICON(handle.0);
-            if !hicon.is_invalid() {
-                return hicon;
-            }
-        }
-
-        // 2. Fallback: nạp từ file resources/<file_name> cạnh exe hoặc thư mục dự án
-        let mut candidates = Vec::new();
-        if let Ok(mut exe) = std::env::current_exe() {
-            exe.pop();
-            candidates.push(exe.join("resources").join(file_name));
-            candidates.push(exe.join(file_name));
-        }
-        candidates.push(std::path::PathBuf::from("tray/resources").join(file_name));
-        candidates.push(std::path::PathBuf::from("resources").join(file_name));
-
-        for path in candidates {
-            if path.exists() {
-                let path_w: Vec<u16> = path
-                    .to_string_lossy()
-                    .encode_utf16()
-                    .chain(Some(0))
-                    .collect();
-                let icon_file = LoadImageW(
-                    None,
-                    PCWSTR(path_w.as_ptr()),
-                    IMAGE_ICON,
-                    0,
-                    0,
-                    LR_LOADFROMFILE | LR_DEFAULTSIZE,
-                );
-                if let Ok(handle) = icon_file {
-                    let hicon = HICON(handle.0);
-                    if !hicon.is_invalid() {
-                        return hicon;
-                    }
-                }
-            }
-        }
-
-        // 3. Fallback cuối cùng: default application icon
-        LoadIconW(None, IDI_APPLICATION).unwrap_or_default()
-    }
-}
 
 /// `NIM_ADD` icon khay theo trạng thái hiện tại. `false` khi shell chưa sẵn sàng.
 #[cfg(windows)]

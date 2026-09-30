@@ -14,6 +14,7 @@
 pub mod autostart;
 pub mod foreground;
 pub mod hotkey;
+pub mod icons;
 pub mod ipc_server;
 pub mod menu;
 pub mod settings;

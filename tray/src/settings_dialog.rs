@@ -238,6 +238,9 @@ fn register_class(name: &[u16], proc: WNDPROC, h_instance: HINSTANCE) {
         lpszClassName: PCWSTR(name.as_ptr()),
         hbrBackground: HBRUSH((COLOR_BTNFACE.0 + 1) as *mut std::ffi::c_void),
         hCursor: unsafe { LoadCursorW(None, IDC_ARROW).unwrap_or_default() },
+        // Icon title bar / Alt-Tab: trước đây thiếu → cửa sổ dùng icon Windows
+        // mặc định thay vì icon TextVN (Windows có sẵn qua tray + PE resource).
+        hIcon: crate::icons::load_app_icon(h_instance, crate::icons::IDI_ICON_T, "textvn.ico"),
         ..Default::default()
     };
     // Đăng ký lần hai (mở lại dialog) trả lỗi "class đã tồn tại" — vô hại.
@@ -1120,7 +1123,19 @@ fn save_macros(hwnd: HWND) -> bool {
         }
     });
     match result {
-        Some(Ok(())) | None => true,
+        Some(Ok(())) => true,
+        // `None` = không lấy được ctx (khóa nội bộ poisoned) — KHÔNG coi là
+        // thành công: trước đây cửa sổ đóng mà bảng gõ tắt vừa sửa bị vứt
+        // im lặng (audit 2026-10-01 m8).
+        None => {
+            show_information(
+                hwnd,
+                "Không thể lưu bảng gõ tắt TextVN",
+                "Không truy cập được trạng thái ứng dụng (khóa nội bộ bị lỗi).\r\n\
+                 Đóng rồi mở lại TextVN, sau đó thử lưu lại.",
+            );
+            false
+        }
         Some(Err(None)) => {
             show_information(
                 hwnd,

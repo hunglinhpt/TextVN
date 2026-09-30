@@ -126,9 +126,11 @@ if [ -f "$ROOT/packaging/macos/uninstall-check.sh" ]; then
     chmod +x "$APP_BUNDLE/Contents/Resources/uninstall-check.sh"
 fi
 
-# Icon .icns (tuỳ chọn) — menu Input Sources hiện icon cho input source.
-# Đặt PNG nguồn (≥512×512) ở `packaging/macos/icons/TextVN-512.png` để bật.
-ICON_SRC="$ROOT/packaging/macos/icons/TextVN-512.png"
+# Icon .icns — menu Input Sources + Finder/Spotlight hiện icon cho input source
+# và 2 bundle. PNG nguồn được commit (sinh bằng `scripts/generate_app_icons.py`
+# từ resources/icons/textvn_v.svg); ưu tiên 1024 để mức 512@2x không phải phóng to.
+ICON_SRC="$ROOT/packaging/macos/icons/TextVN-1024.png"
+[ -f "$ICON_SRC" ] || ICON_SRC="$ROOT/packaging/macos/icons/TextVN-512.png"
 if [ -f "$ICON_SRC" ]; then
     ICONSET="$STAGE_DIR/TextVN.iconset"
     rm -rf "$ICONSET"; mkdir -p "$ICONSET"

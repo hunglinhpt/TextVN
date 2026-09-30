@@ -24,12 +24,20 @@
   <url type="homepage">https://github.com/hunglinhpt/TextVN</url>
   <url type="bugtracker">https://github.com/hunglinhpt/TextVN/issues</url>
   <developer_name>hunglinhpt</developer_name>
+  <!-- Icon stock trùng hicolor icon cài bởi install.sh (AppStream validate +
+       Software Center hiển thị icon thay vì ô trống). -->
+  <icon type="stock">textvn_v</icon>
   <provides>
     <binary>textvn</binary>
     <binary>textvn-settings</binary>
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.3" date="2026-10-01">
+      <description>
+        <p>App icons everywhere: macOS bundles and the input source menu get their icon (.icns), Linux portable mode stages hicolor icons, and the Windows Settings dialog and installer wizard use the TextVN icon. Hardened release publishing (draft-first) and CI caching.</p>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-09-30">
       <description>
         <p>Fixes the macOS login launch showing the Settings window at sign-in, and refreshes the macOS menu bar, per-app toggles, and Windows IME registration. Unsigned cross-platform release.</p>

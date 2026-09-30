@@ -270,7 +270,9 @@ pub extern "C" fn ime_set_context(inst: *mut ime_instance, ctx: *const ime_conte
         set_error(inst, "abi mismatch: context");
         return IME_ERR_ABI;
     }
-    if ctx.field_role > 10 {
+    // IME_FIELD_SECURE = giá trị field_role lớn nhất hợp lệ (trùng hằng
+    // `strategy` — trước đây là số ma thuật `10`, lệch khi mở rộng role).
+    if ctx.field_role > textvn_strategy::IME_FIELD_SECURE {
         set_error(inst, "invalid field_role");
         return IME_ERR_INVALID_ARG;
     }
@@ -563,6 +565,11 @@ pub extern "C" fn ime_strategy_resolve(
 ///
 /// Đứng cuối file export — khớp khối `/* ---- API ---- */` trong header
 /// (verify → resolve → last_error, P0-2 §1). `textvn verify` enforce thứ tự.
+///
+/// Contract con trỏ: trả về pointer vào bộ đệm `CString` NỘI TẠI instance —
+/// hợp lệ cho đến lần gọi `ime_key`/`ime_reload_config`/`ime_*` kế tiếp trên
+/// cùng instance (set_error có thể realloc). Caller dùng ngay rồi sao chép,
+/// KHÔNG giữ pointer qua các lần gọi sau và KHÔNG free.
 #[no_mangle]
 pub extern "C" fn ime_last_error(inst: *const ime_instance) -> *const c_char {
     if inst.is_null() {

@@ -16,7 +16,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.2</string>
+	<string>0.2.3</string>
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>LSMinimumSystemVersion</key>
@@ -44,6 +44,12 @@
 	<array>
 		<string>Latn</string>
 	</array>
+	<!-- Icon của input source trong input menu (menu bar switcher). File
+	     TextVN.icns do build-macos.sh sinh từ packaging/macos/icons/TextVN-1024.png
+	     và copy vào Contents/Resources (trước đây thiếu key này nên menu bar
+	     dùng icon chung chung dù bundle đã có icon). -->
+	<key>tsInputMethodIconFileKey</key>
+	<string>TextVN.icns</string>
 	<key>ComponentInputModeDict</key>
 	<dict>
 		<key>tsInputModeListKey</key>

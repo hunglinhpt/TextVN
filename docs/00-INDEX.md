@@ -11,6 +11,7 @@
 | [user-guide.md](user-guide.md) | Người dùng: cài, gỡ, gõ, bảng điều khiển, xử lý sự cố (Windows + Linux) |
 | [developer-guide.md](developer-guide.md) | Người phát triển: kiến trúc, dựng, kiểm thử, quy ước, phát hành |
 | [release/build-release-report.md](release/build-release-report.md) | Kết quả dựng & kiểm thử của phiên bản hiện tại |
+| [release/release-process.md](release/release-process.md) | **Quy trình phát hành bắt buộc (G16)** — checklist local → repo/docs cho mọi agent & contributor |
 | [release/ui-spec.md](release/ui-spec.md) · [release/parity-checklist.md](release/parity-checklist.md) | Bảng điều khiển thống nhất · đối chiếu tuỳ chọn |
 | [specs/reference-parity.md](specs/reference-parity.md) | Kế thừa UniKey/OpenKey/GoTiengViet/Bamboo và bug đã biết của họ |
 

@@ -7,6 +7,80 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.3] — 2026-10-01
+
+Bản phát hành sau 2 vòng audit chuyên sâu toàn repo (code Rust, GitHub Actions,
+icon/packaging — từng dòng). **Chủ đề: icon đủ trên cả 3 nền tảng** — macOS
+trước đây không có icon bundle nào (pipeline sinh .icns tồn tại sẵn nhưng thiếu
+file PNG nguồn nên âm thầm tắt từ trước đến nay). Vẫn **release candidate,
+chưa ký số**.
+
+### Added
+- **Icon cho macOS (đủ như Windows)**: `packaging/macos/icons/TextVN-1024.png`
+  (+512) — render từ thiết kế badge `resources/icons/textvn_v.svg` bằng script
+  mới `scripts/generate_app_icons.py`; `build-macos.sh` sinh `TextVN.icns` vào
+  cả `TextVN-IM.app` và `TextVN.app` (Input Sources, Finder/Spotlight hết icon
+  trắng mặc định); `Info-IM.plist` thêm `tsInputMethodIconFileKey` để input
+  menu trên menu bar có icon.
+- **Icon raster Linux cho panel cũ**: `resources/icons/textvn_v.png` /
+  `textvn_e.png` 128px cài kèm SVG vào hicolor (`install.sh`, stage, manifest
+  uninstall đều cập nhật); AppStream metainfo thêm `<icon type="stock">` —
+  Software Center hiển thị icon thay vì ô trống.
+- **Icon portable Linux**: bản chạy ngay (`textvn-portable.sh`) stage hicolor
+  icons vào `$XDG_RUNTIME_DIR` + truyền `XDG_DATA_DIRS` cho daemon — engine
+  panel (IBus/Fcitx5) và cửa sổ cài đặt resolve được `textvn_v` thay vì icon
+  mặc định (GNOME Shell tự vẽ panel theo session — giới hạn đã ghi trong script).
+- `scripts/generate_app_icons.py`: một nguồn sinh mọi PNG icon từ SVG brand
+  (chạy bằng tay, PNG commit sẵn — CI không cần Pillow).
+
+### Fixed (Windows)
+- **Cửa sổ Bảng điều khiển + Gõ tắt có icon title bar/Alt-Tab** (trước đây
+  dùng icon Windows mặc định): `tray.rc` nhúng icon trung tính ID 3, class
+  đăng ký `hIcon`; loader `load_app_icon` tách thành module dùng chung
+  `tray/src/icons.rs` (G15 — một bản cho tray và cửa sổ).
+- **Installer có icon riêng** (`SetupIconFile`) thay vì icon mặc định Inno Setup.
+
+### Fixed (đăng ký TSF — audit vòng sâu, 3 major)
+- **Lỗi thiếu DLL giờ vào `register.log`**: trước đây `resolve_dll_path` fail
+  chỉ in stderr (console ẩn nuốt mất) → hộp thoại tray đọc đuôi log của run
+  CŨ và ghép advice sai nguyên nhân. Nay ghi header run mới + lỗi vào log
+  trước khi thoát.
+- **Windows Single Language không còn bị chặn đăng ký**: profile EN (0x0409)
+  chuyển thành best-effort (WARN) — trước đây ILOT/hậu kiểm fail cứng trên EN
+  khiến toàn bộ đăng ký báo FAIL dù VI hoạt động đầy đủ. Hậu kiểm bắt buộc VI.
+- **Đăng ký `--scope machine` dọn override per-user**: key HKCU CLSID cũ (trỏ
+  DLL portable đã xoá) che HKLM mới ở mức COM — xoá trước khi ghi machine;
+  hậu kiểm `server_ok` dò cả 2 hive thay vì HKCU-first tuyệt đối.
+- `unregister` báo thất bại (exit 1) khi còn key không xoá được; scope machine
+  xoá thêm cây CTF TIP HKLM; `Enable=1` ghi lại SAU `InstallLayoutOrTip` (spike
+  doc: cập nhật input list có thể reset enabled flag); `FreeLibrary` input.dll
+  sau mỗi lần gọi; `doctor` tìm `data/` cạnh exe thay vì chỉ cwd; cửa sổ sửa
+  Gõ tắt không còn đóng giả thành công khi không lấy được trạng thái ứng dụng
+  (bảng vừa sửa bị vứt im lặng); FFI dùng hằng `IME_FIELD_SECURE` thay số ma
+  thuật `10` + ghi contract pointer `ime_last_error`.
+
+### Changed (CI — audit GitHub Actions, 5 major)
+- `ci-shared.yml`: thêm `permissions: contents: read` (mọi job token chỉ đọc);
+  `cancel-in-progress` chỉ trên PR (push graphify/docs sau commit code từng
+  giết run CI của commit code); bỏ qua push chỉ chứa `**.md`/`docs/`/
+  `graphify-out/`; **timeout-minutes cho 12/13 job** (mặc định 360′ là lãng phí
+  khi cargo hang); **Swatinem/rust-cache** cho các job nặng (test/replay/clippy/
+  fuzz/linux-adapters/windows-package); `persist-credentials: false` ở checkout.
+- `release.yml`: **publish draft-first** — tạo draft, upload hết asset
+  (`--clobber`, rerun được) rồi mới public; jq assert thêm
+  `feature_profile == "tsf-only"`; job `publish` có timeout; job macOS chạy
+  `swift test` TRƯỚC khi đóng gói.
+- `ci-macos.yml`: bỏ `needs: engine-static` vô ích ở job swift (tự build
+  staticlib per-arch) + timeout 60′; `repo-hygiene` có timeout + token chỉ đọc;
+  `targets-verify` chỉ tải installer từ hostname allowlist.
+
+### Housekeeping
+- Quy trình phát hành chuẩn hoá: **`docs/release/release-process.md`** (G16
+  trong `00-WORKFLOW.md`) — Checklist A (local) → Checklist B (repo/docs) bắt
+  buộc cho mọi agent/contributor, dựa trên v0.2.0–v0.2.2 đã phát hành thành
+  công; bảng sự cố khi phát hành (typing smoke flake B5, perf continue-on-error,
+  publish draft rerun…).
+
 ## [0.2.2] — 2026-09-30
 
 Bản vá nghiêm túc cho bản 0.2.1: **ưu tiên cao nhất** là F3-13 — khi TextVN tự
@@ -292,7 +366,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0

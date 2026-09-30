@@ -76,6 +76,8 @@ tv_textvn_install_path() { # <prefix> <path> [environment.d file]
         "$base/share/fcitx5/inputmethod/textvn.conf"|\
         "$base/share/icons/hicolor/scalable/apps/textvn_v.svg"|\
         "$base/share/icons/hicolor/scalable/apps/textvn_e.svg"|\
+        "$base/share/icons/hicolor/128x128/apps/textvn_v.png"|\
+        "$base/share/icons/hicolor/128x128/apps/textvn_e.png"|\
         "$base/share/applications/textvn-settings.desktop"|\
         "$base/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml")
             return 0

@@ -152,6 +152,7 @@ mod win_impl {
     use super::*;
 
     use windows::core::*;
+    use windows::Win32::Foundation::FreeLibrary;
     use windows::Win32::Foundation::*;
     use windows::Win32::Security::Authorization::*;
     use windows::Win32::Security::{
@@ -401,11 +402,14 @@ mod win_impl {
         (status == ERROR_SUCCESS && size == std::mem::size_of::<u32>() as u32).then_some(out)
     }
 
-    fn delete_tree(root: HKEY, path: &str) {
+    /// Xoá key + trả true khi xoá được hoặc key không tồn tại. Caller dùng giá
+    /// trị này để không báo unregister thành công khi còn key sót.
+    fn delete_tree(root: HKEY, path: &str) -> bool {
         let subkey = wide(path);
         // SAFETY: buffer nul-terminated.
         let status = unsafe { RegDeleteTreeW(root, PCWSTR(subkey.as_ptr())) };
-        if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
+        let gone = status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND;
+        if gone {
             say(&format!(
                 "  Registry delete {}\\{} → OK",
                 root_label(root),
@@ -419,6 +423,7 @@ mod win_impl {
                 lstatus_text(status.0)
             ));
         }
+        gone
     }
 
     pub fn com_init() -> bool {
@@ -447,6 +452,7 @@ mod win_impl {
             };
             let Some(fp) = GetProcAddress(hmod, s!("InstallLayoutOrTip")) else {
                 say("  InstallLayoutOrTip: không có trong input.dll");
+                let _ = FreeLibrary(hmod);
                 return false;
             };
             type Pfn = unsafe extern "system" fn(*const u16, u32) -> i32;
@@ -454,6 +460,9 @@ mod win_impl {
             let spec = layout_spec(lang);
             let spec_w = wide(&spec);
             let ok = pfn(spec_w.as_ptr(), flags) != 0;
+            // Trả refcount input.dll ngay (CLI gọi 2–4 lần/process; không trả
+            // thì mỗi lần gọi leak một refcount).
+            let _ = FreeLibrary(hmod);
             say(&format!(
                 "  InstallLayoutOrTip({spec}, {label}) → {}",
                 if ok { "OK" } else { "FAIL" }
@@ -702,6 +711,19 @@ mod win_impl {
         let root = scope.root();
         let k = clsid_key();
         let inproc = format!(r"{k}\InprocServer32");
+        // COM per-user (HKCU\Software\Classes\CLSID) override HKLM cho user
+        // hiện tại: đăng ký machine trên máy từng đăng ký per-user (portable
+        // cũ, DLL đã xoá) sẽ bị key cũ che — TSF vẫn nạp DLL không tồn tại.
+        // Xoá override HKCU trước khi ghi HKLM.
+        if scope == Scope::Machine && reg_key_exists(HKEY_CURRENT_USER, &k) {
+            say("  Xoá override per-user HKCU\\Software\\Classes\\CLSID trước khi đăng ký machine");
+            if !delete_tree(HKEY_CURRENT_USER, &k) {
+                // Per-user COM override HKLM: key cũ còn thì TSF vẫn nạp DLL
+                // chết dù HKLM ghi đúng — không được coi là đăng ký thành công.
+                say("FAIL: không xoá được override per-user — xoá tay HKCU\\Software\\Classes\\CLSID\\{CLSID} rồi chạy lại");
+                return 3;
+            }
+        }
         let ok = set_reg_value(root, &k, None, RegValue::Sz("TextVN TSF"))
             && set_reg_value(root, &inproc, None, RegValue::Sz(&dll_s))
             && set_reg_value(
@@ -739,13 +761,13 @@ mod win_impl {
         let icon = icon_path(dll_path);
         let api_ok = register_with_tsf_api("TextVN", &icon);
         let machine_registered = registration_metadata_ok();
-        let profiles_ok = if !api_ok && !machine_registered {
+        let (profiles_ok, used_ctf_fallback) = if !api_ok && !machine_registered {
             if scope == Scope::Machine {
                 return 3;
             }
-            register_ctf_per_user("TextVN", &icon)
+            (register_ctf_per_user("TextVN", &icon), true)
         } else {
-            true
+            (true, false)
         };
         if !profiles_ok || !registration_metadata_ok() {
             say("FAIL: profile TSF chưa được đăng ký đầy đủ");
@@ -753,17 +775,36 @@ mod win_impl {
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
+        // VI bắt buộc; EN best-effort — Windows Single Language/chính sách có
+        // thể không thêm được en-US, chỉ WARN để không fail toàn bộ đăng ký
+        // dù VI (mục tiêu thật của bộ gõ) đã dùng được.
         let layouts_ok = if no_taskbar {
             call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
                 && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
         } else {
-            REGISTER_LANGS
-                .iter()
-                .all(|(_, lang)| call_layout_or_tip(*lang, ILOT_DEFPROFILE, "DEFPROFILE"))
+            let vi_ok = call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
+            let en_ok = call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
+            if vi_ok && !en_ok {
+                say("  WARN: không thêm được profile cho ngôn ngữ EN (best-effort) — VI vẫn dùng được");
+            }
+            vi_ok
         };
         if !layouts_ok {
             say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");
             return 1;
+        }
+        if used_ctf_fallback {
+            // Spike doc (tsf-registration-spike.md): cập nhật input list có thể
+            // reset enabled flag → ghi lại Enable=1 SAU InstallLayoutOrTip,
+            // trước hậu kiểm `profile_metadata_ok`.
+            for (_, lang) in REGISTER_LANGS {
+                set_reg_value(
+                    HKEY_CURRENT_USER,
+                    &ctf_profile_key(lang),
+                    Some("Enable"),
+                    RegValue::Dword(1),
+                );
+            }
         }
 
         // Bước 4: kích hoạt ngay cho session. Tiến trình không có ngữ cảnh nhập
@@ -782,9 +823,16 @@ mod win_impl {
 
         // `--no-taskbar` chủ động gỡ layout khỏi danh sách; không đòi hỏi
         // IsEnabledLanguageProfile trong trường hợp dành riêng cho tray.
-        if !no_taskbar && !registration_ok() {
-            say("FAIL: hậu kiểm đăng ký TSF không đạt");
-            return 1;
+        // Hậu kiểm bắt buộc VI; EN chỉ là thông tin (máy không có en-US vẫn
+        // gõ được tiếng Việt — fail cứng EN là sai, đã từng chặn đăng ký).
+        if !no_taskbar {
+            if !registration_ok() {
+                say("FAIL: hậu kiểm đăng ký TSF không đạt");
+                return 1;
+            }
+            if !profile_is_enabled(LANGID_EN) {
+                say("  WARN: profile EN chưa bật (máy có thể không có ngôn ngữ en-US) — VI vẫn dùng được");
+            }
         }
 
         if no_taskbar {
@@ -841,29 +889,35 @@ mod win_impl {
             }
         }
 
-        // Bước 3: registry của chính TextVN.
-        delete_tree(HKEY_CURRENT_USER, &ctf_tip_key());
-        delete_tree(HKEY_CURRENT_USER, &clsid_key());
+        // Bước 3: registry của chính TextVN. Xoá HKLM CTF TIP khi scope machine
+        // (API UnregisterProfile fail im lặng nếu không admin — key machine sót
+        // là ghost registration mà hậu kiểm vẫn thấy qua fallback HKLM).
+        // `&` (không phải `&&`): delete fail vẫn thử xoá nốt các key còn lại —
+        // short-circuit từng bỏ qua CTF TIP HKLM trên path lỗi (audit vòng 2).
+        let mut deleted = delete_tree(HKEY_CURRENT_USER, &ctf_tip_key())
+            & delete_tree(HKEY_CURRENT_USER, &clsid_key());
         if scope == Scope::Machine {
-            delete_tree(HKEY_LOCAL_MACHINE, &clsid_key());
+            deleted &= delete_tree(HKEY_LOCAL_MACHINE, &clsid_key())
+                & delete_tree(HKEY_LOCAL_MACHINE, &ctf_tip_key());
+        }
+        if !deleted {
+            say("WARN: còn key chưa xoá được (xem dòng Registry delete phía trên) — đăng ký cũ có thể vẫn hoạt động");
+            return 1;
         }
 
         say("=== Hủy đăng ký hoàn tất. ===");
         0
     }
 
-    /// COM server trỏ tới DLL còn tồn tại + cả profile VI/EN được Windows bật.
-    /// Không coi một CTF root rỗng/đăng ký dở là thành công.
+    /// COM server trỏ tới DLL còn tồn tại (dò CẢ HKCU và HKLM — key per-user
+    /// cũ trỏ file đã xoá không được che key machine tốt) + metadata profile
+    /// đầy đủ + profile VI được Windows bật. EN không phải điều kiện (best-effort).
     pub fn registration_ok() -> bool {
         let inproc = format!(r"{}\InprocServer32", clsid_key());
-        let server_ok = reg_read_string(HKEY_CURRENT_USER, &inproc)
-            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc))
-            .is_some_and(|p| Path::new(&p).is_file());
-        server_ok
-            && registration_metadata_ok()
-            && REGISTER_LANGS
-                .iter()
-                .all(|(_, lang)| profile_is_enabled(*lang))
+        let server_ok = [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE]
+            .into_iter()
+            .any(|h| reg_read_string(h, &inproc).is_some_and(|p| Path::new(&p).is_file()));
+        server_ok && registration_metadata_ok() && profile_is_enabled(LANGID_VI)
     }
 
     pub fn do_status() -> i32 {
@@ -923,6 +977,7 @@ mod win_impl {
 pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
     #[cfg(windows)]
     {
+        let scope_label = scope;
         let scope = match scope {
             "user" => win_impl::Scope::User,
             "machine" => win_impl::Scope::Machine,
@@ -931,6 +986,18 @@ pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
         let dll_path = match resolve_dll_path(dll) {
             Ok(p) => p,
             Err(e) => {
+                // Ghi register.log TRƯỚC khi thoát: hộp thoại tray ghép advice
+                // từ đuôi log — lỗi resolve trước đây chỉ vào stderr (console
+                // ẩn nuốt mất) nên dialog hiển thị đuôi log của run cũ và khớp
+                // sai nguyên nhân. Header "===" đặt ranh giới run mới (nhãn
+                // HKCU/HKLM khớp header của do_register).
+                let label = if scope_label == "machine" {
+                    "HKLM"
+                } else {
+                    "HKCU"
+                };
+                say(&format!("=== TextVN register ({label}) ==="));
+                say(&format!("error: {e}"));
                 eprintln!("error: {e}");
                 return 1;
             }

@@ -40,6 +40,8 @@ if [[ -f "$ADAPTERS/fcitx5/libtextvn-fcitx5.so" ]]; then
 fi
 for icon in textvn_v textvn_e; do
     inst 0644 "$ROOT/resources/icons/$icon.svg" "share/icons/hicolor/scalable/apps/$icon.svg"
+    # PNG 128px cho panel/tray cũ không render SVG (sinh bằng generate_app_icons.py)
+    inst 0644 "$ROOT/resources/icons/$icon.png" "share/icons/hicolor/128x128/apps/$icon.png"
 done
 inst 0644 "$ROOT/packaging/linux/desktop/textvn-settings.desktop" share/applications/textvn-settings.desktop
 inst 0644 "$ROOT/packaging/linux/appstream/io.github.hunglinhpt.textvn.metainfo.xml" \

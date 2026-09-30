@@ -27,6 +27,7 @@
 | G13 | **Push đỏ CI → xử lý ngay trong phiên** (`repo-hygiene` + `ci-shared`, §12) — chưa xanh thì chưa Done, không nhận task mới | giữ repo sạch sau mỗi lần code (yêu cầu user 2026-09-27) |
 | G14 | **Kết thúc phiên/task → qua checklist dọn dẹp §10** (kill process test, dồn evidence, `git status` sạch, CI xanh) | tránh rò process/file tạm sang phiên sau |
 | G15 | **Phần trùng lặp → bắt buộc viết thành lib/module dùng chung, KHÔNG viết riêng từng nơi** — code sạch, reuse tối đa: logic nào dùng ở ≥2 chỗ thì tách thành module chung (crate chung Rust / script lib chung) ngay từ đầu | user rule 2026-09-27; chống copy-paste (vd locator/rules UIA: field-detect ↔ appcomptest phải dùng chung 1 lib) |
+| G16 | **Phát hành version mới → bắt buộc đi đủ Checklist A (local) + Checklist B (repo/docs) của `docs/release/release-process.md`** — không tag khi CI commit đó chưa xanh; bản phát hành thiếu release note/changelog/version-sync/readme/metainfo/report = chưa Done | chuẩn hoá 2026-10-01 từ quy trình đã thành công của v0.2.0–v0.2.2 |
 
 ## 2. Bắt buộc đọc — trình tự mỗi phiên
 
@@ -167,6 +168,13 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 | `ci-{windows,macos,linux}` | chưa tạo | phân công sau | — | adapter theo OS (P1-5) |
 
 **G13:** push đỏ → xử lý trong phiên, chưa xanh thì chưa Done, không nhận task mới.
+
+### 12.4 Workflow phát hành (`release-candidate`)
+
+Push tag `vN.N.N` → workflow `release.yml` build Windows/Linux/macOS + publish
+pre-release draft-first. **Quy trình đầy đủ (checklist local trước — repo sau,
+bộ docs bắt buộc, xử lý sự cố) = `docs/release/release-process.md` (G16) —
+bắt buộc đọc trước khi tag bất kỳ version nào.**
 
 ### 12.2 8 check của `repo-hygiene`
 

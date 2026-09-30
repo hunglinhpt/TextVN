@@ -65,6 +65,11 @@ jobs:
           $m = [regex]::Match($yaml, 'InstallerUrl:\s*(\S*VSCodeUserSetup-x64-\d\S*\.exe)')
           if (-not $m.Success) { Write-Error 'khong tim thay VSCodeUserSetup-x64 URL trong manifest'; exit 1 }
           $urlOld = $m.Groups[1].Value
+          # Allowlist hostname: manifest winget-pkgs la input ben thu ba - khong
+          # tai exe tu domain nao khac (m5, audit 2026-10-01).
+          if ($urlOld -notmatch '^https://(vscode\.download\.prss\.microsoft\.com|az764295\.vo\.msecnd\.net|update\.code\.visualstudio\.com)/') {
+            Write-Error ('InstallerUrl ngoai allowlist: ' + $urlOld); exit 1
+          }
           Write-Output ('old url = ' + $urlOld)
           $exeOld = Join-Path $dir 'VSCodeUserSetup-old.exe'
           curl.exe -L -sS -o $exeOld $urlOld

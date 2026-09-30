@@ -78,13 +78,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
-      - name: Build and test macOS candidate
+      # Test Swift TRƯỚC khi đóng gói: fail test thì đừng đốt thời gian package.
+      - name: Test Swift packages (arm64)
         run: |
-          scripts/build-macos.sh
-          scripts/package-macos-pkg.sh
           for package in adapters/macos-imk adapters/macos-tap adapters/macos-app; do
             (cd "$package" && swift test --arch arm64)
           done
+      - name: Build and package macOS candidate
+        run: |
+          scripts/build-macos.sh
+          scripts/package-macos-pkg.sh
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos
@@ -97,6 +100,7 @@ jobs:
   publish:
     needs: [windows, linux, macos]
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
@@ -121,16 +125,26 @@ jobs:
           portable="$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' -print -quit)"
           unzip -p "$portable" RELEASE_REPORT.json | jq -e \
             --arg version "$version" --arg commit "$GITHUB_SHA" \
-            '.product == "TextVN" and .version == $version and .git_commit == $commit and .source_tree_clean == true and .status == "release-candidate"'
+            '.product == "TextVN" and .version == $version and .git_commit == $commit and .source_tree_clean == true and .status == "release-candidate" and .feature_profile == "tsf-only"'
           if unzip -Z1 "$portable" | grep -qi 'textvn-hook.exe'; then
             echo 'Default release must not contain the compatibility hook.' >&2
             exit 1
           fi
+          # Draft-first: tạo release dạng draft, upload hết asset rồi mới public.
+          # Upload asset fail giữa chừng (mạng/quota) trước đây để lại release
+          # public thiếu asset và guard dưới đây khoá luôn việc chạy lại — draft
+          # thì fail vô hại và chạy lại được (upload idempotent với --clobber).
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo 'Release exists; refusing to overwrite immutable assets.' >&2
-            exit 1
+            draft="$(gh release view "${GITHUB_REF_NAME}" --json isDraft --jq '.isDraft')"
+            if [ "$draft" != "true" ]; then
+              echo 'Release exists and is published; refusing to overwrite immutable assets.' >&2
+              exit 1
+            fi
+          else
+            gh release create "${GITHUB_REF_NAME}" --draft --verify-tag --prerelease \
+              --title "TextVN ${version} (release candidate)" \
+              --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
           fi
           (cd release-assets && sha256sum * > SHA256SUMS.txt)
-          gh release create "${GITHUB_REF_NAME}" release-assets/* \
-            --verify-tag --prerelease --title "TextVN ${version} (release candidate)" \
-            --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
+          gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
+          gh release edit "${GITHUB_REF_NAME}" --draft=false

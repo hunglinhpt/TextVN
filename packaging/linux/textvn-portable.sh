@@ -269,13 +269,26 @@ fi
 prepare_runtime
 SETTINGS="$PKG_DIR/bin/textvn-settings"
 
+# Icon hicolor vào XDG data của phiên: engine panel (thuộc cây ibus-daemon/
+# fcitx5, kế thừa XDG_DATA_DIRS dưới đây) và textvn-settings resolve được
+# "textvn_v" thay vì rơi về icon mặc định. Giới hạn đã biết: GNOME Shell tự vẽ
+# panel theo XDG_DATA_DIRS của shell session — icon portable không hiện ở đó
+# (chỉ bản `./install.sh` cài vào ~/.local/share mới có); đây là lựa chọn thiết
+# kế của portable: không ghi gì vào thư mục bền của người dùng.
+mkdir -p "$RUNTIME/data/icons"
+cp -R "$PKG_DIR/share/icons/." "$RUNTIME/data/icons/"
+
 if [[ "$FW" == ibus ]]; then
     [[ -x "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]] || { tv_err "Gói không có engine IBus."; exit 1; }
     snapshot_portable_state ibus
     mkdir -p "$RUNTIME/ibus/component"
     tv_ibus_component "$PKG_DIR" "$PKG_DIR/lib/textvn/textvn-ibus-engine" "$SETTINGS" \
         > "$RUNTIME/ibus/component/textvn.xml"
-    tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
+    # Icon "textvn_v" resolve được cho cây tiến trình ibus-daemon khởi động lại
+    # bên dưới (nhánh systemd dùng IBUS_COMPONENT_PATH riêng, nhánh fallback kế
+    # thừa env này).
+    XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
+        tv_restart_ibus "$RUNTIME/ibus/component:/usr/share/ibus/component" ||
         rollback_start ibus "Không thể khởi động lại IBus cho TextVN portable."
     # Bắt buộc: daemon đã nạp engine TextVN từ component portable — sai component
     # path mới là lỗi thật cần rollback.

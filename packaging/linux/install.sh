@@ -108,6 +108,7 @@ if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
     fi
 fi
 for f in icons/hicolor/scalable/apps/textvn_v.svg icons/hicolor/scalable/apps/textvn_e.svg \
+         icons/hicolor/128x128/apps/textvn_v.png icons/hicolor/128x128/apps/textvn_e.png \
          applications/textvn-settings.desktop metainfo/io.github.hunglinhpt.textvn.metainfo.xml; do
     [[ -f "$PKG_DIR/share/$f" ]] && put 0644 "$PKG_DIR/share/$f" "$SHARE/$f"
 done

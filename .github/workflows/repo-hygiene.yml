@@ -17,14 +17,18 @@ permissions:
 
 concurrency:
   group: repo-hygiene-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   hygiene:
     name: repo hygiene (8 checks)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Job chỉ đọc — không để token nằm lại .git/config của runner.
+          persist-credentials: false
 
       - name: 1. conflict marker còn sót
         run: |

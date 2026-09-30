@@ -6,6 +6,12 @@ name: ci-shared
 on:
   push:
     branches: [main]
+    # Push chỉ chứa docs/graphify không đổi code Rust — đừng đốt full matrix
+    # (13 job) và đừng cancel run của commit code đang chạy.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'graphify-out/**'
   pull_request:
   workflow_dispatch:
 
@@ -15,16 +21,27 @@ env:
   # Log không bao giờ chứa nội dung phím (S2) — biến này để tắt log nóng của engine.
   RUST_LOG: warn
 
+# Không job nào ở đây cần ghi repo — token chỉ đọc kể cả khi action bên thứ ba
+# (pin theo tag động) bị chiếm.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-shared-${{ github.ref }}
-  cancel-in-progress: true
+  # main KHÔNG cancel-in-progress: push graphify/docs ngay sau commit code từng
+  # giết run CI của commit code → mất bằng chứng xanh cho commit đó (2026-09-30).
+  # PR thì cancel bản cũ để tiết kiệm runner.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   fmt:
     name: rustfmt
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -33,29 +50,40 @@ jobs:
   clippy:
     name: clippy (-D warnings)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   abi-sizes:
+    timeout-minutes: 15
     # P0-2 §6: struct FFI lệch kích thước = sửa ABI mà chưa bump IME_ABI_VERSION.
     name: abi sizes (20/532)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo run -q -p textvn-cli -- sizes
 
   gen-tables:
+    timeout-minutes: 20
     # Bảng transform/method phải khớp `data/tables/*.toml` (P0-1 §3) — gate chống
     # "sửa data nhưng quên gen" và ngược lại.
     name: xtask check-tables
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -68,15 +96,20 @@ jobs:
       - run: cargo run -q -p xtask -- check-version-sync
 
   abi-header:
+    timeout-minutes: 15
     # Header C giữ tay (chưa có `xtask cbindgen`) → verify header ↔ code Rust (P0-2 §6).
     name: textvn verify (header C)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo run -q -p textvn-cli -- verify
 
   perf:
+    timeout-minutes: 60
     # P1-5 §5: regression >10% so `perf/baseline-win.json` → fail.
     # Lưu ý thẳng thắn: runner GHA dùng **chung** (2 vCPU) nên nhiễu nền lớn; job để
     # `continue-on-error` + upload số đo, còn gate cứng chạy trên runner self-hosted
@@ -86,7 +119,10 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo run -q --release -p textvn-bench -- check perf/baseline-win.json
       - uses: actions/upload-artifact@v4
         if: always()
@@ -95,25 +131,32 @@ jobs:
           path: perf/baseline-win.json
 
   deny:
+    timeout-minutes: 20
     # S5: gate dependency (network/http/ws/mqtt trong core/strategy/adapters).
     name: cargo-deny
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-deny
       - run: cargo deny check
 
   reuse:
+    timeout-minutes: 15
     name: reuse (SPDX)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       # @v6 = reuse-tool 6.x (spec 3.3, đọc REUSE.toml) — @v3 = tool 3.0 CHỈ
       # đọc .reuse/dep5 → fail 0/302 copyright (đã reproduce local, F6-14).
       - uses: fsfe/reuse-action@v6
 
   test:
+    timeout-minutes: 60
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -122,10 +165,14 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
   replay:
+    timeout-minutes: 45
     # L2 golden corpus + L3 cross-OS conformance (P0-4 §1).
     # Adapter mac chạy headless mọi OS (P2-5 §2) — cùng job, 2 run.
     name: replay corpus (${{ matrix.os }})
@@ -136,7 +183,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter headless
       # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
       - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
@@ -144,13 +194,18 @@ jobs:
       - run: cargo run -q -p xtask -- check-mac-corpus
 
   linux-adapters:
+    timeout-minutes: 90
     # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với
     # ibus-daemon / fcitx5 chạy thật trong dbus-run-session.
     name: Linux IBus/Fcitx5 (build + e2e + gói cài/chạy ngay)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
+      # Cache chuẩn Swatinem: job này build workspace + adapter Linux (e2e, gói)
+      - uses: Swatinem/rust-cache@v2
       - run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cmake pkg-config \
@@ -176,10 +231,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
       - name: Inno Setup 6 (bản dịch tiếng Việt cần ≥ 6.5)
         shell: powershell
         run: |
@@ -215,14 +273,18 @@ jobs:
 
 
   fuzz:
+    timeout-minutes: 45
     # L4: 60s/target ở PR (P0-4 §1). Nightly 10'/target nằm ở nightly.yml.
     name: fuzz smoke (60s)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src
+      - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-fuzz

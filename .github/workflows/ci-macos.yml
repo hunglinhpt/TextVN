@@ -184,7 +184,10 @@ jobs:
   swift:
     name: swift build + test (${{ matrix.arch }})
     runs-on: macos-latest
-    needs: engine-static
+    # KHÔNG `needs: engine-static`: job này tự build staticlib per-arch ở bước
+    # dưới (engine-static build cho target/release của package-candidate) —
+    # `needs` chỉ gây serialize 2 job build độc lập.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

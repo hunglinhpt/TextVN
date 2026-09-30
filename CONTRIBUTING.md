@@ -100,6 +100,14 @@ docs(readme): add build instructions for Windows
 - Đảm bảo tất cả CI checks xanh
 - Reviewer sẽ response trong vòng 7 ngày làm việc
 
+### 6. Phát hành version mới
+
+Bắt buộc theo [docs/release/release-process.md](docs/release/release-process.md)
+(quy tắc G16 trong `docs/00-WORKFLOW.md`): Checklist **A** — gates local (fmt,
+clippy, test, version-sync, replay, verify) trước khi commit; Checklist **B** —
+CI xanh rồi mới tag, và bản phát hành phải đủ CHANGELOG + link compare, README,
+metainfo, build-release-report, common-errors (nếu có lỗi mới).
+
 ---
 
 ## Tiêu chuẩn code

@@ -1,12 +1,76 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
-> `v0.2.2` **đã publish** 2026-09-30 dạng pre-release. Bằng chứng của bản đó
+> `v0.2.3` là bản đang phát hành (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30 dạng pre-release. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon)
+
+**Mục tiêu bản này:** sau khi v0.2.2 phát hành, user yêu cầu audit thêm 2 vòng
+từng dòng code toàn repo dưới view chuyên gia (code + audit + GitHub Actions),
+kiểm icon UI Linux/macOS so với Windows, và viết lại quy trình release chuẩn
+hoá. Kết quả audit vòng 1 (3 luồng độc lập): **0 blocker, 3 major Rust
+(register), 5 major CI, 3 major icon** — tất cả đã fix; vòng 2 là verify độc
+lập trên diff trước khi commit.
+
+### Icon — trả lời câu hỏi "Linux/macOS đã có icon như Windows chưa?"
+
+| Nền tảng | Trước 0.2.3 | Sau 0.2.3 |
+|---|---|---|
+| Windows | ✅ tray 2 trạng thái + PE icon + TSF IconFile; ❌ cửa sổ cài đặt + installer dùng icon mặc định | ✅ đầy đủ: `tray.rc` ID 3 + `hIcon` class + `SetupIconFile` |
+| Linux | ✅ cài chuẩn có đủ (hicolor SVG + window icon + panel); ❌ **portable không icon**; thiếu PNG cho panel cũ | ✅ portable stage hicolor vào `$XDG_RUNTIME_DIR` + `XDG_DATA_DIRS` cho daemon; thêm PNG 128 hicolor + AppStream `<icon>` |
+| macOS | ❌ **không có icon nào**: 3 plist khai báo `CFBundleIconFile` nhưng không có `.icns` trong repo — pipeline `build-macos.sh` có sẵn nhưng thiếu PNG nguồn nên âm thầm tắt | ✅ `packaging/macos/icons/TextVN-1024.png` (+512, render từ SVG brand bằng `scripts/generate_app_icons.py`) → `.icns` vào cả 2 bundle + `tsInputMethodIconFileKey` cho input menu |
+
+### Sửa theo audit vòng 1 — đăng ký TSF (3 major + 7 minor)
+
+- Lỗi thiếu DLL giờ ghi vào `register.log` (trước đây chỉ stderr → dialog đọc
+  nhầm đuôi log run cũ, advice sai nguyên nhân).
+- Profile EN chuyển best-effort: Windows Single Language không còn bị fail cả
+  đăng ký; hậu kiểm bắt buộc VI.
+- `--scope machine` xoá override CLSID per-user cũ (trỏ DLL đã xoá) trước khi
+  ghi HKLM; `server_ok` dò cả 2 hive.
+- `unregister` trả exit 1 khi còn key sót; machine scope dọn thêm CTF TIP HKLM;
+  `Enable=1` ghi lại sau `InstallLayoutOrTip`; `FreeLibrary` input.dll; doctor
+  tìm `data/` cạnh exe; `save_macros` không còn coi lỗi khóa nội bộ là thành
+  công; FFI dùng hằng `IME_FIELD_SECURE` + doc contract `ime_last_error`.
+
+### Sửa theo audit vòng 1 — GitHub Actions (5 major + minors)
+
+`ci-shared`: `permissions: contents: read` · `cancel-in-progress` chỉ PR ·
+`paths-ignore` docs/graphify · timeout 12 job · Swatinem/rust-cache ·
+`persist-credentials: false` — `release.yml`: publish **draft-first**
+(upload `--clobber` rerun được, public sau cùng) · jq assert
+`feature_profile=tsf-only` · macOS test-trước-package · `ci-macos`: bỏ
+`needs` vô ích + timeout — `repo-hygiene`/`targets-verify`: timeout/token
+chỉ đọc/hostname allowlist.
+
+### Quy trình phát hành mới
+
+`docs/release/release-process.md` (quy tắc **G16** `00-WORKFLOW.md` §12.4) —
+Checklist A (local: fmt/clippy/test/version-sync/replay/verify/docs-check) →
+Checklist B (CI xanh rồi tag, bộ docs bắt buộc, verify release + checksums,
+bằng chứng CI). Chuẩn hoá từ v0.2.0–v0.2.2 đã phát hành thành công, kèm bảng
+sự cố (flake B5, perf continue-on-error, draft rerun…).
+
+### Kiểm chứng chạy trên host Windows (2026-10-01, sau toàn bộ thay đổi)
+
+| Gate | Kết quả |
+|---|---|
+| `cargo fmt --all -- --check` | ✅ sạch |
+| `cargo clippy --workspace --exclude textvn-win-hook --all-targets -- -D warnings` | ✅ 0 warning |
+| `cargo test --workspace` | ✅ **343 test pass** |
+| `cargo run -q -p xtask -- check-version-sync` | ✅ 14 chỗ = 0.2.3 |
+| `check-tables` · `check-mac-corpus` (114) · `check-mac-targets` (12) | ✅ |
+| `cargo run -q -p textvn-cli -- verify` | ✅ ABI v1 ↔ header khớp, 11 export |
+| `replay corpus/shared corpus/mac --adapter mac` | ✅ 149/149 |
+| `replay corpus/shared corpus/win --adapter win` · `--adapter tsf` | ✅ 113/113 ×2 |
+| `check_doc_links` (39 link) · `check_no_injection_apis` (158 file) | ✅ |
+| YAML 6 workflow · `bash -n` 5 script packaging | ✅ |
+| Audit vòng 2 (verify độc lập trên diff) | ✅ **ĐẠT để commit** — 0 blocker; 1 major (`&&` short-circuit bỏ qua delete kế tiếp trong `do_unregister`) + 3 minor đã sửa inline ngay trước commit |
 
 ## Bản 0.2.2 — vá F3-13 (mở nhầm Cài đặt lúc login) + F3-8, nit
 

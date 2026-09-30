@@ -147,6 +147,10 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 
 ## 5. Phát hành
 
+> **Quy trình đầy đủ bắt buộc (checklist local → repo/docs, bộ tài liệu không
+> được thiếu): [release/release-process.md](release/release-process.md)** —
+> quy tắc G16 trong `docs/00-WORKFLOW.md`. Mục dưới đây chỉ là tóm tắt kỹ thuật.
+
 1. Cập nhật `version` trong `Cargo.toml` (workspace), mọi manifest/plist/fallback
    Swift, rồi chạy `cargo run -q -p xtask -- check-version-sync`.
 2. `CHANGELOG.md`, [build-release-report.md](release/build-release-report.md) (điền số liệu

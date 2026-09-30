@@ -97,7 +97,15 @@ pub fn collect_report() -> DoctorReport {
         }
     }
 
-    let data_dir_exists = PathBuf::from("data").is_dir();
+    // data/ nằm cạnh exe (bản cài/portable) hoặc cạnh cwd (cargo run từ gốc
+    // repo) — trước đây chỉ nhìn cwd nên chạy doctor từ thư mục khác luôn
+    // báo thiếu dù bản cài có đủ (audit 2026-10-01 m5).
+    let data_dir_exists = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("data")))
+        .into_iter()
+        .chain(std::iter::once(PathBuf::from("data")))
+        .any(|p| p.is_dir());
     let pipe_listening = check_pipe_listening();
     let hook_running = check_instance_mutex(r"Local\TextVNHookMutex");
     let tray_running = check_instance_mutex(r"Local\TextVNTray");
