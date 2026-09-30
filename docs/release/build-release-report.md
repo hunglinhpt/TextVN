@@ -1,6 +1,6 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
-> `v0.2.3` là bản đang phát hành (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30 dạng pre-release. Bằng chứng của bản đó
+> `v0.2.3` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
@@ -71,6 +71,35 @@ sự cố (flake B5, perf continue-on-error, draft rerun…).
 | `check_doc_links` (39 link) · `check_no_injection_apis` (158 file) | ✅ |
 | YAML 6 workflow · `bash -n` 5 script packaging | ✅ |
 | Audit vòng 2 (verify độc lập trên diff) | ✅ **ĐẠT để commit** — 0 blocker; 1 major (`&&` short-circuit bỏ qua delete kế tiếp trong `do_unregister`) + 3 minor đã sửa inline ngay trước commit |
+
+### Phát hành — v0.2.3 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.3` @ `ae33d7a`. Workflow
+  [release-candidate #36766099152](https://github.com/hunglinhpt/TextVN/actions/runs/36766099152)
+  build + test cả 3 nền tảng rồi publish: **4/4 job `success`** (windows ·
+  linux · macos · publish) — publish job validate `RELEASE_REPORT.json`
+  (`version=0.2.3`, `git_commit`=tag, `source_tree_clean=true`,
+  `feature_profile=tsf-only`) và ZIP mặc định không có legacy hook.
+- **Release:** [TextVN 0.2.3 (release candidate)](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.3)
+  (pre-release, draft-first) — 7 asset. Checksums pin (từ `SHA256SUMS.txt`):
+
+| Asset | SHA-256 |
+|---|---|
+| `TextVN-portable-0.2.3-windows-x64-20260930193029.zip` | `e1452a2125bc90a74105e41f9e345c5970adc5db1aeafef685df796e42ef0309` |
+| `TextVN-setup-0.2.3-windows-x64.exe` | `4a37b1e9be4a0333ce2154b0b72fd47cd219e36bcdaa7c248982fff672b1ea5e` |
+| `TextVN-0.2.3-linux-x86_64.tar.gz` | `399b2cafb9ea93206ddb20269cac2cfda088520b62aada4e9a353f3420c1f123` |
+| `TextVN-mac-v0.2.3.pkg` | `d0fb50875bbc8e5a267a78c8a510b1970689984dccc805093f31d088b435cd00` |
+| `TextVN-macos-universal-v0.2.3.zip` | `6ecaa26d989a458f47c0bca9025cb832f08f13c0048ad7e3a9a42aca3839cb3c` |
+
+- **CI cùng commit phát hành (`ae33d7a`):** `ci-shared` ✅ (rerun sau khi job
+  typing smoke "Windows package" đỏ chớp — wordpad desync, đúng B5;
+  `Linux IBus/Fcitx5` ✅ với icon portable mới), `ci-macos` ✅, `repo-hygiene` ✅.
+  Job `perf regression` đỏ là `continue-on-error` theo thiết kế (nhiễu runner),
+  không làm đỏ run.
+- **Bài học ghi sổ trong đợt này (E9/E10 + sự cố release):** cross-check
+  `--target x86_64-unknown-linux-gnu` bắt lỗi cfg trước push; thứ tự bắt buộc
+  job macos release: build-macos.sh → swift test → package; backtick trong
+  `git commit -m` bị Git Bash nuốt — dùng `git commit -F`.
 
 ## Bản 0.2.2 — vá F3-13 (mở nhầm Cài đặt lúc login) + F3-8, nit
 
