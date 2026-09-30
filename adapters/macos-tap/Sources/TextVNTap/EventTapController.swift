@@ -44,7 +44,8 @@ public final class EventTapController {
     public static let slowThresholdMs = 2.0
     public static let slowLimitStreak = 50
 
-    private let handler: TapKeyHandler
+    // fileprivate: callback C `TapCallback.onEvent` cùng file cần đọc (MAC-032).
+    fileprivate let handler: TapKeyHandler
     fileprivate var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var runLoop: CFRunLoop?
@@ -77,7 +78,7 @@ public final class EventTapController {
     @discardableResult
     public func start() -> Bool {
         let attempts: [(CGEventTapLocation, String)] = [
-            (.cgHIDEventTap, "HID"),
+            (.cghidEventTap, "HID"),
             (.cgSessionEventTap, "Session"),
             (.cgAnnotatedSessionEventTap, "Annotated"),
         ]
@@ -172,7 +173,9 @@ enum TapCallback {
     static func onEvent(
         proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, refcon: UnsafeMutableRawPointer?
     ) -> Unmanaged<CGEvent>? {
-        guard let refcon else { return Unmanaged.passRetained(event) }
+        // Trả lại CHÍNH event nhận vào → passUnretained (callback không sở hữu nó);
+        // passRetained = rò 1 CGEvent mỗi phím (audit R8 ghi đã sửa nhưng code chưa đổi).
+        guard let refcon else { return Unmanaged.passUnretained(event) }
         let controller = Unmanaged<EventTapController>.fromOpaque(refcon).takeUnretainedValue()
 
         // 0. Tap bị system disable (callback chậm/user input) → enable lại (§9).
@@ -182,17 +185,17 @@ enum TapCallback {
             }
             controller.noteReEnable()
             DiagnosticsLog.log("tap re-enabled after \(type)")
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         // 1. Marker → cho qua (chống loop, P2-2 §6).
         if event.getIntegerValueField(.eventSourceUserData) == TapMarker.userData {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         // 2. Chỉ keyDown (keyUp luôn qua — §3).
         guard type == .keyDown else {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         let start = DispatchTime.now()
@@ -204,25 +207,25 @@ enum TapCallback {
         // 3. Chord Cmd hệ thống → B6 (P2-2 §3.4).
         let flags = event.flags
         if flags.contains(.maskCommand) {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         // 4. Foreground owner=tap + không secure (§3.5 — cache, không AX đồng bộ).
         guard !controller.isSelfDisabled else {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
         let frontApp = NSWorkspace.shared.frontmostApplication
         let appID = (frontApp?.bundleIdentifier ?? "unknown").lowercased()
         guard controller.handler.tapShouldProcess(appID: appID) else {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         // 5. Handler (engine instance B) — timebox do handler tự đảm bảo.
         let mods = CGFlagMapper.toImeMods(flags)
         let decision = controller.handler.tapHandle(
-            vk: UInt32(bitPattern: event.getIntegerValueField(.keyboardEventKeycode)),
+            vk: UInt32(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
             ch: TapTranslator.shared.character(
-                for: UInt16(bitPattern: event.getIntegerValueField(.keyboardEventKeycode)),
+                for: UInt16(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode)),
                 shift: flags.contains(.maskShift),
                 option: flags.contains(.maskAlternate),
                 control: flags.contains(.maskControl)
@@ -233,7 +236,7 @@ enum TapCallback {
 
         switch decision {
         case .pass:
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         case let .transform(deleteCount, insert):
             // §5 inject: xóa + chèn kèm marker, rồi NUỐT key gốc.
             TapInjector.inject(deleteCount: deleteCount, insert: insert)

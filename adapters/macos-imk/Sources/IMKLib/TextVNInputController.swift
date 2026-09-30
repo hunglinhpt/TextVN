@@ -227,7 +227,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Resolve strategy qua FFI dùng chung — Swift KHÔNG viết lại thuật toán (P2-3 §5).
     private func resolveStrategy(context: FieldContext) -> Int64 {
         var outStrategy: Int64 = Int64(IME_STRATEGY_PASSTHROUGH)
-        let rc = appdbJSON.withUnsafeBytes { raw in
+        // Closure nhiều lệnh phải `return` tường minh — thiếu thì rc là `()` (MAC-032).
+        let rc: Int32 = appdbJSON.withUnsafeBytes { raw -> Int32 in
             var ctx = ime_context_v1()
             ctx.abi_version = FFI.abiVersion
             ctx.enabled = viEnabled ? 1 : 0
@@ -236,9 +237,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             ctx.caps = caps
             ctx.hint = -1
             let appIdC = Array(context.appID.utf8CString)
-            appIdC.withUnsafeBufferPointer { buf in
+            return appIdC.withUnsafeBufferPointer { buf -> Int32 in
                 ctx.app_id = buf.baseAddress
-                ime_strategy_resolve(
+                return ime_strategy_resolve(
                     &ctx,
                     raw.baseAddress.map { $0.assumingMemoryBound(to: UInt8.self) },
                     raw.count, &outStrategy

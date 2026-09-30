@@ -47,7 +47,7 @@ public enum TapInjector {
                 keyDown: true
             )
             event?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
-            event?.post(tap: .cgHIDEventTap)
+            event?.post(tap: .cghidEventTap)
             guard event != nil else { break }
             posted += 1
             offset += chunk.count
@@ -68,7 +68,7 @@ public enum TapInjector {
         let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
         let units = Array(insert.utf16)
         event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-        event?.post(tap: .cgHIDEventTap)
+        event?.post(tap: .cghidEventTap)
         return event != nil
     }
 
@@ -90,8 +90,8 @@ public enum TapInjector {
             down?.flags = .maskShift
             up?.flags = .maskShift
         }
-        down?.post(tap: .cgHIDEventTap)
-        up?.post(tap: .cgHIDEventTap)
+        down?.post(tap: .cghidEventTap)
+        up?.post(tap: .cghidEventTap)
         return down != nil && up != nil
     }
 }
