@@ -715,10 +715,18 @@ mod win_impl {
             return 1;
         }
 
-        // Bước 4: kích hoạt ngay cho session (kể cả bản tray-only).
+        // Bước 4: kích hoạt ngay cho session. Tiến trình không có ngữ cảnh nhập
+        // tương tác (CLI ẩn console do setup im lặng chạy) nhận E_FAIL dù đăng ký
+        // đã đủ — CI windows-package: `ActivateProfile(VI) → 0x80004005` chỉ khi
+        // chạy từ setup. Bản thường: TextVN đã nằm trong danh sách bàn phím
+        // (DEFPROFILE), tray/Win+Space kích hoạt sau → chỉ cảnh báo. Bản tray-only
+        // (`--no-taskbar`) không có mục trong danh sách → kích hoạt là bắt buộc.
         if !activate_for_session() {
-            say("FAIL: Windows không kích hoạt được profile TextVN cho phiên hiện tại");
-            return 1;
+            if no_taskbar {
+                say("FAIL: Windows không kích hoạt được profile TextVN cho phiên hiện tại");
+                return 1;
+            }
+            say("  WARN: chưa kích hoạt được cho phiên này — chọn TextVN bằng Win+Space hoặc mở TextVN");
         }
 
         // `--no-taskbar` chủ động gỡ layout khỏi danh sách; không đòi hỏi
