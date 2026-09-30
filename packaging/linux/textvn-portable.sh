@@ -277,6 +277,10 @@ SETTINGS="$PKG_DIR/bin/textvn-settings"
 # kế của portable: không ghi gì vào thư mục bền của người dùng.
 mkdir -p "$RUNTIME/data/icons"
 cp -R "$PKG_DIR/share/icons/." "$RUNTIME/data/icons/"
+# cp -R sao chép cả mode nguồn — gói portable có thể là thư mục CHỈ ĐỌC
+# (kịch bản chuẩn, harness chmod -R a-w): không trả quyền ghi cho cây thì
+# `stop` rm -rf không unlink được (thư mục cha thiếu w).
+chmod -R u+w "$RUNTIME/data/icons"
 
 if [[ "$FW" == ibus ]]; then
     [[ -x "$PKG_DIR/lib/textvn/textvn-ibus-engine" ]] || { tv_err "Gói không có engine IBus."; exit 1; }
