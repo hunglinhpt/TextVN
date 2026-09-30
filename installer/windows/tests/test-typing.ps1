@@ -59,8 +59,13 @@ public static class TvKeys {
 
     // Go chuoi ASCII: chu hoa = Shift + phim (tru khi Caps Lock dang bat), ' ' = Space,
     // '\n' = Enter, '\t' = Tab, ',' '.' = phim dau cau (layout US), '^' = Home.
-    public static void Type(string s) {
-        bool caps = (GetKeyState(0x14) & 1) != 0;
+    public static void Type(string s) { Type(s, (GetKeyState(0x14) & 1) != 0); }
+
+    // GetKeyState chi phan anh trang thai cua thread goi khi thread do da xu ly
+    // input; ngay sau SendInput(CapsLock) no co the con cu -> tuong Caps tat, bam
+    // Shift cho chu hoa, Shift+Caps ra chu thuong (CI: 'viet' thay vi 'VIET').
+    // Test tu bat Caps Lock thi truyen trang thai tuong minh.
+    public static void Type(string s, bool caps) {
         foreach (char c in s) {
             if (c == ' ') { Tap(0x20); continue; }
             if (c == '\n') { Tap(0x0D); continue; }
@@ -229,7 +234,7 @@ foreach ($a in $apps) {
 
     # Caps Lock: phim dau viet hoa van la phim dau.
     [TvKeys]::Tap(0x14)
-    [TvKeys]::Type('VIEETJ ')
+    [TvKeys]::Type('VIEETJ ', $true)
     [TvKeys]::Tap(0x14)
     Check $app 'Caps Lock VIEETJ' (U 'VI\u1ec6T ')
 
