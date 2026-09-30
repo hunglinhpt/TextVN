@@ -21,6 +21,9 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
+Bản mới nhất: **[GitHub Releases](https://github.com/hunglinhpt/TextVN/releases)** (0.2.0 — release
+candidate, build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
 | Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` — không cần quyền quản trị | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
@@ -34,7 +37,7 @@ Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn s�
 | Nền tảng | Trạng thái |
 |---|---|
 | Windows 10/11 x64 (TSF) | ✅ Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows. |
-| macOS 13+ Apple Silicon / Intel | 🔧 Beta — IMK adapter + CGEventTap opt-in; corpus headless 114 case. Build Swift, GUI typing, cài/gỡ `.pkg` và notarization còn cần xác thực trên máy Mac thật; không coi là production. |
+| macOS 13+ Apple Silicon / Intel | 🔧 Beta — IMK adapter + CGEventTap opt-in; corpus headless 114 case; CI build + test Swift (arm64 + x86_64) và đóng gói `.pkg`. GUI typing, cài/gỡ `.pkg` và notarization còn cần xác thực trên máy Mac thật; không coi là production. |
 | Linux IBus / Fcitx5 | ✅ Release candidate — CI kiểm tra với ibus-daemon và fcitx5 thật. |
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
