@@ -121,7 +121,7 @@ begin
   // per-user la du va dung — khong goi --scope machine (CLI tra exit 3 khi
   // khong co quyen, truoc day lam toan bo nhanh per-user bao "Windows tu choi
   // dang ky" va ep nguoi dung phai chay bang admin).
-  if not IsAdminInstallMode() then
+  if not IsAdminInstallMode then
   begin
     ResultCode := -1;
     Result := ExecAsOriginalUser(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and

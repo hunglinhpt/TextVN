@@ -34,8 +34,9 @@ function Show-RegisterLogTail {
 }
 
 # ---- Kich ban (1): PER-USER - khong /ALLUSERS, khong elevation ----
+# /CURRENTUSER de runner-admin khong tu chon admin mode; /DIR de path xac dinh.
 $userApp = Join-Path $env:LOCALAPPDATA 'Programs\TextVN'
-$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log") -Wait -PassThru
+$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$userApp", "/LOG=$log") -Wait -PassThru
 if ($p.ExitCode -ne 0) {
     Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
     Show-RegisterLogTail
