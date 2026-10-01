@@ -87,13 +87,54 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.3` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30. Bằng chứng của bản đó
+> `v0.2.4` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.4” bên dưới). `v0.2.3` publish 2026-10-01, `v0.2.2` publish 2026-09-30. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.4 — đăng ký không cần admin + clean composition + Ctrl+Shift single-path
+
+**Bối cảnh:** 3 bug người dùng báo trên bản 0.2.3/0.2.4-dev — (1) phải chạy
+bằng admin mới đăng ký được TSF, (2) gõ chữ bị gạch chân, (3) bấm Ctrl+Shift
+không đổi mode/icon. Vòng deep-scan tìm ra 3 nguyên nhân gốc còn sót sau nhóm
+fix đầu (96364a9..d785ea7) và đã sửa:
+
+| Bug | Nguyên nhân gốc thật | Fix |
+|---|---|---|
+| Đăng ký cần admin | `.iss` gọi `register --scope machine` vô điều kiện — cài per-user (không UAC) CLI trả exit 3 → "Windows từ chối đăng ký" | Nhánh `IsAdminInstallMode`: per-user chỉ `register`; admin machine + `ExecAsOriginalUser` |
+| Gạch chân | `CAT_DISPLAY_ATTRIBUTE_PROVIDER` ghi sai GUID `{2464BEB0-…}` (thật: `{046B8C80-…}`) — fallback per-user đăng ký category rác | Sửa GUID + test regression chốt giá trị |
+| Ctrl+Shift "chết" | **Double-toggle**: TSF in-process (`ModifierToggle`) + tray `WH_KEYBOARD_LL` (thêm ở 96364a9) cùng bắn 1 lần bấm = 2 lần toggle; hook vi phạm AV policy A2/A3 | Xoá hook + `WM_TOGGLE_HOTKEY`; toggle single-path in-process, tray đổi icon qua IPC |
+
+### Phát hành — v0.2.4 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.4` @ `bab5f7c`. Workflow
+  [release-candidate #36899649686](https://github.com/hunglinhpt/TextVN/actions/runs/36899649686)
+  — **4/4 job `success`** (windows · linux · macos · publish), publish validate
+  `RELEASE_REPORT.json` (version=tag, `source_tree_clean=true`,
+  `feature_profile=tsf-only`).
+- **Release:** [TextVN 0.2.4 (release candidate)](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.4)
+  — 7 asset. Checksums pin (từ `SHA256SUMS.txt`):
+
+| Asset | SHA-256 |
+|---|---|
+| `TextVN-portable-0.2.4-windows-x64-20261001172918.zip` | `a876635ce7c71e838cee844137b6c81c317da9b8fe6481c125e44c0177708a82` |
+| `TextVN-setup-0.2.4-windows-x64.exe` | `96c3f258d058c921a5346249a71a0e815d55f51bfa25b84ad069630231067265` |
+| `TextVN-0.2.4-linux-x86_64.tar.gz` | `eb58d8d59346b1b393734d926c3c343f201893d257a2ccdc3f3af0fcf04d8947` |
+| `TextVN-mac-v0.2.4.pkg` | `027da7c9541cad437ab8d75407fe8f6277e78fe9dc49ead73327ac9a4551ca90` |
+| `TextVN-macos-universal-v0.2.4.zip` | `402b62145bcf40b72e91faa9d2fe327184b9420c5c4f3cd7fb2c8db5037ad6d3` |
+
+- **CI cùng commit phát hành:** `ci-shared` ✅ (job Windows package chạy
+  **2 kịch bản installer**: per-user không admin + `/ALLUSERS` machine; typing
+  smoke 9 case × Notepad/WordPad xanh qua cơ chế poll mới), `ci-macos` ✅,
+  `repo-hygiene` ✅. Job `perf regression` đỏ là `continue-on-error` (nhiễu
+  runner dùng chung), không chặn.
+- **Bài học mới:** E11 (double-toggle — không cài keyboard hook trong tray),
+  E12 (per-user installer + blind spot /ALLUSERS trong CI),
+  [win-test-common-errors](../specs/win-test-common-errors.md) B6 (typing
+  harness poll ổn định thay vì đọc 1 lần).
 
 ## Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon)
 

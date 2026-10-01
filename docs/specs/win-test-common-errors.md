@@ -35,6 +35,7 @@
 | B4 | Dùng `SendKeys` làm bằng chứng cho UIPI test | `SendKeys` đi đường khác, kết quả không nói lên `SendInput` bị chặn | Test #10 phải test đúng API cần kết luận; `keybd_event`/`SendKeys` chỉ dùng để đối chiếu |
 | B5 | **Tin kết quả typing smoke 1 lần trên runner GHA dùng chung** | Job "Windows package" của `ci-shared` đỏ chớp theo kiểu khác nhau mỗi run: `FAIL [notepad] english hello: want […] got []` (không nhận phím nào — focus chưa lên) hoặc wordpad telex nhận dư/khuyết ký tự (desync, ec1ac2b) — **cùng commit rerun lại xanh**; release workflow chạy **đúng bộ test này** (`test-portable.ps1` + `test-installer.ps1`) vẫn xanh trong lúc ci-shared đỏ (2026-09-30: run 36745978568 xanh vs 36746161581 đỏ) | Runner `windows-2022` 2 vCPU dùng chung → focus/UIA/poll chậm, không phải hồi quy engine. Rerun `--failed` trước khi kết luận; chỉ điều tra thật (theo B1/B3) khi đỏ ≥2 lần liên tiếp trên cùng commit hoặc release run cùng lúc cũng đỏ |
 
+| B6 | **Đọc kết quả gõ 1 lần duy nhất sau sleep cố định** | `test-typing.ps1` cũ đọc text sau 400 ms: TSF compose bất đồng bộ, runner chậm → đọc non (`got` thiếu đuôi) tạo false FAIL loạt B5 | `Check` poll ≤4 s: PASS sớm khi khớp, dừng khi text ổn định 2 lần đọc liên tiếp; verdict vẫn exact-match. Kèm `Ensure-Focus` (retry focus đã verify) + `Clear-Verified` (clear xong phải rỗng) — fix trong `207ea0c`, chạy ổn qua release 0.2.4 |
 ## C. UIA & ứng dụng test
 
 | # | Lỗi | Triệu chứng | Cách đúng |
