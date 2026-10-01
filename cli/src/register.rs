@@ -717,6 +717,24 @@ mod win_impl {
         let root = scope.root();
         let k = clsid_key();
         let inproc = format!(r"{k}\InprocServer32");
+        // Setup đã đăng ký COM/profile ở HKLM rồi gọi `register` trong token
+        // người dùng gốc để thêm layout. Không ghi lại COM dưới HKCU ở bước
+        // này: nếu UAC dùng một admin khác, uninstaller elevated không thể
+        // xóa HKCU của người dùng gốc và sẽ để DLL override trỏ file đã xóa.
+        // Portable ở đường dẫn khác vẫn được đăng ký per-user như trước.
+        let activate_machine_for_user = scope == Scope::User
+            && machine_profile_metadata_ok()
+            && reg_read_string(HKEY_LOCAL_MACHINE, &inproc)
+                .is_some_and(|p| p.eq_ignore_ascii_case(&dll_s) && Path::new(&p).is_file());
+        if activate_machine_for_user {
+            say("  Dùng COM/profile HKLM; dọn override TextVN HKCU cũ trước khi bật cho user");
+            if !(delete_tree(HKEY_CURRENT_USER, &k)
+                & delete_tree(HKEY_CURRENT_USER, &ctf_tip_key()))
+            {
+                say("FAIL: không dọn được override TSF per-user cũ");
+                return 1;
+            }
+        }
         // COM per-user (HKCU\Software\Classes\CLSID) override HKLM cho user
         // hiện tại: đăng ký machine trên máy từng đăng ký per-user (portable
         // cũ, DLL đã xoá) sẽ bị key cũ che — TSF vẫn nạp DLL không tồn tại.
@@ -730,14 +748,15 @@ mod win_impl {
                 return 3;
             }
         }
-        let ok = set_reg_value(root, &k, None, RegValue::Sz("TextVN TSF"))
-            && set_reg_value(root, &inproc, None, RegValue::Sz(&dll_s))
-            && set_reg_value(
-                root,
-                &inproc,
-                Some("ThreadingModel"),
-                RegValue::Sz("Apartment"),
-            );
+        let ok = activate_machine_for_user
+            || (set_reg_value(root, &k, None, RegValue::Sz("TextVN TSF"))
+                && set_reg_value(root, &inproc, None, RegValue::Sz(&dll_s))
+                && set_reg_value(
+                    root,
+                    &inproc,
+                    Some("ThreadingModel"),
+                    RegValue::Sz("Apartment"),
+                ));
         if !ok {
             if scope == Scope::Machine {
                 say(&format!(
@@ -753,19 +772,28 @@ mod win_impl {
             ));
             return 1;
         }
-        say(&format!("  COM server {} → OK", scope.label()));
+        say(&format!(
+            "  COM server {} → OK",
+            if activate_machine_for_user {
+                "HKLM"
+            } else {
+                scope.label()
+            }
+        ));
 
         if !com_init() {
             say("!! CoInitializeEx fail");
             return 1;
         }
 
-        grant_appcontainer_read(dll_path);
+        if !activate_machine_for_user {
+            grant_appcontainer_read(dll_path);
+        }
 
         // Bước 2: profile + category. Mỗi bước độc lập — bản trước dừng ở
         // `Register()?` (HKLM) nên cài per-user KHÔNG bao giờ tới InstallLayoutOrTip.
         let icon = icon_path(dll_path);
-        let api_ok = register_with_tsf_api("TextVN", &icon);
+        let api_ok = activate_machine_for_user || register_with_tsf_api("TextVN", &icon);
         // Machine install khong duoc thanh cong nho metadata HKCU fallback
         // tu ban portable cu. Profile va category phai duoc TSF API ghi HKLM.
         if scope == Scope::Machine && (!api_ok || !machine_profile_metadata_ok()) {
@@ -784,6 +812,15 @@ mod win_impl {
         if !profiles_ok || !registration_metadata_ok() {
             say("FAIL: profile TSF chưa được đăng ký đầy đủ");
             return if scope == Scope::Machine { 3 } else { 1 };
+        }
+
+        // HKLM thuộc máy; layout list và ActivateProfile thuộc *user session*.
+        // Khi UAC yêu cầu thông tin của một admin khác, làm hai bước sau trong
+        // token admin sẽ kích hoạt sai tài khoản và có thể fail trước khi setup
+        // kịp gọi ExecAsOriginalUser cho người dùng gốc.
+        if scope == Scope::Machine {
+            say("=== Đăng ký TSF phạm vi máy hoàn tất; kích hoạt user ở bước riêng. ===");
+            return 0;
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).

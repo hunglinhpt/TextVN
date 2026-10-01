@@ -225,7 +225,7 @@ jobs:
   windows-package:
     # Hai kịch bản người dùng trên Windows thật (runner GitHub, có desktop session — RW5
     # đã verify): (1) giải nén zip portable rồi chạy, (2) cài bằng Inno Setup im lặng
-    # per-user. Mỗi kịch bản gõ tiếng Việt THẬT qua TSF vào Notepad (SendInput VK) rồi gỡ.
+    # machine + kích hoạt user. Mỗi kịch bản gõ tiếng Việt THẬT qua TSF vào Notepad (SendInput VK) rồi gỡ.
     name: Windows package (portable + installer, gõ TSF thật)
     runs-on: windows-2022
     timeout-minutes: 60
@@ -254,7 +254,7 @@ jobs:
           $zip = Get-ChildItem dist\TextVN-portable-*.zip | Select-Object -First 1
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Kịch bản 1 — cài đặt (Inno Setup, im lặng, per-user)
+      - name: Kịch bản 1 — cài đặt (Inno Setup machine + user activation)
         shell: powershell
         run: |
           $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1

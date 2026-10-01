@@ -186,7 +186,7 @@ public final class EventTapController {
                 if stopped { break }
                 // CFRunLoopStop goi ngay truoc RunInMode co the bi mat tin
                 // hieu. Timeout 100ms bao dam thoat duoc ca race nay.
-                CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, true)
+                CFRunLoopRunInMode(CFRunLoopMode.defaultMode, 0.1, true)
             }
             CFRunLoopRemoveSource(rl, source, .commonModes)
         }

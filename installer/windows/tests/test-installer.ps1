@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $clsid = '{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}'
 $inproc = "HKLM:\Software\Classes\CLSID\$clsid\InprocServer32"
+$userInproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
 $app = Join-Path $env:ProgramFiles 'TextVN'
 $log = Join-Path $env:TEMP 'textvn-setup.log'
 
@@ -36,6 +37,7 @@ foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe
 }
 $v = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
 if ($v -ne (Join-Path $app 'textvn-tsf.dll')) { throw "TSF CLSID not registered to installed DLL (got '$v')" }
+if (Test-Path $userInproc) { throw 'installer left a per-user COM override that elevated uninstall cannot reliably remove' }
 $run = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).TextVN
 if (-not $run -or $run -notlike '*TextVN.exe*--autostart*') { throw "autostart Run key missing (got '$run')" }
 $layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
