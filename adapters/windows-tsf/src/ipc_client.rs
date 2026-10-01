@@ -20,7 +20,9 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+#[cfg(windows)]
 use windows::Win32::Foundation::ERROR_PIPE_BUSY;
+#[cfg(windows)]
 use windows::Win32::System::Pipes::WaitNamedPipeW;
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
@@ -162,6 +164,7 @@ impl IpcClient {
                         );
                         return;
                     }
+                    #[cfg(windows)]
                     Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
                         // w! cần literal — PIPE_NAME là const, dựng buffer UTF-16.
                         let name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();

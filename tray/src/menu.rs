@@ -341,7 +341,7 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
 }
 
 #[cfg(not(windows))]
-fn uninstall() {}
+fn uninstall(_ipc: &crate::ipc_server::IpcServer) {}
 
 #[cfg(windows)]
 fn add_radio_menu_item(menu: HMENU, label: &str, id: u32, checked: bool) {
