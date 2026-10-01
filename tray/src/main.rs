@@ -40,8 +40,6 @@ use windows::Win32::System::Registry::*;
 #[cfg(windows)]
 use windows::Win32::System::Threading::*;
 #[cfg(windows)]
-use windows::Win32::UI::Input::KeyboardAndMouse::*;
-#[cfg(windows)]
 use windows::Win32::UI::Shell::*;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -67,80 +65,6 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 static TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 #[cfg(windows)]
 const TIMER_TRAY_RETRY: usize = 1;
-
-#[cfg(windows)]
-static TRAY_CTRL_DOWN: AtomicBool = AtomicBool::new(false);
-#[cfg(windows)]
-static TRAY_SHIFT_DOWN: AtomicBool = AtomicBool::new(false);
-#[cfg(windows)]
-static TRAY_OTHER_KEY_DOWN: AtomicBool = AtomicBool::new(false);
-#[cfg(windows)]
-static TRAY_LAST_TOGGLE_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
-#[cfg(windows)]
-unsafe extern "system" fn tray_ll_keyboard_proc(
-    code: i32,
-    wparam: WPARAM,
-    lparam: LPARAM,
-) -> LRESULT {
-    if code < 0 {
-        return CallNextHookEx(None, code, wparam, lparam);
-    }
-
-    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
-    let vk = kbd.vkCode;
-    let is_up = (kbd.flags.0 & LLKHF_UP.0) != 0;
-    let is_down = !is_up;
-
-    let is_ctrl =
-        vk == VK_LCONTROL.0 as u32 || vk == VK_RCONTROL.0 as u32 || vk == VK_CONTROL.0 as u32;
-    let is_shift = vk == VK_LSHIFT.0 as u32 || vk == VK_RSHIFT.0 as u32 || vk == VK_SHIFT.0 as u32;
-
-    if is_down && is_ctrl {
-        TRAY_CTRL_DOWN.store(true, Ordering::Release);
-    } else if is_down && is_shift {
-        TRAY_SHIFT_DOWN.store(true, Ordering::Release);
-    } else if is_down {
-        TRAY_OTHER_KEY_DOWN.store(true, Ordering::Release);
-    } else if is_up && (is_ctrl || is_shift) {
-        let ctrl = TRAY_CTRL_DOWN.load(Ordering::Acquire);
-        let shift = TRAY_SHIFT_DOWN.load(Ordering::Acquire);
-        let other = TRAY_OTHER_KEY_DOWN.load(Ordering::Acquire);
-
-        if ctrl && shift && !other {
-            let now_ms = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis() as u64)
-                .unwrap_or(0);
-            let last_ms = TRAY_LAST_TOGGLE_MS.load(Ordering::Acquire);
-            if now_ms.saturating_sub(last_ms) >= 250 {
-                TRAY_LAST_TOGGLE_MS.store(now_ms, Ordering::Release);
-                let raw_hwnd = textvn_tray::TRAY_HWND.load(Ordering::Acquire);
-                if raw_hwnd != 0 {
-                    let _ = PostMessageW(
-                        Some(HWND(raw_hwnd as *mut _)),
-                        textvn_tray::WM_TOGGLE_HOTKEY,
-                        WPARAM(0),
-                        LPARAM(0),
-                    );
-                }
-            }
-            TRAY_OTHER_KEY_DOWN.store(true, Ordering::Release);
-        }
-
-        if is_ctrl {
-            TRAY_CTRL_DOWN.store(false, Ordering::Release);
-        }
-        if is_shift {
-            TRAY_SHIFT_DOWN.store(false, Ordering::Release);
-        }
-        if !TRAY_CTRL_DOWN.load(Ordering::Acquire) && !TRAY_SHIFT_DOWN.load(Ordering::Acquire) {
-            TRAY_OTHER_KEY_DOWN.store(false, Ordering::Release);
-        }
-    }
-
-    CallNextHookEx(None, code, wparam, lparam)
-}
 
 struct TrayApp {
     svc: Arc<SvcManager>,
@@ -474,8 +398,12 @@ fn run_tray_app() {
     // Giải phóng phím tắt Ctrl+Shift khỏi Windows Layout Hotkey để TextVN sử dụng
     let _ = textvn_tray::hotkey::free_ctrl_shift();
 
-    // TSF là đường gõ chuẩn mặc định. Low-level global hook chỉ được khởi động
-    // khi người dùng chọn "Bật chế độ tương thích" trong menu khay.
+    // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
+    // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả
+    // qua IPC để đổi icon. KHÔNG cài WH_KEYBOARD_LL trong tray: một lần bấm
+    // từng bị toggle ĐÔI (TSF + hook cùng bắn → "bấm không đổi mode", 2026-10-01)
+    // và chính sách AV (docs/specs/antivirus-false-positive.md A2/A3) chỉ cho
+    // hook LL trong gói compatibility opt-in.
 
     // 3. Đăng ký Win32 Window Class & Tạo Hidden Message Window
     let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
@@ -556,10 +484,6 @@ fn run_tray_app() {
         textvn_tray::settings_dialog::show_settings_dialog(svc.clone(), ipc.clone());
     }
 
-    // Hook bàn phím toàn cục để nhận diện Ctrl+Shift tap đổi mode và icon mọi nơi
-    let ll_hook =
-        unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(tray_ll_keyboard_proc), None, 0) };
-
     // 5. Message Loop
     // GetMessageW trả -1 khi lỗi — `.as_bool()` vẫn true → loop dispatch MSG
     // rác vô hạn (review R3 minor 5). Chuẩn: r <= 0 (−1 lỗi, 0 WM_QUIT) thoát.
@@ -581,9 +505,6 @@ fn run_tray_app() {
     }
 
     // 6. Dọn dẹp trước khi thoát
-    if let Ok(h) = ll_hook {
-        let _ = unsafe { UnhookWindowsHookEx(h) };
-    }
     let nid = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
@@ -642,15 +563,6 @@ unsafe extern "system" fn wnd_proc(
                 update_tray_icon(hwnd, app);
             }
             // Ctrl+Shift / menu khay / IPC đổi trạng thái → bảng điều khiển đang mở cập nhật theo.
-            textvn_tray::settings_dialog::refresh_if_open();
-            LRESULT(0)
-        }
-        textvn_tray::WM_TOGGLE_HOTKEY => {
-            if let Some(app) = APP_INSTANCE.get() {
-                let (enabled, ver) = app.svc.toggle_global_enabled();
-                app.ipc.broadcast_state_update("*", enabled, ver);
-                update_tray_icon(hwnd, app);
-            }
             textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }

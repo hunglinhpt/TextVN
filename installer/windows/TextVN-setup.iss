@@ -117,6 +117,19 @@ begin
     Result := False;
     Exit;
   end;
+  // Cai PER-USER ({autopf} = %LOCALAPPDATA%\Programs, khong elevation): dang ky
+  // per-user la du va dung — khong goi --scope machine (CLI tra exit 3 khi
+  // khong co quyen, truoc day lam toan bo nhanh per-user bao "Windows tu choi
+  // dang ky" va ep nguoi dung phai chay bang admin).
+  if not IsAdminInstallMode() then
+  begin
+    ResultCode := -1;
+    Result := ExecAsOriginalUser(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+      (ResultCode = 0);
+    if not Result then
+      Log(Format('TextVN per-user TSF registration failed (exit code %d).', [ResultCode]));
+    Exit;
+  end;
   ResultCode := -1;
   Result := Exec(CliPath(), 'register --scope machine', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
     (ResultCode = 0);

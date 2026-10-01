@@ -18,8 +18,10 @@ Fcitx5 trên Linux, Swift hai kiến trúc và đóng gói trên macOS.
 - **Đăng ký TSF không cần quyền Administrator**: Sửa hậu kiểm `registration_ok()` trong `textvn-cli`
   để chấp nhận profile HKCU `Enable = 1` (ghi bởi `register_ctf_per_user` và `InstallLayoutOrTip`),
   thay vì chỉ dựa vào `IsEnabledLanguageProfile` (vốn đọc HKLM). Đăng ký đầy đủ category
-  `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER`. Giờ đây người dùng chạy bản portable hoặc tài khoản tiêu chuẩn
-  không bị báo lỗi `FAIL: hậu kiểm đăng ký TSF không đạt` và không bị ép chạy Administrator.
+  `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER` (GUID thật `{046B8C80-…}` — bản trước ghi sai `{2464BEB0-…}`
+  làm fallback per-user đăng ký category rác, TSF không bao giờ nhận diện provider). Giờ đây người dùng
+  chạy bản portable hoặc tài khoản tiêu chuẩn không bị báo lỗi `FAIL: hậu kiểm đăng ký TSF không đạt`
+  và không bị ép chạy Administrator.
 - **Tắt hoàn toàn gạch chân chữ đang gõ (Clean composition không gạch chân)** trên cả 3 hệ điều hành:
   - *Windows TSF*: Triển khai `ITfDisplayAttributeProvider`, `ITfDisplayAttributeInfo`, trả về `TF_LS_NONE`
     (không vẽ gạch chân) và gán `DISPATTR_TEXTVN` lên dải composition trong `edit_session.rs`.
@@ -29,9 +31,13 @@ Fcitx5 trên Linux, Swift hai kiến trúc và đóng gói trên macOS.
     thay vì chuỗi trần sang `client.setMarkedText()` trong `IMKTextTarget.swift`.
 - **Sửa lỗi không đổi icon và không chuyển mode gõ khi bấm Ctrl + Shift** trên cả 3 hệ điều hành:
   - *Windows*: Tự động giải phóng `Ctrl+Shift` khỏi `HKCU\Keyboard Layout\Toggle` của hệ thống khi `TextVN.exe`
-    khởi động; cài đặt hook bàn phím toàn cục `WH_KEYBOARD_LL` trong `TextVN.exe` để bắt tổ hợp `Ctrl + Shift` tap
-    ở mọi cửa sổ (kể cả ngoài TSF), chuyển đổi mode gõ, cập nhật ngay icon khay hệ thống `[V]` (Tím) <-> `[E]` (Xanh)
-    và broadcast trạng thái IPC tức thì.
+    khởi động. Tổ hợp được nhận diện **in-process trong TIP** (`ModifierToggle` + `KeyTraceSink`) — một bản
+    0.2.4-dev từng cài thêm `WH_KEYBOARD_LL` trong tray khiến **một lần bấm bị toggle đôi** (TSF + hook cùng
+    bắn → bấm không đổi mode/icon) và vi phạm chính sách AV A2/A3 (hook LL chỉ thuộc gói compatibility
+    opt-in); hook đã bị xoá, tray nhận kết quả qua IPC để đổi icon `[V]`/`[E]` tức thì.
+  - *Installer*: cài **per-user** (mặc định, không UAC) từng luôn báo "Windows từ chối đăng ký" vì chạy
+    `register --scope machine` không elevation — nay nhánh per-user đăng ký per-user đúng phạm vi
+    (CI `test-installer.ps1` kiểm cả 2 kịch bản `/ALLUSERS` và per-user).
   - *macOS*: Thêm bộ theo dõi trạng thái `flagsChanged` trong `TextVNInputController.swift` để nhận diện
     tổ hợp `Ctrl + Shift` tap mà không kèm phím khác; gửi IPC `ToggleViEn` sang menu bar app `TextVN.app`;
     cập nhật nút thanh menu bar hiển thị rõ chỉ báo chế độ `[V]` / `[E]`.

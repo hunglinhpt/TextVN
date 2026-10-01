@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # test-installer.ps1 -Setup <TextVN-setup-*.exe>
 #
-# Kich ban "cai dat": machine profile + user activation -> kiem tra file, TSF, Run key
-# -> go tieng Viet that trong Notepad -> go cai dat im lang -> khong con file/dang ky,
-# cau hinh nguoi dung van con.
+# Hai kich ban cai dat:
+#   (1) PER-USER (mac dinh cua nguoi dung, khong /ALLUSERS): dang ky TSF per-user
+#       phai THANH CONG khong can admin (bug "phai chay bang admin" 2026-10-01).
+#   (2) /ALLUSERS: machine profile + user activation -> kiem tra file, TSF, Run key
+#       -> go tieng Viet that trong Notepad -> go cai dat im lang -> khong con file/dang ky,
+#       cau hinh nguoi dung van con.
 
 param(
     [Parameter(Mandatory = $true)][string]$Setup
@@ -20,9 +23,7 @@ $toggle = 'HKCU:\Keyboard Layout\Toggle'
 if (-not (Test-Path $toggle)) { New-Item -Path $toggle -Force | Out-Null }
 Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
 
-$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
-if ($p.ExitCode -ne 0) {
-    Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
+function Show-RegisterLogTail {
     # Exit 10 = textvn-cli register that bai (GetCustomSetupExitCode); setup chay
     # CLI an console nen ly do chi nam trong register.log.
     $regLog = Join-Path $env:LOCALAPPDATA 'TextVN\logs\register.log'
@@ -30,6 +31,35 @@ if ($p.ExitCode -ne 0) {
         Write-Host '--- register.log ---'
         Get-Content $regLog -ErrorAction SilentlyContinue | Select-Object -Last 60
     }
+}
+
+# ---- Kich ban (1): PER-USER - khong /ALLUSERS, khong elevation ----
+$userApp = Join-Path $env:LOCALAPPDATA 'Programs\TextVN'
+$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$log") -Wait -PassThru
+if ($p.ExitCode -ne 0) {
+    Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
+    Show-RegisterLogTail
+    throw "per-user setup exit $($p.ExitCode)"
+}
+foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
+    if (-not (Test-Path (Join-Path $userApp $f))) { throw "per-user installed file missing: $f" }
+}
+$v = (Get-ItemProperty -Path $userInproc -ErrorAction SilentlyContinue).'(default)'
+if ($v -ne (Join-Path $userApp 'textvn-tsf.dll')) { throw "per-user TSF CLSID not registered to installed DLL (got '$v')" }
+if (Test-Path $inproc) { throw 'per-user install must not write machine HKLM COM registration' }
+& (Join-Path $userApp 'textvn-cli.exe') register status | Out-Host
+if ($LASTEXITCODE -ne 0) { throw 'per-user TSF registration is not usable without admin' }
+$pu = Start-Process -FilePath (Join-Path $userApp 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $userApp 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
+if (Test-Path (Join-Path $userApp 'TextVN.exe')) { throw 'per-user TextVN.exe still present after uninstall' }
+if (Test-Path $userInproc) { throw 'per-user COM registration left behind after uninstall' }
+Write-Host 'PASS silent per-user install + TSF registration WITHOUT admin (files, TSF, uninstall)'
+
+# ---- Kich ban (2): /ALLUSERS - machine + user activation ----
+$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
+if ($p.ExitCode -ne 0) {
+    Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
+    Show-RegisterLogTail
     throw "setup exit $($p.ExitCode)"
 }
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {

@@ -88,7 +88,7 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
 ## 2. Bật/tắt tiếng Việt
 
 - Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey trên cả 3 nền tảng:
-  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows và bắt phím toàn cục qua hook ngầm của `TextVN.exe`, đổi ngay lập tức icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh) ở mọi ứng dụng.
+  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows; tổ hợp được nhận diện ngay trong engine TSF của ứng dụng đang gõ, đổi mode tức thì và đồng bộ icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh) qua IPC.
   - **macOS**: TextVN nhận diện tổ hợp `Ctrl + Shift` tap trong `flagsChanged`, đồng bộ với menu bar app `TextVN.app` để chuyển đổi chế độ và hiển thị rõ chỉ báo **[V]** / **[E]** trên thanh menu bar.
   - **Linux**: IBus và Fcitx5 tự động cập nhật icon `textvn_v` ↔ `textvn_e` và nhãn `V` ↔ `E` trên thanh trạng thái / khay hệ thống.
 - Hoặc nhấn tổ hợp **Ctrl + Shift + Space**.

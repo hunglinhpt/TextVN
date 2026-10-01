@@ -119,8 +119,11 @@ pub const CAT_IMMERSIVE: &str = "{13A016DF-560B-46CD-947A-4C3AF1E0E35D}";
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const CAT_SYSTRAY: &str = "{25504FB4-7BAB-4BC1-9C69-CF81890F0EF5}";
 /// `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER` — cho phép TIP cung cấp thuộc tính hiển thị (tắt gạch chân).
+/// Phải khớp `windows::Win32::UI::TextServices::GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER`
+/// (đã từng ghi sai `{2464BEB0-…}` — fallback per-user đăng ký category rác,
+/// provider không bao giờ được TSF nhận diện).
 #[cfg_attr(not(windows), allow(dead_code))]
-pub const CAT_DISPLAY_ATTRIBUTE_PROVIDER: &str = "{2464BEB0-AA78-11D1-81F9-00805F0C744B}";
+pub const CAT_DISPLAY_ATTRIBUTE_PROVIDER: &str = "{046B8C80-1647-40F7-9B21-B93B81AABC1B}";
 
 /// Khóa TIP của CTF, tương đối với HKLM\SOFTWARE hoặc HKCU\Software.
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -1215,6 +1218,17 @@ mod tests {
             r"\Category\Category\{CAT_TIP_KEYBOARD}\{CLSID_STR}"
         )));
         assert!(by_item.contains(&format!(r"\Category\Item\{CLSID_STR}\{CAT_TIP_KEYBOARD}")));
+    }
+
+    /// GUID category display-attribute phải khớp `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER`
+    /// của Windows ({046B8C80-…}): ghi sai GUID (2464BEB0, đã từng xảy ra) là
+    /// đăng ký category rác — TSF không bao giờ hỏi provider của TIP.
+    #[test]
+    fn display_attribute_provider_category_matches_tsf_constant() {
+        assert_eq!(
+            CAT_DISPLAY_ATTRIBUTE_PROVIDER,
+            "{046B8C80-1647-40F7-9B21-B93B81AABC1B}"
+        );
     }
 
     /// Dòng log registry phải mang tên ký hiệu của mã lỗi: hộp thoại tray ghép
