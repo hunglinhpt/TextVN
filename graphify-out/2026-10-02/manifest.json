@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "docs/specs/win-test-common-errors.md": {
-    "mtime": 1790876961.2284853,
-    "seen": 1790876973.5508106,
-    "ast_hash": "98602137cf658b98da1b95aaa0fe1ba4",
+    "mtime": 1790860607.542809,
+    "seen": 1790871518.0168855,
+    "ast_hash": "0cc58c467b693860a088b6cc57c8c103",
     "semantic_hash": ""
   },
   "fuzz/README.md": {
@@ -1608,9 +1608,9 @@
     "semantic_hash": ""
   },
   "installer/windows/tests/test-installer.ps1": {
-    "mtime": 1790874579.1088398,
-    "seen": 1790876973.5358095,
-    "ast_hash": "0f4f6aff282deda466b78f69f4c99303",
+    "mtime": 1790871334.1751847,
+    "seen": 1790871518.001907,
+    "ast_hash": "e4ca8d0947e85156908bd79e691284cc",
     "semantic_hash": ""
   },
   "installer/windows/tests/test-portable.ps1": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790876936.376104,
-    "seen": 1790876973.5498252,
-    "ast_hash": "ea24b437e989178a72777643585f12c9",
+    "mtime": 1790860518.6664195,
+    "seen": 1790871518.0158994,
+    "ast_hash": "f6a4fe5cabd2c1b4037a3edfbfa44334",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
