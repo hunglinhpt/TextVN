@@ -207,7 +207,7 @@ void TextVNEngine::showPreedit(TextVNState *st, const uint32_t *text, size_t len
     fcitx::Text preedit;
     if (len > 0) {
         const std::string utf8 = utf32ToUtf8(text, len);
-        preedit.append(utf8, fcitx::TextFormatFlag::Underline);
+        preedit.append(utf8, fcitx::TextFormatFlag::NoFlag);
         preedit.setCursor(static_cast<int>(utf8.size()));
     }
     /* Client không vẽ được preedit → Fcitx5 hiển thị trong panel của nó. */
@@ -270,6 +270,11 @@ void TextVNEngine::syncState(TextVNState *st) {
 std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
                                            fcitx::InputContext &) {
     return viEnabled_ ? "V" : "E";
+}
+
+std::string TextVNEngine::subModeIconImpl(const fcitx::InputMethodEntry &,
+                                          fcitx::InputContext &) {
+    return viEnabled_ ? "textvn_v" : "textvn_e";
 }
 
 void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {

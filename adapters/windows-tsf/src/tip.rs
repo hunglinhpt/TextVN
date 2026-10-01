@@ -45,7 +45,12 @@ struct TipInner {
 }
 
 #[cfg(windows)]
-#[implement(ITfTextInputProcessorEx, ITfTextInputProcessor, ITfThreadMgrEventSink)]
+#[implement(
+    ITfTextInputProcessorEx,
+    ITfTextInputProcessor,
+    ITfThreadMgrEventSink,
+    ITfDisplayAttributeProvider
+)]
 pub struct Tip {
     _guard: ObjGuard,
     inner: RefCell<TipInner>,
@@ -213,5 +218,29 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
 
     fn OnPopContext(&self, _pic: Ref<'_, ITfContext>) -> Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(windows)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+impl ITfDisplayAttributeProvider_Impl for Tip_Impl {
+    fn EnumDisplayAttributeInfo(&self) -> Result<IEnumTfDisplayAttributeInfo> {
+        let info: ITfDisplayAttributeInfo =
+            crate::display_attr::TextVNDisplayAttributeInfo::new().into();
+        Ok(crate::display_attr::TextVNEnumDisplayAttributeInfo::new(vec![info]).into())
+    }
+
+    fn GetDisplayAttributeInfo(&self, guid: *const GUID) -> Result<ITfDisplayAttributeInfo> {
+        if guid.is_null() {
+            return Err(Error::from_hresult(windows::Win32::Foundation::E_POINTER));
+        }
+        let g = unsafe { *guid };
+        if g == crate::guids::DISPATTR_TEXTVN {
+            Ok(crate::display_attr::TextVNDisplayAttributeInfo::new().into())
+        } else {
+            Err(Error::from_hresult(
+                windows::Win32::Foundation::E_INVALIDARG,
+            ))
+        }
     }
 }

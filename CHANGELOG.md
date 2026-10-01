@@ -7,6 +7,52 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.4] — 2026-10-01
+
+Bản **release candidate chưa ký số**. Trọng tâm: bộ gõ TSF phải đăng ký và gõ
+được trong bản cài Windows, đồng thời không để lại override COM hỏng khi UAC
+dùng tài khoản quản trị khác. CI kiểm thử cài/gõ thật/gỡ trên Windows, IBus và
+Fcitx5 trên Linux, Swift hai kiến trúc và đóng gói trên macOS.
+
+### Fixed
+- **Đăng ký TSF không cần quyền Administrator**: Sửa hậu kiểm `registration_ok()` trong `textvn-cli`
+  để chấp nhận profile HKCU `Enable = 1` (ghi bởi `register_ctf_per_user` và `InstallLayoutOrTip`),
+  thay vì chỉ dựa vào `IsEnabledLanguageProfile` (vốn đọc HKLM). Đăng ký đầy đủ category
+  `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER`. Giờ đây người dùng chạy bản portable hoặc tài khoản tiêu chuẩn
+  không bị báo lỗi `FAIL: hậu kiểm đăng ký TSF không đạt` và không bị ép chạy Administrator.
+- **Tắt hoàn toàn gạch chân chữ đang gõ (Clean composition không gạch chân)** trên cả 3 hệ điều hành:
+  - *Windows TSF*: Triển khai `ITfDisplayAttributeProvider`, `ITfDisplayAttributeInfo`, trả về `TF_LS_NONE`
+    (không vẽ gạch chân) và gán `DISPATTR_TEXTVN` lên dải composition trong `edit_session.rs`.
+  - *Linux IBus*: Loại bỏ thuộc tính `IBUS_ATTR_TYPE_UNDERLINE` trong `engine.c`.
+  - *Linux Fcitx5*: Đổi cờ định dạng preedit sang `fcitx::TextFormatFlag::NoFlag` trong `engine.cpp`.
+  - *macOS IMK*: Truyền `NSAttributedString` với `.underlineStyle = 0` (`NSUnderlineStyle([])`)
+    thay vì chuỗi trần sang `client.setMarkedText()` trong `IMKTextTarget.swift`.
+- **Sửa lỗi không đổi icon và không chuyển mode gõ khi bấm Ctrl + Shift** trên cả 3 hệ điều hành:
+  - *Windows*: Tự động giải phóng `Ctrl+Shift` khỏi `HKCU\Keyboard Layout\Toggle` của hệ thống khi `TextVN.exe`
+    khởi động; cài đặt hook bàn phím toàn cục `WH_KEYBOARD_LL` trong `TextVN.exe` để bắt tổ hợp `Ctrl + Shift` tap
+    ở mọi cửa sổ (kể cả ngoài TSF), chuyển đổi mode gõ, cập nhật ngay icon khay hệ thống `[V]` (Tím) <-> `[E]` (Xanh)
+    và broadcast trạng thái IPC tức thì.
+  - *macOS*: Thêm bộ theo dõi trạng thái `flagsChanged` trong `TextVNInputController.swift` để nhận diện
+    tổ hợp `Ctrl + Shift` tap mà không kèm phím khác; gửi IPC `ToggleViEn` sang menu bar app `TextVN.app`;
+    cập nhật nút thanh menu bar hiển thị rõ chỉ báo chế độ `[V]` / `[E]`.
+  - *Linux*: Triển khai `subModeIconImpl` trong Fcitx5 engine để icon khay hệ thống và submode panel
+    tự động chuyển đổi mượt mà giữa `textvn_v` và `textvn_e`; đảm bảo IBus cập nhật property icon khi toggle.
+- Installer Windows đăng ký COM/profile TSF ở phạm vi máy, sau đó thêm layout
+  và kích hoạt trong phiên của người dùng gốc. Dọn override HKCU cũ thay vì
+  tạo override mới trỏ DLL có thể bị xoá khi gỡ.
+- VNI không nuốt phím `0` khi không có dấu để xoá; gõ tắt theo phím gốc hoạt
+  động sau khi Telex đã biến đổi chữ hiển thị.
+- IPC tray giới hạn hàng đợi/worker cho subscriber chậm; đọc frame thiếu dữ
+  liệu có timeout. Sửa các nhánh `cfg` khiến Linux/macOS không biên dịch.
+- EventTap macOS thoát được khi dừng sát thời điểm khởi động run loop; dùng
+  API `CFRunLoopMode.defaultMode` tương thích SDK Swift hiện tại.
+
+### Verification
+- CI `ci-shared` và `ci-macos` xanh trên commit sửa code; job perf trên runner
+  dùng chung chỉ là cảnh báo, không chặn release.
+- Chưa có Authenticode, Developer ID/notarization, hoặc GUI smoke trên máy Mac
+  thật; không gắn nhãn production.
+
 ## [0.2.3] — 2026-10-01
 
 Bản phát hành sau 2 vòng audit chuyên sâu toàn repo (code Rust, GitHub Actions,
@@ -366,7 +412,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1

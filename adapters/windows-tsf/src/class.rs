@@ -90,6 +90,17 @@ impl IClassFactory_Impl for ClassFactory_Impl {
         // SAFETY: ppvobject is verified non-null above.
         unsafe { *ppvobject = std::ptr::null_mut() };
 
+        let req_iid = unsafe { *riid };
+        if req_iid == ITfDisplayAttributeProvider::IID {
+            let prov: ITfDisplayAttributeProvider =
+                crate::display_attr::TextVNDisplayAttributeProvider::new().into();
+            let hr = unsafe { prov.query(riid, ppvobject) };
+            if hr < HR_S_OK {
+                return Err(Error::from_hresult(hr));
+            }
+            return Ok(());
+        }
+
         let tip: ITfTextInputProcessor = Tip::new().into();
         // SAFETY: riid and ppvobject are verified non-null above.
         let hr = unsafe { tip.query(riid, ppvobject) };

@@ -15,7 +15,7 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 
 | Cách | Làm gì | Khi nào nên dùng |
 |---|---|---|
-| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bản đã phát hành v0.2.3 cài per-user; bản vá kế tiếp cần UAC một lần để đăng ký TSF toàn máy. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
+| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Từ v0.2.4 cần UAC một lần để đăng ký TSF toàn máy, rồi kích hoạt cho tài khoản đang cài. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
 | **Giải nén dùng ngay** | Giải nén `TextVN-portable-<phiên bản>-windows-x64-*.zip` → nhấn đúp `TextVN.exe`. | Máy mượn, USB, dùng thử. Không ghi gì vào Program Files. |
 
 Lần chạy đầu tiên TextVN tự đăng ký bộ gõ với Windows cho tài khoản của bạn. Nếu vẫn
@@ -87,14 +87,15 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
 
 ## 2. Bật/tắt tiếng Việt
 
-- Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey. Windows mặc định cũng
-  dùng Ctrl + Shift để đổi bàn phím: bộ cài đã chọn sẵn **Dành Ctrl + Shift cho TextVN**; bản
-  portable thì bật ô này trong Bảng điều khiển.
-- Hoặc **Ctrl + Shift + Space**.
-- Hoặc bấm biểu tượng: khay hệ thống (Windows), thanh IBus/Fcitx5 (Linux). **V** = tiếng
-  Việt, **E** = tiếng Anh.
+- Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey trên cả 3 nền tảng:
+  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows và bắt phím toàn cục qua hook ngầm của `TextVN.exe`, đổi ngay lập tức icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh) ở mọi ứng dụng.
+  - **macOS**: TextVN nhận diện tổ hợp `Ctrl + Shift` tap trong `flagsChanged`, đồng bộ với menu bar app `TextVN.app` để chuyển đổi chế độ và hiển thị rõ chỉ báo **[V]** / **[E]** trên thanh menu bar.
+  - **Linux**: IBus và Fcitx5 tự động cập nhật icon `textvn_v` ↔ `textvn_e` và nhãn `V` ↔ `E` trên thanh trạng thái / khay hệ thống.
+- Hoặc nhấn tổ hợp **Ctrl + Shift + Space**.
+- Hoặc click chuột trái trực tiếp vào biểu tượng trên khay hệ thống (Windows) / menu bar (macOS) / status area (Linux) để chuyển đổi nhanh giữa tiếng Việt và tiếng Anh.
+- Khi đang soạn thảo, chữ hiển thị tự nhiên, hoàn toàn không bị gạch chân (clean composition/preedit) trên cả Word, Notepad, Chrome, Safari và các ứng dụng Linux.
 
-Trạng thái V/E được nhớ cho lần khởi động sau.
+Trạng thái V/E được ghi nhớ xuyên suốt các lần khởi động.
 
 ## 3. Kiểu gõ
 

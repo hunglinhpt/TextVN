@@ -56,6 +56,8 @@ public:
     void reset(const fcitx::InputMethodEntry &entry, fcitx::InputContextEvent &event) override;
     std::string subModeLabelImpl(const fcitx::InputMethodEntry &entry,
                                  fcitx::InputContext &ic) override;
+    std::string subModeIconImpl(const fcitx::InputMethodEntry &entry,
+                                fcitx::InputContext &ic) override;
 
 private:
     TextVNState *state(fcitx::InputContext *ic);

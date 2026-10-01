@@ -56,6 +56,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// (P0-3 §4). Offline = giữ giá trị cuối.
     private var viState = ViState()
     private var appdbJSON: Data = Data()
+    /// Trạng thái theo dõi tổ hợp Ctrl+Shift tap (như Windows & Linux)
+    private var ctrlDown = false
+    private var shiftDown = false
+    private var otherKeyPressed = false
+    private var lastToggleTime: TimeInterval = 0
+
     /// Secure Input mode — đọc mỗi keyDown (Carbon, rẻ) để bịt khoảng trễ của
     /// cache FieldDetect trước khi async AX gather xong (S8).
     private var secureMode = false
@@ -96,6 +102,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         super.activateServer(sender)
         marked.clear()
         engine?.reset()
+        ctrlDown = false
+        shiftDown = false
+        otherKeyPressed = false
         gatherContext(from: sender, force: true)
         Diagnostics.log("activateServer pid=\(Self.clientPid(sender))")
     }
@@ -104,6 +113,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func deactivateServer(_ sender: Any!) {
         commitBeforeHide(sender)
         engine?.reset()
+        ctrlDown = false
+        shiftDown = false
+        otherKeyPressed = false
         Diagnostics.log("deactivateServer — committed-before-hide (B13)")
         super.deactivateServer(sender)
     }
@@ -113,6 +125,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func inputControllerWillClose() {
         commitBeforeHide(client())
         engine?.reset()
+        ctrlDown = false
+        shiftDown = false
+        otherKeyPressed = false
         super.inputControllerWillClose()
     }
 
@@ -137,11 +152,44 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return false
         }
 
-        // 2. flagsChanged — cập nhật modifier, không nuốt.
+        // 2. flagsChanged — cập nhật modifier và phát hiện tổ hợp Ctrl+Shift tap (chuẩn macOS/Windows).
         if event.type == .flagsChanged {
-            heldMods = KeyTranslator.modifiers(event.modifierFlags)
+            let flags = event.modifierFlags
+            let isCtrl = flags.contains(.control)
+            let isShift = flags.contains(.shift)
+            let hasAltOrCmd = flags.contains(.option) || flags.contains(.command)
+            if hasAltOrCmd {
+                otherKeyPressed = true
+            }
+
+            heldMods = KeyTranslator.modifiers(flags)
+
+            if Self.isCtrlShiftTap(
+                wasCtrl: ctrlDown,
+                wasShift: shiftDown,
+                currentCtrl: isCtrl,
+                currentShift: isShift,
+                otherKeyPressed: otherKeyPressed
+            ) {
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastToggleTime >= 0.25 {
+                    lastToggleTime = now
+                    _ = toggleVietnamese()
+                }
+                otherKeyPressed = true
+            }
+
+            ctrlDown = isCtrl
+            shiftDown = isShift
+
+            if !isCtrl && !isShift {
+                otherKeyPressed = false
+            }
+
             return false
         }
+
+        otherKeyPressed = true
 
         let mods = KeyTranslator.modifiers(event.modifierFlags)
         heldMods = mods
@@ -155,6 +203,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // So MASK (bỏ bit Caps/Fn) — Caps Lock bật vẫn toggle được; so bằng `==`
         // làm hotkey chết khi CapsLock on. Linux so mask y hệt (`engine.cpp` §3).
         if Self.isToggleChord(mods: mods, keyCode: event.keyCode) {
+            otherKeyPressed = true
             return toggleVietnamese()
         }
 
@@ -332,6 +381,17 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         let ignore = FFI.modCaps | FFI.modFn
         return keyCode == kVK_Space
             && (mods & ~ignore) == (FFI.modCtrl | FFI.modShift)
+    }
+
+    /// Kiểm tra modifier tap: Ctrl+Shift được bấm cùng lúc rồi nhả ra mà không kèm phím khác (như Windows/Linux).
+    static func isCtrlShiftTap(
+        wasCtrl: Bool,
+        wasShift: Bool,
+        currentCtrl: Bool,
+        currentShift: Bool,
+        otherKeyPressed: Bool
+    ) -> Bool {
+        wasCtrl && wasShift && (!currentCtrl || !currentShift) && !otherKeyPressed
     }
 
     private func logAction(_ outcome: KeyOutcome) {

@@ -118,6 +118,9 @@ pub const CAT_IMMERSIVE: &str = "{13A016DF-560B-46CD-947A-4C3AF1E0E35D}";
 /// `GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT` — hiện trong input indicator của taskbar (Win8+).
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const CAT_SYSTRAY: &str = "{25504FB4-7BAB-4BC1-9C69-CF81890F0EF5}";
+/// `GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER` — cho phép TIP cung cấp thuộc tính hiển thị (tắt gạch chân).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CAT_DISPLAY_ATTRIBUTE_PROVIDER: &str = "{2464BEB0-AA78-11D1-81F9-00805F0C744B}";
 
 /// Khóa TIP của CTF, tương đối với HKLM\SOFTWARE hoặc HKCU\Software.
 #[cfg_attr(not(windows), allow(dead_code))]
@@ -577,6 +580,10 @@ mod win_impl {
                     ("TIP_KEYBOARD", GUID_TFCAT_TIP_KEYBOARD),
                     ("IMMERSIVESUPPORT", GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT),
                     ("SYSTRAYSUPPORT", GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT),
+                    (
+                        "DISPLAYATTRIBUTEPROVIDER",
+                        GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
+                    ),
                 ] {
                     cat.RegisterCategory(&CLSID_TIP, &guid, &CLSID_TIP)?;
                     say(&format!("  RegisterCategory({name}) → OK"));
@@ -622,7 +629,12 @@ mod win_impl {
             );
             ok &= set_reg_value(HKEY_CURRENT_USER, &key, Some("Enable"), RegValue::Dword(1));
         }
-        for cat in [CAT_TIP_KEYBOARD, CAT_IMMERSIVE, CAT_SYSTRAY] {
+        for cat in [
+            CAT_TIP_KEYBOARD,
+            CAT_IMMERSIVE,
+            CAT_SYSTRAY,
+            CAT_DISPLAY_ATTRIBUTE_PROVIDER,
+        ] {
             for key in ctf_category_keys(cat) {
                 ok &= set_reg_value(HKEY_CURRENT_USER, &key, None, RegValue::None);
             }
@@ -912,6 +924,7 @@ mod win_impl {
                         GUID_TFCAT_TIP_KEYBOARD,
                         GUID_TFCAT_TIPCAP_IMMERSIVESUPPORT,
                         GUID_TFCAT_TIPCAP_SYSTRAYSUPPORT,
+                        GUID_TFCAT_DISPLAYATTRIBUTEPROVIDER,
                     ] {
                         let _ = cat.UnregisterCategory(&CLSID_TIP, &guid, &CLSID_TIP);
                     }
@@ -961,12 +974,19 @@ mod win_impl {
     /// HKCU\Software\Classes override HKLM cho CLSID. Neu override per-user
     /// tro DLL da xoa, KHONG duoc coi HKLM DLL con ton tai la thanh cong:
     /// TSF van se nap override che do va bo go khong hoat dong.
+    ///
+    /// Với phạm vi user (không có quyền admin), API TSF `profile_is_enabled`
+    /// có thể trả về false vì nó chỉ đọc HKLM. Khi đó kiểm tra `Enable == 1`
+    /// trong registry HKCU (đã được ghi bởi `register_ctf_per_user` và `InstallLayoutOrTip`).
     pub fn registration_ok() -> bool {
         let inproc = format!(r"{}\InprocServer32", clsid_key());
         let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
             .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
         let server_ok = server.is_some_and(|p| Path::new(&p).is_file());
-        server_ok && registration_metadata_ok() && profile_is_enabled(LANGID_VI)
+        let vi_enabled = profile_is_enabled(LANGID_VI)
+            || reg_read_dword(HKEY_CURRENT_USER, &ctf_profile_key(LANGID_VI), "Enable")
+                .is_some_and(|v| v != 0);
+        server_ok && registration_metadata_ok() && vi_enabled
     }
 
     pub fn do_status() -> i32 {

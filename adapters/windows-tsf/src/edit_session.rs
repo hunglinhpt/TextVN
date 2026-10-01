@@ -421,6 +421,7 @@ fn apply_plan(
             if let Some(c) = comp.as_ref() {
                 let range = c.GetRange()?;
                 range.SetText(ec, 0, body)?;
+                apply_display_attribute(ctx, ec, &range);
                 set_caret_after(ctx, ec, &range);
             }
         }
@@ -577,6 +578,32 @@ fn focus_is_password_edit() -> bool {
         String::from_utf16_lossy(&class[..len.min(class.len())])
             .to_ascii_lowercase()
             .contains("edit")
+    }
+}
+
+#[cfg(windows)]
+fn apply_display_attribute(ctx: &ITfContext, ec: u32, range: &ITfRange) {
+    use crate::guids::DISPATTR_TEXTVN;
+    use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::TextServices::{
+        CLSID_TF_CategoryMgr, ITfCategoryMgr, GUID_PROP_ATTRIBUTE,
+    };
+
+    // SAFETY: COM đã khởi tạo; ctx và range hợp lệ trong edit session.
+    unsafe {
+        if let Ok(cat) =
+            CoCreateInstance::<_, ITfCategoryMgr>(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)
+        {
+            if let Ok(atom) = cat.RegisterGUID(&DISPATTR_TEXTVN) {
+                if atom != 0 {
+                    if let Ok(prop) = ctx.GetProperty(&GUID_PROP_ATTRIBUTE) {
+                        let var = VARIANT::from(atom as i32);
+                        let _ = prop.SetValue(ec, range, &var);
+                    }
+                }
+            }
+        }
     }
 }
 

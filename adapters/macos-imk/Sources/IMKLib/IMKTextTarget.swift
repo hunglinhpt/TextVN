@@ -35,8 +35,14 @@ final class IMKTextTarget: TextTarget {
     }
 
     func setMarked(_ text: String, selectionRange: NSRange) {
+        let attrString = NSAttributedString(
+            string: text,
+            attributes: [
+                .underlineStyle: NSUnderlineStyle([]).rawValue
+            ]
+        )
         client.setMarkedText(
-            text as Any,
+            attrString,
             selectionRange: selectionRange,
             replacementRange: .notFound
         )

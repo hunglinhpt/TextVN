@@ -65,6 +65,7 @@
 | E4 | Đảo thứ tự `InstallLayoutOrTip` / `EnableLanguageProfileByDefault` | Enabled flag biến mất | Thứ tự cố định: InstallLayoutOrTip → Enable → Activate |
 | E5 | Debug tiến trình elevated bằng console output | Không thấy gì (console bị ẩn) | Ghi log file %LOCALAPPDATA%\TextVN\logs\*.log qua helper `say()` |
 | E6 | Giả định `OnTestKeyDown` luôn tồn tại | App khác nhau trả khác nhau (bảng `tsf-spike.md` #5) | Logic ăn phím đúng ở **cả 2 pha**; `TRUE` ở test ⇒ `OnKeyDown` **phải** xử lý thật |
+| E7 | Installer chạy UAC bằng tài khoản admin khác: `RegisterProfile` machine thành công nhưng user vẫn không gõ hoặc khi gỡ còn COM override HKCU trỏ DLL đã xóa | Bước elevated trước đây cũng thêm layout/kích hoạt trong token admin; bước user lại đăng ký COM per-user thay vì chỉ bật profile HKLM | Tách machine COM/profile và user layout/activation; ở bước user dọn override TextVN HKCU cũ, không ghi override mới khi HKLM trỏ đúng DLL. CI `test-installer.ps1` phải assert không có HKCU COM override trước và sau gỡ |
 
 ## F. Quy trình
 

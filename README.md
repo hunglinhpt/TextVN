@@ -21,10 +21,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.3](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.3)**
-(0.2.3 — **icon đủ cho cả 3 nền tảng**: macOS bundle/input menu có icon lần
-đầu, Linux portable + panel cũ, Windows cửa sổ cài đặt + installer; 3 major fix
-đăng ký TSF từ audit; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+Bản mới nhất: **[GitHub Release v0.2.4](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.4)**
+(0.2.4 — **sửa đăng ký TSF trên Windows**: installer đăng ký machine một lần,
+kích hoạt cho đúng tài khoản và gõ thật qua TSF được CI kiểm tra; vá VNI/gõ tắt,
+macOS EventTap; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -34,11 +34,10 @@ Bản mới nhất: **[GitHub Release v0.2.3](https://github.com/hunglinhpt/Text
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
 
-Lưu ý Windows: bản phát hành v0.2.3 vẫn cài TSF per-user. Một số máy cho ghi
-HKCU nhưng từ chối API đăng ký profile TSF, khiến ứng dụng mở được mà không gõ
-được tiếng Việt. Bản vá đang kiểm thử chuyển installer sang đăng ký machine
-(cần UAC một lần) rồi bật profile cho tài khoản đang cài. Chưa coi bản vá là
-release cho đến khi CI Windows và thử gõ thật trên máy gặp lỗi đều đạt.
+Lưu ý Windows: v0.2.4 cài TSF cho máy (cần UAC một lần), sau đó bật profile
+cho tài khoản đã khởi chạy installer. CI đã cài/gõ tiếng Việt/gỡ trên Windows,
+nhưng máy từng báo `RegisterProfile 0x80004005` vẫn cần kiểm thử trực tiếp;
+nếu lỗi còn lặp lại, xem [hướng dẫn](docs/user-guide.md) và gửi log đã ẩn dữ liệu.
 
 ## Trạng thái
 

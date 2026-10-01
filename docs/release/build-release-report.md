@@ -1,18 +1,41 @@
-# Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
+# Báo cáo dựng & kiểm thử — TextVN
 
-## Sau v0.2.3 — bản vá TSF đang kiểm thử, chưa phát hành
+## Bản 0.2.4 — hoàn tất code gate, chờ workflow phát hành
 
 Log thực tế ngày 2026-09-30: ghi COM/CTF dưới HKCU thành công nhưng
 `RegisterProfile` báo `0x80004005`, `InstallLayoutOrTip` thành công và hậu kiểm
 profile thất bại. Do đó thông báo cũ đổ lỗi quyền ghi HKCU không đúng. Source
-đang chuyển installer sang đăng ký TSF machine tại Program Files bằng quyền
+đã chuyển installer sang đăng ký TSF machine tại Program Files bằng quyền
 Administrator một lần, rồi bật profile bằng `ExecAsOriginalUser`; bản portable
 vẫn best-effort, không nâng quyền file nằm trong thư mục người dùng ghi được.
 
-Các gate còn phải qua trước release tiếp: biên dịch Inno Setup, CI Windows
-`test-installer.ps1` (cài/gõ thật/gỡ), thử trên máy đã gặp `0x80004005` bằng
-tài khoản thường, kiểm tra UAC dùng tài khoản admin khác và gỡ sạch. Không dùng
-bằng chứng CI v0.2.3 ở dưới để khẳng định bản vá này đã được xác thực.
+CI Windows tại [run 36866451196](https://github.com/hunglinhpt/TextVN/actions/runs/36866451196)
+đã qua Inno Setup và cả hai kịch bản portable/installer, gồm
+`test-installer.ps1` (cài, đăng ký, gõ TSF thật vào Notepad, gỡ). Đây là bằng
+chứng cho commit `ee09831`, **không phải** cho release/tag v0.2.3. CI
+[macOS run 36866451291](https://github.com/hunglinhpt/TextVN/actions/runs/36866451291)
+cũng xanh: Swift arm64/x86_64, corpus, staticlib universal và gói unsigned.
+Các gate còn lại để gọi là production: thử trên máy từng gặp `0x80004005`,
+kiểm tra UAC dùng tài khoản admin khác và gỡ sạch, GUI smoke trên Mac thật,
+ký Authenticode và Developer ID/notarization. Không suy diễn từ runner GitHub
+sang mọi cấu hình người dùng.
+
+### Gate trước tag 0.2.4
+
+| Gate | Bằng chứng |
+|---|---|
+| Local Windows `fmt`, `test --workspace`, `clippy -D warnings` | Đạt trên code sửa TSF/Swift; cross-target `cargo check` và `clippy` Linux/macOS cũng đạt |
+| ABI + corpus | `verify` khớp 11 export; replay 149/149 mac, 113/113 TSF Windows |
+| `ci-shared` code commit `ee09831` | [Run xanh](https://github.com/hunglinhpt/TextVN/actions/runs/36866451196), gồm Windows package/typing và Linux IBus/Fcitx5 e2e/package; perf là job không chặn |
+| `ci-macos` code commit `ee09831` | [Run xanh](https://github.com/hunglinhpt/TextVN/actions/runs/36866451291), gồm Swift 2 kiến trúc và gói unsigned |
+| `repo-hygiene` code commit `ee09831` | [Run xanh](https://github.com/hunglinhpt/TextVN/actions/runs/36866451224) |
+| Native test trên máy gặp `0x80004005`, UAC admin khác, ký số | Chưa đạt; không tuyên bố production |
+
+Perf trên runner dùng chung báo vượt 10% ở một số lần chạy nhưng không chặn
+workflow theo thiết kế. Chạy trực tiếp binary benchmark trên host này cho
+`ime_key` p50 500 ns (baseline 687 ns), `parse_config` 781 ns (baseline 781 ns),
+`strategy_resolve` 10 ns (dưới nhiễu timer); không dùng phép đo đó để khẳng
+định hiệu năng trên mọi phần cứng.
 
 ### Tiếp tục audit ZCode — engine (2026-10-01)
 
@@ -35,8 +58,13 @@ audit_r3_tmp -- --nocapture`, rồi chuyển các lỗi thật thành unit test 
 
 - Windows TSF: diff ZCode thêm `WaitNamedPipeW` nhưng thiếu feature Cargo
   `Win32_System_Pipes` nên `cargo test -p textvn-cli` không biên dịch. Đã bổ sung
-  feature, bỏ import/constant không dùng; `cargo clippy --workspace --all-targets
-  -- -D warnings` đạt.
+  feature, bỏ import/constant không dùng. Sau push, CI Linux/macOS bắt tiếp
+  import Windows và lời gọi `uninstall` không được `cfg` đúng; đã sửa, rồi chạy
+  `cargo check` + `clippy --all-targets -D warnings` chéo Linux/macOS tại máy.
+- Installer: bước elevated chỉ đăng ký COM/profile ở HKLM; bước người dùng gốc
+  chỉ thêm layout/kích hoạt, dùng HKLM và dọn override HKCU cũ. Nếu UAC dùng
+  tài khoản admin khác, nhánh cũ vừa kích hoạt sai tài khoản vừa để HKCU COM
+  override trỏ DLL đã gỡ. CI installer có assertion không còn override HKCU.
 - IPC tray: patch đầu nhả mutex chung trước `WriteFile`, nhưng nhiều broadcast
   đồng thời có thể tạo nhiều thread chờ cùng pipe. Đã thêm tối đa một writer
   và hàng đợi 32 frame mỗi subscriber, gỡ theo identity connection thay vì
@@ -44,16 +72,20 @@ audit_r3_tmp -- --nocapture`, rồi chuyển các lỗi thật thành unit test 
   named-pipe thật trên Windows cho áp lực/backpressure này.
 - macOS EventTap: lần check `stopRequested` thứ hai trong patch ZCode nằm cùng
   lock với lần đầu nên không bắt được race trước `CFRunLoopRun`. Đã đổi sang
-  `CFRunLoopRunInMode` 100ms và không giữ owner suốt đời thread. Cần Swift CI
-  và GUI smoke trên Mac thật; không tuyên bố đã xác thực trên máy Mac.
+  `CFRunLoopRunInMode` 100ms và không giữ owner suốt đời thread. CI Swift chỉ ra
+  SDK mới yêu cầu `CFRunLoopMode.defaultMode` thay `kCFRunLoopDefaultMode`;
+  đã sửa. Vẫn cần Swift CI trên commit cuối và GUI smoke trên Mac thật; không
+  tuyên bố đã xác thực trên máy Mac.
 
 Kiểm tra local Windows sau bản vá: `cargo fmt --all -- --check`, `cargo test
 --workspace`, `cargo clippy --workspace --all-targets -- -D warnings` đều đạt;
 `cargo build --release -p textvn-tray -p textvn-cli -p textvn-win-tsf` đạt.
-Máy này không có `ISCC.exe`, vì thế chưa biên dịch/test installer mới; không
-tạo ZIP/release production từ working tree đang dirty. GitHub CLI hiện báo
-token tài khoản `hunglinhpt` không hợp lệ, cần đăng nhập lại trước khi push
-hoặc cập nhật GitHub Release.
+Máy local này không có `ISCC.exe`, vì thế chưa tự biên dịch/test installer mới
+trên máy gặp lỗi TSF gốc; CI Windows ở trên đã làm bước đó trên runner. Không
+tạo ZIP/release production từ một bản chưa qua toàn bộ gate. Git qua credential
+manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `hunglinhpt`
+không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
+phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
 > `v0.2.3` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và

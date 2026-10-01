@@ -182,13 +182,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             ?? NSImage(systemSymbolName: "keyboard", accessibilityDescription: nil)
         image?.isTemplate = true
         button.image = image
+        button.imagePosition = .imageLeft
+        button.title = isVietnameseMode ? " [V]" : " [E]"
         // Template chỉ đổi màu qua contentTintColor (không phải bitmap vẽ tay).
         if crashCount > 0 {
             button.contentTintColor = .systemOrange
         } else {
             button.contentTintColor = isVietnameseMode ? .controlAccentColor : .secondaryLabelColor
         }
-        button.toolTip = "TextVN - Bộ gõ tiếng Việt (\(isVietnameseMode ? "Tiếng Việt" : "Tiếng Anh"))"
+        button.toolTip = "TextVN - Bộ gõ tiếng Việt (\(isVietnameseMode ? "Tiếng Việt [V]" : "Tiếng Anh [E]"))"
     }
 
     // MARK: - Context Menu (P2-4 §1 — menu bar)

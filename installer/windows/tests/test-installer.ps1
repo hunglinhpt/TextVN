@@ -53,6 +53,7 @@ $u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList @('/V
 for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $app 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
 if (Test-Path (Join-Path $app 'TextVN.exe')) { throw 'TextVN.exe still present after uninstall' }
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall' }
+if (Test-Path $userInproc) { throw 'per-user COM override left behind after uninstall' }
 $run = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).TextVN
 if ($run) { throw 'autostart Run key left behind' }
 if (Test-Path (Join-Path $app 'textvn-tsf.dll')) {

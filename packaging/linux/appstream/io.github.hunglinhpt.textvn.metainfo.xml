@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.4" date="2026-10-01">
+      <description>
+        <p>Hardens Windows TSF machine registration and per-user activation, fixes VNI digits and macro expansion, and repairs the macOS EventTap lifecycle. Unsigned release candidate.</p>
+      </description>
+    </release>
     <release version="0.2.3" date="2026-10-01">
       <description>
         <p>App icons everywhere: macOS bundles and the input source menu get their icon (.icns), Linux portable mode stages hicolor icons, and the Windows Settings dialog and installer wizard use the TextVN icon. Hardened release publishing (draft-first) and CI caching.</p>

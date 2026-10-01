@@ -22,6 +22,8 @@ pub mod compose;
 #[cfg(windows)]
 pub mod class;
 #[cfg(windows)]
+pub mod display_attr;
+#[cfg(windows)]
 pub mod edit_session;
 #[cfg(windows)]
 pub mod guids;

@@ -579,6 +579,41 @@ final class ViStateAndHotkeyTests: XCTestCase {
             TextVNInputController.isToggleChord(mods: ctrlShift, keyCode: UInt16(kVK_ANSI_A)))
     }
 
+    func testCtrlShiftTapDetection() {
+        // Cả hai cùng nhấn, sau đó nhả Shift mà không ấn phím khác -> toggle = true
+        XCTAssertTrue(
+            TextVNInputController.isCtrlShiftTap(
+                wasCtrl: true, wasShift: true,
+                currentCtrl: true, currentShift: false,
+                otherKeyPressed: false
+            )
+        )
+        // Cả hai cùng nhấn, sau đó nhả Ctrl mà không ấn phím khác -> toggle = true
+        XCTAssertTrue(
+            TextVNInputController.isCtrlShiftTap(
+                wasCtrl: true, wasShift: true,
+                currentCtrl: false, currentShift: true,
+                otherKeyPressed: false
+            )
+        )
+        // Có phím khác chen vào (ví dụ Ctrl+Shift+A) -> toggle = false
+        XCTAssertFalse(
+            TextVNInputController.isCtrlShiftTap(
+                wasCtrl: true, wasShift: true,
+                currentCtrl: true, currentShift: false,
+                otherKeyPressed: true
+            )
+        )
+        // Chỉ mới nhấn một phím (Shift chưa nhấn) -> toggle = false
+        XCTAssertFalse(
+            TextVNInputController.isCtrlShiftTap(
+                wasCtrl: true, wasShift: false,
+                currentCtrl: false, currentShift: false,
+                otherKeyPressed: false
+            )
+        )
+    }
+
     func testViStateSnapshotAndPerAppOverrides() {
         var state = ViState(globalEnabled: true)
         state.apply(snapshot: ["*": false, "com.apple.safari": true])

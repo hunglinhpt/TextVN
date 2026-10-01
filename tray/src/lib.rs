@@ -39,6 +39,8 @@ pub const WM_REQUEST_EXIT: u32 = 0x8000 + 4;
 /// Yêu cầu khởi động engine hook tương thích. Đây là hành động chủ động theo
 /// phiên; bản TextVN chuẩn không tự chạy global keyboard hook.
 pub const WM_START_COMPATIBILITY_HOOK: u32 = 0x8000 + 5;
+/// Nhận diện tổ hợp Ctrl+Shift tap chuyển chế độ gõ toàn cục.
+pub const WM_TOGGLE_HOTKEY: u32 = 0x8000 + 6;
 
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
 /// Không tìm trong working directory hay `target/` để bản phát hành không thể
