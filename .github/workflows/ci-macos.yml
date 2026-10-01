@@ -228,6 +228,7 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: adapters/macos-tap
         run: |
+          set -o pipefail
           # GitHub ẩn log job với người chưa đăng nhập. Đưa tối đa 10 dòng
           # compiler/test error vào check-run annotations để audit công khai.
           # Đây chỉ là output build/test của source, không chứa phím người dùng.
