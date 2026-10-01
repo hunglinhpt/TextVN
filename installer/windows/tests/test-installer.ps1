@@ -34,27 +34,39 @@ function Show-RegisterLogTail {
 }
 
 # ---- Kich ban (1): PER-USER - khong /ALLUSERS, khong elevation ----
-# /CURRENTUSER de runner-admin khong tu chon admin mode; /DIR de path xac dinh.
+# /CURRENTUSER + /DIR. Runner GHA chay elevated va Inno co the mac dinh admin
+# mode bat chap /CURRENTUSER ({autopf} ve Program Files a refusal + exit 10):
+# phat hien qua dong Log "refused elevated TSF registration" thi SKIP co kiem
+# soat a duong per-user that su da duoc portable scenario phu (TextVN.exe tu
+# dang ky user scope); may non-admin thi {autopf}={userpf} khop va nhanh per-user
+# cua .iss duoc test that.
 $userApp = Join-Path $env:LOCALAPPDATA 'Programs\TextVN'
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', "/DIR=$userApp", "/LOG=$log") -Wait -PassThru
-if ($p.ExitCode -ne 0) {
+$setupLog = (Get-Content $log -ErrorAction SilentlyContinue | Out-String)
+if ($p.ExitCode -eq 10 -and $setupLog -match 'refused elevated TSF registration outside Program Files') {
+    Write-Host 'NOTE runner elevated: Inno admin mode despite /CURRENTUSER - per-user installer path skipped here (portable scenario covers user-scope registration)'
+    $pu = Start-Process -FilePath (Join-Path $userApp 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+    for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $userApp 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
+    if (Test-Path $userInproc) { throw 'skipped per-user probe left HKCU registration behind' }
+} elseif ($p.ExitCode -ne 0) {
     Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
     Show-RegisterLogTail
     throw "per-user setup exit $($p.ExitCode)"
+} else {
+    foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
+        if (-not (Test-Path (Join-Path $userApp $f))) { throw "per-user installed file missing: $f" }
+    }
+    $v = (Get-ItemProperty -Path $userInproc -ErrorAction SilentlyContinue).'(default)'
+    if ($v -ne (Join-Path $userApp 'textvn-tsf.dll')) { throw "per-user TSF CLSID not registered to installed DLL (got '$v')" }
+    if (Test-Path $inproc) { throw 'per-user install must not write machine HKLM COM registration' }
+    & (Join-Path $userApp 'textvn-cli.exe') register status | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'per-user TSF registration is not usable without admin' }
+    $pu = Start-Process -FilePath (Join-Path $userApp 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+    for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $userApp 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
+    if (Test-Path (Join-Path $userApp 'TextVN.exe')) { throw 'per-user TextVN.exe still present after uninstall' }
+    if (Test-Path $userInproc) { throw 'per-user COM registration left behind after uninstall' }
+    Write-Host 'PASS silent per-user install + TSF registration WITHOUT admin (files, TSF, uninstall)'
 }
-foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
-    if (-not (Test-Path (Join-Path $userApp $f))) { throw "per-user installed file missing: $f" }
-}
-$v = (Get-ItemProperty -Path $userInproc -ErrorAction SilentlyContinue).'(default)'
-if ($v -ne (Join-Path $userApp 'textvn-tsf.dll')) { throw "per-user TSF CLSID not registered to installed DLL (got '$v')" }
-if (Test-Path $inproc) { throw 'per-user install must not write machine HKLM COM registration' }
-& (Join-Path $userApp 'textvn-cli.exe') register status | Out-Host
-if ($LASTEXITCODE -ne 0) { throw 'per-user TSF registration is not usable without admin' }
-$pu = Start-Process -FilePath (Join-Path $userApp 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
-for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $userApp 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
-if (Test-Path (Join-Path $userApp 'TextVN.exe')) { throw 'per-user TextVN.exe still present after uninstall' }
-if (Test-Path $userInproc) { throw 'per-user COM registration left behind after uninstall' }
-Write-Host 'PASS silent per-user install + TSF registration WITHOUT admin (files, TSF, uninstall)'
 
 # ---- Kich ban (2): /ALLUSERS - machine + user activation ----
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
