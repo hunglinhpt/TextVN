@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1790489805.559219,
-    "seen": 1790578955.3561072,
-    "ast_hash": "7f48bb62d6cb5b78a39caf8b8b31bf16",
+    "mtime": 1790792530.0764444,
+    "seen": 1790797276.5891502,
+    "ast_hash": "c77f299a765c4446ed85cc134d98a03b",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -840,9 +840,9 @@
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
-    "mtime": 1790789945.3997946,
-    "seen": 1790791788.7536137,
-    "ast_hash": "c73dc75627fa8327e388a1a803642a3f",
+    "mtime": 1790792423.445744,
+    "seen": 1790797276.5675733,
+    "ast_hash": "9ba3ec2e58e171c50f7ff537405622b4",
     "semantic_hash": ""
   },
   "tray/src/menu.rs": {
@@ -1644,9 +1644,9 @@
     "semantic_hash": ""
   },
   "packaging/linux/textvn-portable.sh": {
-    "mtime": 1790789460.5140717,
-    "seen": 1790791788.7446148,
-    "ast_hash": "7058b76eb3c9b9cd06efac38ec4b907c",
+    "mtime": 1790793405.8266325,
+    "seen": 1790797276.5525625,
+    "ast_hash": "c4beef49b8c95dd95f0f346e600fbfc9",
     "semantic_hash": ""
   },
   "packaging/linux/uninstall.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790791689.8497221,
-    "seen": 1790791788.7657201,
-    "ast_hash": "4082cc5bdca35b6fd3fc4a2c63c903f0",
+    "mtime": 1790797254.5089464,
+    "seen": 1790797276.5871494,
+    "ast_hash": "d63affeac973ad2516196db582e01fa3",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1932,9 +1932,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1790789711.5888002,
-    "seen": 1790791788.7555988,
-    "ast_hash": "404dee51b476ae33c95b6d73e538c7ff",
+    "mtime": 1790795350.401088,
+    "seen": 1790797276.5715685,
+    "ast_hash": "46e4b38d436cd5a7448167842aa16bc7",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/ViState.swift": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1790791572.7999365,
-    "seen": 1790791788.7657201,
-    "ast_hash": "a8f620c67a636429e37632d86ee1c7a8",
+    "mtime": 1790795397.5839148,
+    "seen": 1790797276.5881498,
+    "ast_hash": "2ed54c90270bfe9fb215ded40cc7a6b4",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
