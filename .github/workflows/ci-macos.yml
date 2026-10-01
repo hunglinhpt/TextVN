@@ -228,8 +228,23 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: adapters/macos-tap
         run: |
-          swift build --arch ${{ matrix.arch }} --build-tests
-          if [ "${{ matrix.arch }}" = "arm64" ]; then swift test --arch arm64; fi
+          # GitHub ẩn log job với người chưa đăng nhập. Đưa tối đa 10 dòng
+          # compiler/test error vào check-run annotations để audit công khai.
+          # Đây chỉ là output build/test của source, không chứa phím người dùng.
+          if ! swift build --arch ${{ matrix.arch }} --build-tests 2>&1 | tee tap-build.log; then
+            grep -E 'error:|failed|Failure' tap-build.log | head -10 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          fi
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            if ! swift test --arch arm64 2>&1 | tee tap-test.log; then
+              grep -E 'error:|failed|Failure' tap-test.log | head -10 | while IFS= read -r line; do
+                echo "::error::$line"
+              done
+              exit 1
+            fi
+          fi
 
       - name: swift build + test (menu bar app and settings)
         if: ${{ !cancelled() }}
