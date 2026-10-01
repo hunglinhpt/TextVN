@@ -453,8 +453,19 @@ impl Engine {
         {
             return None;
         }
-        let (len, text) =
-            post::r#macro::find(&self.opts.macros, &self.opts.emoji, &self.recent, vi_on)?;
+        let match_display =
+            post::r#macro::find(&self.opts.macros, &self.opts.emoji, &self.recent, vi_on);
+        // Trigger ASCII co the da bi Telex/VNI fold truoc khi bam Tab:
+        // "too" -> "tô" trong document. Thu khop raw cua dung tu dang
+        // active; xoa so glyph DA PHAT RA (owned), khong phai do dai raw.
+        let match_raw = if self.word.active {
+            post::r#macro::find(&self.opts.macros, &[], &self.word.raw, vi_on)
+                .filter(|(raw_len, _)| *raw_len == self.word.raw.len())
+                .map(|(_, text)| (self.word.owned, text))
+        } else {
+            None
+        };
+        let (len, text) = match_display.or(match_raw)?;
         let expanded: Vec<char> = text.chars().collect();
         let insert: Vec<char> = self.emit(&expanded).into_iter().take(MAX_TEXT).collect();
         self.word.clear();
@@ -871,6 +882,29 @@ mod tests {
         let action = press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "text "); // Space → trả lại chuỗi gõ
         assert!(matches!(action, Action::Restore { .. }), "phải RESTORE");
+    }
+
+    #[test]
+    fn macro_trigger_matches_raw_even_after_telex_fold() {
+        let mut e = Engine::new(EngineOptions {
+            macros: vec![post::r#macro::MacroDef {
+                trigger: "too".into(),
+                expand: "TOOO".into(),
+                when: post::r#macro::MacroWhen::Always,
+            }],
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "too");
+        assert_eq!(text(&buf), "tô");
+        let action = press(&mut e, &mut buf, keymap::vk::TAB);
+        assert!(matches!(
+            action,
+            Action::Replace {
+                delete_count: 2,
+                ..
+            }
+        ));
+        assert_eq!(text(&buf), "TOOO");
     }
 
     /// Bật danh sách **không** được phá tiếng Việt: từ không có trong danh sách thì giữ fold.

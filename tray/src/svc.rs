@@ -93,7 +93,9 @@ impl SvcManager {
 
     pub fn is_app_enabled(&self, app_id: &str) -> bool {
         let st = self.state.read().unwrap();
-        if let Some(&enabled) = st.apps.get(app_id) {
+        // set_app_enabled chuẩn hoá lowercase khi ghi — lookup cũng phải chuẩn
+        // hoá, ngược lại "Chrome.EXE" đọc rơi về global và broadcast sai giá trị.
+        if let Some(&enabled) = st.apps.get(&app_id.to_lowercase()) {
             enabled
         } else {
             st.global_enabled

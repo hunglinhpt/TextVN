@@ -45,7 +45,8 @@ impl Drop for ObjGuard {
 #[cfg(windows)]
 const HR_E_POINTER: HRESULT = HRESULT(0x8000_4003_u32 as i32);
 #[cfg(windows)]
-const HR_E_NOTIMPL: HRESULT = HRESULT(0x8000_4001_u32 as i32);
+/// Aggregation không hỗ trợ — COM host kiểm tra mã chuẩn này (0x80040110).
+const HR_CLASS_E_NOAGGREGATION: HRESULT = HRESULT(0x8004_0110_u32 as i32);
 #[cfg(windows)]
 const HR_S_OK: HRESULT = HRESULT(0);
 
@@ -81,7 +82,7 @@ impl IClassFactory_Impl for ClassFactory_Impl {
         ppvobject: *mut *mut std::ffi::c_void,
     ) -> Result<()> {
         if !punkouter.is_null() {
-            return Err(Error::from_hresult(HR_E_NOTIMPL)); // Aggregation not supported
+            return Err(Error::from_hresult(HR_CLASS_E_NOAGGREGATION)); // Aggregation not supported
         }
         if ppvobject.is_null() || riid.is_null() {
             return Err(Error::from_hresult(HR_E_POINTER));

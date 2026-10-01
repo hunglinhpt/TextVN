@@ -176,7 +176,12 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
     /* Detect StateUpdate */
     const char *p_state = strstr(json, "\"StateUpdate\"");
     if (p_state) {
-        if (client->app_id[0] != '\0' && strstr(p_state, client->app_id)) {
+        /* Khớp ĐÚNG key JSON ("app_id":"<id>") — strstr trần app_id khớp nhầm
+         * "code.exe" trong "vscode.exe" rồi đọc enabled của app khác. */
+        char key[192];
+        int kw = snprintf(key, sizeof key, "\"app_id\":\"%s\"", client->app_id);
+        if (client->app_id[0] != '\0' && kw > 0 && (size_t)kw < sizeof key &&
+            strstr(p_state, key)) {
             const char *p_en = strstr(p_state, "\"enabled\":");
             if (p_en) {
                 p_en += 10;
@@ -199,9 +204,15 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
         if (p_appdb) {
             client->appdb_version = (uint32_t)strtoul(p_appdb + 16, NULL, 10);
         }
-        /* Check state overrides for client->app_id */
+        /* Check state overrides for client->app_id — khớp đúng key
+         * "<app_id>": thay vì strstr trần; snapshot thiếu app → clear override
+         * cũ (khớp hành vi client Rust apply_states). */
         if (client->app_id[0] != '\0') {
-            const char *p_app = strstr(p_snap, client->app_id);
+            char key[192];
+            int kw = snprintf(key, sizeof key, "\"%s\":", client->app_id);
+            const char *p_app = (kw > 0 && (size_t)kw < sizeof key)
+                                    ? strstr(p_snap, key)
+                                    : NULL;
             if (p_app) {
                 const char *p_colon = strchr(p_app, ':');
                 if (p_colon) {
@@ -210,6 +221,8 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
                     client->has_app_override = 1;
                     client->app_enabled_override = (strncmp(p_colon, "true", 4) == 0);
                 }
+            } else {
+                client->has_app_override = 0;
             }
         }
         return;

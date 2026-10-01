@@ -15,12 +15,17 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 
 | Cách | Làm gì | Khi nào nên dùng |
 |---|---|---|
-| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Không cần quyền quản trị. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
+| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bản đã phát hành v0.2.3 cài per-user; bản vá kế tiếp cần UAC một lần để đăng ký TSF toàn máy. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
 | **Giải nén dùng ngay** | Giải nén `TextVN-portable-<phiên bản>-windows-x64-*.zip` → nhấn đúp `TextVN.exe`. | Máy mượn, USB, dùng thử. Không ghi gì vào Program Files. |
 
 Lần chạy đầu tiên TextVN tự đăng ký bộ gõ với Windows cho tài khoản của bạn. Nếu vẫn
 chưa gõ được: mở Bảng điều khiển → **[Cài & bật TSF]**, rồi chọn *TextVN* trong danh sách
 bộ gõ (**Win + Space**).
+
+Nếu `register.log` ghi `Đăng ký qua API TSF → 0x80004005` trong khi
+`COM server HKCU → OK`, lỗi không nằm ở quyền ghi HKCU. Bản portable không thể
+tự nâng quyền an toàn từ thư mục giải nén; chờ installer đã qua kiểm thử máy thật
+hoặc liên hệ quản trị viên. Không chạy `textvn-cli.exe` portable bằng quyền admin.
 
 Gỡ: *Settings → Apps → TextVN → Uninstall* (bản cài) hoặc chuột phải `uninstall.ps1` →
 *Run with PowerShell* rồi xoá thư mục (bản portable). Menu khay **Gỡ cài đặt** làm đúng việc
@@ -164,7 +169,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` để xem bước nào lỗi. |
+| Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` và xem `%LOCALAPPDATA%\TextVN\logs\register.log`. Nếu COM HKCU OK nhưng API TSF báo `0x80004005`, xem lưu ý cài đặt ở trên. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 | Windows: phần mềm diệt virus cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
@@ -184,6 +189,6 @@ không chứa nội dung bạn gõ.
 |---|---|
 | Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho cả bản cài và bản portable. |
 | Linux IBus / Fcitx5 | Bản thử nghiệm phát hành: kiểm thử tự động với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. |
-| macOS | Chưa có — mới có tài liệu thiết kế (`docs/30-macos/`). |
+| macOS | Beta: đã có IMK adapter và gói `.pkg`, CI build/test; còn cần thử GUI/cài-gỡ trên Mac thật trước production. |
 
 Chi tiết kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](release/build-release-report.md).

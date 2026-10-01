@@ -1302,7 +1302,13 @@ fn read_log_tail(path: &std::path::Path, max_lines: usize) -> Option<String> {
     if lines.is_empty() {
         return None;
     }
-    let start = lines.len().saturating_sub(max_lines);
+    // register.log duoc append qua nhieu lan chay. Khong de loi ACL/DLL cua
+    // lan cu lot vao advice cho lan hien tai khi log moi ngan hon max_lines.
+    let run_start = lines
+        .iter()
+        .rposition(|line| line.contains("=== TextVN register ("))
+        .unwrap_or(0);
+    let start = lines.len().saturating_sub(max_lines).max(run_start);
     Some(lines[start..].join("\r\n"))
 }
 
@@ -1311,8 +1317,16 @@ fn read_log_tail(path: &std::path::Path, max_lines: usize) -> Option<String> {
 #[cfg_attr(not(windows), allow(dead_code))]
 fn advice_for_failure(exit_code: i32, detail: &str) -> String {
     if exit_code == 3 {
-        return "Thiếu quyền Administrator cho phạm vi máy (--scope machine). \
-                Hãy bấm [Cài & bật TSF] từ tài khoản thường (đăng ký per-user không cần admin)."
+        return "Windows yêu cầu quyền Administrator để đăng ký profile TSF ở phạm vi máy. \
+                Hãy dùng bộ cài TextVN chính thức; không nâng quyền trực tiếp cho file trong thư mục portable."
+            .to_string();
+    }
+    if detail.contains("Đăng ký qua API TSF → 0x80004005")
+        && detail.contains("hậu kiểm đăng ký TSF không đạt")
+    {
+        return "Đã ghi được HKCU nhưng Windows chưa nhận profile TSF; đây không phải lỗi quyền ghi HKCU. \
+                Hãy cài bằng bộ cài TextVN mới (đăng ký machine một lần rồi bật cho tài khoản hiện tại). \
+                Không chạy textvn-cli.exe trong thư mục portable với quyền Administrator."
             .to_string();
     }
     if detail.contains("ACCESS_DENIED") || detail.contains("0x00000005") {
@@ -1429,6 +1443,18 @@ mod tests {
         assert!(tail.contains("line-20"), "dòng mới nhất phải có");
         assert!(!tail.contains("line-14"), "dòng cũ hơn ngoài cửa sổ bị cắt");
 
+        std::fs::write(
+            &log,
+            "[pid=1] === TextVN register (HKCU) ===\n[pid=1] Registry create → FAIL 0x00000005\n[pid=2] === TextVN register (HKCU) ===\n[pid=2] COM server HKCU → OK\n[pid=2] FAIL: hậu kiểm đăng ký TSF không đạt\n",
+        )
+        .unwrap();
+        let latest = read_log_tail(&log, 12).unwrap();
+        assert!(
+            !latest.contains("0x00000005"),
+            "không trộn lỗi của lần trước"
+        );
+        assert!(latest.contains("hậu kiểm đăng ký TSF không đạt"));
+
         std::fs::write(&log, "  \n\n").unwrap();
         assert!(read_log_tail(&log, 5).is_none(), "log rỗng → None");
         assert!(read_log_tail(&dir.join("missing.log"), 5).is_none());
@@ -1459,5 +1485,7 @@ mod tests {
                 .contains("textvn-tsf.dll")
         );
         assert!(advice_for_failure(1, "lỗi lạ").contains("register.log"));
+        let tsf_log = "COM server HKCU → OK\nĐăng ký qua API TSF → 0x80004005 (cần quyền admin cho HKLM)\nFAIL: hậu kiểm đăng ký TSF không đạt";
+        assert!(advice_for_failure(1, tsf_log).contains("không phải lỗi quyền ghi HKCU"));
     }
 }

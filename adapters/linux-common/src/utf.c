@@ -24,6 +24,10 @@ size_t lc_utf32_to_utf8(const uint32_t *src, size_t src_len, char *dst, size_t d
             if (out_idx + 2 >= dst_len) break;
             dst[out_idx++] = (char)(0xC0 | ((cp >> 6) & 0x1F));
             dst[out_idx++] = (char)(0x80 | (cp & 0x3F));
+        } else if (cp >= 0xD800 && cp <= 0xDFFF) {
+            /* Surrogate không bao giờ là UTF-8 hợp lệ — bỏ codepoint này,
+             * không phát chuỗi hỏng cho client. */
+            continue;
         } else if (cp <= 0xFFFF) {
             if (out_idx + 3 >= dst_len) break;
             dst[out_idx++] = (char)(0xE0 | ((cp >> 12) & 0x0F));

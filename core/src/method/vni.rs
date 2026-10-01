@@ -51,8 +51,11 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
     } else if keys::BREVE.iter().any(|&(k, _, _)| k == c) {
         mark_vowel(out, c, &keys::BREVE);
     } else if keys::REMOVE_MARKS_KEY == Some(c) {
-        // 0 — xoá toàn bộ dấu của từ
-        unmark_all(out);
+        // 0 chi la phim xoa dau khi thuc su co dau de xoa. Neu khong,
+        // giu literal de khong nuot so dien thoai/OTP ("200" -> "200").
+        if !unmark_all(out) {
+            out.push(c);
+        }
     } else if c == keys::STROKE_KEY {
         // 9 — đ
         stroke(out, c);
@@ -86,14 +89,19 @@ fn stroke(out: &mut Vec<char>, key: char) {
 }
 
 /// `0`: gỡ mọi dấu trong `out` (thanh + mũ/sừng/breve + `đ`) — giữ case.
-fn unmark_all(out: &mut [char]) {
+fn unmark_all(out: &mut [char]) -> bool {
+    let mut changed = false;
     for ch in out.iter_mut() {
         if let Some((e, _)) = locate(*ch) {
-            *ch = form_like(*ch, base_entry(e), 0);
+            let plain = form_like(*ch, base_entry(e), 0);
+            changed |= plain != *ch;
+            *ch = plain;
         } else if is_stroke(*ch) {
             *ch = to_plain(*ch);
+            changed = true;
         }
     }
+    changed
 }
 
 #[cfg(test)]
@@ -151,6 +159,11 @@ mod tests {
     fn remove_all_marks() {
         assert_eq!(n("d9uo7ng2"), "đường");
         assert_eq!(n("d9uo7ng20"), "duong"); // 0 xoá thanh + dạng âm + đ
+        assert_eq!(n("d9uo7ng200"), "duong0"); // lần 0 kế tiếp là số thường
+        assert_eq!(n("200"), "200");
+        assert_eq!(n("0912"), "0912");
+        assert_eq!(n("ab0"), "ab0");
+        assert_eq!(n("0"), "0");
     }
 
     #[test]

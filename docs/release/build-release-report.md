@@ -1,5 +1,60 @@
 # Báo cáo dựng & kiểm thử — TextVN 0.1.0 (lịch sử)
 
+## Sau v0.2.3 — bản vá TSF đang kiểm thử, chưa phát hành
+
+Log thực tế ngày 2026-09-30: ghi COM/CTF dưới HKCU thành công nhưng
+`RegisterProfile` báo `0x80004005`, `InstallLayoutOrTip` thành công và hậu kiểm
+profile thất bại. Do đó thông báo cũ đổ lỗi quyền ghi HKCU không đúng. Source
+đang chuyển installer sang đăng ký TSF machine tại Program Files bằng quyền
+Administrator một lần, rồi bật profile bằng `ExecAsOriginalUser`; bản portable
+vẫn best-effort, không nâng quyền file nằm trong thư mục người dùng ghi được.
+
+Các gate còn phải qua trước release tiếp: biên dịch Inno Setup, CI Windows
+`test-installer.ps1` (cài/gõ thật/gỡ), thử trên máy đã gặp `0x80004005` bằng
+tài khoản thường, kiểm tra UAC dùng tài khoản admin khác và gỡ sạch. Không dùng
+bằng chứng CI v0.2.3 ở dưới để khẳng định bản vá này đã được xác thực.
+
+### Tiếp tục audit ZCode — engine (2026-10-01)
+
+Đã chạy 22 ca repro tạm ZCode qua `cargo test -p textvn-core --test
+audit_r3_tmp -- --nocapture`, rồi chuyển các lỗi thật thành unit test có assert:
+
+| Quan sát | Phân loại | Xử lý |
+|---|---|---|
+| VNI `200` → `2`, `0912` → `912`, `0` → rỗng | Mất dữ liệu P0: phím xoá dấu `0` bị nuốt ngay cả khi không có dấu | Chỉ nuốt `0` khi thực sự gỡ được dấu; test VNI số và lần `0` thứ hai |
+| Macro `too` không bung sau khi Telex fold thành `tô` | Lỗi P1: so trigger với text đã xuất thay vì phím gốc | Thử match raw word đang active; `delete_count` dùng số glyph đã xuất, test `too<Tab>` |
+| `ccc` → `cc`, Backspace → `ch` | Theo semantics Quick Telex hiện tại: xoá phím gõ thứ ba làm cặp `cc` có hiệu lực lại | Không đổi nếu chưa có quyết định UX mới |
+| `quiet` → `quiêt`, `duo` → `duơ`, `OOps` → `Ốp` | Mơ hồ EN/VI; validator cấu trúc không thể phân biệt từ tiếng Anh với âm tiết trông hợp lệ | Dùng `english_words` opt-in/ESC; không tự thêm từ điển mặc định vì phá từ Việt thật |
+| `cy` + Backspace + `t` + Tab trong test tạm → `cCT` | Bộ mô phỏng test tạm không xoá ký tự buffer khi `Action::Pass` cho Backspace | Không phải chứng cứ lỗi engine; test production phải mô phỏng phím này đúng |
+| VIQR `chao.` → `chạo` | `.` là marker dấu nặng của VIQR, đồng thời là dấu câu | Cần quyết định UX riêng cho escape/commit, không tự đổi semantics |
+
+`cargo test -p textvn-core`: 109 unit + 7 common-words + 6 keymap đều đạt.
+Đây là test headless, **không thay thế** thử gõ qua TSF/IBus/IMK thật.
+
+### Tiếp tục audit ZCode — runtime chưa có bằng chứng production
+
+- Windows TSF: diff ZCode thêm `WaitNamedPipeW` nhưng thiếu feature Cargo
+  `Win32_System_Pipes` nên `cargo test -p textvn-cli` không biên dịch. Đã bổ sung
+  feature, bỏ import/constant không dùng; `cargo clippy --workspace --all-targets
+  -- -D warnings` đạt.
+- IPC tray: patch đầu nhả mutex chung trước `WriteFile`, nhưng nhiều broadcast
+  đồng thời có thể tạo nhiều thread chờ cùng pipe. Đã thêm tối đa một writer
+  và hàng đợi 32 frame mỗi subscriber, gỡ theo identity connection thay vì
+  PID, và timeout 5s cho client gửi header rồi bỏ dở payload. Chưa có test
+  named-pipe thật trên Windows cho áp lực/backpressure này.
+- macOS EventTap: lần check `stopRequested` thứ hai trong patch ZCode nằm cùng
+  lock với lần đầu nên không bắt được race trước `CFRunLoopRun`. Đã đổi sang
+  `CFRunLoopRunInMode` 100ms và không giữ owner suốt đời thread. Cần Swift CI
+  và GUI smoke trên Mac thật; không tuyên bố đã xác thực trên máy Mac.
+
+Kiểm tra local Windows sau bản vá: `cargo fmt --all -- --check`, `cargo test
+--workspace`, `cargo clippy --workspace --all-targets -- -D warnings` đều đạt;
+`cargo build --release -p textvn-tray -p textvn-cli -p textvn-win-tsf` đạt.
+Máy này không có `ISCC.exe`, vì thế chưa biên dịch/test installer mới; không
+tạo ZIP/release production từ working tree đang dirty. GitHub CLI hiện báo
+token tài khoản `hunglinhpt` không hợp lệ, cần đăng nhập lại trước khi push
+hoặc cập nhật GitHub Release.
+
 > `v0.2.3` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.3” bên dưới). `v0.2.2` **đã publish** 2026-09-30. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.

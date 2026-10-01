@@ -20,6 +20,8 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
+use windows::Win32::Foundation::ERROR_PIPE_BUSY;
+use windows::Win32::System::Pipes::WaitNamedPipeW;
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
@@ -145,14 +147,30 @@ impl IpcClient {
         // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
         // ngược với cái người dùng vừa thấy.
         std::thread::spawn(move || {
-            if let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
-                let _ = send_message(
-                    &mut stream,
-                    &Message::ToggleViEn {
-                        app_id: GLOBAL_KEY.to_string(),
-                        enabled: next,
-                    },
-                );
+            // ERROR_PIPE_BUSY (hết instance khi tray bận): WaitNamedPipe rồi thử
+            // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
+            // process này tới snapshot kế.
+            for _ in 0..3 {
+                match OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+                    Ok(mut stream) => {
+                        let _ = send_message(
+                            &mut stream,
+                            &Message::ToggleViEn {
+                                app_id: GLOBAL_KEY.to_string(),
+                                enabled: next,
+                            },
+                        );
+                        return;
+                    }
+                    Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
+                        // w! cần literal — PIPE_NAME là const, dựng buffer UTF-16.
+                        let name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
+                        unsafe {
+                            let _ = WaitNamedPipeW(windows::core::PCWSTR(name.as_ptr()), 200);
+                        }
+                    }
+                    Err(_) => return,
+                }
             }
         });
         next

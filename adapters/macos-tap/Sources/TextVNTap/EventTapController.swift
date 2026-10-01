@@ -92,6 +92,9 @@ public final class EventTapController {
         if let appObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(appObserver)
         }
+        // passUnretained(self) làm refcon: tap phải chết trước owner, nếu không
+        // callback keyDown kế tiếp deref con trỏ đã free (crash trên tap thread).
+        stop()
     }
 
     /// App foreground đã cache — callback event tap đọc (không XPC).
@@ -160,19 +163,32 @@ public final class EventTapController {
         stopRequested = false
         lock.unlock()
         let thread = Thread { [weak self] in
-            guard let self else { return }
             let rl = CFRunLoopGetCurrent()
-            self.lock.lock()
-            if self.stopRequested {
-                // stop() chạy trước khi thread gán runLoop → thoát, không chạy
-                // CFRunLoopRun() vô hạn với source đã invalidate.
-                self.lock.unlock()
-                return
-            }
-            self.runLoop = rl
-            self.lock.unlock()
+            // Chi giu owner trong scope ngan. Neu owner bi huy, deinit se
+            // invalidate tap; thread khong giu self song vo han.
+            let shouldRun: Bool = {
+                guard let owner = self else { return false }
+                owner.lock.lock()
+                defer { owner.lock.unlock() }
+                if owner.stopRequested { return false }
+                owner.runLoop = rl
+                return true
+            }()
+            if !shouldRun { return }
             CFRunLoopAddSource(rl, source, .commonModes)
-            CFRunLoopRun()
+            while true {
+                let stopped: Bool = {
+                    guard let owner = self else { return true }
+                    owner.lock.lock()
+                    defer { owner.lock.unlock() }
+                    return owner.stopRequested
+                }()
+                if stopped { break }
+                // CFRunLoopStop goi ngay truoc RunInMode co the bi mat tin
+                // hieu. Timeout 100ms bao dam thoat duoc ca race nay.
+                CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, true)
+            }
+            CFRunLoopRemoveSource(rl, source, .commonModes)
         }
         thread.name = "vn.textvn.tap"
         thread.qualityOfService = .userInteractive

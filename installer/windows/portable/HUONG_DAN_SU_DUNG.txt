@@ -2,10 +2,14 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
 ============================================================
 
 1. BẮT ĐẦU
-   - Nhấn đúp TextVN.exe. Lần đầu, TextVN tự đăng ký bộ gõ với Windows cho tài khoản
-     của bạn (không cần quyền quản trị) và mở Bảng điều khiển.
+   - Nhấn đúp TextVN.exe. Lần đầu, TextVN thử đăng ký bộ gõ cho tài khoản
+     của bạn và mở Bảng điều khiển. Một số cấu hình Windows không cho đăng ký
+     profile TSF từ tài khoản thường dù HKCU ghi được.
    - Nếu chưa gõ được: bấm [Cài & bật TSF] trong Bảng điều khiển, rồi chọn TextVN trong
      danh sách bộ gõ (Win + Space).
+   - Nếu register.log ghi "API TSF → 0x80004005" và "hậu kiểm đăng ký TSF
+     không đạt": dùng bộ cài TextVN chính thức để đăng ký profile phạm vi máy.
+     KHÔNG chạy textvn-cli.exe từ thư mục portable với quyền Administrator.
 
 2. BẬT / TẮT TIẾNG VIỆT
    - Nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space.

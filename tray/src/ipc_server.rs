@@ -5,6 +5,7 @@
 //! (in-process TSF DLLs, Hook process, CLI probe...), broadcast `ConfigReload` và `StateUpdate`,
 //! theo dõi sức khỏe và quản lý watchdog cho tiến trình `textvn-hook.exe`.
 
+use std::collections::VecDeque;
 #[cfg(any(windows, test))]
 use std::io::Read;
 use std::io::Write;
@@ -42,15 +43,95 @@ pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 /// subscriber cần broadcast: đọc phải được gate bằng `PeekNamedPipe`
 /// (xem `try_read_pipe_frame`).
 fn write_frame_to_subscribers(subscribers: Arc<Mutex<Vec<ClientSink>>>, frame: Vec<u8>) {
-    let Ok(mut subs) = subscribers.lock() else {
-        return;
-    };
-    subs.retain_mut(|client| {
-        let Ok(mut stream) = client.stream.lock() else {
-            return false;
+    // Clone danh sách sink rồi NHẢ mutex TRƯỚC khi ghi: write vào pipe sync có
+    // thể block vô hạn nếu một subscriber bị suspend/ngừng đọc — giữ lock qua
+    // write sẽ kẹt toàn bộ broadcast + Subscribe (đường điều khiển trung tâm).
+    //
+    // Mỗi subscriber có TỐI ĐA một writer và hàng đợi có giới hạn. Một client
+    // ngừng đọc không thể tạo vô hạn thread hay giữ mutex toàn cục.
+    const WRITE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
+    const MAX_PENDING: usize = 32;
+    type SinkSnapshot = (
+        Arc<Mutex<std::fs::File>>,
+        Arc<AtomicBool>,
+        Arc<Mutex<VecDeque<Vec<u8>>>>,
+    );
+    let sinks: Vec<SinkSnapshot> = subscribers
+        .lock()
+        .map(|subs| {
+            subs.iter()
+                .map(|c| {
+                    (
+                        Arc::clone(&c.stream),
+                        Arc::clone(&c.write_busy),
+                        Arc::clone(&c.pending),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut dead: Vec<Arc<Mutex<std::fs::File>>> = Vec::new();
+    for (stream, busy, pending) in &sinks {
+        let start_writer = if let Ok(mut queue) = pending.lock() {
+            if queue.len() >= MAX_PENDING {
+                dead.push(Arc::clone(stream));
+                continue;
+            }
+            queue.push_back(frame.clone());
+            // Dưới cùng mutex queue: writer không thể thấy queue rỗng và tắt
+            // busy giữa lúc broadcast đang enqueue.
+            !busy.swap(true, Ordering::AcqRel)
+        } else {
+            dead.push(Arc::clone(stream));
+            continue;
         };
-        stream.write_all(&frame).is_ok() && stream.flush().is_ok()
-    });
+        if !start_writer {
+            continue;
+        }
+        let writer_stream = Arc::clone(stream);
+        let writer_busy = Arc::clone(busy);
+        let writer_pending = Arc::clone(pending);
+        let writer_subscribers = Arc::clone(&subscribers);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut first = true;
+            loop {
+                let next = match writer_pending.lock() {
+                    Ok(mut queue) => match queue.pop_front() {
+                        Some(frame) => frame,
+                        None => {
+                            writer_busy.store(false, Ordering::Release);
+                            break;
+                        }
+                    },
+                    Err(_) => break,
+                };
+                let ok = match writer_stream.lock() {
+                    Ok(mut f) => f.write_all(&next).is_ok() && f.flush().is_ok(),
+                    Err(_) => false,
+                };
+                if first {
+                    let _ = tx.send(ok);
+                    first = false;
+                }
+                if !ok {
+                    if let Ok(mut subs) = writer_subscribers.lock() {
+                        subs.retain(|c| !Arc::ptr_eq(&c.stream, &writer_stream));
+                    }
+                    break;
+                }
+            }
+        });
+        match rx.recv_timeout(WRITE_TIMEOUT) {
+            Ok(true) => {}
+            _ => dead.push(Arc::clone(stream)),
+        }
+    }
+    if !dead.is_empty() {
+        if let Ok(mut subs) = subscribers.lock() {
+            subs.retain(|c| !dead.iter().any(|d| Arc::ptr_eq(d, &c.stream)));
+        }
+    }
 }
 
 /// Trạng thái đọc một khung từ pipe **không bao giờ block vô hạn**.
@@ -103,9 +184,14 @@ fn try_read_pipe_frame(reader: &std::fs::File, running: &AtomicBool) -> PipeFram
         return PipeFrame::Eof;
     }
 
-    // Payload chưa đủ: poll tiếp mà KHÔNG giữ read pending.
+    // Payload chưa đủ: poll tiếp mà KHÔNG giữ read pending. Client gửi header
+    // rồi ngừng cũng phải bị đóng, không giữ một handler thread vô hạn.
+    let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         if !running.load(Ordering::Acquire) {
+            return PipeFrame::Eof;
+        }
+        if Instant::now() >= deadline {
             return PipeFrame::Eof;
         }
         let Some(avail) = peek_available(reader) else {
@@ -130,8 +216,9 @@ fn try_read_pipe_frame(reader: &std::fs::File, running: &AtomicBool) -> PipeFram
 
 /// Kênh gửi message broadcast tới một client đã Subscribe.
 struct ClientSink {
-    pid: u32,
     stream: Arc<Mutex<std::fs::File>>,
+    write_busy: Arc<AtomicBool>,
+    pending: Arc<Mutex<VecDeque<Vec<u8>>>>,
 }
 
 pub struct IpcServer {
@@ -360,10 +447,13 @@ impl IpcServer {
                     subscribed = true;
                     debug_assert_eq!(pid, peer_pid);
                     let mut subs = self.subscribers.lock().unwrap();
-                    subs.push(ClientSink {
-                        pid: peer_pid,
-                        stream: stream.clone(),
-                    });
+                    if !subs.iter().any(|c| Arc::ptr_eq(&c.stream, &stream)) {
+                        subs.push(ClientSink {
+                            stream: stream.clone(),
+                            write_busy: Arc::new(AtomicBool::new(false)),
+                            pending: Arc::new(Mutex::new(VecDeque::new())),
+                        });
+                    }
                     Some(Message::Ack)
                 }
                 Message::ToggleViEn { app_id, enabled } => {
@@ -413,7 +503,9 @@ impl IpcServer {
 
         if subscribed {
             let mut subs = self.subscribers.lock().unwrap();
-            subs.retain(|c| c.pid != peer_pid);
+            // Nhiều pipe từ CÙNG PID (TSF trong một app) có thể Subscribe.
+            // Chỉ gỡ connection đã đóng, không gỡ nhầm pipe còn sống.
+            subs.retain(|c| !Arc::ptr_eq(&c.stream, &stream));
         }
     }
 

@@ -702,6 +702,12 @@ mod win_impl {
             .all(|(_, lang)| profile_metadata_ok(*lang))
     }
 
+    fn machine_profile_metadata_ok() -> bool {
+        REGISTER_LANGS
+            .iter()
+            .all(|(_, lang)| reg_key_exists(HKEY_LOCAL_MACHINE, &ctf_profile_key(*lang)))
+    }
+
     pub fn do_register(dll_path: &Path, no_taskbar: bool, scope: Scope) -> i32 {
         say(&format!("=== TextVN register ({}) ===", scope.label()));
         let dll_s = dll_path.to_string_lossy().to_string();
@@ -760,7 +766,13 @@ mod win_impl {
         // `Register()?` (HKLM) nên cài per-user KHÔNG bao giờ tới InstallLayoutOrTip.
         let icon = icon_path(dll_path);
         let api_ok = register_with_tsf_api("TextVN", &icon);
-        let machine_registered = registration_metadata_ok();
+        // Machine install khong duoc thanh cong nho metadata HKCU fallback
+        // tu ban portable cu. Profile va category phai duoc TSF API ghi HKLM.
+        if scope == Scope::Machine && (!api_ok || !machine_profile_metadata_ok()) {
+            say("FAIL: đăng ký profile/category TSF phạm vi máy chưa hoàn tất");
+            return 3;
+        }
+        let machine_registered = machine_profile_metadata_ok();
         let (profiles_ok, used_ctf_fallback) = if !api_ok && !machine_registered {
             if scope == Scope::Machine {
                 return 3;
@@ -909,14 +921,14 @@ mod win_impl {
         0
     }
 
-    /// COM server trỏ tới DLL còn tồn tại (dò CẢ HKCU và HKLM — key per-user
-    /// cũ trỏ file đã xoá không được che key machine tốt) + metadata profile
-    /// đầy đủ + profile VI được Windows bật. EN không phải điều kiện (best-effort).
+    /// HKCU\Software\Classes override HKLM cho CLSID. Neu override per-user
+    /// tro DLL da xoa, KHONG duoc coi HKLM DLL con ton tai la thanh cong:
+    /// TSF van se nap override che do va bo go khong hoat dong.
     pub fn registration_ok() -> bool {
         let inproc = format!(r"{}\InprocServer32", clsid_key());
-        let server_ok = [HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE]
-            .into_iter()
-            .any(|h| reg_read_string(h, &inproc).is_some_and(|p| Path::new(&p).is_file()));
+        let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
+            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
+        let server_ok = server.is_some_and(|p| Path::new(&p).is_file());
         server_ok && registration_metadata_ok() && profile_is_enabled(LANGID_VI)
     }
 

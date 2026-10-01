@@ -1,8 +1,8 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 ; Script dong goi bo cai dat TextVN cho Windows bang Inno Setup 6 (WIN-054 / P1-4 §4).
 ; Ho tro cai dat linh hoat:
-; - Mac dinh per-user (khong yeu cau quyen Administrator).
-; - Che do All Users khi chay elevated.
+; TSF RegisterProfile/RegisterCategory can HKLM: cai machine mot lan, sau do
+; bat profile trong user session. CLI elevated chi duoc chay tu Program Files.
 
 #define MyAppName "TextVN"
 #define MyAppFullName "TextVN"
@@ -28,6 +28,8 @@ AppUpdatesURL={#MyAppURL}
 ; Icon wizard cài đặt/uninstaller (trước đây dùng icon mặc định của Inno Setup)
 SetupIconFile=..\..\tray\resources\textvn.ico
 DefaultDirName={autopf}\{#MyAppName}
+DisableDirPage=yes
+UsePreviousAppDir=no
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\..\LICENSE
@@ -39,8 +41,7 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+PrivilegesRequired=admin
 DisableWelcomePage=no
 
 [Languages]
@@ -80,11 +81,11 @@ Name: "{autodesktop}\{#MyAppFullName}"; Filename: "{app}\{#MyAppExeName}"; Tasks
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --autostart"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden; Tasks: freectrlshift
+Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden runasoriginaluser
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser; Tasks: freectrlshift
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
-; per-user sau. Khong nang quyen binary trong {app}: voi cai per-user, day la thu muc
-; nguoi dung ghi duoc va ShellExec('runas') se mo lo hong leo thang dac quyen.
+; machine elevated truoc, user session sau. Khong nang quyen binary o thu muc
+; user-writable: path installer duoc khoa o {autopf}\TextVN.
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
 
 [UninstallRun]
@@ -104,18 +105,31 @@ end;
 var
   RegistrationOK: Boolean;
 
-// Dang ky per-user khong can UAC. Khong tu dong ShellExec('runas') mot executable
-// nam trong {app}, vi {app} cua cai per-user co the bi user/process khac thay doi.
-// Machine scope chi nen duoc cap boi mot installer/helper da ky, o thu muc tin cay.
+// Exec CLI elevated chi tu thu muc Program Files co ACL admin. /DIR custom hoac
+// previous app dir khong duoc phep doi dich do an toan nay.
 function RegisterTextServices(): Boolean;
 var
   ResultCode: Integer;
 begin
+  if CompareText(ExpandConstant('{app}'), ExpandConstant('{autopf}\TextVN')) <> 0 then
+  begin
+    Log('TextVN refused elevated TSF registration outside Program Files.');
+    Result := False;
+    Exit;
+  end;
   ResultCode := -1;
-  Result := Exec(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+  Result := Exec(CliPath(), 'register --scope machine', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
     (ResultCode = 0);
   if not Result then
-    Log(Format('TextVN per-user TSF registration failed (exit code %d).', [ResultCode]));
+  begin
+    Log(Format('TextVN machine TSF registration failed (exit code %d).', [ResultCode]));
+    Exit;
+  end;
+  ResultCode := -1;
+  Result := ExecAsOriginalUser(CliPath(), 'register', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
+    (ResultCode = 0);
+  if not Result then
+    Log(Format('TextVN user TSF activation failed (exit code %d).', [ResultCode]));
 end;
 
 function RegistrationSucceeded(): Boolean;
@@ -136,7 +150,8 @@ begin
       if not WizardSilent then
         SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
           'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
-          'Mo "TextVN Doctor" sau khi sua chinh sach/quyen registry roi chon "Cai & bat TSF".',
+          'Xem %LOCALAPPDATA%\TextVN\logs\register.log de biet buoc loi. ' +
+          'Neu TSF profile bi chan boi chinh sach may, lien he quan tri vien.',
           mbError, MB_OK, IDOK);
     end;
   end;

@@ -122,6 +122,27 @@ public static class TvKeys {
 function U([string]$s) { [regex]::Unescape($s) }
 function Codes([string]$s) { ($s.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' ' }
 
+# Focus must be VERIFIED before every burst: a single SetForegroundWindow call
+# loses races on slow shared runners and keys land nowhere ("got []" FAILs).
+function Ensure-Focus($app) {
+    for ($i = 0; $i -lt 10; $i++) {
+        if ([TvKeys]::Focus($app.Main)) { return }
+        Start-Sleep -Milliseconds 300
+    }
+    throw "could not focus $($app.Name) main window"
+}
+
+# Clear must be VERIFIED before typing the next case: keys landing after a lost
+# clear corrupt the following verdict.
+function Clear-Verified($app) {
+    for ($i = 0; $i -lt 10; $i++) {
+        [TvKeys]::Clear($app.Edit)
+        Start-Sleep -Milliseconds 150
+        if ([TvKeys]::Text($app.Edit).Length -eq 0) { return }
+    }
+    throw "could not clear $($app.Name) edit control"
+}
+
 $cli = Join-Path $Dir 'textvn-cli.exe'
 $tray = Join-Path $Dir 'TextVN.exe'
 foreach ($f in @($cli, $tray)) { if (-not (Test-Path $f)) { throw "missing $f" } }
@@ -167,8 +188,16 @@ $script:results = New-Object System.Collections.Generic.List[string]
 # Edit tra "\r\n", RichEdit tra "\r": quy ve "\n" truoc khi so.
 function Norm([string]$s) { ($s -replace "`r`n", "`n") -replace "`r", "`n" }
 function Check($app, [string]$name, [string]$want) {
-    Start-Sleep -Milliseconds 400
-    $got = Norm ([TvKeys]::Text($app.Edit))
+    # TSF composition is asynchronous. Two equal reads are NOT proof of final
+    # state: a busy editor can stay unchanged for >200ms then commit later.
+    # Poll up to 4s for exact match; only the final observed value can fail.
+    $got = $null
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 200
+        $cur = Norm ([TvKeys]::Text($app.Edit))
+        if ($cur -ceq $want) { $got = $cur; break }
+        $got = $cur
+    }
     if ($got -ceq $want) {
         $line = "PASS [{0}] {1}" -f $app.Name, $name
     } else {
@@ -177,8 +206,7 @@ function Check($app, [string]$name, [string]$want) {
     }
     Write-Host $line
     $script:results.Add($line)
-    [TvKeys]::Clear($app.Edit)
-    $null = [TvKeys]::Focus($app.Main)
+    Clear-Verified $app
 }
 
 function Open-App([string]$name, [string]$exe) {
@@ -215,11 +243,11 @@ $env:TEXTVN_TSF_TRACE = $trace
 foreach ($a in $apps) {
     Add-Content -Path $trace -Value ("=== " + $a.Name)
     $app = Open-App $a.Name $a.Exe
-    $null = [TvKeys]::Focus($app.Main)
-    [TvKeys]::Clear($app.Edit)
+    Ensure-Focus $app
+    Clear-Verified $app
 
     foreach ($c in $cases) {
-        $null = [TvKeys]::Focus($app.Main)
+        Ensure-Focus $app
         [TvKeys]::Type($c.keys)
         Check $app $c.name $c.want
     }

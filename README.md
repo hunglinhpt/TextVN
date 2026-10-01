@@ -28,11 +28,17 @@ Bản mới nhất: **[GitHub Release v0.2.3](https://github.com/hunglinhpt/Text
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
-| Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` — không cần quyền quản trị | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
+| Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
 | macOS 13+ (Apple Silicon / Intel) | `TextVN-mac-v<ver>.pkg` → `installer -pkg … -target CurrentUserHomeDirectory` (không sudo); zip `TextVN-macos-<universal\|arm64\|x86_64>-v<ver>.zip` → kéo `TextVN-IM.app` vào `~/Library/Input Methods/` | xem [Hướng dẫn sử dụng macOS](docs/30-macos/P2-4-ui-packaging-release.md) |
 | Linux (IBus / Fcitx5) | `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, không cần root) | cùng tarball → `./textvn-portable.sh` |
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
+
+Lưu ý Windows: bản phát hành v0.2.3 vẫn cài TSF per-user. Một số máy cho ghi
+HKCU nhưng từ chối API đăng ký profile TSF, khiến ứng dụng mở được mà không gõ
+được tiếng Việt. Bản vá đang kiểm thử chuyển installer sang đăng ký machine
+(cần UAC một lần) rồi bật profile cho tài khoản đang cài. Chưa coi bản vá là
+release cho đến khi CI Windows và thử gõ thật trên máy gặp lỗi đều đạt.
 
 ## Trạng thái
 

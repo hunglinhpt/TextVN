@@ -281,7 +281,7 @@ impl TrayMenu {
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
             }
-            ID_UNINSTALL => uninstall(),
+            ID_UNINSTALL => uninstall(&self.ipc),
             ID_EXIT => {
                 #[cfg(windows)]
                 unsafe {
@@ -297,7 +297,7 @@ impl TrayMenu {
 /// không có trình gỡ → hỏi xác nhận, gỡ đăng ký TSF (HKCU) rồi thoát, để người dùng xoá
 /// thư mục. Bản cũ gọi `TextVN-setup.exe /UNINSTALL` — file không tồn tại, bấm không có gì.
 #[cfg(windows)]
-fn uninstall() {
+fn uninstall(ipc: &crate::ipc_server::IpcServer) {
     let Some(dir) = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
@@ -333,6 +333,9 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
         .arg("unregister")
         .creation_flags(CREATE_NO_WINDOW)
         .status();
+    // Các đường thoát khác đều broadcast Shutdown cho engine trước khi quit —
+    // đường gỡ cài đặt từng bỏ sót nên hook mồ côi tới heartbeat timeout.
+    ipc.broadcast_shutdown();
     // SAFETY: chỉ post message vào hàng đợi của thread UI hiện tại.
     unsafe { PostQuitMessage(0) };
 }
