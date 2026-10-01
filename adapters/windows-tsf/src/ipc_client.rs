@@ -148,6 +148,7 @@ impl IpcClient {
         // Gửi giá trị TUYỆT ĐỐI (không phải "đảo"): nếu tray và process này lệch nhau
         // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
         // ngược với cái người dùng vừa thấy.
+        #[cfg(windows)]
         std::thread::spawn(move || {
             // ERROR_PIPE_BUSY (hết instance khi tray bận): WaitNamedPipe rồi thử
             // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
