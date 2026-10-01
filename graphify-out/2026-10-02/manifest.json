@@ -906,15 +906,15 @@
     "semantic_hash": ""
   },
   "build-release.ps1": {
-    "mtime": 1790772636.231685,
-    "seen": 1790772701.971466,
-    "ast_hash": "fe26110e479a0976b9aca035d33aeca4",
+    "mtime": 1790877552.6576865,
+    "seen": 1790877697.6228027,
+    "ast_hash": "873c40ee0bad203b1d765cf3b176f8bb",
     "semantic_hash": ""
   },
   "cli/src/register.rs": {
-    "mtime": 1790871345.8393955,
-    "seen": 1790871517.9958925,
-    "ast_hash": "cbcaee79745a61de3d9b638434fdad9f",
+    "mtime": 1790877270.614976,
+    "seen": 1790877697.6228027,
+    "ast_hash": "0e5dfa032baac6c31e399ee626c4b729",
     "semantic_hash": ""
   },
   "tools/appcomptest/targets/chrome.json": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790871436.0050478,
-    "seen": 1790871518.010883,
-    "ast_hash": "9b0b96778d4f9fe4faf780a4cdc0acc2",
+    "mtime": 1790877603.957295,
+    "seen": 1790877697.6388252,
+    "ast_hash": "4cc43c3eb3478582dcb18643d2e2d6b0",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1790867346.7170248,
-    "seen": 1790871518.0118845,
-    "ast_hash": "bdf51b6fa3bd70349aa869f717c48212",
+    "mtime": 1790877619.7755089,
+    "seen": 1790877697.6388252,
+    "ast_hash": "db755d74dee3b44fb5c42558f476f7fc",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1790860463.8067405,
-    "seen": 1790871517.9919024,
-    "ast_hash": "7e02fbe8c2b00df986f3fcaabf3c77de",
+    "mtime": 1790877589.6737,
+    "seen": 1790877697.6179013,
+    "ast_hash": "1cae5f497d8ed140d6ea629d28e1de92",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1790860463.8097389,
-    "seen": 1790871517.9919024,
-    "ast_hash": "4c6a553953ecce3a7b141b97b1a94d7f",
+    "mtime": 1790877589.674701,
+    "seen": 1790877697.6189017,
+    "ast_hash": "e97946ff4d3fb3e2474996801e0f9df4",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1790860463.8117492,
-    "seen": 1790871517.992903,
-    "ast_hash": "e5973a469ad4b7ce744d8da9edde28c6",
+    "mtime": 1790877589.675701,
+    "seen": 1790877697.619901,
+    "ast_hash": "c9335737d15418fc9f714a87009a1f15",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1790860463.8247662,
-    "seen": 1790871518.001907,
-    "ast_hash": "2b15fd04b283cbb627ef8a794d49e9ec",
+    "mtime": 1790877589.6813009,
+    "seen": 1790877697.6298213,
+    "ast_hash": "d11a1257b8ec2695da9f3c8df236ed3d",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1932,9 +1932,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1790795350.401088,
-    "seen": 1790797276.5715685,
-    "ast_hash": "46e4b38d436cd5a7448167842aa16bc7",
+    "mtime": 1790877566.81932,
+    "seen": 1790877697.6388252,
+    "ast_hash": "4940867325ba7a6d9aec7e6458e1cc20",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/ViState.swift": {
@@ -1989,6 +1989,18 @@
     "mtime": 1790867239.0580773,
     "seen": 1790871517.9948874,
     "ast_hash": "4216384de545104cfa2bd1ca53dfeebf",
+    "semantic_hash": ""
+  },
+  "tools/win/sign-signpath.ps1": {
+    "mtime": 1790877451.4978397,
+    "seen": 1790877697.635822,
+    "ast_hash": "ae9cee4495d17bd5d37e0fd7735be4ed",
+    "semantic_hash": ""
+  },
+  "docs/release/code-signing-plan.md": {
+    "mtime": 1790877429.6227546,
+    "seen": 1790877697.6428206,
+    "ast_hash": "001b0a79bcc531fda05c7a724042fddd",
     "semantic_hash": ""
   }
 }
