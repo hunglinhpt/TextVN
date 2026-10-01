@@ -37,10 +37,15 @@ Tài liệu cho người sửa code, đóng gói và phát hành. Người dùng
 | `cli` | `textvn-cli`: `register`, `doctor`, `replay`, `verify`, `config`. |
 | `corpus/` | Kịch bản gõ `.keys` (P0-4) chạy qua 5 mô phỏng adapter. |
 
-Mô hình gõ chung cho TSF, IBus, Fcitx5: **cả từ nằm trong composition/preedit**, mọi
+Mô hình gõ chung cho TSF, IBus, Fcitx5 và macOS IMK: **cả từ nằm trong composition/preedit**, mọi
 `delete_count` của engine rơi trong đó, chốt ở ranh giới từ (Space, dấu câu, Enter, phím
 điều hướng, chord). Không bao giờ xoá lùi chữ app đã nhận → không lỗi lặp/mất chữ kiểu
 "không gạch chân" ở Chromium/Electron (xem `docs/specs/reference-parity.md` R1).
+
+Đặc biệt, giao diện hiển thị composition được tinh chỉnh hoàn toàn không gạch chân (clean composition):
+- **Windows TSF**: Cung cấp `ITfDisplayAttributeProvider` với thuộc tính `lsStyle = TF_LS_NONE` (`DISPATTR_TEXTVN`). Hỗ trợ đăng ký theo user profile (`HKCU`) không bắt buộc quyền Administrator.
+- **Linux IBus / Fcitx5**: Tắt cờ `IBUS_ATTR_TYPE_UNDERLINE` và dùng `fcitx::TextFormatFlag::NoFlag`.
+- **macOS IMK**: Cấu hình `NSAttributedString` trong marked text với `.underlineStyle = []`.
 
 Bảng điều khiển thống nhất: [release/ui-spec.md](release/ui-spec.md).
 

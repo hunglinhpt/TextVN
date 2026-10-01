@@ -6,6 +6,8 @@
 #[cfg(windows)]
 use windows::core::*;
 #[cfg(windows)]
+use windows::Win32::Foundation::{E_INVALIDARG, E_POINTER, S_FALSE};
+#[cfg(windows)]
 use windows::Win32::UI::TextServices::*;
 
 #[cfg(windows)]
@@ -45,13 +47,13 @@ impl ITfDisplayAttributeProvider_Impl for TextVNDisplayAttributeProvider_Impl {
 
     fn GetDisplayAttributeInfo(&self, guid: *const GUID) -> Result<ITfDisplayAttributeInfo> {
         if guid.is_null() {
-            return Err(Error::from_hresult(HRESULT(0x8000_4003_u32 as i32)));
+            return Err(Error::from_hresult(E_POINTER));
         }
         let g = unsafe { *guid };
         if g == DISPATTR_TEXTVN {
             Ok(TextVNDisplayAttributeInfo::new().into())
         } else {
-            Err(Error::from_hresult(HRESULT(0x8000_4002_u32 as i32)))
+            Err(Error::from_hresult(E_INVALIDARG))
         }
     }
 }
@@ -91,7 +93,7 @@ impl ITfDisplayAttributeInfo_Impl for TextVNDisplayAttributeInfo_Impl {
 
     fn GetAttributeInfo(&self, pda: *mut TF_DISPLAYATTRIBUTE) -> Result<()> {
         if pda.is_null() {
-            return Err(Error::from_hresult(HRESULT(0x8000_4003_u32 as i32)));
+            return Err(Error::from_hresult(E_POINTER));
         }
         unsafe {
             *pda = TF_DISPLAYATTRIBUTE {
@@ -159,7 +161,7 @@ impl IEnumTfDisplayAttributeInfo_Impl for TextVNEnumDisplayAttributeInfo_Impl {
         pcfetched: *mut u32,
     ) -> Result<()> {
         if rginfo.is_null() {
-            return Err(Error::from_hresult(HRESULT(0x8000_4003_u32 as i32)));
+            return Err(Error::from_hresult(E_POINTER));
         }
         let cur = self.index.get();
         let avail = self.items.len().saturating_sub(cur);
@@ -176,7 +178,7 @@ impl IEnumTfDisplayAttributeInfo_Impl for TextVNEnumDisplayAttributeInfo_Impl {
         if count == ulcount as usize {
             Ok(())
         } else {
-            Err(Error::from_hresult(HRESULT(1))) // S_FALSE
+            Err(Error::from_hresult(S_FALSE))
         }
     }
 

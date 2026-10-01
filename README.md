@@ -10,21 +10,22 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 - **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả
   (`hoà`/`hòa`), `uow` → ươ, `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi
   bật Caps Lock.
-- **Không mất chữ, không lặp chữ**: cả từ nằm trong vùng soạn (composition/preedit) và chốt
-  ở ranh giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
+- **Không mất chữ, không lặp chữ, không gạch chân**: cả từ nằm trong vùng soạn (composition/preedit)
+  với định dạng sạch không đường kẻ (TF_LS_NONE trên Windows TSF, tắt gạch chân trên Linux/macOS)
+  và chốt ở ranh giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
   trên Chrome, Electron, Excel, thanh địa chỉ.
 - **Tránh bị phần mềm diệt virus nhận nhầm**: gói mặc định không hook bàn phím toàn cục,
   không tiêm mã vào process khác, không giả lập phím bằng `SendInput`
   ([lý do](docs/specs/antivirus-false-positive.md)).
 - **Tiện ích**: bảng mã TCVN3/VNI Windows/Unicode tổ hợp, gõ tắt, Quick Telex, khôi phục từ
-  tiếng Anh, tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E.
+  tiếng Anh, tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập nhật biểu tượng trạng thái.
 
 ## Tải và cài
 
 Bản mới nhất: **[GitHub Release v0.2.4](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.4)**
-(0.2.4 — **sửa đăng ký TSF trên Windows**: installer đăng ký machine một lần,
-kích hoạt cho đúng tài khoản và gõ thật qua TSF được CI kiểm tra; vá VNI/gõ tắt,
-macOS EventTap; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+(0.2.4 — **đăng ký TSF không cần quyền Admin**, gõ chữ sạch **hoàn toàn không gạch chân**
+trên cả Windows, Linux và macOS, chuyển mode gõ và icon khay hệ thống mượt mà qua **Ctrl + Shift**;
+CI kiểm tra, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -34,10 +35,9 @@ macOS EventTap; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
 
-Lưu ý Windows: v0.2.4 cài TSF cho máy (cần UAC một lần), sau đó bật profile
-cho tài khoản đã khởi chạy installer. CI đã cài/gõ tiếng Việt/gỡ trên Windows,
-nhưng máy từng báo `RegisterProfile 0x80004005` vẫn cần kiểm thử trực tiếp;
-nếu lỗi còn lặp lại, xem [hướng dẫn](docs/user-guide.md) và gửi log đã ẩn dữ liệu.
+Lưu ý Windows: v0.2.4 hỗ trợ đăng ký TSF ở cả cấp độ User (`HKCU`, không cần quyền Admin)
+lẫn Machine (`HKLM` qua installer). Bản portable chỉ cần giải nén và chạy `TextVN.exe` là có thể
+đăng ký và sử dụng ngay lập tức mà không yêu cầu UAC elevation.
 
 ## Trạng thái
 

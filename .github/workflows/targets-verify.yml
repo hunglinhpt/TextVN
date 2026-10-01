@@ -41,7 +41,7 @@ jobs:
           if-no-files-found: ignore
 
   # Acceptance WIN-061 #2: chay lai sau upgrade app version khong vef.
-  # Tat ca tren runner epheeral: cai ban cu -> verify -> upgrade ban moi -> verify lai.
+  # Tat ca tren runner ephemeral: cai ban cu -> verify -> upgrade ban moi -> verify lai.
   # Khong dung winget (f6-11: source msstore/winget hay hong tren runner fresh,
   # loi 0x8a15000f/0x8a150042) - truc tiep tai .exe tu manifest winget-pkgs + trang chinh thuc.
   upgrade-cycle:
@@ -78,7 +78,7 @@ jobs:
           $p = Start-Process $exeOld -ArgumentList '/VERYSILENT','/NORESTART','/MERGETASKS=!runcode' -Wait -PassThru
           Write-Output ('install old exit = ' + $p.ExitCode)
           if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { exit $p.ExitCode }
-          # Runner epheeral: neu van con VS Code o Program Files (ban khac version) thi xoa
+          # Runner ephemeral: neu van con VS Code o Program Files (ban khac version) thi xoa
           # - de verify khong cham vao ban do (paths[0] = Program Files).
           $pf = 'C:\Program Files\Microsoft VS Code'
           if (Test-Path "$pf\Code.exe") {
@@ -122,7 +122,7 @@ jobs:
           if ($b -match '\|\s*vscode\s*\|\s*OK\s*\|\s*([^\s|]+)') { $vb = $Matches[1] }
           if ($a -match '\|\s*vscode\s*\|\s*OK\s*\|\s*([^\s|]+)') { $va = $Matches[1] }
           $sum = @()
-          $sum += '### WIN-061 upgrade-cycle (runner epheeral)'
+          $sum += '### WIN-061 upgrade-cycle (runner ephemeral)'
           $sum += ''
           $sum += '- before: vscode **' + $vb + '** (mong doi: ' + $env:OLD_V + ')'
           $sum += '- after : vscode **' + $va + '** (da upgrade)'
