@@ -5,7 +5,7 @@
 <component>
   <name>io.github.hunglinhpt.textvn</name>
   <description>TextVN Vietnamese Input Method</description>
-  <version>0.2.4</version>
+  <version>0.2.5</version>
   <license>GPL-3.0-or-later</license>
   <author>hunglinhpt &lt;https://github.com/hunglinhpt/TextVN&gt;</author>
   <homepage>https://github.com/hunglinhpt/TextVN</homepage>

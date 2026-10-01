@@ -550,15 +550,20 @@ mod win_impl {
         }
     }
 
-    /// Đăng ký profile + category qua API TSF (ghi HKLM → cần quyền admin).
-    fn register_with_tsf_api(desc: &str, icon: &str) -> bool {
+    /// Đăng ký profile + category qua API TSF. Profile ghi HKLM (cần admin);
+    /// RegisterCategory TSF tự quyết định nơi lưu và **thường thành công cả khi
+    /// không admin** — vì vậy category được thử ĐỘC LẬP với profile: dừng sớm ở
+    /// RegisterProfile từng làm portable non-admin mất category
+    /// display-attribute provider → gạch chân không bao giờ tắt được.
+    /// Trả `(profiles_ok, categories_ok)`.
+    fn register_with_tsf_api(desc: &str, icon: &str) -> (bool, bool) {
         let desc_w = wide(desc);
         let icon_w = wide(icon);
         // Slice đúng độ dài nhưng allocation có nul đệm sau (S3-2: TSF đọc wcslen()).
         let desc_s = &desc_w[..desc_w.len() - 1];
         let icon_s = &icon_w[..icon_w.len() - 1];
         // SAFETY: COM đã init; mọi interface do CoCreateInstance trả về.
-        let result = (|| -> Result<()> {
+        let profiles = (|| -> Result<()> {
             unsafe {
                 let mgr: ITfInputProcessorProfileMgr =
                     CoCreateInstance(&CLSID_TF_InputProcessorProfiles, None, CLSCTX_INPROC_SERVER)?;
@@ -577,6 +582,21 @@ mod win_impl {
                     )?;
                     say(&format!("  RegisterProfile({tag}) → OK"));
                 }
+                Ok(())
+            }
+        })();
+        let profiles_ok = match profiles {
+            Ok(()) => true,
+            Err(e) => {
+                say(&format!(
+                    "  RegisterProfile qua API TSF → {:#010x} (fallback per-user sẽ ghi)",
+                    e.code().0
+                ));
+                false
+            }
+        };
+        let categories = (|| -> Result<()> {
+            unsafe {
                 let cat: ITfCategoryMgr =
                     CoCreateInstance(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)?;
                 for (name, guid) in [
@@ -594,20 +614,23 @@ mod win_impl {
                 Ok(())
             }
         })();
-        match result {
+        let categories_ok = match categories {
             Ok(()) => true,
             Err(e) => {
                 say(&format!(
-                    "  Đăng ký qua API TSF → {:#010x} (cần quyền admin cho HKLM)",
+                    "  RegisterCategory qua API TSF → {:#010x} (fallback ghi HKCU sau ILOT)",
                     e.code().0
                 ));
                 false
             }
-        }
+        };
+        (profiles_ok, categories_ok)
     }
 
     /// Fallback per-user (P1-1 §8): ghi đúng layout TIP của CTF dưới HKCU khi API
-    /// không ghi được HKLM. Không đụng key của TIP khác.
+    /// không ghi được HKLM. Không đụng key của TIP khác. Category KHÔNG ghi ở đây:
+    /// `InstallLayoutOrTip` chạy sau sẽ viết lại cây CTF và xoá mất — gọi
+    /// [`register_ctf_categories_per_user`] SAU ILOT.
     fn register_ctf_per_user(desc: &str, icon: &str) -> bool {
         let mut ok = set_reg_value(HKEY_CURRENT_USER, &ctf_tip_key(), None, RegValue::None);
         for (_, lang) in REGISTER_LANGS {
@@ -632,6 +655,19 @@ mod win_impl {
             );
             ok &= set_reg_value(HKEY_CURRENT_USER, &key, Some("Enable"), RegValue::Dword(1));
         }
+        say(&format!(
+            "  CTF TIP per-user (HKCU) → {}",
+            if ok { "OK" } else { "FAIL" }
+        ));
+        ok
+    }
+
+    /// Category CTF per-user (keyboard/immersive/systray/display-attr provider).
+    /// PHẢI gọi SAU `InstallLayoutOrTip`: ILOT viết lại cây CTF TIP và xoá mất
+    /// key category ghi trước đó (repro 2026-10-02 — category display-attribute
+    /// biến mất làm portable không tắt được gạch chân).
+    fn register_ctf_categories_per_user() -> bool {
+        let mut ok = true;
         for cat in [
             CAT_TIP_KEYBOARD,
             CAT_IMMERSIVE,
@@ -643,7 +679,7 @@ mod win_impl {
             }
         }
         say(&format!(
-            "  CTF TIP per-user (HKCU) → {}",
+            "  CTF category per-user (HKCU, sau ILOT) → {}",
             if ok { "OK" } else { "FAIL" }
         ));
         ok
@@ -808,15 +844,19 @@ mod win_impl {
         // Bước 2: profile + category. Mỗi bước độc lập — bản trước dừng ở
         // `Register()?` (HKLM) nên cài per-user KHÔNG bao giờ tới InstallLayoutOrTip.
         let icon = icon_path(dll_path);
-        let api_ok = activate_machine_for_user || register_with_tsf_api("TextVN", &icon);
+        let (api_profiles_ok, api_categories_ok) = if activate_machine_for_user {
+            (true, true)
+        } else {
+            register_with_tsf_api("TextVN", &icon)
+        };
         // Machine install khong duoc thanh cong nho metadata HKCU fallback
         // tu ban portable cu. Profile va category phai duoc TSF API ghi HKLM.
-        if scope == Scope::Machine && (!api_ok || !machine_profile_metadata_ok()) {
+        if scope == Scope::Machine && (!api_profiles_ok || !machine_profile_metadata_ok()) {
             say("FAIL: đăng ký profile/category TSF phạm vi máy chưa hoàn tất");
             return 3;
         }
         let machine_registered = machine_profile_metadata_ok();
-        let (profiles_ok, used_ctf_fallback) = if !api_ok && !machine_registered {
+        let (profiles_ok, used_ctf_fallback) = if !api_profiles_ok && !machine_registered {
             if scope == Scope::Machine {
                 return 3;
             }
@@ -824,6 +864,7 @@ mod win_impl {
         } else {
             (true, false)
         };
+        let categories_need_hkcu_fallback = !api_categories_ok;
         if !profiles_ok || !registration_metadata_ok() {
             say("FAIL: profile TSF chưa được đăng ký đầy đủ");
             return if scope == Scope::Machine { 3 } else { 1 };
@@ -869,6 +910,12 @@ mod win_impl {
                     RegValue::Dword(1),
                 );
             }
+        }
+        if categories_need_hkcu_fallback {
+            // API RegisterCategory thất bại (không admin): ghi category per-user
+            // SAU ILOT — ghi trước ILOT thì bị ILOT xoá mất (repro 2026-10-02),
+            // mất category display-attribute provider = gạch chân không tắt được.
+            register_ctf_categories_per_user();
         }
 
         // Bước 4: kích hoạt ngay cho session. Tiến trình không có ngữ cảnh nhập

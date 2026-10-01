@@ -22,10 +22,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.4](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.4)**
-(0.2.4 — **đăng ký TSF không cần quyền Admin**, gõ chữ sạch **hoàn toàn không gạch chân**
-trên cả Windows, Linux và macOS, chuyển mode gõ và icon khay hệ thống mượt mà qua **Ctrl + Shift**;
-CI kiểm tra, kèm `SHA256SUMS.txt`; chưa ký số).
+Bản mới nhất: **[GitHub Release v0.2.5](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.5)**
+(0.2.5 — vá **bản portable**: chữ gõ không còn gạch chân cả khi không dùng
+admin, Ctrl+Shift ổn định; đăng ký TSF không cần quyền Admin; kèm pipeline ký
+số SignPath opt-in; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|

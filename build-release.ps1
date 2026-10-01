@@ -165,6 +165,17 @@ if ($SigningRequested) {
         Sign-TextVNFile $signTool $SigningCertificateThumbprint $binary
     }
     $ReleaseChecks["authenticode"] = "passed"
+} elseif ($env:SIGNPATH_API_TOKEN) {
+    # Ky qua SignPath Foundation (goi Open Source, mien phi) - chi khi secret
+    # duoc cau hinh; khong co thi giu nguyen release-candidate chua ky.
+    # Xem docs/release/code-signing-plan.md
+    Write-Step "Sign release binaries with SignPath"
+    foreach ($binary in $ReleaseSignFiles) {
+        if (-not (Test-Path $binary)) { Write-Fail "Cannot sign missing binary: $binary" }
+        powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $binary
+        if ($LASTEXITCODE -ne 0) { Write-Fail "SignPath signing failed: $binary" }
+    }
+    $ReleaseChecks["authenticode"] = "signpath"
 } else {
     $ReleaseChecks["authenticode"] = "not-signed"
 }
@@ -361,6 +372,9 @@ if ($BuildInstaller) {
         if (Test-Path $setupExe) {
             if ($SigningRequested) {
                 Sign-TextVNFile $signTool $SigningCertificateThumbprint $setupExe
+            } elseif ($env:SIGNPATH_API_TOKEN) {
+                powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $setupExe -Description "TextVN installer"
+                if ($LASTEXITCODE -ne 0) { throw "SignPath signing failed: $setupExe" }
             }
             Write-Ok "Installer: $setupExe"
         } else {

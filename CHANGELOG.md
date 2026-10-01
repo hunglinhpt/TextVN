@@ -7,6 +7,32 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.5] — 2026-10-02
+
+Bản vá cho **bản portable** — ba fix của 0.2.4 vận hành đủ trên bản cài nhưng
+còn lỗ trên portable (đã repro thật trên máy không admin). Kèm pipeline ký số
+SignPath (opt-in).
+
+### Fixed (portable)
+- **Gạch chân không tắt được trên portable**: `InstallLayoutOrTip` viết lại cây
+  CTF per-user và **xoá mất toàn bộ key `Category`** ghi trước nó (repro:
+  sau đăng ký chỉ còn `LanguageProfile`) — category display-attribute provider
+  biến mất nên app vẫn vẽ gạch chân. Nay `RegisterCategory` qua API được thử
+  **độc lập** với `RegisterProfile` (TSF thường chấp nhận non-admin), và khi
+  API thất bại, category HKCU được ghi **SAU `InstallLayoutOrTip`** — verified
+  live: cả 4 category (kèm `{046B8C80-…}`) sống sót sau ILOT trên tài khoản
+  thường.
+- Ctrl+Shift + đăng ký: dùng chung code đã sửa ở 0.2.4 (không phân biệt
+  installer/portable) — test live lại trên bản portable: `register` exit 0,
+  `register status` OK, không admin.
+
+### Added
+- **Pipeline ký số SignPath** (opt-in qua secrets `SIGNPATH_*`): có secret →
+  binary + installer được ký tự động khi build release; không secret → giữ
+  nguyên release-candidate chưa ký. Kế hoạch + so sánh các đường free
+  (SignPath Foundation / Azure Artifact Signing / SSL.com / Certum):
+  [docs/release/code-signing-plan.md](docs/release/code-signing-plan.md).
+
 ## [0.2.4] — 2026-10-01
 
 Bản **release candidate chưa ký số**. Trọng tâm: bộ gõ TSF phải đăng ký và gõ
@@ -418,7 +444,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/hunglinhpt/TextVN/compare/v0.2.1...v0.2.2
