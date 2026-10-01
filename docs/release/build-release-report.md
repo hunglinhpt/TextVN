@@ -87,13 +87,54 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.4` **đã publish** 2026-10-01 dạng pre-release (mục “Bản 0.2.4” bên dưới). `v0.2.3` publish 2026-10-01, `v0.2.2` publish 2026-09-30. Bằng chứng của bản đó
+> `v0.2.5` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.5” bên dưới). 0.2.4 publish 2026-10-01, 0.2.3 publish 2026-10-01, 0.2.2 publish 2026-09-30. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath
+
+**Bug portable (repro thật trên máy không admin, 2026-10-02):** sau `register`,
+cây `HKCU\Software\Microsoft\CTF\TIP` chỉ còn `LanguageProfile` —
+`InstallLayoutOrTip` viết lại cây CTF và **xoá mất toàn bộ key `Category`** ghi
+trước nó → display-attribute provider không bao giờ được app hỏi → portable
+vẫn gạch chân dù TIP có `TF_LS_NONE`. Fix: `RegisterCategory` qua API được thử
+độc lập (TSF thường OK non-admin — trước đây dừng sớm ở RegisterProfile), và
+khi API thất bại, category HKCU ghi **SAU ILOT**. Verified live: cả 4 category
+(kèm `{046B8C80-…}`) sống sót sau ILOT; `register` exit 0, `register status`
+OK trên tài khoản thường; probe test đăng ký/dỡ đăng ký sạch.
+
+### Ký số — SignPath opt-in
+
+- Nghiên cứu các đường free: [code-signing-plan.md](code-signing-plan.md) —
+  **SignPath Foundation** (miễn phí OSS, khuyến nghị; Azure Artifact Signing
+  $9.99/tháng nhưng individual chỉ US/CA; SSL.com/Certum trả phí).
+- Pipeline: `tools/win/sign-signpath.ps1` (REST SignPath, skip khi không có
+  secret) + `build-release.ps1` ký 3 binary trước khi đóng ZIP và setup exe
+  sau ISCC khi `SIGNPATH_*` secrets được cấu hình; `release.yml` truyền secrets
+  vào job windows. Không secret → build như cũ (candidate chưa ký).
+
+### Phát hành — v0.2.5 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.5` @ `bab5f7c+` (code `a6a5572`). Workflow
+  [release-candidate #36905101277](https://github.com/hunglinhpt/TextVN/actions/runs/36905101277)
+  — **4/4 job `success`**; publish validate `RELEASE_REPORT.json`.
+- **Release:** [TextVN 0.2.5 (release candidate)](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.5)
+  — 7 asset. Checksums pin (từ `SHA256SUMS.txt`):
+
+| Asset | SHA-256 |
+|---|---|
+| `TextVN-portable-0.2.5-windows-x64-20261001181333.zip` | `c85dde7755375c1798dd3f9cc1ed023b559712ece0ff1f938859e8d8fdf13f5e` |
+| `TextVN-setup-0.2.5-windows-x64.exe` | `658c6fc4537dbde8d2e7591a5bf51e8ffbd98bae68e8bbb51f5c7476eaabe24b` |
+| `TextVN-0.2.5-linux-x86_64.tar.gz` | `694fad017ba047f93bd1e89b0f335725c4b04947d85424bd2e7b1f621393e485` |
+| `TextVN-mac-v0.2.5.pkg` | `c1b99d3a8ea2c6dc11e34917180bb30e47a81547485ffb87ef20b12549872e11` |
+| `TextVN-macos-universal-v0.2.5.zip` | `e5cee948668f4cccdb8a1f9594ed4a980d385ef1eb5f2960953055a0c400eba6` |
+
+- **CI cùng commit code (`a6a5572`):** `ci-shared` ✅ (portable scenario chạy
+  đúng đường category mới), `ci-macos` ✅, `repo-hygiene` ✅ `adcbfd2`.
 
 ## Bản 0.2.4 — đăng ký không cần admin + clean composition + Ctrl+Shift single-path
 
