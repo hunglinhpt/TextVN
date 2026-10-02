@@ -87,13 +87,46 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.5` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.5” bên dưới). 0.2.4 publish 2026-10-01, 0.2.3 publish 2026-10-01, 0.2.2 publish 2026-09-30. Bằng chứng của bản đó
+> `v0.2.6` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.6” bên dưới). 0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.6 — chốt đăng ký TSF VI+EN, hết ghost registration
+
+**Bối cảnh:** báo cáo "không gõ được tiếng Việt (kể cả admin) + quá nhiều
+keyboard layout" trên 0.2.5. Chẩn đoán trên registry thật của máy người dùng:
+
+1. **Ghost registration**: `InprocServer32` trỏ vào thư mục portable **đã bị
+   xoá** → TSF không nạp TIP; admin không cứu được (HKCU override HKLM).
+   `register status` báo `FILE MISSING` đúng; chạy lại `TextVN.exe` từ thư mục
+   còn tồn tại tự sửa.
+2. Hai thực nghiệm layout trong 0.2.6-dev đều vỡ và được CI bắt (raw typing):
+   UNINSTALL-dedupe làm Windows deactivate TIP (5269ae1); bỏ layout EN mặc
+   định khiến app en-US không nhận TextVN (fecf245). Cả hai đã revert —
+   **VI + EN DEFPROFILE là thiết kế chốt**, comment tại chỗ chống lặp lại.
+   Win+Space hiển thị 4 layout (US · VI MS · VI TextVN · EN TextVN) là thiết
+   kế: profile EN cần cho ngữ cảnh nhập tiếng Anh.
+
+### Phát hành — v0.2.6 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.6` @ `e5a66f1`. Workflow
+  [release-candidate #36951325000](https://github.com/hunglinhpt/TextVN/actions/runs/36951325000)
+  — **4/4 job `success`** (typing smoke 9 case × Notepad/WordPad PASS).
+- **Release:** [TextVN 0.2.6 (release candidate)](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.6)
+  — 7 asset. Portable ZIP: `TextVN-portable-0.2.6-windows-x64-20261002013157.zip`
+  SHA-256 `4d10fb426d6973d897842a2dfde7516f4b449a1e026183183508dd7a5ce52fde`.
+- **CI cùng commit code (`e5a66f1`):** `ci-shared` ✅, `ci-macos` ✅,
+  `repo-hygiene` ✅.
+- **Sửa máy người dùng ngay sau publish:** unregister ghost → extract
+  portable 0.2.6 vào `D:\TextVN` (thư mục ổn định, không suffix build-id) →
+  `register` exit 0, `ActivateProfile(VI, session) → OK`, display-attr
+  category per-user hiện diện, tray chạy từ `D:\TextVN\TextVN.exe`,
+  doctor: IPC listening + Tray running + TIP registered + Ctrl+Shift dành
+  cho TextVN.
 
 ## Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath
 
