@@ -880,16 +880,17 @@ mod win_impl {
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
-        // Dedupe: gỡ entry cũ (mọi ngôn ngữ từng đăng ký) TRƯỚC khi thêm —
-        // nhiều lần register qua các version từng dồn nhiều entry "TextVN"
-        // trong danh sách Win+Space (báo cáo 2026-10-02).
-        let _ = call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL-dedupe");
-        let _ = call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL-dedupe");
+        // KHÔNG uninstall trước khi thêm: ILOT UNINSTALL làm Windows deactivate
+        // TIP cho phiên hiện tại, và ActivateProfile phục hồi không phải lúc nào
+        // cũng thành công (0x80004005 đã biết) → gõ ra text thô (repro CI
+        // 2026-10-02). ILOT DEFPROFILE với cùng spec là idempotent — không sinh
+        // entry mới.
         // Chỉ thêm layout VI: entry EN-TextVN là bản dup vô dụng (Ctrl+Shift đã
         // có EN trong TextVN) và làm danh sách bàn phím phình to. EN chỉ dùng
         // làm FALLBACK khi máy không có/ngoại lệ ngôn ngữ VI (máy tiếng Anh).
         let layouts_ok = if no_taskbar {
-            true
+            call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
+                && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
         } else {
             let vi_ok = call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
             if vi_ok {
