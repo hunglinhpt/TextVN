@@ -127,6 +127,11 @@ lọc) và đọc `state.json` sau từng tap:
   SHA-256 `55d375830a937b16f3bc99135be80eb5ac35826d9e187de3320777e73076edc3`.
 - **CI cùng commit (`e6e4ca8`):** `ci-shared` ✅ (run 36955010527),
   `ci-macos` ✅, `repo-hygiene` ✅.
+- **macOS ZIP** `TextVN-macos-universal-v0.2.7.zip` SHA-256
+  `bbc106ecb61559b71e13ef4977da3c648e318b83e3e5c2a790b9882dfcc4560b`.
+- **Sửa lỗi quy trình phát hiện khi review:** `packaging/homebrew/textvn.rb` giữ
+  `sha256` cũ từ 0.2.5 (chưa từng cập nhật) — đã sửa về hash 0.2.7 và thêm bước
+  **B7b** vào `release-process.md` (cập nhật hash mỗi bản) để không lặp lại.
 - **Nâng cấp máy người dùng:** `D:\TextVN` cập nhật lên 0.2.7 bằng
   rename-then-copy (DLL đang được shell nạp — Windows cho rename file đang
   map, không cho ghi đè); doctor xanh, FileVersion 0.2.7.0.
@@ -241,7 +246,7 @@ fix đầu (96364a9..d785ea7) và đã sửa:
   smoke 9 case × Notepad/WordPad xanh qua cơ chế poll mới), `ci-macos` ✅,
   `repo-hygiene` ✅. Job `perf regression` đỏ là `continue-on-error` (nhiễu
   runner dùng chung), không chặn.
-- **Bài học mới:** E11 (double-toggle — không cài keyboard hook trong tray),
+- **Bài học mới:** E11 (double-toggle — không cài keyboard hook trong tray; **chính sách này được thay ở 0.2.7**: hook quan sát + debounce — xem mục 0.2.7 ở trên),
   E12 (per-user installer + blind spot /ALLUSERS trong CI),
   [win-test-common-errors](../specs/win-test-common-errors.md) B6 (typing
   harness poll ổn định thay vì đọc 1 lần).

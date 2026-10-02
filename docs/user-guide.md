@@ -88,7 +88,7 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
 ## 2. Bật/tắt tiếng Việt
 
 - Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey trên cả 3 nền tảng:
-  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows; tổ hợp được nhận diện ngay trong engine TSF của ứng dụng đang gõ, đổi mode tức thì và đồng bộ icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh) qua IPC.
+  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows; tray có bộ dò tap **chỉ quan sát** (không ăn phím, không gõ thay) nên tổ hợp được nhận ở **mọi ứng dụng** — kể cả khi bạn đang đứng ở bàn phím khác trong Win+Space — đổi mode tức thì và đồng bộ icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh). Hai lần bấm trong 0,25 giây tính là một (chống lật đôi khi cả tray lẫn engine cùng nhận một lần bấm).
   - **macOS**: TextVN nhận diện tổ hợp `Ctrl + Shift` tap trong `flagsChanged`, đồng bộ với menu bar app `TextVN.app` để chuyển đổi chế độ và hiển thị rõ chỉ báo **[V]** / **[E]** trên thanh menu bar.
   - **Linux**: IBus và Fcitx5 tự động cập nhật icon `textvn_v` ↔ `textvn_e` và nhãn `V` ↔ `E` trên thanh trạng thái / khay hệ thống.
 - Hoặc nhấn tổ hợp **Ctrl + Shift + Space**.
@@ -172,7 +172,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 |---|---|
 | Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` và xem `%LOCALAPPDATA%\TextVN\logs\register.log`. Nếu COM HKCU OK nhưng API TSF báo `0x80004005`, xem lưu ý cài đặt ở trên. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
-| Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
+| Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím — nếu Windows còn giữ phím này, một lần bấm vừa đổi mode TextVN vừa đổi bàn phím hệ thống. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 | Windows: phần mềm diệt virus cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |

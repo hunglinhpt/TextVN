@@ -81,6 +81,7 @@ blockers chưa được chứng minh).
 | B5 | Tag: `git tag -a vN.N.N -m "..." && git push origin vN.N.N`. **Tag phải trỏ vào commit đã có CI xanh (B3).** | link tag |
 | B6 | Theo dõi workflow `release-candidate` (4 job: windows/linux/macos/publish). Publish job tự validate: số asset, `RELEASE_REPORT.json` (`version` = tag, `source_tree_clean=true`, `feature_profile=tsf-only`), không có legacy hook. | link run |
 | B7 | **Verify release sau khi publish:** `gh release view vN.N.N --json assets` đủ 7 asset (portable ZIP, setup exe, linux tar.gz, mac pkg, macos universal zip + tar.gz, SHA256SUMS.txt); tải `SHA256SUMS.txt` ghim hash vào build-release-report; mở trang release kiểm notes. | hash pin trong report |
+| B7b | **Cập nhật `packaging/homebrew/textvn.rb`: `sha256` = hash của `TextVN-macos-universal-v<ver>.zip`** (lấy từ `SHA256SUMS.txt`, cùng lần tải ở B7). Bước này từng bị bỏ sót từ 0.2.5→0.2.7 (formula giữ hash cũ — cask cài sẽ lỗi checksum). | diff formula + hash khớp SHA256SUMS |
 | B8 | Bổ sung số liệu CI + link run vào `build-release-report.md` (mục bản mới), commit docs + graphify, push. Kiểm `ci-shared`/`repo-hygiene` xanh trên commit cuối. | link run + commit |
 | B9 | Dọn dẹp (G14): không process còn lại, `git status` sạch, memory dự án cập nhật nếu có bài học mới. | — |
 

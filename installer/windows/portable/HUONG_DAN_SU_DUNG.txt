@@ -13,6 +13,7 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
 
 2. BẬT / TẮT TIẾNG VIỆT
    - Nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space.
+     TextVN nhận tổ hợp ở mọi ứng dụng; hai lần bấm trong 0,25 giây tính là một.
    - Hoặc bấm biểu tượng ở khay hệ thống: V = đang gõ tiếng Việt, E = tiếng Anh.
 
 3. KIỂU GÕ
