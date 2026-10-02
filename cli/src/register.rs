@@ -695,7 +695,19 @@ mod win_impl {
             eprintln!("error: CoInitializeEx fail");
             return 1;
         }
+        // Check-then-activate: profile ĐANG bật thì ActivateProfile blind-call
+        // trả E_FAIL (0x80004005) trên một số build Windows (bắt được thật máy
+        // chủ repo 2026-10-03) — đã active = thành công về mặt ý nghĩa.
+        if profile_is_enabled(LANGID_VI) {
+            say("=== TextVN đã là bộ gõ active cho phiên này. ===");
+            return 0;
+        }
         if activate_for_session() {
+            say("=== TextVN profile đã kích hoạt cho phiên này. ===");
+            0
+        } else if profile_is_enabled(LANGID_VI) {
+            // ActivateProfile trả lỗi nhưng profile đã bật được (race giữa các
+            // run) — coi như đạt.
             say("=== TextVN profile đã kích hoạt cho phiên này. ===");
             0
         } else {
