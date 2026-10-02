@@ -486,7 +486,7 @@ const DIALOG_LAYOUT: [Ctl; 27] = [
         "Điều khiển",
         BS_GROUPBOX,
         (15, 12, 870, 120),
-        ID_LBL_BASE + 0,
+        ID_LBL_BASE,
     ),
     ctl("STATIC", "Bảng mã:", 0, (L, 49, 85, 30), ID_LBL_BASE + 1),
     ctl(
@@ -1044,15 +1044,21 @@ fn to_crlf(s: &str) -> String {
 /// dung động). Dùng cả lúc tạo lẫn re-layout sau WM_DPICHANGED.
 #[cfg(windows)]
 const MACRO_EX_NONE: WINDOW_EX_STYLE = WINDOW_EX_STYLE(0);
+/// Một control của cửa sổ Gõ tắt: (ex-style, class, label tĩnh, style, rect, id).
 #[cfg(windows)]
-const MACRO_LAYOUT: [(
+type MacroCtl = (
     WINDOW_EX_STYLE,
     &'static str,
     Option<&'static str>,
     u32,
     (i32, i32, i32, i32),
     isize,
-); 7] = [
+);
+
+/// Bảng layout cửa sổ Gõ tắt — label: `Some` (text tĩnh) | `None` (EDIT nội
+/// dung động). Dùng cả lúc tạo lẫn re-layout sau WM_DPICHANGED.
+#[cfg(windows)]
+const MACRO_LAYOUT: [MacroCtl; 7] = [
     (
         MACRO_EX_NONE,
         "STATIC",
