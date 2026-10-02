@@ -87,13 +87,60 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.9` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.9” bên dưới). 0.2.8/0.2.7/0.2.6/0.2.5 publish 2026-10-02. Bằng chứng của bản đó
+> `v0.2.11` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.10 + 0.2.11” bên dưới). 0.2.10/0.2.9/0.2.8/0.2.7/0.2.6/0.2.5 publish 2026-10-02. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.10 + 0.2.11 — toggle = activate bộ gõ, migration nâng cấp, publish hardening
+
+**Phản hồi chủ repo trên 0.2.9:** (1) "đã chuyển EN mà vẫn gõ tiếng Việt";
+(2) nâng cấp app mới vẫn bị app cũ ảnh hưởng — phải dọn sạch, chỉ giữ từ điển
+user thêm; (3) Partner Center giờ chỉ nhận exe/msi; (4) cert đến từ luồng
+chứng nhận Store.
+
+### Nguyên nhân + fix + bằng chứng
+
+- **(1)** Khi bộ gõ active trong app là bàn phím khác (MS Việt / US trong
+  Win+Space), toggle TextVN chỉ đổi mode + icon — thứ user gõ do bàn phím cũ
+  quyết định. Fix: tray chạy `textvn-cli activate` (subcommand mới —
+  ActivateProfile profile VI cho phiên) SAU mỗi lần toggle hotkey → mode đổi
+  là bộ gõ active đổi. Bắt thêm: ActivateProfile trên profile ĐANG bật trả
+  E_FAIL (0x80004005, thật máy chủ repo) → `activate` check-then-activate
+  (0.2.11). Kiểm chứng máy user: `activate` exit 0, "đã là bộ gõ active".
+- **(2)** Diverge state tray↔TIP (bấm đôi trong 250ms, tray restart…): tray
+  trả SNAPSHOT state chuẩn cho ToggleViEn (kể cả bị debounce bỏ qua), TIP áp
+  lại; thêm claim 250ms phía TIP khớp cửa sổ tray. Test:
+  `toggle_global_responds_with_authoritative_snapshot` +
+  `hotkey_toggle_claim_debounces` (hermetic — cell/đồng hồ riêng, hết flake
+  CI run 37057437635).
+- **(3)** `state.json` ghi `last_version` — đổi phiên bản kích hoạt migration
+  lúc khởi động: reset tuỳ chọn về mặc định, xoá per-app overrides, bật lại
+  global, **unregister+register lại TSF**. GIỮ: từ điển EN (`english_words`),
+  gõ tắt (`macros`), emoji. Tests ×2 (migrate + no-op cùng phiên), 3× pass.
+  Máy user xác nhận: last_version=0.2.11, global=true, apps={} sau nâng cấp.
+- **(4)** `store-submission.md` §6 viết lại: exe/msi only, chứng thư theo
+  luồng Store, SignPath/cert riêng = tuỳ chọn cho phân phối trực tiếp.
+
+### Sự cố phát hành mới (R4) — publish fail im lặng
+
+Tag v0.2.11 lần đầu bị push mà **quên bump version** → `test tag = Cargo.toml`
+fail im lặng, artifact vẫn 0.2.10. Publish job giờ in
+`FATAL: tag != version…` rõ ràng; R4 ghi vào incidents. Đúng luồng: bump →
+preflight 18/18 → commit → CI xanh → tag → publish.
+
+### Phát hành — v0.2.10 & v0.2.11 đã publish
+
+- **v0.2.10** @ `3bcf785`+`f625023` (fix flake claim): 4/4 job, 7 asset.
+- **v0.2.11** @ `bbeed9f` (activate check-then-activate + R4 hardening):
+  [release-candidate #37065791246](https://github.com/hunglinhpt/TextVN/actions/runs/37065791246)
+  — 4/4 job, 7 asset. Portable
+  `TextVN-portable-0.2.11-windows-x64-20261002211642.zip`
+  SHA-256 `f6ed4c7d3fad3424…`; homebrew sha cập nhật (B7b).
+- **Máy người dùng:** `D:\TextVN` = 0.2.11.0, doctor xanh, activate OK.
 
 ## Bản 0.2.9 — từ điển EN cá nhân + quy tắc ưu tiên + preflight 17 gate
 
