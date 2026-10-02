@@ -23,9 +23,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 ## Tải và cài
 
 Bản mới nhất: **[GitHub Release v0.2.6](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.6)**
-(0.2.6 — danh sách bàn phím gọn: một layout "Tiếng Việt — TextVN", hết entry ma
-khi đổi phiên bản portable; giữ các fix 0.2.4/0.2.5: không cần admin, không
-gạch chân, Ctrl+Shift ổn định; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+(0.2.6 — chốt đăng ký TSF: VI + EN layouts (thiết kế), tự sửa ghost
+registration khi chạy lại từ thư mục portable còn tồn tại; giữ các fix
+0.2.4/0.2.5: không cần admin, không gạch chân, Ctrl+Shift ổn định; build bởi
+CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|

@@ -13,17 +13,19 @@ Bản vá khẩn sau báo cáo **"không gõ được tiếng Việt (kể cả 
 bàn phím quá nhiều layout"** trên bản 0.2.5.
 
 ### Fixed (Windows)
-- **Danh sách bàn phím không còn phình to / entry ma**: `register` giờ gỡ entry
-  cũ (VI + EN) trước khi thêm lại (dedupe) — nhiều lần đăng ký qua các version
-  từng dồn nhiều entry "TextVN" trong Win+Space.
-- **Chỉ đăng ký MỘT layout "Tiếng Việt — TextVN"** mặc định; layout EN-TextVN
-  (bản dup vô dụng — Ctrl+Shift đã có chế độ EN trong TextVN) chỉ còn là
-  **fallback** khi máy không thêm được layout VI (máy tiếng Anh). Danh sách
-  Win+Space từ 4+ layout còn gọn: US · VI (Microsoft) · VI (TextVN).
-- **Ghost registration rõ nguyên nhân**: COM trỏ vào thư mục portable đã bị
-  xoá làm TIP không nạp được (không gõ được kể cả admin — HKCU override HKLM).
-  `register status`/`doctor` đã báo `FILE MISSING`; chạy lại `TextVN.exe` từ
-  thư mục portable còn tồn tại sẽ tự sửa COM sang đường dẫn mới.
+- **Ghost registration — nguyên nhân thật của "không gõ được"**: COM
+  `InprocServer32` trỏ vào thư mục portable **đã bị xoá** → TSF không nạp được
+  TIP, admin cũng không cứu được (HKCU override HKLM). Chạy lại `TextVN.exe`
+  từ thư mục portable **còn tồn tại** sẽ tự sửa COM sang đường dẫn mới
+  (`tsf_registration_is_current` → register lại); `register status`/`doctor`
+  báo `FILE MISSING` đúng chỗ.
+- **Danh sách bàn phím — giữ nguyên VI + EN (thiết kế đúng)**: hai lần thử
+  thay đổi trong 0.2.6-dev đều vỡ: (a) gỡ layout trước khi thêm lại làm
+  Windows deactivate TIP cho phiên → gõ raw; (b) bỏ layout EN mặc định làm
+  app có ngôn ngữ nhập en-US không còn nhận TextVN → gõ raw. Cả hai đã revert
+  và chốt comment tại chỗ; Win+Space hiển thị 4 layout (US · VI Microsoft ·
+  VI TextVN · EN TextVN) là **thiết kế**: profile EN cần cho ngữ cảnh nhập
+  tiếng Anh, có thể tự ẩn bớt trong Settings → Typing nếu muốn.
 
 ## [0.2.5] — 2026-10-02
 

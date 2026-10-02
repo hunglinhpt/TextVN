@@ -880,25 +880,22 @@ mod win_impl {
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
-        // KHÔNG uninstall trước khi thêm: ILOT UNINSTALL làm Windows deactivate
-        // TIP cho phiên hiện tại, và ActivateProfile phục hồi không phải lúc nào
-        // cũng thành công (0x80004005 đã biết) → gõ ra text thô (repro CI
-        // 2026-10-02). ILOT DEFPROFILE với cùng spec là idempotent — không sinh
-        // entry mới.
-        // Chỉ thêm layout VI: entry EN-TextVN là bản dup vô dụng (Ctrl+Shift đã
-        // có EN trong TextVN) và làm danh sách bàn phím phình to. EN chỉ dùng
-        // làm FALLBACK khi máy không có/ngoại lệ ngôn ngữ VI (máy tiếng Anh).
+        // VI và EN ĐỀU DEFPROFILE — layout EN KHÔNG phải dup: app có ngôn ngữ
+        // nhập en-US (Notepad/runner/máy tiếng Anh) chỉ nhận TextVN qua profile
+        // EN; bỏ nó = gõ raw trong mọi app EN (repro CI fecf245 2026-10-02:
+        // "got dduocj" thay vì "được "). KHÔNG uninstall trước khi thêm: ILOT
+        // UNINSTALL deactivate TIP cho phiên và ActivateProfile phục hồi không
+        // phải lúc nào cũng OK (0x80004005 đã biết) — cùng lỗi ở 5269ae1.
         let layouts_ok = if no_taskbar {
             call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
                 && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
         } else {
             let vi_ok = call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
-            if vi_ok {
-                true
-            } else {
-                say("  VI không thêm được — thử EN làm ngôn ngữ dự phòng");
-                call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE")
+            let en_ok = call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
+            if vi_ok && !en_ok {
+                say("  WARN: không thêm được profile cho ngôn ngữ EN (best-effort) — VI vẫn dùng được");
             }
+            vi_ok
         };
         if !layouts_ok {
             say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");

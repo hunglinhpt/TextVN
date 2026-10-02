@@ -35,7 +35,7 @@
   <releases>
     <release version="0.2.6" date="2026-10-02">
       <description>
-        <p>Registration now deduplicates input-list entries and registers a single Vietnamese layout by default (English layout only as fallback), fixing the crowded keyboard list and ghost registrations from deleted portable folders.</p>
+        <p>Self-heals ghost registrations from deleted portable folders, and keeps the proven dual-language (VI + EN) layout registration after two risky layout-list experiments were reverted.</p>
       </description>
     </release>
     <release version="0.2.5" date="2026-10-02">
