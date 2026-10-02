@@ -22,8 +22,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.9](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.9)**
-(0.2.9 — **"Từ điển EN..." trong Bảng điều khiển**: bạn tự thêm từ tiếng
+Bản mới nhất: **[GitHub Release v0.2.10](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.10)**
+(0.2.10 — **Ctrl+Shift đổi mode là gõ theo mode luôn** (kích hoạt cả bộ gõ
+active) + **nâng cấp tự dọn dữ liệu phiên bản cũ** (giữ từ điển/gõ tắt của
+bạn); 0.2.9 — **"Từ điển EN..." trong Bảng điều khiển**: bạn tự thêm từ tiếng
 Anh muốn giữ nguyên, thắng mọi phỏng đoán engine; 0.2.8: tự xác định
 EN/VI + Tab gợi ý + Escape; dialog DPI đa màn hình; cài im lặng cho Store;
 Ctrl+Shift toàn cục; không admin, không gạch chân; build bởi CI, kèm

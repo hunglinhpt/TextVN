@@ -7,6 +7,42 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.10] — 2026-10-03
+
+Bản vá theo phản hồi trực tiếp của chủ repo trên 0.2.9.
+
+### Fixed
+- **"Đã chuyển sang tiếng Anh mà vẫn gõ tiếng Việt"**: khi bấm Ctrl+Shift
+  TRONG KHI bộ gõ active trong app là bàn phím khác (Microsoft Việt / US
+  trong Win+Space), trước đây chỉ đổi mode + icon của TextVN — thứ người
+  dùng gõ vẫn do bàn phím cũ quyết định. Giờ mỗi lần toggle bằng hotkey,
+  tray chạy `textvn-cli activate` kích hoạt **profile TextVN cho phiên**:
+  mode đổi → bộ gõ đổi → chữ gõ ra theo icon ngay lập tức (đúng nghĩa
+  chuyển mode của UniKey).
+- **State tray ↔ TIP không còn diverge**: toggle từ TIP gửi giá trị tính từ
+  state cục bộ — nếu lệch với tray (bấm đôi trong 250ms, tray restart…)
+  thì giá trị sai có thể "kẹt" mãi. Tray giờ trả **snapshot state chuẩn**
+  cho lệnh toggle (kể cả khi bị debounce bỏ qua) và TIP nhận lại; thêm
+  debounce 250ms phía TIP khớp cửa sổ phía tray.
+- **Nâng cấp app mới không còn bị app cũ ảnh hưởng** (báo cáo lớn nhất):
+  đổi phiên bản (ghi nhãn `last_version` trong `state.json`) kích hoạt
+  migration lúc khởi động — reset mọi tuỳ chọn về mặc định, xoá per-app
+  overrides, bật lại tiếng Việt, **unregister + register lại TSF** rửa sạch
+  key của phiên bản cũ. GIỮ nội dung người dùng: **từ điển EN tự thêm**
+  (`english_words`), gõ tắt (`macros`), emoji. Lần chạy đầu (chưa có nhãn)
+  không reset gì.
+
+### Documented
+- `docs/release/store-submission.md` §6 viết lại: Partner Center giờ chỉ
+  nhận gói **`.exe` / `.msi`** (không còn MSIX cho loại submission này);
+  chứng thư đến từ luồng chứng nhận của Store, cert riêng (SignPath /
+  mua) chỉ là tuỳ chọn cho phân phối trực tiếp.
+
+### Tests
+- Tray: `version_change_migrates_and_preserves_user_content`,
+  `same_version_does_not_migrate` (3×); `toggle_global_responds_with_
+  authoritative_snapshot`. TSF: `hotkey_toggle_claim_debounces` (3×).
+
 ## [0.2.9] — 2026-10-02
 
 Bản chốt: người dùng tự mở rộng từ điển, quy tắc ưu tiên ngôn ngữ công khai,
@@ -550,7 +586,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...HEAD
+[0.2.10]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...v0.2.7

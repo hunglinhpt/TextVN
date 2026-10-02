@@ -89,6 +89,8 @@ impl IpcState {
 /// Handle tới trạng thái IPC của process.
 pub struct IpcClient {
     state: Arc<IpcState>,
+    /// app_id chuẩn hoá của process (điền lúc init; dùng cho snapshot response).
+    app_id: String,
 }
 
 impl IpcClient {
@@ -102,13 +104,17 @@ impl IpcClient {
                 state.apply_states(&app_id, &states);
             }
             let worker_state = Arc::clone(&state);
+            let worker_app_id = app_id.clone();
             let spawned = std::thread::Builder::new()
                 .name("textvn-tsf-ipc".into())
-                .spawn(move || run_client_loop(app_id, worker_state));
+                .spawn(move || run_client_loop(worker_app_id, worker_state));
             if spawned.is_ok() {
                 WORKER_STARTED.store(true, Ordering::Release);
             }
-            IpcClient { state }
+            IpcClient {
+                state,
+                app_id: app_id.clone(),
+            }
         })
     }
 
@@ -117,6 +123,7 @@ impl IpcClient {
     fn detached() -> IpcClient {
         IpcClient {
             state: Arc::new(IpcState::default()),
+            app_id: String::new(),
         }
     }
 
@@ -149,39 +156,80 @@ impl IpcClient {
         // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
         // ngược với cái người dùng vừa thấy.
         #[cfg(windows)]
-        std::thread::spawn(move || {
-            // ERROR_PIPE_BUSY (hết instance khi tray bận): WaitNamedPipe rồi thử
-            // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
-            // process này tới snapshot kế.
-            for _ in 0..3 {
-                match OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
-                    Ok(mut stream) => {
-                        let _ = send_message(
-                            &mut stream,
-                            &Message::ToggleViEn {
-                                app_id: GLOBAL_KEY.to_string(),
-                                enabled: next,
-                            },
-                        );
-                        return;
-                    }
-                    #[cfg(windows)]
-                    Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
-                        // w! cần literal — PIPE_NAME là const, dựng buffer UTF-16.
-                        let name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
-                        unsafe {
-                            let _ = WaitNamedPipeW(windows::core::PCWSTR(name.as_ptr()), 200);
+        {
+            let state = std::sync::Arc::clone(&self.state);
+            let app_id = self.app_id.clone();
+            std::thread::spawn(move || {
+                // ERROR_PIPE_BUSY (hết instance khi tray bận): WaitNamedPipe rồi thử
+                // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
+                // process này tới snapshot kế.
+                for _ in 0..3 {
+                    match OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+                        Ok(mut stream) => {
+                            let _ = send_message(
+                                &mut stream,
+                                &Message::ToggleViEn {
+                                    app_id: GLOBAL_KEY.to_string(),
+                                    enabled: next,
+                                },
+                            );
+                            // Tray trả SNAPSHOT state chuẩn (kể cả khi bị debounce
+                            // bỏ qua): giá trị cục bộ `next` có thể sai so với
+                            // truth — nhận snapshot để không diverge (báo cáo
+                            // 0.2.9 "icon E mà vẫn gõ tiếng Việt").
+                            if let Ok(Message::Snapshot {
+                                config_version,
+                                state: states,
+                                ..
+                            }) = read_next_message(&mut stream)
+                            {
+                                state
+                                    .config_version
+                                    .store(config_version, Ordering::Release);
+                                state.apply_states(&app_id, &states);
+                            }
+                            return;
                         }
+                        #[cfg(windows)]
+                        Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
+                            // w! cần literal — PIPE_NAME là const, dựng buffer UTF-16.
+                            let name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
+                            unsafe {
+                                let _ = WaitNamedPipeW(windows::core::PCWSTR(name.as_ptr()), 200);
+                            }
+                        }
+                        Err(_) => return,
                     }
-                    Err(_) => return,
                 }
-            }
-        });
+            });
+        }
         next
     }
 }
 
 /// `%APPDATA%\TextVN\state.json` → map trạng thái (`"*"` = toàn cục).
+/// Debounce phía TIP cho phím chuyển Ctrl+Shift — khớp cửa sổ 250ms phía tray
+/// (`textvn_tray::try_claim_global_toggle`): một lần bấm được MỌI bên nhìn thấy
+/// đúng MỘT lần (máy trạng thái modifier của CUAS có thể bắn key-up trùng).
+pub static LAST_HOTKEY_TOGGLE_MS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Thử chiếm lượt toggle phía process này: `true` khi cách lần trước ≥ 250ms.
+pub fn try_claim_hotkey_toggle() -> bool {
+    use std::sync::atomic::Ordering;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let last = LAST_HOTKEY_TOGGLE_MS.load(Ordering::Acquire);
+    if now.saturating_sub(last) < 250 {
+        return false;
+    }
+    LAST_HOTKEY_TOGGLE_MS
+        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+}
+
 fn read_state_file() -> Option<BTreeMap<String, bool>> {
     let path = std::path::PathBuf::from(std::env::var_os("APPDATA")?)
         .join("TextVN")
@@ -294,6 +342,14 @@ fn read_next_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 
 #[cfg(test)]
 mod tests {
+    /// Claim lần đầu OK; trong 250ms claim lại phải chặn (khớp cửa sổ tray).
+    #[test]
+    fn hotkey_toggle_claim_debounces() {
+        std::thread::sleep(std::time::Duration::from_millis(260));
+        assert!(try_claim_hotkey_toggle());
+        assert!(!try_claim_hotkey_toggle());
+    }
+
     use super::*;
 
     fn map(pairs: &[(&str, bool)]) -> BTreeMap<String, bool> {

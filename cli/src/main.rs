@@ -25,6 +25,7 @@ Usage:
   textvn-cli doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   textvn-cli unregister [--scope user|machine]             # hủy đăng ký TSF TIP
+  textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
   textvn-cli --help
 
 Exit codes:
@@ -47,6 +48,7 @@ fn main() {
         Some("doctor") => exit(cmd_doctor(&args[2..])),
         Some("register") => exit(cmd_register(&args[2..])),
         Some("unregister") => exit(cmd_unregister(&args[2..])),
+        Some("activate") => exit(register::activate_tip()),
         Some("--help") | Some("-h") => print!("{USAGE}"),
         Some(other) => {
             eprintln!("error: lệnh lạ `{other}`");

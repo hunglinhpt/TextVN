@@ -20,6 +20,11 @@ use textvn_config::{
 pub struct StateData {
     pub global_enabled: bool,
     pub apps: BTreeMap<String, bool>,
+    /// Phiên bản app ghi state lần trước — đổi phiên bản = kích hoạt migration
+    /// dọn dữ liệu cũ (báo cáo chủ repo 0.2.9: "cập nhật app mới vẫn bị app cũ
+    /// ảnh hưởng"). `#[serde(default)]` để state.json cũ không có nhãn vẫn đọc được.
+    #[serde(default)]
+    pub last_version: String,
 }
 
 pub struct SvcManager {
@@ -28,6 +33,8 @@ pub struct SvcManager {
     state: RwLock<StateData>,
     config_version: AtomicU64,
     state_version: AtomicU64,
+    /// Đổi phiên bản lúc khởi động này → đăng ký TSF được unregister+register lại.
+    version_migrated: std::sync::atomic::AtomicBool,
 }
 
 impl SvcManager {
@@ -40,25 +47,27 @@ impl SvcManager {
         // Đọc qua SettingsDoc: file hỏng không bị ghi đè mất mà được sao lưu `.bak` ở lần
         // lưu đầu; khoá lạ (hotkeys, …) được giữ nguyên khi tray ghi lại.
         let mut doc = SettingsDoc::load(&config_file, DocKind::Config);
-        let initial_config = textvn_config::parse_config(&doc.to_json()).unwrap_or_default();
+        let mut initial_config = textvn_config::parse_config(&doc.to_json()).unwrap_or_default();
         if !config_file.exists() || doc.was_corrupt() {
             doc.merge_config(&initial_config);
             let _ = doc.save(&config_file);
         }
 
         let state_file = dir.join("state.json");
-        let initial_state = if state_file.exists() {
+        let mut initial_state = if state_file.exists() {
             fs::read_to_string(&state_file)
                 .ok()
                 .and_then(|s| serde_json::from_str::<StateData>(&s).ok())
                 .unwrap_or_else(|| StateData {
                     global_enabled: true,
                     apps: BTreeMap::new(),
+                    last_version: String::new(),
                 })
         } else {
             let default_state = StateData {
                 global_enabled: true,
                 apps: BTreeMap::new(),
+                last_version: String::new(),
             };
             if let Ok(json) = serde_json::to_string_pretty(&default_state) {
                 let _ = atomic_write_file(&state_file, json.as_bytes());
@@ -66,13 +75,51 @@ impl SvcManager {
             default_state
         };
 
+        // ---- Migration nâng cấp phiên bản (0.2.10) ----
+        // Đổi phiên bản = dọn dữ liệu cũ có thể "ảnh hưởng app mới": state per-app
+        // overrides, tuỳ chọn lệch schema cũ. GIỮ nội dung người dùng: từ điển EN
+        // (`english_words`), gõ tắt (`macros`), emoji. Đăng ký TSF được
+        // unregister+register lại bởi caller qua `version_migrated()`.
+        let current_version = env!("CARGO_PKG_VERSION");
+        let version_migrated =
+            !initial_state.last_version.is_empty() && initial_state.last_version != current_version;
+        if version_migrated {
+            let english_words = std::mem::take(&mut initial_config.english_words);
+            let macros = std::mem::take(&mut initial_config.macros);
+            let emoji = std::mem::take(&mut initial_config.emoji);
+            initial_config = Config::default();
+            initial_config.english_words = english_words;
+            initial_config.macros = macros;
+            initial_config.emoji = emoji;
+            // Persist config đã reset (cùng đường SettingsDoc như lần lưu đầu).
+            let mut doc = SettingsDoc::load(&config_file, DocKind::Config);
+            doc.merge_config(&initial_config);
+            let _ = doc.save(&config_file);
+
+            initial_state.global_enabled = true;
+            initial_state.apps.clear();
+        }
+        initial_state.last_version = current_version.to_string();
+        {
+            // Ghi lại state (nhãn phiên bản mới + state reset) một cách atomic.
+            if let Ok(json) = serde_json::to_string_pretty(&initial_state) {
+                let _ = atomic_write_file(&state_file, json.as_bytes());
+            }
+        }
+
         Arc::new(Self {
             config_dir: dir,
             config: RwLock::new(initial_config),
             state: RwLock::new(initial_state),
             config_version: AtomicU64::new(1),
             state_version: AtomicU64::new(1),
+            version_migrated: std::sync::atomic::AtomicBool::new(version_migrated),
         })
+    }
+
+    /// Đổi phiên bản lúc khởi động này → caller phải unregister+register TSF lại.
+    pub fn version_migrated(&self) -> bool {
+        self.version_migrated.load(Ordering::Acquire)
     }
 
     pub fn config(&self) -> Config {
@@ -282,6 +329,80 @@ fn atomic_write_file(path: &Path, content: &[u8]) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    fn seed_upgrade_env(dir: &std::path::Path) {
+        // config "phiên bản cũ": method Vni + từ điển user + gõ tắt user
+        let cfg = r#"{"config_version":1,"method":"vni","diacritic_style":"old",
+            "auto_restore_english":false,"english_words":["cowork","list"],
+            "macros":[{"trigger":"vn","expand":"Việt Nam","when":"always"}]}"#;
+        let _ = std::fs::write(dir.join("config.json"), cfg);
+        // state "phiên bản cũ": tắt global + per-app override + nhãn phiên cũ
+        let st = r#"{"global_enabled":false,"apps":{"notepad.exe":false},
+            "last_version":"0.2.9-test"}"#;
+        let _ = std::fs::write(dir.join("state.json"), st);
+    }
+
+    /// Migration nâng cấp: reset tuỳ chọn về mặc định, GIỮ từ điển EN + gõ tắt,
+    /// xoá per-app overrides, bật lại global, ghi nhãn phiên bản mới.
+    #[test]
+    fn version_change_migrates_and_preserves_user_content() {
+        let dir = std::env::temp_dir().join(format!("textvn_mig_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        seed_upgrade_env(&dir);
+
+        let svc = SvcManager::new(Some(dir.clone()));
+        assert!(
+            svc.version_migrated(),
+            "đổi phiên bản phải kích hoạt migration"
+        );
+
+        let cfg = svc.config();
+        assert_eq!(
+            cfg.method,
+            Method::Telex,
+            "method cũ phải reset về mặc định"
+        );
+        assert!(cfg.auto_restore_english, "tuỳ chọn phải reset về mặc định");
+        assert_eq!(
+            cfg.english_words,
+            vec!["cowork".to_string(), "list".to_string()],
+            "từ điển EN user thêm phải GIỮ"
+        );
+        assert_eq!(cfg.macros.len(), 1, "gõ tắt user thêm phải GIỮ");
+
+        let st = svc.state.read().unwrap();
+        assert!(st.global_enabled, "global phải bật lại");
+        assert!(st.apps.is_empty(), "per-app overrides phải xoá");
+        assert_eq!(st.last_version, env!("CARGO_PKG_VERSION"));
+        drop(st);
+
+        // state.json trên đĩa cũng có nhãn mới
+        let on_disk = std::fs::read_to_string(dir.join("state.json")).unwrap();
+        assert!(on_disk.contains(env!("CARGO_PKG_VERSION")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Cùng phiên bản → KHÔNG reset (tuỳ chọn người dùng giữ nguyên lần mở sau).
+    #[test]
+    fn same_version_does_not_migrate() {
+        let dir = std::env::temp_dir().join(format!("textvn_mig2_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let svc = SvcManager::new(Some(dir.clone()));
+        assert!(
+            !svc.version_migrated(),
+            "lần đầu (chưa có nhãn) không phải migration"
+        );
+        let _ = svc.set_method(Method::Vni);
+
+        // Mở lại: method Vni phải còn — chứng tỏ không bị reset
+        let svc2 = SvcManager::new(Some(dir.clone()));
+        assert!(!svc2.version_migrated());
+        assert_eq!(svc2.config().method, Method::Vni);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
     use super::*;
 
     #[test]

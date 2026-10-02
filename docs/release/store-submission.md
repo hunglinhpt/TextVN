@@ -90,36 +90,32 @@ Khuyến nghị thêm `/CURRENTUSER` để luồng cài im lặng **không cần
 7. **Bản cập nhật**: mỗi lần phát hành 0.2.x, lặp lại bước 3–6 với installer
    mới; tham số giữ nguyên. Label submission với tên phiên bản để dễ tra.
 
-## 6. Tích hợp chứng thư số (khi xin được)
+## 6. Loại gói và chứng thư số
 
-Kể từ 0.2.6, pipeline đã có sẵn nhánh ký **SignPath** opt-in. Khi có chứng thư:
+> Cập nhật 2026-10-02 (điều chỉnh theo thực tế Partner Center + quyết định
+> chủ repo): **Partner Center giờ chỉ nhận gói `.exe` hoặc `.msi`** (không còn
+> luồng MSIX cho loại submission này). Bộ cài Inno Setup `.exe` của TextVN
+> khớp loại này; luồng silent ở §1 là bắt buộc.
 
-### Phương án A — SignPath Foundation (OSS, miễn phí, khuyên dùng)
-1. Nộp đơn SignPath Foundation cho repo (`docs/release/code-signing-plan.md`
-   đã ghi link + thông tin điền mẫu).
-2. Sau khi được duyệt: thêm 4 secret trong repo Settings → Secrets → Actions:
-   `SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_KEY`,
-   `SIGNPATH_POLICY`.
-3. Kể từ tag kế tiếp, workflow `release-candidate` TỰ ĐỘNG ký 3 binary
-   (TextVN.exe, textvn-cli.exe, textvn-tsf.dll) + bộ cài `.exe` trước khi
-   đóng gói; `RELEASE_REPORT.json` sẽ ghi `"signing": "signpath"`.
-4. Đối chiếu bằng chứng: mục "authenticode" trong build-release-report chuyển
-   từ `not-signed` sang `passed`.
+**Về chứng thư số:**
 
-### Phương án B — Chứng thư mua riêng (SSL.com eSigner / Certum / DigiCert)
-1. Mua/đăng ký chứng thư **OV/EV hoặc Cloud signing** (giữ khóa trên token/
-   cloud — Windows 9+ yêu cầu bảo mật khóa; chứng thư file .pfx không được
-   SmartScreen công nhận như EV).
-2. Đặt secret `SIGNTOOL_THUMBPRINT` + `SIGNTOOL_SHA1` (hash chứng thư) trong
-   Actions (đã hỗ trợ sẵn qua `build-release.ps1 -SignCertificateThumbprint`
-   — xem `build-release.ps1` phần SigningRequested; nếu dùng HSM/cloud cần
-   provider/signing  tool tương ứng chạy trên runner).
-3. Sign test trên local trước khi đưa vào pipeline:
-   `signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 <file>`.
+- **Luồng Store**: sau khi submission được **chứng nhận (certified)**, luồng
+  phân phối của Store đảm bảo phần app được ký theo cơ chế của Microsoft —
+  chủ repo sẽ có cert/ký từ luồng này, KHÔNG cần mua chứng thư riêng để phân
+  phối qua Store. Điền mục chi phí/certificate theo hướng dẫn của Partner
+  Center tại thời điểm submit.
+- **Phân phối trực tiếp (GitHub Releases)**: bản tải trực tiếp vẫn là
+  "unsigned" → SmartScreen hiện cảnh báo "Unknown publisher" — chấp nhận cho
+  bản OSS hiện tại. Khi chủ repo đã có cert từ luồng Store (hoặc muốn bật
+  sớm), pipeline đã có sẵn 2 nhánh opt-in không cần sửa code:
+  1. **SignPath Foundation** (miễn phí cho OSS): thêm 4 secret
+     `SIGNPATH_API_TOKEN` / `SIGNPATH_ORGANIZATION_ID` / `SIGNPATH_PROJECT_KEY` /
+     `SIGNPATH_POLICY` → workflow tự ký 3 binary + bộ cài trước khi đóng gói.
+  2. **Chứng thư riêng** (nếu dùng): đặt secret
+     `SIGNTOOL_CERTIFICATE_THUMBPRINT`; `build-release.ps1 -SignCertificateThumbprint`
+     ký bằng signtool (đã hỗ trợ sẵn).
 
-### Lưu ý kiểm tra sau khi ký (bắt buộc trước khi release)
+### Lưu ý kiểm tra sau khi có cert/ký (bắt buộc trước khi release)
 - `Get-AuthenticodeSignature <exe>` → Status = Valid.
-- Tải bản ký về chạy: SmartScreen hiển thị thông tin publisher
-  **LinhBH.CoM** (không còn "Unknown publisher").
 - Bộ cài đã ký không được đổi sau khi upload lên Partner Center (hash khớp
   `SHA256SUMS.txt`).

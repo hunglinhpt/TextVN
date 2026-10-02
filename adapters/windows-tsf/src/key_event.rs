@@ -180,7 +180,12 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
 fn toggle_vietnamese(shared: &TsfShared, ctx: Option<&ITfContext>) {
     end_composition(shared, ctx);
     shared.reset_engine();
-    let on = shared.ipc.toggle_global();
+    // Bấm đôi trong 250ms = MỘT lần bấm (khớp cửa sổ tray) — lần sau giữ state.
+    let on = if crate::ipc_client::try_claim_hotkey_toggle() {
+        shared.ipc.toggle_global()
+    } else {
+        shared.ipc.is_enabled()
+    };
     trace::event(
         shared.tid,
         format_args!("toggle -> {}", if on { "VI" } else { "EN" }),

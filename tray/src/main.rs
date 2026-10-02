@@ -225,7 +225,7 @@ fn ensure_hook_running() {
 /// Mỗi lần khởi động kiểm tra lại và đăng ký per-user bằng CLI cạnh executable
 /// (không tạo console, không cần quyền Administrator).
 #[cfg(windows)]
-fn ensure_tsf_tip_registered() {
+fn ensure_tsf_tip_registered(force: bool) {
     let Ok(exe) = std::env::current_exe() else {
         return;
     };
@@ -239,12 +239,23 @@ fn ensure_tsf_tip_registered() {
     else {
         return;
     };
-    if tsf_registration_is_current(&dll) {
+    if !force && tsf_registration_is_current(&dll) {
         return;
     }
     let cli_path = dir.join("textvn-cli.exe");
     if !cli_path.is_file() {
         return;
+    }
+
+    // force (đổi phiên bản): rửa sạch key đăng ký của phiên bản cũ trước
+    // (unregister xoá HKCU CTF TIP + COM; register ghi lại trỏ DLL hiện tại).
+    if force {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let _ = std::process::Command::new(&cli_path)
+            .args(["unregister", "--scope", "user"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .status();
     }
 
     use std::os::windows::process::CommandExt;
@@ -409,6 +420,32 @@ fn free_ctrl_shift_cli() -> i32 {
     0
 }
 
+/// Chạy `textvn-cli activate` ẩn, fire-and-forget (thread riêng — không chặn
+/// UI thread của tray). Thiếu CLI (cài đặt hỏng) → bỏ qua im lặng: toggle
+/// mode vẫn hoạt động, chỉ thiếu hành vi chuyển bộ gõ.
+#[cfg(windows)]
+fn spawn_activate_profile() {
+    std::thread::Builder::new()
+        .name("textvn-activate".into())
+        .spawn(|| {
+            let mut cli = match std::env::current_exe() {
+                Ok(p) => p,
+                Err(_) => return,
+            };
+            cli.set_file_name("textvn-cli.exe");
+            if !cli.is_file() {
+                return;
+            }
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            let _ = std::process::Command::new(&cli)
+                .arg("activate")
+                .creation_flags(CREATE_NO_WINDOW)
+                .status();
+        })
+        .ok();
+}
+
 #[cfg(windows)]
 fn run_tray_app() {
     // 1. Single Instance Check qua Mutex
@@ -465,7 +502,7 @@ fn run_tray_app() {
     // developer's active TSF registration to a transient target\release DLL.
     // Normal user launches still repair a missing or stale per-user registration.
     if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
-        ensure_tsf_tip_registered();
+        ensure_tsf_tip_registered(svc.version_migrated());
     }
 
     // Giải phóng phím tắt Ctrl+Shift khỏi Windows Layout Hotkey để TextVN sử dụng
@@ -658,6 +695,12 @@ unsafe extern "system" fn wnd_proc(
                 app.ipc.broadcast_state_update("*", enabled, ver);
                 update_tray_icon(hwnd, app);
             }
+            // Kích hoạt profile TextVN cho phiên: khi người dùng bấm hotkey
+            // TRONG KHI đang đứng ở bàn phím khác (MS Việt / US trong
+            // Win+Space), đổi mode TextVN thôi thì không đổi được thứ họ gõ —
+            // phải chuyển cả bộ gõ active sang TextVN thì typing mới theo
+            // icon (báo cáo 0.2.9 "đã chuyển EN mà vẫn gõ tiếng Việt").
+            spawn_activate_profile();
             textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }

@@ -475,7 +475,12 @@ impl IpcServer {
                         (self.svc.is_app_enabled(&app_id), v)
                     };
                     self.broadcast_state_update(&app_id, actual, ver);
-                    Some(Message::Ack)
+                    // Trả SNAPSHOT (state chuẩn) thay vì Ack: TIP gửi giá trị
+                    // tuyệt đối tính từ state CỤC BỘ của nó — nếu lệch với tray
+                    // (bấm đôi trong 250ms, tray restart…) thì response này
+                    // kéo TIP về đúng state thật ngay (báo cáo 0.2.9 "icon E
+                    // mà vẫn gõ tiếng Việt").
+                    Some(self.build_snapshot())
                 }
                 Message::ToggleGlobal => {
                     if crate::try_claim_global_toggle() {
@@ -483,8 +488,9 @@ impl IpcServer {
                         self.broadcast_state_update("*", enabled, ver);
                         crate::notify_tray_state_changed();
                     }
-                    // Trùng lần bấm — nguồn khác đã toggle trong 250ms: chỉ Ack.
-                    Some(Message::Ack)
+                    // Trùng lần bấm — nguồn khác đã toggle trong 250ms: trả
+                    // state chuẩn (snapshot) để TIP tự kéo về đúng.
+                    Some(self.build_snapshot())
                 }
                 Message::Ping => Some(Message::Pong {
                     uptime_ms: self.uptime_ms(),
@@ -739,5 +745,66 @@ mod tests {
             .open(PIPE_NAME);
         std::thread::sleep(Duration::from_millis(50));
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// ToggleViEn("*") phải trả SNAPSHOT (state chuẩn) chứ không chỉ Ack —
+    /// TIP nhận snapshot để tự kéo về đúng state khi bị debounce bỏ qua.
+    #[cfg(windows)]
+    #[test]
+    fn toggle_global_responds_with_authoritative_snapshot() {
+        let _guard = TEST_PIPE_LOCK.lock().unwrap();
+        use std::io::Write as _;
+
+        let temp_dir = std::env::temp_dir().join(format!("textvn_tgl_test_{}", std::process::id()));
+        let svc = SvcManager::new(Some(temp_dir.clone()));
+        let server = IpcServer::new(svc);
+        server.start();
+        std::thread::sleep(Duration::from_millis(100));
+
+        let client = std::thread::spawn(move || {
+            let mut file = None;
+            for _ in 0..20 {
+                if let Ok(f) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(PIPE_NAME)
+                {
+                    file = Some(f);
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            let mut file = file.expect("client pipe open");
+            let pid = std::process::id();
+            let sub = encode_frame(&Message::Subscribe { pid }).unwrap();
+            file.write_all(&sub).unwrap();
+            file.flush().unwrap();
+            let _ = read_message(&mut file).expect("ack");
+            let toggle = encode_frame(&Message::ToggleViEn {
+                app_id: "*".into(),
+                enabled: false,
+            })
+            .unwrap();
+            file.write_all(&toggle).unwrap();
+            file.flush().unwrap();
+            read_message(&mut file).expect("snapshot response")
+        });
+
+        let resp = client.join().expect("client thread");
+        match resp {
+            Message::Snapshot { state, .. } => {
+                assert!(
+                    state.contains_key("*"),
+                    "snapshot phải chứa global state '*'"
+                );
+            }
+            other => panic!("expected Snapshot, got {other:?}"),
+        }
+        server.stop();
+        let _ = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(PIPE_NAME);
+        std::thread::sleep(Duration::from_millis(50));
     }
 }

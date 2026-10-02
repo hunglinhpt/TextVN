@@ -685,6 +685,25 @@ mod win_impl {
         ok
     }
 
+    /// `textvn-cli activate` — kích hoạt profile TextVN (VI) cho phiên hiện
+    /// tại. Tray gọi sau mỗi lần Ctrl+Shift toggle để bộ gõ active TRONG app
+    /// cũng chuyển sang TextVN (trường hợp người dùng đang đứng ở bàn phím
+    /// khác trong Win+Space — MS Việt / US): mode đổi → typing đổi ngay,
+    /// không còn "icon E mà vẫn gõ tiếng Việt".
+    pub fn activate_tip() -> i32 {
+        if !com_init() {
+            eprintln!("error: CoInitializeEx fail");
+            return 1;
+        }
+        if activate_for_session() {
+            say("=== TextVN profile đã kích hoạt cho phiên này. ===");
+            0
+        } else {
+            eprintln!("error: ActivateProfile thất bại — kiểm tra register.log");
+            1
+        }
+    }
+
     /// Kích hoạt profile cho cả session (không chỉ thread của CLI), trả kết quả
     /// để caller không báo cài đặt thành công khi Windows từ chối profile.
     fn activate_for_session() -> bool {
@@ -1096,6 +1115,18 @@ mod win_impl {
 
 /// Đăng ký TSF TIP. `scope`: `"user"` (mặc định, không cần admin) | `"machine"` (HKLM, cần admin).
 /// Exit code: 0 thành công, 1 lỗi đăng ký, 2 lỗi tham số, 3 cần quyền Administrator.
+/// `textvn-cli activate` — xem `win_impl::activate_tip`.
+pub fn activate_tip() -> i32 {
+    #[cfg(windows)]
+    return win_impl::activate_tip();
+
+    #[cfg(not(windows))]
+    {
+        eprintln!("error: `activate` chỉ hỗ trợ trên Windows");
+        1
+    }
+}
+
 pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
     #[cfg(windows)]
     {
