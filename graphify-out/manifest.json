@@ -912,9 +912,9 @@
     "semantic_hash": ""
   },
   "cli/src/register.rs": {
-    "mtime": 1790902407.8695326,
-    "seen": 1790902576.613612,
-    "ast_hash": "5e14f120dbcd106c62ba871b01eb5f33",
+    "mtime": 1790903975.529919,
+    "seen": 1790905409.7691584,
+    "ast_hash": "4960c290d47fdb2413681b893929be48",
     "semantic_hash": ""
   },
   "tools/appcomptest/targets/chrome.json": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790902470.7221546,
-    "seen": 1790902576.6803982,
-    "ast_hash": "ed972b5340c43dedffe217ad40271ac9",
+    "mtime": 1790904008.9089563,
+    "seen": 1790905409.7902348,
+    "ast_hash": "0d85ce8ddced5c5b8b043017fad3b841",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1790902470.7231565,
-    "seen": 1790902576.6824152,
-    "ast_hash": "b9ebe03a987b3fabb6e199851a5dc15d",
+    "mtime": 1790904008.9099276,
+    "seen": 1790905409.7912395,
+    "ast_hash": "e9c0882dd27e56808873d63a2ea77f04",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790878980.0930839,
-    "seen": 1790878990.2020726,
-    "ast_hash": "d4f1f5aaae6d4e8d7e61dfe0e6900ade",
+    "mtime": 1790905398.3185844,
+    "seen": 1790905409.7962391,
+    "ast_hash": "3cbefc629758a0011df557b543ca9ddc",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
