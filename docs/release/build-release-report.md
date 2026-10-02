@@ -87,13 +87,49 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.6` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.6” bên dưới). 0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
+> `v0.2.7` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.7” bên dưới). 0.2.6/0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục
+
+**Bối cảnh:** báo cáo "Ctrl+Shift trên 0.2.5 không đổi được mode và icon".
+Nguyên nhân: sau khi gỡ hook ở 0.2.4, đường toggle duy nhất nằm trong TIP
+in-process — chỉ chạy khi TextVN LÀ bộ gõ active; đứng ở bàn phím US/Microsoft
+Việt trong Win+Space thì không ai nhận tổ hợp.
+
+**Giải pháp:** tray cài `WH_KEYBOARD_LL` **chỉ quan sát** (không ăn phím,
+không inject, mọi event qua `CallNextHookEx`) dò tap Ctrl+Shift ở mọi app;
+`try_claim_global_toggle()` (cửa sổ 250ms chéo nguồn) khoá mọi đường toggle
+toàn cục — hết E11 double-toggle. Policy AV A3 cập nhật tương ứng.
+
+### Kiểm chứng E2E trên máy thật (2026-10-02, sau khi publish)
+
+Bơm Ctrl+Shift tap qua `keybd_event` (event injected — hook quan sát không
+lọc) và đọc `state.json` sau từng tap:
+
+- Tap đơn: `True → False → True` — mỗi tap lật đúng một lần (bản 0.2.7 cài
+  tại `D:\TextVN`, tray + TIP đang chạy).
+- Double-tap 80ms: chỉ lật MỘT lần (debounce chéo nguồn OK).
+- `Layout Hotkey = 3` (Windows không nuốt Ctrl+Shift).
+
+### Phát hành — v0.2.7 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.7` @ `e6e4ca8`. Workflow
+  [release-candidate #36955880198](https://github.com/hunglinhpt/TextVN/actions/runs/36955880198)
+  — **4/4 job `success`** (typing smoke gồm case `Ctrl+Shift -> EN`/`VN` PASS).
+- **Release:** [TextVN 0.2.7](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.7)
+  — 7 asset. Portable ZIP: `TextVN-portable-0.2.7-windows-x64-20261002023020.zip`
+  SHA-256 `55d375830a937b16f3bc99135be80eb5ac35826d9e187de3320777e73076edc3`.
+- **CI cùng commit (`e6e4ca8`):** `ci-shared` ✅ (run 36955010527),
+  `ci-macos` ✅, `repo-hygiene` ✅.
+- **Nâng cấp máy người dùng:** `D:\TextVN` cập nhật lên 0.2.7 bằng
+  rename-then-copy (DLL đang được shell nạp — Windows cho rename file đang
+  map, không cho ghi đè); doctor xanh, FileVersion 0.2.7.0.
 
 ## Bản 0.2.6 — chốt đăng ký TSF VI+EN, hết ghost registration
 
