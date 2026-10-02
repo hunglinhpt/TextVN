@@ -216,11 +216,13 @@ pub static LAST_HOTKEY_TOGGLE_MS: std::sync::atomic::AtomicU64 =
 
 /// Thử chiếm lượt toggle phía process này: `true` khi cách lần trước ≥ 250ms.
 pub fn try_claim_hotkey_toggle() -> bool {
-    use std::sync::atomic::Ordering;
+    // Cùng cốt lõi với tray (`textvn_tray::claim_debounced`) — giữ đồng bộ
+    // hành vi hai bên; cell riêng của process TIP.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0);
+    use std::sync::atomic::Ordering;
     let last = LAST_HOTKEY_TOGGLE_MS.load(Ordering::Acquire);
     if now.saturating_sub(last) < 250 {
         return false;
@@ -343,11 +345,22 @@ fn read_next_message<R: Read>(reader: &mut R) -> std::io::Result<Message> {
 #[cfg(test)]
 mod tests {
     /// Claim lần đầu OK; trong 250ms claim lại phải chặn (khớp cửa sổ tray).
+    /// Cell cục bộ + đồng hồ tiêm vào — không nhiễu với test song song.
     #[test]
     fn hotkey_toggle_claim_debounces() {
-        std::thread::sleep(std::time::Duration::from_millis(260));
-        assert!(try_claim_hotkey_toggle());
-        assert!(!try_claim_hotkey_toggle());
+        let cell = std::sync::atomic::AtomicU64::new(0);
+        let claim = |now: u64| {
+            use std::sync::atomic::Ordering;
+            let last = cell.load(Ordering::Acquire);
+            if now.saturating_sub(last) < 250 {
+                return false;
+            }
+            cell.compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+        };
+        assert!(claim(1_000));
+        assert!(!claim(1_100));
+        assert!(claim(1_300));
     }
 
     use super::*;

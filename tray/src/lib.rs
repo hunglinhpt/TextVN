@@ -51,18 +51,26 @@ pub static LAST_GLOBAL_TOGGLE_MS: std::sync::atomic::AtomicU64 =
 
 /// Thử chiếm lượt toggle toàn cục: `true` khi cách lần trước ≥ 250ms.
 pub fn try_claim_global_toggle() -> bool {
-    use std::sync::atomic::Ordering;
-    let now = std::time::SystemTime::now()
+    claim_debounced(&LAST_GLOBAL_TOGGLE_MS, system_millis(), 250)
+}
+
+fn system_millis() -> u64 {
+    std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
-        .unwrap_or(0);
-    let last = LAST_GLOBAL_TOGGLE_MS.load(Ordering::Acquire);
-    if now.saturating_sub(last) < 250 {
+        .unwrap_or(0)
+}
+
+/// Cốt lõi debounce (thuần, kiểm thử được với đồng hồ riêng — test không đụng
+/// static toàn cục mà test khác chạy song song có thể claim vào).
+fn claim_debounced(cell: &std::sync::atomic::AtomicU64, now: u64, window_ms: u64) -> bool {
+    use std::sync::atomic::Ordering;
+    let last = cell.load(Ordering::Acquire);
+    if now.saturating_sub(last) < window_ms {
         return false;
     }
     // Thread khác vừa claim trong cùng thời điểm = trùng lần bấm → bỏ.
-    LAST_GLOBAL_TOGGLE_MS
-        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
+    cell.compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
         .is_ok()
 }
 
@@ -153,16 +161,23 @@ mod tests {
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải
     /// thất bại (E11 — nguồn sau của CÙNG lần bấm không được toggle lần hai).
+    /// Dùng cell RIÊNG + đồng hồ tiêm vào: không nhiễu với test khác chạy song
+    /// song claim vào static thật (flake CI 2026-10-02).
     #[test]
     fn global_toggle_claim_debounces_within_window() {
-        std::thread::sleep(std::time::Duration::from_millis(260));
+        let cell = std::sync::atomic::AtomicU64::new(0);
+        assert!(claim_debounced(&cell, 1_000, 250), "claim đầu tiên phải OK");
         assert!(
-            try_claim_global_toggle(),
-            "claim đầu tiên sau 260ms phải OK"
+            !claim_debounced(&cell, 1_100, 250),
+            "claim trong cửa sổ phải bị chặn"
         );
         assert!(
-            !try_claim_global_toggle(),
-            "claim ngay lập tức phải bị chặn"
+            claim_debounced(&cell, 1_300, 250),
+            "claim sau khi hết cửa sổ phải OK"
+        );
+        assert!(
+            try_claim_global_toggle(),
+            "đường thật (đồng hồ hệ thống) vẫn hoạt động"
         );
     }
 }
