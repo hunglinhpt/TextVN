@@ -115,7 +115,7 @@ pub fn complete_word(
         return None;
     }
     let mut best: Option<String> = None;
-    let mut consider = |best: &mut Option<String>, cand: &str| {
+    let consider = |best: &mut Option<String>, cand: &str| {
         if !cand.starts_with(typed_lower) || cand == typed_lower {
             return;
         }
@@ -334,7 +334,7 @@ mod tests {
         uniq.sort();
         uniq.dedup();
         assert_eq!(uniq.len(), syllables.len(), "vn_common có mục trùng");
-        let mut bad: Vec<String> = syllables
+        let bad: Vec<String> = syllables
             .iter()
             .filter(|s| !is_valid_word(&chars(s)))
             .map(|s| format!("{s}: không phải âm tiết Việt hợp lệ"))
