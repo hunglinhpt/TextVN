@@ -99,3 +99,10 @@ jobs:
 
       - name: 8. API inject / giong malware bi cam (Farch-3)
         run: python3 .github/scripts/check_no_injection_apis.py
+
+      - name: 9. Homebrew cask syntax + checksum format (B7b)
+        run: |
+          ruby -c packaging/homebrew/textvn.rb
+          # sha256 phai la hex 64 ky tu (hash that duoc cap nhat moi release — B7b)
+          grep -Eq 'sha256 "[0-9a-f]{64}"' packaging/homebrew/textvn.rb
+          echo "OK"
