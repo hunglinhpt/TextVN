@@ -87,13 +87,54 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.8` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.8” bên dưới). 0.2.7/0.2.6/0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
+> `v0.2.9` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.9” bên dưới). 0.2.8/0.2.7/0.2.6/0.2.5 publish 2026-10-02. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.9 — từ điển EN cá nhân + quy tắc ưu tiên + preflight 17 gate
+
+**Review 3 lượt toàn bộ phần mới (yêu cầu chủ repo)** — notes:
+
+- **Pass 1 (audit)**: secure field → strategy Passthrough → gợi ý/restore
+  không bắn ✓; Linux cross-check không dead_code ✓; charset encode đổi độ
+  dài → xoá đúng số glyph owned ✓; gap test `auto_restore_english=false`
+  giữ fold kiểu UniKey (đã bổ).
+- **Pass 2 (reviewer)**: wordlist editor tái dùng pattern macro editor
+  (re-register class an toàn, modal owner lock, ctx poisoned → KHÔNG đóng
+  cửa sổ khi lưu lỗi); close_word_list_editor trùng close_macro_editor —
+  chấp nhận, đã note.
+- **Pass 3 (user view)**: 3 smoke UI — mở/đóng editor, mở lại vẫn đúng 1
+  cửa sổ, Lưu ghi đúng `english_words=['cowork','list']` vào config + broadcast
+  reload; engine test user-dict thắng vn_common 3×; corpus 3 adapter xanh.
+- **Findings đã xử lý**: kỳ vọng test Text/TEST sai (sửa test); ruby thiếu
+  trên Windows local → preflight step SKIP, CI ubuntu chặn thật.
+
+**Kiểm soát release chặt hơn** (yêu cầu: "CI phải xanh, fail quá nhiều lần"):
+
+- `cargo xtask preflight` (+ `.cargo` alias): **17 gate mirror đúng ci-shared
+  + repo-hygiene**, fail-fast, `Command::status` (exit thật — chặn bài học
+  R1: pipe `| tail` che exit code khiến clippy đỏ 2 lần sau khi push).
+  Chạy 3 lần trước khi tag: 17/17 PASS.
+- Checklist A0 + bảng "bước → validate gì → sự cố thật" + 3 incidents mới
+  (R1 pipe, R2 perf baseline chết theo runner, R3 alias) trong
+  `docs/release/release-process.md`.
+- Ma trận xung đột ngôn ngữ công khai: `docs/specs/language-detection.md` —
+  nguyên tắc "mode đang bật thắng cặp mơ hồ", thứ tự secure → chord →
+  macro → mode → gợi ý → restore → Escape, cách đổi ý từng trường hợp.
+
+### Phát hành — v0.2.9 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.9` @ `6fd12e3`. Workflow release-candidate — **4/4 job
+  `success`**, 7 asset.
+- **Portable ZIP:** `TextVN-portable-0.2.9-windows-x64-20261002191153.zip`
+  SHA-256 `06de3b171c7ba259…` (đầy đủ trong `SHA256SUMS.txt`).
+- **homebrew (B7b):** sha256 cập nhật theo zip macOS v0.2.9 ngay sau publish.
+- **Máy người dùng:** `D:\TextVN` cập nhật từ ZIP release 0.2.9, tray chạy,
+  TIP OK, FileVersion 0.2.9.0.
 
 ## Bản 0.2.8 — tự xác định EN/VI + Tab gợi ý + DPI đa màn hình + Store silent
 
