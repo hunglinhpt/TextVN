@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1790906438.3443387,
-    "seen": 1790908827.7431803,
-    "ast_hash": "07f7c43b0586c02ffb5445a99f58a96d",
+    "mtime": 1790932584.0052736,
+    "seen": 1790933206.236628,
+    "ast_hash": "63ba490d1a119de036c9441f64a379bd",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790908811.4827423,
-    "seen": 1790908827.7617629,
-    "ast_hash": "62af75089a4e39f4e7a95bf7fd9962cd",
+    "mtime": 1790932584.0062773,
+    "seen": 1790933206.3561826,
+    "ast_hash": "529f895d54ce8fff6ecad54e99e5d8f9",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1890,15 +1890,15 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1790871395.201149,
-    "seen": 1790871518.0168855,
-    "ast_hash": "06c53f073b0548f3b01e64a425cc5d53",
+    "mtime": 1790932584.0062773,
+    "seen": 1790933206.3664684,
+    "ast_hash": "23bbe543f81d7501d7a805427c39e4f2",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
-    "mtime": 1790835602.7398553,
-    "seen": 1790871518.0168855,
-    "ast_hash": "5704d931185c51cd991aea400ebfd658",
+    "mtime": 1790932584.0072763,
+    "seen": 1790933206.3670268,
+    "ast_hash": "d4c2267c2305a5f434ccc25b7ac8dc46",
     "semantic_hash": ""
   },
   "tools/mac/README.md": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1790795397.5839148,
-    "seen": 1790797276.5881498,
-    "ast_hash": "2ed54c90270bfe9fb215ded40cc7a6b4",
+    "mtime": 1790932584.0052736,
+    "seen": 1790933206.3573084,
+    "ast_hash": "48bebf92959d31e14d92fba6dccf5719",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
