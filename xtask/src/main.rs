@@ -19,6 +19,7 @@ mod check_version_sync;
 mod gen_mac_corpus;
 mod gen_win_corpus;
 mod mac_corpus_cases;
+mod preflight;
 mod toml;
 mod win_corpus_cases;
 
@@ -74,6 +75,7 @@ fn main() -> ExitCode {
         "check-mac-corpus" => gen_mac_corpus::run(false),
         "check-mac-targets" => check_mac_targets::run(),
         "check-version-sync" => check_version_sync::run(),
+        "preflight" => preflight::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
             Ok(())

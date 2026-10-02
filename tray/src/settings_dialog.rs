@@ -66,6 +66,8 @@ const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
 const ID_CHK_SHOW_ON_STARTUP: isize = 2019;
 const ID_BTN_MACROS: isize = 2020;
 const ID_CHK_CTRL_SHIFT: isize = 2021;
+const ID_BTN_ENGLISH: isize = 2022;
+const ID_LBL_WORDLIST_HINT: isize = 4101;
 // ID cho STATIC/GROUPBOX (không tương tác) — cần để re-layout theo DPI (WM_DPICHANGED).
 const ID_LBL_BASE: isize = 3000;
 // Control IDs — cửa sổ Gõ tắt
@@ -479,7 +481,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 27] = [
+const DIALOG_LAYOUT: [Ctl; 28] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -551,8 +553,15 @@ const DIALOG_LAYOUT: [Ctl; 27] = [
         "BUTTON",
         "Khôi phục từ tiếng Anh khi gõ sai",
         CHK | WS_GROUP.0,
-        (L, 218, CW, 32),
+        (L, 218, 280, 32),
         ID_CHK_AUTO_RESTORE,
+    ),
+    ctl(
+        "BUTTON",
+        "Từ điển EN...",
+        BTN,
+        (L + 290, 218, 130, 32),
+        ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
@@ -892,6 +901,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                     ),
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
+                ID_BTN_ENGLISH => show_word_list_editor(hwnd),
                 ID_BTN_SETUP_TSF => match register_and_activate_tsf() {
                     Ok(()) => show_information(
                         hwnd,
@@ -1344,6 +1354,289 @@ fn close_macro_editor(hwnd: HWND) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Cửa sổ Từ điển EN — danh sách từ tiếng Anh bổ sung của người dùng
+// (`config.english_words`). Đây là "quyết định tường minh": mọi từ trong danh
+// sách được restore/gợi ý bất kể fold có trùng âm tiết Việt thông dụng hay không.
+// ---------------------------------------------------------------------------
+
+#[cfg(windows)]
+const WORDLIST_CLASS_NAME: &str = "TextVNWordListEditorClass";
+#[cfg(windows)]
+static WORDLIST_HWND: AtomicIsize = AtomicIsize::new(0);
+#[cfg(windows)]
+const WORDLIST_DESIGN_WIDTH: i32 = 720;
+#[cfg(windows)]
+const WORDLIST_DESIGN_HEIGHT: i32 = 520;
+#[cfg(windows)]
+const ID_EDIT_WORDLIST: isize = 2102;
+#[cfg(windows)]
+const ID_BTN_WORDLIST_SAVE: isize = 2106;
+#[cfg(windows)]
+const ID_BTN_WORDLIST_CANCEL: isize = 2107;
+
+/// Một control của cửa sổ Từ điển EN — cùng dạng `MacroCtl`.
+#[cfg(windows)]
+type WordListCtl = (
+    WINDOW_EX_STYLE,
+    &'static str,
+    Option<&'static str>,
+    u32,
+    (i32, i32, i32, i32),
+    isize,
+);
+
+/// Layout cửa sổ Từ điển EN (DPI đích = lưới thiết kế 720 đơn vị).
+#[cfg(windows)]
+const WORDLIST_LAYOUT: [WordListCtl; 4] = [
+    (
+        MACRO_EX_NONE,
+        "STATIC",
+        Some(
+            "Mỗi dòng một từ tiếng Anh bạn muốn TextVN GIỮ NGUYÊN (không tự nhận là từ Việt).\r\n\
+         Ví dụ: text, test, list, download, cowork… Chữ thường, không dấu cách, tối đa 15 ký tự.",
+        ),
+        0,
+        (20, 12, 680, 44),
+        ID_LBL_WORDLIST_HINT,
+    ),
+    (
+        WS_EX_CLIENTEDGE,
+        "EDIT",
+        None,
+        ES_MULTILINE
+            | ES_AUTOVSCROLL
+            | ES_WANTRETURN
+            | ES_NOHIDESEL
+            | WS_VSCROLL.0
+            | WS_TABSTOP.0
+            | WS_GROUP.0,
+        (20, 64, 680, 396),
+        ID_EDIT_WORDLIST,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Lưu"),
+        BS_DEFPUSHBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
+        (480, 470, 105, 42),
+        ID_BTN_WORDLIST_SAVE,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Hủy"),
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        (595, 470, 105, 42),
+        ID_BTN_WORDLIST_CANCEL,
+    ),
+];
+
+/// Re-layout cửa sổ Từ điển EN theo DPI (WM_DPICHANGED).
+#[cfg(windows)]
+fn layout_wordlist_controls(parent: HWND, dpi: i32) {
+    let scale = COMPACT_SCALE * dpi as f64 / 96.0;
+    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+    for (_, _, _, _, rect, id) in WORDLIST_LAYOUT {
+        let Ok(h) = (unsafe { GetDlgItem(Some(parent), id as i32) }) else {
+            continue;
+        };
+        let _ = unsafe {
+            SetWindowPos(
+                h,
+                None,
+                k(rect.0),
+                k(rect.1),
+                k(rect.2),
+                k(rect.3),
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+        set_font(h, scaled_gui_font(dpi));
+    }
+}
+
+#[cfg(windows)]
+fn show_word_list_editor(owner: HWND) {
+    let existing = WORDLIST_HWND.load(Ordering::Acquire);
+    if existing != 0 {
+        let hwnd = HWND(existing as *mut std::ffi::c_void);
+        if unsafe { IsWindow(Some(hwnd)) }.as_bool() {
+            unsafe {
+                let _ = ShowWindow(hwnd, SW_SHOW);
+                let _ = SetForegroundWindow(hwnd);
+            }
+            return;
+        }
+    }
+    let Some(words) = with_ctx(|ctx| ctx.svc.config().english_words) else {
+        return;
+    };
+    let text = words.join("\r\n");
+
+    let class_name = w(WORDLIST_CLASS_NAME);
+    let title = w("TextVN - Từ điển tiếng Anh");
+    let h_instance: HINSTANCE = unsafe { GetModuleHandleW(None).unwrap_or_default() }.into();
+    register_class(&class_name, Some(wordlist_wnd_proc), h_instance);
+
+    let dpi = system_dpi();
+    let style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    let (width, height) =
+        window_size_for_client(WORDLIST_DESIGN_WIDTH, WORDLIST_DESIGN_HEIGHT, dpi, style);
+    let (x, y) = center_on_work_area(width, height);
+    let Ok(hwnd) = (unsafe {
+        CreateWindowExW(
+            WINDOW_EX_STYLE::default(),
+            PCWSTR(class_name.as_ptr()),
+            PCWSTR(title.as_ptr()),
+            style,
+            x,
+            y,
+            width,
+            height,
+            Some(owner),
+            None,
+            Some(h_instance),
+            None,
+        )
+    }) else {
+        return;
+    };
+    WORDLIST_HWND.store(hwnd.0 as isize, Ordering::Release);
+
+    let scale = COMPACT_SCALE * dpi as f64 / 96.0;
+    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+    let font = scaled_gui_font(dpi);
+    for (ex, class, label, style, rect, id) in WORDLIST_LAYOUT {
+        let content = label.map(to_crlf).unwrap_or_default();
+        let c = create_control_ex(
+            ex,
+            class,
+            &content,
+            style,
+            (k(rect.0), k(rect.1), k(rect.2), k(rect.3)),
+            hwnd,
+            id,
+            h_instance,
+        );
+        set_font(c, font);
+    }
+    let edit = (unsafe { GetDlgItem(Some(hwnd), ID_EDIT_WORDLIST as i32) }).unwrap_or_default();
+    let content_w = w(&text);
+    unsafe {
+        let _ = SendMessageW(
+            edit,
+            WM_SETTEXT,
+            Some(WPARAM(0)),
+            Some(LPARAM(content_w.as_ptr() as isize)),
+        );
+        let _ = EnableWindow(owner, false);
+        let _ = ShowWindow(hwnd, SW_SHOW);
+        let _ = SetForegroundWindow(hwnd);
+        let _ = SetFocus(Some(edit));
+    }
+}
+
+/// Chuẩn hoá danh sách từ người dùng nhập: trim, bỏ dòng trống/`#`, lowercase,
+/// chỉ giữ chữ cái ASCII, khử trùng lặp (giữ thứ tự nhập).
+fn normalize_word_list(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in text.replace("\r\n", "\n").lines() {
+        let word = line.trim().to_lowercase();
+        if word.is_empty()
+            || word.starts_with('#')
+            || !word.chars().all(|c| c.is_ascii_alphabetic())
+        {
+            continue;
+        }
+        if !out.contains(&word) {
+            out.push(word);
+        }
+    }
+    out
+}
+
+/// Lưu từ điển EN; luôn thành công nếu persist OK (danh sách không có cú pháp sai).
+#[cfg(windows)]
+fn save_word_list(hwnd: HWND) -> bool {
+    let edit = unsafe { GetDlgItem(Some(hwnd), ID_EDIT_WORDLIST as i32) }.unwrap_or_default();
+    let text = read_window_text(edit);
+    let words = normalize_word_list(&text);
+    let result = with_ctx(|ctx| {
+        ctx.svc
+            .set_english_words(words)
+            .map(|ver| ctx.ipc.broadcast_config_reload(ver))
+            .map_err(|_| ())
+    });
+    match result {
+        Some(Ok(())) => true,
+        Some(Err(())) => {
+            show_information(
+                hwnd,
+                "Không thể lưu từ điển TextVN",
+                "Từ điển chưa được áp dụng. Kiểm tra dung lượng đĩa và quyền thư mục AppData rồi thử lại.",
+            );
+            false
+        }
+        None => {
+            show_information(
+                hwnd,
+                "Không thể lưu từ điển TextVN",
+                "Không truy cập được trạng thái ứng dụng (khóa nội bộ bị lỗi).\r\n\
+                 Đóng rồi mở lại TextVN, sau đó thử lưu lại.",
+            );
+            false
+        }
+    }
+}
+
+#[cfg(windows)]
+fn close_word_list_editor(hwnd: HWND) {
+    unsafe {
+        if let Ok(owner) = GetWindow(hwnd, GW_OWNER) {
+            let _ = EnableWindow(owner, true);
+            let _ = SetForegroundWindow(owner);
+        }
+        let _ = DestroyWindow(hwnd);
+    }
+}
+
+#[cfg(windows)]
+unsafe extern "system" fn wordlist_wnd_proc(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    match msg {
+        WM_DPICHANGED => {
+            apply_dpi_change(hwnd, wparam, lparam, layout_wordlist_controls);
+            LRESULT(0)
+        }
+        WM_COMMAND => {
+            match (wparam.0 & 0xffff) as isize {
+                ID_BTN_WORDLIST_SAVE => {
+                    if save_word_list(hwnd) {
+                        close_word_list_editor(hwnd);
+                    }
+                }
+                ID_BTN_WORDLIST_CANCEL | IDCANCEL_CMD => close_word_list_editor(hwnd),
+                _ => {}
+            }
+            LRESULT(0)
+        }
+        WM_CLOSE => {
+            close_word_list_editor(hwnd);
+            LRESULT(0)
+        }
+        WM_DESTROY => {
+            WORDLIST_HWND.store(0, Ordering::Release);
+            LRESULT(0)
+        }
+        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
 #[cfg(windows)]
 unsafe extern "system" fn macro_wnd_proc(
     hwnd: HWND,
@@ -1654,5 +1947,56 @@ mod tests {
         assert!(advice_for_failure(1, "lỗi lạ").contains("register.log"));
         let tsf_log = "COM server HKCU → OK\nĐăng ký qua API TSF → 0x80004005 (cần quyền admin cho HKLM)\nFAIL: hậu kiểm đăng ký TSF không đạt";
         assert!(advice_for_failure(1, tsf_log).contains("không phải lỗi quyền ghi HKCU"));
+    }
+}
+
+#[cfg(test)]
+mod word_list_tests {
+    use super::normalize_word_list;
+
+    /// Lần 1/3: chuẩn hoá cơ bản — trim, bỏ comment/trống, lowercase.
+    #[test]
+    fn normalize_trims_lowercases_and_skips_comments() {
+        assert_eq!(
+            normalize_word_list("# ghi chú\r\n\r\n  Text  \r\nTEST\n\ndownload\n"),
+            vec![
+                "text".to_string(),
+                "test".to_string(),
+                "download".to_string()
+            ]
+        );
+        // Text/Text trùng thật → chỉ giữ một
+        assert_eq!(
+            normalize_word_list("Text\r\nTEXT\ntext\n"),
+            vec!["text".to_string()]
+        );
+    }
+
+    /// Lần 1/3: khử trùng lặp giữ thứ tự + bỏ từ có ký tự lạ.
+    #[test]
+    fn normalize_dedupes_and_drops_invalid() {
+        assert_eq!(
+            normalize_word_list(
+                "cow
+Cow
+ców
+co w
+cow2
+"
+            ),
+            vec!["cow".to_string()]
+        );
+    }
+
+    /// Lần 1/3: rỗng/không có gì hợp lệ → danh sách rỗng (lưu được, xoá sạch).
+    #[test]
+    fn normalize_empty_input_yields_empty_list() {
+        assert!(normalize_word_list("").is_empty());
+        assert!(normalize_word_list(
+            "# chỉ có ghi chú
+
+"
+        )
+        .is_empty());
     }
 }

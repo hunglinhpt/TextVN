@@ -22,12 +22,12 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.8](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.8)**
-(0.2.8 — **tự xác định tiếng Anh/tiếng Việt khi gõ**: từ điển EN dựng sẵn +
-Tab gợi ý hoàn tất từ + Escape khôi phục; **dialog tự co giãn khi kéo giữa
-các màn hình khác DPI**; cài im lặng `/VERYSILENT /CURRENTUSER` sẵn sàng cho
-Microsoft Store; Ctrl+Shift toàn cục; không cần admin, không gạch chân;
-build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+Bản mới nhất: **[GitHub Release v0.2.9](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.9)**
+(0.2.9 — **"Từ điển EN..." trong Bảng điều khiển**: bạn tự thêm từ tiếng
+Anh muốn giữ nguyên, thắng mọi phỏng đoán engine; 0.2.8: tự xác định
+EN/VI + Tab gợi ý + Escape; dialog DPI đa màn hình; cài im lặng cho Store;
+Ctrl+Shift toàn cục; không admin, không gạch chân; build bởi CI, kèm
+`SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -40,6 +40,30 @@ Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn s�
 Lưu ý Windows: v0.2.4 hỗ trợ đăng ký TSF ở cả cấp độ User (`HKCU`, không cần quyền Admin)
 lẫn Machine (`HKLM` qua installer). Bản portable chỉ cần giải nén và chạy `TextVN.exe` là có thể
 đăng ký và sử dụng ngay lập tức mà không yêu cầu UAC elevation.
+
+## Điểm vượt trội so với các bộ gõ khác
+
+Những gì TextVN làm mà UniKey / EVKey / OpenKey hiện **không có** (hoặc làm
+khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
+
+| Tính năng | TextVN | Bộ gõ truyền thống |
+|---|---|---|
+| **Tự xác định EN/VI khi gõ chung đoạn văn** | Từ điển EN thông dụng + lưới bảo vệ âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
+| **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
+| **Tab gợi ý hoàn tất từ tiếng Anh** | Gõ dở `tes` → Tab thành `test` theo từ điển dựng sẵn + từ điển bổ sung cá nhân | Không có |
+| **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
+| **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
+| **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
+| **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
+| **Tự sửa ghost registration** | Đăng ký trỏ vào thư mục đã xoá → chạy lại `TextVN.exe` từ thư mục mới là tự sửa | Phải gỡ/cài lại thủ công |
+| **Dialog DPI-aware đa màn hình** | Kéo giữa màn khác DPI tự co giãn + re-layout + font theo DPI | Thường render sai/khểnh khi đa màn hình |
+| **Cài im lặng chuẩn Store** | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER` — CI test 2 kịch bản silent mỗi release | Không kiểm chứng luồng Store |
+| **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
+| **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
+
+Engine bằng Rust, test bằng corpus replay (250+ case × 3 adapter) chạy trong
+CI mỗi commit; quy tắc xung đột ngôn ngữ công khai tại
+[docs/specs/language-detection.md](docs/specs/language-detection.md).
 
 ## Trạng thái
 

@@ -23,6 +23,28 @@
 
 ## Checklist A — máy local (TRƯỚC khi commit/tag)
 
+### A0. `cargo xtask preflight` — BẮT BUỘC exit 0 (thay cho chạy tay từng lệnh)
+
+Một lệnh chạy đủ 17 gate theo đúng thứ tự CI, fail-fast, exit code thật
+(không bao giờ pipe `| tail` che exit code — sự cố 2 lần 2026-10-02: clippy
+`unused-mut` đẩy code rồi mới phát hiện). Preflight xanh = CI thấy đúng cây
+đang test ⇒ khả năng đỏ chỉ còn nhiễu runner (perf, typing smoke — rerun).
+Chi tiết từng bước + điều nó chặn: `xtask/src/preflight.rs` (mảng STEPS).
+
+| Bước preflight | Validate cái gì | Sự cố thật đã chặn/lẽ ra chặn |
+|---|---|---|
+| fmt | rustfmt job | — |
+| clippy `-D warnings` | mọi lint trong workspace, gồm target test | `unused mut` × 2 (be2489f); thiếu import ở target non-Windows (E11) |
+| check-linux | cross-compile không phá Linux/macOS | E11: nhánh non-Windows sai chữ ký sau khi Windows xanh |
+| test --workspace | 349+ unit/integration | break behavior corpus (dedupe layout, EN-detect) |
+| verify + sizes | ABI header C + struct 20/532 | lệch FFI khi đổi struct |
+| replay × 3 adapter | hành vi gõ thật mọi nền tảng | regression 5269ae1/fecf245: raw typing sau đổi layout |
+| check-tables/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus quên regenerate |
+| version-sync | 14 chỗ version | bump sót chỗ |
+| perf | hồi quy so baseline | baseline chết theo runner → phải re-record từ CI (7f069f0) |
+| hygiene-apis / hygiene-docs | API giống-malware, link hỏng | — |
+| homebrew | ruby cask hợp lệ + sha256 format | formula sai hash 0.2.5–0.2.7 |
+
 Chạy từ gốc repo, tất cả phải xanh. Lệnh đúng như dưới đây (đã là lệnh của
 build-release.ps1 và CI — cùng một gate, không thêm không bớt):
 
@@ -97,6 +119,12 @@ blockers chưa được chứng minh).
 | Common errors (`docs/specs/*`) | Lỗi mới gặp khi phát hành (build fail, CI flake mới, lỗi docs) → entry mới, không xoá entry cũ (G3). |
 
 ## Sự cố đã gặp khi phát hành — tra trước khi xử lý
+
+| Mã | Triệu chứng | Nguyên nhân | Cách xử lý |
+|---|---|---|---|
+| R1 | clippy đỏ trên CI nhưng local "đã chạy" | chạy `cargo clippy … \| tail` trong chuỗi `&&` — pipe che exit code, chuỗi vẫn tiếp tục | KHÔNG pipe các lệnh gate; dùng `cargo xtask preflight` (Command::status, exit thật) hoặc `set -o pipefail` |
+| R2 | job perf đỏ trên mọi commit | baseline-win.json đo bằng runner image cũ — runner mới chậm hơn trên micro-bench | re-record baseline TỪ SỐ ĐO CI (không dùng số máy local — hardware khác); bisect worktree commit cũ để chứng minh không phải code mới |
+| R3 | `cargo xtask` báo "no such command" | chưa có alias | alias đã thêm ở `.cargo/config.toml`; nếu clone mới mà thiếu, dùng `cargo run -q -p xtask -- <cmd>` |
 
 | Triệu chứng | Nguyên nhân | Xử lý |
 |---|---|---|

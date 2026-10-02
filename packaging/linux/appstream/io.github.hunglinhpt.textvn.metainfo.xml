@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.9" date="2026-10-02">
+      <description>
+        <p>Personal English-dictionary editor in the control panel (user-added words override the ambiguity protection), documented language-priority rules, and a hardened one-command release preflight that mirrors every CI gate.</p>
+      </description>
+    </release>
     <release version="0.2.8" date="2026-10-02">
       <description>
         <p>Automatic English-word detection at word boundaries (built-in common-English dictionary that never overrides common Vietnamese syllables), Tab completion for English words, Escape restores the raw keystrokes, and the settings dialog now rescales correctly when moved between monitors with different DPI.</p>

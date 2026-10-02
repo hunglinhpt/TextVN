@@ -218,6 +218,13 @@ impl SvcManager {
         self.update_config(|c| c.show_dialog_on_startup = enable)
     }
 
+    /// Thay danh sách từ EN của người dùng (từ điển bổ sung — 0.2.9). Engine
+    /// restore/gợi ý theo `english_words` này bất kể kết quả fold có phải âm
+    /// tiết Việt thông dụng hay không (quyết định tường minh thắng mọi phỏng đoán).
+    pub fn set_english_words(&self, words: Vec<String>) -> Result<u64, DocError> {
+        self.update_config(|c| c.english_words = words)
+    }
+
     /// Thay bảng gõ tắt và phím mở rộng.
     pub fn set_macros(
         &self,

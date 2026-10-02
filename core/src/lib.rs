@@ -979,6 +979,32 @@ mod tests {
         assert_eq!(text(&buf), "được ");
     }
 
+    /// Ưu tiên CẤP 5 (user dict thắng vn_common): người dùng khai báo "cow"
+    /// trong english_words → Space trả lại "cow" dù fold "cơ" là âm tiết Việt
+    /// thông dụng. Xem docs/specs/language-detection.md.
+    #[test]
+    fn user_dictionary_beats_vn_common_protection() {
+        let mut e = Engine::new(EngineOptions {
+            english_words: vec!["cow".to_string()],
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "cow");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "cow ");
+    }
+
+    /// Tắt `auto_restore_english` → giữ fold kiểu UniKey cổ điển; Escape vẫn cứu.
+    #[test]
+    fn restore_tat_thi_giu_fold() {
+        let mut e = Engine::new(EngineOptions {
+            auto_restore_english: false,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "text");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "tẽt ");
+    }
+
     /// Tab gợi ý hoàn tất từ EN: "tes" (fold "té") + Tab → "test" và đóng từ;
     /// Shift+Tab không đụng (phím hệ thống S9).
     #[test]

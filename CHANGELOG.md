@@ -7,6 +7,39 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.9] — 2026-10-02
+
+Bản chốt: người dùng tự mở rộng từ điển, quy tắc ưu tiên ngôn ngữ công khai,
+kiểm soát release chặt hơn. Tiếp 0.2.8.
+
+### Added
+- **"Từ điển EN..." trong Bảng điều khiển**: thêm/xoá từ tiếng Anh cá nhân
+  (`config.english_words`) bằng UI — từ trong danh sách thắng cả lớp bảo vệ
+  âm tiết Việt thông dụng (quyết định tường minh). Editor cửa sổ riêng, DPI
+  đa màn hình như bảng chính; lưu ngay → TSF reload hot.
+- `cargo xtask preflight` (+ alias `cargo xtask`): **17 gate mirror CI** chạy
+  một lệnh, fail-fast, exit code thật — Checklist A0 mới trong
+  `docs/release/release-process.md`; bảng "bước → validate gì → sự cố thật"
+  và 3 sự cố mới (R1 pipe che exit code, R2 baseline chết theo runner,
+  R3 alias xtask).
+
+### Documented
+- **[language-detection.md](docs/specs/language-detection.md)**: ma trận xung
+  đột ngôn ngữ đầy đủ — thứ tự ưu tiên mỗi phím (secure → chord → macro →
+  mode → gợi ý → restore → Escape), nguyên tắc "mode đang bật thắng cặp mơ
+  hồ", cách đổi ý từng trường hợp.
+- README: mục "Điểm vượt trội so với các bộ gõ khác" (12 dòng so sánh có
+  cơ sở với UniKey/EVKey/OpenKey).
+- `docs/release/store-submission.md`: quy trình publish Store từng bước
+  (reserv name → submission → certification) + 2 phương án tích hợp chứng
+  thư số (SignPath Foundation hoặc mua riêng) và checklist sau khi ký.
+
+### Tests
+- Engine: ưu tiên user-dictionary thắng vn_common; `auto_restore_english=false`
+  giữ fold kiểu UniKey. Tray: `normalize_word_list` (trim/lowercase/comment,
+  khử trùng lặp, rỗng). UI smoke ×3: mở editor, mở lại vẫn 1 cửa sổ, Lưu ghi
+  đúng `english_words` vào config và broadcast reload.
+
 ## [0.2.8] — 2026-10-02
 
 Bản tính năng: xác định ngôn ngữ khi gõ, đa màn hình DPI, chuẩn bị nộp
@@ -517,7 +550,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...v0.2.6
