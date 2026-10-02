@@ -87,13 +87,70 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.7` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.7” bên dưới). 0.2.6/0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
+> `v0.2.8` **đã publish** 2026-10-02 dạng pre-release (mục “Bản 0.2.8” bên dưới). 0.2.7/0.2.6/0.2.5 publish 2026-10-02; 0.2.4/0.2.3 publish 2026-10-01. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.8 — tự xác định EN/VI + Tab gợi ý + DPI đa màn hình + Store silent
+
+**Bối cảnh (yêu cầu 2026-10-02):** (1) gõ tiếng Việt xong rồi gõ tiếng Anh bên
+cạnh thì sai — cần engine tự xác định ngôn ngữ + gợi ý Tab + Escape cứu;
+(2) dialog di chuyển giữa màn khác độ phân giải bị lệch; (3) đổi thông tin
+phát triển thành LinhBH.CoM; (4) chuẩn bị nộp Microsoft Store (cài im lặng);
+(5) PRIVACY_POLICY cho phần khai báo Store.
+
+### Giải pháp + bằng chứng kiểm thử
+
+- **Tự xác định EN/VI**: `data/en_common.txt` (từ EN thông dụng mà Telex biến
+  thành âm tiết Việt hợp lệ — text→tẽt, is→í, saw→să…) + `data/vn_common.txt`
+  (lưới bảo vệ cặp mơ hồ: cow=cơ, sex=sẽ, queen=quên — GIỮ tiếng Việt, đúng
+  UniKey). Oracle test bắt buộc mọi mục en_common phải "bắn" (fold hợp lệ +
+  không đụng vn_common). Corpus: `restore_en_vowel_w_01` (bug thật của user),
+  `restore_en_vn_protected_01`, `escape_restore_raw_01` — replay 3 adapter
+  xanh (win 117 · mac 153 · tsf 117).
+- **Tab gợi ý**: `english_tab_complete_01` — "tes" + Tab → "test". Macro vẫn
+  ưu tiên; Shift+Tab không đụng (S9); từ chưa biến đổi → Tab đi qua như cũ.
+- **DPI đa màn hình**: DIALOG_LAYOUT/MACRO_LAYOUT thành const có ID riêng cho
+  static/groupbox; `WM_DPICHANGED` → resize theo RECT đề xuất + re-layout +
+  font recreate theo DPI. Smoke test mở dialog OK.
+- **Store silent**: `PrivilegesRequiredOverridesAllowed=commandline` —
+  `/CURRENTUSER` giờ là cờ thật (trước Inno bỏ qua). Tham số Partner Center:
+  `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART (+/CURRENTUSER)` — chi tiết
+  `docs/release/store-submission.md`. CI đã chạy 2 kịch bản silent (per-user +
+  machine) từ trước.
+- **PRIVACY_POLICY.txt** (EN+VI) ở gốc repo — xử lý phím 100% cục bộ, không
+  telemetry; link cho phần khai báo Store.
+- **Branding LinhBH.CoM**: About/publisher/CompanyName/copyright toàn platform
+  (URL repo + ID io.github.hunglinhpt giữ nguyên); `build-release.ps1` assert
+  CompanyName khớp — ZIP 0.2.8 xác nhận CompanyName=LinhBH.CoM.
+
+### Sự cố trong phiên — tra trước khi lặp lại
+
+- **perf regression đỏ**: baseline 2026-09 chết theo runner image mới (đỏ trên
+  MỌI commit e6e4ca8→be2489f; bisect worktree commit cũ xác nhận không phải
+  code mới). Re-record `perf/baseline-win.json` từ số đo CI run 37045279327.
+- **clippy pipe che exit code**: chạy `cmd | tail` trong chuỗi `&&` KHÔNG dừng
+  khi cmd lỗi (không có `set -o pipefail`) — 2 lần commit đẩy rồi mới thấy đỏ.
+  Bài học: set pipefail hoặc không pipe các lệnh gate.
+
+### Phát hành — v0.2.8 đã publish (release candidate, chưa ký số)
+
+- **Tag:** `v0.2.8` @ `27a2e11`. Workflow
+  [release-candidate #37048171222](https://github.com/hunglinhpt/TextVN/actions/runs/37048171222)
+  — **4/4 job `success`**, 7 asset.
+- **Portable ZIP:** `TextVN-portable-0.2.8-windows-x64-20261002183333.zip`
+  SHA-256 `3b5b0f74688e5847cd352369bd9cc2362c4e707e2ffcd81696257cdc881ab8a3`.
+- **macOS ZIP:** `TextVN-macos-universal-v0.2.8.zip` SHA-256
+  `2af5a9c7db1be679cd6628ba5ef98569f123b1f572a1f53d336e3f06d892a71d` — đã cập
+  nhật `packaging/homebrew/textvn.rb` (bước B7b).
+- **CI cùng commit (`27a2e11`):** `ci-shared` ✅ (perf xanh sau khi baseline
+  re-record), `repo-hygiene` ✅.
+- **Máy người dùng:** `D:\TextVN` cập nhật từ ZIP release 0.2.8, tray chạy,
+  TIP OK, Ctrl+Shift tap xác nhận lật state (VN ON).
 
 ## Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục
 
