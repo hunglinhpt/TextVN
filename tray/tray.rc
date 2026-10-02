@@ -23,11 +23,11 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "hunglinhpt"
+            VALUE "CompanyName", "LinhBH.CoM"
             VALUE "FileDescription", "TextVN - Bo go Tieng Viet Chuyen Nghiep"
             VALUE "FileVersion", "0.1.0.0"
             VALUE "InternalName", "TextVN"
-            VALUE "LegalCopyright", "Copyright (C) 2026 hunglinhpt. Open Source under GPL-3.0-or-later"
+            VALUE "LegalCopyright", "Copyright (C) 2026 LinhBH.CoM. Open Source under GPL-3.0-or-later"
             VALUE "OriginalFilename", "TextVN.exe"
             VALUE "ProductName", "TextVN"
             VALUE "ProductVersion", "0.1.0.0"

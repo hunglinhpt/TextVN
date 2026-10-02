@@ -1,0 +1,82 @@
+# vn_common.txt — âm tiết Việt THÔNG DỤNG phải giữ nguyên khi là kết quả fold
+# của một từ trong `en_common.txt` (lưới an toàn hai chiều, test
+# `data_en_common_file_fires` chặn: không mục nào trong en_common fold vào
+# danh sách này).
+#
+# Ý nghĩa: nếu fold(từ EN) = một âm tiết Việt ở đây thì người gõ có thể đang
+# gõ TIẾNG VIỆT (vd "cow" là cách gõ Telex của "cơ") → engine giữ fold, ưu
+# tiên tiếng Việt. Người gõ tiếng Anh muốn từ EN thật: Escape (restore raw).
+#
+# Chỉ âm tiết đơn, chữ thường, Unicode tổ hợp chuẩn; mỗi dòng một mục;
+# `#` = chú thích. Test `data_vn_common_file_is_valid` là oracle (mỗi mục
+# phải là âm tiết Việt hợp lệ về cấu trúc).
+#
+# nguyên đơn + thanh (cách gõ telex của chúng là tổ hợp EN có hậu tố s/f/r/x)
+á
+à
+ả
+ã
+ạ
+é
+è
+ẻ
+ẽ
+ẹ
+ì
+ỉ
+ĩ
+ị
+ó
+ò
+ỏ
+õ
+ọ
+ù
+ủ
+ũ
+ụ
+ý
+ỳ
+ỷ
+ỹ
+ợ
+ở
+##
+# nguyên âm đôi/vần thông dụng có thanh — đích fold của nhiều từ EN
+##
+cơ
+sẽ
+mã
+quên
+tên
+bên
+môn
+tô
+bê
+tê
+dê
+mê
+lơ
+hơ
+nơ
+bơ
+tơ
+sơ
+mơ
+dơ
+chơ
+cả
+tả
+bả
+nét
+rét
+lít
+lát
+mát
+cát
+mút
+thú
+bú
+ú
+ít
+há

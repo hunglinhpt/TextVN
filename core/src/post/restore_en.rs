@@ -1,25 +1,43 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Auto-restore English — bug **B5** (`PLAN §1.3`: "gõ tiếng Anh ra dấu").
 //!
-//! Nhánh **cấu trúc** (đã làm): từ đã bị transform mà kết quả **không phải âm tiết Việt**
-//! → trả lại đúng chuỗi phím người dùng gõ (kể cả marker) khi gặp ranh giới từ.
-//! Ví dụ: `asdf` → fold `àd` (không hợp lệ) → Space → `asdf `.
+//! Ba nhánh, thứ tự kiểm tra trong `should_restore`:
 //!
-//! Nhánh **từ điển tiếng Anh** (đã làm, **opt-in**): `config.english_words[]` — danh sách
-//! từ EN mà chủ gõ muốn giữ nguyên. `text` → `tết` **hợp lệ về cấu trúc** nên nhánh cấu trúc
-//! không bắt được; chỉ khi chủ gõ khai báo `text` là "từ tôi hay gõ bằng tiếng Anh" thì
-//! engine mới trả lại `text`.
+//! 1. **Cấu trúc**: từ đã bị transform mà kết quả **không phải âm tiết Việt**
+//!    → trả lại đúng chuỗi phím người dùng gõ khi gặp ranh giới từ.
+//!    Ví dụ: `asdf` → fold `àd` (không hợp lệ) → Space → `asdf `; `download`
+//!    → `dơwnload` (không hợp lệ) → Space → `download `.
 //!
-//! **Vì sao opt-in chứ không bật sẵn:** `test` → `tết` cũng là ca mơ hồ theo chiều ngược lại
-//! — `tết` là từ Việt rất hay dùng. Tự bật danh sách sẽ **phá tiếng Việt**. Đây là quyết định
-//! của người dùng, không phải suy đoán của engine. Mẫu danh sách: `data/stop_en.txt`
-//! (sinh bằng chính engine này làm oracle, xem test `data_stop_en_file_is_self_consistent`).
+//! 2. **Từ điển EN thông dụng dựng sẵn** (bật mặc định từ 2026-10-02): chuỗi
+//!    gõ nằm trong `data/en_common.txt` — những từ EN mà Telex biến thành âm
+//!    tiết Việt **hợp lệ về cấu trúc** (nhánh 1 không bắt được: `text` →
+//!    `tẽt`, `see` → `sê`, `is` → `í`) → trả lại chuỗi gõ. Cặp mơ hồ hai chiều
+//!    (`cow` là cách gõ Telex của `cơ`, `sex` → `sẽ`, `queen` → `quên`…) được
+//!    giải quyết theo hướng **giữ tiếng Việt**: kết quả fold nằm trong
+//!    `data/vn_common.txt` thì không restore. Người gõ EN vẫn cứu được bằng
+//!    Escape hoặc thêm từ vào `config.english_words`.
 //!
-//! ESC (`restore_last`) đã là đường restore thủ công (P0-3 §1.1 `hotkeys.restore_last`).
+//! 3. **`config.english_words[]`** (opt-in): danh sách từ EN của chủ gõ —
+//!    luôn restore, kể cả khi fold trùng âm tiết Việt thông dụng (quyết định
+//!    tường minh của người dùng thắng mọi phỏng đoán).
+//!
+//! Opt-out toàn bộ: `config.auto_restore_english = false`.
+//!
+//! ESC (`restore_last`) là đường restore thủ công (P0-3 §1.1
+//! `hotkeys.restore_last`); Tab gợi ý hoàn tất từ EN dùng chung dữ liệu ở
+//! `complete_word`.
 
 use crate::validate::is_valid_word;
 
-/// Từ đã gõ có nằm trong danh sách `english_words` không? (không phân biệt hoa thường)
+/// `data/en_common.txt` — nhúng lúc biên dịch (core **không** I/O: S1).
+pub const EN_COMMON_DATA: &str = include_str!("../../../data/en_common.txt");
+/// `data/vn_common.txt` — nhúng lúc biên dịch.
+pub const VN_COMMON_DATA: &str = include_str!("../../../data/vn_common.txt");
+/// `data/stop_en.txt` — danh sách mẫu cho `config.english_words` (opt-in).
+pub const STOP_EN_DATA: &str = include_str!("../../../data/stop_en.txt");
+
+/// Chuỗi gõ có nằm trong danh sách `english_words` của người dùng không?
+/// (không phân biệt hoa thường)
 fn listed(raw: &[char], english_words: &[String]) -> bool {
     if english_words.is_empty() {
         return false;
@@ -28,23 +46,47 @@ fn listed(raw: &[char], english_words: &[String]) -> bool {
     english_words.iter().any(|w| w.to_lowercase() == typed)
 }
 
+/// Data file có chứa dòng bằng đúng `word` không (so lowercase, không alloc).
+fn data_contains(data: &str, word: &str) -> bool {
+    let needle = word.to_lowercase();
+    data.lines().any(|l| {
+        let l = l.trim();
+        !l.is_empty() && !l.starts_with('#') && l.to_lowercase() == needle
+    })
+}
+
+/// Từ tiếng Anh thông dụng (nhánh 2)?
+pub fn en_common_contains(word: &str) -> bool {
+    data_contains(EN_COMMON_DATA, word)
+}
+
+/// Âm tiết Việt thông dụng được bảo vệ (đích fold phải tránh)?
+pub fn vn_common_contains(syllable: &str) -> bool {
+    data_contains(VN_COMMON_DATA, syllable)
+}
+
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
 ///
-/// `true` khi: chưa có gì để restore (`raw` rỗng / không biến đổi) → `false`;
-/// kết quả fold **không** là âm tiết Việt hợp lệ → `true`;
-/// hoặc chuỗi gõ nằm trong `english_words` (nhánh từ điển) → `true`.
+/// `true` khi: kết quả fold **không** là âm tiết Việt hợp lệ (nhánh 1); hoặc
+/// chuỗi gõ là từ EN thông dụng mà fold **không** đụng âm tiết Việt thông
+/// dụng (nhánh 2); hoặc nằm trong `english_words` của người dùng (nhánh 3).
+/// `false` khi `raw` rỗng / không biến đổi.
 pub fn should_restore(raw: &[char], display: &[char], english_words: &[String]) -> bool {
     if raw.is_empty() || raw == display {
         return false;
     }
-    !is_valid_word(display) || listed(raw, english_words)
+    if !is_valid_word(display) {
+        return true;
+    }
+    if listed(raw, english_words) {
+        return true;
+    }
+    let typed: String = raw.iter().collect::<String>().to_lowercase();
+    let folded: String = display.iter().collect::<String>().to_lowercase();
+    en_common_contains(&typed) && !vn_common_contains(&folded)
 }
 
-/// Nội dung `data/stop_en.txt` — nhúng lúc biên dịch (core **không** I/O: S1).
-/// `None` nếu file không có trong bản build (bản dựng không kèm data).
-pub const STOP_EN_DATA: &str = include_str!("../../../data/stop_en.txt");
-
-/// Parse `data/stop_en.txt` (mỗi dòng 1 từ; `#` và dòng trống là chú thích).
+/// Parse một data word-list (mỗi dòng 1 từ; `#` và dòng trống là chú thích).
 pub fn parse_word_list(src: &str) -> Vec<String> {
     src.lines()
         .map(str::trim)
@@ -53,9 +95,51 @@ pub fn parse_word_list(src: &str) -> Vec<String> {
         .collect()
 }
 
-/// Danh sách mẫu đi kèm bản build (rỗng nếu không có file data).
+/// Danh sách mẫu đi kèm bản build cho `config.english_words` (rỗng nếu không có data).
 pub fn default_english_words() -> Vec<String> {
     parse_word_list(STOP_EN_DATA)
+}
+
+/// **Tab gợi ý hoàn tất từ EN**: `typed` (lowercase) là tiền tố nghiêm ngặt của
+/// đúng một từ EN thông dụng (ngắn nhất, rồi theo thứ tự bảng chữ) và fold
+/// hiện tại không phải âm tiết Việt thông dụng → trả về từ hoàn chỉnh.
+///
+/// Chỉ chạy khi từ đã bị transform (word active) — từ chưa biến đổi nào là
+/// tiếng Anh thuần, Tab phải đi qua cho app (indent, macro kế…).
+pub fn complete_word(
+    typed_lower: &str,
+    folded_lower: &str,
+    english_words: &[String],
+) -> Option<String> {
+    if typed_lower.len() < 2 || vn_common_contains(folded_lower) {
+        return None;
+    }
+    let mut best: Option<String> = None;
+    let mut consider = |best: &mut Option<String>, cand: &str| {
+        if !cand.starts_with(typed_lower) || cand == typed_lower {
+            return;
+        }
+        let better = match best {
+            Some(b) => (cand.len(), cand) < (b.len(), b.as_str()),
+            None => true,
+        };
+        if better {
+            *best = Some(cand.to_owned());
+        }
+    };
+    for l in EN_COMMON_DATA.lines() {
+        let l = l.trim();
+        if !l.is_empty() && !l.starts_with('#') {
+            consider(&mut best, l);
+        }
+    }
+    for w in english_words {
+        let w = w.trim();
+        if !w.is_empty() {
+            consider(&mut best, w);
+        }
+    }
+    best.map(|b| b.to_lowercase())
 }
 
 #[cfg(test)]
@@ -94,37 +178,45 @@ mod tests {
     }
 
     #[test]
-    fn known_gap_dictionary_words_stay_folded() {
-        // KHÔNG có danh sách: `text` → `tết` hợp lệ về cấu trúc → không restore
-        // (đây là hành vi mặc định, và là lý do danh sách phải **opt-in**).
-        assert!(!should_restore(&chars("text"), &chars("tết"), &[]));
+    fn tu_en_thong_dung_fold_hop_le_duoc_restore() {
+        // Từ trong en_common: fold hợp lệ về cấu trúc nhưng KHÔNG phải âm tiết
+        // Việt thông dụng → restore (nhánh 2, bật mặc định 2026-10-02).
+        for (raw, folded) in [
+            ("text", "tẽt"),
+            ("see", "sê"),
+            ("is", "í"),
+            ("yes", "yé"),
+            ("saw", "să"),
+        ] {
+            assert!(
+                should_restore(&chars(raw), &chars(folded), &[]),
+                "`{raw}` → `{folded}` phải được restore"
+            );
+        }
     }
 
     #[test]
-    fn danh_sach_tieng_anh_dong_gap() {
-        let list = vec!["text".to_string()];
-        // Có trong danh sách → restore dù fold hợp lệ về cấu trúc
-        assert!(should_restore(&chars("text"), &chars("tết"), &list));
-        // Không có trong danh sách → vẫn giữ fold
-        assert!(!should_restore(&chars("nest"), &chars("nết"), &list));
+    fn cap_mo_ho_giu_tien_g_viet() {
+        // Cặp mơ hồ hai chiều: fold là âm tiết Việt thông dụng → GIỮ fold
+        // (người gõ tiếng Việt thắng — `cow` là cách gõ Telex của `cơ`).
+        // `cow` không nằm trong en_common nên nhánh 2 không bắn; nếu ai thêm
+        // vào `english_words` thì nhánh 3 (quyết định tường minh) thắng.
+        let user_list = vec!["cow".to_string()];
+        assert!(should_restore(&chars("cow"), &chars("cơ"), &user_list));
+        // Không khai báo → giữ fold "cơ"
+        assert!(!should_restore(&chars("cow"), &chars("cơ"), &[]));
     }
 
     #[test]
-    fn danh_sach_khong_pha_tieng_viet_that() {
-        // `tết` là từ Việt thật và `tet` không phải từ EN ai gõ → không bị danh sách đụng.
-        let list = default_english_words();
-        assert!(!should_restore(&chars("tet"), &chars("tết"), &list));
-        // Ngược lại: chủ gõ khai báo `test` là từ EN → engine trả lại `test`
-        assert!(should_restore(&chars("test"), &chars("tết"), &list));
-    }
-
-    #[test]
-    fn danh_sach_bo_hoa_thuong() {
+    fn danh_sach_nguoi_dung_thang_moi_phong_doan() {
         let list = vec!["Text".to_string()];
         assert!(
-            should_restore(&chars("text"), &chars("tết"), &list),
+            should_restore(&chars("text"), &chars("tẽt"), &list),
             "so khớp phải không phân biệt hoa thường"
         );
+        // Từ không ở đâu cả nhưng người dùng khai báo → vẫn restore
+        let list2 = vec!["nest".to_string()];
+        assert!(should_restore(&chars("nest"), &chars("nết"), &list2));
     }
 
     #[test]
@@ -179,5 +271,102 @@ mod tests {
                 "file data phải giữ `{ambiguous}` (minh hoạ ca mơ hồ) + có ghi chú cảnh báo"
             );
         }
+    }
+
+    /// Oracle cho `en_common.txt`: MỌI mục phải **bắn** — fold khác chính nó,
+    /// là âm tiết Việt hợp lệ, và KHÔNG nằm trong vn_common (nếu không, mục
+    /// vô nghĩa: nhánh cấu trúc đã bắt, hoặc tiếng Việt đã thắng). Báo TẤT CẢ
+    /// vi phạm trong một lần chạy để chỉnh data nhanh.
+    #[test]
+    fn data_en_common_file_fires() {
+        let words = parse_word_list(EN_COMMON_DATA);
+        assert!(
+            words.len() >= 30,
+            "danh sách EN thông dụng quá ngắn: {}",
+            words.len()
+        );
+        let mut uniq = words.clone();
+        uniq.sort();
+        uniq.dedup();
+        assert_eq!(uniq.len(), words.len(), "en_common có từ trùng");
+        let mut bad: Vec<String> = Vec::new();
+        for w in &words {
+            if !w.chars().all(|c| c.is_ascii_alphabetic()) {
+                bad.push(format!("{w}: phải là chữ cái ASCII"));
+                continue;
+            }
+            let folded = telex(w);
+            let f: String = folded.iter().collect();
+            if &f == w {
+                bad.push(format!("{w}: fold ra chính nó — bỏ đi"));
+            } else if !is_valid_word(&folded) {
+                bad.push(format!(
+                    "{w}: fold `{f}` KHÔNG hợp lệ — nhánh cấu trúc đã restore, bỏ đi"
+                ));
+            } else if vn_common_contains(&f) {
+                bad.push(format!(
+                    "{w}: fold `{f}` là âm tiết Việt thông dụng — GIỮ tiếng Việt, bỏ khỏi en_common"
+                ));
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "en_common có {} mục vô nghĩa:
+{}",
+            bad.len(),
+            bad.join(
+                "
+"
+            )
+        );
+    }
+
+    /// Oracle cho `vn_common.txt`: mỗi mục phải là âm tiết Việt hợp lệ.
+    #[test]
+    fn data_vn_common_file_is_valid() {
+        let syllables = parse_word_list(VN_COMMON_DATA);
+        assert!(
+            syllables.len() >= 30,
+            "danh sách âm tiết Việt quá ngắn: {}",
+            syllables.len()
+        );
+        let mut uniq = syllables.clone();
+        uniq.sort();
+        uniq.dedup();
+        assert_eq!(uniq.len(), syllables.len(), "vn_common có mục trùng");
+        let mut bad: Vec<String> = syllables
+            .iter()
+            .filter(|s| !is_valid_word(&chars(s)))
+            .map(|s| format!("{s}: không phải âm tiết Việt hợp lệ"))
+            .collect();
+        assert!(
+            bad.is_empty(),
+            "vn_common có {} mục sai:
+{}",
+            bad.len(),
+            bad.join(
+                "
+"
+            )
+        );
+    }
+
+    #[test]
+    fn tab_goi_y_hoan_tu_tieng_anh() {
+        // Tiền tố nghiêm ngặt → từ ngắn nhất khớp ("tes" đang fold thành "té")
+        assert_eq!(complete_word("tes", "té", &[]), Some("test".to_string()));
+        // Fold là âm tiết Việt thông dụng → không gợi ý (ưu tiên tiếng Việt)
+        assert_eq!(complete_word("cow", "cơ", &[]), None);
+        // Đã là từ đầy đủ → không gợi ý
+        assert_eq!(complete_word("see", "sê", &[]), None);
+        // Quá ngắn
+        assert_eq!(complete_word("s", "s", &[]), None);
+        // Danh sách người dùng tham gia ứng viên
+        assert_eq!(
+            complete_word("vn", "vn", &["vnexpress".to_string()]),
+            Some("vnexpress".to_string())
+        );
+        // Không có ứng viên → None
+        assert_eq!(complete_word("zzz", "zzz", &[]), None);
     }
 }

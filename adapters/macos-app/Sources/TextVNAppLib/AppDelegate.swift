@@ -542,7 +542,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
     @objc private func showAbout() {
         let alert = NSAlert()
         alert.messageText = "TextVN \(AppInfo.displayVersion)"
-        alert.informativeText = "Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."
+        alert.informativeText = "Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi LinhBH.CoM.\nBản quyền © 2026 LinhBH.CoM.\nGiấy phép: GNU General Public License v3."
         alert.alertStyle = .informational
         alert.runModal()
     }

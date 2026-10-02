@@ -24,11 +24,11 @@ static void bus_disconnected(IBusBus *bus, gpointer user_data) {
 static IBusComponent *make_component(void) {
     IBusComponent *component = ibus_component_new(
         TEXTVN_IBUS_COMPONENT, "TextVN Vietnamese Input Method", TEXTVN_VERSION,
-        "GPL-3.0-or-later", "hunglinhpt", "https://github.com/hunglinhpt/TextVN", "", "textvn");
+        "GPL-3.0-or-later", "LinhBH.CoM", "https://github.com/hunglinhpt/TextVN", "", "textvn");
     ibus_component_add_engine(
         component, ibus_engine_desc_new(TEXTVN_IBUS_ENGINE, "Vietnamese (TextVN)",
                                         "Vietnamese Input Method (Telex, VNI, VIQR)", "vi",
-                                        "GPL-3.0-or-later", "hunglinhpt", "textvn_v", "default"));
+                                        "GPL-3.0-or-later", "LinhBH.CoM", "textvn_v", "default"));
     return component;
 }
 

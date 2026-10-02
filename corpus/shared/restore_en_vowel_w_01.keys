@@ -1,0 +1,12 @@
+# corpus/shared/restore_en_vowel_w_01.keys — báo cáo người dùng 0.2.7: gõ
+# tiếng Anh sau tiếng Việt bị nuốt w/đổi vần. Từ EN vowel+w mà fold KHÔNG phải
+# âm tiết Việt thông dụng → Space trả lại đúng từ EN (không thừa ký tự).
+:config method=telex diacritic_style=new auto_restore_english=true
+:type "dduocj"
+:expect "được"
+:key Space
+:expect "được "
+:type "saw"
+:expect "được să"
+:key Space
+:expect "được saw "

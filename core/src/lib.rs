@@ -357,6 +357,11 @@ impl Engine {
             keymap::vk::ESCAPE => return self.on_escape(),
             keymap::vk::RETURN | keymap::vk::SPACE | keymap::vk::TAB => {
                 let c = k.printable().unwrap_or(' ');
+                if k.vk == keymap::vk::TAB {
+                    if let Some(out) = self.try_english_complete(k, vi_on) {
+                        return out;
+                    }
+                }
                 return self.on_boundary(c, strategy);
             }
             _ => {}
@@ -534,6 +539,49 @@ impl Engine {
                 flags: FLAG_WORD_END,
             },
         }
+    }
+
+    /// **Tab gợi ý hoàn tất từ tiếng Anh** (2026-10-02): từ đang gõ đã bị
+    /// transform (word active), chuỗi gõ là tiền tố nghiêm ngặt của một từ EN
+    /// thông dụng (`post/restore_en::complete_word`) và fold không đụng âm
+    /// tiết Việt thông dụng → thay toàn bộ từ bằng từ hoàn chỉnh và đóng từ.
+    /// Macro có ưu tiên cao hơn (đã chạy trước trong `key()`); `Shift`+Tab =
+    /// phím hệ thống (S9) — không đụng.
+    fn try_english_complete(&mut self, k: &KeyEvent, vi_on: bool) -> Option<Outcome> {
+        if !vi_on || !self.opts.auto_restore_english {
+            return None;
+        }
+        if k.mods & keymap::MOD_SHIFT != 0 {
+            return None;
+        }
+        if !self.word.active || self.word.raw.len() < 2 {
+            return None;
+        }
+        let typed: String = self.word.raw.iter().collect::<String>();
+        let folded: String = self.word.display.iter().collect::<String>();
+        let completion = post::restore_en::complete_word(
+            &typed.to_lowercase(),
+            &folded.to_lowercase(),
+            &self.opts.english_words,
+        )?;
+        let mut insert: Vec<char> = completion.chars().collect();
+        if self.word.raw.first().is_some_and(|c| c.is_uppercase()) {
+            if let Some(first) = insert.first_mut() {
+                *first = first.to_ascii_uppercase();
+            }
+        }
+        let out = self.emit(&insert);
+        let delete = self.word.owned as u16;
+        self.word.clear();
+        self.recent_replace(delete as usize, &out);
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: delete,
+                insert: out,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+        })
     }
 
     /// ESC: khôi phục chuỗi đã gõ (bug B5 / PLAN §8 "ESC khôi phục").
@@ -907,22 +955,45 @@ mod tests {
         assert_eq!(text(&buf), "TOOO");
     }
 
-    /// Bật danh sách **không** được phá tiếng Việt: từ không có trong danh sách thì giữ fold.
+    /// Từ điển EN thông dụng dựng sẵn (2026-10-02): `test` được restore dù
+    /// người dùng chưa khai báo gì; từ Việt thật vẫn giữ fold.
     #[test]
     fn danh_sach_khong_dung_cho_tu_khac() {
-        let mut e = Engine::new(EngineOptions {
-            english_words: vec!["text".to_string()],
-            ..Default::default()
-        });
+        // `test` ∈ en_common (bật mặc định) → Space → trả lại "test"
+        let mut e = Engine::new(EngineOptions::default());
         let mut buf = type_buf(&mut e, "test");
         press(&mut e, &mut buf, keymap::vk::SPACE);
-        assert_eq!(text(&buf), "tét "); // `test` không có trong danh sách → giữ `tét`
+        assert_eq!(text(&buf), "test ");
+
+        // Cặp mơ hồ hai chiều vẫn ưu tiên tiếng Việt: `cow` là cách gõ Telex
+        // của `cơ` → giữ fold, KHÔNG restore
+        let mut e = Engine::new(EngineOptions::default());
+        let mut buf = type_buf(&mut e, "cow");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "cơ ");
 
         // và từ Việt thật vẫn đúng
         let mut e = engine();
         let mut buf = type_buf(&mut e, "dduocj");
         press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "được ");
+    }
+
+    /// Tab gợi ý hoàn tất từ EN: "tes" (fold "té") + Tab → "test" và đóng từ;
+    /// Shift+Tab không đụng (phím hệ thống S9).
+    #[test]
+    fn tab_hoan_tat_tu_en_va_escape_restore() {
+        let mut e = Engine::new(EngineOptions::default());
+        let mut buf = type_buf(&mut e, "tes");
+        assert_eq!(text(&buf), "té");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "test");
+
+        // ESC: restore raw của từ đang active
+        let mut e = Engine::new(EngineOptions::default());
+        let mut buf = type_buf(&mut e, "dduocj");
+        press(&mut e, &mut buf, keymap::vk::ESCAPE);
+        assert_eq!(text(&buf), "dduocj");
     }
 
     // ---- stage 7: auto-capitalize (P0-3 §1.1) ----

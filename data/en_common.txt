@@ -1,0 +1,55 @@
+# en_common.txt — từ tiếng Anh thông dụng mà Telex biến thành âm tiết Việt
+# HỢP LỆ VỀ CẤU TRÚC (nhánh cấu trúc của auto-restore bắt không được).
+#
+# Điều kiện một mục (test `data_en_common_file_fires` là oracle):
+#   1. chỉ chữ cái ASCII;  2. fold(Telex, dấu mới, free marking) ≠ chính nó;
+#   3. kết quả fold là âm tiết Việt HỢP LỆ (nếu không hợp lệ thì nhánh cấu trúc
+#      đã restore rồi — mục sẽ vô nghĩa);
+#   4. kết quả fold KHÔNG nằm trong `vn_common.txt` (âm tiết Việt thông dụng
+#      phải giữ nguyên cho người gõ tiếng Việt — xem note mơ hồ bên dưới).
+#
+# Các cặp MƠ HỒ hai chiều được giải quyết theo hướng GIỮ TIẾNG VIỆT (UniKey
+# cũng vậy) bằng cách KHÔNG đưa từ EN vào file này, ví dụ:
+#   cow→cơ, sex→sẽ, max→mã, queen→quên, teen→tên, been→bên, moon→môn,
+#   has→há, bus→bú, thus→thú, us→ú, its→ít, as→á, car→cả, tar→tả,
+#   bar→bả, chef→chè, dew→dê, mê/mơ/bơ/tơ/sơ/lơ/hơ/nơ/dơ (vowel+w),
+#   list→lít, nest→nét, rest→rét, last→lát, must→mút, cast→cát, mat→mát.
+# Người gõ tiếng Anh vẫn cứu được bằng Escape (restore raw) hoặc thêm từ
+# vào `english_words` trong cấu hình.
+#
+# Lấy từ nhóm: phụ âm cuối x (ngã) · s (sắc) · r (hỏi) — những phím bị nuốt
+# thành dấu, và nguyên âm đôi ee/oo/ew/ow/aw bị nuốt thành ê/ô/ê/ơ/ă.
+box
+hex
+text
+texts
+next
+best
+test
+most
+cost
+host
+lost
+past
+vast
+see
+is
+his
+this
+gas
+says
+days
+arm
+art
+cart
+her
+dawn
+saw
+law
+raw
+paw
+caw
+haw
+taw
+row
+vow

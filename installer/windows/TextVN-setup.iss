@@ -11,9 +11,9 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.7"
+  #define MyAppVersion "0.2.8"
 #endif
-#define MyAppPublisher "hunglinhpt"
+#define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"
 
@@ -41,7 +41,11 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
+; Mặc định: cài phạm vi máy (admin). /CURRENTUSER và /ALLUSERS chỉnh được từ
+; command line — bản cài im lặng cho luồng Microsoft Store dùng /CURRENTUSER
+; để không cần UAC (xem docs/release/store-submission.md).
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=commandline
 DisableWelcomePage=no
 
 [Languages]

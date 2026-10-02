@@ -7,6 +7,42 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.8] — 2026-10-02
+
+Bản tính năng: xác định ngôn ngữ khi gõ, đa màn hình DPI, chuẩn bị nộp
+Microsoft Store. Thông tin phát triển đổi thành **LinhBH.CoM**.
+
+### Added
+- **Tự xác định tiếng Anh / tiếng Việt** (báo cáo: "gõ tiếng Việt xong rồi gõ
+  tiếng Anh bên cạnh thì sai"): từ điển EN thông dụng dựng sẵn
+  (`data/en_common.txt`) chốt ở ranh giới từ — Space trả lại đúng từ EN thay
+  vì fold kiểu `text`→`tẽt`, `is`→`í`, `saw`→`să`, `water`→`watẻ`… Cặp mơ hồ
+  hai chiều (`cow` = cách gõ Telex của `cơ`, `sex`→`sẽ`, `queen`→`quên`…) ưu
+  tiên tiếng Việt qua lưới `data/vn_common.txt` — đúng hành vi UniKey. Tắt:
+  `auto_restore_english=false`.
+- **Tab gợi ý hoàn tất từ EN**: từ đang gõ đã biến đổi và là tiền tố của một
+  từ EN thông dụng → Tab hoàn tất thành từ đầy đủ (macro vẫn ưu tiên; từ
+  chưa biến đổi nào Tab đi qua như cũ).
+- **Ctrl+Z / Escape khi gõ sai**: Escape là restore thủ công sẵn có từ trước
+  (giờ có case corpus riêng); Ctrl+Z vẫn là undo của ứng dụng (TextVN phát
+  text thường nên undo app hoạt động tự nhiên).
+- Hỗ trợ **cài im lặng cho Microsoft Store**: `PrivilegesRequiredOverridesAllowed`
+  trong bộ cài Inno Setup — `/CURRENTUSER` giờ là cờ thật (không cần UAC);
+  hướng dẫn nộp Store: `docs/release/store-submission.md`; CI đã chạy cả hai
+  kịch bản silent (per-user + machine) từ trước.
+- `PRIVACY_POLICY.txt` ở gốc repo (song ngữ EN/VI) — link cho phần khai báo
+  Store, chủ repo tự cập nhật khi có thay đổi.
+
+### Fixed
+- **Dialog DPI đa màn hình**: kéo Bảng điều khiển (và cửa sổ Gõ tắt) sang màn
+  hình có DPI khác giờ tự resize + re-layout + tạo lại font (`WM_DPICHANGED`
+  — trước đây kích thước giữ nguyên như màn cũ → tràn/sai lệch).
+
+### Changed
+- Thông tin phát triển / publisher / CompanyName / copyright hiển thị:
+  `hunglinhpt` → **`LinhBH.CoM`** (URL repo `github.com/hunglinhpt/TextVN`
+  và ID `io.github.hunglinhpt.textvn` giữ nguyên).
+
 ## [0.2.7] — 2026-10-02
 
 Bản vá theo báo cáo **Ctrl+Shift trên bản 0.2.5/0.2.6 không đổi được mode và
@@ -481,7 +517,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...v0.2.5

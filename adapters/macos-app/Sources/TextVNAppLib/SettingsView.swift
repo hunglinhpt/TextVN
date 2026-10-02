@@ -29,7 +29,7 @@ public struct SettingsView: View {
             case .about:
                 return Alert(
                     title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),
-                    message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi hunglinhpt.\n\nBản quyền © 2026 hunglinhpt.\nGiấy phép: GNU General Public License v3."),
+                    message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi LinhBH.CoM.\n\nBản quyền © 2026 LinhBH.CoM.\nGiấy phép: GNU General Public License v3."),
                     dismissButton: .default(Text("Đồng ý"))
                 )
             case let .autostartFailed(message):

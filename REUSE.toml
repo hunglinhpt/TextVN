@@ -6,7 +6,7 @@ SPDX-PackageDownloadLocation = "https://github.com/hunglinhpt/TextVN"
 [[annotations]]
 path = ["**"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 hunglinhpt"
+SPDX-FileCopyrightText = "2026 LinhBH.CoM"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
 # Bản dịch tiếng Việt của Inno Setup (jrsoftware/issrc Files/Languages/Unofficial) — giữ

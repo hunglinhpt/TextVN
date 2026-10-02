@@ -36,7 +36,7 @@ const char *const tv_help_text =
 
 const char *const tv_about_text =
     "TextVN — Bộ gõ tiếng Việt cho Linux (IBus / Fcitx5)\n\n"
-    "Phát triển bởi: hunglinhpt\n"
+    "Phát triển bởi: LinhBH.CoM\n"
     "Giấy phép: GPL-3.0-or-later\n"
     "https://github.com/hunglinhpt/TextVN";
 

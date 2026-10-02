@@ -1,0 +1,9 @@
+# corpus/shared/restore_en_vn_protected_01.keys — cặp mơ hồ hai chiều GIỮ
+# tiếng Việt: `cow` là cách gõ Telex của "cơ" (âm tiết Việt thông dụng trong
+# vn_common) → Space giữ fold "cơ", KHÔNG restore "cow". Cách cứu của người
+# gõ tiếng Anh: Escape (restore raw) hoặc english_words trong cấu hình.
+:config method=telex diacritic_style=new auto_restore_english=true
+:type "cow"
+:expect "cơ"
+:key Space
+:expect "cơ "

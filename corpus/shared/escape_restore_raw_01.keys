@@ -1,0 +1,8 @@
+# corpus/shared/escape_restore_raw_01.keys — Escape giữa chừng trả lại đúng
+# chuỗi phím đã gõ (restore thủ công, P0-3 §1.1) — kể cả khi từ EN không có
+# trong từ điển (cách cứu cặp mơ hồ như "cow" → muốn giữ "cow").
+:config method=telex diacritic_style=new auto_restore_english=true
+:type "dduocj"
+:expect "được"
+:key Escape
+:expect "dduocj"

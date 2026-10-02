@@ -1,0 +1,7 @@
+# corpus/shared/english_tab_complete_01.keys — Tab gợi ý hoàn tất từ EN
+# (2026-10-02): "tes" đang fold "té" + Tab → hoàn tất thành "test" và đóng từ.
+:config method=telex diacritic_style=new auto_restore_english=true
+:type "tes"
+:expect "té"
+:key Tab
+:expect "test"

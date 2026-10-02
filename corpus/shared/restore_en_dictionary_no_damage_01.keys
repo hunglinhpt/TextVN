@@ -1,11 +1,11 @@
-# corpus/shared/restore_en_dictionary_no_damage_01.keys — danh sách KHÔNG được phá tiếng Việt
-# `test` → `tét` là ca MƠ HỒ (tét là từ Việt thật) → mặc định KHÔNG bật sẵn.
-# Ở đây danh sách chỉ chứa `text`, nên gõ `test` vẫn ra `tét` (giữ nguyên tiếng Việt).
-:config method=telex diacritic_style=new auto_restore_english=true english_words=text
+# corpus/shared/restore_en_dictionary_no_damage_01.keys — từ điển EN dựng sẵn
+# (2026-10-02): `test` ∈ en_common → Space trả lại `test`. Cặp MƠ HỒ hai chiều
+# (`cow` = cách gõ Telex của `cơ`) vẫn ưu tiên tiếng Việt — case kế.
+:config method=telex diacritic_style=new auto_restore_english=true
 :type "test"
 :expect "tét"
 :key Space
-:expect "tét "
+:expect "test "
 :expect_action PASS
 :type "toi"
-:expect "tét toi"
+:expect "test toi"

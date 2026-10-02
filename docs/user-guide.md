@@ -7,6 +7,20 @@ giống nhau.
 
 ---
 
+## Cài đặt im lặng (cho quản trị / Microsoft Store)
+
+Bộ cài hỗ trợ cài không tương tác:
+
+```
+TextVN-setup-<bản>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER
+```
+
+- `/CURRENTUSER`: cài cho tài khoản hiện tại (`%LOCALAPPDATA%\Programs\TextVN`),
+  không cần admin. Bỏ cờ này = cài phạm vi máy (cần admin).
+- Lỗi đăng ký TSF báo qua exit code 10; thành công = 0. Silent không tự mở app.
+- Chi tiết nộp Store: `docs/release/store-submission.md`. Chính sách riêng tư:
+  `PRIVACY_POLICY.txt` (ở gốc repo).
+
 ## 1. Cài đặt
 
 Mỗi bản phát hành có hai cách dùng — chọn một.
@@ -92,6 +106,13 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
   - **macOS**: TextVN nhận diện tổ hợp `Ctrl + Shift` tap trong `flagsChanged`, đồng bộ với menu bar app `TextVN.app` để chuyển đổi chế độ và hiển thị rõ chỉ báo **[V]** / **[E]** trên thanh menu bar.
   - **Linux**: IBus và Fcitx5 tự động cập nhật icon `textvn_v` ↔ `textvn_e` và nhãn `V` ↔ `E` trên thanh trạng thái / khay hệ thống.
 - Hoặc nhấn tổ hợp **Ctrl + Shift + Space**.
+- **Gõ nhầm sang tiếng Anh**: nếu kết quả biến đổi KHÔNG phải âm tiết Việt
+  hợp lệ hoặc là từ tiếng Anh thông dụng (mà không đụng cách gõ Telex của từ
+  Việt thông dụng), TextVN tự trả lại đúng chuỗi phím bạn gõ khi kết thúc từ
+  (dấu cách/dấu câu). Nghiêm trọng hơn: **Escape** khôi phục nguyên chuỗi phím
+  ngay giữa chừng; **Tab** hoàn tất từ tiếng Anh đang gõ dở thành từ đầy đủ
+  theo từ điển dựng sẵn. Tắt toàn bộ bằng bỏ chọn "Khôi phục từ tiếng Anh khi
+  gõ sai"; thêm từ riêng của bạn qua `english_words` trong cấu hình.
 - Hoặc click chuột trái trực tiếp vào biểu tượng trên khay hệ thống (Windows) / menu bar (macOS) / status area (Linux) để chuyển đổi nhanh giữa tiếng Việt và tiếng Anh.
 - Khi đang soạn thảo, chữ hiển thị tự nhiên, hoàn toàn không bị gạch chân (clean composition/preedit) trên cả Word, Notepad, Chrome, Safari và các ứng dụng Linux.
 

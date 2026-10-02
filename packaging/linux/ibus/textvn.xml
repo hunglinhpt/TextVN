@@ -5,9 +5,9 @@
 <component>
   <name>io.github.hunglinhpt.textvn</name>
   <description>TextVN Vietnamese Input Method</description>
-  <version>0.2.7</version>
+  <version>0.2.8</version>
   <license>GPL-3.0-or-later</license>
-  <author>hunglinhpt &lt;https://github.com/hunglinhpt/TextVN&gt;</author>
+  <author>LinhBH.CoM &lt;https://github.com/hunglinhpt/TextVN&gt;</author>
   <homepage>https://github.com/hunglinhpt/TextVN</homepage>
   <exec>/usr/lib/textvn/textvn-ibus-engine --ibus</exec>
   <textdomain>textvn</textdomain>
@@ -18,7 +18,7 @@
       <description>Vietnamese Input Method (Telex, VNI, VIQR)</description>
       <language>vi</language>
       <license>GPL-3.0-or-later</license>
-      <author>hunglinhpt</author>
+      <author>LinhBH.CoM</author>
       <icon>textvn_v</icon>
       <layout>default</layout>
       <symbol>VN</symbol>

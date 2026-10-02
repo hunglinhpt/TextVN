@@ -23,7 +23,7 @@
   <launchable type="desktop-id">textvn-settings.desktop</launchable>
   <url type="homepage">https://github.com/hunglinhpt/TextVN</url>
   <url type="bugtracker">https://github.com/hunglinhpt/TextVN/issues</url>
-  <developer_name>hunglinhpt</developer_name>
+  <developer_name>LinhBH.CoM</developer_name>
   <!-- Icon stock trùng hicolor icon cài bởi install.sh (AppStream validate +
        Software Center hiển thị icon thay vì ô trống). -->
   <icon type="stock">textvn_v</icon>
@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.8" date="2026-10-02">
+      <description>
+        <p>Automatic English-word detection at word boundaries (built-in common-English dictionary that never overrides common Vietnamese syllables), Tab completion for English words, Escape restores the raw keystrokes, and the settings dialog now rescales correctly when moved between monitors with different DPI.</p>
+      </description>
+    </release>
     <release version="0.2.7" date="2026-10-02">
       <description>
         <p>Ctrl+Shift now toggles Vietnamese mode and the tray icon in every application (observe-only low-level detector with cross-source debounce), matching UniKey behavior.</p>

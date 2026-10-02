@@ -307,10 +307,10 @@ foreach ($entry in $BinFiles) {
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
-        if ($vi.CompanyName -eq "hunglinhpt") {
+        if ($vi.CompanyName -eq "LinhBH.CoM") {
             Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
         } else {
-            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'hunglinhpt')"
+            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'LinhBH.CoM')"
         }
     }
 }

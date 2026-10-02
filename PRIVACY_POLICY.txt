@@ -1,0 +1,82 @@
+PRIVACY POLICY — TextVN (Vietnamese Input Method)
+=================================================
+
+Last updated / Cập nhật: October 2, 2026
+Developer / Nhà phát triển: LinhBH.CoM (Vietnam)
+Contact / Liên hệ: https://github.com/hunglinhpt/TextVN/issues
+
+ENGLISH
+-------
+
+TextVN is a Vietnamese input method editor (IME) for Windows, macOS and
+Linux. It converts the keys you type into Vietnamese text with tone marks,
+using the Telex, VNI or VIQR methods.
+
+WHAT WE COLLECT: NOTHING.
+
+1. Keystroke processing is 100% local. The conversion of your keystrokes
+   happens on your device, in the TextVN process. Your keystrokes are never
+   recorded, stored, or transmitted anywhere.
+2. No telemetry, no analytics, no advertising, no tracking of any kind.
+3. The app does not require an account and does not connect to any server
+   to function. The only network activity associated with TextVN is the
+   download you perform yourself from this repository's GitHub Releases
+   page.
+4. Local settings storage: your preferences (typing method, shortcuts,
+   abbreviation/macro list, English-word exceptions) are stored in a local
+   configuration folder on your device:
+     - Windows: %APPDATA%\TextVN
+     - macOS:   ~/Library/Application Support/TextVN
+     - Linux:   ~/.config/TextVN
+   You can view and edit these files, and uninstalling TextVN leaves them
+   in place unless you delete them yourself.
+5. Diagnostics: the built-in "doctor" command collects environment
+   information ONLY when you run it, and exports only where YOU choose to
+   save the report. Nothing is sent automatically.
+6. Input in secure fields: TextVN automatically disables itself in password
+   fields and similar secure inputs. Nothing about those keystrokes is
+   processed or kept.
+
+CHILDREN'S PRIVACY: TextVN does not collect any data from any user of any
+age, so there is nothing to protect or disclose.
+
+CHANGES TO THIS POLICY: this file is the single source of truth and lives
+in the TextVN repository. Any change will be recorded here with a new
+"Last updated" date. You can review the history of this file in the
+repository's commit history.
+
+OPEN SOURCE: TextVN is licensed under GPL-3.0-or-later. The complete
+source code is public at https://github.com/hunglinhpt/TextVN — you can
+verify every claim in this policy by reading the code.
+
+TIẾNG VIỆT
+----------
+
+TextVN là bộ gõ tiếng Việt cho Windows, macOS và Linux (Telex, VNI, VIQR).
+
+CHÚNG TÔI THU THẬP: KHÔNG CÓ GÌ.
+
+1. Toàn bộ xử lý phím gõ diễn ra NGAY TRÊN MÁY của bạn, trong tiến trình
+   TextVN. Không ghi lại, không lưu trữ, không gửi đi bất cứ đâu.
+2. Không thống kê, không quảng cáo, không theo dõi dưới mọi hình thức.
+3. Ứng dụng không cần tài khoản và không kết nối tới máy chủ nào để hoạt
+   động. Hoạt động mạng duy nhất liên quan đến TextVN là việc bạn tự tải
+   bộ cài từ trang GitHub Releases của repo này.
+4. Cấu hình (kiểu gõ, phím tắt, bảng gõ tắt, từ tiếng Anh ngoại lệ) được
+   lưu tại thư mục cục bộ trên máy bạn (Windows: %APPDATA%\TextVN; macOS:
+   ~/Library/Application Support/TextVN; Linux: ~/.config/TextVN). Bạn xem
+   và sửa được trực tiếp; gỡ TextVN không xoá các tệp này trừ khi bạn tự xoá.
+5. Chẩn đoán: lệnh "doctor" chỉ thu thập thông tin môi trường KHI BẠN chạy,
+   và xuất tới nơi BẠN chọn. Không có gì được gửi tự động.
+6. Ô mật khẩu: TextVN tự tắt trong các trường an toàn (mật khẩu…). Không
+   xử lý, không giữ lại bất cứ thông tin gì về các phím đó.
+7. Quyền riêng tư của trẻ em: TextVN không thu thập dữ liệu của người dùng
+   ở mọi lứa tuổi.
+
+CHÍNH SÁCH NÀY THAY ĐỔI KHI NÀO: tệp này là nguồn chân lý duy nhất, nằm
+ngay trong repo TextVN. Mọi thay đổi sẽ cập nhật cùng ngày "Cập nhật" mới.
+Lịch sử thay đổi xem trong lịch sử commit của repo.
+
+MÃ NGUỒN MỞ: TextVN phát hành theo GPL-3.0-or-later. Toàn bộ mã nguồn công
+khai tại https://github.com/hunglinhpt/TextVN — bạn có thể tự kiểm chứng
+mọi nội dung trong chính sách này bằng cách đọc mã.

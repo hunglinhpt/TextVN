@@ -66,8 +66,12 @@ const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
 const ID_CHK_SHOW_ON_STARTUP: isize = 2019;
 const ID_BTN_MACROS: isize = 2020;
 const ID_CHK_CTRL_SHIFT: isize = 2021;
+// ID cho STATIC/GROUPBOX (không tương tác) — cần để re-layout theo DPI (WM_DPICHANGED).
+const ID_LBL_BASE: isize = 3000;
 // Control IDs — cửa sổ Gõ tắt
 const ID_EDIT_MACROS: isize = 2101;
+const ID_LBL_MACRO_HINT: isize = 4001;
+const ID_LBL_MACRO_TRIGGER: isize = 4002;
 const ID_RAD_TRIGGER_TAB: isize = 2102;
 const ID_RAD_TRIGGER_SPACE: isize = 2103;
 const ID_BTN_MACRO_SAVE: isize = 2104;
@@ -358,13 +362,22 @@ fn create_control_ex(
 /// destroy (tránh leak GDI handle); nếu tạo thất bại thì dùng lại stock font.
 #[cfg(windows)]
 static UI_FONT: AtomicIsize = AtomicIsize::new(0);
+/// DPI mà font hiện tại được tạo cho — khác DPI thì phải tạo lại (đa màn).
+#[cfg(windows)]
+static UI_FONT_DPI: AtomicIsize = AtomicIsize::new(0);
 
+/// Font GUI 9pt cho DPI yêu cầu; DPI đổi so với lần tạo trước → xoá font cũ,
+/// tạo font mới (dialog bị kéo sang màn hình khác DPI — WM_DPICHANGED).
 #[cfg(windows)]
 fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
     let existing = UI_FONT.load(Ordering::Acquire);
-    if existing != 0 {
-        // Cửa sổ Gõ tắt dùng lại font của bảng điều khiển (cùng DPI hệ thống).
+    let font_dpi = UI_FONT_DPI.load(Ordering::Acquire);
+    if existing != 0 && font_dpi == dpi as isize {
         return HGDIOBJ(existing as *mut std::ffi::c_void);
+    }
+    if existing != 0 {
+        let _ = unsafe { DeleteObject(HGDIOBJ(existing as *mut std::ffi::c_void)) };
+        UI_FONT.store(0, Ordering::Release);
     }
     let new_font = unsafe {
         let stock = GetStockObject(DEFAULT_GUI_FONT);
@@ -385,7 +398,31 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
         HGDIOBJ(f.0)
     };
     UI_FONT.store(new_font.0 as isize, Ordering::Release);
+    UI_FONT_DPI.store(dpi as isize, Ordering::Release);
     new_font
+}
+
+/// Xử lý WM_DPICHANGED: resize theo RECT hệ thống đề xuất, tạo lại font rồi
+/// re-layout toàn bộ control theo DPI mới (bug: dialog di chuyển giữa màn
+/// hình có độ phân giải/DPI khác nhau bị lệch kích thước hoặc tràn màn hình).
+#[cfg(windows)]
+unsafe fn apply_dpi_change(hwnd: HWND, wparam: WPARAM, lparam: LPARAM, relayout: fn(HWND, i32)) {
+    // HIWORD(wParam) = DPI Y mới (PerMonitorV2).
+    let new_dpi = ((wparam.0 >> 16) & 0xffff) as i32;
+    if new_dpi <= 0 {
+        return;
+    }
+    let rc = *(lparam.0 as *const RECT);
+    let _ = SetWindowPos(
+        hwnd,
+        None,
+        rc.left,
+        rc.top,
+        rc.right - rc.left,
+        rc.bottom - rc.top,
+        SWP_NOZORDER | SWP_NOACTIVATE,
+    );
+    relayout(hwnd, new_dpi);
 }
 
 #[cfg(windows)]
@@ -428,166 +465,225 @@ const fn ctl(
 }
 
 #[cfg(windows)]
+const CHK: u32 = BS_AUTOCHECKBOX | WS_TABSTOP.0;
+#[cfg(windows)]
+const BTN: u32 = BS_PUSHBUTTON | WS_TABSTOP.0;
+#[cfg(windows)]
+const L: i32 = 32; // cột trái
+#[cfg(windows)]
+const R: i32 = 470; // cột phải
+#[cfg(windows)]
+const CW: i32 = 420; // bề rộng một ô trong cột
+
+/// Bảng layout bảng điều khiển (tọa độ theo lưới thiết kế 900 đơn vị).
+/// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
+/// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
+#[cfg(windows)]
+const DIALOG_LAYOUT: [Ctl; 27] = [
+    // 1. Điều khiển
+    ctl(
+        "BUTTON",
+        "Điều khiển",
+        BS_GROUPBOX,
+        (15, 12, 870, 120),
+        ID_LBL_BASE + 0,
+    ),
+    ctl("STATIC", "Bảng mã:", 0, (L, 49, 85, 30), ID_LBL_BASE + 1),
+    ctl(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0 | WS_GROUP.0,
+        (122, 46, 300, 200),
+        ID_COMBO_CHARSET,
+    ),
+    ctl("STATIC", "Kiểu gõ:", 0, (R, 49, 85, 30), ID_LBL_BASE + 2),
+    ctl(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
+        (560, 46, 300, 200),
+        ID_COMBO_METHOD,
+    ),
+    ctl(
+        "STATIC",
+        "Phím chuyển:",
+        0,
+        (L, 93, 130, 30),
+        ID_LBL_BASE + 3,
+    ),
+    ctl(
+        "STATIC",
+        "Ctrl + Shift   (hoặc Ctrl + Shift + Space)",
+        0,
+        (170, 93, 690, 30),
+        ID_LBL_BASE + 4,
+    ),
+    // 2. Tùy chọn gõ — 2 cột, 4 hàng
+    ctl(
+        "BUTTON",
+        "Tùy chọn gõ",
+        BS_GROUPBOX,
+        (15, 142, 870, 205),
+        ID_LBL_BASE + 5,
+    ),
+    ctl(
+        "BUTTON",
+        "Bật gõ tiếng Việt",
+        CHK,
+        (L, 176, CW, 32),
+        ID_CHK_GLOBAL_ENABLED,
+    ),
+    ctl(
+        "BUTTON",
+        "Dấu mới (hoà, thuỷ)",
+        BS_AUTORADIOBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
+        (R, 176, 400, 32),
+        ID_RAD_DIACRITIC_NEW,
+    ),
+    ctl(
+        "BUTTON",
+        "Dấu cũ (hòa, thủy)",
+        BS_AUTORADIOBUTTON,
+        (R, 218, 400, 32),
+        ID_RAD_DIACRITIC_OLD,
+    ),
+    ctl(
+        "BUTTON",
+        "Khôi phục từ tiếng Anh khi gõ sai",
+        CHK | WS_GROUP.0,
+        (L, 218, CW, 32),
+        ID_CHK_AUTO_RESTORE,
+    ),
+    ctl(
+        "BUTTON",
+        "Đặt dấu tự do",
+        CHK,
+        (L, 260, CW, 32),
+        ID_CHK_FREE_MARKING,
+    ),
+    ctl(
+        "BUTTON",
+        "Tự viết hoa chữ đầu câu",
+        CHK,
+        (R, 260, 400, 32),
+        ID_CHK_AUTO_CAPITALIZE,
+    ),
+    ctl(
+        "BUTTON",
+        "Quick Telex (cc→ch, nn→ng…)",
+        CHK,
+        (L, 302, CW, 32),
+        ID_CHK_QUICK_TELEX,
+    ),
+    ctl(
+        "BUTTON",
+        "Gõ tắt cả khi tắt tiếng Việt",
+        CHK,
+        (R, 302, 400, 32),
+        ID_CHK_MACRO_WHEN_OFF,
+    ),
+    // 3. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
+    ctl(
+        "BUTTON",
+        "Hệ thống",
+        BS_GROUPBOX,
+        (15, 357, 870, 124),
+        ID_LBL_BASE + 6,
+    ),
+    ctl(
+        "BUTTON",
+        "Khởi động cùng Windows",
+        CHK,
+        (L, 391, CW, 32),
+        ID_CHK_AUTOSTART,
+    ),
+    ctl(
+        "BUTTON",
+        "Bật hội thoại này khi khởi động",
+        CHK,
+        (R, 391, 400, 32),
+        ID_CHK_SHOW_ON_STARTUP,
+    ),
+    ctl(
+        "BUTTON",
+        "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
+        CHK,
+        (L, 433, 830, 32),
+        ID_CHK_CTRL_SHIFT,
+    ),
+    // 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
+    ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 120, 48), ID_BTN_HELP),
+    ctl(
+        "BUTTON",
+        "Thông tin",
+        BTN,
+        (143, 497, 120, 48),
+        ID_BTN_ABOUT,
+    ),
+    ctl(
+        "BUTTON",
+        "Gõ tắt...",
+        BTN,
+        (271, 497, 120, 48),
+        ID_BTN_MACROS,
+    ),
+    ctl(
+        "BUTTON",
+        "Cài & bật TSF",
+        BTN,
+        (399, 497, 160, 48),
+        ID_BTN_SETUP_TSF,
+    ),
+    ctl(
+        "BUTTON",
+        "Mặc định",
+        BTN,
+        (567, 497, 105, 48),
+        ID_BTN_DEFAULT,
+    ),
+    // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
+    ctl(
+        "BUTTON",
+        "Đóng",
+        BS_DEFPUSHBUTTON | WS_TABSTOP.0,
+        (680, 497, 100, 48),
+        ID_BTN_CLOSE,
+    ),
+    ctl("BUTTON", "Kết thúc", BTN, (788, 497, 97, 48), ID_BTN_EXIT),
+];
+
+/// Đặt lại vị trí/kích thước toàn bộ control theo DPI — chạy lúc tạo VÀ khi
+/// dialog bị kéo sang màn hình khác DPI (WM_DPICHANGED, bug di chuyển đa màn).
+#[cfg(windows)]
+fn layout_dialog_controls(parent: HWND, dpi: i32) {
+    let scale = COMPACT_SCALE * dpi as f64 / 96.0;
+    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+    for c in &DIALOG_LAYOUT {
+        let Ok(h) = (unsafe { GetDlgItem(Some(parent), c.id as i32) }) else {
+            continue;
+        };
+        let (x, y, cw, ch) = c.rect;
+        let _ = unsafe {
+            SetWindowPos(
+                h,
+                None,
+                k(x),
+                k(y),
+                k(cw),
+                k(ch),
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+    }
+}
+
+#[cfg(windows)]
 fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
     let scale = COMPACT_SCALE * dpi as f64 / 96.0;
     let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
     let font = scaled_gui_font(dpi);
 
-    const CHK: u32 = BS_AUTOCHECKBOX | WS_TABSTOP.0;
-    const BTN: u32 = BS_PUSHBUTTON | WS_TABSTOP.0;
-    const L: i32 = 32; // cột trái
-    const R: i32 = 470; // cột phải
-    const CW: i32 = 420; // bề rộng một ô trong cột
-                         // Thứ tự tạo = thứ tự Tab. WS_GROUP mở nhóm radio mới và đóng nhóm trước đó.
-    let layout = [
-        // 1. Điều khiển
-        ctl("BUTTON", "Điều khiển", BS_GROUPBOX, (15, 12, 870, 120), 0),
-        ctl("STATIC", "Bảng mã:", 0, (L, 49, 85, 30), 0),
-        ctl(
-            "COMBOBOX",
-            "",
-            CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0 | WS_GROUP.0,
-            (122, 46, 300, 200),
-            ID_COMBO_CHARSET,
-        ),
-        ctl("STATIC", "Kiểu gõ:", 0, (R, 49, 85, 30), 0),
-        ctl(
-            "COMBOBOX",
-            "",
-            CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
-            (560, 46, 300, 200),
-            ID_COMBO_METHOD,
-        ),
-        ctl("STATIC", "Phím chuyển:", 0, (L, 93, 130, 30), 0),
-        ctl(
-            "STATIC",
-            "Ctrl + Shift   (hoặc Ctrl + Shift + Space)",
-            0,
-            (170, 93, 690, 30),
-            0,
-        ),
-        // 2. Tùy chọn gõ — 2 cột, 4 hàng
-        ctl("BUTTON", "Tùy chọn gõ", BS_GROUPBOX, (15, 142, 870, 205), 0),
-        ctl(
-            "BUTTON",
-            "Bật gõ tiếng Việt",
-            CHK,
-            (L, 176, CW, 32),
-            ID_CHK_GLOBAL_ENABLED,
-        ),
-        ctl(
-            "BUTTON",
-            "Dấu mới (hoà, thuỷ)",
-            BS_AUTORADIOBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
-            (R, 176, 400, 32),
-            ID_RAD_DIACRITIC_NEW,
-        ),
-        ctl(
-            "BUTTON",
-            "Dấu cũ (hòa, thủy)",
-            BS_AUTORADIOBUTTON,
-            (R, 218, 400, 32),
-            ID_RAD_DIACRITIC_OLD,
-        ),
-        ctl(
-            "BUTTON",
-            "Khôi phục từ tiếng Anh khi gõ sai",
-            CHK | WS_GROUP.0,
-            (L, 218, CW, 32),
-            ID_CHK_AUTO_RESTORE,
-        ),
-        ctl(
-            "BUTTON",
-            "Đặt dấu tự do",
-            CHK,
-            (L, 260, CW, 32),
-            ID_CHK_FREE_MARKING,
-        ),
-        ctl(
-            "BUTTON",
-            "Tự viết hoa chữ đầu câu",
-            CHK,
-            (R, 260, 400, 32),
-            ID_CHK_AUTO_CAPITALIZE,
-        ),
-        ctl(
-            "BUTTON",
-            "Quick Telex (cc→ch, nn→ng…)",
-            CHK,
-            (L, 302, CW, 32),
-            ID_CHK_QUICK_TELEX,
-        ),
-        ctl(
-            "BUTTON",
-            "Gõ tắt cả khi tắt tiếng Việt",
-            CHK,
-            (R, 302, 400, 32),
-            ID_CHK_MACRO_WHEN_OFF,
-        ),
-        // 3. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
-        ctl("BUTTON", "Hệ thống", BS_GROUPBOX, (15, 357, 870, 124), 0),
-        ctl(
-            "BUTTON",
-            "Khởi động cùng Windows",
-            CHK,
-            (L, 391, CW, 32),
-            ID_CHK_AUTOSTART,
-        ),
-        ctl(
-            "BUTTON",
-            "Bật hội thoại này khi khởi động",
-            CHK,
-            (R, 391, 400, 32),
-            ID_CHK_SHOW_ON_STARTUP,
-        ),
-        ctl(
-            "BUTTON",
-            "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
-            CHK,
-            (L, 433, 830, 32),
-            ID_CHK_CTRL_SHIFT,
-        ),
-        // 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-        ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 120, 48), ID_BTN_HELP),
-        ctl(
-            "BUTTON",
-            "Thông tin",
-            BTN,
-            (143, 497, 120, 48),
-            ID_BTN_ABOUT,
-        ),
-        ctl(
-            "BUTTON",
-            "Gõ tắt...",
-            BTN,
-            (271, 497, 120, 48),
-            ID_BTN_MACROS,
-        ),
-        ctl(
-            "BUTTON",
-            "Cài & bật TSF",
-            BTN,
-            (399, 497, 160, 48),
-            ID_BTN_SETUP_TSF,
-        ),
-        ctl(
-            "BUTTON",
-            "Mặc định",
-            BTN,
-            (567, 497, 105, 48),
-            ID_BTN_DEFAULT,
-        ),
-        // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
-        ctl(
-            "BUTTON",
-            "Đóng",
-            BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-            (680, 497, 100, 48),
-            ID_BTN_CLOSE,
-        ),
-        ctl("BUTTON", "Kết thúc", BTN, (788, 497, 97, 48), ID_BTN_EXIT),
-    ];
-    for c in &layout {
+    for c in &DIALOG_LAYOUT {
         let (x, y, cw, ch) = c.rect;
         let hwnd = create_control(
             c.class,
@@ -789,7 +885,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                     "Thông tin TextVN",
                     &format!(
                         "TextVN {} — Bộ gõ tiếng Việt cho Windows\r\n\r\n\
-                         Phát triển bởi: hunglinhpt\r\n\
+                         Phát triển bởi: LinhBH.CoM\r\n\
                          Giấy phép: GPL-3.0-or-later\r\n\
                          https://github.com/hunglinhpt/TextVN",
                         env!("CARGO_PKG_VERSION")
@@ -900,6 +996,17 @@ unsafe extern "system" fn dialog_wnd_proc(
             }
             LRESULT(0)
         }
+        WM_DPICHANGED => {
+            // Kéo dialog sang màn hình khác DPI: resize + re-layout + font mới.
+            apply_dpi_change(hwnd, wparam, lparam, layout_dialog_controls);
+            for c in &DIALOG_LAYOUT {
+                let Ok(ctl_h) = (unsafe { GetDlgItem(Some(hwnd), c.id as i32) }) else {
+                    continue;
+                };
+                set_font(ctl_h, scaled_gui_font(((wparam.0 >> 16) & 0xffff) as i32));
+            }
+            LRESULT(0)
+        }
         WM_CLOSE => {
             // Nút [X]: ẩn về khay hệ thống thay vì thoát
             let _ = ShowWindow(hwnd, SW_HIDE);
@@ -931,6 +1038,110 @@ static MACRO_HWND: AtomicIsize = AtomicIsize::new(0);
 /// Text của EDIT nhiều dòng dùng CRLF; bảng gõ tắt lưu LF.
 fn to_crlf(s: &str) -> String {
     s.replace('\n', "\r\n")
+}
+
+/// Bảng layout cửa sổ Gõ tắt — label: `Some` (text tĩnh) | `None` (EDIT nội
+/// dung động). Dùng cả lúc tạo lẫn re-layout sau WM_DPICHANGED.
+#[cfg(windows)]
+const MACRO_EX_NONE: WINDOW_EX_STYLE = WINDOW_EX_STYLE(0);
+#[cfg(windows)]
+const MACRO_LAYOUT: [(
+    WINDOW_EX_STYLE,
+    &'static str,
+    Option<&'static str>,
+    u32,
+    (i32, i32, i32, i32),
+    isize,
+); 7] = [
+    (
+        MACRO_EX_NONE,
+        "STATIC",
+        Some(
+            "Mỗi dòng một mục:   gõ tắt = nội dung      (ví dụ:  vn = Việt Nam)\r\n\
+         Dòng bắt đầu bằng # là ghi chú.  \\n trong nội dung = xuống dòng.  Tối đa 64 ký tự.",
+        ),
+        0,
+        (20, 12, 680, 64),
+        ID_LBL_MACRO_HINT,
+    ),
+    (
+        WS_EX_CLIENTEDGE,
+        "EDIT",
+        None,
+        ES_MULTILINE
+            | ES_AUTOVSCROLL
+            | ES_WANTRETURN
+            | ES_NOHIDESEL
+            | WS_VSCROLL.0
+            | WS_TABSTOP.0
+            | WS_GROUP.0,
+        (20, 84, 680, 370),
+        ID_EDIT_MACROS,
+    ),
+    (
+        MACRO_EX_NONE,
+        "STATIC",
+        Some("Bung gõ tắt bằng phím:"),
+        0,
+        (20, 474, 230, 30),
+        ID_LBL_MACRO_TRIGGER,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Tab"),
+        BS_AUTORADIOBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
+        (255, 470, 90, 32),
+        ID_RAD_TRIGGER_TAB,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Space"),
+        BS_AUTORADIOBUTTON,
+        (350, 470, 110, 32),
+        ID_RAD_TRIGGER_SPACE,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Lưu"),
+        BS_DEFPUSHBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
+        (480, 500, 105, 46),
+        ID_BTN_MACRO_SAVE,
+    ),
+    (
+        MACRO_EX_NONE,
+        "BUTTON",
+        Some("Hủy"),
+        BS_PUSHBUTTON | WS_TABSTOP.0,
+        (595, 500, 105, 46),
+        ID_BTN_MACRO_CANCEL,
+    ),
+];
+
+/// Re-layout cửa sổ Gõ tắt theo DPI (WM_DPICHANGED — đa màn hình).
+#[cfg(windows)]
+fn layout_macro_controls(parent: HWND, dpi: i32) {
+    let scale = COMPACT_SCALE * dpi as f64 / 96.0;
+    let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
+    for (_, _, _, _, rect, id) in MACRO_LAYOUT {
+        let Ok(h) = (unsafe { GetDlgItem(Some(parent), id as i32) }) else {
+            continue;
+        };
+        let _ = unsafe {
+            SetWindowPos(
+                h,
+                None,
+                k(rect.0),
+                k(rect.1),
+                k(rect.2),
+                k(rect.3),
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+        set_font(h, scaled_gui_font(dpi));
+    }
 }
 
 #[cfg(windows)]
@@ -989,46 +1200,32 @@ fn show_macro_editor(owner: HWND) {
     let scale = COMPACT_SCALE * dpi as f64 / 96.0;
     let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
     let font = scaled_gui_font(dpi);
-    let add = |ex, class, text: &str, style, (x, y, w, h), id| {
+    for (ex, class, label, style, rect, id) in MACRO_LAYOUT {
+        // EDIT: nội dung động nạp sau; label None → chuỗi rỗng.
+        let content = label.map(to_crlf).unwrap_or_default();
         let c = create_control_ex(
             ex,
             class,
-            text,
+            &content,
             style,
-            (k(x), k(y), k(w), k(h)),
+            (k(rect.0), k(rect.1), k(rect.2), k(rect.3)),
             hwnd,
             id,
             h_instance,
         );
         set_font(c, font);
-        c
-    };
-    let none = WINDOW_EX_STYLE::default();
-    add(
-        none,
-        "STATIC",
-        "Mỗi dòng một mục:   gõ tắt = nội dung      (ví dụ:  vn = Việt Nam)\r\n\
-         Dòng bắt đầu bằng # là ghi chú.  \\n trong nội dung = xuống dòng.  Tối đa 64 ký tự.",
-        0,
-        (20, 12, 680, 64),
-        0,
-    );
-    let edit = add(
-        WS_EX_CLIENTEDGE,
-        "EDIT",
-        &to_crlf(&text),
-        ES_MULTILINE
-            | ES_AUTOVSCROLL
-            | ES_WANTRETURN
-            | ES_NOHIDESEL
-            | WS_VSCROLL.0
-            | WS_TABSTOP.0
-            | WS_GROUP.0,
-        (20, 84, 680, 370),
-        ID_EDIT_MACROS,
-    );
-    // Mặc định EDIT giới hạn 32K ký tự — đủ, nhưng nâng lên để không cắt bảng lớn.
+    }
+    let edit = (unsafe { GetDlgItem(Some(hwnd), ID_EDIT_MACROS as i32) }).unwrap_or_default();
+    // Nội dung động của EDIT nạp sau khi tạo (MACRO_LAYOUT chỉ khai khung).
+    let content_w = w(&to_crlf(&text));
     unsafe {
+        let _ = SendMessageW(
+            edit,
+            WM_SETTEXT,
+            Some(WPARAM(0)),
+            Some(LPARAM(content_w.as_ptr() as isize)),
+        );
+        // Mặc định EDIT giới hạn 32K ký tự — đủ, nhưng nâng lên để không cắt bảng lớn.
         let _ = SendMessageW(
             edit,
             EM_SETLIMITTEXT,
@@ -1036,46 +1233,6 @@ fn show_macro_editor(owner: HWND) {
             Some(LPARAM(0)),
         );
     }
-    add(
-        none,
-        "STATIC",
-        "Bung gõ tắt bằng phím:",
-        0,
-        (20, 474, 230, 30),
-        0,
-    );
-    add(
-        none,
-        "BUTTON",
-        "Tab",
-        BS_AUTORADIOBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
-        (255, 470, 90, 32),
-        ID_RAD_TRIGGER_TAB,
-    );
-    add(
-        none,
-        "BUTTON",
-        "Space",
-        BS_AUTORADIOBUTTON,
-        (350, 470, 110, 32),
-        ID_RAD_TRIGGER_SPACE,
-    );
-    add(
-        none,
-        "BUTTON",
-        "Lưu",
-        BS_DEFPUSHBUTTON | WS_TABSTOP.0 | WS_GROUP.0,
-        (480, 500, 105, 46),
-        ID_BTN_MACRO_SAVE,
-    );
-    add(
-        none,
-        "BUTTON",
-        "Hủy",
-        BS_PUSHBUTTON | WS_TABSTOP.0,
-        (595, 500, 105, 46),
-        ID_BTN_MACRO_CANCEL,
-    );
     let is_tab = trigger == MacroTrigger::Tab;
     set_chk(hwnd, ID_RAD_TRIGGER_TAB, is_tab);
     set_chk(hwnd, ID_RAD_TRIGGER_SPACE, !is_tab);
@@ -1189,6 +1346,10 @@ unsafe extern "system" fn macro_wnd_proc(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        WM_DPICHANGED => {
+            apply_dpi_change(hwnd, wparam, lparam, layout_macro_controls);
+            LRESULT(0)
+        }
         WM_COMMAND => {
             match (wparam.0 & 0xffff) as isize {
                 ID_BTN_MACRO_SAVE => {

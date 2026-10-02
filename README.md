@@ -22,10 +22,12 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.7](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.7)**
-(0.2.7 — **Ctrl+Shift đổi mode + icon hoạt động toàn cục** ở mọi app như
-UniKey; đăng ký TSF VI + EN, tự sửa ghost registration; không cần admin,
-không gạch chân; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+Bản mới nhất: **[GitHub Release v0.2.8](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.8)**
+(0.2.8 — **tự xác định tiếng Anh/tiếng Việt khi gõ**: từ điển EN dựng sẵn +
+Tab gợi ý hoàn tất từ + Escape khôi phục; **dialog tự co giãn khi kéo giữa
+các màn hình khác DPI**; cài im lặng `/VERYSILENT /CURRENTUSER` sẵn sàng cho
+Microsoft Store; Ctrl+Shift toàn cục; không cần admin, không gạch chân;
+build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -103,4 +105,4 @@ chính xác chuỗi phím, kết quả nhận được, ứng dụng và hệ đ
 
 ## Giấy phép
 
-[GPL-3.0-or-later](LICENSE) © 2026 hunglinhpt
+[GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
