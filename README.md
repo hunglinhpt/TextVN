@@ -22,10 +22,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.5](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.5)**
-(0.2.5 — vá **bản portable**: chữ gõ không còn gạch chân cả khi không dùng
-admin, Ctrl+Shift ổn định; đăng ký TSF không cần quyền Admin; kèm pipeline ký
-số SignPath opt-in; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
+Bản mới nhất: **[GitHub Release v0.2.6](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.6)**
+(0.2.6 — danh sách bàn phím gọn: một layout "Tiếng Việt — TextVN", hết entry ma
+khi đổi phiên bản portable; giữ các fix 0.2.4/0.2.5: không cần admin, không
+gạch chân, Ctrl+Shift ổn định; build bởi CI, kèm `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|

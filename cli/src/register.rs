@@ -880,19 +880,24 @@ mod win_impl {
         }
 
         // Bước 3: danh sách bàn phím của user (HKCU, không cần admin).
-        // VI bắt buộc; EN best-effort — Windows Single Language/chính sách có
-        // thể không thêm được en-US, chỉ WARN để không fail toàn bộ đăng ký
-        // dù VI (mục tiêu thật của bộ gõ) đã dùng được.
+        // Dedupe: gỡ entry cũ (mọi ngôn ngữ từng đăng ký) TRƯỚC khi thêm —
+        // nhiều lần register qua các version từng dồn nhiều entry "TextVN"
+        // trong danh sách Win+Space (báo cáo 2026-10-02).
+        let _ = call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL-dedupe");
+        let _ = call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL-dedupe");
+        // Chỉ thêm layout VI: entry EN-TextVN là bản dup vô dụng (Ctrl+Shift đã
+        // có EN trong TextVN) và làm danh sách bàn phím phình to. EN chỉ dùng
+        // làm FALLBACK khi máy không có/ngoại lệ ngôn ngữ VI (máy tiếng Anh).
         let layouts_ok = if no_taskbar {
-            call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
-                && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
+            true
         } else {
             let vi_ok = call_layout_or_tip(LANGID_VI, ILOT_DEFPROFILE, "DEFPROFILE");
-            let en_ok = call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE");
-            if vi_ok && !en_ok {
-                say("  WARN: không thêm được profile cho ngôn ngữ EN (best-effort) — VI vẫn dùng được");
+            if vi_ok {
+                true
+            } else {
+                say("  VI không thêm được — thử EN làm ngôn ngữ dự phòng");
+                call_layout_or_tip(LANGID_EN, ILOT_DEFPROFILE, "DEFPROFILE")
             }
-            vi_ok
         };
         if !layouts_ok {
             say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");

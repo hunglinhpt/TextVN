@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.6] — 2026-10-02
+
+Bản vá khẩn sau báo cáo **"không gõ được tiếng Việt (kể cả admin) + danh sách
+bàn phím quá nhiều layout"** trên bản 0.2.5.
+
+### Fixed (Windows)
+- **Danh sách bàn phím không còn phình to / entry ma**: `register` giờ gỡ entry
+  cũ (VI + EN) trước khi thêm lại (dedupe) — nhiều lần đăng ký qua các version
+  từng dồn nhiều entry "TextVN" trong Win+Space.
+- **Chỉ đăng ký MỘT layout "Tiếng Việt — TextVN"** mặc định; layout EN-TextVN
+  (bản dup vô dụng — Ctrl+Shift đã có chế độ EN trong TextVN) chỉ còn là
+  **fallback** khi máy không thêm được layout VI (máy tiếng Anh). Danh sách
+  Win+Space từ 4+ layout còn gọn: US · VI (Microsoft) · VI (TextVN).
+- **Ghost registration rõ nguyên nhân**: COM trỏ vào thư mục portable đã bị
+  xoá làm TIP không nạp được (không gõ được kể cả admin — HKCU override HKLM).
+  `register status`/`doctor` đã báo `FILE MISSING`; chạy lại `TextVN.exe` từ
+  thư mục portable còn tồn tại sẽ tự sửa COM sang đường dẫn mới.
+
 ## [0.2.5] — 2026-10-02
 
 Bản vá cho **bản portable** — ba fix của 0.2.4 vận hành đủ trên bản cài nhưng
@@ -444,7 +462,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/hunglinhpt/TextVN/compare/v0.2.2...v0.2.3

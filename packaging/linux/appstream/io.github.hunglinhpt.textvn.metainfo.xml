@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.6" date="2026-10-02">
+      <description>
+        <p>Registration now deduplicates input-list entries and registers a single Vietnamese layout by default (English layout only as fallback), fixing the crowded keyboard list and ghost registrations from deleted portable folders.</p>
+      </description>
+    </release>
     <release version="0.2.5" date="2026-10-02">
       <description>
         <p>Portable build: composition display attributes now survive layout updates (no more underlines without admin), and Ctrl+Shift toggling works reliably. Adds an opt-in SignPath code-signing pipeline.</p>
