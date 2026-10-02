@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.10"
+  #define MyAppVersion "0.2.11"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"

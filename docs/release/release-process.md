@@ -125,6 +125,7 @@ blockers chưa được chứng minh).
 | R1 | clippy đỏ trên CI nhưng local "đã chạy" | chạy `cargo clippy … \| tail` trong chuỗi `&&` — pipe che exit code, chuỗi vẫn tiếp tục | KHÔNG pipe các lệnh gate; dùng `cargo xtask preflight` (Command::status, exit thật) hoặc `set -o pipefail` |
 | R2 | job perf đỏ trên mọi commit | baseline-win.json đo bằng runner image cũ — runner mới chậm hơn trên micro-bench | re-record baseline TỪ SỐ ĐO CI (không dùng số máy local — hardware khác); bisect worktree commit cũ để chứng minh không phải code mới |
 | R3 | `cargo xtask` báo "no such command" | chưa có alias | alias đã thêm ở `.cargo/config.toml`; nếu clone mới mà thiếu, dùng `cargo run -q -p xtask -- <cmd>` |
+| R4 | Publish job fail ngay lập tức, log không có message | tag được push mà **quên bump version** — `test tag = Cargo.toml` trả 1 im lặng; artifact 0.2.10 trong run v0.2.11 | Publish job giờ in `FATAL: tag != version…` (2026-10-03); QUY TẮC: bump version (14 chỗ, `cargo xtask preflight` có version-sync) **trước khi** tag |
 
 | Triệu chứng | Nguyên nhân | Xử lý |
 |---|---|---|

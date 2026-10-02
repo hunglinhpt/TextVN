@@ -7,6 +7,18 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.11] — 2026-10-03
+
+### Fixed
+- `textvn-cli activate` (đường toggle của tray) **check-then-activate**:
+  profile đang bật mà blind-call `ActivateProfile` trả E_FAIL (0x80004005)
+  trên một số build Windows (bắt thật trên máy chủ repo) → giờ kiểm tra
+  enabled trước, đã active = exit 0; sau lỗi còn verify lại một lần nữa.
+- **Quy trình**: publish job thêm thông báo lỗi RÕ khi `RELEASE_REPORT.json`
+  lệch tag/version — sự cố tag v0.2.11 đầu tiên bị push mà không bump version
+  khiến publish fail im lặng (jq -e không in gì); R4 ghi vào
+  `docs/release/release-process.md`.
+
 ## [0.2.10] — 2026-10-03
 
 Bản vá theo phản hồi trực tiếp của chủ repo trên 0.2.9.
@@ -586,7 +598,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...HEAD
+[0.2.11]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...v0.2.8

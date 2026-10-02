@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.11" date="2026-10-03">
+      <description>
+        <p>Hotfix: activating an already-active TextVN profile no longer fails (check-then-activate).</p>
+      </description>
+    </release>
     <release version="0.2.10" date="2026-10-03">
       <description>
         <p>Ctrl+Shift now also switches the active input method to TextVN (mode change means typing changes), tray and engine state can no longer diverge after rapid toggles, and upgrading clears stale old-version data while preserving the user dictionary and abbreviations.</p>

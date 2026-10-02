@@ -22,7 +22,7 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.10](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.10)**
+Bản mới nhất: **[GitHub Release v0.2.11](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.11)**
 (0.2.10 — **Ctrl+Shift đổi mode là gõ theo mode luôn** (kích hoạt cả bộ gõ
 active) + **nâng cấp tự dọn dữ liệu phiên bản cũ** (giữ từ điển/gõ tắt của
 bạn); 0.2.9 — **"Từ điển EN..." trong Bảng điều khiển**: bạn tự thêm từ tiếng
