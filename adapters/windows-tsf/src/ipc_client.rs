@@ -89,7 +89,9 @@ impl IpcState {
 /// Handle tới trạng thái IPC của process.
 pub struct IpcClient {
     state: Arc<IpcState>,
-    /// app_id chuẩn hoá của process (điền lúc init; dùng cho snapshot response).
+    /// app_id chuẩn hoá của process (điền lúc init; dùng cho snapshot response —
+    /// chỉ đường toggle thread phía Windows đọc).
+    #[cfg_attr(not(windows), allow(dead_code))]
     app_id: String,
 }
 

@@ -62,6 +62,16 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "clippy-linux",
+        guards: "clippy trên target Linux — chặn dead_code/cfg chỉ lộ ở non-Windows (CI clippy chạy trên ubuntu; 3050cd6)",
+        argv: &[
+            "cargo", "clippy", "--workspace", "--exclude", "textvn-win-hook",
+            "--all-targets", "--target", "x86_64-unknown-linux-gnu", "--", "-D", "warnings",
+        ],
+        python_alt: false,
+        optional: false,
+    },
+    Step {
         name: "test",
         guards: "unit + integration toàn workspace",
         argv: &["cargo", "test", "--workspace"],
