@@ -66,6 +66,79 @@ static TASKBAR_CREATED: std::sync::atomic::AtomicU32 = std::sync::atomic::Atomic
 #[cfg(windows)]
 const TIMER_TRAY_RETRY: usize = 1;
 
+// ---- Ctrl+Shift tap toàn cục (UniKey semantics) --------------------------------
+// LL hook CHỈ QUAN SÁT modifier: không ăn phím (mọi event đi tiếp qua
+// CallNextHookEx), không inject. Tồn tại để Ctrl+Shift đổi mode ở MỌI app — kể
+// cả khi TextVN TIP không phải bộ gõ active (user đang đứng ở bàn phím
+// US/Microsoft Việt trong danh sách Win+Space). Trùng lặp với đường in-process
+// của TIP được khoá bằng `try_claim_global_toggle()` (E11): nguồn sau trong
+// 250ms bị bỏ qua, cả hai nguồn tính cùng giá trị từ cùng state nền.
+#[cfg(windows)]
+static HOTKEY_CTRL_DOWN: AtomicBool = AtomicBool::new(false);
+#[cfg(windows)]
+static HOTKEY_SHIFT_DOWN: AtomicBool = AtomicBool::new(false);
+#[cfg(windows)]
+static HOTKEY_OTHER_KEY_DOWN: AtomicBool = AtomicBool::new(false);
+
+#[cfg(windows)]
+unsafe extern "system" fn tray_ll_keyboard_proc(
+    code: i32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if code < 0 {
+        return CallNextHookEx(None, code, wparam, lparam);
+    }
+
+    // SAFETY: lparam trỏ KBDLLHOOKSTRUCT hợp lệ theo hợp đồng WH_KEYBOARD_LL.
+    let kbd = *(lparam.0 as *const KBDLLHOOKSTRUCT);
+    let vk = kbd.vkCode;
+    let is_up = (kbd.flags.0 & LLKHF_UP.0) != 0;
+    let is_down = !is_up;
+
+    let is_ctrl = matches!(vk, 0x11 | 0xA2 | 0xA3);
+    let is_shift = matches!(vk, 0x10 | 0xA0 | 0xA1);
+
+    if is_down && is_ctrl {
+        HOTKEY_CTRL_DOWN.store(true, Ordering::Release);
+    } else if is_down && is_shift {
+        HOTKEY_SHIFT_DOWN.store(true, Ordering::Release);
+    } else if is_down {
+        HOTKEY_OTHER_KEY_DOWN.store(true, Ordering::Release);
+    } else if is_up && (is_ctrl || is_shift) {
+        if HOTKEY_CTRL_DOWN.load(Ordering::Acquire)
+            && HOTKEY_SHIFT_DOWN.load(Ordering::Acquire)
+            && !HOTKEY_OTHER_KEY_DOWN.load(Ordering::Acquire)
+            && textvn_tray::try_claim_global_toggle()
+        {
+            let raw_hwnd = textvn_tray::TRAY_HWND.load(Ordering::Acquire);
+            if raw_hwnd != 0 {
+                let _ = PostMessageW(
+                    Some(HWND(raw_hwnd as *mut _)),
+                    textvn_tray::WM_TOGGLE_HOTKEY,
+                    WPARAM(0),
+                    LPARAM(0),
+                );
+            }
+            // Nuốt LẦN NHẢ CÙNG LÚC của cặp modifier còn lại khỏi bộ đếm "phím
+            // khác" — không ăn phím, mọi event vẫn đi tiếp cho app.
+            HOTKEY_OTHER_KEY_DOWN.store(true, Ordering::Release);
+        }
+
+        if is_ctrl {
+            HOTKEY_CTRL_DOWN.store(false, Ordering::Release);
+        }
+        if is_shift {
+            HOTKEY_SHIFT_DOWN.store(false, Ordering::Release);
+        }
+        if !HOTKEY_CTRL_DOWN.load(Ordering::Acquire) && !HOTKEY_SHIFT_DOWN.load(Ordering::Acquire) {
+            HOTKEY_OTHER_KEY_DOWN.store(false, Ordering::Release);
+        }
+    }
+
+    CallNextHookEx(None, code, wparam, lparam)
+}
+
 struct TrayApp {
     svc: Arc<SvcManager>,
     ipc: Arc<IpcServer>,
@@ -485,6 +558,15 @@ fn run_tray_app() {
     }
 
     // 5. Message Loop
+    // LL hook chỉ quan sát Ctrl+Shift tap (không ăn phím, không inject) — cài
+    // trước vòng lặp, gỡ trong dọn dẹp. Thất bại (hiếm) → Ctrl+Shift vẫn hoạt
+    // động qua đường TIP in-process khi TextVN là bộ gõ active.
+    let ll_hook =
+        unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(tray_ll_keyboard_proc), None, 0) };
+    if let Err(e) = &ll_hook {
+        eprintln!("TextVN: WH_KEYBOARD_LL hotkey detector unavailable: {e}");
+    }
+
     // GetMessageW trả -1 khi lỗi — `.as_bool()` vẫn true → loop dispatch MSG
     // rác vô hạn (review R3 minor 5). Chuẩn: r <= 0 (−1 lỗi, 0 WM_QUIT) thoát.
     let mut msg = MSG::default();
@@ -505,6 +587,9 @@ fn run_tray_app() {
     }
 
     // 6. Dọn dẹp trước khi thoát
+    if let Ok(h) = ll_hook {
+        let _ = unsafe { UnhookWindowsHookEx(h) };
+    }
     let nid = NOTIFYICONDATAW {
         cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
         hWnd: hwnd,
@@ -563,6 +648,16 @@ unsafe extern "system" fn wnd_proc(
                 update_tray_icon(hwnd, app);
             }
             // Ctrl+Shift / menu khay / IPC đổi trạng thái → bảng điều khiển đang mở cập nhật theo.
+            textvn_tray::settings_dialog::refresh_if_open();
+            LRESULT(0)
+        }
+        textvn_tray::WM_TOGGLE_HOTKEY => {
+            // Nguồn LL hook — đã claim debounce trong tray_ll_keyboard_proc.
+            if let Some(app) = APP_INSTANCE.get() {
+                let (enabled, ver) = app.svc.toggle_global_enabled();
+                app.ipc.broadcast_state_update("*", enabled, ver);
+                update_tray_icon(hwnd, app);
+            }
             textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }

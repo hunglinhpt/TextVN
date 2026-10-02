@@ -39,6 +39,32 @@ pub const WM_REQUEST_EXIT: u32 = 0x8000 + 4;
 /// Yêu cầu khởi động engine hook tương thích. Đây là hành động chủ động theo
 /// phiên; bản TextVN chuẩn không tự chạy global keyboard hook.
 pub const WM_START_COMPATIBILITY_HOOK: u32 = 0x8000 + 5;
+/// LL hook của tray phát hiện Ctrl+Shift tap toàn cục → tray toggle + đổi icon.
+pub const WM_TOGGLE_HOTKEY: u32 = 0x8000 + 6;
+
+/// Debounce chéo nguồn cho toggle Ctrl+Shift: một lần bấm tới tray qua HAI
+/// đường (LL hook quan sát + TIP in-process gửi IPC) — nguồn đến sau trong
+/// cửa sổ 250ms bị bỏ qua để không toggle đôi (E11). Menu/click chuột không
+/// đi qua hàm này (hành động tường minh của người dùng).
+pub static LAST_GLOBAL_TOGGLE_MS: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Thử chiếm lượt toggle toàn cục: `true` khi cách lần trước ≥ 250ms.
+pub fn try_claim_global_toggle() -> bool {
+    use std::sync::atomic::Ordering;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let last = LAST_GLOBAL_TOGGLE_MS.load(Ordering::Acquire);
+    if now.saturating_sub(last) < 250 {
+        return false;
+    }
+    // Thread khác vừa claim trong cùng thời điểm = trùng lần bấm → bỏ.
+    LAST_GLOBAL_TOGGLE_MS
+        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+}
 
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
 /// Không tìm trong working directory hay `target/` để bản phát hành không thể
@@ -118,5 +144,25 @@ pub fn notify_start_compatibility_hook() {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải
+    /// thất bại (E11 — nguồn sau của CÙNG lần bấm không được toggle lần hai).
+    #[test]
+    fn global_toggle_claim_debounces_within_window() {
+        std::thread::sleep(std::time::Duration::from_millis(260));
+        assert!(
+            try_claim_global_toggle(),
+            "claim đầu tiên sau 260ms phải OK"
+        );
+        assert!(
+            !try_claim_global_toggle(),
+            "claim ngay lập tức phải bị chặn"
+        );
     }
 }

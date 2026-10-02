@@ -460,9 +460,16 @@ impl IpcServer {
                     // Phát state thật sau khi lưu: persist lỗi → state cũ giữ nguyên
                     // (review R3 minor 8), TSF áp StateUpdate không so version.
                     let (actual, ver) = if app_id == "*" {
-                        let r = self.svc.set_global_enabled(enabled);
-                        crate::notify_tray_state_changed();
-                        r
+                        // Debounce chéo nguồn (E11): TIP in-process và LL hook cùng
+                        // bắn một lần bấm — nguồn sau trong 250ms bị bỏ qua (chỉ
+                        // phản hồi state hiện tại, không toggle lần hai).
+                        if crate::try_claim_global_toggle() {
+                            let r = self.svc.set_global_enabled(enabled);
+                            crate::notify_tray_state_changed();
+                            r
+                        } else {
+                            (self.svc.is_global_enabled(), self.svc.state_version())
+                        }
                     } else {
                         let v = self.svc.set_app_enabled(&app_id, enabled);
                         (self.svc.is_app_enabled(&app_id), v)
@@ -471,9 +478,12 @@ impl IpcServer {
                     Some(Message::Ack)
                 }
                 Message::ToggleGlobal => {
-                    let (enabled, ver) = self.svc.toggle_global_enabled();
-                    self.broadcast_state_update("*", enabled, ver);
-                    crate::notify_tray_state_changed();
+                    if crate::try_claim_global_toggle() {
+                        let (enabled, ver) = self.svc.toggle_global_enabled();
+                        self.broadcast_state_update("*", enabled, ver);
+                        crate::notify_tray_state_changed();
+                    }
+                    // Trùng lần bấm — nguồn khác đã toggle trong 250ms: chỉ Ack.
                     Some(Message::Ack)
                 }
                 Message::Ping => Some(Message::Pong {

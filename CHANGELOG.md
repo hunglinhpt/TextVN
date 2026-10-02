@@ -7,6 +7,23 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.7] — 2026-10-02
+
+Bản vá theo báo cáo **Ctrl+Shift trên bản 0.2.5/0.2.6 không đổi được mode và
+icon khay**.
+
+### Fixed (Windows)
+- **Ctrl+Shift hoạt động toàn cục như UniKey**: trước đây toggle chỉ xử lý
+  trong TIP — khi TextVN không phải bộ gó active (user đứng ở bàn phím
+  US/Microsoft Việt trong danh sách Win+Space) thì không có gì nhận tổ hợp.
+  Tray giờ cài `WH_KEYBOARD_LL` **chỉ quan sát** (không ăn phím, không inject —
+  mọi event đi tiếp qua `CallNextHookEx`) để dò Ctrl+Shift tap ở mọi app, đồng
+  bộ icon `[V]`/`[E]` tức thì.
+- **Chống toggle đôi (E11)**: một lần bấm tới tray qua hai đường (LL hook +
+  TIP in-process) — `try_claim_global_toggle()` khoá cửa sổ 250ms chéo nguồn,
+  nguồn sau chỉ nhận Ack + broadcast state hiện tại; cả hai nguồn tính cùng
+  giá trị từ cùng state nền nên không lệch.
+
 ## [0.2.6] — 2026-10-02
 
 Bản vá khẩn sau báo cáo **"không gõ được tiếng Việt (kể cả admin) + danh sách
@@ -464,7 +481,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/hunglinhpt/TextVN/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/hunglinhpt/TextVN/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/hunglinhpt/TextVN/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/hunglinhpt/TextVN/compare/v0.2.3...v0.2.4

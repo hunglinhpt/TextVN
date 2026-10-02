@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.7" date="2026-10-02">
+      <description>
+        <p>Ctrl+Shift now toggles Vietnamese mode and the tray icon in every application (observe-only low-level detector with cross-source debounce), matching UniKey behavior.</p>
+      </description>
+    </release>
     <release version="0.2.6" date="2026-10-02">
       <description>
         <p>Self-heals ghost registrations from deleted portable folders, and keeps the proven dual-language (VI + EN) layout registration after two risky layout-list experiments were reverted.</p>

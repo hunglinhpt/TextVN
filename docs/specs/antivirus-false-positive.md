@@ -93,7 +93,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 |---|---|---|
 | A1 | **Windows: TSF là đường gõ mặc định** — TIP đăng ký per-user tự động lần đầu mở tray (`tray/src/main.rs:300` `ensure_tsf_tip_registered`), installer `[Run] textvn-cli register` (`TextVN-setup.iss:75`); không cần admin (S5) | ✅ |
 | A2 | **Release mặc định = `tsf-only`** — `build-release.ps1:92` chọn profile, dòng 112–116 loại `textvn-win-hook` khỏi build khi không có `-IncludeCompatibilityHook`; hook chỉ có trong gói build riêng có chủ đích | ✅ |
-| A3 | **Global hook = tùy chọn 2 lớp, lọc đầy đủ** — chỉ `WH_KEYBOARD_LL` (không inject DLL; duy nhất 1 chỗ trong code phát hành: `adapters/windows-hook/src/main.rs:152`); spawn chỉ khi người dùng bấm menu "Chế độ tương thích" (`tray/src/menu.rs:265` → `WM_START_COMPATIBILITY_HOOK` → `tray/src/main.rs:459-462`), mỗi phiên — không auto-spawn, watchdog không spawn (`tray/src/ipc_server.rs:427-431`); filter chain: guard `LLKHF_INJECTED` → cổng `GLOBAL_ENABLED` → bỏ key-up / chord hệ thống → gate S3 field-detect (`field-detect/src/lib.rs:132-135`: Unknown/secure = đóng, fail-safe pass-through) → timebox callback → `SendInput` có loop-guard + fail-open | ✅ |
+| A3 | **Global hook = tùy chọn 2 lớp, lọc đầy đủ** — chỉ `WH_KEYBOARD_LL` (không inject DLL; 2 chỗ trong code phát hành 2026-10-02: `adapters/windows-hook/src/main.rs:152` + bộ dò tap Ctrl+Shift **chỉ quan sát** trong `tray/src/main.rs` — không ăn phím, không inject); spawn chỉ khi người dùng bấm menu "Chế độ tương thích" (`tray/src/menu.rs:265` → `WM_START_COMPATIBILITY_HOOK` → `tray/src/main.rs:459-462`), mỗi phiên — không auto-spawn, watchdog không spawn (`tray/src/ipc_server.rs:427-431`); filter chain: guard `LLKHF_INJECTED` → cổng `GLOBAL_ENABLED` → bỏ key-up / chord hệ thống → gate S3 field-detect (`field-detect/src/lib.rs:132-135`: Unknown/secure = đóng, fail-safe pass-through) → timebox callback → `SendInput` có loop-guard + fail-open | ✅ |
 | A4 | **Cấm process injection** — không `CreateRemoteThread` / `WriteProcessMemory` / `VirtualAllocEx` / … (§8.3); regression guard = `repo-hygiene` **check #8** mỗi push (Farch-3) | ✅ |
 | A5 | **Không log phím/text người dùng** (S2) — log chỉ PID/heartbeat/kết quả | ✅ |
 | A6 | **Linux: framework IME chính thống** — fcitx5/ibus (`adapters/linux-*`) | ✅ |
@@ -114,14 +114,14 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Đọc/ghi bộ nhớ process khác | `WriteProcessMemory`, `VirtualAllocEx`, `NtWriteVirtualMemory`, `process_vm_writev`, `PTRACE_ATTACH` |
 | Hook non-LL (inject DLL vào process đích) | `WH_KEYBOARD`, `WH_MOUSE` (không phải `*_LL`) |
 
-Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (chỉ trong gói tương thích opt-in, có loop-guard), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`), `PostMessageW` tới cửa sổ trong chính process của app (trả phím cho app CUAS, A8).
+Được phép (có lý do IME chính đáng): `WH_KEYBOARD_LL` + `SendInput` (gói tương thích opt-in, có loop-guard), `WH_KEYBOARD_LL` **chỉ quan sát** trong tray (bộ dò tap Ctrl+Shift: không ăn phím, không inject, mọi event qua `CallNextHookEx`), `GetKeyState` (đọc modifier), toàn bộ COM/TSF (`ITf*`), `PostMessageW` tới cửa sổ trong chính process của app (trả phím cho app CUAS, A8).
 
 ### 8.4. Bằng chứng audit (2026-09-28)
 
 | Mục | Kết quả |
 |---|---|
 | Grep 11 API injection / ghi vùng nhớ khác process trong repo | **0 match** |
-| `SetWindowsHookEx` trong code phát hành | đúng **1 chỗ** = `WH_KEYBOARD_LL` (`adapters/windows-hook/src/main.rs:152`) |
+| `SetWindowsHookEx` trong code phát hành | **2 chỗ**, đều `WH_KEYBOARD_LL`: `adapters/windows-hook/src/main.rs` (compat opt-in, gõ giả lập) + `tray/src/main.rs` (bộ dò Ctrl+Shift tap cho hotkey toàn cục — **chỉ quan sát**: không ăn phím, không inject, mọi event đi qua `CallNextHookEx`; 2026-10-02) |
 | Auto-spawn hook? | **Không** — chỉ qua menu opt-in; `hook_watchdog_loop` chỉ sleep-loop (`tray/src/ipc_server.rs:427-431`) |
 | Release mặc định | `tsf-only`, `textvn-win-hook` bị exclude (`build-release.ps1:92,112-116`) |
 | Field-detect fail-safe | Unknown/secure → gate S3 đóng → pass-through (`field-detect/src/lib.rs:132-135`) |
