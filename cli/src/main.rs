@@ -26,6 +26,7 @@ Usage:
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   textvn-cli unregister [--scope user|machine]             # hủy đăng ký TSF TIP
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
+  textvn-cli schedule-delete <path...>                     # xoá ngay hoặc hẹn xoá trước lần khởi động kế tiếp (uninstaller dùng cho DLL bị khoá)
   textvn-cli --help
 
 Exit codes:
@@ -49,6 +50,9 @@ fn main() {
         Some("register") => exit(cmd_register(&args[2..])),
         Some("unregister") => exit(cmd_unregister(&args[2..])),
         Some("activate") => exit(register::activate_tip()),
+        Some("schedule-delete") => exit(register::schedule_delete(
+            &args[2..].iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+        )),
         Some("--help") | Some("-h") => print!("{USAGE}"),
         Some(other) => {
             eprintln!("error: lệnh lạ `{other}`");

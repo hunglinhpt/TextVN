@@ -462,6 +462,54 @@ mod win_impl {
         gone
     }
 
+    /// `textvn-cli schedule-delete <path...>` — xoá ngay nếu được, trượt thì hẹn
+    /// Windows xoá trước phiên khởi động kế tiếp (`MoveFileExW(path, NULL, 4)`).
+    /// Dùng cho uninstaller của bộ cài (chạy elevated — PFO cần admin): DLL bị
+    /// TSF nạp trong app đang mở không thể `DeleteFile` (B12). Thứ tự tham số
+    /// được giữ nguyên trong PFO nên caller truyền file trước, thư mục sau.
+    pub fn schedule_delete(paths: &[String]) -> i32 {
+        use windows::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_DELAY_UNTIL_REBOOT};
+        let mut all_ok = true;
+        for path in paths {
+            let p = Path::new(path);
+            if !p.exists() {
+                say(&format!("  {path} → không tồn tại (bỏ qua)"));
+                continue;
+            }
+            // Thử xoá trực tiếp trước (thư mục phải rỗng — gọi sau các file trong nó).
+            let direct = if p.is_dir() {
+                std::fs::remove_dir(p).is_ok()
+            } else {
+                std::fs::remove_file(p).is_ok()
+            };
+            if direct {
+                say(&format!("  {path} → đã xoá"));
+                continue;
+            }
+            let wide: Vec<u16> = path.encode_utf16().chain(Some(0)).collect();
+            // SAFETY: chuỗi nul-terminated; lpNewFileName = NULL = xoá khi reboot.
+            let r = unsafe {
+                MoveFileExW(
+                    windows::core::PCWSTR(wide.as_ptr()),
+                    windows::core::PCWSTR::null(),
+                    MOVEFILE_DELAY_UNTIL_REBOOT,
+                )
+            };
+            match r {
+                Ok(()) => say(&format!("  {path} → sẽ xoá ở lần khởi động kế tiếp")),
+                Err(e) => {
+                    say(&format!("  {path} → FAIL {:#010x}", e.code().0));
+                    all_ok = false;
+                }
+            }
+        }
+        if all_ok {
+            0
+        } else {
+            1
+        }
+    }
+
     pub fn com_init() -> bool {
         // SAFETY: khởi tạo COM STA cho thread chính của CLI.
         let hr = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
@@ -1293,6 +1341,19 @@ mod win_impl {
 
 /// Đăng ký TSF TIP. `scope`: `"user"` (mặc định, không cần admin) | `"machine"` (HKLM, cần admin).
 /// Exit code: 0 thành công, 1 lỗi đăng ký, 2 lỗi tham số, 3 cần quyền Administrator.
+/// `textvn-cli schedule-delete <path...>` — xem `win_impl::schedule_delete`.
+pub fn schedule_delete(paths: &[String]) -> i32 {
+    #[cfg(windows)]
+    return win_impl::schedule_delete(paths);
+
+    #[cfg(not(windows))]
+    {
+        let _ = paths;
+        eprintln!("error: `schedule-delete` chỉ hỗ trợ trên Windows");
+        1
+    }
+}
+
 /// `textvn-cli activate` — xem `win_impl::activate_tip`.
 pub fn activate_tip() -> i32 {
     #[cfg(windows)]

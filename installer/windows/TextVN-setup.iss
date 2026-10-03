@@ -232,97 +232,46 @@ begin
 end;
 
 // DLL bị TSF nạp (image-mapped) trong mọi tiến trình đang mở nên Windows từ chối
-// DeleteFile — không thể "tắt TSF" của hệ điều hành. Cách chuẩn: ghi
-// PendingFileRenameOperations (đúng cơ chế Windows dùng cho mọi installer) để
-// CHKDSK/SMSS xoá trước khi phiên sau bắt đầu. Không dùng MoveFileEx qua external
-// import: Pascal Script không có kiểu Pointer để truyền NULL, và truyền chuỗi
-// rỗng là SAI (MoveFileEx hiểu thành đổi-tên-rỗng → fail).
-procedure ScheduleDeleteOnReboot(const Path: String);
+// DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Sau khi Inno xoá file,
+// gọi CLI (đang elevated) hẹn xoá phần còn khoá qua MoveFileEx(DELAY_UNTIL_REBOOT)
+// — CLI dùng API thật với lpNewFileName=NULL, tránh cả vấn đề Pascal Script
+// không có kiểu Pointer lẫn RegWriteMultiStringValue (trả String, không phải
+// TArrayOfString).
+procedure ScheduleCleanupViaCli();
 var
-  Names: TArrayOfString;
-  N: Integer;
+  AppDir, Params: String;
+  FindRec: TFindRec;
+  ResultCode: Integer;
 begin
-  if not FileExists(Path) then
+  AppDir := ExpandConstant('{app}');
+  if not DirExists(AppDir) then
     Exit;
-  if DeleteFile(Path) then
+  Params := 'schedule-delete';
+  // Thứ tự: DLL chính → các .old-* → thư mục (PFO xử lý tuần tự).
+  Params := Params + ' "' + AppDir + '\textvn-tsf.dll"';
+  if FindFirst(AppDir + '\*.old-*', FindRec) then
   begin
-    Log('Deleted: ' + Path);
-    Exit;
+    try
+      repeat
+        Params := Params + ' "' + AppDir + '\' + FindRec.Name + '"';
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
   end;
-  if RegQueryMultiStringValue(
-       HKEY_LOCAL_MACHINE,
-       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
-       'PendingFileRenameOperations', Names) then
-    N := GetArrayLength(Names)
-  else begin
-    N := 0;
-    SetArrayLength(Names, 2);
-  end;
-  SetArrayLength(Names, N + 2);
-  Names[N] := #92 + '??' + #92 + Path;   // tiền tố '\??' (NT path) + đường dẫn tuyệt đối
-  Names[N + 1] := '';                          // dest rỗng = XOÁ
-  if RegWriteMultiStringValue(
-       HKEY_LOCAL_MACHINE,
-       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
-       'PendingFileRenameOperations', Names) then
-    Log('Scheduled for deletion at next boot: ' + Path)
+  Params := Params + ' "' + AppDir + '"';
+  if Exec(ExpandConstant('{app}\textvn-cli.exe'), Params, AppDir, SW_HIDE,
+          ewWaitUntilTerminated, ResultCode) then
+    Log('schedule-delete via CLI, exit=' + IntToStr(ResultCode))
   else
-    Log('Cannot delete nor schedule: ' + Path);
-end;
-
-// Biến thể cho THƯ MỤC (FileExists sai cho dir; dùng DirExists ở caller).
-procedure ScheduleDeleteOnRebootDir(const Path: String);
-var
-  Names: TArrayOfString;
-  N: Integer;
-begin
-  if RegQueryMultiStringValue(
-       HKEY_LOCAL_MACHINE,
-       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
-       'PendingFileRenameOperations', Names) then
-    N := GetArrayLength(Names)
-  else begin
-    N := 0;
-    SetArrayLength(Names, 2);
-  end;
-  SetArrayLength(Names, N + 2);
-  Names[N] := #92 + '??' + #92 + Path;
-  Names[N + 1] := '';
-  if RegWriteMultiStringValue(
-       HKEY_LOCAL_MACHINE,
-       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
-       'PendingFileRenameOperations', Names) then
-    Log('Scheduled dir deletion at next boot: ' + Path)
-  else
-    Log('Cannot schedule dir deletion: ' + Path);
+    Log('Cannot run schedule-delete (CLI)');
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
-var
-  FindRec: TFindRec;
-  AppDir: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    AppDir := ExpandConstant('{app}');
-    // DLL chinh (thuong xuyen bi khoa boi tien trinh dang mo).
-    ScheduleDeleteOnReboot(AppDir + '	extvn-tsf.dll');
-    // Cac ban .old con sot (neu bi khoa khi nang cap truoc do).
-    if FindFirst(AppDir + '\*.old-*', FindRec) then
-    begin
-      try
-        repeat
-          ScheduleDeleteOnReboot(AppDir + '' + FindRec.Name);
-        until not FindNext(FindRec);
-      finally
-        FindClose(FindRec);
-      end;
-    end;
-    // Thu muc: PendingFileRename xử lý theo thứ tự đã ghi — các file bị khoá ở
-    // trên được xoá trước, thư mục trở nên trống rồi mới tới lượt nó; còn file
-    // khác thì Windows bỏ qua entry này (vô hại).
-    if DirExists(AppDir) then
-      ScheduleDeleteOnRebootDir(AppDir);
+    ScheduleCleanupViaCli();
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;
