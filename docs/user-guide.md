@@ -112,9 +112,11 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
   (dấu cách/dấu câu). Nghiêm trọng hơn: **Escape** khôi phục nguyên chuỗi phím
   ngay giữa chừng; **Tab** hoàn tất từ tiếng Anh đang gõ dở thành từ đầy đủ
   theo từ điển dựng sẵn. Tắt toàn bộ bằng bỏ chọn "Khôi phục từ tiếng Anh khi
-  gõ sai"; **Từ điển EN...** trong Bảng điều khiển để thêm từ riêng — từ bạn
-  thêm thắng mọi phỏng đoán của engine (kể cả khi kết quả trùng từ Việt
-  thông dụng như `cow`/`cơ`). Quy tắc ưu tiên đầy đủ:
+  gõ sai"; **Từ điển EN...** để thêm từ riêng — từ bạn thêm thắng mọi phỏng
+  đoán của engine (kể cả khi kết quả trùng từ Việt thông dụng như
+  `cow`/`cơ`). Vị trí từng nền tảng: **Windows** Bảng điều khiển → "Từ điển
+  EN..."; **macOS** Settings → "Từ điển EN..."; **Linux** cửa sổ cài đặt →
+  nút "Từ điển EN..." cạnh "Gõ tắt...". Quy tắc ưu tiên đầy đủ:
   [language-detection.md](specs/language-detection.md).
 - Hoặc click chuột trái trực tiếp vào biểu tượng trên khay hệ thống (Windows) / menu bar (macOS) / status area (Linux) để chuyển đổi nhanh giữa tiếng Việt và tiếng Anh.
 - Khi đang soạn thảo, chữ hiển thị tự nhiên, hoàn toàn không bị gạch chân (clean composition/preedit) trên cả Word, Notepad, Chrome, Safari và các ứng dụng Linux.

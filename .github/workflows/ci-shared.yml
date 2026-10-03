@@ -191,6 +191,9 @@ jobs:
       # Mô hình composition của TSF adapter (Windows) trên toàn bộ corpus.
       - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
       - run: cargo run -q -p textvn-cli -- replay corpus/shared corpus/mac --adapter mac
+      # Adapter linux (IBus/Fcitx5) dùng CÙNG profile composition như mac —
+      # chạy để regression EN/VI-detect (0.2.13) phủ luôn nền tảng Linux.
+      - run: cargo run -q -p textvn-cli -- replay corpus/shared --adapter linux
       - run: cargo run -q -p xtask -- check-mac-corpus
 
   linux-adapters:

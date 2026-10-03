@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.13" date="2026-10-03">
+      <description>
+        <p>English-dictionary editor on macOS and Linux (parity with Windows), macOS no longer drops the word list when saving, Linux corpus now runs in CI, and honest documentation of per-user TSF limits on Windows 11 24H2+.</p>
+      </description>
+    </release>
     <release version="0.2.12" date="2026-10-03">
       <description>
         <p>Installer upgrades no longer fail with "DeleteFile failed" when the TSF DLL is loaded (rename-then-replace), the registration flow keeps TextVN in the modern Win+Space list, and activation diagnostics explain when a machine-wide install is required.</p>

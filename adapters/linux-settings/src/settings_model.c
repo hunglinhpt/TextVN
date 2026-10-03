@@ -163,6 +163,24 @@ char *tv_macros_load(const tv_paths *p, int *trigger_space) {
     return text;
 }
 
+/* Tu dien EN (0.2.13): moi dong mot tu; cung quy tac chuan hoa 3 nen tang. */
+char *tv_english_words_load(const tv_paths *p) {
+    ime_settings *s = ime_settings_load(p->config, IME_SETTINGS_CONFIG);
+    if (!s) return NULL;
+    char *text = ime_settings_english_words_text(s);
+    ime_settings_free(s);
+    return text;
+}
+
+int tv_english_words_save(const tv_paths *p, const char *text) {
+    ime_settings *s = ime_settings_load(p->config, IME_SETTINGS_CONFIG);
+    if (!s) return -1;
+    int rc = ime_settings_set_english_words_text(s, text ? text : "");
+    if (rc == IME_OK) rc = ime_settings_save(s, p->config);
+    ime_settings_free(s);
+    return rc == IME_OK ? 0 : -1;
+}
+
 int tv_macros_save(const tv_paths *p, const char *text, int trigger_space, uint32_t *bad_line,
                    const char **message) {
     ime_settings *s = ime_settings_load(p->config, IME_SETTINGS_CONFIG);

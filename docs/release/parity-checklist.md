@@ -17,7 +17,8 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 | Phím chuyển Ctrl+Shift / Ctrl+Shift+Space | — (cố định) | ✓ | ✓ | ✗ | `compose::tests::ctrl_shift_tap_toggles_once_and_only_without_other_keys`, e2e IBus/Fcitx5 "Ctrl+Shift → EN/VN" |
 | Bật gõ tiếng Việt | `state.json` `global_enabled` | ✓ | ✓ | ✗ | `svc::tests`, `test_compose` `test_state_file`, e2e "state.json → EN/VN" |
 | Dấu mới / Dấu cũ | `diacritic_style` | ✓ | ✓ | ✗ | `transform::diacritic_style` tests, corpus `telex_hoaf_new_style_01` |
-| Khôi phục từ tiếng Anh khi gõ sai | `auto_restore_english` | ✓ | ✓ | ✗ | `restore_en_*` |
+| Khôi phục từ tiếng Anh khi gõ sai | `auto_restore_english` | ✓ | ✓ | ✓ | corpus `restore_en_*` (chạy cả `--adapter linux` từ 0.2.13) |
+| Từ điển EN của người dùng | `english_words` | ✓ Bảng điều khiển → "Từ điển EN..." | ✓ Settings → "Từ điển EN..." | ✓ Cài đặt → "Từ điển EN..." | FFI round-trip `english_words_text_round_trip`, editor Windows smoke ×3 |
 | Đặt dấu tự do | `free_marking` | ✓ | ✓ | ✗ | `method::telex` / `method::vni` tests (fold với `free_marking`) |
 | Tự viết hoa chữ đầu câu | `auto_capitalize` | ✓ | ✓ | ✗ | `auto_capitalize_*` |
 | Quick Telex | `quick_telex` | ✓ | ✓ | ✗ | `post::quick_telex::tests`, corpus `quick_telex_*` |
@@ -48,7 +49,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 
 | Khoá | Ghi chú |
 |---|---|
-| `emoji[]`, `english_words[]` | Engine hỗ trợ; bảng điều khiển giữ nguyên khi lưu. |
+| `emoji[]` | Engine hỗ trợ; bảng điều khiển giữ nguyên khi lưu. |
 | `hotkeys`, `ignore_apps`, `app_overrides`, `updates`, `suggest` | Schema chấp nhận, engine chưa dùng. |
 
 macOS: chưa có adapter (xem `docs/30-macos/`), nên toàn bộ cột macOS là ✗.

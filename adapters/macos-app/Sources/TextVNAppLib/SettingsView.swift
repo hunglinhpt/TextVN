@@ -8,6 +8,7 @@ public struct SettingsView: View {
     @State private var isExpanded: Bool = false
     @State private var activeAlert: ActiveAlert?
     @State private var showMacroSheet: Bool = false
+    @State private var showEnglishSheet: Bool = false
     /// Khi lỗi autostart, ta set `store.config.autostart` về giá trị cũ — cờ này
     /// chặn `onChange` chạy lại vòng 2 (F4-03).
     @State private var suppressAutostartChange = false
@@ -180,8 +181,15 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Toggle("Đặt dấu tự do", isOn: $store.config.free_marking)
                                 .onChange(of: store.config.free_marking) { _ in persistAndNotify() }
-                            Toggle("Tự động khôi phục phím cho từ sai", isOn: $store.config.auto_restore_english)
-                                .onChange(of: store.config.auto_restore_english) { _ in persistAndNotify() }
+                            HStack {
+                                Toggle("Tự động khôi phục phím cho từ sai", isOn: $store.config.auto_restore_english)
+                                    .onChange(of: store.config.auto_restore_english) { _ in persistAndNotify() }
+                                Spacer()
+                                Button("Từ điển EN...") {
+                                    showEnglishSheet = true
+                                }
+                                .font(.system(size: 11))
+                            }
                             HStack {
                                 Toggle("Cho phép gõ tắt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }
@@ -258,6 +266,9 @@ public struct SettingsView: View {
         .sheet(isPresented: $showMacroSheet) {
             MacroEditorSheet(store: store)
         }
+        .sheet(isPresented: $showEnglishSheet) {
+            EnglishWordsSheet(store: store)
+        }
     }
 
     private func persistAndNotify() {
@@ -285,6 +296,73 @@ public struct RadioButton: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Từ điển EN của người dùng (0.2.13, parity với Windows "Từ điển EN..."):
+/// từ trong danh sách được engine giữ nguyên khi gõ, kể cả khi fold trùng âm
+/// tiết Việt thông dụng (cow→cơ chỉ giữ "cơ" nếu KHÔNG khai báo "cow").
+/// Xem docs/specs/language-detection.md §2 (cấp 6c — quyết định tường minh).
+public struct EnglishWordsSheet: View {
+    @ObservedObject public var store: ConfigStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var newWord: String = ""
+
+    private func persistAndNotify() {
+        store.persist()
+        IpcServer.shared.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
+    }
+
+    public var body: some View {
+        VStack(spacing: 12) {
+            Text("Từ điển tiếng Anh")
+                .font(.headline)
+            Text("Mỗi mục là một từ bạn muốn TextVN giữ nguyên (ví dụ: text, list, cowork).")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+
+            List {
+                ForEach(store.config.english_words, id: \.self) { word in
+                    HStack {
+                        Text(word)
+                            .font(.system(.body, design: .monospaced))
+                        Spacer()
+                        Button(action: {
+                            store.config.english_words.removeAll { $0 == word }
+                            persistAndNotify()
+                        }) {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            HStack(spacing: 8) {
+                TextField("Thêm từ tiếng Anh", text: $newWord)
+                Button("Thêm") {
+                    let raw = newWord.trimmingCharacters(in: .whitespaces).lowercased()
+                    let word = raw.filter { $0.isLetter && $0.isASCII }
+                    if !word.isEmpty && !store.config.english_words.contains(word) {
+                        store.config.english_words.append(word)
+                        newWord = ""
+                        persistAndNotify()
+                    }
+                }
+                .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+
+            HStack {
+                Spacer()
+                Button("Đóng") {
+                    dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(16)
     }
 }
 

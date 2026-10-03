@@ -68,6 +68,10 @@ int tv_config_reset_defaults(const tv_paths *p);
 
 /* Bảng gõ tắt dạng text (free bằng ime_settings_string_free). *trigger_space = 1 nếu
  * bung bằng Space, 0 nếu Tab. */
+/* Tu dien EN: doc/ghi danh sach tu (moi dong mot tu). NULL/-1 khi loi. */
+char *tv_english_words_load(const tv_paths *p);
+int tv_english_words_save(const tv_paths *p, const char *text);
+
 char *tv_macros_load(const tv_paths *p, int *trigger_space);
 /* 0 = đã lưu. Lỗi nội dung: trả >0, *bad_line = dòng (đếm từ 1), *message = thông báo
  * tiếng Việt tĩnh. Lỗi ghi file: trả <0. */

@@ -150,6 +150,16 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "replay-linux",
+        guards: "corpus trên adapter Linux (IBus/Fcitx5) — phủ EN/VI-detect nền tảng Linux (0.2.13)",
+        argv: &[
+            "cargo", "run", "-q", "-p", "textvn-cli", "--", "replay",
+            "corpus/shared", "--adapter", "linux",
+        ],
+        python_alt: false,
+        optional: false,
+    },
+    Step {
         name: "check-tables",
         guards: "bảng keymap sinh ra khớp generator",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-tables"],

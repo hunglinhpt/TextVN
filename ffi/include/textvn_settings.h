@@ -49,6 +49,8 @@ const char   *ime_settings_macro_error_message(int32_t code);
 /* Nút "Mặc định": mọi tuỳ chọn về mặc định, giữ gõ tắt/emoji/từ tiếng Anh. */
 void          ime_settings_reset_defaults(ime_settings *s);
 /* Ghi nguyên tử. IME_OK / IME_ERR_INTERNAL (I/O) / IME_ERR_CONFIG. */
+char         *ime_settings_english_words_text(const ime_settings *s);
+int32_t       ime_settings_set_english_words_text(ime_settings *s, const char *text);
 int32_t       ime_settings_save(ime_settings *s, const char *path);
 void          ime_settings_string_free(char *p);
 

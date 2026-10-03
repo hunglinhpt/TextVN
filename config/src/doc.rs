@@ -193,6 +193,42 @@ impl SettingsDoc {
         Ok(())
     }
 
+    /// `english_words[]` — từ điển EN của người dùng (0.2.13).
+    pub fn english_words(&self) -> Vec<String> {
+        self.map
+            .get("english_words")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default()
+    }
+
+    /// Danh sách từ EN dạng text (mỗi dòng một từ) cho ô soạn thảo GTK/Swift.
+    pub fn english_words_text(&self) -> String {
+        let mut out = self.english_words().join("\n");
+        if !out.is_empty() {
+            out.push('\n');
+        }
+        out
+    }
+
+    /// Chuẩn hoá + thay `english_words[]`: trim, lowercase, chỉ chữ cái ASCII,
+    /// bỏ dòng trống/`#`, khử trùng lặp giữ thứ tự — CÙNG quy tắc với
+    /// `tray::settings_dialog::normalize_word_list` (Windows) để ba nền tảng
+    /// lưu file y hệt nhau.
+    pub fn set_english_words_text(&mut self, text: &str) -> Result<(), crate::DocError> {
+        let mut words: Vec<String> = Vec::new();
+        for line in text.replace("\r\n", "\n").lines() {
+            let w = line.trim().to_lowercase();
+            if w.is_empty() || w.starts_with('#') || !w.chars().all(|c| c.is_ascii_alphabetic()) {
+                continue;
+            }
+            if !words.contains(&w) {
+                words.push(w);
+            }
+        }
+        let value = serde_json::to_value(&words).map_err(|_| crate::DocError::BadValue)?;
+        self.set_value("english_words", value)
+    }
+
     /// Nút "Mặc định": mọi tuỳ chọn về mặc định; **giữ** gõ tắt, emoji, từ tiếng Anh và
     /// khoá người dùng tự thêm (UniKey cũng không xoá bảng gõ tắt khi bấm Mặc định).
     pub fn reset_defaults(&mut self) {

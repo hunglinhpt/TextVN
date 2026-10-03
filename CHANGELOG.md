@@ -7,6 +7,35 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.13] — 2026-10-03
+
+Bản hoàn thiện đa nền tảng cho tính năng tự xác định EN/VI (theo yêu cầu
+"đã hoàn thiện cho cả Linux và macOS chưa").
+
+### Added
+- **"Từ điển EN..." trên macOS và Linux** (parity với Windows từ 0.2.9):
+  - macOS: Settings → "Từ điển EN..." — sheet quản lý danh sách như bảng gõ tắt.
+  - Linux: cửa sổ Cài đặt → nút "Từ điển EN..." — cửa sổ soạn thảo như "Gõ tắt...".
+  - FFI mới `ime_settings_english_words_text` / `ime_settings_set_english_words_text`
+    (dùng chung quy tắc chuẩn hoá trim/lowercase/ASCII/dedupe của cả 3 nền tảng),
+    có test round-trip + kiểm tra header tự động.
+- **CI phủ Linux adapter**: `replay corpus/shared --adapter linux` được thêm vào
+  job replay (trước đây chỉ headless/tsf/mac) + vào `cargo xtask preflight`
+  (19 bước) — các case EN-detect giờ regression-test cả nền tảng Linux.
+
+### Fixed
+- **macOS xoá `english_words` mỗi lần lưu config**: `ConfigModel.swift` thiếu
+  trường này nên `store.persist()` ghi lại config sẽ vứt bỏ danh sách từ của
+  người dùng (bắt khi đồng bộ 0.2.13). Đã thêm vào model + decode.
+
+### Documented
+- `docs/release/parity-checklist.md`: hàng "Từ điển EN" ✓ cả 3 nền tảng + vị
+  trí UI từng nơi; bỏ `english_words` khỏi mục "chưa có trên UI".
+- `installer/windows/tests/test-portable.ps1`: ghi chú B7 trung thực — CI chạy
+  elevated nên kịch bản portable KHÔNG chứng minh được typing với đăng ký
+  thuần per-user; Windows 11 24H2+ nên dùng bộ cài phạm vi máy.
+- `docs/user-guide.md`: vị trí "Từ điển EN..." trên từng nền tảng.
+
 ## [0.2.12] — 2026-10-03
 
 ### Fixed (Windows)
@@ -627,7 +656,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...HEAD
+[0.2.13]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...v0.2.13
 [0.2.12]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...v0.2.12
 [0.2.11]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...v0.2.10

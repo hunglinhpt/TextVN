@@ -31,6 +31,11 @@ public struct TextVNConfig: Codable, Equatable {
     public var run_in_tray: Bool
     public var switch_key: String
     public var macros: [MacroEntry]
+    /// Từ điển EN của người dùng (một từ/dòng trong UI) — engine restore các từ
+    /// này bất kể fold có trùng âm tiết Việt thông dụng (xem
+    /// docs/specs/language-detection.md). THIẾU trường này từng khiến bản macOS
+    /// XOÁ `english_words` mỗi lần lưu config (bắt khi đồng bộ 0.2.13).
+    public var english_words: [String]
 
     public init(
         config_version: Int = 1,
@@ -48,7 +53,8 @@ public struct TextVNConfig: Codable, Equatable {
         non_preedit: Bool = true,
         run_in_tray: Bool = true,
         switch_key: String = "ctrl_shift",
-        macros: [MacroEntry] = []
+        macros: [MacroEntry] = [],
+        english_words: [String] = []
     ) {
         self.config_version = config_version
         self.enabled = enabled
@@ -66,6 +72,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.run_in_tray = run_in_tray
         self.switch_key = switch_key
         self.macros = macros
+        self.english_words = english_words
     }
 
     /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
@@ -89,6 +96,7 @@ public struct TextVNConfig: Codable, Equatable {
         run_in_tray = try c.decodeIfPresent(Bool.self, forKey: .run_in_tray) ?? d.run_in_tray
         switch_key = try c.decodeIfPresent(String.self, forKey: .switch_key) ?? d.switch_key
         macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
+        english_words = try c.decodeIfPresent([String].self, forKey: .english_words) ?? d.english_words
     }
 
     public static func `default`() -> TextVNConfig {

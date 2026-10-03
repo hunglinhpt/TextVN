@@ -32,6 +32,8 @@ typedef struct TvWin {
     GtkWidget *chk_quick;
     GtkWidget *chk_macro_off;
 
+    GtkWidget *words_window;
+    GtkWidget *words_view;
     GtkWidget *macro_window;
     GtkWidget *macro_view;
     GtkWidget *rad_tab;
@@ -211,9 +213,99 @@ static void on_macro_cancel(GtkButton *b, TvWin *w) {
 
 static void on_macro_destroy(GtkWidget *win, TvWin *w) {
     (void)win;
+    w->words_window = NULL;
+    w->words_view = NULL;
     w->macro_window = NULL;
     w->macro_view = NULL;
     w->rad_tab = NULL;
+}
+
+/* Tu dien EN (0.2.13) — parity Windows "Tu dien EN...": tu trong danh sach
+ * duoc engine giu nguyen khi go ke ca khi fold trung am tiet Viet thong dung. */
+static void on_words_save(GtkButton *b, TvWin *w) {
+    (void)b;
+    GtkTextBuffer *buf = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->words_view));
+    GtkTextIter start, end;
+    gtk_text_buffer_get_bounds(buf, &start, &end);
+    char *text = gtk_text_buffer_get_text(buf, &start, &end, FALSE);
+    int rc = tv_english_words_save(&w->paths, text);
+    g_free(text);
+    if (rc == 0) {
+        gtk_window_destroy(GTK_WINDOW(w->words_window));
+    } else {
+        GtkWidget *dlg = gtk_message_dialog_new(GTK_WINDOW(w->words_window), GTK_DIALOG_MODAL,
+                                                GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+                                                "Khong the luu tu dien. Kiem tra quyen thu muc cau hinh.");
+        g_signal_connect_swapped(dlg, "response", G_CALLBACK(gtk_window_destroy), dlg);
+        gtk_window_present(GTK_WINDOW(dlg));
+    }
+}
+
+static void on_words_cancel(GtkButton *b, TvWin *w) {
+    (void)b;
+    gtk_window_destroy(GTK_WINDOW(w->words_window));
+}
+
+static void on_words_destroy(GtkWidget *win, TvWin *w) {
+    (void)win;
+    w->words_window = NULL;
+    w->words_view = NULL;
+}
+
+static void on_words(GtkButton *b, TvWin *w) {
+    (void)b;
+    if (w->words_window) {
+        gtk_window_present(GTK_WINDOW(w->words_window));
+        return;
+    }
+    char *text = tv_english_words_load(&w->paths);
+
+    GtkWidget *win = gtk_window_new();
+    w->words_window = win;
+    gtk_window_set_title(GTK_WINDOW(win), "TextVN - Tu dien tieng Anh");
+    gtk_window_set_transient_for(GTK_WINDOW(win), GTK_WINDOW(w->window));
+    gtk_window_set_modal(GTK_WINDOW(win), TRUE);
+    gtk_window_set_destroy_with_parent(GTK_WINDOW(win), TRUE);
+    gtk_window_set_default_size(GTK_WINDOW(win), 560, 420);
+    g_signal_connect(win, "destroy", G_CALLBACK(on_words_destroy), w);
+    add_escape_closes(win);
+
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_widget_set_margin_start(box, 12);
+    gtk_widget_set_margin_end(box, 12);
+    gtk_widget_set_margin_top(box, 12);
+    gtk_widget_set_margin_bottom(box, 12);
+
+    GtkWidget *hint = gtk_label_new(
+        "Moi dong mot tu tieng Anh ban muon TextVN GIU NGUYEN (vi du: text, list, cowork).
+"
+        "Dong bat dau bang # la ghi chu. Chi chu cai a-z, toi da 15 ky tu.");
+    gtk_label_set_xalign(GTK_LABEL(hint), 0.0f);
+    gtk_box_append(GTK_BOX(box), hint);
+
+    GtkWidget *scroll = gtk_scrolled_window_new();
+    gtk_widget_set_vexpand(scroll, TRUE);
+    gtk_scrolled_window_set_has_frame(GTK_SCROLLED_WINDOW(scroll), TRUE);
+    w->words_view = gtk_text_view_new();
+    gtk_text_view_set_monospace(GTK_TEXT_VIEW(w->words_view), TRUE);
+    gtk_text_buffer_set_text(gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->words_view)),
+                             text ? text : "", -1);
+    ime_settings_string_free(text);
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), w->words_view);
+    gtk_box_append(GTK_BOX(box), scroll);
+
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_hexpand(spacer, TRUE);
+    gtk_box_append(GTK_BOX(row), spacer);
+    GtkWidget *cancel = button(row, "Huy", G_CALLBACK(on_words_cancel), w);
+    gtk_widget_add_css_class(cancel, "flat");
+    GtkWidget *save = button(row, "Luu", G_CALLBACK(on_words_save), w);
+    gtk_widget_add_css_class(save, "suggested-action");
+    gtk_box_append(GTK_BOX(box), row);
+
+    gtk_window_set_child(GTK_WINDOW(win), box);
+    gtk_window_present(GTK_WINDOW(win));
 }
 
 static void on_macros(GtkButton *b, TvWin *w) {
@@ -424,6 +516,7 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     button(row, "Hướng dẫn", G_CALLBACK(on_help), w);
     button(row, "Thông tin", G_CALLBACK(on_about), w);
     button(row, "Gõ tắt...", G_CALLBACK(on_macros), w);
+    button(row, "Từ điển EN...", G_CALLBACK(on_words), w);
     GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_hexpand(spacer, TRUE);
     gtk_box_append(GTK_BOX(row), spacer);

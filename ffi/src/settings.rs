@@ -197,6 +197,37 @@ pub extern "C" fn ime_settings_macro_error_message(code: i32) -> *const c_char {
         .unwrap_or(c"lỗi không xác định".as_ptr())
 }
 
+/// Từ điển EN dạng text (mỗi dòng một từ) — 0.2.13, parity Linux với
+/// "Từ điển EN..." trên Windows: từ trong danh sách được engine giữ nguyên
+/// khi gõ (docs/specs/language-detection.md §2 cấp 6c).
+#[no_mangle]
+pub extern "C" fn ime_settings_english_words_text(s: *const ime_settings) -> *mut c_char {
+    let Some(s) = (unsafe { s.as_ref() }) else {
+        return std::ptr::null_mut();
+    };
+    catch_unwind(AssertUnwindSafe(|| owned(s.doc.english_words_text())))
+        .unwrap_or(std::ptr::null_mut())
+}
+
+/// Chuẩn hoá + thay `english_words[]` (trim/lowercase/ASCII/dedupe — cùng quy
+/// tắc ba nền tảng). `IME_OK` hoặc `IME_ERR_CONFIG`; lỗi → danh sách cũ giữ nguyên.
+#[no_mangle]
+pub extern "C" fn ime_settings_set_english_words_text(
+    s: *mut ime_settings,
+    text: *const c_char,
+) -> i32 {
+    let (Some(s), Some(text)) = (unsafe { s.as_mut() }, cstr(text)) else {
+        return IME_ERR_INVALID_ARG;
+    };
+    catch_unwind(AssertUnwindSafe(|| {
+        match s.doc.set_english_words_text(text) {
+            Ok(()) => IME_OK,
+            Err(_) => IME_ERR_CONFIG,
+        }
+    }))
+    .unwrap_or(IME_ERR_INTERNAL)
+}
+
 /// Nút "Mặc định": mọi tuỳ chọn về mặc định, giữ gõ tắt/emoji/từ tiếng Anh.
 #[no_mangle]
 pub extern "C" fn ime_settings_reset_defaults(s: *mut ime_settings) {
@@ -349,6 +380,35 @@ mod tests {
         );
         assert!(ime_settings_get_str(std::ptr::null(), std::ptr::null()).is_null());
         assert!(ime_settings_macros_text(std::ptr::null()).is_null());
+    }
+
+    /// Round-trip từ điển EN (0.2.13): set qua text → normalize → đọc lại →
+    /// save → đọc file thấy `english_words` đúng; null-safe.
+    #[test]
+    fn english_words_text_round_trip() {
+        let dir = std::env::temp_dir().join(format!("tvn_ew_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("config.json");
+        let cpath = CString::new(path.to_string_lossy().as_bytes()).unwrap();
+        let s = ime_settings_load(cpath.as_ptr(), IME_SETTINGS_CONFIG);
+        assert_eq!(
+            ime_settings_set_english_words_text(
+                s,
+                c("Text\n  file_download  \n# note\ntext\nCOWORK\n").as_ptr()
+            ),
+            IME_OK
+        );
+        // normalize: lowercase, bo ky tu la, dedupe giu thu tu
+        assert_eq!(take(ime_settings_english_words_text(s)), "text\ncowork\n");
+        assert_eq!(ime_settings_save(s, cpath.as_ptr()), IME_OK);
+        let cfg = textvn_config::parse_config(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(
+            cfg.english_words,
+            vec!["text".to_string(), "cowork".to_string()]
+        );
+        ime_settings_free(s);
+        assert!(ime_settings_english_words_text(std::ptr::null()).is_null());
+        let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(
             ime_settings_save(std::ptr::null_mut(), std::ptr::null()),
             IME_ERR_INVALID_ARG
