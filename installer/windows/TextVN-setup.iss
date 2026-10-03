@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.17"
+  #define MyAppVersion "0.2.18"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -21,6 +21,8 @@
 AppId={{9C5E4A7D-092E-4D23-9F93-87B75F3FA7B3}
 AppName={#MyAppFullName}
 AppVersion={#MyAppVersion}
+; ARP DisplayName = ĐÚNG tên sản phẩm trên Partner Center (validator đối chiếu từng chữ).
+AppVerName={#MyAppName}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
@@ -41,14 +43,14 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; Mặc định: cài PER-USER (không cần UAC) — yêu cầu của Microsoft Store
-; package validation: validator chạy installer trong sandbox KHÔNG auto-elevate,
-; bộ cài đòi admin sẽ hiện UAC → "could not identify if your app is installing
-; silently" + không đọc được entry Add/Remove (sự cố nộp Store 2026-10-03, B13).
-; Cài phạm vi máy (khuyến nghị cho Windows 11 24H2+ để gõ được ngay — B7):
-; chạy với /ALLUSERS (Inno tự xin elevation). App tự đăng ký TSF khi mở lần đầu
-; và tự đề nghị UAC nếu Windows từ chối per-user (0.2.17).
-PrivilegesRequired=lowest
+; PHẢI là machine install (admin -> entry Add/Remove ở HKLM): validator của
+; Microsoft Store CHỈ đọc HKLM\...\Uninstall — bản per-user (HKCU, 0.2.18) bị
+; "could not identify the app name and the publisher name" dù cài thành công
+; (Microsoft Q&A 1922205 + sự cố nộp Store 2026-10-03, B13). Sandbox validator
+; chạy installer đã elevated nên admin install không sinh prompt ở đó; silent
+; LUÔN exit 0 (xem GetCustomSetupExitCode) nên không còn cớ fail như 0.2.16.
+; /CURRENTUSER vẫn dùng được từ command line cho trường hợp đặc biệt.
+PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 DisableWelcomePage=no
 
@@ -123,7 +125,7 @@ var
 // Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
 // Windows KHONG cho xoa file co image section, nhung CHO PHÉP RENAME. Doi ten
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
-// 0.2.17: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
+// 0.2.18: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
 procedure RenameLockedTsfDll();
 var
@@ -233,7 +235,7 @@ begin
     Result := 0
   // Silent (luồng Store): LUÔN 0 khi đã chép đủ file — validator của Store coi
   // exit != 0 là "cài thất bại", trong khi app sẽ TỰ đăng ký TSF ở lần chạy
-  // đầu (kèm đề nghị UAC một lần nếu Windows từ chối per-user — 0.2.17). Đây
+  // đầu (kèm đề nghị UAC một lần nếu Windows từ chối per-user — 0.2.18). Đây
   // là lý do bỏ exit 10 cho silent (sự cố B13).
   else if WizardSilent then
   begin

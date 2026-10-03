@@ -22,6 +22,8 @@ param(
     [string]$ExpectVersion = "",
     # May dev dang cai TextVN: bo qua (SKIP) thay vi FAIL. CI luon chay that.
     [switch]$AllowSkip,
+    # Chi test nhanh per-user (/CURRENTUSER): bo check HKLM.
+    [switch]$PerUser,
     [int]$InstallTimeoutSec = 120
 )
 $ErrorActionPreference = 'Stop'
@@ -95,6 +97,11 @@ if ($textvn.Count -ne 1) { throw "Can dung 1 entry moi chua '$ExpectName', thay 
 $e = $textvn[0]
 if ($e.Publisher -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher'" }
 if ($e.Version -notlike "*$ExpectVersion*") { throw "Version ARP '$($e.Version)' khong chua '$ExpectVersion'" }
+# Validator cua Microsoft CHI doc HKLM\... Uninstall (Q&A 1922205): ep buoc
+# entry moi phai nam o HKLM tru khi test rieng nhanh per-user.
+if (-not $PerUser -and $e.Root -notlike "HKLM*") {
+    throw "Entry nam o $($e.Root) - validator cua Store chi doc HKLM (doi PrivilegesRequired=admin)"
+}
 Write-Host "PASS 2) ARP entry: '$($e.Name)' | '$($e.Publisher)' | '$($e.Version)'"
 
 # ---- 3. Bundleware ----

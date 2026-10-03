@@ -37,14 +37,13 @@ Dán **đúng chuỗi này**:
 /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ```
 
-- **Từ 0.2.17 bộ cài mặc định PER-USER** (`PrivilegesRequired=lowest`) nên
-  chuỗi trên chạy hoàn toàn KHÔNG UAC — đúng yêu cầu "silent install" của
-  Store validator. App tự đăng ký TSF ở lần mở đầu và tự đề nghị UAC một lần
-  nếu Windows từ chối per-user (0.2.16).
-- **Không** thêm `/ALLUSERS` vào ô của Store: cài phạm vi máy làm installer xin
-  elevation → validator sandbox (không auto-elevate) sẽ báo "could not identify
-  if your app is installing silently" (sự cố B13, 2026-10-03). `/ALLUSERS` chỉ
-  dành cho người dùng tải trực tiếp muốn cài máy (không UAC-per-run).
+- **Bộ cài PHẢI là machine install (admin/HKLM)** (0.2.18): validator của
+  Microsoft chỉ đọc entry Add/Remove trong `HKLM` — bản per-user (HKCU) bị báo
+  "could not identify the app name and the publisher name" dù cài thành công
+  (Microsoft Q&A 1922205; đã trải qua cả hai vòng lỗi — B13). Sandbox validator
+  chạy installer đã elevated nên không sinh UAC tại đó; **silent luôn exit 0**
+  giữ từ 0.2.17 nên không còn cớ fail.
+- **Không** thêm `/CURRENTUSER`/`/ALLUSERS` vào ô của Store — mặc định đã đúng.
 
 | Tham số | Tác dụng |
 |---|---|

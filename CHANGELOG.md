@@ -7,6 +7,23 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.18] — 2026-10-03
+
+### Fixed (Windows) — Package validation vòng 2 (B13)
+- Sau khi 0.2.17 chuyển per-user, 3 mục validation vẫn đỏ: **validator của Store
+  CHỈ đọc entry Add/Remove trong `HKLM`** — bản cài HKCU bị bỏ qua
+  ([Microsoft Q&A 1922205](https://learn.microsoft.com/en-us/answers/questions/1922205/)).
+  Khôi phục `PrivilegesRequired=admin` (machine install → HKLM; sandbox validator
+  chạy installer đã elevated nên không sinh UAC tại đó) — **vẫn giữ silent luôn
+  exit 0** (fix thật của vòng 1; exit 10 của 0.2.16 là cớ fail còn lại).
+- **ARP DisplayName = đúng tên sản phẩm**: `AppVerName={#MyAppName}` — entry giờ
+  là "TextVN (0.2.18)"→ hiển thị khớp "TextVN" trên Partner Center từng chữ
+  (trước là "TextVN version 0.2.17", dễ bị đối chiếu trượt).
+- Harness `validate-store-package.ps1` **ép entry mới phải nằm ở HKLM** (đúng
+  cơ chế validator; cờ `-PerUser` chỉ để test riêng nhánh per-user).
+- Chuỗi ô switches của Store giữ nguyên `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`;
+  KHÔNG thêm `/CURRENTUSER` (đó là đường tắt gây chính lỗi HKCU này).
+
 ## [0.2.17] — 2026-10-03
 
 ### Fixed (Windows) — Package validation của Microsoft Store (B13)
@@ -770,7 +787,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...HEAD
+[0.2.18]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...v0.2.18
 [0.2.17]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...v0.2.15
