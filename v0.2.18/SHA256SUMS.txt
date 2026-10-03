@@ -1,0 +1,7 @@
+aa0ac2ee2f2881f5642478866d838b5024d72bf0b4d0a8292c7ba998aebce5dc  TextVN-0.2.18-linux-x86_64.tar.gz
+0ccb15db4cc5fa9895dcc7c7c7e86fb347149e9ca7024c8f63923ecf5db9fc87  TextVN-0.2.18-windows-x64.msix
+7658951dfac365cbae78b1ed1780845da711acb465ecc9f14dc839433acda62a  TextVN-mac-v0.2.18.pkg
+e3d67ef3b7d5dd7132d8e8f7a57809c6251a462aa4a1183baa42a30c78e35a72  TextVN-macos-universal-v0.2.18.tar.gz
+4624f7782ba987443f24adb73a73eb780affedf16ac421c4803597eb23e96cec  TextVN-macos-universal-v0.2.18.zip
+3a38ffc13d544f00c650e14b911cf390f6c76dd96af418ef9b5d69c90c39c213  TextVN-portable-0.2.18-windows-x64-20261003153931.zip
+33d51edb9f84fd4a2695fa24516234d59fdc94b7c261d0a9ee8d6095319ea6da  TextVN-setup-0.2.18-windows-x64.exe
