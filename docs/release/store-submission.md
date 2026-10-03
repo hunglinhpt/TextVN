@@ -39,6 +39,28 @@ Khuyến nghị thêm `/CURRENTUSER` để luồng cài im lặng **không cần
   /NORESTART`.
 - Cấu hình người dùng (`%APPDATA%\TextVN`) được giữ lại sau gỡ.
 
+## 2b. Nguồn tải cho Partner Center — dùng branch `approved` (raw URL, KHÔNG redirect)
+
+`https://github.com/.../releases/download/...` trả **redirect** sang URL ký tạm
+thời; một số luồng upload của Store xử lý kém loại URL này. Vì vậy các bản
+**đã được chủ repo duyệt** được copy (byte-identical) sang branch **`approved`**:
+
+```
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
+```
+
+Ví dụ v0.2.16 (đã kiểm: HTTP 200 trực tiếp, không redirect, SHA-256 khớp
+`SHA256SUMS.txt` của release):
+
+```
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.16/TextVN-setup-0.2.16-windows-x64.exe
+```
+
+Cập nhật khi có bản mới được duyệt: tải setup exe + portable zip +
+`SHA256SUMS.txt` của tag tương ứng vào thư mục `vX.Y.Z/` trên branch
+`approved` rồi push (xem README của chính branch đó). Xác minh sau khi push:
+`curl -sI <raw-url>` phải trả `200` và `Content-Length` đúng cỡ file.
+
 ## 3. Checklist trước khi submit
 
 1. [ ] Tải `TextVN-setup-<ver>-windows-x64.exe` từ GitHub Release (có
