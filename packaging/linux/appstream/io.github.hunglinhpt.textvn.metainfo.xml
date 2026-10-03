@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.17" date="2026-10-03">
+      <description>
+        <p>Installer defaults to a per-user install (no UAC) so it passes Microsoft Store package validation in a non-elevated sandbox; silent installs always exit 0 with the app self-registering the input method on first run.</p>
+      </description>
+    </release>
     <release version="0.2.16" date="2026-10-03">
       <description>
         <p>Portable builds now self-heal on Windows 11 24H2+ where per-user activation is refused: the tray offers a one-time machine-wide registration (UAC) and switches back to Vietnamese mode, so unpack-and-run works without the installer.</p>

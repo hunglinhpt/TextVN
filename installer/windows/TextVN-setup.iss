@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.16"
+  #define MyAppVersion "0.2.17"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -41,10 +41,14 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; Mặc định: cài phạm vi máy (admin). /CURRENTUSER và /ALLUSERS chỉnh được từ
-; command line — bản cài im lặng cho luồng Microsoft Store dùng /CURRENTUSER
-; để không cần UAC (xem docs/release/store-submission.md).
-PrivilegesRequired=admin
+; Mặc định: cài PER-USER (không cần UAC) — yêu cầu của Microsoft Store
+; package validation: validator chạy installer trong sandbox KHÔNG auto-elevate,
+; bộ cài đòi admin sẽ hiện UAC → "could not identify if your app is installing
+; silently" + không đọc được entry Add/Remove (sự cố nộp Store 2026-10-03, B13).
+; Cài phạm vi máy (khuyến nghị cho Windows 11 24H2+ để gõ được ngay — B7):
+; chạy với /ALLUSERS (Inno tự xin elevation). App tự đăng ký TSF khi mở lần đầu
+; và tự đề nghị UAC nếu Windows từ chối per-user (0.2.17).
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline
 DisableWelcomePage=no
 
@@ -119,7 +123,7 @@ var
 // Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
 // Windows KHONG cho xoa file co image section, nhung CHO PHÉP RENAME. Doi ten
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
-// 0.2.16: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
+// 0.2.17: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
 procedure RenameLockedTsfDll();
 var
@@ -227,6 +231,15 @@ function GetCustomSetupExitCode(): Integer;
 begin
   if RegistrationOK then
     Result := 0
+  // Silent (luồng Store): LUÔN 0 khi đã chép đủ file — validator của Store coi
+  // exit != 0 là "cài thất bại", trong khi app sẽ TỰ đăng ký TSF ở lần chạy
+  // đầu (kèm đề nghị UAC một lần nếu Windows từ chối per-user — 0.2.17). Đây
+  // là lý do bỏ exit 10 cho silent (sự cố B13).
+  else if WizardSilent then
+  begin
+    Log('TSF registration did not complete; app self-heals on first run.');
+    Result := 0;
+  end
   else
     Result := 10;
 end;

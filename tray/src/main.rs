@@ -269,9 +269,10 @@ fn machine_registration_present() -> bool {
 /// (tránh làm phiền lúc đăng nhập) và bỏ qua nếu HKLM đã có.
 #[cfg(windows)]
 fn offer_machine_registration_if_needed() {
-    if std::env::args().any(|a| a == "--autostart") {
-        return;
-    }
+    // KHÔNG bỏ qua khi --autostart: nếu Windows từ chối per-user và người dùng
+    // không bao giờ tự mở app (chỉ autostart cùng Windows), máy sẽ gõ hỏng IM
+    // LẶNG. Hỏi một lần (marker) ngay lúc đăng nhập là đánh đổi đúng — vẫn có
+    // guard elevated + marker nên không lặp lại.
     // Tiến trình đang elevated (CI runner, terminal admin): không thể/không cần
     // xin UAC lại, và hộp thoại modal sẽ CHẶN tray trong môi trường headless
     // (sự cố CI 37112480137: "TextVN tray is still running before typing test").

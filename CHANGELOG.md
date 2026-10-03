@@ -7,6 +7,27 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.17] — 2026-10-03
+
+### Fixed (Windows) — Package validation của Microsoft Store (B13)
+- **Bộ cài mặc định PER-USER** (`PrivilegesRequired=lowest`): validator của Store
+  chạy installer trong sandbox không auto-elevate; bản cài đòi admin (0.2.16)
+  làm 3 check đỏ — "Silent install check: could not identify…", "Entry in add or
+  remove programs" và "Bundleware check" (không đọc được entry) → nút Submit
+  mờ. Per-user không cần UAC nên silent install qua validator sạch; muốn cài
+  phạm vi máy dùng `/ALLUSERS` (Inno tự xin elevation) — KHÔNG thêm vào ô
+  switches của Store.
+- **Silent install luôn exit 0** khi đã chép đủ file: trước đây đăng ký TSF
+  lỗi trong sandbox → exit 10 → Store coi là "cài thất bại". Nay app TỰ đăng ký
+  ở lần chạy đầu (0.2.16: tray tự đề nghị UAC một lần nếu Windows từ chối
+  per-user) — exit 10 chỉ còn cho cài tương tác.
+- **Prompt đăng ký máy của tray chạy cả khi `--autostart`**: tránh trường hợp
+  máy từ chối per-user + người dùng không bao giờ mở app → gõ hỏng IM LẶNG
+  (vẫn guard: một lần duy nhất + bỏ qua khi elevated).
+- Theo [manual package validation của Microsoft](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msi/manual-package-validation):
+  đã chạy đủ 3 bước tại máy thật (silent install không tương tác → entry
+  Add/Remove đúng Name/Publisher/Version → đúng 1 entry).
+
 ## [0.2.16] — 2026-10-03
 
 ### Fixed (Windows) — portable "giải nén chạy ngay" hoạt động trên Win11 24H2+
@@ -749,7 +770,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...HEAD
+[0.2.17]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...v0.2.14

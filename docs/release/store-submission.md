@@ -16,18 +16,32 @@ Dán **đúng chuỗi này**:
 /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ```
 
-- Không thêm `/CURRENTUSER` ở đây: Store chạy bộ cài với quyền admin (bộ cài
-  của TextVN là `PrivilegesRequired=admin`) → cài **phạm vi máy** — đúng luồng
-  đã được chứng minh gõ được trên Win11 24H2+ (B7: đăng ký per-user có thể bị
-  Windows từ chối). `/CURRENTUSER` chỉ dành cho cài tay không-Store (không UAC).
-- Nếu định dùng `/CURRENTUSER` (chỉ khi chắc máy đích hỗ trợ per-user): bản
-  0.2.16+ vẫn tự chữa bằng prompt UAC, nhưng luồng máy vẫn là khuyến nghị.
+- **Từ 0.2.17 bộ cài mặc định PER-USER** (`PrivilegesRequired=lowest`) nên
+  chuỗi trên chạy hoàn toàn KHÔNG UAC — đúng yêu cầu "silent install" của
+  Store validator. App tự đăng ký TSF ở lần mở đầu và tự đề nghị UAC một lần
+  nếu Windows từ chối per-user (0.2.16).
+- **Không** thêm `/ALLUSERS` vào ô của Store: cài phạm vi máy làm installer xin
+  elevation → validator sandbox (không auto-elevate) sẽ báo "could not identify
+  if your app is installing silently" (sự cố B13, 2026-10-03). `/ALLUSERS` chỉ
+  dành cho người dùng tải trực tiếp muốn cài máy (không UAC-per-run).
 
 | Tham số | Tác dụng |
 |---|---|
 | `/VERYSILENT` | Không hiện bất kỳ cửa sổ wizard nào (Inno Setup chuẩn). |
 | `/SUPPRESSMSGBOXES` | Chặn mọi hộp thoại phụ (cảnh báo, ghi đè…). |
 | `/NORESTART` | Không bao giờ khởi động lại máy sau cài. |
+
+### 1a-bis. Trạng thái kỳ vọng của "Package validation"
+
+- ✅ **Malware check — clean** (đúng như đã thấy).
+- ✅ **Silent install check — pass** sau 0.2.17 (trước đó fail vì installer đòi
+  admin + exit 10 khi đăng ký TSF lỗi trong sandbox — B13).
+- ✅ **Entry in add or remove programs / Bundleware check — pass** sau 0.2.17:
+  installer per-user chạy được trong sandbox → entry Add/Remove (HKCU) xuất
+  hiện với DisplayName "TextVN" + Publisher "LinhBH.CoM".
+  → Khai **Publisher display name** trong Partner Center trùng `LinhBH.CoM`
+  nếu có thể, để validator đối chiếu khớp tuyệt đối.
+- ✅ **Code sign check — valid** (Store ký lại khi publish).
 
 ### 1b. "Installer runs in silent mode but does not require switches"
 
