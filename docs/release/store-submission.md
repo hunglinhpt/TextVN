@@ -1,30 +1,58 @@
 # Nộp TextVN lên Microsoft Store (bản cài .exe — silent install)
 
-> Trạng thái: hướng dẫn cho chủ repo, áp từ 0.2.8. Bộ cài Inno Setup đã hỗ trợ
-> đủ cờ im lặng chuẩn và CI kiểm chứng cả hai kịch bản silent mỗi lần release
-> (`installer/windows/tests/test-installer.ps1`: per-user `/CURRENTUSER` +
-> machine `/ALLUSERS`, đều chạy `/VERYSILENT`).
+> Trạng thái: hướng dẫn cho chủ repo, áp từ 0.2.8; **khớp từng ô của form
+> Partner Center** (cập nhật 2026-10-03 theo hướng dẫn thực tế của form).
+> Bộ cài Inno Setup đã hỗ trợ đủ cờ im lặng chuẩn và CI kiểm chứng cả hai kịch
+> bản silent mỗi lần release (`installer/windows/tests/test-installer.ps1`:
+> per-user `/CURRENTUSER` + machine `/ALLUSERS`, đều chạy `/VERYSILENT`).
 
-## 1. Tham số điền vào Partner Center (ô "Installer parameters")
+## 1. Điền form Partner Center — từng ô một
+
+### 1a. "Provide any switches required for silent installation…"
+
+Dán **đúng chuỗi này**:
 
 ```
 /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ```
 
-Khuyến nghị thêm `/CURRENTUSER` để luồng cài im lặng **không cần UAC**:
-
-```
-/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER
-```
-
-Ý nghĩa:
+- Không thêm `/CURRENTUSER` ở đây: Store chạy bộ cài với quyền admin (bộ cài
+  của TextVN là `PrivilegesRequired=admin`) → cài **phạm vi máy** — đúng luồng
+  đã được chứng minh gõ được trên Win11 24H2+ (B7: đăng ký per-user có thể bị
+  Windows từ chối). `/CURRENTUSER` chỉ dành cho cài tay không-Store (không UAC).
+- Nếu định dùng `/CURRENTUSER` (chỉ khi chắc máy đích hỗ trợ per-user): bản
+  0.2.16+ vẫn tự chữa bằng prompt UAC, nhưng luồng máy vẫn là khuyến nghị.
 
 | Tham số | Tác dụng |
 |---|---|
 | `/VERYSILENT` | Không hiện bất kỳ cửa sổ wizard nào (Inno Setup chuẩn). |
 | `/SUPPRESSMSGBOXES` | Chặn mọi hộp thoại phụ (cảnh báo, ghi đè…). |
 | `/NORESTART` | Không bao giờ khởi động lại máy sau cài. |
-| `/CURRENTUSER` | Cài cho tài khoản hiện tại vào `%LOCALAPPDATA%\Programs\TextVN`, đăng ký TSF per-user — không cần quyền admin (cần `PrivilegesRequiredOverridesAllowed`, có từ 0.2.8). |
+
+### 1b. "Installer runs in silent mode but does not require switches"
+
+**KHÔNG tích** — bộ cài của TextVN CẦN các switch ở 1a (không tự silent mặc định).
+
+### 1c. "Select the languages that your application supports"
+
+Tích **Vietnamese** và **English** (installer + UI có cả hai).
+
+### 1d. "Select your app type"
+
+Chọn **Desktop** (hoặc **Win32/PC** tuỳ dropdown) — KHÔNG phải UWP/MSIX trừ khi
+nộp gói `.msix` (§2c).
+
+### 1e. EXE Return Codes
+
+- **Documentation URL**: `https://jrsoftware.org/ishelp/index.php?topic=setupexitcodes`
+- **Installation successful**: `0`
+- **Installation cancelled by user**: `2`
+- **Các kịch bản còn lại (already exists / in progress / disk full / reboot /
+  network / rejected…)**: **bỏ trống** — Inno gộp lỗi nghiêm trọng vào mã 3/4;
+  Store cho phép bỏ trống các kịch bản không hỗ trợ.
+- **Lưu ý riêng của TextVN**: khi đăng ký TSF thất bại, bộ cài trả **exit code
+  10** (không khai báo trong form) → Store coi là *cài thất bại* thay vì báo
+  thành công mà app không gõ được — **đúng chủ đích, không cần khai báo thêm**.
 
 ## 2. Hành vi của bộ cài trong chế độ silent (đã kiểm chứng)
 
@@ -63,8 +91,8 @@ Cập nhật khi có bản mới được duyệt: tải setup exe + portable zi
 
 ## 2c. Dự phòng MSIX (khi gói .exe bị Store từ chối)
 
-Gói MSIX được build kèm mỗi release (best-effort) và nằm trong branch
-`approved` tại `vX.Y.Z/TextVN-<ver>-windows-x64.msix`.
+Gói MSIX được build kèm **mọi** release (bắt buộc từ 0.2.17; publish job chặn nếu thiếu)
+và nằm trong branch `approved` tại `vX.Y.Z/TextVN-<ver>-windows-x64.msix`.
 
 **Bản chất gói này:** bộ gõ TSF không chạy được trong sandbox MSIX, nên gói
 dùng **`runFullTrust`** — đóng vai trò kênh phân phối: cài xong, người dùng mở

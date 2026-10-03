@@ -46,11 +46,11 @@ jobs:
           $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # MSIX du phong (khi goi .exe bi Store tu choi) - BEST EFFORT: build loi
-      # khong chan phat hanh (runtime full-trust, xem installer/windows/msix).
-      - name: Build MSIX fallback (best effort)
+      # MSIX (yeu cau chu repo 2026-10-03: MOI release phai kem ban msix).
+      # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
+      # best-effort nua) va publish job con validate du 1 file .msix.
+      - name: Build MSIX (required)
         shell: powershell
-        continue-on-error: true
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
       - uses: actions/upload-artifact@v4
@@ -144,6 +144,8 @@ jobs:
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-*.tar.gz' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.pkg' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l)" -ge 2
+          # MSIX la asset BAT BUOC tu 0.2.17 (yeu cau chu repo: moi release kem msix)
+          test "$(find release-assets -maxdepth 1 -type f -name '*.msix' | wc -l)" -eq 1
           portable="$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' -print -quit)"
           unzip -p "$portable" RELEASE_REPORT.json | jq -e \
             --arg version "$version" --arg commit "$GITHUB_SHA" \
