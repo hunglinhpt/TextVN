@@ -21,9 +21,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - **Hết DLL mồ côi sau khi gỡ** (B12 — "tại sao không tắt TSF rồi xoá DLL?":
   DLL do TSF của Windows nạp vào mọi app đang mở, không phải service TextVN,
   không thể tắt; Windows cấm xoá file đang map):
-  - Installer: `CurUninstallStepChanged/usPostUninstall` hẹn xoá sau khởi
-    động lại bằng `MoveFileExW(path, nil, MOVEFILE_DELAY_UNTIL_REBOOT)` cho
-    DLL + `*.old-*` + thư mục (dùng `nil`, KHÔNG dùng chuỗi rỗng).
+  - Installer: `usPostUninstall` → `DeleteFile` trước, trượt thì ghi
+    `PendingFileRenameOperations` (chuẩn Windows cho mọi installer) cho DLL +
+    `*.old-*` + thư mục — không dùng `MoveFileExW` qua external import vì
+    Pascal Script không có kiểu `Pointer` để truyền NULL (ISCC từ chối).
   - Sửa luôn bug `[UninstallDelete]` chứa **TAB thay vì `\`** trong pattern
     (`{app}<TAB>extvn-tsf.dll.old-*`) — chưa bao giờ khớp; thêm pattern
     `TextVN.exe.old-*`.

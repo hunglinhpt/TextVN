@@ -231,29 +231,70 @@ begin
     Result := 10;
 end;
 
-// kernel32: hẹn xoá file bị TSF nạp (image-mapped) ở lần khởi động kế tiếp.
-// DLL nằm trong MỌI tiến trình TSF-aware đang mở (explorer, Notepad...) — Windows
-// KHÔNG cho xoá file đang map và ta không thể "tắt TSF" của hệ điều hành; cách
-// chuẩn của mọi installer là MOVEFILE_DELAY_UNTIL_REBOOT. Không làm bước này =
-// ghost textvn-tsf.dll nằm lại vĩnh viễn.
-// lpNewFileName là NULL (Pointer nil) = XOÁ khi reboot — KHÔNG truyền chuỗi rỗng
-// (chuỗi rỗng là con trỏ hợp lệ tới #0, MoveFileEx hiểu là "đổi tên thành tên
-// rỗng" và fail).
-function MoveFileExW(lpExistingFileName: String; lpNewFileName: Pointer; dwFlags: DWORD): BOOL;
-  external 'MoveFileExW@kernel32.dll stdcall';
-
+// DLL bị TSF nạp (image-mapped) trong mọi tiến trình đang mở nên Windows từ chối
+// DeleteFile — không thể "tắt TSF" của hệ điều hành. Cách chuẩn: ghi
+// PendingFileRenameOperations (đúng cơ chế Windows dùng cho mọi installer) để
+// CHKDSK/SMSS xoá trước khi phiên sau bắt đầu. Không dùng MoveFileEx qua external
+// import: Pascal Script không có kiểu Pointer để truyền NULL, và truyền chuỗi
+// rỗng là SAI (MoveFileEx hiểu thành đổi-tên-rỗng → fail).
 procedure ScheduleDeleteOnReboot(const Path: String);
+var
+  Names: TArrayOfString;
+  N: Integer;
 begin
-  if FileExists(Path) then
+  if not FileExists(Path) then
+    Exit;
+  if DeleteFile(Path) then
   begin
-    if not DeleteFile(Path) then
-    begin
-      if MoveFileExW(Path, nil, 4) then // MOVEFILE_DELAY_UNTIL_REBOOT
-        Log('Scheduled for deletion after reboot: ' + Path)
-      else
-        Log('Cannot delete nor schedule: ' + Path);
-    end;
+    Log('Deleted: ' + Path);
+    Exit;
   end;
+  if RegQueryMultiStringValue(
+       HKEY_LOCAL_MACHINE,
+       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
+       'PendingFileRenameOperations', Names) then
+    N := GetArrayLength(Names)
+  else begin
+    N := 0;
+    SetArrayLength(Names, 2);
+  end;
+  SetArrayLength(Names, N + 2);
+  Names[N] := #92 + '??' + #92 + Path;   // tiền tố '\??' (NT path) + đường dẫn tuyệt đối
+  Names[N + 1] := '';                          // dest rỗng = XOÁ
+  if RegWriteMultiStringValue(
+       HKEY_LOCAL_MACHINE,
+       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
+       'PendingFileRenameOperations', Names) then
+    Log('Scheduled for deletion at next boot: ' + Path)
+  else
+    Log('Cannot delete nor schedule: ' + Path);
+end;
+
+// Biến thể cho THƯ MỤC (FileExists sai cho dir; dùng DirExists ở caller).
+procedure ScheduleDeleteOnRebootDir(const Path: String);
+var
+  Names: TArrayOfString;
+  N: Integer;
+begin
+  if RegQueryMultiStringValue(
+       HKEY_LOCAL_MACHINE,
+       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
+       'PendingFileRenameOperations', Names) then
+    N := GetArrayLength(Names)
+  else begin
+    N := 0;
+    SetArrayLength(Names, 2);
+  end;
+  SetArrayLength(Names, N + 2);
+  Names[N] := #92 + '??' + #92 + Path;
+  Names[N + 1] := '';
+  if RegWriteMultiStringValue(
+       HKEY_LOCAL_MACHINE,
+       'SYSTEM' + #92 + 'CurrentControlSet' + #92 + 'Control' + #92 + 'Session Manager',
+       'PendingFileRenameOperations', Names) then
+    Log('Scheduled dir deletion at next boot: ' + Path)
+  else
+    Log('Cannot schedule dir deletion: ' + Path);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
@@ -277,10 +318,11 @@ begin
         FindClose(FindRec);
       end;
     end;
-    // Thu muc: sau reboot DLL bi xoa truoc (thu tu PendingFileRename giu nguyen),
-    // thu muc trong -> xoa duoc; neu con file khac thi Windows bo qua (vo hai).
-    if MoveFileExW(AppDir, nil, 4) then
-      Log('Scheduled folder deletion after reboot: ' + AppDir);
+    // Thu muc: PendingFileRename xử lý theo thứ tự đã ghi — các file bị khoá ở
+    // trên được xoá trước, thư mục trở nên trống rồi mới tới lượt nó; còn file
+    // khác thì Windows bỏ qua entry này (vô hại).
+    if DirExists(AppDir) then
+      ScheduleDeleteOnRebootDir(AppDir);
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;
