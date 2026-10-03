@@ -59,7 +59,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [UninstallDelete]
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
-Type: files; Name: "{app}\textvn-tsf.dll.old-*"; Name: "{app}\TextVN.exe.old-*"
+Type: files; Name: "{app}\textvn-tsf.dll.old-*"
+Type: files; Name: "{app}\TextVN.exe.old-*"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
