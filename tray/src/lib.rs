@@ -175,9 +175,8 @@ mod tests {
             claim_debounced(&cell, 1_300, 250),
             "claim sau khi hết cửa sổ phải OK"
         );
-        assert!(
-            try_claim_global_toggle(),
-            "đường thật (đồng hồ hệ thống) vẫn hoạt động"
-        );
+        // KHÔNG assert trên static toàn cục ở đây: test khác chạy song song
+        // (toggle_global_responds_...) cũng claim static thật → flake CI
+        // 2026-10-03. Đường thật đã được phủ bởi chính test ipc_server đó.
     }
 }
