@@ -24,6 +24,8 @@ public struct TextVNConfig: Codable, Equatable {
     public var auto_capitalize: Bool
     public var macro_trigger: String
     public var allow_macro_when_vi_off: Bool
+    /// Quick Telex (cc→ch, nn→ng…) — cùng khoá `config.quick_telex` như Windows/Linux.
+    public var quick_telex: Bool
     public var output_charset: String
     public var show_dialog_on_startup: Bool
     public var autostart: Bool
@@ -47,6 +49,7 @@ public struct TextVNConfig: Codable, Equatable {
         auto_capitalize: Bool = true,
         macro_trigger: String = "tab",
         allow_macro_when_vi_off: Bool = false,
+        quick_telex: Bool = false,
         output_charset: String = "unicode_precomposed",
         show_dialog_on_startup: Bool = true,
         autostart: Bool = false,
@@ -65,6 +68,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.auto_capitalize = auto_capitalize
         self.macro_trigger = macro_trigger
         self.allow_macro_when_vi_off = allow_macro_when_vi_off
+        self.quick_telex = quick_telex
         self.output_charset = output_charset
         self.show_dialog_on_startup = show_dialog_on_startup
         self.autostart = autostart
@@ -89,6 +93,7 @@ public struct TextVNConfig: Codable, Equatable {
         auto_capitalize = try c.decodeIfPresent(Bool.self, forKey: .auto_capitalize) ?? d.auto_capitalize
         macro_trigger = try c.decodeIfPresent(String.self, forKey: .macro_trigger) ?? d.macro_trigger
         allow_macro_when_vi_off = try c.decodeIfPresent(Bool.self, forKey: .allow_macro_when_vi_off) ?? d.allow_macro_when_vi_off
+        quick_telex = try c.decodeIfPresent(Bool.self, forKey: .quick_telex) ?? d.quick_telex
         output_charset = try c.decodeIfPresent(String.self, forKey: .output_charset) ?? d.output_charset
         show_dialog_on_startup = try c.decodeIfPresent(Bool.self, forKey: .show_dialog_on_startup) ?? d.show_dialog_on_startup
         autostart = try c.decodeIfPresent(Bool.self, forKey: .autostart) ?? d.autostart
