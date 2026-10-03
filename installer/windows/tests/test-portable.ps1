@@ -6,9 +6,13 @@
 # -> dang ky TSF da go, cau hinh nguoi dung van con.
 #
 # LUU Y MOI TRUONG (B7, 2026-10-03): runner CI chay ELEVATED nen register trong buoc nay
-# that ra ghi ca HKLM (RegisterProfile API thanh cong voi admin) — kich ban KHONG chung
+# that ra ghi ca HKLM (RegisterProfile API thanh cong voi admin) - kich ban KHONG chung
 # minh duoc typing voi dang ky THUAN per-user tren may thuong. Tren Windows 11 24H2+
-# (build 26300), per-user thuan co the bi tu choi ActivateProfile — xem
+# (build 26300), per-user thuan co the bi tu choi ActivateProfile - xem
+# docs/specs/win-test-common-errors.md B7 + docs/user-guide.md (dung bo cai pham vi may).
+#
+# LUU Y MOI TRUONG (B7, 2026-10-03): runner CI chay ELEVATED nen register trong buoc nay
+# minh duoc typing voi dang ky THUAN per-user tren may thuong. Tren Windows 11 24H2+
 # docs/specs/win-test-common-errors.md B7 + docs/user-guide.md (dung bo cai pham vi may).
 
 param(

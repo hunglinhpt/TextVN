@@ -49,14 +49,7 @@ jobs:
           echo "OK"
 
       - name: 3. .ps1 ASCII-only (G7 / common-errors A5)
-        run: |
-          bad=$(git ls-files -z '*.ps1' | xargs -0 -r grep -lP '[^\x00-\x7F]' || true)
-          if [ -n "$bad" ]; then
-            echo "::error::.ps1 phải ASCII-only:"
-            echo "$bad"
-            exit 1
-          fi
-          echo "OK (không có file .ps1 vi phạm)"
+        run: python3 .github/scripts/check_ps1_ascii.py
 
       - name: 4. secret / token / private key
         run: |

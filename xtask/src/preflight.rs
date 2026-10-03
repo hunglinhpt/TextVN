@@ -236,6 +236,13 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "ascii-ps1",
+        guards: ".ps1 ASCII-only (G7/A5) — PowerShell 5.1 đọc ANSI, ký tự ngoài ASCII phá cú pháp (sự cố test-portable.ps1 2026-10-03)",
+        argv: &[".github/scripts/check_ps1_ascii.py"],
+        python_alt: true,
+        optional: false,
+    },
+    Step {
         name: "hygiene-docs",
         guards: "link markdown nội bộ không hỏng",
         argv: &[".github/scripts/check_doc_links.py"],
