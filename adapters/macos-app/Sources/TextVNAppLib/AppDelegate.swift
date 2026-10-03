@@ -185,10 +185,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         button.imagePosition = .imageLeft
         button.title = isVietnameseMode ? " [V]" : " [E]"
         // Template chỉ đổi màu qua contentTintColor (không phải bitmap vẽ tay).
+        // 0.2.14: màu khớp hệ icon V/E 3 nền tảng (ui-spec §Icons) — V hồng-tím
+        // (#C2185B ≈ systemPink), E xanh dương (#0288D1 ≈ systemBlue); trước đây
+        // dùng accent/secondary nên macOS lệch màu so với Windows/Linux.
         if crashCount > 0 {
             button.contentTintColor = .systemOrange
         } else {
-            button.contentTintColor = isVietnameseMode ? .controlAccentColor : .secondaryLabelColor
+            button.contentTintColor = isVietnameseMode ? .systemPink : .systemBlue
         }
         button.toolTip = "TextVN - Bộ gõ tiếng Việt (\(isVietnameseMode ? "Tiếng Việt [V]" : "Tiếng Anh [E]"))"
     }
@@ -381,6 +384,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         // "*" = toàn cục, IMK nay nhận đúng quy ước này (review R3 F3-1).
         ipcServer.broadcastStateUpdate(appID: IpcServer.globalAppID, enabled: isVietnameseMode, version: ver)
         ipcServer.broadcastConfigReload(version: ver)
+        updateMenuState()
+    }
+
+    /// Trạng thái toàn cục hiện tại — cho SettingsView toggle "Bật gõ tiếng Việt"
+    /// (0.2.14: nhãn + hành vi khớp Windows/Linux từng chữ).
+    public var vietnameseModeEnabled: Bool { isVietnameseMode }
+
+    /// Đặt trạng thái toàn cục từ SettingsView; cùng đường đi với menu
+    /// (`toggleVietnameseMode`) để IMK + menu + config luôn đồng bộ.
+    public func setVietnameseMode(_ enabled: Bool) {
+        guard enabled != isVietnameseMode else { return }
+        toggleVietnameseMode()
     }
 
     @objc private func selectMethod(_ sender: NSMenuItem) {

@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.14" date="2026-10-03">
+      <description>
+        <p>UI unified across all three platforms (same labels, order and buttons; enforced by a cross-platform label test), fixed per-monitor DPI sizing that clipped long labels and controls on high-scaling monitors, and consistent V/E icon colours.</p>
+      </description>
+    </release>
     <release version="0.2.13" date="2026-10-03">
       <description>
         <p>English-dictionary editor on macOS and Linux (parity with Windows), macOS no longer drops the word list when saving, Linux corpus now runs in CI, and honest documentation of per-user TSF limits on Windows 11 24H2+.</p>

@@ -22,13 +22,14 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.13](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.13)**
-(0.2.10 — **Ctrl+Shift đổi mode là gõ theo mode luôn** (kích hoạt cả bộ gõ
-active) + **nâng cấp tự dọn dữ liệu phiên bản cũ** (giữ từ điển/gõ tắt của
-bạn); 0.2.9 — **"Từ điển EN..." trong Bảng điều khiển**: bạn tự thêm từ tiếng
-Anh muốn giữ nguyên, thắng mọi phỏng đoán engine; 0.2.8: tự xác định
-EN/VI + Tab gợi ý + Escape; dialog DPI đa màn hình; cài im lặng cho Store;
-Ctrl+Shift toàn cục; không admin, không gạch chân; build bởi CI, kèm
+Bản mới nhất: **[GitHub Release v0.2.14](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.14)**
+(0.2.14 — **UI thống nhất 3 nền tảng** (cùng nhãn/thứ tự/nút, có test CI đối
+chiếu) + **sửa DPI theo từng màn hình** (hết cắt chữ ở scaling cao) + icon
+V/E cùng hệ màu; **"Từ điển EN..." có trên cả Windows, macOS, Linux** (bạn tự
+thêm từ tiếng Anh, thắng mọi phỏng đoán engine); tự xác định EN/VI + Tab gợi
+ý + Escape; Ctrl+Shift đổi mode là đổi cả bộ gõ active; nâng cấp tự dọn dữ
+liệu phiên bản cũ (giữ từ điển/gõ tắt); cài im lặng `/VERYSILENT` cho
+Microsoft Store; không admin, không gạch chân; build bởi CI, kèm
 `SHA256SUMS.txt`; chưa ký số).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
@@ -39,9 +40,11 @@ Ctrl+Shift toàn cục; không admin, không gạch chân; build bởi CI, kèm
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
 
-Lưu ý Windows: v0.2.4 hỗ trợ đăng ký TSF ở cả cấp độ User (`HKCU`, không cần quyền Admin)
-lẫn Machine (`HKLM` qua installer). Bản portable chỉ cần giải nén và chạy `TextVN.exe` là có thể
-đăng ký và sử dụng ngay lập tức mà không yêu cầu UAC elevation.
+Lưu ý Windows: bộ cài đăng ký TSF **phạm vi máy** (UAC một lần) — đây là luồng
+được CI kiểm chứng đầy đủ và khuyến nghị. Bản portable đăng ký per-user
+(không cần UAC) và chạy ngay, nhưng trên **Windows 11 24H2+ (build 26300)**
+một số máy từ chối kích hoạt bộ gõ chỉ-per-user — khi đó chọn TextVN bằng
+Win+Space hoặc dùng bộ cài (xem lỗi B7 trong `docs/specs/win-test-common-errors.md`).
 
 ## Điểm vượt trội so với các bộ gõ khác
 

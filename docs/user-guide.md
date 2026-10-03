@@ -29,7 +29,7 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 
 | Cách | Làm gì | Khi nào nên dùng |
 |---|---|---|
-| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Từ v0.2.4 cần UAC một lần để đăng ký TSF toàn máy, rồi kích hoạt cho tài khoản đang cài. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
+| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bộ cài cần UAC một lần để đăng ký TSF phạm vi máy (luồng được CI kiểm chứng đầy đủ), rồi kích hoạt cho tài khoản đang cài. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
 | **Giải nén dùng ngay** | Giải nén `TextVN-portable-<phiên bản>-windows-x64-*.zip` → nhấn đúp `TextVN.exe`. | Máy mượn, USB, dùng thử. Không ghi gì vào Program Files. |
 
 Lần chạy đầu tiên TextVN tự đăng ký bộ gõ với Windows cho tài khoản của bạn. Nếu vẫn

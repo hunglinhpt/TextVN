@@ -29,6 +29,8 @@ use windows::Win32::Graphics::Gdi::*;
 #[cfg(windows)]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
+use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
+#[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -171,10 +173,17 @@ fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
 
-/// DPI hiện tại (pixel/inch). Manifest PerMonitorV2 nên LOGPIXELSX trả DPI
-/// thật; fallback 96 nếu không lấy được DC.
+/// DPI để ước lượng TRƯỚC khi có cửa sổ. Dùng `GetDpiForSystem` (thật theo
+/// phiên PerMonitorV2); `GetDeviceCaps(LOGPIXELSX)` chỉ là fallback vì trên
+/// máy có scaling theo màn hình nó trả system-DPI CŨ (96) — nguồn của lỗi
+/// "dialog mở trên màn 200%, hình học tính cho 96% → chữ to gấp đôi, bị cắt"
+/// (báo cáo chủ repo 2026-10-03, B9/B10).
 #[cfg(windows)]
 fn system_dpi() -> i32 {
+    let dpi = unsafe { GetDpiForSystem() } as i32;
+    if dpi > 0 {
+        return dpi;
+    }
     unsafe {
         let hdc = GetDC(None);
         if hdc.is_invalid() {
@@ -187,6 +196,18 @@ fn system_dpi() -> i32 {
         } else {
             dpi
         }
+    }
+}
+
+/// DPI thật của cửa sổ đang nằm trên màn hình nào — nguồn chuẩn để layout
+/// control SAU khi cửa sổ được tạo (PerMonitorV2: DPI theo monitor).
+#[cfg(windows)]
+fn window_dpi(hwnd: HWND) -> i32 {
+    let dpi = unsafe { GetDpiForWindow(hwnd) } as i32;
+    if dpi > 0 {
+        dpi
+    } else {
+        system_dpi()
     }
 }
 
@@ -292,7 +313,27 @@ fn create_and_show_window() {
 
     SETTINGS_HWND.store(hwnd.0 as isize, Ordering::Release);
 
-    create_dialog_controls(hwnd, h_instance, dpi);
+    // DPI theo MONITOR thật của cửa sổ (khác ước lượng system khi máy có
+    // nhiều màn hình scaling khác nhau): resize lại đúng cỡ rồi mới layout
+    // control — chống tràn/cắt chữ (B9/B10).
+    let win_dpi = window_dpi(hwnd);
+    if win_dpi != dpi {
+        let (width, height) =
+            window_size_for_client(CLIENT_DESIGN_WIDTH, CLIENT_DESIGN_HEIGHT, win_dpi, style);
+        let (x, y) = center_on_work_area(width, height);
+        let _ = unsafe {
+            SetWindowPos(
+                HWND(hwnd.0),
+                None,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+    }
+    create_dialog_controls(hwnd, h_instance, win_dpi);
     populate_controls_from_config(hwnd);
 
     unsafe {
@@ -553,15 +594,11 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         "BUTTON",
         "Khôi phục từ tiếng Anh khi gõ sai",
         CHK | WS_GROUP.0,
-        (L, 218, 280, 32),
+        // Full bề rộng cột: nhãn dài bị CẮT khi thu hẹp ("...gõ sa") — sự cố
+        // 2026-10-03, xem win-test-common-errors B9. Nút "Từ điển EN..." nằm
+        // ở HÀNG NÚT dưới như Linux.
+        (L, 218, CW, 32),
         ID_CHK_AUTO_RESTORE,
-    ),
-    ctl(
-        "BUTTON",
-        "Từ điển EN...",
-        BTN,
-        (L + 290, 218, 130, 32),
-        ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
@@ -621,33 +658,41 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         ID_CHK_CTRL_SHIFT,
     ),
     // 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-    ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 120, 48), ID_BTN_HELP),
+    ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 100, 48), ID_BTN_HELP),
     ctl(
         "BUTTON",
         "Thông tin",
         BTN,
-        (143, 497, 120, 48),
+        (121, 497, 100, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
         "Gõ tắt...",
         BTN,
-        (271, 497, 120, 48),
+        (227, 497, 100, 48),
         ID_BTN_MACROS,
+    ),
+    // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
+    ctl(
+        "BUTTON",
+        "Từ điển EN...",
+        BTN,
+        (333, 497, 130, 48),
+        ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
         "Cài & bật TSF",
         BTN,
-        (399, 497, 160, 48),
+        (469, 497, 130, 48),
         ID_BTN_SETUP_TSF,
     ),
     ctl(
         "BUTTON",
         "Mặc định",
         BTN,
-        (567, 497, 105, 48),
+        (605, 497, 95, 48),
         ID_BTN_DEFAULT,
     ),
     // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
@@ -655,10 +700,10 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         "BUTTON",
         "Đóng",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (680, 497, 100, 48),
+        (706, 497, 85, 48),
         ID_BTN_CLOSE,
     ),
-    ctl("BUTTON", "Kết thúc", BTN, (788, 497, 97, 48), ID_BTN_EXIT),
+    ctl("BUTTON", "Kết thúc", BTN, (797, 497, 88, 48), ID_BTN_EXIT),
 ];
 
 /// Đặt lại vị trí/kích thước toàn bộ control theo DPI — chạy lúc tạo VÀ khi
@@ -1213,6 +1258,24 @@ fn show_macro_editor(owner: HWND) {
     };
     MACRO_HWND.store(hwnd.0 as isize, Ordering::Release);
 
+    // DPI theo monitor thật (B9/B10) — resize lại đúng cỡ trước khi layout.
+    let dpi = window_dpi(hwnd);
+    if dpi != system_dpi() {
+        let (width, height) =
+            window_size_for_client(MACRO_DESIGN_WIDTH, MACRO_DESIGN_HEIGHT, dpi, style);
+        let (x, y) = center_on_work_area(width, height);
+        let _ = unsafe {
+            SetWindowPos(
+                HWND(hwnd.0),
+                None,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+    }
     let scale = COMPACT_SCALE * dpi as f64 / 96.0;
     let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
     let font = scaled_gui_font(dpi);
@@ -1504,6 +1567,24 @@ fn show_word_list_editor(owner: HWND) {
     };
     WORDLIST_HWND.store(hwnd.0 as isize, Ordering::Release);
 
+    // DPI theo monitor thật (B9/B10).
+    let dpi = window_dpi(hwnd);
+    if dpi != system_dpi() {
+        let (width, height) =
+            window_size_for_client(WORDLIST_DESIGN_WIDTH, WORDLIST_DESIGN_HEIGHT, dpi, style);
+        let (x, y) = center_on_work_area(width, height);
+        let _ = unsafe {
+            SetWindowPos(
+                HWND(hwnd.0),
+                None,
+                x,
+                y,
+                width,
+                height,
+                SWP_NOZORDER | SWP_NOACTIVATE,
+            )
+        };
+    }
     let scale = COMPACT_SCALE * dpi as f64 / 96.0;
     let k = |v: i32| -> i32 { ((v as f64) * scale).round() as i32 };
     let font = scaled_gui_font(dpi);
@@ -1857,6 +1938,10 @@ mod tests {
             include_str!("../../adapters/linux-settings/src/settings_model.c"),
         ]
         .concat();
+        // 0.2.14: kiểm luôn macOS — ba nền tảng PHẢI cùng nhãn (yêu cầu chủ repo:
+        // "thống nhất UI cho cả 3 nền tảng, buộc phải giống nhau").
+        let macos =
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
         for label in CHARSET_LABELS.iter().chain(METHOD_LABELS.iter()) {
             assert!(
                 linux.contains(&format!("\"{label}\"")),
@@ -1872,10 +1957,16 @@ mod tests {
             "Tự viết hoa chữ đầu câu",
             "Quick Telex (cc→ch, nn→ng…)",
             "Gõ tắt cả khi tắt tiếng Việt",
+            "Gõ tắt...",
+            "Từ điển EN...",
         ] {
             assert!(
                 linux.contains(label),
                 "nhãn `{label}` thiếu trong bảng cài đặt Linux"
+            );
+            assert!(
+                macos.contains(label),
+                "nhãn `{label}` thiếu trong bảng cài đặt macOS"
             );
         }
     }

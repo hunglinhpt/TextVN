@@ -7,6 +7,34 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.14] — 2026-10-03
+
+### Fixed (Windows)
+- **DPI theo màn hình — hết cắt chữ**: dialog dùng `GetDeviceCaps(LOGPIXELSX)`
+  (system-DPI cũ 96) trong khi manifest PerMonitorV2 render theo DPI monitor
+  thật (192 ở scaling 200%) → chữ to gấp đôi, control tràn, nhãn bị "nuốt"
+  ("…gõ sa"). Giờ: `GetDpiForSystem` + sau khi tạo cửa sổ đọc
+  `GetDpiForWindow` — khác thì resize đúng cỡ rồi mới layout; áp cho cả 3
+  cửa sổ (Bảng điều khiển, Gõ tắt, Từ điển EN). Đã xác minh bằng ảnh chụp
+  DPI-aware: 1226px đúng cho màn 200%, đủ nhãn (B10).
+- **Nhãn dài không bao giờ bị cắt**: checkbox "Khôi phục từ tiếng Anh khi gõ
+  sai" trở lại full bề rộng cột; nút "Từ điển EN..." chuyển xuống HÀNG NÚT
+  dưới như Linux (B9 + quy tắc mới trong ui-spec §1).
+
+### Changed — UI thống nhất 3 nền tảng (yêu cầu chủ repo: "buộc phải giống nhau")
+- macOS: nhãn khớp từng chữ với Windows/Linux ("Khôi phục từ tiếng Anh khi
+  gõ sai", "Gõ tắt cả khi tắt tiếng Việt", "Gõ tắt...", "Từ điển EN..."),
+  cùng thứ tự tuỳ chọn; thêm toggle "Bật gõ tiếng Việt" (đọc/ghi trạng thái
+  toàn cục trong AppDelegate — cùng nguồn với menu bar); nút "Từ điển EN..."
+  cạnh "Gõ tắt...".
+- Icon: macOS menu bar đổi tint V/E sang `systemPink`/`systemBlue` khớp hệ màu
+  badge V(#C2185B)/E(#0288D1) của Windows/Linux (ui-spec §7 mới).
+- Test `labels_match_linux_settings_panel` mở rộng: đối chiếu nhãn
+  Windows ↔ Linux ↔ macOS (include SettingsView.swift) — CI chặn nếu lệch.
+
+### Tests
+- 20 bước preflight (thêm `ascii-ps1`); 359+ test toàn workspace.
+
 ## [0.2.13] — 2026-10-03
 
 Bản hoàn thiện đa nền tảng cho tính năng tự xác định EN/VI (theo yêu cầu
@@ -656,7 +684,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...HEAD
+[0.2.14]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...v0.2.14
 [0.2.13]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...v0.2.13
 [0.2.12]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...v0.2.12
 [0.2.11]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...v0.2.11

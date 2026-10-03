@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SettingsView.swift — TextVN SwiftUI Settings Panel for macOS (P2-4 §3, PLAN §4.1)
 
+import AppKit
 import SwiftUI
 
 public struct SettingsView: View {
@@ -178,24 +179,37 @@ public struct SettingsView: View {
                 VStack(spacing: 12) {
                     // Group: Tùy chọn gõ
                     GroupBox(label: Text("Tùy chọn gõ").font(.system(size: 12, weight: .semibold))) {
+                        // Thứ tự + nhãn khớp ui-spec §1/§2 và Windows/Linux từng chữ
+                        // (test `labels_match_all_platforms` trong tray đối chiếu cả
+                        // SettingsView.swift lẫn settings_window.c).
                         VStack(alignment: .leading, spacing: 6) {
+                            // Cùng nhãn + vị trí (đầu nhóm) như Windows/Linux; giá trị
+                            // đọc/ghi trạng thái toàn cục trong AppDelegate (menu bar app).
+                            Toggle(
+                                "Bật gõ tiếng Việt",
+                                isOn: Binding(
+                                    get: { (NSApp.delegate as? AppDelegate)?.vietnameseModeEnabled ?? true },
+                                    set: { (NSApp.delegate as? AppDelegate)?.setVietnameseMode($0) }
+                                )
+                            )
+                            Toggle("Khôi phục từ tiếng Anh khi gõ sai", isOn: $store.config.auto_restore_english)
+                                .onChange(of: store.config.auto_restore_english) { _ in persistAndNotify() }
                             Toggle("Đặt dấu tự do", isOn: $store.config.free_marking)
                                 .onChange(of: store.config.free_marking) { _ in persistAndNotify() }
+                            Toggle("Tự viết hoa chữ đầu câu", isOn: $store.config.auto_capitalize)
+                                .onChange(of: store.config.auto_capitalize) { _ in persistAndNotify() }
+                            Toggle("Quick Telex (cc→ch, nn→ng…)", isOn: $store.config.quick_telex)
+                                .onChange(of: store.config.quick_telex) { _ in persistAndNotify() }
                             HStack {
-                                Toggle("Tự động khôi phục phím cho từ sai", isOn: $store.config.auto_restore_english)
-                                    .onChange(of: store.config.auto_restore_english) { _ in persistAndNotify() }
-                                Spacer()
-                                Button("Từ điển EN...") {
-                                    showEnglishSheet = true
-                                }
-                                .font(.system(size: 11))
-                            }
-                            HStack {
-                                Toggle("Cho phép gõ tắt", isOn: $store.config.allow_macro_when_vi_off)
+                                Toggle("Gõ tắt cả khi tắt tiếng Việt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }
                                 Spacer()
-                                Button("Bảng gõ tắt...") {
+                                Button("Gõ tắt...") {
                                     showMacroSheet = true
+                                }
+                                .font(.system(size: 11))
+                                Button("Từ điển EN...") {
+                                    showEnglishSheet = true
                                 }
                                 .font(.system(size: 11))
                             }
