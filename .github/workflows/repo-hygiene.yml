@@ -93,6 +93,9 @@ jobs:
       - name: 8. API inject / giong malware bi cam (Farch-3)
         run: python3 .github/scripts/check_no_injection_apis.py
 
+      - name: 9a. .iss khong chua TAB (escape backslash-t bi ghi sai — B12/B13)
+        run: python3 .github/scripts/check_iss_tabs.py
+
       - name: 9. Homebrew cask syntax + checksum format (B7b)
         run: |
           ruby -c packaging/homebrew/textvn.rb

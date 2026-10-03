@@ -127,9 +127,9 @@ var
   FindRec: TFindRec;
 begin
   AppDir := ExpandConstant('{app}');
-  OldFile := AppDir + '	extvn-tsf.dll';
+  OldFile := AppDir + '\textvn-tsf.dll';
   // Don backup cu truoc (best-effort — co the van bi nap thi de lai, khong fail)
-  if FindFirst(AppDir + '	extvn-tsf.dll.old-*', FindRec) then
+  if FindFirst(AppDir + '\textvn-tsf.dll.old-*', FindRec) then
   begin
     try
       repeat
