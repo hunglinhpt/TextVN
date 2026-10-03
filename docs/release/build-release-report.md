@@ -87,13 +87,45 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.14` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.13 + 0.2.14” bên dưới). 0.2.13 publish 2026-10-03; 0.2.12–0.2.5 publish 2026-10-02/03. Bằng chứng của bản đó
+> `v0.2.16` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.16” bên dưới). 0.2.15/0.2.14/0.2.13 publish 2026-10-03; 0.2.12–0.2.5 publish 2026-10-02/03. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.16 — portable tự chữa trên Win11 24H2+ (B7) + hết ghost khi gỡ (0.2.15)
+
+**Báo cáo chủ repo:** "verify hết portable" → phát hiện + fix 4 vấn đề thật,
+kết thúc bằng **portable gõ được lần đầu trên máy chủ repo (build 26300)**.
+
+1. **B7 — portable đứng một mình không gõ được** (activation per-user bị
+   Windows từ chối; trước đây chỉ có đường bộ cài). 0.2.16: tray phát hiện
+   `activate` fail + chưa có HKLM → hộp thoại MỘT LẦN đề nghị đăng ký phạm vi
+   máy (UAC) → `register --scope machine` elevated → chờ HKLM → register lại
+   per-user → activate → **tự bật lại chế độ tiếng Việt** (thoát bẫy EN-mode:
+   `global_enabled=false` cũng ra chữ raw dù đăng ký đúng — lớp lỗi thứ 2 bắt
+   được khi chẩn đoán). Guard: bỏ qua khi `--autostart`, khi đã elevated (CI
+   headless — modal từng chặn tray, CI 37112480137), marker
+   `uac_prompt_done` chỉ hỏi một lần.
+2. **B11 — unregister để lại ghost trong Win+Space**: 0.2.15
+   `remove_modern_language_list()` + broadcast chuẩn; verify 2 chiều.
+3. **B12 — DLL mồ côi sau khi gỡ**: installer `usPostUninstall` →
+   `textvn-cli schedule-delete` (MoveFileEx NULL, elevated); portable →
+   RunOnce rmdir; verify sống cả hai nhánh (elevated leg chạy trong uninstaller).
+4. **Lớp bug escape**: `\t` bị ghi thành TAB trong `.iss` làm
+   `[UninstallDelete]` + `RenameLockedTsfDll` vô hiệu âm thầm (ISCC không bắt)
+   → gate `check_iss_tabs.py` trong repo-hygiene + preflight (21 bước).
+
+### Verify cuối — release 0.2.16 portable trên máy chủ repo
+
+- Prompt dé nghị → OK + UAC Yes → HKLM COM trỏ DLL trong thư mục portable;
+  `ActivateProfile(VI, session) → OK`; HKL Notepad `0x042A`.
+- **E2E gõ thật với BẢN RELEASE: `dduocj text ` → `được text ` PASS** (lần
+  đầu tiên portable-only gõ được trên máy này).
+- CI: 4/4 job xanh (`cbd4a90` retag), 7 asset, homebrew sha cập nhật (B7b);
+  tree sạch.
 
 ## Bản 0.2.13 + 0.2.14 — hoàn thiện 3 nền tảng, DPI theo màn hình, UI thống nhất
 
