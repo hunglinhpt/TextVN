@@ -87,13 +87,65 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.12` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.12” bên dưới). 0.2.11/0.2.10 publish 2026-10-03; 0.2.9–0.2.5 publish 2026-10-02. Bằng chứng của bản đó
+> `v0.2.14` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.13 + 0.2.14” bên dưới). 0.2.13 publish 2026-10-03; 0.2.12–0.2.5 publish 2026-10-02/03. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.13 + 0.2.14 — hoàn thiện 3 nền tảng, DPI theo màn hình, UI thống nhất
+
+**Yêu cầu chủ repo (2026-10-03):** "đã hoàn thiện EN/VI cho Linux và macOS
+chưa; UI/icon 3 nền tảng phải giống nhau; vẫn lỗi DPI — sang màn hình khác
+nuốt text 'sai' thành 'sa'; rà soát toàn bộ tài liệu; build phải ghi lại
+common mistakes".
+
+### 0.2.13 — EN/VI đa nền tảng + fix macOS nuốt từ điển
+
+- "Từ điển EN..." có đủ 3 nền tảng (macOS sheet + Linux GTK) — FFI mới
+  `ime_settings_english_words_text/_set_...` (round-trip test + header check),
+  chuẩn hoá cùng quy tắc; **bug thật bắt được: `ConfigModel.swift` (macOS)
+  THIẾU `english_words` → mỗi lần `persist()` là xoá từ điển người dùng**.
+- CI: `replay corpus/shared --adapter linux` (trước chỉ headless/tsf/mac).
+- Swift chỉ compile trên CI macOS — 0.2.14 suýt lọt tiếp lỗi thiếu
+  `quick_telex` trong Swift model (ci-macos bắt, retag lại v0.2.14 sau fix).
+
+### 0.2.14 — DPI gốc + UI thống nhất + common errors
+
+- **DPI (B10):** `system_dpi()` dùng `GetDeviceCaps(LOGPIXELSX)` trả
+  system-DPI cũ (96) trong khi PerMonitorV2 render theo monitor thật (192 ở
+  200%) → chữ to gấp đôi + cắt. Fix: `GetDpiForSystem` + sau `CreateWindowExW`
+  đọc `GetDpiForWindow` → khác thì `SetWindowPos` lại cỡ rồi mới layout (cả 3
+  cửa sổ). **Xác minh bằng ảnh chụp DPI-AWARE** (`SetThreadDpiAwarenessContext(-4)`
+  — chụp từ tiến trình unaware bị ảo hoá, chính là lý do ảnh trước trông như
+  cắt): cửa sổ 1226px đúng màn 200%, nhãn "Khôi phục từ tiếng Anh khi gõ sai"
+  đủ chữ, hàng nút có "Từ điển EN..." như Linux.
+- **B9:** checkbox auto-restore về full bề rộng cột (trước thu 280 để nhét nút
+  → cắt "sai"→"sa"); quy tắc mới trong `ui-spec` §1.
+- **UI thống nhất 3 nền tảng:** macOS khớp nhãn từng chữ + thứ tự + thêm
+  toggle "Bật gõ tiếng Việt" (nối vào AppDelegate như menu bar); tint V/E =
+  systemPink/systemBlue khớp badge #C2185B/#0288D1 (ui-spec §7 mới);
+  test `labels_match_linux_settings_panel` mở rộng đối chiếu CẢ SettingsView.swift
+  → CI chặn lệch nhãn.
+- **Common errors theo luật mới (B4 ⑤ — không mã lỗi = không được tag):**
+  B8 installer DeleteFile code 5 → rename DLL đang map; B9 nhãn bị cắt;
+  B10 DPI system-vs-monitor; E13 "gate CI mới phải vào preflight cùng commit";
+  A5 ghi sự cố ps1 non-ASCII + check chung `check_ps1_ascii.py`.
+- **Docs rà soát:** README/user-guide hết thông tin cũ "v0.2.4 admin"; ui-spec
+  bổ sung §5 (Từ điển EN), §6 (nhận diện EN/VI), §7 (icon); parity-checklist
+  3/3 nền tảng; metainfo + CHANGELOG + version 14 chỗ.
+
+### Phát hành + xác minh máy chủ repo
+
+- **v0.2.13** @ `a600d0f` (7 asset) · **v0.2.14** @ `83245cb` (retag sau fix
+  Swift quick_telex): [release-candidate #37094883437](https://github.com/hunglinhpt/TextVN/actions/runs/37094883437)
+  — 4/4 job, 7 asset; homebrew sha cập nhật (B7b).
+- **Máy chủ repo:** cài `TextVN-setup-0.2.14` qua UAC — installer chạy trơn
+  (rename-DLL không còn lỗi code 5), Program Files = 0.2.14.0, không sót file
+  `.old`. **E2E gõ thật trong Notepad: `dduocj text ` → `được text ` — PASS**;
+  tray + TIP + activate đều OK.
 
 ## Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được
 
