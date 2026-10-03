@@ -18,6 +18,22 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   "International" thay cho PostMessage lParam=0). **Đã verify 2 chiều trên
   máy thật**: unregister → TextVN biến mất khỏi cả `vi` lẫn `en-US`;
   register → trở lại đủ.
+- **Hết DLL mồ côi sau khi gỡ** (B12 — "tại sao không tắt TSF rồi xoá DLL?":
+  DLL do TSF của Windows nạp vào mọi app đang mở, không phải service TextVN,
+  không thể tắt; Windows cấm xoá file đang map):
+  - Installer: `CurUninstallStepChanged/usPostUninstall` hẹn xoá sau khởi
+    động lại bằng `MoveFileExW(path, nil, MOVEFILE_DELAY_UNTIL_REBOOT)` cho
+    DLL + `*.old-*` + thư mục (dùng `nil`, KHÔNG dùng chuỗi rỗng).
+  - Sửa luôn bug `[UninstallDelete]` chứa **TAB thay vì `\`** trong pattern
+    (`{app}<TAB>extvn-tsf.dll.old-*`) — chưa bao giờ khớp; thêm pattern
+    `TextVN.exe.old-*`.
+  - Portable: `uninstall.ps1` khi xoá trượt sẽ ghi
+    `HKCU\...\RunOnce\TextVNCleanup = cmd.exe /c rmdir /s /q "<dir>"` —
+    tự dọn ở lần đăng nhập kế tiếp (không cần admin). Hướng dẫn portable đã
+    đổi thành "tự dọn, không cần làm gì thêm".
+  - **Verify máy thật**: giữ DLL bằng `LoadLibraryEx` (mô phỏng app đang mở)
+    → `uninstall.ps1` phát hiện khoá + ghi RunOnce đúng; nhả khoá + chạy đúng
+    lệnh RunOnce → toàn bộ file bị xoá.
 
 ### Verified — toàn bộ luồng portable "chạy ngay" (yêu cầu chủ repo)
 

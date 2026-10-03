@@ -59,7 +59,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [UninstallDelete]
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
-Type: files; Name: "{app}	extvn-tsf.dll.old-*"
+Type: files; Name: "{app}\textvn-tsf.dll.old-*"; Name: "{app}\TextVN.exe.old-*"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -230,10 +230,56 @@ begin
     Result := 10;
 end;
 
+// kernel32: hẹn xoá file bị TSF nạp (image-mapped) ở lần khởi động kế tiếp.
+// DLL nằm trong MỌI tiến trình TSF-aware đang mở (explorer, Notepad...) — Windows
+// KHÔNG cho xoá file đang map và ta không thể "tắt TSF" của hệ điều hành; cách
+// chuẩn của mọi installer là MOVEFILE_DELAY_UNTIL_REBOOT. Không làm bước này =
+// ghost textvn-tsf.dll nằm lại vĩnh viễn.
+// lpNewFileName là NULL (Pointer nil) = XOÁ khi reboot — KHÔNG truyền chuỗi rỗng
+// (chuỗi rỗng là con trỏ hợp lệ tới #0, MoveFileEx hiểu là "đổi tên thành tên
+// rỗng" và fail).
+function MoveFileExW(lpExistingFileName: String; lpNewFileName: Pointer; dwFlags: DWORD): BOOL;
+  external 'MoveFileExW@kernel32.dll stdcall';
+
+procedure ScheduleDeleteOnReboot(const Path: String);
+begin
+  if FileExists(Path) then
+  begin
+    if not DeleteFile(Path) then
+    begin
+      if MoveFileExW(Path, nil, 4) then // MOVEFILE_DELAY_UNTIL_REBOOT
+        Log('Scheduled for deletion after reboot: ' + Path)
+      else
+        Log('Cannot delete nor schedule: ' + Path);
+    end;
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  FindRec: TFindRec;
+  AppDir: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN
+    AppDir := ExpandConstant('{app}');
+    // DLL chinh (thuong xuyen bi khoa boi tien trinh dang mo).
+    ScheduleDeleteOnReboot(AppDir + '	extvn-tsf.dll');
+    // Cac ban .old con sot (neu bi khoa khi nang cap truoc do).
+    if FindFirst(AppDir + '\*.old-*', FindRec) then
+    begin
+      try
+        repeat
+          ScheduleDeleteOnReboot(AppDir + '' + FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+    // Thu muc: sau reboot DLL bi xoa truoc (thu tu PendingFileRename giu nguyen),
+    // thu muc trong -> xoa duoc; neu con file khac thi Windows bo qua (vo hai).
+    if MoveFileExW(AppDir, nil, 4) then
+      Log('Scheduled folder deletion after reboot: ' + AppDir);
+    // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;

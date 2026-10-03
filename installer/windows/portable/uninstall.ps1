@@ -17,5 +17,22 @@ if ($r.ExitCode -ne 0) {
     Write-Error ('Huy dang ky TSF that bai, ma loi ' + $r.ExitCode + '. Khong xoa thu muc portable cho den khi "textvn-cli.exe doctor" bao ro nguyen nhan.')
     exit $r.ExitCode
 }
-Write-Host 'Xong. Neu Windows bao textvn-tsf.dll dang duoc dung, hay dang xuat roi xoa thu muc.'
+# textvn-tsf.dll bi TSF nap trong cac app dang mo (explorer, Notepad...) nen thuong
+# KHONG xoa duoc ngay. Tu dong don o lan dang nhap ke tiep bang RunOnce (khong can
+# admin): luc do TIP da go dang ky nen DLL khong con bi nap.
+$left = $null
+try { Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop } catch { $left = $_ }
+if ($left) {
+    $runOnce = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+    $cmd = 'cmd.exe /c rmdir /s /q "' + $dir + '"'
+    Set-ItemProperty -Path $runOnce -Name 'TextVNCleanup' -Value $cmd -ErrorAction SilentlyContinue
+    if ($?) {
+        Write-Host 'Mot so file con dang duoc Windows dung (bo go da duoc go dang ky).'
+        Write-Host 'TextVN se TU DONG don sach thu muc nay o lan dang nhap ke tiep - khong can lam gi them.'
+    } else {
+        Write-Host 'Khong xoa het duoc thu muc. Hay dang xuat roi xoa thu muc nay.'
+    }
+} else {
+    Write-Host 'Da xoa thu muc portable.'
+}
 Write-Host 'Cau hinh (go tat, tuy chon) van o %APPDATA%\TextVN.'

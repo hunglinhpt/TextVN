@@ -30,7 +30,8 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
 
 5. GỠ BỎ BẢN CHẠY NGAY
    - Chạy uninstall.ps1 (chuột phải → Run with PowerShell): tắt TextVN và gỡ đăng ký bộ gõ.
-   - Sau đó xoá thư mục. Nếu Windows báo textvn-tsf.dll đang được dùng, đăng xuất rồi xoá.
+   - Script tự xoá thư mục. Nếu textvn-tsf.dll còn bị Windows dùng (bộ gõ đã được
+     gỡ đăng ký), TextVN tự dọn sạch ở lần đăng nhập kế tiếp — không cần làm gì thêm.
    - Cấu hình của bạn (gõ tắt, tuỳ chọn) ở %APPDATA%\TextVN được giữ lại.
 
 6. DI CHUYỂN THƯ MỤC
