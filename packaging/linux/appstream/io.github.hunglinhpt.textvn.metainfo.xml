@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.16" date="2026-10-03">
+      <description>
+        <p>Portable builds now self-heal on Windows 11 24H2+ where per-user activation is refused: the tray offers a one-time machine-wide registration (UAC) and switches back to Vietnamese mode, so unpack-and-run works without the installer.</p>
+      </description>
+    </release>
     <release version="0.2.15" date="2026-10-03">
       <description>
         <p>Unregister now also removes the input method from the modern Win+Space language list (no more ghost entries after removal) and broadcasts the standard WM_SETTINGCHANGE notification.</p>

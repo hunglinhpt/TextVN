@@ -7,6 +7,26 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.16] — 2026-10-03
+
+### Fixed (Windows) — portable "giải nén chạy ngay" hoạt động trên Win11 24H2+
+- **Tray tự đề nghị đăng ký phạm vi máy khi Windows từ chối per-user** (B7):
+  phát hiện `activate` thất bại (chưa có HKLM) → hộp thoại một lần
+  "Đăng ký phạm vi máy để gõ được ngay? (UAC một lần)" → chạy
+  `textvn-cli register --scope machine` ELEVATED → chờ HKLM → register lại
+  per-user → activate. Không hỏi khi `--autostart` (không làm phiền lúc đăng
+  nhập) và bỏ qua nếu máy đã có đăng ký máy.
+- **Tự bật lại chế độ TIẾNG VIỆT sau khi đăng ký máy**: bẫy phát hiện khi
+  chẩn đoán live — TIP đúng + activation OK nhưng `global_enabled=false`
+  (EN mode, ví dụ do người dùng bấm Ctrl+Shift thử trước đó) cũng cho ra chữ
+  raw, khiến "đăng ký thành công" mà vẫn tưởng hỏng.
+
+### Verified live trên máy thật (máy chủ repo, build 26300 — trường hợp từng fail)
+- Cài portable 0.2.15 → tray mới hiện prompt → OK + UAC Yes → HKLM COM trỏ
+  DLL trong thư mục portable; `ActivateProfile(VI, session) → OK`;
+  HKL Notepad = `0x042A`; gõ thật `dduocj text ` → **`được text ` PASS**.
+- Đây là lần đầu tiên đường portable đứng một mình gõ được trên máy này.
+
 ## [0.2.15] — 2026-10-03
 
 ### Fixed (Windows)
@@ -729,7 +749,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...HEAD
+[0.2.16]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...v0.2.16
 [0.2.15]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...v0.2.14
 [0.2.13]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...v0.2.13

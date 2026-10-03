@@ -224,6 +224,131 @@ fn ensure_hook_running() {
 /// hoặc trỏ tới DLL cũ và Windows không thể nạp TIP → không gõ được tiếng Việt.
 /// Mỗi lần khởi động kiểm tra lại và đăng ký per-user bằng CLI cạnh executable
 /// (không tạo console, không cần quyền Administrator).
+/// Đăng ký máy đã có chưa? (HKLM COM InprocServer32 tồn tại = bản cài/đăng ký máy.)
+#[cfg(windows)]
+fn machine_registration_present() -> bool {
+    let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
+    read_registry_string(HKEY_LOCAL_MACHINE, &inproc).is_some()
+}
+
+/// B7 (Win11 24H2+, build 26300): TIP chỉ đăng ký per-user bị Windows TỪ CHỐI
+/// `ActivateProfile` → portable không gõ được dù đã đăng ký "OK". Phát hiện
+/// bằng cách chạy `textvn-cli activate` (ẩn) — exit ≠ 0 là bị từ chối; khi đó
+/// hỏi người dùng có muốn đăng ký PHẠM VI MÁY (UAC một lần) không. Luồng này
+/// đã được chứng minh gõ được (giống bộ cài). Không hỏi khi --autostart
+/// (tránh làm phiền lúc đăng nhập) và bỏ qua nếu HKLM đã có.
+#[cfg(windows)]
+fn offer_machine_registration_if_needed() {
+    if std::env::args().any(|a| a == "--autostart") {
+        return;
+    }
+    if machine_registration_present() {
+        return;
+    }
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let cli = dir.join("textvn-cli.exe");
+    if !cli.is_file() {
+        return;
+    }
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    // Cho TSF một nhịp ổn định sau khi register (ILOT vừa ghi) trước khi kết luận.
+    std::thread::sleep(std::time::Duration::from_millis(400));
+    let status = std::process::Command::new(&cli)
+        .arg("activate")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+    if status.is_ok_and(|s| s.success()) {
+        return;
+    }
+
+    let msg: Vec<u16> = "Windows từ chối kích hoạt bộ gõ TextVN cho tài khoản này \
+(giới hạn của Windows 11 với đăng ký chỉ per-user).\r\n\r\nĐăng ký phạm vi máy để gõ \
+được ngay? Sẽ hiện hộp thoại quyền Administrator (UAC) MỘT lần.\r\n\r\nBấm OK để \
+tiếp tục, Cancel nếu muốn tự chọn TextVN bằng Win+Space."
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let cap: Vec<u16> = "TextVN".encode_utf16().chain(Some(0)).collect();
+    // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
+    let answer = unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(msg.as_ptr()),
+            PCWSTR(cap.as_ptr()),
+            MB_OKCANCEL | MB_ICONWARNING,
+        )
+    };
+    if answer != IDOK {
+        return;
+    }
+
+    // Chạy CLI ELEVATED: `register --scope machine` (RegisterProfile API +
+    // HKLM COM/category + ILOT + activate trong cùng tài khoản/phiên).
+    let verb: Vec<u16> = "runas".encode_utf16().chain(Some(0)).collect();
+    let file: Vec<u16> = cli
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let params: Vec<u16> = "register --scope machine"
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let dir_w: Vec<u16> = dir
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    // SAFETY: các chuỗi nul-terminated; ShellExecuteW không giữ con trỏ sau khi trả về.
+    let rc = unsafe {
+        ShellExecuteW(
+            None,
+            PCWSTR(verb.as_ptr()),
+            PCWSTR(file.as_ptr()),
+            PCWSTR(params.as_ptr()),
+            PCWSTR(dir_w.as_ptr()),
+            SW_SHOWNORMAL,
+        )
+    };
+    if rc.0 as usize <= 32 {
+        // Người dùng huỷ UAC (SE_ERR_ACCESSDENIED=5) — không làm gì thêm.
+        return;
+    }
+
+    // Chờ HKLM COM xuất hiện (tối đa ~60s), rồi chạy lại register per-user
+    // (layout/ILOT/activate theo ngữ cảnh người dùng) để chốt trạng thái.
+    let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
+    for _ in 0..120 {
+        if read_registry_string(HKEY_LOCAL_MACHINE, &inproc).is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    let _ = std::process::Command::new(&cli)
+        .arg("register")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+    let _ = std::process::Command::new(&cli)
+        .arg("activate")
+        .creation_flags(CREATE_NO_WINDOW)
+        .status();
+    // Sau khi máy vừa được đăng ký là lúc người dùng muốn GÕ TIẾNG VIỆT: nếu
+    // state đang là EN (có thể do họ bấm Ctrl+Shift thử trước đó) thì bật lại —
+    // nếu không, mọi thứ "đăng ký OK" mà gõ vẫn ra raw và người dùng tưởng hỏng
+    // (đúng ca 2026-10-03).
+    if let Some(app) = APP_INSTANCE.get() {
+        let (enabled, ver) = app.svc.set_global_enabled(true);
+        app.ipc.broadcast_state_update("*", enabled, ver);
+    }
+    textvn_tray::notify_tray_state_changed();
+}
+
 #[cfg(windows)]
 fn ensure_tsf_tip_registered(force: bool) {
     let Ok(exe) = std::env::current_exe() else {
@@ -503,6 +628,12 @@ fn run_tray_app() {
     // Normal user launches still repair a missing or stale per-user registration.
     if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
         ensure_tsf_tip_registered(svc.version_migrated());
+        // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
+        // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
+        // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ
+        // được (giống bộ cài). Chỉ hỏi khi người dùng chủ động mở app
+        // (không hỏi lúc --autostart).
+        offer_machine_registration_if_needed();
     }
 
     // Giải phóng phím tắt Ctrl+Shift khỏi Windows Layout Hotkey để TextVN sử dụng
