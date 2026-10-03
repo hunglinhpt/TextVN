@@ -61,6 +61,39 @@ Cập nhật khi có bản mới được duyệt: tải setup exe + portable zi
 `approved` rồi push (xem README của chính branch đó). Xác minh sau khi push:
 `curl -sI <raw-url>` phải trả `200` và `Content-Length` đúng cỡ file.
 
+## 2c. Dự phòng MSIX (khi gói .exe bị Store từ chối)
+
+Gói MSIX được build kèm mỗi release (best-effort) và nằm trong branch
+`approved` tại `vX.Y.Z/TextVN-<ver>-windows-x64.msix`.
+
+**Bản chất gói này:** bộ gõ TSF không chạy được trong sandbox MSIX, nên gói
+dùng **`runFullTrust`** — đóng vai trò kênh phân phối: cài xong, người dùng mở
+TextVN một lần, ứng dụng tự đăng ký TSF như bản portable (0.2.16: tự đề nghị
+đăng ký phạm vi máy qua UAC nếu Windows từ chối per-user). Chi tiết đóng gói:
+`installer/windows/msix/` + `tools/win/build-msix.ps1`.
+
+**Khi nộp:**
+
+1. **Nộp UNSIGNED** — Store ký lại khi publish. Không cần cert.
+2. **Product type phải hỗ trợ MSIX**: luồng "EXE/MSI" hiện tại (mục §1) chỉ
+   nhận exe/msi. Muốn nộp MSIX phải dùng sản phẩm/loại gói hỗ trợ MSIX trong
+   Partner Center (nếu không thấy lựa chọn, tạo product mới dạng MSIX/PWA).
+3. **Publisher/Identity phải khớp Partner Center**: sau khi reserve tên, mở
+   *Product identity* trong Partner Center lấy `Package/Identity/Name` và
+   `Package/Identity/Publisher`, rồi build lại đúng:
+   ```
+   powershell -NoProfile -ExecutionPolicy Bypass -File tools\winuild-msix.ps1 `
+     -Publisher "CN=<Publisher từ Partner Center>" -IdentityName "<Name từ Partner Center>"
+   ```
+   (Manifest sai Publisher là lỗi upload phổ biến nhất.)
+4. Sau khi cài từ Store, lần chạy đầu tiên người dùng mở TextVN để hoàn tất
+   đăng ký bộ gõ (hướng dẫn này nên ghi trong phần Description của listing).
+
+**Cảnh báo certification:** IME cần ghi registry/COM (TSF TIP) — chính vì thế
+mới phải `runFullTrust`. Nếu reviewer hỏi, giải trình: đây là bộ gõ hệ thống,
+quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử lý 100% cục bộ (dẫn
+`PRIVACY_POLICY.txt`). Đường exe/msi (§1) vẫn là đường chính.
+
 ## 3. Checklist trước khi submit
 
 1. [ ] Tải `TextVN-setup-<ver>-windows-x64.exe` từ GitHub Release (có

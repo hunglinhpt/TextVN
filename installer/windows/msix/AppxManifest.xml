@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AppxManifest cho gói MSIX dự phòng của TextVN (khi bản exe bị Store từ chối).
+  Placeholder {{...}} được tools/win/build-msix.ps1 thay khi đóng gói.
+
+  Vì sao full-trust: bộ gõ TSF (TIP) phải đăng ký COM/CTF và được Windows nạp
+  vào MỌI ứng dụng — không chạy được trong sandbox MSIX. Gói này đóng vai trò
+  "kênh phân phối": cài xong, người dùng mở TextVN một lần; ứng dụng tự đăng ký
+  TSF như bản portable (kể cả đề nghị đăng ký phạm vi máy qua UAC — 0.2.16).
+  MSIX nộp Store KHÔNG cần ký local (Store ký lại); nộp UNSIGNED.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="{{IDENTITY_NAME}}"
+    Publisher="{{PUBLISHER}}"
+    Version="{{VERSION}}"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>{{DISPLAY_NAME}}</DisplayName>
+    <PublisherDisplayName>{{PUBLISHER_DISPLAY}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Bộ gõ tiếng Việt TextVN cho Windows, macOS và Linux</Description>
+  </Properties>
+
+  <Resources>
+    <Resource Language="vi" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Capabilities>
+    <!-- Bắt buộc cho Win32/IME: ứng dụng cần ghi HKCU/HKLM (TSF TIP) và nạp DLL
+         vào tiến trình khác theo cơ chế của Windows. -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+  <Applications>
+    <Application Id="TextVN" Executable="TextVN.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="{{DISPLAY_NAME}}"
+        Description="Bộ gõ tiếng Việt TextVN"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\Square44x44Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+</Package>

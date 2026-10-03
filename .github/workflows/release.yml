@@ -46,12 +46,20 @@ jobs:
           $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # MSIX du phong (khi goi .exe bi Store tu choi) - BEST EFFORT: build loi
+      # khong chan phat hanh (runtime full-trust, xem installer/windows/msix).
+      - name: Build MSIX fallback (best effort)
+        shell: powershell
+        continue-on-error: true
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
           path: |
             dist/TextVN-portable-*.zip
             dist/TextVN-setup-*.exe
+            dist/TextVN-*.msix
           if-no-files-found: error
 
   linux:
