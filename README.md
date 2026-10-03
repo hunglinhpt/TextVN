@@ -10,8 +10,15 @@ trang Releases) khi khai báo gói cài trên Microsoft Partner Center.
 vX.Y.Z/
   TextVN-setup-vX.Y.Z-windows-x64.exe      <- bộ cài nộp Store (Inno Setup)
   TextVN-portable-vX.Y.Z-windows-x64-*.zip <- bản chạy ngay (đối chiếu)
+  TextVN-vX.Y.Z-windows-x64.msix           <- DỰ PHÒNG khi gói exe bị Store từ chối
   SHA256SUMS.txt                            <- checksum của release gốc
 ```
+
+Gói `.msix` là bản full-trust (`runFullTrust`): cài xong mở TextVN một lần để
+tự đăng ký bộ gõ (như portable). Nộp Store **không cần ký** (Store ký lại);
+nhưng **Publisher/Identity trong manifest phải khớp Partner Center** — build
+lại bằng `tools/win/build-msix.ps1 -Publisher ... -IdentityName ...` với giá
+trị trong *Product identity* (xem `docs/release/store-submission.md` §2c).
 
 Binary tại đây **byte-identical** với asset của GitHub Release cùng tag
 (tải trực tiếp từ release, không build lại).
