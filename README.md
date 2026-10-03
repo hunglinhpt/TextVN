@@ -14,6 +14,12 @@ vX.Y.Z/
   SHA256SUMS.txt                            <- checksum của release gốc
 ```
 
+```
+store-art/
+  box-art-2160.png (1080.png)      <- ảnh listing 1:1 BẮT BUỘC (nền cờ VN + sao vàng + chữ V)
+  poster-art-1440x2160.png (720x1080.png) <- ảnh listing 2:3 khuyến nghị
+```
+
 Gói `.msix` là bản full-trust (`runFullTrust`): cài xong mở TextVN một lần để
 tự đăng ký bộ gõ (như portable). Nộp Store **không cần ký** (Store ký lại);
 nhưng **Publisher/Identity trong manifest phải khớp Partner Center** — build
