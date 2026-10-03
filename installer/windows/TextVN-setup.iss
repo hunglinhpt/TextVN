@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.14"
+  #define MyAppVersion "0.2.15"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -118,7 +118,7 @@ var
 // Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
 // Windows KHONG cho xoa file co image section, nhung CHO PHÉP RENAME. Doi ten
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
-// 0.2.14: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
+// 0.2.15: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
 procedure RenameLockedTsfDll();
 var

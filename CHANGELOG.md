@@ -7,6 +7,34 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.15] — 2026-10-03
+
+### Fixed (Windows)
+- **Gỡ TextVN không còn để lại ghost trong Win+Space** (B11): `unregister` chỉ
+  xoá COM + CTF keys, không đụng "danh sách ngôn ngữ hiện đại" — sau khi gỡ,
+  TextVN vẫn hiện trong Win+Space nhưng chọn vào là chết. Giờ
+  `remove_modern_language_list()` xoá đúng entry (giữ ngôn ngữ) + broadcast
+  `WM_SETTINGCHANGE("International")` chuẩn (SendMessageTimeout + lParam
+  "International" thay cho PostMessage lParam=0). **Đã verify 2 chiều trên
+  máy thật**: unregister → TextVN biến mất khỏi cả `vi` lẫn `en-US`;
+  register → trở lại đủ.
+
+### Verified — toàn bộ luồng portable "chạy ngay" (yêu cầu chủ repo)
+
+| Hạng mục | Kết quả |
+|---|---|
+| Giải nén ZIP (13 file: exe/cli/dll/scripts/hướng dẫn/report) | ✓ đủ |
+| `TextVN.exe` first-run tự đăng ký | ✓ COM→folder giải nén, CTF Enable=1, TIP registry OK |
+| TextVN xuất hiện trong Win+Space (cả en-US lẫn vi) | ✓ (0.2.12 fix — lỗi "mất khỏi danh sách" không tái diễn) |
+| Tray + IPC + doctor | ✓ đang chạy, pipe lắng nghe |
+| `uninstall.ps1` | ✓ gỡ COM/CTF sạch; ghost modern-list — đã fix trong bản này |
+| `activate` (kích hoạt tự động) | ✗ E_FAIL — **B7 tái diễn đúng như tài liệu**: build 26300 từ chối per-user |
+| Gõ thật trong Notepad (chọn qua Win+Space) | ✗ không lần nào ra TextVN (chỉ MS-Telex) — portable-only KHÔNG đủ trên build này; **bộ cài phạm vi máy là đường duy nhất đã chứng minh gõ được** |
+| Lỗi cũ khác (ghost COM folder xoá / mất Win+Space / autostart ghost) | ✓ không tái diễn |
+
+Hướng dẫn portable (`HUONG_DAN_SU_DUNG.txt`) đã nêu rõ: máy Win11 24H2+ nên
+dùng bộ cài.
+
 ## [0.2.14] — 2026-10-03
 
 ### Fixed (Windows)
@@ -684,7 +712,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...HEAD
+[0.2.15]: https://github.com/hunglinhpt/TextVN/compare/v0.2.14...v0.2.15
 [0.2.14]: https://github.com/hunglinhpt/TextVN/compare/v0.2.13...v0.2.14
 [0.2.13]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...v0.2.13
 [0.2.12]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...v0.2.12

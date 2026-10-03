@@ -329,6 +329,30 @@ mod win_impl {
         Dword(u32),
     }
 
+    /// Xoá MỘT value (giữ key) — dùng cho dọn entry danh sách ngôn ngữ hiện đại.
+    fn delete_reg_value(root: HKEY, path: &str, name: &str) -> bool {
+        let subkey = wide(path);
+        let mut key = HKEY::default();
+        // SOURCE: RegOpenKeyExW + RegDeleteValueW (Win32 registry API).
+        let open = unsafe {
+            RegOpenKeyExW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                Some(0),
+                KEY_SET_VALUE,
+                &mut key,
+            )
+        };
+        if open != ERROR_SUCCESS {
+            return false;
+        }
+        let name_w = wide(name);
+        // SAFETY: key hợp lệ; name nul-terminated.
+        let status = unsafe { RegDeleteValueW(key, PCWSTR(name_w.as_ptr())) };
+        let _ = unsafe { RegCloseKey(key) };
+        status == ERROR_SUCCESS
+    }
+
     pub fn reg_key_exists(root: HKEY, path: &str) -> bool {
         let subkey = wide(path);
         let mut key = HKEY::default();
@@ -821,10 +845,45 @@ mod win_impl {
             let _ = set_reg_value(HKEY_CURRENT_USER, &key, None, RegValue::None);
             let _ = set_reg_value(HKEY_CURRENT_USER, &key, Some(&value), RegValue::Dword(1));
         }
-        // SAFETY: HWND_BROADCAST; giá trị lParam là chuỗi literal hợp lệ.
+        // Broadcast chuẩn WM_SETTINGCHANGE với lParam = "International" (tên khu
+        // vực) — shell/Win+Space mới chắc chắn refresh; lParam(0) trước đây dựa
+        // vào app tự đoán khu vực.
+        broadcast_international();
+    }
+
+    /// `SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, "International")`
+    /// — cùng cơ chế đã kiểm chứng thủ công trên máy thật 2026-10-03.
+    fn broadcast_international() {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+        };
+        let area: Vec<u16> = "International".encode_utf16().chain(Some(0)).collect();
+        // SAFETY: HWND_BROADCAST + chuỗi nul-terminated sống trong suốt lời gọi.
         unsafe {
-            let _ = PostMessageW(Some(HWND_BROADCAST), WM_SETTINGCHANGE, WPARAM(0), LPARAM(0));
+            let _ = SendMessageTimeoutW(
+                HWND_BROADCAST,
+                WM_SETTINGCHANGE,
+                WPARAM(0),
+                LPARAM(area.as_ptr() as isize),
+                SMTO_ABORTIFHUNG,
+                5000,
+                None,
+            );
         }
+    }
+
+    /// Gỡ profile TextVN khỏi **danh sách ngôn ngữ hiện đại** — không làm thì
+    /// unregister để lại GHOST trong Win+Space (TextVN vẫn hiện nhưng CLSID đã
+    /// bị xoá → chọn vào là chết; bắt trên máy chủ repo 2026-10-03 khi verify
+    /// luồng portable: uninstall.ps1 xong TextVN vẫn nằm trong cả `vi` lẫn
+    /// `en-US`). Chỉ xoá VALUE của TIP, giữ nguyên ngôn ngữ.
+    fn remove_modern_language_list() {
+        for (tag, langid) in [("vi", LANGID_VI), ("en-US", LANGID_EN)] {
+            let key = format!("Control Panel\\International\\User Profile\\{tag}");
+            let value = format!("{langid:04X}:{{{}}}{{{}}}", CLSID_INNER, PROFILE_INNER);
+            let _ = delete_reg_value(HKEY_CURRENT_USER, &key, &value);
+        }
+        broadcast_international();
     }
 
     /// Windows đã nhận profile để dùng cho một ngôn ngữ chưa. Đây là kiểm tra
@@ -1148,6 +1207,9 @@ mod win_impl {
         // là ghost registration mà hậu kiểm vẫn thấy qua fallback HKLM).
         // `&` (không phải `&&`): delete fail vẫn thử xoá nốt các key còn lại —
         // short-circuit từng bỏ qua CTF TIP HKLM trên path lỗi (audit vòng 2).
+        // Danh sách ngôn ngữ hiện đại (Win+Space): gỡ entry TIP — thiếu bước này
+        // unregister để lại ghost (đã bắt thật, xem doc remove_modern_language_list).
+        remove_modern_language_list();
         let mut deleted = delete_tree(HKEY_CURRENT_USER, &ctf_tip_key())
             & delete_tree(HKEY_CURRENT_USER, &clsid_key());
         if scope == Scope::Machine {
