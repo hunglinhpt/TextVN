@@ -154,7 +154,7 @@ public final class IpcClient {
     /// hardcode "0.1.0" làm handshake hiển thị sai version sau bump).
     public static let clientVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.11"
+        ?? "0.2.12"
     /// Backoff reconnect (P0-3 §4 offline-first — retry nhẹ nhàng).
     public static let retryInterval: TimeInterval = 2.0
 

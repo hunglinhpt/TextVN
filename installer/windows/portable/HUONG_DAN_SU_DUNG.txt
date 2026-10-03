@@ -10,6 +10,10 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
    - Nếu register.log ghi "API TSF → 0x80004005" và "hậu kiểm đăng ký TSF
      không đạt": dùng bộ cài TextVN chính thức để đăng ký profile phạm vi máy.
      KHÔNG chạy textvn-cli.exe từ thư mục portable với quyền Administrator.
+   - MỘT SỐ MÁY WINDOWS 11 MỚI (24H2+) từ chối kích hoạt bộ gõ chỉ đăng ký
+     per-user: nếu Win+Space không có TextVN, hoặc chọn TextVN mà vẫn gõ ra
+     tiếng Anh — hãy dùng BỘ CÀI (file TextVN-setup-*.exe) và bấm Yes khi
+     Windows hỏi quyền. Bản cài phạm vi máy là luồng được kiểm chứng đầy đủ.
 
 2. BẬT / TẮT TIẾNG VIỆT
    - Nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space.

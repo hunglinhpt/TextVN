@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.11"
+  #define MyAppVersion "0.2.12"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -55,6 +55,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 #ifndef TargetDir
 #define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
 #endif
+
+[UninstallDelete]
+; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
+; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
+Type: files; Name: "{app}	extvn-tsf.dll.old-*"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -108,6 +113,46 @@ end;
 
 var
   RegistrationOK: Boolean;
+
+// textvn-tsf.dll dang duoc TSF nap trong cac tien trinh dang chay (explorer,
+// Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
+// Windows KHONG cho xoa file co image section, nhung CHO PHÉP RENAME. Doi ten
+// file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
+// 0.2.12: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
+// Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
+procedure RenameLockedTsfDll();
+var
+  AppDir, OldFile, Backup: String;
+  FindRec: TFindRec;
+begin
+  AppDir := ExpandConstant('{app}');
+  OldFile := AppDir + '	extvn-tsf.dll';
+  // Don backup cu truoc (best-effort — co the van bi nap thi de lai, khong fail)
+  if FindFirst(AppDir + '	extvn-tsf.dll.old-*', FindRec) then
+  begin
+    try
+      repeat
+        DeleteFile(AppDir + '' + FindRec.Name);
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  if FileExists(OldFile) then
+  begin
+    Backup := OldFile + '.old-' + GetDateTimeString('yyyymmddhhnnss', '-', '-');
+    if RenameFile(OldFile, Backup) then
+      Log('Renamed locked textvn-tsf.dll to ' + Backup)
+    else
+      Log('Could not rename locked textvn-tsf.dll; Setup will show the file-in-use dialog if replace fails.');
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  RenameLockedTsfDll();
+  Result := '';
+end;
 
 // Exec CLI elevated chi tu thu muc Program Files co ACL admin. /DIR custom hoac
 // previous app dir khong duoc phep doi dich do an toan nay.

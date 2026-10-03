@@ -19,9 +19,15 @@ use std::path::{Path, PathBuf};
 /// CLSID của TextVN TIP — khớp với `adapters/windows-tsf/src/guids.rs`.
 #[cfg_attr(not(windows), allow(dead_code))] // non-Windows: chỉ test dùng (bin không gọi)
 pub const CLSID_STR: &str = "{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}";
+/// CLSID không ngoặc nhọn — dựng value name cho modern language list.
+#[cfg_attr(not(windows), allow(dead_code))]
+const CLSID_INNER: &str = "6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8";
 /// Profile GUID của TextVN TIP.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const PROFILE_STR: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
+/// Profile GUID không ngoặc nhọn — dựng value name cho modern language list.
+#[cfg_attr(not(windows), allow(dead_code))]
+const PROFILE_INNER: &str = "C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13";
 
 #[cfg_attr(not(windows), allow(dead_code))]
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
@@ -695,23 +701,22 @@ mod win_impl {
             eprintln!("error: CoInitializeEx fail");
             return 1;
         }
-        // Check-then-activate: profile ĐANG bật thì ActivateProfile blind-call
-        // trả E_FAIL (0x80004005) trên một số build Windows (bắt được thật máy
-        // chủ repo 2026-10-03) — đã active = thành công về mặt ý nghĩa.
-        if profile_is_enabled(LANGID_VI) {
+        // Check-then-activate: TextVN ĐANG là bộ gõ được chọn → không cần làm gì
+        // (blind-call ActivateProfile trên profile đang chọn trả E_FAIL — bắt
+        // thật máy chủ repo 2026-10-03). Phân biệt `active` vs `enabled`: user
+        // có thể đang chọn bàn phím khác trong Win+Space — khi đó PHẢI activate.
+        if active_profile_is_textvn() {
             say("=== TextVN đã là bộ gõ active cho phiên này. ===");
             return 0;
         }
-        if activate_for_session() {
-            say("=== TextVN profile đã kích hoạt cho phiên này. ===");
-            0
-        } else if profile_is_enabled(LANGID_VI) {
-            // ActivateProfile trả lỗi nhưng profile đã bật được (race giữa các
-            // run) — coi như đạt.
+        let activated = activate_for_session() || active_profile_is_textvn();
+        if activated {
             say("=== TextVN profile đã kích hoạt cho phiên này. ===");
             0
         } else {
-            eprintln!("error: ActivateProfile thất bại — kiểm tra register.log");
+            eprintln!(
+                "error: ActivateProfile thất bại — chọn TextVN bằng Win+Space hoặc cài bản setup (phạm vi máy) nếu Windows 11 từ chối đăng ký per-user."
+            );
             1
         }
     }
@@ -729,24 +734,96 @@ mod win_impl {
                 say("  ActivateProfile(VI): không tạo được profile manager");
                 return false;
             };
-            let r = mgr.ActivateProfile(
-                TF_PROFILETYPE_INPUTPROCESSOR,
-                LANGID_VI,
-                &CLSID_TIP,
-                &PROFILE_GUID,
-                HKL::default(),
-                TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE,
-            );
-            match r {
-                Ok(()) => {
-                    say("  ActivateProfile(VI, session) → OK");
-                    true
-                }
-                Err(e) => {
-                    say(&format!("  ActivateProfile(VI) → {:#010x}", e.code().0));
-                    false
+            // Ma trận thử: một số build Windows từ chối tổ hợp này nhưng nhận
+            // tổ hợp khác (bắt thật máy chủ repo 2026-10-03: VI+DONTCARE →
+            // E_FAIL nhưng EN+DONTCARE → OK tuỳ phiên). Thứ tự ưu tiên: đúng
+            // ngôn ngữ trước, rồi mới tới biến thể.
+            let combos: [(u16, &str, u32); 4] = [
+                (
+                    LANGID_VI,
+                    "VI+DONTCARECURRENT",
+                    TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE,
+                ),
+                (LANGID_VI, "VI", TF_IPPMF_FORSESSION),
+                (
+                    LANGID_EN,
+                    "EN+DONTCARECURRENT",
+                    TF_IPPMF_FORSESSION | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE,
+                ),
+                (LANGID_EN, "EN", TF_IPPMF_FORSESSION),
+            ];
+            for (lang, label, flags) in combos {
+                match mgr.ActivateProfile(
+                    TF_PROFILETYPE_INPUTPROCESSOR,
+                    lang,
+                    &CLSID_TIP,
+                    &PROFILE_GUID,
+                    HKL::default(),
+                    flags,
+                ) {
+                    Ok(()) => {
+                        say(&format!("  ActivateProfile({label}, session) → OK"));
+                        return true;
+                    }
+                    Err(e) => {
+                        say(&format!(
+                            "  ActivateProfile({label}) → {:#010x}",
+                            e.code().0
+                        ));
+                    }
                 }
             }
+            let Ok(prof) = CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                &CLSID_TF_InputProcessorProfiles,
+                None,
+                CLSCTX_INPROC_SERVER,
+            ) else {
+                return false;
+            };
+            for lang in [LANGID_VI, LANGID_EN] {
+                match prof.ActivateLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID) {
+                    Ok(()) => {
+                        say(&format!("  ActivateLanguageProfile(0x{lang:04X}) → OK"));
+                        return true;
+                    }
+                    Err(e2) => {
+                        say(&format!(
+                            "  ActivateLanguageProfile(0x{lang:04X}) → {:#010x}",
+                            e2.code().0
+                        ));
+                    }
+                }
+            }
+            false
+        }
+    }
+
+    /// Ghi profile TextVN vào **danh sách ngôn ngữ hiện đại** của Windows
+    /// (`HKCU\Control Panel\International\User Profile\<tag>`) rồi broadcast
+    /// `WM_SETTINGCHANGE("International")`.
+    ///
+    /// Vì sao bắt buộc: `InstallLayoutOrTip` chỉ ghi danh sách nhập CTF; trên
+    /// Win10/11 danh sách hiện đại (nguồn Win+Space / Settings) là store khác
+    /// — sau chu kỳ unregister→register (migration nâng cấp 0.2.11), TextVN
+    /// biến mất khỏi store hiện đại dù CTF keys đủ → `ActivateProfile` trả
+    /// E_FAIL và người dùng không thể chọn lại TextVN (báo cáo 0.2.11: "bật
+    /// tray lên cũng không gõ được tiếng Việt"). Store hiện đại không có API
+    /// WinRT ghi được — ghi registry + broadcast là cách Windows tự dùng.
+    fn ensure_modern_language_list() {
+        use windows::Win32::Foundation::{LPARAM, WPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{
+            PostMessageW, HWND_BROADCAST, WM_SETTINGCHANGE,
+        };
+        for (tag, langid) in [("vi", LANGID_VI), ("en-US", LANGID_EN)] {
+            let key = format!("Control Panel\\International\\User Profile\\{tag}");
+            let value = format!("{langid:04X}:{{{}}}{{{}}}", CLSID_INNER, PROFILE_INNER);
+            // Tạo key ngôn ngữ nếu thiếu (thêm ngôn ngữ vào danh sách) rồi set tip.
+            let _ = set_reg_value(HKEY_CURRENT_USER, &key, None, RegValue::None);
+            let _ = set_reg_value(HKEY_CURRENT_USER, &key, Some(&value), RegValue::Dword(1));
+        }
+        // SAFETY: HWND_BROADCAST; giá trị lParam là chuỗi literal hợp lệ.
+        unsafe {
+            let _ = PostMessageW(Some(HWND_BROADCAST), WM_SETTINGCHANGE, WPARAM(0), LPARAM(0));
         }
     }
 
@@ -765,6 +842,33 @@ mod win_impl {
             )
             .and_then(|profiles| profiles.IsEnabledLanguageProfile(&CLSID_TIP, lang, &PROFILE_GUID))
             .map(|enabled| enabled.as_bool())
+            .unwrap_or(false)
+        }
+    }
+
+    /// TextVN có đang là profile ĐANG ĐƯỢC CHỌN (active) không?
+    /// KHÁC `profile_is_enabled` (chỉ nghĩa "được phép dùng"): người dùng có thể
+    /// đang chọn bàn phím khác (MS Việt / US) — khi đó toggle mode TextVN cần
+    /// ActivateProfile thật để chuyển bộ gõ active, không phải no-op.
+    /// Dùng `GetActiveLanguageProfile` (trả GUID profile đang hoạt động của TIP).
+    fn active_profile_is_textvn() -> bool {
+        if !com_init() {
+            return false;
+        }
+        // SAFETY: COM được khởi tạo ở trên; interface do hệ thống cấp.
+        unsafe {
+            CoCreateInstance::<_, ITfInputProcessorProfiles>(
+                &CLSID_TF_InputProcessorProfiles,
+                None,
+                CLSCTX_INPROC_SERVER,
+            )
+            .and_then(|prof| {
+                let mut langid: u16 = 0;
+                let mut guid = GUID::from_u128(0);
+                prof.GetActiveLanguageProfile(&CLSID_TIP, &mut langid, &mut guid)
+                    .map(|_| guid)
+            })
+            .map(|guid| guid == PROFILE_GUID)
             .unwrap_or(false)
         }
     }
@@ -932,6 +1036,10 @@ mod win_impl {
             say("FAIL: Windows không thêm được TextVN vào danh sách bàn phím");
             return 1;
         }
+        // Danh sách ngôn ngữ hiện đại (nguồn Win+Space trên Win10/11) — bắt
+        // buộc, xem doc `ensure_modern_language_list`. Idempotent.
+        ensure_modern_language_list();
+
         if used_ctf_fallback {
             // Spike doc (tsf-registration-spike.md): cập nhật input list có thể
             // reset enabled flag → ghi lại Enable=1 SAU InstallLayoutOrTip,

@@ -7,6 +7,35 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.12] — 2026-10-03
+
+### Fixed (Windows)
+- **Bộ cài nâng cấp không còn lỗi "DeleteFile failed; code 5"** khi
+  `textvn-tsf.dll` đang được TSF nạp trong tiến trình (explorer/Notepad…):
+  installer đổi tên DLL cũ thành `textvn-tsf.dll.old-<thời-gian>` trước khi
+  ghi file mới (`PrepareToInstall` → `RenameLockedTsfDll`; Windows cho phép
+  rename file đang map dù không cho xoá) + `[UninstallDelete]` dọn file `.old-*`.
+- **TextVN không còn biến mất khỏi danh sách Win+Space**: `register` ghi profile
+  vào **store ngôn ngữ hiện đại** (`HKCU\Control Panel\International\User
+  Profile\<tag>`) + broadcast `WM_SETTINGCHANGE("International")` — nguyên
+  nhân gốc vụ "không chọn được TextVN để gõ" sau các chu kỳ unregister/register
+  (bắt thật máy chủ repo 2026-10-03).
+- **Chẩn đoán activate trung thực**: `textvn-cli activate` kiểm tra profile
+  ĐANG CHỌN (`GetActiveLanguageProfile`) thay vì chỉ "được phép dùng"; thử ma
+  trận VI/EN × cờ; thông báo lỗi nêu đúng việc cần làm (chọn bằng Win+Space
+  hoặc cài phạm vi máy).
+- Tài liệu: `docs/user-guide.md` + `HUONG_DAN_SU_DUNG.txt` ghi rõ **giới hạn
+  per-user trên Windows mới** (một số build 10/11 từ chối ActivateProfile cho
+  đăng ký chỉ-HKCU → bản portable đơn thuần có thể gõ được sau khi chọn bằng
+  Win+Space, còn muốn cắm-là-chạy nên dùng bộ cài phạm vi máy). CI luôn test
+  luồng /ALLUSERS; kịch bản per-user chỉ kiểm tra file/trạng thái đăng ký.
+
+### Known issue (ghi nhận từ máy chủ repo, 0.2.12 chưa xử lý được)
+- `ActivateProfile` trả `E_FAIL` cho TIP chỉ đăng ký per-user trên Windows
+  build 26300 (24H2+/Insider): không thể chuyển bộ gõ bằng API — phải chọn
+  thủ công lần đầu (Win+Space) hoặc dùng bộ cài phạm vi máy. Theo dõi ở
+  `docs/specs/win-test-common-errors.md` (B7).
+
 ## [0.2.11] — 2026-10-03
 
 ### Fixed
@@ -598,7 +627,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.12...HEAD
+[0.2.12]: https://github.com/hunglinhpt/TextVN/compare/v0.2.11...v0.2.12
 [0.2.11]: https://github.com/hunglinhpt/TextVN/compare/v0.2.10...v0.2.11
 [0.2.10]: https://github.com/hunglinhpt/TextVN/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/hunglinhpt/TextVN/compare/v0.2.8...v0.2.9
