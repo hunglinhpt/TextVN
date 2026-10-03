@@ -237,7 +237,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "iss-tabs",
-        guards: ".iss không chứa TAB — escape \t bị ghi thành TAB phá pattern/đường dẫn (B12/B13; ISCC không bắt)",
+        guards: ".iss không chứa TAB — escape backslash-t bị ghi thành TAB phá pattern/đường dẫn (B12/B13; ISCC không bắt)",
         argv: &[".github/scripts/check_iss_tabs.py"],
         python_alt: true,
         optional: false,
