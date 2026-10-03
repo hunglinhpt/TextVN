@@ -233,11 +233,8 @@ static void on_words_save(GtkButton *b, TvWin *w) {
     if (rc == 0) {
         gtk_window_destroy(GTK_WINDOW(w->words_window));
     } else {
-        GtkWidget *dlg = gtk_message_dialog_new(GTK_WINDOW(w->words_window), GTK_DIALOG_MODAL,
-                                                GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
-                                                "Khong the luu tu dien. Kiem tra quyen thu muc cau hinh.");
-        g_signal_connect_swapped(dlg, "response", G_CALLBACK(gtk_window_destroy), dlg);
-        gtk_window_present(GTK_WINDOW(dlg));
+        show_message(GTK_WINDOW(w->words_window), "Lưu từ điển thất bại",
+                     "Không thể lưu từ điển. Kiểm tra quyền thư mục cấu hình rồi thử lại.");
     }
 }
 
@@ -277,8 +274,7 @@ static void on_words(GtkButton *b, TvWin *w) {
     gtk_widget_set_margin_bottom(box, 12);
 
     GtkWidget *hint = gtk_label_new(
-        "Moi dong mot tu tieng Anh ban muon TextVN GIU NGUYEN (vi du: text, list, cowork).
-"
+        "Moi dong mot tu tieng Anh ban muon TextVN GIU NGUYEN (vi du: text, list, cowork).\n"
         "Dong bat dau bang # la ghi chu. Chi chu cai a-z, toi da 15 ky tu.");
     gtk_label_set_xalign(GTK_LABEL(hint), 0.0f);
     gtk_box_append(GTK_BOX(box), hint);
@@ -298,10 +294,15 @@ static void on_words(GtkButton *b, TvWin *w) {
     GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_hexpand(spacer, TRUE);
     gtk_box_append(GTK_BOX(row), spacer);
-    GtkWidget *cancel = button(row, "Huy", G_CALLBACK(on_words_cancel), w);
+    /* Tao truc tiep (button() dinh nghia sau trong file — tranh implicit declaration). */
+    GtkWidget *cancel = gtk_button_new_with_label("Hủy");
+    g_signal_connect(cancel, "clicked", G_CALLBACK(on_words_cancel), w);
     gtk_widget_add_css_class(cancel, "flat");
-    GtkWidget *save = button(row, "Luu", G_CALLBACK(on_words_save), w);
+    gtk_box_append(GTK_BOX(row), cancel);
+    GtkWidget *save = gtk_button_new_with_label("Lưu");
+    g_signal_connect(save, "clicked", G_CALLBACK(on_words_save), w);
     gtk_widget_add_css_class(save, "suggested-action");
+    gtk_box_append(GTK_BOX(row), save);
     gtk_box_append(GTK_BOX(box), row);
 
     gtk_window_set_child(GTK_WINDOW(win), box);
