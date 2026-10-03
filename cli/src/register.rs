@@ -834,10 +834,6 @@ mod win_impl {
     /// tray lên cũng không gõ được tiếng Việt"). Store hiện đại không có API
     /// WinRT ghi được — ghi registry + broadcast là cách Windows tự dùng.
     fn ensure_modern_language_list() {
-        use windows::Win32::Foundation::{LPARAM, WPARAM};
-        use windows::Win32::UI::WindowsAndMessaging::{
-            PostMessageW, HWND_BROADCAST, WM_SETTINGCHANGE,
-        };
         for (tag, langid) in [("vi", LANGID_VI), ("en-US", LANGID_EN)] {
             let key = format!("Control Panel\\International\\User Profile\\{tag}");
             let value = format!("{langid:04X}:{{{}}}{{{}}}", CLSID_INNER, PROFILE_INNER);
