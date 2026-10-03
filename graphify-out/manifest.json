@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "docs/specs/win-test-common-errors.md": {
-    "mtime": 1790876961.2284853,
-    "seen": 1790876973.5508106,
-    "ast_hash": "98602137cf658b98da1b95aaa0fe1ba4",
+    "mtime": 1790994399.9867802,
+    "seen": 1790995339.9522839,
+    "ast_hash": "f3db1be04cfcfe73b803d3b09f96197c",
     "semantic_hash": ""
   },
   "fuzz/README.md": {
@@ -912,9 +912,9 @@
     "semantic_hash": ""
   },
   "cli/src/register.rs": {
-    "mtime": 1790973887.6620362,
-    "seen": 1790976188.388012,
-    "ast_hash": "38c99f64b5849310be114c412e5d48a8",
+    "mtime": 1790994421.8430977,
+    "seen": 1790995339.9237518,
+    "ast_hash": "98434c3f2b7b4c21e4f171feb18a9d2f",
     "semantic_hash": ""
   },
   "tools/appcomptest/targets/chrome.json": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1790975172.2946336,
-    "seen": 1790976188.4369838,
-    "ast_hash": "c2d0d59bf1cd9713a7ba969a3726e9db",
+    "mtime": 1790994393.2591164,
+    "seen": 1790995339.9433832,
+    "ast_hash": "86a9e94f70bc7f15a31a29a88c41b608",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1790975172.2946336,
-    "seen": 1790976188.438064,
-    "ast_hash": "69dc4cd4140e15f7f873b3bdd3c92999",
+    "mtime": 1790994393.2623794,
+    "seen": 1790995339.9445002,
+    "ast_hash": "331ee15eba9cf78fb25b4e7275d290de",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1790975172.287452,
-    "seen": 1790976188.3814662,
-    "ast_hash": "1974e54c5bca0ff40cb689407e0551fe",
+    "mtime": 1790994393.254103,
+    "seen": 1790995339.9171212,
+    "ast_hash": "2e91ccb2d14442065c608a26cb3d0503",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1790975172.287452,
-    "seen": 1790976188.3814662,
-    "ast_hash": "c72a9c01839e01c0c97d94baa4a073c9",
+    "mtime": 1790994393.2551033,
+    "seen": 1790995339.9171212,
+    "ast_hash": "2367febcba57cb343ddb50da5782c7a1",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1790975172.2884457,
-    "seen": 1790976188.3830185,
-    "ast_hash": "1f1526c0cff41cf469b5bddd22ba6dce",
+    "mtime": 1790994393.2551033,
+    "seen": 1790995339.9191487,
+    "ast_hash": "7f16cb7d260201c8fecbe6e447aaa58b",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1790976124.7282014,
-    "seen": 1790976188.4141243,
-    "ast_hash": "1b8a551c440f54784fee7333e96ada1b",
+    "mtime": 1790995122.55204,
+    "seen": 1790995339.9310331,
+    "ast_hash": "210a75719c5531cccc303a41bb047220",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1790976173.5728633,
-    "seen": 1790976188.4514008,
-    "ast_hash": "6c69608fcff0c6ec12d679ba0c5097d3",
+    "mtime": 1790995324.1847572,
+    "seen": 1790995339.9495604,
+    "ast_hash": "6481cb2d57831e0f5f05b1b36465be92",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1890,15 +1890,15 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1790967876.3441465,
-    "seen": 1790968721.878509,
-    "ast_hash": "a9349c053614479e2bd267e699cf916b",
+    "mtime": 1790994407.3551097,
+    "seen": 1790995339.9522839,
+    "ast_hash": "dc0c435dfcdb06f945823bca99973582",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
-    "mtime": 1790932584.0072763,
-    "seen": 1790933206.3670268,
-    "ast_hash": "d4c2267c2305a5f434ccc25b7ac8dc46",
+    "mtime": 1790994407.431642,
+    "seen": 1790995339.953298,
+    "ast_hash": "bfd124cef246fa50ba6202523a25fc89",
     "semantic_hash": ""
   },
   "tools/mac/README.md": {
