@@ -87,13 +87,58 @@ manager vẫn push được, nhưng GitHub CLI hiện báo token tài khoản `h
 không hợp lệ; thao tác release thủ công bằng CLI cần đăng nhập lại. Workflow
 phát hành qua tag vẫn là cơ chế chuẩn sau khi CI xanh.
 
-> `v0.2.11` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.10 + 0.2.11” bên dưới). 0.2.10/0.2.9/0.2.8/0.2.7/0.2.6/0.2.5 publish 2026-10-02. Bằng chứng của bản đó
+> `v0.2.12` **đã publish** 2026-10-03 dạng pre-release (mục “Bản 0.2.12” bên dưới). 0.2.11/0.2.10 publish 2026-10-03; 0.2.9–0.2.5 publish 2026-10-02. Bằng chứng của bản đó
 > nằm ở mục “Bản 0.2.2” bên dưới và
 > [audit 2026-09-30](cross-platform-audit-2026-09-30.md) “Vòng 11”.
 >
 > `v0.2.1` đã được phát hành dạng pre-release. Bằng chứng của bản đó nằm ở
 > các phần lịch sử phía dưới. Không dùng số liệu 0.1.0 làm bằng chứng
 > production cho 0.2.x.
+
+## Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được
+
+**Chuỗi báo cáo 2026-10-03 (screenshot bộ cài):** "lỗi không replace được
+profile cũ textvn-tsf.dll trong Program Files khi dùng bản cài installer;
+dùng bản portable cũng không gõ được tiếng Việt".
+
+### Ba nguyên nhân gốc, ba fixes, xác minh máy thật
+
+1. **Installer DeleteFile code 5** — TSF nạp `textvn-tsf.dll` trong mọi tiến
+   trình TSF-aware (explorer, Notepad…) nên `DeleteFile` bị Windows từ chối
+   kể cả khi setup chạy elevated. Fix: `RenameLockedTsfDll()` trong
+   `PrepareToInstall` — đổi tên DLL cũ thành `.old-<ts>` (Windows CHO PHÉP
+   rename file đang map) rồi ghi file mới; `[UninstallDelete]` dọn `.old-*`.
+2. **TextVN mất khỏi danh sách Win+Space** — `InstallLayoutOrTip` chỉ ghi
+   store CTF; store ngôn ngữ hiện đại (nguồn Win+Space/settings) là chỗ khác
+   và bị mất sau các chu kỳ unregister→register. Fix (0.2.12): `register` ghi
+   `HKCU\Control Panel\International\User Profile\<tag>` + broadcast
+   `WM_SETTINGCHANGE("International")`.
+3. **Windows 26300 (24H2+/Insider) từ chối ActivateProfile cho TIP chỉ-HKCU**
+   — bắt thật trên máy chủ repo: mọi combo API (VI/EN × cờ, kể cả legacy
+   ActivateLanguageProfile) đều E_FAIL/E_INVALIDARG khi chưa có đăng ký HKLM;
+   trước đây máy này "gõ được" là nhờ HKLM từ bản cài 0.2.6 (sau khi gỡ bản
+   cài → chỉ còn HKCU → chết). Fix vận hành: bộ cài phạm vi máy (admin) —
+   đúng luồng CI /ALLUSERS kiểm chứng; ghi thành B7 trong
+   `win-test-common-errors.md`; `activate` giờ check-then-activate qua
+   `GetActiveLanguageProfile` (profile ĐANG CHỌN, không phải "được phép") +
+   ma trận thử + thông báo lỗi nêu rõ việc cần làm.
+
+**Xác minh cuối trên máy chủ repo (sau khi cài 0.2.12 machine-wide):**
+E2E gõ thật trong Notepad — `dduocj text ` → `được text ` (Telex + EN-restore,
+NFC-normalized) **PASS**; hotkey Ctrl+Shift lật state `True→False→True`
+**PASS**; `activate` sau toggle **OK**; HKLM COM = `C:\Program Files\TextVN\textvn-tsf.dll`;
+HKCU Run = `C:\Program Files\TextVN\TextVN.exe --autostart`.
+
+**Ghosts dọn trong quá trình chẩn đoán:** explorer giữ DLL 0.2.3 từ OneDrive
+Desktop (từ 30/09) — "app cũ ảnh hưởng app mới" thật; autostart Run trỏ
+folder 0.2.7 đã xoá; Program Files kẹt DLL 0.2.6. Khuyến nghị: gỡ các thư mục
+portable cũ sau khi đã cài bản machine-wide.
+
+### Phát hành — v0.2.12 đã publish
+
+- **Tag:** `v0.2.12` @ `2cd0020`. release-candidate — **4/4 job `success`**,
+  7 asset. Setup: `TextVN-setup-0.2.12-windows-x64.exe` (đã dùng để sửa máy
+  chủ repo). homebrew sha cập nhật (B7b).
 
 ## Bản 0.2.10 + 0.2.11 — toggle = activate bộ gõ, migration nâng cấp, publish hardening
 
