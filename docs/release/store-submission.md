@@ -67,6 +67,24 @@ nộp gói `.msix` (§2c).
   /NORESTART`.
 - Cấu hình người dùng (`%APPDATA%\TextVN`) được giữ lại sau gỡ.
 
+## 2a. Ảnh listing (Box art / Poster art)
+
+Ảnh cho phần **Store listing** (khác tile trong gói MSIX):
+`store/art/` (sinh bằng `python scripts/generate_store_art.py` — nền đỏ cờ VN +
+sao vàng + chữ V trắng, đồng bộ icon mode tiếng Việt [V]).
+
+| Ô trong Partner Center | File | Kích thước | Ghi chú |
+|---|---|---|---|
+| 1:1 Box art (BẮT BUỘC) | `box-art-2160.png` (hoặc `box-art-1080.png`) | 2160×2160 (1080×1080) | PNG, 152 KB (< 50 MB ✓) |
+| 2:3 Poster art (khuyến nghị) | `poster-art-1440x2160.png` (hoặc `poster-art-720x1080.png`) | 1440×2160 (720×1080) | PNG, 119 KB |
+
+Bản sao tải nhanh (raw URL, không redirect):
+
+```
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/store-art/box-art-2160.png
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/store-art/poster-art-1440x2160.png
+```
+
 ## 2b. Nguồn tải cho Partner Center — dùng branch `approved` (raw URL, KHÔNG redirect)
 
 `https://github.com/.../releases/download/...` trả **redirect** sang URL ký tạm
