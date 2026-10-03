@@ -224,6 +224,36 @@ fn ensure_hook_running() {
 /// hoặc trỏ tới DLL cũ và Windows không thể nạp TIP → không gõ được tiếng Việt.
 /// Mỗi lần khởi động kiểm tra lại và đăng ký per-user bằng CLI cạnh executable
 /// (không tạo console, không cần quyền Administrator).
+/// Tiến trình hiện tại có đang chạy elevated (admin) không? Dùng để BỎ QUA
+/// prompt UAC (không thể xin elevation khi đã elevated; và trong CI headless
+/// hộp thoại modal sẽ treo tray).
+#[cfg(windows)]
+fn is_process_elevated() -> bool {
+    use windows::Win32::Security::{
+        GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+    };
+    use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+    // SAFETY: token mở/queries hợp lệ; mọi handle được đóng ngay.
+    unsafe {
+        let mut token = windows::Win32::Foundation::HANDLE::default();
+        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+            return false;
+        }
+        let mut elevation = TOKEN_ELEVATION::default();
+        let mut ret_len = 0u32;
+        let ok = GetTokenInformation(
+            token,
+            TokenElevation,
+            Some(&mut elevation as *mut _ as *mut std::ffi::c_void),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut ret_len,
+        )
+        .is_ok();
+        let _ = windows::Win32::Foundation::CloseHandle(token);
+        ok && elevation.TokenIsElevated != 0
+    }
+}
+
 /// Đăng ký máy đã có chưa? (HKLM COM InprocServer32 tồn tại = bản cài/đăng ký máy.)
 #[cfg(windows)]
 fn machine_registration_present() -> bool {
@@ -242,8 +272,26 @@ fn offer_machine_registration_if_needed() {
     if std::env::args().any(|a| a == "--autostart") {
         return;
     }
+    // Tiến trình đang elevated (CI runner, terminal admin): không thể/không cần
+    // xin UAC lại, và hộp thoại modal sẽ CHẶN tray trong môi trường headless
+    // (sự cố CI 37112480137: "TextVN tray is still running before typing test").
+    if is_process_elevated() {
+        return;
+    }
     if machine_registration_present() {
         return;
+    }
+    // Chỉ hỏi MỘT lần cho cả máy/người dùng — người dùng bấm Cancel thì tôn
+    // trọng, không hỏi lại mỗi lần mở app.
+    let marker = std::env::var_os("APPDATA").map(|d| {
+        std::path::PathBuf::from(d)
+            .join("TextVN")
+            .join("uac_prompt_done")
+    });
+    if let Some(m) = &marker {
+        if m.exists() {
+            return;
+        }
     }
     let Ok(exe) = std::env::current_exe() else {
         return;
@@ -284,6 +332,10 @@ tiếp tục, Cancel nếu muốn tự chọn TextVN bằng Win+Space."
             MB_OKCANCEL | MB_ICONWARNING,
         )
     };
+    if let Some(m) = &marker {
+        let _ = std::fs::create_dir_all(m.parent().unwrap_or(std::path::Path::new(".")));
+        let _ = std::fs::write(m, b"1");
+    }
     if answer != IDOK {
         return;
     }
