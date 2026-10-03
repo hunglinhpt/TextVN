@@ -14,7 +14,7 @@ import sys
 
 def tracked_ps1() -> list[str]:
     out = subprocess.run(
-        ["git", "ls-files", "*.ps1"], capture_output=True, text=True, check=True
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.ps1"], capture_output=True, text=True, check=True
     ).stdout
     return [f for f in out.splitlines() if f.strip()]
 

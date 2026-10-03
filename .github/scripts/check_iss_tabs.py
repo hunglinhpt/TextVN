@@ -16,7 +16,7 @@ import sys
 
 def tracked_iss() -> list[str]:
     out = subprocess.run(
-        ["git", "ls-files", "*.iss"], capture_output=True, text=True, check=True
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "*.iss"], capture_output=True, text=True, check=True
     ).stdout
     return [f for f in out.splitlines() if f.strip()]
 

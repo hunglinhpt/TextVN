@@ -6,6 +6,27 @@
 > bản silent mỗi lần release (`installer/windows/tests/test-installer.ps1`:
 > per-user `/CURRENTUSER` + machine `/ALLUSERS`, đều chạy `/VERYSILENT`).
 
+## 0. Checklist S — BẮT BUỘC 100% trước khi nộp (không bỏ bước nào)
+
+| # | Bước | Bắt buộc | Được kiểm tự động bởi |
+|---|---|---|---|
+| S1 | Bản phát hành có đủ 8 asset (7 + `*.msix`), CI 4/4 job xanh | ✔ | `release.yml` publish validate |
+| S2 | **Store package validation** (silent / ARP / bundleware / uninstall) PASS trên runner sạch | ✔ | `tools/win/validate-store-package.ps1` — chạy trong `ci-shared` + `release.yml` + `cargo xtask preflight` |
+| S3 | Setup exe được đưa lên branch `approved` tại `vX.Y.Z/` (raw URL 200) | ✔ | quy trình B7c + `curl -sI` kiểm 200 |
+| S4 | Ảnh listing đủ: box art 1:1 ≥1080px + poster 2:3 + ít nhất 1 screenshot ≥1366×768 | ✔ | `store/art/` + `store/screenshots/` (generator: `scripts/generate_store_art.py`) |
+| S5 | Ô switches = `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` (KHÔNG `/ALLUSERS`, KHÔNG `/CURRENTUSER`) | ✔ | mục §1a |
+| S6 | KHÔNG tích "Installer runs in silent mode but does not require switches" | ✔ | mục §1b |
+| S7 | Languages: Vietnamese + English; App type: Desktop | ✔ | mục §1c/§1d |
+| S8 | Return codes: successful = `0`, cancelled = `2`, còn lại bỏ trống | ✔ | mục §1e |
+| S9 | Privacy policy URL = `PRIVACY_POLICY.txt` (raw/blob); Support URL = issues | ✔ | repo |
+| S10 | Publisher display name trong Partner Center = `LinhBH.CoM` (khớp ARP) | ✔ | Bước 2 của validation đối chiếu tự động |
+| S11 | Sau khi Submit: theo dõi Package validation — mọi mục đỏ phải được đưa thành mã lỗi (B*/E*) TRƯỚC khi nộp lại | ✔ | quy tắc B4⑤ |
+| S12 | MSIX dự phòng sẵn sàng cùng phiên bản (khi exe bị từ chối) | ✔ | asset `*.msix` + §2c |
+
+Vì sao bắt buộc cứng: lần nộp 0.2.16 đã đỏ 3 mục validation vì bộ cài đòi
+admin trong sandbox (B13) — từ 0.2.17 mọi bước ở S2 chạy tự động trong CI mỗi
+commit, một bước không đạt = không được tag/phát hành.
+
 ## 1. Điền form Partner Center — từng ô một
 
 ### 1a. "Provide any switches required for silent installation…"

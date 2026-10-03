@@ -264,6 +264,15 @@ jobs:
           if (-not $setup) { throw 'installer was not built' }
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Gate BAT BUOC (Checklist S - store-submission.md): chay dung 3 buoc
+      # manual package validation cua Microsoft tren runner sach: silent install
+      # exit 0 khong tuong tac -> ARP name/publisher/version -> dung 1 entry
+      # (bundleware) -> silent uninstall sach. Loi = do CI, khong duoc tag.
+      - name: Store package validation (MS manual checks, bat buoc)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # MSIX la asset BAT BUOC cua moi release (0.2.17+): build ngay o day de
       # bat loi som moi commit thay vi doi den luc tag (release.yml cung build).
       - name: Build MSIX (bat buoc cho release)

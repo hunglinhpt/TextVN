@@ -236,6 +236,16 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "store-validate",
+        guards: "3 bước manual package validation của Microsoft trên dist/TextVN-setup-*.exe (silent/ARP/bundleware + uninstall) — Checklist S; máy dev đang cài TextVN thì SKIP (CI chạy thật)",
+        argv: &[
+            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+            "tools/win/validate-store-package.ps1", "-AllowSkip",
+        ],
+        python_alt: false,
+        optional: false,
+    },
+    Step {
         name: "iss-tabs",
         guards: ".iss không chứa TAB — escape backslash-t bị ghi thành TAB phá pattern/đường dẫn (B12/B13; ISCC không bắt)",
         argv: &[".github/scripts/check_iss_tabs.py"],

@@ -46,6 +46,13 @@ jobs:
           $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
           powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Gate BAT BUOC (Checklist S): 3 buoc manual package validation cua
+      # Microsoft tren runner sach - silent/ARP/bundleware + silent uninstall.
+      - name: Store package validation (MS manual checks, bat buoc)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # MSIX (yeu cau chu repo 2026-10-03: MOI release phai kem ban msix).
       # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
       # best-effort nua) va publish job con validate du 1 file .msix.
