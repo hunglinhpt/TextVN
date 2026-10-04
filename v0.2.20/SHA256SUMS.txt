@@ -1,0 +1,3 @@
+f7c3ced4db59484a5ad3cf0b53ce312f30c6faff2d0f92686724b386f2b52d72  TextVN-0.2.20-windows-x64.msix
+b65c6d538088d243aac160fe010b2d32cba1e527300ce64d25a8564f3a7c90e5  TextVN-portable-0.2.20-windows-x64-20261004091303.zip
+faac21e32076be61c56f05cf6c7b4198be2cbd0cfb138c0f48871797a41df112  TextVN-setup-0.2.20-windows-x64.exe
