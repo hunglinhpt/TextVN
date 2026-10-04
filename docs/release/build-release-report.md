@@ -1,5 +1,31 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.21 — ARP Publisher khớp ĐÚNG Partner Center (STO-03) + B17
+
+Chủ tài khoản xác nhận 2 chuỗi trên Partner Center (2026-10-04): Product name =
+`TextVN` (→ ARP `DisplayName` đã khớp từ trước) và **Publisher display name =
+`Linh βùi`** (beta U+03B2, ù U+00F9) — trước đây installer ghi `LinhBH.CoM` nên
+validator báo *"could not identify the app name and the publisher name"*.
+0.2.21 sửa `AppPublisher` thành đúng chuỗi đó; `.iss` giữ UTF-8 BOM để ISCC đọc
+đúng ký tự đặc biệt ở mọi phiên bản Inno.
+
+| Gate | Bằng chứng |
+|---|---|
+| Verify encoding end-to-end (probe riêng, AppId tạm) | Cài im lặng → đọc ARP → `Publisher` đúng codepoint `U+004C U+0069 U+006E U+0068 U+0020 U+03B2 U+00F9 U+0069` (`-ceq` = True) → gỡ sạch |
+| `cargo xtask preflight` (máy chủ repo) | PASS 22/22 (bắt 1 lỗi thật: `Ordering` rò từ cfg(windows) sang Linux — đã sửa) |
+| `build-release.ps1 -BuildInstaller` | BUILD_EXIT=0; smoke test bắt được **B17** (xem dưới) |
+| CI `ci-shared` job "Windows package" (517db48) | 12/12 step PASS: harness `PASS 2) ARP entry: 'TextVN' | 'Linh βùi' | '0.2.21'`; simulate `PASS B2 … Publisher='Linh βùi'`; machine-variant PASS 0-4 |
+| Release workflow v0.2.21 (tag) | 4/4 job PASS, GitHub Release đủ 8 asset |
+| Nguồn tải Partner Center | `approved/v0.2.21/TextVN-setup-0.2.21-windows-x64.exe` — HTTP 200, 0 redirect, byte-identical `fa486e6d…d279`; **CI validate lại từ chính URL** (Downloaded 2690740 bytes → silent exit 0 → ARP `Linh βùi`) |
+
+**B17 (lỗi mới bắt được khi dựng 0.2.21):** `WM_REQUEST_EXIT` gửi tới tray khi
+cửa sổ CHƯA tồn tại (tray còn đang đăng ký TSF/dò activation >1 s) bị **mất âm
+thầm** → `--stop` ngay sau khi start không có tác dụng (smoke báo *"Runtime
+smoke did not stop cleanly"* và để lại tiến trình mồ côi). Sửa: latch
+`TRAY_EXIT_PENDING` + tray tiêu thụ trước vòng lặp; smoke POLL 10 s thay vì
+`sleep 500 ms` cố định và kill tiến trình mồ côi khi fail.
+
+## Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft)
 ## Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft)
 
 Bối cảnh: CI đỏ job "Windows package" trên `7e2fe53` — `textvn-setup.iss` gọi

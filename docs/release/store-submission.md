@@ -203,11 +203,14 @@ thời; một số luồng upload của Store xử lý kém loại URL này. Vì
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
 ```
 
-Ví dụ **bản hiện hành v0.2.20** (đã kiểm: HTTP 200 trực tiếp, 0 redirect,
-byte-identical — SHA-256 `faac21e32076be61c56f05cf6c7b4198be2cbd0cfb138c0f48871797a41df112`):
+Ví dụ **bản hiện hành v0.2.21** (đã kiểm: HTTP 200 trực tiếp, 0 redirect,
+byte-identical với asset của GitHub Release — SHA-256
+`fa486e6d9d2fda9345009d31b1b07ab0fbbd6740534b7236c8c17d860572d279`; đã được CI
+validate lại từ chính URL này: silent exit 0 + `ARP entry Name='TextVN'
+Publisher='Linh βùi' Version='0.2.21'`):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.20/TextVN-setup-0.2.20-windows-x64.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64.exe
 ```
 
 Cập nhật khi có bản mới được duyệt: tải setup exe + portable zip +
