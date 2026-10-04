@@ -1,5 +1,32 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft)
+
+Bối cảnh: CI đỏ job "Windows package" trên `7e2fe53` — `textvn-setup.iss` gọi
+`RegDeleteKeyValue`, hàm **không tồn tại** trong Pascal Script của Inno Setup
+(chỉ có `RegDeleteValue`). ISCC chỉ chạy trong CI nên máy dev không bắt được →
+ghi mã **B14** + luật: biên dịch thật bằng ISCC trước khi push `[Code]`.
+Commit sửa: `cd4e141` (12 file code/docs) + `7631ecf` (notice thread riêng) +
+`fb3b351` (Resolve-Iscc).
+
+| Gate | Bằng chứng |
+|---|---|
+| `cargo xtask preflight` (22 bước, máy chủ repo) | PASS 22/22 (gồm `check-version-sync` 14 site = 0.2.20, `store-validate` SKIP trên máy dev đang có TextVN, `iss-tabs`, `ascii-ps1`) |
+| ISCC thật (`ISCC.exe /DMyAppVersion=0.2.20`) | Compile OK 1.6s, ra `dist\TextVN-setup-0.2.20-windows-x64.exe` |
+| `build-release.ps1 -BuildInstaller` (máy chủ repo) | BUILD_EXIT=0 — fmt/clippy/verify/replay/test/smoke/zip/installer PASS; PE VersionInfo 0.2.20.0 |
+| CI `ci-shared` job "Windows package" (commit `7631ecf`) | Step 9 "Store package validation (MS manual checks)" PASS (harness có gate manifest `asInvoker` + ARP exact) và step 10 "Simulate Store validator" PASS (tải raw URL `approved/v0.2.20`, MOTW, silent, ARP, bundleware, uninstall) |
+| `ci-macos` (commit `cd4e141`) | Xanh |
+| `repo-hygiene` (commit `cd4e141`/`7631ecf`) | Xanh |
+| Nguồn tải Partner Center | `https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.20/TextVN-setup-0.2.20-windows-x64.exe` — HTTP 200, 0 redirect, byte-identical (`faac21e3…f112`) |
+
+Gói **MỚI** so với mọi lần nộp Store trước (0.2.16–0.2.19): bắt buộc để Partner
+Center chạy lại validation — bẫy "We did not find any changes in the Package or
+the Silent install parameters" đã ghi thành **B13g**.
+MSIX 0.2.20 (`dist\TextVN-0.2.20-windows-x64.msix`) build sẵn cho đường dự
+phòng, nhưng Identity hiện là placeholder (`LinhBH.CoM.TextVN`) — phải build lại
+với **đúng** Name/Publisher lấy từ Partner Center trước khi upload (xem
+`docs/release/msix-submission.md`).
+
 ## Bản 0.2.4 — hoàn tất code gate, chờ workflow phát hành
 
 Log thực tế ngày 2026-09-30: ghi COM/CTF dưới HKCU thành công nhưng

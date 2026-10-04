@@ -7,6 +7,48 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.20] — 2026-10-04
+
+### Fixed (Windows) — CI đỏ .iss + vòng 3 validation (B13/B14)
+- **CI "Windows package" đỏ**: `textvn-setup.iss` dùng `RegDeleteKeyValue` —
+  Pascal Script của Inno Setup KHÔNG có hàm này (chỉ `RegDeleteValue`). Sửa +
+  ghi mã **B14**: mọi thay đổi `[Code]` phải biên dịch thật bằng ISCC trước khi
+  push. Uninstaller giờ chỉ trả `Layout Hotkey` về mặc định khi giá trị = 3
+  (đúng override của TextVN, giống `uninstall.ps1`; tôn trọng lựa chọn khác
+  của người dùng).
+- **Harness `validate-store-package.ps1` "đúng như Microsoft expected"**: thêm
+  bước 0 đọc manifest exe — BẮT BUỘC `asInvoker` (exe `requireAdministrator`
+  làm `CreateProcess` non-elevated của validator fail 740 TRƯỚC khi cài → cả
+  3 mục đỏ; đo thật exit=2 — B13e); ARP so **từng chữ** DisplayName `TextVN` +
+  Publisher `LinhBH.CoM` + có DisplayVersion (hết `-like` — B13f).
+- **Bẫy "We did not find any changes in the Package or the Silent install
+  parameters"** ghi thành B13g: nộp lại cùng gói/cùng URL → Partner Center
+  không chạy lại validation. Mỗi lần nộp phải là phiên bản mới (0.2.20).
+- `build-release.ps1 -BuildInstaller` tìm được ISCC cài per-user bằng winget
+  (`%LOCALAPPDATA%\Programs\Inno Setup 6\`) — trước đó fail dù mọi bước khác
+  xanh.
+
+### Security / hardening (audit 2026-10-04, phần còn lại)
+- **SEC-02 vòng 2**: tray chỉ tự nâng quyền (UAC) từ thư mục cài chuẩn —
+  Program Files (gồm MSIX `WindowsApps`) và `%LOCALAPPDATA%\Programs` (bộ cài
+  per-user / gói .exe Store). Thư mục tự chọn (Downloads, ổ D: portable) bị TỪ
+  CHỐI (CWE-426/732: DLL planting cạnh binary sẽ chạy bằng admin) + thông báo
+  MỘT lần cách cài đặt (thread riêng, không chặn `--stop`). Bước nâng quyền chỉ
+  tới sau khi activation per-user thất bại thật (B7) — bản cài chuẩn tự chữa
+  được như cũ.
+- **SEC-05**: named pipe IPC tạo với DACL chỉ user hiện tại (+SYSTEM/
+  Administrators) — hết cảnh user khác cùng máy (phiên RDP) đọc ConfigReload/
+  StateUpdate và gửi Shutdown giả.
+- **SEC-04**: IPC client Linux ưu tiên `$XDG_RUNTIME_DIR/TextVN/ipc.sock`,
+  fallback `/tmp/textvn-<uid>/`; guard `lstat` (đối tượng phải là socket của
+  chính user) trước `connect`.
+- **PERF-01**: quét từ điển restore-EN lọc theo độ dài trước `to_lowercase()`
+  (hết alloc thừa mỗi ranh giới từ).
+- **BUG-03 / 3.2.B / 3.2.C**: ghi rõ lý do hoãn trong phụ lục roadmap — parser
+  Linux `app_id:"*"` là code chết (poll chưa được gọi; sửa cùng Linux tray
+  P3-0); `non_preedit` macOS và non-preedit Linux là thay đổi hành vi cần test
+  thật với Chromium/Office (F3-021).
+
 ## [0.2.19] — 2026-10-04
 
 ### Fixed (Windows) — loại bỏ TỪNG blocker còn lại của silent install (B13)
@@ -805,6 +847,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...HEAD
+[0.2.20]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...v0.2.20
 [0.2.19]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...v0.2.19
 [0.2.18]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...v0.2.18
 [0.2.17]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...v0.2.17
