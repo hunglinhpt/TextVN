@@ -127,8 +127,16 @@ if ($e.Uninstall) {
     $uninstCmd = $e.Uninstall -replace '^"', '' -replace '"$', ''
     $up = Start-Process -FilePath $uninstCmd -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
     Write-Host ("  Uninstall exit: {0}" -f $up.ExitCode)
-    Start-Sleep -Seconds 2
-    $left = Get-ArpEntries | Where-Object { $_.Key -eq $e.Key }
+    # Uninstaller Inno copy chinh no ra %TEMP% roi tra ve NGAY - phai CHO entry
+    # bien mat (toi da 20s) truoc khi ket luan; neu khong, buoc sau (vi du bang
+    # chung machine-install) thay entry con sot va bao "may ban" gia (su co CI
+    # 37198221652: buoc Machine-install variant abort vi entry con lai).
+    $left = $null
+    for ($i = 0; $i -lt 40; $i++) {
+        Start-Sleep -Milliseconds 500
+        $left = Get-ArpEntries | Where-Object { $_.Key -eq $e.Key }
+        if (-not $left) { break }
+    }
     if ($left) { throw "FAIL B4: ARP entry van con sau uninstall" }
     Write-Host "PASS B4: Uninstall sach (entry bien mat)"
 }

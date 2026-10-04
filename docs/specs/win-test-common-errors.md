@@ -47,6 +47,8 @@
 
 | B15 | Release workflow `v0.2.20` job `windows` đỏ ở bước VirusTotal: "Khong co file nao de quet" dù `dist\TextVN-setup-0.2.20-windows-x64.exe` CÓ THẬT (step 6 store-validate vừa dùng nó) | Hai lỗi chồng: (a) **A14** — `powershell -File script.ps1 -Files "a","b"` truyền cả hai glob thành MỘT string `"a,b"` → `Get-ChildItem` không khớp gì → script `throw`; (b) workflow gọi script có `throw` nên exit ≠ 0, và GH Actions lấy `$LASTEXITCODE` của lệnh cuối → step đỏ dù chỉ định "best-effort" (comment nói không chặn release) | (a) Đầu script tách lại: `$Files = @($Files \| ForEach-Object { $_ -split ',' } \| Where-Object { $_ -ne '' })` (đúng bài học A14); (b) không có file khớp → `Write-Host WARN` + `exit 0` (không throw); (c) wrapper trong release.yml thêm `exit 0` tường minh sau WARN. Verify: chạy lại với glob sai → `WARN...` + exit 0 |
 
+| B16 | Bước CI "Machine-install variant" abort: harness báo *"May dang co san N entry TextVN"* dù bước trước đó đã gỡ cài thành công (run 37198221652) | **Uninstaller của Inno chạy BẤT ĐỒNG BỘ**: nó copy chính nó ra `%TEMP%` rồi tiến trình gốc trả về NGAY → `Start-Process -Wait` không chờ gỡ xong; `simulate-store-validation.ps1` chỉ `Start-Sleep 2` rồi kiểm → lần đó kịp, nhưng entry vẫn còn khi bước sau bắt đầu → báo "máy bẩn" GIẢ | Mọi harness gỡ cài phải **POLL** cho tới khi entry biến mất (tối đa 20s, `validate-store-package.ps1` đã làm đúng) — không dùng sleep cứng. Đã thêm poll vào `simulate-store-validation.ps1` + bước CI machine-variant tự dọn entry sót trước khi chạy (lưới an toàn) |
+
 ## C. UIA & ứng dụng test
 
 | # | Lỗi | Triệu chứng | Cách đúng |
