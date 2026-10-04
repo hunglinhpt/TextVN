@@ -43,22 +43,40 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=..\..\LICENSE
 OutputDir=..\..\dist
-OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows-x64
+; OutputSuffix cho phep build BIEN THE canh nhau ma khong ghi de (vi du
+; ISCC /DOutputSuffix="-machine" -> TextVN-setup-<ver>-windows-x64-machine.exe).
+#ifndef OutputSuffix
+  #define OutputSuffix ""
+#endif
+OutputBaseFilename=TextVN-setup-{#MyAppVersion}-windows-x64{#OutputSuffix}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; PHẢI là per-user (KHÔNG elevation): validator của Store tự động chạy installer
-; qua CreateProcess — exe có manifest requireAdministrator fail NGAY với
-; ERROR_ELEVATION_REQUIRED (740) trước khi cài gì cả → cả 3 check (silent/ARP/
-; bundleware) cùng đỏ vì KHÔNG CÓ LẦN CÀI NÀO diễn ra (bắt thật: exit=2 trong
-; shell non-elevated 2026-10-04; B13). Per-user chạy được ở mọi ngữ cảnh, ARP
-; ở HKCU — Programs and Features hiển thị gộp cả hai hive nên validator/manual
-; check đều thấy. Machine install (/ALLUSERS) chỉ dành cho người dùng tải trực
-; tiếp từ GitHub Releases.
+; MAC DINH = per-user (KHONG elevation): validator cua Store tu dong chay
+; installer qua CreateProcess — exe co manifest requireAdministrator fail NGAY
+; voi ERROR_ELEVATION_REQUIRED (740) truoc khi cai gi ca → ca 3 check (silent/
+; ARP/bundleware) cung do vi KHONG CO LAN CAI NAO dien ra (bat that: exit=2
+; trong shell non-elevated 2026-10-04; B13). Per-user chay duoc o moi ngu canh,
+; ARP o HKCU — Programs and Features hien thi gop ca hai hive.
+;
+; BIEN THE MAY (lo trinh 2 cua audit vong 4 / STO-02 — chi dung khi gia thuyet
+; "validator chi doc HKLM" duoc xac nhan):
+;   ISCC.exe /DMyAppVersion=<ver> /DMachineInstall=1 /DOutputSuffix="-machine" installer\windows\TextVN-setup.iss
+; → che do cai MAY: ARP + file o Program Files/HKLM (Inno lo het, khong tu ghi tay).
+; ⚠️ DO THAT 2026-10-04: vi PrivilegesRequiredOverridesAllowed=commandline, manifest
+; cua CA HAI ban deu la `asInvoker` (Inno tu relaunch elevated bang UAC khi che do
+; can quyen admin) — KHONG the phan biet bang cach doc manifest, va trong moi
+; truong khong tra loi duoc UAC thi ban may se fail y nhu 0.2.18 (exit=2).
+; Vi vay: chi dung ban may khi VM cua Store duoc phep elevate; kiem bang
+; `validate-store-package.ps1 -MachineOnly` tren runner elevated (co buoc CI).
+#ifdef MachineInstall
+PrivilegesRequired=admin
+#else
 PrivilegesRequired=lowest
+#endif
 PrivilegesRequiredOverridesAllowed=commandline
 ; /VERYSILENT van co the bi chan boi dialog chon ngon ngu khi locale cua may
 ; validator khong khop [Languages] (auto -> hien dialog khi khong tim duoc ngon

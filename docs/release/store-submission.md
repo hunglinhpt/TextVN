@@ -83,17 +83,24 @@ Phân tích vòng 4 (STO-02/STO-03 trong báo cáo audit) chỉ ra 2 nghi vấn 
 harness đã có công cụ kiểm riêng cho từng nghi vấn:
 
 1. **Validator chỉ đọc hive MÁY (HKLM/WOW6432Node) hoặc chạy dưới account khác**
-   → entry per-user (HKCU) vô hình. Kiểm bằng:
+   → entry per-user (HKCU) vô hình. Hai bước kiểm chứng:
    ```powershell
-   # tu shell ELEVATED (khong thi 740 truoc khi cai); /ALLUSERS = cai pham vi may
+   # (a) đối chiếu với gói ĐANG nộp (per-user): bằng chứng phải nằm ở HKLM
    powershell -File tools\win\validate-store-package.ps1 -MachineOnly `
-       -Setup dist\TextVN-setup-<ver>-windows-x64.exe
+       -Setup dist\TextVN-setup-<ver>-windows-x64.exe      # → sẽ FAIL: đúng như dự đoán
+   # (b) dựng BIẾN THỂ MÁY rồi kiểm lại (chạy từ shell ELEVATED):
+   ISCC.exe /DMyAppVersion=<ver> /DMachineInstall=1 "/DOutputSuffix=-machine" installer\windows\TextVN-setup.iss
+   powershell -File tools\win\validate-store-package.ps1 -MachineOnly `
+       -Setup dist\TextVN-setup-<ver>-windows-x64-machine.exe   # → phải PASS
    ```
-   Nếu harness PASS ở `-MachineOnly` (bằng chứng nằm ở HKLM) mà bản nộp vẫn đỏ →
-   phải nộp **bản machine install**: build lại `.iss` với `/DPrivileges=admin`
-   (xem ghi chú dưới bảng 1a) và khai switches có `/ALLUSERS`.
-   Nếu harness FAIL vì không cài được từ shell non-elevated (740) → giả thuyết
-   này không khả thi trong VM của Store (đúng như đo thật 2026-10-04).
+   Nếu (b) PASS → nộp bản `-machine` (kèm `/ALLUSERS` trong ô switches) **với điều
+   kiện VM của Store được phép elevate**; nếu VM không elevate được thì bản máy
+   cũng fail y như 0.2.18 (đo thật: shell non-elevated → exit=2) → chỉ còn MSIX.
+   ⚠️ Lưu ý đã đo: `PrivilegesRequired=admin` + `PrivilegesRequiredOverridesAllowed`
+   ⇒ manifest vẫn là **asInvoker** (Inno tự relaunch elevated) — đừng dùng manifest
+   để phân biệt hai biến thể.
+   CI `ci-shared` có bước "Machine-install variant" chạy đúng (b) trên runner
+   elevated để lấy bằng chứng mỗi commit.
 2. **Lệch chuỗi định danh so với Partner Center (STO-03)** — ARP DisplayName
    phải khớp **từng chữ** với tên sản phẩm đã reserve (ví dụ nếu Partner Center
    là `TextVN - Bộ gõ tiếng Việt` thì `TextVN` là MISMATCH), và Publisher phải
@@ -111,6 +118,13 @@ harness đã có công cụ kiểm riêng cho từng nghi vấn:
    ```
    ⚠️ Hai giá trị này CHỈ chủ tài khoản đọc được (Partner Center → Product
    identity / Publisher display name) — không suy đoán.
+3. **MSIX (đường Microsoft khuyến nghị cho đúng ca fail này)** — bỏ qua cả 3
+   check. Cần đúng 2 giá trị Product identity; script cảnh báo rõ khi còn
+   placeholder và nhận giá trị qua biến môi trường để CI/thợ build lại một lệnh:
+   ```powershell
+   $env:MSIX_IDENTITY_NAME='<Package/Identity/Name>'; $env:MSIX_PUBLISHER='CN=<Publisher>'
+   powershell -File tools\win\build-msix.ps1     # upload .msix TRỰC TIẾP, không qua URL
+   ```
 
 ### 1b. "Installer runs in silent mode but does not require switches"
 

@@ -33,6 +33,32 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $root
 
+# CI/secret co the bom Identity THAT (Partner Center -> Product identity) qua
+# bien moi truong - khi do khong can truyen -Publisher/-IdentityName:
+#   MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY, MSIX_DISPLAY_NAME
+if ($env:MSIX_IDENTITY_NAME -and $IdentityName -eq 'LinhBH.CoM.TextVN') { $IdentityName = $env:MSIX_IDENTITY_NAME }
+if ($env:MSIX_PUBLISHER -and $Publisher -eq 'CN=LinhBH.CoM') { $Publisher = $env:MSIX_PUBLISHER }
+if ($env:MSIX_PUBLISHER_DISPLAY -and $PublisherDisplay -eq 'LinhBH.CoM') { $PublisherDisplay = $env:MSIX_PUBLISHER_DISPLAY }
+if ($env:MSIX_DISPLAY_NAME -and $DisplayName -eq 'TextVN - Bo go tieng Viet') { $DisplayName = $env:MSIX_DISPLAY_NAME }
+
+# CI-04 (audit vong 4, muc 3.4.3.4): gate mem - goi MSIX con Identity PLACEHOLDER se
+# bi Partner Center tu choi ngay khi upload ("package identity mismatch").
+# Khong fail cung (CI khong co gia tri that cua chu tai khoan) nhung phai RO de
+# khong ai nop nham.
+if ($IdentityName -eq 'LinhBH.CoM.TextVN' -or $Publisher -eq 'CN=LinhBH.CoM') {
+    Write-Host ''
+    Write-Host '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    Write-Host '!! CANH BAO: MSIX dang dung IDENTITY PLACEHOLDER:                 !!'
+    Write-Host "!!   IdentityName = $IdentityName"
+    Write-Host "!!   Publisher    = $Publisher"
+    Write-Host '!! KHONG nop file nay len Partner Center - se bi tu choi.          !!'
+    Write-Host '!! Lay that tu Partner Center -> Product identity roi build lai:   !!'
+    Write-Host '!!   tools\win\build-msix.ps1 -Publisher "CN=..." -IdentityName "..."'
+    Write-Host '!! (hoac dat bien moi truong MSIX_PUBLISHER / MSIX_IDENTITY_NAME)  !!'
+    Write-Host '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+    Write-Host ''
+}
+
 # 1. Version: mac dinh lay tu Cargo.toml (workspace.package).
 if (-not $Version) {
     $line = Select-String -Path 'Cargo.toml' -Pattern '^version = "([^"]+)"' | Select-Object -First 1

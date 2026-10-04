@@ -280,6 +280,26 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Context Matrix Test (audit vong 4 §3.4.3 / STO-02): runner GitHub chay
+      # ELEVATED — dung moi truong do CHUNG MINH ban MAY (/DMachineInstall=1)
+      # tao duoc entry ARP o HKLM/WOW6432Node (gia thuyet "validator chi doc
+      # hive may"), ARP khop tung chu, va go cai sach. Xanh = ban may la lua
+      # chon THAT khi VM Store duoc phep elevate; do = gia thuyet bat kha thi
+      # trong VM do, phai di duong MSIX.
+      - name: Machine-install variant (ARP o HKLM — bang chung cho STO-02)
+        # Giai doan dau: chay de LAY BANG CHUNG (log) chu chua phai gate cung —
+        # se doi sang blocking sau 2 run xanh lien tiep. Gate cung cho goi nop
+        # van la buoc "Store package validation" o tren.
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          & $iscc "/DMyAppVersion=$ver" /DMachineInstall=1 '/DOutputSuffix="-machine"' installer\windows\TextVN-setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1 -MachineOnly -Setup "dist\TextVN-setup-$ver-windows-x64-machine.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # MSIX la asset BAT BUOC cua moi release (0.2.17+): build ngay o day de
       # bat loi som moi commit thay vi doi den luc tag (release.yml cung build).
       - name: Build MSIX (bat buoc cho release)
