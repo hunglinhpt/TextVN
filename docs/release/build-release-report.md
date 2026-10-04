@@ -1,5 +1,28 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Vòng 5 (0.2.21 vẫn đỏ) — điều tra + phương án máy
+
+Kết quả 0.2.21 trên Store **vẫn đỏ 3 mục** dù ARP `Publisher = "Linh βùi"` đúng
+từng codepoint (CI tự chứng minh trên chính file nộp: simulate tải từ raw URL →
+`PASS B2 … Publisher='Linh βùi'`). Chuỗi định danh bị loại khỏi nghi vấn →
+nghi ngờ dồn về **nơi validator đọc entry**: HKCU của phiên cài vô hình với
+validator (cài dưới account/phiên khác hoặc chỉ quét HKLM) — STO-02.
+
+Hành động:
+1. Biến thể MÁY của **cùng** 0.2.21 (cùng commit `517db48`, cùng chuỗi
+   publisher) đã được CI build + validate: run 37210008091 — `PASS 0-4` với
+   `-MachineOnly` (entry ở HKLM, Program Files, silent exit 0 trong 1s, gỡ
+   sạch). Byte đó được publish lên
+   `approved/v0.2.21/TextVN-setup-0.2.21-windows-x64-machine.exe`
+   (SHA-256 `af3c93a8…cf16f6`, HTTP 200/0 redirect/byte-identical đã verify).
+2. Windows publisher ID tài khoản (chủ tài khoản cung cấp):
+   `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` — đủ cho `Identity@Publisher` của
+   MSIX; chỉ còn thiếu `Package/Identity/Name` (trang Product identity) để build
+   MSIX cuối. `build-msix.ps1` đã có lệnh dựng + cảnh báo placeholder.
+3. Ma trận quyết định cho lần nộp kế tiếp ghi ở `store-submission.md` §1a-ter
+   (đường A: bản máy; đường B: MSIX).
+
+## Bản 0.2.21 — ARP Publisher khớp ĐÚNG Partner Center (STO-03) + B17
 ## Bản 0.2.21 — ARP Publisher khớp ĐÚNG Partner Center (STO-03) + B17
 
 Chủ tài khoản xác nhận 2 chuỗi trên Partner Center (2026-10-04): Product name =

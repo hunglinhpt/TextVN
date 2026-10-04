@@ -83,35 +83,49 @@ Dán **đúng chuỗi này**:
   (byte mới → hash mới) và **cập nhật ô Package URL** trỏ đúng file mới trong
   branch `approved`.
 
-### 1a-ter. Nếu Store VẪN báo 3 mục đỏ sau 0.2.20 — hai giả thuyết còn lại (vòng 4)
+### 1a-ter. Nếu Store VẪN báo 3 mục đỏ sau 0.2.21 — ma trận quyết định (vòng 5)
 
-Phân tích vòng 4 (STO-02/STO-03 trong báo cáo audit) chỉ ra 2 nghi vấn độc lập;
-harness đã có công cụ kiểm riêng cho từng nghi vấn:
+**Sự kiện vòng 5 (2026-10-04):** 0.2.21 đã có ARP `Publisher == "Linh βùi"` đúng
+từng codepoint (CI tự chứng minh trên chính file nộp) mà Store **vẫn** đỏ 3 mục
+→ chuỗi định danh KHÔNG còn là nghi vấn; nguyên nhân còn lại gần như chắc chắn
+nằm ở **nơi validator đọc entry**: HKCU của phiên cài (validator chạy cài dưới
+account/phiên khác, hoặc chỉ đọc HKLM). Không có cách nào từ EXE non-admin ghi
+HKLM ⇒ đường kế tiếp phải là **bản cài máy** hoặc **MSIX**.
 
-1. **Validator chỉ đọc hive MÁY (HKLM/WOW6432Node) hoặc chạy dưới account khác**
-   → entry per-user (HKCU) vô hình. Hai bước kiểm chứng:
-   ```powershell
-   # (a) đối chiếu với gói ĐANG nộp (per-user): bằng chứng phải nằm ở HKLM
-   powershell -File tools\win\validate-store-package.ps1 -MachineOnly `
-       -Setup dist\TextVN-setup-<ver>-windows-x64.exe      # → sẽ FAIL: đúng như dự đoán
-   # (b) dựng BIẾN THỂ MÁY rồi kiểm lại (chạy từ shell ELEVATED):
-   ISCC.exe /DMyAppVersion=<ver> /DMachineInstall=1 "/DOutputSuffix=-machine" installer\windows\TextVN-setup.iss
-   powershell -File tools\win\validate-store-package.ps1 -MachineOnly `
-       -Setup dist\TextVN-setup-<ver>-windows-x64-machine.exe   # → phải PASS
-   ```
-   Nếu (b) PASS → nộp bản `-machine` (kèm `/ALLUSERS` trong ô switches) **với điều
-   kiện VM của Store được phép elevate**; nếu VM không elevate được thì bản máy
-   cũng fail y như 0.2.18 (đo thật: shell non-elevated → exit=2) → chỉ còn MSIX.
-   ⚠️ Lưu ý đã đo: `PrivilegesRequired=admin` + `PrivilegesRequiredOverridesAllowed`
-   ⇒ manifest vẫn là **asInvoker** (Inno tự relaunch elevated) — đừng dùng manifest
-   để phân biệt hai biến thể.
-   CI `ci-shared` có bước "Machine-install variant" chạy đúng (b) trên runner
-   elevated để lấy bằng chứng mỗi commit.
-   **Bằng chứng 2026-10-04 (run 37198638991, runner sạch elevated):**
-   `PASS 0)` manifest asInvoker → `PASS 1)` silent install **exit 0 trong 1s** →
-   `PASS 2)` **ARP entry 'TextVN' | 'LinhBH.CoM' | '0.2.20' ở HKLM** (`-MachineOnly`)
-   → `PASS 3)` đúng 1 entry → `PASS 4)` gỡ cài sạch. Tức biến thể máy là lựa chọn
-   **thật** khi môi trường cài được phép elevate; ngược lại phải dùng MSIX.
+**Đường A — thử bản MÁY (đã publish sẵn, không cần build lại):**
+
+```
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64-machine.exe
+SHA-256: af3c93a81d3133718cf36e44b46373535bfb63ac945e861f3aeef67dcdcf16f6
+```
+
+- Cùng commit `517db48` với bản per-user, ARP `Publisher = "Linh βùi"`, và
+  **chính các byte này** đã PASS 5/5 gate trên runner CI elevated (run
+  37210008091): silent exit 0 trong 1s, **entry ở HKLM/Program Files**, đúng 1
+  entry, gỡ sạch.
+- Đổi ô Package URL sang link trên, switches giữ nguyên, Submit. Gói khác byte
+  → validation chạy lại thật (không dính B13g).
+- Ý nghĩa kết quả: **PASS** = STO-02 đúng, dùng bản máy cho mọi lần nộp sau;
+  **vẫn đỏ 3 mục** = sandbox của validator chạy NON-elevated (bản máy cần
+  UAC/relaunch elevation nên không cài được) ⇒ đường EXE chết với account này,
+  chuyển hẳn đường B.
+- ⚠️ Đánh đổi đã cân nhắc: bản máy cài vào Program Files + HKLM. Người dùng
+  tải từ GitHub vẫn dùng bản per-user (`TextVN-setup-0.2.21-windows-x64.exe`).
+
+**Đường B — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
+cả 3 check):** Windows publisher ID của tài khoản đã có:
+`CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` (dùng cho `Identity@Publisher`).
+Còn thiếu DUY NHẤT `Package/Identity/Name` (trang Product identity của từng sản
+phẩm). Khi có Name:
+
+```powershell
+powershell -File tools\win\build-msix.ps1 `
+  -Publisher "CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545" `
+  -IdentityName "<Package/Identity/Name từ Partner Center>"
+```
+
+→ upload `.msix` TRỰC TIẾP (không dùng Package URL). Cảnh báo placeholder đã
+có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name).
 2. **Lệch chuỗi định danh so với Partner Center (STO-03)** — ARP DisplayName
    phải khớp **từng chữ** với tên sản phẩm đã reserve (ví dụ nếu Partner Center
    là `TextVN - Bộ gõ tiếng Việt` thì `TextVN` là MISMATCH), và Publisher phải
