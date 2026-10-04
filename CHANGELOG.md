@@ -7,6 +7,23 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.19] — 2026-10-04
+
+### Fixed (Windows) — loại bỏ TỪNG blocker còn lại của silent install (B13)
+- **ShowLanguageDialog=no**: `/VERYSILENT` vẫn có thể bị hộp thoại chọn ngôn
+  ngữ chặn khi locale máy cài không khớp [Languages] (auto → hiện dialog khi
+  không tìm được ngôn ngữ hệ thống) — cài không hoàn tất = cả 3 check Store đỏ
+  cùng lúc. Giờ không còn dialog nào trong mọi trường hợp.
+- **Silent = pure file copy**: bỏ gọi đăng ký TSF trong tiến trình installer
+  khi silent (API TSF có thể treo trong phiên không-interactive của validator)
+  — app tự đăng ký ở lần chạy đầu (tray tự đề nghị UAC một lần khi cần, 0.2.16).
+- Hai entry `[Run]` `config init`/`--free-ctrl-shift` thêm `skipifsilent`.
+- Per-user giữ nguyên (0.2.18 đã thử admin/HKLM — CreateProcess của validator
+  fail 740 với exe requireAdministrator trước khi cài gì cả, exit=2 bắt thật).
+- Harness `validate-store-package.ps1`: ghi chú ARP hai hive; đã verify 4/4
+  PASS với installer mới (silent 2s exit 0 → ARP 'TextVN'|'LinhBH.CoM'|'0.2.18'
+  → 1 entry → uninstall sạch).
+
 ## [0.2.18] — 2026-10-03
 
 ### Fixed (Windows) — Package validation vòng 2 (B13)
@@ -787,7 +804,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...HEAD
+[0.2.19]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...v0.2.19
 [0.2.18]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...v0.2.18
 [0.2.17]: https://github.com/hunglinhpt/TextVN/compare/v0.2.16...v0.2.17
 [0.2.16]: https://github.com/hunglinhpt/TextVN/compare/v0.2.15...v0.2.16

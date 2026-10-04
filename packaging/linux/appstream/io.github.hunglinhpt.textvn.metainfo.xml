@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.19" date="2026-10-04">
+      <description>
+        <p>Silent installs are now pure file copies: no language dialog on any system locale, no TSF calls in the installer process (the app self-registers on first run with a one-time UAC prompt if needed), and run-once helpers are skipped in silent mode - removing every remaining silent-install blocker for Microsoft Store validation.</p>
+      </description>
+    </release>
     <release version="0.2.18" date="2026-10-03">
       <description>
         <p>Store validation round 2: machine-wide install restored (Microsoft's validator only reads the HKLM Add/Remove entry while silent installs still always exit 0), ARP display name set to exactly "TextVN", and the validation harness now enforces the HKLM entry.</p>

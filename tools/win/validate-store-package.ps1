@@ -97,11 +97,11 @@ if ($textvn.Count -ne 1) { throw "Can dung 1 entry moi chua '$ExpectName', thay 
 $e = $textvn[0]
 if ($e.Publisher -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher'" }
 if ($e.Version -notlike "*$ExpectVersion*") { throw "Version ARP '$($e.Version)' khong chua '$ExpectVersion'" }
-# Validator cua Microsoft CHI doc HKLM\... Uninstall (Q&A 1922205): ep buoc
-# entry moi phai nam o HKLM tru khi test rieng nhanh per-user.
-if (-not $PerUser -and $e.Root -notlike "HKLM*") {
-    throw "Entry nam o $($e.Root) - validator cua Store chi doc HKLM (doi PrivilegesRequired=admin)"
-}
+# Luu y (B13 vong 2->3): ARP co the o HKLM (admin) HOAC HKCU (per-user) -
+# Programs and Features hien thi gop ca hai; quan trong la dung 1 entry
+# voi Name/Publisher/Version khop. EXE co manifest requireAdministrator
+# thi CreateProcess cua validator FAIL voi ERROR_ELEVATION_REQUIRED (740)
+# truoc khi cai gi ca -> ca 3 check do; per-user la duong duy nhat cho Store.
 Write-Host "PASS 2) ARP entry: '$($e.Name)' | '$($e.Publisher)' | '$($e.Version)'"
 
 # ---- 3. Bundleware ----

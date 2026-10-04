@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.18"
+  #define MyAppVersion "0.2.19"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -43,15 +43,21 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-; PHẢI là machine install (admin -> entry Add/Remove ở HKLM): validator của
-; Microsoft Store CHỈ đọc HKLM\...\Uninstall — bản per-user (HKCU, 0.2.18) bị
-; "could not identify the app name and the publisher name" dù cài thành công
-; (Microsoft Q&A 1922205 + sự cố nộp Store 2026-10-03, B13). Sandbox validator
-; chạy installer đã elevated nên admin install không sinh prompt ở đó; silent
-; LUÔN exit 0 (xem GetCustomSetupExitCode) nên không còn cớ fail như 0.2.16.
-; /CURRENTUSER vẫn dùng được từ command line cho trường hợp đặc biệt.
-PrivilegesRequired=admin
+; PHẢI là per-user (KHÔNG elevation): validator của Store tự động chạy installer
+; qua CreateProcess — exe có manifest requireAdministrator fail NGAY với
+; ERROR_ELEVATION_REQUIRED (740) trước khi cài gì cả → cả 3 check (silent/ARP/
+; bundleware) cùng đỏ vì KHÔNG CÓ LẦN CÀI NÀO diễn ra (bắt thật: exit=2 trong
+; shell non-elevated 2026-10-04; B13). Per-user chạy được ở mọi ngữ cảnh, ARP
+; ở HKCU — Programs and Features hiển thị gộp cả hai hive nên validator/manual
+; check đều thấy. Machine install (/ALLUSERS) chỉ dành cho người dùng tải trực
+; tiếp từ GitHub Releases.
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline
+; /VERYSILENT van co the bi chan boi dialog chon ngon ngu khi locale cua may
+; validator khong khop [Languages] (auto -> hien dialog khi khong tim duoc ngon
+; ngu he thong) -> cai khong hoan tat = ca 3 check cua Store do (B13). Cam han:
+; khong co dialog nao trong moi truong silent.
+ShowLanguageDialog=no
 DisableWelcomePage=no
 
 [Languages]
@@ -97,8 +103,8 @@ Name: "{autodesktop}\{#MyAppFullName}"; Filename: "{app}\{#MyAppExeName}"; Tasks
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --autostart"; Flags: uninsdeletevalue; Tasks: autostart
 
 [Run]
-Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden runasoriginaluser
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser; Tasks: freectrlshift
+Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden runasoriginaluser skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser skipifsilent; Tasks: freectrlshift
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
 ; machine elevated truoc, user session sau. Khong nang quyen binary o thu muc
 ; user-writable: path installer duoc khoa o {autopf}\TextVN.
@@ -125,7 +131,7 @@ var
 // Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
 // Windows KHONG cho xoa file co image section, nhung CHO PHÉP RENAME. Doi ten
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
-// 0.2.18: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
+// 0.2.19: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
 procedure RenameLockedTsfDll();
 var
@@ -210,18 +216,30 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    RegistrationOK := RegisterTextServices();
-    if not RegistrationOK then
+    if WizardSilent then
     begin
-      Log('TextVN was installed but not started because TSF registration did not complete.');
-      // Cai im lang: bao loi qua exit code (GetCustomSetupExitCode ben duoi).
-      // Inno Setup khong co 'SetErrorFlag' - ban truoc khong compile duoc.
-      if not WizardSilent then
-        SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
-          'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
-          'Xem %LOCALAPPDATA%\TextVN\logs\register.log de biet buoc loi. ' +
-          'Neu TSF profile bi chan boi chinh sach may, lien he quan tri vien.',
-          mbError, MB_OK, IDOK);
+      // Silent (luong Store) = PURE FILE COPY: khong go API TSF trong phien
+      // khong-interactive cua validator (co the tre -> timeout -> ca 3 check
+      // cua Store do cung luc, B13). App tu dang ky o lan chay dau — 0.2.16:
+      // tray tu de nghi UAC mot lan neu Windows tu choi per-user.
+      Log('Silent install: skip TSF registration; app self-registers on first run.');
+      RegistrationOK := True;
+    end
+    else
+    begin
+      RegistrationOK := RegisterTextServices();
+      if not RegistrationOK then
+      begin
+        Log('TextVN was installed but not started because TSF registration did not complete.');
+        // Cai im lang: bao loi qua exit code (GetCustomSetupExitCode ben duoi).
+        // Inno Setup khong co 'SetErrorFlag' - ban truoc khong compile duoc.
+        if not WizardSilent then
+          SuppressibleMsgBox('TextVN da duoc chep, nhung Windows tu choi dang ky bo go cho tai khoan nay.' + #13#10#13#10 +
+            'TextVN chua duoc mo de tranh hien trang da cai nhung khong go duoc tieng Viet.' + #13#10 +
+            'Xem %LOCALAPPDATA%\TextVN\logs\register.log de biet buoc loi. ' +
+            'Neu TSF profile bi chan boi chinh sach may, lien he quan tri vien.',
+            mbError, MB_OK, IDOK);
+      end;
     end;
   end;
 end;
@@ -235,7 +253,7 @@ begin
     Result := 0
   // Silent (luồng Store): LUÔN 0 khi đã chép đủ file — validator của Store coi
   // exit != 0 là "cài thất bại", trong khi app sẽ TỰ đăng ký TSF ở lần chạy
-  // đầu (kèm đề nghị UAC một lần nếu Windows từ chối per-user — 0.2.18). Đây
+  // đầu (kèm đề nghị UAC một lần nếu Windows từ chối per-user — 0.2.19). Đây
   // là lý do bỏ exit 10 cho silent (sự cố B13).
   else if WizardSilent then
   begin
