@@ -282,6 +282,19 @@ fn offer_machine_registration_if_needed() {
     if machine_registration_present() {
         return;
     }
+    // SEC-02 (audit 2026-10-04): KHÔNG cho phép UAC elevation từ thư mục người
+    // dùng tùy ý (Downloads, Desktop...) — kẻ tấn công có thể ghi đè DLL và
+    // đăng ký machine-wide từ path không tin cậy (CWE-426/732). Chỉ cho phép
+    // khi binary nằm trong Program Files (được ACL bảo vệ).
+    {
+        let exe = std::env::current_exe().unwrap_or_default();
+        let exe_lower = exe.to_string_lossy().to_lowercase();
+        let trusted = exe_lower.contains("\\program files\\")
+            || exe_lower.contains("\\program files (x86)\\");
+        if !trusted {
+            return;
+        }
+    }
     // Chỉ hỏi MỘT lần cho cả máy/người dùng — người dùng bấm Cancel thì tôn
     // trọng, không hỏi lại mỗi lần mở app.
     let marker = std::env::var_os("APPDATA").map(|d| {
@@ -694,10 +707,10 @@ fn run_tray_app() {
 
     // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
     // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả
-    // qua IPC để đổi icon. KHÔNG cài WH_KEYBOARD_LL trong tray: một lần bấm
-    // từng bị toggle ĐÔI (TSF + hook cùng bắn → "bấm không đổi mode", 2026-10-01)
-    // và chính sách AV (docs/specs/antivirus-false-positive.md A2/A3) chỉ cho
-    // hook LL trong gói compatibility opt-in.
+    // qua IPC để đổi icon. WH_KEYBOARD_LL trong tray (0.2.7+) là BỘ DÒ TAP CHỈ
+    // QUAN SÁT (không ăn phím, không inject) giúp Ctrl+Shift hoạt động khi
+    // TextVN không phải bộ gõ active; chống toggle đôi bằng try_claim_global_
+    // toggle() (250ms chéo nguồn). Chính sách AV cập nhật tương ứng (A3).
 
     // 3. Đăng ký Win32 Window Class & Tạo Hidden Message Window
     let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();

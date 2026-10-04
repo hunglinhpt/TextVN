@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Hardened Runtime entitlements for TextVN macOS (SEC-03: bo allow-jit va
+     allow-unsigned-executable-memory — khong can cho IME ban dia, gan co the
+     bi Notarization tu choi) -->
 <plist version="1.0">
 <dict>
-	<!-- Hardened Runtime security entitlements for TextVN macOS -->
-	<key>com.apple.security.cs.allow-jit</key>
-	<true/>
-	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-	<true/>
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
 </dict>

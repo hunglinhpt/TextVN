@@ -305,6 +305,8 @@ begin
   if CurUninstallStep = usPostUninstall then
   begin
     ScheduleCleanupViaCli();
+    // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
+    RegDeleteKeyValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey');
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;

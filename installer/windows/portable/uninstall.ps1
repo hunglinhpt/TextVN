@@ -12,6 +12,18 @@ if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [St
     Remove-ItemProperty -Path $run -Name 'TextVN' -ErrorAction SilentlyContinue
 }
 Write-Host 'Go dang ky TSF...'
+
+# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows (TextVN tu dong
+# thay doi HKCU\Keyboard Layout\Toggle khi chay lan dau - restore khi go).
+$toggle = 'HKCU:\Keyboard Layout\Toggle'
+$hotkey = (Get-ItemProperty -Path $toggle -Name 'Hotkey' -ErrorAction SilentlyContinue).Hotkey
+$layout = (Get-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue).'Layout Hotkey'
+# Chi restore neu gia tri hien tai la 3 (do TextVN dat) - khong dung neu user da tu sua.
+if ($layout -eq '3') {
+    Remove-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue
+    Write-Host 'Da tra lai Ctrl + Shift cho Windows (xoa Layout Hotkey override).'
+}
+
 $r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
 if ($r.ExitCode -ne 0) {
     Write-Error ('Huy dang ky TSF that bai, ma loi ' + $r.ExitCode + '. Khong xoa thu muc portable cho den khi "textvn-cli.exe doctor" bao ro nguyen nhan.')
