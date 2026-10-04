@@ -92,6 +92,19 @@ if ($p.ExitCode -ne 0) {
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
     if (-not (Test-Path (Join-Path $app $f))) { throw "installed file missing: $f" }
 }
+# 0.2.19: silent machine install = pure file copy; app tu dang ky TSF o lan
+# chay dau (machine scope via HKLM CLSID, user activation trong buoc register).
+Start-Process -FilePath (Join-Path $app 'TextVN.exe') -WorkingDirectory $app | Out-Null
+$selfReg = $false
+for ($i = 0; $i -lt 40 -and -not $selfReg; $i++) {
+    Start-Sleep -Milliseconds 500
+    $v = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
+    $selfReg = ($v -eq (Join-Path $app 'textvn-tsf.dll'))
+}
+if (-not $selfReg) { throw 'TextVN.exe first run did not self-register TSF machine-wide' }
+Write-Host 'PASS TextVN.exe first run self-registered TSF machine-wide'
+Stop-Process -Name TextVN -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
 $v = (Get-ItemProperty -Path $inproc -ErrorAction SilentlyContinue).'(default)'
 if ($v -ne (Join-Path $app 'textvn-tsf.dll')) { throw "TSF CLSID not registered to installed DLL (got '$v')" }
 if (Test-Path $userInproc) { throw 'installer left a per-user COM override that elevated uninstall cannot reliably remove' }
