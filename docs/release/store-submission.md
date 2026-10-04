@@ -37,12 +37,18 @@ Dán **đúng chuỗi này**:
 /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ```
 
-- **Bộ cài PHẢI là machine install (admin/HKLM)** (0.2.18): validator của
-  Microsoft chỉ đọc entry Add/Remove trong `HKLM` — bản per-user (HKCU) bị báo
-  "could not identify the app name and the publisher name" dù cài thành công
-  (Microsoft Q&A 1922205; đã trải qua cả hai vòng lỗi — B13). Sandbox validator
-  chạy installer đã elevated nên không sinh UAC tại đó; **silent luôn exit 0**
-  giữ từ 0.2.17 nên không còn cớ fail.
+- **Bộ cài PHẢI là per-user (`PrivilegesRequired=lowest`, manifest `asInvoker`)** —
+  ĐÍNH CHÍNH 0.2.20: kết luận cũ "phải là machine install (admin/HKLM)" là **SAI**.
+  Validator chạy installer bằng `CreateProcess` **non-elevated**: exe
+  `requireAdministrator` fail NGAY `ERROR_ELEVATION_REQUIRED` (740) trước khi cài
+  gì cả → cả 3 mục đỏ (đo thật: exit=2 — B13e). Với per-user, entry Add/Remove
+  nằm ở HKCU và **Programs and Features hiển thị gộp cả hai hive** → validator
+  vẫn thấy; gateway tự động là bước 0 của `validate-store-package.ps1` (manifest
+  `asInvoker` + ARP exact từng chữ). **silent luôn exit 0** giữ từ 0.2.17.
+- **Mỗi lần nộp phải là phiên bản mới + cập nhật ô Package URL** — nộp lại cùng
+  gói/URL thì Partner Center báo *"We did not find any changes in the Package or
+  the Silent install parameters"* và **không chạy lại validation** (kết quả 3 mục
+  đỏ cũ còn nguyên — B13g).
 - **Không** thêm `/CURRENTUSER`/`/ALLUSERS` vào ô của Store — mặc định đã đúng.
 
 | Tham số | Tác dụng |
@@ -137,11 +143,11 @@ thời; một số luồng upload của Store xử lý kém loại URL này. Vì
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
 ```
 
-Ví dụ v0.2.16 (đã kiểm: HTTP 200 trực tiếp, không redirect, SHA-256 khớp
-`SHA256SUMS.txt` của release):
+Ví dụ **bản hiện hành v0.2.20** (đã kiểm: HTTP 200 trực tiếp, 0 redirect,
+byte-identical — SHA-256 `faac21e32076be61c56f05cf6c7b4198be2cbd0cfb138c0f48871797a41df112`):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.16/TextVN-setup-0.2.16-windows-x64.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.20/TextVN-setup-0.2.20-windows-x64.exe
 ```
 
 Cập nhật khi có bản mới được duyệt: tải setup exe + portable zip +

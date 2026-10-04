@@ -46,7 +46,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
   -IdentityName "12345LinhBHCoM.TextVN"
 ```
 
-File ra: `dist\TextVN-0.2.19-windows-x64.msix`
+File ra: `dist\TextVN-<version>-windows-x64.msix` (bản hiện hành: `TextVN-0.2.20-windows-x64.msix`).
+⚠️ File MSIX trong branch `approved` (`v0.2.20/TextVN-0.2.20-windows-x64.msix`) hiện
+build với **Identity placeholder** `LinhBH.CoM.TextVN` / `CN=LinhBH.CoM` — phải
+build lại bằng **đúng 2 giá trị Product identity** của Partner Center trước khi upload.
 
 ## Bước 3 — Nộp file .msix vào submission
 
