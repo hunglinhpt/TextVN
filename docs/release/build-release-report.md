@@ -1,5 +1,26 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.22 — ROOT CAUSE chốt: ARP Publisher = `Linh Bui` (B18)
+
+Chủ tài khoản xác nhận **lần 2**: Publisher display name = `Linh Bui` (ASCII).
+`β` ở 0.2.21 là **nhầm font** (B U+0042 nhìn như β U+03B2). Chuỗi publisher
+trong ARP vì vậy **chưa từng đúng**: 0.2.16-0.2.20 `LinhBH.CoM`, 0.2.21
+`Linh βùi` — giải thích trọn 6 vòng đỏ *"could not identify the app name and
+the publisher name"* mà không cần giả thuyết hive.
+
+| Gate | Bằng chứng |
+|---|---|
+| `cargo xtask preflight` | PASS 22/22 (version-sync 14 site = 0.2.22) |
+| Build local cả 2 biến thể | `Linh Bui` utf16 ×1 trong từng exe; `LinhBH.CoM`/β = 0 (DLL bị khoá → rename `.old-` theo B8 rồi build lại) |
+| CI `ci-shared` (ff8bc21) | `PASS 2) ARP entry: 'TextVN' | 'Linh Bui' | '0.2.22'` (harness) + `PASS B2 … Publisher='Linh Bui'` (simulate tải từ raw URL) + machine-variant PASS |
+| Release v0.2.22 | 4/4 job PASS; **9 asset** — lần đầu có `TextVN-setup-0.2.22-windows-x64-machine.exe` (publish job kiểm đúng 2 setup exe) |
+| Repo VARIABLES | `STORE_APP_NAME=TextVN`, `STORE_PUBLISHER_NAME=Linh Bui` → CI đối chiếu giá trị thật mỗi commit |
+| Nguồn tải | `approved/v0.2.22/` — 200/0 redirect/byte-identical: per-user `44de0a40…cf2b7`, machine `751e0d76…3a3d7` |
+
+Kế hoạch nộp: **per-user 0.2.22 trước** → nếu vẫn đỏ: machine 0.2.22 → nếu vẫn
+đỏ: MSIX (`CN=1A703CAB-…` đã có, chờ `Package/Identity/Name`).
+
+## Vòng 6 — đánh giá 5 gốc rễ của audit ngoài + vá phần còn thiếu
 ## Vòng 6 — đánh giá 5 gốc rễ của audit ngoài + vá phần còn thiếu
 
 Audit ngoài (gốc rễ 1-5) đối chiếu với trạng thái repo:
