@@ -232,6 +232,14 @@ jobs:
     name: Windows package (portable + installer, gõ TSF thật)
     runs-on: windows-2022
     timeout-minutes: 60
+    env:
+      # STO-03/CI-03: khi chủ repo đặt repo VARIABLES (Settings -> Secrets and
+      # variables -> Actions -> Variables) STORE_APP_NAME / STORE_PUBLISHER_NAME,
+      # mọi bước validate sẽ đối chiếu ARP với GIÁ TRỊ THẬT trên Partner Center
+      # thay vì so code .iss với chính nó. Chưa đặt -> rỗng -> harness dùng
+      # mặc định (TextVN / Linh βùi dựng bằng [char]).
+      STORE_APP_NAME: ${{ vars.STORE_APP_NAME }}
+      STORE_PUBLISHER_NAME: ${{ vars.STORE_PUBLISHER_NAME }}
     steps:
       - uses: actions/checkout@v4
         with:

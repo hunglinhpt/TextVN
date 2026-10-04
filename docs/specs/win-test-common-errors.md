@@ -49,6 +49,8 @@
 
 | B16 | Bước CI "Machine-install variant" abort: harness báo *"May dang co san N entry TextVN"* dù bước trước đó đã gỡ cài thành công (run 37198221652) | **Uninstaller của Inno chạy BẤT ĐỒNG BỘ**: nó copy chính nó ra `%TEMP%` rồi tiến trình gốc trả về NGAY → `Start-Process -Wait` không chờ gỡ xong; `simulate-store-validation.ps1` chỉ `Start-Sleep 2` rồi kiểm → lần đó kịp, nhưng entry vẫn còn khi bước sau bắt đầu → báo "máy bẩn" GIẢ | Mọi harness gỡ cài phải **POLL** cho tới khi entry biến mất (tối đa 20s, `validate-store-package.ps1` đã làm đúng) — không dùng sleep cứng. Đã thêm poll vào `simulate-store-validation.ps1` + bước CI machine-variant tự dọn entry sót trước khi chạy (lưới an toàn) |
 
+| B18 | Nghi ngờ ARP `Publisher` lệch 1 ký tự với Partner Center: "Linh **β**ùi" (beta Hy Lạp U+03B2) vs "Linh **B**ùi" (Latin B hoa U+0042) — nhìn gần như GIỐNG NHAU ở nhiều font (italic/serif), audit vòng 6 cho rằng tên pháp lý không thể chứa β | Nếu Partner Center thực lưu U+0042 mà installer ghi U+03B2 → so từng chữ MISMATCH 100% → đúng lỗi "could not identify the app name and the publisher name". Người đọc màn hình không phân biệt được hai chuỗi này bằng mắt | **Tin codepoint dump từ nguồn sự thật, không tin mắt**: mở PowerShell, dán chuỗi copy từ Partner Center (Account settings → Publisher info) vào `$s = ''` rồi chạy `($s.ToCharArray() \| ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '`. Đối chiếu output với chuỗi trong `.iss` (cùng lệnh). Hệ thống đã sẵn sàng: repo VARIABLES `STORE_APP_NAME`/`STORE_PUBLISHER_NAME` → CI đối chiếu ARP với giá trị thật (harness dựng expected bằng `[char]`, in codepoint khi lệch); `.iss` nhận `/DMyAppPublisher="..."` để rebuild 1 lệnh |
+
 ## C. UIA & ứng dụng test
 
 | # | Lỗi | Triệu chứng | Cách đúng |

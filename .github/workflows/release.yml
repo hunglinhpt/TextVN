@@ -74,6 +74,25 @@ jobs:
         shell: powershell
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+      # Bien the MAY (PrivilegesRequired=admin, ARP o HKLM) — goi danh cho
+      # Package validation cua Store (vong 5: validator khong thay entry HKCU).
+      # Chay SAU moi test per-user de khong lam lech auto-pick; tu validate
+      # -MachineOnly tren runner elevated (PASS 0-4) truoc khi dong goi.
+      - name: Build + validate machine installer (ARP o HKLM, cho Store)
+        shell: powershell
+        env:
+          STORE_APP_NAME: ${{ vars.STORE_APP_NAME }}
+          STORE_PUBLISHER_NAME: ${{ vars.STORE_PUBLISHER_NAME }}
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source }
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          & $iscc "/DMyAppVersion=$ver" /DMachineInstall=1 '/DOutputSuffix="-machine"' installer\windows\TextVN-setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $exe = "dist\TextVN-setup-$ver-windows-x64-machine.exe"
+          if (-not (Test-Path $exe)) { throw "machine installer not found: $exe" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1 -MachineOnly -Setup $exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
@@ -161,7 +180,9 @@ jobs:
             exit 1
           fi
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' | wc -l)" -eq 1
-          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' | wc -l)" -eq 1
+          # Per-user (mac dinh) + machine (Store bien the HKLM) = dung 2 exe.
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*.exe' ! -name '*-machine.exe' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-setup-*-machine.exe' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-*-linux-*.tar.gz' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.pkg' | wc -l)" -eq 1
           test "$(find release-assets -maxdepth 1 -type f -name '*.zip' | wc -l)" -ge 2

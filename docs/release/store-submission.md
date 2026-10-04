@@ -92,7 +92,8 @@ nằm ở **nơi validator đọc entry**: HKCU của phiên cài (validator ch�
 account/phiên khác, hoặc chỉ đọc HKLM). Không có cách nào từ EXE non-admin ghi
 HKLM ⇒ đường kế tiếp phải là **bản cài máy** hoặc **MSIX**.
 
-**Đường A — thử bản MÁY (đã publish sẵn, không cần build lại):**
+**Đường A — thử bản MÁY (đã publish sẵn trên `approved` VÀ là release asset từ
+tag kế tiếp):**
 
 ```
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64-machine.exe
@@ -105,12 +106,27 @@ SHA-256: af3c93a81d3133718cf36e44b46373535bfb63ac945e861f3aeef67dcdcf16f6
   entry, gỡ sạch.
 - Đổi ô Package URL sang link trên, switches giữ nguyên, Submit. Gói khác byte
   → validation chạy lại thật (không dính B13g).
-- Ý nghĩa kết quả: **PASS** = STO-02 đúng, dùng bản máy cho mọi lần nộp sau;
-  **vẫn đỏ 3 mục** = sandbox của validator chạy NON-elevated (bản máy cần
+- **Bước 0 trước khi nộp — xác minh codepoint publisher (B18)**: chuỗi
+  `Linh βùi` có thể thực ra là `Linh Bùi` (Latin B U+0042 — nhìn như β ở nhiều
+  font). Copy nguyên chuỗi từ **Account settings → Publisher info** rồi dump:
+  ```powershell
+  $s = ''   # dán chuỗi copy từ Partner Center vào giữa hai dấu nháy
+  ($s.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
+  ```
+  - Nếu ra `…U+0042…` → gửi lại chuỗi đó, tôi rebuild machine exe với đúng chuỗi
+    (`ISCC /DMyAppPublisher="..."`) trong vài phút rồi publish bản mới.
+  - Nếu ra `…U+03B2…` → chuỗi hiện tại đã đúng, cứ nộp URL trên.
+  - Sau khi chủ repo đặt repo VARIABLES `STORE_APP_NAME`/`STORE_PUBLISHER_NAME`
+    (`gh variable set ...`), CI đối chiếu ARP với giá trị thật mỗi commit — hết
+    "tự so code với chính nó".
+- Ý nghĩa kết quả: **PASS** = validator đọc HKLM, dùng bản máy cho mọi lần nộp
+  sau; **vẫn đỏ 3 mục** = sandbox của validator chạy NON-elevated (bản máy cần
   UAC/relaunch elevation nên không cài được) ⇒ đường EXE chết với account này,
   chuyển hẳn đường B.
 - ⚠️ Đánh đổi đã cân nhắc: bản máy cài vào Program Files + HKLM. Người dùng
   tải từ GitHub vẫn dùng bản per-user (`TextVN-setup-0.2.21-windows-x64.exe`).
+  Từ tag kế tiếp, release workflow build + validate + kèm
+  `*-machine.exe` làm release asset (publish job kiểm đúng 2 exe).
 
 **Đường B — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
 cả 3 check):** Windows publisher ID của tài khoản đã có:

@@ -27,6 +27,7 @@ $ErrorActionPreference = 'Stop'
 # ghep bang [char]; doi bang -ExpectPublisher/STORE_PUBLISHER_NAME khi can.
 if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh ' + [char]0x03B2 + [char]0x00F9 + 'i' }
 if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
+if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
 
 $roots = @(
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',

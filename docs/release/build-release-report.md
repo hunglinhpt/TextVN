@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Vòng 6 — đánh giá 5 gốc rễ của audit ngoài + vá phần còn thiếu
+
+Audit ngoài (gốc rễ 1-5) đối chiếu với trạng thái repo:
+
+| Gốc rễ | Đánh giá | Đã làm |
+|---|---|---|
+| 1. Gói nộp Store vẫn per-user; machine exe chưa lên approved | **Đã sai từ lượt trước** — machine exe đã nằm ở `approved/v0.2.21/` (commit 250b57a, blob `f254a5e5…`, verify 200/byte-identical). NHƯNG đúng ở chỗ: pipeline release chưa build nó thành asset chuẩn | `build-release.ps1 -MachineInstaller`; release.yml thêm bước "Build + validate machine installer" (build + `-MachineOnly` PASS) và publish job kiểm **đúng 2** setup exe (per-user + machine) — từ tag kế tiếp machine exe là release asset chính thức |
+| 2. Validator chỉ quét HKLM + cô lập HKCU | **Giả thuyết dẫn đầu nhưng KHÔNG phải nội dung tài liệu MS** — manual-package-validation không nói hive nào; đây là suy luận (hợp lý) của audit. Lần nộp bản máy sẽ kết luận thật | (giữ nguyên, đã có bằng chứng hai chiều trên CI) |
+| 3. β (U+03B2) vs B (U+0042) | **Rủi ro thật, chỉ chủ tài khoản phân giải được** — hiển thị font không phân biệt được; tên pháp lý thường không chứa β nhưng Publisher display name là text tự nhập | B18 + snippet dump codepoint; repo variable `STORE_APP_NAME=TextVN` đã đặt; `STORE_PUBLISHER_NAME` chờ chủ tài khoản dump codepoint xong mới đặt |
+| 4. CI tự so code với chính nó | **Valid một phần** — `-MachineOnly` + machine step đã có từ vòng 4, nhưng chưa nối giá trị thật | Job Windows của ci-shared giờ đọc repo VARIABLES `STORE_APP_NAME`/`STORE_PUBLISHER_NAME`; simulate + harness đều tôn trọng |
+| 5. Catch-22 EXE per-user/machine | **Đúng** — và là lý do MSIX là lối thoát kiến trúc | Đường B giữ nguyên: chỉ còn thiếu `Package/Identity/Name` (Publisher đã có: `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545`) |
+
+Lệnh dựng machine variant ở máy local: `build-release.ps1 -BuildInstaller -MachineInstaller`.
+
+## Vòng 5 (0.2.21 vẫn đỏ) — điều tra + phương án máy
 ## Vòng 5 (0.2.21 vẫn đỏ) — điều tra + phương án máy
 
 Kết quả 0.2.21 trên Store **vẫn đỏ 3 mục** dù ARP `Publisher = "Linh βùi"` đúng

@@ -13,6 +13,10 @@
 param(
     [switch]$SkipTests,
     [switch]$BuildInstaller,
+    # Build them BIEN THE MAY (PrivilegesRequired=admin, ARP o HKLM) - goi danh
+    # cho Package validation cua Microsoft Store (vong 5: validator khong thay
+    # entry HKCU). File ra: TextVN-setup-<ver>-windows-x64-machine.exe.
+    [switch]$MachineInstaller,
     # Hook WH_KEYBOARD_LL legacy chi co trong goi Compatibility duoc yeu cau.
     [switch]$IncludeCompatibilityHook,
     # SHA-1 thumbprint cua Authenticode code-signing certificate trong CurrentUser\My
@@ -409,6 +413,21 @@ if ($BuildInstaller) {
         } else {
             throw "Installer output not found: $setupExe"
         }
+
+        # Bien the MAY (Store): cung .iss voi /DMachineInstall=1 -> ARP o HKLM,
+        # Program Files. Audit vong 5 goc re 1: truoc day chi build per-user nen
+        # goi nop Store thieu lua chon may. -MachineInstaller bat buoc build CA
+        # HAI; file ra co duoi "-machine.exe" (khong ghi de ban thuong).
+        if ($MachineInstaller) {
+            $machineArgs = @("/DMyAppVersion=$Version", $targetDirArg, "/DMachineInstall=1", '/DOutputSuffix="-machine"')
+            if ($IncludeCompatibilityHook) { $machineArgs += "/DIncludeCompatibilityHook=1" }
+            $machineArgs += "installer\windows\TextVN-setup.iss"
+            & $isccExe @machineArgs
+            if ($LASTEXITCODE -ne 0) { throw "ISCC (machine) failed with exit code $LASTEXITCODE" }
+            $machineExe = "dist\TextVN-setup-$Version-windows-x64-machine.exe"
+            if (-not (Test-Path $machineExe)) { throw "Machine installer output not found: $machineExe" }
+            Write-Ok "Installer (machine/HKLM): $machineExe"
+        }
     }
 }
 
@@ -420,6 +439,12 @@ if ($BuildInstaller) {
     $installerPath = "$DistDir\TextVN-setup-$Version-windows-x64.exe"
     if (Test-Path $installerPath) {
         Write-Host "  Installer    : $installerPath" -ForegroundColor Green
+    }
+    if ($MachineInstaller) {
+        $machinePath = "$DistDir\TextVN-setup-$Version-windows-x64-machine.exe"
+        if (Test-Path $machinePath) {
+            Write-Host "  Machine      : $machinePath" -ForegroundColor Green
+        }
     }
 }
 Write-Host ""
