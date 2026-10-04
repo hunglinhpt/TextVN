@@ -128,8 +128,26 @@ pub fn notify_tray_exit_requested() {
             unsafe {
                 let _ = PostMessageW(Some(hwnd), WM_REQUEST_EXIT, WPARAM(0), LPARAM(0));
             }
+        } else {
+            // Cửa sổ tray CHƯA tồn tại (đang khởi động: đăng ký TSF + dò
+            // activation, có thể mất >1s). Trước đây yêu cầu thoát bị MẤT ÂM
+            // THẦM → `--stop` ngay sau khi start không có tác dụng (build smoke
+            // 0.2.21 bắt được: "Runtime smoke did not stop cleanly"). Ghi thành
+            // cờ chờ; tray tiêu thụ ngay trước vòng lặp thông điệp (B17).
+            TRAY_EXIT_PENDING.store(true, std::sync::atomic::Ordering::Release);
         }
     }
+}
+
+/// Yêu cầu thoát đến khi cửa sổ tray chưa tồn tại (B17). Tray gọi
+/// `take_tray_exit_pending()` ngay trước vòng lặp để không bỏ mất `--stop`
+/// phát ra trong lúc khởi động.
+pub static TRAY_EXIT_PENDING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Lấy (và xoá) yêu cầu thoát đến sớm.
+pub fn take_tray_exit_pending() -> bool {
+    TRAY_EXIT_PENDING.swap(false, std::sync::atomic::Ordering::AcqRel)
 }
 
 /// Yêu cầu Tray khởi động Hook tương thích sau khi người dùng chọn rõ ràng từ

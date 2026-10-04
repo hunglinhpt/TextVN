@@ -14,13 +14,19 @@
 #
 # ASCII-only (G7/A5).
 param(
-    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.20/TextVN-setup-0.2.20-windows-x64.exe",
+    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64.exe",
     [string]$ExpectName = "TextVN",
-    [string]$ExpectPublisher = "LinhBH.CoM",
-    [string]$ExpectVersion = "0.2.20",
+    [string]$ExpectPublisher = "",
+    [string]$ExpectVersion = "0.2.21",
     [string]$Switches = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 )
 $ErrorActionPreference = 'Stop'
+
+# Publisher display name THAT tren Partner Center (chu tai khoan xac nhan
+# 2026-10-04): "Linh [beta][u-grave]i" (U+03B2, U+00F9) - beta U+03B2, u-grave U+00F9. ASCII-only file nen
+# ghep bang [char]; doi bang -ExpectPublisher/STORE_PUBLISHER_NAME khi can.
+if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh ' + [char]0x03B2 + [char]0x00F9 + 'i' }
+if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
 
 $roots = @(
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',

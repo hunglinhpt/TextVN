@@ -1,4 +1,4 @@
-; SPDX-License-Identifier: GPL-3.0-or-later
+﻿; SPDX-License-Identifier: GPL-3.0-or-later
 ; Script dong goi bo cai dat TextVN cho Windows bang Inno Setup 6 (WIN-054 / P1-4 §4).
 ; Ho tro cai dat linh hoat:
 ; TSF RegisterProfile/RegisterCategory can HKLM: cai machine mot lan, sau do
@@ -16,10 +16,18 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.20"
+  #define MyAppVersion "0.2.21"
 #endif
+; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
+; Center (chu tai khoan xac nhan 2026-10-04: "Linh βùi" — ky tu beta U+03B2,
+; ù U+00F9). Truoc day de "LinhBH.CoM" (nhan hieu) → validator bao
+; "could not identify the app name and the publisher name" (B13f/STO-03).
+; File .iss nay giu UTF-8 + BOM de ISCC doc dung chuoi co ky tu dac biet o MOI
+; phien ban Inno (BOM la dau hieu UTF-8 theo spec; khong BOM thi tuy auto-detect).
+; Da verify end-to-end 2026-10-04: cai → doc HKLM/HKCU ARP → Publisher dung
+; codepoint U+03B2/U+00F9 (probe rieng, xem docs/release/store-submission.md).
 #ifndef MyAppPublisher
-  #define MyAppPublisher "LinhBH.CoM"
+  #define MyAppPublisher "Linh βùi"
 #endif
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"

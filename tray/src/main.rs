@@ -855,6 +855,19 @@ fn run_tray_app() {
 
     // GetMessageW trả -1 khi lỗi — `.as_bool()` vẫn true → loop dispatch MSG
     // rác vô hạn (review R3 minor 5). Chuẩn: r <= 0 (−1 lỗi, 0 WM_QUIT) thoát.
+    // Yêu cầu thoát đến TRƯỚC khi cửa sổ tồn tại (--stop ngay lúc khởi động,
+    // B17): chuyển thành WM_REQUEST_EXIT để đi ĐÚNG đường thoát graceful
+    // (broadcast Shutdown cho Hook rồi PostQuitMessage).
+    if textvn_tray::take_tray_exit_pending() {
+        unsafe {
+            let _ = PostMessageW(
+                Some(hwnd),
+                textvn_tray::WM_REQUEST_EXIT,
+                WPARAM(0),
+                LPARAM(0),
+            );
+        }
+    }
     let mut msg = MSG::default();
     loop {
         if !RUNNING.load(Ordering::Acquire) {

@@ -24,7 +24,7 @@ param(
     # Bo trong = tu tim dist\TextVN-setup-*.exe moi nhat (dung cho preflight).
     [string]$Setup = "",
     [string]$ExpectName = "TextVN",
-    [string]$ExpectPublisher = "LinhBH.CoM",
+    [string]$ExpectPublisher = "",
     [string]$ExpectVersion = "",
     # May dev dang cai TextVN: bo qua (SKIP) thay vi FAIL. CI luon chay that.
     [switch]$AllowSkip,
@@ -42,8 +42,17 @@ $ErrorActionPreference = 'Stop'
 # STO-03: ten/publisher phai khop TUNG CHU voi Partner Center. Cho phep bom qua
 # bien moi truong (CI secret/variable) de harness doi chieu voi gia tri THAT
 # thay vi so code .iss voi chinh no (diem mu CI cu).
+# Publisher display name THAT (chu tai khoan xac nhan 2026-10-04): "Linh [beta][u-grave]i" (U+03B2, U+00F9)
+# voi beta U+03B2 va u-grave U+00F9 - file nay ASCII-only (G7/A5) nen ghep bang
+# [char]; verify end-to-end: HKLM/HKCU ARP nhan dung codepoint nay.
+if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh ' + [char]0x03B2 + [char]0x00F9 + 'i' }
 if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
 if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
+
+function Get-CodePoints([string]$s) {
+    if ($null -eq $s) { return '(null)' }
+    ($s.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
+}
 
 $roots = @(
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -137,9 +146,9 @@ if ($MachineOnly) {
 # Partner Center doi chieu TUNG CHU (B13): DisplayName == ten san pham,
 # Publisher == ten nha phat hanh hien thi; lech/blank chu nao cung vao dung
 # 3 item do cua Store. Khong dung -like o day.
-if ($e.Name.Trim() -ne $ExpectName) { throw "DisplayName ARP '$($e.Name)' != ten san pham '$ExpectName' (phai khop tung chu)" }
+if ($e.Name.Trim() -ne $ExpectName) { throw "DisplayName ARP '$($e.Name)' != ten san pham '$ExpectName' (phai khop tung chu; codepoints: $(Get-CodePoints $e.Name) vs $(Get-CodePoints $ExpectName))" }
 if (-not $e.Publisher) { throw 'ARP thieu Publisher (Store bao blank publisher)' }
-if ($e.Publisher.Trim() -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher' (phai khop tung chu voi Partner Center)" }
+if ($e.Publisher.Trim() -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher' (phai khop tung chu voi Partner Center; codepoints: $(Get-CodePoints $e.Publisher) vs $(Get-CodePoints $ExpectPublisher))" }
 if (-not $e.Version) { throw 'ARP thieu DisplayVersion (Store bao blank/khong xac dinh duoc phien ban)' }
 if ($e.Version.Trim() -ne $ExpectVersion) { throw "DisplayVersion ARP '$($e.Version)' != '$ExpectVersion'" }
 # Luu y (B13 vong 2->3): ARP co the o HKLM (admin) HOAC HKCU (per-user) -

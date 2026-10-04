@@ -7,6 +7,25 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.21] — 2026-10-04
+
+### Fixed (Windows) — Publisher khớp ĐÚNG Partner Center (STO-03, chủ tài khoản xác nhận)
+- **ARP `Publisher` = `Linh βùi`** (beta U+03B2, ù U+00F9) — chính là **Publisher
+  display name** trên Partner Center; trước đây để `LinhBH.CoM` (nhãn hiệu) nên
+  validator báo *"could not identify the app name and the publisher name that
+  your app has added in the add or remove programs"*. Tên sản phẩm đã reserve
+  là `TextVN` → `DisplayName` giữ nguyên `TextVN` (khớp ✓).
+- `.iss` giữ **UTF-8 BOM** để ISCC đọc đúng ký tự đặc biệt ở mọi phiên bản Inno
+  (BOM = dấu hiệu UTF-8 theo spec, không phụ thuộc auto-detect).
+- **Verify end-to-end (probe riêng, AppId tạm)**: cài im lặng → đọc ARP →
+  `Publisher` đúng codepoint `U+004C U+0069 U+006E U+0068 U+0020 U+03B2 U+00F9
+  U+0069`, khớp tuyệt đối → gỡ cài sạch. Harness & simulate giờ dựng chuỗi kỳ
+  vọng bằng `[char]` (file .ps1 ASCII-only) và **in codepoint khi lệch**.
+- Kèm từ vòng 4 audit (đã có trong 0.2.20/nhánh): `/DMachineInstall=1` +
+  `-MachineOnly` (bằng chứng CI run 37198638991: ARP ở HKLM PASS 5/5 trên runner
+  elevated), cảnh báo MSIX identity placeholder, `B15` (VirusTotal không chặn
+  release), `B16` (uninstaller Inno bất đồng bộ → harness phải POLL).
+
 ## [0.2.20] — 2026-10-04
 
 ### Fixed (Windows) — CI đỏ .iss + vòng 3 validation (B13/B14)
@@ -846,7 +865,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...HEAD
+[0.2.21]: https://github.com/hunglinhpt/TextVN/compare/v0.2.20...v0.2.21
 [0.2.20]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...v0.2.20
 [0.2.19]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...v0.2.19
 [0.2.18]: https://github.com/hunglinhpt/TextVN/compare/v0.2.17...v0.2.18
