@@ -101,6 +101,11 @@ harness đã có công cụ kiểm riêng cho từng nghi vấn:
    để phân biệt hai biến thể.
    CI `ci-shared` có bước "Machine-install variant" chạy đúng (b) trên runner
    elevated để lấy bằng chứng mỗi commit.
+   **Bằng chứng 2026-10-04 (run 37198638991, runner sạch elevated):**
+   `PASS 0)` manifest asInvoker → `PASS 1)` silent install **exit 0 trong 1s** →
+   `PASS 2)` **ARP entry 'TextVN' | 'LinhBH.CoM' | '0.2.20' ở HKLM** (`-MachineOnly`)
+   → `PASS 3)` đúng 1 entry → `PASS 4)` gỡ cài sạch. Tức biến thể máy là lựa chọn
+   **thật** khi môi trường cài được phép elevate; ngược lại phải dùng MSIX.
 2. **Lệch chuỗi định danh so với Partner Center (STO-03)** — ARP DisplayName
    phải khớp **từng chữ** với tên sản phẩm đã reserve (ví dụ nếu Partner Center
    là `TextVN - Bộ gõ tiếng Việt` thì `TextVN` là MISMATCH), và Publisher phải
