@@ -1,3 +1,7 @@
-f7c3ced4db59484a5ad3cf0b53ce312f30c6faff2d0f92686724b386f2b52d72  TextVN-0.2.20-windows-x64.msix
-b65c6d538088d243aac160fe010b2d32cba1e527300ce64d25a8564f3a7c90e5  TextVN-portable-0.2.20-windows-x64-20261004091303.zip
-faac21e32076be61c56f05cf6c7b4198be2cbd0cfb138c0f48871797a41df112  TextVN-setup-0.2.20-windows-x64.exe
+c32fac0ed42dcc6b2fedf0135ad39cd1301d5e02365e0b60b7a372046b42c5f2  TextVN-0.2.20-linux-x86_64.tar.gz
+375d963a37444274b2d78180aa09fd2d0b50bac83296b99ee5ea3af084889169  TextVN-0.2.20-windows-x64.msix
+a75c38a561d44f6c4e6dec39a3f03fe7b25a410abcdbb2bbf03fdf35024bb350  TextVN-mac-v0.2.20.pkg
+e04305ed4baae3cfeb1f0c1362169bbc60841e1c487b44d011230b9b409eac50  TextVN-macos-universal-v0.2.20.tar.gz
+121e5be2d359c7b3bfab1f55fe76bd3167113f66c1ef0e4f61f6ddb1b1d55105  TextVN-macos-universal-v0.2.20.zip
+0aa03b25847fd98440b8d839f311d886081b10ed18aac9e5f5a8d9230c82d587  TextVN-portable-0.2.20-windows-x64-20261004094030.zip
+527c682f7473e4c731c0106bf8d5dec7e52c39ec1ce3aa783012ec7aa0b40ea5  TextVN-setup-0.2.20-windows-x64.exe
