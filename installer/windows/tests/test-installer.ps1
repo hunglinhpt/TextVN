@@ -58,7 +58,7 @@ if ($p.ExitCode -eq 10 -and $setupLog -match 'refused elevated TSF registration 
     }
     # 0.2.19: silent install = pure file copy (khong dang ky TSF trong installer
     # de tranh tre API TSF trong sandbox validator). Mo TextVN mot lan -> tu
-    # dang ky — dung luong that cua nguoi dung sau khi cai tu Store.
+    # dang ky - dung luong that cua nguoi dung sau khi cai tu Store.
     Start-Process -FilePath (Join-Path $userApp 'TextVN.exe') -WorkingDirectory $userApp | Out-Null
     $selfReg = $false
     for ($i = 0; $i -lt 40 -and -not $selfReg; $i++) {
