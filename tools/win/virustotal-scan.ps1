@@ -26,6 +26,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# A14 (win-test-common-errors): `powershell -File script.ps1 -Files "a","b"` truyen
+# CA HAI glob thanh MOT string ("a,b") - foreach se di tim file ten la ca chuoi
+# => 0 file => throw o buoc cuoi (release v0.2.20 chet o day du dist co file).
+$Files = @($Files | ForEach-Object { $_ -split ',' } | Where-Object { $_ -ne '' })
+
 $apiKey = $env:VIRUSTOTAL_API_KEY
 if (-not $apiKey) { throw 'VIRUSTOTAL_API_KEY env var not set' }
 
@@ -85,7 +90,12 @@ foreach ($f in $Files) {
         Write-Host "WARN: file khong ton tai: $f"
     }
 }
-if ($allFiles.Count -eq 0) { throw 'Khong co file nao de quet' }
+if ($allFiles.Count -eq 0) {
+    # Best-effort: khong co file khop glob => CANH BAO roi exit 0 (buoc nay
+    # khong duoc chan release; truoc day throw lam release v0.2.20 do o day).
+    Write-Host "WARN: khong co file nao khop glob de quet: $($Files -join ', ')"
+    exit 0
+}
 
 Write-Host "==== VIRUSTOTAL SCAN ===="
 Write-Host "Files: $($allFiles.Count) | MaxDetections: $MaxDetections | Upload: $Upload"
