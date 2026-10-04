@@ -53,6 +53,16 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # VirusTotal scan: kiem tra AV bao nham truoc khi publish (best-effort,
+      # khong chan release neu VT quota het). Secret: VIRUSTOTAL_API_KEY.
+      - name: VirusTotal scan (AV false positive check)
+        shell: powershell
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          if (-not $env:VIRUSTOTAL_API_KEY) { Write-Host 'SKIP: VIRUSTOTAL_API_KEY not set'; exit 0 }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\virustotal-scan.ps1 -Files "dist\TextVN-setup-*.exe","dist\TextVN-portable-*.zip" -Upload -MaxDetections 5
+          if ($LASTEXITCODE -ne 0) { Write-Host 'WARN: VT detections vuot nguong - kiem tra ket qua truoc khi publish' }
       # MSIX (yeu cau chu repo 2026-10-03: MOI release phai kem ban msix).
       # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
       # best-effort nua) va publish job con validate du 1 file .msix.
