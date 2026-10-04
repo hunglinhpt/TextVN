@@ -30,9 +30,20 @@ param(
     [switch]$AllowSkip,
     # Chi test nhanh per-user (/CURRENTUSER): bo check HKLM.
     [switch]$PerUser,
+    # STO-02 (audit vong 4): gia thuyet validator CHI doc HKLM/WOW6432Node
+    # (hoac chay duoi account khac -> HKCU cua installer vo hinh). Bat co nay de
+    # ep bang chung phai nam o hive MAY: chay installer voi /ALLUSERS tu shell
+    # ELEVATED (khong thi 740 truoc khi cai), roi kiem HKLM.
+    [switch]$MachineOnly,
     [int]$InstallTimeoutSec = 120
 )
 $ErrorActionPreference = 'Stop'
+
+# STO-03: ten/publisher phai khop TUNG CHU voi Partner Center. Cho phep bom qua
+# bien moi truong (CI secret/variable) de harness doi chieu voi gia tri THAT
+# thay vi so code .iss voi chinh no (diem mu CI cu).
+if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
+if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
 
 $roots = @(
     'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -110,8 +121,19 @@ Write-Host ("PASS 1) silent install: exit 0 trong {0:N0}s, khong tuong tac" -f $
 $after = Get-ArpEntries
 $newEntries = @($after | Where-Object { $k = $_; -not ($before | Where-Object { $_.Root -eq $k.Root -and $_.Key -eq $k.Key }) })
 $textvn = @($newEntries | Where-Object { $_.Name -like "*$ExpectName*" })
-if ($textvn.Count -ne 1) { throw "Can dung 1 entry moi chua '$ExpectName', thay $($textvn.Count)" }
-$e = $textvn[0]
+if ($MachineOnly) {
+    # STO-02: bang chung PHAI nam o hive MAY (HKLM / WOW6432Node).
+    $machine = @($textvn | Where-Object { $_.Root -notlike 'HKCU:*' })
+    if ($machine.Count -ne 1) {
+        Write-Host 'Entry tim thay:'
+        $textvn | ForEach-Object { Write-Host ("  - {0} | {1}" -f $_.Root, $_.Name) }
+        throw "MachineOnly: khong co dung 1 entry moi o HKLM/WOW6432Node (bat duoc $($machine.Count)); HKCU khong duoc tinh."
+    }
+    $e = $machine[0]
+} else {
+    if ($textvn.Count -ne 1) { throw "Can dung 1 entry moi chua '$ExpectName', thay $($textvn.Count)" }
+    $e = $textvn[0]
+}
 # Partner Center doi chieu TUNG CHU (B13): DisplayName == ten san pham,
 # Publisher == ten nha phat hanh hien thi; lech/blank chu nao cung vao dung
 # 3 item do cua Store. Khong dung -like o day.

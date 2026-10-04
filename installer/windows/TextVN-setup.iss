@@ -4,8 +4,13 @@
 ; TSF RegisterProfile/RegisterCategory can HKLM: cai machine mot lan, sau do
 ; bat profile trong user session. CLI elevated chi duoc chay tu Program Files.
 
-#define MyAppName "TextVN"
-#define MyAppFullName "TextVN"
+; Ten/publisher ARP: ghi de duoc bang /D khi build de khop TUNG CHU voi Partner
+; Center (STO-03 / B13f). Mac dinh la gia tri da dung tu 0.2.18; neu ten san pham
+; tren Partner Center khac (vi du "TextVN - Bo go tieng Viet") thi build lai:
+;   ISCC.exe /DMyAppName="Ten that" /DMyAppPublisher="Nha phat hanh that" ...
+#ifndef MyAppName
+  #define MyAppName "TextVN"
+#endif
 ; Version: build-release.ps1 / build_installer.ps1 truyen /DMyAppVersion=<ver>
 ; (doc tu Cargo.toml). #ifndef de /D cua ISCC thang - #define tinh se de tham so
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
@@ -13,13 +18,15 @@
 #ifndef MyAppVersion
   #define MyAppVersion "0.2.20"
 #endif
-#define MyAppPublisher "LinhBH.CoM"
+#ifndef MyAppPublisher
+  #define MyAppPublisher "LinhBH.CoM"
+#endif
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"
 
 [Setup]
 AppId={{9C5E4A7D-092E-4D23-9F93-87B75F3FA7B3}
-AppName={#MyAppFullName}
+AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ; ARP DisplayName = ĐÚNG tên sản phẩm trên Partner Center (validator đối chiếu từng chữ).
 AppVerName={#MyAppName}
@@ -94,10 +101,10 @@ Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppFullName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Kiem tra he thong (TextVN Doctor)"; Filename: "{app}\textvn-cli.exe"; Parameters: "doctor"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppFullName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
 Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#MyAppName}"; ValueData: """{app}\{#MyAppExeName}"" --autostart"; Flags: uninsdeletevalue; Tasks: autostart
@@ -108,7 +115,7 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhi
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
 ; machine elevated truoc, user session sau. Khong nang quyen binary o thu muc
 ; user-writable: path installer duoc khoa o {autopf}\TextVN.
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppFullName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
 
 [UninstallRun]
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden; RunOnceId: "StopTray"

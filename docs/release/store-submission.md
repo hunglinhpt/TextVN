@@ -77,6 +77,41 @@ Dán **đúng chuỗi này**:
   (byte mới → hash mới) và **cập nhật ô Package URL** trỏ đúng file mới trong
   branch `approved`.
 
+### 1a-ter. Nếu Store VẪN báo 3 mục đỏ sau 0.2.20 — hai giả thuyết còn lại (vòng 4)
+
+Phân tích vòng 4 (STO-02/STO-03 trong báo cáo audit) chỉ ra 2 nghi vấn độc lập;
+harness đã có công cụ kiểm riêng cho từng nghi vấn:
+
+1. **Validator chỉ đọc hive MÁY (HKLM/WOW6432Node) hoặc chạy dưới account khác**
+   → entry per-user (HKCU) vô hình. Kiểm bằng:
+   ```powershell
+   # tu shell ELEVATED (khong thi 740 truoc khi cai); /ALLUSERS = cai pham vi may
+   powershell -File tools\win\validate-store-package.ps1 -MachineOnly `
+       -Setup dist\TextVN-setup-<ver>-windows-x64.exe
+   ```
+   Nếu harness PASS ở `-MachineOnly` (bằng chứng nằm ở HKLM) mà bản nộp vẫn đỏ →
+   phải nộp **bản machine install**: build lại `.iss` với `/DPrivileges=admin`
+   (xem ghi chú dưới bảng 1a) và khai switches có `/ALLUSERS`.
+   Nếu harness FAIL vì không cài được từ shell non-elevated (740) → giả thuyết
+   này không khả thi trong VM của Store (đúng như đo thật 2026-10-04).
+2. **Lệch chuỗi định danh so với Partner Center (STO-03)** — ARP DisplayName
+   phải khớp **từng chữ** với tên sản phẩm đã reserve (ví dụ nếu Partner Center
+   là `TextVN - Bộ gõ tiếng Việt` thì `TextVN` là MISMATCH), và Publisher phải
+   khớp **Publisher display name** (danh tính tài khoản, ví dụ `Bùi Hùng Linh` —
+   KHÔNG phải `LinhBH.CoM`). Kiểm bằng biến môi trường:
+   ```powershell
+   $env:STORE_APP_NAME='<tên thật trên Partner Center>'
+   $env:STORE_PUBLISHER_NAME='<publisher display name thật>'
+   powershell -File tools\win\validate-store-package.ps1
+   ```
+   Harness sẽ FAIL nếu ARP hiện tại lệch → build lại installer với đúng chuỗi
+   (đã tham số hoá sẵn):
+   ```powershell
+   ISCC.exe /DMyAppVersion=<ver> "/DMyAppName=<tên thật>" "/DMyAppPublisher=<publisher thật>" installer\windows\TextVN-setup.iss
+   ```
+   ⚠️ Hai giá trị này CHỈ chủ tài khoản đọc được (Partner Center → Product
+   identity / Publisher display name) — không suy đoán.
+
 ### 1b. "Installer runs in silent mode but does not require switches"
 
 **KHÔNG tích** — bộ cài của TextVN CẦN các switch ở 1a (không tự silent mặc định).
