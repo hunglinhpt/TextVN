@@ -55,6 +55,24 @@ function Sign-TextVNFile([string]$SignTool, [string]$Thumbprint, [string]$Path) 
     Write-Ok "Authenticode signed: $(Split-Path -Leaf $Path)"
 }
 
+# ISCC (Inno Setup 6): winget cai per-user vao %LOCALAPPDATA%\Programs nen
+# `Get-Command` (PATH) khong thay - truoc day build 0.2.19/0.2.20 that bai o
+# buoc installer du moi buoc khac xanh. Do tung ung vien nhu Resolve-SignTool.
+function Resolve-Iscc {
+    $command = Get-Command "iscc.exe" -ErrorAction SilentlyContinue
+    if ($null -ne $command) { return $command.Source }
+
+    $candidates = @(
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $candidate }
+    }
+    return $null
+}
+
 # Xac dinh version tu Cargo.toml
 if ($Version -eq "") {
     $cargoContent = Get-Content Cargo.toml -Raw
@@ -356,15 +374,15 @@ Write-Ok "SHA256 checksums saved to $shaFile"
 # Build installer Inno Setup (optional)
 if ($BuildInstaller) {
     Write-Step "Build Inno Setup installer"
-    $isccExe = Get-Command iscc.exe -ErrorAction SilentlyContinue
+    $isccExe = Resolve-Iscc
     if (-not $isccExe) {
-        throw "-BuildInstaller requires iscc.exe (Inno Setup 6); installer was not produced"
+        throw "-BuildInstaller requires iscc.exe (Inno Setup 6: winget install JRSoftware.InnoSetup hoac https://jrsoftware.org/isdl.php); installer was not produced"
     } else {
         $targetDirArg = "/DTargetDir=..\..\$ReleaseDir"
         $installerArgs = @("/DMyAppVersion=$Version", $targetDirArg)
         if ($IncludeCompatibilityHook) { $installerArgs += "/DIncludeCompatibilityHook=1" }
         $installerArgs += "installer\windows\TextVN-setup.iss"
-        iscc.exe @installerArgs
+        & $isccExe @installerArgs
         # -BuildInstaller la yeu cau ro rang: ISCC loi thi dung, khong WARN roi
         # bao "Build COMPLETE" (loi [Code] cua .iss tung lot qua nhu vay).
         if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
