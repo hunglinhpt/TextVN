@@ -1,0 +1,4 @@
+35b5ee4e697b2c16c5fda65443939a3b8d0f5ac5d91aae199eee5f6a1af646df  TextVN-0.2.22-windows-x64.msix
+a8a7fe82061e572552c4d461a170fbdbcbc37cf41ebe0335d4393e1a12c7b3e8  TextVN-portable-0.2.22-windows-x64-20261004170215.zip
+ff9caee49bc083eb9b1893dee9891acd8300364fc376e929f325b61c01924aea  TextVN-setup-0.2.22-windows-x64.exe
+4f8d4c20f0baa09a6e86b8e72f3747d12f6de0747323e7e0e5b9e44a3ed3627b  TextVN-setup-0.2.22-windows-x64-machine.exe
