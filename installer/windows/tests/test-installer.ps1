@@ -56,6 +56,20 @@ if ($p.ExitCode -eq 10 -and $setupLog -match 'refused elevated TSF registration 
     foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
         if (-not (Test-Path (Join-Path $userApp $f))) { throw "per-user installed file missing: $f" }
     }
+    # 0.2.19: silent install = pure file copy (khong dang ky TSF trong installer
+    # de tranh tre API TSF trong sandbox validator). Mo TextVN mot lan -> tu
+    # dang ky — dung luong that cua nguoi dung sau khi cai tu Store.
+    Start-Process -FilePath (Join-Path $userApp 'TextVN.exe') -WorkingDirectory $userApp | Out-Null
+    $selfReg = $false
+    for ($i = 0; $i -lt 40 -and -not $selfReg; $i++) {
+        Start-Sleep -Milliseconds 500
+        $v = (Get-ItemProperty -Path $userInproc -ErrorAction SilentlyContinue).'(default)'
+        $selfReg = ($v -eq (Join-Path $userApp 'textvn-tsf.dll'))
+    }
+    if (-not $selfReg) { throw 'TextVN.exe first run did not self-register TSF per-user' }
+    Write-Host 'PASS TextVN.exe first run self-registered TSF per-user'
+    Stop-Process -Name TextVN -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
     $v = (Get-ItemProperty -Path $userInproc -ErrorAction SilentlyContinue).'(default)'
     if ($v -ne (Join-Path $userApp 'textvn-tsf.dll')) { throw "per-user TSF CLSID not registered to installed DLL (got '$v')" }
     if (Test-Path $inproc) { throw 'per-user install must not write machine HKLM COM registration' }
