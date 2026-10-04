@@ -267,6 +267,11 @@ fn machine_registration_present() -> bool {
 /// thay vì hỏng im lặng.
 #[cfg(windows)]
 fn show_untrusted_path_notice_once() {
+    // Không làm phiền lúc đăng nhập: người dùng chủ động mở app sẽ thấy thông
+    // báo; --autostart chỉ chạy ngầm (và build smoke dùng --autostart).
+    if std::env::args().any(|a| a == "--autostart") {
+        return;
+    }
     let Some(marker) = std::env::var_os("APPDATA").map(|d| {
         std::path::PathBuf::from(d)
             .join("TextVN")
@@ -277,27 +282,32 @@ fn show_untrusted_path_notice_once() {
     if marker.exists() {
         return;
     }
-    let msg: Vec<u16> = "TextVN đang chạy từ thư mục người dùng tự chọn (bản \
+    // Hộp thoại trên THREAD RIÊNG: MessageBoxW chặn thread gọi nó — nếu gọi trên
+    // main thread thì `TextVN.exe --stop` không thể kết thúc tiến trình (sự cố
+    // smoke "did not stop cleanly" cần tránh; đồng thời không chặn IPC).
+    std::thread::spawn(move || {
+        let msg: Vec<u16> = "TextVN đang chạy từ thư mục người dùng tự chọn (bản \
 portable). Windows 11 24H2+ không cho bản portable tự nâng quyền từ thư mục \
 không tin cậy, nên chưa thể đăng ký bộ gõ cho cả máy.\r\n\r\nCách gõ được: chạy \
 bộ cài TextVN (TextVN-setup-*.exe) — bản cài tự đăng ký đúng chỗ và gõ được \
 ngay. Nếu ưu tiên không cài đặt, hãy mở Command Prompt bằng quyền Administrator \
 và chạy: textvn-cli.exe register --scope machine (trong thư mục TextVN)."
-        .encode_utf16()
-        .chain(Some(0))
-        .collect();
-    let cap: Vec<u16> = "TextVN".encode_utf16().chain(Some(0)).collect();
-    // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
-    unsafe {
-        MessageBoxW(
-            None,
-            PCWSTR(msg.as_ptr()),
-            PCWSTR(cap.as_ptr()),
-            MB_OK | MB_ICONINFORMATION,
-        );
-    }
-    let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
-    let _ = std::fs::write(&marker, b"1");
+            .encode_utf16()
+            .chain(Some(0))
+            .collect();
+        let cap: Vec<u16> = "TextVN".encode_utf16().chain(Some(0)).collect();
+        // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
+        unsafe {
+            MessageBoxW(
+                None,
+                PCWSTR(msg.as_ptr()),
+                PCWSTR(cap.as_ptr()),
+                MB_OK | MB_ICONINFORMATION,
+            );
+        }
+        let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
+        let _ = std::fs::write(&marker, b"1");
+    });
 }
 
 /// B7 (Win11 24H2+, build 26300): TIP chỉ đăng ký per-user bị Windows TỪ CHỐI
