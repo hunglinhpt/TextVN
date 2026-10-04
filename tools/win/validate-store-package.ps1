@@ -42,10 +42,12 @@ $ErrorActionPreference = 'Stop'
 # STO-03: ten/publisher phai khop TUNG CHU voi Partner Center. Cho phep bom qua
 # bien moi truong (CI secret/variable) de harness doi chieu voi gia tri THAT
 # thay vi so code .iss voi chinh no (diem mu CI cu).
-# Publisher display name THAT (chu tai khoan xac nhan 2026-10-04): "Linh [beta][u-grave]i" (U+03B2, U+00F9)
-# voi beta U+03B2 va u-grave U+00F9 - file nay ASCII-only (G7/A5) nen ghep bang
-# [char]; verify end-to-end: HKLM/HKCU ARP nhan dung codepoint nay.
-if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh ' + [char]0x03B2 + [char]0x00F9 + 'i' }
+# Publisher display name THAT tren Partner Center (chu tai khoan xac nhan lan 2,
+# 2026-10-04 sau B18): "Linh Bui" - ASCII thuan. Lan dau tien chu tai khoan doc
+# nham font: "B" (U+0042) nhin nhu beta U+03B2 -> 0.2.21 ghi "Linh <beta>ui" va
+# van do 3 muc (chuoi CHUA TUNG dung o bat ky vong nao: 0.2.16-0.2.20 la
+# "LinhBH.CoM"). Doi bang -ExpectPublisher/STORE_PUBLISHER_NAME khi can.
+if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh Bui' }
 if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
 if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
 

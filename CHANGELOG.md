@@ -7,6 +7,29 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.22] — 2026-10-04
+
+### Fixed (Windows) — ROOT CAUSE thật của 6 vòng đỏ: publisher phải là "Linh Bui" (B18)
+- Chủ tài khoản xác nhận **lần 2** (sau khi audit vòng 6 chỉ ra khả năng nhầm
+  font): Publisher display name trên Partner Center là **`Linh Bui`** — ASCII
+  thuần. Lần trước đọc nhầm font: chữ **B** (U+0042) trông giống beta **β**
+  (U+03B2). Kết luận dựa trên bằng chứng: chuỗi publisher trong ARP **chưa bao
+  giờ khớp** ở bất kỳ lần nộp nào — 0.2.16-0.2.20 để `LinhBH.CoM`, 0.2.21 để
+  `Linh βùi` → đúng nguyên nhân *"could not identify the app name and the
+  publisher name"*.
+- ARP `Publisher` = `Linh Bui`; tên sản phẩm `TextVN` giữ nguyên (đã khớp ✓).
+- **B18**: định danh phải xác minh bằng **codepoint dump** từ nguồn sự thật
+  (`($s.ToCharArray() | % { 'U+{0:X4}' -f [int]$_ }) -join ' '`), không tin mắt.
+  Harness + simulate dùng mặc định `Linh Bui` và in codepoint khi lệch.
+- Đã đặt repo VARIABLES `STORE_APP_NAME=TextVN`, `STORE_PUBLISHER_NAME=Linh
+  Bui` → CI đối chiếu ARP với giá trị thật mỗi commit (hết tự-so-mình).
+- Machine variant (HKLM) giờ là **release asset chính thức**: `build-release
+  -MachineInstaller`; release.yml build + validate `-MachineOnly` + kèm vào
+  release; publish job kiểm đúng 2 setup exe.
+- Lần nộp kế tiếp: **per-user 0.2.22 trước** (ít rủi ro nhất, kiểm đúng giả
+  thuyết chuỗi); nếu vẫn đỏ → machine 0.2.22 (kiểm giả thuyết HKLM); nếu vẫn
+  đỏ → MSIX (`CN=1A703CAB-…` đã có, chờ `Package/Identity/Name`).
+
 ## [0.2.21] — 2026-10-04
 
 ### Fixed (Windows) — Publisher khớp ĐÚNG Partner Center (STO-03, chủ tài khoản xác nhận)
@@ -865,7 +888,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...HEAD
+[0.2.22]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...v0.2.22
 [0.2.21]: https://github.com/hunglinhpt/TextVN/compare/v0.2.20...v0.2.21
 [0.2.20]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...v0.2.20
 [0.2.19]: https://github.com/hunglinhpt/TextVN/compare/v0.2.18...v0.2.19

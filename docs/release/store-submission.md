@@ -59,12 +59,12 @@ Dán **đúng chuỗi này**:
 
 ### 1a-bis. Trạng thái kỳ vọng của "Package validation"
 
-**Chuỗi định danh CHỐT (chủ tài khoản xác nhận 2026-10-04, Partner Center):**
+**Chuỗi định danh CHỐT (chủ tài khoản xác nhận LẦN 2, 2026-10-04 — B18):**
 
 | Trường | Giá trị ĐÚNG | Ghi vào installer |
 |---|---|---|
 | Tên sản phẩm đã reserve (Product name) | `TextVN` | ARP `DisplayName` = `TextVN` (`AppVerName`) — **khớp ✓** |
-| Publisher display name | `Linh βùi` (beta **U+03B2**, u-grave U+00F9) | ARP `Publisher` = `Linh βùi` (`AppPublisher`) — **từ 0.2.21** |
+| Publisher display name | **`Linh Bui`** (ASCII thuần; lần đầu đọc nhầm font: `B` U+0042 nhìn như `β` U+03B2) | ARP `Publisher` = `Linh Bui` (`AppPublisher`) — **từ 0.2.22** |
 
 - ✅ **Malware check — clean** (đúng như đã thấy).
 - ✅ **Silent install check — pass** khi: manifest exe là **asInvoker** (gate bước 0
@@ -72,10 +72,11 @@ Dán **đúng chuỗi này**:
   `CreateProcess` non-elevated fail 740 NGAY trước khi cài → cả 3 mục đỏ — B13e),
   silent exit 0, không dialog ngôn ngữ (`ShowLanguageDialog=no`).
 - ✅ **Entry in add or remove programs / Bundleware check — pass** khi: đúng **1**
-  entry mới, ARP `DisplayName == "TextVN"` (AppVerName), `Publisher == "Linh βùi"`,
+  entry mới, ARP `DisplayName == "TextVN"` (AppVerName), `Publisher == "Linh Bui"`,
   có `DisplayVersion` — harness so **exact từng chữ** (B13f/STO-03) và in
   codepoint khi lệch. Entry per-user nằm ở HKCU: Programs and Features hiển thị
-  gộp cả hai hive.
+  gộp cả hai hive. **Lịch sử 6 vòng đỏ giải thích được**: chuỗi publisher chưa
+  bao giờ đúng (`LinhBH.CoM` → `Linh βùi` nhầm font) cho tới 0.2.22.
 - ✅ **Code sign check — valid** (Store ký lại khi publish).
 - ⚠️ **BẪY "We did not find any changes in the Package or the Silent install
   parameters"** (B13g): nộp lại cùng gói/cùng URL → Partner Center **không chạy
@@ -86,49 +87,37 @@ Dán **đúng chuỗi này**:
 ### 1a-ter. Nếu Store VẪN báo 3 mục đỏ sau 0.2.21 — ma trận quyết định (vòng 5)
 
 **Sự kiện vòng 5 (2026-10-04):** 0.2.21 đã có ARP `Publisher == "Linh βùi"` đúng
-từng codepoint (CI tự chứng minh trên chính file nộp) mà Store **vẫn** đỏ 3 mục
-→ chuỗi định danh KHÔNG còn là nghi vấn; nguyên nhân còn lại gần như chắc chắn
-nằm ở **nơi validator đọc entry**: HKCU của phiên cài (validator chạy cài dưới
-account/phiên khác, hoặc chỉ đọc HKLM). Không có cách nào từ EXE non-admin ghi
-HKLM ⇒ đường kế tiếp phải là **bản cài máy** hoặc **MSIX**.
+chuỗi mà nó khai báo, và Store vẫn đỏ 3 mục. **Vòng 7 giải mã**: chuỗi khai báo
+sai so với Partner Center — `β` là **nhầm font** của chữ `B`; publisher đúng là
+**`Linh Bui`**. Chuỗi publisher trong ARP vì vậy **chưa bao giờ khớp** ở mọi
+lần nộp (0.2.16-0.2.20 `LinhBH.CoM`, 0.2.21 `Linh βùi`) — đây là nguyên nhân
+đơn giản nhất giải thích cả 6 vòng. Hai nghi vấn phụ (HKCU vô hình; sandbox
+non-elevated) trở thành **kế hoạch dự phòng có thứ tự**, không còn là giả thuyết
+chính.
 
-**Đường A — thử bản MÁY (đã publish sẵn trên `approved` VÀ là release asset từ
-tag kế tiếp):**
+**Kế hoạch nộp có thứ tự (mỗi bước chỉ nộp khi bước trước đã đỏ THẬT — đã được
+revalidate, không phải trạng thái cũ):**
+
+**Bước 1 — per-user 0.2.22 với publisher đúng `Linh Bui`** (ít rủi ro nhất):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64-machine.exe
-SHA-256: af3c93a81d3133718cf36e44b46373535bfb63ac945e861f3aeef67dcdcf16f6
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.22/TextVN-setup-0.2.22-windows-x64.exe
 ```
 
-- Cùng commit `517db48` với bản per-user, ARP `Publisher = "Linh βùi"`, và
-  **chính các byte này** đã PASS 5/5 gate trên runner CI elevated (run
-  37210008091): silent exit 0 trong 1s, **entry ở HKLM/Program Files**, đúng 1
-  entry, gỡ sạch.
-- Đổi ô Package URL sang link trên, switches giữ nguyên, Submit. Gói khác byte
-  → validation chạy lại thật (không dính B13g).
-- **Bước 0 trước khi nộp — xác minh codepoint publisher (B18)**: chuỗi
-  `Linh βùi` có thể thực ra là `Linh Bùi` (Latin B U+0042 — nhìn như β ở nhiều
-  font). Copy nguyên chuỗi từ **Account settings → Publisher info** rồi dump:
-  ```powershell
-  $s = ''   # dán chuỗi copy từ Partner Center vào giữa hai dấu nháy
-  ($s.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
-  ```
-  - Nếu ra `…U+0042…` → gửi lại chuỗi đó, tôi rebuild machine exe với đúng chuỗi
-    (`ISCC /DMyAppPublisher="..."`) trong vài phút rồi publish bản mới.
-  - Nếu ra `…U+03B2…` → chuỗi hiện tại đã đúng, cứ nộp URL trên.
-  - Sau khi chủ repo đặt repo VARIABLES `STORE_APP_NAME`/`STORE_PUBLISHER_NAME`
-    (`gh variable set ...`), CI đối chiếu ARP với giá trị thật mỗi commit — hết
-    "tự so code với chính nó".
-- Ý nghĩa kết quả: **PASS** = validator đọc HKLM, dùng bản máy cho mọi lần nộp
-  sau; **vẫn đỏ 3 mục** = sandbox của validator chạy NON-elevated (bản máy cần
-  UAC/relaunch elevation nên không cài được) ⇒ đường EXE chết với account này,
-  chuyển hẳn đường B.
-- ⚠️ Đánh đổi đã cân nhắc: bản máy cài vào Program Files + HKLM. Người dùng
-  tải từ GitHub vẫn dùng bản per-user (`TextVN-setup-0.2.21-windows-x64.exe`).
-  Từ tag kế tiếp, release workflow build + validate + kèm
-  `*-machine.exe` làm release asset (publish job kiểm đúng 2 exe).
+Kiểm đúng giả thuyết "chuỗi sai là nguyên nhân duy nhất" — validator có thể đọc
+HKCU của chính phiên cài. PASS → xong, dùng bản per-user cho mọi lần nộp sau.
 
-**Đường B — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
+**Bước 2 (nếu bước 1 vẫn đỏ) — machine 0.2.22 (ARP ở HKLM):**
+
+```
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.22/TextVN-setup-0.2.22-windows-x64-machine.exe
+```
+
+Cùng publisher đúng, cài vào Program Files + HKLM. PASS = validator đọc HKLM →
+dùng bản máy cho mọi lần nộp sau. Vẫn đỏ = sandbox chạy NON-elevated (bản máy
+cần elevation) → đường EXE hết phương án, chuyển bước 3.
+
+**Bước 3 — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
 cả 3 check):** Windows publisher ID của tài khoản đã có:
 `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` (dùng cho `Identity@Publisher`).
 Còn thiếu DUY NHẤT `Package/Identity/Name` (trang Product identity của từng sản
@@ -142,30 +131,11 @@ powershell -File tools\win\build-msix.ps1 `
 
 → upload `.msix` TRỰC TIẾP (không dùng Package URL). Cảnh báo placeholder đã
 có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name).
-2. **Lệch chuỗi định danh so với Partner Center (STO-03)** — ARP DisplayName
-   phải khớp **từng chữ** với tên sản phẩm đã reserve (ví dụ nếu Partner Center
-   là `TextVN - Bộ gõ tiếng Việt` thì `TextVN` là MISMATCH), và Publisher phải
-   khớp **Publisher display name** (danh tính tài khoản, ví dụ `Bùi Hùng Linh` —
-   KHÔNG phải `LinhBH.CoM`). Kiểm bằng biến môi trường:
-   ```powershell
-   $env:STORE_APP_NAME='<tên thật trên Partner Center>'
-   $env:STORE_PUBLISHER_NAME='<publisher display name thật>'
-   powershell -File tools\win\validate-store-package.ps1
-   ```
-   Harness sẽ FAIL nếu ARP hiện tại lệch → build lại installer với đúng chuỗi
-   (đã tham số hoá sẵn):
-   ```powershell
-   ISCC.exe /DMyAppVersion=<ver> "/DMyAppName=<tên thật>" "/DMyAppPublisher=<publisher thật>" installer\windows\TextVN-setup.iss
-   ```
-   ⚠️ Hai giá trị này CHỈ chủ tài khoản đọc được (Partner Center → Product
-   identity / Publisher display name) — không suy đoán.
-3. **MSIX (đường Microsoft khuyến nghị cho đúng ca fail này)** — bỏ qua cả 3
-   check. Cần đúng 2 giá trị Product identity; script cảnh báo rõ khi còn
-   placeholder và nhận giá trị qua biến môi trường để CI/thợ build lại một lệnh:
-   ```powershell
-   $env:MSIX_IDENTITY_NAME='<Package/Identity/Name>'; $env:MSIX_PUBLISHER='CN=<Publisher>'
-   powershell -File tools\win\build-msix.ps1     # upload .msix TRỰC TIẾP, không qua URL
-   ```
+
+**Đối chiếu giá trị thật trên CI**: repo VARIABLES đã đặt — `STORE_APP_NAME=
+TextVN`, `STORE_PUBLISHER_NAME=Linh Bui` → mọi bước validate của CI so ARP với
+đúng 2 chuỗi này mỗi commit. Đổi giá trị khi Partner Center đổi (chủ tài khoản
+thực hiện `gh variable set` hoặc Settings → Secrets and variables → Variables).
 
 ### 1b. "Installer runs in silent mode but does not require switches"
 

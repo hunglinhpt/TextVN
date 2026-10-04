@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.22" date="2026-10-04">
+      <description>
+        <p>Microsoft Store root-cause fix: the Add/Remove Programs publisher is now "Linh Bui" (pure ASCII), matching the Partner Center publisher display name character-for-character. The previous attempts never matched (brand name "LinhBH.CoM", then "Linh Bi" with a Greek beta U+03B2 that was a font misread of Latin B), which is what the validator compares - lesson B18: verify identifiers by code point dump from the source of truth, never by font appearance. The machine-install variant is now a standard release asset, built and HKLM-validated by the release workflow.</p>
+      </description>
+    </release>
     <release version="0.2.21" date="2026-10-04">
       <description>
         <p>Microsoft Store fix: the Add/Remove Programs publisher now matches the Partner Center publisher display name character-for-character ("Linh βùi" - the beta is U+03B2, as recorded on the Dev Center account), which is what the Store validator compares; the .iss keeps a UTF-8 BOM so the non-ASCII publisher survives compilation, and the validation harness now builds the expected publisher from code points (ASCII-only scripts) and prints code points on mismatch. Adopted /DMachineInstall=1 to build a machine-install variant validated by CI (-MachineOnly) as evidence for the HKLM hypothesis, and build-msix.ps1 warns loudly when the MSIX identity is still a placeholder.</p>
