@@ -3,10 +3,16 @@
 # cua Microsoft cho goi cai .exe, tu dong hoa:
 #   https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msi/manual-package-validation
 #
-#   1. Silent install  : chay /VERYSILENT /SUPPRESSMSGBOXES /NORESTART -> exit 0,
-#                        khong tuong tac, trong thoi gian gioi han.
-#   2. Entry in ARP    : co DUNG 1 entry moi, DisplayName/Publisher/Version dung.
-#   3. Bundleware      : tong so entry moi == 1 (khong de nhieu entry).
+#   0. Manifest         : requestedExecutionLevel PHAI la asInvoker. Validator
+#                         chay installer bang CreateProcess non-elevated; exe
+#                         requireAdministrator fail ngay ERROR_ELEVATION_REQUIRED
+#                         (740) truoc khi cai gi -> CA 3 check deu do (B13,
+#                         do that 2026-10-04: exit=2 trong shell non-elevated).
+#   1. Silent install   : chay /VERYSILENT /SUPPRESSMSGBOXES /NORESTART -> exit 0,
+#                         khong tuong tac, trong thoi gian gioi han.
+#   2. Entry in ARP     : co DUNG 1 entry moi, DisplayName/Publisher/Version
+#                         khop TUNG CHU voi Partner Center (khong blank/la).
+#   3. Bundleware       : tong so entry moi == 1 (khong de nhieu entry).
 #   + bonus: silent uninstall -> exit 0, entry bien mat, file chinh bi xoa.
 #
 # DUNG O DAU: job windows cua ci-shared + release-candidate (runner sach) va
@@ -69,6 +75,17 @@ Write-Host "== validate-store-package =="
 Write-Host "Setup:    $Setup"
 Write-Host "Expect:   name~'$ExpectName'  publisher='$ExpectPublisher'  version='$ExpectVersion'"
 
+# ---- 0. Manifest: validator chay installer bang CreateProcess non-elevated ----
+$bytes = [System.IO.File]::ReadAllBytes($Setup)
+$text = [System.Text.Encoding]::UTF8.GetString($bytes)
+$m = [regex]::Match($text, 'requestedExecutionLevel\s+level="([^"]+)"')
+if (-not $m.Success) { throw 'Khong doc duoc requestedExecutionLevel trong manifest cua setup.' }
+$level = $m.Groups[1].Value
+if ($level -ne 'asInvoker') {
+    throw "Manifest setup la level='$level' - validator Store chay non-elevated se fail 740 truoc khi cai (can asInvoker)."
+}
+Write-Host 'PASS 0) manifest: requestedExecutionLevel=asInvoker (validator CreateProcess duoc)'
+
 $before = Get-ArpEntries
 $beforeTextVN = @($before | Where-Object { $_.Name -like "*$ExpectName*" })
 if ($beforeTextVN.Count -gt 0) {
@@ -95,8 +112,14 @@ $newEntries = @($after | Where-Object { $k = $_; -not ($before | Where-Object { 
 $textvn = @($newEntries | Where-Object { $_.Name -like "*$ExpectName*" })
 if ($textvn.Count -ne 1) { throw "Can dung 1 entry moi chua '$ExpectName', thay $($textvn.Count)" }
 $e = $textvn[0]
-if ($e.Publisher -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher'" }
-if ($e.Version -notlike "*$ExpectVersion*") { throw "Version ARP '$($e.Version)' khong chua '$ExpectVersion'" }
+# Partner Center doi chieu TUNG CHU (B13): DisplayName == ten san pham,
+# Publisher == ten nha phat hanh hien thi; lech/blank chu nao cung vao dung
+# 3 item do cua Store. Khong dung -like o day.
+if ($e.Name.Trim() -ne $ExpectName) { throw "DisplayName ARP '$($e.Name)' != ten san pham '$ExpectName' (phai khop tung chu)" }
+if (-not $e.Publisher) { throw 'ARP thieu Publisher (Store bao blank publisher)' }
+if ($e.Publisher.Trim() -ne $ExpectPublisher) { throw "Publisher ARP '$($e.Publisher)' != '$ExpectPublisher' (phai khop tung chu voi Partner Center)" }
+if (-not $e.Version) { throw 'ARP thieu DisplayVersion (Store bao blank/khong xac dinh duoc phien ban)' }
+if ($e.Version.Trim() -ne $ExpectVersion) { throw "DisplayVersion ARP '$($e.Version)' != '$ExpectVersion'" }
 # Luu y (B13 vong 2->3): ARP co the o HKLM (admin) HOAC HKCU (per-user) -
 # Programs and Features hien thi gop ca hai; quan trong la dung 1 entry
 # voi Name/Publisher/Version khop. EXE co manifest requireAdministrator

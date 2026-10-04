@@ -64,6 +64,15 @@ int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custo
         return 0;
     }
 
+    /* SEC-04/L-02: uu tien $XDG_RUNTIME_DIR (systemd: thu muc rieng cua user,
+     * da 0700, tmpfs) — an toan hon $XDG_CONFIG_HOME va khong bao gio dung
+     * /tmp chung. */
+    const char *xdg_runtime = getenv("XDG_RUNTIME_DIR");
+    if (xdg_runtime && xdg_runtime[0] == '/') {
+        snprintf(out_path, max_len, "%s/TextVN/ipc.sock", xdg_runtime);
+        return 0;
+    }
+
     const char *xdg_config = getenv("XDG_CONFIG_HOME");
     if (xdg_config && xdg_config[0] != '\0') {
         snprintf(out_path, max_len, "%s/TextVN/ipc.sock", xdg_config);
@@ -76,8 +85,14 @@ int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custo
         return 0;
     }
 
+    /* Fallback cuoi: /tmp — nhung trong thu muc RIENG theo uid (server tao
+     * mode 0700) thay vi /tmp/textvn-ipc.sock dung chung cho moi user. */
+#if defined(__linux__) || defined(__unix__)
+    snprintf(out_path, max_len, "/tmp/textvn-%u/ipc.sock", (unsigned)getuid());
+#else
     strncpy(out_path, "/tmp/textvn-ipc.sock", max_len - 1);
     out_path[max_len - 1] = '\0';
+#endif
     return 0;
 }
 
@@ -242,6 +257,19 @@ static int try_connect(lc_ipc_client *client) {
     size_t path_len = strlen(client->sock_path);
     if (path_len >= sizeof(addr.sun_path)) return -1;
     memcpy(addr.sun_path, client->sock_path, path_len + 1);
+
+#if defined(__linux__)
+    /* SEC-04/L-02: duong dan socket co the nam trong thu muc ghi chung (/tmp).
+     * Neu doi tuong DA ton tai ma khong phai socket cua chinh user nay thi tu
+     * choi — chan pre-create/symlink hijack truoc khi connect. */
+    struct stat sb;
+    if (lstat(client->sock_path, &sb) == 0) {
+        if (!S_ISSOCK(sb.st_mode) || sb.st_uid != getuid()) {
+            lc_log(LC_LOG_WARN, "IPC", "Socket path exists but is not a socket owned by this user; refusing");
+            return -1;
+        }
+    }
+#endif
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) return -1;

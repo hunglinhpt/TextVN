@@ -11,7 +11,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.19"
+  #define MyAppVersion "0.2.20"
 #endif
 #define MyAppPublisher "LinhBH.CoM"
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
@@ -301,12 +301,21 @@ begin
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  HotkeyValue: String;
 begin
   if CurUninstallStep = usPostUninstall then
   begin
     ScheduleCleanupViaCli();
     // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
-    RegDeleteKeyValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey');
+    // Chi xoa khi gia tri = 3 (override do TextVN dat: "khong gan phim") — giong
+    // uninstall.ps1 cua ban portable; neu nguoi dung tu doi sang gia tri khac thi
+    // giu nguyen lua chon cua ho. [Registry] chi xoa VALUE qua RegDeleteValue —
+    // Pascal Script cua Inno KHONG co RegDeleteKeyValue (CI do 2026-10-04:
+    // "Unknown identifier 'RegDeleteKeyValue'"; xem win-test-common-errors B14).
+    if RegQueryStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey', HotkeyValue)
+       and (HotkeyValue = '3') then
+      RegDeleteValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey');
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;

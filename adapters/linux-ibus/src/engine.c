@@ -51,7 +51,12 @@ static void show_preedit(TextVNIbusEngine *self, const uint32_t *text, size_t le
         return;
     }
     IBusText *t = text_from_ucs4(text, len);
-    /* Không gạch chân (clean preedit) để chữ hiển thị tự nhiên như đã gõ. */
+    /* BUG-06 (audit 2026-10-04): preedit Ở ĐÂY do CLIENT vẽ (client preedit
+     * chuẩn) — không set attribute nào nên app tự quyết định gạch chân hay
+     * không; TextVN KHÔNG tắt được gạch chân qua API IBus. Muốn "không gạch
+     * chân" thật phải chuyển sang non-preedit (delete+commit) — đã cân nhắc và
+     * HOÃN vì surrounding không đáng tin ở Chromium/Electron/Qt (xem
+     * lc_compose.h:11-14, RL5/B7). */
     /* PREEDIT_COMMIT: khi mất focus, ibus-daemon/client tự commit preedit — engine
      * commit sau focus-out bị daemon bỏ qua (đã kiểm chứng bằng tests/e2e_ibus.c). */
     ibus_engine_update_preedit_text_with_mode(engine, t, (guint)len, TRUE,

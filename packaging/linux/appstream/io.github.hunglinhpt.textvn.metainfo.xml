@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.20" date="2026-10-04">
+      <description>
+        <p>Hardening + Store-validation round 3: the validator harness now checks the installer manifest is asInvoker and that the Add/Remove entry matches the product name, publisher and version exactly (single entry, no bundleware); the uninstaller restores the Windows Ctrl+Shift hotkey; the tray only offers the one-time UAC machine registration from trusted install folders (Program Files, %LOCALAPPDATA%\Programs - portable copies get a clear notice instead); the IPC named pipe is created with a current-user-only DACL; the Linux IPC client prefers $XDG_RUNTIME_DIR and refuses sockets not owned by the current user; the English-restore dictionary scan filters by length before allocating.</p>
+      </description>
+    </release>
     <release version="0.2.19" date="2026-10-04">
       <description>
         <p>Silent installs are now pure file copies: no language dialog on any system locale, no TSF calls in the installer process (the app self-registers on first run with a one-time UAC prompt if needed), and run-once helpers are skipped in silent mode - removing every remaining silent-install blocker for Microsoft Store validation.</p>

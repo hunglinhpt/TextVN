@@ -261,6 +261,45 @@ fn machine_registration_present() -> bool {
     read_registry_string(HKEY_LOCAL_MACHINE, &inproc).is_some()
 }
 
+/// Bản portable chạy từ thư mục người dùng tự chọn (Downloads, D:\...): Windows
+/// 11 24H2+ từ chối activation per-user (B7) và TextVN KHÔNG tự nâng quyền từ
+/// path không tin cậy (SEC-02). Báo MỘT lần để người dùng biết cách gõ được
+/// thay vì hỏng im lặng.
+#[cfg(windows)]
+fn show_untrusted_path_notice_once() {
+    let Some(marker) = std::env::var_os("APPDATA").map(|d| {
+        std::path::PathBuf::from(d)
+            .join("TextVN")
+            .join("uac_blocked_notice_done")
+    }) else {
+        return;
+    };
+    if marker.exists() {
+        return;
+    }
+    let msg: Vec<u16> = "TextVN đang chạy từ thư mục người dùng tự chọn (bản \
+portable). Windows 11 24H2+ không cho bản portable tự nâng quyền từ thư mục \
+không tin cậy, nên chưa thể đăng ký bộ gõ cho cả máy.\r\n\r\nCách gõ được: chạy \
+bộ cài TextVN (TextVN-setup-*.exe) — bản cài tự đăng ký đúng chỗ và gõ được \
+ngay. Nếu ưu tiên không cài đặt, hãy mở Command Prompt bằng quyền Administrator \
+và chạy: textvn-cli.exe register --scope machine (trong thư mục TextVN)."
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let cap: Vec<u16> = "TextVN".encode_utf16().chain(Some(0)).collect();
+    // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
+    unsafe {
+        MessageBoxW(
+            None,
+            PCWSTR(msg.as_ptr()),
+            PCWSTR(cap.as_ptr()),
+            MB_OK | MB_ICONINFORMATION,
+        );
+    }
+    let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
+    let _ = std::fs::write(&marker, b"1");
+}
+
 /// B7 (Win11 24H2+, build 26300): TIP chỉ đăng ký per-user bị Windows TỪ CHỐI
 /// `ActivateProfile` → portable không gõ được dù đã đăng ký "OK". Phát hiện
 /// bằng cách chạy `textvn-cli activate` (ẩn) — exit ≠ 0 là bị từ chối; khi đó
@@ -281,19 +320,6 @@ fn offer_machine_registration_if_needed() {
     }
     if machine_registration_present() {
         return;
-    }
-    // SEC-02 (audit 2026-10-04): KHÔNG cho phép UAC elevation từ thư mục người
-    // dùng tùy ý (Downloads, Desktop...) — kẻ tấn công có thể ghi đè DLL và
-    // đăng ký machine-wide từ path không tin cậy (CWE-426/732). Chỉ cho phép
-    // khi binary nằm trong Program Files (được ACL bảo vệ).
-    {
-        let exe = std::env::current_exe().unwrap_or_default();
-        let exe_lower = exe.to_string_lossy().to_lowercase();
-        let trusted = exe_lower.contains("\\program files\\")
-            || exe_lower.contains("\\program files (x86)\\");
-        if !trusted {
-            return;
-        }
     }
     // Chỉ hỏi MỘT lần cho cả máy/người dùng — người dùng bấm Cancel thì tôn
     // trọng, không hỏi lại mỗi lần mở app.
@@ -326,6 +352,22 @@ fn offer_machine_registration_if_needed() {
         .creation_flags(CREATE_NO_WINDOW)
         .status();
     if status.is_ok_and(|s| s.success()) {
+        return;
+    }
+
+    // SEC-02 (audit 2026-10-04): chỉ nâng quyền từ thư mục CÀI ĐẶT chuẩn —
+    // Program Files (bộ cài machine; MSIX cài trong WindowsApps cũng khớp
+    // "\program files\") hoặc %LOCALAPPDATA%\Programs do bộ cài per-user/Store
+    // tạo. KHÔNG nâng từ Downloads/Desktop/thư mục portable tùy ý: kẻ tấn công
+    // ghi đè DLL cạnh binary sẽ chạy bằng quyền admin (CWE-426/732). Bước này
+    // chỉ tới được SAU khi activation per-user thất bại thật (B7) nên máy cũ
+    // (activation OK) và bản cài chuẩn không bị ảnh hưởng.
+    let exe_lower = exe.to_string_lossy().to_lowercase();
+    let trusted_install = exe_lower.contains("\\program files\\")
+        || exe_lower.contains("\\program files (x86)\\")
+        || exe_lower.contains("\\appdata\\local\\programs\\");
+    if !trusted_install {
+        show_untrusted_path_notice_once();
         return;
     }
 

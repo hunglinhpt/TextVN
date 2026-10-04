@@ -46,12 +46,19 @@ fn listed(raw: &[char], english_words: &[String]) -> bool {
     english_words.iter().any(|w| w.to_lowercase() == typed)
 }
 
-/// Data file có chứa dòng bằng đúng `word` không (so lowercase, không alloc).
+/// Data file có chứa dòng bằng đúng `word` không (so lowercase).
+///
+/// PERF-01 (audit 2026-10-04): lọc theo độ dài TRƯỚC khi `to_lowercase()`
+/// từng dòng — mỗi dòng bằng `needle` bắt buộc cùng độ dài, nên bỏ được hầu
+/// hết alloc trên đường gõ phím (từ điển 55-82 dòng, gọi ở ranh giới từ/Tab).
 fn data_contains(data: &str, word: &str) -> bool {
     let needle = word.to_lowercase();
     data.lines().any(|l| {
         let l = l.trim();
-        !l.is_empty() && !l.starts_with('#') && l.to_lowercase() == needle
+        !l.is_empty()
+            && !l.starts_with('#')
+            && l.len() == needle.len()
+            && l.to_lowercase() == needle
     })
 }
 

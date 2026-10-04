@@ -477,3 +477,20 @@ Bằng việc thực hiện nghiêm túc kế hoạch khắc phục theo lộ tr
 
 ---
 *Báo cáo được lập bởi Antigravity Principal Architecture & Quality Assurance Auditor.*
+
+---
+
+## PHỤ LỤC — Trạng thái xử lý từng phát hiện (cập nhật 2026-10-04, v0.2.20)
+
+| Phát hiện | Trạng thái | Ghi chú |
+|---|---|---|
+| W-02 (SEC-02) nâng quyền Portable UAC | ✅ ĐÃ SỬA (vòng 2 trong 0.2.20) | Chỉ tự nâng quyền từ thư mục cài chuẩn: Program Files (gồm MSIX WindowsApps) + `%LOCALAPPDATA%\Programs` (bộ cài per-user/Store). Path tùy ý (Downloads, D:\ portable) bị TỪ CHỐI + báo MỘT lần hướng dẫn cài đặt (`tray/src/main.rs::show_untrusted_path_notice_once`). Bước nâng quyền chỉ chạy sau khi activation per-user thất bại thật (B7). |
+| M-02 (SEC-03) entitlements macOS thừa | ✅ ĐÃ SỬA | Chỉ còn `com.apple.security.automation.apple-events`. |
+| W-03 (BUG-07) Registry hotkey thiếu hoàn trả | ✅ ĐÃ SỬA | `.iss` `usPostUninstall` + `uninstall.ps1` xoá `Layout Hotkey` khi giá trị = 3 (bài học B14: dùng `RegDeleteValue`, không có `RegDeleteKeyValue`). |
+| W-04 (SEC-05) thiếu DACL named pipe | ✅ ĐÃ SỬA | `tray/src/ipc_server.rs::current_user_pipe_security` — SDDL `D:(A;;GA;;;<user>)(A;;GA;;;SY)(A;;GA;;;BA)`. Hậu tố Session ID trong tên pipe: HOÃN (phải sửa đồng bộ TSF/Hook/CLI/doctor). |
+| L-02 (SEC-04) socket /tmp | ✅ ĐÃ SỬA | Ưu tiên `$XDG_RUNTIME_DIR/TextVN/ipc.sock`; fallback `/tmp/textvn-<uid>/ipc.sock`; guard `lstat` (phải là socket của chính user) trước connect. |
+| C-01 (PERF-01) quét từ điển | ✅ ĐÃ SỬA (tối thiểu) | Lọc theo độ dài trước `to_lowercase()`; dữ liệu đã nhúng compile-time (audit mô tả "nạp file mỗi lần gõ" là SAI). Binary search/`phf`: không cần ở quy mô 55-82 dòng. |
+| L-01 (BUG-03) IPC client bỏ qua `app_id:"*"` | ⏸ HOÃN (có lý do) | Parser Linux thiếu nhánh `"*"`, nhưng `lc_ipc_client_poll` **chưa từng được gọi** trên Linux (engine đồng bộ qua `state.json`/`config.json`) → fix parser hiện là code chết. Sửa cùng lúc khi có Linux tray (P3-0). |
+| 3.2.B (BUG-05) macOS `non_preedit` bị bỏ quên | ⏸ HOÃN (có lý do) | Toggle trong SettingsView ghi config nhưng IMK chưa đọc. Nối dây = đổi hành vi mặc định (`true` = bỏ gạch chân) cho MỌI người dùng macOS — cần test thật với Chromium/Office/Terminal trước (rủi ro con trỏ/autocomplete như F3-021). Khi làm: đọc key bằng `JSONSerialization`, `if nonPreedit && strategy == .preedit → .backspaceType`. |
+| 3.2.C (BUG-06) Linux preedit | ⏸ HOÃN (có lý do) | Client preedit là quyết định thiết kế đã ghi (`lc_compose.h:11-14`): surrounding không đáng tin ở Chromium/Electron/Qt. Đã sửa comment sai ở `engine.c`. Non-preedit Linux cần capability-gating + e2e chat app. |
+| CI-01 ký số chưa nối vào release | ⏸ CHỜ CHỨNG THƯ | Script ký có sẵn; chỉ nối được khi có cert (SignPath Foundation/Azure Trusted Signing — Giai đoạn 5). |

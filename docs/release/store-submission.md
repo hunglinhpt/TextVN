@@ -54,14 +54,22 @@ Dán **đúng chuỗi này**:
 ### 1a-bis. Trạng thái kỳ vọng của "Package validation"
 
 - ✅ **Malware check — clean** (đúng như đã thấy).
-- ✅ **Silent install check — pass** sau 0.2.17 (trước đó fail vì installer đòi
-  admin + exit 10 khi đăng ký TSF lỗi trong sandbox — B13).
-- ✅ **Entry in add or remove programs / Bundleware check — pass** sau 0.2.17:
-  installer per-user chạy được trong sandbox → entry Add/Remove (HKCU) xuất
-  hiện với DisplayName "TextVN" + Publisher "LinhBH.CoM".
-  → Khai **Publisher display name** trong Partner Center trùng `LinhBH.CoM`
-  nếu có thể, để validator đối chiếu khớp tuyệt đối.
+- ✅ **Silent install check — pass** khi: manifest exe là **asInvoker** (gate bước 0
+  của `validate-store-package.ps1`; `requireAdministrator` = validator
+  `CreateProcess` non-elevated fail 740 NGAY trước khi cài → cả 3 mục đỏ — B13e),
+  silent exit 0, không dialog ngôn ngữ (`ShowLanguageDialog=no`).
+- ✅ **Entry in add or remove programs / Bundleware check — pass** khi: đúng **1**
+  entry mới, ARP `DisplayName == "TextVN"` (AppVerName), `Publisher == "LinhBH.CoM"`,
+  có `DisplayVersion` — harness so **exact từng chữ** (B13f). Entry per-user nằm ở
+  HKCU: Programs and Features hiển thị gộp cả hai hive.
+  → Khai **Publisher display name** trong Partner Center trùng `LinhBH.CoM` và
+  **tên sản phẩm** trùng `TextVN` để validator đối chiếu khớp tuyệt đối.
 - ✅ **Code sign check — valid** (Store ký lại khi publish).
+- ⚠️ **BẪY "We did not find any changes in the Package or the Silent install
+  parameters"** (B13g): nộp lại cùng gói/cùng URL → Partner Center **không chạy
+  lại** validation, 3 mục đỏ cũ còn nguyên. Mỗi lần nộp phải là **phiên bản mới**
+  (byte mới → hash mới) và **cập nhật ô Package URL** trỏ đúng file mới trong
+  branch `approved`.
 
 ### 1b. "Installer runs in silent mode but does not require switches"
 

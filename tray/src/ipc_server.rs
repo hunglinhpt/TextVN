@@ -27,11 +27,69 @@ use windows::core::*;
 #[cfg(windows)]
 use windows::Win32::Foundation::*;
 #[cfg(windows)]
+use windows::Win32::Security::Authorization::{
+    ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
+};
+#[cfg(windows)]
+use windows::Win32::Security::{
+    GetTokenInformation, TokenUser, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY,
+    TOKEN_USER,
+};
+#[cfg(windows)]
 use windows::Win32::Storage::FileSystem::*;
 #[cfg(windows)]
 use windows::Win32::System::Pipes::*;
+#[cfg(windows)]
+use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
+
+/// SEC-05 (audit 2026-10-04): SECURITY_ATTRIBUTES cho named pipe với DACL chỉ
+/// cấp quyền cho user hiện tại — pipe không DACL là mở cho MỌI user cùng máy
+/// (kể cả phiên RDP khác) đọc ConfigReload/StateUpdate và gửi Shutdown giả.
+/// Trả None khi API lỗi (rơi về DACL mặc định — pipe vẫn chạy, chỉ kém chặt).
+#[cfg(windows)]
+fn current_user_pipe_security() -> Option<(SECURITY_ATTRIBUTES, PSECURITY_DESCRIPTOR)> {
+    // SAFETY: mọi handle do API cấp được đóng trong hàm; SD trả cho caller
+    // LocalFree SAU khi CreateNamedPipeW đã sao chép descriptor vào kernel.
+    unsafe {
+        let mut token = HANDLE::default();
+        OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).ok()?;
+        // Buffer căn 8 byte (u64) — TOKEN_USER chứa con trỏ, deref trên mảng
+        // u8 sẽ panic "misaligned pointer dereference" (test bắt được).
+        let mut buf = [0u64; 128];
+        let mut ret = 0u32;
+        let queried = GetTokenInformation(
+            token,
+            TokenUser,
+            Some(buf.as_mut_ptr() as *mut _),
+            std::mem::size_of_val(&buf) as u32,
+            &mut ret,
+        );
+        let _ = CloseHandle(token);
+        queried.ok()?;
+        let user = &*(buf.as_ptr() as *const TOKEN_USER);
+        let mut sid_str = PWSTR::null();
+        ConvertSidToStringSidW(user.User.Sid, &mut sid_str).ok()?;
+        let sid = sid_str.to_string().ok();
+        let _ = LocalFree(Some(HLOCAL(sid_str.0 as *mut _)));
+        let sid = sid?;
+        // GA = GENERIC_ALL cho user hiện tại; thêm SYSTEM + Administrators như
+        // quy ước object của Windows (không mở cho Users/NETWORK).
+        let sddl = HSTRING::from(format!("D:(A;;GA;;;{sid})(A;;GA;;;SY)(A;;GA;;;BA)"));
+        let mut sd = PSECURITY_DESCRIPTOR::default();
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(&sddl, SDDL_REVISION_1, &mut sd, None)
+            .ok()?;
+        Some((
+            SECURITY_ATTRIBUTES {
+                nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+                lpSecurityDescriptor: sd.0,
+                bInheritHandle: FALSE,
+            },
+            sd,
+        ))
+    }
+}
 
 /// Ghi frame tới toàn bộ subscriber đang Subscribe. Xóa subscriber ghi lỗi
 /// (client chết / pipe vỡ) khỏi danh sách.
@@ -347,6 +405,13 @@ impl IpcServer {
         let pipe_name_wide: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
 
         while self.running.load(Ordering::Acquire) {
+            // SEC-05 (audit 2026-10-04): pipe KHÔNG có DACL = mọi user đăng nhập
+            // (kể cả phiên RDP khác) đọc/ghi được → nghe lén ConfigReload hoặc
+            // gửi Shutdown/ToggleViEn giả. Tạo SECURITY_ATTRIBUTES chỉ cho user
+            // hiện tại (+SYSTEM/Administrators như quy ước Windows).
+            // SAFETY: descriptor được kernel sao chép khi tạo pipe; LocalFree
+            // ngay sau lời gọi (không giữ con trỏ).
+            let security = current_user_pipe_security();
             // SAFETY: Tạo named pipe instance
             let handle = unsafe {
                 CreateNamedPipeW(
@@ -358,9 +423,16 @@ impl IpcServer {
                     MAX_FRAME_BYTES as u32,
                     MAX_FRAME_BYTES as u32,
                     0,
-                    None,
+                    security
+                        .as_ref()
+                        .map(|(sa, _)| sa as *const SECURITY_ATTRIBUTES),
                 )
             };
+            if let Some((_, sd)) = security {
+                // SAFETY: SD do ConvertStringSecurityDescriptorToSecurityDescriptorW
+                // cấp, giải phóng đúng một lần bằng LocalFree.
+                let _ = unsafe { LocalFree(Some(HLOCAL(sd.0))) };
+            }
 
             if handle.is_invalid() {
                 std::thread::sleep(Duration::from_millis(50));
