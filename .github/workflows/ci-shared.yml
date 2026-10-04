@@ -273,6 +273,13 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Mo phong DUNG flow Microsoft Store validator: download tu raw URL cua
+      # branch approved (MOTW tu dong gan) -> chay silent -> check 3 muc.
+      - name: Simulate Store validator (download + MOTW + silent + ARP + bundleware)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # MSIX la asset BAT BUOC cua moi release (0.2.17+): build ngay o day de
       # bat loi som moi commit thay vi doi den luc tag (release.yml cung build).
       - name: Build MSIX (bat buoc cho release)
