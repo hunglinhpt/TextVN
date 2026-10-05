@@ -116,9 +116,19 @@ https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setu
 SHA-256: 9fc767744fc772550d02a4857ac270959245a38cc2a1d3867d676c88e3d7ba9a
 ```
 
-Cùng publisher đúng, cài vào Program Files + HKLM. PASS = validator đọc HKLM →
-dùng bản máy cho mọi lần nộp sau. Vẫn đỏ = sandbox chạy NON-elevated (bản máy
-cần elevation) hoặc chặn mức hệ thống → đường EXE hết phương án, chuyển bước 3.
+Cùng publisher đúng, cài vào Program Files + HKLM. **QUYẾT ĐỊNH CHỦ REPO
+(2026-10-05): bản máy là bản Store CHÍNH THỨC từ 0.2.23** — hướng dẫn của
+Microsoft KHÔNG cấm admin: tài liệu manual-package-validation ghi nguyên văn
+*"Note — UAC (User Account Control) prompts are allowed"*. Khác biệt then chốt
+với 0.2.18 đã thất bại: 0.2.18 dùng manifest `requireAdministrator` →
+`CreateProcess` non-elevated của validator fail 740 TRƯỚC khi cài; bản máy hiện
+tại giữ manifest `asInvoker` (do `PrivilegesRequiredOverridesAllowed`) và để
+Inno tự relaunch elevated — VM có UAC "never notify" hoặc đã elevated thì cài
+thông suốt, đúng kịch bản "UAC allowed" của tài liệu. PASS = dùng bản máy cho
+mọi lần nộp sau (và hợp B7: machine-wide TSF là luồng gõ tin cậy nhất Win11
+24H2). Vẫn đỏ = sandbox không cho elevation bằng bất kỳ cách nào → đường EXE
+hết phương án, chuyển bước 3. Người dùng tải ngoài Store vẫn nhận bản per-user
+(không UAC); **bản portable giữ nguyên** (zip, không ARP).
 
 **Bước 3 — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
 cả 3 check):** Windows publisher ID của tài khoản đã có:
