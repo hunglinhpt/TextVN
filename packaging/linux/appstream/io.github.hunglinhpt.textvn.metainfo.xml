@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.24" date="2026-10-05">
+      <description>
+        <p>Line-level installer review round: the Add/Remove Programs entry now includes DisplayIcon (UninstallDisplayIcon) so the entry is fully standard, the setup executable's FileVersion string is filled in (VersionInfoTextVersion) instead of blank, and SetupLogging writes an install log to %TEMP% as the only retrievable evidence if the Store validator fails again. Per the repository owner's decision the machine-install (all-users, HKLM) build is the official Store submission; the portable zip is unchanged.</p>
+      </description>
+    </release>
     <release version="0.2.23" date="2026-10-05">
       <description>
         <p>Microsoft Store identity fix (round 7): the account owner located the real Publisher display name in account settings and set it to "LinhBH.CoM" - the exact string the installer wrote all along in 0.2.16-0.2.20, meaning those earlier failures were caused by install mode (admin/740, exit 10) and the resubmission cache trap, never by the string; 0.2.21-0.2.22 had guessed a different publisher and were wrong. Lesson B18 extended: the publisher display name lives in a less obvious account page and must be verified by code point dump at the source before any identifier is trusted.</p>

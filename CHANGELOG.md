@@ -7,6 +7,23 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.24] — 2026-10-05
+
+### Fixed (Windows) — hoàn thiện nốt entry ARP + metadata (rà dòng lần 3) + chốt bản máy cho Store
+- **`UninstallDisplayIcon`**: entry ARP trước đây **thiếu value `DisplayIcon`** —
+  checker/icon của Programs and Features nhìn vào sẽ thấy entry không hoàn
+  chỉnh. Đã verify end-to-end bằng probe: `DisplayIcon` giờ xuất hiện đúng
+  đường dẫn exe.
+- **`VersionInfoTextVersion`**: chuỗi `FileVersion` của setup.exe trước đây
+  **TRỐNG** (chỉ có số nội bộ) — metadata file giờ đầy đủ `0.2.24` ở cả 2 biến
+  thể (verify bằng Get-Item VersionInfo).
+- **`SetupLogging=yes`**: log cài đặt ghi vào %TEMP% — nếu validation vẫn fail,
+  log trên VM của Microsoft là bằng chứng duy nhất ta có thể yêu cầu qua ticket.
+- **Chốt theo quyết định chủ repo**: bản **machine (admin/all-users, HKLM) là
+  bản Store chính thức** — MS doc cho phép UAC ("UAC prompts are allowed");
+  portable giữ nguyên; GitHub users vẫn nhận bản per-user.
+- 0.2.24 = gói mới cho lần nộp kế tiếp (B13g).
+
 ## [0.2.23] — 2026-10-05
 
 ### Fixed (Windows) — Publisher display name THẬT là `LinhBH.CoM` (chủ tài khoản tìm đúng trang trong account và tự sửa)
@@ -907,7 +924,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...HEAD
+[0.2.24]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...v0.2.24
 [0.2.23]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...v0.2.23
 [0.2.22]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...v0.2.22
 [0.2.21]: https://github.com/hunglinhpt/TextVN/compare/v0.2.20...v0.2.21

@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.23"
+  #define MyAppVersion "0.2.24"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
@@ -46,6 +46,18 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+; Vòng 11 (rà từng dòng lần 3) — 3 khe hở còn lại phía gói, đóng hết:
+; 1) UninstallDisplayIcon: trước đây entry ARP THIẾU value `DisplayIcon` —
+;    checker nào tra DisplayIcon (icon trong Programs and Features) sẽ thấy
+;    entry "không hoàn chỉnh". Giờ trỏ vào exe chính.
+UninstallDisplayIcon={app}\{#MyAppExeName}
+; 2) VersionInfoTextVersion: trước đây chuỗi FileVersion của setup.exe TRỐNG
+;    (chỉ có số) — checker đọc metadata file sẽ thấy FileVersion rỗng. Giờ đầy đủ.
+VersionInfoTextVersion={#MyAppVersion}
+; 3) SetupLogging: ghi log cài đặt vào %TEMP% — nếu validation lại fail và chủ
+;    repo mở ticket với Microsoft, log trên VM của họ là bằng chứng duy nhất
+;    ta có thể yêu cầu. Không ảnh hưởng thời gian cài (file text vài chục KB).
+SetupLogging=yes
 ; Icon wizard cài đặt/uninstaller (trước đây dùng icon mặc định của Inno Setup)
 SetupIconFile=..\..\tray\resources\textvn.ico
 DefaultDirName={autopf}\{#MyAppName}

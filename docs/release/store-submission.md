@@ -109,12 +109,17 @@ từng chữ (CI chứng minh trên chính file nộp) mà vẫn đỏ 3 mục �
 đã cạn; nguyên nhân nằm ngoài tầm ảnh hưởng của gói (validator đọc HKLM /
 chạy dưới account khác / sandbox non-elevated / SmartScreen chặn exe chưa ký).
 
-**Bước 2 — machine 0.2.23 (ARP ở HKLM) — THẺ EXE CUỐI CÙNG, nộp ngay:**
+**Bước 2 — machine 0.2.24 (ARP ở HKLM) — THẺ EXE CUỐI CÙNG, nộp ngay:**
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64-machine.exe
-SHA-256: 9fc767744fc772550d02a4857ac270959245a38cc2a1d3867d676c88e3d7ba9a
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.24/TextVN-setup-0.2.24-windows-x64-machine.exe
+SHA-256: 739a5c7b06b2634d43a0ea86a4ccf1d66a6c6585ed02c6173effbbbe8cfa5acb
 ```
+
+0.2.24 hoàn thiện nốt 3 khe hở phía gói mà rà dòng lần 3 tìm ra: entry ARP giờ
+có **`DisplayIcon`** (trước đây thiếu — verify bằng probe), metadata setup exe
+đầy đủ **FileVersion** (trước đây trống), và **SetupLogging** ghi log vào
+%TEMP% của VM validator — bằng chứng duy nhất có thể yêu cầu nếu fail lần nữa.
 
 Cùng publisher đúng, cài vào Program Files + HKLM. **QUYẾT ĐỊNH CHỦ REPO
 (2026-10-05): bản máy là bản Store CHÍNH THỨC từ 0.2.23** — hướng dẫn của
