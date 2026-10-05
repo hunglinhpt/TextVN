@@ -1,5 +1,29 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.24 — đóng nốt 3 khe hở cấp dòng (rà lần 3) + bản máy là bản Store
+
+Rà từng dòng lần 3 theo yêu cầu chủ repo tìm ra 3 khe hở THẬT phía gói mà các
+lần trước bỏ lỡ — tất cả đều là thứ một checker có thể soi:
+
+| Khe hở | Trước đây | Sau 0.2.24 | Verify |
+|---|---|---|---|
+| Entry ARP thiếu `DisplayIcon` | không set `UninstallDisplayIcon` | trỏ `{app}\TextVN.exe` | probe end-to-end: `DisplayIcon` xuất hiện đúng trong ARP |
+| Chuỗi `FileVersion` của setup.exe TRỐNG | chỉ có số nội bộ | `VersionInfoTextVersion` → `0.2.24` | Get-Item VersionInfo cả 2 biến thể |
+| Không có log cài đặt trên VM validator | không `SetupLogging` | log %TEMP% — bằng chứng duy nhất có thể yêu cầu nếu fail tiếp | directive compile OK |
+
+Cùng lần này: **chốt theo quyết định chủ repo** — bản **machine (admin/all-users,
+HKLM) là bản Store chính thức** (MS doc: *"UAC prompts are allowed"*; khác
+0.2.18 chết vì `requireAdministrator` — bản này asInvoker + Inno tự relaunch);
+portable giữ nguyên; GitHub users vẫn nhận bản per-user.
+
+| Gate | Bằng chứng |
+|---|---|
+| `cargo xtask preflight` | PASS 22/22 (version-sync = 0.2.24) |
+| CI `ci-shared` (2c0ae91) | `PASS 2) ARP entry: 'TextVN' | 'LinhBH.CoM' | '0.2.24'` + simulate + machine-variant PASS |
+| Release v0.2.24 | 4/4 job PASS (windows đỏ 1 lần do flake typing test B5 — rerun xanh) |
+| Nguồn tải Store | `approved/v0.2.24/TextVN-setup-0.2.24-windows-x64-machine.exe` — 200/0 redirect/byte-identical `aa31b2d5…b53` |
+
+## Vòng 10 — rà soát TỪNG DÒNG .iss + build options (yêu cầu chủ repo): không có option nào sai
 ## Vòng 10 — rà soát TỪNG DÒNG .iss + build options (yêu cầu chủ repo): không có option nào sai
 
 Bằng chứng lấy THẬT trên máy chủ repo (2026-10-05), không suy đoán:
