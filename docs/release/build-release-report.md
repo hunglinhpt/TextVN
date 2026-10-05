@@ -1,5 +1,31 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.23 — Publisher display name THẬT = `LinhBH.CoM` (vòng 8, chấm dứt chuỗi đoán)
+
+Chủ tài khoản tìm ĐÚNG trang trong account settings và **tự sửa** Publisher
+display name thành `LinhBH.CoM` (2026-10-05). Điều này giải thích trọn 7 vòng:
+
+| Vòng | Chuỗi ARP | Kết quả Store | Nguyên nhân thất bại thật |
+|---|---|---|---|
+| 0.2.16 | `LinhBH.CoM` | Đỏ 3 mục | exit 10 khi đăng ký TSF trong sandbox (admin) |
+| 0.2.17 | `LinhBH.CoM` | Đỏ 3 mục | per-user đầu tiên nhưng thiếu pure-copy silent |
+| 0.2.18 | `LinhBH.CoM` | Đỏ 3 mục | admin/`requireAdministrator` → 740 trong VM |
+| 0.2.19 | `LinhBH.CoM` | "no changes" | bẫy B13g — nộp lại URL cũ, không revalidate |
+| 0.2.20 | `LinhBH.CoM` | (không nộp — chuẩn bị MSIX/VT fix) | — |
+| 0.2.21 | `Linh βùi` | Đỏ 3 mục | chuỗi SAI (nhầm font B↔β) |
+| 0.2.22 | `Linh Bui` | Đỏ 3 mục | chuỗi SAI (suy đoán từ lần đọc sai thứ hai) |
+| **0.2.23** | **`LinhBH.CoM`** | **chờ nộp** | chuỗi đúng + gói mới + không elevation |
+
+| Gate | Bằng chứng |
+|---|---|
+| `cargo xtask preflight` | PASS 22/22 (version-sync = 0.2.23) |
+| Build local cả 2 biến thể | `LinhBH.CoM` utf16 ×1; `Linh Bui`/β = 0 |
+| CI `ci-shared` (984c347) | `PASS 2) ARP entry: 'TextVN' | 'LinhBH.CoM' | '0.2.23'` + simulate `PASS B2 … Publisher='LinhBH.CoM'` + machine-variant PASS (job đỏ 1 lần do flake tray — B5, rerun xanh) |
+| Release v0.2.23 | 4/4 job PASS, 9 asset |
+| Repo VARIABLES | `STORE_APP_NAME=TextVN`, `STORE_PUBLISHER_NAME=LinhBH.CoM` |
+| Nguồn tải | `approved/v0.2.23/` — 200/0 redirect/byte-identical: per-user `81b7c3d4…9575`, machine `9fc76774…7ba9a` |
+
+## Bản 0.2.22 — ROOT CAUSE chốt: ARP Publisher = `Linh Bui` (B18)
 ## Bản 0.2.22 — ROOT CAUSE chốt: ARP Publisher = `Linh Bui` (B18)
 
 Chủ tài khoản xác nhận **lần 2**: Publisher display name = `Linh Bui` (ASCII).
