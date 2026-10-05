@@ -47,7 +47,7 @@ $ErrorActionPreference = 'Stop'
 # nham font: "B" (U+0042) nhin nhu beta U+03B2 -> 0.2.21 ghi "Linh <beta>ui" va
 # van do 3 muc (chuoi CHUA TUNG dung o bat ky vong nao: 0.2.16-0.2.20 la
 # "LinhBH.CoM"). Doi bang -ExpectPublisher/STORE_PUBLISHER_NAME khi can.
-if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh Bui' }
+if (-not $ExpectPublisher) { $ExpectPublisher = 'LinhBH.CoM' }
 if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
 if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
 

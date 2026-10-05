@@ -16,18 +16,22 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.22"
+  #define MyAppVersion "0.2.23"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
-; Center. Lich su 6 vong (B13f/STO-03/B18):
-;   0.2.16-0.2.20: "LinhBH.CoM" (nhan hieu)  -> LECH
-;   0.2.21:        "Linh βùi" (beta U+03B2 — doc nham font chu B cua "Bui")
-;                  -> LECH (chinh day la nguyen nhan that cua 3 muc do)
-;   0.2.22:        "Linh Bui" (ASCII thuan, chu tai khoan xac nhan lan 2)
-;                  -> DUNG. Bai hoc B18: xac dinh dinh danh bang codepoint dump
-;                  tu nguon su that, khong tin hien thi font.
+; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
+; trong account va CHINH SUA ngay tai do 2026-10-05:
+;   0.2.16-0.2.20: "LinhBH.CoM"  -> chuoi DUNG, nhung cac vong do thua vi ly do
+;                  khac (0.2.16 exit 10, 0.2.18 admin=740, 0.2.19 bay B13g
+;                  "no changes") — khong phai vi chuoi sai
+;   0.2.21:        "Linh βùi"    -> SAI (doc nham font: B U+0042 nhu β U+03B2)
+;   0.2.22:        "Linh Bui"    -> SAI (suy dien tu lan doc sai thu hai)
+;   0.2.23:        "LinhBH.CoM"  -> DUNG, xac nhan tu nguon su that
+; Bai hoc B18 them: gia tri Publisher display name nam o trang KHAC voi nhung
+; gi hien o overview/certificate — phai vao Account settings -> Publisher info
+; va dump codepoint truoc khi tin bat ky chuoi nao.
 #ifndef MyAppPublisher
-  #define MyAppPublisher "Linh Bui"
+  #define MyAppPublisher "LinhBH.CoM"
 #endif
 #define MyAppURL "https://github.com/hunglinhpt/TextVN"
 #define MyAppExeName "TextVN.exe"

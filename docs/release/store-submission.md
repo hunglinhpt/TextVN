@@ -59,12 +59,20 @@ Dán **đúng chuỗi này**:
 
 ### 1a-bis. Trạng thái kỳ vọng của "Package validation"
 
-**Chuỗi định danh CHỐT (chủ tài khoản xác nhận LẦN 2, 2026-10-04 — B18):**
+**Chuỗi định danh CHỐT (2026-10-05 — chủ tài khoản tìm ĐÚNG trang trong account
+và TỰ SỬA Publisher display name thành `LinhBH.CoM`):**
 
 | Trường | Giá trị ĐÚNG | Ghi vào installer |
 |---|---|---|
 | Tên sản phẩm đã reserve (Product name) | `TextVN` | ARP `DisplayName` = `TextVN` (`AppVerName`) — **khớp ✓** |
-| Publisher display name | **`Linh Bui`** (ASCII thuần; lần đầu đọc nhầm font: `B` U+0042 nhìn như `β` U+03B2) | ARP `Publisher` = `Linh Bui` (`AppPublisher`) — **từ 0.2.22** |
+| Publisher display name | **`LinhBH.CoM`** (nguồn sự thật, chủ tài khoản chỉnh trong account settings) | ARP `Publisher` = `LinhBH.CoM` (`AppPublisher`) — **từ 0.2.23; 0.2.16–0.2.20 đã từng đúng** |
+
+**Lịch sử 7 vòng giải thích trọn**: 0.2.16–0.2.20 chuỗi đã đúng nhưng thua vì
+lý do khác (0.2.16 exit 10; 0.2.18 admin/740; 0.2.19 bẫy B13g "no changes" —
+nộp lại URL cũ nên không revalidate); 0.2.21 `Linh βùi` và 0.2.22 `Linh Bui`
+là hai lần đọc/suy đoán sai từ nguồn không phải trang Publisher info. Bài học
+B18 bổ sung: giá trị nằm ở một trang riêng trong account — vào đúng trang đó,
+dump codepoint, rồi mới tin.
 
 - ✅ **Malware check — clean** (đúng như đã thấy).
 - ✅ **Silent install check — pass** khi: manifest exe là **asInvoker** (gate bước 0
@@ -72,11 +80,10 @@ Dán **đúng chuỗi này**:
   `CreateProcess` non-elevated fail 740 NGAY trước khi cài → cả 3 mục đỏ — B13e),
   silent exit 0, không dialog ngôn ngữ (`ShowLanguageDialog=no`).
 - ✅ **Entry in add or remove programs / Bundleware check — pass** khi: đúng **1**
-  entry mới, ARP `DisplayName == "TextVN"` (AppVerName), `Publisher == "Linh Bui"`,
+  entry mới, ARP `DisplayName == "TextVN"` (AppVerName), `Publisher == "LinhBH.CoM"`,
   có `DisplayVersion` — harness so **exact từng chữ** (B13f/STO-03) và in
   codepoint khi lệch. Entry per-user nằm ở HKCU: Programs and Features hiển thị
-  gộp cả hai hive. **Lịch sử 6 vòng đỏ giải thích được**: chuỗi publisher chưa
-  bao giờ đúng (`LinhBH.CoM` → `Linh βùi` nhầm font) cho tới 0.2.22.
+  gộp cả hai hive. Xem §1a-ter cho lịch sử 7 vòng và kế hoạch nộp có thứ tự.
 - ✅ **Code sign check — valid** (Store ký lại khi publish).
 - ⚠️ **BẪY "We did not find any changes in the Package or the Silent install
   parameters"** (B13g): nộp lại cùng gói/cùng URL → Partner Center **không chạy
@@ -84,33 +91,32 @@ Dán **đúng chuỗi này**:
   (byte mới → hash mới) và **cập nhật ô Package URL** trỏ đúng file mới trong
   branch `approved`.
 
-### 1a-ter. Nếu Store VẪN báo 3 mục đỏ sau 0.2.21 — ma trận quyết định (vòng 5)
+### 1a-ter. Lịch sử 7 vòng + kế hoạch nộp có thứ tự
 
-**Sự kiện vòng 5 (2026-10-04):** 0.2.21 đã có ARP `Publisher == "Linh βùi"` đúng
-chuỗi mà nó khai báo, và Store vẫn đỏ 3 mục. **Vòng 7 giải mã**: chuỗi khai báo
-sai so với Partner Center — `β` là **nhầm font** của chữ `B`; publisher đúng là
-**`Linh Bui`**. Chuỗi publisher trong ARP vì vậy **chưa bao giờ khớp** ở mọi
-lần nộp (0.2.16-0.2.20 `LinhBH.CoM`, 0.2.21 `Linh βùi`) — đây là nguyên nhân
-đơn giản nhất giải thích cả 6 vòng. Hai nghi vấn phụ (HKCU vô hình; sandbox
-non-elevated) trở thành **kế hoạch dự phòng có thứ tự**, không còn là giả thuyết
-chính.
+**Kết cục vòng 5–7 (2026-10-04/05):** 0.2.21 (`Linh βùi`) và 0.2.22 (`Linh Bui`)
+đều là chuỗi đoán sai — chủ tài khoản sau đó tìm đúng trang trong account và
+**tự sửa Publisher display name thành `LinhBH.CoM`** (giá trị mà 0.2.16–0.2.20
+vẫn ghi đúng; các vòng đó thua vì exit 10 / admin=740 / bẫy B13g). Không còn
+nghi vấn nào về chuỗi định danh; hai nghi vấn phụ (HKCU vô hình; sandbox
+non-elevated) là **kế hoạch dự phòng có thứ tự** dưới đây.
 
 **Kế hoạch nộp có thứ tự (mỗi bước chỉ nộp khi bước trước đã đỏ THẬT — đã được
 revalidate, không phải trạng thái cũ):**
 
-**Bước 1 — per-user 0.2.22 với publisher đúng `Linh Bui`** (ít rủi ro nhất):
+**Bước 1 — per-user 0.2.23 (publisher đúng `LinhBH.CoM`, ít rủi ro nhất):**
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.22/TextVN-setup-0.2.22-windows-x64.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64.exe
 ```
 
-Kiểm đúng giả thuyết "chuỗi sai là nguyên nhân duy nhất" — validator có thể đọc
-HKCU của chính phiên cài. PASS → xong, dùng bản per-user cho mọi lần nộp sau.
+Kiểm giả thuyết "0.2.19 chỉ thua vì bẫy B13g, chuỗi thì đúng" — lần này là gói
+MỚI (byte mới) nên revalidation chạy thật. PASS → xong, dùng bản per-user cho
+mọi lần nộp sau.
 
-**Bước 2 (nếu bước 1 vẫn đỏ) — machine 0.2.22 (ARP ở HKLM):**
+**Bước 2 (nếu bước 1 vẫn đỏ) — machine 0.2.23 (ARP ở HKLM):**
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.22/TextVN-setup-0.2.22-windows-x64-machine.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64-machine.exe
 ```
 
 Cùng publisher đúng, cài vào Program Files + HKLM. PASS = validator đọc HKLM →
@@ -133,7 +139,7 @@ powershell -File tools\win\build-msix.ps1 `
 có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name).
 
 **Đối chiếu giá trị thật trên CI**: repo VARIABLES đã đặt — `STORE_APP_NAME=
-TextVN`, `STORE_PUBLISHER_NAME=Linh Bui` → mọi bước validate của CI so ARP với
+TextVN`, `STORE_PUBLISHER_NAME=LinhBH.CoM` → mọi bước validate của CI so ARP với
 đúng 2 chuỗi này mỗi commit. Đổi giá trị khi Partner Center đổi (chủ tài khoản
 thực hiện `gh variable set` hoặc Settings → Secrets and variables → Variables).
 

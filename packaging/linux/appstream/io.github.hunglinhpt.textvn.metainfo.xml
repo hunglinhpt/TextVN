@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.23" date="2026-10-05">
+      <description>
+        <p>Microsoft Store identity fix (round 7): the account owner located the real Publisher display name in account settings and set it to "LinhBH.CoM" - the exact string the installer wrote all along in 0.2.16-0.2.20, meaning those earlier failures were caused by install mode (admin/740, exit 10) and the resubmission cache trap, never by the string; 0.2.21-0.2.22 had guessed a different publisher and were wrong. Lesson B18 extended: the publisher display name lives in a less obvious account page and must be verified by code point dump at the source before any identifier is trusted.</p>
+      </description>
+    </release>
     <release version="0.2.22" date="2026-10-04">
       <description>
         <p>Microsoft Store root-cause fix: the Add/Remove Programs publisher is now "Linh Bui" (pure ASCII), matching the Partner Center publisher display name character-for-character. The previous attempts never matched (brand name "LinhBH.CoM", then "Linh Bi" with a Greek beta U+03B2 that was a font misread of Latin B), which is what the validator compares - lesson B18: verify identifiers by code point dump from the source of truth, never by font appearance. The machine-install variant is now a standard release asset, built and HKLM-validated by the release workflow.</p>

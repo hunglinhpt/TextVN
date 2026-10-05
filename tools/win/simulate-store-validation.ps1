@@ -14,10 +14,10 @@
 #
 # ASCII-only (G7/A5).
 param(
-    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.22/TextVN-setup-0.2.22-windows-x64.exe",
+    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64.exe",
     [string]$ExpectName = "TextVN",
     [string]$ExpectPublisher = "",
-    [string]$ExpectVersion = "0.2.22",
+    [string]$ExpectVersion = "0.2.23",
     [string]$Switches = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 )
 $ErrorActionPreference = 'Stop'
@@ -25,7 +25,7 @@ $ErrorActionPreference = 'Stop'
 # Publisher display name THAT tren Partner Center (chu tai khoan xac nhan lan 2,
 # 2026-10-04 sau B18): "Linh Bui" - ASCII thuan (lan truoc doc nham font: B U+0042
 # nhin nhu beta U+03B2). Doi bang -ExpectPublisher/STORE_PUBLISHER_NAME khi can.
-if (-not $ExpectPublisher) { $ExpectPublisher = 'Linh Bui' }
+if (-not $ExpectPublisher) { $ExpectPublisher = 'LinhBH.CoM' }
 if ($env:STORE_PUBLISHER_NAME) { $ExpectPublisher = $env:STORE_PUBLISHER_NAME }
 if ($env:STORE_APP_NAME) { $ExpectName = $env:STORE_APP_NAME }
 

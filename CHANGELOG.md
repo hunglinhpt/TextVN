@@ -7,6 +7,25 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.23] — 2026-10-05
+
+### Fixed (Windows) — Publisher display name THẬT là `LinhBH.CoM` (chủ tài khoản tìm đúng trang trong account và tự sửa)
+- Kết thúc chuỗi đoán định danh: **Publisher display name = `LinhBH.CoM`** —
+  chủ tài khoản tìm vào account settings (trang khác với nơi hay xem) và
+  **chỉnh sửa trực tiếp** thành giá trị này.
+- Giải thích trọn lịch sử: 0.2.16–0.2.20 đã ghi **đúng** `LinhBH.CoM` — các
+  vòng đó thua vì lý do khác (0.2.16 exit 10; 0.2.18 admin/740; 0.2.19 bẫy
+  B13g "no changes" — nộp lại URL cũ nên không revalidate). 0.2.21 (`Linh βùi`)
+  và 0.2.22 (`Linh Bui`) là hai lần **đọc/suy đoán sai** từ nguồn không phải
+  trang publisher info.
+- ARP `Publisher` = `LinhBH.CoM`; `DisplayName` = `TextVN` (khớp ✓).
+- **B18 bổ sung**: Publisher display name nằm ở trang riêng trong account —
+  phải vào đúng trang đó và dump codepoint trước khi tin bất kỳ chuỗi nào.
+  Repo VARIABLES cập nhật theo: `STORE_PUBLISHER_NAME=LinhBH.CoM`
+  (CI đối chiếu giá trị thật mỗi commit).
+- 0.2.23 = gói MỚI cho lần nộp kế tiếp (B13g); kèm machine variant là release
+  asset chính thức (từ 0.2.22).
+
 ## [0.2.22] — 2026-10-04
 
 ### Fixed (Windows) — ROOT CAUSE thật của 6 vòng đỏ: publisher phải là "Linh Bui" (B18)
@@ -888,7 +907,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...HEAD
+[0.2.23]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...v0.2.23
 [0.2.22]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...v0.2.22
 [0.2.21]: https://github.com/hunglinhpt/TextVN/compare/v0.2.20...v0.2.21
 [0.2.20]: https://github.com/hunglinhpt/TextVN/compare/v0.2.19...v0.2.20
