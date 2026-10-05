@@ -7,6 +7,27 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.25] — 2026-10-05
+
+### Added (Windows) — MSIX đúng chuẩn: bootstrap stage-out (vòng 12 audit)
+- **Vấn đề thật của MSIX trước đây**: tray chạy từ `C:\Program Files  WindowsApps\<Package>_<version>_…` tự đăng ký TSF **trỏ vào DLL trong
+  package** — (a) thư mục package chứa version và bị XOÁ sau mỗi lần Store
+  update → đăng ký COM/CTF treo lơ lửng → mất gõ cho tới khi mở lại app;
+  (b) ghi registry của tiến trình đóng gói có thể bị registry virtualization
+  điều hướng vào hive riêng → đăng ký vô hình với Notepad/explorer.
+- **Giải pháp**: exe trong package giờ chỉ làm một việc — stage toàn bộ payload
+  (tray, CLI, TSF DLL, resources, data) ra `%LOCALAPPDATA%\Programs\TextVN`
+  rồi spawn bản staged và thoát. Bản staged chạy **non-packaged** → dùng lại
+  nguyên vẹn cơ chế portable (tự đăng ký TSF, UAC phạm vi máy B7, Run key, IPC).
+  File bị khoá khi re-stage xử lý bằng rename-then-copy (B8).
+- **Payload MSIX thiếu `resources/` + `data/`** từ trước — đã bổ sung (tray
+  staged cần icon + appdb mặc định).
+- 4 unit test mới cho bootstrap (nhận diện package, stage đủ file/dir, ghi đè
+  khi stage lại, không relaunch ngoài WindowsApps).
+- Đo thật trên máy: tiến trình thường **đọc được** file trong WindowsApps
+  (READ OK) — loại trừ nghi ngờ ACL; nguyên nhân còn lại là update-fragility
+  + virtualization → bootstrap xử lý cả hai.
+
 ## [0.2.24] — 2026-10-05
 
 ### Fixed (Windows) — hoàn thiện nốt entry ARP + metadata (rà dòng lần 3) + chốt bản máy cho Store
@@ -924,7 +945,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.25...HEAD
+[0.2.25]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...v0.2.25
 [0.2.24]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...v0.2.24
 [0.2.23]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...v0.2.23
 [0.2.22]: https://github.com/hunglinhpt/TextVN/compare/v0.2.21...v0.2.22

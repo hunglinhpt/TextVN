@@ -17,6 +17,8 @@ pub mod hotkey;
 pub mod icons;
 pub mod ipc_server;
 pub mod menu;
+#[cfg(windows)]
+pub mod package_bootstrap;
 pub mod settings;
 pub mod settings_dialog;
 pub mod svc;

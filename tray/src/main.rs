@@ -691,6 +691,16 @@ fn spawn_activate_profile() {
 
 #[cfg(windows)]
 fn run_tray_app() {
+    // MSIX bootstrap (vòng 12 audit): exe chạy từ WindowsApps (bản Store) chỉ
+    // làm một việc — stage payload ra %LOCALAPPDATA%\Programs\TextVN rồi spawn
+    // bản staged và THOÁT, trước khi tạo single-instance mutex. Bản staged chạy
+    // non-packaged nên đăng ký TSF/Run key IPC dùng lại nguyên vẹn cơ chế
+    // portable (tránh registry virtualization + đường dẫn package đổi sau mỗi
+    // lần Store update). --stop/--status không đi qua đây (đọc pipe toàn cục).
+    if textvn_tray::package_bootstrap::bootstrap_relaunch_from_package() {
+        return;
+    }
+
     // 1. Single Instance Check qua Mutex
     let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
     let mutex_handle = unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };

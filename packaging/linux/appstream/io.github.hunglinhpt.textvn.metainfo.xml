@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.25" date="2026-10-05">
+      <description>
+        <p>MSIX readiness (round 12 audit): the Store package now works as a true distribution channel. When the app runs from the WindowsApps package folder it stages its full payload (tray, CLI, TSF DLL, resources, data) to a stable per-user location and relaunches non-packaged, so TSF registration survives every Store update (the package folder name changes on each update and the old one is deleted, which used to leave the COM/CTF registration dangling) and is immune to packaged-app registry virtualization. The MSIX payload now also includes resources and data. Locked files during re-staging are handled with the rename-then-copy technique.</p>
+      </description>
+    </release>
     <release version="0.2.24" date="2026-10-05">
       <description>
         <p>Line-level installer review round: the Add/Remove Programs entry now includes DisplayIcon (UninstallDisplayIcon) so the entry is fully standard, the setup executable's FileVersion string is filled in (VersionInfoTextVersion) instead of blank, and SetupLogging writes an install log to %TEMP% as the only retrievable evidence if the Store validator fails again. Per the repository owner's decision the machine-install (all-users, HKLM) build is the official Store submission; the portable zip is unchanged.</p>

@@ -22,7 +22,7 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.24](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.24)**
+Bản mới nhất: **[GitHub Release v0.2.25](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.25)**
 (0.2.14 — **UI thống nhất 3 nền tảng** (cùng nhãn/thứ tự/nút, có test CI đối
 chiếu) + **sửa DPI theo từng màn hình** (hết cắt chữ ở scaling cao) + icon
 V/E cùng hệ màu; **"Từ điển EN..." có trên cả Windows, macOS, Linux** (bạn tự

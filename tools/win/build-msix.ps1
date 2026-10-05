@@ -102,6 +102,12 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'Assets') | Out-Null
 Copy-Item (Join-Path $TargetDir 'TextVN.exe') $stage
 Copy-Item (Join-Path $TargetDir 'textvn-cli.exe') $stage
 Copy-Item $dll (Join-Path $stage 'textvn-tsf.dll')
+# Vong 12 audit MSIX: tray staged (bootstrap stage-out) can resources (icon)
+# + data (appdb.default.json) - truoc day payload thieu, tray staged thieu icon.
+foreach ($pair in @(@('tray\resources', 'resources'), @('data', 'data'))) {
+    $srcDir = $pair[0]; $dstName = $pair[1]
+    if (Test-Path $srcDir) { Copy-Item $srcDir (Join-Path $stage $dstName) -Recurse -Force }
+}
 # Icon .ico: uu tien trong ZIP release (resources\textvn.ico) roi toi repo (tray\resources).
 $ico = $null
 foreach ($cand in @((Join-Path $TargetDir 'resources\textvn.ico'), 'tray\resources\textvn.ico')) {
