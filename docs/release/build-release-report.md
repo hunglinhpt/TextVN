@@ -1,5 +1,35 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Vòng 12 + bản 0.2.25 — audit MSIX lần đầu soi kỹ: 2 lỗi kiến trúc, đã fix triệt để
+
+Rà từng dòng pipeline MSIX (chưa từng upload nên chưa từng bị soi) tìm ra 2 lỗi
+sẽ làm MSIX thành "vô dụng dù cài được":
+
+| # | Lỗi | Hậu quả nếu không fix |
+|---|---|---|
+| 1 | Tray chạy từ `WindowsApps\<Package>_<version>_…` tự đăng ký TSF **trỏ vào DLL trong package** — thư mục chứa version, bị XOÁ sau mỗi lần Store update; cộng rủi ro registry virtualization (ghi COM/CTF từ tiến trình đóng gói vào hive riêng, vô hình với Notepad/explorer) | Mất gõ ngay sau lần update đầu (đăng ký treo lơ lửng); có thể vô hình hoàn toàn |
+| 2 | Payload MSIX **thiếu `resources/` + `data/`** (gồm `data/tables/*.toml` engine đọc từ đĩa) | Tray staged thiếu icon; engine hỏng khi load table |
+
+**Fix (bootstrap stage-out — pattern "kênh phân phối" đã định hướng từ 0.2.17,
+giờ thành code thật):** exe trong package chỉ làm một việc — stage toàn bộ
+payload (tray, CLI, TSF DLL, resources, data) ra `%LOCALAPPDATA%\ProgramsTextVN` rồi spawn bản staged và thoát, TRƯỚC khi tạo single-instance mutex.
+Bản staged chạy **non-packaged** → dùng lại nguyên vẹn cơ chế portable đã chứng
+minh (tự đăng ký TSF, UAC machine B7, Run key, IPC). File bị khoá khi re-stage
+→ rename-then-copy (B8). 4 unit test mới. Đo thật: tiến trình thường đọc được
+file trong WindowsApps (READ OK — loại trừ nghi ngờ ACL; nguyên nhân thật là
+update-fragility + virtualization).
+
+| Gate | Bằng chứng |
+|---|---|
+| Unit test bootstrap | 4/4 PASS (nhận diện WindowsApps, stage đủ file/dir, ghi đè, không relaunch ngoài package) — 42/42 test tray |
+| Unpack MSIX 0.2.25 | `resources/` ×3 + `data/` ×12 + manifest Version 0.2.25.0; identity placeholder (cảnh báo in to khi build) |
+| `cargo xtask preflight` | PASS 22/22 (version-sync = 0.2.25) |
+| Release v0.2.25 | 4/4 job PASS, 9 asset; approved byte-identical: MSIX `a077131e…5088`, machine exe `98c993db…be57` |
+
+Còn thiếu duy nhất để nộp MSIX: `Package/Identity/Name` — khi có:
+`build-msix.ps1 -Publisher "CN=1A703CAB-…" -IdentityName "<Name>"`.
+
+## Vòng 11 + bản 0.2.24 — đóng nốt 3 khe hở cấp dòng (rà lần 3) + bản máy là bản Store
 ## Bản 0.2.24 — đóng nốt 3 khe hở cấp dòng (rà lần 3) + bản máy là bản Store
 
 Rà từng dòng lần 3 theo yêu cầu chủ repo tìm ra 3 khe hở THẬT phía gói mà các
