@@ -1,5 +1,16 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Vòng 9 (2026-10-05) — 0.2.23 vẫn đỏ: EXE per-user cạn, leo thang machine → MSIX
+
+0.2.23 per-user (chuỗi `TextVN`/`LinhBH.CoM` ĐÚNG từ nguồn sự thật — chủ tài
+khoản đã tự sửa trong account) vẫn đỏ 3 mục. Ghi mã **B19**: gói EXE per-user
+đã cạn mọi biến số kiểm soát được; các nguyên nhân còn lại (validator đọc
+HKLM / account khác / sandbox non-elevated / SmartScreen với exe chưa ký) đều
+không sửa được từ phía gói. Kế hoạch: nộp **machine 0.2.23** (thẻ EXE cuối,
+đã publish sẵn) → nếu đỏ, **MSIX** là đường duy nhất còn lại (đã có Publisher
+`CN=1A703CAB-…`, chỉ chờ `Package/Identity/Name`).
+
+## Bản 0.2.23 — Publisher display name THẬT = `LinhBH.CoM` (vòng 8, chấm dứt chuỗi đoán)
 ## Bản 0.2.23 — Publisher display name THẬT = `LinhBH.CoM` (vòng 8, chấm dứt chuỗi đoán)
 
 Chủ tài khoản tìm ĐÚNG trang trong account settings và **tự sửa** Publisher

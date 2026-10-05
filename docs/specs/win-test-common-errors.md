@@ -51,6 +51,8 @@
 
 | B18 | Nghi ngờ ARP `Publisher` lệch 1 ký tự với Partner Center: "Linh **β**ùi" (beta Hy Lạp U+03B2) vs "Linh **B**ùi" (Latin B hoa U+0042) — nhìn gần như GIỐNG NHAU ở nhiều font (italic/serif), audit vòng 6 cho rằng tên pháp lý không thể chứa β | Nếu Partner Center thực lưu U+0042 mà installer ghi U+03B2 → so từng chữ MISMATCH 100% → đúng lỗi "could not identify the app name and the publisher name". Người đọc màn hình không phân biệt được hai chuỗi này bằng mắt | **Tin codepoint dump từ nguồn sự thật, không tin mắt**: mở PowerShell, dán chuỗi copy từ Partner Center (Account settings → Publisher info) vào `$s = ''` rồi chạy `($s.ToCharArray() \| ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '`. Đối chiếu output với chuỗi trong `.iss` (cùng lệnh). Hệ thống đã sẵn sàng: repo VARIABLES `STORE_APP_NAME`/`STORE_PUBLISHER_NAME` → CI đối chiếu ARP với giá trị thật (harness dựng expected bằng `[char]`, in codepoint khi lệch); `.iss` nhận `/DMyAppPublisher="..."` để rebuild 1 lệnh |
 
+| B19 | 0.2.23 per-user với định danh **đúng từ nguồn sự thật** (`TextVN` / `LinhBH.CoM` — chủ tài khoản đã sửa trong account) vẫn đỏ 3 mục trên Store (vòng 9, 2026-10-05) | Gói EXE per-user đã cạn mọi thứ kiểm soát được: silent chuẩn (exit 0 ~1s, CI chứng minh trên chính file nộp), ARP đúng từng chữ, đúng 1 entry, gỡ sạch. Thất bại nằm ở môi trường validator: đọc HKLM / chạy dưới account khác / sandbox non-elevated / SmartScreen chặn exe chưa ký — không cái nào sửa được từ phía gói EXE | Đừng đốt thêm vòng per-user. Leo thang có thứ tự: (1) machine variant (`-machine.exe`, ARP ở HKLM — thẻ EXE cuối); (2) MSIX — bỏ qua cả 3 check, chỉ cần Package/Identity/Name + Windows publisher ID `CN=1A703CAB-…` |
+
 ## C. UIA & ứng dụng test
 
 | # | Lỗi | Triệu chứng | Cách đúng |

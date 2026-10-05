@@ -103,31 +103,28 @@ non-elevated) là **kế hoạch dự phòng có thứ tự** dưới đây.
 **Kế hoạch nộp có thứ tự (mỗi bước chỉ nộp khi bước trước đã đỏ THẬT — đã được
 revalidate, không phải trạng thái cũ):**
 
-**Bước 1 — per-user 0.2.23 (publisher đúng `LinhBH.CoM`, ít rủi ro nhất):**
+**Bước 1 — per-user 0.2.23 (publisher đúng `LinhBH.CoM`):** ❌ **ĐÃ ĐỎ (vòng 9,
+2026-10-05) — xem B19.** Định danh đúng nguồn-sự-thật, silent chuẩn, ARP đúng
+từng chữ (CI chứng minh trên chính file nộp) mà vẫn đỏ 3 mục ⇒ EXE per-user
+đã cạn; nguyên nhân nằm ngoài tầm ảnh hưởng của gói (validator đọc HKLM /
+chạy dưới account khác / sandbox non-elevated / SmartScreen chặn exe chưa ký).
 
-```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64.exe
-```
-
-Kiểm giả thuyết "0.2.19 chỉ thua vì bẫy B13g, chuỗi thì đúng" — lần này là gói
-MỚI (byte mới) nên revalidation chạy thật. PASS → xong, dùng bản per-user cho
-mọi lần nộp sau.
-
-**Bước 2 (nếu bước 1 vẫn đỏ) — machine 0.2.23 (ARP ở HKLM):**
+**Bước 2 — machine 0.2.23 (ARP ở HKLM) — THẺ EXE CUỐI CÙNG, nộp ngay:**
 
 ```
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.23/TextVN-setup-0.2.23-windows-x64-machine.exe
+SHA-256: 9fc767744fc772550d02a4857ac270959245a38cc2a1d3867d676c88e3d7ba9a
 ```
 
 Cùng publisher đúng, cài vào Program Files + HKLM. PASS = validator đọc HKLM →
 dùng bản máy cho mọi lần nộp sau. Vẫn đỏ = sandbox chạy NON-elevated (bản máy
-cần elevation) → đường EXE hết phương án, chuyển bước 3.
+cần elevation) hoặc chặn mức hệ thống → đường EXE hết phương án, chuyển bước 3.
 
 **Bước 3 — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
 cả 3 check):** Windows publisher ID của tài khoản đã có:
 `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` (dùng cho `Identity@Publisher`).
-Còn thiếu DUY NHẤT `Package/Identity/Name` (trang Product identity của từng sản
-phẩm). Khi có Name:
+Còn thiếu DUY NHẤT `Package/Identity/Name` — nằm trên CÙNG trang Product
+identity nơi đã thấy Windows publisher ID. Khi có Name:
 
 ```powershell
 powershell -File tools\win\build-msix.ps1 `
@@ -136,7 +133,9 @@ powershell -File tools\win\build-msix.ps1 `
 ```
 
 → upload `.msix` TRỰC TIẾP (không dùng Package URL). Cảnh báo placeholder đã
-có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name).
+có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name). Lưu ý:
+nếu trang Product identity của sản phẩm hiện tại KHÔNG có `Package/Identity/
+Name`, sản phẩm đang là loại EXE-only → tạo sản phẩm mới loại MSIX (§2c).
 
 **Đối chiếu giá trị thật trên CI**: repo VARIABLES đã đặt — `STORE_APP_NAME=
 TextVN`, `STORE_PUBLISHER_NAME=LinhBH.CoM` → mọi bước validate của CI so ARP với
