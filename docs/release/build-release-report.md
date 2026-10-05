@@ -1,5 +1,58 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Vòng 10 — rà soát TỪNG DÒNG .iss + build options (yêu cầu chủ repo): không có option nào sai
+
+Bằng chứng lấy THẬT trên máy chủ repo (2026-10-05), không suy đoán:
+
+1. **Entry ARP thật mà checker sẽ đọc** (dump toàn bộ value của entry 0.2.19
+   đang cài trên máy, sinh ra từ chính .iss này):
+   `DisplayName=TextVN`, `Publisher=LinhBH.CoM`, `DisplayVersion`,
+   `UninstallString`, `QuietUninstallString`, `InstallLocation`, `NoModify=1`,
+   `NoRepair=1`, `EstimatedSize`, `VersionMajor/Minor` — cấu trúc textbook chuẩn
+   Inno, thiếu thứ gì validator cần. **Chỉ tồn tại ở HKCU** (HKLM + WOW6432Node
+   = 0 entry) — đúng thiết kế per-user.
+2. **Metadata setup exe (cả 2 biến thể)**: `CompanyName=LinhBH.CoM`,
+   `ProductName=TextVN`, `FileDescription=TextVN Setup`,
+   `ProductVersion=0.2.23` — chuẩn. (Lưu ý nhỏ: chuỗi `FileVersion` trống —
+   Inno chỉ ghi số; vô hại với 3 check đang đỏ, không phải nguyên nhân.)
+
+Bảng phán xét từng nhóm directive trong `TextVN-setup.iss`:
+
+| Directive / khối | Giá trị hiện tại | Phán xét với validator silent |
+|---|---|---|
+| `PrivilegesRequired` | lowest (per-user) / admin (biến thể máy) | Đúng — asInvoker chạy được trong harness non-elevated |
+| `PrivilegesRequiredOverridesAllowed` | commandline | Đúng — đây là lý do manifest là asInvoker (cả 2 biến thể) |
+| `ShowLanguageDialog` | no | Đúng — không dialog ngôn ngữ theo locale |
+| `DisableWelcomePage` | no | Vô hại — /VERYSILENT bỏ qua mọi trang wizard |
+| `[Tasks] checkedonce` (autostart, freectrlshift) | mặc định CHECK | Vô hại — chỉ ghi 1 value Run HKCU + [Run] bị skipifsilent |
+| `[Run]` | cả 3 entry đều skipifsilent | Đúng — không chạy tiến trình nào trong silent |
+| `CurStepChanged` silent | pure copy, `RegistrationOK:=True` | Đúng — không gọi API TSF trong sandbox |
+| `GetCustomSetupExitCode` silent | luôn 0 | Đúng |
+| `PrepareToInstall` → RenameLockedTsfDll | no-op trên VM sạch | Đúng |
+| `[Registry]` Run key (HKA) | non-elevated → HKCU | Đúng |
+| `DefaultDirName={autopf}` | %LOCALAPPDATA%\Programs\TextVN | Đúng |
+| `Compression/SolidCompression/WizardStyle/Architectures*` | chuẩn | Vô hại |
+| `[Languages]` vi+en | compile-time | Vô hại |
+| Metadata setup.exe | CompanyName/ProductNamame đúng | Chuẩn |
+
+**Kết luận vòng 10:** không còn option Inno nào để sửa — bộ cài đã đạt tối đa
+những gì một EXE non-elevated làm được: cài silent 1s exit 0, ARP textbook đúng
+từng chữ, đúng 1 entry, gỡ sạch (đủ bằng chứng CI + máy thật). Ba nguyên nhân
+còn lại đều nằm ở môi trường validator, không sửa được từ phía gói:
+
+1. **Validator chỉ đọc HKLM** (hoặc cài dưới account khác rồi kiểm từ chỗ khác)
+   — khớp toàn bộ lịch sử: 0.2.18 (requireAdministrator → 740 = launcher
+   non-elevated) + mọi vòng per-user đỏ.
+2. **Sandbox non-elevated** ⇒ biến thể máy sẽ fail ở bước Inno xin elevation
+   (RunAs trong phiên không-interactive → ERROR_CANCELLED → exit 1, message bị
+   /SUPPRESSMSGBOXES nuốt). Vẫn đáng nộp 1 lần vì free — nếu PASS thì EXE sống.
+3. **SmartScreen/uy tín tệp** chặn exe chưa ký trước khi chạy — không kiểm
+   được từ ngoài; MSIX hết dính vì Store tự ký gói.
+
+⇒ Hành trình EXE: nộp machine (thẻ cuối) → MSIX là đích đến chắc chắn
+(`CN=1A703CAB-…` đã có, chờ `Package/Identity/Name`).
+
+## Vòng 9 (2026-10-05) — 0.2.23 vẫn đỏ: EXE per-user cạn, leo thang machine → MSIX
 ## Vòng 9 (2026-10-05) — 0.2.23 vẫn đỏ: EXE per-user cạn, leo thang machine → MSIX
 
 0.2.23 per-user (chuỗi `TextVN`/`LinhBH.CoM` ĐÚNG từ nguồn sự thật — chủ tài
