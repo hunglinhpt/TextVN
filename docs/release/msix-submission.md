@@ -1,5 +1,25 @@
 # Nộp TextVN lên Microsoft Store — đường MSIX (khi gói .exe bị từ chối)
 
+## 0. Trạng thái sẵn sàng (0.2.25 — vòng 12 audit)
+
+Bản 0.2.25 đã sửa 2 lỗi kiến trúc khiến MSIX trước đây KHÔNG dùng được làm
+bộ gõ, kể cả khi identity đúng:
+
+1. **Đăng ký TSF trỏ vào DLL trong package**: thư mục `WindowsApps\<Package>_
+   <version>_…` chứa version và bị XOÁ sau mỗi lần Store update → đăng ký
+   COM/CTF treo lơ lửng. Cộng rủi ro registry virtualization (ghi COM/CTF từ
+   tiến trình đóng gói có thể vào hive riêng của package — vô hình với
+   Notepad/explorer). **Đã sửa (bootstrap stage-out)**: exe trong package giờ
+   stage toàn bộ payload ra `%LOCALAPPDATA%\Programs\TextVN` rồi spawn bản
+   staged (non-packaged) — đăng ký/Run key/IPC dùng nguyên vẹn cơ chế portable.
+2. **Payload thiếu `resources/` + `data/`** (gồm `data/tables/*.toml` mà engine
+   đọc từ đĩa) — đã bổ sung; verify bằng unpack: 3 icon + 12 file data.
+
+Còn thiếu DUY NHẤT để upload: `Package/Identity/Name` (bước 1 dưới đây).
+File MSIX hiện hành trên `approved/v0.2.25/` vẫn là **identity placeholder** —
+cảnh báo placeholder sẽ in to khi build.
+
+
 > Dùng đường này khi gói `.exe` bị Store từ chối ở Package validation (3 mục
 > Silent install / ARP / Bundleware). Gói MSIX **bypass toàn bộ 3 check đó** vì
 > MSIX có cơ chế cài đặt và identity riêng của Windows — không cần silent
