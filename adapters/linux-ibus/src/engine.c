@@ -29,6 +29,7 @@ static gboolean        s_vi_enabled = TRUE;
 static gboolean        s_state_loaded = FALSE;
 static lc_config_state s_state_watch;
 static lc_ipc_client  *s_ipc = NULL;
+static uint32_t       s_global_seq_seen = 0; /* BUG-03: seq "*" da tieu thu */
 
 #define PROP_MODE  "TextVN.InputMode"
 #define PROP_SETUP "TextVN.Setup"
@@ -110,6 +111,20 @@ static void toggle_vietnamese(TextVNIbusEngine *self) {
 }
 
 /* Bảng cài đặt vừa đổi state.json → theo ngay (một stat mỗi lần gọi). */
+/* Vong 13 (BUG-03): tieu thu broadcast toan cuc "*" cua tray — ap dung dung
+ * MOT lan moi su kien (so sanh seq, khong sticky de tranh xung dot voi kenh
+ * state.json). Poll chi chay tai init/focus, khong tren duong phim. */
+static void consume_global_ipc(void) {
+    if (!s_ipc) return;
+    lc_ipc_client_poll(s_ipc);
+    int g = 0;
+    uint32_t seq = 0;
+    if (lc_ipc_client_get_global_override(s_ipc, &g, &seq) && seq != s_global_seq_seen) {
+        s_global_seq_seen = seq;
+        s_vi_enabled = g ? TRUE : FALSE;
+    }
+}
+
 static void sync_state(TextVNIbusEngine *self) {
     if (!s_state_loaded) {
         s_vi_enabled = lc_state_read_enabled(NULL, 1) ? TRUE : FALSE;
@@ -170,6 +185,7 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
     lc_config_sync(self->inst, &self->config, NULL);
     push_context(self, 1);
     if (!s_ipc) s_ipc = lc_ipc_client_new("ibus", NULL);
+    consume_global_ipc();
     if (!s_state_loaded) {
         s_vi_enabled = lc_state_read_enabled(NULL, 1) ? TRUE : FALSE;
         s_state_loaded = TRUE;
@@ -219,6 +235,7 @@ static void engine_focus_in(IBusEngine *engine) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
     lc_config_sync(self->inst, &self->config, NULL);
     sync_state(self);
+    consume_global_ipc();
     int app_enabled = 1;
     if (s_ipc && lc_ipc_client_get_app_override(s_ipc, &app_enabled)) {
         s_vi_enabled = app_enabled != 0;

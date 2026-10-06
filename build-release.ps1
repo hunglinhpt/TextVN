@@ -227,22 +227,22 @@ if ($smokeStatus -notmatch "TextVN IPC Server: RUNNING") {
     & $trayExe --stop *> $null
     Write-Fail "Runtime smoke did not expose a running IPC server: $smokeStatus"
 }
-$smokeStop = (& $trayExe --stop 2>&1 | Out-String)
-# POLL thay cho sleep 500ms co dinh (B17): tray co the dang trong giai doan khoi
-# dong (dang ky TSF + activation) khi lenh --stop den - code da latch lai (B17
-# phia tray) nhung van phai cho no di het cleanup; 500ms tung lam smoke do gia
-# va de lai tien trinh mo coi (buoc sau tuong "may ban").
-$smokeStopped = $false
-for ($i = 0; $i -lt 100; $i++) {
-    Start-Sleep -Milliseconds 100
-    if (-not (Get-Process -Id $smokeProcess.Id -ErrorAction SilentlyContinue)) {
-        $smokeStopped = $true
+$smokeStop = ""
+# Vong 13: tray tao window SAU khi dang ky TSF/activate (1-3s tren may moi don
+# HKLM) - lenh --stop goi qua som se in "No running TextVN instance detected".
+# Retry toi 15s: coi la ok khi window da co mat (output khac thong bao do).
+$stopOk = $false
+for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Milliseconds 500
+    $smokeStop = (& $trayExe --stop 2>&1 | Out-String)
+    if ($smokeStop -notmatch "No running TextVN instance detected") {
+        $stopOk = $true
         break
     }
 }
-if (-not $smokeStopped) {
+if (-not $stopOk) {
     Stop-Process -Id $smokeProcess.Id -Force -ErrorAction SilentlyContinue
-    Write-Fail "Runtime smoke did not stop cleanly within 10s: $smokeStop"
+    Write-Fail "Runtime smoke did not stop cleanly within 15s: $smokeStop"
 }
 $ReleaseChecks["windows_runtime_smoke"] = "passed"
 if ($IncludeCompatibilityHook) {

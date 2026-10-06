@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.25"
+  #define MyAppVersion "0.2.26"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
@@ -215,8 +215,22 @@ begin
   end;
 end;
 
+var
+  WaitIdx: Integer;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+  // Vong 13: neu mot uninstaller Inno van dang chay (no copy minh ra %TEMP%
+  // va tiep tuc xoa file {app} SAU khi tien trinh goc thoat — B16) thi cho
+  // toi da 10s truoc khi cai. Cai ngay sau khi go thi delete-in-flight dua
+  // nhau voi [Files] → silent cancel → exit 2 (repro 2026-10-05).
+  for WaitIdx := 0 to 19 do
+  begin
+    if FindWindowByClassName('TUninstallProgressForm') = 0 then
+      Break;
+    Log('Waiting for a running Inno uninstaller to finish...');
+    Sleep(500);
+  end;
   RenameLockedTsfDll();
   Result := '';
 end;

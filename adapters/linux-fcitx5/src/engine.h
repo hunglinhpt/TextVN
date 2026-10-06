@@ -68,6 +68,8 @@ private:
     void toggleVietnamese(TextVNState *st);
     void setVietnamese(TextVNState *st, bool on, bool persist);
     void syncState(TextVNState *st);
+    /* Vong 13 (BUG-03): poll IPC + tieu thu broadcast toan cuc "*" cua tray. */
+    void consumeGlobalIpc();
     void updateModeAction(fcitx::InputContext *ic);
     /* `key` = phím đã chuẩn hoá (chữ hoa theo Shift/Caps Lock); `rawStates` = trạng thái
      * gốc — Key::normalize() của Fcitx5 bỏ bit CapsLock nên phải lấy từ rawKey(). */
@@ -78,6 +80,8 @@ private:
     lc_ipc_client *ipc_ = nullptr;
     /* VN/EN chung cho mọi input context, lưu ở state.json (như tray Windows). */
     bool viEnabled_ = true;
+    /* Vong 13: seq broadcast "*" da tieu thu (event-based, khong sticky). */
+    uint32_t globalSeqSeen_ = 0;
     lc_config_state stateWatch_{};
     fcitx::FactoryFor<TextVNState> factory_;
     std::unique_ptr<fcitx::SimpleAction> modeAction_;

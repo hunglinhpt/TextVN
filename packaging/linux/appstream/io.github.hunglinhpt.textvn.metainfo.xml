@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.26" date="2026-10-05">
+      <description>
+        <p>Thorough uninstall (round 13): the registry dump before/after a real uninstall revealed 27 keys still referencing the TextVN TIP after removal - the CTF Assemblies "Default" value for both languages (written when TextVN became the default input method), the InputMethodOverride value, and the entire HKLM machine tree left by an earlier machine-scope registration. Unregister now removes all of them (Assemblies defaults are enumerated and deleted when they reference the TextVN CLSID; the per-user uninstall also attempts the machine cleanup best-effort), the installer no longer skips machine unregister for per-user removals, the tray treats a machine registration pointing to a missing DLL as absent so repair re-runs, and the installer test suite now scans for any leftover TIP GUID after uninstall as a hard gate. Verified live: 27 leftover paths reduced to zero after an elevated unregister.</p>
+      </description>
+    </release>
     <release version="0.2.25" date="2026-10-05">
       <description>
         <p>MSIX readiness (round 12 audit): the Store package now works as a true distribution channel. When the app runs from the WindowsApps package folder it stages its full payload (tray, CLI, TSF DLL, resources, data) to a stable per-user location and relaunches non-packaged, so TSF registration survives every Store update (the package folder name changes on each update and the old one is deleted, which used to leave the COM/CTF registration dangling) and is immune to packaged-app registry virtualization. The MSIX payload now also includes resources and data. Locked files during re-staging are handled with the rename-then-copy technique.</p>

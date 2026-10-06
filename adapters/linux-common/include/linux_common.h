@@ -131,6 +131,16 @@ int lc_ipc_client_check_config_reload(lc_ipc_client *client, uint64_t *out_versi
 int lc_ipc_client_get_app_override(const lc_ipc_client *client, int *out_enabled);
 
 /**
+ * Vong 13 (BUG-03): doc trang thai toan cuc "app_id":"*" do tray broadcast
+ * (StateUpdate va Snapshot). Returns 1 khi da nhan it nhat MOT broadcast
+ * toan cuc; *out_seq tang moi broadcast — engine so sanh voi seq tieu thu
+ * lan truoc de ap dung dung MOT lan su kien (khong sticky, tranh xung dot
+ * voi kenh state.json).
+ */
+int lc_ipc_client_get_global_override(const lc_ipc_client *client, int *out_enabled,
+                                      uint32_t *out_seq);
+
+/**
  * Send ToggleViEn request to tray.
  */
 int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int enabled);

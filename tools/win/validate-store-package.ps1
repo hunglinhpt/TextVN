@@ -122,6 +122,13 @@ if ($beforeTextVN.Count -gt 0) {
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
 $sw.Stop()
+# Vong 13: cai ngay sau mot uninstall (unins000.exe con xoa file {app} trong
+# %TEMP%) co the exit 2 (silent cancel) - retry MOT lan sau 3s (B16).
+if ($p.ExitCode -ne 0) {
+    Write-Host ("WARN: silent install exit {0} - retry sau 3s (uninstaller Inno van chay trong %TEMP%, B16)" -f $p.ExitCode)
+    Start-Sleep -Seconds 3
+    $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+}
 if ($p.ExitCode -ne 0) { throw "Silent install exit code $($p.ExitCode) (can 0)" }
 if ($sw.Elapsed.TotalSeconds -gt $InstallTimeoutSec) {
     throw "Silent install mat $([int]$sw.Elapsed.TotalSeconds)s (> $InstallTimeoutSec s) - nghi co tuong tac/UAC."

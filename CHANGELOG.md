@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.26] — 2026-10-05
+
+### Fixed (Windows) — gỡ cài sạch 100% key layout (vòng 13, bắt thật + dọn live trên máy chủ repo)
+- Dump registry trước/sau khi gỡ 0.2.19 cho thấy **27 path còn chứa GUID TIP**:
+  `CTF\Assemblies\<lang>\{34745C63…}[Default]` (bộ gõ mặc định của 2 ngôn ngữ
+  — Windows tự ghi khi ActivateLanguageProfile), `InputMethodOverride`
+  (default IME override), và cả cây HKLM machine registration từ đợt self-heal
+  portable. Chọn vào Win+Space là TIP chết.
+- `unregister` giờ xoá **hết**: quét mọi ngôn ngữ trong Assemblies, xoá value
+  `Default` nếu chứa CLSID TextVN; xoá `InputMethodOverride` nếu trỏ TextVN;
+  unregister user-scope cố dọn nốt HKLM best-effort.
+- Bộ cài: bỏ `Check: IsAdminInstallMode` — gỡ per-user cũng thử dọn nốt HKLM
+  (không elevation thì fail êm, không ảnh hưởng exit code).
+- Tray: đăng ký máy trỏ file không tồn tại = ghost → coi như chưa có để repair.
+- Gate tự động: test-installer quét mọi key/value chứa GUID TIP sau uninstall
+  (HKCU + HKLM) — lệch một key là CI đỏ.
+- Verify live trên máy chủ repo: 27 path → elevated unregister → **0 path**.
+
 ## [0.2.25] — 2026-10-05
 
 ### Added (Windows) — MSIX đúng chuẩn: bootstrap stage-out (vòng 12 audit)
@@ -945,7 +963,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.25...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.26...HEAD
+[0.2.26]: https://github.com/hunglinhpt/TextVN/compare/v0.2.25...v0.2.26
 [0.2.25]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...v0.2.25
 [0.2.24]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...v0.2.24
 [0.2.23]: https://github.com/hunglinhpt/TextVN/compare/v0.2.22...v0.2.23

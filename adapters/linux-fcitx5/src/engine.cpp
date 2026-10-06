@@ -259,6 +259,20 @@ void TextVNEngine::setVietnamese(TextVNState *st, bool on, bool persist) {
     }
 }
 
+/* Vong 13 (BUG-03): tieu thu broadcast toan cuc "*" cua tray — ap dung dung
+ * MOT lan moi su kien (so sanh seq, khong sticky de tranh xung dot voi kenh
+ * state.json). Poll chi chay tai focus/activate, khong tren duong phim. */
+void TextVNEngine::consumeGlobalIpc() {
+    if (!ipc_) return;
+    lc_ipc_client_poll(ipc_);
+    int g = 0;
+    uint32_t seq = 0;
+    if (lc_ipc_client_get_global_override(ipc_, &g, &seq) && seq != globalSeqSeen_) {
+        globalSeqSeen_ = seq;
+        viEnabled_ = g != 0;
+    }
+}
+
 void TextVNEngine::toggleVietnamese(TextVNState *st) { setVietnamese(st, !viEnabled_, true); }
 
 /* Bảng cài đặt vừa đổi state.json → theo ngay (một stat mỗi lần gọi). */
@@ -284,6 +298,7 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
         if (!st) return;
         lc_config_sync(st->inst, &st->config, nullptr);
         syncState(st);
+        consumeGlobalIpc();
         int appEnabled = 1;
         if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
             viEnabled_ = appEnabled != 0;
@@ -359,6 +374,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     if (st->comp.len == 0) {
         lc_config_sync(st->inst, &st->config, nullptr);
         syncState(st);
+        consumeGlobalIpc();
     }
 
     /* B6 chord; S3 ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng → phím đi thẳng. */

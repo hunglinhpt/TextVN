@@ -53,6 +53,11 @@ struct lc_ipc_client {
     int      has_app_override;
     int      app_enabled_override;
     uint64_t last_connect_attempt_ms;
+    /* Vong 13 (BUG-03): trang thai toan cuc "app_id":"*" — moi broadcast tang
+     * seq de engine biet day la su kien MOI (event-based, khong sticky override
+     * de tranh xung dot voi kenh state.json). */
+    uint32_t global_seq;
+    int      global_enabled;
 };
 
 int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custom_path) {
@@ -205,6 +210,19 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
                 client->app_enabled_override = (strncmp(p_en, "true", 4) == 0);
             }
         }
+        /* Vong 13 (BUG-03): broadcast TOAN CUC "app_id":"*" — tray bat/tat
+         * tieng Viet cho moi engine; client cu bo qua im lang nen engine khong
+         * bao gio biet tray vua toggle. Tang seq: engine so sanh seq cua minh
+         * de tieu thu dung MOT lan su kien (schema ipc.v1.md: "*" = toan cuc). */
+        if (strstr(p_state, "\"app_id\":\"*\"")) {
+            const char *p_en = strstr(p_state, "\"enabled\":");
+            if (p_en) {
+                p_en += 10;
+                while (*p_en == ' ' || *p_en == '\t') p_en++;
+                client->global_enabled = (strncmp(p_en, "true", 4) == 0);
+                client->global_seq++;
+            }
+        }
         return;
     }
 
@@ -239,6 +257,16 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
             } else {
                 client->has_app_override = 0;
             }
+        }
+        /* Vong 13 (BUG-03): Snapshot phat hanh ket qua ket noi — doc trang thai
+         * toan cuc "*" (snapshot state map app_id -> bool) de engine ket noi
+         * sau khi user tat tieng Viet khong gõ như chua co gi. */
+        const char *p_glob = strstr(p_snap, "\"*\":");
+        if (p_glob) {
+            const char *p_val = p_glob + 4;
+            while (*p_val == ' ') p_val++;
+            client->global_enabled = (strncmp(p_val, "true", 4) == 0);
+            client->global_seq++;
         }
         return;
     }
@@ -425,6 +453,14 @@ int lc_ipc_client_get_app_override(const lc_ipc_client *client, int *out_enabled
         return 1;
     }
     return 0;
+}
+
+int lc_ipc_client_get_global_override(const lc_ipc_client *client, int *out_enabled,
+                                      uint32_t *out_seq) {
+    if (!client || client->global_seq == 0) return 0;
+    if (out_enabled) *out_enabled = client->global_enabled;
+    if (out_seq) *out_seq = client->global_seq;
+    return 1;
 }
 
 int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int enabled) {
