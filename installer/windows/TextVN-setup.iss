@@ -162,7 +162,12 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 [UninstallRun]
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden; RunOnceId: "StopTray"
 Filename: "{app}\textvn-cli.exe"; Parameters: "unregister"; Flags: runhidden; RunOnceId: "UnregisterUser"
-Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine"; Flags: runhidden; Check: IsAdminInstallMode; RunOnceId: "UnregisterMachine"
+; Vong 13: bo Check IsAdminInstallMode — may tung co dang ky may (portable
+; self-heal B7) thi go per-user cung phai don not HKLM. Khong elevation thi CLI
+; fail em (exit 1, log) - vo hai; chay elevated (go ban may, hoac chuot phai
+; "Run as administrator") thi don sach. Ghost da bat that: go 0.2.19 con sot
+; 27 path chua GUID TIP (Assemblies Default + InputMethodOverride + HKLM).
+Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine"; Flags: runhidden; RunOnceId: "UnregisterMachine"
 
 [Code]
 const

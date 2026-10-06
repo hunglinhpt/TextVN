@@ -124,6 +124,42 @@ for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $app 'TextVN.exe')); $i++) { S
 if (Test-Path (Join-Path $app 'TextVN.exe')) { throw 'TextVN.exe still present after uninstall' }
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall' }
 
+# Vong 13 (ghost uninstall): quet moi key/value con chua GUID TIP sau khi go -
+# bat that: go 0.2.19 con sot 27 path (Assemblies Default + InputMethodOverride
+# + HKLM machine tree). Cai machine chay elevated nen phai SACH ca HKLM.
+$guid = '6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8'
+function Test-TipGhost {
+    param([string[]]$Roots)
+    $hits = @()
+    foreach ($r in $Roots) {
+        if (-not (Test-Path $r)) { continue }
+        $keys = Get-ChildItem $r -Recurse -ErrorAction SilentlyContinue |
+            Where-Object { $_.PSChildName -like "*$guid*" -or $_.Name -like "*$guid*" }
+        foreach ($k in $keys) {
+            $p = Get-ItemProperty $k.PSPath -ErrorAction SilentlyContinue
+            $valHit = $p -and ($p.PSObject.Properties | Where-Object {
+                $_.Name -notlike 'PS*' -and ($_.Value -is [string]) -and ($_.Value -like "*$guid*")
+            })
+            if ($valHit) { $hits += $k.Name }
+        }
+    }
+    return $hits
+}
+$ghostUser = Test-TipGhost @(
+    'HKCU:\Software\Classes\CLSID',
+    'HKCU:\Software\Microsoft\CTF',
+    'HKCU:\Control Panel\International\User Profile'
+)
+if ($ghostUser.Count -gt 0) { throw ("ghost HKCU keys with TIP GUID left after uninstall: " + ($ghostUser -join '; ')) }
+$ghostMachine = Test-TipGhost @(
+    'HKLM:\SOFTWARE\Classes\CLSID',
+    'HKLM:\SOFTWARE\Microsoft\CTF\TIP'
+)
+if ($ghostMachine.Count -gt 0) { throw ("ghost HKLM keys with TIP GUID left after machine uninstall: " + ($ghostMachine -join '; ')) }
+$imo = (Get-ItemProperty 'HKCU:\Control Panel\International\User Profile' -ErrorAction SilentlyContinue).InputMethodOverride
+if ($imo -and $imo -like "*$guid*") { throw 'InputMethodOverride still points at TextVN TIP after uninstall' }
+Write-Host 'PASS no TIP ghost keys left after uninstall (HKCU + HKLM + InputMethodOverride)'
+
 $run = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).TextVN
 if ($run) { throw 'autostart Run key left behind' }
 if (Test-Path (Join-Path $app 'textvn-tsf.dll')) {

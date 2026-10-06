@@ -930,6 +930,77 @@ mod win_impl {
         broadcast_international();
     }
 
+    /// Liệt kê tên subkey của `path` (một mức). Lỗi mở/liệt kê → rỗng.
+    fn enum_subkeys(root: HKEY, path: &str) -> Vec<String> {
+        let subkey = wide(path);
+        let mut key = HKEY::default();
+        // SAFETY: key mở chỉ để liệt kê; đóng ngay trước khi trả về.
+        if unsafe {
+            RegOpenKeyExW(root, PCWSTR(subkey.as_ptr()), Some(0), KEY_READ, &mut key)
+        } != ERROR_SUCCESS
+        {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        let mut idx = 0u32;
+        loop {
+            let mut name = [0u16; 256];
+            let mut len = name.len() as u32;
+            // SAFETY: buffer `name`/`len` khớp; API ghi tối đa len-1 ký tự + nul.
+            let status = unsafe {
+                RegEnumKeyExW(
+                    key,
+                    idx,
+                    Some(PWSTR(name.as_mut_ptr())),
+                    &mut len,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            };
+            if status != ERROR_SUCCESS {
+                break;
+            }
+            out.push(String::from_utf16_lossy(&name[..len as usize]));
+            idx += 1;
+        }
+        let _ = unsafe { RegCloseKey(key) };
+        out
+    }
+
+    /// Vòng 13: xoá value `Default` của các assembly CTF còn trỏ vào TIP
+    /// TextVN (Windows ghi khi TextVN trở thành bộ gõ mặc định của một ngôn
+    /// ngữ — ActivateLanguageProfile). Trả số value đã xoá.
+    fn remove_ctf_assembly_defaults(root: HKEY, assemblies_path: &str) -> usize {
+        // {34745C63-B2F0-4784-8B67-5E12C8701A31} = assembly "bàn phím mặc định"
+        // của Windows; value `Default` dưới nó cho biết TIP nào là mặc định.
+        const DEFAULT_ASSEMBLY: &str = "{34745C63-B2F0-4784-8B67-5E12C8701A31}";
+        let mut removed = 0usize;
+        for lang in enum_subkeys(root, assemblies_path) {
+            let asm_key = format!("{assemblies_path}\\{lang}\\{DEFAULT_ASSEMBLY}");
+            if let Some(v) = reg_read_named(root, &asm_key, "Default") {
+                if v.contains(CLSID_INNER) && delete_reg_value(root, &asm_key, "Default") {
+                    removed += 1;
+                    say(&format!("  Đã xoá ghost Assemblies Default: {asm_key}"));
+                }
+            }
+        }
+        removed
+    }
+
+    /// Vòng 13: xoá `InputMethodOverride` khi còn trỏ TIP TextVN (Windows ghi
+    /// khi TextVN là IME override mặc định). `false` = không có/không khớp.
+    fn remove_input_method_override() -> bool {
+        let path = r"Control Panel\International\User Profile";
+        match reg_read_named(HKEY_CURRENT_USER, path, "InputMethodOverride") {
+            Some(v) if v.contains(CLSID_INNER) => {
+                delete_reg_value(HKEY_CURRENT_USER, path, "InputMethodOverride")
+            }
+            _ => false,
+        }
+    }
+
     /// Windows đã nhận profile để dùng cho một ngôn ngữ chưa. Đây là kiểm tra
     /// sau `InstallLayoutOrTip`, không chỉ là kiểm tra key registry có tồn tại.
     fn profile_is_enabled(lang: u16) -> bool {
@@ -1253,12 +1324,44 @@ mod win_impl {
         // short-circuit từng bỏ qua CTF TIP HKLM trên path lỗi (audit vòng 2).
         // Danh sách ngôn ngữ hiện đại (Win+Space): gỡ entry TIP — thiếu bước này
         // unregister để lại ghost (đã bắt thật, xem doc remove_modern_language_list).
+        //
+        // Vòng 13 (chủ repo bắt thật 2026-10-05: gỡ 0.2.19 còn sót 27 path
+        // chứa GUID TIP): hai nhóm ghost mà các vòng trước bỏ lỡ —
+        // (a) `CTF\Assemblies\<lang>\{34745C63…}` value `Default` = TIP
+        //     (Windows ghi khi TextVN thành bộ gõ mặc định của ngôn ngữ);
+        // (b) `Control Panel\International\User Profile` value
+        //     `InputMethodOverride` = `042A:{TIP}{PROFILE}`.
+        // Cả hai ở HKCU — gỡ được không cần elevation; để lại = Win+Space/
+        // default IME trỏ TIP đã xoá (chọn vào là chết).
+        let mut ghost_removed = remove_ctf_assembly_defaults(
+            HKEY_CURRENT_USER,
+            r"Software\Microsoft\CTF\Assemblies",
+        );
+        if remove_input_method_override() {
+            ghost_removed += 1;
+        }
+        if ghost_removed > 0 {
+            say(&format!(
+                "  Đã xoá {ghost_removed} value ghost (Assemblies Default / InputMethodOverride)"
+            ));
+        }
         remove_modern_language_list();
         let mut deleted = delete_tree(HKEY_CURRENT_USER, &ctf_tip_key())
             & delete_tree(HKEY_CURRENT_USER, &clsid_key());
         if scope == Scope::Machine {
             deleted &= delete_tree(HKEY_LOCAL_MACHINE, &clsid_key())
                 & delete_tree(HKEY_LOCAL_MACHINE, &ctf_tip_key());
+            let _ = remove_ctf_assembly_defaults(
+                HKEY_LOCAL_MACHINE,
+                r"SOFTWARE\Microsoft\CTF\Assemblies",
+            );
+        } else {
+            // Máy từng cài phạm vi máy (portable self-heal B7) còn cả cây HKLM:
+            // cố dọn best-effort — không admin thì FAIL bình thường và KHÔNG
+            // tính vào exit code của unregister user (ghost máy dọn khi gỡ
+            // elevated hoặc bằng `unregister --scope machine`).
+            let _ = delete_tree(HKEY_LOCAL_MACHINE, &clsid_key());
+            let _ = delete_tree(HKEY_LOCAL_MACHINE, &ctf_tip_key());
         }
         if !deleted {
             say("WARN: còn key chưa xoá được (xem dòng Registry delete phía trên) — đăng ký cũ có thể vẫn hoạt động");

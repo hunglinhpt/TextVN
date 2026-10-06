@@ -255,10 +255,21 @@ fn is_process_elevated() -> bool {
 }
 
 /// Đăng ký máy đã có chưa? (HKLM COM InprocServer32 tồn tại = bản cài/đăng ký máy.)
+///
+/// Vòng 13 (dump máy thật: gỡ 0.2.19 còn sót cả cây HKLM): đăng ký máy trỏ
+/// vào file KHÔNG còn tồn tại là ghost — coi như CHƯA có để luồng repair
+/// (per-user register / đề nghị UAC machine) chạy lại thay vì tin đăng ký
+/// chết khiến TSF nạp DLL fail.
 #[cfg(windows)]
 fn machine_registration_present() -> bool {
     let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
-    read_registry_string(HKEY_LOCAL_MACHINE, &inproc).is_some()
+    match read_registry_string(HKEY_LOCAL_MACHINE, &inproc) {
+        Some(path) => {
+            let trimmed = path.trim().trim_matches('"');
+            !trimmed.is_empty() && std::path::Path::new(trimmed).is_file()
+        }
+        None => false,
+    }
 }
 
 /// Bản portable chạy từ thư mục người dùng tự chọn (Downloads, D:\...): Windows
