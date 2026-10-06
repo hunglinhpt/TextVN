@@ -849,7 +849,10 @@ fn run_tray_app() {
     // (smoke "did not stop cleanly" trên máy mới dọn HKLM). Build/release
     // smoke vẫn chứng minh IPC lifecycle; TEXTVN_SKIP_TSF_REGISTRATION giữ
     // nguyên ý nghĩa: không đụng đăng ký TSF thật của máy dev.
-    if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
+    // Yêu cầu thoát đến sớm (--stop trong giai đoạn IPC-startup) → BỎ QUA hẳn
+    // giai đoạn chậm này để tiến trình thoát ngay (CI "tray still running").
+    let early_exit = textvn_tray::take_tray_exit_pending();
+    if !early_exit && std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
         ensure_tsf_tip_registered(svc.version_migrated());
         // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
         // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
@@ -882,7 +885,7 @@ fn run_tray_app() {
     // Yêu cầu thoát đến TRƯỚC khi cửa sổ tồn tại (--stop ngay lúc khởi động,
     // B17): chuyển thành WM_REQUEST_EXIT để đi ĐÚNG đường thoát graceful
     // (broadcast Shutdown cho Hook rồi PostQuitMessage).
-    if textvn_tray::take_tray_exit_pending() {
+    if early_exit || textvn_tray::take_tray_exit_pending() {
         unsafe {
             let _ = PostMessageW(
                 Some(hwnd),
