@@ -935,9 +935,8 @@ mod win_impl {
         let subkey = wide(path);
         let mut key = HKEY::default();
         // SAFETY: key mở chỉ để liệt kê; đóng ngay trước khi trả về.
-        if unsafe {
-            RegOpenKeyExW(root, PCWSTR(subkey.as_ptr()), Some(0), KEY_READ, &mut key)
-        } != ERROR_SUCCESS
+        if unsafe { RegOpenKeyExW(root, PCWSTR(subkey.as_ptr()), Some(0), KEY_READ, &mut key) }
+            != ERROR_SUCCESS
         {
             return Vec::new();
         }
@@ -1333,10 +1332,8 @@ mod win_impl {
         //     `InputMethodOverride` = `042A:{TIP}{PROFILE}`.
         // Cả hai ở HKCU — gỡ được không cần elevation; để lại = Win+Space/
         // default IME trỏ TIP đã xoá (chọn vào là chết).
-        let mut ghost_removed = remove_ctf_assembly_defaults(
-            HKEY_CURRENT_USER,
-            r"Software\Microsoft\CTF\Assemblies",
-        );
+        let mut ghost_removed =
+            remove_ctf_assembly_defaults(HKEY_CURRENT_USER, r"Software\Microsoft\CTF\Assemblies");
         if remove_input_method_override() {
             ghost_removed += 1;
         }
