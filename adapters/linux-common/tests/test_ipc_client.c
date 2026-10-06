@@ -2,6 +2,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+/* Vong 13: _GNU_SOURCE phai dat TRUOC moi include — struct ucred (SO_PEERCRED)
+ * trong phan .c duoc include chi ton tai khi _GNU_SOURCE. */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "linux_common.h"
 #include <stdio.h>
 #include <assert.h>
@@ -144,11 +150,11 @@ static void test_global_broadcast_state_update(void) {
     /* Client poll → tieu thu su kien. Neu 1s khong thay du lieu: in diagnostic
      * (fd/is_online/peek) roi de assert quyet dinh. */
     if (poll_until_message(client) < 1) {
-        fprintf(stderr, "DIAG online=%d fd=%d peek=", lc_ipc_client_is_online(client), client->fd);
         char peek[16] = {0};
         ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
-        fprintf(stderr, "%zd (errno=%d) '%.12s'
-", pn, pn < 0 ? errno : 0, peek);
+        fprintf(stderr, "DIAG online=%d fd=%d peek=%zd errno=%d data='%.12s'\n",
+                lc_ipc_client_is_online(client), client->fd, pn,
+                pn < 0 ? errno : 0, peek);
     }
     assert(poll_until_message(client) >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
