@@ -246,7 +246,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Inno Setup 6 (bản dịch tiếng Việt cần ≥ 6.5)

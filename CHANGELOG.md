@@ -9,6 +9,19 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [0.2.26] — 2026-10-05
 
+### Added (Windows) — hỗ trợ app 32-bit (Zalo/Office x86) — vòng 14
+- **Forensics thật trên máy chủ repo**: `Zalo.exe` là **32-bit** (PE machine
+  `0x014C`); TextVN chỉ có DLL 64-bit → tiến trình 32-bit không thể nạp
+  (ERROR_BAD_EXE_FORMAT 193) → "không gõ được tiếng Việt trên Zalo" (không
+  phải lỗi strategy/appdb). `HKCR\WOW6432Node\CLSID\{TIP}` xác nhận **trống**.
+- **Build thêm TIP DLL x86** (`i686-pc-windows-msvc`, CRT static — không cần
+  VC redist x86) + **mirror đăng ký sang view 32-bit** (WOW6432Node: COM CLSID
+  → x86 DLL, CTF TIP/profile/category) cho cả 2 scope; unregister xoá mirror.
+- Bộ cài/portable đóng gói `textvn-tsf-x86.dll`; gate WOW6432Node trong
+  test-installer + ghost gate mở rộng.
+- Zalo appdb giữ Preedit (thiết kế B2 gốc — DLL load được thì Electron xử lý
+  preedit tốt như Discord/Slack; nguyên nhân thật là kiến trúc, đã sửa).
+
 ### Fixed (Windows) — gỡ cài sạch 100% key layout (vòng 13, bắt thật + dọn live trên máy chủ repo)
 - Dump registry trước/sau khi gỡ 0.2.19 cho thấy **27 path còn chứa GUID TIP**:
   `CTF\Assemblies\<lang>\{34745C63…}[Default]` (bộ gõ mặc định của 2 ngôn ngữ

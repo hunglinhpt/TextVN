@@ -168,6 +168,24 @@ Write-Step "Build release --workspace --target $Target"
 cargo build --release @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
+# Vong 14 (Zalo 32-bit): build them TIP DLL x86 - app 32-bit (Zalo, Office x86) khong the nap DLL 64-bit (ERROR_BAD_EXE_FORMAT 193). CRT tinh (khong
+# phu thuoc VC redist x86 tren may nguoi dung).
+Write-Step "Build TIP DLL x86 (WOW64: Zalo/Office 32-bit)"
+$env:RUSTFLAGS = "-C target-feature=+crt-static"
+cargo build --release --target i686-pc-windows-msvc -p textvn-win-tsf
+if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
+Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
+$x86Dll = "target\i686-pc-windows-msvc
+elease	extvn_win_tsf.dll"
+if (-not (Test-Path $x86Dll)) { Write-Fail "x86 TIP DLL missing: $x86Dll" }
+# Gate: PE machine phai la I386 (0x014C)
+$peBytes = [System.IO.File]::ReadAllBytes($x86Dll)
+$peOff = [BitConverter]::ToInt32($peBytes, 0x3C)
+$machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
+if ($machine -ne 0x014C) { Write-Fail "x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine }
+Copy-Item $x86Dll (Join-Path $ReleaseDir "textvn-tsf-x86.dll") -Force
+Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
+
 Write-Ok "Build release DONE"
 
 # Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
@@ -268,7 +286,8 @@ New-Item -ItemType Directory -Force $ZipDir | Out-Null
 $BinFiles = @(
     @{ src = "TextVN.exe";           dst = "TextVN.exe" },
     @{ src = "textvn-cli.exe";       dst = "textvn-cli.exe" },
-    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" }
+    @{ src = "textvn_win_tsf.dll";  dst = "textvn-tsf.dll" },
+    @{ src = "textvn-tsf-x86.dll";  dst = "textvn-tsf-x86.dll" }
 )
 if ($IncludeCompatibilityHook) {
     $BinFiles += @{ src = "textvn-hook.exe"; dst = "textvn-hook.exe" }

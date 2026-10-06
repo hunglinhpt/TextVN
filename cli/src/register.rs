@@ -930,6 +930,93 @@ mod win_impl {
         broadcast_international();
     }
 
+    /// Vòng 14 (Zalo 32-bit): đường dẫn registry cho **view 32-bit (WOW64)**.
+    /// App x86 (Zalo, Office/Notepad++ 32-bit) đọc COM/CTF ở view này —
+    /// nền tảng không redirect tự động cho path ta tự ghi. Dùng prefix
+    /// `WOW6432Node` tường minh để tái dùng nguyên bộ helper set/delete.
+    fn wow_clsid_key() -> String {
+        format!("Software\\Classes\\WOW6432Node\\CLSID\\{CLSID_STR}")
+    }
+    fn wow_ctf_tip_key() -> String {
+        format!("Software\\WOW6432Node\\Microsoft\\CTF\\TIP\\{CLSID_STR}")
+    }
+    fn wow_ctf_profile_key(lang: u16) -> String {
+        format!(
+            "{}\\LanguageProfile\\0x{:08x}\\{}",
+            wow_ctf_tip_key(),
+            lang,
+            PROFILE_STR
+        )
+    }
+    fn wow_ctf_category_keys(cat: &str) -> [String; 2] {
+        let tip = wow_ctf_tip_key();
+        [
+            format!(r"{tip}\Category\Category\{cat}\{CLSID_STR}"),
+            format!(r"{tip}\Category\Item\{CLSID_STR}\{cat}"),
+        ]
+    }
+
+    /// Vòng 14: mirror đăng ký sang view 32-bit — DLL x86 (`textvn-tsf-x86.dll`
+    /// nằm cạnh DLL 64-bit) + CTF TIP/profile/category. Best-effort: gói cũ
+    /// không có DLL x86 → bỏ qua không fail.
+    fn register_wow64_mirror(dll_path: &Path, scope: Scope) -> i32 {
+        let Some(dir) = dll_path.parent() else {
+            return 0;
+        };
+        let x86 = dir.join("textvn-tsf-x86.dll");
+        if !x86.is_file() {
+            say("  WOW64 mirror: thiếu textvn-tsf-x86.dll — bỏ qua (gói cũ, app x86 không dùng được TIP)");
+            return 0;
+        }
+        let x86_s = x86.to_string_lossy().to_string();
+        let root = scope.root();
+        let clsid = wow_clsid_key();
+        let inproc = format!(r"{clsid}\InprocServer32");
+        let icon = icon_path(dll_path);
+        let mut ok = set_reg_value(root, &clsid, None, RegValue::Sz("TextVN TSF"));
+        ok &= set_reg_value(root, &inproc, None, RegValue::Sz(&x86_s));
+        ok &= set_reg_value(
+            root,
+            &inproc,
+            Some("ThreadingModel"),
+            RegValue::Sz("Apartment"),
+        );
+        for (_, lang) in REGISTER_LANGS {
+            let key = wow_ctf_profile_key(lang);
+            ok &= set_reg_value(root, &key, Some("Description"), RegValue::Sz("TextVN"));
+            ok &= set_reg_value(root, &key, Some("IconFile"), RegValue::Sz(&icon));
+            ok &= set_reg_value(root, &key, Some("IconIndex"), RegValue::Dword(0));
+            ok &= set_reg_value(root, &key, Some("Enable"), RegValue::Dword(1));
+        }
+        for cat in [
+            CAT_TIP_KEYBOARD,
+            CAT_IMMERSIVE,
+            CAT_SYSTRAY,
+            CAT_DISPLAY_ATTRIBUTE_PROVIDER,
+        ] {
+            for key in wow_ctf_category_keys(cat) {
+                ok &= set_reg_value(root, &key, None, RegValue::None);
+            }
+        }
+        say(&format!(
+            "  WOW64 mirror (app x86: Zalo/Office 32-bit) → {}",
+            if ok { "OK" } else { "FAIL" }
+        ));
+        if ok {
+            0
+        } else {
+            1
+        }
+    }
+
+    /// Vòng 14: xoá mirror 32-bitView khi gỡ (cả 2 scope — HKCU do unregister
+    /// user, HKLM do unregister machine/elevated).
+    fn unregister_wow64_mirror(scope: Scope) {
+        let root = scope.root();
+        let _ = delete_tree(root, &wow_clsid_key());
+        let _ = delete_tree(root, &wow_ctf_tip_key());
+    }
+
     /// Liệt kê tên subkey của `path` (một mức). Lỗi mở/liệt kê → rỗng.
     fn enum_subkeys(root: HKEY, path: &str) -> Vec<String> {
         let subkey = wide(path);
@@ -1261,6 +1348,16 @@ mod win_impl {
             }
         }
 
+        // Vòng 14 (Zalo 32-bit): mirror đăng ký sang view 32-bit (WOW6432Node)
+        // — Zalo PC, Office/Notepad++ x86 là tiến trình 32-bit, không thể nạp
+        // DLL 64-bit (ERROR_BAD_EXE_FORMAT 193) và COM 32-bit đọc view
+        // WOW6432Node (đo thật: view đó trống hoàn toàn). Best-effort: thiếu
+        // textvn-tsf-x86.dll (gói cũ) → bỏ qua, không fail đăng ký.
+        let mirror = register_wow64_mirror(dll_path, scope);
+        if mirror != 0 {
+            say("  WARN: mirror WOW64 chưa hoàn tất — app x86 có thể chưa thấy TIP");
+        }
+
         if no_taskbar {
             say("=== Đăng ký hoàn tất (tray-only, profile đã được kích hoạt). ===");
         } else {
@@ -1332,6 +1429,7 @@ mod win_impl {
         //     `InputMethodOverride` = `042A:{TIP}{PROFILE}`.
         // Cả hai ở HKCU — gỡ được không cần elevation; để lại = Win+Space/
         // default IME trỏ TIP đã xoá (chọn vào là chết).
+        unregister_wow64_mirror(scope);
         let mut ghost_removed =
             remove_ctf_assembly_defaults(HKEY_CURRENT_USER, r"Software\Microsoft\CTF\Assemblies");
         if remove_input_method_override() {

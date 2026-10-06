@@ -322,32 +322,58 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
 7. **Bản cập nhật**: mỗi lần phát hành 0.2.x, lặp lại bước 3–6 với installer
    mới; tham số giữ nguyên. Label submission với tên phiên bản để dễ tra.
 
-## 6. Loại gói và chứng thư số
+## 6. Loại gói, Chứng thư số & Chính sách 10.2.9 (Cập nhật v0.2.24)
 
-> Cập nhật 2026-10-02 (điều chỉnh theo thực tế Partner Center + quyết định
-> chủ repo): **Partner Center giờ chỉ nhận gói `.exe` hoặc `.msi`** (không còn
-> luồng MSIX cho loại submission này). Bộ cài Inno Setup `.exe` của TextVN
-> khớp loại này; luồng silent ở §1 là bắt buộc.
+> **Cập nhật quan trọng 2026-10-06 (Sau kết quả thẩm định v0.2.24):**  
+> Bản máy `TextVN-setup-0.2.24-windows-x64-machine.exe` đã **PASS 100% cả 3 bài test tự động** (Silent install, ARP entry, Bundleware).  
+> Hệ thống chuyển sang vòng **Policy Review** và trả về thông báo **Chính sách 10.2.9 Security - Package Submissions**:  
+> *"Package should be signed with SHA256 or higher algorithm"*.
 
-**Về chứng thư số:**
+### 6a. Bản chất Chính sách 10.2.9 đối với gói Win32 EXE
 
-- **Luồng Store**: sau khi submission được **chứng nhận (certified)**, luồng
-  phân phối của Store đảm bảo phần app được ký theo cơ chế của Microsoft —
-  chủ repo sẽ có cert/ký từ luồng này, KHÔNG cần mua chứng thư riêng để phân
-  phối qua Store. Điền mục chi phí/certificate theo hướng dẫn của Partner
-  Center tại thời điểm submit.
-- **Phân phối trực tiếp (GitHub Releases)**: bản tải trực tiếp vẫn là
-  "unsigned" → SmartScreen hiện cảnh báo "Unknown publisher" — chấp nhận cho
-  bản OSS hiện tại. Khi chủ repo đã có cert từ luồng Store (hoặc muốn bật
-  sớm), pipeline đã có sẵn 2 nhánh opt-in không cần sửa code:
-  1. **SignPath Foundation** (miễn phí cho OSS): thêm 4 secret
-     `SIGNPATH_API_TOKEN` / `SIGNPATH_ORGANIZATION_ID` / `SIGNPATH_PROJECT_KEY` /
-     `SIGNPATH_POLICY` → workflow tự ký 3 binary + bộ cài trước khi đóng gói.
-  2. **Chứng thư riêng** (nếu dùng): đặt secret
-     `SIGNTOOL_CERTIFICATE_THUMBPRINT`; `build-release.ps1 -SignCertificateThumbprint`
-     ký bằng signtool (đã hỗ trợ sẵn).
+Đối với các ứng dụng nộp dưới dạng Win32 EXE/MSI qua URL tải về:
+- Microsoft Store **KHÔNG** tự động ký số cho file EXE raw tải từ URL bên ngoài.
+- File EXE nộp lên **BẮT BUỘC PHẢI ĐÃ ĐƯỢC KÝ SỐ** bằng chứng thư Authenticode hợp lệ thuộc *Microsoft Trusted Root Program*, sử dụng thuật toán băm SHA-256 trở lên.
+- Nếu nộp file EXE chưa ký (`Unsigned`), Partner Center sẽ lập tức từ chối theo Policy 10.2.9.
 
-### Lưu ý kiểm tra sau khi có cert/ký (bắt buộc trước khi release)
-- `Get-AuthenticodeSignature <exe>` → Status = Valid.
-- Bộ cài đã ký không được đổi sau khi upload lên Partner Center (hash khớp
-  `SHA256SUMS.txt`).
+### 6b. Hai hướng xử lý chính thức
+
+```
+                           +-----------------------------------------------+
+                           |        THÔNG BÁO CHÍNH SÁCH STORE 10.2.9      |
+                           +-----------------------------------------------+
+                                    |                             |
+                                    v                             v
+             [ HƯỚNG 1: KÝ CHO EXE ]             [ HƯỚNG 2: CHUYỂN SANG MSIX ]
+             - Đăng ký SignPath Foundation       - Microsoft Store KÝ SỐ MIỄN PHÍ
+             - Hoặc dùng Azure Trusted Signing   - Host miễn phí trên CDN Store
+             - Ký SHA-256 rồi nộp lại EXE URL    - Giải phóng tên Win32 cũ -> Tạo MSIX
+```
+
+#### Hướng 1: Ký số cho file Win32 EXE (Giữ luồng EXE hiện tại)
+1. **SignPath Foundation** (Miễn phí cho Open Source):
+   - Duyệt đơn đăng ký tại [signpath.org/open-source](https://signpath.org/open-source).
+   - Thêm 4 secrets vào GitHub repo (`SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_KEY`, `SIGNPATH_POLICY`).
+   - Workflow GitHub Actions tự động ký số 3 file PE (`TextVN.exe`, `textvn-cli.exe`, `textvn-tsf.dll`) và file `TextVN-setup-...-machine.exe`.
+   - Nộp lại URL file EXE đã ký lên Partner Center.
+
+#### Hướng 2 (Khuyến nghị hàng đầu): Chuyển sang định dạng MSIX Full-Trust
+Đây là phương án được chính reviewer của Microsoft Store khuyến nghị:
+> *"Microsoft Store offers many complimentary benefits for MSIX format such as code signing, hosting etc."*
+
+- **Ưu điểm lớn nhất:** Gói `.msix` nộp lên ở trạng thái **UNSIGNED**, chính hệ thống Microsoft Store sẽ tự động ký số bằng chứng thư gốc của Microsoft khi phát hành. Không cần mua cert, không cần chờ SignPath duyệt.
+- **Lưu ý then chốt về App Name:**
+  > *"Note that you have to delete your app name from existing Win32 app in Partner Center in case you want to use the same for MSIX packaged app."*
+  - **Cách A (Dùng đúng tên `TextVN`):**
+    1. Vào sản phẩm `TextVN` Win32 hiện tại trong Partner Center $\rightarrow$ Product management $\rightarrow$ Product identity $\rightarrow$ Bấm **Delete product** để giải phóng tên `TextVN`.
+    2. Bấm **New product** $\rightarrow$ Chọn loại **MSIX or PWA application** $\rightarrow$ Đặt tên `TextVN`.
+    3. Vào trang Product identity lấy `Package/Identity/Name` và `Package/Identity/Publisher`.
+    4. Chạy `tools/win/build-msix.ps1` để tạo file `.msix`.
+    5. Tải file `.msix` trực tiếp lên submission mới $\rightarrow$ Store tự động ký và phát hành.
+  - **Cách B (Không cần xóa sản phẩm cũ):**
+    1. Tạo sản phẩm mới dạng **MSIX or PWA application** với tên hiển thị bổ sung như `TextVN - Bộ gõ tiếng Việt`.
+    2. Đóng gói MSIX và upload trực tiếp.
+
+### 6c. Kiểm tra chữ ký Authenticode cục bộ
+- `Get-AuthenticodeSignature <path-to-exe>` → Kiểm tra `Status = Valid` và thuật toán băm SHA256.
+

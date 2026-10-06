@@ -53,6 +53,8 @@
 
 | B19 | 0.2.23 per-user với định danh **đúng từ nguồn sự thật** (`TextVN` / `LinhBH.CoM` — chủ tài khoản đã sửa trong account) vẫn đỏ 3 mục trên Store (vòng 9, 2026-10-05) | Gói EXE per-user đã cạn mọi thứ kiểm soát được: silent chuẩn (exit 0 ~1s, CI chứng minh trên chính file nộp), ARP đúng từng chữ, đúng 1 entry, gỡ sạch. Thất bại nằm ở môi trường validator: đọc HKLM / chạy dưới account khác / sandbox non-elevated / SmartScreen chặn exe chưa ký — không cái nào sửa được từ phía gói EXE | Đừng đốt thêm vòng per-user. Leo thang có thứ tự: (1) machine variant (`-machine.exe`, ARP ở HKLM — thẻ EXE cuối); (2) MSIX — bỏ qua cả 3 check, chỉ cần Package/Identity/Name + Windows publisher ID `CN=1A703CAB-…` |
 
+| B20 | **Zalo PC không gõ được tiếng Việt** (báo cáo 0.2.25, 2026-10-06) — các app khác gõ bình thường | **Zalo.exe là tiến trình 32-bit** (PE machine `0x014C`, forensics trên máy thật); TextVN chỉ có TIP DLL 64-bit → WOW64 process không thể `LoadLibrary` DLL 64-bit (ERROR_BAD_EXE_FORMAT 193) → TIP vắng bóng trong Zalo. Đối chứng: module list Notepad 64-bit có `textvn-tsf.dll`, Zalo không; `HKCR\WOW6432Node\CLSID\{TIP}` trống | **Dual-DLL chuẩn industry** (như Weasel/Google IME): build thêm `textvn-tsf-x86.dll` (i686, CRT static) + mirror đăng ký COM CLSID/CTF TIP sang **view 32-bit** (`WOW6432Node`) cho cả 2 scope trong `do_register`; unregister xoá mirror. Bài học lớn hơn: **test giả lập mock `:app zalo.exe` trong tiến trình 64-bit không thay thế được test trên tiến trình 32-bit thật** — mọi khẳng định "app X chạy" phải check architecture của app đó trước |
+
 ## C. UIA & ứng dụng test
 
 | # | Lỗi | Triệu chứng | Cách đúng |

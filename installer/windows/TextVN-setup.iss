@@ -136,6 +136,9 @@ Source: "{#TargetDir}\textvn-hook.exe"; DestDir: "{app}"; Flags: ignoreversion; 
 #endif
 Source: "{#TargetDir}\textvn-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-cli.exe"
 Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf.dll"
+; Vong 14 (Zalo 32-bit): TIP DLL x86 cho app WOW64 — build-release copy vao
+; TargetDir voi ten textvn-tsf-x86.dll; register ghi mirror COM/CTF 32-bit view.
+Source: "{#TargetDir}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"
 Source: "..\..\tray\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion

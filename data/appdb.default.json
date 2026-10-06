@@ -14,7 +14,7 @@
     {"id":"win.jetbrains","match":{"any":[{"exe":"idea64.exe"},{"exe":"pycharm64.exe"},{"exe":"clion64.exe"},{"exe":"rider64.exe"}]},"when":{"field_role":"candidate"},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"tsf","enabled_default":true,"notes":"B3"},
     {"id":"win.slack","match":{"exe":"slack.exe"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true,"notes":"B2"},
     {"id":"win.discord","match":{"exe":"discord.exe"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true,"notes":"B2,B7"},
-    {"id":"win.zalo","match":{"exe":"zalo.exe"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true,"notes":"B2"},
+    {"id":"win.zalo","match":{"exe":"zalo.exe"},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true,"notes":"B2; 0.2.26: them DLL x86 + WOW6432Node (Zalo la 32-bit, truoc day khong load duoc TIP)"},
     {"id":"win.explorer","match":{"exe":"explorer.exe"},"when":{"field_role":["address_bar","search","combo"]},"strategy":"SelectionReplace","inject_mode":"vk_then_unicode","engine_owner":"tsf","enabled_default":true,"notes":"B1"},
     {"id":"win.mail","match":{"any":[{"exe":"olk.exe"},{"exe":"outlook.exe"}]},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true},
     {"id":"win.libreoffice","match":{"any":[{"exe":"soffice.exe"},{"exe":"swriter.exe"},{"exe":"scalc.exe"}]},"when":{"field_role":"body"},"strategy":"Preedit","engine_owner":"tsf","enabled_default":true,"notes":"B4"},

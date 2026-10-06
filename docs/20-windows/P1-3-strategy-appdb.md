@@ -65,7 +65,7 @@ FieldContext ◄──────┤                    field_role ← cache fi
 | 10 | `win.jetbrains` | `idea64.exe, pycharm64.exe, clion64.exe…` | candidate | SelectionReplace | vk_then_unicode | tsf | ✓ | **B3** code completion |
 | 11 | `win.slack` | `slack.exe` | body | Preedit | — | tsf | ✓ | **B2** Enter lặp từ |
 | 12 | `win.discord` | `discord.exe` | body | Preedit | — | tsf | ✓ | **B2**, Electron **B7** |
-| 13 | `win.zalo` | `zalo.exe` | body | Preedit | — | tsf | ✓ | **B2** |
+| 13 | `win.zalo` | `zalo.exe` | body | Preedit | — | tsf | ✓ | **B2**; 0.2.26: Zalo là **32-bit** — thêm DLL x86 + WOW6432Node (trước đó TIP không nạp được vào Zalo, không phải lỗi strategy) |
 | 14 | `win.explorer` | `explorer.exe` | address_bar, search, combo | SelectionReplace | vk_then_unicode | tsf | ✓ | **B1** |
 | 15 | `win.mail` | `olk.exe, outlook.exe` | body | Preedit | — | tsf | ✓ | |
 | 16 | `win.libreoffice` | `soffice.exe, swriter.exe, scalc.exe` | body | Preedit | — | tsf | ✓ | **B4** trễ |

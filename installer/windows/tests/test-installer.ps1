@@ -114,6 +114,9 @@ $layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout
 if ($layout -eq '2') { throw 'installer did not free Ctrl+Shift from the Windows layout hotkey' }
 & (Join-Path $app 'textvn-cli.exe') register status | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'TSF profile is not enabled for the installing user' }
+$wowInproc = (Get-ItemProperty 'Registry::HKEY_CLASSES_ROOT\WOW6432Node\CLSID\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}\InprocServer32' -ErrorAction SilentlyContinue).'(default)'
+if (-not $wowInproc -or $wowInproc -notlike '*textvn-tsf-x86.dll') { throw "WOW6432Node COM (32-bit view) missing or not pointing at x86 DLL (got '$wowInproc')" }
+Write-Host 'PASS WOW6432Node COM registered to textvn-tsf-x86.dll (Zalo/Office 32-bit)'
 Write-Host 'PASS silent machine install + user TSF activation (files, TSF, autostart, Ctrl+Shift for TextVN)'
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $app
@@ -147,13 +150,17 @@ function Test-TipGhost {
 }
 $ghostUser = Test-TipGhost @(
     'HKCU:\Software\Classes\CLSID',
+    'HKCU:\Software\Classes\WOW6432Node\CLSID',
     'HKCU:\Software\Microsoft\CTF',
+    'HKCU:\Software\WOW6432Node\Microsoft\CTF',
     'HKCU:\Control Panel\International\User Profile'
 )
 if ($ghostUser.Count -gt 0) { throw ("ghost HKCU keys with TIP GUID left after uninstall: " + ($ghostUser -join '; ')) }
 $ghostMachine = Test-TipGhost @(
     'HKLM:\SOFTWARE\Classes\CLSID',
-    'HKLM:\SOFTWARE\Microsoft\CTF\TIP'
+    'HKLM:\SOFTWARE\WOW6432Node\CLSID',
+    'HKLM:\SOFTWARE\Microsoft\CTF\TIP',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\CTF\TIP'
 )
 if ($ghostMachine.Count -gt 0) { throw ("ghost HKLM keys with TIP GUID left after machine uninstall: " + ($ghostMachine -join '; ')) }
 $imo = (Get-ItemProperty 'HKCU:\Control Panel\International\User Profile' -ErrorAction SilentlyContinue).InputMethodOverride

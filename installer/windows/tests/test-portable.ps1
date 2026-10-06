@@ -26,7 +26,7 @@ $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $dir = Join-Path $tempRoot ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
 try {
 Expand-Archive -Path $Zip -DestinationPath $dir
-foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')) {
+foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'install.ps1', 'uninstall.ps1', 'HUONG_DAN_SU_DUNG.txt', 'RELEASE_REPORT.json')) {
     if (-not (Test-Path (Join-Path $dir $f))) { throw "portable zip is missing $f" }
 }
 Write-Host "PASS zip layout ($dir)"
