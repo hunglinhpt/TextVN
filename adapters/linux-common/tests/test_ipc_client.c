@@ -147,16 +147,18 @@ static void test_global_broadcast_state_update(void) {
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
-    /* Client poll → tieu thu su kien. Neu 1s khong thay du lieu: in diagnostic
-     * (fd/is_online/peek) roi de assert quyet dinh. */
-    if (poll_until_message(client) < 1) {
+    /* Client poll → tieu thu su kien. GO DUNG MOT LAN (poll tieu thu frame —
+     * go lan 2 luon tra 0). Neu that bai: in diagnostic roi thu lai mot chuoi. */
+    int processed = poll_until_message(client);
+    if (processed < 1) {
         char peek[16] = {0};
         ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
         fprintf(stderr, "DIAG online=%d fd=%d peek=%zd errno=%d data='%.12s'\n",
                 lc_ipc_client_is_online(client), client->fd, pn,
                 pn < 0 ? errno : 0, peek);
+        processed = poll_until_message(client);
     }
-    assert(poll_until_message(client) >= 1);
+    assert(processed >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 1);
     assert(g == 0);
