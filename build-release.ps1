@@ -175,8 +175,7 @@ $env:RUSTFLAGS = "-C target-feature=+crt-static"
 cargo build --release --target i686-pc-windows-msvc -p textvn-win-tsf
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
-$x86Dll = "target\i686-pc-windows-msvc
-elease	extvn_win_tsf.dll"
+$x86Dll = "target/i686-pc-windows-msvc/release/textvn_win_tsf.dll"
 if (-not (Test-Path $x86Dll)) { Write-Fail "x86 TIP DLL missing: $x86Dll" }
 # Gate: PE machine phai la I386 (0x014C)
 $peBytes = [System.IO.File]::ReadAllBytes($x86Dll)

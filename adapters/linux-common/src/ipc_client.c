@@ -396,6 +396,17 @@ int lc_ipc_client_is_online(const lc_ipc_client *client) {
     return client ? client->is_online : 0;
 }
 
+/* PERF (vòng 14): cache getenv một lần — poll chạy mỗi phím, gọi getenv
+ * lặp lại trong while-loop là lãng phí. */
+static int ipc_debug_enabled(void) {
+    static int cached = -1;
+    if (cached < 0) {
+        const char *v = getenv("TEXTVN_IPC_DEBUG");
+        cached = (v && v[0] && v[0] != '0') ? 1 : 0;
+    }
+    return cached;
+}
+
 int lc_ipc_client_poll(lc_ipc_client *client) {
     if (!client) return -1;
 
@@ -419,7 +430,7 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
 
         struct timeval tv = {0, 0}; /* non-blocking poll */
         int sel = select(client->fd + 1, &read_fds, NULL, NULL, &tv);
-        if (getenv("TEXTVN_IPC_DEBUG")) {
+        if (ipc_debug_enabled()) {
             long pending = -1;
             ioctl(client->fd, FIONREAD, &pending);
             fprintf(stderr, "POLL fd=%d sel=%d pending=%ld processed=%d\n",
@@ -429,7 +440,7 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
 
         size_t len = 0;
         int rc = lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len);
-        if (getenv("TEXTVN_IPC_DEBUG")) {
+        if (ipc_debug_enabled()) {
             fprintf(stderr, "POLL rc=%d len=%zu\n", rc, len);
         }
         if (rc < 0) {
