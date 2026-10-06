@@ -169,6 +169,9 @@ static void test_global_broadcast_state_update(void) {
             processed = poll_until_message(client);
         }
         assert(processed >= 1);
+        /* Refresh seq/g SAU moi lan poll — poll la drain-style: mot lan co the
+         * tieu thu ca hai frame (go~ nham seq cu lam loop chay tren queue rong). */
+        assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
         guard++;
     }
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
