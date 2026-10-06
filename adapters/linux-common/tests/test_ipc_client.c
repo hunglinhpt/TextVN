@@ -152,33 +152,25 @@ static void test_global_broadcast_state_update(void) {
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
-    /* Poll lan 1 → frame 1 (enabled=false). GO DUNG MOT LAN (poll tieu thu
-     * frame — go lan 2 trong 1s co the gap reconnect-cooldown tra 0). */
-    int processed = poll_until_message(client);
-    if (processed < 1) {
-        char peek[16] = {0};
-        ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
-        fprintf(stderr, "DIAG online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'\n",
-                lc_ipc_client_is_online(client), client->fd, conn, pn,
-                pn < 0 ? errno : 0, peek);
-        processed = poll_until_message(client);
+    /* Poll den khi CA HAI frame da tieu thu (poll la drain-style: mot lan
+     * co the doc ca 2 frame neu ca hai da den; cung co the lan 1 frame 1,
+     * lan 2 frame 2 — khong gia dinh batching). Trang thai CUOI: seq=2,
+     * enabled=true. */
+    int guard = 0;
+    while (seq < 2 && guard < 100) {
+        int processed = poll_until_message(client);
+        if (processed < 1) {
+            char peek[16] = {0};
+            ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
+            fprintf(stderr, "DIAG loop=%d online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'
+",
+                    guard, lc_ipc_client_is_online(client), client->fd, conn, pn,
+                    pn < 0 ? errno : 0, peek);
+            processed = poll_until_message(client);
+        }
+        assert(processed >= 1);
+        guard++;
     }
-    assert(processed >= 1);
-    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
-    assert(seq == 1);
-    assert(g == 0);
-
-    /* Poll lan 2 → frame 2 (enabled=true). */
-    int processed2 = poll_until_message(client);
-    if (processed2 < 1) {
-        char peek[16] = {0};
-        ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
-        fprintf(stderr, "DIAG2 online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'\n",
-                lc_ipc_client_is_online(client), client->fd, conn, pn,
-                pn < 0 ? errno : 0, peek);
-        processed2 = poll_until_message(client);
-    }
-    assert(processed2 >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 2);
     assert(g == 1);
