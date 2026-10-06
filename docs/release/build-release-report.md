@@ -1,5 +1,24 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.26 — dual-DLL (Zalo 32-bit) + ghost uninstall + Linux BUG-03 + policy 10.2.9
+
+**Nguồn tải Partner Center (machine — bản Store chính thức):**
+`approved/v0.2.26/TextVN-setup-0.2.26-windows-x64-machine.exe`
+SHA-256 `9c7519e1…361b` (200/0 redirect/byte-identical). Lưu ý 10.2.9: gói
+**chưa ký** → xem `store-policy-10-2-9.md` (Trusted Signing hoặc MSIX).
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Zalo forensics | Zalo.exe `0x014C` (32-bit); WOW6432Node CLSID trống → TIP 64-bit không nạp được (B20) |
+| Dual-DLL | `textvn-tsf-x86.dll` i686 (I386 gate, CRT static) trong zip/installer/MSIX; mirror WOW6432Node COM+CTF cả 2 scope; unregister xoá mirror |
+| Zalo LIVE trên máy chủ repo | copy x86 DLL vào install dir + `register --dll` → WOW6432Node InprocServer32 trỏ x86 DLL (user test Zalo sau khi restart Zalo) |
+| Ghost uninstall (vòng 13) | dump 27 path → unregister mới → **0 path** (elevated); gate quét GUID trong test-installer |
+| Linux BUG-03 | IPC client nhận `"app_id":"*"` (StateUpdate+Snapshot) event-based qua seq; engine IBus/Fcitx5 poll tại init/focus/activate; recv_frame phân biệt would-block; test parser trực tiếp + socket test |
+| Tray startup | TSF/offer chuyển background thread — `--stop` thoát tức thì (hết "tray still running") |
+| CI | ci-shared + repo-hygiene + ci-macos xanh (666bd29); release 4/4 job, 9 asset |
+| Policy 10.2.9 | MS từ chối exe chưa ký → kế hoạch Trusted Signing / MSIX trong `store-policy-10-2-9.md` |
+
+## Vòng 12 + bản 0.2.25 — audit MSIX lần đầu soi kỹ: 2 lỗi kiến trúc, đã fix triệt để
 ## Vòng 12 + bản 0.2.25 — audit MSIX lần đầu soi kỹ: 2 lỗi kiến trúc, đã fix triệt để
 
 Rà từng dòng pipeline MSIX (chưa từng upload nên chưa từng bị soi) tìm ra 2 lỗi
