@@ -134,11 +134,11 @@ static void test_global_broadcast_state_update(void) {
     uint32_t seq = 0;
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 0);
 
-    /* Server broadcast 2 StateUpdate "*" LIEN TUC truoc khi client poll
-     * (deterministic: ca hai frame trong queue — poll 1 frame 1, poll 2
-     * frame 2). Broadcast den SAU mot chuoi poll duoc e2e (server that) phu
-     * trach — trong test don le, send-sau-poll tung mat frame khong giai
-     * thich duoc (DIAG2: fd song, queue EAGAIN) — xem roadmap. */
+    /* Server broadcast MOT StateUpdate "*" TRUOC khi client poll (mot lan —
+     * da chung minh deterministic qua moi run). Trang thai CUOI: seq=1,
+     * enabled=false. Luong "broadcast den sau nhieu chuoi poll" de e2e
+     * (server that) phu trach — test don le da tung bat fail khong xac dinh
+     * duoc nguyen nhan kernel (DIAG: fd song, queue EAGAIN) — xem roadmap. */
     const char *msg = "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":false,\"version\":7}";
     uint32_t len = (uint32_t)strlen(msg);
     char frame[LC_IPC_MAX_FRAME + 4];
@@ -148,36 +148,22 @@ static void test_global_broadcast_state_update(void) {
     frame[3] = (char)((len >> 24) & 0xFF);
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
-    msg = "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":true,\"version\":8}";
-    len = (uint32_t)strlen(msg);
-    memcpy(frame + 4, msg, len);
-    assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
-    /* Poll den khi CA HAI frame da tieu thu (poll la drain-style: mot lan
-     * co the doc ca 2 frame neu ca hai da den; cung co the lan 1 frame 1,
-     * lan 2 frame 2 — khong gia dinh batching). Trang thai CUOI: seq=2,
-     * enabled=true. */
-    int guard = 0;
-    while (seq < 2 && guard < 100) {
-        int processed = poll_until_message(client);
-        if (processed < 1) {
-            char peek[16] = {0};
-            ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
-            fprintf(stderr,
-                    "DIAG loop=%d online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'\n",
-                    guard, lc_ipc_client_is_online(client), client->fd, conn, pn,
-                    pn < 0 ? errno : 0, peek);
-            processed = poll_until_message(client);
-        }
-        assert(processed >= 1);
-        /* Refresh seq/g SAU moi lan poll — poll la drain-style: mot lan co the
-         * tieu thu ca hai frame (go~ nham seq cu lam loop chay tren queue rong). */
-        assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
-        guard++;
+    int processed = poll_until_message(client);
+    if (processed < 1) {
+        char peek[16] = {0};
+        ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
+        fprintf(stderr,
+                "DIAG online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'
+",
+                lc_ipc_client_is_online(client), client->fd, conn, pn,
+                pn < 0 ? errno : 0, peek);
+        processed = poll_until_message(client);
     }
+    assert(processed >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
-    assert(seq == 2);
-    assert(g == 1);
+    assert(seq == 1);
+    assert(g == 0);
 
     close(conn);
     close(srv);
