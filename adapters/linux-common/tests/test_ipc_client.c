@@ -7,6 +7,12 @@
 #include <assert.h>
 #include <string.h>
 
+/* Vong 13: include thang .c de test cham vao handle_ipc_message (static) va
+ * struct client (fd/is_online) — chan parser BUG-03 ma khong phai qua socket. */
+#if defined(__linux__) || defined(__unix__)
+#include "../src/ipc_client.c"
+#endif
+
 #if defined(__linux__) || defined(__unix__)
 #include <unistd.h>
 #include <time.h>
@@ -135,7 +141,15 @@ static void test_global_broadcast_state_update(void) {
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
-    /* Client poll → tieu thu su kien. */
+    /* Client poll → tieu thu su kien. Neu 1s khong thay du lieu: in diagnostic
+     * (fd/is_online/peek) roi de assert quyet dinh. */
+    if (poll_until_message(client) < 1) {
+        fprintf(stderr, "DIAG online=%d fd=%d peek=", lc_ipc_client_is_online(client), client->fd);
+        char peek[16] = {0};
+        ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
+        fprintf(stderr, "%zd (errno=%d) '%.12s'
+", pn, pn < 0 ? errno : 0, peek);
+    }
     assert(poll_until_message(client) >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 1);
@@ -220,10 +234,49 @@ static void test_global_snapshot_on_connect(void) {
 }
 #endif
 
+/* Vong 13 (BUG-03): parser phai nhan trang thai toan cuc "*" — test truc tiep
+ * handle_ipc_message (offline client, khong can server). */
+#if defined(__linux__) || defined(__unix__)
+static void test_parser_global_state(void) {
+    lc_ipc_client *client = lc_ipc_client_new("test.app", "/tmp/nonexistent_parser_test.sock");
+    assert(client != NULL);
+    int g = 0;
+    uint32_t seq = 0;
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 0);
+
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":false,\"version\":7}");
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
+    assert(seq == 1);
+    assert(g == 0);
+
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":true,\"version\":8}");
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
+    assert(seq == 2);
+    assert(g == 1);
+
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"vscode.exe\",\"enabled\":false,\"version\":9}");
+    /* broadcast khong phai "*" KHONG duoc tang seq toan cuc */
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
+    assert(seq == 2);
+
+    handle_ipc_message(client,
+        "{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":false,\"vscode.exe\":true},\"appdb_version\":1,\"channel\":\"stable\"}");
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
+    assert(seq == 3);
+    assert(g == 0);
+
+    lc_ipc_client_free(client);
+}
+#endif
+
 int main(void) {
     test_socket_path_resolution();
     test_offline_fallback();
 #if defined(__linux__) || defined(__unix__)
+    test_parser_global_state();
     test_global_broadcast_state_update();
     test_global_snapshot_on_connect();
 #endif
