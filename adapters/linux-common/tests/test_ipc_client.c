@@ -99,16 +99,19 @@ static void test_global_broadcast_state_update(void) {
     uint32_t seq = 0;
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 0);
 
-    /* Server broadcast StateUpdate "*" enabled=false (huong ipc.v1.md). */
+    /* Server broadcast StateUpdate "*" enabled=false (huong ipc.v1.md).
+     * MOT send duy nhat: client non-blocking doc frame thi hat — neu header
+     * den truoc body thi recv_frame gap EAGAIN va coi la mat ket noi (giong
+     * server Rust that: encode_frame la MOT buffer / MOT write). */
     const char *msg = "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":false,\"version\":7}";
     uint32_t len = (uint32_t)strlen(msg);
-    uint8_t out[4];
-    out[0] = (uint8_t)(len & 0xFF);
-    out[1] = (uint8_t)((len >> 8) & 0xFF);
-    out[2] = (uint8_t)((len >> 16) & 0xFF);
-    out[3] = (uint8_t)((len >> 24) & 0xFF);
-    assert(send(conn, out, 4, 0) == 4);
-    assert((size_t)send(conn, msg, len, 0) == len);
+    char frame[LC_IPC_MAX_FRAME + 4];
+    frame[0] = (char)(len & 0xFF);
+    frame[1] = (char)((len >> 8) & 0xFF);
+    frame[2] = (char)((len >> 16) & 0xFF);
+    frame[3] = (char)((len >> 24) & 0xFF);
+    memcpy(frame + 4, msg, len);
+    assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
     /* Client poll → tieu thu su kien. */
     assert(lc_ipc_client_poll(client) >= 1);
@@ -119,8 +122,8 @@ static void test_global_broadcast_state_update(void) {
     /* Broadcast lan 2 (enabled=true) → seq tang, engine tieu thu duoc. */
     msg = "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":true,\"version\":8}";
     len = (uint32_t)strlen(msg);
-    assert(send(conn, out, 4, 0) == 4);
-    assert((size_t)send(conn, msg, len, 0) == len);
+    memcpy(frame + 4, msg, len);
+    assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
     assert(lc_ipc_client_poll(client) >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 2);
@@ -177,13 +180,8 @@ static void test_global_snapshot_on_connect(void) {
     /* Snapshot voi state map chua "*" = false (hang dau tien cua map). */
     const char *snap = "{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":false,\"vscode.exe\":true},\"appdb_version\":1,\"channel\":\"stable\"}";
     uint32_t len = (uint32_t)strlen(snap);
-    uint8_t out[4];
-    out[0] = (uint8_t)(len & 0xFF);
-    out[1] = (uint8_t)((len >> 8) & 0xFF);
-    out[2] = (uint8_t)((len >> 16) & 0xFF);
-    out[3] = (uint8_t)((len >> 24) & 0xFF);
-    assert(send(conn, out, 4, 0) == 4);
-    assert((size_t)send(conn, snap, len, 0) == len);
+    memcpy(frame + 4, snap, len);
+    assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
     assert(lc_ipc_client_poll(client) >= 1);
     int g = 0;
