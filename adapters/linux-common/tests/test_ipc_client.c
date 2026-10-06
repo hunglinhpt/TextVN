@@ -7,6 +7,19 @@
 #include <assert.h>
 #include <string.h>
 
+/* Poll retry: select co the tra -1 (EINTR) tren runner CI — production vo hai
+ * (phim ke tiep poll lai), test can doi du lieu den. Tra so message xu ly. */
+static int poll_until_message(lc_ipc_client *client) {
+    int processed = 0;
+    for (int i = 0; i < 100 && processed == 0; i++) {
+        processed = lc_ipc_client_poll(client);
+        if (processed == 0) {
+            usleep(10 * 1000);
+        }
+    }
+    return processed;
+}
+
 #if defined(__linux__) || defined(__unix__)
 #include <unistd.h>
 #include <sys/socket.h>
@@ -114,7 +127,7 @@ static void test_global_broadcast_state_update(void) {
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
     /* Client poll → tieu thu su kien. */
-    assert(lc_ipc_client_poll(client) >= 1);
+    assert(poll_until_message(client) >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 1);
     assert(g == 0);
@@ -124,7 +137,7 @@ static void test_global_broadcast_state_update(void) {
     len = (uint32_t)strlen(msg);
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
-    assert(lc_ipc_client_poll(client) >= 1);
+    assert(poll_until_message(client) >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 2);
     assert(g == 1);
@@ -184,7 +197,7 @@ static void test_global_snapshot_on_connect(void) {
     memcpy(frame + 4, snap, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
-    assert(lc_ipc_client_poll(client) >= 1);
+    assert(poll_until_message(client) >= 1);
     int g = 0;
     uint32_t seq = 0;
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
