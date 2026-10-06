@@ -422,8 +422,7 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
         if (getenv("TEXTVN_IPC_DEBUG")) {
             long pending = -1;
             ioctl(client->fd, FIONREAD, &pending);
-            fprintf(stderr, "POLL fd=%d sel=%d pending=%ld processed=%d
-",
+            fprintf(stderr, "POLL fd=%d sel=%d pending=%ld processed=%d\n",
                     client->fd, sel, pending, msgs_processed);
         }
         if (sel <= 0) break;
@@ -431,8 +430,7 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
         size_t len = 0;
         int rc = lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len);
         if (getenv("TEXTVN_IPC_DEBUG")) {
-            fprintf(stderr, "POLL rc=%d len=%zu
-", rc, len);
+            fprintf(stderr, "POLL rc=%d len=%zu\n", rc, len);
         }
         if (rc < 0) {
             /* Disconnected */
