@@ -24,6 +24,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
+#include <sys/ioctl.h>
 #if defined(__linux__)
 #include <sys/stat.h>
 #endif
@@ -418,10 +419,21 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
 
         struct timeval tv = {0, 0}; /* non-blocking poll */
         int sel = select(client->fd + 1, &read_fds, NULL, NULL, &tv);
+        if (getenv("TEXTVN_IPC_DEBUG")) {
+            long pending = -1;
+            ioctl(client->fd, FIONREAD, &pending);
+            fprintf(stderr, "POLL fd=%d sel=%d pending=%ld processed=%d
+",
+                    client->fd, sel, pending, msgs_processed);
+        }
         if (sel <= 0) break;
 
         size_t len = 0;
         int rc = lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len);
+        if (getenv("TEXTVN_IPC_DEBUG")) {
+            fprintf(stderr, "POLL rc=%d len=%zu
+", rc, len);
+        }
         if (rc < 0) {
             /* Disconnected */
             close(client->fd);

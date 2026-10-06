@@ -10,6 +10,7 @@
 
 #include "linux_common.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <string.h>
 
@@ -286,6 +287,9 @@ static void test_parser_global_state(void) {
 #endif
 
 int main(void) {
+#if defined(__linux__) || defined(__unix__)
+    setenv("TEXTVN_IPC_DEBUG", "1", 1); /* bat diagnostic POLL trong ipc_client.c */
+#endif
     test_socket_path_resolution();
     test_offline_fallback();
 #if defined(__linux__) || defined(__unix__)
