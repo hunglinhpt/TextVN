@@ -141,10 +141,15 @@ int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len) {
     size_t hdr_read = 0;
     while (hdr_read < 4) {
         ssize_t n = read(fd, header + hdr_read, 4 - hdr_read);
-        if (n <= 0) {
-            if (n < 0 && errno == EINTR) continue;
-            return -1;
+        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            /* Vong 13: select bao san sang nhung stream chua den duoi —
+             * would-block KHONG phai mat ket noi (truoc day return -1 lam
+             * poll tu close pipe roi cooldown 3s tra 0 mai). Tra 1 = chua co
+             * du lieu, poll break khong dong ket noi. */
+            return 1;
         }
+        if (n <= 0) return -1;
         hdr_read += (size_t)n;
     }
 
@@ -160,10 +165,9 @@ int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len) {
     size_t payload_read = 0;
     while (payload_read < length) {
         ssize_t n = read(fd, out_buf + payload_read, length - payload_read);
-        if (n <= 0) {
-            if (n < 0 && errno == EINTR) continue;
-            return -1;
-        }
+        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 1;
+        if (n <= 0) return -1;
         payload_read += (size_t)n;
     }
 
@@ -417,13 +421,15 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
         if (sel <= 0) break;
 
         size_t len = 0;
-        if (lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len) != 0) {
+        int rc = lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len);
+        if (rc < 0) {
             /* Disconnected */
             close(client->fd);
             client->fd = -1;
             client->is_online = 0;
             break;
         }
+        if (rc == 1) break; /* would-block: het du lieu lan poll nay */
 
         handle_ipc_message(client, buf);
         msgs_processed++;

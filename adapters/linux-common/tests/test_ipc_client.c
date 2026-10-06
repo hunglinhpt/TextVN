@@ -168,7 +168,16 @@ static void test_global_broadcast_state_update(void) {
     len = (uint32_t)strlen(msg);
     memcpy(frame + 4, msg, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
-    assert(poll_until_message(client) >= 1);
+    int processed2 = poll_until_message(client);
+    if (processed2 < 1) {
+        char peek[16] = {0};
+        ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
+        fprintf(stderr, "DIAG2 online=%d fd=%d peek=%zd errno=%d data='%.12s'
+",
+                lc_ipc_client_is_online(client), client->fd, pn,
+                pn < 0 ? errno : 0, peek);
+    }
+    assert(processed2 >= 1);
     assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
     assert(seq == 2);
     assert(g == 1);
