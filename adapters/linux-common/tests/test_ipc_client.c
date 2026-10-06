@@ -172,8 +172,7 @@ static void test_global_broadcast_state_update(void) {
     if (processed2 < 1) {
         char peek[16] = {0};
         ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
-        fprintf(stderr, "DIAG2 online=%d fd=%d peek=%zd errno=%d data='%.12s'
-",
+        fprintf(stderr, "DIAG2 online=%d fd=%d peek=%zd errno=%d data='%.12s'\n",
                 lc_ipc_client_is_online(client), client->fd, pn,
                 pn < 0 ? errno : 0, peek);
     }
