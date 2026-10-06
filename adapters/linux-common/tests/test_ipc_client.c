@@ -14,7 +14,7 @@ static int poll_until_message(lc_ipc_client *client) {
     for (int i = 0; i < 100 && processed == 0; i++) {
         processed = lc_ipc_client_poll(client);
         if (processed == 0) {
-            usleep(10 * 1000);
+            sleep_ms(10);
         }
     }
     return processed;
@@ -22,9 +22,18 @@ static int poll_until_message(lc_ipc_client *client) {
 
 #if defined(__linux__) || defined(__unix__)
 #include <unistd.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #endif
+
+/* -std=c11 an toan: nanosleep (POSIX), khong dung usleep (bi an duoi _GNU_SOURCE). */
+static void sleep_ms(int ms) {
+#if defined(__linux__) || defined(__unix__)
+    struct timespec ts = {ms / 1000, (long)(ms % 1000) * 1000000L};
+    nanosleep(&ts, NULL);
+#endif
+}
 
 static void test_socket_path_resolution(void) {
     char path[256];
