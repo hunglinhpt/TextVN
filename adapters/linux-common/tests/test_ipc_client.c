@@ -177,6 +177,7 @@ static void test_global_snapshot_on_connect(void) {
         }
     }
 
+    char frame[LC_IPC_MAX_FRAME + 4];
     /* Snapshot voi state map chua "*" = false (hang dau tien cua map). */
     const char *snap = "{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":false,\"vscode.exe\":true},\"appdb_version\":1,\"channel\":\"stable\"}";
     uint32_t len = (uint32_t)strlen(snap);

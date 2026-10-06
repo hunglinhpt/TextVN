@@ -849,17 +849,23 @@ fn run_tray_app() {
     // (smoke "did not stop cleanly" trên máy mới dọn HKLM). Build/release
     // smoke vẫn chứng minh IPC lifecycle; TEXTVN_SKIP_TSF_REGISTRATION giữ
     // nguyên ý nghĩa: không đụng đăng ký TSF thật của máy dev.
-    // Yêu cầu thoát đến sớm (--stop trong giai đoạn IPC-startup) → BỎ QUA hẳn
-    // giai đoạn chậm này để tiến trình thoát ngay (CI "tray still running").
-    let early_exit = textvn_tray::take_tray_exit_pending();
-    if !early_exit && std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
-        ensure_tsf_tip_registered(svc.version_migrated());
-        // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
-        // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
-        // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ
-        // được (giống bộ cài). Chỉ hỏi khi người dùng chủ động mở app
-        // (không hỏi lúc --autostart).
-        offer_machine_registration_if_needed();
+    // TSF/offer chạy trên BACKGROUND THREAD (vòng 13): subprocess
+    // register/activate mất 1-3s — nếu chạy trên main thread thì `--stop`
+    // đến trong giai đoạn đó phải chờ đến khi xong mới thoát (CI bắt
+    // "tray still running" 3 lần liên tiếp). Main vào message loop NGAY;
+    // process exit khi --stop sẽ kết thúc thread (subprocess CLI tự hoàn
+    // tất đăng ký; lệch thì self-heal lần chạy sau).
+    if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
+        let svc_bg = svc.clone();
+        std::thread::spawn(move || {
+            ensure_tsf_tip_registered(svc_bg.version_migrated());
+            // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
+            // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
+            // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ
+            // được (giống bộ cài). Chỉ hỏi khi người dùng chủ động mở app
+            // (không hỏi lúc --autostart).
+            offer_machine_registration_if_needed();
+        });
     }
 
     // Xử lý mở hộp thoại Bảng điều khiển:
@@ -885,7 +891,7 @@ fn run_tray_app() {
     // Yêu cầu thoát đến TRƯỚC khi cửa sổ tồn tại (--stop ngay lúc khởi động,
     // B17): chuyển thành WM_REQUEST_EXIT để đi ĐÚNG đường thoát graceful
     // (broadcast Shutdown cho Hook rồi PostQuitMessage).
-    if early_exit || textvn_tray::take_tray_exit_pending() {
+    if textvn_tray::take_tray_exit_pending() {
         unsafe {
             let _ = PostMessageW(
                 Some(hwnd),
