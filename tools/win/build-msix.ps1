@@ -102,6 +102,14 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'Assets') | Out-Null
 Copy-Item (Join-Path $TargetDir 'TextVN.exe') $stage
 Copy-Item (Join-Path $TargetDir 'textvn-cli.exe') $stage
 Copy-Item $dll (Join-Path $stage 'textvn-tsf.dll')
+# Vong 14 (Zalo 32-bit): x86 DLL di theo package - bootstrap stage-out giai
+# nen ra thu muc cai dat, app 32-bit (Zalo/Office x86) moi nap duoc TIP.
+$x86Dll = Join-Path $TargetDir 'textvn-tsf-x86.dll'
+if (Test-Path $x86Dll) {
+    Copy-Item $x86Dll (Join-Path $stage 'textvn-tsf-x86.dll')
+} else {
+    Write-Host 'WARN: textvn-tsf-x86.dll khong co trong payload (app x86 se khong dung duoc TIP)'
+}
 # Vong 12 audit MSIX: tray staged (bootstrap stage-out) can resources (icon)
 # + data (appdb.default.json) - truoc day payload thieu, tray staged thieu icon.
 foreach ($pair in @(@('tray\resources', 'resources'), @('data', 'data'))) {
