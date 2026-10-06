@@ -154,8 +154,7 @@ static void test_global_broadcast_state_update(void) {
         char peek[16] = {0};
         ssize_t pn = recv(client->fd, peek, sizeof(peek), MSG_PEEK | MSG_DONTWAIT);
         fprintf(stderr,
-                "DIAG online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'
-",
+                "DIAG online=%d fd=%d conn=%d peek=%zd errno=%d data='%.12s'\n",
                 lc_ipc_client_is_online(client), client->fd, conn, pn,
                 pn < 0 ? errno : 0, peek);
         processed = poll_until_message(client);
