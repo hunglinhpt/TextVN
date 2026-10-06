@@ -7,19 +7,6 @@
 #include <assert.h>
 #include <string.h>
 
-/* Poll retry: select co the tra -1 (EINTR) tren runner CI — production vo hai
- * (phim ke tiep poll lai), test can doi du lieu den. Tra so message xu ly. */
-static int poll_until_message(lc_ipc_client *client) {
-    int processed = 0;
-    for (int i = 0; i < 100 && processed == 0; i++) {
-        processed = lc_ipc_client_poll(client);
-        if (processed == 0) {
-            sleep_ms(10);
-        }
-    }
-    return processed;
-}
-
 #if defined(__linux__) || defined(__unix__)
 #include <unistd.h>
 #include <time.h>
@@ -33,6 +20,19 @@ static void sleep_ms(int ms) {
     struct timespec ts = {ms / 1000, (long)(ms % 1000) * 1000000L};
     nanosleep(&ts, NULL);
 #endif
+}
+
+/* Poll retry: select co the tra -1 (EINTR) tren runner CI — production vo hai
+ * (phim ke tiep poll lai), test can doi du lieu den. Tra so message xu ly. */
+static int poll_until_message(lc_ipc_client *client) {
+    int processed = 0;
+    for (int i = 0; i < 100 && processed == 0; i++) {
+        processed = lc_ipc_client_poll(client);
+        if (processed == 0) {
+            sleep_ms(10);
+        }
+    }
+    return processed;
 }
 
 static void test_socket_path_resolution(void) {
