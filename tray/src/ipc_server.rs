@@ -482,6 +482,12 @@ impl IpcServer {
         peer_pid: u32,
     ) {
         let mut subscribed = false;
+        // Mỗi process có TIP giữ MỘT kết nối suốt đời; poll cố định 10 ms nhân với
+        // vài chục app là hàng nghìn lần đánh thức CPU mỗi giây khi không ai gõ.
+        // Client gần như chỉ gửi lúc kết nối/toggle → giãn dần tới 100 ms khi rảnh.
+        const POLL_MIN: Duration = Duration::from_millis(10);
+        const POLL_MAX: Duration = Duration::from_millis(100);
+        let mut poll = POLL_MIN;
 
         loop {
             if !self.running.load(Ordering::Acquire) {
@@ -492,11 +498,15 @@ impl IpcServer {
             // pipe (read-pending serialize chặn broadcast write → hook mồ côi).
             let msg = match try_read_pipe_frame(&reader, &self.running) {
                 PipeFrame::Empty => {
-                    std::thread::sleep(Duration::from_millis(10));
+                    std::thread::sleep(poll);
+                    poll = (poll * 2).min(POLL_MAX);
                     continue;
                 }
                 PipeFrame::Eof => break,
-                PipeFrame::Frame(m) => m,
+                PipeFrame::Frame(m) => {
+                    poll = POLL_MIN;
+                    m
+                }
             };
 
             // PID trong wire protocol chỉ để chẩn đoán. Không bao giờ tin giá trị

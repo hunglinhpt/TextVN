@@ -1621,20 +1621,7 @@ fn show_word_list_editor(owner: HWND) {
 /// Chuẩn hoá danh sách từ người dùng nhập: trim, bỏ dòng trống/`#`, lowercase,
 /// chỉ giữ chữ cái ASCII, khử trùng lặp (giữ thứ tự nhập).
 fn normalize_word_list(text: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for line in text.replace("\r\n", "\n").lines() {
-        let word = line.trim().to_lowercase();
-        if word.is_empty()
-            || word.starts_with('#')
-            || !word.chars().all(|c| c.is_ascii_alphabetic())
-        {
-            continue;
-        }
-        if !out.contains(&word) {
-            out.push(word);
-        }
-    }
-    out
+    textvn_config::doc::normalize_english_words(text)
 }
 
 /// Lưu từ điển EN; luôn thành công nếu persist OK (danh sách không có cú pháp sai).

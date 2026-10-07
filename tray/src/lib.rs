@@ -76,6 +76,41 @@ fn claim_debounced(cell: &std::sync::atomic::AtomicU64, now: u64, window_ms: u64
         .is_ok()
 }
 
+/// `exe` nằm **dưới** một trong `roots` — so tiền tố theo ranh giới thư mục, không
+/// phân biệt hoa thường, bỏ tiền tố `\\?\`. Không dùng "chứa chuỗi": với
+/// `contains("\\program files\\")` thì `D:\x\Program Files\y\TextVN.exe` (thư mục
+/// người dùng tự tạo, ghi được) cũng lọt qua gate nâng quyền SEC-02.
+pub fn path_is_under_any(exe: &str, roots: &[String]) -> bool {
+    fn norm(p: &str) -> String {
+        let p = p.replace('/', "\\");
+        let p = p.strip_prefix(r"\\?\").unwrap_or(&p);
+        p.trim_end_matches('\\').to_lowercase()
+    }
+    let exe = norm(exe);
+    roots
+        .iter()
+        .map(|r| norm(r))
+        .filter(|r| !r.is_empty())
+        .any(|root| {
+            exe.len() > root.len() && exe.starts_with(&root) && exe.as_bytes()[root.len()] == b'\\'
+        })
+}
+
+/// Thư mục cài đặt chuẩn (bộ cài máy, MSIX trong `Program Files\WindowsApps`, bộ cài
+/// per-user/Store ở `%LOCALAPPDATA%\Programs`) — nơi duy nhất tray được xin UAC để
+/// chạy CLI cạnh nó (SEC-02).
+pub fn trusted_install_roots() -> Vec<String> {
+    let mut roots: Vec<String> = ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .map(|v| v.to_string_lossy().into_owned())
+        .collect();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        roots.push(format!("{}\\Programs", local.to_string_lossy()));
+    }
+    roots
+}
+
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
 /// Không tìm trong working directory hay `target/` để bản phát hành không thể
 /// vô tình khởi chạy một binary cùng tên nhưng không thuộc gói đang chạy.
@@ -178,6 +213,34 @@ pub fn notify_start_compatibility_hook() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trusted_install_gate_is_prefix_not_substring() {
+        let roots = vec![
+            r"C:\Program Files".to_string(),
+            r"C:\Program Files (x86)".to_string(),
+            r"C:\Users\a\AppData\Local\Programs".to_string(),
+        ];
+        for ok in [
+            r"C:\Program Files\TextVN\TextVN.exe",
+            r"c:\program files (x86)\TextVN\TextVN.exe",
+            r"C:\Program Files\WindowsApps\TextVN_0.2.27\TextVN.exe",
+            r"C:\Users\a\AppData\Local\Programs\TextVN\TextVN.exe",
+            r"\\?\C:\Program Files\TextVN\TextVN.exe",
+        ] {
+            assert!(path_is_under_any(ok, &roots), "{ok}");
+        }
+        for bad in [
+            r"D:\x\Program Files\TextVN\TextVN.exe",
+            r"C:\Users\a\Downloads\program files\TextVN.exe",
+            r"C:\Program FilesEvil\TextVN.exe",
+            r"C:\Program Files",
+            r"C:\Users\a\AppData\Local\ProgramsX\TextVN.exe",
+        ] {
+            assert!(!path_is_under_any(bad, &roots), "{bad}");
+        }
+        assert!(!path_is_under_any(r"C:\x\TextVN.exe", &[String::new()]));
+    }
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải
     /// thất bại (E11 — nguồn sau của CÙNG lần bấm không được toggle lần hai).

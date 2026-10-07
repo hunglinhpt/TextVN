@@ -383,10 +383,10 @@ fn offer_machine_registration_if_needed() {
     // ghi đè DLL cạnh binary sẽ chạy bằng quyền admin (CWE-426/732). Bước này
     // chỉ tới được SAU khi activation per-user thất bại thật (B7) nên máy cũ
     // (activation OK) và bản cài chuẩn không bị ảnh hưởng.
-    let exe_lower = exe.to_string_lossy().to_lowercase();
-    let trusted_install = exe_lower.contains("\\program files\\")
-        || exe_lower.contains("\\program files (x86)\\")
-        || exe_lower.contains("\\appdata\\local\\programs\\");
+    let trusted_install = textvn_tray::path_is_under_any(
+        &exe.to_string_lossy(),
+        &textvn_tray::trusted_install_roots(),
+    );
     if !trusted_install {
         show_untrusted_path_notice_once();
         return;
@@ -655,6 +655,35 @@ fn main() {
     println!("TextVN chi ho tro he dieu hanh Windows.");
 }
 
+/// Mặc định "Dành Ctrl + Shift cho TextVN" cho bản portable/Store (không có bộ cài
+/// hỏi task `freectrlshift`): áp ĐÚNG MỘT LẦN (marker trong `%APPDATA%\TextVN`), sau đó
+/// tôn trọng lựa chọn ở Bảng điều khiển. Bản cài bằng Inno (`unins000.exe` cạnh exe)
+/// để bộ cài quyết định.
+#[cfg(windows)]
+fn apply_ctrl_shift_default_once() {
+    let installed = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.join("unins000.exe").is_file()))
+        .unwrap_or(false);
+    if installed {
+        return;
+    }
+    let Some(marker) = std::env::var_os("APPDATA").map(|d| {
+        std::path::PathBuf::from(d)
+            .join("TextVN")
+            .join("ctrl_shift_default_applied")
+    }) else {
+        return;
+    };
+    if marker.exists() {
+        return;
+    }
+    if textvn_tray::hotkey::free_ctrl_shift().is_ok() {
+        let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
+        let _ = std::fs::write(&marker, b"1");
+    }
+}
+
 #[cfg(windows)]
 fn free_ctrl_shift_cli() -> i32 {
     match textvn_tray::hotkey::free_ctrl_shift() {
@@ -762,8 +791,11 @@ fn run_tray_app() {
     // Khởi động background Named Pipe loop
     ipc.start();
 
-    // Giải phóng phím tắt Ctrl+Shift khỏi Windows Layout Hotkey để TextVN sử dụng
-    let _ = textvn_tray::hotkey::free_ctrl_shift();
+    // Giải phóng phím tắt Ctrl+Shift khỏi Windows Layout Hotkey để TextVN sử dụng —
+    // CHỈ một lần cho bản không qua bộ cài (xem hàm). Trước đây gọi vô điều kiện ở mỗi
+    // lần khởi động: người dùng bỏ chọn "Dành Ctrl + Shift" trong Bảng điều khiển (hoặc
+    // task của bộ cài) thì lần đăng nhập sau Windows lại mất phím tắt của họ.
+    apply_ctrl_shift_default_once();
 
     // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
     // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả

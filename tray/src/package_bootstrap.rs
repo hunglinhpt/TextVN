@@ -105,7 +105,10 @@ pub fn stage_package_payload(pkg_dir: &Path, target: &Path) -> std::io::Result<(
     if let Some(src) = dll_src {
         copy_overwrite(&src, &target.join("textvn-tsf.dll"))?;
     }
-    for name in ["TextVN.exe", "textvn-cli.exe"] {
+    // `textvn-tsf-x86.dll` (vòng 14): `build-msix.ps1` đóng gói nó cho app 32-bit
+    // (Zalo PC, Office/Notepad++ x86) — thiếu ở bản staged thì `register` bỏ qua mirror
+    // WOW64 và app x86 không bao giờ thấy TIP trên bản Store.
+    for name in ["TextVN.exe", "textvn-cli.exe", "textvn-tsf-x86.dll"] {
         let src = pkg_dir.join(name);
         if src.is_file() {
             copy_overwrite(&src, &target.join(name))?;
@@ -117,7 +120,14 @@ pub fn stage_package_payload(pkg_dir: &Path, target: &Path) -> std::io::Result<(
             copy_dir_recursive(&src, &target.join(dir))?;
         }
     }
-    for doc in ["PRIVACY_POLICY.txt", "HUONG_DAN_SU_DUNG.txt", "README.md"] {
+    // LICENSE đi cùng bản cài (GPL-3.0 §4–6: bản phân phối phải kèm văn bản giấy phép).
+    for doc in [
+        "PRIVACY_POLICY.txt",
+        "HUONG_DAN_SU_DUNG.txt",
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md",
+    ] {
         let src = pkg_dir.join(doc);
         if src.is_file() {
             copy_overwrite(&src, &target.join(doc))?;
@@ -205,6 +215,8 @@ mod tests {
         std::fs::write(pkg.join("TextVN.exe"), b"exe").unwrap();
         std::fs::write(pkg.join("textvn-cli.exe"), b"cli").unwrap();
         std::fs::write(pkg.join("textvn-tsf.dll"), b"dll").unwrap();
+        std::fs::write(pkg.join("textvn-tsf-x86.dll"), b"dll32").unwrap();
+        std::fs::write(pkg.join("LICENSE"), b"gpl").unwrap();
         std::fs::create_dir_all(pkg.join("resources")).unwrap();
         std::fs::write(pkg.join("resources").join("textvn_v.ico"), b"ico").unwrap();
         std::fs::create_dir_all(pkg.join("data")).unwrap();
@@ -234,6 +246,12 @@ mod tests {
             std::fs::read(target.join("PRIVACY_POLICY.txt")).unwrap(),
             b"privacy"
         );
+        assert_eq!(
+            std::fs::read(target.join("textvn-tsf-x86.dll")).unwrap(),
+            b"dll32",
+            "DLL x86 (Zalo/Office 32-bit) phải được stage"
+        );
+        assert_eq!(std::fs::read(target.join("LICENSE")).unwrap(), b"gpl");
         let _ = std::fs::remove_dir_all(&pkg);
         let _ = std::fs::remove_dir_all(&target);
     }

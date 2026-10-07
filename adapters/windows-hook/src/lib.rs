@@ -11,7 +11,7 @@ use std::time::Duration;
 use textvn_appdb::{AppDb, EngineOwner};
 use textvn_ffi::{
     ime_instance, ime_instance_free, ime_instance_new, ime_key, ime_key_v1, ime_reload_config,
-    ime_result_v1, ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
+    ime_reset, ime_result_v1, ACTION_PASS, IME_ABI_VERSION, IME_FLAG_ERROR, IME_OK,
 };
 use textvn_field_detect::{FieldContext, SecurityState};
 
@@ -85,6 +85,16 @@ impl HookEngine {
             Ok(())
         } else {
             Err(status)
+        }
+    }
+
+    /// Bỏ từ đang gõ (engine không còn sở hữu ký tự nào trước con trỏ). Hook chỉ
+    /// thấy phím, không thấy document: mọi lúc con trỏ/text có thể đã đổi ngoài tầm
+    /// nhìn (đổi cửa sổ, chord, inject thất bại) phải gọi hàm này, nếu không REPLACE
+    /// kế tiếp sẽ gửi Backspace xoá nhầm chữ ở chỗ khác.
+    pub fn reset(&mut self) {
+        if !self.instance.is_null() {
+            let _ = ime_reset(self.instance);
         }
     }
 
@@ -273,6 +283,29 @@ mod tests {
     fn ready(state: &mut HookState) {
         let generation = state.field_context().generation;
         assert!(state.publish_probe(generation, IME_FIELD_BODY, SecurityState::NonSecure));
+    }
+
+    #[test]
+    fn reset_drops_word_so_next_key_cannot_replace() {
+        let mut engine = HookEngine::new().unwrap();
+        let mut state = HookState::new("notepad.exe", 0, HookMode::Always, Duration::ZERO);
+        ready(&mut state);
+        let mut out = empty_result();
+        let key = |c: char| KeyEvent {
+            key_down: true,
+            ch: c as u32,
+            ..Default::default()
+        };
+        assert!(matches!(
+            engine.process(&state, key('d'), None, &mut out),
+            EngineOutcome::Pass
+        ));
+        engine.reset();
+        // Không reset thì `d` thứ hai là `dd` → đ (Transform, xoá 1 ký tự).
+        assert!(matches!(
+            engine.process(&state, key('d'), None, &mut out),
+            EngineOutcome::Pass
+        ));
     }
 
     #[test]

@@ -327,6 +327,17 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
     }
     // Mục tự khởi động trỏ vào thư mục sắp xoá thì bỏ luôn (bản cài khác giữ nguyên).
     let _ = crate::autostart::disable_autostart_for_dir(&dir);
+    // Bản portable đã tự "dành Ctrl + Shift" ở lần chạy đầu (marker do tray ghi) → trả
+    // lại phím tắt đổi bố cục cho Windows, như bộ cài làm khi gỡ (BUG-07).
+    if let Some(marker) = std::env::var_os("APPDATA").map(|d| {
+        std::path::PathBuf::from(d)
+            .join("TextVN")
+            .join("ctrl_shift_default_applied")
+    }) {
+        if marker.is_file() && crate::hotkey::restore_windows_ctrl_shift().is_ok() {
+            let _ = std::fs::remove_file(&marker);
+        }
+    }
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let _ = std::process::Command::new(dir.join("textvn-cli.exe"))
