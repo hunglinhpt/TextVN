@@ -31,7 +31,7 @@ PowerShell/Inno chỉ rà tĩnh.
 | P4 | `adapters/windows-tsf/` | 3.9k | COM refcount, edit session, re-entrancy, fail-open | ✅ |
 | P5 | `adapters/windows-hook/` + `tray/` | 7.1k | Hook chỉ quan sát, pipe server (DACL, giới hạn frame), race | ✅ |
 | P6 | `cli/` (register, doctor, replay, verify) | 5.1k | Registry/đường dẫn, quyền, xử lý lỗi | ✅ |
-| P7 | `adapters/linux-*` (C/C++) | 4.5k | Buffer overflow, socket, GLib/fcitx lifetime | ⏳ |
+| P7 | `adapters/linux-*` (C/C++) | 4.5k | Buffer overflow, socket, GLib/fcitx lifetime | ✅ |
 | P8 | `adapters/macos-*` (Swift) | 5.6k | Socket, IMK client lifetime, event tap | ⏳ |
 | P9 | `scripts/` `packaging/` `installer/` `tools/` `.github/workflows/` | 6k | Shell quoting, injection trong workflow, quyền token | ⏳ |
 | P10 | `xtask/` `tools/bench` `fuzz/` | 3k | Tính đúng của gate | ⏳ |
@@ -67,6 +67,10 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-21 | P1 (S2 riêng tư) | `cli/src/doctor.rs` `export_diagnostics_zip` | Gói chẩn đoán (`doctor --export`, CONTRIBUTING hướng dẫn **đính kèm vào issue công khai**) chứa nguyên `config.json`: nội dung gõ tắt (địa chỉ, số điện thoại, email…), emoji, từ điển cá nhân — chỉ tên user được che. | `redact_user_content`: `macros`/`emoji`/`english_words` → `"<REDACTED: n mục>"`; config hỏng chỉ ghi kích thước. Test `export_config_never_contains_user_authored_content` | ✅ Fixed |
 | CR-22 | P2 (bảo mật) | `cli/src/register.rs` `say` | CLI chạy **elevated** (`register --scope machine` từ tray/bộ cài) append log vào `%LOCALAPPDATA%\TextVN\logs\register.log` — thư mục người dùng ghi được; junction/symlink ở đó biến lần ghi log thành ghi file tuỳ ý bằng quyền admin (CWE-59). | Bỏ ghi log file nếu `TextVN`, `logs` hoặc `register.log` là reparse point (symlink/junction, không đi theo link). Còn rủi ro TOCTOU nhỏ — ghi chú | ✅ Fixed |
 | CR-23 | P3 (test) | `cli/src/replay.rs` `load_cases` | Case `.keys` không có dòng `:expect*` nào luôn PASS — corpus gõ lại mà quên khẳng định vẫn xanh. | Từ chối (parse error, exit 2). Toàn bộ 4 corpus hiện có vẫn xanh | ✅ Fixed |
+| CR-24 | **P0** (crash) | `adapters/linux-common/src/ipc_client.c` `lc_ipc_send_frame` | Gửi bằng `write()` lên Unix socket **không** `MSG_NOSIGNAL`: server IPC thoát giữa chừng → `SIGPIPE` mặc định **giết process chủ** — tiến trình `textvn-ibus-engine` hoặc **cả daemon fcitx5** (addon nạp in-process) → mất bàn phím. Bản macOS đã chặn (`SO_NOSIGPIPE`), Linux thì chưa. | `sendmsg(…, MSG_NOSIGNAL)` header+thân 2 iovec trong một lời gọi, chờ ngắn khi `EAGAIN`; gửi lỗi (handshake/toggle) → đóng kết nối, offline. Test `test_send_after_server_close_does_not_raise_sigpipe` | ✅ Fixed |
+| CR-25 | P1 | `adapters/linux-common/src/ipc_client.c` `lc_ipc_recv_frame`/`poll` | Socket non-blocking: frame tới **từng phần** rồi `EAGAIN` → các byte đã đọc bị **vứt** → luồng lệch (thân bị hiểu thành header độ dài) → ngắt kết nối/đọc rác. | Đệm nhận theo client (`rbuf`, 64 KiB + 1), chỉ xử lý frame đủ, kết thúc chuỗi tại chỗ; độ dài > 64 KiB → đóng kết nối. Test `test_partial_frame_is_buffered` (đỏ trên code cũ) | ✅ Fixed |
+| CR-26 | P2 (test) | `adapters/linux-common/tests/test_ipc_client.c` `test_global_snapshot_on_connect` | Test **không ghi 4 byte header** của frame Snapshot (rác trên stack) — UB: Release pass nhờ may, Debug/ASan đỏ. Đây chính là lỗi "fail không xác định được nguyên nhân kernel" ghi trong comment của test bên trên. Kèm: debug `FIONREAD` ghi `int` vào `long`. | Ghi header; debug in theo `recv`. 4/4 test xanh cả Release lẫn Debug+ASan/UBSan | ✅ Fixed |
+| CR-27 | P3 | `adapters/linux-common/src/ipc_client.c` `lc_ipc_client_toggle_vi_en` | `app_id` (tên chương trình) chèn thẳng vào JSON — `"`/`\\` làm frame hỏng, server đóng kết nối. | Escape `"`, `\\`, bỏ ký tự điều khiển | ✅ Fixed |
 
 ## 3. Nhật ký tiến độ
 
@@ -84,3 +88,6 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
   `--stop` (không TerminateProcess), LL hook của tray chỉ quan sát — không thấy lỗi.
 - 2026-10-07 — P6 `cli/` rà xong: CR-21–23 sửa. `register.rs` (ghi registry qua Win32 API, `input.dll` chỉ từ System32, ACL AppContainer,
   `schedule_delete` cho uninstaller), `verify.rs` (đối chiếu header ↔ Rust có test chống pass rỗng) không thấy lỗi khác.
+- 2026-10-07 — P7 Linux rà xong: CR-24–27 sửa (linux-common build + test với ASan/UBSan trong container). IBus `engine.c`, Fcitx5 `engine.cpp`
+  (mọi callback `try/catch`, fail-open), `compose.c` (giới hạn `LC_COMP_MAX`), `utf.c`, `log.c` (không ghi `/tmp` chung), `linux-settings`
+  (ghi qua C API dùng chung) — không thấy lỗi khác. IBus/Fcitx5 thật không có trong container (CI `linux-adapters` phủ e2e).

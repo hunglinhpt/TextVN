@@ -216,6 +216,12 @@ static void test_global_snapshot_on_connect(void) {
     /* Snapshot voi state map chua "*" = false (hang dau tien cua map). */
     const char *snap = "{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":false,\"vscode.exe\":true},\"appdb_version\":1,\"channel\":\"stable\"}";
     uint32_t len = (uint32_t)strlen(snap);
+    /* Header do dai — ban cu QUEN ghi (4 byte rac tren stack): Release pass nho
+     * may, Debug/ASan do; day la "fail khong xac dinh duoc" ghi o test tren. */
+    frame[0] = (char)(len & 0xFF);
+    frame[1] = (char)((len >> 8) & 0xFF);
+    frame[2] = (char)((len >> 16) & 0xFF);
+    frame[3] = (char)((len >> 24) & 0xFF);
     memcpy(frame + 4, snap, len);
     assert((size_t)send(conn, frame, 4 + len, 0) == 4 + len);
 
@@ -229,6 +235,105 @@ static void test_global_snapshot_on_connect(void) {
     close(conn);
     close(srv);
     unlink(sock);
+    lc_ipc_client_free(client);
+}
+#endif
+
+#if defined(__linux__) || defined(__unix__)
+/* Server socket + client da ket noi + da doc bo 3 frame handshake. */
+static int open_pair(const char *tag, char *sock, size_t sock_len, int *srv_out,
+                     lc_ipc_client **client_out) {
+    snprintf(sock, sock_len, "/tmp/textvn-test-%s-%d.sock", tag, (int)getpid());
+    unlink(sock);
+    int srv = socket(AF_UNIX, SOCK_STREAM, 0);
+    assert(srv >= 0);
+    struct sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    memcpy(addr.sun_path, sock, strlen(sock) + 1);
+    assert(bind(srv, (struct sockaddr *)&addr, sizeof(addr)) == 0);
+    assert(listen(srv, 4) == 0);
+    lc_ipc_client *client = lc_ipc_client_new("test.app", sock);
+    assert(client != NULL && lc_ipc_client_is_online(client) == 1);
+    int conn = accept(srv, NULL, NULL);
+    assert(conn >= 0);
+    char buf[LC_IPC_MAX_FRAME + 1];
+    for (int i = 0; i < 3; i++) {
+        uint8_t hdr[4];
+        size_t got = 0;
+        while (got < 4) {
+            ssize_t n = recv(conn, hdr + got, 4 - got, 0);
+            assert(n > 0);
+            got += (size_t)n;
+        }
+        uint32_t len = (uint32_t)hdr[0] | ((uint32_t)hdr[1] << 8) |
+                       ((uint32_t)hdr[2] << 16) | ((uint32_t)hdr[3] << 24);
+        assert(len <= LC_IPC_MAX_FRAME);
+        size_t total = 0;
+        while (total < len) {
+            ssize_t n = recv(conn, buf + total, len - total, 0);
+            assert(n > 0);
+            total += (size_t)n;
+        }
+    }
+    *srv_out = srv;
+    *client_out = client;
+    return conn;
+}
+
+/* Frame toi TUNG PHAN (header + mot nua than, roi phan con lai): ban cu doc
+ * duoc bao nhieu thi VUT bay nhieu khi gap EAGAIN — luong lech, ket noi rot. */
+static void test_partial_frame_is_buffered(void) {
+    char sock[192];
+    int srv;
+    lc_ipc_client *client;
+    int conn = open_pair("partial", sock, sizeof sock, &srv, &client);
+
+    const char *msg = "{\"type\":\"StateUpdate\",\"app_id\":\"*\",\"enabled\":false,\"version\":7}";
+    uint32_t len = (uint32_t)strlen(msg);
+    char frame[256];
+    frame[0] = (char)(len & 0xFF);
+    frame[1] = (char)((len >> 8) & 0xFF);
+    frame[2] = (char)((len >> 16) & 0xFF);
+    frame[3] = (char)((len >> 24) & 0xFF);
+    memcpy(frame + 4, msg, len);
+
+    size_t first = 4 + len / 2;
+    assert((size_t)send(conn, frame, first, 0) == first);
+    sleep_ms(20);
+    assert(lc_ipc_client_poll(client) == 0);
+    assert(lc_ipc_client_is_online(client) == 1);
+
+    assert((size_t)send(conn, frame + first, 4 + len - first, 0) == 4 + len - first);
+    assert(poll_until_message(client) == 1);
+    int g = 1;
+    uint32_t seq = 0;
+    assert(lc_ipc_client_get_global_override(client, &g, &seq) == 1);
+    assert(seq == 1 && g == 0);
+
+    close(conn);
+    close(srv);
+    unlink(sock);
+    lc_ipc_client_free(client);
+}
+
+/* Server dong ket noi roi client gui: phai tra loi -1 va OFFLINE, KHONG duoc
+ * chet vi SIGPIPE (mac dinh giet process — o fcitx5 la ca daemon). */
+static void test_send_after_server_close_does_not_raise_sigpipe(void) {
+    char sock[192];
+    int srv;
+    lc_ipc_client *client;
+    int conn = open_pair("sigpipe", sock, sizeof sock, &srv, &client);
+    close(conn);
+    close(srv);
+    unlink(sock);
+    sleep_ms(20);
+    int rc = 0;
+    for (int i = 0; i < 4 && rc == 0; i++) {
+        rc = lc_ipc_client_toggle_vi_en(client, "*", 1);
+    }
+    assert(rc == -1);
+    assert(lc_ipc_client_is_online(client) == 0);
     lc_ipc_client_free(client);
 }
 #endif
@@ -281,6 +386,8 @@ int main(void) {
     test_parser_global_state();
     test_global_broadcast_state_update();
     test_global_snapshot_on_connect();
+    test_partial_frame_is_buffered();
+    test_send_after_server_close_does_not_raise_sigpipe();
 #endif
 
     printf("All linux-common IPC client tests passed successfully!\n");
