@@ -35,7 +35,7 @@ PowerShell/Inno chỉ rà tĩnh.
 | P8 | `adapters/macos-*` (Swift) | 5.6k | Socket, IMK client lifetime, event tap | ✅ (rà tĩnh) |
 | P9 | `scripts/` `packaging/` `installer/` `tools/` `.github/workflows/` | 6k | Shell quoting, injection trong workflow, quyền token | ✅ |
 | P10 | `xtask/` `tools/bench` `fuzz/` | 3k | Tính đúng của gate | ✅ |
-| P11 | Chạy lại toàn bộ gate + cập nhật báo cáo + push | — | — | ⏳ |
+| P11 | Chạy lại toàn bộ gate + cập nhật báo cáo + push | — | — | ✅ |
 
 Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi người dùng thấy) ·
 **P2** (rủi ro tiềm ẩn/edge case) · **P3** (chất lượng code/nit).
@@ -86,6 +86,40 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-40 | P2 (gate mù) | `fuzz/fuzz_targets/ffi_key.rs`, `ffi/tests/abi_invariants.rs`, `fuzz/README.md` | Fuzz/stress ABI **không thể** tìm ra CR-01: tối đa 64 phím/input (cần ≥ 65 phím chữ liền nhau) và không có bất biến "không xoá lẹm text có sẵn" — chỉ kiểm `delete_count ≤ 64`. README: lệnh "nightly.yml" không tồn tại và thiếu `--features ffi-fuzz` (chạy là lỗi required-features); công thức seed `key_duocj` sai định dạng input của harness. | Fuzz: tới 512 phím, chế độ "giữ phím" (lặp ≤ 32), bất biến 6 = mô hình độ dài document bảo thủ (chỉ đếm dư); seed corpus `fuzz/corpus/ffi_key/` (gồm `held_key_dep[_preedit]`). Stable: test `tu_dai_va_giu_phim_khong_xoa_lem_text_co_san` (60 × 512 phím, mọi strategy) — **đỏ trên engine trước CR-01**, xanh hiện tại; harness chạy 3000 input ngẫu nhiên không báo động giả. README sửa lệnh + mô tả định dạng | ✅ Fixed |
 | CR-41 | P3 | `xtask/src/main.rs` `usage()` | `cargo xtask help` không liệt kê `preflight` — đúng lệnh mà quy trình bắt buộc chạy trước commit/tag. | Thêm dòng usage | ✅ Fixed |
 
+## 4. Kết quả cuối (P11)
+
+**41 finding** — P0: 2 · P1: 16 · P2: 13 · P3: 10. **Đã sửa 36** (kèm test tái hiện đỏ-trước-xanh-sau
+ở mọi chỗ chạy được trong container), **để ngỏ 5** + 1 phần (CR-38: ghim SHA action).
+
+| Gate (sau sửa) | Lệnh | Kết quả |
+|---|---|---|
+| fmt | `cargo fmt --all --check` | ✅ |
+| clippy Linux | `cargo clippy --workspace --all-targets -- -D warnings` | ✅ |
+| clippy Windows (cross-check) | `… --target x86_64-pc-windows-msvc -- -D warnings` | ✅ |
+| test | `cargo test --workspace` | ✅ 368 test (Linux), 0 fail |
+| replay | headless 39 · tsf 117 · mac 153 · linux 39 | ✅ |
+| ABI | `textvn-cli verify` (11 export) · `sizes` (532 B) | ✅ |
+| xtask | `check-tables` · `check-win-corpus` (72) · `check-mac-corpus` (114) · `check-mac-targets` (12) · `check-version-sync` (14) | ✅ |
+| repo-hygiene | `check_doc_links` · `check_iss_tabs` · `check_no_injection_apis` · `check_ps1_ascii` | ✅ |
+| linux-common (C) | ctest Release + Debug ASan/UBSan | ✅ 4/4 × 2 |
+| fuzz `ffi_key` (harness mới) | 3000 input ngẫu nhiên + 3 seed, không instrument (container không có nightly) | ✅ |
+| bench | `ime_key` p50 451 ns / p99 943 ns (ngân sách 0.5 ms) | ✅ |
+
+**Chưa kiểm được trong container — giao cho CI/máy thật:** build + `swift test` macOS (CR-28–33, CI `ci-macos`);
+PowerShell/Inno (CR-35–37, job Windows của CI/release — nhất là nâng cấp khi app 32-bit đang mở DLL x86);
+IBus/Fcitx5 e2e (CI `linux-adapters`).
+
+**Để ngỏ — cần quyết định sản phẩm hoặc máy Windows đa phiên/thật:**
+
+| ID | Việc | Vì sao chưa làm |
+|---|---|---|
+| CR-10 | Pipe theo phiên (`textvn-ipc-v1-<SessionId>`) + `FIRST_PIPE_INSTANCE` | Đổi hợp đồng đặt tên 4 thành phần; cần Fast User Switching/RDS để kiểm |
+| CR-14 | Hook bỏ qua tiến trình đang có TIP TextVN active; reset từ khi click | Cần Windows thật; thay đổi giao thức IPC |
+| CR-20 | Migration không reset tuỳ chọn gõ mỗi bản; gỡ/nối `SettingsController` | Quyết định sản phẩm |
+| CR-08 | Gõ tắt giữ khoảng trắng đầu/cuối, trigger có `=` | Đổi định dạng text ảnh hưởng 3 UI |
+| CR-34 | Chốt kiểu `appdb_version` (số) trong `schemas/ipc.v1.md`, sửa Swift | Cần toolchain Swift để sửa + test |
+| CR-38 | Ghim action bên thứ ba theo commit SHA | Phiên rà soát không tra được SHA |
+
 ## 3. Nhật ký tiến độ
 
 - 2026-10-07 — P0 baseline xanh; lập plan.
@@ -117,3 +151,4 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
   đều xanh; `format_rust` đóng stdin trước khi chờ — không deadlock; version-sync đủ 14 chỗ khớp thông báo của `release.yml`),
   `preflight` (exit code thật, không pipe), `config_parse`/`appdb_parse` fuzz, `tools/bench` (hồi quy theo p50, p99 theo ngân sách
   tuyệt đối) — không thấy lỗi khác. Bench Linux sau mọi thay đổi engine: `ime_key` p50 451 ns / p99 943 ns (ngân sách 0.5 ms).
+- 2026-10-07 — P11: chạy lại toàn bộ gate (bảng §4) — xanh hết; cập nhật báo cáo, push nhánh `ccr-78d8ca29-1v3uym`.

@@ -7,6 +7,27 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Fixed — rà soát mã nguồn chuyên sâu 2026-10-07 (chi tiết: `docs/release/code-review-2026-10-07.md`)
+- **Mất chữ (P0)**: giữ phím lặp sau từ có dấu (`đẹppppp…`, > 64 phím) từng làm phím
+  kế tiếp xoá lẹm chữ phía trước — engine giờ đóng từ khi chạm giới hạn, FFI từ chối
+  thay vì cắt kết quả (CR-01/02). macOS: self-heal con trỏ chạy trước engine (CR-28).
+- Phím tắt Ctrl/Alt/Cmd giữa từ không còn để phím kế tiếp sửa nhầm từ ở chỗ khác
+  (engine, hook Windows, macOS — CR-04/13/29); macOS: Enter/Tab sau từ có dấu gửi đúng
+  phím thật (Messages/Slack gửi tin, Tab chuyển ô — CR-30), phím điều hướng không chèn
+  ký tự điều khiển (CR-31).
+- Ô mật khẩu (role secure) luôn đi thẳng kể cả khi app quên cờ secure (CR-06).
+- Windows: pipe client không cho server giả mạo impersonate (CR-09); tray không còn
+  chiếm lại Ctrl + Shift mỗi lần khởi động (CR-17); gói chẩn đoán không chứa gõ tắt/từ
+  điển của người dùng (CR-21); bộ cài thay/gỡ được `textvn-tsf-x86.dll` khi app 32-bit
+  đang mở và dọn đúng file `.old-*` (CR-37); DLL x86 được ký cùng các binary khác (CR-36).
+- Linux: client IPC không còn SIGPIPE làm sập ibus-daemon/fcitx5, không mất frame
+  nhận dở dang (CR-24/25).
+- macOS: lưu cài đặt không còn xoá danh sách emoji và trường `when` của gõ tắt (CR-33).
+- Hướng dẫn kiểm chữ ký phát hành (`docs/release/signing.md`) dùng đúng tên `.asc` và
+  workflow `release.yml` (CR-39).
+
 ## [0.2.27] — 2026-10-07
 
 ### Added (macOS) — toggle "Gõ không gạch chân" được tôn trọng (BUG-05, vòng 15)
