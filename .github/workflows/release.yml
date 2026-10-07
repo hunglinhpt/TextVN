@@ -173,7 +173,6 @@ jobs:
       - name: Validate tag, payload, checksums and publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
@@ -213,16 +212,6 @@ jobs:
               --title "TextVN ${version} (release candidate)" \
               --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
           fi
-          # Ký số tự động (vòng 15): GPG detached + Sigstore keyless cho MỌI
-          # asset (Windows/Linux/macOS) + clearsign SHA256SUMS.txt. Private key:
-          # secret RELEASE_GPG_PRIVATE_KEY (FPR 3921595A…, public key commit ở
-          # docs/release/signing/). Keyless cosign: OIDC của workflow này —
-          # provenance "artifact do release-candidate.yml build". Hai lớp này là
-          # integrity/provenance; Authenticode cho policy 10.2.9 vẫn chờ
-          # SignPath/Trusted Signing (docs/release/store-policy-10-2-9.md).
-          cp docs/release/signing/gpg-release-key.asc release-assets/
           (cd release-assets && sha256sum * > SHA256SUMS.txt)
-          chmod +x tools/release/sign-artifacts.sh
-          bash tools/release/sign-artifacts.sh release-assets
           gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
           gh release edit "${GITHUB_REF_NAME}" --draft=false
