@@ -13,16 +13,18 @@ if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [St
 }
 Write-Host 'Go dang ky TSF...'
 
-# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows (TextVN tu dong
-# thay doi HKCU\Keyboard Layout\Toggle khi chay lan dau - restore khi go).
+# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows. Ban portable chi
+# "danh Ctrl + Shift" o lan chay dau va ghi marker %APPDATA%\TextVN\ctrl_shift_default_applied
+# (tray/src/main.rs apply_ctrl_shift_default_once) - chi restore khi co marker, de
+# khong xoa lua chon "Not assigned" ma user tu dat trong Settings (CR-35).
 $toggle = 'HKCU:\Keyboard Layout\Toggle'
-$hotkey = (Get-ItemProperty -Path $toggle -Name 'Hotkey' -ErrorAction SilentlyContinue).Hotkey
+$marker = Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied'
 $layout = (Get-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue).'Layout Hotkey'
-# Chi restore neu gia tri hien tai la 3 (do TextVN dat) - khong dung neu user da tu sua.
-if ($layout -eq '3') {
+if ((Test-Path -LiteralPath $marker -PathType Leaf) -and $layout -eq '3') {
     Remove-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue
     Write-Host 'Da tra lai Ctrl + Shift cho Windows (xoa Layout Hotkey override).'
 }
+Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
 
 $r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
 if ($r.ExitCode -ne 0) {
@@ -33,7 +35,8 @@ if ($r.ExitCode -ne 0) {
 # KHONG xoa duoc ngay. Tu dong don o lan dang nhap ke tiep bang RunOnce (khong can
 # admin): luc do TIP da go dang ky nen DLL khong con bi nap.
 $left = $null
-try { Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop } catch { $left = $_ }
+# -LiteralPath: ten thu muc co '[' / ']' bi -Path hieu la wildcard -> khong xoa gi.
+try { Remove-Item -LiteralPath $dir -Recurse -Force -ErrorAction Stop } catch { $left = $_ }
 if ($left) {
     $runOnce = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
     $cmd = 'cmd.exe /c rmdir /s /q "' + $dir + '"'

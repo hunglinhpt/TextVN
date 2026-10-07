@@ -115,15 +115,19 @@ if (-not $SigningRequested) {
 $ReleaseChecks = [ordered]@{}
 $FeatureProfile = if ($IncludeCompatibilityHook) { "tsf-plus-legacy-hook" } else { "tsf-only" }
 
-# Kiem tra rust target
-Write-Step "Check Rust target $Target"
+# Kiem tra rust target - ca i686 cho TIP DLL x86 (Vong 14): thieu target nay
+# thi buoc build x86 phia duoi moi fail, sau khi da chay het test/clippy.
+$TargetX86 = "i686-pc-windows-msvc"
+Write-Step "Check Rust targets $Target, $TargetX86"
 $installedTargets = rustup target list --installed 2>&1
-if ($installedTargets -notcontains $Target) {
-    Write-Warn "Target $Target chua cai - dang cai..."
-    rustup target add $Target
-    if ($LASTEXITCODE -ne 0) { Write-Fail "rustup target add FAIL" }
+foreach ($t in @($Target, $TargetX86)) {
+    if ($installedTargets -notcontains $t) {
+        Write-Warn "Target $t chua cai - dang cai..."
+        rustup target add $t
+        if ($LASTEXITCODE -ne 0) { Write-Fail "rustup target add $t FAIL" }
+    }
+    Write-Ok "Target $t OK"
 }
-Write-Ok "Target $Target OK"
 
 # Release gate: moi build deu chay cac kiem tra tinh, ABI va corpus. `-SkipTests`
 # chi bo test workspace de ho tro chan doan cuc bo; artifact van la candidate.
@@ -172,16 +176,18 @@ if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 # phu thuoc VC redist x86 tren may nguoi dung).
 Write-Step "Build TIP DLL x86 (WOW64: Zalo/Office 32-bit)"
 $env:RUSTFLAGS = "-C target-feature=+crt-static"
-cargo build --release --target i686-pc-windows-msvc -p textvn-win-tsf
+cargo build --release --target $TargetX86 -p textvn-win-tsf
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
-$x86Dll = "target/i686-pc-windows-msvc/release/textvn_win_tsf.dll"
+$x86Dll = "target/$TargetX86/release/textvn_win_tsf.dll"
 if (-not (Test-Path $x86Dll)) { Write-Fail "x86 TIP DLL missing: $x86Dll" }
 # Gate: PE machine phai la I386 (0x014C)
 $peBytes = [System.IO.File]::ReadAllBytes($x86Dll)
 $peOff = [BitConverter]::ToInt32($peBytes, 0x3C)
 $machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
-if ($machine -ne 0x014C) { Write-Fail "x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine }
+# Ngoac quanh -f: khong co thi "-f" bi truyen nhu tham so cho Write-Fail va
+# thong bao in nguyen chuoi "0x{0:X4}".
+if ($machine -ne 0x014C) { Write-Fail ("x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine) }
 Copy-Item $x86Dll (Join-Path $ReleaseDir "textvn-tsf-x86.dll") -Force
 Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
 
@@ -189,10 +195,13 @@ Write-Ok "Build release DONE"
 
 # Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
 # cach phat hanh chuan de xay dung reputation; khong co co che che giau binary.
+# Gom ca TIP DLL x86: no duoc nap vao moi tien trinh 32-bit (Zalo, Office x86)
+# nen thieu chu ky la DLL "la" duy nhat trong goi da ky (CR-36).
 $ReleaseSignFiles = @(
     "$ReleaseDir\TextVN.exe",
     "$ReleaseDir\textvn-cli.exe",
-    "$ReleaseDir\textvn_win_tsf.dll"
+    "$ReleaseDir\textvn_win_tsf.dll",
+    "$ReleaseDir\textvn-tsf-x86.dll"
 )
 if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
 if ($SigningRequested) {

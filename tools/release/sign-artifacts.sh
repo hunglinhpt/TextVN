@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Hai lớp chữ ký cho MỌI artifact của một release (exe/zip/msix/tar.gz/pkg):
-#   1. GPG detached (ASCII .sig)  — key từ secret RELEASE_GPG_PRIVATE_KEY
+#   1. GPG detached (ASCII armor → <file>.asc)  — key từ secret RELEASE_GPG_PRIVATE_KEY
 #      (TextVN Release Signing, FPR 3921595ABC961199F15303B6C45B84D0C7F4A822,
 #      public key: docs/release/signing/gpg-release-key.asc).
 #   2. Sigstore keyless (cosign sign-blob, OIDC GitHub Actions) — chữ ký +
@@ -30,7 +30,7 @@ if [ -n "${RELEASE_GPG_PRIVATE_KEY:-}" ]; then
         esac
         if [ -f "$f" ]; then
             gpg --batch --yes --armor --detach-sign "$f"
-            echo "GPG signed: $f.sig"
+            echo "GPG signed: $f.asc"
         fi
     done
     if [ -f SHA256SUMS.txt ]; then

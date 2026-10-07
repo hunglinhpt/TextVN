@@ -121,6 +121,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
 Type: files; Name: "{app}\textvn-tsf.dll.old-*"
+Type: files; Name: "{app}\textvn-tsf-x86.dll.old-*"
 Type: files; Name: "{app}\TextVN.exe.old-*"
 
 [Tasks]
@@ -190,19 +191,21 @@ var
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
 // 0.2.19: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
-procedure RenameLockedTsfDll();
+// Ap dung cho CA textvn-tsf-x86.dll: app 32-bit (Zalo...) nap ban x86, nen
+// nang cap khi app do dang mo cung bi file-in-use nhu ban x64.
+procedure RenameLockedFile(const FileName: String);
 var
   AppDir, OldFile, Backup: String;
   FindRec: TFindRec;
 begin
   AppDir := ExpandConstant('{app}');
-  OldFile := AppDir + '\textvn-tsf.dll';
+  OldFile := AppDir + '\' + FileName;
   // Don backup cu truoc (best-effort — co the van bi nap thi de lai, khong fail)
-  if FindFirst(AppDir + '\textvn-tsf.dll.old-*', FindRec) then
+  if FindFirst(OldFile + '.old-*', FindRec) then
   begin
     try
       repeat
-        DeleteFile(AppDir + '' + FindRec.Name);
+        DeleteFile(AppDir + '\' + FindRec.Name);
       until not FindNext(FindRec);
     finally
       FindClose(FindRec);
@@ -212,10 +215,16 @@ begin
   begin
     Backup := OldFile + '.old-' + GetDateTimeString('yyyymmddhhnnss', '-', '-');
     if RenameFile(OldFile, Backup) then
-      Log('Renamed locked textvn-tsf.dll to ' + Backup)
+      Log('Renamed locked ' + FileName + ' to ' + Backup)
     else
-      Log('Could not rename locked textvn-tsf.dll; Setup will show the file-in-use dialog if replace fails.');
+      Log('Could not rename locked ' + FileName + '; Setup will show the file-in-use dialog if replace fails.');
   end;
+end;
+
+procedure RenameLockedTsfDll();
+begin
+  RenameLockedFile('textvn-tsf.dll');
+  RenameLockedFile('textvn-tsf-x86.dll');
 end;
 
 var
@@ -351,8 +360,10 @@ begin
   if not DirExists(AppDir) then
     Exit;
   Params := 'schedule-delete';
-  // Thứ tự: DLL chính → các .old-* → thư mục (PFO xử lý tuần tự).
+  // Thứ tự: DLL chính (x64 + x86 cho app 32-bit) → các .old-* → thư mục
+  // (PFO xử lý tuần tự).
   Params := Params + ' "' + AppDir + '\textvn-tsf.dll"';
+  Params := Params + ' "' + AppDir + '\textvn-tsf-x86.dll"';
   if FindFirst(AppDir + '\*.old-*', FindRec) then
   begin
     try
