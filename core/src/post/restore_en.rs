@@ -141,9 +141,11 @@ pub fn complete_word(
         }
     }
     for w in english_words {
-        let w = w.trim();
+        // Từ điển cá nhân so khớp không phân biệt hoa thường (như `listed`): người
+        // dùng thêm `VnExpress` thì `vn` + Tab vẫn phải gợi ý.
+        let w = w.trim().to_lowercase();
         if !w.is_empty() {
-            consider(&mut best, w);
+            consider(&mut best, &w);
         }
     }
     best.map(|b| b.to_lowercase())
@@ -375,5 +377,10 @@ mod tests {
         );
         // Không có ứng viên → None
         assert_eq!(complete_word("zzz", "zzz", &[]), None);
+        // Từ điển cá nhân viết hoa vẫn khớp tiền tố gõ thường
+        assert_eq!(
+            complete_word("vn", "vn", &["VnExpress".to_string()]),
+            Some("vnexpress".to_string())
+        );
     }
 }

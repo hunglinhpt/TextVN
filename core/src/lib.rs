@@ -167,6 +167,10 @@ const RECENT_MAX: usize = 64;
 /// (FFI còn một lưới an toàn cuối; macro dài hơn 64 ký tự bị cắt tại đây).
 pub const MAX_TEXT: usize = 64;
 
+/// Số phím tối đa của một từ engine còn sở hữu: `raw` + 1 ký tự ranh giới phải vừa
+/// `MAX_TEXT` để RESTORE/ESC trả lại đủ chuỗi gõ. Vượt → đóng từ (`close_word`).
+const MAX_WORD_KEYS: usize = MAX_TEXT - 1;
+
 /// Engine — 1 instance = 1 thread (P0-2 §3).
 pub struct Engine {
     opts: EngineOptions,
@@ -318,8 +322,11 @@ impl Engine {
             return Outcome::pass();
         }
         if k.is_chord() {
-            // Ctrl+V/Ctrl+Z/Alt+Tab… đổi text quanh con trỏ mà engine không thấy: quên đuôi
-            // text để gõ tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
+            // Ctrl+V/Ctrl+Z/Ctrl+←/Ctrl+Backspace/Alt+Tab… đổi text hoặc vị trí con trỏ mà
+            // engine không thấy: bỏ quyền sở hữu từ đang gõ (như phím điều hướng — B7) để
+            // phím kế tiếp không REPLACE `owned` ký tự ở chỗ khác, và quên đuôi text để gõ
+            // tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
+            self.word.clear();
             self.recent.clear();
             return Outcome::pass();
         }
@@ -382,6 +389,14 @@ impl Engine {
         }
 
         // --- Chữ cái: fold path ---
+        // Từ dài bất thường (giữ phím lặp `đẹpppp…` trong chat, chuỗi chữ dài không ranh
+        // giới): kết quả sẽ không vừa `ime_result_v1` (MAX_TEXT). FFI mà cắt `insert` thì
+        // `owned` lệch document và phím kế tiếp xoá lẹm sang chữ phía trước → đóng từ
+        // (giữ nguyên trong document), phím này đi vào như ký tự thường.
+        if self.word.raw.len() >= MAX_WORD_KEYS {
+            return self.close_word(c, strategy);
+        }
+
         // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ngay sau `. ! ?` / Enter.
         let mut caps_fired = false;
         let c = if self.opts.auto_capitalize && self.caps_pending && self.word.is_empty() {
@@ -421,6 +436,13 @@ impl Engine {
             return Outcome::pass();
         }
 
+        let out = self.emit(&display);
+        if out.len() > MAX_TEXT {
+            // Bảng mã 2 ký tự/chữ (Unicode tổ hợp, VNI Windows) làm từ ngắn hơn
+            // MAX_WORD_KEYS phím vẫn tràn — cùng cách xử lý như trên.
+            self.word.raw.pop();
+            return self.close_word(c, strategy);
+        }
         let delete = if self.word.active {
             self.word.owned as u16
         } else {
@@ -428,7 +450,6 @@ impl Engine {
         };
         self.word.active = true;
         self.word.passed.clear();
-        let out = self.emit(&display);
         self.word.display = display;
         self.word.owned = out.len();
         self.recent_replace(delete as usize, &out);
@@ -516,6 +537,13 @@ impl Engine {
             }
         }
 
+        self.close_word(c, strategy)
+    }
+
+    /// Đóng từ đang gõ **giữ nguyên** kết quả trong document, rồi cho `c` vào sau nó
+    /// (không auto-restore, không đổi cờ viết hoa — phần đó thuộc `on_boundary`).
+    fn close_word(&mut self, c: char, strategy: Strategy) -> Outcome {
+        let was_active = self.word.active;
         self.word.clear();
         self.recent_replace(0, &[c]);
         if !was_active {
@@ -526,13 +554,13 @@ impl Engine {
             };
         }
         match strategy {
-            // Preedit: đóng composition (preedit thành text) rồi chèn ký tự ranh giới.
+            // Preedit: đóng composition (preedit thành text) rồi chèn `c`.
             Strategy::Preedit => Outcome {
                 action: Action::Commit { insert: vec![c] },
                 preedit: Vec::new(),
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
             },
-            // Các strategy khác: từ đã nằm trong document → chỉ cho ranh giới đi qua.
+            // Các strategy khác: từ đã nằm trong document → chỉ cho `c` đi qua.
             _ => Outcome {
                 action: Action::Pass,
                 preedit: Vec::new(),
@@ -571,6 +599,9 @@ impl Engine {
             }
         }
         let out = self.emit(&insert);
+        if out.len() > MAX_TEXT {
+            return None;
+        }
         let delete = self.word.owned as u16;
         self.word.clear();
         self.recent_replace(delete as usize, &out);
@@ -622,6 +653,14 @@ impl Engine {
             }
             let display = self.fold_current();
             let out = self.emit(&display);
+            if out.len() > MAX_TEXT {
+                // Bỏ phím gỡ được dấu thanh ẩn (`asz` → `á`) có thể làm từ dài thêm 1 ký
+                // tự ở bảng mã tổ hợp — không vừa result → thôi sở hữu từ, app tự xoá
+                // 1 ký tự như Backspace thường.
+                self.word.clear();
+                self.recent.pop();
+                return Outcome::pass();
+            }
             self.word.display = display;
             self.word.owned = out.len();
             self.recent_replace(delete as usize, &out);
@@ -813,6 +852,23 @@ mod tests {
         // Không còn owner range sau khi cursor đã di chuyển; x phải PASS, không
         // được REPLACE `tôi` bằng delete_count theo vị trí con trỏ cũ.
         assert_eq!(e.key(&KeyEvent::char_down('x')).action, Action::Pass);
+    }
+
+    #[test]
+    fn chord_drops_word_ownership() {
+        // `tooi` → `tôi` (engine sở hữu 3 ký tự) rồi Ctrl+← (con trỏ nhảy về đầu từ):
+        // `s` kế tiếp không được REPLACE 3 ký tự ở vị trí mới.
+        let mut e = engine();
+        let (buf, _) = type_keys(&mut e, "tooi");
+        assert_eq!(buf, "tôi");
+        let ctrl_left = KeyEvent {
+            vk: keymap::vk::LEFT,
+            mods: MOD_CTRL,
+            key_down: true,
+            ..Default::default()
+        };
+        assert_eq!(e.key(&ctrl_left).action, Action::Pass);
+        assert_eq!(e.key(&KeyEvent::char_down('s')).action, Action::Pass);
     }
 
     #[test]
