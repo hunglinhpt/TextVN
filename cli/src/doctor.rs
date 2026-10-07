@@ -359,16 +359,11 @@ pub fn abi_sizes() -> (usize, usize, usize, bool) {
 fn check_pipe_listening() -> bool {
     #[cfg(windows)]
     {
-        use std::fs::OpenOptions;
-        OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(r"\\.\pipe\textvn-ipc-v1")
+        textvn_ipc::pipe_client_options()
+            .open(textvn_ipc::PIPE_NAME)
             .is_ok()
-            || OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\textvn-ipc-v1")
+            || textvn_ipc::pipe_client_options()
+                .open(textvn_ipc::PIPE_NAME)
                 .is_ok()
     }
     #[cfg(not(windows))]

@@ -13,7 +13,6 @@
 //!   từ tray (`app_id = "*"`) có hiệu lực ở mọi app; per-app chỉ tắt riêng app.
 
 use std::collections::BTreeMap;
-use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -166,7 +165,7 @@ impl IpcClient {
                 // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
                 // process này tới snapshot kế.
                 for _ in 0..3 {
-                    match OpenOptions::new().read(true).write(true).open(PIPE_NAME) {
+                    match textvn_ipc::pipe_client_options().open(PIPE_NAME) {
                         Ok(mut stream) => {
                             let _ = send_message(
                                 &mut stream,
@@ -263,7 +262,7 @@ fn run_client_loop(app_id: String, state: Arc<IpcState>) {
     let mut idle_ms: u64 = 2_000;
 
     loop {
-        let Ok(mut stream) = OpenOptions::new().read(true).write(true).open(PIPE_NAME) else {
+        let Ok(mut stream) = textvn_ipc::pipe_client_options().open(PIPE_NAME) else {
             state.connected.store(false, Ordering::Release);
             std::thread::sleep(Duration::from_millis(idle_ms));
             // Tray tắt lâu: giãn nhịp thử lại để không đánh thức CPU vô ích.

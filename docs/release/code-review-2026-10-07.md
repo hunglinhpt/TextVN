@@ -28,7 +28,7 @@ PowerShell/Inno chỉ rà tĩnh.
 | P1 | `core/` (engine: buffer, method, transform, post, validate, lib) | 4.6k | Đúng chính tả, panic/overflow (S4), invariant buffer, undo/restore | ✅ |
 | P2 | `ffi/` (lib, settings, header C) | 1.4k | `unsafe`, null/len, `catch_unwind`, UTF-8 cắt giữa ký tự, ABI | ✅ |
 | P3 | `config/` `appdb/` `strategy/` `field-detect/` `ipc/` | 2.9k | Parse input không tin cậy, giới hạn kích thước, ghi file nguyên tử | ✅ |
-| P4 | `adapters/windows-tsf/` | 3.9k | COM refcount, edit session, re-entrancy, fail-open | ⏳ |
+| P4 | `adapters/windows-tsf/` | 3.9k | COM refcount, edit session, re-entrancy, fail-open | ✅ |
 | P5 | `adapters/windows-hook/` + `tray/` | 7.1k | Hook chỉ quan sát, pipe server (DACL, giới hạn frame), race | ⏳ |
 | P6 | `cli/` (register, doctor, replay, verify) | 5.1k | Registry/đường dẫn, quyền, xử lý lỗi | ⏳ |
 | P7 | `adapters/linux-*` (C/C++) | 4.5k | Buffer overflow, socket, GLib/fcitx lifetime | ⏳ |
@@ -52,6 +52,10 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-06 | P1 (S3) | `strategy/src/resolve.rs` `resolve`; `core/src/lib.rs` | Gate bước 1 chỉ xét cờ `secure`: ô có `field_role = SECURE` mà adapter quên cờ thì hint/preset **thắng** (preset app không có `when` biến ô mật khẩu thành Preedit), và engine vẫn chạy macro (`allow_macro_when_vi_off`) + ghi `recent` trong ô mật khẩu. | `secure \|\| field_role == SECURE` ở resolver; engine dùng `Engine::secure()` cho mọi kiểm tra S3. Test `secure_role_beats_hint_and_presets_without_secure_flag`, `secure_role_without_flag_is_still_secure` | ✅ Fixed |
 | CR-07 | P3 (perf) | `appdb/src/lib.rs` `Matcher::matches` | Mỗi lần so khớp entry dựng `MatchClause` tạm = clone 3 `String` — chạy trên đường phím (mac/Linux gọi `ime_strategy_resolve` mỗi key). | So khớp trên `&str` (`id_matches`), không alloc | ✅ Fixed |
 | CR-08 | P3 | `config/src/macro_text.rs` `parse` | Nội dung gõ tắt bị `trim()` → khoảng trắng đầu/cuối có chủ ý (`"Trân trọng, "`) mất sau khi lưu; trigger chứa `=` (sửa tay trong JSON) đổi nghĩa khi round-trip qua ô soạn thảo. | Ghi nhận — đổi định dạng text ảnh hưởng 3 UI; để ngỏ, không sửa trong đợt này | 📝 Open |
+| CR-09 | P1 (bảo mật) | `adapters/windows-tsf/src/ipc_client.rs`, `adapters/windows-hook/src/main.rs`, `tray/src/{main,ipc_server}.rs`, `cli/src/doctor.rs` | 9 chỗ mở **client** named pipe bằng `OpenOptions` mặc định (không `SECURITY_SQOS_PRESENT`) → server cấp quyền **impersonate** client. TIP nằm trong mọi process (kể cả app quyền admin) và thử nối lại mỗi 2–10 s khi tray chưa chạy: process nào chiếm tên `\\.\pipe\textvn-ipc-v1` trước sẽ nhận kết nối và gọi được `ImpersonateNamedPipeClient` (tài liệu std Rust cảnh báo đúng ca này). | Helper `textvn_ipc::pipe_client_options()` (read+write + `SECURITY_IDENTIFICATION`) dùng ở mọi client; server chỉ cần `GetNamedPipeClientProcessId` nên không mất chức năng. Cross-check `--target x86_64-pc-windows-msvc` xanh | ✅ Fixed |
+| CR-10 | P2 | tray/TIP/hook — tên pipe | `\\.\pipe\` là namespace **toàn máy**: Fast User Switching/RDS → user thứ hai không tạo được instance (DACL user đầu), TIP của user thứ hai rơi về chế độ offline, Ctrl+Shift/tray không tới được TIP. Server cũng không dùng `FILE_FLAG_FIRST_PIPE_INSTANCE` để phát hiện chiếm tên. | Đề xuất: pipe theo phiên `textvn-ipc-v1-<SessionId>` (đổi hợp đồng đặt tên 00-INDEX §4 + 4 thành phần) + `FIRST_PIPE_INSTANCE` ở instance đầu. Cần máy Windows đa phiên để kiểm — để ngỏ | 📝 Open |
+| CR-11 | P2 | `{ffi,cli,tray}/build.rs`, `adapters/windows-{tsf,hook}/build.rs` | Sinh `FILEVERSION 0.2.27,0` / `PRODUCTVERSION 0.2.27,0` — RC cần 4 số phân cách **dấu phẩy**; khối VS_FIXEDFILEINFO (số Explorer, WACK/Store, so sánh phiên bản khi thay file) bị đọc sai. Chuỗi `FileVersion` vẫn đúng nên `build-release.ps1` không bắt được. | `version.replace('.', ",")` → `0,2,27,0` ở cả 5 build script | ✅ Fixed |
+| CR-12 | P3 (perf) | `adapters/windows-tsf/src/edit_session.rs` `apply_display_attribute` | `CoCreateInstance(CLSID_TF_CategoryMgr)` + `RegisterGUID` ở **mỗi phím** đang soạn. | Cache atom theo thread (`thread_local!`, như SampleIME) | ✅ Fixed |
 
 ## 3. Nhật ký tiến độ
 
@@ -61,3 +65,6 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
   `validate`, `post/{macro,caps,emoji,quick_telex}`, `ffi/src/settings.rs`, header C (bản mac giống hệt bản gốc).
 - 2026-10-07 — P3 rà xong: CR-06 (S3), CR-07 sửa; CR-08 ghi nhận. `ipc` codec (giới hạn 64 KiB, từ chối trailing/UTF-8 sai),
   `config/doc.rs` (ghi nguyên tử 0600, sao lưu `.bak`), `field-detect` (generation gate, Unknown ⇒ Passthrough) không có lỗi.
+- 2026-10-07 — P4 `windows-tsf` rà xong: CR-09 (pipe impersonation), CR-11, CR-12 sửa; CR-10 ghi nhận. Edit session (gate S3 đọc lại mỗi phím,
+  self-heal caret, fail-open khi `RequestEditSession` từ chối), `replay.rs` (CUAS), `compose.rs` (kế hoạch thuần, đã có test) không thấy lỗi.
+  Ghi chú chưa kiểm được trên Windows thật: `pending_eaten_vk` giả định mọi app gọi `OnKeyDown` sau `OnTestKeyDown` = TRUE (finding E6 cũ).

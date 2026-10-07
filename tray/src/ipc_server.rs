@@ -736,10 +736,7 @@ mod tests {
         server.stop();
         assert!(!server.is_running());
         // Unblock pending ConnectNamedPipe so the worker thread observes running=false and terminates
-        let _ = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
         std::thread::sleep(Duration::from_millis(50));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -765,11 +762,7 @@ mod tests {
         let client = std::thread::spawn(move || {
             let mut file = None;
             for _ in 0..20 {
-                if let Ok(f) = std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(PIPE_NAME)
-                {
+                if let Ok(f) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
                     file = Some(f);
                     break;
                 }
@@ -811,10 +804,7 @@ mod tests {
 
         client.join().unwrap();
         server.stop();
-        let _ = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
         std::thread::sleep(Duration::from_millis(50));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -836,11 +826,7 @@ mod tests {
         let client = std::thread::spawn(move || {
             let mut file = None;
             for _ in 0..20 {
-                if let Ok(f) = std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(PIPE_NAME)
-                {
+                if let Ok(f) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
                     file = Some(f);
                     break;
                 }
@@ -873,10 +859,7 @@ mod tests {
             other => panic!("expected Snapshot, got {other:?}"),
         }
         server.stop();
-        let _ = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
         std::thread::sleep(Duration::from_millis(50));
     }
 }

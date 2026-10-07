@@ -1076,11 +1076,7 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 
 fn check_status() {
     println!("Checking TextVN IPC pipe: {}", PIPE_NAME);
-    match std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(PIPE_NAME)
-    {
+    match textvn_ipc::pipe_client_options().open(PIPE_NAME) {
         Ok(mut stream) => {
             let ping = textvn_ipc::Message::Ping;
             if let Ok(frame) = textvn_ipc::encode_frame(&ping) {
@@ -1129,11 +1125,7 @@ fn stop_running_instance() {
                 // The named-pipe request is the primary control path. It enters
                 // the app's own IPC worker, then requests exit on the tray thread
                 // (tray broadcast Shutdown cho Hook rồi mới PostQuitMessage).
-                if let Ok(mut stream) = std::fs::OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open(PIPE_NAME)
-                {
+                if let Ok(mut stream) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
                     if let Ok(frame) = textvn_ipc::encode_frame(&textvn_ipc::Message::Shutdown) {
                         let _ = stream.write_all(&frame);
                         let _ = stream.flush();

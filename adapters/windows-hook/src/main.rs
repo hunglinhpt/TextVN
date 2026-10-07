@@ -10,7 +10,6 @@
 #[cfg(windows)]
 mod hook_app {
     use std::cell::RefCell;
-    use std::fs::OpenOptions;
     use std::io::{Read, Write};
     use std::path::Path;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -70,10 +69,8 @@ mod hook_app {
         std::thread::spawn(|| {
             use std::io::Write;
             use textvn_ipc::{encode_frame, Message};
-            if let Ok(mut stream) = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\textvn-ipc-v1")
+            if let Ok(mut stream) =
+                textvn_ipc::pipe_client_options().open(r"\\.\pipe\textvn-ipc-v1")
             {
                 let msg = Message::ToggleGlobal;
                 if let Ok(frame) = encode_frame(&msg) {
@@ -605,9 +602,7 @@ mod hook_app {
         let pid = std::process::id();
         let mut last_tray_contact = Instant::now();
         while running.load(Ordering::Acquire) {
-            let stream_opt = OpenOptions::new()
-                .read(true)
-                .write(true)
+            let stream_opt = textvn_ipc::pipe_client_options()
                 .open(r"\\.\pipe\textvn-ipc-v1")
                 .ok();
 

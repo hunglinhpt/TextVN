@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 textvn-ffi = { path = "../ffi" }
 textvn-config = { path = "../config" }
+textvn-ipc = { path = "../ipc" }
 # Chỉ phần thuần (`compose`) — mô phỏng TSF composition trong `replay --adapter tsf`.
 textvn-win-tsf = { path = "../adapters/windows-tsf" }
 
