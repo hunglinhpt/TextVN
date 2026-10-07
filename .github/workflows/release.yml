@@ -162,7 +162,6 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: write
-      id-token: write  # Sigstore keyless (cosign sign-blob OIDC)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -170,13 +169,10 @@ jobs:
           pattern: release-*
           path: release-assets
           merge-multiple: true
-      - name: Install cosign (Sigstore)
-        uses: sigstore/cosign-installer@v3
       - name: Validate tag, payload, checksums and publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
-          COSIGN_YES: 'true'
         run: |
           set -euo pipefail
           version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
