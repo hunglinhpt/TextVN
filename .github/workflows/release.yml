@@ -173,7 +173,7 @@ jobs:
       - name: Validate tag, payload, checksums and publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
-          FOO_TEST_SECRET: ${{ secrets.FOO_TEST_SECRET }}
+          GPG_KEY_ARMOR: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
         run: |
           set -euo pipefail
           version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
