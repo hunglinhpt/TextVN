@@ -669,4 +669,30 @@ final class ViStateAndHotkeyTests: XCTestCase {
             TextVNInputController.effectiveStrategy(preedit, nonPreedit: false), .preedit)
     }
 }
-  
+
+// ---------------------------------------------------------------- B2 Enter/Tab
+
+/// Enter/Tab ở ranh giới: chốt từ, KHÔNG chèn "\n"/"\t" (app nhận phím thật — B2,
+/// như TSF/Linux). Gõ tắt (REPLACE) và ký tự in được giữ nguyên.
+final class NativeBoundaryTests: XCTestCase {
+    func testCommitAndRestoreDropEnterTab() {
+        let wordEnd = FFI.flagConsumed | FFI.flagWordEnd
+        let commit = KeyOutcome(action: .commit(insert: "\n"), flags: wordEnd)
+        XCTAssertEqual(
+            TextVNInputController.withoutNativeBoundary(commit),
+            KeyOutcome(action: .commit(insert: ""), flags: wordEnd)
+        )
+        let restore = KeyOutcome(action: .restore(deleteCount: 3, insert: "text\t"), flags: wordEnd)
+        XCTAssertEqual(
+            TextVNInputController.withoutNativeBoundary(restore),
+            KeyOutcome(action: .restore(deleteCount: 3, insert: "text"), flags: wordEnd)
+        )
+        let space = KeyOutcome(action: .commit(insert: " "), flags: wordEnd)
+        XCTAssertNil(TextVNInputController.withoutNativeBoundary(space))
+        let macro = KeyOutcome(
+            action: .replace(deleteCount: 3, insert: "Công ty", preedit: ""), flags: wordEnd
+        )
+        XCTAssertNil(TextVNInputController.withoutNativeBoundary(macro))
+    }
+}
+

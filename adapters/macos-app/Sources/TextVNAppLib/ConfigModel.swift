@@ -7,10 +7,26 @@ public struct MacroEntry: Codable, Identifiable, Equatable {
     public var id: String { trigger }
     public var trigger: String
     public var expand: String
+    /// `always` | `vi_on` (P0-3 §1.1) — `nil` = không ghi (engine hiểu `always`).
+    /// Thiếu trường này thì mỗi lần lưu từ bảng cài đặt macOS biến gõ tắt
+    /// `vi_on` (chỉ chạy khi bật tiếng Việt) thành `always`.
+    public var when: String?
 
-    public init(trigger: String, expand: String) {
+    public init(trigger: String, expand: String, when: String? = nil) {
         self.trigger = trigger
         self.expand = expand
+        self.when = when
+    }
+}
+
+/// `config.emoji[]` (P0-3 §1.1) — giữ nguyên khi lưu (UI macOS chưa sửa emoji).
+public struct EmojiEntry: Codable, Equatable {
+    public var trigger: String
+    public var glyph: String
+
+    public init(trigger: String, glyph: String) {
+        self.trigger = trigger
+        self.glyph = glyph
     }
 }
 
@@ -38,6 +54,9 @@ public struct TextVNConfig: Codable, Equatable {
     /// docs/specs/language-detection.md). THIẾU trường này từng khiến bản macOS
     /// XOÁ `english_words` mỗi lần lưu config (bắt khi đồng bộ 0.2.13).
     public var english_words: [String]
+    /// Gõ tắt emoji — thiếu trường này thì mỗi lần lưu config XOÁ `emoji[]` của
+    /// người dùng (tray Windows/Linux giữ nguyên khoá qua SettingsDoc).
+    public var emoji: [EmojiEntry]
 
     public init(
         config_version: Int = 1,
@@ -57,7 +76,8 @@ public struct TextVNConfig: Codable, Equatable {
         run_in_tray: Bool = true,
         switch_key: String = "ctrl_shift",
         macros: [MacroEntry] = [],
-        english_words: [String] = []
+        english_words: [String] = [],
+        emoji: [EmojiEntry] = []
     ) {
         self.config_version = config_version
         self.enabled = enabled
@@ -77,6 +97,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.switch_key = switch_key
         self.macros = macros
         self.english_words = english_words
+        self.emoji = emoji
     }
 
     /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
@@ -102,6 +123,7 @@ public struct TextVNConfig: Codable, Equatable {
         switch_key = try c.decodeIfPresent(String.self, forKey: .switch_key) ?? d.switch_key
         macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
         english_words = try c.decodeIfPresent([String].self, forKey: .english_words) ?? d.english_words
+        emoji = try c.decodeIfPresent([EmojiEntry].self, forKey: .emoji) ?? d.emoji
     }
 
     public static func `default`() -> TextVNConfig {

@@ -200,7 +200,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         heldMods = mods
 
         // 1. Chord hệ thống (Cmd bất kỳ, Ctrl+phím khác Space toggle) → B6.
+        // Cmd+←, Cmd+Z, Cmd+V… đổi con trỏ/text mà engine không thấy: chốt từ đang
+        // gõ (marked → text thật) và quên nó, như TSF — giữ lại thì phím dấu kế
+        // tiếp xoá `owned` ký tự ở vị trí mới (BackspaceType) hoặc đè marked.
         if mods & FFI.modMeta != 0 {
+            finishWordBeforeChord(sender)
             return false
         }
 
@@ -220,8 +224,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         if !keyEvent.keyDown {
             return false
         }
-        // Chord Ctrl/Alt không toggle → luôn PASS (B6).
+        // Chord Ctrl/Alt không toggle → luôn PASS (B6), sau khi chốt từ đang gõ.
         if keyEvent.isChordSwift() {
+            finishWordBeforeChord(sender)
             return false
         }
 
@@ -239,6 +244,18 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             hint: hint
         )
 
+        guard let target = clientTarget(sender) else { return false }
+
+        // Self-heal (P2-1 §4) — PHẢI chạy TRƯỚC engine: app đã tự commit marked
+        // (click chuột sang chỗ khác…). Chạy sau thì outcome đã tính với từ cũ
+        // (`delete_count = owned`) vẫn được áp → `deleteBackward` xoá chữ ở vị trí
+        // con trỏ MỚI (audit 2026-09-30 đã sửa thứ tự này; bị đảo lại sau đó).
+        if marked.text.isEmpty == false, target.markedRange().location == NSNotFound {
+            Diagnostics.log("self-heal: marked desync — ime_reset")
+            marked.clear()
+            engine?.reset()
+        }
+
         // 6. Engine quyết định.
         guard let outcome = engine?.key(keyEvent) else { return false }
         if outcome.isError {
@@ -250,25 +267,30 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Vòng 15 (BUG-05): tôn trọng toggle "Gõ không gạch chân" — Preedit
         // (gạch chân composition) → BackspaceType (delete+type, không gạch chân).
         let effectiveStrategy = Self.effectiveStrategy(strategy, nonPreedit: nonPreedit)
-        guard let target = clientTarget(sender) else { return false }
 
-        // Self-heal (P2-1 §4): engine tin đang marked nhưng app đã clear.
-        if marked.text.isEmpty == false, target.markedRange().location == NSNotFound {
-            Diagnostics.log("self-heal: marked desync — ime_reset")
-            marked.clear()
-            engine?.reset()
+        // B2 — như TSF (`compose.rs` native_boundary_char) và Linux (`lc_plan_key`):
+        // Enter/Tab ở ranh giới phải tới app dưới dạng PHÍM thật (chat gửi tin, Tab
+        // chuyển ô). Chỉ chốt từ rồi trả phím; chèn "\n"/"\t" thành text là nuốt
+        // mất Enter — Messages/Slack xuống dòng thay vì gửi.
+        var toApply = outcome
+        var forwardKey = false
+        if outcome.isWordEnd,
+           keyEvent.vk == Self.vkReturn || keyEvent.vk == Self.vkTab,
+           let trimmed = Self.withoutNativeBoundary(outcome) {
+            toApply = trimmed
+            forwardKey = true
         }
 
-        switch outcome.action {
+        switch toApply.action {
         case .pass:
             return false
         case .replace, .commit, .restore:
             do {
-                try ApplyReplace.apply(outcome, strategy: effectiveStrategy,
+                try ApplyReplace.apply(toApply, strategy: effectiveStrategy,
                                        target: target, marked: marked,
                                        onReset: { [weak self] in self?.engine?.reset() })
-                logAction(outcome)
-                return true
+                logAction(toApply)
+                return !forwardKey
             } catch {
                 // 7. Fail-open: forward phím, engine không được treo (S4, P2-1 §12).
                 Diagnostics.log("apply failed (\(error)) — fail-open")
@@ -279,6 +301,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     // ------------------------------------------------------------- commit B13
+
+    /// Chord hệ thống: chốt marked (nếu có) thành text thật rồi quên từ đang gõ.
+    private func finishWordBeforeChord(_ sender: Any!) {
+        commitBeforeHide(sender)
+        engine?.reset()
+    }
 
     private func commitBeforeHide(_ sender: Any!) {
         guard !marked.text.isEmpty, let target = clientTarget(sender) else {
@@ -382,6 +410,34 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // StateUpdate lại cho mọi client. Gửi .stateUpdate là sai chiều → disconnect.
         ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: newValue))
         return true // nuốt Space toggle
+    }
+
+    /// VK canonical (Win) của Enter/Tab — `keymap::vk` trong core.
+    static let vkReturn: UInt32 = 0x0D
+    static let vkTab: UInt32 = 0x09
+
+    /// COMMIT/RESTORE kết thúc bằng ranh giới Enter/Tab (`\n` `\r` `\t`) → bản đã
+    /// bỏ ký tự đó (app sẽ nhận phím thật); outcome khác → `nil` (giữ nguyên).
+    /// REPLACE có WORD_END là gõ tắt — phím trigger bị nuốt theo P0-3 §1.1.
+    static func withoutNativeBoundary(_ outcome: KeyOutcome) -> KeyOutcome? {
+        func strip(_ text: String) -> String? {
+            guard let last = text.last, last == "\n" || last == "\r" || last == "\t" else {
+                return nil
+            }
+            return String(text.dropLast())
+        }
+        switch outcome.action {
+        case let .commit(insert):
+            guard let text = strip(insert) else { return nil }
+            return KeyOutcome(action: .commit(insert: text), flags: outcome.flags)
+        case let .restore(deleteCount, insert):
+            guard let text = strip(insert) else { return nil }
+            return KeyOutcome(
+                action: .restore(deleteCount: deleteCount, insert: text), flags: outcome.flags
+            )
+        default:
+            return nil
+        }
     }
 
     /// Ctrl+Shift+Space — so MASK, bỏ bit Caps/Fn (ADR-011: CapsLock là kiểu gõ

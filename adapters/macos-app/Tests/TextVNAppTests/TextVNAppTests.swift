@@ -28,6 +28,33 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.macros.isEmpty)
     }
 
+    /// Lưu từ bảng cài đặt macOS không được xoá `emoji[]` hay đổi `when: vi_on` của
+    /// gõ tắt (Windows/Linux giữ nguyên các khoá này).
+    func testSavePreservesEmojiAndMacroWhen() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_keep_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let json = """
+        {"config_version":1,
+         "macros":[{"trigger":"vn","expand":"Việt Nam","when":"vi_on"}],
+         "emoji":[{"trigger":":ok","glyph":"👌"}]}
+        """
+        try json.data(using: .utf8)!.write(to: fileURL)
+
+        var cfg = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(cfg.macros.first?.when, "vi_on")
+        XCTAssertEqual(cfg.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+        cfg.quick_telex = true
+        try cfg.save(to: fileURL)
+
+        let back = TextVNConfig.load(from: fileURL)
+        XCTAssertTrue(back.quick_telex)
+        XCTAssertEqual(back.macros, [MacroEntry(trigger: "vn", expand: "Việt Nam", when: "vi_on")])
+        XCTAssertEqual(back.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+    }
+
     func testConfigSaveAndLoadRoundtrip() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("textvn_test_config_\(UUID().uuidString)")

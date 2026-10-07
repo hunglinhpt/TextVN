@@ -38,8 +38,11 @@ public enum TapInjector {
         for scalar in scalars {
             units.append(contentsOf: String(scalar).utf16)
         }
+        // Ngân sách `maxBatch` chỉ áp cho Backspace: chặn cả vòng chèn bằng `posted`
+        // thì xoá đủ 64 ký tự (Esc/khôi phục từ dài, gõ tắt) sẽ KHÔNG chèn gì mà
+        // vẫn trả `true` → mất chữ. Text tối đa 64 scalar ≈ ≤ 7 event 20 code unit.
         var offset = 0
-        while offset < units.count, posted < maxBatch {
+        while offset < units.count {
             let chunk = Array(units[offset..<min(offset + 20, units.count)])
             let event = CGEvent(
                 keyboardEventSource: source,
@@ -59,17 +62,34 @@ public enum TapInjector {
     /// KHÔNG backspace (app không được gợi ý lại — bug B1).
     @discardableResult
     public static func selectAndReplace(leftCount: Int, insert: String) -> Bool {
+        // Chọn THIẾU ký tự thì phần dư của từ cũ còn lại cạnh chữ mới (nhân đôi):
+        // vượt ngân sách → về cơ chế Backspace (vẫn đúng chữ, chỉ mất lợi ích B1).
+        guard leftCount <= maxBatch else {
+            return inject(deleteCount: leftCount, insert: insert)
+        }
         guard let source = makeMarkedSource() else { return false }
         var posted = 0
-        for _ in 0..<min(leftCount, maxBatch / 2) {
+        for _ in 0..<leftCount {
             guard postKey(kVKLeftArrow, source: source, shift: true) else { return posted > 0 }
             posted += 1
         }
-        let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
+        // CGEvent chỉ chở ≤ 20 UniChar mỗi event — chèn theo khối (khối đầu thay
+        // selection, các khối sau nối tiếp), như `inject`.
         let units = Array(insert.utf16)
-        event?.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
-        event?.post(tap: .cghidEventTap)
-        return event != nil
+        var offset = 0
+        var ok = true
+        while offset < units.count {
+            let chunk = Array(units[offset..<min(offset + 20, units.count)])
+            let event = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true)
+            event?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+            event?.post(tap: .cghidEventTap)
+            guard event != nil else {
+                ok = false
+                break
+            }
+            offset += chunk.count
+        }
+        return ok
     }
 
     private static let kVKLeftArrow: UInt16 = 123

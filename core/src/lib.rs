@@ -379,7 +379,15 @@ impl Engine {
             _ => {}
         }
 
-        let Some(c) = k.printable() else {
+        // Ký tự điều khiển KHÔNG phải chữ hay ranh giới in được: layout macOS trả
+        // `\x1C`–`\x1F` cho mũi tên, `\x01`/`\x04` Home/End, `\x7F` Delete xuôi,
+        // `\x03` Enter bàn phím số… Coi là ranh giới thì ở Preedit engine trả
+        // COMMIT{"\x1C"} — adapter chèn ký tự điều khiển vào văn bản và nuốt phím.
+        // Chỉ `\n` `\r` `\t` (Enter/Tab gửi qua `ch`) còn là ranh giới.
+        let printable = k
+            .printable()
+            .filter(|&c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'));
+        let Some(c) = printable else {
             // Delete/arrow/F-key…: app có thể đã đổi selection/cursor mà engine
             // không quan sát được. Bỏ composition ownership trước khi PASS; nếu
             // giữ `word`, key kế tiếp sẽ REPLACE một suffix ở vị trí cũ (B7).
@@ -892,6 +900,30 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(e.key(&ctrl_left).action, Action::Pass);
+        assert_eq!(e.key(&KeyEvent::char_down('s')).action, Action::Pass);
+    }
+
+    #[test]
+    fn control_chars_from_layout_are_navigation_not_boundary() {
+        // macOS UCKeyTranslate: mũi tên trái = `\x1C`. Ở Preedit, bản cũ trả
+        // COMMIT{"\x1C"} → adapter chèn ký tự điều khiển vào văn bản.
+        let mut e = engine();
+        e.set_context(Context {
+            caps: strategy::IME_CAP_PREEDIT | strategy::IME_CAP_FIELD_DETECT,
+            ..Default::default()
+        });
+        let _ = type_keys(&mut e, "tooi");
+        for (vk, ch) in [(keymap::vk::LEFT, 0x1Cu32), (0, 0x7F), (0, 0x03)] {
+            let o = e.key(&KeyEvent {
+                vk,
+                ch,
+                key_down: true,
+                ..Default::default()
+            });
+            assert_eq!(o.action, Action::Pass, "ch={ch:#x}");
+            assert!(o.preedit.is_empty());
+        }
+        // Từ đã bỏ sở hữu: phím kế tiếp không REPLACE chữ cũ.
         assert_eq!(e.key(&KeyEvent::char_down('s')).action, Action::Pass);
     }
 
