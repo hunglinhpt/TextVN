@@ -27,7 +27,7 @@ PowerShell/Inno chỉ rà tĩnh.
 |---|---|---:|---|---|
 | P1 | `core/` (engine: buffer, method, transform, post, validate, lib) | 4.6k | Đúng chính tả, panic/overflow (S4), invariant buffer, undo/restore | ✅ |
 | P2 | `ffi/` (lib, settings, header C) | 1.4k | `unsafe`, null/len, `catch_unwind`, UTF-8 cắt giữa ký tự, ABI | ✅ |
-| P3 | `config/` `appdb/` `strategy/` `field-detect/` `ipc/` | 2.9k | Parse input không tin cậy, giới hạn kích thước, ghi file nguyên tử | ⏳ |
+| P3 | `config/` `appdb/` `strategy/` `field-detect/` `ipc/` | 2.9k | Parse input không tin cậy, giới hạn kích thước, ghi file nguyên tử | ✅ |
 | P4 | `adapters/windows-tsf/` | 3.9k | COM refcount, edit session, re-entrancy, fail-open | ⏳ |
 | P5 | `adapters/windows-hook/` + `tray/` | 7.1k | Hook chỉ quan sát, pipe server (DACL, giới hạn frame), race | ⏳ |
 | P6 | `cli/` (register, doctor, replay, verify) | 5.1k | Registry/đường dẫn, quyền, xử lý lỗi | ⏳ |
@@ -49,6 +49,9 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-03 | P2 | `ffi/src/lib.rs` `ime_instance_new` / `ime_reload_config` / `ime_strategy_resolve` / `ime_appdb_verify` | Parse config/appdb (dữ liệu ngoài) nằm **ngoài** `catch_unwind` — trái P0-2 §5; từ Rust 1.81 panic vượt `extern "C"` là abort cả process chủ (TIP in-process = app người dùng). | Helper `guarded()` bọc mọi đường parse; panic → `IME_ERR_INTERNAL`, out vẫn fail-open | ✅ Fixed |
 | CR-04 | P1 | `core/src/lib.rs` nhánh `is_chord` | Chord (Ctrl+←, Ctrl+Backspace, Ctrl+Z, Ctrl+V…) chỉ xoá `recent`, **giữ** `word`: adapter không tự reset (hook/Linux/mac BackspaceType) → phím kế tiếp REPLACE `owned` ký tự ở vị trí con trỏ mới (cùng lớp lỗi B7 đã sửa cho phím điều hướng). TSF tự reset nên không lộ trên Windows TSF. | Chord → `word.clear()` như phím điều hướng. Test `chord_drops_word_ownership`; corpus 4 adapter vẫn xanh | ✅ Fixed |
 | CR-05 | P3 | `core/src/post/restore_en.rs` `complete_word` | Từ điển EN cá nhân so tiền tố **phân biệt hoa thường** (khác `listed()`): thêm `VnExpress` thì `vn`+Tab không gợi ý. | Lowercase ứng viên người dùng; thêm assert | ✅ Fixed |
+| CR-06 | P1 (S3) | `strategy/src/resolve.rs` `resolve`; `core/src/lib.rs` | Gate bước 1 chỉ xét cờ `secure`: ô có `field_role = SECURE` mà adapter quên cờ thì hint/preset **thắng** (preset app không có `when` biến ô mật khẩu thành Preedit), và engine vẫn chạy macro (`allow_macro_when_vi_off`) + ghi `recent` trong ô mật khẩu. | `secure \|\| field_role == SECURE` ở resolver; engine dùng `Engine::secure()` cho mọi kiểm tra S3. Test `secure_role_beats_hint_and_presets_without_secure_flag`, `secure_role_without_flag_is_still_secure` | ✅ Fixed |
+| CR-07 | P3 (perf) | `appdb/src/lib.rs` `Matcher::matches` | Mỗi lần so khớp entry dựng `MatchClause` tạm = clone 3 `String` — chạy trên đường phím (mac/Linux gọi `ime_strategy_resolve` mỗi key). | So khớp trên `&str` (`id_matches`), không alloc | ✅ Fixed |
+| CR-08 | P3 | `config/src/macro_text.rs` `parse` | Nội dung gõ tắt bị `trim()` → khoảng trắng đầu/cuối có chủ ý (`"Trân trọng, "`) mất sau khi lưu; trigger chứa `=` (sửa tay trong JSON) đổi nghĩa khi round-trip qua ô soạn thảo. | Ghi nhận — đổi định dạng text ảnh hưởng 3 UI; để ngỏ, không sửa trong đợt này | 📝 Open |
 
 ## 3. Nhật ký tiến độ
 
@@ -56,3 +59,5 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 - 2026-10-07 — P1 `core/` + P2 `ffi/` rà xong: CR-01…CR-05 sửa + test; gate fmt/clippy (Linux+Windows)/test/replay 4 adapter/verify xanh.
   Đã rà và **không** thấy lỗi: `method/{telex,vni,viqr,simple_telex}`, `transform/{tone,undo,stroke,vowel_table,diacritic_style,charset}`,
   `validate`, `post/{macro,caps,emoji,quick_telex}`, `ffi/src/settings.rs`, header C (bản mac giống hệt bản gốc).
+- 2026-10-07 — P3 rà xong: CR-06 (S3), CR-07 sửa; CR-08 ghi nhận. `ipc` codec (giới hạn 64 KiB, từ chối trailing/UTF-8 sai),
+  `config/doc.rs` (ghi nguyên tử 0600, sao lưu `.bak`), `field-detect` (generation gate, Unknown ⇒ Passthrough) không có lỗi.

@@ -213,6 +213,11 @@ impl Engine {
         &self.ctx
     }
 
+    /// Ô mật khẩu: cờ `secure` HOẶC role `secure` (adapter quên một trong hai vẫn an toàn — S3).
+    fn secure(&self) -> bool {
+        self.ctx.secure || self.ctx.field_role == strategy::IME_FIELD_SECURE
+    }
+
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
         self.word.clear();
@@ -235,7 +240,7 @@ impl Engine {
     ///
     /// Ô mật khẩu (`secure`) → **không** giữ tail nào (S3).
     fn note_pass(&mut self, k: &KeyEvent) {
-        if self.ctx.secure {
+        if self.secure() {
             return;
         }
         match k.vk {
@@ -262,7 +267,7 @@ impl Engine {
     /// Resolve strategy hiện tại (P0-3 §3.1).
     pub fn strategy(&self) -> Strategy {
         strategy::resolve(strategy::ResolveInput {
-            secure: self.ctx.secure,
+            secure: self.secure(),
             enabled: self.opts.enabled && self.ctx.enabled,
             user_preset: None,
             system_preset: None,
@@ -475,7 +480,7 @@ impl Engine {
             return None;
         }
         if strategy == Strategy::Passthrough
-            && !(self.opts.allow_macro_when_vi_off && !self.ctx.secure)
+            && !(self.opts.allow_macro_when_vi_off && !self.secure())
         {
             return None;
         }
@@ -774,6 +779,25 @@ mod tests {
         let (buf, _) = type_keys(&mut e, "ass");
         assert_eq!(buf, "ass");
         assert_eq!(e.strategy(), Strategy::Passthrough);
+    }
+
+    #[test]
+    fn secure_role_without_flag_is_still_secure() {
+        // Adapter đặt role `secure` nhưng quên cờ: macro (kể cả `allow_macro_when_vi_off`)
+        // không được chạy, phím không được biến đổi.
+        let mut opts = macro_opts(MacroTrigger::Tab);
+        opts.allow_macro_when_vi_off = true;
+        let mut e = Engine::new(opts);
+        e.set_context(Context {
+            field_role: strategy::IME_FIELD_SECURE,
+            caps: strategy::IME_CAP_PREEDIT | strategy::IME_CAP_FIELD_DETECT,
+            hint: strategy::IME_STRATEGY_PREEDIT,
+            ..Default::default()
+        });
+        assert_eq!(e.strategy(), Strategy::Passthrough);
+        let mut buf = type_buf(&mut e, "cty");
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+        assert_eq!(text(&buf), "cty\t");
     }
 
     #[test]
