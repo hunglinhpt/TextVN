@@ -34,7 +34,7 @@ PowerShell/Inno chỉ rà tĩnh.
 | P7 | `adapters/linux-*` (C/C++) | 4.5k | Buffer overflow, socket, GLib/fcitx lifetime | ✅ |
 | P8 | `adapters/macos-*` (Swift) | 5.6k | Socket, IMK client lifetime, event tap | ✅ (rà tĩnh) |
 | P9 | `scripts/` `packaging/` `installer/` `tools/` `.github/workflows/` | 6k | Shell quoting, injection trong workflow, quyền token | ✅ |
-| P10 | `xtask/` `tools/bench` `fuzz/` | 3k | Tính đúng của gate | ⏳ |
+| P10 | `xtask/` `tools/bench` `fuzz/` | 3k | Tính đúng của gate | ✅ |
 | P11 | Chạy lại toàn bộ gate + cập nhật báo cáo + push | — | — | ⏳ |
 
 Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi người dùng thấy) ·
@@ -83,6 +83,8 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-37 | P1 | `installer/windows/TextVN-setup.iss` `[Code]` | (a) Nâng cấp khi app 32-bit đang mở: `textvn-tsf-x86.dll` bị nạp nhưng `RenameLockedTsfDll` chỉ đổi tên bản x64 → hộp thoại file-in-use (cài im lặng thì thất bại). (b) Dọn backup cũ gọi `DeleteFile(AppDir + '' + Name)` — **thiếu `\`** nên không bao giờ xoá được, `.old-*` tích dần mỗi lần nâng cấp. (c) Gỡ cài đặt không hẹn xoá DLL x86 còn khoá → sót file + thư mục trong Program Files. | `RenameLockedFile(FileName)` dùng chung cho cả hai DLL, sửa đường dẫn; `[UninstallDelete]` thêm `textvn-tsf-x86.dll.old-*`; `schedule-delete` thêm DLL x86. `check_iss_tabs` xanh | ✅ Fixed (cần kiểm trên Windows thật) |
 | CR-38 | P2 (hardening) | `.github/workflows/*.yml` | `actions/checkout` mặc định ghi token vào `.git/config` cho mọi bước sau — kể cả job `publish` (`contents: write`) và các bước chạy action bên thứ ba. Không thấy script injection (`${{ github.event.* }}` không đi vào `run:`), mọi workflow đã khai báo `permissions`. | `persist-credentials: false` cho cả 26 checkout (không job nào `git push`; `gh` dùng `GH_TOKEN`). **Khuyến nghị (Open):** ghim action bên thứ ba (`sigstore/cosign-installer`, `taiki-e/install-action`, `Swatinem/rust-cache`, `dtolnay/rust-toolchain`, `fsfe/reuse-action`) theo commit SHA — không tra được SHA trong phiên này | ✅ Fixed / 📝 SHA pin Open |
 | CR-39 | P2 | `docs/release/signing.md`, `tools/release/sign-artifacts.sh` | Hướng dẫn kiểm chữ ký phát hành **không chạy được**: `gpg --verify …exe.sig` (script tạo `.asc` — `--armor`), lệnh trộn 0.2.26/0.2.27; `cosign verify-blob --certificate-identity-regexp …release-candidate\.yml…` trong khi workflow ký là `release.yml` → người dùng làm theo luôn nhận "no matching signatures". File còn chứa 1 byte NUL thật (trong ví dụ `b'\x00'`) → git/grep coi là binary, diff không review được. | Sửa tên file/phiên bản/workflow, thay NUL bằng `\x00`; script in đúng tên `.asc` | ✅ Fixed |
+| CR-40 | P2 (gate mù) | `fuzz/fuzz_targets/ffi_key.rs`, `ffi/tests/abi_invariants.rs`, `fuzz/README.md` | Fuzz/stress ABI **không thể** tìm ra CR-01: tối đa 64 phím/input (cần ≥ 65 phím chữ liền nhau) và không có bất biến "không xoá lẹm text có sẵn" — chỉ kiểm `delete_count ≤ 64`. README: lệnh "nightly.yml" không tồn tại và thiếu `--features ffi-fuzz` (chạy là lỗi required-features); công thức seed `key_duocj` sai định dạng input của harness. | Fuzz: tới 512 phím, chế độ "giữ phím" (lặp ≤ 32), bất biến 6 = mô hình độ dài document bảo thủ (chỉ đếm dư); seed corpus `fuzz/corpus/ffi_key/` (gồm `held_key_dep[_preedit]`). Stable: test `tu_dai_va_giu_phim_khong_xoa_lem_text_co_san` (60 × 512 phím, mọi strategy) — **đỏ trên engine trước CR-01**, xanh hiện tại; harness chạy 3000 input ngẫu nhiên không báo động giả. README sửa lệnh + mô tả định dạng | ✅ Fixed |
+| CR-41 | P3 | `xtask/src/main.rs` `usage()` | `cargo xtask help` không liệt kê `preflight` — đúng lệnh mà quy trình bắt buộc chạy trước commit/tag. | Thêm dòng usage | ✅ Fixed |
 
 ## 3. Nhật ký tiến độ
 
@@ -111,3 +113,7 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
   là tài liệu), `release.yml` (draft-first, kiểm tag = version, payload đúng số lượng, không có hook), `build-msix.ps1`,
   `sign-signpath.ps1`, `virustotal-scan.ps1` (khoá API chỉ trong header, không in ra log) — không thấy lỗi khác. `check_ps1_ascii`,
   `check_iss_tabs` xanh. PowerShell/Inno không chạy được trong container — thay đổi nhỏ, kiểm bằng job Windows của CI/release.
+- 2026-10-07 — P10 gate rà xong: CR-40, CR-41 sửa. `xtask` (`check-tables`/`check-*-corpus`/`check-mac-targets`/`check-version-sync`
+  đều xanh; `format_rust` đóng stdin trước khi chờ — không deadlock; version-sync đủ 14 chỗ khớp thông báo của `release.yml`),
+  `preflight` (exit code thật, không pipe), `config_parse`/`appdb_parse` fuzz, `tools/bench` (hồi quy theo p50, p99 theo ngân sách
+  tuyệt đối) — không thấy lỗi khác. Bench Linux sau mọi thay đổi engine: `ime_key` p50 451 ns / p99 943 ns (ngân sách 0.5 ms).

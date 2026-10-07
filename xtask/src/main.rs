@@ -102,6 +102,7 @@ fn usage() -> &'static str {
      cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
+     cargo xtask preflight        # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
      cargo xtask help\n"
 }
 
