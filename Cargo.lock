@@ -120,6 +120,7 @@ dependencies = [
 name = "textvn-cli"
 version = "0.2.27"
 dependencies = [
+ "serde_json",
  "textvn-config",
  "textvn-ffi",
  "textvn-ipc",

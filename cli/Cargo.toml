@@ -13,6 +13,7 @@ path = "src/main.rs"
 textvn-ffi = { path = "../ffi" }
 textvn-config = { path = "../config" }
 textvn-ipc = { path = "../ipc" }
+serde_json = { workspace = true }
 # Chỉ phần thuần (`compose`) — mô phỏng TSF composition trong `replay --adapter tsf`.
 textvn-win-tsf = { path = "../adapters/windows-tsf" }
 

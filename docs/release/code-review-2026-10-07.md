@@ -30,7 +30,7 @@ PowerShell/Inno chỉ rà tĩnh.
 | P3 | `config/` `appdb/` `strategy/` `field-detect/` `ipc/` | 2.9k | Parse input không tin cậy, giới hạn kích thước, ghi file nguyên tử | ✅ |
 | P4 | `adapters/windows-tsf/` | 3.9k | COM refcount, edit session, re-entrancy, fail-open | ✅ |
 | P5 | `adapters/windows-hook/` + `tray/` | 7.1k | Hook chỉ quan sát, pipe server (DACL, giới hạn frame), race | ✅ |
-| P6 | `cli/` (register, doctor, replay, verify) | 5.1k | Registry/đường dẫn, quyền, xử lý lỗi | ⏳ |
+| P6 | `cli/` (register, doctor, replay, verify) | 5.1k | Registry/đường dẫn, quyền, xử lý lỗi | ✅ |
 | P7 | `adapters/linux-*` (C/C++) | 4.5k | Buffer overflow, socket, GLib/fcitx lifetime | ⏳ |
 | P8 | `adapters/macos-*` (Swift) | 5.6k | Socket, IMK client lifetime, event tap | ⏳ |
 | P9 | `scripts/` `packaging/` `installer/` `tools/` `.github/workflows/` | 6k | Shell quoting, injection trong workflow, quyền token | ⏳ |
@@ -64,6 +64,9 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 | CR-18 | P1 | `tray/src/package_bootstrap.rs` `stage_package_payload` | `build-msix.ps1` đóng gói `textvn-tsf-x86.dll` (Zalo/Office 32-bit, vòng 14) nhưng bootstrap **không copy** nó ra thư mục staged → bản Microsoft Store: `register` bỏ mirror WOW64, app x86 không có tiếng Việt. Bản staged cũng thiếu `LICENSE` (GPL). | Stage thêm `textvn-tsf-x86.dll`, `LICENSE`, `CHANGELOG.md`; test Windows mở rộng | ✅ Fixed |
 | CR-19 | P3 | `tray/src/settings_dialog.rs` ↔ `config/src/doc.rs` | Logic chuẩn hoá từ điển EN nhân bản ở 2 nơi kèm chú thích "phải giống hệt". | Một nguồn: `textvn_config::doc::normalize_english_words` | ✅ Fixed |
 | CR-20 | P3 | `tray/src/svc.rs` migration; `tray/src/settings.rs` | (a) Đổi phiên bản = **reset mọi tuỳ chọn gõ** (kiểu gõ VNI, bảng mã…) về mặc định ở *mỗi* lần cập nhật — người dùng VNI phải chọn lại sau mỗi bản. (b) `SettingsController` (6 tab, debounce) không được UI thật dùng — mã chết ~300 dòng. | Quyết định sản phẩm/kiến trúc — đề xuất giới hạn migration theo phiên bản không tương thích đã biết; gỡ hoặc nối `SettingsController`. Để ngỏ | 📝 Open |
+| CR-21 | P1 (S2 riêng tư) | `cli/src/doctor.rs` `export_diagnostics_zip` | Gói chẩn đoán (`doctor --export`, CONTRIBUTING hướng dẫn **đính kèm vào issue công khai**) chứa nguyên `config.json`: nội dung gõ tắt (địa chỉ, số điện thoại, email…), emoji, từ điển cá nhân — chỉ tên user được che. | `redact_user_content`: `macros`/`emoji`/`english_words` → `"<REDACTED: n mục>"`; config hỏng chỉ ghi kích thước. Test `export_config_never_contains_user_authored_content` | ✅ Fixed |
+| CR-22 | P2 (bảo mật) | `cli/src/register.rs` `say` | CLI chạy **elevated** (`register --scope machine` từ tray/bộ cài) append log vào `%LOCALAPPDATA%\TextVN\logs\register.log` — thư mục người dùng ghi được; junction/symlink ở đó biến lần ghi log thành ghi file tuỳ ý bằng quyền admin (CWE-59). | Bỏ ghi log file nếu `TextVN`, `logs` hoặc `register.log` là reparse point (symlink/junction, không đi theo link). Còn rủi ro TOCTOU nhỏ — ghi chú | ✅ Fixed |
+| CR-23 | P3 (test) | `cli/src/replay.rs` `load_cases` | Case `.keys` không có dòng `:expect*` nào luôn PASS — corpus gõ lại mà quên khẳng định vẫn xanh. | Từ chối (parse error, exit 2). Toàn bộ 4 corpus hiện có vẫn xanh | ✅ Fixed |
 
 ## 3. Nhật ký tiến độ
 
@@ -79,3 +82,5 @@ Mức độ: **P0** (mất chữ/crash/lỗ hổng) · **P1** (sai hành vi ngư
 - 2026-10-07 — P5 hook + tray rà xong: CR-13, 15–19 sửa; CR-14, CR-20 ghi nhận. Pipe server (DACL user+SY+BA, `PIPE_REJECT_REMOTE_CLIENTS`,
   PID từ kernel thay vì tin message, frame ≤ 64 KiB, timeout payload 5 s, writer riêng có hàng đợi giới hạn), `svc.rs` (persist-trước-publish),
   `--stop` (không TerminateProcess), LL hook của tray chỉ quan sát — không thấy lỗi.
+- 2026-10-07 — P6 `cli/` rà xong: CR-21–23 sửa. `register.rs` (ghi registry qua Win32 API, `input.dll` chỉ từ System32, ACL AppContainer,
+  `schedule_delete` cho uninstaller), `verify.rs` (đối chiếu header ↔ Rust có test chống pass rỗng) không thấy lỗi khác.

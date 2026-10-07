@@ -97,19 +97,29 @@ fn say(msg: &str) {
     println!("{msg}");
     // Ghi log vào %LOCALAPPDATA%\TextVN\logs\register.log (output khi elevated bị ẩn console)
     if let Some(base) = std::env::var_os("LOCALAPPDATA") {
-        let mut dir = PathBuf::from(base);
-        dir.push("TextVN");
-        dir.push("logs");
+        let app = PathBuf::from(base).join("TextVN");
+        let dir = app.join("logs");
         let _ = std::fs::create_dir_all(&dir);
-        dir.push("register.log");
+        let file = dir.join("register.log");
+        // CLI chạy ELEVATED (đăng ký phạm vi máy, bộ cài) mà ghi vào thư mục người
+        // dùng ghi được: junction/symlink ở đây sẽ biến lần append log thành ghi file
+        // tuỳ ý bằng quyền admin (CWE-59). Thành phần nào là reparse point → bỏ log file.
+        if [&app, &dir, &file].iter().any(|p| is_reparse_link(p)) {
+            return;
+        }
         if let Ok(mut f) = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open(dir)
+            .open(file)
         {
             let _ = writeln!(f, "[pid={}] {msg}", std::process::id());
         }
     }
+}
+
+/// Symlink hoặc junction (Windows: reparse point "name surrogate") — không đi theo link.
+fn is_reparse_link(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink())
 }
 
 // ─── Layout registry TSF (text-only — test được mọi OS) ───────────────────────────────────────────
@@ -1672,6 +1682,22 @@ pub fn status_tip(_scope: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn reparse_link_detection_does_not_follow_links() {
+        let dir = std::env::temp_dir().join(format!("textvn-reparse-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("target.txt");
+        std::fs::write(&target, b"x").unwrap();
+        let link = dir.join("register.log");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(is_reparse_link(&link));
+        assert!(!is_reparse_link(&target));
+        assert!(!is_reparse_link(&dir.join("missing")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn layout_spec_formatting_vi() {
