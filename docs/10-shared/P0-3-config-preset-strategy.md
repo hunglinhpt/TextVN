@@ -210,7 +210,7 @@ Trạng thái người dùng đổi chỗ nào? → **tray là source of truth**
   |---|---|---|
   | Windows | named pipe `\\.\pipe\textvn-ipc-v1` (message mode, `CreateNamedPipe`) | DACL = chỉ current user SID |
   | macOS | unix socket `~/Library/Application Support/TextVN/ipc.sock` | dir 0700, sock 0600 + check uid |
-  | Linux | unix socket `~/.config/TextVN/ipc.sock` (chốt `P3-0 §2`) | 0600 + `SO_PEERCRED` |
+  | Linux | unix socket `$XDG_RUNTIME_DIR/TextVN/ipc.sock` (0.2.26, SEC-04: tmpfs per-user); fallback `~/.config/TextVN/ipc.sock` | 0600 + `SO_PEERCRED` + guard lstat (socket phải của user) |
 
   **Không TCP/HTTP ở mọi OS.**
 - **Codec:** 1 message = 1 frame JSON (u32 length prefix + UTF-8), validate schema trước xử lý.

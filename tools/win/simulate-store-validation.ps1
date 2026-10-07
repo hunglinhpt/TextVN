@@ -14,10 +14,10 @@
 #
 # ASCII-only (G7/A5).
 param(
-    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.26/TextVN-setup-0.2.26-windows-x64.exe",
+    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.27/TextVN-setup-0.2.27-windows-x64.exe",
     [string]$ExpectName = "TextVN",
     [string]$ExpectPublisher = "",
-    [string]$ExpectVersion = "0.2.26",
+    [string]$ExpectVersion = "0.2.27",
     [string]$Switches = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 )
 $ErrorActionPreference = 'Stop'

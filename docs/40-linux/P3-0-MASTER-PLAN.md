@@ -51,7 +51,7 @@ input method cho system được), global hook cài sẵn (`PLAN §3.7`: "không
 | Hạng mục | Đường dẫn |
 |---|---|
 | Config/state/appdb | `~/.config/TextVN/{config.json, state.json, appdb.json}` |
-| IPC socket | `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
+| IPC socket | `$XDG_RUNTIME_DIR/TextVN/ipc.sock` (0.2.26, SEC-04); fallback `~/.config/TextVN/ipc.sock` (0600 — đúng user, `P0-3 §5`) |
 | Log | `~/.local/state/TextVN/log/` — không bao giờ ghi nội dung phím (S2) |
 | IBus component | `/usr/share/ibus/component/textvn.xml` + engine binary `/usr/lib/textvn/textvn-ibus-engine` |
 | Fcitx5 addon | `/usr/share/fcitx5/addon/textvn.conf` + `/usr/lib/fcitx5/libtextvn-fcitx5.so` |

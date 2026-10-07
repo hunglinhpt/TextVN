@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.27] — 2026-10-07
+
+### Added (macOS) — toggle "Gõ không gạch chân" được tôn trọng (BUG-05, vòng 15)
+- **BUG-05 fix**: toggle "Gõ không gạch chân (Non-preedit)" trong Bảng điều
+  khiển ghi `non_preedit` vào config nhưng IMK **từng bỏ qua hoàn toàn** —
+  giờ IMK đọc khoá này: bật → strategy Preedit (gạch chân) hạ xuống
+  BackspaceType (không gạch chân, tương thích rộng hơn); tắt → preedit có
+  gạch chân như trước. Config cũ thiếu khoá → giữ gạch chân (không đổi
+  hành vi âm thầm). 3 unit test mới.
+- **Ký số release tự động** (cả 3 platform): GPG detached signature
+  (FPR `3921595A…`) + Sigstore keyless provenance cho **mọi asset** +
+  clearsign SHA256SUMS.txt — chi tiết và lệnh verify: `docs/release/signing.md`.
+- **MSIX hoàn thiện**: payload thêm `textvn-tsf-x86.dll` (app 32-bit dùng
+  được sau stage-out) + DisplayName = `TextVN` khớp Partner Center.
+- Audit đối chiếu: BUG-03 macOS (IMK nhận `"*"`), M-01 (menu sync didSet),
+  M-03 (Swift matrix 2 arch) — **đã được xử lý sẵn từ các vòng trước**
+  (finding audit dựa trên snapshot cũ); SEC-04 docs đồng bộ path mới.
+
 ## [0.2.26] — 2026-10-05
 
 ### Added (Windows) — hỗ trợ app 32-bit (Zalo/Office x86) — vòng 14
@@ -976,7 +994,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.26...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.27...HEAD
+[0.2.27]: https://github.com/hunglinhpt/TextVN/compare/v0.2.26...v0.2.27
 [0.2.26]: https://github.com/hunglinhpt/TextVN/compare/v0.2.25...v0.2.26
 [0.2.25]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...v0.2.25
 [0.2.24]: https://github.com/hunglinhpt/TextVN/compare/v0.2.23...v0.2.24

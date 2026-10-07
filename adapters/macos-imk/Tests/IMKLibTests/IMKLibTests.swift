@@ -637,5 +637,36 @@ final class ViStateAndHotkeyTests: XCTestCase {
         XCTAssertNil(TextVNInputController.configEnabled(in: nil))
         XCTAssertNil(TextVNInputController.configEnabled(in: Data("not json".utf8)))
     }
+
+    /// Vòng 15 (BUG-05): non_preedit đọc từ config + downgrade Preedit→BackspaceType.
+    func testConfigNonPreeditParsing() {
+        XCTAssertTrue(
+            TextVNInputController.configNonPreedit(in: Data("{\"non_preedit\":true}".utf8)))
+        XCTAssertFalse(
+            TextVNInputController.configNonPreedit(in: Data("{\"non_preedit\":false}".utf8)))
+        // Thiếu khoá (config cũ) → false = giữ preedit có gạch chân.
+        XCTAssertFalse(TextVNInputController.configNonPreedit(in: Data("{\"enabled\":true}".utf8)))
+        XCTAssertFalse(TextVNInputController.configNonPreedit(in: nil))
+    }
+
+    func testEffectiveStrategyHonorsNonPreedit() {
+        let preedit = OutputStrategy.preedit
+        let backspace = OutputStrategy.backspaceType
+
+        // non_preedit ON: Preedit → BackspaceType; strategy khác giữ nguyên.
+        XCTAssertEqual(
+            TextVNInputController.effectiveStrategy(preedit, nonPreedit: true),
+            .backspaceType)
+        XCTAssertEqual(
+            TextVNInputController.effectiveStrategy(backspace, nonPreedit: true),
+            .backspaceType)
+        XCTAssertEqual(
+            TextVNInputController.effectiveStrategy(.selectionReplace, nonPreedit: true),
+            .selectionReplace)
+
+        // non_preedit OFF: giữ nguyên (hành vi gạch chân trước nay).
+        XCTAssertEqual(
+            TextVNInputController.effectiveStrategy(preedit, nonPreedit: false), .preedit)
+    }
 }
   

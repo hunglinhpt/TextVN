@@ -66,6 +66,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// cache FieldDetect trước khi async AX gather xong (S8).
     private var secureMode = false
 
+    /// Vòng 15 (BUG-05): `non_preedit` từ config.json — bật thì strategy
+    /// Preedit bị thay bằng BackspaceType (gõ không gạch chân). Mặc định
+    /// `false` khi khoá thiếu (giữ hành vi gạch chân).
+    private var nonPreedit = false
+
     public override init(server: IMKServer!, delegate: Any!, client: Any!) {
         // Config user trước; hỏng → engine default. Không bao giờ để IMK chết
         // vì config (S4, P0-3 §1.3). ABI lệch → engine nil, mọi phím PASS.
@@ -242,6 +247,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
 
         let strategy = OutputStrategy(raw: hint) ?? .backspaceType
+        // Vòng 15 (BUG-05): tôn trọng toggle "Gõ không gạch chân" — Preedit
+        // (gạch chân composition) → BackspaceType (delete+type, không gạch chân).
+        let effectiveStrategy = Self.effectiveStrategy(strategy, nonPreedit: nonPreedit)
         guard let target = clientTarget(sender) else { return false }
 
         // Self-heal (P2-1 §4): engine tin đang marked nhưng app đã clear.
@@ -256,7 +264,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return false
         case .replace, .commit, .restore:
             do {
-                try ApplyReplace.apply(outcome, strategy: strategy,
+                try ApplyReplace.apply(outcome, strategy: effectiveStrategy,
                                        target: target, marked: marked,
                                        onReset: { [weak self] in self?.engine?.reset() })
                 logAction(outcome)
@@ -338,6 +346,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             Diagnostics.log("ipc ConfigReload v\(version)")
             if let cfg = Self.loadConfig() {
                 engine?.reloadConfig(cfg)
+                nonPreedit = Self.configNonPreedit(in: cfg)
                 // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
                 // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
                 if let enabled = Self.configEnabled(in: cfg) {
@@ -444,6 +453,22 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else { return nil }
         return obj["enabled"] as? Bool
+    }
+
+    /// Vòng 15 (BUG-05): tôn trọng toggle "Gõ không gạch chân" — Preedit
+    /// (gạch chân composition) → BackspaceType (delete+type, không gạch chân).
+    /// Tách static để swift test gọi trực tiếp (không cần IMKServer).
+    static func effectiveStrategy(
+        _ strategy: OutputStrategy, nonPreedit: Bool
+    ) -> OutputStrategy {
+        (nonPreedit && strategy == .preedit) ? .backspaceType : strategy
+    }
+
+    static func configNonPreedit(in data: Data?) -> Bool {
+        guard let data,
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return false }
+        return obj["non_preedit"] as? Bool ?? false
     }
 
     /// Gather AX bất đồng bộ (không block handle). V1: role từ focused element
