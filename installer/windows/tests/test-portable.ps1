@@ -52,9 +52,21 @@ if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) {
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $dir
 
+# R2-16: ZIP khong co thu muc goc - nguoi dung "Extract here" vao Downloads thi
+# thu muc chua ca file cua ho. uninstall.ps1 chi duoc xoa file TextVN biet ten.
+$userFile = Join-Path $dir 'tai-lieu-cua-nguoi-dung.txt'
+$userSub = Join-Path $dir 'thu-muc-rieng'
+Set-Content -LiteralPath $userFile -Value 'khong duoc xoa'
+New-Item -ItemType Directory -Path $userSub | Out-Null
+Set-Content -LiteralPath (Join-Path $userSub 'anh.txt') -Value 'khong duoc xoa'
+
 # Go dang ky nhu nguoi dung (uninstall.ps1 trong zip).
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'uninstall.ps1')
 Start-Sleep -Seconds 1
+if (-not (Test-Path -LiteralPath $userFile)) { throw 'uninstall.ps1 deleted a user file next to TextVN (R2-16)' }
+if (-not (Test-Path -LiteralPath (Join-Path $userSub 'anh.txt'))) { throw 'uninstall.ps1 deleted a user folder next to TextVN (R2-16)' }
+if (Test-Path -LiteralPath (Join-Path $dir 'textvn-cli.exe')) { throw 'uninstall.ps1 left textvn-cli.exe behind' }
+Write-Host 'PASS portable uninstall keeps unrelated user files'
 if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) { throw 'tray still running after uninstall.ps1' }
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall.ps1' }
 if (-not (Test-Path (Join-Path $env:APPDATA 'TextVN'))) { throw 'user config was not kept' }
