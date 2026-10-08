@@ -36,3 +36,4 @@ adapters/macos-imk/build/
 .vscode/
 .cline/
 perf/ab-base.json
+/.claude/worktrees/
