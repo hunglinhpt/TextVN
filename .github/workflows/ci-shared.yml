@@ -110,10 +110,11 @@ jobs:
 
   perf:
     timeout-minutes: 60
-    # P1-5 §5: regression >10% so `perf/baseline-win.json` → fail.
-    # Lưu ý thẳng thắn: runner GHA dùng **chung** (2 vCPU) nên nhiễu nền lớn; job để
-    # `continue-on-error` + upload số đo, còn gate cứng chạy trên runner self-hosted
-    # (xem risk RW5 trong `P1-5 §1`) — số liệu luôn được gửi artifact để so tay.
+    # P1-5 §5: hồi quy p50 > 10% → fail. So **A/B trên cùng runner**: baseline được đo
+    # lại từ merge-base với main ngay trong job, rồi đo HEAD. So với file tĩnh
+    # `perf/baseline-win.json` (đo trên máy khác) thì runner GHA chung 2 vCPU cho chênh
+    # ±20% dù code nhanh hơn (2026-10-08: HEAD nhanh hơn main 6% cục bộ mà job vẫn đỏ
+    # +20.6%). File tĩnh vẫn được so nhưng chỉ cảnh báo. Job giữ `continue-on-error`.
     name: perf regression (P1-5 §5)
     runs-on: windows-latest      # baseline là của Windows
     continue-on-error: true
@@ -121,14 +122,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo run -q --release -p textvn-bench -- check perf/baseline-win.json
+      - name: A/B — baseline = merge-base với origin/main, đo trên cùng runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$(git merge-base HEAD origin/main)"
+          echo "base=$base head=$(git rev-parse HEAD)"
+          git worktree add -q ../perf-base "$base"
+          (cd ../perf-base && cargo run -q --release -p textvn-bench -- write "$GITHUB_WORKSPACE/perf/ab-base.json")
+          cargo run -q --release -p textvn-bench -- check perf/ab-base.json
+      - name: So baseline tĩnh (chỉ cảnh báo)
+        shell: bash
+        run: |
+          cargo run -q --release -p textvn-bench -- check perf/baseline-win.json \
+            || echo "::warning::lệch so perf/baseline-win.json (đo trên máy khác) — xem bước A/B"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: perf-baseline-win-report
-          path: perf/baseline-win.json
+          path: |
+            perf/baseline-win.json
+            perf/ab-base.json
+          if-no-files-found: ignore
 
   deny:
     timeout-minutes: 20

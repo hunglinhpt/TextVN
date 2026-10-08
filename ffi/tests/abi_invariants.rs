@@ -109,6 +109,12 @@ const VK_SPACE: u32 = 0x20;
 /// Mô hình độ dài document (con trỏ ở cuối) — giống hệt `fuzz/fuzz_targets/ffi_key.rs`.
 /// Đếm DƯ ở mọi chỗ không chắc (chord, ký tự điều khiển); chỉ Backspace đi thẳng trừ 1.
 fn apply_doc(doc_len: &mut usize, key: &ime_key_v1, out: &ime_result_v1, ctx: &str) {
+    // Phím `is_injected` là tiếng vọng của chính adapter (text đã được tính qua
+    // `insert_len` của kết quả trước) — engine bỏ qua theo hợp đồng ABI, mô hình
+    // cũng vậy; trừ Backspace vọng ở đây là báo động giả (CI fuzz 2026-10-08).
+    if key.is_injected != 0 {
+        return;
+    }
     if out.action == ACTION_PASS {
         if key.vk == VK_BACK {
             *doc_len = doc_len.saturating_sub(1);

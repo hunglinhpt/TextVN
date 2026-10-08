@@ -157,7 +157,11 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 
 [Run]
 Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden runasoriginaluser skipifsilent
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser skipifsilent; Tasks: freectrlshift
+; KHONG skipifsilent: tu CR-17 tray khong tu "danh Ctrl + Shift" khi la ban Inno
+; (de bo cai quyet dinh) -> cai im lang (Store /VERYSILENT, nang cap im lang) ma
+; bo qua dong nay thi Ctrl + Shift trung phim doi bo cuc cua Windows. Task
+; checkedonce: cai im lang lan dau = chon; user bo chon o lan cai tay duoc giu.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser; Tasks: freectrlshift
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
 ; machine elevated truoc, user session sau. Khong nang quyen binary o thu muc
 ; user-writable: path installer duoc khoa o {autopf}\TextVN.
