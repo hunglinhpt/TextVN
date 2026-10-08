@@ -73,10 +73,29 @@ jobs:
       # MSIX (yeu cau chu repo 2026-10-03: MOI release phai kem ban msix).
       # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
       # best-effort nua) va publish job con validate du 1 file .msix.
+      # Identity that tu Partner Center (Product identity > Package/Identity/Name) dat
+      # o repo variable MSIX_IDENTITY_NAME (khong phai secret). Co bien -> goi nop
+      # Store, placeholder = fail cung; chua co -> goi test (canh bao to).
       - name: Build MSIX (required)
         shell: powershell
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+          if ($env:MSIX_IDENTITY_NAME) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -RequireStoreIdentity
+          } else {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify MSIX (luat Store + payload)
+        shell: bash
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+        run: |
+          ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          extra=()
+          if [ -n "${MSIX_IDENTITY_NAME:-}" ]; then extra+=(--require-store-identity); fi
+          python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver" "${extra[@]}"
       # Bien the MAY (PrivilegesRequired=admin, ARP o HKLM) — goi danh cho
       # Package validation cua Store (vong 5: validator khong thay entry HKCU).
       # Chay SAU moi test per-user de khong lam lech auto-pick; tu validate
@@ -165,6 +184,8 @@ jobs:
 
   publish:
     needs: [windows, linux, macos]
+    # workflow_dispatch tren nhanh = chay thu build (lay artifact), khong phat hanh.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

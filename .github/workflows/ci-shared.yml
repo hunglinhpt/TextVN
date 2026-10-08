@@ -349,6 +349,13 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # R2-09: makeappx chi kiem XSD — luat Partner Center (Version phan dau != 0,
+      # Publisher/DisplayName, encoding mo ta, kich thuoc anh, payload) kiem o day.
+      - name: Verify MSIX (luat Store + payload)
+        shell: bash
+        run: |
+          ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

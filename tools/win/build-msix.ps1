@@ -40,6 +40,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $root
+# R2-13: API .NET ([IO.File]::WriteAllText...) dung thu muc hien hanh cua TIEN
+# TRINH, khong theo Set-Location -> moi duong dan phai tuyet doi.
+if (-not [System.IO.Path]::IsPathRooted($OutDir)) { $OutDir = Join-Path $root $OutDir }
+if (-not [System.IO.Path]::IsPathRooted($TargetDir)) { $TargetDir = Join-Path $root $TargetDir }
 
 # CI/secret co the bom Identity THAT (Partner Center -> Product identity) qua
 # bien moi truong - khi do khong can truyen -Publisher/-IdentityName:
@@ -82,7 +86,17 @@ if (-not $Version) {
     if (-not $line) { throw 'Khong doc duoc version tu Cargo.toml' }
     $Version = $line.Matches[0].Groups[1].Value
 }
-$msixVersion = "$Version.0"   # manifest can 4 phan A.B.C.D
+# R2-01: Partner Center tu choi Identity Version co phan dau = 0 ("Major cannot be
+# 0" - app-package-requirements) nhung makeappx/XSD van nhan -> map A.B.C ->
+# (A+1).B.C.0: 0.2.27 -> 1.2.27.0, ban 1.0.0 sau nay -> 2.0.0.0 (van tang dan, Store
+# chi cap nhat khi version lon hon). Phan thu 4 luon 0 (Store danh rieng).
+if ($Version -notmatch '^(\d{1,5})\.(\d{1,5})\.(\d{1,5})$') {
+    throw "Version '$Version' phai dang A.B.C (so nguyen) de map sang Identity Version MSIX"
+}
+$vMajor = [int]$Matches[1] + 1; $vMinor = [int]$Matches[2]; $vPatch = [int]$Matches[3]
+if ($vMajor -gt 65535 -or $vMinor -gt 65535 -or $vPatch -gt 65535) { throw "Version '$Version' vuot 65535" }
+$msixVersion = "$vMajor.$vMinor.$vPatch.0"
+Write-Host "MSIX Identity Version: $msixVersion (san pham $Version)"
 
 # 2. Payload.
 $need = @(
