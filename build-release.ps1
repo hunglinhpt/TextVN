@@ -193,6 +193,22 @@ Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
 
 Write-Ok "Build release DONE"
 
+# R2-18: moi PE phat hanh phai link CRT tinh (.cargo/config.toml +crt-static) -
+# TIP DLL nap vao moi tien trinh, may thieu VC++ redist thi khong nap duoc.
+Write-Step "Check PE imports (khong phu thuoc VC++ runtime)"
+$PeFiles = @("$ReleaseDir\TextVN.exe", "$ReleaseDir\textvn-cli.exe", "$ReleaseDir\textvn_win_tsf.dll", "$ReleaseDir\textvn-tsf-x86.dll")
+if ($IncludeCompatibilityHook) { $PeFiles += "$ReleaseDir\textvn-hook.exe" }
+$py = Get-Command python -ErrorAction SilentlyContinue
+if ($null -eq $py) { $py = Get-Command python3 -ErrorAction SilentlyContinue }
+if ($null -eq $py) {
+    Write-Warn "python khong co - bo qua check-pe-imports (CI luon chay)"
+    $ReleaseChecks["pe_static_crt"] = "skipped"
+} else {
+    & $py.Source tools\win\check-pe-imports.py @PeFiles
+    if ($LASTEXITCODE -ne 0) { Write-Fail "PE con phu thuoc VC++ runtime (xem tren)" }
+    $ReleaseChecks["pe_static_crt"] = "passed"
+}
+
 # Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
 # cach phat hanh chuan de xay dung reputation; khong co co che che giau binary.
 # Gom ca TIP DLL x86: no duoc nap vao moi tien trinh 32-bit (Zalo, Office x86)
