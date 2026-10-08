@@ -24,7 +24,7 @@ Usage:
   textvn-cli config validate <file.json>     # validate config.v1 (P0-3 §1)
   textvn-cli doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
-  textvn-cli unregister [--scope user|machine]             # hủy đăng ký TSF TIP
+  textvn-cli unregister [--scope user|machine] [--if-owned-by <dir>] # hủy đăng ký TSF TIP (--if-owned-by: chỉ khi TIP thuộc <dir>)
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
   textvn-cli schedule-delete <path...>                     # xoá ngay hoặc hẹn xoá trước lần khởi động kế tiếp (uninstaller dùng cho DLL bị khoá)
   textvn-cli --help
@@ -35,8 +35,8 @@ Exit codes:
   sizes      : 0 khớp · 1 lệch (đổi struct = bump IME_ABI_VERSION — P0-2 §6)
   config     : 0 hợp lệ · 1 không hợp lệ/tồn tại · 2 lỗi dùng/đọc-ghi file
   doctor     : 0 mọi check pass · 1 có check fail · 2 lỗi xuất file
-  register   : 0 thành công · 1 lỗi đăng ký/không thấy file · 2 lỗi dùng
-  unregister : 0 thành công · 1 lỗi hủy · 2 lỗi dùng
+  register   : 0 thành công · 1 lỗi đăng ký/không thấy file · 2 lỗi dùng · 3 cần quyền Administrator / DLL ngoài Program Files (--scope machine)
+  unregister : 0 thành công (kể cả bỏ qua vì TIP thuộc bản khác với --if-owned-by) · 1 lỗi hủy · 2 lỗi dùng
 "#;
 
 fn main() {
@@ -422,6 +422,7 @@ fn cmd_register(rest: &[String]) -> i32 {
 /// `unregister` — hủy đăng ký Text Services Framework TIP khỏi hệ thống (WIN-010 / P1-1 §8).
 fn cmd_unregister(rest: &[String]) -> i32 {
     let mut scope = "user".to_string();
+    let mut owned_by: Option<PathBuf> = None;
     let mut i = 0;
 
     while i < rest.len() {
@@ -440,16 +441,27 @@ fn cmd_unregister(rest: &[String]) -> i32 {
                     }
                 }
             }
+            // R2-30: gỡ một bản (portable/Store) không được tắt TIP của bản khác.
+            "--if-owned-by" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(d) if !d.is_empty() => owned_by = Some(PathBuf::from(d)),
+                    _ => {
+                        eprintln!("error: --if-owned-by cần đường dẫn thư mục");
+                        return 2;
+                    }
+                }
+            }
             other => {
                 eprintln!("error: `unregister` không nhận tham số `{other}`");
-                eprintln!("Usage: textvn unregister [--scope user|machine]");
+                eprintln!("Usage: textvn unregister [--scope user|machine] [--if-owned-by <dir>]");
                 return 2;
             }
         }
         i += 1;
     }
 
-    register::unregister_tip(&scope)
+    register::unregister_tip(&scope, owned_by.as_deref())
 }
 
 #[cfg(test)]
@@ -466,6 +478,12 @@ mod tests {
     fn cmd_register_unknown_flag_returns_2() {
         let args = vec!["--unknown".to_string()];
         assert_eq!(cmd_register(&args), 2);
+    }
+
+    #[test]
+    fn cmd_unregister_if_owned_by_requires_dir() {
+        let args = vec!["--if-owned-by".to_string()];
+        assert_eq!(cmd_unregister(&args), 2);
     }
 
     #[test]

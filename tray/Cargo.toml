@@ -37,4 +37,6 @@ windows = { version = "0.61", features = [
     "Win32_UI_Controls",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Accessibility",
+    # CoTaskMemFree cho SHGetKnownFolderPath (gốc Program Files tin cậy — R2-03/R2-15).
+    "Win32_System_Com",
 ] }

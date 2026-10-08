@@ -260,34 +260,58 @@ fn is_process_elevated() -> bool {
 /// vào file KHÔNG còn tồn tại là ghost — coi như CHƯA có để luồng repair
 /// (per-user register / đề nghị UAC machine) chạy lại thay vì tin đăng ký
 /// chết khiến TSF nạp DLL fail.
+///
+/// R2-42: COM HKLM được CLI elevated ghi ở BƯỚC ĐẦU, trước RegisterProfile —
+/// chỉ dựa vào InprocServer32 thì một lần đăng ký máy dở dang (exit 3) bị coi là
+/// hoàn tất mãi mãi. Đòi thêm LanguageProfile HKLM cho cả VI và EN (khớp
+/// `machine_profile_metadata_ok` của CLI).
 #[cfg(windows)]
 fn machine_registration_present() -> bool {
     let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
-    match read_registry_string(HKEY_LOCAL_MACHINE, &inproc) {
+    let com_ok = match read_registry_string(HKEY_LOCAL_MACHINE, &inproc) {
         Some(path) => {
             let trimmed = path.trim().trim_matches('"');
             !trimmed.is_empty() && std::path::Path::new(trimmed).is_file()
         }
         None => false,
-    }
+    };
+    com_ok
+        && TSF_LANGS.iter().all(|lang| {
+            let key = format!(r"{TSF_CTF_TIP_KEY}\LanguageProfile\0x{lang:08x}\{TSF_PROFILE_GUID}");
+            registry_key_exists(HKEY_LOCAL_MACHINE, &key)
+        })
 }
 
-/// Bản portable chạy từ thư mục người dùng tự chọn (Downloads, D:\...): Windows
-/// 11 24H2+ từ chối activation per-user (B7) và TextVN KHÔNG tự nâng quyền từ
-/// path không tin cậy (SEC-02). Báo MỘT lần để người dùng biết cách gõ được
-/// thay vì hỏng im lặng.
+/// Bản chạy từ thư mục người dùng ghi được (portable ở Downloads/D:\..., bộ cài
+/// riêng tài khoản ở `%LOCALAPPDATA%\Programs`): Windows 11 mới từ chối activation
+/// per-user (B7) và TextVN KHÔNG nâng quyền đăng ký phạm vi máy cho DLL ở thư mục
+/// người dùng ghi được (SEC-02, R2-03/R2-15). Báo MỘT lần để người dùng biết cách
+/// gõ được thay vì hỏng im lặng. Không còn khuyên chạy `register --scope machine`
+/// bằng quyền admin từ thư mục portable (CLI cũng từ chối, exit 3).
 #[cfg(windows)]
 fn show_untrusted_path_notice_once() {
+    show_activation_refused_notice_once(
+        "uac_blocked_notice_done",
+        "Windows từ chối kích hoạt bộ gõ TextVN chỉ đăng ký cho tài khoản này, \
+và TextVN không đăng ký cho cả máy từ thư mục người dùng ghi được (bản portable \
+hoặc bản cài riêng cho tài khoản).\r\n\r\nCách gõ được: cài TextVN cho mọi người \
+dùng bằng bộ cài TextVN-setup-*-machine.exe (cài vào Program Files, đăng ký đúng \
+chỗ và gõ được ngay), hoặc chọn TextVN bằng Win+Space nếu Windows cho phép.",
+    );
+}
+
+/// Hộp thoại thông báo MỘT lần (marker `%APPDATA%\TextVN\<marker>`), trên thread
+/// riêng, không hiện khi `--autostart`.
+#[cfg(windows)]
+fn show_activation_refused_notice_once(marker_name: &'static str, text: &'static str) {
     // Không làm phiền lúc đăng nhập: người dùng chủ động mở app sẽ thấy thông
     // báo; --autostart chỉ chạy ngầm (và build smoke dùng --autostart).
     if std::env::args().any(|a| a == "--autostart") {
         return;
     }
-    let Some(marker) = std::env::var_os("APPDATA").map(|d| {
-        std::path::PathBuf::from(d)
-            .join("TextVN")
-            .join("uac_blocked_notice_done")
-    }) else {
+    let Some(marker) = std::env::var_os("APPDATA")
+        .map(|d| std::path::PathBuf::from(d).join("TextVN").join(marker_name))
+    else {
         return;
     };
     if marker.exists() {
@@ -297,15 +321,7 @@ fn show_untrusted_path_notice_once() {
     // main thread thì `TextVN.exe --stop` không thể kết thúc tiến trình (sự cố
     // smoke "did not stop cleanly" cần tránh; đồng thời không chặn IPC).
     std::thread::spawn(move || {
-        let msg: Vec<u16> = "TextVN đang chạy từ thư mục người dùng tự chọn (bản \
-portable). Windows 11 24H2+ không cho bản portable tự nâng quyền từ thư mục \
-không tin cậy, nên chưa thể đăng ký bộ gõ cho cả máy.\r\n\r\nCách gõ được: chạy \
-bộ cài TextVN (TextVN-setup-*.exe) — bản cài tự đăng ký đúng chỗ và gõ được \
-ngay. Nếu ưu tiên không cài đặt, hãy mở Command Prompt bằng quyền Administrator \
-và chạy: textvn-cli.exe register --scope machine (trong thư mục TextVN)."
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
+        let msg: Vec<u16> = text.encode_utf16().chain(Some(0)).collect();
         let cap: Vec<u16> = "TextVN".encode_utf16().chain(Some(0)).collect();
         // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
         unsafe {
@@ -376,14 +392,14 @@ fn offer_machine_registration_if_needed() {
         return;
     }
 
-    // SEC-02 (audit 2026-10-04): chỉ nâng quyền từ thư mục CÀI ĐẶT chuẩn —
-    // Program Files (bộ cài machine; MSIX cài trong WindowsApps cũng khớp
-    // "\program files\") hoặc %LOCALAPPDATA%\Programs do bộ cài per-user/Store
-    // tạo. KHÔNG nâng từ Downloads/Desktop/thư mục portable tùy ý: kẻ tấn công
-    // ghi đè DLL cạnh binary sẽ chạy bằng quyền admin (CWE-426/732). Bước này
-    // chỉ tới được SAU khi activation per-user thất bại thật (B7) nên máy cũ
-    // (activation OK) và bản cài chuẩn không bị ảnh hưởng.
-    let trusted_install = textvn_tray::path_is_under_any(
+    // SEC-02 (audit 2026-10-04) + R2-03/R2-15: chỉ nâng quyền từ thư mục chỉ
+    // admin ghi được — Program Files theo known folder, trừ WindowsApps. KHÔNG
+    // nâng từ %LOCALAPPDATA%\Programs (bộ cài per-user, bản Store staged),
+    // Downloads/Desktop/thư mục portable: DLL ở đó user thường thay được, đăng ký
+    // HKLM trỏ vào đó là nạp code của user vào tiến trình mọi tài khoản, kể cả
+    // elevated (CWE-426/732). CLI tự từ chối lần nữa (exit 3). Bước này chỉ tới
+    // được SAU khi activation per-user thất bại thật (B7).
+    let trusted_install = textvn_tray::is_trusted_machine_install(
         &exe.to_string_lossy(),
         &textvn_tray::trusted_install_roots(),
     );
@@ -418,47 +434,48 @@ tiếp tục, Cancel nếu muốn tự chọn TextVN bằng Win+Space."
     }
 
     // Chạy CLI ELEVATED: `register --scope machine` (RegisterProfile API +
-    // HKLM COM/category + ILOT + activate trong cùng tài khoản/phiên).
-    let verb: Vec<u16> = "runas".encode_utf16().chain(Some(0)).collect();
-    let file: Vec<u16> = cli
-        .to_string_lossy()
-        .encode_utf16()
-        .chain(Some(0))
-        .collect();
-    let params: Vec<u16> = "register --scope machine"
-        .encode_utf16()
-        .chain(Some(0))
-        .collect();
-    let dir_w: Vec<u16> = dir
-        .to_string_lossy()
-        .encode_utf16()
-        .chain(Some(0))
-        .collect();
-    // SAFETY: các chuỗi nul-terminated; ShellExecuteW không giữ con trỏ sau khi trả về.
-    let rc = unsafe {
-        ShellExecuteW(
-            None,
-            PCWSTR(verb.as_ptr()),
-            PCWSTR(file.as_ptr()),
-            PCWSTR(params.as_ptr()),
-            PCWSTR(dir_w.as_ptr()),
-            SW_SHOWNORMAL,
+    // HKLM COM/category + mirror WOW64). R2-42: CHỜ tiến trình elevated kết thúc
+    // và đọc exit code — bản cũ poll HKLM InprocServer32 (CLI ghi nó ở bước ĐẦU)
+    // nên bước per-user chạy song song với bước máy còn dở, và báo thành công
+    // (bật V) kể cả khi CLI elevated trả exit 3.
+    let exit_code = run_elevated_and_wait(&cli, "register --scope machine", dir, 120_000);
+    if exit_code.is_none() {
+        // Người dùng huỷ UAC (ERROR_CANCELLED) — tôn trọng, không hỏi lại.
+        return;
+    }
+    if !elevated_register_succeeded(exit_code) {
+        // Thất bại thật (exit ≠ 0 / quá thời gian): bỏ marker để lần mở app sau
+        // còn đề nghị lại, và nói rõ chỗ xem nguyên nhân.
+        if let Some(m) = &marker {
+            let _ = std::fs::remove_file(m);
+        }
+        let code = exit_code
+            .flatten()
+            .map_or("hết thời gian chờ".to_string(), |c| {
+                format!("exit code {c}")
+            });
+        let msg: Vec<u16> = format!(
+            "Đăng ký TextVN cho cả máy chưa hoàn tất ({code}).\r\n\r\nChi tiết: \
+%LOCALAPPDATA%\\TextVN\\logs\\register.log. Bạn có thể cài lại bằng bộ cài \
+TextVN-setup-*-machine.exe."
         )
-    };
-    if rc.0 as usize <= 32 {
-        // Người dùng huỷ UAC (SE_ERR_ACCESSDENIED=5) — không làm gì thêm.
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+        // SAFETY: hwnd None = không owner; chuỗi nul-terminated sống trong lời gọi.
+        unsafe {
+            MessageBoxW(
+                None,
+                PCWSTR(msg.as_ptr()),
+                PCWSTR(cap.as_ptr()),
+                MB_OK | MB_ICONWARNING,
+            );
+        }
         return;
     }
 
-    // Chờ HKLM COM xuất hiện (tối đa ~60s), rồi chạy lại register per-user
-    // (layout/ILOT/activate theo ngữ cảnh người dùng) để chốt trạng thái.
-    let inproc = format!(r"{TSF_TIP_REGISTRY_KEY}\InprocServer32");
-    for _ in 0..120 {
-        if read_registry_string(HKEY_LOCAL_MACHINE, &inproc).is_some() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    }
+    // Phạm vi máy đã XONG (exit 0) → chạy register per-user (layout/ILOT/activate
+    // theo ngữ cảnh người dùng) để chốt trạng thái.
     let _ = std::process::Command::new(&cli)
         .arg("register")
         .creation_flags(CREATE_NO_WINDOW)
@@ -476,6 +493,59 @@ tiếp tục, Cancel nếu muốn tự chọn TextVN bằng Win+Space."
         app.ipc.broadcast_state_update("*", enabled, ver);
     }
     textvn_tray::notify_tray_state_changed();
+}
+
+/// Kết quả lần chạy elevated: `Some(Some(code))` = đã kết thúc với exit code,
+/// `Some(None)` = đã chạy nhưng quá `timeout_ms`/không đọc được exit code,
+/// `None` = không khởi chạy được (người dùng huỷ UAC).
+#[cfg(windows)]
+fn run_elevated_and_wait(
+    exe: &std::path::Path,
+    params: &str,
+    dir: &std::path::Path,
+    timeout_ms: u32,
+) -> Option<Option<u32>> {
+    let verb: Vec<u16> = "runas".encode_utf16().chain(Some(0)).collect();
+    let file: Vec<u16> = exe
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let params_w: Vec<u16> = params.encode_utf16().chain(Some(0)).collect();
+    let dir_w: Vec<u16> = dir
+        .to_string_lossy()
+        .encode_utf16()
+        .chain(Some(0))
+        .collect();
+    let mut sei = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC,
+        lpVerb: PCWSTR(verb.as_ptr()),
+        lpFile: PCWSTR(file.as_ptr()),
+        lpParameters: PCWSTR(params_w.as_ptr()),
+        lpDirectory: PCWSTR(dir_w.as_ptr()),
+        nShow: SW_HIDE.0,
+        ..Default::default()
+    };
+    // SAFETY: các chuỗi nul-terminated sống tới hết lời gọi; `sei` hợp lệ.
+    if unsafe { ShellExecuteExW(&mut sei) }.is_err() || sei.hProcess.is_invalid() {
+        return None;
+    }
+    // SAFETY: hProcess hợp lệ (SEE_MASK_NOCLOSEPROCESS), đóng ngay sau khi dùng.
+    let code = unsafe {
+        let waited = WaitForSingleObject(sei.hProcess, timeout_ms) == WAIT_OBJECT_0;
+        let mut code = 0u32;
+        let got = waited && GetExitCodeProcess(sei.hProcess, &mut code).is_ok();
+        let _ = CloseHandle(sei.hProcess);
+        got.then_some(code)
+    };
+    Some(code)
+}
+
+/// Chỉ coi đăng ký phạm vi máy thành công khi tiến trình elevated đã KẾT THÚC
+/// với exit 0 (R2-42).
+fn elevated_register_succeeded(result: Option<Option<u32>>) -> bool {
+    matches!(result, Some(Some(0)))
 }
 
 #[cfg(windows)]
@@ -624,7 +694,10 @@ fn main() {
                 return;
             }
             "--stop" => {
-                stop_running_instance();
+                // R2-30: `--stop --if-image-under <dir>` chỉ dừng tray chạy từ <dir>
+                // (gỡ một bản portable/Store không được tắt bản cài đang dùng).
+                let image_under = flag_value(&args[2..], "--if-image-under");
+                stop_running_instance(image_under.as_deref().map(std::path::Path::new));
                 return;
             }
             "--free-ctrl-shift" => {
@@ -640,6 +713,9 @@ fn main() {
                 println!("  --settings    Mo Bang dieu khien cai dat");
                 println!("  --status      Kiem tra trang thai IPC server");
                 println!("  --stop        Yeu cau dung instance dang chay");
+                println!(
+                    "                [--if-image-under <dir>] chi dung khi tray chay tu <dir>"
+                );
                 println!("  --free-ctrl-shift  Danh Ctrl+Shift cho TextVN (go phim tat doi ban phim cua Windows)");
                 println!("  --help        Hien thi tro giup");
                 return;
@@ -1145,7 +1221,41 @@ fn check_status() {
     }
 }
 
-fn stop_running_instance() {
+/// Giá trị đi sau `flag` trong `rest` (`--flag <value>`), nếu có.
+fn flag_value(rest: &[String], flag: &str) -> Option<String> {
+    rest.iter()
+        .position(|a| a == flag)
+        .and_then(|i| rest.get(i + 1))
+        .filter(|v| !v.is_empty() && !v.starts_with("--"))
+        .cloned()
+}
+
+/// Đường dẫn exe của tiến trình `pid` (`QueryFullProcessImageNameW`).
+#[cfg(windows)]
+fn process_image_path(pid: u32) -> Option<String> {
+    // SAFETY: handle chỉ quyền truy vấn tối thiểu, đóng ngay; buffer khớp `len`.
+    unsafe {
+        let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut buf = vec![0u16; 32_768];
+        let mut len = buf.len() as u32;
+        let ok =
+            QueryFullProcessImageNameW(h, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len)
+                .is_ok();
+        let _ = CloseHandle(h);
+        ok.then(|| String::from_utf16_lossy(&buf[..len as usize]))
+    }
+}
+
+/// `image` nằm dưới `dir` (so cả dạng gốc lẫn canonical của `dir`).
+fn image_is_under(image: &str, dir: &std::path::Path) -> bool {
+    let mut roots = vec![dir.to_string_lossy().into_owned()];
+    if let Ok(c) = std::fs::canonicalize(dir) {
+        roots.push(c.to_string_lossy().into_owned());
+    }
+    textvn_tray::path_is_under_any(image, &roots)
+}
+
+fn stop_running_instance(image_under: Option<&std::path::Path>) {
     #[cfg(windows)]
     {
         println!("Checking for running TextVN Tray instance...");
@@ -1153,6 +1263,27 @@ fn stop_running_instance() {
         let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
         if let Ok(h) = hwnd {
             if !h.0.is_null() {
+                let mut window_pid = 0u32;
+                // GetWindowThreadProcessId trả thread ID qua return value; tham số
+                // out là PID. Trộn hai giá trị này gửi WM_QUIT vào PID thay vì
+                // queue UI, khiến `--stop` luôn phải rơi xuống TerminateProcess.
+                let thread_id = unsafe { GetWindowThreadProcessId(h, Some(&mut window_pid)) };
+                if thread_id == 0 {
+                    println!("TextVN window owner thread could not be resolved.");
+                    return;
+                }
+                // R2-30: chỉ dừng tray của đúng bản đang gỡ/cập nhật. Không đọc
+                // được image path → coi là bản khác (không dừng nhầm).
+                if let Some(dir) = image_under {
+                    let owned = process_image_path(window_pid)
+                        .is_some_and(|image| image_is_under(&image, dir));
+                    if !owned {
+                        println!(
+                            "TextVN (PID {window_pid}) is running from another location; not stopping it."
+                        );
+                        return;
+                    }
+                }
                 println!("Found TextVN window. Requesting a graceful close...");
                 // The named-pipe request is the primary control path. It enters
                 // the app's own IPC worker, then requests exit on the tray thread
@@ -1162,15 +1293,6 @@ fn stop_running_instance() {
                         let _ = stream.write_all(&frame);
                         let _ = stream.flush();
                     }
-                }
-                let mut window_pid = 0u32;
-                // GetWindowThreadProcessId trả thread ID qua return value; tham số
-                // out là PID. Trộn hai giá trị này gửi WM_QUIT vào PID thay vì
-                // queue UI, khiến `--stop` luôn phải rơi xuống TerminateProcess.
-                let thread_id = unsafe { GetWindowThreadProcessId(h, Some(&mut window_pid)) };
-                if thread_id == 0 {
-                    println!("TextVN window owner thread could not be resolved.");
-                    return;
                 }
 
                 let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
@@ -1231,12 +1353,52 @@ fn stop_running_instance() {
         println!("No running TextVN instance detected.");
     }
     #[cfg(not(windows))]
-    println!("Stopping tray instance is only supported on Windows.");
+    {
+        let _ = image_under;
+        println!("Stopping tray instance is only supported on Windows.");
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stop_filter_flag_parsing_and_image_match() {
+        let args: Vec<String> = ["--if-image-under", r"D:\T"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(
+            flag_value(&args, "--if-image-under").as_deref(),
+            Some(r"D:\T")
+        );
+        assert_eq!(flag_value(&args[..1], "--if-image-under"), None);
+        assert_eq!(
+            flag_value(
+                &["--if-image-under".into(), "--x".into()],
+                "--if-image-under"
+            ),
+            None
+        );
+        assert!(image_is_under(
+            r"d:\t\TextVN.exe",
+            std::path::Path::new(r"D:\T")
+        ));
+        assert!(!image_is_under(
+            r"C:\Program Files\TextVN\TextVN.exe",
+            std::path::Path::new(r"D:\T")
+        ));
+    }
+
+    /// R2-42: chỉ exit 0 của tiến trình elevated ĐÃ KẾT THÚC mới là thành công.
+    #[test]
+    fn elevated_register_requires_finished_exit_zero() {
+        assert!(elevated_register_succeeded(Some(Some(0))));
+        assert!(!elevated_register_succeeded(Some(Some(3))));
+        assert!(!elevated_register_succeeded(Some(None)));
+        assert!(!elevated_register_succeeded(None));
+    }
 
     #[test]
     fn constants_are_valid() {

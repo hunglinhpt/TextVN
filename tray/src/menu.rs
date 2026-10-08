@@ -340,8 +340,12 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
     }
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    // R2-30: chỉ gỡ đăng ký TIP nếu nó thuộc thư mục này (hoặc mồ côi) — gỡ một
+    // thư mục portable cũ không được tắt bộ gõ của bản cài/Store đang dùng.
     let _ = std::process::Command::new(dir.join("textvn-cli.exe"))
         .arg("unregister")
+        .arg("--if-owned-by")
+        .arg(&dir)
         .creation_flags(CREATE_NO_WINDOW)
         .status();
     // Các đường thoát khác đều broadcast Shutdown cho engine trước khi quit —

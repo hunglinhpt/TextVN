@@ -30,4 +30,6 @@ windows = { version = "0.61", features = [
     "Win32_Security_Authorization",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_TextServices",
+    # SHGetKnownFolderPath: kiểm tra DLL phạm vi máy nằm trong Program Files (R2-03/R2-15).
+    "Win32_UI_Shell",
 ] }

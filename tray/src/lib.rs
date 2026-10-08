@@ -96,19 +96,50 @@ pub fn path_is_under_any(exe: &str, roots: &[String]) -> bool {
         })
 }
 
-/// Thư mục cài đặt chuẩn (bộ cài máy, MSIX trong `Program Files\WindowsApps`, bộ cài
-/// per-user/Store ở `%LOCALAPPDATA%\Programs`) — nơi duy nhất tray được xin UAC để
-/// chạy CLI cạnh nó (SEC-02).
+/// Thư mục cài đặt chỉ admin ghi được — Program Files / Program Files (x86) theo
+/// **known folder** (registry HKLM do hệ thống quản lý, không đọc biến môi trường mà
+/// người dùng tự đặt được qua `HKCU\Environment`) — nơi duy nhất tray được xin UAC
+/// để chạy CLI cạnh nó (SEC-02). R2-03/R2-15: KHÔNG còn `%LOCALAPPDATA%\Programs`
+/// (bộ cài per-user, bản Store staged): thư mục đó người dùng ghi được, đăng ký HKLM
+/// trỏ vào đó là DLL do user thường kiểm soát nạp vào tiến trình của mọi tài khoản
+/// (cả elevated). CLI tự chặn lần nữa (`register --scope machine` → exit 3).
 pub fn trusted_install_roots() -> Vec<String> {
-    let mut roots: Vec<String> = ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"]
-        .iter()
-        .filter_map(std::env::var_os)
-        .map(|v| v.to_string_lossy().into_owned())
-        .collect();
-    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
-        roots.push(format!("{}\\Programs", local.to_string_lossy()));
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::Com::CoTaskMemFree;
+        use windows::Win32::UI::Shell::{
+            FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86, SHGetKnownFolderPath, KF_FLAG_DEFAULT,
+        };
+        let mut roots = Vec::new();
+        for id in [FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86] {
+            // SAFETY: GUID hằng hợp lệ; chuỗi trả về được giải phóng bằng CoTaskMemFree.
+            let Ok(raw) = (unsafe { SHGetKnownFolderPath(&id, KF_FLAG_DEFAULT, None) }) else {
+                continue;
+            };
+            // SAFETY: chuỗi NUL-terminated do shell cấp, còn sống tới CoTaskMemFree.
+            let text = unsafe { raw.to_string() }.ok();
+            // SAFETY: con trỏ do SHGetKnownFolderPath cấp phát bằng CoTaskMemAlloc.
+            unsafe { CoTaskMemFree(Some(raw.0 as *const core::ffi::c_void)) };
+            if let Some(text) = text.filter(|t| !t.is_empty()) {
+                roots.push(text);
+            }
+        }
+        roots
     }
-    roots
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+}
+
+/// `exe` thuộc bản cài phạm vi máy tin cậy: dưới một trong `roots` (Program Files)
+/// và KHÔNG dưới `WindowsApps` (thư mục package Store, đổi theo version).
+pub fn is_trusted_machine_install(exe: &str, roots: &[String]) -> bool {
+    path_is_under_any(exe, roots)
+        && !exe
+            .replace('/', "\\")
+            .to_lowercase()
+            .contains("\\windowsapps\\")
 }
 
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
@@ -219,27 +250,43 @@ mod tests {
         let roots = vec![
             r"C:\Program Files".to_string(),
             r"C:\Program Files (x86)".to_string(),
-            r"C:\Users\a\AppData\Local\Programs".to_string(),
         ];
         for ok in [
             r"C:\Program Files\TextVN\TextVN.exe",
             r"c:\program files (x86)\TextVN\TextVN.exe",
-            r"C:\Program Files\WindowsApps\TextVN_0.2.27\TextVN.exe",
-            r"C:\Users\a\AppData\Local\Programs\TextVN\TextVN.exe",
             r"\\?\C:\Program Files\TextVN\TextVN.exe",
         ] {
             assert!(path_is_under_any(ok, &roots), "{ok}");
+            assert!(is_trusted_machine_install(ok, &roots), "{ok}");
         }
         for bad in [
             r"D:\x\Program Files\TextVN\TextVN.exe",
             r"C:\Users\a\Downloads\program files\TextVN.exe",
             r"C:\Program FilesEvil\TextVN.exe",
             r"C:\Program Files",
-            r"C:\Users\a\AppData\Local\ProgramsX\TextVN.exe",
+            // R2-03/R2-15: bộ cài per-user + bản Store staged — người dùng ghi được.
+            r"C:\Users\a\AppData\Local\Programs\TextVN\TextVN.exe",
+            r"C:\Users\a\AppData\Local\Programs\TextVN-Store\1.2.27.0\TextVN.exe",
         ] {
-            assert!(!path_is_under_any(bad, &roots), "{bad}");
+            assert!(!is_trusted_machine_install(bad, &roots), "{bad}");
         }
+        // WindowsApps nằm dưới Program Files nhưng không phải bản cài máy tin cậy.
+        let pkg = r"C:\Program Files\WindowsApps\TextVN_0.2.27\TextVN.exe";
+        assert!(path_is_under_any(pkg, &roots));
+        assert!(!is_trusted_machine_install(pkg, &roots));
         assert!(!path_is_under_any(r"C:\x\TextVN.exe", &[String::new()]));
+    }
+
+    /// Không còn gốc nào lấy từ LOCALAPPDATA (R2-03/R2-15).
+    #[test]
+    fn trusted_roots_never_include_localappdata() {
+        let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
+        for root in trusted_install_roots() {
+            assert!(!root.to_lowercase().contains("appdata"), "{root}");
+            if !local.is_empty() {
+                assert!(!root.eq_ignore_ascii_case(&format!("{local}\\Programs")));
+            }
+        }
     }
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải

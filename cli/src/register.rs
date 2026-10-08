@@ -93,33 +93,157 @@ pub fn resolve_dll_path(custom: Option<&Path>) -> Result<PathBuf, String> {
 
 #[cfg_attr(not(windows), allow(dead_code))]
 fn say(msg: &str) {
-    use std::io::Write;
     println!("{msg}");
     // Ghi log vào %LOCALAPPDATA%\TextVN\logs\register.log (output khi elevated bị ẩn console)
     if let Some(base) = std::env::var_os("LOCALAPPDATA") {
-        let app = PathBuf::from(base).join("TextVN");
-        let dir = app.join("logs");
-        let _ = std::fs::create_dir_all(&dir);
-        let file = dir.join("register.log");
-        // CLI chạy ELEVATED (đăng ký phạm vi máy, bộ cài) mà ghi vào thư mục người
-        // dùng ghi được: junction/symlink ở đây sẽ biến lần append log thành ghi file
-        // tuỳ ý bằng quyền admin (CWE-59). Thành phần nào là reparse point → bỏ log file.
-        if [&app, &dir, &file].iter().any(|p| is_reparse_link(p)) {
-            return;
-        }
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(file)
-        {
-            let _ = writeln!(f, "[pid={}] {msg}", std::process::id());
+        if let Some(file) = prepare_log_file(Path::new(&base)) {
+            append_log_line(&file, &format!("[pid={}] {msg}", std::process::id()));
         }
     }
+}
+
+/// Giới hạn `register.log`: vượt ngưỡng thì xoay sang `register.log.1` (R2-21 —
+/// trước đây log append vô hạn qua mọi lần chạy).
+#[cfg_attr(not(windows), allow(dead_code))]
+const LOG_ROTATE_BYTES: u64 = 1024 * 1024;
+
+/// Chuẩn bị `<base>\TextVN\logs\register.log` cho CLI có thể đang chạy ELEVATED
+/// (đăng ký phạm vi máy, bộ cài) trong thư mục người dùng ghi được (CWE-59).
+///
+/// R2-21: kiểm tra reparse point TRƯỚC khi tạo bất cứ thứ gì — bản cũ gọi
+/// `create_dir_all` trước nên junction ở `%LOCALAPPDATA%\TextVN` khiến tiến trình
+/// elevated tạo `logs` ở vị trí bị điều hướng rồi mới từ chối. Mỗi cấp được tạo
+/// bằng `create_dir` (không đi theo link khi đã tồn tại) và kiểm tra lại ngay sau.
+/// `None` = bỏ ghi log file (stdout vẫn có).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn prepare_log_file(base: &Path) -> Option<PathBuf> {
+    let app = base.join("TextVN");
+    let dir = app.join("logs");
+    for level in [&app, &dir] {
+        if is_reparse_link(level) {
+            return None;
+        }
+        match std::fs::create_dir(level) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => return None,
+        }
+        if is_reparse_link(level) || !level.is_dir() {
+            return None;
+        }
+    }
+    let file = dir.join("register.log");
+    if is_reparse_link(&file) {
+        return None;
+    }
+    rotate_log_if_larger(&file, LOG_ROTATE_BYTES);
+    Some(file)
+}
+
+/// Xoay `file` → `file.1` khi lớn hơn `max_bytes` (best-effort; lỗi thì giữ nguyên).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn rotate_log_if_larger(file: &Path, max_bytes: u64) {
+    let Ok(meta) = std::fs::symlink_metadata(file) else {
+        return;
+    };
+    if !meta.is_file() || meta.len() <= max_bytes {
+        return;
+    }
+    let mut rotated = file.as_os_str().to_owned();
+    rotated.push(".1");
+    let _ = std::fs::rename(file, PathBuf::from(rotated));
+}
+
+/// Append một dòng; trên Windows mở bằng `FILE_FLAG_OPEN_REPARSE_POINT` và từ chối
+/// ghi nếu handle là reparse point (link được cài vào giữa kiểm tra và mở).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn append_log_line(file: &Path, line: &str) {
+    use std::io::Write;
+    let mut opts = std::fs::OpenOptions::new();
+    opts.create(true).append(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        opts.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let Ok(mut f) = opts.open(file) else {
+        return;
+    };
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+        match f.metadata() {
+            Ok(m) if m.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0 => {}
+            _ => return,
+        }
+    }
+    let _ = writeln!(f, "{line}");
 }
 
 /// Symlink hoặc junction (Windows: reparse point "name surrogate") — không đi theo link.
 fn is_reparse_link(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink())
+}
+
+// ─── Kiểm tra vị trí DLL / quyền sở hữu đăng ký (thuần — test được mọi OS) ─────────────────────────
+
+/// Chuẩn hoá đường dẫn Windows để so tiền tố: bỏ ngoặc kép, `/` → `\`, bỏ tiền tố
+/// `\\?\`, bỏ `\` cuối, chữ thường.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn normalize_win_path(p: &str) -> String {
+    let p = p.trim().trim_matches('"').replace('/', "\\");
+    let p = p.strip_prefix(r"\\?\").unwrap_or(&p);
+    p.trim_end_matches('\\').to_lowercase()
+}
+
+/// `path` nằm **dưới** `root` theo ranh giới thư mục (không phải "chứa chuỗi").
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn path_is_under(path: &str, root: &str) -> bool {
+    let p = normalize_win_path(path);
+    let r = normalize_win_path(root);
+    !r.is_empty() && p.len() > r.len() && p.starts_with(&r) && p.as_bytes()[r.len()] == b'\\'
+}
+
+/// R2-03/R2-15: đăng ký **phạm vi máy** (HKLM — mọi tài khoản, cả tiến trình
+/// elevated, nạp DLL này) chỉ được phép khi DLL đã canonicalize nằm dưới Program
+/// Files (known folder, chỉ admin ghi được) và KHÔNG dưới `WindowsApps` (đường dẫn
+/// package đổi theo version, bị xoá sau mỗi lần Store cập nhật).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn machine_scope_dll_allowed(canonical_dll: &str, program_files_roots: &[String]) -> bool {
+    !normalize_win_path(canonical_dll).contains(r"\windowsapps\")
+        && program_files_roots
+            .iter()
+            .any(|root| path_is_under(canonical_dll, root))
+}
+
+/// Bỏ tiền tố verbatim `\\?\` của `canonicalize` (ghi registry dạng `C:\...` như
+/// mọi đường dẫn InprocServer32 khác). `\\?\UNC\srv\share` → `\\srv\share`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn strip_verbatim_prefix(p: &str) -> String {
+    if let Some(rest) = p.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{rest}")
+    } else {
+        p.strip_prefix(r"\\?\").unwrap_or(p).to_string()
+    }
+}
+
+/// R2-30: `unregister --if-owned-by <dir>` chỉ gỡ khi đăng ký TIP hiện tại thuộc
+/// về `<dir>`: không có đăng ký, hoặc DLL đăng ký không còn tồn tại (mồ côi), hoặc
+/// DLL nằm dưới `<dir>`. Đăng ký đang trỏ một bản TextVN KHÁC (bản cài, Store) thì
+/// giữ nguyên — gỡ thư mục portable cũ không được tắt bộ gõ của bản đang dùng.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn registration_owned_by_dir(
+    server: Option<&str>,
+    server_exists: bool,
+    dirs: &[String],
+) -> bool {
+    match server {
+        None => true,
+        Some(_) if !server_exists => true,
+        Some(path) => dirs.iter().any(|d| path_is_under(path, d)),
+    }
 }
 
 // ─── Layout registry TSF (text-only — test được mọi OS) ───────────────────────────────────────────
@@ -1027,6 +1151,58 @@ mod win_impl {
         let _ = delete_tree(root, &wow_ctf_tip_key());
     }
 
+    /// R2-30: chỉ xoá mirror WOW64 của `scope` khi DLL x86 đăng ký nằm dưới một
+    /// trong `dirs` (hoặc đã mồ côi) — dùng khi đăng ký 64-bit thuộc bản khác.
+    pub fn unregister_wow64_mirror_if_owned(scope: Scope, dirs: &[String]) {
+        let inproc = format!(r"{}\InprocServer32", wow_clsid_key());
+        let server = reg_read_string(scope.root(), &inproc);
+        let exists = server
+            .as_deref()
+            .is_some_and(|p| Path::new(p.trim().trim_matches('"')).is_file());
+        if server.is_some() && registration_owned_by_dir(server.as_deref(), exists, dirs) {
+            unregister_wow64_mirror(scope);
+            say("  WOW64 mirror thuộc thư mục đang gỡ → đã xoá");
+        }
+    }
+
+    /// R2-30: đăng ký TIP 64-bit hiện hành (HKCU che HKLM) có thuộc `dirs` không.
+    pub fn registration_owned_by(dirs: &[String]) -> bool {
+        let inproc = format!(r"{}\InprocServer32", clsid_key());
+        let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
+            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
+        let exists = server
+            .as_deref()
+            .is_some_and(|p| Path::new(p.trim().trim_matches('"')).is_file());
+        registration_owned_by_dir(server.as_deref(), exists, dirs)
+    }
+
+    /// Program Files / Program Files (x86) theo **known folder** (registry HKLM do
+    /// hệ thống quản lý) — KHÔNG đọc biến môi trường: `%ProgramFiles%` người dùng
+    /// tự đặt được qua `HKCU\Environment` (R2-03/R2-15).
+    pub fn program_files_roots() -> Vec<String> {
+        use windows::Win32::UI::Shell::{
+            FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86, SHGetKnownFolderPath, KF_FLAG_DEFAULT,
+        };
+        let mut roots = Vec::new();
+        for id in [FOLDERID_ProgramFiles, FOLDERID_ProgramFilesX86] {
+            // SAFETY: GUID hằng hợp lệ; chuỗi trả về được giải phóng bằng CoTaskMemFree.
+            let Ok(raw) = (unsafe { SHGetKnownFolderPath(&id, KF_FLAG_DEFAULT, None) }) else {
+                continue;
+            };
+            // SAFETY: `raw` là chuỗi NUL-terminated do shell cấp, còn sống tới CoTaskMemFree.
+            let text = unsafe { raw.to_string() }.ok();
+            // SAFETY: con trỏ do SHGetKnownFolderPath cấp phát bằng CoTaskMemAlloc.
+            unsafe { CoTaskMemFree(Some(raw.0 as *const core::ffi::c_void)) };
+            if let Some(text) = text.filter(|t| !t.is_empty()) {
+                let canonical = std::fs::canonicalize(&text)
+                    .map(|c| c.to_string_lossy().into_owned())
+                    .unwrap_or(text);
+                roots.push(canonical);
+            }
+        }
+        roots
+    }
+
     /// Liệt kê tên subkey của `path` (một mức). Lỗi mở/liệt kê → rỗng.
     fn enum_subkeys(root: HKEY, path: &str) -> Vec<String> {
         let subkey = wide(path);
@@ -1280,6 +1456,13 @@ mod win_impl {
         // token admin sẽ kích hoạt sai tài khoản và có thể fail trước khi setup
         // kịp gọi ExecAsOriginalUser cho người dùng gốc.
         if scope == Scope::Machine {
+            // R2-35: mirror WOW64 (COM 32-bit + CTF) cũng phải ghi ở HKLM — trước
+            // đây nhánh máy return trước bước này nên app x86 (Zalo, Office 32-bit)
+            // của các tài khoản khác không bao giờ thấy TIP. Best-effort như scope
+            // user: thiếu DLL x86 (gói cũ) không làm hỏng đăng ký máy.
+            if register_wow64_mirror(dll_path, Scope::Machine) != 0 {
+                say("  WARN: mirror WOW64 (HKLM) chưa hoàn tất — app x86 có thể chưa thấy TIP");
+            }
             say("=== Đăng ký TSF phạm vi máy hoàn tất; kích hoạt user ở bước riêng. ===");
             return 0;
         }
@@ -1602,6 +1785,19 @@ pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
                 return 1;
             }
         };
+        let dll_path = if scope == win_impl::Scope::Machine {
+            match machine_scope_dll(&dll_path) {
+                Ok(p) => p,
+                Err(e) => {
+                    say("=== TextVN register (HKLM) ===");
+                    say(&format!("FAIL: {e}"));
+                    eprintln!("error: {e}");
+                    return 3;
+                }
+            }
+        } else {
+            dll_path
+        };
         win_impl::do_register(&dll_path, no_taskbar, scope)
     }
 
@@ -1613,20 +1809,81 @@ pub fn register_tip(scope: &str, dll: Option<&Path>, no_taskbar: bool) -> i32 {
     }
 }
 
+/// R2-03/R2-15 (chốt chặn có thẩm quyền — CLI là tiến trình duy nhất thật sự
+/// elevated): `--scope machine` chỉ đăng ký DLL đã canonicalize nằm dưới Program
+/// Files (known folder) và không dưới `WindowsApps`; áp cho cả `textvn-tsf-x86.dll`
+/// cạnh nó. Trả về đường dẫn canonical (không tiền tố `\\?\`) để HKLM trỏ đúng file
+/// đã kiểm tra — đường dẫn qua junction trong thư mục người dùng có thể bị trỏ lại
+/// sau khi đăng ký. Bản portable/cài riêng tài khoản/Store cần phạm vi máy: dùng
+/// bộ cài TextVN cho mọi người dùng (`TextVN-setup-*-machine.exe`).
+#[cfg(windows)]
+fn machine_scope_dll(dll_path: &Path) -> Result<PathBuf, String> {
+    let roots = win_impl::program_files_roots();
+    if roots.is_empty() {
+        return Err("không xác định được thư mục Program Files (known folder)".to_string());
+    }
+    let canonical = |p: &Path| -> Result<PathBuf, String> {
+        let c = std::fs::canonicalize(p)
+            .map_err(|e| format!("không chuẩn hoá được {}: {e}", p.display()))?;
+        let s = c.to_string_lossy().into_owned();
+        if machine_scope_dll_allowed(&s, &roots) {
+            Ok(PathBuf::from(strip_verbatim_prefix(&s)))
+        } else {
+            Err(format!(
+                "từ chối đăng ký phạm vi máy: {} không nằm trong Program Files \
+                 (thư mục người dùng ghi được hoặc WindowsApps). Dùng bộ cài TextVN \
+                 cho mọi người dùng (TextVN-setup-*-machine.exe); bản portable/Store \
+                 chỉ đăng ký cho tài khoản hiện tại.",
+                strip_verbatim_prefix(&s)
+            ))
+        }
+    };
+    let dll = canonical(dll_path)?;
+    if let Some(dir) = dll.parent() {
+        let x86 = dir.join("textvn-tsf-x86.dll");
+        if x86.is_file() {
+            canonical(&x86)?;
+        }
+    }
+    Ok(dll)
+}
+
 /// Hủy đăng ký TSF TIP. Trả về exit code: 0 thành công, 1 lỗi, 2 lỗi tham số.
-pub fn unregister_tip(scope: &str) -> i32 {
+///
+/// `owned_by` (R2-30, `--if-owned-by <dir>`): chỉ gỡ khi đăng ký hiện hành thuộc
+/// `<dir>` (hoặc mồ côi) — xem [`registration_owned_by_dir`].
+pub fn unregister_tip(scope: &str, owned_by: Option<&Path>) -> i32 {
     #[cfg(windows)]
     {
-        match scope {
-            "user" => win_impl::do_unregister(win_impl::Scope::User),
-            "machine" => win_impl::do_unregister(win_impl::Scope::Machine),
-            _ => 2,
+        let scope = match scope {
+            "user" => win_impl::Scope::User,
+            "machine" => win_impl::Scope::Machine,
+            _ => return 2,
+        };
+        if let Some(dir) = owned_by {
+            let mut dirs = vec![dir.to_string_lossy().into_owned()];
+            if let Ok(c) = std::fs::canonicalize(dir) {
+                dirs.push(c.to_string_lossy().into_owned());
+            }
+            if !win_impl::registration_owned_by(&dirs) {
+                say("=== TextVN unregister (--if-owned-by) ===");
+                say(&format!(
+                    "  Bỏ qua: TIP đang đăng ký cho một bản TextVN khác (không thuộc {})",
+                    dir.display()
+                ));
+                win_impl::unregister_wow64_mirror_if_owned(win_impl::Scope::User, &dirs);
+                if scope == win_impl::Scope::Machine {
+                    win_impl::unregister_wow64_mirror_if_owned(scope, &dirs);
+                }
+                return 0;
+            }
         }
+        win_impl::do_unregister(scope)
     }
 
     #[cfg(not(windows))]
     {
-        let _ = scope;
+        let _ = (scope, owned_by);
         eprintln!("error: `unregister` chỉ hỗ trợ trên Windows");
         1
     }
@@ -1697,6 +1954,125 @@ mod tests {
         assert!(!is_reparse_link(&target));
         assert!(!is_reparse_link(&dir.join("missing")));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// R2-21: junction/symlink ở `%LOCALAPPDATA%\TextVN` → KHÔNG tạo `logs` ở vị
+    /// trí bị điều hướng (bản cũ create_dir_all trước rồi mới kiểm tra).
+    #[cfg(unix)]
+    #[test]
+    fn log_writer_checks_reparse_before_creating_dirs() {
+        let base = std::env::temp_dir().join(format!("textvn-logprep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let elsewhere = base.join("elsewhere");
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        let local = base.join("local");
+        std::fs::create_dir_all(&local).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, local.join("TextVN")).unwrap();
+        assert!(prepare_log_file(&local).is_none());
+        assert!(
+            !elsewhere.join("logs").exists(),
+            "không được tạo logs qua link"
+        );
+
+        // Đường bình thường: tạo đủ cấp, trả về file log.
+        let clean = base.join("clean");
+        std::fs::create_dir_all(&clean).unwrap();
+        let file = prepare_log_file(&clean).expect("đường thường phải ghi được log");
+        assert_eq!(file, clean.join("TextVN").join("logs").join("register.log"));
+        append_log_line(&file, "dòng 1");
+        assert!(std::fs::read_to_string(&file).unwrap().contains("dòng 1"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// R2-21: log vượt ngưỡng xoay sang `.1`; nhỏ hơn thì giữ nguyên.
+    #[test]
+    fn log_rotates_when_larger_than_limit() {
+        let dir = std::env::temp_dir().join(format!("textvn-logrot-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("register.log");
+        std::fs::write(&file, vec![b'x'; 64]).unwrap();
+        rotate_log_if_larger(&file, 100);
+        assert!(file.exists(), "chưa vượt ngưỡng: giữ nguyên");
+        rotate_log_if_larger(&file, 10);
+        assert!(!file.exists());
+        assert!(dir.join("register.log.1").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// R2-03/R2-15: phạm vi máy chỉ nhận DLL dưới Program Files (known folder),
+    /// không nhận thư mục người dùng, thư mục tên giống, hay WindowsApps.
+    #[test]
+    fn machine_scope_rejects_user_writable_and_windowsapps_paths() {
+        let roots = vec![
+            r"C:\Program Files".to_string(),
+            r"\\?\C:\Program Files (x86)".to_string(),
+        ];
+        for ok in [
+            r"C:\Program Files\TextVN\textvn-tsf.dll",
+            r"\\?\C:\Program Files\TextVN\textvn-tsf.dll",
+            r"c:\program files (x86)\TextVN\textvn-tsf-x86.dll",
+        ] {
+            assert!(machine_scope_dll_allowed(ok, &roots), "{ok}");
+        }
+        for bad in [
+            r"C:\Users\a\AppData\Local\Programs\TextVN\textvn-tsf.dll",
+            r"C:\Users\a\Downloads\TextVN\textvn-tsf.dll",
+            r"D:\x\Program Files\TextVN\textvn-tsf.dll",
+            r"C:\Program FilesEvil\textvn-tsf.dll",
+            r"C:\Program Files",
+            r"C:\Program Files\WindowsApps\LinhBH.CoM.TextVN_1.2.27.0_x64__abc\textvn-tsf.dll",
+            r"\\?\C:\Program Files\WindowsApps\X\textvn-tsf.dll",
+        ] {
+            assert!(!machine_scope_dll_allowed(bad, &roots), "{bad}");
+        }
+        assert!(!machine_scope_dll_allowed(
+            r"C:\Program Files\TextVN\textvn-tsf.dll",
+            &[]
+        ));
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\C:\Program Files\TextVN\textvn-tsf.dll"),
+            r"C:\Program Files\TextVN\textvn-tsf.dll"
+        );
+        assert_eq!(
+            strip_verbatim_prefix(r"\\?\UNC\srv\share\x.dll"),
+            r"\\srv\share\x.dll"
+        );
+        assert_eq!(strip_verbatim_prefix(r"C:\a.dll"), r"C:\a.dll");
+    }
+
+    /// R2-30: gỡ bản portable chỉ gỡ đăng ký khi nó thuộc thư mục đó (hoặc mồ côi).
+    #[test]
+    fn unregister_if_owned_by_only_touches_own_or_orphaned_registration() {
+        let dirs = vec![r"D:\Tools\TextVN".to_string()];
+        assert!(registration_owned_by_dir(None, false, &dirs));
+        assert!(registration_owned_by_dir(
+            Some(r"C:\Program Files\TextVN\textvn-tsf.dll"),
+            false,
+            &dirs
+        ));
+        assert!(registration_owned_by_dir(
+            Some(r"d:\tools\textvn\textvn-tsf.dll"),
+            true,
+            &dirs
+        ));
+        assert!(!registration_owned_by_dir(
+            Some(r"C:\Program Files\TextVN\textvn-tsf.dll"),
+            true,
+            &dirs
+        ));
+        assert!(!registration_owned_by_dir(
+            Some(r"D:\Tools\TextVN2\textvn-tsf.dll"),
+            true,
+            &dirs
+        ));
+        // Thư mục canonical dạng \\?\ vẫn khớp đường dẫn registry thường.
+        assert!(registration_owned_by_dir(
+            Some(r"D:\Tools\TextVN\textvn-tsf.dll"),
+            true,
+            &[r"\\?\D:\Tools\TextVN".to_string()]
+        ));
     }
 
     #[test]
