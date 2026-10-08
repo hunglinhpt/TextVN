@@ -19,14 +19,22 @@
 #
 # ASCII-only (quy tac G7/A5).
 
+# Gia tri mac dinh = Partner Center cua chu tai khoan (docs/release/msix-submission.md):
+#   Publisher ID (Account settings > Windows publisher ID) va Publisher display
+#   name "LinhBH.CoM"; DisplayName PHAI trung ten da reserve ("TextVN") - Store
+#   tu choi goi co DisplayName khong nam trong danh sach ten da reserve.
+#   IdentityName (Product identity > Package/Identity/Name) CHUA co trong repo:
+#   truyen -IdentityName hoac bien MSIX_IDENTITY_NAME; thieu thi goi chi de test.
 param(
     [string]$Version = "",
-    [string]$Publisher = "CN=LinhBH.CoM",
-    [string]$IdentityName = "LinhBH.CoM.TextVN",
-    [string]$DisplayName = "TextVN - Bo go tieng Viet",
+    [string]$Publisher = "CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545",
+    [string]$IdentityName = "",
+    [string]$DisplayName = "TextVN",
     [string]$PublisherDisplay = "LinhBH.CoM",
     [string]$TargetDir = "target\x86_64-pc-windows-msvc\release",
-    [string]$OutDir = "dist"
+    [string]$OutDir = "dist",
+    # Release/nop Store: thieu IdentityName that -> FAIL thay vi canh bao.
+    [switch]$RequireStoreIdentity
 )
 
 $ErrorActionPreference = 'Stop'
@@ -36,16 +44,25 @@ Set-Location $root
 # CI/secret co the bom Identity THAT (Partner Center -> Product identity) qua
 # bien moi truong - khi do khong can truyen -Publisher/-IdentityName:
 #   MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY, MSIX_DISPLAY_NAME
-if ($env:MSIX_IDENTITY_NAME -and $IdentityName -eq 'LinhBH.CoM.TextVN') { $IdentityName = $env:MSIX_IDENTITY_NAME }
-if ($env:MSIX_PUBLISHER -and $Publisher -eq 'CN=LinhBH.CoM') { $Publisher = $env:MSIX_PUBLISHER }
-if ($env:MSIX_PUBLISHER_DISPLAY -and $PublisherDisplay -eq 'LinhBH.CoM') { $PublisherDisplay = $env:MSIX_PUBLISHER_DISPLAY }
-if ($env:MSIX_DISPLAY_NAME -and $DisplayName -eq 'TextVN - Bo go tieng Viet') { $DisplayName = $env:MSIX_DISPLAY_NAME }
+# Tham so truyen tuong minh luon thang bien moi truong.
+if ($env:MSIX_IDENTITY_NAME -and -not $PSBoundParameters.ContainsKey('IdentityName')) { $IdentityName = $env:MSIX_IDENTITY_NAME.Trim() }
+if ($env:MSIX_PUBLISHER -and -not $PSBoundParameters.ContainsKey('Publisher')) { $Publisher = $env:MSIX_PUBLISHER.Trim() }
+if ($env:MSIX_PUBLISHER_DISPLAY -and -not $PSBoundParameters.ContainsKey('PublisherDisplay')) { $PublisherDisplay = $env:MSIX_PUBLISHER_DISPLAY.Trim() }
+if ($env:MSIX_DISPLAY_NAME -and -not $PSBoundParameters.ContainsKey('DisplayName')) { $DisplayName = $env:MSIX_DISPLAY_NAME.Trim() }
+$PlaceholderIdentity = 'LinhBH.CoM.TextVN'
+if (-not $IdentityName) { $IdentityName = $PlaceholderIdentity }
+# Package/Identity/Name: 3-50 ky tu [A-Za-z0-9.-] (schema AppxManifest ST_PackageName).
+if ($IdentityName -notmatch '^[A-Za-z0-9.-]{3,50}$') { throw "IdentityName khong hop le: '$IdentityName'" }
+if ($Publisher -notmatch '^CN=') { throw "Publisher phai bat dau bang 'CN=': '$Publisher'" }
 
-# CI-04 (audit vong 4, muc 3.4.3.4): gate mem - goi MSIX con Identity PLACEHOLDER se
-# bi Partner Center tu choi ngay khi upload ("package identity mismatch").
-# Khong fail cung (CI khong co gia tri that cua chu tai khoan) nhung phai RO de
-# khong ai nop nham.
-if ($IdentityName -eq 'LinhBH.CoM.TextVN' -or $Publisher -eq 'CN=LinhBH.CoM') {
+# CI-04 (audit vong 4, muc 3.4.3.4): goi MSIX con Identity PLACEHOLDER se bi
+# Partner Center tu choi ngay khi upload ("package identity mismatch").
+# -RequireStoreIdentity (release khi da dat bien MSIX_IDENTITY_NAME) -> FAIL cung;
+# con lai chi canh bao to de khong ai nop nham ban test.
+if ($IdentityName -eq $PlaceholderIdentity) {
+    if ($RequireStoreIdentity) {
+        throw 'MSIX: thieu Package/Identity/Name that (-IdentityName hoac MSIX_IDENTITY_NAME) - khong build goi nop Store bang placeholder.'
+    }
     Write-Host ''
     Write-Host '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     Write-Host '!! CANH BAO: MSIX dang dung IDENTITY PLACEHOLDER:                 !!'
@@ -131,12 +148,22 @@ Copy-Item 'installer\windows\portable\HUONG_DAN_SU_DUNG.txt' $stage
 Copy-Item 'installer\windows\msix\Assets\*' (Join-Path $stage 'Assets')
 
 # 5. Manifest tu template.
-$tpl = Get-Content 'installer\windows\msix\AppxManifest.xml' -Raw
-$manifest = $tpl.Replace('{{VERSION}}', $msixVersion).
-    Replace('{{PUBLISHER}}', $Publisher).
-    Replace('{{IDENTITY_NAME}}', $IdentityName).
-    Replace('{{DISPLAY_NAME}}', $DisplayName).
-    Replace('{{PUBLISHER_DISPLAY}}', $PublisherDisplay)
+# Doc UTF-8 TUONG MINH: Windows PowerShell 5.1 `Get-Content -Raw` doc file UTF-8
+# khong BOM theo ANSI (cp1252) -> Description tieng Viet trong goi 0.2.27 bi
+# mojibake (UTF-8 bi ma hoa 2 lan), hien sai trong Settings > Apps va Store.
+$tplPath = Join-Path $root 'installer\windows\msix\AppxManifest.xml'
+$tpl = [System.IO.File]::ReadAllText($tplPath, (New-Object System.Text.UTF8Encoding($false)))
+# Gia tri chen vao thuoc tinh/phan tu XML phai escape (& < > " ') - Publisher
+# dang "CN=..., O=..." hay ten co '&' se lam manifest hong.
+function Esc([string]$v) { return [System.Security.SecurityElement]::Escape($v) }
+$manifest = $tpl.Replace('{{VERSION}}', (Esc $msixVersion)).
+    Replace('{{PUBLISHER}}', (Esc $Publisher)).
+    Replace('{{IDENTITY_NAME}}', (Esc $IdentityName)).
+    Replace('{{DISPLAY_NAME}}', (Esc $DisplayName)).
+    Replace('{{PUBLISHER_DISPLAY}}', (Esc $PublisherDisplay))
+if ($manifest -match '\{\{[A-Z_]+\}\}') { throw "Manifest con placeholder chua thay: $($Matches[0])" }
+# Chot chong mojibake: chuoi tieng Viet trong template phai con nguyen sau khi thay.
+if (-not $manifest.Contains([string][char]0x1ED9)) { throw 'Manifest mat ky tu tieng Viet (encoding sai)' }
 # Ghi UTF-8 (khong BOM) - template co tieng Viet trong Description.
 [System.IO.File]::WriteAllText((Join-Path $stage 'AppxManifest.xml'), $manifest, (New-Object System.Text.UTF8Encoding($false)))
 
