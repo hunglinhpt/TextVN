@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# A tag produces one immutable, unsigned release candidate. Production requires
-# separate signing/notarization and native GUI approval (docs/developer-guide.md).
+# Mỗi tag tạo một release candidate bất biến; mọi asset được ký GPG (.asc) + Sigstore
+# keyless, SHA256SUMS.txt được clearsign (tools/release/sign-artifacts.sh,
+# docs/release/signing.md). Còn thiếu: Authenticode (Windows — chờ SignPath duyệt) và
+# Developer ID + notarization (macOS — docs/release/signing-status-mac.md).
 name: release-candidate
 
 on:
@@ -244,10 +246,20 @@ jobs:
           else
             gh release create "${GITHUB_REF_NAME}" --draft --verify-tag --prerelease \
               --title "TextVN ${version} (release candidate)" \
-              --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
+              --notes "Bản release candidate do workflow này build và test từ ${GITHUB_SHA}. Mọi file đều có chữ ký GPG tách rời (.asc — khoá FPR 3921595ABC961199F15303B6C45B84D0C7F4A822, public key gpg-release-key.asc đính kèm) và chữ ký Sigstore keyless (.cosign.sig + .cosign.cert); SHA256SUMS.txt được clearsign. Cách kiểm: docs/release/signing.md. Thay đổi: CHANGELOG.md. ZIP Windows chứa RELEASE_REPORT.json. Chưa có: Authenticode cho Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Developer ID + notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). File .msix chưa ký, chỉ dùng để nộp Microsoft Store — không cài trực tiếp được."
           fi
           cp docs/release/signing/gpg-release-key.asc release-assets/
           (cd release-assets && sha256sum * > SHA256SUMS.txt)
+          # Homebrew cask (bước B7b): sha256 của zip macOS chỉ biết sau build — nhắc
+          # đúng dòng cần commit thay vì để cask lệch nhiều bản (R2-76).
+          mac_zip="$(cd release-assets && ls TextVN-macos-universal-v*.zip 2>/dev/null | head -1)"
+          if [ -n "$mac_zip" ]; then
+            want="$(cd release-assets && sha256sum "$mac_zip" | cut -d' ' -f1)"
+            have="$(sed -n 's/^  sha256 "\([0-9a-f]*\)"/\1/p' packaging/homebrew/textvn.rb)"
+            if [ "$want" != "$have" ]; then
+              echo "::warning title=Homebrew cask::packaging/homebrew/textvn.rb cần sha256 \"$want\" cho $mac_zip (bước B7b release-process)"
+            fi
+          fi
           chmod +x tools/release/sign-artifacts.sh
           bash tools/release/sign-artifacts.sh release-assets
           gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber
