@@ -349,8 +349,11 @@ begin
 end;
 
 // DLL bị TSF nạp (image-mapped) trong mọi tiến trình đang mở nên Windows từ chối
-// DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Sau khi Inno xoá file,
-// gọi CLI (đang elevated) hẹn xoá phần còn khoá qua MoveFileEx(DELAY_UNTIL_REBOOT)
+// DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Ở usUninstall (CLI còn
+// trên đĩa — R2-29): đổi tên hai DLL thành .old-<ts> rồi gọi CLI (đang elevated) hẹn
+// xoá các .old-* qua MoveFileEx(DELAY_UNTIL_REBOOT). KHÔNG hẹn xoá theo tên gốc
+// textvn-tsf.dll: gỡ rồi cài lại trước khi khởi động lại thì lần reboot sẽ xoá mất
+// DLL của bản vừa cài.
 // — CLI dùng API thật với lpNewFileName=NULL, tránh cả vấn đề Pascal Script
 // không có kiểu Pointer lẫn RegWriteMultiStringValue (trả String, không phải
 // TArrayOfString).
@@ -363,11 +366,9 @@ begin
   AppDir := ExpandConstant('{app}');
   if not DirExists(AppDir) then
     Exit;
+  RenameLockedTsfDll();
   Params := 'schedule-delete';
-  // Thứ tự: DLL chính (x64 + x86 cho app 32-bit) → các .old-* → thư mục
-  // (PFO xử lý tuần tự).
-  Params := Params + ' "' + AppDir + '\textvn-tsf.dll"';
-  Params := Params + ' "' + AppDir + '\textvn-tsf-x86.dll"';
+  // Thứ tự: các .old-* (gồm hai DLL vừa đổi tên) → thư mục (PFO xử lý tuần tự).
   if FindFirst(AppDir + '\*.old-*', FindRec) then
   begin
     try
@@ -390,9 +391,12 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   HotkeyValue: String;
 begin
+  // R2-29: hen xoa DLL bi khoa PHAI chay o usUninstall — luc usPostUninstall Inno da
+  // xoa textvn-cli.exe nen Exec that bai im lang va DLL/thu muc con lai mai mai.
+  if CurUninstallStep = usUninstall then
+    ScheduleCleanupViaCli();
   if CurUninstallStep = usPostUninstall then
   begin
-    ScheduleCleanupViaCli();
     // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
     // Chi xoa khi gia tri = 3 (override do TextVN dat: "khong gan phim") — giong
     // uninstall.ps1 cua ban portable; neu nguoi dung tu doi sang gia tri khac thi
