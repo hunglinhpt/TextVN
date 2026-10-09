@@ -300,6 +300,20 @@ chỗ và gõ được ngay), hoặc chọn TextVN bằng Win+Space nếu Window
     );
 }
 
+/// Kênh Store bị Windows từ chối activation per-user (B7): không xin UAC (R2-07),
+/// báo MỘT lần cách gõ được.
+#[cfg(windows)]
+fn show_store_activation_notice_once() {
+    show_activation_refused_notice_once(
+        "store_activation_notice_done",
+        "Windows từ chối kích hoạt bộ gõ TextVN chỉ đăng ký cho tài khoản này. Bản \
+TextVN từ Microsoft Store không đăng ký cho cả máy và không xin quyền Administrator.\r\n\r\n\
+Cách gõ được: chọn TextVN bằng Win+Space nếu Windows cho phép, hoặc cài TextVN cho \
+mọi người dùng bằng bộ cài TextVN-setup-*-machine.exe (cài vào Program Files) từ trang \
+phát hành của TextVN.",
+    );
+}
+
 /// Hộp thoại thông báo MỘT lần (marker `%APPDATA%\TextVN\<marker>`), trên thread
 /// riêng, không hiện khi `--autostart`.
 #[cfg(windows)]
@@ -344,7 +358,7 @@ fn show_activation_refused_notice_once(marker_name: &'static str, text: &'static
 /// đã được chứng minh gõ được (giống bộ cài). Không hỏi khi --autostart
 /// (tránh làm phiền lúc đăng nhập) và bỏ qua nếu HKLM đã có.
 #[cfg(windows)]
-fn offer_machine_registration_if_needed() {
+fn offer_machine_registration_if_needed(store_channel: bool) {
     // KHÔNG bỏ qua khi --autostart: nếu Windows từ chối per-user và người dùng
     // không bao giờ tự mở app (chỉ autostart cùng Windows), máy sẽ gõ hỏng IM
     // LẶNG. Hỏi một lần (marker) ngay lúc đăng nhập là đánh đổi đúng — vẫn có
@@ -353,6 +367,9 @@ fn offer_machine_registration_if_needed() {
     // xin UAC lại, và hộp thoại modal sẽ CHẶN tray trong môi trường headless
     // (sự cố CI 37112480137: "TextVN tray is still running before typing test").
     if is_process_elevated() {
+        return;
+    }
+    if textvn_tray::store_win::refuse_if_packaged("đăng ký phạm vi máy") {
         return;
     }
     if machine_registration_present() {
@@ -389,6 +406,13 @@ fn offer_machine_registration_if_needed() {
         .creation_flags(CREATE_NO_WINDOW)
         .status();
     if status.is_ok_and(|s| s.success()) {
+        return;
+    }
+
+    // R2-07: kênh Store KHÔNG BAO GIỜ đề nghị UAC (Store không nhận app cần nâng quyền
+    // cho bất kỳ chức năng nào) — chỉ chỉ đường tới bộ cài EXE cho mọi người dùng.
+    if store_channel {
+        show_store_activation_notice_once();
         return;
     }
 
@@ -550,6 +574,10 @@ fn elevated_register_succeeded(result: Option<Option<u32>>) -> bool {
 
 #[cfg(windows)]
 fn ensure_tsf_tip_registered(force: bool) {
+    // Chốt chặn cứng: còn package identity thì mọi ghi đăng ký bị ảo hoá (R2-02).
+    if textvn_tray::store_win::refuse_if_packaged("đăng ký TSF") {
+        return;
+    }
     let Ok(exe) = std::env::current_exe() else {
         return;
     };
@@ -681,8 +709,27 @@ fn read_registry_dword(root: HKEY, path: &str, name: &str) -> Option<u32> {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    // Kênh Store (MSIX): `--msix-relay`/`--msix-install` và MỌI lần chạy có package
+    // identity đi đường bootstrap rồi thoát — tiến trình trong package không bao giờ
+    // tới tray/đăng ký (R2-02/R2-37). Bản portable/Inno: `None`, chạy như cũ.
+    #[cfg(windows)]
+    if let Some(code) = textvn_tray::package_bootstrap::dispatch(&args) {
+        std::process::exit(code);
+    }
     if args.len() > 1 {
         match args[1].as_str() {
+            "--msix-guard" => {
+                // Run value kênh Store khi tự khởi động đang TẮT: chỉ chạy guard gỡ/cập
+                // nhật lúc đăng nhập rồi thoát (không chạy tray). Ngoài kênh Store: no-op.
+                #[cfg(windows)]
+                if let Some(ctx) = textvn_tray::store_win::detect_store_context() {
+                    let _ = textvn_tray::store_win::run_store_guard(
+                        &ctx,
+                        textvn_tray::store::LaunchMode::GuardOnly,
+                    );
+                }
+                return;
+            }
             "--autostart" => {
                 // Khởi động từ OS Startup, tiếp tục chạy ngầm vào tray
             }
@@ -717,6 +764,9 @@ fn main() {
                     "                [--if-image-under <dir>] chi dung khi tray chay tu <dir>"
                 );
                 println!("  --free-ctrl-shift  Danh Ctrl+Shift cho TextVN (go phim tat doi ban phim cua Windows)");
+                println!(
+                    "  --msix-guard  (kenh Store) chi kiem tra goi Store da go/cap nhat roi thoat"
+                );
                 println!("  --help        Hien thi tro giup");
                 return;
             }
@@ -731,12 +781,19 @@ fn main() {
     println!("TextVN chi ho tro he dieu hanh Windows.");
 }
 
-/// Mặc định "Dành Ctrl + Shift cho TextVN" cho bản portable/Store (không có bộ cài
-/// hỏi task `freectrlshift`): áp ĐÚNG MỘT LẦN (marker trong `%APPDATA%\TextVN`), sau đó
-/// tôn trọng lựa chọn ở Bảng điều khiển. Bản cài bằng Inno (`unins000.exe` cạnh exe)
-/// để bộ cài quyết định.
+/// Mặc định "Dành Ctrl + Shift cho TextVN" cho bản không qua bộ cài (không có task
+/// `freectrlshift` của Inno): quyết định ĐÚNG MỘT LẦN (marker `%APPDATA%\TextVN\
+/// ctrl_shift_default_applied`), sau đó tôn trọng lựa chọn ở Bảng điều khiển. Bản cài
+/// bằng Inno (`unins000.exe` cạnh exe) để bộ cài quyết định.
+/// - Portable: áp luôn (như trước).
+/// - Kênh Store (R2-06, chính sách Store 10.2.8 "phải có đồng ý của người dùng trước khi
+///   đổi cài đặt Windows"): HỎI Có/Không ở lần mở app bình thường đầu tiên; lưu cả câu
+///   trả lời Không (marker `declined`) để không hỏi lại và gỡ cài đặt không đụng phím tắt.
 #[cfg(windows)]
-fn apply_ctrl_shift_default_once() {
+fn apply_ctrl_shift_default_once(store_channel: bool, interactive: bool) {
+    if textvn_tray::store_win::refuse_if_packaged("đổi phím tắt Ctrl+Shift") {
+        return;
+    }
     let installed = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|d| d.join("unins000.exe").is_file()))
@@ -744,24 +801,47 @@ fn apply_ctrl_shift_default_once() {
     if installed {
         return;
     }
-    let Some(marker) = std::env::var_os("APPDATA").map(|d| {
-        std::path::PathBuf::from(d)
-            .join("TextVN")
-            .join("ctrl_shift_default_applied")
-    }) else {
+    let Some(marker) = textvn_tray::ctrl_shift_marker_path() else {
         return;
     };
     if marker.exists() {
         return;
     }
+    if store_channel {
+        // Không hỏi lúc đăng nhập (--autostart); Windows không giữ Ctrl+Shift thì
+        // không có gì để hỏi.
+        if !interactive || !textvn_tray::hotkey::current().ctrl_shift_taken() {
+            return;
+        }
+        // Thread riêng: MessageBoxW chặn thread gọi — không chặn tray/`--stop`.
+        std::thread::spawn(|| {
+            let answer = textvn_tray::store_win::message_box(
+                "TextVN dùng Ctrl + Shift để chuyển gõ tiếng Việt / tiếng Anh (V/E).\r\n\r\n\
+Windows đang dùng Ctrl + Shift để đổi bàn phím. Dành Ctrl + Shift cho TextVN? Windows \
+vẫn đổi bàn phím bằng Win + Space.\r\n\r\nCó thể đổi lại bất cứ lúc nào trong Bảng \
+điều khiển › \"Dành Ctrl + Shift cho TextVN\".",
+                MB_YESNO | MB_ICONQUESTION,
+            );
+            if answer == IDYES {
+                if textvn_tray::hotkey::free_ctrl_shift().is_ok() {
+                    textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_FREED);
+                }
+            } else {
+                textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_DECLINED);
+            }
+        });
+        return;
+    }
     if textvn_tray::hotkey::free_ctrl_shift().is_ok() {
-        let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
-        let _ = std::fs::write(&marker, b"1");
+        textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_FREED);
     }
 }
 
 #[cfg(windows)]
 fn free_ctrl_shift_cli() -> i32 {
+    if textvn_tray::store_win::refuse_if_packaged("--free-ctrl-shift") {
+        return 1;
+    }
     match textvn_tray::hotkey::free_ctrl_shift() {
         Ok(()) => {
             println!("Ctrl+Shift: danh cho TextVN");
@@ -807,14 +887,24 @@ fn spawn_activate_profile() {
 
 #[cfg(windows)]
 fn run_tray_app() {
-    // MSIX bootstrap (vòng 12 audit): exe chạy từ WindowsApps (bản Store) chỉ
-    // làm một việc — stage payload ra %LOCALAPPDATA%\Programs\TextVN rồi spawn
-    // bản staged và THOÁT, trước khi tạo single-instance mutex. Bản staged chạy
-    // non-packaged nên đăng ký TSF/Run key IPC dùng lại nguyên vẹn cơ chế
-    // portable (tránh registry virtualization + đường dẫn package đổi sau mỗi
-    // lần Store update). --stop/--status không đi qua đây (đọc pipe toàn cục).
-    if textvn_tray::package_bootstrap::bootstrap_relaunch_from_package() {
-        return;
+    let is_autostart = std::env::args().any(|a| a == "--autostart");
+    let is_settings = std::env::args().any(|a| a == "--settings");
+
+    // Kênh Store (exe dưới %LOCALAPPDATA%\Programs\TextVN-Store + stage.json): guard
+    // TRƯỚC single-instance mutex — gói đã gỡ → dọn rồi thoát (R2-04); gói có bản mới
+    // hơn → chạy app trong gói để stage lại rồi thoát (R2-05/R2-23). API lỗi → chạy tiếp.
+    let store_ctx = textvn_tray::store_win::detect_store_context();
+    if let Some(ctx) = &store_ctx {
+        let mode = if is_autostart {
+            textvn_tray::store::LaunchMode::Autostart
+        } else {
+            textvn_tray::store::LaunchMode::Normal
+        };
+        if textvn_tray::store_win::run_store_guard(ctx, mode)
+            == textvn_tray::store_win::GuardOutcome::Exit
+        {
+            return;
+        }
     }
 
     // 1. Single Instance Check qua Mutex
@@ -831,9 +921,6 @@ fn run_tray_app() {
             return;
         }
     };
-
-    let is_autostart = std::env::args().any(|a| a == "--autostart");
-    let is_settings = std::env::args().any(|a| a == "--settings");
 
     if mutex_error == ERROR_ALREADY_EXISTS {
         let _ = unsafe { CloseHandle(mutex) };
@@ -871,7 +958,7 @@ fn run_tray_app() {
     // CHỈ một lần cho bản không qua bộ cài (xem hàm). Trước đây gọi vô điều kiện ở mỗi
     // lần khởi động: người dùng bỏ chọn "Dành Ctrl + Shift" trong Bảng điều khiển (hoặc
     // task của bộ cài) thì lần đăng nhập sau Windows lại mất phím tắt của họ.
-    apply_ctrl_shift_default_once();
+    apply_ctrl_shift_default_once(store_ctx.is_some(), !is_autostart);
 
     // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
     // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả
@@ -963,16 +1050,21 @@ fn run_tray_app() {
     // "tray still running" 3 lần liên tiếp). Main vào message loop NGAY;
     // process exit khi --stop sẽ kết thúc thread (subprocess CLI tự hoàn
     // tất đăng ký; lệch thì self-heal lần chạy sau).
+    // Kênh Store: đồng bộ Run value sang thư mục phiên bản này, dọn bản cũ + staging.
+    if let Some(ctx) = store_ctx.clone() {
+        std::thread::spawn(move || textvn_tray::store_win::after_tray_start(&ctx));
+    }
     if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
         let svc_bg = svc.clone();
+        let store_channel = store_ctx.is_some();
         std::thread::spawn(move || {
             ensure_tsf_tip_registered(svc_bg.version_migrated());
             // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
             // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
             // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ
             // được (giống bộ cài). Chỉ hỏi khi người dùng chủ động mở app
-            // (không hỏi lúc --autostart).
-            offer_machine_registration_if_needed();
+            // (không hỏi lúc --autostart). Kênh Store: không bao giờ xin UAC (R2-07).
+            offer_machine_registration_if_needed(store_channel);
         });
     }
 

@@ -1,44 +1,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Bootstrap cho bản MSIX (WindowsApps) — vòng 12 audit MSIX.
+//! Bootstrap kênh Microsoft Store (MSIX) — ba bước, xem tổng quan ở [`crate::store`].
 //!
-//! Bản cài qua Microsoft Store đặt exe trong `C:\Program Files\WindowsApps\
-//! <Package>_<version>_<arch>__<hash>\` — đường dẫn chứa **version** và bị
-//! XOÁ sau mỗi lần Store update. Nếu TIP DLL được đăng ký trỏ vào đó:
-//! (a) đăng ký COM/CTF treo lơ lửng ngay sau lần update đầu (thư mục cũ bị
-//! xoá) → mất gõ cho tới khi mở lại app; (b) ghi registry của tiến trình
-//! đóng gói có thể bị **registry virtualization** điều hướng vào hive riêng
-//! của package → đăng ký vô hình với Notepad/explorer (tiến trình thường).
+//! Bản cài qua Store đặt exe trong `C:\Program Files\WindowsApps\<Package>_<ver>_...\`:
+//! đường dẫn đổi (và bị xoá) sau mỗi lần Store cập nhật, và mọi ghi HKCU / file mới dưới
+//! AppData của tiến trình có package identity bị Windows ẢO HOÁ (hive/thư mục riêng của
+//! package, vô hình với Notepad/Explorer, mất khi gỡ — R2-02/R2-19/R2-22). Bản trước
+//! copy ra `%LOCALAPPDATA%\Programs\TextVN` ngay trong package (bị ảo hoá, trùng thư mục
+//! bộ cài Inno per-user — R2-08/R2-24) rồi spawn thường (con vẫn có thể ở trong
+//! container), và khi copy lỗi thì chạy tray luôn từ WindowsApps (R2-37).
 //!
-//! Giải pháp "kênh phân phối" (pattern đã định hướng từ 0.2.17): exe trong
-//! package chỉ làm MỘT việc — stage toàn bộ payload ra thư mục thường
-//! `%LOCALAPPDATA%\Programs\TextVN` rồi spawn bản staged và thoát. Bản staged
-//! chạy **non-packaged** nên dùng lại NGUYÊN VẸN mọi cơ chế đã chứng minh của
-//! bản portable: tự đăng ký TSF, đề nghị UAC phạm vi máy (B7), Run key, IPC.
-//!
-//! Không đóng gói → không ảnh hưởng bản cài/portable: `is_packaged_exe` chỉ
-//! khớp đường dẫn chứa `\WindowsApps\`.
+//! Luồng mới:
+//! 1. [`run_packaged_entry`] (có identity): KHÔNG đăng ký gì. Copy payload ra
+//!    `%USERPROFILE%\.textvn\msix-staging\<V>\` (ngoài AppData — ghi thật), spawn chính
+//!    nó `--msix-relay` với DESKTOP_APP_POLICY breakaway rồi thoát. Copy lỗi → hộp thoại,
+//!    KHÔNG BAO GIỜ chạy tray từ WindowsApps.
+//! 2. [`run_relay`] (vẫn trong package; con của nó ra ngoài): chạy
+//!    `<staging>\TextVN.exe --msix-install --pfn <PFN> --ver <V>` rồi thoát.
+//! 3. [`run_install`] (phải KHÔNG có identity): copy vào
+//!    `%LOCALAPPDATA%\Programs\TextVN-Store\<V>\` (thư mục tạm rồi rename — bản cũ
+//!    nguyên vẹn nếu lỗi), ghi `stage.json`, đặt Run value, dừng tray Store cũ, chạy tray
+//!    mới, dọn bản cũ.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-/// exe có đang chạy từ thư mục package của Store/MSIX không?
-pub fn is_packaged_exe(exe: &Path) -> bool {
-    exe.to_string_lossy()
-        .to_lowercase()
-        .contains("\\windowsapps\\")
-}
+#[cfg(windows)]
+use crate::store::{self, LaunchMode, StageInfo};
+#[cfg(windows)]
+use crate::store_win;
 
-/// Thư mục stage đích (ổn định, không đổi theo version của package).
-pub fn staged_install_dir() -> Option<PathBuf> {
-    let local = std::env::var_os("LOCALAPPDATA")?;
-    if local.is_empty() {
-        return None;
-    }
-    Some(PathBuf::from(local).join("Programs").join("TextVN"))
-}
-
-/// Copy file ghi-đè; nếu đích đang bị khoá (exe đang chạy / TSF đang nạp DLL)
-/// thì **đổi tên** file cũ thành `.old-<ts>` (Windows CHO PHÉP rename file
-/// đang map — B8) rồi copy lại.
+/// Copy file ghi-đè; nếu đích đang bị khoá (exe đang chạy / TSF đang nạp DLL) thì
+/// **đổi tên** file cũ thành `.old-<ts>` (Windows CHO PHÉP rename file đang map — B8)
+/// rồi copy lại. Copy lần hai lỗi → đổi tên bản cũ VỀ chỗ cũ (R2-05: không để thư mục
+/// thiếu `TextVN.exe`/`textvn-tsf.dll`).
 fn copy_overwrite(src: &Path, dst: &Path) -> std::io::Result<()> {
     match std::fs::copy(src, dst) {
         Ok(_) => Ok(()),
@@ -55,7 +48,11 @@ fn copy_overwrite(src: &Path, dst: &Path) -> std::io::Result<()> {
                 })?;
             let backup = dst.with_file_name(name);
             std::fs::rename(dst, &backup)?;
-            std::fs::copy(src, dst)?;
+            if let Err(e) = std::fs::copy(src, dst) {
+                let _ = std::fs::remove_file(dst);
+                let _ = std::fs::rename(&backup, dst);
+                return Err(e);
+            }
             Ok(())
         }
         Err(e) => Err(e),
@@ -89,10 +86,10 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Stage toàn bộ payload cần thiết cho tray staged từ thư mục package sang
-/// `target`. DLL ưu tiên tên đã đổi (`textvn-tsf.dll`), fallback tên build
-/// (`textvn_win_tsf.dll`). Lenient: file nào copy được thì staged, lỗi từng
-/// file không chặn (bản staged cũ vẫn dùng được).
+/// Copy toàn bộ payload cần cho tray kênh Store từ `pkg_dir` sang `target`. DLL ưu tiên
+/// tên đã đổi (`textvn-tsf.dll`), fallback tên build (`textvn_win_tsf.dll`).
+/// NGHIÊM NGẶT (R2-37): lỗi ở bất kỳ file nào → trả lỗi; caller copy vào thư mục tạm
+/// rồi mới rename ([`stage_version_dir`]) nên bản cũ không bao giờ bị trộn version.
 pub fn stage_package_payload(pkg_dir: &Path, target: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(target)?;
     cleanup_old_backups(target);
@@ -136,49 +133,246 @@ pub fn stage_package_payload(pkg_dir: &Path, target: &Path) -> std::io::Result<(
     Ok(())
 }
 
-/// Toàn bộ luồng bootstrap: nếu exe đang chạy từ WindowsApps → stage payload
-/// → spawn bản staged với cùng đối số → trả `true` (caller phải THOÁT ngay,
-/// trước khi tạo single-instance mutex). Trả `false` khi: không phải package,
-/// thiếu LOCALAPPDATA, stage lỗi toàn phần, hoặc spawn lỗi (khi đó chạy tiếp
-/// từ package — tốt hơn không gõ gì).
-pub fn bootstrap_relaunch_from_package() -> bool {
+/// Thư mục phiên bản đã copy ĐỦ: có marker và `TextVN.exe`.
+pub fn version_dir_complete(dir: &Path) -> bool {
+    dir.join(crate::store::STAGED_MARKER).is_file() && dir.join("TextVN.exe").is_file()
+}
+
+/// Dựng `dest` (thư mục một phiên bản) từ `src` theo kiểu nguyên tử (R2-37): đã đủ thì
+/// giữ nguyên (bỏ qua copy — R2-05/R2-23); nếu không thì copy vào `<dest>.tmp`, ghi
+/// marker, xoá `dest` dở dang cũ rồi rename. Lỗi ở bất kỳ bước nào → `dest` cũ (nếu
+/// đã hoàn chỉnh) không bị đụng.
+pub fn stage_version_dir(src: &Path, dest: &Path) -> std::io::Result<()> {
+    if version_dir_complete(dest) {
+        return Ok(());
+    }
+    let name = dest
+        .file_name()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "no dir name"))?;
+    let mut tmp_name = name.to_os_string();
+    tmp_name.push(".tmp");
+    let tmp = dest.with_file_name(tmp_name);
+    if tmp.exists() {
+        std::fs::remove_dir_all(&tmp)?;
+    }
+    stage_package_payload(src, &tmp)?;
+    if !tmp.join("TextVN.exe").is_file() {
+        let _ = std::fs::remove_dir_all(&tmp);
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "payload thiếu TextVN.exe",
+        ));
+    }
+    std::fs::write(tmp.join(crate::store::STAGED_MARKER), b"1")?;
+    if dest.exists() {
+        std::fs::remove_dir_all(dest)?;
+    }
+    std::fs::rename(&tmp, dest)
+}
+
+// ─── Điều phối (Windows) ────────────────────────────────────────────────────────
+
+/// Gọi ĐẦU TIÊN trong `main()`: `--msix-relay` / `--msix-install`, hoặc mọi lần chạy có
+/// package identity → chạy bước tương ứng và trả exit code (caller thoát ngay, không
+/// bao giờ tới tray). `None` = lần chạy thường (portable/Inno/Store đã stage).
+#[cfg(windows)]
+pub fn dispatch(args: &[String]) -> Option<i32> {
+    match args.get(1).map(String::as_str) {
+        Some(store::ARG_RELAY) => Some(run_relay(&args[2..])),
+        Some(store::ARG_INSTALL) => Some(run_install(&args[2..])),
+        _ if store_win::has_package_identity() => Some(run_packaged_entry()),
+        _ => None,
+    }
+}
+
+/// Đã cài đúng bản `ver` (stage.json khớp + thư mục đủ) → dùng luôn, khỏi copy.
+/// Tiến trình trong package ĐỌC được file thật đã tồn tại dưới AppData (chỉ file MỚI
+/// tạo mới bị ảo hoá).
+#[cfg(windows)]
+fn installed_dir_for(ver: &str) -> Option<std::path::PathBuf> {
+    let root = store_win::store_root_from_env()?;
+    let stage = store_win::read_stage(&root)?;
+    let expected = store::version_dir(&root, ver);
+    (stage.ver == ver
+        && Path::new(&stage.dir)
+            .to_string_lossy()
+            .eq_ignore_ascii_case(&expected.to_string_lossy())
+        && version_dir_complete(&expected))
+    .then_some(expected)
+}
+
+/// Bước 1 — `TextVN.exe` chạy từ package (có identity).
+#[cfg(windows)]
+pub fn run_packaged_entry() -> i32 {
+    let fail = |detail: String| -> i32 {
+        store_win::report_error(&detail);
+        1
+    };
+    let (Some(full), Some(pfn)) = (
+        store_win::current_package_full_name(),
+        store_win::current_package_family_name(),
+    ) else {
+        return fail("Không đọc được thông tin gói (package identity).".to_string());
+    };
+    let Some(ver) = store::version_from_package_full_name(&full) else {
+        return fail(format!("Tên gói không đúng dạng: {full}"));
+    };
+    if !store::is_valid_pfn(&pfn) {
+        return fail(format!("Package family name không đúng dạng: {pfn}"));
+    }
     let Ok(exe) = std::env::current_exe() else {
-        return false;
+        return fail("Không xác định được vị trí TextVN.exe.".to_string());
     };
-    if !is_packaged_exe(&exe) {
-        return false;
-    }
     let Some(pkg_dir) = exe.parent() else {
-        return false;
+        return fail("Không xác định được thư mục gói.".to_string());
     };
-    let Some(target) = staged_install_dir() else {
-        return false;
-    };
-    if let Err(e) = stage_package_payload(pkg_dir, &target) {
-        eprintln!("TextVN MSIX bootstrap: stage FAIL: {e}");
-        return false;
-    }
-    let staged_exe = target.join("TextVN.exe");
-    if !staged_exe.is_file() {
-        eprintln!("TextVN MSIX bootstrap: staged TextVN.exe thieu");
-        return false;
-    }
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    match std::process::Command::new(&staged_exe).args(&args).spawn() {
-        Ok(_child) => {
-            eprintln!("TextVN MSIX bootstrap: da chay tu {}", target.display());
-            true
+    store_win::store_log(&format!("packaged entry: {full}"));
+    let src = match installed_dir_for(&ver) {
+        Some(dir) => dir,
+        None => {
+            let Some(staging_root) = store_win::staging_root_from_env() else {
+                return fail("Thiếu biến môi trường USERPROFILE.".to_string());
+            };
+            let dest = store::version_dir(&staging_root, &ver);
+            if let Err(e) = stage_version_dir(pkg_dir, &dest) {
+                return fail(format!(
+                    "Không chép được tệp TextVN ra {}: {e}",
+                    dest.display()
+                ));
+            }
+            dest
         }
+    };
+    if let Err(e) =
+        store_win::spawn_with_desktop_app_breakaway(&exe, &store::relay_args(&src, &pfn, &ver))
+    {
+        return fail(format!("Không khởi chạy được bước cài đặt: {e}"));
+    }
+    store_win::store_log(&format!("packaged entry: relay → {}", src.display()));
+    0
+}
+
+/// Bước 2 — `--msix-relay <dir> <PFN> <V>` (vẫn trong package; con của nó ra ngoài).
+#[cfg(windows)]
+pub fn run_relay(rest: &[String]) -> i32 {
+    let Some((src, pfn, ver)) = store::parse_relay_args(rest) else {
+        store_win::store_log("relay: đối số sai");
+        return 2;
+    };
+    let (Some(staging_root), Some(root)) = (
+        store_win::staging_root_from_env(),
+        store_win::store_root_from_env(),
+    ) else {
+        return 2;
+    };
+    if !store::source_dir_allowed(&src, &staging_root, &root) {
+        store_win::store_log("relay: thư mục nguồn không thuộc staging/TextVN-Store");
+        return 2;
+    }
+    let exe = src.join("TextVN.exe");
+    if !exe.is_file() {
+        store_win::report_error(&format!("Thiếu {}", exe.display()));
+        return 1;
+    }
+    match store_win::spawn_detached(&exe, &store::install_args(&pfn, &ver)) {
+        Ok(()) => 0,
         Err(e) => {
-            eprintln!("TextVN MSIX bootstrap: spawn staged FAIL: {e}");
-            false
+            store_win::report_error(&format!("Không khởi chạy được bước cài đặt: {e}"));
+            1
         }
     }
 }
 
-#[cfg(all(test, windows))]
+/// Bước 3 — `--msix-install --pfn <PFN> --ver <V>` (phải KHÔNG có package identity).
+#[cfg(windows)]
+pub fn run_install(rest: &[String]) -> i32 {
+    if store_win::has_package_identity() {
+        store_win::report_error(
+            "Bước cài đặt vẫn chạy trong môi trường của gói MSIX: mọi đăng ký bộ gõ sẽ bị \
+Windows ảo hoá và không có tác dụng, nên TextVN dừng lại.",
+        );
+        return 1;
+    }
+    let Some((pfn, ver)) = store::parse_install_args(rest) else {
+        store_win::store_log("install: đối số sai");
+        return 2;
+    };
+    let (Some(staging_root), Some(root)) = (
+        store_win::staging_root_from_env(),
+        store_win::store_root_from_env(),
+    ) else {
+        return 2;
+    };
+    let Some(src) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(Path::to_path_buf))
+    else {
+        return 2;
+    };
+    if !store::source_dir_allowed(&src, &staging_root, &root) {
+        store_win::store_log("install: exe không chạy từ staging/TextVN-Store");
+        return 2;
+    }
+    let target = store::version_dir(&root, &ver);
+    // R2-08/R2-24: không bao giờ cài đè lên thư mục của bộ cài Inno.
+    if target.join("unins000.exe").exists() {
+        store_win::report_error(&format!(
+            "{} chứa trình gỡ của bộ cài TextVN — không cài đè.",
+            target.display()
+        ));
+        return 1;
+    }
+    let old = store_win::read_stage(&root);
+    let first_install = old.is_none();
+    if !store_win::same_dir(&src, &target) {
+        if let Err(e) = stage_version_dir(&src, &target) {
+            store_win::report_error(&format!(
+                "Không chép được TextVN vào {}: {e}",
+                target.display()
+            ));
+            return 1;
+        }
+    }
+    // Cài lại trước lần đăng nhập kế sau một lần dọn: bỏ lịch xoá còn treo.
+    store_win::cancel_store_dir_removal();
+    let info = StageInfo {
+        pfn,
+        ver: ver.clone(),
+        dir: target.to_string_lossy().into_owned(),
+    };
+    if let Err(e) = store_win::write_stage(&root, &info) {
+        store_win::report_error(&format!("Không ghi được stage.json: {e}"));
+        return 1;
+    }
+    let new_exe = target.join("TextVN.exe");
+    store_win::sync_store_run_value(&root, &new_exe, first_install);
+    let version_changed = old.as_ref().is_none_or(|o| o.ver != ver);
+    if version_changed {
+        // Tray Store cũ (thư mục phiên bản khác) phải nhường chỗ cho bản mới (R2-05).
+        store_win::stop_store_tray(&root);
+    }
+    let mode = store_win::take_relaunch_hint(&root).unwrap_or(LaunchMode::Normal);
+    if let Some(args) = mode.tray_args() {
+        if let Err(e) = store_win::spawn_detached(&new_exe, &args) {
+            store_win::report_error(&format!("Không khởi chạy được TextVN: {e}"));
+            return 1;
+        }
+    }
+    store_win::store_log(&format!(
+        "install: {ver} → {} (lần đầu: {first_install}, chạy tray: {mode:?})",
+        target.display()
+    ));
+    store_win::prune_old_versions(&root, &ver);
+    // Vùng staging: xoá mọi thư mục phiên bản (exe đang chạy của chính bước này còn
+    // bị khoá — tray mới dọn nốt).
+    store_win::prune_old_versions(&staging_root, "");
+    0
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn temp_dir(tag: &str) -> PathBuf {
         let d =
@@ -186,26 +380,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
-    }
-
-    #[test]
-    fn is_packaged_exe_nhan_dien_windowsapps_va_loai_truong_hop_thuong() {
-        assert!(is_packaged_exe(Path::new(
-            r"C:\Program Files\WindowsApps\TextVN_0.2.25.0_x64__abc\TextVN.exe"
-        )));
-        assert!(is_packaged_exe(Path::new(
-            r"c:\program files\windowsapps\textvn_0.2.25.0_x64__abc\TextVN.exe"
-        )));
-        assert!(!is_packaged_exe(Path::new(
-            r"C:\Program Files\TextVN\TextVN.exe"
-        )));
-        assert!(!is_packaged_exe(Path::new(
-            r"C:\Users\u\AppData\Local\Programs\TextVN\TextVN.exe"
-        )));
-        // không nhầm "windowsapps" ở giữa tên thư mục khác
-        assert!(!is_packaged_exe(Path::new(
-            r"D:\my-windowsapps-backup\TextVN.exe"
-        )));
     }
 
     #[test]
@@ -222,6 +396,8 @@ mod tests {
         std::fs::create_dir_all(pkg.join("data")).unwrap();
         std::fs::write(pkg.join("data").join("appdb.default.json"), b"{}").unwrap();
         std::fs::write(pkg.join("PRIVACY_POLICY.txt"), b"privacy").unwrap();
+        // File của package (manifest, Assets) KHÔNG đi theo.
+        std::fs::write(pkg.join("AppxManifest.xml"), b"<x/>").unwrap();
 
         stage_package_payload(&pkg, &target).unwrap();
 
@@ -252,6 +428,7 @@ mod tests {
             "DLL x86 (Zalo/Office 32-bit) phải được stage"
         );
         assert_eq!(std::fs::read(target.join("LICENSE")).unwrap(), b"gpl");
+        assert!(!target.join("AppxManifest.xml").exists());
         let _ = std::fs::remove_dir_all(&pkg);
         let _ = std::fs::remove_dir_all(&target);
     }
@@ -278,9 +455,41 @@ mod tests {
         let _ = std::fs::remove_dir_all(&target);
     }
 
+    /// R2-37/R2-05: thư mục phiên bản dựng nguyên tử — đủ rồi thì không copy lại; dở
+    /// dang thì dựng lại sạch; nguồn thiếu exe thì lỗi và không để lại gì.
     #[test]
-    fn bootstrap_khong_relaunch_khi_khong_phai_package() {
-        // current_exe của test binary chạy từ target\... — không phải WindowsApps
-        assert!(!bootstrap_relaunch_from_package());
+    fn stage_version_dir_is_atomic_and_idempotent() {
+        let base = temp_dir("verdir");
+        let pkg = base.join("pkg");
+        std::fs::create_dir_all(&pkg).unwrap();
+        std::fs::write(pkg.join("TextVN.exe"), b"v1").unwrap();
+        std::fs::write(pkg.join("textvn-tsf.dll"), b"v1").unwrap();
+        let dest = base.join("1.2.27.0");
+
+        stage_version_dir(&pkg, &dest).unwrap();
+        assert!(version_dir_complete(&dest));
+        assert!(!base.join("1.2.27.0.tmp").exists());
+
+        // Đã đủ → bỏ qua copy (file trong gói đổi cũng không ghi đè bản đang chạy).
+        std::fs::write(pkg.join("TextVN.exe"), b"v2").unwrap();
+        stage_version_dir(&pkg, &dest).unwrap();
+        assert_eq!(std::fs::read(dest.join("TextVN.exe")).unwrap(), b"v1");
+
+        // Dở dang (thiếu marker, có rác) → dựng lại sạch.
+        std::fs::remove_file(dest.join(crate::store::STAGED_MARKER)).unwrap();
+        std::fs::write(dest.join("rac.txt"), b"x").unwrap();
+        stage_version_dir(&pkg, &dest).unwrap();
+        assert_eq!(std::fs::read(dest.join("TextVN.exe")).unwrap(), b"v2");
+        assert!(!dest.join("rac.txt").exists());
+
+        // Nguồn thiếu TextVN.exe → lỗi, không để lại thư mục tạm/đích.
+        let empty = base.join("empty");
+        std::fs::create_dir_all(&empty).unwrap();
+        let dest2 = base.join("1.2.28.0");
+        assert!(stage_version_dir(&empty, &dest2).is_err());
+        assert!(!dest2.exists());
+        assert!(!base.join("1.2.28.0.tmp").exists());
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

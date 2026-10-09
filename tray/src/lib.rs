@@ -6,6 +6,8 @@
 //! - [`ipc_server`]: Named Pipe server `\\.\pipe\textvn-ipc-v1`, broadcast cấu hình và giám sát hook.
 //! - [`menu`]: Menu ngữ cảnh khay hệ thống (9 mục chuẩn Win32).
 //! - [`autostart`]: Quản lý registry key tự khởi động `HKCU\...\Run\TextVN` (per-user).
+//! - [`store`] / `store_win` / [`package_bootstrap`]: kênh Microsoft Store (MSIX) —
+//!   stage ra ngoài container, guard gỡ/cập nhật, dọn dẹp.
 
 // Tray = Windows-only (P1-4): trên non-Windows chỉ build để gate CI --workspace,
 // các item Win32 không có caller là bình thường — không phải dead code thật.
@@ -17,10 +19,12 @@ pub mod hotkey;
 pub mod icons;
 pub mod ipc_server;
 pub mod menu;
-#[cfg(windows)]
 pub mod package_bootstrap;
 pub mod settings;
 pub mod settings_dialog;
+pub mod store;
+#[cfg(windows)]
+pub mod store_win;
 pub mod svc;
 
 pub use autostart::{disable_autostart, enable_autostart, is_autostart_enabled};
@@ -140,6 +144,61 @@ pub fn is_trusted_machine_install(exe: &str, roots: &[String]) -> bool {
             .replace('/', "\\")
             .to_lowercase()
             .contains("\\windowsapps\\")
+}
+
+/// Marker `%APPDATA%\TextVN\ctrl_shift_default_applied`: TextVN đã quyết định về
+/// Ctrl + Shift của Windows ở lần chạy đầu (bản portable/Store). Nội dung
+/// [`CTRL_SHIFT_MARKER_FREED`] = chính TextVN đã gỡ phím tắt của Windows (gỡ cài đặt phải
+/// trả lại); [`CTRL_SHIFT_MARKER_DECLINED`] = người dùng kênh Store chọn "Không" (R2-06) —
+/// không hỏi lại, và gỡ cài đặt KHÔNG được đổi phím tắt của họ.
+pub const CTRL_SHIFT_MARKER: &str = "ctrl_shift_default_applied";
+pub const CTRL_SHIFT_MARKER_FREED: &str = "1";
+pub const CTRL_SHIFT_MARKER_DECLINED: &str = "declined";
+
+pub fn ctrl_shift_marker_path() -> Option<std::path::PathBuf> {
+    std::env::var_os("APPDATA")
+        .filter(|v| !v.is_empty())
+        .map(|d| {
+            std::path::PathBuf::from(d)
+                .join("TextVN")
+                .join(CTRL_SHIFT_MARKER)
+        })
+}
+
+/// Marker cho biết chính TextVN đã gỡ Ctrl + Shift khỏi Windows (bản cũ ghi `"1"`).
+pub fn ctrl_shift_marker_says_freed(content: &str) -> bool {
+    content.trim() == CTRL_SHIFT_MARKER_FREED
+}
+
+/// Ghi marker (tạo `%APPDATA%\TextVN` nếu thiếu).
+pub fn write_ctrl_shift_marker(value: &str) {
+    if let Some(marker) = ctrl_shift_marker_path() {
+        if let Some(dir) = marker.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(&marker, value.as_bytes());
+    }
+}
+
+/// Gỡ cài đặt (portable/Store): trả Ctrl + Shift cho Windows CHỈ khi marker nói TextVN
+/// đã lấy nó (BUG-07), rồi xoá marker (cài lại sẽ hỏi/áp lại từ đầu).
+pub fn restore_ctrl_shift_if_we_freed() {
+    #[cfg(windows)]
+    {
+        let Some(marker) = ctrl_shift_marker_path() else {
+            return;
+        };
+        let Ok(content) = std::fs::read_to_string(&marker) else {
+            return;
+        };
+        if ctrl_shift_marker_says_freed(&content) {
+            if hotkey::restore_windows_ctrl_shift().is_ok() {
+                let _ = std::fs::remove_file(&marker);
+            }
+        } else {
+            let _ = std::fs::remove_file(&marker);
+        }
+    }
 }
 
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
@@ -287,6 +346,16 @@ mod tests {
                 assert!(!root.eq_ignore_ascii_case(&format!("{local}\\Programs")));
             }
         }
+    }
+
+    /// R2-06: chỉ marker "1" (TextVN đã gỡ phím tắt) mới khiến gỡ cài đặt trả lại
+    /// Ctrl + Shift; "declined" (người dùng Store chọn Không) thì không đụng.
+    #[test]
+    fn ctrl_shift_marker_content_semantics() {
+        assert!(ctrl_shift_marker_says_freed("1"));
+        assert!(ctrl_shift_marker_says_freed("1\r\n"));
+        assert!(!ctrl_shift_marker_says_freed(CTRL_SHIFT_MARKER_DECLINED));
+        assert!(!ctrl_shift_marker_says_freed(""));
     }
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải
