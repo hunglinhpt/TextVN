@@ -1,104 +1,137 @@
-# Nộp TextVN lên Microsoft Store — đường MSIX (khi gói .exe bị từ chối)
+# Nộp TextVN lên Microsoft Store — gói MSIX
 
-## 0. Trạng thái sẵn sàng (0.2.25 — vòng 12 audit)
+> Cập nhật 2026-10-09. Đây là đường nộp Store **chính**: gói EXE vướng chính sách
+> 10.2.9 (bắt buộc Authenticode — đang chờ SignPath Foundation duyệt, xem
+> `store-policy-10-2-9.md`), còn MSIX được Store **tự ký** khi publish.
 
-Bản 0.2.25 đã sửa 2 lỗi kiến trúc khiến MSIX trước đây KHÔNG dùng được làm
-bộ gõ, kể cả khi identity đúng:
+## 0. Trạng thái — sẵn sàng nộp, chỉ thiếu 1 giá trị từ Partner Center
 
-1. **Đăng ký TSF trỏ vào DLL trong package**: thư mục `WindowsApps\<Package>_
-   <version>_…` chứa version và bị XOÁ sau mỗi lần Store update → đăng ký
-   COM/CTF treo lơ lửng. Cộng rủi ro registry virtualization (ghi COM/CTF từ
-   tiến trình đóng gói có thể vào hive riêng của package — vô hình với
-   Notepad/explorer). **Đã sửa (bootstrap stage-out)**: exe trong package giờ
-   stage toàn bộ payload ra `%LOCALAPPDATA%\Programs\TextVN` rồi spawn bản
-   staged (non-packaged) — đăng ký/Run key/IPC dùng nguyên vẹn cơ chế portable.
-2. **Payload thiếu `resources/` + `data/`** (gồm `data/tables/*.toml` mà engine
-   đọc từ đĩa) — đã bổ sung; verify bằng unpack: 3 icon + 12 file data.
+| Hạng mục | Trạng thái | Bằng chứng |
+|---|---|---|
+| Kênh Store chạy thật ngoài container MSIX | ✅ | CI `ci-shared` › *MSIX sideload*: cài gói ký tạm → mở app → từ shell ngoài gói thấy bản stage, TIP HKCU, tray chạy, Run; gỡ gói → guard dọn sạch (`installer/windows/tests/test-msix-sideload.ps1`) |
+| Manifest đúng luật Partner Center | ✅ | `tools/win/verify-msix.py` chạy trong CI: Version phần đầu ≠ 0, Publisher, DisplayName, PublisherDisplayName, mô tả tiếng Việt không mojibake, ảnh đúng kích thước, payload đủ |
+| Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `tools/win/check-pe-imports.py` trong `build-release.ps1` |
+| `Publisher` | ✅ `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` | Partner Center › Account settings › Windows publisher ID |
+| `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
+| `DisplayName` | ⚠️ mặc định `TextVN` — xem §2 (tên đang thuộc sản phẩm EXE) | |
+| **`Package/Identity/Name`** | ❌ **chủ tài khoản phải lấy** (§2) | Partner Center › sản phẩm MSIX › Product identity |
 
-Còn thiếu DUY NHẤT để upload: `Package/Identity/Name` (bước 1 dưới đây).
-File MSIX hiện hành trên `approved/v0.2.25/` vẫn là **identity placeholder** —
-cảnh báo placeholder sẽ in to khi build.
+Gói `.msix` trên release 0.2.27 / branch `approved` **KHÔNG nộp được** (identity
+placeholder, Version `0.2.27.0`, mô tả mojibake, ảnh 71×71 sai) — phải build lại
+theo §3.
 
+## 1. Vì sao gói MSIX của TextVN có cơ chế "stage-out"
 
-> Dùng đường này khi gói `.exe` bị Store từ chối ở Package validation (3 mục
-> Silent install / ARP / Bundleware). Gói MSIX **bypass toàn bộ 3 check đó** vì
-> MSIX có cơ chế cài đặt và identity riêng của Windows — không cần silent
-> install parameters, không cần check ARP, không thể có bundleware.
+Bộ gõ Windows (TSF TIP) là DLL được **mọi ứng dụng** nạp. Microsoft Docs:
+module nạp vào tiến trình ngoài gói "không được phép" từ bên trong gói, và mọi
+ghi `HKCU`/file mới dưới `AppData` của tiến trình có package identity bị **ảo hoá**
+(chỉ gói thấy, mất khi gỡ). Vì vậy (code: `tray/src/package_bootstrap.rs`,
+`tray/src/store.rs`, `tray/src/store_win.rs`):
 
-## Tại sao MSIX giải quyết được
+1. `TextVN.exe` trong gói **không đăng ký gì** — chép payload ra
+   `%USERPROFILE%\.textvn\msix-staging\<V>` (ngoài AppData = ghi thật), khởi chạy
+   bước relay với `PROC_THREAD_ATTRIBUTE_DESKTOP_APP_POLICY` (breakaway) rồi thoát.
+2. Relay chạy `--msix-install` **ngoài container**: cài vào
+   `%LOCALAPPDATA%\Programs\TextVN-Store\<V>`, ghi `stage.json`, khởi chạy tray.
+3. Tray (không có identity) đăng ký TSF **chỉ cho tài khoản hiện tại** (HKCU,
+   không UAC), đặt mục khởi động `TextVN` (`--autostart` hoặc `--msix-guard`).
+4. Mỗi lần đăng nhập, guard kiểm `GetPackagesByPackageFamily`: gói đã gỡ → gỡ đăng
+   ký TIP, xoá Run, trả Ctrl + Shift, hẹn xoá thư mục; gói có bản mới hơn → mở app
+   trong gói để stage lại.
+5. Menu khay "Gỡ cài đặt" (bản Store) dọn ngay rồi mở Cài đặt › Ứng dụng.
+6. Bản Store **hỏi** trước khi dành Ctrl + Shift (chính sách 10.2.8) và **không bao
+   giờ** xin quyền Administrator (cần cài cho mọi người dùng → bộ cài
+   `*-machine.exe`).
 
-| Vấn đề của gói EXE | MSIX giải quyết thế nào |
-|---|---|
-| Silent install check | MSIX cài đặt ngầm **theo thiết kế** của Windows — không cần switches |
-| Entry in add/remove programs | Windows TỰ tạo entry từ manifest (`Identity.Name`) — không phụ thuộc installer |
-| Bundleware check | MSIX là gói đóng kín — KHÔNG THỂ cài thêm phần mềm khác |
-| Code signing | Store ký lại khi publish — không cần cert |
-| UAC / elevation | MSIX cài per-user mặc định, không cần UAC |
+## 2. Partner Center — việc của chủ tài khoản
 
-## Bước 1 — Tạo product mới dạng MSIX trong Partner Center
+1. **Chọn tên sản phẩm MSIX.** Phản hồi chính thức của Microsoft (10.2.9, xem
+   `store-policy-10-2-9.md` §1): muốn dùng **cùng tên** cho MSIX thì phải **xoá tên
+   khỏi sản phẩm Win32 (EXE)** trước. Hai lựa chọn:
+   - **A (khuyến nghị nếu chưa cần gói EXE trên Store):** xoá tên `TextVN` khỏi sản
+     phẩm EXE, tạo sản phẩm mới loại **MSIX or PWA app**, reserve lại `TextVN`.
+     DisplayName giữ mặc định `TextVN` — không cần đặt thêm biến.
+   - **B (giữ sản phẩm EXE chờ SignPath):** tạo sản phẩm MSIX với **tên khác** (ví
+     dụ `TextVN - Bộ gõ tiếng Việt`), rồi đặt repo variable `MSIX_DISPLAY_NAME` đúng
+     từng ký tự tên đó (§3).
+2. Mở sản phẩm MSIX › **Product management › Product identity**, chép
+   **`Package/Identity/Name`** (dạng `12345LinhBHCoM.TextVN`). Kiểm hai giá trị còn
+   lại đúng như bảng §0 (`Package/Identity/Publisher`, `Package/Properties/
+   PublisherDisplayName`).
 
-1. Đăng nhập [Partner Center](https://partner.microsoft.com/dashboard).
-2. **Apps and Games** → **Overview** → **New product**.
-3. Chọn loại: **MSIX** (hoặc "Microsoft Store app" tuỳ giao diện).
-4. **Reserve app name**: đặt `TextVN - Bộ gõ tiếng Việt`.
-5. Sau khi tạo, vào trang sản phẩm → **Product identity** (hoặc App identity)
-   → ghi lại 2 giá trị:
+## 3. Build gói nộp Store
 
-   | Trường | Ví dụ | Copy từ |
-   |---|---|---|
-   | **Package/Identity/Name** | `12345LinhBHCoM.TextVN` | Partner Center → Product identity |
-   | **Package/Identity/Publisher** | `CN=E5F3...ABCD` | Partner Center → Product identity |
+**Cách 1 — CI (khuyến nghị):**
 
-   ⚠️ **2 giá trị này BẮT BUỘC khớp** trong manifest của file .msix — nếu
-   không, Store sẽ từ chối ngay ("package identity mismatch").
+1. GitHub › Settings › Secrets and variables › Actions › **Variables**:
+   - `MSIX_IDENTITY_NAME` = giá trị `Package/Identity/Name` ở §2;
+   - `MSIX_DISPLAY_NAME` = tên đã reserve (chỉ khi chọn B).
+2. Chạy workflow **release-candidate** (`workflow_dispatch` trên `main`, hoặc tag
+   phiên bản mới). Có biến → build `-RequireStoreIdentity` và verify
+   `--require-store-identity`: còn placeholder là **fail**, không ra gói nộp nhầm.
+   Chạy bằng `workflow_dispatch` trên nhánh chỉ build — không phát hành.
+3. Tải artifact `release-windows` → `TextVN-<ver>-windows-x64.msix`.
 
-## Bước 2 — Build MSIX với đúng Identity
-
-Cách 1 — **Tôi build giúp** (nhanh nhất): gửi 2 giá trị ở trên cho tôi, tôi
-chạy 1 lệnh và đưa file .msix đúng lên branch `approved`.
-
-Cách 2 — **Tự build**:
+**Cách 2 — máy Windows có Windows SDK:**
 
 ```powershell
-cd D:\AppAI\TextVN
+powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
-  -Publisher "CN=E5F3...ABCD" `
-  -IdentityName "12345LinhBHCoM.TextVN"
+  -IdentityName "<Package/Identity/Name>" -RequireStoreIdentity
+#   (lựa chọn B: thêm  -DisplayName "<tên đã reserve>")
+python tools\win\verify-msix.py dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
 ```
 
-File ra: `dist\TextVN-<version>-windows-x64.msix` (bản hiện hành: `TextVN-0.2.20-windows-x64.msix`).
-⚠️ File MSIX trong branch `approved` (`v0.2.20/TextVN-0.2.20-windows-x64.msix`) hiện
-build với **Identity placeholder** `LinhBH.CoM.TextVN` / `CN=LinhBH.CoM` — phải
-build lại bằng **đúng 2 giá trị Product identity** của Partner Center trước khi upload.
+**Version:** Partner Center từ chối Identity Version có phần đầu bằng 0 → gói map
+`A.B.C` thành `(A+1).B.C.0` (0.2.27 → **1.2.27.0**; bản 1.0.0 sau này → 2.0.0.0, vẫn
+tăng dần). Store chỉ cập nhật khi Version mới **lớn hơn** — đừng nộp lại số cũ.
 
-## Bước 3 — Nộp file .msix vào submission
+**Tự kiểm trước khi nộp (tuỳ chọn, máy Windows của bạn, PowerShell Admin):**
+`installer\windows\tests\test-msix-sideload.ps1 -Msix <file.msix>` — ký tạm, cài,
+mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thật một lần.
 
-1. Trong submission, vào **Packages**.
-2. Bấm **Upload package** → chọn file `.msix` vừa build.
-   (KHÔNG dùng "Package URL" như lúc nộp .exe — MSIX upload trực tiếp.)
-3. Đợi Store validate file (vài giây).
-4. Điền phần còn lại của submission: Description, Screenshots, Privacy policy
-   URL, v.v. (xem `store/art/` cho ảnh listing).
+## 4. Nộp submission
 
-## Bước 4 — Certification
+1. **Packages:** upload file `.msix` (không ký — Store tự ký). Chờ validate.
+2. **Properties:** Category *Utilities & tools*; Privacy policy URL =
+   `https://github.com/hunglinhpt/TextVN/blob/main/PRIVACY_POLICY.txt` (mục 7/EN và
+   7/VI mô tả phần chép ra ngoài gói và cách gỡ).
+3. **Age ratings:** bảng câu hỏi IARC — không có nội dung nhạy cảm, không mạng.
+4. **Store listing (vi + en-US):** mô tả; ảnh `store/art/` (box art 1:1, poster
+   2:3) và `store/screenshots/`. Manifest khai `vi` + `en-US`; giao diện tiếng
+   Việt — ghi rõ trong mô tả tiếng Anh "UI is Vietnamese".
+5. **Submission options › Notes for certification** — dán:
 
-Store chạy certification tự động:
-- **Malware check**: quét file trong gói — TextVN sạch (đã kiểm qua VT).
-- **Manifest check**: Identity khớp Partner Center → pass.
-- **Capability check**: `runFullTrust` cần giải trình — ghi trong
-  Description: *"This is a Vietnamese input method (TSF) that requires full
-  trust to integrate with the Windows text services framework. It processes
-  all input locally and does not collect any data."*
-- **Compatibility check**: Windows 10/11 → pass.
+   > TextVN is a Vietnamese input method (Text Services Framework TIP). Windows only
+   > loads input methods registered for the user, which a packaged app cannot do from
+   > inside its package (in-proc modules loaded by other processes are not permitted
+   > from the package). Therefore `runFullTrust` is required and, on first launch, the
+   > app copies its own program files (no user data) to %USERPROFILE%\.textvn and
+   > %LOCALAPPDATA%\Programs\TextVN-Store, registers the input method for the current
+   > user only (HKCU, no elevation, no UAC) and adds a startup entry. At every sign-in
+   > that entry checks whether the package is still installed and, if it was removed,
+   > unregisters the input method and deletes the copied files. The tray menu
+   > "Gỡ cài đặt" (Uninstall) does the same immediately and opens Settings > Apps.
+   > The app asks before changing the Windows Ctrl+Shift layout hotkey. All processing
+   > is local; no network access, no telemetry.
+   > Test: install, open TextVN, open Notepad, switch to TextVN with Win+Space, type
+   > "tieengs vieejt" → "tiếng việt".
 
-Thông thường 1-3 ngày. Sau khi pass → Publish.
+6. Submit. Certification thường 1–3 ngày.
 
-## Lưu ý quan trọng
+## 5. Rủi ro còn lại & cách xử lý
 
-| Vấn đề | Giải đáp |
-|---|---|
-| Gói MSIX chưa ký | Nộp Store KHÔNG cần ký — Store ký lại khi publish. |
-| Identity sai | Store từ chối ngay "identity mismatch" → build lại đúng 2 giá trị ở Bước 1. |
-| Người dùng cài xong không gõ được | Mở TextVN một lần → app tự đăng ký TSF (tray tự đề nghị UAC nếu cần — 0.2.16+). |
-| Có cần dùng song song với gói .exe? | Không — chọn MỘT đường. Nếu MSIX pass thì bỏ gói .exe. |
-| Sản phẩm hiện tại "EXE or MSI app" có chuyển sang MSIX được không? | Tạo **product mới** loại MSIX (giữ nguyên tên nếu tên cũ chưa publish — nếu đã reserve thì dùng tên khác hoặc xoá sản phẩm cũ). |
+| Rủi ro | Mức | Nếu bị từ chối |
+|---|---|---|
+| Tester coi việc chép binary ra ngoài gói là trái 10.2.2 / hướng dẫn đóng gói | Trung bình | Trả lời bằng ghi chú ở §4.5 (đây là cách duy nhất để một TSF IME hoạt động; hướng dẫn IME của Microsoft yêu cầu đăng ký qua `ITfInputProcessorProfileMgr`); nếu vẫn từ chối → đường EXE ký Authenticode (SignPath) |
+| 10.2.7 (gỡ sạch): MSIX không có hook gỡ | Thấp | Guard ở lần đăng nhập kế + menu "Gỡ cài đặt"; tài liệu ở chính sách quyền riêng tư |
+| Win11 24H2+ từ chối kích hoạt TIP chỉ-per-user (B7) | Chưa rõ trên máy thật | Bản Store không xin UAC — hiện hướng dẫn chuyển sang bộ cài `*-machine.exe` |
+| Version hiển thị trong Cài đặt là 1.2.27.0 (khác 0.2.27 trong app) | Thấp | Do map version (§3) — ghi chú trong mô tả nếu cần |
+
+## 6. Sau khi publish
+
+- Cài từ Store trên máy sạch → mở TextVN → Win+Space chọn TextVN → gõ thử.
+- Cập nhật: tag version mới → workflow build gói (Version mới lớn hơn) → nộp
+  package mới vào submission mới; tray tự stage lại bản mới ở lần mở/đăng nhập kế.
+- Gỡ: Cài đặt › Ứng dụng › TextVN › Gỡ; lần đăng nhập kế guard dọn phần còn lại
+  (hoặc dùng "Gỡ cài đặt" ở menu khay trước).

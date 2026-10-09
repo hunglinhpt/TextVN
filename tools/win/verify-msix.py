@@ -15,6 +15,7 @@ Exit 0 = đạt; 1 = có lỗi (in từng dòng `FAIL ...`). Không phụ thuộ
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import struct
 import sys
@@ -76,7 +77,12 @@ def map_version(product: str) -> str:
     return f"{a + 1}.{b}.{c}.0"
 
 
-def check(path: str, expect_version: str | None, require_identity: bool) -> list[str]:
+def check(
+    path: str,
+    expect_version: str | None,
+    require_identity: bool,
+    expect_display: str = EXPECTED_DISPLAY_NAME,
+) -> list[str]:
     fails: list[str] = []
     try:
         z = zipfile.ZipFile(path)
@@ -128,8 +134,8 @@ def check(path: str, expect_version: str | None, require_identity: bool) -> list
     disp = props.findtext("f:DisplayName", default="", namespaces=NS) if props is not None else ""
     pub_disp = props.findtext("f:PublisherDisplayName", default="", namespaces=NS) if props is not None else ""
     desc = props.findtext("f:Description", default="", namespaces=NS) if props is not None else ""
-    if disp != EXPECTED_DISPLAY_NAME:
-        fails.append(f"DisplayName '{disp}' ≠ tên đã reserve '{EXPECTED_DISPLAY_NAME}'")
+    if disp != expect_display:
+        fails.append(f"DisplayName '{disp}' ≠ tên đã reserve '{expect_display}'")
     if pub_disp != EXPECTED_PUBLISHER_DISPLAY:
         fails.append(f"PublisherDisplayName '{pub_disp}' ≠ '{EXPECTED_PUBLISHER_DISPLAY}'")
     if MOJIBAKE.search(text):
@@ -184,8 +190,10 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--expect-version", help="version sản phẩm A.B.C (Cargo.toml)")
     ap.add_argument("--require-store-identity", action="store_true",
                     help="fail khi Identity/Name còn placeholder (gói để nộp Store)")
+    ap.add_argument("--display-name", default=os.environ.get("MSIX_DISPLAY_NAME") or EXPECTED_DISPLAY_NAME,
+                    help="tên đã reserve cho sản phẩm MSIX (mặc định TextVN / biến MSIX_DISPLAY_NAME)")
     args = ap.parse_args(argv)
-    fails = check(args.msix, args.expect_version, args.require_store_identity)
+    fails = check(args.msix, args.expect_version, args.require_store_identity, args.display_name)
     for f in fails:
         print(f"FAIL {f}")
     if fails:
