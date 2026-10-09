@@ -274,6 +274,87 @@ mod tests {
         assert_eq!(Method::SimpleTelex.as_str(), "simple_telex");
     }
 
+    /// R2-60: VNI/VIQR gõ dấu phụ **sau cả cụm nguyên âm** (thói quen gõ dấu cuối từ) phải
+    /// ra đúng vần, kể cả vần kết thúc bằng bán âm (`tôi`, `câu`, `người`, `rượu`, `lưu`).
+    /// Duyệt mọi vần có dấu phụ trong bảng vần × vài âm đầu/âm cuối.
+    #[test]
+    fn vni_viqr_marks_after_whole_cluster() {
+        use crate::transform::undo::unmark;
+        use crate::transform::vowel_table::{base_entry, form_like, locate};
+        use crate::validate::NUCLEI;
+        // (kiểu gõ, phím mũ, phím sừng, phím breve)
+        for (m, roof, hook, breve) in [(Method::Vni, '6', '7', '8'), (Method::Viqr, '^', '+', '(')]
+        {
+            let mut bad = Vec::new();
+            for nucleus in NUCLEI {
+                let mut base = String::new();
+                let mut marks = String::new();
+                for ch in nucleus.chars() {
+                    let (e, _) = locate(ch).expect("vần chỉ có nguyên âm");
+                    base.push(form_like(ch, base_entry(e), 0));
+                    let key = match ch {
+                        'â' | 'ê' | 'ô' => roof,
+                        'ơ' | 'ư' => hook,
+                        'ă' => breve,
+                        _ => continue,
+                    };
+                    // `ươ` chỉ cần một phím sừng (cặp `uo` — như `d9uo7ng2`).
+                    if !marks.ends_with(key) {
+                        marks.push(key);
+                    }
+                }
+                if marks.is_empty() {
+                    continue;
+                }
+                for onset in ["", "t", "ng"] {
+                    for coda in ["", "n"] {
+                        // `uơ` chỉ đứng cuối âm tiết (`thuở`), `ươ` luôn có âm cuối (`fix_uo`).
+                        if (nucleus == "uơ" && !coda.is_empty())
+                            || (nucleus == "ươ" && coda.is_empty())
+                        {
+                            continue;
+                        }
+                        let keys = format!("{onset}{base}{coda}{marks}");
+                        let want = format!("{onset}{nucleus}{coda}");
+                        let got: String = f(&keys, m).chars().map(unmark).collect();
+                        if got != want {
+                            bad.push(format!("{keys} → {got} (cần {want})"));
+                        }
+                    }
+                }
+            }
+            assert!(bad.is_empty(), "{m:?}: {}", bad.join(", "));
+        }
+        // Có dấu thanh gõ sau cùng (ca trong báo cáo R2-60).
+        for (keys, want) in [
+            ("toi6", "tôi"),
+            ("cau61", "cấu"),
+            ("moi71", "mới"),
+            ("gui73", "gửi"),
+            ("luu7", "lưu"),
+            ("nguoi72", "người"),
+            ("ruou75", "rượu"),
+            ("yeu61", "yếu"),
+            ("khuay61", "khuấy"),
+            ("giua74", "giữa"),
+        ] {
+            assert_eq!(f(keys, Method::Vni), want, "{keys}");
+        }
+        assert_eq!(f("toi^", Method::Viqr), "tôi");
+        assert_eq!(f("moi+'", Method::Viqr), "mới");
+        // Cụm không có dạng hợp lệ: giữ hành vi cũ (chỉ âm cuối, hoặc literal).
+        assert_eq!(f("ai6", Method::Vni), "ai6");
+        assert_eq!(
+            f("qui7", Method::Vni),
+            "qui7",
+            "`u` của `qu` không nhận sừng"
+        );
+        assert_eq!(f("oa6", Method::Vni), "oâ");
+        // Bấm lại marker trên cụm → gỡ dạng + literal (như `a66` → `a6`).
+        assert_eq!(f("toi66", Method::Vni), "toi6");
+        assert_eq!(f("mua77", Method::Vni), "mua7");
+    }
+
     /// Bảng sinh từ `data/tables/*.toml` phải **tự nhất quán** — `xtask check-tables`
     /// bắt được lệch với data, các test dưới bắt được lỗi trong chính data đó.
     #[test]

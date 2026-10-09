@@ -1,0 +1,12 @@
+# corpus/shared/r2_vni_cluster_marks_01.keys — R2-60: VNI/VIQR gõ dấu phụ SAU cả cụm nguyên âm
+# (dấu cuối từ) vẫn đúng với vần kết thúc bằng bán âm: âu ây êu ôi ơi ưa ưi ưu ươi ươu iêu yêu uây.
+# oracle: UniKey processRoof/processHook làm trên cả chuỗi nguyên âm (VSeqList withRoof/withHook):
+# `toi6` → `tôi`, `nguoi72` → `người`. Auto-restore bật mặc định không được trả về phím số.
+:config method=vni diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "toi6 cau61 day6 nhieu62 yeu61 khuay61 "
+:expect "tôi cấu dây nhiều yếu khuấy "
+:type "moi71 mua7 gui73 luu7 nguoi72 ruou75 tuoi63 "
+:expect "tôi cấu dây nhiều yếu khuấy mới mưa gửi lưu người rượu tuổi "
+:config method=viqr
+:type "toi^ moi+' nguoi+` "
+:expect "tôi cấu dây nhiều yếu khuấy mới mưa gửi lưu người rượu tuổi tôi mới người "
