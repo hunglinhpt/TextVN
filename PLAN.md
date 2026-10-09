@@ -1,6 +1,6 @@
 # PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)
 
-> Tên tạm định (working name): **TextVN** — repo `github.com/<org>/textvn`
+> Tên sản phẩm: **TextVN** — repo `github.com/hunglinhpt/TextVN` (đây là kế hoạch gốc; hiện trạng xem `README.md` và `docs/release/`).
 > Tài liệu này tổng hợp góc nhìn của 6 vai trò: **Product Owner · Solution Architect · Engineer · Technical · Audit · Chuyên gia lĩnh vực**.
 > Kỳ vọng: bản **v1.0 production** sau **~6–8 tháng** với team 4–6 người.
 

@@ -1,4 +1,16 @@
 # BÁO CÁO KIỂM TOÁN CHUYÊN SÂU & LỘ TRÌNH ĐẠT CHUẨN PRODUCTION VÀ KÝ SỐ TOÀN DIỆN (v0.2.19)
+
+> **TÀI LIỆU LỊCH SỬ — ảnh chụp 2026-10-04 (v0.2.19), KHÔNG phản ánh hiện trạng.** Bản đầy
+> đủ + bảng trạng thái từng phát hiện: [`docs/release/AUDIT_AND_PRODUCTION_ROADMAP_v0.2.19.md`](docs/release/AUDIT_AND_PRODUCTION_ROADMAP_v0.2.19.md)
+> (PHỤ LỤC). Hiện trạng ký số (2026-10-09): từ v0.2.27 mọi asset release được ký GPG (`.asc`,
+> FPR `3921595ABC961199F15303B6C45B84D0C7F4A822`, UID `TextVN Release Signing
+> <hunglinhpt@users.noreply.github.com>`, public key `docs/release/signing/gpg-release-key.asc`)
+> và Sigstore keyless, `SHA256SUMS.txt` clearsign — trong CI là **bắt buộc** (thiếu khoá/cosign
+> thì dừng phát hành) và tự verify (`docs/release/signing.md`). Còn thiếu: Authenticode cho
+> Windows (chờ SignPath Foundation duyệt) và Apple Developer ID/notarization cho macOS
+> (`docs/release/signing-status-mac.md`). Khoá `release@textvn.vn` / `textvn-release-key.asc`
+> nêu ở §5.3 dưới đây là đề xuất cũ, không phải khoá đang dùng.
+
 **TextVN — Bộ gõ tiếng Việt Đa nền tảng (Windows · macOS · Linux)**  
 *Tài liệu kiểm toán độc lập dưới góc nhìn Chuyên gia Trưởng Kiến trúc (Principal Architect), Kiểm toán Phần mềm (Audit Expert) & Trưởng nhóm Phát hành (Release Lead)*  
 *Thời điểm kiểm toán: 2026-10-04 | Cam kết: Giữ nguyên 100% mã nguồn hiện hữu, không sửa đổi code trong phiên kiểm toán.*

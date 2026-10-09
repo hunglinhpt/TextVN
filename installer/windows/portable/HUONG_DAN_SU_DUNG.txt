@@ -11,9 +11,11 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
      không đạt": dùng bộ cài TextVN chính thức để đăng ký profile phạm vi máy.
      KHÔNG chạy textvn-cli.exe từ thư mục portable với quyền Administrator.
    - MỘT SỐ MÁY WINDOWS 11 MỚI (24H2+) từ chối kích hoạt bộ gõ chỉ đăng ký
-     per-user. Từ 0.2.16, TextVN TỰ PHÁT HIỆN và hỏi bạn một lần: bấm OK để
-     đăng ký phạm vi máy (hiện UAC — chọn Yes), sau đó gõ được ngay. Nếu bạn
-     bấm Cancel, có thể dùng BỘ CÀI (TextVN-setup-*.exe) thay thế.
+     per-user. Vì an toàn, bản chạy ngay KHÔNG BAO GIỜ xin quyền Administrator
+     (UAC) khi chạy từ thư mục tự chọn (Downloads, Desktop, D:\...): TextVN chỉ
+     báo một lần và hướng dẫn dùng BỘ CÀI CHO MỌI NGƯỜI DÙNG
+     (TextVN-setup-*-windows-x64-machine.exe — cài vào Program Files, đăng ký
+     đúng chỗ, gõ được ngay).
    - Mẹo chẩn đoán nhanh: biểu tượng khay phải là [V] (tiếng Việt); nếu là [E]
      thì bấm Ctrl + Shift (hoặc click biểu tượng) để chuyển về [V].
 
@@ -32,12 +34,24 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
 
 5. GỠ BỎ BẢN CHẠY NGAY
    - Chạy uninstall.ps1 (chuột phải → Run with PowerShell): tắt TextVN và gỡ đăng ký bộ gõ.
-   - Script tự xoá thư mục. Nếu textvn-tsf.dll còn bị Windows dùng (bộ gõ đã được
-     gỡ đăng ký), TextVN tự dọn sạch ở lần đăng nhập kế tiếp — không cần làm gì thêm.
+   - Script chỉ xoá ĐÚNG các file của TextVN (không bao giờ xoá cả thư mục cùng
+     file khác của bạn); thư mục chỉ bị xoá khi đã trống. Nếu textvn-tsf.dll còn bị
+     Windows dùng (bộ gõ đã được gỡ đăng ký), file đó được dọn ở lần đăng nhập kế
+     tiếp — không cần làm gì thêm.
    - Cấu hình của bạn (gõ tắt, tuỳ chọn) ở %APPDATA%\TextVN được giữ lại.
 
 6. DI CHUYỂN THƯ MỤC
    - Chạy uninstall.ps1 trước khi di chuyển; ở chỗ mới nhấn đúp TextVN.exe là xong.
 
-Kiểm tra sự cố: chạy "textvn-cli.exe doctor" trong thư mục này.
+7. BẢN CÀI TỪ MICROSOFT STORE (MSIX)
+   - Mục 5 và 6 KHÔNG áp dụng (gói Store không có uninstall.ps1).
+   - Mở TextVN một lần sau khi cài: app chép chương trình ra
+     %USERPROFILE%\.textvn và %LOCALAPPDATA%\Programs\TextVN-Store, đăng ký bộ gõ
+     cho tài khoản của bạn (không cần quyền Administrator) và hỏi trước khi dành
+     Ctrl + Shift cho TextVN.
+   - Gỡ: menu khay → Gỡ cài đặt (dọn ngay rồi mở Cài đặt › Ứng dụng), hoặc
+     Settings → Apps → Installed apps → TextVN → Uninstall; phần chép ra ngoài
+     được dọn ở lần đăng nhập kế tiếp.
+
+Kiểm tra sự cố: chạy "textvn-cli.exe doctor --pause" trong thư mục này.
 Mã nguồn & báo lỗi: https://github.com/hunglinhpt/TextVN
