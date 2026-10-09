@@ -356,6 +356,15 @@ jobs:
         run: |
           ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
           python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver"
+      # R2-02/R2-04: kenh Store chay THAT tren Windows — cai goi da ky tam, mo app,
+      # kiem tu shell ngoai goi (stage that, TIP HKCU, tray ngoai container, Run),
+      # go goi roi --msix-guard phai don sach.
+      - name: MSIX sideload (cai that, mo app, go goi)
+        shell: powershell
+        run: |
+          $msix = Get-ChildItem dist\TextVN-*-windows-x64.msix | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-msix-sideload.ps1 -Msix $msix.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
