@@ -17,6 +17,10 @@ pub const TOGGLE_KEY_PATH: &str = r"Keyboard Layout\Toggle";
 const CTRL_SHIFT: &str = "2";
 const NOT_ASSIGNED: &str = "3";
 
+/// Một mục TextVN đã đổi khi dành Ctrl + Shift: tên giá trị registry + giá trị trước đó
+/// (`None` = trước đó không có giá trị, tức mặc định của Windows).
+pub type FreedEntry = (String, Option<String>);
+
 /// Các giá trị đọc được từ `HKCU\Keyboard Layout\Toggle` (`None` = không có giá trị).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ToggleHotkeys {
@@ -32,6 +36,35 @@ impl ToggleHotkeys {
     pub fn ctrl_shift_taken(&self) -> bool {
         let language = self.language.as_deref().or(self.legacy.as_deref());
         language == Some(CTRL_SHIFT) || self.layout.as_deref().is_none_or(|v| v == CTRL_SHIFT)
+    }
+
+    /// Giá trị hiện tại của một mục trong `HKCU\Keyboard Layout\Toggle` theo tên registry.
+    pub fn get(&self, name: &str) -> Option<&str> {
+        match name {
+            "Layout Hotkey" => self.layout.as_deref(),
+            "Language Hotkey" => self.language.as_deref(),
+            "Hotkey" => self.legacy.as_deref(),
+            _ => None,
+        }
+    }
+
+    /// Bản ghi những gì [`ToggleHotkeys::freed`] sắp đổi: tên + giá trị TRƯỚC đó
+    /// (`None` = trước đó không có giá trị) — để gỡ cài đặt trả lại đúng (R2-40).
+    pub fn freed_record(&self) -> Vec<FreedEntry> {
+        self.freed()
+            .into_iter()
+            .map(|(name, _)| (name.to_string(), self.get(name).map(str::to_string)))
+            .collect()
+    }
+
+    /// Trả lại Windows theo bản ghi: chỉ mục VẪN là "không gán" (TextVN đặt); người
+    /// dùng đã tự đổi sau đó thì giữ lựa chọn của họ.
+    pub fn restore_plan(&self, record: &[FreedEntry]) -> Vec<FreedEntry> {
+        record
+            .iter()
+            .filter(|(name, _)| self.get(name) == Some(NOT_ASSIGNED))
+            .cloned()
+            .collect()
     }
 
     /// Giá trị cần ghi để Ctrl + Shift chỉ còn cho TextVN (chỉ đổi mục đang là Ctrl + Shift).
@@ -54,7 +87,7 @@ impl ToggleHotkeys {
 mod win {
     use super::*;
     use windows::core::PCWSTR;
-    use windows::Win32::Foundation::ERROR_SUCCESS;
+    use windows::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
     use windows::Win32::System::Registry::*;
     use windows::Win32::UI::WindowsAndMessaging::{
         SystemParametersInfoW, SPIF_SENDCHANGE, SPI_SETLANGTOGGLE,
@@ -114,7 +147,8 @@ mod win {
         out
     }
 
-    fn write(values: &[(&str, &str)]) -> Result<(), String> {
+    /// Ghi (`Some`) hoặc xoá (`None`) từng giá trị rồi báo Windows đọc lại.
+    fn write(values: &[(&str, Option<&str>)]) -> Result<(), String> {
         if values.is_empty() {
             return Ok(());
         }
@@ -140,6 +174,14 @@ mod win {
         let mut result = Ok(());
         for (name, value) in values {
             let name = wide(name);
+            let Some(value) = value else {
+                // SAFETY: key mở với KEY_SET_VALUE; tên NUL-terminated.
+                let status = unsafe { RegDeleteValueW(key, PCWSTR(name.as_ptr())) };
+                if status != ERROR_SUCCESS && status != ERROR_FILE_NOT_FOUND {
+                    result = Err(format!("RegDeleteValueW: {status:?}"));
+                }
+                continue;
+            };
             let data = wide(value);
             // SAFETY: dữ liệu REG_SZ gồm cả NUL cuối, sống suốt lời gọi.
             let status = unsafe {
@@ -167,19 +209,35 @@ mod win {
             .map_err(|e| format!("SystemParametersInfoW: {e}"))
     }
 
-    /// Gỡ Ctrl + Shift khỏi phím tắt đổi ngôn ngữ/bố cục của Windows.
-    pub fn free_ctrl_shift() -> Result<(), String> {
-        write(&current().freed())
+    /// Gỡ Ctrl + Shift khỏi phím tắt đổi ngôn ngữ/bố cục của Windows. Trả bản ghi giá
+    /// trị trước đó của những mục đã đổi (rỗng = không có gì phải đổi).
+    pub fn free_ctrl_shift() -> Result<Vec<FreedEntry>, String> {
+        let now = current();
+        let record = now.freed_record();
+        let values: Vec<(&str, Option<&str>)> =
+            now.freed().into_iter().map(|(n, v)| (n, Some(v))).collect();
+        write(&values)?;
+        Ok(record)
     }
 
     /// Trả Ctrl + Shift về cho việc đổi bố cục bàn phím (mặc định của Windows).
     pub fn restore_windows_ctrl_shift() -> Result<(), String> {
-        write(&[("Layout Hotkey", CTRL_SHIFT)])
+        write(&[("Layout Hotkey", Some(CTRL_SHIFT))])
+    }
+
+    /// Trả lại đúng các giá trị trong bản ghi (chỉ mục còn "không gán") — R2-40.
+    pub fn restore_freed(record: &[FreedEntry]) -> Result<(), String> {
+        let plan = current().restore_plan(record);
+        let values: Vec<(&str, Option<&str>)> = plan
+            .iter()
+            .map(|(n, v)| (n.as_str(), v.as_deref()))
+            .collect();
+        write(&values)
     }
 }
 
 #[cfg(windows)]
-pub use win::{current, free_ctrl_shift, restore_windows_ctrl_shift};
+pub use win::{current, free_ctrl_shift, restore_freed, restore_windows_ctrl_shift};
 
 #[cfg(test)]
 mod tests {
@@ -219,5 +277,38 @@ mod tests {
         assert!(v.freed().is_empty());
         // Dấu huyền (Thai) / Alt+Shift giữ nguyên.
         assert!(!hk(Some("4"), Some("1"), Some("4")).ctrl_shift_taken());
+    }
+
+    /// R2-40: bản ghi nhớ giá trị TRƯỚC khi dành Ctrl + Shift, gồm cả `Language Hotkey`.
+    #[test]
+    fn freed_record_keeps_previous_values() {
+        assert_eq!(
+            hk(None, Some("2"), None).freed_record(),
+            vec![
+                ("Layout Hotkey".to_string(), None),
+                ("Language Hotkey".to_string(), Some("2".to_string())),
+            ]
+        );
+        assert!(hk(Some("1"), Some("1"), Some("3"))
+            .freed_record()
+            .is_empty());
+    }
+
+    /// R2-40: chỉ trả mục còn "không gán"; người dùng tự đổi sau đó (ví dụ Alt+Shift)
+    /// thì giữ nguyên lựa chọn của họ.
+    #[test]
+    fn restore_plan_only_touches_values_textvn_still_owns() {
+        let record = vec![
+            ("Layout Hotkey".to_string(), None),
+            ("Language Hotkey".to_string(), Some("2".to_string())),
+        ];
+        assert_eq!(hk(None, Some("3"), Some("3")).restore_plan(&record), record);
+        assert_eq!(
+            hk(None, Some("1"), Some("3")).restore_plan(&record),
+            vec![("Layout Hotkey".to_string(), None)]
+        );
+        assert!(hk(None, Some("1"), Some("2"))
+            .restore_plan(&record)
+            .is_empty());
     }
 }

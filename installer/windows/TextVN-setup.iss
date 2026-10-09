@@ -387,9 +387,60 @@ begin
     Log('Cannot run schedule-delete (CLI)');
 end;
 
+// R2-40: tra lai Ctrl + Shift theo marker %APPDATA%\TextVN\ctrl_shift_default_applied
+// (cung dinh dang tray/src/lib.rs + portable\uninstall.ps1): dong dau 'freed', moi
+// dong sau '<ten>=<gia tri cu>' (rong = truoc do khong co); '1' = ban <= 0.2.27, chi
+// Layout Hotkey. Khong co marker / 'declined' = TextVN khong doi gi -> giu nguyen lua
+// chon "Not assigned" cua nguoi dung. Chi tra muc VAN la '3' (ca Language Hotkey).
+procedure RestoreToggleValue(Name, Prev: String);
+var
+  Cur: String;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name, Cur) then
+    Exit;
+  if Cur <> '3' then
+    Exit;
+  if Prev = '' then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name)
+  else
+    RegWriteStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name, Prev);
+  Log('Ctrl+Shift tra lai cho Windows: ' + Name);
+end;
+
+procedure RestoreCtrlShift();
+var
+  Marker, Line, Name, Prev: String;
+  Lines: TArrayOfString;
+  I, P: Integer;
+begin
+  Marker := ExpandConstant('{userappdata}\TextVN\ctrl_shift_default_applied');
+  if not LoadStringsFromFile(Marker, Lines) then
+    Exit;
+  if GetArrayLength(Lines) > 0 then
+  begin
+    if Trim(Lines[0]) = '1' then
+      RestoreToggleValue('Layout Hotkey', '')
+    else if Trim(Lines[0]) = 'freed' then
+      for I := 1 to GetArrayLength(Lines) - 1 do
+      begin
+        Line := Trim(Lines[I]);
+        P := Pos('=', Line);
+        if P > 1 then
+        begin
+          Name := Trim(Copy(Line, 1, P - 1));
+          Prev := Trim(Copy(Line, P + 1, Length(Line)));
+          if ((Name = 'Layout Hotkey') or (Name = 'Language Hotkey') or (Name = 'Hotkey'))
+             and ((Prev = '') or (Prev = '1') or (Prev = '2') or (Prev = '3') or (Prev = '4')) then
+            RestoreToggleValue(Name, Prev);
+        end;
+      end;
+  end;
+  DeleteFile(Marker);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  HotkeyValue, RunValue: String;
+  RunValue: String;
 begin
   // R2-29: hen xoa DLL bi khoa PHAI chay o usUninstall — luc usPostUninstall Inno da
   // xoa textvn-cli.exe nen Exec that bai im lang va DLL/thu muc con lai mai mai.
@@ -403,15 +454,11 @@ begin
     if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN', RunValue)
        and (Pos(Lowercase(ExpandConstant('{app}') + '\'), Lowercase(RunValue)) > 0) then
       RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN');
-    // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
-    // Chi xoa khi gia tri = 3 (override do TextVN dat: "khong gan phim") — giong
-    // uninstall.ps1 cua ban portable; neu nguoi dung tu doi sang gia tri khac thi
-    // giu nguyen lua chon cua ho. [Registry] chi xoa VALUE qua RegDeleteValue —
-    // Pascal Script cua Inno KHONG co RegDeleteKeyValue (CI do 2026-10-04:
-    // "Unknown identifier 'RegDeleteKeyValue'"; xem win-test-common-errors B14).
-    if RegQueryStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey', HotkeyValue)
-       and (HotkeyValue = '3') then
-      RegDeleteValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey');
+    // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat —
+    // theo marker (R2-40, RestoreCtrlShift). Xoa VALUE qua RegDeleteValue: Pascal
+    // Script cua Inno KHONG co RegDeleteKeyValue (CI do 2026-10-04: "Unknown
+    // identifier 'RegDeleteKeyValue'"; xem win-test-common-errors B14).
+    RestoreCtrlShift();
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;

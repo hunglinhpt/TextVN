@@ -997,10 +997,12 @@ unsafe extern "system" fn dialog_wnd_proc(
                 }
                 ID_CHK_CTRL_SHIFT => {
                     // Phím tắt đổi bố cục của Windows nuốt Ctrl + Shift trước TextVN.
+                    // R2-40: ghi lại giá trị cũ để gỡ cài đặt trả đúng; bỏ chọn trả theo
+                    // bản ghi (cả Language Hotkey) rồi chắc chắn Windows giữ Ctrl + Shift.
                     let result = if get_chk(hwnd, ID_CHK_CTRL_SHIFT) {
-                        crate::hotkey::free_ctrl_shift()
+                        crate::hotkey::free_ctrl_shift().map(crate::record_ctrl_shift_freed)
                     } else {
-                        crate::hotkey::restore_windows_ctrl_shift()
+                        crate::give_ctrl_shift_back_to_windows()
                     };
                     if result.is_err() {
                         set_chk(

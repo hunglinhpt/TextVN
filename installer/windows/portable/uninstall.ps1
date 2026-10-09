@@ -13,16 +13,42 @@ if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [St
 }
 Write-Host 'Go dang ky TSF...'
 
-# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows. Ban portable chi
-# "danh Ctrl + Shift" o lan chay dau va ghi marker %APPDATA%\TextVN\ctrl_shift_default_applied
-# (tray/src/main.rs apply_ctrl_shift_default_once) - chi restore khi co marker, de
-# khong xoa lua chon "Not assigned" ma user tu dat trong Settings (CR-35).
+# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows. Marker
+# %APPDATA%\TextVN\ctrl_shift_default_applied (tray/src/lib.rs) ghi gia tri TRUOC KHI
+# TextVN "danh Ctrl + Shift": dong dau 'freed', moi dong sau '<ten>=<gia tri cu>' (rong =
+# truoc do khong co). Ban <= 0.2.27 ghi '1' = chi Layout Hotkey. 'declined'/khong co
+# marker = TextVN khong doi gi -> giu nguyen (CR-35). Chi tra muc VAN la '3' (khong
+# gan) - nguoi dung tu doi sau do thi giu lua chon cua ho (R2-40, ca Language Hotkey).
 $toggle = 'HKCU:\Keyboard Layout\Toggle'
 $marker = Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied'
-$layout = (Get-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue).'Layout Hotkey'
-if ((Test-Path -LiteralPath $marker -PathType Leaf) -and $layout -eq '3') {
-    Remove-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue
-    Write-Host 'Da tra lai Ctrl + Shift cho Windows (xoa Layout Hotkey override).'
+$record = @()
+if (Test-Path -LiteralPath $marker -PathType Leaf) {
+    $lines = @(Get-Content -LiteralPath $marker -ErrorAction SilentlyContinue | ForEach-Object { $_.Trim() })
+    if ($lines.Count -gt 0 -and $lines[0] -eq '1') {
+        $record = @(, @('Layout Hotkey', ''))
+    } elseif ($lines.Count -gt 0 -and $lines[0] -eq 'freed') {
+        foreach ($line in ($lines | Select-Object -Skip 1)) {
+            $eq = $line.IndexOf('=')
+            if ($eq -lt 1) { continue }
+            $name = $line.Substring(0, $eq).Trim()
+            $prev = $line.Substring($eq + 1).Trim()
+            if (@('Layout Hotkey', 'Language Hotkey', 'Hotkey') -notcontains $name) { continue }
+            if ($prev -notmatch '^[1-4]?$') { continue }
+            $record += , @($name, $prev)
+        }
+    }
+}
+foreach ($entry in $record) {
+    $name = $entry[0]
+    $prev = $entry[1]
+    $cur = (Get-ItemProperty -Path $toggle -Name $name -ErrorAction SilentlyContinue).$name
+    if ($cur -ne '3') { continue }
+    if ($prev) {
+        Set-ItemProperty -Path $toggle -Name $name -Value $prev
+    } else {
+        Remove-ItemProperty -Path $toggle -Name $name -ErrorAction SilentlyContinue
+    }
+    Write-Host "Da tra lai Ctrl + Shift cho Windows ($name)."
 }
 Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
 

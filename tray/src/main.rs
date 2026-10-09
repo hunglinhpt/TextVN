@@ -819,8 +819,8 @@ vẫn đổi bàn phím bằng Win + Space.\r\n\r\nCó thể đổi lại bất 
                 MB_YESNO | MB_ICONQUESTION,
             );
             if answer == IDYES {
-                if textvn_tray::hotkey::free_ctrl_shift().is_ok() {
-                    textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_FREED);
+                if let Ok(record) = textvn_tray::hotkey::free_ctrl_shift() {
+                    textvn_tray::record_ctrl_shift_freed(record);
                 }
             } else {
                 textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_DECLINED);
@@ -828,8 +828,8 @@ vẫn đổi bàn phím bằng Win + Space.\r\n\r\nCó thể đổi lại bất 
         });
         return;
     }
-    if textvn_tray::hotkey::free_ctrl_shift().is_ok() {
-        textvn_tray::write_ctrl_shift_marker(textvn_tray::CTRL_SHIFT_MARKER_FREED);
+    if let Ok(record) = textvn_tray::hotkey::free_ctrl_shift() {
+        textvn_tray::record_ctrl_shift_freed(record);
     }
 }
 
@@ -838,8 +838,17 @@ fn free_ctrl_shift_cli() -> i32 {
     if textvn_tray::store_win::refuse_if_packaged("--free-ctrl-shift") {
         return 1;
     }
+    let had_marker = textvn_tray::ctrl_shift_marker_path().is_some_and(|m| m.exists());
+    let legacy_freed = textvn_tray::hotkey::current().layout.as_deref() == Some("3");
     match textvn_tray::hotkey::free_ctrl_shift() {
-        Ok(()) => {
+        Ok(mut record) => {
+            // R2-40: bộ cài Inno ≤ 0.2.27 dành Ctrl+Shift mà không ghi marker — nâng
+            // cấp thấy "không gán" sẵn, không có marker → coi như bản cũ đã đặt (gỡ cài
+            // đặt trả lại như trước đây).
+            if record.is_empty() && !had_marker && legacy_freed {
+                record.push(("Layout Hotkey".to_string(), None));
+            }
+            textvn_tray::record_ctrl_shift_freed(record);
             println!("Ctrl+Shift: danh cho TextVN");
             0
         }

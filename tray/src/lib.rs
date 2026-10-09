@@ -147,13 +147,88 @@ pub fn is_trusted_machine_install(exe: &str, roots: &[String]) -> bool {
 }
 
 /// Marker `%APPDATA%\TextVN\ctrl_shift_default_applied`: TextVN đã quyết định về
-/// Ctrl + Shift của Windows ở lần chạy đầu (bản portable/Store). Nội dung
-/// [`CTRL_SHIFT_MARKER_FREED`] = chính TextVN đã gỡ phím tắt của Windows (gỡ cài đặt phải
-/// trả lại); [`CTRL_SHIFT_MARKER_DECLINED`] = người dùng kênh Store chọn "Không" (R2-06) —
-/// không hỏi lại, và gỡ cài đặt KHÔNG được đổi phím tắt của họ.
+/// Ctrl + Shift của Windows (lần chạy đầu bản portable/Store, task bộ cài, checkbox).
+/// Nội dung:
+/// - `freed` + mỗi dòng `<tên giá trị>=<giá trị trước đó>` (rỗng = trước đó không có):
+///   TextVN đã gỡ phím tắt của Windows; gỡ cài đặt trả lại ĐÚNG các giá trị đó (R2-40,
+///   gồm cả `Language Hotkey`). Đọc cùng định dạng: `installer/windows/portable/
+///   uninstall.ps1`, `TextVN-setup.iss` (`RestoreCtrlShift`).
+/// - [`CTRL_SHIFT_MARKER_FREED`] (`1`, bản ≤ 0.2.27): như trên, chỉ biết `Layout Hotkey`.
+/// - [`CTRL_SHIFT_MARKER_DECLINED`]: người dùng kênh Store chọn "Không" (R2-06) — không
+///   hỏi lại, và gỡ cài đặt KHÔNG được đổi phím tắt của họ.
 pub const CTRL_SHIFT_MARKER: &str = "ctrl_shift_default_applied";
 pub const CTRL_SHIFT_MARKER_FREED: &str = "1";
+pub const CTRL_SHIFT_MARKER_RECORD: &str = "freed";
 pub const CTRL_SHIFT_MARKER_DECLINED: &str = "declined";
+
+/// Tên giá trị được phép trong marker (file người dùng sửa được — không ghi tên lạ).
+const TOGGLE_VALUE_NAMES: [&str; 3] = ["Layout Hotkey", "Language Hotkey", "Hotkey"];
+
+/// Marker dạng bản ghi (R2-40).
+pub fn format_ctrl_shift_marker(record: &[hotkey::FreedEntry]) -> String {
+    let mut out = format!("{CTRL_SHIFT_MARKER_RECORD}\n");
+    for (name, previous) in record {
+        out.push_str(name);
+        out.push('=');
+        out.push_str(previous.as_deref().unwrap_or(""));
+        out.push('\n');
+    }
+    out
+}
+
+/// Bản ghi những gì TextVN đã đổi; `None` = marker không nói TextVN lấy Ctrl + Shift
+/// (`declined`, rỗng, lạ). Marker `1` của bản cũ = `Layout Hotkey` trước đó không có.
+pub fn parse_ctrl_shift_marker(content: &str) -> Option<Vec<hotkey::FreedEntry>> {
+    let mut lines = content.lines().map(str::trim);
+    match lines.next()? {
+        CTRL_SHIFT_MARKER_FREED => Some(vec![("Layout Hotkey".to_string(), None)]),
+        CTRL_SHIFT_MARKER_RECORD => Some(
+            lines
+                .filter_map(|line| {
+                    let (name, previous) = line.split_once('=')?;
+                    let (name, previous) = (name.trim(), previous.trim());
+                    let valid = TOGGLE_VALUE_NAMES.contains(&name)
+                        && (previous.is_empty() || matches!(previous, "1" | "2" | "3" | "4"));
+                    valid.then(|| {
+                        (
+                            name.to_string(),
+                            (!previous.is_empty()).then(|| previous.to_string()),
+                        )
+                    })
+                })
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+/// Gộp bản ghi mới vào bản cũ: mục lần này đổi dùng giá trị trước-đó mới nhất; mục lần
+/// này không đổi (đã "không gán" sẵn) giữ bản ghi cũ.
+pub fn merge_ctrl_shift_record(
+    old: Vec<hotkey::FreedEntry>,
+    new: Vec<hotkey::FreedEntry>,
+) -> Vec<hotkey::FreedEntry> {
+    let mut out: Vec<hotkey::FreedEntry> = old
+        .into_iter()
+        .filter(|(name, _)| !new.iter().any(|(n, _)| n == name))
+        .collect();
+    out.extend(new);
+    out
+}
+
+/// Bản ghi trong marker hiện tại (không có/không phải bản ghi → rỗng).
+pub fn read_ctrl_shift_record() -> Vec<hotkey::FreedEntry> {
+    ctrl_shift_marker_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|c| parse_ctrl_shift_marker(&c))
+        .unwrap_or_default()
+}
+
+/// Ghi lại việc TextVN vừa dành Ctrl + Shift (gộp với bản ghi trước đó).
+pub fn record_ctrl_shift_freed(record: Vec<hotkey::FreedEntry>) {
+    let merged = merge_ctrl_shift_record(read_ctrl_shift_record(), record);
+    write_ctrl_shift_marker(&format_ctrl_shift_marker(&merged));
+}
 
 pub fn ctrl_shift_marker_path() -> Option<std::path::PathBuf> {
     std::env::var_os("APPDATA")
@@ -165,9 +240,9 @@ pub fn ctrl_shift_marker_path() -> Option<std::path::PathBuf> {
         })
 }
 
-/// Marker cho biết chính TextVN đã gỡ Ctrl + Shift khỏi Windows (bản cũ ghi `"1"`).
+/// Marker cho biết chính TextVN đã gỡ Ctrl + Shift khỏi Windows.
 pub fn ctrl_shift_marker_says_freed(content: &str) -> bool {
-    content.trim() == CTRL_SHIFT_MARKER_FREED
+    parse_ctrl_shift_marker(content).is_some()
 }
 
 /// Ghi marker (tạo `%APPDATA%\TextVN` nếu thiếu).
@@ -191,14 +266,30 @@ pub fn restore_ctrl_shift_if_we_freed() {
         let Ok(content) = std::fs::read_to_string(&marker) else {
             return;
         };
-        if ctrl_shift_marker_says_freed(&content) {
-            if hotkey::restore_windows_ctrl_shift().is_ok() {
+        match parse_ctrl_shift_marker(&content) {
+            Some(record) => {
+                if hotkey::restore_freed(&record).is_ok() {
+                    let _ = std::fs::remove_file(&marker);
+                }
+            }
+            None => {
                 let _ = std::fs::remove_file(&marker);
             }
-        } else {
-            let _ = std::fs::remove_file(&marker);
         }
     }
+}
+
+/// Checkbox "Dành Ctrl + Shift cho TextVN" bỏ chọn: trả lại theo bản ghi, rồi chắc chắn
+/// Windows giữ Ctrl + Shift (người dùng chủ động chọn). Marker vẫn còn (bản ghi rỗng) để
+/// lần khởi động sau không áp lại mặc định.
+#[cfg(windows)]
+pub fn give_ctrl_shift_back_to_windows() -> Result<(), String> {
+    hotkey::restore_freed(&read_ctrl_shift_record())?;
+    if !hotkey::current().ctrl_shift_taken() {
+        hotkey::restore_windows_ctrl_shift()?;
+    }
+    write_ctrl_shift_marker(&format_ctrl_shift_marker(&[]));
+    Ok(())
 }
 
 /// Vị trí duy nhất được chấp nhận cho compatibility hook: cạnh `TextVN.exe`.
@@ -354,8 +445,48 @@ mod tests {
     fn ctrl_shift_marker_content_semantics() {
         assert!(ctrl_shift_marker_says_freed("1"));
         assert!(ctrl_shift_marker_says_freed("1\r\n"));
+        assert!(ctrl_shift_marker_says_freed("freed\n"));
         assert!(!ctrl_shift_marker_says_freed(CTRL_SHIFT_MARKER_DECLINED));
         assert!(!ctrl_shift_marker_says_freed(""));
+    }
+
+    /// R2-40: bản ghi đi vòng format → parse; marker `1` của bản cũ = `Layout Hotkey`
+    /// trước đó không có; tên/giá trị lạ trong file bị bỏ qua.
+    #[test]
+    fn ctrl_shift_marker_record_round_trip() {
+        let record = vec![
+            ("Layout Hotkey".to_string(), None),
+            ("Language Hotkey".to_string(), Some("2".to_string())),
+        ];
+        let text = format_ctrl_shift_marker(&record);
+        assert_eq!(text, "freed\nLayout Hotkey=\nLanguage Hotkey=2\n");
+        assert_eq!(parse_ctrl_shift_marker(&text), Some(record));
+        assert_eq!(
+            parse_ctrl_shift_marker("1\r\n"),
+            Some(vec![("Layout Hotkey".to_string(), None)])
+        );
+        assert_eq!(
+            parse_ctrl_shift_marker("freed\r\nEvil=2\r\nHotkey=x\r\nHotkey=1\r\n"),
+            Some(vec![("Hotkey".to_string(), Some("1".to_string()))])
+        );
+        assert_eq!(parse_ctrl_shift_marker("freed"), Some(vec![]));
+        assert_eq!(parse_ctrl_shift_marker("declined"), None);
+    }
+
+    #[test]
+    fn ctrl_shift_record_merge_keeps_untouched_entries() {
+        let old = vec![
+            ("Layout Hotkey".to_string(), None),
+            ("Language Hotkey".to_string(), Some("2".to_string())),
+        ];
+        let new = vec![("Layout Hotkey".to_string(), Some("2".to_string()))];
+        assert_eq!(
+            merge_ctrl_shift_record(old, new),
+            vec![
+                ("Language Hotkey".to_string(), Some("2".to_string())),
+                ("Layout Hotkey".to_string(), Some("2".to_string())),
+            ]
+        );
     }
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải
