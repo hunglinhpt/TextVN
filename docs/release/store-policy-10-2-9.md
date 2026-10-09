@@ -4,6 +4,11 @@
 > `approved/v0.2.24/TextVN-setup-0.2.24-windows-x64-machine.exe`. Tài liệu này
 > ghi nhận yêu cầu, đối chiếu với hiện trạng, và chốt kế hoạch hành động.
 > Liên quan: `store-submission.md`, `msix-submission.md`, `win-test-common-errors.md` (B13/B19).
+>
+> **Cập nhật 2026-10-09:** §3–§6 đã đổi theo hiện trạng — đường ký EXE là **SignPath
+> Foundation** (thay Trusted Signing: không khả dụng cho cá nhân ngoài Mỹ/Canada) và đã nối
+> vào pipeline, chờ Foundation duyệt; đường **MSIX là đường nộp chính**, chỉ còn thiếu
+> `Package/Identity/Name` (`msix-submission.md`). §1–§2 giữ nguyên làm hồ sơ.
 
 ## 1. Microsoft nói chính xác điều gì
 
@@ -40,43 +45,53 @@ Trích phản hồi (Package validation — Technical requirement policies):
 
 | # | Con đường | Chi phí | Thời gian | Rủi ro | Ghi chú |
 |---|---|---|---|---|---|
-| 1 | **Trusted Signing** (Azure, dịch vụ ký của Microsoft) | Free tier mới cho individual; tài khoản Azure + xác thực danh tính | Xác thực có thể mất vài ngày–vài tuần | Thấp — script ký có sẵn (`tools/win/sign-signpath.ps1` là mẫu; thay bằng azuresigntool) | Giữ nguyên luồng EXE hiện tại (0.2.26: dual-DLL, uninstall sạch) — ký xong nộp lại |
-| 2 | **MSIX** (Store tự ký) | Miễn phí | Nhanh nhất — **chỉ còn thiếu `Package/Identity/Name`** | Thấp về ký; phải tạo sản phẩm MSIX mới + xoá tên khỏi Win32 product | MSIX 0.2.26 đã sửa xong 2 lỗi kiến trúc (bootstrap stage-out + payload đủ) |
-| 3 | Mua chứng thư CA (trong danh sách Trusted Root) | ~$100–400/năm + token | Vài ngày | Trung bình — chọn CA, xác thực doanh nghiệp/cá nhân | Cũngfix SmartScreen ngoài Store |
+| 1 | **SignPath Foundation** (chương trình ký miễn phí cho OSS) | Miễn phí | Chờ Foundation duyệt hồ sơ (đã nộp) | Thấp — đã nối: `release.yml` truyền secret `SIGNPATH_*` → `build-release.ps1` → `tools/win/sign-signpath.ps1`; ký 4 PE + cả hai bộ cài (kể cả `-machine.exe`) | Giữ nguyên luồng EXE — ký xong phát hành bản mới rồi nộp lại. Trusted Signing (Azure) không khả dụng cho cá nhân ngoài Mỹ/Canada — xem `code-signing-plan.md` §1 |
+| 2 | **MSIX** (Store tự ký) — **đường chính** | Miễn phí | Nhanh nhất — còn thiếu `Package/Identity/Name` (gói `.msix` của 0.2.27 không nộp được, phải build lại — `msix-submission.md` §0) | Thấp về ký; phải tạo sản phẩm MSIX mới (dùng lại tên `TextVN` thì xoá tên khỏi Win32 product trước) | Stage-out ra ngoài gói + guard dọn sau khi gỡ, kiểm bằng sideload thật trong CI |
+| 3 | Mua chứng thư CA (trong danh sách Trusted Root) | ~$100–400/năm + token | Vài ngày | Trung bình — chọn CA, xác thực doanh nghiệp/cá nhân | Cũng fix SmartScreen ngoài Store |
 
-## 4. Kế hoạch chốt (theo thứ tự ưu tiên)
+## 4. Kế hoạch chốt (theo thứ tự ưu tiên — cập nhật 2026-10-09)
 
-1. **Ngay lập tức — chuẩn bị MSIX (đường 2)**: vào Partner Center → sản phẩm
-   hiện tại → **xoá/reserve lại tên "TextVN" cho MSIX** (làm theo link
-   [delete your app name](https://go.microsoft.com/fwlink/?linkid=2189821)) →
-   tạo product MSIX → copy **Package/Identity/Name** + **Package/Identity/Publisher**
-   → gửi 2 chuỗi đó.
-2. **Song song — đăng ký Trusted Signing (đường 1)**: tài khoản Azure →
-   Trusted Signing → tạo account + identity validation. Khi được duyệt: ký
-   `TextVN-setup-0.2.26-windows-x64-machine.exe` (SHA256, timestamp) → nộp lại
-   đúng URL đã có (bump hash → Partner Center revalidate).
-3. **Không mua CA riêng** trừ khi Trusted Signing bị từ chối khu vực.
+1. **MSIX (đường 2) — tooling xong, chờ chủ tài khoản**: chọn cách đặt tên sản phẩm
+   MSIX (A: xoá tên `TextVN` khỏi sản phẩm Win32 theo link
+   [delete your app name](https://go.microsoft.com/fwlink/?linkid=2189821) rồi reserve lại;
+   B: sản phẩm MSIX tên khác) → copy **Package/Identity/Name** vào repo variable
+   `MSIX_IDENTITY_NAME` → workflow build gói nộp được → upload trực tiếp. Chi tiết:
+   `msix-submission.md` §2–§4. Windows publisher ID đã có:
+   `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545`.
+2. ⏳ **Authenticode — SignPath Foundation (đường 1)**: đã nộp, chờ duyệt (thay kế hoạch
+   Trusted Signing ngày 2026-10-06). Khi duyệt: đặt secret `SIGNPATH_*`
+   (`code-signing-plan.md`) → phát hành bản mới (CI ký 4 PE + cả hai bộ cài) → nộp lại URL
+   `approved/vX.Y.Z/TextVN-setup-X.Y.Z-windows-x64-machine.exe` (hash mới → Partner Center
+   revalidate).
+3. **Không mua CA riêng** trừ khi SignPath Foundation từ chối.
 
-## 5. Hiện trạng kỹ thuật đã sẵn sàng
+## 5. Hiện trạng kỹ thuật đã sẵn sàng (2026-10-09)
 
-- **EXE 0.2.26**: dual-DLL (x64 + x86 WOW64), uninstall sạch 100% key, silent
-  install chuẩn — **chờ duy nhất chữ ký**.
-- **MSIX 0.2.26**: đã sửa 2 lỗi kiến trúc (bootstrap stage-out khỏi WindowsApps +
-  payload đầy đủ resources/data); identity hiện là placeholder — build cuối chỉ
-  cần `-Publisher "CN=1A703CAB-…" -IdentityName "<Name từ Partner Center>"`.
-- Script ký: `tools/win/build-release.ps1 -SigningCertificateThumbprint` (signtool)
-  + `tools/win/sign-signpath.ps1` (mẫu tích hợp dịch vụ ký).
-- VirusTotal: `tools/win/virustotal-scan.ps1` — sau khi ký, quét lại để xác nhận
-  0/false-positive trước khi nộp.
+- **EXE**: dual-DLL (x64 + x86 WOW64), CRT tĩnh (không cần VC++ redist), uninstall sạch,
+  silent install chuẩn (chỉ chép file, exit 0) — **chờ duy nhất chữ ký Authenticode**;
+  khi có secret SignPath, `-machine.exe` (file nộp) cũng được ký. `unins000.exe` vẫn chưa
+  ký (giới hạn đã biết).
+- **MSIX**: exe trong gói chỉ chép payload ra `%USERPROFILE%\.textvn\msix-staging` →
+  `%LOCALAPPDATA%\Programs\TextVN-Store\<V>`, đăng ký HKCU, guard ở mỗi lần đăng nhập
+  dọn sạch sau khi gói bị gỡ — CI cài thử thật (`installer/windows/tests/test-msix-sideload.ps1`).
+  Manifest kiểm bằng `tools/win/verify-msix.py`; Version map `A.B.C` → `(A+1).B.C.0`
+  (0.2.27 → 1.2.27.0). Gói trên Release là placeholder cho tới khi có
+  `MSIX_IDENTITY_NAME` (`msix-submission.md` §3).
+- Script ký: `build-release.ps1` (gốc repo) — `-SigningCertificateThumbprint` (signtool,
+  cert local) hoặc tự gọi `tools/win/sign-signpath.ps1` khi có `SIGNPATH_API_TOKEN`.
+- VirusTotal: `tools/win/virustotal-scan.ps1` — `release.yml` quét (best-effort) cả hai
+  bộ cài, ZIP portable và `.msix` sau khi build; sau khi có chữ ký, quét lại trước khi nộp.
 
 ## 6. Việc cần làm — checklist
 
-- [ ] **Chủ repo**: quyết định đường 2 (MSIX) trước vì miễn phí + nhanh; copy
-      `Package/Identity/Name` gửi lại.
-- [ ] **Chủ repo**: đăng ký Trusted Signing (Azure) cho đường 1 (dự phòng).
-- [ ] **Agent**: khi có Identity Name → build MSIX đúng identity → publish
-      `approved/v0.2.26/` → hướng dẫn upload trực tiếp.
-- [ ] **Agent**: khi có Trusted Signing → tích hợp azuresigntool vào
-      `build-release.ps1` (bước ký sau build, trước smoke) → ký cả setup exe
-      lẫn MSIX → nộp.
+- [ ] **Chủ repo**: chọn cách đặt tên sản phẩm MSIX (`msix-submission.md` §2), đặt repo
+      variable `MSIX_IDENTITY_NAME` (và `MSIX_DISPLAY_NAME` nếu chọn tên khác).
+- [x] **Chủ repo**: nộp hồ sơ SignPath Foundation — ⏳ chờ duyệt.
+- [ ] **Chủ repo/Agent**: khi có Identity Name → chạy workflow build gói → đưa `.msix` có
+      Identity thật lên `approved/vX.Y.Z/` → upload trực tiếp (Store tự ký MSIX — không cần
+      ký thêm).
+- [x] **Agent**: tích hợp SignPath vào `build-release.ps1`/`release.yml` (REST API, ký cả
+      `-machine.exe`) — xong 2026-10-08.
+- [ ] **Chủ repo**: khi SignPath duyệt → đặt secret `SIGNPATH_*` → phát hành bản mới → nộp
+      lại URL bản máy.
 - [ ] Sau khi được duyệt: bật auto-update channel qua Store.

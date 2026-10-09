@@ -1,5 +1,16 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.27 — macOS tôn trọng "Gõ không gạch chân" (BUG-05) + ký số tự động GPG/Sigstore + MSIX có DLL x86
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Release | v0.2.27 publish 2026-10-07 (pre-release) từ `0e9c5d3` — [release-candidate #37574962202](https://github.com/hunglinhpt/TextVN/actions/runs/37574962202) 4/4 job xanh; **34 asset** = 8 artifact + `SHA256SUMS.txt` + `gpg-release-key.asc` + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng artifact |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); mỗi artifact có chữ ký GPG + Sigstore keyless (`signing.md`) |
+| Checksums (pin) | machine exe `d14513d8…584c` · setup exe `ffa7ff61…8d89` · MSIX `6ee8c75c…133f` · portable `d3d9a8f3…eff7` · Linux `5ccf9ac8…2971` · pkg `4fbe5725…67c7` · mac zip `532fb651…0f42` · mac tar.gz `7e11d5cf…41db` |
+| `RELEASE_REPORT.json` | `version` 0.2.27, `git_commit` `0e9c5d3…`, `source_tree_clean` true, `feature_profile` tsf-only, `checks.authenticode` = `not-signed` |
+| Đã biết (sửa ở *Unreleased*, chưa phát hành) | `.msix` 0.2.27 **không nộp Store được** (identity placeholder, Version `0.2.27.0`, `<Description>` mojibake, ảnh 71×71 sai — sửa `bcc452b`/`b10be1c`, build lại theo `msix-submission.md`); binary x64 còn phụ thuộc VC++ runtime (CRT tĩnh từ `ae0a938`); Homebrew cask `sha256` lệch (sửa `de3e1a7`); release notes trên GitHub còn ghi "Unsigned" (workflow đã sửa cho bản sau) |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization (`signing-status-mac.md`) |
+
 ## Bản 0.2.26 — dual-DLL (Zalo 32-bit) + ghost uninstall + Linux BUG-03 + policy 10.2.9
 
 **Nguồn tải Partner Center (machine — bản Store chính thức):**
@@ -19,7 +30,6 @@ SHA-256 `9c7519e1…361b` (200/0 redirect/byte-identical). Lưu ý 10.2.9: gói
 | Policy 10.2.9 | MS từ chối exe chưa ký → kế hoạch Trusted Signing / MSIX trong `store-policy-10-2-9.md` |
 
 ## Vòng 12 + bản 0.2.25 — audit MSIX lần đầu soi kỹ: 2 lỗi kiến trúc, đã fix triệt để
-## Vòng 12 + bản 0.2.25 — audit MSIX lần đầu soi kỹ: 2 lỗi kiến trúc, đã fix triệt để
 
 Rà từng dòng pipeline MSIX (chưa từng upload nên chưa từng bị soi) tìm ra 2 lỗi
 sẽ làm MSIX thành "vô dụng dù cài được":
@@ -31,7 +41,7 @@ sẽ làm MSIX thành "vô dụng dù cài được":
 
 **Fix (bootstrap stage-out — pattern "kênh phân phối" đã định hướng từ 0.2.17,
 giờ thành code thật):** exe trong package chỉ làm một việc — stage toàn bộ
-payload (tray, CLI, TSF DLL, resources, data) ra `%LOCALAPPDATA%\ProgramsTextVN` rồi spawn bản staged và thoát, TRƯỚC khi tạo single-instance mutex.
+payload (tray, CLI, TSF DLL, resources, data) ra `%LOCALAPPDATA%\Programs\TextVN` rồi spawn bản staged và thoát, TRƯỚC khi tạo single-instance mutex.
 Bản staged chạy **non-packaged** → dùng lại nguyên vẹn cơ chế portable đã chứng
 minh (tự đăng ký TSF, UAC machine B7, Run key, IPC). File bị khoá khi re-stage
 → rename-then-copy (B8). 4 unit test mới. Đo thật: tiến trình thường đọc được
@@ -48,8 +58,13 @@ update-fragility + virtualization).
 Còn thiếu duy nhất để nộp MSIX: `Package/Identity/Name` — khi có:
 `build-msix.ps1 -Publisher "CN=1A703CAB-…" -IdentityName "<Name>"`.
 
+> **Đã thay (2026-10-08, vòng rà soát 2):** stage-out trong gói ra
+> `%LOCALAPPDATA%\Programs\TextVN` bị ảo hoá (tiến trình có package identity) — kiến trúc
+> hiện hành chép ra `%USERPROFILE%\.textvn\msix-staging` → `%LOCALAPPDATA%\Programs\TextVN-Store\<V>`
+> ngoài container, chỉ đăng ký HKCU, có guard dọn khi gỡ gói và test sideload thật trong CI.
+> Trạng thái/lệnh build hiện hành: `msix-submission.md`.
+
 ## Vòng 11 + bản 0.2.24 — đóng nốt 3 khe hở cấp dòng (rà lần 3) + bản máy là bản Store
-## Bản 0.2.24 — đóng nốt 3 khe hở cấp dòng (rà lần 3) + bản máy là bản Store
 
 Rà từng dòng lần 3 theo yêu cầu chủ repo tìm ra 3 khe hở THẬT phía gói mà các
 lần trước bỏ lỡ — tất cả đều là thứ một checker có thể soi:
@@ -72,7 +87,6 @@ portable giữ nguyên; GitHub users vẫn nhận bản per-user.
 | Release v0.2.24 | 4/4 job PASS (windows đỏ 1 lần do flake typing test B5 — rerun xanh) |
 | Nguồn tải Store | `approved/v0.2.24/TextVN-setup-0.2.24-windows-x64-machine.exe` — 200/0 redirect/byte-identical `aa31b2d5…b53` |
 
-## Vòng 10 — rà soát TỪNG DÒNG .iss + build options (yêu cầu chủ repo): không có option nào sai
 ## Vòng 10 — rà soát TỪNG DÒNG .iss + build options (yêu cầu chủ repo): không có option nào sai
 
 Bằng chứng lấy THẬT trên máy chủ repo (2026-10-05), không suy đoán:
@@ -126,7 +140,6 @@ còn lại đều nằm ở môi trường validator, không sửa được từ
 (`CN=1A703CAB-…` đã có, chờ `Package/Identity/Name`).
 
 ## Vòng 9 (2026-10-05) — 0.2.23 vẫn đỏ: EXE per-user cạn, leo thang machine → MSIX
-## Vòng 9 (2026-10-05) — 0.2.23 vẫn đỏ: EXE per-user cạn, leo thang machine → MSIX
 
 0.2.23 per-user (chuỗi `TextVN`/`LinhBH.CoM` ĐÚNG từ nguồn sự thật — chủ tài
 khoản đã tự sửa trong account) vẫn đỏ 3 mục. Ghi mã **B19**: gói EXE per-user
@@ -136,7 +149,6 @@ không sửa được từ phía gói. Kế hoạch: nộp **machine 0.2.23** (t
 đã publish sẵn) → nếu đỏ, **MSIX** là đường duy nhất còn lại (đã có Publisher
 `CN=1A703CAB-…`, chỉ chờ `Package/Identity/Name`).
 
-## Bản 0.2.23 — Publisher display name THẬT = `LinhBH.CoM` (vòng 8, chấm dứt chuỗi đoán)
 ## Bản 0.2.23 — Publisher display name THẬT = `LinhBH.CoM` (vòng 8, chấm dứt chuỗi đoán)
 
 Chủ tài khoản tìm ĐÚNG trang trong account settings và **tự sửa** Publisher
@@ -163,7 +175,6 @@ display name thành `LinhBH.CoM` (2026-10-05). Điều này giải thích trọn
 | Nguồn tải | `approved/v0.2.23/` — 200/0 redirect/byte-identical: per-user `81b7c3d4…9575`, machine `9fc76774…7ba9a` |
 
 ## Bản 0.2.22 — ROOT CAUSE chốt: ARP Publisher = `Linh Bui` (B18)
-## Bản 0.2.22 — ROOT CAUSE chốt: ARP Publisher = `Linh Bui` (B18)
 
 Chủ tài khoản xác nhận **lần 2**: Publisher display name = `Linh Bui` (ASCII).
 `β` ở 0.2.21 là **nhầm font** (B U+0042 nhìn như β U+03B2). Chuỗi publisher
@@ -184,7 +195,6 @@ Kế hoạch nộp: **per-user 0.2.22 trước** → nếu vẫn đỏ: machine 
 đỏ: MSIX (`CN=1A703CAB-…` đã có, chờ `Package/Identity/Name`).
 
 ## Vòng 6 — đánh giá 5 gốc rễ của audit ngoài + vá phần còn thiếu
-## Vòng 6 — đánh giá 5 gốc rễ của audit ngoài + vá phần còn thiếu
 
 Audit ngoài (gốc rễ 1-5) đối chiếu với trạng thái repo:
 
@@ -198,7 +208,6 @@ Audit ngoài (gốc rễ 1-5) đối chiếu với trạng thái repo:
 
 Lệnh dựng machine variant ở máy local: `build-release.ps1 -BuildInstaller -MachineInstaller`.
 
-## Vòng 5 (0.2.21 vẫn đỏ) — điều tra + phương án máy
 ## Vòng 5 (0.2.21 vẫn đỏ) — điều tra + phương án máy
 
 Kết quả 0.2.21 trên Store **vẫn đỏ 3 mục** dù ARP `Publisher = "Linh βùi"` đúng
@@ -221,7 +230,6 @@ Hành động:
 3. Ma trận quyết định cho lần nộp kế tiếp ghi ở `store-submission.md` §1a-ter
    (đường A: bản máy; đường B: MSIX).
 
-## Bản 0.2.21 — ARP Publisher khớp ĐÚNG Partner Center (STO-03) + B17
 ## Bản 0.2.21 — ARP Publisher khớp ĐÚNG Partner Center (STO-03) + B17
 
 Chủ tài khoản xác nhận 2 chuỗi trên Partner Center (2026-10-04): Product name =
@@ -247,7 +255,6 @@ smoke did not stop cleanly"* và để lại tiến trình mồ côi). Sửa: la
 `TRAY_EXIT_PENDING` + tray tiêu thụ trước vòng lặp; smoke POLL 10 s thay vì
 `sleep 500 ms` cố định và kill tiến trình mồ côi khi fail.
 
-## Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft)
 ## Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft)
 
 Bối cảnh: CI đỏ job "Windows package" trên `7e2fe53` — `textvn-setup.iss` gọi

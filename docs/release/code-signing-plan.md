@@ -1,11 +1,16 @@
 # Kế hoạch ký số (code signing) — TextVN
 
-> **Mục tiêu:** binary Windows (TextVN.exe, textvn-cli.exe, textvn-tsf.dll,
-> TextVN-setup.exe) có chữ ký Authenticode chính thống, **chi phí 0 đồng**,
-> để qua được SmartScreen/Smart App Control và giảm cảnh báo antivirus.
-> Trạng thái hiện tại: `build-release.ps1` hỗ trợ sẵn cờ
-> `-SigningCertificateThumbprint` (signtool + cert trong cert store máy build)
-> nhưng chưa có chứng chỉ nào — mọi release là `release-candidate` chưa ký.
+> **Mục tiêu:** binary Windows (`TextVN.exe`, `textvn-cli.exe`, `textvn-tsf.dll`,
+> `textvn-tsf-x86.dll`, `TextVN-setup-<ver>-windows-x64.exe` và `-machine.exe`) có chữ ký
+> Authenticode chính thống, **chi phí 0 đồng**, để qua được SmartScreen/Smart App Control,
+> policy 10.2.9 của Microsoft Store và giảm cảnh báo antivirus.
+>
+> **Trạng thái (2026-10-09):** lớp integrity/provenance ĐÃ chạy cho mọi asset từ v0.2.27
+> (GPG `.asc` + Sigstore keyless + `SHA256SUMS.txt` clearsign, bắt buộc trong CI —
+> `signing.md`). **Authenticode là hạng mục Windows DUY NHẤT còn thiếu**: đã nộp SignPath
+> Foundation, **đang chờ duyệt**. Đường ký đã nối sẵn và tự chạy khi có secret (§2 Bước 3);
+> chưa có secret thì bản phát hành vẫn là `release-candidate` chưa Authenticode
+> (`RELEASE_REPORT.json` ghi `checks.authenticode = not-signed`).
 
 ## 1. So sánh các đường chính thống (cập nhật 2026-10-02)
 
@@ -25,31 +30,50 @@
 1. Mở <https://signpath.org/open-source> → submit dự án:
    - Tên + link repo `https://github.com/hunglinhpt/TextVN`
    - License: `GPL-3.0-or-later` (OSI-approved ✓)
-   - Link download công khai: GitHub Releases (đã có v0.2.0 → v0.2.4)
+   - Link download công khai: GitHub Releases (v0.2.0 → v0.2.27; từ v0.2.27 mọi asset có chữ ký GPG + Sigstore)
 2. Chờ duyệt (họ xem repo public, lịch sử phát hành; project cần "đủ tuổi").
 3. Được duyệt → tạo tổ chức trên <https://signpath.io> (gói Open Source),
    nhận **API token** + **Signing Policy** từ Foundation.
 
-### Bước 2 — Tạo artifact configuration trên SignPath.io
+### Bước 2 — Tạo project + artifact configuration trên SignPath.io
 
-- Input: `TextVN-setup-<ver>-windows-x64.exe` (file duy nhất cần ký per-release
-  nếu ký installer; portable nên ký cả 3 binary TRƯỚC khi zip — xem bước CI).
-- Signing policy: của Foundation (chờ duyệt policy từ SignPath Foundation).
+- **Project** (slug → secret `SIGNPATH_PROJECT_SLUG`) gắn repo GitHub.
+- **Artifact configuration** (slug → secret `SIGNPATH_ARTIFACT_CONFIGURATION`): loại **ZIP**,
+  **deep sign** mọi `*.exe`/`*.dll` bên trong — `build-release.ps1` gửi 4 PE trong MỘT ZIP
+  (một lần duyệt cho cả bộ binary); mỗi bộ cài được gửi riêng (một file `.exe`).
+- **Signing policy** (slug → secret `SIGNPATH_POLICY`, vd. `release-signing`) do Foundation
+  cấp; gói OSS có thể cần người duyệt tay mỗi yêu cầu (trạng thái `WaitingForApproval`).
 
-### Bước 3 — Bật ký trong GitHub Actions (đã chờ sẵn trong `release.yml`)
+### Bước 3 — Bật ký trong GitHub Actions (đã nối sẵn — chỉ cần đặt secret)
 
-`release.yml` có job-step mẫu gated theo secret `SIGNPATH_API_TOKEN` — khi
-token được cấu hình trong repo Settings → Secrets, signing tự chạy; không có
-secret → bỏ qua (giữ đúng trạng thái release-candidate chưa ký hiện tại).
-Khung REST chính thức: `POST https://app.signpath.io/api/v1/{org}/signing-requests`
-(với file cần ký + policy) → poll → tải artifact đã ký. Đối chiếu docs mới:
-<https://signpath.io/docs> (trang "GitHub integration").
+Không có bước nào phải bỏ comment. Job `windows` của `release.yml` luôn truyền env
+`SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG` (tên cũ
+`SIGNPATH_PROJECT_KEY` vẫn nhận), `SIGNPATH_POLICY`, `SIGNPATH_ARTIFACT_CONFIGURATION`; khi
+`SIGNPATH_API_TOKEN` có giá trị:
+
+1. `build-release.ps1` gọi `tools/win/sign-signpath.ps1` cho `TextVN.exe`,
+   `textvn-cli.exe`, `textvn_win_tsf.dll` (đóng gói thành `textvn-tsf.dll`),
+   `textvn-tsf-x86.dll` (+ `textvn-hook.exe` ở gói Compatibility) — TRƯỚC khi đóng ZIP
+   portable/bộ cài — rồi ký `TextVN-setup-<ver>-windows-x64.exe`.
+2. Bước "Build + validate machine installer" của `release.yml` ký
+   `TextVN-setup-<ver>-windows-x64-machine.exe` (file nộp Store EXE) trước khi validate.
+3. `sign-signpath.ps1` dùng REST API công bố của SignPath: `POST
+   https://app.signpath.io/API/v1/{org}/SigningRequests` (multipart: `ProjectSlug`,
+   `SigningPolicySlug`, `ArtifactConfigurationSlug`, `Description`, `Artifact`) → poll
+   `Location` tới `Completed` (chờ qua `WaitingForApproval`/`Processing`…, tối đa 60 phút;
+   `Failed`/`Denied`/`Canceled` = lỗi) → tải `{request}/SignedArtifact` → kiểm
+   `Get-AuthenticodeSignature` = `Valid`. Lỗi ở bất kỳ bước nào = job fail.
+4. `RELEASE_REPORT.json` ghi `checks.authenticode = signpath`.
+
+Giới hạn đã biết: `unins000.exe` (uninstaller do Inno sinh lúc cài) **không** được ký.
+Tài liệu API: <https://about.signpath.io/documentation/build-system-integration#rest-api>.
 
 ### Bước 4 — Khi đã có cert riêng (Certum/SSL.com, tương lai)
 
 `build-release.ps1 -SigningCertificateThumbprint <SHA1>` — signtool ký
-`TextVN.exe`, `textvn-cli.exe`, `textvn_win_tsf.dll` (+ setup exe) bằng cert
-trong cert store; script từ chối publish nếu chữ ký không `Valid`.
+`TextVN.exe`, `textvn-cli.exe`, `textvn_win_tsf.dll`, `textvn-tsf-x86.dll` (+ cả hai bộ
+cài khi có `-BuildInstaller -MachineInstaller`) bằng cert trong cert store; script từ chối
+publish nếu chữ ký không `Valid`.
 
 ## 3. Smart App Control / SmartScreen — kỳ vọng thực tế
 
@@ -66,8 +90,11 @@ trong cert store; script từ chối publish nếu chữ ký không `Valid`.
 
 | File | Nội dung |
 |---|---|
-| `build-release.ps1` | `-SigningCertificateThumbprint` (signtool local, có sẵn từ trước) + verify chữ ký `Valid` |
-| `release.yml` | Step mẫu SignPath gated `SIGNPATH_API_TOKEN` (thêm 2026-10-02) — bỏ comment + cấu hình secrets khi được duyệt |
+| `build-release.ps1` | `-SigningCertificateThumbprint` (signtool local) hoặc SignPath khi có `SIGNPATH_API_TOKEN`: ký 4 PE + bộ cài per-user (+ `-machine.exe` khi `-MachineInstaller`), verify chữ ký `Valid` |
+| `release.yml` | Job `windows` truyền env `SIGNPATH_*`; bước "Build + validate machine installer" ký `-machine.exe`. Không cần bỏ comment — chỉ cần đặt secret |
+| `tools/win/sign-signpath.ps1` | Client REST API SignPath (ZIP deep sign, poll cả bước duyệt tay, kiểm `Valid`) — sửa theo API công bố 2026-10-08 (R2-72) |
+| `tools/release/sign-artifacts.sh` | GPG `.asc` + Sigstore keyless cho mọi asset, clearsign `SHA256SUMS.txt` (từ v0.2.27; bắt buộc trong CI từ R2-74) |
+| `tools/win/virustotal-scan.ps1` | Quét VirusTotal best-effort trong `release.yml` (secret `VIRUSTOTAL_API_KEY`) |
 | Tài liệu này | So sánh + lộ trình + kỳ vọng SmartScreen |
 
 ## Nguồn

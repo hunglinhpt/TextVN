@@ -6,10 +6,13 @@
 > này: **không ai được phép tag version mới nếu chưa đi hết Checklist A (máy
 > local) và Checklist B (repo/CI) bên dưới.**
 >
-> Bản phát hành ở repo này là **release candidate chưa ký số**. Production cần
-> thêm Authenticode (Windows), Developer ID + notarization (macOS) và smoke GUI
-> trên máy thật — luôn ghi rõ điều đó trong CHANGELOG và release notes, không
-> bao giờ tự nâng một candidate thành production.
+> Bản phát hành ở repo này là **release candidate đã ký integrity/provenance**:
+> mọi asset có chữ ký GPG `.asc` (FPR `3921595ABC961199F15303B6C45B84D0C7F4A822`) +
+> Sigstore keyless, `SHA256SUMS.txt` được clearsign — trong CI là bắt buộc, thiếu khoá
+> hay cosign thì publish dừng (`signing.md`). Production còn cần **Authenticode**
+> (Windows — chờ SignPath Foundation duyệt) và **Developer ID + notarization** (macOS —
+> bản phát hành đang ký ad-hoc, `signing-status-mac.md`) — luôn ghi rõ điều đó trong
+> CHANGELOG và release notes, không bao giờ tự nâng một candidate thành production.
 
 ## 0. Nguyên tắc (đã xác minh qua 3 lần phát hành)
 
@@ -25,7 +28,7 @@
 
 ### A0. `cargo xtask preflight` — BẮT BUỘC exit 0 (thay cho chạy tay từng lệnh)
 
-Một lệnh chạy đủ 17 gate theo đúng thứ tự CI, fail-fast, exit code thật
+Một lệnh chạy đủ 22 bước (mảng `STEPS` trong `xtask/src/preflight.rs`) theo đúng thứ tự CI, fail-fast, exit code thật
 (không bao giờ pipe `| tail` che exit code — sự cố 2 lần 2026-10-02: clippy
 `unused-mut` đẩy code rồi mới phát hiện). Preflight xanh = CI thấy đúng cây
 đang test ⇒ khả năng đỏ chỉ còn nhiễu runner (perf, typing smoke — rerun).
@@ -35,23 +38,26 @@ Chi tiết từng bước + điều nó chặn: `xtask/src/preflight.rs` (mảng
 |---|---|---|
 | fmt | rustfmt job | — |
 | clippy `-D warnings` | mọi lint trong workspace, gồm target test | `unused mut` × 2 (be2489f); thiếu import ở target non-Windows (E11) |
-| check-linux | cross-compile không phá Linux/macOS | E11: nhánh non-Windows sai chữ ký sau khi Windows xanh |
+| check-linux + clippy-linux | cross-compile + clippy target Linux không phá Linux/macOS | E11: nhánh non-Windows sai chữ ký sau khi Windows xanh; dead_code chỉ lộ ở non-Windows (3050cd6) |
 | test --workspace | 349+ unit/integration | break behavior corpus (dedupe layout, EN-detect) |
-| verify + sizes | ABI header C + struct 20/532 | lệch FFI khi đổi struct |
-| replay × 3 adapter | hành vi gõ thật mọi nền tảng | regression 5269ae1/fecf245: raw typing sau đổi layout |
+| verify-abi + sizes | ABI header C + struct 20/532 | lệch FFI khi đổi struct |
+| replay × 4 adapter (win, tsf, mac, linux) | hành vi gõ thật mọi nền tảng | regression 5269ae1/fecf245: raw typing sau đổi layout |
 | check-tables/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus quên regenerate |
 | version-sync | 14 chỗ version | bump sót chỗ |
 | perf | hồi quy so baseline | baseline chết theo runner → phải re-record từ CI (7f069f0) |
 | hygiene-apis / hygiene-docs | API giống-malware, link hỏng | — |
-| homebrew | ruby cask hợp lệ + sha256 format | formula sai hash 0.2.5–0.2.7 |
+| store-validate | 3 bước manual package validation của Microsoft trên `dist/TextVN-setup-*.exe` (SKIP nếu máy dev đang cài TextVN) | B13 (Store đỏ 3 mục) |
+| iss-tabs / ascii-ps1 | `.iss` không chứa TAB; `.ps1` ASCII-only | B12/B13; G7/A5 |
+| homebrew | `ruby -c` cask (chỉ cú pháp — **không** kiểm sha256 khớp release, xem B7b) | formula sai hash 0.2.5–0.2.7 và 0.2.23–0.2.26 |
 
 Chạy từ gốc repo, tất cả phải xanh. Lệnh đúng như dưới đây (đã là lệnh của
 build-release.ps1 và CI — cùng một gate, không thêm không bớt):
 
 ```powershell
 # A1. Format + lint (0 warning). Lưu ý: ci-shared chạy clippy --workspace
-# (KHÔNG exclude win-hook) — CI nghiêm ngặt hơn dòng dưới đây; nếu sửa gì
-# trong adapters/win-hook thì chạy cả `cargo clippy --workspace --all-targets`.
+# (KHÔNG exclude win-hook) trên Linux VÀ cross-check target x86_64-pc-windows-msvc
+# (gồm hook) — CI nghiêm ngặt hơn dòng dưới đây; nếu sửa gì trong
+# adapters/windows-hook thì chạy cả `cargo clippy --workspace --all-targets`.
 cargo fmt --all -- --check
 cargo clippy --workspace --exclude textvn-win-hook --all-targets -- -D warnings
 
@@ -101,10 +107,10 @@ blockers chưa được chứng minh).
 | B3 | Chờ CI xanh trên commit **cuối cùng** trước khi tag: `ci-shared` (perf `continue-on-error` là trừ, đỏ ≠ chặn), `repo-hygiene`, `ci-macos` (nếu đụng macOS). Red trên typing smoke → áp B5-checklist (rerun) rồi mới kết luận. | link run xanh |
 | B4 | **Bộ docs bắt buộc của bản phát hành** — kiểm từng mục: ① `CHANGELOG.md` có entry `[N.N.N]` + link compare `[N.N.N]: .../compare/v(N-1)...vN` ở cuối file (thiếu link = render chết); ② `README.md` "Bản mới nhất" trỏ release mới; ③ `packaging/linux/appstream/*.metainfo.xml` có `<release version="N.N.N">` đứng đầu; ④ `docs/release/build-release-report.md` có mục bản mới với bảng gate A1–A4; ⑤ **LUẬT CỨNG (chủ repo yêu cầu 2026-10-03): MỌI lỗi/sự cố mới gặp trong phiên PHẢI được ghi thành mã (`B{n}` trong `win-test-common-errors.md`, `E{n}` trong `project-common-errors.md`, `R{n}` trong file này) kèm nguyên nhân + cách chặn-tái-diễn — không có mã = KHÔNG được tag**; lỗi UI/ảnh chụp người dùng gửi cũng phải thành mã (B9 là ví dụ). | từng mục |
 | B5 | Tag: `git tag -a vN.N.N -m "..." && git push origin vN.N.N`. **Tag phải trỏ vào commit đã có CI xanh (B3).** | link tag |
-| B6 | Theo dõi workflow `release-candidate` (4 job: windows/linux/macos/publish). Publish job tự validate: số asset, `RELEASE_REPORT.json` (`version` = tag, `source_tree_clean=true`, `feature_profile=tsf-only`), không có legacy hook. | link run |
-| B7 | **Verify release sau khi publish:** `gh release view vN.N.N --json assets` đủ 7 asset (portable ZIP, setup exe, linux tar.gz, mac pkg, macos universal zip + tar.gz, SHA256SUMS.txt) — **cộng `TextVN-<ver>-windows-x64.msix`: BẮT BUỘC từ 0.2.17** (yêu cầu chủ repo: mọi release kèm MSIX dự phòng khi gói exe bị Store từ chối; job windows build bằng `tools/win/build-msix.ps1`, publish validate đúng 1 file `.msix`); tải `SHA256SUMS.txt` ghim hash vào build-release-report; mở trang release kiểm notes. | hash pin trong report |
-| B7b | **Cập nhật `packaging/homebrew/textvn.rb`: `sha256` = hash của `TextVN-macos-universal-v<ver>.zip`** (lấy từ `SHA256SUMS.txt`, cùng lần tải ở B7). Bước này từng bị bỏ sót từ 0.2.5→0.2.7 (formula giữ hash cũ — cask cài sẽ lỗi checksum). | diff formula + hash khớp SHA256SUMS |
-| B7c | **Store gate (Checklist S — `store-submission.md` §0):** ① `tools/win/validate-store-package.ps1` PASS là điều kiện cứng của release.yml (S2, tự chạy); ② đưa `vX.Y.Z/` lên branch `approved` (setup + portable + msix + SHA256SUMS) và `curl -sI` xác nhận raw URL 200 (S3); ③ kiểm listing assets còn nguyên: `store/art/` + `store/screenshots/` (S4). | link run + raw URL 200 |
+| B6 | Theo dõi workflow `release-candidate` (4 job: windows/linux/macos/publish). Publish job tự validate: số asset, `RELEASE_REPORT.json` (`version` = tag, `source_tree_clean=true`, `feature_profile=tsf-only`), không có legacy hook; rồi ký GPG + cosign mọi asset (bắt buộc — thiếu secret/cosign thì dừng) và tự verify chữ ký. Job windows còn cài thử thật gói MSIX (sideload) trước khi phát hành. | link run |
+| B7 | **Verify release sau khi publish:** `gh release view vN.N.N --json assets` đủ **34 asset**: 8 artifact (portable ZIP, setup exe, setup `-machine.exe` (từ 0.2.23), `TextVN-<ver>-windows-x64.msix` (bắt buộc từ 0.2.17 — gói nộp Store, đường chính; job windows build bằng `tools/win/build-msix.ps1`), Linux tar.gz, mac pkg, macos universal zip + tar.gz) + `SHA256SUMS.txt` (clearsign) + `gpg-release-key.asc` + với MỖI artifact 3 file `.asc`/`.cosign.sig`/`.cosign.cert`. Kiểm chữ ký: `gpg --verify SHA256SUMS.txt` + `cosign verify-blob` một asset (lệnh trong `signing.md`); tải `SHA256SUMS.txt` ghim hash vào build-release-report; mở trang release kiểm notes. `.msix` chỉ nộp được khi build với `MSIX_IDENTITY_NAME` (`msix-submission.md` §3). | hash pin trong report |
+| B7b | **Cập nhật `packaging/homebrew/textvn.rb`: `sha256` = hash của `TextVN-macos-universal-v<ver>.zip`** (lấy từ `SHA256SUMS.txt`, cùng lần tải ở B7 — đối chiếu: `gpg --decrypt SHA256SUMS.txt \| grep macos-universal-v<ver>.zip`). Bước này từng bị bỏ sót từ 0.2.5→0.2.7 và 0.2.23→0.2.26 (cask giữ hash cũ — `brew install --cask` lỗi checksum; sửa ở `de3e1a7`). Gate preflight/repo-hygiene `homebrew` chỉ kiểm cú pháp; publish job in `::warning` kèm đúng dòng `sha256` cần commit khi cask lệch (R2-76). | diff formula + hash khớp SHA256SUMS |
+| B7c | **Store gate (Checklist S — `store-submission.md` §0):** ① `tools/win/validate-store-package.ps1` PASS là điều kiện cứng của release.yml (S2, tự chạy); ② đưa `vX.Y.Z/` lên branch `approved` (setup + `-machine.exe` + portable + msix, kèm `.asc`/`.cosign.*` của từng file, `SHA256SUMS.txt`, `gpg-release-key.asc`) và `curl -sI` xác nhận raw URL 200 (S3); ③ kiểm listing assets còn nguyên: `store/art/` + `store/screenshots/` (S4). | link run + raw URL 200 |
 | B8 | Bổ sung số liệu CI + link run vào `build-release-report.md` (mục bản mới), commit docs + graphify, push. Kiểm `ci-shared`/`repo-hygiene` xanh trên commit cuối. | link run + commit |
 | B9 | Dọn dẹp (G14): không process còn lại, `git status` sạch, memory dự án cập nhật nếu có bài học mới. | — |
 
@@ -112,9 +118,9 @@ blockers chưa được chứng minh).
 
 | File | Nội dung bắt buộc |
 |---|---|
-| `CHANGELOG.md` | Entry `## [N.N.N] — date` theo Keep a Changelog (Fixed/Added/Changed/Housekeeping), nêu rõ "release candidate, chưa ký số". **Không xóa entry cũ.** |
+| `CHANGELOG.md` | Entry `## [N.N.N] — date` theo Keep a Changelog (Fixed/Added/Changed/Housekeeping), nêu rõ "release candidate — đã ký GPG/Sigstore, chưa Authenticode/notarization". **Không xóa entry cũ.** |
 | Link compare cuối `CHANGELOG.md` | `[N.N.N]: https://github.com/hunglinhpt/TextVN/compare/v(N-1)...vN` — quên là link render chết (đã xảy ra). |
-| `README.md` | "Bản mới nhất: [GitHub Release vN.N.N]" + 1 dòng tóm tắt đắt giá nhất của bản + trạng thái chưa ký. |
+| `README.md` | "Bản mới nhất: [GitHub Release vN.N.N]" + 1 dòng tóm tắt đắt giá nhất của bản + trạng thái ký (GPG/Sigstore ✓; Authenticode/notarization chưa). |
 | `packaging/linux/appstream/*.metainfo.xml` | `<release version="N.N.N" date="...">` đứng đầu `<releases>` (check-version-sync gate). |
 | `docs/release/build-release-report.md` | Mục "Bản N.N.N": mục tiêu, bảng gate local (A1–A4 + số test + replay), bảng perf nếu đụng hot path, mục "Phát hành" (link release run, checksums pin, trạng thái CI), Trạng thái (còn thiếu gì để production). |
 | Common errors (`docs/specs/*`) | Lỗi mới gặp khi phát hành (build fail, CI flake mới, lỗi docs) → entry mới, không xoá entry cũ (G3). |
