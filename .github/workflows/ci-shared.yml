@@ -46,6 +46,10 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+      # R2-85: build phát hành chạy `--locked` — bump version mà quên Cargo.lock
+      # thì báo ở đây, không đợi tới lúc tag.
+      - name: Cargo.lock khớp Cargo.toml
+        run: cargo metadata --locked --format-version 1 > /dev/null
 
   clippy:
     name: clippy (-D warnings)

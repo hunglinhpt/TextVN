@@ -49,8 +49,8 @@ fi
 
 if [ "$HAS_ARM" -eq 1 ] && [ "$HAS_X86" -eq 1 ]; then
     echo "Compiling for both aarch64 and x86_64 architectures..."
-    cargo build --release -p textvn-ffi --target aarch64-apple-darwin --manifest-path "$ROOT/Cargo.toml"
-    cargo build --release -p textvn-ffi --target x86_64-apple-darwin --manifest-path "$ROOT/Cargo.toml"
+    cargo build --release --locked -p textvn-ffi --target aarch64-apple-darwin --manifest-path "$ROOT/Cargo.toml"
+    cargo build --release --locked -p textvn-ffi --target x86_64-apple-darwin --manifest-path "$ROOT/Cargo.toml"
 
     lipo -create \
         "$ROOT/target/aarch64-apple-darwin/release/libtextvn_ffi.a" \
@@ -58,7 +58,7 @@ if [ "$HAS_ARM" -eq 1 ] && [ "$HAS_X86" -eq 1 ]; then
         -output "$ROOT/adapters/macos-imk/lib/libtextvn_ffi.a"
 else
     echo "Compiling for host architecture..."
-    cargo build --release -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
+    cargo build --release --locked -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
     cp "$ROOT/target/release/libtextvn_ffi.a" "$ROOT/adapters/macos-imk/lib/libtextvn_ffi.a"
 fi
 

@@ -27,13 +27,13 @@ if [[ "$SKIP_TESTS" == 0 ]]; then
     # Build adapter (Release) + ctest + e2e với ibus-daemon/fcitx5 thật.
     "$ROOT/scripts/e2e-linux.sh" "$ADAPTERS"
 else
-    cargo build --release -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
+    cargo build --release --locked -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
     for a in ibus fcitx5 settings; do
         cmake -S "$ROOT/adapters/linux-$a" -B "$ADAPTERS/$a" -DCMAKE_BUILD_TYPE=Release >/dev/null
         cmake --build "$ADAPTERS/$a" -j"$(nproc)"
     done
 fi
-cargo build --release -p textvn-cli --manifest-path "$ROOT/Cargo.toml"
+cargo build --release --locked -p textvn-cli --manifest-path "$ROOT/Cargo.toml"
 
 mkdir -p "$DIST"
 "$ROOT/scripts/stage-linux.sh" "$DIST/$NAME" "$ADAPTERS"

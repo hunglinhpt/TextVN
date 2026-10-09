@@ -169,14 +169,14 @@ if (-not $SkipTests) {
 
 # Build release
 Write-Step "Build release --workspace --target $Target"
-cargo build --release @CargoWorkspaceScope --target $Target
+cargo build --release --locked @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 # Vong 14 (Zalo 32-bit): build them TIP DLL x86 - app 32-bit (Zalo, Office x86) khong the nap DLL 64-bit (ERROR_BAD_EXE_FORMAT 193). CRT tinh (khong
 # phu thuoc VC redist x86 tren may nguoi dung).
 Write-Step "Build TIP DLL x86 (WOW64: Zalo/Office 32-bit)"
 $env:RUSTFLAGS = "-C target-feature=+crt-static"
-cargo build --release --target $TargetX86 -p textvn-win-tsf
+cargo build --release --locked --target $TargetX86 -p textvn-win-tsf
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
 $x86Dll = "target/$TargetX86/release/textvn_win_tsf.dll"
