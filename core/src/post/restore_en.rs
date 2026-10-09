@@ -354,6 +354,12 @@ mod tests {
     /// vi phạm trong một lần chạy để chỉnh data nhanh.
     #[test]
     fn data_en_common_file_fires() {
+        // Từ nhánh cấu trúc đã restore (R2-62: âm cuối tắc không sắc/nặng) nhưng vẫn giữ
+        // làm gợi ý Tab — bỏ đi thì `tex`+Tab ra `texts`.
+        const TAB_ONLY: [&str; 4] = ["text", "next", "art", "cart"];
+        for w in TAB_ONLY {
+            assert!(!is_valid_word(&telex(w)), "{w}: không còn là TAB_ONLY");
+        }
         let words = parse_word_list(EN_COMMON_DATA);
         // Ngưỡng chỉ chặn lỡ tay xoá trắng file: R2-56 đã bỏ các từ fold ra âm tiết
         // Việt thật (`this`→`thí`, `host`→`hót`…), danh sách còn ~20 mục.
@@ -376,7 +382,7 @@ mod tests {
             let f: String = folded.iter().collect();
             if &f == w {
                 bad.push(format!("{w}: fold ra chính nó — bỏ đi"));
-            } else if !is_valid_word(&folded) {
+            } else if !is_valid_word(&folded) && !TAB_ONLY.contains(&w.as_str()) {
                 bad.push(format!(
                     "{w}: fold `{f}` KHÔNG hợp lệ — nhánh cấu trúc đã restore, bỏ đi"
                 ));

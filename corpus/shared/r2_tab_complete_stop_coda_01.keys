@@ -1,0 +1,15 @@
+# corpus/shared/r2_tab_complete_stop_coda_01.keys — R2-62: từ EN có âm cuối tắc không sắc/nặng
+# (`text`, `next`, `art`, `cart`) được nhánh cấu trúc trả lại, NHƯNG vẫn phải là gợi ý Tab:
+# `tex`+Tab → `text` (không phải `texts`).
+# oracle: data/en_common.txt (nguồn gợi ý Tab) + docs/specs/language-detection.md
+:config method=telex
+:type "tex"
+:key Tab
+:expect "text"
+:key Space
+:type "nex"
+:key Tab
+:expect "text next"
+:key Space
+:type "text next art cart "
+:expect "text next text next art cart "

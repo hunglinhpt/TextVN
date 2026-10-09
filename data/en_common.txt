@@ -4,7 +4,7 @@
 # Điều kiện một mục (test `data_en_common_file_fires` là oracle):
 #   1. chỉ chữ cái ASCII;  2. fold(Telex, dấu mới, free marking) ≠ chính nó;
 #   3. kết quả fold là âm tiết Việt HỢP LỆ (nếu không hợp lệ thì nhánh cấu trúc
-#      đã restore rồi — mục sẽ vô nghĩa);
+#      đã restore rồi) — trừ các mục trong `TAB_ONLY` của test: giữ chỉ để gợi ý Tab;
 #   4. kết quả fold KHÔNG nằm trong `vn_common.txt` (âm tiết Việt thông dụng
 #      phải giữ nguyên cho người gõ tiếng Việt — xem note mơ hồ bên dưới).
 #
@@ -27,13 +27,18 @@
 # thành dấu, và nguyên âm đôi ee/oo/ew/ow/aw bị nuốt thành ê/ô/ê/ơ/ă.
 # Từ fold ra âm cuối tắc c/ch/p/t mà không mang sắc/nặng (`text`→`tẽt`,
 # `next`→`nẽt`, `art`→`ảt`, `cart`→`cảt`, `sort`→`sỏt`) không phải âm tiết Việt
-# (R2-62) — nhánh cấu trúc đã restore, không cần liệt kê ở đây.
+# (R2-62) — nhánh cấu trúc đã restore. `text`/`next`/`art`/`cart` vẫn giữ ở đây vì
+# file này cũng là nguồn gợi ý Tab (`tex`+Tab → `text`, không phải `texts`).
 # `defend`→`đền`: `d` gõ sau trong từ đổi `d` đầu từ thành `đ` (R2-68).
 # `was`→`ứa`, `war`→`ửa`, `wax`→`ữa`, `wow`→`uơ`: `w` đứng riêng thành `ư` (R2-66).
 # `away`→`ây`: `ă` + `a` đổi dấu thành `â` (R2-70).
 hex
 defend
+text
 texts
+next
+art
+cart
 test
 past
 see
