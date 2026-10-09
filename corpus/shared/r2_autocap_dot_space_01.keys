@@ -1,0 +1,11 @@
+# corpus/shared/r2_autocap_dot_space_01.keys — R2-59: tự viết hoa (bật mặc định) chỉ ở đầu câu:
+# `. ! ?` + Space/Tab, hoặc Enter. Dấu chấm không kèm khoảng trắng (URL, e-mail, tên file,
+# số thập phân, `v.v.`) không kết câu.
+# oracle: spec P0-3 §1.1 ("chữ đầu câu", sau `. ! ?` + Enter) + user-guide §4
+:config method=telex diacritic_style=new auto_capitalize=true
+:type "google.com vnexpress.net file.txt a@b.com gias 3.5 kg v.v. "
+:expect "google.com vnexpress.net file.txt a@b.com giá 3.5 kg v.v. "
+:type "xong! ddi thoi? ok."
+:key Enter
+:type "hen gap"
+:expect "google.com vnexpress.net file.txt a@b.com giá 3.5 kg v.v. Xong! Đi thoi? Ok.\nHen gap"

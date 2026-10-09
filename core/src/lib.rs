@@ -176,10 +176,9 @@ pub struct Engine {
     opts: EngineOptions,
     ctx: Context,
     word: buffer::Word,
-    /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji.
+    /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji
+    /// và tự viết hoa đầu câu (`post/caps.rs::sentence_start`).
     recent: Vec<char>,
-    /// Cờ "chữ cái kế tiếp viết hoa" (sau `. ! ?` / Enter) — `post/caps.rs`.
-    caps_pending: bool,
 }
 
 impl Engine {
@@ -189,7 +188,6 @@ impl Engine {
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
-            caps_pending: false,
         }
     }
 
@@ -198,7 +196,6 @@ impl Engine {
         self.opts = opts;
         self.word.clear();
         self.recent.clear();
-        self.caps_pending = false;
     }
 
     pub fn options(&self) -> &EngineOptions {
@@ -222,7 +219,6 @@ impl Engine {
     pub fn reset(&mut self) {
         self.word.clear();
         self.recent.clear();
-        self.caps_pending = false;
     }
 
     /// Cập nhật đuôi text: xoá `delete` ký tự cuối rồi thêm `insert` (giữ tối đa `RECENT_MAX`).
@@ -410,11 +406,14 @@ impl Engine {
             return self.close_word(c, strategy);
         }
 
-        // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ngay sau `. ! ?` / Enter.
+        // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
+        // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
         let mut caps_fired = false;
-        let c = if self.opts.auto_capitalize && self.caps_pending && self.word.is_empty() {
+        let c = if self.opts.auto_capitalize
+            && self.word.is_empty()
+            && post::caps::sentence_start(&self.recent)
+        {
             caps_fired = true;
-            self.caps_pending = false;
             post::caps::capitalize(c)
         } else {
             c
@@ -521,12 +520,9 @@ impl Engine {
 
     /// Ranh giới từ: Space/Enter/Tab/punct (P0-2 §4, bug B2 cho Enter+Preedit).
     ///
-    /// Thứ tự (stage 7 pipeline): caps (`. ! ?` + Enter) → auto-restore EN (B5) → đóng từ.
+    /// Thứ tự (stage 7 pipeline): auto-restore EN (B5) → đóng từ. Viết hoa đầu câu đọc lại
+    /// đuôi text (`recent`) khi chữ kế tiếp được gõ.
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
-        // `.` `!` `?` `\n` → chữ cái kế tiếp viết hoa (P0-3 §1.1)
-        if post::caps::is_sentence_end(c) {
-            self.caps_pending = true;
-        }
         let was_active = self.word.active;
 
         // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
@@ -686,17 +682,8 @@ impl Engine {
                 flags: FLAG_CONSUMED,
             };
         }
-        // Chưa activate: bỏ 1 ký tự đã gõ thẳng
-        // Nếu người dùng vừa xóa dấu kết câu thì không được giữ cờ viết hoa
-        // cho ký tự kế tiếp (ví dụ `hi.<Backspace>ban` phải là `hiban`).
-        if self.word.is_empty()
-            && self
-                .recent
-                .last()
-                .is_some_and(|&c| post::caps::is_sentence_end(c))
-        {
-            self.caps_pending = false;
-        }
+        // Chưa activate: bỏ 1 ký tự đã gõ thẳng. Đuôi text `recent` bớt theo nên viết hoa
+        // đầu câu tự đúng (`hi.<Backspace>ban` → `hiban`).
         self.word.raw.pop();
         self.word.passed.pop();
         self.word.display.clear();
@@ -1169,6 +1156,42 @@ mod tests {
         buf.pop();
         buf.extend(type_buf(&mut e, "ban"));
         assert_eq!(text(&buf), "hiban");
+    }
+
+    /// Gõ cả chuỗi (Space là phím Space) với cấu hình mặc định, trả document.
+    fn type_doc(e: &mut Engine, input: &str) -> String {
+        let mut buf: Vec<char> = Vec::new();
+        for c in input.chars() {
+            let k = if c == ' ' {
+                KeyEvent::key_down(keymap::vk::SPACE)
+            } else {
+                KeyEvent::char_down(c)
+            };
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+        }
+        text(&buf)
+    }
+
+    /// R2-59: dấu chấm không kèm khoảng trắng (URL, e-mail, tên file, số thập phân, `v.v.`)
+    /// không kết câu; `. ` / `.") ` / Enter vẫn viết hoa chữ kế tiếp.
+    #[test]
+    fn auto_capitalize_needs_space_after_dot() {
+        let mut e = engine();
+        assert_eq!(
+            type_doc(&mut e, "google.com file.txt a@b.com gias 3.5 kg v.v... ok"),
+            "google.com file.txt a@b.com giá 3.5 kg v.v... Ok"
+        );
+        let mut e = engine();
+        assert_eq!(type_doc(&mut e, "chao.\") ban"), "chao.\") Ban");
+        // Xoá Space sau dấu chấm → hết đầu câu; gõ lại Space → đầu câu lại.
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "hi.");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        press(&mut e, &mut buf, keymap::vk::BACK);
+        buf.pop();
+        buf.extend(type_buf(&mut e, "com"));
+        assert_eq!(text(&buf), "hi.com");
     }
 
     #[test]
