@@ -18,7 +18,7 @@
 //! cụm vẫn đúng — `toi6` → `tôi`, `nguoi7` → `ngươi`, `ruou7` → `rươu`, `luu7` → `lưu`.
 
 use super::diacritic_style::vowel_span;
-use super::vowel_table::{form_like, locate, O, O_HOOK, U, U_HOOK};
+use super::vowel_table::{base_entry, form_like, locate, O, O_CIRC, O_HOOK, U, U_HOOK};
 use crate::validate::NUCLEI;
 
 /// Gỡ dấu của ký tự âm về không dấu (giữ case). Không phải âm → giữ nguyên.
@@ -102,7 +102,12 @@ pub fn mark_vowel(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]
                 return Some(Marked::Applied);
             }
         }
-        None
+        // Đổi dấu trên cùng âm: `ơ`/`ă` + mũ → `ô`/`â`, `â` + trăng → `ă` (R2-70, UniKey).
+        let &(_, _, to) = table
+            .iter()
+            .find(|&&(k, from, _)| k == key && from == base_entry(e) && e != from)?;
+        w[idx] = form_like(ch, to, t);
+        Some(Marked::Applied)
     });
     if marked != Some(Marked::Applied) {
         out.push(key);
@@ -118,8 +123,9 @@ pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)])
     let marked = mark_cluster(out, |w, idx| {
         let ch = w[idx];
         let (e, t) = locate(ch)?;
-        // Cụm `uo` (kể cả `ưo` đã sừng ở u): marker áp cả cụm → ư + ơ
-        if e == O {
+        // Cụm `uo` (kể cả `ưo` đã sừng ở u): marker áp cả cụm → ư + ơ. `ô` cũng vậy — đổi dấu
+        // mũ sang sừng (`o67` → `ơ`, `uô` → `ươ`; R2-70).
+        if e == O || e == O_CIRC {
             if let Some(prev) = idx.checked_sub(1).map(|p| w[p]) {
                 if let Some((pe, pt)) = locate(prev) {
                     if pe == U || pe == U_HOOK {

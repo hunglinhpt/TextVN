@@ -130,6 +130,12 @@ mod tests {
         assert_eq!(n("o7"), "ơ");
         assert_eq!(n("i6"), "i6"); // i không nhận mũ → literal
         assert_eq!(n("uo77"), "uo7"); // cặp `ươ` gỡ cả cặp + literal (R2-63)
+                                      // Đổi dấu trên cùng âm (R2-70, UniKey).
+        assert_eq!(n("a68"), "ă");
+        assert_eq!(n("a86"), "â");
+        assert_eq!(n("o67"), "ơ");
+        assert_eq!(n("o76"), "ô");
+        assert_eq!(n("muo6n7"), "mươn");
     }
 
     #[test]

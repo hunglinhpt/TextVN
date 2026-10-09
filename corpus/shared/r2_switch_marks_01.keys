@@ -1,0 +1,11 @@
+# corpus/shared/r2_switch_marks_01.keys — R2-70: bấm phím dấu phụ khác trên âm đã có dấu phụ thì
+# đổi dấu (sửa gõ nhầm): `toow` → `tơ`, `awa` → `â`, `traawng` → `trăng`; VNI `o67` → `ơ`.
+# oracle: UniKey — bảng chuỗi nguyên âm ánh xạ qua lại dạng mũ và sừng/trăng (withRoof/withHook).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "toowf traawngs vaawn muoonwj "
+:expect "tờ trắng văn mượn "
+:type "away "
+:expect "tờ trắng văn mượn away "
+:config method=vni
+:type "to67 a68n muo6n75 "
+:expect "tờ trắng văn mượn away tơ ăn mượn "

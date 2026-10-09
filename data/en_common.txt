@@ -30,6 +30,7 @@
 # (R2-62) — nhánh cấu trúc đã restore, không cần liệt kê ở đây.
 # `defend`→`đền`: `d` gõ sau trong từ đổi `d` đầu từ thành `đ` (R2-68).
 # `was`→`ứa`, `war`→`ửa`, `wax`→`ữa`, `wow`→`uơ`: `w` đứng riêng thành `ư` (R2-66).
+# `away`→`ây`: `ă` + `a` đổi dấu thành `â` (R2-70).
 hex
 defend
 texts
@@ -53,3 +54,4 @@ war
 wars
 wax
 wow
+away

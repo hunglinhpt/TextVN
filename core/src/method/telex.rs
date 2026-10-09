@@ -27,7 +27,7 @@ use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
 use crate::transform::tone::{apply_key, is_vowel, remove_tone, tone_of};
 use crate::transform::undo::{mark_cluster, Marked};
-use crate::transform::vowel_table::{form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
+use crate::transform::vowel_table::{base_entry, form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
 use crate::validate::CODAS;
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
@@ -195,7 +195,9 @@ fn push_key(
                     out.push(c); // + gõ chữ đó (`xooong` → `xoong`, R2-63)
                     return;
                 }
-                if le == plain {
+                // Âm gốc, hoặc đổi dấu `ă`/`ơ` → `â`/`ô` (`awa` → `â`, `towo` → `tô`; R2-70 —
+                // UniKey đổi qua lại giữa mũ và sừng/trăng trên cùng âm).
+                if le == plain || base_entry(le) == plain {
                     let idx = out.len() - 1;
                     out[idx] = form_like(last, circ, lt);
                     return;
@@ -315,7 +317,15 @@ fn horn(out: &mut [char], table: &[(char, usize, usize)]) -> Horn {
                 return Some(Marked::Applied);
             }
         }
-        None
+        // Đổi dấu: `â`/`ô` + `w` → `ă`/`ơ` (`aaw` → `ă`, `toow` → `tơ`, `uô` → `ươ`; R2-70).
+        let &(_, _, to) = table
+            .iter()
+            .find(|&&(_, from, _)| from == base_entry(e) && e != from)?;
+        w[idx] = form_like(ch, to, t);
+        if to == O_HOOK && idx > 0 && matches!(locate(w[idx - 1]), Some((U, _))) {
+            w[idx - 1] = form_like(w[idx - 1], U_HOOK, tone_of(w[idx - 1]).unwrap_or(0));
+        }
+        Some(Marked::Applied)
     });
     match marked {
         Some(Marked::Applied) => Horn::Applied,
@@ -496,6 +506,24 @@ mod tests {
         assert_eq!(n("eww"), "eww");
         // `W` gõ bằng Shift (không Caps Lock) vẫn là chữ thường lệ như `S F R X J`.
         assert_eq!(n("We"), "We");
+    }
+
+    /// R2-70: đổi qua lại giữa mũ và sừng/trăng trên cùng âm (UniKey).
+    #[test]
+    fn switch_between_vowel_marks() {
+        for (keys, want) in [
+            ("toow", "tơ"),
+            ("towo", "tô"),
+            ("aaw", "ă"),
+            ("awa", "â"),
+            ("toosw", "tớ"),
+            ("traawng", "trăng"),
+            ("muoonw", "mươn"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+        // `ê` không có dạng sừng → `w` là chữ thường như trước.
+        assert_eq!(n("eew"), "êw");
     }
 
     /// R2-63: bấm phím dấu lần ba → gỡ dấu **và** gõ chữ đó (như `ass` → `as`; UniKey
