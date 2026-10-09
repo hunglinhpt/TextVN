@@ -27,6 +27,8 @@
 //! `hotkeys.restore_last`); Tab gợi ý hoàn tất từ EN dùng chung dữ liệu ở
 //! `complete_word`.
 
+use crate::transform::stroke::is_stroke;
+use crate::transform::tone::is_vowel;
 use crate::validate::is_valid_word;
 
 /// `data/en_common.txt` — nhúng lúc biên dịch (core **không** I/O: S1).
@@ -82,10 +84,17 @@ pub fn should_restore(raw: &[char], display: &[char], english_words: &[String]) 
     if raw.is_empty() || raw == display {
         return false;
     }
-    if !is_valid_word(display) {
+    if listed(raw, english_words) {
         return true;
     }
-    if listed(raw, english_words) {
+    // Token không có nguyên âm mà vẫn bị biến đổi thì biến đổi đó là `đ` (dấu thanh/mũ/
+    // sừng đều cần nguyên âm): `50.000đ`, `ĐT`, `ĐHQG`, `đc`, `đ/c` — chữ viết tắt và đơn
+    // vị tiền rất thường gặp, tiếng Anh không có từ nào như vậy (R2-58; UniKey `processDd`
+    // cũng cố ý cho `dd` trong chuỗi không phải tiếng Việt).
+    if !display.iter().any(|&c| is_vowel(c)) && display.iter().any(|&c| is_stroke(c)) {
+        return false;
+    }
+    if !is_valid_word(display) {
         return true;
     }
     let typed: String = raw.iter().collect::<String>().to_lowercase();
@@ -178,6 +187,32 @@ mod tests {
     fn keeps_valid_vietnamese() {
         assert!(!should_restore(&chars("duocj"), &chars("được"), &[]));
         assert!(!should_restore(&chars("hoaf"), &chars("hoà"), &[]));
+    }
+
+    /// R2-58: `đ` trong token không nguyên âm (giá tiền, chữ viết tắt) giữ nguyên.
+    #[test]
+    fn stroke_without_vowel_is_kept() {
+        for (raw, display) in [
+            ("dd", "đ"),
+            ("000dd", "000đ"),
+            ("DDT", "ĐT"),
+            ("ddc", "đc"),
+            ("DDHQG", "ĐHQG"),
+            ("d9", "đ"),
+        ] {
+            assert!(
+                !should_restore(&chars(raw), &chars(display), &[]),
+                "`{raw}` → `{display}` phải giữ"
+            );
+        }
+        // Có nguyên âm thì vẫn kiểm cấu trúc như cũ (`add` → `ađ` → restore).
+        assert!(should_restore(&chars("add"), &chars("ađ"), &[]));
+        // Từ điển cá nhân vẫn thắng.
+        assert!(should_restore(
+            &chars("ddc"),
+            &chars("đc"),
+            &["ddc".to_string()]
+        ));
     }
 
     #[test]
