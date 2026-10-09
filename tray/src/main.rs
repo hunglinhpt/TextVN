@@ -1191,7 +1191,12 @@ unsafe extern "system" fn wnd_proc(
             // Win+Space), đổi mode TextVN thôi thì không đổi được thứ họ gõ —
             // phải chuyển cả bộ gõ active sang TextVN thì typing mới theo
             // icon (báo cáo 0.2.9 "đã chuyển EN mà vẫn gõ tiếng Việt").
-            spawn_activate_profile();
+            // R2-34: người dùng bỏ "Dành Ctrl + Shift cho TextVN" (hoặc từ chối ở
+            // bản Store) → Windows đang đổi bàn phím bằng CHÍNH tổ hợp này; ép kích
+            // hoạt lại TextVN sẽ kéo họ về TextVN mỗi lần muốn rời đi.
+            if !textvn_tray::hotkey::current().ctrl_shift_taken() {
+                spawn_activate_profile();
+            }
             textvn_tray::settings_dialog::refresh_if_open();
             LRESULT(0)
         }
