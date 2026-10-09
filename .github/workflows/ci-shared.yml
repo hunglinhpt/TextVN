@@ -61,6 +61,45 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
+  clippy-windows:
+    # R2-84: code cfg(windows) (tray, TSF, hook, cli) chỉ được clippy trên Windows trong
+    # build-release.ps1 — và bản mặc định LOẠI textvn-win-hook. Cross-check target
+    # MSVC trên Linux (không link) phủ cả hook, nhanh, không cần runner Windows.
+    name: clippy Windows target (cross-check, gồm hook)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+
+  linux-common-sanitizers:
+    # R2-79: test C của linux-common (IPC client: SIGPIPE, frame dở dang, header) chạy
+    # với ASan + UBSan — trước đây chỉ e2e build Release, lỗi bộ nhớ lọt qua.
+    name: linux-common tests (ASan + UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p textvn-ffi
+      - name: cmake Debug + -fsanitize=address,undefined → ctest
+        run: |
+          cmake -S adapters/linux-common -B build-asan -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-asan -j
+          ctest --test-dir build-asan --output-on-failure
+
   abi-sizes:
     timeout-minutes: 15
     # P0-2 §6: struct FFI lệch kích thước = sửa ABI mà chưa bump IME_ABI_VERSION.
@@ -91,6 +130,8 @@ jobs:
       # tools/mac/targets/*.json (MAC-061) là nguồn sự thật của harness AX — gate
       # preset/role/locator chạy được trên mọi OS, không cần máy Mac.
       - run: cargo run -q -p xtask -- check-mac-targets
+      # R2-80: trước chỉ chạy trong ci-macos (path filter không gồm corpus/win).
+      - run: cargo run -q -p xtask -- check-win-corpus
       # Plist/manifest/iss/cask/AppStream ghi version tay phải khớp Cargo.toml
       # (review R3 F3-10 + blocker 1: installer kẹt 0.1.0 khi exe đã 0.2.0).
       - run: cargo run -q -p xtask -- check-version-sync
