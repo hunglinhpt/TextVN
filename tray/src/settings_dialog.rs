@@ -31,7 +31,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 #[cfg(windows)]
-use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -949,16 +949,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
-                ID_BTN_SETUP_TSF => match register_and_activate_tsf() {
-                    Ok(()) => show_information(
-                        hwnd,
-                        "TextVN TSF",
-                        "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
-                    ),
-                    Err(reason) => {
-                        show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
-                    }
-                },
+                ID_BTN_SETUP_TSF => start_tsf_setup(hwnd),
 
                 ID_BTN_DEFAULT => {
                     if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
@@ -1050,6 +1041,27 @@ unsafe extern "system" fn dialog_wnd_proc(
                         );
                     }
                 }
+            }
+            LRESULT(0)
+        }
+        WM_TSF_SETUP_DONE => {
+            let result = TSF_SETUP_RESULT
+                .lock()
+                .ok()
+                .and_then(|mut slot| slot.take());
+            if let Ok(button) = GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) {
+                let _ = EnableWindow(button, true);
+            }
+            match result {
+                Some(Ok(())) => show_information(
+                    hwnd,
+                    "TextVN TSF",
+                    "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
+                ),
+                Some(Err(reason)) => {
+                    show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
+                }
+                None => {}
             }
             LRESULT(0)
         }
@@ -1764,6 +1776,56 @@ fn show_information(owner: HWND, title: &str, content: &str) {
 /// Trả `Err(lý do thật)`: exit code + đuôi `register.log` — trước đây dialog luôn
 /// đổ cho "quyền ghi HKCU" kể cả khi nguyên nhân là thiếu DLL/CLI, khiến người
 /// dùng sửa sai chỗ (ảnh lỗi thực tế: sandbox chặn HKCU + thiếu log).
+/// Kết quả "Cài & bật TSF" từ thread nền về dialog (R2-32).
+#[cfg(windows)]
+const WM_TSF_SETUP_DONE: u32 = WM_APP + 40;
+#[cfg(windows)]
+static TSF_SETUP_RESULT: std::sync::Mutex<Option<std::result::Result<(), String>>> =
+    std::sync::Mutex::new(None);
+
+/// R2-32: `textvn-cli register` mất 1–5 s (broadcast `WM_SETTINGCHANGE` chờ cả cửa sổ
+/// của chính tray). Chạy đồng bộ ở đây là chặn thread UI — cũng là thread giữ
+/// `WH_KEYBOARD_LL`: dialog "Not Responding", mọi phím toàn hệ thống chờ hook, quá
+/// `LowLevelHooksTimeout` thì Windows gỡ hook (Ctrl+Shift chết tới khi tray khởi động
+/// lại). Chạy ở thread nền, khoá nút trong lúc chờ, báo kết quả bằng message.
+#[cfg(windows)]
+fn start_tsf_setup(hwnd: HWND) {
+    let Ok(button) = (unsafe { GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) }) else {
+        return;
+    };
+    // Nút đang khoá = lượt trước chưa xong.
+    if !unsafe { IsWindowEnabled(button) }.as_bool() {
+        return;
+    }
+    let _ = unsafe { EnableWindow(button, false) };
+    let raw = hwnd.0 as isize;
+    let spawned = std::thread::Builder::new()
+        .name("textvn-tsf-setup".into())
+        .spawn(move || {
+            let result = register_and_activate_tsf();
+            if let Ok(mut slot) = TSF_SETUP_RESULT.lock() {
+                *slot = Some(result);
+            }
+            // Dialog đã đóng thì PostMessage thất bại — kết quả bị bỏ, không sao.
+            let _ = unsafe {
+                PostMessageW(
+                    Some(HWND(raw as *mut _)),
+                    WM_TSF_SETUP_DONE,
+                    WPARAM(0),
+                    LPARAM(0),
+                )
+            };
+        });
+    if spawned.is_err() {
+        let _ = unsafe { EnableWindow(button, true) };
+        show_information(
+            hwnd,
+            "Không thể đăng ký TextVN TSF",
+            "Không tạo được tiến trình nền để chạy textvn-cli. Thử lại sau.",
+        );
+    }
+}
+
 #[cfg(windows)]
 fn register_and_activate_tsf() -> std::result::Result<(), String> {
     let Ok(mut cli_path) = std::env::current_exe() else {
