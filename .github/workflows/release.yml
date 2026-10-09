@@ -88,6 +88,14 @@ jobs:
           extra=()
           if [ -n "${MSIX_IDENTITY_NAME:-}" ]; then extra+=(--require-store-identity); fi
           python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver" "${extra[@]}"
+      # R2-77: CHINH goi sap phat hanh phai chay that (cai ky tam, mo app, go goi)
+      # - khong chi dua vao lan ci-shared truoc do.
+      - name: MSIX sideload (cai that, mo app, go goi)
+        shell: powershell
+        run: |
+          $msix = Get-ChildItem dist\TextVN-*-windows-x64.msix | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-msix-sideload.ps1 -Msix $msix.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # Bien the MAY (PrivilegesRequired=admin, ARP o HKLM) — goi danh cho
       # Package validation cua Store (vong 5: validator khong thay entry HKCU).
       # Chay SAU moi test per-user de khong lam lech auto-pick; tu validate
