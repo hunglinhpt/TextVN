@@ -181,7 +181,7 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Tray thêm được `WH_MOUSE_LL`, nhưng TIP (trong tiến trình app) không thấy chuột và vẫn tự đảo V/E — cần tray báo "vừa có click" cho TIP qua bộ nhớ chung: thay đổi giao thức |
 | R2-14 | Ảnh scale-200/targetsize + `resources.pri` (makepri) | Thẩm mỹ; PRI sai làm mất logo — cần kiểm trên Windows thật |
 | R2-85 (phần còn lại) | Ghim toolchain Rust và Inno Setup | Chủ sở hữu chọn version; ghim lệch máy dev sẽ đỏ clippy |
-| CR-08, CR-10, CR-14, CR-20 (b), CR-38 (SHA) | Như vòng 1 | Như vòng 1 |
+| CR-08, CR-10, CR-14, CR-20 (b) | Như vòng 1 | Như vòng 1 (CR-34 và CR-38 đã xong ở vòng này — `017bc82`, `c31d54c`) |
 
 ## 6. Gate cục bộ (container Linux)
 
