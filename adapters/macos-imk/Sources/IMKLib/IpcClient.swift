@@ -117,8 +117,11 @@ public enum IpcMessage: Equatable {
                   let count = asUInt64(obj["count"] ?? 0), count <= UInt32.max else { return nil }
             return .crashReport(code: UInt32(code), count: UInt32(count))
         case "Snapshot":
+            // CR-34: appdb_version là SỐ như textvn-ipc (u32); chuỗi "1.0" của
+            // TextVN.app bản cũ vẫn nhận để nâng cấp lệch nhịp không rớt kết nối.
             guard let configVersion = asUInt64(obj["config_version"] ?? 0),
-                  let appdbVersion = obj["appdb_version"] as? String,
+                  let appdbVersion = asUInt64(obj["appdb_version"] ?? "").map({ String($0) })
+                      ?? (obj["appdb_version"] as? String),
                   let channel = obj["channel"] as? String else { return nil }
             let state = (obj["state"] as? [String: Bool]) ?? [:]
             return .snapshot(configVersion: configVersion, state: state,

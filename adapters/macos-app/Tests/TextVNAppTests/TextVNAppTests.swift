@@ -274,6 +274,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(Set(msg.keys), ["type", "config_version", "state", "appdb_version", "channel"])
         let state = msg["state"] as? [String: Bool]
         XCTAssertEqual(state, ["*": false, "com.apple.Safari": true])
+        XCTAssertEqual(msg["appdb_version"] as? Int, 1, "CR-34: appdb_version là số như textvn-ipc")
     }
 
     /// F3-1: một quy ước toàn cục "*" (IMK bản cũ gửi "" vẫn được hiểu).

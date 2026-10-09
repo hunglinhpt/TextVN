@@ -23,6 +23,11 @@ Mọi JSON có discriminator `type`. Danh sách v1 đóng:
 | Client → server | `Hello { pid, abi, version }`, `GetSnapshot`, `Subscribe { pid }`, `ToggleViEn { app_id, enabled }`, `CrashReport { code, count }`, `Ping` |
 | Server → client | `Snapshot { config_version, state, appdb_version, channel }`, `Ack`, `ConfigReload { version }`, `StateUpdate { app_id, enabled, version }`, `Pong { uptime_ms }` |
 
+Kiểu trường (khớp `textvn-ipc`, CR-34): `pid`, `abi`, `config_version`,
+`appdb_version`, `count`, `uptime_ms` và `version` của `ConfigReload`/`StateUpdate`
+là **số nguyên** JSON; `Hello.version` (phiên bản sản phẩm) là chuỗi; `state` là
+object `string → bool`; `enabled` là bool; còn lại là chuỗi.
+
 `CrashReport.code` là mã phân loại, không được chứa text đang gõ. `state` là map
 `app_id → enabled`; `StateUpdate` là push cho client đã Subscribe. `app_id = "*"`
 là trạng thái **toàn cục** (bật/tắt tiếng Việt) trong `ToggleViEn`, `StateUpdate`

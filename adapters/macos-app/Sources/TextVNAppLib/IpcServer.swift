@@ -339,7 +339,8 @@ public final class IpcServer {
             "type": "Snapshot",
             "config_version": configVersion,
             "state": state.filter { !$0.key.isEmpty },
-            "appdb_version": "1.0",
+            // CR-34: số như `textvn-ipc` (u32) — chuỗi "1.0" làm client Rust từ chối frame.
+            "appdb_version": 1,
             "channel": "stable",
         ]
     }

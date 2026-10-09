@@ -367,6 +367,17 @@ final class IpcCodecTests: XCTestCase {
         // ToggleViEn: chiều client→server.
         let toggle = Data("{\"type\":\"ToggleViEn\",\"app_id\":\"*\",\"enabled\":true}".utf8)
         XCTAssertEqual(IpcMessage.decode(toggle), .toggleViEn(appID: "*", enabled: true))
+        // Snapshot: appdb_version SỐ (CR-34); chuỗi của app bản cũ vẫn nhận.
+        let snap = Data("{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":true},\"appdb_version\":1,\"channel\":\"stable\"}".utf8)
+        XCTAssertEqual(
+            IpcMessage.decode(snap),
+            .snapshot(configVersion: 3, state: ["*": true], appdbVersion: "1", channel: "stable")
+        )
+        let oldSnap = Data("{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{},\"appdb_version\":\"1.0\",\"channel\":\"stable\"}".utf8)
+        XCTAssertEqual(
+            IpcMessage.decode(oldSnap),
+            .snapshot(configVersion: 3, state: [:], appdbVersion: "1.0", channel: "stable")
+        )
     }
 
     func testDecodeRejectsMalformed() {
