@@ -114,8 +114,9 @@ pub fn disable_linux_autostart_in_dir(autostart_dir: &Path) -> std::result::Resu
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     #[cfg(windows)]
     {
-        Ok(autostart_command()
-            .is_some_and(|cmd| !cmd.trim().is_empty() && !crate::store::run_command_is_guard(&cmd)))
+        let user = autostart_command()
+            .is_some_and(|cmd| !cmd.trim().is_empty() && !crate::store::run_command_is_guard(&cmd));
+        Ok(user || machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()))
     }
     #[cfg(target_os = "linux")]
     {
@@ -131,6 +132,11 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
 pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
+        // R2-27: bộ cài cho mọi người dùng đã đặt HKLM Run → không ghi thêm mục HKCU trùng
+        // (hai tiến trình tray lúc đăng nhập, mục thừa còn lại sau khi gỡ).
+        if machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()) {
+            return Ok(());
+        }
         let path = match exe_path {
             Some(p) => p.to_path_buf(),
             None => {
@@ -260,17 +266,25 @@ fn delete_hkcu_values(subkey: &str, names: &[&str]) -> std::result::Result<(), S
 /// Lệnh tự khởi động đang đăng ký (`HKCU\...\Run\TextVN`), nếu có.
 #[cfg(windows)]
 pub fn autostart_command() -> Option<String> {
+    read_run_value(HKEY_CURRENT_USER, KEY_READ)
+}
+
+/// R2-27: lệnh tự khởi động do bộ cài cho MỌI người dùng ghi (`HKLM\...\Run\TextVN`,
+/// view 64-bit) — checkbox phải thấy nó, nếu không người dùng bật lại sẽ tạo mục HKCU
+/// trùng.
+#[cfg(windows)]
+pub fn machine_autostart_command() -> Option<String> {
+    read_run_value(HKEY_LOCAL_MACHINE, KEY_READ | KEY_WOW64_64KEY)
+}
+
+#[cfg(windows)]
+fn read_run_value(root: HKEY, access: REG_SAM_FLAGS) -> Option<String> {
     // SAFETY: buffer đủ `len` byte do chính RegQueryValueExW báo; key được đóng mọi nhánh.
     unsafe {
         let mut hkey = HKEY::default();
         let subkey_wide = to_wide(RUN_KEY_PATH);
-        if RegOpenKeyExW(
-            HKEY_CURRENT_USER,
-            PCWSTR(subkey_wide.as_ptr()),
-            None,
-            KEY_READ,
-            &mut hkey,
-        ) != ERROR_SUCCESS
+        if RegOpenKeyExW(root, PCWSTR(subkey_wide.as_ptr()), None, access, &mut hkey)
+            != ERROR_SUCCESS
         {
             return None;
         }

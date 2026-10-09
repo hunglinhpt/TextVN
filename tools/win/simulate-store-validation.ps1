@@ -13,14 +13,28 @@
 # SmartScreen/chinh sach tren VM)  -  dung nhu Microsoft lam.
 #
 # ASCII-only (G7/A5).
+# R2-81: -Setup <file> = kiem CHINH ban vua build (CI) - file duoc chep va gan MOTW
+# (Zone.Identifier ZoneId=3) nhu vua tai tu internet. Truoc day CI luon tai ban 0.2.27
+# da phat hanh tu branch approved (version cung) nen khong kiem ban dang build.
+# -Url van dung de kiem file da dua len approved truoc khi nop.
 param(
-    [string]$Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.27/TextVN-setup-0.2.27-windows-x64.exe",
+    [string]$Setup = "",
+    [string]$Url = "",
     [string]$ExpectName = "TextVN",
     [string]$ExpectPublisher = "",
-    [string]$ExpectVersion = "0.2.27",
+    [string]$ExpectVersion = "",
     [string]$Switches = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
 )
 $ErrorActionPreference = 'Stop'
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+if (-not $ExpectVersion) {
+    $line = Select-String -Path (Join-Path $repoRoot 'Cargo.toml') -Pattern '^version = "([^"]+)"' | Select-Object -First 1
+    if (-not $line) { throw 'Khong doc duoc version tu Cargo.toml (dung -ExpectVersion)' }
+    $ExpectVersion = $line.Matches[0].Groups[1].Value
+}
+if (-not $Setup -and -not $Url) {
+    $Url = "https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v$ExpectVersion/TextVN-setup-$ExpectVersion-windows-x64.exe"
+}
 
 # Publisher display name THAT tren Partner Center (chu tai khoan xac nhan lan 2,
 # 2026-10-04 sau B18): "Linh Bui" - ASCII thuan (lan truoc doc nham font: B U+0042
@@ -51,7 +65,7 @@ function Get-ArpEntries {
 }
 
 Write-Host "==== SIMULATE MICROSOFT STORE VALIDATION ===="
-Write-Host "URL: $Url"
+if ($Setup) { Write-Host "Setup: $Setup (local build, MOTW gan tay)" } else { Write-Host "URL: $Url" }
 Write-Host "Switches: $Switches"
 Write-Host "Expect: name~'$ExpectName' publisher='$ExpectPublisher' version='$ExpectVersion'"
 Write-Host ""
@@ -62,8 +76,14 @@ if (-not $rt) { $rt = $env:TEMP }
 $tempDir = Join-Path $rt ('store-sim-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 $setupFile = Join-Path $tempDir 'TextVN-setup.exe'
-Write-Host "[B0] Downloading installer (MOTW will be applied automatically)..."
-Invoke-WebRequest -Uri $Url -OutFile $setupFile -UseBasicParsing
+if ($Setup) {
+    Write-Host "[B0] Copying local installer + applying MOTW (ZoneId=3, Internet)..."
+    Copy-Item -LiteralPath $Setup -Destination $setupFile
+    Set-Content -LiteralPath $setupFile -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://github.com/hunglinhpt/TextVN/releases/"
+} else {
+    Write-Host "[B0] Downloading installer (MOTW will be applied automatically)..."
+    Invoke-WebRequest -Uri $Url -OutFile $setupFile -UseBasicParsing
+}
 $fileSize = (Get-Item $setupFile).Length
 if ($fileSize -lt 100000) { throw "Downloaded file too small: $fileSize bytes" }
 Write-Host "  Downloaded: $fileSize bytes"

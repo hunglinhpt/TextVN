@@ -389,7 +389,7 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  HotkeyValue: String;
+  HotkeyValue, RunValue: String;
 begin
   // R2-29: hen xoa DLL bi khoa PHAI chay o usUninstall — luc usPostUninstall Inno da
   // xoa textvn-cli.exe nen Exec that bai im lang va DLL/thu muc con lai mai mai.
@@ -397,6 +397,12 @@ begin
     ScheduleCleanupViaCli();
   if CurUninstallStep = usPostUninstall then
   begin
+    // R2-27: tray tu ghi HKCU Run 'TextVN' (o "Khoi dong cung Windows") - [Registry]
+    // chi xoa muc cua chinh bo cai. Muc tro vao thu muc dang go thi xoa; muc cua ban
+    // khac (portable/Store) giu nguyen.
+    if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN', RunValue)
+       and (Pos(Lowercase(ExpandConstant('{app}') + '\'), Lowercase(RunValue)) > 0) then
+      RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN');
     // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
     // Chi xoa khi gia tri = 3 (override do TextVN dat: "khong gan phim") — giong
     // uninstall.ps1 cua ban portable; neu nguoi dung tu doi sang gia tri khac thi

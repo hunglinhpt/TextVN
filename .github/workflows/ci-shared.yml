@@ -311,12 +311,13 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # Mo phong DUNG flow Microsoft Store validator: download tu raw URL cua
-      # branch approved (MOTW tu dong gan) -> chay silent -> check 3 muc.
+      # Mo phong DUNG flow Microsoft Store validator tren CHINH ban vua build (R2-81):
+      # file gan MOTW nhu vua tai -> chay silent -> check 3 muc.
       - name: Simulate Store validator (download + MOTW + silent + ARP + bundleware)
         shell: powershell
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1
+          $setup = Get-ChildItem dist\TextVN-setup-*-windows-x64.exe | Where-Object { $_.Name -notlike '*-machine.exe' } | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1 -Setup $setup.FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # Context Matrix Test (audit vong 4 §3.4.3 / STO-02): runner GitHub chay
       # ELEVATED — dung moi truong do CHUNG MINH ban MAY (/DMachineInstall=1)
