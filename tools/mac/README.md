@@ -75,7 +75,7 @@ ax-driver --suite ci|full --only <app_id> --report <out.json>
 
 ## 3. Việc còn lại trên máy thật (cập nhật 2026-10-09)
 
-macOS đã hoàn tất phần sản phẩm (chủ repo xác nhận trên máy thật 2026-10-08) — xem
+macOS đã hoàn tất phần sản phẩm (chủ repo báo phát triển xong 2026-10-08) — xem
 `docs/30-macos/IMPLEMENTATION-STATUS.md` (mục "Còn mở"). Phần còn lại của thư mục này:
 viết `ax-driver` (MAC-060); chạy `soak.sh`/`mem-check.sh` rồi ghi `perf/baseline-mac.json`
 bằng `cargo run -p textvn-bench --release -- write perf/baseline-mac.json` (MAC-062/063);

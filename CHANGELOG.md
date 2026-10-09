@@ -9,6 +9,40 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fixed — rà soát vòng 2: Microsoft Store, ký số, QA (chi tiết: `docs/release/code-review-2026-10-09-round2.md`)
+- **Microsoft Store (MSIX) chạy thật**: bản cài từ Store chép chương trình ra ngoài gói
+  (`%USERPROFILE%\.textvn`, `%LOCALAPPDATA%\Programs\TextVN-Store`) bằng tiến trình thoát
+  khỏi container rồi mới đăng ký bộ gõ — trước đây mọi ghi bị Windows ảo hoá nên app khác
+  không thấy TextVN. Gỡ gói Store thì lần đăng nhập kế dọn sạch đăng ký, mục khởi động,
+  Ctrl + Shift và file đã chép; Store cập nhật thì tự chép lại. Bản Store **hỏi** trước khi
+  dành Ctrl + Shift và không bao giờ xin quyền Administrator. CI cài thử gói thật mỗi lần.
+- Gói MSIX nộp được: Version `(A+1).B.C.0` (Partner Center từ chối số đầu 0), mô tả tiếng
+  Việt không còn lỗi mã hoá, ảnh 71×71 đúng, identity theo Partner Center
+  (`MSIX_IDENTITY_NAME`), `tools/win/verify-msix.py` kiểm gói trước khi nộp.
+- **Bảo mật Windows**: không còn đăng ký bộ gõ cho cả máy từ thư mục người dùng ghi được
+  (chỉ từ Program Files); gỡ bản portable chỉ xoá đúng file TextVN, không bao giờ xoá cả thư
+  mục; mọi binary link CRT tĩnh (không cần VC++ redist); bộ cài `-machine.exe` được ký khi
+  bật SignPath.
+- Windows: nâng cấp **giữ nguyên** kiểu gõ, tuỳ chọn và thiết lập theo app (trước đây bị
+  reset mỗi bản) và không làm mất kích hoạt bộ gõ; bản cài cho mọi người dùng tự đăng ký cho
+  từng tài khoản; menu "Bật tiếng Việt cho {app}" hiển thị đúng; "Từ điển EN" dùng Tab/Esc
+  được; "Kiem tra he thong" không đóng ngay; "Cài & bật TSF" không còn treo Bảng điều khiển.
+- Windows: bỏ "Dành Ctrl + Shift" thì TextVN không còn kéo bạn về TextVN mỗi khi Windows
+  đổi bàn phím; gỡ cài đặt (bộ cài, portable, Store) trả Ctrl + Shift về **đúng giá trị
+  trước đó** (cả phím đổi ngôn ngữ), không đụng lựa chọn bạn tự đặt.
+- Gõ tiếng Việt: auto-restore và Tab gợi ý không còn biến từ Việt thành tiếng Anh (`thí`,
+  `vơ`, `hót`, `có`+Tab); giữ `đ` trong `50.000đ`, `ĐT`, `đc`, `đ/c`.
+- macOS: chọn cách chèn chữ theo app hoạt động trở lại (trước luôn rơi về một cách);
+  "Gõ không gạch chân" có hiệu lực ngay; Ctrl + Shift bật lại được khi TextVN.app không chạy;
+  gõ tắt cùng luật với Windows/Linux; gỡ bản cài cho mọi người dùng hỏi quyền quản trị; ký
+  Developer ID + notarize tự chạy khi có chứng chỉ Apple.
+- Linux: Fcitx5 luôn thấy addon gốc của nó; IBus chạy được khi đường dẫn cài có khoảng
+  trắng; `sudo ./install.sh --system` không đụng thiết lập của người dùng; cửa sổ Cài đặt
+  GTK không còn mất cửa sổ Từ điển EN.
+- Phát hành: ký GPG + Sigstore **bắt buộc** trong CI (thiếu khoá thì dừng); SignPath dùng
+  đúng REST API, một lần duyệt cho cả bộ binary; cask Homebrew đúng sha; build `--locked`;
+  thiếu VERSIONINFO thì build fail; release notes nói đúng trạng thái ký số.
+
 ### Fixed — rà soát mã nguồn chuyên sâu 2026-10-07 (chi tiết: `docs/release/code-review-2026-10-07.md`)
 - **Mất chữ (P0)**: giữ phím lặp sau từ có dấu (`đẹppppp…`, > 64 phím) từng làm phím
   kế tiếp xoá lẹm chữ phía trước — engine giờ đóng từ khi chạm giới hạn, FFI từ chối

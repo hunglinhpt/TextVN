@@ -183,7 +183,7 @@ Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 | Gõ tắt cả khi tắt tiếng Việt | gõ tắt vẫn bung khi đang ở chế độ E |
 | Khởi động cùng Windows (macOS: Khởi động cùng OS) / Bật hội thoại này khi khởi động | Windows và macOS |
 | Gõ không gạch chân (Non-preedit) · Chạy ngầm trong menu bar | chỉ macOS |
-| Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows |
+| Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows (đúng giá trị trước đó, gồm cả phím đổi ngôn ngữ) và TextVN không còn tự kéo bạn về TextVN khi Windows đổi bàn phím. Gỡ cài đặt cũng trả lại như vậy |
 
 Mọi thay đổi lưu ngay, không cần khởi động lại. **Mặc định** đưa mọi tuỳ chọn về ban đầu
 nhưng giữ nguyên bảng gõ tắt.

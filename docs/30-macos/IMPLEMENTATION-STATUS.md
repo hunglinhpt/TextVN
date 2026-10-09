@@ -40,7 +40,7 @@ cần tăng version trong `Cargo.toml` hoặc lưu bản cũ trước.
 | Corpus mac 114 case | `corpus/mac/` (gen từ `xtask/src/mac_corpus_cases.rs`) | MAC-006 (≥60) · P2-5 §2 | `replay corpus/mac --adapter mac` = 114/114 (headless, mọi OS) |
 | Generator corpus mac trong xtask | `cargo xtask gen-mac-corpus` / `check-mac-corpus` | — | `cargo test -p xtask` |
 | CoreBridge FFI Swift | `adapters/macos-imk/Sources/CoreBridge/` | MAC-003 (phần code) | `swift test` trên runner |
-| IMK adapter (controller, marked, apply, field detect, IPC, translator) | `adapters/macos-imk/Sources/IMKLib/` | MAC-010…019 (phần code) | `swift test` (CI ✅) · phát hành từ v0.2.x, chủ repo xác nhận trên máy thật 2026-10-08 |
+| IMK adapter (controller, marked, apply, field detect, IPC, translator) | `adapters/macos-imk/Sources/IMKLib/` | MAC-010…019 (phần code) | `swift test` (CI ✅) · phát hành từ v0.2.x; chủ repo báo phát triển xong 2026-10-08 |
 | Info.plist + entitlements + build-rust.sh (2 arch + lipo) | `adapters/macos-imk/` | MAC-001/003 (phần build) | CI `ci-macos.yml` |
 | CGEventTap opt-in (tap thread, marker loop-guard, self-disable, injector 3 mode, permission poll) | `adapters/macos-tap/` | MAC-040…044 (phần code) | `swift test` (CI ✅) · **chưa nhúng vào bundle phát hành**, chưa có UI opt-in |
 | Menu Bar App (NSStatusItem, badge V/E, menu 9 mục, IPC server unix socket, autostart Rule S5) | `adapters/macos-app/` | MAC-050…053 (phần code) | `swift test` (`TextVNAppTests`) |

@@ -1,7 +1,7 @@
 # env-mac — Môi trường build macOS (MAC-001)
 
 > Trạng thái (2026-10-09): **✅ đã kiểm trên CI `macos-latest`** (`ci-macos` + `release.yml`,
-> từ 2026-10-07); chủ repo xác nhận macOS hoàn tất trên máy thật 2026-10-08. Các version dưới đây
+> từ 2026-10-07); chủ repo báo phát triển macOS xong 2026-10-08. Các version dưới đây
 > là yêu cầu tối thiểu theo `P2-0 §2`; version cụ thể của máy dev chưa được ghi lại.
 
 ## Yêu cầu
