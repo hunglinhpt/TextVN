@@ -386,6 +386,9 @@ public struct MacroEditorSheet: View {
     @State private var newTrigger: String = ""
     @State private var newExpand: String = ""
 
+    private var trimmedTrigger: String { newTrigger.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedExpand: String { newExpand.trimmingCharacters(in: .whitespacesAndNewlines) }
+
     /// Lưu + phát `ConfigReload` để IMK nạp lại `config.macros`.
     /// `store.persist()` chỉ ghi file; nếu thiếu broadcast thì tiến trình IMK
     /// đang chạy giữ bảng gõ tắt cũ tới lần khởi động sau.
@@ -428,17 +431,26 @@ public struct MacroEditorSheet: View {
                     .frame(width: 100)
                 TextField("Cụm từ thay thế", text: $newExpand)
                 Button("Thêm") {
-                    let trig = newTrigger.trimmingCharacters(in: .whitespaces)
-                    let exp = newExpand.trimmingCharacters(in: .whitespaces)
-                    if !trig.isEmpty && !exp.isEmpty {
-                        store.config.macros.removeAll { $0.trigger == trig }
-                        store.config.macros.append(MacroEntry(trigger: trig, expand: exp))
-                        newTrigger = ""
-                        newExpand = ""
-                        persistAndNotify()
-                    }
+                    // R2-50: cùng quy tắc Windows/Linux — không lưu mục engine sẽ cắt/bỏ.
+                    guard MacroRules.validate(trigger: trimmedTrigger, expand: trimmedExpand) == nil
+                    else { return }
+                    store.config.macros = MacroRules.upsert(
+                        MacroEntry(trigger: trimmedTrigger, expand: trimmedExpand),
+                        into: store.config.macros
+                    )
+                    newTrigger = ""
+                    newExpand = ""
+                    persistAndNotify()
                 }
-                .disabled(newTrigger.trimmingCharacters(in: .whitespaces).isEmpty || newExpand.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(MacroRules.validate(trigger: trimmedTrigger, expand: trimmedExpand) != nil)
+            }
+            // Chỉ báo lỗi khi đã gõ cả hai ô (ô trống chỉ cần làm mờ nút "Thêm").
+            if !trimmedTrigger.isEmpty, !trimmedExpand.isEmpty,
+               let problem = MacroRules.validate(trigger: trimmedTrigger, expand: trimmedExpand) {
+                Text("Chưa thêm được: \(problem.message).")
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             HStack {
@@ -450,6 +462,6 @@ public struct MacroEditorSheet: View {
             }
         }
         .padding(16)
-        .frame(width: 420, height: 320)
+        .frame(width: 420, height: 340)
     }
 }

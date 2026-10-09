@@ -35,7 +35,7 @@
   <releases>
     <release version="0.2.27" date="2026-10-07">
       <description>
-        <p>macOS: the "Non-preedit" settings toggle is now honored by the input method (BUG-05) - when enabled the Preedit composition strategy downgrades to BackspaceType for underline-free typing; configs missing the key keep underlined preedit. Verified the IMK client already applies global "*" StateUpdate/Snapshot broadcasts and the app menu bar syncs via didSet. Linux docs aligned with the SEC-04 socket path priority. Windows release assets are now automatically signed with GPG detached signatures and Sigstore keyless provenance, in addition to SHA256 checksums.</p>
+        <p>macOS: the input method reads the "Non-preedit" setting (BUG-05) when the settings app broadcasts a configuration reload - when enabled the Preedit composition strategy downgrades to BackspaceType for underline-free typing; configs missing the key keep underlined preedit. Known limitation of this release: the setting is not read when an input session starts, and the input method's strategy resolution fails so typing always uses BackspaceType; both are fixed after 0.2.27. Verified the IMK client already applies global "*" StateUpdate/Snapshot broadcasts and the app menu bar syncs via didSet. Linux docs aligned with the SEC-04 socket path priority. All release assets (Windows, Linux and macOS) are now signed with GPG detached signatures (.asc) and Sigstore keyless signatures, and SHA256SUMS.txt is clearsigned; Windows Authenticode and macOS Developer ID signing and notarization are not in place yet.</p>
       </description>
     </release>
     <release version="0.2.26" date="2026-10-05">

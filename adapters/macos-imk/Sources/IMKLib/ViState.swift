@@ -45,3 +45,58 @@ public struct ViState: Equatable {
         return appOverrides[appID] ?? globalEnabled
     }
 }
+
+/// R2-44: trạng thái bật/tắt DÙNG CHUNG cho cả tiến trình IMK. Mỗi app client có
+/// một controller (và một kết nối IPC) riêng; khi TextVN.app không chạy, toggle
+/// Ctrl+Shift ở app này phải có hiệu lực ở mọi app — và controller tạo sau không
+/// được đọc lại `config.enabled` cũ. Chỉ dùng trên main thread (như controller).
+public final class ViStateStore {
+    public static let shared = ViStateStore()
+
+    public var state: ViState
+    /// Toggle toàn cục xảy ra lúc IPC offline — chưa tới TextVN.app (nguồn ghi
+    /// `config.enabled`). Gửi lại ở Snapshot kế tiếp thay vì để "*" cũ đè mất.
+    public private(set) var pendingGlobalSync = false
+    private var seeded = false
+
+    public init(state: ViState = ViState()) {
+        self.state = state
+    }
+
+    /// Controller đầu tiên của tiến trình khởi tạo từ `config.enabled`; các lần sau
+    /// giữ nguyên trạng thái đang có.
+    public func seedIfNeeded(globalEnabled: Bool) {
+        guard !seeded else { return }
+        seeded = true
+        state = ViState(globalEnabled: globalEnabled, appOverrides: state.appOverrides)
+    }
+
+    /// Đảo trạng thái toàn cục; `online == false` → đánh dấu cần đồng bộ với server.
+    @discardableResult
+    public func toggleGlobal(online: Bool) -> Bool {
+        seeded = true
+        let newValue = !state.globalEnabled
+        state.apply(stateUpdate: IpcMessage.globalAppID, enabled: newValue)
+        if !online {
+            pendingGlobalSync = true
+        }
+        return newValue
+    }
+
+    /// Áp Snapshot của server. Có toggle offline đang chờ → GIỮ giá trị toàn cục
+    /// hiện tại (bỏ "*" của server, vẫn áp per-app) và trả `true`: caller gửi
+    /// `ToggleViEn("*", state.globalEnabled)` để server ghi config + broadcast.
+    public func applySnapshot(_ snapshot: [String: Bool]) -> Bool {
+        seeded = true
+        guard pendingGlobalSync else {
+            state.apply(snapshot: snapshot)
+            return false
+        }
+        pendingGlobalSync = false
+        let perApp = snapshot.filter {
+            ViState.normalizedAppID($0.key) != IpcMessage.globalAppID
+        }
+        state.apply(snapshot: perApp)
+        return true
+    }
+}

@@ -47,15 +47,27 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// `IME_CAP_INJECT_VK` **không** tự nhận — chỉ khi spike MAC-004 chứng minh
     /// cơ chế xóa (a)/(b)/(c); ở đây cơ chế (a) deleteBackward luôn có sẵn nên
     /// BackspaceType vẫn chạy được mà không cần inject VK.
-    private let caps: UInt32 = FFI.capPreedit | FFI.capFieldDetect | FFI.capSelection
+    static let imkCaps: UInt32 = FFI.capPreedit | FFI.capFieldDetect | FFI.capSelection
+    private let caps: UInt32 = TextVNInputController.imkCaps
 
     /// Modifier state hiện tại (cho toggle hotkey — P2-1 §5 bước 2).
     private var heldMods: UInt32 = 0
 
     /// Trạng thái bật/tắt: toàn cục + override per-app từ Snapshot/StateUpdate
-    /// (P0-3 §4). Offline = giữ giá trị cuối.
-    private var viState = ViState()
-    private var appdbJSON: Data = Data()
+    /// (P0-3 §4). Offline = giữ giá trị cuối. R2-44: MỘT trạng thái cho cả tiến
+    /// trình IMK (`ViStateStore.shared`) — mỗi app client có controller riêng, toggle
+    /// lúc TextVN.app không chạy phải áp cho mọi app, không chỉ app đang gõ.
+    private var viState: ViState {
+        get { ViStateStore.shared.state }
+        set { ViStateStore.shared.state = newValue }
+    }
+    /// IPC của controller này đã nhận Snapshot (server đang chạy) — chỉ đổi trên main.
+    private var ipcOnline = false
+    /// R2-43: strategy qua FFI + preset appdb đi kèm bundle, cache theo app/field.
+    private static let strategyResolver = StrategyResolver(
+        appdb: StrategyResolver.loadBundledAppdb(),
+        caps: TextVNInputController.imkCaps
+    )
     /// Trạng thái theo dõi tổ hợp Ctrl+Shift tap (như Windows & Linux)
     private var ctrlDown = false
     private var shiftDown = false
@@ -68,7 +80,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Vòng 15 (BUG-05): `non_preedit` từ config.json — bật thì strategy
     /// Preedit bị thay bằng BackspaceType (gõ không gạch chân). Mặc định
-    /// `false` khi khoá thiếu (giữ hành vi gạch chân).
+    /// `false` khi khoá thiếu (giữ hành vi gạch chân). R2-49: đọc ngay khi tạo
+    /// controller và mỗi lần app được focus, không chỉ khi nhận ConfigReload.
     private var nonPreedit = false
 
     public override init(server: IMKServer!, delegate: Any!, client: Any!) {
@@ -76,7 +89,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // vì config (S4, P0-3 §1.3). ABI lệch → engine nil, mọi phím PASS.
         let cfgData = Self.loadConfig()
         let engine: ImeEngine?
-        if let cfg = cfgData, let e = try? ImeEngine(configJSON: cfg) {
+        // R2-44: engine KHÔNG gate theo `config.enabled` — ViState/ctx.enabled là cổng
+        // duy nhất, nếu không Ctrl+Shift không bật lại được khi TextVN.app không chạy.
+        if let cfg = cfgData, let e = try? ImeEngine(configJSON: Self.engineConfig(cfg)) {
             engine = e
         } else {
             engine = try? ImeEngine(configJSON: nil)
@@ -87,9 +102,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             }
         }
         self.engine = engine
+        self.nonPreedit = Self.configNonPreedit(in: cfgData)
         // Toggle khởi tạo theo `config.enabled` (bản cũ hardcode `true`): khi
         // config tắt VN, hotkey Ctrl+Shift+Space bị lệch một nhịp (bật → vẫn tắt).
-        self.viState = ViState(globalEnabled: Self.configEnabled(in: cfgData) ?? true)
+        // Chỉ controller ĐẦU TIÊN của tiến trình khởi tạo; sau đó giữ trạng thái
+        // chung (có thể đã toggle lúc offline — R2-44).
+        ViStateStore.shared.seedIfNeeded(globalEnabled: Self.configEnabled(in: cfgData) ?? true)
         super.init(server: server, delegate: delegate, client: client)
         Diagnostics.log("controller init — caps=\(caps)")
         ipc.delegate = self
@@ -107,6 +125,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         super.activateServer(sender)
         marked.clear()
         engine?.reset()
+        // R2-49: config.json có thể đổi lúc TextVN.app không chạy (không có ConfigReload).
+        nonPreedit = Self.configNonPreedit(in: Self.loadConfig())
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
@@ -235,7 +255,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Secure Input mode là trạng thái HỆ THỐNG, đọc trực tiếp mỗi keyDown
         // (Carbon, không AX) — bịt cửa sổ trước khi async gather điền cache (S8).
         secureMode = IsSecureEventInputEnabled()
-        let hint = resolveStrategy(context: context)
+        let hint = Self.strategyResolver.strategy(
+            appID: context.appID, role: context.role,
+            enabled: viState.enabled(for: context.appID),
+            secure: context.secure || secureMode
+        )
         engine?.setContext(
             enabled: viState.enabled(for: context.appID), secure: context.secure || secureMode,
             fieldRole: context.role, caps: caps,
@@ -263,10 +287,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return false
         }
 
-        let strategy = OutputStrategy(raw: hint) ?? .backspaceType
         // Vòng 15 (BUG-05): tôn trọng toggle "Gõ không gạch chân" — Preedit
         // (gạch chân composition) → BackspaceType (delete+type, không gạch chân).
-        let effectiveStrategy = Self.effectiveStrategy(strategy, nonPreedit: nonPreedit)
+        let effectiveStrategy = Self.outputStrategy(hint: hint, nonPreedit: nonPreedit)
 
         // B2 — như TSF (`compose.rs` native_boundary_char) và Linux (`lc_plan_key`):
         // Enter/Tab ở ranh giới phải tới app dưới dạng PHÍM thật (chat gửi tin, Tab
@@ -321,33 +344,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     // ------------------------------------------------------------- strategy
 
-    /// Resolve strategy qua FFI dùng chung — Swift KHÔNG viết lại thuật toán (P2-3 §5).
-    private func resolveStrategy(context: FieldContext) -> Int64 {
-        var outStrategy: Int64 = Int64(IME_STRATEGY_PASSTHROUGH)
-        // Closure nhiều lệnh phải `return` tường minh — thiếu thì rc là `()` (MAC-032).
-        let rc: Int32 = appdbJSON.withUnsafeBytes { raw -> Int32 in
-            var ctx = ime_context_v1()
-            ctx.abi_version = FFI.abiVersion
-            ctx.enabled = viState.enabled(for: context.appID) ? 1 : 0
-            ctx.secure = (context.secure || secureMode) ? 1 : 0
-            ctx.field_role = context.role
-            ctx.caps = caps
-            ctx.hint = -1
-            let appIdC = Array(context.appID.utf8CString)
-            return appIdC.withUnsafeBufferPointer { buf -> Int32 in
-                ctx.app_id = buf.baseAddress
-                return ime_strategy_resolve(
-                    &ctx,
-                    raw.baseAddress.map { $0.assumingMemoryBound(to: UInt8.self) },
-                    raw.count, &outStrategy
-                )
-            }
-        }
-        guard rc == IME_OK else {
-            Diagnostics.log("strategy_resolve rc=\(rc) — dùng hint=-1")
-            return -1
-        }
-        return outStrategy
+    /// Strategy qua FFI dùng chung (`StrategyResolver` — Swift KHÔNG viết lại thuật
+    /// toán, P2-3 §5) → cơ chế áp text. Lỗi FFI (`-1`) → BackspaceType (an toàn
+    /// nhất); non-preedit hạ Preedit → BackspaceType. Tách static để test.
+    static func outputStrategy(hint: Int64, nonPreedit: Bool) -> OutputStrategy {
+        effectiveStrategy(OutputStrategy(raw: hint) ?? .backspaceType, nonPreedit: nonPreedit)
     }
 
     /// Gather field context: cache-first (MAC-031). Cache miss → role unknown,
@@ -373,7 +374,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         case let .configReload(version):
             Diagnostics.log("ipc ConfigReload v\(version)")
             if let cfg = Self.loadConfig() {
-                engine?.reloadConfig(cfg)
+                _ = engine?.reloadConfig(Self.engineConfig(cfg))
                 nonPreedit = Self.configNonPreedit(in: cfg)
                 // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
                 // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
@@ -389,7 +390,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             // Server gửi Snapshot sau `GetSnapshot` — áp cả "*" lẫn per-app;
             // trước đây bỏ qua hoàn toàn nên state ban đầu không bao giờ được áp.
             Diagnostics.log("ipc snapshot received (\(state.count) entries, appdb \(appdbVersion))")
-            viState.apply(snapshot: state)
+            ipcOnline = true
+            if ViStateStore.shared.applySnapshot(state) {
+                // R2-44: toggle lúc offline thắng "*" cũ của server — báo TextVN.app
+                // để app ghi `config.enabled` và broadcast cho mọi controller.
+                ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: viState.globalEnabled))
+            }
         default:
             break
         }
@@ -397,14 +403,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     public func ipcClientDidDisconnect(_ client: IpcClient) {
         // Offline: giữ config/state đã đọc — gõ vẫn chạy (P0-3 §4).
+        ipcOnline = false
         Diagnostics.log("ipc offline — engine keeps last config")
     }
 
     // ------------------------------------------------------------- helpers
 
     private func toggleVietnamese() -> Bool {
-        let newValue = !viState.globalEnabled
-        viState.apply(stateUpdate: IpcMessage.globalAppID, enabled: newValue)
+        // Offline (TextVN.app không chạy): trạng thái giữ trong ViStateStore và được
+        // gửi lại ở Snapshot kế tiếp (R2-44) — send() dưới đây bị bỏ khi offline.
+        let newValue = ViStateStore.shared.toggleGlobal(online: ipcOnline)
         Diagnostics.log("toggle vi=\(newValue)")
         // Client gửi ToggleViEn (client→server — review R1 F15); server broadcast
         // StateUpdate lại cho mọi client. Gửi .stateUpdate là sai chiều → disconnect.
@@ -520,11 +528,25 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         (nonPreedit && strategy == .preedit) ? .backspaceType : strategy
     }
 
+    /// Thiếu khoá / config hỏng → `false` (gạch chân) — CÙNG mặc định khi decode
+    /// của `ConfigModel` (TextVN.app) và CHANGELOG 0.2.27. Bản cài mới ghi khoá tường minh.
     static func configNonPreedit(in data: Data?) -> Bool {
         guard let data,
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else { return false }
         return obj["non_preedit"] as? Bool ?? false
+    }
+
+    /// R2-44: config cho engine với `enabled = true`. `config.enabled` chỉ là trạng
+    /// thái toàn cục BAN ĐẦU (ViState); engine gate `opts.enabled && ctx.enabled`
+    /// nên để nguyên `false` thì Ctrl+Shift chỉ đổi ctx và không bật lại được khi
+    /// TextVN.app không chạy (không ai gửi ConfigReload). JSON không parse được →
+    /// trả nguyên bản (engine tự từ chối như trước).
+    static func engineConfig(_ data: Data) -> Data {
+        guard var obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return data }
+        obj["enabled"] = true
+        return (try? JSONSerialization.data(withJSONObject: obj)) ?? data
     }
 
     /// Gather AX bất đồng bộ (không block handle). V1: role từ focused element

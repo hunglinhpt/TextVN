@@ -149,23 +149,46 @@ fi
 # Info.plist phải hợp lệ trước khi ký/phát hành (plutil = gate rẻ, bắt lỗi XML)
 plutil -lint "$IM_BUNDLE/Contents/Info.plist" "$APP_BUNDLE/Contents/Info.plist"
 
-# 6. Codesign (ad-hoc `-` khi dev · Developer ID khi release)
+# 6. Codesign (ad-hoc `-` khi không có cert · Developer ID khi có secret — R2-48)
 # KHÔNG dùng `--deep` (Apple deprecated): ký từng bundle với entitlements thật trong
 # `packaging/macos/TextVN.entitlements` rồi `codesign --verify` để chắc chắn.
-SIGN_IDENTITY="${DEVELOPER_ID:--}"
-echo "Signing bundles with identity: $SIGN_IDENTITY"
+# APPLE_DEVELOPER_ID_APP = "Developer ID Application: <Tên> (<TEAMID>)" (tên cũ:
+# DEVELOPER_ID); APPLE_KEYCHAIN (tuỳ chọn) = keychain chứa cert — xem
+# scripts/macos-signing-keychain.sh. Trạng thái thật: docs/release/signing-status-mac.md.
+SIGN_IDENTITY="${APPLE_DEVELOPER_ID_APP:-${DEVELOPER_ID:--}}"
+SIGN_ARGS=(--force -s "$SIGN_IDENTITY" --entitlements "$ROOT/packaging/macos/TextVN.entitlements" --options runtime)
+if [ "$SIGN_IDENTITY" != "-" ]; then
+    # Notarization bắt buộc secure timestamp (Apple: "Resolving common notarization issues").
+    SIGN_ARGS+=(--timestamp)
+    if [ -n "${APPLE_KEYCHAIN:-}" ]; then
+        SIGN_ARGS+=(--keychain "$APPLE_KEYCHAIN")
+    fi
+    echo "Signing bundles with Developer ID: $SIGN_IDENTITY"
+else
+    echo "ℹ️  Không có APPLE_DEVELOPER_ID_APP — bundle ký AD-HOC: Gatekeeper chặn bản tải về"
+    echo "    (System Settings → Privacy & Security → Open Anyway). Xem docs/release/signing-status-mac.md."
+fi
 
 for bundle in "$IM_BUNDLE" "$APP_BUNDLE"; do
-    codesign --force -s "$SIGN_IDENTITY" \
-        --entitlements "$ROOT/packaging/macos/TextVN.entitlements" \
-        --options runtime "$bundle"
+    codesign "${SIGN_ARGS[@]}" "$bundle"
     codesign --verify --strict --verbose=2 "$bundle"
 done
 
-# Gatekeeper chỉ chấp nhận Developer ID + notarized → chỉ kiểm khi ký bằng cert thật.
+# Notarize + staple từng .app TRƯỚC khi đóng zip/tar.gz (bước 7) — app trong archive
+# phải mang sẵn ticket; zip không staple được. Chỉ khi có cert + xác thực notarytool.
+NOTARIZED=0
 if [ "$SIGN_IDENTITY" != "-" ]; then
-    spctl -a -vv "$IM_BUNDLE" || echo "⚠️  spctl từ chối TextVN-IM.app — cần notarize (MAC-055)"
-    spctl -a -vv "$APP_BUNDLE" || echo "⚠️  spctl từ chối TextVN.app — cần notarize (MAC-055)"
+    if "$ROOT/scripts/notarize-macos.sh" --available; then
+        for bundle in "$IM_BUNDLE" "$APP_BUNDLE"; do
+            "$ROOT/scripts/notarize-macos.sh" "$bundle"
+        done
+        NOTARIZED=1
+    else
+        echo "ℹ️  Đã ký Developer ID nhưng thiếu APPLE_NOTARY_* — bundle CHƯA notarize/staple."
+        # Gatekeeper chỉ chấp nhận Developer ID + notarized → báo trước khi phát hành.
+        spctl -a -vv "$IM_BUNDLE" || echo "⚠️  spctl từ chối TextVN-IM.app — cần notarize (MAC-055)"
+        spctl -a -vv "$APP_BUNDLE" || echo "⚠️  spctl từ chối TextVN.app — cần notarize (MAC-055)"
+    fi
 fi
 
 # 7. Create Distribution Archives
@@ -183,6 +206,13 @@ echo "Creating release archives..."
 # 8. Compute Checksums
 (cd "$DIST_DIR" && shasum -a 256 "TextVN-macos-$ARCH_LABEL-v$VERSION.tar.gz" "TextVN-macos-$ARCH_LABEL-v$VERSION.zip" > SHA256SUMS.txt)
 
+if [ "$NOTARIZED" -eq 1 ]; then
+    echo "✅ Bundle: Developer ID + notarized + stapled"
+elif [ "$SIGN_IDENTITY" != "-" ]; then
+    echo "⚠️  Bundle: Developer ID, CHƯA notarize"
+else
+    echo "⚠️  Bundle: ad-hoc (chưa Developer ID, chưa notarize)"
+fi
 echo "✅ Build completed successfully:"
 echo "   - $TARBALL"
 echo "   - $ZIPFILE"

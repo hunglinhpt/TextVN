@@ -78,6 +78,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
             self?.rememberForegroundApp(app)
         }
 
+        // config.json chưa có (cài bằng .pkg) → ghi mặc định đang hiển thị để IMK
+        // đọc cùng giá trị, nhất là `non_preedit` (R2-49).
+        configStore.persistIfMissing()
+
         // 2. Start IPC Server (P2-4 §2)
         ipcServer.delegate = self
         do {
@@ -539,19 +543,202 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         alert.addButton(withTitle: "Gỡ cài đặt")
         alert.alertStyle = .warning
 
-        if alert.runModal() == .alertSecondButtonReturn {
-            // Login Item qua SMAppService (BTM) không bị script xoá plist gỡ theo —
-            // phải unregister từ chính app trước khi xoá bundle (review R3 F3-7a).
-            try? autostartManager.setAutostart(enabled: false)
-            let scriptPath = Bundle.main.bundlePath + "/Contents/Resources/uninstall_macos.sh"
-            if FileManager.default.fileExists(atPath: scriptPath) {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/bin/bash")
-                process.arguments = [scriptPath]
-                try? process.run()
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+
+        // R2-51: chép script ra thư mục tạm TRƯỚC — bước gỡ xoá chính TextVN.app
+        // (uninstall-check.sh nằm trong đó) — rồi CHỜ kết quả và báo cho người dùng.
+        guard let workDir = Self.stageUninstallScripts(
+            resources: Bundle.main.bundlePath + "/Contents/Resources"
+        ) else {
+            Self.showAlert(
+                title: "Không gỡ được TextVN",
+                text: "Không tìm thấy uninstall_macos.sh trong TextVN.app. Gỡ thủ công: xoá TextVN.app và TextVN-IM.app (~/Library/Input Methods hoặc /Library/Input Methods).",
+                style: .critical
+            )
+            return
+        }
+        // Login Item qua SMAppService (BTM) không bị script xoá plist gỡ theo —
+        // phải unregister từ chính app trước khi xoá bundle (review R3 F3-7a).
+        let hadAutostart = autostartManager.isAutostartConfigured()
+        try? autostartManager.setAutostart(enabled: false)
+        let adminTargets = Self.adminUninstallTargets(
+            paths: Self.systemScopeBundles, uid: getuid(),
+            owner: Self.ownerUID(of:),
+            parentWritable: { FileManager.default.isWritableFile(atPath: ($0 as NSString).deletingLastPathComponent) }
+        )
+        let forgetSystemReceipt = FileManager.default.fileExists(atPath: Self.systemReceipt)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let outcome = Self.runUninstall(
+                workDir: workDir, adminTargets: adminTargets, forgetSystemReceipt: forgetSystemReceipt
+            )
+            try? FileManager.default.removeItem(at: workDir)
+            DispatchQueue.main.async { [weak self] in
+                self?.finishUninstall(outcome, restoreAutostart: hadAutostart)
             }
+        }
+    }
+
+    // MARK: - Uninstall (R2-51)
+
+    /// Bundle cài cho MỌI người dùng (`distribution.xml` bật enable_localSystem).
+    static let systemScopeBundles = ["/Applications/TextVN.app", "/Library/Input Methods/TextVN-IM.app"]
+    /// Receipt pkg trên volume hệ thống — `pkgutil --forget` cần root.
+    static let systemReceipt = "/var/db/receipts/vn.textvn.pkg.plist"
+
+    enum UninstallOutcome: Equatable {
+        case succeeded
+        /// Người dùng huỷ hộp thoại quyền quản trị — chưa xoá gì cấp hệ thống.
+        case cancelled
+        case failed(log: String)
+    }
+
+    /// Bundle cần quyền admin để xoá: tồn tại và KHÔNG thuộc người dùng hiện tại
+    /// (pkg cài cho mọi người dùng → root) hoặc thư mục cha không ghi được.
+    static func adminUninstallTargets(
+        paths: [String], uid: uid_t,
+        owner: (String) -> uid_t?, parentWritable: (String) -> Bool
+    ) -> [String] {
+        paths.filter { path in
+            guard let pathOwner = owner(path) else { return false } // không tồn tại
+            return pathOwner != uid || !parentWritable(path)
+        }
+    }
+
+    static func ownerUID(of path: String) -> uid_t? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let owner = attrs[.ownerAccountID] as? NSNumber
+        else { return nil }
+        return owner.uint32Value
+    }
+
+    /// Lệnh chạy DƯỚI ROOT: chỉ gồm đường dẫn cố định (không chạy file nào người dùng
+    /// ghi được bằng root). `nil` = không cần quyền admin.
+    static func adminUninstallCommand(targets: [String], forgetSystemReceipt: Bool) -> String? {
+        var steps: [String] = []
+        if !targets.isEmpty {
+            steps.append("/bin/rm -rf " + targets.map { shellQuote($0) }.joined(separator: " "))
+        }
+        if forgetSystemReceipt {
+            steps.append("{ /usr/sbin/pkgutil --forget vn.textvn.pkg >/dev/null 2>&1 || true; }")
+        }
+        return steps.isEmpty ? nil : steps.joined(separator: " && ")
+    }
+
+    /// `do shell script … with administrator privileges` — macOS tự hiện hộp thoại
+    /// xin mật khẩu quản trị.
+    static func adminAppleScript(command: String) -> String {
+        let escaped = command
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        return "do shell script \"\(escaped)\" with administrator privileges"
+    }
+
+    static func shellQuote(_ text: String) -> String {
+        "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Chép uninstall_macos.sh + uninstall-check.sh ra thư mục tạm riêng (0700).
+    static func stageUninstallScripts(resources: String) -> URL? {
+        let fm = FileManager.default
+        let script = resources + "/uninstall_macos.sh"
+        guard fm.fileExists(atPath: script) else { return nil }
+        let dir = fm.temporaryDirectory
+            .appendingPathComponent("TextVN-uninstall-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try fm.createDirectory(
+                at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try fm.copyItem(atPath: script, toPath: dir.appendingPathComponent("uninstall_macos.sh").path)
+            let check = resources + "/uninstall-check.sh"
+            if fm.fileExists(atPath: check) {
+                try fm.copyItem(atPath: check, toPath: dir.appendingPathComponent("uninstall-check.sh").path)
+            }
+            return dir
+        } catch {
+            try? fm.removeItem(at: dir)
+            return nil
+        }
+    }
+
+    /// Chạy nền (không chặn main thread khi hộp thoại admin đang mở).
+    static func runUninstall(workDir: URL, adminTargets: [String], forgetSystemReceipt: Bool) -> UninstallOutcome {
+        var log = ""
+        if let command = adminUninstallCommand(targets: adminTargets, forgetSystemReceipt: forgetSystemReceipt) {
+            let admin = runProcess("/usr/bin/osascript", ["-e", adminAppleScript(command: command)])
+            if admin.status != 0 {
+                // -128 = người dùng bấm Huỷ ở hộp thoại quyền quản trị.
+                if admin.output.contains("-128") { return .cancelled }
+                return .failed(log: admin.output)
+            }
+        }
+        // Phần per-user: chạy bằng CHÍNH người dùng, từ bản chép ra (bundle sắp bị xoá).
+        var env = ProcessInfo.processInfo.environment
+        env["TEXTVN_UNINSTALL_CHECK"] = workDir.appendingPathComponent("uninstall-check.sh").path
+        let user = runProcess(
+            "/bin/bash", [workDir.appendingPathComponent("uninstall_macos.sh").path, "--from-app"],
+            environment: env
+        )
+        log += user.output
+        return user.status == 0 ? .succeeded : .failed(log: log)
+    }
+
+    private static func runProcess(
+        _ executable: String, _ arguments: [String], environment: [String: String]? = nil
+    ) -> (status: Int32, output: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        if let environment { process.environment = environment }
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        do {
+            try process.run()
+        } catch {
+            return (-1, error.localizedDescription)
+        }
+        // Đọc hết trước khi chờ — pipe đầy thì tiến trình con kẹt ở write.
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(decoding: data, as: UTF8.self))
+    }
+
+    /// Vài dòng cuối của log (chỉ đường dẫn/trạng thái — script không in nội dung gõ, S2).
+    static func logTail(_ log: String, lines: Int = 12) -> String {
+        log.split(separator: "\n", omittingEmptySubsequences: true).suffix(lines).joined(separator: "\n")
+    }
+
+    private func finishUninstall(_ outcome: UninstallOutcome, restoreAutostart: Bool) {
+        switch outcome {
+        case .succeeded:
+            Self.showAlert(
+                title: "Đã gỡ TextVN",
+                text: "TextVN đã được gỡ khỏi máy. Nếu TextVN vẫn còn trong danh sách nguồn nhập, hãy bỏ nó ở System Settings → Keyboard → Input Sources.\n\nCấu hình của bạn được giữ ở ~/Library/Application Support/TextVN (Rule S9).",
+                style: .informational
+            )
+            NSApp.terminate(nil)
+        case .cancelled:
+            if restoreAutostart { try? autostartManager.setAutostart(enabled: true) }
+            Self.showAlert(
+                title: "Chưa gỡ TextVN",
+                text: "Bạn đã huỷ yêu cầu quyền quản trị. TextVN được cài cho mọi người dùng nên cần quyền này để gỡ — chưa có gì bị xoá.",
+                style: .warning
+            )
+        case let .failed(log):
+            Self.showAlert(
+                title: "Gỡ TextVN chưa trọn vẹn",
+                text: "Một số thành phần chưa gỡ được:\n\n\(Self.logTail(log))",
+                style: .critical
+            )
             NSApp.terminate(nil)
         }
+    }
+
+    private static func showAlert(title: String, text: String, style: NSAlert.Style) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = text
+        alert.alertStyle = style
+        alert.runModal()
     }
 
     @objc private func showAbout() {
