@@ -21,7 +21,8 @@
 use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::{apply_key, is_vowel, strip_tone, tone_of};
+use crate::transform::tone::{apply_key, strip_tone, tone_of};
+use crate::transform::undo::{mark_cluster, Marked};
 use crate::transform::vowel_table::{form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
@@ -219,25 +220,31 @@ enum Horn {
 
 /// `w`: aw→ă · ow→ơ · uw→ư; đã sừng → về gốc; không hợp lệ → No.
 /// Cặp (âm gốc → âm sừng) lấy từ bảng `telex::HORN` trong `data/tables/telex.toml`.
+///
+/// Âm nhận sừng chọn trên cả cụm nguyên âm cuối ([`mark_cluster`], R2-65) như UniKey
+/// `processHook`: `w` gõ sau cả cụm vẫn đúng — `muaw` → `mưa`, `voiw` → `vơi`, `luuw` →
+/// `lưu`, còn `quaw` → `quă`, `oaw` → `oă`.
 fn horn(out: &mut [char], table: &[(char, usize, usize)]) -> Horn {
-    let Some(idx) = out.iter().rposition(|&c| is_vowel(c)) else {
-        return Horn::No;
-    };
-    let ch = out[idx];
-    let Some((e, t)) = locate(ch) else {
-        return Horn::No;
-    };
-    for &(_, from, to) in table {
-        if e == to {
-            out[idx] = form_like(ch, from, t); // undo horn, giữ dấu thanh
-            return Horn::Undone;
+    let marked = mark_cluster(out, |w, idx| {
+        let ch = w[idx];
+        let (e, t) = locate(ch)?;
+        for &(_, from, to) in table {
+            if e == to {
+                w[idx] = form_like(ch, from, t); // undo horn, giữ dấu thanh
+                return Some(Marked::Undone);
+            }
+            if e == from {
+                w[idx] = form_like(ch, to, t);
+                return Some(Marked::Applied);
+            }
         }
-        if e == from {
-            out[idx] = form_like(ch, to, t);
-            return Horn::Applied;
-        }
+        None
+    });
+    match marked {
+        Some(Marked::Applied) => Horn::Applied,
+        Some(Marked::Undone) => Horn::Undone,
+        None => Horn::No,
     }
-    Horn::No
 }
 
 /// Cặp đôi âm → mũ: `aa`→â · `ee`→ê · `oo`→ô (bảng `telex::CIRCUMFLEX`).
@@ -389,6 +396,28 @@ mod tests {
         assert_eq!(n("mow"), "mơ"); // ow → ơ
         assert_eq!(n("tuw"), "tư"); // uw → ư
         assert_eq!(n("uww"), "u"); // undo horn
+    }
+
+    /// R2-65: `w` gõ sau cả cụm nguyên âm nhắm đúng âm (UniKey `processHook` trên chuỗi âm).
+    #[test]
+    fn horn_after_whole_cluster() {
+        for (keys, want) in [
+            ("muaw", "mưa"),
+            ("chuaw", "chưa"),
+            ("cuawr", "cửa"),
+            ("guiwr", "gửi"),
+            ("luuw", "lưu"),
+            ("voiws", "với"),
+            ("giuawx", "giữa"),
+            ("quaw", "quă"),
+            ("hoawcs", "hoắc"),
+            ("xoawns", "xoắn"),
+            ("nguoiwf", "người"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+        // Bấm lại `w` trên cụm → gỡ sừng như trước.
+        assert_eq!(n("muaww"), "mua");
     }
 
     #[test]

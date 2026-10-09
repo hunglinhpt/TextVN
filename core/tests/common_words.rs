@@ -195,6 +195,67 @@ fn telex_uow_habit() {
     );
 }
 
+/// R2-65: `w` gõ một lần ở cuối từ (sau cả cụm nguyên âm và phụ âm cuối, trước dấu thanh) —
+/// thói quen gõ dấu cuối từ của UniKey (`muaw` → `mưa`, `voiws` → `với`, `luuw` → `lưu`).
+#[test]
+fn telex_w_after_cluster() {
+    assert_none(
+        "Telex w cuối từ",
+        check_all(Method::Telex, |w| {
+            let k = keys_for(w, Method::Telex);
+            if !k.contains('w') {
+                return None;
+            }
+            let tone = k.chars().last().filter(|c| "sfrxj".contains(*c));
+            let body: String = k
+                .chars()
+                .take(k.chars().count() - usize::from(tone.is_some()))
+                .filter(|&c| c != 'w')
+                .collect();
+            Some(format!(
+                "{body}w{}",
+                tone.map(String::from).unwrap_or_default()
+            ))
+        }),
+    );
+}
+
+/// R2-60: VNI gõ dấu phụ ở cuối từ (sau cả cụm nguyên âm và phụ âm cuối, trước dấu thanh).
+#[test]
+fn vni_marks_at_end() {
+    assert_none(
+        "VNI dấu phụ cuối từ",
+        check_all(Method::Vni, |w| {
+            let k = keys_for(w, Method::Vni);
+            let tone = k.chars().last().filter(|c| "12345".contains(*c));
+            let body: Vec<char> = k
+                .chars()
+                .take(k.chars().count() - usize::from(tone.is_some()))
+                .collect();
+            // `d9` giữ nguyên; các phím 6/7/8 dời về cuối (`ươ` chỉ cần một `7`).
+            let mut plain = String::new();
+            let mut marks = String::new();
+            for (i, &c) in body.iter().enumerate() {
+                let stroke = c == '9' && i > 0 && body[i - 1] == 'd';
+                if "678".contains(c) && !stroke {
+                    if !marks.ends_with(c) {
+                        marks.push(c);
+                    }
+                } else {
+                    plain.push(c);
+                }
+            }
+            if marks.is_empty() {
+                return None;
+            }
+            Some(format!(
+                "{plain}{marks}{}",
+                tone.map(String::from).unwrap_or_default()
+            ))
+        }),
+    );
+}
+
 /// Dấu thanh gõ ngay sau nguyên âm (trước phụ âm cuối) — gõ tự do.
 #[test]
 fn telex_tone_right_after_vowel() {
