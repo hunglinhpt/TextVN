@@ -213,8 +213,8 @@ static void on_macro_cancel(GtkButton *b, TvWin *w) {
 
 static void on_macro_destroy(GtkWidget *win, TvWin *w) {
     (void)win;
-    w->words_window = NULL;
-    w->words_view = NULL;
+    /* Chi xoa con tro cua CHINH cua so go tat — cua so Tu dien EN co
+     * on_words_destroy rieng (truoc day dong nham ca words_* o day). */
     w->macro_window = NULL;
     w->macro_view = NULL;
     w->rad_tab = NULL;
@@ -259,7 +259,7 @@ static void on_words(GtkButton *b, TvWin *w) {
 
     GtkWidget *win = gtk_window_new();
     w->words_window = win;
-    gtk_window_set_title(GTK_WINDOW(win), "TextVN - Tu dien tieng Anh");
+    gtk_window_set_title(GTK_WINDOW(win), "TextVN - Từ điển tiếng Anh");
     gtk_window_set_transient_for(GTK_WINDOW(win), GTK_WINDOW(w->window));
     gtk_window_set_modal(GTK_WINDOW(win), TRUE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(win), TRUE);
@@ -274,8 +274,8 @@ static void on_words(GtkButton *b, TvWin *w) {
     gtk_widget_set_margin_bottom(box, 12);
 
     GtkWidget *hint = gtk_label_new(
-        "Moi dong mot tu tieng Anh ban muon TextVN GIU NGUYEN (vi du: text, list, cowork).\n"
-        "Dong bat dau bang # la ghi chu. Chi chu cai a-z, toi da 15 ky tu.");
+        "Mỗi dòng một từ tiếng Anh bạn muốn TextVN GIỮ NGUYÊN (ví dụ: text, list, cowork).\n"
+        "Dòng bắt đầu bằng # là ghi chú. Chỉ chữ cái a–z, tối đa 15 ký tự.");
     gtk_label_set_xalign(GTK_LABEL(hint), 0.0f);
     gtk_box_append(GTK_BOX(box), hint);
 
