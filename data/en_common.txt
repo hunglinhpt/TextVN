@@ -28,7 +28,9 @@
 # Từ fold ra âm cuối tắc c/ch/p/t mà không mang sắc/nặng (`text`→`tẽt`,
 # `next`→`nẽt`, `art`→`ảt`, `cart`→`cảt`, `sort`→`sỏt`) không phải âm tiết Việt
 # (R2-62) — nhánh cấu trúc đã restore, không cần liệt kê ở đây.
+# `defend`→`đền`: `d` gõ sau trong từ đổi `d` đầu từ thành `đ` (R2-68).
 hex
+defend
 texts
 test
 past

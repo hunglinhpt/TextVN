@@ -5,5 +5,5 @@
 :config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
 :type "duocjwd dieendf dongd Dongd "
 :expect "được điền đong Đong "
-:type "did dad dead died "
-:expect "được điền đong Đong did dad dead died "
+:type "did dad dead died defend "
+:expect "được điền đong Đong did dad dead died defend "
