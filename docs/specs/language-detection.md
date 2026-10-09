@@ -24,9 +24,9 @@
 | Thứ tự | Điều kiện | Kết quả | Ví dụ |
 |---|---|---|---|
 | 6a | `raw == display` (không biến đổi) | Giữ nguyên | `hello`, `may` |
-| 6b | fold **không phải** âm tiết Việt hợp lệ | Restore raw | `download`→`dơwnload`, `water`→`watẻ`, `asdf`→`àd` |
+| 6b | fold **không phải** âm tiết Việt hợp lệ (gồm luật âm cuối tắc `c ch p t` chỉ mang sắc/nặng — R2-62) | Restore raw | `download`→`dơwnload`, `water`→`watẻ`, `asdf`→`àd`, `text`→`tẽt`, `sort`→`sỏt` |
 | 6c | raw ∈ `config.english_words` (danh sách người dùng) | **Restore raw — thắng cả vn_common** | `cow` trong dict → `cow ` dù fold là `cơ` |
-| 6d | raw ∈ `en_common` (từ điển dựng sẵn) VÀ fold ∉ `vn_common` | Restore raw | `text`→`text `, `is`→`is `, `saw`→`saw ` |
+| 6d | raw ∈ `en_common` (từ điển dựng sẵn) VÀ fold ∉ `vn_common` | Restore raw | `texts`→`texts `, `is`→`is `, `saw`→`saw ` |
 | 6e | fold ∈ `vn_common` (âm tiết Việt thông dụng) | **Giữ fold — tiếng Việt thắng cặp mơ hồ** | `cow`→`cơ`, `sex`→`sẽ`, `queen`→`quên`, `max`→`mã` |
 
 ## 3. Bảng xung đột có thể xảy ra và cách giải
@@ -34,7 +34,7 @@
 | Xung đột | Ai thắng | Cách người dùng khác ý |
 |---|---|---|
 | Đang mode VN, gõ `cow` (muốn "cơ" hay English "cow"?) | **"cơ" (VN)** — mode đang bật | Muốn "cow": Escape, hoặc thêm `cow` vào Từ điển EN |
-| Đang mode VN, gõ `text` (muốn "text" hay fold "tẽt"?) | **"text" (EN)** — "tẽt" không phải từ Việt thông dụng | Muốn "tẽt": Escape rồi gõ telex đúng "teext"? — `tẽt` không có nghĩa; không có thiệt hại |
+| Đang mode VN, gõ `text` (muốn "text" hay fold "tẽt"?) | **"text" (EN)** — "tẽt" không phải âm tiết Việt (ngã + âm cuối tắc, 6b) | Muốn "tẽt": Escape rồi gõ telex đúng "teext"? — `tẽt` không có nghĩa; không có thiệt hại |
 | Đang mode VN, Tab sau "vn" khi có macro `vn` | **Macro** (cấp 2 trước cấp 5) | Xoá/đổi macro trong Gõ tắt… |
 | Đang mode VN, Tab sau "dow" (muốn indent?) | **Gợi ý "download"** — từ đã transform → đây là từ tiếng Anh đang gõ dở | Bỏ chọn "Khôi phục từ tiếng Anh khi gõ sai" để tắt gợi ý + restore |
 | Đang mode EN, gõ bất cứ gì | **EN thắng toàn bộ** — passthrough | Bật VN bằng Ctrl+Shift |

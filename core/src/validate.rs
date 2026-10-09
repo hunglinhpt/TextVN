@@ -2,18 +2,20 @@
 //! Validate âm tiết — **stage 5** pipeline (PLAN §4.2): "5 quy tắc âm tiết".
 //!
 //! Dùng cho `post/restore_en.rs` (bug B5: gõ tiếng Anh ra dấu) và cho `doctor`/tooling.
-//! 5 quy tắc (đủ để từ tiếng Anh gõ Telex bị coi là **không hợp lệ**):
+//! 5 quy tắc + 1 luật thanh (đủ để từ tiếng Anh gõ Telex bị coi là **không hợp lệ**):
 //!
 //! 1. `has_vowel` — phải có ít nhất 1 nguyên âm.
 //! 2. `valid_onset` — âm đầu thuộc bảng phụ âm đầu hợp lệ (kể cả rỗng).
 //! 3. `valid_nucleus` — vần (cụm nguyên âm, đã bỏ dấu thanh) thuộc bảng vần hợp lệ.
 //! 4. `valid_coda` — âm cuối thuộc bảng phụ âm cuối hợp lệ (kể cả rỗng).
 //! 5. `tone_marks_ok` — tối đa **1** nguyên âm mang dấu thanh.
+//! 6. `stop_coda_tone_ok` — âm cuối tắc `c ch p t` chỉ mang thanh **sắc** hoặc **nặng**
+//!    (R2-62: `sort` `part` `hurt` gõ Telex ra `sỏt` `pảt` `hủt` không phải âm tiết Việt).
 //!
 //! Nguồn: cấu trúc âm tiết Việt (âm đầu + vần + âm cuộc) theo `PLAN §4.2` stage 5;
 //! bảng vần viết tay (chưa có `data/tables/` — deviation ghi `docs/00-INDEX §5`).
 
-use crate::transform::tone::{is_vowel, tone_of};
+use crate::transform::tone::{current_tone, is_vowel, tone_of};
 use crate::transform::undo::unmark;
 
 /// Phụ âm đầu hợp lệ (P0-1 §1 `validate.rs`).
@@ -106,7 +108,14 @@ pub fn tone_marks_ok(cs: &[char]) -> bool {
         <= 1
 }
 
-/// **5 quy tắc âm tiết** — `true` nếu `cs` là một âm tiết Việt hợp lệ.
+/// Rule 6 — âm tiết khép bằng âm cuối tắc (`c ch p t`) chỉ có thanh sắc hoặc nặng (`tốt`,
+/// `học`, `ích`, `đẹp`); không dấu, huyền, hỏi, ngã đều không có (`sỏt`, `pảt`, `tẽt`, `viêt`).
+pub fn stop_coda_tone_ok(cs: &[char], st: Structure) -> bool {
+    let coda = lower_str(&cs[st.nucleus_end + 1..]);
+    !matches!(coda.as_str(), "c" | "ch" | "p" | "t") || matches!(current_tone(cs), 1 | 5)
+}
+
+/// **5 quy tắc âm tiết + luật thanh âm cuối tắc** — `true` nếu `cs` là một âm tiết Việt hợp lệ.
 pub fn is_valid_word(cs: &[char]) -> bool {
     let Some(st) = decompose(cs) else {
         return false;
@@ -116,6 +125,7 @@ pub fn is_valid_word(cs: &[char]) -> bool {
         && valid_nucleus(cs, st)
         && valid_coda(cs, st)
         && tone_marks_ok(cs)
+        && stop_coda_tone_ok(cs, st)
 }
 
 #[cfg(test)]
@@ -170,6 +180,26 @@ mod tests {
             "àd", "as", "text", "hello", "bs", "qaa", "ngx", "a?", "abc7",
         ] {
             assert!(!v(w), "`{w}` phải KHÔNG hợp lệ");
+        }
+    }
+
+    /// R2-62: âm cuối tắc `c ch p t` chỉ đi với thanh sắc/nặng.
+    #[test]
+    fn stop_coda_takes_only_sac_or_nang() {
+        for w in [
+            "tốt", "học", "ích", "đẹp", "việt", "Việt", "VIỆT", "được", "sách", "mạch", "quốc",
+        ] {
+            assert!(v(w), "`{w}` phải hợp lệ");
+        }
+        for w in [
+            "sỏt", "pỏt", "pảt", "hủt", "chảt", "mảt", "dỉt", "cẻt", "tẽt", "nẽt", "ảt", "viêt",
+            "Viêt", "KIÊT", "bôt", "mêt", "kêp", "hòc", "ãch",
+        ] {
+            assert!(!v(w), "`{w}` phải KHÔNG hợp lệ");
+        }
+        // Âm cuối mũi/vần mở không bị ràng buộc.
+        for w in ["hỏi", "ngã", "tiên", "nhà", "lòng", "anh"] {
+            assert!(v(w), "`{w}` phải hợp lệ");
         }
     }
 

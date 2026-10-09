@@ -1,6 +1,6 @@
 # corpus/shared/restore_en_dictionary_optin_01.keys — B5 nhánh TỪ ĐIỂN (opt-in)
-# Không có danh sách: `text` → `tẽt` hợp lệ về cấu trúc → giữ nguyên (xem file gap ở trên).
-# Chủ gõ khai báo `text` là từ tiếng Anh của họ → engine trả lại `text`.
+# Chủ gõ khai báo `text` là từ tiếng Anh của họ → engine trả lại `text` (nhánh danh sách thắng
+# trước mọi nhánh khác; từ R2-62 `tẽt` cũng không còn là âm tiết hợp lệ — ngã + âm cuối tắc).
 # Mẫu danh sách: data/stop_en.txt (sinh bằng chính engine, test kiểm từng dòng).
 :config method=telex diacritic_style=new auto_restore_english=true english_words=text
 :app notepad.exe field=body

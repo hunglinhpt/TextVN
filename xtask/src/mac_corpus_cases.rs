@@ -59,11 +59,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.safari",
         "address_bar",
         r#"
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam""#,
+:expect "việt nam""#,
     ));
     v.push(imk(
         "bug_B1_chrome_url_01",
@@ -1187,11 +1187,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.safari",
         "address_bar",
         r#"
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam""#,
+:expect "việt nam""#,
     ));
     v.push(tap(
         "tap_address_chrome_12",

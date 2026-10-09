@@ -1,0 +1,12 @@
+# corpus/shared/r2_stop_coda_tone_01.keys — R2-62: âm tiết khép bằng âm cuối tắc c/ch/p/t chỉ mang
+# thanh sắc hoặc nặng, nên `sỏt` `pảt` `hủt` `tẽt` `kêp` không phải âm tiết Việt → auto-restore
+# trả lại từ tiếng Anh đã gõ. Từ Việt thật (sắc/nặng + âm cuối tắc) vẫn giữ.
+# oracle: ngữ âm tiếng Việt (âm tiết khép chỉ có 2 thanh sắc/nặng); UniKey kiểm dấu thanh với
+# phụ âm cuối c/ch/p/t khi bật kiểm tra chính tả.
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "sort port part hurt chart mart dirt cert "
+:expect "sort port part hurt chart mart dirt cert "
+:type "text next art cart keep deep boot meet "
+:expect "sort port part hurt chart mart dirt cert text next art cart keep deep boot meet "
+:type "toots hocj ichs ddepj vieetj sachs "
+:expect "sort port part hurt chart mart dirt cert text next art cart keep deep boot meet tốt học ích đẹp việt sách "

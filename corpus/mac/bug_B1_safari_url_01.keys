@@ -2,8 +2,8 @@
 :config method=telex diacritic_style=new
 :app com.apple.safari field=address_bar
 
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam"
+:expect "việt nam"

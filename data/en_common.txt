@@ -25,18 +25,17 @@
 #
 # Lấy từ nhóm: phụ âm cuối x (ngã) · s (sắc) · r (hỏi) — những phím bị nuốt
 # thành dấu, và nguyên âm đôi ee/oo/ew/ow/aw bị nuốt thành ê/ô/ê/ơ/ă.
+# Từ fold ra âm cuối tắc c/ch/p/t mà không mang sắc/nặng (`text`→`tẽt`,
+# `next`→`nẽt`, `art`→`ảt`, `cart`→`cảt`, `sort`→`sỏt`) không phải âm tiết Việt
+# (R2-62) — nhánh cấu trúc đã restore, không cần liệt kê ở đây.
 hex
-text
 texts
-next
 test
 past
 see
 is
 says
 days
-art
-cart
 her
 dawn
 saw

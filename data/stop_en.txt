@@ -8,16 +8,15 @@
 # Sinh bằng CHÍNH ENGINE (Telex fold → kiểm âm tiết hợp lệ về cấu trúc), không gõ tay cảm
 # tính. Test `data_stop_en_file_is_self_consistent` kiểm lại từng dòng mỗi lần build.
 #
+# Từ fold ra âm cuối tắc c/ch/p/t mà không mang sắc/nặng (`text`→`tẽt`, `sort`→`sỏt`,
+# `keep`→`kêp`, `chart`→`chảt`) không phải âm tiết Việt (R2-62): auto-restore đã trả lại
+# chuỗi gõ, không cần nằm trong danh sách này.
+#
 # fold của từng từ (để dễ đối chiếu khi thêm/sửa — dòng này là ghi chú, không phải data):
-#   text → tễt
-#   next → nễt
 #   rest → rết
 #   pest → pết
 #   test → tết
 #   nest → nết
-#   sort → sỏt
-#   port → pỏt
-#   root → rôt
 #   best → bết
 #   must → mút
 #   dust → đút
@@ -30,14 +29,6 @@
 #   most → mót
 #   host → hót
 #   post → pót
-#   keep → kêp
-#   deep → đêp
-#   art → ảt
-#   part → pảt
-#   cart → cảt
-#   dart → đảt
-#   hart → hảt
-#   chart → chảt
 #   seem → sêm
 #   nose → nóe
 #   low → lơ
@@ -46,15 +37,10 @@
 #   now → nơ
 #   how → hơ
 
-text
-next
 rest
 pest
 test
 nest
-sort
-port
-root
 best
 must
 dust
@@ -67,14 +53,6 @@ lost
 most
 host
 post
-keep
-deep
-art
-part
-cart
-dart
-hart
-chart
 seem
 nose
 low
