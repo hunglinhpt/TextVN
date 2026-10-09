@@ -29,6 +29,7 @@
 # `next`→`nẽt`, `art`→`ảt`, `cart`→`cảt`, `sort`→`sỏt`) không phải âm tiết Việt
 # (R2-62) — nhánh cấu trúc đã restore, không cần liệt kê ở đây.
 # `defend`→`đền`: `d` gõ sau trong từ đổi `d` đầu từ thành `đ` (R2-68).
+# `was`→`ứa`, `war`→`ửa`, `wax`→`ữa`, `wow`→`uơ`: `w` đứng riêng thành `ư` (R2-66).
 hex
 defend
 texts
@@ -47,3 +48,8 @@ paw
 caw
 haw
 taw
+was
+war
+wars
+wax
+wow

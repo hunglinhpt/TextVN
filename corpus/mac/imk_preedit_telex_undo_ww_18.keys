@@ -1,4 +1,4 @@
-# corpus/mac/imk_preedit_telex_undo_ww_18 — w đơn lẻ → chữ w (ww→w) (P2-5 §2)
+# corpus/mac/imk_preedit_telex_undo_ww_18 — w đứng riêng là ư, bấm lại ra chữ w (ww→w) (P2-5 §2)
 :config method=telex diacritic_style=new
 :app com.apple.textedit field=body
 

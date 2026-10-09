@@ -1,0 +1,13 @@
+# corpus/shared/r2_standalone_w_01.keys — R2-66: Telex `w` đứng riêng (từ chưa có nguyên âm) thành
+# `ư`: `nhw` → `như`, `twf` → `từ`, `ddwngf` → `đừng`; bấm `w` lần nữa ra chữ `w` (`ww` → `w`).
+# Từ tiếng Anh bắt đầu bằng `w` vẫn được auto-restore trả lại (`with`, `world`, `was`, `win`).
+# oracle: fcitx5-unikey TelexMethodMapping `{'W', vne_telex_w}` (processTelexW: không có âm nhận
+# sừng → `ư`); PLAN §8 `ww` → `w`.
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "nhw twf wf nhwngx ddwngf chwa wowcs "
+:expect "như từ ừ những đừng chưa ước "
+:type "with world was win swing "
+:expect "như từ ừ những đừng chưa ước with world was win swing "
+:config auto_restore_english=false
+:type "ww"
+:expect "như từ ừ những đừng chưa ước with world was win swing w"

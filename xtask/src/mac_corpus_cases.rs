@@ -541,7 +541,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_undo_ww_18",
-        "w đơn lẻ → chữ w (ww→w)",
+        "w đứng riêng là ư, bấm lại ra chữ w (ww→w)",
         "com.apple.textedit",
         "body",
         r#"

@@ -5,8 +5,8 @@
 //! - Dấu thanh: `s f r x j` (chỉ lowercase) → áp lên âm chọn theo `diacritic_style`.
 //!   Bấm lại đúng dấu → bỏ dấu + gõ literal (`ass` → `as`).
 //! - `aw`→ă · `ow`→ơ · `uw`→ư; bấm lại `w` khi đã sừng → gỡ sừng + gõ chữ `w` (`uww`→`uw`,
-//!   cặp `ươ` gỡ cả cặp: `uoww` → `uow`); `w` không có âm đích → chữ thường, key lặp bị nuốt
-//!   (`ww` → `w`).
+//!   cặp `ươ` gỡ cả cặp: `uoww` → `uow`). `w` đứng riêng khi từ chưa có nguyên âm → `ư` như
+//!   UniKey (`nhw` → `như`, R2-66); bấm `w` lần nữa → chữ `w` (`ww` → `w`, `www` → `ww`).
 //! - Đôi: `aa`→â · `ee`→ê · `oo`→ô · `dd`→đ; bấm lại → gỡ + gõ chữ đó (`eee`→`ee`, `ddd`→`dd`,
 //!   `xooong`→`xoong`) — như dấu thanh `ass` → `as` và UniKey `processRoof`/`processHook`/
 //!   `processDd` (gỡ rồi `processAppend`, R2-63; bản cũ nuốt phím nên không gõ được `xoong`).
@@ -57,7 +57,7 @@ pub fn fold_with_caps(
     caps_lock: bool,
 ) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
-    let mut w_seen = false;
+    let mut ws = WState::default();
     for &c in raw {
         push_key(
             &mut out,
@@ -66,10 +66,21 @@ pub fn fold_with_caps(
             free_marking,
             w_marker,
             caps_lock,
-            &mut w_seen,
+            &mut ws,
         );
     }
     out
+}
+
+/// Trạng thái phím `w` trong một từ (fold lại từ đầu mỗi phím nên chỉ sống trong `fold`).
+#[derive(Default)]
+struct WState {
+    /// Đã gặp `w` trong từ (`w` đầu tiên xác nhận cặp `ươ` tự tạo).
+    seen: bool,
+    /// Phím vừa rồi là `w` đứng riêng đã thành `ư` (R2-66).
+    mapped: bool,
+    /// Đã gỡ `ư` → chữ `w` (`ww`) trong từ: các `w` sau là chữ thường (`www` → `ww`).
+    literal: bool,
 }
 
 /// Từ đang có cặp `ươ` (do rule `uo` tự tạo khi chưa có `w` nào).
@@ -86,8 +97,9 @@ fn push_key(
     free: bool,
     w_marker: bool,
     caps_lock: bool,
-    w_seen: &mut bool,
+    ws: &mut WState,
 ) {
+    let w_mapped = std::mem::take(&mut ws.mapped);
     // Phím dấu so theo chữ thường khi Caps Lock bật; ký tự gõ literal vẫn là `c` gốc.
     let key = if caps_lock { c.to_ascii_lowercase() } else { c };
     // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
@@ -112,19 +124,28 @@ fn push_key(
         return;
     }
 
-    // 2) 'w' — horn / undo horn / nuốt lặp. Bảng sừng của từng kiểu gõ (Simple Telex cũng
-    //    có `aw ow uw` — R2-61); chỉ Telex nuốt `w` lặp khi không có âm nhận sừng.
+    // 2) 'w' — horn / undo horn / `w` đứng riêng. Bảng sừng của từng kiểu gõ (Simple Telex
+    //    cũng có `aw ow uw` — R2-61); chỉ Telex có `w` đứng riêng → `ư` (R2-66).
     let horn_table: &[(char, usize, usize)] = if w_marker {
         &keys::HORN
     } else {
         &keys_st::HORN
     };
     if horn_table.iter().any(|&(k, _, _)| k == key) {
+        // `ww`: `w` vừa thành `ư` → gỡ thành chữ `w` (UniKey `ww` → `w`); các `w` sau trong từ
+        // là chữ thường.
+        if w_mapped {
+            if let Some(last) = out.last_mut() {
+                *last = c;
+            }
+            ws.literal = true;
+            return;
+        }
         // `uo` đã được rule tự đổi thành `ươ`: `w` đầu tiên của từ là XÁC NHẬN, không
         // phải bấm lại để gỡ — thói quen UniKey `nguowif` → `người`, `dduowcj` → `được`
         // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
-        let first_w = !*w_seen;
-        *w_seen = true;
+        let first_w = !ws.seen;
+        ws.seen = true;
         if first_w && has_uo_pair(out) {
             return;
         }
@@ -135,8 +156,15 @@ fn push_key(
                 return;
             }
             Horn::No => {
-                if w_marker && out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'w')) {
-                    return; // ww → w (Simple Telex: `ww` → `ww`)
+                // Telex: `w` đứng riêng (từ chưa có nguyên âm) → `ư` như UniKey `vne_telex_w`
+                // (`nhw` → `như`, `tw` → `tư`, `wf` → `ừ`; R2-66 — bản cũ để chữ `w` mà vẫn nuốt
+                // `w` thứ hai). Không có `qư` nên sau `q` vẫn là chữ `w` (`qwert`). Simple
+                // Telex: chữ `w`.
+                let after_q = out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'q'));
+                if w_marker && !ws.literal && !after_q && !out.iter().any(|&ch| is_vowel(ch)) {
+                    out.push(if c.is_uppercase() { 'Ư' } else { 'ư' });
+                    ws.mapped = true;
+                    return;
                 }
                 out.push(c);
                 return;
@@ -440,6 +468,34 @@ mod tests {
     fn golden_undo_ass_and_ww() {
         assert_eq!(n("ass"), "as");
         assert_eq!(n("ww"), "w");
+    }
+
+    /// R2-66: Telex `w` đứng riêng (từ chưa có nguyên âm) → `ư` như UniKey `vne_telex_w`;
+    /// bấm `w` lần nữa → chữ `w`, các `w` sau là chữ thường (`www` → `ww`).
+    #[test]
+    fn standalone_w_becomes_u_horn() {
+        for (keys, want) in [
+            ("w", "ư"),
+            ("nhw", "như"),
+            ("tw", "tư"),
+            ("twf", "từ"),
+            ("wf", "ừ"),
+            ("nhwngx", "những"),
+            ("ddwngf", "đừng"),
+            ("chwa", "chưa"),
+            ("wowcs", "ước"),
+            ("ww", "w"),
+            ("nhww", "nhw"),
+            ("www", "ww"),
+            ("qwe", "qwe"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+        // Đã có nguyên âm không nhận sừng → chữ `w` (không nuốt `w` lặp nữa).
+        assert_eq!(n("view"), "view");
+        assert_eq!(n("eww"), "eww");
+        // `W` gõ bằng Shift (không Caps Lock) vẫn là chữ thường lệ như `S F R X J`.
+        assert_eq!(n("We"), "We");
     }
 
     /// R2-63: bấm phím dấu lần ba → gỡ dấu **và** gõ chữ đó (như `ass` → `as`; UniKey

@@ -1,4 +1,4 @@
-# corpus/shared/telex_golden_ww.keys — w đơn lẻ = chữ w (bug B2, golden)
+# corpus/shared/telex_golden_ww.keys — `w` đứng riêng thành `ư`, bấm lại ra chữ w: `ww` → `w` (golden)
 :config method=telex diacritic_style=new
 :type "ww"
 :expect "w"

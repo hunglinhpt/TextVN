@@ -151,6 +151,7 @@ Trạng thái V/E được ghi nhớ xuyên suốt các lần khởi động.
 |---|---|---|---|
 | `aa` `ee` `oo` | â ê ô | `aw` `ow` `uw` | ă ơ ư |
 | `dd` | đ | `uow` / `uwow` | ươ (`nguowif` → người) |
+| `w` (đứng riêng) | ư (`nhw` → như, `ww` → w) | | |
 | `s` `f` `r` `x` `j` | sắc huyền hỏi ngã nặng | `z` | xoá dấu thanh |
 
 Gõ dấu ở cuối từ hay ngay sau nguyên âm đều được (`tieengs` = `tieesng` = tiếng). Bấm lại

@@ -36,8 +36,10 @@ mod tests {
         assert_eq!(n("muwa"), "mưa");
         assert_eq!(n("cuwar"), "cửa");
         assert_eq!(n("dduongw"), "đương");
-        // Không có âm nhận sừng → chữ `w`, không nuốt lặp (Telex: `ww` → `w`).
+        // Không có âm nhận sừng → chữ `w`, không nuốt lặp, không thành `ư` đứng riêng
+        // (Telex: `ww` → `w`, `nhw` → `như` — R2-66).
         assert_eq!(n("ww"), "ww");
+        assert_eq!(n("nhw"), "nhw");
         assert_eq!(n("wow"), "wơ");
     }
 
