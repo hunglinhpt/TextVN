@@ -1500,13 +1500,16 @@ mod tests {
         assert_eq!(text(&buf), "đường");
     }
 
+    /// R2-61: Simple Telex vẫn gõ được ă/ơ/ư bằng `w` (UniKey `vneHookAll`), kể cả khi
+    /// auto-restore bật mặc định.
     #[test]
-    fn simple_telex_w_is_literal_through_engine() {
+    fn simple_telex_w_is_horn_through_engine() {
         let mut e = Engine::new(EngineOptions {
             method: Method::SimpleTelex,
+            auto_capitalize: false,
             ..Default::default()
         });
-        let buf = type_buf(&mut e, "tuw");
-        assert_eq!(text(&buf), "tuw");
+        let buf = type_buf(&mut e, "trawngs mowf tuw muwa nawm cuwar ");
+        assert_eq!(text(&buf), "trắng mờ tư mưa năm cửa ");
     }
 }

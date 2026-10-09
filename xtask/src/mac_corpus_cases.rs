@@ -708,13 +708,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_simple_telex_duongw_34",
-        "Simple Telex: w là chữ thường (duongw → đươngw)",
+        "Simple Telex: w là dấu sừng như UniKey (duongw → đương, R2-61)",
         "com.apple.textedit",
         "body",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
     v.push(imk(
         "imk_preedit_simple_telex_duocj_35",
@@ -1066,13 +1066,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_simple_telex_30",
-        "BackspaceType Simple Telex (w literal)",
+        "BackspaceType Simple Telex (w là dấu sừng, R2-61)",
         "com.apple.finder",
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
 
     // ───────────────────────── tap_* — CGEventTap opt-in (20 case) ─────────────────────────
@@ -1118,13 +1118,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(tap(
         "tap_body_simple_telex_05",
-        "tap Simple Telex duongw → đươngw",
+        "tap Simple Telex duongw → đương (R2-61)",
         "com.valvesoftware.steam",
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
     v.push(tap(
         "tap_body_undo_ww_06",

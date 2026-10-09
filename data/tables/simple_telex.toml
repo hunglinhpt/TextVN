@@ -1,7 +1,8 @@
-# Simple Telex — Telex nhưng `w` là CHỮ THƯỜNG, không phải marker.
+# Simple Telex — Telex nhưng `w` CHỈ là dấu sừng (UniKey `SimpleTelexMethodMapping`:
+# `{'W', vneHookAll}`; bamboo Simple Telex `w: UOA_ƯƠĂ`): `aw ow uw` → `ă ơ ư` như Telex.
 # Nguồn: `core/src/method/simple_telex.rs` (P0-1 §1) — `telex::fold_with(w_marker=false)`.
-# Vì `w_marker = false`: `tuw` → `tuw` (không phải `tư`), và `ww` → `ww` (không nuốt lặp).
-# Dấu thanh + đôi âm + `dd` giống hệt Telex → dùng chung bảng với `telex`.
+# Vì `w_marker = false`: `w` không có âm nhận sừng là chữ `w` (`ww` → `ww`, không nuốt lặp)
+# — khác Telex. Dấu thanh + đôi âm + `dd` giống hệt Telex → dùng chung bảng với `telex`.
 
 [method]
 name = "simple_telex"
@@ -29,4 +30,8 @@ key = "o"
 from = ["O"]
 to = ["O_CIRC"]
 
-# Cố ý KHÔNG có [[horn]]: `w` là chữ thường nên không có cặp (key, âm) nào.
+# `w` sau âm gốc: aw→ă, ow→ơ, uw→ư (R2-61 — bản cũ bỏ bảng này nên không gõ được ă/ơ/ư).
+[[horn]]
+key = "w"
+from = ["A", "O", "U"]
+to = ["A_BREVE", "O_HOOK", "U_HOOK"]

@@ -715,7 +715,7 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
             None => s.push_str("    /// Kiểu gõ này không có phím gỡ riêng dấu thanh.\n    pub const TONE_REMOVE_KEY: Option<char> = None;\n"),
         }
         s.push_str(&format!(
-            "    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).\n    pub const W_MARKER: bool = {};\n",
+            "    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).\n    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.\n    pub const W_MARKER: bool = {};\n",
             m.w_marker
         ));
         s.push_str("    /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?\n");

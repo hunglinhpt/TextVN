@@ -1,6 +1,9 @@
-# corpus/shared/simple_telex_w_literal_01.keys — Simple Telex: `w` là chữ thường (không sừng)
-:config method=simple_telex diacritic_style=new
+# corpus/shared/simple_telex_w_literal_01.keys — Simple Telex: `w` CHỈ là dấu sừng (UniKey
+# SimpleTelexMethodMapping `{'W', vneHookAll}`): `tuw` → `tư` như Telex. Không có âm nhận sừng thì
+# `w` là chữ thường, không nuốt lặp (`ww` → `ww`; Telex `ww` → `w`).
+# R2-61: bản cũ khoá `tuw` → `tuw` (Simple Telex không gõ được ă/ơ/ư) — kỳ vọng đó là lỗi.
+:config method=simple_telex diacritic_style=new auto_capitalize=false
 :type "tuw"
-:expect "tuw"
-:type "o"
-:expect "tuwo"
+:expect "tư"
+:type " ww"
+:expect "tư ww"

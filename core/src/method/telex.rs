@@ -29,8 +29,9 @@ pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char
     fold_with(raw, style, free_marking, true)
 }
 
-/// `w_marker = false` → "simple telex": `w` là **chữ thường** (không có ă/ơ/ư qua `w`),
-/// nên `ww` → `ww` (không nuốt lặp). Dùng bởi `method/simple_telex.rs` (P0-1 §1).
+/// `w_marker = false` → "simple telex": `w` **chỉ** là dấu sừng (`aw ow uw` → `ă ơ ư`, như
+/// UniKey `vneHookAll`); không có âm nhận sừng thì là chữ `w` (`ww` → `ww`, không nuốt lặp).
+/// Dùng bởi `method/simple_telex.rs` (P0-1 §1).
 pub fn fold_with(
     raw: &[char],
     style: DiacriticStyle,
@@ -111,8 +112,14 @@ fn push_key(
         }
     }
 
-    // 2) 'w' — horn / undo horn / nuốt lặp (simple telex: không phải marker → đi tiếp)
-    if key == 'w' && w_marker {
+    // 2) 'w' — horn / undo horn / nuốt lặp. Bảng sừng của từng kiểu gõ (Simple Telex cũng
+    //    có `aw ow uw` — R2-61); chỉ Telex nuốt `w` lặp khi không có âm nhận sừng.
+    let horn_table: &[(char, usize, usize)] = if w_marker {
+        &keys::HORN
+    } else {
+        &keys_st::HORN
+    };
+    if horn_table.iter().any(|&(k, _, _)| k == key) {
         // `uo` đã được rule tự đổi thành `ươ`: `w` đầu tiên của từ là XÁC NHẬN, không
         // phải bấm lại để gỡ — thói quen UniKey `nguowif` → `người`, `dduowcj` → `được`
         // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
@@ -121,11 +128,11 @@ fn push_key(
         if first_w && has_uo_pair(out) {
             return;
         }
-        match horn(out, &keys::HORN) {
+        match horn(out, horn_table) {
             Horn::Applied | Horn::Undone => return,
             Horn::No => {
-                if out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'w')) {
-                    return; // ww → w
+                if w_marker && out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'w')) {
+                    return; // ww → w (Simple Telex: `ww` → `ww`)
                 }
                 out.push(c);
                 return;

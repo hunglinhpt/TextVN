@@ -1,8 +1,8 @@
-# corpus/mac/mac_bs_type_simple_telex_30 — BackspaceType Simple Telex (w literal) (P2-5 §2)
+# corpus/mac/mac_bs_type_simple_telex_30 — BackspaceType Simple Telex (w là dấu sừng, R2-61) (P2-5 §2)
 :config method=telex diacritic_style=new
 :caps field_detect
 :app com.apple.finder field=editbox
 
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw"
+:expect "đương"

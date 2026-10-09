@@ -158,7 +158,8 @@ Gõ dấu ở cuối từ hay ngay sau nguyên âm đều được (`tieengs` = 
 VIỆT); chữ viết tắt gõ bằng Shift như `USA`, `JSON` giữ nguyên.
 
 **VNI**: `1`–`5` sắc huyền hỏi ngã nặng · `6` mũ (â ê ô) · `7` móc (ơ ư) · `8` trăng (ă) ·
-`9` đ · `0` xoá dấu. **VIQR** và **Telex đơn giản** (w là chữ thường) cũng có sẵn.
+`9` đ · `0` xoá dấu. **VIQR** và **Telex đơn giản** (`w` chỉ là dấu sừng sau nguyên âm:
+`aw ow uw`) cũng có sẵn.
 
 **Quick Telex** (tuỳ chọn): `cc`→ch `gg`→gi `kk`→kh `nn`→ng `qq`→qu `pp`→ph `tt`→th.
 

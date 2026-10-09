@@ -4,7 +4,7 @@
 // Đổi bảng: sửa file `.toml` rồi chạy lại `cargo xtask gen-tables`.
 // `cargo xtask check-tables` (CI) sẽ fail nếu file này lệch với nguồn.
 //! Nguồn: `data/tables/{telex,simple_telex,vni,viqr}.toml`
-//!   (digest FNV-1a 64 = `0xcfc8f5c5440aeb72`; bảng âm = `0xfe5318e15330844d`).
+//!   (digest FNV-1a 64 = `0x309fa638523bc8c3`; bảng âm = `0xfe5318e15330844d`).
 //!
 //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`, `iet`…)
 //! vẫn nằm trong `method/telex.rs`, `vni.rs`, `viqr.rs` — bảng ở đây chỉ mô tả phần bảng.
@@ -42,7 +42,8 @@ pub mod telex {
     pub const REMOVE_MARKS_KEY: Option<char> = None;
     /// Key gỡ **dấu thanh** của từ (Telex `z`); từ chưa có dấu → chữ thường.
     pub const TONE_REMOVE_KEY: Option<char> = Some('z');
-    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
+    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).
+    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.
     pub const W_MARKER: bool = true;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
     pub fn is_marker(c: char) -> bool {
@@ -61,7 +62,9 @@ pub mod telex {
 
 /// Kiểu gõ **Simple Telex** — xem `data/tables/simple_telex.toml`.
 pub mod simple_telex {
-    use crate::transform::vowel_table_generated::{A, A_CIRC, E, E_CIRC, O, O_CIRC};
+    use crate::transform::vowel_table_generated::{
+        A, A_BREVE, A_CIRC, E, E_CIRC, O, O_CIRC, O_HOOK, U, U_HOOK,
+    };
 
     /// Key dấu thanh: index 0 → tone 1 (sắc) … index 4 → tone 5 (nặng).
     pub const TONE_KEYS: [char; 5] = ['s', 'f', 'r', 'x', 'j'];
@@ -76,7 +79,11 @@ pub mod simple_telex {
         ('o', O, O_CIRC), // o → ô
     ];
     /// (key, âm gốc, âm đích) — sừng qua marker.
-    pub const HORN: [(char, usize, usize); 0] = [];
+    pub const HORN: [(char, usize, usize); 3] = [
+        ('w', A, A_BREVE), // a → ă
+        ('w', O, O_HOOK),  // o → ơ
+        ('w', U, U_HOOK),  // u → ư
+    ];
     /// (key, âm gốc, âm đích) — breve qua marker.
     pub const BREVE: [(char, usize, usize); 0] = [];
     /// Key tạo `đ`. `STROKE_DOUBLE = true` → gõ **hai lần** key (Telex/VIQR `dd`).
@@ -86,7 +93,8 @@ pub mod simple_telex {
     pub const REMOVE_MARKS_KEY: Option<char> = None;
     /// Key gỡ **dấu thanh** của từ (Telex `z`); từ chưa có dấu → chữ thường.
     pub const TONE_REMOVE_KEY: Option<char> = Some('z');
-    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
+    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).
+    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
     pub fn is_marker(c: char) -> bool {
@@ -137,7 +145,8 @@ pub mod vni {
     pub const REMOVE_MARKS_KEY: Option<char> = Some('0');
     /// Kiểu gõ này không có phím gỡ riêng dấu thanh.
     pub const TONE_REMOVE_KEY: Option<char> = None;
-    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
+    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).
+    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
     pub fn is_marker(c: char) -> bool {
@@ -188,7 +197,8 @@ pub mod viqr {
     pub const REMOVE_MARKS_KEY: Option<char> = None;
     /// Kiểu gõ này không có phím gỡ riêng dấu thanh.
     pub const TONE_REMOVE_KEY: Option<char> = None;
-    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).
+    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).
+    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.
     pub const W_MARKER: bool = false;
     /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?
     pub fn is_marker(c: char) -> bool {

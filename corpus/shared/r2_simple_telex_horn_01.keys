@@ -1,0 +1,8 @@
+# corpus/shared/r2_simple_telex_horn_01.keys — R2-61: Simple Telex gõ được ă/ơ/ư bằng `aw ow uw`.
+# oracle: fcitx5-unikey inputproc.cpp SimpleTelexMethodMapping `{'W', vneHookAll}` (chỉ bỏ `w` đứng
+# riêng → ư và `[ ]`); bamboo Simple Telex `w: UOA_ƯƠĂ`. Auto-restore bật mặc định.
+:config method=simple_telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "trawngs mowf tuw muwa nawm cuwar "
+:expect "trắng mờ tư mưa năm cửa "
+:type "dduwowngf nguowif ww "
+:expect "trắng mờ tư mưa năm cửa đường người ww "

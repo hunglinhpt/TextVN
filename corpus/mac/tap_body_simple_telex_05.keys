@@ -1,8 +1,8 @@
-# corpus/mac/tap_body_simple_telex_05 — tap Simple Telex duongw → đươngw (P2-5 §2)
+# corpus/mac/tap_body_simple_telex_05 — tap Simple Telex duongw → đương (R2-61) (P2-5 §2)
 :config method=telex diacritic_style=new
 :caps selection,field_detect,inject_vk
 :app com.valvesoftware.steam field=editbox
 
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw"
+:expect "đương"

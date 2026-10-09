@@ -402,15 +402,17 @@ mod tests {
         }
     }
 
-    /// Simple Telex = Telex trừ `w`; mọi thứ khác phải giống hệt.
+    /// Simple Telex = Telex trừ phím `w` riêng (nuốt `ww`); bảng phím phải giống hệt —
+    /// kể cả bảng sừng `aw ow uw` (R2-61, UniKey `vneHookAll`).
     #[test]
     fn simple_telex_chia_bang_telex_tru_w() {
         use super::keys_generated as g;
         assert_eq!(g::simple_telex::TONE_KEYS, g::telex::TONE_KEYS);
         assert_eq!(g::simple_telex::CIRCUMFLEX, g::telex::CIRCUMFLEX);
+        assert_eq!(g::simple_telex::HORN, g::telex::HORN);
         assert_eq!(g::simple_telex::STROKE_KEY, g::telex::STROKE_KEY);
         assert!(g::telex::is_marker('w'));
-        assert!(!g::simple_telex::is_marker('w'));
+        assert!(g::simple_telex::is_marker('w'));
         // Không assert thẳng `W_MARKER` (clippy `assertions_on_constants`): so sánh
         // 2 hằng sinh từ data — nếu data đổi thành giống nhau thì test này bắt được.
         assert!(
