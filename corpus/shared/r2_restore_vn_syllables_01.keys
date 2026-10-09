@@ -1,0 +1,12 @@
+# corpus/shared/r2_restore_vn_syllables_01.keys — R2-56: auto-restore EN (bật mặc định) không
+# được biến âm tiết Việt thật thành từ tiếng Anh. `thí` `hí` `vơ` `bõ` `gá` không có cách gõ
+# Telex nào khác ngoài `this` `his` `vow` `box` `gas`.
+# oracle: spec language-detection.md §2 6e (cặp mơ hồ: âm tiết Việt thông dụng thắng) + x-unikey telex
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "this sinh, boos this, his hoongr, vow vets, chim host, aso lost, "
+:expect "thí sinh, bố thí, hí hổng, vơ vét, chim hót, áo lót, "
+:type "ddungws best, box coong, gas lawps, arm ddamj, most luas, vast meps, "
+:expect "thí sinh, bố thí, hí hổng, vơ vét, chim hót, áo lót, đứng bét, bõ công, gá lắp, ảm đạm, mót lúa, vát mép, "
+# Từ EN được tài liệu hoá làm ví dụ vẫn restore như cũ.
+:type "test is "
+:expect "thí sinh, bố thí, hí hổng, vơ vét, chim hót, áo lót, đứng bét, bõ công, gá lắp, ảm đạm, mót lúa, vát mép, test is "

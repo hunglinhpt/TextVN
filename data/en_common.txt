@@ -13,33 +13,28 @@
 #   cow→cơ, sex→sẽ, max→mã, queen→quên, teen→tên, been→bên, moon→môn,
 #   has→há, bus→bú, thus→thú, us→ú, its→ít, as→á, car→cả, tar→tả,
 #   bar→bả, chef→chè, dew→dê, mê/mơ/bơ/tơ/sơ/lơ/hơ/nơ/dơ (vowel+w),
-#   list→lít, nest→nét, rest→rét, last→lát, must→mút, cast→cát, mat→mát.
+#   list→lít, nest→nét, rest→rét, last→lát, must→mút, cast→cát, mat→mát,
+#   this→thí, his→hí, host→hót, lost→lót, most→mót, cost→cót, best→bét,
+#   vast→vát, arm→ảm, vow→vơ, row→rơ, box→bõ, gas→gá (R2-56: `thí sinh`,
+#   `hí hửng`, `vơ vét`, `chim hót`, `áo lót`, `đứng bét`, `bõ công` phải
+#   gõ được; `thí`/`hí`/`vơ`/`bõ`/`gá` không có cách gõ Telex nào khác).
+#   `test`→`tét` và `is`→`í` vẫn giữ trong file (ví dụ tài liệu hoá ở
+#   language-detection.md / README); người gõ `bánh tét` gõ dấu cuối từ (`tets`).
 # Người gõ tiếng Anh vẫn cứu được bằng Escape (restore raw) hoặc thêm từ
 # vào `english_words` trong cấu hình.
 #
 # Lấy từ nhóm: phụ âm cuối x (ngã) · s (sắc) · r (hỏi) — những phím bị nuốt
 # thành dấu, và nguyên âm đôi ee/oo/ew/ow/aw bị nuốt thành ê/ô/ê/ơ/ă.
-box
 hex
 text
 texts
 next
-best
 test
-most
-cost
-host
-lost
 past
-vast
 see
 is
-his
-this
-gas
 says
 days
-arm
 art
 cart
 her
@@ -51,5 +46,3 @@ paw
 caw
 haw
 taw
-row
-vow

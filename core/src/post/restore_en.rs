@@ -216,6 +216,37 @@ mod tests {
         assert!(!should_restore(&chars("cow"), &chars("cơ"), &[]));
     }
 
+    /// R2-56: âm tiết Việt thật mà từ EN thông dụng fold vào phải được giữ —
+    /// `thí`/`hí`/`vơ`/`bõ`/`gá` không có cách gõ Telex nào khác.
+    #[test]
+    fn am_tiet_viet_that_khong_bi_restore() {
+        for raw in [
+            "this", "his", "host", "lost", "most", "cost", "best", "vast", "arm", "vow", "row",
+            "box", "gas",
+        ] {
+            let folded = telex(raw);
+            let f: String = folded.iter().collect();
+            assert!(
+                !should_restore(&chars(raw), &folded, &[]),
+                "`{raw}` → `{f}` là âm tiết Việt thật — phải giữ"
+            );
+        }
+    }
+
+    /// R2-57: Tab không thay âm tiết Việt thông dụng bằng từ EN (`có`+Tab → `cost`).
+    #[test]
+    fn tab_khong_cuop_am_tiet_viet_thong_dung() {
+        for (typed, folded) in [("cos", "có"), ("bes", "bé"), ("vas", "vá"), ("los", "ló")] {
+            assert_eq!(
+                complete_word(typed, folded, &[]),
+                None,
+                "`{typed}` (`{folded}`) + Tab"
+            );
+        }
+        // `có` được bảo vệ cả khi từ điển cá nhân có từ bắt đầu bằng `cos`.
+        assert_eq!(complete_word("cos", "có", &["cosplay".to_string()]), None);
+    }
+
     #[test]
     fn danh_sach_nguoi_dung_thang_moi_phong_doan() {
         let list = vec!["Text".to_string()];
@@ -289,8 +320,10 @@ mod tests {
     #[test]
     fn data_en_common_file_fires() {
         let words = parse_word_list(EN_COMMON_DATA);
+        // Ngưỡng chỉ chặn lỡ tay xoá trắng file: R2-56 đã bỏ các từ fold ra âm tiết
+        // Việt thật (`this`→`thí`, `host`→`hót`…), danh sách còn ~20 mục.
         assert!(
-            words.len() >= 30,
+            words.len() >= 15,
             "danh sách EN thông dụng quá ngắn: {}",
             words.len()
         );
