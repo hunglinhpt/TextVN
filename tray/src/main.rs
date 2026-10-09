@@ -573,7 +573,7 @@ fn elevated_register_succeeded(result: Option<Option<u32>>) -> bool {
 }
 
 #[cfg(windows)]
-fn ensure_tsf_tip_registered(force: bool) {
+fn ensure_tsf_tip_registered(first_run: bool) {
     // Chốt chặn cứng: còn package identity thì mọi ghi đăng ký bị ảo hoá (R2-02).
     if textvn_tray::store_win::refuse_if_packaged("đăng ký TSF") {
         return;
@@ -591,7 +591,11 @@ fn ensure_tsf_tip_registered(force: bool) {
     else {
         return;
     };
-    if !force && tsf_registration_is_current(&dll) {
+    // R2-25: lần đầu tray chạy cho TÀI KHOẢN này → luôn `register` một lần: bản cài cho
+    // mọi người dùng chỉ ghi HKLM, nên `tsf_registration_is_current` (HKLM đủ) bỏ qua
+    // bước per-user và tài khoản khác không bao giờ có TextVN trong danh sách bàn phím.
+    // Sau lần đầu: chỉ ghi lại khi đã lệch — giữ bàn phím người dùng tự gỡ/xếp lại.
+    if !first_run && tsf_registration_is_current(&dll) {
         return;
     }
     let cli_path = dir.join("textvn-cli.exe");
@@ -599,17 +603,9 @@ fn ensure_tsf_tip_registered(force: bool) {
         return;
     }
 
-    // force (đổi phiên bản): rửa sạch key đăng ký của phiên bản cũ trước
-    // (unregister xoá HKCU CTF TIP + COM; register ghi lại trỏ DLL hiện tại).
-    if force {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let _ = std::process::Command::new(&cli_path)
-            .args(["unregister", "--scope", "user"])
-            .creation_flags(CREATE_NO_WINDOW)
-            .status();
-    }
-
+    // R2-33: KHÔNG unregister khi đổi phiên bản — chuỗi gỡ (ILOT_UNINSTALL) rồi thêm lại
+    // làm mất kích hoạt phiên đang mở và xếp lại bàn phím/mặc định của người dùng.
+    // `register` ghi đè COM/profile trỏ DLL hiện tại là đủ.
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let status = std::process::Command::new(cli_path)
@@ -1058,7 +1054,7 @@ fn run_tray_app() {
         let svc_bg = svc.clone();
         let store_channel = store_ctx.is_some();
         std::thread::spawn(move || {
-            ensure_tsf_tip_registered(svc_bg.version_migrated());
+            ensure_tsf_tip_registered(svc_bg.first_run());
             // B7 trên Win11 24H2+: đăng ký per-user OK nhưng Windows TỪ CHỐI
             // ActivateProfile → portable đứng một mình không gõ được. Đề nghị
             // đăng ký phạm vi máy (UAC một lần) — luồng đã được chứng minh gõ

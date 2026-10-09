@@ -134,11 +134,21 @@ impl TrayMenu {
             // 4. Per-app toggle cho app foreground gần nhất — nguồn là
             // `foreground::last_app()` (EVENT_SYSTEM_FOREGROUND, bỏ qua shell/tray).
             if let Some(app) = current_app {
-                let app_enabled = self.svc.is_app_enabled(app);
-                let app_label = format!("Bật tiếng Việt cho {app}");
+                // R2-28: dấu tích = cái TIP thực sự làm (toàn cục AND override); toàn cục
+                // đang E thì mục này mờ — override chỉ TẮT riêng được một app.
+                let global_on = self.svc.is_global_enabled();
+                let app_enabled = self.svc.effective_app_enabled(app);
+                let app_label = if global_on {
+                    format!("Bật tiếng Việt cho {app}")
+                } else {
+                    format!("Bật tiếng Việt cho {app} (đang tắt toàn cục)")
+                };
                 let mut app_flags = MF_STRING;
                 if app_enabled {
                     app_flags |= MF_CHECKED;
+                }
+                if !global_on {
+                    app_flags |= MF_GRAYED;
                 }
                 let _ = AppendMenuW(
                     menu,
@@ -268,9 +278,12 @@ impl TrayMenu {
             }
             ID_CURRENT_APP_TOGGLE => {
                 if let Some(app) = current_app {
-                    let cur = self.svc.is_app_enabled(app);
-                    let ver = self.svc.set_app_enabled(app, !cur);
-                    let actual = self.svc.is_app_enabled(app);
+                    // Đảo OVERRIDE (thiếu = bật); broadcast đúng giá trị override vì TIP
+                    // lưu nó làm override của app (ipc_client::apply_update).
+                    let next = !self.svc.app_override(app).unwrap_or(true);
+                    let ver = self.svc.set_app_enabled(app, next);
+                    // Ghi đĩa lỗi thì svc rollback — phát giá trị thực đang giữ.
+                    let actual = self.svc.app_override(app).unwrap_or(true);
                     self.ipc.broadcast_state_update(app, actual, ver);
                 }
             }

@@ -832,7 +832,9 @@ pub fn refresh_if_open() {}
 /// trả true nếu message đã được xử lý.
 #[cfg(windows)]
 pub fn pre_translate_message(msg: &MSG) -> bool {
-    for slot in [&MACRO_HWND, &SETTINGS_HWND] {
+    // R2-38: cả cửa sổ "Từ điển EN" — thiếu nó thì Tab chèn ký tự Tab vào ô soạn (từ đó
+    // bị bỏ khi chuẩn hoá lúc lưu) và Esc không đóng cửa sổ.
+    for slot in [&WORDLIST_HWND, &MACRO_HWND, &SETTINGS_HWND] {
         let raw = slot.load(Ordering::Acquire);
         if raw == 0 {
             continue;

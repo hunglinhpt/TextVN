@@ -22,7 +22,7 @@ Usage:
   textvn-cli config default                  # in config mặc định ra stdout
   textvn-cli config init                     # ghi config mặc định vào đường dẫn per-OS (không ghi đè)
   textvn-cli config validate <file.json>     # validate config.v1 (P0-3 §1)
-  textvn-cli doctor [--json] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
+  textvn-cli doctor [--json] [--pause] [--export <path.zip>] # chẩn đoán môi trường / xuất báo cáo (WIN-058)
   textvn-cli register [--scope user|machine] [--dll <path>] [--no-taskbar] # đăng ký Text Services Framework TIP (WIN-003)
   textvn-cli unregister [--scope user|machine] [--if-owned-by <dir>] # hủy đăng ký TSF TIP (--if-owned-by: chỉ khi TIP thuộc <dir>)
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
@@ -332,12 +332,17 @@ fn config_path() -> Option<PathBuf> {
 /// `doctor` — chẩn đoán môi trường và xuất báo cáo chẩn đoán (WIN-058 / P1-4 §9).
 fn cmd_doctor(rest: &[String]) -> i32 {
     let mut json_out = false;
+    let mut pause = false;
     let mut export_path: Option<PathBuf> = None;
     let mut i = 0;
 
     while i < rest.len() {
         match rest[i].as_str() {
             "--json" => json_out = true,
+            // R2-36: shortcut Start menu mở console riêng — đóng ngay khi in xong thì người
+            // dùng không đọc được báo cáo. Cờ tường minh (không đoán qua số tiến trình
+            // gắn console: con chạy ẩn CREATE_NO_WINDOW sẽ bị treo chờ Enter).
+            "--pause" => pause = true,
             "--export" => {
                 if let Some(next) = rest.get(i + 1) {
                     if !next.starts_with("--") {
@@ -352,14 +357,23 @@ fn cmd_doctor(rest: &[String]) -> i32 {
             }
             other => {
                 eprintln!("error: `doctor` không nhận tham số `{other}`");
-                eprintln!("Usage: textvn doctor [--json] [--export <path.zip>]");
+                eprintln!("Usage: textvn doctor [--json] [--pause] [--export <path.zip>]");
                 return 2;
             }
         }
         i += 1;
     }
 
-    doctor::run_doctor(json_out, export_path.as_deref())
+    let code = doctor::run_doctor(json_out, export_path.as_deref());
+    if pause {
+        use std::io::{BufRead, IsTerminal, Write};
+        if std::io::stdin().is_terminal() {
+            print!("\nNhấn Enter để đóng…");
+            let _ = std::io::stdout().flush();
+            let _ = std::io::stdin().lock().read_line(&mut String::new());
+        }
+    }
+    code
 }
 
 /// `register` — đăng ký Text Services Framework TIP vào hệ thống (WIN-003 / P1-1 §8).
