@@ -12,14 +12,21 @@ giống nhau.
 Bộ cài hỗ trợ cài không tương tác:
 
 ```
-TextVN-setup-<bản>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER
+TextVN-setup-<bản>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
 ```
 
-- `/CURRENTUSER`: cài cho tài khoản hiện tại (`%LOCALAPPDATA%\Programs\TextVN`),
-  không cần admin. Bỏ cờ này = cài phạm vi máy (cần admin).
-- Lỗi đăng ký TSF báo qua exit code 10; thành công = 0. Silent không tự mở app.
-- Chi tiết nộp Store: `docs/release/store-submission.md`. Chính sách riêng tư:
-  `PRIVACY_POLICY.txt` (ở gốc repo).
+- `TextVN-setup-<bản>-windows-x64.exe` mặc định cài **cho tài khoản hiện tại**
+  (`%LOCALAPPDATA%\Programs\TextVN`, không cần admin). Cài cho mọi người dùng: dùng
+  `TextVN-setup-<bản>-windows-x64-machine.exe` (Program Files, ARP ở HKLM, cần quyền
+  admin) hoặc thêm `/ALLUSERS` khi chạy bản thường bằng quyền admin.
+- Chế độ im lặng **chỉ chép file** và **luôn trả exit code 0** khi đã chép đủ; không tự
+  mở app. Bộ gõ được đăng ký khi người dùng mở TextVN lần đầu (mỗi tài khoản Windows tự
+  được đăng ký ở lần đầu TextVN chạy cho tài khoản đó); lỗi đăng ký ghi ở
+  `%LOCALAPPDATA%\TextVN\logs\register.log`. Chỉ khi cài **có giao diện** mà đăng ký
+  thất bại, bộ cài mới trả exit code 10.
+- Microsoft Store: đường nộp hiện tại là gói **MSIX** (Store tự ký khi phát hành). File
+  `.msix` trên GitHub Release chưa ký nên **không cài trực tiếp được**. Chi tiết:
+  `docs/release/msix-submission.md`. Chính sách riêng tư: `PRIVACY_POLICY.txt` (ở gốc repo).
 
 ## 1. Cài đặt
 
@@ -29,50 +36,63 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 
 | Cách | Làm gì | Khi nào nên dùng |
 |---|---|---|
-| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bộ cài mặc định cài **phạm vi máy** (UAC một lần) — đúng luồng Microsoft Store (validator chỉ đọc entry ở HKLM) và gõ được ngay trên Windows 11 24H2+. App tự đăng ký bộ gõ khi mở lần đầu và tự đề nghị UAC một lần nếu Windows từ chối per-user. | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
+| **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bộ cài mặc định cài **cho tài khoản của bạn** (`%LOCALAPPDATA%\Programs\TextVN`, không cần admin). Muốn cài cho mọi tài khoản trên máy: dùng `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần). | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
 | **Giải nén dùng ngay** | Giải nén `TextVN-portable-<phiên bản>-windows-x64-*.zip` → nhấn đúp `TextVN.exe`. | Máy mượn, USB, dùng thử. Không ghi gì vào Program Files. |
+| **Microsoft Store** | Đang nộp (gói MSIX). Khi có trên Store: cài, mở TextVN một lần để app đăng ký bộ gõ cho tài khoản của bạn. | Muốn Store tự cập nhật. |
 
-Lần chạy đầu tiên TextVN tự đăng ký bộ gõ với Windows cho tài khoản của bạn. Nếu vẫn
-chưa gõ được: mở Bảng điều khiển → **[Cài & bật TSF]**, rồi chọn *TextVN* trong danh sách
-bộ gõ (**Win + Space**).
+Lần đầu TextVN chạy cho một tài khoản Windows, app tự đăng ký bộ gõ cho tài khoản đó (kể cả
+khi đã cài cho mọi người dùng). Nếu vẫn chưa gõ được: mở Bảng điều khiển → **[Cài & bật TSF]**,
+rồi chọn *TextVN* trong danh sách bộ gõ (**Win + Space**). Nâng cấp lên bản mới **giữ nguyên**
+kiểu gõ, tuỳ chọn và thiết lập theo từng ứng dụng của bạn.
 
-Nếu `register.log` ghi `Đăng ký qua API TSF → 0x80004005` trong khi
-`COM server HKCU → OK`, lỗi không nằm ở quyền ghi HKCU. Bản portable không thể
-tự nâng quyền an toàn từ thư mục giải nén; chờ installer đã qua kiểm thử máy thật
-hoặc liên hệ quản trị viên. Không chạy `textvn-cli.exe` portable bằng quyền admin.
+**Windows 11 24H2+ (lỗi B7):** một số máy từ chối kích hoạt bộ gõ chỉ đăng ký cho tài khoản
+(`register.log` ghi `Đăng ký qua API TSF → 0x80004005` trong khi `COM server HKCU → OK`).
+Vì an toàn, TextVN **chỉ** đăng ký cho cả máy khi chính nó nằm trong Program Files (bộ cài
+`-machine.exe`); bản cài cho tài khoản, bản portable và bản Store không bao giờ xin UAC mà
+báo một lần và hướng dẫn cài `TextVN-setup-<phiên bản>-windows-x64-machine.exe`. Không chạy
+`textvn-cli.exe` portable bằng quyền admin (CLI cũng từ chối đăng ký phạm vi máy cho DLL
+ngoài Program Files).
 
-Gỡ: *Settings → Apps → TextVN → Uninstall* (bản cài) hoặc chuột phải `uninstall.ps1` →
-*Run with PowerShell* rồi xoá thư mục (bản portable). Menu khay **Gỡ cài đặt** làm đúng việc
-tương ứng cho cả hai loại.
+Gỡ: *Settings → Apps → TextVN → Uninstall* (bản cài, bản Store) hoặc chuột phải
+`uninstall.ps1` → *Run with PowerShell* (bản portable — script chỉ xoá đúng các file của
+TextVN, thư mục chỉ bị xoá khi đã trống). Menu khay **Gỡ cài đặt** làm đúng việc tương ứng cho
+từng loại.
 
 ### macOS (13 Ventura trở lên — Apple Silicon và Intel)
 
-**Yêu cầu**: macOS 13+. Không cần cài thêm gì — `TextVN-IM.app` là một bundled executable
-hoàn chỉnh (engine Rust universal đã nhúng trong app).
+**Yêu cầu**: macOS 13+. Không cần cài thêm gì — engine Rust universal đã nhúng sẵn trong app.
+Bản phát hành gồm hai thành phần: `TextVN-IM.app` (bộ gõ) và `TextVN.app` (menu bar + Cài đặt).
 
-**Cài đặt:**
+**Cách khuyến nghị — bộ cài `.pkg`:** tải `TextVN-mac-v<phiên bản>.pkg` rồi mở để cài, hoặc
+cài riêng cho bạn, không cần sudo:
 
 ```bash
-# 1. Tải và giải nén TextVN-<ver>-macos-universal.zip
-# 2. Kéo TextVN-IM.app vào ~/Library/Input Methods/
-cp -R TextVN-IM.app ~/Library/Input\ Methods/
+installer -pkg TextVN-mac-v<phiên bản>.pkg -target CurrentUserHomeDirectory
+```
 
-# 3. Bật trong System Settings → Keyboard → Input Sources → Add (+)
-#    Tìm "TextVN" trong danh sách → thêm vào
+Gói cài `TextVN-IM.app` vào `~/Library/Input Methods/` và `TextVN.app` vào `~/Applications/`.
+Sau đó vào System Settings → Keyboard → Input Sources → Edit… → (+) → Vietnamese → **TextVN**.
+
+**Bản nén:** `TextVN-macos-universal-v<phiên bản>.zip` (hoặc `.tar.gz`) chứa cả hai app:
+
+```bash
+cp -R TextVN-IM.app ~/Library/Input\ Methods/
+cp -R TextVN.app ~/Applications/        # hoặc /Applications
+xattr -dr com.apple.quarantine ~/Library/Input\ Methods/TextVN-IM.app ~/Applications/TextVN.app
 ```
 
 **Chuyển bộ gõ**: `Control + Space` (macOS default) hoặc menu Input Source trên menu bar.
 
-**Gỡ cài đặt:**
+**Gỡ cài đặt:** menu bar TextVN → **Gỡ cài đặt TextVN...** (chạy
+`TextVN.app/Contents/Resources/uninstall_macos.sh`; bản cài cho mọi người dùng sẽ hỏi quyền
+quản trị). Cấu hình ở `~/Library/Application Support/TextVN` được giữ lại. Sau đó bỏ TextVN
+khỏi System Settings → Keyboard → Input Sources nếu còn.
 
-```bash
-# Tắt bộ gõ trong System Settings → Keyboard → Input Sources → xoá TextVN
-# Sau đó:
-rm -rf ~/Library/Input\ Methods/TextVN-IM.app
-```
-
-> **Lưu ý beta**: Bản phát hành chưa được ký với Apple Developer ID — macOS Gatekeeper có thể
-> cảnh báo lần đầu mở. Để bypass: click phải → Open → Open anyway.
+> **Chữ ký:** mỗi file phát hành có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig`/`.cosign.cert`),
+> kèm `SHA256SUMS.txt` ký clearsign (`docs/release/signing.md`). Gói **chưa** được ký Apple
+> Developer ID/notarize (`docs/release/signing-status-mac.md`), nên Gatekeeper chặn lần đầu mở
+> `.pkg`/`TextVN.app`: vào System Settings → Privacy & Security → **Open Anyway** (macOS 15
+> không còn cách click phải → Open).
 
 ### Linux
 
@@ -102,7 +122,7 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
 ## 2. Bật/tắt tiếng Việt
 
 - Nhấn rồi nhả **Ctrl + Shift** (không kèm phím khác) — như UniKey trên cả 3 nền tảng:
-  - **Windows**: TextVN tự động giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows; tray có bộ dò tap **chỉ quan sát** (không ăn phím, không gõ thay) nên tổ hợp được nhận ở **mọi ứng dụng** — kể cả khi bạn đang đứng ở bàn phím khác trong Win+Space — đổi mode tức thì và đồng bộ icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh). Hai lần bấm trong 0,25 giây tính là một (chống lật đôi khi cả tray lẫn engine cùng nhận một lần bấm).
+  - **Windows**: TextVN giải phóng `Ctrl + Shift` khỏi phím tắt chuyển ngôn ngữ mặc định của Windows (bộ cài chọn sẵn; bản Store hỏi trước khi đổi); tray có bộ dò tap **chỉ quan sát** (không ăn phím, không gõ thay) nên tổ hợp được nhận ở **mọi ứng dụng** — kể cả khi bạn đang đứng ở bàn phím khác trong Win+Space — đổi mode tức thì và đồng bộ icon khay hệ thống **[V]** (Tím) ↔ **[E]** (Xanh). Hai lần bấm trong 0,25 giây tính là một (chống lật đôi khi cả tray lẫn engine cùng nhận một lần bấm).
   - **macOS**: TextVN nhận diện tổ hợp `Ctrl + Shift` tap trong `flagsChanged`, đồng bộ với menu bar app `TextVN.app` để chuyển đổi chế độ và hiển thị rõ chỉ báo **[V]** / **[E]** trên thanh menu bar.
   - **Linux**: IBus và Fcitx5 tự động cập nhật icon `textvn_v` ↔ `textvn_e` và nhãn `V` ↔ `E` trên thanh trạng thái / khay hệ thống.
 - Hoặc nhấn tổ hợp **Ctrl + Shift + Space**.
@@ -144,8 +164,9 @@ VIỆT); chữ viết tắt gõ bằng Shift như `USA`, `JSON` giữ nguyên.
 
 ## 4. Bảng điều khiển
 
-Windows: nhấn biểu tượng khay. Linux: chạy `textvn-settings`, mở *TextVN* trong menu ứng
-dụng, hoặc chọn **Cài đặt TextVN…** trong menu IBus/Fcitx5.
+Windows: nhấn biểu tượng khay. macOS: menu bar TextVN → **Cài đặt...** (⌘,). Linux: chạy
+`textvn-settings`, mở *TextVN* trong menu ứng dụng, hoặc chọn **Cài đặt TextVN…** trong menu
+IBus/Fcitx5.
 
 Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 
@@ -160,7 +181,8 @@ Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 | Tự viết hoa chữ đầu câu | sau `.` `!` `?` và Enter |
 | Quick Telex | như trên |
 | Gõ tắt cả khi tắt tiếng Việt | gõ tắt vẫn bung khi đang ở chế độ E |
-| Khởi động cùng Windows / Bật hội thoại này khi khởi động | chỉ Windows |
+| Khởi động cùng Windows (macOS: Khởi động cùng OS) / Bật hội thoại này khi khởi động | Windows và macOS |
+| Gõ không gạch chân (Non-preedit) · Chạy ngầm trong menu bar | chỉ macOS |
 | Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows |
 
 Mọi thay đổi lưu ngay, không cần khởi động lại. **Mặc định** đưa mọi tuỳ chọn về ban đầu
@@ -183,12 +205,12 @@ tự; dòng sai được báo và bôi đen khi bấm Lưu.
 
 ## 6. Cấu hình
 
-| | Windows | Linux |
-|---|---|---|
-| Tuỳ chọn | `%APPDATA%\TextVN\config.json` | `~/.config/TextVN/config.json` |
-| Trạng thái V/E | `%APPDATA%\TextVN\state.json` | `~/.config/TextVN/state.json` |
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| Tuỳ chọn | `%APPDATA%\TextVN\config.json` | `~/Library/Application Support/TextVN/config.json` | `~/.config/TextVN/config.json` |
+| Trạng thái V/E | `%APPDATA%\TextVN\state.json` | khoá `enabled` trong `config.json` (không có `state.json`) | `~/.config/TextVN/state.json` |
 
-Cùng định dạng (schema `schemas/config.v1.schema.json`) — chép file giữa hai máy được.
+Cùng định dạng (schema `schemas/config.v1.schema.json`) — chép file giữa các máy được.
 Bảng điều khiển chỉ sửa đúng khoá bạn đổi và giữ nguyên phần còn lại; file hỏng được giữ lại
 thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
@@ -200,8 +222,8 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím — nếu Windows còn giữ phím này, một lần bấm vừa đổi mode TextVN vừa đổi bàn phím hệ thống. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 
-| Windows: chọn TextVN xong vẫn gõ ra tiếng Anh/không ra chữ, hoặc TextVN không có trong Win+Space | (1) Win11 24H2+ có thể từ chối đăng ký bộ gõ chỉ-per-user (HKCU) — bản portable đơn thuần không kích hoạt được tự động; (2) TextVN từng bị mất khỏi danh sách Win+Space sau nâng cấp liên tục. Cách xử lý: chạy **bộ cài TextVN** (cài phạm vi máy, cần UAC một lần) — đây là luồng được CI kiểm chứng đầy đủ; sau cài, đăng xuất/đăng nhập nếu vẫn chưa thấy. Kiểm tra nhanh: PowerShell `Get-WinUserLanguageList` phải thấy dòng chứa `{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}`. |
-| Windows: phần mềm diệt virus cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Kiểm tra `RELEASE_REPORT.json` trong gói để biết bản đó đã được ký số hay chưa. |
+| Windows: chọn TextVN xong vẫn gõ ra tiếng Anh/không ra chữ, hoặc TextVN không có trong Win+Space | (1) Win11 24H2+ có thể từ chối kích hoạt bộ gõ chỉ đăng ký cho tài khoản (HKCU) — bản cài cho tài khoản, portable và Store không tự xin UAC; (2) TextVN từng bị mất khỏi danh sách Win+Space sau nâng cấp liên tục. Cách xử lý: chạy **bộ cài cho mọi người dùng** `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần) — luồng `/ALLUSERS` được CI kiểm chứng đầy đủ; sau cài, đăng xuất/đăng nhập nếu vẫn chưa thấy. Kiểm tra nhanh: PowerShell `Get-WinUserLanguageList` phải thấy dòng chứa `{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}`. |
+| Windows: phần mềm diệt virus / SmartScreen cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Bản phát hành chưa có chữ ký Authenticode (đang chờ SignPath Foundation) — kiểm `checks.authenticode` trong `RELEASE_REPORT.json` của gói; tính toàn vẹn kiểm bằng chữ ký GPG/Sigstore (`release/signing.md`). |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
@@ -209,15 +231,27 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
 Báo lỗi: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
 (ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm — Windows: file tạo bởi
-`textvn-cli doctor --export diag.zip`; Linux: `~/.local/state/TextVN/log/textvn.log`. Cả hai
-không chứa nội dung bạn gõ.
+`textvn-cli doctor --export diag.zip` (xem nhanh trong cửa sổ: `textvn-cli doctor --pause` — lối
+tắt *Kiem tra he thong (TextVN Doctor)* trong Start menu của bản cài); macOS: thư mục `~/Library/Logs/TextVN/` (chỉ có log khi
+chạy với biến môi trường `TEXTVN_LOG=1`); Linux: `~/.local/state/TextVN/log/textvn.log`. Các
+file này không chứa nội dung bạn gõ.
 
 ## Trạng thái từng nền tảng
 
 | Nền tảng | Trạng thái |
 |---|---|
-| Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho cả bản cài và bản portable. |
-| Linux IBus / Fcitx5 | Bản thử nghiệm phát hành: kiểm thử tự động với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. |
-| macOS | Beta: đã có IMK adapter và gói `.pkg`, CI build/test; còn cần thử GUI/cài-gỡ trên Mac thật trước production. |
+| Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho bộ cài, bản portable và gói MSIX (cài thử thật). Còn chờ chữ ký **Authenticode** qua SignPath Foundation (đang chờ duyệt) — trước đó SmartScreen/AV có thể cảnh báo. Microsoft Store: đang nộp gói MSIX. |
+| Linux IBus / Fcitx5 | Bản thử nghiệm phát hành: tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; kiểm thử tự động với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. Chưa có `.deb`/`.rpm`. |
+| macOS 13+ (IMK) | Bản thử nghiệm phát hành: bộ gõ IMK, app menu bar, gói `.pkg`; CI build 2 kiến trúc và chạy test. **Chưa** ký Apple Developer ID/notarize — xem lưu ý Gatekeeper ở §1. |
 
-Chi tiết kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](release/build-release-report.md).
+Mọi file phát hành (cả 3 nền tảng) đều có chữ ký GPG `.asc` + Sigstore `.cosign.sig`/`.cosign.cert`.
+Kiểm tra nhanh (fingerprint `3921 595A BC96 1199 F153  03B6 C45B 84D0 C7F4 A822`):
+
+```bash
+gpg --import gpg-release-key.asc
+gpg --verify SHA256SUMS.txt
+gpg --decrypt SHA256SUMS.txt 2>/dev/null | sha256sum -c --ignore-missing
+```
+
+Chi tiết (kể cả kiểm bằng cosign): [signing.md](release/signing.md). Kết quả kiểm thử của
+phiên bản hiện tại: [build-release-report.md](release/build-release-report.md).
