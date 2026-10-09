@@ -48,9 +48,16 @@ had_fcitx5=0
 grep -q '/ibus/component/textvn.xml$' "$MANIFEST" && had_ibus=1
 grep -q 'libtextvn-fcitx5.so$' "$MANIFEST" && had_fcitx5=1
 
-# Bỏ khỏi danh sách bộ gõ trước. install.sh gọi tv_activate_ibus cho CẢ bản hệ thống
-# (gsettings là per-user) → gỡ cũng phải đối xứng (review R3 major 3).
-[[ "$had_ibus" == 1 ]] && tv_deactivate_ibus
+# Danh sách bộ gõ (gsettings, profile Fcitx5), daemon IBus/Fcitx5 và cấu hình là của
+# TỪNG người dùng. Dưới root (sudo, bản cài hệ thống) mọi bước đó chỉ chạm vào root
+# — HOME=/root, không có session bus — mà vẫn báo thành công (R2-54): bỏ qua, in
+# lệnh để người dùng tự chạy trong phiên của mình.
+PER_USER_STEPS=1
+[[ $EUID -eq 0 ]] && PER_USER_STEPS=0
+
+# Bỏ khỏi danh sách bộ gõ trước — đối xứng với tv_activate_ibus của install.sh
+# (chỉ chạy khi không phải root, như install.sh).
+[[ "$PER_USER_STEPS" == 1 && "$had_ibus" == 1 ]] && tv_deactivate_ibus
 
 # Manifest là dữ liệu trên đĩa, không phải danh sách lệnh xoá được tin cậy. Chỉ
 # gỡ các path install.sh có thể đã tạo; một manifest hỏng không được phép xoá
@@ -68,17 +75,32 @@ for d in "$PREFIX/lib/textvn/fcitx5" "$PREFIX/lib/textvn" "$PREFIX/share/textvn"
     rmdir "$d" 2>/dev/null || true
 done
 
-[[ "$had_ibus" == 1 && "$PREFIX" != /usr ]] && tv_ibus_clear_cache
-if [[ "$RESTART" == 1 ]]; then
-    if [[ "$had_ibus" == 1 ]] && tv_running ibus-daemon; then
-        tv_restart_ibus ""
+if [[ "$PER_USER_STEPS" == 0 ]]; then
+    tv_say "Chạy bằng root: KHÔNG sửa danh sách bộ gõ, daemon hay cấu hình của người dùng."
+    echo "  Mỗi người dùng chạy trong phiên của mình (không dùng sudo):"
+    [[ "$had_ibus" == 1 ]] &&
+        echo "    • IBus  : bỏ 'TextVN' trong Cài đặt → Bàn phím → Nguồn nhập, rồi: ibus restart"
+    [[ "$had_fcitx5" == 1 ]] &&
+        echo "    • Fcitx5: bỏ 'TextVN' trong fcitx5-configtool, rồi: fcitx5 -r -d"
+    if [[ "$PURGE" == 1 ]]; then
+        # --purge dưới root từng xoá /root/.config/TextVN mà báo ~/.config/TextVN.
+        echo "    • --purge: rm -rf ~/.config/TextVN ~/.local/state/TextVN"
+        PURGE=0
+        PURGE_SKIPPED=1
     fi
-fi
-if [[ "$had_fcitx5" == 1 ]]; then
+else
+    [[ "$had_ibus" == 1 && "$PREFIX" != /usr ]] && tv_ibus_clear_cache
     if [[ "$RESTART" == 1 ]]; then
-        tv_restart_fcitx5 "" "" remove
-    elif ! tv_running fcitx5; then
-        tv_deactivate_fcitx5
+        if [[ "$had_ibus" == 1 ]] && tv_running ibus-daemon; then
+            tv_restart_ibus ""
+        fi
+    fi
+    if [[ "$had_fcitx5" == 1 ]]; then
+        if [[ "$RESTART" == 1 ]]; then
+            tv_restart_fcitx5 "" "" remove
+        elif ! tv_running fcitx5; then
+            tv_deactivate_fcitx5
+        fi
     fi
 fi
 
@@ -87,4 +109,8 @@ if [[ "$PURGE" == 1 ]]; then
     tv_ok "Đã xoá cấu hình ~/.config/TextVN và nhật ký ~/.local/state/TextVN."
 fi
 tv_ok "Đã gỡ TextVN."
-[[ "$PURGE" == 1 ]] || echo "  Cấu hình (gõ tắt, tuỳ chọn) được giữ ở ~/.config/TextVN — thêm --purge để xoá."
+if [[ "${PURGE_SKIPPED:-0}" == 1 ]]; then
+    echo "  Chưa xoá cấu hình người dùng (--purge cần chạy bằng chính người dùng đó, xem trên)."
+elif [[ "$PURGE" != 1 ]]; then
+    echo "  Cấu hình (gõ tắt, tuỳ chọn) được giữ ở ~/.config/TextVN — thêm --purge để xoá."
+fi

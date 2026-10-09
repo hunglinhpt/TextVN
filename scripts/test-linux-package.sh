@@ -114,8 +114,8 @@ scenario_install() {
         fail "component IBus không trỏ vào engine đã cài"
     local envf="$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
     [[ -f "$envf" ]] || fail "thiếu $envf"
-    grep -Fq "FCITX_ADDON_DIRS=$pre/lib/textvn/fcitx5" "$envf" ||
-        fail "environment.d không giữ đường dẫn addon Fcitx5 per-user"
+    grep -Fq "FCITX_ADDON_DIRS=$pre/lib/textvn/fcitx5:/" "$envf" ||
+        fail "environment.d thiếu addon Fcitx5 per-user hoặc thư mục addon gốc của Fcitx5 (R2-45)"
     if [[ "$fw" == ibus ]]; then
         grep -q "'textvn'" "$HOME/.fake-gsettings" || fail "install.sh không thêm textvn vào IBus"
     else
@@ -201,10 +201,13 @@ scenario_portable() {
     export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_DATA_HOME="$t/home/.local/share"
     export XDG_CACHE_HOME="$t/home/.cache" XDG_RUNTIME_DIR="$t/run" PATH="$t/fakebin:$PATH"
     unset IBUS_COMPONENT_PATH FCITX_ADDON_DIRS
-    mkdir -p "$t/x"
-    tar -C "$t/x" -xzf "$TARBALL"
+    # Giải nén vào thư mục có khoảng trắng + chữ có dấu, như "Tải về" của desktop
+    # tiếng Việt: <exec> của component IBus phải được trích đúng (R2-46).
+    local x="$t/Tải về"
+    mkdir -p "$x"
+    tar -C "$x" -xzf "$TARBALL"
     local pkg
-    pkg="$(echo "$t"/x/TextVN-*)"
+    pkg="$(echo "$x"/TextVN-*)"
     chmod -R a-w "$pkg"   # thư mục giải nén chỉ đọc: portable không được ghi vào đó
 
     # Không có marker portable: stop phải là no-op, không được khởi động lại IME
@@ -330,10 +333,106 @@ G
     echo "PASS đơn vị: thêm/bỏ TextVN trong GNOME input-sources và profile Fcitx5"
 }
 export -f unit_activation
+
+# ---- Kiểm thử đơn vị: component IBus với đường dẫn lạ (R2-46) -------------------------
+# ibus-daemon tách <exec> bằng g_shell_parse_argv — shlex.split cùng quy tắc trích dẫn.
+unit_ibus_component() {
+    local t base
+    t="$(mktemp -d)"
+    mkdir -p "$t/share/ibus/component"
+    cp "$ROOT/packaging/linux/ibus/textvn.xml" "$t/share/ibus/component/"
+    # shellcheck source=packaging/linux/textvn-common.sh
+    . "$ROOT/packaging/linux/textvn-common.sh"
+    # '$HOME' và backtick dưới đây là ký tự của đường dẫn, cố ý không mở rộng.
+    # shellcheck disable=SC2016
+    for base in /usr "$t/Tải về/TextVN-1" "$t/A & B" "$t/it's <x> \"q\"" "$t/a|b\\c" \
+                "$t/"'$HOME/`x`#y'; do
+        tv_ibus_component "$t" "$base/lib/textvn/textvn-ibus-engine" "$base/bin/textvn-settings" \
+            > "$t/out.xml"
+        python3 -I - "$t/out.xml" "$base" <<'PYEOF' || fail "component IBus sai với đường dẫn: $base"
+import shlex, sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+base = sys.argv[2]
+assert shlex.split(root.find("exec").text) == [base + "/lib/textvn/textvn-ibus-engine", "--ibus"]
+assert shlex.split(root.find("engines/engine/setup").text) == [base + "/bin/textvn-settings"]
+PYEOF
+    done
+    # Đường dẫn thường: component GIỮ NGUYÊN dạng không trích dẫn như trước.
+    tv_ibus_component "$t" /usr/lib/textvn/textvn-ibus-engine /usr/bin/textvn-settings |
+        cmp -s - "$ROOT/packaging/linux/ibus/textvn.xml" || fail "component IBus đổi với đường dẫn mặc định"
+    rm -rf "$t"
+    echo "PASS đơn vị: component IBus trích dẫn đúng đường dẫn có khoảng trắng/&/'/<>"
+}
+export -f unit_ibus_component
+
+# ---- Kiểm thử đơn vị: cài khi CHƯA có Fcitx5 (R2-45) ----------------------------------
+# FCITX_ADDON_DIRS thay thế thư mục addon gốc: không dò ra Fcitx5 vẫn phải ghi mọi
+# thư mục ứng viên, nếu không cài Fcitx5 sau đó sẽ mất keyboard/frontend.
+unit_fcitx5_absent() {
+    local t pkg envf
+    t="$(new_home)"
+    export HOME="$t/home" XDG_CONFIG_HOME="$t/home/.config" XDG_CACHE_HOME="$t/home/.cache"
+    export PATH="$t/fakebin:$PATH" TV_FCITX5_ADDON_CANDIDATES="$t/none/fcitx5"
+    mkdir -p "$t/x"
+    tar -C "$t/x" -xzf "$TARBALL"
+    pkg="$(echo "$t"/x/TextVN-*)"
+    "$pkg/install.sh" --no-restart --no-activate >"$t/install.log" 2>&1 ||
+        { cat "$t/install.log"; fail "install.sh (chưa có Fcitx5)"; }
+    envf="$XDG_CONFIG_HOME/environment.d/60-textvn.conf"
+    # Dòng environment.d chứa ${...} nguyên văn (systemd mở rộng lúc đăng nhập).
+    # shellcheck disable=SC2016
+    grep -Fqx "FCITX_ADDON_DIRS=$HOME/.local/lib/textvn/fcitx5:$t/none/fcitx5"'${FCITX_ADDON_DIRS:+:$FCITX_ADDON_DIRS}' "$envf" ||
+        { cat "$envf"; fail "chưa có Fcitx5: FCITX_ADDON_DIRS thiếu thư mục addon ứng viên của Fcitx5"; }
+    "$HOME/.local/share/textvn/uninstall.sh" --no-restart >"$t/un.log" 2>&1 ||
+        { cat "$t/un.log"; fail "uninstall.sh (chưa có Fcitx5)"; }
+    [[ ! -e "$envf" ]] || fail "gỡ xong còn $envf"
+    rm -rf "$t"
+    echo "PASS đơn vị: cài khi chưa có Fcitx5 vẫn giữ thư mục addon gốc trong FCITX_ADDON_DIRS"
+}
+export -f unit_fcitx5_absent
+
+# ---- Kiểm thử đơn vị: --system dưới root không đụng thiết lập người dùng (R2-54) -------
+unit_system_root() {
+    local t pkg out
+    local -a as_root=()
+    if [[ $EUID -ne 0 ]]; then
+        if sudo -n true 2>/dev/null; then
+            as_root=(sudo -n)
+        else
+            echo "SKIP đơn vị --system: không có root/sudo không mật khẩu"
+            return 0
+        fi
+    fi
+    t="$(new_home)"
+    mkdir -p "$t/x" "$t/sysaddon/fcitx5" "$t/roothome/.config/TextVN"
+    : > "$t/sysaddon/fcitx5/libkeyboard.so"
+    tar -C "$t/x" -xzf "$TARBALL"
+    pkg="$(echo "$t"/x/TextVN-*)"
+    out="$("${as_root[@]}" env PATH="$t/fakebin:$PATH" HOME="$t/roothome" \
+        TV_FCITX5_ADDON_CANDIDATES="$t/sysaddon/fcitx5" \
+        "$pkg/install.sh" --system --prefix "$t/sysprefix" 2>&1)" ||
+        { echo "$out"; fail "install.sh --system"; }
+    grep -q "Chạy bằng root" <<<"$out" || { echo "$out"; fail "--system không in hướng dẫn cho người dùng"; }
+    [[ ! -e "$t/roothome/.fake-gsettings" ]] || fail "--system dưới root vẫn gọi gsettings"
+    [[ -f "$t/sysaddon/fcitx5/libtextvn-fcitx5.so" ]] || fail "--system không đặt addon vào thư mục Fcitx5 hệ thống"
+    out="$("${as_root[@]}" env PATH="$t/fakebin:$PATH" HOME="$t/roothome" \
+        TV_FCITX5_ADDON_CANDIDATES="$t/sysaddon/fcitx5" \
+        "$t/sysprefix/share/textvn/uninstall.sh" --purge 2>&1)" ||
+        { echo "$out"; fail "uninstall.sh --system"; }
+    [[ -d "$t/roothome/.config/TextVN" ]] || fail "--purge dưới root đã xoá cấu hình (của root)"
+    [[ ! -e "$t/sysaddon/fcitx5/libtextvn-fcitx5.so" ]] || fail "gỡ --system còn addon Fcitx5"
+    "${as_root[@]}" rm -rf "$t"
+    echo "PASS đơn vị: --system dưới root chỉ cài/gỡ file hệ thống, in hướng dẫn per-user"
+}
+export -f unit_system_root
+
 bash -c unit_activation
+bash -c unit_ibus_component
+bash -c unit_fcitx5_absent
+bash -c unit_system_root
 
 for fw in ibus fcitx5; do
     dbus-run-session -- bash -c "scenario_install $fw" 2> >(grep -v 'fd limit' >&2)
     dbus-run-session -- bash -c "scenario_portable $fw" 2> >(grep -v 'fd limit' >&2)
 done
-echo "== Gói Linux: 4/4 kịch bản PASS (cài + chạy ngay × IBus + Fcitx5) + kiểm thử đơn vị kích hoạt"
+echo "== Gói Linux: 4/4 kịch bản PASS (cài + chạy ngay × IBus + Fcitx5) + kiểm thử đơn vị (kích hoạt, component IBus, chưa có Fcitx5, --system)"

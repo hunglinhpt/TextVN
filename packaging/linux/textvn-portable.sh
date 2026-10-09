@@ -322,6 +322,9 @@ else
     cp "$PKG_DIR/share/fcitx5/addon/textvn.conf" "$RUNTIME/data/fcitx5/addon/"
     cp "$PKG_DIR/share/fcitx5/inputmethod/textvn.conf" "$RUNTIME/data/fcitx5/inputmethod/"
     sys="$(tv_fcitx5_system_addon_dir)"
+    # Kèm thư mục addon gốc của Fcitx5 (hoặc mọi ứng viên khi không dò ra): biến này
+    # thay thế thư mục mặc định, thiếu nó Fcitx5 mất keyboard/frontend (R2-45).
+    addon_dirs="$(tv_fcitx5_env_addon_dirs "$PKG_DIR/lib/textvn/fcitx5" "$sys")"
     was_running="$(runtime_get was-running)"
     profile_action=add
     if grep -qx 'Name=textvn' "$(tv_fcitx5_profile)" 2>/dev/null; then
@@ -329,10 +332,10 @@ else
     else
         : > "$RUNTIME/fcitx-profile-added"
     fi
-    tv_restart_fcitx5 "$PKG_DIR/lib/textvn/fcitx5${sys:+:$sys}" "$RUNTIME/data" "$profile_action" ||
+    tv_restart_fcitx5 "$addon_dirs" "$RUNTIME/data" "$profile_action" ||
         rollback_start fcitx5 "Không thể khởi động lại Fcitx5 cho TextVN portable."
     if [[ "$was_running" == 0 ]]; then
-        FCITX_ADDON_DIRS="$PKG_DIR/lib/textvn/fcitx5${sys:+:$sys}" \
+        FCITX_ADDON_DIRS="$addon_dirs" \
             XDG_DATA_DIRS="$RUNTIME/data:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}" \
             setsid fcitx5 -d >/dev/null 2>&1 || true
         sleep 1

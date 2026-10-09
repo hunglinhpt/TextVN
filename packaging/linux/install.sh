@@ -62,8 +62,17 @@ if [[ "$MODE" == system && -n "$SYS_FCITX_ADDONS" ]]; then
 else
     FCITX_LIB="$LIBDIR/fcitx5"
 fi
-FCITX_DIRS="$FCITX_LIB${SYS_FCITX_ADDONS:+:$SYS_FCITX_ADDONS}"
+# Luôn kèm thư mục addon GỐC của Fcitx5 (hoặc mọi ứng viên khi chưa thấy Fcitx5):
+# FCITX_ADDON_DIRS thay thế thư mục mặc định, thiếu nó Fcitx5 hỏng hẳn (R2-45).
+FCITX_DIRS="$(tv_fcitx5_env_addon_dirs "$FCITX_LIB" "$SYS_FCITX_ADDONS")"
 [[ "$MODE" == system ]] && FCITX_DIRS=""
+
+# gsettings, profile Fcitx5 và khởi động lại IBus/Fcitx5 là việc của TỪNG người dùng
+# trong phiên của họ. Dưới root (sudo --system) chúng chạm vào root — HOME=/root,
+# không có session bus, gsettings vẫn thoát 0 — rồi in "✓" sai (R2-54); với `sudo -E`
+# còn ghi file của root vào HOME người dùng. Bỏ qua, in lệnh để người dùng tự chạy.
+PER_USER_STEPS=1
+[[ $EUID -eq 0 ]] && PER_USER_STEPS=0
 
 tv_say "Cài TextVN $(tv_version "$PKG_DIR") ($MODE) vào $PREFIX"
 
@@ -104,7 +113,8 @@ if [[ -f "$PKG_DIR/lib/textvn/fcitx5/libtextvn-fcitx5.so" ]]; then
         # Distro ngoài danh sách multiarch: addon nằm ở $LIBDIR/fcitx5 mà bản hệ
         # thống không khai báo FCITX_ADDON_DIRS → Fcitx5 sẽ không nạp (review R3 minor 11).
         tv_err "Không tìm thấy thư mục addon Fcitx5 hệ thống — Fcitx5 sẽ KHÔNG nạp TextVN."
-        tv_err "Cài per-user (bỏ --system) hoặc thêm FCITX_ADDON_DIRS=$FCITX_LIB vào môi trường phiên."
+        tv_err "Cài per-user (bỏ --system) hoặc thêm vào môi trường phiên (giữ cả thư mục addon của Fcitx5):"
+        tv_err "  FCITX_ADDON_DIRS=$(tv_fcitx5_env_addon_dirs "$FCITX_LIB" "")"
     fi
 fi
 for f in icons/hicolor/scalable/apps/textvn_v.svg icons/hicolor/scalable/apps/textvn_e.svg \
@@ -133,10 +143,10 @@ if [[ "$MODE" == user ]]; then
             echo "IBUS_COMPONENT_PATH=$SHARE/ibus/component:/usr/share/ibus/component"
         fi
         if [[ "$HAS_FCITX5" == 1 ]]; then
-            # Không được phụ thuộc vào việc tìm được libdir hệ thống: trên distro
-            # không nằm trong danh sách hard-code, addon per-user vẫn phải được
-            # Fcitx nạp được ở phiên đăng nhập sau. Giữ cả các addon directory
-            # người dùng đã khai báo trước TextVN.
+            # FCITX_DIRS luôn có thư mục addon gốc của Fcitx5 (hoặc mọi ứng viên
+            # khi Fcitx5 chưa cài — người dùng cài Fcitx5 SAU TextVN vẫn có
+            # keyboard/frontend, R2-45). Giữ cả các addon directory người dùng
+            # đã khai báo trước TextVN.
             printf 'FCITX_ADDON_DIRS=%s${FCITX_ADDON_DIRS:+:$FCITX_ADDON_DIRS}\n' "$FCITX_DIRS"
         fi
     } > "$ENV_FILE"
@@ -171,7 +181,14 @@ command -v gtk-update-icon-cache >/dev/null 2>&1 &&
 
 # Áp dụng ngay cho phiên hiện tại (không cần đăng xuất): khởi động lại framework đang
 # chạy với đúng biến môi trường; thêm TextVN vào danh sách bộ gõ (trừ --no-activate).
-if [[ "$HAS_IBUS" == 1 ]]; then
+if [[ "$PER_USER_STEPS" == 0 ]]; then
+    tv_say "Chạy bằng root: KHÔNG sửa danh sách bộ gõ hay khởi động lại IBus/Fcitx5 (đó là thiết lập của từng người dùng)."
+    echo "  Mỗi người dùng chạy trong phiên của mình (không dùng sudo):"
+    [[ "$HAS_IBUS" == 1 ]] &&
+        echo "    • IBus  : ibus restart — rồi thêm 'TextVN' trong Cài đặt → Bàn phím → Nguồn nhập."
+    [[ "$HAS_FCITX5" == 1 ]] &&
+        echo "    • Fcitx5: fcitx5 -r -d — rồi thêm 'TextVN' trong fcitx5-configtool."
+elif [[ "$HAS_IBUS" == 1 ]]; then
     if [[ "$RESTART" == 1 ]] && tv_running ibus-daemon; then
         if [[ "$MODE" == user ]]; then
             tv_restart_ibus "$SHARE/ibus/component:/usr/share/ibus/component"
@@ -181,7 +198,7 @@ if [[ "$HAS_IBUS" == 1 ]]; then
     fi
     [[ "$ACTIVATE" == 1 ]] && tv_activate_ibus
 fi
-if [[ "$HAS_FCITX5" == 1 ]]; then
+if [[ "$PER_USER_STEPS" == 1 && "$HAS_FCITX5" == 1 ]]; then
     action=""
     [[ "$ACTIVATE" == 1 ]] && action=add
     if [[ "$RESTART" == 1 ]]; then
