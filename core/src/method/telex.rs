@@ -10,8 +10,9 @@
 //! - Đôi: `aa`→â · `ee`→ê · `oo`→ô · `dd`→đ; bấm lại → gỡ + gõ chữ đó (`eee`→`ee`, `ddd`→`dd`,
 //!   `xooong`→`xoong`) — như dấu thanh `ass` → `as` và UniKey `processRoof`/`processHook`/
 //!   `processDd` (gỡ rồi `processAppend`, R2-63; bản cũ nuốt phím nên không gõ được `xoong`).
-//! - `đ` CHỈ qua `dd` (như UniKey/OpenKey/Bamboo): `d` + nguyên âm giữ nguyên `d` —
-//!   bản cũ tự đổi thành `đ` nên không gõ được `dân`, `dạy`, `dưới`, `dược`….
+//! - `đ` CHỈ qua phím `d` (như UniKey/OpenKey/Bamboo): `d` + nguyên âm giữ nguyên `d` —
+//!   bản cũ tự đổi thành `đ` nên không gõ được `dân`, `dạy`, `dưới`, `dược`…. `d` gõ sau
+//!   trong từ đã biến đổi/có âm cuối đổi `d` đầu từ (`duocjwd` → `được`, R2-68, `late_stroke`).
 //! - Cặp `uo`: gõ `o` ngay sau `u` → `ư`+`ơ` (`dduocj`→`được`, `dduongf`→`đường`), trừ
 //!   `qu` (phụ âm `qu` + `ơ`: `quowr`→`quở`); `w` đầu tiên sau cặp tự tạo là xác nhận
 //!   (`nguowif`→`người`). `ươ` đứng cuối từ là vần `uơ` (`thuowr`→`thuở`, `huow`→`huơ`).
@@ -24,9 +25,10 @@
 use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::{apply_key, strip_tone, tone_of};
+use crate::transform::tone::{apply_key, is_vowel, strip_tone, tone_of};
 use crate::transform::undo::{mark_cluster, Marked};
 use crate::transform::vowel_table::{form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
+use crate::validate::CODAS;
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
@@ -195,6 +197,9 @@ fn push_key(
                 return;
             }
         }
+        if free && late_stroke(out, c) {
+            return;
+        }
         out.push(c);
         return;
     }
@@ -219,6 +224,43 @@ fn post_fixes(out: &mut [char]) {
         out[len - 2] = form_like(prev, U_HOOK, tone_of(prev).unwrap_or(0));
         out[len - 1] = form_like(last, O_HOOK, tone_of(last).unwrap_or(0));
     }
+}
+
+/// `d` gõ **sau** trong từ (đặt dấu tự do) → đổi `d` đầu từ thành `đ` như UniKey `processDd`
+/// (vị trí phụ âm đầu, không chỉ ký tự liền trước): `duocjwd` → `được` (PLAN §8), `dieend` →
+/// `điên`, `dongd` → `đong`; đầu từ đã là `đ` → gỡ + gõ chữ `d` (R2-63). R2-68.
+///
+/// Chỉ khi âm đầu đúng một `d` + nguyên âm, và từ đã có biến đổi tiếng Việt (dấu thanh/dấu
+/// phụ) hoặc đã có phụ âm cuối hợp lệ — từ tiếng Anh chưa biến đổi như `did`, `dad`, `dead`,
+/// `died` đi thẳng như cũ (đổi thành `đi`/`đa` thì là âm tiết Việt, auto-restore không cứu
+/// được).
+fn late_stroke(out: &mut Vec<char>, key: char) -> bool {
+    let (Some(&first), Some(&second)) = (out.first(), out.get(1)) else {
+        return false;
+    };
+    if !(is_plain_d(first) || is_stroke(first)) || !is_vowel(second) {
+        return false;
+    }
+    let transformed = out.iter().any(|ch| !ch.is_ascii());
+    let has_coda = out.iter().rposition(|&ch| is_vowel(ch)).is_some_and(|v| {
+        v + 1 < out.len() && {
+            let coda: String = out[v + 1..]
+                .iter()
+                .map(|ch| ch.to_ascii_lowercase())
+                .collect();
+            CODAS.contains(&coda.as_str())
+        }
+    });
+    if !(transformed || has_coda) {
+        return false;
+    }
+    if is_plain_d(first) {
+        out[0] = to_stroke(first);
+    } else {
+        out[0] = to_plain(first);
+        out.push(key);
+    }
+    true
 }
 
 enum Horn {
@@ -300,6 +342,35 @@ mod tests {
         ] {
             assert_eq!(n(keys), want, "{keys}");
         }
+    }
+
+    /// R2-68: `d` gõ sau trong từ làm `đ` đầu từ (UniKey `processDd` khi đặt dấu tự do).
+    #[test]
+    fn late_d_strokes_the_onset() {
+        for (keys, want) in [
+            ("duocjwd", "được"),
+            ("dieend", "điên"),
+            ("dieendf", "điền"),
+            ("dongd", "đong"),
+            ("Dongd", "Đong"),
+            // Đầu từ đã là `đ` → gỡ + gõ chữ `d` (như `ddd` → `dd`).
+            ("DDuocjd", "Dượcd"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+        // Từ tiếng Anh chưa biến đổi, không phụ âm cuối: giữ nguyên.
+        for w in ["did", "dad", "dead", "died", "dud", "dined"] {
+            assert_eq!(n(w), w, "{w}");
+        }
+        // Đặt dấu chặt (free_marking = false): `d` phải liền sau `d`.
+        let strict: String = fold(
+            &"duocjwd".chars().collect::<Vec<_>>(),
+            DiacriticStyle::New,
+            false,
+        )
+        .into_iter()
+        .collect();
+        assert!(strict.ends_with('d'), "{strict}");
     }
 
     #[test]
