@@ -384,10 +384,12 @@ foreach ($entry in $BinFiles) {
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
-        if ($vi.CompanyName -eq "LinhBH.CoM") {
+        # R2-86: build.rs chi canh bao khi thieu rc.exe/rc loi -> binary mat VERSIONINFO
+        # va manifest nhung van "build xanh". Phat hanh thi bat buoc dung metadata.
+        if ($vi.CompanyName -eq "LinhBH.CoM" -and $vi.FileVersion -eq "$Version.0") {
             Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
         } else {
-            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'LinhBH.CoM')"
+            Write-Fail "$($entry.dst): CompanyName='$($vi.CompanyName)', FileVersion='$($vi.FileVersion)' (expected 'LinhBH.CoM', '$Version.0') - rc.exe thieu hoac loi?"
         }
     }
 }
