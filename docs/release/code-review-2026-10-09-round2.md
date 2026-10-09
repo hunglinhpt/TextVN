@@ -15,6 +15,10 @@
 | Linux | ✅ Ký GPG + Sigstore cho mọi asset, CI **dừng** nếu thiếu/sai khoá (fail-closed) | — |
 | macOS | ✅ Code; ký Developer ID + notarize + staple bật **khi có** secret `APPLE_*`, thiếu thì ký ad-hoc và ghi rõ trong release notes | Đặt secret Apple (xem `signing-status-mac.md`) |
 
+**Tổng kết finding:** 87 finding R2 — **80 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
+chỉ Apple; R2-85 một phần), 1 chờ SignPath (R2-12), 3 giữ nguyên có lý do (R2-11, R2-47,
+R2-67), 3 hoãn (R2-14, R2-26, R2-41 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
+
 **Không nộp** gói `.msix` đính kèm release v0.2.27 hay trên nhánh `approved`: identity
 placeholder, Version `0.2.27.0` (Partner Center từ chối phần đầu = 0), mô tả tiếng Việt
 mojibake, ảnh 71×71 sai — `tools/win/verify-msix.py` bắt đủ 8 lỗi trên gói đó.
@@ -130,17 +134,17 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 | R2-57 | P1 | Tab gợi ý tiếng Anh thay từ Việt (`có`+Tab → `cost`) | Như R2-56 | ✅ `b5d859e` |
 | R2-58 | P1 | Auto-restore trả `đ` trong token không nguyên âm (`50.000đ`, `ĐT`, `đc`) | Giữ `đ` khi token không có nguyên âm | ✅ `76ef8cc` |
 | R2-59 | P1 | Tự viết hoa sau mọi dấu `.` kể cả không có khoảng trắng (`google.Com`) | Đầu câu = `. ! ?` (+ dấu đóng) rồi khoảng trắng, hoặc Enter — đọc từ đuôi text, không giữ cờ riêng | ✅ `a21f178` |
-| R2-60 | P1 | VNI/VIQR: dấu mũ/móc gõ cuối từ rơi sai nguyên âm | | ⏳ |
-| R2-61 | P1 | Telex đơn giản không gõ được ă/ơ/ư | | ⏳ |
-| R2-62 | P1 | Thiếu luật thanh điệu với phụ âm tắc → `sort/port/part` thành âm tiết không tồn tại | | ⏳ |
-| R2-63 | P2 | Bấm phím dấu lần 3 bỏ dấu nhưng nuốt phím (`ooo` → `o`) | | ⏳ |
-| R2-64 | P2 | Luật `iet` thêm dấu mũ không ai gõ (`Viet` → `Viêt`) | | ⏳ |
-| R2-65 | P2 | Telex `w` sau cụm nguyên âm rơi sai nguyên âm (`muaw` → `muă`) | | ⏳ |
-| R2-66 | P2 | Không có `w` đứng riêng → `ư` | | ⏳ |
-| R2-67 | P2 | VIẾT HOA bằng Shift chỉ biến đổi một nửa | | ⏳ |
-| R2-68 | P2 | `d` gõ sau trong từ không tạo `đ` đầu từ | | ⏳ |
-| R2-69 | P2 | VNI `0` xoá mọi dấu thay vì chỉ thanh điệu | | ⏳ |
-| R2-70 | P3 | Không chuyển qua lại giữa dấu mũ/móc (`toow` → `tôw`) | | ⏳ |
+| R2-60 | P1 | VNI/VIQR: dấu mũ/móc gõ cuối từ rơi sai nguyên âm | Chọn âm trên cả cụm nguyên âm cuối như UniKey (`toi6` → tôi, `nguoi72` → người, `luu7` → lưu); chỉ dời khi ra vần hợp lệ | ✅ `748f804` |
+| R2-61 | P1 | Telex đơn giản không gõ được ă/ơ/ư | `aw/ow/uw` như UniKey Simple Telex; vẫn khác Telex: `ww` → `ww`, không có `w` đứng riêng → ư | ✅ `348afbf` |
+| R2-62 | P1 | Thiếu luật thanh điệu với phụ âm tắc → `sort/port/part` thành âm tiết không tồn tại | Luật 6: âm cuối `c ch p t` chỉ mang sắc/nặng → auto-restore trả lại `sort`, `keep`, `chart`…; `text/next/art/cart` vẫn giữ làm gợi ý Tab | ✅ `3e936fe`, `283fd35` |
+| R2-63 | P2 | Bấm phím dấu lần 3 bỏ dấu nhưng nuốt phím (`ooo` → `o`) | Lần ba gỡ dấu và gõ chữ đó: `xooong` → xoong, `ddd` → dd, `uww` → uw | ✅ `f58ab77` |
+| R2-64 | P2 | Luật `iet` thêm dấu mũ không ai gõ (`Viet` → `Viêt`) | Bỏ luật; `Viet`, `quiet`, `KIET` giữ nguyên | ✅ `2550c95` |
+| R2-65 | P2 | Telex `w` sau cụm nguyên âm rơi sai nguyên âm (`muaw` → `muă`) | Dùng chung logic cụm của R2-60: `muaw` → mưa, `voiws` → với | ✅ `aaf6c58` |
+| R2-66 | P2 | Không có `w` đứng riêng → `ư` | `nhw` → như, `ddwngf` → đừng; `ww` → w; không sau `q`. Thêm luật vần mở không có âm cuối để bảo vệ tiếng Anh (`using/music/during`). Hệ quả biết trước: `w` + chữ số (`w3c`) → `ư3c` như UniKey — Escape trả lại | ✅ `8ca1e6d`, `902fa04` |
+| R2-67 | P2 | VIẾT HOA bằng Shift chỉ biến đổi một nửa | Giữ nguyên: chữ hoa gõ bằng Shift (S F R X J W Z) là chữ thường để `USA`, `JSON` không bị biến đổi (user-guide §3, corpus `telex_caps_lock_01`, e2e IBus/Fcitx5); Caps Lock cho hành vi UniKey | 📝 |
+| R2-68 | P2 | `d` gõ sau trong từ không tạo `đ` đầu từ | `duocjwd` → được, `dieend` → điên; chỉ khi từ đã có dấu Việt hoặc âm cuối hợp lệ (`did/dad/dead` giữ tiếng Anh) | ✅ `5c9c50c`, `754d0ee` |
+| R2-69 | P2 | VNI `0` xoá mọi dấu thay vì chỉ thanh điệu | `0` chỉ gỡ dấu thanh như Telex `z` (`đường`+0 → đương); không có thanh thì `0` là chữ số (`0912`) | ✅ `35af989` |
+| R2-70 | P3 | Không chuyển qua lại giữa dấu mũ/móc (`toow` → `tôw`) | `toow` → tơ, `awa` → â, `aaw` → ă, VNI `o67` → ơ | ✅ `b1a5917` |
 
 ### 3.6 CI, ký số, phát hành
 
@@ -178,6 +182,7 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | Ctrl+Shift khi Windows còn giữ: không ép kích hoạt TextVN | Tôn trọng lựa chọn "trả lại cho Windows" | `tray/src/main.rs` |
 | Backspace xoá ký tự cuối đang hiển thị (như UniKey/EVKey/OpenKey), không hoàn tác phím cuối | Hành vi cũ thêm dấu khi xoá (`ass`+⌫ → `á`) và cần nhiều lần ⌫ hơn số chữ; không đặc tả nào yêu cầu "hoàn tác phím". Corpus/test cũ mã hoá hành vi cũ được cập nhật | `core/src/lib.rs::on_backspace` |
 | Tự viết hoa chỉ sau `. ! ?` + khoảng trắng hoặc Enter | `google.com`, `3.5 kg`, `file.txt` không phải đầu câu. `v.v. ` + chữ vẫn viết hoa (không phân biệt được viết tắt) | `core/src/post/caps.rs` |
+| Telex: `w` đứng riêng → `ư` (như UniKey), chữ hoa gõ bằng Shift vẫn là chữ thường (R2-67 không đổi) | Người quen UniKey gõ `nhw`, `tw`; `USA`/`JSON` không bị biến đổi. Đổi lại `w` + chữ số (`w3c`) ra `ư3c` — Escape trả lại | `core/src/method/telex.rs` |
 
 ## 5. Hoãn — lý do và hướng làm
 
@@ -187,6 +192,7 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Tray thêm được `WH_MOUSE_LL`, nhưng TIP (trong tiến trình app) không thấy chuột và vẫn tự đảo V/E — cần tray báo "vừa có click" cho TIP qua bộ nhớ chung: thay đổi giao thức |
 | R2-14 | Ảnh scale-200/targetsize + `resources.pri` (makepri) | Thẩm mỹ; PRI sai làm mất logo — cần kiểm trên Windows thật |
 | R2-85 (phần còn lại) | Ghim toolchain Rust và Inno Setup | Chủ sở hữu chọn version; ghim lệch máy dev sẽ đỏ clippy |
+| (mới) | Vần mở `ă`/`â` không có âm cuối (`aws` → `ắ` không được trả lại) | Hành vi có từ trước; bộ kiểm âm tiết còn dùng giữa từ (R2-60/66) — thêm luật cần đo lại toàn bộ corpus tiếng Anh |
 | CR-08, CR-10, CR-14, CR-20 (b) | Như vòng 1 | Như vòng 1 (CR-34 và CR-38 đã xong ở vòng này — `017bc82`, `c31d54c`) |
 
 ## 6. Gate cục bộ (container Linux)
@@ -194,8 +200,8 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | Gate | Kết quả |
 |---|---|
 | `cargo fmt --all --check` · clippy Linux + Windows cross-check `-D warnings` | ✅ |
-| `cargo test --workspace` | ✅ |
-| replay headless · tsf · mac · linux | ✅ |
+| `cargo test --workspace` | ✅ 416 test |
+| replay headless · tsf · mac · linux | ✅ 55 · 133 · 169 · 55 |
 | xtask `check-tables` · `check-win-corpus` · `check-mac-corpus` · `check-mac-targets` · `check-version-sync` | ✅ |
 | repo-hygiene `check_doc_links` · `check_iss_tabs` · `check_ps1_ascii` · `check_no_injection_apis` | ✅ |
 | `verify-msix.py` trên gói 0.2.27 đã phát hành | 8 lỗi (đúng kỳ vọng) |

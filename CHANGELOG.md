@@ -32,6 +32,18 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   trước đó** (cả phím đổi ngôn ngữ), không đụng lựa chọn bạn tự đặt.
 - Gõ tiếng Việt: auto-restore và Tab gợi ý không còn biến từ Việt thành tiếng Anh (`thí`,
   `vơ`, `hót`, `có`+Tab); giữ `đ` trong `50.000đ`, `ĐT`, `đc`, `đ/c`.
+- **Backspace xoá ký tự cuối đang hiển thị** như UniKey (`tiếng`+⌫ → `tiến`; trước đây
+  hoàn tác phím cuối: `ass`+⌫ ra `á`, xoá `được` cần 8 lần ⌫).
+- Tự viết hoa chỉ ở đầu câu (`. ! ?` + khoảng trắng, hoặc Enter): `google.com`, `file.txt`,
+  `3.5 kg` không còn thành `google.Com`…
+- VNI/VIQR gõ dấu sau cả cụm nguyên âm ra đúng (`toi6` → tôi, `nguoi72` → người); Telex `w`
+  sau cụm nguyên âm đúng âm (`muaw` → mưa, `voiws` → với); Telex `w` đứng riêng → `ư`
+  (`nhw` → như) như UniKey; đổi qua lại giữa dấu mũ và móc (`toow` → tơ, `awa` → â); bấm phím
+  dấu lần ba gỡ dấu và gõ chữ đó (`xooong` → xoong); `d` gõ sau trong từ thành `đ` đầu từ
+  (`duocjwd` → được); VNI `0` chỉ gỡ dấu thanh; Telex đơn giản gõ được ă/ơ/ư bằng `aw/ow/uw`.
+- Không còn thêm dấu mũ tự động cho `iet` (`Viet`, `quiet` giữ nguyên); từ tiếng Anh như
+  `sort`, `keep`, `chart`, `using`, `music` không còn bị biến thành âm tiết không tồn tại.
+- Lưu ý: `w` + chữ số (`w3c`) nay ra `ư3c` như UniKey — bấm Escape để trả lại.
 - macOS: chọn cách chèn chữ theo app hoạt động trở lại (trước luôn rơi về một cách);
   "Gõ không gạch chân" có hiệu lực ngay; Ctrl + Shift bật lại được khi TextVN.app không chạy;
   gõ tắt cùng luật với Windows/Linux; gỡ bản cài cho mọi người dùng hỏi quyền quản trị; ký
