@@ -1,13 +1,14 @@
 # corpus/shared/charset_vni_windows_01.keys — bảng mã xuất vni_windows (bảng: data/tables/charsets.tsv từ UniKey)
+# Backspace xoá ký tự cuối đang hiển thị (R2-55, UniKey processBackspace): `được` → `đượ`.
 :config method=telex diacritic_style=new output_charset=vni_windows auto_capitalize=false
 :type "dduocj"
 :expect "ñöôïc"
 :key Backspace
-:expect "ñöôc"
+:expect "ñöôï"
 :key Space
 :type "Vieetj Nam"
-:expect "ñöôc Vieät Nam"
+:expect "ñöôï Vieät Nam"
 :key Space
 :type "tieengs"
 :key Escape
-:expect "ñöôc Vieät Nam tieengs"
+:expect "ñöôï Vieät Nam tieengs"

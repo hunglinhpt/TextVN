@@ -73,10 +73,135 @@ pub fn fold_caps(
         Method::Vni => vni::fold(raw, style, free_marking),
         Method::Viqr => viqr::fold(raw, style, free_marking),
     };
-    fix_uo(&mut out);
-    // Dấu thanh gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`): dời về đúng chỗ.
-    crate::transform::tone::normalize_tone(&mut out, style);
+    finish(&mut out, style);
     out
+}
+
+/// Bước chuẩn hoá cuối của mọi lần fold: cặp `qư`/`ươ` cuối từ ([`fix_uo`]) rồi dời dấu thanh
+/// về đúng chỗ — dấu gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`).
+pub fn finish(out: &mut [char], style: DiacriticStyle) {
+    fix_uo(out);
+    crate::transform::tone::normalize_tone(out, style);
+}
+
+/// Phím chuẩn (theo `method`) gõ ra ký tự **không dấu thanh** `ch`: chữ gốc rồi phím dấu phụ
+/// ngay sau (`â` → `aa`/`a6`/`a^`, `ư` → `uw`/`u7`/`u+`, `ă` → `aw`/`a8`/`a(`), `đ` →
+/// `dd`/`d9`. Ký tự khác → chính nó. Bảng lấy từ `keys_generated` (data).
+fn base_keys(ch: char, method: Method) -> Vec<char> {
+    use crate::transform::stroke::is_stroke;
+    use crate::transform::vowel_table::{base_entry, form_like, locate};
+    use keys_generated as g;
+    if is_stroke(ch) {
+        let d = if ch == 'Đ' { 'D' } else { 'd' };
+        let key = match method {
+            Method::Vni => g::vni::STROKE_KEY,
+            _ => d,
+        };
+        return vec![d, key];
+    }
+    let Some((e, _)) = locate(ch) else {
+        return vec![ch];
+    };
+    let base = form_like(ch, base_entry(e), 0);
+    if base_entry(e) == e {
+        return vec![base];
+    }
+    let tables: [&[(char, usize, usize)]; 3] = match method {
+        Method::Telex => [&g::telex::CIRCUMFLEX, &g::telex::HORN, &g::telex::BREVE],
+        Method::SimpleTelex => [
+            &g::simple_telex::CIRCUMFLEX,
+            &g::simple_telex::HORN,
+            &g::simple_telex::BREVE,
+        ],
+        Method::Vni => [&g::vni::CIRCUMFLEX, &g::vni::HORN, &g::vni::BREVE],
+        Method::Viqr => [&g::viqr::CIRCUMFLEX, &g::viqr::HORN, &g::viqr::BREVE],
+    };
+    match tables
+        .iter()
+        .flat_map(|t| t.iter())
+        .find(|&&(_, _, to)| to == e)
+    {
+        Some(&(key, _, _)) => vec![base, key],
+        // Kiểu gõ không có phím cho dấu phụ này → không gõ ra được bằng phím chuẩn.
+        None => vec![ch],
+    }
+}
+
+/// Phím dấu thanh `tone` (1..=5) của `method`.
+fn tone_key(method: Method, tone: usize) -> Option<char> {
+    use keys_generated as g;
+    let keys = match method {
+        Method::Telex => &g::telex::TONE_KEYS,
+        Method::SimpleTelex => &g::simple_telex::TONE_KEYS,
+        Method::Vni => &g::vni::TONE_KEYS,
+        Method::Viqr => &g::viqr::TONE_KEYS,
+    };
+    keys.get(tone.checked_sub(1)?).copied()
+}
+
+/// Dựng một chuỗi phím (theo `method`) mà `fold` gõ ra đúng `target` — engine dùng sau
+/// Backspace (R2-55): Backspace xoá **một ký tự đang hiển thị** như UniKey, nên `raw` phải
+/// được dựng lại cho khớp chữ còn lại để phím gõ tiếp vẫn biến đổi đúng.
+///
+/// `fold` là hàm fold của engine (đủ tuỳ chọn: kiểu dấu, đặt dấu tự do, Caps Lock, Quick
+/// Telex). Từng ký tự (đã bỏ dấu thanh) thử phím chuẩn rồi phím chuẩn gõ lặp (gõ literal:
+/// `as` = `ass`, `a6` = `a66`), kiểm lại bằng `fold` ở mỗi bước; dấu thanh đặt ngay sau
+/// nguyên âm cuối (hợp cả chế độ đặt dấu chặt) hoặc cuối chuỗi. Kết quả `fold` được phép
+/// khác `target` đúng ở bước chuẩn hoá cuối từ ([`finish`]: `đượ` gõ ra `đuợ` cho tới khi gõ
+/// tiếp âm cuối). `None` khi không dựng được.
+pub fn keys_for(
+    target: &[char],
+    method: Method,
+    style: DiacriticStyle,
+    fold: impl Fn(&[char]) -> Vec<char>,
+) -> Option<Vec<char>> {
+    use crate::transform::tone::{current_tone, is_vowel, strip_tone};
+    let folds_to = |keys: &[char], want: &[char]| -> bool {
+        let got = fold(keys);
+        if got == want {
+            return true;
+        }
+        let mut finished = want.to_vec();
+        finish(&mut finished, style);
+        got == finished
+    };
+    let bare: Vec<char> = target.iter().map(|&c| strip_tone(c)).collect();
+    let mut keys: Vec<char> = Vec::with_capacity(target.len() * 2 + 1);
+    let mut after_vowel = 0;
+    for (i, &ch) in bare.iter().enumerate() {
+        let canon = base_keys(ch, method);
+        let mut literal = canon.clone();
+        literal.push(*canon.last()?);
+        let n = keys.len();
+        let mut found = false;
+        for cand in [canon, literal] {
+            keys.extend_from_slice(&cand);
+            if folds_to(&keys, &bare[..=i]) {
+                found = true;
+                break;
+            }
+            keys.truncate(n);
+        }
+        if !found {
+            return None;
+        }
+        if is_vowel(ch) {
+            after_vowel = keys.len();
+        }
+    }
+    let tone = current_tone(target);
+    if tone == 0 {
+        return Some(keys);
+    }
+    let key = tone_key(method, tone)?;
+    for pos in [after_vowel, keys.len()] {
+        let mut trial = keys.clone();
+        trial.insert(pos, key);
+        if folds_to(&trial, target) {
+            return Some(trial);
+        }
+    }
+    None
 }
 
 /// Chuẩn hoá cặp `u`/`ư` + `ơ` sau khi fold (mọi kiểu gõ):

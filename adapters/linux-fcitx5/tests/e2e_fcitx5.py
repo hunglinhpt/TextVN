@@ -161,7 +161,7 @@ type_("chaof banj\n")
 check("Enter commit (B2)", "chào bạn\n")
 clear()
 type_("dduocj\b ")
-check("Backspace trong từ", "đươc ")
+check("Backspace trong từ", "đượ ")  # R2-55: xoá ký tự cuối như UniKey
 clear()
 type_("hello world ")
 check("tiếng Anh giữ nguyên", "hello world ")

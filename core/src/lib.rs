@@ -288,8 +288,14 @@ impl Engine {
     }
 
     fn fold_current(&self) -> Vec<char> {
+        self.fold_keys(&self.word.raw)
+    }
+
+    /// Fold một chuỗi phím bất kỳ với đúng tuỳ chọn của từ đang gõ (kiểu gõ, kiểu dấu,
+    /// đặt dấu tự do, Caps Lock, Quick Telex).
+    fn fold_keys(&self, raw: &[char]) -> Vec<char> {
         let mut display = method::fold_caps(
-            &self.word.raw,
+            raw,
             self.opts.method,
             self.opts.diacritic_style,
             self.opts.free_marking,
@@ -643,12 +649,21 @@ impl Engine {
         }
     }
 
-    /// Backspace: từ đang active → fold lại từ chưa; chưa active → bỏ ký tự đã PASS.
+    /// Backspace: từ đang active → xoá **ký tự cuối đang hiển thị** (như UniKey
+    /// `processBackspace`, R2-55); chưa active → bỏ ký tự đã PASS.
+    ///
+    /// Dấu thanh nằm trên ký tự vừa xoá thì mất theo; còn lại dời về đúng chỗ của phần còn
+    /// lại (`tiếng` → `tiến`, `hoán` → `hoá`, kiểu cũ `hóan` → `hóa`). `raw` được dựng lại
+    /// thành chuỗi phím gõ ra đúng chữ còn lại (`method::keys_for`) để phím gõ tiếp vẫn biến
+    /// đổi đúng. Bản cũ bỏ **phím** cuối rồi fold lại: `ass`+BS → `á` (thêm dấu), `tiếng`+BS →
+    /// `tiêng`, xoá `được` (`dduwowcj`) cần 8 lần Backspace.
     fn on_backspace(&mut self) -> Outcome {
         if self.word.active {
-            self.word.raw.pop();
             let delete = self.word.owned as u16;
-            if self.word.raw.is_empty() {
+            let mut target = self.word.display.clone();
+            target.pop();
+            transform::tone::normalize_tone(&mut target, self.opts.diacritic_style);
+            if target.is_empty() {
                 self.word.clear();
                 self.recent_replace(delete as usize, &[]);
                 return Outcome {
@@ -660,17 +675,35 @@ impl Engine {
                     flags: FLAG_CONSUMED,
                 };
             }
-            let display = self.fold_current();
-            let out = self.emit(&display);
+            let out = self.emit(&target);
             if out.len() > MAX_TEXT {
-                // Bỏ phím gỡ được dấu thanh ẩn (`asz` → `á`) có thể làm từ dài thêm 1 ký
-                // tự ở bảng mã tổ hợp — không vừa result → thôi sở hữu từ, app tự xoá
-                // 1 ký tự như Backspace thường.
+                // Dời dấu thanh ở bảng mã tổ hợp không làm từ dài thêm, nhưng giữ lưới an
+                // toàn: không vừa result → thôi sở hữu từ, app tự xoá 1 ký tự như thường.
                 self.word.clear();
                 self.recent.pop();
                 return Outcome::pass();
             }
-            self.word.display = display;
+            let keys =
+                method::keys_for(&target, self.opts.method, self.opts.diacritic_style, |k| {
+                    self.fold_keys(k)
+                })
+                .filter(|k| k.len() <= MAX_WORD_KEYS);
+            let Some(raw) = keys else {
+                // Không có chuỗi phím nào gõ ra đúng chữ còn lại (chữ literal hiếm như `uo`
+                // sau `uoww`): giữ chữ trong document, thôi sở hữu từ (như bung gõ tắt).
+                self.word.clear();
+                self.recent_replace(delete as usize, &out);
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: delete,
+                        insert: out,
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED | FLAG_WORD_END,
+                };
+            };
+            self.word.raw = raw;
+            self.word.display = target;
             self.word.owned = out.len();
             self.recent_replace(delete as usize, &out);
             return Outcome {
@@ -696,6 +729,7 @@ impl Engine {
 mod tests {
     use super::*;
     use keymap::{MOD_CTRL, MOD_SHIFT};
+    use transform::DiacriticStyle;
 
     fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
         match action {
@@ -830,19 +864,106 @@ mod tests {
         assert_eq!(e.key(&k).action, Action::Pass);
     }
 
+    /// Bấm Backspace `n` lần, trả document sau mỗi lần.
+    fn backspaces(e: &mut Engine, buf: &mut Vec<char>, n: usize) -> Vec<String> {
+        (0..n)
+            .map(|_| {
+                let k = KeyEvent::key_down(keymap::vk::BACK);
+                let o = e.key(&k);
+                match o.action {
+                    // PASS: app tự xoá 1 ký tự.
+                    Action::Pass => {
+                        buf.pop();
+                    }
+                    ref a => apply(buf, a, &k),
+                }
+                text(buf)
+            })
+            .collect()
+    }
+
+    /// R2-55: Backspace xoá **một ký tự đang hiển thị** (UniKey `processBackspace`), không
+    /// bỏ phím cuối rồi fold lại.
     #[test]
-    fn backspace_folds_back() {
+    fn backspace_deletes_last_visible_char() {
+        // Xoá cả từ cần đúng số Backspace bằng số chữ, bất kể đã gõ bao nhiêu phím.
         let mut e = engine();
-        let (buf, _) = type_keys(&mut e, "dduocj");
-        assert_eq!(buf, "được");
-        // Backspace ×5 → raw "dduoc"→"đươc", "dduo"→"đuơ", "ddu"→"đu", "dd"→"đ", "d"→"d"
-        let mut buf: Vec<char> = buf.chars().collect();
-        for _ in 0..5 {
-            let k = KeyEvent::key_down(keymap::vk::BACK);
-            let o = e.key(&k);
-            apply(&mut buf, &o.action, &k);
+        let mut buf = type_buf(&mut e, "dduwowcj");
+        assert_eq!(text(&buf), "được");
+        assert_eq!(backspaces(&mut e, &mut buf, 4), ["đượ", "đư", "đ", ""]);
+
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "nguwowif");
+        assert_eq!(
+            backspaces(&mut e, &mut buf, 5),
+            ["ngườ", "ngư", "ng", "n", ""]
+        );
+
+        // Không bao giờ thêm dấu: phím undo không "sống lại".
+        for (keys, shown, after) in [("ass", "as", "a"), ("asss", "ás", "á")] {
+            let mut e = engine();
+            let mut buf = type_buf(&mut e, keys);
+            assert_eq!(text(&buf), shown, "{keys}");
+            assert_eq!(backspaces(&mut e, &mut buf, 1), [after], "{keys}");
         }
-        assert_eq!(buf.into_iter().collect::<String>(), "d");
+
+        // Dấu thanh không nằm trên chữ vừa xoá → giữ (dời về đúng chỗ nếu cần);
+        // nằm trên chữ vừa xoá → mất theo.
+        for (keys, after) in [
+            ("tieengs", "tiến"),
+            ("hoafn", "hoà"),
+            ("hoaf", "ho"),
+            ("chaof", "chà"),
+            ("vieetj", "việ"),
+        ] {
+            let mut e = engine();
+            let mut buf = type_buf(&mut e, keys);
+            assert_eq!(backspaces(&mut e, &mut buf, 1), [after], "{keys}");
+        }
+        let mut e = Engine::new(EngineOptions {
+            diacritic_style: DiacriticStyle::Old,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "hoafn");
+        assert_eq!(text(&buf), "hoàn");
+        assert_eq!(backspaces(&mut e, &mut buf, 1), ["hòa"], "kiểu cũ: dời dấu");
+
+        // VNI giống hệt.
+        let mut e = Engine::new(EngineOptions {
+            method: Method::Vni,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "d9u7o7c5");
+        assert_eq!(text(&buf), "được");
+        assert_eq!(backspaces(&mut e, &mut buf, 4), ["đượ", "đư", "đ", ""]);
+    }
+
+    /// Sau Backspace, phím gõ tiếp vẫn biến đổi trên chữ còn lại.
+    #[test]
+    fn typing_continues_after_backspace() {
+        for (method, keys, fix, want) in [
+            (Method::Telex, "dduocj", "c", "được"),
+            (Method::Telex, "tieengs", "g", "tiếng"),
+            (Method::Telex, "chaof", "o", "chào"),
+            (Method::Telex, "ddaatj", "c", "đậc"),
+            (Method::Telex, "hoaf", "af", "hoà"),
+            (Method::Telex, "ass", "s", "á"),
+            (Method::Vni, "d9u7o7c5", "c", "được"),
+            (Method::Viqr, "ddu+o+c.", "c", "được"),
+        ] {
+            let mut e = Engine::new(EngineOptions {
+                method,
+                ..Default::default()
+            });
+            let mut buf = type_buf(&mut e, keys);
+            backspaces(&mut e, &mut buf, 1);
+            for c in fix.chars() {
+                let k = KeyEvent::char_down(c);
+                let o = e.key(&k);
+                apply(&mut buf, &o.action, &k);
+            }
+            assert_eq!(text(&buf), want, "{method:?} {keys}+BS+{fix}");
+        }
     }
 
     #[test]

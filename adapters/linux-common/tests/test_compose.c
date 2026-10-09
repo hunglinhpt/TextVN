@@ -143,7 +143,7 @@ static void test_typing(void) {
     expect(NO_CAPS, "Vieetj Nam", "Việt Nam");
     expect(NO_CAPS, "hello world ", "hello world ");
     expect(NO_CAPS, "chaof banj\n", "chào bạn\n");
-    expect(NO_CAPS, "dduocj\b", "đươc");
+    expect(NO_CAPS, "dduocj\b", "đượ"); /* R2-55: xoá ký tự cuối như UniKey */
     expect(NO_CAPS, "ab\b\b\b", "");
     expect(NO_CAPS, "ab \b\b", "a");
     expect(NO_CAPS, "dduocj\x1b", "dduocj");

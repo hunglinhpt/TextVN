@@ -10,6 +10,7 @@
 //! Chuỗi phím có cả "giữ phím lặp" (một phím lặp 30–90 lần) để chạm giới hạn độ dài từ.
 
 use textvn_core::keymap::vk;
+use textvn_core::transform::tone::{current_tone, strip_tone, tone_of};
 use textvn_core::{
     Action, Context, Engine, EngineOptions, KeyEvent, Method, OutputCharset, MAX_TEXT,
 };
@@ -102,8 +103,8 @@ fn apply(doc: &mut Vec<char>, base: usize, o: &textvn_core::Outcome, k: &KeyEven
     }
 }
 
-fn run(method: Method, charset: OutputCharset, preedit: bool, seed: u64) {
-    let letters: &[char] = match method {
+fn letters(method: Method) -> &'static [char] {
+    match method {
         Method::Vni => &[
             'a', 'o', 'u', 'e', 'i', 'y', 'd', 'n', 'g', 'h', 't', 'p', '1', '2', '3', '4', '5',
             '6', '7', '8', '9', '0', 'A',
@@ -116,7 +117,11 @@ fn run(method: Method, charset: OutputCharset, preedit: bool, seed: u64) {
             'a', 'o', 'u', 'e', 'i', 'y', 'd', 'n', 'g', 'h', 't', 'p', 's', 'f', 'r', 'x', 'j',
             'w', 'z', 'q', 'A', 'S',
         ],
-    };
+    }
+}
+
+fn run(method: Method, charset: OutputCharset, preedit: bool, seed: u64) {
+    let letters = letters(method);
     let others = [
         K::Ch(' '),
         K::Ch(','),
@@ -219,5 +224,60 @@ fn held_key_after_toned_word_keeps_previous_text() {
         }
         let got: String = doc.iter().collect();
         assert_eq!(got, format!("xin chao dẹ{}", "p".repeat(100)));
+    }
+}
+
+/// R2-55: Backspace trên từ đang gõ xoá đúng **một** ký tự đang hiển thị (như UniKey) — không
+/// thêm dấu (`ass`+BS từng ra `á`), không đổi chữ nào khác; dấu thanh chỉ mất khi nằm trên
+/// chính ký tự vừa xoá. Xoá hết từ cần đúng số Backspace bằng số ký tự.
+#[test]
+fn backspace_removes_exactly_one_visible_char() {
+    let strip = |s: &[char]| -> Vec<char> { s.iter().map(|&c| strip_tone(c)).collect() };
+    for method in [
+        Method::Telex,
+        Method::SimpleTelex,
+        Method::Vni,
+        Method::Viqr,
+    ] {
+        let letters = letters(method);
+        for seed in 1..=400u64 {
+            let mut rng = Lcg(seed);
+            let mut e = Engine::new(EngineOptions {
+                method,
+                ..Default::default()
+            });
+            let mut doc: Vec<char> = PREFIX.chars().collect();
+            let base = doc.len();
+            let n = 1 + rng.next() as usize % 9;
+            let mut typed = String::new();
+            for _ in 0..n {
+                let c = rng.pick(letters);
+                typed.push(c);
+                let ev = KeyEvent::char_down(c);
+                let o = e.key(&ev);
+                apply(&mut doc, base, &o, &ev, &format!("{method:?} `{typed}`"));
+            }
+            while doc.len() > base {
+                let before = doc.clone();
+                let ev = KeyEvent::key_down(vk::BACK);
+                let o = e.key(&ev);
+                let ctx = format!("{method:?} `{typed}` BS trên {:?}", &before[base..]);
+                apply(&mut doc, base, &o, &ev, &ctx);
+                let kept = &before[..before.len() - 1];
+                assert_eq!(doc.len(), kept.len(), "{ctx}: phải bớt đúng 1 ký tự");
+                assert_eq!(strip(&doc), strip(kept), "{ctx}: chỉ được dời dấu thanh");
+                let removed = before[before.len() - 1];
+                let want_tone = if tone_of(removed).is_some_and(|t| t > 0) {
+                    0
+                } else {
+                    current_tone(&before[base..])
+                };
+                assert_eq!(
+                    current_tone(&doc[base..]),
+                    want_tone,
+                    "{ctx}: dấu thanh không được thêm/đổi"
+                );
+            }
+        }
     }
 }

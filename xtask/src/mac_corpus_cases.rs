@@ -571,14 +571,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_backspace_fold_21",
-        "Backspace sửa marked qua engine (không cho app sửa)",
+        "Backspace sửa marked qua engine (không cho app sửa), xoá ký tự cuối như UniKey (R2-55)",
         "com.apple.textedit",
         "body",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(imk(
         "imk_preedit_telex_nav_cancel_22",
@@ -947,14 +947,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_telex_backspace_19",
-        "BackspaceType Backspace fold-back",
+        "BackspaceType Backspace xoá ký tự cuối, giữ dấu (R2-55)",
         "com.apple.finder",
         "editbox",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_caps_dot_20",
@@ -1148,14 +1148,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(tap(
         "tap_body_backspace_08",
-        "tap Backspace fold-back",
+        "tap Backspace xoá ký tự cuối, giữ dấu (R2-55)",
         "com.valvesoftware.steam",
         "editbox",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(tap(
         "tap_body_caps_dot_09",

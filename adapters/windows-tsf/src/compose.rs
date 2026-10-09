@@ -474,8 +474,9 @@ mod tests {
 
     #[test]
     fn backspace_inside_word_refolds_and_empty_word_ends_composition() {
+        // R2-55: xoá ký tự cuối đang hiển thị (như UniKey), dấu thanh còn lại giữ nguyên.
         let doc = run(NO_CAPS, "dduocj\u{8}");
-        assert_eq!(doc.text(), "đươc");
+        assert_eq!(doc.text(), "đượ");
         let doc = run(NO_CAPS, "ab\u{8}\u{8}\u{8}");
         assert_eq!(doc.text(), "");
         let doc = run(NO_CAPS, "ab \u{8}\u{8}");
