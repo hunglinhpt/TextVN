@@ -85,14 +85,14 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 | R2-29 | P2 | Gỡ Inno: `ScheduleCleanupViaCli` chạy sau khi Inno đã xoá CLI | Chuyển sang `usUninstall`, đổi tên DLL khoá trước, chỉ hẹn xoá `.old-*` | ✅ `fe42d8c` |
 | R2-30 | P2 | Gỡ một bản (portable/EXE/Store) dừng và gỡ đăng ký bản khác đang dùng | `unregister --if-owned-by <dir>`, `--stop --if-image-under <dir>` | ✅ `6c7fecc` |
 | R2-31 | P2 | `config_version` đếm lại từ 1 mỗi lần tray khởi động → app chạy lâu bỏ lỡ thay đổi | Version khởi đầu duy nhất theo phiên tray | ✅ `7f5082c` |
-| R2-32 | P2 | "Cài & bật TSF" chạy CLI đồng bộ trên thread UI giữ LL hook → treo hộp thoại, Windows có thể gỡ hook | — | ⏸ |
+| R2-32 | P2 | "Cài & bật TSF" chạy CLI đồng bộ trên thread UI giữ LL hook → treo hộp thoại, Windows có thể gỡ hook | Thread nền, khoá nút trong lúc chạy, kết quả về dialog bằng message. Menu "Gỡ cài đặt" vẫn đồng bộ vì tray thoát ngay sau đó | ✅ `395dd3b` |
 | R2-33 | P2 | Mỗi lần đổi phiên bản: reset tuỳ chọn + unregister→register (mất kích hoạt, xếp lại bàn phím) — gồm CR-20 | Giữ tuỳ chọn; chỉ ghi lại đăng ký khi đã lệch | ✅ `7f5082c` |
 | R2-34 | P2 | Bỏ "Dành Ctrl + Shift" vẫn ép kích hoạt TextVN sau mỗi Ctrl+Shift → không rời TextVN được | Chỉ kích hoạt profile khi Ctrl+Shift đã dành cho TextVN. Còn lại: V/E vẫn đảo khi Windows đổi bàn phím bằng cùng tổ hợp | ✅ `65beee8` |
 | R2-35 | P2 | `register --scope machine` thoát trước khi ghi COM server 32-bit (WOW6432Node) | Ghi mirror WOW64 trước khi kết thúc | ✅ `6c7fecc` |
 | R2-36 | P2 | Shortcut "Kiem tra he thong" mở console đóng ngay | `doctor --pause` | ✅ `7f5082c` |
 | R2-38 | P3 | Cửa sổ "Từ điển EN" không qua `IsDialogMessage` (Tab chèn ký tự Tab) | Qua `IsDialogMessage` | ✅ `7f5082c` |
 | R2-39 | P3 | Một HFONT dùng chung bị xoá khi đổi DPI → chữ hộp thoại khác hỏng trên màn hình lệch DPI | — | ⏸ |
-| R2-40 | P3 | Trả Ctrl+Shift khi gỡ không thống nhất giữa 3 đường; `Language Hotkey` không bao giờ được trả | — | ⏸ |
+| R2-40 | P3 | Trả Ctrl+Shift khi gỡ không thống nhất giữa 3 đường; `Language Hotkey` không bao giờ được trả | Marker ghi giá trị Windows trước khi dành Ctrl+Shift (`freed` + `<tên>=<cũ>`); tray, `uninstall.ps1`, Inno chỉ trả mục vẫn là 3; test portable + installer kiểm về đúng `2` | ✅ `aa2796b` |
 | R2-41 | P3 | Ctrl+Shift + chuột (click mở tab mới, kéo tạo shortcut) đảo V/E | — | ⏸ |
 | R2-71 | P1 | Hồi quy CR-17: cài Inno im lặng (đường Store EXE) không dành Ctrl+Shift | Bỏ `skipifsilent` ở `--free-ctrl-shift` | ✅ `984b485` |
 | R2-81 | P2 | Bước "Simulate Store validator" kiểm bản v0.2.27 đã phát hành, không phải bản vừa build | `-Setup` nhận file vừa build, gắn Zone.Identifier | ✅ `13ba81f` |
@@ -176,10 +176,8 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | ID | Việc | Vì sao chưa làm |
 |---|---|---|
 | R2-26 | Kênh state/config đọc được từ AppContainer (pipe có ACE `ALL APPLICATION PACKAGES` + nhãn low-integrity, hoặc file state trong thư mục có ACL `S-1-15-2-1`) | Mở bề mặt tấn công của pipe cho mọi app sandbox — cần thiết kế bảo mật riêng và máy Windows thật để kiểm |
-| R2-32 | Chạy `textvn-cli register/unregister` ở thread nền, báo kết quả bằng message | Đổi luồng hộp thoại; cần kiểm trên Windows thật (đồng thời là điều kiện cho R2-41) |
 | R2-39 | HFONT theo từng cửa sổ/DPI | Chỉ lộ trên màn hình lệch DPI; cần máy thật |
-| R2-40 | Marker ghi lại giá trị Windows trước khi dành Ctrl+Shift; 3 đường gỡ trả đúng giá trị đó (cả `Language Hotkey`) | Đổi định dạng marker ở tray, `uninstall.ps1` và `.iss` cùng lúc |
-| R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Cần `WH_MOUSE_LL` trên cùng thread UI — làm sau R2-32 để không làm giật chuột |
+| R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Tray thêm được `WH_MOUSE_LL`, nhưng TIP (trong tiến trình app) không thấy chuột và vẫn tự đảo V/E — cần tray báo "vừa có click" cho TIP qua bộ nhớ chung: thay đổi giao thức |
 | R2-14 | Ảnh scale-200/targetsize + `resources.pri` (makepri) | Thẩm mỹ; PRI sai làm mất logo — cần kiểm trên Windows thật |
 | R2-85 (phần còn lại) | Ghim toolchain Rust và Inno Setup | Chủ sở hữu chọn version; ghim lệch máy dev sẽ đỏ clippy |
 | CR-08, CR-10, CR-14, CR-20 (b), CR-38 (SHA) | Như vòng 1 | Như vòng 1 |
