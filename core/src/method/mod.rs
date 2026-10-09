@@ -3,10 +3,10 @@
 //!
 //! 4 kiểu gõ đã có bảng riêng: `telex`, `simple_telex`, `vni`, `viqr`.
 //! Bảng phím là **data**: `data/tables/*.toml` → `cargo xtask gen-tables` → `method/keys_generated.rs`.
-//! File từng method giữ phần **logic** (undo marker, cụm `uo`, rule `iet`) + đọc bảng đã sinh.
+//! File từng method giữ phần **logic** (undo marker, cụm `uo`) + đọc bảng đã sinh.
 
 // == GENERATED từ `data/tables/{telex,simple_telex,vni,viqr}.toml` (`cargo xtask gen-tables`)
-// — bảng phím của 4 kiểu gõ. KHÔNG sửa tay; logic (undo, cụm uo, iet…) vẫn ở file từng method.
+// — bảng phím của 4 kiểu gõ. KHÔNG sửa tay; logic (undo, cụm uo…) vẫn ở file từng method.
 pub mod keys_generated;
 
 pub mod simple_telex;

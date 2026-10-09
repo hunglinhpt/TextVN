@@ -12,7 +12,8 @@
 //! - Cặp `uo`: gõ `o` ngay sau `u` → `ư`+`ơ` (`dduocj`→`được`, `dduongf`→`đường`), trừ
 //!   `qu` (phụ âm `qu` + `ơ`: `quowr`→`quở`); `w` đầu tiên sau cặp tự tạo là xác nhận
 //!   (`nguowif`→`người`). `ươ` đứng cuối từ là vần `uơ` (`thuowr`→`thuở`, `huow`→`huơ`).
-//! - `iet`: `e` ngay trước `t` mà trước nữa là `i` → `ê` (ví dụ B1 P0-4: `viet`→`viêt`).
+//! - Không có luật tự thêm mũ: `viet` giữ `viet` (UniKey/OpenKey không có; R2-64 — luật `iet`
+//!   cũ đọc nhầm ví dụ B1 của P0-4 nên `Viet`/`KIET`/`quiet` ra `Viêt`/`KIÊT`/`quiêt`).
 //!
 //! Mỗi key xử lý O(len từ) — từ tiếng Việt ngắn, nằm trong ngân sách
 //! `ime_key` < 0.5 ms p99 (P0-3 §3.3).
@@ -21,8 +22,7 @@ use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
 use crate::transform::tone::{apply_key, is_vowel, strip_tone, tone_of};
-use crate::transform::undo::unmark as unmark_tone;
-use crate::transform::vowel_table::{form_like, locate, E, E_CIRC, O_CIRC, O_HOOK, U, U_HOOK};
+use crate::transform::vowel_table::{form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
@@ -208,20 +208,6 @@ fn post_fixes(out: &mut [char]) {
     if (last == 'o' || last == 'O') && (prev == 'u' || prev == 'U') && !after_q {
         out[len - 2] = form_like(prev, U_HOOK, tone_of(prev).unwrap_or(0));
         out[len - 1] = form_like(last, O_HOOK, tone_of(last).unwrap_or(0));
-        return;
-    }
-
-    // `iet` → `iêt` (P0-4 B1: `viet` → `viêt`; `iet` không có trong tiếng Việt). Giữ dấu
-    // thanh đang có. Bản cũ đổi cả `e` mang dấu trước `t` thành `ê` → `ghest`/`hest`/`mest`
-    // ra `ghết`/`hết`/`mết` thay vì `ghét`/`hét`/`mét`.
-    if (last == 't' || last == 'T') && len >= 3 {
-        let e_char = out[len - 2];
-        let i_char = out[len - 3];
-        if let Some((entry, tone)) = locate(e_char) {
-            if entry == E && matches!(unmark_tone(i_char), 'i' | 'I') {
-                out[len - 2] = form_like(e_char, E_CIRC, tone);
-            }
-        }
     }
 }
 
@@ -414,13 +400,16 @@ mod tests {
         assert_eq!(n("ddd"), "d"); // gỡ đ
     }
 
+    /// R2-64: không tự thêm mũ cho `iet` (UniKey/OpenKey không có luật này).
     #[test]
-    fn viet_ie_t_rule_p0_4_b1() {
-        assert_eq!(n("viet"), "viêt");
-        assert_eq!(n("mien"), "mien"); // không có t → không đổi
+    fn no_implicit_circumflex_for_iet() {
+        for w in ["viet", "Viet", "KIET", "diet", "quiet", "Kiet"] {
+            assert_eq!(n(w), w, "{w} không được tự thêm mũ");
+        }
+        assert_eq!(n("vieetj"), "việt");
+        assert_eq!(n("vieets"), "viết");
         assert_eq!(n("teexts"), "tết");
-        assert_eq!(n("ghest"), "ghét", "e mang dấu trước t KHÔNG tự thành ê");
-        assert_eq!(n("viets"), "viết");
+        assert_eq!(n("ghest"), "ghét");
     }
 
     #[test]
@@ -428,7 +417,7 @@ mod tests {
         // "dduocs" → đ + ư + ớ + c — dùng escape âm sừng/toned
         assert_eq!(n("dduocs"), "\u{111}\u{1B0}\u{1EDB}c");
         assert_eq!(n("hoaf"), "hoà");
-        assert_eq!(n("viets"), "viết"); // tone trên ê sau rule iet (fold từng key một)
+        assert_eq!(n("vieets"), "viết"); // tone trên ê (dấu phụ đứng trước)
         assert_eq!(n("asf"), "à"); // dấu khác thay nhau: sắc → huyền (không literal)
         assert_eq!(n("ass"), "as"); // cùng dấu → undo + literal
     }

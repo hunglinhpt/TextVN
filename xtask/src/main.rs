@@ -629,7 +629,7 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
         "//! Nguồn: `data/tables/{{telex,simple_telex,vni,viqr}}.toml`\n\
          //!   (digest FNV-1a 64 = `0x{digest_all:016x}`; bảng âm = `0x{digest_v:016x}`).\n\
          //!\n\
-         //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`, `iet`…)\n\
+         //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`…)\n\
          //! vẫn nằm trong `method/telex.rs`, `vni.rs`, `viqr.rs` — bảng ở đây chỉ mô tả phần bảng.\n\n"
     ));
     s.push('\n');

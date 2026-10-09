@@ -8,5 +8,5 @@
 :key Space
 :expect "tiếng "
 :expect_preedit ""
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt"

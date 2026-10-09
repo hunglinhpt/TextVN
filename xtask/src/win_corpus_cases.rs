@@ -29,7 +29,7 @@ pub const CASES_PART1: &[CorpusCase] = &[
 :type \"tieengs\"
 :expect \"tiếng\"
 :key Space
-:type \"vietj\"
+:type \"vieetj\"
 :expect \"tiếng việt\"
 ",
     },

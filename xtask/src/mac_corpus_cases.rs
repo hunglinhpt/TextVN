@@ -74,7 +74,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
 :type "tieengs"
 :expect "tiếng"
 :key Space
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt""#,
     ));
     v.push(imk(
@@ -146,7 +146,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
 :key Space
 :expect "tiếng "
 :expect_preedit ""
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt""#,
     ));
 
