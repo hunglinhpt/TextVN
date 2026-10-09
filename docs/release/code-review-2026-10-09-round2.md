@@ -91,7 +91,7 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 | R2-35 | P2 | `register --scope machine` thoát trước khi ghi COM server 32-bit (WOW6432Node) | Ghi mirror WOW64 trước khi kết thúc | ✅ `6c7fecc` |
 | R2-36 | P2 | Shortcut "Kiem tra he thong" mở console đóng ngay | `doctor --pause` | ✅ `7f5082c` |
 | R2-38 | P3 | Cửa sổ "Từ điển EN" không qua `IsDialogMessage` (Tab chèn ký tự Tab) | Qua `IsDialogMessage` | ✅ `7f5082c` |
-| R2-39 | P3 | Một HFONT dùng chung bị xoá khi đổi DPI → chữ hộp thoại khác hỏng trên màn hình lệch DPI | — | ⏸ |
+| R2-39 | P3 | Một HFONT dùng chung bị xoá khi đổi DPI → chữ hộp thoại khác hỏng trên màn hình lệch DPI | Cache một font cho mỗi DPI, xoá khi Bảng điều khiển bị huỷ | ✅ `1b29fa3` |
 | R2-40 | P3 | Trả Ctrl+Shift khi gỡ không thống nhất giữa 3 đường; `Language Hotkey` không bao giờ được trả | Marker ghi giá trị Windows trước khi dành Ctrl+Shift (`freed` + `<tên>=<cũ>`); tray, `uninstall.ps1`, Inno chỉ trả mục vẫn là 3; test portable + installer kiểm về đúng `2` | ✅ `aa2796b` |
 | R2-41 | P3 | Ctrl+Shift + chuột (click mở tab mới, kéo tạo shortcut) đảo V/E | — | ⏸ |
 | R2-71 | P1 | Hồi quy CR-17: cài Inno im lặng (đường Store EXE) không dành Ctrl+Shift | Bỏ `skipifsilent` ở `--free-ctrl-shift` | ✅ `984b485` |
@@ -119,11 +119,11 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 
 | ID | Mức | Vấn đề | Xử lý | Trạng thái |
 |---|---|---|---|---|
-| R2-55 | P1 | Backspace hoàn tác phím cuối thay vì xoá ký tự cuối nhìn thấy | | ⏳ |
+| R2-55 | P1 | Backspace hoàn tác phím cuối thay vì xoá ký tự cuối nhìn thấy (`ass`+⌫ → `á`, `tiếng`+⌫ → `tiêng`, xoá `được` cần 8 lần) | Xoá một ký tự đang hiển thị như UniKey, dời dấu thanh; `method::keys_for` dựng lại chuỗi phím để gõ tiếp vẫn đúng; test bất biến ngẫu nhiên 4 kiểu gõ. Corpus/test cũ mã hoá hành vi "fold-back" được cập nhật | ✅ `329e52e` |
 | R2-56 | P1 | Auto-restore mặc định biến từ Việt thành tiếng Anh (`thí`, `hí`, `vơ`, `hót`) | Bỏ khỏi `en_common` các từ trùng âm tiết Việt thật; thêm âm tiết vào `vn_common` | ✅ `b5d859e` |
 | R2-57 | P1 | Tab gợi ý tiếng Anh thay từ Việt (`có`+Tab → `cost`) | Như R2-56 | ✅ `b5d859e` |
 | R2-58 | P1 | Auto-restore trả `đ` trong token không nguyên âm (`50.000đ`, `ĐT`, `đc`) | Giữ `đ` khi token không có nguyên âm | ✅ `76ef8cc` |
-| R2-59 | P1 | Tự viết hoa sau mọi dấu `.` kể cả không có khoảng trắng (`google.Com`) | | ⏳ |
+| R2-59 | P1 | Tự viết hoa sau mọi dấu `.` kể cả không có khoảng trắng (`google.Com`) | Đầu câu = `. ! ?` (+ dấu đóng) rồi khoảng trắng, hoặc Enter — đọc từ đuôi text, không giữ cờ riêng | ✅ `a21f178` |
 | R2-60 | P1 | VNI/VIQR: dấu mũ/móc gõ cuối từ rơi sai nguyên âm | | ⏳ |
 | R2-61 | P1 | Telex đơn giản không gõ được ă/ơ/ư | | ⏳ |
 | R2-62 | P1 | Thiếu luật thanh điệu với phụ âm tắc → `sort/port/part` thành âm tiết không tồn tại | | ⏳ |
@@ -170,13 +170,14 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | macOS: thiếu khoá `non_preedit` = false (gạch chân) | Khớp CHANGELOG 0.2.27 và Windows/Linux | `ConfigModel.swift` |
 | Bỏ khỏi `en_common` các từ trùng âm tiết Việt (`this`, `his`, `host`…) | Auto-restore bật mặc định; gõ tiếng Việt đúng ưu tiên hơn khôi phục từ tiếng Anh | `data/en_common.txt` |
 | Ctrl+Shift khi Windows còn giữ: không ép kích hoạt TextVN | Tôn trọng lựa chọn "trả lại cho Windows" | `tray/src/main.rs` |
+| Backspace xoá ký tự cuối đang hiển thị (như UniKey/EVKey/OpenKey), không hoàn tác phím cuối | Hành vi cũ thêm dấu khi xoá (`ass`+⌫ → `á`) và cần nhiều lần ⌫ hơn số chữ; không đặc tả nào yêu cầu "hoàn tác phím". Corpus/test cũ mã hoá hành vi cũ được cập nhật | `core/src/lib.rs::on_backspace` |
+| Tự viết hoa chỉ sau `. ! ?` + khoảng trắng hoặc Enter | `google.com`, `3.5 kg`, `file.txt` không phải đầu câu. `v.v. ` + chữ vẫn viết hoa (không phân biệt được viết tắt) | `core/src/post/caps.rs` |
 
 ## 5. Hoãn — lý do và hướng làm
 
 | ID | Việc | Vì sao chưa làm |
 |---|---|---|
 | R2-26 | Kênh state/config đọc được từ AppContainer (pipe có ACE `ALL APPLICATION PACKAGES` + nhãn low-integrity, hoặc file state trong thư mục có ACL `S-1-15-2-1`) | Mở bề mặt tấn công của pipe cho mọi app sandbox — cần thiết kế bảo mật riêng và máy Windows thật để kiểm |
-| R2-39 | HFONT theo từng cửa sổ/DPI | Chỉ lộ trên màn hình lệch DPI; cần máy thật |
 | R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Tray thêm được `WH_MOUSE_LL`, nhưng TIP (trong tiến trình app) không thấy chuột và vẫn tự đảo V/E — cần tray báo "vừa có click" cho TIP qua bộ nhớ chung: thay đổi giao thức |
 | R2-14 | Ảnh scale-200/targetsize + `resources.pri` (makepri) | Thẩm mỹ; PRI sai làm mất logo — cần kiểm trên Windows thật |
 | R2-85 (phần còn lại) | Ghim toolchain Rust và Inno Setup | Chủ sở hữu chọn version; ghim lệch máy dev sẽ đỏ clippy |
