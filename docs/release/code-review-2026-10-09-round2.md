@@ -34,8 +34,14 @@ mojibake, ảnh 71×71 sai — `tools/win/verify-msix.py` bắt đủ 8 lỗi tr
 |---|---|---|---|
 | ci-shared [37864768411](https://github.com/hunglinhpt/TextVN/actions/runs/37864768411) | `6ccd5d4` | **MSIX sideload**: ký tạm, `Add-AppxPackage`, mở `shell:AppsFolder\<PFN>!TextVN`; từ shell không có identity thấy `stage.json` + `TextVN.exe` (không bị ảo hoá), TIP HKCU trỏ vào bản stage, tray chạy ngoài container, Run `TextVN`; `Remove-AppxPackage` → `--msix-guard` gỡ TIP + Run. Identity `1.2.27.0` | ✅ PASS toàn bộ |
 | release-candidate [37865843028](https://github.com/hunglinhpt/TextVN/actions/runs/37865843028) | `6e19caa` | Build thử bản phát hành 3 nền tảng: verify MSIX, bộ cài machine, VirusTotal (gồm `.msix` và `-machine.exe`); `publish` bỏ qua vì không phải tag | ✅ |
-| ci-macos [37887743367](https://github.com/hunglinhpt/TextVN/actions/runs/37887743367) | `f2920f1` | Swift build + test arm64/x86_64 (IMK, tap, app), plist, header C-ABI, gói candidate | ✅ |
-| ci-shared [37887746088](https://github.com/hunglinhpt/TextVN/actions/runs/37887746088) | `f2920f1` | fmt, clippy Linux + Windows (gồm hook), test 3 OS, replay 3 OS, fuzz, ASan/UBSan linux-common, cargo-deny, reuse, perf A/B, IBus/Fcitx5 e2e, gói Windows + sideload MSIX | ⏳ |
+| ci-macos [37887743367](https://github.com/hunglinhpt/TextVN/actions/runs/37887743367) · [37888463980](https://github.com/hunglinhpt/TextVN/actions/runs/37888463980) | `f2920f1` · `017bc82` | Swift build + test arm64/x86_64 (IMK, tap, app) gồm thay đổi macOS R2-43/44/49/50/51 và CR-34, plist, header C-ABI, gói candidate | ✅ |
+| ci-shared [37917087193](https://github.com/hunglinhpt/TextVN/actions/runs/37917087193) | `d70af11` | **19/19 job**: fmt + Cargo.lock `--locked`, clippy Linux + Windows (gồm hook), test 3 OS, replay 4 adapter × 3 OS, fuzz (gồm Backspace mới), ASan/UBSan linux-common, cargo-deny, reuse, perf A/B, IBus/Fcitx5 e2e + gói Linux; gói Windows: portable + bộ cài gõ thật Notepad/WordPad, **R2-40** (gỡ trả Ctrl+Shift về đúng giá trị cũ — portable và bộ cài), Store validation + giả lập validator (cài im lặng 0,6 s), MSIX build + verify + **sideload PASS** (`1.2.27.0`) | ✅ |
+| release-candidate [37917194716](https://github.com/hunglinhpt/TextVN/actions/runs/37917194716) | `d70af11` | Build phát hành 3 nền tảng `--locked`, VERSIONINFO bắt buộc, verify + sideload chính gói MSIX sắp phát hành, bộ cài machine, VirusTotal; `publish` bỏ qua vì không phải tag | ✅ |
+
+**Sự cố CI trong vòng này (đã sửa):** từ `13ba81f` (R2-81) bước giả lập Store validator mở bản vừa
+build mang MOTW bằng ShellExecute → hộp thoại cảnh báo bảo mật của Windows treo phiên không tương
+tác tới khi job bị huỷ sau 60 phút (3 lượt ci-shared bị huỷ). `d70af11` chạy installer bằng
+CreateProcess như harness cài im lặng, giới hạn 300 s, step `timeout-minutes: 15`.
 
 ## 3. Nhật ký finding
 
