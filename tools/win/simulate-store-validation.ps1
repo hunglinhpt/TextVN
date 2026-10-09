@@ -8,9 +8,10 @@
 # CHAY TRONG CI: runner GHA windows-latest la MOI TRUONG SACH (khong co TextVN
 # truoc do)  -  giong VM cua Microsoft validator.
 #
-# Diem khac biet voi harness thuong: download qua Invoke-WebRequest de co MOTW
-# (Mark of the Web  -  Windows gan vao file download tu internet, co the kich hoat
-# SmartScreen/chinh sach tren VM)  -  dung nhu Microsoft lam.
+# Diem khac biet voi harness thuong: file mang MOTW (Mark of the Web - Zone.Identifier).
+# Luu y: Invoke-WebRequest cua PowerShell 5.1 KHONG gan MOTW; -Setup gan tay ZoneId=3.
+# Installer duoc chay bang CreateProcess (khong ShellExecute) nen MOTW khong bat hop
+# thoai cua Attachment Manager - kiem duoc chinh installer co hien UI hay khong.
 #
 # ASCII-only (G7/A5).
 # R2-81: -Setup <file> = kiem CHINH ban vua build (CI) - file duoc chep va gan MOTW
@@ -97,9 +98,22 @@ $before = Get-ArpEntries
 Write-Host ("  ARP before: {0} entries total" -f $before.Count)
 
 # ---- B1: Silent install ----
+# CreateProcess (UseShellExecute=false) nhu harness cai im lang - KHONG qua ShellExecute:
+# file chua ky mang MOTW mo bang ShellExecute (Start-Process) bat hop thoai "Open File -
+# Security Warning" cua Attachment Manager, trong phien khong tuong tac no treo mai (CI
+# 2026-10-09 bi huy sau 60 phut). Gioi han thoi gian: qua han = co UI chan -> FAIL ngay,
+# khong de treo ca job.
 Write-Host "[B1] Running silent install (no elevation, no interaction)..."
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$p = Start-Process -FilePath $setupFile -ArgumentList $Switches.Split(' ') -Wait -PassThru
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = $setupFile
+$psi.Arguments = $Switches
+$psi.UseShellExecute = $false
+$p = [System.Diagnostics.Process]::Start($psi)
+if (-not $p.WaitForExit(300000)) {
+    try { $p.Kill() } catch { }
+    throw "FAIL B1: Silent install chua xong sau 300s - co UI chan (hop thoai bao mat/thong bao)"
+}
 $sw.Stop()
 Write-Host ("  Exit code: {0}" -f $p.ExitCode)
 Write-Host ("  Duration: {0:N1}s" -f $sw.Elapsed.TotalSeconds)
@@ -152,7 +166,15 @@ Write-Host "PASS B3: Chi 1 entry moi (khong bundleware)"
 Write-Host "[B4] Silent uninstall..."
 if ($e.Uninstall) {
     $uninstCmd = $e.Uninstall -replace '^"', '' -replace '"$', ''
-    $up = Start-Process -FilePath $uninstCmd -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
+    $upsi = New-Object System.Diagnostics.ProcessStartInfo
+    $upsi.FileName = $uninstCmd
+    $upsi.Arguments = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
+    $upsi.UseShellExecute = $false
+    $up = [System.Diagnostics.Process]::Start($upsi)
+    if (-not $up.WaitForExit(300000)) {
+        try { $up.Kill() } catch { }
+        throw "FAIL B4: Silent uninstall chua xong sau 300s - co UI chan"
+    }
     Write-Host ("  Uninstall exit: {0}" -f $up.ExitCode)
     # Uninstaller Inno copy chinh no ra %TEMP% roi tra ve NGAY - phai CHO entry
     # bien mat (toi da 20s) truoc khi ket luan; neu khong, buoc sau (vi du bang

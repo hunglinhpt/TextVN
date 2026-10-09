@@ -360,6 +360,9 @@ jobs:
       # file gan MOTW nhu vua tai -> chay silent -> check 3 muc.
       - name: Simulate Store validator (download + MOTW + silent + ARP + bundleware)
         shell: powershell
+        # Hop thoai chan (vd. canh bao bao mat) tung treo ca job toi khi bi huy sau 60
+        # phut (2026-10-09) - script tu gioi han 300 s, day la lop chan cuoi.
+        timeout-minutes: 15
         run: |
           $setup = Get-ChildItem dist\TextVN-setup-*-windows-x64.exe | Where-Object { $_.Name -notlike '*-machine.exe' } | Select-Object -First 1
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1 -Setup $setup.FullName
