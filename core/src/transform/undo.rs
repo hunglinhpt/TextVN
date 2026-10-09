@@ -5,7 +5,8 @@
 //!   (áp dụng trong `method/telex.rs::apply_tone_key`).
 //! - `ww` → `w`: marker không gắn được (không có âm đích) → nuốt key lặp
 //!   (trong `method/telex.rs::push_key`).
-//! - `ee` → `e`, `dd` → `d`: key đôi đã tạo ký tự đặc biệt → gỡ về gốc.
+//! - `eee` → `ee`, `ddd` → `dd`, `uww` → `uw`: bấm lại phím đã tạo dấu phụ → gỡ về gốc + gõ
+//!   chữ đó (R2-63, UniKey `processRoof`/`processDd`/`processHook` rồi `processAppend`).
 //!
 //! `mark_vowel` / `mark_horn`: quy ước undo marker dạng âm cho VNI (`6`/`7`/`8`) và
 //! VIQR (`^`/`+`/`(`): marker đã áp lên **đúng** âm → gỡ dạng + gõ literal marker
@@ -133,6 +134,12 @@ pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)])
         }
         if e == O_HOOK {
             w[idx] = form_like(ch, O, t);
+            // `ươ` gỡ cả cặp như lúc áp (`uo77` → `uo7`; R2-63, UniKey bỏ sừng cả chuỗi `ươ`).
+            if let Some(prev) = idx.checked_sub(1).map(|p| w[p]) {
+                if let Some((U_HOOK, pt)) = locate(prev) {
+                    w[idx - 1] = form_like(prev, U, pt);
+                }
+            }
             return Some(Marked::Undone);
         }
         // u → ư và gỡ ư → u lấy từ bảng (VNI `7` / VIQR `+` dùng chung)

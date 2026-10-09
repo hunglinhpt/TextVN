@@ -532,12 +532,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_undo_uww_17",
-        "bấm lại w sau khi sừng → về gốc (uww→u)",
+        "bấm lại w sau khi sừng → gỡ sừng + gõ chữ w (uww→uw, R2-63)",
         "com.apple.textedit",
         "body",
         r#"
 :type "uww"
-:expect "u""#,
+:expect "uw""#,
     ));
     v.push(imk(
         "imk_preedit_telex_undo_ww_18",
@@ -550,12 +550,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_undo_ddd_19",
-        "ddd → d (gỡ stroke)",
+        "ddd → dd (gỡ stroke + gõ chữ d, R2-63)",
         "com.apple.textedit",
         "body",
         r#"
 :type "ddd"
-:expect "d""#,
+:expect "dd""#,
     ));
     v.push(imk(
         "imk_preedit_telex_esc_restore_20",
@@ -927,12 +927,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_telex_undo_uww_17",
-        "BackspaceType uww→u",
+        "BackspaceType uww→uw (R2-63)",
         "com.apple.finder",
         "editbox",
         r#"
 :type "uww"
-:expect "u""#,
+:expect "uw""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_esc_18",

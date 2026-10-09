@@ -1,0 +1,10 @@
+# corpus/shared/r2_third_press_literal_01.keys — R2-63: bấm phím dấu lần ba gỡ dấu VÀ gõ chữ đó
+# (như `ass` → `as`): `xooong` → `xoong`, `ddd` → `dd`, `uww` → `uw`. Gõ được xoong, boong, goòng,
+# moóc, soóc mà auto-restore không phá (`xoong` là âm tiết hợp lệ).
+# oracle: UniKey processRoof/processHook/processDd — gỡ dấu rồi processAppend(ev).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "xooong booong gooongf mooocs quaanf sooocs "
+:expect "xoong boong goòng moóc quần soóc "
+:config auto_restore_english=false
+:type "aaa eee ooo ddd aww uww"
+:expect "xoong boong goòng moóc quần soóc aa ee oo dd aw uw"

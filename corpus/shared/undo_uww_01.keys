@@ -1,4 +1,5 @@
-# corpus/shared/telex_golden_uww.keys — ư + w → về u (undo horn)
+# corpus/shared/telex_golden_uww.keys — ư + w → gỡ sừng + gõ chữ w: `uww` → `uw` (undo horn)
+# R2-63: kỳ vọng cũ `u` nuốt phím — UniKey processHook gỡ sừng rồi processAppend (như `ass` → `as`).
 :config method=telex diacritic_style=new
 :type "uww"
-:expect "u"
+:expect "uw"

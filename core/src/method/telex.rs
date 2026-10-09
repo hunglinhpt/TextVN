@@ -4,9 +4,12 @@
 //! Quy tắc (kế thừa UniKey/x-unikey golden + Wikipedia Telex + P0-4 §8):
 //! - Dấu thanh: `s f r x j` (chỉ lowercase) → áp lên âm chọn theo `diacritic_style`.
 //!   Bấm lại đúng dấu → bỏ dấu + gõ literal (`ass` → `as`).
-//! - `aw`→ă · `ow`→ơ · `uw`→ư; bấm lại `w` khi đã sừng → về gốc (`uww`→`u`);
-//!   `w` không có âm đích → chữ thường, key lặp bị nuốt (`ww` → `w`).
-//! - Đôi: `aa`→â · `ee`→ê · `oo`→ô · `dd`→đ; bấm lại → gỡ (`eee`→`e`, `ddd`→`d`).
+//! - `aw`→ă · `ow`→ơ · `uw`→ư; bấm lại `w` khi đã sừng → gỡ sừng + gõ chữ `w` (`uww`→`uw`,
+//!   cặp `ươ` gỡ cả cặp: `uoww` → `uow`); `w` không có âm đích → chữ thường, key lặp bị nuốt
+//!   (`ww` → `w`).
+//! - Đôi: `aa`→â · `ee`→ê · `oo`→ô · `dd`→đ; bấm lại → gỡ + gõ chữ đó (`eee`→`ee`, `ddd`→`dd`,
+//!   `xooong`→`xoong`) — như dấu thanh `ass` → `as` và UniKey `processRoof`/`processHook`/
+//!   `processDd` (gỡ rồi `processAppend`, R2-63; bản cũ nuốt phím nên không gõ được `xoong`).
 //! - `đ` CHỈ qua `dd` (như UniKey/OpenKey/Bamboo): `d` + nguyên âm giữ nguyên `d` —
 //!   bản cũ tự đổi thành `đ` nên không gõ được `dân`, `dạy`, `dưới`, `dược`….
 //! - Cặp `uo`: gõ `o` ngay sau `u` → `ư`+`ơ` (`dduocj`→`được`, `dduongf`→`đường`), trừ
@@ -130,7 +133,11 @@ fn push_key(
             return;
         }
         match horn(out, horn_table) {
-            Horn::Applied | Horn::Undone => return,
+            Horn::Applied => return,
+            Horn::Undone => {
+                out.push(c); // gỡ sừng + gõ chữ `w` (`uww` → `uw`, R2-63)
+                return;
+            }
             Horn::No => {
                 if w_marker && out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'w')) {
                     return; // ww → w (Simple Telex: `ww` → `ww`)
@@ -161,6 +168,7 @@ fn push_key(
                 if le == circ {
                     let idx = out.len() - 1;
                     out[idx] = form_like(last, plain, lt); // gỡ circumflex, giữ dấu thanh
+                    out.push(c); // + gõ chữ đó (`xooong` → `xoong`, R2-63)
                     return;
                 }
                 if le == plain {
@@ -172,7 +180,7 @@ fn push_key(
         }
     }
 
-    // 4) 'd' đôi: dd→đ, ddd→d (gỡ)
+    // 4) 'd' đôi: dd→đ, ddd→dd (gỡ + gõ chữ `d`, R2-63)
     if is_plain_d(c) {
         if let Some(&last) = out.last() {
             if is_plain_d(last) {
@@ -183,6 +191,7 @@ fn push_key(
             if is_stroke(last) {
                 let idx = out.len() - 1;
                 out[idx] = to_plain(last);
+                out.push(c);
                 return;
             }
         }
@@ -230,7 +239,11 @@ fn horn(out: &mut [char], table: &[(char, usize, usize)]) -> Horn {
         let (e, t) = locate(ch)?;
         for &(_, from, to) in table {
             if e == to {
-                w[idx] = form_like(ch, from, t); // undo horn, giữ dấu thanh
+                // Gỡ sừng, giữ dấu thanh; `ươ` gỡ cả cặp (UniKey: chuỗi `ươ` bỏ sừng là `uo`).
+                w[idx] = form_like(ch, from, t);
+                if e == O_HOOK && idx > 0 && matches!(locate(w[idx - 1]), Some((U_HOOK, _))) {
+                    w[idx - 1] = form_like(w[idx - 1], U, tone_of(w[idx - 1]).unwrap_or(0));
+                }
                 return Some(Marked::Undone);
             }
             if e == from {
@@ -283,7 +296,7 @@ mod tests {
             ("dichj", "dịch"),
             ("ddi", "đi"),
             ("ddaan", "đân"),
-            ("dddi", "di"),
+            ("dddi", "ddi"),
         ] {
             assert_eq!(n(keys), want, "{keys}");
         }
@@ -324,8 +337,8 @@ mod tests {
         assert_eq!(n("nguwowif"), "người");
         assert_eq!(n("dduwowcj"), "được");
         assert_eq!(n("dduocj"), "được");
-        // w thứ hai mới gỡ sừng.
-        assert_eq!(n("uoww"), "ưo");
+        // w thứ hai mới gỡ sừng — cả cặp `ươ`, rồi gõ chữ `w` (R2-63).
+        assert_eq!(n("uoww"), "uow");
     }
 
     #[test]
@@ -364,6 +377,27 @@ mod tests {
         assert_eq!(n("ww"), "w");
     }
 
+    /// R2-63: bấm phím dấu lần ba → gỡ dấu **và** gõ chữ đó (như `ass` → `as`; UniKey
+    /// processRoof/processHook/processDd gỡ rồi processAppend) — gõ được `xoong`, `goòng`.
+    #[test]
+    fn third_press_removes_mark_and_types_key() {
+        for (keys, want) in [
+            ("aaa", "aa"),
+            ("eee", "ee"),
+            ("ooo", "oo"),
+            ("ddd", "dd"),
+            ("aww", "aw"),
+            ("uww", "uw"),
+            ("xooong", "xoong"),
+            ("booong", "boong"),
+            ("gooongf", "goòng"),
+            ("mooocs", "moóc"),
+            ("DDD", "DD"),
+        ] {
+            assert_eq!(n(keys), want, "{keys}");
+        }
+    }
+
     #[test]
     fn golden_hoaf_styles() {
         assert_eq!(f("hoaf", DiacriticStyle::New), "hoà");
@@ -395,7 +429,7 @@ mod tests {
         assert_eq!(n("trawng"), "trăng"); // aw → ă
         assert_eq!(n("mow"), "mơ"); // ow → ơ
         assert_eq!(n("tuw"), "tư"); // uw → ư
-        assert_eq!(n("uww"), "u"); // undo horn
+        assert_eq!(n("uww"), "uw"); // gỡ sừng + gõ chữ w (R2-63)
     }
 
     /// R2-65: `w` gõ sau cả cụm nguyên âm nhắm đúng âm (UniKey `processHook` trên chuỗi âm).
@@ -416,17 +450,17 @@ mod tests {
         ] {
             assert_eq!(n(keys), want, "{keys}");
         }
-        // Bấm lại `w` trên cụm → gỡ sừng như trước.
-        assert_eq!(n("muaww"), "mua");
+        // Bấm lại `w` trên cụm → gỡ sừng + gõ chữ `w` (R2-63).
+        assert_eq!(n("muaww"), "muaw");
     }
 
     #[test]
     fn circumflex_double() {
         assert_eq!(n("bee"), "bê");
-        assert_eq!(n("beee"), "be"); // gỡ ê
+        assert_eq!(n("beee"), "bee"); // gỡ ê + gõ chữ e (R2-63)
         assert_eq!(n("caan"), "cân");
         assert_eq!(n("nhoo"), "nhô");
-        assert_eq!(n("ddd"), "d"); // gỡ đ
+        assert_eq!(n("ddd"), "dd"); // gỡ đ + gõ chữ d (R2-63)
     }
 
     /// R2-64: không tự thêm mũ cho `iet` (UniKey/OpenKey không có luật này).

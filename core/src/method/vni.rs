@@ -145,6 +145,7 @@ mod tests {
         assert_eq!(n("u7"), "ư");
         assert_eq!(n("o7"), "ơ");
         assert_eq!(n("i6"), "i6"); // i không nhận mũ → literal
+        assert_eq!(n("uo77"), "uo7"); // cặp `ươ` gỡ cả cặp + literal (R2-63)
     }
 
     #[test]
