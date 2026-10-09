@@ -3,6 +3,11 @@
 > WS4 · `TextVN.app` (NSStatusItem + SwiftUI — `PLAN §3.6`: "NSStatusItem SwiftUI menu",
 > `PLAN §4.1`: SwiftUI Settings, cùng `ui-model` JSON với egui/GTK4 — ADR-004).
 > Mirror `../20-windows/P1-4-ui-packaging-release.md`; schema: `P0-3`.
+>
+> **Trạng thái (2026-10-09):** đây là tài liệu thiết kế; phần đã triển khai: menu bar + Cài đặt
+> SwiftUI một cửa sổ (không phải 6 tab), IPC unix socket, `.pkg` per-user, gỡ bằng menu.
+> **Chưa có:** updater (§7), tap opt-in trong bản phát hành, Developer ID/notarization (§5 —
+> bản phát hành ký ad-hoc). Hướng dẫn người dùng: `../user-guide.md` mục macOS.
 
 ## 1. Status menu — `TextVN.app` (LSUIElement, 1 instance)
 
@@ -22,7 +27,7 @@
 | Quyền Accessibility (nếu tap/AX cần) | mở System Settings đúng pane (`x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`) |
 | Cài đặt… | mở cửa sổ SwiftUI (§3) |
 | Sức khỏe | IMK PID + heartbeat, socket, AX/tap state, version |
-| Gỡ cài đặt… | `textvn uninstall` (§4) — hỏi giữ config |
+| Gỡ cài đặt TextVN… | chạy `TextVN.app/Contents/Resources/uninstall_macos.sh` (§4) — giữ config mặc định; bản cài cho mọi người dùng hỏi quyền quản trị |
 | Thoát | Đóng socket server; **không** kill IMK (system quản lý) |
 
 - Badge: `vn-on` / `vn-off` / `error` (crash counter > 0) — template image SF Symbols (`keyboard`,
@@ -34,7 +39,7 @@
 socket: ~/Library/Application Support/TextVN/ipc.sock  (bind 0600, dir 0700 — đúng user, tinh thần DACL P0-3 §5)
 Codec:  giống hệt Windows (u32 length prefix + UTF-8 frame JSON, schema ipc.v1.md)
 Message set = P0-3 §5 (Hello/GetSnapshot/Subscribe/ToggleViEn/CrashReport/Ping) — KHÔNG bịa thêm
-Server: TextVN.app · Client: TextVN-IM.app (IMK + tap)
+Server: TextVN.app · Client: TextVN-IM.app (IMK; tap opt-in chưa nhúng vào bản phát hành)
 Watcher: config/appdb/state (debounce 300ms) → broadcast ConfigReload/StateUpdate
 Offline: client đọc file khi activate — không block (P0-3 §4)
 ```
@@ -49,7 +54,7 @@ Offline: client đọc file khi activate — không block (P0-3 §4)
 |---|---|
 | General | `enabled_default`, method, typo options, `free_marking`, `spellcheck`, language (vi/en) |
 | Applications | `app_overrides` + `ignore_apps` + "Thêm app đang chạy" + preset override |
-| App-compat (riêng mac) | Bật AX permission, tap opt-in per-app, hiện trạng thái TCC |
+| App-compat (riêng mac) | Bật AX permission, hiện trạng thái TCC (tap opt-in per-app: chưa có UI — MAC-043) |
 | Hotkeys | Toggle EN/VN, sửa, check conflict |
 | Update & About | Channel, kiểm tra cập nhật, changelog, export diagnostics, version |
 
@@ -70,11 +75,12 @@ textvn-mac.pkg (productbuild, component plist "relocatable=false"):
      "System Settings → Keyboard → Input Sources → Add TextVN"
   4. không tự bật login item (user tự bật trong Settings)
 
-uninstall (textvn uninstall):
+uninstall (menu "Gỡ cài đặt TextVN…" → Resources/uninstall_macos.sh; CLI không có lệnh uninstall):
   1. gõ lệnh unregister input source (nếu API) + xóa ~/Library/Input Methods/TextVN-IM.app
   2. xóa /Applications/TextVN.app, login item (nếu đang bật)
   3. hỏi "Giữ config ở ~/Library/Application Support/TextVN?" (mặc định GIỮ — S9)
-  4. log xóa: ~/Library/Logs/TextVN (hỏi nốt) — 0 residue: check bằng script tools/mac/uninstall-check.sh
+  4. log xóa: ~/Library/Logs/TextVN (hỏi nốt) — 0 residue: check bằng packaging/macos/uninstall-check.sh
+     (bản trong bundle: TextVN.app/Contents/Resources/uninstall-check.sh)
 ```
 
 **Flow build thật hiện có trong repo — 3 script nối tiếp:**
@@ -82,12 +88,13 @@ uninstall (textvn uninstall):
 ```text
 scripts/build-macos.sh            # cargo + swift (universal fat qua lipo) → dist/macos/stage
                                   # · ký per-component với entitlements thật (KHÔNG --deep — RM3)
-                                  #   identity = $DEVELOPER_ID hoặc ad-hoc `-` khi dev
+                                  #   identity = $APPLE_DEVELOPER_ID_APP (tên cũ $DEVELOPER_ID) hoặc ad-hoc `-`;
+                                  #   có thêm APPLE_NOTARY_* → notarize + staple từng .app trước khi nén
                                   # · .icns tự sinh từ PNG nếu chưa có icon; bundle thêm
                                   #   uninstall_macos.sh + uninstall-check.sh
 scripts/package-macos-pkg.sh      # pkgbuild + productbuild → dist/macos/TextVN-mac-v<ver>.pkg
    --rebuild                      #   chạy build-macos.sh trước
-   --notarize                     #   ký .pkg (Developer ID Installer) + notarize + staple
+   --notarize                     #   notarize + staple .pkg (ký .pkg khi có $DEVELOPER_ID_INSTALLER)
 scripts/notarize-macos.sh         # notarytool submit --wait + stapler staple (gọi riêng cũng được)
 
 Cài per-user (KHÔNG sudo):  installer -pkg dist/macos/TextVN-mac-v<ver>.pkg -target CurrentUserHomeDirectory
@@ -103,7 +110,8 @@ Cài toàn máy (admin, VM test): sudo installer -pkg … -target /
 | Release | **Developer ID Application** (2 binary: `TextVN.app`, `TextVN-IM.app`) + **hardened runtime** + entitlements tối thiểu (`com.apple.security.automation.apple-events` nếu cần AX observer) |
 | Notarization | `scripts/notarize-macos.sh` (hoặc `package-macos-pkg.sh --notarize`): `xcrun notarytool submit --wait` + `xcrun stapler staple` — **bắt buộc trước public** (gate `P2-5 §6`) |
 | Kiểm chứng | `spctl -a -vv`, `codesign --verify --deep --strict`, install từ `.pkg` tải về trên VM sạch |
-| Không có cert lúc dev | ghi vào `docs/release/signing-status-mac.md` (task MAC-055) — không release khi còn ad-hoc |
+| Không có cert lúc dev | ghi vào `docs/release/signing-status-mac.md` (task MAC-055) |
+| Trạng thái (2026-10-09) | **Chưa có Apple Developer ID** → `build-macos.sh` ký ad-hoc, `.pkg` chưa ký, `release.yml` không notarize; bản phát hành là **pre-release**, mỗi asset kèm chữ ký GPG `.asc` + Sigstore `.cosign.*` (`docs/release/signing.md`). Khi có cert: đặt các biến ở `signing-status-mac.md` §3 rồi chạy `package-macos-pkg.sh --notarize`. |
 
 ## 6. Health & restart
 
@@ -115,6 +123,8 @@ Shutdown TextVN.app: đóng socket; IMK client nhận EOF → offline mode (khô
 ```
 
 ## 7. Updater (Ed25519 "Sparkle-style" — `PLAN §3.7`)
+
+> **Chưa triển khai** (MAC-056) — mục này là thiết kế; cập nhật hiện nay = cài `.pkg` mới đè lên.
 
 | Bước | Chi tiết |
 |---|---|
@@ -132,9 +142,8 @@ Shutdown TextVN.app: đóng socket; IMK client nhận EOF → offline mode (khô
 
 | Kênh | Nội dung |
 |---|---|
-| GitHub Releases | `.pkg` + `SHA256SUMS` + notes tiếng Việt (kèm hướng dẫn enable input source) |
-| Homebrew cask | `packaging/homebrew/textvn.rb` (tên cask `textvn`) — submit sau 2 release ổn định (task MAC-057); audit `brew audit --strict` |
-| Portable dev | zip đã ad-hoc sign cho tester nội bộ |
+| GitHub Releases | `TextVN-mac-v<ver>.pkg` + `TextVN-macos-universal-v<ver>.zip`/`.tar.gz` + `SHA256SUMS.txt` (clearsign) + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng file |
+| Homebrew cask | `packaging/homebrew/textvn.rb` (tên cask `textvn`, trỏ ZIP universal; `sha256` cập nhật mỗi release — B7b) — submit sau 2 release ổn định (task MAC-057); audit `brew audit --strict` |
 
 ## 9. Chẩn đoán
 

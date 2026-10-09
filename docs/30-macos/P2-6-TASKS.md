@@ -4,6 +4,23 @@
 > S ≤ 0.5 ngày · M = 1–2 ngày · L = 3–5 ngày; finding ghi `P2-REVIEW-LOG.md`.
 > **Điều kiện bắt đầu:** đọc `P2-0` → `P0-2` (FFI) → `P2-1` (adapter chính).
 
+> **Trạng thái (2026-10-09):** phát triển macOS **hoàn tất** (chủ repo xác nhận 2026-10-08):
+> IMK (MAC-010…019), field detect/preset (MAC-030…032, 034), menu bar + Cài đặt + IPC + login
+> item (MAC-050…053), `.pkg` (MAC-054). CI `ci-macos` xanh; v0.2.27 phát hành `.pkg` + ZIP/tar.gz
+> universal, ký GPG + Sigstore. Chi tiết: `IMPLEMENTATION-STATUS.md`.
+> - **Còn mở:** MAC-055 (Developer ID + notarization — script sẵn, chưa có cert; bản phát hành
+>   ký ad-hoc — `docs/release/signing-status-mac.md`), MAC-056 (updater — chưa có code), MAC-057
+>   (cask có trong repo, chưa submit), MAC-058 (`textvn-cli` chưa đóng gói vào bundle mac),
+>   MAC-060 (`ax-driver` chưa code), MAC-062 (`perf/baseline-mac.json` chưa có), MAC-064 phần
+>   nightly (chưa có workflow nightly), MAC-065 (ASan/xcodebuild), MAC-033 (verify Ed25519 —
+>   `ime_appdb_verify` cố ý fail-closed vì chưa có `data/preset.pub`).
+> - **MAC-040…044 (tap):** package `adapters/macos-tap` build + test trong CI nhưng **chưa nhúng
+>   vào bản phát hành**, chưa có UI opt-in.
+> - Spike MAC-002…009: kết luận nằm trong code + `IMPLEMENTATION-STATUS.md` §Quyết định; các file
+>   `docs/specs/macos-*-spike.md` nêu trong acceptance dưới đây **không** được tạo.
+> - Mục "Trạng thái task" trong `P2-REVIEW-LOG.md` mà Checkpoint cuối file nhắc tới chưa từng có —
+>   trạng thái task ghi ở khối này và `IMPLEMENTATION-STATUS.md`.
+
 ## A0 — Spike & môi trường (tuần 1–2)
 
 ### MAC-001 · Môi trường build mac (S, dep: —)

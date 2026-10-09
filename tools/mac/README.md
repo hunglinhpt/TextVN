@@ -69,12 +69,14 @@ ax-driver --suite ci|full --only <app_id> --report <out.json>
 - Timeout 15s/case → `fail`, không treo suite (P2-5 §4).
 - `t_glyph_ms` = từ lúc post key đến khi AX text đổi (poll 1ms) → p50/p95/p99.
 - **RM5:** lần chạy đầu phải thử trên runner `macos-latest`; nếu TCC chặn AX →
-  report ghi `status: "skip", notes: "AX harness = local nightly (TCC)"` và
-  `ci-nightly-mac.yml` vẫn xanh (gate PR không phụ thuộc layer này).
+  report ghi `status: "skip", notes: "AX harness = local nightly (TCC)"` và job nightly
+  (sẽ tạo cùng `ax-driver` — hiện **chưa có** workflow nightly) vẫn xanh (gate PR không phụ
+  thuộc layer này).
 
-## 3. Việc còn lại trên máy thật
+## 3. Việc còn lại trên máy thật (cập nhật 2026-10-09)
 
-Xem `docs/30-macos/IMPLEMENTATION-STATUS.md` (mục "Chưa thể verify khi không có
-máy Mac"). Sau khi có máy: chạy `soak.sh`/`mem-check.sh` → ghi `perf/baseline-mac.json`
-bằng `cargo run -p textvn-bench --release -- write perf/baseline-mac.json`, rồi
-`smoke-imk.sh` → ghi `docs/release/rc-checklist-mac.md`.
+macOS đã hoàn tất phần sản phẩm (chủ repo xác nhận trên máy thật 2026-10-08) — xem
+`docs/30-macos/IMPLEMENTATION-STATUS.md` (mục "Còn mở"). Phần còn lại của thư mục này:
+viết `ax-driver` (MAC-060); chạy `soak.sh`/`mem-check.sh` rồi ghi `perf/baseline-mac.json`
+bằng `cargo run -p textvn-bench --release -- write perf/baseline-mac.json` (MAC-062/063);
+`smoke-imk.sh` → ghi `docs/release/rc-checklist-mac.md` (file chưa tạo).

@@ -5,6 +5,12 @@
 > nhận việc theo task `MAC-xxx` trong `P2-6-TASKS.md`.
 > Quyết định nền tảng: **ADR-006** — IMK là primary (không cần Accessibility permission để gõ),
 > **CGEventTap là opt-in** (chỉ khi user bật cho app cần) — xem `adr/README.md` + `PLAN §5.1/§5.2`.
+>
+> **Trạng thái (2026-10-09):** phát triển hoàn tất — bộ gõ IMK + app menu bar + `.pkg` per-user;
+> `ci-macos` xanh; v0.2.27 phát hành `.pkg`/ZIP universal ký GPG + Sigstore
+> (`IMPLEMENTATION-STATUS.md`). Điều kiện §1 còn thiếu: (2) app matrix 20 app, (4) nightly AX
+> harness, (5) Developer ID + notarization (RM3 — chưa có cert; bản phát hành ký ad-hoc,
+> `docs/release/signing-status-mac.md`). Updater và tap opt-in **chưa có trong bản phát hành**.
 
 ## 1. Mục tiêu phần macOS (exit condition)
 
@@ -30,13 +36,13 @@ hoặc chỉ bump version đúng `P0-2 §6` — để Phần 3 (Linux) cắm và
 │         • AX field detect (opt-in Accessibility) → ime_set_context        │
 │         • ipc client → unix socket  ~/Library/Application Support/        │
 │                                 TextVN/ipc.sock  (schema ipc.v1.md)      │
-│         • (opt-in) CGEventTap fallback — xem P2-2                         │
+│         • (opt-in) CGEventTap fallback — P2-2 (chưa có trong bản phát hành)│
 └──────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ TextVN.app  (NSStatusItem, LSUIElement — SOURCE OF TRUTH, như tray Win)  │
 │   • menu trạng thái + Settings (SwiftUI, ui-model JSON chung)             │
 │   • IPC server (unix socket) • watcher config/appdb/state                 │
-│   • login item (SMAppService) • updater (Ed25519, Sparkle-style)          │
+│   • login item (SMAppService) • updater: CHƯA triển khai (MAC-056)        │
 │   • diagnostics export • spawn/kill module IMK khi cần (restart IME)      │
 └──────────────────────────────────────────────────────────────────────────┘
         Core engine (textvn-core + textvn-ffi) link STATIC vào từng binary
@@ -114,6 +120,6 @@ MAC-060..066 (harness/test) bắt đầu tuần 3, chặn release
 - [ ] Mọi task `MAC-*` trong `P2-6-TASKS.md` đạt DoD 7 mục (Handbook §4).
 - [ ] `P2-5 §6` release gate pass.
 - [ ] `docs/compat.md` cộng số liệu mac (20 app).
-- [ ] `P2-REVIEW-LOG.md` đạt 2/2 → `00-INDEX` cập nhật.
+- [x] `P2-REVIEW-LOG.md` đạt 2/2 → `00-INDEX` cập nhật.
 - [ ] 0 finding `blocker/major` mở; RM1–RM8 có owner + trạng thái.
 - [ ] Bàn giao Phần 3 (Linux): FFI/schema không đổi (hoặc bump đúng `P0-2 §6`).

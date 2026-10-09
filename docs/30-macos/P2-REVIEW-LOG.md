@@ -63,16 +63,18 @@
 
 ## Rủi ro còn mở của Phần 2 (theo dõi, không phải finding)
 
+> Trạng thái cập nhật 2026-10-09 (bảng theo dõi đang dùng, không phải entry log có ngày).
+
 | # | Rủi ro | Trạng thái | Task xử lý |
 |---|---|---|---|
-| RM1 | Swift↔Rust staticlib link | ⬜ Chưa chạy spike (tuần 1) | MAC-003 |
-| RM2 | Cơ chế xóa N ký tự trên IMK | ⬜ Chưa chạy spike | MAC-004 → chốt caps |
-| RM3 | Chưa có Apple Developer ID cert | ⬜ Cần mua/làm phép | MAC-008 + MAC-055 |
-| RM4 | AX/TCC bị từ chối | ⬜ Chưa verify | MAC-005 |
-| RM5 | CI macOS không chạy AX harness | ⬜ Chưa verify | MAC-007 S10 |
-| RM6 | Marked text lag ở app Electron/Office | ⬜ Design có sẵn (P2-1 §7) | MAC-012 + corpus B11 |
-| RM7 | IMK process chết giữa chừng | ⬜ Design có sẵn (P2-4 §6) | MAC-051 |
-| RM8 | CGEventTap bị coi là keylogger | ⬜ Design opt-in (P2-2 §7) | MAC-043 + MAC-066 |
+| RM1 | Swift↔Rust staticlib link | ✅ Đóng — `build-rust.sh`/`build-macos.sh` link `libtextvn_ffi.a` universal; `swift test` CI xanh, release đóng gói universal | MAC-003 |
+| RM2 | Cơ chế xóa N ký tự trên IMK | ✅ Chốt trong code (`ApplyReplace.swift`, `deleteBackward:`; caps không có `INJECT_VK`) | MAC-004 |
+| RM3 | Chưa có Apple Developer ID cert | ⏳ **Còn mở** — bản phát hành ký ad-hoc, `.pkg` chưa ký, chưa notarize (`docs/release/signing-status-mac.md`) | MAC-008 + MAC-055 |
+| RM4 | AX/TCC bị từ chối | ✅ Fallback preset theo bundle-id + menu yêu cầu quyền Accessibility | MAC-005 |
+| RM5 | CI macOS không chạy AX harness | ⏳ Mở — `ax-driver` chưa code | MAC-060 |
+| RM6 | Marked text lag ở app Electron/Office | ✅ Có code (commit-early ≤ 8 grapheme — B11) | MAC-012 + corpus B11 |
+| RM7 | IMK process chết giữa chừng | ✅ Có code (heartbeat `im-heartbeat.json` + kiểm sức khoẻ trong app) | MAC-051 |
+| RM8 | CGEventTap bị coi là keylogger | ⏸ Tap chưa ship trong bản phát hành (package có test, chưa có UI opt-in) | MAC-043 + MAC-066 |
 
 ## Code Review Round 1 — Đúng & Đủ (Mã nguồn macOS App & Packaging)
 
