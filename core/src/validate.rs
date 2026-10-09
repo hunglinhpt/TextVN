@@ -11,6 +11,9 @@
 //! 5. `tone_marks_ok` — tối đa **1** nguyên âm mang dấu thanh.
 //! 6. `stop_coda_tone_ok` — âm cuối tắc `c ch p t` chỉ mang thanh **sắc** hoặc **nặng**
 //!    (R2-62: `sort` `part` `hurt` gõ Telex ra `sỏt` `pảt` `hủt` không phải âm tiết Việt).
+//! 7. `coda_after_nucleus_ok` — vần kết thúc bằng bán âm (`ai ao au ay ui ưu oi…`) và nguyên
+//!    âm đôi mở (`ia ua ưa ya uơ`) không có âm cuối (`using` → `uíng`, `win` → `ưin` không phải
+//!    âm tiết Việt; có âm cuối thì viết `iê uô ươ`: `tiến`, `muốn`, `người`).
 //!
 //! Nguồn: cấu trúc âm tiết Việt (âm đầu + vần + âm cuộc) theo `PLAN §4.2` stage 5;
 //! bảng vần viết tay (chưa có `data/tables/` — deviation ghi `docs/00-INDEX §5`).
@@ -115,7 +118,28 @@ pub fn stop_coda_tone_ok(cs: &[char], st: Structure) -> bool {
     !matches!(coda.as_str(), "c" | "ch" | "p" | "t") || matches!(current_tone(cs), 1 | 5)
 }
 
-/// **5 quy tắc âm tiết + luật thanh âm cuối tắc** — `true` nếu `cs` là một âm tiết Việt hợp lệ.
+/// Vần (đã bỏ dấu thanh) **không** đi với âm cuối: kết thúc bằng bán âm `i/y/o/u` hoặc là
+/// nguyên âm đôi mở `ia ua ưa ya uơ` (có âm cuối thì viết `iê yê uô ươ`).
+pub const OPEN_NUCLEI: [&str; 33] = [
+    "ai", "ao", "au", "ay", "âu", "ây", "eo", "êu", "ia", "iu", "oi", "ôi", "ơi", "ua", "ui", "ưa",
+    "ưi", "ưu", "uơ", "ya", "iêu", "yêu", "oai", "oao", "oay", "oeo", "uai", "uây", "uôi", "uya",
+    "uyu", "ươi", "ươu",
+];
+
+/// Rule 7 — vần trong [`OPEN_NUCLEI`] không có âm cuối (`uíng`, `ưin`, `ửam` không phải âm tiết).
+pub fn coda_after_nucleus_ok(cs: &[char], st: Structure) -> bool {
+    if st.nucleus_end + 1 >= cs.len() {
+        return true;
+    }
+    let nucleus: Vec<char> = cs[st.onset_end..=st.nucleus_end]
+        .iter()
+        .map(|&c| unmark(c))
+        .collect();
+    !OPEN_NUCLEI.contains(&lower_str(&nucleus).as_str())
+}
+
+/// **5 quy tắc âm tiết + luật thanh âm cuối tắc + vần mở** — `true` nếu `cs` là một âm tiết
+/// Việt hợp lệ.
 pub fn is_valid_word(cs: &[char]) -> bool {
     let Some(st) = decompose(cs) else {
         return false;
@@ -126,6 +150,7 @@ pub fn is_valid_word(cs: &[char]) -> bool {
         && valid_coda(cs, st)
         && tone_marks_ok(cs)
         && stop_coda_tone_ok(cs, st)
+        && coda_after_nucleus_ok(cs, st)
 }
 
 #[cfg(test)]
@@ -178,6 +203,22 @@ mod tests {
     fn invalid_english_and_typos() {
         for w in [
             "àd", "as", "text", "hello", "bs", "qaa", "ngx", "a?", "abc7",
+        ] {
+            assert!(!v(w), "`{w}` phải KHÔNG hợp lệ");
+        }
+    }
+
+    /// Vần kết thúc bằng bán âm / nguyên âm đôi mở không có âm cuối.
+    #[test]
+    fn open_nucleus_takes_no_coda() {
+        for w in [
+            "tuổi", "người", "rượu", "khuya", "khuỷu", "mưa", "gửi", "lưu", "cái", "này", "giữa",
+            "của", "quan", "quang", "xoong", "huynh", "khuếch", "tuần", "giếng", "yên", "hoàng",
+        ] {
+            assert!(v(w), "`{w}` phải hợp lệ");
+        }
+        for w in [
+            "uíng", "muíc", "duỉng", "ưin", "ứin", "ửam", "tưin", "sưing", "cain", "mưan",
         ] {
             assert!(!v(w), "`{w}` phải KHÔNG hợp lệ");
         }

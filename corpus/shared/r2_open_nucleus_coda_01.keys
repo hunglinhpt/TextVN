@@ -1,0 +1,10 @@
+# corpus/shared/r2_open_nucleus_coda_01.keys — vần kết thúc bằng bán âm (`ui ai oi ưi…`) và nguyên âm
+# đôi mở (`ia ua ưa`) không có âm cuối: `uíng` `muíc` `duỉng` `peón` không phải âm tiết Việt nên
+# auto-restore trả lại từ tiếng Anh. Từ Việt thật (`tuổi`, `người`, `cái`, `khuya`) vẫn giữ.
+# oracle: cấu trúc vần tiếng Việt — có âm cuối thì nguyên âm đôi viết `iê uô ươ` (`tiến`, `muốn`).
+# Lưới an toàn cho R2-66 (`w` đứng riêng → `ư`: `win` → `ưin`, `swing` → `sưing`).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "using music during person basic chains losing "
+:expect "using music during person basic chains losing "
+:type "tuooir nguowif cais khuya muoons "
+:expect "using music during person basic chains losing tuổi người cái khuya muốn "
