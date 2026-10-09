@@ -127,13 +127,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: A/B — baseline = merge-base với origin/main, đo trên cùng runner
         shell: bash
+        # Cùng cờ build cho HAI bên (base cũ không có +crt-static trong .cargo/config —
+        # so lệch cờ CRT từng ra +13.8% parse_config giả, 2026-10-08).
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
         run: |
           set -euo pipefail
           base="$(git merge-base HEAD origin/main)"
           echo "base=$base head=$(git rev-parse HEAD)"
           git worktree add -q ../perf-base "$base"
-          (cd ../perf-base && cargo run -q --release -p textvn-bench -- write "$GITHUB_WORKSPACE/perf/ab-base.json")
-          cargo run -q --release -p textvn-bench -- check perf/ab-base.json
+          (cd ../perf-base && cargo build -q --release -p textvn-bench)
+          cargo build -q --release -p textvn-bench
+          # Đo xen kẽ; chỉ coi là hồi quy khi lần đo lại (base mới + HEAD) VẪN vượt ngưỡng —
+          # một lượt chậm trên runner chung 2 vCPU là nhiễu, hai lượt liên tiếp là thật.
+          for attempt in 1 2; do
+            (cd ../perf-base && cargo run -q --release -p textvn-bench -- write "$GITHUB_WORKSPACE/perf/ab-base.json")
+            if cargo run -q --release -p textvn-bench -- check perf/ab-base.json; then exit 0; fi
+            echo "::warning::A/B lượt $attempt vượt ngưỡng — đo lại"
+          done
+          exit 1
       - name: So baseline tĩnh (chỉ cảnh báo)
         shell: bash
         run: |

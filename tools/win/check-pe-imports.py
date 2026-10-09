@@ -61,6 +61,11 @@ def imports(path: str) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
+    # Windows: stdout mặc định cp1252 → in tiếng Việt văng UnicodeEncodeError
+    # (CI 2026-10-08: kiểm tra ĐẠT nhưng dòng OK làm bước đỏ).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     if not argv:
         print(__doc__)
         return 2

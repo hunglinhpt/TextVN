@@ -174,6 +174,11 @@ def check(path: str, expect_version: str | None, require_identity: bool) -> list
 
 
 def main(argv: list[str]) -> int:
+    # Windows: stdout mặc định cp1252 → in tiếng Việt văng UnicodeEncodeError
+    # (CI 2026-10-08: kiểm tra ĐẠT nhưng dòng OK làm bước đỏ).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("msix")
     ap.add_argument("--expect-version", help="version sản phẩm A.B.C (Cargo.toml)")
