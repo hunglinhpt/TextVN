@@ -1,7 +1,9 @@
-# corpus/shared/vni_remove_marks_01.keys — VNI `0` = xoá toàn bộ dấu (thanh + dạng âm + đ)
+# corpus/shared/vni_remove_marks_01.keys — VNI `0` = gỡ dấu THANH (mũ/sừng/breve/đ giữ nguyên)
+# R2-69: kỳ vọng cũ `duong` (xoá mọi dấu) là lỗi — UniKey VniMethodMapping `{'0', vneTone0}`,
+# cùng nghĩa Telex `z`.
 :config method=vni diacritic_style=new
 :type "d9uo7ng2"
 :expect "đường"
 :expect_action REPLACE
 :type "0"
-:expect "duong"
+:expect "đương"

@@ -1,0 +1,9 @@
+# corpus/shared/r2_vni_zero_tone_only_01.keys — R2-69: VNI `0` chỉ gỡ dấu thanh như Telex `z`;
+# `đường` + `0` + Space ra `đương`, không còn bị auto-restore trả về `d9u7o7ng20`.
+# Từ chưa có dấu thanh: `0` là chữ số (số điện thoại/OTP `0912`, `200` nguyên vẹn).
+# oracle: fcitx5-unikey inputproc.cpp VniMethodMapping `{'0', vneTone0}`.
+:config method=vni diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "d9u7o7ng20 to6i10 "
+:expect "đương tôi "
+:type "0912 200 "
+:expect "đương tôi 0912 200 "

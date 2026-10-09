@@ -25,7 +25,7 @@
 use super::keys_generated::{simple_telex as keys_st, telex as keys};
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::{apply_key, is_vowel, strip_tone, tone_of};
+use crate::transform::tone::{apply_key, is_vowel, remove_tone, tone_of};
 use crate::transform::undo::{mark_cluster, Marked};
 use crate::transform::vowel_table::{form_like, locate, O_CIRC, O_HOOK, U, U_HOOK};
 use crate::validate::CODAS;
@@ -108,14 +108,8 @@ fn push_key(
     } else {
         keys_st::TONE_REMOVE_KEY
     };
-    if tone_remove == Some(key) {
-        if let Some(idx) = out
-            .iter()
-            .position(|&ch| tone_of(ch).is_some_and(|t| t > 0))
-        {
-            out[idx] = strip_tone(out[idx]);
-            return;
-        }
+    if tone_remove == Some(key) && remove_tone(out) {
+        return;
     }
 
     // 2) 'w' — horn / undo horn / nuốt lặp. Bảng sừng của từng kiểu gõ (Simple Telex cũng
