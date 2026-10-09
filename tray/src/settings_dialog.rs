@@ -401,26 +401,23 @@ fn create_control_ex(
     }
 }
 
-/// Font GUI 9pt theo DPI hiện tại. Font sống trong static để xóa khi dialog
-/// destroy (tránh leak GDI handle); nếu tạo thất bại thì dùng lại stock font.
+/// Font GUI 9pt theo TỪNG DPI (R2-39): Bảng điều khiển và cửa sổ "Gõ tắt..."/"Từ điển
+/// EN" có thể nằm trên hai màn hình khác DPI cùng lúc. Bản cũ giữ MỘT font và xoá nó khi
+/// DPI khác được yêu cầu — control của cửa sổ kia còn đang dùng font đó nên rơi về font
+/// System, chữ bị cắt. Số DPI khác nhau rất ít (≤ số màn hình) → giữ tới khi Bảng điều
+/// khiển bị huỷ (cửa sổ con thuộc nó bị huỷ trước).
 #[cfg(windows)]
-static UI_FONT: AtomicIsize = AtomicIsize::new(0);
-/// DPI mà font hiện tại được tạo cho — khác DPI thì phải tạo lại (đa màn).
-#[cfg(windows)]
-static UI_FONT_DPI: AtomicIsize = AtomicIsize::new(0);
+static UI_FONTS: std::sync::Mutex<Vec<(i32, isize)>> = std::sync::Mutex::new(Vec::new());
 
-/// Font GUI 9pt cho DPI yêu cầu; DPI đổi so với lần tạo trước → xoá font cũ,
-/// tạo font mới (dialog bị kéo sang màn hình khác DPI — WM_DPICHANGED).
+/// Font GUI 9pt cho DPI yêu cầu (tạo một lần cho mỗi DPI); lỗi thì dùng stock font.
 #[cfg(windows)]
 fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
-    let existing = UI_FONT.load(Ordering::Acquire);
-    let font_dpi = UI_FONT_DPI.load(Ordering::Acquire);
-    if existing != 0 && font_dpi == dpi as isize {
-        return HGDIOBJ(existing as *mut std::ffi::c_void);
-    }
-    if existing != 0 {
-        let _ = unsafe { DeleteObject(HGDIOBJ(existing as *mut std::ffi::c_void)) };
-        UI_FONT.store(0, Ordering::Release);
+    let stock = || unsafe { GetStockObject(DEFAULT_GUI_FONT) };
+    let Ok(mut fonts) = UI_FONTS.lock() else {
+        return stock();
+    };
+    if let Some(&(_, font)) = fonts.iter().find(|(d, _)| *d == dpi) {
+        return HGDIOBJ(font as *mut std::ffi::c_void);
     }
     let new_font = unsafe {
         let stock = GetStockObject(DEFAULT_GUI_FONT);
@@ -440,9 +437,18 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
         }
         HGDIOBJ(f.0)
     };
-    UI_FONT.store(new_font.0 as isize, Ordering::Release);
-    UI_FONT_DPI.store(dpi as isize, Ordering::Release);
+    fonts.push((dpi, new_font.0 as isize));
     new_font
+}
+
+/// Xoá mọi font đã tạo — chỉ gọi khi Bảng điều khiển bị huỷ.
+#[cfg(windows)]
+fn delete_ui_fonts() {
+    if let Ok(mut fonts) = UI_FONTS.lock() {
+        for (_, font) in fonts.drain(..) {
+            let _ = unsafe { DeleteObject(HGDIOBJ(font as *mut std::ffi::c_void)) };
+        }
+    }
 }
 
 /// Xử lý WM_DPICHANGED: resize theo RECT hệ thống đề xuất, tạo lại font rồi
@@ -1087,10 +1093,7 @@ unsafe extern "system" fn dialog_wnd_proc(
             SETTINGS_HWND.store(0, Ordering::Release);
             // Controls con đã bị hủy trước khi parent nhận WM_DESTROY
             // nên font không còn được tham chiếu - an toàn để xóa.
-            let font = UI_FONT.swap(0, Ordering::AcqRel);
-            if font != 0 {
-                let _ = DeleteObject(HGDIOBJ(font as *mut std::ffi::c_void));
-            }
+            delete_ui_fonts();
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
