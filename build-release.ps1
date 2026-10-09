@@ -236,9 +236,10 @@ if ($SigningRequested) {
     Write-Step "Sign release binaries with SignPath"
     foreach ($binary in $ReleaseSignFiles) {
         if (-not (Test-Path $binary)) { Write-Fail "Cannot sign missing binary: $binary" }
-        powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $binary
-        if ($LASTEXITCODE -ne 0) { Write-Fail "SignPath signing failed: $binary" }
     }
+    # R2-72: MOT signing request (ZIP, deep sign) cho ca bo binary = mot lan duyet.
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File ($ReleaseSignFiles -join ',')
+    if ($LASTEXITCODE -ne 0) { Write-Fail "SignPath signing failed" }
     $ReleaseChecks["authenticode"] = "signpath"
 } else {
     $ReleaseChecks["authenticode"] = "not-signed"
@@ -469,6 +470,13 @@ if ($BuildInstaller) {
             if ($LASTEXITCODE -ne 0) { throw "ISCC (machine) failed with exit code $LASTEXITCODE" }
             $machineExe = "dist\TextVN-setup-$Version-windows-x64-machine.exe"
             if (-not (Test-Path $machineExe)) { throw "Machine installer output not found: $machineExe" }
+            # R2-17: ban -machine.exe la ban NOP STORE - phai ky giong ban per-user.
+            if ($SigningRequested) {
+                Sign-TextVNFile $signTool $SigningCertificateThumbprint $machineExe
+            } elseif ($env:SIGNPATH_API_TOKEN) {
+                powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $machineExe -Description "TextVN installer (machine)"
+                if ($LASTEXITCODE -ne 0) { throw "SignPath signing failed: $machineExe" }
+            }
             Write-Ok "Installer (machine/HKLM): $machineExe"
         }
     }
