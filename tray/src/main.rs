@@ -785,8 +785,14 @@ fn main() {
 /// - Kênh Store (R2-06, chính sách Store 10.2.8 "phải có đồng ý của người dùng trước khi
 ///   đổi cài đặt Windows"): HỎI Có/Không ở lần mở app bình thường đầu tiên; lưu cả câu
 ///   trả lời Không (marker `declined`) để không hỏi lại và gỡ cài đặt không đụng phím tắt.
+/// - Nâng cấp từ bản ≤ 0.2.27 (không ghi marker) mà Ctrl + Shift đã "không gán": nhận
+///   lại mục bản cũ đã đặt để gỡ cài đặt vẫn trả Ctrl + Shift (R2-92).
 #[cfg(windows)]
-fn apply_ctrl_shift_default_once(store_channel: bool, interactive: bool) {
+fn apply_ctrl_shift_default_once(
+    store_channel: bool,
+    interactive: bool,
+    previous_version: Option<&str>,
+) {
     if textvn_tray::store_win::refuse_if_packaged("đổi phím tắt Ctrl+Shift") {
         return;
     }
@@ -803,10 +809,19 @@ fn apply_ctrl_shift_default_once(store_channel: bool, interactive: bool) {
     if marker.exists() {
         return;
     }
+    let before = textvn_tray::hotkey::current();
+    let legacy =
+        textvn_tray::legacy_freed_layout_hotkey(previous_version, before.layout.as_deref());
+    let legacy_entry = || ("Layout Hotkey".to_string(), None);
     if store_channel {
+        // Bản Store cũ đã lấy Ctrl+Shift (không hỏi) — giữ quyết định đó, không hỏi lại.
+        if legacy {
+            textvn_tray::record_ctrl_shift_freed(vec![legacy_entry()]);
+            return;
+        }
         // Không hỏi lúc đăng nhập (--autostart); Windows không giữ Ctrl+Shift thì
         // không có gì để hỏi.
-        if !interactive || !textvn_tray::hotkey::current().ctrl_shift_taken() {
+        if !interactive || !before.ctrl_shift_taken() {
             return;
         }
         // Thread riêng: MessageBoxW chặn thread gọi — không chặn tray/`--stop`.
@@ -828,7 +843,10 @@ vẫn đổi bàn phím bằng Win + Space.\r\n\r\nCó thể đổi lại bất 
         });
         return;
     }
-    if let Ok(record) = textvn_tray::hotkey::free_ctrl_shift() {
+    if let Ok(mut record) = textvn_tray::hotkey::free_ctrl_shift() {
+        if legacy && !record.iter().any(|(name, _)| name == "Layout Hotkey") {
+            record.push(legacy_entry());
+        }
         textvn_tray::record_ctrl_shift_freed(record);
     }
 }
@@ -963,7 +981,7 @@ fn run_tray_app() {
     // CHỈ một lần cho bản không qua bộ cài (xem hàm). Trước đây gọi vô điều kiện ở mỗi
     // lần khởi động: người dùng bỏ chọn "Dành Ctrl + Shift" trong Bảng điều khiển (hoặc
     // task của bộ cài) thì lần đăng nhập sau Windows lại mất phím tắt của họ.
-    apply_ctrl_shift_default_once(store_ctx.is_some(), !is_autostart);
+    apply_ctrl_shift_default_once(store_ctx.is_some(), !is_autostart, svc.previous_version());
 
     // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
     // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả
