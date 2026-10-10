@@ -23,6 +23,12 @@ $toggle = 'HKCU:\Keyboard Layout\Toggle'
 if (-not (Test-Path $toggle)) { New-Item -Path $toggle -Force | Out-Null }
 Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
 
+# R2-100: danh sach ngon ngu cua user TRUOC khi cai - go cai dat phai tra ve dung nhu cu
+# (cai TextVN tren may chi co tieng Anh tu them "vi"; go xong khong duoc con sot).
+$userProfile = 'HKCU:\Control Panel\International\User Profile'
+$langsBefore = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+Write-Host ('languages before install: ' + ($langsBefore -join ', '))
+
 function Show-RegisterLogTail {
     # Exit 10 = textvn-cli register that bai (GetCustomSetupExitCode); setup chay
     # CLI an console nen ly do chi nam trong register.log.
@@ -121,10 +127,24 @@ Write-Host 'PASS silent machine install + user TSF activation (files, TSF, autos
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $app
 
+# R2-99: go cai dat khi tray DANG CHAY (nguoi dung bam "Go cai dat" luc TextVN dang bat):
+# bo go phai dung tray truoc moi buoc - tray con chay thi khoa TextVN.exe, go khong sach.
+Start-Process -FilePath (Join-Path $app 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $app | Out-Null
+$trayUp = $false
+for ($i = 0; $i -lt 30 -and -not $trayUp; $i++) {
+    Start-Sleep -Milliseconds 500
+    $trayUp = ((& (Join-Path $app 'TextVN.exe') --status 2>&1 | Out-String) -match 'RUNNING')
+}
+if (-not $trayUp) { throw 'TextVN tray did not start before the uninstall-while-running test' }
+
 $u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
 # Trinh go cai dat chay ban sao trong %TEMP% roi thoat: cho no xoa xong.
 for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $app 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
-if (Test-Path (Join-Path $app 'TextVN.exe')) { throw 'TextVN.exe still present after uninstall' }
+if (Test-Path (Join-Path $app 'TextVN.exe')) { throw 'TextVN.exe still present after uninstall (tray not stopped first?)' }
+$leftTray = @(Get-Process -Name TextVN -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -and $_.Path.StartsWith($app + '\', [System.StringComparison]::OrdinalIgnoreCase) })
+if ($leftTray.Count -gt 0) { throw ('uninstall left the TextVN tray running (PID ' + (($leftTray | ForEach-Object { $_.Id }) -join ',') + ')') }
+Write-Host 'PASS uninstall stopped the running tray first and removed TextVN.exe (R2-99)'
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall' }
 # R2-40: go cai dat tra Ctrl + Shift ve DUNG gia tri truoc khi cai ('2', dat o dau
 # script) theo marker do --free-ctrl-shift ghi. usPostUninstall co the chay sau khi
@@ -174,6 +194,15 @@ if ($ghostMachine.Count -gt 0) { throw ("ghost HKLM keys with TIP GUID left afte
 $imo = (Get-ItemProperty 'HKCU:\Control Panel\International\User Profile' -ErrorAction SilentlyContinue).InputMethodOverride
 if ($imo -and $imo -like "*$guid*") { throw 'InputMethodOverride still points at TextVN TIP after uninstall' }
 Write-Host 'PASS no TIP ghost keys left after uninstall (HKCU + HKLM + InputMethodOverride)'
+
+# R2-100: danh sach ngon ngu ve dung nhu truoc khi cai (khong sot "vi" do TextVN them).
+$langsAfter = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+Write-Host ('languages after uninstall: ' + ($langsAfter -join ', '))
+if (@('vi', 'en-US' | Where-Object { ($langsBefore -contains $_) -ne ($langsAfter -contains $_) }).Count -gt 0) {
+    Get-WinUserLanguageList | ForEach-Object { Write-Host ('  ' + $_.LanguageTag + ': ' + ($_.InputMethodTips -join ', ')) }
+    throw ('uninstall did not restore the language list (before: ' + ($langsBefore -join ', ') + '; after: ' + ($langsAfter -join ', ') + ')')
+}
+Write-Host 'PASS uninstall restored the language list to its pre-install state (R2-100)'
 
 $run = (Get-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).TextVN
 if ($run) { throw 'autostart Run key left behind' }

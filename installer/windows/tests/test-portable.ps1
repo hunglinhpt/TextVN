@@ -22,6 +22,11 @@ $ErrorActionPreference = 'Stop'
 $clsid = '{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}'
 $inproc = "HKCU:\Software\Classes\CLSID\$clsid\InprocServer32"
 
+# R2-100: danh sach ngon ngu TRUOC khi chay - go cai dat phai tra ve dung nhu cu.
+$userProfile = 'HKCU:\Control Panel\International\User Profile'
+$langsBefore = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+Write-Host ('languages before: ' + ($langsBefore -join ', '))
+
 $tempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $dir = Join-Path $tempRoot ('textvn-portable-' + [guid]::NewGuid().ToString('N'))
 try {
@@ -69,9 +74,19 @@ Set-Content -LiteralPath $userFile -Value 'khong duoc xoa'
 New-Item -ItemType Directory -Path $userSub | Out-Null
 Set-Content -LiteralPath (Join-Path $userSub 'anh.txt') -Value 'khong duoc xoa'
 
+# R2-99: go khi tray DANG CHAY - uninstall.ps1 phai dung tray truoc khi xoa file.
+Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $dir | Out-Null
+$trayUp = $false
+for ($i = 0; $i -lt 30 -and -not $trayUp; $i++) {
+    Start-Sleep -Milliseconds 500
+    $trayUp = ((& (Join-Path $dir 'TextVN.exe') --status 2>&1 | Out-String) -match 'RUNNING')
+}
+if (-not $trayUp) { throw 'TextVN tray did not start before the uninstall-while-running test' }
+
 # Go dang ky nhu nguoi dung (uninstall.ps1 trong zip).
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'uninstall.ps1')
 Start-Sleep -Seconds 1
+if (Test-Path -LiteralPath (Join-Path $dir 'TextVN.exe')) { throw 'uninstall.ps1 left TextVN.exe behind (tray not stopped first?)' }
 if (-not (Test-Path -LiteralPath $userFile)) { throw 'uninstall.ps1 deleted a user file next to TextVN (R2-16)' }
 if (-not (Test-Path -LiteralPath (Join-Path $userSub 'anh.txt'))) { throw 'uninstall.ps1 deleted a user folder next to TextVN (R2-16)' }
 if (Test-Path -LiteralPath (Join-Path $dir 'textvn-cli.exe')) { throw 'uninstall.ps1 left textvn-cli.exe behind' }
@@ -105,6 +120,15 @@ try {
     $layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
     if ($null -ne $layout) { throw "uninstall after upgrade from 0.2.27 did not give Ctrl+Shift back (Layout Hotkey='$layout')" }
     Write-Host 'PASS portable upgrade from 0.2.27: uninstall gives Ctrl+Shift back (R2-92)'
+    # R2-100: hai lan chay/go o tren deu dang ky roi go TSF - danh sach ngon ngu phai
+    # ve dung nhu luc dau (khong sot "vi" do TextVN them).
+    $langsAfter = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+    Write-Host ('languages after uninstall: ' + ($langsAfter -join ', '))
+    if (@('vi', 'en-US' | Where-Object { ($langsBefore -contains $_) -ne ($langsAfter -contains $_) }).Count -gt 0) {
+        Get-WinUserLanguageList | ForEach-Object { Write-Host ('  ' + $_.LanguageTag + ': ' + ($_.InputMethodTips -join ', ')) }
+        throw ('portable uninstall did not restore the language list (before: ' + ($langsBefore -join ', ') + '; after: ' + ($langsAfter -join ', ') + ')')
+    }
+    Write-Host 'PASS portable uninstall restored the language list (R2-100)'
 } finally {
     if ($null -ne $stateBackup) { [System.IO.File]::WriteAllText($stateFile, $stateBackup) }
     Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
