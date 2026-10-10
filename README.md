@@ -8,11 +8,20 @@ trang Releases) khi khai báo gói cài trên Microsoft Partner Center.
 
 ```
 vX.Y.Z/
-  TextVN-setup-vX.Y.Z-windows-x64.exe      <- bộ cài nộp Store (Inno Setup)
-  TextVN-portable-vX.Y.Z-windows-x64-*.zip <- bản chạy ngay (đối chiếu)
-  TextVN-vX.Y.Z-windows-x64.msix           <- DỰ PHÒNG khi gói exe bị Store từ chối
-  SHA256SUMS.txt                            <- checksum của release gốc
+  TextVN-setup-X.Y.Z-windows-x64-machine.exe <- bộ cài NỘP STORE (đường EXE, ARP ở HKLM)
+  TextVN-setup-X.Y.Z-windows-x64.exe         <- bộ cài per-user (đối chiếu)
+  TextVN-portable-X.Y.Z-windows-x64-*.zip    <- bản chạy ngay (đối chiếu)
+  *.asc / *.cosign.sig / *.cosign.cert       <- chữ ký GPG + Sigstore của từng file
+  SHA256SUMS.txt                             <- checksum của release gốc (clearsign)
+  gpg-release-key.asc                        <- khoá công khai để kiểm chữ ký
 ```
+
+Đường EXE chỉ còn chờ chữ ký Authenticode (SignPath Foundation) — chính sách 10.2.9
+chặn EXE chưa ký. **MSIX nộp Store đi đường riêng từ v0.2.28**: sản phẩm MSIX trên
+Partner Center (identity `23651Linhi.TextVN`), upload FILE `.msix` build với identity
+đó — không cần raw URL nên không đặt ở đây (xem `docs/release/msix-submission.md`
+trong nhánh `main`). Gói `.msix` của release v0.2.28 mang identity tạm nên không chép
+vào `v0.2.28/`; các thư mục ≤ v0.2.27 giữ nguyên như đã duyệt lúc đó.
 
 ```
 store-art/
@@ -63,6 +72,8 @@ certutil -hashfile TextVN-setup-0.2.16-windows-x64.exe SHA256
 ## Quy trình cập nhật (thủ công — chỉ bản chủ repo DUYỆT)
 
 1. Chủ repo xác nhận bản `vX.Y.Z` đã duyệt (CI xanh, E2E gõ thật PASS).
-2. `gh release download vX.Y.Z` cho setup exe + portable zip + SHA256SUMS.txt
-   vào thư mục `vX.Y.Z/` trên branch này.
+2. `gh release download vX.Y.Z` cho setup exe, `-machine.exe`, portable zip (kèm
+   `.asc`/`.cosign.sig`/`.cosign.cert` của từng file), `SHA256SUMS.txt` và
+   `gpg-release-key.asc` vào thư mục `vX.Y.Z/` trên branch này; kiểm hash với
+   `SHA256SUMS.txt` và `gpg --verify` từng `.asc` trước khi commit.
 3. Commit + push vào `approved`.
