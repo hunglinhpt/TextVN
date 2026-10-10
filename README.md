@@ -17,11 +17,31 @@ vX.Y.Z/
 ```
 
 Đường EXE chỉ còn chờ chữ ký Authenticode (SignPath Foundation) — chính sách 10.2.9
-chặn EXE chưa ký. **MSIX nộp Store đi đường riêng từ v0.2.28**: sản phẩm MSIX trên
-Partner Center (identity `23651Linhi.TextVN`), upload FILE `.msix` build với identity
-đó — không cần raw URL nên không đặt ở đây (xem `docs/release/msix-submission.md`
-trong nhánh `main`). Gói `.msix` của release v0.2.28 mang identity tạm nên không chép
-vào `v0.2.28/`; các thư mục ≤ v0.2.27 giữ nguyên như đã duyệt lúc đó.
+chặn EXE chưa ký.
+
+**MSIX nộp Store** (sản phẩm MSIX trên Partner Center, Store ID `9NV2R7JNNFGK`, identity
+`23651Linhi.TextVN`, PFN `23651Linhi.TextVN_qgnrpq341n182`): upload FILE trên Partner
+Center › Packages (không cần raw URL). File nộp đặt tại đây cho tiện tải:
+
+```
+vX.Y.Z/
+  TextVN-X.Y.Z-windows-x64-store.msix          <- GÓI NỘP STORE (identity thật)
+  TextVN-X.Y.Z-windows-x64-store.msix.sha256
+```
+
+- **v0.2.28** — ngoại lệ DUY NHẤT của quy tắc byte-identical: gói `.msix` kèm GitHub
+  Release v0.2.28 mang identity TẠM (build trước khi có identity Partner Center) nên
+  KHÔNG chép; `TextVN-0.2.28-windows-x64-store.msix` được build lại từ ĐÚNG tag
+  `v0.2.28` với identity thật ([run CI 38038814173](https://github.com/hunglinhpt/TextVN/actions/runs/38038814173),
+  artifact `release-windows`; `verify-msix.py --require-store-identity` + sideload
+  PASS), Version `1.2.28.0`. Hash ở file `.sha256` cạnh nó — KHÔNG có trong
+  `SHA256SUMS.txt` (checksum của release gốc).
+- **Từ bản sau v0.2.28**: repo variable `MSIX_IDENTITY_NAME` đã đặt → `.msix` kèm
+  release mang identity thật và có chữ ký GPG/Sigstore như mọi asset; chép nó vào
+  đây (đổi tên thêm `-store`, kèm `.asc`/`.cosign.*`) như các file khác.
+
+Các thư mục ≤ v0.2.27 giữ nguyên như đã duyệt lúc đó (gói `.msix` trong đó mang identity
+tạm — không nộp). Chi tiết: `docs/release/msix-submission.md` trong nhánh `main`.
 
 ```
 store-art/
