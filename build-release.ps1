@@ -188,7 +188,22 @@ $machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
 # Ngoac quanh -f: khong co thi "-f" bi truyen nhu tham so cho Write-Fail va
 # thong bao in nguyen chuoi "0x{0:X4}".
 if ($machine -ne 0x014C) { Write-Fail ("x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine) }
-Copy-Item $x86Dll (Join-Path $ReleaseDir "textvn-tsf-x86.dll") -Force
+$x86Dst = Join-Path $ReleaseDir "textvn-tsf-x86.dll"
+# DLL x86 dang duoc TSF nap trong app 32-bit (Zalo/Office) - Windows tu choi
+# xoa file image-mapped; doi ten file cu (Windows CHO PHEP rename) roi copy (R2-88).
+# Ban .old-* khong vao goi: $BinFiles liet ke dich danh tung file.
+try {
+    Copy-Item $x86Dll $x86Dst -Force -ErrorAction Stop
+} catch {
+    if (Test-Path $x86Dst) {
+        $backup = "$x86Dst.old-$(Get-Date -Format 'yyyyMMddHHmmss')"
+        Rename-Item -LiteralPath $x86Dst -NewName (Split-Path $backup -Leaf) -Force
+        Copy-Item $x86Dll $x86Dst -Force
+        Write-Warn "x86 TIP DLL dang bi nap (app 32-bit dang mo) - da rename ban cu thanh .old-*"
+    } else {
+        Write-Fail "x86 TIP DLL copy FAIL: $_"
+    }
+}
 Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
 
 Write-Ok "Build release DONE"
