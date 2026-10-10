@@ -15,10 +15,10 @@
 | Linux | ✅ Ký GPG + Sigstore cho mọi asset, CI **dừng** nếu thiếu/sai khoá (fail-closed) | — |
 | macOS | ✅ Code; ký Developer ID + notarize + staple bật **khi có** secret `APPLE_*`, thiếu thì ký ad-hoc và ghi rõ trong release notes | Đặt secret Apple (xem `signing-status-mac.md`) |
 
-**Tổng kết finding:** 91 finding R2 (87 từ rà soát + 4 khi kiểm trên Windows thật, §3.7) —
-**83 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
+**Tổng kết finding:** 98 finding R2 (87 từ rà soát + 11 khi kiểm trên Windows thật và rà
+soát đối kháng trước 0.2.28, §3.7) — **91 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
 chỉ Apple; R2-85 một phần), 1 chờ SignPath (R2-12), 3 giữ nguyên có lý do (R2-11, R2-47,
-R2-67), 4 hoãn (R2-14, R2-26, R2-41, R2-91 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
+R2-67), 3 hoãn (R2-14, R2-26, R2-41 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
 
 **Không nộp** gói `.msix` đính kèm release v0.2.27 hay trên nhánh `approved`: identity
 placeholder, Version `0.2.27.0` (Partner Center từ chối phần đầu = 0), mô tả tiếng Việt
@@ -165,16 +165,26 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 | R2-85 | P3 | Build phát hành không tái lập được: toolchain `stable` trôi, không `--locked`, Inno không ghim | Build release `--locked` (Windows/Linux/macOS), CI kiểm Cargo.lock khớp. Chưa ghim toolchain/Inno | ✅ một phần `f15a9c9` · ⏸ phần còn lại |
 | R2-87 | P3 | VirusTotal bỏ qua 2 file nộp Store | Quét cả `.msix` và `-machine.exe`, sau khi build | ✅ `6e19caa` |
 
-### 3.7 Kiểm trên máy Windows thật (2026-10-10)
+### 3.7 Kiểm trên máy Windows thật và rà soát đối kháng trước 0.2.28 (2026-10-10)
 
-Chạy lại gate §6 trên Windows 11 của chủ sở hữu (bản cài `C:\Program Files\TextVN` đang chạy).
+R2-88…R2-91: chạy lại gate §6 trên Windows 11 của chủ sở hữu (bản cài `C:\Program Files\TextVN`
+đang chạy). R2-92…R2-98: các lỗi đợt rà soát đối kháng (4 agent tìm lỗi, kiểm chứng từng
+phiếu) của phiên chuẩn bị 0.2.28 đã xác nhận — phiên đó không đẩy được code lên, nên được
+tái hiện và sửa lại ở đây; R2-92 tái hiện được ngay trên máy chủ sở hữu.
 
 | ID | Mức | Vấn đề | Xử lý | Trạng thái |
 |---|---|---|---|---|
 | R2-88 | P3 | `build-release.ps1` dừng khi `textvn-tsf-x86.dll` trong thư mục release đang bị app 32-bit (Zalo, Office x86) nạp — Windows từ chối ghi đè file image-mapped | Đổi tên bản cũ thành `.old-<thời gian>` rồi chép (Windows cho đổi tên); `.old-*` không vào gói. Sửa cục bộ từ 2026-10-07 chưa commit | ✅ `ae3e889` |
 | R2-89 | P3 | 3 test `tray::ipc_server` dùng `PIPE_NAME` toàn máy: tray thật đang chạy thì client của test nối vào tray thật → đỏ (mutex poison dây chuyền); test toggle chạy riêng gửi `ToggleViEn("*")` làm đảo V/E của người dùng | Test dùng pipe riêng `textvn-ipc-test-<pid>-<tag>` (`IpcServer::with_pipe_name`), bỏ `TEST_PIPE_LOCK`; code chạy thật không đổi | ✅ `87b531d` |
 | R2-90 | P2 | `test-typing.ps1` không chạy được trên Windows 11: `notepad.exe` là launcher của Notepad bản Store, thoát ngay → vỡ trước khi gõ, để lại cửa sổ Notepad; máy để chế độ E thì mọi case tiếng Việt FAIL (case giả định V). WordPad đã bị gỡ khỏi Win11 24H2 → không còn app nào gõ thử được trên máy dev | Nhận cửa sổ Notepad mới, chỉ dùng tab đang hiện (`NotepadTextBox` > `RichEditD2DPT`); bật V cho phiên test và trả lại nguyên văn `state.json` | ✅ `24daa08` |
-| R2-91 | P3 | Bước runtime smoke của `build-release.ps1` chạy `TextVN.exe --autostart` từ `target\…\release` → tray đăng ký TSF per-user: HKCU COM (x64 + WOW64) trỏ vào thư mục build, đè HKLM của bản cài. Tới khi tray đã cài khởi động lại, mọi app nạp DLL từ `target\` (gốc của R2-88). Tự lành khi tray đã cài chạy (`register` dọn override HKCU) | Không dọn bằng `unregister --if-owned-by` (gọi `ILOT_UNINSTALL` → mất TextVN khỏi danh sách bàn phím). Đề xuất: smoke đặt biến môi trường để tray bỏ qua `ensure_tsf_tip_registered` (gate chỉ kiểm IPC + dừng sạch) | ⏸ |
+| R2-91 | P3 | Bước runtime smoke của `build-release.ps1` chạy `TextVN.exe --autostart` từ `target\…\release` → tray đăng ký TSF per-user: HKCU COM (x64 + WOW64) trỏ vào thư mục build, đè HKLM của bản cài (mọi app nạp DLL từ `target\`, gốc của R2-88), và đi đường portable của Ctrl+Shift (ghi marker rỗng → R2-92) | Đặt `TEXTVN_SKIP_TSF_REGISTRATION=1` (tray có sẵn, chưa ai đặt) cho riêng tiến trình smoke; tray dùng cùng biến để bỏ qua bước dành Ctrl+Shift | ✅ `a6d971b` |
+| R2-92 | P1 | Nâng cấp portable/Store từ 0.2.27 rồi gỡ: không trả Ctrl+Shift — bản cũ đặt `Layout Hotkey=3` không marker, bản mới thấy "không gán" sẵn nên ghi marker rỗng `freed` | `SvcManager::previous_version`; không marker + `Layout Hotkey=3` + bản trước < 0.2.28 → nhận lại mục `Layout Hotkey=`; test-portable thêm kịch bản nâng cấp | ✅ `e6776e3` |
+| R2-93 | P2 | `uninstall.ps1` và `[UninstallRun]` Inno gọi `--stop`/`unregister` vô điều kiện → gỡ bản portable cũ tắt và gỡ TIP của bản cài/Store đang dùng | `--stop --if-image-under`, `unregister --if-owned-by` (có từ R2-30); `--scope machine` chỉ xét HKLM | ✅ `2395084` |
+| R2-94 | P3 | Lệnh RunOnce dọn file bị khoá gộp nhiều đường dẫn → vượt 260 ký tự (portable; kênh Store khi tên tài khoản dài) | Mỗi file/thư mục một mục RunOnce; mục vẫn > 260 thì báo người dùng | ✅ `2395084` |
+| R2-95 | P3 | `verify-msix.py` không cắt khoảng trắng `MSIX_DISPLAY_NAME` như `build-msix.ps1` (verify đỏ giả); biến toàn dấu cách → DisplayName rỗng | Cả hai: cắt khoảng trắng, rỗng → mặc định | ✅ `0fe0dd8` |
+| R2-96 | P2 | Gỡ gói Store rồi cài lại trước lần đăng nhập kế → tự khởi động tắt (`stage.json` cũ làm `--msix-install` tưởng là cập nhật) | `store_cleanup` xoá `stage.json`; test sideload kiểm | ✅ `91dfdd0` |
+| R2-97 | P2 | `deed`/`deeds`/`dosed` → `đê`/`đế`/`đoé` (luật `d` gõ sau R2-68 + `ee`→`ê`) | Thêm vào `en_common`; corpus `r2_late_d_english_deed_01` (`ddee` vẫn → `đê`) | ✅ `6376e7c` |
+| R2-98 | P2 | Bộ cài cho mọi người dùng (Run ở HKLM): bỏ chọn "Khởi động cùng Windows" trông như đã lưu nhưng tray vẫn tự chạy | Marker theo tài khoản `%APPDATA%\TextVN\autostart_disabled`; tray `--autostart` từ thư mục mục HKLM trỏ tới thì thoát; Inno chọn task autostart → xoá marker | ✅ `efc5dfb` |
 
 Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`appdb_version` số) đã sửa
 ở `017bc82` (xem `code-review-2026-10-07.md`).
@@ -205,7 +215,6 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | R2-41 | Bỏ qua chạm Ctrl+Shift khi có thao tác chuột | Tray thêm được `WH_MOUSE_LL`, nhưng TIP (trong tiến trình app) không thấy chuột và vẫn tự đảo V/E — cần tray báo "vừa có click" cho TIP qua bộ nhớ chung: thay đổi giao thức |
 | R2-14 | Ảnh scale-200/targetsize + `resources.pri` (makepri) | Thẩm mỹ; PRI sai làm mất logo — cần kiểm trên Windows thật |
 | R2-85 (phần còn lại) | Ghim toolchain Rust và Inno Setup | Chủ sở hữu chọn version; ghim lệch máy dev sẽ đỏ clippy |
-| R2-91 | Runtime smoke của `build-release.ps1` không đăng ký TSF (biến môi trường để tray bỏ qua `ensure_tsf_tip_registered`) | Thêm đường bỏ qua đăng ký vào binary phát hành ngay trước merge — để chủ sở hữu quyết; hiện tự lành khi tray đã cài khởi động |
 | (mới) | Vần mở `ă`/`â` không có âm cuối (`aws` → `ắ` không được trả lại) | Hành vi có từ trước; bộ kiểm âm tiết còn dùng giữa từ (R2-60/66) — thêm luật cần đo lại toàn bộ corpus tiếng Anh |
 | CR-08, CR-10, CR-14, CR-20 (b) | Như vòng 1 | Như vòng 1 (CR-34 và CR-38 đã xong ở vòng này — `017bc82`, `c31d54c`) |
 
