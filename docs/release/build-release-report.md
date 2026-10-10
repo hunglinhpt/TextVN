@@ -1,5 +1,16 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.29 — gỡ cài đặt sạch (thoát tray trước, dọn ngôn ngữ TextVN đã thêm) + MSIX identity Store thật
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Release | v0.2.29 publish 2026-10-10 (pre-release) từ `bdd09f0` (merge PR #7) — [release-candidate #38044174107](https://github.com/hunglinhpt/TextVN/actions/runs/38044174107) 4/4 job xanh; **34 asset**; gói `.msix` kèm release mang identity Store thật `23651Linhi.TextVN` (repo variable `MSIX_IDENTITY_NAME`) |
+| CI trên commit gắn tag | push `main` `bdd09f0`: [ci-shared #38043830224](https://github.com/hunglinhpt/TextVN/actions/runs/38043830224), [ci-macos #38043830227](https://github.com/hunglinhpt/TextVN/actions/runs/38043830227), [repo-hygiene #38043830221](https://github.com/hunglinhpt/TextVN/actions/runs/38043830221) — xanh. Windows package: `languages before: en-US` → `after install: en-US, vi` → `after uninstall: en-US` (R2-100), `PASS uninstall stopped the running tray first and removed TextVN.exe` (R2-99) |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); hash tải về khớp danh sách đã ký |
+| Checksums (pin) | machine exe `0e227c59…c25d` · setup exe `9543aa53…5100` · MSIX (nộp Store) `435326b6…d5fa` · portable `aff685be…8e0a` · Linux `1547a2df…7690` · pkg `495a90dd…1a77` · mac zip `abd3337c…9064` · mac tar.gz `5a18b138…24cf` |
+| Homebrew | cask `sha256` = mac zip `abd3337c…9064` (B7b) |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization; gói MSIX nộp Store = asset `.msix` của chính release này |
+
 ## Bản 0.2.28 — rà soát vòng 1 + 2 (kênh Store MSIX, ký số fail-closed, cách gõ mới) + sửa R2-88…R2-98
 
 | Hạng mục | Bằng chứng |
