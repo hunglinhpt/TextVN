@@ -302,6 +302,11 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
+    // R2-98: tray ghi %APPDATA%\TextVN\autostart_disabled khi tai khoan bo chon "Khoi
+    // dong cung Windows" ma muc Run nam o HKLM. Cai lai va chon task autostart = muon
+    // bat lai -> bo marker cua tai khoan dang cai (tai khoan khac giu lua chon rieng).
+    if WizardIsTaskSelected('autostart') then
+      DeleteFile(ExpandConstant('{userappdata}\TextVN\autostart_disabled'));
     if WizardSilent then
     begin
       // Silent (luong Store) = PURE FILE COPY: khong go API TSF trong phien

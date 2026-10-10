@@ -930,6 +930,19 @@ fn run_tray_app() {
         }
     }
 
+    // R2-98: mục Run HKLM (bộ cài cho mọi người dùng) chạy tray ở MỌI tài khoản; tài
+    // khoản đã bỏ chọn "Khởi động cùng Windows" (marker) thì thoát ngay. Kênh Store tắt
+    // tự khởi động bằng `--msix-guard`, không dùng marker.
+    if is_autostart
+        && store_ctx.is_none()
+        && std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
+            .is_some_and(|dir| textvn_tray::autostart::autostart_suppressed_for(&dir))
+    {
+        return;
+    }
+
     // 1. Single Instance Check qua Mutex
     let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
     let mutex_handle = unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
