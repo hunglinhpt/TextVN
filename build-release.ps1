@@ -278,7 +278,12 @@ Write-Ok "No TextVN process is running"
 Write-Step "Windows runtime smoke test"
 $trayExe = Join-Path $ReleaseDir "TextVN.exe"
 if (-not (Test-Path $trayExe)) { Write-Fail "Runtime smoke binary missing: $trayExe" }
+# R2-91: smoke chi kiem vong doi IPC - KHONG dang ky TSF (HKCU tro vao target\ se de
+# HKLM cua ban da cai, app nap DLL tu thu muc build) va khong doi Ctrl+Shift cua may dev.
+# Bien moi truong chi can luc tao tien trinh (tien trinh con ke thua).
+$env:TEXTVN_SKIP_TSF_REGISTRATION = "1"
 $smokeProcess = Start-Process -FilePath $trayExe -ArgumentList "--autostart" -WorkingDirectory $ReleaseDir -WindowStyle Hidden -PassThru
+Remove-Item Env:TEXTVN_SKIP_TSF_REGISTRATION -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 $smokeStatus = (& $trayExe --status 2>&1 | Out-String)
 if ($smokeStatus -notmatch "TextVN IPC Server: RUNNING") {

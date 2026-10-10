@@ -994,7 +994,11 @@ fn run_tray_app() {
     // CHỈ một lần cho bản không qua bộ cài (xem hàm). Trước đây gọi vô điều kiện ở mỗi
     // lần khởi động: người dùng bỏ chọn "Dành Ctrl + Shift" trong Bảng điều khiển (hoặc
     // task của bộ cài) thì lần đăng nhập sau Windows lại mất phím tắt của họ.
-    apply_ctrl_shift_default_once(store_ctx.is_some(), !is_autostart, svc.previous_version());
+    // R2-91: TEXTVN_SKIP_TSF_REGISTRATION (runtime smoke của build-release) = không đổi
+    // gì của máy dev — kể cả phím tắt Ctrl+Shift và marker của nó.
+    if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() {
+        apply_ctrl_shift_default_once(store_ctx.is_some(), !is_autostart, svc.previous_version());
+    }
 
     // TSF là đường gõ chuẩn mặc định. Toggle Ctrl+Shift xử lý IN-PROCESS trong
     // TIP (ModifierToggle + KeyTraceSink, compose.rs) — tray chỉ nhận kết quả
