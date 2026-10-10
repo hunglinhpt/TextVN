@@ -74,6 +74,11 @@ Set-Content -LiteralPath $userFile -Value 'khong duoc xoa'
 New-Item -ItemType Directory -Path $userSub | Out-Null
 Set-Content -LiteralPath (Join-Path $userSub 'anh.txt') -Value 'khong duoc xoa'
 
+# R2-100: bang chung kich ban co nghia - chay xong thi ngon ngu TextVN them phai CO MAT.
+$langsMid = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+Write-Host ('languages after first run: ' + ($langsMid -join ', '))
+if (($langsBefore -notcontains 'vi') -and ($langsMid -notcontains 'vi')) { throw 'first run did not add vi to the language list - R2-100 check would be vacuous' }
+
 # R2-99: go khi tray DANG CHAY - uninstall.ps1 phai dung tray truoc khi xoa file.
 Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $dir | Out-Null
 $trayUp = $false

@@ -127,6 +127,11 @@ Write-Host 'PASS silent machine install + user TSF activation (files, TSF, autos
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $app
 
+# R2-100: bang chung kich ban co nghia - cai xong thi ngon ngu TextVN them phai CO MAT.
+$langsMid = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Languages)
+Write-Host ('languages after install: ' + ($langsMid -join ', '))
+if (($langsBefore -notcontains 'vi') -and ($langsMid -notcontains 'vi')) { throw 'install did not add vi to the language list - R2-100 check would be vacuous' }
+
 # R2-99: go cai dat khi tray DANG CHAY (nguoi dung bam "Go cai dat" luc TextVN dang bat):
 # bo go phai dung tray truoc moi buoc - tray con chay thi khoa TextVN.exe, go khong sach.
 Start-Process -FilePath (Join-Path $app 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $app | Out-Null
