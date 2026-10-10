@@ -15,9 +15,9 @@
 | `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
 | `DisplayName` | ✅ `TextVN` | Tên đã reserve của sản phẩm MSIX (lựa chọn A, §2) — `Package/Identity/Name` do Partner Center sinh từ tên này |
 | **`Package/Identity/Name`** | ✅ `23651Linhi.TextVN` | Partner Center › sản phẩm MSIX › Product identity; PFN `23651Linhi.TextVN_qgnrpq341n182`, Store ID `9NV2R7JNNFGK` |
-| Gói nộp 0.2.28 | ✅ `TextVN-0.2.28-windows-x64.msix`, SHA-256 `20eced0f3b870ec0f785abece181d399a8295a3780443813bd8631713bb72eed` | Build lại trên tag `v0.2.28` bằng ô `msix_identity_name` — [release-candidate #38038814173](https://github.com/hunglinhpt/TextVN/actions/runs/38038814173) (artifact `release-windows`): Version `1.2.28.0`, `verify-msix.py --require-store-identity` OK, sideload PASS với PFN trên |
+| Gói nộp 0.2.28 | ✅ `TextVN-0.2.28-windows-x64.msix`, SHA-256 `20eced0f3b870ec0f785abece181d399a8295a3780443813bd8631713bb72eed` | Build lại trên tag `v0.2.28` bằng ô `msix_identity_name` — [release-candidate #38038814173](https://github.com/hunglinhpt/TextVN/actions/runs/38038814173) (artifact `release-windows`): Version `1.2.28.0`, `verify-msix.py --require-store-identity` OK, sideload PASS với PFN trên. Bản lưu chính thức: branch `approved` › [`v0.2.28/TextVN-0.2.28-windows-x64-store.msix`](https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.28/TextVN-0.2.28-windows-x64-store.msix) (+ `.sha256`) |
 
-Gói `.msix` kèm GitHub Release 0.2.28 mang identity **tạm** (`LinhBH.CoM.TextVN`) — chỉ để thử, không nộp; nộp gói ở hàng "Gói nộp 0.2.28" phía trên. Muốn mọi bản sau tự kèm gói nộp được: đặt repo variable `MSIX_IDENTITY_NAME` = `23651Linhi.TextVN` (§3).
+Gói `.msix` kèm GitHub Release 0.2.28 mang identity **tạm** (`LinhBH.CoM.TextVN`) — chỉ để thử, không nộp; nộp gói ở hàng "Gói nộp 0.2.28" phía trên. Repo variable `MSIX_IDENTITY_NAME` = `23651Linhi.TextVN` **đã đặt** (2026-10-10): từ bản phát hành sau, `.msix` kèm release mang identity thật, có chữ ký GPG/Sigstore và nộp thẳng được (§3).
 
 Gói `.msix` trên release 0.2.27 / branch `approved` **KHÔNG nộp được** (identity
 placeholder, Version `0.2.27.0`, mô tả mojibake, ảnh 71×71 sai) — phải build lại
@@ -78,9 +78,10 @@ nộp. Khi đã có `Package/Identity/Name` (§2):
    chọn tag).
 3. Tải artifact `release-windows` của lượt chạy đó → `TextVN-<ver>-windows-x64.msix`.
 
-Muốn mọi bản phát hành sau tự kèm gói nộp được: đặt repo variable
-`MSIX_IDENTITY_NAME` (Settings › Secrets and variables › Actions › **Variables**) —
-ô nhập để trống thì workflow dùng biến này.
+Repo variable `MSIX_IDENTITY_NAME` (Settings › Secrets and variables › Actions ›
+**Variables**) = `23651Linhi.TextVN` đã đặt từ 2026-10-10 → mọi bản phát hành sau tự kèm
+gói nộp được (tải ngay từ trang Release, hoặc bản chép `-store.msix` trên branch
+`approved`); ô nhập để trống thì workflow dùng biến này.
 
 **Cách 2 — máy Windows có Windows SDK:**
 
