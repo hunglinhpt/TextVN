@@ -236,16 +236,17 @@ thời; một số luồng upload của Store xử lý kém loại URL này. Vì
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
 ```
 
-Ví dụ **bản hiện hành v0.2.27** (bản máy — file nộp của đường EXE; ARP
+Ví dụ **bản hiện hành v0.2.28** (bản máy — file nộp của đường EXE; ARP
 `Publisher='LinhBH.CoM'`):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.27/TextVN-setup-0.2.27-windows-x64-machine.exe
-SHA-256: d14513d85acfb295959b0931ccb6bd7c2a8bd69a2c65fffb0b1df0713361584c
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.28/TextVN-setup-0.2.28-windows-x64-machine.exe
+SHA-256: 21ab5bcc24afddbdacbc9181a62c4da50c8a0874813afaea7bb0602c74387b96
 ```
 
 (khớp `SHA256SUMS.txt` đã clearsign của release; chưa ký Authenticode nên vẫn bị policy
-10.2.9 chặn — không nộp lại bản này.)
+10.2.9 chặn — đường EXE chỉ còn chờ SignPath Foundation. Gói MSIX nộp Store của cùng
+bản: `approved/v0.2.28/TextVN-0.2.28-windows-x64-store.msix` — xem `msix-submission.md`.)
 
 Cập nhật khi có bản mới được duyệt: chép các file Windows của tag (setup exe,
 `-machine.exe`, portable zip, `.msix`) kèm `.asc`/`.cosign.sig`/`.cosign.cert` của
