@@ -479,11 +479,14 @@ pub fn schedule_store_dir_removal(root: &Path) {
         return;
     };
     match store::runonce_cleanup_command(&cmd_exe_path(), root, &staging) {
-        Some(cmd) => {
-            let r = crate::autostart::set_runonce_value(store::RUNONCE_VALUE_NAME, &cmd);
+        Some(cmds) => {
+            let ok = store::RUNONCE_VALUE_NAMES
+                .iter()
+                .zip(&cmds)
+                .all(|(name, cmd)| crate::autostart::set_runonce_value(name, cmd).is_ok());
             store_log(&format!(
                 "hẹn xoá thư mục kênh Store (RunOnce) → {}",
-                if r.is_ok() { "OK" } else { "FAIL" }
+                if ok { "OK" } else { "FAIL" }
             ));
         }
         None => store_log("không hẹn xoá thư mục: đường dẫn không đúng dạng mong đợi"),
@@ -492,7 +495,9 @@ pub fn schedule_store_dir_removal(root: &Path) {
 
 /// Bỏ lịch xoá còn treo (người dùng cài lại gói trước lần đăng nhập kế).
 pub fn cancel_store_dir_removal() {
-    let _ = crate::autostart::delete_runonce_value(store::RUNONCE_VALUE_NAME);
+    for name in store::RUNONCE_VALUE_NAMES {
+        let _ = crate::autostart::delete_runonce_value(name);
+    }
 }
 
 // ─── Dọn bản cũ ─────────────────────────────────────────────────────────────────
