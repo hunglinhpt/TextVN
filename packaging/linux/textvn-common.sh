@@ -26,24 +26,102 @@ tv_check_package() {
     fi
 }
 
-# Thư mục addon hệ thống của Fcitx5 (Debian/Ubuntu multiarch, Fedora lib64, Arch lib).
+# Các thư mục addon Fcitx5 có thể có trên máy này, mỗi dòng một thư mục, theo thứ tự
+# ưu tiên: libdir của Fcitx5Core (pkg-config, nếu có gói -dev), multiarch đúng kiến
+# trúc máy (Debian/Ubuntu), lib64 (Fedora/openSUSE), lib (Arch), /usr/local.
+# TV_FCITX5_ADDON_CANDIDATES (danh sách cách nhau bởi ':') thay TOÀN BỘ danh sách —
+# cho Fcitx5 tự build ở /opt, và cho kiểm thử giả lập máy chưa cài Fcitx5.
+tv_fcitx5_addon_candidates() {
+    if [[ -n "${TV_FCITX5_ADDON_CANDIDATES:-}" ]]; then
+        tr ':' '\n' <<< "$TV_FCITX5_ADDON_CANDIDATES" | sed '/^$/d'
+        return 0
+    fi
+    local libdir="" triplet=""
+    if command -v pkg-config >/dev/null 2>&1; then
+        libdir="$(pkg-config --variable=libdir Fcitx5Core 2>/dev/null || true)"
+    fi
+    case "$(uname -m 2>/dev/null || true)" in
+        x86_64|amd64) triplet=x86_64-linux-gnu ;;
+        aarch64|arm64) triplet=aarch64-linux-gnu ;;
+        armv7*|armv8l) triplet=arm-linux-gnueabihf ;;
+        i?86) triplet=i386-linux-gnu ;;
+        riscv64) triplet=riscv64-linux-gnu ;;
+        ppc64le) triplet=powerpc64le-linux-gnu ;;
+        s390x) triplet=s390x-linux-gnu ;;
+        loongarch64) triplet=loongarch64-linux-gnu ;;
+    esac
+    {
+        [[ -n "$libdir" ]] && echo "$libdir/fcitx5"
+        [[ -n "$triplet" ]] && echo "/usr/lib/$triplet/fcitx5"
+        printf '%s\n' /usr/lib64/fcitx5 /usr/lib/fcitx5 /usr/local/lib/fcitx5
+    } | awk '!seen[$0]++'
+}
+
+# Thư mục addon hệ thống của Fcitx5 đang cài (rỗng nếu chưa cài Fcitx5).
 tv_fcitx5_system_addon_dir() {
     local d
-    for d in /usr/lib/x86_64-linux-gnu/fcitx5 /usr/lib/aarch64-linux-gnu/fcitx5 \
-             /usr/lib64/fcitx5 /usr/lib/fcitx5 /usr/local/lib/fcitx5; do
+    while IFS= read -r d; do
         if compgen -G "$d/lib*.so" >/dev/null 2>&1; then
             echo "$d"
             return 0
         fi
-    done
+    done < <(tv_fcitx5_addon_candidates)
     echo ""
 }
 
-# Component XML của IBus trỏ tới engine/bảng cài đặt ở đường dẫn thật.
+# Giá trị FCITX_ADDON_DIRS cho Fcitx5 nạp addon TextVN ngoài thư mục hệ thống.
+# FCITX_ADDON_DIRS THAY THẾ (không nối thêm) thư mục addon gốc của Fcitx5: thiếu thư
+# mục đó thì Fcitx5 mất keyboard/dbus/wayland/xim/classicui — hỏng hoàn toàn, không
+# app nào gõ được (R2-45). Chưa tìm thấy Fcitx5 (chưa cài, hoặc libdir lạ) → liệt kê
+# MỌI thư mục ứng viên; thư mục không tồn tại bị Fcitx5 bỏ qua.
+tv_fcitx5_env_addon_dirs() { # <textvn_addon_dir> <system_addon_dir | "">
+    local out="$1" d
+    if [[ -n "$2" ]]; then
+        printf '%s:%s\n' "$1" "$2"
+        return 0
+    fi
+    while IFS= read -r d; do
+        out="$out:$d"
+    done < <(tv_fcitx5_addon_candidates)
+    printf '%s\n' "$out"
+}
+
+# Trích một đường dẫn cho g_shell_parse_argv — ibus-daemon tách <exec> bằng hàm này
+# (bus/component.c) nên đường dẫn có khoảng trắng ("Tải về") thành 2 argv và engine
+# không bao giờ chạy (R2-46). Đường dẫn chỉ gồm ký tự an toàn giữ nguyên (component
+# của bản cài thường không đổi); còn lại bọc '...' và thay mỗi ' bằng '\''.
+tv_shell_quote() {
+    local s="$1"
+    if [[ -n "$s" && "$s" != *[![:alnum:]_./+:@%,=-]* ]]; then
+        printf '%s' "$s"
+        return 0
+    fi
+    s=${s//\'/\'\\\'\'}
+    printf "'%s'" "$s"
+}
+
+# Escape text cho nội dung phần tử XML. Phần thay thế PHẢI đặt trong ngoặc kép:
+# bash 5.2 bật patsub_replacement, '&' không quote trong phần thay thế = chuỗi khớp.
+tv_xml_escape() {
+    local s="$1"
+    s=${s//&/"&amp;"}
+    s=${s//</"&lt;"}
+    s=${s//>/"&gt;"}
+    printf '%s' "$s"
+}
+
+# Component XML của IBus trỏ tới engine/bảng cài đặt ở đường dẫn thật. Không dùng sed
+# với đường dẫn của người dùng: '&' và '|' trong đường dẫn bị sed hiểu là cú pháp.
 tv_ibus_component() { # <pkg_dir> <engine_path> <settings_path>
-    sed -e "s|/usr/lib/textvn/textvn-ibus-engine|$2|g" \
-        -e "s|/usr/bin/textvn-settings|$3|g" \
-        "$1/share/ibus/component/textvn.xml"
+    local engine_q setup_q line
+    local pat_engine=/usr/lib/textvn/textvn-ibus-engine pat_setup=/usr/bin/textvn-settings
+    engine_q="$(tv_xml_escape "$(tv_shell_quote "$2")")"
+    setup_q="$(tv_xml_escape "$(tv_shell_quote "$3")")"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line=${line//"$pat_engine"/"$engine_q"}
+        line=${line//"$pat_setup"/"$setup_q"}
+        printf '%s\n' "$line"
+    done < "$1/share/ibus/component/textvn.xml"
 }
 
 tv_running() { pgrep -x -u "$(id -u)" "$1" >/dev/null 2>&1; }

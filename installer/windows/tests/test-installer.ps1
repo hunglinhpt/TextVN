@@ -126,6 +126,14 @@ $u = Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList @('/V
 for ($i = 0; $i -lt 60 -and (Test-Path (Join-Path $app 'TextVN.exe')); $i++) { Start-Sleep -Milliseconds 500 }
 if (Test-Path (Join-Path $app 'TextVN.exe')) { throw 'TextVN.exe still present after uninstall' }
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall' }
+# R2-40: go cai dat tra Ctrl + Shift ve DUNG gia tri truoc khi cai ('2', dat o dau
+# script) theo marker do --free-ctrl-shift ghi. usPostUninstall co the chay sau khi
+# TextVN.exe da bi xoa -> cho toi 30 s.
+$marker = Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied'
+for ($i = 0; $i -lt 60 -and (Test-Path -LiteralPath $marker); $i++) { Start-Sleep -Milliseconds 500 }
+$layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
+if ($layout -ne '2') { throw "uninstall did not give Ctrl+Shift back (Layout Hotkey='$layout', expected '2' as before install)" }
+Write-Host 'PASS uninstall restored the Windows Ctrl+Shift hotkey to its pre-install value (R2-40)'
 
 # Vong 13 (ghost uninstall): quet moi key/value con chua GUID TIP sau khi go -
 # bat that: go 0.2.19 con sot 27 path (Assemblies Default + InputMethodOverride

@@ -1,5 +1,14 @@
 # Nộp TextVN lên Microsoft Store (bản cài .exe — silent install)
 
+> **Trạng thái hiện hành (2026-10-09):** đường nộp Store **CHÍNH là gói MSIX** — làm
+> theo [`msix-submission.md`](msix-submission.md) (tài liệu chuẩn; chỉ còn thiếu
+> `Package/Identity/Name` từ Partner Center). Đường **EXE** trong tài liệu này (bản
+> `TextVN-setup-<ver>-windows-x64-machine.exe`) đã PASS 3 check tự động từ 0.2.24 nhưng bị
+> policy **10.2.9** chặn cho tới khi exe có chữ ký Authenticode qua SignPath Foundation
+> (đang chờ duyệt — `store-policy-10-2-9.md`); khi có secret SignPath, CI ký cả hai bộ
+> cài kể cả `-machine.exe`. Các mục dưới giữ làm tài liệu cho đường EXE; phần nhật ký có
+> ngày là lịch sử, không sửa.
+
 > Trạng thái: hướng dẫn cho chủ repo, áp từ 0.2.8; **khớp từng ô của form
 > Partner Center** (cập nhật 2026-10-03 theo hướng dẫn thực tế của form).
 > Bộ cài Inno Setup đã hỗ trợ đủ cờ im lặng chuẩn và CI kiểm chứng cả hai kịch
@@ -10,7 +19,7 @@
 
 | # | Bước | Bắt buộc | Được kiểm tự động bởi |
 |---|---|---|---|
-| S1 | Bản phát hành có đủ 8 asset (7 + `*.msix`), CI 4/4 job xanh | ✔ | `release.yml` publish validate |
+| S1 | Bản phát hành đủ 34 asset: 8 artifact (portable zip, setup exe, setup `-machine.exe`, `*.msix`, Linux tar.gz, mac pkg/zip/tar.gz) + `SHA256SUMS.txt` (clearsign) + `gpg-release-key.asc` + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng artifact; CI 4/4 job xanh | ✔ | `release.yml` publish validate + `signing.md` |
 | S2 | **Store package validation** (silent / ARP / bundleware / uninstall) PASS trên runner sạch | ✔ | `tools/win/validate-store-package.ps1` — chạy trong `ci-shared` + `release.yml` + `cargo xtask preflight` |
 | S3 | Setup exe được đưa lên branch `approved` tại `vX.Y.Z/` (raw URL 200) | ✔ | quy trình B7c + `curl -sI` kiểm 200 |
 | S4 | Ảnh listing đủ: box art 1:1 ≥1080px + poster 2:3 + ít nhất 1 screenshot ≥1366×768 | ✔ | `store/art/` + `store/screenshots/` (generator: `scripts/generate_store_art.py`) |
@@ -21,7 +30,7 @@
 | S9 | Privacy policy URL = `PRIVACY_POLICY.txt` (raw/blob); Support URL = issues | ✔ | repo |
 | S10 | Publisher display name trong Partner Center = `LinhBH.CoM` (khớp ARP) | ✔ | Bước 2 của validation đối chiếu tự động |
 | S11 | Sau khi Submit: theo dõi Package validation — mọi mục đỏ phải được đưa thành mã lỗi (B*/E*) TRƯỚC khi nộp lại | ✔ | quy tắc B4⑤ |
-| S12 | MSIX dự phòng sẵn sàng cùng phiên bản (khi exe bị từ chối) | ✔ | asset `*.msix` + §2c |
+| S12 | Gói MSIX (đường Store CHÍNH) build với `Package/Identity/Name` thật (repo variable `MSIX_IDENTITY_NAME` → `-RequireStoreIdentity`), `verify-msix.py` + sideload test xanh | ✔ | [`msix-submission.md`](msix-submission.md) §0/§3 |
 
 Vì sao bắt buộc cứng: lần nộp 0.2.16 đã đỏ 3 mục validation vì bộ cài đòi
 admin trong sandbox (B13) — từ 0.2.17 mọi bước ở S2 chạy tự động trong CI mỗi
@@ -84,7 +93,7 @@ dump codepoint, rồi mới tin.
   có `DisplayVersion` — harness so **exact từng chữ** (B13f/STO-03) và in
   codepoint khi lệch. Entry per-user nằm ở HKCU: Programs and Features hiển thị
   gộp cả hai hive. Xem §1a-ter cho lịch sử 7 vòng và kế hoạch nộp có thứ tự.
-- ✅ **Code sign check — valid** (Store ký lại khi publish).
+- ❌ **Code sign check (policy 10.2.9)**: Store **không** ký lại gói EXE nộp qua URL — bản máy 0.2.24 bị chặn vì exe chưa ký. Chỉ đạt khi exe có chữ ký Authenticode SHA-256 (SignPath Foundation — đang chờ duyệt); xem §6a và `store-policy-10-2-9.md`. (Store chỉ tự ký gói MSIX.)
 - ⚠️ **BẪY "We did not find any changes in the Package or the Silent install
   parameters"** (B13g): nộp lại cùng gói/cùng URL → Partner Center **không chạy
   lại** validation, 3 mục đỏ cũ còn nguyên. Mỗi lần nộp phải là **phiên bản mới**
@@ -138,19 +147,20 @@ hết phương án, chuyển bước 3. Người dùng tải ngoài Store vẫn 
 **Bước 3 — MSIX (triệt để, Microsoft khuyến nghị cho đúng ca fail này; bỏ qua
 cả 3 check):** Windows publisher ID của tài khoản đã có:
 `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` (dùng cho `Identity@Publisher`).
-Còn thiếu DUY NHẤT `Package/Identity/Name` — nằm trên CÙNG trang Product
-identity nơi đã thấy Windows publisher ID. Khi có Name:
+**Cập nhật 2026-10-09:** MSIX nay là đường nộp **chính** — làm theo
+[`msix-submission.md`](msix-submission.md) §2–§4. Còn thiếu `Package/Identity/Name`
+(trang Product identity của sản phẩm MSIX) và phải **build lại**: file `.msix` của
+v0.2.27 không nộp được (identity placeholder, Version `0.2.27.0`, mô tả mojibake). Build
+khuyến nghị qua CI (repo variable `MSIX_IDENTITY_NAME`); build tay:
 
 ```powershell
-powershell -File tools\win\build-msix.ps1 `
-  -Publisher "CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545" `
-  -IdentityName "<Package/Identity/Name từ Partner Center>"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
+  -IdentityName "<Package/Identity/Name từ Partner Center>" -RequireStoreIdentity
 ```
 
-→ upload `.msix` TRỰC TIẾP (không dùng Package URL). Cảnh báo placeholder đã
-có sẵn trong `build-msix.ps1` (sẽ không ai nộp nhầm bản chưa có Name). Lưu ý:
-nếu trang Product identity của sản phẩm hiện tại KHÔNG có `Package/Identity/
-Name`, sản phẩm đang là loại EXE-only → tạo sản phẩm mới loại MSIX (§2c).
+(Publisher mặc định đã là `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545`, PublisherDisplayName
+`LinhBH.CoM`, DisplayName `TextVN` — đổi bằng `-DisplayName`/`MSIX_DISPLAY_NAME` nếu sản
+phẩm MSIX dùng tên khác.) Upload `.msix` TRỰC TIẾP (không dùng Package URL).
 
 **Đối chiếu giá trị thật trên CI**: repo VARIABLES đã đặt — `STORE_APP_NAME=
 TextVN`, `STORE_PUBLISHER_NAME=LinhBH.CoM` → mọi bước validate của CI so ARP với
@@ -178,19 +188,22 @@ nộp gói `.msix` (§2c).
 - **Các kịch bản còn lại (already exists / in progress / disk full / reboot /
   network / rejected…)**: **bỏ trống** — Inno gộp lỗi nghiêm trọng vào mã 3/4;
   Store cho phép bỏ trống các kịch bản không hỗ trợ.
-- **Lưu ý riêng của TextVN**: khi đăng ký TSF thất bại, bộ cài trả **exit code
-  10** (không khai báo trong form) → Store coi là *cài thất bại* thay vì báo
-  thành công mà app không gõ được — **đúng chủ đích, không cần khai báo thêm**.
+- **Lưu ý riêng của TextVN**: ở chế độ im lặng (luồng Store) bộ cài **chỉ chép
+  file** — không gọi API đăng ký TSF, luôn exit `0` khi chép đủ (từ 0.2.19, sự cố
+  B13); app tự đăng ký ở lần mở đầu. Exit `10` chỉ xảy ra khi cài **có giao diện** mà
+  đăng ký TSF thất bại — không cần khai báo trong form.
 
 ## 2. Hành vi của bộ cài trong chế độ silent (đã kiểm chứng)
 
 - Không có trang wizard chặn: `DisableDirPage=yes`, trang Welcome/Ready/Finish
   bị bỏ qua tự nhiên trong `/VERYSILENT`.
-- Hai `[Run]` entry `runhidden runasoriginaluser` (`textvn-cli config init` và
-  `TextVN.exe --free-ctrl-shift`) là lệnh CLI **tự thoát**, không mở UI.
+- `[Run]` `textvn-cli config init` có `skipifsilent` → **không chạy** khi `/VERYSILENT`.
+  `TextVN.exe --free-ctrl-shift` (task `freectrlshift`, `runhidden`) **vẫn chạy** khi im
+  lặng — lệnh tự thoát, không mở UI, dành Ctrl + Shift cho TextVN (từ CR-17 tray để bộ
+  cài quyết định).
 - Entry tự mở TextVN sau cài có cờ `skipifsilent` → silent không khởi chạy app.
-- Lỗi đăng ký TSF KHÔNG hiện hộp thoại: `WizardSilent` guard; báo lỗi qua
-  **exit code 10** (`GetCustomSetupExitCode`), thành công = 0.
+- Silent **không đăng ký TSF** (`WizardSilent` → `RegistrationOK := True`), không hiện
+  hộp thoại, exit `0`; đăng ký diễn ra khi người dùng mở TextVN lần đầu.
 - Gỡ cài đặt cũng im lặng được: `unins000.exe /VERYSILENT /SUPPRESSMSGBOXES
   /NORESTART`.
 - Cấu hình người dùng (`%APPDATA%\TextVN`) được giữ lại sau gỡ.
@@ -223,53 +236,35 @@ thời; một số luồng upload của Store xử lý kém loại URL này. Vì
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
 ```
 
-Ví dụ **bản hiện hành v0.2.21** (đã kiểm: HTTP 200 trực tiếp, 0 redirect,
-byte-identical với asset của GitHub Release — SHA-256
-`fa486e6d9d2fda9345009d31b1b07ab0fbbd6740534b7236c8c17d860572d279`; đã được CI
-validate lại từ chính URL này: silent exit 0 + `ARP entry Name='TextVN'
-Publisher='Linh βùi' Version='0.2.21'`):
+Ví dụ **bản hiện hành v0.2.27** (bản máy — file nộp của đường EXE; ARP
+`Publisher='LinhBH.CoM'`):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.21/TextVN-setup-0.2.21-windows-x64.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.27/TextVN-setup-0.2.27-windows-x64-machine.exe
+SHA-256: d14513d85acfb295959b0931ccb6bd7c2a8bd69a2c65fffb0b1df0713361584c
 ```
 
-Cập nhật khi có bản mới được duyệt: tải setup exe + portable zip +
-`SHA256SUMS.txt` của tag tương ứng vào thư mục `vX.Y.Z/` trên branch
+(khớp `SHA256SUMS.txt` đã clearsign của release; chưa ký Authenticode nên vẫn bị policy
+10.2.9 chặn — không nộp lại bản này.)
+
+Cập nhật khi có bản mới được duyệt: chép các file Windows của tag (setup exe,
+`-machine.exe`, portable zip, `.msix`) kèm `.asc`/`.cosign.sig`/`.cosign.cert` của
+từng file, `SHA256SUMS.txt` và `gpg-release-key.asc` vào thư mục `vX.Y.Z/` trên branch
 `approved` rồi push (xem README của chính branch đó). Xác minh sau khi push:
 `curl -sI <raw-url>` phải trả `200` và `Content-Length` đúng cỡ file.
 
-## 2c. Dự phòng MSIX (khi gói .exe bị Store từ chối)
+## 2c. MSIX — đường nộp Store CHÍNH
 
-Gói MSIX được build kèm **mọi** release (bắt buộc từ 0.2.17; publish job chặn nếu thiếu)
-và nằm trong branch `approved` tại `vX.Y.Z/TextVN-<ver>-windows-x64.msix`.
+Đã chuyển sang tài liệu riêng, là nguồn chuẩn duy nhất:
+[`msix-submission.md`](msix-submission.md) — trạng thái, cơ chế stage-out ra ngoài gói
+(`%USERPROFILE%\.textvn\msix-staging` → `%LOCALAPPDATA%\Programs\TextVN-Store\<V>`, chỉ
+đăng ký HKCU, guard mỗi lần đăng nhập dọn sạch sau khi gỡ gói — CI cài thử thật bằng
+`installer/windows/tests/test-msix-sideload.ps1`), lựa chọn tên sản phẩm, build qua repo
+variable `MSIX_IDENTITY_NAME`, map Version `A.B.C` → `(A+1).B.C.0`, ghi chú certification.
 
-**Bản chất gói này:** bộ gõ TSF không chạy được trong sandbox MSIX, nên gói
-dùng **`runFullTrust`** — đóng vai trò kênh phân phối: cài xong, người dùng mở
-TextVN một lần, ứng dụng tự đăng ký TSF như bản portable (0.2.16: tự đề nghị
-đăng ký phạm vi máy qua UAC nếu Windows từ chối per-user). Chi tiết đóng gói:
-`installer/windows/msix/` + `tools/win/build-msix.ps1`.
-
-**Khi nộp:**
-
-1. **Nộp UNSIGNED** — Store ký lại khi publish. Không cần cert.
-2. **Product type phải hỗ trợ MSIX**: luồng "EXE/MSI" hiện tại (mục §1) chỉ
-   nhận exe/msi. Muốn nộp MSIX phải dùng sản phẩm/loại gói hỗ trợ MSIX trong
-   Partner Center (nếu không thấy lựa chọn, tạo product mới dạng MSIX/PWA).
-3. **Publisher/Identity phải khớp Partner Center**: sau khi reserve tên, mở
-   *Product identity* trong Partner Center lấy `Package/Identity/Name` và
-   `Package/Identity/Publisher`, rồi build lại đúng:
-   ```
-   powershell -NoProfile -ExecutionPolicy Bypass -File tools\winuild-msix.ps1 `
-     -Publisher "CN=<Publisher từ Partner Center>" -IdentityName "<Name từ Partner Center>"
-   ```
-   (Manifest sai Publisher là lỗi upload phổ biến nhất.)
-4. Sau khi cài từ Store, lần chạy đầu tiên người dùng mở TextVN để hoàn tất
-   đăng ký bộ gõ (hướng dẫn này nên ghi trong phần Description của listing).
-
-**Cảnh báo certification:** IME cần ghi registry/COM (TSF TIP) — chính vì thế
-mới phải `runFullTrust`. Nếu reviewer hỏi, giải trình: đây là bộ gõ hệ thống,
-quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử lý 100% cục bộ (dẫn
-`PRIVACY_POLICY.txt`). Đường exe/msi (§1) vẫn là đường chính.
+Gói `.msix` được build kèm **mọi** release (bắt buộc từ 0.2.17; publish job chặn nếu
+thiếu). File trên GitHub Release chưa ký, chỉ dùng để nộp Store. Đường exe (§1) chờ chữ
+ký Authenticode (SignPath Foundation).
 
 ## 3. Checklist trước khi submit
 
@@ -286,7 +281,9 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
 
 ## 4. Nếu Store từ chối
 
-- **"Installer requires elevation"**: thêm `/CURRENTUSER` vào tham số.
+- **"Installer requires elevation"**: KHÔNG thêm `/CURRENTUSER` (với bản `-machine.exe`
+  cờ này chuyển sang cài per-user, ARP về HKCU — lỗi B13/B19). Kiểm lại đã nộp đúng
+  bản máy và manifest `asInvoker` (gate bước 0 của `validate-store-package.ps1`).
 - **"Installer shows UI"**: kiểm tra lại đã dùng `/VERYSILENT` (không phải
   `/SILENT` — `/SILENT` vẫn hiện thanh tiến trình).
 - **"App does not launch after install"**: đúng hành vi — silent không tự mở
@@ -296,8 +293,9 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
 
 1. **Tài khoản**: đăng ký [Partner Center](https://partner.microsoft.com/dashboard)
    (tài khoản cá nhân ~$19 hoặc công ty ~$99, thuế/ID xác minh một lần).
-2. **Reserve app name**: Apps and Games → Overview → New product → Name.
-   Đặt đúng tên hiển thị: `TextVN - Bộ gõ tiếng Việt` (hoặc giữ tên đã reserve).
+2. **Reserve app name**: Apps and Games → Overview → New product → Name. Tên đã
+   reserve: `TextVN` (ARP `DisplayName` phải đúng chuỗi này). Dùng lại tên này cho
+   sản phẩm MSIX thì phải xoá tên khỏi sản phẩm EXE trước — xem `msix-submission.md` §2.
 3. **Chuẩn bị gói**:
    - Tải `TextVN-setup-<ver>-windows-x64.exe` từ GitHub Release (khuyên dùng
      bản có cờ CI xanh; `RELEASE_REPORT.json` bên trong ZIP portable cho biết
@@ -307,7 +305,7 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
    - **Product name / description**: chép từ `README.md` mục mô tả + ghi rõ
      điểm khác biệt (xem README "Điểm vượt trội so với các bộ gõ khác").
    - **Installer parameters** (quan trọng nhất):
-     `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER`
+     `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` (đúng §1a — KHÔNG `/CURRENTUSER`, KHÔNG `/ALLUSERS`)
    - **Privacy policy URL**: link GitHub blob của `PRIVACY_POLICY.txt`
      (`https://github.com/hunglinhpt/TextVN/blob/main/PRIVACY_POLICY.txt`).
    - **Support URL**: `https://github.com/hunglinhpt/TextVN/issues`.
@@ -353,8 +351,8 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
 #### Hướng 1: Ký số cho file Win32 EXE (Giữ luồng EXE hiện tại)
 1. **SignPath Foundation** (Miễn phí cho Open Source):
    - Duyệt đơn đăng ký tại [signpath.org/open-source](https://signpath.org/open-source).
-   - Thêm 4 secrets vào GitHub repo (`SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_KEY`, `SIGNPATH_POLICY`).
-   - Workflow GitHub Actions tự động ký số 3 file PE (`TextVN.exe`, `textvn-cli.exe`, `textvn-tsf.dll`) và file `TextVN-setup-...-machine.exe`.
+   - Thêm secrets vào GitHub repo: `SIGNPATH_API_TOKEN`, `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG` (tên cũ `SIGNPATH_PROJECT_KEY` vẫn nhận), `SIGNPATH_POLICY`, `SIGNPATH_ARTIFACT_CONFIGURATION` (cấu hình ZIP, deep sign `*.exe`/`*.dll`).
+   - *(cập nhật 2026-10-09)* Khi có secret, `build-release.ps1` gửi **một** yêu cầu ký (ZIP deep sign) cho 4 PE (`TextVN.exe`, `textvn-cli.exe`, `textvn-tsf.dll`, `textvn-tsf-x86.dll`) rồi ký từng bộ cài: `TextVN-setup-<ver>-windows-x64.exe` và `-machine.exe` (file nộp Store — `release.yml` ký ở bước "Build + validate machine installer"). `tools/win/sign-signpath.ps1` dùng REST API công bố của SignPath, chờ cả bước duyệt tay. `unins000.exe` vẫn chưa ký (giới hạn đã biết).
    - Nộp lại URL file EXE đã ký lên Partner Center.
 
 #### Hướng 2 (Khuyến nghị hàng đầu): Chuyển sang định dạng MSIX Full-Trust
@@ -372,7 +370,8 @@ quyền full-trust là bắt buộc về mặt kỹ thuật; dữ liệu xử l�
     5. Tải file `.msix` trực tiếp lên submission mới $\rightarrow$ Store tự động ký và phát hành.
   - **Cách B (Không cần xóa sản phẩm cũ):**
     1. Tạo sản phẩm mới dạng **MSIX or PWA application** với tên hiển thị bổ sung như `TextVN - Bộ gõ tiếng Việt`.
-    2. Đóng gói MSIX và upload trực tiếp.
+    2. Đóng gói MSIX (repo variable `MSIX_DISPLAY_NAME` = đúng tên đó) và upload trực tiếp.
+  - Chọn A hay B là quyết định của chủ tài khoản; các bước chi tiết và cách build hiện hành: [`msix-submission.md`](msix-submission.md) §2–§3.
 
 ### 6c. Kiểm tra chữ ký Authenticode cục bộ
 - `Get-AuthenticodeSignature <path-to-exe>` → Kiểm tra `Status = Valid` và thuật toán băm SHA256.

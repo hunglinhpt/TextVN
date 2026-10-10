@@ -6,7 +6,7 @@ Cảm ơn bạn đã quan tâm đến TextVN! Mọi đóng góp đều được 
 
 ## Quy tắc ứng xử
 
-Dự án này tuân thủ [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). Khi tham gia, bạn đồng ý tuân thủ các quy tắc này.
+Dự án này tuân thủ [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/vi/version/2/1/code_of_conduct/). Khi tham gia, bạn đồng ý tuân thủ các quy tắc này.
 
 ---
 
@@ -15,8 +15,8 @@ Dự án này tuân thủ [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT
 1. **Kiểm tra Issues** — Xem lỗi đã được báo cáo chưa
 2. **Chạy `textvn-cli doctor`** và đính kèm output (hoặc file `.zip` từ `--export`)
 3. **Mô tả chi tiết**:
-   - Phiên bản Windows (Settings → About)
-   - Phiên bản TextVN (`TextVN.exe --version`)
+   - Hệ điều hành và phiên bản (Windows: Settings → About; macOS: About This Mac; Linux: distro + IBus/Fcitx5)
+   - Phiên bản TextVN (Bảng điều khiển → **Thông tin**; Windows: `version.json` trong file `--export`)
    - Các bước tái hiện lỗi
    - Hành vi mong đợi vs thực tế
 4. **Không đính kèm text/nội dung bạn đã gõ** — Chúng tôi nghiêm túc bảo vệ quyền riêng tư
@@ -136,21 +136,25 @@ metainfo, build-release-report, common-errors (nếu có lỗi mới).
 
 ## Cấu trúc dự án & ownership
 
-| Crate | Mô tả | Windows | macOS | Linux |
-|-------|-------|---------|-------|-------|
-| `engine` | Core IME (Telex/VNI/...) | ✅ | 🔄 | 🔄 |
-| `config` | Config schema + parser | ✅ | ✅ | ✅ |
-| `cli` | `textvn-cli` CLI | ✅ | 🔄 | 🔄 |
-| `tray` | System tray app | ✅ Windows only | ❌ | ❌ |
-| `adapters/windows-tsf` | TSF TIP (Windows Input) | ✅ Windows only | ❌ | ❌ |
-| `adapters/windows-hook` | Low-level keyboard hook | ✅ Windows only | ❌ | ❌ |
-| `ipc` | Named Pipe protocol | ✅ | 🔄 | 🔄 |
+| Crate / thư mục | Mô tả | Windows | macOS | Linux |
+|---|---|---|---|---|
+| `core/` (`textvn-core`) | Engine Telex/VNI/VIQR, đặt dấu, bảng mã, gõ tắt | ✅ | ✅ | ✅ |
+| `ffi/` (`textvn-ffi`) | C ABI cho adapter (`ffi/include/textvn_ffi.h`) | ✅ | ✅ | ✅ |
+| `strategy/` · `appdb/` · `field-detect/` | Chọn cách chèn chữ theo app/ô nhập | ✅ | ✅ | ✅ |
+| `config/` (`textvn-config`) | Schema + parser cấu hình `config.v1` | ✅ | ✅ | ✅ |
+| `cli/` (`textvn-cli`) | register/doctor/replay/verify | ✅ | replay/verify | replay/verify (cài thành `textvn`) |
+| `ipc/` (`textvn-ipc`) | Codec IPC (named pipe); macOS/Linux hiện thực cùng giao thức `schemas/ipc.v1.md` bằng Swift/C | ✅ | — | — |
+| `tray/` (`textvn-tray` → `TextVN.exe`) | Khay + bảng điều khiển Win32 | ✅ | — | — |
+| `adapters/windows-tsf`, `windows-hook` | TSF TIP · hook (chỉ gói Compatibility) | ✅ | — | — |
+| `adapters/macos-imk`, `macos-app` | Bộ gõ IMK + app menu bar/Cài đặt (Swift) | — | ✅ | — |
+| `adapters/macos-tap` | CGEventTap opt-in — có test, **chưa** có trong bản phát hành | — | 🔄 | — |
+| `adapters/linux-ibus`, `linux-fcitx5`, `linux-common`, `linux-settings` | IBus/Fcitx5 + bảng điều khiển GTK4 (C/C++, CMake) | — | — | ✅ |
 
 ---
 
 ## License
 
-Khi đóng góp, bạn đồng ý rằng code của bạn được cấp phép theo [GPL-3.0-or-later](../LICENSE).
+Khi đóng góp, bạn đồng ý rằng code của bạn được cấp phép theo [GPL-3.0-or-later](LICENSE).
 
 Mọi file mới phải có SPDX header:
 ```rust

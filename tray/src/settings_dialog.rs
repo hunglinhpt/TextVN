@@ -31,7 +31,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 #[cfg(windows)]
-use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -401,26 +401,23 @@ fn create_control_ex(
     }
 }
 
-/// Font GUI 9pt theo DPI hiện tại. Font sống trong static để xóa khi dialog
-/// destroy (tránh leak GDI handle); nếu tạo thất bại thì dùng lại stock font.
+/// Font GUI 9pt theo TỪNG DPI (R2-39): Bảng điều khiển và cửa sổ "Gõ tắt..."/"Từ điển
+/// EN" có thể nằm trên hai màn hình khác DPI cùng lúc. Bản cũ giữ MỘT font và xoá nó khi
+/// DPI khác được yêu cầu — control của cửa sổ kia còn đang dùng font đó nên rơi về font
+/// System, chữ bị cắt. Số DPI khác nhau rất ít (≤ số màn hình) → giữ tới khi Bảng điều
+/// khiển bị huỷ (cửa sổ con thuộc nó bị huỷ trước).
 #[cfg(windows)]
-static UI_FONT: AtomicIsize = AtomicIsize::new(0);
-/// DPI mà font hiện tại được tạo cho — khác DPI thì phải tạo lại (đa màn).
-#[cfg(windows)]
-static UI_FONT_DPI: AtomicIsize = AtomicIsize::new(0);
+static UI_FONTS: std::sync::Mutex<Vec<(i32, isize)>> = std::sync::Mutex::new(Vec::new());
 
-/// Font GUI 9pt cho DPI yêu cầu; DPI đổi so với lần tạo trước → xoá font cũ,
-/// tạo font mới (dialog bị kéo sang màn hình khác DPI — WM_DPICHANGED).
+/// Font GUI 9pt cho DPI yêu cầu (tạo một lần cho mỗi DPI); lỗi thì dùng stock font.
 #[cfg(windows)]
 fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
-    let existing = UI_FONT.load(Ordering::Acquire);
-    let font_dpi = UI_FONT_DPI.load(Ordering::Acquire);
-    if existing != 0 && font_dpi == dpi as isize {
-        return HGDIOBJ(existing as *mut std::ffi::c_void);
-    }
-    if existing != 0 {
-        let _ = unsafe { DeleteObject(HGDIOBJ(existing as *mut std::ffi::c_void)) };
-        UI_FONT.store(0, Ordering::Release);
+    let stock = || unsafe { GetStockObject(DEFAULT_GUI_FONT) };
+    let Ok(mut fonts) = UI_FONTS.lock() else {
+        return stock();
+    };
+    if let Some(&(_, font)) = fonts.iter().find(|(d, _)| *d == dpi) {
+        return HGDIOBJ(font as *mut std::ffi::c_void);
     }
     let new_font = unsafe {
         let stock = GetStockObject(DEFAULT_GUI_FONT);
@@ -440,9 +437,18 @@ fn scaled_gui_font(dpi: i32) -> HGDIOBJ {
         }
         HGDIOBJ(f.0)
     };
-    UI_FONT.store(new_font.0 as isize, Ordering::Release);
-    UI_FONT_DPI.store(dpi as isize, Ordering::Release);
+    fonts.push((dpi, new_font.0 as isize));
     new_font
+}
+
+/// Xoá mọi font đã tạo — chỉ gọi khi Bảng điều khiển bị huỷ.
+#[cfg(windows)]
+fn delete_ui_fonts() {
+    if let Ok(mut fonts) = UI_FONTS.lock() {
+        for (_, font) in fonts.drain(..) {
+            let _ = unsafe { DeleteObject(HGDIOBJ(font as *mut std::ffi::c_void)) };
+        }
+    }
 }
 
 /// Xử lý WM_DPICHANGED: resize theo RECT hệ thống đề xuất, tạo lại font rồi
@@ -832,7 +838,9 @@ pub fn refresh_if_open() {}
 /// trả true nếu message đã được xử lý.
 #[cfg(windows)]
 pub fn pre_translate_message(msg: &MSG) -> bool {
-    for slot in [&MACRO_HWND, &SETTINGS_HWND] {
+    // R2-38: cả cửa sổ "Từ điển EN" — thiếu nó thì Tab chèn ký tự Tab vào ô soạn (từ đó
+    // bị bỏ khi chuẩn hoá lúc lưu) và Esc không đóng cửa sổ.
+    for slot in [&WORDLIST_HWND, &MACRO_HWND, &SETTINGS_HWND] {
         let raw = slot.load(Ordering::Acquire);
         if raw == 0 {
             continue;
@@ -947,16 +955,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
-                ID_BTN_SETUP_TSF => match register_and_activate_tsf() {
-                    Ok(()) => show_information(
-                        hwnd,
-                        "TextVN TSF",
-                        "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
-                    ),
-                    Err(reason) => {
-                        show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
-                    }
-                },
+                ID_BTN_SETUP_TSF => start_tsf_setup(hwnd),
 
                 ID_BTN_DEFAULT => {
                     if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
@@ -1004,10 +1003,12 @@ unsafe extern "system" fn dialog_wnd_proc(
                 }
                 ID_CHK_CTRL_SHIFT => {
                     // Phím tắt đổi bố cục của Windows nuốt Ctrl + Shift trước TextVN.
+                    // R2-40: ghi lại giá trị cũ để gỡ cài đặt trả đúng; bỏ chọn trả theo
+                    // bản ghi (cả Language Hotkey) rồi chắc chắn Windows giữ Ctrl + Shift.
                     let result = if get_chk(hwnd, ID_CHK_CTRL_SHIFT) {
-                        crate::hotkey::free_ctrl_shift()
+                        crate::hotkey::free_ctrl_shift().map(crate::record_ctrl_shift_freed)
                     } else {
-                        crate::hotkey::restore_windows_ctrl_shift()
+                        crate::give_ctrl_shift_back_to_windows()
                     };
                     if result.is_err() {
                         set_chk(
@@ -1051,6 +1052,27 @@ unsafe extern "system" fn dialog_wnd_proc(
             }
             LRESULT(0)
         }
+        WM_TSF_SETUP_DONE => {
+            let result = TSF_SETUP_RESULT
+                .lock()
+                .ok()
+                .and_then(|mut slot| slot.take());
+            if let Ok(button) = GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) {
+                let _ = EnableWindow(button, true);
+            }
+            match result {
+                Some(Ok(())) => show_information(
+                    hwnd,
+                    "TextVN TSF",
+                    "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
+                ),
+                Some(Err(reason)) => {
+                    show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
+                }
+                None => {}
+            }
+            LRESULT(0)
+        }
         WM_DPICHANGED => {
             // Kéo dialog sang màn hình khác DPI: resize + re-layout + font mới.
             apply_dpi_change(hwnd, wparam, lparam, layout_dialog_controls);
@@ -1071,10 +1093,7 @@ unsafe extern "system" fn dialog_wnd_proc(
             SETTINGS_HWND.store(0, Ordering::Release);
             // Controls con đã bị hủy trước khi parent nhận WM_DESTROY
             // nên font không còn được tham chiếu - an toàn để xóa.
-            let font = UI_FONT.swap(0, Ordering::AcqRel);
-            if font != 0 {
-                let _ = DeleteObject(HGDIOBJ(font as *mut std::ffi::c_void));
-            }
+            delete_ui_fonts();
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
@@ -1621,20 +1640,7 @@ fn show_word_list_editor(owner: HWND) {
 /// Chuẩn hoá danh sách từ người dùng nhập: trim, bỏ dòng trống/`#`, lowercase,
 /// chỉ giữ chữ cái ASCII, khử trùng lặp (giữ thứ tự nhập).
 fn normalize_word_list(text: &str) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for line in text.replace("\r\n", "\n").lines() {
-        let word = line.trim().to_lowercase();
-        if word.is_empty()
-            || word.starts_with('#')
-            || !word.chars().all(|c| c.is_ascii_alphabetic())
-        {
-            continue;
-        }
-        if !out.contains(&word) {
-            out.push(word);
-        }
-    }
-    out
+    textvn_config::doc::normalize_english_words(text)
 }
 
 /// Lưu từ điển EN; luôn thành công nếu persist OK (danh sách không có cú pháp sai).
@@ -1775,6 +1781,56 @@ fn show_information(owner: HWND, title: &str, content: &str) {
 /// Trả `Err(lý do thật)`: exit code + đuôi `register.log` — trước đây dialog luôn
 /// đổ cho "quyền ghi HKCU" kể cả khi nguyên nhân là thiếu DLL/CLI, khiến người
 /// dùng sửa sai chỗ (ảnh lỗi thực tế: sandbox chặn HKCU + thiếu log).
+/// Kết quả "Cài & bật TSF" từ thread nền về dialog (R2-32).
+#[cfg(windows)]
+const WM_TSF_SETUP_DONE: u32 = WM_APP + 40;
+#[cfg(windows)]
+static TSF_SETUP_RESULT: std::sync::Mutex<Option<std::result::Result<(), String>>> =
+    std::sync::Mutex::new(None);
+
+/// R2-32: `textvn-cli register` mất 1–5 s (broadcast `WM_SETTINGCHANGE` chờ cả cửa sổ
+/// của chính tray). Chạy đồng bộ ở đây là chặn thread UI — cũng là thread giữ
+/// `WH_KEYBOARD_LL`: dialog "Not Responding", mọi phím toàn hệ thống chờ hook, quá
+/// `LowLevelHooksTimeout` thì Windows gỡ hook (Ctrl+Shift chết tới khi tray khởi động
+/// lại). Chạy ở thread nền, khoá nút trong lúc chờ, báo kết quả bằng message.
+#[cfg(windows)]
+fn start_tsf_setup(hwnd: HWND) {
+    let Ok(button) = (unsafe { GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) }) else {
+        return;
+    };
+    // Nút đang khoá = lượt trước chưa xong.
+    if !unsafe { IsWindowEnabled(button) }.as_bool() {
+        return;
+    }
+    let _ = unsafe { EnableWindow(button, false) };
+    let raw = hwnd.0 as isize;
+    let spawned = std::thread::Builder::new()
+        .name("textvn-tsf-setup".into())
+        .spawn(move || {
+            let result = register_and_activate_tsf();
+            if let Ok(mut slot) = TSF_SETUP_RESULT.lock() {
+                *slot = Some(result);
+            }
+            // Dialog đã đóng thì PostMessage thất bại — kết quả bị bỏ, không sao.
+            let _ = unsafe {
+                PostMessageW(
+                    Some(HWND(raw as *mut _)),
+                    WM_TSF_SETUP_DONE,
+                    WPARAM(0),
+                    LPARAM(0),
+                )
+            };
+        });
+    if spawned.is_err() {
+        let _ = unsafe { EnableWindow(button, true) };
+        show_information(
+            hwnd,
+            "Không thể đăng ký TextVN TSF",
+            "Không tạo được tiến trình nền để chạy textvn-cli. Thử lại sau.",
+        );
+    }
+}
+
 #[cfg(windows)]
 fn register_and_activate_tsf() -> std::result::Result<(), String> {
     let Ok(mut cli_path) = std::env::current_exe() else {

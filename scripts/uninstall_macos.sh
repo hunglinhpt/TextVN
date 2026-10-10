@@ -10,17 +10,21 @@ USER_HOME="${HOME:?HOME chưa được đặt}"
 PKG_ID="vn.textvn.pkg"
 
 PURGE_MODE=0
+# --from-app: chạy từ menu "Gỡ cài đặt TextVN…" — app đang chờ script để báo kết
+# quả rồi tự thoát, nên KHÔNG killall TextVN (giết chính app trước khi kịp báo).
+FROM_APP=0
 for arg in "$@"; do
-    if [ "$arg" = "--purge" ]; then
-        PURGE_MODE=1
-    fi
+    case "$arg" in
+        --purge) PURGE_MODE=1 ;;
+        --from-app) FROM_APP=1 ;;
+    esac
 done
 
 echo "=== TextVN macOS Uninstallation ==="
 
 # 1. Stop running processes
 echo "Stopping TextVN processes..."
-killall TextVN 2>/dev/null || true
+[ "$FROM_APP" -eq 1 ] || killall TextVN 2>/dev/null || true
 killall TextVN-IM 2>/dev/null || true
 sleep 0.5
 
@@ -76,8 +80,9 @@ else
     echo "   (Use --purge flag if you want to completely erase user settings and macros)."
 fi
 
-# 6. Verify 0 system residue
-CHECK_SCRIPT="$ROOT/packaging/macos/uninstall-check.sh"
+# 6. Verify 0 system residue. Bản trong TextVN.app vừa bị xoá ở bước 3 → app chép
+# uninstall-check.sh ra ngoài trước và trỏ TEXTVN_UNINSTALL_CHECK tới bản đó (R2-51).
+CHECK_SCRIPT="${TEXTVN_UNINSTALL_CHECK:-$ROOT/packaging/macos/uninstall-check.sh}"
 if [ ! -f "$CHECK_SCRIPT" ]; then
     CHECK_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/uninstall-check.sh"
 fi

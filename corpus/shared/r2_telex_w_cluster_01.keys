@@ -1,0 +1,8 @@
+# corpus/shared/r2_telex_w_cluster_01.keys — R2-65: Telex `w` gõ SAU cả cụm nguyên âm (dấu cuối từ)
+# nhắm đúng âm của vần ưa/ơi/ưi/ưu: `muaw` → `mưa`, `voiws` → `với`, `luuw` → `lưu`.
+# oracle: UniKey processHook làm trên cả chuỗi nguyên âm (VSeqList withHook); `quaw` → `quă` giữ nguyên.
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "muaw chuaw cuawr thuawf guiwr luuw cuuws voiws choiw "
+:expect "mưa chưa cửa thừa gửi lưu cứu với chơi "
+:type "quawn xoawns nguoiwf "
+:expect "mưa chưa cửa thừa gửi lưu cứu với chơi quăn xoắn người "

@@ -1,0 +1,9 @@
+# corpus/shared/r2_late_d_stroke_01.keys — R2-68: `d` gõ sau trong từ (đặt dấu tự do) làm `đ` đầu
+# từ: `duocjwd` → `được` (PLAN §8 tiêu chí nghiệm thu M1), `dieend` → `điên`, `dongd` → `đong`.
+# Từ tiếng Anh chưa biến đổi, không phụ âm cuối (`did`, `dad`, `dead`) đi thẳng như cũ.
+# oracle: PLAN.md §8 + UniKey processDd (vị trí phụ âm đầu c1Offset khi freeMarking).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "duocjwd dieendf dongd Dongd "
+:expect "được điền đong Đong "
+:type "did dad dead died defend "
+:expect "được điền đong Đong did dad dead died defend "

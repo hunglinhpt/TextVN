@@ -121,6 +121,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
 Type: files; Name: "{app}\textvn-tsf.dll.old-*"
+Type: files; Name: "{app}\textvn-tsf-x86.dll.old-*"
 Type: files; Name: "{app}\TextVN.exe.old-*"
 
 [Tasks]
@@ -147,7 +148,7 @@ Source: "..\..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Kiem tra he thong (TextVN Doctor)"; Filename: "{app}\textvn-cli.exe"; Parameters: "doctor"
+Name: "{group}\Kiem tra he thong (TextVN Doctor)"; Filename: "{app}\textvn-cli.exe"; Parameters: "doctor --pause"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
@@ -156,7 +157,11 @@ Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: s
 
 [Run]
 Filename: "{app}\textvn-cli.exe"; Parameters: "config init"; Flags: runhidden runasoriginaluser skipifsilent
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser skipifsilent; Tasks: freectrlshift
+; KHONG skipifsilent: tu CR-17 tray khong tu "danh Ctrl + Shift" khi la ban Inno
+; (de bo cai quyet dinh) -> cai im lang (Store /VERYSILENT, nang cap im lang) ma
+; bo qua dong nay thi Ctrl + Shift trung phim doi bo cuc cua Windows. Task
+; checkedonce: cai im lang lan dau = chon; user bo chon o lan cai tay duoc giu.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhidden runasoriginaluser; Tasks: freectrlshift
 ; Dang ky TSF TIP chay trong [Code] (CurStepChanged/ssPostInstall) de dung thu tu:
 ; machine elevated truoc, user session sau. Khong nang quyen binary o thu muc
 ; user-writable: path installer duoc khoa o {autopf}\TextVN.
@@ -190,19 +195,21 @@ var
 // file cu thanh .old-<timestamp> truoc khi copy de cho cho file moi (Bao cao
 // 0.2.19: "khong replace duoc profile cu textvn-tsf.dll trong Program Files").
 // Cac file .old-* duoc don khi uninstall ([UninstallDelete]) va lan nang cap ke.
-procedure RenameLockedTsfDll();
+// Ap dung cho CA textvn-tsf-x86.dll: app 32-bit (Zalo...) nap ban x86, nen
+// nang cap khi app do dang mo cung bi file-in-use nhu ban x64.
+procedure RenameLockedFile(const FileName: String);
 var
   AppDir, OldFile, Backup: String;
   FindRec: TFindRec;
 begin
   AppDir := ExpandConstant('{app}');
-  OldFile := AppDir + '\textvn-tsf.dll';
+  OldFile := AppDir + '\' + FileName;
   // Don backup cu truoc (best-effort — co the van bi nap thi de lai, khong fail)
-  if FindFirst(AppDir + '\textvn-tsf.dll.old-*', FindRec) then
+  if FindFirst(OldFile + '.old-*', FindRec) then
   begin
     try
       repeat
-        DeleteFile(AppDir + '' + FindRec.Name);
+        DeleteFile(AppDir + '\' + FindRec.Name);
       until not FindNext(FindRec);
     finally
       FindClose(FindRec);
@@ -212,10 +219,16 @@ begin
   begin
     Backup := OldFile + '.old-' + GetDateTimeString('yyyymmddhhnnss', '-', '-');
     if RenameFile(OldFile, Backup) then
-      Log('Renamed locked textvn-tsf.dll to ' + Backup)
+      Log('Renamed locked ' + FileName + ' to ' + Backup)
     else
-      Log('Could not rename locked textvn-tsf.dll; Setup will show the file-in-use dialog if replace fails.');
+      Log('Could not rename locked ' + FileName + '; Setup will show the file-in-use dialog if replace fails.');
   end;
+end;
+
+procedure RenameLockedTsfDll();
+begin
+  RenameLockedFile('textvn-tsf.dll');
+  RenameLockedFile('textvn-tsf-x86.dll');
 end;
 
 var
@@ -336,8 +349,11 @@ begin
 end;
 
 // DLL bị TSF nạp (image-mapped) trong mọi tiến trình đang mở nên Windows từ chối
-// DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Sau khi Inno xoá file,
-// gọi CLI (đang elevated) hẹn xoá phần còn khoá qua MoveFileEx(DELAY_UNTIL_REBOOT)
+// DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Ở usUninstall (CLI còn
+// trên đĩa — R2-29): đổi tên hai DLL thành .old-<ts> rồi gọi CLI (đang elevated) hẹn
+// xoá các .old-* qua MoveFileEx(DELAY_UNTIL_REBOOT). KHÔNG hẹn xoá theo tên gốc
+// textvn-tsf.dll: gỡ rồi cài lại trước khi khởi động lại thì lần reboot sẽ xoá mất
+// DLL của bản vừa cài.
 // — CLI dùng API thật với lpNewFileName=NULL, tránh cả vấn đề Pascal Script
 // không có kiểu Pointer lẫn RegWriteMultiStringValue (trả String, không phải
 // TArrayOfString).
@@ -350,9 +366,9 @@ begin
   AppDir := ExpandConstant('{app}');
   if not DirExists(AppDir) then
     Exit;
+  RenameLockedTsfDll();
   Params := 'schedule-delete';
-  // Thứ tự: DLL chính → các .old-* → thư mục (PFO xử lý tuần tự).
-  Params := Params + ' "' + AppDir + '\textvn-tsf.dll"';
+  // Thứ tự: các .old-* (gồm hai DLL vừa đổi tên) → thư mục (PFO xử lý tuần tự).
   if FindFirst(AppDir + '\*.old-*', FindRec) then
   begin
     try
@@ -371,22 +387,78 @@ begin
     Log('Cannot run schedule-delete (CLI)');
 end;
 
+// R2-40: tra lai Ctrl + Shift theo marker %APPDATA%\TextVN\ctrl_shift_default_applied
+// (cung dinh dang tray/src/lib.rs + portable\uninstall.ps1): dong dau 'freed', moi
+// dong sau '<ten>=<gia tri cu>' (rong = truoc do khong co); '1' = ban <= 0.2.27, chi
+// Layout Hotkey. Khong co marker / 'declined' = TextVN khong doi gi -> giu nguyen lua
+// chon "Not assigned" cua nguoi dung. Chi tra muc VAN la '3' (ca Language Hotkey).
+procedure RestoreToggleValue(Name, Prev: String);
+var
+  Cur: String;
+begin
+  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name, Cur) then
+    Exit;
+  if Cur <> '3' then
+    Exit;
+  if Prev = '' then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name)
+  else
+    RegWriteStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', Name, Prev);
+  Log('Ctrl+Shift tra lai cho Windows: ' + Name);
+end;
+
+procedure RestoreCtrlShift();
+var
+  Marker, Line, Name, Prev: String;
+  Lines: TArrayOfString;
+  I, P: Integer;
+begin
+  Marker := ExpandConstant('{userappdata}\TextVN\ctrl_shift_default_applied');
+  if not LoadStringsFromFile(Marker, Lines) then
+    Exit;
+  if GetArrayLength(Lines) > 0 then
+  begin
+    if Trim(Lines[0]) = '1' then
+      RestoreToggleValue('Layout Hotkey', '')
+    else if Trim(Lines[0]) = 'freed' then
+      for I := 1 to GetArrayLength(Lines) - 1 do
+      begin
+        Line := Trim(Lines[I]);
+        P := Pos('=', Line);
+        if P > 1 then
+        begin
+          Name := Trim(Copy(Line, 1, P - 1));
+          Prev := Trim(Copy(Line, P + 1, Length(Line)));
+          if ((Name = 'Layout Hotkey') or (Name = 'Language Hotkey') or (Name = 'Hotkey'))
+             and ((Prev = '') or (Prev = '1') or (Prev = '2') or (Prev = '3') or (Prev = '4')) then
+            RestoreToggleValue(Name, Prev);
+        end;
+      end;
+  end;
+  DeleteFile(Marker);
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  HotkeyValue: String;
+  RunValue: String;
 begin
+  // R2-29: hen xoa DLL bi khoa PHAI chay o usUninstall — luc usPostUninstall Inno da
+  // xoa textvn-cli.exe nen Exec that bai im lang va DLL/thu muc con lai mai mai.
+  if CurUninstallStep = usUninstall then
+    ScheduleCleanupViaCli();
   if CurUninstallStep = usPostUninstall then
   begin
-    ScheduleCleanupViaCli();
-    // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat.
-    // Chi xoa khi gia tri = 3 (override do TextVN dat: "khong gan phim") — giong
-    // uninstall.ps1 cua ban portable; neu nguoi dung tu doi sang gia tri khac thi
-    // giu nguyen lua chon cua ho. [Registry] chi xoa VALUE qua RegDeleteValue —
-    // Pascal Script cua Inno KHONG co RegDeleteKeyValue (CI do 2026-10-04:
-    // "Unknown identifier 'RegDeleteKeyValue'"; xem win-test-common-errors B14).
-    if RegQueryStringValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey', HotkeyValue)
-       and (HotkeyValue = '3') then
-      RegDeleteValue(HKEY_CURRENT_USER, 'Keyboard Layout\Toggle', 'Layout Hotkey');
+    // R2-27: tray tu ghi HKCU Run 'TextVN' (o "Khoi dong cung Windows") - [Registry]
+    // chi xoa muc cua chinh bo cai. Muc tro vao thu muc dang go thi xoa; muc cua ban
+    // khac (portable/Store) giu nguyen.
+    if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN', RunValue)
+       and (Pos(Lowercase(ExpandConstant('{app}') + '\'), Lowercase(RunValue)) > 0) then
+      RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'TextVN');
+    // BUG-07 (audit 2026-10-04): tra lai Ctrl + Shift cho Windows khi go cai dat —
+    // theo marker (R2-40, RestoreCtrlShift). Xoa VALUE qua RegDeleteValue: Pascal
+    // Script cua Inno KHONG co RegDeleteKeyValue (CI do 2026-10-04: "Unknown
+    // identifier 'RegDeleteKeyValue'"; xem win-test-common-errors B14).
+    RestoreCtrlShift();
     // Bao toan du lieu cau hinh nguoi dung trong %APPDATA%\TextVN (khong dung toi).
   end;
 end;

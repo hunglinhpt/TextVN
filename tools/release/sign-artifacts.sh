@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Hai lớp chữ ký cho MỌI artifact của một release (exe/zip/msix/tar.gz/pkg):
-#   1. GPG detached (ASCII .sig)  — key từ secret RELEASE_GPG_PRIVATE_KEY
+#   1. GPG detached (ASCII armor → <file>.asc)  — key từ secret RELEASE_GPG_PRIVATE_KEY
 #      (TextVN Release Signing, FPR 3921595ABC961199F15303B6C45B84D0C7F4A822,
 #      public key: docs/release/signing/gpg-release-key.asc).
 #   2. Sigstore keyless (cosign sign-blob, OIDC GitHub Actions) — chữ ký +
@@ -21,24 +21,36 @@ set -euo pipefail
 DIR="${1:?dung: sign-artifacts.sh <assets-dir>}"
 cd "$DIR"
 
+# R2-74: trong CI (GITHUB_ACTIONS) ký số là BẮT BUỘC — thiếu secret/cosign hay
+# import lỗi trước đây vẫn "SKIP" rồi phát hành bản không chữ ký. Chạy tay ngoài
+# CI vẫn cho bỏ qua từng lớp như cũ.
+REQUIRED="${GITHUB_ACTIONS:-false}"
+die() { echo "FATAL: $*" >&2; exit 1; }
+
 # 1. GPG: import key từ secret (nếu có) + ký từng file.
+RELEASE_FPR="3921595ABC961199F15303B6C45B84D0C7F4A822"
 if [ -n "${RELEASE_GPG_PRIVATE_KEY:-}" ]; then
-    echo "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import 2>/dev/null || true
+    printf '%s\n' "$RELEASE_GPG_PRIVATE_KEY" | gpg --batch --import 2>/dev/null \
+        || die "import RELEASE_GPG_PRIVATE_KEY thất bại (secret phải là bản --armor)"
+    gpg --batch --list-secret-keys "$RELEASE_FPR" >/dev/null 2>&1 \
+        || die "secret key không phải khoá phát hành $RELEASE_FPR"
     for f in *; do
         case "$f" in
             *.sig|*.asc|*.cert|SHA256SUMS.txt) continue ;;
         esac
         if [ -f "$f" ]; then
-            gpg --batch --yes --armor --detach-sign "$f"
-            echo "GPG signed: $f.sig"
+            gpg --batch --yes --local-user "$RELEASE_FPR" --armor --detach-sign "$f"
+            gpg --batch --verify "$f.asc" "$f" 2>/dev/null || die "chữ ký vừa tạo không verify được: $f.asc"
+            echo "GPG signed: $f.asc"
         fi
     done
     if [ -f SHA256SUMS.txt ]; then
-        gpg --batch --yes --clearsign SHA256SUMS.txt
+        gpg --batch --yes --local-user "$RELEASE_FPR" --clearsign SHA256SUMS.txt
         mv SHA256SUMS.txt.asc SHA256SUMS.txt
         echo "GPG clearsigned: SHA256SUMS.txt"
     fi
 else
+    [ "$REQUIRED" = "true" ] && die "RELEASE_GPG_PRIVATE_KEY trống — không phát hành bản không chữ ký"
     echo "SKIP GPG: RELEASE_GPG_PRIVATE_KEY not set"
 fi
 
@@ -58,6 +70,7 @@ if command -v cosign >/dev/null 2>&1; then
         fi
     done
 else
+    [ "$REQUIRED" = "true" ] && die "không có cosign trong CI (sigstore/cosign-installer)"
     echo "SKIP cosign: binary not found"
 fi
 

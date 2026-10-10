@@ -3,7 +3,8 @@
 # Quy tắc thuật toán (không phải bảng) — ở `core/src/method/vni.rs`:
 #   * `d` + `d` → `đ` (giữ thói quen gõ đôi), `9` → `đ` cho `d` gần nhất.
 #   * `7` trên cụm `uo` → `ươ` (xử lý trong `transform::undo::mark_horn`).
-#   * `0` xoá toàn bộ dấu của từ đang gõ (thanh + mũ/sừng/breve + `đ`).
+#   * `0` gỡ DẤU THANH của từ đang gõ như Telex `z` (UniKey `{'0', vneTone0}`; R2-69 — bản cũ
+#     xoá cả mũ/sừng/breve + `đ`); từ chưa có dấu thanh → chữ số `0` (`200`, `0912`).
 #   * chữ số là MỘT PHẦN của từ (không phải ranh giới) → `method::is_word_char`.
 
 [method]
@@ -13,8 +14,8 @@ w_marker = false
 tone = ["1", "2", "3", "4", "5"]
 stroke_key = "9"
 stroke_double = false
-remove_marks_key = "0"
-tone_remove_key = ""
+remove_marks_key = ""
+tone_remove_key = "0"
 
 # 6 → mũ trên â/ê/ô
 [[circumflex]]

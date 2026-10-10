@@ -13,37 +13,98 @@ if ($cmd -and $cmd.Trim().TrimStart('"').StartsWith($dir.TrimEnd('\') + '\', [St
 }
 Write-Host 'Go dang ky TSF...'
 
-# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows (TextVN tu dong
-# thay doi HKCU\Keyboard Layout\Toggle khi chay lan dau - restore khi go).
+# BUG-07 (audit 2026-10-04): Tra lai Ctrl + Shift cho Windows. Marker
+# %APPDATA%\TextVN\ctrl_shift_default_applied (tray/src/lib.rs) ghi gia tri TRUOC KHI
+# TextVN "danh Ctrl + Shift": dong dau 'freed', moi dong sau '<ten>=<gia tri cu>' (rong =
+# truoc do khong co). Ban <= 0.2.27 ghi '1' = chi Layout Hotkey. 'declined'/khong co
+# marker = TextVN khong doi gi -> giu nguyen (CR-35). Chi tra muc VAN la '3' (khong
+# gan) - nguoi dung tu doi sau do thi giu lua chon cua ho (R2-40, ca Language Hotkey).
 $toggle = 'HKCU:\Keyboard Layout\Toggle'
-$hotkey = (Get-ItemProperty -Path $toggle -Name 'Hotkey' -ErrorAction SilentlyContinue).Hotkey
-$layout = (Get-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue).'Layout Hotkey'
-# Chi restore neu gia tri hien tai la 3 (do TextVN dat) - khong dung neu user da tu sua.
-if ($layout -eq '3') {
-    Remove-ItemProperty -Path $toggle -Name 'Layout Hotkey' -ErrorAction SilentlyContinue
-    Write-Host 'Da tra lai Ctrl + Shift cho Windows (xoa Layout Hotkey override).'
+$marker = Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied'
+$record = @()
+if (Test-Path -LiteralPath $marker -PathType Leaf) {
+    $lines = @(Get-Content -LiteralPath $marker -ErrorAction SilentlyContinue | ForEach-Object { $_.Trim() })
+    if ($lines.Count -gt 0 -and $lines[0] -eq '1') {
+        $record = @(, @('Layout Hotkey', ''))
+    } elseif ($lines.Count -gt 0 -and $lines[0] -eq 'freed') {
+        foreach ($line in ($lines | Select-Object -Skip 1)) {
+            $eq = $line.IndexOf('=')
+            if ($eq -lt 1) { continue }
+            $name = $line.Substring(0, $eq).Trim()
+            $prev = $line.Substring($eq + 1).Trim()
+            if (@('Layout Hotkey', 'Language Hotkey', 'Hotkey') -notcontains $name) { continue }
+            if ($prev -notmatch '^[1-4]?$') { continue }
+            $record += , @($name, $prev)
+        }
+    }
 }
+foreach ($entry in $record) {
+    $name = $entry[0]
+    $prev = $entry[1]
+    $cur = (Get-ItemProperty -Path $toggle -Name $name -ErrorAction SilentlyContinue).$name
+    if ($cur -ne '3') { continue }
+    if ($prev) {
+        Set-ItemProperty -Path $toggle -Name $name -Value $prev
+    } else {
+        Remove-ItemProperty -Path $toggle -Name $name -ErrorAction SilentlyContinue
+    }
+    Write-Host "Da tra lai Ctrl + Shift cho Windows ($name)."
+}
+Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
 
 $r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
 if ($r.ExitCode -ne 0) {
     Write-Error ('Huy dang ky TSF that bai, ma loi ' + $r.ExitCode + '. Khong xoa thu muc portable cho den khi "textvn-cli.exe doctor" bao ro nguyen nhan.')
     exit $r.ExitCode
 }
-# textvn-tsf.dll bi TSF nap trong cac app dang mo (explorer, Notepad...) nen thuong
-# KHONG xoa duoc ngay. Tu dong don o lan dang nhap ke tiep bang RunOnce (khong can
-# admin): luc do TIP da go dang ky nen DLL khong con bi nap.
-$left = $null
-try { Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop } catch { $left = $_ }
-if ($left) {
+# R2-16 (P0): ZIP portable khong co thu muc goc - giai nen "Extract here" vao
+# Downloads/Desktop thi $dir CHINH LA thu muc do. Truoc day `Remove-Item -Recurse`
+# xoa sach ca thu muc cua nguoi dung. Gio chi xoa DUNG cac file TextVN biet ten,
+# roi xoa thu muc con/thu muc goc khi (va chi khi) chung da rong.
+$known = @(
+    'TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x86.dll', 'textvn-hook.exe',
+    'install.ps1', 'HUONG_DAN_SU_DUNG.txt', 'README.md', 'CHANGELOG.md', 'LICENSE',
+    'RELEASE_REPORT.json', 'resources\textvn.ico', 'resources\textvn_v.ico', 'resources\textvn_e.ico'
+)
+$locked = @()
+foreach ($rel in $known) {
+    $p = Join-Path $dir $rel
+    if (Test-Path -LiteralPath $p -PathType Leaf) {
+        try { Remove-Item -LiteralPath $p -Force -ErrorAction Stop } catch { $locked += $p }
+    }
+}
+# Ban sao luu khi nang cap (TextVN.exe.old-*, textvn-tsf*.dll.old-*).
+Get-ChildItem -LiteralPath $dir -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^(TextVN\.exe|textvn-tsf(-x86)?\.dll)\.old-' } |
+    ForEach-Object {
+        try { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop } catch { $locked += $_.FullName }
+    }
+# Thu muc chi xoa khi da rong - KHONG bao gio -Recurse.
+$res = Join-Path $dir 'resources'
+if ((Test-Path -LiteralPath $res -PathType Container) -and -not (Get-ChildItem -LiteralPath $res -Force)) {
+    Remove-Item -LiteralPath $res -Force -ErrorAction SilentlyContinue
+}
+# uninstall.ps1 (chinh file nay) xoa sau cung; PowerShell da nap script nen xoa duoc.
+Remove-Item -LiteralPath (Join-Path $dir 'uninstall.ps1') -Force -ErrorAction SilentlyContinue
+$dirEmpty = -not (Get-ChildItem -LiteralPath $dir -Force -ErrorAction SilentlyContinue)
+if ($dirEmpty) { Remove-Item -LiteralPath $dir -Force -ErrorAction SilentlyContinue }
+
+if ($locked.Count -gt 0) {
+    # DLL con bi nap trong app dang mo: hen xoa DUNG cac file do o lan dang nhap ke
+    # tiep (RunOnce, khong can admin) - luc do TIP da go dang ky. `rmdir` khong /s:
+    # chi xoa thu muc neu da rong.
     $runOnce = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
-    $cmd = 'cmd.exe /c rmdir /s /q "' + $dir + '"'
+    $cmd = 'cmd.exe /c del /f /q ' + (($locked | ForEach-Object { '"' + $_ + '"' }) -join ' ')
+    if ($dirEmpty -eq $false) { $cmd += ' & rmdir "' + $res + '" & rmdir "' + $dir + '"' }
     Set-ItemProperty -Path $runOnce -Name 'TextVNCleanup' -Value $cmd -ErrorAction SilentlyContinue
     if ($?) {
         Write-Host 'Mot so file con dang duoc Windows dung (bo go da duoc go dang ky).'
-        Write-Host 'TextVN se TU DONG don sach thu muc nay o lan dang nhap ke tiep - khong can lam gi them.'
+        Write-Host 'TextVN se TU DONG xoa cac file do o lan dang nhap ke tiep - khong can lam gi them.'
     } else {
-        Write-Host 'Khong xoa het duoc thu muc. Hay dang xuat roi xoa thu muc nay.'
+        Write-Host 'Khong xoa het duoc file cua TextVN. Hay dang xuat roi xoa cac file con lai.'
     }
+} elseif (Test-Path -LiteralPath $dir) {
+    Write-Host 'Da xoa cac file cua TextVN. Thu muc con file khac cua ban nen duoc giu nguyen.'
 } else {
     Write-Host 'Da xoa thu muc portable.'
 }

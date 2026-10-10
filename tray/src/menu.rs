@@ -9,7 +9,8 @@
 //! 5. Game / Compat mode (bật/tắt hook)
 //! 6. Cài đặt... (Mở Settings GUI)
 //! 7. Sức khỏe / Trạng thái (Health submenu: Engine, Hook, Pipe, Version)
-//! 8. Gỡ cài đặt (bản cài: `unins000.exe`; bản portable: gỡ đăng ký TSF rồi thoát)
+//! 8. Gỡ cài đặt (bản cài: `unins000.exe`; bản Store: dọn phần ngoài gói rồi mở Cài đặt ›
+//!    Ứng dụng; bản portable: gỡ đăng ký TSF rồi thoát)
 //! 9. Thoát (Đóng tray và dừng hook)
 
 use std::sync::Arc;
@@ -133,11 +134,21 @@ impl TrayMenu {
             // 4. Per-app toggle cho app foreground gần nhất — nguồn là
             // `foreground::last_app()` (EVENT_SYSTEM_FOREGROUND, bỏ qua shell/tray).
             if let Some(app) = current_app {
-                let app_enabled = self.svc.is_app_enabled(app);
-                let app_label = format!("Bật tiếng Việt cho {app}");
+                // R2-28: dấu tích = cái TIP thực sự làm (toàn cục AND override); toàn cục
+                // đang E thì mục này mờ — override chỉ TẮT riêng được một app.
+                let global_on = self.svc.is_global_enabled();
+                let app_enabled = self.svc.effective_app_enabled(app);
+                let app_label = if global_on {
+                    format!("Bật tiếng Việt cho {app}")
+                } else {
+                    format!("Bật tiếng Việt cho {app} (đang tắt toàn cục)")
+                };
                 let mut app_flags = MF_STRING;
                 if app_enabled {
                     app_flags |= MF_CHECKED;
+                }
+                if !global_on {
+                    app_flags |= MF_GRAYED;
                 }
                 let _ = AppendMenuW(
                     menu,
@@ -267,9 +278,12 @@ impl TrayMenu {
             }
             ID_CURRENT_APP_TOGGLE => {
                 if let Some(app) = current_app {
-                    let cur = self.svc.is_app_enabled(app);
-                    let ver = self.svc.set_app_enabled(app, !cur);
-                    let actual = self.svc.is_app_enabled(app);
+                    // Đảo OVERRIDE (thiếu = bật); broadcast đúng giá trị override vì TIP
+                    // lưu nó làm override của app (ipc_client::apply_update).
+                    let next = !self.svc.app_override(app).unwrap_or(true);
+                    let ver = self.svc.set_app_enabled(app, next);
+                    // Ghi đĩa lỗi thì svc rollback — phát giá trị thực đang giữ.
+                    let actual = self.svc.app_override(app).unwrap_or(true);
                     self.ipc.broadcast_state_update(app, actual, ver);
                 }
             }
@@ -309,6 +323,34 @@ fn uninstall(ipc: &crate::ipc_server::IpcServer) {
         let _ = std::process::Command::new(unins).spawn();
         return;
     }
+    // Kênh Store (R2-04): MSIX không có hook gỡ cài đặt cho app full-trust — dọn phần
+    // TextVN ghi NGOÀI gói (đăng ký TSF HKCU, Run value, Ctrl + Shift, thư mục
+    // TextVN-Store/staging) rồi mở Cài đặt › Ứng dụng để gỡ chính gói Store.
+    if let Some(ctx) = crate::store_win::detect_store_context() {
+        let text = w("Đây là bản TextVN từ Microsoft Store.\r\n\r\n\
+Gỡ đăng ký bộ gõ TextVN khỏi Windows, dọn các tệp TextVN đã chép ra ngoài gói và thoát? \
+Sau đó Cài đặt › Ứng dụng sẽ mở để bạn gỡ TextVN. Cấu hình trong %APPDATA%\\TextVN \
+được giữ lại.");
+        let title = w("Gỡ TextVN");
+        // SAFETY: chuỗi NUL-terminated sống suốt lời gọi đồng bộ.
+        let answer = unsafe {
+            MessageBoxW(
+                None,
+                PCWSTR(text.as_ptr()),
+                PCWSTR(title.as_ptr()),
+                MB_YESNO | MB_ICONQUESTION,
+            )
+        };
+        if answer != IDYES {
+            return;
+        }
+        crate::store_win::store_cleanup(&ctx, false);
+        crate::store_win::open_apps_settings();
+        ipc.broadcast_shutdown();
+        // SAFETY: chỉ post message vào hàng đợi của thread UI hiện tại.
+        unsafe { PostQuitMessage(0) };
+        return;
+    }
     let text = w("Đây là bản TextVN chạy ngay (portable).\r\n\r\n\
 Gỡ đăng ký bộ gõ TextVN khỏi Windows và thoát? Sau đó bạn có thể xoá thư mục; \
 cấu hình trong %APPDATA%\\TextVN được giữ lại.");
@@ -327,10 +369,18 @@ cấu hình trong %APPDATA%\\TextVN được giữ lại.");
     }
     // Mục tự khởi động trỏ vào thư mục sắp xoá thì bỏ luôn (bản cài khác giữ nguyên).
     let _ = crate::autostart::disable_autostart_for_dir(&dir);
+    // Bản portable đã tự "dành Ctrl + Shift" ở lần chạy đầu (marker do tray ghi) → trả
+    // lại phím tắt đổi bố cục cho Windows, như bộ cài làm khi gỡ (BUG-07). Marker
+    // "declined" (người dùng từng chọn Không) thì không đụng phím tắt của họ.
+    crate::restore_ctrl_shift_if_we_freed();
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    // R2-30: chỉ gỡ đăng ký TIP nếu nó thuộc thư mục này (hoặc mồ côi) — gỡ một
+    // thư mục portable cũ không được tắt bộ gõ của bản cài/Store đang dùng.
     let _ = std::process::Command::new(dir.join("textvn-cli.exe"))
         .arg("unregister")
+        .arg("--if-owned-by")
+        .arg(&dir)
         .creation_flags(CREATE_NO_WINDOW)
         .status();
     // Các đường thoát khác đều broadcast Shutdown cho engine trước khi quit —

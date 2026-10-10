@@ -5,5 +5,5 @@
 :type "tieengs"
 :expect "tiếng"
 :key Space
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt"

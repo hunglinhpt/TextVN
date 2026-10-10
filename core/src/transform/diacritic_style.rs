@@ -37,8 +37,9 @@ fn has_diacritic(c: char) -> bool {
     )
 }
 
-/// Tìm index ký tự cần đặt dấu trong `out` (từ đang gõ). Không có âm → `None`.
-pub fn pick_tone_target(out: &[char], style: DiacriticStyle) -> Option<usize> {
+/// Cụm nguyên âm cuối của `out` — `(đầu, cuối)`, gồm cả hai đầu — **bỏ** bán âm thuộc phụ
+/// âm đầu (quy tắc 1): `u` của `qu`, `i` của `gi` khi sau nó còn nguyên âm. Không có âm → `None`.
+pub fn vowel_span(out: &[char]) -> Option<(usize, usize)> {
     let last_vowel = out.iter().rposition(|&c| is_vowel(c))?;
     let mut start = last_vowel;
     while start > 0 && is_vowel(out[start - 1]) {
@@ -52,6 +53,12 @@ pub fn pick_tone_target(out: &[char], style: DiacriticStyle) -> Option<usize> {
             start += 1;
         }
     }
+    Some((start, last_vowel))
+}
+
+/// Tìm index ký tự cần đặt dấu trong `out` (từ đang gõ). Không có âm → `None`.
+pub fn pick_tone_target(out: &[char], style: DiacriticStyle) -> Option<usize> {
+    let (start, last_vowel) = vowel_span(out)?;
     if start == last_vowel {
         return Some(start);
     }

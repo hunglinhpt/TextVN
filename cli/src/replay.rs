@@ -585,6 +585,25 @@ fn load_cases(paths: &[String], filter: Option<&str>) -> (Vec<Case>, Vec<ParseEr
                 continue;
             }
         }
+        // Case không kiểm gì thì luôn PASS — che mất hồi quy (gõ lại corpus mà quên
+        // dòng `:expect` vẫn xanh). Bắt buộc ít nhất một khẳng định.
+        let asserts = cmds.iter().any(|(_, c)| {
+            matches!(
+                c,
+                Cmd::Expect(_)
+                    | Cmd::ExpectPreedit(_)
+                    | Cmd::ExpectAction(_)
+                    | Cmd::ExpectCursor(_)
+            )
+        });
+        if !asserts {
+            errors.push(ParseError {
+                file: id.clone(),
+                line: 0,
+                msg: "case không có `:expect*` nào — luôn PASS, không kiểm được gì".into(),
+            });
+            continue;
+        }
         cases.push(Case {
             id,
             cmds,
@@ -1398,6 +1417,19 @@ mod tests {
         assert!(key_by_name("f13").is_none());
         assert_eq!(key_by_name("a"), Some(('A' as u32, 'a' as u32)));
         assert!(key_by_name("Return").is_none()); // chuẩn là Enter
+    }
+
+    #[test]
+    fn case_without_any_expectation_is_rejected() {
+        let dir = std::env::temp_dir().join(format!("textvn-replay-noexp-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("vacuous.keys");
+        fs::write(&file, ":config method=telex\n:type \"dduocj\"\n").unwrap();
+        let (cases, errors) = load_cases(&[file.display().to_string()], None);
+        assert!(cases.is_empty());
+        assert_eq!(errors.len(), 1, "{errors:?}");
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

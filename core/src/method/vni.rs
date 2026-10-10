@@ -8,7 +8,7 @@
 //! | `7` | `ơ` `ư` (sừng) — cụm `uo` → `ươ` |
 //! | `8` | `ă` (breve) |
 //! | `9` | `đ` |
-//! | `0` | **xoá toàn bộ dấu** của từ đang gõ (thanh + dạng âm + `đ`) |
+//! | `0` | gỡ **dấu thanh** của từ đang gõ (mũ/sừng/breve/`đ` giữ nguyên) — như Telex `z` |
 //!
 //! - Marker không áp được (không có âm đích) → gõ **literal** (`abc6` → `abc6` khi không
 //!   có âm nào nhận mũ). Bấm lại marker đã áp → gỡ dạng + literal (`a66` → `a6`).
@@ -18,9 +18,8 @@
 use super::keys_generated::vni as keys;
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
-use crate::transform::tone::apply_key;
+use crate::transform::tone::{apply_key, remove_tone};
 use crate::transform::undo::{mark_horn, mark_vowel};
-use crate::transform::vowel_table::{base_entry, form_like, locate};
 
 /// Chữ số 0..=9 là marker của VNI (engine coi là ký tự của từ, không phải ranh giới).
 /// Nguồn: `data/tables/vni.toml` → `keys_generated::vni::is_marker`.
@@ -50,10 +49,11 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
         mark_horn(out, c, &keys::HORN);
     } else if keys::BREVE.iter().any(|&(k, _, _)| k == c) {
         mark_vowel(out, c, &keys::BREVE);
-    } else if keys::REMOVE_MARKS_KEY == Some(c) {
-        // 0 chi la phim xoa dau khi thuc su co dau de xoa. Neu khong,
-        // giu literal de khong nuot so dien thoai/OTP ("200" -> "200").
-        if !unmark_all(out) {
+    } else if keys::TONE_REMOVE_KEY == Some(c) {
+        // `0` gỡ dấu thanh như Telex `z` (UniKey `vneTone0`, R2-69 — bản cũ xoá cả mũ/sừng/`đ`
+        // nên `đường`+`0` ra `duong`, rồi auto-restore trả về `d9u7o7ng20`). Chỉ là phím gỡ dấu
+        // khi thực sự có dấu thanh; nếu không, giữ chữ số để không nuốt số điện thoại/OTP.
+        if !remove_tone(out) {
             out.push(c);
         }
     } else if c == keys::STROKE_KEY {
@@ -86,22 +86,6 @@ fn stroke(out: &mut Vec<char>, key: char) {
     } else {
         out[idx] = to_stroke(out[idx]);
     }
-}
-
-/// `0`: gỡ mọi dấu trong `out` (thanh + mũ/sừng/breve + `đ`) — giữ case.
-fn unmark_all(out: &mut [char]) -> bool {
-    let mut changed = false;
-    for ch in out.iter_mut() {
-        if let Some((e, _)) = locate(*ch) {
-            let plain = form_like(*ch, base_entry(e), 0);
-            changed |= plain != *ch;
-            *ch = plain;
-        } else if is_stroke(*ch) {
-            *ch = to_plain(*ch);
-            changed = true;
-        }
-    }
-    changed
 }
 
 #[cfg(test)]
@@ -145,6 +129,13 @@ mod tests {
         assert_eq!(n("u7"), "ư");
         assert_eq!(n("o7"), "ơ");
         assert_eq!(n("i6"), "i6"); // i không nhận mũ → literal
+        assert_eq!(n("uo77"), "uo7"); // cặp `ươ` gỡ cả cặp + literal (R2-63)
+                                      // Đổi dấu trên cùng âm (R2-70, UniKey).
+        assert_eq!(n("a68"), "ă");
+        assert_eq!(n("a86"), "â");
+        assert_eq!(n("o67"), "ơ");
+        assert_eq!(n("o76"), "ô");
+        assert_eq!(n("muo6n7"), "mươn");
     }
 
     #[test]
@@ -155,11 +146,14 @@ mod tests {
         assert_eq!(n("hoa1"), "hoá");
     }
 
+    /// R2-69: `0` chỉ gỡ dấu thanh (UniKey `vneTone0`, như Telex `z`).
     #[test]
-    fn remove_all_marks() {
+    fn zero_removes_tone_only() {
         assert_eq!(n("d9uo7ng2"), "đường");
-        assert_eq!(n("d9uo7ng20"), "duong"); // 0 xoá thanh + dạng âm + đ
-        assert_eq!(n("d9uo7ng200"), "duong0"); // lần 0 kế tiếp là số thường
+        assert_eq!(n("d9uo7ng20"), "đương"); // mũ/sừng/đ giữ nguyên
+        assert_eq!(n("d9uo7ng200"), "đương0"); // hết dấu thanh → 0 là số thường
+        assert_eq!(n("a60"), "â0");
+        assert_eq!(n("toan10"), "toan");
         assert_eq!(n("200"), "200");
         assert_eq!(n("0912"), "0912");
         assert_eq!(n("ab0"), "ab0");

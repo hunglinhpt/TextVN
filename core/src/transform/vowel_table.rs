@@ -86,7 +86,7 @@ fn marked_forms() -> &'static [u16] {
 }
 
 /// Entry "gốc" (không mũ/sừng/breve) của một entry: â→a · ă→a · ê→e · ô→o · ơ→o · ư→u.
-/// Dùng khi gỡ dạng âm (undo marker `w`/`6`/`7`/`8`/`^`/`+`/`(` và VNI `0`).
+/// Dùng khi gỡ dạng âm (undo marker `w`/`6`/`7`/`8`/`^`/`+`/`(`) và dựng lại phím gõ.
 pub fn base_entry(e: usize) -> usize {
     match e {
         A_BREVE | A_CIRC => A,

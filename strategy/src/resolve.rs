@@ -3,7 +3,7 @@
 
 use crate::rules_field::default_for_field;
 use crate::{
-    IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_STRATEGY_BACKSPACE_TYPE,
+    IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_SECURE, IME_STRATEGY_BACKSPACE_TYPE,
     IME_STRATEGY_FORWARD_AS_COMMIT, IME_STRATEGY_PASSTHROUGH, IME_STRATEGY_PREEDIT,
     IME_STRATEGY_SELECTION_REPLACE,
 };
@@ -65,8 +65,9 @@ pub struct ResolveInput {
 
 /// Resolve theo đúng thứ tự P0-3 §3.1 + quy tắc downgrade bắt buộc.
 pub fn resolve(inp: ResolveInput) -> Strategy {
-    // Bước 1–2: gate an toàn — không preset nào được thắng.
-    if inp.secure {
+    // Bước 1–2: gate an toàn — không preset nào được thắng. Ô có role `secure` là ô mật
+    // khẩu kể cả khi adapter quên bật cờ `secure` (S3): hint/preset không được vượt qua.
+    if inp.secure || inp.field_role == IME_FIELD_SECURE {
         return Strategy::Passthrough;
     }
     if !inp.enabled {
@@ -181,6 +182,19 @@ mod tests {
         let mut i = inp();
         i.field_role = IME_FIELD_SECURE;
         i.caps = IME_CAP_PREEDIT;
+        assert_eq!(resolve(i), Strategy::Passthrough);
+    }
+
+    /// Role `secure` thắng cả hint lẫn preset dù cờ `secure` = 0 (S3 — trước đây
+    /// preset app khớp mọi role biến ô mật khẩu thành Preedit).
+    #[test]
+    fn secure_role_beats_hint_and_presets_without_secure_flag() {
+        let mut i = inp();
+        i.field_role = IME_FIELD_SECURE;
+        i.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
+        i.hint = IME_STRATEGY_PREEDIT;
+        i.user_preset = Some(Strategy::SelectionReplace);
+        i.system_preset = Some(Strategy::Preedit);
         assert_eq!(resolve(i), Strategy::Passthrough);
     }
 }

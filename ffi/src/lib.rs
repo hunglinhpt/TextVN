@@ -180,6 +180,13 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
     }
 }
 
+/// Chạy `f` dưới `catch_unwind` — P0-2 §5: MỌI entry chặn panic, kể cả đoạn parse dữ
+/// liệu ngoài (config/appdb). Panic vượt `extern "C"` là abort cả process chủ — với TIP
+/// in-process đó là app người dùng đang gõ.
+fn guarded<T>(f: impl FnOnce() -> T) -> Option<T> {
+    catch_unwind(AssertUnwindSafe(f)).ok()
+}
+
 fn set_error(inst: &mut ime_instance, msg: &str) {
     // Chỉ chứa kind — không text người dùng (S2)
     inst.last_error = CString::new(msg).unwrap_or_else(|_| CString::new("").unwrap());
@@ -214,7 +221,7 @@ pub extern "C" fn ime_instance_new(
     } else {
         let bytes = unsafe { slice::from_raw_parts(config_utf8, len) };
         match std::str::from_utf8(bytes) {
-            Ok(s) => parse_config(s).map_err(|_| ()),
+            Ok(s) => guarded(|| parse_config(s)).and_then(Result::ok).ok_or(()),
             Err(_) => Err(()),
         }
     };
@@ -330,25 +337,26 @@ pub extern "C" fn ime_key(
         is_injected: k.is_injected != 0,
     };
 
-    match catch_unwind(AssertUnwindSafe(|| inst.engine.key(&key))) {
-        Ok(outcome) => {
-            fill_result(result, &outcome);
-            IME_OK
-        }
-        Err(_) => {
-            // Fail-open: trạng thái treo → reset, phím đi thẳng (S4)
-            inst.engine.reset();
-            *result = ime_result_v1::zeroed_pass();
-            result.abi_version = IME_ABI_VERSION;
-            result.action = ACTION_PASS;
-            result.flags = IME_FLAG_ERROR;
-            set_error(inst, "internal: panic caught");
-            IME_OK
-        }
-    }
+    let failure = match catch_unwind(AssertUnwindSafe(|| inst.engine.key(&key))) {
+        Ok(outcome) if fill_result(result, &outcome) => return IME_OK,
+        // Engine phải tự giữ ≤ IME_MAX_TEXT (P0-2 §2). Cắt bớt `insert` sẽ làm lệch
+        // số ký tự engine tin là đang sở hữu → phím sau xoá lẹm text của người dùng;
+        // thà bỏ từ đang gõ và cho phím đi thẳng.
+        Ok(_) => "internal: result overflow",
+        Err(_) => "internal: panic caught",
+    };
+    // Fail-open: trạng thái treo → reset, phím đi thẳng (S4)
+    let _ = catch_unwind(AssertUnwindSafe(|| inst.engine.reset()));
+    *result = ime_result_v1::zeroed_pass();
+    result.abi_version = IME_ABI_VERSION;
+    result.action = ACTION_PASS;
+    result.flags = IME_FLAG_ERROR;
+    set_error(inst, failure);
+    IME_OK
 }
 
-fn fill_result(result: &mut ime_result_v1, outcome: &Outcome) {
+/// Ghi `outcome` vào `result`; `false` (không ghi gì) nếu text vượt `IME_MAX_TEXT`.
+fn fill_result(result: &mut ime_result_v1, outcome: &Outcome) -> bool {
     let mut insert: Vec<u32> = Vec::new();
     let mut delete_count: u16 = 0;
     result.action = match &outcome.action {
@@ -374,14 +382,10 @@ fn fill_result(result: &mut ime_result_v1, outcome: &Outcome) {
             ACTION_RESTORE
         }
     };
-    // Cắt ≤ IME_MAX_TEXT (P0-2 §2 — engine tự giữ; đây là lưới an toàn cuối)
-    insert.truncate(IME_MAX_TEXT);
-    let preedit: Vec<u32> = outcome
-        .preedit
-        .iter()
-        .take(IME_MAX_TEXT)
-        .map(|&c| c as u32)
-        .collect();
+    if insert.len() > IME_MAX_TEXT || outcome.preedit.len() > IME_MAX_TEXT {
+        return false;
+    }
+    let preedit: Vec<u32> = outcome.preedit.iter().map(|&c| c as u32).collect();
 
     result.delete_count = delete_count;
     result.insert_len = insert.len() as u16;
@@ -389,6 +393,7 @@ fn fill_result(result: &mut ime_result_v1, outcome: &Outcome) {
     result.flags = outcome.flags;
     result.insert[..insert.len()].copy_from_slice(&insert);
     result.preedit[..preedit.len()].copy_from_slice(&preedit);
+    true
 }
 
 #[no_mangle]
@@ -420,17 +425,17 @@ pub extern "C" fn ime_reload_config(inst: *mut ime_instance, cfg: *const u8, len
     let inst = unsafe { &mut *inst };
     let bytes = unsafe { slice::from_raw_parts(cfg, len) };
     let parsed = match std::str::from_utf8(bytes) {
-        Ok(s) => parse_config(s),
+        Ok(s) => match guarded(|| parse_config(s)) {
+            Some(r) => r,
+            None => return IME_ERR_INTERNAL,
+        },
         Err(_) => Err(textvn_config::ConfigError::Schema),
     };
     match parsed {
-        Ok(c) => {
-            let opts = options_from_config(&c);
-            match catch_unwind(AssertUnwindSafe(|| inst.engine.set_options(opts))) {
-                Ok(()) => IME_OK,
-                Err(_) => IME_ERR_INTERNAL,
-            }
-        }
+        Ok(c) => match guarded(|| inst.engine.set_options(options_from_config(&c))) {
+            Some(()) => IME_OK,
+            None => IME_ERR_INTERNAL,
+        },
         Err(e) => {
             set_error(inst, &e.to_string());
             IME_ERR_CONFIG
@@ -485,7 +490,7 @@ pub extern "C" fn ime_appdb_verify(
         Ok(value) => value,
         Err(_) => return IME_ERR_CONFIG,
     };
-    if textvn_appdb::AppDb::parse(text).is_err() {
+    if !guarded(|| textvn_appdb::AppDb::parse(text).is_ok()).unwrap_or(false) {
         return IME_ERR_CONFIG;
     }
     let _signature = unsafe { slice::from_raw_parts(sig, sig_len) };
@@ -534,9 +539,10 @@ pub extern "C" fn ime_strategy_resolve(
             Ok(value) => value,
             Err(_) => return IME_ERR_CONFIG,
         };
-        match textvn_appdb::AppDb::parse(json) {
-            Ok(value) => Some(value),
-            Err(_) => return IME_ERR_CONFIG,
+        match guarded(|| textvn_appdb::AppDb::parse(json)) {
+            Some(Ok(value)) => Some(value),
+            Some(Err(_)) => return IME_ERR_CONFIG,
+            None => return IME_ERR_INTERNAL,
         }
     };
 
@@ -680,6 +686,60 @@ mod tests {
         assert_eq!(ime_reset(inst), IME_OK);
         ime_instance_free(inst);
         ime_instance_free(std::ptr::null_mut()); // no-op
+    }
+
+    /// Lưới an toàn cuối: kết quả vượt `IME_MAX_TEXT` bị TỪ CHỐI (adapter nhận PASS +
+    /// ERROR) chứ không cắt bớt — cắt làm lệch số ký tự engine sở hữu.
+    #[test]
+    fn oversized_outcome_is_rejected_not_truncated() {
+        let mut r = ime_result_v1::zeroed_pass();
+        let too_long = Outcome {
+            action: Action::Replace {
+                delete_count: 1,
+                insert: vec!['a'; IME_MAX_TEXT + 1],
+            },
+            preedit: Vec::new(),
+            flags: 0,
+        };
+        assert!(!fill_result(&mut r, &too_long));
+        let fits = Outcome {
+            action: Action::Replace {
+                delete_count: 1,
+                insert: vec!['a'; IME_MAX_TEXT],
+            },
+            preedit: vec!['a'; IME_MAX_TEXT],
+            flags: 0,
+        };
+        assert!(fill_result(&mut r, &fits));
+        assert_eq!(usize::from(r.insert_len), IME_MAX_TEXT);
+        assert_eq!(usize::from(r.preedit_len), IME_MAX_TEXT);
+    }
+
+    /// `dej` + giữ `p`: mọi kết quả qua ABI thật vừa 64 ký tự và không bao giờ xoá
+    /// nhiều hơn phần đã gõ.
+    #[test]
+    fn held_key_long_word_never_deletes_past_typed_text() {
+        let inst = new_default();
+        let mut buf: Vec<char> = Vec::new();
+        for c in format!("dej{}", "p".repeat(100)).chars() {
+            let r = key_char(inst, c);
+            assert_eq!(r.flags & IME_FLAG_ERROR, 0);
+            match r.action {
+                ACTION_PASS => buf.push(c),
+                ACTION_REPLACE | ACTION_COMMIT => {
+                    let d = usize::from(r.delete_count);
+                    assert!(d <= buf.len(), "delete {d} > {}", buf.len());
+                    buf.truncate(buf.len() - d);
+                    buf.extend(result_text(&r).chars());
+                }
+                other => panic!("unexpected action {other}"),
+            }
+        }
+        assert_eq!(
+            buf.into_iter().collect::<String>(),
+            format!("dẹ{}", "p".repeat(100))
+        );
+        ime_instance_free(inst);
     }
 
     #[test]

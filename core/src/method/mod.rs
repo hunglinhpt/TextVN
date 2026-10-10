@@ -3,10 +3,10 @@
 //!
 //! 4 kiểu gõ đã có bảng riêng: `telex`, `simple_telex`, `vni`, `viqr`.
 //! Bảng phím là **data**: `data/tables/*.toml` → `cargo xtask gen-tables` → `method/keys_generated.rs`.
-//! File từng method giữ phần **logic** (undo marker, cụm `uo`, rule `iet`) + đọc bảng đã sinh.
+//! File từng method giữ phần **logic** (undo marker, cụm `uo`) + đọc bảng đã sinh.
 
 // == GENERATED từ `data/tables/{telex,simple_telex,vni,viqr}.toml` (`cargo xtask gen-tables`)
-// — bảng phím của 4 kiểu gõ. KHÔNG sửa tay; logic (undo, cụm uo, iet…) vẫn ở file từng method.
+// — bảng phím của 4 kiểu gõ. KHÔNG sửa tay; logic (undo, cụm uo…) vẫn ở file từng method.
 pub mod keys_generated;
 
 pub mod simple_telex;
@@ -73,10 +73,135 @@ pub fn fold_caps(
         Method::Vni => vni::fold(raw, style, free_marking),
         Method::Viqr => viqr::fold(raw, style, free_marking),
     };
-    fix_uo(&mut out);
-    // Dấu thanh gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`): dời về đúng chỗ.
-    crate::transform::tone::normalize_tone(&mut out, style);
+    finish(&mut out, style);
     out
+}
+
+/// Bước chuẩn hoá cuối của mọi lần fold: cặp `qư`/`ươ` cuối từ ([`fix_uo`]) rồi dời dấu thanh
+/// về đúng chỗ — dấu gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`).
+pub fn finish(out: &mut [char], style: DiacriticStyle) {
+    fix_uo(out);
+    crate::transform::tone::normalize_tone(out, style);
+}
+
+/// Phím chuẩn (theo `method`) gõ ra ký tự **không dấu thanh** `ch`: chữ gốc rồi phím dấu phụ
+/// ngay sau (`â` → `aa`/`a6`/`a^`, `ư` → `uw`/`u7`/`u+`, `ă` → `aw`/`a8`/`a(`), `đ` →
+/// `dd`/`d9`. Ký tự khác → chính nó. Bảng lấy từ `keys_generated` (data).
+fn base_keys(ch: char, method: Method) -> Vec<char> {
+    use crate::transform::stroke::is_stroke;
+    use crate::transform::vowel_table::{base_entry, form_like, locate};
+    use keys_generated as g;
+    if is_stroke(ch) {
+        let d = if ch == 'Đ' { 'D' } else { 'd' };
+        let key = match method {
+            Method::Vni => g::vni::STROKE_KEY,
+            _ => d,
+        };
+        return vec![d, key];
+    }
+    let Some((e, _)) = locate(ch) else {
+        return vec![ch];
+    };
+    let base = form_like(ch, base_entry(e), 0);
+    if base_entry(e) == e {
+        return vec![base];
+    }
+    let tables: [&[(char, usize, usize)]; 3] = match method {
+        Method::Telex => [&g::telex::CIRCUMFLEX, &g::telex::HORN, &g::telex::BREVE],
+        Method::SimpleTelex => [
+            &g::simple_telex::CIRCUMFLEX,
+            &g::simple_telex::HORN,
+            &g::simple_telex::BREVE,
+        ],
+        Method::Vni => [&g::vni::CIRCUMFLEX, &g::vni::HORN, &g::vni::BREVE],
+        Method::Viqr => [&g::viqr::CIRCUMFLEX, &g::viqr::HORN, &g::viqr::BREVE],
+    };
+    match tables
+        .iter()
+        .flat_map(|t| t.iter())
+        .find(|&&(_, _, to)| to == e)
+    {
+        Some(&(key, _, _)) => vec![base, key],
+        // Kiểu gõ không có phím cho dấu phụ này → không gõ ra được bằng phím chuẩn.
+        None => vec![ch],
+    }
+}
+
+/// Phím dấu thanh `tone` (1..=5) của `method`.
+fn tone_key(method: Method, tone: usize) -> Option<char> {
+    use keys_generated as g;
+    let keys = match method {
+        Method::Telex => &g::telex::TONE_KEYS,
+        Method::SimpleTelex => &g::simple_telex::TONE_KEYS,
+        Method::Vni => &g::vni::TONE_KEYS,
+        Method::Viqr => &g::viqr::TONE_KEYS,
+    };
+    keys.get(tone.checked_sub(1)?).copied()
+}
+
+/// Dựng một chuỗi phím (theo `method`) mà `fold` gõ ra đúng `target` — engine dùng sau
+/// Backspace (R2-55): Backspace xoá **một ký tự đang hiển thị** như UniKey, nên `raw` phải
+/// được dựng lại cho khớp chữ còn lại để phím gõ tiếp vẫn biến đổi đúng.
+///
+/// `fold` là hàm fold của engine (đủ tuỳ chọn: kiểu dấu, đặt dấu tự do, Caps Lock, Quick
+/// Telex). Từng ký tự (đã bỏ dấu thanh) thử phím chuẩn rồi phím chuẩn gõ lặp (gõ literal:
+/// `as` = `ass`, `a6` = `a66`), kiểm lại bằng `fold` ở mỗi bước; dấu thanh đặt ngay sau
+/// nguyên âm cuối (hợp cả chế độ đặt dấu chặt) hoặc cuối chuỗi. Kết quả `fold` được phép
+/// khác `target` đúng ở bước chuẩn hoá cuối từ ([`finish`]: `đượ` gõ ra `đuợ` cho tới khi gõ
+/// tiếp âm cuối). `None` khi không dựng được.
+pub fn keys_for(
+    target: &[char],
+    method: Method,
+    style: DiacriticStyle,
+    fold: impl Fn(&[char]) -> Vec<char>,
+) -> Option<Vec<char>> {
+    use crate::transform::tone::{current_tone, is_vowel, strip_tone};
+    let folds_to = |keys: &[char], want: &[char]| -> bool {
+        let got = fold(keys);
+        if got == want {
+            return true;
+        }
+        let mut finished = want.to_vec();
+        finish(&mut finished, style);
+        got == finished
+    };
+    let bare: Vec<char> = target.iter().map(|&c| strip_tone(c)).collect();
+    let mut keys: Vec<char> = Vec::with_capacity(target.len() * 2 + 1);
+    let mut after_vowel = 0;
+    for (i, &ch) in bare.iter().enumerate() {
+        let canon = base_keys(ch, method);
+        let mut literal = canon.clone();
+        literal.push(*canon.last()?);
+        let n = keys.len();
+        let mut found = false;
+        for cand in [canon, literal] {
+            keys.extend_from_slice(&cand);
+            if folds_to(&keys, &bare[..=i]) {
+                found = true;
+                break;
+            }
+            keys.truncate(n);
+        }
+        if !found {
+            return None;
+        }
+        if is_vowel(ch) {
+            after_vowel = keys.len();
+        }
+    }
+    let tone = current_tone(target);
+    if tone == 0 {
+        return Some(keys);
+    }
+    let key = tone_key(method, tone)?;
+    for pos in [after_vowel, keys.len()] {
+        let mut trial = keys.clone();
+        trial.insert(pos, key);
+        if folds_to(&trial, target) {
+            return Some(trial);
+        }
+    }
+    None
 }
 
 /// Chuẩn hoá cặp `u`/`ư` + `ơ` sau khi fold (mọi kiểu gõ):
@@ -149,6 +274,87 @@ mod tests {
         assert_eq!(Method::SimpleTelex.as_str(), "simple_telex");
     }
 
+    /// R2-60: VNI/VIQR gõ dấu phụ **sau cả cụm nguyên âm** (thói quen gõ dấu cuối từ) phải
+    /// ra đúng vần, kể cả vần kết thúc bằng bán âm (`tôi`, `câu`, `người`, `rượu`, `lưu`).
+    /// Duyệt mọi vần có dấu phụ trong bảng vần × vài âm đầu/âm cuối.
+    #[test]
+    fn vni_viqr_marks_after_whole_cluster() {
+        use crate::transform::undo::unmark;
+        use crate::transform::vowel_table::{base_entry, form_like, locate};
+        use crate::validate::NUCLEI;
+        // (kiểu gõ, phím mũ, phím sừng, phím breve)
+        for (m, roof, hook, breve) in [(Method::Vni, '6', '7', '8'), (Method::Viqr, '^', '+', '(')]
+        {
+            let mut bad = Vec::new();
+            for nucleus in NUCLEI {
+                let mut base = String::new();
+                let mut marks = String::new();
+                for ch in nucleus.chars() {
+                    let (e, _) = locate(ch).expect("vần chỉ có nguyên âm");
+                    base.push(form_like(ch, base_entry(e), 0));
+                    let key = match ch {
+                        'â' | 'ê' | 'ô' => roof,
+                        'ơ' | 'ư' => hook,
+                        'ă' => breve,
+                        _ => continue,
+                    };
+                    // `ươ` chỉ cần một phím sừng (cặp `uo` — như `d9uo7ng2`).
+                    if !marks.ends_with(key) {
+                        marks.push(key);
+                    }
+                }
+                if marks.is_empty() {
+                    continue;
+                }
+                for onset in ["", "t", "ng"] {
+                    for coda in ["", "n"] {
+                        // `uơ` chỉ đứng cuối âm tiết (`thuở`), `ươ` luôn có âm cuối (`fix_uo`).
+                        if (nucleus == "uơ" && !coda.is_empty())
+                            || (nucleus == "ươ" && coda.is_empty())
+                        {
+                            continue;
+                        }
+                        let keys = format!("{onset}{base}{coda}{marks}");
+                        let want = format!("{onset}{nucleus}{coda}");
+                        let got: String = f(&keys, m).chars().map(unmark).collect();
+                        if got != want {
+                            bad.push(format!("{keys} → {got} (cần {want})"));
+                        }
+                    }
+                }
+            }
+            assert!(bad.is_empty(), "{m:?}: {}", bad.join(", "));
+        }
+        // Có dấu thanh gõ sau cùng (ca trong báo cáo R2-60).
+        for (keys, want) in [
+            ("toi6", "tôi"),
+            ("cau61", "cấu"),
+            ("moi71", "mới"),
+            ("gui73", "gửi"),
+            ("luu7", "lưu"),
+            ("nguoi72", "người"),
+            ("ruou75", "rượu"),
+            ("yeu61", "yếu"),
+            ("khuay61", "khuấy"),
+            ("giua74", "giữa"),
+        ] {
+            assert_eq!(f(keys, Method::Vni), want, "{keys}");
+        }
+        assert_eq!(f("toi^", Method::Viqr), "tôi");
+        assert_eq!(f("moi+'", Method::Viqr), "mới");
+        // Cụm không có dạng hợp lệ: giữ hành vi cũ (chỉ âm cuối, hoặc literal).
+        assert_eq!(f("ai6", Method::Vni), "ai6");
+        assert_eq!(
+            f("qui7", Method::Vni),
+            "qui7",
+            "`u` của `qu` không nhận sừng"
+        );
+        assert_eq!(f("oa6", Method::Vni), "oâ");
+        // Bấm lại marker trên cụm → gỡ dạng + literal (như `a66` → `a6`).
+        assert_eq!(f("toi66", Method::Vni), "toi6");
+        assert_eq!(f("mua77", Method::Vni), "mua7");
+    }
+
     /// Bảng sinh từ `data/tables/*.toml` phải **tự nhất quán** — `xtask check-tables`
     /// bắt được lệch với data, các test dưới bắt được lỗi trong chính data đó.
     #[test]
@@ -196,15 +402,17 @@ mod tests {
         }
     }
 
-    /// Simple Telex = Telex trừ `w`; mọi thứ khác phải giống hệt.
+    /// Simple Telex = Telex trừ phím `w` riêng (nuốt `ww`); bảng phím phải giống hệt —
+    /// kể cả bảng sừng `aw ow uw` (R2-61, UniKey `vneHookAll`).
     #[test]
     fn simple_telex_chia_bang_telex_tru_w() {
         use super::keys_generated as g;
         assert_eq!(g::simple_telex::TONE_KEYS, g::telex::TONE_KEYS);
         assert_eq!(g::simple_telex::CIRCUMFLEX, g::telex::CIRCUMFLEX);
+        assert_eq!(g::simple_telex::HORN, g::telex::HORN);
         assert_eq!(g::simple_telex::STROKE_KEY, g::telex::STROKE_KEY);
         assert!(g::telex::is_marker('w'));
-        assert!(!g::simple_telex::is_marker('w'));
+        assert!(g::simple_telex::is_marker('w'));
         // Không assert thẳng `W_MARKER` (clippy `assertions_on_constants`): so sánh
         // 2 hằng sinh từ data — nếu data đổi thành giống nhau thì test này bắt được.
         assert!(

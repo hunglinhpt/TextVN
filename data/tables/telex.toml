@@ -6,7 +6,6 @@
 #   * `w` sau a/o/u → ă/ơ/ư; bấm lại `w` → gỡ; `ww` → `w` (nuốt lặp khi không có âm đích).
 #   * cặp `uo` → `ư`+`ơ` (đọc từ phải sang trái trong `fold_with`).
 #   * `d` ngay trước âm viết (trừ `y`) → `đ`; `dd` → `đ`; `ddd` → `d`.
-#   * `iet` → `ê` (rule B1, ví dụ `viet` → `viêt`).
 
 [method]
 name = "telex"

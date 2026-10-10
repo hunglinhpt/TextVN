@@ -59,7 +59,7 @@ tuỳ chọn**; các hàng riêng của macOS (`Khởi động cùng OS`, `Gõ k
 | Gõ tắt... | `config.macros[]`, `config.macro_trigger` (`tab`/`space`) | trống, Tab |
 | Từ điển EN... | `config.english_words[]` (chuẩn hoá trim/lowercase/a–z/dedupe — CÙNG quy tắc 3 nền tảng) | trống |
 
-File: Windows `%APPDATA%\TextVN\`, Linux `$XDG_CONFIG_HOME/TextVN/` (mặc định `~/.config/TextVN/`).
+File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`, Linux `$XDG_CONFIG_HOME/TextVN/` (mặc định `~/.config/TextVN/`).
 
 ## 3. Hành vi chung
 

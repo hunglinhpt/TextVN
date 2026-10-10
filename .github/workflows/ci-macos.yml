@@ -89,6 +89,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: bash -n (cú pháp bash của mọi script macOS)
         run: |
@@ -175,6 +177,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain + mac targets (MAC-001)
         run: |
@@ -206,6 +210,8 @@ jobs:
             rust_target: x86_64-apple-darwin
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain (lib link cho swift test)
         run: rustup target add ${{ matrix.rust_target }}
@@ -266,8 +272,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           components: rustfmt
       - name: gen-tables + corpus check (nguồn không được lệch)
@@ -292,6 +300,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Rust targets
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - name: Build bundles and package

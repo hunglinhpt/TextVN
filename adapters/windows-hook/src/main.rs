@@ -10,7 +10,6 @@
 #[cfg(windows)]
 mod hook_app {
     use std::cell::RefCell;
-    use std::fs::OpenOptions;
     use std::io::{Read, Write};
     use std::path::Path;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -70,10 +69,8 @@ mod hook_app {
         std::thread::spawn(|| {
             use std::io::Write;
             use textvn_ipc::{encode_frame, Message};
-            if let Ok(mut stream) = std::fs::OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\textvn-ipc-v1")
+            if let Ok(mut stream) =
+                textvn_ipc::pipe_client_options().open(r"\\.\pipe\textvn-ipc-v1")
             {
                 let msg = Message::ToggleGlobal;
                 if let Ok(frame) = encode_frame(&msg) {
@@ -277,9 +274,14 @@ mod hook_app {
         }
         let mods = get_active_modifiers();
 
-        // 3. Chord hệ thống (Ctrl, Alt, Win) -> PASS lập tức (B6)
+        // 3. Chord hệ thống (Ctrl, Alt, Win) -> PASS lập tức (B6). Ctrl+←, Ctrl+Z,
+        // Ctrl+V, Alt+Tab… đổi con trỏ/text mà engine không thấy: bỏ từ đang gõ (trừ
+        // khi chính phím này là modifier — Ctrl+Shift giữa từ không được mất từ).
         let system_chord = (mods & (0x2 | 0x4 | 0x8)) != 0;
         if system_chord {
+            if !is_modifier_vk(vk) {
+                reset_hook_engine();
+            }
             return CallNextHookEx(None, code, wparam, lparam);
         }
 
@@ -306,6 +308,9 @@ mod hook_app {
             // Cập nhật foreground app nếu cửa sổ đổi
             let fg_hwnd = GetForegroundWindow();
             if fg_hwnd != ctx.current_hwnd {
+                // Từ đang gõ thuộc cửa sổ cũ: giữ lại thì phím dấu đầu tiên ở cửa
+                // sổ mới gửi Backspace xoá chữ của cửa sổ mới.
+                ctx.engine.reset();
                 ctx.current_hwnd = fg_hwnd;
                 ctx.current_app_id = get_process_name_for_window(fg_hwnd);
                 let gen = ctx.state.begin_focus(&ctx.current_app_id, 0);
@@ -360,13 +365,43 @@ mod hook_app {
         // 4. Nếu engine yêu cầu thay đổi ký tự -> nuốt phím gốc (return 1) và thực hiện inject
         if let Some(res) = outcome_to_inject {
             // Chỉ nuốt key gốc sau khi SendInput xác nhận đã gửi đủ event.
-            // Nếu inject bị UIPI/partial failure, forward key gốc thay vì mất text.
+            // Nếu inject bị UIPI/partial failure, forward key gốc thay vì mất text —
+            // và engine phải quên từ: nó đã tính như thể REPLACE đã tới app.
             if inject_engine_result(&res) {
                 return LRESULT(1);
             }
+            reset_hook_engine();
         }
 
         CallNextHookEx(None, code, wparam, lparam)
+    }
+
+    fn reset_hook_engine() {
+        HOOK_CTX.with(|cell| {
+            if let Ok(mut borrow) = cell.try_borrow_mut() {
+                if let Some(ctx) = borrow.as_mut() {
+                    ctx.engine.reset();
+                }
+            }
+        });
+    }
+
+    fn is_modifier_vk(vk: u32) -> bool {
+        matches!(
+            VIRTUAL_KEY(vk as u16),
+            VK_SHIFT
+                | VK_LSHIFT
+                | VK_RSHIFT
+                | VK_CONTROL
+                | VK_LCONTROL
+                | VK_RCONTROL
+                | VK_MENU
+                | VK_LMENU
+                | VK_RMENU
+                | VK_LWIN
+                | VK_RWIN
+                | VK_CAPITAL
+        )
     }
 
     /// Bơm phím thay thế qua SendInput với loop guard an toàn (WIN-042).
@@ -605,9 +640,7 @@ mod hook_app {
         let pid = std::process::id();
         let mut last_tray_contact = Instant::now();
         while running.load(Ordering::Acquire) {
-            let stream_opt = OpenOptions::new()
-                .read(true)
-                .write(true)
+            let stream_opt = textvn_ipc::pipe_client_options()
                 .open(r"\\.\pipe\textvn-ipc-v1")
                 .ok();
 

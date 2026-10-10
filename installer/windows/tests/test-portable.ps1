@@ -31,6 +31,13 @@ foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'textvn-tsf-x
 }
 Write-Host "PASS zip layout ($dir)"
 
+# R2-40: ban portable danh Ctrl + Shift o lan chay dau va ghi gia tri cu vao marker;
+# uninstall.ps1 phai tra lai DUNG gia tri do. Dat Windows ve mac dinh (Ctrl+Shift = '2').
+$toggle = 'HKCU:\Keyboard Layout\Toggle'
+if (-not (Test-Path $toggle)) { New-Item -Path $toggle -Force | Out-Null }
+Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
+Remove-Item -LiteralPath (Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied') -Force -ErrorAction SilentlyContinue
+
 # Nhan dup TextVN.exe: tray tu dang ky TIP tro vao DLL trong thu muc giai nen.
 Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -WorkingDirectory $dir | Out-Null
 $registered = $false
@@ -41,6 +48,8 @@ for ($i = 0; $i -lt 40 -and -not $registered; $i++) {
 }
 if (-not $registered) { throw 'TextVN.exe did not register the TSF TIP from the extracted folder' }
 Write-Host 'PASS TextVN.exe registered TSF from the extracted folder'
+$layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
+if ($layout -ne '3') { throw "portable first run did not reserve Ctrl+Shift (Layout Hotkey='$layout')" }
 
 # Release test-typing.ps1 owns its own tray instance; do not attach to this one.
 & (Join-Path $dir 'TextVN.exe') --stop | Out-Null
@@ -52,9 +61,24 @@ if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) {
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $dir
 
+# R2-16: ZIP khong co thu muc goc - nguoi dung "Extract here" vao Downloads thi
+# thu muc chua ca file cua ho. uninstall.ps1 chi duoc xoa file TextVN biet ten.
+$userFile = Join-Path $dir 'tai-lieu-cua-nguoi-dung.txt'
+$userSub = Join-Path $dir 'thu-muc-rieng'
+Set-Content -LiteralPath $userFile -Value 'khong duoc xoa'
+New-Item -ItemType Directory -Path $userSub | Out-Null
+Set-Content -LiteralPath (Join-Path $userSub 'anh.txt') -Value 'khong duoc xoa'
+
 # Go dang ky nhu nguoi dung (uninstall.ps1 trong zip).
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir 'uninstall.ps1')
 Start-Sleep -Seconds 1
+if (-not (Test-Path -LiteralPath $userFile)) { throw 'uninstall.ps1 deleted a user file next to TextVN (R2-16)' }
+if (-not (Test-Path -LiteralPath (Join-Path $userSub 'anh.txt'))) { throw 'uninstall.ps1 deleted a user folder next to TextVN (R2-16)' }
+if (Test-Path -LiteralPath (Join-Path $dir 'textvn-cli.exe')) { throw 'uninstall.ps1 left textvn-cli.exe behind' }
+Write-Host 'PASS portable uninstall keeps unrelated user files'
+$layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
+if ($layout -ne '2') { throw "uninstall.ps1 did not give Ctrl+Shift back (Layout Hotkey='$layout', expected '2' as before)" }
+Write-Host 'PASS portable uninstall restored the Windows Ctrl+Shift hotkey to its previous value (R2-40)'
 if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) { throw 'tray still running after uninstall.ps1' }
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall.ps1' }
 if (-not (Test-Path (Join-Path $env:APPDATA 'TextVN'))) { throw 'user config was not kept' }

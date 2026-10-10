@@ -259,13 +259,16 @@ impl Matcher {
         if let Some(clauses) = &self.any {
             return clauses.iter().any(|clause| clause.matches(app_id));
         }
-        MatchClause {
-            exe: self.exe.clone(),
-            bundle: self.bundle.clone(),
-            class_name: self.class_name.clone(),
-            and_subprocess: None,
-        }
-        .matches(app_id)
+        // Không dựng `MatchClause` tạm: lookup chạy trên đường phím (mac/Linux gọi
+        // `ime_strategy_resolve` mỗi key) — clone 3 `String` mỗi entry là alloc thừa.
+        id_matches(
+            [
+                self.exe.as_deref(),
+                self.bundle.as_deref(),
+                self.class_name.as_deref(),
+            ],
+            app_id,
+        )
     }
 }
 
@@ -279,15 +282,22 @@ impl MatchClause {
     }
 
     fn matches(&self, app_id: &str) -> bool {
-        [
-            self.exe.as_deref(),
-            self.bundle.as_deref(),
-            self.class_name.as_deref(),
-        ]
+        id_matches(
+            [
+                self.exe.as_deref(),
+                self.bundle.as_deref(),
+                self.class_name.as_deref(),
+            ],
+            app_id,
+        )
+    }
+}
+
+fn id_matches(candidates: [Option<&str>; 3], app_id: &str) -> bool {
+    candidates
         .into_iter()
         .flatten()
         .any(|candidate| candidate.eq_ignore_ascii_case(app_id))
-    }
 }
 
 fn parse_strategy(value: &str) -> Result<Strategy, AppDbError> {

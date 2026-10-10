@@ -56,7 +56,7 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
     } else if keys::BREVE.iter().any(|&(k, _, _)| k == c) {
         mark_vowel(out, c, &keys::BREVE);
     } else if is_plain_d(c) && c == keys::STROKE_KEY {
-        // dd → đ, ddd → d (STROKE_DOUBLE = true cho VIQR)
+        // dd → đ, ddd → dd: gỡ + gõ chữ `d` như Telex (R2-63; STROKE_DOUBLE = true cho VIQR)
         if let Some(&last) = out.last() {
             if is_plain_d(last) {
                 let idx = out.len() - 1;
@@ -66,6 +66,7 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
             if is_stroke(last) {
                 let idx = out.len() - 1;
                 out[idx] = to_plain(last);
+                out.push(c);
                 return;
             }
         }
@@ -115,7 +116,7 @@ mod tests {
     #[test]
     fn stroke_dd() {
         assert_eq!(n("dd"), "đ");
-        assert_eq!(n("ddd"), "d");
+        assert_eq!(n("ddd"), "dd");
     }
 
     #[test]

@@ -102,6 +102,7 @@ fn usage() -> &'static str {
      cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
+     cargo xtask preflight        # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
      cargo xtask help\n"
 }
 
@@ -628,7 +629,7 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
         "//! Nguồn: `data/tables/{{telex,simple_telex,vni,viqr}}.toml`\n\
          //!   (digest FNV-1a 64 = `0x{digest_all:016x}`; bảng âm = `0x{digest_v:016x}`).\n\
          //!\n\
-         //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`, `iet`…)\n\
+         //! Mỗi kiểu gõ là 1 `mod`. Hành vi **thuật toán** (undo marker, cụm `uo`…)\n\
          //! vẫn nằm trong `method/telex.rs`, `vni.rs`, `viqr.rs` — bảng ở đây chỉ mô tả phần bảng.\n\n"
     ));
     s.push('\n');
@@ -714,7 +715,7 @@ fn render_keys(vowels: &[Vowel], methods: &[Method], digest_v: u64, digest_all: 
             None => s.push_str("    /// Kiểu gõ này không có phím gỡ riêng dấu thanh.\n    pub const TONE_REMOVE_KEY: Option<char> = None;\n"),
         }
         s.push_str(&format!(
-            "    /// `true` = `w` là marker sừng (Telex); `false` = `w` là chữ thường (Simple Telex).\n    pub const W_MARKER: bool = {};\n",
+            "    /// `true` = `w` là phím riêng của Telex: không có âm nhận sừng thì nuốt `w` lặp (`ww` → `w`).\n    /// `false` = Simple Telex (`w` chỉ là dấu sừng, như UniKey `vneHookAll`), VNI, VIQR.\n    pub const W_MARKER: bool = {};\n",
             m.w_marker
         ));
         s.push_str("    /// Key này có phải **marker** (một phần của từ, không phải ranh giới)?\n");

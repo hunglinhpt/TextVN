@@ -115,15 +115,19 @@ if (-not $SigningRequested) {
 $ReleaseChecks = [ordered]@{}
 $FeatureProfile = if ($IncludeCompatibilityHook) { "tsf-plus-legacy-hook" } else { "tsf-only" }
 
-# Kiem tra rust target
-Write-Step "Check Rust target $Target"
+# Kiem tra rust target - ca i686 cho TIP DLL x86 (Vong 14): thieu target nay
+# thi buoc build x86 phia duoi moi fail, sau khi da chay het test/clippy.
+$TargetX86 = "i686-pc-windows-msvc"
+Write-Step "Check Rust targets $Target, $TargetX86"
 $installedTargets = rustup target list --installed 2>&1
-if ($installedTargets -notcontains $Target) {
-    Write-Warn "Target $Target chua cai - dang cai..."
-    rustup target add $Target
-    if ($LASTEXITCODE -ne 0) { Write-Fail "rustup target add FAIL" }
+foreach ($t in @($Target, $TargetX86)) {
+    if ($installedTargets -notcontains $t) {
+        Write-Warn "Target $t chua cai - dang cai..."
+        rustup target add $t
+        if ($LASTEXITCODE -ne 0) { Write-Fail "rustup target add $t FAIL" }
+    }
+    Write-Ok "Target $t OK"
 }
-Write-Ok "Target $Target OK"
 
 # Release gate: moi build deu chay cac kiem tra tinh, ABI va corpus. `-SkipTests`
 # chi bo test workspace de ho tro chan doan cuc bo; artifact van la candidate.
@@ -165,34 +169,70 @@ if (-not $SkipTests) {
 
 # Build release
 Write-Step "Build release --workspace --target $Target"
-cargo build --release @CargoWorkspaceScope --target $Target
+cargo build --release --locked @CargoWorkspaceScope --target $Target
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build release FAIL" }
 
 # Vong 14 (Zalo 32-bit): build them TIP DLL x86 - app 32-bit (Zalo, Office x86) khong the nap DLL 64-bit (ERROR_BAD_EXE_FORMAT 193). CRT tinh (khong
 # phu thuoc VC redist x86 tren may nguoi dung).
 Write-Step "Build TIP DLL x86 (WOW64: Zalo/Office 32-bit)"
 $env:RUSTFLAGS = "-C target-feature=+crt-static"
-cargo build --release --target i686-pc-windows-msvc -p textvn-win-tsf
+cargo build --release --locked --target $TargetX86 -p textvn-win-tsf
 if ($LASTEXITCODE -ne 0) { Write-Fail "cargo build x86 TIP FAIL" }
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
-$x86Dll = "target/i686-pc-windows-msvc/release/textvn_win_tsf.dll"
+$x86Dll = "target/$TargetX86/release/textvn_win_tsf.dll"
 if (-not (Test-Path $x86Dll)) { Write-Fail "x86 TIP DLL missing: $x86Dll" }
 # Gate: PE machine phai la I386 (0x014C)
 $peBytes = [System.IO.File]::ReadAllBytes($x86Dll)
 $peOff = [BitConverter]::ToInt32($peBytes, 0x3C)
 $machine = [BitConverter]::ToUInt16($peBytes, $peOff + 4)
-if ($machine -ne 0x014C) { Write-Fail "x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine }
-Copy-Item $x86Dll (Join-Path $ReleaseDir "textvn-tsf-x86.dll") -Force
+# Ngoac quanh -f: khong co thi "-f" bi truyen nhu tham so cho Write-Fail va
+# thong bao in nguyen chuoi "0x{0:X4}".
+if ($machine -ne 0x014C) { Write-Fail ("x86 TIP DLL wrong machine: 0x{0:X4}" -f $machine) }
+$x86Dst = Join-Path $ReleaseDir "textvn-tsf-x86.dll"
+# DLL x86 dang duoc TSF nap trong app 32-bit (Zalo/Office) - Windows tu choi
+# xoa file image-mapped; doi ten file cu (Windows CHO PHEP rename) roi copy (R2-88).
+# Ban .old-* khong vao goi: $BinFiles liet ke dich danh tung file.
+try {
+    Copy-Item $x86Dll $x86Dst -Force -ErrorAction Stop
+} catch {
+    if (Test-Path $x86Dst) {
+        $backup = "$x86Dst.old-$(Get-Date -Format 'yyyyMMddHHmmss')"
+        Rename-Item -LiteralPath $x86Dst -NewName (Split-Path $backup -Leaf) -Force
+        Copy-Item $x86Dll $x86Dst -Force
+        Write-Warn "x86 TIP DLL dang bi nap (app 32-bit dang mo) - da rename ban cu thanh .old-*"
+    } else {
+        Write-Fail "x86 TIP DLL copy FAIL: $_"
+    }
+}
 Write-Ok "x86 TIP DLL: textvn-tsf-x86.dll (I386, CRT static)"
 
 Write-Ok "Build release DONE"
 
+# R2-18: moi PE phat hanh phai link CRT tinh (.cargo/config.toml +crt-static) -
+# TIP DLL nap vao moi tien trinh, may thieu VC++ redist thi khong nap duoc.
+Write-Step "Check PE imports (khong phu thuoc VC++ runtime)"
+$PeFiles = @("$ReleaseDir\TextVN.exe", "$ReleaseDir\textvn-cli.exe", "$ReleaseDir\textvn_win_tsf.dll", "$ReleaseDir\textvn-tsf-x86.dll")
+if ($IncludeCompatibilityHook) { $PeFiles += "$ReleaseDir\textvn-hook.exe" }
+$py = Get-Command python -ErrorAction SilentlyContinue
+if ($null -eq $py) { $py = Get-Command python3 -ErrorAction SilentlyContinue }
+if ($null -eq $py) {
+    Write-Warn "python khong co - bo qua check-pe-imports (CI luon chay)"
+    $ReleaseChecks["pe_static_crt"] = "skipped"
+} else {
+    & $py.Source tools\win\check-pe-imports.py @PeFiles
+    if ($LASTEXITCODE -ne 0) { Write-Fail "PE con phu thuoc VC++ runtime (xem tren)" }
+    $ReleaseChecks["pe_static_crt"] = "passed"
+}
+
 # Ky tat ca PE file phan phoi truoc runtime smoke va truoc khi dong goi. Ky la
 # cach phat hanh chuan de xay dung reputation; khong co co che che giau binary.
+# Gom ca TIP DLL x86: no duoc nap vao moi tien trinh 32-bit (Zalo, Office x86)
+# nen thieu chu ky la DLL "la" duy nhat trong goi da ky (CR-36).
 $ReleaseSignFiles = @(
     "$ReleaseDir\TextVN.exe",
     "$ReleaseDir\textvn-cli.exe",
-    "$ReleaseDir\textvn_win_tsf.dll"
+    "$ReleaseDir\textvn_win_tsf.dll",
+    "$ReleaseDir\textvn-tsf-x86.dll"
 )
 if ($IncludeCompatibilityHook) { $ReleaseSignFiles += "$ReleaseDir\textvn-hook.exe" }
 if ($SigningRequested) {
@@ -211,9 +251,10 @@ if ($SigningRequested) {
     Write-Step "Sign release binaries with SignPath"
     foreach ($binary in $ReleaseSignFiles) {
         if (-not (Test-Path $binary)) { Write-Fail "Cannot sign missing binary: $binary" }
-        powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $binary
-        if ($LASTEXITCODE -ne 0) { Write-Fail "SignPath signing failed: $binary" }
     }
+    # R2-72: MOT signing request (ZIP, deep sign) cho ca bo binary = mot lan duyet.
+    powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File ($ReleaseSignFiles -join ',')
+    if ($LASTEXITCODE -ne 0) { Write-Fail "SignPath signing failed" }
     $ReleaseChecks["authenticode"] = "signpath"
 } else {
     $ReleaseChecks["authenticode"] = "not-signed"
@@ -358,10 +399,12 @@ foreach ($entry in $BinFiles) {
     $dst = "$ZipDir\$($entry.dst)"
     if (Test-Path $dst) {
         $vi = (Get-Item $dst).VersionInfo
-        if ($vi.CompanyName -eq "LinhBH.CoM") {
+        # R2-86: build.rs chi canh bao khi thieu rc.exe/rc loi -> binary mat VERSIONINFO
+        # va manifest nhung van "build xanh". Phat hanh thi bat buoc dung metadata.
+        if ($vi.CompanyName -eq "LinhBH.CoM" -and $vi.FileVersion -eq "$Version.0") {
             Write-Ok "$($entry.dst): CompanyName='$($vi.CompanyName)', Ver='$($vi.FileVersion)'"
         } else {
-            Write-Warn "$($entry.dst): CompanyName='$($vi.CompanyName)' (expected 'LinhBH.CoM')"
+            Write-Fail "$($entry.dst): CompanyName='$($vi.CompanyName)', FileVersion='$($vi.FileVersion)' (expected 'LinhBH.CoM', '$Version.0') - rc.exe thieu hoac loi?"
         }
     }
 }
@@ -444,6 +487,13 @@ if ($BuildInstaller) {
             if ($LASTEXITCODE -ne 0) { throw "ISCC (machine) failed with exit code $LASTEXITCODE" }
             $machineExe = "dist\TextVN-setup-$Version-windows-x64-machine.exe"
             if (-not (Test-Path $machineExe)) { throw "Machine installer output not found: $machineExe" }
+            # R2-17: ban -machine.exe la ban NOP STORE - phai ky giong ban per-user.
+            if ($SigningRequested) {
+                Sign-TextVNFile $signTool $SigningCertificateThumbprint $machineExe
+            } elseif ($env:SIGNPATH_API_TOKEN) {
+                powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $machineExe -Description "TextVN installer (machine)"
+                if ($LASTEXITCODE -ne 0) { throw "SignPath signing failed: $machineExe" }
+            }
             Write-Ok "Installer (machine/HKLM): $machineExe"
         }
     }

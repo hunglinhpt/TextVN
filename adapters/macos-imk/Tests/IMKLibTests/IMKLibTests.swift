@@ -367,6 +367,17 @@ final class IpcCodecTests: XCTestCase {
         // ToggleViEn: chiều client→server.
         let toggle = Data("{\"type\":\"ToggleViEn\",\"app_id\":\"*\",\"enabled\":true}".utf8)
         XCTAssertEqual(IpcMessage.decode(toggle), .toggleViEn(appID: "*", enabled: true))
+        // Snapshot: appdb_version SỐ (CR-34); chuỗi của app bản cũ vẫn nhận.
+        let snap = Data("{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{\"*\":true},\"appdb_version\":1,\"channel\":\"stable\"}".utf8)
+        XCTAssertEqual(
+            IpcMessage.decode(snap),
+            .snapshot(configVersion: 3, state: ["*": true], appdbVersion: "1", channel: "stable")
+        )
+        let oldSnap = Data("{\"type\":\"Snapshot\",\"config_version\":3,\"state\":{},\"appdb_version\":\"1.0\",\"channel\":\"stable\"}".utf8)
+        XCTAssertEqual(
+            IpcMessage.decode(oldSnap),
+            .snapshot(configVersion: 3, state: [:], appdbVersion: "1.0", channel: "stable")
+        )
     }
 
     func testDecodeRejectsMalformed() {
@@ -669,4 +680,214 @@ final class ViStateAndHotkeyTests: XCTestCase {
             TextVNInputController.effectiveStrategy(preedit, nonPreedit: false), .preedit)
     }
 }
-  
+
+// ---------------------------------------------------------------- B2 Enter/Tab
+
+/// Enter/Tab ở ranh giới: chốt từ, KHÔNG chèn "\n"/"\t" (app nhận phím thật — B2,
+/// như TSF/Linux). Gõ tắt (REPLACE) và ký tự in được giữ nguyên.
+final class NativeBoundaryTests: XCTestCase {
+    func testCommitAndRestoreDropEnterTab() {
+        let wordEnd = FFI.flagConsumed | FFI.flagWordEnd
+        let commit = KeyOutcome(action: .commit(insert: "\n"), flags: wordEnd)
+        XCTAssertEqual(
+            TextVNInputController.withoutNativeBoundary(commit),
+            KeyOutcome(action: .commit(insert: ""), flags: wordEnd)
+        )
+        let restore = KeyOutcome(action: .restore(deleteCount: 3, insert: "text\t"), flags: wordEnd)
+        XCTAssertEqual(
+            TextVNInputController.withoutNativeBoundary(restore),
+            KeyOutcome(action: .restore(deleteCount: 3, insert: "text"), flags: wordEnd)
+        )
+        let space = KeyOutcome(action: .commit(insert: " "), flags: wordEnd)
+        XCTAssertNil(TextVNInputController.withoutNativeBoundary(space))
+        let macro = KeyOutcome(
+            action: .replace(deleteCount: 3, insert: "Công ty", preedit: ""), flags: wordEnd
+        )
+        XCTAssertNil(TextVNInputController.withoutNativeBoundary(macro))
+    }
+}
+
+
+// ---------------------------------------------------------------- R2-43 strategy (FFI thật)
+
+/// Gọi `ime_strategy_resolve` THẬT (libtextvn_ffi.a) — corpus replay dùng strategy
+/// của chính engine nên không bắt được lỗi adapter truyền sai con trỏ appdb (R2-43).
+final class StrategyResolverTests: XCTestCase {
+    private let caps = TextVNInputController.imkCaps
+
+    private func resolve(
+        _ appdb: Data, _ appID: String, _ role: UInt32,
+        enabled: Bool = true, secure: Bool = false
+    ) -> (rc: Int32, strategy: Int64) {
+        StrategyResolver.resolve(
+            appdb: appdb, appID: appID, role: role, enabled: enabled, secure: secure, caps: caps
+        )
+    }
+
+    func testEmptyAppdbPassesNullAndResolvesFieldDefaults() {
+        // Data() rỗng có baseAddress KHÁC nil — phải đi đường NULL/0, không phải
+        // IME_ERR_CONFIG (bản cũ: mọi phím rc=-2 → luôn BackspaceType).
+        let editbox = resolve(Data(), "com.apple.textedit", FieldRole.editbox)
+        XCTAssertEqual(editbox.rc, FFI.ok)
+        XCTAssertEqual(editbox.strategy, OutputStrategy.preedit.rawValue)
+        let address = resolve(Data(), "com.apple.safari", FieldRole.addressBar)
+        XCTAssertEqual(address.rc, FFI.ok)
+        XCTAssertEqual(address.strategy, OutputStrategy.selectionReplace.rawValue, "B1")
+        XCTAssertEqual(
+            resolve(Data(), "com.apple.textedit", FieldRole.editbox, secure: true).strategy,
+            OutputStrategy.passthrough.rawValue, "S3")
+        XCTAssertEqual(
+            resolve(Data(), "com.apple.textedit", FieldRole.editbox, enabled: false).strategy,
+            OutputStrategy.passthrough.rawValue)
+    }
+
+    func testAppdbPresetWinsOverFieldDefault() {
+        let appdb = Data(#"""
+        {"appdb_version":1,"entries":[{"match":{"bundle":"com.microsoft.excel"},
+         "when":{"field_role":["editbox"]},"strategy":"SelectionReplace"}]}
+        """#.utf8)
+        XCTAssertEqual(
+            resolve(appdb, "com.microsoft.excel", FieldRole.editbox).strategy,
+            OutputStrategy.selectionReplace.rawValue)
+        XCTAssertEqual(
+            resolve(appdb, "com.apple.textedit", FieldRole.editbox).strategy,
+            OutputStrategy.preedit.rawValue)
+    }
+
+    func testCorruptAppdbFallsBackToFieldDefaults() {
+        let resolver = StrategyResolver(appdb: Data("not json".utf8), caps: caps)
+        XCTAssertEqual(
+            resolver.strategy(
+                appID: "com.apple.safari", role: FieldRole.addressBar, enabled: true, secure: false),
+            OutputStrategy.selectionReplace.rawValue)
+        XCTAssertFalse(resolver.hasAppdb, "appdb bị FFI từ chối thì bỏ hẳn (S4)")
+    }
+
+    func testCachesPerAppFieldAndState() {
+        let resolver = StrategyResolver(appdb: nil, caps: caps)
+        _ = resolver.strategy(appID: "com.apple.notes", role: FieldRole.body, enabled: true, secure: false)
+        _ = resolver.strategy(appID: "com.apple.notes", role: FieldRole.body, enabled: true, secure: false)
+        XCTAssertEqual(resolver.cacheCount, 1, "phím kế tiếp cùng app/field không gọi lại FFI")
+        XCTAssertEqual(
+            resolver.strategy(appID: "com.apple.notes", role: FieldRole.body, enabled: false, secure: false),
+            OutputStrategy.passthrough.rawValue)
+        XCTAssertEqual(resolver.cacheCount, 2)
+    }
+
+    /// `data/appdb.default.json` (build-macos.sh chép vào bundle IMK) parse được và
+    /// preset mac có hiệu lực.
+    func testRepoBundledAppdbResolvesMacPresets() throws {
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // IMKLibTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // macos-imk
+            .deletingLastPathComponent() // adapters
+            .deletingLastPathComponent() // gốc repo
+        let data = try Data(contentsOf: repo.appendingPathComponent("data/appdb.default.json"))
+        let resolver = StrategyResolver(appdb: data, caps: caps)
+        XCTAssertEqual(
+            resolver.strategy(
+                appID: "com.microsoft.excel", role: FieldRole.editbox, enabled: true, secure: false),
+            OutputStrategy.selectionReplace.rawValue, "mac.excel.cell (B1)")
+        XCTAssertEqual(
+            resolver.strategy(
+                appID: "com.apple.terminal", role: FieldRole.terminal, enabled: true, secure: false),
+            OutputStrategy.forwardAsCommit.rawValue)
+        XCTAssertTrue(resolver.hasAppdb, "appdb.default.json phải được FFI chấp nhận")
+    }
+
+    /// R2-49 + R2-43: strategy thật → cơ chế áp, theo `non_preedit` đọc từ config.
+    func testOutputStrategyHonorsNonPreeditFromConfig() {
+        XCTAssertEqual(TextVNInputController.outputStrategy(hint: -1, nonPreedit: false), .backspaceType)
+        let hint = StrategyResolver(appdb: nil, caps: caps).strategy(
+            appID: "com.apple.textedit", role: FieldRole.body, enabled: true, secure: false)
+        XCTAssertEqual(TextVNInputController.outputStrategy(hint: hint, nonPreedit: false), .preedit)
+        let on = TextVNInputController.configNonPreedit(in: Data(#"{"non_preedit":true}"#.utf8))
+        XCTAssertEqual(TextVNInputController.outputStrategy(hint: hint, nonPreedit: on), .backspaceType)
+        // Thiếu khoá → gạch chân (quyết định chủ repo, khớp ConfigModel + CHANGELOG 0.2.27).
+        let missing = TextVNInputController.configNonPreedit(in: Data("{}".utf8))
+        XCTAssertEqual(TextVNInputController.outputStrategy(hint: hint, nonPreedit: missing), .preedit)
+        XCTAssertEqual(
+            TextVNInputController.outputStrategy(
+                hint: OutputStrategy.selectionReplace.rawValue, nonPreedit: true),
+            .selectionReplace)
+    }
+}
+
+// ---------------------------------------------------------------- R2-44 bật/tắt khi offline
+
+final class EnableGatingTests: XCTestCase {
+    func testEngineConfigForcesEnabledAndKeepsOtherKeys() throws {
+        let out = TextVNInputController.engineConfig(Data(#"""
+        {"enabled":false,"method":"vni","macros":[{"trigger":"vn","expand":"Việt Nam"}]}
+        """#.utf8))
+        let parsed = try JSONSerialization.jsonObject(with: out)
+        let obj = try XCTUnwrap(parsed as? [String: Any])
+        XCTAssertEqual(obj["enabled"] as? Bool, true)
+        XCTAssertEqual(obj["method"] as? String, "vni")
+        XCTAssertEqual((obj["macros"] as? [[String: Any]])?.first?["expand"] as? String, "Việt Nam")
+        let junk = Data("not json".utf8)
+        XCTAssertEqual(TextVNInputController.engineConfig(junk), junk)
+    }
+
+    /// Engine THẬT: config.enabled=false nhưng toggle (ctx.enabled) bật phải gõ được.
+    func testToggleOnTypesVietnameseEvenIfConfigDisabled() throws {
+        let cfg = Data(#"{"config_version":1,"enabled":false,"method":"telex"}"#.utf8)
+        let gated = try ImeEngine(configJSON: cfg)
+        XCTAssertEqual(Self.typeWord("vieetj", engine: gated), "vieetj", "đối chứng: engine gate theo config")
+        let engine = try ImeEngine(configJSON: TextVNInputController.engineConfig(cfg))
+        XCTAssertEqual(Self.typeWord("vieetj", engine: engine), "việt")
+    }
+
+    /// Mô phỏng document dưới BackspaceType: PASS = app tự chèn phím.
+    static func typeWord(_ word: String, engine: ImeEngine) -> String {
+        engine.setContext(
+            enabled: true, secure: false, fieldRole: FieldRole.editbox,
+            caps: FFI.capFieldDetect | FFI.capSelection, appId: "com.apple.notes",
+            elementName: nil, hint: OutputStrategy.backspaceType.rawValue
+        )
+        var doc: [Unicode.Scalar] = []
+        for scalar in word.unicodeScalars {
+            let ch = scalar.value
+            let vk: UInt32 = (ch >= 0x61 && ch <= 0x7A) ? ch - 0x20 : ch
+            switch engine.key(KeyEvent(vk: vk, ch: ch, mods: 0, keyDown: true)).action {
+            case .pass:
+                doc.append(scalar)
+            case let .replace(deleteCount, insert, _):
+                doc.removeLast(min(deleteCount, doc.count))
+                doc.append(contentsOf: insert.unicodeScalars)
+            case let .restore(deleteCount, insert):
+                doc.removeLast(min(deleteCount, doc.count))
+                doc.append(contentsOf: insert.unicodeScalars)
+            case let .commit(insert):
+                doc.append(contentsOf: insert.unicodeScalars)
+            }
+        }
+        return String(String.UnicodeScalarView(doc))
+    }
+
+    func testViStateStoreSeedsOnceAndSharesToggle() {
+        let store = ViStateStore()
+        store.seedIfNeeded(globalEnabled: false)
+        store.seedIfNeeded(globalEnabled: true) // controller tạo sau đọc config cũ: không đè
+        XCTAssertFalse(store.state.globalEnabled)
+        XCTAssertTrue(store.toggleGlobal(online: true))
+        XCTAssertFalse(store.pendingGlobalSync)
+    }
+
+    func testOfflineToggleSurvivesSnapshotAndRequestsResync() {
+        let store = ViStateStore()
+        store.seedIfNeeded(globalEnabled: false)
+        XCTAssertTrue(store.toggleGlobal(online: false))
+        XCTAssertTrue(store.pendingGlobalSync)
+        // Snapshot đầu tiên sau khi TextVN.app chạy lại: "*" cũ KHÔNG đè toggle
+        // offline (caller gửi ToggleViEn), per-app vẫn áp.
+        XCTAssertTrue(store.applySnapshot(["*": false, "": false, "com.apple.safari": false]))
+        XCTAssertTrue(store.state.globalEnabled)
+        XCTAssertFalse(store.state.enabled(for: "com.apple.safari"))
+        XCTAssertFalse(store.pendingGlobalSync)
+        // Snapshot sau đó áp bình thường.
+        XCTAssertFalse(store.applySnapshot(["*": false]))
+        XCTAssertFalse(store.state.globalEnabled)
+    }
+}

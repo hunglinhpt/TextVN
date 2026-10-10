@@ -1,6 +1,6 @@
-# corpus/mac/imk_preedit_telex_undo_uww_17 — bấm lại w sau khi sừng → về gốc (uww→u) (P2-5 §2)
+# corpus/mac/imk_preedit_telex_undo_uww_17 — bấm lại w sau khi sừng → gỡ sừng + gõ chữ w (uww→uw, R2-63) (P2-5 §2)
 :config method=telex diacritic_style=new
 :app com.apple.textedit field=body
 
 :type "uww"
-:expect "u"
+:expect "uw"

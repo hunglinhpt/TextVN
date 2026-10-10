@@ -59,11 +59,11 @@
 :config method=telex
 :caps field_detect,inject_vk,selection     # adapter này có UIA + chọn vùng
 :app chrome.exe field=address_bar
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam"
+:expect "việt nam"
 
 # corpus/win/secure_field_passthrough.keys  (S3)
 :config method=telex

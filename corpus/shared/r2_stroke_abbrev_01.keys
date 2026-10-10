@@ -1,0 +1,12 @@
+# corpus/shared/r2_stroke_abbrev_01.keys — R2-58: `đ` trong token không nguyên âm (giá tiền,
+# chữ viết tắt) không bị auto-restore trả về `dd`.
+# oracle: x-unikey (processDd cho phép `dd` trong chuỗi không phải tiếng Việt) + spec R2-58
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "gias 50.000dd, DDT ddc dd/c DDHQG "
+:expect "giá 50.000đ, ĐT đc đ/c ĐHQG "
+# Có nguyên âm thì vẫn restore như cũ.
+:type "add "
+:expect "giá 50.000đ, ĐT đc đ/c ĐHQG add "
+:config method=vni
+:type "gia1 50.000d9 "
+:expect "giá 50.000đ, ĐT đc đ/c ĐHQG add giá 50.000đ "

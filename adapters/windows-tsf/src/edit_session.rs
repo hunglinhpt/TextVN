@@ -590,18 +590,29 @@ fn apply_display_attribute(ctx: &ITfContext, ec: u32, range: &ITfRange) {
         CLSID_TF_CategoryMgr, ITfCategoryMgr, GUID_PROP_ATTRIBUTE,
     };
 
+    thread_local! {
+        /// Atom của `DISPATTR_TEXTVN` — đăng ký MỘT lần mỗi thread UI (như SampleIME
+        /// lưu `_gaDisplayAttributeInput` lúc Activate) thay vì `CoCreateInstance` +
+        /// `RegisterGUID` ở mỗi phím. 0 = chưa đăng ký được (thử lại lần sau).
+        static ATOM: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    }
+    let mut atom = ATOM.with(|a| a.get());
     // SAFETY: COM đã khởi tạo; ctx và range hợp lệ trong edit session.
     unsafe {
-        if let Ok(cat) =
-            CoCreateInstance::<_, ITfCategoryMgr>(&CLSID_TF_CategoryMgr, None, CLSCTX_INPROC_SERVER)
-        {
-            if let Ok(atom) = cat.RegisterGUID(&DISPATTR_TEXTVN) {
-                if atom != 0 {
-                    if let Ok(prop) = ctx.GetProperty(&GUID_PROP_ATTRIBUTE) {
-                        let var = VARIANT::from(atom as i32);
-                        let _ = prop.SetValue(ec, range, &var);
-                    }
-                }
+        if atom == 0 {
+            if let Ok(cat) = CoCreateInstance::<_, ITfCategoryMgr>(
+                &CLSID_TF_CategoryMgr,
+                None,
+                CLSCTX_INPROC_SERVER,
+            ) {
+                atom = cat.RegisterGUID(&DISPATTR_TEXTVN).unwrap_or(0);
+                ATOM.with(|a| a.set(atom));
+            }
+        }
+        if atom != 0 {
+            if let Ok(prop) = ctx.GetProperty(&GUID_PROP_ATTRIBUTE) {
+                let var = VARIANT::from(atom as i32);
+                let _ = prop.SetValue(ec, range, &var);
             }
         }
     }

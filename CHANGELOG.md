@@ -7,6 +7,73 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Fixed — rà soát vòng 2: Microsoft Store, ký số, QA (chi tiết: `docs/release/code-review-2026-10-09-round2.md`)
+- **Microsoft Store (MSIX) chạy thật**: bản cài từ Store chép chương trình ra ngoài gói
+  (`%USERPROFILE%\.textvn`, `%LOCALAPPDATA%\Programs\TextVN-Store`) bằng tiến trình thoát
+  khỏi container rồi mới đăng ký bộ gõ — trước đây mọi ghi bị Windows ảo hoá nên app khác
+  không thấy TextVN. Gỡ gói Store thì lần đăng nhập kế dọn sạch đăng ký, mục khởi động,
+  Ctrl + Shift và file đã chép; Store cập nhật thì tự chép lại. Bản Store **hỏi** trước khi
+  dành Ctrl + Shift và không bao giờ xin quyền Administrator. CI cài thử gói thật mỗi lần.
+- Gói MSIX nộp được: Version `(A+1).B.C.0` (Partner Center từ chối số đầu 0), mô tả tiếng
+  Việt không còn lỗi mã hoá, ảnh 71×71 đúng, identity theo Partner Center
+  (`MSIX_IDENTITY_NAME`), `tools/win/verify-msix.py` kiểm gói trước khi nộp.
+- **Bảo mật Windows**: không còn đăng ký bộ gõ cho cả máy từ thư mục người dùng ghi được
+  (chỉ từ Program Files); gỡ bản portable chỉ xoá đúng file TextVN, không bao giờ xoá cả thư
+  mục; mọi binary link CRT tĩnh (không cần VC++ redist); bộ cài `-machine.exe` được ký khi
+  bật SignPath.
+- Windows: nâng cấp **giữ nguyên** kiểu gõ, tuỳ chọn và thiết lập theo app (trước đây bị
+  reset mỗi bản) và không làm mất kích hoạt bộ gõ; bản cài cho mọi người dùng tự đăng ký cho
+  từng tài khoản; menu "Bật tiếng Việt cho {app}" hiển thị đúng; "Từ điển EN" dùng Tab/Esc
+  được; "Kiem tra he thong" không đóng ngay; "Cài & bật TSF" không còn treo Bảng điều khiển.
+- Windows: bỏ "Dành Ctrl + Shift" thì TextVN không còn kéo bạn về TextVN mỗi khi Windows
+  đổi bàn phím; gỡ cài đặt (bộ cài, portable, Store) trả Ctrl + Shift về **đúng giá trị
+  trước đó** (cả phím đổi ngôn ngữ), không đụng lựa chọn bạn tự đặt.
+- Gõ tiếng Việt: auto-restore và Tab gợi ý không còn biến từ Việt thành tiếng Anh (`thí`,
+  `vơ`, `hót`, `có`+Tab); giữ `đ` trong `50.000đ`, `ĐT`, `đc`, `đ/c`.
+- **Backspace xoá ký tự cuối đang hiển thị** như UniKey (`tiếng`+⌫ → `tiến`; trước đây
+  hoàn tác phím cuối: `ass`+⌫ ra `á`, xoá `được` cần 8 lần ⌫).
+- Tự viết hoa chỉ ở đầu câu (`. ! ?` + khoảng trắng, hoặc Enter): `google.com`, `file.txt`,
+  `3.5 kg` không còn thành `google.Com`…
+- VNI/VIQR gõ dấu sau cả cụm nguyên âm ra đúng (`toi6` → tôi, `nguoi72` → người); Telex `w`
+  sau cụm nguyên âm đúng âm (`muaw` → mưa, `voiws` → với); Telex `w` đứng riêng → `ư`
+  (`nhw` → như) như UniKey; đổi qua lại giữa dấu mũ và móc (`toow` → tơ, `awa` → â); bấm phím
+  dấu lần ba gỡ dấu và gõ chữ đó (`xooong` → xoong); `d` gõ sau trong từ thành `đ` đầu từ
+  (`duocjwd` → được); VNI `0` chỉ gỡ dấu thanh; Telex đơn giản gõ được ă/ơ/ư bằng `aw/ow/uw`.
+- Không còn thêm dấu mũ tự động cho `iet` (`Viet`, `quiet` giữ nguyên); từ tiếng Anh như
+  `sort`, `keep`, `chart`, `using`, `music` không còn bị biến thành âm tiết không tồn tại.
+- Lưu ý: `w` + chữ số (`w3c`) nay ra `ư3c` như UniKey — bấm Escape để trả lại.
+- macOS: chọn cách chèn chữ theo app hoạt động trở lại (trước luôn rơi về một cách);
+  "Gõ không gạch chân" có hiệu lực ngay; Ctrl + Shift bật lại được khi TextVN.app không chạy;
+  gõ tắt cùng luật với Windows/Linux; gỡ bản cài cho mọi người dùng hỏi quyền quản trị; ký
+  Developer ID + notarize tự chạy khi có chứng chỉ Apple.
+- Linux: Fcitx5 luôn thấy addon gốc của nó; IBus chạy được khi đường dẫn cài có khoảng
+  trắng; `sudo ./install.sh --system` không đụng thiết lập của người dùng; cửa sổ Cài đặt
+  GTK không còn mất cửa sổ Từ điển EN.
+- Phát hành: ký GPG + Sigstore **bắt buộc** trong CI (thiếu khoá thì dừng); SignPath dùng
+  đúng REST API, một lần duyệt cho cả bộ binary; cask Homebrew đúng sha; build `--locked`;
+  thiếu VERSIONINFO thì build fail; release notes nói đúng trạng thái ký số.
+
+### Fixed — rà soát mã nguồn chuyên sâu 2026-10-07 (chi tiết: `docs/release/code-review-2026-10-07.md`)
+- **Mất chữ (P0)**: giữ phím lặp sau từ có dấu (`đẹppppp…`, > 64 phím) từng làm phím
+  kế tiếp xoá lẹm chữ phía trước — engine giờ đóng từ khi chạm giới hạn, FFI từ chối
+  thay vì cắt kết quả (CR-01/02). macOS: self-heal con trỏ chạy trước engine (CR-28).
+- Phím tắt Ctrl/Alt/Cmd giữa từ không còn để phím kế tiếp sửa nhầm từ ở chỗ khác
+  (engine, hook Windows, macOS — CR-04/13/29); macOS: Enter/Tab sau từ có dấu gửi đúng
+  phím thật (Messages/Slack gửi tin, Tab chuyển ô — CR-30), phím điều hướng không chèn
+  ký tự điều khiển (CR-31).
+- Ô mật khẩu (role secure) luôn đi thẳng kể cả khi app quên cờ secure (CR-06).
+- Windows: pipe client không cho server giả mạo impersonate (CR-09); tray không còn
+  chiếm lại Ctrl + Shift mỗi lần khởi động (CR-17); gói chẩn đoán không chứa gõ tắt/từ
+  điển của người dùng (CR-21); bộ cài thay/gỡ được `textvn-tsf-x86.dll` khi app 32-bit
+  đang mở và dọn đúng file `.old-*` (CR-37); DLL x86 được ký cùng các binary khác (CR-36).
+- Linux: client IPC không còn SIGPIPE làm sập ibus-daemon/fcitx5, không mất frame
+  nhận dở dang (CR-24/25).
+- macOS: lưu cài đặt không còn xoá danh sách emoji và trường `when` của gõ tắt (CR-33).
+- Hướng dẫn kiểm chữ ký phát hành (`docs/release/signing.md`) dùng đúng tên `.asc` và
+  workflow `release.yml` (CR-39).
+
 ## [0.2.27] — 2026-10-07
 
 ### Added (macOS) — toggle "Gõ không gạch chân" được tôn trọng (BUG-05, vòng 15)

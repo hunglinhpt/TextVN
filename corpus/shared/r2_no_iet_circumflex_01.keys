@@ -1,0 +1,10 @@
+# corpus/shared/r2_no_iet_circumflex_01.keys — R2-64: không tự thêm mũ cho `iet` mà người gõ không
+# gõ (`Viet` → `Viêt`, `KIET` → `KIÊT`). Muốn `ê` thì gõ `ee` như mọi bộ gõ Telex.
+# oracle: UniKey/OpenKey không có luật `iet` (ví dụ B1 `viet`→`viêt` của P0-4 chỉ là minh hoạ).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=false
+:type "Viet"
+:expect "Viet"
+:type ", NGUYEN VAN KIET, Le Anh Kiet, diet quiet "
+:expect "Viet, NGUYEN VAN KIET, Le Anh Kiet, diet quiet "
+:type "vieetj tieets "
+:expect "Viet, NGUYEN VAN KIET, Le Anh Kiet, diet quiet việt tiết "

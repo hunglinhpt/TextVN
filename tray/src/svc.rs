@@ -35,6 +35,8 @@ pub struct SvcManager {
     state_version: AtomicU64,
     /// Đổi phiên bản lúc khởi động này → đăng ký TSF được unregister+register lại.
     version_migrated: std::sync::atomic::AtomicBool,
+    /// Tray chưa từng chạy cho tài khoản này (chưa có `state.json`).
+    first_run: bool,
 }
 
 impl SvcManager {
@@ -47,13 +49,16 @@ impl SvcManager {
         // Đọc qua SettingsDoc: file hỏng không bị ghi đè mất mà được sao lưu `.bak` ở lần
         // lưu đầu; khoá lạ (hotkeys, …) được giữ nguyên khi tray ghi lại.
         let mut doc = SettingsDoc::load(&config_file, DocKind::Config);
-        let mut initial_config = textvn_config::parse_config(&doc.to_json()).unwrap_or_default();
+        let initial_config = textvn_config::parse_config(&doc.to_json()).unwrap_or_default();
         if !config_file.exists() || doc.was_corrupt() {
             doc.merge_config(&initial_config);
             let _ = doc.save(&config_file);
         }
 
         let state_file = dir.join("state.json");
+        // R2-25: lần đầu tray chạy cho TÀI KHOẢN này (bản cài cho mọi người dùng tự khởi
+        // động qua HKLM Run ở tài khoản khác) → caller đăng ký TSF per-user một lần.
+        let first_run = !state_file.exists();
         let mut initial_state = if state_file.exists() {
             fs::read_to_string(&state_file)
                 .ok()
@@ -75,30 +80,15 @@ impl SvcManager {
             default_state
         };
 
-        // ---- Migration nâng cấp phiên bản (0.2.10) ----
-        // Đổi phiên bản = dọn dữ liệu cũ có thể "ảnh hưởng app mới": state per-app
-        // overrides, tuỳ chọn lệch schema cũ. GIỮ nội dung người dùng: từ điển EN
-        // (`english_words`), gõ tắt (`macros`), emoji. Đăng ký TSF được
-        // unregister+register lại bởi caller qua `version_migrated()`.
+        // ---- Nâng cấp phiên bản ----
+        // CR-20/R2-33: bản 0.2.10–0.2.27 reset MỌI tuỳ chọn gõ (kiểu gõ, bảng mã…) và
+        // override theo app ở MỖI lần cập nhật — người dùng VNI phải chọn lại sau mỗi bản.
+        // Lệch schema đã được `parse_config` (giá trị thiếu/lạ → mặc định) và SettingsDoc
+        // (giữ khoá lạ, sao lưu file hỏng) xử lý, nên nâng cấp GIỮ NGUYÊN lựa chọn của
+        // người dùng; chỉ nhãn phiên bản đổi. Đăng ký TSF chỉ ghi lại nếu đã lệch.
         let current_version = env!("CARGO_PKG_VERSION");
         let version_migrated =
             !initial_state.last_version.is_empty() && initial_state.last_version != current_version;
-        if version_migrated {
-            let english_words = std::mem::take(&mut initial_config.english_words);
-            let macros = std::mem::take(&mut initial_config.macros);
-            let emoji = std::mem::take(&mut initial_config.emoji);
-            initial_config = Config::default();
-            initial_config.english_words = english_words;
-            initial_config.macros = macros;
-            initial_config.emoji = emoji;
-            // Persist config đã reset (cùng đường SettingsDoc như lần lưu đầu).
-            let mut doc = SettingsDoc::load(&config_file, DocKind::Config);
-            doc.merge_config(&initial_config);
-            let _ = doc.save(&config_file);
-
-            initial_state.global_enabled = true;
-            initial_state.apps.clear();
-        }
         initial_state.last_version = current_version.to_string();
         {
             // Ghi lại state (nhãn phiên bản mới + state reset) một cách atomic.
@@ -111,13 +101,22 @@ impl SvcManager {
             config_dir: dir,
             config: RwLock::new(initial_config),
             state: RwLock::new(initial_state),
-            config_version: AtomicU64::new(1),
-            state_version: AtomicU64::new(1),
+            // R2-31: khởi đầu duy nhất cho MỖI lần tray chạy (TIP chỉ so khác/bằng) —
+            // bắt đầu lại từ 1 thì app chạy lâu (TIP giữ version cũ = 1..n) sau khi tray
+            // khởi động lại có thể thấy "trùng version" và bỏ lỡ thay đổi cấu hình.
+            config_version: AtomicU64::new(session_version_seed()),
+            state_version: AtomicU64::new(session_version_seed()),
             version_migrated: std::sync::atomic::AtomicBool::new(version_migrated),
+            first_run,
         })
     }
 
-    /// Đổi phiên bản lúc khởi động này → caller phải unregister+register TSF lại.
+    /// Lần đầu tray chạy cho tài khoản này (R2-25).
+    pub fn first_run(&self) -> bool {
+        self.first_run
+    }
+
+    /// Đổi phiên bản lúc khởi động này (chỉ để log/chẩn đoán — tuỳ chọn được giữ).
     pub fn version_migrated(&self) -> bool {
         self.version_migrated.load(Ordering::Acquire)
     }
@@ -136,6 +135,27 @@ impl SvcManager {
 
     pub fn is_global_enabled(&self) -> bool {
         self.state.read().unwrap().global_enabled
+    }
+
+    /// R2-28: trạng thái HIỆU LỰC của app — đúng luật TIP (`adapters/windows-tsf`
+    /// `ipc_client::is_enabled`): toàn cục AND override (thiếu override = bật). Override
+    /// chỉ TẮT riêng được một app; toàn cục đang E thì app nào cũng gõ tiếng Anh.
+    pub fn effective_app_enabled(&self, app_id: &str) -> bool {
+        let st = self.state.read().unwrap();
+        effective_enabled(
+            st.global_enabled,
+            st.apps.get(&app_id.to_lowercase()).copied(),
+        )
+    }
+
+    /// Override riêng của app (`None` = theo toàn cục).
+    pub fn app_override(&self, app_id: &str) -> Option<bool> {
+        self.state
+            .read()
+            .unwrap()
+            .apps
+            .get(&app_id.to_lowercase())
+            .copied()
     }
 
     pub fn is_app_enabled(&self, app_id: &str) -> bool {
@@ -327,8 +347,33 @@ fn atomic_write_file(path: &Path, content: &[u8]) -> std::io::Result<()> {
     textvn_config::doc::atomic_write(path, content)
 }
 
+/// Luật gõ tiếng Việt của TIP cho một app: toàn cục AND override (thiếu = bật).
+pub fn effective_enabled(global: bool, app_override: Option<bool>) -> bool {
+    global && app_override.unwrap_or(true)
+}
+
+/// Hạt giống version theo phiên tray: mili-giây Unix (≥ 1) — luôn khác các version một
+/// phiên trước đã phát (đếm từ hạt giống của phiên đó lên vài nghìn).
+fn session_version_seed() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(1)
+        .max(1)
+}
+
 #[cfg(test)]
 mod tests {
+    /// R2-28: menu khay phải hiển thị đúng cái TIP làm — 4 tổ hợp toàn cục × override.
+    #[test]
+    fn effective_enabled_matches_tip_rule() {
+        assert!(super::effective_enabled(true, None));
+        assert!(super::effective_enabled(true, Some(true)));
+        assert!(!super::effective_enabled(true, Some(false)));
+        assert!(!super::effective_enabled(false, None));
+        assert!(!super::effective_enabled(false, Some(true)));
+        assert!(!super::effective_enabled(false, Some(false)));
+    }
 
     fn seed_upgrade_env(dir: &std::path::Path) {
         // config "phiên bản cũ": method Vni + từ điển user + gõ tắt user
@@ -342,28 +387,23 @@ mod tests {
         let _ = std::fs::write(dir.join("state.json"), st);
     }
 
-    /// Migration nâng cấp: reset tuỳ chọn về mặc định, GIỮ từ điển EN + gõ tắt,
-    /// xoá per-app overrides, bật lại global, ghi nhãn phiên bản mới.
+    /// CR-20/R2-33: nâng cấp phiên bản GIỮ NGUYÊN mọi lựa chọn của người dùng (kiểu gõ,
+    /// tuỳ chọn, từ điển EN, gõ tắt, bật/tắt toàn cục, override theo app) — chỉ đổi nhãn
+    /// phiên bản. Bản 0.2.10–0.2.27 reset tuỳ chọn ở mỗi lần cập nhật.
     #[test]
-    fn version_change_migrates_and_preserves_user_content() {
+    fn version_change_keeps_user_choices() {
         let dir = std::env::temp_dir().join(format!("textvn_mig_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         seed_upgrade_env(&dir);
 
         let svc = SvcManager::new(Some(dir.clone()));
-        assert!(
-            svc.version_migrated(),
-            "đổi phiên bản phải kích hoạt migration"
-        );
+        assert!(svc.version_migrated(), "đổi phiên bản phải được nhận ra");
+        assert!(!svc.first_run(), "đã có state.json → không phải lần đầu");
 
         let cfg = svc.config();
-        assert_eq!(
-            cfg.method,
-            Method::Telex,
-            "method cũ phải reset về mặc định"
-        );
-        assert!(cfg.auto_restore_english, "tuỳ chọn phải reset về mặc định");
+        assert_eq!(cfg.method, Method::Vni, "kiểu gõ người dùng chọn phải GIỮ");
+        assert!(!cfg.auto_restore_english, "tuỳ chọn người dùng phải GIỮ");
         assert_eq!(
             cfg.english_words,
             vec!["cowork".to_string(), "list".to_string()],
@@ -372,14 +412,29 @@ mod tests {
         assert_eq!(cfg.macros.len(), 1, "gõ tắt user thêm phải GIỮ");
 
         let st = svc.state.read().unwrap();
-        assert!(st.global_enabled, "global phải bật lại");
-        assert!(st.apps.is_empty(), "per-app overrides phải xoá");
+        assert!(!st.global_enabled, "bật/tắt toàn cục phải GIỮ");
+        assert_eq!(
+            st.apps.get("notepad.exe"),
+            Some(&false),
+            "override app phải GIỮ"
+        );
         assert_eq!(st.last_version, env!("CARGO_PKG_VERSION"));
         drop(st);
 
         // state.json trên đĩa cũng có nhãn mới
         let on_disk = std::fs::read_to_string(dir.join("state.json")).unwrap();
         assert!(on_disk.contains(env!("CARGO_PKG_VERSION")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// R2-25: chưa có state.json = lần đầu tray chạy cho tài khoản này.
+    #[test]
+    fn first_run_detected_only_without_state_file() {
+        let dir = std::env::temp_dir().join(format!("textvn_first_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(SvcManager::new(Some(dir.clone())).first_run());
+        assert!(!SvcManager::new(Some(dir.clone())).first_run());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -411,12 +466,14 @@ mod tests {
         let svc = SvcManager::new(Some(temp_dir.clone()));
 
         assert!(svc.is_global_enabled());
+        // Version khởi đầu duy nhất theo phiên (R2-31) — chỉ kiểm tăng đúng 1 mỗi lần.
+        let start = svc.state_version();
         let (new_val, ver1) = svc.toggle_global_enabled();
         assert!(!new_val);
-        assert_eq!(ver1, 2);
+        assert_eq!(ver1, start + 1);
 
         let ver2 = svc.set_app_enabled("chrome.exe", true);
-        assert_eq!(ver2, 3);
+        assert_eq!(ver2, start + 2);
         assert!(svc.is_app_enabled("chrome.exe"));
         assert!(!svc.is_app_enabled("notepad.exe")); // theo global_enabled = false
 
@@ -430,8 +487,9 @@ mod tests {
         let svc = SvcManager::new(Some(temp_dir.clone()));
 
         assert_eq!(svc.config().method, Method::Telex);
+        let start = svc.config_version();
         let next_ver = svc.set_method(Method::Vni).unwrap();
-        assert_eq!(next_ver, 2);
+        assert_eq!(next_ver, start + 1);
         assert_eq!(svc.config().method, Method::Vni);
 
         let _ = fs::remove_dir_all(&temp_dir);

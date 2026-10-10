@@ -84,6 +84,21 @@ pub fn apply_key(out: &mut Vec<char>, tone: usize, key: char, style: DiacriticSt
     }
 }
 
+/// Gỡ **dấu thanh** của từ (Telex `z`, VNI `0` — UniKey `vneTone0`); mũ/sừng/breve/`đ` giữ
+/// nguyên. `false` khi từ chưa có dấu thanh (phím đó là chữ thường: `pizza`, `200`).
+pub fn remove_tone(out: &mut [char]) -> bool {
+    match out
+        .iter()
+        .position(|&ch| tone_of(ch).is_some_and(|t| t > 0))
+    {
+        Some(idx) => {
+            out[idx] = strip_tone(out[idx]);
+            true
+        }
+        None => false,
+    }
+}
+
 /// Dấu thanh đang có trong từ (0 = chưa có).
 pub fn current_tone(out: &[char]) -> usize {
     out.iter()

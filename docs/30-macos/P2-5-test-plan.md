@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Unit (core/strategy/field/AX rules) | mỗi PR, 3 OS | `cargo test --workspace` + `swift test --package-path adapters/macos-imk` | PR |
 | Corpus replay (`--adapter mac`) | mỗi PR | `cargo run -p textvn-cli -- replay corpus/ --adapter mac` | PR |
-| Fuzz | PR 15' + nightly 60' | `cargo +nightly fuzz run key_event -- -max_total_time=900` | PR/nightly |
+| Fuzz | mỗi PR (Ubuntu, `ci-shared` job `fuzz`; chưa có nightly) | `cargo +nightly fuzz run --target x86_64-unknown-linux-gnu ffi_key --features ffi-fuzz -- -max_total_time=60` (+ `config_parse`, `appdb_parse`) | PR |
 | AX harness (12 app) | **macos-latest nếu RM5 pass**, khác → local nightly (ghi lý do) | `tools/mac/ax-driver --suite ci` | nightly |
-| Perf bench | mỗi PR (3 bench chính) | `cargo bench -p textvn-bench` | PR (ngưỡng §5) |
+| Perf bench | thủ công trên Mac (chưa có `perf/baseline-mac.json`; CI chỉ đo baseline Windows) | `cargo run --release -p textvn-bench -- run` · `-- write perf/baseline-mac.json` · `-- check perf/baseline-mac.json` (`cargo bench` không đo gì — crate không dùng criterion) | — |
 | Soak 24h | weekly (local Mac thật) | `tools/mac/soak.sh -Hours 24` | weekly → Issue |
 | Manual | trước RC | `§7` | release |
 
@@ -132,6 +132,5 @@ Regression >10% vs `perf/baseline-mac.json` → fail (3 bench chính trên PR).
 | Job | Trigger | Nội dung |
 |---|---|---|
 | `ci-shared.yml` | PR/push | (P0-1) 3 OS incl. macOS: fmt/clippy/test/corpus |
-| `ci-macos.yml` | PR chạm `adapters/macos*`, `corpus/mac/` | `swift build/test` (arch arm64 + x86_64 check), `replay corpus/mac`, `smoke-imk` (nếu GUI OK), `textvn sizes` |
-| `ci-nightly-mac.yml` | schedule | ax-driver `--suite ci` (hoặc fallback ghi reason), fuzz 60', soak 2h, report → Issue |
-| `ci-release.yml` | tag `v*` | build universal (lipo), codesign + notarytool, `.pkg` + SHA256SUMS + cask file |
+| `ci-macos.yml` | PR/push chạm adapter mac + core/ffi/cli/xtask… | packaging-lint (bash/plist/header), engine-static (lipo), `swift build` ×2 arch + `swift test` arm64 (imk/tap/app), corpus-mac + `sizes`/`verify`, package-candidate (ZIP/PKG chưa ký). **Không** chạy `smoke-imk` (cần GUI). |
+| `release.yml` | tag `v*` | build universal + `swift test` + `.pkg`/ZIP/tar.gz; publish kèm GPG + cosign + `SHA256SUMS.txt` clearsign; **chưa** codesign Developer ID/notarize (`docs/release/signing-status-mac.md`), **không** cập nhật cask (B7b làm tay). Workflow nightly mac: chưa có. |

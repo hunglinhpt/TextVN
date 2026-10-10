@@ -59,7 +59,9 @@ fn main() {
     // PE VersionInfo theo **CARGO_PKG_VERSION** — build.rs patch bản sao .rc
     // trong OUT_DIR (file .rc tĩnh chỉ là mẫu; bump version chỉ sửa Cargo.toml).
     let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_default();
-    let version_commas = format!("{version},0");
+    // VS_FIXEDFILEINFO cần 4 số phân cách bằng DẤU PHẨY (`0,2,27,0`); bản cũ ghi
+    // `0.2.27,0` → rc.exe đọc sai phiên bản nhị phân (Explorer/Store thấy số khác).
+    let version_commas = format!("{},0", version.replace('.', ","));
     let generated = match std::fs::read_to_string(&rc_file) {
         Ok(content) => content
             .lines()

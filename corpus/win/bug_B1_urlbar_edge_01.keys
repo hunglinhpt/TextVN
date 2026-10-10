@@ -1,9 +1,10 @@
 # corpus/win/bug_B1_urlbar_edge_01.keys — bug B1 Edge URL bar (P1-5 §2)
+# `viet` → `viêt` cũ không phải âm tiết Việt (R2-62/R2-64: auto-restore trả về `viet`) → dùng `việt`.
 :config method=telex
 :caps field_detect,inject_vk,selection
 :app msedge.exe field=address_bar
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam"
+:expect "việt nam"

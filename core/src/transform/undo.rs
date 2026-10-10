@@ -5,15 +5,21 @@
 //!   (áp dụng trong `method/telex.rs::apply_tone_key`).
 //! - `ww` → `w`: marker không gắn được (không có âm đích) → nuốt key lặp
 //!   (trong `method/telex.rs::push_key`).
-//! - `ee` → `e`, `dd` → `d`: key đôi đã tạo ký tự đặc biệt → gỡ về gốc.
+//! - `eee` → `ee`, `ddd` → `dd`, `uww` → `uw`: bấm lại phím đã tạo dấu phụ → gỡ về gốc + gõ
+//!   chữ đó (R2-63, UniKey `processRoof`/`processDd`/`processHook` rồi `processAppend`).
 //!
 //! `mark_vowel` / `mark_horn`: quy ước undo marker dạng âm cho VNI (`6`/`7`/`8`) và
-//! VIQR (`^`/`+`/`(`): marker đã áp lên **đúng** âm cuối → gỡ dạng + gõ literal marker
+//! VIQR (`^`/`+`/`(`): marker đã áp lên **đúng** âm → gỡ dạng + gõ literal marker
 //! (giống `ass` → `as`); marker không có âm đích → literal. Quy ước này chưa có oracle
 //! UniKey cho nhánh undo (ghi trong `docs/10-shared/P0-REVIEW-LOG.md`).
+//!
+//! Âm nhận marker chọn trên **cả cụm nguyên âm cuối** ([`mark_cluster`], R2-60) như UniKey
+//! `processRoof`/`processHook` (bảng chuỗi nguyên âm `withRoof`/`withHook`): gõ dấu sau cả
+//! cụm vẫn đúng — `toi6` → `tôi`, `nguoi7` → `ngươi`, `ruou7` → `rươu`, `luu7` → `lưu`.
 
-use super::tone::is_vowel;
-use super::vowel_table::{form_like, locate, O, O_HOOK, U, U_HOOK};
+use super::diacritic_style::vowel_span;
+use super::vowel_table::{base_entry, form_like, locate, O, O_CIRC, O_HOOK, U, U_HOOK};
+use crate::validate::NUCLEI;
 
 /// Gỡ dấu của ký tự âm về không dấu (giữ case). Không phải âm → giữ nguyên.
 pub fn unmark(c: char) -> char {
@@ -23,87 +29,141 @@ pub fn unmark(c: char) -> char {
     }
 }
 
-/// Áp marker đổi dạng âm lên âm cuối `out`.
+/// Kết quả áp một marker dạng âm lên một vị trí.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Marked {
+    /// Đã thêm dạng âm (mũ/sừng/breve).
+    Applied,
+    /// Âm đã có dạng đó → gỡ về gốc.
+    Undone,
+}
+
+/// Cụm `run` (đã bỏ dấu thanh) có phải một vần trong bảng vần hợp lệ không.
+fn is_nucleus(run: &[char]) -> bool {
+    let bare = || {
+        run.iter().map(|&c| {
+            let b = unmark(c);
+            b.to_lowercase().next().unwrap_or(b)
+        })
+    };
+    NUCLEI.iter().any(|n| n.chars().eq(bare()))
+}
+
+/// Áp marker dạng âm lên **cụm nguyên âm cuối** của `out` (R2-60).
+///
+/// `apply(w, i)` thử marker trên âm `w[i]` (đổi `w` tại chỗ): `Some(Applied)` thêm dạng,
+/// `Some(Undone)` gỡ dạng đã có, `None` âm này không nhận marker (không đổi `w`).
+/// Thử từ âm cuối sang trái, lấy vị trí đầu tiên gỡ được dạng đã có hoặc áp ra **vần hợp lệ**
+/// (UniKey chỉ áp khi chuỗi nguyên âm mới có trong bảng). Không vị trí nào hợp lệ → như bản
+/// cũ: chỉ thử âm cuối (`oa6` → `oâ`). `None` = không áp được (gõ literal).
+pub fn mark_cluster(
+    out: &mut [char],
+    apply: impl Fn(&mut [char], usize) -> Option<Marked>,
+) -> Option<Marked> {
+    let (start, end) = vowel_span(out)?;
+    if start < end {
+        let mut trial = out.to_vec();
+        for idx in (start..=end).rev() {
+            trial.copy_from_slice(out);
+            match apply(&mut trial, idx) {
+                Some(Marked::Applied) if !is_nucleus(&trial[start..=end]) => {}
+                Some(m) => {
+                    out.copy_from_slice(&trial);
+                    return Some(m);
+                }
+                None => {}
+            }
+        }
+    }
+    apply(out, end)
+}
+
+/// Áp marker đổi dạng âm lên cụm nguyên âm cuối `out` ([`mark_cluster`]).
 ///
 /// `table` = bảng **sinh từ data** `(key, âm gốc, âm đích)` — truyền thẳng
 /// `method::keys_generated::<method>::CIRCUMFLEX|HORN|BREVE` (P0-1 §3: bảng là data).
-/// - âm cuối khớp `gốc` → đổi sang `đích` (giữ dấu thanh)
-/// - âm cuối đã ở `đích` → gỡ về `gốc` + gõ literal `key`
+/// - âm khớp `gốc` → đổi sang `đích` (giữ dấu thanh)
+/// - âm đã ở `đích` → gỡ về `gốc` + gõ literal `key`
 /// - không khớp / không có âm → gõ literal `key`
 pub fn mark_vowel(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]) {
-    let Some(idx) = out.iter().rposition(|&c| is_vowel(c)) else {
+    let marked = mark_cluster(out, |w, idx| {
+        let ch = w[idx];
+        let (e, t) = locate(ch)?;
+        for &(k, from, to) in table {
+            if k != key {
+                continue;
+            }
+            if e == to {
+                w[idx] = form_like(ch, from, t);
+                return Some(Marked::Undone);
+            }
+            if e == from {
+                w[idx] = form_like(ch, to, t);
+                return Some(Marked::Applied);
+            }
+        }
+        // Đổi dấu trên cùng âm: `ơ`/`ă` + mũ → `ô`/`â`, `â` + trăng → `ă` (R2-70, UniKey).
+        let &(_, _, to) = table
+            .iter()
+            .find(|&&(k, from, _)| k == key && from == base_entry(e) && e != from)?;
+        w[idx] = form_like(ch, to, t);
+        Some(Marked::Applied)
+    });
+    if marked != Some(Marked::Applied) {
         out.push(key);
-        return;
-    };
-    let ch = out[idx];
-    let Some((e, t)) = locate(ch) else {
-        out.push(key);
-        return;
-    };
-    for &(k, from, to) in table {
-        if k != key {
-            continue;
-        }
-        if e == to {
-            out[idx] = form_like(ch, from, t);
-            out.push(key);
-            return;
-        }
-        if e == from {
-            out[idx] = form_like(ch, to, t);
-            return;
-        }
     }
-    out.push(key);
 }
 
-/// Marker sừng `ơ`/`ư` (VNI `7`, VIQR `+`, Telex `w`): áp lên âm cuối; cụm `uo`/`ưo` → `ươ`;
-/// đã sừng → gỡ + literal; không áp được → literal.
+/// Marker sừng `ơ`/`ư` (VNI `7`, VIQR `+`): áp lên cụm nguyên âm cuối ([`mark_cluster`]);
+/// cụm `uo`/`ưo` → `ươ`; đã sừng → gỡ + literal; không áp được → literal.
 ///
 /// `table` = bảng sinh từ data `(key, âm gốc, âm đích)` (xem `mark_vowel`).
 /// Quy tắc cụm `uo` là **thuật toán** nên vẫn nằm ở đây, không mô tả được bằng bảng.
 pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]) {
-    let Some(idx) = out.iter().rposition(|&c| is_vowel(c)) else {
-        out.push(key);
-        return;
-    };
-    let ch = out[idx];
-    let Some((e, t)) = locate(ch) else {
-        out.push(key);
-        return;
-    };
-    // Cụm `uo` (kể cả `ưo` đã sừng ở u): marker áp cả cụm → ư + ơ
-    if e == O {
-        if let Some(prev) = idx.checked_sub(1).map(|p| out[p]) {
-            if let Some((pe, pt)) = locate(prev) {
-                if pe == U || pe == U_HOOK {
-                    out[idx - 1] = form_like(prev, U_HOOK, pt);
-                    out[idx] = form_like(ch, O_HOOK, t);
-                    return;
+    let marked = mark_cluster(out, |w, idx| {
+        let ch = w[idx];
+        let (e, t) = locate(ch)?;
+        // Cụm `uo` (kể cả `ưo` đã sừng ở u): marker áp cả cụm → ư + ơ. `ô` cũng vậy — đổi dấu
+        // mũ sang sừng (`o67` → `ơ`, `uô` → `ươ`; R2-70).
+        if e == O || e == O_CIRC {
+            if let Some(prev) = idx.checked_sub(1).map(|p| w[p]) {
+                if let Some((pe, pt)) = locate(prev) {
+                    if pe == U || pe == U_HOOK {
+                        w[idx - 1] = form_like(prev, U_HOOK, pt);
+                        w[idx] = form_like(ch, O_HOOK, t);
+                        return Some(Marked::Applied);
+                    }
                 }
             }
+            w[idx] = form_like(ch, O_HOOK, t);
+            return Some(Marked::Applied);
         }
-        out[idx] = form_like(ch, O_HOOK, t);
-        return;
-    }
-    if e == O_HOOK {
-        out[idx] = form_like(ch, O, t);
+        if e == O_HOOK {
+            w[idx] = form_like(ch, O, t);
+            // `ươ` gỡ cả cặp như lúc áp (`uo77` → `uo7`; R2-63, UniKey bỏ sừng cả chuỗi `ươ`).
+            if let Some(prev) = idx.checked_sub(1).map(|p| w[p]) {
+                if let Some((U_HOOK, pt)) = locate(prev) {
+                    w[idx - 1] = form_like(prev, U, pt);
+                }
+            }
+            return Some(Marked::Undone);
+        }
+        // u → ư và gỡ ư → u lấy từ bảng (VNI `7` / VIQR `+` dùng chung)
+        for &(_, from, to) in table {
+            if e == to {
+                w[idx] = form_like(ch, from, t);
+                return Some(Marked::Undone);
+            }
+            if e == from {
+                w[idx] = form_like(ch, to, t);
+                return Some(Marked::Applied);
+            }
+        }
+        None
+    });
+    if marked != Some(Marked::Applied) {
         out.push(key);
-        return;
     }
-    // u → ư và gỡ ư → u lấy từ bảng (Telex `w` / VNI `7` / VIQR `+` đều dùng chung)
-    for &(_, from, to) in table {
-        if e == to {
-            out[idx] = form_like(ch, from, t);
-            out.push(key);
-            return;
-        }
-        if e == from {
-            out[idx] = form_like(ch, to, t);
-            return;
-        }
-    }
-    out.push(key);
 }
 
 #[cfg(test)]

@@ -25,6 +25,7 @@
 #include <sys/un.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
+#include <poll.h>
 #if defined(__linux__)
 #include <sys/stat.h>
 #endif
@@ -59,6 +60,11 @@ struct lc_ipc_client {
      * de tranh xung dot voi kenh state.json). */
     uint32_t global_seq;
     int      global_enabled;
+    /* Đệm nhận theo client: socket non-blocking có thể trả MỘT PHẦN frame rồi
+     * EAGAIN — byte đã đọc phải được giữ tới lần poll sau, nếu không luồng lệch
+     * (payload bị hiểu thành header độ dài). +1 để kết thúc chuỗi tại chỗ. */
+    size_t   rlen;
+    uint8_t  rbuf[4 + LC_IPC_MAX_FRAME + 1];
 };
 
 int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custom_path) {
@@ -108,24 +114,53 @@ int lc_ipc_send_frame(int fd, const char *json_utf8, size_t len) {
     }
 
 #if defined(__linux__) || defined(__unix__)
-    /* Wire framing: 4-byte little-endian length + JSON bytes */
+    /* Wire framing: 4-byte little-endian length + JSON bytes. sendmsg 2 iovec gửi
+     * header + thân trong một lời gọi (không copy 64 KiB lên stack đường phím). */
     uint8_t header[4];
     header[0] = (uint8_t)(len & 0xFF);
     header[1] = (uint8_t)((len >> 8) & 0xFF);
     header[2] = (uint8_t)((len >> 16) & 0xFF);
     header[3] = (uint8_t)((len >> 24) & 0xFF);
 
-    ssize_t sent = write(fd, header, 4);
-    if (sent != 4) return -1;
-
-    size_t total_sent = 0;
-    while (total_sent < len) {
-        ssize_t n = write(fd, json_utf8 + total_sent, len - total_sent);
-        if (n <= 0) {
-            if (errno == EINTR) continue;
-            return -1;
+    const size_t total = 4 + len;
+    size_t sent = 0;
+    int waits = 0;
+    while (sent < total) {
+        struct iovec iov[2];
+        size_t iovcnt = 0;
+        if (sent < 4) {
+            iov[iovcnt].iov_base = header + sent;
+            iov[iovcnt].iov_len = 4 - sent;
+            iovcnt++;
+            iov[iovcnt].iov_base = (void *)json_utf8;
+            iov[iovcnt].iov_len = len;
+            iovcnt++;
+        } else {
+            iov[iovcnt].iov_base = (void *)(json_utf8 + (sent - 4));
+            iov[iovcnt].iov_len = total - sent;
+            iovcnt++;
         }
-        total_sent += (size_t)n;
+        struct msghdr mh;
+        memset(&mh, 0, sizeof mh);
+        mh.msg_iov = iov;
+        mh.msg_iovlen = iovcnt;
+        /* MSG_NOSIGNAL: server (tray/bảng cài đặt) thoát giữa chừng thì write()
+         * thường bắn SIGPIPE — hành vi mặc định GIẾT process chủ: tiến trình
+         * ibus-engine hoặc cả daemon fcitx5 (addon nạp in-process) → mất bàn phím. */
+        ssize_t n = sendmsg(fd, &mh, MSG_NOSIGNAL);
+        if (n > 0) {
+            sent += (size_t)n;
+            continue;
+        }
+        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) && waits < 4) {
+            /* Socket non-blocking đầy bộ đệm: chờ ngắn, không treo đường phím. */
+            struct pollfd pfd = { fd, POLLOUT, 0 };
+            (void)poll(&pfd, 1, 25);
+            waits++;
+            continue;
+        }
+        return -1;
     }
     return 0;
 #else
@@ -134,6 +169,8 @@ int lc_ipc_send_frame(int fd, const char *json_utf8, size_t len) {
 #endif
 }
 
+/* Chỉ dùng cho fd BLOCKING (đọc đủ một frame). Với fd non-blocking của client,
+ * dùng lc_ipc_client_poll — có đệm, không mất byte khi frame tới từng phần. */
 int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len) {
     if (fd < 0 || !out_buf || buf_size == 0) return -1;
 
@@ -339,18 +376,23 @@ static int try_connect(lc_ipc_client *client) {
     client->is_online = 1;
 
     /* Handshake: send Hello, Subscribe, and GetSnapshot */
+    client->rlen = 0;
     char hello[256];
     uint32_t pid = (uint32_t)getpid();
     snprintf(hello, sizeof(hello),
              "{\"type\":\"Hello\",\"pid\":%u,\"abi\":1,\"version\":\"" TEXTVN_VERSION "\"}", pid);
-    lc_ipc_send_frame(fd, hello, strlen(hello));
-
     char sub[128];
     snprintf(sub, sizeof(sub), "{\"type\":\"Subscribe\",\"pid\":%u}", pid);
-    lc_ipc_send_frame(fd, sub, strlen(sub));
-
     const char *snap_req = "{\"type\":\"GetSnapshot\"}";
-    lc_ipc_send_frame(fd, snap_req, strlen(snap_req));
+
+    if (lc_ipc_send_frame(fd, hello, strlen(hello)) != 0 ||
+        lc_ipc_send_frame(fd, sub, strlen(sub)) != 0 ||
+        lc_ipc_send_frame(fd, snap_req, strlen(snap_req)) != 0) {
+        close(fd);
+        client->fd = -1;
+        client->is_online = 0;
+        return -1;
+    }
 
     return 0;
 #else
@@ -407,6 +449,15 @@ static int ipc_debug_enabled(void) {
     return cached;
 }
 
+static void client_disconnect(lc_ipc_client *client) {
+#if defined(__linux__) || defined(__unix__)
+    if (client->fd >= 0) close(client->fd);
+#endif
+    client->fd = -1;
+    client->is_online = 0;
+    client->rlen = 0;
+}
+
 int lc_ipc_client_poll(lc_ipc_client *client) {
     if (!client) return -1;
 
@@ -421,39 +472,45 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
     }
 
     int msgs_processed = 0;
-    static char buf[LC_IPC_MAX_FRAME + 1];
+    for (;;) {
+        /* 1. Xử lý mọi frame ĐỦ trong đệm. */
+        while (client->rlen >= 4) {
+            const uint8_t *h = client->rbuf;
+            uint32_t length = (uint32_t)h[0] | ((uint32_t)h[1] << 8) |
+                              ((uint32_t)h[2] << 16) | ((uint32_t)h[3] << 24);
+            if (length > LC_IPC_MAX_FRAME) {
+                /* Vi phạm giao thức: không đoán, đóng kết nối (schemas/ipc.v1.md). */
+                client_disconnect(client);
+                return msgs_processed;
+            }
+            size_t need = 4 + (size_t)length;
+            if (client->rlen < need) break;
+            /* Kết thúc chuỗi tại chỗ (rbuf có dư 1 byte) rồi trả lại byte cũ. */
+            uint8_t saved = client->rbuf[need];
+            client->rbuf[need] = 0;
+            handle_ipc_message(client, (const char *)client->rbuf + 4);
+            client->rbuf[need] = saved;
+            memmove(client->rbuf, client->rbuf + need, client->rlen - need);
+            client->rlen -= need;
+            msgs_processed++;
+        }
 
-    while (1) {
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(client->fd, &read_fds);
-
-        struct timeval tv = {0, 0}; /* non-blocking poll */
-        int sel = select(client->fd + 1, &read_fds, NULL, NULL, &tv);
+        /* 2. Đọc thêm (non-blocking) cho tới khi hết dữ liệu. */
+        size_t room = (4 + LC_IPC_MAX_FRAME) - client->rlen;
+        ssize_t n = recv(client->fd, client->rbuf + client->rlen, room, MSG_DONTWAIT);
         if (ipc_debug_enabled()) {
-            long pending = -1;
-            ioctl(client->fd, FIONREAD, &pending);
-            fprintf(stderr, "POLL fd=%d sel=%d pending=%ld processed=%d\n",
-                    client->fd, sel, pending, msgs_processed);
+            fprintf(stderr, "POLL fd=%d recv=%zd buffered=%zu processed=%d\n",
+                    client->fd, n, client->rlen, msgs_processed);
         }
-        if (sel <= 0) break;
-
-        size_t len = 0;
-        int rc = lc_ipc_recv_frame(client->fd, buf, sizeof(buf), &len);
-        if (ipc_debug_enabled()) {
-            fprintf(stderr, "POLL rc=%d len=%zu\n", rc, len);
+        if (n > 0) {
+            client->rlen += (size_t)n;
+            continue;
         }
-        if (rc < 0) {
-            /* Disconnected */
-            close(client->fd);
-            client->fd = -1;
-            client->is_online = 0;
-            break;
-        }
-        if (rc == 1) break; /* would-block: het du lieu lan poll nay */
-
-        handle_ipc_message(client, buf);
-        msgs_processed++;
+        if (n < 0 && errno == EINTR) continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+        /* n == 0 (server đóng) hoặc lỗi thật. */
+        client_disconnect(client);
+        break;
     }
     return msgs_processed;
 #else
@@ -493,11 +550,30 @@ int lc_ipc_client_get_global_override(const lc_ipc_client *client, int *out_enab
 int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int enabled) {
     if (!client || client->fd < 0 || !client->is_online) return -1;
 
-    char msg[256];
+    /* app_id lấy từ tên chương trình — escape `"`/`\\`/ký tự điều khiển để không
+     * phá JSON (server sẽ đóng kết nối vì frame sai). */
+    const char *id = app_id ? app_id : client->app_id;
+    char esc[2 * LC_MAX_APP_ID + 1];
+    size_t o = 0;
+    for (const char *c = id; *c && o + 2 < sizeof esc; c++) {
+        unsigned char ch = (unsigned char)*c;
+        if (ch == '"' || ch == '\\') {
+            esc[o++] = '\\';
+            esc[o++] = (char)ch;
+        } else if (ch >= 0x20) {
+            esc[o++] = (char)ch;
+        }
+    }
+    esc[o] = '\0';
+
+    char msg[2 * LC_MAX_APP_ID + 96];
     snprintf(msg, sizeof(msg),
              "{\"type\":\"ToggleViEn\",\"app_id\":\"%s\",\"enabled\":%s}",
-             app_id ? app_id : client->app_id,
-             enabled ? "true" : "false");
+             esc, enabled ? "true" : "false");
 
-    return lc_ipc_send_frame(client->fd, msg, strlen(msg));
+    if (lc_ipc_send_frame(client->fd, msg, strlen(msg)) != 0) {
+        client_disconnect(client);
+        return -1;
+    }
+    return 0;
 }

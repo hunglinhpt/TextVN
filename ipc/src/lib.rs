@@ -4,6 +4,8 @@
 //! Crate này không mở named-pipe/socket và không xác thực peer: đó là trách
 //! nhiệm adapter theo OS. Mọi frame vượt giới hạn, răng cưa, UTF-8/JSON sai hay
 //! message lạ đều là lỗi protocol để transport disconnect thay vì cố đoán.
+//! Ngoại lệ duy nhất là [`pipe_client_options`]: cấu hình mở đầu client của pipe
+//! Windows ở MỘT chỗ để không call site nào quên cờ chống impersonation.
 
 use std::collections::BTreeMap;
 
@@ -11,6 +13,30 @@ use serde::{Deserialize, Serialize};
 
 /// Giới hạn chống cấp phát theo length prefix từ peer không tin cậy.
 pub const MAX_FRAME_BYTES: usize = 64 * 1024;
+
+/// Tên pipe IPC v1 trên Windows (`docs/00-INDEX.md` §4).
+pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
+
+/// `OpenOptions` cho đầu **client** của pipe IPC: đọc + ghi, và trên Windows đặt
+/// `SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION`.
+///
+/// Mặc định `CreateFileW` lên named pipe cấp cho server quyền **impersonate** client.
+/// TIP nằm trong mọi process (kể cả app chạy quyền admin) và thử kết nối lại liên tục
+/// khi tray chưa chạy — process nào chiếm tên pipe trước sẽ nhận kết nối và có thể
+/// `ImpersonateNamedPipeClient`. Mức Identification vẫn cho server đọc danh tính
+/// (`GetNamedPipeClientProcessId` không cần gì thêm) nhưng không hành động thay client.
+pub fn pipe_client_options() -> std::fs::OpenOptions {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true).write(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        /// `SecurityIdentification << 16` (WinBase.h); std tự OR `SECURITY_SQOS_PRESENT`.
+        const SECURITY_IDENTIFICATION: u32 = 1 << 16;
+        options.security_qos_flags(SECURITY_IDENTIFICATION);
+    }
+    options
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CodecError {

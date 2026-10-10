@@ -240,11 +240,13 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
     );
     zip_entries.push(("version.json".to_string(), version_info.into_bytes()));
 
-    // 2. config.redacted.json
+    // 2. config.redacted.json — gõ tắt/emoji/từ điển là NỘI DUNG người dùng tự soạn
+    // (địa chỉ, số điện thoại, email…) mà file zip này được hướng dẫn đính kèm vào
+    // issue công khai: chỉ giữ số mục (S2).
     let mut config_text = String::from("{}");
     if let Some(p) = &report.config_path {
         if let Ok(raw) = std::fs::read_to_string(p) {
-            config_text = redact_sensitive_paths(&raw);
+            config_text = redact_sensitive_paths(&redact_user_content(&raw));
         }
     }
     zip_entries.push(("config.redacted.json".to_string(), config_text.into_bytes()));
@@ -281,6 +283,28 @@ pub fn export_diagnostics_zip(report: &DoctorReport, out_path: &Path) -> std::io
     let mut file = File::create(out_path)?;
     file.write_all(&zip_bytes)?;
     Ok(zip_bytes.len())
+}
+
+/// Khoá config chứa nội dung người dùng tự soạn — chỉ xuất số mục.
+const USER_CONTENT_KEYS: [&str; 3] = ["macros", "emoji", "english_words"];
+
+/// Config cho gói chẩn đoán: thay `macros`/`emoji`/`english_words` bằng
+/// `"<REDACTED: n mục>"`; file không parse được → chỉ ghi kích thước (không lộ nội dung).
+pub fn redact_user_content(raw: &str) -> String {
+    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(raw) else {
+        return format!("{{\"_unparsable_config_bytes\": {}}}\n", raw.len());
+    };
+    if let Some(map) = value.as_object_mut() {
+        for key in USER_CONTENT_KEYS {
+            if let Some(v) = map.get_mut(key) {
+                let n = v.as_array().map_or(0, Vec::len);
+                *v = serde_json::Value::String(format!("<REDACTED: {n} mục>"));
+            }
+        }
+    }
+    let mut out = serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".into());
+    out.push('\n');
+    out
 }
 
 /// Redact đường dẫn người dùng (`C:\Users\<username>` -> `C:\Users\<REDACTED>`) theo Rule S2.
@@ -359,16 +383,11 @@ pub fn abi_sizes() -> (usize, usize, usize, bool) {
 fn check_pipe_listening() -> bool {
     #[cfg(windows)]
     {
-        use std::fs::OpenOptions;
-        OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(r"\\.\pipe\textvn-ipc-v1")
+        textvn_ipc::pipe_client_options()
+            .open(textvn_ipc::PIPE_NAME)
             .is_ok()
-            || OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(r"\\.\pipe\textvn-ipc-v1")
+            || textvn_ipc::pipe_client_options()
+                .open(textvn_ipc::PIPE_NAME)
                 .is_ok()
     }
     #[cfg(not(windows))]
@@ -496,6 +515,25 @@ pub fn crc32(data: &[u8]) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_config_never_contains_user_authored_content() {
+        let raw = r#"{"config_version":1,"method":"vni",
+            "macros":[{"trigger":"dc","expand":"12 Lê Lợi, 0912345678"}],
+            "emoji":[{"trigger":":x","glyph":"❌"}],
+            "english_words":["secretword"]}"#;
+        let out = redact_user_content(raw);
+        for leaked in ["Lê Lợi", "0912345678", "secretword", "❌", "\"dc\""] {
+            assert!(!out.contains(leaked), "lộ `{leaked}` trong: {out}");
+        }
+        assert!(
+            out.contains("\"method\": \"vni\""),
+            "tuỳ chọn vẫn phải giữ để chẩn đoán"
+        );
+        assert!(out.contains("<REDACTED: 1 mục>"));
+        let broken = redact_user_content("{ hỏng 0912345678");
+        assert!(!broken.contains("0912345678"));
+    }
 
     #[test]
     fn crc32_standard_vector() {

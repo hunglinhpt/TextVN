@@ -3,6 +3,13 @@
 > WS2 · `adapters/macos-tap/` (Swift package — `PLAN §3.2` layout). **ADR-006: opt-in, không bật mặc định.**
 > Chỉ dùng cho app **không đi qua IMK** (một số game/legacy). IMK vẫn primary (`P2-1`).
 > Đối chiếu format với `../20-windows/P1-2-hook.md` (cùng số mục: §3 callback, §5 injection, §6 loop).
+>
+> **Trạng thái (2026-10-09):** `adapters/macos-tap` có code (tap thread, marker, self-disable,
+> injector 3 mode, permission poll) và `swift build/test` xanh trong `ci-macos`, nhưng **chưa nhúng
+> vào `TextVN-IM.app`/`TextVN.app`** (`scripts/build-macos.sh` chỉ build `macos-imk` + `macos-app`)
+> và Cài đặt chưa có công tắc opt-in — tính năng này **không có trong bản phát hành**. Preset
+> `mac.game.nokbd` (`engine_owner: tap`) hiện chỉ có hiệu lực Passthrough. Các file
+> `docs/security/tap-permission.md` (§7) và `docs/specs/macos-tap-spike.md` (§9) chưa được viết.
 
 ## 1. Quyết định & phạm vi
 

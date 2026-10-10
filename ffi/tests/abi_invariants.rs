@@ -14,6 +14,8 @@
 //!   6. abi lệch ⇒ `IME_ERR_ABI` + PASS; NULL args ⇒ `IME_ERR_INVALID_ARG`.
 //!   7. config sai vẫn tạo instance; FFI và `textvn-config` cùng kết luận.
 //!   8. `ime_last_error` không chứa text người dùng (S2).
+//!   9. `delete_count` không vượt số ký tự chuỗi phím đã đưa vào document (mô hình độ dài
+//!      bảo thủ) — engine không xoá lẹm text có sẵn (CR-01), kể cả với từ > 64 phím.
 
 use std::ffi::CStr;
 use std::ptr;
@@ -99,6 +101,38 @@ fn assert_sane(rc: i32, out: &ime_result_v1, ctx: &str) {
     }
 }
 
+const VK_BACK: u32 = 0x08;
+const VK_TAB: u32 = 0x09;
+const VK_RETURN: u32 = 0x0D;
+const VK_SPACE: u32 = 0x20;
+
+/// Mô hình độ dài document (con trỏ ở cuối) — giống hệt `fuzz/fuzz_targets/ffi_key.rs`.
+/// Đếm DƯ ở mọi chỗ không chắc (chord, ký tự điều khiển); chỉ Backspace đi thẳng trừ 1.
+fn apply_doc(doc_len: &mut usize, key: &ime_key_v1, out: &ime_result_v1, ctx: &str) {
+    // Phím `is_injected` là tiếng vọng của chính adapter (text đã được tính qua
+    // `insert_len` của kết quả trước) — engine bỏ qua theo hợp đồng ABI, mô hình
+    // cũng vậy; trừ Backspace vọng ở đây là báo động giả (CI fuzz 2026-10-08).
+    if key.is_injected != 0 {
+        return;
+    }
+    if out.action == ACTION_PASS {
+        if key.vk == VK_BACK {
+            *doc_len = doc_len.saturating_sub(1);
+        } else if (key.ch != 0 && char::from_u32(key.ch).is_some())
+            || matches!(key.vk, VK_SPACE | VK_RETURN | VK_TAB)
+        {
+            *doc_len += 1;
+        }
+        return;
+    }
+    let d = out.delete_count as usize;
+    assert!(
+        d <= *doc_len,
+        "{ctx}: delete_count {d} lẹm vào text có sẵn (chuỗi phím mới đưa vào {doc_len})"
+    );
+    *doc_len = *doc_len - d + out.insert_len as usize;
+}
+
 #[test]
 fn abi_invariants_giu_duoi_input_ngau_nhien() {
     // 200 vòng × 64 phím = 12 800 lần gọi `ime_key` (nhanh, chạy mọi PR).
@@ -149,6 +183,7 @@ fn abi_invariants_giu_duoi_input_ngau_nhien() {
         );
 
         let mut out = new_result();
+        let mut doc_len = 0usize;
         for step in 0..64 {
             let flags = rng.byte();
             last_key = ime_key_v1 {
@@ -169,6 +204,12 @@ fn abi_invariants_giu_duoi_input_ngau_nhien() {
                     "round {round} step {step}: phím injected phải PASS"
                 );
             }
+            apply_doc(
+                &mut doc_len,
+                &last_key,
+                &out,
+                &format!("round {round} step {step}"),
+            );
         }
 
         // abi lệch + NULL args (6)
@@ -191,6 +232,81 @@ fn abi_invariants_giu_duoi_input_ngau_nhien() {
         assert_eq!(ime_reset(ptr::null_mut()), IME_ERR_INVALID_ARG);
         assert!(!ime_last_error(ptr::null()).is_null());
 
+        ime_instance_free(inst);
+    }
+}
+
+/// Chuỗi phím DÀI có "giữ phím" (giống chế độ lặp của fuzz `ffi_key`): chữ Telex
+/// chiếm đa số để từ vượt 64 phím, xen Backspace/Esc/Space/Tab/Enter, context ngẫu
+/// nhiên (mọi strategy). Bất biến 1–4 + 9 trên mỗi phím.
+#[test]
+fn tu_dai_va_giu_phim_khong_xoa_lem_text_co_san() {
+    const LETTERS: &[u8] = b"aoeuiydnghtpsfrxjwzqAS";
+    const OTHERS: &[u32] = &[VK_BACK, 0x1B, VK_SPACE, VK_TAB, VK_RETURN];
+    let mut rng = Rng::new(0xC0DE_0001_D0C5_0042);
+    for round in 0..60u32 {
+        let mut inst: *mut ime_instance = ptr::null_mut();
+        assert_eq!(ime_instance_new(ptr::null(), 0, &mut inst), IME_OK);
+        let ctx = ime_context_v1 {
+            abi_version: IME_ABI_VERSION,
+            enabled: 1,
+            secure: 0,
+            field_role: u32::from(rng.byte() % 11),
+            caps: u32::from(rng.byte() & 0x0F),
+            app_id: ptr::null(),
+            element_name: ptr::null(),
+            hint: 0,
+        };
+        assert_eq!(ime_set_context(inst, &ctx), IME_OK);
+        let mut out = new_result();
+        let mut doc_len = 0usize;
+        let mut sent = 0usize;
+        while sent < 512 {
+            let r = rng.byte();
+            let key = if r.is_multiple_of(8) {
+                let vk = OTHERS[usize::from(rng.byte()) % OTHERS.len()];
+                ime_key_v1 {
+                    abi_version: IME_ABI_VERSION,
+                    vk,
+                    ch: if vk == VK_SPACE { u32::from(b' ') } else { 0 },
+                    mods: 0,
+                    key_down: 1,
+                    is_repeat: 0,
+                    is_injected: 0,
+                    _reserved: 0,
+                }
+            } else {
+                let c = LETTERS[usize::from(rng.byte()) % LETTERS.len()];
+                ime_key_v1 {
+                    abi_version: IME_ABI_VERSION,
+                    vk: 0,
+                    ch: u32::from(c),
+                    mods: 0,
+                    key_down: 1,
+                    is_repeat: 0,
+                    is_injected: 0,
+                    _reserved: 0,
+                }
+            };
+            // 1/4 số phím được "giữ" 2..=90 lần.
+            let times = if r % 4 == 1 {
+                2 + usize::from(rng.byte()) % 89
+            } else {
+                1
+            };
+            for i in 0..times.min(512 - sent) {
+                let k = ime_key_v1 {
+                    is_repeat: u8::from(i > 0),
+                    ..key
+                };
+                let rc = ime_key(inst, &k, &mut out);
+                let at = format!("round {round} key {sent}");
+                assert_sane(rc, &out, &at);
+                assert_eq!(rc, IME_OK, "{at}: engine báo lỗi trên chuỗi phím hợp lệ");
+                apply_doc(&mut doc_len, &k, &out, &at);
+                sent += 1;
+            }
+        }
         ime_instance_free(inst);
     }
 }

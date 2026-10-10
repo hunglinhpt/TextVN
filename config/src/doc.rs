@@ -215,16 +215,7 @@ impl SettingsDoc {
     /// `tray::settings_dialog::normalize_word_list` (Windows) để ba nền tảng
     /// lưu file y hệt nhau.
     pub fn set_english_words_text(&mut self, text: &str) -> Result<(), crate::DocError> {
-        let mut words: Vec<String> = Vec::new();
-        for line in text.replace("\r\n", "\n").lines() {
-            let w = line.trim().to_lowercase();
-            if w.is_empty() || w.starts_with('#') || !w.chars().all(|c| c.is_ascii_alphabetic()) {
-                continue;
-            }
-            if !words.contains(&w) {
-                words.push(w);
-            }
-        }
+        let words = normalize_english_words(text);
         let value = serde_json::to_value(&words).map_err(|_| crate::DocError::BadValue)?;
         self.set_value("english_words", value)
     }
@@ -279,6 +270,23 @@ impl SettingsDoc {
         self.corrupt = false;
         Ok(())
     }
+}
+
+/// Ô soạn từ điển EN → `english_words[]`: trim, lowercase, chỉ chữ cái ASCII, bỏ dòng
+/// trống/`#`, khử trùng lặp giữ thứ tự. Nguồn DUY NHẤT cho Windows (tray), Linux (GTK qua
+/// C API) và macOS — ba nền tảng phải lưu file y hệt nhau.
+pub fn normalize_english_words(text: &str) -> Vec<String> {
+    let mut words: Vec<String> = Vec::new();
+    for line in text.replace("\r\n", "\n").lines() {
+        let w = line.trim().to_lowercase();
+        if w.is_empty() || w.starts_with('#') || !w.chars().all(|c| c.is_ascii_alphabetic()) {
+            continue;
+        }
+        if !words.contains(&w) {
+            words.push(w);
+        }
+    }
+    words
 }
 
 fn create_private_dir(dir: &Path) -> std::io::Result<()> {

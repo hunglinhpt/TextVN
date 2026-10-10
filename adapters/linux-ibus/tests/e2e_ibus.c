@@ -181,7 +181,7 @@ int main(void) {
     ok &= check("Enter commit (B2)", "chào bạn\n");
     clear(ic);
     type(ic, "dduocj\b ");
-    ok &= check("Backspace trong từ", "đươc ");
+    ok &= check("Backspace trong từ", "đượ "); /* R2-55: xoá ký tự cuối như UniKey */
     clear(ic);
     type(ic, "hello world ");
     ok &= check("tiếng Anh giữ nguyên", "hello world ");

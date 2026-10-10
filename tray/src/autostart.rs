@@ -7,6 +7,10 @@
 //!   `~/.config/autostart/textvn.desktop` (Freedesktop autostart spec)
 //!
 //! Tuân thủ Rule S5: Phạm vi per-user, không yêu cầu quyền Administrator / sudo.
+//!
+//! Kênh Microsoft Store (`TextVN-Store`, xem `store.rs`): value `TextVN` LUÔN tồn tại —
+//! `--autostart` khi bật, `--msix-guard` khi tắt — để guard gỡ/cập nhật vẫn chạy mỗi lần
+//! đăng nhập. Tiến trình còn package identity không bao giờ ghi Run (bị ảo hoá).
 
 use std::path::{Path, PathBuf};
 
@@ -18,6 +22,7 @@ use windows::Win32::Foundation::*;
 use windows::Win32::System::Registry::*;
 
 pub const RUN_KEY_PATH: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+pub const RUNONCE_KEY_PATH: &str = r"Software\Microsoft\Windows\CurrentVersion\RunOnce";
 pub const APP_RUN_VALUE_NAME: &str = "TextVN";
 pub const LEGACY_APP_RUN_VALUE_NAME: &str = "TextVN";
 pub const LINUX_DESKTOP_FILENAME: &str = "textvn.desktop";
@@ -105,52 +110,13 @@ pub fn disable_linux_autostart_in_dir(autostart_dir: &Path) -> std::result::Resu
 }
 
 /// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng OS không.
+/// Value `--msix-guard` (kênh Store, tự khởi động đang tắt) KHÔNG tính là bật.
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     #[cfg(windows)]
     {
-        unsafe {
-            let mut hkey = HKEY::default();
-            let subkey_wide = to_wide(RUN_KEY_PATH);
-            let status = RegOpenKeyExW(
-                HKEY_CURRENT_USER,
-                PCWSTR(subkey_wide.as_ptr()),
-                None,
-                KEY_READ,
-                &mut hkey,
-            );
-            if status != ERROR_SUCCESS {
-                return Ok(false);
-            }
-
-            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
-            let mut val_type = REG_VALUE_TYPE::default();
-            let mut data_len = 0u32;
-
-            let mut query_status = RegQueryValueExW(
-                hkey,
-                PCWSTR(val_name_wide.as_ptr()),
-                None,
-                Some(&mut val_type),
-                None,
-                Some(&mut data_len),
-            );
-
-            if query_status != ERROR_SUCCESS {
-                let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
-                query_status = RegQueryValueExW(
-                    hkey,
-                    PCWSTR(legacy_name_wide.as_ptr()),
-                    None,
-                    Some(&mut val_type),
-                    None,
-                    Some(&mut data_len),
-                );
-            }
-
-            let _ = RegCloseKey(hkey);
-
-            Ok(query_status == ERROR_SUCCESS && data_len > 0)
-        }
+        let user = autostart_command()
+            .is_some_and(|cmd| !cmd.trim().is_empty() && !crate::store::run_command_is_guard(&cmd));
+        Ok(user || machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()))
     }
     #[cfg(target_os = "linux")]
     {
@@ -166,54 +132,18 @@ pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
 pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
+        // R2-27: bộ cài cho mọi người dùng đã đặt HKLM Run → không ghi thêm mục HKCU trùng
+        // (hai tiến trình tray lúc đăng nhập, mục thừa còn lại sau khi gỡ).
+        if machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()) {
+            return Ok(());
+        }
         let path = match exe_path {
             Some(p) => p.to_path_buf(),
             None => {
                 std::env::current_exe().map_err(|e| format!("Cannot get current exe path: {e}"))?
             }
         };
-
-        let cmd_str = format!("\"{}\" --autostart", path.display());
-        let cmd_wide = to_wide(&cmd_str);
-
-        unsafe {
-            let mut hkey = HKEY::default();
-            let subkey_wide = to_wide(RUN_KEY_PATH);
-            let status = RegCreateKeyExW(
-                HKEY_CURRENT_USER,
-                PCWSTR(subkey_wide.as_ptr()),
-                None,
-                PCWSTR::null(),
-                REG_OPTION_NON_VOLATILE,
-                KEY_WRITE,
-                None,
-                &mut hkey,
-                None,
-            );
-            if status != ERROR_SUCCESS {
-                return Err(format!("RegCreateKeyExW failed with code {:?}", status));
-            }
-
-            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
-            let byte_len = cmd_wide.len() * 2;
-            let slice = std::slice::from_raw_parts(cmd_wide.as_ptr() as *const u8, byte_len);
-
-            let set_status = RegSetValueExW(
-                hkey,
-                PCWSTR(val_name_wide.as_ptr()),
-                None,
-                REG_SZ,
-                Some(slice),
-            );
-
-            let _ = RegCloseKey(hkey);
-
-            if set_status != ERROR_SUCCESS {
-                return Err(format!("RegSetValueExW failed with code {:?}", set_status));
-            }
-
-            Ok(())
-        }
+        write_run_value(&format!("\"{}\" --autostart", path.display()))
     }
     #[cfg(target_os = "linux")]
     {
@@ -232,20 +162,129 @@ pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), Stri
     }
 }
 
+/// Ghi `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TextVN` = `cmd`.
+/// Từ chối khi tiến trình còn package identity (ghi sẽ vào hive ảo của package).
+#[cfg(windows)]
+pub fn write_run_value(cmd: &str) -> std::result::Result<(), String> {
+    if crate::store_win::refuse_if_packaged("ghi HKCU Run") {
+        return Err("package identity: không ghi Run key".to_string());
+    }
+    set_hkcu_string(RUN_KEY_PATH, APP_RUN_VALUE_NAME, cmd)
+}
+
+/// Ghi `HKCU\...\RunOnce\<name>` = `cmd` (kênh Store hẹn xoá thư mục khi gỡ).
+#[cfg(windows)]
+pub fn set_runonce_value(name: &str, cmd: &str) -> std::result::Result<(), String> {
+    if crate::store_win::refuse_if_packaged("ghi HKCU RunOnce") {
+        return Err("package identity: không ghi RunOnce".to_string());
+    }
+    set_hkcu_string(RUNONCE_KEY_PATH, name, cmd)
+}
+
+/// Xoá `HKCU\...\RunOnce\<name>` (không có thì thôi).
+#[cfg(windows)]
+pub fn delete_runonce_value(name: &str) -> std::result::Result<(), String> {
+    if crate::store_win::refuse_if_packaged("xoá HKCU RunOnce") {
+        return Err("package identity: không ghi RunOnce".to_string());
+    }
+    delete_hkcu_values(RUNONCE_KEY_PATH, &[name])
+}
+
+#[cfg(windows)]
+fn set_hkcu_string(subkey: &str, name: &str, value: &str) -> std::result::Result<(), String> {
+    let cmd_wide = to_wide(value);
+    // SAFETY: chuỗi NUL-terminated sống suốt các lời gọi; key đóng ở mọi nhánh.
+    unsafe {
+        let mut hkey = HKEY::default();
+        let subkey_wide = to_wide(subkey);
+        let status = RegCreateKeyExW(
+            HKEY_CURRENT_USER,
+            PCWSTR(subkey_wide.as_ptr()),
+            None,
+            PCWSTR::null(),
+            REG_OPTION_NON_VOLATILE,
+            KEY_WRITE,
+            None,
+            &mut hkey,
+            None,
+        );
+        if status != ERROR_SUCCESS {
+            return Err(format!("RegCreateKeyExW failed with code {:?}", status));
+        }
+
+        let val_name_wide = to_wide(name);
+        let byte_len = cmd_wide.len() * 2;
+        let slice = std::slice::from_raw_parts(cmd_wide.as_ptr() as *const u8, byte_len);
+
+        let set_status = RegSetValueExW(
+            hkey,
+            PCWSTR(val_name_wide.as_ptr()),
+            None,
+            REG_SZ,
+            Some(slice),
+        );
+
+        let _ = RegCloseKey(hkey);
+
+        if set_status != ERROR_SUCCESS {
+            return Err(format!("RegSetValueExW failed with code {:?}", set_status));
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+fn delete_hkcu_values(subkey: &str, names: &[&str]) -> std::result::Result<(), String> {
+    // SAFETY: chuỗi NUL-terminated sống suốt các lời gọi; key đóng trước khi trả về.
+    unsafe {
+        let mut hkey = HKEY::default();
+        let subkey_wide = to_wide(subkey);
+        let status = RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            PCWSTR(subkey_wide.as_ptr()),
+            None,
+            KEY_WRITE,
+            &mut hkey,
+        );
+        if status != ERROR_SUCCESS {
+            return Ok(());
+        }
+        let mut result = Ok(());
+        for name in names {
+            let val_name_wide = to_wide(name);
+            let del_status = RegDeleteValueW(hkey, PCWSTR(val_name_wide.as_ptr()));
+            if del_status != ERROR_SUCCESS && del_status != ERROR_FILE_NOT_FOUND {
+                result = Err(format!("RegDeleteValueW failed with code {:?}", del_status));
+            }
+        }
+        let _ = RegCloseKey(hkey);
+        result
+    }
+}
+
 /// Lệnh tự khởi động đang đăng ký (`HKCU\...\Run\TextVN`), nếu có.
 #[cfg(windows)]
 pub fn autostart_command() -> Option<String> {
+    read_run_value(HKEY_CURRENT_USER, KEY_READ)
+}
+
+/// R2-27: lệnh tự khởi động do bộ cài cho MỌI người dùng ghi (`HKLM\...\Run\TextVN`,
+/// view 64-bit) — checkbox phải thấy nó, nếu không người dùng bật lại sẽ tạo mục HKCU
+/// trùng.
+#[cfg(windows)]
+pub fn machine_autostart_command() -> Option<String> {
+    read_run_value(HKEY_LOCAL_MACHINE, KEY_READ | KEY_WOW64_64KEY)
+}
+
+#[cfg(windows)]
+fn read_run_value(root: HKEY, access: REG_SAM_FLAGS) -> Option<String> {
     // SAFETY: buffer đủ `len` byte do chính RegQueryValueExW báo; key được đóng mọi nhánh.
     unsafe {
         let mut hkey = HKEY::default();
         let subkey_wide = to_wide(RUN_KEY_PATH);
-        if RegOpenKeyExW(
-            HKEY_CURRENT_USER,
-            PCWSTR(subkey_wide.as_ptr()),
-            None,
-            KEY_READ,
-            &mut hkey,
-        ) != ERROR_SUCCESS
+        if RegOpenKeyExW(root, PCWSTR(subkey_wide.as_ptr()), None, access, &mut hkey)
+            != ERROR_SUCCESS
         {
             return None;
         }
@@ -293,13 +332,13 @@ pub fn command_points_into(command: &str, dir: &Path) -> bool {
             .is_some_and(|rest| rest.starts_with(['\\', '/']))
 }
 
-/// Gỡ bản portable: bỏ tự khởi động NẾU nó trỏ vào thư mục sắp xoá — không đụng mục
-/// tự khởi động của một bản TextVN khác (ví dụ bản đã cài).
+/// Gỡ bản portable / dọn kênh Store: XOÁ value tự khởi động NẾU nó trỏ vào thư mục sắp
+/// xoá — không đụng mục tự khởi động của một bản TextVN khác (ví dụ bản đã cài).
 pub fn disable_autostart_for_dir(dir: &Path) -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
         match autostart_command() {
-            Some(cmd) if command_points_into(&cmd, dir) => disable_autostart(),
+            Some(cmd) if command_points_into(&cmd, dir) => delete_run_value(),
             _ => Ok(()),
         }
     }
@@ -310,36 +349,15 @@ pub fn disable_autostart_for_dir(dir: &Path) -> std::result::Result<(), String> 
     }
 }
 
-/// Tắt tự khởi động cùng OS cho TextVN Tray.
+/// Tắt tự khởi động cùng OS cho TextVN Tray. Kênh Store: không xoá value mà đổi sang
+/// `--msix-guard` (guard gỡ/cập nhật vẫn chạy lúc đăng nhập, tray thì không).
 pub fn disable_autostart() -> std::result::Result<(), String> {
     #[cfg(windows)]
     {
-        unsafe {
-            let mut hkey = HKEY::default();
-            let subkey_wide = to_wide(RUN_KEY_PATH);
-            let status = RegOpenKeyExW(
-                HKEY_CURRENT_USER,
-                PCWSTR(subkey_wide.as_ptr()),
-                None,
-                KEY_WRITE,
-                &mut hkey,
-            );
-            if status != ERROR_SUCCESS {
-                return Ok(());
-            }
-
-            let val_name_wide = to_wide(APP_RUN_VALUE_NAME);
-            let del_status = RegDeleteValueW(hkey, PCWSTR(val_name_wide.as_ptr()));
-            let legacy_name_wide = to_wide(LEGACY_APP_RUN_VALUE_NAME);
-            let _ = RegDeleteValueW(hkey, PCWSTR(legacy_name_wide.as_ptr()));
-            let _ = RegCloseKey(hkey);
-
-            if del_status != ERROR_SUCCESS && del_status != ERROR_FILE_NOT_FOUND {
-                return Err(format!("RegDeleteValueW failed with code {:?}", del_status));
-            }
-
-            Ok(())
+        if let Some(ctx) = crate::store_win::detect_store_context() {
+            return write_run_value(&crate::store::run_command(&ctx.exe, false));
         }
+        delete_run_value()
     }
     #[cfg(target_os = "linux")]
     {
@@ -349,6 +367,18 @@ pub fn disable_autostart() -> std::result::Result<(), String> {
     {
         Ok(())
     }
+}
+
+/// Xoá hẳn value `TextVN` (và tên cũ) khỏi HKCU Run.
+#[cfg(windows)]
+pub fn delete_run_value() -> std::result::Result<(), String> {
+    if crate::store_win::refuse_if_packaged("xoá HKCU Run") {
+        return Err("package identity: không ghi Run key".to_string());
+    }
+    delete_hkcu_values(
+        RUN_KEY_PATH,
+        &[APP_RUN_VALUE_NAME, LEGACY_APP_RUN_VALUE_NAME],
+    )
 }
 
 #[cfg(windows)]

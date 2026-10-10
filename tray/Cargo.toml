@@ -32,9 +32,13 @@ windows = { version = "0.61", features = [
     "Win32_System_Registry",
     "Win32_System_LibraryLoader",
     "Win32_Storage_FileSystem",
+    "Win32_Storage_Packaging",
+    "Win32_Storage_Packaging_Appx",
     "Win32_Security",
     "Win32_Security_Authorization",
     "Win32_UI_Controls",
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_Accessibility",
+    # CoTaskMemFree cho SHGetKnownFolderPath (gốc Program Files tin cậy — R2-03/R2-15).
+    "Win32_System_Com",
 ] }

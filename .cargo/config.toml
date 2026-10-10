@@ -1,2 +1,12 @@
 [alias]
 xtask = "run -q -p xtask --"
+
+# R2-18: CRT tĩnh cho MỌI binary Windows (TIP DLL được nạp vào mọi tiến trình,
+# tray/CLI chạy từ bản portable/MSIX) — trước đây chỉ bản x86 build bằng
+# RUSTFLAGS, bản x64 import VCRUNTIME140.dll → máy thiếu VC++ redist thì TIP/tray
+# không nạp được. Lưu ý: biến môi trường RUSTFLAGS ghi đè hoàn toàn mục này.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.i686-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

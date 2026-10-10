@@ -167,15 +167,18 @@ const RECENT_MAX: usize = 64;
 /// (FFI còn một lưới an toàn cuối; macro dài hơn 64 ký tự bị cắt tại đây).
 pub const MAX_TEXT: usize = 64;
 
+/// Số phím tối đa của một từ engine còn sở hữu: `raw` + 1 ký tự ranh giới phải vừa
+/// `MAX_TEXT` để RESTORE/ESC trả lại đủ chuỗi gõ. Vượt → đóng từ (`close_word`).
+const MAX_WORD_KEYS: usize = MAX_TEXT - 1;
+
 /// Engine — 1 instance = 1 thread (P0-2 §3).
 pub struct Engine {
     opts: EngineOptions,
     ctx: Context,
     word: buffer::Word,
-    /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji.
+    /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji
+    /// và tự viết hoa đầu câu (`post/caps.rs::sentence_start`).
     recent: Vec<char>,
-    /// Cờ "chữ cái kế tiếp viết hoa" (sau `. ! ?` / Enter) — `post/caps.rs`.
-    caps_pending: bool,
 }
 
 impl Engine {
@@ -185,7 +188,6 @@ impl Engine {
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
-            caps_pending: false,
         }
     }
 
@@ -194,7 +196,6 @@ impl Engine {
         self.opts = opts;
         self.word.clear();
         self.recent.clear();
-        self.caps_pending = false;
     }
 
     pub fn options(&self) -> &EngineOptions {
@@ -209,11 +210,15 @@ impl Engine {
         &self.ctx
     }
 
+    /// Ô mật khẩu: cờ `secure` HOẶC role `secure` (adapter quên một trong hai vẫn an toàn — S3).
+    fn secure(&self) -> bool {
+        self.ctx.secure || self.ctx.field_role == strategy::IME_FIELD_SECURE
+    }
+
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
         self.word.clear();
         self.recent.clear();
-        self.caps_pending = false;
     }
 
     /// Cập nhật đuôi text: xoá `delete` ký tự cuối rồi thêm `insert` (giữ tối đa `RECENT_MAX`).
@@ -231,7 +236,7 @@ impl Engine {
     ///
     /// Ô mật khẩu (`secure`) → **không** giữ tail nào (S3).
     fn note_pass(&mut self, k: &KeyEvent) {
-        if self.ctx.secure {
+        if self.secure() {
             return;
         }
         match k.vk {
@@ -258,7 +263,7 @@ impl Engine {
     /// Resolve strategy hiện tại (P0-3 §3.1).
     pub fn strategy(&self) -> Strategy {
         strategy::resolve(strategy::ResolveInput {
-            secure: self.ctx.secure,
+            secure: self.secure(),
             enabled: self.opts.enabled && self.ctx.enabled,
             user_preset: None,
             system_preset: None,
@@ -283,8 +288,14 @@ impl Engine {
     }
 
     fn fold_current(&self) -> Vec<char> {
+        self.fold_keys(&self.word.raw)
+    }
+
+    /// Fold một chuỗi phím bất kỳ với đúng tuỳ chọn của từ đang gõ (kiểu gõ, kiểu dấu,
+    /// đặt dấu tự do, Caps Lock, Quick Telex).
+    fn fold_keys(&self, raw: &[char]) -> Vec<char> {
         let mut display = method::fold_caps(
-            &self.word.raw,
+            raw,
             self.opts.method,
             self.opts.diacritic_style,
             self.opts.free_marking,
@@ -318,8 +329,11 @@ impl Engine {
             return Outcome::pass();
         }
         if k.is_chord() {
-            // Ctrl+V/Ctrl+Z/Alt+Tab… đổi text quanh con trỏ mà engine không thấy: quên đuôi
-            // text để gõ tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
+            // Ctrl+V/Ctrl+Z/Ctrl+←/Ctrl+Backspace/Alt+Tab… đổi text hoặc vị trí con trỏ mà
+            // engine không thấy: bỏ quyền sở hữu từ đang gõ (như phím điều hướng — B7) để
+            // phím kế tiếp không REPLACE `owned` ký tự ở chỗ khác, và quên đuôi text để gõ
+            // tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
+            self.word.clear();
             self.recent.clear();
             return Outcome::pass();
         }
@@ -367,7 +381,15 @@ impl Engine {
             _ => {}
         }
 
-        let Some(c) = k.printable() else {
+        // Ký tự điều khiển KHÔNG phải chữ hay ranh giới in được: layout macOS trả
+        // `\x1C`–`\x1F` cho mũi tên, `\x01`/`\x04` Home/End, `\x7F` Delete xuôi,
+        // `\x03` Enter bàn phím số… Coi là ranh giới thì ở Preedit engine trả
+        // COMMIT{"\x1C"} — adapter chèn ký tự điều khiển vào văn bản và nuốt phím.
+        // Chỉ `\n` `\r` `\t` (Enter/Tab gửi qua `ch`) còn là ranh giới.
+        let printable = k
+            .printable()
+            .filter(|&c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'));
+        let Some(c) = printable else {
             // Delete/arrow/F-key…: app có thể đã đổi selection/cursor mà engine
             // không quan sát được. Bỏ composition ownership trước khi PASS; nếu
             // giữ `word`, key kế tiếp sẽ REPLACE một suffix ở vị trí cũ (B7).
@@ -382,11 +404,22 @@ impl Engine {
         }
 
         // --- Chữ cái: fold path ---
-        // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ngay sau `. ! ?` / Enter.
+        // Từ dài bất thường (giữ phím lặp `đẹpppp…` trong chat, chuỗi chữ dài không ranh
+        // giới): kết quả sẽ không vừa `ime_result_v1` (MAX_TEXT). FFI mà cắt `insert` thì
+        // `owned` lệch document và phím kế tiếp xoá lẹm sang chữ phía trước → đóng từ
+        // (giữ nguyên trong document), phím này đi vào như ký tự thường.
+        if self.word.raw.len() >= MAX_WORD_KEYS {
+            return self.close_word(c, strategy);
+        }
+
+        // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
+        // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
         let mut caps_fired = false;
-        let c = if self.opts.auto_capitalize && self.caps_pending && self.word.is_empty() {
+        let c = if self.opts.auto_capitalize
+            && self.word.is_empty()
+            && post::caps::sentence_start(&self.recent)
+        {
             caps_fired = true;
-            self.caps_pending = false;
             post::caps::capitalize(c)
         } else {
             c
@@ -421,6 +454,13 @@ impl Engine {
             return Outcome::pass();
         }
 
+        let out = self.emit(&display);
+        if out.len() > MAX_TEXT {
+            // Bảng mã 2 ký tự/chữ (Unicode tổ hợp, VNI Windows) làm từ ngắn hơn
+            // MAX_WORD_KEYS phím vẫn tràn — cùng cách xử lý như trên.
+            self.word.raw.pop();
+            return self.close_word(c, strategy);
+        }
         let delete = if self.word.active {
             self.word.owned as u16
         } else {
@@ -428,7 +468,6 @@ impl Engine {
         };
         self.word.active = true;
         self.word.passed.clear();
-        let out = self.emit(&display);
         self.word.display = display;
         self.word.owned = out.len();
         self.recent_replace(delete as usize, &out);
@@ -454,7 +493,7 @@ impl Engine {
             return None;
         }
         if strategy == Strategy::Passthrough
-            && !(self.opts.allow_macro_when_vi_off && !self.ctx.secure)
+            && !(self.opts.allow_macro_when_vi_off && !self.secure())
         {
             return None;
         }
@@ -487,12 +526,9 @@ impl Engine {
 
     /// Ranh giới từ: Space/Enter/Tab/punct (P0-2 §4, bug B2 cho Enter+Preedit).
     ///
-    /// Thứ tự (stage 7 pipeline): caps (`. ! ?` + Enter) → auto-restore EN (B5) → đóng từ.
+    /// Thứ tự (stage 7 pipeline): auto-restore EN (B5) → đóng từ. Viết hoa đầu câu đọc lại
+    /// đuôi text (`recent`) khi chữ kế tiếp được gõ.
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
-        // `.` `!` `?` `\n` → chữ cái kế tiếp viết hoa (P0-3 §1.1)
-        if post::caps::is_sentence_end(c) {
-            self.caps_pending = true;
-        }
         let was_active = self.word.active;
 
         // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
@@ -516,6 +552,13 @@ impl Engine {
             }
         }
 
+        self.close_word(c, strategy)
+    }
+
+    /// Đóng từ đang gõ **giữ nguyên** kết quả trong document, rồi cho `c` vào sau nó
+    /// (không auto-restore, không đổi cờ viết hoa — phần đó thuộc `on_boundary`).
+    fn close_word(&mut self, c: char, strategy: Strategy) -> Outcome {
+        let was_active = self.word.active;
         self.word.clear();
         self.recent_replace(0, &[c]);
         if !was_active {
@@ -526,13 +569,13 @@ impl Engine {
             };
         }
         match strategy {
-            // Preedit: đóng composition (preedit thành text) rồi chèn ký tự ranh giới.
+            // Preedit: đóng composition (preedit thành text) rồi chèn `c`.
             Strategy::Preedit => Outcome {
                 action: Action::Commit { insert: vec![c] },
                 preedit: Vec::new(),
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
             },
-            // Các strategy khác: từ đã nằm trong document → chỉ cho ranh giới đi qua.
+            // Các strategy khác: từ đã nằm trong document → chỉ cho `c` đi qua.
             _ => Outcome {
                 action: Action::Pass,
                 preedit: Vec::new(),
@@ -571,6 +614,9 @@ impl Engine {
             }
         }
         let out = self.emit(&insert);
+        if out.len() > MAX_TEXT {
+            return None;
+        }
         let delete = self.word.owned as u16;
         self.word.clear();
         self.recent_replace(delete as usize, &out);
@@ -603,12 +649,21 @@ impl Engine {
         }
     }
 
-    /// Backspace: từ đang active → fold lại từ chưa; chưa active → bỏ ký tự đã PASS.
+    /// Backspace: từ đang active → xoá **ký tự cuối đang hiển thị** (như UniKey
+    /// `processBackspace`, R2-55); chưa active → bỏ ký tự đã PASS.
+    ///
+    /// Dấu thanh nằm trên ký tự vừa xoá thì mất theo; còn lại dời về đúng chỗ của phần còn
+    /// lại (`tiếng` → `tiến`, `hoán` → `hoá`, kiểu cũ `hóan` → `hóa`). `raw` được dựng lại
+    /// thành chuỗi phím gõ ra đúng chữ còn lại (`method::keys_for`) để phím gõ tiếp vẫn biến
+    /// đổi đúng. Bản cũ bỏ **phím** cuối rồi fold lại: `ass`+BS → `á` (thêm dấu), `tiếng`+BS →
+    /// `tiêng`, xoá `được` (`dduwowcj`) cần 8 lần Backspace.
     fn on_backspace(&mut self) -> Outcome {
         if self.word.active {
-            self.word.raw.pop();
             let delete = self.word.owned as u16;
-            if self.word.raw.is_empty() {
+            let mut target = self.word.display.clone();
+            target.pop();
+            transform::tone::normalize_tone(&mut target, self.opts.diacritic_style);
+            if target.is_empty() {
                 self.word.clear();
                 self.recent_replace(delete as usize, &[]);
                 return Outcome {
@@ -620,9 +675,35 @@ impl Engine {
                     flags: FLAG_CONSUMED,
                 };
             }
-            let display = self.fold_current();
-            let out = self.emit(&display);
-            self.word.display = display;
+            let out = self.emit(&target);
+            if out.len() > MAX_TEXT {
+                // Dời dấu thanh ở bảng mã tổ hợp không làm từ dài thêm, nhưng giữ lưới an
+                // toàn: không vừa result → thôi sở hữu từ, app tự xoá 1 ký tự như thường.
+                self.word.clear();
+                self.recent.pop();
+                return Outcome::pass();
+            }
+            let keys =
+                method::keys_for(&target, self.opts.method, self.opts.diacritic_style, |k| {
+                    self.fold_keys(k)
+                })
+                .filter(|k| k.len() <= MAX_WORD_KEYS);
+            let Some(raw) = keys else {
+                // Không có chuỗi phím nào gõ ra đúng chữ còn lại (chữ literal hiếm như `uo`
+                // sau `uoww`): giữ chữ trong document, thôi sở hữu từ (như bung gõ tắt).
+                self.word.clear();
+                self.recent_replace(delete as usize, &out);
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: delete,
+                        insert: out,
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED | FLAG_WORD_END,
+                };
+            };
+            self.word.raw = raw;
+            self.word.display = target;
             self.word.owned = out.len();
             self.recent_replace(delete as usize, &out);
             return Outcome {
@@ -634,17 +715,8 @@ impl Engine {
                 flags: FLAG_CONSUMED,
             };
         }
-        // Chưa activate: bỏ 1 ký tự đã gõ thẳng
-        // Nếu người dùng vừa xóa dấu kết câu thì không được giữ cờ viết hoa
-        // cho ký tự kế tiếp (ví dụ `hi.<Backspace>ban` phải là `hiban`).
-        if self.word.is_empty()
-            && self
-                .recent
-                .last()
-                .is_some_and(|&c| post::caps::is_sentence_end(c))
-        {
-            self.caps_pending = false;
-        }
+        // Chưa activate: bỏ 1 ký tự đã gõ thẳng. Đuôi text `recent` bớt theo nên viết hoa
+        // đầu câu tự đúng (`hi.<Backspace>ban` → `hiban`).
         self.word.raw.pop();
         self.word.passed.pop();
         self.word.display.clear();
@@ -657,6 +729,7 @@ impl Engine {
 mod tests {
     use super::*;
     use keymap::{MOD_CTRL, MOD_SHIFT};
+    use transform::DiacriticStyle;
 
     fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
         match action {
@@ -738,6 +811,25 @@ mod tests {
     }
 
     #[test]
+    fn secure_role_without_flag_is_still_secure() {
+        // Adapter đặt role `secure` nhưng quên cờ: macro (kể cả `allow_macro_when_vi_off`)
+        // không được chạy, phím không được biến đổi.
+        let mut opts = macro_opts(MacroTrigger::Tab);
+        opts.allow_macro_when_vi_off = true;
+        let mut e = Engine::new(opts);
+        e.set_context(Context {
+            field_role: strategy::IME_FIELD_SECURE,
+            caps: strategy::IME_CAP_PREEDIT | strategy::IME_CAP_FIELD_DETECT,
+            hint: strategy::IME_STRATEGY_PREEDIT,
+            ..Default::default()
+        });
+        assert_eq!(e.strategy(), Strategy::Passthrough);
+        let mut buf = type_buf(&mut e, "cty");
+        assert_eq!(press(&mut e, &mut buf, keymap::vk::TAB), Action::Pass);
+        assert_eq!(text(&buf), "cty\t");
+    }
+
+    #[test]
     fn disabled_all_pass() {
         let mut e = engine();
         e.set_options(EngineOptions {
@@ -772,19 +864,106 @@ mod tests {
         assert_eq!(e.key(&k).action, Action::Pass);
     }
 
+    /// Bấm Backspace `n` lần, trả document sau mỗi lần.
+    fn backspaces(e: &mut Engine, buf: &mut Vec<char>, n: usize) -> Vec<String> {
+        (0..n)
+            .map(|_| {
+                let k = KeyEvent::key_down(keymap::vk::BACK);
+                let o = e.key(&k);
+                match o.action {
+                    // PASS: app tự xoá 1 ký tự.
+                    Action::Pass => {
+                        buf.pop();
+                    }
+                    ref a => apply(buf, a, &k),
+                }
+                text(buf)
+            })
+            .collect()
+    }
+
+    /// R2-55: Backspace xoá **một ký tự đang hiển thị** (UniKey `processBackspace`), không
+    /// bỏ phím cuối rồi fold lại.
     #[test]
-    fn backspace_folds_back() {
+    fn backspace_deletes_last_visible_char() {
+        // Xoá cả từ cần đúng số Backspace bằng số chữ, bất kể đã gõ bao nhiêu phím.
         let mut e = engine();
-        let (buf, _) = type_keys(&mut e, "dduocj");
-        assert_eq!(buf, "được");
-        // Backspace ×5 → raw "dduoc"→"đươc", "dduo"→"đuơ", "ddu"→"đu", "dd"→"đ", "d"→"d"
-        let mut buf: Vec<char> = buf.chars().collect();
-        for _ in 0..5 {
-            let k = KeyEvent::key_down(keymap::vk::BACK);
-            let o = e.key(&k);
-            apply(&mut buf, &o.action, &k);
+        let mut buf = type_buf(&mut e, "dduwowcj");
+        assert_eq!(text(&buf), "được");
+        assert_eq!(backspaces(&mut e, &mut buf, 4), ["đượ", "đư", "đ", ""]);
+
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "nguwowif");
+        assert_eq!(
+            backspaces(&mut e, &mut buf, 5),
+            ["ngườ", "ngư", "ng", "n", ""]
+        );
+
+        // Không bao giờ thêm dấu: phím undo không "sống lại".
+        for (keys, shown, after) in [("ass", "as", "a"), ("asss", "ás", "á")] {
+            let mut e = engine();
+            let mut buf = type_buf(&mut e, keys);
+            assert_eq!(text(&buf), shown, "{keys}");
+            assert_eq!(backspaces(&mut e, &mut buf, 1), [after], "{keys}");
         }
-        assert_eq!(buf.into_iter().collect::<String>(), "d");
+
+        // Dấu thanh không nằm trên chữ vừa xoá → giữ (dời về đúng chỗ nếu cần);
+        // nằm trên chữ vừa xoá → mất theo.
+        for (keys, after) in [
+            ("tieengs", "tiến"),
+            ("hoafn", "hoà"),
+            ("hoaf", "ho"),
+            ("chaof", "chà"),
+            ("vieetj", "việ"),
+        ] {
+            let mut e = engine();
+            let mut buf = type_buf(&mut e, keys);
+            assert_eq!(backspaces(&mut e, &mut buf, 1), [after], "{keys}");
+        }
+        let mut e = Engine::new(EngineOptions {
+            diacritic_style: DiacriticStyle::Old,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "hoafn");
+        assert_eq!(text(&buf), "hoàn");
+        assert_eq!(backspaces(&mut e, &mut buf, 1), ["hòa"], "kiểu cũ: dời dấu");
+
+        // VNI giống hệt.
+        let mut e = Engine::new(EngineOptions {
+            method: Method::Vni,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "d9u7o7c5");
+        assert_eq!(text(&buf), "được");
+        assert_eq!(backspaces(&mut e, &mut buf, 4), ["đượ", "đư", "đ", ""]);
+    }
+
+    /// Sau Backspace, phím gõ tiếp vẫn biến đổi trên chữ còn lại.
+    #[test]
+    fn typing_continues_after_backspace() {
+        for (method, keys, fix, want) in [
+            (Method::Telex, "dduocj", "c", "được"),
+            (Method::Telex, "tieengs", "g", "tiếng"),
+            (Method::Telex, "chaof", "o", "chào"),
+            (Method::Telex, "ddaatj", "c", "đậc"),
+            (Method::Telex, "hoaf", "af", "hoà"),
+            (Method::Telex, "ass", "s", "á"),
+            (Method::Vni, "d9u7o7c5", "c", "được"),
+            (Method::Viqr, "ddu+o+c.", "c", "được"),
+        ] {
+            let mut e = Engine::new(EngineOptions {
+                method,
+                ..Default::default()
+            });
+            let mut buf = type_buf(&mut e, keys);
+            backspaces(&mut e, &mut buf, 1);
+            for c in fix.chars() {
+                let k = KeyEvent::char_down(c);
+                let o = e.key(&k);
+                apply(&mut buf, &o.action, &k);
+            }
+            assert_eq!(text(&buf), want, "{method:?} {keys}+BS+{fix}");
+        }
     }
 
     #[test]
@@ -813,6 +992,47 @@ mod tests {
         // Không còn owner range sau khi cursor đã di chuyển; x phải PASS, không
         // được REPLACE `tôi` bằng delete_count theo vị trí con trỏ cũ.
         assert_eq!(e.key(&KeyEvent::char_down('x')).action, Action::Pass);
+    }
+
+    #[test]
+    fn chord_drops_word_ownership() {
+        // `tooi` → `tôi` (engine sở hữu 3 ký tự) rồi Ctrl+← (con trỏ nhảy về đầu từ):
+        // `s` kế tiếp không được REPLACE 3 ký tự ở vị trí mới.
+        let mut e = engine();
+        let (buf, _) = type_keys(&mut e, "tooi");
+        assert_eq!(buf, "tôi");
+        let ctrl_left = KeyEvent {
+            vk: keymap::vk::LEFT,
+            mods: MOD_CTRL,
+            key_down: true,
+            ..Default::default()
+        };
+        assert_eq!(e.key(&ctrl_left).action, Action::Pass);
+        assert_eq!(e.key(&KeyEvent::char_down('s')).action, Action::Pass);
+    }
+
+    #[test]
+    fn control_chars_from_layout_are_navigation_not_boundary() {
+        // macOS UCKeyTranslate: mũi tên trái = `\x1C`. Ở Preedit, bản cũ trả
+        // COMMIT{"\x1C"} → adapter chèn ký tự điều khiển vào văn bản.
+        let mut e = engine();
+        e.set_context(Context {
+            caps: strategy::IME_CAP_PREEDIT | strategy::IME_CAP_FIELD_DETECT,
+            ..Default::default()
+        });
+        let _ = type_keys(&mut e, "tooi");
+        for (vk, ch) in [(keymap::vk::LEFT, 0x1Cu32), (0, 0x7F), (0, 0x03)] {
+            let o = e.key(&KeyEvent {
+                vk,
+                ch,
+                key_down: true,
+                ..Default::default()
+            });
+            assert_eq!(o.action, Action::Pass, "ch={ch:#x}");
+            assert!(o.preedit.is_empty());
+        }
+        // Từ đã bỏ sở hữu: phím kế tiếp không REPLACE chữ cũ.
+        assert_eq!(e.key(&KeyEvent::char_down('s')).action, Action::Pass);
     }
 
     #[test]
@@ -1059,6 +1279,42 @@ mod tests {
         assert_eq!(text(&buf), "hiban");
     }
 
+    /// Gõ cả chuỗi (Space là phím Space) với cấu hình mặc định, trả document.
+    fn type_doc(e: &mut Engine, input: &str) -> String {
+        let mut buf: Vec<char> = Vec::new();
+        for c in input.chars() {
+            let k = if c == ' ' {
+                KeyEvent::key_down(keymap::vk::SPACE)
+            } else {
+                KeyEvent::char_down(c)
+            };
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+        }
+        text(&buf)
+    }
+
+    /// R2-59: dấu chấm không kèm khoảng trắng (URL, e-mail, tên file, số thập phân, `v.v.`)
+    /// không kết câu; `. ` / `.") ` / Enter vẫn viết hoa chữ kế tiếp.
+    #[test]
+    fn auto_capitalize_needs_space_after_dot() {
+        let mut e = engine();
+        assert_eq!(
+            type_doc(&mut e, "google.com file.txt a@b.com gias 3.5 kg v.v... ok"),
+            "google.com file.txt a@b.com giá 3.5 kg v.v... Ok"
+        );
+        let mut e = engine();
+        assert_eq!(type_doc(&mut e, "chao.\") ban"), "chao.\") Ban");
+        // Xoá Space sau dấu chấm → hết đầu câu; gõ lại Space → đầu câu lại.
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "hi.");
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        press(&mut e, &mut buf, keymap::vk::BACK);
+        buf.pop();
+        buf.extend(type_buf(&mut e, "com"));
+        assert_eq!(text(&buf), "hi.com");
+    }
+
     #[test]
     fn keyup_does_not_change_state() {
         let mut e = engine();
@@ -1244,13 +1500,16 @@ mod tests {
         assert_eq!(text(&buf), "đường");
     }
 
+    /// R2-61: Simple Telex vẫn gõ được ă/ơ/ư bằng `w` (UniKey `vneHookAll`), kể cả khi
+    /// auto-restore bật mặc định.
     #[test]
-    fn simple_telex_w_is_literal_through_engine() {
+    fn simple_telex_w_is_horn_through_engine() {
         let mut e = Engine::new(EngineOptions {
             method: Method::SimpleTelex,
+            auto_capitalize: false,
             ..Default::default()
         });
-        let buf = type_buf(&mut e, "tuw");
-        assert_eq!(text(&buf), "tuw");
+        let buf = type_buf(&mut e, "trawngs mowf tuw muwa nawm cuwar ");
+        assert_eq!(text(&buf), "trắng mờ tư mưa năm cửa ");
     }
 }

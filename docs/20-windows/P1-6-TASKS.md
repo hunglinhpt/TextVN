@@ -4,6 +4,26 @@
 > Estimate: S ≤ 0.5 ngày · M = 1–2 ngày · L = 3–5 ngày. `Dep` = task ID chặn.
 > Finding review ghi vào `P1-REVIEW-LOG.md`, không sửa task đã Done mà không ghi chú.
 
+> **Trạng thái (2026-10-09, đối chiếu code/CI — chưa đối chiếu từng dòng acceptance):**
+> - Có code + test CI: WIN-010…019 (TSF), WIN-030…032/034 (field-detect/appdb), WIN-040…045 (hook —
+>   chỉ gói Compatibility), WIN-050…054 (tray Win32, IPC, Cài đặt `tray/src/settings_dialog.rs` —
+>   **không egui**, Inno per-user + bản `-machine.exe`), WIN-058 (`doctor --export`, `--pause`),
+>   WIN-061 (`targets-verify.yml`, dispatch), WIN-062 (job `perf`, A/B so merge-base,
+>   `continue-on-error`), WIN-064 (job `windows-package` của `ci-shared.yml`: gõ TSF thật vào
+>   Notepad/WordPad, Store validation, MSIX build + verify + sideload).
+> - ⏳ WIN-055: Authenticode qua **SignPath Foundation** — tooling xong (`tools/win/sign-signpath.ps1`
+>   theo REST API công bố, `build-release.ps1`, secret `SIGNPATH_*` trong `release.yml`, ký cả hai bộ
+>   cài), **đang chờ SignPath duyệt** — đây là hạng mục Windows duy nhất còn thiếu cho phát hành.
+>   `uiAccess` vẫn `false` (`installer/windows/app.manifest`).
+> - ⬜ Chưa làm: WIN-033 (verify Ed25519 — `ime_appdb_verify` cố ý fail-closed, chưa có
+>   `data/preset.pub`), WIN-056 (updater), WIN-057 (winget), WIN-060 (crate `textvn-appcomptest` —
+>   mới có `tools/appcomptest/targets/*.json`), WIN-063 (soak), WIN-065 (ASan/TSan Windows).
+> - Ngoài WBS: **MSIX cho Microsoft Store** (`installer/windows/msix/`, `tools/win/build-msix.ps1`,
+>   `tray/src/package_bootstrap.rs`, `tray/src/store.rs`) — đường nộp Store chính; trạng thái và
+>   việc còn lại: `../release/msix-submission.md`.
+> - Mục "Trạng thái task" trong `P1-REVIEW-LOG.md` (nhắc ở Checkpoint) chưa từng có — trạng thái
+>   ghi ở khối này.
+
 ## M0 — Spike & nền (tuần 1–2)
 
 ### WIN-001 · Chuẩn bị môi trường build (S, dep: —)

@@ -1,7 +1,7 @@
 PRIVACY POLICY — TextVN (Vietnamese Input Method)
 =================================================
 
-Last updated / Cập nhật: October 2, 2026
+Last updated / Cập nhật: October 9, 2026
 Developer / Nhà phát triển: LinhBH.CoM (Vietnam)
 Contact / Liên hệ: https://github.com/hunglinhpt/TextVN/issues
 
@@ -36,6 +36,17 @@ WHAT WE COLLECT: NOTHING.
 6. Input in secure fields: TextVN automatically disables itself in password
    fields and similar secure inputs. Nothing about those keystrokes is
    processed or kept.
+7. Microsoft Store version: a Windows input method must be registered with
+   the Text Services Framework so that other apps can load it, which a
+   packaged app cannot do from inside its package. On first launch the Store
+   version therefore copies its own program files (no user data) to
+   %USERPROFILE%\.textvn\msix-staging and %LOCALAPPDATA%\Programs\TextVN-Store,
+   registers the input method for your Windows account only (HKCU, no
+   administrator rights), and adds a "TextVN" startup entry that checks at
+   sign-in whether the Store package is still installed. When you remove
+   the Store package, that check unregisters the input method and deletes
+   those copied files; the tray menu item "Gỡ cài đặt" does the same
+   immediately and then opens Settings > Apps.
 
 CHILDREN'S PRIVACY: TextVN does not collect any data from any user of any
 age, so there is nothing to protect or disclose.
@@ -70,7 +81,17 @@ CHÚNG TÔI THU THẬP: KHÔNG CÓ GÌ.
    và xuất tới nơi BẠN chọn. Không có gì được gửi tự động.
 6. Ô mật khẩu: TextVN tự tắt trong các trường an toàn (mật khẩu…). Không
    xử lý, không giữ lại bất cứ thông tin gì về các phím đó.
-7. Quyền riêng tư của trẻ em: TextVN không thu thập dữ liệu của người dùng
+7. Bản Microsoft Store: bộ gõ Windows phải đăng ký với Text Services
+   Framework để app khác nạp được — việc này không làm được từ bên trong gói
+   MSIX. Vì vậy ở lần mở đầu tiên, bản Store chép chính các tệp chương trình
+   (không có dữ liệu người dùng) ra %USERPROFILE%\.textvn\msix-staging và
+   %LOCALAPPDATA%\Programs\TextVN-Store, đăng ký bộ gõ CHỈ cho tài khoản
+   Windows của bạn (HKCU, không cần quyền quản trị) và thêm mục khởi động
+   "TextVN" để mỗi lần đăng nhập kiểm tra gói Store còn được cài hay không.
+   Khi bạn gỡ gói Store, bước kiểm tra đó gỡ đăng ký bộ gõ và xoá các tệp đã
+   chép; mục "Gỡ cài đặt" ở menu khay làm việc này ngay rồi mở Cài đặt ›
+   Ứng dụng.
+8. Quyền riêng tư của trẻ em: TextVN không thu thập dữ liệu của người dùng
    ở mọi lứa tuổi.
 
 CHÍNH SÁCH NÀY THAY ĐỔI KHI NÀO: tệp này là nguồn chân lý duy nhất, nằm

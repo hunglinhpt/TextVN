@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# A tag produces one immutable, unsigned release candidate. Production requires
-# separate signing/notarization and native GUI approval (docs/developer-guide.md).
+# Mỗi tag tạo một release candidate bất biến; mọi asset được ký GPG (.asc) + Sigstore
+# keyless, SHA256SUMS.txt được clearsign (tools/release/sign-artifacts.sh,
+# docs/release/signing.md). Còn thiếu: Authenticode (Windows — chờ SignPath duyệt) và
+# Developer ID + notarization (macOS — docs/release/signing-status-mac.md).
 name: release-candidate
 
 on:
@@ -22,10 +24,14 @@ jobs:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
       SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
       SIGNPATH_PROJECT_KEY: ${{ secrets.SIGNPATH_PROJECT_KEY }}
+      SIGNPATH_PROJECT_SLUG: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+      SIGNPATH_ARTIFACT_CONFIGURATION: ${{ secrets.SIGNPATH_ARTIFACT_CONFIGURATION }}
       SIGNPATH_POLICY: ${{ secrets.SIGNPATH_POLICY }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
           components: rustfmt, clippy
@@ -54,27 +60,42 @@ jobs:
         run: |
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # VirusTotal scan: kiem tra AV bao nham truoc khi publish (best-effort,
-      # khong chan release neu VT quota het). Secret: VIRUSTOTAL_API_KEY.
-      - name: VirusTotal scan (AV false positive check)
-        shell: powershell
-        env:
-          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-        run: |
-          if (-not $env:VIRUSTOTAL_API_KEY) { Write-Host 'SKIP: VIRUSTOTAL_API_KEY not set'; exit 0 }
-          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\virustotal-scan.ps1 -Files "dist\TextVN-setup-*.exe,dist\TextVN-portable-*.zip" -Upload -MaxDetections 5
-          if ($LASTEXITCODE -ne 0) { Write-Host 'WARN: VT detections vuot nguong - kiem tra ket qua truoc khi publish' }
-          # Best-effort: khong bao gio chan release (GH Actions exit theo
-          # LASTEXITCODE cua command cuoi -> phai exit 0 tuong minh; release
-          # v0.2.20 tung do o buoc nay du chi la WARN).
-          exit 0
       # MSIX (yeu cau chu repo 2026-10-03: MOI release phai kem ban msix).
       # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
       # best-effort nua) va publish job con validate du 1 file .msix.
+      # Identity that tu Partner Center (Product identity > Package/Identity/Name) dat
+      # o repo variable MSIX_IDENTITY_NAME (khong phai secret). Co bien -> goi nop
+      # Store, placeholder = fail cung; chua co -> goi test (canh bao to).
       - name: Build MSIX (required)
         shell: powershell
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
         run: |
-          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+          if ($env:MSIX_IDENTITY_NAME) {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 -RequireStoreIdentity
+          } else {
+            powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify MSIX (luat Store + payload)
+        shell: bash
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
+        run: |
+          ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          extra=()
+          if [ -n "${MSIX_IDENTITY_NAME:-}" ]; then extra+=(--require-store-identity); fi
+          python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver" "${extra[@]}"
+      # R2-77: CHINH goi sap phat hanh phai chay that (cai ky tam, mo app, go goi)
+      # - khong chi dua vao lan ci-shared truoc do.
+      - name: MSIX sideload (cai that, mo app, go goi)
+        shell: powershell
+        run: |
+          $msix = Get-ChildItem dist\TextVN-*-windows-x64.msix | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-msix-sideload.ps1 -Msix $msix.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       # Bien the MAY (PrivilegesRequired=admin, ARP o HKLM) — goi danh cho
       # Package validation cua Store (vong 5: validator khong thay entry HKCU).
       # Chay SAU moi test per-user de khong lam lech auto-pick; tu validate
@@ -92,8 +113,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $exe = "dist\TextVN-setup-$ver-windows-x64-machine.exe"
           if (-not (Test-Path $exe)) { throw "machine installer not found: $exe" }
+          # R2-17: ban -machine.exe la ban NOP STORE — ky Authenticode nhu ban per-user
+          # (SignPath; khong co secret thi giu release-candidate chua ky).
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\sign-signpath.ps1 -File $exe -Description "TextVN installer (machine)"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1 -MachineOnly -Setup $exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # VirusTotal scan: kiem tra AV bao nham truoc khi publish (best-effort,
+      # khong chan release neu VT quota het). Secret: VIRUSTOTAL_API_KEY.
+      - name: VirusTotal scan (AV false positive check)
+        shell: powershell
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        run: |
+          if (-not $env:VIRUSTOTAL_API_KEY) { Write-Host 'SKIP: VIRUSTOTAL_API_KEY not set'; exit 0 }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\virustotal-scan.ps1 -Files "dist\TextVN-setup-*.exe,dist\TextVN-portable-*.zip,dist\TextVN-*.msix" -Upload -MaxDetections 5
+          if ($LASTEXITCODE -ne 0) { Write-Host 'WARN: VT detections vuot nguong - kiem tra ket qua truoc khi publish' }
+          # Best-effort: khong bao gio chan release (GH Actions exit theo
+          # LASTEXITCODE cua command cuoi -> phai exit 0 tuong minh; release
+          # v0.2.20 tung do o buoc nay du chi la WARN).
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
@@ -108,7 +147,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
       - name: Install adapter dependencies
         run: |
           sudo apt-get update
@@ -132,7 +173,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
       # THỨ TỰ BẮT BUỘC: build-macos.sh dựng staticlib vào adapters/macos-imk/lib
@@ -159,6 +202,8 @@ jobs:
 
   publish:
     needs: [windows, linux, macos]
+    # workflow_dispatch tren nhanh = chay thu build (lay artifact), khong phat hanh.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -166,13 +211,15 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*
           path: release-assets
           merge-multiple: true
       - name: Install cosign (Sigstore)
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - name: Validate tag, payload, checksums and publish pre-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -212,13 +259,29 @@ jobs:
               echo 'Release exists and is published; refusing to overwrite immutable assets.' >&2
               exit 1
             fi
+            # R2-78: chạy lại tag → draft còn asset của lần build trước (tên ZIP có
+            # build-id khác) và --clobber không xoá chúng → phát hành lẫn hai bản.
+            gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets[].name' |
+              while IFS= read -r old; do
+                [ -n "$old" ] && gh release delete-asset "${GITHUB_REF_NAME}" "$old" --yes
+              done
           else
             gh release create "${GITHUB_REF_NAME}" --draft --verify-tag --prerelease \
               --title "TextVN ${version} (release candidate)" \
-              --notes "Unsigned release candidate built and tested by this workflow from ${GITHUB_SHA}. See CHANGELOG.md and docs/release/cross-platform-audit-2026-09-30.md. Windows ZIP contains RELEASE_REPORT.json; verify SHA256SUMS.txt. Not production: macOS GUI smoke, Authenticode, Developer ID and notarization remain pending."
+              --notes "Bản release candidate do workflow này build và test từ ${GITHUB_SHA}. Mọi file đều có chữ ký GPG tách rời (.asc — khoá FPR 3921595ABC961199F15303B6C45B84D0C7F4A822, public key gpg-release-key.asc đính kèm) và chữ ký Sigstore keyless (.cosign.sig + .cosign.cert); SHA256SUMS.txt được clearsign. Cách kiểm: docs/release/signing.md. Thay đổi: CHANGELOG.md. ZIP Windows chứa RELEASE_REPORT.json. Chưa có: Authenticode cho Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Developer ID + notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). File .msix chưa ký, chỉ dùng để nộp Microsoft Store — không cài trực tiếp được."
           fi
           cp docs/release/signing/gpg-release-key.asc release-assets/
           (cd release-assets && sha256sum * > SHA256SUMS.txt)
+          # Homebrew cask (bước B7b): sha256 của zip macOS chỉ biết sau build — nhắc
+          # đúng dòng cần commit thay vì để cask lệch nhiều bản (R2-76).
+          mac_zip="$(cd release-assets && ls TextVN-macos-universal-v*.zip 2>/dev/null | head -1)"
+          if [ -n "$mac_zip" ]; then
+            want="$(cd release-assets && sha256sum "$mac_zip" | cut -d' ' -f1)"
+            have="$(sed -n 's/^  sha256 "\([0-9a-f]*\)"/\1/p' packaging/homebrew/textvn.rb)"
+            if [ "$want" != "$have" ]; then
+              echo "::warning title=Homebrew cask::packaging/homebrew/textvn.rb cần sha256 \"$want\" cho $mac_zip (bước B7b release-process)"
+            fi
+          fi
           chmod +x tools/release/sign-artifacts.sh
           bash tools/release/sign-artifacts.sh release-assets
           gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber

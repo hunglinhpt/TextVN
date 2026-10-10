@@ -35,3 +35,5 @@ adapters/macos-imk/build/
 # --- IDE: cấu hình cá nhân, máy-locale ---
 .vscode/
 .cline/
+perf/ab-base.json
+/.claude/worktrees/

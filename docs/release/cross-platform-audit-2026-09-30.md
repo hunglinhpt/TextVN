@@ -1,5 +1,11 @@
 # Audit tiếp diễn — TextVN, 2026-09-30
 
+> **Tài liệu lịch sử (2026-09-30, v0.2.1–v0.2.2)** — mục "Giới hạn và rủi ro còn mở" và các
+> cột "Còn cần ai xác nhận" phản ánh thời điểm đó. Hiện trạng 2026-10-09: mọi asset release
+> ký GPG + Sigstore (`signing.md`); macOS hoàn thiện IMK + menu bar + `.pkg` (chưa Developer
+> ID/notarization — `signing-status-mac.md`); Windows chỉ còn thiếu Authenticode (chờ
+> SignPath Foundation). Release notes trỏ `signing.md` + `CHANGELOG.md`, không trỏ file này.
+
 ## Vòng 11 — `v0.2.2`: đóng F3-13 (mở nhầm Cài đặt lúc login), F3-8 và nit
 
 Bản 0.2.1 đã vá F3-13 một cách **chưa đủ**: điều kiện “khởi động theo login

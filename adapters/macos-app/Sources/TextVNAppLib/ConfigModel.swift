@@ -7,10 +7,81 @@ public struct MacroEntry: Codable, Identifiable, Equatable {
     public var id: String { trigger }
     public var trigger: String
     public var expand: String
+    /// `always` | `vi_on` (P0-3 §1.1) — `nil` = không ghi (engine hiểu `always`).
+    /// Thiếu trường này thì mỗi lần lưu từ bảng cài đặt macOS biến gõ tắt
+    /// `vi_on` (chỉ chạy khi bật tiếng Việt) thành `always`.
+    public var when: String?
 
-    public init(trigger: String, expand: String) {
+    public init(trigger: String, expand: String, when: String? = nil) {
         self.trigger = trigger
         self.expand = expand
+        self.when = when
+    }
+}
+
+/// R2-50: cùng quy tắc với `config/src/macro_text.rs` (Windows/Linux kiểm khi bấm
+/// Lưu) — bảng gõ tắt macOS từng chỉ trim rồi thêm, nên nội dung > 64 ký tự bị
+/// engine cắt im lặng khi gõ (`MAX_TEXT`), trigger có khoảng trắng không bao giờ
+/// khớp, `VN`/`vn` cùng tồn tại mà chỉ một cái chạy. Độ dài đếm theo Unicode scalar
+/// (= `char` của Rust).
+public enum MacroRules {
+    public static let triggerMax = 32
+    public static let expandMax = 64
+
+    public enum Problem: Equatable {
+        case emptyTrigger
+        case triggerHasSpace
+        case triggerTooLong
+        case emptyExpansion
+        case expansionTooLong
+
+        /// Cùng câu chữ `MacroLineErrorKind::message_vi` (Windows/Linux).
+        public var message: String {
+            switch self {
+            case .emptyTrigger: return "chưa có chữ gõ tắt"
+            case .triggerHasSpace: return "chữ gõ tắt không được chứa khoảng trắng"
+            case .triggerTooLong: return "chữ gõ tắt dài quá \(MacroRules.triggerMax) ký tự"
+            case .emptyExpansion: return "chưa có nội dung"
+            case .expansionTooLong: return "nội dung dài quá \(MacroRules.expandMax) ký tự"
+            }
+        }
+    }
+
+    /// Kiểm một mục (đã trim). `nil` = hợp lệ.
+    public static func validate(trigger: String, expand: String) -> Problem? {
+        if trigger.isEmpty { return .emptyTrigger }
+        if trigger.unicodeScalars.contains(where: { $0.properties.isWhitespace }) {
+            return .triggerHasSpace
+        }
+        if trigger.unicodeScalars.count > triggerMax { return .triggerTooLong }
+        if expand.isEmpty { return .emptyExpansion }
+        if expand.unicodeScalars.count > expandMax { return .expansionTooLong }
+        return nil
+    }
+
+    /// Thêm/thay mục: trigger trùng KHÔNG phân biệt hoa/thường (engine khớp như vậy)
+    /// thay chỗ mục cũ và giữ `when` của nó (như `macro_text::parse`).
+    public static func upsert(_ entry: MacroEntry, into macros: [MacroEntry]) -> [MacroEntry] {
+        let key = entry.trigger.lowercased()
+        var out = macros
+        var added = entry
+        if let old = out.first(where: { $0.trigger.lowercased() == key }), added.when == nil {
+            added.when = old.when
+        }
+        out.removeAll { $0.trigger.lowercased() == key }
+        out.append(added)
+        return out
+    }
+}
+
+/// `config.emoji[]` (P0-3 §1.1) — giữ nguyên khi lưu (UI macOS chưa sửa emoji).
+public struct EmojiEntry: Codable, Equatable {
+    public var trigger: String
+    public var glyph: String
+
+    public init(trigger: String, glyph: String) {
+        self.trigger = trigger
+        self.glyph = glyph
     }
 }
 
@@ -29,6 +100,9 @@ public struct TextVNConfig: Codable, Equatable {
     public var output_charset: String
     public var show_dialog_on_startup: Bool
     public var autostart: Bool
+    /// Gõ không gạch chân. Bản cài mới/lưu từ Cài đặt luôn ghi khoá này (mặc định
+    /// `true`); config THIẾU khoá (bản cũ, sửa tay) → `false` = gạch chân — cùng
+    /// quy ước với IMK (`configNonPreedit`) và CHANGELOG 0.2.27 (R2-49).
     public var non_preedit: Bool
     public var run_in_tray: Bool
     public var switch_key: String
@@ -38,6 +112,9 @@ public struct TextVNConfig: Codable, Equatable {
     /// docs/specs/language-detection.md). THIẾU trường này từng khiến bản macOS
     /// XOÁ `english_words` mỗi lần lưu config (bắt khi đồng bộ 0.2.13).
     public var english_words: [String]
+    /// Gõ tắt emoji — thiếu trường này thì mỗi lần lưu config XOÁ `emoji[]` của
+    /// người dùng (tray Windows/Linux giữ nguyên khoá qua SettingsDoc).
+    public var emoji: [EmojiEntry]
 
     public init(
         config_version: Int = 1,
@@ -57,7 +134,8 @@ public struct TextVNConfig: Codable, Equatable {
         run_in_tray: Bool = true,
         switch_key: String = "ctrl_shift",
         macros: [MacroEntry] = [],
-        english_words: [String] = []
+        english_words: [String] = [],
+        emoji: [EmojiEntry] = []
     ) {
         self.config_version = config_version
         self.enabled = enabled
@@ -77,6 +155,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.switch_key = switch_key
         self.macros = macros
         self.english_words = english_words
+        self.emoji = emoji
     }
 
     /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
@@ -97,11 +176,13 @@ public struct TextVNConfig: Codable, Equatable {
         output_charset = try c.decodeIfPresent(String.self, forKey: .output_charset) ?? d.output_charset
         show_dialog_on_startup = try c.decodeIfPresent(Bool.self, forKey: .show_dialog_on_startup) ?? d.show_dialog_on_startup
         autostart = try c.decodeIfPresent(Bool.self, forKey: .autostart) ?? d.autostart
-        non_preedit = try c.decodeIfPresent(Bool.self, forKey: .non_preedit) ?? d.non_preedit
+        // KHÔNG lấy d.non_preedit (true): thiếu khoá = gạch chân, như IMK (R2-49).
+        non_preedit = try c.decodeIfPresent(Bool.self, forKey: .non_preedit) ?? false
         run_in_tray = try c.decodeIfPresent(Bool.self, forKey: .run_in_tray) ?? d.run_in_tray
         switch_key = try c.decodeIfPresent(String.self, forKey: .switch_key) ?? d.switch_key
         macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
         english_words = try c.decodeIfPresent([String].self, forKey: .english_words) ?? d.english_words
+        emoji = try c.decodeIfPresent([EmojiEntry].self, forKey: .emoji) ?? d.emoji
     }
 
     public static func `default`() -> TextVNConfig {
@@ -217,6 +298,17 @@ public final class ConfigStore: ObservableObject {
         } catch {
             NSLog("[TextVN] Failed to save config: %@", error.localizedDescription)
         }
+    }
+
+    /// Lần chạy đầu (bản cài .pkg không tạo config.json): ghi mặc định ra đĩa để
+    /// IMK đọc đúng giá trị Cài đặt đang hiển thị (vd `non_preedit: true`) thay vì
+    /// mặc định "thiếu khoá" của nó (R2-49). File đã có → không đụng.
+    @discardableResult
+    public func persistIfMissing() -> Bool {
+        let fileURL = customURL ?? TextVNConfig.defaultConfigURL()
+        guard !FileManager.default.fileExists(atPath: fileURL.path) else { return false }
+        persist()
+        return FileManager.default.fileExists(atPath: fileURL.path)
     }
 
     public func resetToDefaults() {

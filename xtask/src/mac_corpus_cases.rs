@@ -59,11 +59,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.safari",
         "address_bar",
         r#"
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam""#,
+:expect "việt nam""#,
     ));
     v.push(imk(
         "bug_B1_chrome_url_01",
@@ -74,7 +74,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
 :type "tieengs"
 :expect "tiếng"
 :key Space
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt""#,
     ));
     v.push(imk(
@@ -146,7 +146,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
 :key Space
 :expect "tiếng "
 :expect_preedit ""
-:type "vietj"
+:type "vieetj"
 :expect "tiếng việt""#,
     ));
 
@@ -532,16 +532,16 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_undo_uww_17",
-        "bấm lại w sau khi sừng → về gốc (uww→u)",
+        "bấm lại w sau khi sừng → gỡ sừng + gõ chữ w (uww→uw, R2-63)",
         "com.apple.textedit",
         "body",
         r#"
 :type "uww"
-:expect "u""#,
+:expect "uw""#,
     ));
     v.push(imk(
         "imk_preedit_telex_undo_ww_18",
-        "w đơn lẻ → chữ w (ww→w)",
+        "w đứng riêng là ư, bấm lại ra chữ w (ww→w)",
         "com.apple.textedit",
         "body",
         r#"
@@ -550,12 +550,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_undo_ddd_19",
-        "ddd → d (gỡ stroke)",
+        "ddd → dd (gỡ stroke + gõ chữ d, R2-63)",
         "com.apple.textedit",
         "body",
         r#"
 :type "ddd"
-:expect "d""#,
+:expect "dd""#,
     ));
     v.push(imk(
         "imk_preedit_telex_esc_restore_20",
@@ -571,14 +571,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_telex_backspace_fold_21",
-        "Backspace sửa marked qua engine (không cho app sửa)",
+        "Backspace sửa marked qua engine (không cho app sửa), xoá ký tự cuối như UniKey (R2-55)",
         "com.apple.textedit",
         "body",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(imk(
         "imk_preedit_telex_nav_cancel_22",
@@ -708,13 +708,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(imk(
         "imk_preedit_simple_telex_duongw_34",
-        "Simple Telex: w là chữ thường (duongw → đươngw)",
+        "Simple Telex: w là dấu sừng như UniKey (duongw → đương, R2-61)",
         "com.apple.textedit",
         "body",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
     v.push(imk(
         "imk_preedit_simple_telex_duocj_35",
@@ -927,12 +927,12 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_telex_undo_uww_17",
-        "BackspaceType uww→u",
+        "BackspaceType uww→uw (R2-63)",
         "com.apple.finder",
         "editbox",
         r#"
 :type "uww"
-:expect "u""#,
+:expect "uw""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_esc_18",
@@ -947,14 +947,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_telex_backspace_19",
-        "BackspaceType Backspace fold-back",
+        "BackspaceType Backspace xoá ký tự cuối, giữ dấu (R2-55)",
         "com.apple.finder",
         "editbox",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_caps_dot_20",
@@ -1066,13 +1066,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(bs(
         "mac_bs_type_simple_telex_30",
-        "BackspaceType Simple Telex (w literal)",
+        "BackspaceType Simple Telex (w là dấu sừng, R2-61)",
         "com.apple.finder",
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
 
     // ───────────────────────── tap_* — CGEventTap opt-in (20 case) ─────────────────────────
@@ -1118,13 +1118,13 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(tap(
         "tap_body_simple_telex_05",
-        "tap Simple Telex duongw → đươngw",
+        "tap Simple Telex duongw → đương (R2-61)",
         "com.valvesoftware.steam",
         "editbox",
         r#"
 :config method=simple_telex diacritic_style=new
 :type "dduongw"
-:expect "đươngw""#,
+:expect "đương""#,
     ));
     v.push(tap(
         "tap_body_undo_ww_06",
@@ -1148,14 +1148,14 @@ pub fn all_cases() -> Vec<CorpusCase> {
     ));
     v.push(tap(
         "tap_body_backspace_08",
-        "tap Backspace fold-back",
+        "tap Backspace xoá ký tự cuối, giữ dấu (R2-55)",
         "com.valvesoftware.steam",
         "editbox",
         r#"
 :type "chaof"
 :expect "chào"
 :key Backspace
-:expect "chao""#,
+:expect "chà""#,
     ));
     v.push(tap(
         "tap_body_caps_dot_09",
@@ -1187,11 +1187,11 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "com.apple.safari",
         "address_bar",
         r#"
-:type "viet"
-:expect "viêt"
+:type "vieetj"
+:expect "việt"
 :key Space
 :type "nam"
-:expect "viêt nam""#,
+:expect "việt nam""#,
     ));
     v.push(tap(
         "tap_address_chrome_12",

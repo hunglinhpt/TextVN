@@ -80,3 +80,23 @@ bú
 ú
 ít
 há
+##
+# R2-56/R2-57: âm tiết thật bị từ EN trong en_common cướp mất (`this`→`thí`…)
+# hoặc bị Tab gợi ý EN thay bằng từ khác (`có`+Tab → `cost`).
+##
+thí
+hí
+hót
+lót
+mót
+cót
+bét
+vát
+ảm
+vơ
+rơ
+bõ
+gá
+có
+bé
+vá

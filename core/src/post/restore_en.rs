@@ -27,6 +27,8 @@
 //! `hotkeys.restore_last`); Tab gợi ý hoàn tất từ EN dùng chung dữ liệu ở
 //! `complete_word`.
 
+use crate::transform::stroke::is_stroke;
+use crate::transform::tone::is_vowel;
 use crate::validate::is_valid_word;
 
 /// `data/en_common.txt` — nhúng lúc biên dịch (core **không** I/O: S1).
@@ -82,10 +84,17 @@ pub fn should_restore(raw: &[char], display: &[char], english_words: &[String]) 
     if raw.is_empty() || raw == display {
         return false;
     }
-    if !is_valid_word(display) {
+    if listed(raw, english_words) {
         return true;
     }
-    if listed(raw, english_words) {
+    // Token không có nguyên âm mà vẫn bị biến đổi thì biến đổi đó là `đ` (dấu thanh/mũ/
+    // sừng đều cần nguyên âm): `50.000đ`, `ĐT`, `ĐHQG`, `đc`, `đ/c` — chữ viết tắt và đơn
+    // vị tiền rất thường gặp, tiếng Anh không có từ nào như vậy (R2-58; UniKey `processDd`
+    // cũng cố ý cho `dd` trong chuỗi không phải tiếng Việt).
+    if !display.iter().any(|&c| is_vowel(c)) && display.iter().any(|&c| is_stroke(c)) {
+        return false;
+    }
+    if !is_valid_word(display) {
         return true;
     }
     let typed: String = raw.iter().collect::<String>().to_lowercase();
@@ -141,9 +150,11 @@ pub fn complete_word(
         }
     }
     for w in english_words {
-        let w = w.trim();
+        // Từ điển cá nhân so khớp không phân biệt hoa thường (như `listed`): người
+        // dùng thêm `VnExpress` thì `vn` + Tab vẫn phải gợi ý.
+        let w = w.trim().to_lowercase();
         if !w.is_empty() {
-            consider(&mut best, w);
+            consider(&mut best, &w);
         }
     }
     best.map(|b| b.to_lowercase())
@@ -176,6 +187,32 @@ mod tests {
     fn keeps_valid_vietnamese() {
         assert!(!should_restore(&chars("duocj"), &chars("được"), &[]));
         assert!(!should_restore(&chars("hoaf"), &chars("hoà"), &[]));
+    }
+
+    /// R2-58: `đ` trong token không nguyên âm (giá tiền, chữ viết tắt) giữ nguyên.
+    #[test]
+    fn stroke_without_vowel_is_kept() {
+        for (raw, display) in [
+            ("dd", "đ"),
+            ("000dd", "000đ"),
+            ("DDT", "ĐT"),
+            ("ddc", "đc"),
+            ("DDHQG", "ĐHQG"),
+            ("d9", "đ"),
+        ] {
+            assert!(
+                !should_restore(&chars(raw), &chars(display), &[]),
+                "`{raw}` → `{display}` phải giữ"
+            );
+        }
+        // Có nguyên âm thì vẫn kiểm cấu trúc như cũ (`add` → `ađ` → restore).
+        assert!(should_restore(&chars("add"), &chars("ađ"), &[]));
+        // Từ điển cá nhân vẫn thắng.
+        assert!(should_restore(
+            &chars("ddc"),
+            &chars("đc"),
+            &["ddc".to_string()]
+        ));
     }
 
     #[test]
@@ -212,6 +249,37 @@ mod tests {
         assert!(should_restore(&chars("cow"), &chars("cơ"), &user_list));
         // Không khai báo → giữ fold "cơ"
         assert!(!should_restore(&chars("cow"), &chars("cơ"), &[]));
+    }
+
+    /// R2-56: âm tiết Việt thật mà từ EN thông dụng fold vào phải được giữ —
+    /// `thí`/`hí`/`vơ`/`bõ`/`gá` không có cách gõ Telex nào khác.
+    #[test]
+    fn am_tiet_viet_that_khong_bi_restore() {
+        for raw in [
+            "this", "his", "host", "lost", "most", "cost", "best", "vast", "arm", "vow", "row",
+            "box", "gas",
+        ] {
+            let folded = telex(raw);
+            let f: String = folded.iter().collect();
+            assert!(
+                !should_restore(&chars(raw), &folded, &[]),
+                "`{raw}` → `{f}` là âm tiết Việt thật — phải giữ"
+            );
+        }
+    }
+
+    /// R2-57: Tab không thay âm tiết Việt thông dụng bằng từ EN (`có`+Tab → `cost`).
+    #[test]
+    fn tab_khong_cuop_am_tiet_viet_thong_dung() {
+        for (typed, folded) in [("cos", "có"), ("bes", "bé"), ("vas", "vá"), ("los", "ló")] {
+            assert_eq!(
+                complete_word(typed, folded, &[]),
+                None,
+                "`{typed}` (`{folded}`) + Tab"
+            );
+        }
+        // `có` được bảo vệ cả khi từ điển cá nhân có từ bắt đầu bằng `cos`.
+        assert_eq!(complete_word("cos", "có", &["cosplay".to_string()]), None);
     }
 
     #[test]
@@ -286,9 +354,17 @@ mod tests {
     /// vi phạm trong một lần chạy để chỉnh data nhanh.
     #[test]
     fn data_en_common_file_fires() {
+        // Từ nhánh cấu trúc đã restore (R2-62: âm cuối tắc không sắc/nặng) nhưng vẫn giữ
+        // làm gợi ý Tab — bỏ đi thì `tex`+Tab ra `texts`.
+        const TAB_ONLY: [&str; 4] = ["text", "next", "art", "cart"];
+        for w in TAB_ONLY {
+            assert!(!is_valid_word(&telex(w)), "{w}: không còn là TAB_ONLY");
+        }
         let words = parse_word_list(EN_COMMON_DATA);
+        // Ngưỡng chỉ chặn lỡ tay xoá trắng file: R2-56 đã bỏ các từ fold ra âm tiết
+        // Việt thật (`this`→`thí`, `host`→`hót`…), danh sách còn ~20 mục.
         assert!(
-            words.len() >= 30,
+            words.len() >= 15,
             "danh sách EN thông dụng quá ngắn: {}",
             words.len()
         );
@@ -306,7 +382,7 @@ mod tests {
             let f: String = folded.iter().collect();
             if &f == w {
                 bad.push(format!("{w}: fold ra chính nó — bỏ đi"));
-            } else if !is_valid_word(&folded) {
+            } else if !is_valid_word(&folded) && !TAB_ONLY.contains(&w.as_str()) {
                 bad.push(format!(
                     "{w}: fold `{f}` KHÔNG hợp lệ — nhánh cấu trúc đã restore, bỏ đi"
                 ));
@@ -375,5 +451,10 @@ mod tests {
         );
         // Không có ứng viên → None
         assert_eq!(complete_word("zzz", "zzz", &[]), None);
+        // Từ điển cá nhân viết hoa vẫn khớp tiền tố gõ thường
+        assert_eq!(
+            complete_word("vn", "vn", &["VnExpress".to_string()]),
+            Some("vnexpress".to_string())
+        );
     }
 }

@@ -28,6 +28,33 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.macros.isEmpty)
     }
 
+    /// Lưu từ bảng cài đặt macOS không được xoá `emoji[]` hay đổi `when: vi_on` của
+    /// gõ tắt (Windows/Linux giữ nguyên các khoá này).
+    func testSavePreservesEmojiAndMacroWhen() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_keep_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let json = """
+        {"config_version":1,
+         "macros":[{"trigger":"vn","expand":"Việt Nam","when":"vi_on"}],
+         "emoji":[{"trigger":":ok","glyph":"👌"}]}
+        """
+        try json.data(using: .utf8)!.write(to: fileURL)
+
+        var cfg = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(cfg.macros.first?.when, "vi_on")
+        XCTAssertEqual(cfg.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+        cfg.quick_telex = true
+        try cfg.save(to: fileURL)
+
+        let back = TextVNConfig.load(from: fileURL)
+        XCTAssertTrue(back.quick_telex)
+        XCTAssertEqual(back.macros, [MacroEntry(trigger: "vn", expand: "Việt Nam", when: "vi_on")])
+        XCTAssertEqual(back.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+    }
+
     func testConfigSaveAndLoadRoundtrip() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("textvn_test_config_\(UUID().uuidString)")
@@ -247,6 +274,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(Set(msg.keys), ["type", "config_version", "state", "appdb_version", "channel"])
         let state = msg["state"] as? [String: Bool]
         XCTAssertEqual(state, ["*": false, "com.apple.Safari": true])
+        XCTAssertEqual(msg["appdb_version"] as? Int, 1, "CR-34: appdb_version là số như textvn-ipc")
     }
 
     /// F3-1: một quy ước toàn cục "*" (IMK bản cũ gửi "" vẫn được hiểu).
@@ -381,5 +409,117 @@ final class TextVNAppTests: XCTestCase {
             AppDelegate.heartbeatSummary(
                 fileURL: tempDir.appendingPathComponent("missing.json"), now: now
             ).contains("chưa có"))
+    }
+}
+
+// MARK: - R2-49 non_preedit mặc định · R2-50 quy tắc gõ tắt · R2-51 gỡ cài đặt
+
+final class RoundTwoMacAppTests: XCTestCase {
+    private func tempDir() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_r2_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    /// Thiếu khoá → gạch chân (`false`), CÙNG quy ước với IMK `configNonPreedit`;
+    /// config mới (mặc định) vẫn là `true` và được ghi tường minh.
+    func testNonPreeditMissingKeyDecodesFalse() throws {
+        let missing = try JSONDecoder().decode(TextVNConfig.self, from: Data(#"{"method":"vni"}"#.utf8))
+        XCTAssertFalse(missing.non_preedit)
+        let explicit = try JSONDecoder().decode(TextVNConfig.self, from: Data(#"{"non_preedit":true}"#.utf8))
+        XCTAssertTrue(explicit.non_preedit)
+        XCTAssertTrue(TextVNConfig.default().non_preedit)
+        let saved = try JSONEncoder().encode(TextVNConfig.default())
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: saved) as? [String: Any])
+        XCTAssertEqual(obj["non_preedit"] as? Bool, true, "bản lưu luôn ghi khoá tường minh")
+    }
+
+    func testPersistIfMissingWritesDefaultsOnce() throws {
+        let url = try tempDir().appendingPathComponent("config.json")
+        let store = ConfigStore(url: url)
+        XCTAssertTrue(store.persistIfMissing())
+        let obj = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        XCTAssertEqual(obj["non_preedit"] as? Bool, true)
+        try Data(#"{"non_preedit":false}"#.utf8).write(to: url)
+        XCTAssertFalse(store.persistIfMissing(), "file đã có → không ghi đè")
+        XCTAssertEqual(try Data(contentsOf: url), Data(#"{"non_preedit":false}"#.utf8))
+    }
+
+    func testMacroRulesMatchWindowsLinux() {
+        XCTAssertNil(MacroRules.validate(trigger: "vn", expand: "Việt Nam"))
+        XCTAssertEqual(MacroRules.validate(trigger: "", expand: "x"), .emptyTrigger)
+        XCTAssertEqual(MacroRules.validate(trigger: "a b", expand: "x"), .triggerHasSpace)
+        XCTAssertEqual(MacroRules.validate(trigger: String(repeating: "a", count: 33), expand: "x"), .triggerTooLong)
+        XCTAssertNil(MacroRules.validate(trigger: String(repeating: "a", count: 32), expand: "x"))
+        XCTAssertEqual(MacroRules.validate(trigger: "dc", expand: ""), .emptyExpansion)
+        // 71 ký tự — bản cũ lưu được rồi engine cắt còn 64 khi gõ.
+        let address = "Số 12 đường Nguyễn Thị Minh Khai, Phường Đa Kao, Quận 1, TP Hồ Chí Minh"
+        XCTAssertEqual(MacroRules.validate(trigger: "dc", expand: address), .expansionTooLong)
+        // Đếm theo Unicode scalar như Rust `chars()`: 64 chữ có dấu dựng sẵn vẫn hợp lệ.
+        XCTAssertNil(MacroRules.validate(trigger: "x", expand: String(repeating: "ệ", count: 64)))
+        XCTAssertEqual(MacroRules.Problem.expansionTooLong.message, "nội dung dài quá 64 ký tự")
+    }
+
+    func testMacroUpsertReplacesCaseInsensitivelyAndKeepsWhen() {
+        let macros = [
+            MacroEntry(trigger: "VN", expand: "Việt Nam", when: "vi_on"),
+            MacroEntry(trigger: "cty", expand: "Công ty"),
+        ]
+        let out = MacroRules.upsert(MacroEntry(trigger: "vn", expand: "Việt Nam!"), into: macros)
+        XCTAssertEqual(out.count, 2)
+        XCTAssertEqual(out.last, MacroEntry(trigger: "vn", expand: "Việt Nam!", when: "vi_on"))
+        XCTAssertFalse(out.contains { $0.trigger == "VN" })
+    }
+
+    func testAdminUninstallTargets() {
+        let uid: uid_t = 501
+        let owners: [String: uid_t] = [
+            "/Applications/TextVN.app": 0, // pkg "cài cho mọi người dùng" → root
+            "/Library/Input Methods/TextVN-IM.app": 501,
+        ]
+        let targets = AppDelegate.adminUninstallTargets(
+            paths: AppDelegate.systemScopeBundles, uid: uid,
+            owner: { owners[$0] },
+            parentWritable: { $0.hasPrefix("/Applications") }
+        )
+        // TextVN.app thuộc root; TextVN-IM.app thuộc user nhưng /Library/Input Methods
+        // không ghi được → cả hai cần admin.
+        XCTAssertEqual(targets, AppDelegate.systemScopeBundles)
+        let userOwned = AppDelegate.adminUninstallTargets(
+            paths: ["/Applications/TextVN.app", "/Library/Input Methods/TextVN-IM.app"], uid: uid,
+            owner: { $0 == "/Applications/TextVN.app" ? uid : nil },
+            parentWritable: { _ in true }
+        )
+        XCTAssertTrue(userOwned.isEmpty, "bundle của chính user + IM không tồn tại → không xin admin")
+    }
+
+    func testAdminUninstallCommandQuoting() {
+        XCTAssertNil(AppDelegate.adminUninstallCommand(targets: [], forgetSystemReceipt: false))
+        let command = AppDelegate.adminUninstallCommand(
+            targets: ["/Library/Input Methods/TextVN-IM.app"], forgetSystemReceipt: true)
+        XCTAssertEqual(
+            command,
+            "/bin/rm -rf '/Library/Input Methods/TextVN-IM.app' && { /usr/sbin/pkgutil --forget vn.textvn.pkg >/dev/null 2>&1 || true; }"
+        )
+        XCTAssertEqual(AppDelegate.shellQuote("it's"), #"'it'\''s'"#)
+        XCTAssertEqual(
+            AppDelegate.adminAppleScript(command: #"echo "a\b""#),
+            #"do shell script "echo \"a\\b\"" with administrator privileges"#
+        )
+    }
+
+    func testStageUninstallScriptsCopiesCheckOutOfBundle() throws {
+        let resources = try tempDir()
+        try Data("#!/bin/bash\n".utf8).write(to: resources.appendingPathComponent("uninstall_macos.sh"))
+        try Data("#!/bin/bash\n".utf8).write(to: resources.appendingPathComponent("uninstall-check.sh"))
+        let staged = try XCTUnwrap(AppDelegate.stageUninstallScripts(resources: resources.path))
+        addTeardownBlock { try? FileManager.default.removeItem(at: staged) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: staged.appendingPathComponent("uninstall_macos.sh").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: staged.appendingPathComponent("uninstall-check.sh").path))
+        XCTAssertNil(AppDelegate.stageUninstallScripts(resources: resources.appendingPathComponent("none").path))
+        XCTAssertEqual(AppDelegate.logTail("a\nb\n\nc\n", lines: 2), "b\nc")
     }
 }

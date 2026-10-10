@@ -308,8 +308,11 @@ enum TapCallback {
         case .pass:
             return Unmanaged.passUnretained(event)
         case let .transform(deleteCount, insert):
-            // §5 inject: xóa + chèn kèm marker, rồi NUỐT key gốc.
-            TapInjector.inject(deleteCount: deleteCount, insert: insert)
+            // §5 inject: xóa + chèn kèm marker, rồi NUỐT key gốc — CHỈ khi post được;
+            // post thất bại mà vẫn nuốt là mất phím người dùng (S4 fail-open).
+            guard TapInjector.inject(deleteCount: deleteCount, insert: insert) else {
+                return Unmanaged.passUnretained(event)
+            }
             return nil
         }
     }

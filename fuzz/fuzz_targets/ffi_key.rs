@@ -10,11 +10,53 @@
 //! 4. **Fail-open**: mọi đường lỗi/ABI-lệch vẫn trả `action = PASS` (P0-2 §0.3, S4) —
 //!    nếu lỗi mà nuốt phím thì bàn phím người dùng hỏng.
 //! 5. `delete_count` ≤ `IME_MAX_TEXT` (buffer engine tự quản).
+//! 6. `delete_count` không vượt số ký tự mà chính chuỗi phím này đã đưa vào document
+//!    (mô hình độ dài bảo thủ — chỉ đếm dư, không đếm thiếu): engine không bao giờ
+//!    xoá lẹm text có sẵn của người dùng (CR-01: từ > 64 phím xoá lẹm chữ phía trước).
+//!
+//! Chuỗi phím tối đa `MAX_KEYS` (đủ dài để vượt giới hạn 64 ký tự của một từ) và có
+//! chế độ "giữ phím" (một byte điều khiển lặp phím tới 32 lần) để libFuzzer chạm được
+//! các từ dài mà không cần input khổng lồ.
 
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
 use textvn_ffi::*;
+
+/// Số sự kiện phím tối đa mỗi input (kể cả lặp). > 64 để chạm giới hạn độ dài từ.
+const MAX_KEYS: usize = 512;
+const VK_BACK: u32 = 0x08;
+const VK_TAB: u32 = 0x09;
+const VK_RETURN: u32 = 0x0D;
+const VK_SPACE: u32 = 0x20;
+
+/// Mô hình độ dài document (con trỏ ở cuối) — mirror `core/tests/invariants.rs`.
+/// Đếm DƯ ở mọi chỗ không chắc (chord, ký tự điều khiển) nên bất biến 6 không báo
+/// động giả; chỉ Backspace đi thẳng mới trừ (app xoá ≥ 1 ký tự).
+fn apply_doc(doc_len: &mut usize, key: &ime_key_v1, out: &ime_result_v1, ctx: &str) {
+    // Phím `is_injected` là tiếng vọng của chính adapter (text đã được tính qua
+    // `insert_len` của kết quả trước) — engine bỏ qua theo hợp đồng ABI, mô hình
+    // cũng vậy; trừ Backspace vọng ở đây là báo động giả (CI fuzz 2026-10-08).
+    if key.is_injected != 0 {
+        return;
+    }
+    if out.action == ACTION_PASS {
+        if key.vk == VK_BACK {
+            *doc_len = doc_len.saturating_sub(1);
+        } else if (key.ch != 0 && char::from_u32(key.ch).is_some())
+            || matches!(key.vk, VK_SPACE | VK_RETURN | VK_TAB)
+        {
+            *doc_len += 1;
+        }
+        return;
+    }
+    let d = out.delete_count as usize;
+    assert!(
+        d <= *doc_len,
+        "{ctx}: delete_count {d} lẹm vào text có sẵn (chuỗi phím mới đưa vào {doc_len})"
+    );
+    *doc_len = *doc_len - d + out.insert_len as usize;
+}
 
 /// Chia `data` thành từng byte → trường của `ime_key_v1`.
 struct ByteCursor<'a> {
@@ -155,10 +197,9 @@ fuzz_target!(|data: &[u8]| {
         is_injected: 0,
         _reserved: 0,
     };
-    for _ in 0..64 {
-        if cur.done() {
-            break;
-        }
+    let mut doc_len = 0usize;
+    let mut sent = 0usize;
+    while sent < MAX_KEYS && !cur.done() {
         let b4 = cur.next().unwrap_or(0);
         last_key = ime_key_v1 {
             abi_version: IME_ABI_VERSION,
@@ -170,14 +211,28 @@ fuzz_target!(|data: &[u8]| {
             is_injected: (b4 >> 1) & 1,
             _reserved: 0,
         };
-        let rc = ime_key(inst, &last_key, &mut out);
-        assert_result_sane(rc, &out, "ime_key");
-        if last_key.is_injected == 1 {
-            assert_eq!(
-                out.action, ACTION_PASS,
-                "phím injected phải PASS, nhận action {}",
-                out.action
-            );
+        // Bit 2: "giữ phím" — lặp 1..=32 lần (`đẹpppp…` trong chat).
+        let times = if b4 & 0b100 != 0 {
+            1 + usize::from(b4 >> 3)
+        } else {
+            1
+        };
+        for i in 0..times.min(MAX_KEYS - sent) {
+            let key = ime_key_v1 {
+                is_repeat: if i > 0 { 1 } else { last_key.is_repeat },
+                ..last_key
+            };
+            let rc = ime_key(inst, &key, &mut out);
+            assert_result_sane(rc, &out, "ime_key");
+            if key.is_injected == 1 {
+                assert_eq!(
+                    out.action, ACTION_PASS,
+                    "phím injected phải PASS, nhận action {}",
+                    out.action
+                );
+            }
+            apply_doc(&mut doc_len, &key, &out, "ime_key");
+            sent += 1;
         }
     }
     // ---- đường ABI-lệch: abi sai → ERR_ABI + PASS, engine giữ nguyên state ----

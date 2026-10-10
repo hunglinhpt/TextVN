@@ -29,7 +29,7 @@ pub const CASES_PART1: &[CorpusCase] = &[
 :type \"tieengs\"
 :expect \"tiếng\"
 :key Space
-:type \"vietj\"
+:type \"vieetj\"
 :expect \"tiếng việt\"
 ",
     },
@@ -927,11 +927,12 @@ pub const CASES_PART7: &[CorpusCase] = &[
         name: "simple_telex_win_notepad_01.keys",
         content: "\
 # corpus/win/simple_telex_win_notepad_01.keys — Simple Telex on Windows Notepad (P1-5 §2)
+# `w` là dấu sừng như UniKey vneHookAll (R2-61 — bản cũ khoá `đươngw`, là lỗi).
 :config method=simple_telex diacritic_style=new
 :caps preedit,selection
 :app notepad.exe field=body
 :type \"dduongw\"
-:expect \"đươngw\"
+:expect \"đương\"
 ",
     },
 ];

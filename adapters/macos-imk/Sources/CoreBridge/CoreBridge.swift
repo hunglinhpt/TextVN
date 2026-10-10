@@ -60,6 +60,13 @@ public struct KeyOutcome: Equatable {
     public let flags: UInt32
     public var isError: Bool { flags & FFI.flagError != 0 }
     public var isWordEnd: Bool { flags & FFI.flagWordEnd != 0 }
+
+    /// Public: adapter (IMKLib) dựng lại outcome đã chỉnh (bỏ ranh giới Enter/Tab
+    /// — B2); memberwise init tự sinh chỉ là `internal` của module CoreBridge.
+    public init(action: Action, flags: UInt32) {
+        self.action = action
+        self.flags = flags
+    }
 }
 
 /// Lỗi non-fatal khi tạo instance (P0-2 §5 — adapter log, không crash).

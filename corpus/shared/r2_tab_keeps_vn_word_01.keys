@@ -1,0 +1,17 @@
+# corpus/shared/r2_tab_keeps_vn_word_01.keys — R2-57: Tab sau âm tiết Việt thông dụng không bị
+# "hoàn tất từ EN" cướp (`Có`+Tab trong ô Excel/biểu mẫu phải ra `Có` + Tab, không phải `Cost`).
+# oracle: spec language-detection.md §1 cấp 5 ("không bao giờ cướp Tab khi đang gõ tiếng Việt")
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "Cos"
+:key Tab
+:expect "Có\t"
+:type "bes"
+:key Tab
+:expect "Có\tbé\t"
+:type "vas"
+:key Tab
+:expect "Có\tbé\tvá\t"
+# Ví dụ tài liệu hoá (README) vẫn chạy: `tes` + Tab → `test`.
+:type "tes"
+:key Tab
+:expect "Có\tbé\tvá\ttest"
