@@ -1,6 +1,6 @@
 # Rà soát mã nguồn chuyên sâu — 2026-10-07 (v0.2.27)
 
-> **Vòng 2 (2026-10-08/09):** `code-review-2026-10-09-round2.md` — 89 finding R2-*, kênh
+> **Vòng 2 (2026-10-08/09):** `code-review-2026-10-09-round2.md` — 91 finding R2-*, kênh
 > Store MSIX, ký số, QA Windows/Linux/macOS, engine. Trạng thái CR-20/CR-34 cập nhật ở dưới.
 
 > Rà soát **từng dòng** dưới góc nhìn chuyên gia (correctness · an toàn bộ nhớ/FFI ·
