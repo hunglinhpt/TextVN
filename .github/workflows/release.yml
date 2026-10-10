@@ -8,7 +8,15 @@ name: release-candidate
 on:
   push:
     tags: ["v[0-9]*"]
+  # Chạy tay = chỉ build (artifact), KHÔNG phát hành — kể cả khi chọn ref là tag. Dùng để
+  # build lại gói MSIX nộp Store với identity từ Partner Center mà không đụng release đã
+  # công khai (docs/release/msix-submission.md §3).
   workflow_dispatch:
+    inputs:
+      msix_identity_name:
+        description: "Package/Identity/Name từ Partner Center (trống = repo variable MSIX_IDENTITY_NAME)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -64,12 +72,13 @@ jobs:
       # Runtime full-trust, xem installer/windows/msix. Loi = fail job (khong
       # best-effort nua) va publish job con validate du 1 file .msix.
       # Identity that tu Partner Center (Product identity > Package/Identity/Name) dat
-      # o repo variable MSIX_IDENTITY_NAME (khong phai secret). Co bien -> goi nop
-      # Store, placeholder = fail cung; chua co -> goi test (canh bao to).
+      # o repo variable MSIX_IDENTITY_NAME (khong phai secret) hoac o input
+      # msix_identity_name khi chay tay. Co -> goi nop Store, placeholder = fail cung;
+      # chua co -> goi test (canh bao to).
       - name: Build MSIX (required)
         shell: powershell
         env:
-          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_IDENTITY_NAME: ${{ inputs.msix_identity_name || vars.MSIX_IDENTITY_NAME }}
           MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
         run: |
           if ($env:MSIX_IDENTITY_NAME) {
@@ -81,7 +90,7 @@ jobs:
       - name: Verify MSIX (luat Store + payload)
         shell: bash
         env:
-          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_IDENTITY_NAME: ${{ inputs.msix_identity_name || vars.MSIX_IDENTITY_NAME }}
           MSIX_DISPLAY_NAME: ${{ vars.MSIX_DISPLAY_NAME }}
         run: |
           ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
@@ -202,8 +211,9 @@ jobs:
 
   publish:
     needs: [windows, linux, macos]
-    # workflow_dispatch tren nhanh = chay thu build (lay artifact), khong phat hanh.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Chi push tag moi phat hanh. workflow_dispatch (tren nhanh HOAC tren tag, vd. build
+    # lai MSIX voi identity Partner Center) = chi build artifact, khong dung release.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
