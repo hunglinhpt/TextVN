@@ -739,9 +739,13 @@ fn main() {
             "--stop" => {
                 // R2-30: `--stop --if-image-under <dir>` chỉ dừng tray chạy từ <dir>
                 // (gỡ một bản portable/Store không được tắt bản cài đang dùng).
+                // R2-99: `--force` (chỉ bộ gỡ cài đặt) — tray của <dir> không thoát thì
+                // dừng cưỡng bức để gỡ sạch. Exit 1 = tray vẫn còn chạy.
                 let image_under = flag_value(&args[2..], "--if-image-under");
-                stop_running_instance(image_under.as_deref().map(std::path::Path::new));
-                return;
+                let force = args[2..].iter().any(|a| a == "--force");
+                let stopped =
+                    stop_running_instance(image_under.as_deref().map(std::path::Path::new), force);
+                std::process::exit(if stopped { 0 } else { 1 });
             }
             "--free-ctrl-shift" => {
                 // Dành Ctrl + Shift cho TextVN: gỡ phím tắt đổi bố cục/ngôn ngữ của Windows
@@ -758,6 +762,9 @@ fn main() {
                 println!("  --stop        Yeu cau dung instance dang chay");
                 println!(
                     "                [--if-image-under <dir>] chi dung khi tray chay tu <dir>"
+                );
+                println!(
+                    "                [--force] (bo go cai dat, can --if-image-under) khong thoat thi dung cuong buc"
                 );
                 println!("  --free-ctrl-shift  Danh Ctrl+Shift cho TextVN (go phim tat doi ban phim cua Windows)");
                 println!(
@@ -1392,9 +1399,14 @@ fn image_is_under(image: &str, dir: &std::path::Path) -> bool {
     textvn_tray::path_is_under_any(image, &roots)
 }
 
-fn stop_running_instance(image_under: Option<&std::path::Path>) {
+/// Dừng tray đang chạy. `true` = không còn tray (đã dừng, không có, hoặc là bản ở nơi
+/// khác khi lọc `image_under`); `false` = tray vẫn chạy.
+fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> bool {
     #[cfg(windows)]
     {
+        // `--force` chỉ hợp lệ kèm `--if-image-under`: không bao giờ dừng cưỡng bức tray
+        // của một bản TextVN khác.
+        let force = force && image_under.is_some();
         println!("Checking for running TextVN Tray instance...");
         let class_name_wide: Vec<u16> = WINDOW_CLASS_NAME.encode_utf16().chain(Some(0)).collect();
         let hwnd = unsafe { FindWindowW(PCWSTR(class_name_wide.as_ptr()), None) };
@@ -1407,7 +1419,7 @@ fn stop_running_instance(image_under: Option<&std::path::Path>) {
                 let thread_id = unsafe { GetWindowThreadProcessId(h, Some(&mut window_pid)) };
                 if thread_id == 0 {
                     println!("TextVN window owner thread could not be resolved.");
-                    return;
+                    return false;
                 }
                 // R2-30: chỉ dừng tray của đúng bản đang gỡ/cập nhật. Không đọc
                 // được image path → coi là bản khác (không dừng nhầm).
@@ -1418,9 +1430,27 @@ fn stop_running_instance(image_under: Option<&std::path::Path>) {
                         println!(
                             "TextVN (PID {window_pid}) is running from another location; not stopping it."
                         );
-                        return;
+                        return true;
                     }
                 }
+                // R2-99: handle CHỈ quyền SYNCHRONIZE để chờ tiến trình THOÁT HẲN — nhả
+                // mutex chưa phải đã thoát: bộ gỡ xoá TextVN.exe ngay sau `--stop` thì
+                // file còn bị khoá và gỡ không sạch.
+                // SAFETY: handle chỉ dùng để chờ, đóng ở mọi nhánh bên dưới.
+                let process = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, false, window_pid) }.ok();
+                let wait_exit = |ms: u32| -> bool {
+                    match process {
+                        // SAFETY: handle hợp lệ tới khi CloseHandle cuối hàm.
+                        Some(p) => (unsafe { WaitForSingleObject(p, ms) }) == WAIT_OBJECT_0,
+                        None => true,
+                    }
+                };
+                let close_process = || {
+                    if let Some(p) = process {
+                        // SAFETY: đóng đúng một lần handle do OpenProcess cấp.
+                        let _ = unsafe { CloseHandle(p) };
+                    }
+                };
                 println!("Found TextVN window. Requesting a graceful close...");
                 // The named-pipe request is the primary control path. It enters
                 // the app's own IPC worker, then requests exit on the tray thread
@@ -1433,19 +1463,20 @@ fn stop_running_instance(image_under: Option<&std::path::Path>) {
                 }
 
                 let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
-                // Đợi tiến trình giải phóng mutex; hết `iterations` mà vẫn giữ → false.
-                let wait_released = |iterations: u32| -> bool {
-                    for i in 0..iterations {
+                let started = std::time::Instant::now();
+                // Đợi tiến trình giải phóng mutex rồi THOÁT HẲN; hết hạn → false.
+                let wait_stopped = |iterations: u32| -> bool {
+                    for _ in 0..iterations {
                         std::thread::sleep(Duration::from_millis(100));
                         let h_mutex =
                             unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
                         if let Ok(m) = h_mutex {
                             let err = unsafe { GetLastError() };
                             let _ = unsafe { CloseHandle(m) };
-                            if err != ERROR_ALREADY_EXISTS {
+                            if err != ERROR_ALREADY_EXISTS && wait_exit(5000) {
                                 println!(
                                     "TextVN stopped successfully (after {}ms).",
-                                    (i + 1) * 100
+                                    started.elapsed().as_millis()
                                 );
                                 return true;
                             }
@@ -1458,8 +1489,9 @@ fn stop_running_instance(image_under: Option<&std::path::Path>) {
                 // Shutdown cho Hook phải chạy trước khi message loop rời đi. Gửi
                 // WM_QUIT ngay sau frame sẽ đua: quit tới trước khi IPC worker kịp
                 // đọc frame → không broadcast → Hook mồ côi tới heartbeat timeout.
-                if wait_released(20) {
-                    return;
+                if wait_stopped(20) {
+                    close_process();
+                    return true;
                 }
 
                 unsafe {
@@ -1472,27 +1504,48 @@ fn stop_running_instance(image_under: Option<&std::path::Path>) {
                         println!(
                             "WM_QUIT could not be queued for tray thread {thread_id}: {error}"
                         );
-                        return;
                     }
                 }
-                if wait_released(10) {
-                    return;
+                if wait_stopped(10) {
+                    close_process();
+                    return true;
                 }
-                // Không TerminateProcess: một exe mở handle PROCESS_TERMINATE tới
-                // process khác là mẫu hành vi AV soi (process killer), và dừng
-                // cưỡng bức bỏ lỡ cleanup (icon khay, broadcast Shutdown).
+                close_process();
+                // Mặc định KHÔNG TerminateProcess: mở PROCESS_TERMINATE tới process khác
+                // là mẫu hành vi AV soi (process killer), và dừng cưỡng bức bỏ lỡ cleanup
+                // (icon khay, broadcast Shutdown). Ngoại lệ R2-99: bộ gỡ cài đặt (`--force`,
+                // luôn kèm `--if-image-under`) — tray của CHÍNH thư mục đang gỡ còn chạy
+                // thì file bị khoá, gỡ không sạch.
+                if force {
+                    // SAFETY: handle đóng ngay sau khi chờ.
+                    if let Ok(p) = unsafe {
+                        OpenProcess(PROCESS_TERMINATE | PROCESS_SYNCHRONIZE, false, window_pid)
+                    } {
+                        let gone = unsafe { TerminateProcess(p, 1) }.is_ok()
+                            && unsafe { WaitForSingleObject(p, 5000) } == WAIT_OBJECT_0;
+                        let _ = unsafe { CloseHandle(p) };
+                        if gone {
+                            println!(
+                                "TextVN (PID {window_pid}) did not exit gracefully; stopped for uninstall."
+                            );
+                            return true;
+                        }
+                    }
+                }
                 println!(
                     "TextVN (PID {window_pid}) did not stop within 3s; close it from the tray menu."
                 );
-                return;
+                return false;
             }
         }
         println!("No running TextVN instance detected.");
+        true
     }
     #[cfg(not(windows))]
     {
-        let _ = image_under;
+        let _ = (image_under, force);
         println!("Stopping tray instance is only supported on Windows.");
+        true
     }
 }
 

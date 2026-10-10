@@ -9,11 +9,16 @@ $dirArg = Format-PathArg $dir
 Write-Host 'Tat TextVN...'
 # R2-93: chi dung tray chay tu CHINH thu muc nay - ban TextVN cai o noi khac (bo cai,
 # Store) dang dung thi giu nguyen.
-Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList @('--stop', '--if-image-under', $dirArg) -ErrorAction SilentlyContinue
+# R2-99: tray phai THOAT HAN truoc khi go (con chay thi khoa file, go khong sach):
+# --stop cho tien trinh thoat; --force dung cuong buc neu no khong tu thoat.
+Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList @('--stop', '--if-image-under', $dirArg, '--force') -ErrorAction SilentlyContinue
 $ownTray = {
     Get-Process -Name TextVN -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -and $_.Path.StartsWith($dir.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) }
 }
+for ($i = 0; $i -lt 20 -and (& $ownTray); $i++) { Start-Sleep -Milliseconds 250 }
+# Phong ho (vd. ban TextVN.exe cu khong co --force): van con tray cua thu muc nay -> dung.
+& $ownTray | Stop-Process -Force -ErrorAction SilentlyContinue
 for ($i = 0; $i -lt 20 -and (& $ownTray); $i++) { Start-Sleep -Milliseconds 250 }
 # Tu khoi dong tro vao thu muc nay thi bo (khong dung toi ban TextVN da cai o noi khac).
 $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'

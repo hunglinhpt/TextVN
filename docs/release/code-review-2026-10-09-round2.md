@@ -15,8 +15,8 @@
 | Linux | ✅ Ký GPG + Sigstore cho mọi asset, CI **dừng** nếu thiếu/sai khoá (fail-closed) | — |
 | macOS | ✅ Code; ký Developer ID + notarize + staple bật **khi có** secret `APPLE_*`, thiếu thì ký ad-hoc và ghi rõ trong release notes | Đặt secret Apple (xem `signing-status-mac.md`) |
 
-**Tổng kết finding:** 98 finding R2 (87 từ rà soát + 11 khi kiểm trên Windows thật và rà
-soát đối kháng trước 0.2.28, §3.7) — **91 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
+**Tổng kết finding:** 100 finding R2 (87 từ rà soát + 13 khi kiểm trên Windows thật, rà
+soát đối kháng trước 0.2.28 và yêu cầu gỡ sạch của chủ repo, §3.7) — **93 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
 chỉ Apple; R2-85 một phần), 1 chờ SignPath (R2-12), 3 giữ nguyên có lý do (R2-11, R2-47,
 R2-67), 3 hoãn (R2-14, R2-26, R2-41 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
 
@@ -185,6 +185,8 @@ tái hiện và sửa lại ở đây; R2-92 tái hiện được ngay trên má
 | R2-96 | P2 | Gỡ gói Store rồi cài lại trước lần đăng nhập kế → tự khởi động tắt (`stage.json` cũ làm `--msix-install` tưởng là cập nhật) | `store_cleanup` xoá `stage.json`; test sideload kiểm | ✅ `91dfdd0` |
 | R2-97 | P2 | `deed`/`deeds`/`dosed` → `đê`/`đế`/`đoé` (luật `d` gõ sau R2-68 + `ee`→`ê`) | Thêm vào `en_common`; corpus `r2_late_d_english_deed_01` (`ddee` vẫn → `đê`) | ✅ `6376e7c` |
 | R2-98 | P2 | Bộ cài cho mọi người dùng (Run ở HKLM): bỏ chọn "Khởi động cùng Windows" trông như đã lưu nhưng tray vẫn tự chạy | Marker theo tài khoản `%APPDATA%\TextVN\autostart_disabled`; tray `--autostart` từ thư mục mục HKLM trỏ tới thì thoát; Inno chọn task autostart → xoá marker | ✅ `efc5dfb` |
+| R2-99 | P1 | Gỡ cài đặt khi tray đang chạy không sạch: `--stop` báo xong khi tray nhả mutex (chưa thoát) rồi bộ gỡ xoá `TextVN.exe` ngay; Inno dừng tray ở `[UninstallRun]` — chạy SAU `usUninstall`; menu khay "Gỡ cài đặt" mở trình gỡ mà tray vẫn chạy (và `CreateProcess` không bật được UAC của bản máy) | `--stop` chờ tiến trình thoát hẳn (handle SYNCHRONIZE), `--force` (kèm `--if-image-under`) dừng cưỡng bức đúng PID của thư mục đang gỡ; Inno dừng tray đầu tiên ở `usUninstall`; menu mở trình gỡ bằng ShellExecute rồi thoát tray; `uninstall.ps1`/kênh Store dùng `--force`. CI gỡ khi tray đang chạy | ✅ `798e696` |
+| R2-100 | P2 | Gỡ cài đặt để lại ngôn ngữ TextVN đã thêm (`InstallLayoutOrTip` tự thêm "vi" trên máy chỉ có tiếng Anh; unregister chỉ bỏ value TIP) — Settings còn "Tiếng Việt" với bàn phím Windows tự gắn | Marker `languages_added` lúc register; unregister bỏ ngôn ngữ đó (và bàn phím Windows tự gắn) khi người dùng không gắn bàn phím nào khác. CI: danh sách ngôn ngữ sau khi gỡ = trước khi cài, có kiểm bước giữa | ✅ `3851ed5` |
 
 Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`appdb_version` số) đã sửa
 ở `017bc82` (xem `code-review-2026-10-07.md`).

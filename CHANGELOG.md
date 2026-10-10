@@ -9,6 +9,23 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.29] — 2026-10-10
+
+### Fixed — gỡ cài đặt sạch (R2-99, R2-100)
+- Gỡ cài đặt (bộ cài, portable, Store) **thoát TextVN trước** mọi bước và chờ nó tắt
+  hẳn — trước đây gỡ lúc TextVN đang chạy có thể sót `TextVN.exe` vì file còn bị khoá.
+  Menu khay "Gỡ cài đặt" của bản cài mở trình gỡ (có hộp UAC với bản cho mọi người
+  dùng) rồi tự thoát.
+- Gỡ cài đặt **dọn cả danh sách ngôn ngữ/bàn phím**: ngoài bàn phím TextVN, ngôn ngữ
+  mà chính TextVN đã thêm (ví dụ máy chỉ có tiếng Anh, cài TextVN thêm "Tiếng Việt")
+  được bỏ khi người dùng không gắn bàn phím nào khác cho nó — không còn sót "Tiếng
+  Việt" với bàn phím Windows tự gắn. Ngôn ngữ bạn có sẵn thì giữ nguyên. Ctrl + Shift
+  được trả cho Windows như trước.
+
+### Changed
+- Gói `.msix` kèm bản phát hành mang identity thật của Microsoft Store
+  (`23651Linhi.TextVN`) — nộp thẳng được, có chữ ký GPG/Sigstore như mọi file.
+
 ## [0.2.28] — 2026-10-10
 
 ### Added

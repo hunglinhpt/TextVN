@@ -22,7 +22,7 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.28](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.28)**
+Bản mới nhất: **[GitHub Release v0.2.29](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.29)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho

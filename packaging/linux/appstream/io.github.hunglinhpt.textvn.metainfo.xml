@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.29" date="2026-10-10">
+      <description>
+        <p>Clean uninstall: every uninstall path (Windows installer, portable script, Microsoft Store cleanup) now closes TextVN first and waits until it has fully exited before removing files, so a running TextVN no longer leaves files behind. Uninstalling also removes a language that TextVN itself added to the Windows language list when no other keyboard was added for it, and still gives Ctrl+Shift back to Windows. The Microsoft Store package attached to the release now carries the real Store identity.</p>
+      </description>
+    </release>
     <release version="0.2.28" date="2026-10-10">
       <description>
         <p>Typing: Backspace now deletes the last visible character like UniKey instead of undoing the last key; automatic capitalization only starts a sentence after ". ! ?" followed by a space or Enter, so URLs, file names and decimals are left alone; VNI and VIQR place marks typed after a whole vowel cluster on the right vowel; Telex "w" on its own becomes "u" with horn, marks switch between circumflex and horn/breve, pressing a mark key a third time removes the mark and types the letter, and a "d" typed later in a word strokes the initial "d". English words such as sort, keep, using, music, deed and defend are no longer turned into Vietnamese-looking syllables, and Vietnamese syllables such as "thi" with tone are no longer restored to English. Linux: Fcitx5 always keeps its own addon directory, IBus starts when the install path contains spaces, "sudo ./install.sh --system" no longer touches user settings, and the GTK settings window keeps its English dictionary window. Every release asset stays signed with GPG and Sigstore, and the release pipeline now stops when signing keys are missing.</p>
