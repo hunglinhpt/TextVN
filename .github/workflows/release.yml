@@ -235,6 +235,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           COSIGN_YES: 'true'
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
         run: |
           set -euo pipefail
           version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
@@ -276,9 +277,16 @@ jobs:
                 [ -n "$old" ] && gh release delete-asset "${GITHUB_REF_NAME}" "$old" --yes
               done
           else
+            # Gói .msix chỉ nộp được khi build với identity Partner Center; identity tạm
+            # thì nói rõ để không ai nộp nhầm (msix-submission.md §3).
+            if [ -n "$(printf '%s' "${MSIX_IDENTITY_NAME:-}" | tr -d '[:space:]')" ]; then
+              msix_note="File .msix chưa ký, dùng để nộp Microsoft Store (Store tự ký) — không cài trực tiếp được."
+            else
+              msix_note="File .msix mang identity TẠM — chỉ để thử, KHÔNG nộp Microsoft Store; gói nộp Store build lại bằng workflow release-candidate chạy tay trên tag này với ô msix_identity_name (docs/release/msix-submission.md §3)."
+            fi
             gh release create "${GITHUB_REF_NAME}" --draft --verify-tag --prerelease \
               --title "TextVN ${version} (release candidate)" \
-              --notes "Bản release candidate do workflow này build và test từ ${GITHUB_SHA}. Mọi file đều có chữ ký GPG tách rời (.asc — khoá FPR 3921595ABC961199F15303B6C45B84D0C7F4A822, public key gpg-release-key.asc đính kèm) và chữ ký Sigstore keyless (.cosign.sig + .cosign.cert); SHA256SUMS.txt được clearsign. Cách kiểm: docs/release/signing.md. Thay đổi: CHANGELOG.md. ZIP Windows chứa RELEASE_REPORT.json. Chưa có: Authenticode cho Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Developer ID + notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). File .msix chưa ký, chỉ dùng để nộp Microsoft Store — không cài trực tiếp được."
+              --notes "Bản release candidate do workflow này build và test từ ${GITHUB_SHA}. Mọi file đều có chữ ký GPG tách rời (.asc — khoá FPR 3921595ABC961199F15303B6C45B84D0C7F4A822, public key gpg-release-key.asc đính kèm) và chữ ký Sigstore keyless (.cosign.sig + .cosign.cert); SHA256SUMS.txt được clearsign. Cách kiểm: docs/release/signing.md. Thay đổi: CHANGELOG.md. ZIP Windows chứa RELEASE_REPORT.json. Chưa có: Authenticode cho Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Developer ID + notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). ${msix_note}"
           fi
           cp docs/release/signing/gpg-release-key.asc release-assets/
           (cd release-assets && sha256sum * > SHA256SUMS.txt)
