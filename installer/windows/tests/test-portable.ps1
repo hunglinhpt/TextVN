@@ -83,6 +83,34 @@ if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) { throw 'tray still 
 if (Test-Path $inproc) { throw 'TSF CLSID still registered after uninstall.ps1' }
 if (-not (Test-Path (Join-Path $env:APPDATA 'TextVN'))) { throw 'user config was not kept' }
 Write-Host 'PASS portable: extract -> run -> type -> unregister'
+
+# R2-92: nang cap tu portable <= 0.2.27 - ban cu dat Layout Hotkey=3 ma KHONG ghi marker
+# (state.json co last_version cu). Ban moi phai nhan lai muc do de go cai dat van tra
+# Ctrl + Shift (ban cu xoa Layout Hotkey khi go).
+$stateFile = Join-Path $env:APPDATA 'TextVN\state.json'
+$stateBackup = if (Test-Path -LiteralPath $stateFile) { [System.IO.File]::ReadAllText($stateFile) } else { $null }
+$dir2 = Join-Path $tempRoot ('textvn-portable-up-' + [guid]::NewGuid().ToString('N'))
+try {
+    Expand-Archive -Path $Zip -DestinationPath $dir2
+    Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '3'
+    Remove-Item -LiteralPath (Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied') -Force -ErrorAction SilentlyContinue
+    [System.IO.File]::WriteAllText($stateFile, '{"global_enabled":true,"apps":{},"last_version":"0.2.27"}')
+    Start-Process -FilePath (Join-Path $dir2 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $dir2 | Out-Null
+    $markerFile = Join-Path $env:APPDATA 'TextVN\ctrl_shift_default_applied'
+    for ($i = 0; $i -lt 40 -and -not (Test-Path -LiteralPath $markerFile); $i++) { Start-Sleep -Milliseconds 500 }
+    & (Join-Path $dir2 'TextVN.exe') --stop | Out-Null
+    $markerText = (Get-Content -LiteralPath $markerFile -Raw -ErrorAction SilentlyContinue)
+    if ($markerText -notmatch '(?m)^Layout Hotkey=\s*$') { throw "upgrade from 0.2.27 lost the legacy Layout Hotkey record (marker: [$markerText])" }
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dir2 'uninstall.ps1')
+    $layout = (Get-ItemProperty -Path $toggle -ErrorAction SilentlyContinue).'Layout Hotkey'
+    if ($null -ne $layout) { throw "uninstall after upgrade from 0.2.27 did not give Ctrl+Shift back (Layout Hotkey='$layout')" }
+    Write-Host 'PASS portable upgrade from 0.2.27: uninstall gives Ctrl+Shift back (R2-92)'
+} finally {
+    if ($null -ne $stateBackup) { [System.IO.File]::WriteAllText($stateFile, $stateBackup) }
+    Set-ItemProperty -Path $toggle -Name 'Layout Hotkey' -Value '2'
+    if (Test-Path -LiteralPath (Join-Path $dir2 'TextVN.exe')) { & (Join-Path $dir2 'TextVN.exe') --stop *> $null }
+    Remove-Item -LiteralPath $dir2 -Recurse -Force -ErrorAction SilentlyContinue
+}
 } finally {
     $trayPath = Join-Path $dir 'TextVN.exe'
     if (Test-Path -LiteralPath $trayPath) {

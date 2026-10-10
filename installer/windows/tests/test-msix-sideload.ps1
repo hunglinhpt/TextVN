@@ -136,6 +136,9 @@ try {
         $run = (Get-ItemProperty -Path $runKey -Name 'TextVN' -ErrorAction SilentlyContinue).TextVN
         if ($run -and $run.Contains($dir)) { Fail "guard sau khi go goi: Run TextVN van con '$run'" }
         else { Pass 'guard sau khi go goi: Run TextVN da xoa' }
+        # R2-96: cai lai truoc lan dang nhap ke phai la cai MOI (tu khoi dong bat lai).
+        if (Test-Path -LiteralPath $stageJson) { Fail 'guard sau khi go goi: stage.json van con (cai lai se tat tu khoi dong)' }
+        else { Pass 'guard sau khi go goi: stage.json da xoa' }
     }
 } finally {
     if ($dir -and (Test-Path -LiteralPath (Join-Path $dir 'TextVN.exe'))) {

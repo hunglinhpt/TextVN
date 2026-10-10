@@ -9,6 +9,29 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.28] — 2026-10-10
+
+### Added
+- Workflow phát hành có ô nhập `msix_identity_name`: build lại riêng gói MSIX nộp Store
+  (identity từ Partner Center) trên tag đã phát hành; chạy tay chỉ build, không đụng
+  release đã công khai (`docs/release/msix-submission.md` §3). Gói `.msix` kèm release
+  0.2.28 mang identity tạm — chỉ để thử, không nộp.
+
+### Fixed — kiểm trên Windows 11 thật và rà soát đối kháng (R2-88…R2-98, chi tiết: `docs/release/code-review-2026-10-09-round2.md` §3.7)
+- Gỡ bản portable/Store từng nâng cấp từ 0.2.27 nay trả lại Ctrl + Shift cho Windows
+  (trước đây bản ghi Ctrl + Shift bị mất khi nâng cấp).
+- Gỡ một bản TextVN (portable, bộ cài) không còn tắt hay gỡ đăng ký bộ gõ của bản
+  TextVN khác đang dùng (bản cài ở thư mục khác, bản Store).
+- Bỏ chọn "Khởi động cùng Windows" ở bản cài cho mọi người dùng nay có hiệu lực (trước
+  đây trông như đã lưu nhưng lần đăng nhập sau TextVN vẫn tự chạy).
+- Gỡ gói Store rồi cài lại trước lần đăng nhập kế: tự khởi động bật như lần cài đầu.
+- File bị khoá sau khi gỡ được dọn ở lần đăng nhập kế cả khi đường dẫn dài.
+- `deed`, `deeds`, `dosed` không còn thành `đê`, `đế`, `đoé` (gõ `đê` vẫn là `ddee`).
+- Phát triển: `build-release.ps1` không còn đăng ký bộ gõ trỏ vào thư mục build hay đổi
+  Ctrl + Shift của máy dev, và không dừng khi DLL x86 trong thư mục build đang bị app
+  32-bit nạp; test gõ thử chạy được trên Notepad Windows 11; test IPC không còn nối vào
+  TextVN đang chạy trên máy.
+
 ### Fixed — rà soát vòng 2: Microsoft Store, ký số, QA (chi tiết: `docs/release/code-review-2026-10-09-round2.md`)
 - **Microsoft Store (MSIX) chạy thật**: bản cài từ Store chép chương trình ra ngoài gói
   (`%USERPROFILE%\.textvn`, `%LOCALAPPDATA%\Programs\TextVN-Store`) bằng tiến trình thoát

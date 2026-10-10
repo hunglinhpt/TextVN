@@ -1165,11 +1165,17 @@ mod win_impl {
         }
     }
 
-    /// R2-30: đăng ký TIP 64-bit hiện hành (HKCU che HKLM) có thuộc `dirs` không.
-    pub fn registration_owned_by(dirs: &[String]) -> bool {
+    /// R2-30: đăng ký TIP 64-bit của `scope` có thuộc `dirs` không. User: đăng ký hiện
+    /// hành (HKCU che HKLM) — profile per-user bật cho cả bản cài máy, chỉ gỡ khi nó
+    /// thuộc thư mục đang gỡ. Machine: chỉ HKLM (R2-93) — override HKCU trỏ bản khác
+    /// không được làm bộ gỡ bản máy bỏ sót HKLM trỏ vào thư mục sắp xoá.
+    pub fn registration_owned_by(scope: Scope, dirs: &[String]) -> bool {
         let inproc = format!(r"{}\InprocServer32", clsid_key());
-        let server = reg_read_string(HKEY_CURRENT_USER, &inproc)
-            .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc));
+        let server = match scope {
+            Scope::Machine => reg_read_string(HKEY_LOCAL_MACHINE, &inproc),
+            Scope::User => reg_read_string(HKEY_CURRENT_USER, &inproc)
+                .or_else(|| reg_read_string(HKEY_LOCAL_MACHINE, &inproc)),
+        };
         let exists = server
             .as_deref()
             .is_some_and(|p| Path::new(p.trim().trim_matches('"')).is_file());
@@ -1865,7 +1871,7 @@ pub fn unregister_tip(scope: &str, owned_by: Option<&Path>) -> i32 {
             if let Ok(c) = std::fs::canonicalize(dir) {
                 dirs.push(c.to_string_lossy().into_owned());
             }
-            if !win_impl::registration_owned_by(&dirs) {
+            if !win_impl::registration_owned_by(scope, &dirs) {
                 say("=== TextVN unregister (--if-owned-by) ===");
                 say(&format!(
                     "  Bỏ qua: TIP đang đăng ký cho một bản TextVN khác (không thuộc {})",

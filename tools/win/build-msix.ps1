@@ -48,11 +48,12 @@ if (-not [System.IO.Path]::IsPathRooted($TargetDir)) { $TargetDir = Join-Path $r
 # CI/secret co the bom Identity THAT (Partner Center -> Product identity) qua
 # bien moi truong - khi do khong can truyen -Publisher/-IdentityName:
 #   MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY, MSIX_DISPLAY_NAME
-# Tham so truyen tuong minh luon thang bien moi truong.
-if ($env:MSIX_IDENTITY_NAME -and -not $PSBoundParameters.ContainsKey('IdentityName')) { $IdentityName = $env:MSIX_IDENTITY_NAME.Trim() }
-if ($env:MSIX_PUBLISHER -and -not $PSBoundParameters.ContainsKey('Publisher')) { $Publisher = $env:MSIX_PUBLISHER.Trim() }
-if ($env:MSIX_PUBLISHER_DISPLAY -and -not $PSBoundParameters.ContainsKey('PublisherDisplay')) { $PublisherDisplay = $env:MSIX_PUBLISHER_DISPLAY.Trim() }
-if ($env:MSIX_DISPLAY_NAME -and -not $PSBoundParameters.ContainsKey('DisplayName')) { $DisplayName = $env:MSIX_DISPLAY_NAME.Trim() }
+# Tham so truyen tuong minh luon thang bien moi truong. Bien chi toan dau cach = khong
+# dat (R2-95: tung ra DisplayName rong; verify-msix.py cung quy tac).
+if ($env:MSIX_IDENTITY_NAME -and $env:MSIX_IDENTITY_NAME.Trim() -and -not $PSBoundParameters.ContainsKey('IdentityName')) { $IdentityName = $env:MSIX_IDENTITY_NAME.Trim() }
+if ($env:MSIX_PUBLISHER -and $env:MSIX_PUBLISHER.Trim() -and -not $PSBoundParameters.ContainsKey('Publisher')) { $Publisher = $env:MSIX_PUBLISHER.Trim() }
+if ($env:MSIX_PUBLISHER_DISPLAY -and $env:MSIX_PUBLISHER_DISPLAY.Trim() -and -not $PSBoundParameters.ContainsKey('PublisherDisplay')) { $PublisherDisplay = $env:MSIX_PUBLISHER_DISPLAY.Trim() }
+if ($env:MSIX_DISPLAY_NAME -and $env:MSIX_DISPLAY_NAME.Trim() -and -not $PSBoundParameters.ContainsKey('DisplayName')) { $DisplayName = $env:MSIX_DISPLAY_NAME.Trim() }
 $PlaceholderIdentity = 'LinhBH.CoM.TextVN'
 if (-not $IdentityName) { $IdentityName = $PlaceholderIdentity }
 # Package/Identity/Name: 3-50 ky tu [A-Za-z0-9.-] (schema AppxManifest ST_PackageName).

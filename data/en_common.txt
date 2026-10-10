@@ -30,10 +30,15 @@
 # (R2-62) — nhánh cấu trúc đã restore. `text`/`next`/`art`/`cart` vẫn giữ ở đây vì
 # file này cũng là nguồn gợi ý Tab (`tex`+Tab → `text`, không phải `texts`).
 # `defend`→`đền`: `d` gõ sau trong từ đổi `d` đầu từ thành `đ` (R2-68).
+# `deed`→`đê`, `deeds`→`đế`, `dosed`→`đoé`: cùng luật `d` gõ sau + `ee`→`ê` (R2-97);
+#   người gõ tiếng Việt gõ `đê` bằng `ddee` (dãy phím khác, không bị trả lại).
 # `was`→`ứa`, `war`→`ửa`, `wax`→`ữa`, `wow`→`uơ`: `w` đứng riêng thành `ư` (R2-66).
 # `away`→`ây`: `ă` + `a` đổi dấu thành `â` (R2-70).
 hex
 defend
+deed
+deeds
+dosed
 text
 texts
 next

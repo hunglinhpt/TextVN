@@ -216,6 +216,25 @@ pub fn merge_ctrl_shift_record(
     out
 }
 
+/// R2-92: bản ≤ 0.2.27 dành Ctrl + Shift (`Layout Hotkey` = `3`) mà KHÔNG ghi marker —
+/// portable mỗi lần khởi động, kênh Store ở lần đầu; gỡ cài đặt của chúng xoá
+/// `Layout Hotkey` khi còn là `3`. Nâng cấp lên bản có marker thấy "không gán" sẵn nên
+/// `free_ctrl_shift` không đổi gì (bản ghi rỗng) → phải nhận lại đúng mục bản cũ đã đặt,
+/// nếu không gỡ cài đặt không trả Ctrl + Shift cho Windows.
+pub fn legacy_freed_layout_hotkey(previous_version: Option<&str>, layout: Option<&str>) -> bool {
+    layout == Some("3") && previous_version.is_some_and(version_before_ctrl_shift_marker)
+}
+
+/// Phiên bản `a.b.c` < 0.2.28 (bản đầu tiên phát hành có marker bản ghi). Không parse
+/// được → `false` (không đoán).
+fn version_before_ctrl_shift_marker(version: &str) -> bool {
+    let mut parts = version.trim().split('.').map(|p| p.parse::<u32>().ok());
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(Some(a)), Some(Some(b)), Some(Some(c)), None) => (a, b, c) < (0, 2, 28),
+        _ => false,
+    }
+}
+
 /// Bản ghi trong marker hiện tại (không có/không phải bản ghi → rỗng).
 pub fn read_ctrl_shift_record() -> Vec<hotkey::FreedEntry> {
     ctrl_shift_marker_path()
@@ -487,6 +506,22 @@ mod tests {
                 ("Layout Hotkey".to_string(), Some("2".to_string())),
             ]
         );
+    }
+
+    /// R2-92: nâng cấp từ bản ≤ 0.2.27 (không marker) mà Layout Hotkey đã là 3 → nhận
+    /// lại mục bản cũ; bản mới hơn, lần đầu chạy, hay người dùng tự đặt khác 3 → không.
+    #[test]
+    fn legacy_freed_layout_hotkey_only_for_pre_marker_upgrades() {
+        assert!(legacy_freed_layout_hotkey(Some("0.2.27"), Some("3")));
+        assert!(legacy_freed_layout_hotkey(Some("0.2.9"), Some("3")));
+        assert!(legacy_freed_layout_hotkey(Some(" 0.1.40 "), Some("3")));
+        assert!(!legacy_freed_layout_hotkey(Some("0.2.28"), Some("3")));
+        assert!(!legacy_freed_layout_hotkey(Some("0.3.0"), Some("3")));
+        assert!(!legacy_freed_layout_hotkey(None, Some("3")));
+        assert!(!legacy_freed_layout_hotkey(Some("0.2.27"), Some("2")));
+        assert!(!legacy_freed_layout_hotkey(Some("0.2.27"), None));
+        assert!(!legacy_freed_layout_hotkey(Some("0.2.27-dev"), Some("3")));
+        assert!(!legacy_freed_layout_hotkey(Some("garbage"), Some("3")));
     }
 
     /// Debounce chéo nguồn: lần đầu claim được; trong 250ms claim lại phải

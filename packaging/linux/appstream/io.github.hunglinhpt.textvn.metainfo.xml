@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.28" date="2026-10-10">
+      <description>
+        <p>Typing: Backspace now deletes the last visible character like UniKey instead of undoing the last key; automatic capitalization only starts a sentence after ". ! ?" followed by a space or Enter, so URLs, file names and decimals are left alone; VNI and VIQR place marks typed after a whole vowel cluster on the right vowel; Telex "w" on its own becomes "u" with horn, marks switch between circumflex and horn/breve, pressing a mark key a third time removes the mark and types the letter, and a "d" typed later in a word strokes the initial "d". English words such as sort, keep, using, music, deed and defend are no longer turned into Vietnamese-looking syllables, and Vietnamese syllables such as "thi" with tone are no longer restored to English. Linux: Fcitx5 always keeps its own addon directory, IBus starts when the install path contains spaces, "sudo ./install.sh --system" no longer touches user settings, and the GTK settings window keeps its English dictionary window. Every release asset stays signed with GPG and Sigstore, and the release pipeline now stops when signing keys are missing.</p>
+      </description>
+    </release>
     <release version="0.2.27" date="2026-10-07">
       <description>
         <p>macOS: the input method reads the "Non-preedit" setting (BUG-05) when the settings app broadcasts a configuration reload - when enabled the Preedit composition strategy downgrades to BackspaceType for underline-free typing; configs missing the key keep underlined preedit. Known limitation of this release: the setting is not read when an input session starts, and the input method's strategy resolution fails so typing always uses BackspaceType; both are fixed after 0.2.27. Verified the IMK client already applies global "*" StateUpdate/Snapshot broadcasts and the app menu bar syncs via didSet. Linux docs aligned with the SEC-04 socket path priority. All release assets (Windows, Linux and macOS) are now signed with GPG detached signatures (.asc) and Sigstore keyless signatures, and SHA256SUMS.txt is clearsigned; Windows Authenticode and macOS Developer ID signing and notarization are not in place yet.</p>

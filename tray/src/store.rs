@@ -34,8 +34,14 @@ pub const STAGED_MARKER: &str = ".textvn-staged";
 pub const RELAUNCH_HINT_FILE: &str = "relaunch-mode";
 /// `Application Id` trong AppxManifest — dựng AUMID `<PFN>!TextVN`.
 pub const APP_ID: &str = "TextVN";
-/// Tên value HKCU RunOnce hẹn xoá thư mục kênh Store ở lần đăng nhập sau.
-pub const RUNONCE_VALUE_NAME: &str = "TextVN-StoreCleanup";
+/// Tên các value HKCU RunOnce hẹn xoá thư mục kênh Store ở lần đăng nhập sau, theo
+/// thứ tự lệnh của [`runonce_cleanup_command`] (mục đầu giữ tên cũ để huỷ được lịch
+/// của bản trước).
+pub const RUNONCE_VALUE_NAMES: [&str; 3] = [
+    "TextVN-StoreCleanup",
+    "TextVN-StoreCleanup2",
+    "TextVN-StoreCleanup3",
+];
 
 pub const ARG_RELAY: &str = "--msix-relay";
 pub const ARG_INSTALL: &str = "--msix-install";
@@ -347,7 +353,7 @@ fn win_norm(p: &str) -> String {
     p.replace('/', "\\").trim_end_matches('\\').to_string()
 }
 
-/// Lệnh HKCU RunOnce xoá ĐÚNG hai thư mục của kênh Store ở lần đăng nhập sau (lúc đó
+/// Các lệnh HKCU RunOnce xoá ĐÚNG hai thư mục của kênh Store ở lần đăng nhập sau (lúc đó
 /// không tiến trình nào còn nạp DLL TextVN): `TextVN-Store` và `.textvn\msix-staging`,
 /// rồi `rmdir` (không /s — chỉ xoá khi rỗng) thư mục `.textvn`. `None` khi đường dẫn
 /// không đúng dạng mong đợi hoặc chứa ký tự cmd diễn giải (`"`, `%`, xuống dòng).
@@ -355,7 +361,7 @@ pub fn runonce_cleanup_command(
     cmd_exe: &str,
     store_root: &Path,
     staging_root: &Path,
-) -> Option<String> {
+) -> Option<Vec<String>> {
     let store = win_norm(&store_root.to_string_lossy());
     let staging = win_norm(&staging_root.to_string_lossy());
     let absolute = |p: &str| {
@@ -373,9 +379,13 @@ pub fn runonce_cleanup_command(
         return None;
     }
     let dot_textvn = &staging[..staging.len() - r"\msix-staging".len()];
-    Some(format!(
-        "\"{cmd_exe}\" /d /c rmdir /s /q \"{store}\" & rmdir /s /q \"{staging}\" & rmdir \"{dot_textvn}\""
-    ))
+    // R2-94: mỗi thư mục một mục RunOnce — Windows khuyến nghị lệnh RunOnce ≤ 260 ký
+    // tự; ba đường dẫn trong một lệnh vượt ngưỡng khi tên tài khoản dài.
+    Some(vec![
+        format!("\"{cmd_exe}\" /d /c rmdir /s /q \"{store}\""),
+        format!("\"{cmd_exe}\" /d /c rmdir /s /q \"{staging}\""),
+        format!("\"{cmd_exe}\" /d /c rmdir \"{dot_textvn}\""),
+    ])
 }
 
 #[cfg(test)]
@@ -692,11 +702,21 @@ mod tests {
         let store = Path::new(r"C:\Users\a b\AppData\Local\Programs\TextVN-Store");
         let staging = Path::new(r"C:\Users\a b\.textvn\msix-staging");
         assert_eq!(
-            runonce_cleanup_command(cmd, store, staging).as_deref(),
-            Some(
-                r#""C:\Windows\System32\cmd.exe" /d /c rmdir /s /q "C:\Users\a b\AppData\Local\Programs\TextVN-Store" & rmdir /s /q "C:\Users\a b\.textvn\msix-staging" & rmdir "C:\Users\a b\.textvn""#
-            )
+            runonce_cleanup_command(cmd, store, staging),
+            Some(vec![
+                r#""C:\Windows\System32\cmd.exe" /d /c rmdir /s /q "C:\Users\a b\AppData\Local\Programs\TextVN-Store""#.to_string(),
+                r#""C:\Windows\System32\cmd.exe" /d /c rmdir /s /q "C:\Users\a b\.textvn\msix-staging""#.to_string(),
+                r#""C:\Windows\System32\cmd.exe" /d /c rmdir "C:\Users\a b\.textvn""#.to_string(),
+            ])
         );
+        // R2-94: tên tài khoản dài 40 ký tự — từng lệnh vẫn ≤ 260 ký tự.
+        let long_user = "u".repeat(40);
+        let long_store = format!(r"C:\Users\{long_user}\AppData\Local\Programs\TextVN-Store");
+        let long_staging = format!(r"C:\Users\{long_user}\.textvn\msix-staging");
+        let cmds =
+            runonce_cleanup_command(cmd, Path::new(&long_store), Path::new(&long_staging)).unwrap();
+        assert_eq!(cmds.len(), RUNONCE_VALUE_NAMES.len());
+        assert!(cmds.iter().all(|c| c.len() <= 260), "{cmds:?}");
         // Sai thư mục → không bao giờ dựng lệnh xoá đệ quy.
         for (s, g) in [
             (

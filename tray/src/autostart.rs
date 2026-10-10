@@ -109,14 +109,79 @@ pub fn disable_linux_autostart_in_dir(autostart_dir: &Path) -> std::result::Resu
     Ok(())
 }
 
+/// R2-98: marker `%APPDATA%\TextVN\autostart_disabled` — tài khoản này đã TẮT tự khởi
+/// động trong khi mục Run nằm ở HKLM (bộ cài cho mọi người dùng): không có quyền admin
+/// để xoá mục đó, nên tray chạy bằng `--autostart` thấy marker thì thoát ngay. Mỗi tài
+/// khoản một lựa chọn; bật lại thì xoá marker.
+pub const AUTOSTART_DISABLED_MARKER: &str = "autostart_disabled";
+
+fn autostart_disabled_marker_path() -> Option<PathBuf> {
+    std::env::var_os("APPDATA")
+        .filter(|v| !v.is_empty())
+        .map(|d| {
+            PathBuf::from(d)
+                .join("TextVN")
+                .join(AUTOSTART_DISABLED_MARKER)
+        })
+}
+
+/// Tài khoản này đã tắt tự khởi động (marker R2-98).
+pub fn autostart_disabled_by_user() -> bool {
+    autostart_disabled_marker_path().is_some_and(|p| p.is_file())
+}
+
+/// Tray `--autostart` ở `exe_dir` phải thoát ngay: tài khoản đã tắt tự khởi động VÀ
+/// mục Run HKLM trỏ đúng thư mục này (chính mục đó khởi chạy nó). Lần chạy `--autostart`
+/// khác (smoke build, test gõ, bản portable) không bị chặn.
+#[cfg(windows)]
+pub fn autostart_suppressed_for(exe_dir: &Path) -> bool {
+    autostart_disabled_by_user()
+        && machine_autostart_command().is_some_and(|cmd| command_points_into(&cmd, exe_dir))
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+fn set_autostart_disabled_marker(disabled: bool) -> std::result::Result<(), String> {
+    let Some(path) = autostart_disabled_marker_path() else {
+        return Err("APPDATA không có".to_string());
+    };
+    if disabled {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| format!("tạo {}: {e}", dir.display()))?;
+        }
+        std::fs::write(&path, b"1").map_err(|e| format!("ghi {}: {e}", path.display()))
+    } else {
+        match std::fs::remove_file(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                Err(format!("xoá {}: {e}", path.display()))
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
+/// Bật = mục HKCU (không phải guard Store) HOẶC mục HKLM mà tài khoản này chưa tắt.
+pub fn autostart_effective(
+    user_cmd: Option<&str>,
+    machine_cmd: Option<&str>,
+    user_disabled: bool,
+) -> bool {
+    let user = user_cmd
+        .is_some_and(|cmd| !cmd.trim().is_empty() && !crate::store::run_command_is_guard(cmd));
+    let machine = machine_cmd.is_some_and(|cmd| !cmd.trim().is_empty()) && !user_disabled;
+    user || machine
+}
+
 /// Kiểm tra xem TextVN có đang được cấu hình tự khởi động cùng OS không.
-/// Value `--msix-guard` (kênh Store, tự khởi động đang tắt) KHÔNG tính là bật.
+/// Value `--msix-guard` (kênh Store, tự khởi động đang tắt) KHÔNG tính là bật; mục HKLM
+/// mà tài khoản này đã tắt (marker R2-98) cũng không.
 pub fn is_autostart_enabled() -> std::result::Result<bool, String> {
     #[cfg(windows)]
     {
-        let user = autostart_command()
-            .is_some_and(|cmd| !cmd.trim().is_empty() && !crate::store::run_command_is_guard(&cmd));
-        Ok(user || machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()))
+        Ok(autostart_effective(
+            autostart_command().as_deref(),
+            machine_autostart_command().as_deref(),
+            autostart_disabled_by_user(),
+        ))
     }
     #[cfg(target_os = "linux")]
     {
@@ -133,10 +198,12 @@ pub fn enable_autostart(exe_path: Option<&Path>) -> std::result::Result<(), Stri
     #[cfg(windows)]
     {
         // R2-27: bộ cài cho mọi người dùng đã đặt HKLM Run → không ghi thêm mục HKCU trùng
-        // (hai tiến trình tray lúc đăng nhập, mục thừa còn lại sau khi gỡ).
+        // (hai tiến trình tray lúc đăng nhập, mục thừa còn lại sau khi gỡ). Bật lại = bỏ
+        // marker tắt của tài khoản này (R2-98).
         if machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()) {
-            return Ok(());
+            return set_autostart_disabled_marker(false);
         }
+        let _ = set_autostart_disabled_marker(false);
         let path = match exe_path {
             Some(p) => p.to_path_buf(),
             None => {
@@ -357,7 +424,13 @@ pub fn disable_autostart() -> std::result::Result<(), String> {
         if let Some(ctx) = crate::store_win::detect_store_context() {
             return write_run_value(&crate::store::run_command(&ctx.exe, false));
         }
-        delete_run_value()
+        delete_run_value()?;
+        // R2-98: mục HKLM (bộ cài cho mọi người dùng) không xoá được khi thiếu quyền
+        // admin — trước đây checkbox "đã lưu" mà lần đăng nhập sau tray vẫn chạy.
+        if machine_autostart_command().is_some_and(|cmd| !cmd.trim().is_empty()) {
+            set_autostart_disabled_marker(true)?;
+        }
+        Ok(())
     }
     #[cfg(target_os = "linux")]
     {
@@ -389,6 +462,23 @@ fn to_wide(s: &str) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R2-98: mục HKLM mà tài khoản đã tắt (marker) không tính là bật; mục HKCU vẫn
+    /// tính; guard Store không tính.
+    #[test]
+    fn autostart_effective_honours_per_user_disable_of_machine_entry() {
+        let machine = Some(r#""C:\Program Files\TextVN\TextVN.exe" --autostart"#);
+        let user = Some(r#""D:\TextVN\TextVN.exe" --autostart"#);
+        let guard =
+            Some(r#""C:\U\AppData\Local\Programs\TextVN-Store\1.2.28.0\TextVN.exe" --msix-guard"#);
+        assert!(autostart_effective(None, machine, false));
+        assert!(!autostart_effective(None, machine, true));
+        assert!(autostart_effective(user, None, false));
+        assert!(autostart_effective(user, machine, true));
+        assert!(!autostart_effective(guard, None, false));
+        assert!(!autostart_effective(None, Some("  "), false));
+        assert!(!autostart_effective(None, None, false));
+    }
 
     #[test]
     fn autostart_owner_check_matches_only_that_folder() {

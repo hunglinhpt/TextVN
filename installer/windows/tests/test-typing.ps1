@@ -166,7 +166,16 @@ $script:ownedEditor = $null
 # cua nguoi dung (Ctrl+Shift trong test cung ghi file nay).
 $stateFile = Join-Path $env:APPDATA 'TextVN\state.json'
 $stateBackup = $null
+# R2-98: tai khoan da tat tu khoi dong (marker) thi tray '--autostart' tu thu muc ma muc
+# Run HKLM tro toi se thoat ngay - cat marker sang ben trong luc test, finally tra lai.
+$autoMarker = Join-Path $env:APPDATA 'TextVN\autostart_disabled'
+$autoMarkerAside = "$autoMarker.test-typing"
+$autoMarkerMoved = $false
 try {
+if (Test-Path -LiteralPath $autoMarker) {
+    Move-Item -LiteralPath $autoMarker -Destination $autoMarkerAside -Force
+    $autoMarkerMoved = $true
+}
 if (Test-Path $stateFile) {
     $stateBackup = [System.IO.File]::ReadAllText($stateFile)
     $st = $stateBackup | ConvertFrom-Json
@@ -338,5 +347,8 @@ Write-Host 'typing: OK'
             Start-Sleep -Milliseconds 500
         }
         [System.IO.File]::WriteAllText($stateFile, $stateBackup, (New-Object System.Text.UTF8Encoding $false))
+    }
+    if ($autoMarkerMoved) {
+        Move-Item -LiteralPath $autoMarkerAside -Destination $autoMarker -Force -ErrorAction SilentlyContinue
     }
 }

@@ -22,13 +22,13 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.27](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.27)**
+Bản mới nhất: **[GitHub Release v0.2.28](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.28)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Các sửa lỗi sau
-0.2.27 nằm ở mục *Unreleased* của [CHANGELOG.md](CHANGELOG.md).
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Thay đổi của từng
+bản (0.2.28 đổi một số cách gõ — Backspace, viết hoa đầu câu, Telex `w`): [CHANGELOG.md](CHANGELOG.md).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|

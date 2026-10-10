@@ -37,6 +37,7 @@ pub struct SvcManager {
     version_migrated: std::sync::atomic::AtomicBool,
     /// Tray chưa từng chạy cho tài khoản này (chưa có `state.json`).
     first_run: bool,
+    previous_version: Option<String>,
 }
 
 impl SvcManager {
@@ -89,6 +90,8 @@ impl SvcManager {
         let current_version = env!("CARGO_PKG_VERSION");
         let version_migrated =
             !initial_state.last_version.is_empty() && initial_state.last_version != current_version;
+        let previous_version =
+            (!initial_state.last_version.is_empty()).then(|| initial_state.last_version.clone());
         initial_state.last_version = current_version.to_string();
         {
             // Ghi lại state (nhãn phiên bản mới + state reset) một cách atomic.
@@ -108,12 +111,19 @@ impl SvcManager {
             state_version: AtomicU64::new(session_version_seed()),
             version_migrated: std::sync::atomic::AtomicBool::new(version_migrated),
             first_run,
+            previous_version,
         })
     }
 
     /// Lần đầu tray chạy cho tài khoản này (R2-25).
     pub fn first_run(&self) -> bool {
         self.first_run
+    }
+
+    /// Phiên bản TextVN chạy lần trước cho tài khoản này (`last_version` trong
+    /// `state.json` trước khi ghi đè); `None` = lần đầu hoặc state cũ không có nhãn.
+    pub fn previous_version(&self) -> Option<&str> {
+        self.previous_version.as_deref()
     }
 
     /// Đổi phiên bản lúc khởi động này (chỉ để log/chẩn đoán — tuỳ chọn được giữ).

@@ -479,11 +479,14 @@ pub fn schedule_store_dir_removal(root: &Path) {
         return;
     };
     match store::runonce_cleanup_command(&cmd_exe_path(), root, &staging) {
-        Some(cmd) => {
-            let r = crate::autostart::set_runonce_value(store::RUNONCE_VALUE_NAME, &cmd);
+        Some(cmds) => {
+            let ok = store::RUNONCE_VALUE_NAMES
+                .iter()
+                .zip(&cmds)
+                .all(|(name, cmd)| crate::autostart::set_runonce_value(name, cmd).is_ok());
             store_log(&format!(
                 "hẹn xoá thư mục kênh Store (RunOnce) → {}",
-                if r.is_ok() { "OK" } else { "FAIL" }
+                if ok { "OK" } else { "FAIL" }
             ));
         }
         None => store_log("không hẹn xoá thư mục: đường dẫn không đúng dạng mong đợi"),
@@ -492,7 +495,9 @@ pub fn schedule_store_dir_removal(root: &Path) {
 
 /// Bỏ lịch xoá còn treo (người dùng cài lại gói trước lần đăng nhập kế).
 pub fn cancel_store_dir_removal() {
-    let _ = crate::autostart::delete_runonce_value(store::RUNONCE_VALUE_NAME);
+    for name in store::RUNONCE_VALUE_NAMES {
+        let _ = crate::autostart::delete_runonce_value(name);
+    }
 }
 
 // ─── Dọn bản cũ ─────────────────────────────────────────────────────────────────
@@ -654,5 +659,9 @@ pub fn store_cleanup(ctx: &StoreContext, stop_running_tray: bool) {
     let _ = crate::autostart::disable_autostart_for_dir(&ctx.root);
     crate::restore_ctrl_shift_if_we_freed();
     schedule_store_dir_removal(&ctx.root);
+    // R2-96: thư mục chỉ bị xoá ở lần đăng nhập sau (RunOnce). Cài lại gói trước lúc đó
+    // thì `stage.json` cũ làm `--msix-install` tưởng là cập nhật (first_install=false)
+    // → Run thành `--msix-guard`, tự khởi động bị tắt dù đây là lần cài mới.
+    let _ = std::fs::remove_file(ctx.root.join(store::STAGE_FILE));
     remove_staging_root(0);
 }

@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.27"
+  #define MyAppVersion "0.2.28"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
@@ -168,14 +168,16 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
 
 [UninstallRun]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop"; Flags: runhidden; RunOnceId: "StopTray"
-Filename: "{app}\textvn-cli.exe"; Parameters: "unregister"; Flags: runhidden; RunOnceId: "UnregisterUser"
+; R2-93: chi dung tray / go dang ky TSF thuoc {app} (hoac mo coi) - ban portable,
+; Store hay ban cai o thu muc khac dang dung thi giu nguyen. {app} khong co '\' cuoi.
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop --if-image-under ""{app}"""; Flags: runhidden; RunOnceId: "StopTray"
+Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --if-owned-by ""{app}"""; Flags: runhidden; RunOnceId: "UnregisterUser"
 ; Vong 13: bo Check IsAdminInstallMode — may tung co dang ky may (portable
 ; self-heal B7) thi go per-user cung phai don not HKLM. Khong elevation thi CLI
 ; fail em (exit 1, log) - vo hai; chay elevated (go ban may, hoac chuot phai
 ; "Run as administrator") thi don sach. Ghost da bat that: go 0.2.19 con sot
 ; 27 path chua GUID TIP (Assemblies Default + InputMethodOverride + HKLM).
-Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine"; Flags: runhidden; RunOnceId: "UnregisterMachine"
+Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine --if-owned-by ""{app}"""; Flags: runhidden; RunOnceId: "UnregisterMachine"
 
 [Code]
 const
@@ -300,6 +302,11 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
+    // R2-98: tray ghi %APPDATA%\TextVN\autostart_disabled khi tai khoan bo chon "Khoi
+    // dong cung Windows" ma muc Run nam o HKLM. Cai lai va chon task autostart = muon
+    // bat lai -> bo marker cua tai khoan dang cai (tai khoan khac giu lua chon rieng).
+    if WizardIsTaskSelected('autostart') then
+      DeleteFile(ExpandConstant('{userappdata}\TextVN\autostart_disabled'));
     if WizardSilent then
     begin
       // Silent (luong Store) = PURE FILE COPY: khong go API TSF trong phien

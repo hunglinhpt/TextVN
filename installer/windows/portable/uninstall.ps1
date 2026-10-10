@@ -2,9 +2,19 @@
 # uninstall.ps1 - tat TextVN va go dang ky bo go (TSF) truoc khi xoa thu muc portable.
 # Cau hinh nguoi dung trong %APPDATA%\TextVN duoc giu lai.
 $dir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Start-Process noi -ArgumentList bang dau cach, khong tu trich dan: path co dau cach
+# phai boc "...", va '\' cuoi (vd. D:\) nhan doi de khong nuot dau " dong.
+function Format-PathArg([string]$p) { '"' + ($p -replace '(\\+)$', '$1$1') + '"' }
+$dirArg = Format-PathArg $dir
 Write-Host 'Tat TextVN...'
-Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList '--stop' -ErrorAction SilentlyContinue
-for ($i = 0; $i -lt 20 -and (Get-Process -Name TextVN -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 250 }
+# R2-93: chi dung tray chay tu CHINH thu muc nay - ban TextVN cai o noi khac (bo cai,
+# Store) dang dung thi giu nguyen.
+Start-Process -Wait -WindowStyle Hidden -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList @('--stop', '--if-image-under', $dirArg) -ErrorAction SilentlyContinue
+$ownTray = {
+    Get-Process -Name TextVN -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($dir.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) }
+}
+for ($i = 0; $i -lt 20 -and (& $ownTray); $i++) { Start-Sleep -Milliseconds 250 }
 # Tu khoi dong tro vao thu muc nay thi bo (khong dung toi ban TextVN da cai o noi khac).
 $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $cmd = (Get-ItemProperty -Path $run -Name 'TextVN' -ErrorAction SilentlyContinue).TextVN
@@ -52,7 +62,9 @@ foreach ($entry in $record) {
 }
 Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
 
-$r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList 'unregister'
+# R2-93: chi go dang ky TSF khi no thuoc thu muc nay (hoac mo coi) - xem
+# `textvn-cli unregister --if-owned-by`; dang ky cua ban cai khac duoc giu.
+$r = Start-Process -Wait -PassThru -WindowStyle Hidden -FilePath (Join-Path $dir 'textvn-cli.exe') -ArgumentList @('unregister', '--if-owned-by', $dirArg)
 if ($r.ExitCode -ne 0) {
     Write-Error ('Huy dang ky TSF that bai, ma loi ' + $r.ExitCode + '. Khong xoa thu muc portable cho den khi "textvn-cli.exe doctor" bao ro nguyen nhan.')
     exit $r.ExitCode
@@ -93,11 +105,19 @@ if ($locked.Count -gt 0) {
     # DLL con bi nap trong app dang mo: hen xoa DUNG cac file do o lan dang nhap ke
     # tiep (RunOnce, khong can admin) - luc do TIP da go dang ky. `rmdir` khong /s:
     # chi xoa thu muc neu da rong.
+    # R2-94: MOT muc RunOnce cho MOI file/thu muc - Windows khuyen nghi lenh RunOnce
+    # <= 260 ky tu; gop moi file vao mot lenh 'del' vuot nguong khi path dai. Muc thu
+    # muc dat ten sau cung (RunOnce chay theo thu tu tao); rmdir khong /s.
     $runOnce = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce'
-    $cmd = 'cmd.exe /c del /f /q ' + (($locked | ForEach-Object { '"' + $_ + '"' }) -join ' ')
-    if ($dirEmpty -eq $false) { $cmd += ' & rmdir "' + $res + '" & rmdir "' + $dir + '"' }
-    Set-ItemProperty -Path $runOnce -Name 'TextVNCleanup' -Value $cmd -ErrorAction SilentlyContinue
-    if ($?) {
+    $cmds = @($locked | ForEach-Object { 'cmd.exe /c del /f /q "' + $_ + '"' })
+    if ($dirEmpty -eq $false) { $cmds += @(('cmd.exe /c rmdir "' + $res + '"'), ('cmd.exe /c rmdir "' + $dir + '"')) }
+    $scheduled = $true
+    for ($n = 0; $n -lt $cmds.Count; $n++) {
+        if ($cmds[$n].Length -gt 260) { $scheduled = $false; continue }
+        Set-ItemProperty -Path $runOnce -Name ('TextVNCleanup' + ($n + 1)) -Value $cmds[$n] -ErrorAction SilentlyContinue
+        if (-not $?) { $scheduled = $false }
+    }
+    if ($scheduled) {
         Write-Host 'Mot so file con dang duoc Windows dung (bo go da duoc go dang ky).'
         Write-Host 'TextVN se TU DONG xoa cac file do o lan dang nhap ke tiep - khong can lam gi them.'
     } else {

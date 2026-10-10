@@ -190,10 +190,13 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--expect-version", help="version sản phẩm A.B.C (Cargo.toml)")
     ap.add_argument("--require-store-identity", action="store_true",
                     help="fail khi Identity/Name còn placeholder (gói để nộp Store)")
-    ap.add_argument("--display-name", default=os.environ.get("MSIX_DISPLAY_NAME") or EXPECTED_DISPLAY_NAME,
+    ap.add_argument("--display-name", default=os.environ.get("MSIX_DISPLAY_NAME", ""),
                     help="tên đã reserve cho sản phẩm MSIX (mặc định TextVN / biến MSIX_DISPLAY_NAME)")
     args = ap.parse_args(argv)
-    fails = check(args.msix, args.expect_version, args.require_store_identity, args.display_name)
+    # R2-95: cắt khoảng trắng và rỗng → mặc định, ĐÚNG như build-msix.ps1 — repo
+    # variable dán kèm dấu cách từng làm verify báo lệch tên với gói vừa build.
+    display_name = args.display_name.strip() or EXPECTED_DISPLAY_NAME
+    fails = check(args.msix, args.expect_version, args.require_store_identity, display_name)
     for f in fails:
         print(f"FAIL {f}")
     if fails:

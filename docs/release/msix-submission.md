@@ -61,16 +61,23 @@ ghi `HKCU`/file mới dưới `AppData` của tiến trình có package identity
 
 ## 3. Build gói nộp Store
 
-**Cách 1 — CI (khuyến nghị):**
+**Cách 1 — CI, build lại riêng gói cho bản đã phát hành (khuyến nghị):**
 
-1. GitHub › Settings › Secrets and variables › Actions › **Variables**:
-   - `MSIX_IDENTITY_NAME` = giá trị `Package/Identity/Name` ở §2;
-   - `MSIX_DISPLAY_NAME` = tên đã reserve (chỉ khi chọn B).
-2. Chạy workflow **release-candidate** (`workflow_dispatch` trên `main`, hoặc tag
-   phiên bản mới). Có biến → build `-RequireStoreIdentity` và verify
-   `--require-store-identity`: còn placeholder là **fail**, không ra gói nộp nhầm.
-   Chạy bằng `workflow_dispatch` trên nhánh chỉ build — không phát hành.
-3. Tải artifact `release-windows` → `TextVN-<ver>-windows-x64.msix`.
+Release trên GitHub (từ 0.2.28) kèm gói `.msix` mang identity **tạm** — chỉ để thử, không
+nộp. Khi đã có `Package/Identity/Name` (§2):
+
+1. GitHub › **Actions › release-candidate › Run workflow**: *Use workflow from* = tag
+   phiên bản (ví dụ `v0.2.28`); ô **msix_identity_name** = giá trị `Package/Identity/Name`.
+   (Lựa chọn B: đặt trước repo variable `MSIX_DISPLAY_NAME` = tên đã reserve.)
+2. Có identity → build `-RequireStoreIdentity` và verify `--require-store-identity`:
+   còn placeholder là **fail**, không ra gói nộp nhầm. Chạy tay **chỉ build** — job
+   `publish` chỉ chạy khi push tag, release đã công khai không bị đụng tới (kể cả khi
+   chọn tag).
+3. Tải artifact `release-windows` của lượt chạy đó → `TextVN-<ver>-windows-x64.msix`.
+
+Muốn mọi bản phát hành sau tự kèm gói nộp được: đặt repo variable
+`MSIX_IDENTITY_NAME` (Settings › Secrets and variables › Actions › **Variables**) —
+ô nhập để trống thì workflow dùng biến này.
 
 **Cách 2 — máy Windows có Windows SDK:**
 
