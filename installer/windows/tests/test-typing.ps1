@@ -34,6 +34,7 @@ public static class TvKeys {
     [DllImport("user32.dll")] public static extern IntPtr GetKeyboardLayout(uint tid);
     [DllImport("user32.dll")] public static extern short GetKeyState(int vk);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindowExW(IntPtr parent, IntPtr after, string cls, string title);
+    [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr w, StringBuilder l);
     [DllImport("user32.dll")] static extern IntPtr SendMessageW(IntPtr h, uint msg, IntPtr w, IntPtr l);
 
@@ -102,6 +103,14 @@ public static class TvKeys {
             IntPtr e = FindWindowExW(main, IntPtr.Zero, cls, null);
             if (e != IntPtr.Zero) return e;
         }
+        // Notepad Win11 (ban Store): moi tab mot NotepadTextBox > RichEditD2DPT, tab
+        // khoi phuc tu phien truoc cung nam day. Chi lay tab DANG HIEN (tab moi mo).
+        IntPtr box = IntPtr.Zero;
+        while ((box = FindWindowExW(main, box, "NotepadTextBox", null)) != IntPtr.Zero) {
+            if (!IsWindowVisible(box)) continue;
+            IntPtr e = FindWindowExW(box, IntPtr.Zero, "RichEditD2DPT", null);
+            if (e != IntPtr.Zero) return e;
+        }
         return IntPtr.Zero;
     }
 
@@ -151,9 +160,23 @@ foreach ($f in @($cli, $tray)) { if (-not (Test-Path $f)) { throw "missing $f" }
 if (Get-Process -Name TextVN,notepad,wordpad -ErrorAction SilentlyContinue) {
     throw 'Close existing TextVN/Notepad/WordPad before running the destructive typing smoke test'
 }
-$ownedTray = Start-Process -FilePath $tray -ArgumentList '--autostart' -WorkingDirectory $Dir -WindowStyle Hidden -PassThru
 $script:ownedEditor = $null
+# Cac case gia dinh dang o che do V. May dev co the dang de E (state.json
+# global_enabled=false) -> bat V cho phien test, finally tra lai NGUYEN VAN file
+# cua nguoi dung (Ctrl+Shift trong test cung ghi file nay).
+$stateFile = Join-Path $env:APPDATA 'TextVN\state.json'
+$stateBackup = $null
 try {
+if (Test-Path $stateFile) {
+    $stateBackup = [System.IO.File]::ReadAllText($stateFile)
+    $st = $stateBackup | ConvertFrom-Json
+    if ($st.global_enabled -eq $false) {
+        $st.global_enabled = $true
+        [System.IO.File]::WriteAllText($stateFile, ($st | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding $false))
+        Write-Host 'NOTE state.json: global_enabled=false -> true cho phien test (se tra lai)'
+    }
+}
+$ownedTray = Start-Process -FilePath $tray -ArgumentList '--autostart' -WorkingDirectory $Dir -WindowStyle Hidden -PassThru
 $ready = $false
 for ($i = 0; $i -lt 30 -and -not $ready; $i++) {
     Start-Sleep -Milliseconds 500
@@ -210,6 +233,8 @@ function Check($app, [string]$name, [string]$want) {
 }
 
 function Open-App([string]$name, [string]$exe) {
+    $procName = [System.IO.Path]::GetFileNameWithoutExtension($exe)
+    $before = @(Get-Process -Name $procName -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
     $p = Start-Process $exe -PassThru
     $script:ownedEditor = $p
     $main = [IntPtr]::Zero
@@ -218,7 +243,22 @@ function Open-App([string]$name, [string]$exe) {
     for ($i = 0; $i -lt 60 -and $main -eq [IntPtr]::Zero; $i++) {
         Start-Sleep -Milliseconds 500
         $p.Refresh()
-        $main = $p.MainWindowHandle
+        if (-not $p.HasExited) {
+            # Tien trinh da thoat thi MainWindowHandle la $null - khong bang IntPtr.Zero.
+            if ($p.MainWindowHandle) { $main = $p.MainWindowHandle }
+            continue
+        }
+        # Notepad Win11: notepad.exe la launcher, thoat ngay; cua so nam o tien trinh
+        # Notepad MOI. Dau script da tu choi chay khi co Notepad mo san nen tien trinh
+        # moi la cua test, khong phai tai lieu cua nguoi dung.
+        $q = Get-Process -Name $procName -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id -and $_.MainWindowHandle -ne [IntPtr]::Zero } |
+            Select-Object -First 1
+        if ($q) {
+            $p = $q
+            $script:ownedEditor = $q
+            $main = $q.MainWindowHandle
+        }
     }
     if ($main -eq [IntPtr]::Zero) { throw "$name window not found after 30 s" }
     $edit = [IntPtr]::Zero
@@ -292,4 +332,11 @@ Write-Host 'typing: OK'
         Stop-Process -Id $script:ownedEditor.Id -Force -ErrorAction SilentlyContinue
     }
     & $tray --stop | Out-Null
+    if ($null -ne $stateBackup) {
+        # Tray ghi state.json khi doi V/E: chi tra lai sau khi no da thoat.
+        for ($i = 0; $i -lt 20 -and (Get-Process -Name TextVN -ErrorAction SilentlyContinue); $i++) {
+            Start-Sleep -Milliseconds 500
+        }
+        [System.IO.File]::WriteAllText($stateFile, $stateBackup, (New-Object System.Text.UTF8Encoding $false))
+    }
 }
