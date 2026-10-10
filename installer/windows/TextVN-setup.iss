@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.27"
+  #define MyAppVersion "0.2.28"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
