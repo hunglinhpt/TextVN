@@ -659,5 +659,9 @@ pub fn store_cleanup(ctx: &StoreContext, stop_running_tray: bool) {
     let _ = crate::autostart::disable_autostart_for_dir(&ctx.root);
     crate::restore_ctrl_shift_if_we_freed();
     schedule_store_dir_removal(&ctx.root);
+    // R2-96: thư mục chỉ bị xoá ở lần đăng nhập sau (RunOnce). Cài lại gói trước lúc đó
+    // thì `stage.json` cũ làm `--msix-install` tưởng là cập nhật (first_install=false)
+    // → Run thành `--msix-guard`, tự khởi động bị tắt dù đây là lần cài mới.
+    let _ = std::fs::remove_file(ctx.root.join(store::STAGE_FILE));
     remove_staging_root(0);
 }
