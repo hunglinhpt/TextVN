@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.28 — rà soát vòng 1 + 2 (kênh Store MSIX, ký số fail-closed, cách gõ mới) + sửa R2-88…R2-98
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Release | v0.2.28 publish 2026-10-10 (pre-release) từ `6f0b38b` (merge PR #4) — [release-candidate #38037964686](https://github.com/hunglinhpt/TextVN/actions/runs/38037964686) 4/4 job xanh; **34 asset** = 8 artifact + `SHA256SUMS.txt` + `gpg-release-key.asc` + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng artifact; release notes ghi `.msix` mang identity tạm |
+| CI trên commit gắn tag | push `main` `6f0b38b`: [ci-shared #38037620637](https://github.com/hunglinhpt/TextVN/actions/runs/38037620637), [ci-macos #38037620653](https://github.com/hunglinhpt/TextVN/actions/runs/38037620653), [repo-hygiene #38037620690](https://github.com/hunglinhpt/TextVN/actions/runs/38037620690) — xanh. Trên nhánh `0ab8210` (cùng cây): ci-shared 19/19 gồm `PASS portable upgrade from 0.2.27 … (R2-92)`, release-candidate chạy thử (sideload MSIX gồm `stage.json da xoa` — R2-96; `publish` skipped) |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); hash tải về khớp danh sách đã ký (mac zip, machine exe, msix) |
+| Checksums (pin) | machine exe `21ab5bcc…7b96` · setup exe `b83fea94…8616` · MSIX identity tạm `251be560…3320` · portable `27b4ef15…de41` · Linux `27d2a569…c9d0` · pkg `cb34ca84…0131` · mac zip `1e3fa94e…0ee0` · mac tar.gz `744ee8d1…9e62` |
+| `RELEASE_REPORT.json` | `version` 0.2.28, `git_commit` `6f0b38b…`, `source_tree_clean` true, `feature_profile` tsf-only, `checks.authenticode` = `not-signed`, `checks.pe_static_crt` = `passed` |
+| Gói MSIX nộp Store | Build lại trên tag bằng ô `msix_identity_name` — [release-candidate #38038814173](https://github.com/hunglinhpt/TextVN/actions/runs/38038814173) (`workflow_dispatch`, `publish` skipped): Identity `23651Linhi.TextVN`, Publisher `CN=1A703CAB-…7545`, Version `1.2.28.0`, DisplayName `TextVN`, PublisherDisplayName `LinhBH.CoM`; `verify-msix.py --require-store-identity` OK (CI và máy chủ repo); sideload CI PASS `23651Linhi.TextVN_1.2.28.0_x64__qgnrpq341n182`. SHA-256 `20eced0f…2eed` — gói build riêng cho Store, không nằm trong `SHA256SUMS.txt` của release |
+| Homebrew | cask `sha256` = mac zip `1e3fa94e…0ee0` (B7b) |
+| Máy Windows 11 thật | `build-release.ps1` 0.2.28: smoke qua, đăng ký HKCU / marker Ctrl+Shift / `Layout Hotkey` không đổi sau smoke (R2-91); 421 test, replay 56 · 134 · 170 · 56; ISCC compile cả hai biến thể bộ cài. Cài `-machine.exe` + gõ TSF Notepad 12/12 đã chạy trên bản từ PR #3 (`code-review-2026-10-09-round2.md` §6) |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization (`signing-status-mac.md`); gói MSIX nộp Store sẵn sàng — chủ repo upload lên Partner Center (`msix-submission.md` §4) |
+
 ## Bản 0.2.27 — macOS tôn trọng "Gõ không gạch chân" (BUG-05) + ký số tự động GPG/Sigstore + MSIX có DLL x86
 
 | Hạng mục | Bằng chứng |

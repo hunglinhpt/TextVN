@@ -4,7 +4,7 @@
 > 10.2.9 (bắt buộc Authenticode — đang chờ SignPath Foundation duyệt, xem
 > `store-policy-10-2-9.md`), còn MSIX được Store **tự ký** khi publish.
 
-## 0. Trạng thái — sẵn sàng nộp, chỉ thiếu 1 giá trị từ Partner Center
+## 0. Trạng thái — gói nộp Store 0.2.28 đã build (identity Partner Center có từ 2026-10-10)
 
 | Hạng mục | Trạng thái | Bằng chứng |
 |---|---|---|
@@ -13,8 +13,11 @@
 | Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `tools/win/check-pe-imports.py` trong `build-release.ps1` |
 | `Publisher` | ✅ `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` | Partner Center › Account settings › Windows publisher ID |
 | `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
-| `DisplayName` | ⚠️ mặc định `TextVN` — xem §2 (tên đang thuộc sản phẩm EXE) | |
-| **`Package/Identity/Name`** | ❌ **chủ tài khoản phải lấy** (§2) | Partner Center › sản phẩm MSIX › Product identity |
+| `DisplayName` | ✅ `TextVN` | Tên đã reserve của sản phẩm MSIX (lựa chọn A, §2) — `Package/Identity/Name` do Partner Center sinh từ tên này |
+| **`Package/Identity/Name`** | ✅ `23651Linhi.TextVN` | Partner Center › sản phẩm MSIX › Product identity; PFN `23651Linhi.TextVN_qgnrpq341n182`, Store ID `9NV2R7JNNFGK` |
+| Gói nộp 0.2.28 | ✅ `TextVN-0.2.28-windows-x64.msix`, SHA-256 `20eced0f3b870ec0f785abece181d399a8295a3780443813bd8631713bb72eed` | Build lại trên tag `v0.2.28` bằng ô `msix_identity_name` — [release-candidate #38038814173](https://github.com/hunglinhpt/TextVN/actions/runs/38038814173) (artifact `release-windows`): Version `1.2.28.0`, `verify-msix.py --require-store-identity` OK, sideload PASS với PFN trên |
+
+Gói `.msix` kèm GitHub Release 0.2.28 mang identity **tạm** (`LinhBH.CoM.TextVN`) — chỉ để thử, không nộp; nộp gói ở hàng "Gói nộp 0.2.28" phía trên. Muốn mọi bản sau tự kèm gói nộp được: đặt repo variable `MSIX_IDENTITY_NAME` = `23651Linhi.TextVN` (§3).
 
 Gói `.msix` trên release 0.2.27 / branch `approved` **KHÔNG nộp được** (identity
 placeholder, Version `0.2.27.0`, mô tả mojibake, ảnh 71×71 sai) — phải build lại
