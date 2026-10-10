@@ -320,7 +320,28 @@ fn uninstall(ipc: &crate::ipc_server::IpcServer) {
     };
     let unins = dir.join("unins000.exe");
     if unins.is_file() {
-        let _ = std::process::Command::new(unins).spawn();
+        // R2-99: mở trình gỡ rồi THOÁT tray ngay — tray còn chạy trong lúc gỡ thì khoá
+        // TextVN.exe/DLL (gỡ không sạch). ShellExecute thay vì CreateProcess: trình gỡ
+        // bản cài cho mọi người dùng cần UAC. Người dùng huỷ UAC → tray giữ nguyên.
+        let file = w(&unins.to_string_lossy());
+        // SAFETY: chuỗi NUL-terminated sống suốt lời gọi đồng bộ.
+        let launched = unsafe {
+            windows::Win32::UI::Shell::ShellExecuteW(
+                None,
+                w!("open"),
+                PCWSTR(file.as_ptr()),
+                None,
+                None,
+                SW_SHOWNORMAL,
+            )
+        }
+        .0 as isize
+            > 32;
+        if launched {
+            ipc.broadcast_shutdown();
+            // SAFETY: chỉ post message vào hàng đợi của thread UI hiện tại.
+            unsafe { PostQuitMessage(0) };
+        }
         return;
     }
     // Kênh Store (R2-04): MSIX không có hook gỡ cài đặt cho app full-trust — dọn phần

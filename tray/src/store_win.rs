@@ -336,6 +336,8 @@ pub fn stop_store_tray(root: &Path) {
             "--stop".as_ref(),
             "--if-image-under".as_ref(),
             root.as_os_str(),
+            // R2-99: dọn/cập nhật kênh Store phải chắc tray cũ đã thoát hẳn.
+            "--force".as_ref(),
         ],
         Duration::from_secs(10),
     );

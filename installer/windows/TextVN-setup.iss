@@ -168,9 +168,10 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "--free-ctrl-shift"; Flags: runhi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Check: RegistrationSucceeded
 
 [UninstallRun]
-; R2-93: chi dung tray / go dang ky TSF thuoc {app} (hoac mo coi) - ban portable,
-; Store hay ban cai o thu muc khac dang dung thi giu nguyen. {app} khong co '\' cuoi.
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop --if-image-under ""{app}"""; Flags: runhidden; RunOnceId: "StopTray"
+; R2-93: chi go dang ky TSF thuoc {app} (hoac mo coi) - ban portable, Store hay ban
+; cai o thu muc khac dang dung thi giu nguyen. {app} khong co '\' cuoi.
+; R2-99: dung tray KHONG con o day - [UninstallRun] chay SAU usUninstall (luc do tray
+; van khoa file); StopTrayBeforeUninstall trong [Code] dung tray truoc moi buoc.
 Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --if-owned-by ""{app}"""; Flags: runhidden; RunOnceId: "UnregisterUser"
 ; Vong 13: bo Check IsAdminInstallMode — may tung co dang ky may (portable
 ; self-heal B7) thi go per-user cung phai don not HKLM. Khong elevation thi CLI
@@ -355,6 +356,25 @@ begin
     Result := 10;
 end;
 
+// R2-99: gỡ cài đặt phải dừng tray TRƯỚC mọi bước (yêu cầu chủ repo 2026-10-10) —
+// tray còn chạy thì khoá TextVN.exe và DLL TSF, Inno không xoá được và gỡ không
+// sạch. [UninstallRun] chạy SAU usUninstall nên quá muộn. `--force`: tray của {app}
+// không tự thoát thì dừng cưỡng bức (chỉ đúng tiến trình chạy từ {app}); `--stop`
+// chờ tiến trình THOÁT HẲN rồi mới trả về.
+procedure StopTrayBeforeUninstall();
+var
+  ResultCode: Integer;
+begin
+  if not FileExists(ExpandConstant('{app}\{#MyAppExeName}')) then
+    Exit;
+  if Exec(ExpandConstant('{app}\{#MyAppExeName}'),
+          '--stop --if-image-under "' + ExpandConstant('{app}') + '" --force', '',
+          SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Log('Stop tray before uninstall, exit=' + IntToStr(ResultCode))
+  else
+    Log('Cannot run TextVN.exe --stop before uninstall');
+end;
+
 // DLL bị TSF nạp (image-mapped) trong mọi tiến trình đang mở nên Windows từ chối
 // DeleteFile — không thể "tắt TSF" của hệ điều hành (B12). Ở usUninstall (CLI còn
 // trên đĩa — R2-29): đổi tên hai DLL thành .old-<ts> rồi gọi CLI (đang elevated) hẹn
@@ -452,7 +472,10 @@ begin
   // R2-29: hen xoa DLL bi khoa PHAI chay o usUninstall — luc usPostUninstall Inno da
   // xoa textvn-cli.exe nen Exec that bai im lang va DLL/thu muc con lai mai mai.
   if CurUninstallStep = usUninstall then
+  begin
+    StopTrayBeforeUninstall();
     ScheduleCleanupViaCli();
+  end;
   if CurUninstallStep = usPostUninstall then
   begin
     // R2-27: tray tu ghi HKCU Run 'TextVN' (o "Khoi dong cung Windows") - [Registry]
