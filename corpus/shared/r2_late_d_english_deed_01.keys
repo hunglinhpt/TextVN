@@ -1,0 +1,9 @@
+# corpus/shared/r2_late_d_english_deed_01.keys — R2-97: `d` gõ sau trong từ (R2-68) + `ee`→`ê`
+# biến từ tiếng Anh `deed`/`deeds`/`dosed` thành `đê`/`đế`/`đoé`; auto-restore trả lại nhờ
+# en_common. Gõ tiếng Việt không đổi: `ddee` → `đê`, `dde` → `đe`.
+# oracle: data/en_common.txt + PLAN.md §8 (đ bằng `dd` hoặc `d` gõ sau).
+:config method=telex diacritic_style=new auto_capitalize=false auto_restore_english=true
+:type "deed deeds dosed "
+:expect "deed deeds dosed "
+:type "ddee dde ddeef "
+:expect "deed deeds dosed đê đe đề "
