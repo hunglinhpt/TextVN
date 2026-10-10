@@ -287,10 +287,19 @@ pub struct IpcServer {
     crash_counter: AtomicU32,
     active_clients: AtomicU32,
     hook_pid: AtomicU32,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pipe_name: String,
 }
 
 impl IpcServer {
     pub fn new(svc: Arc<SvcManager>) -> Arc<Self> {
+        Self::with_pipe_name(svc, PIPE_NAME)
+    }
+
+    /// Test dùng tên pipe riêng: `PIPE_NAME` là namespace toàn máy, tray thật
+    /// đang chạy giữ nó thì client của test nối vào tray thật (và ToggleViEn
+    /// trong test đảo V/E của người dùng).
+    fn with_pipe_name(svc: Arc<SvcManager>, pipe_name: &str) -> Arc<Self> {
         Arc::new(Self {
             svc,
             start_time: Instant::now(),
@@ -299,6 +308,7 @@ impl IpcServer {
             crash_counter: AtomicU32::new(0),
             active_clients: AtomicU32::new(0),
             hook_pid: AtomicU32::new(0),
+            pipe_name: pipe_name.to_string(),
         })
     }
 
@@ -402,7 +412,7 @@ impl IpcServer {
 
     #[cfg(windows)]
     fn server_accept_loop(self: Arc<Self>) {
-        let pipe_name_wide: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
+        let pipe_name_wide: Vec<u16> = self.pipe_name.encode_utf16().chain(Some(0)).collect();
 
         while self.running.load(Ordering::Acquire) {
             // SEC-05 (audit 2026-10-04): pipe KHÔNG có DACL = mọi user đăng nhập
@@ -723,17 +733,21 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
+    /// Tên pipe riêng cho từng test — không bao giờ nối vào tray thật đang
+    /// chạy trên máy dev (giữ `PIPE_NAME`), các test cũng chạy song song được.
     #[cfg(windows)]
-    static TEST_PIPE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    fn test_pipe_name(tag: &str) -> String {
+        format!(r"\\.\pipe\textvn-ipc-test-{}-{tag}", std::process::id())
+    }
 
     #[test]
     #[cfg(windows)]
     fn server_starts_and_stops_cleanly() {
-        let _guard = TEST_PIPE_LOCK.lock().unwrap();
+        let pipe = test_pipe_name("startstop");
         let temp_dir =
             std::env::temp_dir().join(format!("textvn_startstop_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
-        let server = IpcServer::new(svc);
+        let server = IpcServer::with_pipe_name(svc, &pipe);
 
         assert!(!server.is_running());
         server.start();
@@ -746,7 +760,7 @@ mod tests {
         server.stop();
         assert!(!server.is_running());
         // Unblock pending ConnectNamedPipe so the worker thread observes running=false and terminates
-        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(&pipe);
         std::thread::sleep(Duration::from_millis(50));
 
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -758,21 +772,22 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn broadcast_reaches_subscriber() {
-        let _guard = TEST_PIPE_LOCK.lock().unwrap();
         use std::io::Write as _;
 
+        let pipe = test_pipe_name("bcast");
         let temp_dir =
             std::env::temp_dir().join(format!("textvn_bcast_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
-        let server = IpcServer::new(svc);
+        let server = IpcServer::with_pipe_name(svc, &pipe);
         server.start();
         std::thread::sleep(Duration::from_millis(100));
 
         let (tx, rx) = std::sync::mpsc::channel();
+        let client_pipe = pipe.clone();
         let client = std::thread::spawn(move || {
             let mut file = None;
             for _ in 0..20 {
-                if let Ok(f) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
+                if let Ok(f) = textvn_ipc::pipe_client_options().open(&client_pipe) {
                     file = Some(f);
                     break;
                 }
@@ -814,7 +829,7 @@ mod tests {
 
         client.join().unwrap();
         server.stop();
-        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(&pipe);
         std::thread::sleep(Duration::from_millis(50));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -824,19 +839,20 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn toggle_global_responds_with_authoritative_snapshot() {
-        let _guard = TEST_PIPE_LOCK.lock().unwrap();
         use std::io::Write as _;
 
+        let pipe = test_pipe_name("tgl");
         let temp_dir = std::env::temp_dir().join(format!("textvn_tgl_test_{}", std::process::id()));
         let svc = SvcManager::new(Some(temp_dir.clone()));
-        let server = IpcServer::new(svc);
+        let server = IpcServer::with_pipe_name(svc, &pipe);
         server.start();
         std::thread::sleep(Duration::from_millis(100));
 
+        let client_pipe = pipe.clone();
         let client = std::thread::spawn(move || {
             let mut file = None;
             for _ in 0..20 {
-                if let Ok(f) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
+                if let Ok(f) = textvn_ipc::pipe_client_options().open(&client_pipe) {
                     file = Some(f);
                     break;
                 }
@@ -869,7 +885,7 @@ mod tests {
             other => panic!("expected Snapshot, got {other:?}"),
         }
         server.stop();
-        let _ = textvn_ipc::pipe_client_options().open(PIPE_NAME);
+        let _ = textvn_ipc::pipe_client_options().open(&pipe);
         std::thread::sleep(Duration::from_millis(50));
     }
 }
