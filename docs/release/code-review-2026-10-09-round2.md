@@ -15,7 +15,8 @@
 | Linux | ✅ Ký GPG + Sigstore cho mọi asset, CI **dừng** nếu thiếu/sai khoá (fail-closed) | — |
 | macOS | ✅ Code; ký Developer ID + notarize + staple bật **khi có** secret `APPLE_*`, thiếu thì ký ad-hoc và ghi rõ trong release notes | Đặt secret Apple (xem `signing-status-mac.md`) |
 
-**Tổng kết finding:** 87 finding R2 — **80 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
+**Tổng kết finding:** 89 finding R2 (87 từ rà soát + 2 khi kiểm trên Windows thật, §3.7) —
+**82 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
 chỉ Apple; R2-85 một phần), 1 chờ SignPath (R2-12), 3 giữ nguyên có lý do (R2-11, R2-47,
 R2-67), 3 hoãn (R2-14, R2-26, R2-41 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
 
@@ -164,6 +165,15 @@ dùng thấy · **P2** rủi ro tiềm ẩn · **P3** chất lượng/nit. Trạ
 | R2-85 | P3 | Build phát hành không tái lập được: toolchain `stable` trôi, không `--locked`, Inno không ghim | Build release `--locked` (Windows/Linux/macOS), CI kiểm Cargo.lock khớp. Chưa ghim toolchain/Inno | ✅ một phần `f15a9c9` · ⏸ phần còn lại |
 | R2-87 | P3 | VirusTotal bỏ qua 2 file nộp Store | Quét cả `.msix` và `-machine.exe`, sau khi build | ✅ `6e19caa` |
 
+### 3.7 Kiểm trên máy Windows thật (2026-10-10)
+
+Chạy lại gate §6 trên Windows 11 của chủ sở hữu (bản cài `C:\Program Files\TextVN` đang chạy).
+
+| ID | Mức | Vấn đề | Xử lý | Trạng thái |
+|---|---|---|---|---|
+| R2-88 | P3 | `build-release.ps1` dừng khi `textvn-tsf-x86.dll` trong thư mục release đang bị app 32-bit (Zalo, Office x86) nạp — Windows từ chối ghi đè file image-mapped | Đổi tên bản cũ thành `.old-<thời gian>` rồi chép (Windows cho đổi tên); `.old-*` không vào gói. Sửa cục bộ từ 2026-10-07 chưa commit | ✅ `ae3e889` |
+| R2-89 | P3 | 3 test `tray::ipc_server` dùng `PIPE_NAME` toàn máy: tray thật đang chạy thì client của test nối vào tray thật → đỏ (mutex poison dây chuyền); test toggle chạy riêng gửi `ToggleViEn("*")` làm đảo V/E của người dùng | Test dùng pipe riêng `textvn-ipc-test-<pid>-<tag>` (`IpcServer::with_pipe_name`), bỏ `TEST_PIPE_LOCK`; code chạy thật không đổi | ✅ `87b531d` |
+
 Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`appdb_version` số) đã sửa
 ở `017bc82` (xem `code-review-2026-10-07.md`).
 
@@ -209,3 +219,10 @@ Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`app
 | `check-pe-imports.py` trên binary 0.2.27 | bắt 3 file x64 phụ thuộc VCRUNTIME140 (đúng kỳ vọng) |
 
 Swift, PowerShell, Inno và MSIX chỉ kiểm được trên CI (§2).
+
+**Windows 11 thật (2026-10-10, máy chủ sở hữu, bản cài TextVN đang chạy):** fmt, clippy
+`-D warnings` (Windows + cross-check Linux cho `textvn-tray`), `cargo test --workspace` ✅ 419
+test (thêm 3 test pipe Windows-only so với container — trước R2-89 cả 3 đỏ khi tray thật đang
+chạy), replay ✅ 55 · 133 · 169 · 55, xtask và repo-hygiene ✅, `build-release.ps1` parse
+không lỗi, nhánh đổi tên R2-88 thử bằng file bị khoá kiểu image-mapped. Chưa chạy: bộ cài,
+MSIX sideload và gõ thử trên desktop (cần thay bản TextVN đang cài).
