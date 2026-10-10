@@ -246,6 +246,81 @@ pub fn registration_owned_by_dir(
     }
 }
 
+// ─── R2-100: ngôn ngữ do chính TextVN thêm vào danh sách của user ─────────────────
+
+/// Tag trong `HKCU\Control Panel\International\User Profile` ứng với hai LANGID TextVN
+/// đăng ký (0x042A, 0x0409).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const PROFILE_LANGUAGE_TAGS: [&str; 2] = ["vi", "en-US"];
+
+/// Marker `%APPDATA%\TextVN\languages_added`: mỗi dòng một tag ngôn ngữ mà `register`
+/// đã THÊM vào danh sách ngôn ngữ của user (trước đó không có). `InstallLayoutOrTip`
+/// tự thêm ngôn ngữ khi gắn bàn phím cho ngôn ngữ chưa có, còn gỡ TIP chỉ bỏ bàn phím —
+/// máy chỉ có tiếng Anh cài rồi gỡ TextVN từng còn sót "Tiếng Việt" (Windows tự gắn
+/// bàn phím mặc định vào) trong Settings › Language.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const LANGUAGES_ADDED_MARKER: &str = "languages_added";
+
+/// Tag trong `tags` mà danh sách ngôn ngữ `before` (value `Languages`) chưa có.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn languages_missing(before: &[String], tags: &[&str]) -> Vec<String> {
+    tags.iter()
+        .filter(|t| !before.iter().any(|b| b.trim().eq_ignore_ascii_case(t)))
+        .map(|t| t.to_string())
+        .collect()
+}
+
+/// Value trong `User Profile\<tag>` là một bàn phím/TIP (`042A:{…}{…}`, `0409:00000409`),
+/// không phải `CachedLanguageName` hay value khác.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn is_input_method_value(name: &str) -> bool {
+    let b = name.as_bytes();
+    b.len() > 5 && b[4] == b':' && b[..4].iter().all(u8::is_ascii_hexdigit)
+}
+
+/// Ngôn ngữ TextVN đã thêm được gỡ hẳn khi, NGAY TRƯỚC lúc gỡ TIP, nó không có bàn phím
+/// nào khác ngoài TextVN (`textvn_value`). Bàn phím Windows tự gắn vào trong lúc gỡ
+/// (bỏ bàn phím cuối của một ngôn ngữ) không phải lựa chọn của người dùng.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn added_language_removable(values_before_unregister: &[String], textvn_value: &str) -> bool {
+    !values_before_unregister
+        .iter()
+        .any(|v| is_input_method_value(v) && !v.eq_ignore_ascii_case(textvn_value))
+}
+
+/// Danh sách `Languages` bỏ `tag` (giữ thứ tự). Không bao giờ trả danh sách rỗng —
+/// bỏ ngôn ngữ cuối cùng thì giữ nguyên.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn languages_without(list: &[String], tag: &str) -> Vec<String> {
+    let out: Vec<String> = list
+        .iter()
+        .filter(|l| !l.trim().eq_ignore_ascii_case(tag))
+        .cloned()
+        .collect();
+    if out.is_empty() {
+        list.to_vec()
+    } else {
+        out
+    }
+}
+
+/// Đọc marker: chỉ nhận tag TextVN quản lý (file người dùng sửa được), bỏ trùng.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn parse_languages_marker(content: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for line in content.lines().map(str::trim) {
+        if let Some(tag) = PROFILE_LANGUAGE_TAGS
+            .iter()
+            .find(|t| t.eq_ignore_ascii_case(line))
+        {
+            if !out.iter().any(|o| o == tag) {
+                out.push(tag.to_string());
+            }
+        }
+    }
+    out
+}
+
 // ─── Layout registry TSF (text-only — test được mọi OS) ───────────────────────────────────────────
 
 /// `GUID_TFCAT_TIP_KEYBOARD` — TIP bàn phím.
@@ -442,6 +517,28 @@ mod win_impl {
                 // SAFETY: key mở ở trên; 4 byte DWORD.
                 unsafe { RegSetValueExW(key, name_ptr, None, REG_DWORD, Some(&bytes)) }
             }
+            RegValue::MultiSz(items) => {
+                // REG_MULTI_SZ: mỗi chuỗi kết thúc nul, cả khối kết thúc thêm một nul.
+                let mut data: Vec<u16> = Vec::new();
+                for item in items {
+                    data.extend(item.encode_utf16());
+                    data.push(0);
+                }
+                data.push(0);
+                // SAFETY: đọc đúng kích thước của `data` dưới dạng byte.
+                let bytes = unsafe {
+                    std::slice::from_raw_parts(
+                        data.as_ptr() as *const u8,
+                        std::mem::size_of_val(data.as_slice()),
+                    )
+                };
+                let name_w = name.map(wide);
+                let name_ptr = name_w
+                    .as_ref()
+                    .map_or(PCWSTR::null(), |w| PCWSTR(w.as_ptr()));
+                // SAFETY: key mở ở trên; buffer hợp lệ.
+                unsafe { RegSetValueExW(key, name_ptr, None, REG_MULTI_SZ, Some(bytes)) }
+            }
         };
         // SAFETY: key hợp lệ.
         let _ = unsafe { RegCloseKey(key) };
@@ -461,6 +558,7 @@ mod win_impl {
         None,
         Sz(&'a str),
         Dword(u32),
+        MultiSz(&'a [String]),
     }
 
     /// Xoá MỘT value (giữ key) — dùng cho dọn entry danh sách ngôn ngữ hiện đại.
@@ -572,6 +670,97 @@ mod win_impl {
         (status == ERROR_SUCCESS && size == std::mem::size_of::<u32>() as u32).then_some(out)
     }
 
+    /// Đọc REG_MULTI_SZ có tên (`None` = không có / không đọc được).
+    fn reg_read_multi_sz(root: HKEY, path: &str, name: &str) -> Option<Vec<String>> {
+        let subkey = wide(path);
+        let value = wide(name);
+        let mut size = 0u32;
+        // SAFETY: hỏi kích thước trước (buffer NULL), rồi đọc vào buffer đúng cỡ.
+        let probe = unsafe {
+            RegGetValueW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR(value.as_ptr()),
+                RRF_RT_REG_MULTI_SZ,
+                None,
+                None,
+                Some(&mut size),
+            )
+        };
+        if probe != ERROR_SUCCESS || size == 0 {
+            return None;
+        }
+        let mut buf = vec![0u16; (size as usize).div_ceil(2) + 1];
+        let mut size = (buf.len() * 2) as u32;
+        // SAFETY: buffer và kích thước khớp nhau.
+        let status = unsafe {
+            RegGetValueW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR(value.as_ptr()),
+                RRF_RT_REG_MULTI_SZ,
+                None,
+                Some(buf.as_mut_ptr() as *mut _),
+                Some(&mut size),
+            )
+        };
+        if status != ERROR_SUCCESS {
+            return None;
+        }
+        let used = (size as usize / 2).min(buf.len());
+        Some(
+            buf[..used]
+                .split(|&c| c == 0)
+                .filter(|s| !s.is_empty())
+                .map(String::from_utf16_lossy)
+                .collect(),
+        )
+    }
+
+    /// Tên mọi value trong `path` (key không có → rỗng).
+    fn reg_value_names(root: HKEY, path: &str) -> Vec<String> {
+        let subkey = wide(path);
+        let mut key = HKEY::default();
+        // SAFETY: key được đóng ở cuối hàm.
+        let open = unsafe {
+            RegOpenKeyExW(
+                root,
+                PCWSTR(subkey.as_ptr()),
+                Some(0),
+                KEY_QUERY_VALUE,
+                &mut key,
+            )
+        };
+        if open != ERROR_SUCCESS {
+            return Vec::new();
+        }
+        let mut names = Vec::new();
+        for index in 0u32.. {
+            let mut buf = [0u16; 512];
+            let mut len = buf.len() as u32;
+            // SAFETY: buffer tên + độ dài khớp nhau; không đọc data.
+            let status = unsafe {
+                RegEnumValueW(
+                    key,
+                    index,
+                    Some(PWSTR(buf.as_mut_ptr())),
+                    &mut len,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+            };
+            if status != ERROR_SUCCESS {
+                break;
+            }
+            names.push(String::from_utf16_lossy(&buf[..len as usize]));
+        }
+        // SAFETY: key hợp lệ.
+        let _ = unsafe { RegCloseKey(key) };
+        names
+    }
+
     /// Xoá key + trả true khi xoá được hoặc key không tồn tại. Caller dùng giá
     /// trị này để không báo unregister thành công khi còn key sót.
     fn delete_tree(root: HKEY, path: &str) -> bool {
@@ -655,6 +844,12 @@ mod win_impl {
     /// user (HKCU, không cần admin). Không có import lib nên resolve động, nhưng
     /// CHỈ từ System32 (LOAD_LIBRARY_SEARCH_SYSTEM32) để không nạp nhầm DLL giả mạo.
     fn call_layout_or_tip(lang: u16, flags: u32, label: &str) -> bool {
+        call_layout_or_tip_spec(&layout_spec(lang), flags, label)
+    }
+
+    /// Như [`call_layout_or_tip`] với chuỗi profile bất kỳ (`042A:{…}{…}`,
+    /// `042A:0000042A`) — gỡ bàn phím Windows tự gắn khi bỏ ngôn ngữ TextVN đã thêm.
+    fn call_layout_or_tip_spec(spec: &str, flags: u32, label: &str) -> bool {
         // SAFETY: input.dll là DLL hệ thống; chữ ký hàm theo tài liệu Microsoft
         // `BOOL InstallLayoutOrTip(LPCWSTR psz, DWORD dwFlags)`.
         unsafe {
@@ -675,8 +870,7 @@ mod win_impl {
             };
             type Pfn = unsafe extern "system" fn(*const u16, u32) -> i32;
             let pfn: Pfn = std::mem::transmute(fp);
-            let spec = layout_spec(lang);
-            let spec_w = wide(&spec);
+            let spec_w = wide(spec);
             let ok = pfn(spec_w.as_ptr(), flags) != 0;
             // Trả refcount input.dll ngay (CLI gọi 2–4 lần/process; không trả
             // thì mỗi lần gọi leak một refcount).
@@ -1060,6 +1254,122 @@ mod win_impl {
             let key = format!("Control Panel\\International\\User Profile\\{tag}");
             let value = format!("{langid:04X}:{{{}}}{{{}}}", CLSID_INNER, PROFILE_INNER);
             let _ = delete_reg_value(HKEY_CURRENT_USER, &key, &value);
+        }
+        broadcast_international();
+    }
+
+    const USER_PROFILE_KEY: &str = r"Control Panel\International\User Profile";
+
+    /// Value bàn phím TextVN trong `User Profile\<tag>`.
+    fn textvn_profile_value(tag: &str) -> String {
+        let langid = if tag.eq_ignore_ascii_case("vi") {
+            LANGID_VI
+        } else {
+            LANGID_EN
+        };
+        format!("{langid:04X}:{{{}}}{{{}}}", CLSID_INNER, PROFILE_INNER)
+    }
+
+    fn languages_added_marker_path() -> Option<PathBuf> {
+        std::env::var_os("APPDATA")
+            .filter(|v| !v.is_empty())
+            .map(|d| PathBuf::from(d).join("TextVN").join(LANGUAGES_ADDED_MARKER))
+    }
+
+    fn read_languages_added() -> Vec<String> {
+        languages_added_marker_path()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .map(|c| parse_languages_marker(&c))
+            .unwrap_or_default()
+    }
+
+    /// Danh sách ngôn ngữ của user (`User Profile\Languages`).
+    fn user_languages() -> Option<Vec<String>> {
+        reg_read_multi_sz(HKEY_CURRENT_USER, USER_PROFILE_KEY, "Languages")
+    }
+
+    /// R2-100: ghi nhận ngôn ngữ mà lần `register` này thêm vào danh sách của user
+    /// (`before` = danh sách chụp TRƯỚC `InstallLayoutOrTip`). Gộp với marker cũ.
+    fn record_languages_added(before: &[String]) {
+        let missing = languages_missing(before, &PROFILE_LANGUAGE_TAGS);
+        if missing.is_empty() {
+            return;
+        }
+        let mut added = read_languages_added();
+        for tag in missing {
+            if !added.contains(&tag) {
+                say(&format!(
+                    "  Ngôn ngữ {tag} chưa có trong danh sách của user — TextVN thêm (gỡ cài đặt sẽ bỏ lại)"
+                ));
+                added.push(tag);
+            }
+        }
+        if let Some(path) = languages_added_marker_path() {
+            if let Some(dir) = path.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            let _ = std::fs::write(&path, added.join("\n") + "\n");
+        }
+    }
+
+    /// R2-100: value của từng ngôn ngữ TextVN đã thêm, chụp TRƯỚC khi gỡ TIP.
+    fn snapshot_added_languages() -> Vec<(String, Vec<String>)> {
+        read_languages_added()
+            .into_iter()
+            .map(|tag| {
+                let names =
+                    reg_value_names(HKEY_CURRENT_USER, &format!("{USER_PROFILE_KEY}\\{tag}"));
+                (tag, names)
+            })
+            .collect()
+    }
+
+    /// R2-100: bỏ hẳn ngôn ngữ do TextVN thêm khi người dùng không gắn bàn phím nào khác
+    /// cho nó — kể cả bàn phím Windows tự gắn lúc TIP (bàn phím cuối) bị gỡ. Ngôn ngữ có
+    /// bàn phím khác của người dùng thì giữ. Xong thì bỏ marker.
+    fn remove_added_languages(snapshot: &[(String, Vec<String>)]) {
+        if snapshot.is_empty() {
+            return;
+        }
+        for (tag, before) in snapshot {
+            let key = format!("{USER_PROFILE_KEY}\\{tag}");
+            if !added_language_removable(before, &textvn_profile_value(tag)) {
+                say(&format!(
+                    "  Ngôn ngữ {tag}: người dùng có bàn phím khác → giữ"
+                ));
+                continue;
+            }
+            let list = user_languages().unwrap_or_default();
+            let listed = list.iter().any(|l| l.trim().eq_ignore_ascii_case(tag));
+            let next = languages_without(&list, tag);
+            if listed && next.len() == list.len() {
+                say(&format!(
+                    "  Ngôn ngữ {tag} là ngôn ngữ duy nhất của user → giữ"
+                ));
+                continue;
+            }
+            for name in reg_value_names(HKEY_CURRENT_USER, &key) {
+                let auto_added = is_input_method_value(&name)
+                    && !before.iter().any(|b| b.eq_ignore_ascii_case(&name));
+                if auto_added {
+                    call_layout_or_tip_spec(&name, ILOT_UNINSTALL, "UNINSTALL (Windows tự gắn)");
+                }
+            }
+            if listed {
+                let _ = set_reg_value(
+                    HKEY_CURRENT_USER,
+                    USER_PROFILE_KEY,
+                    Some("Languages"),
+                    RegValue::MultiSz(&next),
+                );
+            }
+            let _ = delete_tree(HKEY_CURRENT_USER, &key);
+            say(&format!(
+                "  Ngôn ngữ {tag} do TextVN thêm → đã bỏ khỏi danh sách ngôn ngữ"
+            ));
+        }
+        if let Some(path) = languages_added_marker_path() {
+            let _ = std::fs::remove_file(path);
         }
         broadcast_international();
     }
@@ -1480,6 +1790,8 @@ mod win_impl {
         // "got dduocj" thay vì "được "). KHÔNG uninstall trước khi thêm: ILOT
         // UNINSTALL deactivate TIP cho phiên và ActivateProfile phục hồi không
         // phải lúc nào cũng OK (0x80004005 đã biết) — cùng lỗi ở 5269ae1.
+        // R2-100: danh sách ngôn ngữ TRƯỚC khi InstallLayoutOrTip tự thêm ngôn ngữ thiếu.
+        let languages_before = if no_taskbar { None } else { user_languages() };
         let layouts_ok = if no_taskbar {
             call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL")
                 && call_layout_or_tip(LANGID_EN, ILOT_UNINSTALL, "UNINSTALL")
@@ -1498,6 +1810,9 @@ mod win_impl {
         // Danh sách ngôn ngữ hiện đại (nguồn Win+Space trên Win10/11) — bắt
         // buộc, xem doc `ensure_modern_language_list`. Idempotent.
         ensure_modern_language_list();
+        if let Some(before) = &languages_before {
+            record_languages_added(before);
+        }
 
         if used_ctf_fallback {
             // Spike doc (tsf-registration-spike.md): cập nhật input list có thể
@@ -1567,6 +1882,10 @@ mod win_impl {
 
     pub fn do_unregister(scope: Scope) -> i32 {
         say(&format!("=== TextVN unregister ({}) ===", scope.label()));
+
+        // R2-100: chụp bàn phím của các ngôn ngữ TextVN đã thêm TRƯỚC khi gỡ TIP —
+        // Windows tự gắn bàn phím mặc định khi bỏ bàn phím cuối của một ngôn ngữ.
+        let added_languages = snapshot_added_languages();
 
         // Bước 1: gỡ khỏi danh sách layout của user — tránh ghost keyboard.
         call_layout_or_tip(LANGID_VI, ILOT_UNINSTALL, "UNINSTALL");
@@ -1640,6 +1959,7 @@ mod win_impl {
             ));
         }
         remove_modern_language_list();
+        remove_added_languages(&added_languages);
         let mut deleted = delete_tree(HKEY_CURRENT_USER, &ctf_tip_key())
             & delete_tree(HKEY_CURRENT_USER, &clsid_key());
         if scope == Scope::Machine {
@@ -2046,6 +2366,54 @@ mod tests {
             r"\\srv\share\x.dll"
         );
         assert_eq!(strip_verbatim_prefix(r"C:\a.dll"), r"C:\a.dll");
+    }
+
+    /// R2-100: chỉ ghi nhận ngôn ngữ trước đó chưa có; gỡ cài đặt chỉ bỏ ngôn ngữ không
+    /// có bàn phím nào khác của người dùng; không bao giờ bỏ ngôn ngữ cuối cùng.
+    #[test]
+    fn languages_added_by_textvn_are_tracked_and_removed_only_when_unused() {
+        let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        assert_eq!(
+            languages_missing(&s(&["en-US"]), &PROFILE_LANGUAGE_TAGS),
+            s(&["vi"])
+        );
+        assert!(languages_missing(&s(&["EN-us", " vi "]), &PROFILE_LANGUAGE_TAGS).is_empty());
+        assert_eq!(
+            languages_missing(&s(&["vi"]), &PROFILE_LANGUAGE_TAGS),
+            s(&["en-US"])
+        );
+
+        let ms_telex =
+            "042A:{C2CB2CF0-AF47-413E-9780-8BC3A3C16068}{5FB02EC5-0A77-4684-B4FA-DEF8A2195628}";
+        assert!(is_input_method_value(ms_telex));
+        assert!(is_input_method_value("0409:00000409"));
+        assert!(!is_input_method_value("CachedLanguageName"));
+        assert!(!is_input_method_value("042A"));
+
+        let tv = format!("042A:{{{CLSID_INNER}}}{{{PROFILE_INNER}}}");
+        assert!(added_language_removable(
+            &s(&["CachedLanguageName", tv.as_str()]),
+            &tv
+        ));
+        assert!(added_language_removable(
+            &s(&[tv.to_lowercase().as_str()]),
+            &tv
+        ));
+        assert!(!added_language_removable(
+            &s(&["CachedLanguageName", tv.as_str(), ms_telex]),
+            &tv
+        ));
+
+        assert_eq!(languages_without(&s(&["en-US", "vi"]), "VI"), s(&["en-US"]));
+        assert_eq!(
+            languages_without(&s(&["vi"]), "vi"),
+            s(&["vi"]),
+            "không bỏ ngôn ngữ cuối"
+        );
+        assert_eq!(
+            parse_languages_marker("vi\r\nfoo\nVI\nen-us\n"),
+            s(&["vi", "en-US"])
+        );
     }
 
     /// R2-30: gỡ bản portable chỉ gỡ đăng ký khi nó thuộc thư mục đó (hoặc mồ côi).
