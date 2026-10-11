@@ -207,7 +207,13 @@ public final class IpcClient {
         addr.sun_family = sa_family_t(AF_UNIX)
         let pathBytes = Array(socketPath.utf8)
         guard pathBytes.count < MemoryLayout.size(ofValue: addr.sun_path) else {
+            // Vòng 16 (audit B2): path quá dài là lỗi VÔ HẠN — trước đây return
+            // không retry → client chết im lặng mãi. Vẫn retry để trạng thái
+            // nhất quán + log rõ nguyên nhân (path bất biến nhưng decode/config
+            // cũ có thể đổi HOME).
+            Diagnostics.log("ipc socket path quá dài (\(pathBytes.count)) — không connect được")
             closeSocket()
+            scheduleRetry()
             return
         }
         withUnsafeMutableBytes(of: &addr.sun_path) { dst in
@@ -318,10 +324,14 @@ public final class IpcClient {
             switch Self.nextFrame(from: &buffer) {
             case let .frame(payload):
                 guard let decoded = IpcMessage.decode(payload) else {
-                    // JSON/type lạ = protocol violation → đóng, không retry (ipc.v1.md).
-                    Diagnostics.log("ipc protocol violation — closing")
+                    // JSON/type lạ = protocol violation → đóng frame đó (ipc.v1.md:
+                    // "không retry frame đó" — KHÔNG cấm reconnect). Vòng 16 (audit
+                    // B2): trước đây chết vĩnh viễn vì server cũ trả frame lệch;
+                    // kết nối mới handshake lại Hello nên server mới phục vụ bình thường.
+                    Diagnostics.log("ipc protocol violation — closing + retry")
                     tearDown()
                     notifyDisconnect()
+                    scheduleRetry()
                     return
                 }
                 // Marshal về main queue: delegate là main-thread IMK object (F16).
@@ -336,9 +346,10 @@ public final class IpcClient {
             case .needMore:
                 return
             case .violation:
-                Diagnostics.log("ipc frame length violation — closing")
+                Diagnostics.log("ipc frame length violation — closing + retry")
                 tearDown()
                 notifyDisconnect()
+                scheduleRetry()
                 return
             }
         }

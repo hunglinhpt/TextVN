@@ -119,7 +119,16 @@ public enum ApplyReplace {
         // F3: delete_count gồm cả passed prefix (chữ THẬT đã nằm trong document
         // từ các phím PASS trước khi từ activate) — phải xóa thật, không thể
         // "thay bằng marked".
-        let real = max(0, deleteCount - marked.scalarCount)
+        // Vòng 16 (audit B1): thu hồi marked TRƯỚC khi deleteBackward — trên
+        // NSTextView thật, deleteBackward lúc marked còn hiển thị xoá NGUYÊN
+        // marked range (hành vi IME chuẩn) thay vì `real` ký tự thật → mất
+        // chữ. Nhất quán với backspaceType (đã làm đúng thứ tự này).
+        let markedCP = marked.scalarCount
+        if markedCP > 0 {
+            target.setMarked("", selectionRange: NSRange(location: 0, length: 0))
+            marked.clear()
+        }
+        let real = max(0, deleteCount - markedCP)
         if real > 0 {
             guard target.deleteBackward(count: real) else {
                 throw ApplyError.cannotDelete
@@ -139,16 +148,22 @@ public enum ApplyReplace {
     private static func commitEarly(
         deleteCount: Int, text: String, target: TextTarget, marked: MarkedState
     ) throws {
-        let range = target.markedRange()
-        let hasMarked = range.location != NSNotFound
-        let real = hasMarked ? max(0, deleteCount - marked.scalarCount) : deleteCount
+        // Vòng 16 (audit B1): thu hồi marked TRƯỚC khi deleteBackward (như
+        // preeditReplace) — sau thu hồi, caret nằm tại đầu vùng marked cũ nên
+        // chèn tại caret thay vì dùng range stale.
+        let markedCP = marked.scalarCount
+        let hadMarked = markedCP > 0
+        if hadMarked {
+            target.setMarked("", selectionRange: NSRange(location: 0, length: 0))
+            marked.clear()
+        }
+        let real = max(0, deleteCount - markedCP)
         if real > 0 {
             guard target.deleteBackward(count: real) else {
                 throw ApplyError.cannotDelete
             }
         }
-        target.insert(text, replacementRange: hasMarked ? range : .notFound)
-        marked.clear()
+        target.insert(text, replacementRange: .notFound)
     }
 
     // ------------------------------------------------------- §6.2 selectionReplace
