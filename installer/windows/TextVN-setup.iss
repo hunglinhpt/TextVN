@@ -418,8 +418,10 @@ begin
     end;
   end;
   Params := Params + ' "' + AppDir + '"';
-  if Exec(ExpandConstant('{app}\textvn-cli.exe'), Params, AppDir, SW_HIDE,
-          ewWaitUntilTerminated, ResultCode) then
+  // B21: WorkingDir PHAI ngoai {app} — tien trinh co CWD nam trong thu muc dang
+  // bi go se giu thu muc do khong xoa duoc (Windows chan xoa CWD cua tien trinh).
+  if Exec(ExpandConstant('{app}\textvn-cli.exe'), Params, ExpandConstant('{tmp}'),
+          SW_HIDE, ewWaitUntilTerminated, ResultCode) then
     Log('schedule-delete via CLI, exit=' + IntToStr(ResultCode))
   else
     Log('Cannot run schedule-delete (CLI)');
@@ -497,16 +499,14 @@ begin
     // -> Inno khong xoa duoc TextVN.exe (B21: "per-user TextVN.exe still present").
     if IsAdminInstallMode and FileExists(ExpandConstant('{app}\textvn-cli.exe')) then
     begin
+      // B21: WorkingDir ngoai {app} (xem ScheduleCleanupViaCli) — neu chay voi
+      // CWD = {app}, Inno khong xoa duoc thu muc/TextVN.exe o buoc ke tiep.
       ExecAsOriginalUser(ExpandConstant('{app}\textvn-cli.exe'),
-        'unregister --scope user --if-owned-by "{app}"', '',
+        'unregister --scope user --if-owned-by "{app}"', ExpandConstant('{tmp}'),
         SW_HIDE, ewWaitUntilTerminated, StopCode);
       Log(Format('Original-user unregister exit: %d', [StopCode]));
     end;
     ScheduleCleanupViaCli();
-    // Settle: de handle/CWD cua tien trinh CLI vua chay (nhat la nhanh admin
-    // ExecAsOriginalUser o tren) nha han truoc khi Inno xoa file {app} — neu
-    // khong, Inno co the khong xoa duoc TextVN.exe/textvn-cli.exe (B21).
-    Sleep(300);
   end;
   if CurUninstallStep = usPostUninstall then
   begin
