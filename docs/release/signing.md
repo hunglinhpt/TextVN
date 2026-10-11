@@ -120,17 +120,20 @@ Apple — trạng thái, biến môi trường và việc còn lại: `signing-s
 ### 6.2. Quy tắc bắt buộc cho mọi release từ v0.2.32
 1. **Commit phát hành và Tag phát hành BẮT BUỘC phải có chữ ký số hợp lệ** được GitHub xác minh (`verification.verified == true`).
 2. **Hard Gate trong CI**: Workflow `.github/workflows/release.yml` (job `publish`) kiểm tra qua GitHub API cả commit verification và tag verification trước khi cho phép tạo release. Nếu thiếu chữ ký, job fail ngay lập tức (`exit 1`) trừ khi có biến repo `ALLOW_UNVERIFIED_GIT_SIGNATURE=true`.
-3. **Cấu hình trên máy Maintainer (1 lần duy nhất)**:
-   - Tạo SSH signing key: `ssh-keygen -t ed25519 -C "email-github@example.com" -f ~/.ssh/textvn_signing_ed25519`
-   - Đưa public key lên GitHub: **Settings → SSH and GPG keys → New SSH key → Key type: Signing Key**.
-   - Cấu hình git:
+3. **Cấu hình ký số GPG trên máy Maintainer (ĐÃ CẤU HÌNH SẴN)**:
+   - Sử dụng khóa GPG Release chính thức có sẵn trên máy:
+     `3921595ABC961199F15303B6C45B84D0C7F4A822` (UID: `TextVN Release Signing <hunglinhpt@users.noreply.github.com>`).
+   - Cấu hình git local đã được thiết lập:
      ```bash
-     git config --local gpg.format ssh
-     git config --local user.signingkey ~/.ssh/textvn_signing_ed25519.pub
+     git config --local gpg.format openpgp
+     git config --local gpg.program "C:/Program Files/Git/usr/bin/gpg.exe"
+     git config --local user.signingkey 3921595ABC961199F15303B6C45B84D0C7F4A822
      git config --local commit.gpgsign true
      git config --local tag.gpgsign true
      ```
+   - Thêm GPG Public Key lên GitHub:
+     Vào **Settings → SSH and GPG keys → New GPG key** và dán nội dung từ file `docs/release/signing/gpg-release-key.asc`.
 4. **Quy trình tag phát hành**:
-   - Dùng lệnh: `git tag -s vX.Y.Z -m "release: vX.Y.Z"` (cờ `-s` ký số tag object).
+   - Dùng lệnh: `git tag -s vX.Y.Z -m "release: vX.Y.Z"` (cờ `-s` ký số tag object bằng GPG).
    - Kiểm tra trước khi push: `git tag -v vX.Y.Z` và `git log --show-signature -1`.
 
