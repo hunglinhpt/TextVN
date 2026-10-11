@@ -751,6 +751,29 @@ mod win_impl {
                     None,
                 )
             };
+            if status == ERROR_MORE_DATA {
+                // Vòng 16 (audit A14): tên value dài hơn buffer (tối đa 16K) —
+                // trước đây break âm thầm làm `remove_added_languages` bỏ sót
+                // value (ghost bàn phím). Cấp phát lại lớn hơn, thử lại CÙNG index.
+                let mut bigger = vec![0u16; 16_384];
+                let mut blen = bigger.len() as u32;
+                let retry = unsafe {
+                    RegEnumValueW(
+                        key,
+                        index,
+                        Some(PWSTR(bigger.as_mut_ptr())),
+                        &mut blen,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                };
+                if retry == ERROR_SUCCESS {
+                    names.push(String::from_utf16_lossy(&bigger[..blen as usize]));
+                }
+                continue;
+            }
             if status != ERROR_SUCCESS {
                 break;
             }
@@ -1907,6 +1930,111 @@ mod win_impl {
         0
     }
 
+    /// Vòng 16 (audit A13): gỡ máy (machine unregister) phải dọn ghost trong
+    /// hive MỌI user — user B từng chạy tray sẽ còn COM override trỏ DLL đã
+    /// xoá (TSF nạp fail mỗi focus, gõ hỏng). Quét `ProfileList`:
+    /// - hive đang load (`HKU\<sid>`) → dọn trực tiếp;
+    /// - chưa load → `RegLoadKey` NTUSER.DAT, dọn, `RegUnLoadKey`.
+    ///
+    /// Chỉ chạy ở scope Machine (elevated; cần SeBackup/SeRestore).
+    fn unregister_cleanup_all_users() {
+        const PROFILE_LIST: &str = r"Software\Microsoft\Windows NT\CurrentVersion\ProfileList";
+        let sids = enum_subkeys(HKEY_LOCAL_MACHINE, PROFILE_LIST);
+        let mut cleaned = 0usize;
+        for sid in &sids {
+            if sid.starts_with("S-1-5-18")
+                || sid.starts_with("S-1-5-19")
+                || sid.starts_with("S-1-5-20")
+            {
+                continue; // system/services
+            }
+            let loaded_key = format!(r"\{sid}");
+            if reg_key_exists(HKEY_USERS, &loaded_key) {
+                unregister_cleanup_user_hive(HKEY_USERS, &loaded_key);
+                cleaned += 1;
+                continue;
+            }
+            let profile_path = reg_read_named(
+                HKEY_LOCAL_MACHINE,
+                &format!(r"{PROFILE_LIST}\{sid}"),
+                "ProfileImagePath",
+            );
+            let Some(profile_path) = profile_path else {
+                continue;
+            };
+            let ntuser = format!(r"{profile_path}\NTUSER.DAT");
+            if !Path::new(&ntuser).is_file() {
+                continue;
+            }
+            let temp_key = format!(r"TextVNCleanup\{sid}");
+            // SAFETY: path/key nul-terminated; hive chưa load nên LoadKey an toàn.
+            let loaded = unsafe {
+                RegLoadKeyW(
+                    HKEY_USERS,
+                    PCWSTR(wide(&temp_key).as_ptr()),
+                    PCWSTR(wide(&ntuser).as_ptr()),
+                )
+            };
+            if loaded != ERROR_SUCCESS {
+                say(&format!(
+                    "  Cleanup user {sid}: RegLoadKey FAIL {} — bỏ qua",
+                    lstatus_text(loaded.0)
+                ));
+                continue;
+            }
+            let temp_root = format!(r"\{temp_key}");
+            unregister_cleanup_user_hive(HKEY_USERS, &temp_root);
+            unsafe {
+                let _ = RegUnLoadKeyW(HKEY_USERS, PCWSTR(wide(&temp_key).as_ptr()));
+            }
+            cleaned += 1;
+        }
+        say(&format!(
+            "  Dọn ghost trong {cleaned} hive user (loaded/RegLoadKey)"
+        ));
+    }
+
+    /// Dọn các key TIP TextVN trong MỘT hive user (root = `HKU\<sid>` hoặc key tạm).
+    fn unregister_cleanup_user_hive(root: HKEY, root_path: &str) {
+        let _ = delete_tree(
+            root,
+            &format!(r"{root_path}\Software\Classes\CLSID\{CLSID_STR}"),
+        );
+        let _ = delete_tree(
+            root,
+            &format!(r"{root_path}\Software\Classes\WOW6432Node\CLSID\{CLSID_STR}"),
+        );
+        let _ = delete_tree(
+            root,
+            &format!(r"{root_path}\Software\Microsoft\CTF\TIP\{CLSID_STR}"),
+        );
+        let _ = delete_tree(
+            root,
+            &format!(r"{root_path}\Software\WOW6432Node\Microsoft\CTF\TIP\{CLSID_STR}"),
+        );
+        // Modern language list: value entries trỏ CLSID + InputMethodOverride.
+        let up = format!(r"{root_path}\Control Panel\International\User Profile");
+        for name in reg_value_names(root, &up) {
+            if name.contains(CLSID_INNER) {
+                let _ = delete_reg_value(root, &up, &name);
+            }
+        }
+        let override_name = "InputMethodOverride";
+        if let Some(v) = reg_read_named(root, &up, override_name) {
+            if v.contains(CLSID_INNER) {
+                let _ = delete_reg_value(root, &up, override_name);
+            }
+        }
+        for tag in ["vi", "en-US"] {
+            let key = format!(r"{up}\{tag}");
+            for name in reg_value_names(root, &key) {
+                if name.contains(CLSID_INNER) {
+                    let _ = delete_reg_value(root, &key, &name);
+                }
+            }
+        }
+    }
+
     pub fn do_unregister(scope: Scope) -> i32 {
         say(&format!("=== TextVN unregister ({}) ===", scope.label()));
 
@@ -2003,6 +2131,8 @@ mod win_impl {
             // elevated hoặc bằng `unregister --scope machine`).
             let _ = delete_tree(HKEY_LOCAL_MACHINE, &clsid_key());
             let _ = delete_tree(HKEY_LOCAL_MACHINE, &ctf_tip_key());
+            // Vòng 16 (audit A13): dọn ghost per-user trong hive mọi user.
+            unregister_cleanup_all_users();
         }
         if !deleted {
             say("WARN: còn key chưa xoá được (xem dòng Registry delete phía trên) — đăng ký cũ có thể vẫn hoạt động");
