@@ -485,6 +485,18 @@ begin
   if CurUninstallStep = usUninstall then
   begin
     StopTrayBeforeUninstall();
+    // Vong 16 (audit A6): go dang ky USER theo token NGUOI DUNG GOC —
+    // uninstaller elevated (admin go ho / Run as administrator) chay trong
+    // token admin: HKCU + marker %APPDATA% cua user goc se bi bo sot (ghost
+    // Win+Space + ngon ngu chet). --if-owned-by "{app}" giu an toan khi admin
+    // co ban rieng khac. CLI con ton tai o usUninstall (R2-29).
+    if FileExists(ExpandConstant('{app}\textvn-cli.exe')) then
+    begin
+      ExecAsOriginalUser(ExpandConstant('{app}\textvn-cli.exe'),
+        'unregister --scope user --if-owned-by "{app}"', '',
+        SW_HIDE, ewWaitUntilTerminated, StopCode);
+      Log(Format('Original-user unregister exit: %d', [StopCode]));
+    end;
     ScheduleCleanupViaCli();
   end;
   if CurUninstallStep = usPostUninstall then
