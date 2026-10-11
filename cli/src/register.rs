@@ -1356,18 +1356,16 @@ mod win_impl {
                     // tiền tố `0x` — ILOT spec chuẩn là `0x{lang:04X}:…` (xem
                     // `layout_spec`). Chuẩn hoá trước khi gọi, nếu không ILOT
                     // có thể FALSE âm thầm và bàn phím tự gắn không được gỡ.
-                    let spec = if name.get(..2).map(|p| p.eq_ignore_ascii_case("0x"))
+                    let spec = if name
+                        .get(..2)
+                        .map(|p| p.eq_ignore_ascii_case("0x"))
                         .unwrap_or(false)
                     {
                         name.clone()
                     } else {
                         format!("0x{name}")
                     };
-                    call_layout_or_tip_spec(
-                        &spec,
-                        ILOT_UNINSTALL,
-                        "UNINSTALL (Windows tự gắn)",
-                    );
+                    call_layout_or_tip_spec(&spec, ILOT_UNINSTALL, "UNINSTALL (Windows tự gắn)");
                 }
             }
             if listed {

@@ -306,6 +306,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         guard let outcome = engine?.key(keyEvent) else { return false }
         if outcome.isError {
             Diagnostics.log("engine error flag — pass-through")
+            // Vòng 16 (audit B4): pipeline crash-report từng đứt hoàn toàn
+            // (không ai gửi .crashReport → badge lỗi ở app là dead code). Gửi
+            // tại đây — nơi duy nhất lộ engine bất thường; offline thì no-op.
+            ipc.send(.crashReport(code: 1, count: 1))
             return false
         }
 

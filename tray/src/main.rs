@@ -33,6 +33,7 @@ use textvn_tray::svc::SvcManager;
 use windows::core::*;
 #[cfg(windows)]
 use windows::Win32::Foundation::*;
+use windows::Win32::System::Com::*;
 #[cfg(windows)]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
@@ -331,6 +332,11 @@ fn show_activation_refused_notice_once(marker_name: &'static str, text: &'static
     if marker.exists() {
         return;
     }
+    // Vòng 16 (audit A15): ghi marker TRƯỚC khi hiện hộp thoại — process bị
+    // kill giữa chừng (uninstaller --force, --stop) không được hỏi lại vô hạn.
+    // Đánh đổi: hộp thoại fail hiếm gặp thì mất một lần thông báo (log bù).
+    let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
+    let _ = std::fs::write(&marker, b"1");
     // Hộp thoại trên THREAD RIÊNG: MessageBoxW chặn thread gọi nó — nếu gọi trên
     // main thread thì `TextVN.exe --stop` không thể kết thúc tiến trình (sự cố
     // smoke "did not stop cleanly" cần tránh; đồng thời không chặn IPC).
@@ -346,8 +352,6 @@ fn show_activation_refused_notice_once(marker_name: &'static str, text: &'static
                 MB_OK | MB_ICONINFORMATION,
             );
         }
-        let _ = std::fs::create_dir_all(marker.parent().unwrap_or(std::path::Path::new(".")));
-        let _ = std::fs::write(&marker, b"1");
     });
 }
 
@@ -529,6 +533,12 @@ fn run_elevated_and_wait(
     dir: &std::path::Path,
     timeout_ms: u32,
 ) -> Option<Option<u32>> {
+    // Vong 16 (audit A5): ShellExecuteExW voi SEE_MASK_NOASYNC yeu cau COM da
+    // init tren thread goi — background TSF/offer thread khong init → UAC co
+    // the fail ngau nhien (fail → marker bi xoa → hoi lai lap vo han).
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+    }
     let verb: Vec<u16> = "runas".encode_utf16().chain(Some(0)).collect();
     let file: Vec<u16> = exe
         .to_string_lossy()
@@ -1272,6 +1282,21 @@ unsafe extern "system" fn wnd_proc(
             PostQuitMessage(0);
             LRESULT(0)
         }
+        // Vòng 16 (audit A3): RestartManager hỏi thoát qua WM_QUERYENDSESSION
+        // khi cài/nâng cấp — tray phải THOÁT (nhả file) thay vì để RM báo fail.
+        // Trả TRUE đồng ý session end; đường thoát y hệt ID_EXIT (graceful).
+        WM_QUERYENDSESSION => {
+            if let Some(app) = APP_INSTANCE.get() {
+                app.ipc.broadcast_shutdown();
+            }
+            RUNNING.store(false, Ordering::Release);
+            PostQuitMessage(0);
+            LRESULT(1) // đồng ý kết thúc
+        }
+        WM_ENDSESSION => {
+            // wparam != 0 = session thực sự kết thúc; đã dọn ở QUERYENDSESSION.
+            LRESULT(0)
+        }
         WM_COMMAND => {
             let cmd_id = (wparam.0 & 0xffff) as u32;
             if cmd_id == ID_EXIT {
@@ -1465,21 +1490,31 @@ fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> 
                 let mutex_name_wide: Vec<u16> = MUTEX_NAME.encode_utf16().chain(Some(0)).collect();
                 let started = std::time::Instant::now();
                 // Đợi tiến trình giải phóng mutex rồi THOÁT HẲN; hết hạn → false.
-                let wait_stopped = |iterations: u32| -> bool {
+                // Vòng 16 (audit A4): dùng OpenMutexW(SYNCHRONIZE) — CreateMutexW
+                // với bInitialOwner=TRUE khiến tiến trình dò TRỞ THÀNH CHỦ mutex
+                // trong khoảng tray cũ đang dọn dẹp → instance mới của người dùng
+                // tưởng đang có instance khác và thoát (race khi gỡ xong mở lại).
+                let wait_stopped = |iterations: u32, deadline: Duration| -> bool {
                     for _ in 0..iterations {
                         std::thread::sleep(Duration::from_millis(100));
-                        let h_mutex =
-                            unsafe { CreateMutexW(None, true, PCWSTR(mutex_name_wide.as_ptr())) };
+                        let h_mutex = unsafe {
+                            OpenMutexW(
+                                SYNCHRONIZATION_SYNCHRONIZE,
+                                false,
+                                PCWSTR(mutex_name_wide.as_ptr()),
+                            )
+                        };
                         if let Ok(m) = h_mutex {
-                            let err = unsafe { GetLastError() };
                             let _ = unsafe { CloseHandle(m) };
-                            if err != ERROR_ALREADY_EXISTS && wait_exit(5000) {
-                                println!(
-                                    "TextVN stopped successfully (after {}ms).",
-                                    started.elapsed().as_millis()
-                                );
-                                return true;
-                            }
+                        } else if wait_exit(5000) {
+                            println!(
+                                "TextVN stopped successfully (after {}ms).",
+                                started.elapsed().as_millis()
+                            );
+                            return true;
+                        }
+                        if started.elapsed() >= deadline {
+                            return false;
                         }
                     }
                     false
@@ -1489,7 +1524,7 @@ fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> 
                 // Shutdown cho Hook phải chạy trước khi message loop rời đi. Gửi
                 // WM_QUIT ngay sau frame sẽ đua: quit tới trước khi IPC worker kịp
                 // đọc frame → không broadcast → Hook mồ côi tới heartbeat timeout.
-                if wait_stopped(20) {
+                if wait_stopped(20, Duration::from_secs(8)) {
                     close_process();
                     return true;
                 }
@@ -1506,7 +1541,7 @@ fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> 
                         );
                     }
                 }
-                if wait_stopped(10) {
+                if wait_stopped(10, Duration::from_secs(4)) {
                     close_process();
                     return true;
                 }
@@ -1533,7 +1568,7 @@ fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> 
                     }
                 }
                 println!(
-                    "TextVN (PID {window_pid}) did not stop within 3s; close it from the tray menu."
+                    "TextVN (PID {window_pid}) did not stop within 12s; close it from the tray menu."
                 );
                 return false;
             }

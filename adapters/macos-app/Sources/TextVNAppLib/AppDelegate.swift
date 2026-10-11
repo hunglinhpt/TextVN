@@ -47,7 +47,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         if isAnotherInstanceRunning() {
             // SMAppService does not forward --autostart. A duplicate login launch
             // must not open Settings in the instance already running.
-            if isSettings || !isLoginLaunch {
+            let isArgAutostart = CommandLine.arguments.contains("--autostart")
+            if isSettings || !isArgAutostart {
                 DistributedNotificationCenter.default().postNotificationName(
                     Notification.Name("vn.textvn.awake"),
                     object: nil,

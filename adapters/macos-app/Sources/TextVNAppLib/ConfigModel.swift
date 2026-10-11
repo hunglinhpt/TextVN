@@ -312,7 +312,18 @@ public final class ConfigStore: ObservableObject {
     }
 
     public func resetToDefaults() {
+        // Vòng 16 (audit B5): nút "Mặc định" từng xoá CẢ macros/english_words/
+        // emoji và tắt autostart một cách âm thầm (vi phạm S9 — dữ liệu người
+        // dùng phải được bảo toàn). Chỉ reset các tuỳ chọn gõ.
+        let keepMacros = config.macros
+        let keepWords = config.english_words
+        let keepEmoji = config.emoji
+        let keepAutostart = config.autostart
         self.config = .default()
+        self.config.macros = keepMacros
+        self.config.english_words = keepWords
+        self.config.emoji = keepEmoji
+        self.config.autostart = keepAutostart
         persist()
     }
 }

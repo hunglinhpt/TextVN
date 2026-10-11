@@ -359,7 +359,10 @@ public struct EnglishWordsSheet: View {
                 Button("Thêm") {
                     let raw = newWord.trimmingCharacters(in: .whitespaces).lowercased()
                     let word = raw.filter { $0.isLetter && $0.isASCII }
-                    if !word.isEmpty && !store.config.english_words.contains(word) {
+                    // Vòng 16 (audit B13): cap 64 ký tự (IME_MAX_TEXT) — vượt
+                    // giới hạn engine sẽ bị cắt im lặng khi restore.
+                    if !word.isEmpty && word.count <= 64
+                        && !store.config.english_words.contains(word) {
                         store.config.english_words.append(word)
                         newWord = ""
                         persistAndNotify()
@@ -414,7 +417,9 @@ public struct MacroEditorSheet: View {
                         Text(macro.expand)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button(action: {
-                            store.config.macros.removeAll { $0.trigger == macro.trigger }
+                            store.config.macros.removeAll {
+                                $0.trigger.caseInsensitiveCompare(macro.trigger) == .orderedSame
+                            }
                             persistAndNotify()
                         }) {
                             Image(systemName: "trash")

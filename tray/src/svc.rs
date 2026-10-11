@@ -132,7 +132,10 @@ impl SvcManager {
     }
 
     pub fn config(&self) -> Config {
-        self.config.read().unwrap().clone()
+        self.config
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn config_version(&self) -> u64 {
@@ -144,14 +147,17 @@ impl SvcManager {
     }
 
     pub fn is_global_enabled(&self) -> bool {
-        self.state.read().unwrap().global_enabled
+        self.state
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .global_enabled
     }
 
     /// R2-28: trạng thái HIỆU LỰC của app — đúng luật TIP (`adapters/windows-tsf`
     /// `ipc_client::is_enabled`): toàn cục AND override (thiếu override = bật). Override
     /// chỉ TẮT riêng được một app; toàn cục đang E thì app nào cũng gõ tiếng Anh.
     pub fn effective_app_enabled(&self, app_id: &str) -> bool {
-        let st = self.state.read().unwrap();
+        let st = self.state.read().unwrap_or_else(|e| e.into_inner());
         effective_enabled(
             st.global_enabled,
             st.apps.get(&app_id.to_lowercase()).copied(),
@@ -169,7 +175,7 @@ impl SvcManager {
     }
 
     pub fn is_app_enabled(&self, app_id: &str) -> bool {
-        let st = self.state.read().unwrap();
+        let st = self.state.read().unwrap_or_else(|e| e.into_inner());
         // set_app_enabled chuẩn hoá lowercase khi ghi — lookup cũng phải chuẩn
         // hoá, ngược lại "Chrome.EXE" đọc rơi về global và broadcast sai giá trị.
         if let Some(&enabled) = st.apps.get(&app_id.to_lowercase()) {
@@ -180,7 +186,11 @@ impl SvcManager {
     }
 
     pub fn app_states(&self) -> BTreeMap<String, bool> {
-        self.state.read().unwrap().apps.clone()
+        self.state
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .apps
+            .clone()
     }
 
     /// Đảo trạng thái bật/tắt toàn cục tiếng Việt (WIN-015 / P1-4 §1).
@@ -189,7 +199,7 @@ impl SvcManager {
     /// persist thất bại thì KHÔNG bump version/không broadcast, TSF giữ state cũ
     /// nhất quán giữa RAM và đĩa.
     pub fn toggle_global_enabled(&self) -> (bool, u64) {
-        let mut st = self.state.write().unwrap();
+        let mut st = self.state.write().unwrap_or_else(|e| e.into_inner());
         st.global_enabled = !st.global_enabled;
         if self.persist_state(&st).is_err() {
             st.global_enabled = !st.global_enabled; // rollback RAM
@@ -202,7 +212,7 @@ impl SvcManager {
 
     /// Đặt trạng thái bật/tắt riêng cho từng app.
     pub fn set_app_enabled(&self, app_id: &str, enabled: bool) -> u64 {
-        let mut st = self.state.write().unwrap();
+        let mut st = self.state.write().unwrap_or_else(|e| e.into_inner());
         let prev = st.apps.insert(app_id.to_lowercase(), enabled);
         if self.persist_state(&st).is_err() {
             // rollback RAM theo chuẩn persist-first (review R3 minor 8)
@@ -222,7 +232,7 @@ impl SvcManager {
 
     /// Đặt trạng thái bật/tắt toàn cục tiếng Việt có giá trị chỉ định.
     pub fn set_global_enabled(&self, enabled: bool) -> (bool, u64) {
-        let mut st = self.state.write().unwrap();
+        let mut st = self.state.write().unwrap_or_else(|e| e.into_inner());
         let prev = st.global_enabled;
         st.global_enabled = enabled;
         if self.persist_state(&st).is_err() {
@@ -238,7 +248,7 @@ impl SvcManager {
     /// (đĩa đầy, ACL, thư mục bị thay bằng file…), UI và TSF phải tiếp tục dùng
     /// cấu hình cũ thay vì báo đã đổi kiểu gõ nhưng engine không thể nạp lại.
     fn update_config(&self, f: impl FnOnce(&mut Config)) -> Result<u64, DocError> {
-        let mut cfg = self.config.write().unwrap();
+        let mut cfg = self.config.write().unwrap_or_else(|e| e.into_inner());
         let mut candidate = cfg.clone();
         f(&mut candidate);
         self.persist_config(&candidate)?;
@@ -421,7 +431,7 @@ mod tests {
         );
         assert_eq!(cfg.macros.len(), 1, "gõ tắt user thêm phải GIỮ");
 
-        let st = svc.state.read().unwrap();
+        let st = svc.state.read().unwrap_or_else(|e| e.into_inner());
         assert!(!st.global_enabled, "bật/tắt toàn cục phải GIỮ");
         assert_eq!(
             st.apps.get("notepad.exe"),

@@ -38,7 +38,7 @@ final class IMKTextTarget: TextTarget {
         let attrString = NSAttributedString(
             string: text,
             attributes: [
-                .underlineStyle: NSUnderlineStyle([]).rawValue
+                .underlineStyle: NSUnderlineStyle.single.rawValue /* B10: [] = 0 (none) — mất gạch chân */
             ]
         )
         client.setMarkedText(

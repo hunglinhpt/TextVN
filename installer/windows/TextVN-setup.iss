@@ -191,6 +191,7 @@ end;
 
 var
   RegistrationOK: Boolean;
+  StopCode: Integer;
 
 // textvn-tsf.dll dang duoc TSF nap trong cac tien trinh dang chay (explorer,
 // Notepad...) — DeleteFile tra code 5 (Access denied) ke ca khi elevated vi
@@ -249,6 +250,16 @@ begin
       Break;
     Log('Waiting for a running Inno uninstaller to finish...');
     Sleep(500);
+  end;
+  // Vong 16 (audit A3): dung TRAY DANG CHAY truoc khi chep file — nang cap
+  // tai cho la ca pho bien nhat (autostart). Per-user khong co RestartManager
+  // hieu luc, tray van xu ly WM_QUERYENDSESSION (da them handler graceful).
+  if FileExists(ExpandConstant('{app}\TextVN.exe')) then
+  begin
+    Log('Stopping running TextVN tray before upgrade...');
+    Exec(ExpandConstant('{app}\TextVN.exe'), '--stop', '',
+         SW_HIDE, ewWaitUntilTerminated, StopCode);
+    Log(Format('Tray stop exit code: %d', [StopCode]));
   end;
   RenameLockedTsfDll();
   Result := '';
