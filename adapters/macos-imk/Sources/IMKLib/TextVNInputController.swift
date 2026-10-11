@@ -137,7 +137,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
-        gatherContext(from: sender, force: true)
+        // B7: làm ấm/refresh FieldContext ngay khi activate (có AX timeout +
+        // gather-guard). Kết quả không dùng trực tiếp -> gán `_` cho rõ ý định.
+        _ = gatherContext(from: sender, force: true)
         Diagnostics.log("activateServer pid=\(Self.clientPid(sender))")
     }
 
@@ -543,8 +545,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         guard let sender else { return nil }
         var bundleID: String?
         if let client = sender as? IMKTextInput {
+            // bundleIdentifier() trả String? — chỉ nhận khi không nil và không rỗng.
             let bid = client.bundleIdentifier()
-            bundleID = bid.isEmpty ? nil : bid
+            if let bid, !bid.isEmpty {
+                bundleID = bid
+            }
         } else if let s = sender as? String, !s.isEmpty {
             bundleID = s
         }

@@ -61,9 +61,10 @@ public enum Diagnostics {
         }
         fileHandle = FileHandle(forWritingAtPath: url.path)
         // F25: append thay vì ghi đè từ byte 0 (relaunch giữ log cũ).
-        try? fileHandle?.seekToEndOfFile()
+        // (seekToEndOfFile/offsetInFile không throwing — không dùng `try?`.)
+        fileHandle?.seekToEndOfFile()
         // B13: nạp kích thước hiện có để cap xoay chính xác sau relaunch.
-        if let end = try? fileHandle?.offsetInFile { writtenBytes = end }
+        if let fh = fileHandle { writtenBytes = fh.offsetInFile }
         log("TextVN-IM log opened (pid \(ProcessInfo.processInfo.processIdentifier))")
     }
 
