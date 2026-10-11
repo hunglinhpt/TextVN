@@ -299,6 +299,13 @@ rawKey.
 
 ## D. ƯU TIÊN XỬ LÝ ĐỀ XUẤT (top 10, ghép 3 platform)
 
+> **TRẠNG THÁI 2026-10-11 (v0.2.30):** mục 1 (B1), 2 (B2), 3 (A1), 4 (A3),
+> 5 (A2), 6 (B3), 7 (B4), 8 (B5), 9 (C2), 10 (C4) **ĐÃ SỬA** + kèm test
+> (Swift 3 test; Rust unit/CI); đã rà ≥2 lần theo view audit. Còn lại:
+> A7 (pipe per-session — cross-cutting cần đổi cả client TSF), A6
+> (over-the-shoulder uninstall), B6-part (login launch phân biệt), C3
+> (Linux IPC server) — ghi roadmap, làm theo đợt sau.
+
 | # | Finding | SEV | Effort |
 |---|---|---|---|
 | 1 | B1 — macOS preeditReplace/commitEarly xoá trước retract → mất chữ | CAO | nhỏ + test |
