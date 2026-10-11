@@ -33,7 +33,12 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.2.29" date="2026-10-10">
+    <release version="0.2.30" date="2026-10-07">
+      <description>
+        <p>Round 16 of the three-platform audit (Windows/macOS/Linux): Windows - ILOT uninstall spec normalized with the 0x prefix (keyboard auto-added by Windows is now actually removed), WOW64 mirror CTF scoped to machine installs only and stale per-user mirrors cleaned, installer stops a running tray before upgrading and the tray answers RestartManager query-end-session gracefully, mutex wait uses OpenMutex without acquiring ownership, UAC helper initializes COM, poisoned RwLocks no longer panic. macOS - composition retraction order fixed (marked text is withdrawn before real deletions, preventing lost characters on NSTextView clients), IPC client always retries after protocol violations and reconnects on focus, Alt+Z and Caps Lock switch keys now actually work in the input method, engine failures send crash reports, "Reset to defaults" preserves macros, English words, emoji and autostart, double-clicking the app always opens the running instance. Linux - IPC message dispatch locked by the type field (state keys named like message types can no longer hijack parsing), per-app overrides fall back to the base state when the app is no longer present, composition buffer overflow guard, UTF-8 decoder rejects overlong/surrogate sequences.</p>
+      </description>
+    </release>
+    <release version="0.2.29" date="2026-10-06">
       <description>
         <p>Clean uninstall: every uninstall path (Windows installer, portable script, Microsoft Store cleanup) now closes TextVN first and waits until it has fully exited before removing files, so a running TextVN no longer leaves files behind. Uninstalling also removes a language that TextVN itself added to the Windows language list when no other keyboard was added for it, and still gives Ctrl+Shift back to Windows. The Microsoft Store package attached to the release now carries the real Store identity.</p>
       </description>

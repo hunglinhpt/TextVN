@@ -9,6 +9,42 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.30] — 2026-10-07
+
+### Fixed (vòng 16 — audit 3 nền tảng: 19 fix, mỗi lỗi rà ≥2 lần theo view audit)
+
+**Windows** — chi tiết từng lỗi: `docs/release/AUDIT-3PLATFORM-2026-10-07.md`
+- **A1**: ILOT gỡ bàn phím Windows tự gắn thiếu tiền tố `0x` (R2-100 nửa vời) — chuẩn hoá spec.
+- **A2/A8**: mirror WOW64 CTF cho HKCU là đường registry chết (HKCU\Software
+  shared trừ Classes) — chỉ mirror CTF ở Machine; dọn mirror per-user cũ.
+- **A3**: cài/nâng cấp khi tray đang chạy — installer dừng tray trước (`PrepareToInstall`),
+  tray xử lý WM_QUERYENDSESSION/WM_ENDSESSION graceful cho RestartManager.
+- **A4**: `--stop` dùng OpenMutexW(SYNCHRONIZE) — CreateMutexW(bInitialOwner=TRUE)
+  khiến process dò trở thành chủ mutex → instance mới tưởng trùng và thoát.
+- **A5**: ShellExecuteExW (UAC) trên thread không COM → CoInitializeEx đầu hàm.
+- **A11**: RwLock poison trong svc không còn panic dây chuyền (into_inner).
+- **A15**: marker notice ghi TRƯỚC hộp thoại (kill giữa chừng không hỏi lại vô hạn).
+
+**macOS**
+- **B1 (CAO)**: `preeditReplace`/`commitEarly` xoá chữ THẬT trước khi thu hồi
+  marked — NSTextView xoá nguyên marked range thay vì ký tự thật → mất chữ.
+  Đã retract-before-delete, nhất quán với backspaceType.
+- **B2 (CAO)**: IPC client 3 đường offline vĩnh viễn (path dài / violation /
+  không reconnect lúc focus) — giờ luôn retry + connect lại lúc focus.
+- **B3**: `switch_key` (Alt+Z / Caps Lock) UI chết → IMK thực thi thật +
+  Ctrl+Shift tap chỉ toggle khi đúng mode. 3 unit test mới.
+- **B4**: crash-report pipeline đứt (không ai gửi) → engine lỗi gửi `.crashReport`.
+- **B5**: "Mặc định" giữ macros/english_words/emoji/autostart (hết xoá âm thầm).
+- **B6**: double-click app luôn báo awake (hết im lặng khi autostart bật).
+- **B10/B13**: underline `.single` thật; xoá macro case-insensitive; cap từ EN 64.
+
+**Linux**
+- **C2**: dispatch IPC khoá bằng `"type":"X"` đầu frame (state key trùng tên
+  message không còn hijack parsing).
+- **C4**: override per-app hết hiệu lực → trở về base state (state.json/broadcast).
+- **C5**: guard tràn buffer compose (text[256] OOB intra-object).
+- **C6**: UTF-8 decoder chặn overlong/surrogate/>U+10FFFF.
+
 ## [0.2.29] — 2026-10-10
 
 ### Fixed — gỡ cài đặt sạch (R2-99, R2-100)
