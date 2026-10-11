@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "docs/specs/win-test-common-errors.md": {
-    "mtime": 1791304951.198712,
-    "seen": 1791702628.1915202,
-    "ast_hash": "2f31068975293d5b46f3c1d68cc86784",
+    "mtime": 1791713127.9905162,
+    "seen": 1791715254.0448565,
+    "ast_hash": "e1a148004cf41cacdd174baa0b863406",
     "semantic_hash": ""
   },
   "fuzz/README.md": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1791711093.6915073,
-    "seen": 1791711410.6184015,
-    "ast_hash": "3ec74fb041f86acb55f0e8ea1bd08e0b",
+    "mtime": 1791714712.322288,
+    "seen": 1791715254.043857,
+    "ast_hash": "853c47723d92b4d6617f18c7b6f35d90",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1791709408.1515574,
-    "seen": 1791711410.5870266,
-    "ast_hash": "d862112f7af38a5814ef8bab3f3bdb5a",
+    "mtime": 1791711761.7959936,
+    "seen": 1791715254.0168004,
+    "ast_hash": "30fa7b8270765c6f6a34360629536cb4",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -1410,9 +1410,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/Diagnostics.swift": {
-    "mtime": 1791710837.296424,
-    "seen": 1791711410.5890255,
-    "ast_hash": "8b1e28569a2d68efcfeeb6bee2f36b14",
+    "mtime": 1791714656.556289,
+    "seen": 1791715254.0197988,
+    "ast_hash": "349c6b9306e5bd668283ca9bbf2217d8",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/KeyMapMacGenerated.swift": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1791709408.43502,
-    "seen": 1791711410.5900218,
-    "ast_hash": "e8a9b2331fd4e515f408201c2ed43526",
+    "mtime": 1791714649.3855429,
+    "seen": 1791715254.0208,
+    "ast_hash": "48785764841c49a549f00f4bba6fc92a",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1791711045.6784356,
-    "seen": 1791711410.6164005,
-    "ast_hash": "6dd20a04d98e1419ab428131fd39767a",
+    "mtime": 1791715236.1882272,
+    "seen": 1791715254.0428803,
+    "ast_hash": "d73e0a55132b00004048bb9f372c2931",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2142,9 +2142,9 @@
     "semantic_hash": ""
   },
   "docs/release/AUDIT-3PLATFORM-2026-10-07.md": {
-    "mtime": 1791711054.71989,
-    "seen": 1791711410.6164005,
-    "ast_hash": "2d9c9549b0e2ccec86597ed229d5509e",
+    "mtime": 1791713136.3596528,
+    "seen": 1791715254.0428803,
+    "ast_hash": "3462855acfd9021377b29cbdc638ad5d",
     "semantic_hash": ""
   },
   "docs/release/AUDIT_AND_PRODUCTION_ROADMAP_v0.2.19.md": {
