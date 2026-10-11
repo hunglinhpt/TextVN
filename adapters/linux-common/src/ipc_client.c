@@ -228,7 +228,7 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
      * va lam roi Snapshot/StateUpdate that (mat BUG-03 fix). Wire format serde
      * tag ghi {"type":"X",...} dung vi tri nay. */
     if (strncmp(json, "{\"type\":\"ConfigReload\"", 23) == 0) {
-        const char *p_ver = strstr(p_reload, "\"version\":");
+        const char *p_ver = strstr(json, "\"version\":");
         if (p_ver) {
             uint64_t ver = (uint64_t)strtoull(p_ver + 10, NULL, 10);
             if (ver > client->latest_config_version) {
