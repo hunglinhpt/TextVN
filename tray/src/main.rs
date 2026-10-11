@@ -1363,7 +1363,7 @@ fn check_status() {
     println!("Checking TextVN IPC pipe: {}", candidates[0]);
     let mut stream = None;
     for name in &candidates {
-        if let Ok(s) = textvn_ipc::pipe_client_options().open(&name) {
+        if let Ok(s) = textvn_ipc::pipe_client_options().open(name) {
             stream = Some(s);
             break;
         }
