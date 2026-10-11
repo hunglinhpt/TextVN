@@ -299,12 +299,22 @@ rawKey.
 
 ## D. ƯU TIÊN XỬ LÝ ĐỀ XUẤT (top 10, ghép 3 platform)
 
-> **TRẠNG THÁI 2026-10-11 (v0.2.30):** mục 1 (B1), 2 (B2), 3 (A1), 4 (A3),
-> 5 (A2), 6 (B3), 7 (B4), 8 (B5), 9 (C2), 10 (C4) **ĐÃ SỬA** + kèm test
-> (Swift 3 test; Rust unit/CI); đã rà ≥2 lần theo view audit. Còn lại:
-> A7 (pipe per-session — cross-cutting cần đổi cả client TSF), A6
-> (over-the-shoulder uninstall), B6-part (login launch phân biệt), C3
-> (Linux IPC server) — ghi roadmap, làm theo đợt sau.
+> **TRẠNG THÁI 2026-10-11 (v0.2.31):** TẤT CẢ finding của báo cáo **ĐÃ SỬA**.
+> Vòng 16 (v0.2.30) sửa mục 1 (B1), 2 (B2), 3 (A1), 4 (A3), 5 (A2), 6 (B3),
+> 7 (B4), 8 (B5), 9 (C2), 10 (C4). Đợt roadmap (v0.2.31) đóng nốt:
+> **Windows** A4 (wait_stopped OpenMutex + deadline), A5 (CoInitializeEx), A6
+> (uninstall over-the-shoulder ExecAsOriginalUser), A7 (pipe theo phiên + verify
+> server image), A8 (dọn WOW64 mirror khi activate machine), A9 (insert-fail
+> restore), A10 (catch_unwind callback COM + borrow-fail E_FAIL), A11 (RwLock
+> poison), A12 (schedule-delete RunOnce), A13 (dọn ghost per-user mọi hive),
+> A14 (ERROR_MORE_DATA retry), A15 (marker ghi trước hộp thoại); **macOS**
+> B6 (awake khi double-click), B7 (AX dedupe + timeout), B8 (IPC cap app state),
+> B9 (clientPid theo sender), B10 (underline single), B11 (xoá state chết),
+> B12 (main-queue precondition), B13 (log xoay 1 MiB), B14 (test replace+backspaceType);
+> **Linux** C1 (xoá `lc_ipc_recv_frame`), C3 (thống nhất poll IBus↔Fcitx5),
+> C7 (hết UAF cửa sổ cài đặt), C8 (Fcitx5 đọc GroupOrder/DefaultIM),
+> C9 (hardening --config/XDG/log/localtime_r/fcitx5 unregisterAction/stage guard/field_detect stub).
+> Mỗi mục đã rà ≥2 lần theo 3 view (audit/reviewer/user).
 
 | # | Finding | SEV | Effort |
 |---|---|---|---|

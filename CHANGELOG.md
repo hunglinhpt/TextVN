@@ -9,6 +9,62 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.31] — 2026-10-11
+
+> **Bản release candidate** — đã ký GPG (`.asc`, FPR
+> `3921595ABC961199F15303B6C45B84D0C7F4A822`) + Sigstore keyless
+> (`.cosign.sig`/`.cosign.cert`), `SHA256SUMS.txt` được clearsign — y như v0.2.29.
+> **Chưa** Authenticode (Windows — chờ SignPath Foundation duyệt) và **chưa**
+> Developer ID + notarization (macOS) — vẫn là candidate, không phải production.
+
+### Fixed — hoàn tất roadmap audit 3 nền tảng (A6–A16, B6–B14, C1–C9)
+
+Chi tiết từng finding + trạng thái: `docs/release/AUDIT-3PLATFORM-2026-10-07.md`.
+
+**Windows**
+- **A10**: `Activate`/`Deactivate`/`ActivateEx`/`OnSetFocus` bọc `catch_unwind` —
+  panic thoát qua ABI COM không còn `abort` tiến trình host (Notepad/Chrome).
+  Nhánh lấy `inner` thất bại nay trả `E_FAIL` thay vì `Ok(())` im lặng (trước đây
+  `Advise` xong nhưng không lưu cookie → `Deactivate` không `Unadvise`, leak tới
+  hết thread).
+
+**macOS**
+- **B7**: gather AX dedupe theo pid (`beginGather`/`endGather`) + `AXUIElementSetMessagingTimeout(0.3)`
+  — app không phản hồi không còn treo gather, kết quả cũ không đè context mới.
+- **B8**: `IpcServer` cap `app_id` ≤ 256 ký tự và tổng entry ≤ 256 — flood cùng-uid
+  không còn phình RAM / làm Snapshot vượt 64KB (client thật không nhận được).
+- **B9**: `clientPid` ưu tiên danh tính client từ `sender` (bundle id) thay vì
+  `NSWorkspace.frontmostApplication` — panel phụ/XPC không còn làm preset sai.
+- **B11**: xoá state chết `heldMods` + `noteFlagsChanged()`; `crashCount` lấy `max`
+  thay vì `+= 1` (bỏ qua `count`).
+- **B12**: `ipcClient(_:didReceive:)` ràng buộc `dispatchPrecondition(.onQueue(.main))`;
+  `IpcClient.deinit` đồng bộ `tearDown()` đúng queue (không data race nguyên tắc).
+- **B13**: `Diagnostics` log xoay ở 1 MiB (opt-in `TEXTVN_LOG=1`) — log debug không
+  phình vô hạn.
+
+**Linux**
+- **C1**: xoá `lc_ipc_recv_frame` khỏi `linux_common.h` + `ipc_client.c` (API chết,
+  mồi cho đúng lỗi CR-25 mất byte khi EAGAIN giữa frame).
+- **C3**: thống nhất điểm poll IPC giữa IBus và Fcitx5 (focus/activate + word-start,
+  không trên đường phím).
+- **C7**: cửa sổ GTK settings ngắt handler `destroy` của cửa sổ con + huỷ cửa sổ con
+  TRƯỚC khi free `TvWin` — hết UAF theo thứ tự destroy.
+- **C8**: `tv_activate_fcitx5` đọc `DefaultIM` của nhóm đang dùng thay vì cứng
+  `[Groups/0]`; deactivate đánh lại chỉ số cho MỌI nhóm (profile nhiều group nay
+  thấy được bộ gõ).
+- **C9**: `--config` không có `/` không còn ghi `state.json` lệch chỗ; `XDG_CONFIG_HOME`
+  phải là đường dẫn tuyệt đối (`[0]=='/'`); `log.c` từ chối chuỗi bị cắt âm thầm +
+  dùng `localtime_r` (an toàn thread) + `XDG_STATE_HOME` phải tuyệt đối; fcitx5
+  destructor gọi `unregisterAction` (addon reload không còn con trỏ treo);
+  `stage-linux.sh` chặn thư mục nguy hiểm (hệ thống, tổ tiên repo, HOME/ROOT/CWD)
+  trước `rm -rf`; `field_detect.c` ghi rõ là stub chưa nối AT-SPI.
+
+### Fixed — gate `clippy-linux` đỏ trên `main` (phát hiện khi chạy preflight)
+
+`tray/src/main.rs`: `use std::io::{Read, Write}` và `PIPE_NAME` chỉ dùng trong hàm
+`#[cfg(windows)]` nhưng import không gate → `cargo clippy --target x86_64-unknown-linux-gnu -D warnings`
+đỏ (E11). Nay gate bằng `#[cfg(windows)]`.
+
 ## [0.2.30] — 2026-10-07
 
 ### Fixed (vòng 16 — audit 3 nền tảng: 19 fix, mỗi lỗi rà ≥2 lần theo view audit)
@@ -1138,6 +1194,10 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.27...HEAD
+[0.2.31]: https://github.com/hunglinhpt/TextVN/compare/v0.2.30...v0.2.31
+[0.2.30]: https://github.com/hunglinhpt/TextVN/compare/v0.2.29...v0.2.30
+[0.2.29]: https://github.com/hunglinhpt/TextVN/compare/v0.2.28...v0.2.29
+[0.2.28]: https://github.com/hunglinhpt/TextVN/compare/v0.2.27...v0.2.28
 [0.2.27]: https://github.com/hunglinhpt/TextVN/compare/v0.2.26...v0.2.27
 [0.2.26]: https://github.com/hunglinhpt/TextVN/compare/v0.2.25...v0.2.26
 [0.2.25]: https://github.com/hunglinhpt/TextVN/compare/v0.2.24...v0.2.25

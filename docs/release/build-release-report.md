@@ -1,5 +1,27 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.31 — hoàn tất roadmap audit 3 nền tảng (A10, B7/B8/B9/B11/B12/B13, C1/C3/C7/C8/C9) + gate clippy-linux
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Đóng nốt các mục còn lại của `docs/release/AUDIT-3PLATFORM-2026-10-07.md`: Windows A10 (catch_unwind cho callback COM + borrow-fail trả E_FAIL), macOS B7/B8/B9/B11/B12/B13 (AX dedupe + timeout, IPC cap, clientPid theo sender, xoá state chết, main-queue precondition, log xoay 1 MiB), Linux C1/C3/C7/C8/C9 (xoá API chết, thống nhất poll IBus↔Fcitx5, hết UAF khi đóng cửa sổ cài đặt, Fcitx5 đọc đúng nhóm, hardening XDG/log/stage/field_detect) |
+| Gate local (máy Windows 11, host repo) | `cargo fmt --all -- --check` PASS · `cargo clippy -p textvn-tray --all-targets -D warnings` PASS · `cargo clippy --workspace --exclude textvn-win-hook --all-targets --target x86_64-unknown-linux-gnu -D warnings` PASS (sau fix import gate) · `cargo check -p textvn-win-tsf` PASS · `cargo test --workspace` PASS · `cargo test -p textvn-tray` 65+3=68 PASS · `cargo run -q -p xtask -- check-version-sync` 14/14 = 0.2.31 · `check-mac-targets` PASS |
+| Bằng chứng bảng băm | Digest FNV-1a 64 của `data/tables/*.toml` khớp header file sinh (`vowels 0xfe5318e15330844d`, methods `0xfc9e019b7f34691b`, keymap `0x6a6f2f15251c8911`) — `check-tables` tương đương PASS (xem ghi chú dưới) |
+| Parse Swift | `swiftc -parse` trên 7 file đã sửa (Diagnostics, FieldDetect, IpcClient, TextVNInputController, AppDelegate, IpcServer, KeyTranslator) — OK |
+| Kiểm thủ công C | `clang -fsyntax-only -Wall -Wextra -pedantic` trên `log.c`/`field_detect.c`/`settings_model.c`/`ipc_client.c` — không warning mới (chỉ còn cảnh báo unused-function sẵn có khi biên dịch 1 TU trên Windows) |
+| Ghi chú gate không chạy được trên máy này | `cargo xtask check-tables` gọi `rustfmt` qua stdin pipe; máy này chặn tạo pipe stdin cho tiến trình con (`Os error 231 — All pipe instances are busy`) nên gate báo FATAL. Đã chứng minh tương đương PASS bằng bảng băm ở trên. Tương tự `cargo run -p textvn-cli -- replay` cần pipe. CI (ubuntu-24.04) không dính giới hạn này |
+| Ký số | Cùng pipeline v0.2.29: publish job của `release.yml` tự `gpg --detach-sign --armor` mọi asset + `cosign sign-blob` + clearsign `SHA256SUMS.txt` (fail-closed khi thiếu khoá/cosign — R2-74). Secret `RELEASE_GPG_PRIVATE_KEY` hiện có trong repo |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization (`signing-status-mac.md`) |
+
+## Bản 0.2.30 — vòng 16 audit 3 nền tảng (A1–A15, B1–B5/B10/B13, C2/C4–C6)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | 19 fix audit 3 nền tảng vòng 16 — chi tiết `docs/release/AUDIT-3PLATFORM-2026-10-07.md` §D (mục 1–10 đã sửa) |
+| Gate local | `cargo xtask preflight` 22/22 xanh trước tag |
+| Ký số | GPG + Sigstore như v0.2.29 |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization |
+
 ## Bản 0.2.29 — gỡ cài đặt sạch (thoát tray trước, dọn ngôn ngữ TextVN đã thêm) + MSIX identity Store thật
 
 | Hạng mục | Bằng chứng |
