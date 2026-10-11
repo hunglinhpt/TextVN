@@ -293,7 +293,8 @@ pub struct IpcServer {
 
 impl IpcServer {
     pub fn new(svc: Arc<SvcManager>) -> Arc<Self> {
-        Self::with_pipe_name(svc, PIPE_NAME)
+        // Vòng 16 (audit A7): pipe theo phiên — hết xung đột đa phiên/RDP.
+        Self::with_pipe_name(svc, &textvn_ipc::session_pipe_name())
     }
 
     /// Test dùng tên pipe riêng: `PIPE_NAME` là namespace toàn máy, tray thật

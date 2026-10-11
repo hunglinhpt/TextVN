@@ -24,7 +24,49 @@ use windows::Win32::Foundation::ERROR_PIPE_BUSY;
 #[cfg(windows)]
 use windows::Win32::System::Pipes::WaitNamedPipeW;
 
-pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
+/// Vòng 16 (audit A7): pipe phiên (server cùng phiên) trước, legacy sau.
+pub fn pipe_name_candidates() -> [String; 2] {
+    textvn_ipc::candidate_pipe_names()
+}
+
+/// Audit A7b: xác thực server đầu ống là TextVN.exe — chống pipe squatting
+/// (process khác cùng uid tạo pipe giả phục vụ Snapshot giả).
+fn server_is_textvn(stream: &std::fs::File) -> bool {
+    use std::os::windows::io::AsRawHandle;
+    let pipe_handle = stream.as_raw_handle();
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Pipes::GetNamedPipeServerProcessId;
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+    let mut server_pid = 0u32;
+    // SAFETY: handle hợp lệ từ CreateFile; các handle con đóng ngay.
+    unsafe {
+        let handle = windows::Win32::Foundation::HANDLE(pipe_handle as *mut _);
+        if GetNamedPipeServerProcessId(handle, &mut server_pid).is_err() {
+            return false;
+        }
+        let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, server_pid) else {
+            return false;
+        };
+        let mut buf = [0u16; 1024];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(
+            process,
+            PROCESS_NAME_FORMAT(0),
+            windows::core::PWSTR(buf.as_mut_ptr()),
+            &mut len,
+        )
+        .is_ok();
+        let _ = CloseHandle(process);
+        if !ok {
+            return false;
+        }
+        let image = String::from_utf16_lossy(&buf[..len as usize]);
+        image.to_ascii_lowercase().ends_with("textvn.exe")
+    }
+}
 
 /// Khóa trong map trạng thái đại diện cho công tắc toàn cục (khớp tray).
 pub const GLOBAL_KEY: &str = "*";
@@ -164,43 +206,61 @@ impl IpcClient {
                 // ERROR_PIPE_BUSY (hết instance khi tray bận): WaitNamedPipe rồi thử
                 // lại — bỏ qua nghĩa là tin toggle không tới, tray lệch state với
                 // process này tới snapshot kế.
+                //
+                // Vòng 16 (audit A7): thử pipe phiên → legacy; xác thực server là
+                // TextVN.exe (chống squatting).
                 for _ in 0..3 {
-                    match textvn_ipc::pipe_client_options().open(PIPE_NAME) {
-                        Ok(mut stream) => {
-                            let _ = send_message(
-                                &mut stream,
-                                &Message::ToggleViEn {
-                                    app_id: GLOBAL_KEY.to_string(),
-                                    enabled: next,
-                                },
-                            );
-                            // Tray trả SNAPSHOT state chuẩn (kể cả khi bị debounce
-                            // bỏ qua): giá trị cục bộ `next` có thể sai so với
-                            // truth — nhận snapshot để không diverge (báo cáo
-                            // 0.2.9 "icon E mà vẫn gõ tiếng Việt").
-                            if let Ok(Message::Snapshot {
-                                config_version,
-                                state: states,
-                                ..
-                            }) = read_next_message(&mut stream)
-                            {
-                                state
-                                    .config_version
-                                    .store(config_version, Ordering::Release);
-                                state.apply_states(&app_id, &states);
+                    let mut opened = None;
+                    let mut busy = false;
+                    for name in pipe_name_candidates() {
+                        match textvn_ipc::pipe_client_options().open(&name) {
+                            Ok(stream) if server_is_textvn(&stream) => {
+                                opened = Some(stream);
+                                break;
                             }
-                            return;
-                        }
-                        #[cfg(windows)]
-                        Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
-                            // w! cần literal — PIPE_NAME là const, dựng buffer UTF-16.
-                            let name: Vec<u16> = PIPE_NAME.encode_utf16().chain(Some(0)).collect();
-                            unsafe {
-                                let _ = WaitNamedPipeW(windows::core::PCWSTR(name.as_ptr()), 200);
+                            Ok(stream) => drop(stream),
+                            #[cfg(windows)]
+                            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
+                                busy = true;
+                                let name_w: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+                                unsafe {
+                                    let _ =
+                                        WaitNamedPipeW(windows::core::PCWSTR(name_w.as_ptr()), 200);
+                                }
                             }
+                            Err(_) => continue,
                         }
-                        Err(_) => return,
                     }
+                    let Some(mut stream) = opened else {
+                        // BUSY → vòng 0..3 thử lại (WaitNamedPipe đã chờ 200ms);
+                        // lỗi khác → bỏ (toggle hiếm, không chặn phím).
+                        if busy {
+                            continue;
+                        }
+                        return;
+                    };
+                    let _ = send_message(
+                        &mut stream,
+                        &Message::ToggleViEn {
+                            app_id: GLOBAL_KEY.to_string(),
+                            enabled: next,
+                        },
+                    );
+                    // Tray trả SNAPSHOT state chuẩn (kể cả khi bị debounce bỏ qua):
+                    // giá trị cục bộ `next` có thể sai so với truth — nhận snapshot
+                    // để không diverge (báo cáo 0.2.9 "icon E mà vẫn gõ tiếng Việt").
+                    if let Ok(Message::Snapshot {
+                        config_version,
+                        state: states,
+                        ..
+                    }) = read_next_message(&mut stream)
+                    {
+                        state
+                            .config_version
+                            .store(config_version, Ordering::Release);
+                        state.apply_states(&app_id, &states);
+                    }
+                    return;
                 }
             });
         }
@@ -262,7 +322,19 @@ fn run_client_loop(app_id: String, state: Arc<IpcState>) {
     let mut idle_ms: u64 = 2_000;
 
     loop {
-        let Ok(mut stream) = textvn_ipc::pipe_client_options().open(PIPE_NAME) else {
+        // Vòng 16 (audit A7): candidates + verify server.
+        let mut opened = None;
+        for name in pipe_name_candidates() {
+            match textvn_ipc::pipe_client_options().open(&name) {
+                Ok(stream) if server_is_textvn(&stream) => {
+                    opened = Some(stream);
+                    break;
+                }
+                Ok(stream) => drop(stream),
+                Err(_) => continue,
+            }
+        }
+        let Some(mut stream) = opened else {
             state.connected.store(false, Ordering::Release);
             std::thread::sleep(Duration::from_millis(idle_ms));
             // Tray tắt lâu: giãn nhịp thử lại để không đánh thức CPU vô ích.

@@ -17,6 +17,33 @@ pub const MAX_FRAME_BYTES: usize = 64 * 1024;
 /// Tên pipe IPC v1 trên Windows (`docs/00-INDEX.md` §4).
 pub const PIPE_NAME: &str = r"\\.\pipe\textvn-ipc-v1";
 
+/// Vong 16 (audit A7): ten pipe theo phien dang nhap - tray chay mot instance
+/// moi phien (console/RDP); ten toan cuc cu cho 2 phien xung dot instance.
+#[cfg(windows)]
+pub fn session_pipe_name() -> String {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn ProcessIdToSessionId(processid: u32, sessionid: *mut u32) -> i32;
+        fn GetCurrentProcessId() -> u32;
+    }
+    // SAFETY: syscall khong co side effect.
+    let session = unsafe {
+        let mut id = 0u32;
+        if ProcessIdToSessionId(GetCurrentProcessId(), &mut id) != 0 {
+            id
+        } else {
+            0
+        }
+    };
+    format!(r"\\.\pipe\textvn-ipc-v1-s{session}")
+}
+
+/// Danh sach ten pipe client nen thu theo thu tu: pipe phien truoc, legacy sau.
+#[cfg(windows)]
+pub fn candidate_pipe_names() -> [String; 2] {
+    [session_pipe_name(), String::from(PIPE_NAME)]
+}
+
 /// `OpenOptions` cho đầu **client** của pipe IPC: đọc + ghi, và trên Windows đặt
 /// `SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION`.
 ///

@@ -391,6 +391,9 @@ fn apply_plan(
     // SAFETY: mọi lời gọi TSF dưới đây nằm trong DoEditSession với `ec` hợp lệ;
     // buffer UTF-16 luôn có 0 đệm sau (finding S3-2: TSF đọc bằng wcslen()).
     unsafe {
+        // Vòng 16 (audit A9): text vùng xoá được chụp TRƯỚC khi xoá — nếu chèn
+        // thất bại thì hoàn tác (SetText ngược lại), không mất chữ một nhịp gõ.
+        let mut restore: Option<(ITfRange, Vec<u16>)> = None;
         if plan.delete_before > 0 {
             let anchor = match comp.as_ref() {
                 Some(c) => c.GetRange()?,
@@ -405,34 +408,54 @@ fn apply_plan(
             if shifted != want {
                 return Err(Error::from(E_FAIL));
             }
+            let snap = del.Clone()?;
+            let mut buf = vec![0u16; plan.delete_before as usize];
+            let mut fetched = 0u32;
+            if snap.GetText(ec, 0, &mut buf, &mut fetched).is_ok()
+                && fetched as usize == plan.delete_before as usize
+            {
+                restore = Some((del.Clone()?, buf[..fetched as usize].to_vec()));
+            }
             let empty = [0u16; 1];
             del.SetText(ec, 0, &empty[..0])?;
         }
 
-        if let Some(text) = &plan.text {
-            let wide = to_wide_nul(text);
-            let body = &wide[..wide.len() - 1];
-            if comp.is_none() && !text.is_empty() {
-                let ctxcomp: ITfContextComposition = ctx.cast()?;
-                let sink: ITfCompositionSink = CompSink::new(Rc::downgrade(shared)).into();
-                let start = sel.Clone()?;
-                *comp = Some(ctxcomp.StartComposition(ec, &start, &sink)?);
-            }
-            if let Some(c) = comp.as_ref() {
-                let range = c.GetRange()?;
-                range.SetText(ec, 0, body)?;
-                apply_display_attribute(ctx, ec, &range);
-                set_caret_after(ctx, ec, &range);
-            }
-        }
-
-        if plan.end {
-            if let Some(c) = comp.take() {
-                if let Ok(range) = c.GetRange() {
+        // Chèn + kết thúc composition đặt trong closure để hoàn tác A9 khi lỗi.
+        let insert_result: Result<()> = (|| {
+            if let Some(text) = &plan.text {
+                let wide = to_wide_nul(text);
+                let body = &wide[..wide.len() - 1];
+                if comp.is_none() && !text.is_empty() {
+                    let ctxcomp: ITfContextComposition = ctx.cast()?;
+                    let sink: ITfCompositionSink = CompSink::new(Rc::downgrade(shared)).into();
+                    let start = sel.Clone()?;
+                    *comp = Some(ctxcomp.StartComposition(ec, &start, &sink)?);
+                }
+                if let Some(c) = comp.as_ref() {
+                    let range = c.GetRange()?;
+                    range.SetText(ec, 0, body)?;
+                    apply_display_attribute(ctx, ec, &range);
                     set_caret_after(ctx, ec, &range);
                 }
-                c.EndComposition(ec)?;
             }
+
+            if plan.end {
+                if let Some(c) = comp.take() {
+                    if let Ok(range) = c.GetRange() {
+                        set_caret_after(ctx, ec, &range);
+                    }
+                    c.EndComposition(ec)?;
+                }
+            }
+            Ok(())
+        })();
+
+        if let Err(err) = insert_result {
+            if let Some((range, text)) = restore.take() {
+                crate::trace::event(0x4139, format_args!("insert fail - hoan tac text da xoa"));
+                let _ = range.SetText(ec, 0, &text);
+            }
+            return Err(err);
         }
     }
     Ok(())
