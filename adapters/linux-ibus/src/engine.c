@@ -327,6 +327,9 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     if (self->comp.len == 0) {
         lc_config_sync(self->inst, &self->config, NULL);
         sync_state(self);
+        /* C3 (audit): khop diem poll voi Fcitx5 — toggle tray toi IBus ngay ca
+         * khi user dang go lien (khong doi focus). */
+        consume_global_ipc();
     }
 
     /* B6: chord hệ thống; S3: ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng →

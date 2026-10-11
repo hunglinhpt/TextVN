@@ -468,7 +468,9 @@ int lc_ipc_client_poll(lc_ipc_client *client) {
     /* Cooldown reconnection if offline (every 3000ms) */
     if (!client->is_online || client->fd < 0) {
         uint64_t now = get_time_ms();
-        if (now - client->last_connect_attempt_ms >= 3000) {
+        /* C3 (audit): giãn nhịp reconnect — offline chỉ là trạng thái chờ
+         * server P3-0, 3s đánh thức CPU vô ích trên đường phím. */
+        if (now - client->last_connect_attempt_ms >= 15000) {
             try_connect(client);
         }
         if (!client->is_online) return 0;
