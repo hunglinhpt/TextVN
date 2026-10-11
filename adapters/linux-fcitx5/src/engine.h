@@ -80,6 +80,9 @@ private:
     lc_ipc_client *ipc_ = nullptr;
     /* VN/EN chung cho mọi input context, lưu ở state.json (như tray Windows). */
     bool viEnabled_ = true;
+    /* C4 (audit): trang thai base tu state.json/broadcast "*" - override
+     * per-app chi ap dung khi con hien hieu, mat override thi ve base. */
+    bool baseViEnabled_ = true;
     /* Vong 13: seq broadcast "*" da tieu thu (event-based, khong sticky). */
     uint32_t globalSeqSeen_ = 0;
     lc_config_state stateWatch_{};

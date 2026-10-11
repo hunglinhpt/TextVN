@@ -91,7 +91,13 @@ size_t lc_utf8_to_utf32(const char *src, size_t src_len, uint32_t *dst, size_t m
             cp = (cp << 6) | (next & 0x3F);
         }
 
-        if (valid) {
+        /* C6 (audit): chan overlong / surrogate / > U+10FFFF — decode ào nao
+         * tao codepoint khong hop le (0xC0 0xAF -> '/', 0xED 0xA0 0x80 -> D800). */
+        if (valid
+            && !(cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)
+                 || (bytes == 2 && cp < 0x80)
+                 || (bytes == 3 && cp < 0x800)
+                 || (bytes == 4 && cp < 0x10000))) {
             dst[out_idx++] = cp;
             in_idx += bytes;
         } else {

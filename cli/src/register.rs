@@ -1352,7 +1352,22 @@ mod win_impl {
                 let auto_added = is_input_method_value(&name)
                     && !before.iter().any(|b| b.eq_ignore_ascii_case(&name));
                 if auto_added {
-                    call_layout_or_tip_spec(&name, ILOT_UNINSTALL, "UNINSTALL (Windows tự gắn)");
+                    // Vòng 16 (audit A1): value name dạng `042A:{…}{…}` KHÔNG có
+                    // tiền tố `0x` — ILOT spec chuẩn là `0x{lang:04X}:…` (xem
+                    // `layout_spec`). Chuẩn hoá trước khi gọi, nếu không ILOT
+                    // có thể FALSE âm thầm và bàn phím tự gắn không được gỡ.
+                    let spec = if name.get(..2).map(|p| p.eq_ignore_ascii_case("0x"))
+                        .unwrap_or(false)
+                    {
+                        name.clone()
+                    } else {
+                        format!("0x{name}")
+                    };
+                    call_layout_or_tip_spec(
+                        &spec,
+                        ILOT_UNINSTALL,
+                        "UNINSTALL (Windows tự gắn)",
+                    );
                 }
             }
             if listed {
@@ -1425,21 +1440,27 @@ mod win_impl {
             Some("ThreadingModel"),
             RegValue::Sz("Apartment"),
         );
-        for (_, lang) in REGISTER_LANGS {
-            let key = wow_ctf_profile_key(lang);
-            ok &= set_reg_value(root, &key, Some("Description"), RegValue::Sz("TextVN"));
-            ok &= set_reg_value(root, &key, Some("IconFile"), RegValue::Sz(&icon));
-            ok &= set_reg_value(root, &key, Some("IconIndex"), RegValue::Dword(0));
-            ok &= set_reg_value(root, &key, Some("Enable"), RegValue::Dword(1));
-        }
-        for cat in [
-            CAT_TIP_KEYBOARD,
-            CAT_IMMERSIVE,
-            CAT_SYSTRAY,
-            CAT_DISPLAY_ATTRIBUTE_PROVIDER,
-        ] {
-            for key in wow_ctf_category_keys(cat) {
-                ok &= set_reg_value(root, &key, None, RegValue::None);
+        // Vòng 16 (audit A2): CTF KHÔNG mirror cho Scope::User — HKCU\Software
+        // (trừ Classes) là registry SHARED giữa 2 view, cây `HKCU\Software\WOW
+        // 6432Node\Microsoft\CTF\TIP` là đường không bao giờ được đọc. Scope
+        // Machine thì HKLM\Software bị redirect thật → mirror là cần thiết.
+        if scope == Scope::Machine {
+            for (_, lang) in REGISTER_LANGS {
+                let key = wow_ctf_profile_key(lang);
+                ok &= set_reg_value(root, &key, Some("Description"), RegValue::Sz("TextVN"));
+                ok &= set_reg_value(root, &key, Some("IconFile"), RegValue::Sz(&icon));
+                ok &= set_reg_value(root, &key, Some("IconIndex"), RegValue::Dword(0));
+                ok &= set_reg_value(root, &key, Some("Enable"), RegValue::Dword(1));
+            }
+            for cat in [
+                CAT_TIP_KEYBOARD,
+                CAT_IMMERSIVE,
+                CAT_SYSTRAY,
+                CAT_DISPLAY_ATTRIBUTE_PROVIDER,
+            ] {
+                for key in wow_ctf_category_keys(cat) {
+                    ok &= set_reg_value(root, &key, None, RegValue::None);
+                }
             }
         }
         say(&format!(
@@ -1455,10 +1476,14 @@ mod win_impl {
 
     /// Vòng 14: xoá mirror 32-bitView khi gỡ (cả 2 scope — HKCU do unregister
     /// user, HKLM do unregister machine/elevated).
+    /// Vòng 16 (audit A2): CTF chỉ mirror ở Machine — unregister User chỉ xoá
+    /// COM WOW64; unregister Machine xoá cả hai.
     fn unregister_wow64_mirror(scope: Scope) {
         let root = scope.root();
         let _ = delete_tree(root, &wow_clsid_key());
-        let _ = delete_tree(root, &wow_ctf_tip_key());
+        if scope == Scope::Machine {
+            let _ = delete_tree(root, &wow_ctf_tip_key());
+        }
     }
 
     /// R2-30: chỉ xoá mirror WOW64 của `scope` khi DLL x86 đăng ký nằm dưới một
@@ -1682,6 +1707,10 @@ mod win_impl {
                 say("FAIL: không dọn được override TSF per-user cũ");
                 return 1;
             }
+            // Vòng 16 (audit A8): mirror WOW64 per-user của bản cũ (nếu có) cũng
+            // phải dọn — không thì còn rác trỏ DLL đã xoá (đường chết nhưng gây
+            // nhiễu chẩn đoán).
+            unregister_wow64_mirror(Scope::User);
         }
         // COM per-user (HKCU\Software\Classes\CLSID) override HKLM cho user
         // hiện tại: đăng ký machine trên máy từng đăng ký per-user (portable

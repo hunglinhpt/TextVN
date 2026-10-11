@@ -30,6 +30,7 @@ static gboolean        s_state_loaded = FALSE;
 static lc_config_state s_state_watch;
 static lc_ipc_client  *s_ipc = NULL;
 static uint32_t       s_global_seq_seen = 0; /* BUG-03: seq "*" da tieu thu */
+static int            s_base_vi = TRUE;  /* C4: trang thai tu state.json/broadcast "*" */
 
 #define PROP_MODE  "TextVN.InputMode"
 #define PROP_SETUP "TextVN.Setup"
@@ -121,6 +122,7 @@ static void consume_global_ipc(void) {
     uint32_t seq = 0;
     if (lc_ipc_client_get_global_override(s_ipc, &g, &seq) && seq != s_global_seq_seen) {
         s_global_seq_seen = seq;
+        s_base_vi = g ? TRUE : FALSE; /* C4: broadcast "*" = base */
         s_vi_enabled = g ? TRUE : FALSE;
     }
 }
@@ -132,6 +134,7 @@ static void sync_state(TextVNIbusEngine *self) {
     }
     int enabled = s_vi_enabled;
     if (lc_state_sync(&s_state_watch, NULL, &enabled)) {
+        s_base_vi = enabled ? TRUE : FALSE; /* C4: file = nguon cua base */
         set_vietnamese(self, enabled ? TRUE : FALSE, FALSE);
     }
 }
@@ -239,6 +242,11 @@ static void engine_focus_in(IBusEngine *engine) {
     int app_enabled = 1;
     if (s_ipc && lc_ipc_client_get_app_override(s_ipc, &app_enabled)) {
         s_vi_enabled = app_enabled != 0;
+    } else {
+        /* C4 (audit): override da bi clear (app khong co trong snapshot) —
+         * phai ve ve BASE (state.json/broadcast "*"), khong de ke thừa EN cua
+         * app truoc. */
+        s_vi_enabled = s_base_vi;
     }
     ibus_engine_register_properties(engine, self->props);
     update_mode_prop(self);

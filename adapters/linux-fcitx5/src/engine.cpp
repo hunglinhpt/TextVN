@@ -269,6 +269,7 @@ void TextVNEngine::consumeGlobalIpc() {
     uint32_t seq = 0;
     if (lc_ipc_client_get_global_override(ipc_, &g, &seq) && seq != globalSeqSeen_) {
         globalSeqSeen_ = seq;
+        baseViEnabled_ = g != 0; /* C4: broadcast "*" = base */
         viEnabled_ = g != 0;
     }
 }
@@ -278,7 +279,10 @@ void TextVNEngine::toggleVietnamese(TextVNState *st) { setVietnamese(st, !viEnab
 /* Bảng cài đặt vừa đổi state.json → theo ngay (một stat mỗi lần gọi). */
 void TextVNEngine::syncState(TextVNState *st) {
     int enabled = viEnabled_ ? 1 : 0;
-    if (lc_state_sync(&stateWatch_, nullptr, &enabled)) setVietnamese(st, enabled != 0, false);
+    if (lc_state_sync(&stateWatch_, nullptr, &enabled)) {
+        baseViEnabled_ = enabled != 0; /* C4: file = nguon cua base */
+        setVietnamese(st, enabled != 0, false);
+    }
 }
 
 std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
@@ -302,6 +306,10 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
         int appEnabled = 1;
         if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
             viEnabled_ = appEnabled != 0;
+        } else {
+            /* C4 (audit): override da bi clear - ve ve BASE (state.json/broadcast
+             * "*"), khong de ke thua che do cua app truoc. */
+            viEnabled_ = baseViEnabled_;
         }
         updateModeAction(ic);
         ic->statusArea().addAction(fcitx::StatusGroup::InputMethod, modeAction_.get());

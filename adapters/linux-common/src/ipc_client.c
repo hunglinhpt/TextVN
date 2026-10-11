@@ -222,9 +222,12 @@ int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len) {
 static void handle_ipc_message(lc_ipc_client *client, const char *json) {
     if (!client || !json) return;
 
-    /* Detect ConfigReload */
-    const char *p_reload = strstr(json, "\"ConfigReload\"");
-    if (p_reload) {
+    /* Vong 16 (audit C2): khoa LOAI message bang "type" ngay dau frame thay vi
+     * strstr toan van — Snapshot co state map app_id -> bool, mot app ten
+     * "ConfigReload"/"StateUpdate" trong state map lam strstr khop nham nhanh
+     * va lam roi Snapshot/StateUpdate that (mat BUG-03 fix). Wire format serde
+     * tag ghi {"type":"X",...} dung vi tri nay. */
+    if (strncmp(json, "{\"type\":\"ConfigReload\"", 23) == 0) {
         const char *p_ver = strstr(p_reload, "\"version\":");
         if (p_ver) {
             uint64_t ver = (uint64_t)strtoull(p_ver + 10, NULL, 10);
@@ -236,8 +239,8 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
     }
 
     /* Detect StateUpdate */
-    const char *p_state = strstr(json, "\"StateUpdate\"");
-    if (p_state) {
+    if (strncmp(json, "{\"type\":\"StateUpdate\"", 21) == 0) {
+        const char *p_state = json;
         /* Khớp ĐÚNG key JSON ("app_id":"<id>") — strstr trần app_id khớp nhầm
          * "code.exe" trong "vscode.exe" rồi đọc enabled của app khác. */
         char key[192];
@@ -269,8 +272,8 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
     }
 
     /* Detect Snapshot */
-    const char *p_snap = strstr(json, "\"Snapshot\"");
-    if (p_snap) {
+    if (strncmp(json, "{\"type\":\"Snapshot\"", 19) == 0) {
+        const char *p_snap = json;
         const char *p_cfg = strstr(p_snap, "\"config_version\":");
         if (p_cfg) {
             client->latest_config_version = (uint64_t)strtoull(p_cfg + 17, NULL, 10);

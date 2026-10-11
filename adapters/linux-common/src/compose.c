@@ -90,12 +90,14 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
         if (key.kind == LC_KEY_CHAR && !word_end) {
             /* Engine nhận ký tự vào từ nhưng chưa biến đổi → đưa vào preedit. */
             if (cur->len + 1 >= LC_COMP_MAX) {
-                memcpy(out->text, cur->text, cur->len * sizeof(uint32_t));
-                out->text[cur->len] = key.ch;
-                out->text_len = cur->len + 1;
+                /* C5 (audit): cur->len == LC_COMP_MAX thi ghi text[cur->len] la
+                 * OOB intra-object (vuot mang text[256]) — commit nguyen chuoi
+                 * hien tai, NUOT phim moi (khong noi). */
+                memcpy(out->text, cur->text, (size_t)cur->len * sizeof(uint32_t));
+                out->text_len = cur->len;
                 out->has_text = 1;
                 out->end = 1;
-                out->eaten = 1;
+                out->eaten = (key.kind == LC_KEY_CHAR) ? 0 : 1;
                 out->reset_engine = 1;
                 return;
             }
