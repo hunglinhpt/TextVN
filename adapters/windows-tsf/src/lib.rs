@@ -27,7 +27,17 @@ pub mod display_attr;
 pub mod edit_session;
 #[cfg(windows)]
 pub mod guids;
+#[cfg(windows)]
 pub mod ipc_client;
+
+/// Stub non-Windows: Linux không chạy IPC thread (engine đọc state.json trực tiếp).
+#[cfg(not(windows))]
+pub mod ipc_client {
+    /// Worker không tồn tại ngoài Windows — luôn `false`.
+    pub fn worker_started() -> bool {
+        false
+    }
+}
 #[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]

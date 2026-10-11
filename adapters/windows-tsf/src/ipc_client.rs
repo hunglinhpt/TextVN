@@ -19,9 +19,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
-#[cfg(windows)]
 use windows::Win32::Foundation::ERROR_PIPE_BUSY;
-#[cfg(windows)]
 use windows::Win32::System::Pipes::WaitNamedPipeW;
 
 /// Vòng 16 (audit A7): pipe phiên (server cùng phiên) trước, legacy sau.
@@ -146,12 +144,18 @@ impl IpcClient {
             if let Some(states) = read_state_file() {
                 state.apply_states(&app_id, &states);
             }
-            let worker_state = Arc::clone(&state);
-            let worker_app_id = app_id.clone();
-            let spawned = std::thread::Builder::new()
-                .name("textvn-tsf-ipc".into())
-                .spawn(move || run_client_loop(worker_app_id, worker_state));
-            if spawned.is_ok() {
+            {
+                let worker_state = Arc::clone(&state);
+                let worker_app_id = app_id.clone();
+                let spawned = std::thread::Builder::new()
+                    .name("textvn-tsf-ipc".into())
+                    .spawn(move || run_client_loop(worker_app_id, worker_state));
+                if spawned.is_ok() {
+                    WORKER_STARTED.store(true, Ordering::Release);
+                }
+            }
+            #[cfg(not(windows))]
+            {
                 WORKER_STARTED.store(true, Ordering::Release);
             }
             IpcClient {
@@ -198,7 +202,6 @@ impl IpcClient {
         // Gửi giá trị TUYỆT ĐỐI (không phải "đảo"): nếu tray và process này lệch nhau
         // (tray vừa khởi động lại, broadcast chưa tới) thì "đảo" ở tray cho kết quả
         // ngược với cái người dùng vừa thấy.
-        #[cfg(windows)]
         {
             let state = std::sync::Arc::clone(&self.state);
             let app_id = self.app_id.clone();
@@ -219,7 +222,6 @@ impl IpcClient {
                                 break;
                             }
                             Ok(stream) => drop(stream),
-                            #[cfg(windows)]
                             Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY.0 as i32) => {
                                 busy = true;
                                 let name_w: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
