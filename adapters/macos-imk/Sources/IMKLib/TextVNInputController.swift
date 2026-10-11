@@ -154,6 +154,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         super.deactivateServer(sender)
     }
 
+    public override func commitComposition(_ sender: Any!) {
+        commitBeforeHide(sender)
+        engine?.reset()
+        ctrlDown = false
+        shiftDown = false
+        otherKeyPressed = false
+        Diagnostics.log("commitComposition — committed-before-hide")
+        super.commitComposition(sender)
+    }
+
     /// Client đóng app → commit + reset. IMKInputController không có `didClose(_:)`
     /// — hook đúng là `inputControllerWillClose()` (MAC-032).
     public override func inputControllerWillClose() {
@@ -194,6 +204,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             let hasAltOrCmd = flags.contains(.option) || flags.contains(.command)
             if hasAltOrCmd {
                 otherKeyPressed = true
+            }
+
+            if Self.isCapsLockToggle(keyCode: event.keyCode, switchKey: switchKey) {
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastToggleTime >= 0.25 {
+                    lastToggleTime = now
+                    _ = toggleVietnamese()
+                }
+                return false
             }
 
             if switchKey == "ctrl_shift", Self.isCtrlShiftTap(
@@ -278,12 +297,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             enabled: viState.enabled(for: context.appID),
             secure: context.secure || secureMode
         )
+        let effectiveHint = (nonPreedit && hint == OutputStrategy.preedit.rawValue)
+            ? OutputStrategy.backspaceType.rawValue
+            : hint
+        let effectiveCaps = nonPreedit ? (caps & ~FFI.capPreedit) : caps
         engine?.setContext(
             enabled: viState.enabled(for: context.appID), secure: context.secure || secureMode,
-            fieldRole: context.role, caps: caps,
+            fieldRole: context.role, caps: effectiveCaps,
             appId: context.appID,
             elementName: nil,
-            hint: hint
+            hint: effectiveHint
         )
 
         guard let target = clientTarget(sender) else { return false }
@@ -395,7 +418,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // B12: IpcClient marshal delegate về main (F16) — ràng buộc bằng
         // precondition để regression (marshal bị gỡ) sập ngay ở debug thay vì
         // data race âm thầm trên state main-thread.
-        dispatchPrecondition(condition: .onQueue(.main))
+        assert(Thread.isMainThread, "ipcClient must be called on main thread")
         switch message {
         case let .configReload(version):
             Diagnostics.log("ipc ConfigReload v\(version)")
@@ -554,9 +577,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             bundleID = s
         }
         guard let bundleID else { return nil }
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-            .first?
-            .processIdentifier
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        return apps.first(where: { $0.isActive })?.processIdentifier ?? apps.first?.processIdentifier
     }
 
     static func appID(for pid: pid_t) -> String {

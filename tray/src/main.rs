@@ -26,10 +26,7 @@ use std::time::Duration;
 // ci-shared 2026-09-30, không bắt được bằng clippy trên host Windows).
 #[cfg(windows)]
 use textvn_tray::icons::{load_app_icon, IDI_ICON_E, IDI_ICON_V};
-// gate clippy-linux: PIPE_NAME chỉ dùng trong stop_running_instance (#[cfg(windows)]).
 use textvn_tray::ipc_server::IpcServer;
-#[cfg(windows)]
-use textvn_tray::ipc_server::PIPE_NAME;
 use textvn_tray::menu::TrayMenu;
 #[cfg(windows)]
 use textvn_tray::menu::ID_EXIT;
@@ -1495,10 +1492,14 @@ fn stop_running_instance(image_under: Option<&std::path::Path>, force: bool) -> 
                 // The named-pipe request is the primary control path. It enters
                 // the app's own IPC worker, then requests exit on the tray thread
                 // (tray broadcast Shutdown cho Hook rồi mới PostQuitMessage).
-                if let Ok(mut stream) = textvn_ipc::pipe_client_options().open(PIPE_NAME) {
-                    if let Ok(frame) = textvn_ipc::encode_frame(&textvn_ipc::Message::Shutdown) {
-                        let _ = stream.write_all(&frame);
-                        let _ = stream.flush();
+                for name in textvn_ipc::candidate_pipe_names() {
+                    if let Ok(mut stream) = textvn_ipc::pipe_client_options().open(&name) {
+                        if let Ok(frame) = textvn_ipc::encode_frame(&textvn_ipc::Message::Shutdown)
+                        {
+                            let _ = stream.write_all(&frame);
+                            let _ = stream.flush();
+                        }
+                        break;
                     }
                 }
 

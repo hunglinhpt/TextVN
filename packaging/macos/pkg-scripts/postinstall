@@ -41,5 +41,9 @@ echo "✅ TextVN đã được cài. Còn 1 bước để gõ được tiếng V
 echo "   System Settings → Keyboard → Input Sources → Edit… → (+) → Vietnamese → TextVN"
 echo "   (sau đó chọn TextVN ở menu input source, hoặc Ctrl+Space)"
 echo ""
-echo "   Gỡ cài đặt: ~/Applications/TextVN.app/Contents/Resources/uninstall_macos.sh"
+UNINSTALL_PATH="/Applications/TextVN.app/Contents/Resources/uninstall_macos.sh"
+if [ ! -f "$UNINSTALL_PATH" ] && [ -n "$TARGET_HOME" ]; then
+    UNINSTALL_PATH="$TARGET_HOME/Applications/TextVN.app/Contents/Resources/uninstall_macos.sh"
+fi
+echo "   Gỡ cài đặt: $UNINSTALL_PATH"
 exit 0

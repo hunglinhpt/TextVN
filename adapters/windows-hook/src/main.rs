@@ -69,13 +69,14 @@ mod hook_app {
         std::thread::spawn(|| {
             use std::io::Write;
             use textvn_ipc::{encode_frame, Message};
-            if let Ok(mut stream) =
-                textvn_ipc::pipe_client_options().open(r"\\.\pipe\textvn-ipc-v1")
-            {
-                let msg = Message::ToggleGlobal;
-                if let Ok(frame) = encode_frame(&msg) {
-                    let _ = stream.write_all(&frame);
-                    let _ = stream.flush();
+            for name in textvn_ipc::candidate_pipe_names() {
+                if let Ok(mut stream) = textvn_ipc::pipe_client_options().open(&name) {
+                    let msg = Message::ToggleGlobal;
+                    if let Ok(frame) = encode_frame(&msg) {
+                        let _ = stream.write_all(&frame);
+                        let _ = stream.flush();
+                    }
+                    break;
                 }
             }
         });
@@ -640,9 +641,13 @@ mod hook_app {
         let pid = std::process::id();
         let mut last_tray_contact = Instant::now();
         while running.load(Ordering::Acquire) {
-            let stream_opt = textvn_ipc::pipe_client_options()
-                .open(r"\\.\pipe\textvn-ipc-v1")
-                .ok();
+            let mut stream_opt = None;
+            for name in textvn_ipc::candidate_pipe_names() {
+                if let Ok(stream) = textvn_ipc::pipe_client_options().open(&name) {
+                    stream_opt = Some(stream);
+                    break;
+                }
+            }
 
             match stream_opt {
                 Some(mut stream) => {

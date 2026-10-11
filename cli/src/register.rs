@@ -844,8 +844,33 @@ mod win_impl {
             match r {
                 Ok(()) => say(&format!("  {path} → sẽ xoá ở lần khởi động kế tiếp")),
                 Err(e) => {
-                    say(&format!("  {path} → FAIL {:#010x}", e.code().0));
-                    all_ok = false;
+                    // Fallback cho môi trường non-elevated (per-user uninstaller):
+                    // MoveFileExW cần quyền admin để ghi vào HKLM PendingFileRenameOperations.
+                    // Nếu lỗi (vd 0x80070005 ACCESS_DENIED), ghi vào RunOnce của HKCU
+                    // để Windows tự chạy lệnh xoá khi người dùng đăng nhập lại (như uninstall.ps1).
+                    let mut h: u32 = 0x811c9dc5;
+                    for b in path.as_bytes() {
+                        h ^= *b as u32;
+                        h = h.wrapping_mul(0x01000193);
+                    }
+                    let val_name = format!("TextVNCleanup_{h:08x}");
+                    let cmd = if p.is_dir() {
+                        format!("cmd.exe /c rmdir \"{}\"", path)
+                    } else {
+                        format!("cmd.exe /c del /f /q \"{}\"", path)
+                    };
+                    let scheduled = set_reg_value(
+                        HKEY_CURRENT_USER,
+                        r"Software\Microsoft\Windows\CurrentVersion\RunOnce",
+                        Some(&val_name),
+                        RegValue::Sz(&cmd),
+                    );
+                    if scheduled {
+                        say(&format!("  {path} → đã hẹn xoá qua HKCU RunOnce"));
+                    } else {
+                        say(&format!("  {path} → FAIL {:#010x}", e.code().0));
+                        all_ok = false;
+                    }
                 }
             }
         }

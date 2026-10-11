@@ -236,12 +236,33 @@ jobs:
           RELEASE_GPG_PRIVATE_KEY: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           COSIGN_YES: 'true'
           MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          ALLOW_UNVERIFIED_GIT_SIGNATURE: ${{ vars.ALLOW_UNVERIFIED_GIT_SIGNATURE }}
         run: |
           set -euo pipefail
           version="$(sed -n '/^\[workspace.package\]$/,/^\[/ s/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
           if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
             echo "FATAL: tag ${GITHUB_REF_NAME} != version trong Cargo.toml (${version}) — phải bump version (14 chỗ) rồi mới tag. Sự cố R4: docs/release/release-process.md" >&2
             exit 1
+          fi
+          # Git signature gate (sự cố v0.2.30/0.2.31 mất huy hiệu "Verified"): commit được tag
+          # VÀ tag object (annotated) phải được GitHub xác nhận. Cách đạt: ký SSH/GPG (key đăng ký
+          # dạng "Signing Key") + 'git tag -s'. Xem docs/release/release-process.md (B5, R6).
+          # Ngoại lệ có chủ đích: đặt repo variable ALLOW_UNVERIFIED_GIT_SIGNATURE=true.
+          commit_v="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" --jq '.commit.verification | "\(.verified) \(.reason)"')"
+          ref_type="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object.type')"
+          tag_v="lightweight"
+          if [ "${ref_type}" = "tag" ]; then
+            tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object.sha')"
+            tag_v="$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.verification | "\(.verified) \(.reason)"')"
+          fi
+          echo "git signature: commit=[${commit_v}] tag=[${tag_v}]"
+          if [ "${commit_v%% *}" != "true" ] || [ "${tag_v%% *}" != "true" ]; then
+            if [ "${ALLOW_UNVERIFIED_GIT_SIGNATURE:-}" = "true" ]; then
+              echo "::warning::Git signature chưa Verified (commit=[${commit_v}] tag=[${tag_v}]) — bỏ qua vì ALLOW_UNVERIFIED_GIT_SIGNATURE=true"
+            else
+              echo "FATAL: commit/tag chưa được GitHub xác nhận 'Verified' (commit=[${commit_v}] tag=[${tag_v}]). Ký commit + 'git tag -s' (docs/release/release-process.md B5/R6) rồi tag lại." >&2
+              exit 1
+            fi
           fi
           test "$(find release-assets -maxdepth 1 -type f -name 'TextVN-portable-*.zip' | wc -l)" -eq 1
           # Per-user (mac dinh) + machine (Store bien the HKLM) = dung 2 exe.

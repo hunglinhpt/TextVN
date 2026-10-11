@@ -383,12 +383,12 @@ pub fn abi_sizes() -> (usize, usize, usize, bool) {
 fn check_pipe_listening() -> bool {
     #[cfg(windows)]
     {
-        textvn_ipc::pipe_client_options()
-            .open(textvn_ipc::PIPE_NAME)
-            .is_ok()
-            || textvn_ipc::pipe_client_options()
-                .open(textvn_ipc::PIPE_NAME)
-                .is_ok()
+        for name in textvn_ipc::candidate_pipe_names() {
+            if textvn_ipc::pipe_client_options().open(&name).is_ok() {
+                return true;
+            }
+        }
+        false
     }
     #[cfg(not(windows))]
     {

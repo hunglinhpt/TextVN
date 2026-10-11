@@ -110,3 +110,27 @@ Apple — trạng thái, biến môi trường và việc còn lại: `signing-s
   script ký chạy TRƯỚC upload trong publish job.
 - `SHA256SUMS.txt` phải là bản clearsign (nội dung giữ nguyên để
   `sha256sum -c` vẫn chạy được sau khi giải chữ ký).
+
+## 6. Quy tắc bắt buộc: Git Commit Signing & Tag Signing (huy hiệu "Verified" trên GitHub)
+
+### 6.1. Sự cố & Nguyên nhân gốc rễ (Sự cố R6 — 2026-10-11)
+- **v0.2.29**: Tag trỏ vào merge commit của PR #7 (`bdd09f0`). Commit này được tạo qua GitHub Web Interface nên được GitHub tự động ký bằng khóa Web-flow (`B5690EEEBB952194`), hiển thị huy hiệu **Verified** màu xanh.
+- **v0.2.30 & v0.2.31**: Maintainer tạo commit ở local rồi push trực tiếp lên `main`. Máy local chưa bật `commit.gpgsign`, và lệnh tag dùng `git tag -a` (annotated tag không chữ ký) thay vì `git tag -s`. Do đó, cả commit và tag đều mang trạng thái `unsigned`, mất huy hiệu **Verified** trên GitHub dù các asset nhị phân vẫn có đủ chữ ký GPG/Sigstore.
+
+### 6.2. Quy tắc bắt buộc cho mọi release từ v0.2.32
+1. **Commit phát hành và Tag phát hành BẮT BUỘC phải có chữ ký số hợp lệ** được GitHub xác minh (`verification.verified == true`).
+2. **Hard Gate trong CI**: Workflow `.github/workflows/release.yml` (job `publish`) kiểm tra qua GitHub API cả commit verification và tag verification trước khi cho phép tạo release. Nếu thiếu chữ ký, job fail ngay lập tức (`exit 1`) trừ khi có biến repo `ALLOW_UNVERIFIED_GIT_SIGNATURE=true`.
+3. **Cấu hình trên máy Maintainer (1 lần duy nhất)**:
+   - Tạo SSH signing key: `ssh-keygen -t ed25519 -C "email-github@example.com" -f ~/.ssh/textvn_signing_ed25519`
+   - Đưa public key lên GitHub: **Settings → SSH and GPG keys → New SSH key → Key type: Signing Key**.
+   - Cấu hình git:
+     ```bash
+     git config --local gpg.format ssh
+     git config --local user.signingkey ~/.ssh/textvn_signing_ed25519.pub
+     git config --local commit.gpgsign true
+     git config --local tag.gpgsign true
+     ```
+4. **Quy trình tag phát hành**:
+   - Dùng lệnh: `git tag -s vX.Y.Z -m "release: vX.Y.Z"` (cờ `-s` ký số tag object).
+   - Kiểm tra trước khi push: `git tag -v vX.Y.Z` và `git log --show-signature -1`.
+
