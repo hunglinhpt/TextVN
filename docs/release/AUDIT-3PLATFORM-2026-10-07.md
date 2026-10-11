@@ -75,6 +75,14 @@ focus). Chiều CÀI đã có ghi nhận (iss:269-272) nhưng chiều GỠ khôn
 mitigation. **Fix:** `[Code]` `CurUninstallStepChanged(usUninstall)` +
 `ExecAsOriginalUser` cho entry unregister user-scope; giữ machine-scope bằng
 `Exec` elevated; ghi docs giới hạn (HKCU user không đăng nhập không gỡ được).
+**(RÚT LẠI 2026-10-11 — B21, `docs/specs/win-test-common-errors.md`):** block
+`ExecAsOriginalUser` tại `usUninstall` chạy tiến trình `textvn-cli.exe` ngay
+trước bước Inno xoá file → giữ `{app}` → Inno không xoá được `TextVN.exe`
+(đỏ cả per-user lẫn machine). `[UninstallRun]` đã chạy `unregister
+--if-owned-by` ngay từ bước đầu quá trình gỡ nên block này THỪA → đã rút.
+**Giới hạn A6 vẫn còn, xử lý sau bằng cơ chế khác** (không dùng
+`ExecAsOriginalUser` trong `usUninstall`): admin gỡ hộ user GỐC không đăng
+nhập vẫn có thể còn HKCU override. Ghi nhận là hạng mục mở, KHÔNG chặn 0.2.31.
 
 ### A7. [TRUNG] Pipe toàn cục đa phiên + không chống squatting
 `tray/src/ipc_server.rs:45,424-440` — tên pipe toàn máy: 2 phiên (fast user

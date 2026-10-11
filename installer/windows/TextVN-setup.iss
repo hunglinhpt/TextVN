@@ -487,25 +487,15 @@ begin
   if CurUninstallStep = usUninstall then
   begin
     StopTrayBeforeUninstall();
-    // Vong 16 (audit A6): go dang ky USER theo token NGUOI DUNG GOC —
-    // uninstaller elevated (admin go ho / Run as administrator) chay trong
-    // token admin: HKCU + marker %APPDATA% cua user goc se bi bo sot (ghost
-    // Win+Space + ngon ngu chet). --if-owned-by "{app}" giu an toan khi admin
-    // co ban rieng khac. CLI con ton tai o usUninstall (R2-29).
-    // CHI chay o che do may/admin (IsAdminInstallMode): o che do PER-USER
-    // (mac dinh cua nguoi dung) token hien tai DA la user goc nen [UninstallRun]
-    // `unregister --if-owned-by` phia duoi da lam dung viec nay; goi them mot
-    // tien trinh CLI ngay truoc buoc Inno xoa file lam `{app}` bi giu (CWD/handle)
-    // -> Inno khong xoa duoc TextVN.exe (B21: "per-user TextVN.exe still present").
-    if IsAdminInstallMode and FileExists(ExpandConstant('{app}\textvn-cli.exe')) then
-    begin
-      // B21: WorkingDir ngoai {app} (xem ScheduleCleanupViaCli) — neu chay voi
-      // CWD = {app}, Inno khong xoa duoc thu muc/TextVN.exe o buoc ke tiep.
-      ExecAsOriginalUser(ExpandConstant('{app}\textvn-cli.exe'),
-        'unregister --scope user --if-owned-by "{app}"', ExpandConstant('{tmp}'),
-        SW_HIDE, ewWaitUntilTerminated, StopCode);
-      Log(Format('Original-user unregister exit: %d', [StopCode]));
-    end;
+    // Vong 16 (audit A6) — RUT LAI (B21): KHONG goi `ExecAsOriginalUser` o day.
+    // `[UninstallRun]` chay NGAY tu buoc dau cua qua trinh go (truoc khi Inno xoa
+    // file) va da lam san `unregister --if-owned-by "{app}"` cho ca user lan
+    // machine scope (xem muc [UninstallRun]). Goi them mot `ExecAsOriginalUser`
+    // ngay truoc buoc xoa file lam image `textvn-cli.exe`/thu muc `{app}` bi giu ->
+    // Inno khong xoa duoc `TextVN.exe` (B21, ca kich ban per-user lan machine).
+    // Gioi han con lai cua A6 (admin go ho -> HKCU cua user GOC khong dang nhap
+    // khong duoc don) duoc ghi nhan trong AUDIT-3PLATFORM — [UninstallRun] chay
+    // theo token hien hanh nen chi don duoc HKCU cua user dang chay.
     ScheduleCleanupViaCli();
   end;
   if CurUninstallStep = usPostUninstall then
