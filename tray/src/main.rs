@@ -1353,42 +1353,45 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 }
 
 fn check_status() {
-    println!("Checking TextVN IPC pipe: {}", PIPE_NAME);
-    match textvn_ipc::pipe_client_options().open(PIPE_NAME) {
-        Ok(mut stream) => {
-            let ping = textvn_ipc::Message::Ping;
-            if let Ok(frame) = textvn_ipc::encode_frame(&ping) {
-                if stream.write_all(&frame).is_ok() && stream.flush().is_ok() {
-                    let mut len_buf = [0u8; 4];
-                    if stream.read_exact(&mut len_buf).is_ok() {
-                        let len = u32::from_le_bytes(len_buf) as usize;
-                        if len <= textvn_ipc::MAX_FRAME_BYTES {
-                            let mut buf = vec![0u8; 4 + len];
-                            buf[..4].copy_from_slice(&len_buf);
-                            if stream.read_exact(&mut buf[4..]).is_ok() {
-                                if let Ok(textvn_ipc::Message::Pong { uptime_ms }) =
-                                    textvn_ipc::decode_exact_frame(&buf)
-                                {
-                                    println!("TextVN IPC Server: RUNNING");
-                                    println!("  Pipe: {}", PIPE_NAME);
-                                    println!(
-                                        "  Uptime: {} ms ({:.1}s)",
-                                        uptime_ms,
-                                        uptime_ms as f64 / 1000.0
-                                    );
-                                    return;
-                                }
-                            }
+    // Vòng 16 (audit A7): server tạo pipe phiên — status thử phiên trước rồi legacy.
+    let candidates = textvn_ipc::candidate_pipe_names();
+    println!("Checking TextVN IPC pipe: {}", candidates[0]);
+    let mut stream = None;
+    for name in candidates {
+        if let Ok(s) = textvn_ipc::pipe_client_options().open(&name) {
+            stream = Some(s);
+            break;
+        }
+    }
+    let mut stream = stream.expect("đã kiểm Some ở trên");
+    let ping = textvn_ipc::Message::Ping;
+    if let Ok(frame) = textvn_ipc::encode_frame(&ping) {
+        if stream.write_all(&frame).is_ok() && stream.flush().is_ok() {
+            let mut len_buf = [0u8; 4];
+            if stream.read_exact(&mut len_buf).is_ok() {
+                let len = u32::from_le_bytes(len_buf) as usize;
+                if len <= textvn_ipc::MAX_FRAME_BYTES {
+                    let mut buf = vec![0u8; 4 + len];
+                    buf[..4].copy_from_slice(&len_buf);
+                    if stream.read_exact(&mut buf[4..]).is_ok() {
+                        if let Ok(textvn_ipc::Message::Pong { uptime_ms }) =
+                            textvn_ipc::decode_exact_frame(&buf)
+                        {
+                            println!("TextVN IPC Server: RUNNING");
+                            println!("  Pipe: {}", candidates[0]);
+                            println!(
+                                "  Uptime: {} ms ({:.1}s)",
+                                uptime_ms,
+                                uptime_ms as f64 / 1000.0
+                            );
+                            return;
                         }
                     }
                 }
             }
-            println!("TextVN IPC Server: Connected, but response was invalid.");
-        }
-        Err(e) => {
-            println!("TextVN IPC Server: OFFLINE ({e})");
         }
     }
+    println!("TextVN IPC Server: Connected, but response was invalid.");
 }
 
 /// Giá trị đi sau `flag` trong `rest` (`--flag <value>`), nếu có.
