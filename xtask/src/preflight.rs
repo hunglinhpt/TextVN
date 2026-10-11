@@ -267,6 +267,13 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "hygiene-secrets",
+        guards: "chặn rò rỉ private key, token, secret vào git repo",
+        argv: &[".github/scripts/check_no_secrets.py"],
+        python_alt: true,
+        optional: false,
+    },
+    Step {
         name: "homebrew",
         guards: "cask Ruby hợp lệ + sha256 đúng định dạng (B7b)",
         argv: &["ruby", "-c", "packaging/homebrew/textvn.rb"],

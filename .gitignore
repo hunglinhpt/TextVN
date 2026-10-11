@@ -40,3 +40,22 @@ perf/ab-base.json
 
 # --- WorkBuddy AI: dữ liệu phiên/memory cục bộ (không thuộc release repo) ---
 /.workbuddy-ai/
+
+# --- Bảo mật & Khóa riêng tư (TUYỆT ĐỐI KHÔNG commit) ---
+*.key
+*.pem
+*.p12
+*.pfx
+*.pkcs12
+*.keystore
+*.priv
+*.sec
+*.secret
+*.credentials
+*.token
+.env*
+id_rsa*
+id_ed25519*
+*signing_ed25519*
+*.rev
+

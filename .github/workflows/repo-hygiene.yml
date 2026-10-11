@@ -52,12 +52,7 @@ jobs:
         run: python3 .github/scripts/check_ps1_ascii.py
 
       - name: 4. secret / token / private key
-        run: |
-          if git grep -nIE 'gh[po]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----' -- ':!graphify-out'; then
-            echo "::error::Secret/key bị đẩy vào repo — thu hồi ngay + sửa commit"
-            exit 1
-          fi
-          echo "OK"
+        run: python3 .github/scripts/check_no_secrets.py
 
       - name: 5. markdown link tương đối không hỏng
         run: python3 .github/scripts/check_doc_links.py
