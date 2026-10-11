@@ -13,8 +13,16 @@
 | CI trên commit cuối `11a79eb` (B3) | push `main` `11a79eb`: [`ci-shared`](https://github.com/hunglinhpt/TextVN/actions/runs/38132324438) 19/19 job xanh (Windows package 2 kịch bản, Linux IBus/Fcitx5, clippy cross-target), [`ci-macos`](https://github.com/hunglinhpt/TextVN/actions/runs/38132324458) 6/6 job xanh (`swift build + test` **x86_64 + arm64**), [`repo-hygiene`](https://github.com/hunglinhpt/TextVN/actions/runs/38132324466) xanh |
 | Lỗi mới gặp trong phiên (B4⑤) | **E14** (clippy-linux đỏ sẵn trên `main` — import chỉ-Windows không gate), **E15** (giới hạn pipe stdin của máy dev → `check-tables`/`replay` FATAL cục bộ), **E16** (`ci-macos` đỏ: `String?` chưa ràng buộc ở `TextVNInputController.swift:547` + `try?` vô nghĩa — `swiftc -parse` không typecheck), **B21** (Windows package CI đỏ do block A6 `ExecAsOriginalUser` ở `usUninstall` giữ `{app}`) — tất cả đã có mã + fix + bằng chứng CI xanh |
 | Rút lại A6 (B21) | Fix A6 (`ExecAsOriginalUser` trong `usUninstall`) thua và giữ `{app}` làm Inno không xoá được `TextVN.exe`; đã gỡ block (dư thừa với `[UninstallRun]`) + đặt `WorkingDir` của CLI ra `{tmp}` — CI Windows package 2 kịch bản xanh trở lại |
-| Ký số | Cùng pipeline v0.2.29: publish job của `release.yml` tự `gpg --detach-sign --armor` mọi asset + `cosign sign-blob` + clearsign `SHA256SUMS.txt` (fail-closed khi thiếu khoá/cosign — R2-74). Secret `RELEASE_GPG_PRIVATE_KEY` hiện có trong repo |
+| Ký số | `gpg --verify SHA256SUMS.txt` → **Good signature** (EDDSA FPR `3921595ABC961199F15303B6C45B84D0C7F4A822`, ký 2026-10-11 18:09 SEAST); `.asc` detached trên `TextVN-macos-universal-v0.2.31.zip` → Good signature; chứng chỉ cosign keyless verify: issuer `O=sigstore.dev, CN=sigstore-intermediate`, SAN URI `https://github.com/hunglinhpt/TextVN/.github/workflows/release.yml@refs/tags/v0.2.31` (ràng buộc chữ ký với workflow trên đúng tag). Publish job CI đã chạy `cosign verify-blob` bắt buộc (fail-closed — R2-74) |
 | Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization (`signing-status-mac.md`) |
+
+### Phát hành 0.2.31
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Release | v0.2.31 publish 2026-10-11 (pre-release) từ tag `c25617f` — [release-candidate #38133800983](https://github.com/hunglinhpt/TextVN/actions/runs/38133800983) **4/4 job xanh** (macos, linux, windows, publish); **34 asset** = 8 artifact + `SHA256SUMS.txt` (clearsign) + `gpg-release-key.asc` + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng artifact |
+| Checksums (pin từ `SHA256SUMS.txt` đã ký) | linux tar.gz `3a96d059…d770` · msix `d53a4d5f…07ba` · mac pkg `cf843c1a…1b6d` · macos tar.gz `b0d1c94f…fe34` · **mac zip `d91362e4…221f`** · portable `c9a4b5d9…9cf3` · setup-machine `693c5cff…b435` · setup exe `b3f3e911…3f49` · `gpg-release-key.asc` `b432cc43…1f29` |
+| Homebrew (B7b) | cask `packaging/homebrew/textvn.rb` `sha256` = mac zip `d91362e4…221f` (khớp SHA256SUMS) |
 
 ## Bản 0.2.30 — vòng 16 audit 3 nền tảng (A1–A15, B1–B5/B10/B13, C2/C4–C6)
 
