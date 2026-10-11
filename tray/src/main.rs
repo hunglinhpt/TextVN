@@ -33,6 +33,7 @@ use textvn_tray::svc::SvcManager;
 use windows::core::*;
 #[cfg(windows)]
 use windows::Win32::Foundation::*;
+#[cfg(windows)]
 use windows::Win32::System::Com::*;
 #[cfg(windows)]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
