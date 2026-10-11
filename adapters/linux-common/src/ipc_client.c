@@ -227,7 +227,7 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
      * "ConfigReload"/"StateUpdate" trong state map lam strstr khop nham nhanh
      * va lam roi Snapshot/StateUpdate that (mat BUG-03 fix). Wire format serde
      * tag ghi {"type":"X",...} dung vi tri nay. */
-    if (strncmp(json, "{\"type\":\"ConfigReload\"", 23) == 0) {
+    if (strncmp(json, "{\"type\":\"ConfigReload\"", 22) == 0) {
         const char *p_ver = strstr(json, "\"version\":");
         if (p_ver) {
             uint64_t ver = (uint64_t)strtoull(p_ver + 10, NULL, 10);
@@ -272,7 +272,7 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
     }
 
     /* Detect Snapshot */
-    if (strncmp(json, "{\"type\":\"Snapshot\"", 19) == 0) {
+    if (strncmp(json, "{\"type\":\"Snapshot\"", 18) == 0) {
         const char *p_snap = json;
         const char *p_cfg = strstr(p_snap, "\"config_version\":");
         if (p_cfg) {
