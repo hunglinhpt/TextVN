@@ -199,8 +199,14 @@ TextVNEngine::~TextVNEngine() {
      * trong UserInterfaceManager -> con tro treo khi addon nap lai. Go dang ky
      * TRUOC khi huy unique_ptr. */
     if (instance_) {
-        instance_->userInterfaceManager().unregisterAction("textvn-mode");
-        instance_->userInterfaceManager().unregisterAction("textvn-settings");
+        /* unregisterAction() nhan `fcitx::Action*`, KHONG phai ten dang chuoi
+         * (xem fcitx::UserInterfaceManager::unregisterAction(Action*)). */
+        if (modeAction_) {
+            instance_->userInterfaceManager().unregisterAction(modeAction_.get());
+        }
+        if (settingsAction_) {
+            instance_->userInterfaceManager().unregisterAction(settingsAction_.get());
+        }
     }
     modeAction_.reset();
     settingsAction_.reset();

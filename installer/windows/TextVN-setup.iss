@@ -490,7 +490,12 @@ begin
     // token admin: HKCU + marker %APPDATA% cua user goc se bi bo sot (ghost
     // Win+Space + ngon ngu chet). --if-owned-by "{app}" giu an toan khi admin
     // co ban rieng khac. CLI con ton tai o usUninstall (R2-29).
-    if FileExists(ExpandConstant('{app}\textvn-cli.exe')) then
+    // CHI chay o che do may/admin (IsAdminInstallMode): o che do PER-USER
+    // (mac dinh cua nguoi dung) token hien tai DA la user goc nen [UninstallRun]
+    // `unregister --if-owned-by` phia duoi da lam dung viec nay; goi them mot
+    // tien trinh CLI ngay truoc buoc Inno xoa file lam `{app}` bi giu (CWD/handle)
+    // -> Inno khong xoa duoc TextVN.exe (B21: "per-user TextVN.exe still present").
+    if IsAdminInstallMode and FileExists(ExpandConstant('{app}\textvn-cli.exe')) then
     begin
       ExecAsOriginalUser(ExpandConstant('{app}\textvn-cli.exe'),
         'unregister --scope user --if-owned-by "{app}"', '',
@@ -498,6 +503,10 @@ begin
       Log(Format('Original-user unregister exit: %d', [StopCode]));
     end;
     ScheduleCleanupViaCli();
+    // Settle: de handle/CWD cua tien trinh CLI vua chay (nhat la nhanh admin
+    // ExecAsOriginalUser o tren) nha han truoc khi Inno xoa file {app} — neu
+    // khong, Inno co the khong xoa duoc TextVN.exe/textvn-cli.exe (B21).
+    Sleep(300);
   end;
   if CurUninstallStep = usPostUninstall then
   begin
