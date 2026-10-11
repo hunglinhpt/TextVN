@@ -86,7 +86,10 @@ int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custo
     }
 
     const char *xdg_config = getenv("XDG_CONFIG_HOME");
-    if (xdg_config && xdg_config[0] != '\0') {
+    /* C9 (audit): XDG Base Dir spec yeu cau gia tri TUYET DOI. Truoc day chi
+     * kiem tra khac rong nen gia tri tuong doi (vd "cfg") bi dung -> socket
+     * ghi theo CWD. Nay doi hoi bat dau bang '/' giong nhanh XDG_RUNTIME_DIR. */
+    if (xdg_config && xdg_config[0] == '/') {
         snprintf(out_path, max_len, "%s/TextVN/ipc.sock", xdg_config);
         return 0;
     }
@@ -171,52 +174,12 @@ int lc_ipc_send_frame(int fd, const char *json_utf8, size_t len) {
 
 /* Chỉ dùng cho fd BLOCKING (đọc đủ một frame). Với fd non-blocking của client,
  * dùng lc_ipc_client_poll — có đệm, không mất byte khi frame tới từng phần. */
-int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len) {
-    if (fd < 0 || !out_buf || buf_size == 0) return -1;
+/* C1 (audit): `lc_ipc_recv_frame` đã bị XOÁ khỏi API public. Hàm này không stash
+ * byte đã đọc khi fd non-blocking trả EAGAIN giữa frame → desync vĩnh viễn (đúng
+ * lỗi CR-25 mà `lc_ipc_client_poll` đã sửa bằng rbuf per-client). Không caller
+ * production nào dùng; giữ lại chỉ là mồi cho lỗi cũ. Toàn bộ framing nằm trong
+ * `lc_ipc_client_poll` + `lc_ipc_send_frame`. */
 
-#if defined(__linux__) || defined(__unix__)
-    uint8_t header[4];
-    size_t hdr_read = 0;
-    while (hdr_read < 4) {
-        ssize_t n = read(fd, header + hdr_read, 4 - hdr_read);
-        if (n < 0 && errno == EINTR) continue;
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            /* Vong 13: select bao san sang nhung stream chua den duoi —
-             * would-block KHONG phai mat ket noi (truoc day return -1 lam
-             * poll tu close pipe roi cooldown 3s tra 0 mai). Tra 1 = chua co
-             * du lieu, poll break khong dong ket noi. */
-            return 1;
-        }
-        if (n <= 0) return -1;
-        hdr_read += (size_t)n;
-    }
-
-    uint32_t length = (uint32_t)header[0] |
-                      ((uint32_t)header[1] << 8) |
-                      ((uint32_t)header[2] << 16) |
-                      ((uint32_t)header[3] << 24);
-
-    if (length > LC_IPC_MAX_FRAME || length >= buf_size) {
-        return -1; /* Oversize or buffer too small */
-    }
-
-    size_t payload_read = 0;
-    while (payload_read < length) {
-        ssize_t n = read(fd, out_buf + payload_read, length - payload_read);
-        if (n < 0 && errno == EINTR) continue;
-        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 1;
-        if (n <= 0) return -1;
-        payload_read += (size_t)n;
-    }
-
-    out_buf[length] = '\0';
-    if (out_len) *out_len = length;
-    return 0;
-#else
-    (void)fd; (void)out_buf; (void)buf_size; (void)out_len;
-    return -1;
-#endif
-}
 
 /* Minimal parser for IPC JSON v1 messages */
 static void handle_ipc_message(lc_ipc_client *client, const char *json) {

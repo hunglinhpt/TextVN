@@ -51,11 +51,6 @@ public final class KeyTranslator {
         )
     }
 
-    /// `flagsChanged` — chỉ cập nhật modifier state (P2-1 §5 bước 2).
-    public func noteFlagsChanged() {
-        // Dead-key state giữ nguyên (không reset — giữ đúng ngữ nghĩa Carbon).
-    }
-
     // ---------------------------------------------------------------- internals
 
     /// UCKeyTranslate theo layout hiện tại + dead-key state.

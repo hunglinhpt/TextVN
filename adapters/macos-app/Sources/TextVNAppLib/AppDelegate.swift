@@ -772,7 +772,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     public func ipcServer(_ server: IpcServer, didReceiveCrashReport code: UInt32, count: UInt32) {
         NSLog("[TextVN] Received crash report: code=%u count=%u", code, count)
-        crashCount += 1
+        // B11: bỏ qua `count` từ client làm badge lệch; lấy max để "đã lỗi" chỉ
+        // bật lên, không tăng giả khi nhận report trùng.
+        crashCount = max(crashCount, count == 0 ? 1 : count)
         updateStatusIcon()
     }
 }

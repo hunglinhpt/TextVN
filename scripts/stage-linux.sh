@@ -19,11 +19,21 @@ ADAPTERS="${2:-$ROOT/target/linux-adapters}"
 VERSION="$(sed -n 's/^version = "\([^"]*\)".*/\1/p' "$ROOT/Cargo.toml" | head -n1)"
 
 [[ -x "$ROOT/target/release/textvn-cli" ]] || { echo "thiếu target/release/textvn-cli" >&2; exit 1; }
-case "$(realpath -m "$STAGE")" in
-    /|"$HOME"|"$ROOT") echo "thư mục stage không hợp lệ: $STAGE" >&2; exit 1 ;;
+# C9 (audit): guard rm -rf con lo hong — realpath -m chua chuan hoa symlink that.
+# Chan them: STAGE rong, khong tuyet doi, la '/', la HOME, la ROOT, la to tien cua
+# ROOT/CWD, hoac thu muc he thong. Dung realpath -m (chua ton tai van resolve duoc).
+STAGE_ABS="$(realpath -m "$STAGE" 2>/dev/null || echo "$STAGE")"
+case "$STAGE_ABS" in
+    ""|/|/bin|/boot|/dev|/etc|/home|/lib|/lib64|/opt|/proc|/root|/run|/sbin|/srv|/sys|/tmp|/usr|/var)
+        echo "thư mục stage không hợp lệ: $STAGE" >&2; exit 1 ;;
+    "$HOME"|"$ROOT"|"$(realpath -m "$ROOT/.." 2>/dev/null)"|"$PWD")
+        echo "thư mục stage không hợp lệ (trùng HOME/ROOT/CWD/cha): $STAGE" >&2; exit 1 ;;
 esac
-rm -rf "$STAGE"
-mkdir -p "$STAGE"
+# Phai la to tien cua ROOT hoac chua ROOT -> nguy hiem (rm -rf se xoa ca repo).
+case "$ROOT/" in "$STAGE_ABS"/*) echo "stage là tổ tiên của repo: $STAGE" >&2; exit 1 ;; esac
+rm -rf "$STAGE_ABS"
+mkdir -p "$STAGE_ABS"
+STAGE="$STAGE_ABS"
 inst() { install -D -m "$1" "$2" "$STAGE/$3"; }
 
 inst 0755 "$ROOT/target/release/textvn-cli" bin/textvn

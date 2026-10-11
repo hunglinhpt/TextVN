@@ -18,7 +18,7 @@ public final class IpcServer {
     /// fallback hằng khi chạy trong swift test (R2 finding 2).
     public static let serverVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.30"
+        ?? "0.2.31"
 
     public weak var delegate: IpcServerDelegate?
 
@@ -323,6 +323,20 @@ public final class IpcServer {
         appID.isEmpty ? globalAppID : appID
     }
 
+    /// B8: app_id hợp lệ để lưu `appStates` — chặn flood cùng-uid làm phình RAM
+    /// (và Snapshot vượt 64KB → encodeFrame nil → client thật không nhận Snapshot).
+    /// Chấp nhận bundle-id/lowercase/dot/dash/gạch dưới; cap 256 ký tự (giống
+    /// giới hạn app_id phía FFI), cap tổng số mục.
+    static let maxAppIDLength = 256
+    static let maxAppStateEntries = 256
+
+    static func isValidAppID(_ appID: String) -> Bool {
+        guard appID.count <= maxAppIDLength, !appID.isEmpty else { return false }
+        return appID.allSatisfy { ch in
+            ch.isLetter || ch.isNumber || ch == "." || ch == "-" || ch == "_" || ch == "*"
+        }
+    }
+
     /// Trạng thái per-app đã biết (menu bar đọc để hiển thị check — F3-8).
     public func appState(for appID: String) -> Bool? {
         queue.sync { appStates[Self.normalizedAppID(appID)] }
@@ -371,6 +385,18 @@ public final class IpcServer {
                 return
             }
             let appID = Self.normalizedAppID(rawAppID)
+            // B8: từ chối app_id quá dài/ký tự lạ, và cap tổng số mục — flood
+            // cùng-uid không làm appStates tăng vô hạn (Snapshot vượt 64KB).
+            guard Self.isValidAppID(appID) else {
+                protocolViolation(cfd, "ToggleViEn app_id không hợp lệ")
+                return
+            }
+            if appStates[appID] == nil {
+                guard appStates.count < Self.maxAppStateEntries else {
+                    protocolViolation(cfd, "appStates đầy (\(Self.maxAppStateEntries))")
+                    return
+                }
+            }
             appStates[appID] = enabled
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }

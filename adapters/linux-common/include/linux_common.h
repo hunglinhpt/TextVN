@@ -75,6 +75,11 @@ int lc_classify_field(const char *app_id,
  * Detect active window and focused field role via AT-SPI.
  * Uses internal 2-second TTL cache to satisfy < 2ms latency budget (P3-4 §2, §3).
  * Falls back safely to preset by app_id if AT-SPI is unavailable or permission denied.
+ *
+ * C9 (audit): HIỆN LÀ STUB — chưa nối AT-SPI/D-Bus, luôn trả IME_FIELD_UNKNOWN và
+ * chưa có nơi gọi (cả IBus lẫn Fcitx5 dùng preset theo app_id). Giữ lại như điểm
+ * mở rộng; đừng coi là đường phân loại đang hoạt động. `lc_classify_field` thì đã
+ * hoàn chỉnh và có test — dùng nó khi cần phân loại từ dữ liệu AT-SPI thật.
  */
 int lc_field_detect(lc_field_ctx *out);
 
@@ -150,9 +155,12 @@ int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int en
  */
 int lc_ipc_resolve_socket_path(char *out_path, size_t max_len, const char *custom_path);
 
-/* Low-level framing helpers (u32 little-endian length + JSON payload <= 64KB) */
+/* Low-level framing helpers (u32 little-endian length + JSON payload <= 64KB).
+ * C1 (audit): `lc_ipc_recv_frame` đã bị XOÁ — nó đọc stream không stash nên khi
+ * fd non-blocking trả EAGAIN giữa frame thì vứt byte đã tiêu thụ → desync vĩnh
+ * viễn (đúng lỗi CR-25 mà `lc_ipc_client_poll` đã sửa bằng rbuf per-client).
+ * Mọi đường production đi qua `lc_ipc_client_poll`; không còn API mồi lỗi. */
 int lc_ipc_send_frame(int fd, const char *json_utf8, size_t len);
-int lc_ipc_recv_frame(int fd, char *out_buf, size_t buf_size, size_t *out_len);
 
 /* ---- Logging (Standardized, Rule S2 Compliant) ---- */
 /**

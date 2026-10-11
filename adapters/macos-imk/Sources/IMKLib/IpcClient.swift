@@ -157,7 +157,7 @@ public final class IpcClient {
     /// hardcode "0.1.0" làm handshake hiển thị sai version sau bump).
     public static let clientVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.30"
+        ?? "0.2.31"
     /// Backoff reconnect (P0-3 §4 offline-first — retry nhẹ nhàng).
     public static let retryInterval: TimeInterval = 2.0
 
@@ -170,10 +170,15 @@ public final class IpcClient {
     private var readSource: DispatchSourceRead?
     private var retryTimer: DispatchSourceTimer?
     private var queue: DispatchQueue
+    /// B12: nhận diện "đang chạy trên queue" trong deinit (tránh `queue.sync`
+    /// tự deadlock khi deinit xảy ra ngay trong một block của chính queue này).
+    private static let queueKey = DispatchSpecificKey<UInt8>()
 
     public init(socketPath: String? = nil, queue: DispatchQueue? = nil) {
         self.socketPath = socketPath ?? Self.defaultSocketPath()
-        self.queue = queue ?? DispatchQueue(label: "vn.textvn.ipc.client", qos: .userInitiated)
+        let q = queue ?? DispatchQueue(label: "vn.textvn.ipc.client", qos: .userInitiated)
+        q.setSpecific(key: Self.queueKey, value: 1)
+        self.queue = q
     }
 
     public static func defaultSocketPath() -> String {
@@ -300,9 +305,15 @@ public final class IpcClient {
     }
 
     deinit {
-        // Không dùng queue.async trong deinit (block chạy sau khi self chết —
-        // review R1 F20): cancel đồng bộ qua queue.sync là an toàn hơn.
-        tearDown()
+        // B12: `tearDown()` sửa fd/retryTimer — các trường cũng bị sửa trên
+        // `queue`. Gọi thẳng từ deinit (bất kỳ thread nào) = data race nguyên tắc.
+        // Đồng bộ hoá: nếu đang chạy TRÊN queue thì gọi trực tiếp (queue.sync tự
+        // deadlock), ngoài queue thì `queue.sync` để chờ block đang chạy xong.
+        if DispatchQueue.getSpecific(key: Self.queueKey) != nil {
+            tearDown()
+        } else {
+            queue.sync { tearDown() }
+        }
     }
 
     // ---------------------------------------------------------------- internals

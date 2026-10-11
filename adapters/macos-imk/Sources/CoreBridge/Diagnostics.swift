@@ -11,6 +11,10 @@ import Foundation
 public enum Diagnostics {
     private static let lock = NSLock()
     private static var fileHandle: FileHandle?
+    /// B13: gioi han kich thuoc log (opt-in qua TEXTVN_LOG=1). Vuot thi xoay:
+    /// ghi lai tu dau file — tranh log phinh vo han qua nhieu ngay debug.
+    private static let maxLogBytes: UInt64 = 1 << 20  // 1 MiB
+    private static var writtenBytes: UInt64 = 0
     /// Crash counter (P2-1 §12) — status item đọc qua `crashCount`.
     private static var crashes = 0
 
@@ -30,7 +34,16 @@ public enum Diagnostics {
         guard let handle = fileHandle else { return }
         let ts = Date().timeIntervalSince1970
         let line = "\(String(format: "%.3f", ts)) im: \(message)\n"
-        handle.write(line.data(using: .utf8) ?? Data())
+        let data = line.data(using: .utf8) ?? Data()
+        // B13: xoay khi vuot cap — cat tu dau, giu file bounded (chỉ 1 thế hệ;
+        // log debug không cần lịch sử dài).
+        if writtenBytes + UInt64(data.count) > maxLogBytes {
+            try? handle.truncate(atOffset: 0)
+            try? handle.seek(toOffset: 0)
+            writtenBytes = 0
+        }
+        handle.write(data)
+        writtenBytes += UInt64(data.count)
     }
 
     /// Mở log file nếu `TEXTVN_LOG=1`. Gọi 1 lần lúc launch.
@@ -49,6 +62,8 @@ public enum Diagnostics {
         fileHandle = FileHandle(forWritingAtPath: url.path)
         // F25: append thay vì ghi đè từ byte 0 (relaunch giữ log cũ).
         try? fileHandle?.seekToEndOfFile()
+        // B13: nạp kích thước hiện có để cap xoay chính xác sau relaunch.
+        if let end = try? fileHandle?.offsetInFile { writtenBytes = end }
         log("TextVN-IM log opened (pid \(ProcessInfo.processInfo.processIdentifier))")
     }
 

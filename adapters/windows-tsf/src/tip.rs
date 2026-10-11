@@ -9,6 +9,8 @@ use std::rc::Rc;
 #[cfg(windows)]
 use windows::core::*;
 #[cfg(windows)]
+use windows::Win32::Foundation::E_FAIL;
+#[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::VK_SPACE;
 #[cfg(windows)]
 use windows::Win32::UI::TextServices::*;
@@ -77,6 +79,24 @@ impl Default for Tip {
     }
 }
 
+/// A10: chạy một callback COM trong `catch_unwind`. Panic thoát qua ranh giới
+/// COM/ABI sẽ `abort` tiến trình host (Notepad, Chrome…). Fail-open: panic →
+/// trả `E_FAIL` (host coi như thao tác thất bại, không sập). Khớp cách
+/// `DoEditSession` (edit_session.rs) đã bảo vệ đường phím.
+#[cfg(windows)]
+fn run_guarded<F>(name: &str, f: F) -> Result<()>
+where
+    F: FnOnce() -> Result<()>,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(r) => r,
+        Err(_) => {
+            crate::trace::event(0, format_args!("panic trong {name} - fail-open"));
+            Err(Error::from_hresult(E_FAIL))
+        }
+    }
+}
+
 #[cfg(windows)]
 fn current_exe_name() -> String {
     std::env::current_exe()
@@ -88,10 +108,20 @@ fn current_exe_name() -> String {
 #[cfg(windows)]
 impl ITfTextInputProcessor_Impl for Tip_Impl {
     fn Activate(&self, ptim: Ref<'_, ITfThreadMgr>, tid: u32) -> Result<()> {
-        self.ActivateEx(ptim, tid, 0)
+        // Đường vào chung khi host không hỗ trợ ITfTextInputProcessorEx.
+        run_guarded("Activate", || self.activate_ex(ptim, tid, 0))
     }
 
     fn Deactivate(&self) -> Result<()> {
+        // A10: panic trong callback này thoát qua ABI COM = abort host (Notepad/Chrome).
+        // Bọc như `DoEditSession` (edit_session.rs) để fail-open thay vì sập app.
+        run_guarded("Deactivate", || self.deactivate())
+    }
+}
+
+#[cfg(windows)]
+impl Tip_Impl {
+    fn deactivate(&self) -> Result<()> {
         let Ok(mut inner) = self.inner.try_borrow_mut() else {
             return Ok(());
         };
@@ -126,6 +156,15 @@ impl ITfTextInputProcessor_Impl for Tip_Impl {
 #[cfg(windows)]
 impl ITfTextInputProcessorEx_Impl for Tip_Impl {
     fn ActivateEx(&self, ptim: Ref<'_, ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
+        // A10: panic thoát qua ranh giới COM = abort host. `activate_ex` là hàm
+        // thân; guard ở đây và cũng guard `Activate` (đường gọi chung).
+        run_guarded("ActivateEx", || self.activate_ex(ptim, tid, _dwflags))
+    }
+}
+
+#[cfg(windows)]
+impl Tip_Impl {
+    fn activate_ex(&self, ptim: Ref<'_, ITfThreadMgr>, tid: u32, _dwflags: u32) -> Result<()> {
         let mgr = ptim.ok()?.clone();
         let keymgr: ITfKeystrokeMgr = mgr.cast()?;
 
@@ -171,16 +210,20 @@ impl ITfTextInputProcessorEx_Impl for Tip_Impl {
             Err(_) => (None, 0, 0),
         };
 
-        if let Ok(mut inner) = self.inner.try_borrow_mut() {
-            *inner = TipInner {
-                tid,
-                keymgr: Some(keymgr),
-                shared: Some(shared),
-                source,
-                sink_cookie,
-                trace_cookie,
-            };
-        }
+        // A10: nếu không lấy được `inner` thì KHÔNG được trả Ok — Advise đã thực
+        // hiện nhưng cookie không lưu → Deactivate sẽ không Unadvise (leak tới hết
+        // thread). Trả E_FAIL để TSF gọi Deactivate/gỡ sạch.
+        let Ok(mut inner) = self.inner.try_borrow_mut() else {
+            return Err(Error::from_hresult(E_FAIL));
+        };
+        *inner = TipInner {
+            tid,
+            keymgr: Some(keymgr),
+            shared: Some(shared),
+            source,
+            sink_cookie,
+            trace_cookie,
+        };
         Ok(())
     }
 }
@@ -200,16 +243,19 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
         _pdimnew: Ref<'_, ITfDocumentMgr>,
         _pdimprev: Ref<'_, ITfDocumentMgr>,
     ) -> Result<()> {
-        // Mọi lần đổi document (kể cả mất focus): commit từ đang soạn vào đúng
-        // document cũ, rồi bắt đầu sạch ở document mới — không mang buffer sang.
-        if let Some(shared) = self.shared() {
-            end_composition(&shared, None);
-            shared.reset_engine();
-            shared.pending_eaten_vk.set(None);
-            shared.deferred_replay.set(None);
-            shared.modifier_toggle.set(Default::default());
-        }
-        Ok(())
+        // A10: callback này chạy trong message loop của host — panic = abort host.
+        run_guarded("OnSetFocus", || {
+            // Mọi lần đổi document (kể cả mất focus): commit từ đang soạn vào đúng
+            // document cũ, rồi bắt đầu sạch ở document mới — không mang buffer sang.
+            if let Some(shared) = self.shared() {
+                end_composition(&shared, None);
+                shared.reset_engine();
+                shared.pending_eaten_vk.set(None);
+                shared.deferred_replay.set(None);
+                shared.modifier_toggle.set(Default::default());
+            }
+            Ok(())
+        })
     }
 
     fn OnPushContext(&self, _pic: Ref<'_, ITfContext>) -> Result<()> {

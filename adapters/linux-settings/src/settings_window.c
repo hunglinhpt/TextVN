@@ -37,6 +37,11 @@ typedef struct TvWin {
     GtkWidget *macro_window;
     GtkWidget *macro_view;
     GtkWidget *rad_tab;
+    /* C7 (audit): id của handler "destroy" tren tung cua so con. Cua so con giu con
+     * tro TvWin lam user-data; khi cua so chinh bi huy, thu tu destroy khong dam bao
+     * chay truoc khi TvWin duoc free -> UAF. Luu id de ngat handler trong tv_win_free. */
+    gulong words_destroy_id;
+    gulong macro_destroy_id;
 
     GFileMonitor *monitor;
     tv_paths paths;
@@ -264,7 +269,7 @@ static void on_words(GtkButton *b, TvWin *w) {
     gtk_window_set_modal(GTK_WINDOW(win), TRUE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(win), TRUE);
     gtk_window_set_default_size(GTK_WINDOW(win), 560, 420);
-    g_signal_connect(win, "destroy", G_CALLBACK(on_words_destroy), w);
+    w->words_destroy_id = g_signal_connect(win, "destroy", G_CALLBACK(on_words_destroy), w);
     add_escape_closes(win);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
@@ -325,7 +330,7 @@ static void on_macros(GtkButton *b, TvWin *w) {
     gtk_window_set_modal(GTK_WINDOW(win), TRUE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(win), TRUE);
     gtk_window_set_default_size(GTK_WINDOW(win), 560, 440);
-    g_signal_connect(win, "destroy", G_CALLBACK(on_macro_destroy), w);
+    w->macro_destroy_id = g_signal_connect(win, "destroy", G_CALLBACK(on_macro_destroy), w);
     add_escape_closes(win);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
@@ -412,6 +417,25 @@ static void watch_config_dir(TvWin *w) {
 
 static void tv_win_free(gpointer data) {
     TvWin *w = data;
+    /* C7 (audit): cua so con (Tu dien EN / Go tat) giu con tro w va ghi vao w khi
+     * "destroy" phat ra. Ngat handler + huy cua so con TRUOC khi free TvWin de
+     * khong con callback nao cham vao vung nho da giai phong. */
+    if (w->words_window) {
+        if (w->words_destroy_id) {
+            g_signal_handler_disconnect(w->words_window, w->words_destroy_id);
+            w->words_destroy_id = 0;
+        }
+        gtk_window_destroy(GTK_WINDOW(w->words_window));
+        w->words_window = NULL;
+    }
+    if (w->macro_window) {
+        if (w->macro_destroy_id) {
+            g_signal_handler_disconnect(w->macro_window, w->macro_destroy_id);
+            w->macro_destroy_id = 0;
+        }
+        gtk_window_destroy(GTK_WINDOW(w->macro_window));
+        w->macro_window = NULL;
+    }
     if (w->monitor) {
         g_file_monitor_cancel(w->monitor);
         g_object_unref(w->monitor);

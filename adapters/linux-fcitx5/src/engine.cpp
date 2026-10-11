@@ -194,6 +194,16 @@ TextVNEngine::TextVNEngine(fcitx::Instance *instance)
 }
 
 TextVNEngine::~TextVNEngine() {
+    /* C9 (audit): addon co the bi unload/reloat (fcitx5-remote -r, doi config).
+     * Truoc day chi giai phong ipc_/log — con tro action da dang ky van nam
+     * trong UserInterfaceManager -> con tro treo khi addon nap lai. Go dang ky
+     * TRUOC khi huy unique_ptr. */
+    if (instance_) {
+        instance_->userInterfaceManager().unregisterAction("textvn-mode");
+        instance_->userInterfaceManager().unregisterAction("textvn-settings");
+    }
+    modeAction_.reset();
+    settingsAction_.reset();
     if (ipc_) lc_ipc_client_free(ipc_);
     lc_log_close();
 }

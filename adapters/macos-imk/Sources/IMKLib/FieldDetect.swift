@@ -154,6 +154,9 @@ public struct FieldContext: Equatable {
 public final class FieldDetect {
     /// TTL cache (P2-3 §2: 2s/pid).
     public static let ttl: TimeInterval = 2.0
+    /// B13: cap số entry — cache hết hạn không bị dọn sẽ phình vô hạn theo số pid
+    /// (mở/đóng app liên tục). Vượt cap → dọn entry hết hạn rồi mới evict cũ nhất.
+    public static let maxEntries = 256
 
     private struct Entry {
         let context: FieldContext
@@ -161,6 +164,10 @@ public final class FieldDetect {
     }
 
     private var cache: [pid_t: Entry] = [:]
+    /// B7: pid đang có gather AX in-flight — chặn spawn chồng cho cùng pid
+    /// (cache miss liên tiếp có thể tạo nhiều gather, last-store-wins ghi đè
+    /// context MỚI bằng kết quả CŨ hơn).
+    private var inFlight: Set<pid_t> = []
     private let lock = NSLock()
 
     public init() {}
@@ -175,10 +182,36 @@ public final class FieldDetect {
         return entry.context
     }
 
+    /// B7: đánh dấu bắt đầu gather cho pid; trả `false` nếu đã có gather in-flight
+    /// (caller nên bỏ qua để tránh chồng lấn).
+    @discardableResult
+    public func beginGather(pid: pid_t) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if inFlight.contains(pid) { return false }
+        inFlight.insert(pid)
+        return true
+    }
+
+    /// B7: kết thúc gather cho pid.
+    public func endGather(pid: pid_t) {
+        lock.lock()
+        defer { lock.unlock() }
+        inFlight.remove(pid)
+    }
+
     /// Lưu 1 context (gọi từ gather async / AXObserver).
     public func store(_ context: FieldContext, for pid: pid_t, at date: Date = Date()) {
         lock.lock()
         defer { lock.unlock() }
+        // B13: dọn entry hết hạn trước khi ghi — giữ cache bounded.
+        pruneExpiredLocked(now: date)
+        if cache.count >= Self.maxEntries, cache[pid] == nil {
+            // Evict entry cũ nhất (at nhỏ nhất) — cache nhỏ nên O(n) chấp nhận.
+            if let oldest = cache.min(by: { $0.value.at < $1.value.at })?.key {
+                cache.removeValue(forKey: oldest)
+            }
+        }
         cache[pid] = Entry(context: context, at: date)
     }
 
@@ -187,6 +220,17 @@ public final class FieldDetect {
         lock.lock()
         defer { lock.unlock() }
         cache.removeValue(forKey: pid)
+    }
+
+    /// B13: dọn entry hết hạn (gọi định kỳ hoặc trong `store`).
+    public func pruneExpired(now: Date = Date()) {
+        lock.lock()
+        defer { lock.unlock() }
+        pruneExpiredLocked(now: now)
+    }
+
+    private func pruneExpiredLocked(now: Date) {
+        cache = cache.filter { now.timeIntervalSince($0.value.at) < Self.ttl }
     }
 
     /// Chuẩn hóa app id: bundle id lowercase; nil → executable basename (P2-3 §1).

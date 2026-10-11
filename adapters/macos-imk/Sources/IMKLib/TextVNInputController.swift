@@ -50,9 +50,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     static let imkCaps: UInt32 = FFI.capPreedit | FFI.capFieldDetect | FFI.capSelection
     private let caps: UInt32 = TextVNInputController.imkCaps
 
-    /// Modifier state hiện tại (cho toggle hotkey — P2-1 §5 bước 2).
-    private var heldMods: UInt32 = 0
-
     /// Trạng thái bật/tắt: toàn cục + override per-app từ Snapshot/StateUpdate
     /// (P0-3 §4). Offline = giữ giá trị cuối. R2-44: MỘT trạng thái cho cả tiến
     /// trình IMK (`ViStateStore.shared`) — mỗi app client có controller riêng, toggle
@@ -197,8 +194,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 otherKeyPressed = true
             }
 
-            heldMods = KeyTranslator.modifiers(flags)
-
             if switchKey == "ctrl_shift", Self.isCtrlShiftTap(
                 wasCtrl: ctrlDown,
                 wasShift: shiftDown,
@@ -227,7 +222,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         otherKeyPressed = true
 
         let mods = KeyTranslator.modifiers(event.modifierFlags)
-        heldMods = mods
 
         // 1. Chord hệ thống (Cmd bất kỳ, Ctrl+phím khác Space toggle) → B6.
         // Cmd+←, Cmd+Z, Cmd+V… đổi con trỏ/text mà engine không thấy: chốt từ đang
@@ -380,7 +374,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Gather field context: cache-first (MAC-031). Cache miss → role unknown,
     /// AX gather async sẽ `store()` cho lần sau — handle() không bao giờ query AX.
     private func gatherContext(from sender: Any!, force: Bool) -> FieldContext {
-        let pid = Self.clientPid()
+        let pid = Self.clientPid(sender)
         if !force, let cached = fieldDetect.cached(for: pid) {
             return cached
         }
@@ -396,6 +390,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     // ------------------------------------------------------------- IPC delegate
 
     public func ipcClient(_ client: IpcClient, didReceive message: IpcMessage) {
+        // B12: IpcClient marshal delegate về main (F16) — ràng buộc bằng
+        // precondition để regression (marshal bị gỡ) sập ngay ở debug thay vì
+        // data race âm thầm trên state main-thread.
+        dispatchPrecondition(condition: .onQueue(.main))
         switch message {
         case let .configReload(version):
             Diagnostics.log("ipc ConfigReload v\(version)")
@@ -528,10 +526,32 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     /// PID của app đang focus (frontmost) — app_id cho preset (P2-3 §1).
-    /// IMK không expose pid client trực tiếp; NSWorkspace frontmost là nguồn
-    /// đáng tin khi `activateServer`/`handle` (client == app đang gõ).
+    /// B9: ưu tiên danh tính client từ `sender` (bundle id → NSRunningApplication)
+    /// vì `NSWorkspace.frontmostApplication` có thể trỏ panel phụ/XPC khi focus
+    /// nằm ở cửa sổ không phải frontmost app → preset sai. Không lấy được từ
+    /// sender thì rơi về frontmost (hành vi cũ, đúng trong đa số ca).
     static func clientPid(_ sender: Any? = nil) -> pid_t {
-        NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+        if let pid = pidFromSender(sender) {
+            return pid
+        }
+        return NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0
+    }
+
+    /// Trích pid từ `sender` (IMKTextInput/NSString bundle id). Trả nil nếu
+    /// không xác định được — caller rơi về frontmost.
+    private static func pidFromSender(_ sender: Any?) -> pid_t? {
+        guard let sender else { return nil }
+        var bundleID: String?
+        if let client = sender as? IMKTextInput {
+            let bid = client.bundleIdentifier()
+            bundleID = bid.isEmpty ? nil : bid
+        } else if let s = sender as? String, !s.isEmpty {
+            bundleID = s
+        }
+        guard let bundleID else { return nil }
+        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .first?
+            .processIdentifier
     }
 
     static func appID(for pid: pid_t) -> String {
@@ -602,19 +622,26 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Gather AX bất đồng bộ (không block handle). V1: role từ focused element
     /// nếu query được; MAC-030/031 nâng cấp qua AXObserver + cache chi tiết hơn.
     static func gatherAX(for pid: pid_t, fieldDetect: FieldDetect) {
+        // B7: chặn gather chồng cho cùng pid (cache miss liên tiếp) — tránh kết
+        // quả cũ ghi đè context mới.
+        guard fieldDetect.beginGather(pid: pid) else { return }
         DispatchQueue.global(qos: .utility).async {
+            defer { fieldDetect.endGather(pid: pid) }
             var ctx = FieldContext(appID: appID(for: pid), role: FieldRole.unknown, secure: false)
             if pid != 0 {
                 let app = AXUIElementCreateApplication(pid)
+                // B7: giới hạn messaging timeout — mặc định AX có thể chờ tới ~6s
+                // cho app không phản hồi (treo gather). 0.3s đủ cho app khoẻ.
+                AXUIElementSetMessagingTimeout(app, 0.3)
                 var value: CFTypeRef?
                 let rc = AXUIElementCopyAttributeValue(
                     app, kAXFocusedUIElementAttribute as CFString, &value
                 )
+                // SAFETY: `unsafeDowncast` chỉ chạy sau khi kiểm CFTypeID khớp
+                // AXUIElementGetTypeID() — app trả kiểu khác (String/Array…) thì bỏ
+                // qua, không trap (fail-open S4).
                 if rc == .success, let element = value,
                    CFGetTypeID(element) == AXUIElementGetTypeID() {
-                    // Kiểm CFTypeID TRƯỚC khi downcast: app trả kiểu khác làm
-                    // `unsafeDowncast` trap → giết IMK; fail-open (S4) nên bỏ qua,
-                    // giữ context mặc định.
                     let ax = unsafeDowncast(element as AnyObject, to: AXUIElement.self)
                     let snapshot = Self.axSnapshot(of: ax)
                     let (role, secure) = FieldRules.map(snapshot)

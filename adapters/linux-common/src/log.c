@@ -6,6 +6,12 @@
  * Only log lifecycle, operational status, error codes, and sanitized info.
  */
 
+/* C9 (audit): localtime_r/mkdir can khai bao khi bat feature-test macro POSIX.
+ * Khai bao truoc moi #include de glibc lo dien khai bao. */
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include "linux_common.h"
 
 #include <stdio.h>
@@ -26,8 +32,11 @@ static char  s_app_tag[64] = "TextVN";
 static void ensure_parent_dirs(const char *file_path) {
 #if defined(__linux__) || defined(__unix__)
     char path[512];
-    strncpy(path, file_path, sizeof(path) - 1);
-    path[sizeof(path) - 1] = '\0';
+    /* C9 (audit): strncpy am tham cat cut ma khong bao — neu duong dan dai hon
+     * buffer thi mkdir se tao thu muc SAI (bi cat). Tu choi som khi tran. */
+    size_t n = strlen(file_path);
+    if (n >= sizeof(path)) return;
+    memcpy(path, file_path, n + 1);
 
     char *slash = strrchr(path, '/');
     if (!slash) return;
@@ -48,6 +57,8 @@ static void ensure_parent_dirs(const char *file_path) {
 
 void lc_log_init(const char *app_tag) {
     if (app_tag && app_tag[0] != '\0') {
+        /* C9 (audit): cat theo sizeof-1 roi tu ket thuc — tranh am tham cat ma
+         * khong co NUL. */
         strncpy(s_app_tag, app_tag, sizeof(s_app_tag) - 1);
         s_app_tag[sizeof(s_app_tag) - 1] = '\0';
     }
@@ -56,12 +67,16 @@ void lc_log_init(const char *app_tag) {
 
     char log_path[512];
     const char *xdg_state = getenv("XDG_STATE_HOME");
-    if (xdg_state && xdg_state[0] != '\0') {
-        snprintf(log_path, sizeof(log_path), "%s/TextVN/log/textvn.log", xdg_state);
+    /* C9 (audit): XDG_STATE_HOME phai la duong dan TUYET DOI (spec). Gia tri
+     * tuong doi se lam log ghi theo CWD -> doi hoi bat dau bang '/'. */
+    if (xdg_state && xdg_state[0] == '/') {
+        int w = snprintf(log_path, sizeof(log_path), "%s/TextVN/log/textvn.log", xdg_state);
+        if (w < 0 || (size_t)w >= sizeof(log_path)) return;
     } else {
         const char *home = getenv("HOME");
-        if (home && home[0] != '\0') {
-            snprintf(log_path, sizeof(log_path), "%s/%s", home, LC_LOG_DEFAULT_REL);
+        if (home && home[0] == '/') {
+            int w = snprintf(log_path, sizeof(log_path), "%s/%s", home, LC_LOG_DEFAULT_REL);
+            if (w < 0 || (size_t)w >= sizeof(log_path)) return;
         } else {
             /* Không có HOME: KHÔNG ghi vào /tmp dùng chung (symlink attack) — bỏ log. */
             return;
@@ -79,10 +94,19 @@ void lc_log(int level, const char *tag, const char *fmt, ...) {
     /* Format timestamp */
     char time_str[32] = {0};
     time_t now = time(NULL);
+    /* C9 (audit): localtime() tra ve con tro vao buffer tinh (khong reentrant).
+     * Adapter co the goi lc_log tu nhieu thread -> dung localtime_r neu co. */
+#if defined(__linux__) || defined(__unix__)
+    struct tm tm_buf;
+    if (localtime_r(&now, &tm_buf)) {
+        strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_buf);
+    }
+#else
     struct tm *tm_info = localtime(&now);
     if (tm_info) {
         strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);
     }
+#endif
 
     va_list args;
     va_start(args, fmt);

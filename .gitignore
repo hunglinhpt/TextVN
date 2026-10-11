@@ -37,3 +37,6 @@ adapters/macos-imk/build/
 .cline/
 perf/ab-base.json
 /.claude/worktrees/
+
+# --- WorkBuddy AI: dữ liệu phiên/memory cục bộ (không thuộc release repo) ---
+/.workbuddy-ai/

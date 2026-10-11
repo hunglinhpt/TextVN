@@ -10,6 +10,9 @@
 // Tray = Windows-only: trên non-Windows item Win32 không có caller (xem lib.rs).
 #![cfg_attr(not(windows), allow(dead_code))]
 
+// gate clippy-linux: Read/Write chỉ dùng trong nhánh #[cfg(windows)] (check_status /
+// stop_running_instance) — thiếu cfg làm `cargo clippy --target linux -D warnings` đỏ.
+#[cfg(windows)]
 use std::io::{Read, Write};
 use std::sync::atomic::AtomicBool;
 #[cfg(windows)] // chỉ xài trong vòng lặp message Windows
@@ -23,7 +26,10 @@ use std::time::Duration;
 // ci-shared 2026-09-30, không bắt được bằng clippy trên host Windows).
 #[cfg(windows)]
 use textvn_tray::icons::{load_app_icon, IDI_ICON_E, IDI_ICON_V};
-use textvn_tray::ipc_server::{IpcServer, PIPE_NAME};
+// gate clippy-linux: PIPE_NAME chỉ dùng trong stop_running_instance (#[cfg(windows)]).
+use textvn_tray::ipc_server::IpcServer;
+#[cfg(windows)]
+use textvn_tray::ipc_server::PIPE_NAME;
 use textvn_tray::menu::TrayMenu;
 #[cfg(windows)]
 use textvn_tray::menu::ID_EXIT;

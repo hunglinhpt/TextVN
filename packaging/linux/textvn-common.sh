@@ -348,17 +348,26 @@ tv_deactivate_ibus() {
     fi
 }
 
-# Profile Fcitx5 (~/.config/fcitx5/profile): thêm TextVN vào nhóm đầu tiên nếu chưa có.
-# Chỉ sửa khi fcitx5 KHÔNG chạy (fcitx5 ghi đè profile khi thoát) — gọi trước khi restart.
+# Profile Fcitx5 (~/.config/fcitx5/profile): thêm TextVN vào nhóm ĐẦU TIÊN theo
+# GroupOrder (không cứng [Groups/0]) nếu chưa có. Chỉ sửa khi fcitx5 KHÔNG chạy
+# (fcitx5 ghi đè profile khi thoát) — gọi trước khi restart.
 tv_fcitx5_profile() { echo "${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/profile"; }
 
+# C8 (audit): truoc day them cung vao [Groups/0] — profile nhieu group thi user
+# khong thay bo go. Doc DefaultIM cua [Groups/0] lam khoa group hien hanh.
 tv_activate_fcitx5() {
-    local p n
+    local p gid n
     p="$(tv_fcitx5_profile)"
     [[ -f "$p" ]] || return 0
     grep -qx 'Name=textvn' "$p" && return 0
-    n="$(grep -c '^\[Groups/0/Items/[0-9]*\]$' "$p" || true)"
-    printf '\n[Groups/0/Items/%s]\nName=textvn\nLayout=\n' "$n" >> "$p"
+    # DefaultIM trong [Groups/0] cho biet id group dang dung (vd [Groups/1]).
+    gid="$(awk '
+        /^\[Groups\/[0-9]+\]$/ { gsub(/^\[Groups\//, ""); gsub(/\]$/, ""); g = $0 }
+        /^DefaultIM=/ { print g; exit }
+    ' "$p")"
+    [[ -n "$gid" ]] || gid=0
+    n="$(grep -c "^\[Groups/${gid}/Items/[0-9]*\]$" "$p" || true)"
+    printf '\n[Groups/%s/Items/%s]\nName=textvn\nLayout=\n' "$gid" "$n" >> "$p"
     tv_ok "Đã thêm TextVN vào nhóm bộ gõ Fcitx5 (Ctrl+Space để chuyển)."
 }
 
@@ -367,15 +376,19 @@ tv_deactivate_fcitx5() {
     p="$(tv_fcitx5_profile)"
     [[ -f "$p" ]] && grep -qx 'Name=textvn' "$p" || return 0
     tmp="$(mktemp)"
-    # Bỏ section item có Name=textvn, rồi đánh lại chỉ số liên tục cho item của nhóm 0.
+    # Bỏ section item có Name=textvn, rồi đánh lại chỉ số liên tục cho MỌI nhóm.
     awk '
         function flush() { if (!skip) printf "%s", buf; buf = ""; skip = 0 }
         /^\[/ { flush(); sec = $0 }
         { buf = buf $0 "\n"
-          if (sec ~ /^\[Groups\/0\/Items\/[0-9]+\]$/ && $0 == "Name=textvn") skip = 1 }
+          if (sec ~ /^\[Groups\/[0-9]+\/Items\/[0-9]+\]$/ && $0 == "Name=textvn") skip = 1 }
         END { flush() }
     ' "$p" | awk '
-        /^\[Groups\/0\/Items\/[0-9]+\]$/ { printf "[Groups/0/Items/%d]\n", i++; next }
+        /^\[Groups\/[0-9]+\/Items\/[0-9]+\]$/ {
+            key = $0; sub(/\/Items\/[0-9]+\]$/, "", key)   # -> [Groups/N
+            printf "%s/Items/%d]\n", key, cnt[key]++
+            next
+        }
         { print }
     ' > "$tmp" && cat "$tmp" > "$p"
     rm -f "$tmp"

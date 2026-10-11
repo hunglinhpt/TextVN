@@ -56,10 +56,17 @@ int tv_paths_resolve(tv_paths *p, const char *custom_config) {
         if (n >= sizeof(p->config)) return -1;
         memcpy(p->config, custom_config, n + 1);
         const char *slash = strrchr(custom_config, '/');
-        size_t dir_len = slash ? (size_t)(slash - custom_config) : 0;
-        int w = slash ? snprintf(p->state, sizeof(p->state), "%.*s/state.json", (int)dir_len,
-                                 custom_config)
-                      : snprintf(p->state, sizeof(p->state), "state.json");
+        /* C9 (audit): khong co '/' (vd --config config.json) truoc day ghi
+         * "state.json" theo CWD. Nay dat state.json canh file config: dung "."
+         * (thu muc hien hanh) de nhat quan va tranh ghi lech cho. */
+        int w;
+        if (slash) {
+            size_t dir_len = (size_t)(slash - custom_config);
+            w = snprintf(p->state, sizeof(p->state), "%.*s/state.json", (int)dir_len,
+                         custom_config);
+        } else {
+            w = snprintf(p->state, sizeof(p->state), "./state.json");
+        }
         return (w > 0 && (size_t)w < sizeof(p->state)) ? 0 : -1;
     }
     if (lc_config_resolve_path(p->config, sizeof(p->config)) != 0) return -1;
