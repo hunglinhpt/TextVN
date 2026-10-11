@@ -744,7 +744,11 @@ fn main() {
                 // Mở Bảng điều khiển cài đặt
             }
             "--status" => {
+                // check_status là Windows-only (pipe); Linux trả về giá trị cũ.
+                #[cfg(windows)]
                 check_status();
+                #[cfg(not(windows))]
+                println!("TextVN status is only supported on Windows.");
                 return;
             }
             "--stop" => {
@@ -1352,6 +1356,7 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
     buf[len] = 0;
 }
 
+#[cfg(windows)]
 fn check_status() {
     // Vòng 16 (audit A7): server tạo pipe phiên — status thử phiên trước rồi legacy.
     let candidates = textvn_ipc::candidate_pipe_names();
