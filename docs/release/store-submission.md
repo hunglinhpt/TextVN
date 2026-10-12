@@ -1,8 +1,8 @@
 # Nộp TextVN lên Microsoft Store (bản cài .exe — silent install)
 
-> **Trạng thái hiện hành (2026-10-09):** đường nộp Store **CHÍNH là gói MSIX** — làm
-> theo [`msix-submission.md`](msix-submission.md) (tài liệu chuẩn; chỉ còn thiếu
-> `Package/Identity/Name` từ Partner Center). Đường **EXE** trong tài liệu này (bản
+> **Trạng thái hiện hành (2026-10-12):** TextVN **đã phát hành trên Microsoft Store qua gói
+> MSIX** (từ 2026-10-11): [trang Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB), Store ID `9NV2R7JNNFGK`.
+> Cập nhật gói theo [`msix-submission.md`](msix-submission.md) (tài liệu chuẩn). Đường **EXE** trong tài liệu này (bản
 > `TextVN-setup-<ver>-windows-x64-machine.exe`) đã PASS 3 check tự động từ 0.2.24 nhưng bị
 > policy **10.2.9** chặn cho tới khi exe có chữ ký Authenticode qua SignPath Foundation
 > (đang chờ duyệt — `store-policy-10-2-9.md`); khi có secret SignPath, CI ký cả hai bộ
@@ -254,7 +254,10 @@ từng file, `SHA256SUMS.txt` và `gpg-release-key.asc` vào thư mục `vX.Y.Z/
 `approved` rồi push (xem README của chính branch đó). Xác minh sau khi push:
 `curl -sI <raw-url>` phải trả `200` và `Content-Length` đúng cỡ file.
 
-## 2c. MSIX — đường nộp Store CHÍNH
+## 2c. MSIX — đường nộp Store CHÍNH (đã phát hành 2026-10-11)
+
+Sản phẩm MSIX đã lên Store: [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)
+(winget: `winget install --id 9NV2R7JNNFGK -s msstore`).
 
 Đã chuyển sang tài liệu riêng, là nguồn chuẩn duy nhất:
 [`msix-submission.md`](msix-submission.md) — trạng thái, cơ chế stage-out ra ngoài gói

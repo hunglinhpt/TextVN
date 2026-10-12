@@ -19,8 +19,9 @@
 >   `data/preset.pub`), WIN-056 (updater), WIN-057 (winget), WIN-060 (crate `textvn-appcomptest` —
 >   mới có `tools/appcomptest/targets/*.json`), WIN-063 (soak), WIN-065 (ASan/TSan Windows).
 > - Ngoài WBS: **MSIX cho Microsoft Store** (`installer/windows/msix/`, `tools/win/build-msix.ps1`,
->   `tray/src/package_bootstrap.rs`, `tray/src/store.rs`) — đường nộp Store chính; trạng thái và
->   việc còn lại: `../release/msix-submission.md`.
+>   `tray/src/package_bootstrap.rs`, `tray/src/store.rs`) — đường nộp Store chính, **đã phát hành
+>   trên Microsoft Store 2026-10-11** (Store ID `9NV2R7JNNFGK`); trạng thái và việc còn lại:
+>   `../release/msix-submission.md`.
 > - Mục "Trạng thái task" trong `P1-REVIEW-LOG.md` (nhắc ở Checkpoint) chưa từng có — trạng thái
 >   ghi ở khối này.
 

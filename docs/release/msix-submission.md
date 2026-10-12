@@ -1,14 +1,19 @@
 # Nộp TextVN lên Microsoft Store — gói MSIX
 
-> Cập nhật 2026-10-09. Đây là đường nộp Store **chính**: gói EXE vướng chính sách
-> 10.2.9 (bắt buộc Authenticode — đang chờ SignPath Foundation duyệt, xem
-> `store-policy-10-2-9.md`), còn MSIX được Store **tự ký** khi publish.
+> Cập nhật 2026-10-12. **TextVN ĐÃ PHÁT HÀNH trên Microsoft Store** qua gói MSIX:
+> https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB (Store ID `9NV2R7JNNFGK`).
+> MSIX là đường Store **chính**: gói EXE vướng chính sách 10.2.9 (bắt buộc Authenticode —
+> đang chờ SignPath Foundation duyệt, xem `store-policy-10-2-9.md`), còn MSIX được Store
+> **tự ký** khi publish. Mỗi bản phát hành mới: nộp asset `.msix` của release đó làm bản
+> cập nhật trên Partner Center (§3).
 
-## 0. Trạng thái — gói nộp Store 0.2.28 đã build (identity Partner Center có từ 2026-10-10)
+## 0. Trạng thái — ĐÃ PHÁT HÀNH trên Microsoft Store (2026-10-11)
 
 | Hạng mục | Trạng thái | Bằng chứng |
 |---|---|---|
-| Kênh Store chạy thật ngoài container MSIX | ✅ | CI `ci-shared` › *MSIX sideload*: cài gói ký tạm → mở app → từ shell ngoài gói thấy bản stage, TIP HKCU, tray chạy, Run; gỡ gói → guard dọn sạch (`installer/windows/tests/test-msix-sideload.ps1`) |
+| **Trang Store** | ✅ [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB) — miễn phí, mục Năng suất, x64, nhà phát hành `LinhBH.CoM` | API catalog Store (`storeedgefd.dsx.mp.microsoft.com/v9.0/products/9NV2R7JNNFGK`, đọc 2026-10-12): `ReleaseDateUtc 2026-10-11T14:43:50Z`, `LastUpdateDateUtc 2026-10-12T06:26:34Z`, PFN `23651Linhi.TextVN_qgnrpq341n182`. winget: `winget install --id 9NV2R7JNNFGK -s msstore` (installer `msstore`, scope user) |
+| Cài thật từ Store | ✅ / ⚠️ | 2026-10-11 21:54 máy chủ repo cài `23651Linhi.TextVN_1.2.29.0` từ `msixbundle` Store phát (AppXDeploymentServer: thành công, hash gói khớp asset release v0.2.29). Trên máy đó Kaspersky 21.26 cách ly các tệp đã stage ra AppData ~2 phút sau lần mở đầu, và Windows 11 build 26300 từ chối `ActivateProfile` per-user (B7) — `docs/specs/antivirus-false-positive.md` §10 |
+| Kênh Store chạy thật ngoài container MSIX | ✅ | CI `ci-windows` › *MSIX sideload*: cài gói ký tạm → mở app → từ shell ngoài gói thấy bản stage, TIP HKCU, tray chạy, Run; gỡ gói → guard dọn sạch (`installer/windows/tests/test-msix-sideload.ps1`) |
 | Manifest đúng luật Partner Center | ✅ | `tools/win/verify-msix.py` chạy trong CI: Version phần đầu ≠ 0, Publisher, DisplayName, PublisherDisplayName, mô tả tiếng Việt không mojibake, ảnh đúng kích thước, payload đủ |
 | Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `tools/win/check-pe-imports.py` trong `build-release.ps1` |
 | `Publisher` | ✅ `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` | Partner Center › Account settings › Windows publisher ID |
@@ -138,11 +143,15 @@ mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thậ
 |---|---|---|
 | Tester coi việc chép binary ra ngoài gói là trái 10.2.2 / hướng dẫn đóng gói | Trung bình | Trả lời bằng ghi chú ở §4.5 (đây là cách duy nhất để một TSF IME hoạt động; hướng dẫn IME của Microsoft yêu cầu đăng ký qua `ITfInputProcessorProfileMgr`); nếu vẫn từ chối → đường EXE ký Authenticode (SignPath) |
 | 10.2.7 (gỡ sạch): MSIX không có hook gỡ | Thấp | Guard ở lần đăng nhập kế + menu "Gỡ cài đặt"; tài liệu ở chính sách quyền riêng tư |
-| Win11 24H2+ từ chối kích hoạt TIP chỉ-per-user (B7) | Chưa rõ trên máy thật | Bản Store không xin UAC — hiện hướng dẫn chuyển sang bộ cài `*-machine.exe` |
+| Win11 24H2+ từ chối kích hoạt TIP chỉ-per-user (B7) | **Đã gặp** (2026-10-11, máy chủ repo Windows 11 build 26300, bản cài từ Store: `RegisterProfile`/`ActivateProfile` = `0x80004005`; runner CI Windows Server 2022 không gặp) | Bản Store không xin UAC — hướng dẫn chuyển sang bộ cài `*-machine.exe` (đăng ký HKLM) |
+| Antivirus cách ly tệp đã stage ra AppData (chưa ký Authenticode) | **Đã gặp** với Kaspersky 21.26 (2026-10-11, ~2 phút sau lần mở đầu) | `docs/specs/antivirus-false-positive.md` §10: AV-5 lấy tên detection, AV-1 báo nhầm (hash 4 binary của gói), AV-2 SignPath, AV-6 Kaspersky Allowlist, AV-7 giảm hành vi giống dropper của kênh Store |
 | Version hiển thị trong Cài đặt là 1.2.27.0 (khác 0.2.27 trong app) | Thấp | Do map version (§3) — ghi chú trong mô tả nếu cần |
 
 ## 6. Sau khi publish
 
+- **Đã publish 2026-10-11** — trang Store: https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB
+  (README, `docs/user-guide.md` và `HUONG_DAN_SU_DUNG.txt` trỏ link này; winget:
+  `winget install --id 9NV2R7JNNFGK -s msstore`).
 - Cài từ Store trên máy sạch → mở TextVN → Win+Space chọn TextVN → gõ thử.
 - Cập nhật: tag version mới → workflow build gói (Version mới lớn hơn) → nộp
   package mới vào submission mới; tray tự stage lại bản mới ở lần mở/đăng nhập kế.
