@@ -13,6 +13,17 @@
 | Sự cố antivirus (ghi nhận) | Kaspersky cách ly 8 đối tượng của bản Store 1.2.29.0 lúc 23:34:32, 2 phút sau lần chạy đầu — `docs/specs/antivirus-false-positive.md` §10 (chờ tên detection, AV-1/AV-2/AV-6) |
 | Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization |
 
+### Phát hành 0.2.32
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Release | v0.2.32 publish (pre-release) từ tag ký GPG trỏ merge commit `3b1ec8c` (PR #9) — [release-candidate #38190208484](https://github.com/hunglinhpt/TextVN/actions/runs/38190208484) 4/4 job; **34 asset**; gate chữ ký git (commit + tag Verified) PASS |
+| CI trên commit gắn tag | push `main` `3b1ec8c` (merge PR #9, Verified): [ci-shared #38189826405](https://github.com/hunglinhpt/TextVN/actions/runs/38189826405), [ci-windows #38189826375](https://github.com/hunglinhpt/TextVN/actions/runs/38189826375), [ci-linux #38189826369](https://github.com/hunglinhpt/TextVN/actions/runs/38189826369), [ci-macos #38189826410](https://github.com/hunglinhpt/TextVN/actions/runs/38189826410), [repo-hygiene #38189826363](https://github.com/hunglinhpt/TextVN/actions/runs/38189826363) — xanh cả 5. PR #9: 5/5 xanh (Windows: OFFLINE/2 tên pipe/session end/nâng cấp khi tray chạy PASS; Linux: e2e "EN/VN giữ sau focus-out/in" PASS) |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); hash tải về khớp danh sách đã ký |
+| Checksums (pin từ `SHA256SUMS.txt` đã ký) | machine exe `49a427a9…473d` · setup exe `fd82517c…745b` · MSIX (nộp Store) `f9831854…6602` · portable `545403b8…4aef` · Linux `5d7711ca…58fa` · pkg `9983ac23…0f75` · **mac zip `4483053f…5ea0`** · mac tar.gz `e215ca97…4be7` |
+| Homebrew (B7b) | cask `sha256` = mac zip `4483053f…5ea0` |
+| approved (B7c) | `approved/v0.2.32/` (EXE + `-store.msix` + chữ ký) — kèm bù `approved/v0.2.31/` (bản 0.2.31 bỏ sót bước này) |
+
 ## Bản 0.2.31 — hoàn tất roadmap audit 3 nền tảng (A10, B7/B8/B9/B11/B12/B13, C1/C3/C7/C8/C9) + gate clippy-linux
 
 | Hạng mục | Bằng chứng |
