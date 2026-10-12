@@ -243,33 +243,43 @@ function Check($app, [string]$name, [string]$want) {
 
 function Open-App([string]$name, [string]$exe) {
     $procName = [System.IO.Path]::GetFileNameWithoutExtension($exe)
-    $before = @(Get-Process -Name $procName -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
-    $p = Start-Process $exe -PassThru
-    $script:ownedEditor = $p
-    $main = [IntPtr]::Zero
-    # Never attach to another user's document if the newly started process
-    # hands off to an existing editor instance.
-    for ($i = 0; $i -lt 60 -and $main -eq [IntPtr]::Zero; $i++) {
-        Start-Sleep -Milliseconds 500
-        $p.Refresh()
-        if (-not $p.HasExited) {
-            # Tien trinh da thoat thi MainWindowHandle la $null - khong bang IntPtr.Zero.
-            if ($p.MainWindowHandle) { $main = $p.MainWindowHandle }
-            continue
+    # B5: runner GHA dung chung doi khi mo app cham hon 30 s (2026-10-12, PR #11:
+    # "wordpad window not found after 30 s", rerun cung commit xanh). Thu toi da 2 lan;
+    # truoc lan 2 chi dong DUNG tien trinh do chinh lan thu truoc mo ra.
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $before = @(Get-Process -Name $procName -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+        $p = Start-Process $exe -PassThru
+        $script:ownedEditor = $p
+        $main = [IntPtr]::Zero
+        # Never attach to another user's document if the newly started process
+        # hands off to an existing editor instance.
+        for ($i = 0; $i -lt 60 -and $main -eq [IntPtr]::Zero; $i++) {
+            Start-Sleep -Milliseconds 500
+            $p.Refresh()
+            if (-not $p.HasExited) {
+                # Tien trinh da thoat thi MainWindowHandle la $null - khong bang IntPtr.Zero.
+                if ($p.MainWindowHandle) { $main = $p.MainWindowHandle }
+                continue
+            }
+            # Notepad Win11: notepad.exe la launcher, thoat ngay; cua so nam o tien trinh
+            # Notepad MOI. Dau script da tu choi chay khi co Notepad mo san nen tien trinh
+            # moi la cua test, khong phai tai lieu cua nguoi dung.
+            $q = Get-Process -Name $procName -ErrorAction SilentlyContinue |
+                Where-Object { $before -notcontains $_.Id -and $_.MainWindowHandle -ne [IntPtr]::Zero } |
+                Select-Object -First 1
+            if ($q) {
+                $p = $q
+                $script:ownedEditor = $q
+                $main = $q.MainWindowHandle
+            }
         }
-        # Notepad Win11: notepad.exe la launcher, thoat ngay; cua so nam o tien trinh
-        # Notepad MOI. Dau script da tu choi chay khi co Notepad mo san nen tien trinh
-        # moi la cua test, khong phai tai lieu cua nguoi dung.
-        $q = Get-Process -Name $procName -ErrorAction SilentlyContinue |
-            Where-Object { $before -notcontains $_.Id -and $_.MainWindowHandle -ne [IntPtr]::Zero } |
-            Select-Object -First 1
-        if ($q) {
-            $p = $q
-            $script:ownedEditor = $q
-            $main = $q.MainWindowHandle
-        }
+        if ($main -ne [IntPtr]::Zero) { break }
+        Write-Host "WARN: $name window not found after 30 s (attempt $attempt/2) - slow shared runner (B5)"
+        Get-Process -Name $procName -ErrorAction SilentlyContinue |
+            Where-Object { $before -notcontains $_.Id } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
     }
-    if ($main -eq [IntPtr]::Zero) { throw "$name window not found after 30 s" }
+    if ($main -eq [IntPtr]::Zero) { throw "$name window not found after 2 x 30 s" }
     $edit = [IntPtr]::Zero
     for ($i = 0; $i -lt 20 -and $edit -eq [IntPtr]::Zero; $i++) {
         $edit = [TvKeys]::EditOf($main)
