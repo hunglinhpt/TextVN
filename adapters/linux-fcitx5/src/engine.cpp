@@ -263,6 +263,11 @@ void TextVNEngine::setVietnamese(TextVNState *st, bool on, bool persist) {
     finishWord(st);
     viEnabled_ = on;
     if (persist) {
+        /* R2-107: phím chuyển/menu là công tắc TOÀN CỤC → cập nhật cả base (C4). Lần
+         * ghi state.json dưới đây bị lc_state_sync "hấp thụ" nên syncState không bao
+         * giờ thấy nó; thiếu dòng này, lần activate kế tiếp gán viEnabled_ = base CŨ —
+         * đổi V/E rồi chuyển cửa sổ là bị lật lại. */
+        baseViEnabled_ = on;
         lc_state_write_enabled(nullptr, on ? 1 : 0);
         int ignored = on ? 1 : 0;
         lc_state_sync(&stateWatch_, nullptr, &ignored); /* hấp thụ lần ghi của chính mình */

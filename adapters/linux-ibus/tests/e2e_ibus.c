@@ -221,10 +221,26 @@ int main(void) {
     ok &= check("Ctrl+Shift → EN", "as ");
     ok &= state_says(FALSE);
     clear(ic);
+    /* R2-107: chuyển cửa sổ (focus-out/in) KHÔNG được lật lại chế độ vừa chọn — bản
+     * 0.2.30–0.2.31 gán chế độ = base cũ ở mỗi lần focus-in. */
+    ibus_input_context_focus_out(ic);
+    pump();
+    ibus_input_context_focus_in(ic);
+    pump();
+    type(ic, "as ");
+    ok &= check("EN giữ sau focus-out/in", "as ");
+    clear(ic);
     ctrl_shift_tap(ic);
     type(ic, "as ");
     ok &= check("Ctrl+Shift → VN", "á ");
     ok &= state_says(TRUE);
+    clear(ic);
+    ibus_input_context_focus_out(ic);
+    pump();
+    ibus_input_context_focus_in(ic);
+    pump();
+    type(ic, "as ");
+    ok &= check("VN giữ sau focus-out/in", "á ");
     clear(ic);
 
     /* Bảng cài đặt đổi state.json khi IME đang chạy → theo ngay ở phím kế tiếp. */

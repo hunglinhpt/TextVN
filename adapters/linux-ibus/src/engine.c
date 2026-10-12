@@ -99,6 +99,11 @@ static void set_vietnamese(TextVNIbusEngine *self, gboolean on, gboolean persist
     finish_word(self);
     s_vi_enabled = on;
     if (persist) {
+        /* R2-107: phím chuyển/menu là công tắc TOÀN CỤC → cập nhật cả base (C4). Lần
+         * ghi state.json dưới đây bị lc_state_sync "hấp thụ" nên sync_state không bao
+         * giờ thấy nó; thiếu dòng này, lần focus kế tiếp gán s_vi_enabled = base CŨ —
+         * đổi V/E rồi chuyển cửa sổ là bị lật lại. */
+        s_base_vi = on;
         lc_state_write_enabled(NULL, on ? 1 : 0);
         int ignored = on;
         lc_state_sync(&s_state_watch, NULL, &ignored); /* hấp thụ lần ghi của chính mình */
