@@ -118,6 +118,23 @@ const CHARSET_LABELS: [&str; 4] = [
 ];
 const METHOD_LABELS: [&str; 4] = ["Telex", "VNI", "VIQR", "Telex đơn giản"];
 
+/// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test
+/// `about_text_matches_every_platform`): một sản phẩm đa nền tảng, không còn câu
+/// riêng "cho Windows/macOS/Linux" ở mỗi bản.
+const ABOUT_TAGLINE: &str = "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)";
+const ABOUT_DETAILS: [&str; 3] = [
+    "Phát triển bởi: LinhBH.CoM",
+    "Giấy phép: GPL-3.0-or-later",
+    "https://github.com/hunglinhpt/TextVN",
+];
+
+fn about_text(version: &str) -> String {
+    format!(
+        "TextVN {version}\r\n{ABOUT_TAGLINE}\r\n\r\n{}",
+        ABOUT_DETAILS.join("\r\n")
+    )
+}
+
 const HELP_TEXT: &str = "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), \
 hoặc Ctrl + Shift + Space, hoặc bấm biểu tượng V/E ở khay hệ thống.\r\n\r\n\
 Telex: aa=â  aw=ă  ee=ê  oo=ô  ow=ơ  uw=ư  dd=đ;  s f r x j = sắc huyền hỏi ngã nặng;  z = xoá dấu.\r\n\
@@ -945,13 +962,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ID_BTN_ABOUT => show_information(
                     hwnd,
                     "Thông tin TextVN",
-                    &format!(
-                        "TextVN {} — Bộ gõ tiếng Việt cho Windows\r\n\r\n\
-                         Phát triển bởi: LinhBH.CoM\r\n\
-                         Giấy phép: GPL-3.0-or-later\r\n\
-                         https://github.com/hunglinhpt/TextVN",
-                        env!("CARGO_PKG_VERSION")
-                    ),
+                    &about_text(env!("CARGO_PKG_VERSION")),
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
@@ -1998,12 +2009,45 @@ mod tests {
         // "thống nhất UI cho cả 3 nền tảng, buộc phải giống nhau").
         let macos =
             include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
-        for label in CHARSET_LABELS.iter().chain(METHOD_LABELS.iter()) {
+        // R2-106: bảng mã/kiểu gõ phải CÙNG nhãn VÀ CÙNG thứ tự trên cả Linux lẫn macOS
+        // (trước chỉ kiểm Linux — macOS lệch từ đầu: "1. Unicode dựng sẵn", TCVN3 đứng
+        // thứ 2, "4. Microsoft" thay "Telex đơn giản").
+        let same_order = |src: &str, labels: &[&str], wrap: &dyn Fn(&str) -> String, os: &str| {
+            let mut last = 0usize;
+            for label in labels {
+                let pos = src
+                    .find(&wrap(label))
+                    .unwrap_or_else(|| panic!("nhãn `{label}` thiếu trong bảng cài đặt {os}"));
+                assert!(
+                    pos >= last,
+                    "nhãn `{label}` sai thứ tự trong bảng cài đặt {os}"
+                );
+                last = pos;
+            }
+        };
+        let quoted = |l: &str| format!("\"{l}\"");
+        let swift_text = |l: &str| format!("Text(\"{l}\")");
+        for labels in [&CHARSET_LABELS[..], &METHOD_LABELS[..]] {
+            same_order(&linux, labels, &quoted, "Linux");
+            same_order(macos, labels, &swift_text, "macOS");
+        }
+        // Phím chuyển CỐ ĐỊNH (ui-spec.md §1) — macOS từng có 3 nút riêng
+        // Ctrl + Shift / Alt + Z / Caps Lock mà Windows/Linux không có.
+        let switch_hint = "Ctrl + Shift   (hoặc Ctrl + Shift + Space)";
+        for (os, src) in [("Linux", linux.as_str()), ("macOS", macos)] {
             assert!(
-                linux.contains(&format!("\"{label}\"")),
-                "nhãn `{label}` thiếu trong bảng cài đặt Linux"
+                src.contains("Phím chuyển:"),
+                "thiếu hàng Phím chuyển ({os})"
+            );
+            assert!(
+                src.contains(switch_hint),
+                "Phím chuyển phải ghi `{switch_hint}` ({os})"
             );
         }
+        assert!(
+            !macos.contains("\"Alt + Z\"") && !macos.contains("\"Caps Lock\""),
+            "macOS không được có lựa chọn phím chuyển riêng (R2-106)"
+        );
         for label in [
             "Bật gõ tiếng Việt",
             "Dấu mới (hoà, thuỷ)",
@@ -2023,6 +2067,40 @@ mod tests {
             assert!(
                 macos.contains(label),
                 "nhãn `{label}` thiếu trong bảng cài đặt macOS"
+            );
+        }
+    }
+
+    /// Popup "Thông tin": CÙNG câu giới thiệu + chi tiết trên 3 nền tảng (yêu cầu chủ
+    /// repo 2026-10-11 — sản phẩm đa nền tảng, không còn "cho Windows/macOS/Linux").
+    #[test]
+    fn about_text_matches_every_platform() {
+        let linux = include_str!("../../adapters/linux-settings/src/settings_model.c");
+        let mac_info = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift");
+        let mac_settings =
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
+        let mac_delegate =
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift");
+        let windows = about_text("9.9.9");
+        assert!(windows.starts_with("TextVN 9.9.9\r\n"));
+        for part in std::iter::once(ABOUT_TAGLINE).chain(ABOUT_DETAILS) {
+            assert!(windows.contains(part), "Windows thiếu `{part}`");
+            assert!(linux.contains(part), "Linux thiếu `{part}`");
+            assert!(mac_info.contains(part), "macOS thiếu `{part}`");
+        }
+        // Hai popup macOS (Settings + menu bar) cùng đọc AppInfo — không chép chuỗi riêng.
+        for src in [mac_settings, mac_delegate] {
+            assert!(src.contains("AppInfo.aboutMessage"));
+        }
+        for (os, src) in [
+            ("Windows", windows.as_str()),
+            ("Linux", linux),
+            ("macOS", mac_settings),
+            ("macOS", mac_delegate),
+        ] {
+            assert!(
+                !src.contains("Bộ gõ tiếng Việt cho "),
+                "{os} còn câu giới thiệu riêng theo nền tảng"
             );
         }
     }
