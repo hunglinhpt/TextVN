@@ -323,6 +323,11 @@ rawKey.
 > C7 (hết UAF cửa sổ cài đặt), C8 (Fcitx5 đọc GroupOrder/DefaultIM),
 > C9 (hardening --config/XDG/log/localtime_r/fcitx5 unregisterAction/stage guard/field_detect stub).
 > Mỗi mục đã rà ≥2 lần theo 3 view (audit/reviewer/user).
+>
+> **RÀ LẠI 2026-10-11 (sau 0.2.31, sửa ở 0.2.32):** 9 bản sửa của báo cáo này còn lỗi
+> hoặc chưa đạt mục tiêu — chi tiết + bằng chứng ở **mục F**: A3 (R2-102, R2-105),
+> A7 (R2-101, R2-109, R2-110), A9 (R2-103), A11 (R2-114), A12 (R2-115), A13 (R2-104), B3 (R2-106),
+> C4 (R2-107), C8 (R2-108).
 
 | # | Finding | SEV | Effort |
 |---|---|---|---|
@@ -348,3 +353,25 @@ rawKey.
   hiện tại chứ không theo tài liệu cũ.
 - Không sửa trong đợt này — danh sách trên là input cho vòng fix kế (bắt đầu
   từ top 10; mỗi fix đi kèm test chống tái phát theo quy tắc B-lớp).
+
+## F. Rà lại các bản sửa sau 0.2.31 (2026-10-11) — sửa ở 0.2.32
+
+Rà từng dòng diff `v0.2.29..main` (35 commit vòng 16 + roadmap) và kiểm bằng probe
+thật. Finding đánh mã `R2-xx` (sổ `code-review-2026-10-09-round2.md` §3.8).
+
+| Mục audit | Còn lỗi gì | Bằng chứng | Sửa (0.2.32) |
+|---|---|---|---|
+| A7 | `TextVN.exe --status` **panic** (exit 101) khi tray không chạy — `expect("đã kiểm Some ở trên")` mà không kiểm (commit `0fc9a1d`) | chạy binary: `panicked at tray\src\main.rs:1374` | R2-101: báo `OFFLINE (<lỗi>)`, in đúng pipe đã nối; test-portable kiểm |
+| A3 | Tray **thoát ngay ở `WM_QUERYENDSESSION`** — đăng xuất/khởi động lại bị huỷ (Notepad chưa lưu → Cancel) thì tray đã mất | cửa sổ tray là top-level nên nhận mọi lần hỏi | R2-102: QUERYENDSESSION chỉ trả TRUE; thoát ở `WM_ENDSESSION(TRUE)`; kiểm thật bằng SendMessage trên máy dev + test-portable |
+| A3 | `PrepareToInstall` gọi `--stop` **không** `--if-image-under "{app}" --force` — nâng cấp dừng nhầm tray của bản cài khác (trái R2-93); tray không tự thoát thì file vẫn khoá | đọc `.iss` | R2-105: thêm cờ; test-installer: tray thư mục khác SỐNG sau nâng cấp + nâng cấp đè tray `{app}` đang chạy |
+| A9 | Hoàn tác chạy với MỌI lỗi trong closure — cả `EndComposition` lỗi SAU khi chữ mới đã chèn → chèn lại phần đã xoá cạnh từ mới (lặp chữ), hoặc trả lại chữ Backspace vừa xoá | đọc `apply_plan` | R2-103: lỗi `EndComposition` không còn kích hoạt hoàn tác (như `finish()`) |
+| A13 | Dọn hive mọi user **chưa từng xoá được gì**: subkey dựng `\<sid>\…` → Registry API trả `ERROR_BAD_PATHNAME` (161); nhánh `RegLoadKey` thiếu SeBackup/SeRestore, mount lồng, COM per-user ở UsrClass.dat không nạp | probe ctypes: `RegOpenKeyExW(HKU, "\<sid>")` = 161 | R2-104: đường dẫn tương đối HKU (hive đang nạp — cả user gốc khi admin gỡ hộ); BỎ nhánh `RegLoadKey` (unload hỏng = user đó vào profile tạm); test gọi API thật |
+| A7 | Pipe đổi tên ở 0.2.31 nhưng app đang mở vẫn nạp DLL TSF bản cũ (chỉ biết tên cũ) → bật/tắt từ khay không tới các app đó tới khi mở lại; xác thực server chỉ so đuôi `textvn.exe` | đọc code; kiểm thật | R2-109: tray phục vụ THÊM tên cũ; R2-110: server phải CÙNG PHIÊN + đúng tên file `TextVN.exe` |
+| B3 | macOS có 3 lựa chọn phím chuyển riêng (Alt + Z / Caps Lock) — trái ui-spec (phím chuyển CỐ ĐỊNH) và Windows/Linux; Caps Lock trên IMK không chặn được trạng thái chữ hoa. Nhãn bảng mã/kiểu gõ macOS lệch từ đầu (đánh số, TCVN3 đứng thứ 2, "4. Microsoft") | đọc `SettingsView.swift` | R2-106: macOS về đúng ui-spec; IMK luôn Ctrl+Shift; test parity so cả macOS + thứ tự |
+| C4 | **Hồi quy**: phím chuyển/menu không cập nhật base → mỗi lần focus-in/activate gán chế độ = base cũ: đổi V/E rồi chuyển cửa sổ là bị lật lại (IBus + Fcitx5, từ 0.2.30) | đọc `set_vietnamese` (lần ghi của chính nó bị "hấp thụ") | R2-107: cập nhật base khi đổi; e2e "EN/VN giữ sau focus-out/in" |
+| A11 | Sót 3 chỗ `.read()/.lock().unwrap()` (`SvcManager::app_override` trong wnd_proc, 2 chỗ `subscribers` ở luồng client IPC) | quét mã `tray/src` | R2-114: poison-safe + gate tự động `no_poison_panicking_lock_unwrap_in_tray` |
+| A12 | Fallback RunOnce không kiểm giới hạn 260 ký tự (luật R2-94) mà vẫn báo "đã hẹn xoá" | đọc `schedule_delete` | R2-115: `runonce_cleanup_command` > 260 → báo không hẹn được; test đơn vị |
+| C8 | `tv_activate_fcitx5` đoán nhóm bằng `DefaultIM` (bộ gõ mặc định TRONG nhóm) → vẫn luôn nhóm đầu file | profile 2 nhóm: thêm nhầm `[Groups/0]` | R2-108: tra `[GroupOrder] 0=<tên>` → `[Groups/N] Name=`; test đơn vị nhiều nhóm |
+
+Giới hạn còn lại (ghi nhận, không chặn): A6 phần user gốc KHÔNG đăng nhập (hive chưa nạp)
+vẫn có thể giữ mục bàn phím chết — không nạp hive người khác trong bộ gỡ vì rủi ro profile tạm.

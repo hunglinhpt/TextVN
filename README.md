@@ -1,7 +1,10 @@
 # TextVN — Bộ gõ tiếng Việt cho Windows, macOS và Linux
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
-[![CI macOS](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml/badge.svg)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml)
+[![CI Windows](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-windows.yml?branch=main&label=CI%20Windows)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-windows.yml?query=branch%3Amain)
+[![CI Linux](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-linux.yml?branch=main&label=CI%20Linux)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-linux.yml?query=branch%3Amain)
+[![CI macOS](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-macos.yml?branch=main&label=CI%20macOS)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml?query=branch%3Amain)
+[![CI engine (3 OS)](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-shared.yml?branch=main&label=CI%20engine%20%283%20OS%29)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-shared.yml?query=branch%3Amain)
 
 TextVN là bộ gõ tiếng Việt mã nguồn mở. Một engine Rust dùng chung cho **Windows**
 (Text Services Framework), **macOS** (Input Method Kit) và **Linux** (IBus, Fcitx5),
@@ -22,15 +25,18 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.31](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.31)**
+Bản mới nhất: **[GitHub Release v0.2.32](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.32)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
-Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.31 hoàn tất
-roadmap audit 3 nền tảng (chi tiết: [CHANGELOG.md](CHANGELOG.md)): Windows không còn sập
-ứng dụng host khi một callback COM panic, macOS hết treo khi app đơ và IPC bền hơn, Linux
-hết lỗi dùng-sau-khi-free khi đóng cửa sổ cài đặt và nhận đúng nhóm bộ gõ Fcitx5.
+Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
+virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
+[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.32 là đợt rà
+soát toàn hệ thống sau 0.2.31 (chi tiết: [CHANGELOG.md](CHANGELOG.md)): Linux hết lỗi đổi
+V/E rồi chuyển cửa sổ bị lật lại, Windows giữ tray khi lượt đăng xuất/khởi động lại bị huỷ
+và nâng cấp sạch hơn, bảng điều khiển + popup "Thông tin" giống hệt nhau trên cả 3 nền tảng;
+commit và tag phát hành có chữ ký git.
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|

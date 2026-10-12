@@ -3,9 +3,11 @@
 
 > Đối chiếu từng control của bảng điều khiển với khoá cấu hình thật (`config/src/lib.rs`,
 > `schemas/config.v1.schema.json`) và test chứng minh. Bố cục/nhãn: [ui-spec.md](ui-spec.md).
-> Cập nhật 2026-10-09 — cột macOS theo `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift`
-> (nhãn §1/§2 được test `labels_match_linux_settings_panel` của tray đối chiếu từng chữ với
-> Linux và macOS trong CI). Bản 2026-09-28 đã thay mô tả UI egui 6 tab chưa từng tồn tại.
+> Cập nhật 2026-10-11 — cột macOS theo `adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift`
+> (nhãn §1/§2 + thứ tự bảng mã/kiểu gõ + hàng Phím chuyển được test
+> `labels_match_linux_settings_panel` của tray đối chiếu từng chữ với Linux VÀ macOS trong CI —
+> trước R2-106 test chỉ so bảng mã/kiểu gõ với Linux nên macOS lệch từ đầu mà không bị bắt).
+> Bản 2026-09-28 đã thay mô tả UI egui 6 tab chưa từng tồn tại.
 
 Chú thích: ✓ = có và có test · — = không áp dụng trên nền tảng đó · ✗ = chưa có.
 
@@ -15,7 +17,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 |---|---|---|---|---|---|
 | Bảng mã (4 bảng) | `output_charset` | ✓ | ✓ | ✓ | `core::transform::charset::tests`, corpus `charset_*` |
 | Kiểu gõ (Telex/VNI/VIQR/Telex đơn giản) | `method` | ✓ | ✓ | ✓ | corpus `telex_*`/`vni_*`/`viqr_*`/`simple_telex_*` |
-| Phím chuyển Ctrl+Shift / Ctrl+Shift+Space | — (cố định) | ✓ | ✓ | ✓ | `compose::tests::ctrl_shift_tap_toggles_once_and_only_without_other_keys`, e2e IBus/Fcitx5 "Ctrl+Shift → EN/VN" |
+| Phím chuyển Ctrl+Shift / Ctrl+Shift+Space | — (cố định) | ✓ | ✓ | ✓ | `compose::tests::ctrl_shift_tap_toggles_once_and_only_without_other_keys`, e2e IBus/Fcitx5 "Ctrl+Shift → EN/VN" + "EN/VN giữ sau focus-out/in" (R2-107); macOS không còn lựa chọn Alt + Z / Caps Lock riêng (R2-106, test `labels_match_linux_settings_panel`) |
 | Bật gõ tiếng Việt | `state.json` `global_enabled` | ✓ | ✓ | ✓ | `svc::tests`, `test_compose` `test_state_file`, e2e "state.json → EN/VN" |
 | Dấu mới / Dấu cũ | `diacritic_style` | ✓ | ✓ | ✓ | `transform::diacritic_style` tests, corpus `telex_hoaf_new_style_01` |
 | Khôi phục từ tiếng Anh khi gõ sai | `auto_restore_english` | ✓ | ✓ | ✓ | corpus `restore_en_*` (chạy cả `--adapter linux` từ 0.2.13) |
@@ -41,7 +43,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 | Khởi động cùng hệ điều hành | Windows `HKCU\…\Run\TextVN`; macOS `SMAppService`/LaunchAgent | ✓ | — (IBus/Fcitx5 tự chạy) | ✓ (opt-in; cần GUI smoke) |
 | Bật hội thoại này khi khởi động | `show_dialog_on_startup` | ✓ | — (không có tiến trình khay) | ✓ (chỉ khi không autostart; cần GUI smoke) |
 | Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (cài đặt Windows) | ✓ | — | — |
-| Hướng dẫn / Thông tin | — | ✓ | ✓ | Thông tin ✓; Hướng dẫn ✗ |
+| Hướng dẫn / Thông tin | — | ✓ | ✓ | Thông tin ✓; Hướng dẫn ✗ — nội dung "Thông tin" giống hệt 3 nền tảng (`about_text_matches_every_platform`, ui-spec §3) |
 | Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | Nút Mặc định ✓, chưa xác nhận giữ macro |
 | Cài & bật TSF | `textvn-cli register` | ✓ | — | — |
 | Đóng / Kết thúc | ẩn về khay / thoát tray | ✓ | Đóng | ✓ (menu bar; cần GUI smoke) |
