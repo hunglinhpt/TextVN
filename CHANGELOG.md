@@ -9,6 +9,77 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.32] — 2026-10-12
+
+> **Bản release candidate** — ký GPG + Sigstore như v0.2.31; từ bản này commit và tag phát
+> hành còn mang chữ ký git (huy hiệu "Verified" — gate mới trong `release.yml`, R6). **Chưa**
+> Authenticode (Windows — chờ SignPath Foundation) và **chưa** Developer ID + notarization
+> (macOS) — vẫn là candidate, không phải production.
+
+Rà soát toàn hệ thống sau 0.2.31: từng dòng thay đổi của vòng 16 + roadmap audit, kiểm bằng
+chạy thật (chi tiết + bằng chứng: `docs/release/code-review-2026-10-09-round2.md` §3.8,
+`docs/release/AUDIT-3PLATFORM-2026-10-07.md` mục F).
+
+### Changed
+- **Popup "Thông tin" giống nhau trên cả 3 nền tảng** (yêu cầu chủ repo): "Bộ gõ tiếng Việt
+  thông minh, đa nền tảng (Windows, macOS, Linux)" + phiên bản + phát triển/giấy phép/URL —
+  thay câu riêng "cho Windows/macOS/Linux" của từng bản; bản Linux trước đây không hiện số
+  phiên bản (R2-113, test `about_text_matches_every_platform`).
+- **macOS: bảng điều khiển về đúng đặc tả chung** — bảng mã và kiểu gõ cùng nhãn, cùng thứ tự
+  với Windows/Linux ("Telex đơn giản" thay "4. Microsoft", bỏ số thứ tự), phím chuyển cố định
+  "Ctrl + Shift (hoặc Ctrl + Shift + Space)". Bỏ hai lựa chọn chỉ có trên macOS (Alt + Z, Caps
+  Lock): hai nền tảng kia không có, và trên macOS Caps Lock còn bật luôn chữ hoa của hệ thống.
+  Cấu hình cũ đã chọn Alt + Z/Caps Lock tự dùng lại Ctrl + Shift (R2-106).
+
+### Fixed
+
+**Linux**
+- **Đổi V/E rồi chuyển cửa sổ bị lật lại** (hồi quy từ 0.2.30): bấm Ctrl+Shift (hoặc menu)
+  sang E, bấm sang cửa sổ khác là quay về V — IBus và Fcitx5 (R2-107; e2e mới "EN/VN giữ sau
+  focus-out/in", đỏ trên bản cũ).
+- Fcitx5 nhiều nhóm bộ gõ: TextVN được thêm vào nhóm ĐANG DÙNG (theo `GroupOrder`), không còn
+  vào nhóm đầu file (R2-108).
+
+**Windows**
+- Tray không còn tự thoát khi Windows hỏi đăng xuất/khởi động lại mà lần đó bị huỷ (ví dụ
+  Notepad hỏi lưu và bạn bấm Cancel) — chỉ thoát khi phiên kết thúc thật (R2-102).
+- Nâng cấp: chỉ dừng tray chạy từ chính thư mục cài (bản portable/Store khác đang dùng được
+  giữ nguyên), và dừng chắc chắn trước khi thay file (R2-105).
+- Nâng cấp từ bản ≤ 0.2.30 mà chưa mở lại app: app đang mở (còn nạp bộ gõ cũ) vẫn nhận bật/tắt
+  V/E từ khay và ngược lại (R2-109). Kèm theo các lỗi tên pipe của bản 0.2.31: `doctor` báo
+  IPC "chưa kết nối" dù tray đang chạy, chế độ tương thích (hook) không liên lạc được với tray,
+  `--stop` không gửi được lệnh thoát qua pipe.
+- `TextVN.exe --status` khi tray không chạy báo `OFFLINE` thay vì panic (R2-101).
+- Gỡ bản cài máy dọn TextVN khỏi danh sách bàn phím của mọi tài khoản đang đăng nhập, kể cả
+  tài khoản gốc khi quản trị viên gỡ hộ — bản 0.2.30–0.2.31 có bước này nhưng chưa từng xoá
+  được (đường dẫn registry sai) (R2-104).
+- TSF: lỗi hiếm khi kết thúc composition không còn gây lặp chữ (R2-103).
+- Kết nối tới tray chỉ nhận đúng `TextVN.exe` cùng phiên đăng nhập (R2-110); bộ cài build với
+  tên sản phẩm khác (`/DMyAppName`) không còn bị từ chối đăng ký TSF (R2-111).
+- Bản cài per-user gỡ không cần quyền quản trị vẫn hẹn xoá được file đang bị khoá (RunOnce;
+  lệnh quá 260 ký tự được báo là không hẹn được thay vì báo thành công — R2-115).
+- Tray chịu được lock bị "poison" ở mọi chỗ (menu khay, kết nối IPC) — gate tự động chặn
+  `.lock()/.read()/.write().unwrap()` trong mã chạy thật (R2-114).
+
+**macOS**
+- Ứng dụng yêu cầu chốt chữ (commitComposition) nhận đúng chữ đang gõ; tuỳ chọn "Gõ không gạch
+  chân" áp vào cả chiến lược của engine; app đang chạy nhận đúng tiến trình đang focus khi có
+  nhiều tiến trình cùng bundle id.
+
+### Known issues
+- **Phần mềm diệt virus có thể cách ly nhầm** khi binary chưa có chữ ký Authenticode (chờ
+  SignPath): 2026-10-11 Kaspersky cách ly `textvn-tsf.dll`/`TextVN.exe` của bản cài từ
+  Microsoft Store khoảng 2 phút sau lần chạy đầu (gói cài vẫn thành công) — bằng chứng, hash
+  để báo false positive và việc cần làm: `docs/specs/antivirus-false-positive.md` §10.
+
+### Security / quy trình
+- Preflight không còn cài/gỡ thật bộ cài trên máy dev (gate `store-validate`: bỏ qua khi
+  artifact cũ hơn `Cargo.toml` hoặc chưa đặt `TEXTVN_STORE_VALIDATE=1`; CI vẫn chạy thật) (E18).
+- Gate chữ ký git trong `release.yml`: commit và tag phát hành phải được GitHub xác nhận
+  "Verified" (R6); tag phát hành ký bằng `git tag -s`.
+- Quét rò rỉ private key/token (`check_no_secrets.py`, repo-hygiene + preflight), quét cả file
+  mới chưa track (R2-112); `.gitignore` chặn các loại file khoá.
+
 ## [0.2.31] — 2026-10-11
 
 > **Bản release candidate** — đã ký GPG (`.asc`, FPR
@@ -1193,7 +1264,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.27...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.32]: https://github.com/hunglinhpt/TextVN/compare/v0.2.31...v0.2.32
 [0.2.31]: https://github.com/hunglinhpt/TextVN/compare/v0.2.30...v0.2.31
 [0.2.30]: https://github.com/hunglinhpt/TextVN/compare/v0.2.29...v0.2.30
 [0.2.29]: https://github.com/hunglinhpt/TextVN/compare/v0.2.28...v0.2.29

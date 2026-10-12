@@ -1290,19 +1290,22 @@ unsafe extern "system" fn wnd_proc(
             PostQuitMessage(0);
             LRESULT(0)
         }
-        // Vòng 16 (audit A3): RestartManager hỏi thoát qua WM_QUERYENDSESSION
-        // khi cài/nâng cấp — tray phải THOÁT (nhả file) thay vì để RM báo fail.
-        // Trả TRUE đồng ý session end; đường thoát y hệt ID_EXIT (graceful).
-        WM_QUERYENDSESSION => {
-            if let Some(app) = APP_INSTANCE.get() {
-                app.ipc.broadcast_shutdown();
-            }
-            RUNNING.store(false, Ordering::Release);
-            PostQuitMessage(0);
-            LRESULT(1) // đồng ý kết thúc
-        }
+        // Vòng 16 (audit A3): RestartManager hỏi thoát qua WM_QUERYENDSESSION khi
+        // cài/nâng cấp — tray phải THOÁT (nhả file) thay vì để RM báo fail.
+        // R2-102: QUERYENDSESSION chỉ là câu HỎI. Đăng xuất/khởi động lại có thể bị
+        // huỷ (app khác còn dữ liệu chưa lưu, người dùng bấm Cancel) — thoát ngay ở
+        // đây làm tray biến mất dù phiên vẫn tiếp tục. Đồng ý (TRUE), rồi chỉ thoát
+        // ở WM_ENDSESSION khi wParam = TRUE: phiên kết thúc thật, hoặc RM yêu cầu
+        // đóng app (ENDSESSION_CLOSEAPP). Đường thoát y hệt ID_EXIT (graceful).
+        WM_QUERYENDSESSION => LRESULT(1),
         WM_ENDSESSION => {
-            // wparam != 0 = session thực sự kết thúc; đã dọn ở QUERYENDSESSION.
+            if wparam.0 != 0 {
+                if let Some(app) = APP_INSTANCE.get() {
+                    app.ipc.broadcast_shutdown();
+                }
+                RUNNING.store(false, Ordering::Release);
+                PostQuitMessage(0);
+            }
             LRESULT(0)
         }
         WM_COMMAND => {
@@ -1362,16 +1365,30 @@ fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 #[cfg(windows)]
 fn check_status() {
     // Vòng 16 (audit A7): server tạo pipe phiên — status thử phiên trước rồi legacy.
+    // R2-101: không mở được pipe nào = tray không chạy → báo OFFLINE. Bản sau A7 gọi
+    // `expect` ở đây: `--status` panic (exit 101) đúng lúc người dùng cần chẩn đoán.
     let candidates = textvn_ipc::candidate_pipe_names();
     println!("Checking TextVN IPC pipe: {}", candidates[0]);
-    let mut stream = None;
+    let mut first_err = None;
+    let mut opened = None;
     for name in &candidates {
-        if let Ok(s) = textvn_ipc::pipe_client_options().open(name) {
-            stream = Some(s);
-            break;
+        match textvn_ipc::pipe_client_options().open(name) {
+            Ok(s) => {
+                opened = Some((name.as_str(), s));
+                break;
+            }
+            Err(e) => {
+                first_err.get_or_insert(e);
+            }
         }
     }
-    let mut stream = stream.expect("đã kiểm Some ở trên");
+    let Some((pipe, mut stream)) = opened else {
+        match first_err {
+            Some(e) => println!("TextVN IPC Server: OFFLINE ({e})"),
+            None => println!("TextVN IPC Server: OFFLINE"),
+        }
+        return;
+    };
     let ping = textvn_ipc::Message::Ping;
     if let Ok(frame) = textvn_ipc::encode_frame(&ping) {
         if stream.write_all(&frame).is_ok() && stream.flush().is_ok() {
@@ -1386,7 +1403,7 @@ fn check_status() {
                             textvn_ipc::decode_exact_frame(&buf)
                         {
                             println!("TextVN IPC Server: RUNNING");
-                            println!("  Pipe: {}", candidates[0]);
+                            println!("  Pipe: {pipe}");
                             println!(
                                 "  Uptime: {} ms ({:.1}s)",
                                 uptime_ms,

@@ -34,8 +34,10 @@ const char *const tv_help_text =
     "Nếu chưa gõ được tiếng Việt: thêm TextVN vào danh sách bộ gõ của IBus (ibus-setup) "
     "hoặc Fcitx5 (fcitx5-configtool), rồi đăng xuất và đăng nhập lại.";
 
+/* Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test Rust
+ * `about_text_matches_every_platform`); dòng "TextVN <phiên bản>" ghép ở on_about. */
 const char *const tv_about_text =
-    "TextVN — Bộ gõ tiếng Việt cho Linux (IBus / Fcitx5)\n\n"
+    "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)\n\n"
     "Phát triển bởi: LinhBH.CoM\n"
     "Giấy phép: GPL-3.0-or-later\n"
     "https://github.com/hunglinhpt/TextVN";

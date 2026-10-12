@@ -166,7 +166,7 @@ static void on_help(GtkButton *b, TvWin *w) {
 static void on_about(GtkButton *b, TvWin *w) {
     (void)b;
     char body[1024];
-    g_snprintf(body, sizeof(body), "TextVN %s\n\n%s", TEXTVN_VERSION, tv_about_text);
+    g_snprintf(body, sizeof(body), "TextVN %s\n%s", TEXTVN_VERSION, tv_about_text);
     show_message(GTK_WINDOW(w->window), "Thông tin TextVN", body);
 }
 

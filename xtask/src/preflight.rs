@@ -237,7 +237,7 @@ const STEPS: &[Step] = &[
     },
     Step {
         name: "store-validate",
-        guards: "3 bước manual package validation của Microsoft trên dist/TextVN-setup-*.exe (silent/ARP/bundleware + uninstall) — Checklist S; máy dev đang cài TextVN thì SKIP (CI chạy thật)",
+        guards: "3 bước manual package validation của Microsoft trên dist/TextVN-setup-*.exe (silent/ARP/bundleware + uninstall) — Checklist S; máy dev: SKIP khi đang cài TextVN, khi dist/ khác version Cargo.toml, hoặc chưa đặt TEXTVN_STORE_VALIDATE=1 (harness cài/gỡ THẬT — E18); CI chạy thật",
         argv: &[
             "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
             "tools/win/validate-store-package.ps1", "-AllowSkip",

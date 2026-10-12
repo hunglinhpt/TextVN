@@ -10,10 +10,6 @@
 # minh duoc typing voi dang ky THUAN per-user tren may thuong. Tren Windows 11 24H2+
 # (build 26300), per-user thuan co the bi tu choi ActivateProfile - xem
 # docs/specs/win-test-common-errors.md B7 + docs/user-guide.md (dung bo cai pham vi may).
-#
-# LUU Y MOI TRUONG (B7, 2026-10-03): runner CI chay ELEVATED nen register trong buoc nay
-# minh duoc typing voi dang ky THUAN per-user tren may thuong. Tren Windows 11 24H2+
-# docs/specs/win-test-common-errors.md B7 + docs/user-guide.md (dung bo cai pham vi may).
 
 param(
     [Parameter(Mandatory = $true)][string]$Zip
@@ -63,6 +59,53 @@ Start-Sleep -Milliseconds 500
 if (Get-Process -Name TextVN -ErrorAction SilentlyContinue) {
     throw 'TextVN tray is still running before typing test'
 }
+
+# R2-101: tray KHONG chay -> --status phai bao OFFLINE (ban sau A7 panic, exit 101).
+$st = (& (Join-Path $dir 'TextVN.exe') --status 2>&1 | Out-String)
+if ($st -match 'panicked' -or $st -notmatch 'OFFLINE') { throw "--status without a tray must report OFFLINE (got: $st)" }
+Write-Host 'PASS --status reports OFFLINE when no tray is running (R2-101)'
+
+# R2-109: tray phuc vu pipe theo phien VA ten cu (DLL TSF ban cu con nap trong app dang mo
+# sau nang cap chi biet ten cu). R2-102: WM_QUERYENDSESSION chi la cau hoi - dang xuat co
+# the bi huy - tray chi thoat o WM_ENDSESSION(TRUE).
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class TvSessionWin {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr FindWindowW(string cls, string title);
+    [DllImport("user32.dll")]
+    public static extern IntPtr SendMessageTimeoutW(IntPtr h, uint msg, UIntPtr w, IntPtr l, uint flags, uint timeout, out UIntPtr result);
+}
+'@
+$sessionTray = Start-Process -FilePath (Join-Path $dir 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $dir -PassThru
+$trayUp = $false
+for ($i = 0; $i -lt 30 -and -not $trayUp; $i++) {
+    Start-Sleep -Milliseconds 500
+    $trayUp = ((& (Join-Path $dir 'TextVN.exe') --status 2>&1 | Out-String) -match 'RUNNING')
+}
+if (-not $trayUp) { throw 'TextVN tray did not start for the session-end test' }
+$pipes = @([System.IO.Directory]::GetFiles('\\.\pipe\') | Where-Object { $_ -like '*textvn-ipc-v1*' })
+if (-not ($pipes | Where-Object { $_ -match 'textvn-ipc-v1-s\d+$' })) { throw ('session pipe not served (pipes: ' + ($pipes -join ', ') + ')') }
+if (-not ($pipes | Where-Object { $_ -match 'textvn-ipc-v1$' })) { throw ('legacy pipe textvn-ipc-v1 not served (pipes: ' + ($pipes -join ', ') + ')') }
+Write-Host 'PASS tray serves the session pipe and the legacy pipe name (R2-109)'
+# [NullString]::Value: PowerShell doi $null thanh "" khi truyen vao tham so string cua .NET
+# -> FindWindow chi tim cua so co tieu de RONG (B22).
+$hwnd = [IntPtr]::Zero
+for ($i = 0; $i -lt 40 -and $hwnd -eq [IntPtr]::Zero; $i++) {
+    Start-Sleep -Milliseconds 250
+    $hwnd = [TvSessionWin]::FindWindowW('TextVNTrayWndClass', [NullString]::Value)
+}
+if ($hwnd -eq [IntPtr]::Zero) { throw 'tray window TextVNTrayWndClass not found' }
+$res = [UIntPtr]::Zero
+[void][TvSessionWin]::SendMessageTimeoutW($hwnd, 0x0011, [UIntPtr]::Zero, [IntPtr]::Zero, 2, 3000, [ref]$res)
+Start-Sleep -Milliseconds 1500
+$sessionTray.Refresh()
+if ($sessionTray.HasExited) { throw 'tray quit on WM_QUERYENDSESSION - a cancelled sign-out would leave the user without TextVN (R2-102)' }
+if ($res.ToUInt64() -ne 1) { throw "tray must agree to WM_QUERYENDSESSION (returned $res)" }
+[void][TvSessionWin]::SendMessageTimeoutW($hwnd, 0x0016, [UIntPtr]::new(1), [IntPtr]::Zero, 2, 3000, [ref]$res)
+if (-not $sessionTray.WaitForExit(8000)) { throw 'tray did not exit after WM_ENDSESSION(TRUE)' }
+Write-Host 'PASS tray survives WM_QUERYENDSESSION and exits on WM_ENDSESSION (R2-102)'
 
 & (Join-Path $PSScriptRoot 'test-typing.ps1') -Dir $dir
 

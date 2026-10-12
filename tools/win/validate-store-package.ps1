@@ -108,6 +108,30 @@ if ($level -ne 'asInvoker') {
 }
 Write-Host 'PASS 0) manifest: requestedExecutionLevel=asInvoker (validator CreateProcess duoc)'
 
+# E18 (2026-10-11): o che do preflight (-AllowSkip, may dev) harness nay CAI/GO THAT -
+# ghi Run key, Start Menu, doi Ctrl+Shift cua nguoi dung. Lan chay 2026-10-11 tren may
+# chu repo: ban cai may vua bi go nen khong co entry nao -> harness cai/go that ban
+# dist\ CU 9 tieng (0.2.31, con loi B21) -> go khong sach, de lai ban per-user. Tu nay:
+#  (1) artifact khac version Cargo.toml = build cu -> SKIP (validate dung ban se phat hanh);
+#  (2) may dev chi chay that khi dat TEXTVN_STORE_VALIDATE=1 (hoac CI=true). CI khong dung
+#      -AllowSkip nen luon chay that tren runner sach.
+if ($AllowSkip) {
+    $cargo = Join-Path $PSScriptRoot '..\..\Cargo.toml'
+    $cargoVersion = $null
+    if (Test-Path $cargo) {
+        $mv = Select-String -Path $cargo -Pattern '^version = "([^"]+)"' | Select-Object -First 1
+        if ($mv) { $cargoVersion = $mv.Matches[0].Groups[1].Value }
+    }
+    if ($cargoVersion -and $cargoVersion -ne $ExpectVersion) {
+        Write-Host "SKIP: dist\ la ban $ExpectVersion, Cargo.toml = $cargoVersion (artifact cu) - build lai hoac de CI chay that."
+        exit 0
+    }
+    if ($env:CI -ne 'true' -and $env:TEXTVN_STORE_VALIDATE -ne '1') {
+        Write-Host 'SKIP: harness cai/go THAT (Run key, Start Menu, Ctrl+Shift) - chi chay tren may sach: CI, hoac dat TEXTVN_STORE_VALIDATE=1 (E18).'
+        exit 0
+    }
+}
+
 $before = Get-ArpEntries
 $beforeTextVN = @($before | Where-Object { $_.Name -like "*$ExpectName*" })
 if ($beforeTextVN.Count -gt 0) {

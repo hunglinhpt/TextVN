@@ -48,11 +48,17 @@ PATTERNS = [
 
 
 def list_tracked_files():
+    # R2-112: quet ca file MOI chua track (nhung khong bi .gitignore) - preflight chay
+    # TRUOC commit, file key vua tao ma chua `git add` truoc day lot qua gate (cung bai
+    # hoc voi check_ps1_ascii: phai quet --others --exclude-standard).
     try:
         out = subprocess.check_output(
-            ["git", "ls-files"], cwd=ROOT, text=True, encoding="utf-8"
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            text=True,
+            encoding="utf-8",
         )
-        return [f.strip() for f in out.splitlines() if f.strip()]
+        return sorted({f.strip() for f in out.splitlines() if f.strip()})
     except Exception as e:
         print(f"Error running git ls-files: {e}")
         return []

@@ -330,7 +330,22 @@ G
     tv_deactivate_fcitx5
     diff <(grep -v '^$' "$t/orig") <(grep -v '^$' "$XDG_CONFIG_HOME/fcitx5/profile") >/dev/null ||
         fail "Fcitx5 gỡ không trả profile về như cũ"
-    echo "PASS đơn vị: thêm/bỏ TextVN trong GNOME input-sources và profile Fcitx5"
+    # R2-108: profile NHIỀU nhóm — nhóm đang dùng (GroupOrder 0=Default) nằm ở
+    # [Groups/1]; TextVN phải vào ĐÚNG nhóm đó (bản C8 đoán qua DefaultIM → nhóm đầu file).
+    printf '[Groups/0]\nName=Other\nDefault Layout=us\nDefaultIM=pinyin\n\n[Groups/0/Items/0]\nName=pinyin\nLayout=\n\n[Groups/1]\nName=Default\nDefault Layout=us\nDefaultIM=keyboard-us\n\n[Groups/1/Items/0]\nName=keyboard-us\nLayout=\n\n[GroupOrder]\n0=Default\n1=Other\n' \
+        > "$XDG_CONFIG_HOME/fcitx5/profile"
+    cp "$XDG_CONFIG_HOME/fcitx5/profile" "$t/orig-multi"
+    [[ "$(tv_fcitx5_active_group "$XDG_CONFIG_HOME/fcitx5/profile")" == 1 ]] ||
+        fail "Fcitx5: không nhận ra nhóm đang dùng theo GroupOrder"
+    tv_activate_fcitx5 >/dev/null
+    grep -q '^\[Groups/1/Items/1\]$' "$XDG_CONFIG_HOME/fcitx5/profile" ||
+        fail "Fcitx5 nhiều nhóm: TextVN không vào nhóm đang dùng (GroupOrder 0)"
+    grep -q '^\[Groups/0/Items/1\]$' "$XDG_CONFIG_HOME/fcitx5/profile" &&
+        fail "Fcitx5 nhiều nhóm: TextVN bị thêm vào nhóm KHÔNG dùng"
+    tv_deactivate_fcitx5
+    diff <(grep -v '^$' "$t/orig-multi") <(grep -v '^$' "$XDG_CONFIG_HOME/fcitx5/profile") >/dev/null ||
+        fail "Fcitx5 nhiều nhóm: gỡ không trả profile về như cũ"
+    echo "PASS đơn vị: thêm/bỏ TextVN trong GNOME input-sources và profile Fcitx5 (1 và nhiều nhóm)"
 }
 export -f unit_activation
 

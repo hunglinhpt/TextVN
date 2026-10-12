@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! IPC Server cho TextVN Tray (WIN-051 — P0-3 §4 / P1-4 §2).
 //!
-//! Lắng nghe trên Named Pipe `\\.\pipe\textvn-ipc-v1`. Quản lý các client kết nối
+//! Lắng nghe trên Named Pipe theo phiên `\\.\pipe\textvn-ipc-v1-s<phiên>` và tên cũ
+//! `\\.\pipe\textvn-ipc-v1` (R2-109 — DLL TSF bản cũ còn nạp). Quản lý các client kết nối
 //! (in-process TSF DLLs, Hook process, CLI probe...), broadcast `ConfigReload` và `StateUpdate`,
 //! theo dõi sức khỏe và quản lý watchdog cho tiến trình `textvn-hook.exe`.
 
@@ -287,24 +288,36 @@ pub struct IpcServer {
     crash_counter: AtomicU32,
     active_clients: AtomicU32,
     hook_pid: AtomicU32,
+    /// Mỗi tên một vòng accept riêng; subscriber + broadcast dùng chung.
     #[cfg_attr(not(windows), allow(dead_code))]
-    pipe_name: String,
+    pipe_names: Vec<String>,
 }
 
 impl IpcServer {
     pub fn new(svc: Arc<SvcManager>) -> Arc<Self> {
         // Vòng 16 (audit A7): pipe theo phiên — hết xung đột đa phiên/RDP.
+        // R2-109: phục vụ THÊM tên cũ `PIPE_NAME`. Nâng cấp từ bản <= 0.2.30 không
+        // khởi động lại app: app đang mở vẫn nạp DLL TSF cũ (file đã đổi tên
+        // .old-*, vẫn map) — DLL đó chỉ biết tên cũ, nên bật/tắt V/E từ khay không
+        // tới các app ấy cho tới khi chúng mở lại. Client mới luôn thử pipe phiên
+        // trước (`textvn_ipc::candidate_pipe_names`); DACL chỉ cho đúng user nên
+        // phiên khác không dùng được instance tên cũ của phiên này.
         #[cfg(windows)]
-        let pipe = textvn_ipc::session_pipe_name();
+        let pipes = [textvn_ipc::session_pipe_name(), String::from(PIPE_NAME)];
         #[cfg(not(windows))]
-        let pipe = String::from(PIPE_NAME);
-        Self::with_pipe_name(svc, &pipe)
+        let pipes = [String::from(PIPE_NAME)];
+        Self::with_pipe_names(svc, &pipes)
     }
 
     /// Test dùng tên pipe riêng: `PIPE_NAME` là namespace toàn máy, tray thật
     /// đang chạy giữ nó thì client của test nối vào tray thật (và ToggleViEn
     /// trong test đảo V/E của người dùng).
+    #[cfg(all(test, windows))]
     fn with_pipe_name(svc: Arc<SvcManager>, pipe_name: &str) -> Arc<Self> {
+        Self::with_pipe_names(svc, &[pipe_name.to_string()])
+    }
+
+    fn with_pipe_names(svc: Arc<SvcManager>, pipe_names: &[String]) -> Arc<Self> {
         Arc::new(Self {
             svc,
             start_time: Instant::now(),
@@ -313,7 +326,7 @@ impl IpcServer {
             crash_counter: AtomicU32::new(0),
             active_clients: AtomicU32::new(0),
             hook_pid: AtomicU32::new(0),
-            pipe_name: pipe_name.to_string(),
+            pipe_names: pipe_names.to_vec(),
         })
     }
 
@@ -403,10 +416,13 @@ impl IpcServer {
             return;
         }
 
-        let this = self.clone();
-        std::thread::spawn(move || {
-            this.server_accept_loop();
-        });
+        for pipe_name in &self.pipe_names {
+            let this = self.clone();
+            let pipe_name = pipe_name.clone();
+            std::thread::spawn(move || {
+                this.server_accept_loop(&pipe_name);
+            });
+        }
 
         // Khởi động watchdog giám sát hook process (WIN-040, WIN-051 §6)
         let this_watchdog = self.clone();
@@ -416,8 +432,8 @@ impl IpcServer {
     }
 
     #[cfg(windows)]
-    fn server_accept_loop(self: Arc<Self>) {
-        let pipe_name_wide: Vec<u16> = self.pipe_name.encode_utf16().chain(Some(0)).collect();
+    fn server_accept_loop(self: Arc<Self>, pipe_name: &str) {
+        let pipe_name_wide: Vec<u16> = pipe_name.encode_utf16().chain(Some(0)).collect();
 
         while self.running.load(Ordering::Acquire) {
             // SEC-05 (audit 2026-10-04): pipe KHÔNG có DACL = mọi user đăng nhập
@@ -543,7 +559,9 @@ impl IpcServer {
                 Message::Subscribe { pid } => {
                     subscribed = true;
                     debug_assert_eq!(pid, peer_pid);
-                    let mut subs = self.subscribers.lock().unwrap();
+                    // R2-114: một luồng panic khi giữ lock không được chặn mọi client
+                    // Subscribe về sau (poison) — dùng tiếp dữ liệu bên trong.
+                    let mut subs = self.subscribers.lock().unwrap_or_else(|e| e.into_inner());
                     if !subs.iter().any(|c| Arc::ptr_eq(&c.stream, &stream)) {
                         subs.push(ClientSink {
                             stream: stream.clone(),
@@ -615,7 +633,7 @@ impl IpcServer {
         }
 
         if subscribed {
-            let mut subs = self.subscribers.lock().unwrap();
+            let mut subs = self.subscribers.lock().unwrap_or_else(|e| e.into_inner());
             // Nhiều pipe từ CÙNG PID (TSF trong một app) có thể Subscribe.
             // Chỉ gỡ connection đã đóng, không gỡ nhầm pipe còn sống.
             subs.retain(|c| !Arc::ptr_eq(&c.stream, &stream));
@@ -835,6 +853,77 @@ mod tests {
         client.join().unwrap();
         server.stop();
         let _ = textvn_ipc::pipe_client_options().open(&pipe);
+        std::thread::sleep(Duration::from_millis(50));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    /// R2-109: một server phục vụ NHIỀU tên — pipe phiên + tên cũ cho DLL TSF bản cũ
+    /// còn nạp trong app đang mở sau khi nâng cấp. Client nối qua tên nào cũng phải
+    /// Subscribe được và nhận CÙNG broadcast.
+    #[test]
+    #[cfg(windows)]
+    fn serves_every_pipe_name() {
+        use std::io::Write as _;
+
+        let names = [test_pipe_name("multi-a"), test_pipe_name("multi-b")];
+        let temp_dir =
+            std::env::temp_dir().join(format!("textvn_multi_test_{}", std::process::id()));
+        let svc = SvcManager::new(Some(temp_dir.clone()));
+        let server = IpcServer::with_pipe_names(svc, &names);
+        server.start();
+        std::thread::sleep(Duration::from_millis(100));
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let clients: Vec<_> = names
+            .iter()
+            .cloned()
+            .map(|name| {
+                let tx = tx.clone();
+                std::thread::spawn(move || {
+                    let mut file = None;
+                    for _ in 0..20 {
+                        if let Ok(f) = textvn_ipc::pipe_client_options().open(&name) {
+                            file = Some(f);
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
+                    let mut file = file.expect("client pipe open");
+                    let sub = encode_frame(&Message::Subscribe {
+                        pid: std::process::id(),
+                    })
+                    .unwrap();
+                    file.write_all(&sub).unwrap();
+                    file.flush().unwrap();
+                    tx.send(read_message(&mut file).expect("ack frame"))
+                        .unwrap();
+                    tx.send(read_message(&mut file).expect("broadcast frame"))
+                        .unwrap();
+                })
+            })
+            .collect();
+
+        for _ in &names {
+            let ack = rx
+                .recv_timeout(Duration::from_secs(3))
+                .expect("Ack within 3s");
+            assert_eq!(ack, Message::Ack);
+        }
+        server.broadcast_config_reload(7);
+        for _ in &names {
+            let update = rx
+                .recv_timeout(Duration::from_secs(3))
+                .expect("broadcast within 3s on every pipe name");
+            assert_eq!(update, Message::ConfigReload { version: 7 });
+        }
+
+        for client in clients {
+            client.join().unwrap();
+        }
+        server.stop();
+        for name in &names {
+            let _ = textvn_ipc::pipe_client_options().open(name);
+        }
         std::thread::sleep(Duration::from_millis(50));
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

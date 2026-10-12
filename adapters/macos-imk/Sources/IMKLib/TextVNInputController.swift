@@ -81,10 +81,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// controller và mỗi lần app được focus, không chỉ khi nhận ConfigReload.
     private var nonPreedit = false
 
-    /// Vòng 16 (audit B3): `switch_key` từ config.json — UI có 3 lựa chọn
-    /// (ctrl_shift/alt_z/caps_lock) nhưng IMK từng bỏ qua hoàn toàn (UI chết).
-    /// Mặc định `"ctrl_shift"` = tap Ctrl+Shift như Windows/Linux.
-    private var switchKey = "ctrl_shift"
+    // R2-106: phím chuyển CỐ ĐỊNH Ctrl+Shift (tap) / Ctrl+Shift+Space như Windows/Linux.
+    // Vòng 16 (B3) từng thực thi `switch_key` Alt+Z/Caps Lock riêng trên macOS — lệch
+    // parity, và Caps Lock không chặn được trạng thái chữ hoa của hệ thống. Khoá
+    // `switch_key` cũ trong config.json (nếu có) bị bỏ qua: Ctrl+Shift luôn hoạt động.
 
     public override init(server: IMKServer!, delegate: Any!, client: Any!) {
         // Config user trước; hỏng → engine default. Không bao giờ để IMK chết
@@ -105,7 +105,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
         self.engine = engine
         self.nonPreedit = Self.configNonPreedit(in: cfgData)
-        self.switchKey = Self.configSwitchKey(in: cfgData)
         // Toggle khởi tạo theo `config.enabled` (bản cũ hardcode `true`): khi
         // config tắt VN, hotkey Ctrl+Shift+Space bị lệch một nhịp (bật → vẫn tắt).
         // Chỉ controller ĐẦU TIÊN của tiến trình khởi tạo; sau đó giữ trạng thái
@@ -130,7 +129,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         engine?.reset()
         // R2-49: config.json có thể đổi lúc TextVN.app không chạy (không có ConfigReload).
         nonPreedit = Self.configNonPreedit(in: Self.loadConfig())
-        switchKey = Self.configSwitchKey(in: Self.loadConfig())
         // Vòng 16 (audit B2): focus = thời điểm an toàn để nối lại IPC nếu lần
         // trước violation/timeout (connect() idempotent — guard fd/timer).
         ipc.connect()
@@ -206,16 +204,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 otherKeyPressed = true
             }
 
-            if Self.isCapsLockToggle(keyCode: event.keyCode, switchKey: switchKey) {
-                let now = ProcessInfo.processInfo.systemUptime
-                if now - lastToggleTime >= 0.25 {
-                    lastToggleTime = now
-                    _ = toggleVietnamese()
-                }
-                return false
-            }
-
-            if switchKey == "ctrl_shift", Self.isCtrlShiftTap(
+            if Self.isCtrlShiftTap(
                 wasCtrl: ctrlDown,
                 wasShift: shiftDown,
                 currentCtrl: isCtrl,
@@ -256,18 +245,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Toggle EN/VN: Ctrl+Shift+Space (P2-6 MAC-018; ADR-011 cho CapsLock mode).
         // So MASK (bỏ bit Caps/Fn) — Caps Lock bật vẫn toggle được; so bằng `==`
         // làm hotkey chết khi CapsLock on. Linux so mask y hệt (`engine.cpp` §3).
-        // Vòng 16 (audit B3): 2 hotkey còn lại chỉ hoạt động khi switch_key
-        // tương ứng — trước đây UI cho chọn nhưng IMK không thực thi (UI chết).
-        if Self.isAltZToggle(keyCode: event.keyCode,
-                             mods: KeyTranslator.modifiers(event.modifierFlags),
-                             switchKey: switchKey) {
-            otherKeyPressed = true
-            return toggleVietnamese()
-        }
-        if Self.isCapsLockToggle(keyCode: event.keyCode, switchKey: switchKey) {
-            otherKeyPressed = true
-            return toggleVietnamese()
-        }
         if Self.isToggleChord(mods: mods, keyCode: event.keyCode) {
             otherKeyPressed = true
             return toggleVietnamese()
@@ -425,7 +402,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             if let cfg = Self.loadConfig() {
                 _ = engine?.reloadConfig(Self.engineConfig(cfg))
                 nonPreedit = Self.configNonPreedit(in: cfg)
-                switchKey = Self.configSwitchKey(in: cfg)
                 // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
                 // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
                 if let enabled = Self.configEnabled(in: cfg) {
@@ -500,19 +476,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Ctrl+Shift+Space — so MASK, bỏ bit Caps/Fn (ADR-011: CapsLock là kiểu gõ
     /// hoa, không được làm chết hotkey). Tách static để test không cần IMKServer.
-    /// Vòng 16 (audit B3): Alt + Z — keyDown giữ Alt; Alt thường PASS qua
-    /// engine (isChordSwift) nên đường này chạy TRƯỚC chord check trong handle().
-    static func isAltZToggle(keyCode: UInt16, mods: UInt32, switchKey: String) -> Bool {
-        switchKey == "alt_z" && keyCode == kVK_ANSI_Z && (mods & FFI.modAlt) != 0
-    }
-
-    /// Vòng 16 (audit B3): Caps Lock keyDown — keyUp đã bị lọc trước nên không
-    /// toggle đôi. Không đến được đây ở app chặn CapsLock? → fallback: user
-    /// vẫn còn Ctrl+Shift tap (switch_key quay lại "ctrl_shift" trong Settings).
-    static func isCapsLockToggle(keyCode: UInt16, switchKey: String) -> Bool {
-        switchKey == "caps_lock" && keyCode == kVK_CapsLock
-    }
-
     static func isToggleChord(mods: UInt32, keyCode: UInt16) -> Bool {
         let ignore = FFI.modCaps | FFI.modFn
         return keyCode == kVK_Space
@@ -617,16 +580,6 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Thiếu khoá / config hỏng → `false` (gạch chân) — CÙNG mặc định khi decode
     /// của `ConfigModel` (TextVN.app) và CHANGELOG 0.2.27. Bản cài mới ghi khoá tường minh.
-    /// Vòng 16 (audit B3): đọc `switch_key` — "ctrl_shift" mặc định; giá trị
-    /// lạ (config tay) quay về mặc định thay vì chết hotkey.
-    static func configSwitchKey(in data: Data?) -> String {
-        guard let data,
-              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        else { return "ctrl_shift" }
-        let key = obj["switch_key"] as? String ?? "ctrl_shift"
-        return ["ctrl_shift", "alt_z", "caps_lock"].contains(key) ? key : "ctrl_shift"
-    }
-
     static func configNonPreedit(in data: Data?) -> Bool {
         guard let data,
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]

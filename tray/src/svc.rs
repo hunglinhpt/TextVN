@@ -166,9 +166,11 @@ impl SvcManager {
 
     /// Override riêng của app (`None` = theo toàn cục).
     pub fn app_override(&self, app_id: &str) -> Option<bool> {
+        // R2-114: poison-safe như mọi truy cập khác (A11 bỏ sót chỗ này — menu khay
+        // gọi qua đây trong wnd_proc).
         self.state
             .read()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .apps
             .get(&app_id.to_lowercase())
             .copied()

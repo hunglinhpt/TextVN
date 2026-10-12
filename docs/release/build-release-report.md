@@ -1,5 +1,18 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.32 — rà soát toàn hệ thống sau 0.2.31 (R2-101…R2-115) + CI từng nền tảng
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | 15 finding R2-101…R2-115 (`code-review-2026-10-09-round2.md` §3.8; 9 bản sửa vòng 16 được rà lại — `AUDIT-3PLATFORM-2026-10-07.md` mục F). Popup "Thông tin" thống nhất 3 nền tảng (R2-113). `ci-shared` tách `ci-windows` + `ci-linux` → README có badge Windows / Linux / macOS / engine |
+| Thay đổi dở của worktree Codex (`8ec9b15`, 20 file, 2026-09-29) | Đối chiếu từng dòng: ~95 % đã có trên `main`, phần còn lại đã được làm lại tốt hơn — không port |
+| Probe thật trên máy dev (Windows 11 26300) | `TextVN.exe --status` không có tray: `main` panic exit 101 → bản sửa `OFFLINE (os error 2)` exit 0 (R2-101). Tray chạy với APPDATA cô lập: `WM_QUERYENDSESSION` → TRUE, tray vẫn sống; `WM_ENDSESSION(TRUE)` → thoát (R2-102); phục vụ đồng thời `textvn-ipc-v1-s1` + `textvn-ipc-v1` (R2-109). Registry API qua ctypes: `RegOpenKeyExW(HKU, "\<sid>")` = 161, không `\` = 0; `RegDeleteTreeW` qua `<sid>\Software\Classes` và `<sid>_Classes` xoá được (R2-104). ISCC biên dịch `.iss` bản máy OK |
+| Đỏ trước — xanh sau | R2-107: nhánh `test/r2-107-red` (chỉ e2e mới, code `main`) → [ci-shared #38154207224](https://github.com/hunglinhpt/TextVN/actions/runs/38154207224) job Linux đỏ `FAIL EN giữ sau focus-out/in want="as " got="á "`. R2-106/R2-113: test parity đỏ trên `SettingsView.swift`/`AppInfo.swift` cũ. R2-108: profile Fcitx5 2 nhóm — `main` thêm vào `[Groups/0]`, bản sửa vào `[Groups/1]`. R2-112: file chứa header private key chưa track → gate đỏ. R2-114: trả lại `.read().unwrap()` → gate đỏ |
+| Gate local | `cargo xtask preflight` **23/23 PASS** (homebrew SKIP — thiếu ruby, CI chạy thật); `swiftc -parse` 6 file Swift đã sửa OK (typecheck thật chỉ ở `ci-macos` — E16) |
+| Lỗi/sự cố mới trong phiên (B4⑤) | R2-101…R2-115; **B22**/A16 (PowerShell `$null` → `""` khi gọi P/Invoke); **E17** (rustc `0xc0000409` / os error 1453 khi build song song trên máy dev → `-j 2`); **E18** (preflight `store-validate` cài/gỡ thật artifact cũ trên máy dev → nay bỏ qua trừ khi opt-in) |
+| Sự cố antivirus (ghi nhận) | Kaspersky cách ly 8 đối tượng của bản Store 1.2.29.0 lúc 23:34:32, 2 phút sau lần chạy đầu — `docs/specs/antivirus-false-positive.md` §10 (chờ tên detection, AV-1/AV-2/AV-6) |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization |
+
 ## Bản 0.2.31 — hoàn tất roadmap audit 3 nền tảng (A10, B7/B8/B9/B11/B12/B13, C1/C3/C7/C8/C9) + gate clippy-linux
 
 | Hạng mục | Bằng chứng |

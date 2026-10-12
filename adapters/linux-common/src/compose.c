@@ -92,7 +92,8 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
             if (cur->len + 1 >= LC_COMP_MAX) {
                 /* C5 (audit): cur->len == LC_COMP_MAX thi ghi text[cur->len] la
                  * OOB intra-object (vuot mang text[256]) — commit nguyen chuoi
-                 * hien tai, NUOT phim moi (khong noi). */
+                 * hien tai va KHONG noi phim moi vao: eaten = 0 nen phim di tiep
+                 * toi app, ky tu hien SAU phan vua commit (khong mat chu). */
                 memcpy(out->text, cur->text, (size_t)cur->len * sizeof(uint32_t));
                 out->text_len = cur->len;
                 out->has_text = 1;

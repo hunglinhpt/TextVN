@@ -353,19 +353,33 @@ tv_deactivate_ibus() {
 # (fcitx5 ghi đè profile khi thoát) — gọi trước khi restart.
 tv_fcitx5_profile() { echo "${XDG_CONFIG_HOME:-$HOME/.config}/fcitx5/profile"; }
 
-# C8 (audit): truoc day them cung vao [Groups/0] — profile nhieu group thi user
-# khong thay bo go. Doc DefaultIM cua [Groups/0] lam khoa group hien hanh.
+# C8 (audit) + R2-108: nhóm ĐANG DÙNG = mục đầu của [GroupOrder] ("0=<tên nhóm>"),
+# tra ra [Groups/N] có Name=<tên nhóm> đó. Fcitx5 không ghi các [Groups/N] theo thứ
+# tự GroupOrder, nên [Groups/0] chưa chắc là nhóm đang dùng. (Bản C8 đầu tiên đoán
+# bằng DefaultIM — đó là bộ gõ mặc định TRONG mỗi nhóm, nên luôn ra nhóm đầu file.)
+# Không tìm thấy → 0. In chỉ số N.
+tv_fcitx5_active_group() { # <profile>
+    awk '
+        /^\[/ { sec = $0; next }
+        sec == "[GroupOrder]" && /^0=/ { want = substr($0, 3) }
+        sec ~ /^\[Groups\/[0-9]+\]$/ && /^Name=/ {
+            id = sec
+            gsub(/^\[Groups\/|\]$/, "", id)
+            name[id] = substr($0, 6)
+        }
+        END {
+            if (want != "") for (id in name) if (name[id] == want) { print id; exit }
+            print 0
+        }
+    ' "$1"
+}
+
 tv_activate_fcitx5() {
     local p gid n
     p="$(tv_fcitx5_profile)"
     [[ -f "$p" ]] || return 0
     grep -qx 'Name=textvn' "$p" && return 0
-    # DefaultIM trong [Groups/0] cho biet id group dang dung (vd [Groups/1]).
-    gid="$(awk '
-        /^\[Groups\/[0-9]+\]$/ { gsub(/^\[Groups\//, ""); gsub(/\]$/, ""); g = $0 }
-        /^DefaultIM=/ { print g; exit }
-    ' "$p")"
-    [[ -n "$gid" ]] || gid=0
+    gid="$(tv_fcitx5_active_group "$p")"
     n="$(grep -c "^\[Groups/${gid}/Items/[0-9]*\]$" "$p" || true)"
     printf '\n[Groups/%s/Items/%s]\nName=textvn\nLayout=\n' "$gid" "$n" >> "$p"
     tv_ok "Đã thêm TextVN vào nhóm bộ gõ Fcitx5 (Ctrl+Space để chuyển)."

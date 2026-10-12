@@ -146,9 +146,38 @@ Chi tiết + lý do: `tsf-typing-overhaul.md` §3. Tóm tắt:
 | A8 | TSF sửa text bằng composition (không `SendInput`, không Backspace giả) — gói `tsf-only` không còn API gõ giả lập nào. Riêng app IMM32 chạy qua CUAS: phím ranh giới (Enter, Tab, điều hướng, Ctrl+…) của chính người dùng mà CUAS đổi thành `VK_PROCESSKEY` được trả lại bằng `PostMessageW(WM_KEYDOWN)` tới cửa sổ đang focus **trong cùng process/thread** (`adapters/windows-tsf/src/replay.rs`) — không xuyên process, không đi qua hàng đợi input hệ thống | ✅ |
 | A9 | DLL TSF không UIA/không đọc process khác; gate mật khẩu dùng InputScope + `ES_PASSWORD` in-proc | ✅ |
 | A10 | `input.dll` chỉ nạp từ System32 (`LoadLibraryExW` + `LOAD_LIBRARY_SEARCH_SYSTEM32`) | ✅ |
-| A11 | `TextVN --stop` không còn `OpenProcess(PROCESS_TERMINATE)`/`TerminateProcess` | ✅ |
+| A11 | `TextVN --stop` mặc định không `TerminateProcess`. **Cập nhật 2026-10-12:** từ R2-99 (0.2.29), `--stop --if-image-under <dir> --force` (chỉ bộ gỡ/nâng cấp gọi) dùng `OpenProcess(PROCESS_TERMINATE)` + `TerminateProcess` cho ĐÚNG tiến trình tray chạy từ thư mục đang gỡ khi nó không tự thoát — không đụng tiến trình khác | ⚠️ có điều kiện |
 | A12 | `textvn_ffi.dll` không còn trong portable/installer (bảng SHA256 §3 có dòng này là của build cũ) | ✅ |
 | A13 | Named pipe `PIPE_REJECT_REMOTE_CLIENTS` | ✅ |
 
 Việc còn lại **không làm được bằng code**: ký Authenticode (AV-2) và submit FP (AV-1) — vẫn là yếu tố lớn nhất với Kaspersky/SmartScreen cho binary chưa có reputation.
 
+## 10. Sự cố 2026-10-11 — Kaspersky cách ly bản cài từ Microsoft Store (MSIX 1.2.29.0)
+
+| Mốc (máy chủ repo, Kaspersky 21.26, Windows 11 build 26300) | Bằng chứng |
+|---|---|
+| 21:54:07–21:54:11 | `Microsoft-Windows-AppXDeploymentServer/Operational`: cài `23651Linhi.TextVN_1.2.29.0_x64__qgnrpq341n182` từ `pkg_….msixbundle` (Store phát) — **thành công**: Kaspersky KHÔNG chặn bước cài gói |
+| 23:32:34 | `store.log`: lần chạy đầu của app Store — stage ra `%LOCALAPPDATA%\Programs\TextVN-Store\1.2.29.0` (chép `TextVN.exe`, `textvn-tsf.dll`, `textvn-tsf-x86.dll`, `textvn-cli.exe`), ghi Run `TextVN --autostart`, chạy tray ngoài container. `register.log`: COM HKCU → DLL đã stage, cấp ACL đọc cho `S-1-15-2-1`/`S-1-15-2-2`, CTF TIP + category HKCU, ILOT OK; `RegisterProfile` API và **mọi `ActivateProfile` = `0x80004005`** |
+| **23:34:32** | `C:\ProgramData\Kaspersky Lab\AVP21.26\QB`: **8 đối tượng bị cách ly cùng một giây** — 5 file lớn khớp kích thước binary TextVN + phần đầu `.klq` (987 470 ≈ `textvn-tsf.dll` 980 480; 1 207 835 ≈ `TextVN.exe` 1 200 640; 837 454 ≈ `textvn-tsf-x86.dll` 825 856; 4 383 828 ≈ `unins000.exe` 4 380 930; 873 296) + 3 đối tượng ~2,7 KB (kiểu mục registry). Cách ly một lô file + registry cùng lúc là dấu hiệu khôi phục (rollback) của phát hiện hành vi |
+| 23:43 | Chủ repo gỡ gói Store (`--msix-guard` gỡ TIP HKCU, hẹn xoá thư mục stage) |
+
+**Chưa có:** tên detection (AV-5). Cơ chế tự bảo vệ của Kaspersky chặn đọc `.klq` (`Permission denied` kể cả chỉ đọc) và log Windows của Kaspersky chỉ có sự kiện đổi thiết lập — phải xem trong Kaspersky → **Cách ly** (hoặc **Báo cáo**) trên máy đó.
+
+**Phân tích (giả thuyết mạnh nhất, chờ tên detection để chốt):** chuỗi hành vi của kênh Store giống dropper — tiến trình trong gói chép **PE chưa ký Authenticode, chưa có reputation KSN** ra `%LOCALAPPDATA%`, đăng ký DLL đó làm COM in-proc + TIP TSF (nạp vào MỌI tiến trình — giống inject), sửa ACL file, ghi Run (T1547.001), rồi chạy exe vừa thả. Máy bật "Bảo mật dữ liệu nhập từ bàn phím" (Secure Keyboard Input) — một IME lạ xử lý phím ở mọi app trùng mẫu keylogger. Gói MSIX được Store ký, nhưng file chép RA khỏi gói thì không mang chữ ký đó.
+
+Hash binary trong gói đã nộp Store (= asset `TextVN-0.2.29-windows-x64.msix`, SHA-256 gói `435326b6…d5fa`) — dùng cho AV-1:
+
+```
+2667021B518079000BAD94D8C7A113E0D7E3FF32A65959F8090BF3DC4BBD2458  TextVN.exe
+65D7D77E8BAD0BC8842A6295387A573A2D95F763224FCA0D962174D15BFD6733  textvn-tsf.dll
+3FC42111440A1ED3A727699FF92313E750FB2AAC721837EB746E69400AB1F7EA  textvn-tsf-x86.dll
+49150D22802A1C110E83E0AA6AD22E08E655FF1CBDE06717B3A28EFBD433DC08  textvn-cli.exe
+```
+
+| ID | Việc | Ai |
+|---|---|---|
+| AV-5 | Mở Kaspersky → Cách ly: ghi tên detection + đường dẫn gốc của 8 đối tượng (23:34:32) vào bảng trên | Chủ repo (máy có Kaspersky) |
+| AV-1 | Báo false positive (§5) với 4 hash trên + tên detection; nộp lại cho mỗi bản phát hành | Chủ repo |
+| AV-2 | Ký Authenticode (SignPath) — **chặn đường Store cho người dùng Kaspersky** tới khi có | Chờ SignPath Foundation |
+| AV-6 | Đăng ký **Kaspersky Allowlist Program** cho nhà phát triển phần mềm (whitelist theo publisher/hash mỗi bản) | Chủ repo |
+| AV-7 | Sau khi có tên detection: đánh giá giảm hành vi giống dropper của kênh Store (tự khởi động bằng `windows.startupTask` của gói thay vì ghi Run; xem lại bước sửa ACL) | Agent, sau AV-5 |

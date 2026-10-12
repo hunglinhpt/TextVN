@@ -660,38 +660,6 @@ final class ViStateAndHotkeyTests: XCTestCase {
         XCTAssertFalse(TextVNInputController.configNonPreedit(in: nil))
     }
 
-    /// Vòng 16 (audit B3): switch_key parse + hotkey tương ứng.
-    func testConfigSwitchKeyParsing() {
-        XCTAssertEqual(
-            TextVNInputController.configSwitchKey(in: Data("{\"switch_key\":\"alt_z\"}".utf8)),
-            "alt_z")
-        XCTAssertEqual(
-            TextVNInputController.configSwitchKey(in: Data("{\"switch_key\":\"caps_lock\"}".utf8)),
-            "caps_lock")
-        // Giá trị lạ → quay về mặc định (không chết hotkey).
-        XCTAssertEqual(
-            TextVNInputController.configSwitchKey(in: Data("{\"switch_key\":\"weird\"}".utf8)),
-            "ctrl_shift")
-        XCTAssertEqual(
-            TextVNInputController.configSwitchKey(in: Data("\"x\"".utf8)), "ctrl_shift")
-        XCTAssertEqual(TextVNInputController.configSwitchKey(in: nil), "ctrl_shift")
-    }
-
-    func testSwitchKeyHotkeyMatchers() {
-        // kVK_ANSI_Z = 0x06, kVK_CapsLock = 0x39 (Carbon.HIToolbox).
-        let alt = FFI.modAlt
-        XCTAssertTrue(TextVNInputController.isAltZToggle(
-            keyCode: 0x06, mods: alt, switchKey: "alt_z"))
-        XCTAssertFalse(TextVNInputController.isAltZToggle(
-            keyCode: 0x06, mods: 0, switchKey: "alt_z"))                // thiếu Alt
-        XCTAssertFalse(TextVNInputController.isAltZToggle(
-            keyCode: 0x06, mods: alt, switchKey: "ctrl_shift"))         // sai mode
-        XCTAssertTrue(TextVNInputController.isCapsLockToggle(
-            keyCode: 0x39, switchKey: "caps_lock"))
-        XCTAssertFalse(TextVNInputController.isCapsLockToggle(
-            keyCode: 0x39, switchKey: "ctrl_shift"))
-    }
-
     func testEffectiveStrategyHonorsNonPreedit() {
         let preedit = OutputStrategy.preedit
         let backspace = OutputStrategy.backspaceType

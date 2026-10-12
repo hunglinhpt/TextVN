@@ -24,7 +24,7 @@
 | G10 | **Tài liệu phần phải đạt 2/2 review** rồi mới đánh dấu ✅ tại `00-INDEX §1` | giao thức `00-INDEX §3` |
 | G11 | **File đang có WIP chưa commit của agent khác → KHÔNG sửa, KHÔNG add** — cần thật sự thì báo user / đợi họ commit rồi làm | 00-INDEX, HANDOOK, P1-1, P1-5… đang treo WIP (2026-09-27) |
 | G12 | **Trước khi commit: `git diff --cached --name-only`** — đối chiếu đúng list mong muốn, không có file lạ | sai lúc add nhầm WIP là mất công ngược |
-| G13 | **Push đỏ CI → xử lý ngay trong phiên** (`repo-hygiene` + `ci-shared`, §12) — chưa xanh thì chưa Done, không nhận task mới | giữ repo sạch sau mỗi lần code (yêu cầu user 2026-09-27) |
+| G13 | **Push đỏ CI → xử lý ngay trong phiên** (`repo-hygiene` + `ci-shared` + `ci-windows` + `ci-linux`, §12) — chưa xanh thì chưa Done, không nhận task mới | giữ repo sạch sau mỗi lần code (yêu cầu user 2026-09-27) |
 | G14 | **Kết thúc phiên/task → qua checklist dọn dẹp §10** (kill process test, dồn evidence, `git status` sạch, CI xanh) | tránh rò process/file tạm sang phiên sau |
 | G15 | **Phần trùng lặp → bắt buộc viết thành lib/module dùng chung, KHÔNG viết riêng từng nơi** — code sạch, reuse tối đa: logic nào dùng ở ≥2 chỗ thì tách thành module chung (crate chung Rust / script lib chung) ngay từ đầu | user rule 2026-09-27; chống copy-paste (vd locator/rules UIA: field-detect ↔ appcomptest phải dùng chung 1 lib) |
 | G16 | **Phát hành version mới → bắt buộc đi đủ Checklist A (local) + Checklist B (repo/docs) của `docs/release/release-process.md`** — không tag khi CI commit đó chưa xanh; bản phát hành thiếu release note/changelog/version-sync/readme/metainfo/report = chưa Done | chuẩn hoá 2026-10-01 từ quy trình đã thành công của v0.2.0–v0.2.2 |
@@ -144,7 +144,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 - [ ] **Office COM:** `.Close(0)` / `.Quit(0)` — không để WINWORD/EXCEL mồ côi.
 - [ ] **File tạm `%TEMP%`:** evidence cần giữ → copy vào repo (spec / `spikes/`) trước khi xóa.
 - [ ] **Repo:** `git status` không còn file debug/tạm (`dbg_*`, `*.tmp`…) trong vùng mình; file cần giữ → commit hoặc `.gitignore` có lý do.
-- [ ] **CI:** push cuối phiên → `repo-hygiene` + `ci-shared` xanh (G13); đỏ → xử lý ngay.
+- [ ] **CI:** push cuối phiên → `repo-hygiene` + `ci-shared` + `ci-windows` + `ci-linux` xanh (G13); đỏ → xử lý ngay.
 - [ ] **Đăng ký hệ thống:** spike còn TIP "TextVN" registered (đang là default input) → **hỏi user trước khi unregister**.
 
 ## 11. Cập nhật docs & nghiệp vụ — checklist khi "xong"
@@ -165,7 +165,9 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 | `repo-hygiene` | `.github/workflows/repo-hygiene.yml` | Agent Windows/spike | push `main` + PR + dispatch | 8 check "sạch" (§12.2) — **không** build Rust |
 | `hook-spike` | `.github/workflows/hook-spike.yml` | Agent Windows/spike | **chỉ dispatch** | WIN-005: probe WH_KEYBOARD_LL + SendInput + UIA trên `windows-latest` (verify RW5, `P1-5 §1`) — không gate PR |
 | `ci-shared` | `.github/workflows/ci-shared.yml` | Agent core/FFI | push `main` + PR + dispatch | Rust CI: fmt · clippy · abi-sizes · check-tables · verify header · perf · cargo-deny · reuse · **test 3 OS** · replay 3 OS · fuzz |
-| `ci-{windows,macos,linux}` | chưa tạo | phân công sau | — | adapter theo OS (P1-5) |
+| `ci-windows` | `.github/workflows/ci-windows.yml` | Agent Windows | push `main` + PR + dispatch | clippy target Windows (gồm hook) · gói Windows chạy thật: portable + Inno (per-user, machine, nâng cấp khi tray chạy) gõ TSF thật, Store validation, MSIX build + verify + sideload (tách khỏi `ci-shared` 2026-10-11) |
+| `ci-linux` | `.github/workflows/ci-linux.yml` | Agent Linux | push `main` + PR + dispatch | linux-common ASan/UBSan · IBus/Fcitx5 build + e2e thật · tarball cài/chạy ngay (tách khỏi `ci-shared` 2026-10-11) |
+| `ci-macos` | `.github/workflows/ci-macos.yml` | Agent macOS | push `main` (path filter) + PR + dispatch | swift build + test 2 arch · staticlib universal · corpus mac · gói candidate |
 
 **G13:** push đỏ → xử lý trong phiên, chưa xanh thì chưa Done, không nhận task mới.
 

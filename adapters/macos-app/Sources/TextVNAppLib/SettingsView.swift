@@ -30,8 +30,8 @@ public struct SettingsView: View {
             switch self {
             case .about:
                 return Alert(
-                    title: Text("TextVN \(AppInfo.displayVersion) (macOS)"),
-                    message: Text("Bộ gõ tiếng Việt cho macOS.\nPhát triển bởi LinhBH.CoM.\n\nBản quyền © 2026 LinhBH.CoM.\nGiấy phép: GNU General Public License v3."),
+                    title: Text(AppInfo.aboutTitle),
+                    message: Text(AppInfo.aboutMessage),
                     dismissButton: .default(Text("Đồng ý"))
                 )
             case let .autostartFailed(message):
@@ -75,11 +75,13 @@ public struct SettingsView: View {
                         Text("Bảng mã:")
                             .frame(width: 80, alignment: .leading)
                             .font(.system(size: 13, weight: .medium))
+                        // R2-106: CÙNG nhãn + thứ tự với Windows/Linux (ui-spec.md §1,
+                        // test `labels_match_linux_settings_panel`).
                         Picker("", selection: $store.config.output_charset) {
-                            Text("1. Unicode dựng sẵn").tag("unicode_precomposed")
-                            Text("2. TCVN3 (ABC)").tag("tcvn3")
-                            Text("3. VNI Windows").tag("vni_windows")
-                            Text("4. Unicode tổ hợp").tag("unicode_decomposed")
+                            Text("Unicode dựng sẵn").tag("unicode_precomposed")
+                            Text("Unicode tổ hợp").tag("unicode_decomposed")
+                            Text("TCVN3 (ABC)").tag("tcvn3")
+                            Text("VNI Windows").tag("vni_windows")
                         }
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
@@ -92,44 +94,27 @@ public struct SettingsView: View {
                             .frame(width: 80, alignment: .leading)
                             .font(.system(size: 13, weight: .medium))
                         Picker("", selection: $store.config.method) {
-                            Text("1. Telex").tag("telex")
-                            Text("2. VNI").tag("vni")
-                            Text("3. VIQR").tag("viqr")
-                            Text("4. Microsoft").tag("simple_telex")
+                            Text("Telex").tag("telex")
+                            Text("VNI").tag("vni")
+                            Text("VIQR").tag("viqr")
+                            Text("Telex đơn giản").tag("simple_telex")
                         }
                         .labelsHidden()
                         .frame(maxWidth: .infinity)
                         .onChange(of: store.config.method) { _ in persistAndNotify() }
                     }
 
-                    // Phím chuyển
+                    // Phím chuyển — CỐ ĐỊNH như Windows/Linux (ui-spec.md §1, parity
+                    // checklist). R2-106: bỏ 3 lựa chọn riêng của macOS (Alt + Z / Caps
+                    // Lock) — hai nền tảng kia không có, và Caps Lock trên IMK không chặn
+                    // được trạng thái chữ hoa của hệ thống (đổi V/E kéo theo gõ HOA).
                     HStack(alignment: .center) {
                         Text("Phím chuyển:")
                             .frame(width: 80, alignment: .leading)
                             .font(.system(size: 13, weight: .medium))
-                        HStack(spacing: 12) {
-                            RadioButton(
-                                title: "Ctrl + Shift",
-                                isSelected: store.config.switch_key == "ctrl_shift"
-                            ) {
-                                store.config.switch_key = "ctrl_shift"
-                                persistAndNotify()
-                            }
-                            RadioButton(
-                                title: "Alt + Z",
-                                isSelected: store.config.switch_key == "alt_z"
-                            ) {
-                                store.config.switch_key = "alt_z"
-                                persistAndNotify()
-                            }
-                            RadioButton(
-                                title: "Caps Lock",
-                                isSelected: store.config.switch_key == "caps_lock"
-                            ) {
-                                store.config.switch_key = "caps_lock"
-                                persistAndNotify()
-                            }
-                        }
+                        Text("Ctrl + Shift   (hoặc Ctrl + Shift + Space)")
+                            .font(.system(size: 13))
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .frame(maxWidth: .infinity)

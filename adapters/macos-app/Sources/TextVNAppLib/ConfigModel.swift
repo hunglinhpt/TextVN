@@ -105,6 +105,8 @@ public struct TextVNConfig: Codable, Equatable {
     /// quy ước với IMK (`configNonPreedit`) và CHANGELOG 0.2.27 (R2-49).
     public var non_preedit: Bool
     public var run_in_tray: Bool
+    /// R2-106: KHÔNG còn hiển thị/thực thi — phím chuyển cố định Ctrl+Shift như
+    /// Windows/Linux. Giữ trường để config.json cũ đọc/ghi lại không mất khoá.
     public var switch_key: String
     public var macros: [MacroEntry]
     /// Từ điển EN của người dùng (một từ/dòng trong UI) — engine restore các từ

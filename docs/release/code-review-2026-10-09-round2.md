@@ -15,8 +15,9 @@
 | Linux | ✅ Ký GPG + Sigstore cho mọi asset, CI **dừng** nếu thiếu/sai khoá (fail-closed) | — |
 | macOS | ✅ Code; ký Developer ID + notarize + staple bật **khi có** secret `APPLE_*`, thiếu thì ký ad-hoc và ghi rõ trong release notes | Đặt secret Apple (xem `signing-status-mac.md`) |
 
-**Tổng kết finding:** 100 finding R2 (87 từ rà soát + 13 khi kiểm trên Windows thật, rà
-soát đối kháng trước 0.2.28 và yêu cầu gỡ sạch của chủ repo, §3.7) — **93 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
+**Tổng kết finding:** 115 finding R2 (87 từ rà soát + 13 khi kiểm trên Windows thật, rà
+soát đối kháng trước 0.2.28 và yêu cầu gỡ sạch của chủ repo, §3.7 + 15 khi rà toàn hệ thống
+sau 0.2.31, §3.8) — **108 đã sửa** (R2-20/48/83 xong phần code, chờ chứng
 chỉ Apple; R2-85 một phần), 1 chờ SignPath (R2-12), 3 giữ nguyên có lý do (R2-11, R2-47,
 R2-67), 3 hoãn (R2-14, R2-26, R2-41 — §5). Vòng 1 xong thêm CR-20 (a), CR-34, CR-38.
 
@@ -187,6 +188,32 @@ tái hiện và sửa lại ở đây; R2-92 tái hiện được ngay trên má
 | R2-98 | P2 | Bộ cài cho mọi người dùng (Run ở HKLM): bỏ chọn "Khởi động cùng Windows" trông như đã lưu nhưng tray vẫn tự chạy | Marker theo tài khoản `%APPDATA%\TextVN\autostart_disabled`; tray `--autostart` từ thư mục mục HKLM trỏ tới thì thoát; Inno chọn task autostart → xoá marker | ✅ `efc5dfb` |
 | R2-99 | P1 | Gỡ cài đặt khi tray đang chạy không sạch: `--stop` báo xong khi tray nhả mutex (chưa thoát) rồi bộ gỡ xoá `TextVN.exe` ngay; Inno dừng tray ở `[UninstallRun]` — chạy SAU `usUninstall`; menu khay "Gỡ cài đặt" mở trình gỡ mà tray vẫn chạy (và `CreateProcess` không bật được UAC của bản máy) | `--stop` chờ tiến trình thoát hẳn (handle SYNCHRONIZE), `--force` (kèm `--if-image-under`) dừng cưỡng bức đúng PID của thư mục đang gỡ; Inno dừng tray đầu tiên ở `usUninstall`; menu mở trình gỡ bằng ShellExecute rồi thoát tray; `uninstall.ps1`/kênh Store dùng `--force`. CI gỡ khi tray đang chạy | ✅ `798e696` |
 | R2-100 | P2 | Gỡ cài đặt để lại ngôn ngữ TextVN đã thêm (`InstallLayoutOrTip` tự thêm "vi" trên máy chỉ có tiếng Anh; unregister chỉ bỏ value TIP) — Settings còn "Tiếng Việt" với bàn phím Windows tự gắn | Marker `languages_added` lúc register; unregister bỏ ngôn ngữ đó (và bàn phím Windows tự gắn) khi người dùng không gắn bàn phím nào khác. CI: danh sách ngôn ngữ sau khi gỡ = trước khi cài, có kiểm bước giữa | ✅ `3851ed5` |
+
+### 3.8 Rà soát toàn hệ thống sau 0.2.31 (2026-10-11)
+
+Rà từng dòng diff `v0.2.29..main` (vòng 16 + roadmap của `AUDIT-3PLATFORM-2026-10-07.md`, 35
+commit) rồi các đường nóng (TSF edit session, tray, bộ cài, IPC), kiểm bằng probe thật
+trên máy chủ sở hữu (binary build, Registry API qua ctypes, SendMessage vào tray chạy với
+APPDATA cô lập). Thay đổi dở của worktree Codex (`8ec9b15`, 20 file, 2026-09-29) đã đối
+chiếu: ~95 % dòng đã có trên `main`, phần còn lại đã được làm lại tốt hơn — không port gì.
+
+| ID | Mức | Vấn đề | Xử lý | Trạng thái |
+|---|---|---|---|---|
+| R2-101 | P2 | `TextVN.exe --status` panic (exit 101) khi tray không chạy — sau A7 code gọi `expect("đã kiểm Some ở trên")` mà không kiểm; harness chỉ dò chữ `RUNNING` nên CI không bắt | Không mở được pipe nào → `OFFLINE (<lỗi>)`; in đúng pipe đã nối. test-portable: tray tắt thì `--status` phải `OFFLINE`, không `panicked` | ✅ 0.2.32 |
+| R2-102 | P2 | Tray thoát ngay ở `WM_QUERYENDSESSION` (A3) — đây chỉ là câu hỏi; đăng xuất/khởi động lại bị huỷ (app khác chưa lưu, bấm Cancel) thì phiên tiếp tục mà tray đã mất | QUERYENDSESSION chỉ trả TRUE; thoát graceful ở `WM_ENDSESSION` khi wParam = TRUE (phiên kết thúc thật / RestartManager `ENDSESSION_CLOSEAPP`). Kiểm thật trên máy dev + test-portable (SendMessage vào cửa sổ tray) | ✅ 0.2.32 |
+| R2-103 | P3 | Hoàn tác A9 chạy với mọi lỗi trong closure chèn — cả `EndComposition` lỗi SAU khi chữ mới đã vào document → chèn lại phần đã xoá cạnh từ mới (lặp chữ) hoặc trả lại chữ Backspace vừa xoá | Lỗi `EndComposition` không còn là lỗi của kế hoạch (bỏ qua như `finish()`); mọi lỗi còn lại xảy ra trước khi chữ mới vào document | ✅ 0.2.32 |
+| R2-104 | P2 | A13 (dọn ghost TSF trong hive mọi user khi gỡ bản máy) chưa từng xoá được gì: subkey dựng `\<sid>\…` → `ERROR_BAD_PATHNAME` (161, probe thật); nhánh `RegLoadKey` thiếu SeBackup/SeRestore, mount lồng `TextVNCleanup\<sid>`, COM per-user ở UsrClass.dat không nạp | Đường dẫn tương đối HKU (`user_hive_tip_keys`) cho mọi hive ĐANG NẠP — gồm user gốc khi admin gỡ hộ (A6); bỏ nhánh `RegLoadKey` (unload hỏng = user đó đăng nhập vào profile tạm). Test đơn vị + test gọi API thật trên hive của chính user chạy test | ✅ 0.2.32 |
+| R2-105 | P2 | `PrepareToInstall` (A3) gọi `--stop` không `--if-image-under "{app}" --force` — nâng cấp dừng nhầm tray của bản TextVN khác (trái R2-93); tray không tự thoát thì file vẫn khoá | Thêm hai cờ (như `StopTrayBeforeUninstall`). test-installer: nâng cấp khi tray thư mục khác chạy → tray đó còn sống; nâng cấp đè tray `{app}` đang chạy → tray dừng trước, exit 0 | ✅ 0.2.32 |
+| R2-106 | P2 | macOS lệch ui-spec từ ngày đầu (`bc51d97`): bảng mã đánh số + TCVN3 đứng thứ 2, kiểu gõ "4. Microsoft" thay "Telex đơn giản", 3 nút phím chuyển riêng (Alt + Z / Caps Lock — vòng 16 B3 còn thực thi chúng, Caps Lock không chặn được trạng thái chữ hoa). Test parity chỉ so bảng mã/kiểu gõ với Linux | Nhãn + thứ tự đúng ui-spec, phím chuyển cố định; IMK luôn Ctrl+Shift (bỏ `switch_key`). Test so cả macOS + thứ tự + hàng Phím chuyển (đỏ trên mã cũ, xanh trên mã mới) | ✅ 0.2.32 |
+| R2-107 | P1 | **Hồi quy từ 0.2.30 (C4)**: đổi V/E bằng phím chuyển/menu không cập nhật trạng thái base (lần ghi `state.json` của chính engine bị "hấp thụ") → mỗi lần focus-in/activate gán chế độ = base cũ: đổi V/E rồi chuyển cửa sổ là bị lật lại — IBus + Fcitx5 | Cập nhật base khi đổi có lưu; e2e IBus + Fcitx5 thêm "EN/VN giữ sau focus-out/in" (đỏ trên `main`, nhánh kiểm `test/r2-107-red`) | ✅ 0.2.32 |
+| R2-108 | P3 | C8 không đạt mục tiêu: đoán nhóm Fcitx5 bằng `DefaultIM` (bộ gõ mặc định TRONG nhóm) → vẫn nhóm đầu file; profile nhiều nhóm thêm TextVN vào nhóm không dùng | `tv_fcitx5_active_group`: `[GroupOrder] 0=<tên>` → `[Groups/N] Name=`; test đơn vị profile 2 nhóm (đỏ trên `main`) | ✅ 0.2.32 |
+| R2-109 | P2 | Pipe đổi tên ở 0.2.31 (A7): nâng cấp từ ≤ 0.2.30 mà không mở lại app → app đang mở vẫn nạp DLL TSF cũ (chỉ biết `textvn-ipc-v1`) → bật/tắt V/E từ khay không tới, Ctrl+Shift trong app đó không tới khay | Tray phục vụ thêm tên cũ (mỗi tên một vòng accept, broadcast chung); test `serves_every_pipe_name` + kiểm thật cả hai tên. Kèm: hook/`--stop` của bản 0.2.31 dùng tên cũ (đã sửa ở `d993dfe`, vào 0.2.32) | ✅ 0.2.32 |
+| R2-110 | P3 | Xác thực server pipe (A7) chỉ so đuôi `textvn.exe` (khớp cả `notTextVN.exe`); namespace pipe toàn máy nên tiến trình phiên khác tạo trước được pipe mang tên phiên của ta | Server phải CÙNG PHIÊN (`GetNamedPipeServerSessionId`) + đúng tên file `TextVN.exe`; test `server_image_must_be_textvn_exe_by_file_name` | ✅ 0.2.32 |
+| R2-111 | P3 | `.iss` so `{app}` với chuỗi cứng `{autopf}\TextVN` trong khi `DefaultDirName` dùng `{#MyAppName}` — build với `/DMyAppName` khác (STO-03) luôn từ chối đăng ký TSF | So với `{autopf}\{#MyAppName}` | ✅ 0.2.32 |
+| R2-112 | P3 | `check_no_secrets.py` chỉ quét file đã track — preflight chạy trước commit nên key vừa tạo chưa `git add` lọt gate | Quét `--cached --others --exclude-standard` (kiểm: file chứa header private key chưa track → gate đỏ) | ✅ 0.2.32 |
+| R2-114 | P3 | A11 (lock poison không được thành panic dây chuyền) sót 3 chỗ: `SvcManager::app_override` (menu khay, trong wnd_proc) và hai `subscribers.lock().unwrap()` ở luồng client IPC — một panic khi giữ lock là mọi client về sau không Subscribe được | `unwrap_or_else(\|e\| e.into_inner())`; gate tự động `no_poison_panicking_lock_unwrap_in_tray` quét mọi file `tray/src` (đỏ khi trả lại `.read().unwrap()`) | ✅ 0.2.32 |
+| R2-115 | P3 | Fallback RunOnce của `schedule-delete` (A12, bản cài per-user gỡ không quyền admin) không kiểm giới hạn 260 ký tự của lệnh RunOnce (luật R2-94) mà vẫn báo "đã hẹn xoá" | `runonce_cleanup_command`: > 260 → báo không hẹn được; test đơn vị | ✅ 0.2.32 |
+| R2-113 | P3 | Popup "Thông tin" mỗi nền tảng một kiểu: "cho Windows" / "cho Linux (IBus / Fcitx5)" (không có số phiên bản) / "cho macOS" + dòng bản quyền | Yêu cầu chủ repo 2026-10-11: một nội dung cho cả 3 — "Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)" + phiên bản + phát triển/giấy phép/URL (ui-spec §3); test `about_text_matches_every_platform` | ✅ 0.2.32 |
 
 Vòng 1 cập nhật theo: **CR-20** (a) đã sửa cùng R2-33; **CR-34** (`appdb_version` số) đã sửa
 ở `017bc82` (xem `code-review-2026-10-07.md`).

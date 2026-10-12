@@ -72,6 +72,22 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
   (Windows: `WM_UPDATE_TRAY_STATE`; Linux: `GFileMonitor` trên thư mục cấu hình).
 - **Mặc định**: mọi tuỳ chọn gõ về mặc định; **không** xoá bảng gõ tắt (như UniKey).
 - **Bàn phím**: Tab/Shift+Tab di chuyển, Esc đóng cửa sổ.
+- **Popup "Thông tin"** — CÙNG nội dung trên 3 nền tảng (0.2.32, test
+  `about_text_matches_every_platform` của tray đối chiếu từng chữ):
+
+  ```
+  TextVN <phiên bản>
+  Bộ gõ tiếng Việt thông minh, đa nền tảng (Windows, macOS, Linux)
+
+  Phát triển bởi: LinhBH.CoM
+  Giấy phép: GPL-3.0-or-later
+  https://github.com/hunglinhpt/TextVN
+  ```
+
+  Windows `tray/src/settings_dialog.rs` (`ABOUT_TAGLINE`/`ABOUT_DETAILS`) · Linux
+  `adapters/linux-settings/src/settings_model.c` (`tv_about_text`) · macOS
+  `adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift` (popup trong Settings và mục
+  About của menu bar cùng đọc `AppInfo.aboutMessage`).
 
 ## 4. Cửa sổ Gõ tắt
 

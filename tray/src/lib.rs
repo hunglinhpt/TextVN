@@ -3,7 +3,7 @@
 //!
 //! Bao gồm các module chức năng:
 //! - [`svc`]: Service layer in-process quản lý trạng thái (`state.json`) và cấu hình (`config.json`).
-//! - [`ipc_server`]: Named Pipe server `\\.\pipe\textvn-ipc-v1`, broadcast cấu hình và giám sát hook.
+//! - [`ipc_server`]: Named Pipe server (pipe theo phiên + tên cũ `\\.\pipe\textvn-ipc-v1`), broadcast cấu hình và giám sát hook.
 //! - [`menu`]: Menu ngữ cảnh khay hệ thống (9 mục chuẩn Win32).
 //! - [`autostart`]: Quản lý registry key tự khởi động `HKCU\...\Run\TextVN` (per-user).
 //! - [`store`] / `store_win` / [`package_bootstrap`]: kênh Microsoft Store (MSIX) —
@@ -543,5 +543,40 @@ mod tests {
         // KHÔNG assert trên static toàn cục ở đây: test khác chạy song song
         // (toggle_global_responds_...) cũng claim static thật → flake CI
         // 2026-10-03. Đường thật đã được phủ bởi chính test ipc_server đó.
+    }
+
+    /// R2-114 — gate chống tái diễn lớp lỗi A11: lock bị poison (một luồng panic khi
+    /// đang giữ) không được biến thành panic dây chuyền trong tray (wnd_proc, luồng
+    /// client IPC). A11 sửa rồi vẫn sót 3 chỗ → kiểm tự động toàn bộ mã chạy thật
+    /// (phần trước `#[cfg(test)]` đầu tiên của mỗi file, bỏ khoảng trắng để bắt cả
+    /// chuỗi gọi xuống dòng).
+    #[test]
+    fn no_poison_panicking_lock_unwrap_in_tray() {
+        let sources = [
+            ("autostart.rs", include_str!("autostart.rs")),
+            ("foreground.rs", include_str!("foreground.rs")),
+            ("hotkey.rs", include_str!("hotkey.rs")),
+            ("icons.rs", include_str!("icons.rs")),
+            ("ipc_server.rs", include_str!("ipc_server.rs")),
+            ("lib.rs", include_str!("lib.rs")),
+            ("main.rs", include_str!("main.rs")),
+            ("menu.rs", include_str!("menu.rs")),
+            ("package_bootstrap.rs", include_str!("package_bootstrap.rs")),
+            ("settings.rs", include_str!("settings.rs")),
+            ("settings_dialog.rs", include_str!("settings_dialog.rs")),
+            ("store.rs", include_str!("store.rs")),
+            ("store_win.rs", include_str!("store_win.rs")),
+            ("svc.rs", include_str!("svc.rs")),
+        ];
+        for (name, src) in sources {
+            let prod = src.split("#[cfg(test)]").next().unwrap_or(src);
+            let compact: String = prod.chars().filter(|c| !c.is_whitespace()).collect();
+            for pat in [".lock().unwrap()", ".read().unwrap()", ".write().unwrap()"] {
+                assert!(
+                    !compact.contains(pat),
+                    "{name}: `{pat}` — dùng `unwrap_or_else(|e| e.into_inner())` (A11/R2-114)"
+                );
+            }
+        }
     }
 }
