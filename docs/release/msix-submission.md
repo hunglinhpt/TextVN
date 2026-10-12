@@ -257,7 +257,9 @@ workflow khác (GitHub chỉ ngoại lệ `workflow_dispatch`/`repository_dispat
   `MSStoreCLI-win-x64.zip.sha256.txt` của release đó — tự tính lại để đối chiếu).
 - Log của Actions là công khai: JSON submission chứa `FileUploadUrl` (SAS ghi được vào blob của
   submission) nên workflow **không bao giờ in nguyên JSON** (chỉ in trạng thái + gói), và
-  **không dùng `--verbose`** — ở mức Information CLI in `FileUploadUrl` ra log. Ví dụ
+  **không dùng `--verbose`** cho `publish` — ở mức Information CLI in `FileUploadUrl` ra log.
+  Ngoại lệ duy nhất: khi `submission get` lỗi (CLI chỉ in `Error!`), workflow chạy lại một lần
+  với `--verbose` và **bỏ stdout** để log stderr hiện lý do (E22). Ví dụ
   *GetBaseMetadata* của Learn in cả submission ra log — đừng chạy nó trên repo này.
 - Client secret Entra hết hạn (tối đa 24 tháng) → bước *Configure msstore* báo lỗi xác thực →
   tạo secret mới (7.2 bước 3) và cập nhật `PARTNER_CENTER_CLIENT_SECRET`.
