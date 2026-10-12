@@ -1,0 +1,239 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Nộp gói .msix của một GitHub Release lên Microsoft Store (sản phẩm 9NV2R7JNNFGK) bằng
+# Microsoft Store Developer CLI (msstore — CLI chính thức của Microsoft, gọi Store
+# submission API của Partner Center). Cài đặt một lần (Entra app + secrets) và cách dùng:
+# docs/release/msix-submission.md §7.
+#
+#   verify (ubuntu, KHÔNG có secret): tải asset release → GPG + SHA256SUMS + Sigstore (đúng
+#          release.yml trên đúng tag) + luật Partner Center/identity/Version.
+#   submit (windows, có secret, environment microsoft-store): kiểm lại SHA-256 → msstore
+#          publish (draft = chỉ upload, submit = commit và chờ xử lý commit xong).
+name: store-publish
+
+on:
+  # Tự động sau khi release-candidate phát hành xong một tag — CHỈ khi repo variable
+  # STORE_AUTO_PUBLISH = submit hoặc draft (mặc định tắt).
+  workflow_run:
+    workflows: [release-candidate]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag của GitHub Release đã công khai (vd. v0.2.33)"
+        required: true
+        type: string
+      mode:
+        description: "submit = nộp chứng nhận ngay; draft = chỉ upload gói vào bản nháp, chủ repo bấm Submit trên Partner Center"
+        required: true
+        type: choice
+        options: [submit, draft]
+        default: submit
+
+permissions:
+  contents: read
+
+concurrency:
+  group: store-publish
+  cancel-in-progress: false
+
+env:
+  STORE_PRODUCT_ID: 9NV2R7JNNFGK
+
+jobs:
+  verify:
+    # Chạy tay chỉ từ main (secret chỉ đi với workflow đã review); tự động chỉ khi lượt
+    # release-candidate do push tag và thành công (chạy tay release-candidate = chỉ build).
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       (vars.STORE_AUTO_PUBLISH == 'submit' || vars.STORE_AUTO_PUBLISH == 'draft'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      mode: ${{ steps.resolve.outputs.mode }}
+      sha256: ${{ steps.check.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install cosign (Sigstore)
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+      - name: Resolve release tag and mode
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_MODE: ${{ inputs.mode }}
+          RUN_TAG: ${{ github.event.workflow_run.head_branch }}
+          AUTO_MODE: ${{ vars.STORE_AUTO_PUBLISH }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            tag="$INPUT_TAG"; mode="$INPUT_MODE"
+          else
+            tag="$RUN_TAG"; mode="$AUTO_MODE"
+          fi
+          tag="$(printf '%s' "$tag" | tr -d '[:space:]')"
+          if ! [[ "$tag" =~ ^v[0-9]{1,5}\.[0-9]{1,5}\.[0-9]{1,5}$ ]]; then
+            echo "FATAL: tag '$tag' không phải vA.B.C — chỉ bản phát hành chính thức mới nộp Store" >&2
+            exit 1
+          fi
+          case "$mode" in
+            submit|draft) ;;
+            *) echo "FATAL: mode '$mode' (cần submit hoặc draft)" >&2; exit 1 ;;
+          esac
+          if ! draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"; then
+            echo "FATAL: chưa có GitHub Release cho $tag" >&2
+            exit 1
+          fi
+          if [ "$draft" != "false" ]; then
+            echo "FATAL: release $tag còn là draft — chỉ nộp release đã công khai" >&2
+            exit 1
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=${tag#v}"
+            echo "mode=$mode"
+          } >> "$GITHUB_OUTPUT"
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          msix="TextVN-${VERSION}-windows-x64.msix"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir store-pkg \
+            --pattern "$msix" --pattern "$msix.asc" \
+            --pattern "$msix.cosign.sig" --pattern "$msix.cosign.cert" \
+            --pattern SHA256SUMS.txt
+          ls -l store-pkg
+      - name: Verify signatures, checksum and Store manifest
+        id: check
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+        run: |
+          set -euo pipefail
+          name="$(printf '%s' "${MSIX_IDENTITY_NAME:-}" | tr -d '[:space:]')"
+          if [ -z "$name" ]; then
+            echo "FATAL: repo variable MSIX_IDENTITY_NAME trống — không biết identity của sản phẩm Store" >&2
+            exit 1
+          fi
+          bash tools/release/verify-store-package.sh store-pkg "$VERSION" "$name" | tee verify.log
+          sha="$(sed -n 's/^sha256=\([0-9a-f]\{64\}\)$/\1/p' verify.log)"
+          test -n "$sha"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-msix
+          path: store-pkg/TextVN-${{ steps.resolve.outputs.version }}-windows-x64.msix
+          if-no-files-found: error
+          retention-days: 7
+
+  submit:
+    needs: verify
+    runs-on: windows-2022
+    timeout-minutes: 45
+    # Secret đặt ở environment này (khuyến nghị) hoặc ở repo. Thêm "Required reviewers" cho
+    # environment để mọi lượt nộp — kể cả tự động — chờ chủ repo bấm duyệt (§7).
+    environment:
+      name: microsoft-store
+      url: https://partner.microsoft.com/dashboard/products/9NV2R7JNNFGK/overview
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      # Bản CLI ghim + SHA-256 (khớp MSStoreCLI-win-x64.zip.sha256.txt của release v0.4.3).
+      # Nâng bản: đổi cả hai dòng, hash lấy từ chính release msstore-cli trên GitHub.
+      MSSTORE_CLI_VERSION: v0.4.3
+      MSSTORE_CLI_SHA256: c5fb008b616f96b1b55f1d52e4e0a5dd8f6c156129b5f52f9b97ec0eed11bd57
+      VERSION: ${{ needs.verify.outputs.version }}
+      MODE: ${{ needs.verify.outputs.mode }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-msix
+          path: store-pkg
+      - name: Re-check package hash
+        env:
+          WANT: ${{ needs.verify.outputs.sha256 }}
+        run: |
+          $msix = Join-Path $PWD "store-pkg\TextVN-$env:VERSION-windows-x64.msix"
+          $have = (Get-FileHash -Algorithm SHA256 -LiteralPath $msix).Hash.ToLowerInvariant()
+          if ($have -ne $env:WANT) { throw "SHA-256 $msix = $have, job verify đã kiểm $env:WANT" }
+          "MSIX_PATH=$msix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "OK   $msix sha256=$have"
+      - name: Check Partner Center credentials
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+        run: |
+          $names = 'PARTNER_CENTER_TENANT_ID', 'PARTNER_CENTER_SELLER_ID', 'PARTNER_CENTER_CLIENT_ID', 'PARTNER_CENTER_CLIENT_SECRET'
+          $missing = @($names | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($missing.Count -gt 0) {
+            throw "Thiếu secret: $($missing -join ', ') — cài đặt theo docs/release/msix-submission.md §7"
+          }
+      - name: Install Microsoft Store Developer CLI (pinned, SHA-256)
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'MSStoreCLI-win-x64.zip'
+          $url = "https://github.com/microsoft/msstore-cli/releases/download/$env:MSSTORE_CLI_VERSION/MSStoreCLI-win-x64.zip"
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+          $have = (Get-FileHash -Algorithm SHA256 -LiteralPath $zip).Hash.ToLowerInvariant()
+          if ($have -ne $env:MSSTORE_CLI_SHA256) {
+            throw "MSStoreCLI-win-x64.zip $env:MSSTORE_CLI_VERSION sha256=$have, ghim $env:MSSTORE_CLI_SHA256"
+          }
+          $dir = Join-Path $env:RUNNER_TEMP 'msstore'
+          Expand-Archive -LiteralPath $zip -DestinationPath $dir -Force
+          if (-not (Test-Path -LiteralPath (Join-Path $dir 'msstore.exe'))) { throw 'msstore.exe không có trong gói CLI' }
+          $dir | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Configure msstore
+        env:
+          PARTNER_CENTER_TENANT_ID: ${{ secrets.PARTNER_CENTER_TENANT_ID }}
+          PARTNER_CENTER_SELLER_ID: ${{ secrets.PARTNER_CENTER_SELLER_ID }}
+          PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
+          PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
+        run: |
+          msstore settings --enableTelemetry false
+          if ($LASTEXITCODE -ne 0) { throw "msstore settings exit $LASTEXITCODE" }
+          msstore reconfigure `
+            --tenantId $env:PARTNER_CENTER_TENANT_ID `
+            --sellerId $env:PARTNER_CENTER_SELLER_ID `
+            --clientId $env:PARTNER_CENTER_CLIENT_ID `
+            --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
+          if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure exit $LASTEXITCODE — kiểm Tenant/Seller/Client ID, secret còn hạn, app Entra có vai trò Manager trong Partner Center (§7)" }
+      - name: Publish package to Microsoft Store
+        id: publish
+        run: |
+          # publish thay bản nháp đang chờ (nếu có) bằng submission mới từ bản đã phát hành,
+          # chỉ đổi package; listing/giá/thị trường giữ nguyên. draft = --noCommit.
+          $cliArgs = @('publish', $env:MSIX_PATH, '--appId', $env:STORE_PRODUCT_ID)
+          if ($env:MODE -eq 'draft') { $cliArgs += '--noCommit' }
+          & msstore @cliArgs
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish exit $LASTEXITCODE" }
+      - name: Submission status
+        if: always() && (steps.publish.outcome == 'success' || steps.publish.outcome == 'failure')
+        # Chỉ để đọc — lỗi đọc trạng thái không làm đỏ lượt nộp đã thành công.
+        continue-on-error: true
+        env:
+          SHA256: ${{ needs.verify.outputs.sha256 }}
+          OUTCOME: ${{ steps.publish.outcome }}
+        run: |
+          $summary = @(
+            "### Microsoft Store — TextVN $env:VERSION"
+            ""
+            "- Gói: ``TextVN-$env:VERSION-windows-x64.msix`` (sha256 ``$env:SHA256``)"
+            "- Chế độ: **$env:MODE** (draft = bản nháp chờ bấm Submit; submit = đã nộp chứng nhận) — msstore publish: **$env:OUTCOME**"
+            "- Partner Center: https://partner.microsoft.com/dashboard/products/$env:STORE_PRODUCT_ID/overview"
+          )
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          msstore submission status $env:STORE_PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw "msstore submission status exit $LASTEXITCODE" }

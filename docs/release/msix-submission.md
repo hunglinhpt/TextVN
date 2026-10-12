@@ -5,7 +5,8 @@
 > MSIX là đường Store **chính**: gói EXE vướng chính sách 10.2.9 (bắt buộc Authenticode —
 > đang chờ SignPath Foundation duyệt, xem `store-policy-10-2-9.md`), còn MSIX được Store
 > **tự ký** khi publish. Mỗi bản phát hành mới: nộp asset `.msix` của release đó làm bản
-> cập nhật trên Partner Center (§3).
+> cập nhật — tự động bằng workflow `store-publish` qua Store submission API (§7), hoặc nộp
+> tay trên Partner Center (§3–§4).
 
 ## 0. Trạng thái — ĐÃ PHÁT HÀNH trên Microsoft Store (2026-10-11)
 
@@ -16,6 +17,7 @@
 | Kênh Store chạy thật ngoài container MSIX | ✅ | CI `ci-windows` › *MSIX sideload*: cài gói ký tạm → mở app → từ shell ngoài gói thấy bản stage, TIP HKCU, tray chạy, Run; gỡ gói → guard dọn sạch (`installer/windows/tests/test-msix-sideload.ps1`) |
 | Manifest đúng luật Partner Center | ✅ | `tools/win/verify-msix.py` chạy trong CI: Version phần đầu ≠ 0, Publisher, DisplayName, PublisherDisplayName, mô tả tiếng Việt không mojibake, ảnh đúng kích thước, payload đủ |
 | Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `tools/win/check-pe-imports.py` trong `build-release.ps1` |
+| Nộp bản cập nhật tự động (GitHub Actions) | ⏳ workflow sẵn sàng, chờ chủ tài khoản cài app Entra + 4 secret | `.github/workflows/store-publish.yml` — kiểm chữ ký/hash/identity rồi `msstore publish` lên `9NV2R7JNNFGK` (§7) |
 | `Publisher` | ✅ `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` | Partner Center › Account settings › Windows publisher ID |
 | `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
 | `DisplayName` | ✅ `TextVN` | Tên đã reserve của sản phẩm MSIX (lựa chọn A, §2) — `Package/Identity/Name` do Partner Center sinh từ tên này |
@@ -154,6 +156,93 @@ mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thậ
   `winget install --id 9NV2R7JNNFGK -s msstore`).
 - Cài từ Store trên máy sạch → mở TextVN → Win+Space chọn TextVN → gõ thử.
 - Cập nhật: tag version mới → workflow build gói (Version mới lớn hơn) → nộp
-  package mới vào submission mới; tray tự stage lại bản mới ở lần mở/đăng nhập kế.
+  package mới vào submission mới (tự động: §7); tray tự stage lại bản mới ở lần mở/đăng
+  nhập kế.
 - Gỡ: Cài đặt › Ứng dụng › TextVN › Gỡ; lần đăng nhập kế guard dọn phần còn lại
   (hoặc dùng "Gỡ cài đặt" ở menu khay trước).
+
+## 7. Tự động nộp bản cập nhật bằng GitHub Actions (`store-publish.yml`)
+
+Workflow `.github/workflows/store-publish.yml` nộp asset `.msix` của một GitHub Release
+làm bản cập nhật cho sản phẩm `9NV2R7JNNFGK`, bằng **Microsoft Store Developer CLI**
+(`msstore`) — CLI chính thức của Microsoft cho CI/CD, gọi Store submission API của
+Partner Center. Nguồn: Microsoft Learn — [Publish app updates to Microsoft Store with
+GitHub Actions](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/github-actions),
+[Microsoft Store Developer CLI Commands (MSIX)](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/commands);
+hành vi chi tiết đối chiếu mã nguồn [microsoft/msstore-cli v0.4.3](https://github.com/microsoft/msstore-cli/tree/v0.4.3).
+
+### 7.1 Workflow làm gì
+
+| Job | Máy | Secret | Việc |
+|---|---|---|---|
+| `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `verify-msix.py --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`) |
+| `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → tắt telemetry CLI → `msstore reconfigure` → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`) → `msstore submission status` + tóm tắt run |
+
+Hành vi của `msstore publish` (mã nguồn v0.4.3) cần biết:
+
+- Tạo submission mới **từ bản đang phát hành** và chỉ thay **package**: listing, ảnh, giá,
+  thị trường, ghi chú chứng nhận giữ nguyên. Mục "What's new in this version" cũng giữ nội
+  dung cũ → muốn viết mới thì chạy chế độ `draft`, sửa trên Partner Center rồi bấm Submit.
+- **Xoá bản nháp đang chờ** (pending submission) trên Partner Center nếu có — đừng để dở bản
+  nháp sửa tay khi chạy workflow. Submission đang chứng nhận dở thì không xoá được → bước
+  publish báo lỗi; chờ xong (hoặc huỷ trên Partner Center) rồi chạy lại.
+- `submit`: commit rồi chờ Partner Center xử lý commit xong (vài phút). Chứng nhận sau đó vẫn
+  1–3 ngày — theo dõi trên Partner Center. `draft`: chỉ upload gói, không commit.
+- Version gói phải **lớn hơn** bản đang trên Store (map §3 luôn tăng); nộp lại số cũ thì
+  Partner Center từ chối.
+
+### 7.2 Cài đặt một lần (chủ tài khoản Partner Center)
+
+1. **Tenant:** Partner Center › Account settings › Tenants — tài khoản phải liên kết một
+   Microsoft Entra tenant ([liên kết tenant có sẵn](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/associate-existing-azure-ad-tenant-with-partner-center-account)
+   hoặc [tạo tenant mới](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/create-new-azure-ad-tenant)).
+2. **App Entra:** <https://entra.microsoft.com> › Identity › Applications › App registrations ›
+   New registration (ví dụ tên `TextVN Store Publisher`, single tenant, không cần redirect
+   URI). Chép **Application (client) ID** và **Directory (tenant) ID**.
+3. **Client secret:** app đó › Certificates & secrets › New client secret — chép cột
+   **Value** ngay (chỉ hiện một lần) và ghi lại ngày hết hạn.
+4. **Quyền Partner Center:** Account settings › User management › **Microsoft Entra
+   applications** › Add Microsoft Entra application › chọn app ở bước 2 › vai trò
+   **Manager**.
+5. **Seller ID:** Partner Center › Account settings › Legal info (hoặc Developer settings /
+   Identifiers) — chép **Seller ID** (dãy số).
+6. **GitHub:** Settings › Environments › New environment `microsoft-store`:
+   - Environment secrets: `PARTNER_CENTER_TENANT_ID`, `PARTNER_CENTER_SELLER_ID`,
+     `PARTNER_CENTER_CLIENT_ID`, `PARTNER_CENTER_CLIENT_SECRET` (đặt ở cấp repo cũng chạy,
+     nhưng environment giới hạn secret cho riêng job nộp).
+   - Khuyến nghị: Deployment protection rules › **Required reviewers** = chính bạn → mỗi lượt
+     nộp (kể cả tự động) dừng chờ bạn bấm Approve.
+7. **Chạy thử:** Actions › **store-publish** › Run workflow (Use workflow from `main`) › `tag` =
+   bản phát hành mới nhất **chưa** có trên Store, `mode` = `draft` → kiểm Partner Center có
+   bản nháp mang gói mới → bấm Submit (hoặc chạy lại với `submit`).
+
+### 7.3 Bật tự động sau mỗi lần phát hành
+
+Repo variable **`STORE_AUTO_PUBLISH`** (Settings › Secrets and variables › Actions ›
+Variables):
+
+| Giá trị | Sau khi `release-candidate` của một tag phát hành thành công |
+|---|---|
+| không đặt / giá trị khác | Không làm gì (mặc định) — chạy tay như 7.2 bước 7 |
+| `draft` | Tự upload gói vào bản nháp; bạn sửa "What's new" nếu cần rồi bấm Submit |
+| `submit` | Tự nộp chứng nhận (có Required reviewers thì vẫn chờ bạn duyệt) |
+
+Trigger là `workflow_run` của `release-candidate` (lượt do push tag và kết thúc
+`success`), **không** phải `release: published`: release do `GITHUB_TOKEN` tạo không kích hoạt
+workflow khác (GitHub chỉ ngoại lệ `workflow_dispatch`/`repository_dispatch`).
+
+### 7.4 Bảo mật & bảo trì
+
+- `verify` không có secret; `submit` chỉ nộp đúng gói `verify` đã kiểm (so SHA-256 lần nữa).
+  Chạy tay chỉ nhận từ `main` (secret chỉ đi cùng workflow đã review).
+- Không dùng action bên thứ ba để cài CLI: action `microsoft/microsoft-store-apppublisher`
+  mặc định tải bản `latest` và không kiểm hash, nên workflow tải thẳng
+  `MSStoreCLI-win-x64.zip` từ release chính thức và ghim `MSSTORE_CLI_VERSION` +
+  `MSSTORE_CLI_SHA256`. Nâng bản CLI: đổi cả hai (hash có trong
+  `MSStoreCLI-win-x64.zip.sha256.txt` của release đó — tự tính lại để đối chiếu).
+- Client secret Entra hết hạn (tối đa 24 tháng) → bước *Configure msstore* báo lỗi xác thực →
+  tạo secret mới (7.2 bước 3) và cập nhật `PARTNER_CENTER_CLIENT_SECRET`.
+- Phương án không cần secret: CLI v0.4.3 có `msstore reconfigure --clientAssertion` (đọc
+  `MSSTORE_CLIENT_ASSERTION` hoặc `MSSTORE_CLIENT_ASSERTION_FILE`) — có thể dùng federated
+  credential với OIDC của GitHub. Chưa nối vào workflow vì Microsoft Learn chưa mô tả.
+- Tài liệu Learn lệch CLI ở cờ `-i` của `publish` — xem E19 (`docs/specs/project-common-errors.md`).

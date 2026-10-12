@@ -204,6 +204,10 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
    phiên bản mới; không ghi đè binary của tag cũ. Chỉ bỏ nhãn pre-release khi có Authenticode
    (Windows) và Developer ID + notarization (macOS); không đổi nhãn thành production bằng cách
    chỉ sửa metadata GitHub.
+7. Microsoft Store: `.github/workflows/store-publish.yml` nộp `.msix` của release làm bản cập
+   nhật (kiểm GPG/SHA256SUMS/Sigstore/identity bằng `tools/release/verify-store-package.sh`
+   rồi `msstore publish`) — chạy tay hoặc tự động khi đặt `STORE_AUTO_PUBLISH`; cài đặt một
+   lần: [release/msix-submission.md](release/msix-submission.md) §7.
 
 ## 6. Tài liệu liên quan
 

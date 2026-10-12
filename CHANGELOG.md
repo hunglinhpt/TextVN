@@ -9,6 +9,16 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Added
+- **Tự động nộp bản cập nhật lên Microsoft Store** — workflow `store-publish`
+  (`.github/workflows/store-publish.yml`): lấy asset `.msix` của một GitHub Release, kiểm chữ
+  ký GPG + `SHA256SUMS.txt` + Sigstore (đúng `release.yml` trên đúng tag) + luật Partner
+  Center/identity/Version (`tools/release/verify-store-package.sh`, `verify-msix.py
+  --expect-name`), rồi nộp lên sản phẩm `9NV2R7JNNFGK` bằng Microsoft Store Developer CLI
+  (`msstore`, ghim v0.4.3 + SHA-256). Chạy tay (`draft`/`submit`) hoặc tự động sau mỗi lần
+  phát hành khi đặt repo variable `STORE_AUTO_PUBLISH`. Cần chủ tài khoản cài app Entra + 4
+  secret một lần — `docs/release/msix-submission.md` §7.
+
 ### Docs
 - **TextVN đã có trên Microsoft Store** (gói MSIX, phát hành 2026-10-11):
   https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB — cài bằng

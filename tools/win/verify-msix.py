@@ -82,6 +82,7 @@ def check(
     expect_version: str | None,
     require_identity: bool,
     expect_display: str = EXPECTED_DISPLAY_NAME,
+    expect_name: str | None = None,
 ) -> list[str]:
     fails: list[str] = []
     try:
@@ -113,6 +114,8 @@ def check(
         fails.append(f"Identity/Name '{name}' không hợp lệ (3-50 ký tự A-Za-z0-9.-)")
     if require_identity and name == PLACEHOLDER_NAME:
         fails.append(f"Identity/Name vẫn là placeholder '{PLACEHOLDER_NAME}' — đặt MSIX_IDENTITY_NAME")
+    if expect_name and name != expect_name:
+        fails.append(f"Identity/Name '{name}' ≠ Product identity của sản phẩm Store '{expect_name}'")
     if publisher != EXPECTED_PUBLISHER:
         fails.append(f"Identity/Publisher '{publisher}' ≠ Partner Center '{EXPECTED_PUBLISHER}'")
     parts = version.split(".")
@@ -192,11 +195,14 @@ def main(argv: list[str]) -> int:
                     help="fail khi Identity/Name còn placeholder (gói để nộp Store)")
     ap.add_argument("--display-name", default=os.environ.get("MSIX_DISPLAY_NAME", ""),
                     help="tên đã reserve cho sản phẩm MSIX (mặc định TextVN / biến MSIX_DISPLAY_NAME)")
+    ap.add_argument("--expect-name", default="",
+                    help="Package/Identity/Name phải đúng giá trị này (gói sắp nộp tự động — store-publish.yml)")
     args = ap.parse_args(argv)
     # R2-95: cắt khoảng trắng và rỗng → mặc định, ĐÚNG như build-msix.ps1 — repo
     # variable dán kèm dấu cách từng làm verify báo lệch tên với gói vừa build.
     display_name = args.display_name.strip() or EXPECTED_DISPLAY_NAME
-    fails = check(args.msix, args.expect_version, args.require_store_identity, display_name)
+    fails = check(args.msix, args.expect_version, args.require_store_identity, display_name,
+                  args.expect_name.strip() or None)
     for f in fails:
         print(f"FAIL {f}")
     if fails:
