@@ -221,7 +221,12 @@ jobs:
           $p = $env:VERSION.Split('.')
           $new = [version]('{0}.{1}.{2}.0' -f ([int]$p[0] + 1), $p[1], $p[2])
           $raw = & msstore submission get $env:STORE_PRODUCT_ID
-          if ($LASTEXITCODE -ne 0) { throw "msstore submission get exit $LASTEXITCODE — app Entra chưa có quyền với sản phẩm $($env:STORE_PRODUCT_ID)?" }
+          if ($LASTEXITCODE -ne 0) {
+            # CLI chỉ in "Error!" cho mọi lỗi API/token; lý do nằm trong log --verbose (stderr).
+            # Chạy lại một lần để chẩn đoán, BỎ stdout (JSON có FileUploadUrl) — E22.
+            $null = & msstore submission get $env:STORE_PRODUCT_ID --verbose
+            throw "msstore submission get exit $LASTEXITCODE — lý do ở log --verbose ngay trên (401/403: app Entra chưa được thêm vào Partner Center với vai trò Manager, hoặc sai tenant/secret)"
+          }
           try { $sub = ($raw -join "`n") | ConvertFrom-Json } catch { throw 'Không đọc được JSON submission (không in ra vì chứa FileUploadUrl)' }
           $status = [string]$sub.Status
           "Submission $($sub.Id): status $status"
