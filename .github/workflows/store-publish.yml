@@ -23,11 +23,11 @@ on:
         required: true
         type: string
       mode:
-        description: "submit = nộp chứng nhận ngay; draft = chỉ upload gói vào bản nháp, chủ repo bấm Submit trên Partner Center"
+        description: "check = chỉ đăng nhập + đọc trạng thái Store, không đổi gì; draft = upload gói vào bản nháp, chủ repo bấm Submit trên Partner Center; submit = nộp chứng nhận ngay"
         required: true
         type: choice
-        options: [submit, draft]
-        default: submit
+        options: [check, draft, submit]
+        default: check
 
 permissions:
   contents: read
@@ -84,8 +84,8 @@ jobs:
             exit 1
           fi
           case "$mode" in
-            submit|draft) ;;
-            *) echo "FATAL: mode '$mode' (cần submit hoặc draft)" >&2; exit 1 ;;
+            check|draft|submit) ;;
+            *) echo "FATAL: mode '$mode' (cần check, draft hoặc submit)" >&2; exit 1 ;;
           esac
           if ! draft="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"; then
             echo "FATAL: chưa có GitHub Release cho $tag" >&2
@@ -210,30 +210,82 @@ jobs:
             --clientId $env:PARTNER_CENTER_CLIENT_ID `
             --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
           if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure exit $LASTEXITCODE — kiểm Tenant/Seller/Client ID, secret còn hạn, app Entra có vai trò Manager trong Partner Center (§7)" }
+      - name: Read Store state
+        id: state
+        run: |
+          # submission get trả submission đang chờ (nếu có), nếu không thì bản đã phát hành.
+          # JSON có FileUploadUrl (SAS ghi được vào blob của submission) — log công khai nên
+          # KHÔNG bao giờ in nguyên JSON, chỉ in trạng thái + gói.
+          $p = $env:VERSION.Split('.')
+          $new = [version]('{0}.{1}.{2}.0' -f ([int]$p[0] + 1), $p[1], $p[2])
+          $raw = & msstore submission get $env:STORE_PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw "msstore submission get exit $LASTEXITCODE — app Entra chưa có quyền với sản phẩm $($env:STORE_PRODUCT_ID)?" }
+          try { $sub = ($raw -join "`n") | ConvertFrom-Json } catch { throw 'Không đọc được JSON submission (không in ra vì chứa FileUploadUrl)' }
+          $status = [string]$sub.Status
+          "Submission $($sub.Id): status $status"
+          $versions = @()
+          foreach ($pk in @($sub.ApplicationPackages | Where-Object { $_ })) {
+            "  package $($pk.FileName) | version $($pk.Version) | $($pk.Architecture) | $($pk.FileStatus)"
+            $v = $null
+            if ([version]::TryParse([string]$pk.Version, [ref]$v)) { $versions += $v }
+          }
+          $max = $versions | Sort-Object | Select-Object -Last 1
+          "Gói của tag này: $new; version cao nhất trong submission trên: $max"
+          $busy = 'CommitStarted', 'PreProcessing', 'Certification', 'PendingPublication', 'Publishing', 'Release'
+          $block = $null
+          if ($busy -contains $status) {
+            $block = "submission $($sub.Id) đang $status (xử lý/chứng nhận) — chờ xong hoặc huỷ trên Partner Center rồi chạy lại"
+          } elseif ($status -ne 'PendingCommit' -and $max -and $new -le $max) {
+            $block = "Store đã có $max ≥ $new — chỉ nộp được version mới hơn (phát hành tag mới)"
+          }
+          if ($status -eq 'PendingCommit' -and $env:MODE -ne 'check') {
+            "::warning::Bản nháp $($sub.Id) đang chờ trên Partner Center sẽ bị thay bằng submission mới"
+          }
+          "status=$status" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "store_version=$max" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "new_version=$new" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "block=$block" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if ($block) {
+            # Chặn TRƯỚC msstore publish: publish xoá bản nháp đang chờ rồi mới thất bại.
+            if ($env:MODE -ne 'check') { throw $block }
+            "::notice::draft/submit với tag này sẽ bị chặn: $block"
+          } else {
+            "OK   draft/submit với tag này được phép"
+          }
       - name: Publish package to Microsoft Store
         id: publish
+        if: env.MODE != 'check'
         run: |
           # publish thay bản nháp đang chờ (nếu có) bằng submission mới từ bản đã phát hành,
           # chỉ đổi package; listing/giá/thị trường giữ nguyên. draft = --noCommit.
+          # KHÔNG thêm --verbose: mức Information của CLI in FileUploadUrl (SAS) ra log công khai.
           $cliArgs = @('publish', $env:MSIX_PATH, '--appId', $env:STORE_PRODUCT_ID)
           if ($env:MODE -eq 'draft') { $cliArgs += '--noCommit' }
           & msstore @cliArgs
           if ($LASTEXITCODE -ne 0) { throw "msstore publish exit $LASTEXITCODE" }
-      - name: Submission status
-        if: always() && (steps.publish.outcome == 'success' || steps.publish.outcome == 'failure')
+      - name: Summary and submission status
+        if: always() && (steps.state.outcome == 'success' || steps.state.outcome == 'failure')
         # Chỉ để đọc — lỗi đọc trạng thái không làm đỏ lượt nộp đã thành công.
         continue-on-error: true
         env:
           SHA256: ${{ needs.verify.outputs.sha256 }}
           OUTCOME: ${{ steps.publish.outcome }}
+          STATE_STATUS: ${{ steps.state.outputs.status }}
+          STORE_VERSION: ${{ steps.state.outputs.store_version }}
+          NEW_VERSION: ${{ steps.state.outputs.new_version }}
+          BLOCK: ${{ steps.state.outputs.block }}
         run: |
           $summary = @(
             "### Microsoft Store — TextVN $env:VERSION"
             ""
-            "- Gói: ``TextVN-$env:VERSION-windows-x64.msix`` (sha256 ``$env:SHA256``)"
-            "- Chế độ: **$env:MODE** (draft = bản nháp chờ bấm Submit; submit = đã nộp chứng nhận) — msstore publish: **$env:OUTCOME**"
-            "- Partner Center: https://partner.microsoft.com/dashboard/products/$env:STORE_PRODUCT_ID/overview"
+            "- Gói: ``TextVN-$env:VERSION-windows-x64.msix`` (Version ``$env:NEW_VERSION``, sha256 ``$env:SHA256``)"
+            "- Store trước lượt này: submission ``$env:STATE_STATUS``, version cao nhất ``$env:STORE_VERSION``"
+            "- Chế độ: **$env:MODE** (check = chỉ đọc; draft = bản nháp chờ bấm Submit; submit = đã nộp chứng nhận) — msstore publish: **$env:OUTCOME**"
           )
+          if ($env:BLOCK) { $summary += "- Bị chặn: $env:BLOCK" }
+          $summary += "- Partner Center: https://partner.microsoft.com/dashboard/products/$env:STORE_PRODUCT_ID/overview"
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-          msstore submission status $env:STORE_PRODUCT_ID
-          if ($LASTEXITCODE -ne 0) { throw "msstore submission status exit $LASTEXITCODE" }
+          if ($env:OUTCOME -eq 'success' -or $env:OUTCOME -eq 'failure') {
+            msstore submission status $env:STORE_PRODUCT_ID
+            if ($LASTEXITCODE -ne 0) { throw "msstore submission status exit $LASTEXITCODE" }
+          }

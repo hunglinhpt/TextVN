@@ -176,7 +176,20 @@ hành vi chi tiết đối chiếu mã nguồn [microsoft/msstore-cli v0.4.3](ht
 | Job | Máy | Secret | Việc |
 |---|---|---|---|
 | `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `verify-msix.py --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`) |
-| `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → tắt telemetry CLI → `msstore reconfigure` → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`) → `msstore submission status` + tóm tắt run |
+| `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → tắt telemetry CLI → `msstore reconfigure` (kiểm luôn đăng nhập) → **đọc trạng thái Store** (submission đang chờ/đã phát hành, version gói) và chặn sớm → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`; `check` bỏ qua) → `msstore submission status` + tóm tắt run |
+
+Ba chế độ (ô `mode` khi chạy tay; mặc định `check`):
+
+| Chế độ | Thay đổi gì trên Partner Center |
+|---|---|
+| `check` | Không gì cả — chỉ đăng nhập, đọc trạng thái + version đang có trên Store, báo `draft`/`submit` với tag đó có được phép không. Dùng để kiểm cài đặt |
+| `draft` | Upload gói vào submission mới để nháp (`--noCommit`) — bạn bấm Submit trên Partner Center |
+| `submit` | Upload + commit: nộp chứng nhận ngay |
+
+Bước *Read Store state* chặn `draft`/`submit` **trước** khi gọi `msstore publish` (vì publish xoá
+bản nháp đang chờ rồi mới thất bại) khi: submission đang xử lý/chứng nhận (`CommitStarted`,
+`PreProcessing`, `Certification`, `PendingPublication`, `Publishing`, `Release`), hoặc bản đã
+phát hành đã có version ≥ gói của tag.
 
 Hành vi của `msstore publish` (mã nguồn v0.4.3) cần biết:
 
@@ -212,9 +225,11 @@ Hành vi của `msstore publish` (mã nguồn v0.4.3) cần biết:
      nhưng environment giới hạn secret cho riêng job nộp).
    - Khuyến nghị: Deployment protection rules › **Required reviewers** = chính bạn → mỗi lượt
      nộp (kể cả tự động) dừng chờ bạn bấm Approve.
-7. **Chạy thử:** Actions › **store-publish** › Run workflow (Use workflow from `main`) › `tag` =
-   bản phát hành mới nhất **chưa** có trên Store, `mode` = `draft` → kiểm Partner Center có
-   bản nháp mang gói mới → bấm Submit (hoặc chạy lại với `submit`).
+7. **Kiểm cài đặt:** Actions › **store-publish** › Run workflow (Use workflow from `main`) ›
+   `tag` = bản phát hành mới nhất, `mode` = `check` → duyệt deployment → job `submit` phải đăng
+   nhập được và in trạng thái + version đang có trên Store (không thay đổi gì).
+8. **Nộp thật:** khi có tag mới hơn bản trên Store, chạy lại với `mode` = `draft` → kiểm
+   Partner Center có bản nháp mang gói mới → bấm Submit (hoặc chạy với `submit`).
 
 ### 7.3 Bật tự động sau mỗi lần phát hành
 
@@ -223,7 +238,7 @@ Variables):
 
 | Giá trị | Sau khi `release-candidate` của một tag phát hành thành công |
 |---|---|
-| không đặt / giá trị khác | Không làm gì (mặc định) — chạy tay như 7.2 bước 7 |
+| không đặt / giá trị khác | Không làm gì (mặc định) — chạy tay như 7.2 bước 8 |
 | `draft` | Tự upload gói vào bản nháp; bạn sửa "What's new" nếu cần rồi bấm Submit |
 | `submit` | Tự nộp chứng nhận (có Required reviewers thì vẫn chờ bạn duyệt) |
 
@@ -240,6 +255,10 @@ workflow khác (GitHub chỉ ngoại lệ `workflow_dispatch`/`repository_dispat
   `MSStoreCLI-win-x64.zip` từ release chính thức và ghim `MSSTORE_CLI_VERSION` +
   `MSSTORE_CLI_SHA256`. Nâng bản CLI: đổi cả hai (hash có trong
   `MSStoreCLI-win-x64.zip.sha256.txt` của release đó — tự tính lại để đối chiếu).
+- Log của Actions là công khai: JSON submission chứa `FileUploadUrl` (SAS ghi được vào blob của
+  submission) nên workflow **không bao giờ in nguyên JSON** (chỉ in trạng thái + gói), và
+  **không dùng `--verbose`** — ở mức Information CLI in `FileUploadUrl` ra log. Ví dụ
+  *GetBaseMetadata* của Learn in cả submission ra log — đừng chạy nó trên repo này.
 - Client secret Entra hết hạn (tối đa 24 tháng) → bước *Configure msstore* báo lỗi xác thực →
   tạo secret mới (7.2 bước 3) và cập nhật `PARTNER_CENTER_CLIENT_SECRET`.
 - Phương án không cần secret: CLI v0.4.3 có `msstore reconfigure --clientAssertion` (đọc

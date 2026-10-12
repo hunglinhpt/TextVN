@@ -15,8 +15,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   ký GPG + `SHA256SUMS.txt` + Sigstore (đúng `release.yml` trên đúng tag) + luật Partner
   Center/identity/Version (`tools/release/verify-store-package.sh`, `verify-msix.py
   --expect-name`), rồi nộp lên sản phẩm `9NV2R7JNNFGK` bằng Microsoft Store Developer CLI
-  (`msstore`, ghim v0.4.3 + SHA-256). Chạy tay (`draft`/`submit`) hoặc tự động sau mỗi lần
-  phát hành khi đặt repo variable `STORE_AUTO_PUBLISH`. Cần chủ tài khoản cài app Entra + 4
+  (`msstore`, ghim v0.4.3 + SHA-256). Chạy tay (`check` = chỉ đọc trạng thái Store, `draft`,
+  `submit`) hoặc tự động sau mỗi lần phát hành khi đặt repo variable `STORE_AUTO_PUBLISH`;
+  chặn sớm khi Store đang chứng nhận hoặc đã có version ≥ gói, không in JSON submission (có
+  `FileUploadUrl`) ra log công khai. Cần chủ tài khoản cài app Entra + 4
   secret một lần — `docs/release/msix-submission.md` §7.
 
 ### Docs
