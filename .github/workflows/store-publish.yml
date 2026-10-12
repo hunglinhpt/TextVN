@@ -202,14 +202,16 @@ jobs:
           PARTNER_CENTER_CLIENT_ID: ${{ secrets.PARTNER_CENTER_CLIENT_ID }}
           PARTNER_CENTER_CLIENT_SECRET: ${{ secrets.PARTNER_CENTER_CLIENT_SECRET }}
         run: |
-          msstore settings --enableTelemetry false
-          if ($LASTEXITCODE -ne 0) { throw "msstore settings exit $LASTEXITCODE" }
+          # reconfigure TRƯỚC: mọi lệnh khác (kể cả settings) dừng với "SellerId is not set"
+          # khi CLI chưa có cấu hình (Program.cs → MicrosoftStoreCLI.InitAsync) — E21.
           msstore reconfigure `
             --tenantId $env:PARTNER_CENTER_TENANT_ID `
             --sellerId $env:PARTNER_CENTER_SELLER_ID `
             --clientId $env:PARTNER_CENTER_CLIENT_ID `
             --clientSecret $env:PARTNER_CENTER_CLIENT_SECRET
           if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure exit $LASTEXITCODE — kiểm Tenant/Seller/Client ID, secret còn hạn, app Entra có vai trò Manager trong Partner Center (§7)" }
+          msstore settings --enableTelemetry false
+          if ($LASTEXITCODE -ne 0) { throw "msstore settings exit $LASTEXITCODE" }
       - name: Read Store state
         id: state
         run: |
