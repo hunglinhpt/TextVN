@@ -9,7 +9,7 @@
 >   chỉ gói Compatibility), WIN-050…054 (tray Win32, IPC, Cài đặt `tray/src/settings_dialog.rs` —
 >   **không egui**, Inno per-user + bản `-machine.exe`), WIN-058 (`doctor --export`, `--pause`),
 >   WIN-061 (`targets-verify.yml`, dispatch), WIN-062 (job `perf`, A/B so merge-base,
->   `continue-on-error`), WIN-064 (job `windows-package` của `ci-shared.yml`: gõ TSF thật vào
+>   `continue-on-error`), WIN-064 (job `windows-package` — nay ở `ci-windows.yml`, tách khỏi `ci-shared.yml` 2026-10-11: gõ TSF thật vào
 >   Notepad/WordPad, Store validation, MSIX build + verify + sideload).
 > - ⏳ WIN-055: Authenticode qua **SignPath Foundation** — tooling xong (`tools/win/sign-signpath.ps1`
 >   theo REST API công bố, `build-release.ps1`, secret `SIGNPATH_*` trong `release.yml`, ký cả hai bộ

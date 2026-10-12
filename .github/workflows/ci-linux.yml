@@ -1,0 +1,81 @@
+# CI riêng Linux (tách khỏi ci-shared 2026-10-11 — README hiện badge từng nền tảng:
+# Windows / Linux / macOS). Phạm vi: linux-common (C, ASan + UBSan) + adapter IBus/Fcitx5
+# build với header thật, e2e với ibus-daemon/fcitx5 thật, gói tarball cài/chạy ngay.
+# Job giữ NGUYÊN tên như khi còn trong ci-shared.
+name: ci-linux
+
+on:
+  push:
+    branches: [main]
+    # Push chỉ chứa docs/graphify không đổi code — đừng đốt runner.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'graphify-out/**'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Log không bao giờ chứa nội dung phím (S2) — biến này để tắt log nóng của engine.
+  RUST_LOG: warn
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-linux-${{ github.ref }}
+  # main KHÔNG cancel-in-progress (giữ bằng chứng xanh cho từng commit); PR thì cancel.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  linux-common-sanitizers:
+    # R2-79: test C của linux-common (IPC client: SIGPIPE, frame dở dang, header) chạy
+    # với ASan + UBSan — trước đây chỉ e2e build Release, lỗi bộ nhớ lọt qua.
+    name: linux-common tests (ASan + UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo build --release -p textvn-ffi
+      - name: cmake Debug + -fsanitize=address,undefined → ctest
+        run: |
+          cmake -S adapters/linux-common -B build-asan -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined"
+          cmake --build build-asan -j
+          ctest --test-dir build-asan --output-on-failure
+
+  linux-adapters:
+    timeout-minutes: 90
+    # Adapter IBus/Fcitx5 build với header THẬT (không mock) + kiểm thử đầu-cuối với
+    # ibus-daemon / fcitx5 chạy thật trong dbus-run-session.
+    name: Linux IBus/Fcitx5 (build + e2e + gói cài/chạy ngay)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      # Cache chuẩn Swatinem: job này build workspace + adapter Linux (e2e, gói)
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake pkg-config \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
+      - run: scripts/e2e-linux.sh
+      # Tarball thật + 2 kịch bản người dùng (cài bằng install.sh / chạy ngay bằng
+      # textvn-portable.sh) × IBus + Fcitx5 thật, trong HOME tạm.
+      - run: scripts/build-linux.sh --skip-tests
+      - run: scripts/test-linux-package.sh dist/TextVN-*-linux-*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: textvn-linux-x86_64
+          path: dist/TextVN-*-linux-*.tar.gz*
+          if-no-files-found: error

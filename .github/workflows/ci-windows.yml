@@ -1,0 +1,186 @@
+# CI riêng Windows (tách khỏi ci-shared 2026-10-11 — README hiện badge từng nền tảng:
+# Windows / Linux / macOS). Phạm vi: code cfg(windows) (tray, TSF, hook, cli) + gói phát
+# hành Windows chạy THẬT trên runner (portable, Inno machine/user, Store validation, MSIX).
+# Job giữ NGUYÊN tên như khi còn trong ci-shared.
+name: ci-windows
+
+on:
+  push:
+    branches: [main]
+    # Push chỉ chứa docs/graphify không đổi code — đừng đốt runner Windows.
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'graphify-out/**'
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Log không bao giờ chứa nội dung phím (S2) — biến này để tắt log nóng của engine.
+  RUST_LOG: warn
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-windows-${{ github.ref }}
+  # main KHÔNG cancel-in-progress (giữ bằng chứng xanh cho từng commit); PR thì cancel.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  clippy-windows:
+    # R2-84: code cfg(windows) (tray, TSF, hook, cli) chỉ được clippy trên Windows trong
+    # build-release.ps1 — và bản mặc định LOẠI textvn-win-hook. Cross-check target
+    # MSVC trên Linux (không link) phủ cả hook, nhanh, không cần runner Windows.
+    name: clippy Windows target (cross-check, gồm hook)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: clippy
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo clippy --workspace --all-targets --target x86_64-pc-windows-msvc -- -D warnings
+
+  windows-package:
+    # Hai kịch bản người dùng trên Windows thật (runner GitHub, có desktop session — RW5
+    # đã verify): (1) giải nén zip portable rồi chạy, (2) cài bằng Inno Setup im lặng
+    # machine + kích hoạt user. Mỗi kịch bản gõ tiếng Việt THẬT qua TSF vào Notepad (SendInput VK) rồi gỡ.
+    name: Windows package (portable + installer, gõ TSF thật)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      # STO-03/CI-03: khi chủ repo đặt repo VARIABLES (Settings -> Secrets and
+      # variables -> Actions -> Variables) STORE_APP_NAME / STORE_PUBLISHER_NAME,
+      # mọi bước validate sẽ đối chiếu ARP với GIÁ TRỊ THẬT trên Partner Center
+      # thay vì so code .iss với chính nó. Chưa đặt -> rỗng -> harness dùng
+      # mặc định (TextVN / Linh βùi dựng bằng [char]).
+      STORE_APP_NAME: ${{ vars.STORE_APP_NAME }}
+      STORE_PUBLISHER_NAME: ${{ vars.STORE_PUBLISHER_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: x86_64-pc-windows-msvc,i686-pc-windows-msvc
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Inno Setup 6 (bản dịch tiếng Việt cần ≥ 6.5)
+        shell: powershell
+        run: |
+          choco upgrade innosetup --no-progress -y | Out-Null
+          $dir = "${env:ProgramFiles(x86)}\Inno Setup 6"
+          if (-not (Test-Path "$dir\ISCC.exe")) { throw "ISCC.exe not found in $dir" }
+          $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: build-release.ps1 (fmt, clippy, verify, replay, build, smoke, zip, installer)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1 -SkipTests -BuildInstaller
+      - name: Kịch bản 2 — giải nén ra dùng luôn (portable zip)
+        shell: powershell
+        run: |
+          $zip = Get-ChildItem dist\TextVN-portable-*.zip | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-portable.ps1 -Zip $zip.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Kịch bản 1 — cài đặt (Inno Setup machine + user activation)
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*.exe | Select-Object -First 1
+          if (-not $setup) { throw 'installer was not built' }
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-installer.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Gate BAT BUOC (Checklist S - store-submission.md): chay dung 3 buoc
+      # manual package validation cua Microsoft tren runner sach: silent install
+      # exit 0 khong tuong tac -> ARP name/publisher/version -> dung 1 entry
+      # (bundleware) -> silent uninstall sach. Loi = do CI, khong duoc tag.
+      - name: Store package validation (MS manual checks, bat buoc)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Mo phong DUNG flow Microsoft Store validator tren CHINH ban vua build (R2-81):
+      # file gan MOTW nhu vua tai -> chay silent -> check 3 muc.
+      - name: Simulate Store validator (download + MOTW + silent + ARP + bundleware)
+        shell: powershell
+        # Hop thoai chan (vd. canh bao bao mat) tung treo ca job toi khi bi huy sau 60
+        # phut (2026-10-09) - script tu gioi han 300 s, day la lop chan cuoi.
+        timeout-minutes: 15
+        run: |
+          $setup = Get-ChildItem dist\TextVN-setup-*-windows-x64.exe | Where-Object { $_.Name -notlike '*-machine.exe' } | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\simulate-store-validation.ps1 -Setup $setup.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # Context Matrix Test (audit vong 4 §3.4.3 / STO-02): runner GitHub chay
+      # ELEVATED — dung moi truong do CHUNG MINH ban MAY (/DMachineInstall=1)
+      # tao duoc entry ARP o HKLM/WOW6432Node (gia thuyet "validator chi doc
+      # hive may"), ARP khop tung chu, va go cai sach. Xanh = ban may la lua
+      # chon THAT khi VM Store duoc phep elevate; do = gia thuyet bat kha thi
+      # trong VM do, phai di duong MSIX.
+      - name: Machine-install variant (ARP o HKLM — bang chung cho STO-02)
+        # Giai doan dau: chay de LAY BANG CHUNG (log) chu chua phai gate cung —
+        # se doi sang blocking sau 2 run xanh lien tiep. Gate cung cho goi nop
+        # van la buoc "Store package validation" o tren.
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $ver = (Select-String -Path Cargo.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          # Don sach entry TextVN con sot tu cac buoc truoc (uninstaller Inno
+          # chay bat dong bo — cac harness dung truoc da doi, day la luoi an toan).
+          $roots = @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+            'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+            'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+          )
+          foreach ($r in $roots) {
+            Get-ChildItem $r -ErrorAction SilentlyContinue | ForEach-Object {
+              $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+              if ($p.DisplayName -like '*TextVN*') {
+                Write-Host "Don entry con sot: $($_.PSPath)"
+                Remove-Item $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+              }
+            }
+          }
+          & $iscc "/DMyAppVersion=$ver" /DMachineInstall=1 '/DOutputSuffix="-machine"' installer\windows\TextVN-setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\validate-store-package.ps1 -MachineOnly -Setup "dist\TextVN-setup-$ver-windows-x64-machine.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # MSIX la asset BAT BUOC cua moi release (0.2.17+): build ngay o day de
+      # bat loi som moi commit thay vi doi den luc tag (release.yml cung build).
+      - name: Build MSIX (bat buoc cho release)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # R2-09: makeappx chi kiem XSD — luat Partner Center (Version phan dau != 0,
+      # Publisher/DisplayName, encoding mo ta, kich thuoc anh, payload) kiem o day.
+      - name: Verify MSIX (luat Store + payload)
+        shell: bash
+        run: |
+          ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver"
+      # R2-02/R2-04: kenh Store chay THAT tren Windows — cai goi da ky tam, mo app,
+      # kiem tu shell ngoai goi (stage that, TIP HKCU, tray ngoai container, Run),
+      # go goi roi --msix-guard phai don sach.
+      - name: MSIX sideload (cai that, mo app, go goi)
+        shell: powershell
+        run: |
+          $msix = Get-ChildItem dist\TextVN-*-windows-x64.msix | Select-Object -First 1
+          powershell -NoProfile -ExecutionPolicy Bypass -File installer\windows\tests\test-msix-sideload.ps1 -Msix $msix.FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: textvn-windows-x64
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/*.msix
+            dist/SHA256SUMS-*.txt
+          if-no-files-found: warn
