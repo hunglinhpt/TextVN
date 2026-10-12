@@ -9,6 +9,13 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Docs
+- **TextVN đã có trên Microsoft Store** (gói MSIX, phát hành 2026-10-11):
+  https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB — cài bằng
+  `winget install --id 9NV2R7JNNFGK -s msstore`. README (badge + bảng tải về), hướng dẫn
+  sử dụng, `HUONG_DAN_SU_DUNG.txt`, tài liệu nộp Store và ghi chú phát hành tự sinh của
+  `release.yml` trỏ link này.
+
 ## [0.2.32] — 2026-10-12
 
 > **Bản release candidate** — ký GPG + Sigstore như v0.2.31; từ bản này commit và tag phát

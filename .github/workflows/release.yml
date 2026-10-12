@@ -301,7 +301,7 @@ jobs:
             # Gói .msix chỉ nộp được khi build với identity Partner Center; identity tạm
             # thì nói rõ để không ai nộp nhầm (msix-submission.md §3).
             if [ -n "$(printf '%s' "${MSIX_IDENTITY_NAME:-}" | tr -d '[:space:]')" ]; then
-              msix_note="File .msix chưa ký, dùng để nộp Microsoft Store (Store tự ký) — không cài trực tiếp được."
+              msix_note="Bản Microsoft Store (khuyên dùng trên Windows, Store tự cập nhật): https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB — hoặc winget install --id 9NV2R7JNNFGK -s msstore. File .msix ở đây là gói nộp Store (chưa ký, Store tự ký) — không cài trực tiếp được."
             else
               msix_note="File .msix mang identity TẠM — chỉ để thử, KHÔNG nộp Microsoft Store; gói nộp Store build lại bằng workflow release-candidate chạy tay trên tag này với ô msix_identity_name (docs/release/msix-submission.md §3)."
             fi

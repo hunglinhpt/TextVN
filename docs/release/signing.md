@@ -15,7 +15,7 @@
 | **Sigstore (cosign keyless)** | Artifact được build bởi workflow `release.yml` của repo này (chứng thư OIDC ngắn hạn, provenance kiểu SLSA) | ✓ — không cần secret, dùng OIDC token của workflow | ✗ | **DÙNG** — lớp 2, provenance tự động |
 | **OpenSSL** (`dgst -sign`) | Tương tự GPG nhưng tự chế định dạng, không có web-of-trust hay hạ tầng verify | ✓ | ✗ | **KHÔNG dùng cho artifact** — dư thừa khi đã có GPG; chỉ còn ý nghĩa cho cert sideload local (Windows dùng `New-SelfSignedCertificate` sẵn) |
 | **Authenticode / Trusted Signing / SignPath** | Đơn vị ký đã được xác thực (chained to Microsoft Trusted Root) | ✓ (SignPath REST API — `tools/win/sign-signpath.ps1`) | ✓ **BẮT BUỘC** cho gói EXE | **Đường cho Store EXE + SmartScreen** — chờ SignPath Foundation (chương trình OSS) duyệt; Trusted Signing không khả dụng cho cá nhân ngoài Mỹ/Canada (`code-signing-plan.md` §1) |
-| **MSIX không ký** | Store **tự ký miễn phí** khi publish | ✓ (upload .msix unsigned) | ✓ (bypass 10.2.9) | **ĐƯỜNG NỘP STORE CHÍNH** — chỉ còn thiếu `Package/Identity/Name` từ Partner Center (`msix-submission.md`) |
+| **MSIX không ký** | Store **tự ký miễn phí** khi publish | ✓ (upload .msix unsigned) | ✓ (bypass 10.2.9) | **ĐƯỜNG NỘP STORE CHÍNH — ĐÃ PHÁT HÀNH 2026-10-11** ([trang Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB), identity `23651Linhi.TextVN`; `msix-submission.md`) |
 
 Kết luận: GPG + Sigstore là **lớp integrity/provenance miễn phí, tự động, đầy đủ
 3 platform**; 10.2.9 của Store chỉ chấp nhận Authenticode (Trusted Signing /
@@ -91,9 +91,11 @@ cosign verify-blob \
   `TextVN-setup-<ver>-windows-x64.exe` lẫn `-machine.exe` (file nộp Store) đều được ký;
   chưa có secret thì bản phát hành vẫn là release candidate chưa Authenticode.
   Chi tiết + checklist bật: `code-signing-plan.md`.
-- MSIX: **không cần ký** — Store tự ký; build cuối chỉ cần `Package/Identity/Name` thật
-  từ Partner Center (repo variable `MSIX_IDENTITY_NAME` → `build-msix.ps1
-  -RequireStoreIdentity`) — xem `msix-submission.md` §3.
+- MSIX: **không cần ký** — Store tự ký; **đã phát hành** 2026-10-11 ([trang Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)).
+  Gói nộp mang `Package/Identity/Name` thật từ Partner Center (repo variable
+  `MSIX_IDENTITY_NAME` → `build-msix.ps1 -RequireStoreIdentity`) — xem `msix-submission.md` §3.
+  Lưu ý: chữ ký của Store chỉ phủ GÓI; tệp chương trình chép ra AppData ở lần mở đầu vẫn
+  chưa có Authenticode — antivirus có thể cách ly (`docs/specs/antivirus-false-positive.md` §10).
 - Lưu ý MS: dùng **cùng tên** "TextVN" cho sản phẩm MSIX đòi hỏi xoá tên khỏi sản phẩm
   Win32 (EXE) hiện có — chủ repo quyết trên Partner Center (`msix-submission.md` §2).
 

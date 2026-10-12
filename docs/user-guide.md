@@ -24,9 +24,12 @@ TextVN-setup-<bản>-windows-x64.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
   được đăng ký ở lần đầu TextVN chạy cho tài khoản đó); lỗi đăng ký ghi ở
   `%LOCALAPPDATA%\TextVN\logs\register.log`. Chỉ khi cài **có giao diện** mà đăng ký
   thất bại, bộ cài mới trả exit code 10.
-- Microsoft Store: đường nộp hiện tại là gói **MSIX** (Store tự ký khi phát hành). File
-  `.msix` trên GitHub Release chưa ký nên **không cài trực tiếp được**. Chi tiết:
-  `docs/release/msix-submission.md`. Chính sách riêng tư: `PRIVACY_POLICY.txt` (ở gốc repo).
+- Microsoft Store: TextVN **đã có trên Store** (gói **MSIX**, Microsoft ký khi phát hành) —
+  https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB (Store ID
+  `9NV2R7JNNFGK`); cài bằng dòng lệnh: `winget install --id 9NV2R7JNNFGK -s msstore`. File
+  `.msix` trên GitHub Release là gói nộp Store (chưa ký) nên **không cài trực tiếp được**.
+  Quy trình cập nhật gói: `docs/release/msix-submission.md`. Chính sách riêng tư:
+  `PRIVACY_POLICY.txt` (ở gốc repo).
 
 ## 1. Cài đặt
 
@@ -38,7 +41,7 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 |---|---|---|
 | **Cài đặt** | Chạy `TextVN-setup-<phiên bản>-windows-x64.exe` → Tiếp → Cài. Bộ cài mặc định cài **cho tài khoản của bạn** (`%LOCALAPPDATA%\Programs\TextVN`, không cần admin). Muốn cài cho mọi tài khoản trên máy: dùng `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần). | Máy của bạn, dùng lâu dài: tự khởi động cùng Windows, có trong Settings → Apps để gỡ. |
 | **Giải nén dùng ngay** | Giải nén `TextVN-portable-<phiên bản>-windows-x64-*.zip` → nhấn đúp `TextVN.exe`. | Máy mượn, USB, dùng thử. Không ghi gì vào Program Files. |
-| **Microsoft Store** | Đang nộp (gói MSIX). Khi có trên Store: cài, mở TextVN một lần để app đăng ký bộ gõ cho tài khoản của bạn. | Muốn Store tự cập nhật. |
+| **Microsoft Store** | Mở [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB) → *Tải* (hoặc `winget install --id 9NV2R7JNNFGK -s msstore`), rồi mở TextVN **một lần** để app đăng ký bộ gõ cho tài khoản của bạn (bản Store hỏi trước khi đổi phím Ctrl + Shift). Gỡ: Settings → Apps → TextVN → Uninstall — lần đăng nhập kế tiếp TextVN tự gỡ đăng ký bộ gõ và xoá tệp đã chép. | Muốn Store tự cập nhật, gói do Microsoft ký. |
 
 Lần đầu TextVN chạy cho một tài khoản Windows, app tự đăng ký bộ gõ cho tài khoản đó (kể cả
 khi đã cài cho mọi người dùng). Nếu vẫn chưa gõ được: mở Bảng điều khiển → **[Cài & bật TSF]**,
@@ -225,7 +228,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím — nếu Windows còn giữ phím này, một lần bấm vừa đổi mode TextVN vừa đổi bàn phím hệ thống. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 
 | Windows: chọn TextVN xong vẫn gõ ra tiếng Anh/không ra chữ, hoặc TextVN không có trong Win+Space | (1) Win11 24H2+ có thể từ chối kích hoạt bộ gõ chỉ đăng ký cho tài khoản (HKCU) — bản cài cho tài khoản, portable và Store không tự xin UAC; (2) TextVN từng bị mất khỏi danh sách Win+Space sau nâng cấp liên tục. Cách xử lý: chạy **bộ cài cho mọi người dùng** `TextVN-setup-<phiên bản>-windows-x64-machine.exe` (Program Files, UAC một lần) — luồng `/ALLUSERS` được CI kiểm chứng đầy đủ; sau cài, đăng xuất/đăng nhập nếu vẫn chưa thấy. Kiểm tra nhanh: PowerShell `Get-WinUserLanguageList` phải thấy dòng chứa `{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}`. |
-| Windows: phần mềm diệt virus / SmartScreen cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Bản phát hành chưa có chữ ký Authenticode (đang chờ SignPath Foundation) — kiểm `checks.authenticode` trong `RELEASE_REPORT.json` của gói; tính toàn vẹn kiểm bằng chữ ký GPG/Sigstore (`release/signing.md`). |
+| Windows: phần mềm diệt virus / SmartScreen cảnh báo | Gói mặc định không dùng hook bàn phím toàn cục hay tiêm mã; xem [antivirus-false-positive.md](specs/antivirus-false-positive.md). Bản phát hành chưa có chữ ký Authenticode (đang chờ SignPath Foundation) — kiểm `checks.authenticode` trong `RELEASE_REPORT.json` của gói; tính toàn vẹn kiểm bằng chữ ký GPG/Sigstore (`release/signing.md`). Bản Store: gói được Microsoft ký, nhưng ở lần mở đầu app chép chương trình (chưa ký Authenticode) ra `%LOCALAPPDATA%\Programs\TextVN-Store` để đăng ký bộ gõ — Kaspersky từng cách ly các tệp này (2026-10-11); khôi phục từ khu cách ly + thêm ngoại lệ, và gửi báo nhầm theo `antivirus-false-positive.md` §10. |
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
@@ -242,7 +245,7 @@ file này không chứa nội dung bạn gõ.
 
 | Nền tảng | Trạng thái |
 |---|---|
-| Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho bộ cài, bản portable và gói MSIX (cài thử thật). Còn chờ chữ ký **Authenticode** qua SignPath Foundation (đang chờ duyệt) — trước đó SmartScreen/AV có thể cảnh báo. Microsoft Store: đang nộp gói MSIX. |
+| Windows 10/11 x64 (TSF) | Bản thử nghiệm phát hành (release candidate): gõ thật qua TSF được kiểm thử tự động trên Windows cho bộ cài, bản portable và gói MSIX (cài thử thật). Còn chờ chữ ký **Authenticode** qua SignPath Foundation (đang chờ duyệt) — trước đó SmartScreen/AV có thể cảnh báo. **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** từ 2026-10-11 (gói MSIX do Microsoft ký). |
 | Linux IBus / Fcitx5 | Bản thử nghiệm phát hành: tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; kiểm thử tự động với ibus-daemon và fcitx5 thật, cả cài đặt lẫn chạy ngay. Chưa có `.deb`/`.rpm`. |
 | macOS 13+ (IMK) | Bản thử nghiệm phát hành: bộ gõ IMK, app menu bar, gói `.pkg`; CI build 2 kiến trúc và chạy test. **Chưa** ký Apple Developer ID/notarize — xem lưu ý Gatekeeper ở §1. |
 
