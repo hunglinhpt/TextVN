@@ -4,7 +4,8 @@
 //! Chẩn đoán:
 //! 1. FFI ABI struct sizes (P0-2 §6)
 //! 2. Cấu hình người dùng `%APPDATA%\TextVN\config.json` (redacted đường dẫn khi export — Rule S2)
-//! 3. Trạng thái IPC Named Pipe `\\.\pipe\textvn-ipc-v1`
+//! 3. Trạng thái IPC Named Pipe — pipe theo phiên `\\.\pipe\textvn-ipc-v1-s<phiên>`,
+//!    tên cũ `\\.\pipe\textvn-ipc-v1` dự phòng (`textvn_ipc::candidate_pipe_names`)
 //! 4. Trạng thái tiến trình `textvn-hook.exe` và `textvn-tray.exe`
 //! 5. Trạng thái đăng ký TIP (Windows Text Services Framework)
 //!
@@ -162,10 +163,11 @@ impl DoctorReport {
                 "chưa có"
             }
         );
+        // Vòng 16 (A7): tên pipe theo phiên — không in cứng tên cũ `textvn-ipc-v1`.
         println!(
             "  IPC pipe    : {}",
             if self.pipe_listening {
-                r"đang lắng nghe (\\.\pipe\textvn-ipc-v1)"
+                "đang lắng nghe"
             } else {
                 "chưa kết nối (tray chưa chạy)"
             }

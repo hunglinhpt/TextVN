@@ -132,6 +132,55 @@ $langsMid = @((Get-ItemProperty $userProfile -ErrorAction SilentlyContinue).Lang
 Write-Host ('languages after install: ' + ($langsMid -join ', '))
 if (($langsBefore -notcontains 'vi') -and ($langsMid -notcontains 'vi')) { throw 'install did not add vi to the language list - R2-100 check would be vacuous' }
 
+# R2-105: nang cap tai cho khi tray cua BAN TEXTVN KHAC (vd. portable) dang chay - bo cai chi
+# duoc dung tray chay tu {app} (R2-93). Tray "khac" chay tu ban sao trong thu muc tam,
+# TEXTVN_SKIP_TSF_REGISTRATION=1 de khong dong vao dang ky TSF (R2-91); bien moi truong
+# go ngay sau khi khoi dong de bo cai va tien trinh con khong ke thua.
+function Wait-TrayRunning([string]$Exe) {
+    for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Milliseconds 500
+        if ((& $Exe --status 2>&1 | Out-String) -match 'RUNNING') { return $true }
+    }
+    return $false
+}
+$otherDir = Join-Path $env:TEMP ('textvn-other-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $otherDir | Out-Null
+Copy-Item -LiteralPath (Join-Path $app 'TextVN.exe') -Destination $otherDir
+$otherExe = Join-Path $otherDir 'TextVN.exe'
+$env:TEXTVN_SKIP_TSF_REGISTRATION = '1'
+$other = Start-Process -FilePath $otherExe -ArgumentList '--autostart' -WorkingDirectory $otherDir -PassThru
+Remove-Item Env:TEXTVN_SKIP_TSF_REGISTRATION
+try {
+    if (-not (Wait-TrayRunning $otherExe)) { throw 'tray from another location did not start' }
+    $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
+    if ($p.ExitCode -ne 0) {
+        Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
+        throw "upgrade setup exit $($p.ExitCode) (another location's tray running)"
+    }
+    $other.Refresh()
+    if ($other.HasExited) { throw 'upgrade stopped the tray of ANOTHER TextVN location (R2-105 / R2-93)' }
+    Write-Host 'PASS upgrade left the tray of another TextVN location running (R2-105)'
+} finally {
+    & $otherExe --stop *> $null
+    [void]$other.WaitForExit(8000)
+    Remove-Item -LiteralPath $otherDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# A3 + R2-105: nang cap tai cho khi tray CUA {app} dang chay (autostart - ca nang cap pho
+# bien nhat): PrepareToInstall phai dung tray truoc khi chep file, khong thi file bi khoa.
+$own = Start-Process -FilePath (Join-Path $app 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $app -PassThru
+if (-not (Wait-TrayRunning (Join-Path $app 'TextVN.exe'))) { throw 'installed tray did not start before the upgrade-over-running-tray test' }
+$p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
+$setupLog = (Get-Content $log -ErrorAction SilentlyContinue | Out-String)
+if ($p.ExitCode -ne 0) {
+    $setupLog -split "`n" | Select-Object -Last 40
+    throw "upgrade over the running tray: setup exit $($p.ExitCode)"
+}
+$own.Refresh()
+if (-not $own.HasExited) { throw 'upgrade did not stop the running tray of {app} before replacing files (A3)' }
+if ($setupLog -notmatch 'Tray stop exit code: 0') { throw 'PrepareToInstall did not report a clean tray stop (A3/R2-105)' }
+Write-Host 'PASS upgrade over a running tray: tray stopped first, files replaced, exit 0 (A3/R2-105)'
+
 # R2-99: go cai dat khi tray DANG CHAY (nguoi dung bam "Go cai dat" luc TextVN dang bat):
 # bo go phai dung tray truoc moi buoc - tray con chay thi khoa TextVN.exe, go khong sach.
 Start-Process -FilePath (Join-Path $app 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $app | Out-Null

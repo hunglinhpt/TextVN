@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! IPC client của TSF (WIN-016) — **một client cho mỗi process**, không block app.
 //!
-//! Kết nối `\\.\pipe\textvn-ipc-v1`; tray chưa chạy → dùng trạng thái đọc từ
+//! Kết nối pipe theo phiên `\\.\pipe\textvn-ipc-v1-s<phiên>` (tên cũ `textvn-ipc-v1`
+//! dự phòng — `textvn_ipc::candidate_pipe_names`); tray chưa chạy → dùng trạng thái đọc từ
 //! `%APPDATA%\TextVN\state.json` và thử lại định kỳ (offline-tolerant).
 //!
 //! Bất biến quan trọng:
@@ -28,21 +29,31 @@ pub fn pipe_name_candidates() -> [String; 2] {
 }
 
 /// Audit A7b: xác thực server đầu ống là TextVN.exe — chống pipe squatting
-/// (process khác cùng uid tạo pipe giả phục vụ Snapshot giả).
+/// (process khác tạo pipe giả phục vụ Snapshot giả).
+/// R2-110: thêm điều kiện CÙNG PHIÊN — namespace pipe là toàn máy nên tiến trình ở
+/// phiên khác (user khác, fast user switching/RDP) tạo trước được pipe mang tên
+/// phiên của ta; và so ĐÚNG tên file `TextVN.exe` (trước chỉ `ends_with`, khớp cả
+/// `notTextVN.exe`).
 fn server_is_textvn(stream: &std::fs::File) -> bool {
     use std::os::windows::io::AsRawHandle;
     let pipe_handle = stream.as_raw_handle();
     use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::Pipes::GetNamedPipeServerProcessId;
+    use windows::Win32::System::Pipes::{GetNamedPipeServerProcessId, GetNamedPipeServerSessionId};
     use windows::Win32::System::Threading::{
         OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
         PROCESS_QUERY_LIMITED_INFORMATION,
     };
     let mut server_pid = 0u32;
+    let mut server_session = 0u32;
     // SAFETY: handle hợp lệ từ CreateFile; các handle con đóng ngay.
     unsafe {
         let handle = windows::Win32::Foundation::HANDLE(pipe_handle as *mut _);
         if GetNamedPipeServerProcessId(handle, &mut server_pid).is_err() {
+            return false;
+        }
+        if GetNamedPipeServerSessionId(handle, &mut server_session).is_err()
+            || server_session != textvn_ipc::current_session_id()
+        {
             return false;
         }
         let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, server_pid) else {
@@ -62,8 +73,16 @@ fn server_is_textvn(stream: &std::fs::File) -> bool {
             return false;
         }
         let image = String::from_utf16_lossy(&buf[..len as usize]);
-        image.to_ascii_lowercase().ends_with("textvn.exe")
+        image_is_textvn_exe(&image)
     }
+}
+
+/// Đúng tên file `TextVN.exe` (không phân biệt hoa thường), không chỉ phần đuôi.
+fn image_is_textvn_exe(image: &str) -> bool {
+    image
+        .rsplit(['\\', '/'])
+        .next()
+        .is_some_and(|name| name.eq_ignore_ascii_case("TextVN.exe"))
 }
 
 /// Khóa trong map trạng thái đại diện cho công tắc toàn cục (khớp tray).
@@ -487,6 +506,20 @@ mod tests {
         assert!(!client.is_enabled());
         assert!(client.toggle_global());
         assert!(client.is_enabled());
+    }
+
+    /// R2-110: server phải đúng TÊN FILE `TextVN.exe` — trước chỉ so đuôi chuỗi.
+    #[test]
+    fn server_image_must_be_textvn_exe_by_file_name() {
+        assert!(image_is_textvn_exe(r"C:\Program Files\TextVN\TextVN.exe"));
+        assert!(image_is_textvn_exe(
+            r"C:\Users\a\AppData\Local\Programs\TextVN\textvn.EXE"
+        ));
+        assert!(image_is_textvn_exe("TextVN.exe"));
+        assert!(!image_is_textvn_exe(r"C:\evil\notTextVN.exe"));
+        assert!(!image_is_textvn_exe(r"C:\evil\TextVN.exe.bak"));
+        assert!(!image_is_textvn_exe(r"C:\TextVN.exe\other.exe"));
+        assert!(!image_is_textvn_exe(""));
     }
 
     #[test]

@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.31"
+  #define MyAppVersion "0.2.32"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
@@ -252,12 +252,18 @@ begin
     Sleep(500);
   end;
   // Vong 16 (audit A3): dung TRAY DANG CHAY truoc khi chep file — nang cap
-  // tai cho la ca pho bien nhat (autostart). Per-user khong co RestartManager
-  // hieu luc, tray van xu ly WM_QUERYENDSESSION (da them handler graceful).
-  if FileExists(ExpandConstant('{app}\TextVN.exe')) then
+  // tai cho la ca pho bien nhat (autostart). Tray van xu ly WM_ENDSESSION cho
+  // RestartManager (R2-102).
+  // R2-105: CHI tray chay tu {app} (R2-93: ban portable/Store/ban cai o thu muc khac
+  // dang dung thi giu nguyen) va --force: tray cua {app} khong tu thoat thi dung
+  // cuong buc dung tien trinh do — khong thi file con khoa, nang cap hien hop thoai
+  // "file dang dung" hoac huy khi cai im lang. Ban TextVN.exe cu (<= 0.2.27) bo qua
+  // co la: dung nhu truoc.
+  if FileExists(ExpandConstant('{app}\{#MyAppExeName}')) then
   begin
     Log('Stopping running TextVN tray before upgrade...');
-    Exec(ExpandConstant('{app}\TextVN.exe'), '--stop', '',
+    Exec(ExpandConstant('{app}\{#MyAppExeName}'),
+         '--stop --if-image-under "' + ExpandConstant('{app}') + '" --force', '',
          SW_HIDE, ewWaitUntilTerminated, StopCode);
     Log(Format('Tray stop exit code: %d', [StopCode]));
   end;
@@ -271,7 +277,9 @@ function RegisterTextServices(): Boolean;
 var
   ResultCode: Integer;
 begin
-  if CompareText(ExpandConstant('{app}'), ExpandConstant('{autopf}\TextVN')) <> 0 then
+  // R2-111: cung cong thuc voi DefaultDirName ({autopf}\{#MyAppName}) — so voi chuoi
+  // cung 'TextVN' thi build voi /DMyAppName khac (STO-03) luon bi tu choi dang ky.
+  if CompareText(ExpandConstant('{app}'), ExpandConstant('{autopf}\{#MyAppName}')) <> 0 then
   begin
     Log('TextVN refused elevated TSF registration outside Program Files.');
     Result := False;

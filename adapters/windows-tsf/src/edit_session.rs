@@ -420,7 +420,9 @@ fn apply_plan(
             del.SetText(ec, 0, &empty[..0])?;
         }
 
-        // Chèn + kết thúc composition đặt trong closure để hoàn tác A9 khi lỗi.
+        // Chèn + kết thúc composition đặt trong closure để hoàn tác A9 khi lỗi. Mọi
+        // lỗi có thể trả về trong closure đều xảy ra TRƯỚC khi text mới vào document
+        // (R2-103) — hoàn tác chỉ trả lại đúng phần vừa xoá, không bao giờ nhân đôi.
         let insert_result: Result<()> = (|| {
             if let Some(text) = &plan.text {
                 let wide = to_wide_nul(text);
@@ -439,12 +441,17 @@ fn apply_plan(
                 }
             }
 
+            // R2-103: tới đây text đã nằm trong document. Lỗi EndComposition KHÔNG
+            // được kích hoạt hoàn tác bên dưới — hoàn tác lúc này chèn lại phần đã
+            // xoá cạnh từ mới ("vie" + "việ" → lặp chữ), hoặc trả lại chữ mà Backspace
+            // vừa xoá có chủ đích. Bỏ qua lỗi như `finish()` (composition đã bị app
+            // kết thúc là nguyên nhân thường gặp).
             if plan.end {
                 if let Some(c) = comp.take() {
                     if let Ok(range) = c.GetRange() {
                         set_caret_after(ctx, ec, &range);
                     }
-                    c.EndComposition(ec)?;
+                    let _ = c.EndComposition(ec);
                 }
             }
             Ok(())

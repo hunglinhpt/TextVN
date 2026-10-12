@@ -366,6 +366,47 @@ pub fn ctf_category_keys(cat: &str) -> [String; 2] {
     ]
 }
 
+/// R2-104: key TIP của TextVN trong hive một user ĐANG NẠP, đường dẫn TƯƠNG ĐỐI
+/// `HKEY_USERS`. Không bao giờ có `\` đầu — Registry API trả ERROR_BAD_PATHNAME
+/// (161) cho subkey bắt đầu bằng `\` (bản A13 đầu tiên dựng `\<sid>\…` nên chưa
+/// từng xoá được gì). `Software\Classes` của hive đang nạp là liên kết tới
+/// `<sid>_Classes` (UsrClass.dat) — nơi thật của COM per-user.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn user_hive_tip_keys(sid: &str) -> [String; 4] {
+    [
+        format!(r"{sid}\Software\Classes\CLSID\{CLSID_STR}"),
+        format!(r"{sid}\Software\Classes\WOW6432Node\CLSID\{CLSID_STR}"),
+        format!(r"{sid}\{}", ctf_tip_key()),
+        format!(r"{sid}\Software\WOW6432Node\Microsoft\CTF\TIP\{CLSID_STR}"),
+    ]
+}
+
+/// R2-104: `Control Panel\International\User Profile` của hive user (tương đối HKU).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn user_hive_profile_key(sid: &str) -> String {
+    format!(r"{sid}\Control Panel\International\User Profile")
+}
+
+/// Lệnh RunOnce xoá một file/thư mục còn bị khoá khi gỡ (fallback của `schedule-delete`
+/// lúc không có quyền ghi PendingFileRenameOperations). R2-115: Windows khuyến nghị lệnh
+/// RunOnce ≤ 260 ký tự (R2-94, `uninstall.ps1` cùng luật) — dài hơn → `None`, caller báo
+/// "không hẹn được" thay vì "đã hẹn xoá". `rmdir` không `/s`: chỉ xoá thư mục rỗng.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn runonce_cleanup_command(path: &str, is_dir: bool) -> Option<String> {
+    let cmd = if is_dir {
+        format!("cmd.exe /c rmdir \"{path}\"")
+    } else {
+        format!("cmd.exe /c del /f /q \"{path}\"")
+    };
+    (cmd.encode_utf16().count() <= 260).then_some(cmd)
+}
+
+/// Hive của LocalSystem/LocalService/NetworkService — không có người dùng gõ phím.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn is_service_profile_sid(sid: &str) -> bool {
+    matches!(sid, "S-1-5-18" | "S-1-5-19" | "S-1-5-20")
+}
+
 // ─── Windows-only COM/TSF impl ────────────────────────────────────────────────────────────────────
 
 #[cfg(windows)]
@@ -426,6 +467,8 @@ mod win_impl {
             "HKCU"
         } else if h == HKEY_LOCAL_MACHINE {
             "HKLM"
+        } else if h == HKEY_USERS {
+            "HKU"
         } else {
             "REG"
         }
@@ -854,17 +897,19 @@ mod win_impl {
                         h = h.wrapping_mul(0x01000193);
                     }
                     let val_name = format!("TextVNCleanup_{h:08x}");
-                    let cmd = if p.is_dir() {
-                        format!("cmd.exe /c rmdir \"{}\"", path)
-                    } else {
-                        format!("cmd.exe /c del /f /q \"{}\"", path)
+                    // R2-115: lệnh > 260 ký tự (R2-94) không được báo là đã hẹn xoá.
+                    let scheduled = match runonce_cleanup_command(path, p.is_dir()) {
+                        Some(cmd) => set_reg_value(
+                            HKEY_CURRENT_USER,
+                            r"Software\Microsoft\Windows\CurrentVersion\RunOnce",
+                            Some(&val_name),
+                            RegValue::Sz(&cmd),
+                        ),
+                        None => {
+                            say(&format!("  {path} → lệnh RunOnce dài quá 260 ký tự"));
+                            false
+                        }
                     };
-                    let scheduled = set_reg_value(
-                        HKEY_CURRENT_USER,
-                        r"Software\Microsoft\Windows\CurrentVersion\RunOnce",
-                        Some(&val_name),
-                        RegValue::Sz(&cmd),
-                    );
                     if scheduled {
                         say(&format!("  {path} → đã hẹn xoá qua HKCU RunOnce"));
                     } else {
@@ -1955,106 +2000,62 @@ mod win_impl {
         0
     }
 
-    /// Vòng 16 (audit A13): gỡ máy (machine unregister) phải dọn ghost trong
-    /// hive MỌI user — user B từng chạy tray sẽ còn COM override trỏ DLL đã
-    /// xoá (TSF nạp fail mỗi focus, gõ hỏng). Quét `ProfileList`:
-    /// - hive đang load (`HKU\<sid>`) → dọn trực tiếp;
-    /// - chưa load → `RegLoadKey` NTUSER.DAT, dọn, `RegUnLoadKey`.
+    /// Vòng 16 (audit A13) + R2-104: gỡ máy (machine unregister) dọn ghost TSF
+    /// trong hive của mọi user ĐANG ĐĂNG NHẬP — fast user switching/RDP, và cả
+    /// user gốc khi admin gỡ hộ (A6: `[UninstallRun]` chạy bằng token admin nên
+    /// HKCU của nó là của admin). Còn sót thì user đó giữ COM override trỏ DLL đã
+    /// xoá: TextVN "chết" trong danh sách bàn phím của họ.
     ///
-    /// Chỉ chạy ở scope Machine (elevated; cần SeBackup/SeRestore).
+    /// R2-104: bản A13 đầu tiên KHÔNG dọn được gì — subkey dựng dạng `\<sid>\…`
+    /// (Registry API trả ERROR_BAD_PATHNAME 161 cho `\` đầu; probe 2026-10-11).
+    /// Nhánh `RegLoadKey` NTUSER.DAT cho user chưa đăng nhập cũng chưa từng chạy
+    /// (thiếu SeBackup/SeRestore đã bật, mount lồng `TextVNCleanup\<sid>`, COM
+    /// per-user nằm ở UsrClass.dat không được nạp) và đã được BỎ: nạp hive của
+    /// người khác trong bộ gỡ mà unload hỏng (handle còn mở) thì hive bị khoá tới
+    /// khi khởi động lại — user đó đăng nhập vào profile TẠM. Rủi ro lớn hơn lợi
+    /// ích (dọn một mục bàn phím chết). Hive chưa nạp: ghi log, giữ nguyên.
     fn unregister_cleanup_all_users() {
         const PROFILE_LIST: &str = r"Software\Microsoft\Windows NT\CurrentVersion\ProfileList";
         let sids = enum_subkeys(HKEY_LOCAL_MACHINE, PROFILE_LIST);
         let mut cleaned = 0usize;
-        for sid in &sids {
-            if sid.starts_with("S-1-5-18")
-                || sid.starts_with("S-1-5-19")
-                || sid.starts_with("S-1-5-20")
-            {
-                continue; // system/services
-            }
-            let loaded_key = format!(r"\{sid}");
-            if reg_key_exists(HKEY_USERS, &loaded_key) {
-                unregister_cleanup_user_hive(HKEY_USERS, &loaded_key);
-                cleaned += 1;
+        let mut offline = 0usize;
+        for sid in sids.iter().filter(|s| !is_service_profile_sid(s)) {
+            if !reg_key_exists(HKEY_USERS, sid) {
+                offline += 1;
                 continue;
             }
-            let profile_path = reg_read_named(
-                HKEY_LOCAL_MACHINE,
-                &format!(r"{PROFILE_LIST}\{sid}"),
-                "ProfileImagePath",
-            );
-            let Some(profile_path) = profile_path else {
-                continue;
-            };
-            let ntuser = format!(r"{profile_path}\NTUSER.DAT");
-            if !Path::new(&ntuser).is_file() {
-                continue;
-            }
-            let temp_key = format!(r"TextVNCleanup\{sid}");
-            // SAFETY: path/key nul-terminated; hive chưa load nên LoadKey an toàn.
-            let loaded = unsafe {
-                RegLoadKeyW(
-                    HKEY_USERS,
-                    PCWSTR(wide(&temp_key).as_ptr()),
-                    PCWSTR(wide(&ntuser).as_ptr()),
-                )
-            };
-            if loaded != ERROR_SUCCESS {
-                say(&format!(
-                    "  Cleanup user {sid}: RegLoadKey FAIL {} — bỏ qua",
-                    lstatus_text(loaded.0)
-                ));
-                continue;
-            }
-            let temp_root = format!(r"\{temp_key}");
-            unregister_cleanup_user_hive(HKEY_USERS, &temp_root);
-            unsafe {
-                let _ = RegUnLoadKeyW(HKEY_USERS, PCWSTR(wide(&temp_key).as_ptr()));
-            }
+            unregister_cleanup_user_hive(sid);
             cleaned += 1;
         }
         say(&format!(
-            "  Dọn ghost trong {cleaned} hive user (loaded/RegLoadKey)"
+            "  Dọn ghost TSF trong {cleaned} hive user đang đăng nhập; {offline} hive chưa nạp được giữ nguyên"
         ));
     }
 
-    /// Dọn các key TIP TextVN trong MỘT hive user (root = `HKU\<sid>` hoặc key tạm).
-    fn unregister_cleanup_user_hive(root: HKEY, root_path: &str) {
-        let _ = delete_tree(
-            root,
-            &format!(r"{root_path}\Software\Classes\CLSID\{CLSID_STR}"),
-        );
-        let _ = delete_tree(
-            root,
-            &format!(r"{root_path}\Software\Classes\WOW6432Node\CLSID\{CLSID_STR}"),
-        );
-        let _ = delete_tree(
-            root,
-            &format!(r"{root_path}\Software\Microsoft\CTF\TIP\{CLSID_STR}"),
-        );
-        let _ = delete_tree(
-            root,
-            &format!(r"{root_path}\Software\WOW6432Node\Microsoft\CTF\TIP\{CLSID_STR}"),
-        );
+    /// Dọn các key/value TIP TextVN trong hive MỘT user đang nạp (`HKU\<sid>`).
+    fn unregister_cleanup_user_hive(sid: &str) {
+        for key in user_hive_tip_keys(sid) {
+            let _ = delete_tree(HKEY_USERS, &key);
+        }
         // Modern language list: value entries trỏ CLSID + InputMethodOverride.
-        let up = format!(r"{root_path}\Control Panel\International\User Profile");
-        for name in reg_value_names(root, &up) {
-            if name.contains(CLSID_INNER) {
-                let _ = delete_reg_value(root, &up, &name);
+        let up = user_hive_profile_key(sid);
+        let names_tip = |name: &str| name.to_ascii_uppercase().contains(CLSID_INNER);
+        for name in reg_value_names(HKEY_USERS, &up) {
+            if names_tip(&name) {
+                let _ = delete_reg_value(HKEY_USERS, &up, &name);
             }
         }
         let override_name = "InputMethodOverride";
-        if let Some(v) = reg_read_named(root, &up, override_name) {
-            if v.contains(CLSID_INNER) {
-                let _ = delete_reg_value(root, &up, override_name);
+        if let Some(v) = reg_read_named(HKEY_USERS, &up, override_name) {
+            if names_tip(&v) {
+                let _ = delete_reg_value(HKEY_USERS, &up, override_name);
             }
         }
-        for tag in ["vi", "en-US"] {
+        for tag in PROFILE_LANGUAGE_TAGS {
             let key = format!(r"{up}\{tag}");
-            for name in reg_value_names(root, &key) {
-                if name.contains(CLSID_INNER) {
-                    let _ = delete_reg_value(root, &key, &name);
+            for name in reg_value_names(HKEY_USERS, &key) {
+                if names_tip(&name) {
+                    let _ = delete_reg_value(HKEY_USERS, &key, &name);
                 }
             }
         }
@@ -2717,5 +2718,89 @@ mod tests {
         assert_eq!(win_impl::lstatus_name(2), Some("ERROR_FILE_NOT_FOUND"));
         assert_eq!(win_impl::lstatus_name(87), Some("ERROR_INVALID_PARAMETER"));
         assert_eq!(win_impl::lstatus_name(0x1234_5678), None);
+    }
+
+    /// R2-104: đường dẫn hive user là TƯƠNG ĐỐI `HKEY_USERS` — không bao giờ có
+    /// `\` đầu (ERROR_BAD_PATHNAME 161: bản A13 đầu tiên không xoá được gì).
+    #[test]
+    fn user_hive_paths_are_relative_to_hkey_users() {
+        let sid = "S-1-5-21-1-2-3-1001";
+        let profile = user_hive_profile_key(sid);
+        for p in user_hive_tip_keys(sid)
+            .iter()
+            .chain(std::iter::once(&profile))
+        {
+            assert!(!p.starts_with('\\'), "subkey có '\\' đầu: {p}");
+            assert!(p.starts_with(&format!(r"{sid}\")), "{p}");
+        }
+        assert!(user_hive_tip_keys(sid)
+            .iter()
+            .all(|k| k.ends_with(CLSID_STR)));
+        assert!(is_service_profile_sid("S-1-5-18"));
+        assert!(is_service_profile_sid("S-1-5-20"));
+        assert!(!is_service_profile_sid(sid));
+        assert!(!is_service_profile_sid("S-1-5-180"));
+    }
+
+    /// R2-115: lệnh RunOnce dọn file khoá ≤ 260 ký tự (R2-94); rmdir không `/s`.
+    #[test]
+    fn runonce_cleanup_command_respects_260_chars() {
+        let file = r"C:\Users\a\AppData\Local\Programs\TextVN\textvn-tsf.dll.old-20261011";
+        assert_eq!(
+            runonce_cleanup_command(file, false).as_deref(),
+            Some(format!("cmd.exe /c del /f /q \"{file}\"").as_str())
+        );
+        let dir = r"C:\Users\a\AppData\Local\Programs\TextVN";
+        let rmdir = runonce_cleanup_command(dir, true).unwrap();
+        assert!(rmdir.starts_with("cmd.exe /c rmdir \"") && !rmdir.contains("/s"));
+        let long = format!(r"C:\{}\textvn-tsf.dll.old-1", "d".repeat(240));
+        assert!(runonce_cleanup_command(&long, false).is_none());
+    }
+
+    /// R2-104: kiểm bằng API THẬT trên hive của chính user chạy test — subkey
+    /// tương đối `HKEY_USERS` tới được hive đang nạp và xoá được; subkey có `\`
+    /// đầu bị API từ chối (lớp lỗi khiến A13 không làm gì).
+    #[cfg(windows)]
+    #[test]
+    fn hkey_users_relative_paths_reach_the_loaded_hive() {
+        use windows::core::PCWSTR;
+        use windows::Win32::System::Registry::{
+            RegCloseKey, RegCreateKeyW, RegDeleteTreeW, HKEY, HKEY_CURRENT_USER, HKEY_USERS,
+        };
+        let out = std::process::Command::new("whoami")
+            .args(["/user", "/fo", "csv", "/nh"])
+            .output()
+            .expect("whoami");
+        let line = String::from_utf8_lossy(&out.stdout);
+        let sid = line
+            .trim()
+            .rsplit(',')
+            .next()
+            .unwrap_or("")
+            .trim_matches('"')
+            .to_string();
+        assert!(sid.starts_with("S-1-"), "không đọc được SID: {line}");
+        let wide = |s: &str| s.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+        let leaf = format!(r"Software\TextVN-R2-104-{}", std::process::id());
+        let mut key = HKEY::default();
+        // SAFETY: chuỗi UTF-16 kết thúc nul sống qua lời gọi; key đóng ngay.
+        unsafe {
+            let child = wide(&format!(r"{leaf}\child"));
+            assert!(RegCreateKeyW(HKEY_CURRENT_USER, PCWSTR(child.as_ptr()), &mut key).is_ok());
+            let _ = RegCloseKey(key);
+        }
+        assert!(win_impl::reg_key_exists(
+            HKEY_USERS,
+            &format!(r"{sid}\{leaf}\child")
+        ));
+        assert!(
+            !win_impl::reg_key_exists(HKEY_USERS, &format!(r"\{sid}\{leaf}")),
+            "API phải từ chối subkey có '\\' đầu (ERROR_BAD_PATHNAME)"
+        );
+        let target = wide(&format!(r"{sid}\{leaf}"));
+        // SAFETY: như trên.
+        let rc = unsafe { RegDeleteTreeW(HKEY_USERS, PCWSTR(target.as_ptr())) };
+        assert!(rc.is_ok(), "xoá qua HKU\\<sid>\\… phải được: {rc:?}");
+        assert!(!win_impl::reg_key_exists(HKEY_CURRENT_USER, &leaf));
     }
 }
