@@ -41,6 +41,18 @@ if ! grep -q "^pkgver=$VERSION$" "$ARCH_DIR/PKGBUILD"; then
     exit 1
 fi
 
+# R2-118: sha256sums trong PKGBUILD phải khớp archive ĐÚNG tag — chặn push khi
+# quên cập nhật hash sau khi tag (nếu không, makepkg của người dùng AUR fail).
+PINNED_SHA="$(grep -oP "^sha256sums=\('\K[0-9a-f]{64}" "$ARCH_DIR/PKGBUILD" | head -n1)"
+REAL_SHA="$(curl -sL "https://github.com/hunglinhpt/TextVN/archive/refs/tags/v$VERSION.tar.gz" \
+    | sha256sum | cut -d' ' -f1)"
+if [[ -z "$REAL_SHA" ]] || [[ "$PINNED_SHA" != "$REAL_SHA" ]]; then
+    echo "✗ sha256sums trong PKGBUILD ($PINNED_SHA) ≠ hash archive v$VERSION thực tế ($REAL_SHA)" >&2
+    echo "  Cập nhật PKGBUILD + .SRCINFO rồi chạy lại (B7e)." >&2
+    exit 1
+fi
+echo "✓ hash archive v$VERSION khớp PKGBUILD"
+
 # --- SSH key cho CI (cục bộ: dùng agent sẵn có) ------------------------------
 if [[ -n "${AUR_SSH_KEY:-}" ]]; then
     eval "$(ssh-agent -s)" >/dev/null

@@ -50,7 +50,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - `test_settings_model.c`: 2 assertion cập nhật theo mặc định dấu cũ (thiếu khoá
   → `new_diacritic == 0`; reset mặc định → dấu cũ).
 
-## [Unreleased]
+## [0.2.34] — 2026-10-18
 
 ### Added
 - **Kênh phân phối Linux cho distro store** — AUR chuẩn bị xong
@@ -63,6 +63,13 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   các format đó không cho phép; phân tích đầy đủ:
   `docs/release/linux-distribution.md` kèm ma trận auto-update từng kênh).
   Checklist phát hành thêm bước B7e; README hàng Linux trỏ AUR + doc.
+
+### Fixed
+- **Fcitx5 addon nâng chuẩn C++20** (R2-117): header Fcitx5 6.x (distro
+  rolling như Arch) dùng `std::ranges`/`std::span`/`starts_with` trong template
+  body — C++17 không biên dịch được (bắt được bởi chính gate `ci-aur`); Ubuntu
+  không ảnh hưởng (libstdc++ 11+ đủ). Kèm theo: `publish-aur.sh` từ chối push
+  khi `sha256sums` lệch archive tag thật (R2-118).
 
 - **Homebrew tap chính thức cho macOS** — `brew install --cask
   hunglinhpt/tap/textvn` ([hunglinhpt/homebrew-tap](https://github.com/hunglinhpt/homebrew-tap)):
@@ -1350,6 +1357,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.34]: https://github.com/hunglinhpt/TextVN/compare/v0.2.33...v0.2.34
 [0.2.33]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...v0.2.33
 [0.2.32]: https://github.com/hunglinhpt/TextVN/compare/v0.2.31...v0.2.32
 [0.2.31]: https://github.com/hunglinhpt/TextVN/compare/v0.2.30...v0.2.31
