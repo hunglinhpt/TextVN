@@ -1,0 +1,77 @@
+# Maintainer: LinhBH.CoM <hunglinhpt@users.noreply.github.com>
+# Contributor: TextVN release checklist B7e (docs/release/release-process.md)
+#
+# PKGBUILD cho AUR (aur.archlinux.org/pkgbase/textvn) — build TỪ MÃ NGUỒN của
+# tag GitHub (cách làm của Arch, không repackage binary tarball). Build được
+# kiểm thật bằng workflow `ci-aur.yml` (container archlinux, makepkg thật).
+#
+# Bump version: đổi pkgver/pkgver ở .SRCINFO + sha256sums (hash của
+# source archive v<ver> — LẤY MỚI mỗi bản: GitHub sinh lại archive per-tag)
+# rồi chạy `makepkg --printsrcinfo` đối chiếu .SRCINFO, CI sẽ chặn nếu lệch.
+
+pkgname=textvn
+pkgver=0.2.33
+pkgrel=1
+pkgdesc="Bộ gõ tiếng Việt (Telex, VNI, VIQR, Simple Telex) cho IBus và Fcitx5 — engine Rust"
+arch=('x86_64')
+url="https://github.com/hunglinhpt/TextVN"
+license=('GPL3')
+depends=('gtk4')
+optdepends=('ibus: engine IBus (GNOME và các desktop dùng IBus)'
+            'fcitx5: addon Fcitx5 (KDE/Plasma và các desktop dùng Fcitx5)')
+makedepends=('cargo' 'cmake' 'pkgconf' 'ibus' 'fcitx5' 'gtk4')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/hunglinhpt/TextVN/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('861c305159191458a7c95edccfd6d45ed9cb98319ff6dc91ecd7c601ff4c8138')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    # Engine Rust: FFI staticlib (CMake adapters link libtextvn_ffi.a) + CLI.
+    cargo build --frozen --release --locked -p textvn-ffi
+    cargo build --frozen --release --locked -p textvn-cli
+    # Ba adapter C/C++ (giữ nguyên cách build chính thức: scripts/build-linux.sh).
+    local a
+    for a in ibus fcitx5 settings; do
+        cmake -S "adapters/linux-$a" -B "build-$a" -DCMAKE_BUILD_TYPE=Release
+        cmake --build "build-$a" -j"$(nproc)"
+    done
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    # Test engine (nhanh, không cần GUI); bộ test đầy đủ chạy trong CI repo chính.
+    cargo test --frozen --release --locked -p textvn-core
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    local p="$pkgdir"
+    # Bố cục giống install.sh bản --system (trừ uninstall.sh/env.d không cần —
+    # pacman quản lý file; gỡ bằng pacman -R).
+    install -Dm755 "target/release/textvn-cli" "$p/usr/bin/textvn"
+    install -Dm755 "build-settings/textvn-settings" "$p/usr/bin/textvn-settings"
+    install -Dm755 "build-ibus/textvn-ibus-engine" "$p/usr/lib/textvn/textvn-ibus-engine"
+    install -Dm755 "build-fcitx5/libtextvn-fcitx5.so" "$p/usr/lib/fcitx5/libtextvn-fcitx5.so"
+    install -Dm644 "packaging/linux/ibus/textvn.xml" "$p/usr/share/ibus/component/textvn.xml"
+    install -Dm644 "packaging/linux/fcitx5/addon/textvn.conf" "$p/usr/share/fcitx5/addon/textvn.conf"
+    install -Dm644 "packaging/linux/fcitx5/inputmethod/textvn.conf" "$p/usr/share/fcitx5/inputmethod/textvn.conf"
+    local icon
+    for icon in textvn_v textvn_e; do
+        install -Dm644 "resources/icons/$icon.svg" "$p/usr/share/icons/hicolor/scalable/apps/$icon.svg"
+        install -Dm644 "resources/icons/$icon.png" "$p/usr/share/icons/hicolor/128x128/apps/$icon.png"
+    done
+    install -Dm644 "packaging/linux/desktop/textvn-settings.desktop" "$p/usr/share/applications/textvn-settings.desktop"
+    install -Dm644 "packaging/linux/appstream/io.github.hunglinhpt.textvn.metainfo.xml" \
+        "$p/usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml"
+    install -Dm644 README.md "$p/usr/share/doc/textvn/README.md"
+    install -Dm644 CHANGELOG.md "$p/usr/share/doc/textvn/CHANGELOG.md"
+    install -Dm644 docs/user-guide.md "$p/usr/share/doc/textvn/user-guide.md"
+    install -Dm644 LICENSE "$p/usr/share/licenses/textvn/LICENSE"
+}

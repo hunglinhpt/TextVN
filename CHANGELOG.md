@@ -53,6 +53,17 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 ## [Unreleased]
 
 ### Added
+- **Kênh phân phối Linux cho distro store** — AUR chuẩn bị xong
+  (`packaging/arch/PKGBUILD` + `.SRCINFO` build từ mã nguồn tag; QA gate
+  `ci-aur.yml` chạy **makepkg thật** trong container `archlinux:base-devel`:
+  build, test engine, `.SRCINFO` diff, đủ file, version khớp Cargo.toml);
+  `tools/release/publish-aur.sh` đẩy lên AUR (từ chối lệch version; SSH key
+  cục bộ hoặc secret `AUR_SSH_KEY`). Flathub/Snap/AppImage bị loại **có căn
+  cứ** (IME hệ thống cần nạp bởi ibus-daemon/fcitx5 trên host — sandbox của
+  các format đó không cho phép; phân tích đầy đủ:
+  `docs/release/linux-distribution.md` kèm ma trận auto-update từng kênh).
+  Checklist phát hành thêm bước B7e; README hàng Linux trỏ AUR + doc.
+
 - **Homebrew tap chính thức cho macOS** — `brew install --cask
   hunglinhpt/tap/textvn` ([hunglinhpt/homebrew-tap](https://github.com/hunglinhpt/homebrew-tap)):
   cask dùng stanza `input_method` để đặt `TextVN-IM.app` vào

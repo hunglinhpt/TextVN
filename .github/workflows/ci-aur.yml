@@ -1,0 +1,86 @@
+# ci-aur.yml — QA gate cho gói AUR: build thật bằng makepkg trong container
+# Arch Linux (chính môi trường người dùng AUR sẽ chạy), đối chiếu .SRCINFO,
+# kiểm danh sách file của gói. Đỏ = không được đẩy lên AUR.
+name: ci-aur
+
+on:
+  push:
+    paths:
+      - 'packaging/arch/**'
+      - 'scripts/stage-linux.sh'
+      - '.github/workflows/ci-aur.yml'
+  pull_request:
+    paths:
+      - 'packaging/arch/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  makepkg:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Phụ thuộc build (rust/cmake + dev headers IBus/Fcitx5/GTK4)
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git rust cmake pkgconf ibus fcitx5 gtk4
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # makepkg từ chối chạy bằng root → user builder với HOME riêng.
+      - name: Build bằng makepkg (user thường)
+        run: |
+          useradd -m builder
+          cp -r . /home/build
+          chown -R builder:builder /home/build
+          cd /home/build
+          sudo -u builder makepkg -f --noconfirm
+
+      - name: .SRCINFO khớp `makepkg --printsrcinfo`
+        run: |
+          cd /home/build
+          sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
+          diff -u packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
+            echo "::error::.SRCINFO lệch — chạy lại 'makepkg --printsrcinfo > packaging/arch/.SRCINFO' và commit";
+            exit 1;
+          }
+
+      - name: Gói có đủ file then chốt
+        run: |
+          cd /home/build
+          PKG=$(ls textvn-*.pkg.tar.zst | head -n1)
+          pacman -Qlp "$PKG" > /tmp/pkg-files.txt
+          for f in \
+            usr/bin/textvn \
+            usr/bin/textvn-settings \
+            usr/lib/textvn/textvn-ibus-engine \
+            usr/lib/fcitx5/libtextvn-fcitx5.so \
+            usr/share/ibus/component/textvn.xml \
+            usr/share/fcitx5/addon/textvn.conf \
+            usr/share/fcitx5/inputmethod/textvn.conf \
+            usr/share/applications/textvn-settings.desktop \
+            usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml \
+            usr/share/licenses/textvn/LICENSE; do
+            grep -q "^$f\$" /tmp/pkg-files.txt || {
+              echo "::error::.pkg thiếu $f"; exit 1;
+            }
+          done
+          grep -E "^usr/(bin|lib)" /tmp/pkg-files.txt
+
+      - name: Đối chiếu version gói = Cargo.toml
+        run: |
+          CARGO_VER=$(sed -n 's/^version = "\(.*\)".*/\1/p' Cargo.toml | head -n1)
+          PKG_VER=$(ls /home/build/textvn-*.pkg.tar.zst | sed -E 's#.*/textvn-([^-]+)-.*#\1#')
+          [ "$CARGO_VER" = "$PKG_VER" ] || {
+            echo "::error::PKGBUILD version $PKG_VER ≠ Cargo.toml $CARGO_VER"; exit 1;
+          }
+
+      - name: Upload gói .pkg làm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: textvn-aur-package
+          path: /home/build/textvn-*.pkg.tar.zst
+          if-no-files-found: error
