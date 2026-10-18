@@ -101,7 +101,7 @@ jobs:
       - name: Đối chiếu version gói = Cargo.toml
         run: |
           CARGO_VER=$(sed -n 's/^version = "\(.*\)".*/\1/p' /home/build/Cargo.toml | head -n1)
-          PKG_VER=$(ls /home/build/pkg/textvn-*.pkg.tar.zst | sed -E 's#.*/textvn-([^-]+)-.*#\1#')
+          PKG_VER=$(ls /home/build/pkg/textvn-*.pkg.tar.zst | grep -v debug | head -n1 | sed -E 's#.*/textvn-([^-]+)-.*#\1#')
           [ "$CARGO_VER" = "$PKG_VER" ] || {
             echo "::error::PKGBUILD version $PKG_VER ≠ Cargo.toml $CARGO_VER"; exit 1;
           }
