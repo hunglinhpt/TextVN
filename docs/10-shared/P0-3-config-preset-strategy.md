@@ -20,7 +20,7 @@
 | `config_version` | int | `1` | migrate tự động, backup `.bak`. **Bắt buộc phải có** — thiếu thì `config: invalid schema` (không đoán version) |
 | `enabled` | bool | `true` | master switch |
 | `method` | `"telex"\|"vni"\|"viqr"\|"simple_telex"` | `"telex"` | |
-| `diacritic_style` | `"new"\|"old"` | `"new"` | `hoà` vs `hòa` (B12) |
+| `diacritic_style` | `"new"\|"old"` | `"old"` | `hoà` vs `hòa` (B12); mặc định dấu cũ từ 0.2.33 |
 | `free_marking` | bool | `true` | gõ dấu tự do kiểu UniKey |
 | `auto_restore_english` | bool | `true` | fix B5 |
 | `auto_capitalize` | bool | `true` | sau `. ! ?` + Enter |
@@ -57,7 +57,7 @@
   "config_version": 1,
   "enabled": true,
   "method": "telex",
-  "diacritic_style": "new",
+  "diacritic_style": "old",
   "free_marking": true,
   "auto_restore_english": true,
   "auto_capitalize": true,

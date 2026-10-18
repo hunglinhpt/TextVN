@@ -121,7 +121,7 @@ impl Default for EngineOptions {
     fn default() -> Self {
         EngineOptions {
             method: Method::Telex,
-            diacritic_style: DiacriticStyle::New,
+            diacritic_style: DiacriticStyle::Old,
             free_marking: true,
             enabled: true,
             auto_restore_english: true,
@@ -909,6 +909,8 @@ mod tests {
 
         // Dấu thanh không nằm trên chữ vừa xoá → giữ (dời về đúng chỗ nếu cần);
         // nằm trên chữ vừa xoá → mất theo.
+        // Style New ghim tường minh: nhóm này kiểm cơ chế backspace, không phụ
+        // thuộc default dấu (0.2.33 đổi mặc định sang dấu cũ).
         for (keys, after) in [
             ("tieengs", "tiến"),
             ("hoafn", "hoà"),
@@ -916,7 +918,10 @@ mod tests {
             ("chaof", "chà"),
             ("vieetj", "việ"),
         ] {
-            let mut e = engine();
+            let mut e = Engine::new(EngineOptions {
+                diacritic_style: DiacriticStyle::New,
+                ..Default::default()
+            });
             let mut buf = type_buf(&mut e, keys);
             assert_eq!(backspaces(&mut e, &mut buf, 1), [after], "{keys}");
         }
@@ -946,7 +951,10 @@ mod tests {
             (Method::Telex, "tieengs", "g", "tiếng"),
             (Method::Telex, "chaof", "o", "chào"),
             (Method::Telex, "ddaatj", "c", "đậc"),
-            (Method::Telex, "hoaf", "af", "hoà"),
+            // Dấu cũ: BS xoá 'a' nhưng huyền còn trên 'o' (`hòa` BS → `hò`) — gõ lại `a` là đủ.
+            (Method::Telex, "hoaf", "a", "hòa"),
+            // Gõ tiếp `f` khi từ đã có huyền = phím undo (như `ass` → `as`): gỡ dấu + `f` literal.
+            (Method::Telex, "hoaf", "af", "hoaf"),
             (Method::Telex, "ass", "s", "á"),
             (Method::Vni, "d9u7o7c5", "c", "được"),
             (Method::Viqr, "ddu+o+c.", "c", "được"),

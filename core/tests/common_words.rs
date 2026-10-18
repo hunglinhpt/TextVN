@@ -5,7 +5,9 @@
 //!
 //! Danh sách phủ đủ phụ âm đầu (b c ch d đ g gh gi h k kh l m n ng ngh nh p ph qu r s t
 //! th tr v x), mọi nguyên âm có dấu phụ (ă â ê ô ơ ư), các vần khó (uyê, uya, ươu, oă,
-//! oai, uê, iêu, yêu, ưu…) và cả 5 thanh. Kiểu dấu: MỚI (mặc định — `hoá`, `khoẻ`, `thuỷ`).
+//! oai, uê, iêu, yêu, ưu…) và cả 5 thanh. Kiểu dấu: MỚI (`hoá`, `khoẻ`, `thuỷ`) — từ viết
+//! theo kiểu mới nên các test cơ chế ghim [`DiacriticStyle::New`]; kiểu cũ (mặc định
+//! 0.2.33) phủ riêng ở [`telex_old_style`] trên cùng danh sách từ.
 
 use textvn_core::transform::vowel_table::locate;
 use textvn_core::{Action, Engine, EngineOptions, KeyEvent, Method};
@@ -138,6 +140,9 @@ fn engine(method: Method) -> Engine {
     Engine::new(EngineOptions {
         method,
         auto_capitalize: false,
+        // Ghim kiểu mới: danh sách từ viết theo dấu mới (`hoá`, `thuỷ`); kiểu cũ —
+        // mặc định sản phẩm từ 0.2.33 — có test riêng `telex_old_style`.
+        diacritic_style: textvn_core::DiacriticStyle::New,
         ..Default::default()
     })
 }

@@ -7,6 +7,33 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.33] — 2026-10-18
+
+### Changed
+- **Mặc định sau cài = bật gõ tiếng Việt + dấu cũ, đủ 3 nền tảng** (0.2.33):
+  `DiacriticStyle::Old` (`hòa`, `thủy`, `khỏe` — dấu trên `o`, `u`, `o` của vần mở
+  `oa/oe/uy`) trở thành mặc định của `Config` (serde) và `EngineOptions` (core),
+  default `ConfigModel.swift` (macOS), và fallback thiếu khoá `diacritic_style`
+  của Linux settings. Người dùng cũ **giữ nguyên** lựa chọn của mình (chỉ thiếu
+  khoá hoặc cài mới mới nhận mặc định). Spec P0-3 (bảng trường + ví dụ) đồng bộ.
+  macOS SettingsView/menu và Windows tray hiển thị theo config, không đổi mã.
+- Test cơ chế backspace/common-words ghim tường minh `DiacriticStyle::New` (danh
+  sách từ viết theo dấu mới); kiểu cũ phủ riêng ở `telex_old_style`.
+
+### Added
+- **Ma trận 16 combo bảng mã × kiểu gõ** (`core/tests/charset_matrix.rs`): 4 bảng
+  mã (`unicode_precomposed/unicode_decomposed/tcvn3/vni_windows`) × 4 kiểu gõ
+  (`telex/vni/viqr/simple_telex`) gõ đúng toàn bộ ~200 từ thông dụng, chuỗi phím
+  sinh từ bảng phím thật của từng kiểu gõ; anchor cứng TCVN3/VNI Windows
+  (`đ`=0xAE/0xF1, `ò`=0xDF/0xF8…) chặn engine và encode lệch cùng một hướng.
+
+### Fixed
+- Ghim hành vi gõ tiếp sau Backspace dưới mặc định dấu cũ: `hòa` + BS → `hò`
+  (dấu còn trên `o`), gõ lại `a` → `hòa`; gõ tiếp `f` khi từ đã có huyền là phím
+  undo (`ass` → `as`, chuẩn Telex/UniKey) — 2 hàng test mới khoá hành vi này.
+- `test_settings_model.c`: 2 assertion cập nhật theo mặc định dấu cũ (thiếu khoá
+  → `new_diacritic == 0`; reset mặc định → dấu cũ).
+
 ## [Unreleased]
 
 ### Added

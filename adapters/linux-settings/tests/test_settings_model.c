@@ -62,7 +62,8 @@ static void test_defaults_when_missing(tv_paths *p) {
     tv_snapshot s;
     tv_snapshot_load(&s, p);
     assert(s.charset == 0 && s.method == 0);
-    assert(s.vi_enabled == 1 && s.new_diacritic == 1);
+    /* Vong 17 (default cu): thieu khoa diacritic_style = "old" -> new_diacritic == 0. */
+    assert(s.vi_enabled == 1 && s.new_diacritic == 0);
     assert(s.free_marking && s.auto_restore_english && s.auto_capitalize);
     assert(!s.quick_telex && !s.allow_macro_when_vi_off && !s.config_was_corrupt);
 }
@@ -130,7 +131,8 @@ static void test_reset_defaults(tv_paths *p) {
     assert(tv_config_reset_defaults(p) == 0);
     tv_snapshot s;
     tv_snapshot_load(&s, p);
-    assert(s.method == 0 && s.charset == 0 && s.new_diacritic && !s.quick_telex);
+    /* Mặc định 0.2.33 = dấu cũ (new_diacritic == 0). */
+    assert(s.method == 0 && s.charset == 0 && !s.new_diacritic && !s.quick_telex);
     assert(s.auto_capitalize);
     int space = 0;
     char *text = tv_macros_load(p, &space);

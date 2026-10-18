@@ -94,7 +94,8 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->charset = get_index(s, "output_charset", tv_charset_values, TV_CHARSET_COUNT);
         out->method = get_index(s, "method", tv_method_values, TV_METHOD_COUNT);
         char *style = ime_settings_get_str(s, "diacritic_style");
-        out->new_diacritic = !style || strcmp(style, "old") != 0;
+        /* Vong 17 (default cu): thieu khoa = old (dau cu) — khop default config. */
+        out->new_diacritic = style && strcmp(style, "new") == 0;
         ime_settings_string_free(style);
         out->auto_restore_english = get_bool(s, "auto_restore_english", 1);
         out->free_marking = get_bool(s, "free_marking", 1);

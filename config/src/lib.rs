@@ -128,7 +128,7 @@ impl Default for Config {
             config_version: 1,
             enabled: true,
             method: Method::Telex,
-            diacritic_style: DiacriticStyle::New,
+            diacritic_style: DiacriticStyle::Old,
             free_marking: true,
             auto_restore_english: true,
             auto_capitalize: true,
@@ -198,7 +198,7 @@ mod tests {
       "config_version": 1,
       "enabled": true,
       "method": "telex",
-      "diacritic_style": "new",
+      "diacritic_style": "old",
       "free_marking": true,
       "auto_restore_english": true,
       "auto_capitalize": true,
@@ -221,7 +221,7 @@ mod tests {
     fn full_example_parses() {
         let cfg = parse_config(FULL_EXAMPLE).expect("example P0-3 §1.2 phải parse được");
         assert_eq!(cfg.method, Method::Telex);
-        assert_eq!(cfg.diacritic_style, DiacriticStyle::New);
+        assert_eq!(cfg.diacritic_style, DiacriticStyle::Old);
         assert_eq!(cfg.config_version, 1);
         // macros[] / emoji[] (P0-3 §1.1)
         assert_eq!(cfg.macros.len(), 1);

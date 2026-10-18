@@ -122,7 +122,7 @@ public struct TextVNConfig: Codable, Equatable {
         config_version: Int = 1,
         enabled: Bool = true,
         method: String = "telex",
-        diacritic_style: String = "new",
+        diacritic_style: String = "old",
         free_marking: Bool = true,
         auto_restore_english: Bool = true,
         auto_capitalize: Bool = true,

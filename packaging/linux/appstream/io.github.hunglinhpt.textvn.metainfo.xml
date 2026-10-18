@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.33" date="2026-10-18">
+      <description>
+        <p>Old-style tone placement is now the default on a fresh install on every platform (hòa, thủy, khỏe instead of hoà, thuỷ, khoẻ), together with Vietnamese typing enabled out of the box; existing settings files keep their chosen style. A new cross-product regression matrix types the full common-words corpus through all sixteen combinations of output charset (precomposed Unicode, decomposed Unicode, TCVN3, VNI Windows) and input method (Telex, VNI, VIQR, Simple Telex) with hard-coded anchors from the legacy encoding tables. Backspace behavior under the new default is pinned: retyping the deleted letter rejoins the word with its tone, and pressing the same tone key again undoes it (ass → as), matching UniKey.</p>
+      </description>
+    </release>
     <release version="0.2.32" date="2026-10-12">
       <description>
         <p>Whole-system review after 0.2.31. The About dialog is now identical on all three platforms (a smart, multi-platform Vietnamese input method, with the version number). macOS settings now follow the shared specification: the same charset and input method labels and order as Windows and Linux, and the fixed Ctrl+Shift switch key (the macOS-only Alt+Z and Caps Lock options were removed). Linux - switching between Vietnamese and English with Ctrl+Shift or the menu no longer flips back when moving to another window (a regression since 0.2.30, IBus and Fcitx5), and Fcitx5 profiles with several groups get TextVN in the active group. Windows - the tray no longer quits when a sign-out or restart is cancelled, upgrades only stop the tray of the folder being upgraded and stop it reliably, apps still running an older input method keep receiving the Vietnamese/English switch after an upgrade, TextVN.exe --status reports OFFLINE instead of crashing, the machine uninstaller removes TextVN from the keyboard list of every signed-in account, and a rare composition error can no longer duplicate text. Release commits and tags are now signed.</p>
