@@ -51,8 +51,9 @@ jobs:
           VERSION=$(sed -n 's/^pkgver=//p' /home/build/pkg/PKGBUILD | head -n1)
           cd /home/build
           # Source archive cục bộ bố cục giống GitHub: thư mục gốc TextVN-<ver>.
-          git archive --format=tar.gz --prefix="TextVN-$VERSION/" HEAD \
-            -o "pkg/textvn-$VERSION.tar.gz"
+          # (chạy bằng builder — git từ chối repo owner khác: dubious ownership)
+          sudo -u builder git archive --format=tar.gz \
+            --prefix="TextVN-$VERSION/" HEAD -o "pkg/textvn-$VERSION.tar.gz"
           REAL_SHA=$(sha256sum "pkg/textvn-$VERSION.tar.gz" | cut -d' ' -f1)
           # Bản sao PKGBUILD dùng archive cục bộ (1 dòng khác — PKGBUILD AUR gốc
           # vẫn trỏ GitHub tag). makepkg thấy source file sẵn trong dir → không tải.
