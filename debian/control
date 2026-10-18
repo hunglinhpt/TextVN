@@ -13,7 +13,7 @@ Build-Depends:
  libfcitx5utils-dev,
  fcitx5-modules-dev,
  libgtk-4-dev
-Standards-Version: 4.6.2
+Standards-Version: 4.7.2
 Homepage: https://github.com/hunglinhpt/TextVN
 Vcs-Git: https://github.com/hunglinhpt/TextVN.git
 Vcs-Browser: https://github.com/hunglinhpt/TextVN
@@ -23,7 +23,6 @@ Package: textvn
 Architecture: amd64 arm64
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: ibus | fcitx5
-Suggests: fcitx5-frontend-gtk4
 Description: Vietnamese input method editor (Telex, VNI, VIQR) for IBus and Fcitx5
  TextVN converts keystrokes into Vietnamese with tone marks (Telex, VNI, VIQR
  and Simple Telex styles) using a shared Rust engine on Windows, macOS and

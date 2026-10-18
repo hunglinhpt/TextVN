@@ -49,6 +49,9 @@ echo "==> vendor/ kích thước: $(du -sh "$SRC/vendor" | cut -f1)"
 (cd "$WORK/src" && tar -czf "$WORK/textvn_${VERSION}.orig.tar.gz" "textvn-$VERSION")
 
 # 4. dpkg-buildpackage -S (source package, ký bằng GPG của owner)
+# git archive đã chứa debian/ — thay bằng bản worktree (nuốt cả chỉnh sửa
+# chưa commit); thiếu rm thì `cp -r` lồng debian/debian (bẫy cp kinh điển).
+rm -rf "$SRC/debian"
 cp -r "$ROOT/debian" "$SRC/debian"
 cd "$SRC"
 KEY_ARG=""

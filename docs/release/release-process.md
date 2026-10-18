@@ -18,7 +18,7 @@
 
 | # | Nguyên tắc | Vì sao |
 |---|---|---|
-| 1 | **Tag là nguồn sự thật.** Version nằm ở `[workspace.package]` Cargo.toml + 14 chỗ ghi tay; `git tag vN.N.N` kích hoạt workflow `release-candidate` build 3 nền tảng và publish. Không publish binary build tay từ máy local lên release. | `source_tree_clean=true` + `git_commit` = tag được validate máy trước khi publish; binary phải tái lập được từ commit |
+| 1 | **Tag là nguồn sự thật.** Version nằm ở `[workspace.package]` Cargo.toml + 15 chỗ ghi tay; `git tag vN.N.N` kích hoạt workflow `release-candidate` build 3 nền tảng và publish. Không publish binary build tay từ máy local lên release. | `source_tree_clean=true` + `git_commit` = tag được validate máy trước khi publish; binary phải tái lập được từ commit |
 | 2 | **Publish là draft-first** (release.yml): validate payload → tạo draft → upload hết asset → mới `--draft=false`. Upload fail giữa chừng = rerun được, không bao giờ public release thiếu asset. | v0.2.2 audit M2: `gh release create` upload nửa chừng từng khoá luôn khả năng chạy lại |
 | 3 | **Không bỏ gate local dù CI sẽ chạy lại.** CI đỏ tốn 20–90 phút; gate local tốn 3–5 phút và bắt lỗi trước khi push. | `tránh tối đa build fail` — bắt ở vòng rẻ nhất |
 | 4 | **Mọi phiên bản phát hành đều phải có đủ bộ docs** (§ Checklist B.4) — thiếu một mục trong số đó = chưa Done. | release note/changelog/version/readme thiếu là lỗi lặp lại nhiều nhất của agent |
@@ -43,7 +43,7 @@ Chi tiết từng bước + điều nó chặn: `xtask/src/preflight.rs` (mảng
 | verify-abi + sizes | ABI header C + struct 20/532 | lệch FFI khi đổi struct |
 | replay × 4 adapter (win, tsf, mac, linux) | hành vi gõ thật mọi nền tảng | regression 5269ae1/fecf245: raw typing sau đổi layout |
 | check-tables/win-corpus/mac-corpus | dữ liệu sinh khớp generator | corpus quên regenerate |
-| version-sync | 14 chỗ version | bump sót chỗ |
+| version-sync | 15 chỗ version | bump sót chỗ |
 | perf | hồi quy so baseline | baseline chết theo runner → phải re-record từ CI (7f069f0) |
 | hygiene-apis / hygiene-docs | API giống-malware, link hỏng | — |
 | store-validate | 3 bước manual package validation của Microsoft trên `dist/TextVN-setup-*.exe` (SKIP nếu máy dev đang cài TextVN) | B13 (Store đỏ 3 mục) |
@@ -64,7 +64,7 @@ cargo clippy --workspace --exclude textvn-win-hook --all-targets -- -D warnings
 # A2. Test toàn workspace (kỳ vọng ≥343 pass — số test tăng thì ghi con số MỚI vào report)
 cargo test --workspace
 
-# A3. Version đồng bộ 14 chỗ = version đang phát hành
+# A3. Version đồng bộ 15 chỗ = version đang phát hành
 cargo run -q -p xtask -- check-version-sync
 
 # A4. ABI + corpus (số pass ghi vào build-release-report)
@@ -138,7 +138,7 @@ blockers chưa được chứng minh).
 | R1 | clippy đỏ trên CI nhưng local "đã chạy" | chạy `cargo clippy … \| tail` trong chuỗi `&&` — pipe che exit code, chuỗi vẫn tiếp tục | KHÔNG pipe các lệnh gate; dùng `cargo xtask preflight` (Command::status, exit thật) hoặc `set -o pipefail` |
 | R2 | job perf đỏ trên mọi commit | baseline-win.json đo bằng runner image cũ — runner mới chậm hơn trên micro-bench | re-record baseline TỪ SỐ ĐO CI (không dùng số máy local — hardware khác); bisect worktree commit cũ để chứng minh không phải code mới |
 | R3 | `cargo xtask` báo "no such command" | chưa có alias | alias đã thêm ở `.cargo/config.toml`; nếu clone mới mà thiếu, dùng `cargo run -q -p xtask -- <cmd>` |
-| R4 | Publish job fail ngay lập tức, log không có message | tag được push mà **quên bump version** — `test tag = Cargo.toml` trả 1 im lặng; artifact 0.2.10 trong run v0.2.11 | Publish job giờ in `FATAL: tag != version…` (2026-10-03); QUY TẮC: bump version (14 chỗ, `cargo xtask preflight` có version-sync) **trước khi** tag |
+| R4 | Publish job fail ngay lập tức, log không có message | tag được push mà **quên bump version** — `test tag = Cargo.toml` trả 1 im lặng; artifact 0.2.10 trong run v0.2.11 | Publish job giờ in `FATAL: tag != version…` (2026-10-03); QUY TẮC: bump version (15 chỗ, `cargo xtask preflight` có version-sync) **trước khi** tag |
 | R5 | **`release-candidate` `conclusion=startup_failure`, 0 job, log trống** — workflow hoàn toàn hợp lệ (PyYAML parse OK, không tab/control char) | **Secret chứa DỮ LIỆU NHỊ PHÂN có byte NUL** (2026-10-07: `gpg --export-secret-keys` **thiếu `--armor`** → 298 byte thô, 6 NUL). Runner không materialize được env value chứa NUL → GitHub fail ngay bước tạo run (trước cả khi job tồn tại) nên KHÔNG có log để đọc. Bisect đúng cách: dispatch thủ công + thay `${{ secrets.X }}` bằng secret khác/rỗng — run chỉ fail khi tham chiếu secret hỏng | QUY TẮC: mọi secret là văn bản phải **armored/text** — kiểm trước khi set: `python -c "b=open(f,'rb').read(); assert b.count(b'\x00')==0"`; với GPG luôn `--armor` ở cả `--export` lẫn `--export-secret-keys`; tái tạo secret (`gh secret delete` + `gh secret set`) là fix. Chẩn đoán nhanh khi startup_failure: thêm tạm `workflow_dispatch` + `gh api -X POST .../dispatches` (chạy được trên nhánh main, không cần tag) |
 | R6 | **Release sau v0.2.29 (v0.2.30, v0.2.31…) mất huy hiệu "Verified" trên commit/tag** (2026-10-11) | v0.2.29 trỏ vào merge commit PR #7 do GitHub (web-flow) ký → Verified. v0.2.30/0.2.31 trỏ vào commit **tạo ở máy local và push thẳng lên main** (chưa cấu hình ký: `%G?=N`, API `reason: unsigned`), và **tag annotated cũng không ký** (`git tag -a`). Chữ ký GPG/cosign của *asset* (`.asc`, `.cosign.*`, `SHA256SUMS.txt`) vẫn đủ ở mọi bản — chỉ badge git-signature mất | Đăng ký SSH key dạng **Signing Key** (GitHub → Settings → SSH and GPG keys; hoặc `gh auth refresh -s admin:ssh_signing_key` + `gh ssh-key add <pub> --type signing`), cấu hình: `git config gpg.format ssh`, `user.signingkey <pub>`, `commit.gpgsign true`, `tag.gpgsign true`; email commit phải là email đã xác minh của tài khoản. **Không thể sửa ngược** tag cũ nếu không viết lại lịch sử → bản kế tiếp (0.2.32) tag bằng `git tag -s`. Gate: publish job (`release.yml`) đọc `commit.verification` + `git/tags/*.verification` và dừng nếu không `verified` (ngoại lệ có chủ đích: repo variable `ALLOW_UNVERIFIED_GIT_SIGNATURE=true`) |
 

@@ -56,7 +56,9 @@ jobs:
           }
 
       - name: dpkg-buildpackage (build .deb thật)
+        # pipefail bắt buộc: `| tail` không được che exit code của build.
         run: |
+          set -o pipefail
           dpkg-buildpackage -us -uc -b -j"$(nproc)" 2>&1 | tail -40
           ls -la ..
 
@@ -81,12 +83,17 @@ jobs:
           grep -qx "/usr/lib/$TRIPLET/fcitx5/libtextvn-fcitx5.so" /tmp/deb-files.txt || {
             echo "::error::.deb thiếu addon multiarch /usr/lib/$TRIPLET/fcitx5/"; exit 1;
           }
-          # Component XML phải trỏ đường dẫn cuối (không còn placeholder).
-          grep -q "usr/libexec/ibus-engine-textvn" /tmp/deb-files.txt
-          dpkg -c "$DEB" | grep -q "placeholder" && {
-            echo "::error::XML còn placeholder"; exit 1;
-          } || true
           grep -E "usr/(bin|libexec|lib)" /tmp/deb-files.txt
+          # Component XML phải trỏ đường dẫn CUỐI (bung .deb rồi đọc nội dung —
+          # dpkg -c chỉ liệt kê tên file, không thấy nội dung XML).
+          rm -rf /tmp/debx && mkdir -p /tmp/debx
+          dpkg -x "$DEB" /tmp/debx
+          grep -q "libexec/ibus-engine-textvn" /tmp/debx/usr/share/ibus/component/textvn.xml || {
+            echo "::error::XML không trỏ /usr/libexec/ibus-engine-textvn"; exit 1;
+          }
+          grep -q "placeholder\|/usr/lib/textvn/" /tmp/debx/usr/share/ibus/component/textvn.xml && {
+            echo "::error::XML còn placeholder /usr/lib/textvn/"; exit 1;
+          } || true
 
       - name: Lintian (báo lỗi nghiêm trọng)
         run: |

@@ -31,7 +31,7 @@ Chi tiết từng bước: `docs/release/release-process.md` (A1–A11 local, B1
 repo/docs). Tóm tắt các mốc hay bị bỏ sót:
 
 1. **Preflight**: `cargo xtask preflight` phải PASS đủ gate rồi mới commit/tag.
-2. **Version**: bump đủ 14 site (`cargo xtask check-version-sync`) — nhớ
+2. **Version**: bump đủ 15 site (`cargo xtask check-version-sync`) — nhớ
    `testDefaultConfig` (Swift) + assertion trong `test_settings_model.c` +
    `schemas/config.v1.schema.json` khi đổi default; **cask Homebrew cần cả
    `version` lẫn `sha256`** (B7b, R2-116).
