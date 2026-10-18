@@ -82,6 +82,15 @@ const SITES: &[Site] = &[
         "\"",
     ),
     Site {
+        // Debian/PPA changelog: `textvn (X.Y.Z-0ppa1) noble; urgency=medium`
+        // — version upstream + đuôi revision PPA (B7f, linux-distribution.md).
+        suffix: "-0ppa1",
+        path: "debian/changelog",
+        anchor: "textvn",
+        open: "(",
+        close: ")",
+    },
+    Site {
         suffix: ".0",
         ..site(
             "installer/windows/app.manifest",

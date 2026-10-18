@@ -1,0 +1,6 @@
+textvn (0.2.34-0ppa1) noble; urgency=medium
+
+  * New upstream release 0.2.34: Linux distro packaging (AUR + this PPA),
+    fcitx5 adapter C++20 (R2-117), Debian/PPA packaging files.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 18 Oct 2026 09:30:00 +0000

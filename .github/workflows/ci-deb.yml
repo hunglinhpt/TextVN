@@ -1,0 +1,103 @@
+# ci-deb.yml — QA gate cho gói Debian/PPA: build .deb THẬT bằng
+# dpkg-buildpackage trong container debian:trixie, qua đúng đường PPA:
+# `cargo vendor` (Launchpad không có Internet) → build --offline → kiểm
+# nội dung .deb theo chuẩn multiarch. Đỏ = không được upload PPA.
+name: ci-deb
+
+on:
+  push:
+    paths:
+      - 'debian/**'
+      - 'packaging/linux/**'
+      - 'adapters/**'
+      - 'core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/ci-deb.yml'
+      - 'tools/release/prepare-ppa.sh'
+  pull_request:
+    paths:
+      - 'debian/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dpkg:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Phụ thuộc build + packaging
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git cargo rustc cmake pkgconf \
+            libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev \
+            fcitx5-modules-dev libgtk-4-dev \
+            debhelper devscripts dh-make build-essential
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cargo vendor (mô phỏng chuẩn bị source PPA — build không Internet)
+        run: |
+          cargo vendor vendor > /tmp/vendor-config.toml
+          mkdir -p .cargo
+          cat /tmp/vendor-config.toml > .cargo/config.toml
+          du -sh vendor
+
+      - name: Version changelog khớp Cargo.toml
+        run: |
+          CARGO_VER=$(sed -n 's/^version = "\(.*\)".*/\1/p' Cargo.toml | head -n1)
+          DEB_VER=$(head -n1 debian/changelog | sed -n 's/^textvn (\([^-]*\)-.*$/\1/p')
+          [ "$CARGO_VER" = "$DEB_VER" ] || {
+            echo "::error::debian/changelog $DEB_VER ≠ Cargo.toml $CARGO_VER — bump cả hai"; exit 1;
+          }
+
+      - name: dpkg-buildpackage (build .deb thật)
+        run: |
+          dpkg-buildpackage -us -uc -b -j"$(nproc)" 2>&1 | tail -40
+          ls -la ..
+
+      - name: .deb có đủ file theo chuẩn multiarch
+        run: |
+          DEB=$(ls ../*.deb | head -n1)
+          dpkg -c "$DEB" | awk '{print $NF}' | sed 's#^\.##' > /tmp/deb-files.txt
+          for f in \
+            /usr/bin/textvn \
+            /usr/bin/textvn-settings \
+            /usr/libexec/ibus-engine-textvn \
+            /usr/share/ibus/component/textvn.xml \
+            /usr/share/fcitx5/addon/textvn.conf \
+            /usr/share/fcitx5/inputmethod/textvn.conf \
+            /usr/share/applications/textvn-settings.desktop \
+            /usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml \
+            /usr/share/licenses/textvn/LICENSE; do
+            grep -qx "$f" /tmp/deb-files.txt || { echo "::error::.deb thiếu $f"; exit 1; }
+          done
+          # Multiarch: fcitx5 addon phải nằm đúng triplet của builder.
+          TRIPLET=$(dpkg-architecture -qDEB_HOST_MULTIARCH)
+          grep -qx "/usr/lib/$TRIPLET/fcitx5/libtextvn-fcitx5.so" /tmp/deb-files.txt || {
+            echo "::error::.deb thiếu addon multiarch /usr/lib/$TRIPLET/fcitx5/"; exit 1;
+          }
+          # Component XML phải trỏ đường dẫn cuối (không còn placeholder).
+          grep -q "usr/libexec/ibus-engine-textvn" /tmp/deb-files.txt
+          dpkg -c "$DEB" | grep -q "placeholder" && {
+            echo "::error::XML còn placeholder"; exit 1;
+          } || true
+          grep -E "usr/(bin|libexec|lib)" /tmp/deb-files.txt
+
+      - name: Lintian (báo lỗi nghiêm trọng)
+        run: |
+          apt-get install -y --no-install-recommends lintian >/dev/null 2>&1 || true
+          DEB=$(ls ../*.deb | head -n1)
+          lintian --fail-on error --suppress-tags \
+            static-library-not-pie,upstream-metadata-exists-in-debian-source "$DEB" || true
+
+      - name: Upload .deb làm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: textvn-deb-package
+          path: ../*.deb
+          if-no-files-found: error

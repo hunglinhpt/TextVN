@@ -7,48 +7,21 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [0.2.33] — 2026-10-18
-
-### Changed
-- **Mặc định sau cài = bật gõ tiếng Việt + dấu cũ, đủ 3 nền tảng** (0.2.33):
-  `DiacriticStyle::Old` (`hòa`, `thủy`, `khỏe` — dấu trên `o`, `u`, `o` của vần mở
-  `oa/oe/uy`) trở thành mặc định của `Config` (serde) và `EngineOptions` (core),
-  default `ConfigModel.swift` (macOS), và fallback thiếu khoá `diacritic_style`
-  của Linux settings. Người dùng cũ **giữ nguyên** lựa chọn của mình (chỉ thiếu
-  khoá hoặc cài mới mới nhận mặc định). Spec P0-3 (bảng trường + ví dụ) đồng bộ.
-  macOS SettingsView/menu và Windows tray hiển thị theo config, không đổi mã.
-- Test cơ chế backspace/common-words ghim tường minh `DiacriticStyle::New` (danh
-  sách từ viết theo dấu mới); kiểu cũ phủ riêng ở `telex_old_style`.
+## [Unreleased]
 
 ### Added
-- **Ma trận 16 combo bảng mã × kiểu gõ** (`core/tests/charset_matrix.rs`): 4 bảng
-  mã (`unicode_precomposed/unicode_decomposed/tcvn3/vni_windows`) × 4 kiểu gõ
-  (`telex/vni/viqr/simple_telex`) gõ đúng toàn bộ ~200 từ thông dụng, chuỗi phím
-  sinh từ bảng phím thật của từng kiểu gõ; anchor cứng TCVN3/VNI Windows
-  (`đ`=0xAE/0xF1, `ò`=0xDF/0xF8…) chặn engine và encode lệch cùng một hướng.
-- **Từ điển EN mở rộng lên top-3000 từ tần suất** (`data/en_common.txt` 31 → 104
-  mục; nguồn google-10000-english MIT, lọc tự động bằng chính engine): gõ tiếng
-  Anh tự trả lại đúng từ khi gõ dấu cách — `data/en_freq3000.txt` + test
-  `top_3000_english_words_type_correctly` ghim toàn bộ top-3000. Cân bằng
-  R2-56: 12 âm tiết Việt **không có cách gõ Telex nào khác** thắng tiếng Việt
-  và vào `vn_common.txt` (`hair`→hải, `lee`→lê, `six`→sĩ, `own`→ơn, `las`→lá,
-  `chair`→chải, `tax`→tã, `tree`→trê, `ups`→úp, `var`→vả, `wa`→ưa, `mar`→mả);
-  các fold có cách gõ khác (`cá`="cas", `sét`="sest", `đền`="ddenf"…) nhường EN.
-- Test hồi quy auto-restore EN (`core/tests/en_restore.rs`): từ EN phải tự
-  correct tại dấu cách (user không phải xoá), cặp mơ hồ ghim giữ tiếng Việt.
-- **Tab hoàn tất từ tiếng Việt** (`suggest.enabled` — 0.2.33, **tắt mặc định**):
-  gõ dở một âm tiết + Tab → âm tiết tần suất cao nhất khớp tiền tố
-  (`ngư` + Tab → `ngưng`, giữ hoa đầu từ), từ 3000 âm tiết tần suất cao
-  (`data/vn_freq3000.txt` — nguồn hermitdave/FrequencyWords/OpenSubtitles qua
-  OPUS, lọc bằng `is_valid_word`). Tab không khớp → đi qua app như cũ; bật qua
-  `"suggest": { "enabled": true }` trong `config.v1.json` (schema P0-3 đồng bộ).
-
-### Fixed
-- Ghim hành vi gõ tiếp sau Backspace dưới mặc định dấu cũ: `hòa` + BS → `hò`
-  (dấu còn trên `o`), gõ lại `a` → `hòa`; gõ tiếp `f` khi từ đã có huyền là phím
-  undo (`ass` → `as`, chuẩn Telex/UniKey) — 2 hàng test mới khoá hành vi này.
-- `test_settings_model.c`: 2 assertion cập nhật theo mặc định dấu cũ (thiếu khoá
-  → `new_diacritic == 0`; reset mặc định → dấu cũ).
+- **Kênh Debian/Ubuntu: PPA + lộ trình kho chính thức** — `debian/` hoàn chỉnh
+  (control/rules multiarch `/usr/lib/<triplet>/fcitx5/`, changelog, copyright
+  dep5, quilt; IBus engine đặt `/usr/libexec/` với component XML sinh đường
+  dẫn cuối) + QA gate `ci-deb.yml`: **dpkg-buildpackage thật** trong container
+  `debian:trixie` qua đúng đường Launchpad (cargo vendor → build `--offline`
+  → kiểm 9 file bắt buộc + addon đúng triplet + XML không placeholder +
+  lintian). `tools/release/prepare-ppa.sh` chuẩn bị + upload source package
+  lên `ppa:hunglinhpt/textvn` (vendored — Launchpad build không Internet,
+  R2-119). Lộ trình Debian chính thức (ITP/mentors/sponsor + email Debian
+  Input Method Team) + audit deps: cây Linux chỉ cần serde/serde_json (đã có
+  `librust-*-dev`). Checklist thêm B7f; `debian/changelog` = site 15 của
+  check-version-sync.
 
 ## [0.2.34] — 2026-10-18
 
@@ -100,6 +73,49 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   `winget install --id 9NV2R7JNNFGK -s msstore`. README (badge + bảng tải về), hướng dẫn
   sử dụng, `HUONG_DAN_SU_DUNG.txt`, tài liệu nộp Store và ghi chú phát hành tự sinh của
   `release.yml` trỏ link này.
+
+## [0.2.33] — 2026-10-18
+
+### Changed
+- **Mặc định sau cài = bật gõ tiếng Việt + dấu cũ, đủ 3 nền tảng** (0.2.33):
+  `DiacriticStyle::Old` (`hòa`, `thủy`, `khỏe` — dấu trên `o`, `u`, `o` của vần mở
+  `oa/oe/uy`) trở thành mặc định của `Config` (serde) và `EngineOptions` (core),
+  default `ConfigModel.swift` (macOS), và fallback thiếu khoá `diacritic_style`
+  của Linux settings. Người dùng cũ **giữ nguyên** lựa chọn của mình (chỉ thiếu
+  khoá hoặc cài mới mới nhận mặc định). Spec P0-3 (bảng trường + ví dụ) đồng bộ.
+  macOS SettingsView/menu và Windows tray hiển thị theo config, không đổi mã.
+- Test cơ chế backspace/common-words ghim tường minh `DiacriticStyle::New` (danh
+  sách từ viết theo dấu mới); kiểu cũ phủ riêng ở `telex_old_style`.
+
+### Added
+- **Ma trận 16 combo bảng mã × kiểu gõ** (`core/tests/charset_matrix.rs`): 4 bảng
+  mã (`unicode_precomposed/unicode_decomposed/tcvn3/vni_windows`) × 4 kiểu gõ
+  (`telex/vni/viqr/simple_telex`) gõ đúng toàn bộ ~200 từ thông dụng, chuỗi phím
+  sinh từ bảng phím thật của từng kiểu gõ; anchor cứng TCVN3/VNI Windows
+  (`đ`=0xAE/0xF1, `ò`=0xDF/0xF8…) chặn engine và encode lệch cùng một hướng.
+- **Từ điển EN mở rộng lên top-3000 từ tần suất** (`data/en_common.txt` 31 → 104
+  mục; nguồn google-10000-english MIT, lọc tự động bằng chính engine): gõ tiếng
+  Anh tự trả lại đúng từ khi gõ dấu cách — `data/en_freq3000.txt` + test
+  `top_3000_english_words_type_correctly` ghim toàn bộ top-3000. Cân bằng
+  R2-56: 12 âm tiết Việt **không có cách gõ Telex nào khác** thắng tiếng Việt
+  và vào `vn_common.txt` (`hair`→hải, `lee`→lê, `six`→sĩ, `own`→ơn, `las`→lá,
+  `chair`→chải, `tax`→tã, `tree`→trê, `ups`→úp, `var`→vả, `wa`→ưa, `mar`→mả);
+  các fold có cách gõ khác (`cá`="cas", `sét`="sest", `đền`="ddenf"…) nhường EN.
+- Test hồi quy auto-restore EN (`core/tests/en_restore.rs`): từ EN phải tự
+  correct tại dấu cách (user không phải xoá), cặp mơ hồ ghim giữ tiếng Việt.
+- **Tab hoàn tất từ tiếng Việt** (`suggest.enabled` — 0.2.33, **tắt mặc định**):
+  gõ dở một âm tiết + Tab → âm tiết tần suất cao nhất khớp tiền tố
+  (`ngư` + Tab → `ngưng`, giữ hoa đầu từ), từ 3000 âm tiết tần suất cao
+  (`data/vn_freq3000.txt` — nguồn hermitdave/FrequencyWords/OpenSubtitles qua
+  OPUS, lọc bằng `is_valid_word`). Tab không khớp → đi qua app như cũ; bật qua
+  `"suggest": { "enabled": true }` trong `config.v1.json` (schema P0-3 đồng bộ).
+
+### Fixed
+- Ghim hành vi gõ tiếp sau Backspace dưới mặc định dấu cũ: `hòa` + BS → `hò`
+  (dấu còn trên `o`), gõ lại `a` → `hòa`; gõ tiếp `f` khi từ đã có huyền là phím
+  undo (`ass` → `as`, chuẩn Telex/UniKey) — 2 hàng test mới khoá hành vi này.
+- `test_settings_model.c`: 2 assertion cập nhật theo mặc định dấu cũ (thiếu khoá
+  → `new_diacritic == 0`; reset mặc định → dấu cũ).
 
 ## [0.2.32] — 2026-10-12
 

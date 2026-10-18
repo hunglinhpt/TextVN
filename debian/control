@@ -1,0 +1,40 @@
+Source: textvn
+Section: x11
+Priority: optional
+Maintainer: LinhBH.CoM <hunglinhpt@gmail.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cargo,
+ rustc,
+ cmake,
+ pkgconf,
+ libibus-1.0-dev,
+ libfcitx5core-dev,
+ libfcitx5utils-dev,
+ fcitx5-modules-dev,
+ libgtk-4-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/hunglinhpt/TextVN
+Vcs-Git: https://github.com/hunglinhpt/TextVN.git
+Vcs-Browser: https://github.com/hunglinhpt/TextVN
+Rules-Requires-Root: no
+
+Package: textvn
+Architecture: amd64 arm64
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Recommends: ibus | fcitx5
+Suggests: fcitx5-frontend-gtk4
+Description: Vietnamese input method editor (Telex, VNI, VIQR) for IBus and Fcitx5
+ TextVN converts keystrokes into Vietnamese with tone marks (Telex, VNI, VIQR
+ and Simple Telex styles) using a shared Rust engine on Windows, macOS and
+ Linux. This package provides the IBus engine, the Fcitx5 addon (installed to
+ the multiarch addon directory), and the GTK4 settings application.
+ .
+ Highlights: old/new tone placement styles, output charsets (precomposed and
+ decomposed Unicode, TCVN3, VNI Windows), macro/emoji expansion, English
+ auto-restore with a 3000-word frequency dictionary, and Tab completion for
+ Vietnamese syllables.
+ .
+ The input method integrates with the session's input-method framework: it is
+ loaded by the host ibus-daemon or fcitx5 process, so it is not sandboxable
+ inside Flatpak/Snap (see /usr/share/doc/textvn/user-guide.md).

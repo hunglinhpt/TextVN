@@ -1,0 +1,63 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: GPL-3.0-or-later
+# debian/rules — build TextVN từ mã nguồn với crate VENDORED (Launchpad build
+# không có Internet: `cargo vendor` đã chạy khi chuẩn bị source package, see
+# tools/release/prepare-ppa.sh — .cargo/config.toml trong source tree ép
+# cargo dùng vendor/ thay crates.io).
+#
+# Layout cài đặt bám đúng chuẩn multiarch mà engine tự dò
+# (packaging/linux/textvn-common.sh):
+#   /usr/share/ibus/component/textvn.xml
+#   /usr/lib/<DEB_HOST_MULTIARCH>/fcitx5/libtextvn-fcitx5.so
+#   /usr/share/fcitx5/{addon,inputmethod}/textvn.conf
+
+export DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+# Launchpad builder sẵn sàng manylinux…: đảm bảo rustc/cargo của distro.
+export RUSTUP_TOOLCHAIN ?= system
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -rf target build-ibus build-fcitx5 build-settings
+
+override_dh_auto_build:
+	cargo build --release --offline --locked -p textvn-ffi
+	cargo build --release --offline --locked -p textvn-cli
+	set -e; for a in ibus fcitx5 settings; do \
+		cmake -S adapters/linux-$$a -B build-$$a -DCMAKE_BUILD_TYPE=Release; \
+		cmake --build build-$$a -j$$(nproc); \
+	done
+
+override_dh_auto_install:
+	install -Dm755 target/release/textvn-cli debian/textvn/usr/bin/textvn
+	install -Dm755 build-settings/textvn-settings debian/textvn/usr/bin/textvn-settings
+	# IBus engine: Debian không dùng /usr/lib/textvn — đặt libexec và sinh
+	# component XML với đường dẫn cuối (placeholder của repo bị thay đúng 1 cặp).
+	install -Dm755 build-ibus/textvn-ibus-engine \
+		debian/textvn/usr/libexec/ibus-engine-textvn
+	mkdir -p debian/textvn/usr/share/ibus/component
+	sed -e 's|/usr/lib/textvn/textvn-ibus-engine|/usr/libexec/ibus-engine-textvn|' \
+	    -e 's|/usr/bin/textvn-settings|/usr/bin/textvn-settings|' \
+	    packaging/linux/ibus/textvn.xml \
+	    > debian/textvn/usr/share/ibus/component/textvn.xml
+	# Fcitx5 addon: đúng thư mục multiarch mà Fcitx5 nạp (R2-45: chỉ libdir addon
+	# hệ thống; FCITX_ADDON_DIRS không cần cho gói distro).
+	install -Dm755 build-fcitx5/libtextvn-fcitx5.so \
+		debian/textvn/usr/lib/$(DEB_HOST_MULTIARCH)/fcitx5/libtextvn-fcitx5.so
+	install -Dm644 packaging/linux/fcitx5/addon/textvn.conf \
+		debian/textvn/usr/share/fcitx5/addon/textvn.conf
+	install -Dm644 packaging/linux/fcitx5/inputmethod/textvn.conf \
+		debian/textvn/usr/share/fcitx5/inputmethod/textvn.conf
+	for icon in textvn_v textvn_e; do \
+		install -Dm644 "resources/icons/$$icon.svg" \
+			"debian/textvn/usr/share/icons/hicolor/scalable/apps/$$icon.svg"; \
+		install -Dm644 "resources/icons/$$icon.png" \
+			"debian/textvn/usr/share/icons/hicolor/128x128/apps/$$icon.png"; \
+	done
+	install -Dm644 packaging/linux/desktop/textvn-settings.desktop \
+		debian/textvn/usr/share/applications/textvn-settings.desktop
+	install -Dm644 packaging/linux/appstream/io.github.hunglinhpt.textvn.metainfo.xml \
+		debian/textvn/usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml
+	install -Dm644 LICENSE \
+		debian/textvn/usr/share/licenses/textvn/LICENSE
