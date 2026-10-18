@@ -95,11 +95,16 @@ jobs:
           lintian --fail-on error --suppress-tags \
             static-library-not-pie,upstream-metadata-exists-in-debian-source "$DEB" || true
 
+      - name: Copy .deb vào workspace (upload-artifact không nhận ../)
+        run: |
+          mkdir -p dist-deb
+          cp ../*.deb dist-deb/ 2>/dev/null || true
+          rm -f dist-deb/*dbgsym*.deb
+          ls -la dist-deb
+
       - name: Upload .deb làm artifact
         uses: actions/upload-artifact@v4
         with:
           name: textvn-deb-package
-          path: |
-            ../*.deb
-            !../*dbgsym*.deb
+          path: dist-deb/*.deb
           if-no-files-found: error
