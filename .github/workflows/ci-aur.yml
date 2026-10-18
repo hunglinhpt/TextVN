@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p /home/build/srcinfo
           cp /home/build/packaging/arch/PKGBUILD /home/build/srcinfo/
-          chown builder:builder /home/build/srcinfo/PKGBUILD
+          chown -R builder:builder /home/build/srcinfo
           cd /home/build/srcinfo
           sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
           diff -u /home/build/packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
