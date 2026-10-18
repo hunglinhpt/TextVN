@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(fcitx5-textvn LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+# C++20 (R2-117): header Fcitx5 6.x (Arch/rolling) dùng std::ranges/std::span/
+# starts_with trong template body — C++17 không biên dịch được. Ubuntu cũ vẫn
+# được: chỉ cần libstdc++ 11+ (gcc 11) là đủ mọi tính năng header dùng.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
