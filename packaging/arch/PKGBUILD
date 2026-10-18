@@ -24,6 +24,9 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/hunglinhpt/TextVN/archive/r
 sha256sums=('861c305159191458a7c95edccfd6d45ed9cb98319ff6dc91ecd7c601ff4c8138')
 
 prepare() {
+    # Source archive của GitHub trích ra TextVN-<ver>/ (tên repo) — đổi tên cho
+    # khớp $pkgname-$pkgver mà các bước build()/check()/package() đang cd vào.
+    mv "TextVN-$pkgver" "textvn-$pkgver"
     cd "$pkgname-$pkgver"
     export RUSTUP_TOOLCHAIN=stable
     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
