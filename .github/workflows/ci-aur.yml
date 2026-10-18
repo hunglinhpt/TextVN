@@ -66,7 +66,10 @@ jobs:
 
       - name: .SRCINFO khớp `makepkg --printsrcinfo` (PKGBUILD AUR gốc)
         run: |
-          cd /home/build/pkg
+          mkdir -p /home/build/srcinfo
+          cp /home/build/packaging/arch/PKGBUILD /home/build/srcinfo/
+          chown builder:builder /home/build/srcinfo/PKGBUILD
+          cd /home/build/srcinfo
           sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
           diff -u /home/build/packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
             echo "::error::.SRCINFO lệch — chạy lại 'makepkg --printsrcinfo > packaging/arch/.SRCINFO' và commit";
