@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1792312029.7708478,
-    "seen": 1792313611.6729043,
-    "ast_hash": "b08efa99e3a9f38d52930dcb5b0c76f6",
+    "mtime": 1792314512.358009,
+    "seen": 1792315075.197919,
+    "ast_hash": "48c749be65250e9d6a8958a0bbf06da8",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792313386.5806742,
-    "seen": 1792313611.6769052,
-    "ast_hash": "c781371863f80c5064c8d17b6db2fb23",
+    "mtime": 1792314476.894555,
+    "seen": 1792315075.197919,
+    "ast_hash": "dd873cbe4424e8b696acff890566b408",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1926,9 +1926,9 @@
     "semantic_hash": ""
   },
   "xtask/src/check_version_sync.rs": {
-    "mtime": 1790745307.1133184,
-    "seen": 1790772702.0311794,
-    "ast_hash": "8a9db48f87cbc3c2fa21f73c7f8916bd",
+    "mtime": 1792314430.2033644,
+    "seen": 1792315075.1958363,
+    "ast_hash": "755fecacf0f79e0be0f7fb2aa29fe2c2",
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1792309681.2369533,
-    "seen": 1792313611.7360663,
-    "ast_hash": "dfa5fca17edef46197fc51b84b3bcf37",
+    "mtime": 1792314468.2379704,
+    "seen": 1792315075.2049034,
+    "ast_hash": "86a793f3272dc166e84805f2af558ace",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
@@ -2334,9 +2334,27 @@
     "semantic_hash": ""
   },
   "docs/release/linux-distribution.md": {
-    "mtime": 1792309655.13727,
-    "seen": 1792313611.7350662,
-    "ast_hash": "70f63b9506a828127e1244909ec0ae67",
+    "mtime": 1792314395.9025447,
+    "seen": 1792315075.2039351,
+    "ast_hash": "2700fb58ca6637d149f06db4bbdad573",
+    "semantic_hash": ""
+  },
+  "tools/release/prepare-ppa.sh": {
+    "mtime": 1792314544.6955547,
+    "seen": 1792315075.1928015,
+    "ast_hash": "3d5e4f3e055446795aa384dd1cf80b82",
+    "semantic_hash": ""
+  },
+  ".github/workflows/ci-deb.yml": {
+    "mtime": 1792314927.006409,
+    "seen": 1792315075.1969185,
+    "ast_hash": "caebde5cdcfe16d022f7246045fc3bea",
+    "semantic_hash": ""
+  },
+  "docs/distros/debian-submission.md": {
+    "mtime": 1792314316.9816215,
+    "seen": 1792315075.2029276,
+    "ast_hash": "42d2d01a93250336cc4cbeadd42a1f0d",
     "semantic_hash": ""
   }
 }
