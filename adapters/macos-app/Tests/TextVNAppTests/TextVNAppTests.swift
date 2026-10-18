@@ -13,7 +13,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(config.config_version, 1)
         XCTAssertTrue(config.enabled)
         XCTAssertEqual(config.method, "telex")
-        XCTAssertEqual(config.diacritic_style, "new")
+        XCTAssertEqual(config.diacritic_style, "old")
         XCTAssertTrue(config.free_marking)
         XCTAssertTrue(config.auto_restore_english)
         XCTAssertTrue(config.auto_capitalize)
