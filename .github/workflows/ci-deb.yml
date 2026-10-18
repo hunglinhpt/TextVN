@@ -62,7 +62,7 @@ jobs:
 
       - name: .deb có đủ file theo chuẩn multiarch
         run: |
-          DEB=$(ls ../*.deb | head -n1)
+          DEB=$(ls ../*.deb | grep -v dbgsym | head -n1)
           dpkg -c "$DEB" | awk '{print $NF}' | sed 's#^\.##' > /tmp/deb-files.txt
           for f in \
             /usr/bin/textvn \
@@ -91,7 +91,7 @@ jobs:
       - name: Lintian (báo lỗi nghiêm trọng)
         run: |
           apt-get install -y --no-install-recommends lintian >/dev/null 2>&1 || true
-          DEB=$(ls ../*.deb | head -n1)
+          DEB=$(ls ../*.deb | grep -v dbgsym | head -n1)
           lintian --fail-on error --suppress-tags \
             static-library-not-pie,upstream-metadata-exists-in-debian-source "$DEB" || true
 
@@ -99,5 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: textvn-deb-package
-          path: ../*.deb
+          path: |
+            ../*.deb
+            !../*dbgsym*.deb
           if-no-files-found: error
