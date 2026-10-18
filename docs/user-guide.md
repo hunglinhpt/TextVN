@@ -66,7 +66,19 @@ từng loại.
 **Yêu cầu**: macOS 13+. Không cần cài thêm gì — engine Rust universal đã nhúng sẵn trong app.
 Bản phát hành gồm hai thành phần: `TextVN-IM.app` (bộ gõ) và `TextVN.app` (menu bar + Cài đặt).
 
-**Cách khuyến nghị — bộ cài `.pkg`:** tải `TextVN-mac-v<phiên bản>.pkg` rồi mở để cài, hoặc
+**Cách khuyến nghị — Homebrew (tự cập nhật, tự đặt đúng chỗ):**
+
+```bash
+brew install --cask hunglinhpt/tap/textvn
+```
+
+Homebrew đặt `TextVN-IM.app` vào `~/Library/Input Methods/` (per-user, không cần admin)
+và `TextVN.app` vào `/Applications/`. Cập nhật cùng `brew upgrade` (cask của tap tự theo
+release mới — hash lấy từ `SHA256SUMS.txt` đã verify chữ ký GPG). Gỡ:
+`brew uninstall --cask textvn` (giữ cấu hình) hoặc thêm `--zap` (xoá sạch). Cài xong làm
+thêm bước **Bật bộ gõ** bên dưới.
+
+**Cách khác — bộ cài `.pkg`:** tải `TextVN-mac-v<phiên bản>.pkg` rồi mở để cài, hoặc
 cài riêng cho bạn, không cần sudo:
 
 ```bash
@@ -74,7 +86,11 @@ installer -pkg TextVN-mac-v<phiên bản>.pkg -target CurrentUserHomeDirectory
 ```
 
 Gói cài `TextVN-IM.app` vào `~/Library/Input Methods/` và `TextVN.app` vào `~/Applications/`.
-Sau đó vào System Settings → Keyboard → Input Sources → Edit… → (+) → Vietnamese → **TextVN**.
+
+**Bật bộ gõ (1 lần, mọi cách cài):**
+
+1. Mở `TextVN.app` một lần — app tự đăng ký bộ gõ.
+2. Vào System Settings → Keyboard → Input Sources → Edit… → (+) → Vietnamese → **TextVN**.
 
 **Bản nén:** `TextVN-macos-universal-v<phiên bản>.zip` (hoặc `.tar.gz`) chứa cả hai app:
 
@@ -89,7 +105,8 @@ xattr -dr com.apple.quarantine ~/Library/Input\ Methods/TextVN-IM.app ~/Applicat
 **Gỡ cài đặt:** menu bar TextVN → **Gỡ cài đặt TextVN...** (chạy
 `TextVN.app/Contents/Resources/uninstall_macos.sh`; bản cài cho mọi người dùng sẽ hỏi quyền
 quản trị). Cấu hình ở `~/Library/Application Support/TextVN` được giữ lại. Sau đó bỏ TextVN
-khỏi System Settings → Keyboard → Input Sources nếu còn.
+khỏi System Settings → Keyboard → Input Sources nếu còn. Bản cài qua Homebrew:
+`brew uninstall --cask textvn` (giữ cấu hình; `--zap` xoá cả cấu hình).
 
 > **Chữ ký:** mỗi file phát hành có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig`/`.cosign.cert`),
 > kèm `SHA256SUMS.txt` ký clearsign (`docs/release/signing.md`). Gói **chưa** được ký Apple

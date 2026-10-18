@@ -53,6 +53,18 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 ## [Unreleased]
 
 ### Added
+- **Homebrew tap chính thức cho macOS** — `brew install --cask
+  hunglinhpt/tap/textvn` ([hunglinhpt/homebrew-tap](https://github.com/hunglinhpt/homebrew-tap)):
+  cask dùng stanza `input_method` để đặt `TextVN-IM.app` vào
+  `~/Library/Input Methods` (per-user, không cần admin) và `app` cho
+  `TextVN.app` vào `/Applications`; pin `sha256` của mac zip từ
+  `SHA256SUMS.txt` đã verify GPG. Cask tự cập nhật theo release mới bằng
+  workflow `sync-cask.yml` trong tap (mỗi 6 giờ hoặc chạy tay — verify GPG
+  rồi mới ghi, không cần PAT); CI lint kiểm cú pháp Ruby + stanza bắt buộc.
+  README/user-guide trỏ cài đặt macOS về tap (cách khuyên dùng, cạnh `.pkg`
+  và bản nén); checklist phát hành thêm bước B7d (kiểm tap sau publish);
+  `AGENTS.md` mới ở gốc repo buộc mọi agent đi theo workflow/checklist.
+
 - **Tự động nộp bản cập nhật lên Microsoft Store** — workflow `store-publish`
   (`.github/workflows/store-publish.yml`): lấy asset `.msix` của một GitHub Release, kiểm chữ
   ký GPG + `SHA256SUMS.txt` + Sigstore (đúng `release.yml` trên đúng tag) + luật Partner
