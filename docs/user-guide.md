@@ -142,7 +142,11 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
   nút "Từ điển EN..." cạnh "Gõ tắt...". Quy tắc ưu tiên đầy đủ:
   [language-detection.md](specs/language-detection.md).
 - Hoặc click chuột trái trực tiếp vào biểu tượng trên khay hệ thống (Windows) / menu bar (macOS) / status area (Linux) để chuyển đổi nhanh giữa tiếng Việt và tiếng Anh.
-- Khi đang soạn thảo, chữ hiển thị tự nhiên, hoàn toàn không bị gạch chân (clean composition/preedit) trên cả Word, Notepad, Chrome, Safari và các ứng dụng Linux.
+- Khi đang soạn thảo, chữ hiển thị tự nhiên, không bị gạch chân trên Word, Notepad, Safari
+  và các ứng dụng GTK trên Linux (Windows TSF dùng `TF_LS_NONE`, macOS gõ kiểu non-preedit
+  sau cài, Fcitx5/IBus không kềm gạch nào). Riêng **Chrome/Edge/Electron/Qt trên Linux** tự
+  vẽ gạch chân cho mọi chữ đang soạn của bộ gõ nào — đây là hành vi của chính ứng dụng đó,
+  TextVN không tắt được từ phía bộ gõ (chỉ có thể gõ kiểu non-preedit).
 
 Trạng thái V/E được ghi nhớ xuyên suốt các lần khởi động.
 

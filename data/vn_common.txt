@@ -100,3 +100,21 @@ gá
 có
 bé
 vá
+##
+# Mở rộng 2026-10-18 (từ điển EN lên top-3000): âm tiết Việt KHÔNG có cách
+# gõ Telex nào khác bị từ EN mới cướp (luật R2-56) — `hair`→hải, `las`→lá,
+# `six`→sĩ, `own`→ơn, `lee`→lê (họ Lê), `chair`→chải, `tax`→tã, `tree`→trê,
+# `ups`→úp, `var`→vả, `wa`→ưa, `mar`→mả.
+##
+hải
+lá
+sĩ
+ơn
+lê
+chải
+tã
+trê
+úp
+vả
+ưa
+mả

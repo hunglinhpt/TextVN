@@ -43,10 +43,18 @@ Mô hình gõ chung cho TSF, IBus, Fcitx5 và macOS IMK: **cả từ nằm trong
 điều hướng, chord). Không bao giờ xoá lùi chữ app đã nhận → không lỗi lặp/mất chữ kiểu
 "không gạch chân" ở Chromium/Electron (xem `docs/specs/reference-parity.md` R1).
 
-Đặc biệt, giao diện hiển thị composition được tinh chỉnh hoàn toàn không gạch chân (clean composition):
+Đặc biệt, giao diện hiển thị composition được tinh chỉnh không gạch chân (clean composition):
 - **Windows TSF**: Cung cấp `ITfDisplayAttributeProvider` với thuộc tính `lsStyle = TF_LS_NONE` (`DISPATTR_TEXTVN`). Hỗ trợ đăng ký theo user profile (`HKCU`) không bắt buộc quyền Administrator.
-- **Linux IBus / Fcitx5**: Tắt cờ `IBUS_ATTR_TYPE_UNDERLINE` và dùng `fcitx::TextFormatFlag::NoFlag`.
-- **macOS IMK**: Cấu hình `NSAttributedString` trong marked text với `.underlineStyle = []`.
+- **Linux Fcitx5**: preedit client dùng `fcitx::TextFormatFlag::NoFlag` — không kềm gạch nào.
+- **Linux IBus**: engine gửi preedit **không kèm attribute nào** — GTK (`ibusimcontext.c`)
+  chỉ gạch khi engine yêu cầu, nên không gạch; còn Chromium/Electron/Qt **tự vẽ gạch phía
+  app** cho mọi preedit — không tắt được qua API IBus. Muốn thật sự không gạch trên các app
+  đó phải chuyển non-preedit (delete+commit), đã cân nhắc và hoãn vì surrounding-text không
+  đáng tin (`lc_compose.h` RL5/B7).
+- **macOS IMK**: mặc định sau cài `non_preedit = true` (config app ghi) → gõ kiểu
+  BackspaceType, không có marked text nên không gạch. Khi preedit bật (khoá thiếu/`false`
+  — R2-49), marked text kềm `.underlineStyle = .single` (B10 — gạch chân chuẩn composition
+  của IME macOS; để `[]` thì marked text bị "vô hình" gây mất chữ khi app không vẽ).
 
 Bảng điều khiển thống nhất: [release/ui-spec.md](release/ui-spec.md).
 

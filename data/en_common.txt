@@ -1,27 +1,41 @@
-# en_common.txt — từ tiếng Anh thông dụng mà Telex biến thành âm tiết Việt
+# en_common.txt — từ tiếng Anh thông dụng mà Telex/VNI biến thành âm tiết Việt
 # HỢP LỆ VỀ CẤU TRÚC (nhánh cấu trúc của auto-restore bắt không được).
 #
+# Nguồn (mở rộng 2026-10-18, yêu cầu "≈3000 từ thông dụng phải gõ đúng"):
+#   top 3000 từ tần suất Google corpus
+#   (github.com/first20hours/google-10000-english, MIT — `data/en_freq3000.txt`)
+#   được lọc TỰ ĐỘNG bằng chính engine: giữ từ mà fold(Telex) ≠ chính nó,
+#   fold là âm tiết Việt HỢP LỆ và KHÔNG nằm trong `vn_common.txt`; cộng tay
+#   các mục cũ phục vụ gợi ý Tab. Kết quả kiểm top-3000: 1231 từ không biến đổi
+#   (gõ thẳng đúng), 1604 tự restore theo nhánh cấu trúc, 42 cặp mơ hồ giữ
+#   tiếng Việt (bên dưới), còn lại chính là danh sách này.
+#
 # Điều kiện một mục (test `data_en_common_file_fires` là oracle):
-#   1. chỉ chữ cái ASCII;  2. fold(Telex, dấu mới, free marking) ≠ chính nó;
+#   1. chỉ chữ cái ASCII;  2. fold(Telex, dấu cũ, free marking) ≠ chính nó;
 #   3. kết quả fold là âm tiết Việt HỢP LỆ (nếu không hợp lệ thì nhánh cấu trúc
 #      đã restore rồi) — trừ các mục trong `TAB_ONLY` của test: giữ chỉ để gợi ý Tab;
 #   4. kết quả fold KHÔNG nằm trong `vn_common.txt` (âm tiết Việt thông dụng
 #      phải giữ nguyên cho người gõ tiếng Việt — xem note mơ hồ bên dưới).
 #
 # Các cặp MƠ HỒ hai chiều được giải quyết theo hướng GIỮ TIẾNG VIỆT (UniKey
-# cũng vậy) bằng cách KHÔNG đưa từ EN vào file này, ví dụ:
-#   cow→cơ, sex→sẽ, max→mã, queen→quên, teen→tên, been→bên, moon→môn,
-#   has→há, bus→bú, thus→thú, us→ú, its→ít, as→á, car→cả, tar→tả,
-#   bar→bả, chef→chè, dew→dê, mê/mơ/bơ/tơ/sơ/lơ/hơ/nơ/dơ (vowel+w),
-#   list→lít, nest→nét, rest→rét, last→lát, must→mút, cast→cát, mat→mát,
-#   this→thí, his→hí, host→hót, lost→lót, most→mót, cost→cót, best→bét,
-#   vast→vát, arm→ảm, vow→vơ, row→rơ, box→bõ, gas→gá (R2-56: `thí sinh`,
-#   `hí hửng`, `vơ vét`, `chim hót`, `áo lót`, `đứng bét`, `bõ công` phải
-#   gõ được; `thí`/`hí`/`vơ`/`bõ`/`gá` không có cách gõ Telex nào khác).
+# cũng vậy) bằng cách KHÔNG đưa từ EN vào file này:
+#   of→ò, this→thí, or→ỏ, as→á, us→ú, if→ì, has→há, his→hí, now→nơ,
+#   been→bên, how→hơ, its→ít, list→lít, last→lát, most→mót, best→bét,
+#   sex→sẽ, must→mút, car→cả, low→lơ, teen→tên, too→tô, box→bõ, cost→cót,
+#   bar→bả, lost→lót, usr→ủ, gas→gá, thus→thú, max→mã, rest→rét, host→hót,
+#   os→ó, lots→lót, ex→ẽ, bus→bú, ar→ả, cast→cát, queen→quên, es→é,
+#   row→rơ, moon→môn, cow→cơ, tar→tả, chef→chè, dew→dê, mat→mát,
+#   vast→vát, arm→ảm, vow→vơ, nest→nét (R2-56: `thí sinh`, `hí hửng`,
+#   `vơ vét`, `chim hót`, `áo lót`, `đứng bét`, `bõ công`, `ủ rủ`, `ếch`
+#   phải gõ được; `thí`/`hí`/`vơ`/`bõ`/`gá`/`ủ` không có cách gõ Telex nào khác).
 #   `test`→`tét` và `is`→`í` vẫn giữ trong file (ví dụ tài liệu hoá ở
 #   language-detection.md / README); người gõ `bánh tét` gõ dấu cuối từ (`tets`).
+#   Mở rộng 2026-10-18: hair→hải, las→lá, six→sĩ, own→ơn, lee→lê (họ Lê),
+#   chair→chải, tax→tã, tree→trê, ups→úp, var→vả, wa→ưa, mar→mả — các âm tiết
+#   này KHÔNG có cách gõ Telex nào khác nên tiếng Việt thắng (đã vào vn_common).
 # Người gõ tiếng Anh vẫn cứu được bằng Escape (restore raw) hoặc thêm từ
-# vào `english_words` trong cấu hình.
+# vào `english_words` trong cấu hình; test `top_3000_english_words_type_correctly`
+# ghim toàn bộ top-3000 (trừ cặp mơ hồ đã nêu).
 #
 # Lấy từ nhóm: phụ âm cuối x (ngã) · s (sắc) · r (hỏi) — những phím bị nuốt
 # thành dấu, và nguyên âm đôi ee/oo/ew/ow/aw bị nuốt thành ê/ô/ê/ơ/ă.
@@ -34,34 +48,107 @@
 #   người gõ tiếng Việt gõ `đê` bằng `ddee` (dãy phím khác, không bị trả lại).
 # `was`→`ứa`, `war`→`ửa`, `wax`→`ữa`, `wow`→`uơ`: `w` đứng riêng thành `ư` (R2-66).
 # `away`→`ây`: `ă` + `a` đổi dấu thành `â` (R2-70).
-hex
-defend
+aa
+air
+arms
+art
+arts
+away
+bars
+born
+boxes
+cars
+cart
+caw
+coast
+core
+dawn
+days
 deed
 deeds
+defend
+des
+disc
+does
+door
 dosed
+down
+est
+gets
+gifts
+goes
+guys
+haw
+her
+here
+hex
+hits
+horse
+is
+law
+laws
+les
+loans
+los
+major
+maps
+mary
+mix
+more
+next
+nor
+pair
+paris
+parts
+past
+paw
+per
+pets
+pics
+poor
+porn
+post
+raw
+refer
+rings
+room
+rooms
+rose
+runs
+rw
+saw
+says
+see
+seem
+seems
+seen
+sets
+sexo
+songs
+soon
+taw
+teens
+term
+terms
+test
 text
 texts
-next
-art
-cart
-test
-past
-see
-is
-says
-days
-her
-dawn
-saw
-law
-raw
-paw
-caw
-haw
-taw
-was
+there
+these
+things
+those
+tips
+tits
+town
+trees
+trust
+turn
+usa
+virus
+w
 war
 wars
+was
 wax
+wi
 wow
-away

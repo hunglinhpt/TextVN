@@ -26,6 +26,16 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   (`telex/vni/viqr/simple_telex`) gõ đúng toàn bộ ~200 từ thông dụng, chuỗi phím
   sinh từ bảng phím thật của từng kiểu gõ; anchor cứng TCVN3/VNI Windows
   (`đ`=0xAE/0xF1, `ò`=0xDF/0xF8…) chặn engine và encode lệch cùng một hướng.
+- **Từ điển EN mở rộng lên top-3000 từ tần suất** (`data/en_common.txt` 31 → 104
+  mục; nguồn google-10000-english MIT, lọc tự động bằng chính engine): gõ tiếng
+  Anh tự trả lại đúng từ khi gõ dấu cách — `data/en_freq3000.txt` + test
+  `top_3000_english_words_type_correctly` ghim toàn bộ top-3000. Cân bằng
+  R2-56: 12 âm tiết Việt **không có cách gõ Telex nào khác** thắng tiếng Việt
+  và vào `vn_common.txt` (`hair`→hải, `lee`→lê, `six`→sĩ, `own`→ơn, `las`→lá,
+  `chair`→chải, `tax`→tã, `tree`→trê, `ups`→úp, `var`→vả, `wa`→ưa, `mar`→mả);
+  các fold có cách gõ khác (`cá`="cas", `sét`="sest", `đền`="ddenf"…) nhường EN.
+- Test hồi quy auto-restore EN (`core/tests/en_restore.rs`): từ EN phải tự
+  correct tại dấu cách (user không phải xoá), cặp mơ hồ ghim giữ tiếng Việt.
 
 ### Fixed
 - Ghim hành vi gõ tiếp sau Backspace dưới mặc định dấu cũ: `hòa` + BS → `hò`

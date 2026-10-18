@@ -440,8 +440,11 @@ mod tests {
         assert_eq!(complete_word("tes", "té", &[]), Some("test".to_string()));
         // Fold là âm tiết Việt thông dụng → không gợi ý (ưu tiên tiếng Việt)
         assert_eq!(complete_word("cow", "cơ", &[]), None);
-        // Đã là từ đầy đủ → không gợi ý
-        assert_eq!(complete_word("see", "sê", &[]), None);
+        // Đã là từ đầy đủ, không mục nào dài hơn trong từ điển → không gợi ý
+        assert_eq!(complete_word("hex", "hẽ", &[]), None);
+        // Tiền tố nghiêm ngặt → từ ngắn nhất khớp ("see" là tiền tố của "seem"
+        // trong danh sách 2026-10-18)
+        assert_eq!(complete_word("see", "sê", &[]), Some("seem".to_string()));
         // Quá ngắn
         assert_eq!(complete_word("s", "s", &[]), None);
         // Danh sách người dùng tham gia ứng viên
