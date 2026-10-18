@@ -31,18 +31,22 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.33](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.33)**
+Bản mới nhất: **[GitHub Release v0.2.34](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.34)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.33 đổi
-**mặc định sau cài sang dấu cũ** trên cả 3 nền tảng (người dùng cũ giữ nguyên lựa chọn),
-thêm ma trận hồi quy 16 combo bảng mã × kiểu gõ, mở rộng từ điển tự khôi phục tiếng Anh
-lên 3000 từ tần suất (cân theo luật ưu tiên âm tiết Việt không có cách gõ khác) và thêm
-Tab hoàn tất từ tiếng Việt (tùy chọn `suggest.enabled`) — chi tiết:
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.34 mở
+**kênh phân phối Linux cho distro store**: gói AUR (build từ mã nguồn, QA makepkg thật
+trong container Arch — `paru -S textvn`) và phân tích vì sao Flatpak/Snap/AppImage không
+phù hợp cho IME hệ thống; sửa lỗi Fcitx5 addon không biên dịch được trên distro rolling
+(C++20, R2-117). Bản 0.2.33 đổi **mặc định sau cài sang dấu cũ** trên cả 3 nền tảng
+(người dùng cũ giữ nguyên lựa chọn), thêm ma trận hồi quy 16 combo bảng mã × kiểu gõ,
+mở rộng từ điển tự khôi phục tiếng Anh lên 3000 từ tần suất (cân theo luật ưu tiên âm
+tiết Việt không có cách gõ khác) và thêm Tab hoàn tất từ tiếng Việt (tùy chọn
+`suggest.enabled`) — chi tiết:
 [CHANGELOG.md](CHANGELOG.md). Commit và tag phát hành có chữ ký git.
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |

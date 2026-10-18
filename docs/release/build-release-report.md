@@ -1,5 +1,18 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.34 — kênh Linux distro (AUR + ci-aur) + fcitx5 C++20 (R2-117)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Gói AUR (`packaging/arch/PKGBUILD` + `.SRCINFO` build từ source tag) + QA gate `ci-aur.yml` (makepkg thật trong `archlinux:base-devel`: build cây hiện tại, `.SRCINFO` diff, đủ 10 file, version khớp Cargo.toml, upload `.pkg`). Phân tích kênh store Linux (`docs/release/linux-distribution.md` — Flathub/Snap/AppImage loại có căn cứ). Fixed R2-117: fcitx5 adapter C++17 → C++20 (header Fcitx5 6.x dùng std::ranges — tag 0.2.33 KHÔNG build được trên Arch, bắt được bởi chính ci-aur). `tools/release/publish-aur.sh` chặn push khi sha256 lệch archive tag (R2-118). Checklist thêm B7e; AGENTS.md mới |
+| Release | v0.2.34 publish từ tag ký GPG trỏ commit `7e680e1` — release-candidate [#39111983240](https://github.com/hunglinhpt/TextVN/actions/runs/39111983240) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | push `main` `7e680e1` (Verified): [ci-aur #39111618816](https://github.com/hunglinhpt/TextVN/actions/runs/39111618816) (makepkg thật xanh), [ci-shared #39111618762](https://github.com/hunglinhpt/TextVN/actions/runs/39111618762), [ci-linux #39111618941](https://github.com/hunglinhpt/TextVN/actions/runs/39111618941) (C++20 trên Ubuntu), [ci-windows #39111618793](https://github.com/hunglinhpt/TextVN/actions/runs/39111618793), [ci-macos #39111618788](https://github.com/hunglinhpt/TextVN/actions/runs/39111618788), [repo-hygiene #39111618720](https://github.com/hunglinhpt/TextVN/actions/runs/39111618720) — xanh cả 6 |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums (pin từ `SHA256SUMS.txt` đã ký) | machine exe `6b22a476…f602` · setup exe `8076f908…ec6ea` · MSIX (nộp Store) `7868c8ed…894c` · portable `8fb6dfb0…269ad` · Linux `0b5b8ad3…1aed` · pkg `38f2f16b…5da2` · **mac zip `5609baf4…a7a7`** · mac tar.gz `73baa9f3…f23d` · PKGBUILD source archive v0.2.34 `7d148e6c…7034` |
+| Homebrew (B7b) | cask `sha256` = mac zip `5609baf4…a7a7` |
+| AUR (B7e) | PKGBUILD/.SRCINFO `sha256sums` = archive v0.2.34 `7d148e6c…7034`; ci-aur xanh; publish lên aur.archlinux.org còn chờ owner tạo account + SSH key (`tools/release/publish-aur.sh`) |
+| approved (B7c) | `approved/v0.2.34/` — 34 file release + chữ ký, byte-identical (hash kiểm từ raw URL) |
+
 ## Bản 0.2.33 — mặc định dấu cũ sau cài + ma trận 16 combo + từ điển EN top-3000 + Tab hoàn tất từ tiếng Việt
 
 | Hạng mục | Bằng chứng |
