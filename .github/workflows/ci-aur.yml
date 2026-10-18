@@ -31,19 +31,23 @@ jobs:
         uses: actions/checkout@v4
 
       # makepkg từ chối chạy bằng root → user builder với HOME riêng.
+      # PKGBUILD/.SRCINFO phải nằm ở working dir của makepkg (không chạy root
+      # trong cây checkout — makepkg chown/git-sao-lưu của action thì được).
       - name: Build bằng makepkg (user thường)
         run: |
           useradd -m builder
           cp -r . /home/build
+          mkdir -p /home/build/pkg
+          cp /home/build/packaging/arch/PKGBUILD /home/build/packaging/arch/.SRCINFO /home/build/pkg/
           chown -R builder:builder /home/build
-          cd /home/build
+          cd /home/build/pkg
           sudo -u builder makepkg -f --noconfirm
 
       - name: .SRCINFO khớp `makepkg --printsrcinfo`
         run: |
-          cd /home/build
+          cd /home/build/pkg
           sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
-          diff -u packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
+          diff -u /home/build/packaging/arch/.SRCINFO /tmp/generated.srcinfo || {
             echo "::error::.SRCINFO lệch — chạy lại 'makepkg --printsrcinfo > packaging/arch/.SRCINFO' và commit";
             exit 1;
           }
