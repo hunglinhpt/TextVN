@@ -79,24 +79,24 @@ jobs:
       - name: Gói có đủ file then chốt
         run: |
           cd /home/build/pkg
-          PKG=$(ls textvn-*.pkg.tar.zst | head -n1)
-          pacman -Qlp "$PKG" > /tmp/pkg-files.txt
+          PKG=$(ls textvn-*.pkg.tar.zst | grep -v debug | head -n1)
+          pacman -Qlp "$PKG" | sed 's/^\S* //' > /tmp/pkg-files.txt
           for f in \
-            usr/bin/textvn \
-            usr/bin/textvn-settings \
-            usr/lib/textvn/textvn-ibus-engine \
-            usr/lib/fcitx5/libtextvn-fcitx5.so \
-            usr/share/ibus/component/textvn.xml \
-            usr/share/fcitx5/addon/textvn.conf \
-            usr/share/fcitx5/inputmethod/textvn.conf \
-            usr/share/applications/textvn-settings.desktop \
-            usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml \
-            usr/share/licenses/textvn/LICENSE; do
-            grep -q "^$f\$" /tmp/pkg-files.txt || {
+            /usr/bin/textvn \
+            /usr/bin/textvn-settings \
+            /usr/lib/textvn/textvn-ibus-engine \
+            /usr/lib/fcitx5/libtextvn-fcitx5.so \
+            /usr/share/ibus/component/textvn.xml \
+            /usr/share/fcitx5/addon/textvn.conf \
+            /usr/share/fcitx5/inputmethod/textvn.conf \
+            /usr/share/applications/textvn-settings.desktop \
+            /usr/share/metainfo/io.github.hunglinhpt.textvn.metainfo.xml \
+            /usr/share/licenses/textvn/LICENSE; do
+            grep -qx "$f" /tmp/pkg-files.txt || {
               echo "::error::.pkg thiếu $f"; exit 1;
             }
           done
-          grep -E "^usr/(bin|lib)" /tmp/pkg-files.txt
+          grep -E "^/usr/(bin|lib)" /tmp/pkg-files.txt
 
       - name: Đối chiếu version gói = Cargo.toml
         run: |
