@@ -134,7 +134,13 @@ sẵn (bản cũ hơn: dựng từ mã nguồn bằng `scripts/install_linux.sh`
   Việt thông dụng), TextVN tự trả lại đúng chuỗi phím bạn gõ khi kết thúc từ
   (dấu cách/dấu câu). Nghiêm trọng hơn: **Escape** khôi phục nguyên chuỗi phím
   ngay giữa chừng; **Tab** hoàn tất từ tiếng Anh đang gõ dở thành từ đầy đủ
-  theo từ điển dựng sẵn. Tắt toàn bộ bằng bỏ chọn "Khôi phục từ tiếng Anh khi
+  theo từ điển dựng sẵn (3000 từ tần suất cao nhất).
+
+  **Gợi ý hoàn tất từ tiếng Việt** (0.2.33, tắt mặc định): bật
+  `"suggest": { "enabled": true }` trong `config.v1.json` thì gõ dở một âm tiết
+  rồi nhấn **Tab** sẽ hoàn tất thành âm tiết tần suất cao nhất khớp tiền tố —
+  `ngư` + Tab → `ngưng`, giữ hoa đầu từ (`Ngư` + Tab → `Ngưng`). Tab không khớp
+  ứng viên nào thì đi qua cho ứng dụng (thụt lề, chuyển ô) như cũ. Tắt toàn bộ bằng bỏ chọn "Khôi phục từ tiếng Anh khi
   gõ sai"; **Từ điển EN...** để thêm từ riêng — từ bạn thêm thắng mọi phỏng
   đoán của engine (kể cả khi kết quả trùng từ Việt thông dụng như
   `cow`/`cơ`). Vị trí từng nền tảng: **Windows** Bảng điều khiển → "Từ điển

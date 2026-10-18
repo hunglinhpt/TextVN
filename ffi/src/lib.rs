@@ -167,6 +167,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         // `config.english_words[]` — danh sách từ EN giữ nguyên (opt-in, xem core/post/restore_en.rs)
         english_words: cfg.english_words.clone(),
         quick_telex: cfg.quick_telex,
+        suggest_vn_complete: cfg.suggest.enabled,
         output_charset: match cfg.output_charset {
             textvn_config::OutputCharset::UnicodePrecomposed => {
                 textvn_core::OutputCharset::UnicodePrecomposed

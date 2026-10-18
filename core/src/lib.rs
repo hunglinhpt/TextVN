@@ -113,6 +113,9 @@ pub struct EngineOptions {
     /// Quick Telex (OpenKey): `cc→ch gg→gi kk→kh nn→ng qq→qu pp→ph tt→th` ở phụ âm đầu.
     /// Chỉ áp cho Telex/Simple Telex (VNI/VIQR không gõ phụ âm đôi). Mặc định tắt.
     pub quick_telex: bool,
+    /// `config.suggest.enabled` (P0-3 §1.1) — Tab hoàn tất từ tiếng Việt
+    /// (`post/suggest_vn.rs`). Mặc định tắt: Tab giữ hành vi cũ (đi qua app).
+    pub suggest_vn_complete: bool,
     /// `config.output_charset` — bảng mã chữ đi ra document (`transform/charset.rs`).
     pub output_charset: OutputCharset,
 }
@@ -132,6 +135,7 @@ impl Default for EngineOptions {
             emoji: Vec::new(),
             english_words: Vec::new(),
             quick_telex: false,
+            suggest_vn_complete: false,
             output_charset: OutputCharset::UnicodePrecomposed,
         }
     }
@@ -372,6 +376,9 @@ impl Engine {
             keymap::vk::RETURN | keymap::vk::SPACE | keymap::vk::TAB => {
                 let c = k.printable().unwrap_or(' ');
                 if k.vk == keymap::vk::TAB {
+                    if let Some(out) = self.try_vn_complete(vi_on) {
+                        return out;
+                    }
                     if let Some(out) = self.try_english_complete(k, vi_on) {
                         return out;
                     }
@@ -582,6 +589,41 @@ impl Engine {
                 flags: FLAG_WORD_END,
             },
         }
+    }
+
+    /// **Tab gợi ý hoàn tất từ tiếng Việt** (`suggest.enabled` — 0.2.33): từ đang gõ
+    /// (phần hiển thị đã fold) là tiền tố nghiêm ngặt của một âm tiết tần suất cao
+    /// (`post/suggest_vn::complete_vn_word`) → thay toàn bộ từ bằng âm tiết hoàn
+    /// chỉnh và đóng từ. Gõ tắt (macro) có ưu tiên cao hơn (đã chạy trước trong
+    /// `key()`); Tab không khớp → đi qua cho app.
+    fn try_vn_complete(&mut self, vi_on: bool) -> Option<Outcome> {
+        if !vi_on || !self.opts.suggest_vn_complete {
+            return None;
+        }
+        if !self.word.active || self.word.display.len() < 2 {
+            return None;
+        }
+        let typed: String = self.word.display.iter().collect::<String>().to_lowercase();
+        let completion = post::suggest_vn::complete_vn_word(&typed)?;
+        let mut insert: Vec<char> = completion.chars().collect();
+        if self.word.raw.first().is_some_and(|c| c.is_uppercase()) {
+            if let Some(first) = insert.first_mut() {
+                if let Some(up) = first.to_uppercase().next() {
+                    *first = up;
+                }
+            }
+        }
+        let delete = self.word.owned as u16;
+        self.word.clear();
+        self.recent_replace(delete as usize, &insert);
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: delete,
+                insert,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+        })
     }
 
     /// **Tab gợi ý hoàn tất từ tiếng Anh** (2026-10-02): từ đang gõ đã bị
@@ -1143,6 +1185,62 @@ mod tests {
         let mut buf = type_buf(&mut e, "asdf");
         press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "àd "); // tắt option → giữ kết quả fold
+    }
+
+    /// Tab hoàn tất từ tiếng Việt (`suggest.enabled` — 0.2.33): mặc định TẮT
+    /// (Tab đi qua), bật thì tiền tố âm tiết → từ tần suất cao, giữ hoa đầu từ.
+    #[test]
+    fn vn_tab_complete() {
+        // Mặc định tắt: Tab không hoàn tất — đi qua như ranh giới thường.
+        let mut e = engine();
+        let mut buf = type_buf(&mut e, "nguw");
+        assert_eq!(text(&buf), "ngư");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "ngư\t", "suggest tắt → Tab đi qua");
+        assert!(!e.word.active, "Tab đóng từ");
+
+        // Bật: "nguw" → `ngư` + Tab → `ngưng` (từ ngắn nhất, hoà độ dài thì
+        // lấy mục đứng trước trong từ điển tần suất).
+        let mut e = Engine::new(EngineOptions {
+            suggest_vn_complete: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "nguw");
+        let action = press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "ngưng");
+        assert!(
+            matches!(action, Action::Replace { .. }),
+            "phải REPLACE toàn bộ từ"
+        );
+        assert!(!e.word.active, "hoàn tất xong phải đóng từ");
+
+        // Hoa đầu từ được giữ: "Nguw" + Tab → "Ngưng".
+        let mut e = Engine::new(EngineOptions {
+            suggest_vn_complete: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "Nguw");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "Ngưng");
+
+        // Tiền tố không khớp ứng viên nào → Tab đi qua (indent/chuyển ô).
+        let mut e = Engine::new(EngineOptions {
+            suggest_vn_complete: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "zz");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "zz\t");
+
+        // Viết tắt EN vẫn ưu tiên restore-EN: "tes" + Tab khi cả hai bật —
+        // `tés` không phải prefix âm tiết VN nào → rơi xuống gợi ý EN `test`.
+        let mut e = Engine::new(EngineOptions {
+            suggest_vn_complete: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "tes");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "test", "EN completion vẫn hoạt động");
     }
 
     /// Nhánh từ điển B5: danh sách từ EN do chủ gõ khai báo → `text` trả lại `text`

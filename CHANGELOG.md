@@ -36,6 +36,12 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   các fold có cách gõ khác (`cá`="cas", `sét`="sest", `đền`="ddenf"…) nhường EN.
 - Test hồi quy auto-restore EN (`core/tests/en_restore.rs`): từ EN phải tự
   correct tại dấu cách (user không phải xoá), cặp mơ hồ ghim giữ tiếng Việt.
+- **Tab hoàn tất từ tiếng Việt** (`suggest.enabled` — 0.2.33, **tắt mặc định**):
+  gõ dở một âm tiết + Tab → âm tiết tần suất cao nhất khớp tiền tố
+  (`ngư` + Tab → `ngưng`, giữ hoa đầu từ), từ 3000 âm tiết tần suất cao
+  (`data/vn_freq3000.txt` — nguồn hermitdave/FrequencyWords/OpenSubtitles qua
+  OPUS, lọc bằng `is_valid_word`). Tab không khớp → đi qua app như cũ; bật qua
+  `"suggest": { "enabled": true }` trong `config.v1.json` (schema P0-3 đồng bộ).
 
 ### Fixed
 - Ghim hành vi gõ tiếp sau Backspace dưới mặc định dấu cũ: `hòa` + BS → `hò`

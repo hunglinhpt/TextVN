@@ -36,7 +36,7 @@
 | `secure_fields` | `"always_pass"` | `"always_pass"` | **không cho đổi** (giữ S3) |
 | `diagnostics` | `{log_level:"error"\|"warn"\|"info"\|"debug", export_repro:false}` | `warn` | `export_repro` chỉ bật khi user bấm "Báo lỗi" — ghi **chuỗi phím đã ẩn danh hoá** |
 | `updates` | `{channel:"stable"\|"beta", auto:bool}` | stable, `true` | |
-| `suggest` | `{enabled:false, provider:"local_ngram", ollama:null}` | tắt hoàn toàn | opt-in, tắt mặc định |
+| `suggest` | `{enabled:false, provider:"local_ngram", ollama:null}` | tắt hoàn toàn | opt-in, tắt mặc định; `enabled` = Tab hoàn tất từ tiếng Việt (0.2.33, `post/suggest_vn.rs`) |
 
 `hotkeys` mặc định:
 ```json

@@ -116,6 +116,20 @@ pub struct Config {
     /// (`cc→ch gg→gi kk→kh nn→ng qq→qu pp→ph tt→th`). Chỉ Telex/Simple Telex; mặc định tắt.
     #[serde(default)]
     pub quick_telex: bool,
+    /// Gợi ý hoàn tất từ tiếng Việt bằng Tab (`post/suggest_vn.rs`). Cấu trúc
+    /// theo P0-3 §1.1 `"suggest": { "enabled": bool, … }` — chỉ `enabled` được
+    /// engine dùng; thiếu khoá = tắt (Tab giữ hành vi cũ).
+    #[serde(default)]
+    pub suggest: SuggestSettings,
+}
+
+/// Phần `"suggest"` của `config.v1.json` (P0-3 §1.1). Các trường khác trong
+/// spec (`provider`, `ollama`…) là tương lai — serde bỏ qua khoá lạ.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct SuggestSettings {
+    /// Bật Tab hoàn tất từ tiếng Việt. Mặc định `false`.
+    pub enabled: bool,
 }
 
 fn default_true() -> bool {
@@ -140,6 +154,7 @@ impl Default for Config {
             english_words: Vec::new(),
             show_dialog_on_startup: true,
             quick_telex: false,
+            suggest: SuggestSettings::default(),
         }
     }
 }
@@ -231,6 +246,20 @@ mod tests {
         assert_eq!(cfg.emoji.len(), 1);
         assert_eq!(cfg.emoji[0].trigger, ":smile");
         assert_eq!(cfg.emoji[0].glyph, "😊");
+    }
+
+    /// `suggest.enabled` (0.2.33): thiếu khoá = tắt; `true` bật; khoá lạ trong
+    /// `suggest` (`provider`, `ollama` — spec P0-3) bị bỏ qua, không lỗi schema.
+    #[test]
+    fn suggest_defaults_off_and_parses_enabled() {
+        let cfg = parse_config(r#"{"config_version":1}"#).unwrap();
+        assert!(!cfg.suggest.enabled, "thiếu khoá suggest = tắt");
+        let cfg = parse_config(
+            r#"{"config_version":1,"suggest":{"enabled":true,"provider":"local_ngram"}}"#,
+        )
+        .unwrap();
+        assert!(cfg.suggest.enabled, "enabled=true phải bật, khoá lạ bỏ qua");
+        assert!(!Config::default().suggest.enabled);
     }
 
     #[test]

@@ -10,3 +10,4 @@ pub mod emoji;
 pub mod r#macro;
 pub mod quick_telex;
 pub mod restore_en;
+pub mod suggest_vn;
