@@ -12,33 +12,38 @@ TextVN là bộ gõ tiếng Việt mã nguồn mở. Một engine Rust dùng chu
 (Text Services Framework), **macOS** (Input Method Kit) và **Linux** (IBus, Fcitx5),
 một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình trên cả ba nền tảng.
 
-- **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả
-  (`hoà`/`hòa`), `uow` → ươ, `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi
+- **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả —
+  **mặc định dấu cũ** (`hòa`, `thủy`, `khỏe`; đổi sang dấu mới `hoà`/`thuỷ` trong bảng
+  điều khiển), `uow` → ươ, `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi
   bật Caps Lock.
 - **Không mất chữ, không lặp chữ, không gạch chân**: cả từ nằm trong vùng soạn (composition/preedit)
-  với định dạng sạch không đường kẻ (TF_LS_NONE trên Windows TSF, tắt gạch chân trên Linux/macOS)
-  và chốt ở ranh giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
+  không đường kẻ (TF_LS_NONE trên Windows TSF; macOS gõ kiểu non-preedit sau cài; Fcitx5/IBus
+  không kềm gạch — chỉ Chromium/Electron/Qt trên Linux tự vẽ gạch phía app) và chốt ở ranh
+  giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
   trên Chrome, Electron, Excel, thanh địa chỉ.
 - **Tránh bị phần mềm diệt virus nhận nhầm**: gói mặc định không hook bàn phím toàn cục,
   không tiêm mã vào process khác, không giả lập phím bằng `SendInput`
   ([lý do](docs/specs/antivirus-false-positive.md)).
 - **Tiện ích**: bảng mã TCVN3/VNI Windows/Unicode tổ hợp, gõ tắt, Quick Telex, khôi phục từ
-  tiếng Anh, tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập nhật biểu tượng trạng thái.
+  tiếng Anh (từ điển 3000 từ tần suất cao), Tab hoàn tất từ — tiếng Anh luôn bật, tiếng Việt
+  bật qua `suggest.enabled` — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
+  nhật biểu tượng trạng thái.
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.32](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.32)**
+Bản mới nhất: **[GitHub Release v0.2.33](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.33)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.32 là đợt rà
-soát toàn hệ thống sau 0.2.31 (chi tiết: [CHANGELOG.md](CHANGELOG.md)): Linux hết lỗi đổi
-V/E rồi chuyển cửa sổ bị lật lại, Windows giữ tray khi lượt đăng xuất/khởi động lại bị huỷ
-và nâng cấp sạch hơn, bảng điều khiển + popup "Thông tin" giống hệt nhau trên cả 3 nền tảng;
-commit và tag phát hành có chữ ký git.
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.33 đổi
+**mặc định sau cài sang dấu cũ** trên cả 3 nền tảng (người dùng cũ giữ nguyên lựa chọn),
+thêm ma trận hồi quy 16 combo bảng mã × kiểu gõ, mở rộng từ điển tự khôi phục tiếng Anh
+lên 3000 từ tần suất (cân theo luật ưu tiên âm tiết Việt không có cách gõ khác) và thêm
+Tab hoàn tất từ tiếng Việt (tùy chọn `suggest.enabled`) — chi tiết:
+[CHANGELOG.md](CHANGELOG.md). Commit và tag phát hành có chữ ký git.
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -66,9 +71,9 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 
 | Tính năng | TextVN | Bộ gõ truyền thống |
 |---|---|---|
-| **Tự xác định EN/VI khi gõ chung đoạn văn** | Từ điển EN thông dụng + lưới bảo vệ âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
+| **Tự xác định EN/VI khi gõ chung đoạn văn** | Từ điển EN 3000 từ tần suất cao nhất + lưới bảo vệ âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
 | **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
-| **Tab gợi ý hoàn tất từ tiếng Anh** | Gõ dở `tes` → Tab thành `test` theo từ điển dựng sẵn + từ điển bổ sung cá nhân | Không có |
+| **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN, 3000 từ tần suất + từ điển bổ sung cá nhân, luôn bật); gõ dở `ngư` → Tab thành `ngưng` (tiếng Việt, 3000 âm tiết tần suất, bật qua `suggest.enabled`) | Không có |
 | **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
 | **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
 | **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |

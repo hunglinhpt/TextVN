@@ -1327,6 +1327,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.33]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...v0.2.33
 [0.2.32]: https://github.com/hunglinhpt/TextVN/compare/v0.2.31...v0.2.32
 [0.2.31]: https://github.com/hunglinhpt/TextVN/compare/v0.2.30...v0.2.31
 [0.2.30]: https://github.com/hunglinhpt/TextVN/compare/v0.2.29...v0.2.30

@@ -1,5 +1,17 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.33 — mặc định dấu cũ sau cài + ma trận 16 combo + từ điển EN top-3000 + Tab hoàn tất từ tiếng Việt
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Mặc định sau cài = bật gõ tiếng Việt + dấu cũ trên cả 3 nền tảng (người cũ giữ lựa chọn). Ma trận hồi quy 16 combo bảng mã × kiểu gõ (`core/tests/charset_matrix.rs`, anchor TCVN3/VNI cứng). Từ điển EN mở rộng top-3000 tần suất (en_common 31 → 104 mục, fixture `data/en_freq3000.txt`) với luật R2-56: 12 âm tiết Việt không-cách-gõ-khác thắng (`vn_common.txt`). Tab hoàn tất từ tiếng Việt (`suggest.enabled`, tắt mặc định — `core/src/post/suggest_vn.rs` + `data/vn_freq3000.txt`). Docs gạch chân mô tả đúng từng nền tảng |
+| Release | v0.2.33 publish từ tag ký GPG trỏ commit `2ab0a6d` — [release-candidate #39099475633](https://github.com/hunglinhpt/TextVN/actions/runs/39099475633) 4/4 job; **34 asset**; gate chữ ký git (commit + tag Verified) PASS |
+| CI trên commit gắn tag | push `main` `2ab0a6d` (Verified): [ci-shared #39099157511](https://github.com/hunglinhpt/TextVN/actions/runs/39099157511), [ci-windows #39099157553](https://github.com/hunglinhpt/TextVN/actions/runs/39099157553), [ci-linux #39099157596](https://github.com/hunglinhpt/TextVN/actions/runs/39099157596), [ci-macos #39099157540](https://github.com/hunglinhpt/TextVN/actions/runs/39099157540), [repo-hygiene #39099157445](https://github.com/hunglinhpt/TextVN/actions/runs/39099157445) — xanh cả 5. Lần đỏ đầu của vòng: `testDefaultConfig` macOS còn kỳ vọng dấu mới → sửa (commit `2d95e41`) |
+| Ký số | `gpg --verify` asset → Good signature (FPR `3921595A…A822`); hash tải về khớp `SHA256SUMS.txt` clearsign; hash kiểm lại từ raw `approved/v0.2.33/` byte-identical |
+| Checksums (pin từ `SHA256SUMS.txt` đã ký) | machine exe `ed9736ca…ec0f` · setup exe `0a72df47…f69a` · MSIX (nộp Store) `ee41ee1f…6162` · portable `7df8bcbd…2ede` · Linux `f40e7cc5…1721` · pkg `d4179bf2…98ed` · **mac zip `e1be0c53…8aac`** · mac tar.gz `ff5026ac…e5de` |
+| Homebrew (B7b) | cask `sha256` = mac zip `e1be0c53…8aac` |
+| approved (B7c) | `approved/v0.2.33/` — 34 file release + chữ ký, byte-identical với GitHub Release (hash kiểm từ raw URL) |
+
 ## Bản 0.2.32 — rà soát toàn hệ thống sau 0.2.31 (R2-101…R2-115) + CI từng nền tảng
 
 | Hạng mục | Bằng chứng |
