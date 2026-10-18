@@ -1,13 +1,23 @@
-# ci-aur.yml — QA gate cho gói AUR: build thật bằng makepkg trong container
-# Arch Linux (chính môi trường người dùng AUR sẽ chạy), đối chiếu .SRCINFO,
-# kiểm danh sách file của gói. Đỏ = không được đẩy lên AUR.
+# ci-aur.yml — QA gate cho gói AUR, chạy trên CÂY HIỆN TẠI (bắt lỗi build
+# trước khi release, ví dụ R2-117: header Fcitx5 6.x cần C++20 — tag cũ chết).
+#
+# Hai lớp:
+#  1. Metadata AUR: .SRCINFO khớp `makepkg --printsrcinfo` của PKGBUILD gốc.
+#  2. Build thật: tạo source archive từ checkout (giống bố cục archive GitHub —
+#     thư mục gốc TextVN-<ver>), sao PKGBUILD đổi 1 dòng `source` sang file
+#     cục bộ + hash thật rồi makepkg -f — cùng các bước build/check/package
+#     như người dùng AUR sẽ chạy. PKGBUILD gốc không đổi (AUR vẫn trỏ GitHub;
+#     hash pin của tag archive là việc B7e sau khi tag).
 name: ci-aur
 
 on:
   push:
     paths:
       - 'packaging/arch/**'
-      - 'scripts/stage-linux.sh'
+      - 'adapters/**'
+      - 'core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - '.github/workflows/ci-aur.yml'
   pull_request:
     paths:
@@ -31,8 +41,6 @@ jobs:
         uses: actions/checkout@v4
 
       # makepkg từ chối chạy bằng root → user builder với HOME riêng.
-      # PKGBUILD/.SRCINFO phải nằm ở working dir của makepkg (không chạy root
-      # trong cây checkout — makepkg chown/git-sao-lưu của action thì được).
       - name: Build bằng makepkg (user thường)
         run: |
           useradd -m builder
@@ -40,10 +48,22 @@ jobs:
           mkdir -p /home/build/pkg
           cp /home/build/packaging/arch/PKGBUILD /home/build/packaging/arch/.SRCINFO /home/build/pkg/
           chown -R builder:builder /home/build
-          cd /home/build/pkg
+          VERSION=$(sed -n 's/^pkgver=//p' /home/build/pkg/PKGBUILD | head -n1)
+          cd /home/build
+          # Source archive cục bộ bố cục giống GitHub: thư mục gốc TextVN-<ver>.
+          git archive --format=tar.gz --prefix="TextVN-$VERSION/" HEAD \
+            -o "pkg/textvn-$VERSION.tar.gz"
+          REAL_SHA=$(sha256sum "pkg/textvn-$VERSION.tar.gz" | cut -d' ' -f1)
+          # Bản sao PKGBUILD dùng archive cục bộ (1 dòng khác — PKGBUILD AUR gốc
+          # vẫn trỏ GitHub tag). makepkg thấy source file sẵn trong dir → không tải.
+          sed -i \
+            -e "s|^source=.*|source=(\"textvn-$VERSION.tar.gz\")|" \
+            -e "s|^sha256sums=.*|sha256sums=('$REAL_SHA')|" \
+            pkg/PKGBUILD
+          cd pkg
           sudo -u builder makepkg -f --noconfirm
 
-      - name: .SRCINFO khớp `makepkg --printsrcinfo`
+      - name: .SRCINFO khớp `makepkg --printsrcinfo` (PKGBUILD AUR gốc)
         run: |
           cd /home/build/pkg
           sudo -u builder makepkg --printsrcinfo > /tmp/generated.srcinfo
@@ -54,7 +74,7 @@ jobs:
 
       - name: Gói có đủ file then chốt
         run: |
-          cd /home/build
+          cd /home/build/pkg
           PKG=$(ls textvn-*.pkg.tar.zst | head -n1)
           pacman -Qlp "$PKG" > /tmp/pkg-files.txt
           for f in \
@@ -76,8 +96,8 @@ jobs:
 
       - name: Đối chiếu version gói = Cargo.toml
         run: |
-          CARGO_VER=$(sed -n 's/^version = "\(.*\)".*/\1/p' Cargo.toml | head -n1)
-          PKG_VER=$(ls /home/build/textvn-*.pkg.tar.zst | sed -E 's#.*/textvn-([^-]+)-.*#\1#')
+          CARGO_VER=$(sed -n 's/^version = "\(.*\)".*/\1/p' /home/build/Cargo.toml | head -n1)
+          PKG_VER=$(ls /home/build/pkg/textvn-*.pkg.tar.zst | sed -E 's#.*/textvn-([^-]+)-.*#\1#')
           [ "$CARGO_VER" = "$PKG_VER" ] || {
             echo "::error::PKGBUILD version $PKG_VER ≠ Cargo.toml $CARGO_VER"; exit 1;
           }
@@ -86,5 +106,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: textvn-aur-package
-          path: /home/build/textvn-*.pkg.tar.zst
+          path: /home/build/pkg/textvn-*.pkg.tar.zst
           if-no-files-found: error
