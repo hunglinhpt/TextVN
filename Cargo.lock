@@ -125,6 +125,7 @@ name = "textvn-cli"
 version = "0.2.34"
 dependencies = [
  "serde_json",
+ "textvn-assist",
  "textvn-config",
  "textvn-ffi",
  "textvn-ipc",

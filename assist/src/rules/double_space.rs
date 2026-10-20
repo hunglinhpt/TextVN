@@ -28,7 +28,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: token.start + 1,
                 end: token.end,
             },
-            "Khoang trang kep".to_string(),
+            "Khoảng trắng kép".to_string(),
             vec![" ".to_string()],
             Fix::Delete {
                 start: token.start + 1,

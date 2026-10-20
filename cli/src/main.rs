@@ -5,6 +5,7 @@
 //! `config init|validate|default` (P0-1 §2, P0-3 §1), `doctor`. `register` (TIP) thuộc
 //! WIN-003/WIN-010+ (cần Windows API) và `doctor --export` thuộc WIN-058 — chưa có.
 
+mod assist;
 mod doctor;
 mod register;
 mod replay;
@@ -27,6 +28,8 @@ Usage:
   textvn-cli unregister [--scope user|machine] [--if-owned-by <dir>] # hủy đăng ký TSF TIP (--if-owned-by: chỉ khi TIP thuộc <dir>)
   textvn-cli activate                                      # kích hoạt profile TextVN cho phiên hiện tại (tray gọi sau Ctrl+Shift)
   textvn-cli schedule-delete <path...>                     # xoá ngay hoặc hẹn xoá trước lần khởi động kế tiếp (uninstaller dùng cho DLL bị khoá)
+  textvn-cli assist check "<câu>" [--json] [--fix] [--sentence]  # kiểm tra câu tiếng Việt offline (P4-1); --fix = áp lỗi objective, --sentence = coi chuỗi là câu trọn vẹn
+  textvn-cli assist check --file <path> [--json] [--fix]  # kiểm tra nội dung file
   textvn-cli --help
 
 Exit codes:
@@ -37,6 +40,7 @@ Exit codes:
   doctor     : 0 mọi check pass · 1 có check fail · 2 lỗi xuất file
   register   : 0 thành công · 1 lỗi đăng ký/không thấy file · 2 lỗi dùng · 3 cần quyền Administrator / DLL ngoài Program Files (--scope machine)
   unregister : 0 thành công (kể cả bỏ qua vì TIP thuộc bản khác với --if-owned-by) · 1 lỗi hủy · 2 lỗi dùng
+  assist     : 0 câu sạch · 1 có lỗi · 2 lỗi dùng/tham số/thiếu đối số
 "#;
 
 fn main() {
@@ -53,6 +57,7 @@ fn main() {
         Some("schedule-delete") => exit(register::schedule_delete(
             &args[2..].iter().map(|s| s.to_string()).collect::<Vec<_>>(),
         )),
+        Some("assist") => exit(assist::cmd_assist(&args[2..])),
         Some("--help") | Some("-h") => print!("{USAGE}"),
         Some(other) => {
             eprintln!("error: lệnh lạ `{other}`");

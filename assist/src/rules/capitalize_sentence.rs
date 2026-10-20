@@ -44,7 +44,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: token.start,
                 end: token.start + first.len_utf8(),
             },
-            "Chu thuong o dau cau".to_string(),
+            "Chữ thường ở đầu câu".to_string(),
             vec![upper.clone()],
             Fix::Replace {
                 start: token.start,

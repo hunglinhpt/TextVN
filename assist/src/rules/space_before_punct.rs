@@ -32,7 +32,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: prev.start,
                 end: prev.end,
             },
-            "Thua khoang trang truoc dau cau".to_string(),
+            "Thừa khoảng trắng trước dấu câu".to_string(),
             vec![ctx.token_text(&punct)],
             Fix::Delete {
                 start: prev.start,

@@ -53,7 +53,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: token.start,
                 end: token.end,
             },
-            format!("Sai vi tri dau: \"{text}\" → \"{fixed}\""),
+            format!("Sai vị trí dấu: \"{text}\" → \"{fixed}\""),
             vec![fixed.clone()],
             Fix::Replace {
                 start: token.start,

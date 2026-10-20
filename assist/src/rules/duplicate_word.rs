@@ -36,7 +36,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: cur.start,
                 end: cur.end,
             },
-            format!("Lap tu: \"{cur_text}\""),
+            format!("Lặp từ: \"{cur_text}\""),
             vec![prev_text],
             Fix::Delete {
                 start: gap.start,

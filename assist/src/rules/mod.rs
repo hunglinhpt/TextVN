@@ -9,6 +9,7 @@ pub mod capitalize_sentence;
 pub mod diacritic_typo;
 pub mod double_space;
 pub mod duplicate_word;
+pub mod language;
 pub mod space_after_punct;
 pub mod space_before_punct;
 
@@ -76,6 +77,7 @@ pub(crate) fn issue(
         message,
         suggestions,
         auto_fixable: true,
+        confidence: 100,
         fix: Some(fix),
     }
 }

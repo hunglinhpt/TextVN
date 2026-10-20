@@ -1,0 +1,86 @@
+# corpus/assist/vi_basic.ass - câu tiếng Việt + lỗi mong đợi (P4-1, Fassist-43)
+# Định dạng: <câu>\t<kind1,kind2,...>   (cột kinds rỗng = câu sạch)
+# kind: duplicate_word | space_before_punct | space_after_punct | double_space
+#       | lowercase_sentence_start | diacritic_typo
+# Ghi chú: câu được kiểm tra như FRAGMENT (check) - ký tự đầu đoạn KHÔNG coi
+# là đầu câu thật; để test "hoa đầu câu" hãy viết "Xin chào. bạn khỏe không".
+# L0: câu không phải tiếng Việt (tỷ lệ từ có dấu < 50%) bị bỏ qua → 0 lỗi.
+# Test: assist/tests/corpus.rs (chạy CI 3 OS).
+#
+# --- nhom: lap tu (L1/L2/L11) ---
+tôi tôi đi học	duplicate_word
+của của nhà này	duplicate_word
+đã đã xong việc rồi	duplicate_word
+rất rất đẹp	duplicate_word
+anh ấy nói nói thật	duplicate_word
+chúng ta đi đi về nhé	duplicate_word
+tôi có có một câu hỏi	duplicate_word
+sao lại lại thế	duplicate_word
+nó vẫn vẫn còn ở đó	duplicate_word
+anh ấy nói nói thật với tôi	duplicate_word
+# --- nhom: khoang trang thua truoc dau cau (L3) ---
+xin chào , bạn	space_before_punct
+tôi đi học .	space_before_punct
+bạn khỏe không ?	space_before_punct
+cảm ơn bạn !	space_before_punct
+hẹn gặp lại ;	space_before_punct
+đây là điều đó :	space_before_punct
+anh ấy đến rồi .	space_before_punct
+tôi về nhà , nghỉ ngơi thôi	space_before_punct
+# --- nhom: thieu khoang trang sau dau cau (L4) ---
+xin chào,bạn	space_after_punct
+tôi đi,về nhà	space_after_punct
+bạn khỏe không?vậy	space_after_punct
+cảm ơn bạn!mình đi	space_after_punct
+hẹn gặp lại;mai vậy	space_after_punct
+đây là điều đó:quan trọng	space_after_punct
+# --- nhom: khoang trang kep (L5) ---
+xin  chào bạn	double_space
+tôi  đi  học	double_space,double_space
+rất  đẹp	double_space
+hôm  nay	double_space
+# --- nhom: chu thuong dau cau (L6) ---
+Xin chào. bạn khỏe không	lowercase_sentence_start
+Tôi đi học. chiều nay về chứ	lowercase_sentence_start
+Học xong. tôi về nhà	lowercase_sentence_start
+Vậy rồi. đi thôi	lowercase_sentence_start
+Xin lỗi. tôi đến muộn	lowercase_sentence_start
+# --- nhom: sai vi tri dau (L8) ---
+tôi nghiã kho	diacritic_typo
+cuả nha tôi	diacritic_typo
+tiêng viet đẹp	diacritic_typo
+yểu nói nào	diacritic_typo
+fải đúng không	diacritic_typo
+nhứng người ấy	diacritic_typo
+trương học	diacritic_typo
+quyến sách	diacritic_typo
+nguyến Văn A	diacritic_typo
+# --- nhom: cau sach (khong loi) ---
+Tôi đi học ở trường Đại học Bách Khoa.
+Chào bạn, hôm nay thế nào?
+Rất vui được gặp lại bạn.
+Tôi nghĩa kho đúng rồi.
+Xin chào. Bạn khỏe không?
+Hôm nay tôi làm việc ở văn phòng.
+Anh ấy nói thật với tôi.
+Chúng ta cùng đi học nhé.
+Tôi sẽ gọi cho bạn vào ngày mai.
+Văn bản này rất dễ hiểu.
+Cảm ơn bạn rất nhiều.
+Số 3,5 là số thập phân.
+Phiên bản 2.0 mới nhất.
+Buổi sáng tôi uống cà phê.
+Trời hôm nay mát mẻ.
+Chúng tôi cần trao đổi thêm thông tin.
+# --- nhom: cau tieng Anh (L0 - bo qua, khong bao loi) ---
+this is a test.
+Hello world.
+I am going to the office.
+We should meet tomorrow.
+# --- nhom: URL/email (mask - khong bao loi) ---
+xem https://example.com/a.b nhe
+ghi cho abc@x.vn nha
+# --- nhom: nhom loi (nhieu loai trong 1 cau) ---
+tôi tôi đi học , mai	duplicate_word,space_before_punct
+xin chào,ban  khỏe .	space_after_punct,double_space,space_before_punct
+tôi  đi  học , mai	double_space,double_space,space_before_punct

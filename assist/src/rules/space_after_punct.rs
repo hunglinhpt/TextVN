@@ -28,7 +28,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 start: punct.start,
                 end: punct.end,
             },
-            "Thieu khoang trang sau dau cau".to_string(),
+            "Thiếu khoảng trắng sau dấu câu".to_string(),
             vec![format!("{} ", ctx.token_text(&punct))],
             Fix::Insert {
                 at: punct.end,

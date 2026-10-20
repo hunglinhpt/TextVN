@@ -97,6 +97,9 @@ pub struct Issue {
     pub suggestions: Vec<String>,
     /// Co sua duoc tu dong hay khong.
     pub auto_fixable: bool,
+    /// Diem tin cay 0-100 (P4-0 D28): luat objective = 100; v2 se co luat mo
+    /// ho voi diem thap de khong auto-fix.
+    pub confidence: u8,
     /// Cach sua tu dong (`None` = chi goi y, khong tu sua).
     pub fix: Option<Fix>,
 }
@@ -120,6 +123,11 @@ pub fn check_sentence(text: &str) -> Vec<Issue> {
 }
 
 fn check_with(text: &str, start_of_sentence: bool) -> Vec<Issue> {
+    // L0 (D16): cau khong phai tieng Viet -> bo qua toan bo (v1 khong ho tro
+    // tieng Anh, D9) de khong bao dong gia.
+    if !rules::language::is_vietnamese(text) {
+        return Vec::new();
+    }
     let ctx = rules::Ctx::new(text, start_of_sentence);
     let mut issues = Vec::new();
     rules::duplicate_word::check(&ctx, &mut issues);
@@ -159,5 +167,25 @@ mod tests {
     #[test]
     fn cau_rong_khong_loi() {
         assert!(check("").is_empty());
+    }
+
+    #[test]
+    fn check_sentence_hoa_dau_cau() {
+        // Câu trọn vẹn -> ký tự đầu là đầu câu thật (Fassist-51).
+        assert_eq!(
+            kinds_sentence("Xin chào. bạn khỏe không"),
+            vec![IssueKind::LowercaseSentenceStart]
+        );
+        // Câu bắt đầu bằng chữ thường: ở chế độ "câu trọn vẹn" cả đầu câu
+        // đầu tiên cũng được coi là đầu câu thật.
+        assert_eq!(kinds_sentence("xin chào. bạn khỏe không").len(), 2);
+        // Fragment -> ký tự đầu KHÔNG coi là đầu câu.
+        assert!(check("xin chào. bạn khỏe không")
+            .iter()
+            .all(|i| i.kind != IssueKind::LowercaseSentenceStart || i.span.start > 0));
+    }
+
+    fn kinds_sentence(text: &str) -> Vec<IssueKind> {
+        check_sentence(text).into_iter().map(|i| i.kind).collect()
     }
 }
