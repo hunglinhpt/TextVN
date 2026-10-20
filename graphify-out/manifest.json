@@ -24,15 +24,15 @@
     "semantic_hash": ""
   },
   "cli/Cargo.toml": {
-    "mtime": 1791617098.2707033,
-    "seen": 1791702628.1795223,
-    "ast_hash": "fc21552de8b1a97592b5793e02e3270d",
+    "mtime": 1792513240.0036237,
+    "seen": 1792514363.0429678,
+    "ast_hash": "edb8194d0c4cc6a5cab48455b6f0610a",
     "semantic_hash": ""
   },
   "cli/src/main.rs": {
-    "mtime": 1791617098.2717097,
-    "seen": 1791702628.1795223,
-    "ast_hash": "c889808ed43d431aa218fffd5973427e",
+    "mtime": 1792513240.0036237,
+    "seen": 1792514363.0439677,
+    "ast_hash": "6e95622ac8ee51fc1b4cefeb78881efd",
     "semantic_hash": ""
   },
   "cli/src/replay.rs": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1792511462.4228046,
-    "seen": 1792511887.5033042,
-    "ast_hash": "f0bbcdad1a7294204f1c1bc704ec7dec",
+    "mtime": 1792514313.6656904,
+    "seen": 1792514363.1691844,
+    "ast_hash": "31d60003ff780b38c7c50feeaa7aa36d",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -594,9 +594,9 @@
     "semantic_hash": ""
   },
   "docs/adr/README.md": {
-    "mtime": 1792511401.9047186,
-    "seen": 1792511887.5248632,
-    "ast_hash": "997f8e52c7240beacaebe266f62a8537",
+    "mtime": 1792513014.8124342,
+    "seen": 1792514363.187159,
+    "ast_hash": "f607ec9255edf43da05b416d805c9bb1",
     "semantic_hash": ""
   },
   "docs/compat.md": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1790578561.5410082,
-    "seen": 1790578955.3561072,
-    "ast_hash": "be0fc7ebb122fa50b24e50512e16bc4b",
+    "mtime": 1792513014.8124342,
+    "seen": 1792514363.2047267,
+    "ast_hash": "51724f1585cd66e6ba76ef88ccaa44b7",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -2358,15 +2358,15 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-0-MASTER-PLAN.md": {
-    "mtime": 1792511376.0683525,
-    "seen": 1792511887.5248632,
-    "ast_hash": "d5150350662dc0abfd9f6b3cf385c338",
+    "mtime": 1792514304.1593633,
+    "seen": 1792514363.187159,
+    "ast_hash": "f2553b1bbfcda78a05b1bb12a4b8022c",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-1-harper-evaluation.md": {
-    "mtime": 1792511394.314182,
-    "seen": 1792511887.5248632,
-    "ast_hash": "6dd187ee13fd0475ff43b690b428e81b",
+    "mtime": 1792512945.253708,
+    "seen": 1792514363.187159,
+    "ast_hash": "5d25748f0e6d227f75fe8b8cbd881f21",
     "semantic_hash": ""
   },
   "assist/Cargo.toml": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "assist/src/lib.rs": {
-    "mtime": 1792511261.8450146,
-    "seen": 1792511887.3763185,
-    "ast_hash": "179c6ed8b4799f017ea1004078b9032b",
+    "mtime": 1792513499.0806623,
+    "seen": 1792514363.0409718,
+    "ast_hash": "2fb0357f5870c4b6c9f64dd45201c58f",
     "semantic_hash": ""
   },
   "assist/src/mask.rs": {
@@ -2394,51 +2394,87 @@
     "semantic_hash": ""
   },
   "assist/src/rules/capitalize_sentence.rs": {
-    "mtime": 1792511267.3697982,
-    "seen": 1792511887.3763185,
-    "ast_hash": "8d2862fd27d7bb22fa85a1bb9138d763",
+    "mtime": 1792513301.6079779,
+    "seen": 1792514363.0419674,
+    "ast_hash": "1841112e410f702b511cd7f43baffc8d",
     "semantic_hash": ""
   },
   "assist/src/rules/diacritic_typo.rs": {
-    "mtime": 1792511267.3697982,
-    "seen": 1792511887.3763185,
-    "ast_hash": "2053f38d61f9e70b714b23e7010f8929",
+    "mtime": 1792513301.606969,
+    "seen": 1792514363.0419674,
+    "ast_hash": "e06d0eca00bb1439c72fc0e3ceddcbdf",
     "semantic_hash": ""
   },
   "assist/src/rules/double_space.rs": {
-    "mtime": 1792510929.1472633,
-    "seen": 1792511887.3763185,
-    "ast_hash": "eaf9d3aa3762acada81a70b340fd1129",
+    "mtime": 1792513301.6079779,
+    "seen": 1792514363.0419674,
+    "ast_hash": "25e403b3ccec91fe227cc9ce91c61f5b",
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1792511267.3707986,
-    "seen": 1792511887.3763185,
-    "ast_hash": "7e417d4bbd417138d1cb77876afc039e",
+    "mtime": 1792513293.4348173,
+    "seen": 1792514363.0419674,
+    "ast_hash": "d2e379b444413e43079027b044df6bb3",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1792511249.6782222,
-    "seen": 1792511887.3763185,
-    "ast_hash": "0cb14e445435c439561150030d9d2b57",
+    "mtime": 1792513131.8850796,
+    "seen": 1792514363.0419674,
+    "ast_hash": "d2011c81ecd4f2ae097eb41d7bf1c0a7",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
-    "mtime": 1792510929.1472633,
-    "seen": 1792511887.3763185,
-    "ast_hash": "31b2037e26778568d868dee1f1694977",
+    "mtime": 1792513293.4357965,
+    "seen": 1792514363.0419674,
+    "ast_hash": "6cb0abd711c7aa58ae42454b2a2e2a5d",
     "semantic_hash": ""
   },
   "assist/src/rules/space_before_punct.rs": {
-    "mtime": 1792510912.0402243,
-    "seen": 1792511887.3763185,
-    "ast_hash": "ccae8152876a252918b93c0c36a93dfb",
+    "mtime": 1792513293.4338136,
+    "seen": 1792514363.0419674,
+    "ast_hash": "3b31131ce4da2def1b01e1b9e601d71f",
     "semantic_hash": ""
   },
   "assist/src/tokenize.rs": {
     "mtime": 1792510883.1094458,
     "seen": 1792511887.3763185,
     "ast_hash": "0306bceeec9aa4ddda4eaee54ba7d224",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/language.rs": {
+    "mtime": 1792513368.5170717,
+    "seen": 1792514363.0419674,
+    "ast_hash": "665d69ef01f328265b138860e9e6233e",
+    "semantic_hash": ""
+  },
+  "assist/tests/corpus.rs": {
+    "mtime": 1792513368.520096,
+    "seen": 1792514363.0419674,
+    "ast_hash": "785d9dff377974ee39906fe935cd5ff4",
+    "semantic_hash": ""
+  },
+  "cli/src/assist.rs": {
+    "mtime": 1792514211.1975014,
+    "seen": 1792514363.0429678,
+    "ast_hash": "eb7a1f0b873de50716effb8656800bba",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-2-CROSS-REVIEW-2026-10-20.md": {
+    "mtime": 1792512912.2258732,
+    "seen": 1792514363.187159,
+    "ast_hash": "96bc6f63327b87bbe9d5b3b3ea8bc123",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-3-SPIKES.md": {
+    "mtime": 1792514263.961079,
+    "seen": 1792514363.187159,
+    "ast_hash": "94a50aaf5045a48f6f361c70d8d6da30",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-TASKS.md": {
+    "mtime": 1792514304.1593633,
+    "seen": 1792514363.187159,
+    "ast_hash": "7944b326d561fca32fee0a64995c9196",
     "semantic_hash": ""
   }
 }
