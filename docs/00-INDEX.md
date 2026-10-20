@@ -23,8 +23,10 @@
 | **1 — Windows** | `20-windows/P1-*.md` | ✅ Reviewed | 2/2 → `20-windows/P1-REVIEW-LOG.md` |
 | **2 — macOS** | `30-macos/P2-*.md` | ✅ Reviewed | 2/2 → `30-macos/P2-REVIEW-LOG.md` |
 | **3 — Linux** | `40-linux/P3-*.md` | ✅ Reviewed | 2/2 → `40-linux/P3-REVIEW-LOG.md` |
+| **4 — Trợ lý ngữ pháp (Assist)** | `50-assist/P4-*.md` | 📋 Kế hoạch (chưa triển khai) | 0/2 → `50-assist/P4-REVIEW-LOG.md` (chưa tạo) |
 
 > Quy tắc: **không bắt đầu phần N+1 khi phần N chưa đạt 2/2 review.**
+> Ngoại lệ: **Phần 4 (Assist)** là phần mở rộng *tùy chọn* nâng cấp backlog `S1`/`S2` (`PLAN.md` §2.3) — không chặn v1.0 (M4/M5), có thể làm song song sau khi P0–P3 đóng.
 
 ## 2. Thứ tự đọc cho agent mới (bắt buộc)
 
@@ -276,3 +278,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `scripts/`: `build-macos.sh` (Universal lipo arm64+x86_64), `install_macos.sh`, `uninstall_macos.sh`.
   - `corpus/mac`: 114/114 test sequences pass 100%, đồng bộ tuyệt đối với `xtask/src/mac_corpus_cases.rs`.
   - Review 4 vòng (Round 1..4): 40/40 findings xử lý triệt để (0 blocker, 0 major) → `docs/30-macos/P2-REVIEW-LOG.md`.
+- 2026-10-20: **Phần 4 — Trợ lý ngữ pháp (Assist) — kế hoạch + đánh giá Harper** (audit 2 vòng, 12 finding `Fassist-1..12`):
+  - `docs/50-assist/P4-1-harper-evaluation.md`: đánh giá `Automattic/harper` (Apache-2.0, 16.9k★, push 2026-10-20) theo 6 vai trò PO/BA/SA/QA/Audit/Design — kết luận **không vendor `harper-core`** (chỉ hỗ trợ tiếng Anh; crates.io stale ~27 tháng) → **mượn kiến trúc** (Document/Token/Span/Lint + DSL pattern) để tự viết luật tiếng Việt; so sánh 7 phương án (tự viết 28/30 vs LanguageTool 8/30 vs LLM cloud 9/30).
+  - `docs/50-assist/P4-0-MASTER-PLAN.md`: 2 chế độ (Mode 1 highlight/gợi ý → Mode 2 tự sửa cả câu) trigger `space`/`,`/`.`; kiến trúc crate `assist/` (thuần, không I/O, không network, không sinh tiến trình mới — giữ đúng `antivirus-false-positive.md` §8) + overlay cạnh con trỏ 3 OS + tái dùng `strategy::SelectionReplace`; 12 luật tiếng Việt (chỉ luật objective mới auto-fix); 6 pha P4-1…P4-6 (~13–16 tuần); DoD theo handbook 7 mục + perf gate theo `PLAN.md` §5.5.
+  - User chốt 4 quyết định phạm vi (2026-10-20): highlight trước → auto sau · tự viết luật VN mượn kiến trúc Harper · tự xây từ điển từ nguồn mở (kiểm tra license) · overlay cạnh con trỏ (không gạch chân thật trong field).
+  - Cập nhật `PLAN.md` §2.3: S1/S2 trỏ sang Phần 4, C1 = hướng v2.x của Phần 4.

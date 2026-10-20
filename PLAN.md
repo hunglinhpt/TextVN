@@ -116,14 +116,14 @@
 - M10. Docs: cài đặt, góp lỗi, compatibility matrix public.
 
 **Should (v1.x):**
-- S1. Chính tả offline (âm tiết: âm đầu–vần–phụ âm cuối–than) + gạch đỏ trên mọi OS.
-- S2. Gợi ý từ (offline n-gram/trie) — không AI bắt buộc.
+- S1. Chính tả offline (âm tiết: âm đầu–vần–phụ âm cuối–than) + gạch đỏ trên mọi OS. → **nâng cấp thành Phần 4** (`docs/50-assist/`: trợ lý ngữ pháp 2 chế độ — highlight lỗi + tự sửa cả câu)
+- S2. Gợi ý từ (offline n-gram/trie) — không AI bắt buộc. → gộp vào **Phần 4** (gợi ý mức câu + từ)
 - S3. Hỗ trợ bàn phím vật lý đa quốc gia (Telex gõ được trên layout Pháp/Đức…), CapsLock as Fn.
 - S4. Preset update channel (data-only release).
 - S5. Game mode Windows (hook) + UIAccess cho app elevated.
 
 **Could (v2):**
-- C1. Gợi ý AI **local** (Ollama) opt-in.
+- C1. Gợi ý AI **local** (Ollama) opt-in. → hướng **v2.x** của Phần 4 (`docs/50-assist/`), không nằm trong đường chính (P2: không network)
 - C2. Hán-Nôm (theo âm Việt/Pinyin/góc bốn) kế thừa ý tưởng WinVNKey.
 - C3. Đa ngôn ngữ (Pháp, Nga, Pinyin…) như WinVNKey.
 - C4. Learning từ điển người dùng (local, opt-in).
