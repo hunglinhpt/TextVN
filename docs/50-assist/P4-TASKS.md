@@ -13,10 +13,10 @@
 | P4-1b | AS-007…010 | Spike **S1** TSF candidate list · **S2** caret 3 OS · **S3** từ điển VN | ✅ **xong** → `P4-3-SPIKES.md` |
 | P4-1b+ | AS-011 | Spike **S4a** per-process RSS/binary/p95 (chặn P4-4) · **S4b** harper-core/EN (v2) | ✅ **xong** (S4a: RSS 8,86 MB · exe 993 KB · 0,52 ms/câu) |
 | P4-1c | AS-012…014 | Patch docs cross-review: Fassist-32 (tiền đề) · 33/34 (wording) · 37 (verified-ops) | ✅ xong |
-| P4-2a | AS-020 | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ⬜ chưa làm |
-| P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | ⬜ chưa làm |
-| P4-3 | AS-030…036 | Candidate list Windows (`ITfCandidateListUI`) + A2 (sửa 1 từ) + precondition | ⬜ chưa làm |
-| P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit · provider OS dùng được khi `vi` có sẵn | ⬜ chưa làm |
+| **P4-2a** | **AS-020** | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ✅ **xong** (2026-10-21) |
+| P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | 🔄 **đang làm** (Agent Core) |
+| P4-3 | AS-030…036 | Candidate list Windows (`ITfCandidateListUI`) + A2 (sửa 1 từ) + precondition | ⬜ chờ nhận (Agent Windows/TSF) |
+| P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ⬜ chờ nhận (Agent Dict/Data) |
 | P4-5 | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ⬜ chưa làm |
 | P4-6 | AS-060…068 | Parity macOS/Linux + settings 3 OS + `ui-spec` | ⬜ chưa làm |
 
@@ -33,25 +33,26 @@
 
 **Ghi chú ngôn ngữ:** thông điệp người dùng **có dấu tiếng Việt** (chuẩn UI của repo) — khác với comment code (ASCII) → finding Fassist-46.
 
-## Task mở (chi tiết acceptance)
+## Task mở (chi tiết acceptance & phân công Agent)
 
-| ID | Task | Acceptance | Phụ thuộc |
-|---|---|---|---|
-| AS-007 | **S1** — TSF: mở candidate list **sau khi commit** | Kết luận viết ra + bằng chứng (log/screenshot) | — |
-| AS-008 | **S2** — đọc **vị trí caret** 3 OS (`ITfContext::GetSelection` / `AXRange` / AT-SPI `TextCaret`) | Kết luận + code mẫu | — |
-| AS-009 | **S3** — khảo sát ≥ 3 nguồn từ điển VN (license + kích thước + chất lượng) | `docs/specs/assist-dictionary-survey.md` | — |
-| AS-010 | **S4a** — đo per-process RSS/binary/p95 (Windows thật) | RSS ≤ +5 MB · binary ≤ +3 MB · p95 ≤ 2 ms | AS-002 |
-| AS-011 | **S4b** — khảo sát `harper-core`/EN (v2, **không chặn v1**) | Kết luận + khuyến nghị | — |
-| AS-020 | Refactor `core` buffer | 13 call site → 2 helper; `Engine.sentence` (Unicode ≤256, chỉ bật khi `assist.mode != off`); `Engine::glyph_len_of`; **không** đổi hành vi gõ | ADR-013 |
-| AS-021 | FFI `ime_assist_*` (C-ABI) + header + `textvn-cli verify` | Drift 0 (ADR-023) | AS-020 |
-| AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11) | AS-021 |
-| AS-023 | Toast/tray notification + kill-switch 1 bước | Tắt được ngay, không cần mở app | AS-022 |
-| AS-030 | `ITfCandidateListUI` (Windows) | Panel hiện cạnh con trỏ, không chiếm focus | AS-007 |
-| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 |
-| AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit | AS-009 + AS-010 |
-| AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 |
-| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 |
-| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · `ui-spec` + `parity-checklist` cập nhật | AS-050 |
+| ID | Task | Acceptance | Phụ thuộc | Agent phân công | Trạng thái |
+|---|---|---|---|---|---|
+| AS-007 | **S1** — TSF: mở candidate list **sau khi commit** | Kết luận viết ra + bằng chứng (log/screenshot) | — | Agent Windows | ✅ xong (`P4-3-SPIKES.md`) |
+| AS-008 | **S2** — đọc **vị trí caret** 3 OS (`ITfContext::GetSelection` / `AXRange` / AT-SPI `TextCaret`) | Kết luận + code mẫu | — | Agent Platform | ✅ xong (`P4-3-SPIKES.md`) |
+| AS-009 | **S3** — khảo sát ≥ 3 nguồn từ điển VN (license + kích thước + chất lượng) | `docs/specs/assist-dictionary-survey.md` | — | Agent Dict | ✅ xong (`P4-3-SPIKES.md`) |
+| AS-010 | **S4a** — đo per-process RSS/binary/p95 (Windows thật) | RSS ≤ +5 MB · binary ≤ +3 MB · p95 ≤ 2 ms | AS-002 | Agent Perf | ✅ xong (`P4-3-SPIKES.md`) |
+| AS-011 | **S4b** — khảo sát `harper-core`/EN (v2, **không chặn v1**) | Kết luận + khuyến nghị | — | Agent Research | ✅ xong (`P4-3-SPIKES.md`) |
+| AS-020 | Refactor `core` buffer | 13 call site → 2 helper; `Engine.sentence` (Unicode ≤256); `Engine::glyph_len_of`; **không** đổi hành vi gõ | ADR-013 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: 8 test mới, 143/143 pass) |
+| AS-021 | FFI `ime_assist_*` (C-ABI) + header + `textvn-cli verify` | Drift 0 (ADR-023); export struct/fn qua `ffi/` và `textvn_ffi.h` | AS-020 | **Agent Core (ta)** | 🔄 **Đã nhận (WIP)** |
+| AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11); gọi `assist::check_sentence` qua sentence buffer | AS-021 | **Agent Core (ta)** | 🔄 **Đã nhận** |
+| AS-023 | Toast/tray notification + kill-switch 1 bước | Tắt được ngay, không cần mở app | AS-022 | Agent Tray | ⬜ chờ nhận |
+| AS-030 | `ITfCandidateListUI` (Windows) | Panel hiện cạnh con trỏ, không chiếm focus | AS-007 | Agent Windows/TSF | ⬜ chờ nhận |
+| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | Agent Windows/TSF | ⬜ chờ nhận |
+| AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit GPL hunspell-vi | AS-009 + AS-010 | Agent Dict/Data | ⬜ chờ nhận |
+| AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 | Agent Dict/Data | ⬜ chờ nhận |
+| AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS / Linux) | D32-D37 (OS-first) | AS-040 | Agent Platform/FFI | ⬜ chờ nhận |
+| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | Agent Core/App | ⬜ chưa làm |
+| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · `ui-spec` + `parity-checklist` cập nhật | AS-050 | Agent Mac/Linux | ⬜ chưa làm |
 
 ## Recipe P4-2a — refactor buffer trong `core` (đọc trước khi code)
 
