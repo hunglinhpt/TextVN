@@ -25,6 +25,7 @@ libfuzzer-sys = "0.4"
 textvn-ffi = { path = "../ffi", optional = true }
 textvn-config = { path = "../config" }
 textvn-appdb = { path = "../appdb" }
+textvn-assist = { path = "../assist" }
 
 [[bin]]
 name = "ffi_key"
@@ -43,6 +44,14 @@ required-features = ["ffi-fuzz"]
 [[bin]]
 name = "appdb_parse"
 path = "fuzz_targets/appdb_parse.rs"
+test = false
+doc = false
+
+# Engine kiem tra cau tieng Viet (P4-1) — khong can FFI nen khong gate theo
+# feature `ffi-fuzz` (chay duoc tren Windows).
+[[bin]]
+name = "assist_check"
+path = "fuzz_targets/assist_check.rs"
 test = false
 doc = false
 
