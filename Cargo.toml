@@ -3,7 +3,7 @@
 resolver = "2"
 members = [
     "core", "strategy", "config", "appdb", "ipc", "field-detect", "ffi", "cli", "xtask", "tools/bench",
-    "adapters/windows-tsf", "adapters/windows-hook", "tray",
+    "adapters/windows-tsf", "adapters/windows-hook", "tray", "assist",
 ]
 
 [workspace.package]

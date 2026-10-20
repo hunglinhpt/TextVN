@@ -107,6 +107,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "textvn-assist"
+version = "0.2.34"
+
+[[package]]
 name = "textvn-bench"
 version = "0.2.34"
 dependencies = [
