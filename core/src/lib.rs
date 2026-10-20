@@ -167,6 +167,10 @@ impl Default for Context {
 /// Số ký tự tối đa engine nhớ để khớp trigger macro/emoji (đủ cho mọi trigger hợp lý).
 const RECENT_MAX: usize = 64;
 
+/// Số ký tự **Unicode** tối đa của buffer câu (`Engine::sentence`) — D31 (ADR-013).
+/// 256 = đủ một câu dài; buffer câu không phải lịch sử văn bản.
+const SENTENCE_MAX: usize = 256;
+
 /// Giới hạn `insert`/`preedit` của `ime_result_v1` — P0-2 §2: **engine tự giữ** ≤ 64
 /// (FFI còn một lưới an toàn cuối; macro dài hơn 64 ký tự bị cắt tại đây).
 pub const MAX_TEXT: usize = 64;
@@ -182,7 +186,37 @@ pub struct Engine {
     word: buffer::Word,
     /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji
     /// và tự viết hoa đầu câu (`post/caps.rs::sentence_start`).
+    ///
+    /// Đây là buffer **glyph** (đã encode theo `output_charset`) — khác `sentence`.
     recent: Vec<char>,
+    /// Đuôi text **Unicode** của document (ADR-013): buffer câu cho trợ lý ngữ pháp.
+    ///
+    /// Cap `SENTENCE_MAX` (256 ký tự Unicode). Luôn bật (D31) — chỉ đọc, không I/O.
+    sentence: Vec<char>,
+    /// Số **glyph** mà mỗi ký tự của `sentence` chiếm trong document (1 hoặc 2:
+    /// VNI Windows / Unicode tổ hợp). Song song `sentence` — dùng để xoá đúng số
+    /// ký tự Unicode khi engine xoá `delete` glyph khỏi document.
+    sentence_widths: Vec<u8>,
+}
+
+/// Thay đổi đuôi document mà engine ghi nhận (P4-2a · ADR-013).
+///
+/// `recent` (glyph) và `sentence` (Unicode) là **hai buffer tách bạch**: app làm việc
+/// trên **glyph** (bảng mã xuất), trợ lý ngữ pháp làm việc trên **char Unicode**.
+enum Tail<'a> {
+    /// Xoá `delete` **glyph** cuối của document rồi thêm phần mới.
+    Replace {
+        /// Số glyph bị xoá (bằng `delete_count` của `Action`).
+        delete: usize,
+        /// Chính chuỗi **glyph** app nhận vào document (đã encode theo `output_charset`).
+        glyph: &'a [char],
+        /// Bản **Unicode** tương ứng — nuôi buffer câu (`sentence`).
+        unicode: &'a [char],
+    },
+    /// Xoá hết đuôi engine còn nhớ (focus chuyển, con trỏ nhảy, chord…).
+    Clear,
+    /// App xoá 1 glyph (Backspace) — xoá 1 glyph + 1 ký tự Unicode (F66).
+    Pop,
 }
 
 impl Engine {
@@ -192,6 +226,8 @@ impl Engine {
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
+            sentence: Vec::new(),
+            sentence_widths: Vec::new(),
         }
     }
 
@@ -199,7 +235,7 @@ impl Engine {
     pub fn set_options(&mut self, opts: EngineOptions) {
         self.opts = opts;
         self.word.clear();
-        self.recent.clear();
+        self.record(Tail::Clear);
     }
 
     pub fn options(&self) -> &EngineOptions {
@@ -222,18 +258,117 @@ impl Engine {
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
         self.word.clear();
-        self.recent.clear();
+        self.record(Tail::Clear);
     }
 
-    /// Cập nhật đuôi text: xoá `delete` ký tự cuối rồi thêm `insert` (giữ tối đa `RECENT_MAX`).
-    fn recent_replace(&mut self, delete: usize, insert: &[char]) {
-        let keep = self.recent.len().saturating_sub(delete);
-        self.recent.truncate(keep);
-        self.recent.extend_from_slice(insert);
-        if self.recent.len() > RECENT_MAX {
-            let drop = self.recent.len() - RECENT_MAX;
-            self.recent.drain(..drop);
+    /// Ghi nhận thay đổi đuôi document vào **cả hai** buffer (`recent` glyph +
+    /// `sentence` Unicode) — chỗ **duy nhất** được sửa chúng (P4-2a · ADR-013).
+    ///
+    /// - `recent`: đếm trên **glyph** (đúng thứ app nhận) — giữ nguyên semantics của
+    ///   `recent_replace` cũ, không đổi hành vi gõ.
+    /// - `sentence`: đếm trên **char Unicode** (bộ trợ lý ngữ pháp đọc câu này).
+    ///
+    /// Hai buffer **tách bạch**: 1 chữ có thể là 2 glyph (VNI Windows / Unicode tổ hợp)
+    /// nên số ký tự xoá của `sentence` không suy ra được từ số glyph của `recent`
+    /// → giữ chiều rộng từng ký tự trong `sentence_widths`.
+    fn record(&mut self, edit: Tail<'_>) {
+        match edit {
+            Tail::Clear => {
+                self.recent.clear();
+                self.sentence.clear();
+                self.sentence_widths.clear();
+            }
+            Tail::Pop => {
+                // App xoá 1 glyph: `recent` bỏ 1 glyph, `sentence` bỏ 1 ký tự Unicode
+                // (F66: 1 chữ 2 byte TCVN3/VNI = 1 glyph nhưng 1 ký tự Unicode).
+                self.recent.pop();
+                self.sentence.pop();
+                self.sentence_widths.pop();
+            }
+            Tail::Replace {
+                delete,
+                glyph,
+                unicode,
+            } => {
+                // --- buffer glyph (`recent`): giữ nguyên semantics cũ ---
+                let keep = self.recent.len().saturating_sub(delete);
+                self.recent.truncate(keep);
+                self.recent.extend_from_slice(glyph);
+                if self.recent.len() > RECENT_MAX {
+                    let drop = self.recent.len() - RECENT_MAX;
+                    self.recent.drain(..drop);
+                }
+
+                // --- buffer câu (`sentence`): đếm trên ký tự Unicode ---
+                // Xoá `delete` glyph cuối: 1 ký tự Unicode có thể chiếm 2 glyph
+                // → xoá đúng số ký tự Unicode tương ứng (không đồng nhất với glyph).
+                let mut left = delete;
+                while left > 0 {
+                    match self.sentence_widths.pop() {
+                        Some(w) => {
+                            self.sentence.pop();
+                            left = left.saturating_sub(usize::from(w));
+                        }
+                        None => break,
+                    }
+                }
+                // Thêm phần mới: mỗi ký tự Unicode chiếm `w` glyph trong document.
+                for &c in unicode {
+                    // Document nhận đúng chuỗi Unicode (không encode) → 1 ký tự = 1 glyph;
+                    // document nhận bản đã encode → độ rộng theo bảng mã (1–2 glyph/chữ).
+                    let w = if glyph.len() == unicode.len() {
+                        1
+                    } else {
+                        self.emit(&[c]).len() as u8
+                    };
+                    self.sentence.push(c);
+                    self.sentence_widths.push(w);
+                }
+                // Cap `SENTENCE_MAX` (D31): giữ phần đuôi (gần con trỏ nhất).
+                if self.sentence.len() > SENTENCE_MAX {
+                    let drop = self.sentence.len() - SENTENCE_MAX;
+                    self.sentence.drain(..drop);
+                    self.sentence_widths.drain(..drop);
+                }
+            }
         }
+        // Bat bien: `sentence` va `sentence_widths` luon cung do dai (F75).
+        debug_assert_eq!(self.sentence.len(), self.sentence_widths.len());
+    }
+
+    /// Số ký tự **glyph** (đã encode theo `output_charset`) của chuỗi Unicode.
+    ///
+    /// Adapter cần biết xoá bao nhiêu ký tự trong document khi áp dụng một gợi ý:
+    /// trợ lý ngữ pháp trả **char Unicode**, app nhận **glyph** (D27 · ADR-013).
+    pub fn glyph_len_of(&self, unicode: &[char]) -> usize {
+        self.emit(unicode).len()
+    }
+
+    /// Phần cuối buffer câu (Unicode), tối đa `max` ký tự — chỉ phục vụ vỡ câu.
+    ///
+    /// Không I/O, không log nội dung (Handbook S1–S4).
+    pub fn sentence_tail(&self, max: usize) -> String {
+        let start = self.sentence.len().saturating_sub(max);
+        self.sentence[start..].iter().collect()
+    }
+
+    /// Phần **Unicode** tương ứng với `glyph_len` ký tự **glyph** đầu của `unicode`.
+    ///
+    /// Bảng mã 2 ký tự/chữ (VNI Windows) → cắt theo glyph có thể rơi giữa một chữ:
+    /// hàm này chỉ lấy chữ nào **vừa đủ** (`glyph_len` glyph), để buffer câu khớp
+    /// đúng phần app đã nhận.
+    fn unicode_prefix(&self, unicode: &[char], glyph_len: usize) -> Vec<char> {
+        let mut out = Vec::new();
+        let mut used = 0usize;
+        for &c in unicode {
+            let w = self.emit(&[c]).len();
+            if used + w > glyph_len {
+                break;
+            }
+            out.push(c);
+            used += w;
+        }
+        out
     }
 
     /// Ghi nhận một phím **PASS** (adapter tự chèn) vào đuôi text cho macro/emoji.
@@ -245,21 +380,25 @@ impl Engine {
         }
         match k.vk {
             keymap::vk::BACK => {
-                self.recent.pop();
+                self.record(Tail::Pop);
             }
             keymap::vk::DELETE
             | keymap::vk::LEFT
             | keymap::vk::RIGHT
             | keymap::vk::UP
-            | keymap::vk::DOWN => self.recent.clear(),
+            | keymap::vk::DOWN => self.record(Tail::Clear),
             _ => match k.printable() {
                 Some(c) if !c.is_control() || matches!(c, ' ' | '\n' | '\t') => {
-                    self.recent_replace(0, &[c]);
+                    self.record(Tail::Replace {
+                        delete: 0,
+                        glyph: &[c],
+                        unicode: &[c],
+                    });
                 }
                 Some(_) => {}
                 // Home/End/PageUp/F-key…: con trỏ có thể đã nhảy — đuôi text engine nhớ
                 // không còn nằm ngay trước con trỏ, gõ tắt sau đó sẽ xoá nhầm chỗ.
-                None => self.recent.clear(),
+                None => self.record(Tail::Clear),
             },
         }
     }
@@ -338,7 +477,7 @@ impl Engine {
             // phím kế tiếp không REPLACE `owned` ký tự ở chỗ khác, và quên đuôi text để gõ
             // tắt kế tiếp không xoá nhầm (`vn` Ctrl+V `abc` Tab ≠ bung `vn`).
             self.word.clear();
-            self.recent.clear();
+            self.record(Tail::Clear);
             return Outcome::pass();
         }
 
@@ -447,7 +586,11 @@ impl Engine {
                 // `delete_count = 0`: chèn `insert` tại con trỏ; `passed` giữ đúng ký tự này
                 // để lần activate sau xoá đúng số ký tự engine đã đưa vào document.
                 let out = self.emit(&display);
-                self.recent_replace(0, &out);
+                self.record(Tail::Replace {
+                    delete: 0,
+                    glyph: &out,
+                    unicode: &display,
+                });
                 return Outcome {
                     action: Action::Replace {
                         delete_count: 0,
@@ -457,7 +600,11 @@ impl Engine {
                     flags: FLAG_CONSUMED,
                 };
             }
-            self.recent_replace(0, &[c]);
+            self.record(Tail::Replace {
+                delete: 0,
+                glyph: &[c],
+                unicode: &[c],
+            });
             return Outcome::pass();
         }
 
@@ -473,11 +620,16 @@ impl Engine {
         } else {
             self.word.pending_delete() // activate: xóa những ký tự đã PASS trong từ
         };
+        // `display` (Unicode) là nguồn cho buffer câu; `out` (glyph) là thứ app nhận.
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &out,
+            unicode: &display,
+        });
         self.word.active = true;
         self.word.passed.clear();
         self.word.display = display;
         self.word.owned = out.len();
-        self.recent_replace(delete as usize, &out);
         Outcome {
             action: Action::Replace {
                 delete_count: delete,
@@ -518,9 +670,16 @@ impl Engine {
         };
         let (len, text) = match_display.or(match_raw)?;
         let expanded: Vec<char> = text.chars().collect();
+        // ⚠️ `MAX_TEXT` cat SAU encode (F65): phan app nhan vao document bi cat o day,
+        // nen phan Unicode cua buffer cau phai cat theo cung quy tac (chi lay chu vua du).
         let insert: Vec<char> = self.emit(&expanded).into_iter().take(MAX_TEXT).collect();
+        let unicode = self.unicode_prefix(&expanded, insert.len());
         self.word.clear();
-        self.recent_replace(len, &insert);
+        self.record(Tail::Replace {
+            delete: len,
+            glyph: &insert,
+            unicode: &unicode,
+        });
         Some(Outcome {
             action: Action::Replace {
                 delete_count: len as u16,
@@ -547,7 +706,12 @@ impl Engine {
                 let mut insert = raw;
                 insert.push(c); // ranh giới vẫn phải vào document (RESTORE = REPLACE — P0-4 §3)
                 self.word.clear();
-                self.recent_replace(delete as usize, &insert);
+                // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
+                self.record(Tail::Replace {
+                    delete: delete as usize,
+                    glyph: &insert,
+                    unicode: &insert,
+                });
                 return Outcome {
                     action: Action::Restore {
                         delete_count: delete,
@@ -567,7 +731,11 @@ impl Engine {
     fn close_word(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
         self.word.clear();
-        self.recent_replace(0, &[c]);
+        self.record(Tail::Replace {
+            delete: 0,
+            glyph: &[c],
+            unicode: &[c],
+        });
         if !was_active {
             return Outcome {
                 action: Action::Pass,
@@ -615,7 +783,12 @@ impl Engine {
         }
         let delete = self.word.owned as u16;
         self.word.clear();
-        self.recent_replace(delete as usize, &insert);
+        // Document nhận đúng chuỗi hoàn tất (không encode) → glyph = Unicode.
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &insert,
+            unicode: &insert,
+        });
         Some(Outcome {
             action: Action::Replace {
                 delete_count: delete,
@@ -661,7 +834,12 @@ impl Engine {
         }
         let delete = self.word.owned as u16;
         self.word.clear();
-        self.recent_replace(delete as usize, &out);
+        // Document nhận bản đã encode (`out`), buffer câu nhận bản Unicode (`insert`).
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &out,
+            unicode: &insert,
+        });
         Some(Outcome {
             action: Action::Replace {
                 delete_count: delete,
@@ -680,7 +858,12 @@ impl Engine {
         let raw = self.word.raw.clone();
         let delete = self.word.owned as u16;
         self.word.clear();
-        self.recent_replace(delete as usize, &raw);
+        // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &raw,
+            unicode: &raw,
+        });
         Outcome {
             action: Action::Restore {
                 delete_count: delete,
@@ -707,7 +890,11 @@ impl Engine {
             transform::tone::normalize_tone(&mut target, self.opts.diacritic_style);
             if target.is_empty() {
                 self.word.clear();
-                self.recent_replace(delete as usize, &[]);
+                self.record(Tail::Replace {
+                    delete: delete as usize,
+                    glyph: &[],
+                    unicode: &[],
+                });
                 return Outcome {
                     action: Action::Replace {
                         delete_count: delete,
@@ -722,7 +909,7 @@ impl Engine {
                 // Dời dấu thanh ở bảng mã tổ hợp không làm từ dài thêm, nhưng giữ lưới an
                 // toàn: không vừa result → thôi sở hữu từ, app tự xoá 1 ký tự như thường.
                 self.word.clear();
-                self.recent.pop();
+                self.record(Tail::Pop);
                 return Outcome::pass();
             }
             let keys =
@@ -734,7 +921,11 @@ impl Engine {
                 // Không có chuỗi phím nào gõ ra đúng chữ còn lại (chữ literal hiếm như `uo`
                 // sau `uoww`): giữ chữ trong document, thôi sở hữu từ (như bung gõ tắt).
                 self.word.clear();
-                self.recent_replace(delete as usize, &out);
+                self.record(Tail::Replace {
+                    delete: delete as usize,
+                    glyph: &out,
+                    unicode: &target,
+                });
                 return Outcome {
                     action: Action::Replace {
                         delete_count: delete,
@@ -744,10 +935,15 @@ impl Engine {
                     flags: FLAG_CONSUMED | FLAG_WORD_END,
                 };
             };
+            // `target` (Unicode) là nguồn buffer câu; `out` (glyph) là thứ app nhận.
+            self.record(Tail::Replace {
+                delete: delete as usize,
+                glyph: &out,
+                unicode: &target,
+            });
             self.word.raw = raw;
             self.word.display = target;
             self.word.owned = out.len();
-            self.recent_replace(delete as usize, &out);
             return Outcome {
                 action: Action::Replace {
                     delete_count: delete,
@@ -762,7 +958,7 @@ impl Engine {
         self.word.raw.pop();
         self.word.passed.pop();
         self.word.display.clear();
-        self.recent.pop();
+        self.record(Tail::Pop);
         Outcome::pass()
     }
 }
@@ -1617,5 +1813,142 @@ mod tests {
         });
         let buf = type_buf(&mut e, "trawngs mowf tuw muwa nawm cuwar ");
         assert_eq!(text(&buf), "trắng mờ tư mưa năm cửa ");
+    }
+
+    // ---- P4-2a: buffer cau Unicode (`sentence`) + `glyph_len_of` (ADR-013) ----
+
+    /// Buffer cau giu **Unicode** va khop dung duoi document (khong phai glyph).
+    #[test]
+    fn sentence_buffer_mirrors_typed_text() {
+        let mut e = engine();
+        let doc = type_doc(&mut e, "chaof ban");
+        assert_eq!(doc, "chào ban");
+        assert_eq!(e.sentence_tail(100), "chào ban");
+    }
+
+    /// Bat bien: `sentence` va `sentence_widths` luon cung do dai (F75).
+    /// 3 buffer phai dong bo — lech la mau hong im lang.
+    #[test]
+    fn sentence_widths_stay_in_sync() {
+        let mut e = Engine::new(EngineOptions {
+            output_charset: OutputCharset::VniWindows,
+            ..Default::default()
+        });
+        let _ = type_doc(&mut e, "dduocj ban ");
+        assert_eq!(e.sentence.len(), e.sentence_widths.len());
+        let _ = type_doc(&mut e, "abc");
+        assert_eq!(e.sentence.len(), e.sentence_widths.len());
+        e.reset();
+        assert_eq!(e.sentence.len(), e.sentence_widths.len());
+    }
+
+    /// Buffer cau giu **Unicode** du bang ma xuat la 2 byte/chu (VNI Windows):
+    /// app nhan glyph, tro ly ngu phap nhan char Unicode.
+    #[test]
+    fn sentence_keeps_unicode_under_legacy_charset() {
+        let mut e = Engine::new(EngineOptions {
+            output_charset: OutputCharset::VniWindows,
+            ..Default::default()
+        });
+        let doc = type_doc(&mut e, "dduocj");
+        assert_eq!(doc, "\u{f1}\u{f6}\u{f4}\u{ef}c", "document nhan glyph VNI");
+        assert_eq!(e.sentence_tail(100), "được", "buffer cau giu Unicode");
+    }
+
+    /// `glyph_len_of` = so ky tu **glyph** app phai xoa khi ap dung goi y Unicode (D27).
+    #[test]
+    fn glyph_len_of_counts_encoded_glyphs() {
+        let word: Vec<char> = "được".chars().collect();
+        for (charset, want) in [
+            (OutputCharset::UnicodePrecomposed, 4),
+            (OutputCharset::UnicodeDecomposed, 5),
+            (OutputCharset::Tcvn3, 4),
+            (OutputCharset::VniWindows, 5),
+        ] {
+            let e = Engine::new(EngineOptions {
+                output_charset: charset,
+                ..Default::default()
+            });
+            assert_eq!(e.glyph_len_of(&word), want, "{charset:?}");
+        }
+    }
+
+    /// `glyph_len_of` phai bang dung do dai `insert` ma engine tra ve cho app.
+    #[test]
+    fn glyph_len_of_matches_engine_insert() {
+        for charset in [
+            OutputCharset::UnicodePrecomposed,
+            OutputCharset::UnicodeDecomposed,
+            OutputCharset::Tcvn3,
+            OutputCharset::VniWindows,
+        ] {
+            let mut e = Engine::new(EngineOptions {
+                output_charset: charset,
+                ..Default::default()
+            });
+            let mut insert_len = 0usize;
+            for c in "dduocj".chars() {
+                let k = KeyEvent::char_down(c);
+                let o = e.key(&k);
+                if let Action::Replace { insert, .. } = &o.action {
+                    insert_len = insert.len();
+                }
+            }
+            assert_eq!(
+                e.glyph_len_of(&"được".chars().collect::<Vec<_>>()),
+                insert_len
+            );
+        }
+    }
+
+    /// Focus chuyen / con tro nhay → xoa het ca 2 buffer.
+    #[test]
+    fn sentence_cleared_on_reset() {
+        let mut e = engine();
+        let _ = type_doc(&mut e, "chao");
+        assert!(!e.sentence_tail(100).is_empty());
+        e.reset();
+        assert_eq!(e.sentence_tail(100), "");
+    }
+
+    /// Backspace xoa 1 **glyph** (`recent`) va 1 **ky tu Unicode** (`sentence`) — 2 buffer
+    /// tach bach (F66).
+    #[test]
+    fn sentence_backspace_pops_one_unicode_char() {
+        let mut e = engine();
+        let _ = type_doc(&mut e, "abc");
+        assert_eq!(e.sentence_tail(100), "abc");
+        let _ = e.key(&KeyEvent::key_down(keymap::vk::BACK));
+        assert_eq!(e.sentence_tail(100), "ab");
+    }
+
+    /// Buffer cau cap 256 ky tu Unicode (D31) — giu phan duoi.
+    #[test]
+    fn sentence_capped_at_256_chars() {
+        let mut e = engine();
+        // `b` khong phai dau Telex → moi ky tu giong 1 ky tu trong document.
+        let doc = type_doc(&mut e, &"b".repeat(400));
+        assert_eq!(doc.len(), 400);
+        let tail = e.sentence_tail(1000);
+        assert_eq!(tail.chars().count(), 256);
+        assert_eq!(tail, "b".repeat(256));
+    }
+
+    /// Ghi tat (macro) cung vao buffer cau (Unicode), thay cho chuoi trigger da go.
+    #[test]
+    fn sentence_includes_macro_expansion() {
+        let mut e = Engine::new(macro_opts(MacroTrigger::Tab));
+        let mut buf = type_buf(&mut e, "cty");
+        press(&mut e, &mut buf, keymap::vk::TAB);
+        assert_eq!(text(&buf), "Công ty TNHH");
+        assert_eq!(e.sentence_tail(100), "Công ty TNHH");
+    }
+
+    /// Thay tu: buffer cau giu chu **hien thi** (Unicode), khong phai chuoi phim go.
+    #[test]
+    fn sentence_holds_display_text_not_typed_keys() {
+        let mut e = engine();
+        let _ = type_doc(&mut e, "dduocj");
+        assert_eq!(e.sentence_tail(100), "được");
     }
 }
