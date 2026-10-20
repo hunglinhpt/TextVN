@@ -1,178 +1,186 @@
 # P4-0 — MASTER PLAN: Trợ lý ngữ pháp tiếng Việt (Assist) cho TextVN
 
-- **Ngày:** 2026-10-20 · **Trạng thái:** Kế hoạch (chưa triển khai) · **Phần:** 4 — P4
-- **Owner:** agent · **Review:** vòng 1 = `P4-1-harper-evaluation.md` · vòng 2 = §11 (dưới đây)
-- **Đánh giá nguồn:** `P4-1-harper-evaluation.md` (Harper, Harper so sánh phương án, quyết định D1–D5)
-- **Cross-ref:** `PLAN.md` §2.3 (S1 chính tả + gạch đỏ · S2 gợi ý từ · C1 AI local) · `PLAN.md` §5.5 (perf budget) · `docs/10-shared/P0-2-engine-ffi-contract.md` · `docs/10-shared/P0-3-config-preset-strategy.md` · `docs/10-shared/P0-4-test-and-corpus.md` · `docs/specs/antivirus-false-positive.md` §8 · `docs/specs/reference-parity.md` · `docs/01-AGENT-HANDBOOK.md` (DoD 7 mục)
+- **Ngày:** 2026-10-20 (v1) · **v2:** sau **3 vòng review chuyên sâu** (vòng 3 SA/QA, vòng 4 Audit, vòng 5 PO/BA/Design) · **Trạng thái:** Kế hoạch (chưa triển khai sản phẩm)
+- **Phần:** 4 — P4 · **Owner:** agent · **Review:** vòng 1 = `P4-1-harper-evaluation.md` · vòng 2 = §11.1 · vòng 3–5 = §11.2
+- **Cross-ref:** `PLAN.md` §2.3 (S1 chính tả + gạch đỏ · S2 gợi ý từ · C1 AI local) · `PLAN.md` §5.5 (perf budget) · `PLAN.md` §6.1 (threat model STRIDE) · `docs/10-shared/P0-2-engine-ffi-contract.md` · `P0-3-config-preset-strategy.md` · `P0-4-test-and-corpus.md` · `docs/specs/antivirus-false-positive.md` §8 · `docs/01-AGENT-HANDBOOK.md` (DoD 7 mục) · ADR-012 (`docs/adr/README.md`)
 - **Yêu cầu gốc (user 2026-10-20):** 2 chế độ — **highlight lỗi ngữ pháp** và **tự correct cả câu** sau khi bấm **dấu cách** hoặc **`,` / `.`**
+
+---
+
+## 0. Tóm tắt điều hành
+
+| | |
+|---|---|
+| **Làm gì** | Kiểm tra **câu vừa gõ** bằng bộ luật tiếng Việt **objective** (lặp từ, khoảng trắng, hoa đầu câu, sai dấu…) → **gợi ý** (overlay/candidate) và (v2) **tự sửa cả câu** |
+| **Không làm gì** | Không đọc nội dung app khác · không network · không log text · không gạch chân thật trong field · không ngữ pháp học thuật ở v1 |
+| **Vì sao tự viết** | Harper **chỉ hỗ trợ tiếng Anh** ở mọi tầng; crates.io stale 27 tháng → mượn **kiến trúc**, tự viết **luật + từ điển** (chi tiết: `P4-1`) |
+| **Rủi ro lớn nhất** | **Áp sửa text đã commit** → đã đổi cơ chế sang **Backspace+Type có precondition** (D12) + **fail-safe** |
+| **Ước lượng** | 6 pha · ~14–18 tuần (tăng so với v1 sau vòng 3–5: thêm 3 spike chặn + runtime shadow buffer thật) |
 
 ---
 
 ## 1. Bối cảnh & mapping với PLAN hiện có
 
-PLAN đã có 2 mục backlog liên quan nhưng **mức thấp hơn** yêu cầu mới:
-
 | Backlog | Nội dung hiện tại | Khoảng cách với yêu cầu mới |
 |---|---|---|
-| `S1` | "Chính tả offline (âm tiết: âm đầu–vần–phụ âm cuối–than) + **gạch đỏ** trên mọi OS" | Chỉ bắt lỗi **từ**; chưa có **ngữ pháp câu**, chưa có **tự sửa cả câu** |
-| `S2` | "Gợi ý từ (offline n-gram/trie) — không AI bắt buộc" | Chỉ gợi ý **từ**; chưa có **highlight lỗi câu** |
+| `S1` | "Chính tả offline (âm tiết…) + **gạch đỏ** trên mọi OS" | Chỉ bắt lỗi **từ**; chưa có **ngữ pháp câu**, chưa có **tự sửa cả câu** |
+| `S2` | "Gợi ý từ (offline n-gram/trie)" | Chỉ gợi ý **từ**; chưa có **highlight lỗi câu** |
 | `C1` | "Gợi ý AI **local** (Ollama) opt-in" | Để v2.x, **không** nằm trong đường chính (P2: không network) |
 
-→ Phần 4 (P4) **nâng S1+S2** thành: *offline grammar assistant cho bộ gõ*, 2 chế độ, 3 OS, không network, không sinh tiến trình ẩn.
-
-**Bản chất sản phẩm:** "Trợ lý ngữ pháp" = **kiểm tra câu vừa gõ** + **gợi ý sửa** + (v2) **tự sửa câu**. Không phải "spellcheck từ" (đó là `spellcheck` đã có trong config).
+→ Phần 4 (P4) **nâng S1+S2** thành *offline grammar assistant cho bộ gõ*: 2 chế độ, 3 OS, không network, không tiến trình ẩn.
 
 ---
 
 ## 2. Mục tiêu & phiêu miêu
 
-**Mục tiêu (v1, P4-1…P4-3):** khi người dùng gõ xong một câu (dấu cách / `,` / `.`), TextVN **phát hiện lỗi objective trong câu vừa gõ** và **gợi ý sửa** bằng overlay nhỏ cạnh con trỏ — **100% offline**, không log text, không đọc process khác.
+**Mục tiêu (v1):** khi người dùng gõ xong một câu, TextVN **phát hiện lỗi objective trong câu vừa gõ** và **gợi ý sửa** — 100% offline, không log text, không đọc nội dung app khác.
 
-**Không phải mục tiêu (v1):**
-- Không phải "Grammarly đầy đủ" (ngữ pháp học thuật, POS, đọc cả tài liệu).
-- Không sửa format/gạch chân bên trong field của app (xem `Fassist-4`).
-- Không tự sửa khi luật không chắc chắn.
-- Không gửi text ra ngoài máy (P2).
+**Không phải mục tiêu (v1):** không phải "Grammarly đầy đủ" (POS, ngữ pháp học thuật, đọc cả tài liệu) · không sửa format trong field của app · không tự sửa khi luật không chắc chắn · không gửi text ra máy khác.
 
-**Tiêu chí thành công (DoD sản phẩm):**
-1. Câu có lỗi objective → overlay hiện đúng lỗi, đúng vị trí, gợi ý sửa đúng.
-2. Câu sạch → **không** hiện gì (0 false positive trên corpus ≥ 500 câu sạch).
-3. Không ảnh hưởng cảm giác gõ: không thêm độ trễ cảm nhận > 5 ms vào đường gõ.
-4. Không rò rỉ: không log, không network, không file tạm chứa text.
+**Tiêu chí thành công (đo được):**
+
+| # | Tiêu chí | Ngưỡng |
+|---|---|---|
+| 1 | Recall trên corpus lỗi objective | **≥ 80%** |
+| 2 | FPR trên corpus cây sạch | **≤ 2%** |
+| 3 | Độ thống nhất giữa 2 người đánh giá độc lập (100 câu) | **≥ 80%** |
+| 4 | Độ trễ cảm nhận khi gõ | **không tăng > 5 ms** |
+| 5 | Rò rỉ | 0 log/0 network/0 đọc nội dung app khác |
 
 ---
 
 ## 3. Kiến trúc (Solution Architect view)
 
 ```
-┌─ Adapter (3 OS) ───────────────────────────────────────────────────────────┐
-│  windows-tsf (TIP)      macos-imk (IMK)        linux-ibus / linux-fcitx5   │
-│  compose.rs: KeyKind    commit string         commit string               │
-│  + shadow buffer (câu)  + shadow buffer        + shadow buffer             │
-└───────────────┬──────────────────────┬──────────────────────┬────────────┘
-                │ gọi trực tiếp (không IPC ở v1)                 │
-        ┌───────▼──────────────────────────────────────────┐
-        │  core::assist  (crate Rust mới — thuần, không I/O)│
-        │  Document → Token(âm tiết/từ) → Rule → Issue      │
-        │  + Suggestion (đã sửa) + Confidence + auto_fixable │
-        └───────┬──────────────────────────────────────────┘
-                │ kết quả (chỉ giữ trong RAM)
-     ┌──────────▼───────────┐        ┌──────────────────────────┐
-     │ strategy crate       │        │ Overlay UI (3 OS)         │
-     │ ActionKind::Replace  │        │ Windows: HWND no-activate │
-     │ SelectionReplace     │        │ macOS: NSPanel            │
-     │ (tái dùng fix B1)    │        │ Linux: GTK overlay        │
-     └──────────────────────┘        └──────────────────────────┘
+┌─ Adapter (3 OS) ────────────────────────────────────────────────────────────────┐
+│ windows-tsf (TIP)      macos-imk (IMK)      linux-ibus / linux-fcitx5           │
+│ + runtime shadow buffer (TẠO MỚI — chưa có sẵn, Fassist-17)                   │
+│ + trigger space/,/.  + idle 700ms  + caret check (chỉ VỊ TRÍ, không đọc text)   │
+└──────────────┬──────────────────────┬──────────────────────┬──────────────────┘
+               │ gọi trực tiếp qua crate `ffi` (KHÔNG artifact mới, D14)
+       ┌───────▼──────────────────────────────────────────────────┐
+       │  assist/  (crate Rust MỚI — thuần, 0-dep, không I/O)      │
+       │  tokenize → mask(URL/email) → rules/(1 file = 1 luật)       │
+       │  → Issue{kind, span(char), message, suggestions, fix}      │
+       │  → apply_auto_fixes (char-space, không lệch offset)        │
+       └───────┬──────────────────────────────────────────────────┘
+               │ kết quả (RAM only)
+    ┌──────────▼─────────────┐   ┌────────────────────────────────────┐
+    │ strategy crate          │   │ UI 3 OS (D13)                       │
+    │ Backspace+Type (A2/A3)  │   │ • Windows: ITfCandidateListUI (mới) │
+    │ + precondition caret     │   │ • macOS: IMK input controller (có)  │
+    └──────────────────────────┘   │ • Linux: IBus/Fcitx5 candidate list │
+                                   │ fallback: tray toast (P4-2)         │
+                                   └────────────────────────────────────┘
 ```
 
-**Quyết định kiến trúc (đã chốt ở P4-1):**
+### 3.1 Quyết định kiến trúc (đã chốt)
 
-| # | Quyết định | Lý do |
-|---|---|---|
-| A-1 | `assist` là **crate Rust thuần** trong workspace (`core`-level, không I/O, không network, không `unsafe`) | test được, dùng lại 3 OS, không vi phạm P2/S2 |
-| A-2 | **Không mở rộng IPC ở v1** — adapter gọi thẳng crate qua FFI hiện có | giữ nguyên hợp đồng FFI (`P0-2`); IPC chỉ khi cần gửi kết quả ra tray/overlay |
-| A-3 | **Không sinh tiến trình mới** (không daemon, không service) | `docs/specs/antivirus-false-positive.md` §8: tiến trình ẩn giữ text = rủi ro heuristic AV; engine phải nằm trong adapter/TIP |
-| A-4 | **Shadow buffer** = text ta tự commit trong câu hiện tại, chỉ trong RAM, xoá khi đổi focus | không cần đọc text app khác (không rò rỉ, không cần quyền) |
-| A-5 | **Áp sửa = tái dùng `strategy`** (`ActionKind::Replace` + `SelectionReplace`) | đã có sẵn từ fix bug B1; không phát minh cơ chế mới |
-| A-6 | **Overlay không chiếm focus**, tự tắt khi mất focus | không cướp focus khi người dùng đang gõ |
+| # | Quyết định | Lý do | Nguồn |
+|---|---|---|---|
+| D1 | Không vendor `harper-core` | English-only ở mọi tầng; crates.io stale 27 tháng; master đổi nhanh | `P4-1` §0 |
+| D2 | Mượn kiến trúc Harper, tự viết luật VN | Tầng tokenize/lint mượn được; từ điển+luật+POS là 100% tiếng Anh | `P4-1` §0 |
+| D3 | Tự xây từ điển VN từ nguồn mở, **audit license từng nguồn** | Không có từ điển VN "đóng gói sẵn + license sạch" | `P4-1` §0 |
+| D4 | Highlight = hiển thị **cạnh con trỏ** (không gạch chân thật trong field) | Giới hạn kỹ thuật: TSF/IMK/IBus không vẽ underline vào edit control mà không sửa format | `Fassist-4` |
+| D5 | Thứ tự: **Mode 1 (gợi ý) → Mode 2 (tự sửa cả câu)** | Auto-sửa sai là mất niềm tin | user |
+| D6 | Tên tính năng: **"Trợ lý ngữ pháp"** | user | user |
+| D7 | Auto-fix **chỉ luật objective**; luật mơ hồ chỉ gợi ý | Giảm rủi ro sửa sai | expert |
+| D8 | **Không đọc nội dung** app khác; chỉ dùng **shadow buffer** do ta tự commit | Không rò rỉ, không cần quyền đọc | expert (xem D12 về vị trí caret) |
+| D9 | V1 **không hỗ trợ tiếng Anh** → giữ D1 tuyệt đối | Không có engine EN | expert |
+| D10 | **Không sinh tiến trình mới**; không log; không network | `antivirus-false-positive.md` §8 (rủi ro "tiến trình ẩn giữ text") | expert |
+| **D11** | Tách **điểm kiểm tra** (mọi trigger) vs **điểm hiển thị** (chỉ kết thúc câu / idle ≥ 700 ms / `Ctrl+Shift+G`) | Trigger space sẽ **spam UI** khi gõ thường | `Fassist-14` |
+| **D12** | Áp sửa = **Backspace+Type trên phần ta vừa gõ**, có **precondition**: caret ở cuối câu (chỉ đọc *vị trí*) + câu do ta gõ liên tục; **không xác minh được → không sửa** (fail-safe) | Sửa text đã commit bằng ITfRange/AX/AT-SPI rủi ro sửa nhầm vị trí | `Fassist-13` |
+| **D13** | UI = **candidate list chuẩn của IME** (IBus/Fcitx5 có sẵn, macOS IMK có sẵn, Windows TSF phải implement `ITfCandidateListUI`); overlay tự vẽ chỉ là fallback Windows | Overlay **không khả thi ở Linux/Wayland** (fcitx5 = C++ không GTK) | `Fassist-15` |
+| **D14** | `assist` là crate **nội bộ**, expose qua crate `ffi` (`textvn_ffi.dll` sẵn có) → **không artifact phát hành mới**; nếu cần struct mới → `assist_result_v1` + bump `IME_ABI_VERSION` + `textvn-cli verify` + header | Tránh nhân bản packaging/ABI | `Fassist-16` |
+| **D15** | Từ điển = **FST mmap** (không parse) — load < 10 ms, RSS dùng chung page cache | TIP nạp vào **mọi process** → parse 3 MB mỗi app là không chấp nhận được | `Fassist-18` |
+| **D16** | Luật **L0**: bỏ qua câu không phải tiếng Việt (heuristic tỷ lệ từ có dấu) + **L6 bỏ qua khi `auto_capitalize=true`** | Không báo sai cho câu tiếng Anh; tránh trùng chức năng với config sẵn có | `Fassist-19`, `Fassist-20` |
+| **D17** | **Quy tắc clean-room** bằng văn bản: chỉ đọc Harper để hiểu ý tưởng; mọi file viết từ đầu; lấy code → attribution Apache-2.0 + NOTICE/REUSE | "Mượn kiến trúc" không được trôi thành copy code | `Fassist-21` |
+| **D18** | **3 spike chặn** trước P4-3/P4-4: (S1) TSF mở candidate list sau commit? (S2) đọc vị trí caret 3 OS? (S3) khảo sát nguồn từ điển VN | 3 giả định lớn chưa kiểm chứng | `Fassist-29`, `Fassist-22` |
+| **D19** | Tiêu chí chất lượng: **recall ≥ 80%**, **FPR ≤ 2%**, **2 người đánh giá độc lập** 100 câu (thống nhất ≥ 80%) | "Cảm thấy ổn" không đo được | `Fassist-27` |
+| **D20** | **Kill-switch 1 bước** (`assist.mode=off` + tray toggle) + **auto-disable streak** + **không thu thập metrics** nào | UI phiền → người dùng bỏ; privacy | `Fassist-24`, `Fassist-25`, `Fassist-30` |
 
-**Ràng buộc bắt buộc:**
-- Độ trễ đường gõ giữ nguyên `PLAN.md` §5.5: `ime_key` < 0.5 ms p99, adapter+strategy < 3 ms p99, end-to-end < 10 ms p99, RSS < 30 MB, không wake-idle spike > 5 ms.
-- Check ngữ pháp chạy **sau** khi trigger key đã xử lý xong → **không chặn** input path; nếu check vượt budget → **bỏ qua** (fail-open, im lặng).
-- Không bao giờ ghi text người dùng ra log/disk/crash-dump (S2) — kể cả khi bật trace.
-
----
-
-## 4. Hai chế độ (chi tiết hành vi)
-
-### Mode 1 — Gợi ý / Highlight (P4-1…P4-3) ✅ *ưu tiên*
-
-| Mục | Hành vi |
-|---|---|
-| **Trigger** | Người dùng gõ **dấu cách** hoặc `,` / `.` (v1: thêm `!` `?` `;` `:`), **khi không còn text đang compose** và app đang ở trạng thái VN |
-| **Đơn vị kiểm tra** | **Câu vừa gõ xong** (từ dấu câu trước → dấu câu vừa gõ), tối đa 1 câu, ≤ 500 ký tự |
-| **Kết quả** | Nếu có lỗi → **overlay nhỏ cạnh con trỏ**: câu vừa gõ, lỗi **gạch chân đỏ**, bên dưới là gợi ý |
-| **Phím** | `↑/↓` lỗi trước/sau · `Enter` áp dụng gợi ý đang chọn · `Alt+1..3` chọn gợi ý thứ n · `Esc` bỏ · `Ctrl+Shift+G` gọi lại overlay cho câu vừa gõ |
-| **Áp dụng gợi ý** | Tái dùng `SelectionReplace`: chọn đúng range lỗi trong field → thay bằng text sửa → **undo được** (Ctrl+Z) |
-| **Không làm** | Không tự sửa; không hiện gì khi câu sạch; không hiện khi app không phải ô nhập (terminal/editor code) |
-| **Cấu hình** | `assist.mode = "highlight" \| "off"`, `assist.language = "vi" \| "auto"` |
-
-### Mode 2 — Tự sửa cả câu (P4-5) 🔜 *sau Mode 1*
-
-| Mục | Hành vi |
-|---|---|
-| **Trigger** | Giống Mode 1 |
-| **Tự động sửa** | Chỉ lỗi có `auto_fix = true` (objective, xem §6): lặp từ liên tiếp, khoảng trắng trước/sau dấu câu, khoảng trắng kép, chữ hoa đầu câu, sai dấu tiếng Việt kiểu `nghiã→nghĩa` |
-| **Phần còn lại** | Lỗi mơ hồ → hiện overlay như Mode 1 (không tự sửa) |
-| **Tin nhắn** | Toast nhỏ: "Đã sửa 2 lỗi" + `Ctrl+Z` để hoàn tác (giữ 5 s) |
-| **An toàn** | Mặc định `assist.auto_fix = "off"`; bật "safe" chỉ gồm luật objective; **không bao giờ** tự sửa khi luật có điểm tin cậy < ngưỡng |
-| **Giới hạn v1** | Chỉ sửa lỗi **trong câu cuối** (offset gần con trỏ) → tránh map sai vị trí (`Fassist-5`) |
-
-### Ánh xạ sang hành vi hiện có
-
-| Hành vi TextVN sẵn có | Liên quan |
-|---|---|
-| `auto_capitalize` (config) | trùng lớp với "hoa đầu câu" → **gộp**: assist lo phần *sau dấu câu*, engine lo phần *đầu câu đầu tiên* |
-| `suggest` / `english_words` (config) | gợi ý từ hiện có (S2) → assist **mở rộng** sang gợi ý *câu* |
-| `spellcheck` (config, mặc định `Should`) | trạng thái "nên báo lỗi" vs "báo sai" → assist dùng cùng ngữ nghĩa cho lỗi câu |
-| Strategy `SelectionReplace` | dùng để áp sửa (fix B1) |
-| `appdb` per-app | thêm "tắt assist cho app này" (terminal, IDE) |
+### 3.2 Ràng buộc bắt buộc
+- Perf theo `PLAN.md` §5.5: `ime_key` < 0.5 ms p99 · adapter+strategy < 3 ms p99 · end-to-end < 10 ms p99 · RSS < 30 MB · không wake-idle spike > 5 ms.
+- Check ngữ pháp **không chặn** input path: chạy sau khi trigger đã xử lý; vượt budget → **bỏ qua im lặng** (fail-open).
+- Không ghi text người dùng ra log/disk/crash-dump (S2) — kể cả khi bật trace.
+- Không đọc nội dung app khác (D8); chỉ đọc **vị trí con trỏ** khi cần precondition cho D12.
 
 ---
 
-## 5. Bộ luật tiếng Việt & từ điển
+## 4. Hai chế độ — đặc tả chi tiết (sau vòng 3–5)
 
-### 5.1 Luật v1 (objective — auto-fix được hoặc không)
+### 4.1 Điểm kiểm tra vs điểm hiển thị (D11)
+| Mục | Hành vi |
+|---|---|
+| **Điểm kiểm tra** (silent) | Mỗi khi gõ `space` / `,` / `.` / `!` / `?` / `;` / `:` **sau khi text đã commit** → kiểm tra **câu vừa gõ** (từ dấu câu trước → dấu câu vừa gõ, ≤ 500 ký tự) từ **shadow buffer** |
+| **Điểm hiển thị** (UI) | Chỉ khi: (a) dấu **kết thúc câu** `.` `!` `?`, **hoặc** (b) user **ngừng gõ ≥ 700 ms**, **hoặc** (c) `Ctrl+Shift+G` (gọi lại) → mới hiện candidate/overlay |
+| **Kết quả im lặng** | Câu sạch → không hiện gì. Lỗi mơ hồ + Mode 1 → hiện. Lỗi objective + Mode 2 → sửa **im lặng** + toast nhỏ |
+| **Bỏ qua** | App không phải ô nhập (terminal/IDE) · đang compose · `assist.mode=off` · câu < 3 từ · câu bị mask (URL/email) · câu không phải tiếng Việt (L0) |
 
-| # | Luật | Ví dụ | `auto_fix` | Ghi chú |
+### 4.2 Mode 1 — "Trợ lý ngữ pháp: gợi ý" (P4-1…P4-3)
+- Hiển thị: **candidate list chuẩn của IME** (D13) — 1 dòng gợi ý đầu + danh sách lỗi; **overlay tự vẽ** chỉ là fallback ở Windows.
+- Nội dung: câu vừa gõ + lỗi **gạch chân đỏ trong candidate panel** + thông điệp tiếng Việt ngắn ("Lặp từ: \"của của\"").
+- Phím: `↑/↓` lỗi · `Enter` áp dụng gợi ý · `Alt+1..3` chọn gợi ý · `Esc` bỏ · `Ctrl+Shift+G` gọi lại.
+- **Áp dụng gợi ý = A2** (xem §4.4) — Backspace+Type cho **từ** lỗi, có precondition.
+
+### 4.3 Mode 2 — "tự sửa cả câu" (P4-5)
+- Cùng điểm kiểm tra; **chỉ luật objective** (L1/L2/L11, L3, L4, L5, L6, L8) được sửa tự động → áp dụng **cả câu** (nhiều lỗi cùng lúc).
+- Lỗi mơ hồ (L7/L9/L10/L12) → vẫn hiện candidate như Mode 1, **không** tự sửa.
+- Toast "Đã sửa 2 lỗi" + `Ctrl+Z` (giữ 5 s) · `assist.auto_fix` mặc định `off`, bật `safe` = chỉ objective.
+- Precondition D12 áp dụng cho **cả câu**: chỉ sửa khi caret xác minh được ở cuối câu.
+
+### 4.4 Ba mức áp dụng (thay cho "sửa bằng selection replace" — rủi ro map vị trí)
+| Mức | Phạm vi | Cơ chế | Precondition | Pha |
 |---|---|---|---|---|
-| L1 | Lặp từ liên tiếp | "tôi tôi", "của của" | ✅ | bỏ 1 từ |
-| L2 | Lặp giới từ liên tiếp | "đã đã", "sẽ sẽ" | ✅ | |
-| L3 | Thừa khoảng trắng trước dấu câu | "xin chào ," | ✅ | |
-| L4 | Thiếu khoảng trắng sau dấu câu | "xin chào,bạn" | ✅ | trừ `) ] } ' "` |
-| L5 | Khoảng trắng kép | "a  b" | ✅ | |
-| L6 | Chữ thường đầu câu | sau `. ! ?` + khoảng trắng | ✅ | bỏ qua nếu là mã/viết tắt |
-| L7 | Thiếu dấu chấm cuối câu khi gõ Enter | "tôi đi học⏎" | ❌ (gợi ý) | cần biết người dùng kết thúc đoạn |
-| L8 | Sai dấu tiếng Việt | "nghiã"→"nghĩa", "cuả"→"của" | ✅ | **tái dùng** bộ luật dấu sẵn có (`core/src/transform/diacritic_style.rs`) |
-| L9 | Trùng từ ở ranh giới câu | "…đi. Đi tới…" | ❌ (gợi ý) | |
-| L10 | Phủ định kép | "không có … không" | ❌ (gợi ý) | độ tin cậy trung bình |
-| L11 | "rất" + tính từ lặp | "rất rất" | ✅ | |
-| L12 | Dấu câu sau chữ cái | "tôi đi học," cuối câu | ❌ (gợi ý) | |
+| **A1** | Không áp dụng | Chỉ gợi ý | — | P4-1 |
+| **A2** | 1 từ lỗi | **Backspace+Type** (xoá đúng số ký tự ta vừa gõ rồi gõ lại từ đúng) | caret ở cuối từ + từ do ta gõ | P4-3 |
+| **A3** | Cả câu | **Backspace+Type** cho cả câu | caret ở cuối câu + câu do ta gõ liên tục | P4-5 |
 
-> **Nguyên tắc QA:** chỉ luật **objective** mới được `auto_fix`. Luật mơ hồ → gợi ý, không bao giờ tự sửa (giảm rủi ro mất niềm tin).
+> Vì sao không dùng "selection replace" (đã có sẵn trong `strategy`): nó cần **biết vị trí text đã commit trong app** — mà app có thể tự format/auto-correct → lệch vị trí → sửa nhầm. Backspace+Type chỉ dựa vào **số ký tự ta tự gõ** → an toàn hơn, và nếu app đã can thiệp thì `Ctrl+Z` + fail-safe.
 
-### 5.2 Từ điển tiếng Việt (P4-4)
+### 4.5 Precondition (D12) — chi tiết
+| Kiểm tra | Nguồn (chỉ *vị trí*, không đọc nội dung) | Nếu không kiểm được |
+|---|---|---|
+| Caret ở cuối câu vừa gõ? | Windows: `ITfContext::GetSelection` / `GetGUIThreadInfo`; macOS: `AXRange`; Linux: AT-SPI `TextCaret` | **Không sửa** (chỉ gợi ý) |
+| Câu vừa gõ là do ta gõ liên tục? | Shadow buffer của adapter (đếm chữ ta commit) | **Không sửa** |
+| Có gì khác được gõ xen kẽ không? | Shadow buffer (ký tự lạ → app tự chèn → không khớp) | **Không sửa** |
 
-| Mục | Kế hoạch |
-|---|---|
-| **Nguồn (đề xuất, phải audit license trước khi dùng)** | (a) từ điển âm tiết mở (kiểm tra giấy phép từng nguồn), (b) ngữ liệu có sẵn trong repo (`data/`, `corpus/`, `docs/`), (c) sinh từ từ điển Wikibooks/Wiktionary (**CC BY-SA → có nghĩa vụ attribution + chia sẻ** → ưu tiên nguồn permissive) |
-| **Dạng lưu** | FST/bloom + tần suất (âm tiết → tần suất) để gợi ý bằng edit distance trên **âm tiết** |
-| **Kích thước mục tiêu** | ≤ 3 MB (đóng gói trong bộ cài), load < 150 ms (cold), RSS tăng ≤ 20 MB |
-| **Báo động giả** | Chỉ báo "sai chính tả" khi: từ **không** có trong từ điển **và** không khớp từ nào trong từ điển (edit distance ≤ 1 âm tiết) **và** từ không phải tên riêng/viết tắt (heuristic: viết hoa giữa câu, có số, ký hiệu) |
-| **Audit bắt buộc** | Ghi nguồn + giấy phép từng nguồn vào `docs/compliance/` + `REUSE.toml`; **không** dùng nguồn license không rõ |
+---
 
-### 5.3 Che (mask) nội dung không nên kiểm tra
+## 5. Bộ luật tiếng Việt
 
-URL, email, đường dẫn, mã hex/base64, mã định danh (`@`, `_`, `#`), số thứ tự, văn bản trong ngoặc kép kèm ký tự lạ. (Mượn nguyên tắc `mask/` của Harper.)
+### 5.1 V1 — objective (đều auto-fix được)
+| Mã | Luật | Module | Auto-fix | V1 |
+|---|---|---|---|---|
+| **L0** | Bỏ qua câu **không phải tiếng Việt** (heuristic tỷ lệ từ có dấu) | `language.rs` | — (bỏ qua) | ✓ (D16) |
+| L1/L2/L11 | Lặp từ ("tôi tôi", "của của", "rất rất") | `duplicate_word.rs` | ✅ | ✓ |
+| L3 | Thừa khoảng trắng trước dấu câu | `space_before_punct.rs` | ✅ | ✓ |
+| L4 | Thiếu khoảng trắng sau dấu câu | `space_after_punct.rs` | ✅ | ✓ |
+| L5 | Khoảng trắng kép | `double_space.rs` | ✅ | ✓ |
+| L6 | Chữ thường đầu câu — **bỏ qua nếu `auto_capitalize=true`** | `capitalize_sentence.rs` | ✅ | ✓ |
+| L8 | Sai vị trí dấu ("nghiã"→"nghĩa") — bảng curated ~12 mục | `diacritic_typo.rs` | ✅ | ✓ |
+| L7/L9/L10/L12 | Thiếu dấu chấm cuối câu · lặp từ ở ranh giới câu · phủ định kép · dấu câu sai | — | ❌ gợi ý | v2 |
+| — | Từ điển: sai chính tả từ + gợi ý từ (edit distance âm tiết) | `spell.rs` | gợi ý | **P4-4** |
+
+### 5.2 Từ điển (P4-4) — chỉ bắt đầu sau spike S3 (D18)
+- **Nguồn**: ≥ 3 nguồn mở khảo sát (license + kích thước + chất lượng) → chọn nguồn **permissive/ODbL**; **không** dùng nguồn license không rõ; ghi nguồn vào `docs/compliance/assist-dictionary.md` + `REUSE.toml`.
+- **Dạng lưu**: FST (mmap, D15) + tần suất âm tiết; gợi ý bằng edit distance trên **âm tiết**.
+- **Kích thước**: ≤ 3 MB · load (mmap) < 10 ms · RSS tăng ≤ 20 MB (dùng chung page cache).
+- **Báo động giả**: chỉ báo khi từ **không có** trong từ điển **và** không khớp từ nào (edit distance ≤ 1 âm tiết) **và** không phải tên riêng/viết tắt/số.
 
 ---
 
 ## 6. Giao diện người dùng (Design view)
 
-**Overlay (3 OS, cùng spec `docs/release/ui-spec.md`):**
-
 | Thuộc tính | Yêu cầu |
 |---|---|
-| Vị trí | Ngay dưới/song song con trỏ, bám theo vị trí con trỏ (TSF caret rect / AX / AT-SPI) |
-| Kích thước | ≤ 320×220 px, tự co theo nội dung |
-| Hành vi focus | **Không chiếm focus** (Windows: `WS_EX_NOACTIVATE`; macOS: `NSPanel` non-activating; Linux: cửa sổ GTK không focus) |
-| Tự tắt | Click ra ngoài · 8 s không tương tác · app đổi focus · gõ tiếp (theo lựa chọn) |
-| Hiển thị lỗi | Gạch chân đỏ **trong overlay** (không sửa field) + nhãn lỗi tiếng Việt ngắn |
-| Gợi ý | Danh sách 1–3 gợi ý, gợi ý đầu được chọn sẵn |
-| Dark mode | Bắt buộc (theo theme OS) |
-| A11y | Nhãn tiếng Việt, hỗ trợ bàn phím đầy đủ, không chỉ chuột |
-
-**Vòng 1 (giảm rủi ro):** trước khi làm overlay thật, dùng **thông báo tray** (đã có sẵn) để khép vòng giá trị: "Câu vừa gõ có 1 lỗi: lặp từ" → sau đó mới xây overlay.
+| Nơi hiển thị | **Candidate list chuẩn của IME** (D13): Windows `ITfCandidateListUI` (phải implement), macOS IMK input controller (đã có), Linux IBus/Fcitx5 candidate list (đã có API) — panel hiện **cạnh con trỏ** → đúng ý D4 |
+| Fallback | Toast/tray notification (P4-2, và mặc định nếu IME không hỗ trợ candidate) |
+| Không chiếm focus | Windows: cửa sổ không activate; IBus/Fcitx5: panel chuẩn không chiếm focus; IMK: input controller chuẩn |
+| Tự tắt | Click ra ngoài · 8 s không tương tác · app đổi focus · gõ tiếp · `Esc` |
+| Nội dung | Câu vừa gõ + lỗi gạch chân đỏ + 1–3 gợi ý + thông điệp tiếng Việt ngắn |
+| A11y | Nhãn tiếng Việt · bàn phím đầy đủ · dark mode · không đưa nội dung câu vào accessibility tree (tránh app khác đọc được) |
+| Kill-switch | `assist.mode=off` + toggle trong tray/Settings + auto-disable streak (D20) |
 
 ---
 
@@ -181,10 +189,14 @@ URL, email, đường dẫn, mã hex/base64, mã định danh (`@`, `_`, `#`), s
 ```jsonc
 "assist": {
   "mode": "off",              // off | highlight | autocorrect
-  "language": "vi",           // vi | en | auto
-  "auto_fix": "off",          // off | safe
+  "auto_fix": "off",          // off | safe      (chỉ luật objective)
+  "language": "vi",           // vi | en | auto  (v1: chỉ vi)
   "trigger_keys": ["space", ",", "."],
-  "min_confidence": 0.9,
+  "display": {                // điểm hiển thị (D11)
+    "show_on_sentence_end": true,
+    "idle_ms": 700,
+    "show_on_comma": false
+  },
   "max_sentence_chars": 500,
   "per_app": { "notepad": true, "code.exe": false }
 }
@@ -194,89 +206,129 @@ URL, email, đường dẫn, mã hex/base64, mã định danh (`@`, `_`, `#`), s
 
 ---
 
-## 8. Kế hoạch theo pha (ước lượng 1 người)
+## 8. Kế hoạch theo pha (sau vòng 3–5)
 
-| Pha | Nội dung | Xuất xưởng | Tiêu chí nghiệm thu (acceptance) |
-|---|---|---|---|
-| **P4-1** | Crate `assist/` skeleton + 6 luật objective (L1–L6, L8) + corpus câu tiếng Việt + CLI debug `textvn-cli assist check "<câu>"` | 2 tuần | `cargo test -p assist` xanh; corpus ≥ 200 câu (≥ 50 lỗi, ≥ 150 sạch) pass; clippy/fmt sạch; **0 network, 0 I/O** (audit bằng mắt + `cargo deny`) |
-| **P4-2** | Shadow buffer trong adapter + trigger (space/`,`/`.`) + **thông báo tray** khi có lỗi (chưa overlay) | 2 tuần | Gõ thật trên Notepad/Chrome: câu lỗi → có thông báo; câu sạch → im lặng; không tăng độ trễ cảm nhận (> 5 ms) |
-| **P4-3** | **Overlay Windows** (HWND no-activate) + **áp dụng gợi ý** qua `SelectionReplace` + undo | 2–3 tuần | Sửa đúng vị trí trong Notepad/Word/Chrome/VSCode; Ctrl+Z hoàn tác được; overlay không chiếm focus; perf p95 theo §3 |
-| **P4-4** | Từ điển tiếng Việt (nguồn + audit license + pipeline build) + gợi ý từ (edit distance âm tiết) | 2–3 tuần | ≤ 3 MB; load < 150 ms; false-positive ≤ 2% trên corpus 500 câu sạch; `docs/compliance/` có nguồn + license |
-| **P4-5** | **Mode 2 — tự sửa câu** (chỉ luật objective) + toast + undo + `assist.auto_fix` trong UI | 2 tuần | Bật "safe": chỉ luật objective bị sửa; mọi thay đổi undo được; không sửa khi luật mơ hồ |
-| **P4-6** | **Parity 3 OS**: macOS (IMK + NSPanel) + Linux (IBus/Fcitx5 + overlay) + UI 3 OS + corpus 3 OS | 3–4 tuần | Cùng corpus pass 3 OS; UI giống nhau; `ui-spec`/`parity-checklist` cập nhật |
+| Pha | Task | Nội dung & file | Acceptance | Ước lượng |
+|---|---|---|---|---|
+| **P4-0** | AS-000 | Tài liệu: `P4-0` (plan), `P4-1` (đánh giá), ADR-012, INDEX, PLAN §2.3 | Review 3 vòng; CI xanh; graphify | ✅ xong |
+| **P4-1** | AS-001…006 | crate `assist/` (tokenize/mask/rules/fix) + `corpus/assist/*.ass` + test tích hợp + `textvn-cli assist check` | `cargo test -p textvn-assist` xanh · corpus ≥ 60 câu · clippy+fmt sạch · **0 dep, 0 network, 0 I/O** · recall ≥ 80% / FPR ≤ 2% trên corpus | 2 tuần |
+| **P4-1b** | AS-007…010 | **3 spike chặn (D18)**: S1 TSF candidate list sau commit · S2 đọc caret 3 OS · S3 khảo sát từ điển VN | Mỗi spike có kết luận **viết ra** + bằng chứng (log/screenshot) | 1 tuần |
+| **P4-2** | AS-020…025 | **Runtime shadow buffer** (TẠO MỚI — `compose.rs` chỉ là mô phỏng test) + trigger + **toast tray** + kill-switch | Gõ thật: câu lỗi → toast; câu sạch → im lặng; không tăng trễ > 5 ms; tắt được 1 bước | 2–3 tuần |
+| **P4-3** | AS-030…036 | **Candidate list Windows** (`ITfCandidateListUI`) + **A2** (sửa 1 từ) + precondition | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác · không chiếm focus | 3 tuần |
+| **P4-4** | AS-040…046 | Từ điển VN (FST mmap) + gợi ý từ + L0 | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit đầy đủ | 2–3 tuần |
+| **P4-5** | AS-050…056 | **Mode 2 / A3** (tự sửa cả câu) + toast + undo + `assist.auto_fix` UI | Chỉ luật objective bị sửa · precondition bắt buộc · mọi thay đổi undo được | 2 tuần |
+| **P4-6** | AS-060…068 | **Parity 3 OS**: macOS (IMK) + Linux (IBus/Fcitx5) + config/UI 3 OS | Cùng corpus pass 3 OS · `ui-spec`/`parity-checklist` cập nhật | 3–4 tuần |
 
-**Định nghĩa "xong phần":** theo `docs/01-AGENT-HANDBOOK.md` DoD 7 mục (test workspace xanh, corpus pass, clippy+fmt, `cargo deny`+REUSE, docs cập nhật, acceptance tick, CI 3 OS xanh) + 2/2 review trong `P4-REVIEW-LOG.md`.
+Mỗi pha: commit list tường minh → push → CI xanh → `graphify update .` → commit → push (G5). Không bắt đầu P4-3/P4-4 khi **chưa có kết luận spike** (D18).
 
 ---
 
-## 9. Kiểm thử (QA)
+## 9. Kiểm thử & DoD (QA)
 
 | Tầng | Nội dung |
 |---|---|
-| **Unit** | Mỗi luật 1 file test riêng (`assist/tests/rules/*.rs`): positive + negative + case "gần đúng" phải **không** báo |
-| **Corpus** | `corpus/assist/*.txt` (câu + expected issue), chạy trong CI 3 OS (như `textvn replay corpus/`) |
-| **Fuzz** | Fuzz target mới: input ngẫu nhiên/byte lạ vào `assist::check` → **không panic** (crate `fuzz` đã có sẵn) |
-| **Perf** | Gate p95: check 1 câu ≤ 1 ms (không từ điển) / ≤ 3 ms (có từ điển); RSS ≤ +20 MB; không wake-idle spike > 5 ms |
-| **Manual** | Checklist app: Notepad, Word, Chrome (textarea + contenteditable), VSCode, Teams/Slack, Terminal (phải **tắt**), app elevated (phải **tắt**) |
-| **Hồi quy** | Không được phá: gõ Telex/VNI, undo, macro, emoji, per-app state, `auto_capitalize` (đã có) — có corpus hồi quy riêng |
+| **Unit** | Mỗi luật 1 file test (kể cả case "gần đúng" phải **không** báo) + test `apply_auto_fixes` (char-space) |
+| **Corpus** | `corpus/assist/*.ass` (câu + kind mong đợi) — chạy CI 3 OS; ≥ 60 câu ở v1, ≥ 200 ở P4-4 |
+| **Đo chất lượng** | recall ≥ 80% · FPR ≤ 2% · 2 người đánh giá độc lập 100 câu (thống nhất ≥ 80%) (D19) |
+| **Fuzz** | Input rác/byte lạ vào `assist::check` → **không panic** (crate `fuzz` sẵn có) |
+| **Perf** | check câu ≤ 1 ms (không từ điển) / ≤ 3 ms (có từ điển) · RSS ≤ +20 MB · không wake-idle spike > 5 ms |
+| **Manual** | 8 app: Notepad, Word, Chrome (textarea + contenteditable), VSCode, Teams/Slack, Terminal (phải tắt), app elevated (phải tắt) · 3 OS |
+| **Bằng chứng DoD** | Mỗi task kèm: output CLI + screenshot + log **không chứa text** (D20) |
+| **Hồi quy** | Không phá: Telex/VNI, undo, macro, emoji, per-app state, `auto_capitalize` (đã có), `spellcheck` (UI 3 OS) |
 
 ---
 
-## 10. Rủi ro & giảm thiểu
+## 10. Rủi ro & giảm thiểu (cập nhật sau vòng 3–5)
 
 | # | Rủi ro | Mức | Giảm thiểu |
 |---|---|---|---|
-| R1 | Sửa nhầm vị trí trong app (offset ≠ vị trí thật) | **Cao** | v1 chỉ sửa lỗi **cuối câu**; app không hỗ trợ range → bỏ qua; luôn có undo; test trên 8 app |
-| R2 | Auto-fix sai → mất niềm tin | **Cao** | chỉ luật objective; mặc định **tắt**; toast + undo; thống kê số lỗi đã sửa |
-| R3 | Overlay che nội dung / cướm focus | Trung bình | không chiếm focus; tự tắt; không hiện khi đang compose |
-| R4 | False positive từ điển | Trung bình | ngưỡng edit distance + heuristic tên riêng; đo FPR trên corpus sạch; tắt được từng luật |
-| R5 | Tăng độ trễ gõ / RSS | Trung bình | budget §3; check fail-open; từ điển lazy-load; gate perf trong CI |
-| R6 | Rủi ro AV/privacy (text người dùng trong bộ nhớ tiến trình) | Trung bình | không sinh tiến trình mới; không log; không network; không đọc app khác; ghi trong `docs/specs/antivirus-false-positive.md` §8 (bổ sung mục Assist) |
-| R7 | Lệch parity 3 OS (config/UI) | Trung bình | bắt buộc sync 4 chỗ + test Swift/C (AGENTS.md) |
-| R8 | Phình phạm vi (làm luôn ngữ pháp học thuật) | Trung bình | roadmap chỉ 6 luật objective ở v1; phần mơ hồ để sau, có backlog riêng |
-| R9 | Bản quyền từ điển/ngữ liệu | Trung bình | audit từng nguồn trước khi đóng gói; ghi `docs/compliance/` + `REUSE.toml` |
-| R10 | Phụ thuộc ngoài (crates.io) làm tăng bề mặt | Thấp | `assist` chỉ dùng crate đã có sẵn trong workspace (`serde`?) — ưu tiên 0 dep |
+| R1 | Sửa nhầm vị trí | **Cao** | D12 (Backspace+Type + precondition + fail-safe) · A2 trước A3 |
+| R2 | Auto-fix sai | **Cao** | D7 (chỉ objective) · mặc định tắt · toast + undo · auto-disable streak |
+| R3 | **UI spam** khi gõ thường | Cao | D11 (điểm kiểm tra ≠ điểm hiển thị) |
+| R4 | Overlay **không khả thi ở Linux/Wayland** | Cao | D13 (candidate list chuẩn của IME) |
+| R5 | **Shadow buffer chưa tồn tại ở runtime** | Trung bình | P4-2 tạo mới; ước lượng đã tăng |
+| R6 | Tăng độ trễ gõ / RSS | Trung bình | Budget §3.2 · fail-open · từ điển mmap (D15) |
+| R7 | False positive từ điển | Trung bình | Ngưỡng edit distance + heuristic · đo FPR · tắt được từng luật |
+| R8 | Rủi ro AV/privacy | Trung bình | D10 (không tiến trình mới, không log, không network) · ghi vào `antivirus-false-positive.md` §8 khi có code |
+| R9 | Lệch parity 3 OS | Trung bình | Sync 4 chỗ + test Swift/C + `ui-spec` |
+| R10 | Bản quyền từ điển | Trung bình | Spike S3 trước · audit từng nguồn · `docs/compliance/` |
+| R11 | **Trôi thành copy code Harper** | Trung bình | D17 (clean-room rule) + ADR-012 |
+| R12 | Phình phạm vi | Trung bình | Roadmap chỉ luật objective ở v1 |
+| R13 | ABI/đóng gói | Thấp | D14 (không artifact mới) · nếu cần struct mới thì bump ABI + `verify` |
 
 ---
 
-## 11. Audit vòng 2 — "Nhất quán & Sẵn sàng" (checklist + findings)
+## 11. Audit
 
-| Mục 5W1H | Kết quả kiểm tra |
-|---|---|
-| **What** | Đối chiếu §1–§10 với yêu cầu user (2 chế độ · trigger space/,/. · highlight · correct cả câu) → **đủ**; với `PLAN.md` S1/S2 → **không trùng lặp** (nâng cấp, có mapping ở §1) |
-| **Why** | Mỗi hạng mục đều có lý do + tiêu chí nghiệm thu đo được (acceptance ở §8) |
-| **Who** | Owner = agent; 4 quyết định phạm vi do user chốt 2026-10-20; **5 câu hỏi mở** ở `P4-1` §9 (Q1–Q5) cần user/PO trả lời trước P4-1 |
-| **When** | 6 pha, ~13–16 tuần; bắt đầu sau khi Q1–Q5 được trả lời; mỗi pha 1 commit + CI + graphify (G5) |
-| **Where** | Tài liệu mới: `docs/50-assist/P4-0-MASTER-PLAN.md` (file này), `docs/50-assist/P4-1-harper-evaluation.md`; code mới (P4-1 trở đi): crate `assist/`, `corpus/assist/`, `docs/compliance/assist-dictionary.md`; **chưa** sửa code runtime ở phiên này |
-| **How** | Verify bằng gì: corpus + `cargo test -p assist` + fuzz + perf gate + manual checklist 8 app; CI 3 OS + `repo-hygiene` (8 check) + `graphify update .` trước khi tick Done |
-
-**Findings vòng 2:**
-
+### 11.1 Vòng 2 — "Nhất quán & Sẵn sàng" (đã xong ở v1)
 | ID | Mức độ | Finding | Trạng thái |
 |---|---|---|---|
-| **Fassist-7** | minor | Cần **task list có ID** theo convention `P{n}-TASKS.md` (WIN/MAC/LNX/P0) để agent sau nhận việc — hiện phần 4 mới chỉ có plan | còn mở → tạo `docs/50-assist/P4-TASKS.md` ở pha P4-1 (task đầu tiên) |
-| **Fassist-8** | minor | Chưa có **ADR** cho quyết định "không vendor Harper" — quyết định kiến trúc nên có bản ghi riêng (`docs/adr/`) | còn mở → tạo `docs/adr/ADR-00X-assist-engine.md` ở P4-1 |
-| **Fassist-9** | minor | `docs/00-INDEX.md` §1 (trạng thái các phần) chưa liệt kê Phần 4 → agent mới không thấy phần này | fixed @604434c |
-| **Fassist-10** | minor | `PLAN.md` §2.3 (S1/S2/C1) chưa trỏ sang Phần 4 → backlog và plan lệch nhau | fixed @604434c |
-| **Fassist-11** | minor | `docs/specs/antivirus-false-positive.md` §8 chưa có dòng nói rõ Assist **không** sinh tiến trình mới / không log text | còn mở → bổ sung ở P4-1 (khi có code) |
-| **Fassist-12** | minor | Chưa có bước kiểm thử **2 OS khác** cho overlay (overlay là UI native khác nhau) — DoD yêu cầu CI 3 OS nhưng overlay không tự test được | còn mở → bổ sung checklist manual 3 OS trong `P4-6` |
+| Fassist-7 | minor | Cần task list có ID (`P4-TASKS.md`) | còn mở → tạo ở P4-1 |
+| Fassist-8 | minor | Chưa có ADR cho quyết định "không vendor Harper" | **fixed** → ADR-012 (`docs/adr/README.md`) |
+| Fassist-9 | minor | `00-INDEX.md` §1 chưa liệt kê Phần 4 | fixed @604434c |
+| Fassist-10 | minor | `PLAN.md` §2.3 chưa trỏ Phần 4 | fixed @604434c |
+| Fassist-11 | minor | `antivirus-false-positive.md` §8 chưa có dòng về Assist | còn mở → bổ sung khi có code (P4-2) |
+| Fassist-12 | minor | Thiếu checklist manual overlay 3 OS | còn mở → P4-6 |
+
+### 11.2 Vòng 3–5 — review chuyên sâu (2026-10-20, 3 lượt: SA/QA → Audit → PO/BA/Design)
+
+**Lượt 3 — Solution Architect + QA**
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| Fassist-13 | major | "Sửa text đã commit" (giả định của Mode 2) là rủi ro lớn nhất: sau commit TIP không giữ range → sửa cần map offset→vị trí thật (ITfRange/AX/AT-SPI) → dễ sửa nhầm | **D12**: Backspace+Type + precondition caret + fail-safe (§4.4–4.5) |
+| Fassist-14 | major | Trigger space/,/. sẽ **spam UI** khi gõ thường | **D11**: tách điểm kiểm tra / điểm hiển thị (§4.1) |
+| Fassist-15 | major | "Overlay cạnh con trỏ" **không khả thi ở Linux/Wayland** (fcitx5 = C++ không GTK) | **D13**: candidate list chuẩn của IME; overlay chỉ fallback Windows (§6) |
+| Fassist-16 | minor | Crate mới nếu expose riêng → thêm artifact + sửa packaging/ABI | **D14**: crate nội bộ, expose qua `ffi` |
+| Fassist-17 | minor | **Shadow buffer chưa tồn tại ở runtime** (`compose.rs` chỉ là mô phỏng test) | P4-2 tạo mới; ước lượng tăng (§8) |
+| Fassist-18 | minor | Từ điển parse trong mỗi process (TIP nạp vào mọi app) = 100 ms+ mỗi app | **D15**: FST mmap |
+| Fassist-19 | minor | Câu tiếng Anh sẽ bị báo sai khi v1 không hỗ trợ EN | **D16**: luật L0 bỏ qua câu không phải tiếng Việt |
+| Fassist-20 | minor | Xung đột với `auto_capitalize` (mặc định `true`) | **D16**: L6 bỏ qua khi `auto_capitalize=true` |
+
+**Lượt 4 — Audit (license / security / privacy / ops)**
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| Fassist-21 | major | "Mượn kiến trúc Harper" cần quy tắc văn bản, nếu không dễ trôi thành copy code (Apache-2.0 → attribution bắt buộc) | **D17** clean-room rule + ADR-012 |
+| Fassist-22 | major | Nguồn từ điển VN **chưa khảo sát** → không cam kết lịch P4-4 | **D18** spike S3 chặn P4-4 |
+| Fassist-23 | minor | UI hiển thị text người dùng → không log, không clipboard, tự xoá khi mất focus, không đưa vào accessibility tree | §6 (A11y) |
+| Fassist-24 | minor | Không có auto-disable khi UI phiền | **D20** auto-disable streak (pattern đã có trong repo) |
+| Fassist-25 | minor | Rủi ro "thu thập số liệu ngầm" | **D20**: không thu thập metrics nào, kể cả đếm |
+| Fassist-26 | minor | Threat model: app độc hại có thể đẩy text vào ô nhập để khiến assist gợi ý/sửa → không nguy hiểm (không gửi đi đâu) nhưng phải ghi | Ghi vào `PLAN.md` §6.1 (STRIDE) ở P4-2 |
+
+**Lượt 5 — PO / BA / Design (giá trị & đo lường)**
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| Fassist-27 | major | Thiếu tiêu chí "đủ tốt" (chỉ có FPR) → không chứng minh được giá trị | **D19**: recall ≥ 80% + FPR ≤ 2% + 2 người đánh giá (§2, §9) |
+| Fassist-28 | minor | Thiếu yêu cầu **bằng chứng** cho từng task (DoD §6) | §9 (CLI output + screenshot + log sạch) |
+| Fassist-29 | minor | 3 giả định kỹ thuật lớn chưa kiểm chứng (candidate list, caret, từ điển) | **D18**: 3 spike chặn (P4-1b) |
+| Fassist-30 | minor | Thiếu kill-switch 1 bước + default off + rollback | **D20** + §7 (`mode: off`) |
+| Fassist-31 | minor | Chưa nêu quan hệ với `spellcheck`/`auto_capitalize` sẵn có (tránh trùng chức năng) | §5.1 (L6) + §9 (hồi quy) |
+
+### 11.3 Kết luận 3 lượt review
+- **Blocker/major đã xử lý trong plan:** 13/13 → chuyển thành D11–D20 (thiết kế) hoặc task chặn (spike).
+- **Điểm yếu còn lại (đã biết, chấp nhận có điều kiện):** chất lượng luật tiếng Việt phụ thuộc nguồn từ điển (P4-4) và độ chính xác của L0 (heuristic) → cần đo (D19) và tắt được từng luật.
+- **Điều kiện để bắt đầu code:** D11–D20 được chấp nhận + 5 câu hỏi mở (`P4-1` §9) đã trả lời.
 
 ---
 
-## 12. Việc cần làm ngay (nhỏ, để phần 4 "có mặt" trong repo)
+## 12. Việc cần làm ngay
 
-1. `docs/50-assist/P4-0-MASTER-PLAN.md` (file này) + `P4-1-harper-evaluation.md` — xong ở phiên này.
-2. `docs/00-INDEX.md` §1 — thêm Phần 4 (trạng thái "Kế hoạch", review 0/2) + mục trong §0/§2.
-3. `PLAN.md` §2.3 — S1/S2/C1 trỏ sang Phần 4.
-4. Trả lời Q1–Q5 (`P4-1` §9) → chốt `P4-TASKS.md` + ADR → bắt đầu P4-1 (crate `assist/`).
+1. ✅ `P4-0` (file này) + `P4-1-harper-evaluation.md` — xong.
+2. ✅ `docs/adr/README.md` — ADR-012.
+3. ✅ `docs/00-INDEX.md` §1 + log; `PLAN.md` §2.3 (S1/S2/C1 → Phần 4).
+4. ⏳ **P4-1** — crate `assist/` (đã có skeleton 6 luật + 31 unit test) → còn: corpus `.ass` + test tích hợp + `textvn-cli assist check`.
+5. ⏳ **P4-1b** — 3 spike chặn (D18) **trước** khi làm P4-3/P4-4.
+6. ⏳ `docs/50-assist/P4-TASKS.md` — bảng task đầy đủ (AS-xxx) để agent sau nhận việc.
 
 ---
 
 ## 13. Liên kết
 
-- `P4-1-harper-evaluation.md` (cùng thư mục) — đánh giá Harper + so sánh phương án + findings vòng 1
-- `PLAN.md` §2.3 · §5.5 — backlog nguồn + perf budget
+- `P4-1-harper-evaluation.md` — đánh giá Harper + so sánh phương án + findings vòng 1
+- `PLAN.md` §2.3 · §5.5 · §6.1 — backlog nguồn · perf budget · threat model
 - `docs/01-AGENT-HANDBOOK.md` — DoD 7 mục + checklist review
 - `docs/specs/antivirus-false-positive.md` §8 — chính sách kiến trúc hành vi (không giống malware)
-- `docs/10-shared/P0-2-engine-ffi-contract.md` · `P0-3-config-preset-strategy.md` — hợp đồng FFI + config
+- `docs/10-shared/P0-2-engine-ffi-contract.md` · `P0-3-config-preset-strategy.md` · `P0-4-test-and-corpus.md`
 - `docs/release/ui-spec.md` · `parity-checklist.md` — spec UI 3 OS

@@ -17,6 +17,7 @@
 | ADR-009 | Config schema v1, 1 định dạng cho mọi OS | ✅ Accepted | JSON + JSON Schema, `config_version` migrate, hot-reload qua IPC broadcast | `../10-shared/P0-3-config-preset-strategy.md §1` |
 | ADR-010 | Test pyramid: golden corpus + app-compat automation | ✅ Accepted | Corpus `.keys` assertion inline làm oracle; UIA/AX/AT-SPI driver cho 40-app matrix | `../10-shared/P0-4-test-and-corpus.md` |
 | ADR-011 | macOS toggle hotkey (Ctrl+Shift+Space vs CapsLock dual-role) | ⬜ Proposed | Chốt trong spike `MAC-018` trước khi implement; default giữ `Ctrl+Shift+Space` cho parity 3 OS | `../30-macos/P2-6-TASKS.md` (MAC-018) |
+| ADR-012 | Assist: tự viết luật tiếng Việt, mượn **kiến trúc** Harper, **không** vendor `harper-core` | ✅ Accepted (2026-10-20) | Harper chỉ hỗ trợ tiếng Anh **ở mọi tầng** (lexer/dictionary/luật/POS) + crates.io `harper-core` stale ~27 tháng → **clean-room**: chỉ mượn *ý tưởng* kiến trúc (token/span/lint/rule/mask/FST), mọi file viết từ đầu; lấy code → attribution Apache-2.0 + NOTICE/REUSE. Ràng buộc v1: không tiếng Anh, không network, không tiến trình mới, không log text, chỉ luật objective mới auto-fix | `../50-assist/P4-1-harper-evaluation.md` (§9.1 quy tắc clean-room), `../50-assist/P4-0-MASTER-PLAN.md` §3.1 (D1–D20) |
 
 **Cập nhật ADR:** sửa table này + ghi `Status`/`Revisit trigger` trong file ADR chi tiết.
 ADR `Proposed` phải được `Accepted` trước khi task liên quan bắt đầu.

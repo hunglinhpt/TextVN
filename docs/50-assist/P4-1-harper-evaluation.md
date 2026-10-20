@@ -170,15 +170,23 @@
 
 ---
 
-## 9. Việc chưa làm / câu hỏi mở
+## 9. Câu hỏi mở — **đã trả lời (2026-10-20)**
 
-| # | Câu hỏi | Người quyết | Ghi chú |
+| # | Câu hỏi | Quyết định | Người quyết |
 |---|---|---|---|
-| Q1 | Tên feature hiển thị cho người dùng ("Trợ lý ngữ pháp" / "Kiểm tra câu" / "Trợ lý văn bản")? | User (PO) | ảnh hưởng UI 3 OS + tên khóa config |
-| Q2 | Ngưỡng auto-fix: chỉ luật objective hay thêm luật "gần đúng"? | User | mặc định đề xuất = **objective** |
-| Q3 | Có cho phép đọc text của ô nhập (UIA/AX/AT-SPI) để đồng bộ câu đang gõ? | User | **khuyến nghị không** ở v1 (privacy + rủi ro sửa nhầm) |
-| Q4 | Ngưỡng báo động giả của từ điển (báo lỗi từ khi không có từ nào gần trong từ điển) | Agent + User | P4-0 §5 |
-| Q5 | Có cần hỗ trợ **tiếng Anh trong văn bản song ngữ** ở v1? | User | nếu không → không cần Harper ở v1 (giữ D1) |
+| Q1 | Tên feature hiển thị cho người dùng | **"Trợ lý ngữ pháp"** (UI 3 OS; khóa config vẫn là `assist.*`) | **User** |
+| Q2 | Ngưỡng auto-fix | **Chỉ luật objective** (L1/L2/L11, L3, L4, L5, L6, L8); luật mơ hồ chỉ gợi ý, không bao giờ tự sửa; `assist.auto_fix` mặc định `off` | Expert (D7) |
+| Q3 | Có cho phép đọc text của ô nhập (UIA/AX/AT-SPI)? | **Không đọc nội dung.** Chỉ dùng shadow buffer do ta tự commit. Được phép đọc **vị trí con trỏ** (metadata) khi cần precondition cho cơ chế sửa (xem `P4-0` §4.5) | Expert (D8/D12) |
+| Q4 | Ngưỡng báo động giả của từ điển | Chỉ báo khi từ **không có** trong từ điển **và** không khớp từ nào (edit distance ≤ 1 âm tiết) **và** không phải tên riêng/viết tắt; đo **FPR ≤ 2%** trên corpus ≥ 500 câu sạch, recall ≥ 80% | Expert (D19) |
+| Q5 | V1 có hỗ trợ tiếng Anh không? | **Không** → giữ D1 tuyệt đối (không đụng `harper-core`); luật L0 bỏ qua câu không phải tiếng Việt; EN để backlog v2.x | Expert (D9/D16) |
+
+## 9.1 Quy tắc clean-room khi "mượn kiến trúc" (D17 — bắt buộc)
+
+1. Được **đọc** Harper để hiểu *ý tưởng* (mô hình token/span/lint/rule, kỹ thuật mask, FST dictionary) — ý tưởng/thuật toán không thuộc quyền tác giả.
+2. **Không copy code** Harper vào repo. Mọi file trong `assist/` viết **từ đầu** của TextVN.
+3. Nếu sau này cần lấy code (ví dụ đọc lại logic FST): phải giữ `LICENSE`/`NOTICE` Apache-2.0, ghi attribution trong `REUSE.toml` + `docs/compliance/`, và **không** để nó nằm trong đường gõ chính.
+4. Tên module/kiểu dữ liệu của TextVN phải **khác** tên Harper (tránh nhầm là bản sao) — hiện đã dùng: `Span`, `Issue`, `IssueKind`, `Fix`, `Ctx`, `Token`, `TokenKind` (Harper: `Span`, `Lint`, `LintKind`, `Token`, `TokenKind` — trùng `Span`/`Token` là tên generic, chấp nhận được, nhưng **không** đặt tên file/module giống Harper).
+5. Ràng buộc này ghi trong **ADR-012** (`docs/adr/README.md`) để agent sau không vô tình vi phạm.
 
 ---
 
