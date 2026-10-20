@@ -256,8 +256,8 @@ URL, email, đường dẫn, mã hex/base64, mã định danh (`@`, `_`, `#`), s
 |---|---|---|---|
 | **Fassist-7** | minor | Cần **task list có ID** theo convention `P{n}-TASKS.md` (WIN/MAC/LNX/P0) để agent sau nhận việc — hiện phần 4 mới chỉ có plan | còn mở → tạo `docs/50-assist/P4-TASKS.md` ở pha P4-1 (task đầu tiên) |
 | **Fassist-8** | minor | Chưa có **ADR** cho quyết định "không vendor Harper" — quyết định kiến trúc nên có bản ghi riêng (`docs/adr/`) | còn mở → tạo `docs/adr/ADR-00X-assist-engine.md` ở P4-1 |
-| **Fassist-9** | minor | `docs/00-INDEX.md` §1 (trạng thái các phần) chưa liệt kê Phần 4 → agent mới không thấy phần này | còn mở → cập nhật cùng commit này |
-| **Fassist-10** | minor | `PLAN.md` §2.3 (S1/S2/C1) chưa trỏ sang Phần 4 → backlog và plan lệch nhau | còn mở → cập nhật cùng commit này |
+| **Fassist-9** | minor | `docs/00-INDEX.md` §1 (trạng thái các phần) chưa liệt kê Phần 4 → agent mới không thấy phần này | fixed @604434c |
+| **Fassist-10** | minor | `PLAN.md` §2.3 (S1/S2/C1) chưa trỏ sang Phần 4 → backlog và plan lệch nhau | fixed @604434c |
 | **Fassist-11** | minor | `docs/specs/antivirus-false-positive.md` §8 chưa có dòng nói rõ Assist **không** sinh tiến trình mới / không log text | còn mở → bổ sung ở P4-1 (khi có code) |
 | **Fassist-12** | minor | Chưa có bước kiểm thử **2 OS khác** cho overlay (overlay là UI native khác nhau) — DoD yêu cầu CI 3 OS nhưng overlay không tự test được | còn mở → bổ sung checklist manual 3 OS trong `P4-6` |
 
