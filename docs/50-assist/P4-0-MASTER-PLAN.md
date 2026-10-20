@@ -118,6 +118,14 @@
 | **D29** | Biên FFI chuẩn hoá **UTF-16 code unit** (khớp TSF/AX); crate `assist` giữ char + helper đổi | `Fassist-42` |
 | **D30** | UI theo OS: **Windows = overlay tự vẽ** (bỏ `ITfCandidateListUI` ở v1) · **Linux = candidate list của engine** (IBus/Fcitx5 API có sẵn) · **macOS = toast** (IMK server vẽ candidate list, không phải app) | S1 (spike) + giới hạn Wayland + kiến trúc IMK |
 | **D31** | Buffer câu trong `core` **luôn bật**, cap **256 ký tự** (≈ 1 KB/process) — **không** cần feature flag trong ABI | Đơn giản hơn D26 (config flag ⇒ đổi ABI `EngineOptions` + đồng bộ 3 OS); 1 KB không đáng kể |
+| **D32** | Kiến trúc **Provider**: `assist` giữ trait + **luật của ta**; **glue OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`) nằm ở biên FFI/adapter theo D23 | `assist` giữ 0-dep & portable; OS-specific code chỉ 1 nơi/OS |
+| **D33** | **OS-first**: dùng checker OS khi hỗ trợ `vi`/`vi-VN`; **FST của ta = fallback** | Chất lượng + user dictionary + footprint tốt hơn (F67) |
+| **D34** | **Không trùng lặp app**: app có spellcheck native → assist chỉ làm **ngữ pháp câu** (per-app `appdb`) | Ít nhiễu, ít CPU (F72) |
+| **D35** | **L0 dùng OS** trước heuristic (`NLLanguageRecognizer` · ICU · locale/MUI) | Thay đoán bằng dữ liệu hệ thống (F68) |
+| **D36** | Provider OS gọi **bất đồng bộ, timeout ≤ 50 ms, fail-open** (provider có thể out-of-proc) | Không chặn input path (F70) |
+| **D37** | Từ điển FST **vẫn ship** (fallback) + attribution GPL đầy đủ | Windows mặc định không có `vi-VN` (F67) |
+
+> Chi tiết nghiên cứu OS-first: `P4-4-OS-NATIVE-ASSIST.md`.
 
 ### 3.2 Ràng buộc bắt buộc
 - Perf theo `PLAN.md` §5.5: `ime_key` < 0.5 ms p99 · adapter+strategy < 3 ms p99 · end-to-end < 10 ms p99 · RSS < 30 MB · không wake-idle spike > 5 ms.

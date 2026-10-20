@@ -16,7 +16,7 @@
 | P4-2a | AS-020 | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ⬜ chưa làm |
 | P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | ⬜ chưa làm |
 | P4-3 | AS-030…036 | Candidate list Windows (`ITfCandidateListUI`) + A2 (sửa 1 từ) + precondition | ⬜ chưa làm |
-| P4-4 | AS-040…046 | Từ điển VN (FST mmap + `OnceLock`) + gợi ý từ (chỉ sau S4a) | ⬜ chưa làm |
+| P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit · provider OS dùng được khi `vi` có sẵn | ⬜ chưa làm |
 | P4-5 | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ⬜ chưa làm |
 | P4-6 | AS-060…068 | Parity macOS/Linux + settings 3 OS + `ui-spec` | ⬜ chưa làm |
 
