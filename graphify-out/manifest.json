@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "ipc/src/lib.rs": {
-    "mtime": 1791766485.488779,
-    "seen": 1792306932.4786887,
-    "ast_hash": "ffb60703785d5ce7e58b9a3f7396e78e",
+    "mtime": 1792519455.770747,
+    "seen": 1792519996.247979,
+    "ast_hash": "d5de85b85d7422a3bedd8d299ac2b323",
     "semantic_hash": ""
   },
   "perf/baseline-win.json": {
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/ipc_client.rs": {
-    "mtime": 1791766485.4509914,
-    "seen": 1792306932.4697104,
-    "ast_hash": "ba9ee3f24a02f7682973ac565b023286",
+    "mtime": 1792519905.7578516,
+    "seen": 1792519996.2409792,
+    "ast_hash": "9430e4cb1138679c49b30b2da94b943f",
     "semantic_hash": ""
   },
   ".github/workflows/hook-spike.yml": {
@@ -828,15 +828,15 @@
     "semantic_hash": ""
   },
   "tray/src/ipc_server.rs": {
-    "mtime": 1791766485.5006275,
-    "seen": 1792306932.4852104,
-    "ast_hash": "236bd2d622b35a5da01ba5c5d35670da",
+    "mtime": 1792519760.9347398,
+    "seen": 1792519996.2549787,
+    "ast_hash": "d8052bbef0b237df1dd6d68a34cc9b78",
     "semantic_hash": ""
   },
   "tray/src/lib.rs": {
-    "mtime": 1791766485.5046642,
-    "seen": 1792306932.4852104,
-    "ast_hash": "6b51c6a743b121b0751368d154c5b70b",
+    "mtime": 1792519850.4789891,
+    "seen": 1792519996.2549787,
+    "ast_hash": "a12225355bc129db531ec6c37c5c3ddc",
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
@@ -846,15 +846,15 @@
     "semantic_hash": ""
   },
   "tray/src/menu.rs": {
-    "mtime": 1791626870.9856167,
-    "seen": 1791702628.1865034,
-    "ast_hash": "e4550fe772ef637d3aa3784f8a5f94a7",
+    "mtime": 1792519730.8349028,
+    "seen": 1792519996.2549787,
+    "ast_hash": "84951735d16c16e183e7ab9a68aaf379",
     "semantic_hash": ""
   },
   "tray/src/svc.rs": {
-    "mtime": 1791766485.5156512,
-    "seen": 1792306932.4852104,
-    "ast_hash": "c71aa09dad25099fdf87eee1f019c3be",
+    "mtime": 1792519905.9968126,
+    "seen": 1792519996.2559779,
+    "ast_hash": "1174a5575b9bae284cec7adc5c58ffd4",
     "semantic_hash": ""
   },
   "tray/src/autostart.rs": {
@@ -2472,9 +2472,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-TASKS.md": {
-    "mtime": 1792518988.6861994,
-    "seen": 1792519058.1769984,
-    "ast_hash": "db5fd3e4daa8d8aed3d44a54741b7522",
+    "mtime": 1792519952.1423934,
+    "seen": 1792519996.2620027,
+    "ast_hash": "472be2c620eb19da1bd4775130f78579",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-4-OS-NATIVE-ASSIST.md": {
@@ -2499,6 +2499,12 @@
     "mtime": 1792518827.9716733,
     "seen": 1792519058.1769984,
     "ast_hash": "11ecbf4b41b7c177bcbaf2c9c272185e",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-7-REVIEW-AS-021-022.md": {
+    "mtime": 1792519881.8321998,
+    "seen": 1792519996.2620027,
+    "ast_hash": "441589a8c71c722f6be39201739feeae",
     "semantic_hash": ""
   }
 }
