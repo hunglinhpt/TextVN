@@ -575,6 +575,52 @@ impl EngineSession {
             None
         }
     }
+
+    /// Lấy chuỗi câu hiện tại trong buffer của engine (AS-031).
+    pub fn sentence_tail(&self, max_chars: usize) -> String {
+        let mut needed = 0usize;
+        let status = textvn_ffi::ime_assist_sentence_tail(
+            self.instance,
+            max_chars,
+            std::ptr::null_mut(),
+            0,
+            &mut needed,
+        );
+        if status != textvn_ffi::IME_OK || needed == 0 {
+            return String::new();
+        }
+        let mut buf = vec![0 as std::ffi::c_char; needed + 1];
+        let mut actual = 0usize;
+        let status = textvn_ffi::ime_assist_sentence_tail(
+            self.instance,
+            max_chars,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut actual,
+        );
+        if status == textvn_ffi::IME_OK {
+            let bytes = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u8, actual) };
+            std::str::from_utf8(bytes).unwrap_or("").to_string()
+        } else {
+            String::new()
+        }
+    }
+
+    /// Tính số ký tự glyph cần xóa trong document (AS-031 · D27).
+    pub fn glyph_len_of(&self, text: &str) -> usize {
+        let mut out = 0usize;
+        let status = textvn_ffi::ime_assist_glyph_len(
+            self.instance,
+            text.as_ptr() as *const std::ffi::c_char,
+            text.len(),
+            &mut out,
+        );
+        if status == textvn_ffi::IME_OK {
+            out
+        } else {
+            text.chars().count()
+        }
+    }
 }
 
 /// FFI `IME_MOD_*` values. Shift đơn lẻ còn có thể sinh Unicode, còn Ctrl/Alt/
@@ -653,6 +699,17 @@ mod tests {
         );
         // Nếu không reset, d thứ hai là `dd` -> đ và action REPLACE (1).
         assert_eq!(session.key_char('d').unwrap().action, 0);
+    }
+
+    #[test]
+    fn engine_session_sentence_tail_and_glyph_len() {
+        let mut session = EngineSession::new().expect("default FFI instance");
+        for c in "hom nay ".chars() {
+            let _ = session.key_char(c);
+        }
+        let tail = session.sentence_tail(256);
+        assert!(tail.contains("hôm nay") || tail.contains("hom nay"));
+        assert_eq!(session.glyph_len_of("hôm nay"), 7);
     }
 
     #[test]

@@ -15,7 +15,7 @@
 | P4-1c | AS-012…014 | Patch docs cross-review: Fassist-32 (tiền đề) · 33/34 (wording) · 37 (verified-ops) | ✅ xong |
 | **P4-2a** | **AS-020** | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ✅ **xong** (2026-10-21) |
 | P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | 🔄 **đang làm** (Agent Core) |
-| P4-3 | AS-030…036 | Candidate list Windows (`ITfCandidateListUI`) + A2 (sửa 1 từ) + precondition | ⬜ chờ nhận (Agent Windows/TSF) |
+| P4-3 | AS-030…031 | Candidate list Windows (Overlay) + A2 (sửa 1 từ) + precondition | ✅ **xong** (Agent Windows/TSF) |
 | P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ⬜ chờ nhận (Agent Dict/Data) |
 | P4-5 | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ⬜ chưa làm |
 | P4-6 | AS-060…068 | Parity macOS/Linux + settings 3 OS + `ui-spec` | ⬜ chưa làm |
@@ -47,7 +47,7 @@
 | AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11); gọi `assist::check_sentence` qua sentence buffer | AS-021 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: ime_assist_trigger_kind + check_instance) |
 | AS-023 | Toast/tray notification + kill-switch 1 bước | Tắt được ngay, không cần mở app | AS-022 | **Agent Tray (ta)** | ✅ **xong** (2026-10-21: IPC toggle/notify + tray balloon + menu item) |
 | AS-030 | `ITfCandidateListUI` / Overlay (Windows) | Panel hiện cạnh con trỏ, không chiếm focus (D30) | AS-007 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: overlay panel cạnh caret + non-activate + timer 8s) |
-| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | Agent Windows/TSF | ⬜ chờ nhận |
+| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: ApplyAssistFixSession + precondition caret + hotkey [1]/Tab/Esc) |
 | AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit GPL hunspell-vi | AS-009 + AS-010 | Agent Dict/Data | ⬜ chờ nhận |
 | AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 | Agent Dict/Data | ⬜ chờ nhận |
 | AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS / Linux) | D32-D37 (OS-first) | AS-040 | Agent Platform/FFI | ⬜ chờ nhận |

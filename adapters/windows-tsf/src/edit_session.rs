@@ -41,6 +41,13 @@ use textvn_ffi::IME_FLAG_ERROR;
 #[cfg(windows)]
 use textvn_strategy::Strategy;
 
+/// Gợi ý sửa lỗi đang chờ người dùng kích hoạt (AS-031 · A2).
+#[derive(Clone, Debug, Default)]
+pub struct PendingAssistFix {
+    pub delete_glyphs: u32,
+    pub replacement: Vec<char>,
+}
+
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
 /// edit session; mọi RefCell chỉ mượn trong phạm vi ngắn, không giữ qua lời gọi
 /// COM có thể re-entrant. Không `unwrap`/`borrow_mut` có thể panic trong callback.
@@ -66,6 +73,8 @@ pub struct TsfShared {
     pub modifier_toggle: Cell<ModifierToggle>,
     /// Overlay hiển thị candidate / gợi ý trợ lý ngữ pháp (AS-030).
     pub overlay: crate::overlay::CandidateOverlay,
+    /// Sửa lỗi đang chờ áp dụng bằng phím tắt [1] / Tab (AS-031).
+    pub pending_assist_fix: RefCell<Option<PendingAssistFix>>,
 }
 
 #[cfg(windows)]
@@ -83,6 +92,7 @@ impl TsfShared {
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
+            pending_assist_fix: RefCell::new(None),
         }
     }
 
@@ -329,7 +339,7 @@ impl KeyEditSession {
                         Vec::new()
                     };
                 }
-                // AS-030: Nếu là điểm kết thúc câu và trợ lý ngữ pháp đang bật -> kiểm tra và hiện overlay
+                // AS-030 / AS-031: Nếu là điểm kết thúc câu và trợ lý ngữ pháp đang bật -> kiểm tra và hiện overlay
                 if shared.ipc.is_assist_enabled() && comp.is_none() {
                     let trigger_kind = textvn_ffi::ime_assist_trigger_kind(self.key.engine_ch());
                     if trigger_kind == textvn_ffi::IME_ASSIST_TRIGGER_SENTENCE {
@@ -337,14 +347,45 @@ impl KeyEditSession {
                             if let Some(res) = thread.engine.assist_check() {
                                 if res.count > 0 {
                                     let first_issue = &res.issues[0];
-                                    let text = if first_issue.suggest_len > 0 {
-                                        let s = c_char_buf_to_str(&first_issue.suggest);
-                                        format!("[1] Sửa: {s}")
-                                    } else {
-                                        c_char_buf_to_str(&first_issue.message).to_string()
-                                    };
-                                    if let Some(rc) = get_caret_rect(&self.ctx, ec) {
-                                        shared.overlay.show(rc.left, rc.bottom + 2, &text);
+                                    let sentence_str = thread.engine.sentence_tail(256);
+                                    let sentence_chars: Vec<char> = sentence_str.chars().collect();
+                                    let start = first_issue.start as usize;
+                                    let end = first_issue.end as usize;
+                                    if start <= end && end <= sentence_chars.len() {
+                                        let to_delete: String =
+                                            sentence_chars[start..].iter().collect();
+                                        let delete_glyphs =
+                                            thread.engine.glyph_len_of(&to_delete) as u32;
+                                        let mut repl: Vec<char> = if first_issue.suggest_len > 0 {
+                                            c_char_buf_to_str(&first_issue.suggest)
+                                                .chars()
+                                                .collect()
+                                        } else {
+                                            Vec::new()
+                                        };
+                                        repl.extend_from_slice(&sentence_chars[end..]);
+                                        let display_text = if first_issue.suggest_len > 0 {
+                                            let s = c_char_buf_to_str(&first_issue.suggest);
+                                            format!("[1] Sửa: {s}")
+                                        } else {
+                                            c_char_buf_to_str(&first_issue.message).to_string()
+                                        };
+                                        if let Some(rc) = get_caret_rect(&self.ctx, ec) {
+                                            shared.overlay.show(
+                                                rc.left,
+                                                rc.bottom + 2,
+                                                &display_text,
+                                            );
+                                            *shared.pending_assist_fix.borrow_mut() =
+                                                if first_issue.suggest_len > 0 {
+                                                    Some(PendingAssistFix {
+                                                        delete_glyphs,
+                                                        replacement: repl,
+                                                    })
+                                                } else {
+                                                    None
+                                                };
+                                        }
                                     }
                                 }
                             }
@@ -386,6 +427,61 @@ impl ITfEditSession_Impl for EndCompositionSession_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         // SAFETY: composition thuộc TIP này, ec do TSF cấp cho session hiện hành.
         unsafe { self.composition.EndComposition(ec) }
+    }
+}
+
+/// Session áp dụng sửa lỗi ngữ pháp một từ (AS-031 · A2 / D12).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct ApplyAssistFixSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+    fix: PendingAssistFix,
+}
+
+#[cfg(windows)]
+impl ApplyAssistFixSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext, fix: PendingAssistFix) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+            fix,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for ApplyAssistFixSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let Some(sel) = selection_range(&self.ctx, ec) else {
+            return Ok(());
+        };
+        unsafe {
+            // Precondition 1: Selection phải rỗng (caret, không phải bôi đen văn bản).
+            if !matches!(sel.IsEmpty(ec), Ok(empty) if empty.as_bool()) {
+                return Ok(());
+            }
+
+            // Precondition 2: Lùi start đúng bằng delete_glyphs.
+            let del = sel.Clone()?;
+            let want = -(self.fix.delete_glyphs as i32);
+            let mut shifted = 0i32;
+            del.ShiftStart(ec, want, &mut shifted, std::ptr::null())?;
+            if shifted != want {
+                // Không lùi đủ (app không cho phép hoặc chạm đầu tài liệu) -> fail-safe, huỷ sửa.
+                return Ok(());
+            }
+
+            // Thay thế đoạn text bằng gợi ý
+            let wide = to_wide_nul(&self.fix.replacement);
+            let body = &wide[..wide.len() - 1];
+            del.SetText(ec, 0, body)?;
+            set_caret_after(&self.ctx, ec, &del);
+        }
+        self.shared.reset_engine();
+        Ok(())
     }
 }
 
@@ -714,5 +810,15 @@ mod tests {
             input_scope::IS_ALPHANUMERIC_PIN_SET,
             IS_ALPHANUMERIC_PIN_SET.0
         );
+    }
+
+    #[test]
+    fn pending_assist_fix_model() {
+        let fix = super::PendingAssistFix {
+            delete_glyphs: 5,
+            replacement: vec!['t', 'ô', 'i'],
+        };
+        assert_eq!(fix.delete_glyphs, 5);
+        assert_eq!(fix.replacement, vec!['t', 'ô', 'i']);
     }
 }
