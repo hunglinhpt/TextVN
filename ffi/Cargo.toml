@@ -16,3 +16,4 @@ textvn-core = { path = "../core" }
 textvn-config = { path = "../config" }
 textvn-strategy = { path = "../strategy" }
 textvn-appdb = { path = "../appdb" }
+textvn-assist = { path = "../assist" }

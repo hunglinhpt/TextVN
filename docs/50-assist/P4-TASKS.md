@@ -43,8 +43,8 @@
 | AS-010 | **S4a** — đo per-process RSS/binary/p95 (Windows thật) | RSS ≤ +5 MB · binary ≤ +3 MB · p95 ≤ 2 ms | AS-002 | Agent Perf | ✅ xong (`P4-3-SPIKES.md`) |
 | AS-011 | **S4b** — khảo sát `harper-core`/EN (v2, **không chặn v1**) | Kết luận + khuyến nghị | — | Agent Research | ✅ xong (`P4-3-SPIKES.md`) |
 | AS-020 | Refactor `core` buffer | 13 call site → 2 helper; `Engine.sentence` (Unicode ≤256); `Engine::glyph_len_of`; **không** đổi hành vi gõ | ADR-013 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: 8 test mới, 143/143 pass) |
-| AS-021 | FFI `ime_assist_*` (C-ABI) + header + `textvn-cli verify` | Drift 0 (ADR-023); export struct/fn qua `ffi/` và `textvn_ffi.h` | AS-020 | **Agent Core (ta)** | 🔄 **Đã nhận (WIP)** |
-| AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11); gọi `assist::check_sentence` qua sentence buffer | AS-021 | **Agent Core (ta)** | 🔄 **Đã nhận** |
+| AS-021 | FFI `ime_assist_*` (C-ABI) + header + `textvn-cli verify` | Drift 0 (ADR-023); export struct/fn qua `ffi/` và `textvn_ffi.h` | AS-020 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: 55 hằng, 6 struct, 16 hàm verify) |
+| AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11); gọi `assist::check_sentence` qua sentence buffer | AS-021 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: ime_assist_trigger_kind + check_instance) |
 | AS-023 | Toast/tray notification + kill-switch 1 bước | Tắt được ngay, không cần mở app | AS-022 | Agent Tray | ⬜ chờ nhận |
 | AS-030 | `ITfCandidateListUI` (Windows) | Panel hiện cạnh con trỏ, không chiếm focus | AS-007 | Agent Windows/TSF | ⬜ chờ nhận |
 | AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | Agent Windows/TSF | ⬜ chờ nhận |

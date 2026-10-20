@@ -89,6 +89,40 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             IME_STRATEGY_FORWARD_AS_COMMIT,
         ),
         ("IME_STRATEGY_PASSTHROUGH", IME_STRATEGY_PASSTHROUGH),
+        // assist constants (P4-0 §4 / §5)
+        (
+            "IME_ASSIST_KIND_DUPLICATE_WORD",
+            IME_ASSIST_KIND_DUPLICATE_WORD as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_SPACE_BEFORE_PUNCT",
+            IME_ASSIST_KIND_SPACE_BEFORE_PUNCT as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_SPACE_AFTER_PUNCT",
+            IME_ASSIST_KIND_SPACE_AFTER_PUNCT as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_DOUBLE_SPACE",
+            IME_ASSIST_KIND_DOUBLE_SPACE as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_LOWERCASE_SENTENCE",
+            IME_ASSIST_KIND_LOWERCASE_SENTENCE as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_DIACRITIC_TYPO",
+            IME_ASSIST_KIND_DIACRITIC_TYPO as i64,
+        ),
+        ("IME_MAX_ASSIST_ISSUES", IME_MAX_ASSIST_ISSUES as i64),
+        ("IME_MAX_ASSIST_MSG", IME_MAX_ASSIST_MSG as i64),
+        ("IME_MAX_ASSIST_SUGGEST", IME_MAX_ASSIST_SUGGEST as i64),
+        ("IME_ASSIST_TRIGGER_NONE", IME_ASSIST_TRIGGER_NONE as i64),
+        ("IME_ASSIST_TRIGGER_WORD", IME_ASSIST_TRIGGER_WORD as i64),
+        (
+            "IME_ASSIST_TRIGGER_SENTENCE",
+            IME_ASSIST_TRIGGER_SENTENCE as i64,
+        ),
     ]
 }
 
@@ -116,6 +150,11 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_appdb_verify",
         "ime_strategy_resolve",
         "ime_last_error",
+        "ime_assist_trigger_kind",
+        "ime_assist_check",
+        "ime_assist_check_instance",
+        "ime_assist_sentence_tail",
+        "ime_assist_glyph_len",
     ]
 }
 
@@ -169,6 +208,27 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 count,
                 lens,
                 items,
+            }),
+        ),
+        (
+            "ime_assist_issue_v1",
+            field_names!(ime_assist_issue_v1 {
+                kind,
+                start,
+                end,
+                auto_fixable,
+                confidence,
+                message,
+                suggest_len,
+                suggest,
+            }),
+        ),
+        (
+            "ime_assist_result_v1",
+            field_names!(ime_assist_result_v1 {
+                abi_version,
+                count,
+                issues,
             }),
         ),
     ]
@@ -325,7 +385,13 @@ fn first_call_name(chunk: &str) -> Option<String> {
 fn is_type_name(name: &str) -> bool {
     matches!(
         name,
-        "ime_instance" | "ime_key_v1" | "ime_context_v1" | "ime_result_v1" | "ime_suggest_v1"
+        "ime_instance"
+            | "ime_key_v1"
+            | "ime_context_v1"
+            | "ime_result_v1"
+            | "ime_suggest_v1"
+            | "ime_assist_issue_v1"
+            | "ime_assist_result_v1"
     )
 }
 

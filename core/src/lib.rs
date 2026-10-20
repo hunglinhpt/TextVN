@@ -352,6 +352,14 @@ impl Engine {
         self.sentence[start..].iter().collect()
     }
 
+    /// View tham chiếu đến phần cuối buffer câu (Unicode), tối đa `max` ký tự (Fassist-76).
+    ///
+    /// Không cấp phát heap (0-alloc), dùng làm nguồn câu cho các lần kiểm tra tức thì.
+    pub fn sentence_tail_chars(&self, max: usize) -> &[char] {
+        let start = self.sentence.len().saturating_sub(max);
+        &self.sentence[start..]
+    }
+
     /// Phần **Unicode** tương ứng với `glyph_len` ký tự **glyph** đầu của `unicode`.
     ///
     /// Bảng mã 2 ký tự/chữ (VNI Windows) → cắt theo glyph có thể rơi giữa một chữ:
@@ -1950,5 +1958,14 @@ mod tests {
         let mut e = engine();
         let _ = type_doc(&mut e, "dduocj");
         assert_eq!(e.sentence_tail(100), "được");
+    }
+
+    /// sentence_tail_chars tra ve &[char] khong cap phat heap (Fassist-76).
+    #[test]
+    fn sentence_tail_chars_zero_alloc() {
+        let mut e = engine();
+        let _ = type_doc(&mut e, "xin chao");
+        let chars = e.sentence_tail_chars(4);
+        assert_eq!(chars, &['c', 'h', 'a', 'o']);
     }
 }

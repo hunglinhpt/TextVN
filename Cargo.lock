@@ -154,6 +154,7 @@ name = "textvn-ffi"
 version = "0.2.34"
 dependencies = [
  "textvn-appdb",
+ "textvn-assist",
  "textvn-config",
  "textvn-core",
  "textvn-strategy",

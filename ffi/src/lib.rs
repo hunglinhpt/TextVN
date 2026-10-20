@@ -60,6 +60,22 @@ pub const IME_FLAG_WORD_END: u32 = 0x2;
 pub const IME_FLAG_ERROR: u32 = 0x4;
 pub const IME_FLAG_SUGGEST: u32 = 0x8;
 
+// ---- assist constants (P4-0 §4 / §5) ----
+pub const IME_ASSIST_KIND_DUPLICATE_WORD: u32 = 1;
+pub const IME_ASSIST_KIND_SPACE_BEFORE_PUNCT: u32 = 2;
+pub const IME_ASSIST_KIND_SPACE_AFTER_PUNCT: u32 = 3;
+pub const IME_ASSIST_KIND_DOUBLE_SPACE: u32 = 4;
+pub const IME_ASSIST_KIND_LOWERCASE_SENTENCE: u32 = 5;
+pub const IME_ASSIST_KIND_DIACRITIC_TYPO: u32 = 6;
+
+pub const IME_MAX_ASSIST_ISSUES: usize = 8;
+pub const IME_MAX_ASSIST_MSG: usize = 128;
+pub const IME_MAX_ASSIST_SUGGEST: usize = 64;
+
+pub const IME_ASSIST_TRIGGER_NONE: u32 = 0;
+pub const IME_ASSIST_TRIGGER_WORD: u32 = 1;
+pub const IME_ASSIST_TRIGGER_SENTENCE: u32 = 2;
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ime_key_v1 {
@@ -112,6 +128,75 @@ pub struct ime_suggest_v1 {
     pub count: u32,
     pub lens: [u32; IME_MAX_SUGGEST],
     pub items: [[u32; IME_MAX_TEXT]; IME_MAX_SUGGEST],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ime_assist_issue_v1 {
+    pub kind: u32,
+    pub start: u32,
+    pub end: u32,
+    pub auto_fixable: u32,
+    pub confidence: u32,
+    pub message: [c_char; IME_MAX_ASSIST_MSG],
+    pub suggest_len: u32,
+    pub suggest: [c_char; IME_MAX_ASSIST_SUGGEST],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ime_assist_result_v1 {
+    pub abi_version: u32,
+    pub count: u32,
+    pub issues: [ime_assist_issue_v1; IME_MAX_ASSIST_ISSUES],
+}
+
+impl ime_assist_result_v1 {
+    #[allow(dead_code)]
+    fn zeroed() -> Self {
+        unsafe { std::mem::zeroed::<ime_assist_result_v1>() }
+    }
+}
+
+fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
+    match kind {
+        textvn_assist::IssueKind::DuplicateWord => IME_ASSIST_KIND_DUPLICATE_WORD,
+        textvn_assist::IssueKind::SpaceBeforePunct => IME_ASSIST_KIND_SPACE_BEFORE_PUNCT,
+        textvn_assist::IssueKind::SpaceAfterPunct => IME_ASSIST_KIND_SPACE_AFTER_PUNCT,
+        textvn_assist::IssueKind::DoubleSpace => IME_ASSIST_KIND_DOUBLE_SPACE,
+        textvn_assist::IssueKind::LowercaseSentenceStart => IME_ASSIST_KIND_LOWERCASE_SENTENCE,
+        textvn_assist::IssueKind::DiacriticTypo => IME_ASSIST_KIND_DIACRITIC_TYPO,
+    }
+}
+
+fn copy_str_to_c_buf(src: &str, dst: &mut [c_char]) {
+    let bytes = src.as_bytes();
+    let max = dst.len().saturating_sub(1);
+    let len = bytes.len().min(max);
+    for (d, &b) in dst[..len].iter_mut().zip(&bytes[..len]) {
+        *d = b as c_char;
+    }
+    dst[len] = 0;
+}
+
+fn fill_assist_result(issues: &[textvn_assist::Issue], out: &mut ime_assist_result_v1) {
+    let count = issues.len().min(IME_MAX_ASSIST_ISSUES);
+    out.abi_version = IME_ABI_VERSION;
+    out.count = count as u32;
+    for (i, issue) in issues.iter().take(count).enumerate() {
+        let item = &mut out.issues[i];
+        *item = unsafe { std::mem::zeroed::<ime_assist_issue_v1>() };
+        item.kind = map_issue_kind(issue.kind);
+        item.start = issue.span.start as u32;
+        item.end = issue.span.end as u32;
+        item.auto_fixable = if issue.auto_fixable { 1 } else { 0 };
+        item.confidence = issue.confidence as u32;
+        copy_str_to_c_buf(&issue.message, &mut item.message);
+        if let Some(sugg) = issue.suggestions.first() {
+            copy_str_to_c_buf(sugg, &mut item.suggest);
+            item.suggest_len = sugg.len().min(IME_MAX_ASSIST_SUGGEST - 1) as u32;
+        }
+    }
 }
 
 /// Opaque instance (P0-2 §1) — 1 instance = 1 thread (§3).
@@ -586,6 +671,164 @@ pub extern "C" fn ime_last_error(inst: *const ime_instance) -> *const c_char {
     inst.last_error.as_ptr()
 }
 
+/// Xác định loại trigger của ký tự Unicode (D11 · P4-0 §4.1).
+///
+/// Trả về:
+/// - `IME_ASSIST_TRIGGER_SENTENCE` (2): kết thúc câu ('.', '!', '?') -> điểm hiển thị UI.
+/// - `IME_ASSIST_TRIGGER_WORD` (1): ranh giới từ/vế (space, ',', ';', ':') -> điểm kiểm tra silent.
+/// - `IME_ASSIST_TRIGGER_NONE` (0): không phải trigger.
+#[no_mangle]
+pub extern "C" fn ime_assist_trigger_kind(ch: u32) -> u32 {
+    let Some(c) = char::from_u32(ch) else {
+        return IME_ASSIST_TRIGGER_NONE;
+    };
+    match c {
+        '.' | '!' | '?' => IME_ASSIST_TRIGGER_SENTENCE,
+        ' ' | ',' | ';' | ':' => IME_ASSIST_TRIGGER_WORD,
+        _ => IME_ASSIST_TRIGGER_NONE,
+    }
+}
+
+/// Kiểm tra ngữ pháp chuỗi UTF-8 bất kỳ (D23).
+///
+/// Caller cấp phát `out` trên stack với `out.abi_version = IME_ABI_VERSION`.
+/// Fail-open: panic hoặc lỗi UTF-8 -> `count = 0` + mã lỗi tương ứng.
+#[no_mangle]
+pub extern "C" fn ime_assist_check(
+    text_utf8: *const c_char,
+    len: usize,
+    out: *mut ime_assist_result_v1,
+) -> i32 {
+    if out.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let out = unsafe { &mut *out };
+    if out.abi_version != IME_ABI_VERSION {
+        return IME_ERR_ABI;
+    }
+    if text_utf8.is_null() {
+        return if len == 0 {
+            out.count = 0;
+            IME_OK
+        } else {
+            IME_ERR_INVALID_ARG
+        };
+    }
+    let bytes = unsafe { slice::from_raw_parts(text_utf8 as *const u8, len) };
+    let text = match std::str::from_utf8(bytes) {
+        Ok(t) => t,
+        Err(_) => return IME_ERR_INVALID_ARG,
+    };
+    match catch_unwind(AssertUnwindSafe(|| {
+        let issues = textvn_assist::check_sentence(text);
+        fill_assist_result(&issues, out);
+    })) {
+        Ok(()) => IME_OK,
+        Err(_) => {
+            out.count = 0;
+            IME_ERR_INTERNAL
+        }
+    }
+}
+
+/// Kiểm tra buffer câu hiện tại của instance (D23 · D24).
+///
+/// Đọc `sentence_tail(256)` từ engine của instance, chạy bộ kiểm tra ngữ pháp.
+#[no_mangle]
+pub extern "C" fn ime_assist_check_instance(
+    inst: *mut ime_instance,
+    out: *mut ime_assist_result_v1,
+) -> i32 {
+    if inst.is_null() || out.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let out = unsafe { &mut *out };
+    if out.abi_version != IME_ABI_VERSION {
+        return IME_ERR_ABI;
+    }
+    let inst = unsafe { &mut *inst };
+    match catch_unwind(AssertUnwindSafe(|| {
+        let text = inst.engine.sentence_tail(256);
+        let issues = textvn_assist::check_sentence(&text);
+        fill_assist_result(&issues, out);
+    })) {
+        Ok(()) => IME_OK,
+        Err(_) => {
+            out.count = 0;
+            IME_ERR_INTERNAL
+        }
+    }
+}
+
+/// Lấy phần đuôi buffer câu của instance dưới dạng chuỗi UTF-8 (Fassist-76).
+///
+/// Ghi tối đa `buf_len - 1` byte vào `out_buf` kèm byte 0 kết thúc.
+/// `*out_len` nhận số byte UTF-8 thực tế (không tính byte 0).
+/// Nếu `out_buf == NULL && buf_len == 0`, hàm chỉ ghi độ dài cần thiết vào `*out_len`.
+#[no_mangle]
+pub extern "C" fn ime_assist_sentence_tail(
+    inst: *const ime_instance,
+    max_chars: usize,
+    out_buf: *mut c_char,
+    buf_len: usize,
+    out_len: *mut usize,
+) -> i32 {
+    if inst.is_null() || out_len.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &*inst };
+    match catch_unwind(AssertUnwindSafe(|| {
+        let text = inst.engine.sentence_tail(max_chars);
+        let bytes = text.as_bytes();
+        unsafe { *out_len = bytes.len() };
+        if !out_buf.is_null() && buf_len > 0 {
+            let copy_len = bytes.len().min(buf_len.saturating_sub(1));
+            let out_slice = unsafe { slice::from_raw_parts_mut(out_buf as *mut u8, buf_len) };
+            out_slice[..copy_len].copy_from_slice(&bytes[..copy_len]);
+            out_slice[copy_len] = 0;
+        }
+    })) {
+        Ok(()) => IME_OK,
+        Err(_) => IME_ERR_INTERNAL,
+    }
+}
+
+/// Tính số ký tự glyph (đã encode theo bảng mã xuất của instance) của chuỗi Unicode (D27).
+///
+/// Dùng để adapter biết cần xoá bao nhiêu ký tự trong document khi áp dụng gợi ý.
+#[no_mangle]
+pub extern "C" fn ime_assist_glyph_len(
+    inst: *const ime_instance,
+    text_utf8: *const c_char,
+    len: usize,
+    out_glyphs: *mut usize,
+) -> i32 {
+    if inst.is_null() || out_glyphs.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    if text_utf8.is_null() && len != 0 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &*inst };
+    let text = if len == 0 || text_utf8.is_null() {
+        ""
+    } else {
+        let bytes = unsafe { slice::from_raw_parts(text_utf8 as *const u8, len) };
+        match std::str::from_utf8(bytes) {
+            Ok(t) => t,
+            Err(_) => return IME_ERR_INVALID_ARG,
+        }
+    };
+    match catch_unwind(AssertUnwindSafe(|| {
+        let chars: Vec<char> = text.chars().collect();
+        let glyphs = inst.engine.glyph_len_of(&chars);
+        unsafe { *out_glyphs = glyphs };
+    })) {
+        Ok(()) => IME_OK,
+        Err(_) => IME_ERR_INTERNAL,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -890,6 +1133,209 @@ mod tests {
         );
         assert_eq!(
             ime_appdb_verify(std::ptr::null(), 0, signature.as_ptr(), signature.len()),
+            IME_ERR_INVALID_ARG
+        );
+    }
+
+    #[test]
+    fn assist_abi_sizes_and_offsets() {
+        assert_eq!(size_of::<ime_assist_issue_v1>(), 216);
+        assert_eq!(size_of::<ime_assist_result_v1>(), 8 + 8 * 216);
+
+        assert_eq!(offset_of!(ime_assist_issue_v1, kind), 0);
+        assert_eq!(offset_of!(ime_assist_issue_v1, start), 4);
+        assert_eq!(offset_of!(ime_assist_issue_v1, end), 8);
+        assert_eq!(offset_of!(ime_assist_issue_v1, auto_fixable), 12);
+        assert_eq!(offset_of!(ime_assist_issue_v1, confidence), 16);
+        assert_eq!(offset_of!(ime_assist_issue_v1, message), 20);
+        assert_eq!(offset_of!(ime_assist_issue_v1, suggest_len), 148);
+        assert_eq!(offset_of!(ime_assist_issue_v1, suggest), 152);
+
+        assert_eq!(offset_of!(ime_assist_result_v1, abi_version), 0);
+        assert_eq!(offset_of!(ime_assist_result_v1, count), 4);
+        assert_eq!(offset_of!(ime_assist_result_v1, issues), 8);
+    }
+
+    #[test]
+    fn assist_trigger_kind_classification() {
+        assert_eq!(
+            ime_assist_trigger_kind('.' as u32),
+            IME_ASSIST_TRIGGER_SENTENCE
+        );
+        assert_eq!(
+            ime_assist_trigger_kind('!' as u32),
+            IME_ASSIST_TRIGGER_SENTENCE
+        );
+        assert_eq!(
+            ime_assist_trigger_kind('?' as u32),
+            IME_ASSIST_TRIGGER_SENTENCE
+        );
+
+        assert_eq!(ime_assist_trigger_kind(' ' as u32), IME_ASSIST_TRIGGER_WORD);
+        assert_eq!(ime_assist_trigger_kind(',' as u32), IME_ASSIST_TRIGGER_WORD);
+        assert_eq!(ime_assist_trigger_kind(';' as u32), IME_ASSIST_TRIGGER_WORD);
+        assert_eq!(ime_assist_trigger_kind(':' as u32), IME_ASSIST_TRIGGER_WORD);
+
+        assert_eq!(ime_assist_trigger_kind('a' as u32), IME_ASSIST_TRIGGER_NONE);
+        assert_eq!(ime_assist_trigger_kind('z' as u32), IME_ASSIST_TRIGGER_NONE);
+        assert_eq!(ime_assist_trigger_kind(0x110000), IME_ASSIST_TRIGGER_NONE);
+    }
+
+    #[test]
+    fn assist_check_finds_vietnamese_issue() {
+        let sample = "Tôi tôi đi học";
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        let code = ime_assist_check(sample.as_ptr() as *const c_char, sample.len(), &mut res);
+        assert_eq!(code, IME_OK);
+        assert_eq!(res.count, 1);
+        let issue = &res.issues[0];
+        assert_eq!(issue.kind, IME_ASSIST_KIND_DUPLICATE_WORD);
+        assert_eq!(issue.start, 4);
+        assert_eq!(issue.end, 7);
+        assert_eq!(issue.auto_fixable, 1);
+        assert_eq!(issue.confidence, 100);
+        let msg = unsafe { CStr::from_ptr(issue.message.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert!(msg.contains("Lặp từ"));
+        let sugg = unsafe { CStr::from_ptr(issue.suggest.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert_eq!(sugg, "Tôi");
+    }
+
+    #[test]
+    fn assist_check_ignores_clean_or_english_text() {
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        let clean = "Tôi đi học ở trường Bách Khoa.";
+        assert_eq!(
+            ime_assist_check(clean.as_ptr() as *const c_char, clean.len(), &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 0);
+
+        let english = "This is a clean English sentence.";
+        assert_eq!(
+            ime_assist_check(english.as_ptr() as *const c_char, english.len(), &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 0);
+    }
+
+    #[test]
+    fn assist_check_instance_reads_sentence_buffer() {
+        let inst = new_default();
+        let _ = key_char(inst, 'T');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'i');
+        let _ = key_char(inst, ' ');
+        let _ = key_char(inst, 't');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'i');
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(ime_assist_check_instance(inst, &mut res), IME_OK);
+        assert_eq!(res.count, 1);
+        assert_eq!(res.issues[0].kind, IME_ASSIST_KIND_DUPLICATE_WORD);
+        ime_instance_free(inst);
+    }
+
+    #[test]
+    fn assist_sentence_tail_and_glyph_len() {
+        let inst = new_default();
+        let _ = key_char(inst, 'x');
+        let _ = key_char(inst, 'i');
+        let _ = key_char(inst, 'n');
+        let _ = key_char(inst, ' ');
+        let _ = key_char(inst, 'c');
+        let _ = key_char(inst, 'h');
+        let _ = key_char(inst, 'a');
+        let _ = key_char(inst, 'o');
+
+        let mut out_len = 0usize;
+        assert_eq!(
+            ime_assist_sentence_tail(inst, 8, std::ptr::null_mut(), 0, &mut out_len),
+            IME_OK
+        );
+        assert_eq!(out_len, "xin chao".len());
+
+        let mut buf = [0 as c_char; 32];
+        assert_eq!(
+            ime_assist_sentence_tail(inst, 8, buf.as_mut_ptr(), buf.len(), &mut out_len),
+            IME_OK
+        );
+        let s = unsafe { CStr::from_ptr(buf.as_ptr()) }.to_str().unwrap();
+        assert_eq!(s, "xin chao");
+
+        let word = "được";
+        let mut glyphs = 0usize;
+        assert_eq!(
+            ime_assist_glyph_len(
+                inst,
+                word.as_ptr() as *const c_char,
+                word.len(),
+                &mut glyphs
+            ),
+            IME_OK
+        );
+        assert_eq!(glyphs, 4);
+
+        ime_instance_free(inst);
+    }
+
+    #[test]
+    fn assist_rejects_bad_args() {
+        let mut res = ime_assist_result_v1 {
+            abi_version: 999, // Bad ABI
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        let sample = "tôi tôi";
+        assert_eq!(
+            ime_assist_check(sample.as_ptr() as *const c_char, sample.len(), &mut res),
+            IME_ERR_ABI
+        );
+        assert_eq!(
+            ime_assist_check(
+                sample.as_ptr() as *const c_char,
+                sample.len(),
+                std::ptr::null_mut()
+            ),
+            IME_ERR_INVALID_ARG
+        );
+
+        res.abi_version = IME_ABI_VERSION;
+        assert_eq!(
+            ime_assist_check_instance(std::ptr::null_mut(), &mut res),
+            IME_ERR_INVALID_ARG
+        );
+
+        let mut len = 0usize;
+        assert_eq!(
+            ime_assist_sentence_tail(std::ptr::null(), 10, std::ptr::null_mut(), 0, &mut len),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(
+            ime_assist_glyph_len(
+                std::ptr::null(),
+                sample.as_ptr() as *const c_char,
+                sample.len(),
+                &mut len
+            ),
             IME_ERR_INVALID_ARG
         );
     }
