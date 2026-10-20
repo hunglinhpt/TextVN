@@ -116,6 +116,8 @@
 | **D27** | `assist` trả offset theo **char Unicode**; **số ký tự cần xóa do core tính** (`Engine::glyph_len_of` — `emit()` đã encode sang bảng mã xuất); `Fix` **không** mang số xóa | `Fassist-39` |
 | **D28** | `Issue` có **`confidence: u8`** (0–100) ngay từ P4-1 (thêm sau = phá API) | `Fassist-41` |
 | **D29** | Biên FFI chuẩn hoá **UTF-16 code unit** (khớp TSF/AX); crate `assist` giữ char + helper đổi | `Fassist-42` |
+| **D30** | UI theo OS: **Windows = overlay tự vẽ** (bỏ `ITfCandidateListUI` ở v1) · **Linux = candidate list của engine** (IBus/Fcitx5 API có sẵn) · **macOS = toast** (IMK server vẽ candidate list, không phải app) | S1 (spike) + giới hạn Wayland + kiến trúc IMK |
+| **D31** | Buffer câu trong `core` **luôn bật**, cap **256 ký tự** (≈ 1 KB/process) — **không** cần feature flag trong ABI | Đơn giản hơn D26 (config flag ⇒ đổi ABI `EngineOptions` + đồng bộ 3 OS); 1 KB không đáng kể |
 
 ### 3.2 Ràng buộc bắt buộc
 - Perf theo `PLAN.md` §5.5: `ime_key` < 0.5 ms p99 · adapter+strategy < 3 ms p99 · end-to-end < 10 ms p99 · RSS < 30 MB · không wake-idle spike > 5 ms.
@@ -235,8 +237,8 @@
 |---|---|---|---|---|
 | **P4-0** | AS-000 | Tài liệu: `P4-0` (plan), `P4-1` (đánh giá), ADR-012, INDEX, PLAN §2.3 | Review 3 vòng; CI xanh; graphify | ✅ xong |
 | **P4-1** | AS-001…006 | crate `assist/` (tokenize/mask/rules/fix) + **L0** (F40) + **`confidence`** (F41/D28) + `corpus/assist/*.ass` (đặc tả TSV — F43) + test tích hợp + `textvn-cli assist check` | `cargo test -p textvn-assist` xanh · corpus ≥ 60 câu · clippy+fmt sạch · **0 dep, 0 network, 0 I/O** · recall ≥ 80% / FPR ≤ 2% trên corpus | 2 tuần |
-| **P4-1b** | AS-007…010 | **3 spike chặn (D18)**: S1 TSF candidate list sau commit · S2 đọc caret 3 OS · S3 khảo sát từ điển VN | Mỗi spike có kết luận **viết ra** + bằng chứng (log/screenshot) | 1 tuần |
-| **P4-1b+** | AS-011 | **S4a** đo per-process RSS/binary/p95 của tài nguyên assist (chặn P4-4) + **S4b** khảo sát `harper-core`/EN (**v2, không chặn**) | S4a: RSS ≤ +5 MB, binary ≤ +3 MB, p95 ≤ 2 ms (đo trên Windows thật) | 3–4 ngày |
+| **P4-1b** | AS-007…010 | **3 spike chặn (D18)**: S1 TSF candidate list sau commit · S2 đọc caret 3 OS · S3 khảo sát từ điển VN | Mỗi spike có kết luận **viết ra** + bằng chứng (log/screenshot) | ✅ **xong** → `P4-3-SPIKES.md` |
+| **P4-1b+** | AS-011 | **S4a** đo per-process RSS/binary/p95 của tài nguyên assist (chặn P4-4) + **S4b** khảo sát `harper-core`/EN (**v2, không chặn**) | S4a: RSS ≤ +5 MB, binary ≤ +3 MB, p95 ≤ 2 ms (đo trên Windows thật) | ✅ **xong** (S4a: RSS 8,86 MB · exe 993 KB · 0,52 ms/câu) |
 | **P4-1c** | AS-012…014 | Patch docs từ cross-review: Fassist-32 (tiền đề) · Fassist-33/34 (wording) · Fassist-37 (verified-ops) + ADR-013 | File này + `P4-0`/`P4-1`/`ADR-012`/`verified-ops` cập nhật, CI xanh | ✅ xong |
 | **P4-2a** | AS-020 | **Refactor core** (D24): gom 13 call site `recent_replace` → 2 helper `recent_push`/`recent_pop` + thêm `Engine.sentence` (Unicode ≤256, chỉ bật khi `assist.mode != off` — D26) + `Engine::glyph_len_of` (D27) | Không còn chỗ sửa buffer trực tiếp; `core` test xanh; không đổi hành vi gõ | 1 tuần |
 | **P4-2** | AS-021…025 | FFI `ime_assist_*` (D23) + trigger + **toast tray** + kill-switch + `OnceLock` share (D25) | Gõ thật: câu lỗi → toast; câu sạch → im lặng; không tăng trễ > 5 ms; tắt được 1 bước | 2–3 tuần |
@@ -389,6 +391,14 @@ Mỗi pha: commit list tường minh → push → CI xanh → `graphify update .
 - **Điểm yếu còn lại (chấp nhận có điều kiện):** chất lượng luật tiếng Việt phụ thuộc nguồn từ điển (P4-4) và độ chính xác của L0 (heuristic) → cần đo (D19) và tắt được từng luật.
 - **Điều kiện để bắt đầu code:** D11–D29 được chấp nhận + Q1–Q5 đã trả lời (`P4-1` §9).
 - **Sau P4-1:** đã có engine + corpus + CLI; còn 3 spike chặn (S1–S3) + S4a trước khi làm P4-3/P4-4.
+
+### 11.6 Vòng 8–10 — review **sau khi làm 4 spike** (2026-10-20) → `P4-3-SPIKES.md`
+
+**Lượt 8 — SA**: S1 kết luận "Windows dùng overlay tự vẽ" **mâu thuẫn D13** (candidate list 3 OS) → **D30** (bổ sung theo OS) · ước lượng P4-3 **giảm** (không phải implement `ITfCandidateListUI`).
+**Lượt 9 — Audit**: nguồn từ điển **GPLv2** → FST sinh từ dữ liệu GPL là phái sinh → phải **attribution + `REUSE.toml`** (task P4-4) · S4b giữ D9, nếu v2 dùng `harper-core` → Apache-2.0 + NOTICE/REUSE.
+**Lượt 10 — PO/QA/Design**: S4a đo trên **tiến trình CLI độc lập** ≠ TIP in-process → phải **đo lại trong TIP** ở P4-2 (giới hạn đo ghi rõ) · từ điển chỉ **6.642 từ đơn** → recall ≥ 80% (D19) **có thể không đạt** → cần đo thật + fallback (không từ điển → chỉ luật objective) · macOS dùng toast ≠ trải nghiệm 2 OS kia → ghi vào `parity-checklist` (P4-6).
+
+→ **Fassist-59..64** (6 finding): 59 mâu thuẫn D13↔S1 (→D30) · 60 attribution GPL bắt buộc (P4-4) · 61 S4a đo trong CLI ≠ TIP (đo lại P4-2) · 62 từ điển từ đơn → recall có thể không đạt (đo + fallback) · 63 macOS toast lệch parity (P4-6) · 64 S4b giữ D9 (không sửa).
 
 ---
 

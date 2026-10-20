@@ -10,8 +10,8 @@
 |---|---|---|---|
 | P4-0 | AS-000 | Tài liệu: plan + đánh giá + cross-review + ADR-012/013 | ✅ xong |
 | **P4-1** | AS-001…006 | Crate `assist/` (tokenize · mask · 6 module luật · fix) + L0 + `confidence` + corpus + test tích hợp + CLI `assist check` | ✅ **xong** (2026-10-20) |
-| P4-1b | AS-007…010 | Spike **S1** TSF candidate list · **S2** caret 3 OS · **S3** từ điển VN | ⬜ chưa làm |
-| P4-1b+ | AS-011 | Spike **S4a** per-process RSS/binary/p95 (chặn P4-4) · **S4b** harper-core/EN (v2) | ⬜ chưa làm |
+| P4-1b | AS-007…010 | Spike **S1** TSF candidate list · **S2** caret 3 OS · **S3** từ điển VN | ✅ **xong** → `P4-3-SPIKES.md` |
+| P4-1b+ | AS-011 | Spike **S4a** per-process RSS/binary/p95 (chặn P4-4) · **S4b** harper-core/EN (v2) | ✅ **xong** (S4a: RSS 8,86 MB · exe 993 KB · 0,52 ms/câu) |
 | P4-1c | AS-012…014 | Patch docs cross-review: Fassist-32 (tiền đề) · 33/34 (wording) · 37 (verified-ops) | ✅ xong |
 | P4-2a | AS-020 | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ⬜ chưa làm |
 | P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | ⬜ chưa làm |

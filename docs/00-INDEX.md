@@ -302,3 +302,11 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - **9 finding sau khi implement** (đã fix): **F50** panic slice-byte-bằng-offset-char (bằng chứng thực tế cho D27) · **F49** CLI ăn mất subcommand `check` · F46 message người dùng thiếu dấu · F47 `--file` check cả file → theo dòng · F48 corpus thiếu (30→69) · F51 thiếu test `check_sentence` · F52–F55 DoD #1–#4 (0 dep · `cargo deny` OK · REUSE OK) · F56–F58 ghi nhận v2.
   - Task list mới: `docs/50-assist/P4-TASKS.md` (AS-001…AS-068) — đóng `Fassist-7`.
   - Còn lại trước P4-3/P4-4: **3 spike chặn** S1 (TSF candidate list) · S2 (caret 3 OS) · S3 (từ điển VN) + **S4a** (đo per-process RSS, chặn P4-4).
+- 2026-10-20: **P4-1b — 4 SPIKE CHẶN XONG (S1–S4) → `docs/50-assist/P4-3-SPIKES.md`** (review vòng 8–10, 6 finding `Fassist-59..64`):
+  - **S1** → adapter TSF **chưa có** `ITfCandidateListUI`; nhưng đã có `selection_range()` + `GetText` ⇒ **D30**: Windows = **overlay tự vẽ** (bỏ candidate list của TSF ở v1) · Linux = candidate list của engine (IBus/Fcitx5) · macOS = toast.
+  - **S2** → **Windows khả thi ngay** (đọc vị trí caret qua `ITfContext::GetSelection`, **không** đọc nội dung ⇒ đúng D8) ⇒ precondition D12 cho Mode 2 làm được ở P4-3; macOS/Linux → P4-6.
+  - **S3** → nguồn từ điển: **`1ec5/hunspell-vi`** (gốc GNU Aspell 0.60 VI — Hồ Ngọc Đức; **GPLv2**; **2 biến thể kiểu dấu** `vi-DauCu`/`vi-DauMoi` khớp `config.diacritic_style`; **6.642 mục**, 29 KB/biến thể) ⇒ FST dự kiến **< 100 KB**; bắt buộc attribution + `REUSE.toml` (`docs/compliance/`); Wiktionary (CC BY-SA) **không** dùng ở v1.
+  - **S4a (đo thật)** → peak RSS **8,86 MB** · exe **993 KB** · rlib assist **241 KB** · **0,52 ms/câu** (2.000 dòng) ⇒ **đạt gate** (RSS ≤ +5 MB / binary ≤ +3 MB / p95 ≤ 2 ms) ⇒ **không chặn P4-4**.
+  - **S4b** → `harper-core` 2.13.0 (ed2024, 123 bản, deps `zip`/`boxcar`, FST 790 KB embed) ⇒ giữ **D9** (v1 không tiếng Anh).
+  - Quyết định mới: **D30** (UI theo OS) · **D31** (buffer câu luôn bật, cap 256 ký tự — đơn giản hơn đổi ABI).
+  - Sửa thêm: **Fassist-56 → major** (CLI in 8.000 dòng ra stdout) → giới hạn **50 lỗi** in mặc định + cờ `--max <n>`.
