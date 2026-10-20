@@ -338,6 +338,7 @@ fn guarded_option<T>(f: impl FnOnce() -> Option<T>) -> Option<T> {
 fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam: LPARAM) -> bool {
     let mods = active_modifiers();
     observe_key_down(shared, vk, mods);
+    shared.overlay.hide();
     if is_modifier_vk(vk) {
         return false;
     }
@@ -394,6 +395,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
 /// khi text đã commit (B2); không được thì xin session bất đồng bộ.
 #[cfg(windows)]
 pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
+    shared.overlay.hide();
     let Some(comp) = shared.take_composition() else {
         return;
     };

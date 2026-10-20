@@ -18,6 +18,7 @@ use textvn_field_detect::{rules_win::UiaElement, FieldContext, ProbeSnapshot, Se
 use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_SEARCH};
 
 pub mod compose;
+pub mod overlay;
 
 #[cfg(windows)]
 pub mod class;
@@ -549,6 +550,30 @@ impl EngineSession {
             let _ = ime_reset(self.instance);
         }
         range
+    }
+
+    /// Kiểm tra câu hiện tại bằng trợ lý ngữ pháp qua C-ABI ime_assist_check_instance (AS-022 / AS-030).
+    pub fn assist_check(&self) -> Option<textvn_ffi::ime_assist_result_v1> {
+        let mut out = textvn_ffi::ime_assist_result_v1 {
+            abi_version: textvn_ffi::IME_ABI_VERSION,
+            count: 0,
+            issues: [textvn_ffi::ime_assist_issue_v1 {
+                kind: 0,
+                start: 0,
+                end: 0,
+                auto_fixable: 0,
+                confidence: 0,
+                message: [0; textvn_ffi::IME_MAX_ASSIST_MSG],
+                suggest_len: 0,
+                suggest: [0; textvn_ffi::IME_MAX_ASSIST_SUGGEST],
+            }; textvn_ffi::IME_MAX_ASSIST_ISSUES],
+        };
+        let status = textvn_ffi::ime_assist_check_instance(self.instance, &mut out);
+        if status == textvn_ffi::IME_OK && out.count > 0 {
+            Some(out)
+        } else {
+            None
+        }
     }
 }
 

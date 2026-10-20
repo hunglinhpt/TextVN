@@ -17,6 +17,7 @@ use windows::core::*;
 #[cfg(windows)]
 use windows::Win32::Foundation::E_FAIL;
 #[cfg(windows)]
+use windows::Win32::Foundation::RECT;
 use windows::Win32::System::Variant::{VariantClear, VT_UNKNOWN};
 #[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
@@ -63,6 +64,8 @@ pub struct TsfShared {
     pub terminated: Cell<bool>,
     /// Phím chuyển Ctrl+Shift kiểu UniKey.
     pub modifier_toggle: Cell<ModifierToggle>,
+    /// Overlay hiển thị candidate / gợi ý trợ lý ngữ pháp (AS-030).
+    pub overlay: crate::overlay::CandidateOverlay,
 }
 
 #[cfg(windows)]
@@ -79,6 +82,7 @@ impl TsfShared {
             config_seen: Cell::new(0),
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
+            overlay: crate::overlay::CandidateOverlay::new(),
         }
     }
 
@@ -325,6 +329,28 @@ impl KeyEditSession {
                         Vec::new()
                     };
                 }
+                // AS-030: Nếu là điểm kết thúc câu và trợ lý ngữ pháp đang bật -> kiểm tra và hiện overlay
+                if shared.ipc.is_assist_enabled() && comp.is_none() {
+                    let trigger_kind = textvn_ffi::ime_assist_trigger_kind(self.key.engine_ch());
+                    if trigger_kind == textvn_ffi::IME_ASSIST_TRIGGER_SENTENCE {
+                        if let Ok(thread) = shared.thread.try_borrow() {
+                            if let Some(res) = thread.engine.assist_check() {
+                                if res.count > 0 {
+                                    let first_issue = &res.issues[0];
+                                    let text = if first_issue.suggest_len > 0 {
+                                        let s = c_char_buf_to_str(&first_issue.suggest);
+                                        format!("[1] Sửa: {s}")
+                                    } else {
+                                        c_char_buf_to_str(&first_issue.message).to_string()
+                                    };
+                                    if let Some(rc) = get_caret_rect(&self.ctx, ec) {
+                                        shared.overlay.show(rc.left, rc.bottom + 2, &text);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 plan.eaten
             }
             Err(_) => {
@@ -496,6 +522,29 @@ fn selection_range(ctx: &ITfContext, ec: u32) -> Option<ITfRange> {
     } else {
         None
     }
+}
+
+/// Lấy tọa độ màn hình của caret hiện tại từ context view (AS-030).
+#[cfg(windows)]
+pub fn get_caret_rect(ctx: &ITfContext, ec: u32) -> Option<RECT> {
+    unsafe {
+        let view = ctx.GetActiveView().ok()?;
+        let sel = selection_range(ctx, ec)?;
+        let mut rc = RECT::default();
+        let mut clipped = windows::core::BOOL::default();
+        if view.GetTextExt(ec, &sel, &mut rc, &mut clipped).is_ok() {
+            Some(rc)
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(windows)]
+fn c_char_buf_to_str(buf: &[std::ffi::c_char]) -> &str {
+    let bytes = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len()) };
+    let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    std::str::from_utf8(&bytes[..len]).unwrap_or("")
 }
 
 /// Đặt caret (selection rỗng) ngay sau `range`.
