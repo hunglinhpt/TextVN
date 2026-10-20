@@ -25,6 +25,9 @@ pub struct StateData {
     /// ảnh hưởng"). `#[serde(default)]` để state.json cũ không có nhãn vẫn đọc được.
     #[serde(default)]
     pub last_version: String,
+    /// Trạng thái bật/tắt của Trợ lý ngữ pháp (D20 kill-switch).
+    #[serde(default)]
+    pub assist_enabled: bool,
 }
 
 pub struct SvcManager {
@@ -68,12 +71,14 @@ impl SvcManager {
                     global_enabled: true,
                     apps: BTreeMap::new(),
                     last_version: String::new(),
+                    assist_enabled: false,
                 })
         } else {
             let default_state = StateData {
                 global_enabled: true,
                 apps: BTreeMap::new(),
                 last_version: String::new(),
+                assist_enabled: false,
             };
             if let Ok(json) = serde_json::to_string_pretty(&default_state) {
                 let _ = atomic_write_file(&state_file, json.as_bytes());
@@ -210,6 +215,31 @@ impl SvcManager {
         }
         let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
         (st.global_enabled, next_ver)
+    }
+
+    /// Đặt trạng thái bật/tắt cho Trợ lý ngữ pháp (D20 kill-switch 1 bước).
+    pub fn set_assist_enabled(&self, enabled: bool) -> (bool, u64) {
+        let mut st = self.state.write().unwrap_or_else(|e| e.into_inner());
+        let prev = st.assist_enabled;
+        st.assist_enabled = enabled;
+        if self.persist_state(&st).is_err() {
+            st.assist_enabled = prev;
+            eprintln!("TextVN: persist state.json thất bại — giữ state cũ");
+            return (st.assist_enabled, self.state_version.load(Ordering::SeqCst));
+        }
+        let next_ver = self.state_version.fetch_add(1, Ordering::SeqCst) + 1;
+        (st.assist_enabled, next_ver)
+    }
+
+    /// Đảo trạng thái bật/tắt Trợ lý ngữ pháp (D20).
+    pub fn toggle_assist_enabled(&self) -> (bool, u64) {
+        let current = self.is_assist_enabled();
+        self.set_assist_enabled(!current)
+    }
+
+    /// Trợ lý ngữ pháp có đang bật hay không (D20).
+    pub fn is_assist_enabled(&self) -> bool {
+        self.state.read().map(|s| s.assist_enabled).unwrap_or(false)
     }
 
     /// Đặt trạng thái bật/tắt riêng cho từng app.

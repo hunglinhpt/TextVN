@@ -35,6 +35,7 @@ pub const ID_DIACRITIC_NEW: u32 = 1020;
 pub const ID_DIACRITIC_OLD: u32 = 1021;
 pub const ID_CURRENT_APP_TOGGLE: u32 = 1030;
 pub const ID_HOOK_COMPAT_MODE: u32 = 1040;
+pub const ID_TOGGLE_ASSIST: u32 = 1045;
 pub const ID_OPEN_SETTINGS: u32 = 1050;
 pub const ID_HEALTH_STATUS: u32 = 1060;
 pub const ID_UNINSTALL: u32 = 1070;
@@ -178,6 +179,24 @@ impl TrayMenu {
                 PCWSTR(w(hook_label).as_ptr()),
             );
 
+            // 5b. Trợ lý ngữ pháp (D20 kill-switch 1 bước · AS-023)
+            let assist_enabled = self.svc.is_assist_enabled();
+            let assist_label = if assist_enabled {
+                "Trợ lý ngữ pháp (Đang bật)"
+            } else {
+                "Trợ lý ngữ pháp (Đang tắt)"
+            };
+            let mut assist_flags = MF_STRING;
+            if assist_enabled {
+                assist_flags |= MF_CHECKED;
+            }
+            let _ = AppendMenuW(
+                menu,
+                assist_flags,
+                ID_TOGGLE_ASSIST as usize,
+                PCWSTR(w(assist_label).as_ptr()),
+            );
+
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
             // 6. Cài đặt...
@@ -291,6 +310,16 @@ impl TrayMenu {
                 if crate::compatibility_hook_path().is_some() {
                     crate::notify_start_compatibility_hook();
                 }
+            }
+            ID_TOGGLE_ASSIST => {
+                let (enabled, ver) = self.svc.toggle_assist_enabled();
+                self.ipc.broadcast_state_update("assist", enabled, ver);
+                let msg = if enabled {
+                    "Đã bật Trợ lý ngữ pháp"
+                } else {
+                    "Đã tắt Trợ lý ngữ pháp"
+                };
+                crate::show_tray_notification("TextVN", msg);
             }
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
@@ -445,6 +474,7 @@ mod tests {
             ID_DIACRITIC_OLD,
             ID_CURRENT_APP_TOGGLE,
             ID_HOOK_COMPAT_MODE,
+            ID_TOGGLE_ASSIST,
             ID_OPEN_SETTINGS,
             ID_HEALTH_STATUS,
             ID_UNINSTALL,
@@ -454,6 +484,6 @@ mod tests {
         for id in ids {
             assert!(set.insert(id), "Duplicate menu ID: {id}");
         }
-        assert_eq!(ids.len(), 13);
+        assert_eq!(ids.len(), 14);
     }
 }

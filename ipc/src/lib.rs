@@ -121,6 +121,15 @@ pub enum Message {
     Pong {
         uptime_ms: u64,
     },
+    /// Thông báo khay hệ thống cho Trợ lý ngữ pháp (P4-2 · AS-023).
+    AssistNotification {
+        title: String,
+        message: String,
+    },
+    /// Bật/tắt Trợ lý ngữ pháp (D20 kill-switch 1 bước).
+    ToggleAssist {
+        enabled: bool,
+    },
 }
 
 /// Serialize một message thành frame hoàn chỉnh, gồm prefix length little-endian.
@@ -219,5 +228,19 @@ mod tests {
             decode_exact_frame(&((MAX_FRAME_BYTES as u32 + 1).to_le_bytes())),
             Err(CodecError::Oversize)
         );
+    }
+
+    #[test]
+    fn assist_messages_round_trip() {
+        let msg = Message::AssistNotification {
+            title: "TextVN".into(),
+            message: "Lỗi chính tả".into(),
+        };
+        let frame = encode_frame(&msg).unwrap();
+        assert_eq!(decode_exact_frame(&frame), Ok(msg));
+
+        let toggle = Message::ToggleAssist { enabled: true };
+        let frame = encode_frame(&toggle).unwrap();
+        assert_eq!(decode_exact_frame(&frame), Ok(toggle));
     }
 }

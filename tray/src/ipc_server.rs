@@ -607,6 +607,15 @@ impl IpcServer {
                     // state chuẩn (snapshot) để TIP tự kéo về đúng.
                     Some(self.build_snapshot())
                 }
+                Message::ToggleAssist { enabled } => {
+                    let (actual, ver) = self.svc.set_assist_enabled(enabled);
+                    self.broadcast_state_update("assist", actual, ver);
+                    Some(self.build_snapshot())
+                }
+                Message::AssistNotification { title, message } => {
+                    crate::show_tray_notification(&title, &message);
+                    Some(Message::Ack)
+                }
                 Message::Ping => Some(Message::Pong {
                     uptime_ms: self.uptime_ms(),
                 }),
@@ -645,6 +654,7 @@ impl IpcServer {
         // client kết nối sau khi người dùng tắt tiếng Việt vẫn gõ tiếng Việt.
         let mut state = self.svc.app_states();
         state.insert("*".into(), self.svc.is_global_enabled());
+        state.insert("assist".into(), self.svc.is_assist_enabled());
         Message::Snapshot {
             config_version: self.svc.config_version(),
             state,
@@ -718,6 +728,7 @@ mod tests {
                 assert_eq!(config_version, svc.config_version());
                 assert_eq!(state.get("chrome.exe"), Some(&false));
                 assert_eq!(state.get("*"), Some(&svc.is_global_enabled()));
+                assert_eq!(state.get("assist"), Some(&svc.is_assist_enabled()));
                 assert_eq!(appdb_version, 1);
                 assert_eq!(channel, "stable");
             }

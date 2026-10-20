@@ -48,6 +48,41 @@ pub const WM_START_COMPATIBILITY_HOOK: u32 = 0x8000 + 5;
 /// LL hook của tray phát hiện Ctrl+Shift tap toàn cục → tray toggle + đổi icon.
 pub const WM_TOGGLE_HOTKEY: u32 = 0x8000 + 6;
 
+/// Ghi chuỗi UTF-8 sang bộ đệm UTF-16 kèm null terminator.
+#[cfg(windows)]
+pub fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
+    let wide: Vec<u16> = s.encode_utf16().collect();
+    let len = wide.len().min(buf.len().saturating_sub(1));
+    buf[..len].copy_from_slice(&wide[..len]);
+    buf[len] = 0;
+}
+
+/// Hiển thị thông báo balloon / toast trên khay hệ thống (P4-2 · AS-023).
+#[cfg(windows)]
+pub fn show_tray_notification(title: &str, message: &str) {
+    let hwnd = TRAY_HWND.load(Ordering::Acquire);
+    if hwnd != 0 {
+        use windows::Win32::Foundation::HWND;
+        use windows::Win32::UI::Shell::{
+            Shell_NotifyIconW, NIF_INFO, NIIF_INFO, NIM_MODIFY, NOTIFYICONDATAW,
+        };
+        let mut nid = NOTIFYICONDATAW {
+            cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
+            hWnd: HWND(hwnd as *mut std::ffi::c_void),
+            uID: 1, // TRAY_ICON_UID
+            uFlags: NIF_INFO,
+            dwInfoFlags: NIIF_INFO,
+            ..Default::default()
+        };
+        copy_to_wide_buf(&mut nid.szInfoTitle, title);
+        copy_to_wide_buf(&mut nid.szInfo, message);
+        let _ = unsafe { Shell_NotifyIconW(NIM_MODIFY, &nid) };
+    }
+}
+
+#[cfg(not(windows))]
+pub fn show_tray_notification(_title: &str, _message: &str) {}
+
 /// Debounce chéo nguồn cho toggle Ctrl+Shift: một lần bấm tới tray qua HAI
 /// đường (LL hook quan sát + TIP in-process gửi IPC) — nguồn đến sau trong
 /// cửa sổ 250ms bị bỏ qua để không toggle đôi (E11). Menu/click chuột không

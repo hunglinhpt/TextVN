@@ -105,6 +105,7 @@ pub struct IpcState {
     pub global_enabled: AtomicBool,
     pub app_enabled: AtomicBool,
     pub has_app_override: AtomicBool,
+    pub assist_enabled: AtomicBool,
 }
 
 impl Default for IpcState {
@@ -115,6 +116,7 @@ impl Default for IpcState {
             global_enabled: AtomicBool::new(true),
             app_enabled: AtomicBool::new(true),
             has_app_override: AtomicBool::new(false),
+            assist_enabled: AtomicBool::new(false),
         }
     }
 }
@@ -124,6 +126,9 @@ impl IpcState {
     fn apply_states(&self, app_id: &str, states: &BTreeMap<String, bool>) {
         if let Some(&global) = states.get(GLOBAL_KEY) {
             self.global_enabled.store(global, Ordering::Release);
+        }
+        if let Some(&assist) = states.get("assist") {
+            self.assist_enabled.store(assist, Ordering::Release);
         }
         match states.get(app_id) {
             Some(&enabled) => {
@@ -137,6 +142,8 @@ impl IpcState {
     fn apply_update(&self, app_id: &str, update_app: &str, enabled: bool) {
         if update_app == GLOBAL_KEY {
             self.global_enabled.store(enabled, Ordering::Release);
+        } else if update_app == "assist" {
+            self.assist_enabled.store(enabled, Ordering::Release);
         } else if update_app.eq_ignore_ascii_case(app_id) {
             self.app_enabled.store(enabled, Ordering::Release);
             self.has_app_override.store(true, Ordering::Release);
@@ -211,6 +218,11 @@ impl IpcClient {
             true
         };
         global && app
+    }
+
+    /// Trợ lý ngữ pháp có đang bật hay không (D20 kill-switch 1 bước · AS-023).
+    pub fn is_assist_enabled(&self) -> bool {
+        self.state.assist_enabled.load(Ordering::Acquire)
     }
 
     /// Hotkey trong TSF: đổi ngay trong process (phản hồi tức thì, kể cả khi
@@ -327,6 +339,9 @@ fn parse_state_json(bytes: &[u8]) -> Option<BTreeMap<String, bool>> {
     let mut states = BTreeMap::new();
     if let Some(global) = value.get("global_enabled").and_then(|v| v.as_bool()) {
         states.insert(GLOBAL_KEY.to_string(), global);
+    }
+    if let Some(assist) = value.get("assist_enabled").and_then(|v| v.as_bool()) {
+        states.insert("assist".to_string(), assist);
     }
     if let Some(apps) = value.get("apps").and_then(|v| v.as_object()) {
         for (app, enabled) in apps {
@@ -524,12 +539,26 @@ mod tests {
 
     #[test]
     fn state_file_parsing_matches_tray_schema() {
-        let parsed =
-            parse_state_json(br#"{"global_enabled":false,"apps":{"Zalo.exe":true,"bad":"x"}}"#)
-                .unwrap();
+        let parsed = parse_state_json(
+            br#"{"global_enabled":false,"assist_enabled":true,"apps":{"Zalo.exe":true,"bad":"x"}}"#,
+        )
+        .unwrap();
         assert_eq!(parsed.get("*"), Some(&false));
+        assert_eq!(parsed.get("assist"), Some(&true));
         assert_eq!(parsed.get("zalo.exe"), Some(&true));
         assert!(!parsed.contains_key("bad"));
         assert!(parse_state_json(b"not json").is_none());
+    }
+
+    #[test]
+    fn assist_state_update_and_snapshot() {
+        let client = IpcClient::detached();
+        assert!(!client.is_assist_enabled());
+        client.state.apply_update("notepad.exe", "assist", true);
+        assert!(client.is_assist_enabled());
+        client
+            .state
+            .apply_states("notepad.exe", &map(&[("assist", false)]));
+        assert!(!client.is_assist_enabled());
     }
 }
