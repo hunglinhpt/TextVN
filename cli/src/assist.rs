@@ -8,6 +8,9 @@
 
 use textvn_assist::{apply_auto_fixes, check, check_sentence, Issue};
 
+/// Số lỗi tối đa in ra mặc định (tránh flood stdout khi file lớn — Fassist-56).
+const MAX_PRINT_DEFAULT: usize = 50;
+
 /// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence]`
 pub fn cmd_assist(rest: &[String]) -> i32 {
     // `assist` có subcommand `check` (args[2] = "check").
@@ -30,6 +33,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
     let mut json = false;
     let mut fix = false;
     let mut sentence = false;
+    let mut max_print: usize = MAX_PRINT_DEFAULT;
 
     let mut i = 0usize;
     while i < rest.len() {
@@ -37,6 +41,16 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
             "--json" => json = true,
             "--fix" => fix = true,
             "--sentence" => sentence = true,
+            "--max" => {
+                i += 1;
+                match rest.get(i).and_then(|s| s.parse::<usize>().ok()) {
+                    Some(n) => max_print = n,
+                    None => {
+                        eprintln!("error: --max cần một số");
+                        return 2;
+                    }
+                }
+            }
             "--file" => {
                 i += 1;
                 match rest.get(i) {
@@ -65,9 +79,9 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
     }
 
     match (text, file) {
-        (Some(t), None) => run_text(&t, json, fix, sentence),
+        (Some(t), None) => run_text(&t, json, fix, sentence, max_print),
         (None, Some(path)) => match std::fs::read_to_string(&path) {
-            Ok(content) => run_file(&path, &content, json, fix, sentence),
+            Ok(content) => run_file(&path, &content, json, fix, sentence, max_print),
             Err(e) => {
                 eprintln!("error: đọc file `{path}` thất bại: {e}");
                 2
@@ -87,7 +101,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
 }
 
 /// Kiểm tra một chuỗi (một câu/đoạn).
-fn run_text(source: &str, json: bool, fix: bool, sentence: bool) -> i32 {
+fn run_text(source: &str, json: bool, fix: bool, sentence: bool, max_print: usize) -> i32 {
     let issues = if sentence {
         check_sentence(source)
     } else {
@@ -97,7 +111,7 @@ fn run_text(source: &str, json: bool, fix: bool, sentence: bool) -> i32 {
     if json {
         println!("{}", to_json(&issues));
     } else {
-        print_human(None, &issues);
+        print_human(None, &issues, max_print);
         if fix {
             let fixed = apply_auto_fixes(source, &issues);
             if fixed != source {
@@ -111,7 +125,14 @@ fn run_text(source: &str, json: bool, fix: bool, sentence: bool) -> i32 {
 
 /// Kiểm tra từng dòng của file (báo kèm số dòng) — L0 áp theo từng dòng để
 /// file song ngữ không bị bỏ qua cả.
-fn run_file(path: &str, content: &str, json: bool, fix: bool, sentence: bool) -> i32 {
+fn run_file(
+    path: &str,
+    content: &str,
+    json: bool,
+    fix: bool,
+    sentence: bool,
+    max_print: usize,
+) -> i32 {
     let mut all: Vec<(usize, Vec<Issue>)> = Vec::new();
     for (idx, line) in content.lines().enumerate() {
         if line.trim().is_empty() {
@@ -146,8 +167,14 @@ fn run_file(path: &str, content: &str, json: bool, fix: bool, sentence: bool) ->
         if all.is_empty() {
             println!("OK: không phát hiện lỗi trong `{path}`");
         }
+        let mut budget = max_print;
         for (line, issues) in &all {
-            print_human(Some(*line), issues);
+            if budget == 0 {
+                break;
+            }
+            let take = budget.min(issues.len());
+            print_human(Some(*line), &issues[..take], take);
+            budget -= take;
             if fix {
                 let source = content.lines().nth(line - 1).unwrap_or("");
                 let fixed = apply_auto_fixes(source, issues);
@@ -159,6 +186,9 @@ fn run_file(path: &str, content: &str, json: bool, fix: bool, sentence: bool) ->
         if !all.is_empty() {
             let total: usize = all.iter().map(|(_, v)| v.len()).sum();
             println!("--- {total} lỗi ---");
+            if total > max_print {
+                println!("(chỉ in {max_print} lỗi đầu — dùng --max <n> để xem thêm)");
+            }
         }
     }
 
@@ -166,7 +196,7 @@ fn run_file(path: &str, content: &str, json: bool, fix: bool, sentence: bool) ->
 }
 
 /// In kết quả dạng người đọc.
-fn print_human(line: Option<usize>, issues: &[Issue]) {
+fn print_human(line: Option<usize>, issues: &[Issue], max_print: usize) {
     if issues.is_empty() {
         return;
     }
@@ -174,7 +204,7 @@ fn print_human(line: Option<usize>, issues: &[Issue]) {
         Some(l) => format!("dòng {l}: "),
         None => String::new(),
     };
-    for issue in issues {
+    for issue in issues.iter().take(max_print) {
         let suggestion = issue
             .suggestions
             .first()
