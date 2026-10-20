@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1792510344.8380613,
-    "seen": 1792510486.7097106,
-    "ast_hash": "dbe364875d838ffdfd9fb47654b0ff38",
+    "mtime": 1792511462.4228046,
+    "seen": 1792511887.5033042,
+    "ast_hash": "f0bbcdad1a7294204f1c1bc704ec7dec",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -594,9 +594,9 @@
     "semantic_hash": ""
   },
   "docs/adr/README.md": {
-    "mtime": 1790501152.5994978,
-    "seen": 1790578955.3561072,
-    "ast_hash": "4ba6e1d9bc3fc3cfe323ac3913054e52",
+    "mtime": 1792511401.9047186,
+    "seen": 1792511887.5248632,
+    "ast_hash": "997f8e52c7240beacaebe266f62a8537",
     "semantic_hash": ""
   },
   "docs/compat.md": {
@@ -2358,15 +2358,87 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-0-MASTER-PLAN.md": {
-    "mtime": 1792510458.033828,
-    "seen": 1792510486.725821,
-    "ast_hash": "97b9e89eb82b81de2fe1b3e9f4fa0a08",
+    "mtime": 1792511376.0683525,
+    "seen": 1792511887.5248632,
+    "ast_hash": "d5150350662dc0abfd9f6b3cf385c338",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-1-harper-evaluation.md": {
-    "mtime": 1792510361.4475026,
-    "seen": 1792510486.725821,
-    "ast_hash": "30ff0491848cc9725123cd5a96649c18",
+    "mtime": 1792511394.314182,
+    "seen": 1792511887.5248632,
+    "ast_hash": "6dd187ee13fd0475ff43b690b428e81b",
+    "semantic_hash": ""
+  },
+  "assist/Cargo.toml": {
+    "mtime": 1792510883.1074295,
+    "seen": 1792511887.3763185,
+    "ast_hash": "41d21c9ef7c7eb6e9cbdc096afcbde7a",
+    "semantic_hash": ""
+  },
+  "assist/src/fix.rs": {
+    "mtime": 1792511261.8450146,
+    "seen": 1792511887.3763185,
+    "ast_hash": "d72846b52408af216c45dff4ee24f19b",
+    "semantic_hash": ""
+  },
+  "assist/src/lib.rs": {
+    "mtime": 1792511261.8450146,
+    "seen": 1792511887.3763185,
+    "ast_hash": "179c6ed8b4799f017ea1004078b9032b",
+    "semantic_hash": ""
+  },
+  "assist/src/mask.rs": {
+    "mtime": 1792511267.3687975,
+    "seen": 1792511887.3763185,
+    "ast_hash": "884cb6293ebfff548389cd5e72cbf193",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/capitalize_sentence.rs": {
+    "mtime": 1792511267.3697982,
+    "seen": 1792511887.3763185,
+    "ast_hash": "8d2862fd27d7bb22fa85a1bb9138d763",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/diacritic_typo.rs": {
+    "mtime": 1792511267.3697982,
+    "seen": 1792511887.3763185,
+    "ast_hash": "2053f38d61f9e70b714b23e7010f8929",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/double_space.rs": {
+    "mtime": 1792510929.1472633,
+    "seen": 1792511887.3763185,
+    "ast_hash": "eaf9d3aa3762acada81a70b340fd1129",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/duplicate_word.rs": {
+    "mtime": 1792511267.3707986,
+    "seen": 1792511887.3763185,
+    "ast_hash": "7e417d4bbd417138d1cb77876afc039e",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/mod.rs": {
+    "mtime": 1792511249.6782222,
+    "seen": 1792511887.3763185,
+    "ast_hash": "0cb14e445435c439561150030d9d2b57",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/space_after_punct.rs": {
+    "mtime": 1792510929.1472633,
+    "seen": 1792511887.3763185,
+    "ast_hash": "31b2037e26778568d868dee1f1694977",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/space_before_punct.rs": {
+    "mtime": 1792510912.0402243,
+    "seen": 1792511887.3763185,
+    "ast_hash": "ccae8152876a252918b93c0c36a93dfb",
+    "semantic_hash": ""
+  },
+  "assist/src/tokenize.rs": {
+    "mtime": 1792510883.1094458,
+    "seen": 1792511887.3763185,
+    "ast_hash": "0306bceeec9aa4ddda4eaee54ba7d224",
     "semantic_hash": ""
   }
 }

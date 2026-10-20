@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "PLAN.md": {
-    "mtime": 1791617098.2606494,
-    "seen": 1791702628.18752,
-    "ast_hash": "1b7c098e18985df83ed41a508836c323",
+    "mtime": 1792510332.07104,
+    "seen": 1792510486.70514,
+    "ast_hash": "4a672689f84a8fc6e9d392aece7f5cfd",
     "semantic_hash": ""
   },
   "data/stop_en.txt": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1790790718.306824,
-    "seen": 1790791788.7569568,
-    "ast_hash": "baa3cfaa78a7d1f42aab93efb5155ae5",
+    "mtime": 1792510344.8380613,
+    "seen": 1792510486.7097106,
+    "ast_hash": "dbe364875d838ffdfd9fb47654b0ff38",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -2355,6 +2355,18 @@
     "mtime": 1792314316.9816215,
     "seen": 1792315075.2029276,
     "ast_hash": "42d2d01a93250336cc4cbeadd42a1f0d",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-0-MASTER-PLAN.md": {
+    "mtime": 1792510458.033828,
+    "seen": 1792510486.725821,
+    "ast_hash": "97b9e89eb82b81de2fe1b3e9f4fa0a08",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-1-harper-evaluation.md": {
+    "mtime": 1792510361.4475026,
+    "seen": 1792510486.725821,
+    "ast_hash": "30ff0491848cc9725123cd5a96649c18",
     "semantic_hash": ""
   }
 }
