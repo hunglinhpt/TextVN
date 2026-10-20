@@ -310,3 +310,4 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - **S4b** → `harper-core` 2.13.0 (ed2024, 123 bản, deps `zip`/`boxcar`, FST 790 KB embed) ⇒ giữ **D9** (v1 không tiếng Anh).
   - Quyết định mới: **D30** (UI theo OS) · **D31** (buffer câu luôn bật, cap 256 ký tự — đơn giản hơn đổi ABI).
   - Sửa thêm: **Fassist-56 → major** (CLI in 8.000 dòng ra stdout) → giới hạn **50 lỗi** in mặc định + cờ `--max <n>`.
+  - **Bản đồ 13 call site** `core/src/lib.rs` (chuẩn bị P4-2a) → 2 finding mới: **F65** (major) 2 site có hậu kỳ hậu-encode (`MAX_TEXT` cắt sau `emit`) → `record()` phải tái tạo đúng semantics `recent`; **F66** `recent.pop()` xoá 1 **glyph** còn `sentence` xoá 1 **char Unicode** → 2 buffer tách bạch. Recipe 5 bước (bảng call site ↔ nguồn Unicode) trong `docs/50-assist/P4-TASKS.md`.

@@ -400,6 +400,13 @@ Mỗi pha: commit list tường minh → push → CI xanh → `graphify update .
 
 → **Fassist-59..64** (6 finding): 59 mâu thuẫn D13↔S1 (→D30) · 60 attribution GPL bắt buộc (P4-4) · 61 S4a đo trong CLI ≠ TIP (đo lại P4-2) · 62 từ điển từ đơn → recall có thể không đạt (đo + fallback) · 63 macOS toast lệch parity (P4-6) · 64 S4b giữ D9 (không sửa).
 
+### 11.7 Vòng 11 — review **bản đồ 13 call site** (chuẩn bị P4-2a, 2026-10-20)
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| **Fassist-65** | major | 2 call site có **hậu kỳ hậu-encode** (site 523 cắt `MAX_TEXT` **sau** `emit`) → đổi tham số sang Unicode dễ **lệch hành vi `recent`** (và hành vi gõ) | `record()` phải tái tạo đúng semantics (giữ `MAX_TEXT` trong `record`) · oracle = test `core` không đổi · recipe ở `P4-TASKS.md` |
+| **Fassist-66** | minor | `recent.pop()` xoá 1 **glyph**; nếu glyph cuối là 1 chữ 2 byte (TCVN3/VNI-Windows) thì `sentence` phải xoá 1 **char Unicode** | Xác nhận **2 buffer tách bạch** (D24/D27) — không dùng chung |
+
+
 ---
 
 ## 12. Việc cần làm ngay

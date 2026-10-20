@@ -53,7 +53,34 @@
 | AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 |
 | AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · `ui-spec` + `parity-checklist` cập nhật | AS-050 |
 
-## Quy tắc nhận việc
+## Recipe P4-2a — refactor buffer trong `core` (đọc trước khi code)
+
+`core/src/lib.rs` có **13 call site `recent_replace`** + 4 `recent.clear()` + 3 `recent.pop()`; `recent` là **glyph space** (`emit()` = `transform::charset::encode`), cap 64 (`RECENT_MAX`).
+
+| Nhóm | Line (2026-10-20) | Lệnh hiện tại | Nguồn **Unicode** tương ứng (để nuôi `sentence`) |
+|---|---|---|---|
+| Reset | 202 `set_options` · 225 `reset` (focus) · 254 `DOWN` · 262 non-printable · 341 | `recent.clear()` | xoá `sentence` luôn |
+| Phím in được | 257 · 460 · 570 `close_word` | `recent_replace(0, &[c])` | `c` (ký tự gõ) — đã Unicode |
+| Commit từ | 450 | `let out = self.emit(&display); recent_replace(0, &out)` | **`display`** (trước khi encode) |
+| Thay từ | 480 · 664 | `recent_replace(delete, &out)` | biến **trước** `emit` (cùng scope) |
+| Macro/mở rộng | 523 | `let insert = self.emit(&expanded).take(MAX_TEXT); recent_replace(len, &insert)` | `expanded` — ⚠️ **cắt `MAX_TEXT` SAU encode** → phải giữ nguyên semantics |
+| Restore | 550 | `insert = raw + c`; `recent_replace(delete, &insert)` | `raw` + `c` |
+| Xoá từ | 618 | `recent_replace(delete, &insert)` | `insert` (Unicode) |
+| Xoá từ (raw) | 683 | `recent_replace(delete, &raw)` | `raw` = `word.raw` (Unicode) |
+| Xoá không chèn | 710 | `recent_replace(delete, &[])` | rỗng |
+| Backspace | 248 · 725 · 765 | `recent.pop()` | ⚠️ pop **1 glyph**; `sentence` phải pop **1 char Unicode** → 2 buffer tách bạch (D24/D27) |
+
+**Cách làm an toàn (1 commit, oracle = test `core`):**
+1. Thêm `sentence: Vec<char>` (Unicode, cap 256 — D31) + `fn record(&mut self, delete: usize, insert_unicode: &[char])` **gộp cả 2 buffer** → không còn chỗ sửa `recent` trực tiếp.
+2. `record()` phải **tái tạo đúng semantics của `recent`** (kể cả `MAX_TEXT` cắt sau encode ở site 523) — **không** đổi hành vi gõ.
+3. Thay 13 call site `recent_replace` → `record` với **nguồn Unicode** ở bảng trên; 4 `clear()` → `clear()` cả hai; 3 `pop()` → pop cả hai (glyph 1 / Unicode 1).
+4. `Engine::glyph_len_of(unicode_slice)` (D27) = `emit(unicode).len()` → adapter biết số ký tự cần xoá.
+5. Gate: `cargo test -p textvn-core` **không đổi** (số test, kết quả) + `cargo test --workspace` xanh + clippy/fmt sạch.
+
+> **F65 (major):** 2 call site có **hậu kỳ hậu-encode** (site 523 cắt `MAX_TEXT` sau encode) → đổi tham số sang Unicode **không được** thay đổi hành vi `recent` → phải giữ `MAX_TEXT` trong `record()`.
+> **F66 (minor):** `recent.pop()` xoá 1 **glyph**; nếu glyph cuối là 1 chữ 2 byte (TCVN3/VNI-Windows) thì `sentence` phải xoá 1 **char Unicode** → xác nhận 2 buffer tách bạch (D24/D27), không dùng chung.
+
+
 
 1. Đọc `P4-0` §3.1 (D1–D29) trước khi code — **không** quyết định lại D nào đã chốt.
 2. Mỗi task: **1 commit** + list `git add` tường minh (G2) → push → CI xanh (G13) → `graphify update .` → commit `graphify-out/` → push (G5).
