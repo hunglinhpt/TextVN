@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1792299504.2679677,
-    "seen": 1792306932.4717116,
-    "ast_hash": "275014dbb0673b961ae525e83138156a",
+    "mtime": 1792517633.2645538,
+    "seen": 1792517804.8836575,
+    "ast_hash": "65614cc4e9efe665d412d408ca42a178",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -594,9 +594,9 @@
     "semantic_hash": ""
   },
   "docs/adr/README.md": {
-    "mtime": 1792513014.8124342,
-    "seen": 1792514363.187159,
-    "ast_hash": "f607ec9255edf43da05b416d805c9bb1",
+    "mtime": 1792517720.146739,
+    "seen": 1792517804.9171321,
+    "ast_hash": "ddb131f2f0b844022073f2867377dbf1",
     "semantic_hash": ""
   },
   "docs/compat.md": {
@@ -2472,15 +2472,21 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-TASKS.md": {
-    "mtime": 1792516160.6755762,
-    "seen": 1792516209.9982574,
-    "ast_hash": "32bdfec5a5148513d6a1e7abbde22f63",
+    "mtime": 1792517637.4839852,
+    "seen": 1792517804.9171321,
+    "ast_hash": "6882cb35eeb7cc5fda8ef02adf58e87f",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-4-OS-NATIVE-ASSIST.md": {
     "mtime": 1792516160.6755762,
     "seen": 1792516209.9982574,
     "ast_hash": "a41b4f690cb3a98a558686f3516988d6",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-5-P4-2A-REVIEW.md": {
+    "mtime": 1792517693.8024597,
+    "seen": 1792517804.9171321,
+    "ast_hash": "224ad891d4643772b6d0c009644530eb",
     "semantic_hash": ""
   }
 }
