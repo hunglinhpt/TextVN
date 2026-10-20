@@ -28,6 +28,8 @@
 | B6 | `reuse lint` qua `tools/win/check_reuse.ps1` | ✓ 970/970 files compliant (2026-09-27) | set UTF-8 tránh crash Windows charmap (E1) |
 | B7 | `cargo run -p xtask -- check-tables` | ✓ Khớp 100% `data/tables/*.toml` → `core/` (2026-09-27) | verify tự động tables sinh code |
 | B8 | `cargo run -p textvn-cli -- verify` | ✓ FFI ABI 4 tầng + 11 export functions khớp 100% (2026-09-27) | `textvn_ffi.h` đồng bộ tuyệt đối Rust ABI |
+| B9 | `cargo clippy --workspace --all-targets -- -D warnings` → **phải thêm `-j 2`** trên máy dev này | ✓ chạy `-j 2` → 0 warning (2026-10-20); **không** `-j 2` → fail với `os error 1455: The paging file is too small` (mmap `libcore.rmeta` thất bại) | paging file máy dev quá nhỏ cho clippy full-parallel; dùng `-j 2` cho clippy **và** `cargo test --workspace -j 2` (Fassist-37) |
+| B10 | `cargo test --workspace` → thêm `-j 2` khi song song nhiều crate | ✓ 0 fail với `-j 2` (2026-10-20) | đồng nguyên nhân B9; CI không bị ảnh hưởng (runner đủ RAM) |
 | B9 | `cargo run -p textvn-cli -- replay corpus/shared corpus/win` | ✓ 100/100 test cases pass (2026-09-27) | test suite cho B1-B9, secure context, hook, tsf preedit |
 | B10 | `cargo run -p textvn-bench` | ✓ ime_key p50=5.7µs (<500µs), resolve p50=57ns (<2ms) (2026-09-27) | đạt budget performance vượt trội |
 | B11 | `cargo build -p textvn-win-tsf` | ✓ Sinh `target/debug/textvn_win_tsf.dll` (~1MB) (2026-09-27) | TSF COM in-process DLL hoàn chỉnh (WIN-010) |

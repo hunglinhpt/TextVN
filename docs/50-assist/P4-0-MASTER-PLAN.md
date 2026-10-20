@@ -13,7 +13,7 @@
 |---|---|
 | **Làm gì** | Kiểm tra **câu vừa gõ** bằng bộ luật tiếng Việt **objective** (lặp từ, khoảng trắng, hoa đầu câu, sai dấu…) → **gợi ý** (overlay/candidate) và (v2) **tự sửa cả câu** |
 | **Không làm gì** | Không đọc nội dung app khác · không network · không log text · không gạch chân thật trong field · không ngữ pháp học thuật ở v1 |
-| **Vì sao tự viết** | Harper **chỉ hỗ trợ tiếng Anh** ở mọi tầng; crates.io stale 27 tháng → mượn **kiến trúc**, tự viết **luật + từ điển** (chi tiết: `P4-1`) |
+| **Vì sao tự viết** | Harper **chỉ hỗ trợ tiếng Anh** ở mọi tầng (không có giá trị cho tiếng Việt) + API churn ~hàng tháng + chi phí resident khi nhúng trong TIP in-process → mượn **kiến trúc**, tự viết **luật + từ điển** (chi tiết: `P4-1`, `P4-2-CROSS-REVIEW-2026-10-20.md`) |
 | **Rủi ro lớn nhất** | **Áp sửa text đã commit** → đã đổi cơ chế sang **Backspace+Type có precondition** (D12) + **fail-safe** |
 | **Ước lượng** | 6 pha · ~14–18 tuần (tăng so với v1 sau vòng 3–5: thêm 3 spike chặn + runtime shadow buffer thật) |
 
@@ -53,17 +53,26 @@
 
 ```
 ┌─ Adapter (3 OS) ────────────────────────────────────────────────────────────────┐
-│ windows-tsf (TIP)      macos-imk (IMK)      linux-ibus / linux-fcitx5           │
-│ + runtime shadow buffer (TẠO MỚI — chưa có sẵn, Fassist-17)                   │
+│ windows-tsf (TIP, Rust)  macos-imk (Swift)   linux-ibus (C) / linux-fcitx5 (C++)│
 │ + trigger space/,/.  + idle 700ms  + caret check (chỉ VỊ TRÍ, không đọc text)   │
+│ + **không** tự giữ buffer câu (tránh 3 bản trôi lệch — D24)                     │
 └──────────────┬──────────────────────┬──────────────────────┬──────────────────┘
-               │ gọi trực tiếp qua crate `ffi` (KHÔNG artifact mới, D14)
+               │ Rust: gọi crate `assist` trực tiếp (D23)                          │
+               │ Swift/C/C++: qua C-ABI `ime_assist_*` trong crate `ffi`            │
+               │ + header `textvn_ffi.h` + `textvn-cli verify` chống drift (D23)    │
        ┌───────▼──────────────────────────────────────────────────┐
+       │  core/  (đã có)                                            │
+       │  `Engine.sentence` — buffer CÂU (Unicode, ≤256, chỉ bật    │
+       │  khi assist.mode != off — D26) + `Engine::glyph_len_of`    │
+       │  (số ký tự glyph để xóa — D27)                            │
+       │  ↕ refactor 13 call site `recent_replace` → 2 helper (D24)  │
+       ├───────────────────────────────────────────────────────────┤
        │  assist/  (crate Rust MỚI — thuần, 0-dep, không I/O)      │
        │  tokenize → mask(URL/email) → rules/(1 file = 1 luật)       │
-       │  → Issue{kind, span(char), message, suggestions, fix}      │
-       │  → apply_auto_fixes (char-space, không lệch offset)        │
-       └───────┬──────────────────────────────────────────────────┘
+       │  → Issue{kind, span(char), message, suggestions, fix,       │
+       │         confidence} → apply_auto_fixes (char-space)         │
+       │  tài nguyên nặng: OnceLock<Arc<…>> (immutable, D25)        │
+       └───────────────────────────────────────────────────────────┘
                │ kết quả (RAM only)
     ┌──────────▼─────────────┐   ┌────────────────────────────────────┐
     │ strategy crate          │   │ UI 3 OS (D13)                       │
@@ -78,7 +87,7 @@
 
 | # | Quyết định | Lý do | Nguồn |
 |---|---|---|---|
-| D1 | Không vendor `harper-core` | English-only ở mọi tầng; crates.io stale 27 tháng; master đổi nhanh | `P4-1` §0 |
+| D1 | Không vendor `harper-core` **ở v1** | English-only ở mọi tầng (không có giá trị cho tiếng Việt) · API churn ~hàng tháng (2.13.0 mới 4 ngày) · chi phí resident khi nhúng trong TIP in-process (cần spike S4) · ed2024 → MSRV ≥ 1.85. ⚠️ lý do *"crates.io stale"* ở bản v1 là **SAI** → xem **D21** + `P4-2-CROSS-REVIEW-2026-10-20.md` Fassist-32 | `P4-1` §0, D21 |
 | D2 | Mượn kiến trúc Harper, tự viết luật VN | Tầng tokenize/lint mượn được; từ điển+luật+POS là 100% tiếng Anh | `P4-1` §0 |
 | D3 | Tự xây từ điển VN từ nguồn mở, **audit license từng nguồn** | Không có từ điển VN "đóng gói sẵn + license sạch" | `P4-1` §0 |
 | D4 | Highlight = hiển thị **cạnh con trỏ** (không gạch chân thật trong field) | Giới hạn kỹ thuật: TSF/IMK/IBus không vẽ underline vào edit control mà không sửa format | `Fassist-4` |
@@ -98,6 +107,15 @@
 | **D18** | **3 spike chặn** trước P4-3/P4-4: (S1) TSF mở candidate list sau commit? (S2) đọc vị trí caret 3 OS? (S3) khảo sát nguồn từ điển VN | 3 giả định lớn chưa kiểm chứng | `Fassist-29`, `Fassist-22` |
 | **D19** | Tiêu chí chất lượng: **recall ≥ 80%**, **FPR ≤ 2%**, **2 người đánh giá độc lập** 100 câu (thống nhất ≥ 80%) | "Cảm thấy ổn" không đo được | `Fassist-27` |
 | **D20** | **Kill-switch 1 bước** (`assist.mode=off` + tray toggle) + **auto-disable streak** + **không thu thập metrics** nào | UI phiền → người dùng bỏ; privacy | `Fassist-24`, `Fassist-25`, `Fassist-30` |
+| **D21** | **D1 viết lại đúng tiền đề**: (a) English-only ở mọi tầng; (b) API churn ~hàng tháng → vendor = pin + nợ nâng cấp; (c) chi phí resident khi nhúng TIP in-process (deps `zip`/`boxcar` + FST 790 KB) → cần **S4a/S4b** đo; (d) ed2024 → MSRV ≥ 1.85. **Không** dùng lý do "crates.io stale" (đã chứng minh sai) | `Fassist-32` (cross-review) |
+| **D22** | v1 **không dùng `SelectionReplace`** để áp sửa — chỉ **Backspace+Type** (A2/A3) theo D12; `SelectionReplace` chỉ ghi chú là cơ chế có sẵn trong `strategy` | `Fassist-33` |
+| **D23** | Biên gọi: `windows-tsf` (Rust) gọi crate `assist` **trực tiếp**; macOS/Linux (Swift/C/C++) qua **C-ABI `ime_assist_*`** trong crate `ffi` + header `textvn_ffi.h` + `textvn-cli verify` chống drift | `Fassist-34` |
+| **D24** | Buffer câu nằm trong **core** (`Engine.sentence`, Unicode) — **refactor trước**: gom 13 call site `recent_replace` → 2 helper (`recent_push`/`recent_pop`), rồi mới thêm mirror; tách khỏi `recent` (glyph, 64) | `Fassist-35` |
+| **D25** | Tài nguyên nặng dùng **`OnceLock<Arc<…>>`** (immutable-after-init → không vi phạm "no global **mutable** state"); **S4a** đo per-process RSS/binary/p95 (gate: RSS ≤ +5 MB, binary ≤ +3 MB, p95 ≤ 2 ms) **chặn P4-4**; **S4b** (harper-core/EN) = v2, **không** chặn v1 | `Fassist-36` |
+| **D26** | Buffer câu chỉ tồn tại **khi `assist.mode != off`** (feature flag trong config) + cap **256** ký tự; không dùng chung buffer với `recent` | `Fassist-38` |
+| **D27** | `assist` trả offset theo **char Unicode**; **số ký tự cần xóa do core tính** (`Engine::glyph_len_of` — `emit()` đã encode sang bảng mã xuất); `Fix` **không** mang số xóa | `Fassist-39` |
+| **D28** | `Issue` có **`confidence: u8`** (0–100) ngay từ P4-1 (thêm sau = phá API) | `Fassist-41` |
+| **D29** | Biên FFI chuẩn hoá **UTF-16 code unit** (khớp TSF/AX); crate `assist` giữ char + helper đổi | `Fassist-42` |
 
 ### 3.2 Ràng buộc bắt buộc
 - Perf theo `PLAN.md` §5.5: `ime_key` < 0.5 ms p99 · adapter+strategy < 3 ms p99 · end-to-end < 10 ms p99 · RSS < 30 MB · không wake-idle spike > 5 ms.
@@ -137,6 +155,8 @@
 | **A3** | Cả câu | **Backspace+Type** cho cả câu | caret ở cuối câu + câu do ta gõ liên tục | P4-5 |
 
 > Vì sao không dùng "selection replace" (đã có sẵn trong `strategy`): nó cần **biết vị trí text đã commit trong app** — mà app có thể tự format/auto-correct → lệch vị trí → sửa nhầm. Backspace+Type chỉ dựa vào **số ký tự ta tự gõ** → an toàn hơn, và nếu app đã can thiệp thì `Ctrl+Z` + fail-safe.
+>
+> **D22 (cross-review):** v1 **không dùng `SelectionReplace`** — nó chỉ là ghi chú "cơ chế có sẵn trong `strategy`", không đưa vào kế hoạch. **D27:** số ký tự cần xóa **do core tính** (`Engine::glyph_len_of` — `emit()` đã encode sang bảng mã xuất: 1 chữ Việt = 2 ký tự ở VNI-Windows/Unicode tổ hợp), `Fix` chỉ mang vùng lỗi trong **Unicode**.
 
 ### 4.5 Precondition (D12) — chi tiết
 | Kiểm tra | Nguồn (chỉ *vị trí*, không đọc nội dung) | Nếu không kiểm được |
@@ -150,6 +170,9 @@
 ## 5. Bộ luật tiếng Việt
 
 ### 5.1 V1 — objective (đều auto-fix được)
+> **Hợp đồng với config (D16):** crate `assist` **không** đọc config (0-dep) → nó **luôn** trả về issue L6; **lớp adapter** (chỗ có config) loại L6 khi `auto_capitalize=true` để không trùng chức năng.
+> **Điểm tin cậy (D28):** mọi `Issue` có `confidence: u8` (0–100) để v2 lọc luật mơ hồ mà **không phá API**.
+> **Đếm (Fassist-44):** v1 = **6 module luật / 7 mã luật** (L1+L2+L11 gộp trong `duplicate_word`).
 | Mã | Luật | Module | Auto-fix | V1 |
 |---|---|---|---|---|
 | **L0** | Bỏ qua câu **không phải tiếng Việt** (heuristic tỷ lệ từ có dấu) | `language.rs` | — (bỏ qua) | ✓ (D16) |
@@ -211,9 +234,12 @@
 | Pha | Task | Nội dung & file | Acceptance | Ước lượng |
 |---|---|---|---|---|
 | **P4-0** | AS-000 | Tài liệu: `P4-0` (plan), `P4-1` (đánh giá), ADR-012, INDEX, PLAN §2.3 | Review 3 vòng; CI xanh; graphify | ✅ xong |
-| **P4-1** | AS-001…006 | crate `assist/` (tokenize/mask/rules/fix) + `corpus/assist/*.ass` + test tích hợp + `textvn-cli assist check` | `cargo test -p textvn-assist` xanh · corpus ≥ 60 câu · clippy+fmt sạch · **0 dep, 0 network, 0 I/O** · recall ≥ 80% / FPR ≤ 2% trên corpus | 2 tuần |
+| **P4-1** | AS-001…006 | crate `assist/` (tokenize/mask/rules/fix) + **L0** (F40) + **`confidence`** (F41/D28) + `corpus/assist/*.ass` (đặc tả TSV — F43) + test tích hợp + `textvn-cli assist check` | `cargo test -p textvn-assist` xanh · corpus ≥ 60 câu · clippy+fmt sạch · **0 dep, 0 network, 0 I/O** · recall ≥ 80% / FPR ≤ 2% trên corpus | 2 tuần |
 | **P4-1b** | AS-007…010 | **3 spike chặn (D18)**: S1 TSF candidate list sau commit · S2 đọc caret 3 OS · S3 khảo sát từ điển VN | Mỗi spike có kết luận **viết ra** + bằng chứng (log/screenshot) | 1 tuần |
-| **P4-2** | AS-020…025 | **Runtime shadow buffer** (TẠO MỚI — `compose.rs` chỉ là mô phỏng test) + trigger + **toast tray** + kill-switch | Gõ thật: câu lỗi → toast; câu sạch → im lặng; không tăng trễ > 5 ms; tắt được 1 bước | 2–3 tuần |
+| **P4-1b+** | AS-011 | **S4a** đo per-process RSS/binary/p95 của tài nguyên assist (chặn P4-4) + **S4b** khảo sát `harper-core`/EN (**v2, không chặn**) | S4a: RSS ≤ +5 MB, binary ≤ +3 MB, p95 ≤ 2 ms (đo trên Windows thật) | 3–4 ngày |
+| **P4-1c** | AS-012…014 | Patch docs từ cross-review: Fassist-32 (tiền đề) · Fassist-33/34 (wording) · Fassist-37 (verified-ops) + ADR-013 | File này + `P4-0`/`P4-1`/`ADR-012`/`verified-ops` cập nhật, CI xanh | ✅ xong |
+| **P4-2a** | AS-020 | **Refactor core** (D24): gom 13 call site `recent_replace` → 2 helper `recent_push`/`recent_pop` + thêm `Engine.sentence` (Unicode ≤256, chỉ bật khi `assist.mode != off` — D26) + `Engine::glyph_len_of` (D27) | Không còn chỗ sửa buffer trực tiếp; `core` test xanh; không đổi hành vi gõ | 1 tuần |
+| **P4-2** | AS-021…025 | FFI `ime_assist_*` (D23) + trigger + **toast tray** + kill-switch + `OnceLock` share (D25) | Gõ thật: câu lỗi → toast; câu sạch → im lặng; không tăng trễ > 5 ms; tắt được 1 bước | 2–3 tuần |
 | **P4-3** | AS-030…036 | **Candidate list Windows** (`ITfCandidateListUI`) + **A2** (sửa 1 từ) + precondition | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác · không chiếm focus | 3 tuần |
 | **P4-4** | AS-040…046 | Từ điển VN (FST mmap) + gợi ý từ + L0 | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit đầy đủ | 2–3 tuần |
 | **P4-5** | AS-050…056 | **Mode 2 / A3** (tự sửa cả câu) + toast + undo + `assist.auto_fix` UI | Chỉ luật objective bị sửa · precondition bắt buộc · mọi thay đổi undo được | 2 tuần |
@@ -306,21 +332,75 @@ Mỗi pha: commit list tường minh → push → CI xanh → `graphify update .
 | Fassist-30 | minor | Thiếu kill-switch 1 bước + default off + rollback | **D20** + §7 (`mode: off`) |
 | Fassist-31 | minor | Chưa nêu quan hệ với `spellcheck`/`auto_capitalize` sẵn có (tránh trùng chức năng) | §5.1 (L6) + §9 (hồi quy) |
 
-### 11.3 Kết luận 3 lượt review
-- **Blocker/major đã xử lý trong plan:** 13/13 → chuyển thành D11–D20 (thiết kế) hoặc task chặn (spike).
-- **Điểm yếu còn lại (đã biết, chấp nhận có điều kiện):** chất lượng luật tiếng Việt phụ thuộc nguồn từ điển (P4-4) và độ chính xác của L0 (heuristic) → cần đo (D19) và tắt được từng luật.
-- **Điều kiện để bắt đầu code:** D11–D20 được chấp nhận + 5 câu hỏi mở (`P4-1` §9) đã trả lời.
+### 11.3 Vòng 6 — CROSS-REVIEW (agent B, 2026-10-20) + phản hồi agent A
+> Chi tiết đầy đủ + disposition từng finding: `P4-2-CROSS-REVIEW-2026-10-20.md`.
+
+| Nguồn | ID | Mức | Tóm tắt | Xử lý |
+|---|---|---|---|---|
+| B | Fassist-32 | major | **Tiền đề "crates.io stale ~27 tháng" SAI** (thật: 2.13.0 / 2026-10-16) → 8 chỗ docs sai | **D21** + sửa 8 chỗ; `Fassist-2` đánh dấu *sai tiền đề → superseded* (không xóa, G6) |
+| B | Fassist-33 | major | Mâu thuẫn Mode 1 (SelectionReplace) vs D12 | **D22**: v1 bỏ hẳn SelectionReplace; sweep wording |
+| B | Fassist-34 | minor | Biên gọi: chỉ Rust adapter gọi crate được; Swift/C/C++ cần C-ABI | **D23**: `ime_assist_*` qua crate `ffi` + header + `verify` |
+| B | Fassist-35 | major | Buffer câu nên ở **core** (glyph vs Unicode, 13 call site `recent_replace`) | **D24** + task **P4-2a** (refactor 13 → 2 helper trước) + ADR-013 |
+| B | Fassist-36 | major | Chi phí resident per-process (IBus 1 instance/context, TIP in-proc) | **D25**: `OnceLock<Arc<…>>` + spike **S4a** (chặn P4-4) + **S4b** (v2) |
+| B | Fassist-37 | minor | `cargo clippy --workspace` full parallel → hết paging file | `verified-ops.md` **B9/B10** |
+| A | Fassist-38 | major | Đề xuất F35 tạo mâu thuẫn mới với F36 (buffer câu trong core × TIP in-proc) | **D26**: buffer chỉ bật khi `assist.mode != off`, cap 256 |
+| A | Fassist-39 | major | Hợp đồng Unicode ↔ glyph chưa rõ (app nhận glyph, assist trả char) | **D27**: `Engine::glyph_len_of` tính số xóa; `Fix` không mang số xóa |
+| A | Fassist-40 | major | L0 chốt ở D16 nhưng **chưa có trong skeleton** | Task P4-1: `rules/language.rs` + test |
+| A | Fassist-41 | minor | `Issue` thiếu `confidence` → thêm sau = phá API | **D28**: thêm `confidence: u8` ngay ở P4-1 |
+| A | Fassist-42 | minor | Quy ước offset xuyên biên chưa chốt (char vs UTF-16) | **D29**: chuẩn hoá UTF-16 ở biên FFI |
+| A | Fassist-43 | minor | Định dạng corpus `.ass` chưa đặc tả | Task P4-1: TSV + mô tả trong `P4-TASKS.md`/`P0-4` |
+| A | Fassist-44 | minor | "6 luật" vs 6 module / **7 mã luật** | Sửa wording (§5.1) |
+| A | Fassist-45 | minor | Timeline "15–19 tuần nếu EN pass" mâu thuẫn D9 | **Giữ scope v1 = không EN**; S4b không tính timeline v1 |
+
+### 11.4 Vòng 7–9 — review **sau khi implement P4-1** (2026-10-20)
+
+> Quy trình bắt buộc: implement xong → review 3 lượt (SA/QA → Audit → PO/Design) → fix → mới commit.
+
+**Lượt 7 — SA + QA (sau khi viết `assist/` + corpus + CLI)**
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| **Fassist-50** | major | **Panic khi slice byte bằng offset char**: L0 dùng `text[token.start..token.end]` → `panic` với tiếng Việt có dấu (đã tái hiện 19 test đỏ) | ✅ Sửa: tách `Vec<char>` trước khi slice. **Đây là bằng chứng thực tế cho Fassist-39/D27** → bổ sung luật: *mọi code đọc token phải dùng char-space, không slice byte* |
+| **Fassist-49** | major | CLI dispatch ăn mất subcommand: `args[2..]` → `rest[0]` = `"check"` bị hiểu là nội dung câu → mọi lệnh đều fail | ✅ Sửa: `cmd_assist` tách subcommand `check` + 5 case smoke test (0/1 exit code đúng) |
+| **Fassist-46** | minor | Thông điệp người dùng thiếu dấu tiếng Việt (chuẩn UI repo) — 6 message luat + CLI | ✅ Sửa toàn bộ ("Lặp từ", "Thừa khoảng trắng trước dấu câu", …) |
+| **Fassist-47** | minor | CLI `--file` check **cả file** → L0 áp cho cả file ⇒ file song ngữ bị bỏ qua toàn bộ | ✅ Sửa: check **từng dòng** + báo số dòng |
+| **Fassist-48** | minor | Corpus chỉ 30 câu < ngưỡng 60 trong plan | ✅ Mở rộng lên **69 câu** (đủ 6 loại lỗi) + nâng ngưỡng test |
+| **Fassist-51** | minor | Thiếu test cho `check_sentence` (hoa đầu câu ở index 0) | ✅ Bổ sung test + 1 case corpus |
+
+**Lượt 8 — Audit (license / security / privacy / DoD)**
+
+| ID | Mức | Finding | Kết quả |
+|---|---|---|---|
+| **Fassist-52** | minor | Dependency mới? | ✅ **Không** — `assist` 0-dep; `cli` dùng `serde_json` đã có sẵn; `cargo deny check` **không lỗi** (chỉ warning allow-list thừa + `syn` trùng, có sẵn từ trước) |
+| **Fassist-53** | minor | Rò rỉ text qua log/disk? | ✅ Không log, không ghi file, không network; `--fix` chỉ in ra stdout (ý đồ người dùng); corpus chỉ chứa câu mẫu, **không** có text người dùng |
+| **Fassist-54** | minor | REUSE/Spdx cho file mới | ✅ Mọi `.rs` có header SPDX dòng 1; `corpus/*.ass` được `REUSE.toml` (`path = ["**"]`) cover |
+| **Fassist-55** | minor | DoD #1–#4 (test · corpus · clippy/fmt · deny) | ✅ 34 unit + 3 integration test xanh · corpus 69 câu pass · clippy workspace 0 warning · fmt sạch · deny OK |
+
+**Lượt 9 — PO / BA / Design (giá trị & UX)**
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| **Fassist-56** | minor | CLI chưa giới hạn số lỗi in ra (file rất dài → flood) | Chấp nhận v1 (in theo dòng); thêm `--max` ở v2 |
+| **Fassist-57** | minor | `textvn-cli assist` chưa có trong `docs/developer-guide.md` | Cập nhật ở P4-2 (khi CLI có thêm subcommand) |
+| **Fassist-58** | minor | Chưa đo recall/FPR thật (cần corpus ≥ 500 câu sạch) | Gate P4-4 (D19) — v1 chỉ đo trên 69 câu |
+
+### 11.5 Kết luận các lượt review
+- **Blocker/major đã xử lý trong plan:** 13/13 (vòng 3–5) + 6/6 (cross-review B) + 8/8 (A) + 2/2 (vòng 7) → **D11–D29** hoặc task chặn (spike).
+- **Điểm yếu còn lại (chấp nhận có điều kiện):** chất lượng luật tiếng Việt phụ thuộc nguồn từ điển (P4-4) và độ chính xác của L0 (heuristic) → cần đo (D19) và tắt được từng luật.
+- **Điều kiện để bắt đầu code:** D11–D29 được chấp nhận + Q1–Q5 đã trả lời (`P4-1` §9).
+- **Sau P4-1:** đã có engine + corpus + CLI; còn 3 spike chặn (S1–S3) + S4a trước khi làm P4-3/P4-4.
 
 ---
 
 ## 12. Việc cần làm ngay
 
-1. ✅ `P4-0` (file này) + `P4-1-harper-evaluation.md` — xong.
-2. ✅ `docs/adr/README.md` — ADR-012.
-3. ✅ `docs/00-INDEX.md` §1 + log; `PLAN.md` §2.3 (S1/S2/C1 → Phần 4).
-4. ⏳ **P4-1** — crate `assist/` (đã có skeleton 6 luật + 31 unit test) → còn: corpus `.ass` + test tích hợp + `textvn-cli assist check`.
-5. ⏳ **P4-1b** — 3 spike chặn (D18) **trước** khi làm P4-3/P4-4.
-6. ⏳ `docs/50-assist/P4-TASKS.md` — bảng task đầy đủ (AS-xxx) để agent sau nhận việc.
+1. ✅ `P4-0` (file này) + `P4-1-harper-evaluation.md` + `P4-2-CROSS-REVIEW-2026-10-20.md` — xong.
+2. ✅ `docs/adr/README.md` — ADR-012 (tiền đề đã sửa) + **ADR-013** (buffer câu ở core + share immutable).
+3. ✅ `docs/00-INDEX.md` §1 + log; `PLAN.md` §2.3 (S1/S2/C1 → Phần 4); `verified-ops.md` B9/B10.
+4. ✅ **P4-1** — crate `assist/`: 6 module luật objective (7 mã) + L0 + `confidence` + `apply_auto_fixes` (char-space) + corpus **69 câu** + test tích hợp + `textvn-cli assist check` (`--json/--fix/--sentence/--file`) → **34 unit + 3 integration test xanh**, clippy 0 warning, `cargo deny` OK. Bằng chứng + task: `P4-TASKS.md` (AS-001…006).
+5. ⏳ **P4-1b** — spike S1 (TSF candidate list) · S2 (caret 3 OS) · S3 (từ điển VN) · **S4a** (per-process RSS — chặn P4-4) · S4b (EN, v2).
+6. ⏳ **P4-2a** — refactor core: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` (ADR-013).
+7. ⏳ **P4-2** — FFI `ime_assist_*` + trigger + toast + kill-switch.
 
 ---
 

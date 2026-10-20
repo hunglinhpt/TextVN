@@ -11,7 +11,7 @@
 
 | # | Quyết định | Lý do ngắn |
 |---|---|---|
-| **D1** | **Không vendor / không phụ thuộc `harper-core`** | Harper **chỉ hỗ trợ tiếng Anh** và crates.io đã đứng yên ~27 tháng; master API đổi rất nhanh (repo push 2026-10-20) |
+| **D1** | **Không vendor / không phụ thuộc `harper-core`** ở v1 | Harper **chỉ hỗ trợ tiếng Anh ở mọi tầng** (không có giá trị cho tiếng Việt) · API churn **~hàng tháng** (123 bản, 2.13.0 mới 4 ngày) → vendor phải pin + nợ nâng cấp · nhúng trong TIP in-process = chi phí resident cần đo (spike S4) · edition 2024 → MSRV ≥ 1.85. ⚠️ *Lý do "crates.io stale ~27 tháng" trong bản v1 là **SAI** → xem `P4-2-CROSS-REVIEW-2026-10-20.md` Fassist-32* |
 | **D2** | **Mượn kiến trúc Harper, tự viết luật tiếng Việt** (`Document`/`Token`/`Span`/`Lint`/`LintGroup` + DSL pattern) | Kiến trúc đúng cho "grammar checker tối giản, offline, µs-ms"; phần ngôn ngữ là 90% chi phí và Harper không cho mượn được |
 | **D3** | **Tự xây từ điển tiếng Việt từ nguồn mở, kiểm tra license từng nguồn trước khi dùng** | Không có từ điển VN mở nào "đóng gói sẵn + giấy phép sạch" mà ta tin được; đây là việc làm được |
 | **D4** | **Highlight = overlay cạnh con trỏ**, không gạch chân thật trong field của app | Gạch chân thật phải sửa character format của app → hỏng style tài liệu, chỉ làm được ở RichEdit/Word, không đồng nhất 3 OS |
@@ -31,7 +31,7 @@
 | Lịch sử | tạo 2023-10-22 · push gần nhất 2026-10-20 (rất active) | GitHub API |
 | Ngôn ngữ hỗ trợ | **chỉ tiếng Anh** — README: *"Harper currently only supports English, but the core is extensible to support other languages"* | `README.md` (master) |
 | Triết lý | offline, privacy-first; "milliseconds to lint"; memory < 1/50 LanguageTool; chạy được qua WebAssembly | `README.md` |
-| crates.io | `harper-core` **0.8.7**, publish 2024-07-06 → **stale ~27 tháng**; bản 0.7.0+ khai báo `Apache-2.0` (0.6.x trở về trước: `MIT OR Apache-2.0`) | crates.io API |
+| crates.io | `harper-core` **2.13.0**, publish **2026-10-16**, **123 versions**, 126.501 lượt tải, `Apache-2.0`; nhịp phát hành **~hàng tháng** (2.7.0 → 2.8.0 → 2.10.0 → 2.11.0 → 2.13.0); **edition 2024** (MSRV ≥ 1.85); deps: `hashbrown`, `ordered-float`, `smallvec`, `levenshtein_automata` (FST), `harper-brill`, `harper-thesaurus` (opt), `bitflags`, `zip`, `boxcar` | crates.io API (parse JSON có cấu trúc), 2026-10-20 — ⚠️ *bản v1 của doc này ghi "0.8.7 / stale 27 tháng" là **SAI** (đọc mảng JSON bị cắt) → Fassist-32* |
 | Topic | `grammar-checker`, `english-language`, `wasm`, `lsp` | GitHub API |
 
 **Nhận xét Audit:** Apache-2.0 **tương thích một chiều với GPL-3** → dùng làm dependency hay vendor đều hợp pháp, nhưng bắt buộc giữ attribution (NOTICE/REUSE) nếu lấy code. Vì ta **không lấy code** (chỉ mượn ý tưởng kiến trúc) → **không phát sinh nghĩa vụ license**.
@@ -150,7 +150,7 @@
 | Rủi ro | Mức | Giảm thiểu |
 |---|---|---|
 | Harper đổi API nhanh (master push 2026-10-20, 1.015 issue mở) | Cao nếu vendor | Không vendor; nếu vendor thì pin commit + CI test hợp đồng API |
-| crates.io `harper-core` stale 27 tháng | Trung bình | Không dùng bản crates.io |
+| API churn ~hàng tháng (123 bản, 2.13.0 mới 4 ngày) + MSRV ed2024 | Cao nếu vendor | Không vendor ở v1; nếu vendor thì **pin commit** + CI test hợp đồng API + kế hoạch nâng cấp định kỳ |
 | Từ điển VN "đúng" là bài toán mở (nguồn + license) | Trung bình | Chỉ ship từ điển **tự sinh từ nguồn đã kiểm license**, ghi rõ nguồn trong doc + file sinh ra |
 | Ngôn ngữ học tiếng Việt: "lỗi" có tính chủ quan | Cao nếu làm ngữ pháp học thuật | V1 chỉ luật **objective**; phần mơ hồ = gợi ý, không auto-fix |
 | Bản quyền từ điển/ngữ liệu (Wikimedia CC BY-SA có nghĩa vụ chia sẻ) | Trung bình | Audit từng nguồn trước khi đóng gói; ưu tiên nguồn permissive/ODbL-compatible |
@@ -162,7 +162,7 @@
 | ID | Mức độ | Finding | Bằng chứng | Trạng thái |
 |---|---|---|---|---|
 | **Fassist-1** | major | `harper-core` **chỉ hỗ trợ tiếng Anh** ở mọi tầng (lexer, dictionary, luật, POS) — dùng làm dependency **không** tạo ra tính năng ngữ pháp tiếng Việt mà user cần | `README.md` + `lib.rs` (`Document::new_plain_english_curated`, `FstDictionary::curated()`, `Dialect::American`) + `linting/` hàng trăm luật EN | đã xử lý → **D1/D2** |
-| **Fassist-2** | major | crates.io `harper-core` **stale ~27 tháng** (0.8.7 / 2024-07-06) trong khi master tiếp tục phát triển → vendor bản crates.io = dùng code cũ; vendor master = API đổi liên tục | crates.io API (versions + timestamps) + GitHub API (`pushed_at` 2026-10-20) | đã xử lý → **D1** + §6 (điều kiện nếu vendor sau) |
+| **Fassist-2** | major | ~~crates.io `harper-core` **stale ~27 tháng** (0.8.7 / 2024-07-06) trong khi master tiếp tục phát triển → vendor bản crates.io = dùng code cũ; vendor master = API đổi liên tục~~ | crates.io API (versions + timestamps) + GitHub API (`pushed_at` 2026-10-20) | ⚠️ **SAI TIỀN ĐỀ** — crates.io thật là **2.13.0 / 2026-10-16** (verify lại 2026-10-20) → **superseded bởi Fassist-32**; kết luận "không vendor ở v1" giữ, nhưng đổi lý do (D21) |
 | **Fassist-3** | minor | Không có từ điển tiếng Việt mở nào đóng gói sẵn với giấy phép đã kiểm → bắt buộc tự xây + audit license từng nguồn | rà soát nguồn mở trong `docs/specs/reference-parity.md` (chỉ có spec WinVNKey/EVKey, không có từ điển) | đã xử lý → **D3** + P4-0 §5 |
 | **Fassist-4** | minor | "Highlight lỗi" trong app là **giới hạn kỹ thuật**, không phải tuỳ chọn UX: TSF/IMK/IBus không vẽ gạch chân vào edit control của app mà không sửa format → phải dùng overlay | `adapters/windows-tsf/src/display_attr.rs` — TIP còn **chủ động** trả `TF_LS_NONE` để app *không* gạch chân chữ đang gõ (P1-1 §7) | đã xử lý → **D4** + P4-0 §4 |
 | **Fassist-5** | minor | Áp sửa "cả câu" cần **map offset → vị trí thật trong field**; app khác nhau dùng cơ chế khác nhau (ITfRange / AXRange / AT-SPI) → rủi ro sửa nhầm vị trí | `strategy/src/action.rs` (`ActionKind::Replace`) + `rules_field.rs` (`parse_field_role`) — có sẵn chiến lược `SelectionReplace` để tái dùng | đã xử lý → P4-0 §3 (giới hạn v1: chỉ câu cuối, chỉ app hỗ trợ) |
@@ -184,7 +184,7 @@
 
 1. Được **đọc** Harper để hiểu *ý tưởng* (mô hình token/span/lint/rule, kỹ thuật mask, FST dictionary) — ý tưởng/thuật toán không thuộc quyền tác giả.
 2. **Không copy code** Harper vào repo. Mọi file trong `assist/` viết **từ đầu** của TextVN.
-3. Nếu sau này cần lấy code (ví dụ đọc lại logic FST): phải giữ `LICENSE`/`NOTICE` Apache-2.0, ghi attribution trong `REUSE.toml` + `docs/compliance/`, và **không** để nó nằm trong đường gõ chính.
+3. Nếu sau này cần lấy code (ví dụ đọc lại logic FST): phải giữ `LICENSE`/`NOTICE` Apache-2.0, ghi attribution trong `REUSE.toml` + `docs/compliance/`, và **không** để nó nằm trong đường gõ chính. Lưu ý crates.io hiện **2.13.0 / edition 2024 / MSRV ≥ 1.85 / API churn ~hàng tháng** → vendor = **pin commit** + kế hoạch nâng cấp + **đo per-process RSS** (spike S4b, xem `P4-0` D25) trước khi nhúng vào TIP in-process.
 4. Tên module/kiểu dữ liệu của TextVN phải **khác** tên Harper (tránh nhầm là bản sao) — hiện đã dùng: `Span`, `Issue`, `IssueKind`, `Fix`, `Ctx`, `Token`, `TokenKind` (Harper: `Span`, `Lint`, `LintKind`, `Token`, `TokenKind` — trùng `Span`/`Token` là tên generic, chấp nhận được, nhưng **không** đặt tên file/module giống Harper).
 5. Ràng buộc này ghi trong **ADR-012** (`docs/adr/README.md`) để agent sau không vô tình vi phạm.
 
