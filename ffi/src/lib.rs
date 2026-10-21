@@ -73,6 +73,8 @@ pub const IME_ASSIST_KIND_SENTENCE_REPEAT: u32 = 7;
 pub const IME_ASSIST_KIND_DOUBLE_NEGATIVE: u32 = 8;
 /// L12 - dau phay o cuoi cau (chi goi y).
 pub const IME_ASSIST_KIND_COMMA_AT_END: u32 = 9;
+/// AS-040 - tu la khong co trong tu dien (chi goi y, confidence 60).
+pub const IME_ASSIST_KIND_SPELLING: u32 = 10;
 
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
@@ -175,6 +177,7 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
         textvn_assist::IssueKind::SentenceRepeat => IME_ASSIST_KIND_SENTENCE_REPEAT,
         textvn_assist::IssueKind::DoubleNegative => IME_ASSIST_KIND_DOUBLE_NEGATIVE,
         textvn_assist::IssueKind::CommaAtEnd => IME_ASSIST_KIND_COMMA_AT_END,
+        textvn_assist::IssueKind::Spelling => IME_ASSIST_KIND_SPELLING,
     }
 }
 

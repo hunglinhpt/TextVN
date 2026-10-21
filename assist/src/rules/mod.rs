@@ -15,12 +15,19 @@ pub mod language;
 pub mod sentence_repeat;
 pub mod space_after_punct;
 pub mod space_before_punct;
+pub mod spelling;
 
+use crate::dict::{Dictionary, NoDictionary};
 use crate::tokenize::{tokenize, Token, TokenKind};
 use crate::{Issue, IssueKind, Span};
 
-/// Ngữ cảnh dùng chung cho các luat: token hoá + vùng bị che.
-pub struct Ctx {
+/// Từ điển mặc định của [`Ctx::new`]: mọi từ coi là **đúng** — `check`/
+/// `check_sentence` giữ hành vi cũ (không bao giờ báo lỗi spelling) khi caller
+/// chưa nạp từ điển (AS-040).
+static NO_DICTIONARY: NoDictionary = NoDictionary;
+
+/// Ngữ cảnh dùng chung cho các luật: token hoá + vùng bị che + từ điển.
+pub struct Ctx<'a> {
     /// Token cua cau.
     pub tokens: Vec<Token>,
     /// Vung bi che (URL/email) - khong bao loi trong vung nay.
@@ -29,19 +36,40 @@ pub struct Ctx {
     pub chars: Vec<char>,
     /// Ky tu dau co phai la dau cau that khong (fragment = false).
     pub start_of_sentence: bool,
+    /// Từ điển cho luật spelling ([`NoDictionary`] = mọi từ coi là đúng).
+    pub dict: &'a dyn Dictionary,
 }
 
-impl Ctx {
-    /// Tao ngữ cảnh cho mot cau.
+/// So lan goi suggest toi da cho mot cau (Fassist-105).
+pub const DEFAULT_SUGGEST_BUDGET: usize = 2;
+
+impl Ctx<'_> {
+    /// Tao ngữ cảnh cho mot cau (không nạp từ điển → không báo spelling).
     ///
     /// `start_of_sentence` = `true` khi text la **cau tron ven** (ky tu dau la
     /// dau cau that); `false` khi la **doan** (co the nam giua cau).
-    pub fn new(text: &str, start_of_sentence: bool) -> Self {
-        Self {
+    pub fn new(text: &str, start_of_sentence: bool) -> Ctx<'static> {
+        Ctx {
             tokens: tokenize(text),
             masked: crate::mask::masked_ranges(text),
             chars: text.chars().collect(),
             start_of_sentence,
+            dict: &NO_DICTIONARY,
+        }
+    }
+
+    /// Tạo ngữ cảnh với **từ điển** do caller nạp (cho [`check_with`](crate::check_with)).
+    pub fn new_with_dict<'a>(
+        text: &str,
+        start_of_sentence: bool,
+        dict: &'a dyn Dictionary,
+    ) -> Ctx<'a> {
+        Ctx {
+            tokens: tokenize(text),
+            masked: crate::mask::masked_ranges(text),
+            chars: text.chars().collect(),
+            start_of_sentence,
+            dict,
         }
     }
 

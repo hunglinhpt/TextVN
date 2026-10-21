@@ -126,6 +126,7 @@
 | **D37** | Từ điển FST **vẫn ship** (fallback) + attribution GPL đầy đủ | Windows mặc định không có `vi-VN` (F67) |
 | **D38** | **Spec hiển thị overlay = `textvn-cli assist show "<câu>"`** (câu + vạch `^` đúng span char Unicode + thông điệp tiếng Việt + gợi ý) — UI lane (tray/overlay) lấy làm chuẩn hiển thị + kiểm thử thủ công không cần dựng UI | Đồng bộ 3 OS dễ hơn (P4-0 §6) |
 | **D39** | **v1 KHÔNG phát hành từ điển `hunspell-vi`** (license gốc không nêu phiên bản / không có "or later" ⇒ GPL-2.0-only sẽ **không tương thích GPL-3.0**) → dùng **OS spellchecker** (D33) + luật objective; crate `dict` (FST/mmap) giữ làm **hạ tầng v2** chờ nguồn license sạch (permissive/CC0). Installer đã loại `data/assist/*.dic` khỏi gói (ADR-014) | `P4-9-REVIEW-DICT.md` (Fassist-98…103) |
+| **D40** | Luật spelling (L-S) **có ngân sách `suggest`**: tối đa **2 lần/câu** (provider OS tốn **3–7 ms/từ** cho `Suggest` — đo thật trên Win11) → từ lạ vẫn được báo nhưng **không kèm gợi ý** khi hết ngân sách | `P4-10-OS-PROVIDER-SPEC.md` (đo của agent B) + Fassist-105 |
 
 > Chi tiết nghiên cứu OS-first: `P4-4-OS-NATIVE-ASSIST.md`.
 

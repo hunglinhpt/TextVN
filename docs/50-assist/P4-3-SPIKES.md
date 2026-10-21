@@ -99,3 +99,5 @@
 - **P4-2a** (buffer câu ở core — D24/D31) → **P4-2** (FFI + trigger + toast) → **P4-3** (overlay + A2) → **P4-4** (từ điển FST + gợi ý từ) → **P4-5** (Mode 2) → **P4-6** (parity 3 OS).
 - macOS/Linux vị trí caret (S2) → P4-6.
 - Nguồn từ điển: **ship `1ec5/hunspell-vi`** + attribution; chưa dùng Wiktionary (CC BY-SA) ở v1.
+
+> **C?p nh?t 2026-10-21 (Fassist-108):** hunspell-vi **kh?ng c?** trong Debian/Ubuntu (ch? Fedora/RHEL - Repology) v? license g?i = **GPL-2.0-only** => xem P4-9-REVIEW-DICT.md (Fassist-98) v? P4-10-OS-PROVIDER-SPEC.md.

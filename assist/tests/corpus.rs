@@ -136,6 +136,7 @@ fn corpus_co_du_lop_hieu_biet() {
         "sentence_repeat",
         "double_negative",
         "comma_at_end",
+        "spelling",
     ] {
         assert!(kinds.contains(required), "corpus chua co loai {required}");
     }

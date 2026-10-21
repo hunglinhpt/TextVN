@@ -10,6 +10,7 @@
 //! V1 chi chua luat **objective** (P4-0 §5.1) - moi loi deu co [`Fix`] tu
 //! dong hoac chi la goi y. Luat mo ho (ngu phap hoc thuat) de cho v2.
 
+pub mod dict;
 pub mod fix;
 pub mod mask;
 pub mod rules;
@@ -39,6 +40,8 @@ pub enum IssueKind {
     DoubleNegative,
     /// L12 - dau phay o cuoi cau (chi goi y).
     CommaAtEnd,
+    /// AS-040 - tu la khong co trong tu dien (chi goi y, confidence 60).
+    Spelling,
 }
 
 impl IssueKind {
@@ -54,6 +57,7 @@ impl IssueKind {
             Self::SentenceRepeat => "sentence_repeat",
             Self::DoubleNegative => "double_negative",
             Self::CommaAtEnd => "comma_at_end",
+            Self::Spelling => "spelling",
         }
     }
 
@@ -69,6 +73,7 @@ impl IssueKind {
             "sentence_repeat" => Self::SentenceRepeat,
             "double_negative" => Self::DoubleNegative,
             "comma_at_end" => Self::CommaAtEnd,
+            "spelling" => Self::Spelling,
             _ => return None,
         })
     }
@@ -123,24 +128,46 @@ pub struct Issue {
 ///
 /// Khong bao gio tra ve loi cho noi dung da duoc che (URL/email) - xem
 /// [`mask::masked_ranges`].
+///
+/// Ham nay chay voi [`dict::NoDictionary`] — moi tu deu coi la dung, **khong**
+/// bao loi spelling (giu hanh vi cu); bao spelling chi khi dung [`check_with`]
+/// voi tu dien do caller nap (AS-040).
 pub fn check(text: &str) -> Vec<Issue> {
-    check_with(text, false)
+    check_with_internal(text, false, &dict::NoDictionary)
 }
 
 /// Kiem tra mot **cau tron ven** - ky tu dau la dau cau that.
 ///
 /// Dung khi nguoi dung muon kiem tra mot cau doc lap (CLI, corpus).
+///
+/// Giong [`check`]: chay voi [`dict::NoDictionary`] — khong bao spelling.
 pub fn check_sentence(text: &str) -> Vec<Issue> {
-    check_with(text, true)
+    check_with_internal(text, true, &dict::NoDictionary)
 }
 
-fn check_with(text: &str, start_of_sentence: bool) -> Vec<Issue> {
+/// Kiem tra mot **doan** cau voi **tu dien** do caller nap (AS-040).
+///
+/// Giu nguyen gate L0 ([`rules::language::is_vietnamese`]) va chay tat ca luat
+/// hien co **cong** luat spelling voi `dict`: tu tieng Viet co dau khong nam
+/// trong tu dien bao [`IssueKind::Spelling`] (chi goi y, confidence 60).
+///
+/// Engine van **0-I/O** (P4-0 §3): noi dung tu dien (FST mmap) do crate khac
+/// (vi du `textvn-dict`) nap va truyen vao qua [`dict::Dictionary`].
+pub fn check_with(text: &str, dict: &dyn dict::Dictionary) -> Vec<Issue> {
+    check_with_internal(text, false, dict)
+}
+
+fn check_with_internal(
+    text: &str,
+    start_of_sentence: bool,
+    dict: &dyn dict::Dictionary,
+) -> Vec<Issue> {
     // L0 (D16): cau khong phai tieng Viet -> bo qua toan bo (v1 khong ho tro
     // tieng Anh, D9) de khong bao dong gia.
     if !rules::language::is_vietnamese(text) {
         return Vec::new();
     }
-    let ctx = rules::Ctx::new(text, start_of_sentence);
+    let ctx = rules::Ctx::new_with_dict(text, start_of_sentence, dict);
     let mut issues = Vec::new();
     rules::duplicate_word::check(&ctx, &mut issues);
     rules::space_before_punct::check(&ctx, &mut issues);
@@ -151,6 +178,7 @@ fn check_with(text: &str, start_of_sentence: bool) -> Vec<Issue> {
     rules::sentence_repeat::check(&ctx, &mut issues);
     rules::double_negative::check(&ctx, &mut issues);
     rules::comma_at_end::check(&ctx, &mut issues);
+    rules::spelling::check(&ctx, &mut issues);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }
@@ -202,5 +230,59 @@ mod tests {
 
     fn kinds_sentence(text: &str) -> Vec<IssueKind> {
         check_sentence(text).into_iter().map(|i| i.kind).collect()
+    }
+
+    /// Từ điển "rỗng" — không chứa từ nào → mọi từ tiếng Việt đều "lạ".
+    struct TuDienRong;
+
+    impl dict::Dictionary for TuDienRong {
+        fn contains(&self, _word: &str) -> bool {
+            false
+        }
+        fn suggest(&self, word: &str, _limit: usize) -> Vec<String> {
+            vec![format!("?{word}")]
+        }
+    }
+
+    #[test]
+    fn check_khong_bao_spelling_khi_chua_co_tu_dien() {
+        // Hành vi cũ: check/check_sentence dùng NoDictionary → từ lạ im lặng
+        // (AS-040). Câu này phải sạch như trước khi có luật spelling.
+        assert!(kinds("Tôi đi học ở trường Đại học Bách Khoa.").is_empty());
+        assert!(kinds_sentence("Tôi đi học ở trường Đại học Bách Khoa.").is_empty());
+    }
+
+    #[test]
+    fn check_with_bao_tu_la_theo_tu_dien() {
+        let issues = check_with("Tôi quẫn quá.", &TuDienRong);
+        let spelling: Vec<_> = issues
+            .iter()
+            .filter(|i| i.kind == IssueKind::Spelling)
+            .collect();
+        assert!(!spelling.is_empty(), "từ điển rỗng → từ lạ phải được báo");
+        for issue in &spelling {
+            assert!(!issue.auto_fixable);
+            assert_eq!(issue.confidence, 60);
+            // Ngan sach suggest (Fassist-105): chi mot phan nho so tu la
+            // duoc kem goi y, khong phai moi issue deu co goi y.
+            assert!(issue.suggestions.len() <= 1);
+        }
+        assert!(
+            spelling.iter().any(|i| !i.suggestions.is_empty()),
+            "phai co it nhat mot tu la kem goi y"
+        );
+        assert!(
+            spelling
+                .iter()
+                .filter(|i| !i.suggestions.is_empty())
+                .count()
+                <= rules::DEFAULT_SUGGEST_BUDGET,
+            "so lan goi suggest phai nho hon ngan sach"
+        );
+        assert_eq!(
+            IssueKind::from_id("spelling"),
+            Some(IssueKind::Spelling),
+            "id corpus/CLI phải khớp enum"
+        );
     }
 }

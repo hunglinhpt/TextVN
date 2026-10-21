@@ -40,7 +40,10 @@ pub fn is_vietnamese(text: &str) -> bool {
 }
 
 /// Ký tự là chữ cái có dấu đặc thù tiếng Việt (đ/ă/â/ê/ô/ơ/ư + dấu thanh).
-fn is_vietnamese_letter(ch: char) -> bool {
+///
+/// Export công khai để luật spelling tái dùng (G15): từ **không chứa** chữ nào
+/// trong danh sách này coi là thuật ngữ tiếng Anh / ASCII → bỏ qua.
+pub fn is_vietnamese_letter(ch: char) -> bool {
     matches!(
         ch,
         'đ' | 'Đ'
