@@ -90,11 +90,14 @@ final class MacSpellProviderTests: XCTestCase {
         if provider.isAvailable && count > 0 {
             // Đọc lại các từ null-separated từ buffer
             var parsedWords: [String] = []
-            var offset = 0
-            for _ in 0..<count {
-                if let s = String(validatingUTF8: buf.advanced(by: offset)) {
-                    parsedWords.append(s)
-                    offset += s.utf8.count + 1
+            buf.withUnsafeBufferPointer { ptr in
+                guard let base = ptr.baseAddress else { return }
+                var offset = 0
+                for _ in 0..<count {
+                    if let s = String(validatingUTF8: base.advanced(by: offset)) {
+                        parsedWords.append(s)
+                        offset += s.utf8.count + 1
+                    }
                 }
             }
             XCTAssertEqual(parsedWords.count, Int(count))
