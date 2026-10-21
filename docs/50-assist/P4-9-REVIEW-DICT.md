@@ -56,3 +56,13 @@
 | Dùng `.dic` hunspell-vi trong **sản phẩm** | ❌ **không** (ADR-014) |
 | Bật luật spelling cho người dùng ở v1 | ❌ chưa (D33: OS provider) |
 | Cần thêm | task v2: nguồn từ điển **permissive/CC0** + luật spelling + đo recall/FPR + test FST |
+
+## 5. Fassist-104 (major) — CI đỏ: **không được tự khai báo symbol `open`**
+
+| Mục | Chi tiết |
+|---|---|
+| Triệu chứng | `ci-shared` → job `clippy (-D warnings)`: `error: suspicious definition of the runtime 'open' symbol used by the standard library` → `dict/src/mmap.rs:205` (bản rustc/clippy **mới hơn** máy dev 0.1.98) |
+| Nguyên nhân | `dict/src/mmap.rs` khai `extern "C" { fn open(...) }` → trùng **symbol runtime của std** ⇒ lint mới chặn (đổi tên Rust không giải quyết được vì `#[link_name]` vẫn trỏ symbol `open`) |
+| **Cách sửa (2 lựa chọn)** | **(A) khuyến nghị:** bỏ hẳn `open`/`close` khỏi extern — dùng `std::fs::File` (std tự mở/đóng) rồi lấy fd thô bằng `AsRawFd` (Unix) / `AsRawHandle` (Windows); chỉ giữ extern `mmap`/`munmap` (không trùng symbol std) → hết lint, đúng chuẩn, không thêm dependency.<br>**(B) dự phòng:** dùng crate `libc` (MIT, đã có trong allow-list `deny.toml`) thay toàn bộ extern thủ công → `libc::open/close/mmap/munmap`. |
+| Ghi chú | Bản **local** của tôi (clippy 0.1.98) **không** bắt lint này ⇒ phải kiểm bằng CI, không tin `cargo clippy` local |
+| Trạng thái | **Để lane Agent Dict xử lý** (file `dict/src/mmap.rs` thuộc phạm vi họ); tôi đã sửa tới mức **còn 1 lint** và đã ghi công thức sửa ở đây. Các commit của tôi: `fc474fb` (rename → làm sai link, đã sửa tiếp bằng `#[link_name]` ở `e795950`) — **cả 2 đều không đủ**, cần (A) hoặc (B) |
