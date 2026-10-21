@@ -1,0 +1,59 @@
+# corpus/assist/vi_docs_clean.ass - cau SACH lay tu van ban docs/ cua repo (P4-0 D19)
+# Nguon: chinh tai lieu cua TextVN (GPL-3.0-or-later) -> khong rang buoc giay phep.
+# Sinh lap: tools/assist/gen_clean_corpus.ps1 (loc: bo code fence/bang/backtick, 6..40 tu, >=50% chu co dau).
+# Dung de do FPR tren VAN BAN THAT (khong phai cau mau) - Fassist-80.
+Đây là thay đổi **có chủ đích**,	
+Mục dưới đây chỉ là tóm tắt kỹ thuật.	
+được đăng ký ở lần đầu TextVN chạy cho tài khoản đó); lỗi đăng ký ghi ở	
+thêm bước **Bật bộ gõ** bên dưới.	
+**Bật bộ gõ (1 lần, mọi cách cài):**	
+Quy tắc ưu tiên đầy đủ:	
+đúng phím dấu để gõ chữ đó (ass → as).	
+**VNI**: 1–5 sắc huyền hỏi ngã nặng · 6 mũ (â ê ô) · 7 móc (ơ ư) · 8 trăng (ă) ·	
+**Mặc định** đưa mọi tuỳ chọn về ban đầu	
+bảng đầy đủ ở P1-5 §3.	
+Mỗi dòng: API → đã dùng được?	
+v0.2.2 đóng hết phần có thể	
+**Tiêu chí thành công (đo được):**	
+Đọc **vị trí**, không đọc nội dung → vẫn đúng D8.	
+**2 người đánh giá** độc lập 100 câu mẫu → đo độ thống nhất (D19).	
+R2-99 đã xử lý chiều gỡ).	
+tự ngược lại, chứng tỏ biết vấn đề).	
+Kết quả 3 mục đỏ của lần nộp trước được giữ nguyên hiển thị.	
+**Các ưu thế vượt trội của Bản Máy:**	
+Đo thật: tiến trình thường đọc được	
+không sửa được từ phía gói.	
+(đường A: bản máy; đường B: MSIX).	
+đúng ký tự đặc biệt ở mọi phiên bản Inno.	
+Bằng chứng của bản đó nằm ở	
+Windows từ chối; trước đây chỉ có đường bộ cài).	
+200%) → chữ to gấp đôi + cắt.	
+trước đây máy này "gõ được" là nhờ HKLM từ bản cài 0.2.6 (sau khi gỡ bản	
+**Mục tiêu bản này:** 0.2.1 đã cố vá F3-13 nhưng còn sót — với bản **chưa ký số**	
+**bật cửa sổ Cài đặt mỗi lần đăng nhập**.	
+Đây là lỗi được ưu tiên cao nhất và	
+là môi trường chặn ghi, không phải máy không đăng ký được, và bản 0.2.2 cài đè	
+Yêu cầu của chủ sở hữu:	
+phiếu) của phiên chuẩn bị 0.2.28 đã xác nhận — phiên đó không đẩy được code lên, nên được	
+tái hiện và sửa lại ở đây; R2-92 tái hiện được ngay trên máy chủ sở hữu.	
+Đường ký đã nối sẵn và tự chạy khi có secret (§2 Bước 3);	
+Ký là điều kiện cần, không phải điều kiện đủ.	
+từng ký tự tên đó (§3).	
+Lệnh đúng như dưới đây (đã là lệnh của	
+Đạt thì cập nhật bảng §1 và bỏ lưu ý	
+**Kế hoạch nộp có thứ tự (mỗi bước chỉ nộp khi bước trước đã đỏ THẬT — đã được	
+B13); app tự đăng ký ở lần mở đầu.	
+điều khiển), uow → ươ, z xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi	
+được đăng ký phạm vi máy).	
+→ gộp vào **Phần 4** (gợi ý mức câu + từ)	
+Tất cả thay đổi đáng chú ý của dự án TextVN sẽ được ghi lại ở đây.	
+lệnh quá 260 ký tự được báo là không hẹn được thay vì báo thành công — R2-115).	
+trước đó** (cả phím đổi ngôn ngữ), không đụng lựa chọn bạn tự đặt.	
+"Đăng ký phạm vi máy để gõ được ngay?	
+nhập) và bỏ qua nếu máy đã có đăng ký máy.	
+cửa sổ (Bảng điều khiển, Gõ tắt, Từ điển EN).	
+Lần chạy đầu (chưa có nhãn)	
+hồ", cách đổi ý từng trường hợp.	
+khiến toàn bộ đăng ký báo FAIL dù VI hoạt động đầy đủ.	
+mới có tên ký hiệu, bản 0.2.0/0.2.1 đã cài chỉ có hex).	
+ra **trước** chữ (" được", "\nchào").	

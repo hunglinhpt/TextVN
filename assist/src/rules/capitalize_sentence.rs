@@ -72,7 +72,31 @@ fn is_sentence_start(ctx: &Ctx, idx: usize) -> bool {
         return false;
     }
     let prev = ctx.tokens[j - 1];
-    prev.kind == TokenKind::Punct && is_sentence_end(ctx.chars[prev.start])
+    prev.kind == TokenKind::Punct && is_real_sentence_end(ctx, &prev)
+}
+
+/// Dau `.` co phai that su ket thuc cau khong?
+///
+/// - `.` nam **trong ngoac** ("(Từ điển EN...) đặt ở...") hoac **trong dau nhay**
+///   khong phai het cau -> bo qua (Fassist-86).
+fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
+    if !is_sentence_end(ctx.chars[punct.start]) {
+        return false;
+    }
+    if ctx.chars[punct.start] != '.' {
+        return true;
+    }
+    let mut depth = 0i32;
+    let mut in_quote = false;
+    for &c in &ctx.chars[..punct.start] {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = (depth - 1).max(0),
+            '"' => in_quote = !in_quote,
+            _ => {}
+        }
+    }
+    depth == 0 && !in_quote
 }
 
 #[cfg(test)]

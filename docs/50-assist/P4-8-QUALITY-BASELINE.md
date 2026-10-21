@@ -21,12 +21,33 @@
 
 | Chỉ số | Kết quả | Ngưỡng D19 | Đạt? |
 |---|---|---|---|
-| Số case | **1.475** (45 có lỗi · 1.430 câu sạch) | ≥ 60 câu | ✅ |
-| **recall** | **100,0 %** (51/51 loại lỗi mong đợi) | ≥ 80 % | ✅ |
-| **precision** | **100,0 %** (51/51 lỗi phát hiện đều đúng) | — | ✅ |
-| **FPR** | **0,0 %** (0/1.430 câu sạch bị báo nhầm) | ≤ 2 % | ✅ |
+| Số case | **1.535** (47 có lỗi · 1.488 câu sạch) | ≥ 60 câu | ✅ |
+| **recall** | **100,0 %** (54/54 loại lỗi mong đợi) | ≥ 80 % | ✅ |
+| **precision** | **100,0 %** (54/54 lỗi phát hiện đều đúng) | — | ✅ |
+| **FPR** | **0,0 %** (0/1.488 câu sạch bị báo nhầm) | ≤ 2 % | ✅ |
 
 Lệnh tái lập: `cargo run -p textvn-cli -- assist score --corpus corpus/assist`
+
+## 2.1 Vòng 2 (2026-10-21) — đo trên **văn bản thật** (đóng F80)
+
+Ngoài câu mẫu tổng hợp, đã sinh corpus sạch từ **chính tài liệu tiếng Việt của repo** (`docs/**/*.md` + `README.md`/`PLAN.md`/`CHANGELOG.md`) bằng script tái lập được:
+
+- `tools/assist/gen_clean_corpus.ps1` (ASCII, không phụ thuộc ngoài) → `corpus/assist/vi_docs_clean.ass`.
+- Vì lấy từ tài liệu của chính TextVN (GPL-3.0-or-later) ⇒ **không ràng buộc giấy phép**, và đây là **văn bản thật** (không phải câu mẫu) ⇒ đo FPR có ý nghĩa.
+
+**Kết quả trước khi sửa luật: 5 false positive** trên 74 câu thật ⇒ lộ **2 điểm yếu thật của luật** (đã sửa, xem §4). Sau khi sửa: **FPR 0,0 %** trên 1.488 câu sạch (gồm 55 câu văn bản thật).
+
+## 4.1 Finding vòng 2 (SA/QA) — phát hiện nhờ đo trên văn bản thật
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| **Fassist-86** | minor | Luật "hoa đầu câu" coi dấu `.` **trong ngoặc / trong dấu nháy** là kết thúc câu → báo oan (vd `(Từ điển EN...) đặt ở …` → "đặt" bị báo) | ✅ Sửa: `is_real_sentence_end()` — đếm ngoặc mở/đóng và trạng thái dấu nháy phía trước dấu chấm; trong ngoặc/nháy ⇒ không phải hết câu |
+| **Fassist-87** | minor | Dấu `…` (ellipsis) bị coi là kết thúc câu → báo oan (vd `… dưới…): đ giờ …`) | ✅ Sửa: bỏ `…` khỏi `is_sentence_end()` (ellipsis ở tiếng Việt là dấu lốt triện, không phải hết câu) |
+| **Fassist-88** | minor | Corpus sinh từ docs lẫn **văn bản không phải câu** (bullet `- …`, mục danh sách, dòng kỹ thuật `a..b`) → FPR đo được bị nhiễu **từ corpus**, không phải lỗi engine | ✅ Sửa bộ lọc script: bỏ câu bắt đầu bằng `- `/`> `, có `..`, hoặc chứa `[]{}<>|` |
+| **Fassist-89** | minor | 3 ca FP đã sửa cần **khóa lại** để không tái phát | ✅ Thêm `corpus/assist/vi_regressions.ass` (3 ca FP cũ → nay phải **sạch** + 2 ca lỗi thật → vẫn phải báo) |
+
+> Bài học (PO): **đo trên văn bản thật mới phát hiện lỗi luật**; đo trên câu mẫu tự sinh chỉ chứng minh "không tự mâu thuẫn".
+
 
 ## 3. Văn bản sạch dùng để đo FPR — `corpus/assist/vi_clean_synthetic.ass`
 

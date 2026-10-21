@@ -1,0 +1,11 @@
+# corpus/assist/vi_regressions.ass - hồi quy cho lỗi phát hiện trên văn bản thật
+# (P4-0 D19 · P4-8 §4). Ba câu đầu TRƯỚC đây bị báo sai (false positive):
+#   Fassist-86 - dấu "." nằm trong ngoặc/nháy không phải kết thúc câu
+#   Fassist-87 - dấu "…" (ellipsis) không phải kết thúc câu
+# Ba câu sau ĐÚNG phải báo lỗi (đảm bảo sửa không làm hỏng luật).
+#
+nút "Từ điển EN..." cạnh "Gõ tắt...".
+Nút phụ (Từ điển EN...) đặt ở HÀNG NÚT dưới.
+d + nguyên âm tự thành đ (không gõ được dân, dạy, dưới…): đ giờ chỉ từ dd như
+Xin chào. bạn khỏe không	lowercase_sentence_start
+tôi tôi đi học , mai	duplicate_word,space_before_punct

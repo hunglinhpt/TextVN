@@ -54,8 +54,11 @@ impl Ctx {
 }
 
 /// Dau cau "manh" - sau do bat dau mot cau moi.
+///
+/// Khong tinh `…` (ellipsis): trong tieng Viet `…` thuong la dau lot tri
+/// ("dân, dạy, dưới…") chu khong phai het cau (Fassist-87).
 pub(crate) fn is_sentence_end(ch: char) -> bool {
-    matches!(ch, '.' | '!' | '?' | '…')
+    matches!(ch, '.' | '!' | '?')
 }
 
 /// Dau can co khoang trang phia sau (tru `)` `]` `}`).
