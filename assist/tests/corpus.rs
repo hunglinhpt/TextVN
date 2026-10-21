@@ -75,7 +75,15 @@ fn corpus_vi_basic_passes() {
     let mut total = 0usize;
     for file in files {
         for (sentence, expected) in parse_corpus(&file) {
+            // Câu tiền tố "~ " = văn bản thật, **có thể chứa lỗi thật** (người
+            // viết sai) -> không assert "không lỗi" cho chúng (Fassist-97).
+            let soft = sentence.starts_with('~');
+            let sentence = sentence.trim_start_matches('~').trim_start().to_string();
             let issues = check(&sentence);
+            if soft {
+                total += 1;
+                continue;
+            }
             let got_kinds: Vec<String> =
                 issues.iter().map(|i| i.kind.as_str().to_string()).collect();
             let want_kinds: Vec<String> = expected.iter().map(|(k, _)| k.clone()).collect();

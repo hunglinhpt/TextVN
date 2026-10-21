@@ -5,6 +5,16 @@ use super::{is_word, issue, Ctx};
 use crate::tokenize::TokenKind;
 use crate::{Fix, Issue, IssueKind, Span};
 
+/// Từ lặp **có chủ ý** (reduplicative) trong tiếng Việt — "luôn luôn", "mãi mãi",
+/// "dần dần"… là cách tăng nghĩa, **không phải lỗi** (Fassist-94).
+const INTENTIONAL_REPEATS: &[&str] = &[
+    // tăng nghĩa: "luôn luôn", "mãi mãi", "dần dần", "rất rất"…
+    "luôn", "mãi", "dần", "chính", "thật", "từ", "từng", "ngay", "vừa", "rất",
+    // từ ghép đôi: "lâu lâu", "vội vội", "vàng vàng"… (Fassist-94)
+    "lâu", "vội", "vàng", "chầm", "lẩn", "lầm", "cốp", "lốp", "ríu", "húp", "quẩy", "thong",
+    "phèng", "sột", "tí",
+];
+
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // Token: [Word][Space][Word] - can nhin 2 token lui.
@@ -25,6 +35,10 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         if cur_text.to_lowercase() != prev_text.to_lowercase() {
+            continue;
+        }
+        // "luôn luôn", "mãi mãi"… la lap co chu y, khong phai loi (Fassist-94).
+        if INTENTIONAL_REPEATS.contains(&cur_text.to_lowercase().as_str()) {
             continue;
         }
         if ctx.is_masked(cur.start, cur.end) {

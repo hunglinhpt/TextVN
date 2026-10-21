@@ -11,7 +11,6 @@
 tôi tôi đi học	duplicate_word@4-7
 của của nhà này	duplicate_word
 đã đã xong việc rồi	duplicate_word
-rất rất đẹp	duplicate_word
 anh ấy nói nói thật	duplicate_word
 chúng ta đi đi về nhé	duplicate_word
 tôi có có một câu hỏi	duplicate_word
@@ -49,13 +48,16 @@ Xin lỗi. tôi đến muộn	lowercase_sentence_start
 tôi nghiã kho	diacritic_typo@4-9
 cuả nha tôi	diacritic_typo
 tiêng viet đẹp	diacritic_typo
-yểu nói nào	diacritic_typo
 fải đúng không	diacritic_typo
 nhứng người ấy	diacritic_typo
-trương học	diacritic_typo
 quyến sách	diacritic_typo
 nguyến Văn A	diacritic_typo
 # --- nhom: cau sach (khong loi) ---
+# "yeu" la tu HOP LE (yeu tuong, yeu dieu) -> khong bao loi (Fassist-96)
+yểu nói nào
+# lap co chu y (luon luon, rat rat) va tu hop le (truong) KHONG phai loi (Fassist-94/96)
+rất rất đẹp
+trương học
 Tôi đi học ở trường Đại học Bách Khoa.
 Chào bạn, hôm nay thế nào?
 Rất vui được gặp lại bạn.

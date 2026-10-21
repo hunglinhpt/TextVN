@@ -75,6 +75,17 @@ pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) ->
     if ctx.chars[punct.start] != '.' {
         return true;
     }
+    // Ba cham lien (hoac nhieu hon) = ellipsis trong tieng Viet, khong phai het
+    // cau ("dieu tot... ban nghi sao?") -> bo qua (Fassist-95).
+    let mut dots = 0usize;
+    let mut i = punct.start;
+    while i < ctx.chars.len() && ctx.chars[i] == '.' {
+        dots += 1;
+        i += 1;
+    }
+    if dots >= 3 {
+        return false;
+    }
     let mut depth = 0i32;
     let mut in_quote = false;
     for &c in &ctx.chars[..punct.start] {

@@ -15,11 +15,12 @@ const TYPOS: &[(&str, &str)] = &[
     ("cuả", "của"),
     ("điếm", "điểm"),
     ("tiêng", "tiếng"),
-    ("yểu", "yếu"),
     ("thuở", "thướ"),
     ("fải", "phải"),
     ("nhứng", "nhưng"),
-    ("trương", "trường"),
+    // LƯU Ý: không thêm "trương" — đó là từ HỢP LỆ ("khẩn trương", "trầu trương");
+    // KHONG them cac tu HOP LE: "truong" (khan truong), "yeu" (yeu tuong) - sai dau o day can ngu canh (Fassist-96).
+    // sai dấu ở đây cần ngữ cảnh để phân biệt (Fassist-96).
     ("quyến", "quyển"),
     ("nguyến", "nguyễn"),
 ];

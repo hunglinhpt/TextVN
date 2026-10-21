@@ -315,6 +315,7 @@ fn cmd_score(rest: &[String]) -> i32 {
     let mut corpus: Option<String> = None;
     let mut strict = false;
     let mut per_kind = false;
+    let mut max_detail = 20usize;
     let mut i = 0usize;
     while i < rest.len() {
         match rest[i].as_str() {
@@ -330,6 +331,13 @@ fn cmd_score(rest: &[String]) -> i32 {
             }
             "--strict" => strict = true,
             "--per-kind" => per_kind = true,
+            "--max-detail" => {
+                i += 1;
+                max_detail = rest
+                    .get(i)
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(20);
+            }
             s => {
                 eprintln!("error: tham số lạ `{s}`");
                 eprintln!("dùng: textvn-cli assist score --corpus <dir> [--strict] [--per-kind]");
@@ -365,6 +373,8 @@ fn cmd_score(rest: &[String]) -> i32 {
     let mut total_span_mismatch = 0usize;
     let mut clean_cases = 0usize;
     let mut clean_with_issue = 0usize;
+    let mut soft_cases = 0usize;
+    let mut soft_flagged = 0usize;
     let mut cases = 0usize;
     let mut mismatches: Vec<String> = Vec::new();
     // (số case mong đợi, số lỗi phát hiện, số case khớp) theo từng loại
@@ -382,6 +392,10 @@ fn cmd_score(rest: &[String]) -> i32 {
                 continue;
             }
             let (sentence, expected) = line.split_once('\t').unwrap_or((line, ""));
+            // Câu tiền tố "~ " = văn bản thật, có thể chứa lỗi THẬT (người viết
+            // sai) -> vẫn tính vào mẫu số FPR nhưng báo riêng "ứng viên" (Fassist-97).
+            let soft = sentence.starts_with('~');
+            let sentence = sentence.trim_start_matches('~').trim_start();
             // Kỳ vọng: `kind` hoặc `kind@start-end` (span **char Unicode**).
             let expected: Vec<(String, Option<(u32, u32)>)> = expected
                 .split(',')
@@ -416,10 +430,25 @@ fn cmd_score(rest: &[String]) -> i32 {
             cases += 1;
             if expected.is_empty() {
                 clean_cases += 1;
-                if !actual.is_empty() {
+                if soft {
+                    // Van ban that: cau co the chua loi THAT cua nguoi viet -> khong
+                    // goi la "false positive", ma goi la "ung vien" (Fassist-97).
+                    soft_cases += 1;
+                    if !actual.is_empty() {
+                        soft_flagged += 1;
+                        if mismatches.len() < max_detail {
+                            mismatches.push(format!(
+                                "UNG VIEN (van ban that) [{}] `{}` -> {:?}",
+                                file.display(),
+                                sentence,
+                                actual.iter().map(|(k, _, _)| k).collect::<Vec<_>>()
+                            ));
+                        }
+                    }
+                } else if !actual.is_empty() {
                     clean_with_issue += 1;
                     total_false_positive += actual.len();
-                    if mismatches.len() < 20 {
+                    if mismatches.len() < max_detail {
                         mismatches.push(format!(
                             "FALSE POSITIVE [{}] `{}` -> {:?}",
                             file.display(),
@@ -444,7 +473,7 @@ fn cmd_score(rest: &[String]) -> i32 {
                     if strict && !span_ok {
                         total_span_mismatch += 1;
                     }
-                } else if mismatches.len() < 20 {
+                } else if mismatches.len() < max_detail {
                     mismatches.push(format!(
                         "MISSED [{}:{}] `{}` -> thiếu {kind}",
                         file.display(),
@@ -460,7 +489,7 @@ fn cmd_score(rest: &[String]) -> i32 {
             for (kind, _, _) in &actual {
                 if !expected.iter().any(|(k, _)| k == kind) {
                     total_false_positive += 1;
-                    if mismatches.len() < 20 {
+                    if mismatches.len() < max_detail {
                         mismatches.push(format!(
                             "EXTRA [{}:{}] `{}` -> thua {kind}",
                             file.display(),
@@ -493,6 +522,11 @@ fn cmd_score(rest: &[String]) -> i32 {
     println!("precision = {precision:.1}%  ({total_matched}/{total_actual} loai loi bao ra)");
     println!("FPR       = {fpr:.1}%  ({clean_with_issue}/{clean_cases} cau sach bi bao nhầm)");
     println!("false positives = {total_false_positive}");
+    if soft_cases > 0 {
+        println!(
+            "ung vien (van ban that) = {soft_flagged}/{soft_cases} cau bi gan co — can rao soat tay (co the la loi THAT cua nguoi viet)"
+        );
+    }
     if strict {
         println!(
             "span khong khop     = {total_span_mismatch} (loi bat dung loai nhung sai vi tri)"

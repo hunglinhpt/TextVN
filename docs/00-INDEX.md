@@ -333,3 +333,7 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
 - 2026-10-21: **Khoá hành vi span + mẫu overlay cho UI lane**:
   - Corpus hỗ trợ kỳ vọng `kind@start-end` (span = **ký tự Unicode**) → **10 case đã ghi span** ⇒ test đối chiếu **cả vị trí**, không chỉ loại lỗi (đóng Fassist-93).
   - Lệnh mới **`textvn-cli assist show "<câu>"`** → in **mẫu overlay**: câu + vạch `^` đúng chỗ lỗi + thông điệp tiếng Việt + gợi ý ⇒ **spec hiển thị** cho lane UI (tray/overlay 3 OS) + kiểm thử thủ công không cần dựng UI (D38).
+- 2026-10-21: **Đo trên 1.500 câu THẬT (Tatoeba) → 4 lỗi engine thật, đã sửa** (Fassist-94…97):
+  - Nguồn mới `tools/assist/gen_corpus_tatoeba.py` → `corpus/assist/vi_tatoeba_clean.ass` (Tatoeba `vie_sentences.tsv.bz2`, license **CC BY 2.0 FR** — attribution bắt buộc). Tiền tố `~ ` = câu sạch **có thể** chứa lỗi thật (văn bản người thật) ⇒ test không assert "không lỗi" cứng cho chúng (F97) — sửa **sai về mặt phương pháp** khi dùng nguồn thật.
+  - Lần đo đầu FPR **1,1 %** (32/2.995) ⇒ rà soát tay lộ 4 lỗi engine thật: **F94** lặp từ báo oan với từ ghép đôi/tăng nghĩa ("luôn luôn", "lâu lâu") → bảng `INTENTIONAL_REPEATS`; **F95** `...` (ba chấm) bị coi là hết câu → coi là **ellipsis**; **F96** bảng "sai dấu" chứa từ **hợp lệ** ("trương", "yểu") → bỏ (cần ngữ cảnh để phân biệt).
+  - Sau khi sửa: **recall 100 %** (57/57) · **precision 100 %** · **FPR 0,8 %** (25/2.998) — và **cả 25 câu bị gắn cờ đều là lỗi THẬT** trong dữ liệu ⇒ **FPR thực ≈ 0 %** trên 1.500 câu thực tế.

@@ -101,6 +101,26 @@ Ngoài câu mẫu tổng hợp, đã sinh corpus sạch từ **chính tài liệ
 3. Thêm luật **gợi ý** (L7/L9/L10/L12) khi có từ điển → đo recall theo từng loại.
 4. `assist score --strict` (so span) + `--per-kind` để biết luật nào yếu.
 
+## 2.3 Vong 4 (2026-10-21) - do tren **1.500 cau that** (Tatoeba) -> 4 loi engine that
+
+**Nguon moi:** `tools/assist/gen_corpus_tatoeba.py` -> `corpus/assist/vi_tatoeba_clean.ass` (Tatoeba `vie_sentences.tsv.bz2`, license **CC BY 2.0 FR** -> attribution bat buoc). Loc: 25-200 ky tu · >=35% chu co dau · bo URL/HTML -> **1.500 cau**.
+
+Tien to `~ ` = *cau sach **co the** chua loi that* (van ban nguoi that) -> test **khong** assert "khong loi" cho chung; `assist score` van tinh vao mau so FPR (Fassist-97).
+
+**Do lan dau:** FPR **1,1 %** (32/2.995) => ra soat tay tung cau lo **4 loi engine that**:
+
+| ID | Muc | Finding | Sua |
+|---|---|---|---|
+| **Fassist-94** | minor | Lap tu bao oan voi **tu ghep doi / tang nghia** ("luon luon", "lau lau", "voi voi vang vang") | ✅ Bang `INTENTIONAL_REPEATS` (tang nghia + ~14 tu ghep doi) |
+| **Fassist-95** | minor | `...` (ba cham) bi coi la **het cau** -> bao oan hoa dau cau ("dieu tot... ban nghi sao?") | ✅ `is_real_sentence_end()`: >=3 cham = **ellipsis** -> khong phai het cau |
+| **Fassist-96** | minor | Bang "sai dau" chua **tu hop le**: "truong" (khan truong), "yeu" (yeu tuong, yeu dieu) | ✅ Bo ca hai (sai dau o day **can ngu canh**) |
+| **Fassist-97** | minor | "Cau sach" tu nguon that **co the chua loi that** -> assert "khong loi" cung la **sai ve mat phuong phap** | ✅ Tien to `~ ` (soft) + `assist score` bao rieng "ung vien" |
+
+**Ket qua sau khi sua (3.048 case):** recall **100,0 %** (57/57) · precision **100,0 %** · FPR **0,8 %** (25/2.998 cau that) — va **ra soat tat ca 25 cau bi gan co deu la loi THAT** trong du lieu (thua space truoc `?` ~11, "cua" sai dau 3, thieu space sau `.` 1, thuong sau `.`/`!` 3, lap "dieu dieu" 1…) => **FPR thuc ~ 0 %** tren 1.500 cau thuc te.
+
+> **Ket luan (PO):** "FPR 0,8 %" o day **khong phai** sai sot — do la 0,8 % cau nguoi viet that co loi ma engine bat **dung**.
+
+## 5. Viec con lai de "chat luong tot nhat" (P4-4)
 ## 6. Bằng chứng (để agent sau không phải đo lại)
 
 | Lệnh | Kết quả |
