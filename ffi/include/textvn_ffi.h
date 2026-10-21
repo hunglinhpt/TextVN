@@ -148,9 +148,6 @@ typedef struct ime_assist_issue {
   char     suggest[IME_MAX_ASSIST_SUGGEST];         /* UTF-8, 0-terminated */
 } ime_assist_issue_v1;
 
-/* Ket qua kiem tra cau. Caller cap struct trong bo nho cua MINH roi truyen dia
- * chi &out (xem ime_assist_check). KHONG free, KHONG giu con tro sau khi ham
- * tra ve. `count` la so issue hop le (0..IME_MAX_ASSIST_ISSUES). */
 typedef struct ime_assist_result {
   uint32_t            abi_version;                  /* = IME_ABI_VERSION */
   uint32_t            count;                        /* 0..IME_MAX_ASSIST_ISSUES */
