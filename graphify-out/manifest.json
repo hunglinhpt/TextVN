@@ -1290,9 +1290,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
-    "mtime": 1792597603.7948914,
-    "seen": 1792597839.393883,
-    "ast_hash": "715ffa5a7ecc0b77ab1d273ac3e90b10",
+    "mtime": 1792598245.77133,
+    "seen": 1792598364.5954359,
+    "ast_hash": "d4ff824dd445c88b29b20b1e819c2d54",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/tests/e2e_fcitx5.py": {
@@ -1362,9 +1362,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/ConfigModel.swift": {
-    "mtime": 1792593287.090296,
-    "seen": 1792593937.102255,
-    "ast_hash": "bc276241b06a82b68d3fd5de936a58a0",
+    "mtime": 1792598358.0974498,
+    "seen": 1792598364.6066298,
+    "ast_hash": "a951c15c8966312b1f54178a21bf013d",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
@@ -1404,9 +1404,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/CoreBridge.swift": {
-    "mtime": 1792597131.9222841,
-    "seen": 1792597839.3973484,
-    "ast_hash": "02283c8f36721e470cee9a05d1a61fc1",
+    "mtime": 1792598262.4096808,
+    "seen": 1792598364.6094744,
+    "ast_hash": "78eecb04ba279aff602c51e83f4cc114",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/Diagnostics.swift": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1792597431.8442152,
-    "seen": 1792597839.397894,
-    "ast_hash": "1299ecdfd08cdb5b924237bdb9545196",
+    "mtime": 1792598277.7878635,
+    "seen": 1792598364.613013,
+    "ast_hash": "b05ca3dade879653a0f524a8c28a72db",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -2646,9 +2646,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/MacSpellProvider.swift": {
-    "mtime": 1792593287.196746,
-    "seen": 1792593937.1042607,
-    "ast_hash": "e1167b572429e9d5471916fb8d4abb2e",
+    "mtime": 1792598292.6494925,
+    "seen": 1792598364.6120062,
+    "ast_hash": "30796ff75697d12595590616f815c585",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift": {

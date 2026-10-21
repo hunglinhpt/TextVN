@@ -26,6 +26,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.run_in_tray)
         XCTAssertEqual(config.switch_key, "ctrl_shift")
         XCTAssertTrue(config.macros.isEmpty)
+        XCTAssertFalse(config.suggest.enabled, "mặc định tắt — Tab giữ hành vi cũ (0.2.33)")
         XCTAssertEqual(config.assist, AssistSettings(), "P4-0 §7: assist mặc định tắt hoàn toàn")
     }
 
@@ -194,6 +195,69 @@ final class TextVNAppTests: XCTestCase {
         // File ghi ra phải có khối assist tường minh — bản lưu là config hợp lệ đầy đủ.
         let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
         XCTAssertEqual((saved?["assist"] as? [String: Any])?["mode"] as? String, "autocorrect")
+    }
+
+    // MARK: - 1c. `suggest` — gợi ý hoàn tất từ tiếng Việt (Tab, 0.2.33)
+
+    /// Mặc định khối `suggest` phải khớp 1-1 với crate `config`
+    /// (`config::SuggestSettings`): chỉ trường `enabled`, mặc định `false`.
+    func testSuggestDefaultsMatchRustConfig() {
+        XCTAssertFalse(SuggestSettings().enabled, "crate `config`: mặc định tắt")
+        XCTAssertFalse(TextVNConfig.default().suggest.enabled, "Tab giữ hành vi cũ")
+    }
+
+    /// Encode → decode phải nguyên vẹn; JSON ghi ra dùng đúng tên khoá `suggest`
+    /// + `enabled` (schema `config.v1.json`) và BỎ QUA khoá lạ (`provider`,
+    /// `ollama` — như serde của Rust, không lỗi).
+    func testSuggestEncodeDecodeRoundTrip() throws {
+        let json = #"{"enabled":true,"provider":"local_ngram","ollama":null}"#
+        let parsed = try JSONDecoder().decode(SuggestSettings.self, from: Data(json.utf8))
+        XCTAssertTrue(parsed.enabled, "enabled=true phải bật; khoá lạ bỏ qua")
+        XCTAssertTrue(parsed == SuggestSettings(enabled: true))
+
+        let encoded = try JSONEncoder().encode(parsed)
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertEqual(obj["enabled"] as? Bool, true)
+        XCTAssertEqual(obj.count, 1, "chỉ `enabled` trùng schema (Rust bỏ các khoá khác)")
+
+        XCTAssertEqual(try JSONDecoder().decode(SuggestSettings.self, from: encoded), parsed)
+        XCTAssertEqual(try JSONDecoder().decode(SuggestSettings.self, from: Data("{}".utf8)),
+                       SuggestSettings(), "thiếu trường → mặc định tắt")
+    }
+
+    /// Config CŨ (chưa có khoá `suggest` — bản trước 0.2.33) vẫn phải decode được
+    /// (mặc định tắt), và mỗi lần lưu từ app phải GIỮ nguyên giá trị `suggest``
+    /// người dùng đã đặt — model chưa biết khoá từng khiến `english_words`/`emoji`
+    /// bị XOÁ mỗi lần lưu (không lặp lại với `suggest`).
+    func testSuggestMissingKeyDecodesDefaultAndSurvivesSave() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_suggest_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let oldJSON = """
+        {"config_version":1,
+         "macros":[{"trigger":"vn","expand":"Việt Nam","when":"vi_on"}],
+         "emoji":[{"trigger":":ok","glyph":"👌"}]}
+        """
+        try oldJSON.data(using: .utf8)!.write(to: fileURL)
+
+        let old = try JSONDecoder().decode(TextVNConfig.self, from: Data(oldJSON.utf8))
+        XCTAssertFalse(old.suggest.enabled, "JSON cũ không có suggest → mặc định tắt")
+
+        var cfg = TextVNConfig.load(from: fileURL)
+        XCTAssertFalse(cfg.suggest.enabled)
+        // Người dùng bật gợi ý từ (sửa tay file) → load → lưu lại: `suggest` +
+        // khối dữ liệu của người dùng (gõ tắt, emoji) phải đi qua nguyên vẹn.
+        cfg.suggest.enabled = true
+        try cfg.save(to: fileURL)
+        let back = TextVNConfig.load(from: fileURL)
+        XCTAssertTrue(back.suggest.enabled, "lưu từ app không được xoá/mất `suggest`")
+        XCTAssertEqual(back.macros, [MacroEntry(trigger: "vn", expand: "Việt Nam", when: "vi_on")])
+        XCTAssertEqual(back.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+        // File ghi ra phải có khoá `suggest` tường minh — bản lưu là config đầy đủ.
+        let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
+        XCTAssertEqual((saved?["suggest"] as? [String: Any])?["enabled"] as? Bool, true)
     }
 
     // MARK: - 2. Autostart & LaunchAgent (Rule S5)

@@ -120,6 +120,27 @@ public struct AssistDisplay: Codable, Equatable {
     }
 }
 
+/// `suggest` — Tab hoàn tất từ tiếng Việt (`post/suggest_vn.rs`, 0.2.33). Khớp 1-1
+/// với crate `config` (`config::SuggestSettings`): chỉ `enabled` được engine dùng;
+/// các khoá khác trong spec (`provider`, `ollama` — P0-3 §1.1) là tương lai, Rust
+/// bỏ qua (serde bỏ unknown) ⇒ Swift cũng bỏ qua. Mặc định `false`: Tab giữ hành
+/// vi cũ. THIẾU struct này từng khiến mỗi lần lưu từ bảng cài đặt macOS XOÁ khoá
+/// `suggest` của người dùng (cùng mẫu mất dữ liệu với `english_words`/`emoji`/`assist`).
+public struct SuggestSettings: Codable, Equatable {
+    /// Bật Tab hoàn tất từ tiếng Việt. Mặc định `false`.
+    public var enabled: Bool
+
+    public init(enabled: Bool = false) {
+        self.enabled = enabled
+    }
+
+    /// Decode khoan dung: thiếu trường lấy mặc định (cùng quy ước `TextVNConfig`).
+    public init(from decoder: Decoder) throws {
+        enabled = try decoder.container(keyedBy: CodingKeys.self)
+            .decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+    }
+}
+
 /// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định TẮT HOÀN TOÀN (D20 kill-switch):
 /// thiếu khối này (config bản cũ) hay thiếu trường = tắt, không tự sửa, không hiện gì.
 /// Khớp 1-1 với crate `config` (`config::AssistSettings`) và schema — THIẾU struct
@@ -214,6 +235,12 @@ public struct TextVNConfig: Codable, Equatable {
     /// Gõ tắt emoji — thiếu trường này thì mỗi lần lưu config XOÁ `emoji[]` của
     /// người dùng (tray Windows/Linux giữ nguyên khoá qua SettingsDoc).
     public var emoji: [EmojiEntry]
+    /// Gợi ý hoàn tất từ tiếng Việt bằng Tab (`post/suggest_vn.rs`) — chỉ
+    /// `enabled` được engine dùng. Thiếu khoá = tắt, Mặc định `false`: Tab giữ
+    /// hành vi cũ đi qua app. Model PHẢI biết khoá này (giống
+    /// `english_words`/`emoji`/`assist`) nếu không mỗi lần lưu từ app cũng
+    /// xoá cài đặt `suggest` của người dùng.
+    public var suggest: SuggestSettings
     /// Trợ lý ngữ pháp (P4-0 §7) — mặc định tắt hoàn toàn (D20). Model PHẢI biết
     /// khoá này (giống `english_words`/`emoji`) nếu không lần lưu nào từ app cũng
     /// xoá cài đặt assist của người dùng.
@@ -239,6 +266,7 @@ public struct TextVNConfig: Codable, Equatable {
         macros: [MacroEntry] = [],
         english_words: [String] = [],
         emoji: [EmojiEntry] = [],
+        suggest: SuggestSettings = SuggestSettings(),
         assist: AssistSettings = AssistSettings()
     ) {
         self.config_version = config_version
@@ -260,6 +288,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.macros = macros
         self.english_words = english_words
         self.emoji = emoji
+        self.suggest = suggest
         self.assist = assist
     }
 
@@ -288,6 +317,7 @@ public struct TextVNConfig: Codable, Equatable {
         macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
         english_words = try c.decodeIfPresent([String].self, forKey: .english_words) ?? d.english_words
         emoji = try c.decodeIfPresent([EmojiEntry].self, forKey: .emoji) ?? d.emoji
+        suggest = try c.decodeIfPresent(SuggestSettings.self, forKey: .suggest) ?? d.suggest
         assist = try c.decodeIfPresent(AssistSettings.self, forKey: .assist) ?? d.assist
     }
 
