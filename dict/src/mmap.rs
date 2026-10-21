@@ -202,11 +202,10 @@ mod platform {
     const MAP_PRIVATE: c_int = 2;
 
     extern "C" {
-        // #[link_name] giu ten symbol libc goc (clippy moi cam ten open/close).
-        #[link_name = "open"]
-        fn open_file(path: *const u8, flags: c_int, ...) -> c_int;
-        #[link_name = "close"]
-        fn close_fd(fd: c_int) -> c_int;
+        // CHI khai bao `mmap`/`munmap`. KHONG khai `open`/`close`: hai symbol do
+        // std runtime dung -> rustc/clippy moi bao "suspicious definition of the
+        // runtime `open` symbol" (Fassist-104). Mo file bang `std::fs::File`
+        // (std lo open/close), chi lay fd tho qua `AsRawFd`.
         fn mmap(
             addr: *mut c_void,
             length: usize,
@@ -219,20 +218,16 @@ mod platform {
     }
 
     pub fn map_file(path: &Path) -> Result<super::Mapping, MapError> {
-        use std::os::unix::ffi::OsStrExt;
-        let mut bytes = path.as_os_str().as_bytes().to_vec();
-        bytes.push(0);
-        let fd = unsafe { open_file(bytes.as_ptr(), 0) };
-        if fd < 0 {
-            return Err(MapError::Io(std::io::Error::last_os_error()));
-        }
+        use std::os::unix::io::AsRawFd;
+        // `std::fs::File` lo phan open/close; fd duoc dong khi File drop, ma
+        // mapping van hieu luc (POSIX) nen an toan.
+        let file = std::fs::File::open(path).map_err(MapError::Io)?;
         let len = super::file_len(path)? as usize;
         if len == 0 {
-            unsafe { close_fd(fd) };
             return Err(MapError::InvalidFormat("file rong"));
         }
+        let fd = file.as_raw_fd();
         let view = unsafe { mmap(ptr::null_mut(), len, PROT_READ, MAP_PRIVATE, fd, 0) };
-        unsafe { close_fd(fd) };
         if view.is_null() || view as isize == -1 {
             return Err(MapError::Io(std::io::Error::last_os_error()));
         }
