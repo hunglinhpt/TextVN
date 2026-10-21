@@ -25,7 +25,7 @@ endif()
 
 set(TEXTVN_FCITX5_WARN -Wall -Wextra -Werror)
 
-add_library(textvn-fcitx5-core STATIC src/engine.cpp)
+add_library(textvn-fcitx5-core STATIC src/engine.cpp src/surrounding_match.cpp)
 set_target_properties(textvn-fcitx5-core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(textvn-fcitx5-core PUBLIC src)
 target_compile_options(textvn-fcitx5-core PRIVATE ${TEXTVN_FCITX5_WARN})
@@ -55,3 +55,23 @@ add_executable(test_fcitx5_keymap tests/test_keymap.cpp)
 target_compile_options(test_fcitx5_keymap PRIVATE ${TEXTVN_FCITX5_WARN} -UNDEBUG)
 target_link_libraries(test_fcitx5_keymap PRIVATE textvn-fcitx5-core)
 add_test(NAME test_fcitx5_keymap COMMAND test_fcitx5_keymap)
+
+# Hồi quy quy ước xoá surrounding text của Fcitx5: fake client đếm số ký tự
+# bị xoá (size) + offset (âm = trước caret). Chặn lỗi "size = 0 ⇒ xoá 0 ký tự
+# ⇒ nhân đôi câu" đã lọt qua CI.
+add_executable(test_fcitx5_delete_surrounding tests/test_delete_surrounding.cpp)
+target_compile_options(test_fcitx5_delete_surrounding PRIVATE ${TEXTVN_FCITX5_WARN} -UNDEBUG)
+target_link_libraries(test_fcitx5_delete_surrounding PRIVATE textvn-fcitx5-core)
+# Đường dẫn nguồn adapter (để test quét mã nguồn, chặn lời gọi sai quy ước).
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" TEXTVN_FCITX5_SRC_DIR_CM)
+target_compile_definitions(test_fcitx5_delete_surrounding PRIVATE
+    TEXTVN_FCITX5_SRC_DIR="${TEXTVN_FCITX5_SRC_DIR_CM}")
+add_test(NAME test_fcitx5_delete_surrounding COMMAND test_fcitx5_delete_surrounding)
+
+# Hồi quy so khớp "text trước caret" (R-2/D12): cursor của Fcitx5 là offset
+# KÝ TỰ Unicode (không phải byte) — câu tiếng Việt có ký tự nhiều byte bắt
+# được lỗi "cắt theo byte" ⇒ precondition luôn lệch ⇒ Mode 1/2/undo không chạy.
+add_executable(test_fcitx5_surrounding_match tests/test_surrounding_match.cpp)
+target_compile_options(test_fcitx5_surrounding_match PRIVATE ${TEXTVN_FCITX5_WARN} -UNDEBUG)
+target_link_libraries(test_fcitx5_surrounding_match PRIVATE textvn-fcitx5-core)
+add_test(NAME test_fcitx5_surrounding_match COMMAND test_fcitx5_surrounding_match)

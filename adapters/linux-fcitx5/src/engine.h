@@ -12,6 +12,7 @@
 #include <fcitx/action.h>
 #include <fcitx/addonfactory.h>
 #include <fcitx/addonmanager.h>
+#include <fcitx/inputcontext.h>
 #include <fcitx/inputcontextproperty.h>
 #include <fcitx/inputmethodengine.h>
 #include <fcitx/instance.h>
@@ -122,6 +123,27 @@ void mapFcitxKey(const fcitx::Key &key, uint32_t *vk, uint32_t *ch);
 uint32_t fcitxMods(fcitx::KeyStates states);
 lc_modifier fcitxModifierKind(fcitx::KeySym sym);
 std::string utf32ToUtf8(const uint32_t *text, size_t len);
+
+/* ---- Xoá surrounding text — đúng quy ước API Fcitx5 ----
+ *
+ * `fcitx::InputContext::deleteSurroundingText` có 2 tham số:
+ *   (offset, size) — offset = vị trí BẮT ĐẦU xoá (lệch so với caret; ÂM = TRƯỚC
+ *   caret), size = **SỐ KÝ TỰ CẦN XOÁ** (không phải "số ký tự sau caret").
+ *   ⇒ `size == 0` ⇒ xoá **0 ký tự** ⇒ đuôi câu cũ còn nguyên ⇒ commit bản sửa
+ *   ⇒ **nhân đôi câu**.
+ *
+ * Mọi lời gọi trong adapter này PHẢI đi qua `deleteBeforeCaret()` (đã có test
+ * hồi quy: tests/test_delete_surrounding.cpp). Chi tiết + trích dẫn header
+ * fcitx5 trong engine.cpp. */
+void deleteBeforeCaret(fcitx::InputContext *ic, uint32_t n);
+
+/* Mode 1: áp dụng ứng viên đã chọn — xoá đúng số ký tự cũ rồi gõ bản sửa.
+ * Trả false ⇒ KHÔNG xác minh được (client không hỗ trợ surrounding text, hoặc
+ * vùng trước caret không phải đuôi câu engine biết) ⇒ caller không làm gì cả
+ * (fail-safe, R-2/D12). */
+bool applyAssistCandidate(fcitx::InputContext *ic, uint32_t deleteGlyphs,
+                           const std::string &originalTail,
+                           const std::string &replacement);
 
 } // namespace textvn
 

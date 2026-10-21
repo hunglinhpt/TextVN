@@ -8,6 +8,7 @@
 #include "engine.h"
 
 #include "lc_assist_text.h"
+#include "surrounding_match.h"
 
 #include <fcitx-utils/capabilityflags.h>
 #include <fcitx-utils/keysym.h>
@@ -40,38 +41,19 @@ static uint64_t nowMs() {
 }
 
 /* R-2 (fail-safe): so **text trước caret** trong document với đuôi câu mà
- * engine biết. Không đọc được (client không hỗ trợ surrounding text) hoặc lệch
- * ⇒ trả false ⇒ **không sửa** (đây là chốt chặn "xoá nhầm text lạ" khi engine
- * buffer stale: user bấm chuột đặt caret chỗ khác rồi gõ `.`).
+ * engine biết — logic + trích dẫn upstream nằm trong `surrounding_match.cpp`
+ * (module riêng: chỉ có MỘT chỗ biết quy ước offset của Fcitx5, và test được
+ * không cần engine chạy thật).
  *
- * Fcitx5 khác IBus: `surroundingText()` là **truy vấn trực tiếp** client (DBus)
- * ⇒ luôn phản ánh document hiện tại (IBus chỉ có **cache** client đẩy lên
- * TRƯỚC khi phím) ⇒ không cần ghép "text vừa commit" như bản IBus.
+ * Tóm tắt: `SurroundingText::cursor()` của Fcitx5 là offset theo **KÝ TỰ
+ * Unicode** (KHÔNG phải byte) — xem surrounding_match.cpp. Trước đây adapter
+ * cắt `std::string` (đơn vị BYTE) bằng cursor ⇒ cắt lệch chỗ với tiếng Việt
+ * ⇒ precondition luôn lệch ⇒ Mode 1 / Mode 2 / undo không bao giờ chạy.
  *
- * `SurroundingText::cursor()` của Fcitx5 là **offset BYTE** trong `text()`
- * (KHÔNG phải số ký tự Unicode) ⇒ cắt bằng byte offset là an toàn. TUYỆT ĐỐI
- * không dùng `g_utf8_offset_to_pointer`: hàm đó trả NULL khi caret ở cuối text
- * ⇒ `NULL - str` là UB và `memcmp` đọc ngoài vùng nhớ (có thể crash) — bản IBus
- * đã dịch offset bằng vòng lặp `g_utf8_next_char`; ở Fcitx5 vốn đã là byte
- * offset nên không cần dịch (và không có phép trừ con trỏ nào ở đây).
- *
- * `expected` là Unicode (buffer của core); document chứa glyph theo bảng mã
- * xuất — với `unicode_precomposed` (mặc định) 1 char = 1 byte UTF-8-ish nên
- * so được; bảng mã khác ⇒ lệch ⇒ không sửa (an toàn hơn sửa nhầm). */
-static bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &expected) {
-    if (!ic || expected.empty()) return false;
-    fcitx::SurroundingText surrounding = ic->surroundingText();
-    if (!surrounding.isValid()) return false;
-    const std::string text = surrounding.text();
-    const int cursor = surrounding.cursor();
-    /* Caret nằm ngoài text ⇒ dữ liệu không nhất quán ⇒ không xác minh được
-     * (fail-safe). TUYỆT ĐỐI không so cả phần SAU caret — sẽ khớp nhầm rồi
-     * xoá nhầm vùng khác. */
-    if (cursor < 0 || static_cast<size_t>(cursor) > text.size()) return false;
-    const std::string before = text.substr(0, static_cast<size_t>(cursor));
-    if (before.size() < expected.size()) return false;
-    return before.compare(before.size() - expected.size(), expected.size(), expected) == 0;
-}
+ * `expected` là Unicode (buffer của core, `ime_assist_sentence_tail` trả UTF-8);
+ * surrounding text của client cũng là UTF-8 ⇒ so khớp được. Với bảng mã legacy
+ * (VNI/TCVN3) số **glyph** ≠ số **ký tự Unicode** ⇒ xem `delete_glyphs` ở
+ * `checkAndApplyAssist` (rủi ro riêng, không thuộc hàm này). */
 
 std::string utf32ToUtf8(const uint32_t *text, size_t len) {
     std::string out;
@@ -79,6 +61,73 @@ std::string utf32ToUtf8(const uint32_t *text, size_t len) {
         out += fcitx::utf8::UCS4ToUTF8(text[i]);
     }
     return out;
+}
+
+/* ---- Xoá surrounding text — đúng quy ước API Fcitx5 ----
+ *
+ * Header fcitx5 `src/lib/fcitx/inputcontext.h`:
+ *
+ *     /// Ask client to delete a range of surrounding text.
+ *     void deleteSurroundingText (int offset, unsigned int size);
+ *     ...
+ *     /// Send the delete Surrounding Text request to client.
+ *     ///
+ *     /// @param offset offset of deletion start, in UCS4 char.
+ *     /// @param size length of the deletion in UCS4 char.
+ *
+ * ⇒ `offset` = vị trí BẮT ĐẦU xoá, lệch so với caret (ÂM = TRƯỚC caret);
+ *   `size`   = **SỐ KÝ TỰ CẦN XOÁ** (đơn vị: ký tự Unicode).
+ *
+ * Chuỗi hiện thực (fcitx5 → fcitx5-gtk → GTK3) — cả 3 tầng cùng quy ước:
+ *   fcitx5 (dbusfrontend): signal `DeleteSurroundingText` (i offset, u size).
+ *   fcitx5-gtk: `delete-surrounding-text` (offset_from_cursor, nchars).
+ *   GTK3 `GtkIMContext::delete-surrounding`:
+ *     "@offset:  the character offset from the cursor position of the text
+ *               to be deleted. A negative value indicates a position before
+ *               the cursor.
+ *      @n_chars: the number of characters to be deleted"
+ *
+ * ⇒ `size == 0` ⇒ **XOÁ 0 KÝ TỰ** (KHÔNG phải "xoá tới đầu/cuối") ⇒ đuôi câu
+ * cũ vẫn còn trong document ⇒ `commitString(replacement)` ⇒ **NHÂN ĐÔI CÂU**.
+ * (Đây chính là lỗi đã lọt qua CI: trước đây adapter gọi `(-n, 0)`.)
+ *
+ * Vì vậy: MỌI lời gọi xoá trong adapter này PHẢI đi qua hàm này, và tham số
+ * thứ 2 LUÔN bằng số ký tự cần xoá (không phải 0). Test hồi quy:
+ * tests/test_delete_surrounding.cpp (fake client đếm số ký tự bị xoá). */
+void deleteBeforeCaret(fcitx::InputContext *ic, uint32_t n) {
+    if (!ic || n == 0) return;
+    ic->deleteSurroundingText(-static_cast<int>(n), n);
+}
+
+/* Mode 1 (chọn ứng viên trong candidate list): xoá đúng số ký tự cũ rồi gõ
+ * bản sửa.
+ *
+ * Fail-safe (R-2/D12): chỉ xoá khi
+ *   1) client hỗ trợ surrounding text và surrounding text hợp lệ, và
+ *   2) vùng trước caret **đúng** là đuôi câu engine biết (caret ở chỗ khác
+ *      ⇒ không xoá nhầm vùng text khác).
+ * Không xác minh được ⇒ trả false ⇒ caller KHÔNG làm gì cả.
+ *
+ * Chỉ xoá **trước** caret: phần sau caret không thuộc phạm vi sửa (xoá cả 2
+ * phía ⇒ mất dữ liệu người dùng) ⇒ `deleteBeforeCaret` (offset âm). */
+bool applyAssistCandidate(fcitx::InputContext *ic, uint32_t deleteGlyphs,
+                           const std::string &originalTail,
+                           const std::string &replacement) {
+    if (!ic) return false;
+    if (deleteGlyphs > 0) {
+        if (!ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) ||
+            !ic->surroundingText().isValid()) {
+            return false;
+        }
+        if (!originalTail.empty() && !textBeforeCaretMatches(ic, originalTail)) {
+            return false;
+        }
+        deleteBeforeCaret(ic, deleteGlyphs);
+    }
+    if (!replacement.empty()) {
+        ic->commitString(replacement);
+    }
+    return true;
 }
 
 void mapFcitxKey(const fcitx::Key &key, uint32_t *vk, uint32_t *ch) {
@@ -179,22 +228,10 @@ public:
     void select(fcitx::InputContext *ic) const override {
         if (!ic) return;
         try {
-            if (deleteGlyphs_ > 0) {
-                if (!ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) ||
-                    !ic->surroundingText().isValid()) {
-                    return;
-                }
-                /* R-2: chỉ xoá khi vùng trước caret **đúng** là đuôi câu engine
-                 * biết (caret ở chỗ khác ⇒ không xoá nhầm). */
-                if (!originalTail_.empty() && !textBeforeCaretMatches(ic, originalTail_)) {
-                    return;
-                }
-                /* Chỉ xoá **trước** caret: phần sau caret không thuộc phạm vi
-                 * sửa (xoá cả 2 phía ⇒ mất dữ liệu người dùng). */
-                ic->deleteSurroundingText(-static_cast<int>(deleteGlyphs_), 0);
-            }
-            if (!replacement_.empty()) {
-                ic->commitString(replacement_);
+            /* Xoá đúng số ký tự cũ (trước caret) rồi gõ bản sửa. Trả false ⇒
+             * không xác minh được ⇒ KHÔNG làm gì cả (fail-safe, R-2/D12). */
+            if (!applyAssistCandidate(ic, deleteGlyphs_, originalTail_, replacement_)) {
+                return;
             }
             /* R-4: đã thay document ⇒ buffer câu của engine không còn khớp ⇒
              * reset (như Mode 2) để lần trigger sau không so với câu cũ.
@@ -510,9 +547,13 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                  * xoá cả 2 phía ⇒ mất dữ liệu người dùng). Số **glyph** do
                  * core tính (`ime_assist_glyph_len` trong
                  * `lc_plan_sentence_auto_fix`) — KHÔNG fallback `chars().count()`
-                 * (sai ở VNI/TCVN3 ⇒ xoá lệch vị trí). */
+                 * (sai ở VNI/TCVN3 ⇒ xoá lệch vị trí).
+                 *
+                 * QUY ƯỚC API Fcitx5: tham số 2 là **SỐ KÝ TỰ CẦN XOÁ** (không
+                 * phải 0!) — xem `deleteBeforeCaret`. Gọi `(-n, 0)` ⇒ xoá 0 ký tự
+                 * ⇒ đuôi câu cũ còn nguyên ⇒ commit bản sửa ⇒ **nhân đôi câu**. */
                 if (fixPlan.delete_glyphs > 0) {
-                    st->ic->deleteSurroundingText(-static_cast<int>(fixPlan.delete_glyphs), 0);
+                    deleteBeforeCaret(st->ic, fixPlan.delete_glyphs);
                 }
                 st->ic->commitString(fixPlan.replacement);
                 /* R-4: sau khi đã thay document, buffer engine phải sạch —
@@ -606,9 +647,13 @@ bool TextVNEngine::applyAssistUndo(TextVNState *st) {
         return false; /* không xác minh được ⇒ KHÔNG xoá */
     }
     try {
+        /* Hoàn tác: xoá đúng số ký tự **đã gõ lại** (trước caret) rồi gõ lại
+         * đuôi câu gốc. Cùng quy ước API Fcitx5: tham số 2 = SỐ KÝ TỰ CẦN
+         * XOÁ (xem `deleteBeforeCaret`) — KHÔNG phải "số ký tự sau caret" và
+         * KHÔNG phải 0 (0 ⇒ xoá 0 ký tự ⇒ hoàn tác không xoá gì ⇒ câu bị nhân
+         * đôi khi gõ lại bản sửa). */
         if (st->assistUndoReplacementGlyphs > 0) {
-            st->ic->deleteSurroundingText(
-                -static_cast<int>(st->assistUndoReplacementGlyphs), 0);
+            deleteBeforeCaret(st->ic, st->assistUndoReplacementGlyphs);
         }
         st->ic->commitString(st->assistUndoOriginalTail);
         st->assistUndoValid = false;
@@ -798,7 +843,9 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
             finishWord(st);
             return false;
         }
-        st->ic->deleteSurroundingText(-static_cast<int>(plan.delete_before), plan.delete_before);
+        /* Xoá `delete_before` ký tự TRƯỚC caret — tham số 2 của API Fcitx5 là
+         * SỐ KÝ TỰ CẦN XOÁ (xem `deleteBeforeCaret`). */
+        deleteBeforeCaret(st->ic, plan.delete_before);
     }
 
     if (plan.end) {
