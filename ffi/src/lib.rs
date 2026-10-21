@@ -67,6 +67,12 @@ pub const IME_ASSIST_KIND_SPACE_AFTER_PUNCT: u32 = 3;
 pub const IME_ASSIST_KIND_DOUBLE_SPACE: u32 = 4;
 pub const IME_ASSIST_KIND_LOWERCASE_SENTENCE: u32 = 5;
 pub const IME_ASSIST_KIND_DIACRITIC_TYPO: u32 = 6;
+/// L9 - lap tu o ranh gioi cau (chi goi y).
+pub const IME_ASSIST_KIND_SENTENCE_REPEAT: u32 = 7;
+/// L10 - phu dinh kep (chi goi y).
+pub const IME_ASSIST_KIND_DOUBLE_NEGATIVE: u32 = 8;
+/// L12 - dau phay o cuoi cau (chi goi y).
+pub const IME_ASSIST_KIND_COMMA_AT_END: u32 = 9;
 
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
@@ -166,6 +172,9 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
         textvn_assist::IssueKind::DoubleSpace => IME_ASSIST_KIND_DOUBLE_SPACE,
         textvn_assist::IssueKind::LowercaseSentenceStart => IME_ASSIST_KIND_LOWERCASE_SENTENCE,
         textvn_assist::IssueKind::DiacriticTypo => IME_ASSIST_KIND_DIACRITIC_TYPO,
+        textvn_assist::IssueKind::SentenceRepeat => IME_ASSIST_KIND_SENTENCE_REPEAT,
+        textvn_assist::IssueKind::DoubleNegative => IME_ASSIST_KIND_DOUBLE_NEGATIVE,
+        textvn_assist::IssueKind::CommaAtEnd => IME_ASSIST_KIND_COMMA_AT_END,
     }
 }
 

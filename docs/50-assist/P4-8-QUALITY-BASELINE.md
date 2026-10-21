@@ -63,7 +63,36 @@ Ngoài câu mẫu tổng hợp, đã sinh corpus sạch từ **chính tài liệ
 | **Fassist-82** | minor | Corpus sạnh tổng hợp (84 KB) nằm trong `corpus/assist/` → test chạy lâu hơn cần thiết | Chấp nhận (1.475 case < 1 s); tách riêng nếu corpus phình > 5.000 case (repo-hygiene #7 loại file > 1,5 MB) |
 | **Fassist-83** | minor | Số lỗi mong đợi trong corpus chỉ **51** → recall 100 % có **độ tin cậy thấp** (1 lỗi sai = −2 %) | Ghi nhận: cần ≥ 300 case có lỗi trước khi coi recall là gate CI (P4-4) |
 
-## 5. Việc còn lại để "chất lượng tốt nhất" (P4-4)
+## 2.2 Vòng 3 (2026-10-21) — mở rộng luật ngữ pháp + `--strict` / `--per-kind`
+
+### Luật mới (loại **chỉ gợi ý**, không tự sửa — Fassist-90)
+| Mã | Luật | Ví dụ | Ghi chú |
+|---|---|---|---|
+| **L9** | Lặp từ ở **ranh giới câu** | "Tôi không. Không sao cả." | Chỉ bắt khi từ lặp là **từ chức năng** (đại từ/giới từ/trạng từ) — lặp từ nội dung là cách viết hợp lệ (F91) |
+| **L10** | Phủ định kép | "không có … không" | Gợi ý, không tự sửa (ngữ nghĩa có thể đúng) |
+| **L12** | Dấu phẩy ở cuối câu | "…trường," | Gợi ý: đổi thành dấu chấm |
+
+→ Mọi lỗi **mơ hồ** dùng `Issue { auto_fixable: false, confidence: 60, fix: None }` ⇒ **không bao giờ** tự sửa (đúng D7).
+
+### Công cụ đo mở rộng (F81)
+- `assist score --per-kind` → bảng recall **theo từng loại luật** (phát hiện luật nào yếu).
+- `assist score --strict` → đòi **span khớp** (định dạng corpus mở rộng `kind@start-end`; span = **char Unicode**).
+
+### Số đo sau khi thêm 3 luật
+| Chỉ số | Kết quả |
+|---|---|
+| Số case | **1.548** (53 có lỗi · 1.495 câu sạch) |
+| recall / precision / FPR | **100,0 %** (60/60) · **100,0 %** · **0,0 %** |
+| Số loại luật được đo | **9** (comma_at_end · diacritic_typo · double_negative · double_space · duplicate_word · lowercase_sentence_start · sentence_repeat · space_after_punct · space_before_punct) — tất cả recall 100 % |
+
+## 4.2 Finding vòng 3 (SA/QA)
+
+| ID | Mức | Finding | Xử lý |
+|---|---|---|---|
+| **Fassist-90** | minor | Luật **mơ hồ** (ngữ pháp) không được tự sửa, nhưng API cũ chỉ có `issue()` (luôn `auto_fixable = true` + `fix`) ⇒ dễ vô tình cho phép auto-fix luật ngữ pháp | ✅ Thêm `issue_suggestion()`: `auto_fixable = false`, `confidence = 60`, `fix = None`; dùng cho L9/L10/L12 |
+| **Fassist-91** | minor | L9 báo oan: lặp **từ nội dung** ở ranh giới câu là cách viết hợp lệ ("Tôi đi học. Học xong về nhà.") | ✅ Siết L9: chỉ bắt lặp **từ chức năng** (danh sách 38 từ: đại từ/giới từ/trạng từ) + 2 case "sạch" trong corpus để chống tái phát |
+| **Fassist-92** | minor | Thêm `IssueKind` mới ⇒ **FFI `match` không phủ hết** → **build vỡ toàn workspace** (file của agent khác) + phải thêm hằng vào **cả 2 bản header** (nguồn + mirror Swift) nếu không sẽ đỏ CI macOS | ✅ Vá FFI (`IME_ASSIST_KIND_SENTENCE_REPEAT/DOUBLE_NEGATIVE/COMMA_AT_END` = 7/8/9) + cập nhật **nguồn + mirror** cùng lúc (F85) |
+| **Fassist-93** | minor | `assist score` chỉ so **kind** ⇒ không phát hiện được luật báo **đúng loại nhưng sai vị trí** | ✅ `--strict` (so span) + `--per-kind` (bảng theo loại) |
 
 1. Corpus **thật**: ≥ 300 câu có lỗi (đủ 6 loại luật) + ≥ 300 câu sạch từ văn bản tiếng Việt thực tế (nguồn license-sạch, đã audit) — đo lại recall/FPR.
 2. **2 người đánh giá** độc lập 100 câu mẫu → đo độ thống nhất (D19).

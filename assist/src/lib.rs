@@ -33,6 +33,12 @@ pub enum IssueKind {
     LowercaseSentenceStart,
     /// L8 - sai vi tri dau (bang du lieu co chon loc).
     DiacriticTypo,
+    /// L9 - lap tu o ranh gioi cau (chi goi y).
+    SentenceRepeat,
+    /// L10 - phu dinh kep "khong co ... khong" (chi goi y).
+    DoubleNegative,
+    /// L12 - dau phay o cuoi cau (chi goi y).
+    CommaAtEnd,
 }
 
 impl IssueKind {
@@ -45,6 +51,9 @@ impl IssueKind {
             Self::DoubleSpace => "double_space",
             Self::LowercaseSentenceStart => "lowercase_sentence_start",
             Self::DiacriticTypo => "diacritic_typo",
+            Self::SentenceRepeat => "sentence_repeat",
+            Self::DoubleNegative => "double_negative",
+            Self::CommaAtEnd => "comma_at_end",
         }
     }
 
@@ -57,6 +66,9 @@ impl IssueKind {
             "double_space" => Self::DoubleSpace,
             "lowercase_sentence_start" => Self::LowercaseSentenceStart,
             "diacritic_typo" => Self::DiacriticTypo,
+            "sentence_repeat" => Self::SentenceRepeat,
+            "double_negative" => Self::DoubleNegative,
+            "comma_at_end" => Self::CommaAtEnd,
             _ => return None,
         })
     }
@@ -136,6 +148,9 @@ fn check_with(text: &str, start_of_sentence: bool) -> Vec<Issue> {
     rules::double_space::check(&ctx, &mut issues);
     rules::capitalize_sentence::check(&ctx, &mut issues);
     rules::diacritic_typo::check(&ctx, &mut issues);
+    rules::sentence_repeat::check(&ctx, &mut issues);
+    rules::double_negative::check(&ctx, &mut issues);
+    rules::comma_at_end::check(&ctx, &mut issues);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }

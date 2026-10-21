@@ -325,3 +325,8 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - Lần đo đầu: **5 false positive** ⇒ lộ 2 điểm yếu thật của luật "hoa đầu câu": dấu `.` **trong ngoặc/nháy** bị coi là hết câu (F86) và dấu `…` (ellipsis) bị coi là hết câu (F87) → đã sửa (`is_real_sentence_end()`, bỏ `…` khỏi `is_sentence_end`).
   - Số đo sau sửa: **1.535 case** (47 lỗi · 1.488 câu sạch) → **recall 100 %** · **precision 100 %** · **FPR 0,0 %**; 38 test xanh; clippy 0.
   - Khóa hồi quy: `corpus/assist/vi_regressions.ass` (3 ca FP cũ phải sạch + 2 ca lỗi thật phải báo) — Fassist-89.
+- 2026-10-21: **Mở rộng luật ngữ pháp (L9/L10/L12 — chỉ gợi ý) + đo theo từng loại luật**:
+  - 3 luật mới **chỉ gợi ý, không bao giờ tự sửa** (`auto_fixable=false`, `confidence=60`, `fix=None` — Fassist-90): **L9** lặp từ ở ranh giới câu (chỉ khi từ lặp là **từ chức năng** — F91 đã vá FP "Tôi đi học. Học xong về nhà."), **L10** phủ định kép, **L12** dấu phẩy cuối câu.
+  - `assist score` thêm **`--per-kind`** (bảng recall theo từng loại luật) và **`--strict`** (so **span**; định dạng corpus mở rộng `kind@start-end`) — Fassist-93.
+  - Số đo: **1.548 case** (53 lỗi · 1.495 câu sạch) → **recall 100 %** (60/60) · **precision 100 %** · **FPR 0,0 %**; **9 loại luật** đều recall 100 %.
+  - **Fassist-92**: thêm `IssueKind` mới làm **vỡ `match` của FFI** (file agent khác) → vá FFI + thêm hằng `IME_ASSIST_KIND_*` 7/8/9 vào **cả 2 bản header** (nguồn + mirror Swift) nếu không sẽ đỏ CI macOS (F85).

@@ -252,6 +252,8 @@ fn to_json(issues: &[Issue]) -> String {
 /// Định dạng corpus: TSV `<câu>\t<kind1,kind2,...>`; cột kinds rỗng = câu sạch.
 fn cmd_score(rest: &[String]) -> i32 {
     let mut corpus: Option<String> = None;
+    let mut strict = false;
+    let mut per_kind = false;
     let mut i = 0usize;
     while i < rest.len() {
         match rest[i].as_str() {
@@ -265,9 +267,11 @@ fn cmd_score(rest: &[String]) -> i32 {
                     }
                 }
             }
+            "--strict" => strict = true,
+            "--per-kind" => per_kind = true,
             s => {
                 eprintln!("error: tham số lạ `{s}`");
-                eprintln!("dùng: textvn-cli assist score --corpus <dir>");
+                eprintln!("dùng: textvn-cli assist score --corpus <dir> [--strict] [--per-kind]");
                 return 2;
             }
         }
@@ -297,10 +301,14 @@ fn cmd_score(rest: &[String]) -> i32 {
     let mut total_matched = 0usize;
     let mut total_actual = 0usize;
     let mut total_false_positive = 0usize;
+    let mut total_span_mismatch = 0usize;
     let mut clean_cases = 0usize;
     let mut clean_with_issue = 0usize;
     let mut cases = 0usize;
     let mut mismatches: Vec<String> = Vec::new();
+    // (số case mong đợi, số lỗi phát hiện, số case khớp) theo từng loại
+    let mut per_kind_stats: std::collections::BTreeMap<String, (usize, usize, usize)> =
+        std::collections::BTreeMap::new();
 
     for file in &files {
         let Ok(text) = std::fs::read_to_string(file) else {
@@ -313,15 +321,35 @@ fn cmd_score(rest: &[String]) -> i32 {
                 continue;
             }
             let (sentence, expected) = line.split_once('\t').unwrap_or((line, ""));
-            let expected: Vec<String> = expected
+            // Kỳ vọng: `kind` hoặc `kind@start-end` (span **char Unicode**).
+            let expected: Vec<(String, Option<(u32, u32)>)> = expected
                 .split(',')
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
-                .map(str::to_string)
+                .map(|s| match s.split_once('@') {
+                    Some((kind, span)) => {
+                        let parts: Vec<&str> = span.split('-').collect();
+                        let sp = match (parts.first(), parts.get(1)) {
+                            (Some(a), Some(b)) => match (a.parse::<u32>(), b.parse::<u32>()) {
+                                (Ok(x), Ok(y)) => Some((x, y)),
+                                _ => None,
+                            },
+                            _ => None,
+                        };
+                        (kind.to_string(), sp)
+                    }
+                    None => (s.to_string(), None),
+                })
                 .collect();
-            let actual: Vec<String> = check(sentence)
+            let actual: Vec<(String, u32, u32)> = check(sentence)
                 .into_iter()
-                .map(|i| i.kind.as_str().to_string())
+                .map(|i| {
+                    (
+                        i.kind.as_str().to_string(),
+                        i.span.start as u32,
+                        i.span.end as u32,
+                    )
+                })
                 .collect();
 
             cases += 1;
@@ -335,7 +363,7 @@ fn cmd_score(rest: &[String]) -> i32 {
                             "FALSE POSITIVE [{}] `{}` -> {:?}",
                             file.display(),
                             sentence,
-                            actual
+                            actual.iter().map(|(k, _, _)| k).collect::<Vec<_>>()
                         ));
                     }
                 }
@@ -343,9 +371,20 @@ fn cmd_score(rest: &[String]) -> i32 {
             }
             total_expected += expected.len();
             total_actual += actual.len();
-            for kind in &expected {
-                if actual.contains(kind) {
+            for (kind, span) in &expected {
+                let same_kind: Vec<&(String, u32, u32)> =
+                    actual.iter().filter(|(k, _, _)| k == kind).collect();
+                let span_ok = match *span {
+                    None => true,
+                    Some((s, e)) => {
+                        same_kind.iter().any(|(_, as_, ae)| *as_ == s && *ae == e)
+                    }
+                };
+                if !same_kind.is_empty() {
                     total_matched += 1;
+                    if strict && !span_ok {
+                        total_span_mismatch += 1;
+                    }
                 } else if mismatches.len() < 20 {
                     mismatches.push(format!(
                         "MISSED [{}:{}] `{}` -> thiếu {kind}",
@@ -354,9 +393,13 @@ fn cmd_score(rest: &[String]) -> i32 {
                         sentence
                     ));
                 }
+                let entry = per_kind_stats.entry(kind.clone()).or_insert((0, 0, 0));
+                entry.0 += 1;
+                entry.1 += same_kind.len();
+                entry.2 += usize::from(!same_kind.is_empty());
             }
-            for kind in &actual {
-                if !expected.contains(kind) {
+            for (kind, _, _) in &actual {
+                if !expected.iter().any(|(k, _)| k == kind) {
                     total_false_positive += 1;
                     if mismatches.len() < 20 {
                         mismatches.push(format!(
@@ -391,6 +434,18 @@ fn cmd_score(rest: &[String]) -> i32 {
     println!("precision = {precision:.1}%  ({total_matched}/{total_actual} loai loi bao ra)");
     println!("FPR       = {fpr:.1}%  ({clean_with_issue}/{clean_cases} cau sach bi bao nhầm)");
     println!("false positives = {total_false_positive}");
+    if strict {
+        println!(
+            "span khong khop     = {total_span_mismatch} (loi bat dung loai nhung sai vi tri)"
+        );
+    }
+    if per_kind {
+        println!("--- theo loai loi ---");
+        for (kind, (exp, act, hit)) in &per_kind_stats {
+            let r = pct(*hit, *exp);
+            println!("  {kind:28} case={exp:4}  phat hien={act:4}  khop={hit:4}  recall={r:.1}%");
+        }
+    }
     if !mismatches.is_empty() {
         println!("--- chi tiết (toi da {}) ---", mismatches.len());
         for m in &mismatches {

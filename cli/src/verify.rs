@@ -114,6 +114,18 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             "IME_ASSIST_KIND_DIACRITIC_TYPO",
             IME_ASSIST_KIND_DIACRITIC_TYPO as i64,
         ),
+        (
+            "IME_ASSIST_KIND_SENTENCE_REPEAT",
+            IME_ASSIST_KIND_SENTENCE_REPEAT as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_DOUBLE_NEGATIVE",
+            IME_ASSIST_KIND_DOUBLE_NEGATIVE as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_COMMA_AT_END",
+            IME_ASSIST_KIND_COMMA_AT_END as i64,
+        ),
         ("IME_MAX_ASSIST_ISSUES", IME_MAX_ASSIST_ISSUES as i64),
         ("IME_MAX_ASSIST_MSG", IME_MAX_ASSIST_MSG as i64),
         ("IME_MAX_ASSIST_SUGGEST", IME_MAX_ASSIST_SUGGEST as i64),

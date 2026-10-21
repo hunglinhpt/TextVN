@@ -192,6 +192,11 @@
 | L5 | Khoảng trắng kép | `double_space.rs` | ✅ | ✓ |
 | L6 | Chữ thường đầu câu — **bỏ qua nếu `auto_capitalize=true`** | `capitalize_sentence.rs` | ✅ | ✓ |
 | L8 | Sai vị trí dấu ("nghiã"→"nghĩa") — bảng curated ~12 mục | `diacritic_typo.rs` | ✅ | ✓ |
+| **L9** | Lặp từ ở **ranh giới câu** — chỉ khi từ lặp là **từ chức năng** (F91) | `sentence_repeat.rs` | ❌ gợi ý | ✓ (F90) |
+| **L10** | Phủ định kép "không có … không" | `double_negative.rs` | ❌ gợi ý | ✓ (F90) |
+| **L12** | Dấu phẩy ở cuối câu | `comma_at_end.rs` | ❌ gợi ý | ✓ (F90) |
+| L7 | Thiếu dấu chấm cuối câu khi gõ Enter | — | ❌ gợi ý | v2 |
+| L9a/L10a/L12a | Ngữ pháp học thuật (POS, cụm từ) | — | ❌ | v3 |
 | L7/L9/L10/L12 | Thiếu dấu chấm cuối câu · lặp từ ở ranh giới câu · phủ định kép · dấu câu sai | — | ❌ gợi ý | v2 |
 | — | Từ điển: sai chính tả từ + gợi ý từ (edit distance âm tiết) | `spell.rs` | gợi ý | **P4-4** |
 

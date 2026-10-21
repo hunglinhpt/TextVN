@@ -6,10 +6,13 @@
 //! false` va chi hien goi y.
 
 pub mod capitalize_sentence;
+pub mod comma_at_end;
 pub mod diacritic_typo;
+pub mod double_negative;
 pub mod double_space;
 pub mod duplicate_word;
 pub mod language;
+pub mod sentence_repeat;
 pub mod space_after_punct;
 pub mod space_before_punct;
 
@@ -59,6 +62,51 @@ impl Ctx {
 /// ("dân, dạy, dưới…") chu khong phai het cau (Fassist-87).
 pub(crate) fn is_sentence_end(ch: char) -> bool {
     matches!(ch, '.' | '!' | '?')
+}
+
+/// Dau `.` co phai that su ket thuc cau khong?
+///
+/// - `.` nam **trong ngoac** ("(Từ điển EN...) đặt ở...") hoac **trong dau nhay**
+///   khong phai het cau -> bo qua (Fassist-86).
+pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
+    if !is_sentence_end(ctx.chars[punct.start]) {
+        return false;
+    }
+    if ctx.chars[punct.start] != '.' {
+        return true;
+    }
+    let mut depth = 0i32;
+    let mut in_quote = false;
+    for &c in &ctx.chars[..punct.start] {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = (depth - 1).max(0),
+            '"' => in_quote = !in_quote,
+            _ => {}
+        }
+    }
+    depth == 0 && !in_quote
+}
+
+/// Tao issue **chi goi y** (khong tu sua) — cho luat mo ho (Fassist-90).
+///
+/// Luật objective thi dung `issue()` (co `Fix`); luật mo ho chi bao loi de
+/// nguoi dung quyet dinh => `auto_fixable = false`, `fix = None`.
+pub(crate) fn issue_suggestion(
+    kind: IssueKind,
+    span: Span,
+    message: String,
+    suggestions: Vec<String>,
+) -> Issue {
+    Issue {
+        kind,
+        span,
+        message,
+        suggestions,
+        auto_fixable: false,
+        confidence: 60,
+        fix: None,
+    }
 }
 
 /// Dau can co khoang trang phia sau (tru `)` `]` `}`).
