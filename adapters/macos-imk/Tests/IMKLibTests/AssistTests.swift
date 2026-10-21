@@ -24,8 +24,10 @@ final class AssistMockTarget: TextTarget {
     var inserted: [(text: String, replacement: NSRange)] = []
     var deletedCount: Int = 0
     var allowDelete: Bool = true
-    /// Text trước caret mà app trả về (nil = không đọc được → fail-safe).
+    /// Text trước caret mà app trả về (nil = dùng toàn bộ document).
     var textBeforeCaretValue: String?
+    /// true = app KHÔNG cho đọc text trước caret → `textBeforeCaret()` trả nil (fail-safe R-2).
+    var textBeforeCaretUnavailable: Bool = false
 
     init(initialText: String = "") {
         self.documentText = initialText
@@ -58,7 +60,8 @@ final class AssistMockTarget: TextTarget {
 
     /// Mặc định: text trước caret = toàn bộ document (mô phỏng app đơn giản).
     func textBeforeCaret() -> String? {
-        textBeforeCaretValue ?? documentText
+        if textBeforeCaretUnavailable { return nil }
+        return textBeforeCaretValue ?? documentText
     }
 }
 
@@ -382,7 +385,7 @@ final class AssistTests: XCTestCase {
     func testAssistFixPreconditionUnavailableSkips() {
         let controller = TextVNInputController(server: nil, delegate: nil, client: nil)
         let target = AssistMockTarget(initialText: "Tôi đi học .")
-        target.textBeforeCaretValue = nil
+        target.textBeforeCaretUnavailable = true
 
         let issue = AssistIssue(
             kind: FFI.assistKindSpaceBeforePunct,
