@@ -19,7 +19,15 @@
 
 | ID | Mức | Finding | Xử lý |
 |---|---|---|---|
-| **Fassist-78** | minor | `ime_assist_result_v1` (1736 B) — **cap đã rõ** (`count: 0..IME_MAX_ASSIST_ISSUES`) nhưng header **chưa nói rõ ownership** (struct là **giá trị**, caller giữ, **không** `free`) → dễ bị `free` nhầm (use-after-free) | ⚠️ **Không sửa tay `ffi/include/textvn_ffi.h`** — file này **do `cbindgen` sinh** (drift check ở CI, job macOS "header C-ABI") ⇒ sửa tay làm **CI đỏ** (đã tái hiện 2026-10-21). Cách đúng: thêm **doc comment** vào struct trong `ffi/src/lib.rs` (cbindgen lấy vào header) rồi **regenerate header** bằng cbindgen của CI. Việc này thuộc lane FFI (Agent Platform/FFI) |
+| **Fassist-84** | major | **Mirror header Swift bị stale** → job macOS "header C-ABI trong module Swift không được lệch `ffi/include/`" **ĐỎ từ `dba598c`**: repo có **2 bản** header — nguồn `ffi/include/textvn_ffi.h` + mirror `adapters/macos-imk/Sources/CTextVNFFI/include/textvn_ffi.h`; AS-021 thêm API assist vào **nguồn** nhưng **quên mirror** ⇒ chặn CI của cả team | ✅ Đã sửa (`dd1afeb`): copy nguồn → mirror (đúng như CI copy) ⇒ ci-macos xanh. **Bài học:** mọi thay đổi `ffi/include/textvn_ffi.h` phải **copy sang mirror** trong cùng commit (CI chỉ copy 1 chiều) |
+| **Fassist-85** | minor | `ffi/include/textvn_ffi.h` **không** do cbindgen sinh trong xtask (chú thích `xtask/src/main.rs:13` nói "chưa có") ⇒ sửa tay header **được**, nhưng phải sửa **cả 2 bản** | Ghi rõ quy trình (F84) để lane FFI không mắc lại |
+
+## 4.1 Bổ sung (2026-10-21, sau khi CI báo đỏ)
+
+- `764ec4c` (của tôi) sửa **1 dòng comment** trong `ffi/include/textvn_ffi.h` → **làm lệch mirror** → ci-macos đỏ. Đã hoàn nguyên phần sửa đó (`e962fce`).
+- Nguyên nhân gốc thực sự: mirror **đã stale sẵn từ `dba598c`** (thiếu khối assist API) ⇒ CI đỏ từ trước, tôi chỉ là người phát hiện sớm nhất.
+- Đã đồng bộ mirror (`dd1afeb`) ⇒ **7/7 workflow xanh**.
+- **F78 (ownership của `ime_assist_result_v1`)** vẫn **mở**: phải sửa ở **nguồn** `ffi/include/textvn_ffi.h` **và** mirror trong cùng commit (không sửa lệch 1 bản).
 | **Fassist-79** | minor | `ime_assist_trigger_kind` phân loại phím — nhưng **điểm hiển thị** (D11: chỉ hiện khi hết câu / idle ≥ 700 ms) **chưa có** trong diff | Đúng phạm vi: điểm hiển thị thuộc **UI (AS-023/AS-030)**; `trigger_kind` chỉ là *điểm kiểm* ✓ |
 
 ## 2. Vòng 17 — Audit (license/privacy/AV)
