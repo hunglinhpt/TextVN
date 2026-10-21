@@ -2,14 +2,14 @@
 # Luong nay CHI GOI Y (auto_fixable = false) - nguoi dung quyet dinh (Fassist-90).
 #
 # --- L9: lap tu o ranh gioi cau (chi tu chuc nang) ---
-Tôi không. Không sao cả.	sentence_repeat
+Tôi không. Không sao cả.	sentence_repeat@11-16
 Cô ấy cũng. Cũng vậy.	sentence_repeat
 Anh ấy đến trễ. Đến muộn thì chờ ai.
 # --- L10: phu dinh kep ---
-Tôi không có gì để nói không.	double_negative
+Tôi không có gì để nói không.	double_negative@4-9
 Cô ấy không có ai hỏi không.	double_negative
 # --- L12: dau phay o cuoi cau ---
-Tôi đi học ở trường,	comma_at_end
+Tôi đi học ở trường,	comma_at_end@19-20
 Chúng tôi cần trao đổi thêm thông tin,	comma_at_end
 # --- cau sach (khong loi) ---
 Tôi đi học. Học xong về nhà.

@@ -330,3 +330,6 @@ kết quả ghi vào `P{n}-REVIEW-LOG.md` của phần đó:
   - `assist score` thêm **`--per-kind`** (bảng recall theo từng loại luật) và **`--strict`** (so **span**; định dạng corpus mở rộng `kind@start-end`) — Fassist-93.
   - Số đo: **1.548 case** (53 lỗi · 1.495 câu sạch) → **recall 100 %** (60/60) · **precision 100 %** · **FPR 0,0 %**; **9 loại luật** đều recall 100 %.
   - **Fassist-92**: thêm `IssueKind` mới làm **vỡ `match` của FFI** (file agent khác) → vá FFI + thêm hằng `IME_ASSIST_KIND_*` 7/8/9 vào **cả 2 bản header** (nguồn + mirror Swift) nếu không sẽ đỏ CI macOS (F85).
+- 2026-10-21: **Khoá hành vi span + mẫu overlay cho UI lane**:
+  - Corpus hỗ trợ kỳ vọng `kind@start-end` (span = **ký tự Unicode**) → **10 case đã ghi span** ⇒ test đối chiếu **cả vị trí**, không chỉ loại lỗi (đóng Fassist-93).
+  - Lệnh mới **`textvn-cli assist show "<câu>"`** → in **mẫu overlay**: câu + vạch `^` đúng chỗ lỗi + thông điệp tiếng Việt + gợi ý ⇒ **spec hiển thị** cho lane UI (tray/overlay 3 OS) + kiểm thử thủ công không cần dựng UI (D38).

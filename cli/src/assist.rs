@@ -17,6 +17,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
     let rest = match rest.first().map(String::as_str) {
         Some("check") => &rest[1..],
         Some("score") => return cmd_score(&rest[1..]),
+        Some("show") => return cmd_show(&rest[1..]),
         Some(other) => {
             eprintln!("error: subcommand lạ `{other}` (chỉ hỗ trợ `check`, `score`)");
             eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
@@ -234,6 +235,66 @@ fn issue_json(issue: &Issue) -> serde_json::Value {
         "auto_fixable": issue.auto_fixable,
         "confidence": issue.confidence,
     })
+}
+
+/// `assist show` — render **mẫu overlay** (câu + vạch đánh dấu lỗi).
+///
+/// Đây là **spec hiển thị** cho lane UI (tray/overlay): mọi lỗi được gạch chân
+/// đúng vị trí (offset **ký tự Unicode**) + 1 dòng thông điệp tiếng Việt.
+fn cmd_show(rest: &[String]) -> i32 {
+    let mut text: Option<String> = None;
+    let mut json = false;
+    for arg in rest {
+        match arg.as_str() {
+            "--json" => json = true,
+            s if s.starts_with("--") => {
+                eprintln!("error: tham số lạ `{s}`");
+                return 2;
+            }
+            s => {
+                if text.is_some() {
+                    eprintln!("error: chỉ nhận một câu");
+                    return 2;
+                }
+                text = Some(s.to_string());
+            }
+        }
+    }
+    let Some(text) = text else {
+        eprintln!("error: thiếu câu cần hiển thị");
+        eprintln!("dùng: textvn-cli assist show \"<câu>\" [--json]");
+        return 2;
+    };
+
+    let issues = check(&text);
+    if json {
+        println!("{}", to_json(&issues));
+        return 0;
+    }
+
+    let chars: Vec<char> = text.chars().collect();
+    println!("{}", text);
+    if issues.is_empty() {
+        println!("(không có lỗi)");
+        return 0;
+    }
+    for (n, issue) in issues.iter().enumerate() {
+        let mut marker = vec![' '; chars.len()];
+        for (i, slot) in marker.iter_mut().enumerate() {
+            if i >= issue.span.start && i < issue.span.end {
+                *slot = '^';
+            }
+        }
+        let marker: String = marker.into_iter().collect();
+        let suggestion = issue
+            .suggestions
+            .first()
+            .map(|s| format!("  -> {s}"))
+            .unwrap_or_default();
+        println!("{marker}");
+        println!("  {}. {}{suggestion}", n + 1, issue.message);
+    }
+    0
 }
 
 /// Chuyển danh sách issue sang JSON.

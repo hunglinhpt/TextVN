@@ -124,6 +124,7 @@
 | **D35** | **L0 dùng OS** trước heuristic (`NLLanguageRecognizer` · ICU · locale/MUI) | Thay đoán bằng dữ liệu hệ thống (F68) |
 | **D36** | Provider OS gọi **bất đồng bộ, timeout ≤ 50 ms, fail-open** (provider có thể out-of-proc) | Không chặn input path (F70) |
 | **D37** | Từ điển FST **vẫn ship** (fallback) + attribution GPL đầy đủ | Windows mặc định không có `vi-VN` (F67) |
+| **D38** | **Spec hiển thị overlay = `textvn-cli assist show "<câu>"`** (câu + vạch `^` đúng span char Unicode + thông điệp tiếng Việt + gợi ý) — UI lane (tray/overlay) lấy làm chuẩn hiển thị + kiểm thử thủ công không cần dựng UI | Đồng bộ 3 OS dễ hơn (P4-0 §6) |
 
 > Chi tiết nghiên cứu OS-first: `P4-4-OS-NATIVE-ASSIST.md`.
 

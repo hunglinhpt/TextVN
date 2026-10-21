@@ -8,7 +8,7 @@
 # Test: assist/tests/corpus.rs (chạy CI 3 OS).
 #
 # --- nhom: lap tu (L1/L2/L11) ---
-tôi tôi đi học	duplicate_word
+tôi tôi đi học	duplicate_word@4-7
 của của nhà này	duplicate_word
 đã đã xong việc rồi	duplicate_word
 rất rất đẹp	duplicate_word
@@ -19,7 +19,7 @@ sao lại lại thế	duplicate_word
 nó vẫn vẫn còn ở đó	duplicate_word
 anh ấy nói nói thật với tôi	duplicate_word
 # --- nhom: khoang trang thua truoc dau cau (L3) ---
-xin chào , bạn	space_before_punct
+xin chào , bạn	space_before_punct@8-9
 tôi đi học .	space_before_punct
 bạn khỏe không ?	space_before_punct
 cảm ơn bạn !	space_before_punct
@@ -28,25 +28,25 @@ hẹn gặp lại ;	space_before_punct
 anh ấy đến rồi .	space_before_punct
 tôi về nhà , nghỉ ngơi thôi	space_before_punct
 # --- nhom: thieu khoang trang sau dau cau (L4) ---
-xin chào,bạn	space_after_punct
+xin chào,bạn	space_after_punct@8-9
 tôi đi,về nhà	space_after_punct
 bạn khỏe không?vậy	space_after_punct
 cảm ơn bạn!mình đi	space_after_punct
 hẹn gặp lại;mai vậy	space_after_punct
 đây là điều đó:quan trọng	space_after_punct
 # --- nhom: khoang trang kep (L5) ---
-xin  chào bạn	double_space
+xin  chào bạn	double_space@4-5
 tôi  đi  học	double_space,double_space
 rất  đẹp	double_space
 hôm  nay	double_space
 # --- nhom: chu thuong dau cau (L6) ---
-Xin chào. bạn khỏe không	lowercase_sentence_start
+Xin chào. bạn khỏe không	lowercase_sentence_start@10-11
 Tôi đi học. chiều nay về chứ	lowercase_sentence_start
 Học xong. tôi về nhà	lowercase_sentence_start
 Vậy rồi. đi thôi	lowercase_sentence_start
 Xin lỗi. tôi đến muộn	lowercase_sentence_start
 # --- nhom: sai vi tri dau (L8) ---
-tôi nghiã kho	diacritic_typo
+tôi nghiã kho	diacritic_typo@4-9
 cuả nha tôi	diacritic_typo
 tiêng viet đẹp	diacritic_typo
 yểu nói nào	diacritic_typo
@@ -81,6 +81,6 @@ We should meet tomorrow.
 xem https://example.com/a.b nhe
 ghi cho abc@x.vn nha
 # --- nhom: nhom loi (nhieu loai trong 1 cau) ---
-tôi tôi đi học , mai	duplicate_word,space_before_punct
+tôi tôi đi học , mai	duplicate_word@4-7,space_before_punct@14-15
 xin chào,ban  khỏe .	space_after_punct,double_space,space_before_punct
 tôi  đi  học , mai	double_space,double_space,space_before_punct

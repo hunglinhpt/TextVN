@@ -77,6 +77,8 @@ Ngoài câu mẫu tổng hợp, đã sinh corpus sạch từ **chính tài liệ
 ### Công cụ đo mở rộng (F81)
 - `assist score --per-kind` → bảng recall **theo từng loại luật** (phát hiện luật nào yếu).
 - `assist score --strict` → đòi **span khớp** (định dạng corpus mở rộng `kind@start-end`; span = **char Unicode**).
+- **Khoá span trong corpus**: 10 case đã ghi kỳ vọng `kind@start-end` ⇒ test **đối chiếu cả vị trí** (không chỉ loại lỗi) → chặn hồi quy "báo đúng loại nhưng lệch chỗ" (Fassist-93 đóng).
+- **`textvn-cli assist show "<câu>"`** → render **mẫu overlay** (câu + vạch `^` đúng span char Unicode + thông điệp tiếng Việt + gợi ý) = **spec hiển thị** cho lane UI (tray/overlay) + kiểm thử thủ công mà không cần dựng UI (D38).
 
 ### Số đo sau khi thêm 3 luật
 | Chỉ số | Kết quả |
