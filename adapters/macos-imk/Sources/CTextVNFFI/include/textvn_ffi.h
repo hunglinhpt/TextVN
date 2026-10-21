@@ -37,6 +37,22 @@ extern "C" {
 #define IME_FLAG_ERROR      0x4u  /* engine gặp lỗi → adapter nên treat như PASS      */
 #define IME_FLAG_SUGGEST    0x8u  /* có gợi ý sẵn (chỉ khi feature "suggest" bật)     */
 
+/* ---- assist constants (P4-0 §4 / §5) ---- */
+#define IME_ASSIST_KIND_DUPLICATE_WORD     1u
+#define IME_ASSIST_KIND_SPACE_BEFORE_PUNCT 2u
+#define IME_ASSIST_KIND_SPACE_AFTER_PUNCT  3u
+#define IME_ASSIST_KIND_DOUBLE_SPACE       4u
+#define IME_ASSIST_KIND_LOWERCASE_SENTENCE 5u
+#define IME_ASSIST_KIND_DIACRITIC_TYPO     6u
+
+#define IME_MAX_ASSIST_ISSUES              8
+#define IME_MAX_ASSIST_MSG                 128
+#define IME_MAX_ASSIST_SUGGEST             64
+
+#define IME_ASSIST_TRIGGER_NONE            0u
+#define IME_ASSIST_TRIGGER_WORD            1u
+#define IME_ASSIST_TRIGGER_SENTENCE        2u
+
 /* ---- key mods ---- */
 #define IME_MOD_SHIFT 0x1u
 #define IME_MOD_CTRL  0x2u
@@ -121,6 +137,23 @@ typedef struct ime_suggest {     /* feature "suggest" — nếu adapter không d
   uint32_t items[IME_MAX_SUGGEST][IME_MAX_TEXT];    /* UTF-32, 0-terminated */
 } ime_suggest_v1;
 
+typedef struct ime_assist_issue {
+  uint32_t kind;                                    /* IME_ASSIST_KIND_* */
+  uint32_t start;                                   /* offset ký tự Unicode bắt đầu (inclusive) */
+  uint32_t end;                                     /* offset ký tự Unicode kết thúc (exclusive) */
+  uint32_t auto_fixable;                            /* 1 = có thể tự sửa, 0 = chỉ gợi ý */
+  uint32_t confidence;                              /* 0..100 (D28) */
+  char     message[IME_MAX_ASSIST_MSG];             /* UTF-8, 0-terminated */
+  uint32_t suggest_len;                             /* độ dài UTF-8 của gợi ý đầu */
+  char     suggest[IME_MAX_ASSIST_SUGGEST];         /* UTF-8, 0-terminated */
+} ime_assist_issue_v1;
+
+typedef struct ime_assist_result {
+  uint32_t            abi_version;                  /* = IME_ABI_VERSION */
+  uint32_t            count;                        /* 0..IME_MAX_ASSIST_ISSUES */
+  ime_assist_issue_v1 issues[IME_MAX_ASSIST_ISSUES];
+} ime_assist_result_v1;
+
 /* ---- API ---- */
 uint32_t     ime_abi_version(void);                     /* luôn IME_ABI_VERSION của lib */
 /* config sai schema: VẪN tạo instance với config mặc định, trả IME_ERR_CONFIG (non-fatal)
@@ -145,6 +178,18 @@ int32_t      ime_strategy_resolve(const ime_context_v1 *ctx,
 const char  *ime_last_error(const ime_instance *inst);  /* UTF-8, hợp lệ đến lần gọi kế tiếp
                                                            trên CÙNG instance; không chứa text
                                                            người dùng */
+/* ---- Assist API (P4-2 · D23) ---- */
+uint32_t     ime_assist_trigger_kind(uint32_t ch);      /* NONE(0), WORD(1), SENTENCE(2) */
+int32_t      ime_assist_check(const char *text_utf8, size_t len,
+                              ime_assist_result_v1 *out);
+int32_t      ime_assist_check_instance(ime_instance *inst,
+                                       ime_assist_result_v1 *out);
+int32_t      ime_assist_sentence_tail(const ime_instance *inst, size_t max_chars,
+                                      char *out_buf, size_t buf_len,
+                                      size_t *out_len);
+int32_t      ime_assist_glyph_len(const ime_instance *inst,
+                                  const char *text_utf8, size_t len,
+                                  size_t *out_glyphs);
 #ifdef __cplusplus
 }
 #endif
