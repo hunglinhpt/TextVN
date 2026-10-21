@@ -22,12 +22,41 @@
 
 #include <dlfcn.h>
 
+#include <chrono>
 #include <cstring>
 #include <string>
 
 namespace textvn {
 
 /* ---- Tiện ích thuần ---- */
+
+/* Số mili giây từ epoch steady (đo hạn 5 s của undo — R-4). */
+uint64_t nowMs() {
+    using namespace std::chrono;
+    return static_cast<uint64_t>(
+        duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
+}
+
+/* R-2 (fail-safe): so **text trước caret** trong document với đuôi câu mà
+ * engine biết. Không đọc được (client không hỗ trợ surrounding text) hoặc lệch
+ * ⇒ trả false ⇒ **không sửa** (đây là chốt chặn "xoá nhầm text lạ" khi engine
+ * buffer stale: user bấm chuột đặt caret chỗ khác rồi gõ `.`).
+ *
+ * `expected` là Unicode (buffer của core); document chứa glyph theo bảng mã
+ * xuất — với `unicode_precomposed` (mặc định) 1 char = 1 byte UTF-8-ish nên
+ * so được; bảng mã khác ⇒ lệch ⇒ không sửa (an toàn hơn sửa nhầm). */
+bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &expected) {
+    if (!ic || expected.empty()) return false;
+    fcitx::SurroundingText surrounding = ic->surroundingText();
+    if (!surrounding.isValid()) return false;
+    std::string text = surrounding.text();
+    const int cursor = surrounding.cursor();
+    if (cursor >= 0 && static_cast<size_t>(cursor) <= text.size()) {
+        text = text.substr(0, static_cast<size_t>(cursor));
+    }
+    if (text.size() < expected.size()) return false;
+    return text.compare(text.size() - expected.size(), expected.size(), expected) == 0;
+}
 
 std::string utf32ToUtf8(const uint32_t *text, size_t len) {
     std::string out;
@@ -124,10 +153,11 @@ lc_modifier fcitxModifierKind(fcitx::KeySym sym) {
 class AssistCandidateWord : public fcitx::CandidateWord {
 public:
     AssistCandidateWord(std::string text, std::string comment, std::string replacement,
-                        uint32_t deleteGlyphs)
+                        uint32_t deleteGlyphs, std::string originalTail = std::string())
         : fcitx::CandidateWord(fcitx::Text(comment.empty() ? text : text + " (" + comment + ")")),
           replacement_(std::move(replacement)),
-          deleteGlyphs_(deleteGlyphs) {}
+          deleteGlyphs_(deleteGlyphs),
+          originalTail_(std::move(originalTail)) {}
 
     void select(fcitx::InputContext *ic) const override {
         if (!ic) return;
@@ -137,7 +167,14 @@ public:
                     !ic->surroundingText().isValid()) {
                     return;
                 }
-                ic->deleteSurroundingText(-static_cast<int>(deleteGlyphs_), deleteGlyphs_);
+                /* R-2: chỉ xoá khi vùng trước caret **đúng** là đuôi câu engine
+                 * biết (caret ở chỗ khác ⇒ không xoá nhầm). */
+                if (!originalTail_.empty() && !textBeforeCaretMatches(ic, originalTail_)) {
+                    return;
+                }
+                /* Chỉ xoá **trước** caret: phần sau caret không thuộc phạm vi
+                 * sửa (xoá cả 2 phía ⇒ mất dữ liệu người dùng). */
+                ic->deleteSurroundingText(-static_cast<int>(deleteGlyphs_), 0);
             }
             if (!replacement_.empty()) {
                 ic->commitString(replacement_);
@@ -151,6 +188,7 @@ public:
 private:
     std::string replacement_;
     uint32_t deleteGlyphs_ = 0;
+    std::string originalTail_;
 };
 
 /* ---- State per IC ---- */
@@ -375,7 +413,6 @@ void TextVNEngine::syncAssistState(TextVNState *) {
 
 bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                                       bool isSentenceTrigger, bool planEaten) {
-    (void)isSentenceTrigger;
     if (!st || !st->inst || !st->ic) return planEaten;
     if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
         return planEaten;
@@ -388,9 +425,11 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         return planEaten;
     }
 
-    /* Mode 2: autocorrect + safe auto_fix */
-    const bool isAutoCorrectMode = (st->config.assist_mode == LC_ASSIST_MODE_AUTOCORRECT) &&
-                                  (st->config.assist_auto_fix == LC_ASSIST_AUTO_FIX_SAFE);
+    /* R-5 (P4-0 §4.3): Mode 2 = mode "autocorrect" VÀ auto_fix "safe" VÀ
+     * trigger **kết thúc câu** — cùng ngữ nghĩa cho cả 3 OS. */
+    const bool isAutoCorrectMode =
+        lc_assist_should_auto_fix(st->config.assist_mode, st->config.assist_auto_fix,
+                                  isSentenceTrigger ? 1 : 0) != 0;
 
     char sentence[512];
     size_t actual_len = 0;
@@ -411,10 +450,26 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 if (!planEaten && triggerChar != 0) {
                     st->ic->commitString(utf32ToUtf8(&triggerChar, 1));
                 }
+                /* R-2: chỉ xoá khi vùng trước caret **đúng** là đuôi câu engine
+                 * biết; không xác minh được ⇒ KHÔNG sửa (fail-safe, D12). */
+                if (!textBeforeCaretMatches(st->ic, fixPlan.original_tail)) {
+                    return planEaten;
+                }
                 if (fixPlan.delete_glyphs > 0) {
-                    st->ic->deleteSurroundingText(-static_cast<int>(fixPlan.delete_glyphs), fixPlan.delete_glyphs);
+                    /* Chỉ xoá **trước** caret (sau caret không thuộc phạm vi sửa). */
+                    st->ic->deleteSurroundingText(-static_cast<int>(fixPlan.delete_glyphs), 0);
                 }
                 st->ic->commitString(fixPlan.replacement);
+                /* R-4: sau khi đã thay document, buffer engine phải sạch —
+                 * giữ câu cũ ⇒ mỗi trigger lại xoá+commit lại (lặp, nhân bản
+                 * history trong app). */
+                if (st->inst) ime_reset(st->inst);
+                /* R-4: lưu state hoàn tác 1 bước (Ctrl+Z trong 5 s). */
+                st->assistUndoValid = true;
+                st->assistUndoOriginalTail = fixPlan.original_tail;
+                st->assistUndoReplacement = fixPlan.replacement;
+                st->assistUndoReplacementGlyphs = fixPlan.delete_glyphs;
+                st->assistUndoTimestampMs = nowMs();
                 if (ipc_) {
                     lc_ipc_client_send_assist_report(ipc_, res.count, fixPlan.fixed_count);
                 }
@@ -423,9 +478,10 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         }
     }
 
-    /* Mode 1: highlight / suggestions (CandidateList & tooltip) */
-    if (st->config.assist_mode == LC_ASSIST_MODE_HIGHLIGHT ||
-        (st->config.assist_mode == LC_ASSIST_MODE_AUTOCORRECT && !isAutoCorrectMode)) {
+    /* Mode 1: highlight / suggestions (CandidateList & tooltip).
+     * R-6 (D11): chỉ hiện ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
+     * tung panel là UI spam. */
+    if (lc_assist_should_display(st->config.assist_mode, isSentenceTrigger ? 1 : 0)) {
         try {
             auto candList = std::make_unique<fcitx::CommonCandidateList>();
             candList->setLayoutHint(fcitx::CandidateLayoutHint::Vertical);
@@ -445,13 +501,15 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 lc_sentence_fix_plan singlePlan;
                 uint32_t delGlyphs = 0;
                 std::string rep = issue.suggest;
+                std::string origTail;
                 if (lc_plan_sentence_auto_fix(st->inst, sentence, &single, &singlePlan)) {
                     delGlyphs = singlePlan.delete_glyphs;
                     rep = singlePlan.replacement;
+                    origTail = singlePlan.original_tail;
                 }
 
                 candList->append(std::make_unique<AssistCandidateWord>(
-                    issue.suggest, issue.message, rep, delGlyphs));
+                    issue.suggest, issue.message, rep, delGlyphs, origTail));
                 added++;
             }
 
@@ -476,7 +534,6 @@ std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
                                            fcitx::InputContext &) {
     return viEnabled_ ? "V" : "E";
 }
-
 std::string TextVNEngine::subModeIconImpl(const fcitx::InputMethodEntry &,
                                           fcitx::InputContext &) {
     return viEnabled_ ? "textvn_v" : "textvn_e";
@@ -559,15 +616,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
             clearAssistUI(st);
             return true;
         }
+        // Để Fcitx5 tự xử lý phím số 1..3 chọn ứng viên từ candidateList đang hiện
         if (!states.testAny(fcitx::KeyState::Ctrl | fcitx::KeyState::Alt | fcitx::KeyState::Super) &&
             key.sym() >= FcitxKey_1 && key.sym() <= FcitxKey_3) {
-            auto *candList = dynamic_cast<fcitx::CommonCandidateList *>(st->ic->inputPanel().candidateList());
-            size_t idx = static_cast<size_t>(key.sym() - FcitxKey_1);
-            if (candList && idx < candList->totalCandidates()) {
-                candList->candidate(idx).select(st->ic);
-                clearAssistUI(st);
-                return true;
-            }
+            return false;
         }
         clearAssistUI(st);
     }
@@ -575,6 +627,21 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     uint32_t mods = fcitxMods(states);
     /* Caps Lock bật: engine coi phím dấu Telex viết hoa là phím dấu (VIEETJ → VIỆT). */
     if (rawStates.test(fcitx::KeyState::CapsLock)) mods |= IME_MOD_CAPS;
+
+    /* R-4 (AS-050): Ctrl+Z hoàn tác tự sửa cả câu (1 bước, hạn 5 s).
+     * R-3: mọi phím KHÁC ⇒ huỷ state hoàn tác (gõ tiếp không được bị Ctrl+Z
+     * sau đó xoá nhầm chữ vừa gõ). */
+    const bool isAssistUndoChord =
+        states.test(fcitx::KeyState::Ctrl) &&
+        !states.testAny(fcitx::KeyState::Alt | fcitx::KeyState::Super | fcitx::KeyState::Shift) &&
+        key.sym() == FcitxKey_z;
+    if (isAssistUndoChord) {
+        if (applyAssistUndo(st)) {
+            return true;
+        }
+    } else {
+        st->assistUndoValid = false;
+    }
 
     /* Ctrl+Shift+Space (ADR-011). */
     if ((mods & (IME_MOD_CTRL | IME_MOD_SHIFT)) == (IME_MOD_CTRL | IME_MOD_SHIFT) &&
