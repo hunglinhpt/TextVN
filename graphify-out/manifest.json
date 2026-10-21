@@ -1290,9 +1290,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
-    "mtime": 1792598245.77133,
-    "seen": 1792598364.5954359,
-    "ast_hash": "d4ff824dd445c88b29b20b1e819c2d54",
+    "mtime": 1792598467.3828914,
+    "seen": 1792598561.4504025,
+    "ast_hash": "112cbf73acecdf45390125a4b21ad159",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/tests/e2e_fcitx5.py": {
@@ -1386,9 +1386,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Tests/TextVNAppTests/TextVNAppTests.swift": {
-    "mtime": 1792593415.103656,
-    "seen": 1792593937.102255,
-    "ast_hash": "59f6bc39820e293167e9566b1abf33c1",
+    "mtime": 1792598408.9420419,
+    "seen": 1792598561.4539857,
+    "ast_hash": "d7e6e67211eb3816afabc7c09d79b92c",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Package.swift": {
@@ -2580,9 +2580,9 @@
     "semantic_hash": ""
   },
   "tools/assist/gen_corpus_tatoeba.py": {
-    "mtime": 1792561195.7099643,
-    "seen": 1792562010.9839618,
-    "ast_hash": "4537360073008c9b1a62defd9d393234",
+    "mtime": 1792598521.0347886,
+    "seen": 1792598561.4775255,
+    "ast_hash": "514fa71372cad44dac1c05348eb53301",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-8-QUALITY-BASELINE.md": {
