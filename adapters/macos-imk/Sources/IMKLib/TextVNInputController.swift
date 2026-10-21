@@ -760,7 +760,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // hiện gợi ý, không tự sửa, không báo IPC.
         guard assistKillSwitchOn else { return false }
         guard let engine = engine else { return false }
-        let issues = engine.assistCheck()
+        // D16 (Fassist-20): crate `assist` không đọc config ⇒ **luôn** trả lỗi L6
+        // ("chữ thường đầu câu"). Khi `config.auto_capitalize=true` thì IME/app
+        // **đã tự viết hoa** ⇒ báo L6 là trùng chức năng ⇒ **loại** ở đây
+        // (sau khi engine đã check, trước khi hiển thị/tự sửa) ⇒ áp dụng cho
+        // **cả Mode 1** và **Mode 2** (cùng mảng `issues`).
+        let issues = filterAutoCapitalizeConflicts(
+            engine.assistCheck(),
+            autoCapitalize: assistSettings.auto_capitalize
+        )
         guard !issues.isEmpty else {
             candidatePanel?.hide()
             currentCandidates.removeAll()
@@ -830,6 +838,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// Chỉ xoá **trước** caret (phần sau caret không thuộc phạm vi sửa).
     @discardableResult
     func applyAssistFix(plan: SentenceFixPlan, target: TextTarget) -> Bool {
+        // Q-8 (precondition "selection rỗng"): nếu người dùng đang **bôi đen**
+        // text, `insert(..., NSRange(location: NSNotFound, length: 0))` = "chèn tại
+        // selection" ⇒ có thể **nuốt mất** lựa chọn của họ. Windows TSF đã có
+        // precondition này (`edit_session.rs`: `sel.IsEmpty()`) ⇒ macOS phải có
+        // parity. Selection không rỗng ⇒ **không sửa** (fail-safe).
+        guard TextVNInputController.selectionIsEmpty(target) else {
+            Diagnostics.log("assist: selection not empty — skip")
+            return false
+        }
         guard plan.deleteGlyphs > 0 else { return false }
         guard let before = target.textBeforeCaret() else {
             Diagnostics.log("assist: precondition unavailable — skip")
@@ -845,6 +862,17 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
         target.insert(plan.replacement, replacementRange: NSRange(location: NSNotFound, length: 0))
         return true
+    }
+
+    /// Selection phải **RỖNG** (caret rỗng) — tương đương `sel.IsEmpty()` của
+    /// Windows TSF (`adapters/windows-tsf/src/edit_session.rs`).
+    ///
+    /// `length == 0` = không có vùng bôi đen. `NSRange(location: NSNotFound,
+    /// length: 0)` (client không báo selection) cũng được coi là rỗng — nhưng
+    /// đường đó đã bị chặn sớm hơn bởi `textBeforeCaret()` (trả `nil` ⇒ không
+    /// sửa), nên không mở lại cửa sổ "xoá nhầm selection".
+    static func selectionIsEmpty(_ target: TextTarget) -> Bool {
+        target.selectionRange().length == 0
     }
 
     /// Dựng danh sách gợi ý **có kế hoạch sửa** (A2) — chọn gợi ý ⇒ *thay từ lỗi*

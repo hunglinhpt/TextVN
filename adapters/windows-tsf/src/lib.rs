@@ -280,6 +280,16 @@ pub struct ThreadState {
     /// R-5: Mode 2 (tự sửa cả câu) chỉ bật khi `mode == "autocorrect"` **và**
     /// `auto_fix == "safe"` — cùng ngữ nghĩa cho cả 3 OS (P4-0 §4).
     assist_mode: textvn_config::AssistMode,
+    /// `config.auto_capitalize` của lần nạp config gần nhất (D16 · Fassist-20).
+    ///
+    /// D16: crate `assist` **không** đọc config (0-dep, không I/O) ⇒ nó **luôn**
+    /// trả lỗi L6 ("chữ thường đầu câu"). Khi `auto_capitalize=true` thì
+    /// IME/app **đã tự viết hoa** ⇒ báo L6 là **trùng chức năng** ⇒ **lớp
+    /// adapter** (chỗ đọc được config) phải loại L6.
+    ///
+    /// Mặc định = `config.auto_capitalize` của crate `config` (`true`) — khớp
+    /// `Config::default()` nên không lệch khi config chưa nạp được.
+    auto_capitalize: bool,
 }
 
 impl ThreadState {
@@ -293,6 +303,7 @@ impl ThreadState {
             macro_when_off: false,
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
             assist_mode: textvn_config::AssistMode::default(),
+            auto_capitalize: textvn_config::Config::default().auto_capitalize,
         })
     }
 
@@ -417,6 +428,7 @@ impl ThreadState {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
             self.assist_auto_fix = cfg.assist.auto_fix;
             self.assist_mode = cfg.assist.mode;
+            self.auto_capitalize = cfg.auto_capitalize;
         }
         Ok(())
     }
@@ -435,6 +447,15 @@ impl ThreadState {
     /// Chế độ Trợ lý ngữ pháp (AS-050 · Mode 1 = `highlight`, Mode 2 = `autocorrect`).
     pub fn assist_mode(&self) -> textvn_config::AssistMode {
         self.assist_mode
+    }
+
+    /// `config.auto_capitalize` (D16 · Fassist-20) — lớp adapter **loại** lỗi
+    /// L6 ("chữ thường đầu câu") khi cờ này **bật** (IME/app đã tự viết hoa).
+    ///
+    /// Đọc **cùng đường** với `assist.mode`/`assist.auto_fix`: cùng lần nạp
+    /// `config.v1.json` (`reload_config_bytes`).
+    pub fn auto_capitalize(&self) -> bool {
+        self.auto_capitalize
     }
 }
 
@@ -1028,6 +1049,29 @@ mod tests {
             Strategy::Preedit,
             "Khi bật lại tiếng Việt, strategy quay lại Preedit"
         );
+    }
+
+    /// D16 (Fassist-20): `auto_capitalize` đọc **cùng đường** với
+    /// `assist.mode`/`assist.auto_fix` (nạp `config.v1.json` từ file) — mặc
+    /// định `true` (khớp crate `config`: `Config::default().auto_capitalize`).
+    #[test]
+    fn d16_auto_capitalize_theo_config() {
+        let mut state = ThreadState::new("notepad.exe", 0).unwrap();
+        assert!(
+            state.auto_capitalize(),
+            "mặc định = true (khớp Config::default của crate config)"
+        );
+        state
+            .reload_config_bytes(br#"{"config_version":1,"auto_capitalize":false}"#)
+            .unwrap();
+        assert!(!state.auto_capitalize());
+        state
+            .reload_config_bytes(br#"{"config_version":1,"auto_capitalize":true}"#)
+            .unwrap();
+        assert!(state.auto_capitalize());
+        // Config hỏng → giữ cờ cũ (P0-3 §1.3 "sai schema → giữ config cũ").
+        assert!(state.reload_config_bytes(b"{oops").is_err());
+        assert!(state.auto_capitalize());
     }
 
     #[test]

@@ -2,6 +2,10 @@
 //! AssistModel — mô hình dữ liệu và logic Trợ lý ngữ pháp macOS (P4-0, AS-060).
 //!
 //! Khớp 1-1 với ConfigModel / schema schemas/config.v1.schema.json và crate config.
+//!
+//! Ngoại lệ D16: `AssistSettings.auto_capitalize` là khoá **gốc** của
+//! `config.v1.json` (`config.auto_capitalize`, P0-3 §1.1) — KHÔNG nằm trong
+//! object `assist`; `AssistConfigParser` đọc riêng rồi gộp vào.
 
 import CoreBridge
 import Foundation
@@ -42,6 +46,20 @@ public struct AssistSettings: Codable, Equatable {
     public var display: AssistDisplay
     public var max_sentence_chars: Int
     public var per_app: [String: Bool]
+    /// `config.auto_capitalize` (khoá **gốc** của `config.v1.json`).
+    ///
+    /// D16 (Fassist-20): crate `assist` **không** đọc config ⇒ **luôn** trả lỗi
+    /// L6 ("chữ thường đầu câu"). Khi cờ này **bật** thì IME/app **đã tự viết
+    /// hoa** ⇒ báo L6 là **trùng chức năng** ⇒ lớp adapter phải **loại** L6.
+    ///
+    /// LƯU Ý: khoá này **không** nằm trong object `assist` — nó là khoá gốc
+    /// (`config.auto_capitalize`, P0-3 §1.1). `AssistConfigParser` đọc riêng
+    /// khoá gốc rồi gộp vào đây.
+    public var auto_capitalize: Bool
+
+    /// Mặc định của `config.auto_capitalize` — phải khớp crate `config`
+    /// (`Config::default().auto_capitalize`).
+    public static let defaultAutoCapitalize = true
 
     public init(
         mode: String = "off",
@@ -50,7 +68,8 @@ public struct AssistSettings: Codable, Equatable {
         trigger_keys: [String] = ["space", ",", "."],
         display: AssistDisplay = AssistDisplay(),
         max_sentence_chars: Int = 500,
-        per_app: [String: Bool] = [:]
+        per_app: [String: Bool] = [:],
+        auto_capitalize: Bool = AssistSettings.defaultAutoCapitalize
     ) {
         self.mode = mode
         self.auto_fix = auto_fix
@@ -59,6 +78,7 @@ public struct AssistSettings: Codable, Equatable {
         self.display = display
         self.max_sentence_chars = max_sentence_chars
         self.per_app = per_app
+        self.auto_capitalize = auto_capitalize
     }
 
     public init(from decoder: Decoder) throws {
@@ -72,6 +92,8 @@ public struct AssistSettings: Codable, Equatable {
         max_sentence_chars =
             try c.decodeIfPresent(Int.self, forKey: .max_sentence_chars) ?? d.max_sentence_chars
         per_app = try c.decodeIfPresent([String: Bool].self, forKey: .per_app) ?? d.per_app
+        auto_capitalize =
+            try c.decodeIfPresent(Bool.self, forKey: .auto_capitalize) ?? d.auto_capitalize
     }
 
     public var isOn: Bool { mode != "off" }
@@ -89,20 +111,35 @@ public struct AssistSettings: Codable, Equatable {
 }
 
 /// Parser cấu hình assist từ config.json.
+///
+/// `config.auto_capitalize` là khoá **gốc** của `config.v1.json` (P0-3 §1.1) —
+/// **không** nằm trong object `assist`. Parser đọc riêng khoá gốc rồi gộp vào
+/// `AssistSettings` (thiếu khoá ⇒ mặc định `true`, khớp crate `config`).
 public enum AssistConfigParser {
     public static func parse(from data: Data?) -> AssistSettings {
         guard let data,
-              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let assistObj = obj["assist"]
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else {
             return AssistSettings()
         }
-        guard let assistData = try? JSONSerialization.data(withJSONObject: assistObj),
-              let settings = try? JSONDecoder().decode(AssistSettings.self, from: assistData)
-        else {
-            return AssistSettings()
+        // Khoá gốc `auto_capitalize` — đọc trước để dùng cho cả 2 nhánh.
+        let autoCapitalize =
+            (obj["auto_capitalize"] as? Bool) ?? AssistSettings.defaultAutoCapitalize
+        var settings = AssistSettings()
+        settings.auto_capitalize = autoCapitalize
+        guard let assistObj = obj["assist"] as? [String: Any] else {
+            // Không có object `assist` ⇒ assist tắt, nhưng cờ gốc vẫn phải đúng.
+            return settings
         }
-        return settings
+        var assist = assistObj
+        assist["auto_capitalize"] = autoCapitalize
+        guard let assistData = try? JSONSerialization.data(withJSONObject: assist),
+              let decoded = try? JSONDecoder().decode(AssistSettings.self, from: assistData)
+        else {
+            return settings
+        }
+        decoded.auto_capitalize = autoCapitalize
+        return decoded
     }
 }
 
@@ -175,6 +212,24 @@ public struct AssistCandidate: Equatable {
         self.text = text
         self.plan = plan
     }
+}
+
+/// **D16** (Fassist-20) — loại lỗi L6 ("chữ thường đầu câu") khi
+/// `config.auto_capitalize=true`.
+///
+/// Crate `assist` **không** đọc config (0-dep, không I/O) ⇒ nó **luôn** trả lỗi
+/// L6. Khi `auto_capitalize=true` thì IME/app **đã tự viết hoa** ⇒ báo L6 là
+/// **trùng chức năng** ⇒ **lớp adapter** (chỗ đọc được config) phải loại.
+///
+/// Lọc **sau** khi engine đã trả kết quả (không lọc trước khi check) ⇒ các
+/// luật khác giữ nguyên hành vi. Áp dụng cho **cả Mode 1** (gợi ý) và
+/// **Mode 2** (tự sửa) — cùng nguồn `issues` ở `processAssist`.
+public func filterAutoCapitalizeConflicts(
+    _ issues: [AssistIssue],
+    autoCapitalize: Bool
+) -> [AssistIssue] {
+    guard autoCapitalize else { return issues }
+    return issues.filter { $0.kind != FFI.assistKindLowercaseSentence }
 }
 
 /// Tên loại lỗi ổn định (wire format `AssistReport.issues[].kind` — khớp

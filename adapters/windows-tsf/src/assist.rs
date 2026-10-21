@@ -31,6 +31,10 @@
 //! - **D38**: định dạng hiển thị lấy chuẩn từ `textvn-cli assist show`
 //!   (câu + vạch `^` đúng span + thông điệp + gợi ý) — xem
 //!   [`OverlayView::render_plain`].
+//! - **D16**: crate `assist` **không** đọc config ⇒ **luôn** trả lỗi L6 ("chữ
+//!   thường đầu câu"). Lớp adapter (chỗ đọc được config) **loại** L6 khi
+//!   `config.auto_capitalize=true` — xem
+//!   [`remove_auto_capitalize_conflicts`] (lọc **sau** khi engine đã check).
 
 use crate::compose::KeyKind;
 
@@ -789,7 +793,6 @@ fn claim_notify_slot(now_ms: u64) -> bool {
 /// Kết quả một lần kiểm tra câu — nguồn **duy nhất** cho cả overlay (AS-030) và
 /// toast tray (AS-022), nên span `start..end` trong `result` luôn trỏ đúng vào
 /// `sentence` (không phải bản sao thứ hai của câu).
-#[cfg(windows)]
 #[derive(Clone)]
 pub struct AssistCheck {
     /// Câu đã cắt theo [`SENTENCE_MAX_CHARS`] — đúng chuỗi engine vừa kiểm tra
@@ -799,7 +802,6 @@ pub struct AssistCheck {
     pub result: textvn_ffi::ime_assist_result_v1,
 }
 
-#[cfg(windows)]
 impl AssistCheck {
     /// Số lỗi thật sự có dữ liệu (chặn `count` hỏng từ biên FFI).
     pub fn issue_count(&self) -> usize {
@@ -812,38 +814,70 @@ impl AssistCheck {
     }
 }
 
-/// Chạy kiểm tra câu trong ngân sách [`CHECK_BUDGET_MS`] — **không** side effect
-/// UI. `None` = tắt assist / câu ngắn / câu sạch / vượt ngân sách (bỏ im lặng).
-#[cfg(windows)]
-pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistCheck> {
+// ---------------------------------------------------------------------------
+// D16 — lỗi L6 ("chữ thường đầu câu") vs `config.auto_capitalize`
+// ---------------------------------------------------------------------------
+
+/// Kind FFI của L6 (`IME_ASSIST_KIND_LOWERCASE_SENTENCE`).
+pub const ASSIST_KIND_LOWERCASE_SENTENCE: u32 = textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE;
+
+/// **D16** (Fassist-20) — crate `assist` **không** đọc config (0-dep, không I/O)
+/// ⇒ nó **luôn** trả về lỗi L6 ("chữ thường đầu câu"). Lớp **adapter** (chỗ
+/// đọc được config) phải **loại** L6 khi `config.auto_capitalize=true`: khi đó
+/// IME/app **đã tự viết hoa** ⇒ báo L6 là **trùng chức năng**.
+///
+/// Lọc **sau** khi engine đã trả kết quả (không lọc trước khi check) ⇒ mọi
+/// luật khác giữ nguyên hành vi. Trả về **số lỗi đã loại**.
+pub fn remove_auto_capitalize_conflicts(
+    result: &mut textvn_ffi::ime_assist_result_v1,
+    auto_capitalize: bool,
+) -> usize {
+    if !auto_capitalize {
+        return 0;
+    }
+    let reported = (result.count as usize).min(result.issues.len());
+    let mut kept = 0usize;
+    for idx in 0..reported {
+        let issue = result.issues[idx];
+        if issue.kind == ASSIST_KIND_LOWERCASE_SENTENCE {
+            continue; // trùng chức năng với `auto_capitalize` → bỏ
+        }
+        result.issues[kept] = issue;
+        kept += 1;
+    }
+    if kept == reported {
+        return 0;
+    }
+    // Xoá phần đuôi không còn dùng (fail-safe: không để lỗi cũ sót lại).
+    // SAFETY: `ime_assist_issue_v1` chỉ gồm số nguyên + mảng `c_char` ⇒
+    // zero là giá trị hợp lệ (giống `ffi::fill_assist_result`).
+    let zero = unsafe { std::mem::zeroed::<textvn_ffi::ime_assist_issue_v1>() };
+    for slot in result.issues.iter_mut().skip(kept) {
+        *slot = zero;
+    }
+    result.count = kept as u32;
+    reported - kept
+}
+
+/// Kiểm tra câu (UTF-8) + lọc D16 — **hàm thuần**, test được mọi OS.
+///
+/// - `auto_capitalize`: `config.auto_capitalize` (D16) — bật ⇒ lỗi L6 bị loại.
+/// - `None` = câu quá ngắn / câu sạch (kể cả sau khi lọc D16) / lỗi FFI ⇒
+///   **im lặng** (D11: "kết quả im lặng").
+///
+/// Biên FFI chuẩn UTF-16 (D29): encode câu sang UTF-16 rồi lần lượt đi qua
+/// `ime_assist_sentence_tail_v1` (cắt đuôi tối đa [`SENTENCE_MAX_CHARS`] char,
+/// không chẻ surrogate) và `ime_assist_check_v1` (đếm lỗi).
+pub fn check_text(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> {
     use textvn_ffi::{
         ime_assist_check_v1, ime_assist_sentence_tail_v1, IME_ABI_VERSION, IME_MAX_ASSIST_ISSUES,
         IME_MAX_ASSIST_MSG, IME_MAX_ASSIST_SUGGEST,
     };
 
-    // D20 kill-switch + `assist.mode` (mode=off ⇒ tắt hoàn toàn, không check,
-    // không toast) — cùng ngữ nghĩa với macOS/Linux (R-5).
-    if !shared.is_assist_enabled() {
-        return None;
-    }
     let began = std::time::Instant::now();
-
-    // Câu vừa gõ = buffer câu của core (D8 — không đọc nội dung app khác);
-    // engine giữ tối đa 256 ký tự Unicode (D31).
-    let sentence = {
-        let thread = shared.thread.try_borrow().ok()?; // fail-open: engine đang bận
-        thread.engine.sentence_tail(SENTENCE_MAX_CHARS)
-    };
-    if began.elapsed().as_millis() > CHECK_BUDGET_MS {
-        return None; // ngân sách: bỏ im lặng
+    if word_count(sentence) < MIN_SENTENCE_WORDS {
+        return None; // câu < 3 từ → bỏ qua (D11)
     }
-    if word_count(&sentence) < MIN_SENTENCE_WORDS {
-        return None;
-    }
-
-    // Biên FFI chuẩn UTF-16 (D29): encode câu sang UTF-16 rồi lần lượt đi qua
-    // `ime_assist_sentence_tail_v1` (cắt đuôi tối đa SENTENCE_MAX_CHARS char,
-    // không chẻ surrogate) và `ime_assist_check_v1` (đếm lỗi).
     let utf16: Vec<u16> = sentence.encode_utf16().collect();
     let mut tail = [0_u16; 2 * SENTENCE_MAX_CHARS + 1];
     let written = ime_assist_sentence_tail_v1(
@@ -881,10 +915,45 @@ pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistC
     if issue_count <= 0 {
         return None; // câu sạch / fail-open → im lặng (D11: kết quả im lặng)
     }
+    // D16: L6 ("chữ thường đầu câu") bị loại khi `auto_capitalize=true` —
+    // lọc **sau** khi engine đã trả kết quả ⇒ các luật khác giữ nguyên hành vi.
+    remove_auto_capitalize_conflicts(&mut result, auto_capitalize);
+    if result.count == 0 {
+        return None; // chỉ có L6 ⇒ câu sạch với config hiện tại ⇒ im lặng
+    }
     Some(AssistCheck {
         sentence: checked,
         result,
     })
+}
+
+/// Chạy kiểm tra câu trong ngân sách [`CHECK_BUDGET_MS`] — **không** side effect
+/// UI. `None` = tắt assist / câu ngắn / câu sạch / vượt ngân sách (bỏ im lặng).
+#[cfg(windows)]
+pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistCheck> {
+    // D20 kill-switch + `assist.mode` (mode=off ⇒ tắt hoàn toàn, không check,
+    // không toast) — cùng ngữ nghĩa với macOS/Linux (R-5).
+    if !shared.is_assist_enabled() {
+        return None;
+    }
+    let began = std::time::Instant::now();
+
+    // Câu vừa gõ = buffer câu của core (D8 — không đọc nội dung app khác);
+    // engine giữ tối đa 256 ký tự Unicode (D31).
+    //
+    // D16: `auto_capitalize` đọc **cùng đường** với `assist.mode`/`assist.auto_fix`
+    // (`ThreadState` — nạp `config.v1.json` từ `%APPDATA%\TextVN\config.json`).
+    let (sentence, auto_capitalize) = {
+        let thread = shared.thread.try_borrow().ok()?; // fail-open: engine đang bận
+        (
+            thread.engine.sentence_tail(SENTENCE_MAX_CHARS),
+            thread.auto_capitalize(),
+        )
+    };
+    if began.elapsed().as_millis() > CHECK_BUDGET_MS {
+        return None; // ngân sách: bỏ im lặng
+    }
+    check_text(&sentence, auto_capitalize)
 }
 
 /// Điểm kiểm tra sau mỗi phím trigger: check câu + (cooldown) báo tray chỉ mang
@@ -1543,5 +1612,120 @@ mod tests {
         );
         let view = view(sentence, issues);
         assert_eq!(plan_fix(&view, 0, |_| 0), None, "A2: glyph = 0 ⇒ không sửa");
+    }
+
+    // ------------------------------------------------------------------
+    // D16 (Fassist-20) — L6 ("chữ thường đầu câu") vs `auto_capitalize`
+    // ------------------------------------------------------------------
+
+    /// Câu có sẵn trong corpus `corpus/assist/vi_basic.ass`:
+    /// "Xin chào. bạn khỏe không" → `lowercase_sentence_start@10-11`.
+    const CORPUS_L6_SENTENCE: &str = "Xin chào. bạn khỏe không";
+
+    fn kinds_of(check: &AssistCheck) -> Vec<u32> {
+        check
+            .result
+            .issues
+            .iter()
+            .take(check.issue_count())
+            .map(|i| i.kind)
+            .collect()
+    }
+
+    /// D16: `auto_capitalize=true` ⇒ **không** còn lỗi L6 (IME/app đã tự viết
+    /// hoa ⇒ báo L6 là **trùng chức năng**). Câu này chỉ có lỗi L6 ⇒ sau khi
+    /// lọc, adapter phải **im lặng** (D11: kết quả im lặng).
+    #[test]
+    fn d16_auto_capitalize_bat_thi_khong_con_loi_l6() {
+        // Trước khi lọc: engine (crate `assist`, không đọc config) **luôn** trả L6.
+        let raw = check_text(CORPUS_L6_SENTENCE, false).expect("engine phải bắt được lỗi");
+        assert!(
+            kinds_of(&raw).contains(&ASSIST_KIND_LOWERCASE_SENTENCE),
+            "crate assist luôn trả L6 (không đọc config)"
+        );
+
+        // Sau khi lọc (auto_capitalize=true): không còn lỗi nào ⇒ im lặng.
+        assert!(
+            check_text(CORPUS_L6_SENTENCE, true).is_none(),
+            "auto_capitalize=true ⇒ L6 bị loại ⇒ câu sạch ⇒ im lặng"
+        );
+    }
+
+    /// D16: `auto_capitalize=false` ⇒ lỗi L6 **vẫn còn** (engine không tự viết
+    /// hoa ⇒ không ai loại giúp ⇒ trợ lý ngữ pháp phải báo).
+    #[test]
+    fn d16_auto_capitalize_tat_thi_van_con_loi_l6() {
+        let check = check_text(CORPUS_L6_SENTENCE, false).expect("engine phải bắt được lỗi");
+        assert!(
+            kinds_of(&check).contains(&ASSIST_KIND_LOWERCASE_SENTENCE),
+            "auto_capitalize=false ⇒ L6 phải còn"
+        );
+        // Span L6 = 10..11 (char Unicode) — chữ "b" trong "bạn".
+        let l6 = check
+            .result
+            .issues
+            .iter()
+            .take(check.issue_count())
+            .find(|i| i.kind == ASSIST_KIND_LOWERCASE_SENTENCE)
+            .expect("L6");
+        assert_eq!((l6.start, l6.end), (10, 11));
+        // Còn hiện được trong overlay (Mode 1) — lọc L6 không phá view.
+        assert!(check.view().is_some());
+    }
+
+    /// D16: cờ `auto_capitalize` **chỉ** loại L6 — các luật khác giữ nguyên
+    /// (lọc **sau** khi engine đã check ⇒ không đổi hành vi luật khác).
+    #[test]
+    fn d16_chi_loai_l6_luat_khac_giu_nguyen() {
+        let sentence = "Xin chào. tôi tôi đi học";
+        let raw = check_text(sentence, false).expect("engine phải bắt được lỗi");
+        assert!(kinds_of(&raw).contains(&ASSIST_KIND_LOWERCASE_SENTENCE));
+        assert!(kinds_of(&raw).contains(&textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD));
+
+        let filtered = check_text(sentence, true).expect("còn lỗi lặp từ");
+        assert!(
+            !kinds_of(&filtered).contains(&ASSIST_KIND_LOWERCASE_SENTENCE),
+            "L6 phải bị loại"
+        );
+        assert!(
+            kinds_of(&filtered).contains(&textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD),
+            "lặp từ phải còn (chỉ L6 bị loại)"
+        );
+    }
+
+    /// D16: hàm lọc thuần — `auto_capitalize=false` ⇒ **không** đụng gì.
+    #[test]
+    fn d16_loc_thuan_khi_tat_capitalize_thi_giu_nguyen() {
+        let mut result = textvn_ffi::ime_assist_result_v1 {
+            abi_version: textvn_ffi::IME_ABI_VERSION,
+            count: 0,
+            issues: [textvn_ffi::ime_assist_issue_v1 {
+                kind: 0,
+                start: 0,
+                end: 0,
+                auto_fixable: 0,
+                confidence: 0,
+                message: [0; textvn_ffi::IME_MAX_ASSIST_MSG],
+                suggest_len: 0,
+                suggest: [0; textvn_ffi::IME_MAX_ASSIST_SUGGEST],
+            }; textvn_ffi::IME_MAX_ASSIST_ISSUES],
+        };
+        result.count = 2;
+        result.issues[0].kind = ASSIST_KIND_LOWERCASE_SENTENCE;
+        result.issues[1].kind = textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD;
+
+        assert_eq!(remove_auto_capitalize_conflicts(&mut result, false), 0);
+        assert_eq!(result.count, 2, "tắt auto_capitalize ⇒ giữ nguyên mọi lỗi");
+
+        assert_eq!(remove_auto_capitalize_conflicts(&mut result, true), 1);
+        assert_eq!(result.count, 1, "chỉ còn lỗi lặp từ");
+        assert_eq!(
+            result.issues[0].kind,
+            textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD
+        );
+        assert_eq!(
+            result.issues[1].kind, 0,
+            "phần đuôi không dùng phải được xoá (fail-safe)"
+        );
     }
 }
