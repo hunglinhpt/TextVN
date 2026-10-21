@@ -141,7 +141,10 @@ Source: "{#TargetDir}\textvn_win_tsf.dll"; DestDir: "{app}"; Flags: ignoreversio
 ; TargetDir voi ten textvn-tsf-x86.dll; register ghi mirror COM/CTF 32-bit view.
 Source: "{#TargetDir}\textvn-tsf-x86.dll"; DestDir: "{app}"; Flags: ignoreversion; DestName: "textvn-tsf-x86.dll"
 Source: "..\..\tray\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Tu dien hunspell-vi (data/assist/*.dic) KHONG phat hanh: license nguon "GNU GPL"
+; khong ro "or later" => GPL-2.0-only se khong tuong thich GPL-3.0 (Fassist-98, ADR-014).
+; v1 dung spellchecker cua he dieu hanh (ADR-012 / D33).
+Source: "..\..\data\*"; DestDir: "{app}\data"; Excludes: "assist\*.dic"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion

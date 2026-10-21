@@ -18,7 +18,7 @@ SPDX-License-Identifier = "GPL-3.0-or-later"
 path = ["data/assist/*.dic"]
 precedence = "override"
 SPDX-FileCopyrightText = ["Hồ Ngọc Đức (Free Vietnamese Dictionary Project)", "Ivan Garcia", "Nguyễn Xuân Minh"]
-SPDX-License-Identifier = "GPL-2.0-or-later"
+SPDX-License-Identifier = "LicenseRef-hunspell-vi"
 
 # Bản dịch tiếng Việt của Inno Setup (jrsoftware/issrc Files/Languages/Unofficial) — giữ
 # nguyên giấy phép Inno Setup của nó, không phải GPL của TextVN.

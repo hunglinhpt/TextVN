@@ -1,0 +1,28 @@
+The Vietnamese word lists data/assist/vi-DauCu.dic and data/assist/vi-DauMoi.dic
+come from the "Free Vietnamese Dictionary Project" by Ho Ngoc Duc, converted to
+the Hunspell format by Ivan Garcia and Nguyen Xuan Minh (1ec5/hunspell-vi).
+
+Upstream notice (verbatim, from the GNU Aspell 0.60 Vietnamese dictionary
+package, file "Copyright", 346 bytes):
+
+    This word list was created using Viet39K.txt found in the vn_words.zip
+    package which can be downloaded from
+    http://www.informatik.uni-leipzig.de/~duc/software/misc/wordlist.html
+
+    On that page Ho Ngoc Duc included the notice:
+
+      The word list is distributed under GNU General Public License. If you
+      modify it, please send me the modifications.
+
+SPDX-License-Identifier: LicenseRef-hunspell-vi
+
+NOTE (audit 2026-10-21, Fassist-98): the upstream notice does NOT state a
+version and does NOT grant "or any later version". GPL-2.0-only would be
+one-way incompatible with the GPL-3.0-or-later licence of TextVN, therefore:
+  - these files are kept for RESEARCH/evaluation only;
+  - they MUST NOT be shipped in a TextVN release (see installer/windows/
+    TextVN-setup.iss, which excludes data/assist/*.dic);
+  - any derivative (e.g. a generated FST) inherits the same terms.
+TextVN v1 uses the OS spell-checker (ADR-012 / D33) instead.
+
+Third-party licence texts: see https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
