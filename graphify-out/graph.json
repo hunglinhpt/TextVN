@@ -2488,7 +2488,7 @@
       "file_type": "code",
       "norm_label": ".testcustomlanguageifavailable()",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L144"
+      "source_location": "L147"
     },
     {
       "id": "adapters_macos_imk_tests_imklibtests_macspellprovidertests_macspellprovidertests_testenginesetspellproviderlifecycle",
@@ -2500,7 +2500,7 @@
       "file_type": "code",
       "norm_label": ".testenginesetspellproviderlifecycle()",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L123"
+      "source_location": "L126"
     },
     {
       "id": "adapters_macos_imk_tests_imklibtests_macspellprovidertests_macspellprovidertests_testmacspellproviderbuffercapacityexhaustion",
@@ -2512,7 +2512,7 @@
       "file_type": "code",
       "norm_label": ".testmacspellproviderbuffercapacityexhaustion()",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L105"
+      "source_location": "L108"
     },
     {
       "id": "adapters_macos_imk_tests_imklibtests_macspellprovidertests_macspellprovidertests_testmacspellprovidercabicallbacksfailopen",
@@ -81234,6 +81234,18 @@
       "type": "external"
     },
     {
+      "id": "assist",
+      "label": "assist",
+      "_origin": "semantic",
+      "community": 130,
+      "community_name": "overlay.rs",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "assist",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "gdi",
       "label": "gdi",
       "_origin": "semantic",
@@ -81254,6 +81266,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "getmodulehandlew",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "issueview",
+      "label": "issueview",
+      "_origin": "semantic",
+      "community": 130,
+      "community_name": "overlay.rs",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "issueview",
       "source_file": "",
       "type": "external"
     },
@@ -82118,6 +82142,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "vk",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "mod_alt",
+      "label": "mod_alt",
+      "_origin": "semantic",
+      "community": 195,
+      "community_name": "windows-tsf/src/assist.rs",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "mod_alt",
       "source_file": "",
       "type": "external"
     },
@@ -83258,39 +83294,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "slice",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "assist",
-      "label": "assist",
-      "community": 130,
-      "community_name": "overlay.rs",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "assist",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "issueview",
-      "label": "issueview",
-      "community": 130,
-      "community_name": "overlay.rs",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "issueview",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "mod_alt",
-      "label": "mod_alt",
-      "community": 195,
-      "community_name": "windows-tsf/src/assist.rs",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "mod_alt",
       "source_file": "",
       "type": "external"
     }
@@ -224330,7 +224333,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L105",
+      "source_location": "L108",
       "weight": 1.0
     },
     {
@@ -224341,7 +224344,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L123",
+      "source_location": "L126",
       "weight": 1.0
     },
     {
@@ -224363,7 +224366,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L144",
+      "source_location": "L147",
       "weight": 1.0
     },
     {
@@ -232542,7 +232545,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L150",
+      "source_location": "L153",
       "weight": 1.0
     },
     {
@@ -232554,7 +232557,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L157",
+      "source_location": "L160",
       "weight": 1.0
     },
     {
@@ -232566,7 +232569,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L128",
+      "source_location": "L131",
       "weight": 1.0
     },
     {
@@ -232578,7 +232581,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L136",
+      "source_location": "L139",
       "weight": 1.0
     },
     {
@@ -232590,7 +232593,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L140",
+      "source_location": "L143",
       "weight": 1.0
     },
     {
@@ -232602,7 +232605,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L108",
+      "source_location": "L111",
       "weight": 1.0
     },
     {
@@ -235950,7 +235953,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L146",
+      "source_location": "L149",
       "weight": 1.0
     },
     {
@@ -235962,7 +235965,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L124",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -235974,7 +235977,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L125",
+      "source_location": "L128",
       "weight": 1.0
     },
     {
@@ -235986,7 +235989,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift",
-      "source_location": "L107",
+      "source_location": "L110",
       "weight": 1.0
     },
     {
@@ -241799,5 +241802,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "af53d6b37a837168795cb9452f0a60ee3d51f8f4"
+  "built_at_commit": "850945e0b1aed5fc3f0ca35a67a811e6d8effcde"
 }
