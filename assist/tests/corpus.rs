@@ -136,7 +136,9 @@ fn corpus_co_du_lop_hieu_biet() {
         "sentence_repeat",
         "double_negative",
         "comma_at_end",
-        "spelling",
+        // KHÔNG thêm "spelling": corpus chạy `check()` (fragment, NoDictionary)
+        // nên không bao giờ emit spelling — luật spelling có test riêng trong
+        // `assist/src/rules/spelling.rs` + `check_with` (Fassist-110).
     ] {
         assert!(kinds.contains(required), "corpus chua co loai {required}");
     }
