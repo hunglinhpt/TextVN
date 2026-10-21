@@ -407,6 +407,29 @@ fn guarded_option<T>(f: impl FnOnce() -> Option<T>) -> Option<T> {
         .flatten()
 }
 
+/// R-3 + Q-3: phím này có **huỷ** state hoàn tác tự sửa cả câu không?
+///
+/// - `Ctrl+Z` (chord hoàn tác) ⇒ **không** huỷ (chính là phím áp hoàn tác).
+/// - Phím **modifier** (Ctrl/Shift/Alt/Win/Caps) ⇒ **không** huỷ: modifier
+///   **không sinh ký tự**; nếu huỷ ở đây thì lần nhấn Ctrl đã xoá state ⇒
+///   `Ctrl+Z` ngay sau đó **không bao giờ** hoàn tác được (Q-3 — lệch parity
+///   Linux/macOS vốn `return` **trước** khi clear).
+/// - Phím **sinh ký tự** ⇒ **huỷ** (gõ tiếp ⇒ không xoá nhầm chữ vừa gõ).
+#[cfg(windows)]
+fn clears_assist_undo(vk: u32, mods: u32) -> bool {
+    let is_assist_undo_chord = mods == MOD_CTRL && vk == 0x5A;
+    !is_assist_undo_chord && !is_modifier_vk(vk)
+}
+
+/// Cập nhật state hoàn tác khi 1 phím tới (R-3 · Q-3) — tách riêng để **test
+/// được** mà không cần dựng TSF.
+#[cfg(windows)]
+fn update_assist_undo_state(shared: &TsfShared, vk: u32, mods: u32) {
+    if clears_assist_undo(vk, mods) {
+        shared.clear_assist_undo();
+    }
+}
+
 /// Xử lý 1 phím, trả `eaten`. Mọi nhánh lỗi → `false` (phím tới app nguyên vẹn).
 #[cfg(windows)]
 fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam: LPARAM) -> bool {
@@ -417,10 +440,11 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     // **phím kế tiếp**. Gõ tiếp (bất kỳ phím nào khác Ctrl+Z) ⇒ huỷ state, để
     // Ctrl+Z sau đó KHÔNG xoá nhầm cả chữ vừa gõ và không ăn Ctrl+Z của app.
     // (macOS đã làm đúng như vậy — giữ hành vi giống nhau cho 3 OS.)
+    //
+    // Q-3: chỉ phím **sinh ký tự** mới huỷ state; phím modifier (Ctrl/Shift/…)
+    // bị bỏ qua, nếu không thì nhấn Ctrl đã xoá state ⇒ undo A3 chết.
     let is_assist_undo_chord = mods == MOD_CTRL && vk == 0x5A;
-    if !is_assist_undo_chord {
-        shared.clear_assist_undo();
-    }
+    update_assist_undo_state(shared, vk, mods);
 
     // AS-030/AS-031 (Mode 1 + A2): phím của overlay (↑/↓, Enter, Alt+1..3, Esc,
     // Ctrl+Shift+G). Bản đồ phím là hàm THUẦN `assist::overlay_action`; mọi lời
@@ -583,5 +607,67 @@ fn translate_key(vk: u32, lparam: LPARAM) -> u32 {
             .and_then(|r| r.ok())
             .map_or(0, u32::from),
         _ => 0,
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    /// Q-3 (MAJOR): nhấn **Ctrl** (modifier) KHÔNG được huỷ state hoàn tác.
+    ///
+    /// Lỗi cũ: `handle_key` clear state **trước** khi kiểm `is_modifier_vk` ⇒
+    /// nhấn Ctrl đã xoá state ⇒ `Ctrl+Z` ngay sau đó **không bao giờ** hoàn
+    /// tác được (undo A3 chết). Linux/macOS `return` trước khi clear ⇒ lệch
+    /// parity.
+    #[test]
+    fn q3_ctrl_roi_z_trong_5s_thi_undo_van_ap_dung() {
+        let client = crate::ipc_client::IpcClient::global("test_assist_undo_chord.exe");
+        let thread = crate::ThreadState::new("test_assist_undo_chord.exe", 0).unwrap();
+        let shared = TsfShared::new(3, client, thread);
+        *shared.assist_undo.try_borrow_mut().unwrap() = Some(crate::assist::AssistUndoState::new(
+            "hôm nay tôi tôi đi học .".to_string(),
+            "Hôm nay tôi đi học.".to_string(),
+            19,
+            2,
+        ));
+
+        // Nhấn Ctrl (modifier — không sinh ký tự) ⇒ state phải còn.
+        update_assist_undo_state(&shared, vkc::CONTROL, MOD_CTRL);
+        assert!(
+            shared.assist_undo.try_borrow().unwrap().is_some(),
+            "phím modifier KHÔNG được huỷ state hoàn tác (Q-3)"
+        );
+
+        // Nhấn Z kèm Ctrl (chord hoàn tác) ⇒ state phải còn để undo áp dụng.
+        update_assist_undo_state(&shared, 0x5A, MOD_CTRL);
+        assert!(
+            shared.assist_undo.try_borrow().unwrap().is_some(),
+            "chord Ctrl+Z KHÔNG được huỷ state hoàn tác"
+        );
+
+        // Gõ tiếp (phím sinh ký tự) ⇒ state bị huỷ (không xoá nhầm chữ vừa gõ).
+        update_assist_undo_state(&shared, 0x41, 0);
+        assert!(
+            shared.assist_undo.try_borrow().unwrap().is_none(),
+            "phím sinh ký tự phải huỷ state hoàn tác (R-3)"
+        );
+    }
+
+    /// Bảng quyết định: chỉ phím **sinh ký tự** mới huỷ state hoàn tác.
+    #[test]
+    fn q3_bang_quyet_dinh_huy_state_hoan_tac() {
+        // Modifier (Ctrl/Shift/Alt/Win/Caps + các phím chức năng tương ứng).
+        assert!(!clears_assist_undo(vkc::CONTROL, MOD_CTRL));
+        assert!(!clears_assist_undo(vkc::SHIFT, MOD_SHIFT));
+        assert!(!clears_assist_undo(vkc::MENU, MOD_ALT));
+        assert!(!clears_assist_undo(vkc::LWIN, MOD_SUPER));
+        assert!(!clears_assist_undo(vkc::CAPITAL, MOD_CAPS));
+        // Chord hoàn tác.
+        assert!(!clears_assist_undo(0x5A, MOD_CTRL));
+        // Phím sinh ký tự ⇒ huỷ.
+        assert!(clears_assist_undo(0x41, 0));
+        assert!(clears_assist_undo(0x20, 0));
+        assert!(clears_assist_undo(0x5A, 0));
     }
 }

@@ -692,6 +692,7 @@ mod tests {
                 message: "Lặp từ: \"tôi\"".into(),
                 suggestion: Some("tôi".into()),
                 auto_fixable: true,
+                kind: textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD,
             }],
             1,
         )

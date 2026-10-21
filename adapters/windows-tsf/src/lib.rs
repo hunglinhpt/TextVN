@@ -629,6 +629,12 @@ impl EngineSession {
     }
 
     /// Tính số ký tự glyph cần xóa trong document (AS-031 · D27).
+    ///
+    /// **Fail-safe (Q-5):** khi FFI lỗi ⇒ trả **0** (KHÔNG fallback
+    /// `chars().count()`). Số char ≠ số glyph ở VNI/TCVN3 (1 chữ Việt = nhiều
+    /// code unit) ⇒ fallback ⇒ xoá **lệch vị trí** (mất dữ liệu). Trả 0 ⇒
+    /// kế hoạch sửa bị **từ chối** ⇒ **không sửa** (giống macOS —
+    /// `CoreBridge.glyphLen` trả 0 khi lỗi).
     pub fn glyph_len_of(&self, text: &str) -> usize {
         let mut out = 0usize;
         let status = textvn_ffi::ime_assist_glyph_len(
@@ -637,11 +643,23 @@ impl EngineSession {
             text.len(),
             &mut out,
         );
-        if status == textvn_ffi::IME_OK {
-            out
-        } else {
-            text.chars().count()
-        }
+        glyph_len_from_status(status, out)
+    }
+}
+
+/// Chính sách fail-safe cho **số glyph** (D27 · Q-5).
+///
+/// FFI lỗi ⇒ **0** ⇒ kế hoạch sửa bị **từ chối** ⇒ **không sửa** document.
+///
+/// TUYỆT ĐỐI KHÔNG fallback `text.chars().count()`: số char ≠ số glyph ở
+/// VNI/TCVN3 (1 chữ Việt = nhiều code unit theo bảng mã xuất) ⇒ xoá **lệch vị
+/// trí** ⇒ mất dữ liệu người dùng. macOS làm đúng như vậy (`CoreBridge.glyphLen`
+/// trả 0 khi lỗi) ⇒ parity 3 OS.
+pub fn glyph_len_from_status(status: i32, glyphs: usize) -> usize {
+    if status == textvn_ffi::IME_OK {
+        glyphs
+    } else {
+        0
     }
 }
 
@@ -732,6 +750,21 @@ mod tests {
         let tail = session.sentence_tail(256);
         assert!(tail.contains("hôm nay") || tail.contains("hom nay"));
         assert_eq!(session.glyph_len_of("hôm nay"), 7);
+    }
+
+    /// Q-5 (MAJOR): FFI lỗi ⇒ số glyph = **0** (fail-safe) ⇒ kế hoạch sửa bị
+    /// từ chối ⇒ **không sửa**. TUYỆT ĐỐI KHÔNG fallback `chars().count()`
+    /// (VNI/TCVN3: 1 chữ = nhiều code unit ⇒ xoá lệch vị trí).
+    #[test]
+    fn q5_ffi_loi_thi_glyph_len_bang_khong() {
+        assert_eq!(glyph_len_from_status(textvn_ffi::IME_OK, 7), 7);
+        assert_eq!(glyph_len_from_status(textvn_ffi::IME_ERR_INVALID_ARG, 7), 0);
+        assert_eq!(glyph_len_from_status(textvn_ffi::IME_ERR_INTERNAL, 7), 0);
+        // Số char KHÔNG được dùng thay số glyph khi FFI lỗi.
+        assert_ne!(
+            glyph_len_from_status(textvn_ffi::IME_ERR_INTERNAL, 7),
+            "hôm nay".chars().count()
+        );
     }
 
     #[test]

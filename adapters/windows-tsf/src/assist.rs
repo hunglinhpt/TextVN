@@ -24,6 +24,10 @@
 //!   nhận glyph theo bảng mã xuất (VNI/TCVN3: 1 chữ Việt = nhiều code unit).
 //! - **D22**: A2 chỉ dùng **Backspace+Type** (xoá đúng `delete_glyphs` glyph
 //!   rồi gõ lại qua composition), **không** `SelectionReplace`.
+//! - **Q-2**: ngữ nghĩa `Fix` (xoá span hay thay span) quyết định theo **kind**
+//!   FFI (`IME_ASSIST_KIND_*`) — **không** đoán bằng text; đoán bằng text làm
+//!   L6 ("chữ thường đầu câu") **xoá nhầm** 1 ký tự khi lỗi nằm ở vị trí > 0.
+//!   Khớp Linux (`adapters/linux-common/src/compose.c`) + macOS.
 //! - **D38**: định dạng hiển thị lấy chuẩn từ `textvn-cli assist show`
 //!   (câu + vạch `^` đúng span + thông điệp + gợi ý) — xem
 //!   [`OverlayView::render_plain`].
@@ -97,6 +101,14 @@ pub struct IssueView {
     /// Gợi ý đầu tiên (biên FFI chỉ mang 1 gợi ý/lỗi). `None` = không gợi ý.
     pub suggestion: Option<String>,
     pub auto_fixable: bool,
+    /// Kind FFI (`IME_ASSIST_KIND_*`) — **quyết định CÁCH sửa**: `Fix::Delete`
+    /// (xoá span) hay `Fix::Replace` (thay span bằng gợi ý).
+    ///
+    /// Không được đoán bằng **text** (`span.to_lowercase() == suggest.to_lowercase()`):
+    /// L6 ("chữ thường đầu câu") có span = 1 chữ thường, gợi ý = 1 chữ hoa ⇒
+    /// `"b" == "B"` ⇒ rơi vào nhánh **XOÁ** ⇒ **mất 1 ký tự** (Q-2). Linux làm
+    /// đúng (`adapters/linux-common/src/compose.c` — dùng `kind`).
+    pub kind: u32,
 }
 
 /// Model overlay: câu vừa gõ + lỗi + lỗi đang chọn. Thuần, không Win32 — dựng
@@ -144,6 +156,7 @@ impl OverlayView {
                 },
                 suggestion: (!suggestion.is_empty()).then_some(suggestion),
                 auto_fixable: raw.auto_fixable != 0,
+                kind: raw.kind,
             });
         }
         Self::from_parts(chars, issues, reported)
@@ -340,6 +353,42 @@ pub fn overlay_action(vk: u32, mods: u32) -> OverlayAction {
 // A2 — sửa 1 từ bằng Backspace+Type (D12/D22/D27)
 // ---------------------------------------------------------------------------
 
+/// Ứng viên sửa cho **một** lỗi — `(delete_from, delete_end, replacement)`.
+///
+/// Nguồn **duy nhất** cho cả A2 ([`plan_fix`]) + A3 ([`plan_sentence_auto_fix`]) —
+/// khớp crate `assist` (`assist/src/fix.rs`) và Linux
+/// (`adapters/linux-common/src/compose.c`, làm đúng — dùng `kind`):
+/// - `DUPLICATE_WORD` (+ space liền trước) ⇒ **xoá** lần lặp **+ 1 space** đó.
+/// - `SPACE_BEFORE_PUNCT` ⇒ **xoá** span (khoảng trắng thừa); `suggest` chỉ là
+///   đầu câu để **hiển thị** (chèn ⇒ nhân đôi dấu câu "chào bạn,,").
+/// - còn lại ⇒ **thay** span bằng `suggest` (`Fix::Replace`).
+///
+/// `None` = span đã đúng ⇒ không có thay đổi ⇒ không sửa.
+///
+/// Vì sao **không** đoán bằng text (`span.to_lowercase() == suggest.to_lowercase()`):
+/// L6 ("chữ thường đầu câu") có span = 1 chữ thường, gợi ý = 1 chữ hoa ⇒
+/// `"b" == "B"` ⇒ rơi vào nhánh **xoá** ⇒ **mất 1 ký tự** (Q-2 — "Xin chào. bạn
+/// khỏe không" → "Xin chào. ạn khỏe không").
+fn fix_candidate(
+    kind: u32,
+    span_text: &str,
+    suggestion: &str,
+    start: usize,
+    end: usize,
+    prev_is_space: bool,
+) -> Option<(usize, usize, String)> {
+    if kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD && prev_is_space {
+        return Some((start - 1, end, String::new()));
+    }
+    if kind == textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT {
+        return Some((start, end, String::new()));
+    }
+    if span_text == suggestion {
+        return None;
+    }
+    Some((start, end, suggestion.to_string()))
+}
+
 /// Kế hoạch sửa **một** lỗi (A2). Toàn bộ vùng bị xoá nằm **bên trái caret**
 /// (Backspace chỉ đi về trái): từ `issue.start` tới hết câu; phần đuôi sau
 /// `issue.end` được gõ lại **nguyên văn** từ buffer của core ⇒ chỉ **một từ**
@@ -380,25 +429,27 @@ where
     if suggestion.is_empty() || suggestion.chars().any(char::is_control) {
         return None; // không có gợi ý / gợi ý chứa ký tự điều khiển → không sửa
     }
-    let mut delete_from = issue.start;
-    let mut replacement: Vec<char> = suggestion.chars().collect();
-    replacement.extend_from_slice(&view.sentence[issue.end..]);
-
-    if replacement.as_slice() == &view.sentence[issue.start..] {
-        // Gợi ý **trùng** đoạn đang có ⇒ thay thế không đổi gì. Trường hợp hợp lệ
-        // duy nhất là "lặp từ": engine đặt span ở **lần xuất hiện sau** và gợi ý
-        // là từ trước đó (`duplicate_word.rs`), sửa đúng là **xoá** lần lặp cùng
-        // 1 space ngay trước (đúng semantics `Fix::Delete` của engine). Không
-        // đủ điều kiện đó → không sửa (A1: chỉ gợi ý).
-        let span_text: String = view.sentence[issue.start..issue.end].iter().collect();
-        let same_word = span_text.to_lowercase() == suggestion.to_lowercase();
-        let prev_is_space = issue.start > 0 && view.sentence[issue.start - 1] == ' ';
-        if !same_word || !prev_is_space {
-            return None;
-        }
-        delete_from = issue.start - 1;
-        replacement = view.sentence[issue.end..].to_vec();
-    }
+    let span_text: String = view.sentence[issue.start..issue.end].iter().collect();
+    let prev_is_space = issue.start > 0 && view.sentence[issue.start - 1] == ' ';
+    // Ngữ nghĩa `Fix` theo **kind** (xoá span hay thay span) — xem [`fix_candidate`].
+    // Quyết định này KHÔNG được đoán bằng text: so sánh
+    // `span.to_lowercase() == suggestion.to_lowercase()` cho L6 ("b" vs "B") ⇒
+    // rơi vào nhánh xoá ⇒ **mất 1 ký tự** (Q-2).
+    let Some((delete_from, delete_end, replacement_text)) = fix_candidate(
+        issue.kind,
+        &span_text,
+        suggestion,
+        issue.start,
+        issue.end,
+        prev_is_space,
+    ) else {
+        // Span đã đúng (gợi ý trùng nội dung đang có) ⇒ không có thay đổi ⇒
+        // không đụng document.
+        return None;
+    };
+    // A2: xoá tới hết câu rồi gõ lại = phần thay thế + đuôi giữ nguyên.
+    let mut replacement: Vec<char> = replacement_text.chars().collect();
+    replacement.extend_from_slice(&view.sentence[delete_end..]);
 
     let tail: String = view.sentence[delete_from..].iter().collect();
     let glyphs = glyph_len(&tail);
@@ -504,15 +555,23 @@ where
         }
 
         let span_text: String = chars[issue.start..issue.end].iter().collect();
-        let same_word = span_text.to_lowercase() == suggestion.to_lowercase();
         let prev_is_space = issue.start > 0 && chars[issue.start - 1] == ' ';
 
-        if same_word && prev_is_space {
-            // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước
-            candidates.push((issue.start - 1, issue.end, String::new()));
-        } else if span_text != suggestion {
-            candidates.push((issue.start, issue.end, suggestion.to_string()));
-        }
+        // Ngữ nghĩa `Fix` theo **kind** (xoá span hay thay span) — nguồn duy nhất,
+        // xem [`fix_candidate`]. KHÔNG đoán bằng text
+        // (`span.to_lowercase() == suggestion.to_lowercase()`): L6 ("b" vs "B") ⇒
+        // rơi vào nhánh xoá ⇒ **mất 1 ký tự** (Q-2).
+        let Some(candidate) = fix_candidate(
+            issue.kind,
+            &span_text,
+            suggestion,
+            issue.start,
+            issue.end,
+            prev_is_space,
+        ) else {
+            continue; // span đã đúng ⇒ không có thay đổi
+        };
+        candidates.push(candidate);
     }
 
     if candidates.is_empty() {
@@ -922,13 +981,31 @@ mod tests {
 
     // -- Mode 1: hiển thị -------------------------------------------------
 
-    fn issue(start: usize, end: usize, message: &str, suggestion: Option<&str>) -> IssueView {
+    /// Kind FFI rút gọn cho test — **quyết định "xoá span" hay "thay span"**
+    /// (Q-2): không đoán bằng text.
+    const K_DUP: u32 = textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD;
+    const K_SPACE_BEFORE: u32 = textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT;
+    const K_DOUBLE_SPACE: u32 = textvn_ffi::IME_ASSIST_KIND_DOUBLE_SPACE;
+    const K_LOWER: u32 = textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE;
+    const K_DIACRITIC: u32 = textvn_ffi::IME_ASSIST_KIND_DIACRITIC_TYPO;
+    const K_SPELLING: u32 = textvn_ffi::IME_ASSIST_KIND_SPELLING;
+
+    /// Lỗi có **kind** — adapter dùng `kind` (không phải so sánh text) để quyết
+    /// định cách sửa.
+    fn issue(
+        kind: u32,
+        start: usize,
+        end: usize,
+        message: &str,
+        suggestion: Option<&str>,
+    ) -> IssueView {
         IssueView {
             start,
             end,
             message: message.to_string(),
             suggestion: suggestion.map(str::to_string),
             auto_fixable: true,
+            kind,
         }
     }
 
@@ -956,7 +1033,7 @@ mod tests {
         // Span của `duplicate_word` = lần xuất hiện SAU (12..15 char, không phải byte).
         let v = view(
             "Hôm nay tôi tôi đi học .",
-            vec![issue(12, 15, "Lặp từ: \"tôi\"", Some("tôi"))],
+            vec![issue(K_DUP, 12, 15, "Lặp từ: \"tôi\"", Some("tôi"))],
         );
         let plain = v.render_plain();
         let lines: Vec<&str> = plain.lines().collect();
@@ -971,10 +1048,10 @@ mod tests {
     fn span_la_bi_bo_va_loi_thua_gop_lai() {
         let chars: Vec<char> = "một hai ba bốn".chars().collect();
         let issues = vec![
-            issue(0, 3, "a", Some("x")),
-            issue(4, 7, "b", Some("y")),
-            issue(8, 11, "c", Some("z")),
-            issue(12, 99, "span ngoài câu", Some("w")),
+            issue(K_DIACRITIC, 0, 3, "a", Some("x")),
+            issue(K_DIACRITIC, 4, 7, "b", Some("y")),
+            issue(K_DIACRITIC, 8, 11, "c", Some("z")),
+            issue(K_DIACRITIC, 12, 99, "span ngoài câu", Some("w")),
         ];
         let v = OverlayView::from_parts(chars, issues, 4).expect("view");
         assert_eq!(v.issues.len(), MAX_OVERLAY_ISSUES);
@@ -982,8 +1059,11 @@ mod tests {
         assert_eq!(v.hidden_count(), 1);
         assert!(v.render_plain().contains("(+1 lỗi khác)"));
 
-        let empty =
-            OverlayView::from_parts("   ".chars().collect(), vec![issue(0, 99, "a", None)], 1);
+        let empty = OverlayView::from_parts(
+            "   ".chars().collect(),
+            vec![issue(K_DIACRITIC, 0, 99, "a", None)],
+            1,
+        );
         assert!(empty.is_none(), "span ngoài câu ⇒ không hiện gì");
     }
 
@@ -992,9 +1072,9 @@ mod tests {
         let mut v = view(
             "một hai ba",
             vec![
-                issue(0, 3, "a", Some("A")),
-                issue(4, 7, "b", Some("B")),
-                issue(8, 10, "c", Some("C")),
+                issue(K_DIACRITIC, 0, 3, "a", Some("A")),
+                issue(K_DIACRITIC, 4, 7, "b", Some("B")),
+                issue(K_DIACRITIC, 8, 10, "c", Some("C")),
             ],
         );
         assert_eq!(v.selected, 0);
@@ -1009,7 +1089,7 @@ mod tests {
         assert_eq!(v.selected, 1);
         assert!(!v.select_index(9), "ngoài danh sách");
         // Một lỗi duy nhất: ↑/↓ không đổi gì.
-        let mut one = view("một hai", vec![issue(0, 3, "a", Some("A"))]);
+        let mut one = view("một hai", vec![issue(K_DIACRITIC, 0, 3, "a", Some("A"))]);
         assert!(!one.select(1));
         assert_eq!(one.selected, 0);
     }
@@ -1018,7 +1098,10 @@ mod tests {
     fn cau_dai_chi_ve_duoi_va_marker_lech_dung() {
         let sentence: String = "a ".repeat(80) + "tôi tôi";
         let len = sentence.chars().count();
-        let v = view(&sentence, vec![issue(len - 7, len, "Lặp từ", Some("tôi"))]);
+        let v = view(
+            &sentence,
+            vec![issue(K_DUP, len - 7, len, "Lặp từ", Some("tôi"))],
+        );
         let (skip, visible) = v.visible_sentence(MAX_OVERLAY_SENTENCE_CHARS);
         assert_eq!(visible.len(), MAX_OVERLAY_SENTENCE_CHARS);
         assert_eq!(skip, len - MAX_OVERLAY_SENTENCE_CHARS);
@@ -1077,7 +1160,7 @@ mod tests {
         // Lỗi sai dấu giữa câu: thay từ ở span, đuôi gõ lại nguyên văn.
         let v = view(
             "Hôm nay nghiã là vậy .",
-            vec![issue(8, 13, "Sai dấu", Some("nghĩa"))],
+            vec![issue(K_DIACRITIC, 8, 13, "Sai dấu", Some("nghĩa"))],
         );
         let plan = plan_fix(&v, 0, |tail| tail.chars().count()).expect("plan");
         assert_eq!(plan.issue_index, 0);
@@ -1102,7 +1185,7 @@ mod tests {
     fn a2_lap_tu_xoa_dung_lan_lap() {
         let v = view(
             "Hôm nay tôi tôi đi học .",
-            vec![issue(12, 15, "Lặp từ: \"tôi\"", Some("tôi"))],
+            vec![issue(K_DUP, 12, 15, "Lặp từ: \"tôi\"", Some("tôi"))],
         );
         let plan = plan_fix(&v, 0, |tail| tail.chars().count()).expect("plan");
         assert_eq!(plan.delete_chars, v.sentence.len() - 11); // từ space(11) tới hết
@@ -1115,20 +1198,23 @@ mod tests {
 
     #[test]
     fn khong_sua_khi_thieu_goi_y_hoac_goi_y_khong_doi() {
-        let v = view("một hai ba", vec![issue(0, 3, "a", None)]);
+        let v = view("một hai ba", vec![issue(K_DIACRITIC, 0, 3, "a", None)]);
         assert_eq!(plan_fix(&v, 0, |t| t.chars().count()), None);
         assert_eq!(plan_fix(&v, 7, |t| t.chars().count()), None);
 
         // Gợi ý trùng nội dung đang có → không đụng document.
-        let same = view("một hai", vec![issue(0, 3, "a", Some("một"))]);
+        let same = view("một hai", vec![issue(K_DIACRITIC, 0, 3, "a", Some("một"))]);
         assert_eq!(plan_fix(&same, 0, |t| t.chars().count()), None);
 
         // Gợi ý chứa ký tự điều khiển (xuống dòng) → từ chối.
-        let ctrl = view("một hai", vec![issue(0, 3, "a", Some("một\nhai"))]);
+        let ctrl = view(
+            "một hai",
+            vec![issue(K_DIACRITIC, 0, 3, "a", Some("một\nhai"))],
+        );
         assert_eq!(plan_fix(&ctrl, 0, |t| t.chars().count()), None);
 
         // core không đếm được glyph → fail-safe.
-        let ok = view("một hai", vec![issue(0, 3, "a", Some("Một"))]);
+        let ok = view("một hai", vec![issue(K_DIACRITIC, 0, 3, "a", Some("Một"))]);
         assert_eq!(plan_fix(&ok, 0, |_| 0), None);
     }
 
@@ -1136,7 +1222,7 @@ mod tests {
     fn khong_tu_sua_loi_chi_goi_y() {
         // Spelling: có gợi ý nhưng `auto_fixable = false` ⇒ A2 **không** tự sửa
         // (đúng `assist::fix::apply_auto_fixes` — chỉ áp lỗi auto_fixable).
-        let mut suggestion_only = issue(0, 4, "Không có trong từ điển", Some("một"));
+        let mut suggestion_only = issue(K_SPELLING, 0, 4, "Không có trong từ điển", Some("một"));
         suggestion_only.auto_fixable = false;
         let v = view("môt hai", vec![suggestion_only]);
         assert_eq!(plan_fix(&v, 0, |t| t.chars().count()), None);
@@ -1187,10 +1273,16 @@ mod tests {
     fn plan_sentence_auto_fix_nhieu_loi_objective() {
         let sentence = "hôm nay tôi tôi đi  học .";
         let issues = vec![
-            issue(0, 3, "Chữ thường đầu câu", Some("Hôm")),
-            issue(12, 15, "Lặp từ: \"tôi\"", Some("tôi")),
-            issue(18, 20, "Khoảng trắng kép", Some(" ")),
-            issue(23, 24, "Thừa khoảng trắng trước dấu câu", Some("")),
+            issue(K_LOWER, 0, 3, "Chữ thường đầu câu", Some("Hôm")),
+            issue(K_DUP, 12, 15, "Lặp từ: \"tôi\"", Some("tôi")),
+            issue(K_DOUBLE_SPACE, 18, 20, "Khoảng trắng kép", Some(" ")),
+            issue(
+                K_SPACE_BEFORE,
+                23,
+                24,
+                "Thừa khoảng trắng trước dấu câu",
+                Some(""),
+            ),
         ];
         let plan = plan_sentence_auto_fix(sentence, &issues, |tail| tail.chars().count())
             .expect("plan sentence");
@@ -1205,7 +1297,7 @@ mod tests {
     #[test]
     fn plan_sentence_auto_fix_chi_sua_phan_duoi() {
         let sentence = "Tôi nghĩ rằng nghiã là đúng.";
-        let issues = vec![issue(14, 19, "Sai vị trí dấu", Some("nghĩa"))];
+        let issues = vec![issue(K_DIACRITIC, 14, 19, "Sai vị trí dấu", Some("nghĩa"))];
         let plan = plan_sentence_auto_fix(sentence, &issues, |tail| tail.chars().count())
             .expect("plan sentence");
 
@@ -1219,7 +1311,7 @@ mod tests {
     #[test]
     fn plan_sentence_auto_fix_bo_qua_loi_chi_goi_y() {
         let sentence = "Hôm nay tôi thấy môt con mèo.";
-        let mut sp_issue = issue(17, 20, "Không có trong từ điển", Some("một"));
+        let mut sp_issue = issue(K_SPELLING, 17, 20, "Không có trong từ điển", Some("một"));
         sp_issue.auto_fixable = false;
         let plan = plan_sentence_auto_fix(sentence, &[sp_issue], |tail| tail.chars().count());
         assert_eq!(plan, None);
@@ -1252,7 +1344,7 @@ mod tests {
 
         // Scenario 2: Lặp từ ("tôi tôi đi học.") -> Mode 1 hiện gợi ý; Mode 2 tự sửa
         let s2 = "tôi tôi đi học.";
-        let v2 = view(s2, vec![issue(4, 7, "Lặp từ: \"tôi\"", Some("tôi"))]);
+        let v2 = view(s2, vec![issue(K_DUP, 4, 7, "Lặp từ: \"tôi\"", Some("tôi"))]);
         assert!(v2.render_plain().contains("1. Lặp từ: \"tôi\"  -> tôi"));
         let plan2 = plan_sentence_auto_fix(s2, &v2.issues, |t| t.chars().count()).expect("plan2");
         assert_eq!(plan2.delete_from, 3);
@@ -1265,7 +1357,10 @@ mod tests {
 
         // Scenario 3: Thừa khoảng trắng trước dấu ("đi học .") -> Mode 2 tự sửa
         let s3 = "đi học .";
-        let v3 = view(s3, vec![issue(6, 7, "Thừa khoảng trắng", Some(""))]);
+        let v3 = view(
+            s3,
+            vec![issue(K_SPACE_BEFORE, 6, 7, "Thừa khoảng trắng", Some(""))],
+        );
         let plan3 = plan_sentence_auto_fix(s3, &v3.issues, |t| t.chars().count()).expect("plan3");
         assert_eq!(plan3.delete_from, 6);
         assert_eq!(plan3.original_tail, " .");
@@ -1280,7 +1375,10 @@ mod tests {
 
         // Scenario 4: Chữ thường đầu câu ("hôm nay tôi đi học.") -> Mode 2 tự sửa
         let s4 = "hôm nay tôi đi học.";
-        let v4 = view(s4, vec![issue(0, 1, "Chữ thường ở đầu câu", Some("H"))]);
+        let v4 = view(
+            s4,
+            vec![issue(K_LOWER, 0, 1, "Chữ thường ở đầu câu", Some("H"))],
+        );
         let plan4 = plan_sentence_auto_fix(s4, &v4.issues, |t| t.chars().count()).expect("plan4");
         assert_eq!(
             plan4.replacement.iter().collect::<String>(),
@@ -1327,5 +1425,123 @@ mod tests {
             buffer_is_ours: false,
             ..valid_pre
         }));
+    }
+
+    // ------------------------------------------------------------------
+    // Q-2 (BLOCKER) — lỗi L6 ở vị trí > 0 không được xoá nhầm 1 ký tự
+    // ------------------------------------------------------------------
+
+    /// Chạy engine **thật** (FFI) trên 1 câu → `OverlayView` (như đường gõ thật).
+    fn check_via_engine(sentence: &str) -> OverlayView {
+        let utf16: Vec<u16> = sentence.encode_utf16().collect();
+        let mut result = textvn_ffi::ime_assist_result_v1 {
+            abi_version: textvn_ffi::IME_ABI_VERSION,
+            count: 0,
+            issues: [textvn_ffi::ime_assist_issue_v1 {
+                kind: 0,
+                start: 0,
+                end: 0,
+                auto_fixable: 0,
+                confidence: 0,
+                message: [0; textvn_ffi::IME_MAX_ASSIST_MSG],
+                suggest_len: 0,
+                suggest: [0; textvn_ffi::IME_MAX_ASSIST_SUGGEST],
+            }; textvn_ffi::IME_MAX_ASSIST_ISSUES],
+        };
+        let count =
+            textvn_ffi::ime_assist_check_v1(utf16.as_ptr(), utf16.len() as i32, &mut result);
+        assert!(count > 0, "engine phải bắt được lỗi trong câu {sentence:?}");
+        OverlayView::from_ffi(&result, sentence).expect("view")
+    }
+
+    /// Q-2 (BLOCKER): lỗi L6 ("chữ thường đầu câu") nằm ở vị trí **> 0** ⇒
+    /// adapter **XOÁ nhầm** 1 ký tự nếu quyết định "xoá span" bằng so sánh
+    /// **text** (`span.to_lowercase() == suggest.to_lowercase()` ⇒ `"b" == "B"`).
+    ///
+    /// Hồi quy (case có sẵn trong `corpus/assist/vi_basic.ass`): "Xin chào. bạn
+    /// khỏe không" → span `@10-11` ⇒ kết quả phải là **"Xin chào. Bạn khỏe
+    /// không"**, KHÔNG phải "Xin chào. ạn khỏe không" (mất 1 ký tự).
+    #[test]
+    fn q2_l6_o_vi_tri_0_khong_xoa_nham_ky_tu() {
+        let sentence = "Xin chào. bạn khỏe không";
+        let view = check_via_engine(sentence);
+
+        // Lỗi L6 của engine: kind = LOWERCASE_SENTENCE, span 10..11, gợi ý "B".
+        let l6 = view
+            .issues
+            .iter()
+            .find(|i| i.kind == textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE)
+            .expect("L6");
+        assert_eq!((l6.start, l6.end), (10, 11));
+        assert_eq!(l6.suggestion.as_deref(), Some("B"));
+
+        let plan =
+            plan_sentence_auto_fix(sentence, &view.issues, |t| t.chars().count()).expect("plan");
+        let prefix: String = sentence.chars().take(plan.delete_from).collect();
+        let fixed = format!("{prefix}{}", plan.replacement.iter().collect::<String>());
+        assert_eq!(
+            fixed, "Xin chào. Bạn khỏe không",
+            "L6 ở vị trí > 0 phải THAY ký tự, không được XOÁ (Q-2)"
+        );
+        assert_eq!(plan.delete_from, 10);
+    }
+
+    /// Q-2: cùng lỗi nhưng qua **A2** (sửa 1 lỗi) cũng phải **thay** span.
+    #[test]
+    fn q2_a2_thay_span_cho_l6_khong_xoa() {
+        let sentence = "Xin chào. bạn khỏe không";
+        let view = check_via_engine(sentence);
+        let index = view
+            .issues
+            .iter()
+            .position(|i| i.kind == textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE)
+            .expect("L6");
+        let plan = plan_fix(&view, index, |t| t.chars().count()).expect("plan A2");
+        assert_eq!(plan.delete_chars, "bạn khỏe không".chars().count());
+        assert_eq!(
+            plan.replacement.iter().collect::<String>(),
+            "Bạn khỏe không",
+            "A2 cũng phải THAY ký tự, không được XOÁ (Q-2)"
+        );
+    }
+
+    /// Q-2: lặp từ vẫn được **xoá** đúng (không đổi hành vi cũ) — kind
+    /// `DUPLICATE_WORD` ⇒ xoá lần lặp + 1 space liền trước.
+    #[test]
+    fn q2_lap_tu_van_xoa_dung_lan_lap() {
+        let sentence = "Hôm nay tôi tôi đi học .";
+        let view = check_via_engine(sentence);
+        let index = view
+            .issues
+            .iter()
+            .position(|i| i.kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD)
+            .expect("lặp từ");
+        let plan = plan_fix(&view, index, |t| t.chars().count()).expect("plan A2");
+        assert_eq!(plan.delete_chars, view.sentence.len() - 11);
+        assert_eq!(
+            plan.replacement.iter().collect::<String>(),
+            " đi học .",
+            "xoá ' tôi' của lần lặp, giữ nguyên phần đuôi"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Q-5 (MAJOR) — không đếm được glyph thì KHÔNG sửa
+    // ------------------------------------------------------------------
+
+    /// Q-5: khi core **không đếm được glyph** (FFI lỗi ⇒ `glyph_len_of` trả 0)
+    /// ⇒ kế hoạch bị **từ chối** ⇒ **không sửa** document. TUYỆT ĐỐI không
+    /// fallback `chars().count()` (VNI/TCVN3: 1 chữ = nhiều code unit ⇒ xoá lệch).
+    #[test]
+    fn q5_khong_dem_duoc_glyph_thi_khong_sua() {
+        let sentence = "hôm nay tôi tôi đi học.";
+        let issues = vec![issue(K_DUP, 12, 15, "Lặp từ: \"tôi\"", Some("tôi"))];
+        assert_eq!(
+            plan_sentence_auto_fix(sentence, &issues, |_| 0),
+            None,
+            "glyph = 0 ⇒ không sửa (fail-safe Q-5)"
+        );
+        let view = view(sentence, issues);
+        assert_eq!(plan_fix(&view, 0, |_| 0), None, "A2: glyph = 0 ⇒ không sửa");
     }
 }

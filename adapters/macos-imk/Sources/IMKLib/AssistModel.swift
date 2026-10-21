@@ -197,6 +197,11 @@ public func assistKindName(_ kind: UInt32) -> String {
 
 /// Tính kế hoạch tự sửa câu từ danh sách lỗi của engine (AS-050 / Mode 2 / A3).
 ///
+/// Ngữ nghĩa sửa quyết định theo **kind** của lỗi (`IME_ASSIST_KIND_*`) — khớp
+/// crate `assist` (`assist/src/fix.rs`), `adapters/linux-common/src/compose.c` và
+/// adapter Windows (Q-2): `duplicate_word` / `space_before_punct` ⇒ **xoá** span;
+/// còn lại ⇒ **thay** span bằng `suggest`. KHÔNG đoán bằng text.
+///
 /// - Parameters:
 ///   - sentence: Chuỗi câu hiện tại trong buffer của engine.
 ///   - issues: Danh sách lỗi do engine trả về (`assistCheck()`).
@@ -230,10 +235,23 @@ public func planSentenceAutoFix(
         }
 
         let spanText = String(chars[start..<end])
-        let sameWord = spanText.lowercased() == suggestion.lowercased()
         let prevIsSpace = start > 0 && chars[start - 1] == " "
 
-        if issue.kind == FFI.assistKindSpaceBeforePunct {
+        // Ngữ nghĩa `Fix` theo **kind** (khớp crate `assist` (`assist/src/fix.rs`)
+        // và `adapters/linux-common/src/compose.c`):
+        // - `duplicate_word` → **xoá** lần lặp + 1 space liền trước (`Fix::Delete`);
+        // - `space_before_punct` → **xoá** span (khoảng trắng thừa), `suggest`
+        //   chỉ là đầu câu để **hiển thị** (`Fix::Delete`);
+        // - còn lại → **thay** span bằng `suggest` (`Fix::Replace`).
+        //
+        // KHÔNG đoán bằng text (`spanText.lowercased() == suggestion.lowercased()`):
+        // L6 ("chữ thường đầu câu") có span = 1 chữ thường, gợi ý = 1 chữ hoa ⇒
+        // `"b" == "B"` ⇒ rơi vào nhánh **xoá** ⇒ **mất 1 ký tự** (Q-2 —
+        // "Xin chào. bạn khỏe không" → "Xin chào. ạn khỏe không").
+        if issue.kind == FFI.assistKindDuplicateWord && prevIsSpace {
+            // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước (semantics Fix::Delete)
+            candidates.append(Candidate(start: start - 1, end: end, replacement: ""))
+        } else if issue.kind == FFI.assistKindSpaceBeforePunct {
             // L3 "thừa khoảng trắng trước dấu câu" (P4-0 §5.1): span = KHOẢNG
             // TRẮNG thừa, còn `suggest` chỉ là **đầu câu để HIỂN THỊ** (dấu
             // câu). Mô hình sửa của engine là `Fix::Delete` ⇒ phải **XOÁ
@@ -242,9 +260,6 @@ public func planSentenceAutoFix(
             // (`assist/src/rules/space_before_punct.rs`) và với
             // `adapters/linux-common/src/compose.c` (đã sửa).
             candidates.append(Candidate(start: start, end: end, replacement: ""))
-        } else if sameWord && prevIsSpace {
-            // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước (semantics Fix::Delete)
-            candidates.append(Candidate(start: start - 1, end: end, replacement: ""))
         } else if spanText != suggestion && !suggestion.isEmpty {
             candidates.append(Candidate(start: start, end: end, replacement: suggestion))
         }

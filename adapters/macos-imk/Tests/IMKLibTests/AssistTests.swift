@@ -228,6 +228,53 @@ final class AssistTests: XCTestCase {
         XCTAssertEqual(p.replacement, "Hôm nay trời đẹp.")
     }
 
+    /// Q-2 (BLOCKER): lỗi L6 ("chữ thường đầu câu") nằm ở vị trí **> 0** ⇒ adapter
+    /// **XOÁ nhầm** 1 ký tự nếu quyết định "xoá span" bằng so sánh **text**
+    /// (`spanText.lowercased() == suggestion.lowercased()` ⇒ `"b" == "B"`).
+    ///
+    /// Hồi quy (case có sẵn trong `corpus/assist/vi_basic.ass`): "Xin chào. bạn
+    /// khỏe không" (span `@10-11`) ⇒ kết quả phải là **"Xin chào. Bạn khỏe
+    /// không"**, KHÔNG phải "Xin chào. ạn khỏe không" (mất 1 ký tự).
+    func testPlanSentenceAutoFixLowercaseSentenceStartAfterPositionZero() {
+        let sentence = "Xin chào. bạn khỏe không"
+        // Engine **thật** (FFI) — span L6 = 10..11, gợi ý "B".
+        let issues = ImeEngine.assistCheck(text: sentence)
+        let l6 = issues.first { $0.kind == FFI.assistKindLowercaseSentence }
+        XCTAssertNotNil(l6, "engine phải bắt được lỗi L6")
+        XCTAssertEqual(l6?.start, UInt32(10))
+        XCTAssertEqual(l6?.end, UInt32(11))
+        XCTAssertEqual(l6?.suggest, "B")
+
+        let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { $0.count })
+        XCTAssertNotNil(plan)
+        guard let p = plan else { return }
+        XCTAssertEqual(p.deleteFrom, 10)
+        let prefix = String(sentence.prefix(p.deleteFrom))
+        XCTAssertEqual(
+            prefix + p.replacement,
+            "Xin chào. Bạn khỏe không",
+            "L6 ở vị trí > 0 phải THAY ký tự, không được XOÁ (Q-2)"
+        )
+    }
+
+    /// Q-2: lặp từ vẫn được **xoá** đúng (kind `duplicate_word`) — không đổi
+    /// hành vi cũ sau khi bỏ heuristic text.
+    ///
+    /// Engine trả 2 lỗi cho câu này: `duplicate_word` (12..15) + `space_before_punct`
+    /// (22..23) ⇒ xoá lần lặp **+ 1 space** trước, và xoá khoảng trắng thừa
+    /// trước dấu câu (L3) ⇒ "Hôm nay tôi đi học.".
+    func testPlanSentenceAutoFixDuplicateWordVanXoaDung() {
+        let sentence = "Hôm nay tôi tôi đi học ."
+        let issues = ImeEngine.assistCheck(text: sentence)
+        XCTAssertTrue(issues.contains { $0.kind == FFI.assistKindDuplicateWord })
+        let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { $0.count })
+        XCTAssertNotNil(plan)
+        guard let p = plan else { return }
+        XCTAssertEqual(p.deleteFrom, 11) // xoá từ space trước từ lặp
+        let prefix = String(sentence.prefix(p.deleteFrom))
+        XCTAssertEqual(prefix + p.replacement, "Hôm nay tôi đi học.")
+    }
+
     func testPlanSentenceAutoFixDoubleSpace() {
         let sentence = "Tôi  đi học."
         let issue = AssistIssue(
