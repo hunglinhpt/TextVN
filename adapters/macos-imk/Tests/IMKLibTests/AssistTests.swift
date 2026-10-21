@@ -292,7 +292,7 @@ final class AssistTests: XCTestCase {
         XCTAssertEqual(glyphs, 8)
 
         // Ban đầu câu rỗng
-        XCTAssertEqual(engine.sentenceTail(100), "")
+        XCTAssertEqual(engine.sentenceTail(maxChars: 100), "")
     }
 
     func testEngineAssistCheckIntegration() throws {
@@ -307,7 +307,7 @@ final class AssistTests: XCTestCase {
     // ------------------------------------------------------------- 5. Controller flow
 
     func testControllerProcessAssistAutoFixMode() throws {
-        let engine = try ImeEngine(configJSON: nil)
+        let _ = try ImeEngine(configJSON: nil)
         let controller = TextVNInputController(server: nil, delegate: nil, client: nil)
         controller.currentAssistSettings = AssistSettings(
             mode: "highlight",
