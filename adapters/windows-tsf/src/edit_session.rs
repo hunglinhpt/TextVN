@@ -132,15 +132,23 @@ impl TsfShared {
                 .unwrap_or(false)
     }
 
-    /// Điểm **hiển thị** (Mode 1 — overlay) có bật không: kill-switch D20 **và**
-    /// `assist.mode != "off"` (R-6: giống hệt macOS/Linux).
-    pub fn is_assist_display_enabled(&self) -> bool {
+    /// Trợ lý ngữ pháp có đang **hoạt động** không: kill-switch D20 **và**
+    /// `assist.mode != "off"` (P4-0 §7 — `mode: off` = tắt hoàn toàn).
+    ///
+    /// Cùng ngữ nghĩa với `lc_assist_is_active` (Linux) và `isAssistActive`
+    /// (macOS) ⇒ 1 config, 3 hành vi giống nhau (R-5).
+    pub fn is_assist_enabled(&self) -> bool {
         self.ipc.is_assist_enabled()
             && self
                 .thread
                 .try_borrow()
                 .map(|t| crate::assist::mode1_display_enabled(t.assist_mode()))
                 .unwrap_or(false)
+    }
+
+    /// Điểm **hiển thị** (Mode 1 — overlay) có bật không (R-6: giống macOS/Linux).
+    pub fn is_assist_display_enabled(&self) -> bool {
+        self.is_assist_enabled()
     }
 
     /// Xoá trạng thái hoàn tác tự sửa cả câu (R-3).

@@ -37,11 +37,32 @@ ERRORS = ROOT / "corpus" / "assist" / "vi_real_errors.ass"
 CLEAN = ROOT / "corpus" / "assist" / "vi_real_clean.ass"
 
 CLI_CANDIDATES = (
-    "target/release/textvn-cli.exe",
-    "target/release/textvn-cli",
+    # DEV truoc: binary release co the **cu** (doi engine xong quen rebuild) =>
+    # do sai ma khong ai biet (Fassist-120). Debug build luon moi hon.
     "target/debug/textvn-cli.exe",
     "target/debug/textvn-cli",
+    "target/release/textvn-cli.exe",
+    "target/release/textvn-cli",
 )
+
+# Thu muc nguon dung de canh bao binary cu.
+SOURCE_DIRS = ("assist/src", "cli/src")
+
+
+def newest_source_mtime() -> float:
+    """mtime moi nhat cua source engine/CLI (0 neu khong tim thay)."""
+    newest = 0.0
+    for rel in SOURCE_DIRS:
+        base = ROOT / rel
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*.rs"):
+            try:
+                newest = max(newest, path.stat().st_mtime)
+            except OSError:
+                continue
+    return newest
+
 
 
 class Row:
@@ -65,16 +86,41 @@ def find_cli(explicit: str | None) -> Path:
     for rel in CLI_CANDIDATES:
         p = ROOT / rel
         if p.is_file():
+            warn_if_stale(p)
             return p
     for name in ("textvn-cli.exe", "textvn-cli"):
         for d in os.environ.get("PATH", "").split(os.pathsep):
             cand = Path(d) / name
             if cand.is_file():
+                warn_if_stale(cand)
                 return cand
     raise SystemExit(
         "ERROR: khong tim thay textvn-cli. Hay build: cargo build -p textvn-cli -j 2\n"
         "       (hoac truyen --cli <duong dan>)"
     )
+
+
+def warn_if_stale(cli: Path) -> None:
+    """Canh bao neu binary CU hon source (do sai - Fassist-120)."""
+    try:
+        bin_mtime = cli.stat().st_mtime
+    except OSError:
+        return
+    src_mtime = newest_source_mtime()
+    if src_mtime and bin_mtime < src_mtime:
+        print(
+            f"WARNING: binary CLI CU hon source ({cli}): "
+            f"binary={_stamp(bin_mtime)} < source={_stamp(src_mtime)}\n"
+            f"         -> ket qua do co the SAI. Hay chay: cargo build -p textvn-cli -j 2",
+            file=sys.stderr,
+        )
+
+
+def _stamp(ts: float) -> str:
+    import datetime
+
+    return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+
 
 
 def read_labelled(path: Path) -> list[Row]:

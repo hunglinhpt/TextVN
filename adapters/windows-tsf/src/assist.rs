@@ -762,8 +762,9 @@ pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistC
         IME_MAX_ASSIST_MSG, IME_MAX_ASSIST_SUGGEST,
     };
 
-    // D20 kill-switch: tắt 1 bước từ tray → không check gì cả.
-    if !shared.ipc.is_assist_enabled() {
+    // D20 kill-switch + `assist.mode` (mode=off ⇒ tắt hoàn toàn, không check,
+    // không toast) — cùng ngữ nghĩa với macOS/Linux (R-5).
+    if !shared.is_assist_enabled() {
         return None;
     }
     let began = std::time::Instant::now();

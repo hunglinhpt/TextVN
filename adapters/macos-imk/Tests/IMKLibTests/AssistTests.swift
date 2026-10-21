@@ -24,6 +24,8 @@ final class AssistMockTarget: TextTarget {
     var inserted: [(text: String, replacement: NSRange)] = []
     var deletedCount: Int = 0
     var allowDelete: Bool = true
+    /// Text trước caret mà app trả về (nil = không đọc được → fail-safe).
+    var textBeforeCaretValue: String?
 
     init(initialText: String = "") {
         self.documentText = initialText
@@ -52,6 +54,11 @@ final class AssistMockTarget: TextTarget {
 
     func deleteSurroundingText(before: Int, after: Int) -> Bool {
         deleteBackward(count: before)
+    }
+
+    /// Mặc định: text trước caret = toàn bộ document (mô phỏng app đơn giản).
+    func textBeforeCaret() -> String? {
+        textBeforeCaretValue ?? documentText
     }
 }
 
@@ -254,7 +261,9 @@ final class AssistTests: XCTestCase {
 
     func testAssistUndoStateValidityAndExpiration() {
         let now = Date()
-        let state = AssistUndoState(timestamp: now, originalTail: " .", replacementGlyphs: 1, fixedCount: 1)
+        let state = AssistUndoState(
+            timestamp: now, originalTail: " .", replacement: ".", replacementGlyphs: 1, fixedCount: 1
+        )
         XCTAssertTrue(state.isValid(now: now))
         XCTAssertTrue(state.isValid(now: now.addingTimeInterval(4.9)))
         XCTAssertFalse(state.isValid(now: now.addingTimeInterval(5.1)))
@@ -322,17 +331,16 @@ final class AssistTests: XCTestCase {
         XCTAssertNotNil(plan)
         guard let p = plan else { return }
 
-        // Thực hiện sửa
-        let deleted = target.deleteSurroundingText(before: p.deleteGlyphs, after: 0)
-        XCTAssertTrue(deleted)
-        target.insert(p.replacement, replacementRange: NSRange(location: NSNotFound, length: 0))
-
+        // R-2/R-7: áp sửa qua precondition (text trước caret phải khớp đuôi câu).
+        let applied = controller.applyAssistFix(plan: p, target: target)
+        XCTAssertTrue(applied)
         XCTAssertEqual(target.documentText, "Tôi đi học.")
 
         // Lưu undo
         controller.currentAssistUndo = AssistUndoState(
             timestamp: Date(),
             originalTail: p.originalTail,
+            replacement: p.replacement,
             replacementGlyphs: p.replacement.count,
             fixedCount: p.fixedCount
         )
@@ -342,6 +350,68 @@ final class AssistTests: XCTestCase {
         XCTAssertTrue(reverted)
         XCTAssertEqual(target.documentText, "Tôi đi học .")
         XCTAssertNil(controller.currentAssistUndo)
+    }
+
+    /// R-2/R-7 (fail-safe): caret ở chỗ khác ⇒ vùng sắp xoá KHÔNG khớp đuôi câu
+    /// engine biết ⇒ **không sửa** (không xoá text lạ của người dùng).
+    func testAssistFixPreconditionMismatchSkips() {
+        let controller = TextVNInputController(server: nil, delegate: nil, client: nil)
+        let target = AssistMockTarget(initialText: "Tôi đi học .")
+        // App đang chứa text KHÁC (user đã bấm chuột đặt caret chỗ khác).
+        target.textBeforeCaretValue = "chỗ khác hoàn toàn"
+
+        let issue = AssistIssue(
+            kind: FFI.assistKindSpaceBeforePunct,
+            start: 10,
+            end: 12,
+            autoFixable: true,
+            confidence: 90,
+            message: "Thừa khoảng trắng",
+            suggest: "."
+        )
+        let plan = planSentenceAutoFix(sentence: "Tôi đi học .", issues: [issue], glyphLen: { $0.count })
+        XCTAssertNotNil(plan)
+        guard let p = plan else { return }
+
+        XCTAssertFalse(controller.applyAssistFix(plan: p, target: target))
+        XCTAssertEqual(target.documentText, "Tôi đi học .", "document không bị đụng")
+        XCTAssertEqual(target.deletedCount, 0, "không được xoá gì")
+    }
+
+    /// R-2: không đọc được text trước caret ⇒ không sửa (fail-safe).
+    func testAssistFixPreconditionUnavailableSkips() {
+        let controller = TextVNInputController(server: nil, delegate: nil, client: nil)
+        let target = AssistMockTarget(initialText: "Tôi đi học .")
+        target.textBeforeCaretValue = nil
+
+        let issue = AssistIssue(
+            kind: FFI.assistKindSpaceBeforePunct,
+            start: 10,
+            end: 12,
+            autoFixable: true,
+            confidence: 90,
+            message: "Thừa khoảng trắng",
+            suggest: "."
+        )
+        let plan = planSentenceAutoFix(sentence: "Tôi đi học .", issues: [issue], glyphLen: { $0.count })
+        XCTAssertNotNil(plan)
+        guard let p = plan else { return }
+
+        XCTAssertFalse(controller.applyAssistFix(plan: p, target: target))
+        XCTAssertEqual(target.deletedCount, 0)
+    }
+
+    /// R-5: Mode 2 chỉ bật khi mode "autocorrect" **và** auto_fix "safe".
+    func testMode2RequiresAutocorrectAndSafe() {
+        let highlightSafe = AssistSettings(mode: "highlight", auto_fix: "safe")
+        XCTAssertFalse(highlightSafe.isMode2AutoFix, "chỉ auto_fix=safe thì KHÔNG tự sửa")
+        let autocorrectOff = AssistSettings(mode: "autocorrect", auto_fix: "off")
+        XCTAssertFalse(autocorrectOff.isMode2AutoFix, "chỉ mode=autocorrect thì KHÔNG tự sửa")
+        let autocorrectSafe = AssistSettings(mode: "autocorrect", auto_fix: "safe")
+        XCTAssertTrue(autocorrectSafe.isMode2AutoFix)
+        // R-6: điểm hiển thị bật khi mode != off (kể cả ở Mode 2).
+        XCTAssertTrue(autocorrectSafe.isDisplayEnabled)
+        XCTAssertFalse(AssistSettings(mode: "off").isDisplayEnabled)
     }
 
     func testControllerProcessAssistHighlightMode() {
@@ -393,6 +463,7 @@ final class AssistTests: XCTestCase {
         controller.currentAssistUndo = AssistUndoState(
             timestamp: Date().addingTimeInterval(-6.0), // Quá 5 giây
             originalTail: "hôm nay tôi tôi đi  học .",
+            replacement: "Hôm nay tôi đi học.",
             replacementGlyphs: 19,
             fixedCount: 3
         )
@@ -401,5 +472,25 @@ final class AssistTests: XCTestCase {
         XCTAssertFalse(reverted, "Undo đã hết hạn 5 giây không được áp dụng")
         XCTAssertEqual(target.documentText, "Hôm nay tôi đi học.", "Document không bị đổi")
         XCTAssertNil(controller.currentAssistUndo)
+    }
+
+    /// R-3: hoàn tác chỉ khi vùng sắp xoá **đúng** là text đã gõ lại sau khi
+    /// sửa (user gõ thêm ⇒ không xoá nhầm chữ của họ).
+    func testAssistUndoRequiresMatchingReplacement() {
+        let controller = TextVNInputController(server: nil, delegate: nil, client: nil)
+        let target = AssistMockTarget(initialText: "Hôm nay tôi đi học.")
+        target.textBeforeCaretValue = "Hôm nay tôi đi học. và thêm nữa"
+
+        controller.currentAssistUndo = AssistUndoState(
+            timestamp: Date(),
+            originalTail: "hôm nay tôi tôi đi học .",
+            replacement: "Hôm nay tôi đi học.",
+            replacementGlyphs: 19,
+            fixedCount: 1
+        )
+
+        let reverted = controller.handleAssistUndo(target: target)
+        XCTAssertFalse(reverted, "text trước caret không khớp ⇒ không xoá")
+        XCTAssertEqual(target.deletedCount, 0, "không được xoá gì")
     }
 }
