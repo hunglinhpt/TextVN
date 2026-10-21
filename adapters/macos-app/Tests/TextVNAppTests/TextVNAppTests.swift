@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // TextVNAppTests.swift — Unit tests for macOS Menu Bar & Settings App
 
+import Foundation
 import XCTest
 @testable import TextVNAppLib
 
@@ -690,5 +691,232 @@ final class RoundTwoMacAppTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: staged.appendingPathComponent("uninstall-check.sh").path))
         XCTAssertNil(AppDelegate.stageUninstallScripts(resources: resources.appendingPathComponent("none").path))
         XCTAssertEqual(AppDelegate.logTail("a\nb\n\nc\n", lines: 2), "b\nc")
+    }
+}
+
+// MARK: - Q-4/Q-9: Assist qua IPC (server) + kill-switch D20
+//
+// LƯU Ý (S2/D8): fixture trong test KHÔNG chứa câu/từ người dùng — chỉ chuỗi
+// giả lập ("fixture-*") và SỐ. Server KHÔNG được ghi nội dung `message` ra log.
+
+final class IpcServerAssistTests: XCTestCase {
+    private var server: IpcServer?
+    private var tempDir: URL?
+
+    override func tearDown() {
+        server?.stop()
+        server = nil
+        if let tempDir { try? FileManager.default.removeItem(at: tempDir) }
+        tempDir = nil
+        super.tearDown()
+    }
+
+    // MARK: helpers (socket client tối giản — không cần IMK)
+
+    private func startServer() throws -> String {
+        // Tên thư mục NGẮN: `sockaddr_un.sun_path` chỉ 104 byte trên macOS —
+        // đường dẫn temp + UUID đầy đủ vượt giới hạn ⇒ `start()` throw.
+        let suffix = String(UUID().uuidString.prefix(8))
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tva-\(suffix)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        tempDir = dir
+        let url = dir.appendingPathComponent("ipc.sock")
+        XCTAssertLessThan(url.path.utf8.count, 100, "sun_path chỉ 104 byte — path dài sẽ throw")
+        let srv = IpcServer(socketURL: url)
+        try srv.start()
+        server = srv
+        return url.path
+    }
+
+    private func connectClient(path: String) throws -> Int32 {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { throw NSError(domain: "TextVNTest", code: -1) }
+        // Timeout nhận 5s: server hỏng ⇒ test FAIL nhanh thay vì treo CI.
+        var tv = timeval(tv_sec: 5, tv_usec: 0)
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let bytes = Array(path.utf8)
+        guard bytes.count < MemoryLayout.size(ofValue: addr.sun_path) else {
+            close(fd)
+            throw NSError(domain: "TextVNTest", code: -2)
+        }
+        withUnsafeMutableBytes(of: &addr.sun_path) { dst in
+            dst.copyBytes(from: bytes)
+        }
+        let rc = withUnsafePointer(to: &addr) { ptr in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                connect(fd, sa, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        guard rc == 0 else {
+            close(fd)
+            throw NSError(domain: "TextVNTest", code: -3)
+        }
+        return fd
+    }
+
+    private func writeFrame(_ payload: [String: Any], to fd: Int32) throws {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        var frame = Data()
+        var len = UInt32(data.count).littleEndian
+        frame.append(Data(bytes: &len, count: 4))
+        frame.append(data)
+        var sent = 0
+        try frame.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { throw NSError(domain: "TextVNTest", code: -4) }
+            while sent < raw.count {
+                let n = write(fd, base.advanced(by: sent), raw.count - sent)
+                guard n > 0 else { throw NSError(domain: "TextVNTest", code: -5) }
+                sent += Int(n)
+            }
+        }
+    }
+
+    private func readExactly(_ fd: Int32, _ count: Int) -> Data? {
+        var out = Data()
+        var buf = [UInt8](repeating: 0, count: count)
+        while out.count < count {
+            let n = read(fd, &buf, count - out.count)
+            guard n > 0 else { return nil }
+            out.append(contentsOf: buf[0..<Int(n)])
+        }
+        return out
+    }
+
+    private func readFrame(_ fd: Int32) -> [String: Any]? {
+        guard let header = readExactly(fd, 4) else { return nil }
+        let len = header.prefix(4).withUnsafeBytes {
+            $0.loadUnaligned(fromByteOffset: 0, as: UInt32.self)
+        }.littleEndian
+        guard let payload = readExactly(fd, Int(len)) else { return nil }
+        guard let obj = try? JSONSerialization.jsonObject(with: payload) else { return nil }
+        return obj as? [String: Any]
+    }
+
+    // MARK: tests
+
+    /// Q-4 (MAJOR): IMK gửi `AssistReport` ⇒ server phải `Ack` và **giữ kết
+    /// nối**. Trước đây không có case ⇒ rơi vào `default:` ⇒ protocolViolation
+    /// ⇒ ĐÓNG kết nối IPC mỗi lần assist hiện gợi ý/tự sửa.
+    func testAssistReportIsAckedAndKeepsConnectionOpen() throws {
+        let path = try startServer()
+        let fd = try connectClient(path: path)
+        defer { close(fd) }
+
+        try writeFrame([
+            "type": "AssistReport",
+            "issues": [[
+                "kind": "duplicate_word", "span_start": 0, "span_end": 3,
+                "message": "fixture-lap-tu", "suggestions": ["fixture-goi-y"],
+                "auto_fixable": true, "confidence": 90,
+            ]],
+            "auto_fixed": 1,
+        ], to: fd)
+        let ack = try XCTUnwrap(readFrame(fd), "server phải trả Ack cho AssistReport")
+        XCTAssertEqual(ack["type"] as? String, "Ack")
+        XCTAssertEqual(ack.count, 1, "Ack không được mang field khác")
+
+        // Kết nối còn sống ⇒ Ping vẫn được Pong (trước đây: đã đóng).
+        try writeFrame(["type": "Ping"], to: fd)
+        let pong = try XCTUnwrap(readFrame(fd), "kết nối phải còn sống sau AssistReport")
+        XCTAssertEqual(pong["type"] as? String, "Pong")
+    }
+
+    /// Q-9: `ToggleAssist` ⇒ `Ack` + kill-switch đổi trong `Snapshot.state`
+    /// (khoá `"assist"` — cùng khoá với Windows `states["assist"]`).
+    func testToggleAssistIsAckedAndAppearsInSnapshot() throws {
+        let path = try startServer()
+        let fd = try connectClient(path: path)
+        defer { close(fd) }
+
+        try writeFrame(["type": "ToggleAssist", "enabled": false], to: fd)
+        let ack = try XCTUnwrap(readFrame(fd))
+        XCTAssertEqual(ack["type"] as? String, "Ack")
+
+        try writeFrame(["type": "GetSnapshot"], to: fd)
+        let snapshot = try XCTUnwrap(readFrame(fd))
+        XCTAssertEqual(snapshot["type"] as? String, "Snapshot")
+        let state = try XCTUnwrap(snapshot["state"] as? [String: Bool])
+        XCTAssertEqual(state["assist"], false, "kill-switch D20 phải thấy trong Snapshot")
+    }
+
+    /// Server chỉ giữ SỐ lỗi + số tự sửa — không nội dung `message`
+    /// (S2/D8: `message`/`suggestions` có thể chứa từ của câu người dùng).
+    func testAssistReportParseKeepsCountsOnly() {
+        let msg: [String: Any] = [
+            "type": "AssistReport",
+            "issues": [
+                [
+                    "kind": "duplicate_word", "span_start": 0, "span_end": 3,
+                    "message": "fixture-lap-tu", "suggestions": ["fixture-goi-y"],
+                    "auto_fixable": true, "confidence": 90,
+                ],
+                [
+                    "kind": "double_space", "span_start": 5, "span_end": 7,
+                    "message": "fixture-khoang-trang", "suggestions": [],
+                    "auto_fixable": true, "confidence": 80,
+                ],
+            ],
+            "auto_fixed": 2,
+        ]
+        let outcome = IpcServer.parseAssistMessage(type: "AssistReport", msg: msg)
+        XCTAssertEqual(outcome, .assistReport(issueCount: 2, autoFixed: 2))
+    }
+
+    /// `ToggleAssist` hợp lệ → `.toggleAssist`; field sai → violation.
+    func testToggleAssistParse() {
+        XCTAssertEqual(
+            IpcServer.parseAssistMessage(type: "ToggleAssist", msg: ["enabled": false]),
+            .toggleAssist(enabled: false))
+        if case .violation = IpcServer.parseAssistMessage(
+            type: "ToggleAssist", msg: [:]) {
+            // đúng: thiếu `enabled` ⇒ violation
+        } else {
+            XCTFail("ToggleAssist thiếu `enabled` phải là violation")
+        }
+    }
+
+    /// Field sai kiểu ⇒ violation (đóng kết nối) — không phải crash.
+    func testAssistMessageInvalidTypesAreViolations() {
+        if case .violation = IpcServer.parseAssistMessage(
+            type: "AssistReport", msg: ["issues": "khong-phai-mang"]) {
+            // đúng
+        } else {
+            XCTFail("issues sai kiểu phải là violation")
+        }
+        if case .violation = IpcServer.parseAssistMessage(
+            type: "AssistReport", msg: ["auto_fixed": -1]) {
+            // đúng
+        } else {
+            XCTFail("auto_fixed âm phải là violation")
+        }
+        if case .violation = IpcServer.parseAssistMessage(
+            type: "AssistReport", msg: ["auto_fixed": 1.5]) {
+            // đúng
+        } else {
+            XCTFail("auto_fixed lẻ phải là violation")
+        }
+    }
+
+    /// Số nguyên không dương từ JSON — chỉ nhận giá trị nguyên trong
+    /// `[0, UInt32.max]`.
+    func testUInt32ValueRejectsNonIntegers() {
+        XCTAssertEqual(IpcServer.uint32Value(NSNumber(value: 3)), 3)
+        XCTAssertEqual(IpcServer.uint32Value(NSNumber(value: 0)), 0)
+        XCTAssertNil(IpcServer.uint32Value(NSNumber(value: -1)))
+        XCTAssertNil(IpcServer.uint32Value(NSNumber(value: 1.5)))
+        XCTAssertNil(IpcServer.uint32Value("x"))
+    }
+
+    /// `Snapshot.state` luôn có khoá kill-switch `"assist"` (D20) — như Windows.
+    func testSnapshotStateIncludesAssistKillSwitch() {
+        let state = IpcServer.snapshotState(
+            appStates: ["*": true, "com.apple.safari": false], assistEnabled: false)
+        XCTAssertEqual(state["assist"], false)
+        XCTAssertEqual(state["*"], true)
+        XCTAssertEqual(state["com.apple.safari"], false)
+        XCTAssertEqual(IpcServer.assistAppID, "assist")
     }
 }

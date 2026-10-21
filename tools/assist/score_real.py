@@ -46,7 +46,14 @@ CLI_CANDIDATES = (
 )
 
 # Thu muc nguon dung de canh bao binary cu.
-SOURCE_DIRS = ("assist/src", "cli/src")
+SOURCE_DIRS = (
+    "assist/src",
+    "cli/src",
+    "core/src",
+    "ffi/src",
+    "dict/src",
+    "config/src",
+)
 
 
 def newest_source_mtime() -> float:

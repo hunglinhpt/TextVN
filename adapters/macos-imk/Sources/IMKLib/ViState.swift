@@ -34,6 +34,10 @@ public struct ViState: Equatable {
         let key = Self.normalizedAppID(appID)
         if key == IpcMessage.globalAppID {
             globalEnabled = enabled
+        } else if key == IpcMessage.assistAppID {
+            // Kill-switch D20 — KHÔNG phải `app_id`: nó nằm ở `ViStateStore`
+            // (`assistEnabled`), không phải override per-app. Bỏ qua ở đây để
+            // "assist" không biến thành app override giả.
         } else {
             appOverrides[key] = enabled
         }
@@ -57,6 +61,14 @@ public final class ViStateStore {
     /// Toggle toàn cục xảy ra lúc IPC offline — chưa tới TextVN.app (nguồn ghi
     /// `config.enabled`). Gửi lại ở Snapshot kế tiếp thay vì để "*" cũ đè mất.
     public private(set) var pendingGlobalSync = false
+    /// Kill-switch Trợ lý ngữ pháp (D20) — đọc từ `state["assist"]` của
+    /// `Snapshot` hoặc `StateUpdate { app_id: "assist" }` (mirror Windows TSF
+    /// `states["assist"]`, Linux `state.json` → `assist_enabled`).
+    ///
+    /// Mặc định **BẬT**: kill-switch chỉ có hiệu lực khi server báo tắt; việc
+    /// assist có chạy hay không vẫn do `config.assist.mode` quyết định (mặc
+    /// định `"off"` — D20). Tắt ⇒ adapter **không** kiểm tra nữa.
+    public private(set) var assistEnabled: Bool = true
     private var seeded = false
 
     public init(state: ViState = ViState()) {
@@ -88,6 +100,11 @@ public final class ViStateStore {
     /// `ToggleViEn("*", state.globalEnabled)` để server ghi config + broadcast.
     public func applySnapshot(_ snapshot: [String: Bool]) -> Bool {
         seeded = true
+        // Kill-switch D20 — khoá "assist" trong `state` (áp ở MỌI nhánh, kể cả
+        // khi có toggle offline đang chờ: kill-switch không được bỏ sót).
+        if let assist = snapshot[IpcMessage.assistAppID] {
+            assistEnabled = assist
+        }
         guard pendingGlobalSync else {
             state.apply(snapshot: snapshot)
             return false
@@ -98,5 +115,11 @@ public final class ViStateStore {
         }
         state.apply(snapshot: perApp)
         return true
+    }
+
+    /// Áp kill-switch D20 từ `StateUpdate { app_id: "assist" }` (server báo
+    /// tắt/bật khi user đổi trong app) — tách riêng khỏi state per-app.
+    public func applyAssistState(_ enabled: Bool) {
+        assistEnabled = enabled
     }
 }

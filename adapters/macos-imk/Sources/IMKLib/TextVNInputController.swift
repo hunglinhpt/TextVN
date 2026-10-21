@@ -466,17 +466,25 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         case let .stateUpdate(appID, enabled, _):
             // Toàn cục = `IpcMessage.globalAppID` ("*") — MỘT quy ước (R3 F3-1);
             // app khác → override per-app (menu bar "Bật tiếng Việt cho <app>").
+            if appID == IpcMessage.assistAppID {
+                // Kill-switch Trợ lý ngữ pháp (D20) — KHÔNG phải app override.
+                ViStateStore.shared.applyAssistState(enabled)
+                Diagnostics.log("ipc assist kill-switch \(enabled ? "on" : "off")")
+                return
+            }
             viState.apply(stateUpdate: appID, enabled: enabled)
         case let .snapshot(_, state, appdbVersion, _):
             // Server gửi Snapshot sau `GetSnapshot` — áp cả "*" lẫn per-app;
             // trước đây bỏ qua hoàn toàn nên state ban đầu không bao giờ được áp.
             Diagnostics.log("ipc snapshot received (\(state.count) entries, appdb \(appdbVersion))")
             ipcOnline = true
+            // `applySnapshot` áp cả khoá kill-switch `state["assist"]` (D20).
             if ViStateStore.shared.applySnapshot(state) {
                 // R2-44: toggle lúc offline thắng "*" cũ của server — báo TextVN.app
                 // để app ghi `config.enabled` và broadcast cho mọi controller.
                 ipc.send(.toggleViEn(appID: IpcMessage.globalAppID, enabled: viState.globalEnabled))
             }
+            Diagnostics.log("ipc assist kill-switch \(assistKillSwitchOn ? "on" : "off")")
         default:
             break
         }
@@ -715,16 +723,42 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     // ------------------------------------------------------------- assist (AS-060)
 
-    func isAssistActive(for appID: String) -> Bool {
-        guard assistSettings.isOn else { return false }
-        if let appOverride = assistSettings.per_app[appID] {
+    /// Kill-switch Trợ lý ngữ pháp (D20) — server báo qua `state["assist"]`
+    /// (Snapshot) hoặc `StateUpdate { app_id: "assist" }`. Tắt ⇒ adapter
+    /// **không** kiểm tra nữa (kể cả khi `assist.mode` khác "off").
+    /// Mặc định = BẬT (`ViStateStore.assistEnabled`).
+    private var assistKillSwitchOn: Bool { ViStateStore.shared.assistEnabled }
+
+    /// Quy tắc bật assist (thuần, test được không cần IMKServer):
+    /// 1. kill-switch D20 phải BẬT;
+    /// 2. `assist.mode` phải khác "off";
+    /// 3. override per-app nếu có.
+    static func assistAllowed(
+        killSwitchOn: Bool,
+        settings: AssistSettings,
+        appID: String
+    ) -> Bool {
+        guard killSwitchOn else { return false }
+        guard settings.isOn else { return false }
+        if let appOverride = settings.per_app[appID] {
             return appOverride
         }
         return true
     }
 
+    func isAssistActive(for appID: String) -> Bool {
+        Self.assistAllowed(
+            killSwitchOn: assistKillSwitchOn,
+            settings: assistSettings,
+            appID: appID
+        )
+    }
+
     @discardableResult
     func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil) -> Bool {
+        // Gate thứ 2 (defense in depth): kill-switch tắt ⇒ không check, không
+        // hiện gợi ý, không tự sửa, không báo IPC.
+        guard assistKillSwitchOn else { return false }
         guard let engine = engine else { return false }
         let issues = engine.assistCheck()
         guard !issues.isEmpty else {
@@ -849,6 +883,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     @discardableResult
     func handleAssistUndo(sender: Any? = nil, target: TextTarget? = nil) -> Bool {
+        // KHÔNG gate bằng kill-switch: undo là HOÀN TÁC lần tự sửa đã áp —
+        // chặn nó ⇒ chữ người dùng bị giữ ở dạng đã sửa mà không có đường quay
+        // lại. Kill-switch chỉ chặn việc KIỂM TRA mới (D20).
         guard let undo = assistUndo, undo.isValid() else {
             assistUndo = nil
             return false

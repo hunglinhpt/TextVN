@@ -21,6 +21,9 @@ public enum IpcMessage: Equatable {
     /// `app_id` toàn cục trong `ToggleViEn`/`StateUpdate`/`Snapshot.state` — một quy
     /// ước duy nhất cho mọi nền tảng (Windows TSF `GLOBAL_KEY`, review R3 F3-1).
     public static let globalAppID = "*"
+    /// Khoá kill-switch Trợ lý ngữ pháp trong `Snapshot.state` (D20) — CÙNG
+    /// khoá với Windows TSF (`states["assist"]`) và Linux (`state.json`).
+    public static let assistAppID = "assist"
 
     // ---- client → server
     case hello(pid: Int32, abi: UInt32, version: String)
@@ -218,12 +221,30 @@ public final class IpcClient {
     public weak var delegate: IpcClientDelegate?
     public private(set) var connected = false
 
+    /// ABI protocol tối thiểu để peer hiểu `AssistReport` (`schemas/ipc.v1.md`
+    /// §"Tương thích ngược"): tray bản cũ coi `AssistReport` là protocol
+    /// violation ⇒ **đóng kết nối** ⇒ adapter chỉ được gửi khi peer đã
+    /// handshake (`Hello` → phản hồi) và peer hỗ trợ message.
+    public static let minAssistReportPeerABI: UInt32 = 1
+
     private let socketPath: String
     private var fd: Int32 = -1
     private var buffer = Data()
     private var readSource: DispatchSourceRead?
     private var retryTimer: DispatchSourceTimer?
     private var queue: DispatchQueue
+    /// Peer đã phản hồi `Hello` của ta (`Ack`) hoặc `GetSnapshot` (`Snapshot`)
+    /// ⇒ handshake xong. Chưa handshake ⇒ KHÔNG gửi message mới (`AssistReport`).
+    /// Chỉ đọc/ghi trên `queue` (như `fd`/`buffer`).
+    private var handshakeCompleted = false
+    /// ABI peer khai báo qua `Hello` (nếu peer gửi `Hello`) — `nil` = peer
+    /// không khai báo.
+    private var peerABI: UInt32?
+    /// Peer hỗ trợ protocol assist (D20): server mới LUÔN có khoá `"assist"`
+    /// trong `Snapshot.state` ⇒ đó là tín hiệu "peer hiểu `AssistReport`".
+    /// Server bản cũ không có khoá này ⇒ adapter KHÔNG gửi `AssistReport`
+    /// (peer cũ coi là protocol violation ⇒ đóng kết nối).
+    private var peerAdvertisesAssist = false
     /// B12: nhận diện "đang chạy trên queue" trong deinit (tránh `queue.sync`
     /// tự deadlock khi deinit xảy ra ngay trong một block của chính queue này).
     private static let queueKey = DispatchSpecificKey<UInt8>()
@@ -239,6 +260,33 @@ public final class IpcClient {
         let support = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/TextVN", isDirectory: true)
         return support.appendingPathComponent("ipc.sock").path
+    }
+
+    /// Quy tắc gate `AssistReport` — hàm THUẦN (test được không cần socket):
+    /// - Chưa handshake ⇒ **KHÔNG gửi** (peer chưa `Hello`).
+    /// - Peer khai báo `abi` ⇒ phải ≥ `minAssistReportPeerABI`.
+    /// - Peer không khai báo `abi` (server macOS không gửi `Hello`) ⇒ dựa vào
+    ///   tín hiệu "peer hỗ trợ assist" (khoá `"assist"` trong `Snapshot`).
+    public static func canSendAssistReport(
+        handshakeCompleted: Bool,
+        peerABI: UInt32?,
+        peerAdvertisesAssist: Bool
+    ) -> Bool {
+        guard handshakeCompleted else { return false }
+        if let peerABI { return peerABI >= minAssistReportPeerABI }
+        return peerAdvertisesAssist
+    }
+
+    /// Peer hiện tại có nhận `AssistReport` không? (đọc an toàn từ main thread;
+    /// KHÔNG gọi từ queue của client — sẽ deadlock).
+    public func assistReportSupported() -> Bool {
+        queue.sync {
+            Self.canSendAssistReport(
+                handshakeCompleted: handshakeCompleted,
+                peerABI: peerABI,
+                peerAdvertisesAssist: peerAdvertisesAssist
+            )
+        }
     }
 
     /// Kết nối + handshake `Hello` + Subscribe. Non-blocking; lỗi → tự retry
@@ -329,6 +377,18 @@ public final class IpcClient {
     public func send(_ message: IpcMessage) {
         queue.async { [weak self] in
             guard let self, self.connected else { return }
+            // `AssistReport` là message MỚI (P4-2) — peer cũ coi là protocol
+            // violation ⇒ đóng kết nối. Schema yêu cầu adapter chỉ gửi khi
+            // peer đã handshake và hỗ trợ (kiểm ở tầng adapter).
+            if case .assistReport = message,
+               !Self.canSendAssistReport(
+                   handshakeCompleted: self.handshakeCompleted,
+                   peerABI: self.peerABI,
+                   peerAdvertisesAssist: self.peerAdvertisesAssist
+               ) {
+                Diagnostics.log("ipc assist report skipped — peer chưa handshake / abi cũ")
+                return
+            }
             let payload = message.jsonData
             guard !payload.isEmpty, payload.count <= Self.maxFrameLength else {
                 Diagnostics.log("ipc frame invalid (\(payload.count)) — dropped")
@@ -400,6 +460,24 @@ public final class IpcClient {
                     return
                 }
                 // Marshal về main queue: delegate là main-thread IMK object (F16).
+                // Đồng thời: phản hồi của peer ⇒ handshake xong (điều kiện gửi
+                // `AssistReport` — schemas/ipc.v1.md §"Tương thích ngược").
+                switch decoded {
+                case .ack:
+                    self.handshakeCompleted = true
+                case let .snapshot(_, state, _, _):
+                    self.handshakeCompleted = true
+                    // Server D20 mới LUÔN có khoá "assist" trong `state` ⇒ tín
+                    // hiệu peer hỗ trợ protocol assist (được gửi `AssistReport`).
+                    if state[IpcMessage.assistAppID] != nil {
+                        self.peerAdvertisesAssist = true
+                    }
+                case let .hello(_, abi, _):
+                    self.peerABI = abi
+                    self.handshakeCompleted = true
+                default:
+                    break
+                }
                 if Thread.isMainThread {
                     delegate?.ipcClient(self, didReceive: decoded)
                 } else {
@@ -451,6 +529,10 @@ public final class IpcClient {
         }
         connected = false
         buffer.removeAll()
+        // Kết nối mới ⇒ phải handshake lại trước khi gửi message mới.
+        handshakeCompleted = false
+        peerABI = nil
+        peerAdvertisesAssist = false
     }
 
     private func closeSocket() {
@@ -460,6 +542,9 @@ public final class IpcClient {
         }
         connected = false
         buffer.removeAll()
+        handshakeCompleted = false
+        peerABI = nil
+        peerAdvertisesAssist = false
     }
 
     /// Delegate disconnect LUÔN trên main queue (thread contract F16 — controller

@@ -14,6 +14,10 @@ public final class IpcServer {
     /// `app_id` toàn cục — cùng quy ước với IMK (`IpcMessage.globalAppID`) và
     /// Windows TSF (`GLOBAL_KEY`) (review R3 F3-1).
     public static let globalAppID = "*"
+    /// Khoá kill-switch Trợ lý ngữ pháp trong map `state` (D20) — CÙNG khoá
+    /// với Windows TSF (`states["assist"]`) và Linux (`state.json` →
+    /// `assist_enabled`). Adapter đọc khoá này để tắt assist trong 1 bước.
+    public static let assistAppID = "assist"
     /// Version gửi trong `Hello`/`Snapshot` — đọc từ Info.plist của TextVN.app,
     /// fallback hằng khi chạy trong swift test (R2 finding 2).
     public static let serverVersion: String =
@@ -36,6 +40,16 @@ public final class IpcServer {
     private let startTime: Date = Date()
     private var configVersion: UInt64 = 1
     private var appStates: [String: Bool] = [:]
+    /// Kill-switch Trợ lý ngữ pháp (D20) — nguồn sự thật RIÊNG, KHÔNG nhét vào
+    /// `appStates` (đó là map `app_id → bật/tắt tiếng Việt`).
+    ///
+    /// Mặc định **BẬT** ở tầng protocol: macOS CHƯA có menu kill-switch
+    /// (ui-spec §8: tray kill-switch chỉ Windows/Linux) nên không có nơi lưu
+    /// trạng thái tắt; assist thật vẫn do `config.assist.mode` quyết định
+    /// (mặc định `"off"` — D20). Server có thể tắt bằng `ToggleAssist`
+    /// (client→server) hoặc `setAssistEnabled` (app UI) → mọi IMK nhận
+    /// `StateUpdate { app_id: "assist" }` và ngừng kiểm tra ngay.
+    private var assistEnabled: Bool = true
 
     public init(socketURL: URL? = nil) {
         if let custom = socketURL {
@@ -347,6 +361,108 @@ public final class IpcServer {
         queue.sync { appStates }
     }
 
+    // MARK: - Kill-switch Trợ lý ngữ pháp (D20)
+
+    /// State gửi trong `Snapshot` — map `app_id → enabled` **+ khoá
+    /// `assist`** (kill-switch D20). Windows luôn có khoá `assist` trong
+    /// Snapshot ⇒ adapter macOS đọc được kill-switch ngay từ snapshot đầu.
+    /// Hàm thuần (test được không cần socket).
+    public static func snapshotState(
+        appStates: [String: Bool],
+        assistEnabled: Bool
+    ) -> [String: Bool] {
+        var state = appStates
+        state[assistAppID] = assistEnabled
+        return state
+    }
+
+    /// Trạng thái kill-switch hiện tại (đọc từ main thread — KHÔNG gọi từ
+    /// queue của server).
+    public func isAssistEnabled() -> Bool {
+        queue.sync { assistEnabled }
+    }
+
+    /// Bật/tắt kill-switch Trợ lý ngữ pháp (D20) + broadcast
+    /// `StateUpdate { app_id: "assist" }` cho mọi client đã Subscribe.
+    /// Đây là nguồn sự thật duy nhất trên macOS (chưa có `state.json` như
+    /// Windows/Linux) — dùng bởi app UI hoặc `ToggleAssist` từ client.
+    public func setAssistEnabled(_ enabled: Bool) {
+        queue.async { [weak self] in
+            self?.applyAssistEnabled(enabled, version: nil)
+        }
+    }
+
+    /// Đổi kill-switch (chạy trên queue của server) + broadcast cho client.
+    private func applyAssistEnabled(_ enabled: Bool, version: UInt64?) {
+        guard assistEnabled != enabled else { return }
+        assistEnabled = enabled
+        let msg: [String: Any] = [
+            "type": "StateUpdate",
+            "app_id": Self.assistAppID,
+            "enabled": enabled,
+            "version": version ?? configVersion,
+        ]
+        for subFd in Array(subscribers) {
+            sendFrame(msg, to: subFd)
+        }
+    }
+
+    // MARK: - Parse message assist (client→server)
+
+    /// Kết quả parse message assist — CHỈ chứa SỐ, **không** chứa nội dung
+    /// `message`/`suggestions` (có thể chứa từ của câu người dùng — S2/D8,
+    /// `schemas/ipc.v1.md` §Privacy). Kiểu enum ⇒ không thể rò text ra log.
+    public enum AssistMessageOutcome: Equatable {
+        /// `AssistReport` hợp lệ — server trả `Ack` (KHÔNG đóng kết nối).
+        case assistReport(issueCount: Int, autoFixed: UInt32)
+        /// `ToggleAssist` hợp lệ — server áp kill-switch + trả `Ack`.
+        case toggleAssist(enabled: Bool)
+        /// Sai kiểu field ⇒ protocol violation (đóng kết nối, ipc.v1.md).
+        case violation(reason: String)
+    }
+
+    /// Parse `AssistReport` / `ToggleAssist` — hàm thuần, test được không cần
+    /// socket. TUYỆT ĐỐI không trả về nội dung issue (chỉ số lỗi + số tự sửa).
+    public static func parseAssistMessage(
+        type: String,
+        msg: [String: Any]
+    ) -> AssistMessageOutcome {
+        switch type {
+        case "AssistReport":
+            var issueCount = 0
+            if let raw = msg["issues"] {
+                guard let arr = raw as? [[String: Any]] else {
+                    return .violation(reason: "AssistReport issues sai kiểu")
+                }
+                issueCount = arr.count
+            }
+            var autoFixed: UInt32 = 0
+            if let raw = msg["auto_fixed"] {
+                guard let v = uint32Value(raw) else {
+                    return .violation(reason: "AssistReport auto_fixed sai kiểu")
+                }
+                autoFixed = v
+            }
+            return .assistReport(issueCount: issueCount, autoFixed: autoFixed)
+        case "ToggleAssist":
+            guard let enabled = msg["enabled"] as? Bool else {
+                return .violation(reason: "ToggleAssist thiếu/sai field enabled")
+            }
+            return .toggleAssist(enabled: enabled)
+        default:
+            return .violation(reason: "type lạ \(type)")
+        }
+    }
+
+    /// Đọc số nguyên không dương từ JSON (`NSNumber`) — chỉ nhận giá trị NGUYÊN
+    /// trong `[0, UInt32.max]`; sai kiểu ⇒ `nil` ⇒ protocol violation.
+    public static func uint32Value(_ any: Any) -> UInt32? {
+        guard let n = any as? NSNumber else { return nil }
+        let d = n.doubleValue
+        guard d >= 0, d <= Double(UInt32.max), d.rounded(.towardZero) == d else { return nil }
+        return UInt32(d)
+    }
+
     /// Payload `Snapshot` đúng bảng v1 đóng — không field thừa (review R3 F3-12).
     static func snapshotMessage(configVersion: UInt64, state: [String: Bool]) -> [String: Any] {
         [
@@ -375,7 +491,14 @@ public final class IpcServer {
         case "Hello":
             sendFrame(["type": "Ack"], to: cfd)
         case "GetSnapshot":
-            sendFrame(Self.snapshotMessage(configVersion: configVersion, state: appStates), to: cfd)
+            sendFrame(
+                Self.snapshotMessage(
+                    configVersion: configVersion,
+                    state: Self.snapshotState(
+                        appStates: appStates, assistEnabled: assistEnabled)
+                ),
+                to: cfd
+            )
         case "Subscribe":
             subscribers.insert(cfd)
             sendFrame(["type": "Ack"], to: cfd)
@@ -414,6 +537,25 @@ public final class IpcServer {
                 self.delegate?.ipcServer(self, didReceiveCrashReport: code, count: count)
             }
             sendFrame(["type": "Ack"], to: cfd)
+        case "AssistReport", "ToggleAssist":
+            // Q-4: IMK gửi `AssistReport` khi assist hiện gợi ý/tự sửa. Trước
+            // đây không có case ⇒ rơi vào `default:` ⇒ protocolViolation ⇒ ĐÓNG
+            // kết nối IPC mỗi lần assist báo (mất toggle V/E + kill-switch).
+            // Nay: parse + `Ack` ⇒ kênh IPC giữ nguyên.
+            switch Self.parseAssistMessage(type: type, msg: msg) {
+            case let .assistReport(issueCount, autoFixed):
+                // S2/D8: chỉ log SỐ lỗi — TUYỆT ĐỐI KHÔNG log nội dung
+                // `message`/`suggestions` (có thể chứa từ của câu người dùng).
+                NSLog("[TextVN] IPC assist report: %ld issue(s), %u auto-fixed",
+                      issueCount, autoFixed)
+                sendFrame(["type": "Ack"], to: cfd)
+            case let .toggleAssist(enabled):
+                // Kill-switch D20 — áp + broadcast cho mọi client đã Subscribe.
+                applyAssistEnabled(enabled, version: configVersion)
+                sendFrame(["type": "Ack"], to: cfd)
+            case let .violation(reason):
+                protocolViolation(cfd, reason)
+            }
         default:
             // Danh sách v1 đóng: type lạ = violation (review R3 F3-3).
             protocolViolation(cfd, "type lạ \(type)")
@@ -453,6 +595,12 @@ public final class IpcServer {
         queue.async { [weak self] in
             guard let self = self else { return }
             let key = Self.normalizedAppID(appID)
+            // "assist" là kill-switch (D20) — nguồn sự thật RIÊNG, KHÔNG nhét
+            // vào `appStates` (map `app_id → bật/tắt tiếng Việt`).
+            if key == Self.assistAppID {
+                self.applyAssistEnabled(enabled, version: version)
+                return
+            }
             self.appStates[key] = enabled
             let msg: [String: Any] = [
                 "type": "StateUpdate",

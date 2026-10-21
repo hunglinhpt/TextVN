@@ -891,3 +891,124 @@ final class EnableGatingTests: XCTestCase {
         XCTAssertFalse(store.state.globalEnabled)
     }
 }
+
+// ---------------------------------------------------------------- Q-4 / Q-9
+// Assist qua IPC (P4-2) + kill-switch D20.
+//
+// LƯU Ý (S2/D8): fixture trong test KHÔNG chứa câu/từ của người dùng — chỉ
+// chuỗi giả lập ("fixture-*") và SỐ. Không assert nội dung `message` thật.
+
+final class AssistIpcTests: XCTestCase {
+    /// Q-4: wire format `AssistReport` phải khớp `schemas/ipc.v1.md` (và crate
+    /// `textvn-ipc`): `type` + `issues[]` + `auto_fixed`; mỗi issue có
+    /// `kind/span_start/span_end/message/suggestions/auto_fixable/confidence`.
+    func testAssistReportWireFormatMatchesSchema() throws {
+        let issue = AssistReportIssue(
+            kind: "duplicate_word",
+            spanStart: 3,
+            spanEnd: 8,
+            message: "fixture-lap-tu",
+            suggestions: ["fixture-goi-y"],
+            autoFixable: true,
+            confidence: 80
+        )
+        let msg = IpcMessage.assistReport(issues: [issue], autoFixed: 1)
+        let json = try JSONSerialization.jsonObject(with: msg.jsonData)
+        let obj = try XCTUnwrap(json as? [String: Any])
+        XCTAssertEqual(obj["type"] as? String, "AssistReport")
+        XCTAssertEqual(obj["auto_fixed"] as? Int, 1)
+        let issues = try XCTUnwrap(obj["issues"] as? [[String: Any]])
+        XCTAssertEqual(issues.count, 1)
+        XCTAssertEqual(issues[0]["kind"] as? String, "duplicate_word")
+        XCTAssertEqual(issues[0]["span_start"] as? Int, 3)
+        XCTAssertEqual(issues[0]["span_end"] as? Int, 8)
+        XCTAssertEqual(issues[0]["message"] as? String, "fixture-lap-tu")
+        XCTAssertEqual(issues[0]["suggestions"] as? [String], ["fixture-goi-y"])
+        XCTAssertEqual(issues[0]["auto_fixable"] as? Bool, true)
+        XCTAssertEqual(issues[0]["confidence"] as? Int, 80)
+        // D8/S2: KHÔNG field nào mang câu người dùng vừa gõ.
+        for forbidden in ["text", "sentence", "content"] {
+            XCTAssertNil(obj[forbidden], "payload không được có field \(forbidden)")
+            XCTAssertNil(issues[0][forbidden], "issue không được có field \(forbidden)")
+        }
+    }
+
+    /// Schema ipc.v1.md §"Tương thích ngược": peer cũ coi `AssistReport` là
+    /// protocol violation ⇒ đóng kết nối ⇒ adapter CHỈ gửi khi peer đã
+    /// handshake và báo hiệu hỗ trợ (abi ≥ mức, hoặc khoá `"assist"` trong
+    /// `Snapshot` của server D20).
+    func testAssistReportGateRequiresHandshakeAndSupportedAbi() {
+        XCTAssertFalse(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: false, peerABI: nil, peerAdvertisesAssist: true),
+            "chưa handshake ⇒ không gửi")
+        XCTAssertFalse(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: false, peerABI: 1, peerAdvertisesAssist: true))
+        // Đã handshake + peer có khoá "assist" trong Snapshot (server D20) ⇒ gửi.
+        XCTAssertTrue(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: true, peerABI: nil, peerAdvertisesAssist: true))
+        // Peer khai báo abi ≥ mức tối thiểu ⇒ gửi; thấp hơn ⇒ không.
+        XCTAssertTrue(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: true, peerABI: IpcClient.minAssistReportPeerABI,
+                peerAdvertisesAssist: false))
+        XCTAssertFalse(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: true, peerABI: 0, peerAdvertisesAssist: true),
+            "peer khai báo abi cũ ⇒ không gửi")
+        // Peer KHÔNG có tín hiệu assist (app bản cũ) ⇒ không gửi — nếu gửi,
+        // peer coi là protocol violation ⇒ đóng kết nối.
+        XCTAssertFalse(
+            IpcClient.canSendAssistReport(
+                handshakeCompleted: true, peerABI: nil, peerAdvertisesAssist: false))
+    }
+
+    /// Q-9: kill-switch D20 đọc từ `state["assist"]` (Snapshot) — mặc định
+    /// BẬT, tắt khi server báo tắt; "assist" KHÔNG được thành app override.
+    func testViStateStoreAppliesAssistKillSwitchFromSnapshot() {
+        let store = ViStateStore()
+        XCTAssertTrue(store.assistEnabled, "mặc định bật — chỉ tắt khi server báo")
+        _ = store.applySnapshot(["*": true, "assist": false, "com.apple.safari": true])
+        XCTAssertFalse(store.assistEnabled, "kill-switch tắt phải có hiệu lực")
+        XCTAssertNil(store.state.appOverrides["assist"], "assist không phải app override")
+        XCTAssertTrue(store.state.enabled(for: "com.apple.safari"))
+        // StateUpdate kill-switch (server báo đổi lúc runtime).
+        store.applyAssistState(true)
+        XCTAssertTrue(store.assistEnabled)
+    }
+
+    /// Kill-switch tắt ⇒ KHÔNG assist, kể cả khi `assist.mode = autocorrect`
+    /// (D20: tắt 1 bước phải thắng mọi config).
+    func testAssistAllowedHonorsKillSwitch() {
+        var settings = AssistSettings()
+        settings.mode = "autocorrect"
+        settings.auto_fix = "safe"
+        XCTAssertFalse(
+            TextVNInputController.assistAllowed(
+                killSwitchOn: false, settings: settings, appID: "com.apple.safari"))
+        XCTAssertTrue(
+            TextVNInputController.assistAllowed(
+                killSwitchOn: true, settings: settings, appID: "com.apple.safari"))
+        // mode "off" ⇒ tắt (dù kill-switch bật).
+        XCTAssertFalse(
+            TextVNInputController.assistAllowed(
+                killSwitchOn: true, settings: AssistSettings(), appID: "com.apple.safari"))
+        // Override per-app vẫn tôn trọng.
+        settings.per_app = ["com.apple.safari": false]
+        XCTAssertFalse(
+            TextVNInputController.assistAllowed(
+                killSwitchOn: true, settings: settings, appID: "com.apple.safari"))
+    }
+
+    /// `ViState` bỏ qua khoá "assist" (không phải `app_id`).
+    func testViStateIgnoresAssistKeyAsAppOverride() {
+        var state = ViState(globalEnabled: true)
+        state.apply(snapshot: ["*": true, "assist": false, "com.apple.safari": true])
+        XCTAssertNil(state.appOverrides["assist"])
+        XCTAssertTrue(state.appOverrides["com.apple.safari"] == true)
+        state.apply(stateUpdate: "assist", enabled: false)
+        XCTAssertNil(state.appOverrides["assist"])
+    }
+}
