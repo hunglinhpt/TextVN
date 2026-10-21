@@ -131,4 +131,51 @@ mod tests {
         let issues = check("tôi tôi");
         assert!(issues.iter().any(|i| i.kind == IssueKind::DuplicateWord));
     }
+
+    #[test]
+    fn scenario_1_cau_tieng_viet_hop_le() {
+        let text = "Hôm nay trời đẹp.";
+        let issues = crate::check_sentence(text);
+        assert!(issues.is_empty());
+        assert_eq!(apply_auto_fixes(text, &issues), text);
+    }
+
+    #[test]
+    fn scenario_2_lap_tu_mode2_tu_sua() {
+        let text = "tôi tôi đi học.";
+        // Fragment check: chi bat duplicate_word
+        let issues = crate::check(text);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].kind, IssueKind::DuplicateWord);
+        assert_eq!(apply_auto_fixes(text, &issues), "tôi đi học.");
+
+        // Sentence check: bat ca lowercase_sentence_start va duplicate_word
+        let s_issues = crate::check_sentence(text);
+        assert_eq!(s_issues.len(), 2);
+        assert_eq!(apply_auto_fixes(text, &s_issues), "Tôi đi học.");
+    }
+
+    #[test]
+    fn scenario_3_thua_khoang_trang_truoc_dau() {
+        let text = "đi học .";
+        // Fragment check: chi bat space_before_punct
+        let issues = crate::check(text);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].kind, IssueKind::SpaceBeforePunct);
+        assert_eq!(apply_auto_fixes(text, &issues), "đi học.");
+
+        // Sentence check: bat ca lowercase_sentence_start va space_before_punct
+        let s_issues = crate::check_sentence(text);
+        assert_eq!(s_issues.len(), 2);
+        assert_eq!(apply_auto_fixes(text, &s_issues), "Đi học.");
+    }
+
+    #[test]
+    fn scenario_4_chu_thuong_dau_cau() {
+        let text = "hôm nay tôi đi học.";
+        let issues = crate::check_sentence(text);
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].kind, IssueKind::LowercaseSentenceStart);
+        assert_eq!(apply_auto_fixes(text, &issues), "Hôm nay tôi đi học.");
+    }
 }

@@ -408,11 +408,26 @@ mod tests {
             "highlight"
         );
 
+        // `assist.auto_fix` (off | safe): UI Settings 3 nền tảng ghi qua đây.
+        assert_eq!(
+            ime_settings_set_str(s, c("assist.auto_fix").as_ptr(), c("safe").as_ptr()),
+            IME_OK
+        );
+        assert_eq!(
+            take(ime_settings_get_str(s, c("assist.auto_fix").as_ptr())),
+            "safe"
+        );
+        assert_eq!(
+            ime_settings_set_str(s, c("assist.auto_fix").as_ptr(), c("everything").as_ptr()),
+            IME_ERR_CONFIG
+        );
+
         // Ghi file → đọc lại từ đĩa thấy cả hai key, còn config_version.
         assert_eq!(ime_settings_save(s, cpath.as_ptr()), IME_OK);
         ime_settings_free(s);
         let cfg = textvn_config::parse_config(&std::fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(cfg.assist.mode, textvn_config::AssistMode::Highlight);
+        assert_eq!(cfg.assist.auto_fix, textvn_config::AssistAutoFix::Safe);
         assert_eq!(cfg.assist.display.idle_ms, 250);
 
         // Null-safe.

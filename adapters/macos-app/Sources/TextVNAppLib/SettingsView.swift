@@ -51,7 +51,7 @@ public struct SettingsView: View {
 
     /// Cỡ nội dung theo trạng thái — nguồn duy nhất cho view và cửa sổ host.
     public static func contentSize(expanded: Bool) -> CGSize {
-        CGSize(width: 505, height: expanded ? 490 : 245)
+        CGSize(width: 505, height: expanded ? 580 : 245)
     }
 
     public init(
@@ -215,6 +215,39 @@ public struct SettingsView: View {
                                     store.config.diacritic_style = "old"
                                     persistAndNotify()
                                 }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
+                    }
+
+                    // Group: Trợ lý ngữ pháp (AS-060 / parity-checklist §58)
+                    GroupBox(label: Text("Trợ lý ngữ pháp").font(.system(size: 12, weight: .semibold))) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Chế độ:")
+                                    .frame(width: 80, alignment: .leading)
+                                    .font(.system(size: 12))
+                                Picker("", selection: $store.config.assist.mode) {
+                                    Text("Tắt").tag("off")
+                                    Text("Chỉ gợi ý").tag("highlight")
+                                    Text("Tự sửa lỗi").tag("autocorrect")
+                                }
+                                .labelsHidden()
+                                .frame(maxWidth: .infinity)
+                                .onChange(of: store.config.assist.mode) { _ in persistAndNotify() }
+                            }
+                            HStack {
+                                Text("Tự động sửa:")
+                                    .frame(width: 80, alignment: .leading)
+                                    .font(.system(size: 12))
+                                Picker("", selection: $store.config.assist.auto_fix) {
+                                    Text("Tắt").tag("off")
+                                    Text("An toàn (lỗi khách quan)").tag("safe")
+                                }
+                                .labelsHidden()
+                                .frame(maxWidth: .infinity)
+                                .onChange(of: store.config.assist.auto_fix) { _ in persistAndNotify() }
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

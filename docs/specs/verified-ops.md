@@ -36,6 +36,8 @@
 | B12 | `cargo test -p textvn-win-tsf -p textvn-win-hook -p textvn-tray` | ✓ 29/29 Windows platform tests pass 100% (2026-09-27) | Bộ 3 thành phần Windows (TSF 15, Hook 5, Tray 9) hoạt động đồng bộ |
 | B13 | `cargo run -p textvn-cli -- doctor --export` | ✓ Xuất file ZIP PKZIP stored hợp lệ, pass grep test S2 không chứa text thô (2026-09-27) | WIN-058 diagnostics report xuất zip 4 file: version, config.redacted, system_info, tsf_tail |
 | B14 | `cargo test -p textvn-tray` | ✓ 13/13 tests pass 100% (2026-09-27) | WIN-052 SettingsController debounce 300ms, 6 tabs model, hotkey validation, parity-checklist.md |
+| B15 | `cargo run -p textvn-cli -j 2 -- assist check` (7 kịch bản Acceptance DoD AS-030/031/050) | ✓ 7/7 kịch bản pass 100% (2026-10-21) | Kiểm chứng câu sạch ("Hôm nay trời đẹp." -> 0 lỗi, 0 sửa); lặp từ ("tôi tôi đi học." -> Mode 1 hiện gợi ý, Mode 2 sửa "tôi đi học."); thừa khoảng trắng ("đi học ." -> sửa "đi học."); chữ thường đầu câu ("hôm nay tôi đi học." -> sửa "Hôm nay tôi đi học."); Undo 1 bước 5s; Hết hạn Undo >5s; Precondition D12 (chặn bôi đen/lệch caret) |
+| B16 | `cargo test -p textvn-win-tsf -p textvn-assist -j 2` | ✓ 75/75 TSF + 51/51 Assist unit & acceptance tests pass (2026-10-21) | `acceptance_dod_scenarios_1_to_7` và `scenario_1..4` xác nhận Mode 1 / Mode 2 / Precondition D12 / Undo 5s hoạt động đúng chuẩn |
 
 
 ## C. Windows platform (chi tiết → spike specs)

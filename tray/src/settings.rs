@@ -17,7 +17,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use textvn_config::{Config, DiacriticStyle, MacroTrigger, Method, OutputCharset};
+use textvn_config::{
+    AssistAutoFix, AssistMode, Config, DiacriticStyle, MacroTrigger, Method, OutputCharset,
+};
 
 use crate::ipc_server::IpcServer;
 use crate::svc::SvcManager;
@@ -130,6 +132,21 @@ impl SettingsController {
         }
     }
 
+    // --- Assist Handlers ---
+    pub fn set_assist_mode(&mut self, mode: AssistMode) {
+        if self.draft_config.assist.mode != mode {
+            self.draft_config.assist.mode = mode;
+            self.mark_config_dirty();
+        }
+    }
+
+    pub fn set_assist_auto_fix(&mut self, auto_fix: AssistAutoFix) {
+        if self.draft_config.assist.auto_fix != auto_fix {
+            self.draft_config.assist.auto_fix = auto_fix;
+            self.mark_config_dirty();
+        }
+    }
+
     // --- Tab 2: Applications Handlers ---
     pub fn set_app_state(&mut self, app_name: &str, enabled: bool) {
         let key = app_name.trim().to_lowercase();
@@ -205,6 +222,14 @@ impl SettingsController {
                     .svc
                     .set_diacritic_style(self.draft_config.diacritic_style)
                     .is_ok()
+                && self
+                    .svc
+                    .set_assist_mode(self.draft_config.assist.mode)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_assist_auto_fix(self.draft_config.assist.auto_fix)
+                    .is_ok()
             {
                 self.ipc.broadcast_config_reload(self.svc.config_version());
                 self.dirty_config = false;
@@ -259,6 +284,17 @@ mod tests {
         ctrl.flush_now();
         assert!(!ctrl.dirty_config);
         assert_eq!(svc.config().method, Method::Vni);
+
+        ctrl.set_assist_mode(AssistMode::Highlight);
+        ctrl.set_assist_auto_fix(AssistAutoFix::Safe);
+        assert_eq!(ctrl.draft_config().assist.mode, AssistMode::Highlight);
+        assert_eq!(ctrl.draft_config().assist.auto_fix, AssistAutoFix::Safe);
+        assert!(ctrl.dirty_config);
+
+        ctrl.flush_now();
+        assert!(!ctrl.dirty_config);
+        assert_eq!(svc.config().assist.mode, AssistMode::Highlight);
+        assert_eq!(svc.config().assist.auto_fix, AssistAutoFix::Safe);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

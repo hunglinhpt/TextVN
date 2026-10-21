@@ -23,6 +23,8 @@ typedef struct TvWin {
     GtkWidget *window;
     GtkWidget *dd_charset;
     GtkWidget *dd_method;
+    GtkWidget *dd_assist_mode;
+    GtkWidget *dd_assist_fix;
     GtkWidget *chk_enabled;
     GtkWidget *rad_new;
     GtkWidget *rad_old;
@@ -107,6 +109,10 @@ static void populate(TvWin *w) {
     w->updating = TRUE;
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_charset), (guint)s.charset);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_method), (guint)s.method);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_assist_mode), (guint)s.assist_mode);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_assist_fix), (guint)s.assist_auto_fix);
+    /* Tự động sửa chỉ có nghĩa khi Trợ lý bật (khớp Windows: làm mờ khi mode = Tắt). */
+    gtk_widget_set_sensitive(w->dd_assist_fix, s.assist_mode != 0);
     set_active(w->chk_enabled, s.vi_enabled);
     set_active(s.new_diacritic ? w->rad_new : w->rad_old, 1);
     set_active(w->chk_restore, s.auto_restore_english);
@@ -127,6 +133,13 @@ static void on_dropdown(GtkDropDown *dd, GParamSpec *pspec, TvWin *w) {
     if (GTK_WIDGET(dd) == w->dd_charset) {
         if (idx >= TV_CHARSET_COUNT) return;
         rc = tv_config_set_str(&w->paths, "output_charset", tv_charset_values[idx]);
+    } else if (GTK_WIDGET(dd) == w->dd_assist_mode) {
+        if (idx >= TV_ASSIST_MODE_COUNT) return;
+        rc = tv_config_set_assist_mode(&w->paths, (int)idx);
+        gtk_widget_set_sensitive(w->dd_assist_fix, idx != 0);
+    } else if (GTK_WIDGET(dd) == w->dd_assist_fix) {
+        if (idx >= TV_ASSIST_AUTO_FIX_COUNT) return;
+        rc = tv_config_set_assist_auto_fix(&w->paths, (int)idx);
     } else {
         if (idx >= TV_METHOD_COUNT) return;
         rc = tv_config_set_str(&w->paths, "method", tv_method_values[idx]);
@@ -470,7 +483,7 @@ static GtkWidget *option(TvWin *w, GtkWidget *grid, const char *label, const cha
 }
 
 static GtkWidget *labeled_dropdown(TvWin *w, GtkWidget *grid, const char *label,
-                                   const char *const *items, int col) {
+                                   const char *const *items, int col, int row) {
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     GtkWidget *l = gtk_label_new(label);
     gtk_label_set_xalign(GTK_LABEL(l), 0.0f);
@@ -479,7 +492,7 @@ static GtkWidget *labeled_dropdown(TvWin *w, GtkWidget *grid, const char *label,
     gtk_widget_set_hexpand(dd, TRUE);
     gtk_box_append(GTK_BOX(box), dd);
     g_signal_connect(dd, "notify::selected", G_CALLBACK(on_dropdown), w);
-    gtk_grid_attach(GTK_GRID(grid), box, col, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), box, col, row, 1, 1);
     return dd;
 }
 
@@ -516,8 +529,8 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
 
     /* 1. Điều khiển */
     GtkWidget *g1 = framed_grid(main_box, "Điều khiển");
-    w->dd_charset = labeled_dropdown(w, g1, "Bảng mã:", tv_charset_labels, 0);
-    w->dd_method = labeled_dropdown(w, g1, "Kiểu gõ:", tv_method_labels, 1);
+    w->dd_charset = labeled_dropdown(w, g1, "Bảng mã:", tv_charset_labels, 0, 0);
+    w->dd_method = labeled_dropdown(w, g1, "Kiểu gõ:", tv_method_labels, 1, 0);
     GtkWidget *hk = gtk_label_new("Phím chuyển:   Ctrl + Shift   (hoặc Ctrl + Shift + Space)");
     gtk_label_set_xalign(GTK_LABEL(hk), 0.0f);
     gtk_grid_attach(GTK_GRID(g1), hk, 0, 1, 2, 1);
@@ -535,7 +548,12 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     w->chk_macro_off =
         option(w, g2, "Gõ tắt cả khi tắt tiếng Việt", "allow_macro_when_vi_off", 1, 3);
 
-    /* 3. Hàng nút: thông tin/công cụ (trái) · thao tác (phải) */
+    /* 3. Trợ lý ngữ pháp (AS-060) — cùng nhãn/thứ tự với Windows & macOS */
+    GtkWidget *g3 = framed_grid(main_box, "Trợ lý ngữ pháp");
+    w->dd_assist_mode = labeled_dropdown(w, g3, "Chế độ:", tv_assist_mode_labels, 0, 0);
+    w->dd_assist_fix = labeled_dropdown(w, g3, "Tự động sửa:", tv_assist_auto_fix_labels, 1, 0);
+
+    /* 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải) */
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_margin_top(row, 4);
     button(row, "Hướng dẫn", G_CALLBACK(on_help), w);

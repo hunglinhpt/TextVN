@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 
 use textvn_config::{
-    Config, DiacriticStyle, DocError, DocKind, MacroEntry, MacroTrigger, Method, SettingsDoc,
+    AssistAutoFix, AssistMode, Config, DiacriticStyle, DocError, DocKind, MacroEntry, MacroTrigger,
+    Method, SettingsDoc,
 };
 
 /// Dữ liệu trạng thái bật/tắt gõ per-app lưu trong `state.json`.
@@ -335,6 +336,16 @@ impl SvcManager {
     /// Bật hội thoại cài đặt khi khởi động tray.
     pub fn set_show_dialog_on_startup(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.show_dialog_on_startup = enable)
+    }
+
+    /// Đổi chế độ Trợ lý ngữ pháp (off | highlight | autocorrect) (P4-0 §7).
+    pub fn set_assist_mode(&self, mode: AssistMode) -> Result<u64, DocError> {
+        self.update_config(|c| c.assist.mode = mode)
+    }
+
+    /// Đổi cấu hình tự động sửa lỗi objective (off | safe) (P4-0 §7).
+    pub fn set_assist_auto_fix(&self, auto_fix: AssistAutoFix) -> Result<u64, DocError> {
+        self.update_config(|c| c.assist.auto_fix = auto_fix)
     }
 
     /// Thay danh sách từ EN của người dùng (từ điển bổ sung — 0.2.9). Engine

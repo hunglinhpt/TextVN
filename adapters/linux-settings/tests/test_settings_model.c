@@ -131,6 +131,18 @@ static void test_assist(tv_paths *p) {
     tv_snapshot_load(&s, p);
     assert(s.assist_mode == 1 && s.assist_idle_ms == 250);
 
+    /* assist.auto_fix: mac dinh off; ghi/doc qua model; chi so ngoai khoang bi tu choi. */
+    assert(s.assist_auto_fix == 0);
+    assert(tv_config_set_assist_auto_fix(p, 1) == 0);
+    tv_snapshot_load(&s, p);
+    assert(s.assist_auto_fix == 1 && s.assist_mode == 1);
+    assert(tv_config_set_assist_auto_fix(p, TV_ASSIST_AUTO_FIX_COUNT) != 0);
+    assert(tv_config_set_assist_auto_fix(p, -1) != 0);
+    assert(strcmp(tv_assist_auto_fix_values[0], "off") == 0);
+    assert(strcmp(tv_assist_auto_fix_values[1], "safe") == 0);
+    assert(tv_assist_auto_fix_labels[TV_ASSIST_AUTO_FIX_COUNT] == NULL);
+    assert(tv_config_set_assist_auto_fix(p, 0) == 0);
+
     /* Đọc riêng từng key con bằng C API thật. */
     ime_settings *doc = ime_settings_load(p->config, IME_SETTINGS_CONFIG);
     assert(doc);

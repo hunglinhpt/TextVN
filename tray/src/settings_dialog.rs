@@ -13,7 +13,9 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 #[cfg(windows)]
-use textvn_config::{DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset};
+use textvn_config::{
+    AssistAutoFix, AssistMode, DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset,
+};
 
 #[cfg(windows)]
 use crate::autostart;
@@ -42,7 +44,7 @@ const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 /// Kích thước dưới đây là **vùng client**; khung cửa sổ tính bằng AdjustWindowRectEx
 /// để thanh tiêu đề dày/mỏng (theme, DPI) không cắt mất hàng nút cuối.
 const CLIENT_DESIGN_WIDTH: i32 = 900;
-const CLIENT_DESIGN_HEIGHT: i32 = 560;
+const CLIENT_DESIGN_HEIGHT: i32 = 649;
 const MACRO_DESIGN_WIDTH: i32 = 720;
 const MACRO_DESIGN_HEIGHT: i32 = 560;
 const COMPACT_SCALE: f64 = 2.0 / 3.0;
@@ -69,6 +71,8 @@ const ID_CHK_SHOW_ON_STARTUP: isize = 2019;
 const ID_BTN_MACROS: isize = 2020;
 const ID_CHK_CTRL_SHIFT: isize = 2021;
 const ID_BTN_ENGLISH: isize = 2022;
+const ID_COMBO_ASSIST_MODE: isize = 2023;
+const ID_COMBO_ASSIST_AUTO_FIX: isize = 2024;
 const ID_LBL_WORDLIST_HINT: isize = 4101;
 // ID cho STATIC/GROUPBOX (không tương tác) — cần để re-layout theo DPI (WM_DPICHANGED).
 const ID_LBL_BASE: isize = 3000;
@@ -117,6 +121,10 @@ const CHARSET_LABELS: [&str; 4] = [
     "VNI Windows",
 ];
 const METHOD_LABELS: [&str; 4] = ["Telex", "VNI", "VIQR", "Telex đơn giản"];
+// CÙNG nhãn + thứ tự với Linux (`settings_model.c`) và macOS (`SettingsView.swift`) —
+// test `labels_match_linux_settings_panel` đối chiếu cả ba.
+const ASSIST_MODE_LABELS: [&str; 3] = ["Tắt", "Chỉ gợi ý", "Tự sửa lỗi"];
+const ASSIST_AUTO_FIX_LABELS: [&str; 2] = ["Tắt", "An toàn (lỗi khách quan)"];
 
 /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test
 /// `about_text_matches_every_platform`): một sản phẩm đa nền tảng, không còn câu
@@ -545,7 +553,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 28] = [
+const DIALOG_LAYOUT: [Ctl; 33] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -651,49 +659,79 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         (R, 302, 400, 32),
         ID_CHK_MACRO_WHEN_OFF,
     ),
-    // 3. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
+    // 3. Trợ lý ngữ pháp
+    ctl(
+        "BUTTON",
+        "Trợ lý ngữ pháp",
+        BS_GROUPBOX,
+        (15, 357, 870, 85),
+        ID_LBL_BASE + 7,
+    ),
+    ctl("STATIC", "Chế độ:", 0, (L, 395, 95, 30), ID_LBL_BASE + 8),
+    ctl(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0 | WS_GROUP.0,
+        (135, 392, 300, 200),
+        ID_COMBO_ASSIST_MODE,
+    ),
+    ctl(
+        "STATIC",
+        "Tự động sửa:",
+        0,
+        (R, 395, 130, 30),
+        ID_LBL_BASE + 9,
+    ),
+    ctl(
+        "COMBOBOX",
+        "",
+        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
+        (605, 392, 265, 200),
+        ID_COMBO_ASSIST_AUTO_FIX,
+    ),
+    // 4. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
     ctl(
         "BUTTON",
         "Hệ thống",
         BS_GROUPBOX,
-        (15, 357, 870, 124),
+        (15, 452, 870, 124),
         ID_LBL_BASE + 6,
     ),
     ctl(
         "BUTTON",
         "Khởi động cùng Windows",
         CHK,
-        (L, 391, CW, 32),
+        (L, 486, CW, 32),
         ID_CHK_AUTOSTART,
     ),
     ctl(
         "BUTTON",
         "Bật hội thoại này khi khởi động",
         CHK,
-        (R, 391, 400, 32),
+        (R, 486, 400, 32),
         ID_CHK_SHOW_ON_STARTUP,
     ),
     ctl(
         "BUTTON",
         "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
         CHK,
-        (L, 433, 830, 32),
+        (L, 528, 830, 32),
         ID_CHK_CTRL_SHIFT,
     ),
-    // 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-    ctl("BUTTON", "Hướng dẫn", BTN, (15, 497, 100, 48), ID_BTN_HELP),
+    // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
+    ctl("BUTTON", "Hướng dẫn", BTN, (15, 586, 100, 48), ID_BTN_HELP),
     ctl(
         "BUTTON",
         "Thông tin",
         BTN,
-        (121, 497, 100, 48),
+        (121, 586, 100, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
         "Gõ tắt...",
         BTN,
-        (227, 497, 100, 48),
+        (227, 586, 100, 48),
         ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
@@ -701,21 +739,21 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         "BUTTON",
         "Từ điển EN...",
         BTN,
-        (333, 497, 130, 48),
+        (333, 586, 130, 48),
         ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
         "Cài & bật TSF",
         BTN,
-        (469, 497, 130, 48),
+        (469, 586, 130, 48),
         ID_BTN_SETUP_TSF,
     ),
     ctl(
         "BUTTON",
         "Mặc định",
         BTN,
-        (605, 497, 95, 48),
+        (605, 586, 95, 48),
         ID_BTN_DEFAULT,
     ),
     // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
@@ -723,10 +761,10 @@ const DIALOG_LAYOUT: [Ctl; 28] = [
         "BUTTON",
         "Đóng",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (706, 497, 85, 48),
+        (706, 586, 85, 48),
         ID_BTN_CLOSE,
     ),
-    ctl("BUTTON", "Kết thúc", BTN, (797, 497, 88, 48), ID_BTN_EXIT),
+    ctl("BUTTON", "Kết thúc", BTN, (797, 586, 88, 48), ID_BTN_EXIT),
 ];
 
 /// Đặt lại vị trí/kích thước toàn bộ control theo DPI — chạy lúc tạo VÀ khi
@@ -778,8 +816,10 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
     }
 
     for (id, labels) in [
-        (ID_COMBO_CHARSET, &CHARSET_LABELS),
-        (ID_COMBO_METHOD, &METHOD_LABELS),
+        (ID_COMBO_CHARSET, &CHARSET_LABELS[..]),
+        (ID_COMBO_METHOD, &METHOD_LABELS[..]),
+        (ID_COMBO_ASSIST_MODE, &ASSIST_MODE_LABELS[..]),
+        (ID_COMBO_ASSIST_AUTO_FIX, &ASSIST_AUTO_FIX_LABELS[..]),
     ] {
         for label in labels.iter() {
             let text_w = self::w(label);
@@ -830,6 +870,30 @@ fn populate_controls_from_config(hwnd: HWND) {
         let is_new = cfg.diacritic_style == DiacriticStyle::New;
         set_chk(hwnd, ID_RAD_DIACRITIC_NEW, is_new);
         set_chk(hwnd, ID_RAD_DIACRITIC_OLD, !is_new);
+
+        let assist_mode_idx = match cfg.assist.mode {
+            AssistMode::Off => 0,
+            AssistMode::Highlight => 1,
+            AssistMode::Autocorrect => 2,
+        };
+        send_dlg_msg(hwnd, ID_COMBO_ASSIST_MODE, CB_SETCURSEL, assist_mode_idx, 0);
+
+        let assist_fix_idx = match cfg.assist.auto_fix {
+            AssistAutoFix::Off => 0,
+            AssistAutoFix::Safe => 1,
+        };
+        send_dlg_msg(
+            hwnd,
+            ID_COMBO_ASSIST_AUTO_FIX,
+            CB_SETCURSEL,
+            assist_fix_idx,
+            0,
+        );
+
+        if let Ok(h_fix) = unsafe { GetDlgItem(Some(hwnd), ID_COMBO_ASSIST_AUTO_FIX as i32) } {
+            let enabled = cfg.assist.mode != AssistMode::Off;
+            let _ = unsafe { EnableWindow(h_fix, enabled) };
+        }
     });
 }
 
@@ -995,6 +1059,29 @@ unsafe extern "system" fn dialog_wnd_proc(
                         _ => OutputCharset::UnicodePrecomposed,
                     };
                     let _ = save_config_change(hwnd, |ctx| ctx.svc.set_output_charset(cs));
+                }
+                ID_COMBO_ASSIST_MODE if notify_code == CBN_SELCHANGE => {
+                    let sel = send_dlg_msg(hwnd, ID_COMBO_ASSIST_MODE, CB_GETCURSEL, 0, 0).0;
+                    let mode = match sel {
+                        1 => AssistMode::Highlight,
+                        2 => AssistMode::Autocorrect,
+                        _ => AssistMode::Off,
+                    };
+                    let _ = save_config_change(hwnd, |ctx| ctx.svc.set_assist_mode(mode));
+                    if let Ok(h_fix) =
+                        unsafe { GetDlgItem(Some(hwnd), ID_COMBO_ASSIST_AUTO_FIX as i32) }
+                    {
+                        let _ = unsafe { EnableWindow(h_fix, mode != AssistMode::Off) };
+                    }
+                }
+                ID_COMBO_ASSIST_AUTO_FIX if notify_code == CBN_SELCHANGE => {
+                    let sel = send_dlg_msg(hwnd, ID_COMBO_ASSIST_AUTO_FIX, CB_GETCURSEL, 0, 0).0;
+                    let auto_fix = if sel == 1 {
+                        AssistAutoFix::Safe
+                    } else {
+                        AssistAutoFix::Off
+                    };
+                    let _ = save_config_change(hwnd, |ctx| ctx.svc.set_assist_auto_fix(auto_fix));
                 }
                 ID_CHK_AUTOSTART => {
                     let checked = get_chk(hwnd, ID_CHK_AUTOSTART);
@@ -1983,6 +2070,8 @@ mod tests {
             ID_CHK_MACRO_WHEN_OFF,
             ID_CHK_SHOW_ON_STARTUP,
             ID_BTN_MACROS,
+            ID_COMBO_ASSIST_MODE,
+            ID_COMBO_ASSIST_AUTO_FIX,
             ID_EDIT_MACROS,
             ID_RAD_TRIGGER_TAB,
             ID_RAD_TRIGGER_SPACE,
@@ -2027,9 +2116,25 @@ mod tests {
         };
         let quoted = |l: &str| format!("\"{l}\"");
         let swift_text = |l: &str| format!("Text(\"{l}\")");
-        for labels in [&CHARSET_LABELS[..], &METHOD_LABELS[..]] {
+        for labels in [
+            &CHARSET_LABELS[..],
+            &METHOD_LABELS[..],
+            &ASSIST_MODE_LABELS[..],
+            &ASSIST_AUTO_FIX_LABELS[..],
+        ] {
             same_order(&linux, labels, &quoted, "Linux");
             same_order(macos, labels, &swift_text, "macOS");
+        }
+        // Khung + nhãn hàng của Trợ lý ngữ pháp (AS-060, parity-checklist §58).
+        for label in ["Trợ lý ngữ pháp", "Chế độ:", "Tự động sửa:"] {
+            assert!(
+                linux.contains(&format!("\"{label}\"")),
+                "thiếu `{label}` (Linux)"
+            );
+            assert!(
+                macos.contains(&format!("Text(\"{label}\")")),
+                "thiếu `{label}` (macOS)"
+            );
         }
         // Phím chuyển CỐ ĐỊNH (ui-spec.md §1) — macOS từng có 3 nút riêng
         // Ctrl + Shift / Alt + Z / Caps Lock mà Windows/Linux không có.

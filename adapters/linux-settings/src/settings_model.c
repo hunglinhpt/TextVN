@@ -27,6 +27,9 @@ const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1] = {
     "Tắt", "Chỉ gợi ý", "Tự sửa lỗi", NULL};
 const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
     "off", "highlight", "autocorrect"};
+const char *const tv_assist_auto_fix_labels[TV_ASSIST_AUTO_FIX_COUNT + 1] = {
+    "Tắt", "An toàn (lỗi khách quan)", NULL};
+const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {"off", "safe"};
 
 const char *const tv_help_text =
     "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc "
@@ -116,6 +119,8 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->allow_macro_when_vi_off = get_bool(s, "allow_macro_when_vi_off", 0);
         /* Đường lồng qua C-API (không parse JSON tay): thiếu key con → mặc định schema. */
         out->assist_mode = get_index(s, "assist.mode", tv_assist_mode_values, TV_ASSIST_MODE_COUNT);
+        out->assist_auto_fix =
+            get_index(s, "assist.auto_fix", tv_assist_auto_fix_values, TV_ASSIST_AUTO_FIX_COUNT);
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
@@ -187,6 +192,11 @@ int tv_config_set_u32(const tv_paths *p, const char *key, uint32_t value) {
 int tv_config_set_assist_mode(const tv_paths *p, int mode_index) {
     if (mode_index < 0 || mode_index >= TV_ASSIST_MODE_COUNT) return -1;
     return tv_config_set_str(p, "assist.mode", tv_assist_mode_values[mode_index]);
+}
+
+int tv_config_set_assist_auto_fix(const tv_paths *p, int fix_index) {
+    if (fix_index < 0 || fix_index >= TV_ASSIST_AUTO_FIX_COUNT) return -1;
+    return tv_config_set_str(p, "assist.auto_fix", tv_assist_auto_fix_values[fix_index]);
 }
 
 int tv_config_set_assist_idle_ms(const tv_paths *p, uint32_t idle_ms) {

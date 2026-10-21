@@ -1242,4 +1242,90 @@ mod tests {
         };
         assert!(!expired.is_valid());
     }
+
+    #[test]
+    fn acceptance_dod_scenarios_1_to_7() {
+        // Scenario 1: Câu tiếng Việt hợp lệ -> không lỗi, không tự sửa
+        let s1 = "Hôm nay trời đẹp.";
+        assert_eq!(plan_sentence_auto_fix(s1, &[], |t| t.chars().count()), None);
+        assert!(!should_show_overlay(AssistTrigger::Sentence, true, 0));
+
+        // Scenario 2: Lặp từ ("tôi tôi đi học.") -> Mode 1 hiện gợi ý; Mode 2 tự sửa
+        let s2 = "tôi tôi đi học.";
+        let v2 = view(s2, vec![issue(4, 7, "Lặp từ: \"tôi\"", Some("tôi"))]);
+        assert!(v2.render_plain().contains("1. Lặp từ: \"tôi\"  -> tôi"));
+        let plan2 = plan_sentence_auto_fix(s2, &v2.issues, |t| t.chars().count()).expect("plan2");
+        assert_eq!(plan2.delete_from, 3);
+        assert_eq!(plan2.original_tail, " tôi đi học.");
+        assert_eq!(plan2.replacement.iter().collect::<String>(), " đi học.");
+        // Tổng thể document: phần đầu giữ nguyên + replacement = "tôi đi học."
+        let prefix: String = s2.chars().take(plan2.delete_from).collect();
+        let full_doc2 = format!("{}{}", prefix, plan2.replacement.iter().collect::<String>());
+        assert_eq!(full_doc2, "tôi đi học.");
+
+        // Scenario 3: Thừa khoảng trắng trước dấu ("đi học .") -> Mode 2 tự sửa
+        let s3 = "đi học .";
+        let v3 = view(s3, vec![issue(6, 7, "Thừa khoảng trắng", Some(""))]);
+        let plan3 = plan_sentence_auto_fix(s3, &v3.issues, |t| t.chars().count()).expect("plan3");
+        assert_eq!(plan3.delete_from, 6);
+        assert_eq!(plan3.original_tail, " .");
+        assert_eq!(plan3.replacement.iter().collect::<String>(), ".");
+        let prefix3: String = s3.chars().take(plan3.delete_from).collect();
+        let full_doc3 = format!(
+            "{}{}",
+            prefix3,
+            plan3.replacement.iter().collect::<String>()
+        );
+        assert_eq!(full_doc3, "đi học.");
+
+        // Scenario 4: Chữ thường đầu câu ("hôm nay tôi đi học.") -> Mode 2 tự sửa
+        let s4 = "hôm nay tôi đi học.";
+        let v4 = view(s4, vec![issue(0, 1, "Chữ thường ở đầu câu", Some("H"))]);
+        let plan4 = plan_sentence_auto_fix(s4, &v4.issues, |t| t.chars().count()).expect("plan4");
+        assert_eq!(
+            plan4.replacement.iter().collect::<String>(),
+            "Hôm nay tôi đi học."
+        );
+
+        // Scenario 5: Hoàn tác 1 bước trong 5s sau khi auto-fix -> Khôi phục chính xác đuôi câu cũ
+        let undo = AssistUndoState::new(
+            s4.to_string(),
+            plan4.replacement.iter().collect(),
+            plan4.delete_glyphs,
+            plan4.fixed_count,
+        );
+        assert!(undo.is_valid());
+        assert_eq!(undo.original_tail, s4);
+
+        // Scenario 6: Hết hạn hoàn tác sau 5s -> Không hoàn tác
+        let expired = AssistUndoState {
+            timestamp: std::time::Instant::now() - std::time::Duration::from_secs(6),
+            ..undo.clone()
+        };
+        assert!(!expired.is_valid());
+
+        // Scenario 7: Precondition D12: Di chuyển con trỏ hoặc bôi đen -> Không kích hoạt
+        let valid_pre = FixPrecondition {
+            selection_empty: true,
+            caret_unchanged: true,
+            buffer_is_ours: true,
+            backspace_shift_ok: true,
+        };
+        assert!(can_apply_fix(valid_pre));
+        // Bôi đen văn bản
+        assert!(!can_apply_fix(FixPrecondition {
+            selection_empty: false,
+            ..valid_pre
+        }));
+        // Con trỏ di chuyển
+        assert!(!can_apply_fix(FixPrecondition {
+            caret_unchanged: false,
+            ..valid_pre
+        }));
+        // Buffer không còn là của ta (gõ xen)
+        assert!(!can_apply_fix(FixPrecondition {
+            buffer_is_ours: false,
+            ..valid_pre
+        }));
+    }
 }

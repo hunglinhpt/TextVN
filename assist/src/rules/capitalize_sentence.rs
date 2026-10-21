@@ -36,20 +36,19 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if ctx.is_masked(token.start, token.end) {
             continue;
         }
-        let mut upper = first.to_uppercase().collect::<String>();
-        upper.push_str(&text[first.len_utf8()..]);
+        let first_upper = first.to_uppercase().to_string();
         out.push(issue(
             IssueKind::LowercaseSentenceStart,
             Span {
                 start: token.start,
-                end: token.start + first.len_utf8(),
+                end: token.start + 1,
             },
             "Chữ thường ở đầu câu".to_string(),
-            vec![upper.clone()],
+            vec![first_upper.clone()],
             Fix::Replace {
                 start: token.start,
-                end: token.start + first.len_utf8(),
-                text: upper,
+                end: token.start + 1,
+                text: first_upper,
             },
         ));
     }
