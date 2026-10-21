@@ -26,6 +26,7 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.run_in_tray)
         XCTAssertEqual(config.switch_key, "ctrl_shift")
         XCTAssertTrue(config.macros.isEmpty)
+        XCTAssertEqual(config.assist, AssistSettings(), "P4-0 §7: assist mặc định tắt hoàn toàn")
     }
 
     /// Lưu từ bảng cài đặt macOS không được xoá `emoji[]` hay đổi `when: vi_on` của
@@ -89,6 +90,110 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(loaded.macros.count, 2)
         XCTAssertEqual(loaded.macros[0].trigger, "vn")
         XCTAssertEqual(loaded.macros[0].expand, "Việt Nam")
+    }
+
+    // MARK: - 1b. `assist` — Trợ lý ngữ pháp (P4-0 §7)
+
+    /// Mặc định khối `assist` phải khớp 1-1 với crate `config` (`AssistSettings`)
+    /// và `schemas/config.v1.schema.json` — JSON là hợp đồng chung 3 nền tảng
+    /// (bảng P4-0 §7, D20: mặc định tắt hoàn toàn).
+    func testAssistDefaultsMatchRustConfigAndSchema() {
+        let assist = AssistSettings()
+        XCTAssertEqual(assist.mode, "off")
+        XCTAssertEqual(assist.auto_fix, "off")
+        XCTAssertEqual(assist.language, "vi")
+        XCTAssertEqual(assist.trigger_keys, ["space", ",", "."])
+        XCTAssertTrue(assist.display.show_on_sentence_end)
+        XCTAssertEqual(assist.display.idle_ms, 700)
+        XCTAssertFalse(assist.display.show_on_comma)
+        XCTAssertEqual(assist.max_sentence_chars, 500)
+        XCTAssertTrue(assist.per_app.isEmpty)
+        XCTAssertFalse(assist.isOn, "mặc định phải tắt hoàn toàn (D20)")
+        // Danh sách phím hợp lệ = CÙNG danh sách với `config::ASSIST_TRIGGER_KEYS`.
+        XCTAssertEqual(AssistSettings.validTriggerKeys, ["space", ",", ".", "!", "?", ";", ":"])
+        // Xoá trợ lý của người dùng = mất dữ liệu → config mặc định phải giữ một
+        // khối assist đúng mặc định, không phải khối rỗng lệch schema.
+        XCTAssertEqual(TextVNConfig.default().assist, AssistSettings())
+    }
+
+    /// Encode → decode phải nguyên vẹn; JSON ghi ra dùng đúng tên trường của schema
+    /// (`mode`, `auto_fix`, `language`, `trigger_keys`, `display`, `max_sentence_chars`,
+    /// `per_app`) và giá trị mà Rust parser chấp nhận.
+    func testAssistEncodeDecodeRoundTrip() throws {
+        var assist = AssistSettings()
+        assist.mode = "highlight"
+        assist.auto_fix = "safe"
+        assist.language = "vi"
+        assist.trigger_keys = ["space", ",", ".", "!", "?", ";", ":"]
+        assist.display.show_on_sentence_end = false
+        assist.display.idle_ms = 1200
+        assist.display.show_on_comma = true
+        assist.max_sentence_chars = 300
+        assist.per_app = ["code.exe": false, "notepad": true]
+
+        // Tên trường/kiểu đã ghi ra JSON phải trùng schema (editor gạch đỏ cùng chỗ
+        // mà Rust parser chấp nhận/từ chối).
+        let encoded = try JSONEncoder().encode(assist)
+        let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertEqual(obj["mode"] as? String, "highlight")
+        XCTAssertEqual(obj["auto_fix"] as? String, "safe")
+        XCTAssertEqual(obj["language"] as? String, "vi")
+        XCTAssertEqual(obj["trigger_keys"] as? [String], ["space", ",", ".", "!", "?", ";", ":"])
+        XCTAssertEqual((obj["display"] as? [String: Any])?["idle_ms"] as? Int, 1200)
+        XCTAssertEqual((obj["display"] as? [String: Any])?["show_on_sentence_end"] as? Bool, false)
+        XCTAssertEqual((obj["display"] as? [String: Any])?["show_on_comma"] as? Bool, true)
+        XCTAssertEqual(obj["max_sentence_chars"] as? Int, 300)
+        XCTAssertEqual(obj["per_app"] as? [String: Bool], ["code.exe": false, "notepad": true])
+
+        XCTAssertEqual(try JSONDecoder().decode(AssistSettings.self, from: encoded), assist)
+
+        // Thiếu trường con → mặc định lấp đầy (cùng quy ước khoan dung với config gốc).
+        let partial = try JSONDecoder().decode(
+            AssistSettings.self,
+            from: Data(#"{"mode":"highlight","max_sentence_chars":300}"#.utf8))
+        XCTAssertEqual(partial.mode, "highlight")
+        XCTAssertEqual(partial.max_sentence_chars, 300)
+        XCTAssertEqual(partial.trigger_keys, ["space", ",", "."])
+        XCTAssertEqual(partial.display, AssistDisplay())
+        XCTAssertEqual(partial.auto_fix, "off")
+        XCTAssertEqual(partial.language, "vi")
+        XCTAssertTrue(partial.per_app.isEmpty)
+    }
+
+    /// Config CŨ (chưa có khối `assist` — bản trước AS-042) vẫn phải decode được:
+    /// assist lấy mặc định TẮT, và khi lưu từ app assist phải được ghi lại nguyên
+    /// vẹn (model chưa biết khoá từng khiến `english_words`/`emoji` bị XOÁ mỗi lần
+    /// lưu — không lặp lại với assist).
+    func testAssistMissingKeyDecodesDefaultAndSurvivesSave() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_assist_\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let oldJSON = """
+        {"config_version":1,
+         "macros":[{"trigger":"vn","expand":"Việt Nam","when":"vi_on"}],
+         "emoji":[{"trigger":":ok","glyph":"👌"}]}
+        """
+        try oldJSON.data(using: .utf8)!.write(to: fileURL)
+
+        let old = try JSONDecoder().decode(TextVNConfig.self, from: Data(oldJSON.utf8))
+        XCTAssertEqual(old.assist, AssistSettings(), "JSON cũ không có assist → mặc định tắt")
+
+        var cfg = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(cfg.assist, AssistSettings())
+        // Người dùng bật Trợ lý → lưu → đọc lại: assist + khối dữ liệu của
+        // người dùng (gõ tắt, emoji) phải đi qua nguyên vẹn.
+        cfg.assist.mode = "autocorrect"
+        try cfg.save(to: fileURL)
+        let back = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(back.assist.mode, "autocorrect")
+        XCTAssertEqual(back.assist.max_sentence_chars, 500, "trường chưa đổi giữ mặc định")
+        XCTAssertEqual(back.macros, [MacroEntry(trigger: "vn", expand: "Việt Nam", when: "vi_on")])
+        XCTAssertEqual(back.emoji, [EmojiEntry(trigger: ":ok", glyph: "👌")])
+        // File ghi ra phải có khối assist tường minh — bản lưu là config hợp lệ đầy đủ.
+        let saved = try JSONSerialization.jsonObject(with: Data(contentsOf: fileURL)) as? [String: Any]
+        XCTAssertEqual((saved?["assist"] as? [String: Any])?["mode"] as? String, "autocorrect")
     }
 
     // MARK: - 2. Autostart & LaunchAgent (Rule S5)

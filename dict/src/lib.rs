@@ -18,7 +18,7 @@
 //! Khong mo file, khong parse `.dic` luc request: file `.fst` da duoc
 //! sinh san (xem `cargo xtask gen-dict`).
 //!
-//! ## Provider spell-check cua OS (Windows · Linux)
+//! ## Provider spell-check cua OS (Windows · Linux · macOS)
 //!
 //! Ngoai FST cua ta, crate con co provider spell-check **tuy chon** theo OS
 //! (P4-10), moi OS mot module rieng:
@@ -47,6 +47,15 @@
 //!   `os_provider_linux()` luon tra `None` => `NoDictionary` => khong bao loi
 //!   spelling. Vi sao enchant thay vi libspelling / license LGPL / chi phi /
 //!   fallback khi thieu dict `vi`: xem doc cua [`os_linux`].
+//!
+//! - **macOS** — [`os_macos`] (`NSSpellChecker`, AppKit, FFI thuần runtime
+//!   Objective-C `objc_msgSend` — không crate nào). Word-level
+//!   `contains`/`suggest`, **1 worker thread** AppKit + timeout 50 ms +
+//!   fail-open + ngân sách `suggest`. Feature `os-macos` **mặc định TẮT**:
+//!   khi tắt (mặc định: CI/gói không bật), `os_provider_macos()` luôn trả
+//!   `None` ⇒ `NoDictionary` ⇒ không báo lỗi spelling; UI gợi ý chỉ qua
+//!   toast/panel IMK (D30), chi phí chưa đo được — chi tiết xem doc
+//!   [`os_macos`].
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
@@ -56,6 +65,7 @@ pub mod fst;
 pub mod mmap;
 #[cfg(target_os = "linux")]
 pub mod os_linux;
+pub mod os_macos;
 #[cfg(all(windows, feature = "os-spell"))]
 pub mod os_windows;
 pub mod reader;
@@ -65,7 +75,8 @@ use std::sync::{Arc, OnceLock};
 
 pub use build::Builder;
 pub use mmap::{MapError, Mapping};
-pub use reader::Reader;
+pub use os_macos::MacSpellChecker;
+pub use reader::{base_char, base_skeleton, Reader};
 
 #[cfg(target_os = "linux")]
 pub use os_linux::EnchantSpellChecker;
@@ -98,6 +109,20 @@ pub fn os_provider(language_tag: &str) -> Option<WindowsSpellChecker> {
 #[must_use]
 pub fn os_provider_linux(language_tag: &str) -> Option<os_linux::EnchantSpellChecker> {
     os_linux::EnchantSpellChecker::new(language_tag).ok()
+}
+
+/// Provider spell-check **macOS** (`NSSpellChecker`, AppKit) cho
+/// `language_tag`, hoac `None` neu khong co tu dien (hoac feature `os-macos`
+/// TAT — mac dinh).
+///
+/// `None` la nhanh **binh thuong**, khong phai loi: caller dung
+/// `assist::dict::NoDictionary` (moi tu dung => khong bao loi spelling) —
+/// Fassist-107. Noi dung chi tiet — api surface `checkSpelling`/`guesses`,
+/// chi phi chua do duoc, UI chi qua toast IMK (D30), fallback khi thieu dict
+/// `vi` — xem doc cua [`os_macos`].
+#[must_use]
+pub fn os_provider_macos(language_tag: &str) -> Option<os_macos::MacSpellChecker> {
+    os_macos::MacSpellChecker::new(language_tag).ok()
 }
 
 /// Loi khi nap tu dien.
@@ -166,6 +191,55 @@ impl Dictionary {
     /// `true` neu tu dien rong.
     pub fn is_empty(&self) -> bool {
         self.reader().is_empty()
+    }
+
+    /// Goi y cac tu thay the cho `word` (AS-041), toi da `limit` ket qua.
+    pub fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        self.reader().suggest(word, limit)
+    }
+}
+
+impl textvn_assist::dict::Dictionary for Dictionary {
+    fn contains(&self, word: &str) -> bool {
+        self.reader().contains(word)
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        self.reader().suggest(word, limit)
+    }
+}
+
+#[cfg(all(windows, feature = "os-spell"))]
+impl textvn_assist::dict::Dictionary for WindowsSpellChecker {
+    fn contains(&self, word: &str) -> bool {
+        let u16s: Vec<u16> = word.encode_utf16().collect();
+        self.check(&u16s).is_empty()
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        let u16s: Vec<u16> = word.encode_utf16().collect();
+        self.suggest(&u16s, limit)
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl textvn_assist::dict::Dictionary for EnchantSpellChecker {
+    fn contains(&self, word: &str) -> bool {
+        self.contains(word)
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        self.suggest(word, limit)
+    }
+}
+
+impl textvn_assist::dict::Dictionary for MacSpellChecker {
+    fn contains(&self, word: &str) -> bool {
+        self.contains(word)
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        self.suggest(word, limit)
     }
 }
 
@@ -399,6 +473,65 @@ mod tests {
         assert_eq!(
             final_words, expected,
             "for_each_final phai tra day du tat ca tu"
+        );
+    }
+
+    #[test]
+    fn suggest_sample_dictionary() {
+        let bytes = sample();
+        let reader = Reader::new(&bytes).expect("FST hop le");
+
+        // Gợi ý cho từ gõ sai 1 ký tự
+        let sg = reader.suggest("vietna", 3);
+        assert!(!sg.is_empty());
+        assert_eq!(sg[0], "vietnam");
+
+        // Gợi ý cho từ đảo ký tự (Damerau transposition)
+        let sg2 = reader.suggest("teing", 3);
+        assert!(!sg2.is_empty());
+        assert_eq!(sg2[0], "tieng");
+    }
+
+    #[test]
+    fn suggest_dic_dau_moi_typos_chinh_xac() {
+        let path = data_assist("vi-DauMoi.dic");
+        let words = load_dic_words(&path);
+        let mut b = Builder::new();
+        b.extend(words.iter().map(|w| w.as_str()));
+        let bytes = b.to_bytes();
+        let reader = Reader::new(&bytes).expect("FST hop le");
+
+        // AS-041: loi sai vi tri dau pho bien phai co goi y dung o vi tri hang dau
+        let test_cases = [
+            ("nghiã", "nghĩa"),
+            ("cuả", "của"),
+            ("tiêng", "tiếng"),
+            ("nhứng", "nhưng"),
+            ("nguyến", "nguyễn"),
+        ];
+
+        let mut correct_top1 = 0;
+        for (typo, expected) in test_cases {
+            let suggestions = reader.suggest(typo, 3);
+            assert!(
+                !suggestions.is_empty(),
+                "typo `{typo}` phai co it nhat 1 goi y"
+            );
+            if suggestions[0] == expected {
+                correct_top1 += 1;
+            } else {
+                assert!(
+                    suggestions.contains(&expected.to_string()),
+                    "typo `{typo}` phai chua `{expected}` trong top goi y: {suggestions:?}"
+                );
+            }
+        }
+
+        // Ty le recall Top-1 phai dat tren 80% (o day 5/5 = 100%)
+        let recall = (correct_top1 as f64) / (test_cases.len() as f64);
+        assert!(
+            recall >= 0.80,
+            "recall Top-1 phai >= 80%, thuc te: {recall}"
         );
     }
 }

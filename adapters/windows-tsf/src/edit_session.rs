@@ -25,9 +25,14 @@ use windows::Win32::UI::Input::KeyboardAndMouse::GetFocus;
 use windows::Win32::UI::TextServices::*;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetWindowLongW, ES_PASSWORD, GWL_STYLE,
+    GetClassNameW, GetGUIThreadInfo, GetWindowLongW, ES_PASSWORD, GUITHREADINFO, GWL_STYLE,
 };
 
+#[cfg(windows)]
+use crate::assist::{
+    can_apply_fix, plan_fix, AssistCheck, AssistTrigger, FixPlan, FixPrecondition, OverlayView,
+    SENTENCE_MAX_CHARS,
+};
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
@@ -35,17 +40,28 @@ use crate::compose::{plan_key, text_after, CompositionPlan, EngineStep, KeyKind,
 #[cfg(windows)]
 use crate::ipc_client::IpcClient;
 #[cfg(windows)]
+use crate::overlay::Anchor;
+#[cfg(windows)]
 use crate::{classify_tsf_field, ThreadState, TsfFieldSignals};
 #[cfg(windows)]
 use textvn_ffi::IME_FLAG_ERROR;
 #[cfg(windows)]
 use textvn_strategy::Strategy;
 
-/// Gợi ý sửa lỗi đang chờ người dùng kích hoạt (AS-031 · A2).
-#[derive(Clone, Debug, Default)]
-pub struct PendingAssistFix {
-    pub delete_glyphs: u32,
-    pub replacement: Vec<char>,
+/// Trạng thái overlay đang hiện của thread + mọi thứ A2 cần để xác minh **vị trí**
+/// trước khi sửa (D12): câu trong buffer core lúc hiển thị và caret lúc đó.
+///
+/// Không giữ nội dung document của app (D8): câu là buffer **của ta**
+/// (`Engine::sentence_tail`) — thứ duy nhất ta biết chắc mình đã gõ.
+#[cfg(windows)]
+pub struct ActiveAssist {
+    /// Model hiển thị (câu + lỗi + lỗi đang chọn).
+    pub view: OverlayView,
+    /// Câu lúc hiện overlay — precondition `buffer_is_ours`.
+    pub sentence: String,
+    /// Caret (range rỗng) lúc hiện overlay — A2 chỉ so **vị trí**
+    /// (`CompareStart`/`CompareEnd`), không đọc chữ.
+    pub caret: ITfRange,
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -71,10 +87,10 @@ pub struct TsfShared {
     pub terminated: Cell<bool>,
     /// Phím chuyển Ctrl+Shift kiểu UniKey.
     pub modifier_toggle: Cell<ModifierToggle>,
-    /// Overlay hiển thị candidate / gợi ý trợ lý ngữ pháp (AS-030).
+    /// Overlay hiển thị gợi ý trợ lý ngữ pháp (AS-030 · Mode 1).
     pub overlay: crate::overlay::CandidateOverlay,
-    /// Sửa lỗi đang chờ áp dụng bằng phím tắt [1] / Tab (AS-031).
-    pub pending_assist_fix: RefCell<Option<PendingAssistFix>>,
+    /// Lỗi/câu/caret của overlay đang hiện (AS-031 · A2). `None` = overlay tắt.
+    pub assist: RefCell<Option<ActiveAssist>>,
 }
 
 #[cfg(windows)]
@@ -92,7 +108,7 @@ impl TsfShared {
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
-            pending_assist_fix: RefCell::new(None),
+            assist: RefCell::new(None),
         }
     }
 
@@ -339,59 +355,6 @@ impl KeyEditSession {
                         Vec::new()
                     };
                 }
-                // AS-030 / AS-031: Nếu là điểm kết thúc câu và trợ lý ngữ pháp đang bật -> kiểm tra và hiện overlay
-                if shared.ipc.is_assist_enabled() && comp.is_none() {
-                    let trigger_kind = textvn_ffi::ime_assist_trigger_kind(self.key.engine_ch());
-                    if trigger_kind == textvn_ffi::IME_ASSIST_TRIGGER_SENTENCE {
-                        if let Ok(thread) = shared.thread.try_borrow() {
-                            if let Some(res) = thread.engine.assist_check() {
-                                if res.count > 0 {
-                                    let first_issue = &res.issues[0];
-                                    let sentence_str = thread.engine.sentence_tail(256);
-                                    let sentence_chars: Vec<char> = sentence_str.chars().collect();
-                                    let start = first_issue.start as usize;
-                                    let end = first_issue.end as usize;
-                                    if start <= end && end <= sentence_chars.len() {
-                                        let to_delete: String =
-                                            sentence_chars[start..].iter().collect();
-                                        let delete_glyphs =
-                                            thread.engine.glyph_len_of(&to_delete) as u32;
-                                        let mut repl: Vec<char> = if first_issue.suggest_len > 0 {
-                                            c_char_buf_to_str(&first_issue.suggest)
-                                                .chars()
-                                                .collect()
-                                        } else {
-                                            Vec::new()
-                                        };
-                                        repl.extend_from_slice(&sentence_chars[end..]);
-                                        let display_text = if first_issue.suggest_len > 0 {
-                                            let s = c_char_buf_to_str(&first_issue.suggest);
-                                            format!("[1] Sửa: {s}")
-                                        } else {
-                                            c_char_buf_to_str(&first_issue.message).to_string()
-                                        };
-                                        if let Some(rc) = get_caret_rect(&self.ctx, ec) {
-                                            shared.overlay.show(
-                                                rc.left,
-                                                rc.bottom + 2,
-                                                &display_text,
-                                            );
-                                            *shared.pending_assist_fix.borrow_mut() =
-                                                if first_issue.suggest_len > 0 {
-                                                    Some(PendingAssistFix {
-                                                        delete_glyphs,
-                                                        replacement: repl,
-                                                    })
-                                                } else {
-                                                    None
-                                                };
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
                 // AS-022 (D11): điểm kiểm tra silent — MỌI phím trigger
                 // space/,/./!/... SAU khi phím đã commit xong (apply_plan thành
                 // công ở trên, composition đã đóng ⇒ không đang compose).
@@ -400,8 +363,12 @@ impl KeyEditSession {
                 // sách (`assist::CHECK_BUDGET_MS`) — không chặn luồng gõ.
                 if comp.is_none() {
                     let trigger = super::assist::assist_trigger(self.key);
-                    if trigger != super::assist::AssistTrigger::None {
-                        super::assist::after_trigger(shared, trigger);
+                    if let Some(check) = super::assist::after_trigger(shared, trigger) {
+                        // AS-030 (Mode 1): chỉ **điểm hiển thị** (kết thúc câu,
+                        // D11) mới hiện overlay cạnh caret; space/,/: chỉ toast.
+                        if trigger == AssistTrigger::Sentence {
+                            show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                        }
                     }
                 }
                 plan.eaten
@@ -442,24 +409,191 @@ impl ITfEditSession_Impl for EndCompositionSession_Impl {
     }
 }
 
+// ---------------------------------------------------------------------------
+// AS-030 (Mode 1) — overlay cạnh caret
+// ---------------------------------------------------------------------------
+
+/// Ẩn overlay + bỏ model (câu người dùng không nằm lại RAM lâu hơn cần — S2).
+#[cfg(windows)]
+pub fn hide_assist_overlay(shared: &TsfShared) {
+    shared.overlay.hide();
+    if let Ok(mut slot) = shared.assist.try_borrow_mut() {
+        *slot = None;
+    }
+}
+
+/// `↑`/`↓`: đổi lỗi đang chọn (vòng tròn, chỉ khi overlay đang hiện).
+#[cfg(windows)]
+pub fn select_assist_issue(shared: &TsfShared, delta: isize) {
+    let mut updated = None;
+    if let Ok(mut slot) = shared.assist.try_borrow_mut() {
+        if let Some(active) = slot.as_mut() {
+            if active.view.select(delta) {
+                updated = Some(active.view.clone());
+            }
+        }
+    }
+    // `set_view` gọi Win32 — chỉ sau khi đã trả borrow (không mượn chéo callback).
+    if let Some(view) = updated {
+        shared.overlay.set_view(&view);
+    }
+}
+
+/// Lỗi đang chọn của overlay (0 = không có overlay) — cho `Enter`.
+#[cfg(windows)]
+pub fn selected_assist_issue(shared: &TsfShared) -> usize {
+    shared
+        .assist
+        .try_borrow()
+        .ok()
+        .and_then(|slot| slot.as_ref().map(|a| a.view.selected))
+        .unwrap_or(0)
+}
+
+/// Hiện overlay cho kết quả kiểm tra vừa có (chỉ **điểm hiển thị** — D11/D38).
+///
+/// Gọi trong `DoEditSession`: chỉ đọc TSF (caret rect + selection) rồi hiện
+/// panel Win32; **không** gọi TSF từ window proc/timer (P4-10 · reentrancy).
+/// Trả `true` = panel đang hiện và đã giữ state cho A2.
+#[cfg(windows)]
+pub fn show_assist_overlay(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    ec: u32,
+    check: &AssistCheck,
+) -> bool {
+    if !shared.ipc.is_assist_enabled() {
+        return false; // D20 kill-switch (đọc lại: tray có thể vừa tắt)
+    }
+    let Some(view) = check.view() else {
+        return false;
+    };
+    if !crate::assist::should_show_overlay(AssistTrigger::Sentence, true, view.issues.len()) {
+        return false;
+    }
+    let Some(anchor) = caret_anchor(ctx, ec, shared.tid) else {
+        return false; // không neo được (app không cho toạ độ) → im lặng
+    };
+    let Some(caret) = selection_range(ctx, ec) else {
+        return false;
+    };
+    // Chỉ neo khi selection là caret rỗng: bôi đen = người dùng đang chọn text,
+    // sửa lúc này là ghi đè lựa chọn của họ (D12 fail-safe).
+    if !matches!(unsafe { caret.IsEmpty(ec) }, Ok(empty) if empty.as_bool()) {
+        return false;
+    }
+    // SAFETY: foreground window chỉ để watchdog biết "app đổi foreground"; 0 =
+    // không kiểm tra (không lấy được).
+    let owner =
+        unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() }.0 as isize;
+    let model = ActiveAssist {
+        view: view.clone(),
+        sentence: check.sentence.clone(),
+        caret,
+    };
+    let Ok(mut slot) = shared.assist.try_borrow_mut() else {
+        return false;
+    };
+    *slot = Some(model);
+    drop(slot);
+    shared.overlay.show(&view, anchor, owner);
+    if !shared.overlay.is_visible() {
+        // Không tạo được cửa sổ (thiếu quyền/GDI lỗi): bỏ state, không để A2
+        // sửa text mà người dùng không thấy gì.
+        hide_assist_overlay(shared);
+        return false;
+    }
+    true
+}
+
+/// A2: áp gợi ý của lỗi `issue_index`. Trả `true` = đã xử lý phím (overlay đóng);
+/// `false` = không sửa được (fail-safe — chỉ gợi ý, D12).
+#[cfg(windows)]
+pub fn apply_assist_suggestion(
+    shared: &Rc<TsfShared>,
+    ctx: Option<&ITfContext>,
+    issue_index: usize,
+) -> bool {
+    let taken = shared
+        .assist
+        .try_borrow_mut()
+        .ok()
+        .and_then(|mut slot| slot.take());
+    hide_assist_overlay(shared);
+    let Some(active) = taken else {
+        return false;
+    };
+    // Backspace+Type cần edit session; không có ctx = không sửa (không đoán).
+    let Some(ctx) = ctx else {
+        return false;
+    };
+    // Số glyph cần xoá do **core** tính trên câu của ta (D27) — không tự đổi
+    // char → glyph ở adapter.
+    let plan = {
+        let Ok(thread) = shared.thread.try_borrow() else {
+            return false;
+        };
+        let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
+        plan_fix(&active.view, issue_index, glyph_len)
+    };
+    let Some(plan) = plan else {
+        return false; // không có gợi ý / gợi ý vô nghĩa → chỉ hiển thị (A1)
+    };
+    let session: ITfEditSession =
+        ApplyAssistFixSession::new(shared.clone(), ctx.clone(), active, plan).into();
+    request_sync_or_async(ctx, shared.tid, &session)
+}
+
+/// Xin edit session: ưu tiên đồng bộ (biết ngay kết quả); TSF từ chối thì xin
+/// bất đồng bộ. `false` = không session nào được cấp.
+#[cfg(windows)]
+pub(crate) fn request_sync_or_async(ctx: &ITfContext, tid: u32, session: &ITfEditSession) -> bool {
+    // SAFETY: `ctx`/`session` hợp lệ trong callback của TSF.
+    let hr = unsafe { ctx.RequestEditSession(tid, session, TF_ES_SYNC | TF_ES_READWRITE) };
+    if matches!(hr, Ok(code) if code.is_ok()) {
+        return true;
+    }
+    matches!(
+        unsafe { ctx.RequestEditSession(tid, session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE) },
+        Ok(code) if code.is_ok()
+    )
+}
+
+// ---------------------------------------------------------------------------
+// AS-031 (A2) — sửa MỘT từ bằng Backspace+Type (D12/D22/D27)
+// ---------------------------------------------------------------------------
+
 /// Session áp dụng sửa lỗi ngữ pháp một từ (AS-031 · A2 / D12).
+///
+/// **D22:** chỉ Backspace+Type — lùi `delete_glyphs` glyph (D27) rồi gõ lại
+/// `suggestion + đuôi` **nguyên văn** từ buffer của core; **không**
+/// `SelectionReplace`. Cả xoá lẫn gõ lại nằm trong **một** edit session ⇒
+/// Ctrl+Z hoàn tác trọn một lần.
 #[cfg(windows)]
 #[implement(ITfEditSession)]
 pub struct ApplyAssistFixSession {
     _guard: ObjGuard,
     shared: Rc<TsfShared>,
     ctx: ITfContext,
-    fix: PendingAssistFix,
+    /// Model + câu + caret đã chụp lúc hiện overlay (precondition D12).
+    active: ActiveAssist,
+    plan: FixPlan,
 }
 
 #[cfg(windows)]
 impl ApplyAssistFixSession {
-    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext, fix: PendingAssistFix) -> Self {
+    pub fn new(
+        shared: Rc<TsfShared>,
+        ctx: ITfContext,
+        active: ActiveAssist,
+        plan: FixPlan,
+    ) -> Self {
         Self {
             _guard: ObjGuard::new(),
             shared,
             ctx,
-            fix,
+            active,
+            plan,
         }
     }
 }
@@ -467,32 +601,169 @@ impl ApplyAssistFixSession {
 #[cfg(windows)]
 impl ITfEditSession_Impl for ApplyAssistFixSession_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
-        let Some(sel) = selection_range(&self.ctx, ec) else {
-            return Ok(());
-        };
-        unsafe {
-            // Precondition 1: Selection phải rỗng (caret, không phải bôi đen văn bản).
-            if !matches!(sel.IsEmpty(ec), Ok(empty) if empty.as_bool()) {
-                return Ok(());
-            }
-
-            // Precondition 2: Lùi start đúng bằng delete_glyphs.
-            let del = sel.Clone()?;
-            let want = -(self.fix.delete_glyphs as i32);
-            let mut shifted = 0i32;
-            del.ShiftStart(ec, want, &mut shifted, std::ptr::null())?;
-            if shifted != want {
-                // Không lùi đủ (app không cho phép hoặc chạm đầu tài liệu) -> fail-safe, huỷ sửa.
-                return Ok(());
-            }
-
-            // Thay thế đoạn text bằng gợi ý
-            let wide = to_wide_nul(&self.fix.replacement);
-            let body = &wide[..wide.len() - 1];
-            del.SetText(ec, 0, body)?;
-            set_caret_after(&self.ctx, ec, &del);
-        }
+        let applied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)))
+            .unwrap_or(false);
+        // Dù sửa được hay không, sau khi session này chạm document thì buffer
+        // engine không còn chắc khớp: xoá để phím sau bắt đầu sạch (không lệch).
         self.shared.reset_engine();
+        if applied {
+            crate::trace::event(self.shared.tid, format_args!("assist A2 applied"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl ApplyAssistFixSession {
+    /// Trả `true` = document đã nhận text thay thế. Mọi điều kiện sai → `false`
+    /// và **không** đụng document.
+    fn apply(&self, ec: u32) -> bool {
+        // SAFETY: mọi lời gọi TSF dưới đây nằm trong DoEditSession với `ec` hợp lệ.
+        unsafe {
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                return false;
+            };
+            // -- Precondition 1: selection là caret rỗng (không bôi đen) --
+            let selection_empty = matches!(sel.IsEmpty(ec), Ok(empty) if empty.as_bool());
+            // -- Precondition 2: caret vẫn đúng vị trí đã chụp (chỉ so vị trí) --
+            let caret_unchanged = self
+                .active
+                .caret
+                .CompareStart(ec, &sel, TF_ANCHOR_START)
+                .map(|c| c == 0)
+                .unwrap_or(false)
+                && self
+                    .active
+                    .caret
+                    .CompareEnd(ec, &sel, TF_ANCHOR_END)
+                    .map(|c| c == 0)
+                    .unwrap_or(false);
+            // -- Precondition 3: buffer câu của core vẫn là câu lúc hiện overlay
+            //    ⇒ các từ đó do TA gõ (người dùng chưa sửa xen vào). Đọc buffer
+            //    của chính mình, không đọc nội dung app khác (D8). --
+            let buffer_is_ours = self
+                .shared
+                .thread
+                .try_borrow()
+                .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.active.sentence)
+                .unwrap_or(false);
+
+            // -- Precondition 4: text store cho lùi ĐÚNG delete_glyphs glyph --
+            let Some(want) = backspace_shift(self.plan.delete_glyphs) else {
+                return false; // 0 glyph / tràn i32 → không sửa
+            };
+            let Ok(del) = sel.Clone() else {
+                return false;
+            };
+            let mut shifted = 0i32;
+            let backspace_shift_ok = del
+                .ShiftStart(ec, want, &mut shifted, std::ptr::null())
+                .is_ok()
+                && shifted == want;
+
+            let pre = FixPrecondition {
+                selection_empty,
+                caret_unchanged,
+                buffer_is_ours,
+                backspace_shift_ok,
+            };
+            if !can_apply_fix(pre) {
+                crate::trace::event(self.shared.tid, format_args!("assist A2 skip: pre"));
+                return false;
+            }
+
+            // Chụp vùng sắp xoá để hoàn tác nếu gõ lại thất bại TRƯỚC khi text
+            // mới vào document (R2-103). 1 glyph ≤ 2 UTF-16 unit (emoji) → 2×.
+            let mut buf = vec![0u16; self.plan.delete_glyphs as usize * 2 + 2];
+            let mut fetched = 0u32;
+            let snapshot = del
+                .GetText(ec, 0, &mut buf, &mut fetched)
+                .ok()
+                .map(|_| buf[..(fetched as usize).min(buf.len())].to_vec())
+                .filter(|text| !text.is_empty());
+
+            // -- Backspace: xoá đúng vùng từ issue.start tới hết câu --
+            let empty = [0u16; 1];
+            if del.SetText(ec, 0, &empty[..0]).is_err() {
+                return false;
+            }
+
+            // -- Type: gõ lại `suggestion + đuôi` qua composition --
+            let inserted = (|| -> Result<()> {
+                let ctxcomp: ITfContextComposition = self.ctx.cast()?;
+                let sink: ITfCompositionSink = CompSink::new(Rc::downgrade(&self.shared)).into();
+                let start = sel.Clone()?;
+                let comp = ctxcomp.StartComposition(ec, &start, &sink)?;
+                let range = comp.GetRange()?;
+                let wide = to_wide_nul(&self.plan.replacement);
+                range.SetText(ec, 0, &wide[..wide.len() - 1])?;
+                // KHÔNG gắn display attribute: text này là text thật của app,
+                // không được đổi format (D4) — gạch đỏ chỉ nằm trong overlay.
+                set_caret_after(&self.ctx, ec, &range);
+                // Text đã vào document: lỗi EndComposition KHÔNG kích hoạt hoàn
+                // tác (R2-103) — app kết thúc composition là nguyên nhân thường
+                // gặp, hoàn tác lúc này sẽ nhân đôi chữ.
+                let _ = comp.EndComposition(ec);
+                Ok(())
+            })();
+
+            if inserted.is_err() {
+                if let Some(text) = snapshot {
+                    crate::trace::event(self.shared.tid, format_args!("assist A2 restore"));
+                    let _ = del.SetText(ec, 0, &text);
+                    set_caret_after(&self.ctx, ec, &del);
+                }
+                return false;
+            }
+            true
+        }
+    }
+}
+
+/// Số UTF-16 unit phải lùi (âm) để Backspace đúng `delete_glyphs` glyph; `None`
+/// = 0 hoặc vượt `i32` ⇒ **không sửa** (fail-safe).
+#[cfg(windows)]
+fn backspace_shift(delete_glyphs: u32) -> Option<i32> {
+    if delete_glyphs == 0 {
+        return None;
+    }
+    i32::try_from(delete_glyphs).ok().map(|n| -n)
+}
+
+/// Session cho `Ctrl+Shift+G`: kiểm tra lại câu rồi hiện overlay (AS-030).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct AssistRecallSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl AssistRecallSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for AssistRecallSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let shared = &self.shared;
+        let showed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let Some(check) = crate::assist::check_sentence(shared) else {
+                return false;
+            };
+            show_assist_overlay(shared, &self.ctx, ec, &check)
+        }))
+        .unwrap_or(false);
+        if !showed {
+            hide_assist_overlay(shared);
+        }
         Ok(())
     }
 }
@@ -648,11 +919,37 @@ pub fn get_caret_rect(ctx: &ITfContext, ec: u32) -> Option<RECT> {
     }
 }
 
+/// Neo panel cạnh caret: `ITfContextView::GetTextExt` (TSF-aware) trước, không
+/// được thì `GetGUIThreadInfo().rcCaret` (app IMM32/legacy). Chỉ **vị trí** —
+/// không đọc chữ của app (D8).
 #[cfg(windows)]
-fn c_char_buf_to_str(buf: &[std::ffi::c_char]) -> &str {
-    let bytes = unsafe { std::slice::from_raw_parts(buf.as_ptr() as *const u8, buf.len()) };
-    let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-    std::str::from_utf8(&bytes[..len]).unwrap_or("")
+fn caret_anchor(ctx: &ITfContext, ec: u32, tid: u32) -> Option<Anchor> {
+    if let Some(rc) = get_caret_rect(ctx, ec) {
+        let anchor = Anchor::new(rc.left, rc.top, rc.right, rc.bottom);
+        if anchor.is_valid() {
+            return Some(anchor);
+        }
+    }
+    // SAFETY: GetGUIThreadInfo chỉ đọc trạng thái GUI của thread ta đang chạy.
+    unsafe {
+        let mut info = GUITHREADINFO {
+            cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+            ..Default::default()
+        };
+        if GetGUIThreadInfo(tid, &mut info).is_err() || info.hwndCaret.0.is_null() {
+            return None;
+        }
+        let rc = info.rcCaret;
+        let mut anchor = Anchor::new(rc.left, rc.top, rc.right, rc.bottom);
+        // rcCaret có thể chỉ là điểm (rộng 0): cho panel một chiều cao tối thiểu.
+        if anchor.right <= anchor.left {
+            anchor.right = anchor.left + 1;
+        }
+        if anchor.bottom <= anchor.top {
+            anchor.bottom = anchor.top + 16;
+        }
+        Some(anchor)
+    }
 }
 
 /// Đặt caret (selection rỗng) ngay sau `range`.
@@ -824,13 +1121,16 @@ mod tests {
         );
     }
 
+    /// D27: số Backspace lấy từ glyph của core; 0/tràn `i32` ⇒ không sửa.
     #[test]
-    fn pending_assist_fix_model() {
-        let fix = super::PendingAssistFix {
-            delete_glyphs: 5,
-            replacement: vec!['t', 'ô', 'i'],
-        };
-        assert_eq!(fix.delete_glyphs, 5);
-        assert_eq!(fix.replacement, vec!['t', 'ô', 'i']);
+    fn backspace_shift_tu_glyph_va_tu_choi_so_vo_ly() {
+        assert_eq!(super::backspace_shift(1), Some(-1));
+        assert_eq!(super::backspace_shift(5), Some(-5));
+        assert_eq!(super::backspace_shift(0), None, "0 glyph = không sửa");
+        assert_eq!(
+            super::backspace_shift(u32::MAX),
+            None,
+            "không biểu diễn được trong i32 = không sửa"
+        );
     }
 }

@@ -85,6 +85,103 @@ public struct EmojiEntry: Codable, Equatable {
     }
 }
 
+/// `assist.display` — điểm HIỂN THỊ tách khỏi điểm KIỂM TRA (P4-0 §7, D11).
+/// Khớp 1-1 với crate `config` (`config::AssistDisplay`) và
+/// `schemas/config.v1.schema.json`: cùng tên trường, cùng mặc định — JSON là
+/// hợp đồng chung 3 nền tảng, không đổi một bên mà không đối chiếu bên kia.
+public struct AssistDisplay: Codable, Equatable {
+    /// Hiện gợi ý khi gặp dấu kết thúc câu (`.` `!` `?`) — mặc định `true`.
+    public var show_on_sentence_end: Bool
+    /// Ngừng gõ bao lâu (ms) thì hiện gợi ý — mặc định `700`.
+    public var idle_ms: Int
+    /// Hiện gợi ý ngay khi gõ dấu phẩy — mặc định `false` (tránh spam UI).
+    public var show_on_comma: Bool
+
+    public init(
+        show_on_sentence_end: Bool = true,
+        idle_ms: Int = 700,
+        show_on_comma: Bool = false
+    ) {
+        self.show_on_sentence_end = show_on_sentence_end
+        self.idle_ms = idle_ms
+        self.show_on_comma = show_on_comma
+    }
+
+    /// Decode khoan dung: thiếu trường lấy mặc định (cùng quy ước `TextVNConfig` —
+    /// config bản cũ/mới hơn ghi thiếu vẫn đọc được); sai KIỂU vẫn throw.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AssistDisplay()
+        show_on_sentence_end =
+            try c.decodeIfPresent(Bool.self, forKey: .show_on_sentence_end) ?? d.show_on_sentence_end
+        idle_ms = try c.decodeIfPresent(Int.self, forKey: .idle_ms) ?? d.idle_ms
+        show_on_comma =
+            try c.decodeIfPresent(Bool.self, forKey: .show_on_comma) ?? d.show_on_comma
+    }
+}
+
+/// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định TẮT HOÀN TOÀN (D20 kill-switch):
+/// thiếu khối này (config bản cũ) hay thiếu trường = tắt, không tự sửa, không hiện gì.
+/// Khớp 1-1 với crate `config` (`config::AssistSettings`) và schema — THIẾU struct
+/// này từng là mẫu mất dữ liệu: model chưa biết khoá thì mỗi lần lưu từ bảng cài
+/// đặt macOS âm thầm xoá khoá đó của người dùng (đã gặp với `english_words`,
+/// `emoji` — xem chú thích 0.2.13 các trường bên dưới).
+public struct AssistSettings: Codable, Equatable {
+    /// `off` | `highlight` | `autocorrect` — mức can thiệp, mặc định `off` (D20).
+    public var mode: String
+    /// `off` | `safe` — chỉ luật objective mới được tự sửa (D7), mặc định `off`.
+    public var auto_fix: String
+    /// `vi` | `en` | `auto` — v1 chỉ hỗ trợ `vi` (D9), mặc định `vi`.
+    public var language: String
+    /// Phím kiểm tra im lặng, mặc định `["space", ",", "."]` (P4-0 §7).
+    public var trigger_keys: [String]
+    /// Điểm hiển thị (D11).
+    public var display: AssistDisplay
+    /// Độ dài tối đa của một câu được kiểm tra (ký tự Unicode), mặc định `500`.
+    public var max_sentence_chars: Int
+    /// Bật/tắt riêng theo app (`app_id` lowercase → bool). Thiếu = dùng chung.
+    public var per_app: [String: Bool]
+
+    public init(
+        mode: String = "off",
+        auto_fix: String = "off",
+        language: String = "vi",
+        trigger_keys: [String] = ["space", ",", "."],
+        display: AssistDisplay = AssistDisplay(),
+        max_sentence_chars: Int = 500,
+        per_app: [String: Bool] = [:]
+    ) {
+        self.mode = mode
+        self.auto_fix = auto_fix
+        self.language = language
+        self.trigger_keys = trigger_keys
+        self.display = display
+        self.max_sentence_chars = max_sentence_chars
+        self.per_app = per_app
+    }
+
+    /// Decode khoan dung: thiếu trường lấy mặc định (cùng quy ước `TextVNConfig`).
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AssistSettings()
+        mode = try c.decodeIfPresent(String.self, forKey: .mode) ?? d.mode
+        auto_fix = try c.decodeIfPresent(String.self, forKey: .auto_fix) ?? d.auto_fix
+        language = try c.decodeIfPresent(String.self, forKey: .language) ?? d.language
+        trigger_keys = try c.decodeIfPresent([String].self, forKey: .trigger_keys) ?? d.trigger_keys
+        display = try c.decodeIfPresent(AssistDisplay.self, forKey: .display) ?? d.display
+        max_sentence_chars =
+            try c.decodeIfPresent(Int.self, forKey: .max_sentence_chars) ?? d.max_sentence_chars
+        per_app = try c.decodeIfPresent([String: Bool].self, forKey: .per_app) ?? d.per_app
+    }
+
+    /// Danh sách phím kiểm tra hợp lệ — CÙNG danh sách với `config::ASSIST_TRIGGER_KEYS`
+    /// và enum của schema (P4-0 §4.1).
+    public static let validTriggerKeys: [String] = ["space", ",", ".", "!", "?", ";", ":"]
+
+    /// Cùng nghĩa với `AssistSettings::is_on()` (Rust): `off` = kill-switch tắt hẳn.
+    public var isOn: Bool { mode != "off" }
+}
+
 public struct TextVNConfig: Codable, Equatable {
     public var config_version: Int
     public var enabled: Bool
@@ -117,6 +214,10 @@ public struct TextVNConfig: Codable, Equatable {
     /// Gõ tắt emoji — thiếu trường này thì mỗi lần lưu config XOÁ `emoji[]` của
     /// người dùng (tray Windows/Linux giữ nguyên khoá qua SettingsDoc).
     public var emoji: [EmojiEntry]
+    /// Trợ lý ngữ pháp (P4-0 §7) — mặc định tắt hoàn toàn (D20). Model PHẢI biết
+    /// khoá này (giống `english_words`/`emoji`) nếu không lần lưu nào từ app cũng
+    /// xoá cài đặt assist của người dùng.
+    public var assist: AssistSettings
 
     public init(
         config_version: Int = 1,
@@ -137,7 +238,8 @@ public struct TextVNConfig: Codable, Equatable {
         switch_key: String = "ctrl_shift",
         macros: [MacroEntry] = [],
         english_words: [String] = [],
-        emoji: [EmojiEntry] = []
+        emoji: [EmojiEntry] = [],
+        assist: AssistSettings = AssistSettings()
     ) {
         self.config_version = config_version
         self.enabled = enabled
@@ -158,6 +260,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.macros = macros
         self.english_words = english_words
         self.emoji = emoji
+        self.assist = assist
     }
 
     /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
@@ -185,6 +288,7 @@ public struct TextVNConfig: Codable, Equatable {
         macros = try c.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? d.macros
         english_words = try c.decodeIfPresent([String].self, forKey: .english_words) ?? d.english_words
         emoji = try c.decodeIfPresent([EmojiEntry].self, forKey: .emoji) ?? d.emoji
+        assist = try c.decodeIfPresent(AssistSettings.self, forKey: .assist) ?? d.assist
     }
 
     public static func `default`() -> TextVNConfig {

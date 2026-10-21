@@ -104,6 +104,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             }
         }
         self.engine = engine
+        if let e = engine {
+            MacSpellProvider.shared.register(with: e)
+        }
         self.nonPreedit = Self.configNonPreedit(in: cfgData)
         // Toggle khởi tạo theo `config.enabled` (bản cũ hardcode `true`): khi
         // config tắt VN, hotkey Ctrl+Shift+Space bị lệch một nhịp (bật → vẫn tắt).

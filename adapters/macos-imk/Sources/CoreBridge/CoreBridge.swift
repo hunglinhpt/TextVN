@@ -45,6 +45,18 @@ public enum FFI {
     public static let capSelection: UInt32 = UInt32(IME_CAP_SELECTION)
     public static let capFieldDetect: UInt32 = UInt32(IME_CAP_FIELD_DETECT)
     public static let capInjectVK: UInt32 = UInt32(IME_CAP_INJECT_VK)
+
+    // assist kinds (IME_ASSIST_KIND_*)
+    public static let assistKindDuplicateWord: UInt32 = UInt32(IME_ASSIST_KIND_DUPLICATE_WORD)
+    public static let assistKindSpaceBeforePunct: UInt32 = UInt32(IME_ASSIST_KIND_SPACE_BEFORE_PUNCT)
+    public static let assistKindSpaceAfterPunct: UInt32 = UInt32(IME_ASSIST_KIND_SPACE_AFTER_PUNCT)
+    public static let assistKindDoubleSpace: UInt32 = UInt32(IME_ASSIST_KIND_DOUBLE_SPACE)
+    public static let assistKindLowercaseSentence: UInt32 = UInt32(IME_ASSIST_KIND_LOWERCASE_SENTENCE)
+    public static let assistKindDiacriticTypo: UInt32 = UInt32(IME_ASSIST_KIND_DIACRITIC_TYPO)
+    public static let assistKindSentenceRepeat: UInt32 = UInt32(IME_ASSIST_KIND_SENTENCE_REPEAT)
+    public static let assistKindDoubleNegative: UInt32 = UInt32(IME_ASSIST_KIND_DOUBLE_NEGATIVE)
+    public static let assistKindCommaAtEnd: UInt32 = UInt32(IME_ASSIST_KIND_COMMA_AT_END)
+    public static let assistKindSpelling: UInt32 = UInt32(IME_ASSIST_KIND_SPELLING)
 }
 
 /// Kết quả 1 phím đã decode sang Swift (P0-2 §2 — adapter phải làm đúng bảng action).
@@ -96,9 +108,39 @@ public struct KeyEvent {
     }
 }
 
+/// struct AssistIssue đại diện cho một vấn đề ngữ pháp/chính tả (P4-0).
+public struct AssistIssue: Equatable {
+    public let kind: UInt32
+    public let start: UInt32
+    public let end: UInt32
+    public let autoFixable: Bool
+    public let confidence: UInt32
+    public let message: String
+    public let suggest: String
+
+    public init(
+        kind: UInt32,
+        start: UInt32,
+        end: UInt32,
+        autoFixable: Bool,
+        confidence: UInt32,
+        message: String,
+        suggest: String
+    ) {
+        self.kind = kind
+        self.start = start
+        self.end = end
+        self.autoFixable = autoFixable
+        self.confidence = confidence
+        self.message = message
+        self.suggest = suggest
+    }
+}
+
 /// Một instance engine. **Không thread-safe** — chủ thread sở hữu gọi toàn bộ API.
 public final class ImeEngine {
     private var instance: OpaquePointer?
+    private var spellProviderRef: AnyObject?
 
     /// `configJSON == nil` → engine chạy config mặc định (P0-2 §1: config sai
     /// schema vẫn tạo instance + trả `IME_ERR_CONFIG` — non-fatal).
@@ -200,6 +242,60 @@ public final class ImeEngine {
             )
         }
         return rc == IME_OK || rc == IME_ERR_CONFIG
+    }
+
+    /// Gắn hoặc huỷ spell provider của hệ điều hành (AS-042 · P4-10 §5.2).
+    ///
+    /// - Parameters:
+    ///   - provider: struct `ime_os_spell_v1` do adapter cung cấp, hoặc `nil` để huỷ (quay về NoDictionary).
+    ///   - retainRef: đối tượng Swift giữ provider sống (ví dụ `MacSpellProvider`), hoặc `nil`.
+    /// - Returns: `FFI.ok` nếu thành công, hoặc mã lỗi `IME_ERR_*`.
+    @discardableResult
+    public func setSpellProvider(_ provider: ime_os_spell_v1?, retainRef: AnyObject? = nil) -> Int32 {
+        spellProviderRef = retainRef
+        if var p = provider {
+            return ime_assist_set_spell_provider(instance, &p)
+        } else {
+            return ime_assist_set_spell_provider(instance, nil)
+        }
+    }
+
+    /// Gắn hoặc huỷ spell provider qua con trỏ thô `const ime_os_spell_v1*`.
+    @discardableResult
+    public func setSpellProvider(_ provider: UnsafePointer<ime_os_spell_v1>?) -> Int32 {
+        ime_assist_set_spell_provider(instance, provider)
+    }
+
+    /// Kiểm tra assist trên buffer câu hiện tại của engine (P4-2, AS-042).
+    public func assistCheck() -> [AssistIssue] {
+        var out = ime_assist_result_v1()
+        out.abi_version = FFI.abiVersion
+        let rc = ime_assist_check_instance(instance, &out)
+        guard rc == FFI.ok else { return [] }
+        var result: [AssistIssue] = []
+        let count = min(Int(out.count), Int(IME_MAX_ASSIST_ISSUES))
+        withUnsafePointer(to: &out.issues) { ptr in
+            let issuesPtr = UnsafeRawPointer(ptr).assumingMemoryBound(to: ime_assist_issue_v1.self)
+            for i in 0..<count {
+                let issue = issuesPtr[i]
+                let msg = withUnsafeBytes(of: issue.message) { raw in
+                    String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+                }
+                let sugg = withUnsafeBytes(of: issue.suggest) { raw in
+                    String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+                }
+                result.append(AssistIssue(
+                    kind: issue.kind,
+                    start: issue.start,
+                    end: issue.end,
+                    autoFixable: issue.auto_fixable != 0,
+                    confidence: issue.confidence,
+                    message: msg,
+                    suggest: sugg
+                ))
+            }
+        }
+        return result
     }
 
     // ---------------------------------------------------------------- decode

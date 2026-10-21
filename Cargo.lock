@@ -153,6 +153,7 @@ dependencies = [
 name = "textvn-dict"
 version = "0.2.34"
 dependencies = [
+ "textvn-assist",
  "windows",
 ]
 

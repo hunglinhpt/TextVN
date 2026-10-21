@@ -22,12 +22,15 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::TextServices::*;
 
 #[cfg(windows)]
+use crate::assist::{overlay_action, OverlayAction};
+#[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
 use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
 use crate::edit_session::{
-    ApplyAssistFixSession, EndCompositionSession, KeyEditSession, TsfShared,
+    apply_assist_suggestion, hide_assist_overlay, request_sync_or_async, select_assist_issue,
+    selected_assist_issue, AssistRecallSession, EndCompositionSession, KeyEditSession, TsfShared,
 };
 #[cfg(windows)]
 use crate::trace;
@@ -268,6 +271,75 @@ fn handle_key_up(shared: &TsfShared, ctx: Option<&ITfContext>, vk: u32) -> bool 
     false
 }
 
+/// Phím của overlay đang hiện (P4-0 §4.2): `Some(eaten)` = đã quyết định xong
+/// (trả ngay cho TSF); `None` = phím đi tiếp luồng gõ bình thường.
+#[cfg(windows)]
+fn handle_overlay_key(
+    shared: &Rc<TsfShared>,
+    ctx: Option<&ITfContext>,
+    vk: u32,
+    mods: u32,
+) -> Option<bool> {
+    if is_modifier_vk(vk) {
+        return None; // Ctrl/Shift của Ctrl+Shift+G vẫn đi qua đây
+    }
+    let visible = shared.overlay.is_visible();
+    if !visible {
+        // Panel có thể đã tự tắt (8 s / click chuột / app đổi foreground) mà
+        // watchdog không đụng được state của TIP: dọn phần còn lại để không giữ
+        // câu người dùng trong RAM và không dùng caret range cũ (S2/D12).
+        let stale = shared
+            .assist
+            .try_borrow()
+            .map(|slot| slot.is_some())
+            .unwrap_or(false);
+        if stale {
+            hide_assist_overlay(shared);
+        }
+    }
+    match overlay_action(vk, mods) {
+        // Ctrl+Shift+G: kiểm tra lại câu + hiện overlay (không phụ thuộc overlay).
+        OverlayAction::Recall => {
+            let ctx = ctx?; // không có ctx = không xin được session → để phím đi
+            let session: ITfEditSession =
+                AssistRecallSession::new(shared.clone(), ctx.clone()).into();
+            request_sync_or_async(ctx, shared.tid, &session);
+            Some(true)
+        }
+        _ if !visible => None,
+        // ↑/↓: đổi lỗi đang chọn. Ăn phím để mũi tên không dời caret của app
+        // trong lúc panel còn neo ở vị trí cũ.
+        OverlayAction::Previous => {
+            select_assist_issue(shared, -1);
+            Some(true)
+        }
+        OverlayAction::Next => {
+            select_assist_issue(shared, 1);
+            Some(true)
+        }
+        // Enter: áp gợi ý của lỗi đang chọn (A2 — Backspace+Type, D22).
+        OverlayAction::Apply => {
+            apply_assist_suggestion(shared, ctx, selected_assist_issue(shared));
+            Some(true)
+        }
+        // Alt+1..3: áp gợi ý của lỗi thứ n.
+        OverlayAction::Suggestion(index) => {
+            apply_assist_suggestion(shared, ctx, index);
+            Some(true)
+        }
+        // Esc: đóng, không sửa (không để app nhận Esc).
+        OverlayAction::Close => {
+            hide_assist_overlay(shared);
+            Some(true)
+        }
+        // Gõ tiếp / chord khác: đóng panel rồi để phím đi bình thường.
+        OverlayAction::Dismiss => {
+            hide_assist_overlay(shared);
+            None
+        }
+    }
+}
+
 /// Nhấn phím: cập nhật máy trạng thái Ctrl+Shift (gọi lại cùng phím không đổi kết quả).
 #[cfg(windows)]
 fn observe_key_down(shared: &TsfShared, vk: u32, mods: u32) {
@@ -341,50 +413,11 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     let mods = active_modifiers();
     observe_key_down(shared, vk, mods);
 
-    // AS-031: Xử lý khi overlay đang hiển thị
-    if shared.overlay.is_visible() {
-        if !is_modifier_vk(vk) {
-            if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) == 0 {
-                // Nhấn 1, NumPad 1 hoặc Tab để áp dụng gợi ý sửa lỗi (A2)
-                if vk == 0x31 || vk == 0x61 || vk == vkc::TAB {
-                    shared.overlay.hide();
-                    if let Some(fix) = shared.pending_assist_fix.borrow_mut().take() {
-                        if let Some(ctx) = ctx {
-                            let session: ITfEditSession =
-                                ApplyAssistFixSession::new(shared.clone(), ctx.clone(), fix).into();
-                            let hr = unsafe {
-                                ctx.RequestEditSession(
-                                    shared.tid,
-                                    &session,
-                                    TF_ES_SYNC | TF_ES_READWRITE,
-                                )
-                            };
-                            if !matches!(hr, Ok(code) if code.is_ok()) {
-                                let _ = unsafe {
-                                    ctx.RequestEditSession(
-                                        shared.tid,
-                                        &session,
-                                        TF_ES_ASYNCDONTCARE | TF_ES_READWRITE,
-                                    )
-                                };
-                            }
-                        }
-                    }
-                    return true;
-                }
-                // Nhấn Esc để hủy gợi ý và đóng overlay
-                if vk == vkc::ESCAPE {
-                    shared.overlay.hide();
-                    shared.pending_assist_fix.borrow_mut().take();
-                    return true;
-                }
-            }
-            // Mọi phím khác: ẩn overlay và tiếp tục xử lý phím bình thường
-            shared.overlay.hide();
-            shared.pending_assist_fix.borrow_mut().take();
-        }
-    } else {
-        shared.overlay.hide();
+    // AS-030/AS-031 (Mode 1 + A2): phím của overlay (↑/↓, Enter, Alt+1..3, Esc,
+    // Ctrl+Shift+G). Bản đồ phím là hàm THUẦN `assist::overlay_action`; mọi lời
+    // gọi TSF nằm trong edit session, không trong window proc của panel.
+    if let Some(decided) = handle_overlay_key(shared, ctx, vk, mods) {
+        return decided;
     }
 
     if is_modifier_vk(vk) {
@@ -443,8 +476,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
 /// khi text đã commit (B2); không được thì xin session bất đồng bộ.
 #[cfg(windows)]
 pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
-    shared.overlay.hide();
-    shared.pending_assist_fix.borrow_mut().take();
+    hide_assist_overlay(shared);
     let Some(comp) = shared.take_composition() else {
         return;
     };

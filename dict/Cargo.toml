@@ -27,11 +27,15 @@ license.workspace = true
 #   libenchant). Bật `--features os-enchant` trên máy Linux có libenchant-2
 #   (link động LGPL-2.1+); nếu không có dict `vi` thì provider vẫn fail-open
 #   (`NoDictionary`) ⇒ không báo lỗi spelling.
+# - `os-macos`: macOS provider NSSpellChecker (AppKit) qua runtime Objective-C
+#   thuần. MẶC ĐỊNH TẮT (CI không có macOS). Bật `--features os-macos` trên macOS.
 default = ["os-spell"]
 os-spell = ["dep:windows"]
 os-enchant = []
+os-macos = []
 
 [dependencies]
+textvn-assist = { path = "../assist" }
 
 [target.'cfg(windows)'.dependencies]
 # Chỉ 2 feature cần cho Spell Checking API (P4-10 §2.1):
