@@ -125,13 +125,9 @@ class AssistCandidateWord : public fcitx::CandidateWord {
 public:
     AssistCandidateWord(std::string text, std::string comment, std::string replacement,
                         uint32_t deleteGlyphs)
-        : fcitx::CandidateWord(fcitx::Text(std::move(text))),
+        : fcitx::CandidateWord(fcitx::Text(comment.empty() ? text : text + " (" + comment + ")")),
           replacement_(std::move(replacement)),
-          deleteGlyphs_(deleteGlyphs) {
-        if (!comment.empty()) {
-            setComment(fcitx::Text(std::move(comment)));
-        }
-    }
+          deleteGlyphs_(deleteGlyphs) {}
 
     void select(fcitx::InputContext *ic) const override {
         if (!ic) return;
