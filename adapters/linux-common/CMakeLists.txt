@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(SOURCES
+    src/assist_text.c
     src/compose.c
     src/field_detect.c
     src/ipc_client.c
@@ -44,7 +45,7 @@ endif()
 
 if(TEXTVN_FFI_LIB AND NOT TEXTVN_LINUX_COMMON_NO_TESTS)
     enable_testing()
-    foreach(t test_compose test_env test_ipc_client test_field_detect)
+    foreach(t test_assist_text test_compose test_env test_ipc_client test_field_detect)
         add_executable(${t} tests/${t}.c)
         # Test phải giữ assert kể cả bản Release (NDEBUG).
         target_compile_options(${t} PRIVATE -Wall -Wextra -Werror -UNDEBUG)

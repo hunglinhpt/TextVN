@@ -484,6 +484,14 @@ static void test_assist_auto_fix_spacing_punct(void) {
     assert(plan.fixed_count >= 1);
     assert(strstr(plan.replacement, ",") != NULL);
 
+    /* L3: kế hoạch phải XOÁ khoảng trắng, KHÔNG được nhân đôi dấu câu.
+     * Span của L3 là KHOẢNG TRẮNG còn `suggest` chỉ là dấu câu để hiển thị ⇒
+     * thay span bằng `suggest` sinh ra "chào bạn,," (hỏng text người dùng).
+     * Cùng lỗi ở macOS (AssistModel) — cần sửa cả 2 bên để giữ parity. */
+    assert(strstr(plan.replacement, ",,") == NULL);
+    assert(plan.replacement[0] != '\0');
+    assert(plan.replacement[strlen(plan.replacement) - 1] == ',');
+
     ime_instance_free(inst);
 }
 

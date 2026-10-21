@@ -460,6 +460,17 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
             candidates[cand_count].end = iss->end;
             candidates[cand_count].replacement = "";
             cand_count++;
+        } else if (iss->kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT) {
+            /* L3 "thua khoang trang truoc dau cau": span = KHOANG TRANG, con
+             * `suggest` chi la dau cau de HIEN THI. Thay span bang `suggest`
+             * se nhan doi dau cau ("chao,, ban") ⇒ phai XOA span (dung nghia
+             * `Fix::Delete` cua crate `assist`).
+             *
+             * P4-0 §5.1 (L3): span = khoang trang thua, fix = xoa khoang trang. */
+            candidates[cand_count].start = iss->start;
+            candidates[cand_count].end = iss->end;
+            candidates[cand_count].replacement = "";
+            cand_count++;
         } else {
             char span_buf[256];
             if (!utf32_to_utf8_exact(chars + iss->start, iss->end - iss->start,

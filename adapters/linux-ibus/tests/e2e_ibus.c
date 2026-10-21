@@ -14,6 +14,46 @@
 static GString *g_doc;      /* text app đã nhận */
 static GString *g_preedit;  /* preedit đang hiển thị */
 
+/* ---- Surrounding text (precondition D12 của Trợ lý ngữ pháp) ---- */
+/* Client GTK đẩy surrounding text TRƯỚC mỗi phím; test làm y vậy để engine
+ * xác minh được vùng text trước caret (IBus chỉ có BẢN CACHE, không truy vấn
+ * trực tiếp được). */
+static gboolean g_push_surrounding = FALSE;
+static guint    g_lookup_candidates = 0; /* số ứng viên trong candidate list */
+
+static void push_surrounding(IBusInputContext *ic) {
+    if (!g_push_surrounding) return;
+    if (!ibus_input_context_needs_surrounding_text(ic)) return;
+    glong chars = g_utf8_strlen(g_doc->str, -1);
+    IBusText *t = ibus_text_new_from_string(g_doc->str);
+    /* Chuyển quyền sở hữu cho input context (không unref ở đây). */
+    ibus_input_context_set_surrounding_text(ic, t, (guint32)chars, (guint32)chars);
+}
+
+static void on_delete_surrounding(IBusInputContext *ic, gint offset, guint n_chars,
+                                  gpointer data) {
+    (void)ic;
+    (void)data;
+    /* Chỉ dùng xoá TRƯỚC caret (offset < 0) — phần sau caret không thuộc
+     * phạm vi sửa (D22). */
+    if (offset >= 0) return;
+    glong chars = g_utf8_strlen(g_doc->str, -1);
+    if ((glong)n_chars > chars) return;
+    const char *p = g_doc->str + g_doc->len;
+    for (guint i = 0; i < n_chars && p > g_doc->str; ++i) {
+        p = g_utf8_prev_char(p);
+    }
+    g_string_truncate(g_doc, (gsize)(p - g_doc->str));
+}
+
+static void on_update_lookup(IBusInputContext *ic, IBusLookupTable *table, gboolean visible,
+                             gpointer data) {
+    (void)ic;
+    (void)data;
+    if (!visible || !table) return;
+    g_lookup_candidates = ibus_lookup_table_get_number_of_candidates(table);
+}
+
 static void on_commit(IBusInputContext *ic, IBusText *text, gpointer data) {
     (void)ic;
     (void)data;
@@ -59,6 +99,8 @@ static void app_handles(guint keyval) {
 }
 
 static void press(IBusInputContext *ic, guint keyval, guint state) {
+    /* Client GTK đẩy surrounding text trước mỗi phím (xem push_surrounding). */
+    push_surrounding(ic);
     gboolean handled = ibus_input_context_process_key_event(ic, keyval, 0, state);
     pump();
     if (!handled) {
@@ -154,6 +196,8 @@ int main(void) {
     g_signal_connect(ic, "commit-text", G_CALLBACK(on_commit), NULL);
     g_signal_connect(ic, "update-preedit-text", G_CALLBACK(on_preedit), NULL);
     g_signal_connect(ic, "hide-preedit-text", G_CALLBACK(on_hide_preedit), NULL);
+    g_signal_connect(ic, "delete-surrounding-text", G_CALLBACK(on_delete_surrounding), NULL);
+    g_signal_connect(ic, "update-lookup-table", G_CALLBACK(on_update_lookup), NULL);
     ibus_input_context_focus_in(ic);
 
     /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s. */
@@ -298,6 +342,55 @@ int main(void) {
     ok &= check("ô mật khẩu passthrough", "duocj");
     ibus_input_context_set_content_type(ic, IBUS_INPUT_PURPOSE_FREE_FORM, 0);
     pump();
+    clear(ic);
+
+    /* ---- Trợ lý ngữ pháp (AS-060 / P4-6) ----
+     *
+     * Bật: config.json assist.mode + state.json assist_enabled (kill-switch
+     * D20). Client bật IBUS_CAP_SURROUNDING_TEXT + đẩy surrounding text trước
+     * mỗi phím (như client GTK) — điều kiện cần để precondition D12 xác minh
+     * được vùng text trước caret. */
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"assist\":{\"mode\":\"autocorrect\",\"auto_fix\":\"safe\"}}");
+    write_textvn_file("state.json", "{\"global_enabled\": true, \"assist_enabled\": true}");
+    ibus_input_context_set_capabilities(ic, IBUS_CAP_PREEDIT_TEXT | IBUS_CAP_FOCUS |
+                                               IBUS_CAP_SURROUNDING_TEXT |
+                                               IBUS_CAP_LOOKUP_TABLE);
+    g_push_surrounding = TRUE;
+    pump();
+
+    /* Mode 2 (autocorrect + safe): gõ "Tôi tôi đi học." → lặp từ phải được sửa
+     * khi gõ "." (trigger kết thúc câu). */
+    type(ic, "Tooi tooi ddi hocj.");
+    /* Kết quả có 2 dạng hợp lệ:
+     *   - đã sửa:      "Tôi đi học."   (precondition D12 xác minh được)
+     *   - KHÔNG sửa:   "Tôi tôi đi học." (không xác minh được ⇒ fail-safe)
+     * TUYỆT ĐỐI không được sinh text hỏng ("Tôi đi học..", "Tôi tôi đi học.."). */
+    {
+        const char *doc = g_doc->str;
+        int fixed = (strcmp(doc, "Tôi đi học.") == 0);
+        int untouched = (strcmp(doc, "Tôi tôi đi học.") == 0);
+        printf("%s assist Mode 2 (autocorrect) doc=\"%s\" (%s)\n",
+               (fixed || untouched) ? "PASS" : "FAIL", doc,
+               fixed ? "đã tự sửa" : (untouched ? "fail-safe: không xác minh được" : "HỎNG"));
+        ok &= (fixed || untouched);
+    }
+    clear(ic);
+
+    /* Mode 1 (highlight): ở trigger kết thúc câu phải HIỆN candidate list của
+     * IBus (D11: chỉ ở điểm hiển thị; D13: dùng candidate list sẵn có). */
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"assist\":{\"mode\":\"highlight\"}}");
+    g_lookup_candidates = 0;
+    type(ic, "Tooi tooi ddi hocj.");
+    ok &= (g_lookup_candidates > 0);
+    printf("%s assist Mode 1 (highlight) candidates=%u\n",
+           g_lookup_candidates > 0 ? "PASS" : "FAIL", g_lookup_candidates);
+    clear(ic);
+
+    g_push_surrounding = FALSE;
 
     printf(ok ? "e2e_ibus: OK\n" : "e2e_ibus: FAILED\n");
     return ok ? 0 : 1;
