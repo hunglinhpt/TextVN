@@ -202,30 +202,43 @@ python tools/assist/build_real_corpus.py --verify
 python tools/assist/score_real.py
 ```
 
-Kết quả lần chạy (dán nguyên):
+Kết quả lần chạy (dán nguyên, script hiện tại):
 
 ```text
---- assist score_real: van ban THAT (P4-12) ---
-cli            = D:\AppAI\TextVN\target\debug\textvn-cli.exe
-errors corpus  = 49 cau co loi (28 assert cung, 21 mem/engine bo sot)
-clean corpus   = 981 cau sach (976 assert cung, 5 mem/engine bao nham)
-cau co loi     = 28/49 cau phat hien duoc it nhat 1 loi (57.1%)
-recall         = 57.1%  (28/49 loai loi mong doi)
-precision      = 100.0%  (28/28 loai loi bao ra)
-FPR            = 0.5%  (5/981 cau sach bi bao nham)
---- theo loai loi ---
-  kind                           ca  bat  recall  bao ra
-  diacritic_typo                 24    3   12.5%       3
-  duplicate_word                  1    1  100.0%       1
-  lowercase_sentence_start        1    1  100.0%       1
-  space_after_punct               2    2  100.0%       2
-  space_before_punct             21   21  100.0%      21
---- FPR theo loai (cau sach bi bao) ---
-  diacritic_typo                  1
-  duplicate_word                  5
+=== mode: check ===
+Cau co loi (co nhan)   : 49
+  engine phat hien     : 28   recall = 57.1 %   (Wilson 95%: 43.3 - 70.0 %)
+Cau sach               : 981
+  bi gan co (FPR)      : 5   FPR   = 0.5 %   (Wilson 95%: 0.2 - 1.2 %)
+    trong do dong mem `~` (sach nhung engine bao nham): 5 | dong cung (hoi quy FP): 0
+Recall theo loai loi:
+  diacritic_typo                3/24   =   12.5 %
+  space_before_punct           21/21   =  100.0 %
+  space_after_punct             2/2    =  100.0 %
+  duplicate_word                1/1    =  100.0 %
+  lowercase_sentence_start      1/1    =  100.0 %
+Loai loi tren tap sach (nguon FPR):
+  duplicate_word                4
+  diacritic_typo                1
 ```
 
-**Bằng chứng tái lập:** chạy `python tools/assist/score_real.py` **2 lần** (cùng binary, cùng file) → output **byte-identical** (đã `diff`). Script không dùng randomness; corpus sinh bằng seed cố định.
+> **Ý nghĩa dòng "dong cung (hoi quy FP): 0"**: 976 dòng sạch **assert cứng** (không `~`) mà engine **không** báo lỗi nào ⇒ không có hồi quy FP trên tập nhãn. 5 dòng `~` còn lại là FP **đã biết** (đo FPR thật).
+
+**Kiểm chứng tập nhãn (bộ nhớ):**
+
+```text
+$ python tools/assist/score_real.py --verify
+verify: OK
+```
+
+`--verify` kiểm: dòng **cứng** trong file lỗi phải khớp **đúng** loại lỗi engine báo; dòng **cứng** trong file sạch phải **0 issue** ⇒ lệch ⇒ exit ≠ 0.
+
+**Bằng chứng tái lập:** chạy `python tools/assist/score_real.py` **2 lần** (cùng binary, cùng file) → output **byte-identical** (đã `Compare-Object`). Script không dùng randomness; corpus sinh bằng seed cố định.
+
+> **Fassist-120 — 2 bẫy đo sai đã gặp (đừng lặp lại):**
+> 1. **Binary cũ.** `target/release/textvn-cli.exe` build 2026-10-20 vẫn tồn tại ⇒ nó báo `mãi mãi` là lỗi lặp từ (đã có whitelist từ Fassist-94) ⇒ đo ra FPR 0,6 % thay vì 0,5 % và `verify` FAIL giả. Script nay **ưu tiên binary `target/debug`** + **cảnh báo** nếu binary cũ hơn source (`assist/src`, `cli/src`).
+> 2. **Script bị xoá khỏi đĩa giữa chừng** do agent khác dọn file untracked ⇒ doc trỏ tới artifact không tồn tại. Bài học: **commit ngay** file đo/lạnh (không để untracked), và kiểm `Test-Path` trước khi chạy.
+
 
 **Tác động lên `assist score` toàn repo** (sau khi thêm 2 file):
 
