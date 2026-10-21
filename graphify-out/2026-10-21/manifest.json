@@ -2652,15 +2652,15 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/MacSpellProviderTests.swift": {
-    "mtime": 1792593314.8629797,
-    "seen": 1792593937.1042607,
-    "ast_hash": "1967a94e1e6331e65f16b02633935ec4",
+    "mtime": 1792594270.392066,
+    "seen": 1792594400.0707607,
+    "ast_hash": "da73eaea23a92eea4e471f7bde1cdc55",
     "semantic_hash": ""
   },
   "dict/src/os_macos.rs": {
-    "mtime": 1792593766.2765157,
-    "seen": 1792593937.1152632,
-    "ast_hash": "0c1d7fc4734b6f0cc27327aba92a6ac8",
+    "mtime": 1792594334.6806693,
+    "seen": 1792594400.0793576,
+    "ast_hash": "becff484b25fc029f473e1ba168e8ca9",
     "semantic_hash": ""
   }
 }

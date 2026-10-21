@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-10-21)
 
 ## Corpus Check
-- 401 files · ~599,260 words
+- 401 files · ~599,274 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 311 file(s) not represented in the graph (top: .keys 248, (none) 14, .toml 10)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `af53d6b3`
+- Built from commit: `850945e0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1934,11 +1934,11 @@ Nodes (5): 1. Tóm tắt, 2. Ảnh hưởng tới người dùng, 3. Tooling đ�
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `2. Nhật ký finding` connect `ipc_client.c` to `String`, `Foundation`, `IpcClient`, `.inject`, `Problem`, `TextVNInputController`, `MarkedState`, `.register`, `TextVNConfig`, `ImeEngine`, `TextVNAppTests`, `EventTapController`, `IpcServer`?**
-  _High betweenness centrality (0.156) - this node is a cross-community bridge._
+  _High betweenness centrality (0.155) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `AppInfo`, `.register`, `ConfigWatcher`, `IMKTextTarget`, `IpcClient`, `.suggest`, `AppDelegate`, `StrategyResolver`, `.onEvent`, `IpcServer`, `MockHandler`, `ConfigStore`, `TextVNInputController`, `ViState`, `TextVNConfig`, `KeyTranslator`, `AXSnapshot`, `AutostartManager`, `Foundation`, `Problem`, `FieldDetect`, `.inject`, `MarkedState`, `ImeEngine`, `TextVNAppTests`, `TapDecision`, `EventTapController`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
+  _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **Why does `text()` connect `text` to ``docs/compat.md` — Ma trận tương thích app (L7, P0-4 §1)`, `TextVN — Bộ gõ tiếng Việt cho Windows, macOS và Linux`, `TextVN IPC v1`, `PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)`, `.suggest`, `e2e_fcitx5.py`, `TextVN — Chỉ mục tài liệu & Giao thức Review`?**
-  _High betweenness centrality (0.055) - this node is a cross-community bridge._
+  _High betweenness centrality (0.052) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `AppDelegate` (e.g. with `B. Trên macOS: Quên cập nhật Icon Menu Bar & Luồng giao diện (UI Thread Violation)` and `(A) macOS app / IMK / packaging / CI — `F3-*``) actually correct?**
   _`AppDelegate` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `ic`, `inst`, `comp` to the rest of the system?**
