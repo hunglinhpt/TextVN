@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1792600016.9190886,
-    "seen": 1792600026.3795455,
-    "ast_hash": "a004bc392b5ad63d7e37588aede8fdc5",
+    "mtime": 1792600155.207794,
+    "seen": 1792600380.904754,
+    "ast_hash": "b378ff116f9d46a5f56cfe06e6a1cfff",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -1290,9 +1290,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
-    "mtime": 1792598467.3828914,
-    "seen": 1792598561.4504025,
-    "ast_hash": "112cbf73acecdf45390125a4b21ad159",
+    "mtime": 1792600065.2501273,
+    "seen": 1792600380.904754,
+    "ast_hash": "314665e0767cd8958f3a32c26dbe1fa0",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/tests/e2e_fcitx5.py": {
@@ -1404,9 +1404,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/CoreBridge.swift": {
-    "mtime": 1792598262.4096808,
-    "seen": 1792598364.6094744,
-    "ast_hash": "78eecb04ba279aff602c51e83f4cc114",
+    "mtime": 1792600252.3034613,
+    "seen": 1792600380.9151223,
+    "ast_hash": "e201a51e60d5279a0095ff2d0c9a5a6e",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/Diagnostics.swift": {
@@ -1440,15 +1440,15 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IMKTextTarget.swift": {
-    "mtime": 1791698182.2195325,
-    "seen": 1791702628.177499,
-    "ast_hash": "bef1a2938a44c4e4329e0002eb07e2de",
+    "mtime": 1792600269.8844635,
+    "seen": 1792600380.9161222,
+    "ast_hash": "8c8ba2436cba849eaca61b6bd2d3e712",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1792311899.8917706,
-    "seen": 1792313611.4804614,
-    "ast_hash": "19fa2cd4f01441e3c023f743afe676db",
+    "mtime": 1792600288.1109014,
+    "seen": 1792600380.9161222,
+    "ast_hash": "8f150b2a3c71258c61eced4f86783cb1",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1458,15 +1458,15 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/Marked.swift": {
-    "mtime": 1792597168.7686088,
-    "seen": 1792597839.397894,
-    "ast_hash": "981330ae4906783ece97b7eeabe6ac36",
+    "mtime": 1792600262.7124474,
+    "seen": 1792600380.9171114,
+    "ast_hash": "19709e08597dc2ac5d913b516636a974",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1792599422.6699831,
-    "seen": 1792599831.5366364,
-    "ast_hash": "22a346b287938844c3de7c816ddbe227",
+    "mtime": 1792600344.1245742,
+    "seen": 1792600380.9171114,
+    "ast_hash": "7c08b2638bc5e631ec510676543f9456",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -2574,14 +2574,14 @@
     "semantic_hash": ""
   },
   "tools/assist/gen_clean_corpus.ps1": {
-    "mtime": 1792599766.3480783,
-    "seen": 1792599831.553836,
+    "mtime": 1792600199.028794,
+    "seen": 1792600380.963254,
     "ast_hash": "53937e2c939b26aac1e18db0b680f540",
     "semantic_hash": ""
   },
   "tools/assist/gen_corpus_tatoeba.py": {
-    "mtime": 1792599766.3490984,
-    "seen": 1792599831.553836,
+    "mtime": 1792600199.029873,
+    "seen": 1792600380.963254,
     "ast_hash": "514fa71372cad44dac1c05348eb53301",
     "semantic_hash": ""
   },
@@ -2664,15 +2664,15 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/AssistModel.swift": {
-    "mtime": 1792597227.4723177,
-    "seen": 1792597839.3973484,
-    "ast_hash": "f5df133a837afab0a12f8a7d5bad60c0",
+    "mtime": 1792600245.1552207,
+    "seen": 1792600380.9161222,
+    "ast_hash": "00219c15d939e8461f491fb35475dfd2",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/AssistTests.swift": {
-    "mtime": 1792597489.458284,
-    "seen": 1792597839.397894,
-    "ast_hash": "bb9d5e16b24d43f04b499da60cadeb8b",
+    "mtime": 1792600380.4872963,
+    "seen": 1792600380.918148,
+    "ast_hash": "5c6ac3193c885ef1210652632b6f74a6",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
