@@ -19,7 +19,7 @@
 
 | ID | Mức | Finding | Xử lý |
 |---|---|---|---|
-| **Fassist-78** | minor | `ime_assist_result_v1` (1736 B) — **cap đã rõ** (`count: 0..IME_MAX_ASSIST_ISSUES`) nhưng header **chưa nói rõ ownership** (struct là **giá trị**, caller giữ, **không** `free`) → dễ bị `free` nhầm (use-after-free) | Ghi nhận: thêm **1 dòng comment** "caller giữ struct trong bộ nhớ của mình — không free" (task nhỏ, **không** đổi ABI) |
+| **Fassist-78** | minor | `ime_assist_result_v1` (1736 B) — **cap đã rõ** (`count: 0..IME_MAX_ASSIST_ISSUES`) nhưng header **chưa nói rõ ownership** (struct là **giá trị**, caller giữ, **không** `free`) → dễ bị `free` nhầm (use-after-free) | ⚠️ **Không sửa tay `ffi/include/textvn_ffi.h`** — file này **do `cbindgen` sinh** (drift check ở CI, job macOS "header C-ABI") ⇒ sửa tay làm **CI đỏ** (đã tái hiện 2026-10-21). Cách đúng: thêm **doc comment** vào struct trong `ffi/src/lib.rs` (cbindgen lấy vào header) rồi **regenerate header** bằng cbindgen của CI. Việc này thuộc lane FFI (Agent Platform/FFI) |
 | **Fassist-79** | minor | `ime_assist_trigger_kind` phân loại phím — nhưng **điểm hiển thị** (D11: chỉ hiện khi hết câu / idle ≥ 700 ms) **chưa có** trong diff | Đúng phạm vi: điểm hiển thị thuộc **UI (AS-023/AS-030)**; `trigger_kind` chỉ là *điểm kiểm* ✓ |
 
 ## 2. Vòng 17 — Audit (license/privacy/AV)
