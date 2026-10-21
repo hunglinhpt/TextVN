@@ -132,9 +132,11 @@ public:
     void select(fcitx::InputContext *ic) const override {
         if (!ic) return;
         try {
-            if (deleteGlyphs_ > 0 &&
-                ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
-                ic->surroundingText().isValid()) {
+            if (deleteGlyphs_ > 0) {
+                if (!ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) ||
+                    !ic->surroundingText().isValid()) {
+                    return;
+                }
                 ic->deleteSurroundingText(-static_cast<int>(deleteGlyphs_), deleteGlyphs_);
             }
             if (!replacement_.empty()) {
@@ -553,6 +555,20 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     if (which != LC_MOD_NONE) return false;
 
     if (!isRelease && assistUiShowing_) {
+        if (key.sym() == FcitxKey_Escape) {
+            clearAssistUI(st);
+            return true;
+        }
+        if (!states.testAny(fcitx::KeyState::Ctrl | fcitx::KeyState::Alt | fcitx::KeyState::Super) &&
+            key.sym() >= FcitxKey_1 && key.sym() <= FcitxKey_3) {
+            auto *candList = dynamic_cast<fcitx::CommonCandidateList *>(st->ic->inputPanel().candidateList());
+            size_t idx = static_cast<size_t>(key.sym() - FcitxKey_1);
+            if (candList && idx < candList->totalCandidates()) {
+                candList->candidate(idx).select(st->ic);
+                clearAssistUI(st);
+                return true;
+            }
+        }
         clearAssistUI(st);
     }
 

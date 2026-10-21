@@ -2,6 +2,7 @@
 
 > **Quy ước:** ID `AS-nnn` (Phần 4). Agent nhận việc theo ID, tick ở đây + bằng chứng.
 > **DoD (7 mục, `docs/01-AGENT-HANDBOOK.md`):** test xanh · corpus pass · clippy+fmt sạch · `cargo deny` + REUSE · docs cập nhật · acceptance tick + **bằng chứng** · CI 3 OS xanh.
+> **Quy tắc tick (G13 + G17 `docs/00-WORKFLOW.md`):** **không tick ✅ khi CI của commit đó còn đỏ**; mọi tick ✅ phải kèm **bằng chứng CI xanh** (link run) + **verify tay** nếu acceptance yêu cầu (overlay/sửa lỗi trên app thật). ⏳ = code đã có nhưng chưa đủ bằng chứng.
 > **Cross-ref:** `P4-0-MASTER-PLAN.md` (plan D1–D29 · pha §8) · `P4-1-harper-evaluation.md` (đánh giá Harper) · `P4-2-CROSS-REVIEW-2026-10-20.md` (cross-review) · `docs/adr/README.md` (ADR-012, ADR-013)
 
 ## Trạng thái tổng quan
@@ -15,10 +16,10 @@
 | P4-1c | AS-012…014 | Patch docs cross-review: Fassist-32 (tiền đề) · 33/34 (wording) · 37 (verified-ops) | ✅ xong |
 | **P4-2a** | **AS-020** | Refactor `core`: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` | ✅ **xong** (2026-10-21) |
 | P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | 🔄 **đang làm** (Agent Core) |
-| P4-3 | AS-030…031 | Candidate list Windows (Overlay) + A2 (sửa 1 từ) + precondition | ✅ **xong** (Agent Windows/TSF) |
+| P4-3 | AS-030…031 | Candidate list Windows (Overlay) + A2 (sửa 1 từ) + precondition | ⏳ **code xong, chưa verify tay** (Agent Windows/TSF) |
 | P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`/enchant) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ✅ **xong** (AS-040 FST; AS-041 syllable suggest; AS-042 OS glue 3 nền tảng) |
-| **P4-5** | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ✅ **xong** (2026-10-21) |
-| **P4-6** | AS-060…068 | Parity macOS/Linux (Mode 1 highlight + Mode 2 auto-fix + undo) | ✅ **xong** (2026-10-21) |
+| **P4-5** | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ⏳ **đang sửa** — CI commit `c701600` **đỏ** (G13/G17) · chưa verify tay |
+| **P4-6** | AS-060…068 | Parity macOS/Linux (Mode 1 highlight + Mode 2 auto-fix + undo) | ⏳ **đang sửa** — macOS **đã nối** (còn lỗi) · Fcitx5 **đã nối** (còn lỗi) · **IBus chưa làm** |
 
 ## Chi tiết P4-1 (đã xong)
 
@@ -46,13 +47,19 @@
 | AS-021 | FFI `ime_assist_*` (C-ABI) + header + `textvn-cli verify` | Drift 0 (ADR-023); export struct/fn qua `ffi/` và `textvn_ffi.h` | AS-020 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: 55 hằng, 6 struct, 16 hàm verify) |
 | AS-022 | Trigger `space` / `,` / `.` (silent) + **idle 700 ms** / kết thúc câu (UI) | Điểm kiểm ≠ điểm hiển thị (D11); gọi `assist::check_sentence` qua sentence buffer | AS-021 | **Agent Core (ta)** | ✅ **xong** (2026-10-21: ime_assist_trigger_kind + check_instance) |
 | AS-023 | Toast/tray notification + kill-switch 1 bước | Tắt được ngay, không cần mở app | AS-022 | **Agent Tray (ta)** | ✅ **xong** (2026-10-21: IPC toggle/notify + tray balloon + menu item) |
-| AS-030 | `ITfCandidateListUI` / Overlay (Windows) | Panel hiện cạnh con trỏ, không chiếm focus (D30) | AS-007 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: overlay panel cạnh caret + non-activate + timer 8s) |
-| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: ApplyAssistFixSession + precondition caret + hotkey [1]/Tab/Esc) |
+| AS-030 | `ITfCandidateListUI` / Overlay (Windows) | Panel hiện cạnh con trỏ, không chiếm focus (D30) | AS-007 | **Agent Windows/TSF (ta)** | ⏳ **code xong, chưa verify tay** (2026-10-21: overlay panel cạnh caret + non-activate + timer 8s; CI `af53d6b` xanh — nhưng **chưa có bằng chứng chạy thật**: DoD yêu cầu output CLI/screenshot + log sạch, `docs/specs/verified-ops.md` **chưa có** entry assist ⇒ tick ✅ sau khi verify tay) |
+| AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | **Agent Windows/TSF (ta)** | ⏳ **code xong, chưa verify tay** (2026-10-21: ApplyAssistFixSession + precondition caret + hotkey [1]/Tab/Esc; CI `af53d6b` xanh — thiếu bằng chứng chạy thật trên Notepad/Word/Chrome/VSCode ⇒ tick ✅ sau khi verify tay) |
 | AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit GPL hunspell-vi | AS-009 + AS-010 | Agent Dict/Data | ✅ xong (dict crate + FST tests + REUSE attribution; .dic 6.642 tu x 2 kieu dau) |
 | AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 | **Agent Dict/Core (ta)** | ✅ **xong** (2026-10-21: syllable skeleton + Damerau-Levenshtein, recall 100% test_dic_dau_moi) |
 | AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS `NSSpellChecker` / Linux enchant-2) | D32-D37 (OS-first) | AS-040 | **Agent Platform/Dict (ta)** | ✅ **xong** (2026-10-21: Windows COM, macOS Obj-C/Swift bridge, Linux enchant-2) |
-| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: SentenceFixPlan, ApplySentenceFixSession, Precondition D12, Ctrl+Z undo 5s, silent toast) |
-| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · Mode 1 candidate + Mode 2 auto-fix + undo | AS-050 | **Agent Mac/Linux (subagents)** | ✅ **xong** (2026-10-21: macOS IMKCandidates + Cmd+Z undo; Linux fcitx5 deleteSurroundingText + IPC report) |
+| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | **Agent Windows/TSF (ta)** | ⏳ **đang sửa** (2026-10-21: SentenceFixPlan, ApplySentenceFixSession, Precondition D12, Ctrl+Z undo 5s, silent toast — nhưng commit `c701600` **đã push khi CI đỏ** (`ci-macos`/`ci-linux`/`ci-shared` FAILURE) và **chưa verify tay** ⇒ chưa được tick ✅ (G13 + G17)) |
+| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · Mode 1 candidate + Mode 2 auto-fix + undo | AS-050 | **Agent Mac/Linux (subagents)** | ⏳ **đang sửa** (2026-10-21: macOS IMKCandidates + Cmd+Z undo; Linux Fcitx5 deleteSurroundingText + IPC report — **IBus chưa làm**: `git grep -n assist -- adapters/linux-ibus` = **0 dòng**; Fcitx5 còn lỗi đang sửa (thiếu precondition D12 + thiếu undo); CI `c701600` đỏ ⇒ chưa được tick ✅) |
+
+> **Ghi chú 2026-10-21 — sửa tick sau vòng review AS-050/AS-060 (R-1…R-14, xem `P4-REVIEW-LOG.md`):**
+> - **R-1 (major):** dòng "Linux (IBus/Fcitx5) parity ✅" là **tick sai** — IBus engine **chưa có một dòng assist nào** (`git grep -n assist -- adapters/linux-ibus` ⇒ 0 dòng) ⇒ đổi thành ⏳ (**IBus: chưa làm · Fcitx5: đã nối, còn lỗi đang sửa**).
+> - **R-8 (major, quy trình):** commit `c701600` **đã push khi CI đỏ** mà task vẫn **tick ✅** ⇒ vi phạm **G13** ⇒ thêm luật **G17** trong `docs/00-WORKFLOW.md` (*không tick ✅ khi CI của commit đó chưa xanh; tick phải kèm bằng chứng CI xanh*).
+> - **R-10 (major):** AS-030/031/050 **chưa có bằng chứng verify tay** (DoD yêu cầu output CLI/screenshot + log sạch; `docs/specs/verified-ops.md` chưa có entry assist) ⇒ hạ ⏳.
+> - Quy ước: **⏳ = đã có code nhưng chưa đủ bằng chứng (CI xanh + verify tay)** · **✅ = đủ bằng chứng**. Agent tick ✅ phải kèm link run CI xanh + bằng chứng chạy thật (G17).
 
 ## Recipe P4-2a — refactor buffer trong `core` (đọc trước khi code)
 

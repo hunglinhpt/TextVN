@@ -58,6 +58,8 @@ pub fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
     buf[len] = 0;
 }
 
+pub const TRAY_ICON_UID: u32 = 100;
+
 /// Hiển thị thông báo balloon / toast trên khay hệ thống (P4-2 · AS-023).
 #[cfg(windows)]
 pub fn show_tray_notification(title: &str, message: &str) {
@@ -70,7 +72,7 @@ pub fn show_tray_notification(title: &str, message: &str) {
         let mut nid = NOTIFYICONDATAW {
             cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
             hWnd: HWND(hwnd as *mut std::ffi::c_void),
-            uID: 1, // TRAY_ICON_UID
+            uID: TRAY_ICON_UID,
             uFlags: NIF_INFO,
             dwInfoFlags: NIIF_INFO,
             ..Default::default()

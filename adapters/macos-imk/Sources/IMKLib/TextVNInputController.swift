@@ -737,7 +737,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         // Mode 2 / A3: Tự động sửa lỗi objective bằng Backspace+Type
         if assistSettings.isAutoFixSafe {
-            let sentence = engine.sentenceTail(maxChars: assistSettings.max_sentence_chars)
+            let sentence = engine.sentenceTail(maxChars: min(256, assistSettings.max_sentence_chars))
             if let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { [weak engine] text in
                 engine?.glyphLen(text) ?? text.count
             }) {

@@ -5,7 +5,7 @@
 > **Quan hệ:** BỔ SUNG `01-AGENT-HANDBOOK.md`. Handbook là gốc về DoD / security / review;
 > file này là gốc về **thứ tự thao tác hằng ngày**. Nếu mâu thuẫn → ghi `FW-{n}` vào §7 rồi sửa cả hai
 > (không tự xử lý lén, không sửa file đang có WIP của agent khác).
-> **Trạng thái:** v2 (2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
+> **Trạng thái:** v2.3 (2026-10-21: thêm **G17** — không tick ✅ khi CI commit đó còn đỏ · 2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
 > Review 1 (*Đúng & Đủ*) = tác giả tự rà · Review 2 (*Nhất quán & Sẵn sàng*) **chờ agent thứ hai** — finding `FW-{n}`, không xóa.
 
 ## 1. Ground rules (G-IDs) — áp dụng mọi lúc
@@ -28,6 +28,7 @@
 | G14 | **Kết thúc phiên/task → qua checklist dọn dẹp §10** (kill process test, dồn evidence, `git status` sạch, CI xanh) | tránh rò process/file tạm sang phiên sau |
 | G15 | **Phần trùng lặp → bắt buộc viết thành lib/module dùng chung, KHÔNG viết riêng từng nơi** — code sạch, reuse tối đa: logic nào dùng ở ≥2 chỗ thì tách thành module chung (crate chung Rust / script lib chung) ngay từ đầu | user rule 2026-09-27; chống copy-paste (vd locator/rules UIA: field-detect ↔ appcomptest phải dùng chung 1 lib) |
 | G16 | **Phát hành version mới → bắt buộc đi đủ Checklist A (local) + Checklist B (repo/docs) của `docs/release/release-process.md`** — không tag khi CI commit đó chưa xanh; bản phát hành thiếu release note/changelog/version-sync/readme/metainfo/report = chưa Done | chuẩn hoá 2026-10-01 từ quy trình đã thành công của v0.2.0–v0.2.2 |
+| G17 | **Không tick ✅ cho task khi CI của commit đó còn đỏ** — mọi tick ✅ phải kèm **bằng chứng CI xanh** (link run) và, nếu acceptance yêu cầu chạy thật, **bằng chứng verify tay**; tick ✅ **sau khi** CI xanh (G13) | sự cố 2026-10-21: commit `c701600` (AS-050/AS-060) **push khi CI đỏ** (`ci-macos`/`ci-linux`/`ci-shared` FAILURE) mà `P4-TASKS.md` vẫn **tick ✅** ⇒ task bị coi là xong oan |
 
 ## 2. Bắt buộc đọc — trình tự mỗi phiên
 
@@ -93,6 +94,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 | 2026-09-27 | v2: G13/G14 + §8 audit 2 vòng 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions (`repo-hygiene` + tham chiếu Rust/SLSA/CMake) | — |
 | 2026-09-27 | v2.1: thêm `hook-spike` workflow (WIN-005, dispatch-only) vào §6 ownership + §12.1 | — |
 | 2026-09-27 | v2.2: thêm **G15** — phần trùng lặp bắt buộc là lib dùng chung, code sạch + reuse tối đa (user rule) | — |
+| 2026-10-21 | v2.3: thêm **G17** — **không tick ✅ khi CI của commit đó còn đỏ**; mọi tick ✅ phải kèm link run CI xanh (+ verify tay nếu acceptance yêu cầu). Nguồn: sự cố `c701600` (AS-050/AS-060 push khi CI đỏ nhưng task đã tick ✅) | — |
 | — | Review 2 chờ agent thứ hai | `FW-{n}` |
 
 ## 8. Audit 2 vòng — 5W1H
@@ -153,6 +155,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 - [ ] **Lỗi mới → G3** common-errors (§3) · **thao tác thành công mới → G4** verified-ops (§4).
 - [ ] **Nghiệp vụ lặp lại** (làm đi làm lại vẫn đúng) → nâng cấp: entry verified-ops **hoặc** script hoá trong `tools/` — chạy đúng 1 lần = không kiểm tra lại.
 - [ ] **Task status** tại task list của phần mình; `00-INDEX §1` chỉ khi đủ 2/2 review (G10).
+- [ ] **Tick ✅ chỉ khi CI của commit đó đã xanh** (G17) — kèm link run CI xanh + bằng chứng verify tay nếu acceptance yêu cầu; chưa đủ thì để **⏳** kèm ghi chú, **không** tick ✅ sớm.
 - [ ] **graphify** update + commit `graphify-out/` (G5).
 - [ ] **Finding:** đủ ID + trạng thái (`fixed @commit` / còn mở), không xóa (G6).
 

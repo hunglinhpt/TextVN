@@ -413,6 +413,15 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     let mods = active_modifiers();
     observe_key_down(shared, vk, mods);
 
+    // R-3 (undo destructive): trạng thái hoàn tác tự sửa cả câu chỉ sống cho
+    // **phím kế tiếp**. Gõ tiếp (bất kỳ phím nào khác Ctrl+Z) ⇒ huỷ state, để
+    // Ctrl+Z sau đó KHÔNG xoá nhầm cả chữ vừa gõ và không ăn Ctrl+Z của app.
+    // (macOS đã làm đúng như vậy — giữ hành vi giống nhau cho 3 OS.)
+    let is_assist_undo_chord = mods == MOD_CTRL && vk == 0x5A;
+    if !is_assist_undo_chord {
+        shared.clear_assist_undo();
+    }
+
     // AS-030/AS-031 (Mode 1 + A2): phím của overlay (↑/↓, Enter, Alt+1..3, Esc,
     // Ctrl+Shift+G). Bản đồ phím là hàm THUẦN `assist::overlay_action`; mọi lời
     // gọi TSF nằm trong edit session, không trong window proc của panel.
@@ -425,7 +434,10 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     }
 
     // AS-050: Hoàn tác tự sửa cả câu nếu người dùng bấm Ctrl+Z trong vòng 5 giây.
-    if mods == MOD_CTRL && vk == 0x5A {
+    // R-3: chỉ nuốt phím khi hoàn tác **thực sự áp dụng** được; nếu không (hết
+    // hạn / không xin được edit session / vùng cần xoá không còn là của ta) ⇒
+    // phím tới app ⇒ Ctrl+Z của app vẫn hoạt động bình thường.
+    if is_assist_undo_chord {
         if let Some(ctx) = ctx {
             if crate::edit_session::apply_assist_undo(shared, ctx) {
                 return true;

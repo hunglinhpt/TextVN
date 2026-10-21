@@ -62,7 +62,8 @@ const TSF_PROFILE_GUID: &str = "{C4A91F52-77B3-4E19-8A6D-2F8C0B6E5A13}";
 const TSF_LANGS: [u16; 2] = [0x042A, 0x0409];
 #[cfg(windows)] // WM_APP chỉ có trong import WindowsAndMessaging (cfg-gated)
 const WM_TRAYICON: u32 = WM_APP + 1;
-const TRAY_ICON_UID: u32 = 100;
+#[cfg(windows)]
+use textvn_tray::TRAY_ICON_UID;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 /// ID message `TaskbarCreated` (RegisterWindowMessageW) — Explorer broadcast khi khởi động lại.

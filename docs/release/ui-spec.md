@@ -128,3 +128,41 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
 | Lỗi | — | macOS tint `systemOrange` (riêng macOS) |
 
 Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật là 2 SVG).
+
+## 8. Trợ lý ngữ pháp — panel cạnh con trỏ (Assist)
+
+> Đặc tả **UI hiển thị** của Trợ lý ngữ pháp (Phần 4). Nguồn: `docs/50-assist/P4-0-MASTER-PLAN.md`
+> §4.1–§4.5 + §6 (D4 · D11 · D12 · D13 · D30 · D38) · định dạng render chuẩn:
+> `textvn-cli assist show` (D38) · code Windows: `adapters/windows-tsf/src/assist.rs` (`OverlayView`).
+>
+> **Trạng thái parity (2026-10-21, xem `parity-checklist.md` §4):** Windows ⏳ (overlay đã nối, **chưa verify tay**) ·
+> macOS ⏳ (đã nối, còn lỗi đang sửa) · Linux ⏳ (**Fcitx5** đã nối / **IBus chưa làm**) ·
+> **Settings cả 3 OS chưa có UI cho assist** — hiện chỉ sửa được trong file config, mặc định `assist.mode = "off"`.
+
+### 8.1 Nội dung panel
+
+| Thành phần | Nội dung | Ghi chú |
+|---|---|---|
+| Câu vừa gõ | Câu đang gõ (chỉ phần cuối, tối đa **96 ký tự Unicode**; có `…` nếu bị cắt) | Chỉ hiện ở **điểm hiển thị**: kết thúc câu `.` `!` `?` hoặc gọi lại bằng `Ctrl+Shift+G` (D11) |
+| Lỗi gạch đỏ | Vạch `^` (render **màu đỏ**) đúng span lỗi trong câu | Tối đa **3 lỗi**; phần dư gộp `(+N lỗi khác)` |
+| Gợi ý | **1–3 gợi ý** (mỗi lỗi 1 gợi ý) kèm **thông điệp tiếng Việt ngắn** (vd `Lặp từ: "của của"`) | Lỗi **chỉ gợi ý** (không auto-fix) vẫn hiện nhưng **không** tự sửa |
+| Hàng phím | `↑/↓ chọn lỗi · Enter sửa · Alt+1…3 gợi ý · Esc đóng` | Chuỗi **tĩnh** — không chứa nội dung người dùng (S2) |
+
+### 8.2 Phím
+
+| Phím | Tác dụng |
+|---|---|
+| `↑` / `↓` | Chọn lỗi trước / kế (vòng tròn) |
+| `Enter` | Áp dụng gợi ý của lỗi đang chọn (A2 — Backspace+Type + precondition D12) |
+| `Alt+1`…`Alt+3` | Chọn **và** áp dụng gợi ý thứ `n` |
+| `Esc` | Đóng panel, **không** sửa |
+| `Ctrl+Shift+G` | Gọi lại (kiểm tra + hiện panel nếu còn lỗi) |
+| Phím khác | Đóng panel rồi để phím đi tiếp (gõ tiếp = tự tắt) |
+
+### 8.3 Hành vi chung (3 nền tảng)
+
+- **Không chiếm focus**: panel hiện **cạnh con trỏ**, không kéo focus về app (D4/D30).
+- **Tự tắt**: click ra ngoài · **8 s** không tương tác · app đổi focus · gõ tiếp · `Esc`.
+- **Mode 2 — "tự sửa cả câu" (A3)**: chỉ luật **objective** được tự sửa; có **precondition D12** (caret ở cuối câu + câu do chính ta gõ) → thiếu precondition thì **không sửa, chỉ gợi ý**; hộp thoại "Đã sửa N lỗi" + `Ctrl+Z` (giữ **5 s**).
+- **A11y/riêng tư**: nhãn tiếng Việt · bàn phím đầy đủ · dark mode · **không** đưa nội dung câu vào accessibility tree; **không** log/ghi file nội dung câu (chỉ số lỗi) — S2.
+- **Điểm kiểm tra ≠ điểm hiển thị** (D11): `space` `,` `;` `:` chỉ kiểm tra **im lặng**, không hiện panel.

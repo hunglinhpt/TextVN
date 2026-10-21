@@ -9,7 +9,7 @@
 > trước R2-106 test chỉ so bảng mã/kiểu gõ với Linux nên macOS lệch từ đầu mà không bị bắt).
 > Bản 2026-09-28 đã thay mô tả UI egui 6 tab chưa từng tồn tại.
 
-Chú thích: ✓ = có và có test · — = không áp dụng trên nền tảng đó · ✗ = chưa có.
+Chú thích: ✓ = có và có test · — = không áp dụng trên nền tảng đó · ✗ = chưa có · ⏳ = đã nối/đã có code nhưng **chưa đạt** (chưa verify tay / còn lỗi / CI chưa xanh) — không được ghi ✓ khi chưa đạt.
 
 ## 1. Điều khiển & Tùy chọn gõ
 
@@ -55,6 +55,6 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 |---|---|
 | `emoji[]` | Engine hỗ trợ; bảng điều khiển giữ nguyên khi lưu. |
 | `hotkeys`, `ignore_apps`, `app_overrides`, `updates`, `suggest` | Schema chấp nhận, engine chưa dùng. |
-| `assist.*` (`mode`, `auto_fix`, `language`, `trigger_keys`, `display`, `max_sentence_chars`, `per_app`) | Trợ lý ngữ pháp (P4-0 §7) — **parity**: Windows ✓ engine + TSF overlay/sửa 1 từ (AS-030/031) · macOS ✗ adapter chưa nối (mới có FFI bridge) · Linux ✗ adapter chưa nối (AS-060) · Settings **cả 3 OS ✗** (P4-6 chưa làm) — hiện chỉ sửa trong file, mặc định tắt hoàn toàn (`mode:"off"`). Tray kill-switch chỉ Windows/Linux (AS-023). Test: `config::tests::assist_defaults_match_p4_0_section_7`, `schema_khop_khoi_assist`, `TextVNAppTests` (Swift). |
+| `assist.*` (`mode`, `auto_fix`, `language`, `trigger_keys`, `display`, `max_sentence_chars`, `per_app`) | Trợ lý ngữ pháp (P4-0 §7) — **parity (cập nhật 2026-10-21, review R-1…R-14)**: **Windows ⏳** — engine đã nối + TSF overlay/sửa 1 từ/tự sửa câu (AS-030/031/050), **chưa verify tay** (thiếu bằng chứng screenshot/log trong `docs/specs/verified-ops.md`) · **macOS ⏳** — đã nối (`AssistModel.swift` + IMK candidate + Cmd+Z undo, AS-060), **còn lỗi đang sửa**, CI commit `c701600` đỏ · **Linux ⏳** — **Fcitx5 đã nối** (`deleteSurroundingText` + IPC report) nhưng còn lỗi đang sửa (thiếu precondition D12, thiếu undo); **IBus chưa làm** (`git grep -n assist -- adapters/linux-ibus` ⇒ 0 dòng) · **Settings cả 3 OS ✗** (chưa có UI cho assist: `tray/src/settings_dialog.rs`, `adapters/linux-settings/src/settings_window.c`, `SettingsView.swift` đều không có control assist — Linux mới chỉ có tầng *model* đọc/ghi `assist.mode`) — hiện chỉ sửa trong file, mặc định tắt hoàn toàn (`mode:"off"`). Tray kill-switch chỉ Windows/Linux (AS-023). Test: `config::tests::assist_defaults_match_p4_0_section_7`, `schema_khop_khoi_assist`, `TextVNAppTests` (Swift). |
 
 macOS: bảng cài đặt SwiftUI của `TextVN.app` (menu bar → **Cài đặt...**) — xem cột macOS ở trên; dòng ghi "cần GUI smoke" là chưa có test tự động trên máy thật.

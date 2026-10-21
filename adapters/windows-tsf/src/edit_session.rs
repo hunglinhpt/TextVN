@@ -117,13 +117,40 @@ impl TsfShared {
     }
 
     /// Mode 2 (A3 Whole-Sentence Auto-Correction) có đang bật hay không.
+    ///
+    /// R-5: ngữ nghĩa **duy nhất cho 3 OS** — `assist.mode == "autocorrect"` **và**
+    /// `assist.auto_fix == "safe"` (P4-0 §4.3). Chỉ cần `auto_fix` là lệch với
+    /// macOS/Linux ⇒ 1 config, 3 hành vi khác nhau.
     pub fn is_assist_auto_fix_enabled(&self) -> bool {
         self.ipc.is_assist_enabled()
             && self
                 .thread
                 .try_borrow()
-                .map(|t| t.assist_auto_fix() == textvn_config::AssistAutoFix::Safe)
+                .map(|t| {
+                    crate::assist::mode2_auto_fix_enabled(t.assist_mode(), t.assist_auto_fix())
+                })
                 .unwrap_or(false)
+    }
+
+    /// Điểm **hiển thị** (Mode 1 — overlay) có bật không: kill-switch D20 **và**
+    /// `assist.mode != "off"` (R-6: giống hệt macOS/Linux).
+    pub fn is_assist_display_enabled(&self) -> bool {
+        self.ipc.is_assist_enabled()
+            && self
+                .thread
+                .try_borrow()
+                .map(|t| crate::assist::mode1_display_enabled(t.assist_mode()))
+                .unwrap_or(false)
+    }
+
+    /// Xoá trạng thái hoàn tác tự sửa cả câu (R-3).
+    ///
+    /// Gọi khi người dùng gõ **phím khác** (không phải Ctrl+Z): giữ state quá
+    /// lâu ⇒ Ctrl+Z sau đó xoá nhầm cả chữ vừa gõ và ăn luôn Ctrl+Z của app.
+    pub fn clear_assist_undo(&self) {
+        if let Ok(mut slot) = self.assist_undo.try_borrow_mut() {
+            *slot = None;
+        }
     }
 
     pub fn is_composing(&self) -> bool {
@@ -487,8 +514,8 @@ pub fn show_assist_overlay(
     ec: u32,
     check: &AssistCheck,
 ) -> bool {
-    if !shared.ipc.is_assist_enabled() {
-        return false; // D20 kill-switch (đọc lại: tray có thể vừa tắt)
+    if !shared.is_assist_display_enabled() {
+        return false; // D20 kill-switch + `assist.mode` (R-6: giống macOS/Linux)
     }
     let Some(view) = check.view() else {
         return false;
@@ -701,11 +728,29 @@ impl ApplyAssistFixSession {
             // mới vào document (R2-103). 1 glyph ≤ 2 UTF-16 unit (emoji) → 2×.
             let mut buf = vec![0u16; self.plan.delete_glyphs as usize * 2 + 2];
             let mut fetched = 0u32;
-            let snapshot = del
+            let Some(snapshot) = del
                 .GetText(ec, 0, &mut buf, &mut fetched)
                 .ok()
                 .map(|_| buf[..(fetched as usize).min(buf.len())].to_vec())
-                .filter(|text| !text.is_empty());
+                .filter(|text| !text.is_empty())
+            else {
+                // Không đọc được vùng sắp xoá ⇒ **không xác minh được ⇒ không sửa**
+                // (D12 fail-safe) — và không có bản sao để hoàn tác.
+                crate::trace::event(self.shared.tid, format_args!("assist A2 skip: no snapshot"));
+                return false;
+            };
+
+            // -- Precondition 5 (R-2): vùng sắp xoá phải **đúng** là đuôi câu mà
+            //    engine biết (chúng ta tự gõ). Lệch ⇒ caret không ở cuối câu
+            //    (user bấm chuột đặt caret chỗ khác, app tự sửa…) ⇒ KHÔNG xoá.
+            let expected = expected_tail(&self.active.sentence, self.plan.delete_chars);
+            if !verify_delete_range(&snapshot, &expected, self.plan.delete_glyphs) {
+                crate::trace::event(
+                    self.shared.tid,
+                    format_args!("assist A2 skip: tail mismatch"),
+                );
+                return false;
+            }
 
             // -- Backspace: xoá đúng vùng từ issue.start tới hết câu --
             let empty = [0u16; 1];
@@ -733,11 +778,9 @@ impl ApplyAssistFixSession {
             })();
 
             if inserted.is_err() {
-                if let Some(text) = snapshot {
-                    crate::trace::event(self.shared.tid, format_args!("assist A2 restore"));
-                    let _ = del.SetText(ec, 0, &text);
-                    set_caret_after(&self.ctx, ec, &del);
-                }
+                crate::trace::event(self.shared.tid, format_args!("assist A2 restore"));
+                let _ = del.SetText(ec, 0, &snapshot);
+                set_caret_after(&self.ctx, ec, &del);
                 return false;
             }
             true
@@ -755,6 +798,38 @@ fn backspace_shift(delete_glyphs: u32) -> Option<i32> {
     i32::try_from(delete_glyphs).ok().map(|n| -n)
 }
 
+/// Đuôi câu (Unicode) mà engine biết: `delete_chars` ký tự cuối của `sentence`.
+///
+/// `delete_chars` do `plan_fix` tính từ **đuôi** của câu lúc hiện overlay ⇒
+/// đuôi `sentence` chính là vùng sắp xoá (D12 · R-2).
+#[cfg(windows)]
+fn expected_tail(sentence: &str, delete_chars: usize) -> String {
+    let chars: Vec<char> = sentence.chars().collect();
+    let take = delete_chars.min(chars.len());
+    chars[chars.len() - take..].iter().collect()
+}
+
+/// **Xác minh vùng sắp xoá** (R-2 · D12 fail-safe).
+///
+/// `snapshot` = text thật trong document (UTF-16) của vùng sắp lùi `delete_glyphs`
+/// code unit; `expected` = đuôi câu mà **engine** biết (Unicode).
+///
+/// - Không đọc được / lệch ⇒ **không sửa** (fail-safe): đây là chốt chặn
+///   "xoá nhầm text lạ" khi engine buffer stale (user bấm chuột đặt caret chỗ
+///   khác rồi gõ `.`).
+/// - `expected` là **Unicode**, document chứa **glyph** theo bảng mã xuất. Với
+///   `unicode_precomposed` (mặc định) 1 char = 1 code unit nên so trực tiếp;
+///   bảng mã khác (TCVN3/VNI/Unicode tổ hợp) ⇒ số code unit lệch ⇒ **không
+///   xác minh được ⇒ không sửa** (an toàn hơn là sửa nhầm).
+#[cfg(windows)]
+fn verify_delete_range(snapshot: &[u16], expected: &str, delete_glyphs: u32) -> bool {
+    let expected_utf16: Vec<u16> = expected.encode_utf16().collect();
+    if expected_utf16.len() != delete_glyphs as usize {
+        return false; // số glyph ≠ số code unit ⇒ không xác minh được
+    }
+    snapshot == expected_utf16.as_slice()
+}
+
 // ---------------------------------------------------------------------------
 // AS-050 (A3) — tự sửa cả câu bằng Backspace+Type (Mode 2 / Precondition D12)
 // ---------------------------------------------------------------------------
@@ -768,12 +843,16 @@ pub fn apply_sentence_auto_fix(
     ec: u32,
     check: &AssistCheck,
 ) -> bool {
+    // R-11: khi core không đếm được glyph (borrow lỗi / engine lỗi) ⇒ **fail-safe**
+    // trả 0 ⇒ `plan_sentence_auto_fix` trả `None` ⇒ **không sửa**. Tuyệt đối
+    // KHÔNG fallback `chars().count()`: số char ≠ số glyph ở VNI/TCVN3 ⇒ xoá
+    // lệch vị trí (mất dữ liệu).
     let glyph_len = |text: &str| {
         shared
             .thread
             .try_borrow()
             .map(|t| t.engine.glyph_len_of(text))
-            .unwrap_or_else(|_| text.chars().count())
+            .unwrap_or(0)
     };
     let Some(view) = check.view() else {
         return false;
@@ -871,6 +950,22 @@ impl ApplySentenceFixSession {
                 .map(|_| buf[..(fetched as usize).min(buf.len())].to_vec())
                 .filter(|text| !text.is_empty());
 
+            // Precondition D12 (an toàn văn bản): Vùng sắp xoá trong document phải khớp chính xác
+            // với đoạn câu đuôi gốc mà engine đã phân tích (chống trường hợp dời chuột sang vị trí khác).
+            // R-2: đọc được snapshot + số glyph khớp số code unit mới được so; lệch
+            // ⇒ **không xác minh được ⇒ không sửa** (fail-safe, D12).
+            let Some(snapshot) = snapshot else {
+                crate::trace::event(self.shared.tid, format_args!("assist A3 skip: no snapshot"));
+                return false;
+            };
+            if !verify_delete_range(&snapshot, &self.plan.original_tail, self.plan.delete_glyphs) {
+                crate::trace::event(
+                    self.shared.tid,
+                    format_args!("assist A3 skip: tail mismatch"),
+                );
+                return false;
+            }
+
             // Backspace: xoá đúng vùng cần thay
             let empty = [0u16; 1];
             if del.SetText(ec, 0, &empty[..0]).is_err() {
@@ -892,29 +987,32 @@ impl ApplySentenceFixSession {
             })();
 
             if inserted.is_err() {
-                if let Some(text) = snapshot {
-                    crate::trace::event(self.shared.tid, format_args!("assist A3 restore"));
-                    let _ = del.SetText(ec, 0, &text);
-                    set_caret_after(&self.ctx, ec, &del);
-                }
+                crate::trace::event(self.shared.tid, format_args!("assist A3 restore"));
+                let _ = del.SetText(ec, 0, &snapshot);
+                set_caret_after(&self.ctx, ec, &del);
                 return false;
             }
 
             // Lưu trạng thái hoàn tác (Ctrl+Z trong 5 giây)
             let repl_str: String = self.plan.replacement.iter().collect();
+            // R-11: không đếm được glyph ⇒ **không lưu** state hoàn tác (số glyph
+            // sai ⇒ hoàn tác xoá lệch vị trí). Fail-safe: bỏ undo còn hơn xoá nhầm.
             let repl_glyphs = self
                 .shared
                 .thread
                 .try_borrow()
                 .map(|t| t.engine.glyph_len_of(&repl_str) as u32)
-                .unwrap_or_else(|_| self.plan.replacement.len() as u32);
+                .unwrap_or(0);
 
-            if let Ok(mut undo_slot) = self.shared.assist_undo.try_borrow_mut() {
-                *undo_slot = Some(AssistUndoState::new(
-                    self.plan.original_tail.clone(),
-                    repl_glyphs,
-                    self.plan.fixed_count,
-                ));
+            if repl_glyphs > 0 {
+                if let Ok(mut undo_slot) = self.shared.assist_undo.try_borrow_mut() {
+                    *undo_slot = Some(AssistUndoState::new(
+                        self.plan.original_tail.clone(),
+                        repl_str.clone(),
+                        repl_glyphs,
+                        self.plan.fixed_count,
+                    ));
+                }
             }
 
             // Xóa buffer engine sau khi đã thay thế document
@@ -939,23 +1037,56 @@ impl ApplySentenceFixSession {
 // ---------------------------------------------------------------------------
 
 /// Áp dụng hoàn tác tự sửa cả câu nếu còn trong 5 giây. Trả `true` nếu đã xử lý.
+///
+/// R-3 (undo destructive):
+/// - **Không `take()` state khi chưa chắc chắn**: nếu TSF không cấp edit session
+///   thì state phải còn nguyên (và phím Ctrl+Z phải tới app) — nuốt phím mà
+///   không hoàn tác được là mất chức năng Undo của app.
+/// - Chỉ xoá state khi hoàn tác **đã áp dụng** thành công.
 #[cfg(windows)]
 pub fn apply_assist_undo(shared: &Rc<TsfShared>, ctx: &ITfContext) -> bool {
-    let undo = (|| {
-        let mut slot = shared.assist_undo.try_borrow_mut().ok()?;
-        let state = slot.take()?;
-        if state.is_valid() {
-            Some(state)
-        } else {
-            None
-        }
-    })();
-    let Some(undo) = undo else {
+    // Peek (không take) — state chỉ bị xoá khi thực sự áp dụng được.
+    let state = shared
+        .assist_undo
+        .try_borrow()
+        .ok()
+        .and_then(|slot| slot.clone());
+    let Some(state) = state else {
         return false;
     };
+    if !state.is_valid() {
+        // Hết hạn 5 s ⇒ xoá state, để Ctrl+Z tới app (không nuốt phím).
+        shared.clear_assist_undo();
+        return false;
+    }
+    let result = Rc::new(Cell::new(None));
     let session: ITfEditSession =
-        ApplyAssistUndoSession::new(shared.clone(), ctx.clone(), undo).into();
-    request_sync_or_async(ctx, shared.tid, &session)
+        ApplyAssistUndoSession::new(shared.clone(), ctx.clone(), state, result.clone()).into();
+    // Ưu tiên đồng bộ: biết ngay kết quả áp dụng (không áp được ⇒ trả false ⇒
+    // phím tới app, Ctrl+Z của app vẫn chạy).
+    // SAFETY: ctx/session hợp lệ trong callback của TSF.
+    let hr = unsafe { ctx.RequestEditSession(shared.tid, &session, TF_ES_SYNC | TF_ES_READWRITE) };
+    match (hr, result.get()) {
+        (Ok(code), Some(applied)) if code.is_ok() => {
+            if applied {
+                shared.clear_assist_undo();
+            }
+            return applied;
+        }
+        _ => {}
+    }
+    // Không chạy được đồng bộ ⇒ thử bất đồng bộ. Nếu cũng không được ⇒ **không
+    // nuốt phím** (trả false) và **giữ state** cho lần sau.
+    let granted = matches!(
+        unsafe { ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE) },
+        Ok(code) if code.is_ok()
+    );
+    if granted {
+        shared.clear_assist_undo();
+        true
+    } else {
+        false
+    }
 }
 
 /// Session hoàn tác tự sửa cả câu bằng Backspace+Type (AS-050).
@@ -966,16 +1097,25 @@ pub struct ApplyAssistUndoSession {
     shared: Rc<TsfShared>,
     ctx: ITfContext,
     undo: AssistUndoState,
+    /// Kết quả áp dụng (`Some(true)` = đã hoàn tác) — để caller biết có nên
+    /// nuốt phím hay không (R-3).
+    result: Rc<Cell<Option<bool>>>,
 }
 
 #[cfg(windows)]
 impl ApplyAssistUndoSession {
-    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext, undo: AssistUndoState) -> Self {
+    pub fn new(
+        shared: Rc<TsfShared>,
+        ctx: ITfContext,
+        undo: AssistUndoState,
+        result: Rc<Cell<Option<bool>>>,
+    ) -> Self {
         Self {
             _guard: ObjGuard::new(),
             shared,
             ctx,
             undo,
+            result,
         }
     }
 }
@@ -986,6 +1126,7 @@ impl ITfEditSession_Impl for ApplyAssistUndoSession_Impl {
         let applied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)))
             .unwrap_or(false);
         self.shared.reset_engine();
+        self.result.set(Some(applied));
         if applied {
             crate::trace::event(self.shared.tid, format_args!("assist A3 undo applied"));
         }
@@ -1017,6 +1158,29 @@ impl ApplyAssistUndoSession {
             {
                 return false;
             }
+
+            // R-3 (fail-safe): vùng sắp xoá phải **đúng** là text ta vừa gõ lại
+            // sau khi sửa. Nếu người dùng đã gõ thêm (hoặc app tự sửa) ⇒ vùng
+            // này không còn là của ta ⇒ **không xoá** (tránh nuốt chữ người dùng).
+            let mut buf = vec![0u16; self.undo.replacement_glyphs as usize * 2 + 2];
+            let mut fetched = 0u32;
+            let Some(snapshot) = del
+                .GetText(ec, 0, &mut buf, &mut fetched)
+                .ok()
+                .map(|_| buf[..(fetched as usize).min(buf.len())].to_vec())
+                .filter(|text| !text.is_empty())
+            else {
+                return false; // không đọc được ⇒ không xác minh được ⇒ không xoá
+            };
+            if !verify_delete_range(
+                &snapshot,
+                &self.undo.replacement,
+                self.undo.replacement_glyphs,
+            ) {
+                crate::trace::event(self.shared.tid, format_args!("assist A3 undo skip: mismatch"));
+                return false;
+            }
+
             let empty = [0u16; 1];
             if del.SetText(ec, 0, &empty[..0]).is_err() {
                 return false;
@@ -1034,6 +1198,13 @@ impl ApplyAssistUndoSession {
                 let _ = comp.EndComposition(ec);
                 Ok(())
             })();
+            if inserted.is_err() {
+                // Gõ lại thất bại ⇒ hoàn tác phần đã xoá (không mất chữ).
+                crate::trace::event(self.shared.tid, format_args!("assist A3 undo restore"));
+                let _ = del.SetText(ec, 0, &snapshot);
+                set_caret_after(&self.ctx, ec, &del);
+                return false;
+            }
             inserted.is_ok()
         }
     }
@@ -1443,6 +1614,78 @@ mod tests {
         );
     }
 
+    /// R-2 (fail-safe): vùng sắp xoá phải **đúng** bằng đuôi câu engine biết.
+    #[test]
+    fn verify_delete_range_fail_safe_khi_lenh() {
+        let tail = "tôi tôi đi học .";
+        let wide: Vec<u16> = tail.encode_utf16().collect();
+        // Khớp ⇒ được phép sửa.
+        assert!(super::verify_delete_range(&wide, tail, wide.len() as u32));
+        // Lệch (caret ở chỗ khác / app tự sửa) ⇒ KHÔNG sửa.
+        assert!(!super::verify_delete_range(&wide, "tôi tôi đi học", wide.len() as u32));
+        assert!(!super::verify_delete_range(&wide[..4], tail, wide.len() as u32));
+        // Số glyph ≠ số code unit ⇒ không xác minh được ⇒ không sửa (emoji/legacy).
+        assert!(!super::verify_delete_range(&wide, tail, wide.len() as u32 + 1));
+        // Rỗng ⇒ không sửa.
+        assert!(!super::verify_delete_range(&[], "", 0));
+    }
+
+    /// Đuôi câu engine biết = `delete_chars` ký tự cuối của câu.
+    #[test]
+    fn expected_tail_lay_duoi_cau() {
+        assert_eq!(super::expected_tail("tôi tôi đi học .", 9), "tôi đi học .");
+        assert_eq!(super::expected_tail("tôi tôi đi học .", 0), "");
+        // `delete_chars` vượt độ dài câu ⇒ lấy hết (không panic).
+        assert_eq!(super::expected_tail("abc", 99), "abc");
+    }
+
+    /// R-3: state hoàn tác phải bị xoá khi người dùng gõ phím khác.
+    #[test]
+    fn clear_assist_undo_xoa_state() {
+        let client = crate::ipc_client::IpcClient::global("test_undo_clear.exe");
+        let thread = crate::ThreadState::new("test_undo_clear.exe", 0).unwrap();
+        let shared = super::TsfShared::new(2, client, thread);
+        assert!(shared.assist_undo.try_borrow().unwrap().is_none());
+        *shared.assist_undo.try_borrow_mut().unwrap() = Some(crate::assist::AssistUndoState::new(
+            "tôi tôi".to_string(),
+            "tôi".to_string(),
+            3,
+            1,
+        ));
+        assert!(shared.assist_undo.try_borrow().unwrap().is_some());
+        shared.clear_assist_undo();
+        assert!(shared.assist_undo.try_borrow().unwrap().is_none());
+    }
+
+    /// R-5: ngữ nghĩa Mode 2 **duy nhất** cho 3 OS.
+    #[test]
+    fn mode_2_chi_bat_khi_autocorrect_va_safe() {
+        use textvn_config::{AssistAutoFix, AssistMode};
+        assert!(crate::assist::mode2_auto_fix_enabled(
+            AssistMode::Autocorrect,
+            AssistAutoFix::Safe
+        ));
+        // Thiếu 1 trong 2 ⇒ không tự sửa (highlight + safe vẫn chỉ gợi ý).
+        assert!(!crate::assist::mode2_auto_fix_enabled(
+            AssistMode::Highlight,
+            AssistAutoFix::Safe
+        ));
+        assert!(!crate::assist::mode2_auto_fix_enabled(
+            AssistMode::Autocorrect,
+            AssistAutoFix::Off
+        ));
+        assert!(!crate::assist::mode2_auto_fix_enabled(
+            AssistMode::Off,
+            AssistAutoFix::Off
+        ));
+        // Mode 1 (điểm hiển thị) bật khi mode != off.
+        assert!(crate::assist::mode1_display_enabled(AssistMode::Highlight));
+        assert!(crate::assist::mode1_display_enabled(
+            AssistMode::Autocorrect
+        ));
+        assert!(!crate::assist::mode1_display_enabled(AssistMode::Off));
+    }
+
     #[test]
     fn tsf_shared_assist_auto_fix_state_tracking() {
         let client = crate::ipc_client::IpcClient::global("test_autofix.exe");
@@ -1460,8 +1703,8 @@ mod tests {
         // Nhưng auto_fix mặc định là Off -> vẫn false
         assert!(!shared.is_assist_auto_fix_enabled());
 
-        // Nạp config với auto_fix = safe
-        let cfg_json = br#"{"config_version":1,"assist":{"auto_fix":"safe"}}"#;
+        // Nạp config với mode = autocorrect và auto_fix = safe (chuẩn Mode 2)
+        let cfg_json = br#"{"config_version":1,"assist":{"mode":"autocorrect","auto_fix":"safe"}}"#;
         shared
             .thread
             .borrow_mut()

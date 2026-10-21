@@ -581,6 +581,10 @@ pub struct AssistUndoState {
     pub timestamp: std::time::Instant,
     /// Đoạn câu gốc đã bị xoá.
     pub original_tail: String,
+    /// Text **đã gõ lại** sau khi sửa (Unicode) — dùng để SO vùng sắp xoá khi
+    /// hoàn tác (R-3 · fail-safe): nếu vùng đó không còn là text ta vừa gõ
+    /// (người dùng gõ thêm / app tự sửa) ⇒ **không xoá**.
+    pub replacement: String,
     /// Số glyph đã gõ lại sau khi sửa.
     pub replacement_glyphs: u32,
     /// Số lỗi đã được sửa trong lần này.
@@ -588,10 +592,16 @@ pub struct AssistUndoState {
 }
 
 impl AssistUndoState {
-    pub fn new(original_tail: String, replacement_glyphs: u32, fixed_count: usize) -> Self {
+    pub fn new(
+        original_tail: String,
+        replacement: String,
+        replacement_glyphs: u32,
+        fixed_count: usize,
+    ) -> Self {
         Self {
             timestamp: std::time::Instant::now(),
             original_tail,
+            replacement,
             replacement_glyphs,
             fixed_count,
         }
@@ -603,7 +613,31 @@ impl AssistUndoState {
     }
 }
 
+/// **Ngữ nghĩa Mode 2 duy nhất cho 3 OS** (R-5 · P4-0 §4.3):
+/// tự sửa cả câu chỉ bật khi `assist.mode == "autocorrect"` **và**
+/// `assist.auto_fix == "safe"` (chỉ luật objective — D7).
+///
+/// Hàm thuần — test được không cần TSF. macOS/Linux dùng cùng quy tắc (viết
+/// lại theo ngôn ngữ của từng adapter, cùng test).
+pub fn mode2_auto_fix_enabled(
+    mode: textvn_config::AssistMode,
+    auto_fix: textvn_config::AssistAutoFix,
+) -> bool {
+    mode == textvn_config::AssistMode::Autocorrect && auto_fix == textvn_config::AssistAutoFix::Safe
+}
+
+/// **Điểm hiển thị (Mode 1) bật khi `assist.mode != "off"`** (R-6 · P4-0 §4.3):
+/// ở Mode 2, lỗi **mơ hồ** vẫn phải hiện candidate (chỉ lỗi objective mới tự
+/// sửa) ⇒ Mode 1 không độc lập với Mode 2.
+pub fn mode1_display_enabled(mode: textvn_config::AssistMode) -> bool {
+    mode != textvn_config::AssistMode::Off
+}
+
 /// Quyết định xem có nên tự sửa cả câu (A3 / Mode 2) tại thời điểm trigger hay không.
+///
+/// R-5: `auto_fix_enabled` phải là cờ **Mode 2 đầy đủ** (`mode == "autocorrect"`
+/// **và** `auto_fix == "safe"` — xem [`mode2_auto_fix_enabled`]) và trigger phải là
+/// **kết thúc câu** (`.` `!` `?`); space/,/: chỉ là điểm kiểm tra silent (D11).
 pub fn should_auto_fix_sentence(
     trigger: AssistTrigger,
     assist_enabled: bool,
@@ -1195,6 +1229,7 @@ mod tests {
         let state = AssistUndoState {
             timestamp: std::time::Instant::now(),
             original_tail: "tôi tôi đi".to_string(),
+            replacement: "tôi đi".to_string(),
             replacement_glyphs: 6,
             fixed_count: 1,
         };

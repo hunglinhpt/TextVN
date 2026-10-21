@@ -275,6 +275,11 @@ pub struct ThreadState {
     macro_when_off: bool,
     /// `config.assist.auto_fix` của lần nạp config gần nhất (AS-050 · Mode 2 / A3).
     assist_auto_fix: textvn_config::AssistAutoFix,
+    /// `config.assist.mode` của lần nạp config gần nhất (AS-050 · Mode 1/2).
+    ///
+    /// R-5: Mode 2 (tự sửa cả câu) chỉ bật khi `mode == "autocorrect"` **và**
+    /// `auto_fix == "safe"` — cùng ngữ nghĩa cho cả 3 OS (P4-0 §4).
+    assist_mode: textvn_config::AssistMode,
 }
 
 impl ThreadState {
@@ -287,6 +292,7 @@ impl ThreadState {
             user_enabled: None,
             macro_when_off: false,
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
+            assist_mode: textvn_config::AssistMode::default(),
         })
     }
 
@@ -410,6 +416,7 @@ impl ThreadState {
         {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
             self.assist_auto_fix = cfg.assist.auto_fix;
+            self.assist_mode = cfg.assist.mode;
         }
         Ok(())
     }
@@ -423,6 +430,11 @@ impl ThreadState {
     /// Cấu hình tự sửa cả câu (AS-050 · Mode 2 / A3).
     pub fn assist_auto_fix(&self) -> textvn_config::AssistAutoFix {
         self.assist_auto_fix
+    }
+
+    /// Chế độ Trợ lý ngữ pháp (AS-050 · Mode 1 = `highlight`, Mode 2 = `autocorrect`).
+    pub fn assist_mode(&self) -> textvn_config::AssistMode {
+        self.assist_mode
     }
 }
 

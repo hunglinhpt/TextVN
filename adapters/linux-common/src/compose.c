@@ -467,33 +467,30 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
 
     for (size_t i = 0; i < selected_count; ++i) {
         if (selected[i].start > cursor) {
-            char chunk[256];
+            char chunk[LC_MAX_SENTENCE_FIX_CHARS];
             lc_utf32_to_utf8(chars + cursor, selected[i].start - cursor, chunk, sizeof(chunk));
             size_t clen = strlen(chunk);
-            if (new_tail_len + clen + 1 < sizeof(new_tail_utf8)) {
-                memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
-                new_tail_len += clen;
-                new_tail_utf8[new_tail_len] = '\0';
-            }
-        }
-        size_t rlen = strlen(selected[i].replacement);
-        if (new_tail_len + rlen + 1 < sizeof(new_tail_utf8)) {
-            memcpy(new_tail_utf8 + new_tail_len, selected[i].replacement, rlen);
-            new_tail_len += rlen;
-            new_tail_utf8[new_tail_len] = '\0';
-        }
-        cursor = selected[i].end;
-    }
-
-    if (cursor < chars_len) {
-        char chunk[256];
-        lc_utf32_to_utf8(chars + cursor, chars_len - cursor, chunk, sizeof(chunk));
-        size_t clen = strlen(chunk);
-        if (new_tail_len + clen + 1 < sizeof(new_tail_utf8)) {
+            if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
             memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
             new_tail_len += clen;
             new_tail_utf8[new_tail_len] = '\0';
         }
+        size_t rlen = strlen(selected[i].replacement);
+        if (new_tail_len + rlen + 1 >= sizeof(new_tail_utf8)) return 0;
+        memcpy(new_tail_utf8 + new_tail_len, selected[i].replacement, rlen);
+        new_tail_len += rlen;
+        new_tail_utf8[new_tail_len] = '\0';
+        cursor = selected[i].end;
+    }
+
+    if (cursor < chars_len) {
+        char chunk[LC_MAX_SENTENCE_FIX_CHARS];
+        lc_utf32_to_utf8(chars + cursor, chars_len - cursor, chunk, sizeof(chunk));
+        size_t clen = strlen(chunk);
+        if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
+        memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
+        new_tail_len += clen;
+        new_tail_utf8[new_tail_len] = '\0';
     }
 
     if (strcmp(orig_tail_utf8, new_tail_utf8) == 0) return 0;
