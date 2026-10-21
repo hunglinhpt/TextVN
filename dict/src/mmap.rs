@@ -202,7 +202,10 @@ mod platform {
     const MAP_PRIVATE: c_int = 2;
 
     extern "C" {
+        // #[link_name] giu ten symbol libc goc (clippy moi cam ten open/close).
+        #[link_name = "open"]
         fn open_file(path: *const u8, flags: c_int, ...) -> c_int;
+        #[link_name = "close"]
         fn close_fd(fd: c_int) -> c_int;
         fn mmap(
             addr: *mut c_void,
