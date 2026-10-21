@@ -50,7 +50,7 @@
 | AS-031 | A2 — sửa 1 từ (Backspace+Type + precondition) | Sửa đúng vị trí ở Notepad/Word/Chrome/VSCode · `Ctrl+Z` hoàn tác | AS-030 + AS-008 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: ApplyAssistFixSession + precondition caret + hotkey [1]/Tab/Esc) |
 | AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit GPL hunspell-vi | AS-009 + AS-010 | Agent Dict/Data | ✅ xong (dict crate + FST tests + REUSE attribution; .dic 6.642 tu x 2 kieu dau) |
 | AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 | Agent Dict/Data | ⬜ chờ nhận |
-| AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS / Linux) | D32-D37 (OS-first) | AS-040 | Agent Platform/FFI | ⬜ chờ nhận |
+| AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS / Linux) | D32-D37 (OS-first) | AS-040 | **Agent Platform/Dict (ta)** | 🔄 **đang làm** (Windows `ISpellCheckerFactory` + `Budgeted` + `BridgeDict` xong; macOS/Linux tiếp tục) |
 | AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | Agent Core/App | ⬜ chưa làm |
 | AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · `ui-spec` + `parity-checklist` cập nhật | AS-050 | Agent Mac/Linux | ⬜ chưa làm |
 

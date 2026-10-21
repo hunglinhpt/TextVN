@@ -14,6 +14,7 @@
 //!   lẻ tẻ trong câu tiếng Việt.
 
 use super::{issue_suggestion, Ctx};
+use crate::dict::{Budgeted, Dictionary};
 use crate::rules::language::is_vietnamese_letter;
 use crate::tokenize::TokenKind;
 use crate::{Issue, IssueKind, Span};
@@ -25,10 +26,19 @@ const MIN_WORD_CHARS: usize = 3;
 const MAX_SUGGESTIONS: usize = 3;
 
 /// Báo từ tiếng Việt lạ không có trong từ điển (chỉ gợi ý, không tự sửa).
+///
+/// Ngân sách `suggest` không đếm thủ công tại đây nữa — toàn bộ nằm trong bộ
+/// bọc [`Budgeted`](crate::dict::Budgeted) (P4-10 §5.3), gồm:
+///
+/// - giới hạn số lần gọi;
+/// - đo tổng thời gian đã dùng cho `suggest`;
+/// - hết ngân sách → gợi ý rỗng (**fail-open**) — từ lạ vẫn được báo bình
+///   thường, chỉ thiếu gợi ý kèm theo.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
-    // Ngan sach suggest cho mot cau (Fassist-105): provider OS ton 3-7 ms/word,
-    // nen chi goi cho it tu la nhat; tu sau do van bao loi nhung khong kem goi y.
-    let mut budget = super::DEFAULT_SUGGEST_BUDGET;
+    // Ngan sach suggest cho mot cau (D40, Fassist-105): provider OS ton
+    // 3,1–6,9 ms/tu cho Suggest (P4-10 finding F3) nen chi goi cho it tu la
+    // nhat; tu sau do van bao loi nhung khong kem goi y (fail-open).
+    let dict = Budgeted::new(ctx.dict, super::DEFAULT_SUGGEST_BUDGET);
     for tok in &ctx.tokens {
         if tok.kind != TokenKind::Word || ctx.is_masked(tok.start, tok.end) {
             continue;
@@ -48,17 +58,12 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
         // Vec<char> offset → so từ điển phải lowercase (trait đổi chuẩn hoá).
         let lower = word.to_lowercase();
-        if ctx.dict.contains(&lower) {
+        if dict.contains(&lower) {
             continue;
         }
-        // Ngan sach `suggest`: provider OS ton 3-7 ms/word (Fassist-105) → chi
-        // goi cho it tu la nhat; tu sau do van bao loi nhung khong kem goi y.
-        let suggestions = if budget > 0 {
-            budget -= 1;
-            ctx.dict.suggest(&lower, MAX_SUGGESTIONS)
-        } else {
-            Vec::new()
-        };
+        // Ngan sach suggest nam trong `Budgeted`: het ngan sach -> gợi ý rỗng
+        // (fail-open), toan bo loi spelling van duoc bao o duoi.
+        let suggestions = dict.suggest(&lower, MAX_SUGGESTIONS);
         out.push(issue_suggestion(
             IssueKind::Spelling,
             Span {
@@ -157,6 +162,34 @@ mod tests {
         let mut issues = Vec::new();
         check(&ctx, &mut issues);
         assert!(issues.is_empty(), "NoDictionary coi mọi từ là đúng");
+    }
+
+    #[test]
+    fn ngan_sach_suggest_het_thi_tu_la_van_duoc_bao_khong_kem_goi_y() {
+        // 3 từ lạ ("xún", "zây", "mền") nhưng ngân sách mặc định
+        // DEFAULT_SUGGEST_BUDGET = 2 → chỉ 2 từ đầu có gợi ý (từ điển có từ
+        // cùng chữ cái đầu "mều" cho "mền"); từ thứ 3 vẫn bị báo lỗi nhưng
+        // suggestions rỗng (fail-open).
+        let dict = FakeDictionary(HashSet::from(["tôi", "nhé", "xa", "xện", "zịa", "mều"]));
+        let issues = check_text("tôi xún zây mền nhé", &dict);
+        assert_eq!(
+            issues.len(),
+            3,
+            "cả 3 từ lạ đều bị báo, kể cả khi hết ngân sách suggest"
+        );
+        assert_eq!(
+            issues[0].suggestions,
+            vec!["xa".to_string(), "xện".to_string()],
+            "từ đầu tiên còn ngân sách → có gợi ý"
+        );
+        assert_eq!(issues[1].suggestions, vec!["zịa".to_string()]);
+        assert!(
+            issues[2].suggestions.is_empty(),
+            "hết ngân sách → gợi ý rỗng (fail-open)"
+        );
+        assert_eq!(issues[2].message, "Có thể sai chính tả: \"mền\"");
+        assert_eq!(issues[2].span.start, 12);
+        assert_eq!(issues[2].span.end, 15);
     }
 
     #[test]

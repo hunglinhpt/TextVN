@@ -5,9 +5,31 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-# KHÔNG dependency: crate này tự viết FST + mmap bằng FFI thuần của OS
+# KHÔNG dependency bat buoc: crate này tự viết FST + mmap bằng FFI thuần của OS
 # (Windows `CreateFileMapping`/`MapViewOfFile`, macOS/Linux `mmap`) — không
 # cần `memmap2`/`fst` (P4-0 D15/D32: `assist` giữ 0-dep; crate này cũng 0-dep
 # để không kéo dependency mới vào lockfile + `cargo deny`).
+#
+# Ngoại lệ DUY NHẤT: provider spell-check Windows (`src/os_windows.rs`) dùng
+# crate `windows` — optional + target-specific (`cfg(windows)`) nên Linux/macOS
+# KHÔNG build nó và không cần thư viện hệ thống nào.
+
+[features]
+# Bật provider spell-check của OS (hiện chỉ Windows). Mặc định bật để
+# `cargo test`/`clippy --all-targets` phủ module; trên Linux/macOS dependency
+# `windows` (target-specific) không được build nên không ảnh hưởng gì.
+default = ["os-spell"]
+os-spell = ["dep:windows"]
 
 [dependencies]
+
+[target.'cfg(windows)'.dependencies]
+# Chỉ 2 feature cần cho Spell Checking API (P4-10 §2.1):
+# - `Win32_Globalization`: ISpellCheckerFactory/ISpellChecker/ISpellingError +
+#   hằng `SpellCheckerFactory`.
+# - `Win32_System_Com`: `Suggest` (trả `IEnumString`) + CoCreateInstance/CoInitializeEx.
+# `default-features = false`: không kéo toàn bộ Win32/WinRT vào binary.
+windows = { version = "0.61", optional = true, default-features = false, features = [
+    "Win32_Globalization",
+    "Win32_System_Com",
+] }

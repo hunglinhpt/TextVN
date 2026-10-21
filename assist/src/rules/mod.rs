@@ -40,7 +40,12 @@ pub struct Ctx<'a> {
     pub dict: &'a dyn Dictionary,
 }
 
-/// So lan goi suggest toi da cho mot cau (Fassist-105).
+/// Số lần gọi `suggest` tối đa cho một câu (Fassist-105, P4-0 D40).
+///
+/// Ngân sách này được áp dụng qua bộ bọc
+/// [`Budgeted`](crate::dict::Budgeted) (P4-10 §5.3) — luật spelling **không**
+/// đếm thủ công nữa; bộ bọc giới hạn số lần gọi + đo tổng thời gian, hết
+/// ngân sách thì trả gợi ý rỗng (fail-open).
 pub const DEFAULT_SUGGEST_BUDGET: usize = 2;
 
 impl Ctx<'_> {

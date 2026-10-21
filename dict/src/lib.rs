@@ -17,6 +17,27 @@
 //!
 //! Khong mo file, khong parse `.dic` luc request: file `.fst` da duoc
 //! sinh san (xem `cargo xtask gen-dict`).
+//!
+//! ## Provider spell-check cua OS (Windows)
+//!
+//! Ngoai FST cua ta, crate con co adapter **tuy chon** dung Spell Checking API
+//! cua Windows ([`os_windows`], P4-10). Dung khi nao OS **co** tu dien cho
+//! ngon ngu dich:
+//!
+//! ```no_run
+//! # #[cfg(windows)] {
+//! // `None` = OS khong co tu dien => caller dung `assist::dict::NoDictionary`
+//! // (moi tu dung => khong bao loi spelling). Tren Windows mac dinh, `vi-VN`
+//! // roi vao dung nhanh nay vi khong co language pack.
+//! if let Some(checker) = textvn_dict::os_provider("vi-VN") {
+//!     let _ = checker.check(&"cau van".encode_utf16().collect::<Vec<_>>());
+//! }
+//! # }
+//! ```
+//!
+//! Chi phi va ly do **khong** dung cho tieng Viet o v1: xem doc cua
+//! [`os_windows`] (`Check` ~0,06 ms/cau nhung `Suggest` 3-7 ms/tu, va Windows
+//! mac dinh khong co `vi-VN`).
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
@@ -24,6 +45,8 @@
 pub mod build;
 pub mod fst;
 pub mod mmap;
+#[cfg(all(windows, feature = "os-spell"))]
+pub mod os_windows;
 pub mod reader;
 
 use std::path::Path;
@@ -33,6 +56,23 @@ pub use build::Builder;
 pub use mmap::{MapError, Mapping};
 pub use reader::Reader;
 
+#[cfg(all(windows, feature = "os-spell"))]
+pub use os_windows::{SpellIssue, WindowsSpellChecker};
+
+/// Provider spell-check cua OS cho `language_tag`, hoac `None` neu OS **khong**
+/// co tu dien cho ngon ngu do.
+///
+/// `None` la duong **binh thuong**, khong phai loi: caller dung
+/// `assist::dict::NoDictionary` (moi tu dung => khong bao loi spelling). Tren
+/// Windows mac dinh, `vi-VN` luon roi vao nhanh nay (khong co language pack).
+///
+/// Loi COM / timeout cung tra `None` (fail-open).
+#[cfg(all(windows, feature = "os-spell"))]
+#[must_use]
+pub fn os_provider(language_tag: &str) -> Option<WindowsSpellChecker> {
+    WindowsSpellChecker::new(language_tag).ok()
+}
+
 /// Loi khi nap tu dien.
 #[derive(Debug)]
 pub enum DictError {
@@ -40,6 +80,12 @@ pub enum DictError {
     Map(MapError),
     /// File sai format FST.
     Format(&'static str),
+    /// OS khong co tu dien cho language tag (vi du Windows mac dinh khong co
+    /// `vi-VN`), hoac khong tao duoc provider (COM loi/timeout).
+    ///
+    /// Caller phai fallback `assist::dict::NoDictionary`: moi tu duoc coi la
+    /// dung => **khong** bao loi spelling nao.
+    NoDictionary,
 }
 
 impl std::fmt::Display for DictError {
@@ -47,6 +93,7 @@ impl std::fmt::Display for DictError {
         match self {
             DictError::Map(e) => write!(f, "{e}"),
             DictError::Format(msg) => write!(f, "invalid dictionary: {msg}"),
+            DictError::NoDictionary => write!(f, "no OS spell checker for this language tag"),
         }
     }
 }

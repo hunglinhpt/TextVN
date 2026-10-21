@@ -152,6 +152,9 @@ dependencies = [
 [[package]]
 name = "textvn-dict"
 version = "0.2.34"
+dependencies = [
+ "windows",
+]
 
 [[package]]
 name = "textvn-ffi"
