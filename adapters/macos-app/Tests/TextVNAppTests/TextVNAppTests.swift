@@ -226,8 +226,8 @@ final class TextVNAppTests: XCTestCase {
     }
 
     /// Config CŨ (chưa có khoá `suggest` — bản trước 0.2.33) vẫn phải decode được
-    /// (mặc định tắt), và mỗi lần lưu từ app phải GIỮ nguyên giá trị `suggest``
-    /// người dùng đã đặt — model chưa biết khoá từng khiến `english_words`/`emoji`
+    /// (mặc định tắt), và mỗi lần lưu từ app phải giữ giá trị `suggest` người
+    /// dùng đã đặt — model chưa biết khoá từng khiến `english_words`/`emoji`
     /// bị XOÁ mỗi lần lưu (không lặp lại với `suggest`).
     func testSuggestMissingKeyDecodesDefaultAndSurvivesSave() throws {
         let tempDir = FileManager.default.temporaryDirectory
