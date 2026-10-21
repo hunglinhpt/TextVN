@@ -56,6 +56,75 @@ fn defaults() -> Map<String, Value> {
     }
 }
 
+/// Kiểu leaf của schema: bool↔bool, chuỗi↔chuỗi, số↔số, mảng↔mảng. Giá trị khác
+/// kiểu mặc định (vd `set_bool` cho leaf số) phải bị từ chối — cùng ràng buộc bản cũ.
+fn same_kind(default: &Value, value: &Value) -> bool {
+    matches!(
+        (default, value),
+        (Value::Bool(_), Value::Bool(_))
+            | (Value::String(_), Value::String(_))
+            | (Value::Number(_), Value::Number(_))
+            | (Value::Array(_), Value::Array(_))
+    )
+}
+
+/// Trị mặc định của schema tại đường lồng dấu chấm (`assist.display.idle_ms`).
+/// `Some` chỉ khi **mọi** thành phần xuất hiện trong cây `Config::default()` —
+/// khoá lạ ở bất kỳ cấp nào → `None` (giữ phía an toàn, không nới lỏng).
+fn default_at(segs: &[&str]) -> Option<Value> {
+    let mut cur = Value::Object(defaults());
+    for seg in segs {
+        cur = cur.get(seg)?.clone();
+    }
+    Some(cur)
+}
+
+/// Đi xuống `current` theo `segs` với `default` là nhánh mặc định tương ứng cùng cấp:
+/// chỗ file đã có → dùng giá trị file (kể cả leaf); chỗ file thiếu → **toàn bộ phần
+/// còn lại** của đường lấy từ cây mặc định của schema. `default` luôn là nhánh đúng
+/// cấp (được chọn qua `default_at`), nhưng vẫn trả an toàn nếu trái ngẫu nhiên.
+fn lookup_nested(current: &Value, default: &Value, segs: &[&str]) -> Option<Value> {
+    let (&first, rest) = segs.split_first()?;
+    let sub = default.get(first)?;
+    match current.get(first) {
+        Some(v) if rest.is_empty() => Some(v.clone()),
+        Some(v) => lookup_nested(v, sub, rest),
+        None if rest.is_empty() => Some(sub.clone()),
+        // Trong file không có đoạn này → phần còn lại lấy trọn từ nhánh mặc định.
+        None => {
+            let mut cur = sub;
+            for seg in rest {
+                cur = cur.get(seg)?;
+            }
+            Some(cur.clone())
+        }
+    }
+}
+
+/// Ghi `value` vào đúng vị trí `segs` của `map`; object trung gian thiếu thì tạo mới,
+/// có nhưng sai loại (file hỏng) thì thay — cả thay đổi được `parse_config` kiểm lại
+/// trước khi công bố nên file hợp lệ chỉ ghi hợp lệ. Khoá khác **không** bị đụng tới.
+fn insert_nested(map: &mut Map<String, Value>, segs: &[&str], value: Value) {
+    let (first, rest) = segs
+        .split_first()
+        .expect("split('/') tạo ít nhất một thành phần");
+    if rest.is_empty() {
+        map.insert(first.to_string(), value);
+    } else {
+        let entry = map
+            .entry(first.to_string())
+            .or_insert_with(|| Value::Object(Map::new()));
+        if !entry.is_object() {
+            *entry = Value::Object(Map::new());
+        }
+        insert_nested(
+            entry.as_object_mut().expect("đã kiểm là object"),
+            rest,
+            value,
+        );
+    }
+}
+
 impl SettingsDoc {
     /// Tài liệu rỗng (mọi khoá lấy mặc định).
     pub fn new(kind: DocKind) -> Self {
@@ -120,14 +189,13 @@ impl SettingsDoc {
         self.corrupt
     }
 
-    fn value(&self, key: &str) -> Option<Value> {
-        if let Some(v) = self.map.get(key) {
-            return Some(v.clone());
-        }
-        match self.kind {
-            DocKind::Config => defaults().get(key).cloned(),
-            DocKind::State => None,
-        }
+    /// Giá trị JSON đầy đủ tại `key` — đường phẳng và cả **lồng** (`assist.display.idle_ms`).
+    /// Config: mọi thành phần của đường phải thuộc schema (khoá lạ → `None`); chỗ thiếu
+    /// trong file lấy mặc định của `Config::default()`. Trả nguyên khối object với khoá
+    /// không phải leaf (`get_value("assist")`) — còn `get_bool/get_str/get_u32` là dạng
+    /// typed nên với object ở giữa sẽ trả `None` (giữ hành vi cũ).
+    pub fn get_value(&self, key: &str) -> Option<Value> {
+        self.value(key)
     }
 
     pub fn get_bool(&self, key: &str) -> Option<bool> {
@@ -138,28 +206,52 @@ impl SettingsDoc {
         self.value(key).and_then(|v| v.as_str().map(str::to_string))
     }
 
-    /// Đặt `key = value`; với config: khoá phải có trong schema cùng kiểu và kết quả
-    /// phải parse được — nếu không, tài liệu giữ nguyên.
-    fn set_value(&mut self, key: &str, value: Value) -> Result<(), DocError> {
-        if self.kind == DocKind::Config {
-            let same_type = matches!(
-                (defaults().get(key), &value),
-                (Some(Value::Bool(_)), Value::Bool(_))
-                    | (Some(Value::String(_)), Value::String(_))
-                    | (Some(Value::Array(_)), Value::Array(_))
-            );
-            if !same_type {
-                return Err(DocError::UnknownKey);
+    /// Số nguyên 32 bit không dấu (`assist.display.idle_ms`, `assist.max_sentence_chars`).
+    pub fn get_u32(&self, key: &str) -> Option<u32> {
+        self.value(key)
+            .and_then(|v| v.as_u64().and_then(|n| u32::try_from(n).ok()))
+    }
+
+    fn value(&self, key: &str) -> Option<Value> {
+        match self.kind {
+            DocKind::State => self.map.get(key).cloned(),
+            DocKind::Config => {
+                let segs: Vec<&str> = key.split('.').collect();
+                lookup_nested(
+                    &Value::Object(self.map.clone()),
+                    &Value::Object(defaults()),
+                    &segs,
+                )
             }
         }
-        let old = self.map.insert(key.to_string(), value);
-        if self.kind == DocKind::Config && parse_config(&self.to_json()).is_err() {
-            match old {
-                Some(v) => self.map.insert(key.to_string(), v),
-                None => self.map.remove(key),
-            };
+    }
+
+    /// Đặt `key = value` — `key` là đường phẳng hoặc **lồng** (`"assist.mode"`) theo cây
+    /// `Config::default()`. Config: khoá phải có trong schema với cùng kiểu leaf và kết
+    /// quả phải parse được — nếu không, tài liệu giữ nguyên. `state.json` là JSON tự do
+    /// (không schema), giữ nguyên hành vi cũ: chép thẳng khoá, không kiểm gì.
+    fn set_value(&mut self, key: &str, value: Value) -> Result<(), DocError> {
+        if self.kind == DocKind::State {
+            self.map.insert(key.to_string(), value);
+            return Ok(());
+        }
+        let segs: Vec<&str> = key.split('.').collect();
+        let leaf = default_at(&segs).ok_or(DocError::UnknownKey)?;
+        if !same_kind(&leaf, &value) {
+            return Err(DocError::UnknownKey);
+        }
+        // Chọn thử trên bản sao: toàn bộ thay đổi công bố chỉ khi kết quả vẫn parse được.
+        let mut trial = self.map.clone();
+        insert_nested(&mut trial, &segs, value);
+        let probe = SettingsDoc {
+            kind: self.kind,
+            map: trial,
+            corrupt: self.corrupt,
+        };
+        if self.kind == DocKind::Config && parse_config(&probe.to_json()).is_err() {
             return Err(DocError::BadValue);
         }
+        self.map = probe.map;
         Ok(())
     }
 
@@ -169,6 +261,13 @@ impl SettingsDoc {
 
     pub fn set_str(&mut self, key: &str, v: &str) -> Result<(), DocError> {
         self.set_value(key, Value::String(v.to_string()))
+    }
+
+    /// Đặt leaf số nguyên không dấu (phẳng hoặc lồng) — `assist.display.idle_ms`,
+    /// `assist.max_sentence_chars`. Ràng buộc giữa `parse_config`
+    /// (`max_sentence_chars >= 1`, `config_version == 1`) vẫn giữ nguyên.
+    pub fn set_u32(&mut self, key: &str, v: u32) -> Result<(), DocError> {
+        self.set_value(key, Value::Number(serde_json::Number::from(v)))
     }
 
     /// `macros[]` hiện tại (mục hỏng đã bị loại ở bước parse file).
@@ -402,6 +501,118 @@ mod tests {
         assert_eq!(out["global_enabled"], false);
         assert!(out["apps"].is_object());
         assert!(out.get("config_version").is_none());
+    }
+
+    /// Đường lồng qua `SettingsDoc`: đọc giá trị mặc định khi file thiếu, ghi đúng vào
+    /// object tương ứng (tạo mới nếu chưa có), không phá các khoá khác (P4-0 §7).
+    #[test]
+    fn nested_assist_paths_round_trip() {
+        // File cũ KHÔNG có khối `assist` — đọc phải ra mặc định của schema.
+        let mut doc = SettingsDoc::from_json(
+            r#"{"config_version":1,"method":"vni","macros":[{"trigger":"a","expand":"b","when":"vi_on"}]}"#,
+            DocKind::Config,
+        );
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
+        assert_eq!(
+            doc.get_bool("assist.display.show_on_sentence_end"),
+            Some(true)
+        );
+        assert_eq!(doc.get_u32("assist.display.idle_ms"), Some(700));
+
+        // Ghi đúng vào từng khoá con dù object chưa tồn tại.
+        doc.set_str("assist.mode", "highlight").unwrap();
+        doc.set_u32("assist.display.idle_ms", 250).unwrap();
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("highlight"));
+        assert_eq!(doc.get_u32("assist.display.idle_ms"), Some(250));
+
+        let out: Value = serde_json::from_str(&doc.to_json()).unwrap();
+        // Vào đúng object, đúng cấp: `assist.mode`, `assist.display.idle_ms`.
+        assert_eq!(out["assist"]["mode"], "highlight");
+        assert_eq!(out["assist"]["display"]["idle_ms"], 250);
+        // Khoá khác không bị đụng tới.
+        assert_eq!(out["method"], "vni");
+        assert_eq!(out["macros"][0]["expand"], "b");
+        assert!(parse_config(&doc.to_json()).is_ok());
+    }
+
+    /// Khoá lồng: sai kiểu, sai đường, khoá lạ → UnknownKey; leaf object qua
+    /// getter typed vẫn `None` (giữ hành vi với `get_*("assist")`).
+    #[test]
+    fn nested_unknown_and_type_errors() {
+        let mut doc = SettingsDoc::new(DocKind::Config);
+        // Khoá lồng chưa có bất kỳ cấp nào phải từ chối bằng UnknownKey, không tạo rác.
+        assert_eq!(doc.set_bool("bo_gu.sai", true), Err(DocError::UnknownKey));
+        // Sai kiểu leaf so với schema.
+        assert_eq!(doc.set_bool("assist.mode", true), Err(DocError::UnknownKey));
+        assert_eq!(doc.set_u32("assist.auto_fix", 1), Err(DocError::UnknownKey));
+        // Đi qua leaf đủ dài (`mode` là chuỗi, không chứa `nope`).
+        assert_eq!(
+            doc.set_str("assist.mode.nope", "x"),
+            Err(DocError::UnknownKey)
+        );
+        assert_eq!(doc.get_str("assist.mode.nope"), None);
+        assert_eq!(doc.get_bool("assist"), None);
+        assert_eq!(doc.get_str("assist"), None);
+        assert_eq!(doc.set_bool("assist", true), Err(DocError::UnknownKey));
+        assert_eq!(doc.get_u32("assist.bogus"), None);
+        // Cả thay đổi sai này đều phải bị từ chối — file thực chỉ còn mặc định.
+        let out: Value = serde_json::from_str(&doc.to_json()).unwrap();
+        assert!(
+            out.get("assist").is_none(),
+            "không được ghi khoá lạ vào file"
+        );
+        assert_eq!(
+            out.as_object().unwrap().len(),
+            1,
+            "chỉ có config_version được thêm"
+        );
+    }
+
+    /// Tương thích ngược: JSON có khối `assist` thiếu key con → lấy mặc định;
+    /// ghi từng khoá không làm mất key người dùng tự thêm **trong** khối `assist`.
+    #[test]
+    fn nested_patch_preserves_partial_block_and_extras() {
+        let mut doc = SettingsDoc::from_json(
+            r#"{"config_version":1,"assist":{"per_app":{"code.exe":false},"custom":9}}"#,
+            DocKind::Config,
+        );
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
+        assert_eq!(doc.get_u32("assist.display.idle_ms"), Some(700));
+        doc.set_u32("assist.display.idle_ms", 900).unwrap();
+        let out: Value = serde_json::from_str(&doc.to_json()).unwrap();
+        assert_eq!(out["assist"]["display"]["idle_ms"], 900);
+        // Trừ leaf vừa patch, key con thiếu KHÔNG được nặn vào file — đọc qua get lấy
+        // mặc định từ `defaults()`; file ghi tối thiểu như bản cũ (chỉ patch đúng khoá).
+        assert!(out["assist"]["display"]
+            .get("show_on_sentence_end")
+            .is_none());
+        assert_eq!(
+            out["assist"]["per_app"]["code.exe"], false,
+            "per_app phải còn"
+        );
+        assert_eq!(out["assist"]["custom"], 9, "khoá lạ trong assist phải còn");
+        assert!(
+            out.get("display").is_none(),
+            "không được lồng nhầm cấp trên"
+        );
+        assert!(parse_config(&doc.to_json()).is_ok());
+    }
+
+    /// Giá trị lồng vi phạm schema → BadValue (kèm rollback) qua `parse_config`
+    /// chứ không phải kiểm tra kiểu leaf.
+    #[test]
+    fn nested_schema_violations_rejected() {
+        let mut doc = SettingsDoc::new(DocKind::Config);
+        assert_eq!(
+            doc.set_u32("assist.max_sentence_chars", 0),
+            Err(DocError::BadValue)
+        );
+        assert_eq!(doc.get_u32("assist.max_sentence_chars"), Some(500));
+        assert_eq!(
+            doc.set_str("assist.mode", "fix_everything"),
+            Err(DocError::BadValue)
+        );
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
     }
 
     #[test]

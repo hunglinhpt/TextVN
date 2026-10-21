@@ -146,6 +146,40 @@ pub extern "C" fn ime_settings_set_str(
     .unwrap_or(IME_ERR_INTERNAL)
 }
 
+/// Số nguyên 32 bit không dấu tại `key` — khoá phẳng hoặc **lồng**
+/// (`assist.display.idle_ms`, thiếu ở file → mặc định schema). Giá trị ≥ 0, hoặc
+/// -1 khi NULL / khoá lạ / sai kiểu. Cùng đường lồng với `get_bool/get_str`.
+#[no_mangle]
+pub extern "C" fn ime_settings_get_u32(s: *const ime_settings, key: *const c_char) -> i64 {
+    let (Some(s), Some(key)) = (unsafe { s.as_ref() }, cstr(key)) else {
+        return -1;
+    };
+    catch_unwind(AssertUnwindSafe(|| {
+        s.doc.get_u32(key).map(i64::from).unwrap_or(-1)
+    }))
+    .unwrap_or(-1)
+}
+
+/// Đặt leaf số nguyên không dấu (phẳng hoặc lồng, vd `assist.display.idle_ms`).
+/// Trả `IME_OK`; `IME_ERR_INVALID_ARG` = khoá không thuộc schema (kể cả sai kiểu
+/// — leaf không phải số); `IME_ERR_CONFIG` = giá trị làm config không còn hợp lệ
+/// (vd `assist.max_sentence_chars = 0`) — tài liệu giữ nguyên.
+#[no_mangle]
+pub extern "C" fn ime_settings_set_u32(
+    s: *mut ime_settings,
+    key: *const c_char,
+    value: u32,
+) -> i32 {
+    let (Some(s), Some(key)) = (unsafe { s.as_mut() }, cstr(key)) else {
+        return IME_ERR_INVALID_ARG;
+    };
+    catch_unwind(AssertUnwindSafe(|| match s.doc.set_u32(key, value) {
+        Ok(()) => IME_OK,
+        Err(e) => doc_err(e),
+    }))
+    .unwrap_or(IME_ERR_INTERNAL)
+}
+
 /// Bảng gõ tắt dạng text `gõ tắt = nội dung` (mỗi dòng một mục).
 #[no_mangle]
 pub extern "C" fn ime_settings_macros_text(s: *const ime_settings) -> *mut c_char {
@@ -305,6 +339,89 @@ mod tests {
             "#define IME_SETTINGS_CONFIG {IME_SETTINGS_CONFIG}"
         )));
         assert!(HEADER.contains(&format!("#define IME_SETTINGS_STATE  {IME_SETTINGS_STATE}")));
+    }
+
+    /// Đường lồng `assist.*` qua C API (P4-0 §7): get/read mặc định khi file không
+    /// có khối `assist`; set đúng vào object; `assist.display.idle_ms` qua
+    /// `get_u32/set_u32`; khoá lạ và sai kiểu bị từ chối; kèm null-safe.
+    #[test]
+    fn assist_nested_paths_round_trip() {
+        let dir = std::env::temp_dir().join(format!("tvn_assist_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let path = dir.join("config.json");
+        let cpath = c(path.to_str().unwrap());
+
+        let s = ime_settings_load(cpath.as_ptr(), IME_SETTINGS_CONFIG);
+        assert!(!s.is_null());
+
+        // File chưa có: đọc ra mặc định của schema.
+        assert_eq!(
+            take(ime_settings_get_str(s, c("assist.mode").as_ptr())),
+            "off"
+        );
+        assert_eq!(
+            ime_settings_get_bool(s, c("assist.display.show_on_sentence_end").as_ptr()),
+            1
+        );
+        assert_eq!(
+            ime_settings_get_u32(s, c("assist.display.idle_ms").as_ptr()),
+            700
+        );
+        assert_eq!(ime_settings_get_u32(s, c("assist.bogus").as_ptr()), -1);
+        assert_eq!(ime_settings_get_bool(s, c("assist.mode").as_ptr()), -1); // leaf chuỗi
+        assert_eq!(ime_settings_get_u32(s, c("assist.mode").as_ptr()), -1);
+        assert!(ime_settings_get_str(s, c("assist").as_ptr()).is_null()); // object ≠ leaf
+
+        // Set từng khoá con qua đường lồng.
+        assert_eq!(
+            ime_settings_set_str(s, c("assist.mode").as_ptr(), c("highlight").as_ptr()),
+            IME_OK
+        );
+        assert_eq!(
+            ime_settings_set_u32(s, c("assist.display.idle_ms").as_ptr(), 250),
+            IME_OK
+        );
+        assert_eq!(
+            take(ime_settings_get_str(s, c("assist.mode").as_ptr())),
+            "highlight"
+        );
+        assert_eq!(
+            ime_settings_get_u32(s, c("assist.display.idle_ms").as_ptr()),
+            250
+        );
+
+        // Khoá lạ / sai kiểu → INVALID_ARG; sai schema → CONFIG; file giữ nguyên.
+        assert_eq!(
+            ime_settings_set_bool(s, c("assist.bogus").as_ptr(), 1),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(
+            ime_settings_set_u32(s, c("assist.auto_fix").as_ptr(), 1),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(
+            ime_settings_set_str(s, c("assist.mode").as_ptr(), c("fix_everything").as_ptr()),
+            IME_ERR_CONFIG
+        );
+        assert_eq!(
+            take(ime_settings_get_str(s, c("assist.mode").as_ptr())),
+            "highlight"
+        );
+
+        // Ghi file → đọc lại từ đĩa thấy cả hai key, còn config_version.
+        assert_eq!(ime_settings_save(s, cpath.as_ptr()), IME_OK);
+        ime_settings_free(s);
+        let cfg = textvn_config::parse_config(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(cfg.assist.mode, textvn_config::AssistMode::Highlight);
+        assert_eq!(cfg.assist.display.idle_ms, 250);
+
+        // Null-safe.
+        assert_eq!(ime_settings_get_u32(std::ptr::null(), std::ptr::null()), -1);
+        assert_eq!(
+            ime_settings_set_u32(std::ptr::null_mut(), std::ptr::null(), 1),
+            IME_ERR_INVALID_ARG
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

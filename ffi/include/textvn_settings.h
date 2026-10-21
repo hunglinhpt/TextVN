@@ -37,6 +37,12 @@ int32_t       ime_settings_set_bool(ime_settings *s, const char *key, int32_t va
 /* Chuỗi mới cấp phát hoặc NULL. */
 char         *ime_settings_get_str(const ime_settings *s, const char *key);
 int32_t       ime_settings_set_str(ime_settings *s, const char *key, const char *value);
+/* Số nguyên không dấu; khoá phẳng hoặc LỒNG THEO ĐƯỜNG DẤU CHẤM
+ * (vd "assist.mode", "assist.display.idle_ms" — P4-0 §7): mọi thành phần của đường
+ * phải thuộc schema; file thiếu leaf → mặc định schema; khoá lạ → NULL/-1.
+ * Số chỉ tốt cho leaf số — với khoá object (`assist`) trả NULL (get) / INVALID_ARG (set). */
+int64_t       ime_settings_get_u32(const ime_settings *s, const char *key);
+int32_t       ime_settings_set_u32(ime_settings *s, const char *key, uint32_t value);
 
 /* Bảng gõ tắt dạng text: mỗi dòng "gõ tắt = nội dung"; "\n" = xuống dòng, "\\" = "\". */
 char         *ime_settings_macros_text(const ime_settings *s);

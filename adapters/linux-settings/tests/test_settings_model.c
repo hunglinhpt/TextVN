@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "textvn_settings.h"
+#include "textvn_ffi.h" /* IME_ERR_* — mã lỗi của ime_settings_* */
 
 static char g_dir[] = "/tmp/textvn_settings_XXXXXX";
 
@@ -45,6 +46,11 @@ static void test_labels_and_values(void) {
     assert(tv_index_of(tv_charset_values, TV_CHARSET_COUNT, "vni_windows") == 3);
     assert(tv_index_of(tv_charset_values, TV_CHARSET_COUNT, "nope") == 0);
     assert(tv_index_of(tv_charset_values, TV_CHARSET_COUNT, NULL) == 0);
+    /* Tro ly ngu phap: gia tri khop enum engine (off / highlight / autocorrect). */
+    assert(strcmp(tv_assist_mode_values[0], "off") == 0);
+    assert(strcmp(tv_assist_mode_values[1], "highlight") == 0);
+    assert(strcmp(tv_assist_mode_values[2], "autocorrect") == 0);
+    assert(tv_assist_mode_labels[TV_ASSIST_MODE_COUNT] == NULL);
 }
 
 static void test_paths(void) {
@@ -66,6 +72,8 @@ static void test_defaults_when_missing(tv_paths *p) {
     assert(s.vi_enabled == 1 && s.new_diacritic == 0);
     assert(s.free_marking && s.auto_restore_english && s.auto_capitalize);
     assert(!s.quick_telex && !s.allow_macro_when_vi_off && !s.config_was_corrupt);
+    /* Tro ly ngu phap: file chua co khoi assist -> mac dinh schema (TAT, 700 ms). */
+    assert(s.assist_mode == 0 && s.assist_idle_ms == TV_ASSIST_DEFAULT_IDLE_MS);
 }
 
 static void test_patch_keeps_user_data(tv_paths *p) {
@@ -104,6 +112,76 @@ static void test_state(tv_paths *p) {
     assert(tv_state_set_enabled(p, 1) == 0);
     tv_snapshot_load(&s, p);
     assert(s.vi_enabled == 1);
+}
+
+/* Tro ly ngu phap (P4-0): set/get `assist.mode` + `assist.display.idle_ms` phai
+ * di qua dung duong long C-API (ime_settings_* tu parse SettingsDoc) — CAM parse
+ * JSON tay trong C. */
+static void test_assist(tv_paths *p) {
+    write_file(p->config,
+               "{\"config_version\":1,\"method\":\"vni\",\"macros\":"
+               "[{\"trigger\":\"a\",\"expand\":\"b\",\"when\":\"vi_on\"}]}");
+    tv_snapshot s;
+    tv_snapshot_load(&s, p);
+    assert(s.assist_mode == 0 && s.assist_idle_ms == 700 && "file cũ thiếu assist → mặc định");
+
+    /* Ghi qua model — mỗi thao tác là một patch khoá riêng. */
+    assert(tv_config_set_assist_mode(p, 1) == 0);
+    assert(tv_config_set_assist_idle_ms(p, 250) == 0);
+    tv_snapshot_load(&s, p);
+    assert(s.assist_mode == 1 && s.assist_idle_ms == 250);
+
+    /* Đọc riêng từng key con bằng C API thật. */
+    ime_settings *doc = ime_settings_load(p->config, IME_SETTINGS_CONFIG);
+    assert(doc);
+    char *mode = ime_settings_get_str(doc, "assist.mode");
+    assert(mode && strcmp(mode, "highlight") == 0);
+    ime_settings_string_free(mode);
+    assert(ime_settings_get_u32(doc, "assist.display.idle_ms") == 250);
+    /* Leaf lồng lấy mặc định từ schema khi file không có. */
+    assert(ime_settings_get_bool(doc, "assist.display.show_on_sentence_end") == 1);
+    /* Kieu sai / khoa la bi tu choi; khong tao rac trong khoi `assist`. */
+    assert(ime_settings_get_bool(doc, "assist.mode") == -1);
+    assert(ime_settings_get_str(doc, "assist") == NULL);
+    assert(ime_settings_set_bool(doc, "assist.bogus", 1) == IME_ERR_INVALID_ARG);
+    assert(ime_settings_set_u32(doc, "assist.auto_fix", 1) == IME_ERR_INVALID_ARG);
+    assert(ime_settings_set_str(doc, "assist.mode", "dvorak") == IME_ERR_CONFIG);
+    ime_settings_free(doc);
+
+    /* File vẫn còn: key phẳng cũ, macros, key lạ trong khối assist. */
+    assert(tv_config_set_str(p, "assist.mode", "off") == 0);
+    const char *out = read_file(p->config);
+    assert(strstr(out, "\"vi_on\"") && "ho g tat phai con");
+    assert(strstr(out, "\"vni\"") && "method phai con");
+    assert(strstr(out, "\"idle_ms\": 250") && "idle_ms khong bi reset");
+    tv_snapshot_load(&s, p);
+    assert(s.assist_mode == 0 && s.assist_idle_ms == 250);
+
+    /* Giá trị out-of-range của mode index bị từ chối, file giữ nguyên. */
+    assert(tv_config_set_assist_mode(p, TV_ASSIST_MODE_COUNT) != 0);
+    assert(tv_config_set_assist_mode(p, -1) != 0);
+    tv_snapshot_load(&s, p);
+    assert(s.assist_mode == 0);
+}
+
+/* JSON có khối assist THIẾU key con + key lạ trong khối: lấy mặc định, không mất key lạ. */
+static void test_assist_partial_block(tv_paths *p) {
+    write_file(p->config,
+               "{\"config_version\":1,\"assist\":{\"per_app\":{\"code.exe\":false},"
+               "\"custom\":9}}");
+    assert(tv_config_set_assist_idle_ms(p, 90) == 0);
+    ime_settings *doc = ime_settings_load(p->config, IME_SETTINGS_CONFIG);
+    assert(doc);
+    /* Mặc định đủ: mode và display thiếu đều lay từ schema. */
+    char *mode = ime_settings_get_str(doc, "assist.mode");
+    assert(mode && strcmp(mode, "off") == 0);
+    ime_settings_string_free(mode);
+    assert(ime_settings_get_bool(doc, "assist.display.show_on_sentence_end") == 1);
+    assert(ime_settings_get_u32(doc, "assist.display.idle_ms") == 90);
+    ime_settings_free(doc);
+    const char *out = read_file(p->config);
+    assert(strstr(out, "\"code.exe\": false") && "per_app phai con nguyen");
+    assert(strstr(out, "\"custom\": 9") && "key la trong assist phai con");
 }
 
 static void test_macros(tv_paths *p) {
@@ -170,6 +248,8 @@ int main(void) {
     test_macros(&p);
     test_reset_defaults(&p);
     test_corrupt_file(&p);
+    test_assist(&p);
+    test_assist_partial_block(&p);
 
     char cmd[600];
     snprintf(cmd, sizeof(cmd), "rm -rf %s", g_dir);

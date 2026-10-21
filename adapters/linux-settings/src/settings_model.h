@@ -21,12 +21,19 @@ extern "C" {
 
 #define TV_CHARSET_COUNT 4
 #define TV_METHOD_COUNT  4
+/* `assist.mode` (P4-0 §7) — cùng nhãn/giá trị với bảng Windows khi phần UI Trợ lý
+ * được làm cho ba nền tảng; API model bên dưới đã sẵn sàng (nhãn chỉ dùng hiển thị). */
+#define TV_ASSIST_MODE_COUNT 3
+/* schema `assist.display.idle_ms` (P4-0 §7) — dùng khi file không có leaf này. */
+#define TV_ASSIST_DEFAULT_IDLE_MS 700
 
 /* Nhãn hiển thị (khớp Windows) và giá trị trong config.json, cùng chỉ số. */
 extern const char *const tv_charset_labels[TV_CHARSET_COUNT + 1];
 extern const char *const tv_charset_values[TV_CHARSET_COUNT];
 extern const char *const tv_method_labels[TV_METHOD_COUNT + 1];
 extern const char *const tv_method_values[TV_METHOD_COUNT];
+extern const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1];
+extern const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT];
 
 extern const char *const tv_help_text;
 extern const char *const tv_about_text;
@@ -55,6 +62,10 @@ typedef struct tv_snapshot {
     int quick_telex;
     int allow_macro_when_vi_off;
     int config_was_corrupt; /* file hỏng — lần lưu đầu sẽ sao lưu .bak */
+    /* Trợ lý ngữ pháp (P4-0 §7) — qua đường lồng C-API "assist.mode" /
+     * "assist.display.idle_ms"; mặc định TẮT, idle 700 ms (schema không đổi). */
+    int assist_mode;        /* chỉ số tv_assist_mode_values */
+    uint32_t assist_idle_ms;
 } tv_snapshot;
 
 void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);
@@ -62,7 +73,13 @@ void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);
 /* Vá một khoá rồi ghi nguyên tử. 0 = OK. */
 int tv_config_set_bool(const tv_paths *p, const char *key, int value);
 int tv_config_set_str(const tv_paths *p, const char *key, const char *value);
+int tv_config_set_u32(const tv_paths *p, const char *key, uint32_t value);
 int tv_state_set_enabled(const tv_paths *p, int enabled);
+/* Trợ lý ngữ pháp qua đúng đường lồng C-API: `assist.mode` (chỉ số
+ * tv_assist_mode_values) và `assist.display.idle_ms`. IME_SETTINGS_* tự parse —
+ * KHÔNG parse JSON tay ở đây (kiến trúc). 0 = OK, <0 = lỗi. */
+int tv_config_set_assist_mode(const tv_paths *p, int mode_index);
+int tv_config_set_assist_idle_ms(const tv_paths *p, uint32_t idle_ms);
 /* Nút Mặc định: mọi tuỳ chọn về mặc định, giữ gõ tắt/emoji/từ tiếng Anh. */
 int tv_config_reset_defaults(const tv_paths *p);
 

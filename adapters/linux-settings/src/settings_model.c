@@ -21,6 +21,13 @@ const char *const tv_method_labels[TV_METHOD_COUNT + 1] = {
     "Telex", "VNI", "VIQR", "Telex đơn giản", NULL};
 const char *const tv_method_values[TV_METHOD_COUNT] = {"telex", "vni", "viqr", "simple_telex"};
 
+/* Trợ lý ngữ pháp (P4-0 §7): giá trị của `assist.mode`, cùng thứ tự enum của engine
+ * (off / highlight / autocorrect). Nhãn hiển thị thống nhất với Windows. */
+const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1] = {
+    "Tắt", "Chỉ gợi ý", "Tự sửa lỗi", NULL};
+const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
+    "off", "highlight", "autocorrect"};
+
 const char *const tv_help_text =
     "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc "
     "Ctrl + Shift + Space, hoặc bấm biểu tượng V/E trên thanh IBus/Fcitx5.\n\n"
@@ -80,6 +87,11 @@ static int get_bool(const ime_settings *s, const char *key, int fallback) {
     return v < 0 ? fallback : v;
 }
 
+static uint32_t get_u32(const ime_settings *s, const char *key, uint32_t fallback) {
+    int64_t v = ime_settings_get_u32(s, key);
+    return v < 0 ? fallback : (uint32_t)v;
+}
+
 static int get_index(const ime_settings *s, const char *key, const char *const *values, int n) {
     char *v = ime_settings_get_str(s, key);
     int idx = tv_index_of(values, n, v);
@@ -102,6 +114,9 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->auto_capitalize = get_bool(s, "auto_capitalize", 1);
         out->quick_telex = get_bool(s, "quick_telex", 0);
         out->allow_macro_when_vi_off = get_bool(s, "allow_macro_when_vi_off", 0);
+        /* Đường lồng qua C-API (không parse JSON tay): thiếu key con → mặc định schema. */
+        out->assist_mode = get_index(s, "assist.mode", tv_assist_mode_values, TV_ASSIST_MODE_COUNT);
+        out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
     }
@@ -136,6 +151,16 @@ static int edit_str(ime_settings *s, const void *arg) {
     return ime_settings_set_str(s, a->key, a->str);
 }
 
+typedef struct kv_u32 {
+    const char *key;
+    uint32_t value;
+} kv_u32;
+
+static int edit_u32(ime_settings *s, const void *arg) {
+    const kv_u32 *a = (const kv_u32 *)arg;
+    return ime_settings_set_u32(s, a->key, a->value);
+}
+
 static int edit_reset(ime_settings *s, const void *arg) {
     (void)arg;
     ime_settings_reset_defaults(s);
@@ -150,6 +175,22 @@ int tv_config_set_bool(const tv_paths *p, const char *key, int value) {
 int tv_config_set_str(const tv_paths *p, const char *key, const char *value) {
     kv a = {key, value, 0};
     return patch_file(p->config, IME_SETTINGS_CONFIG, edit_str, &a);
+}
+
+int tv_config_set_u32(const tv_paths *p, const char *key, uint32_t value) {
+    kv_u32 a = {key, value};
+    return patch_file(p->config, IME_SETTINGS_CONFIG, edit_u32, &a);
+}
+
+/* Trợ lý ngữ pháp: ghi qua đúng đường lồng C-API — `assist.mode` là leaf chuỗi enum,
+ * `assist.display.idle_ms` là leaf số; chép sai giá trị trả lỗi, KHÔNG tạo khối lạ. */
+int tv_config_set_assist_mode(const tv_paths *p, int mode_index) {
+    if (mode_index < 0 || mode_index >= TV_ASSIST_MODE_COUNT) return -1;
+    return tv_config_set_str(p, "assist.mode", tv_assist_mode_values[mode_index]);
+}
+
+int tv_config_set_assist_idle_ms(const tv_paths *p, uint32_t idle_ms) {
+    return tv_config_set_u32(p, "assist.display.idle_ms", idle_ms);
 }
 
 int tv_state_set_enabled(const tv_paths *p, int enabled) {
