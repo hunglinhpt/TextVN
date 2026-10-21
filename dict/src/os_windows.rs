@@ -80,7 +80,7 @@ use std::time::{Duration, Instant};
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::Globalization::{
     ISpellChecker, ISpellCheckerFactory, ISpellingError, SpellCheckerFactory, CORRECTIVE_ACTION,
-    CORRECTIVE_ACTION_DELETE, CORRECTIVE_ACTION_REPLACE,
+    CORRECTIVE_ACTION_DELETE, CORRECTIVE_ACTION_GET_SUGGESTIONS, CORRECTIVE_ACTION_REPLACE,
 };
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, CLSCTX_INPROC_SERVER,
@@ -647,8 +647,11 @@ mod tests {
         };
         assert!(is_actionable(CORRECTIVE_ACTION_REPLACE));
         assert!(is_actionable(CORRECTIVE_ACTION_DELETE));
-        // `GET_SUGGESTIONS` doi hoi `Suggest` (3-7 ms/tu) => bo qua.
-        assert!(!is_actionable(CORRECTIVE_ACTION_GET_SUGGESTIONS));
+        // `GET_SUGGESTIONS` **cũng là lỗi** (Fassist-111): đo thật Windows 11 cho
+        // thấy hầu hết lỗi chính tả thường trả `GET_SUGGESTIONS` ⇒ bỏ qua nó thì
+        // `check()` không bắt được lỗi nào. Phần *gợi ý* vẫn qua `Suggest`
+        // (3–7 ms/từ) nên vẫn bị ngân sách chặn.
+        assert!(is_actionable(CORRECTIVE_ACTION_GET_SUGGESTIONS));
         assert!(!is_actionable(CORRECTIVE_ACTION_NONE));
     }
 
