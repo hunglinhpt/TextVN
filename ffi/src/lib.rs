@@ -18,7 +18,7 @@
 /// C API bảng cài đặt — header riêng `textvn_settings.h`, ngoài ABI engine P0-2.
 pub mod settings;
 
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::slice;
 
@@ -159,6 +159,93 @@ pub struct ime_assist_result_v1 {
     pub issues: [ime_assist_issue_v1; IME_MAX_ASSIST_ISSUES],
 }
 
+/// C-ABI callback provider từ điển cho spell checking OS (P4-10 §5.2 · AS-042).
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ime_os_spell_v1 {
+    pub abi_version: u32,
+    pub contains:
+        Option<unsafe extern "C" fn(ctx: *mut c_void, word: *const c_char, byte_len: u32) -> i32>,
+    pub suggest: Option<
+        unsafe extern "C" fn(
+            ctx: *mut c_void,
+            word: *const c_char,
+            byte_len: u32,
+            out: *mut c_char,
+            out_len: u32,
+            limit: u32,
+        ) -> u32,
+    >,
+    pub ctx: *mut c_void,
+}
+
+/// Wrapper chuyển C-ABI [`ime_os_spell_v1`] thành [`textvn_assist::dict::Dictionary`].
+pub struct CSpellProvider {
+    provider: ime_os_spell_v1,
+}
+
+impl CSpellProvider {
+    pub fn new(provider: ime_os_spell_v1) -> Self {
+        Self { provider }
+    }
+}
+
+impl textvn_assist::dict::Dictionary for CSpellProvider {
+    fn contains(&self, word: &str) -> bool {
+        let Some(contains_fn) = self.provider.contains else {
+            return true;
+        };
+        let bytes = word.as_bytes();
+        let len = bytes.len() as u32;
+        let res = catch_unwind(AssertUnwindSafe(|| unsafe {
+            contains_fn(self.provider.ctx, bytes.as_ptr() as *const c_char, len)
+        }))
+        .unwrap_or(1);
+        res != 0
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        let Some(suggest_fn) = self.provider.suggest else {
+            return Vec::new();
+        };
+        let bytes = word.as_bytes();
+        let len = bytes.len() as u32;
+        let mut out_buf = [0u8; 1024];
+        let limit_u32 = (limit as u32).min(16);
+        let count = catch_unwind(AssertUnwindSafe(|| unsafe {
+            suggest_fn(
+                self.provider.ctx,
+                bytes.as_ptr() as *const c_char,
+                len,
+                out_buf.as_mut_ptr() as *mut c_char,
+                out_buf.len() as u32,
+                limit_u32,
+            )
+        }))
+        .unwrap_or(0) as usize;
+
+        if count == 0 {
+            return Vec::new();
+        }
+
+        let mut results = Vec::with_capacity(count.min(limit));
+        let mut slice = &out_buf[..];
+        for _ in 0..count {
+            if let Some(nul_pos) = slice.iter().position(|&b| b == 0) {
+                if nul_pos > 0 {
+                    if let Ok(s) = std::str::from_utf8(&slice[..nul_pos]) {
+                        results.push(s.to_string());
+                    }
+                }
+                slice = &slice[nul_pos + 1..];
+            } else {
+                break;
+            }
+        }
+        results
+    }
+}
+
 impl ime_assist_result_v1 {
     #[allow(dead_code)]
     fn zeroed() -> Self {
@@ -217,6 +304,7 @@ fn fill_assist_result(issues: &[textvn_assist::Issue], out: &mut ime_assist_resu
 pub struct ime_instance {
     engine: Engine,
     last_error: CString,
+    spell_provider: Option<ime_os_spell_v1>,
 }
 
 fn options_from_config(cfg: &Config) -> EngineOptions {
@@ -338,6 +426,7 @@ pub extern "C" fn ime_instance_new(
         Box::new(ime_instance {
             engine: Engine::new(options),
             last_error: CString::new("").unwrap(),
+            spell_provider: None,
         })
     }));
 
@@ -761,7 +850,13 @@ pub extern "C" fn ime_assist_check_instance(
     let inst = unsafe { &mut *inst };
     match catch_unwind(AssertUnwindSafe(|| {
         let text = inst.engine.sentence_tail(256);
-        let issues = textvn_assist::check_sentence(&text);
+        let issues = match inst.spell_provider {
+            Some(ref sp) => {
+                let provider = CSpellProvider::new(*sp);
+                textvn_assist::check_sentence_with(&text, &provider)
+            }
+            None => textvn_assist::check_sentence(&text),
+        };
         fill_assist_result(&issues, out);
     })) {
         Ok(()) => IME_OK,
@@ -838,6 +933,163 @@ pub extern "C" fn ime_assist_glyph_len(
     })) {
         Ok(()) => IME_OK,
         Err(_) => IME_ERR_INTERNAL,
+    }
+}
+
+/// Gắn provider spell-check của hệ điều hành vào instance (AS-042 · P4-10 §5.2).
+///
+/// Truyền `provider = NULL` để hủy provider hiện tại (quay về `NoDictionary`).
+#[no_mangle]
+pub extern "C" fn ime_assist_set_spell_provider(
+    inst: *mut ime_instance,
+    provider: *const ime_os_spell_v1,
+) -> i32 {
+    if inst.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    if provider.is_null() {
+        inst.spell_provider = None;
+        return IME_OK;
+    }
+    let p = unsafe { *provider };
+    if p.abi_version != IME_ABI_VERSION {
+        return IME_ERR_ABI;
+    }
+    inst.spell_provider = Some(p);
+    IME_OK
+}
+
+/// Chuyển UTF-16 thành `String` — trả `Err` khi dãy lệch (unpaired surrogate).
+fn utf16_to_string(units: &[u16]) -> Result<String, ()> {
+    String::from_utf16(units).map_err(|_| ())
+}
+
+/// Kiểm tra ngữ pháp câu ở dạng **UTF-16** (D29 — biên chuẩn TSF/AX/NSString),
+/// trả về **số issue** đã ghi vào `*out` (0..`IME_MAX_ASSIST_ISSUES`).
+///
+/// Contract:
+/// - `out` do caller cấp phát, đặt `abi_version = IME_ABI_VERSION` trước khi gọi.
+/// - Lỗi caller (NULL out, `text` NULL với `len != 0`, ABI lệch) → mã `IME_ERR_*`
+///   như các entry P0-2 khác; **không panic**.
+/// - Lỗi dữ liệu/runtime (UTF-16 lệch, panic bên trong) → **fail-open**: ghi
+///   `out.count = 0` và trả 0 (S4 — "thà im lặng còn hơn báo sai/chặn app").
+/// - Offset trong issue là **char Unicode** (D27), đã quy đổi từ UTF-16 trong
+///   hàm — adapter không phải tự đếm lại.
+/// - Không log nội dung câu (S2).
+#[no_mangle]
+pub extern "C" fn ime_assist_check_v1(
+    text_utf16: *const u16,
+    len: i32,
+    out: *mut ime_assist_result_v1,
+) -> i32 {
+    if out.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let out = unsafe { &mut *out };
+    if out.abi_version != IME_ABI_VERSION {
+        out.count = 0;
+        return IME_ERR_ABI;
+    }
+    if text_utf16.is_null() {
+        return if len == 0 {
+            out.count = 0;
+            IME_OK
+        } else {
+            IME_ERR_INVALID_ARG
+        };
+    }
+    out.count = 0;
+    if len < 0 {
+        return IME_OK; // fail-open: len âm là dữ liệu bất định → 0 issue
+    }
+    let units = unsafe { slice::from_raw_parts(text_utf16, len as usize) };
+    let text = match guarded(|| utf16_to_string(units)) {
+        Some(Ok(text)) => text,
+        _ => return IME_OK, // fail-open: UTF-16 lệch → 0 issue, không panic
+    };
+    let count = match catch_unwind(AssertUnwindSafe(|| {
+        let issues = textvn_assist::check_sentence(&text);
+        fill_assist_result(&issues, out);
+        issues.len().min(IME_MAX_ASSIST_ISSUES)
+    })) {
+        Ok(issue_count) => issue_count,
+        Err(_) => {
+            out.count = 0; // fail-open: mọi panic → 0 issue (S4)
+            0
+        }
+    };
+    count as i32
+}
+
+/// Lấy **phần đuôi câu** của chuỗi UTF-16, tối đa `max_chars` ký tự Unicode
+/// (phần tử cuối của `Engine::sentence_tail` — cho adapter dùng làm "câu vừa gõ").
+///
+/// Ghi dạng UTF-16 kèm **NUL kết thúc** vào `out_utf16` (cap = `out_cap` code unit,
+/// chừa 1 unit cho NUL); trả về **số code unit đã ghi** (không tính NUL).
+/// Cắt luôn tại **ranh giới ký tự**: không bao giờ ở giữa surrogate pair (astral).
+/// Lỗi caller (NULL out / cap ≤ 0 / `text` NULL với `len != 0`) → `IME_ERR_*`;
+/// lỗi dữ liệu (UTF-16 lệch, panic) → trả 0 (fail-open, không panic). Không log câu (S2).
+#[no_mangle]
+pub extern "C" fn ime_assist_sentence_tail_v1(
+    text_utf16: *const u16,
+    len: i32,
+    max_chars: i32,
+    out_utf16: *mut u16,
+    out_cap: i32,
+) -> i32 {
+    if out_utf16.is_null() || out_cap <= 0 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let out = unsafe { slice::from_raw_parts_mut(out_utf16, out_cap as usize) };
+    if text_utf16.is_null() {
+        return if len == 0 {
+            out[0] = 0;
+            0
+        } else {
+            IME_ERR_INVALID_ARG
+        };
+    }
+    out[0] = 0;
+    if len < 0 || max_chars <= 0 {
+        return 0; // fail-open: dữ liệu bất định → đuôi rỗng
+    }
+    let units = unsafe { slice::from_raw_parts(text_utf16, len as usize) };
+    let max_chars = max_chars as usize;
+    let cap_units = out_cap.saturating_sub(1) as usize; // chừa NUL
+    match catch_unwind(AssertUnwindSafe(|| {
+        let text = match utf16_to_string(units) {
+            Ok(text) => text,
+            // fail-open: UTF-16 lệch → đuôi rỗng, không panic
+            Err(_) => return 0usize,
+        };
+        let chars: Vec<char> = text.chars().collect();
+        let take = max_chars.min(chars.len());
+        // Đi TỪ CUỐI về đầu (đuôi câu ưu tiên, đúng chiều cắt) chỉ để TÌM viền
+        // cắt; sau đó encode XUÔI để cặp surrogate giữ đúng thứ tự D83C-DF9C —
+        // đóng gói ngược rồi reverse() sẽ chẻ nối D83C-DF9C thành DF9C-D83C.
+        let mut start = chars.len();
+        let mut acc = 0usize;
+        for &ch in chars[(chars.len() - take)..].iter().rev() {
+            let cost = ch.len_utf16();
+            if acc + cost > cap_units {
+                break;
+            }
+            acc += cost;
+            start -= 1;
+        }
+        let tail: String = chars[start..].iter().collect();
+        let packed: Vec<u16> = tail.encode_utf16().collect();
+        let end = packed.len();
+        out[..end].copy_from_slice(&packed);
+        out[end] = 0;
+        end
+    })) {
+        Ok(written) => written as i32,
+        Err(_) => {
+            out[0] = 0; // fail-open: mọi panic → đuôi rỗng
+            0
+        }
     }
 }
 
@@ -1350,5 +1602,347 @@ mod tests {
             ),
             IME_ERR_INVALID_ARG
         );
+    }
+
+    fn fresh_assist_result() -> ime_assist_result_v1 {
+        ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        }
+    }
+
+    /// D29: kiểm quy đổi offset trong câu tiếng Việt có ký tự astral —
+    /// offset issue phải đếm theo CHAR Unicode (emoji astral = 2 code unit UTF-16 nhưng 1 char).
+    #[test]
+    fn assist_check_v1_utf16_offset_is_char_not_utf16() {
+        let text = "Xin chào \u{1F600} tôi tôi nhé";
+        let units: Vec<u16> = text.encode_utf16().collect();
+        let char_len = text.chars().count();
+        assert_ne!(char_len, units.len(), "cần chữ astral để lệch 2 đơn vị");
+
+        let mut res = fresh_assist_result();
+        let count = ime_assist_check_v1(units.as_ptr(), units.len() as i32, &mut res);
+        assert_eq!(count, 1);
+        assert_eq!(usize::try_from(count).unwrap(), res.count as usize);
+        let issue = &res.issues[0];
+        assert_eq!(issue.kind, IME_ASSIST_KIND_DUPLICATE_WORD);
+        // "Xin chào 😀 " = 11 chars; từ "tôi" thứ hai đứng tại char 15..18
+        // (nếu đếm UTF-16 sẽ là 16..19 → lệch 1 vì emoji chiếm 2 units).
+        assert_eq!(issue.start, 15);
+        assert_eq!(issue.end, 18);
+    }
+
+    /// D29: round-trip UTF-8 → UTF-16 giữ nguyên kết quả so với bản UTF-8.
+    #[test]
+    fn assist_check_v1_matches_utf8_path() {
+        let sample = "Tôi tôi đi học";
+        let units: Vec<u16> = sample.encode_utf16().collect();
+        let mut via_utf16 = fresh_assist_result();
+        assert_eq!(
+            ime_assist_check_v1(units.as_ptr(), units.len() as i32, &mut via_utf16),
+            1
+        );
+        let mut via_utf8 = fresh_assist_result();
+        assert_eq!(
+            ime_assist_check(
+                sample.as_ptr() as *const c_char,
+                sample.len(),
+                &mut via_utf8
+            ),
+            IME_OK
+        );
+        assert_eq!(via_utf16.count, via_utf8.count);
+        assert_eq!(via_utf16.issues[0].kind, via_utf8.issues[0].kind);
+        assert_eq!(via_utf16.issues[0].start, via_utf8.issues[0].start);
+    }
+
+    /// Fail-open: input rỗng/null/UTF-16 lệch → 0 issue hoặc mã lỗi caller,
+    /// tuyệt đối không panic.
+    #[test]
+    fn assist_check_v1_fail_open_on_empty_null_and_bad_utf16() {
+        // text NULL + len 0 → 0 issue, IME_OK
+        let mut res = fresh_assist_result();
+        assert_eq!(ime_assist_check_v1(std::ptr::null(), 0, &mut res), IME_OK);
+        assert_eq!(res.count, 0);
+
+        // text NULL + len > 0 → lỗi caller (P0-2 §0: NULL là lỗi caller, không fail-open)
+        res = fresh_assist_result();
+        assert_eq!(
+            ime_assist_check_v1(std::ptr::null(), 4, &mut res),
+            IME_ERR_INVALID_ARG
+        );
+
+        // out NULL → lỗi caller
+        let sample: Vec<u16> = "tôi tôi".encode_utf16().collect();
+        assert_eq!(
+            ime_assist_check_v1(sample.as_ptr(), sample.len() as i32, std::ptr::null_mut()),
+            IME_ERR_INVALID_ARG
+        );
+
+        // abi lệch → IME_ERR_ABI
+        res = fresh_assist_result();
+        res.abi_version = 999;
+        assert_eq!(
+            ime_assist_check_v1(sample.as_ptr(), sample.len() as i32, &mut res),
+            IME_ERR_ABI
+        );
+        assert_eq!(res.count, 0);
+
+        // len âm → fail-open: 0 issue
+        res = fresh_assist_result();
+        assert_eq!(ime_assist_check_v1(sample.as_ptr(), -1, &mut res), IME_OK);
+        assert_eq!(res.count, 0);
+
+        // UTF-16 có unpaired surrogate → fail-open: 0 issue, không panic
+        res = fresh_assist_result();
+        let broken: [u16; 2] = [0x0041, 0xD800];
+        assert_eq!(
+            ime_assist_check_v1(broken.as_ptr(), broken.len() as i32, &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 0);
+    }
+
+    /// Cắt đuôi câu đếm theo CHAR Unicode, giữ nguyên surrogate pair của ký tự astral.
+    #[test]
+    fn assist_sentence_tail_v1_caps_in_chars_and_keeps_astral() {
+        let text = "abc\u{1F600}def"; // 7 chars, 8 UTF-16 units
+        let units: Vec<u16> = text.encode_utf16().collect();
+
+        // max 4 chars → "😀 def": emoji (2 units) + "def" (3 units) = 5 units
+        let mut out = [0_u16; 16];
+        let written = ime_assist_sentence_tail_v1(
+            units.as_ptr(),
+            units.len() as i32,
+            4,
+            out.as_mut_ptr(),
+            out.len() as i32,
+        );
+        assert_eq!(written, 5);
+        assert_eq!(
+            String::from_utf16_lossy(&out[..written as usize]),
+            "\u{1F600}def"
+        );
+        assert_eq!(out[written as usize], 0, "phải NUL kết thúc");
+
+        // max lớn hơn độ dài → nguyên văn toàn bộ (7 chars = 8 units)
+        out = [0_u16; 16];
+        let written = ime_assist_sentence_tail_v1(
+            units.as_ptr(),
+            units.len() as i32,
+            100,
+            out.as_mut_ptr(),
+            out.len() as i32,
+        );
+        assert_eq!(written, 8);
+        assert_eq!(String::from_utf16_lossy(&out[..written as usize]), text);
+
+        // out_cap không đủ chỗ cho cả emoji → cắt ranh giới char (bỏ emoji), không chẻ pair
+        let mut out4 = [0_u16; 4]; // cap 4: chừa NUL còn 1 unit — emoji cần 2 → chỉ lấy đuôi fits
+        let written = ime_assist_sentence_tail_v1(
+            units.as_ptr(),
+            units.len() as i32,
+            7,
+            out4.as_mut_ptr(),
+            out4.len() as i32,
+        );
+        assert_eq!(String::from_utf16_lossy(&out4[..written as usize]), "def");
+
+        // input rỗng → 0, NUL an toàn
+        let mut rets = [0u16; 4];
+        assert_eq!(
+            ime_assist_sentence_tail_v1(
+                std::ptr::null(),
+                0,
+                8,
+                rets.as_mut_ptr(),
+                rets.len() as i32
+            ),
+            0
+        );
+
+        // UTF-16 lệch (surrogate cô đơn) → fail-open: 0
+        let broken: [u16; 2] = [0xD800, 0x0041];
+        assert_eq!(
+            ime_assist_sentence_tail_v1(
+                broken.as_ptr(),
+                broken.len() as i32,
+                8,
+                rets.as_mut_ptr(),
+                rets.len() as i32
+            ),
+            0
+        );
+        assert_eq!(rets[0], 0);
+
+        // lỗi caller: out NULL / cap ≤ 0 → IME_ERR_INVALID_ARG
+        let full: Vec<u16> = "xin chào".encode_utf16().collect();
+        assert_eq!(
+            ime_assist_sentence_tail_v1(
+                full.as_ptr(),
+                full.len() as i32,
+                8,
+                std::ptr::null_mut(),
+                8
+            ),
+            IME_ERR_INVALID_ARG
+        );
+        assert_eq!(
+            ime_assist_sentence_tail_v1(full.as_ptr(), full.len() as i32, 8, out.as_mut_ptr(), 0),
+            IME_ERR_INVALID_ARG
+        );
+    }
+
+    unsafe extern "C" fn mock_contains(
+        _ctx: *mut c_void,
+        word: *const c_char,
+        byte_len: u32,
+    ) -> i32 {
+        let slice = unsafe { std::slice::from_raw_parts(word as *const u8, byte_len as usize) };
+        if let Ok(s) = std::str::from_utf8(slice) {
+            // Giả lập từ "quẫn" bị coi là sai chính tả
+            if s == "quẫn" {
+                return 0;
+            }
+        }
+        1
+    }
+
+    unsafe extern "C" fn mock_suggest(
+        _ctx: *mut c_void,
+        word: *const c_char,
+        byte_len: u32,
+        out: *mut c_char,
+        out_len: u32,
+        limit: u32,
+    ) -> u32 {
+        let slice = unsafe { std::slice::from_raw_parts(word as *const u8, byte_len as usize) };
+        if let Ok(s) = std::str::from_utf8(slice) {
+            if s == "quẫn" && limit >= 1 {
+                let sugg = b"qu\xC3\xA2n\0"; // "quân" UTF-8
+                if (out_len as usize) >= sugg.len() {
+                    let out_slice =
+                        unsafe { std::slice::from_raw_parts_mut(out as *mut u8, sugg.len()) };
+                    out_slice.copy_from_slice(sugg);
+                    return 1;
+                }
+            }
+        }
+        0
+    }
+
+    #[test]
+    fn assist_set_spell_provider_and_check_instance() {
+        let inst = new_default();
+
+        assert_eq!(
+            ime_assist_set_spell_provider(std::ptr::null_mut(), std::ptr::null()),
+            IME_ERR_INVALID_ARG
+        );
+
+        let bad_provider = ime_os_spell_v1 {
+            abi_version: 999,
+            contains: Some(mock_contains),
+            suggest: Some(mock_suggest),
+            ctx: std::ptr::null_mut(),
+        };
+        assert_eq!(
+            ime_assist_set_spell_provider(inst, &bad_provider),
+            IME_ERR_ABI
+        );
+
+        let provider = ime_os_spell_v1 {
+            abi_version: IME_ABI_VERSION,
+            contains: Some(mock_contains),
+            suggest: Some(mock_suggest),
+            ctx: std::ptr::null_mut(),
+        };
+        assert_eq!(ime_assist_set_spell_provider(inst, &provider), IME_OK);
+
+        // Gõ "Tôi quẫn "
+        let _ = key_char(inst, 'T');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'i');
+        let _ = key_char(inst, ' ');
+        let _ = key_char(inst, 'q');
+        let _ = key_char(inst, 'u');
+        let _ = key_char(inst, 'a');
+        let _ = key_char(inst, 'a');
+        let _ = key_char(inst, 'n');
+        let _ = key_char(inst, 'x');
+        let _ = key_char(inst, ' ');
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(ime_assist_check_instance(inst, &mut res), IME_OK);
+        assert_eq!(res.count, 1);
+        assert_eq!(res.issues[0].kind, IME_ASSIST_KIND_SPELLING);
+        let sugg = unsafe { CStr::from_ptr(res.issues[0].suggest.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert_eq!(sugg, "quân");
+
+        assert_eq!(
+            ime_assist_set_spell_provider(inst, std::ptr::null()),
+            IME_OK
+        );
+        let mut res2 = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(ime_assist_check_instance(inst, &mut res2), IME_OK);
+        assert_eq!(res2.count, 0);
+
+        ime_instance_free(inst);
+    }
+
+    unsafe extern "C" fn mock_error_contains(
+        _ctx: *mut c_void,
+        _word: *const c_char,
+        _byte_len: u32,
+    ) -> i32 {
+        -1 // Mã lỗi / không rõ -> fail-open
+    }
+
+    #[test]
+    fn assist_spell_provider_fail_open_on_error() {
+        let inst = new_default();
+        let error_provider = ime_os_spell_v1 {
+            abi_version: IME_ABI_VERSION,
+            contains: Some(mock_error_contains),
+            suggest: None,
+            ctx: std::ptr::null_mut(),
+        };
+        assert_eq!(ime_assist_set_spell_provider(inst, &error_provider), IME_OK);
+
+        let _ = key_char(inst, 'T');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'o');
+        let _ = key_char(inst, 'i');
+        let _ = key_char(inst, ' ');
+        let _ = key_char(inst, 'q');
+        let _ = key_char(inst, 'u');
+        let _ = key_char(inst, 'a');
+        let _ = key_char(inst, 'a');
+        let _ = key_char(inst, 'n');
+        let _ = key_char(inst, 'x');
+        let _ = key_char(inst, ' ');
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        // Mã lỗi -1 trong callback C -> fail-open: coi từ là đúng -> 0 issue
+        assert_eq!(ime_assist_check_instance(inst, &mut res), IME_OK);
+        assert_eq!(res.count, 0);
+
+        ime_instance_free(inst);
     }
 }

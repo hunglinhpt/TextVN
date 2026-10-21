@@ -17,6 +17,7 @@ use textvn_ffi::{
 use textvn_field_detect::{rules_win::UiaElement, FieldContext, ProbeSnapshot, SecurityState};
 use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD_SEARCH};
 
+pub mod assist;
 pub mod compose;
 pub mod overlay;
 

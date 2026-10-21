@@ -168,6 +168,9 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_assist_check_instance",
         "ime_assist_sentence_tail",
         "ime_assist_glyph_len",
+        "ime_assist_set_spell_provider",
+        "ime_assist_check_v1",
+        "ime_assist_sentence_tail_v1",
     ]
 }
 
@@ -242,6 +245,15 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 abi_version,
                 count,
                 issues,
+            }),
+        ),
+        (
+            "ime_os_spell_v1",
+            field_names!(ime_os_spell_v1 {
+                abi_version,
+                contains,
+                suggest,
+                ctx,
             }),
         ),
     ]
@@ -320,16 +332,22 @@ fn parse_struct_fields(src: &str, typedef: &str) -> Option<Vec<String>> {
     let head = code[..close].rfind("typedef struct")?;
     let body_start = code[head..close].find('{')? + head + 1;
     let mut out = Vec::new();
-    for line in code[body_start..close].lines() {
-        let line = line.split(';').next().unwrap_or("").trim();
-        if line.is_empty() {
-            continue; // dòng chỉ có comment
-        }
-        let Some(field) = line.split_whitespace().last() else {
+    for entry in code[body_start..close].split(';') {
+        let entry = entry.trim();
+        if entry.is_empty() {
             continue;
+        }
+        let field = if let Some(open) = entry.find("(*") {
+            let after = &entry[open + 2..];
+            let close = after.find(')').unwrap_or(after.len());
+            after[..close].trim().trim_start_matches('*')
+        } else {
+            let Some(field) = entry.split_whitespace().last() else {
+                continue;
+            };
+            let field = field.trim().trim_start_matches('*');
+            field.split('[').next().unwrap_or(field).trim()
         };
-        let field = field.trim().trim_start_matches('*');
-        let field = field.split('[').next().unwrap_or(field).trim();
         if !field.is_empty() {
             out.push(field.to_string());
         }
@@ -405,6 +423,7 @@ fn is_type_name(name: &str) -> bool {
             | "ime_suggest_v1"
             | "ime_assist_issue_v1"
             | "ime_assist_result_v1"
+            | "ime_os_spell_v1"
     )
 }
 

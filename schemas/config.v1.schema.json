@@ -68,6 +68,87 @@
       },
       "$comment": "Go y hoan tat tu. Chi `enabled` duoc engine dung hien tai."
     },
+    "assist": {
+      "type": "object",
+      "default": {
+        "mode": "off",
+        "auto_fix": "off",
+        "language": "vi",
+        "trigger_keys": ["space", ",", "."],
+        "display": {
+          "show_on_sentence_end": true,
+          "idle_ms": 700,
+          "show_on_comma": false
+        },
+        "max_sentence_chars": 500,
+        "per_app": {}
+      },
+      "additionalProperties": true,
+      "properties": {
+        "mode": {
+          "enum": ["off", "highlight", "autocorrect"],
+          "default": "off",
+          "$comment": "P4-0 §7. off = khong kiem tra (mac dinh, D20 kill-switch); highlight = chi goi y (Mode 1); autocorrect = tu sua loi objective + goi y loi mo ho (Mode 2)."
+        },
+        "auto_fix": {
+          "enum": ["off", "safe"],
+          "default": "off",
+          "$comment": "P4-0 §4.3. safe = CHI tu sua luat objective (D7); loi mo ho luon chi goi y."
+        },
+        "language": {
+          "enum": ["vi", "en", "auto"],
+          "default": "vi",
+          "$comment": "v1 CHI ho tro vi (D9). en/auto giu cho tuong lai, chua co engine."
+        },
+        "trigger_keys": {
+          "type": "array",
+          "default": ["space", ",", "."],
+          "items": { "enum": ["space", ",", ".", "!", "?", ";", ":"] },
+          "$comment": "Diem KIEM TRA im lang (D11) - moi lan go cac phim nay thi kiem tra cau vua go; hien thi con theo `display`."
+        },
+        "display": {
+          "type": "object",
+          "default": {
+            "show_on_sentence_end": true,
+            "idle_ms": 700,
+            "show_on_comma": false
+          },
+          "additionalProperties": true,
+          "properties": {
+            "show_on_sentence_end": {
+              "type": "boolean",
+              "default": true,
+              "$comment": "Hien khi gap dau ket thuc cau . ! ?"
+            },
+            "idle_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 700,
+              "$comment": "Nguoi dung ngung go bao lau (ms) thi hien goi y (P4-0 §4.1)."
+            },
+            "show_on_comma": {
+              "type": "boolean",
+              "default": false,
+              "$comment": "Mac dinh TAT: hien ngay khi go dau phay se spam UI khi go thuong (D11)."
+            }
+          },
+          "$comment": "Diem HIEN THI tach khoi diem kiem tra (D11)."
+        },
+        "max_sentence_chars": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 500,
+          "$comment": "Do dai toi da cua cau duoc kiem tra, tinh theo KY TU Unicode (P4-0 §4.1: <= 500)."
+        },
+        "per_app": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": { "type": "boolean" },
+          "$comment": "Bat/tat rieng theo app_id (lowercase). Vi du: {\"notepad\": true, \"code.exe\": false}. Thieu = dung chung."
+        }
+      },
+      "$comment": "Tro ly ngu phap (Phan 4 - P4-0 §7). Toan bo mac dinh TAT: bat la lua chon ro rang cua nguoi dung (D20)."
+    },
     "macros": {
       "type": "array",
       "default": [],

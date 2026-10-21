@@ -392,6 +392,18 @@ impl KeyEditSession {
                         }
                     }
                 }
+                // AS-022 (D11): điểm kiểm tra silent — MỌI phím trigger
+                // space/,/./!/... SAU khi phím đã commit xong (apply_plan thành
+                // công ở trên, composition đã đóng ⇒ không đang compose).
+                // Lấy câu từ buffer câu của core rồi `ime_assist_check_v1`
+                // (UTF-16, D29); lỗi ⇒ toast tray qua IPC. Fail-open + ngân
+                // sách (`assist::CHECK_BUDGET_MS`) — không chặn luồng gõ.
+                if comp.is_none() {
+                    let trigger = super::assist::assist_trigger(self.key);
+                    if trigger != super::assist::AssistTrigger::None {
+                        super::assist::after_trigger(shared, trigger);
+                    }
+                }
                 plan.eaten
             }
             Err(_) => {

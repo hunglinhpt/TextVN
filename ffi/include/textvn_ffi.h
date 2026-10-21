@@ -158,6 +158,14 @@ typedef struct ime_assist_result {
   ime_assist_issue_v1 issues[IME_MAX_ASSIST_ISSUES];
 } ime_assist_result_v1;
 
+typedef struct ime_os_spell {
+  uint32_t abi_version;                                     /* = IME_ABI_VERSION */
+  int32_t  (*contains)(void *ctx, const char *word, uint32_t byte_len);  /* 1 = dung, 0 = sai, -1 = khong ro / fail-open */
+  uint32_t (*suggest)(void *ctx, const char *word, uint32_t byte_len,
+                      char *out, uint32_t out_len, uint32_t limit);       /* tra so goi y NUL-separated ghi vao out */
+  void     *ctx;
+} ime_os_spell_v1;
+
 /* ---- API ---- */
 uint32_t     ime_abi_version(void);                     /* luôn IME_ABI_VERSION của lib */
 /* config sai schema: VẪN tạo instance với config mặc định, trả IME_ERR_CONFIG (non-fatal)
@@ -194,6 +202,20 @@ int32_t      ime_assist_sentence_tail(const ime_instance *inst, size_t max_chars
 int32_t      ime_assist_glyph_len(const ime_instance *inst,
                                   const char *text_utf8, size_t len,
                                   size_t *out_glyphs);
+int32_t      ime_assist_set_spell_provider(ime_instance *inst,
+                                           const ime_os_spell_v1 *provider);
+/* Kiểm tra câu ở dạng UTF-16 (D29 — biên chuẩn TSF/AX/NSString): trả về SỐ ISSUE
+ * (≥0) đã ghi vào *out; mã IME_ERR_* (âm) chỉ cho lỗi caller (NULL/ABI — P0-2 §0).
+ * Lỗi dữ liệu (UTF-16 lệch, panic) → fail-open: 0 issue, không panic. Không log câu (S2). */
+int32_t      ime_assist_check_v1(const uint16_t *text_utf16, int32_t len,
+                                 ime_assist_result_v1 *out);
+/* Lấy phần đuôi câu của text_utf16, tối đa `max_chars` ký tự Unicode (D27/D29),
+ * ghi dạng UTF-16 kèm NUL kết thúc vào out_utf16 (cap = out_cap code unit).
+ * Trả về số code unit đã ghi (không tính NUL); lỗi caller = IME_ERR_*; lỗi dữ
+ * liệu/panic → 0 (fail-open). Cắt luôn tại ranh giới char, không chẻ surrogate. */
+int32_t      ime_assist_sentence_tail_v1(const uint16_t *text_utf16, int32_t len,
+                                         int32_t max_chars,
+                                         uint16_t *out_utf16, int32_t out_cap);
 #ifdef __cplusplus
 }
 #endif

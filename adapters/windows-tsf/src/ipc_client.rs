@@ -301,6 +301,44 @@ impl IpcClient {
     }
 }
 
+/// Toast Trợ lý ngữ pháp lên tray — fire-and-forget trên thread nền (AS-022).
+///
+/// Gửi đúng API có sẵn: `Message::AssistNotification { title, message }`
+/// (`ipc/src/lib.rs`, tray xử lý tại `tray/src/ipc_server.rs`) — **không** sửa
+/// crate `ipc/`. Call quy ước xác thực server (`server_is_textvn`) như toggle.
+///
+/// Bất biến:
+/// - Đường gõ **không bao giờ đợi pipe**: thread nền, 1 lần thử, fail-open —
+///   tray không chạy / pipe bận → bỏ im lặng.
+/// - Caller chịu trách nhiệm về nội dung `title`/`message`: **không chứa câu
+///   người dùng** (S2) — `assist::notification_payload` chỉ khắc đã vậy.
+pub fn notify_assist_async(title: String, message: String) {
+    let spawn = std::thread::Builder::new()
+        .name("textvn-assist-notify".into())
+        .spawn(move || {
+            let mut opened: Option<std::fs::File> = None;
+            for name in pipe_name_candidates() {
+                match textvn_ipc::pipe_client_options().open(&name) {
+                    Ok(stream) if server_is_textvn(&stream) => {
+                        opened = Some(stream);
+                        break;
+                    }
+                    Ok(stream) => drop(stream),
+                    Err(_) => continue,
+                }
+            }
+            let Some(mut stream) = opened else {
+                return; // tray không chạy → bỏ im lặng (fail-open)
+            };
+            // Gửi xong lắng 1 Ack (tray trả `Message::Ack`) rồi đóng — đứt
+            // nghĩa tray vừa thoát, bỏ im lặng.
+            let _ = send_message(&mut stream, &Message::AssistNotification { title, message });
+            let _ = read_next_message(&mut stream);
+        });
+    // Spawn hỏng (hiếm, system thread pool sống): im lặng — toast là tối ưu, không bắt buộc.
+    drop(spawn);
+}
+
 /// `%APPDATA%\TextVN\state.json` → map trạng thái (`"*"` = toàn cục).
 /// Debounce phía TIP cho phím chuyển Ctrl+Shift — khớp cửa sổ 250ms phía tray
 /// (`textvn_tray::try_claim_global_toggle`): một lần bấm được MỌI bên nhìn thấy

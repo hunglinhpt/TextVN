@@ -10,16 +10,26 @@ license.workspace = true
 # cần `memmap2`/`fst` (P4-0 D15/D32: `assist` giữ 0-dep; crate này cũng 0-dep
 # để không kéo dependency mới vào lockfile + `cargo deny`).
 #
-# Ngoại lệ DUY NHẤT: provider spell-check Windows (`src/os_windows.rs`) dùng
-# crate `windows` — optional + target-specific (`cfg(windows)`) nên Linux/macOS
-# KHÔNG build nó và không cần thư viện hệ thống nào.
+# Ngoại lệ: provider spell-check của OS:
+# - `src/os_windows.rs` (Windows Spell Checking API) dùng crate `windows` —
+#   optional + target-specific (`cfg(windows)`) nên Linux/macOS KHÔNG build nó.
+# - `src/os_linux.rs` (Linux/enchant-2) KHÔNG dùng crate nào: FFI thuần với
+#   `#[link(name = "enchant-2")]`, chỉ link khi feature `os-enchant` bật (mặc
+#   định TẮT ⇒ `cargo check`/test/CI không cần libenchant, không link C); không
+#   cần crate `libc` vì không symbol `enchant_*` nào trùng symbol runtime std
+#   (Fassist-104). Build gói Linux (máy có `libenchant-2-dev`) mới bật feature.
 
 [features]
-# Bật provider spell-check của OS (hiện chỉ Windows). Mặc định bật để
-# `cargo test`/`clippy --all-targets` phủ module; trên Linux/macOS dependency
-# `windows` (target-specific) không được build nên không ảnh hưởng gì.
+# - `os-spell`: Windows Spell Checking API (crate `windows`). Mặc định bật để
+#   `cargo test`/`clippy --all-targets` phủ module; trên Linux/macOS dependency
+#   `windows` (target-specific) không được build nên không ảnh hưởng gì.
+# - `os-enchant`: Linux provider enchant-2 — MẶC ĐỊNH TẮT (CI không có
+#   libenchant). Bật `--features os-enchant` trên máy Linux có libenchant-2
+#   (link động LGPL-2.1+); nếu không có dict `vi` thì provider vẫn fail-open
+#   (`NoDictionary`) ⇒ không báo lỗi spelling.
 default = ["os-spell"]
 os-spell = ["dep:windows"]
+os-enchant = []
 
 [dependencies]
 

@@ -18,11 +18,13 @@
 //! Khong mo file, khong parse `.dic` luc request: file `.fst` da duoc
 //! sinh san (xem `cargo xtask gen-dict`).
 //!
-//! ## Provider spell-check cua OS (Windows)
+//! ## Provider spell-check cua OS (Windows · Linux)
 //!
-//! Ngoai FST cua ta, crate con co adapter **tuy chon** dung Spell Checking API
-//! cua Windows ([`os_windows`], P4-10). Dung khi nao OS **co** tu dien cho
-//! ngon ngu dich:
+//! Ngoai FST cua ta, crate con co provider spell-check **tuy chon** theo OS
+//! (P4-10), moi OS mot module rieng:
+//!
+//! - **Windows** — [`os_windows`] (Spell Checking API, crate `windows`),
+//!   sentence-level `check` + `suggest` co ngan sach:
 //!
 //! ```no_run
 //! # #[cfg(windows)] {
@@ -35,9 +37,16 @@
 //! # }
 //! ```
 //!
-//! Chi phi va ly do **khong** dung cho tieng Viet o v1: xem doc cua
+//! Chi phi Windows va ly do **khong** dung cho tieng Viet o v1: xem doc cua
 //! [`os_windows`] (`Check` ~0,06 ms/cau nhung `Suggest` 3-7 ms/tu, va Windows
 //! mac dinh khong co `vi-VN`).
+//!
+//! - **Linux** — [`os_linux`] (enchant-2, FFI thuan + `[link]` dong, word-level
+//!   `contains`/`suggest` dung khop trait `Dictionary` cua `assist`). Feature
+//!   `os-enchant` **mac dinh TAT** (CI khong co libenchant): khi tat,
+//!   `os_provider_linux()` luon tra `None` => `NoDictionary` => khong bao loi
+//!   spelling. Vi sao enchant thay vi libspelling / license LGPL / chi phi /
+//!   fallback khi thieu dict `vi`: xem doc cua [`os_linux`].
 
 #![forbid(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
@@ -45,6 +54,8 @@
 pub mod build;
 pub mod fst;
 pub mod mmap;
+#[cfg(target_os = "linux")]
+pub mod os_linux;
 #[cfg(all(windows, feature = "os-spell"))]
 pub mod os_windows;
 pub mod reader;
@@ -56,6 +67,8 @@ pub use build::Builder;
 pub use mmap::{MapError, Mapping};
 pub use reader::Reader;
 
+#[cfg(target_os = "linux")]
+pub use os_linux::EnchantSpellChecker;
 #[cfg(all(windows, feature = "os-spell"))]
 pub use os_windows::{SpellIssue, WindowsSpellChecker};
 
@@ -71,6 +84,20 @@ pub use os_windows::{SpellIssue, WindowsSpellChecker};
 #[must_use]
 pub fn os_provider(language_tag: &str) -> Option<WindowsSpellChecker> {
     WindowsSpellChecker::new(language_tag).ok()
+}
+
+/// Provider spell-check **Linux** (`enchant-2`) cho `language_tag`, hoac `None`
+/// neu khong co tu dien (hoac feature `os-enchant` TAT — mac dinh: CI khong co
+/// libenchant, build Linux phat hanh moi bat).
+///
+/// `None` la nhanh **binh thuong**, khong phai loi: caller dung
+/// `assist::dict::NoDictionary` (moi tu dung => khong bao loi spelling). Noi
+/// dung chi tiet — vi sao enchant thay vi libspelling, license LGPL (dynamic
+/// link), chi phi, fallback khi thieu dict `vi` — xem doc cua [`os_linux`].
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn os_provider_linux(language_tag: &str) -> Option<os_linux::EnchantSpellChecker> {
+    os_linux::EnchantSpellChecker::new(language_tag).ok()
 }
 
 /// Loi khi nap tu dien.

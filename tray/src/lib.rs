@@ -13,6 +13,7 @@
 // các item Win32 không có caller là bình thường — không phải dead code thật.
 #![cfg_attr(not(windows), allow(dead_code))]
 
+pub mod assist;
 pub mod autostart;
 pub mod foreground;
 pub mod hotkey;
@@ -104,7 +105,11 @@ fn system_millis() -> u64 {
 
 /// Cốt lõi debounce (thuần, kiểm thử được với đồng hồ riêng — test không đụng
 /// static toàn cục mà test khác chạy song song có thể claim vào).
-fn claim_debounced(cell: &std::sync::atomic::AtomicU64, now: u64, window_ms: u64) -> bool {
+pub(crate) fn claim_debounced(
+    cell: &std::sync::atomic::AtomicU64,
+    now: u64,
+    window_ms: u64,
+) -> bool {
     use std::sync::atomic::Ordering;
     let last = cell.load(Ordering::Acquire);
     if now.saturating_sub(last) < window_ms {

@@ -157,6 +157,14 @@ pub fn check_with(text: &str, dict: &dyn dict::Dictionary) -> Vec<Issue> {
     check_with_internal(text, false, dict)
 }
 
+/// Kiem tra mot **cau tron ven** voi **tu dien** do caller nap (AS-040 / AS-042).
+///
+/// Giong [`check_with`] nhung coi ky tu dau la dau cau that (kiem tra them
+/// luat chu thuong o dau cau).
+pub fn check_sentence_with(text: &str, dict: &dyn dict::Dictionary) -> Vec<Issue> {
+    check_with_internal(text, true, dict)
+}
+
 fn check_with_internal(
     text: &str,
     start_of_sentence: bool,
@@ -284,5 +292,16 @@ mod tests {
             Some(IssueKind::Spelling),
             "id corpus/CLI phải khớp enum"
         );
+    }
+
+    #[test]
+    fn check_sentence_with_kiem_tra_ca_dau_cau_va_spelling() {
+        let issues = check_sentence_with("tôi quẫn quá.", &TuDienRong);
+        let has_lowercase = issues
+            .iter()
+            .any(|i| i.kind == IssueKind::LowercaseSentenceStart);
+        let has_spelling = issues.iter().any(|i| i.kind == IssueKind::Spelling);
+        assert!(has_lowercase, "phải bắt lỗi chữ thường ở đầu câu");
+        assert!(has_spelling, "phải bắt lỗi chính tả từ điển");
     }
 }

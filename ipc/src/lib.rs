@@ -130,6 +130,50 @@ pub enum Message {
     ToggleAssist {
         enabled: bool,
     },
+    /// Kết quả kiểm tra của Trợ lý ngữ pháp (P4-0 §4.1 · D11/D20) — adapter
+    /// gửi lên tray để hiển thị toast/balloon.
+    ///
+    /// **Không mang toàn bộ câu** người dùng vừa gõ (D8: không đọc nội dung app;
+    /// S2: không log text). Chỉ có loại lỗi, span, thông điệp và gợi ý do engine
+    /// sinh. Lưu ý: `message`/`suggestions` có thể chứa **đoạn** của câu (từ bị
+    /// lỗi + từ thay thế) — xem cảnh báo trong `schemas/ipc.v1.md`.
+    ///
+    /// Thêm ở cuối enum để giữ nguyên wire-format của mọi message cũ.
+    AssistReport {
+        /// Danh sách lỗi (tối đa do adapter quyết định — tray chỉ hiển thị).
+        #[serde(default)]
+        issues: Vec<AssistIssue>,
+        /// Số lỗi đã tự sửa (Mode 2 — P4-0 §4.3, toast "Đã sửa N lỗi").
+        #[serde(default)]
+        auto_fixed: u32,
+    },
+}
+
+/// Một lỗi trong [`Message::AssistReport`].
+///
+/// Đây là **bản sao wire** của `textvn_assist::Issue` (crate `ipc` không phụ
+/// thuộc `assist`): cùng ý nghĩa trường, span là **ký tự Unicode** (D27/D29 —
+/// adapter đổi sang UTF-16 ở biên FFI nếu cần).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssistIssue {
+    /// Mã loại lỗi ổn định, khớp `IssueKind::as_str()`
+    /// (`duplicate_word`, `space_before_punct`, `spelling`, …).
+    pub kind: String,
+    /// Offset bắt đầu trong câu (ký tự Unicode, inclusive).
+    pub span_start: u32,
+    /// Offset kết thúc (ký tự Unicode, exclusive).
+    pub span_end: u32,
+    /// Thông điệp tiếng Việt ngắn do engine sinh (có thể chứa từ bị lỗi).
+    pub message: String,
+    /// Gợi ý thay thế cho đúng vùng lỗi (có thể rỗng với lỗi chỉ để báo).
+    #[serde(default)]
+    pub suggestions: Vec<String>,
+    /// Lỗi này có sửa tự động được không (chỉ luật objective — P4-0 D7).
+    #[serde(default)]
+    pub auto_fixable: bool,
+    /// Điểm tin cậy 0–100 (D28).
+    #[serde(default)]
+    pub confidence: u8,
 }
 
 /// Serialize một message thành frame hoàn chỉnh, gồm prefix length little-endian.
@@ -242,5 +286,127 @@ mod tests {
         let toggle = Message::ToggleAssist { enabled: true };
         let frame = encode_frame(&toggle).unwrap();
         assert_eq!(decode_exact_frame(&frame), Ok(toggle));
+    }
+
+    /// P4-2 · AS-023: kết quả assist đi đủ vòng encode → decode, JSON dùng
+    /// snake_case và **không** có trường chứa cả câu.
+    #[test]
+    fn assist_report_round_trip_has_no_sentence_text() {
+        let msg = Message::AssistReport {
+            issues: vec![AssistIssue {
+                kind: "duplicate_word".into(),
+                span_start: 4,
+                span_end: 12,
+                message: "Lặp từ: \"của của\"".into(),
+                suggestions: vec!["của".into()],
+                auto_fixable: true,
+                confidence: 100,
+            }],
+            auto_fixed: 1,
+        };
+        let frame = encode_frame(&msg).unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&frame[4..]).unwrap();
+        assert_eq!(json["type"], "AssistReport");
+        assert_eq!(json["issues"][0]["span_start"], 4);
+        assert_eq!(json["issues"][0]["kind"], "duplicate_word");
+        assert_eq!(json["auto_fixed"], 1);
+        // Tập khoá đóng: không có trường nào mang toàn bộ câu (text/sentence/...).
+        // serde_json dựng object bằng BTreeMap nên khoá đã được sắp xếp.
+        let mut keys: Vec<&str> = json
+            .as_object()
+            .expect("payload là object")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, vec!["auto_fixed", "issues", "type"]);
+        for key in [
+            "text",
+            "sentence",
+            "content",
+            "buffer",
+            "app_id",
+            "foreground",
+        ] {
+            assert!(json.get(key).is_none(), "không được mang `{key}` qua IPC");
+        }
+        assert_eq!(decode_exact_frame(&frame), Ok(msg));
+    }
+
+    /// Field tuỳ chọn thiếu (adapter bản cũ/đơn giản) vẫn decode: mặc định
+    /// `suggestions = []`, `auto_fixable = false`, `confidence = 0`.
+    #[test]
+    fn assist_report_decodes_minimal_payload() {
+        let json = r#"{"type":"AssistReport","issues":[{"kind":"double_space","span_start":1,"span_end":2,"message":"Khoảng trắng kép"}]}"#;
+        let mut frame = (json.len() as u32).to_le_bytes().to_vec();
+        frame.extend_from_slice(json.as_bytes());
+        let decoded = decode_exact_frame(&frame).unwrap();
+        assert_eq!(
+            decoded,
+            Message::AssistReport {
+                issues: vec![AssistIssue {
+                    kind: "double_space".into(),
+                    span_start: 1,
+                    span_end: 2,
+                    message: "Khoảng trắng kép".into(),
+                    suggestions: Vec::new(),
+                    auto_fixable: false,
+                    confidence: 0,
+                }],
+                auto_fixed: 0,
+            }
+        );
+    }
+
+    /// Tương thích ngược: payload JSON của bản **trước khi có assist** vẫn decode
+    /// y nguyên, và payload của message assist cũ (`AssistNotification`) không đổi
+    /// format dù enum có thêm variant mới ở cuối.
+    #[test]
+    fn old_wire_payloads_still_decode() {
+        let cases = [
+            (
+                r#"{"type":"Hello","pid":42,"abi":1,"version":"0.2.40"}"#,
+                Message::Hello {
+                    pid: 42,
+                    abi: 1,
+                    version: "0.2.40".into(),
+                },
+            ),
+            (
+                r#"{"type":"Subscribe","pid":7}"#,
+                Message::Subscribe { pid: 7 },
+            ),
+            (
+                r#"{"type":"ToggleViEn","app_id":"chrome.exe","enabled":true}"#,
+                Message::ToggleViEn {
+                    app_id: "chrome.exe".into(),
+                    enabled: true,
+                },
+            ),
+            (
+                r#"{"type":"StateUpdate","app_id":"*","enabled":false,"version":9}"#,
+                Message::StateUpdate {
+                    app_id: "*".into(),
+                    enabled: false,
+                    version: 9,
+                },
+            ),
+            (
+                r#"{"type":"AssistNotification","title":"TextVN","message":"Lỗi chính tả"}"#,
+                Message::AssistNotification {
+                    title: "TextVN".into(),
+                    message: "Lỗi chính tả".into(),
+                },
+            ),
+            (
+                r#"{"type":"ToggleAssist","enabled":true}"#,
+                Message::ToggleAssist { enabled: true },
+            ),
+        ];
+        for (json, expected) in cases {
+            let mut frame = (json.len() as u32).to_le_bytes().to_vec();
+            frame.extend_from_slice(json.as_bytes());
+            assert_eq!(decode_exact_frame(&frame), Ok(expected), "{json}");
+        }
     }
 }

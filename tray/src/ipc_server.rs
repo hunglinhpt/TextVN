@@ -613,7 +613,14 @@ impl IpcServer {
                     Some(self.build_snapshot())
                 }
                 Message::AssistNotification { title, message } => {
-                    crate::show_tray_notification(&title, &message);
+                    // Kill-switch chặn cả kênh thông báo assist cũ (D20).
+                    crate::assist::notify_simple(&self.svc, &title, &message);
+                    Some(Message::Ack)
+                }
+                Message::AssistReport { issues, auto_fixed } => {
+                    // Kill-switch + `assist.mode` + chống spam nằm trong
+                    // `crate::assist::notify_report` (logic thuần, đã test).
+                    crate::assist::notify_report(&self.svc, &issues, auto_fixed);
                     Some(Message::Ack)
                 }
                 Message::Ping => Some(Message::Pong {
