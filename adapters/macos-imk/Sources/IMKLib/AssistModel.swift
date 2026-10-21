@@ -233,7 +233,16 @@ public func planSentenceAutoFix(
         let sameWord = spanText.lowercased() == suggestion.lowercased()
         let prevIsSpace = start > 0 && chars[start - 1] == " "
 
-        if sameWord && prevIsSpace {
+        if issue.kind == FFI.assistKindSpaceBeforePunct {
+            // L3 "thừa khoảng trắng trước dấu câu" (P4-0 §5.1): span = KHOẢNG
+            // TRẮNG thừa, còn `suggest` chỉ là **đầu câu để HIỂN THỊ** (dấu
+            // câu). Mô hình sửa của engine là `Fix::Delete` ⇒ phải **XOÁ
+            // span**, KHÔNG thay span bằng `suggest` — thay span sẽ nhân đôi
+            // dấu câu ("chào bạn,,"). Cùng ngữ nghĩa với crate `assist`
+            // (`assist/src/rules/space_before_punct.rs`) và với
+            // `adapters/linux-common/src/compose.c` (đã sửa).
+            candidates.append(Candidate(start: start, end: end, replacement: ""))
+        } else if sameWord && prevIsSpace {
             // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước (semantics Fix::Delete)
             candidates.append(Candidate(start: start - 1, end: end, replacement: ""))
         } else if spanText != suggestion && !suggestion.isEmpty {

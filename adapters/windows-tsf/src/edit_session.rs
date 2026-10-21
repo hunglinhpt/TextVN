@@ -31,8 +31,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 #[cfg(windows)]
 use crate::assist::{
     can_apply_fix, plan_fix, plan_sentence_auto_fix, should_auto_fix_sentence, AssistCheck,
-    AssistTrigger, AssistUndoState, FixPlan, FixPrecondition, OverlayView, SentenceFixPlan,
-    SENTENCE_MAX_CHARS,
+    AssistTrigger, AssistUndoState, FixPlan, FixPrecondition, IssueView, OverlayView,
+    SentenceFixPlan, SENTENCE_MAX_CHARS,
 };
 #[cfg(windows)]
 use crate::class::ObjGuard;
@@ -63,6 +63,9 @@ pub struct ActiveAssist {
     /// Caret (range rỗng) lúc hiện overlay — A2 chỉ so **vị trí**
     /// (`CompareStart`/`CompareEnd`), không đọc chữ.
     pub caret: ITfRange,
+    /// Kind FFI (`IME_ASSIST_KIND_*`) của từng lỗi trong `view` — cần để biết
+    /// lỗi nào engine sửa bằng `Fix::Delete` (xoá span) thay vì thay span.
+    pub issue_kinds: Vec<u32>,
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -470,6 +473,98 @@ impl ITfEditSession_Impl for EndCompositionSession_Impl {
 }
 
 // ---------------------------------------------------------------------------
+// L3 (P4-0 §5.1) — "thừa khoảng trắng trước dấu câu": `Fix::Delete` ≠ thay span
+// ---------------------------------------------------------------------------
+
+/// Engine sửa L3 bằng `Fix::Delete` — **XOÁ** span (khoảng trắng thừa); `suggest`
+/// của lỗi này chỉ là **đầu câu để HIỂN THỊ** (dấu câu), KHÔNG phải text thay
+/// thế. Adapter coi `suggest` là text thay thế ⇒ sinh "chào bạn,," (nhân đôi
+/// dấu câu) — lệch với mô hình Rust (`assist/src/rules/space_before_punct.rs`)
+/// và với `adapters/linux-common/src/compose.c` (đã sửa) ⇒ lệch parity 3 OS.
+///
+/// Xem `assist/src/rules/space_before_punct.rs`: span = khoảng trắng, fix =
+/// `Fix::Delete { start, end }`, suggestion = text của dấu câu.
+#[cfg(windows)]
+fn is_delete_only_kind(kind: u32) -> bool {
+    kind == textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT
+}
+
+/// Kind FFI (`IME_ASSIST_KIND_*`) của từng lỗi trong `view`.
+///
+/// [`OverlayView::from_ffi`] CÓ THỂ bỏ lỗi có span rỗng/lạ ⇒ thứ tự index của
+/// `view.issues` không khớp 1-1 với `result.issues` ⇒ ghép theo **span**
+/// (char Unicode) cho chắc.
+#[cfg(windows)]
+fn issue_kinds(view: &OverlayView, result: &textvn_ffi::ime_assist_result_v1) -> Vec<u32> {
+    let len = view.sentence.len();
+    let mut kinds = vec![0u32; view.issues.len()];
+    for raw in result
+        .issues
+        .iter()
+        .take((result.count as usize).min(result.issues.len()))
+    {
+        let start = (raw.start as usize).min(len);
+        let end = (raw.end as usize).min(len);
+        if start >= end {
+            continue;
+        }
+        if let Some(pos) = view
+            .issues
+            .iter()
+            .position(|i| i.start == start && i.end == end)
+        {
+            kinds[pos] = raw.kind;
+        }
+    }
+    kinds
+}
+
+/// Danh sách lỗi đã **chuẩn hoá theo ngữ nghĩa `Fix`** của engine.
+///
+/// Lỗi `Fix::Delete` (L3) ⇒ `suggest` bị xoá (rỗng) ⇒
+/// [`plan_sentence_auto_fix`] **xoá span** thay vì chèn `suggest` — đúng ngữ
+/// nghĩa `Fix::Delete` của crate `assist` (span bị xoá, phần còn lại giữ
+/// nguyên). Không chuẩn hoá ⇒ "chào bạn,," (nhân đôi dấu câu).
+#[cfg(windows)]
+fn normalize_fix_semantics(issues: &[IssueView], kinds: &[u32]) -> Vec<IssueView> {
+    issues
+        .iter()
+        .enumerate()
+        .map(|(i, issue)| {
+            let mut issue = issue.clone();
+            if kinds.get(i).copied().is_some_and(is_delete_only_kind) {
+                issue.suggestion = Some(String::new());
+            }
+            issue
+        })
+        .collect()
+}
+
+/// Kế hoạch A2 cho lỗi `Fix::Delete` (L3): **xoá span** (khoảng trắng thừa),
+/// phần đuôi SAU span gõ lại **nguyên văn** — không chèn `suggest` (chèn ⇒
+/// nhân đôi dấu câu). `delete_glyphs` do core tính theo bảng mã xuất (D27).
+#[cfg(windows)]
+fn delete_only_fix_plan<F>(view: &OverlayView, issue_index: usize, glyph_len: &F) -> Option<FixPlan>
+where
+    F: Fn(&str) -> usize,
+{
+    let issue = view.issues.get(issue_index)?;
+    let delete_from = issue.start;
+    let tail: String = view.sentence[delete_from..].iter().collect();
+    let glyphs = glyph_len(&tail);
+    if glyphs == 0 {
+        return None; // không đếm được glyph ⇒ không xác minh được ⇒ không sửa
+    }
+    Some(FixPlan {
+        issue_index,
+        suggestion: String::new(),
+        delete_chars: tail.chars().count(),
+        delete_glyphs: u32::try_from(glyphs).ok()?,
+        replacement: view.sentence[issue.end..].to_vec(),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // AS-030 (Mode 1) — overlay cạnh caret
 // ---------------------------------------------------------------------------
 
@@ -550,6 +645,7 @@ pub fn show_assist_overlay(
         view: view.clone(),
         sentence: check.sentence.clone(),
         caret,
+        issue_kinds: issue_kinds(&view, &check.result),
     };
     let Ok(mut slot) = shared.assist.try_borrow_mut() else {
         return false;
@@ -594,7 +690,19 @@ pub fn apply_assist_suggestion(
             return false;
         };
         let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
-        plan_fix(&active.view, issue_index, glyph_len)
+        // Lỗi `Fix::Delete` (L3): `suggest` KHÔNG phải text thay thế ⇒ `plan_fix`
+        // sẽ chèn `suggest` vào caret (nhân đôi dấu câu) ⇒ dựng kế hoạch "xoá
+        // span" riêng, đúng ngữ nghĩa `Fix::Delete` của engine.
+        let delete_only = active
+            .issue_kinds
+            .get(issue_index)
+            .copied()
+            .is_some_and(is_delete_only_kind);
+        if delete_only {
+            delete_only_fix_plan(&active.view, issue_index, &glyph_len)
+        } else {
+            plan_fix(&active.view, issue_index, glyph_len)
+        }
     };
     let Some(plan) = plan else {
         return false; // không có gợi ý / gợi ý vô nghĩa → chỉ hiển thị (A1)
@@ -868,7 +976,12 @@ pub fn apply_sentence_auto_fix(
     let Some(view) = check.view() else {
         return false;
     };
-    let Some(plan) = plan_sentence_auto_fix(&check.sentence, &view.issues, glyph_len) else {
+    // L3 (`Fix::Delete`): chuẩn hoá `suggest` → rỗng để `plan_sentence_auto_fix`
+    // **xoá span** (khớp mô hình Rust + `linux-common`), không chèn `suggest`
+    // (chèn ⇒ nhân đôi dấu câu "chào bạn,,").
+    let kinds = issue_kinds(&view, &check.result);
+    let issues = normalize_fix_semantics(&view.issues, &kinds);
+    let Some(plan) = plan_sentence_auto_fix(&check.sentence, &issues, glyph_len) else {
         return false;
     };
     let session = ApplySentenceFixSession::new(shared.clone(), ctx.clone(), check.clone(), plan);
@@ -1710,6 +1823,66 @@ mod tests {
             AssistMode::Autocorrect
         ));
         assert!(!crate::assist::mode1_display_enabled(AssistMode::Off));
+    }
+
+    /// L3 (P4-0 §5.1): engine sửa bằng `Fix::Delete` — **xoá** span (khoảng
+    /// trắng thừa); `suggest` chỉ là đầu câu để hiển thị. Adapter KHÔNG được
+    /// chèn `suggest` (chèn ⇒ nhân đôi dấu câu "xin chào,, bạn").
+    #[test]
+    fn l3_xoa_span_khong_nhan_doi_dau_cau() {
+        let sentence = "xin chào , bạn";
+        // Span THẬT của engine cho L3 = khoảng trắng thừa (8..9); `suggest` =
+        // dấu câu (chỉ để hiển thị) — xem `assist/src/rules/space_before_punct.rs`.
+        let issue = crate::assist::IssueView {
+            start: 8,
+            end: 9,
+            message: "Thừa khoảng trắng trước dấu câu".to_string(),
+            suggestion: Some(",".to_string()),
+            auto_fixable: true,
+        };
+        let view =
+            crate::assist::OverlayView::from_parts(sentence.chars().collect(), vec![issue], 1)
+                .expect("view");
+
+        let mut result: textvn_ffi::ime_assist_result_v1 = unsafe { std::mem::zeroed() };
+        result.abi_version = textvn_ffi::IME_ABI_VERSION;
+        result.count = 1;
+        result.issues[0] = textvn_ffi::ime_assist_issue_v1 {
+            kind: textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT,
+            start: 8,
+            end: 9,
+            auto_fixable: 1,
+            confidence: 100,
+            message: [0; textvn_ffi::IME_MAX_ASSIST_MSG],
+            suggest_len: 1,
+            suggest: [0; textvn_ffi::IME_MAX_ASSIST_SUGGEST],
+        };
+
+        // Kind phải ghép đúng theo span (view bỏ lỗi span rỗng ⇒ index lệch).
+        let kinds = super::issue_kinds(&view, &result);
+        assert_eq!(kinds, vec![textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT]);
+
+        // Mode 2 (A3): chuẩn hoá ⇒ kế hoạch XOÁ span (không chèn `suggest`).
+        let issues = super::normalize_fix_semantics(&view.issues, &kinds);
+        let plan = crate::assist::plan_sentence_auto_fix(sentence, &issues, |t| t.chars().count())
+            .expect("plan");
+        assert_eq!(plan.delete_from, 8);
+        assert_eq!(plan.original_tail, " , bạn");
+        let replacement: String = plan.replacement.iter().collect();
+        assert_eq!(replacement, ", bạn");
+        let prefix: String = sentence.chars().take(plan.delete_from).collect();
+        assert_eq!(
+            format!("{prefix}{replacement}"),
+            "xin chào, bạn",
+            "dấu câu KHÔNG được nhân đôi"
+        );
+
+        // Mode 1 (A2): kế hoạch riêng cho lỗi `Fix::Delete` — cũng xoá span.
+        let a2 = super::delete_only_fix_plan(&view, 0, &|t: &str| t.chars().count())
+            .expect("kế hoạch A2");
+        assert_eq!(a2.delete_chars, " , bạn".chars().count());
+        assert_eq!(a2.delete_glyphs, 6);
+        assert_eq!(a2.replacement.iter().collect::<String>(), ", bạn");
     }
 
     #[test]

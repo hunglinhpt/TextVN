@@ -7,6 +7,8 @@
 
 #include "engine.h"
 
+#include "lc_assist_text.h"
+
 #include <fcitx-utils/capabilityflags.h>
 #include <fcitx-utils/keysym.h>
 #include <fcitx-utils/misc.h>
@@ -42,6 +44,17 @@ static uint64_t nowMs() {
  * ⇒ trả false ⇒ **không sửa** (đây là chốt chặn "xoá nhầm text lạ" khi engine
  * buffer stale: user bấm chuột đặt caret chỗ khác rồi gõ `.`).
  *
+ * Fcitx5 khác IBus: `surroundingText()` là **truy vấn trực tiếp** client (DBus)
+ * ⇒ luôn phản ánh document hiện tại (IBus chỉ có **cache** client đẩy lên
+ * TRƯỚC khi phím) ⇒ không cần ghép "text vừa commit" như bản IBus.
+ *
+ * `SurroundingText::cursor()` của Fcitx5 là **offset BYTE** trong `text()`
+ * (KHÔNG phải số ký tự Unicode) ⇒ cắt bằng byte offset là an toàn. TUYỆT ĐỐI
+ * không dùng `g_utf8_offset_to_pointer`: hàm đó trả NULL khi caret ở cuối text
+ * ⇒ `NULL - str` là UB và `memcmp` đọc ngoài vùng nhớ (có thể crash) — bản IBus
+ * đã dịch offset bằng vòng lặp `g_utf8_next_char`; ở Fcitx5 vốn đã là byte
+ * offset nên không cần dịch (và không có phép trừ con trỏ nào ở đây).
+ *
  * `expected` là Unicode (buffer của core); document chứa glyph theo bảng mã
  * xuất — với `unicode_precomposed` (mặc định) 1 char = 1 byte UTF-8-ish nên
  * so được; bảng mã khác ⇒ lệch ⇒ không sửa (an toàn hơn sửa nhầm). */
@@ -49,13 +62,15 @@ static bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &e
     if (!ic || expected.empty()) return false;
     fcitx::SurroundingText surrounding = ic->surroundingText();
     if (!surrounding.isValid()) return false;
-    std::string text = surrounding.text();
+    const std::string text = surrounding.text();
     const int cursor = surrounding.cursor();
-    if (cursor >= 0 && static_cast<size_t>(cursor) <= text.size()) {
-        text = text.substr(0, static_cast<size_t>(cursor));
-    }
-    if (text.size() < expected.size()) return false;
-    return text.compare(text.size() - expected.size(), expected.size(), expected) == 0;
+    /* Caret nằm ngoài text ⇒ dữ liệu không nhất quán ⇒ không xác minh được
+     * (fail-safe). TUYỆT ĐỐI không so cả phần SAU caret — sẽ khớp nhầm rồi
+     * xoá nhầm vùng khác. */
+    if (cursor < 0 || static_cast<size_t>(cursor) > text.size()) return false;
+    const std::string before = text.substr(0, static_cast<size_t>(cursor));
+    if (before.size() < expected.size()) return false;
+    return before.compare(before.size() - expected.size(), expected.size(), expected) == 0;
 }
 
 std::string utf32ToUtf8(const uint32_t *text, size_t len) {
@@ -153,11 +168,13 @@ lc_modifier fcitxModifierKind(fcitx::KeySym sym) {
 class AssistCandidateWord : public fcitx::CandidateWord {
 public:
     AssistCandidateWord(std::string text, std::string comment, std::string replacement,
-                        uint32_t deleteGlyphs, std::string originalTail = std::string())
+                        uint32_t deleteGlyphs, std::string originalTail = std::string(),
+                        TextVNState *st = nullptr)
         : fcitx::CandidateWord(fcitx::Text(comment.empty() ? text : text + " (" + comment + ")")),
           replacement_(std::move(replacement)),
           deleteGlyphs_(deleteGlyphs),
-          originalTail_(std::move(originalTail)) {}
+          originalTail_(std::move(originalTail)),
+          st_(st) {}
 
     void select(fcitx::InputContext *ic) const override {
         if (!ic) return;
@@ -179,6 +196,13 @@ public:
             if (!replacement_.empty()) {
                 ic->commitString(replacement_);
             }
+            /* R-4: đã thay document ⇒ buffer câu của engine không còn khớp ⇒
+             * reset (như Mode 2) để lần trigger sau không so với câu cũ.
+             * Chỉ khi KHÔNG còn từ đang gõ (preedit rỗng) — reset giữa lúc
+             * đang compose sẽ lệch preedit với engine. */
+            if (st_ && st_->inst && st_->comp.len == 0) {
+                ime_reset(st_->inst);
+            }
             ic->inputPanel().reset();
             ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
         } catch (...) {
@@ -189,6 +213,7 @@ private:
     std::string replacement_;
     uint32_t deleteGlyphs_ = 0;
     std::string originalTail_;
+    TextVNState *st_ = nullptr;
 };
 
 /* ---- State per IC ---- */
@@ -453,17 +478,40 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         if (surrounding) {
             lc_sentence_fix_plan fixPlan;
             if (lc_plan_sentence_auto_fix(st->inst, sentence, &res, &fixPlan) && fixPlan.fixed_count > 0) {
-                /* If trigger char was not eaten, commit it first so document tail matches sentence buffer */
+                /* R-2 (D12) + THỨ TỰ đúng (giống hệt bản IBus đã sửa):
+                 *   1) tính đuôi document PHẢI có — nếu ký tự trigger CHƯA nằm
+                 *      trong document (adapter sẽ tự commit) thì đuôi document =
+                 *      đuôi engine BỎ ký tự trigger (buffer câu của core luôn
+                 *      kết thúc bằng ký tự trigger — xem `lc_assist_text.h`);
+                 *   2) kiểm precondition **TRƯỚC** khi commit ký tự trigger;
+                 *   3) mới commit trigger → xoá đúng số glyph → gõ lại bản sửa.
+                 *
+                 * Sai thứ tự (commit trigger TRƯỚC rồi mới kiểm) ⇒
+                 * (a) điều kiện không khớp ⇒ Mode 2 không bao giờ chạy,
+                 * (b) bỏ sửa nhưng đã commit trigger ⇒ app nhận thêm ký tự
+                 *     (NHÂN ĐÔI ký tự). */
+                char expected[LC_MAX_SENTENCE_FIX_CHARS];
+                if (!lc_assist_expected_document_tail(fixPlan.original_tail, triggerChar,
+                                                       planEaten ? 1 : 0, expected,
+                                                       sizeof(expected))) {
+                    return planEaten; /* không xác minh được ⇒ KHÔNG sửa */
+                }
+                if (!textBeforeCaretMatches(st->ic, expected)) {
+                    return planEaten; /* lệch ⇒ KHÔNG sửa (fail-safe, D12) */
+                }
+                /* Precondition đã khớp: commit ký tự trigger (nếu chưa có trong
+                 * document) để document khớp buffer câu của engine. Số glyph
+                 * xoá (`delete_glyphs`) tính cho CẢ đuôi engine (đã có trigger)
+                 * ⇒ xoá sau khi commit trigger là đúng số ký tự. */
                 if (!planEaten && triggerChar != 0) {
                     st->ic->commitString(utf32ToUtf8(&triggerChar, 1));
                 }
-                /* R-2: chỉ xoá khi vùng trước caret **đúng** là đuôi câu engine
-                 * biết; không xác minh được ⇒ KHÔNG sửa (fail-safe, D12). */
-                if (!textBeforeCaretMatches(st->ic, fixPlan.original_tail)) {
-                    return planEaten;
-                }
+                /* Chỉ xoá **trước** caret (sau caret không thuộc phạm vi sửa —
+                 * xoá cả 2 phía ⇒ mất dữ liệu người dùng). Số **glyph** do
+                 * core tính (`ime_assist_glyph_len` trong
+                 * `lc_plan_sentence_auto_fix`) — KHÔNG fallback `chars().count()`
+                 * (sai ở VNI/TCVN3 ⇒ xoá lệch vị trí). */
                 if (fixPlan.delete_glyphs > 0) {
-                    /* Chỉ xoá **trước** caret (sau caret không thuộc phạm vi sửa). */
                     st->ic->deleteSurroundingText(-static_cast<int>(fixPlan.delete_glyphs), 0);
                 }
                 st->ic->commitString(fixPlan.replacement);
@@ -514,17 +562,16 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 single.issues[0] = issue;
 
                 lc_sentence_fix_plan singlePlan;
-                uint32_t delGlyphs = 0;
-                std::string rep = issue.suggest;
-                std::string origTail;
-                if (lc_plan_sentence_auto_fix(st->inst, sentence, &single, &singlePlan)) {
-                    delGlyphs = singlePlan.delete_glyphs;
-                    rep = singlePlan.replacement;
-                    origTail = singlePlan.original_tail;
+                /* Không lập được kế hoạch sửa ⇒ KHÔNG hiện ứng viên: nếu hiện,
+                 * chọn sẽ **chèn** gợi ý vào caret thay vì thay lỗi (sai).
+                 * Cùng quy tắc với IBus (`apply_assist_candidate`) và macOS
+                 * (`buildCandidates`). */
+                if (!lc_plan_sentence_auto_fix(st->inst, sentence, &single, &singlePlan)) {
+                    continue;
                 }
-
                 candList->append(std::make_unique<AssistCandidateWord>(
-                    issue.suggest, issue.message, rep, delGlyphs, origTail));
+                    issue.suggest, issue.message, singlePlan.replacement,
+                    singlePlan.delete_glyphs, singlePlan.original_tail, st));
                 added++;
             }
 

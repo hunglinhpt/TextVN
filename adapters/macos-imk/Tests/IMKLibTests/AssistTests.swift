@@ -159,10 +159,12 @@ final class AssistTests: XCTestCase {
 
     func testPlanSentenceAutoFixSpaceBeforePunct() {
         let sentence = "Chào bạn ."
+        // Span THẬT của engine cho L3 = KHOẢNG TRẮNG thừa (8..9); `suggest` =
+        // dấu câu (chỉ để hiển thị) — xem `assist/src/rules/space_before_punct.rs`.
         let issue = AssistIssue(
             kind: FFI.assistKindSpaceBeforePunct,
             start: 8,
-            end: 10,
+            end: 9,
             autoFixable: true,
             confidence: 90,
             message: "Thừa khoảng trắng trước dấu câu",
@@ -177,6 +179,32 @@ final class AssistTests: XCTestCase {
         XCTAssertEqual(p.originalTail, " .")
         XCTAssertEqual(p.replacement, ".")
         XCTAssertEqual(p.deleteGlyphs, 2)
+    }
+
+    /// L3 (P4-0 §5.1): engine sửa bằng `Fix::Delete` — **xoá** khoảng trắng thừa;
+    /// `suggest` chỉ là đầu câu để hiển thị. Nếu adapter chèn `suggest` vào
+    /// span ⇒ dấu câu bị NHÂN ĐÔI ("xin chào,, bạn").
+    func testPlanSentenceAutoFixSpaceBeforePunctKhongNhanDoiDauCau() {
+        let sentence = "xin chào , bạn"
+        let issue = AssistIssue(
+            kind: FFI.assistKindSpaceBeforePunct,
+            start: 8,
+            end: 9,
+            autoFixable: true,
+            confidence: 100,
+            message: "Thừa khoảng trắng trước dấu câu",
+            suggest: ","
+        )
+
+        let plan = planSentenceAutoFix(sentence: sentence, issues: [issue], glyphLen: { $0.count })
+        XCTAssertNotNil(plan)
+        guard let p = plan else { return }
+        XCTAssertEqual(p.deleteFrom, 8)
+        XCTAssertEqual(p.originalTail, " , bạn")
+        XCTAssertEqual(p.replacement, ", bạn")
+        // Document sau khi sửa = phần đầu giữ nguyên + phần gõ lại.
+        let prefix = String(sentence.prefix(p.deleteFrom))
+        XCTAssertEqual(prefix + p.replacement, "xin chào, bạn")
     }
 
     func testPlanSentenceAutoFixLowercaseSentence() {
@@ -227,7 +255,7 @@ final class AssistTests: XCTestCase {
             AssistIssue(kind: FFI.assistKindLowercaseSentence, start: 0, end: 3, autoFixable: true, confidence: 90, message: "Hoa", suggest: "Hôm"),
             AssistIssue(kind: FFI.assistKindDuplicateWord, start: 12, end: 15, autoFixable: true, confidence: 95, message: "Lặp", suggest: "tôi"),
             AssistIssue(kind: FFI.assistKindDoubleSpace, start: 18, end: 20, autoFixable: true, confidence: 85, message: "Kép", suggest: " "),
-            AssistIssue(kind: FFI.assistKindSpaceBeforePunct, start: 23, end: 25, autoFixable: true, confidence: 90, message: "Dấu", suggest: ".")
+            AssistIssue(kind: FFI.assistKindSpaceBeforePunct, start: 23, end: 24, autoFixable: true, confidence: 90, message: "Dấu", suggest: ".")
         ]
 
         let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { $0.count })
@@ -319,11 +347,11 @@ final class AssistTests: XCTestCase {
         )
 
         let target = AssistMockTarget(initialText: "Tôi đi học .")
-        // Giả lập engine có lỗi space before punct
+        // Giả lập engine có lỗi space before punct (span = khoảng trắng thừa)
         let issue = AssistIssue(
             kind: FFI.assistKindSpaceBeforePunct,
             start: 10,
-            end: 12,
+            end: 11,
             autoFixable: true,
             confidence: 90,
             message: "Thừa khoảng trắng",
@@ -366,7 +394,7 @@ final class AssistTests: XCTestCase {
         let issue = AssistIssue(
             kind: FFI.assistKindSpaceBeforePunct,
             start: 10,
-            end: 12,
+            end: 11,
             autoFixable: true,
             confidence: 90,
             message: "Thừa khoảng trắng",
@@ -390,7 +418,7 @@ final class AssistTests: XCTestCase {
         let issue = AssistIssue(
             kind: FFI.assistKindSpaceBeforePunct,
             start: 10,
-            end: 12,
+            end: 11,
             autoFixable: true,
             confidence: 90,
             message: "Thừa khoảng trắng",
