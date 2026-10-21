@@ -27,3 +27,23 @@ path = ["installer/windows/languages/Vietnamese.isl"]
 precedence = "override"
 SPDX-FileCopyrightText = ["1997-2026 Jordan Russell", "2023 memecoder (Vietnamese translation)"]
 SPDX-License-Identifier = "LicenseRef-InnoSetup"
+
+# Corpus đo FPR/recall lấy từ Tatoeba (export per-language vie_sentences.tsv.bz2).
+# Dữ liệu câu của Tatoeba phát hành dưới **CC BY 2.0 FR** ⇒ attribution BẮT BUỘC
+# và KHÔNG phải GPL của TextVN. Annotation này GHI ĐÈ blanket "**" (GPL-3.0-or-later)
+# cho đúng 3 file này — "override" + đặt SAU blanket trong file là bắt buộc:
+# reuse chỉ dùng annotation khớp CUỐI CÙNG (find_annotations_item quét ngược).
+# Attribution đầy đủ: docs/compliance/tatoeba-attribution.md + LICENSES/LicenseRef-Tatoeba.txt
+# + header của từng file corpus.
+[[annotations]]
+path = [
+    "corpus/assist/vi_tatoeba_clean.ass",
+    "corpus/assist/vi_real_clean.ass",
+    "corpus/assist/vi_real_errors.ass",
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "Tatoeba contributors (tatoeba.org) — câu tiếng Việt trong export vie_sentences.tsv.bz2",
+    "2026 LinhBH.CoM — tập lọc/gán nhãn (đạo hình thức)",
+]
+SPDX-License-Identifier = "LicenseRef-Tatoeba"

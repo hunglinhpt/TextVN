@@ -1,0 +1,88 @@
+The Vietnamese sentence corpus files
+
+    corpus/assist/vi_tatoeba_clean.ass
+    corpus/assist/vi_real_clean.ass
+    corpus/assist/vi_real_errors.ass
+
+contain Vietnamese sentences taken from the Tatoeba project (the "Tatoeba"
+dataset of user-contributed example sentences and translations, maintained by
+the Tatoeba Association, a non-profit association registered in France).
+
+Upstream notice (verbatim, from https://tatoeba.org/en/downloads, section
+"General information about the files"):
+
+    These files are released under CC BY 2.0 FR.
+
+and (verbatim, from the Tatoeba Terms of Use, section 6.2 "Creative Commons
+licenses applicable to sentences", https://tatoeba.org/en/terms_of_use):
+
+    Tatoeba's technical infrastructure uses the default Creative Commons
+    Attribution 2.0 France license (CC-BY 2.0 FR) for the use of textual
+    sentences. The BY mention implies a single restriction on the use, reuse,
+    modification and distribution of the sentence: a condition of attribution.
+    That is, using, reusing, modifying and distributing the sentence is only
+    allowed if the name of the author is cited.
+
+SPDX-License-Identifier: LicenseRef-Tatoeba
+
+Source of the data
+------------------
+- Dataset name : Tatoeba (sentences + translations), Vietnamese subset.
+- Project home : https://tatoeba.org/
+- Export used  : per-language export, Vietnamese
+                 https://downloads.tatoeba.org/exports/per_language/vie/vie_sentences.tsv.bz2
+                 (used by tools/assist/gen_corpus_tatoeba.py and
+                 tools/assist/build_real_corpus.py).
+- Downloaded / last accessed : 2026-10-21 (weekly export; the three corpus
+                 files above were generated from that snapshot).
+- Licence      : Creative Commons Attribution 2.0 France (CC BY 2.0 FR),
+                 https://creativecommons.org/licenses/by/2.0/fr/
+                 (legal code: https://creativecommons.org/licenses/by/2.0/fr/legalcode).
+- Attribution  : "Sentences from the Tatoeba project (https://tatoeba.org/),
+                 licensed under CC BY 2.0 FR."
+- Full attribution document: docs/compliance/tatoeba-attribution.md
+
+Obligations that come with CC BY 2.0 FR
+--------------------------------------
+CC BY 2.0 FR allows reuse (including commercial reuse and modification) and
+redistribution, provided that every reuse mentions:
+
+  1. the author(s) of the sentence;
+  2. a link to the licence (https://creativecommons.org/licenses/by/2.0/fr/);
+  3. a link to the source material (https://tatoeba.org/);
+  4. that the material was modified;
+  5. and that no additional restrictions are imposed on the recipients.
+
+TextVN therefore:
+
+  - credits Tatoeba as the source, links both the dataset and the licence, and
+    states the modifications that were made (see below) - this is done in
+    docs/compliance/tatoeba-attribution.md and in the header comment of every
+    affected corpus file;
+  - keeps the original sentence text unmodified: only filtering, selection,
+    labelling and splitting into several corpus files were applied;
+  - does not ship the corpus files (nor the raw export) in any release
+    package - the corpus lives in the source repository only. The Windows
+    installer ships "data\*" only (installer/windows/TextVN-setup.iss), and no
+    packaging script references corpus/.
+
+NOTE (audit 2026-10-22, Q-7): the per-language TSV export contains only the
+sentence id, the language code and the sentence text - it does NOT contain the
+name of the contributor of each sentence. Attribution is therefore given at the
+level of the dataset (source + licence + link + statement of modifications),
+and the author of an individual sentence can be looked up on
+https://tatoeba.org/ by sentence id. Anyone redistributing individual
+sentences must reproduce the attribution of the corresponding contributor.
+
+SCOPE OF THIS NOTICE (audit 2026-10-22, Q-7):
+  - The three corpus files listed at the top of this file are NOT covered by
+    the GPL-3.0-or-later licence of TextVN. Their only licence is CC BY 2.0 FR
+    (SPDX-License-Identifier: LicenseRef-Tatoeba), declared per-file in
+    REUSE.toml with precedence "override" so that it replaces the blanket
+    GPL-3.0-or-later annotation for those files.
+  - This notice file is itself a TextVN document (GPL-3.0-or-later); it only
+    quotes and points to the upstream licence.
+  - The rest of TextVN (code, documentation and the other corpus files) stays
+    GPL-3.0-or-later.
+
+Third-party licence text: see https://creativecommons.org/licenses/by/2.0/fr/legalcode

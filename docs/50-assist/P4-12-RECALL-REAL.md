@@ -51,7 +51,7 @@ Engine ghim: `target/debug/textvn-cli.exe` (xem §6 — **không** dùng binary 
 
 ### 2.1 Quần thể
 
-- Nguồn: **Tatoeba** `vie_sentences.tsv.bz2` (CC BY 2.0 FR — attribution bắt buộc; đã có trong header corpus + `docs/compliance/`).
+- Nguồn: **Tatoeba** `vie_sentences.tsv.bz2` (CC BY 2.0 FR — attribution bắt buộc; attribution thật nằm ở `docs/compliance/tatoeba-attribution.md` + `LICENSES/LicenseRef-Tatoeba.txt` + header của 3 file corpus Tatoeba).
 - Dùng **đúng bộ lọc** của `gen_corpus_tatoeba.py` (`clean_sentence`) ⇒ **5.092 câu** duy nhất (không phải 1.500 câu của `vi_tatoeba_clean.ass`: file đó chỉ lấy 1.500 câu đầu).
 - Vì sao mở rộng quần thể: 1.500 câu đầu chỉ có **25 câu bị engine gắn cờ** — không đủ để đo recall. Toàn bộ 5.092 câu cho **50 câu bị gắn cờ**.
 
