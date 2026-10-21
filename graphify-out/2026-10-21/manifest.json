@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1792597490.2483547,
-    "seen": 1792597839.393883,
-    "ast_hash": "98d92d2ed21765f9322b5b3cffa26005",
+    "mtime": 1792598746.0140932,
+    "seen": 1792598815.1952207,
+    "ast_hash": "06a02ec0a8da5e91b910c382672ed235",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -2673,6 +2673,24 @@
     "mtime": 1792597489.458284,
     "seen": 1792597839.397894,
     "ast_hash": "bb9d5e16b24d43f04b499da60cadeb8b",
+    "semantic_hash": ""
+  },
+  "tools/assist/build_real_corpus.py": {
+    "mtime": 1792598611.642538,
+    "seen": 1792598815.2375445,
+    "ast_hash": "1276ade74b6fdd3943ade1c51147e696",
+    "semantic_hash": ""
+  },
+  "tools/assist/score_real.py": {
+    "mtime": 1792598726.207385,
+    "seen": 1792598815.2375445,
+    "ast_hash": "61c39a9f31bb676156015ff60c52c943",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-REVIEW-LOG.md": {
+    "mtime": 1792598793.032027,
+    "seen": 1792598815.253947,
+    "ast_hash": "eb93090970a826387098cf89871b21db",
     "semantic_hash": ""
   }
 }

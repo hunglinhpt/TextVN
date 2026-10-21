@@ -823,6 +823,9 @@ fn expected_tail(sentence: &str, delete_chars: usize) -> String {
 ///   xác minh được ⇒ không sửa** (an toàn hơn là sửa nhầm).
 #[cfg(windows)]
 fn verify_delete_range(snapshot: &[u16], expected: &str, delete_glyphs: u32) -> bool {
+    if snapshot.is_empty() || delete_glyphs == 0 {
+        return false; // vùng rỗng ⇒ không xác minh được ⇒ không sửa
+    }
     let expected_utf16: Vec<u16> = expected.encode_utf16().collect();
     if expected_utf16.len() != delete_glyphs as usize {
         return false; // số glyph ≠ số code unit ⇒ không xác minh được
@@ -1177,7 +1180,10 @@ impl ApplyAssistUndoSession {
                 &self.undo.replacement,
                 self.undo.replacement_glyphs,
             ) {
-                crate::trace::event(self.shared.tid, format_args!("assist A3 undo skip: mismatch"));
+                crate::trace::event(
+                    self.shared.tid,
+                    format_args!("assist A3 undo skip: mismatch"),
+                );
                 return false;
             }
 
@@ -1622,10 +1628,22 @@ mod tests {
         // Khớp ⇒ được phép sửa.
         assert!(super::verify_delete_range(&wide, tail, wide.len() as u32));
         // Lệch (caret ở chỗ khác / app tự sửa) ⇒ KHÔNG sửa.
-        assert!(!super::verify_delete_range(&wide, "tôi tôi đi học", wide.len() as u32));
-        assert!(!super::verify_delete_range(&wide[..4], tail, wide.len() as u32));
+        assert!(!super::verify_delete_range(
+            &wide,
+            "tôi tôi đi học",
+            wide.len() as u32
+        ));
+        assert!(!super::verify_delete_range(
+            &wide[..4],
+            tail,
+            wide.len() as u32
+        ));
         // Số glyph ≠ số code unit ⇒ không xác minh được ⇒ không sửa (emoji/legacy).
-        assert!(!super::verify_delete_range(&wide, tail, wide.len() as u32 + 1));
+        assert!(!super::verify_delete_range(
+            &wide,
+            tail,
+            wide.len() as u32 + 1
+        ));
         // Rỗng ⇒ không sửa.
         assert!(!super::verify_delete_range(&[], "", 0));
     }
@@ -1633,7 +1651,7 @@ mod tests {
     /// Đuôi câu engine biết = `delete_chars` ký tự cuối của câu.
     #[test]
     fn expected_tail_lay_duoi_cau() {
-        assert_eq!(super::expected_tail("tôi tôi đi học .", 9), "tôi đi học .");
+        assert_eq!(super::expected_tail("tôi tôi đi học .", 9), " đi học .");
         assert_eq!(super::expected_tail("tôi tôi đi học .", 0), "");
         // `delete_chars` vượt độ dài câu ⇒ lấy hết (không panic).
         assert_eq!(super::expected_tail("abc", 99), "abc");
