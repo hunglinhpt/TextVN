@@ -120,7 +120,29 @@ Tien to `~ ` = *cau sach **co the** chua loi that* (van ban nguoi that) -> test 
 
 > **Ket luan (PO):** "FPR 0,8 %" o day **khong phai** sai sot — do la 0,8 % cau nguoi viet that co loi ma engine bat **dung**.
 
+## 2.4 Tu dien FST (hunspell-vi) — ket qua tra cuy (P4-4 AS-040/AS-041)
+
+Tu dien Viet duoc sinh thanh file FST v1 (char-level trie, mmap, 0 dependency) tu danh sach `hunspell-vi` (1ec5/hunspell-vi, Dự án Từ điển tiếng Việt miễn phí do Hồ Ngọc Đức):
+
+| File | Kieu dau | So tu | Header | Sap xep | Dac biet |
+|---|---|---|---|---|---|
+| `data/assist/vi-DauCu.dic` | Cu (hoa, thuy) | 6.642 | 6642 | Co | Dau o a/e kieu cu |
+| `data/assist/vi-DauMoi.dic` | Moi (hoà, thuỷ) | 6.642 | 6642 | Co | Dau o e kieu moi |
+
+- **Overlap:** 6.573 tu chung (98,9 %) — giong nhau ca 2 kieu dau.
+- **Chi o DauCu:** 69 tu (vd `hòa`, `ngóe`, `lũy`).
+- **Chi o Moi:** 69 tu (vd `hoà`, `ngoã`, `luỵ`).
+- **Ket qua kiem tra:** tat ca 6.642 tu trong file duoc `Reader::contains()` chua dung; tu khong co trong file (vd `xyzzy`) tra `false`; `for_each_final()` tra day du tat ca tu; checksum FNV-1a hop le.
+
+**Test hop ly:** `dict/src/lib.rs` co 6 test moi (`dic_*`) kiem tra `.dic` (bo dong header) → builder → FST → contains/suggest/for_each_final tren du lieu thuc.
+
 ## 5. Viec con lai de "chat luong tot nhat" (P4-4)
+
+| ID | Task | Trang thai | Ghi chu |
+|---|---|---|---|
+| AS-040 | Tu dien FST fallback tu `hunspell-vi` + attribution | ✅ xong | `dict/` crate (FST builder + reader + mmap, 0 dep); `.dic` du lieu (6.642 tu x 2 kieu dau); REUSE.toml da them attribution GPL-2.0-or-later; 6 test FST lookup tren du lieu thuc |
+| AS-041 | Gợi ý từ (edit distance âm tiết) | ⬜ chờ nhận | `Dictionary::suggest()` da khai bao o trait (`assist/src/dict.rs`); chua trien khai o `textvn-dict` |
+| AS-042 | Glue OS spellcheck provider | ⬜ chờ nhận | D32-D37 (OS-first); `Dictionary` trait la giao dien; adapter o FFI/adapter theo D32 |
 ## 6. Bằng chứng (để agent sau không phải đo lại)
 
 | Lệnh | Kết quả |

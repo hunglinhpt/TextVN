@@ -9,3 +9,23 @@ Nút phụ (Từ điển EN...) đặt ở HÀNG NÚT dưới.
 d + nguyên âm tự thành đ (không gõ được dân, dạy, dưới…): đ giờ chỉ từ dd như
 Xin chào. bạn khỏe không	lowercase_sentence_start
 tôi tôi đi học , mai	duplicate_word,space_before_punct
+# --- P4-8: hồi quy từ điển (vi-DauCu/vi-DauMoi, hunspell-vi) ---
+# Tu dien chua chinh xac -> khong bao loi diacritic_typo.
+Tôi nghĩa kho đúng rồi.
+Chúng ta sẽ gọi cho bạn vào ngày mai.
+Văn bản này rất dễ hiểu.
+# Sai vi tri dau co trong bang TYPOS (L8) -> phai bao diacritic_typo.
+tôi nghiã kho	diacritic_typo@4-9
+nghỉa sửa lại	diacritic_typo
+cuả nha tôi	diacritic_typo
+điếm điểm	diacritic_typo
+tiêng viet đẹp	diacritic_typo
+fải đúng không	diacritic_typo
+nhứng người ấy	diacritic_typo
+quyến sách	diacritic_typo
+nguyến Văn A	diacritic_typo
+# Cau sach chua cac tu co trong tu dien (exact match, khong bao loi).
+Tôi đi học ở trường Đại học Bách Khoa.
+Chào bạn, hôm nay thế nào?
+Rất vui được gặp lại bạn.
+

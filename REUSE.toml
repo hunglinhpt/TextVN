@@ -9,6 +9,17 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 LinhBH.CoM"
 SPDX-License-Identifier = "GPL-3.0-or-later"
 
+# Danh sách từ điển tiếng Việt (vi-DauCu.dic / vi-DauMoi.dic) — nguồn:
+# Dự án Từ điển tiếng Việt miễn phí do Hồ Ngọc Đức bảo quản, đóng gói
+# thành Hunspell bởi Ivan Garcia và Nguyễn Xuân Minh (1ec5/hunspell-vi,
+# LibreOffice/dictionaries vi/). Phát hành theo GNU GPL phiên bản 2,
+# tương thích với GPL-3.0-or-later của TextVN (được dùng dưới điều khoản GPLv2).
+[[annotations]]
+path = ["data/assist/*.dic"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Hồ Ngọc Đức (Free Vietnamese Dictionary Project)", "Ivan Garcia", "Nguyễn Xuân Minh"]
+SPDX-License-Identifier = "GPL-2.0-or-later"
+
 # Bản dịch tiếng Việt của Inno Setup (jrsoftware/issrc Files/Languages/Unofficial) — giữ
 # nguyên giấy phép Inno Setup của nó, không phải GPL của TextVN.
 [[annotations]]

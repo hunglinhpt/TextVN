@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "textvn-dict"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# KHÔNG dependency: crate này tự viết FST + mmap bằng FFI thuần của OS
+# (Windows `CreateFileMapping`/`MapViewOfFile`, macOS/Linux `mmap`) — không
+# cần `memmap2`/`fst` (P4-0 D15/D32: `assist` giữ 0-dep; crate này cũng 0-dep
+# để không kéo dependency mới vào lockfile + `cargo deny`).
+
+[dependencies]

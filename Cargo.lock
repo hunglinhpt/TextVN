@@ -150,6 +150,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "textvn-dict"
+version = "0.2.34"
+
+[[package]]
 name = "textvn-ffi"
 version = "0.2.34"
 dependencies = [
