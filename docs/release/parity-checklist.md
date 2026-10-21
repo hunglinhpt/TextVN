@@ -55,5 +55,6 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 |---|---|
 | `emoji[]` | Engine hỗ trợ; bảng điều khiển giữ nguyên khi lưu. |
 | `hotkeys`, `ignore_apps`, `app_overrides`, `updates`, `suggest` | Schema chấp nhận, engine chưa dùng. |
+| `assist.*` (`mode`, `auto_fix`, `language`, `trigger_keys`, `display`, `max_sentence_chars`, `per_app`) | Trợ lý ngữ pháp (P4-0 §7) — **parity**: Windows ✓ engine + TSF overlay/sửa 1 từ (AS-030/031) · macOS ✗ adapter chưa nối (mới có FFI bridge) · Linux ✗ adapter chưa nối (AS-060) · Settings **cả 3 OS ✗** (P4-6 chưa làm) — hiện chỉ sửa trong file, mặc định tắt hoàn toàn (`mode:"off"`). Tray kill-switch chỉ Windows/Linux (AS-023). Test: `config::tests::assist_defaults_match_p4_0_section_7`, `schema_khop_khoi_assist`, `TextVNAppTests` (Swift). |
 
 macOS: bảng cài đặt SwiftUI của `TextVN.app` (menu bar → **Cài đặt...**) — xem cột macOS ở trên; dòng ghi "cần GUI smoke" là chưa có test tự động trên máy thật.

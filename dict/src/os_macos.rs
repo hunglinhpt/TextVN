@@ -433,7 +433,7 @@ mod backend {
     use std::os::raw::c_void;
     use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
     use std::sync::Mutex;
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     /// Timeout cho mỗi lời gọi AppKit (`ms`) — P4-0 D36: `<= 50 ms`, hết giờ =
     /// fail-open. Spell check có thể giao tiếp spell server của OS (chưa xác
@@ -506,6 +506,15 @@ mod backend {
     // `objc_msgSend` được khai báo **nhiều lần với chữ ký C cụ thể** (cách
     // `objc` crate làm): mỗi selector một signature — không dùng varargs vì
     // Rust không cho truyền struct (NSRange) qua varargs chắc chắn đúng ABI.
+    //
+    // `allow(clashing_extern_declarations)` CÓ MỤC ĐÍCH (không phải
+    // blanket-ban): rustc mới cảnh báo khi cùng một symbol GCĐ được khai
+    // báo lại với chữ ký khác — với `objc_msgSend` đây LÀ kỹ thuật chuẩn
+    // (mỗi selector một view kiểu hoá đúng theo C ABI; `objc`/`objc2` crate
+    // làm y hệt; varargs Rust không dùng được cho struct bằng giá trị).
+    // Lời gọi luôn khớp chữ ký của chính lời gọi đó ⇒ không có UB phát sinh
+    // từ việc redeclare (đã ghi nhận bài học vào report phiên).
+    #[allow(clashing_extern_declarations)]
     #[link(name = "objc")]
     extern "C" {
         // `+ (instancetype)stringWithCharacters:(const unichar *)chars
@@ -694,7 +703,7 @@ mod backend {
             return None;
         }
         let languages = available_languages(checker)?;
-        let language = language_match(&languages, language_tag)?;
+        let language = super::language_match(&languages, language_tag)?;
         let sel_tag = sel_of(SEL_UNIQUE_TAG);
         // SAFETY: `cls` non-null; class method verify từ bảng P4-10 §3.1. Tag
         // chỉ có ý nghĩa ở trong phiên này (worker tự giữ).
@@ -775,7 +784,7 @@ mod backend {
                 language,
                 0, // wrap = FALSE — không lặp lại từ đầu trong word-level.
                 session.doc_tag as NSInteger,
-                None, // wordCount: nil
+                std::ptr::null_mut(), // wordCount: nil (xem chữ ký phía trên)
             )
         };
         range.length == 0
@@ -943,7 +952,7 @@ mod backend {
             return;
         }
 
-        let outer_pool = Pool::push();
+        let _outer_pool = Pool::push();
         let session = {
             let _inner_probe_pool = Pool::push();
             probe(language_tag)
@@ -951,13 +960,22 @@ mod backend {
         let Some(session) = session else {
             store_support(language_tag, false);
             ready.send(false).ok();
-            return; // `outer_pool` tự drop tại đây (pop trên đúng thread).
+            return; // `_outer_pool` tự drop tại đây (pop trên đúng thread).
         };
         store_support(language_tag, true);
 
         if ready.send(true).is_err() {
             // Caller bỏ (probe timeout) => không giữ thread; `session` drop
             // (kèm closeSpellDocument guarded) + pool outer pop tại đây.
+            return;
+        }
+
+        // `want_checker = false` (probe-only cho `is_supported`): không vào
+        // vòng lặp job — caller chỉ hỏi capability rồi thả `Worker` ngay nên
+        // channel sẽ đóng tức khắc; thoát tại đây để `Session` (kèm
+        // spell-document tag M3) được thả ngay trên đúng thread, không giữ
+        // "ignored words" vĩnh viễn cho một probe-only worker.
+        if !want_checker {
             return;
         }
 
@@ -1080,6 +1098,38 @@ mod tests {
         assert!(language_match(&[], "vi").is_none());
         // Khác primary subtag ⇒ không khớp (tránh mượn checker nhầm).
         assert!(language_match(&["en".into()], "vi").is_none());
+    }
+
+    #[test]
+    fn khop_vi_voi_vi_vn_duoc_phan_tach_bang_hai_kieu() {
+        // availableLanguages thật của `NSSpellChecker` chỉ có entry `vi`
+        // (primary); tag của caller thường là `vi-VN` (BCP-47, ngăn cách
+        // `-`) nhưng cũng có thể là `vi_VN` (ngăn cách `_`). Cả hai phải
+        // khớp ở mức primary subtag (Fassist-107: entry được chọn phải là
+        // entry của availableLanguages).
+        assert_eq!(
+            language_match(&["vi".into()], "vi_VN"),
+            Some("vi".to_owned())
+        );
+        assert_eq!(
+            language_match(&["vi".into()], "vi-VN"),
+            Some("vi".to_owned())
+        );
+    }
+
+    #[test]
+    fn vi_khong_khop_en_moi_hai_chieu() {
+        // Không mượn checker ngôn ngữ khác — đảo chiều cũng vậy.
+        assert!(language_match(&["en".into()], "vi").is_none());
+        assert!(language_match(&["vi".into()], "en").is_none());
+    }
+
+    #[test]
+    fn vi_khong_khop_vie_moi_hai_chieu() {
+        // `vie` (ISO-639-2B) là mã khác, không khớp ở mức primary subtag
+        // (`vi`) theo bất kỳ chiều nào — tránh mượn checker nhầm.
+        assert!(language_match(&["vie".into()], "vi").is_none());
+        assert!(language_match(&["vi".into()], "vie").is_none());
     }
 
     // ---------------------------------------------------------------

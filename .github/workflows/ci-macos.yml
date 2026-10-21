@@ -25,6 +25,10 @@ on:
       - "corpus/mac/**"
       - "corpus/shared/**"
       - "core/**"
+      # `dict/**` + `assist/**`: bước "Build textvn-dict với feature os-macos"
+      # ở job engine-static chỉ có tác dụng nếu sửa 2 crate này cũng chạy workflow.
+      - "dict/**"
+      - "assist/**"
       - "config/**"
       - "ffi/**"
       - "cli/**"
@@ -49,6 +53,10 @@ on:
       - "corpus/mac/**"
       - "corpus/shared/**"
       - "core/**"
+      # `dict/**` + `assist/**`: bước "Build textvn-dict với feature os-macos"
+      # ở job engine-static chỉ có tác dụng nếu sửa 2 crate này cũng chạy workflow.
+      - "dict/**"
+      - "assist/**"
       - "config/**"
       - "ffi/**"
       - "cli/**"
@@ -184,6 +192,13 @@ jobs:
         run: |
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
           rustc --version
+
+      # Feature `os-macos` MẶC ĐỊNH TẮT (dict/Cargo.toml) ⇒ cargo build/clippy/test
+      # mặc định KHÔNG compile nhánh `dict/src/os_macos.rs` (NSSpellChecker, FFI
+      # Objective-C runtime) — code có thể hỏng âm thầm mà CI vẫn xanh. Build
+      # (codegen thật) trên SDK macOS để bắt drift AS-042.
+      - name: Build textvn-dict với feature os-macos (NSSpellChecker)
+        run: cargo build -p textvn-dict --features os-macos --target aarch64-apple-darwin
 
       - name: Build staticlib 2 arch + lipo
         run: |

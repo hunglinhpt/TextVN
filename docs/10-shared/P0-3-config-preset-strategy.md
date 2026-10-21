@@ -37,6 +37,7 @@
 | `diagnostics` | `{log_level:"error"\|"warn"\|"info"\|"debug", export_repro:false}` | `warn` | `export_repro` chỉ bật khi user bấm "Báo lỗi" — ghi **chuỗi phím đã ẩn danh hoá** |
 | `updates` | `{channel:"stable"\|"beta", auto:bool}` | stable, `true` | |
 | `suggest` | `{enabled:false, provider:"local_ngram", ollama:null}` | tắt hoàn toàn | opt-in, tắt mặc định; `enabled` = Tab hoàn tất từ tiếng Việt (0.2.33, `post/suggest_vn.rs`) |
+| `assist` | `{mode:"off"\|"highlight"\|"autocorrect", auto_fix:"off"\|"safe", language:"vi"\|"en"\|"auto", trigger_keys[], display{show_on_sentence_end, idle_ms, show_on_comma}, max_sentence_chars, per_app{}}` | **tắt hoàn toàn**: `mode:"off"`, `auto_fix:"off"` | Trợ lý ngữ pháp (P4-0 §7, crate `assist/`). `trigger_keys` ∈ `space , . ! ? ; :`, mặc định `["space", ",", "."]`; `display.idle_ms=700`; `max_sentence_chars=500`; `per_app` rỗng. Bật là lựa chọn **rõ ràng** của người dùng (D20 kill-switch) |
 
 `hotkeys` mặc định:
 ```json
@@ -73,7 +74,16 @@
   "secure_fields": "always_pass",
   "diagnostics": { "log_level": "warn", "export_repro": false },
   "updates": { "channel": "stable", "auto": true },
-  "suggest": { "enabled": false, "provider": "local_ngram", "ollama": null }
+  "suggest": { "enabled": false, "provider": "local_ngram", "ollama": null },
+  "assist": {
+    "mode": "off",
+    "auto_fix": "off",
+    "language": "vi",
+    "trigger_keys": ["space", ",", "."],
+    "display": { "show_on_sentence_end": true, "idle_ms": 700, "show_on_comma": false },
+    "max_sentence_chars": 500,
+    "per_app": {}
+  }
 }
 ```
 
