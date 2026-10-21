@@ -1,0 +1,1411 @@
+# corpus/assist/vi_clean_synthetic.ass - cau SACH (khong loi) sinh theo mau cau (P4-0 D19)
+# Dung de do FPR: neu may bao loi tren mot cau nay => bao nham.
+# Sinh lap (deterministic) - khong can nguon van ban ben ngoai, khong rong giay phep.
+Tôi đã học bài tập tiếng Việt tại trường học.
+Tôi đã học kế hoạch công tác.
+Tôi đã học bài thuyết trình tại nhà ở.
+Tôi đã học lịch trình tuần này.
+Tôi đang làm bài tập tiếng Việt tại văn phòng.
+Tôi đang làm kế hoạch công tác.
+Tôi đang làm bài thuyết trình tại công ty.
+Tôi đang làm lịch trình tuần này.
+Tôi sẽ viết bài tập tiếng Việt tại quán cà phê.
+Tôi sẽ viết kế hoạch công tác.
+Tôi sẽ viết bài thuyết trình tại trường học.
+Tôi sẽ viết lịch trình tuần này.
+Tôi muốn nói bài tập tiếng Việt tại thư viện.
+Tôi muốn nói kế hoạch công tác.
+Tôi muốn nói bài thuyết trình tại văn phòng.
+Tôi muốn nói lịch trình tuần này.
+Tôi cần xem bài tập tiếng Việt tại lớp học.
+Tôi cần xem kế hoạch công tác.
+Tôi cần xem bài thuyết trình tại quán cà phê.
+Tôi cần xem lịch trình tuần này.
+Tôi rất thích bài tập tiếng Việt tại phòng họp.
+Tôi rất thích kế hoạch công tác.
+Tôi rất thích bài thuyết trình tại thư viện.
+Tôi rất thích lịch trình tuần này.
+Tôi đã hoàn thành bài tập tiếng Việt tại nhà ở.
+Tôi đã hoàn thành kế hoạch công tác.
+Tôi đã hoàn thành bài thuyết trình tại lớp học.
+Tôi đã hoàn thành lịch trình tuần này.
+Tôi sẽ gửi bài tập tiếng Việt tại công ty.
+Tôi sẽ gửi kế hoạch công tác.
+Tôi sẽ gửi bài thuyết trình tại phòng họp.
+Tôi sẽ gửi lịch trình tuần này.
+Tôi vừa trả lời bài tập tiếng Việt tại trường học.
+Tôi vừa trả lời kế hoạch công tác.
+Tôi vừa trả lời bài thuyết trình tại nhà ở.
+Tôi vừa trả lời lịch trình tuần này.
+Tôi đề nghị kiểm tra bài tập tiếng Việt tại văn phòng.
+Tôi đề nghị kiểm tra kế hoạch công tác.
+Tôi đề nghị kiểm tra bài thuyết trình tại công ty.
+Tôi đề nghị kiểm tra lịch trình tuần này.
+Tôi muốn hỏi bài tập tiếng Việt tại quán cà phê.
+Tôi muốn hỏi kế hoạch công tác.
+Tôi muốn hỏi bài thuyết trình tại trường học.
+Tôi muốn hỏi lịch trình tuần này.
+Tôi đã chuẩn bị bài tập tiếng Việt tại thư viện.
+Tôi đã chuẩn bị kế hoạch công tác.
+Tôi đã chuẩn bị bài thuyết trình tại văn phòng.
+Tôi đã chuẩn bị lịch trình tuần này.
+Tôi sẽ trình bày bài tập tiếng Việt tại lớp học.
+Tôi sẽ trình bày kế hoạch công tác.
+Tôi sẽ trình bày bài thuyết trình tại quán cà phê.
+Tôi sẽ trình bày lịch trình tuần này.
+Tôi vừa nhận được bài tập tiếng Việt tại phòng họp.
+Tôi vừa nhận được kế hoạch công tác.
+Tôi vừa nhận được bài thuyết trình tại thư viện.
+Tôi vừa nhận được lịch trình tuần này.
+Tôi cần trao đổi bài tập tiếng Việt tại nhà ở.
+Tôi cần trao đổi kế hoạch công tác.
+Tôi cần trao đổi bài thuyết trình tại lớp học.
+Tôi cần trao đổi lịch trình tuần này.
+Tôi đã kiểm tra bài tập tiếng Việt tại công ty.
+Tôi đã kiểm tra kế hoạch công tác.
+Tôi đã kiểm tra bài thuyết trình tại phòng họp.
+Tôi đã kiểm tra lịch trình tuần này.
+Bạn đã học bài tập tiếng Việt tại văn phòng.
+Bạn đã học kế hoạch công tác.
+Bạn đã học bài thuyết trình tại công ty.
+Bạn đã học lịch trình tuần này.
+Bạn đang làm bài tập tiếng Việt tại quán cà phê.
+Bạn đang làm kế hoạch công tác.
+Bạn đang làm bài thuyết trình tại trường học.
+Bạn đang làm lịch trình tuần này.
+Bạn sẽ viết bài tập tiếng Việt tại thư viện.
+Bạn sẽ viết kế hoạch công tác.
+Bạn sẽ viết bài thuyết trình tại văn phòng.
+Bạn sẽ viết lịch trình tuần này.
+Bạn muốn nói bài tập tiếng Việt tại lớp học.
+Bạn muốn nói kế hoạch công tác.
+Bạn muốn nói bài thuyết trình tại quán cà phê.
+Bạn muốn nói lịch trình tuần này.
+Bạn cần xem bài tập tiếng Việt tại phòng họp.
+Bạn cần xem kế hoạch công tác.
+Bạn cần xem bài thuyết trình tại thư viện.
+Bạn cần xem lịch trình tuần này.
+Bạn rất thích bài tập tiếng Việt tại nhà ở.
+Bạn rất thích kế hoạch công tác.
+Bạn rất thích bài thuyết trình tại lớp học.
+Bạn rất thích lịch trình tuần này.
+Bạn đã hoàn thành bài tập tiếng Việt tại công ty.
+Bạn đã hoàn thành kế hoạch công tác.
+Bạn đã hoàn thành bài thuyết trình tại phòng họp.
+Bạn đã hoàn thành lịch trình tuần này.
+Bạn sẽ gửi bài tập tiếng Việt tại trường học.
+Bạn sẽ gửi kế hoạch công tác.
+Bạn sẽ gửi bài thuyết trình tại nhà ở.
+Bạn sẽ gửi lịch trình tuần này.
+Bạn vừa trả lời bài tập tiếng Việt tại văn phòng.
+Bạn vừa trả lời kế hoạch công tác.
+Bạn vừa trả lời bài thuyết trình tại công ty.
+Bạn vừa trả lời lịch trình tuần này.
+Bạn đề nghị kiểm tra bài tập tiếng Việt tại quán cà phê.
+Bạn đề nghị kiểm tra kế hoạch công tác.
+Bạn đề nghị kiểm tra bài thuyết trình tại trường học.
+Bạn đề nghị kiểm tra lịch trình tuần này.
+Bạn muốn hỏi bài tập tiếng Việt tại thư viện.
+Bạn muốn hỏi kế hoạch công tác.
+Bạn muốn hỏi bài thuyết trình tại văn phòng.
+Bạn muốn hỏi lịch trình tuần này.
+Bạn đã chuẩn bị bài tập tiếng Việt tại lớp học.
+Bạn đã chuẩn bị kế hoạch công tác.
+Bạn đã chuẩn bị bài thuyết trình tại quán cà phê.
+Bạn đã chuẩn bị lịch trình tuần này.
+Bạn sẽ trình bày bài tập tiếng Việt tại phòng họp.
+Bạn sẽ trình bày kế hoạch công tác.
+Bạn sẽ trình bày bài thuyết trình tại thư viện.
+Bạn sẽ trình bày lịch trình tuần này.
+Bạn vừa nhận được bài tập tiếng Việt tại nhà ở.
+Bạn vừa nhận được kế hoạch công tác.
+Bạn vừa nhận được bài thuyết trình tại lớp học.
+Bạn vừa nhận được lịch trình tuần này.
+Bạn cần trao đổi bài tập tiếng Việt tại công ty.
+Bạn cần trao đổi kế hoạch công tác.
+Bạn cần trao đổi bài thuyết trình tại phòng họp.
+Bạn cần trao đổi lịch trình tuần này.
+Bạn đã kiểm tra bài tập tiếng Việt tại trường học.
+Bạn đã kiểm tra kế hoạch công tác.
+Bạn đã kiểm tra bài thuyết trình tại nhà ở.
+Bạn đã kiểm tra lịch trình tuần này.
+Chúng tôi đã học bài tập tiếng Việt tại quán cà phê.
+Chúng tôi đã học kế hoạch công tác.
+Chúng tôi đã học bài thuyết trình tại trường học.
+Chúng tôi đã học lịch trình tuần này.
+Chúng tôi đang làm bài tập tiếng Việt tại thư viện.
+Chúng tôi đang làm kế hoạch công tác.
+Chúng tôi đang làm bài thuyết trình tại văn phòng.
+Chúng tôi đang làm lịch trình tuần này.
+Chúng tôi sẽ viết bài tập tiếng Việt tại lớp học.
+Chúng tôi sẽ viết kế hoạch công tác.
+Chúng tôi sẽ viết bài thuyết trình tại quán cà phê.
+Chúng tôi sẽ viết lịch trình tuần này.
+Chúng tôi muốn nói bài tập tiếng Việt tại phòng họp.
+Chúng tôi muốn nói kế hoạch công tác.
+Chúng tôi muốn nói bài thuyết trình tại thư viện.
+Chúng tôi muốn nói lịch trình tuần này.
+Chúng tôi cần xem bài tập tiếng Việt tại nhà ở.
+Chúng tôi cần xem kế hoạch công tác.
+Chúng tôi cần xem bài thuyết trình tại lớp học.
+Chúng tôi cần xem lịch trình tuần này.
+Chúng tôi rất thích bài tập tiếng Việt tại công ty.
+Chúng tôi rất thích kế hoạch công tác.
+Chúng tôi rất thích bài thuyết trình tại phòng họp.
+Chúng tôi rất thích lịch trình tuần này.
+Chúng tôi đã hoàn thành bài tập tiếng Việt tại trường học.
+Chúng tôi đã hoàn thành kế hoạch công tác.
+Chúng tôi đã hoàn thành bài thuyết trình tại nhà ở.
+Chúng tôi đã hoàn thành lịch trình tuần này.
+Chúng tôi sẽ gửi bài tập tiếng Việt tại văn phòng.
+Chúng tôi sẽ gửi kế hoạch công tác.
+Chúng tôi sẽ gửi bài thuyết trình tại công ty.
+Chúng tôi sẽ gửi lịch trình tuần này.
+Chúng tôi vừa trả lời bài tập tiếng Việt tại quán cà phê.
+Chúng tôi vừa trả lời kế hoạch công tác.
+Chúng tôi vừa trả lời bài thuyết trình tại trường học.
+Chúng tôi vừa trả lời lịch trình tuần này.
+Chúng tôi đề nghị kiểm tra bài tập tiếng Việt tại thư viện.
+Chúng tôi đề nghị kiểm tra kế hoạch công tác.
+Chúng tôi đề nghị kiểm tra bài thuyết trình tại văn phòng.
+Chúng tôi đề nghị kiểm tra lịch trình tuần này.
+Chúng tôi muốn hỏi bài tập tiếng Việt tại lớp học.
+Chúng tôi muốn hỏi kế hoạch công tác.
+Chúng tôi muốn hỏi bài thuyết trình tại quán cà phê.
+Chúng tôi muốn hỏi lịch trình tuần này.
+Chúng tôi đã chuẩn bị bài tập tiếng Việt tại phòng họp.
+Chúng tôi đã chuẩn bị kế hoạch công tác.
+Chúng tôi đã chuẩn bị bài thuyết trình tại thư viện.
+Chúng tôi đã chuẩn bị lịch trình tuần này.
+Chúng tôi sẽ trình bày bài tập tiếng Việt tại nhà ở.
+Chúng tôi sẽ trình bày kế hoạch công tác.
+Chúng tôi sẽ trình bày bài thuyết trình tại lớp học.
+Chúng tôi sẽ trình bày lịch trình tuần này.
+Chúng tôi vừa nhận được bài tập tiếng Việt tại công ty.
+Chúng tôi vừa nhận được kế hoạch công tác.
+Chúng tôi vừa nhận được bài thuyết trình tại phòng họp.
+Chúng tôi vừa nhận được lịch trình tuần này.
+Chúng tôi cần trao đổi bài tập tiếng Việt tại trường học.
+Chúng tôi cần trao đổi kế hoạch công tác.
+Chúng tôi cần trao đổi bài thuyết trình tại nhà ở.
+Chúng tôi cần trao đổi lịch trình tuần này.
+Chúng tôi đã kiểm tra bài tập tiếng Việt tại văn phòng.
+Chúng tôi đã kiểm tra kế hoạch công tác.
+Chúng tôi đã kiểm tra bài thuyết trình tại công ty.
+Chúng tôi đã kiểm tra lịch trình tuần này.
+Cô ấy đã học bài tập tiếng Việt tại thư viện.
+Cô ấy đã học kế hoạch công tác.
+Cô ấy đã học bài thuyết trình tại văn phòng.
+Cô ấy đã học lịch trình tuần này.
+Cô ấy đang làm bài tập tiếng Việt tại lớp học.
+Cô ấy đang làm kế hoạch công tác.
+Cô ấy đang làm bài thuyết trình tại quán cà phê.
+Cô ấy đang làm lịch trình tuần này.
+Cô ấy sẽ viết bài tập tiếng Việt tại phòng họp.
+Cô ấy sẽ viết kế hoạch công tác.
+Cô ấy sẽ viết bài thuyết trình tại thư viện.
+Cô ấy sẽ viết lịch trình tuần này.
+Cô ấy muốn nói bài tập tiếng Việt tại nhà ở.
+Cô ấy muốn nói kế hoạch công tác.
+Cô ấy muốn nói bài thuyết trình tại lớp học.
+Cô ấy muốn nói lịch trình tuần này.
+Cô ấy cần xem bài tập tiếng Việt tại công ty.
+Cô ấy cần xem kế hoạch công tác.
+Cô ấy cần xem bài thuyết trình tại phòng họp.
+Cô ấy cần xem lịch trình tuần này.
+Cô ấy rất thích bài tập tiếng Việt tại trường học.
+Cô ấy rất thích kế hoạch công tác.
+Cô ấy rất thích bài thuyết trình tại nhà ở.
+Cô ấy rất thích lịch trình tuần này.
+Cô ấy đã hoàn thành bài tập tiếng Việt tại văn phòng.
+Cô ấy đã hoàn thành kế hoạch công tác.
+Cô ấy đã hoàn thành bài thuyết trình tại công ty.
+Cô ấy đã hoàn thành lịch trình tuần này.
+Cô ấy sẽ gửi bài tập tiếng Việt tại quán cà phê.
+Cô ấy sẽ gửi kế hoạch công tác.
+Cô ấy sẽ gửi bài thuyết trình tại trường học.
+Cô ấy sẽ gửi lịch trình tuần này.
+Cô ấy vừa trả lời bài tập tiếng Việt tại thư viện.
+Cô ấy vừa trả lời kế hoạch công tác.
+Cô ấy vừa trả lời bài thuyết trình tại văn phòng.
+Cô ấy vừa trả lời lịch trình tuần này.
+Cô ấy đề nghị kiểm tra bài tập tiếng Việt tại lớp học.
+Cô ấy đề nghị kiểm tra kế hoạch công tác.
+Cô ấy đề nghị kiểm tra bài thuyết trình tại quán cà phê.
+Cô ấy đề nghị kiểm tra lịch trình tuần này.
+Cô ấy muốn hỏi bài tập tiếng Việt tại phòng họp.
+Cô ấy muốn hỏi kế hoạch công tác.
+Cô ấy muốn hỏi bài thuyết trình tại thư viện.
+Cô ấy muốn hỏi lịch trình tuần này.
+Cô ấy đã chuẩn bị bài tập tiếng Việt tại nhà ở.
+Cô ấy đã chuẩn bị kế hoạch công tác.
+Cô ấy đã chuẩn bị bài thuyết trình tại lớp học.
+Cô ấy đã chuẩn bị lịch trình tuần này.
+Cô ấy sẽ trình bày bài tập tiếng Việt tại công ty.
+Cô ấy sẽ trình bày kế hoạch công tác.
+Cô ấy sẽ trình bày bài thuyết trình tại phòng họp.
+Cô ấy sẽ trình bày lịch trình tuần này.
+Cô ấy vừa nhận được bài tập tiếng Việt tại trường học.
+Cô ấy vừa nhận được kế hoạch công tác.
+Cô ấy vừa nhận được bài thuyết trình tại nhà ở.
+Cô ấy vừa nhận được lịch trình tuần này.
+Cô ấy cần trao đổi bài tập tiếng Việt tại văn phòng.
+Cô ấy cần trao đổi kế hoạch công tác.
+Cô ấy cần trao đổi bài thuyết trình tại công ty.
+Cô ấy cần trao đổi lịch trình tuần này.
+Cô ấy đã kiểm tra bài tập tiếng Việt tại quán cà phê.
+Cô ấy đã kiểm tra kế hoạch công tác.
+Cô ấy đã kiểm tra bài thuyết trình tại trường học.
+Cô ấy đã kiểm tra lịch trình tuần này.
+Giáo viên đã học bài tập tiếng Việt tại lớp học.
+Giáo viên đã học kế hoạch công tác.
+Giáo viên đã học bài thuyết trình tại quán cà phê.
+Giáo viên đã học lịch trình tuần này.
+Giáo viên đang làm bài tập tiếng Việt tại phòng họp.
+Giáo viên đang làm kế hoạch công tác.
+Giáo viên đang làm bài thuyết trình tại thư viện.
+Giáo viên đang làm lịch trình tuần này.
+Giáo viên sẽ viết bài tập tiếng Việt tại nhà ở.
+Giáo viên sẽ viết kế hoạch công tác.
+Giáo viên sẽ viết bài thuyết trình tại lớp học.
+Giáo viên sẽ viết lịch trình tuần này.
+Giáo viên muốn nói bài tập tiếng Việt tại công ty.
+Giáo viên muốn nói kế hoạch công tác.
+Giáo viên muốn nói bài thuyết trình tại phòng họp.
+Giáo viên muốn nói lịch trình tuần này.
+Giáo viên cần xem bài tập tiếng Việt tại trường học.
+Giáo viên cần xem kế hoạch công tác.
+Giáo viên cần xem bài thuyết trình tại nhà ở.
+Giáo viên cần xem lịch trình tuần này.
+Giáo viên rất thích bài tập tiếng Việt tại văn phòng.
+Giáo viên rất thích kế hoạch công tác.
+Giáo viên rất thích bài thuyết trình tại công ty.
+Giáo viên rất thích lịch trình tuần này.
+Giáo viên đã hoàn thành bài tập tiếng Việt tại quán cà phê.
+Giáo viên đã hoàn thành kế hoạch công tác.
+Giáo viên đã hoàn thành bài thuyết trình tại trường học.
+Giáo viên đã hoàn thành lịch trình tuần này.
+Giáo viên sẽ gửi bài tập tiếng Việt tại thư viện.
+Giáo viên sẽ gửi kế hoạch công tác.
+Giáo viên sẽ gửi bài thuyết trình tại văn phòng.
+Giáo viên sẽ gửi lịch trình tuần này.
+Giáo viên vừa trả lời bài tập tiếng Việt tại lớp học.
+Giáo viên vừa trả lời kế hoạch công tác.
+Giáo viên vừa trả lời bài thuyết trình tại quán cà phê.
+Giáo viên vừa trả lời lịch trình tuần này.
+Giáo viên đề nghị kiểm tra bài tập tiếng Việt tại phòng họp.
+Giáo viên đề nghị kiểm tra kế hoạch công tác.
+Giáo viên đề nghị kiểm tra bài thuyết trình tại thư viện.
+Giáo viên đề nghị kiểm tra lịch trình tuần này.
+Giáo viên muốn hỏi bài tập tiếng Việt tại nhà ở.
+Giáo viên muốn hỏi kế hoạch công tác.
+Giáo viên muốn hỏi bài thuyết trình tại lớp học.
+Giáo viên muốn hỏi lịch trình tuần này.
+Giáo viên đã chuẩn bị bài tập tiếng Việt tại công ty.
+Giáo viên đã chuẩn bị kế hoạch công tác.
+Giáo viên đã chuẩn bị bài thuyết trình tại phòng họp.
+Giáo viên đã chuẩn bị lịch trình tuần này.
+Giáo viên sẽ trình bày bài tập tiếng Việt tại trường học.
+Giáo viên sẽ trình bày kế hoạch công tác.
+Giáo viên sẽ trình bày bài thuyết trình tại nhà ở.
+Giáo viên sẽ trình bày lịch trình tuần này.
+Giáo viên vừa nhận được bài tập tiếng Việt tại văn phòng.
+Giáo viên vừa nhận được kế hoạch công tác.
+Giáo viên vừa nhận được bài thuyết trình tại công ty.
+Giáo viên vừa nhận được lịch trình tuần này.
+Giáo viên cần trao đổi bài tập tiếng Việt tại quán cà phê.
+Giáo viên cần trao đổi kế hoạch công tác.
+Giáo viên cần trao đổi bài thuyết trình tại trường học.
+Giáo viên cần trao đổi lịch trình tuần này.
+Giáo viên đã kiểm tra bài tập tiếng Việt tại thư viện.
+Giáo viên đã kiểm tra kế hoạch công tác.
+Giáo viên đã kiểm tra bài thuyết trình tại văn phòng.
+Giáo viên đã kiểm tra lịch trình tuần này.
+Bạn học đã học bài tập tiếng Việt tại phòng họp.
+Bạn học đã học kế hoạch công tác.
+Bạn học đã học bài thuyết trình tại thư viện.
+Bạn học đã học lịch trình tuần này.
+Bạn học đang làm bài tập tiếng Việt tại nhà ở.
+Bạn học đang làm kế hoạch công tác.
+Bạn học đang làm bài thuyết trình tại lớp học.
+Bạn học đang làm lịch trình tuần này.
+Bạn học sẽ viết bài tập tiếng Việt tại công ty.
+Bạn học sẽ viết kế hoạch công tác.
+Bạn học sẽ viết bài thuyết trình tại phòng họp.
+Bạn học sẽ viết lịch trình tuần này.
+Bạn học muốn nói bài tập tiếng Việt tại trường học.
+Bạn học muốn nói kế hoạch công tác.
+Bạn học muốn nói bài thuyết trình tại nhà ở.
+Bạn học muốn nói lịch trình tuần này.
+Bạn học cần xem bài tập tiếng Việt tại văn phòng.
+Bạn học cần xem kế hoạch công tác.
+Bạn học cần xem bài thuyết trình tại công ty.
+Bạn học cần xem lịch trình tuần này.
+Bạn học rất thích bài tập tiếng Việt tại quán cà phê.
+Bạn học rất thích kế hoạch công tác.
+Bạn học rất thích bài thuyết trình tại trường học.
+Bạn học rất thích lịch trình tuần này.
+Bạn học đã hoàn thành bài tập tiếng Việt tại thư viện.
+Bạn học đã hoàn thành kế hoạch công tác.
+Bạn học đã hoàn thành bài thuyết trình tại văn phòng.
+Bạn học đã hoàn thành lịch trình tuần này.
+Bạn học sẽ gửi bài tập tiếng Việt tại lớp học.
+Bạn học sẽ gửi kế hoạch công tác.
+Bạn học sẽ gửi bài thuyết trình tại quán cà phê.
+Bạn học sẽ gửi lịch trình tuần này.
+Bạn học vừa trả lời bài tập tiếng Việt tại phòng họp.
+Bạn học vừa trả lời kế hoạch công tác.
+Bạn học vừa trả lời bài thuyết trình tại thư viện.
+Bạn học vừa trả lời lịch trình tuần này.
+Bạn học đề nghị kiểm tra bài tập tiếng Việt tại nhà ở.
+Bạn học đề nghị kiểm tra kế hoạch công tác.
+Bạn học đề nghị kiểm tra bài thuyết trình tại lớp học.
+Bạn học đề nghị kiểm tra lịch trình tuần này.
+Bạn học muốn hỏi bài tập tiếng Việt tại công ty.
+Bạn học muốn hỏi kế hoạch công tác.
+Bạn học muốn hỏi bài thuyết trình tại phòng họp.
+Bạn học muốn hỏi lịch trình tuần này.
+Bạn học đã chuẩn bị bài tập tiếng Việt tại trường học.
+Bạn học đã chuẩn bị kế hoạch công tác.
+Bạn học đã chuẩn bị bài thuyết trình tại nhà ở.
+Bạn học đã chuẩn bị lịch trình tuần này.
+Bạn học sẽ trình bày bài tập tiếng Việt tại văn phòng.
+Bạn học sẽ trình bày kế hoạch công tác.
+Bạn học sẽ trình bày bài thuyết trình tại công ty.
+Bạn học sẽ trình bày lịch trình tuần này.
+Bạn học vừa nhận được bài tập tiếng Việt tại quán cà phê.
+Bạn học vừa nhận được kế hoạch công tác.
+Bạn học vừa nhận được bài thuyết trình tại trường học.
+Bạn học vừa nhận được lịch trình tuần này.
+Bạn học cần trao đổi bài tập tiếng Việt tại thư viện.
+Bạn học cần trao đổi kế hoạch công tác.
+Bạn học cần trao đổi bài thuyết trình tại văn phòng.
+Bạn học cần trao đổi lịch trình tuần này.
+Bạn học đã kiểm tra bài tập tiếng Việt tại lớp học.
+Bạn học đã kiểm tra kế hoạch công tác.
+Bạn học đã kiểm tra bài thuyết trình tại quán cà phê.
+Bạn học đã kiểm tra lịch trình tuần này.
+Người lớn đã học bài tập tiếng Việt tại nhà ở.
+Người lớn đã học kế hoạch công tác.
+Người lớn đã học bài thuyết trình tại lớp học.
+Người lớn đã học lịch trình tuần này.
+Người lớn đang làm bài tập tiếng Việt tại công ty.
+Người lớn đang làm kế hoạch công tác.
+Người lớn đang làm bài thuyết trình tại phòng họp.
+Người lớn đang làm lịch trình tuần này.
+Người lớn sẽ viết bài tập tiếng Việt tại trường học.
+Người lớn sẽ viết kế hoạch công tác.
+Người lớn sẽ viết bài thuyết trình tại nhà ở.
+Người lớn sẽ viết lịch trình tuần này.
+Người lớn muốn nói bài tập tiếng Việt tại văn phòng.
+Người lớn muốn nói kế hoạch công tác.
+Người lớn muốn nói bài thuyết trình tại công ty.
+Người lớn muốn nói lịch trình tuần này.
+Người lớn cần xem bài tập tiếng Việt tại quán cà phê.
+Người lớn cần xem kế hoạch công tác.
+Người lớn cần xem bài thuyết trình tại trường học.
+Người lớn cần xem lịch trình tuần này.
+Người lớn rất thích bài tập tiếng Việt tại thư viện.
+Người lớn rất thích kế hoạch công tác.
+Người lớn rất thích bài thuyết trình tại văn phòng.
+Người lớn rất thích lịch trình tuần này.
+Người lớn đã hoàn thành bài tập tiếng Việt tại lớp học.
+Người lớn đã hoàn thành kế hoạch công tác.
+Người lớn đã hoàn thành bài thuyết trình tại quán cà phê.
+Người lớn đã hoàn thành lịch trình tuần này.
+Người lớn sẽ gửi bài tập tiếng Việt tại phòng họp.
+Người lớn sẽ gửi kế hoạch công tác.
+Người lớn sẽ gửi bài thuyết trình tại thư viện.
+Người lớn sẽ gửi lịch trình tuần này.
+Người lớn vừa trả lời bài tập tiếng Việt tại nhà ở.
+Người lớn vừa trả lời kế hoạch công tác.
+Người lớn vừa trả lời bài thuyết trình tại lớp học.
+Người lớn vừa trả lời lịch trình tuần này.
+Người lớn đề nghị kiểm tra bài tập tiếng Việt tại công ty.
+Người lớn đề nghị kiểm tra kế hoạch công tác.
+Người lớn đề nghị kiểm tra bài thuyết trình tại phòng họp.
+Người lớn đề nghị kiểm tra lịch trình tuần này.
+Người lớn muốn hỏi bài tập tiếng Việt tại trường học.
+Người lớn muốn hỏi kế hoạch công tác.
+Người lớn muốn hỏi bài thuyết trình tại nhà ở.
+Người lớn muốn hỏi lịch trình tuần này.
+Người lớn đã chuẩn bị bài tập tiếng Việt tại văn phòng.
+Người lớn đã chuẩn bị kế hoạch công tác.
+Người lớn đã chuẩn bị bài thuyết trình tại công ty.
+Người lớn đã chuẩn bị lịch trình tuần này.
+Người lớn sẽ trình bày bài tập tiếng Việt tại quán cà phê.
+Người lớn sẽ trình bày kế hoạch công tác.
+Người lớn sẽ trình bày bài thuyết trình tại trường học.
+Người lớn sẽ trình bày lịch trình tuần này.
+Người lớn vừa nhận được bài tập tiếng Việt tại thư viện.
+Người lớn vừa nhận được kế hoạch công tác.
+Người lớn vừa nhận được bài thuyết trình tại văn phòng.
+Người lớn vừa nhận được lịch trình tuần này.
+Người lớn cần trao đổi bài tập tiếng Việt tại lớp học.
+Người lớn cần trao đổi kế hoạch công tác.
+Người lớn cần trao đổi bài thuyết trình tại quán cà phê.
+Người lớn cần trao đổi lịch trình tuần này.
+Người lớn đã kiểm tra bài tập tiếng Việt tại phòng họp.
+Người lớn đã kiểm tra kế hoạch công tác.
+Người lớn đã kiểm tra bài thuyết trình tại thư viện.
+Người lớn đã kiểm tra lịch trình tuần này.
+Đồng nghiệp đã học bài tập tiếng Việt tại công ty.
+Đồng nghiệp đã học kế hoạch công tác.
+Đồng nghiệp đã học bài thuyết trình tại phòng họp.
+Đồng nghiệp đã học lịch trình tuần này.
+Đồng nghiệp đang làm bài tập tiếng Việt tại trường học.
+Đồng nghiệp đang làm kế hoạch công tác.
+Đồng nghiệp đang làm bài thuyết trình tại nhà ở.
+Đồng nghiệp đang làm lịch trình tuần này.
+Đồng nghiệp sẽ viết bài tập tiếng Việt tại văn phòng.
+Đồng nghiệp sẽ viết kế hoạch công tác.
+Đồng nghiệp sẽ viết bài thuyết trình tại công ty.
+Đồng nghiệp sẽ viết lịch trình tuần này.
+Đồng nghiệp muốn nói bài tập tiếng Việt tại quán cà phê.
+Đồng nghiệp muốn nói kế hoạch công tác.
+Đồng nghiệp muốn nói bài thuyết trình tại trường học.
+Đồng nghiệp muốn nói lịch trình tuần này.
+Đồng nghiệp cần xem bài tập tiếng Việt tại thư viện.
+Đồng nghiệp cần xem kế hoạch công tác.
+Đồng nghiệp cần xem bài thuyết trình tại văn phòng.
+Đồng nghiệp cần xem lịch trình tuần này.
+Đồng nghiệp rất thích bài tập tiếng Việt tại lớp học.
+Đồng nghiệp rất thích kế hoạch công tác.
+Đồng nghiệp rất thích bài thuyết trình tại quán cà phê.
+Đồng nghiệp rất thích lịch trình tuần này.
+Đồng nghiệp đã hoàn thành bài tập tiếng Việt tại phòng họp.
+Đồng nghiệp đã hoàn thành kế hoạch công tác.
+Đồng nghiệp đã hoàn thành bài thuyết trình tại thư viện.
+Đồng nghiệp đã hoàn thành lịch trình tuần này.
+Đồng nghiệp sẽ gửi bài tập tiếng Việt tại nhà ở.
+Đồng nghiệp sẽ gửi kế hoạch công tác.
+Đồng nghiệp sẽ gửi bài thuyết trình tại lớp học.
+Đồng nghiệp sẽ gửi lịch trình tuần này.
+Đồng nghiệp vừa trả lời bài tập tiếng Việt tại công ty.
+Đồng nghiệp vừa trả lời kế hoạch công tác.
+Đồng nghiệp vừa trả lời bài thuyết trình tại phòng họp.
+Đồng nghiệp vừa trả lời lịch trình tuần này.
+Đồng nghiệp đề nghị kiểm tra bài tập tiếng Việt tại trường học.
+Đồng nghiệp đề nghị kiểm tra kế hoạch công tác.
+Đồng nghiệp đề nghị kiểm tra bài thuyết trình tại nhà ở.
+Đồng nghiệp đề nghị kiểm tra lịch trình tuần này.
+Đồng nghiệp muốn hỏi bài tập tiếng Việt tại văn phòng.
+Đồng nghiệp muốn hỏi kế hoạch công tác.
+Đồng nghiệp muốn hỏi bài thuyết trình tại công ty.
+Đồng nghiệp muốn hỏi lịch trình tuần này.
+Đồng nghiệp đã chuẩn bị bài tập tiếng Việt tại quán cà phê.
+Đồng nghiệp đã chuẩn bị kế hoạch công tác.
+Đồng nghiệp đã chuẩn bị bài thuyết trình tại trường học.
+Đồng nghiệp đã chuẩn bị lịch trình tuần này.
+Đồng nghiệp sẽ trình bày bài tập tiếng Việt tại thư viện.
+Đồng nghiệp sẽ trình bày kế hoạch công tác.
+Đồng nghiệp sẽ trình bày bài thuyết trình tại văn phòng.
+Đồng nghiệp sẽ trình bày lịch trình tuần này.
+Đồng nghiệp vừa nhận được bài tập tiếng Việt tại lớp học.
+Đồng nghiệp vừa nhận được kế hoạch công tác.
+Đồng nghiệp vừa nhận được bài thuyết trình tại quán cà phê.
+Đồng nghiệp vừa nhận được lịch trình tuần này.
+Đồng nghiệp cần trao đổi bài tập tiếng Việt tại phòng họp.
+Đồng nghiệp cần trao đổi kế hoạch công tác.
+Đồng nghiệp cần trao đổi bài thuyết trình tại thư viện.
+Đồng nghiệp cần trao đổi lịch trình tuần này.
+Đồng nghiệp đã kiểm tra bài tập tiếng Việt tại nhà ở.
+Đồng nghiệp đã kiểm tra kế hoạch công tác.
+Đồng nghiệp đã kiểm tra bài thuyết trình tại lớp học.
+Đồng nghiệp đã kiểm tra lịch trình tuần này.
+Cả nhóm đã học bài tập tiếng Việt tại trường học.
+Cả nhóm đã học kế hoạch công tác.
+Cả nhóm đã học bài thuyết trình tại nhà ở.
+Cả nhóm đã học lịch trình tuần này.
+Cả nhóm đang làm bài tập tiếng Việt tại văn phòng.
+Cả nhóm đang làm kế hoạch công tác.
+Cả nhóm đang làm bài thuyết trình tại công ty.
+Cả nhóm đang làm lịch trình tuần này.
+Cả nhóm sẽ viết bài tập tiếng Việt tại quán cà phê.
+Cả nhóm sẽ viết kế hoạch công tác.
+Cả nhóm sẽ viết bài thuyết trình tại trường học.
+Cả nhóm sẽ viết lịch trình tuần này.
+Cả nhóm muốn nói bài tập tiếng Việt tại thư viện.
+Cả nhóm muốn nói kế hoạch công tác.
+Cả nhóm muốn nói bài thuyết trình tại văn phòng.
+Cả nhóm muốn nói lịch trình tuần này.
+Cả nhóm cần xem bài tập tiếng Việt tại lớp học.
+Cả nhóm cần xem kế hoạch công tác.
+Cả nhóm cần xem bài thuyết trình tại quán cà phê.
+Cả nhóm cần xem lịch trình tuần này.
+Cả nhóm rất thích bài tập tiếng Việt tại phòng họp.
+Cả nhóm rất thích kế hoạch công tác.
+Cả nhóm rất thích bài thuyết trình tại thư viện.
+Cả nhóm rất thích lịch trình tuần này.
+Cả nhóm đã hoàn thành bài tập tiếng Việt tại nhà ở.
+Cả nhóm đã hoàn thành kế hoạch công tác.
+Cả nhóm đã hoàn thành bài thuyết trình tại lớp học.
+Cả nhóm đã hoàn thành lịch trình tuần này.
+Cả nhóm sẽ gửi bài tập tiếng Việt tại công ty.
+Cả nhóm sẽ gửi kế hoạch công tác.
+Cả nhóm sẽ gửi bài thuyết trình tại phòng họp.
+Cả nhóm sẽ gửi lịch trình tuần này.
+Cả nhóm vừa trả lời bài tập tiếng Việt tại trường học.
+Cả nhóm vừa trả lời kế hoạch công tác.
+Cả nhóm vừa trả lời bài thuyết trình tại nhà ở.
+Cả nhóm vừa trả lời lịch trình tuần này.
+Cả nhóm đề nghị kiểm tra bài tập tiếng Việt tại văn phòng.
+Cả nhóm đề nghị kiểm tra kế hoạch công tác.
+Cả nhóm đề nghị kiểm tra bài thuyết trình tại công ty.
+Cả nhóm đề nghị kiểm tra lịch trình tuần này.
+Cả nhóm muốn hỏi bài tập tiếng Việt tại quán cà phê.
+Cả nhóm muốn hỏi kế hoạch công tác.
+Cả nhóm muốn hỏi bài thuyết trình tại trường học.
+Cả nhóm muốn hỏi lịch trình tuần này.
+Cả nhóm đã chuẩn bị bài tập tiếng Việt tại thư viện.
+Cả nhóm đã chuẩn bị kế hoạch công tác.
+Cả nhóm đã chuẩn bị bài thuyết trình tại văn phòng.
+Cả nhóm đã chuẩn bị lịch trình tuần này.
+Cả nhóm sẽ trình bày bài tập tiếng Việt tại lớp học.
+Cả nhóm sẽ trình bày kế hoạch công tác.
+Cả nhóm sẽ trình bày bài thuyết trình tại quán cà phê.
+Cả nhóm sẽ trình bày lịch trình tuần này.
+Cả nhóm vừa nhận được bài tập tiếng Việt tại phòng họp.
+Cả nhóm vừa nhận được kế hoạch công tác.
+Cả nhóm vừa nhận được bài thuyết trình tại thư viện.
+Cả nhóm vừa nhận được lịch trình tuần này.
+Cả nhóm cần trao đổi bài tập tiếng Việt tại nhà ở.
+Cả nhóm cần trao đổi kế hoạch công tác.
+Cả nhóm cần trao đổi bài thuyết trình tại lớp học.
+Cả nhóm cần trao đổi lịch trình tuần này.
+Cả nhóm đã kiểm tra bài tập tiếng Việt tại công ty.
+Cả nhóm đã kiểm tra kế hoạch công tác.
+Cả nhóm đã kiểm tra bài thuyết trình tại phòng họp.
+Cả nhóm đã kiểm tra lịch trình tuần này.
+Mọi người đã học bài tập tiếng Việt tại văn phòng.
+Mọi người đã học kế hoạch công tác.
+Mọi người đã học bài thuyết trình tại công ty.
+Mọi người đã học lịch trình tuần này.
+Mọi người đang làm bài tập tiếng Việt tại quán cà phê.
+Mọi người đang làm kế hoạch công tác.
+Mọi người đang làm bài thuyết trình tại trường học.
+Mọi người đang làm lịch trình tuần này.
+Mọi người sẽ viết bài tập tiếng Việt tại thư viện.
+Mọi người sẽ viết kế hoạch công tác.
+Mọi người sẽ viết bài thuyết trình tại văn phòng.
+Mọi người sẽ viết lịch trình tuần này.
+Mọi người muốn nói bài tập tiếng Việt tại lớp học.
+Mọi người muốn nói kế hoạch công tác.
+Mọi người muốn nói bài thuyết trình tại quán cà phê.
+Mọi người muốn nói lịch trình tuần này.
+Mọi người cần xem bài tập tiếng Việt tại phòng họp.
+Mọi người cần xem kế hoạch công tác.
+Mọi người cần xem bài thuyết trình tại thư viện.
+Mọi người cần xem lịch trình tuần này.
+Mọi người rất thích bài tập tiếng Việt tại nhà ở.
+Mọi người rất thích kế hoạch công tác.
+Mọi người rất thích bài thuyết trình tại lớp học.
+Mọi người rất thích lịch trình tuần này.
+Mọi người đã hoàn thành bài tập tiếng Việt tại công ty.
+Mọi người đã hoàn thành kế hoạch công tác.
+Mọi người đã hoàn thành bài thuyết trình tại phòng họp.
+Mọi người đã hoàn thành lịch trình tuần này.
+Mọi người sẽ gửi bài tập tiếng Việt tại trường học.
+Mọi người sẽ gửi kế hoạch công tác.
+Mọi người sẽ gửi bài thuyết trình tại nhà ở.
+Mọi người sẽ gửi lịch trình tuần này.
+Mọi người vừa trả lời bài tập tiếng Việt tại văn phòng.
+Mọi người vừa trả lời kế hoạch công tác.
+Mọi người vừa trả lời bài thuyết trình tại công ty.
+Mọi người vừa trả lời lịch trình tuần này.
+Mọi người đề nghị kiểm tra bài tập tiếng Việt tại quán cà phê.
+Mọi người đề nghị kiểm tra kế hoạch công tác.
+Mọi người đề nghị kiểm tra bài thuyết trình tại trường học.
+Mọi người đề nghị kiểm tra lịch trình tuần này.
+Mọi người muốn hỏi bài tập tiếng Việt tại thư viện.
+Mọi người muốn hỏi kế hoạch công tác.
+Mọi người muốn hỏi bài thuyết trình tại văn phòng.
+Mọi người muốn hỏi lịch trình tuần này.
+Mọi người đã chuẩn bị bài tập tiếng Việt tại lớp học.
+Mọi người đã chuẩn bị kế hoạch công tác.
+Mọi người đã chuẩn bị bài thuyết trình tại quán cà phê.
+Mọi người đã chuẩn bị lịch trình tuần này.
+Mọi người sẽ trình bày bài tập tiếng Việt tại phòng họp.
+Mọi người sẽ trình bày kế hoạch công tác.
+Mọi người sẽ trình bày bài thuyết trình tại thư viện.
+Mọi người sẽ trình bày lịch trình tuần này.
+Mọi người vừa nhận được bài tập tiếng Việt tại nhà ở.
+Mọi người vừa nhận được kế hoạch công tác.
+Mọi người vừa nhận được bài thuyết trình tại lớp học.
+Mọi người vừa nhận được lịch trình tuần này.
+Mọi người cần trao đổi bài tập tiếng Việt tại công ty.
+Mọi người cần trao đổi kế hoạch công tác.
+Mọi người cần trao đổi bài thuyết trình tại phòng họp.
+Mọi người cần trao đổi lịch trình tuần này.
+Mọi người đã kiểm tra bài tập tiếng Việt tại trường học.
+Mọi người đã kiểm tra kế hoạch công tác.
+Mọi người đã kiểm tra bài thuyết trình tại nhà ở.
+Mọi người đã kiểm tra lịch trình tuần này.
+Thầy giáo đã học bài tập tiếng Việt tại quán cà phê.
+Thầy giáo đã học kế hoạch công tác.
+Thầy giáo đã học bài thuyết trình tại trường học.
+Thầy giáo đã học lịch trình tuần này.
+Thầy giáo đang làm bài tập tiếng Việt tại thư viện.
+Thầy giáo đang làm kế hoạch công tác.
+Thầy giáo đang làm bài thuyết trình tại văn phòng.
+Thầy giáo đang làm lịch trình tuần này.
+Thầy giáo sẽ viết bài tập tiếng Việt tại lớp học.
+Thầy giáo sẽ viết kế hoạch công tác.
+Thầy giáo sẽ viết bài thuyết trình tại quán cà phê.
+Thầy giáo sẽ viết lịch trình tuần này.
+Thầy giáo muốn nói bài tập tiếng Việt tại phòng họp.
+Thầy giáo muốn nói kế hoạch công tác.
+Thầy giáo muốn nói bài thuyết trình tại thư viện.
+Thầy giáo muốn nói lịch trình tuần này.
+Thầy giáo cần xem bài tập tiếng Việt tại nhà ở.
+Thầy giáo cần xem kế hoạch công tác.
+Thầy giáo cần xem bài thuyết trình tại lớp học.
+Thầy giáo cần xem lịch trình tuần này.
+Thầy giáo rất thích bài tập tiếng Việt tại công ty.
+Thầy giáo rất thích kế hoạch công tác.
+Thầy giáo rất thích bài thuyết trình tại phòng họp.
+Thầy giáo rất thích lịch trình tuần này.
+Thầy giáo đã hoàn thành bài tập tiếng Việt tại trường học.
+Thầy giáo đã hoàn thành kế hoạch công tác.
+Thầy giáo đã hoàn thành bài thuyết trình tại nhà ở.
+Thầy giáo đã hoàn thành lịch trình tuần này.
+Thầy giáo sẽ gửi bài tập tiếng Việt tại văn phòng.
+Thầy giáo sẽ gửi kế hoạch công tác.
+Thầy giáo sẽ gửi bài thuyết trình tại công ty.
+Thầy giáo sẽ gửi lịch trình tuần này.
+Thầy giáo vừa trả lời bài tập tiếng Việt tại quán cà phê.
+Thầy giáo vừa trả lời kế hoạch công tác.
+Thầy giáo vừa trả lời bài thuyết trình tại trường học.
+Thầy giáo vừa trả lời lịch trình tuần này.
+Thầy giáo đề nghị kiểm tra bài tập tiếng Việt tại thư viện.
+Thầy giáo đề nghị kiểm tra kế hoạch công tác.
+Thầy giáo đề nghị kiểm tra bài thuyết trình tại văn phòng.
+Thầy giáo đề nghị kiểm tra lịch trình tuần này.
+Thầy giáo muốn hỏi bài tập tiếng Việt tại lớp học.
+Thầy giáo muốn hỏi kế hoạch công tác.
+Thầy giáo muốn hỏi bài thuyết trình tại quán cà phê.
+Thầy giáo muốn hỏi lịch trình tuần này.
+Thầy giáo đã chuẩn bị bài tập tiếng Việt tại phòng họp.
+Thầy giáo đã chuẩn bị kế hoạch công tác.
+Thầy giáo đã chuẩn bị bài thuyết trình tại thư viện.
+Thầy giáo đã chuẩn bị lịch trình tuần này.
+Thầy giáo sẽ trình bày bài tập tiếng Việt tại nhà ở.
+Thầy giáo sẽ trình bày kế hoạch công tác.
+Thầy giáo sẽ trình bày bài thuyết trình tại lớp học.
+Thầy giáo sẽ trình bày lịch trình tuần này.
+Thầy giáo vừa nhận được bài tập tiếng Việt tại công ty.
+Thầy giáo vừa nhận được kế hoạch công tác.
+Thầy giáo vừa nhận được bài thuyết trình tại phòng họp.
+Thầy giáo vừa nhận được lịch trình tuần này.
+Thầy giáo cần trao đổi bài tập tiếng Việt tại trường học.
+Thầy giáo cần trao đổi kế hoạch công tác.
+Thầy giáo cần trao đổi bài thuyết trình tại nhà ở.
+Thầy giáo cần trao đổi lịch trình tuần này.
+Thầy giáo đã kiểm tra bài tập tiếng Việt tại văn phòng.
+Thầy giáo đã kiểm tra kế hoạch công tác.
+Thầy giáo đã kiểm tra bài thuyết trình tại công ty.
+Thầy giáo đã kiểm tra lịch trình tuần này.
+Cô giáo đã học bài tập tiếng Việt tại thư viện.
+Cô giáo đã học kế hoạch công tác.
+Cô giáo đã học bài thuyết trình tại văn phòng.
+Cô giáo đã học lịch trình tuần này.
+Cô giáo đang làm bài tập tiếng Việt tại lớp học.
+Cô giáo đang làm kế hoạch công tác.
+Cô giáo đang làm bài thuyết trình tại quán cà phê.
+Cô giáo đang làm lịch trình tuần này.
+Cô giáo sẽ viết bài tập tiếng Việt tại phòng họp.
+Cô giáo sẽ viết kế hoạch công tác.
+Cô giáo sẽ viết bài thuyết trình tại thư viện.
+Cô giáo sẽ viết lịch trình tuần này.
+Cô giáo muốn nói bài tập tiếng Việt tại nhà ở.
+Cô giáo muốn nói kế hoạch công tác.
+Cô giáo muốn nói bài thuyết trình tại lớp học.
+Cô giáo muốn nói lịch trình tuần này.
+Cô giáo cần xem bài tập tiếng Việt tại công ty.
+Cô giáo cần xem kế hoạch công tác.
+Cô giáo cần xem bài thuyết trình tại phòng họp.
+Cô giáo cần xem lịch trình tuần này.
+Cô giáo rất thích bài tập tiếng Việt tại trường học.
+Cô giáo rất thích kế hoạch công tác.
+Cô giáo rất thích bài thuyết trình tại nhà ở.
+Cô giáo rất thích lịch trình tuần này.
+Cô giáo đã hoàn thành bài tập tiếng Việt tại văn phòng.
+Cô giáo đã hoàn thành kế hoạch công tác.
+Cô giáo đã hoàn thành bài thuyết trình tại công ty.
+Cô giáo đã hoàn thành lịch trình tuần này.
+Cô giáo sẽ gửi bài tập tiếng Việt tại quán cà phê.
+Cô giáo sẽ gửi kế hoạch công tác.
+Cô giáo sẽ gửi bài thuyết trình tại trường học.
+Cô giáo sẽ gửi lịch trình tuần này.
+Cô giáo vừa trả lời bài tập tiếng Việt tại thư viện.
+Cô giáo vừa trả lời kế hoạch công tác.
+Cô giáo vừa trả lời bài thuyết trình tại văn phòng.
+Cô giáo vừa trả lời lịch trình tuần này.
+Cô giáo đề nghị kiểm tra bài tập tiếng Việt tại lớp học.
+Cô giáo đề nghị kiểm tra kế hoạch công tác.
+Cô giáo đề nghị kiểm tra bài thuyết trình tại quán cà phê.
+Cô giáo đề nghị kiểm tra lịch trình tuần này.
+Cô giáo muốn hỏi bài tập tiếng Việt tại phòng họp.
+Cô giáo muốn hỏi kế hoạch công tác.
+Cô giáo muốn hỏi bài thuyết trình tại thư viện.
+Cô giáo muốn hỏi lịch trình tuần này.
+Cô giáo đã chuẩn bị bài tập tiếng Việt tại nhà ở.
+Cô giáo đã chuẩn bị kế hoạch công tác.
+Cô giáo đã chuẩn bị bài thuyết trình tại lớp học.
+Cô giáo đã chuẩn bị lịch trình tuần này.
+Cô giáo sẽ trình bày bài tập tiếng Việt tại công ty.
+Cô giáo sẽ trình bày kế hoạch công tác.
+Cô giáo sẽ trình bày bài thuyết trình tại phòng họp.
+Cô giáo sẽ trình bày lịch trình tuần này.
+Cô giáo vừa nhận được bài tập tiếng Việt tại trường học.
+Cô giáo vừa nhận được kế hoạch công tác.
+Cô giáo vừa nhận được bài thuyết trình tại nhà ở.
+Cô giáo vừa nhận được lịch trình tuần này.
+Cô giáo cần trao đổi bài tập tiếng Việt tại văn phòng.
+Cô giáo cần trao đổi kế hoạch công tác.
+Cô giáo cần trao đổi bài thuyết trình tại công ty.
+Cô giáo cần trao đổi lịch trình tuần này.
+Cô giáo đã kiểm tra bài tập tiếng Việt tại quán cà phê.
+Cô giáo đã kiểm tra kế hoạch công tác.
+Cô giáo đã kiểm tra bài thuyết trình tại trường học.
+Cô giáo đã kiểm tra lịch trình tuần này.
+Bạn bè đã học bài tập tiếng Việt tại lớp học.
+Bạn bè đã học kế hoạch công tác.
+Bạn bè đã học bài thuyết trình tại quán cà phê.
+Bạn bè đã học lịch trình tuần này.
+Bạn bè đang làm bài tập tiếng Việt tại phòng họp.
+Bạn bè đang làm kế hoạch công tác.
+Bạn bè đang làm bài thuyết trình tại thư viện.
+Bạn bè đang làm lịch trình tuần này.
+Bạn bè sẽ viết bài tập tiếng Việt tại nhà ở.
+Bạn bè sẽ viết kế hoạch công tác.
+Bạn bè sẽ viết bài thuyết trình tại lớp học.
+Bạn bè sẽ viết lịch trình tuần này.
+Bạn bè muốn nói bài tập tiếng Việt tại công ty.
+Bạn bè muốn nói kế hoạch công tác.
+Bạn bè muốn nói bài thuyết trình tại phòng họp.
+Bạn bè muốn nói lịch trình tuần này.
+Bạn bè cần xem bài tập tiếng Việt tại trường học.
+Bạn bè cần xem kế hoạch công tác.
+Bạn bè cần xem bài thuyết trình tại nhà ở.
+Bạn bè cần xem lịch trình tuần này.
+Bạn bè rất thích bài tập tiếng Việt tại văn phòng.
+Bạn bè rất thích kế hoạch công tác.
+Bạn bè rất thích bài thuyết trình tại công ty.
+Bạn bè rất thích lịch trình tuần này.
+Bạn bè đã hoàn thành bài tập tiếng Việt tại quán cà phê.
+Bạn bè đã hoàn thành kế hoạch công tác.
+Bạn bè đã hoàn thành bài thuyết trình tại trường học.
+Bạn bè đã hoàn thành lịch trình tuần này.
+Bạn bè sẽ gửi bài tập tiếng Việt tại thư viện.
+Bạn bè sẽ gửi kế hoạch công tác.
+Bạn bè sẽ gửi bài thuyết trình tại văn phòng.
+Bạn bè sẽ gửi lịch trình tuần này.
+Bạn bè vừa trả lời bài tập tiếng Việt tại lớp học.
+Bạn bè vừa trả lời kế hoạch công tác.
+Bạn bè vừa trả lời bài thuyết trình tại quán cà phê.
+Bạn bè vừa trả lời lịch trình tuần này.
+Bạn bè đề nghị kiểm tra bài tập tiếng Việt tại phòng họp.
+Bạn bè đề nghị kiểm tra kế hoạch công tác.
+Bạn bè đề nghị kiểm tra bài thuyết trình tại thư viện.
+Bạn bè đề nghị kiểm tra lịch trình tuần này.
+Bạn bè muốn hỏi bài tập tiếng Việt tại nhà ở.
+Bạn bè muốn hỏi kế hoạch công tác.
+Bạn bè muốn hỏi bài thuyết trình tại lớp học.
+Bạn bè muốn hỏi lịch trình tuần này.
+Bạn bè đã chuẩn bị bài tập tiếng Việt tại công ty.
+Bạn bè đã chuẩn bị kế hoạch công tác.
+Bạn bè đã chuẩn bị bài thuyết trình tại phòng họp.
+Bạn bè đã chuẩn bị lịch trình tuần này.
+Bạn bè sẽ trình bày bài tập tiếng Việt tại trường học.
+Bạn bè sẽ trình bày kế hoạch công tác.
+Bạn bè sẽ trình bày bài thuyết trình tại nhà ở.
+Bạn bè sẽ trình bày lịch trình tuần này.
+Bạn bè vừa nhận được bài tập tiếng Việt tại văn phòng.
+Bạn bè vừa nhận được kế hoạch công tác.
+Bạn bè vừa nhận được bài thuyết trình tại công ty.
+Bạn bè vừa nhận được lịch trình tuần này.
+Bạn bè cần trao đổi bài tập tiếng Việt tại quán cà phê.
+Bạn bè cần trao đổi kế hoạch công tác.
+Bạn bè cần trao đổi bài thuyết trình tại trường học.
+Bạn bè cần trao đổi lịch trình tuần này.
+Bạn bè đã kiểm tra bài tập tiếng Việt tại thư viện.
+Bạn bè đã kiểm tra kế hoạch công tác.
+Bạn bè đã kiểm tra bài thuyết trình tại văn phòng.
+Bạn bè đã kiểm tra lịch trình tuần này.
+Người ấy đã học bài tập tiếng Việt tại phòng họp.
+Người ấy đã học kế hoạch công tác.
+Người ấy đã học bài thuyết trình tại thư viện.
+Người ấy đã học lịch trình tuần này.
+Người ấy đang làm bài tập tiếng Việt tại nhà ở.
+Người ấy đang làm kế hoạch công tác.
+Người ấy đang làm bài thuyết trình tại lớp học.
+Người ấy đang làm lịch trình tuần này.
+Người ấy sẽ viết bài tập tiếng Việt tại công ty.
+Người ấy sẽ viết kế hoạch công tác.
+Người ấy sẽ viết bài thuyết trình tại phòng họp.
+Người ấy sẽ viết lịch trình tuần này.
+Người ấy muốn nói bài tập tiếng Việt tại trường học.
+Người ấy muốn nói kế hoạch công tác.
+Người ấy muốn nói bài thuyết trình tại nhà ở.
+Người ấy muốn nói lịch trình tuần này.
+Người ấy cần xem bài tập tiếng Việt tại văn phòng.
+Người ấy cần xem kế hoạch công tác.
+Người ấy cần xem bài thuyết trình tại công ty.
+Người ấy cần xem lịch trình tuần này.
+Người ấy rất thích bài tập tiếng Việt tại quán cà phê.
+Người ấy rất thích kế hoạch công tác.
+Người ấy rất thích bài thuyết trình tại trường học.
+Người ấy rất thích lịch trình tuần này.
+Người ấy đã hoàn thành bài tập tiếng Việt tại thư viện.
+Người ấy đã hoàn thành kế hoạch công tác.
+Người ấy đã hoàn thành bài thuyết trình tại văn phòng.
+Người ấy đã hoàn thành lịch trình tuần này.
+Người ấy sẽ gửi bài tập tiếng Việt tại lớp học.
+Người ấy sẽ gửi kế hoạch công tác.
+Người ấy sẽ gửi bài thuyết trình tại quán cà phê.
+Người ấy sẽ gửi lịch trình tuần này.
+Người ấy vừa trả lời bài tập tiếng Việt tại phòng họp.
+Người ấy vừa trả lời kế hoạch công tác.
+Người ấy vừa trả lời bài thuyết trình tại thư viện.
+Người ấy vừa trả lời lịch trình tuần này.
+Người ấy đề nghị kiểm tra bài tập tiếng Việt tại nhà ở.
+Người ấy đề nghị kiểm tra kế hoạch công tác.
+Người ấy đề nghị kiểm tra bài thuyết trình tại lớp học.
+Người ấy đề nghị kiểm tra lịch trình tuần này.
+Người ấy muốn hỏi bài tập tiếng Việt tại công ty.
+Người ấy muốn hỏi kế hoạch công tác.
+Người ấy muốn hỏi bài thuyết trình tại phòng họp.
+Người ấy muốn hỏi lịch trình tuần này.
+Người ấy đã chuẩn bị bài tập tiếng Việt tại trường học.
+Người ấy đã chuẩn bị kế hoạch công tác.
+Người ấy đã chuẩn bị bài thuyết trình tại nhà ở.
+Người ấy đã chuẩn bị lịch trình tuần này.
+Người ấy sẽ trình bày bài tập tiếng Việt tại văn phòng.
+Người ấy sẽ trình bày kế hoạch công tác.
+Người ấy sẽ trình bày bài thuyết trình tại công ty.
+Người ấy sẽ trình bày lịch trình tuần này.
+Người ấy vừa nhận được bài tập tiếng Việt tại quán cà phê.
+Người ấy vừa nhận được kế hoạch công tác.
+Người ấy vừa nhận được bài thuyết trình tại trường học.
+Người ấy vừa nhận được lịch trình tuần này.
+Người ấy cần trao đổi bài tập tiếng Việt tại thư viện.
+Người ấy cần trao đổi kế hoạch công tác.
+Người ấy cần trao đổi bài thuyết trình tại văn phòng.
+Người ấy cần trao đổi lịch trình tuần này.
+Người ấy đã kiểm tra bài tập tiếng Việt tại lớp học.
+Người ấy đã kiểm tra kế hoạch công tác.
+Người ấy đã kiểm tra bài thuyết trình tại quán cà phê.
+Người ấy đã kiểm tra lịch trình tuần này.
+Anh ấy đã học bài tập tiếng Việt tại nhà ở.
+Anh ấy đã học kế hoạch công tác.
+Anh ấy đã học bài thuyết trình tại lớp học.
+Anh ấy đã học lịch trình tuần này.
+Anh ấy đang làm bài tập tiếng Việt tại công ty.
+Anh ấy đang làm kế hoạch công tác.
+Anh ấy đang làm bài thuyết trình tại phòng họp.
+Anh ấy đang làm lịch trình tuần này.
+Anh ấy sẽ viết bài tập tiếng Việt tại trường học.
+Anh ấy sẽ viết kế hoạch công tác.
+Anh ấy sẽ viết bài thuyết trình tại nhà ở.
+Anh ấy sẽ viết lịch trình tuần này.
+Anh ấy muốn nói bài tập tiếng Việt tại văn phòng.
+Anh ấy muốn nói kế hoạch công tác.
+Anh ấy muốn nói bài thuyết trình tại công ty.
+Anh ấy muốn nói lịch trình tuần này.
+Anh ấy cần xem bài tập tiếng Việt tại quán cà phê.
+Anh ấy cần xem kế hoạch công tác.
+Anh ấy cần xem bài thuyết trình tại trường học.
+Anh ấy cần xem lịch trình tuần này.
+Anh ấy rất thích bài tập tiếng Việt tại thư viện.
+Anh ấy rất thích kế hoạch công tác.
+Anh ấy rất thích bài thuyết trình tại văn phòng.
+Anh ấy rất thích lịch trình tuần này.
+Anh ấy đã hoàn thành bài tập tiếng Việt tại lớp học.
+Anh ấy đã hoàn thành kế hoạch công tác.
+Anh ấy đã hoàn thành bài thuyết trình tại quán cà phê.
+Anh ấy đã hoàn thành lịch trình tuần này.
+Anh ấy sẽ gửi bài tập tiếng Việt tại phòng họp.
+Anh ấy sẽ gửi kế hoạch công tác.
+Anh ấy sẽ gửi bài thuyết trình tại thư viện.
+Anh ấy sẽ gửi lịch trình tuần này.
+Anh ấy vừa trả lời bài tập tiếng Việt tại nhà ở.
+Anh ấy vừa trả lời kế hoạch công tác.
+Anh ấy vừa trả lời bài thuyết trình tại lớp học.
+Anh ấy vừa trả lời lịch trình tuần này.
+Anh ấy đề nghị kiểm tra bài tập tiếng Việt tại công ty.
+Anh ấy đề nghị kiểm tra kế hoạch công tác.
+Anh ấy đề nghị kiểm tra bài thuyết trình tại phòng họp.
+Anh ấy đề nghị kiểm tra lịch trình tuần này.
+Anh ấy muốn hỏi bài tập tiếng Việt tại trường học.
+Anh ấy muốn hỏi kế hoạch công tác.
+Anh ấy muốn hỏi bài thuyết trình tại nhà ở.
+Anh ấy muốn hỏi lịch trình tuần này.
+Anh ấy đã chuẩn bị bài tập tiếng Việt tại văn phòng.
+Anh ấy đã chuẩn bị kế hoạch công tác.
+Anh ấy đã chuẩn bị bài thuyết trình tại công ty.
+Anh ấy đã chuẩn bị lịch trình tuần này.
+Anh ấy sẽ trình bày bài tập tiếng Việt tại quán cà phê.
+Anh ấy sẽ trình bày kế hoạch công tác.
+Anh ấy sẽ trình bày bài thuyết trình tại trường học.
+Anh ấy sẽ trình bày lịch trình tuần này.
+Anh ấy vừa nhận được bài tập tiếng Việt tại thư viện.
+Anh ấy vừa nhận được kế hoạch công tác.
+Anh ấy vừa nhận được bài thuyết trình tại văn phòng.
+Anh ấy vừa nhận được lịch trình tuần này.
+Anh ấy cần trao đổi bài tập tiếng Việt tại lớp học.
+Anh ấy cần trao đổi kế hoạch công tác.
+Anh ấy cần trao đổi bài thuyết trình tại quán cà phê.
+Anh ấy cần trao đổi lịch trình tuần này.
+Anh ấy đã kiểm tra bài tập tiếng Việt tại phòng họp.
+Anh ấy đã kiểm tra kế hoạch công tác.
+Anh ấy đã kiểm tra bài thuyết trình tại thư viện.
+Anh ấy đã kiểm tra lịch trình tuần này.
+Chị ấy đã học bài tập tiếng Việt tại công ty.
+Chị ấy đã học kế hoạch công tác.
+Chị ấy đã học bài thuyết trình tại phòng họp.
+Chị ấy đã học lịch trình tuần này.
+Chị ấy đang làm bài tập tiếng Việt tại trường học.
+Chị ấy đang làm kế hoạch công tác.
+Chị ấy đang làm bài thuyết trình tại nhà ở.
+Chị ấy đang làm lịch trình tuần này.
+Chị ấy sẽ viết bài tập tiếng Việt tại văn phòng.
+Chị ấy sẽ viết kế hoạch công tác.
+Chị ấy sẽ viết bài thuyết trình tại công ty.
+Chị ấy sẽ viết lịch trình tuần này.
+Chị ấy muốn nói bài tập tiếng Việt tại quán cà phê.
+Chị ấy muốn nói kế hoạch công tác.
+Chị ấy muốn nói bài thuyết trình tại trường học.
+Chị ấy muốn nói lịch trình tuần này.
+Chị ấy cần xem bài tập tiếng Việt tại thư viện.
+Chị ấy cần xem kế hoạch công tác.
+Chị ấy cần xem bài thuyết trình tại văn phòng.
+Chị ấy cần xem lịch trình tuần này.
+Chị ấy rất thích bài tập tiếng Việt tại lớp học.
+Chị ấy rất thích kế hoạch công tác.
+Chị ấy rất thích bài thuyết trình tại quán cà phê.
+Chị ấy rất thích lịch trình tuần này.
+Chị ấy đã hoàn thành bài tập tiếng Việt tại phòng họp.
+Chị ấy đã hoàn thành kế hoạch công tác.
+Chị ấy đã hoàn thành bài thuyết trình tại thư viện.
+Chị ấy đã hoàn thành lịch trình tuần này.
+Chị ấy sẽ gửi bài tập tiếng Việt tại nhà ở.
+Chị ấy sẽ gửi kế hoạch công tác.
+Chị ấy sẽ gửi bài thuyết trình tại lớp học.
+Chị ấy sẽ gửi lịch trình tuần này.
+Chị ấy vừa trả lời bài tập tiếng Việt tại công ty.
+Chị ấy vừa trả lời kế hoạch công tác.
+Chị ấy vừa trả lời bài thuyết trình tại phòng họp.
+Chị ấy vừa trả lời lịch trình tuần này.
+Chị ấy đề nghị kiểm tra bài tập tiếng Việt tại trường học.
+Chị ấy đề nghị kiểm tra kế hoạch công tác.
+Chị ấy đề nghị kiểm tra bài thuyết trình tại nhà ở.
+Chị ấy đề nghị kiểm tra lịch trình tuần này.
+Chị ấy muốn hỏi bài tập tiếng Việt tại văn phòng.
+Chị ấy muốn hỏi kế hoạch công tác.
+Chị ấy muốn hỏi bài thuyết trình tại công ty.
+Chị ấy muốn hỏi lịch trình tuần này.
+Chị ấy đã chuẩn bị bài tập tiếng Việt tại quán cà phê.
+Chị ấy đã chuẩn bị kế hoạch công tác.
+Chị ấy đã chuẩn bị bài thuyết trình tại trường học.
+Chị ấy đã chuẩn bị lịch trình tuần này.
+Chị ấy sẽ trình bày bài tập tiếng Việt tại thư viện.
+Chị ấy sẽ trình bày kế hoạch công tác.
+Chị ấy sẽ trình bày bài thuyết trình tại văn phòng.
+Chị ấy sẽ trình bày lịch trình tuần này.
+Chị ấy vừa nhận được bài tập tiếng Việt tại lớp học.
+Chị ấy vừa nhận được kế hoạch công tác.
+Chị ấy vừa nhận được bài thuyết trình tại quán cà phê.
+Chị ấy vừa nhận được lịch trình tuần này.
+Chị ấy cần trao đổi bài tập tiếng Việt tại phòng họp.
+Chị ấy cần trao đổi kế hoạch công tác.
+Chị ấy cần trao đổi bài thuyết trình tại thư viện.
+Chị ấy cần trao đổi lịch trình tuần này.
+Chị ấy đã kiểm tra bài tập tiếng Việt tại nhà ở.
+Chị ấy đã kiểm tra kế hoạch công tác.
+Chị ấy đã kiểm tra bài thuyết trình tại lớp học.
+Chị ấy đã kiểm tra lịch trình tuần này.
+Các bạn đã học bài tập tiếng Việt tại trường học.
+Các bạn đã học kế hoạch công tác.
+Các bạn đã học bài thuyết trình tại nhà ở.
+Các bạn đã học lịch trình tuần này.
+Các bạn đang làm bài tập tiếng Việt tại văn phòng.
+Các bạn đang làm kế hoạch công tác.
+Các bạn đang làm bài thuyết trình tại công ty.
+Các bạn đang làm lịch trình tuần này.
+Các bạn sẽ viết bài tập tiếng Việt tại quán cà phê.
+Các bạn sẽ viết kế hoạch công tác.
+Các bạn sẽ viết bài thuyết trình tại trường học.
+Các bạn sẽ viết lịch trình tuần này.
+Các bạn muốn nói bài tập tiếng Việt tại thư viện.
+Các bạn muốn nói kế hoạch công tác.
+Các bạn muốn nói bài thuyết trình tại văn phòng.
+Các bạn muốn nói lịch trình tuần này.
+Các bạn cần xem bài tập tiếng Việt tại lớp học.
+Các bạn cần xem kế hoạch công tác.
+Các bạn cần xem bài thuyết trình tại quán cà phê.
+Các bạn cần xem lịch trình tuần này.
+Các bạn rất thích bài tập tiếng Việt tại phòng họp.
+Các bạn rất thích kế hoạch công tác.
+Các bạn rất thích bài thuyết trình tại thư viện.
+Các bạn rất thích lịch trình tuần này.
+Các bạn đã hoàn thành bài tập tiếng Việt tại nhà ở.
+Các bạn đã hoàn thành kế hoạch công tác.
+Các bạn đã hoàn thành bài thuyết trình tại lớp học.
+Các bạn đã hoàn thành lịch trình tuần này.
+Các bạn sẽ gửi bài tập tiếng Việt tại công ty.
+Các bạn sẽ gửi kế hoạch công tác.
+Các bạn sẽ gửi bài thuyết trình tại phòng họp.
+Các bạn sẽ gửi lịch trình tuần này.
+Các bạn vừa trả lời bài tập tiếng Việt tại trường học.
+Các bạn vừa trả lời kế hoạch công tác.
+Các bạn vừa trả lời bài thuyết trình tại nhà ở.
+Các bạn vừa trả lời lịch trình tuần này.
+Các bạn đề nghị kiểm tra bài tập tiếng Việt tại văn phòng.
+Các bạn đề nghị kiểm tra kế hoạch công tác.
+Các bạn đề nghị kiểm tra bài thuyết trình tại công ty.
+Các bạn đề nghị kiểm tra lịch trình tuần này.
+Các bạn muốn hỏi bài tập tiếng Việt tại quán cà phê.
+Các bạn muốn hỏi kế hoạch công tác.
+Các bạn muốn hỏi bài thuyết trình tại trường học.
+Các bạn muốn hỏi lịch trình tuần này.
+Các bạn đã chuẩn bị bài tập tiếng Việt tại thư viện.
+Các bạn đã chuẩn bị kế hoạch công tác.
+Các bạn đã chuẩn bị bài thuyết trình tại văn phòng.
+Các bạn đã chuẩn bị lịch trình tuần này.
+Các bạn sẽ trình bày bài tập tiếng Việt tại lớp học.
+Các bạn sẽ trình bày kế hoạch công tác.
+Các bạn sẽ trình bày bài thuyết trình tại quán cà phê.
+Các bạn sẽ trình bày lịch trình tuần này.
+Các bạn vừa nhận được bài tập tiếng Việt tại phòng họp.
+Các bạn vừa nhận được kế hoạch công tác.
+Các bạn vừa nhận được bài thuyết trình tại thư viện.
+Các bạn vừa nhận được lịch trình tuần này.
+Các bạn cần trao đổi bài tập tiếng Việt tại nhà ở.
+Các bạn cần trao đổi kế hoạch công tác.
+Các bạn cần trao đổi bài thuyết trình tại lớp học.
+Các bạn cần trao đổi lịch trình tuần này.
+Các bạn đã kiểm tra bài tập tiếng Việt tại công ty.
+Các bạn đã kiểm tra kế hoạch công tác.
+Các bạn đã kiểm tra bài thuyết trình tại phòng họp.
+Các bạn đã kiểm tra lịch trình tuần này.
+Học sinh đã học bài tập tiếng Việt tại văn phòng.
+Học sinh đã học kế hoạch công tác.
+Học sinh đã học bài thuyết trình tại công ty.
+Học sinh đã học lịch trình tuần này.
+Học sinh đang làm bài tập tiếng Việt tại quán cà phê.
+Học sinh đang làm kế hoạch công tác.
+Học sinh đang làm bài thuyết trình tại trường học.
+Học sinh đang làm lịch trình tuần này.
+Học sinh sẽ viết bài tập tiếng Việt tại thư viện.
+Học sinh sẽ viết kế hoạch công tác.
+Học sinh sẽ viết bài thuyết trình tại văn phòng.
+Học sinh sẽ viết lịch trình tuần này.
+Học sinh muốn nói bài tập tiếng Việt tại lớp học.
+Học sinh muốn nói kế hoạch công tác.
+Học sinh muốn nói bài thuyết trình tại quán cà phê.
+Học sinh muốn nói lịch trình tuần này.
+Học sinh cần xem bài tập tiếng Việt tại phòng họp.
+Học sinh cần xem kế hoạch công tác.
+Học sinh cần xem bài thuyết trình tại thư viện.
+Học sinh cần xem lịch trình tuần này.
+Học sinh rất thích bài tập tiếng Việt tại nhà ở.
+Học sinh rất thích kế hoạch công tác.
+Học sinh rất thích bài thuyết trình tại lớp học.
+Học sinh rất thích lịch trình tuần này.
+Học sinh đã hoàn thành bài tập tiếng Việt tại công ty.
+Học sinh đã hoàn thành kế hoạch công tác.
+Học sinh đã hoàn thành bài thuyết trình tại phòng họp.
+Học sinh đã hoàn thành lịch trình tuần này.
+Học sinh sẽ gửi bài tập tiếng Việt tại trường học.
+Học sinh sẽ gửi kế hoạch công tác.
+Học sinh sẽ gửi bài thuyết trình tại nhà ở.
+Học sinh sẽ gửi lịch trình tuần này.
+Học sinh vừa trả lời bài tập tiếng Việt tại văn phòng.
+Học sinh vừa trả lời kế hoạch công tác.
+Học sinh vừa trả lời bài thuyết trình tại công ty.
+Học sinh vừa trả lời lịch trình tuần này.
+Học sinh đề nghị kiểm tra bài tập tiếng Việt tại quán cà phê.
+Học sinh đề nghị kiểm tra kế hoạch công tác.
+Học sinh đề nghị kiểm tra bài thuyết trình tại trường học.
+Học sinh đề nghị kiểm tra lịch trình tuần này.
+Học sinh muốn hỏi bài tập tiếng Việt tại thư viện.
+Học sinh muốn hỏi kế hoạch công tác.
+Học sinh muốn hỏi bài thuyết trình tại văn phòng.
+Học sinh muốn hỏi lịch trình tuần này.
+Học sinh đã chuẩn bị bài tập tiếng Việt tại lớp học.
+Học sinh đã chuẩn bị kế hoạch công tác.
+Học sinh đã chuẩn bị bài thuyết trình tại quán cà phê.
+Học sinh đã chuẩn bị lịch trình tuần này.
+Học sinh sẽ trình bày bài tập tiếng Việt tại phòng họp.
+Học sinh sẽ trình bày kế hoạch công tác.
+Học sinh sẽ trình bày bài thuyết trình tại thư viện.
+Học sinh sẽ trình bày lịch trình tuần này.
+Học sinh vừa nhận được bài tập tiếng Việt tại nhà ở.
+Học sinh vừa nhận được kế hoạch công tác.
+Học sinh vừa nhận được bài thuyết trình tại lớp học.
+Học sinh vừa nhận được lịch trình tuần này.
+Học sinh cần trao đổi bài tập tiếng Việt tại công ty.
+Học sinh cần trao đổi kế hoạch công tác.
+Học sinh cần trao đổi bài thuyết trình tại phòng họp.
+Học sinh cần trao đổi lịch trình tuần này.
+Học sinh đã kiểm tra bài tập tiếng Việt tại trường học.
+Học sinh đã kiểm tra kế hoạch công tác.
+Học sinh đã kiểm tra bài thuyết trình tại nhà ở.
+Học sinh đã kiểm tra lịch trình tuần này.
+Kỹ sư đã học bài tập tiếng Việt tại quán cà phê.
+Kỹ sư đã học kế hoạch công tác.
+Kỹ sư đã học bài thuyết trình tại trường học.
+Kỹ sư đã học lịch trình tuần này.
+Kỹ sư đang làm bài tập tiếng Việt tại thư viện.
+Kỹ sư đang làm kế hoạch công tác.
+Kỹ sư đang làm bài thuyết trình tại văn phòng.
+Kỹ sư đang làm lịch trình tuần này.
+Kỹ sư sẽ viết bài tập tiếng Việt tại lớp học.
+Kỹ sư sẽ viết kế hoạch công tác.
+Kỹ sư sẽ viết bài thuyết trình tại quán cà phê.
+Kỹ sư sẽ viết lịch trình tuần này.
+Kỹ sư muốn nói bài tập tiếng Việt tại phòng họp.
+Kỹ sư muốn nói kế hoạch công tác.
+Kỹ sư muốn nói bài thuyết trình tại thư viện.
+Kỹ sư muốn nói lịch trình tuần này.
+Kỹ sư cần xem bài tập tiếng Việt tại nhà ở.
+Kỹ sư cần xem kế hoạch công tác.
+Kỹ sư cần xem bài thuyết trình tại lớp học.
+Kỹ sư cần xem lịch trình tuần này.
+Kỹ sư rất thích bài tập tiếng Việt tại công ty.
+Kỹ sư rất thích kế hoạch công tác.
+Kỹ sư rất thích bài thuyết trình tại phòng họp.
+Kỹ sư rất thích lịch trình tuần này.
+Kỹ sư đã hoàn thành bài tập tiếng Việt tại trường học.
+Kỹ sư đã hoàn thành kế hoạch công tác.
+Kỹ sư đã hoàn thành bài thuyết trình tại nhà ở.
+Kỹ sư đã hoàn thành lịch trình tuần này.
+Kỹ sư sẽ gửi bài tập tiếng Việt tại văn phòng.
+Kỹ sư sẽ gửi kế hoạch công tác.
+Kỹ sư sẽ gửi bài thuyết trình tại công ty.
+Kỹ sư sẽ gửi lịch trình tuần này.
+Kỹ sư vừa trả lời bài tập tiếng Việt tại quán cà phê.
+Kỹ sư vừa trả lời kế hoạch công tác.
+Kỹ sư vừa trả lời bài thuyết trình tại trường học.
+Kỹ sư vừa trả lời lịch trình tuần này.
+Kỹ sư đề nghị kiểm tra bài tập tiếng Việt tại thư viện.
+Kỹ sư đề nghị kiểm tra kế hoạch công tác.
+Kỹ sư đề nghị kiểm tra bài thuyết trình tại văn phòng.
+Kỹ sư đề nghị kiểm tra lịch trình tuần này.
+Kỹ sư muốn hỏi bài tập tiếng Việt tại lớp học.
+Kỹ sư muốn hỏi kế hoạch công tác.
+Kỹ sư muốn hỏi bài thuyết trình tại quán cà phê.
+Kỹ sư muốn hỏi lịch trình tuần này.
+Kỹ sư đã chuẩn bị bài tập tiếng Việt tại phòng họp.
+Kỹ sư đã chuẩn bị kế hoạch công tác.
+Kỹ sư đã chuẩn bị bài thuyết trình tại thư viện.
+Kỹ sư đã chuẩn bị lịch trình tuần này.
+Kỹ sư sẽ trình bày bài tập tiếng Việt tại nhà ở.
+Kỹ sư sẽ trình bày kế hoạch công tác.
+Kỹ sư sẽ trình bày bài thuyết trình tại lớp học.
+Kỹ sư sẽ trình bày lịch trình tuần này.
+Kỹ sư vừa nhận được bài tập tiếng Việt tại công ty.
+Kỹ sư vừa nhận được kế hoạch công tác.
+Kỹ sư vừa nhận được bài thuyết trình tại phòng họp.
+Kỹ sư vừa nhận được lịch trình tuần này.
+Kỹ sư cần trao đổi bài tập tiếng Việt tại trường học.
+Kỹ sư cần trao đổi kế hoạch công tác.
+Kỹ sư cần trao đổi bài thuyết trình tại nhà ở.
+Kỹ sư cần trao đổi lịch trình tuần này.
+Kỹ sư đã kiểm tra bài tập tiếng Việt tại văn phòng.
+Kỹ sư đã kiểm tra kế hoạch công tác.
+Kỹ sư đã kiểm tra bài thuyết trình tại công ty.
+Kỹ sư đã kiểm tra lịch trình tuần này.
+Bệnh nhân đã học bài tập tiếng Việt tại thư viện.
+Bệnh nhân đã học kế hoạch công tác.
+Bệnh nhân đã học bài thuyết trình tại văn phòng.
+Bệnh nhân đã học lịch trình tuần này.
+Bệnh nhân đang làm bài tập tiếng Việt tại lớp học.
+Bệnh nhân đang làm kế hoạch công tác.
+Bệnh nhân đang làm bài thuyết trình tại quán cà phê.
+Bệnh nhân đang làm lịch trình tuần này.
+Bệnh nhân sẽ viết bài tập tiếng Việt tại phòng họp.
+Bệnh nhân sẽ viết kế hoạch công tác.
+Bệnh nhân sẽ viết bài thuyết trình tại thư viện.
+Bệnh nhân sẽ viết lịch trình tuần này.
+Bệnh nhân muốn nói bài tập tiếng Việt tại nhà ở.
+Bệnh nhân muốn nói kế hoạch công tác.
+Bệnh nhân muốn nói bài thuyết trình tại lớp học.
+Bệnh nhân muốn nói lịch trình tuần này.
+Bệnh nhân cần xem bài tập tiếng Việt tại công ty.
+Bệnh nhân cần xem kế hoạch công tác.
+Bệnh nhân cần xem bài thuyết trình tại phòng họp.
+Bệnh nhân cần xem lịch trình tuần này.
+Bệnh nhân rất thích bài tập tiếng Việt tại trường học.
+Bệnh nhân rất thích kế hoạch công tác.
+Bệnh nhân rất thích bài thuyết trình tại nhà ở.
+Bệnh nhân rất thích lịch trình tuần này.
+Bệnh nhân đã hoàn thành bài tập tiếng Việt tại văn phòng.
+Bệnh nhân đã hoàn thành kế hoạch công tác.
+Bệnh nhân đã hoàn thành bài thuyết trình tại công ty.
+Bệnh nhân đã hoàn thành lịch trình tuần này.
+Bệnh nhân sẽ gửi bài tập tiếng Việt tại quán cà phê.
+Bệnh nhân sẽ gửi kế hoạch công tác.
+Bệnh nhân sẽ gửi bài thuyết trình tại trường học.
+Bệnh nhân sẽ gửi lịch trình tuần này.
+Bệnh nhân vừa trả lời bài tập tiếng Việt tại thư viện.
+Bệnh nhân vừa trả lời kế hoạch công tác.
+Bệnh nhân vừa trả lời bài thuyết trình tại văn phòng.
+Bệnh nhân vừa trả lời lịch trình tuần này.
+Bệnh nhân đề nghị kiểm tra bài tập tiếng Việt tại lớp học.
+Bệnh nhân đề nghị kiểm tra kế hoạch công tác.
+Bệnh nhân đề nghị kiểm tra bài thuyết trình tại quán cà phê.
+Bệnh nhân đề nghị kiểm tra lịch trình tuần này.
+Bệnh nhân muốn hỏi bài tập tiếng Việt tại phòng họp.
+Bệnh nhân muốn hỏi kế hoạch công tác.
+Bệnh nhân muốn hỏi bài thuyết trình tại thư viện.
+Bệnh nhân muốn hỏi lịch trình tuần này.
+Bệnh nhân đã chuẩn bị bài tập tiếng Việt tại nhà ở.
+Bệnh nhân đã chuẩn bị kế hoạch công tác.
+Bệnh nhân đã chuẩn bị bài thuyết trình tại lớp học.
+Bệnh nhân đã chuẩn bị lịch trình tuần này.
+Bệnh nhân sẽ trình bày bài tập tiếng Việt tại công ty.
+Bệnh nhân sẽ trình bày kế hoạch công tác.
+Bệnh nhân sẽ trình bày bài thuyết trình tại phòng họp.
+Bệnh nhân sẽ trình bày lịch trình tuần này.
+Bệnh nhân vừa nhận được bài tập tiếng Việt tại trường học.
+Bệnh nhân vừa nhận được kế hoạch công tác.
+Bệnh nhân vừa nhận được bài thuyết trình tại nhà ở.
+Bệnh nhân vừa nhận được lịch trình tuần này.
+Bệnh nhân cần trao đổi bài tập tiếng Việt tại văn phòng.
+Bệnh nhân cần trao đổi kế hoạch công tác.
+Bệnh nhân cần trao đổi bài thuyết trình tại công ty.
+Bệnh nhân cần trao đổi lịch trình tuần này.
+Bệnh nhân đã kiểm tra bài tập tiếng Việt tại quán cà phê.
+Bệnh nhân đã kiểm tra kế hoạch công tác.
+Bệnh nhân đã kiểm tra bài thuyết trình tại trường học.
+Bệnh nhân đã kiểm tra lịch trình tuần này.
+Luật sư đã học bài tập tiếng Việt tại lớp học.
+Luật sư đã học kế hoạch công tác.
+Luật sư đã học bài thuyết trình tại quán cà phê.
+Luật sư đã học lịch trình tuần này.
+Luật sư đang làm bài tập tiếng Việt tại phòng họp.
+Luật sư đang làm kế hoạch công tác.
+Luật sư đang làm bài thuyết trình tại thư viện.
+Luật sư đang làm lịch trình tuần này.
+Luật sư sẽ viết bài tập tiếng Việt tại nhà ở.
+Luật sư sẽ viết kế hoạch công tác.
+Luật sư sẽ viết bài thuyết trình tại lớp học.
+Luật sư sẽ viết lịch trình tuần này.
+Luật sư muốn nói bài tập tiếng Việt tại công ty.
+Luật sư muốn nói kế hoạch công tác.
+Luật sư muốn nói bài thuyết trình tại phòng họp.
+Luật sư muốn nói lịch trình tuần này.
+Luật sư cần xem bài tập tiếng Việt tại trường học.
+Luật sư cần xem kế hoạch công tác.
+Luật sư cần xem bài thuyết trình tại nhà ở.
+Luật sư cần xem lịch trình tuần này.
+Luật sư rất thích bài tập tiếng Việt tại văn phòng.
+Luật sư rất thích kế hoạch công tác.
+Luật sư rất thích bài thuyết trình tại công ty.
+Luật sư rất thích lịch trình tuần này.
+Luật sư đã hoàn thành bài tập tiếng Việt tại quán cà phê.
+Luật sư đã hoàn thành kế hoạch công tác.
+Luật sư đã hoàn thành bài thuyết trình tại trường học.
+Luật sư đã hoàn thành lịch trình tuần này.
+Luật sư sẽ gửi bài tập tiếng Việt tại thư viện.
+Luật sư sẽ gửi kế hoạch công tác.
+Luật sư sẽ gửi bài thuyết trình tại văn phòng.
+Luật sư sẽ gửi lịch trình tuần này.
+Luật sư vừa trả lời bài tập tiếng Việt tại lớp học.
+Luật sư vừa trả lời kế hoạch công tác.
+Luật sư vừa trả lời bài thuyết trình tại quán cà phê.
+Luật sư vừa trả lời lịch trình tuần này.
+Luật sư đề nghị kiểm tra bài tập tiếng Việt tại phòng họp.
+Luật sư đề nghị kiểm tra kế hoạch công tác.
+Luật sư đề nghị kiểm tra bài thuyết trình tại thư viện.
+Luật sư đề nghị kiểm tra lịch trình tuần này.
+Luật sư muốn hỏi bài tập tiếng Việt tại nhà ở.
+Luật sư muốn hỏi kế hoạch công tác.
+Luật sư muốn hỏi bài thuyết trình tại lớp học.
+Luật sư muốn hỏi lịch trình tuần này.
+Luật sư đã chuẩn bị bài tập tiếng Việt tại công ty.
+Luật sư đã chuẩn bị kế hoạch công tác.
+Luật sư đã chuẩn bị bài thuyết trình tại phòng họp.
+Luật sư đã chuẩn bị lịch trình tuần này.
+Luật sư sẽ trình bày bài tập tiếng Việt tại trường học.
+Luật sư sẽ trình bày kế hoạch công tác.
+Luật sư sẽ trình bày bài thuyết trình tại nhà ở.
+Luật sư sẽ trình bày lịch trình tuần này.
+Luật sư vừa nhận được bài tập tiếng Việt tại văn phòng.
+Luật sư vừa nhận được kế hoạch công tác.
+Luật sư vừa nhận được bài thuyết trình tại công ty.
+Luật sư vừa nhận được lịch trình tuần này.
+Luật sư cần trao đổi bài tập tiếng Việt tại quán cà phê.
+Luật sư cần trao đổi kế hoạch công tác.
+Luật sư cần trao đổi bài thuyết trình tại trường học.
+Luật sư cần trao đổi lịch trình tuần này.
+Luật sư đã kiểm tra bài tập tiếng Việt tại thư viện.
+Luật sư đã kiểm tra kế hoạch công tác.
+Luật sư đã kiểm tra bài thuyết trình tại văn phòng.
+Luật sư đã kiểm tra lịch trình tuần này.
+Công nhân đã học bài tập tiếng Việt tại phòng họp.
+Công nhân đã học kế hoạch công tác.
+Công nhân đã học bài thuyết trình tại thư viện.
+Công nhân đã học lịch trình tuần này.
+Công nhân đang làm bài tập tiếng Việt tại nhà ở.
+Công nhân đang làm kế hoạch công tác.
+Công nhân đang làm bài thuyết trình tại lớp học.
+Công nhân đang làm lịch trình tuần này.
+Công nhân sẽ viết bài tập tiếng Việt tại công ty.
+Công nhân sẽ viết kế hoạch công tác.
+Công nhân sẽ viết bài thuyết trình tại phòng họp.
+Công nhân sẽ viết lịch trình tuần này.
+Công nhân muốn nói bài tập tiếng Việt tại trường học.
+Công nhân muốn nói kế hoạch công tác.
+Công nhân muốn nói bài thuyết trình tại nhà ở.
+Công nhân muốn nói lịch trình tuần này.
+Công nhân cần xem bài tập tiếng Việt tại văn phòng.
+Công nhân cần xem kế hoạch công tác.
+Công nhân cần xem bài thuyết trình tại công ty.
+Công nhân cần xem lịch trình tuần này.
+Công nhân rất thích bài tập tiếng Việt tại quán cà phê.
+Công nhân rất thích kế hoạch công tác.
+Công nhân rất thích bài thuyết trình tại trường học.
+Công nhân rất thích lịch trình tuần này.
+Công nhân đã hoàn thành bài tập tiếng Việt tại thư viện.
+Công nhân đã hoàn thành kế hoạch công tác.
+Công nhân đã hoàn thành bài thuyết trình tại văn phòng.
+Công nhân đã hoàn thành lịch trình tuần này.
+Công nhân sẽ gửi bài tập tiếng Việt tại lớp học.
+Công nhân sẽ gửi kế hoạch công tác.
+Công nhân sẽ gửi bài thuyết trình tại quán cà phê.
+Công nhân sẽ gửi lịch trình tuần này.
+Công nhân vừa trả lời bài tập tiếng Việt tại phòng họp.
+Công nhân vừa trả lời kế hoạch công tác.
+Công nhân vừa trả lời bài thuyết trình tại thư viện.
+Công nhân vừa trả lời lịch trình tuần này.
+Công nhân đề nghị kiểm tra bài tập tiếng Việt tại nhà ở.
+Công nhân đề nghị kiểm tra kế hoạch công tác.
+Công nhân đề nghị kiểm tra bài thuyết trình tại lớp học.
+Công nhân đề nghị kiểm tra lịch trình tuần này.
+Công nhân muốn hỏi bài tập tiếng Việt tại công ty.
+Công nhân muốn hỏi kế hoạch công tác.
+Công nhân muốn hỏi bài thuyết trình tại phòng họp.
+Công nhân muốn hỏi lịch trình tuần này.
+Công nhân đã chuẩn bị bài tập tiếng Việt tại trường học.
+Công nhân đã chuẩn bị kế hoạch công tác.
+Công nhân đã chuẩn bị bài thuyết trình tại nhà ở.
+Công nhân đã chuẩn bị lịch trình tuần này.
+Công nhân sẽ trình bày bài tập tiếng Việt tại văn phòng.
+Công nhân sẽ trình bày kế hoạch công tác.
+Công nhân sẽ trình bày bài thuyết trình tại công ty.
+Công nhân sẽ trình bày lịch trình tuần này.
+Công nhân vừa nhận được bài tập tiếng Việt tại quán cà phê.
+Công nhân vừa nhận được kế hoạch công tác.
+Công nhân vừa nhận được bài thuyết trình tại trường học.
+Công nhân vừa nhận được lịch trình tuần này.
+Công nhân cần trao đổi bài tập tiếng Việt tại thư viện.
+Công nhân cần trao đổi kế hoạch công tác.
+Công nhân cần trao đổi bài thuyết trình tại văn phòng.
+Công nhân cần trao đổi lịch trình tuần này.
+Công nhân đã kiểm tra bài tập tiếng Việt tại lớp học.
+Công nhân đã kiểm tra kế hoạch công tác.
+Công nhân đã kiểm tra bài thuyết trình tại quán cà phê.
+Công nhân đã kiểm tra lịch trình tuần này.

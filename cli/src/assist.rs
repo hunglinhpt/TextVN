@@ -13,17 +13,20 @@ const MAX_PRINT_DEFAULT: usize = 50;
 
 /// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence]`
 pub fn cmd_assist(rest: &[String]) -> i32 {
-    // `assist` có subcommand `check` (args[2] = "check").
+    // `assist` có subcommand `check` (args[2] = "check") và `score`.
     let rest = match rest.first().map(String::as_str) {
         Some("check") => &rest[1..],
+        Some("score") => return cmd_score(&rest[1..]),
         Some(other) => {
-            eprintln!("error: subcommand lạ `{other}` (chỉ hỗ trợ `check`)");
+            eprintln!("error: subcommand lạ `{other}` (chỉ hỗ trợ `check`, `score`)");
             eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+            eprintln!("      textvn-cli assist score --corpus <dir>");
             return 2;
         }
         None => {
-            eprintln!("error: thiếu subcommand (`check`)");
+            eprintln!("error: thiếu subcommand (`check` | `score`)");
             eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+            eprintln!("      textvn-cli assist score --corpus <dir>");
             return 2;
         }
     };
@@ -237,4 +240,162 @@ fn issue_json(issue: &Issue) -> serde_json::Value {
 fn to_json(issues: &[Issue]) -> String {
     let arr: Vec<serde_json::Value> = issues.iter().map(issue_json).collect();
     serde_json::to_string_pretty(&arr).unwrap_or_else(|_| "[]".into())
+}
+
+// ---------------------------------------------------------------------------
+// `assist score` — đo recall / precision / FPR trên corpus (P4-0 §2, D19)
+// ---------------------------------------------------------------------------
+
+/// Chấm điểm corpus: recall (loại lỗi mong đợi có được phát hiện), precision
+/// (loại lỗi báo ra đúng) và FPR (câu **sạch** bị báo nhầm).
+///
+/// Định dạng corpus: TSV `<câu>\t<kind1,kind2,...>`; cột kinds rỗng = câu sạch.
+fn cmd_score(rest: &[String]) -> i32 {
+    let mut corpus: Option<String> = None;
+    let mut i = 0usize;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--corpus" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(p) => corpus = Some(p.clone()),
+                    None => {
+                        eprintln!("error: --corpus cần đường dẫn");
+                        return 2;
+                    }
+                }
+            }
+            s => {
+                eprintln!("error: tham số lạ `{s}`");
+                eprintln!("dùng: textvn-cli assist score --corpus <dir>");
+                return 2;
+            }
+        }
+        i += 1;
+    }
+    let Some(dir) = corpus else {
+        eprintln!("error: thiếu --corpus <dir>");
+        eprintln!("dùng: textvn-cli assist score --corpus <dir>");
+        return 2;
+    };
+
+    let path = std::path::Path::new(&dir);
+    let mut files: Vec<std::path::PathBuf> = match std::fs::read_dir(path) {
+        Ok(rd) => rd
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("ass"))
+            .collect(),
+        Err(e) => {
+            eprintln!("error: đọc corpus `{dir}` thất bại: {e}");
+            return 2;
+        }
+    };
+    files.sort();
+
+    let mut total_expected = 0usize;
+    let mut total_matched = 0usize;
+    let mut total_actual = 0usize;
+    let mut total_false_positive = 0usize;
+    let mut clean_cases = 0usize;
+    let mut clean_with_issue = 0usize;
+    let mut cases = 0usize;
+    let mut mismatches: Vec<String> = Vec::new();
+
+    for file in &files {
+        let Ok(text) = std::fs::read_to_string(file) else {
+            eprintln!("error: đọc {} thất bại", file.display());
+            return 2;
+        };
+        for (idx, line) in text.lines().enumerate() {
+            let line = line.trim_end();
+            if line.trim().is_empty() || line.trim_start().starts_with('#') {
+                continue;
+            }
+            let (sentence, expected) = line.split_once('\t').unwrap_or((line, ""));
+            let expected: Vec<String> = expected
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
+            let actual: Vec<String> = check(sentence)
+                .into_iter()
+                .map(|i| i.kind.as_str().to_string())
+                .collect();
+
+            cases += 1;
+            if expected.is_empty() {
+                clean_cases += 1;
+                if !actual.is_empty() {
+                    clean_with_issue += 1;
+                    total_false_positive += actual.len();
+                    if mismatches.len() < 20 {
+                        mismatches.push(format!(
+                            "FALSE POSITIVE [{}] `{}` -> {:?}",
+                            file.display(),
+                            sentence,
+                            actual
+                        ));
+                    }
+                }
+                continue;
+            }
+            total_expected += expected.len();
+            total_actual += actual.len();
+            for kind in &expected {
+                if actual.contains(kind) {
+                    total_matched += 1;
+                } else if mismatches.len() < 20 {
+                    mismatches.push(format!(
+                        "MISSED [{}:{}] `{}` -> thiếu {kind}",
+                        file.display(),
+                        idx + 1,
+                        sentence
+                    ));
+                }
+            }
+            for kind in &actual {
+                if !expected.contains(kind) {
+                    total_false_positive += 1;
+                    if mismatches.len() < 20 {
+                        mismatches.push(format!(
+                            "EXTRA [{}:{}] `{}` -> thua {kind}",
+                            file.display(),
+                            idx + 1,
+                            sentence
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    let pct = |num: usize, den: usize| -> f64 {
+        if den == 0 {
+            0.0
+        } else {
+            num as f64 * 100.0 / den as f64
+        }
+    };
+    let recall = pct(total_matched, total_expected);
+    let precision = pct(total_matched, total_actual);
+    let fpr = pct(clean_with_issue, clean_cases);
+
+    println!("--- assist score: {dir} ---");
+    println!(
+        "cases={cases} (cau sach={clean_cases}, co loi={})",
+        cases - clean_cases
+    );
+    println!("recall    = {recall:.1}%  ({total_matched}/{total_expected} loai loi mong doi)");
+    println!("precision = {precision:.1}%  ({total_matched}/{total_actual} loai loi bao ra)");
+    println!("FPR       = {fpr:.1}%  ({clean_with_issue}/{clean_cases} cau sach bi bao nhầm)");
+    println!("false positives = {total_false_positive}");
+    if !mismatches.is_empty() {
+        println!("--- chi tiết (toi da {}) ---", mismatches.len());
+        for m in &mismatches {
+            println!("  {m}");
+        }
+    }
+    0
 }
