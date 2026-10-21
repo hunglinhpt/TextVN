@@ -768,7 +768,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             }
             if !suggestions.isEmpty {
                 currentCandidates = suggestions
-                candidatePanel?.updateCandidates()
+                candidatePanel?.update()
                 candidatePanel?.show()
                 Diagnostics.log("assist highlight shown (\(suggestions.count) suggestion(s))")
                 return true

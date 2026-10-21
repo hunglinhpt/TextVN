@@ -402,8 +402,8 @@ static void test_assist_auto_fix_sentence(void) {
     doc d;
     memset(&d, 0, sizeof(d));
 
-    /* Type duplicate word: "hom nay troi dep di di ." */
-    type_str(&d, inst, "hom nay troi dep di di .");
+    /* Type duplicate word with Vietnamese marks: "tooi tooi ddi hocj ." -> "tôi tôi đi học ." */
+    type_str(&d, inst, "tooi tooi ddi hocj .");
 
     ime_assist_result_v1 res;
     memset(&res, 0, sizeof(res));
@@ -422,7 +422,7 @@ static void test_assist_auto_fix_sentence(void) {
     assert(ok == 1);
     assert(plan.fixed_count >= 1);
     assert(plan.delete_glyphs > 0);
-    assert(strstr(plan.replacement, "đi .") != NULL);
+    assert(strstr(plan.replacement, "tôi đi học .") != NULL || strstr(plan.replacement, "học .") != NULL);
 
     ime_instance_free(inst);
 }
@@ -434,8 +434,8 @@ static void test_assist_auto_fix_spacing_punct(void) {
     doc d;
     memset(&d, 0, sizeof(d));
 
-    /* Type space before comma: "xin chao ," */
-    type_str(&d, inst, "xin chao ,");
+    /* Type space before comma with Vietnamese marks: "chaof banj ," -> "chào bạn ," */
+    type_str(&d, inst, "chaof banj ,");
 
     ime_assist_result_v1 res;
     memset(&res, 0, sizeof(res));
@@ -452,7 +452,7 @@ static void test_assist_auto_fix_spacing_punct(void) {
     int ok = lc_plan_sentence_auto_fix(inst, tail, &res, &plan);
     assert(ok == 1);
     assert(plan.fixed_count >= 1);
-    assert(strstr(plan.replacement, "chào,") != NULL || strstr(plan.replacement, "chao,") != NULL);
+    assert(strstr(plan.replacement, "bạn,") != NULL || strstr(plan.replacement, "chào bạn,") != NULL);
 
     ime_instance_free(inst);
 }

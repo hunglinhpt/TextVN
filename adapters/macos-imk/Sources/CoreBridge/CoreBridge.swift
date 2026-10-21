@@ -62,6 +62,10 @@ public enum FFI {
     public static let assistTriggerNone: UInt32 = UInt32(IME_ASSIST_TRIGGER_NONE)
     public static let assistTriggerWord: UInt32 = UInt32(IME_ASSIST_TRIGGER_WORD)
     public static let assistTriggerSentence: UInt32 = UInt32(IME_ASSIST_TRIGGER_SENTENCE)
+
+    public static func assistTriggerKind(ch: UInt32) -> UInt32 {
+        ime_assist_trigger_kind(ch)
+    }
 }
 
 /// Kết quả 1 phím đã decode sang Swift (P0-2 §2 — adapter phải làm đúng bảng action).

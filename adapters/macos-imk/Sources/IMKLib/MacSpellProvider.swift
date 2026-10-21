@@ -108,7 +108,6 @@ public final class MacSpellProvider {
         guard isAvailable else { return true }
         guard !word.isEmpty else { return true }
 
-        let ns = word as NSString
         let r = checker.checkSpelling(
             of: word,
             startingAt: 0,
