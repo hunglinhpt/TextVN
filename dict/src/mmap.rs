@@ -202,8 +202,8 @@ mod platform {
     const MAP_PRIVATE: c_int = 2;
 
     extern "C" {
-        fn open(path: *const u8, flags: c_int, ...) -> c_int;
-        fn close(fd: c_int) -> c_int;
+        fn open_file(path: *const u8, flags: c_int, ...) -> c_int;
+        fn close_fd(fd: c_int) -> c_int;
         fn mmap(
             addr: *mut c_void,
             length: usize,
@@ -219,17 +219,17 @@ mod platform {
         use std::os::unix::ffi::OsStrExt;
         let mut bytes = path.as_os_str().as_bytes().to_vec();
         bytes.push(0);
-        let fd = unsafe { open(bytes.as_ptr(), 0) };
+        let fd = unsafe { open_file(bytes.as_ptr(), 0) };
         if fd < 0 {
             return Err(MapError::Io(std::io::Error::last_os_error()));
         }
         let len = super::file_len(path)? as usize;
         if len == 0 {
-            unsafe { close(fd) };
+            unsafe { close_fd(fd) };
             return Err(MapError::InvalidFormat("file rong"));
         }
         let view = unsafe { mmap(ptr::null_mut(), len, PROT_READ, MAP_PRIVATE, fd, 0) };
-        unsafe { close(fd) };
+        unsafe { close_fd(fd) };
         if view.is_null() || view as isize == -1 {
             return Err(MapError::Io(std::io::Error::last_os_error()));
         }
