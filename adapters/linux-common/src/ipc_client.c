@@ -60,6 +60,10 @@ struct lc_ipc_client {
      * de tranh xung dot voi kenh state.json). */
     uint32_t global_seq;
     int      global_enabled;
+    /* Assist state (D20 kill-switch / AS-060) */
+    uint32_t assist_seq;
+    int      has_assist_override;
+    int      assist_enabled;
     /* Đệm nhận theo client: socket non-blocking có thể trả MỘT PHẦN frame rồi
      * EAGAIN — byte đã đọc phải được giữ tới lần poll sau, nếu không luồng lệch
      * (payload bị hiểu thành header độ dài). +1 để kết thúc chuỗi tại chỗ. */
@@ -231,6 +235,17 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
                 client->global_seq++;
             }
         }
+        /* Assist kill-switch: "app_id":"assist" (schema ipc.v1.md / AS-060) */
+        if (strstr(p_state, "\"app_id\":\"assist\"")) {
+            const char *p_en = strstr(p_state, "\"enabled\":");
+            if (p_en) {
+                p_en += 10;
+                while (*p_en == ' ' || *p_en == '\t') p_en++;
+                client->assist_enabled = (strncmp(p_en, "true", 4) == 0);
+                client->has_assist_override = 1;
+                client->assist_seq++;
+            }
+        }
         return;
     }
 
@@ -275,6 +290,15 @@ static void handle_ipc_message(lc_ipc_client *client, const char *json) {
             while (*p_val == ' ') p_val++;
             client->global_enabled = (strncmp(p_val, "true", 4) == 0);
             client->global_seq++;
+        }
+        /* Assist state in snapshot: "assist": true/false */
+        const char *p_asst = strstr(p_snap, "\"assist\":");
+        if (p_asst) {
+            const char *p_val = p_asst + 9;
+            while (*p_val == ' ' || *p_val == '\t') p_val++;
+            client->assist_enabled = (strncmp(p_val, "true", 4) == 0);
+            client->has_assist_override = 1;
+            client->assist_seq++;
         }
         return;
     }
@@ -513,6 +537,51 @@ int lc_ipc_client_get_global_override(const lc_ipc_client *client, int *out_enab
     if (out_enabled) *out_enabled = client->global_enabled;
     if (out_seq) *out_seq = client->global_seq;
     return 1;
+}
+
+int lc_ipc_client_is_assist_enabled(const lc_ipc_client *client) {
+    if (!client) return 0;
+    return client->assist_enabled;
+}
+
+int lc_ipc_client_get_assist_override(const lc_ipc_client *client, int *out_enabled,
+                                      uint32_t *out_seq) {
+    if (!client || client->assist_seq == 0) return 0;
+    if (out_enabled) *out_enabled = client->assist_enabled;
+    if (out_seq) *out_seq = client->assist_seq;
+    return 1;
+}
+
+int lc_ipc_client_toggle_assist(lc_ipc_client *client, int enabled) {
+    if (!client || client->fd < 0 || !client->is_online) return -1;
+
+    char msg[128];
+    snprintf(msg, sizeof(msg),
+             "{\"type\":\"ToggleAssist\",\"enabled\":%s}",
+             enabled ? "true" : "false");
+
+    if (lc_ipc_send_frame(client->fd, msg, strlen(msg)) != 0) {
+        client_disconnect(client);
+        return -1;
+    }
+    return 0;
+}
+
+int lc_ipc_client_send_assist_report(lc_ipc_client *client, uint32_t issues_count,
+                                     uint32_t auto_fixed_count) {
+    if (!client || client->fd < 0 || !client->is_online) return -1;
+
+    (void)issues_count;
+    char msg[128];
+    snprintf(msg, sizeof(msg),
+             "{\"type\":\"AssistReport\",\"issues\":[],\"auto_fixed\":%u}",
+             (unsigned)auto_fixed_count);
+
+    if (lc_ipc_send_frame(client->fd, msg, strlen(msg)) != 0) {
+        client_disconnect(client);
+        return -1;
+    }
+    return 0;
 }
 
 int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int enabled) {

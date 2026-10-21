@@ -57,6 +57,11 @@ public enum FFI {
     public static let assistKindDoubleNegative: UInt32 = UInt32(IME_ASSIST_KIND_DOUBLE_NEGATIVE)
     public static let assistKindCommaAtEnd: UInt32 = UInt32(IME_ASSIST_KIND_COMMA_AT_END)
     public static let assistKindSpelling: UInt32 = UInt32(IME_ASSIST_KIND_SPELLING)
+
+    // assist triggers (IME_ASSIST_TRIGGER_*)
+    public static let assistTriggerNone: UInt32 = UInt32(IME_ASSIST_TRIGGER_NONE)
+    public static let assistTriggerWord: UInt32 = UInt32(IME_ASSIST_TRIGGER_WORD)
+    public static let assistTriggerSentence: UInt32 = UInt32(IME_ASSIST_TRIGGER_SENTENCE)
 }
 
 /// Kết quả 1 phím đã decode sang Swift (P0-2 §2 — adapter phải làm đúng bảng action).
@@ -266,15 +271,74 @@ public final class ImeEngine {
         ime_assist_set_spell_provider(instance, provider)
     }
 
+    /// Lấy phần đuôi buffer câu của engine dưới dạng chuỗi UTF-8 (Fassist-76).
+    ///
+    /// - Parameter maxChars: Số ký tự Unicode tối đa (mặc định 256 — D31).
+    /// - Returns: Chuỗi đuôi câu, hoặc chuỗi rỗng nếu lỗi/không có.
+    public func sentenceTail(maxChars: Int = 256) -> String {
+        var neededLen: Int = 0
+        let rcProbe = ime_assist_sentence_tail(instance, maxChars, nil, 0, &neededLen)
+        guard rcProbe == FFI.ok, neededLen > 0 else { return "" }
+        var buf = [CChar](repeating: 0, count: neededLen + 1)
+        var actualLen: Int = 0
+        let rc = ime_assist_sentence_tail(instance, maxChars, &buf, buf.count, &actualLen)
+        guard rc == FFI.ok else { return "" }
+        return String(cString: buf)
+    }
+
+    /// Tính số ký tự glyph theo bảng mã xuất hiện tại của engine (D27).
+    ///
+    /// Dùng để adapter biết cần xoá bao nhiêu ký tự trong document khi áp dụng gợi ý.
+    public func glyphLen(_ text: String) -> Int {
+        var count: Int = 0
+        let utf8 = Array(text.utf8)
+        let rc = utf8.withUnsafeBufferPointer { buf in
+            ime_assist_glyph_len(
+                instance,
+                buf.baseAddress.map { UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self) },
+                buf.count,
+                &count
+            )
+        }
+        guard rc == FFI.ok else { return text.count }
+        return count
+    }
+
+    /// Phân loại phím trigger: NONE(0), WORD(1), SENTENCE(2).
+    public static func assistTriggerKind(ch: UInt32) -> UInt32 {
+        ime_assist_trigger_kind(ch)
+    }
+
     /// Kiểm tra assist trên buffer câu hiện tại của engine (P4-2, AS-042).
     public func assistCheck() -> [AssistIssue] {
         var out = ime_assist_result_v1()
         out.abi_version = FFI.abiVersion
         let rc = ime_assist_check_instance(instance, &out)
         guard rc == FFI.ok else { return [] }
+        return Self.decodeAssistResult(out)
+    }
+
+    /// Kiểm tra ngữ pháp chuỗi UTF-8 bất kỳ (D23).
+    public static func assistCheck(text: String) -> [AssistIssue] {
+        var out = ime_assist_result_v1()
+        out.abi_version = FFI.abiVersion
+        let utf8 = Array(text.utf8)
+        let rc = utf8.withUnsafeBufferPointer { buf in
+            ime_assist_check(
+                buf.baseAddress.map { UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self) },
+                buf.count,
+                &out
+            )
+        }
+        guard rc == FFI.ok else { return [] }
+        return decodeAssistResult(out)
+    }
+
+    private static func decodeAssistResult(_ out: ime_assist_result_v1) -> [AssistIssue] {
+        var mutableOut = out
         var result: [AssistIssue] = []
-        let count = min(Int(out.count), Int(IME_MAX_ASSIST_ISSUES))
-        withUnsafePointer(to: &out.issues) { ptr in
+        let count = min(Int(mutableOut.count), Int(IME_MAX_ASSIST_ISSUES))
+        withUnsafePointer(to: &mutableOut.issues) { ptr in
             let issuesPtr = UnsafeRawPointer(ptr).assumingMemoryBound(to: ime_assist_issue_v1.self)
             for i in 0..<count {
                 let issue = issuesPtr[i]

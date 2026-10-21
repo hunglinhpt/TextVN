@@ -11,6 +11,7 @@
 #include <fcitx-utils/keysym.h>
 #include <fcitx-utils/misc.h>
 #include <fcitx-utils/utf8.h>
+#include <fcitx/candidatelist.h>
 #include <fcitx/inputcontext.h>
 #include <fcitx/inputcontextmanager.h>
 #include <fcitx/inputpanel.h>
@@ -119,6 +120,41 @@ lc_modifier fcitxModifierKind(fcitx::KeySym sym) {
     }
 }
 
+/* ---- Trợ lý ngữ pháp: Candidate word (Mode 1 / AS-060) ---- */
+class AssistCandidateWord : public fcitx::CandidateWord {
+public:
+    AssistCandidateWord(std::string text, std::string comment, std::string replacement,
+                        uint32_t deleteGlyphs)
+        : fcitx::CandidateWord(fcitx::Text(std::move(text))),
+          replacement_(std::move(replacement)),
+          deleteGlyphs_(deleteGlyphs) {
+        if (!comment.empty()) {
+            setComment(fcitx::Text(std::move(comment)));
+        }
+    }
+
+    void select(fcitx::InputContext *ic) const override {
+        if (!ic) return;
+        try {
+            if (deleteGlyphs_ > 0 &&
+                ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
+                ic->surroundingText().isValid()) {
+                ic->deleteSurroundingText(-static_cast<int>(deleteGlyphs_), deleteGlyphs_);
+            }
+            if (!replacement_.empty()) {
+                ic->commitString(replacement_);
+            }
+            ic->inputPanel().reset();
+            ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+        } catch (...) {
+        }
+    }
+
+private:
+    std::string replacement_;
+    uint32_t deleteGlyphs_ = 0;
+};
+
 /* ---- State per IC ---- */
 
 TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
@@ -169,6 +205,8 @@ TextVNEngine::TextVNEngine(fcitx::Instance *instance)
     lc_log_init("fcitx5-textvn");
     ipc_ = lc_ipc_client_new("fcitx5", nullptr);
     viEnabled_ = lc_state_read_enabled(nullptr, 1) != 0;
+    assistEnabled_ = lc_state_read_assist_enabled(nullptr, 0) != 0;
+    baseAssistEnabled_ = assistEnabled_;
     instance_->inputContextManager().registerProperty("textvnState", &factory_);
 
     modeAction_ = std::make_unique<fcitx::SimpleAction>();
@@ -243,6 +281,7 @@ void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len)
 
 void TextVNEngine::finishWord(TextVNState *st) {
     if (!st) return;
+    clearAssistUI(st);
     if (st->comp.len > 0) {
         commitText(st, st->comp.text, st->comp.len);
         st->comp.len = 0;
@@ -306,6 +345,135 @@ void TextVNEngine::syncState(TextVNState *st) {
     }
 }
 
+void TextVNEngine::clearAssistUI(TextVNState *st) {
+    if (!assistUiShowing_) return;
+    assistUiShowing_ = false;
+    if (!st || !st->ic) return;
+    try {
+        st->ic->inputPanel().reset();
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    } catch (...) {
+    }
+}
+
+void TextVNEngine::consumeAssistIpc() {
+    if (!ipc_) return;
+    int a = 0;
+    uint32_t seq = 0;
+    if (lc_ipc_client_get_assist_override(ipc_, &a, &seq) && seq != assistSeqSeen_) {
+        assistSeqSeen_ = seq;
+        baseAssistEnabled_ = (a != 0);
+        assistEnabled_ = (a != 0);
+    }
+}
+
+void TextVNEngine::syncAssistState(TextVNState *) {
+    int enabled = assistEnabled_ ? 1 : 0;
+    if (lc_state_sync_assist(&assistStateWatch_, nullptr, &enabled)) {
+        baseAssistEnabled_ = (enabled != 0);
+        assistEnabled_ = (enabled != 0);
+    }
+}
+
+bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
+                                      bool isSentenceTrigger, bool planEaten) {
+    (void)isSentenceTrigger;
+    if (!st || !st->inst || !st->ic) return planEaten;
+    if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
+        return planEaten;
+    }
+
+    ime_assist_result_v1 res;
+    std::memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    if (ime_assist_check_instance(st->inst, &res) != IME_OK || res.count == 0) {
+        return planEaten;
+    }
+
+    /* Mode 2: autocorrect + safe auto_fix */
+    const bool isAutoCorrectMode = (st->config.assist_mode == LC_ASSIST_MODE_AUTOCORRECT) &&
+                                  (st->config.assist_auto_fix == LC_ASSIST_AUTO_FIX_SAFE);
+
+    char sentence[512];
+    size_t actual_len = 0;
+    if (ime_assist_sentence_tail(st->inst, 256, sentence, sizeof(sentence), &actual_len) != IME_OK ||
+        actual_len == 0) {
+        return planEaten;
+    }
+    sentence[actual_len < sizeof(sentence) ? actual_len : sizeof(sentence) - 1] = '\0';
+
+    if (isAutoCorrectMode) {
+        const bool surrounding =
+            st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&
+            st->ic->surroundingText().isValid();
+        if (surrounding) {
+            lc_sentence_fix_plan fixPlan;
+            if (lc_plan_sentence_auto_fix(st->inst, sentence, &res, &fixPlan) && fixPlan.fixed_count > 0) {
+                /* If trigger char was not eaten, commit it first so document tail matches sentence buffer */
+                if (!planEaten && triggerChar != 0) {
+                    st->ic->commitString(utf32ToUtf8(&triggerChar, 1));
+                }
+                if (fixPlan.delete_glyphs > 0) {
+                    st->ic->deleteSurroundingText(-static_cast<int>(fixPlan.delete_glyphs), fixPlan.delete_glyphs);
+                }
+                st->ic->commitString(fixPlan.replacement);
+                if (ipc_) {
+                    lc_ipc_client_send_assist_report(ipc_, res.count, fixPlan.fixed_count);
+                }
+                return true; /* Consumed: replacement already contains trigger/fix */
+            }
+        }
+    }
+
+    /* Mode 1: highlight / suggestions (CandidateList & tooltip) */
+    if (st->config.assist_mode == LC_ASSIST_MODE_HIGHLIGHT ||
+        (st->config.assist_mode == LC_ASSIST_MODE_AUTOCORRECT && !isAutoCorrectMode)) {
+        try {
+            auto candList = std::make_unique<fcitx::CommonCandidateList>();
+            candList->setLayoutHint(fcitx::CandidateLayoutHint::Vertical);
+            size_t added = 0;
+
+            for (uint32_t i = 0; i < res.count && added < 3; ++i) {
+                const auto &issue = res.issues[i];
+                if (issue.suggest[0] == '\0') continue;
+
+                /* Single issue plan for selection fix */
+                ime_assist_result_v1 single;
+                std::memset(&single, 0, sizeof(single));
+                single.abi_version = IME_ABI_VERSION;
+                single.count = 1;
+                single.issues[0] = issue;
+
+                lc_sentence_fix_plan singlePlan;
+                uint32_t delGlyphs = 0;
+                std::string rep = issue.suggest;
+                if (lc_plan_sentence_auto_fix(st->inst, sentence, &single, &singlePlan)) {
+                    delGlyphs = singlePlan.delete_glyphs;
+                    rep = singlePlan.replacement;
+                }
+
+                candList->append(std::make_unique<AssistCandidateWord>(
+                    issue.suggest, issue.message, rep, delGlyphs));
+                added++;
+            }
+
+            if (added > 0) {
+                auto &panel = st->ic->inputPanel();
+                panel.setAuxDown(fcitx::Text(std::string("Trợ lý TextVN: ") + res.issues[0].message));
+                panel.setCandidateList(std::move(candList));
+                st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+                assistUiShowing_ = true;
+                if (ipc_) {
+                    lc_ipc_client_send_assist_report(ipc_, res.count, 0);
+                }
+            }
+        } catch (...) {
+        }
+    }
+
+    return planEaten;
+}
+
 std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
                                            fcitx::InputContext &) {
     return viEnabled_ ? "V" : "E";
@@ -324,6 +492,8 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
         lc_config_sync(st->inst, &st->config, nullptr);
         syncState(st);
         consumeGlobalIpc();
+        syncAssistState(st);
+        consumeAssistIpc();
         int appEnabled = 1;
         if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
             viEnabled_ = appEnabled != 0;
@@ -346,6 +516,7 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
  * Cả hai nhánh kiểm chứng bằng tests/e2e_fcitx5.py với fcitx5 thật. */
 void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &event) {
     if (!st) return;
+    clearAssistUI(st);
     if (event.type() == fcitx::EventType::InputContextFocusOut) {
         if (st->comp.len > 0) showPreedit(st, nullptr, 0);
         st->comp.len = 0;
@@ -385,6 +556,10 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
                                 states.test(fcitx::KeyState::Super));
     if (which != LC_MOD_NONE) return false;
 
+    if (!isRelease && assistUiShowing_) {
+        clearAssistUI(st);
+    }
+
     uint32_t mods = fcitxMods(states);
     /* Caps Lock bật: engine coi phím dấu Telex viết hoa là phím dấu (VIEETJ → VIỆT). */
     if (rawStates.test(fcitx::KeyState::CapsLock)) mods |= IME_MOD_CAPS;
@@ -404,6 +579,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         lc_config_sync(st->inst, &st->config, nullptr);
         syncState(st);
         consumeGlobalIpc();
+        syncAssistState(st);
+        consumeAssistIpc();
     }
 
     /* B6 chord; S3 ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng → phím đi thẳng. */
@@ -462,6 +639,14 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     }
     lc_comp_apply(&st->comp, &plan);
     if (plan.reset_engine) ime_reset(st->inst);
+
+    /* Trợ lý ngữ pháp (AS-060 / P4-6): trigger kiểm tra khi commit kết thúc câu hoặc dấu cách */
+    const uint32_t triggerKind = (k.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(k.ch) : IME_ASSIST_TRIGGER_NONE;
+    if (triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
+        bool isSentence = (triggerKind == IME_ASSIST_TRIGGER_SENTENCE);
+        return checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0);
+    }
+
     return plan.eaten != 0;
 }
 

@@ -361,6 +361,102 @@ static void test_find_settings_binary(void) {
     rmdir(dir);
 }
 
+static void test_assist_state_file(void) {
+    char dir[] = "/tmp/textvn_state_assist_XXXXXX";
+    assert(mkdtemp(dir));
+    char path[300];
+    snprintf(path, sizeof(path), "%s/state.json", dir);
+
+    assert(lc_state_read_assist_enabled(path, 0) == 0);
+    assert(lc_state_read_assist_enabled(path, 1) == 1);
+
+    lc_config_state st;
+    memset(&st, 0, sizeof(st));
+    int assist_en = 0;
+    assert(lc_state_sync_assist(&st, path, &assist_en) == 0);
+
+    /* Write assist_enabled = 1 */
+    assert(lc_state_write_assist_enabled(path, 1) == 0);
+    assert(lc_state_read_assist_enabled(path, 0) == 1);
+    assert(lc_state_sync_assist(&st, path, &assist_en) == 1 && assist_en == 1);
+
+    /* Write assist_enabled = 0 */
+    assert(lc_state_write_assist_enabled(path, 0) == 0);
+    assert(lc_state_read_assist_enabled(path, 1) == 0);
+
+    /* Helper lc_assist_is_active */
+    assert(lc_assist_is_active(0, LC_ASSIST_MODE_HIGHLIGHT) == 0);
+    assert(lc_assist_is_active(1, LC_ASSIST_MODE_OFF) == 0);
+    assert(lc_assist_is_active(1, LC_ASSIST_MODE_HIGHLIGHT) == 1);
+    assert(lc_assist_is_active(1, LC_ASSIST_MODE_AUTOCORRECT) == 1);
+
+    char cmd[300];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", dir);
+    assert(system(cmd) == 0);
+}
+
+static void test_assist_auto_fix_sentence(void) {
+    const char *cfg = "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"assist\":{\"mode\":\"autocorrect\",\"auto_fix\":\"safe\"}}";
+    ime_instance *inst = engine_with(cfg);
+    doc d;
+    memset(&d, 0, sizeof(d));
+
+    /* Type duplicate word: "hom nay troi dep di di ." */
+    type_str(&d, inst, "hom nay troi dep di di .");
+
+    ime_assist_result_v1 res;
+    memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    int rc = ime_assist_check_instance(inst, &res);
+    assert(rc == IME_OK);
+    assert(res.count > 0 && "phải phát hiện lỗi lặp từ");
+
+    char tail[256];
+    size_t tail_len = 0;
+    assert(ime_assist_sentence_tail(inst, 256, tail, sizeof(tail), &tail_len) == IME_OK);
+    assert(tail_len > 0);
+
+    lc_sentence_fix_plan plan;
+    int ok = lc_plan_sentence_auto_fix(inst, tail, &res, &plan);
+    assert(ok == 1);
+    assert(plan.fixed_count >= 1);
+    assert(plan.delete_glyphs > 0);
+    assert(strstr(plan.replacement, "đi .") != NULL);
+
+    ime_instance_free(inst);
+}
+
+static void test_assist_auto_fix_spacing_punct(void) {
+    const char *cfg = "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"assist\":{\"mode\":\"autocorrect\",\"auto_fix\":\"safe\"}}";
+    ime_instance *inst = engine_with(cfg);
+    doc d;
+    memset(&d, 0, sizeof(d));
+
+    /* Type space before comma: "xin chao ," */
+    type_str(&d, inst, "xin chao ,");
+
+    ime_assist_result_v1 res;
+    memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    int rc = ime_assist_check_instance(inst, &res);
+    assert(rc == IME_OK);
+    assert(res.count > 0 && "phải phát hiện khoảng trắng trước dấu phẩy");
+
+    char tail[256];
+    size_t tail_len = 0;
+    assert(ime_assist_sentence_tail(inst, 256, tail, sizeof(tail), &tail_len) == IME_OK);
+
+    lc_sentence_fix_plan plan;
+    int ok = lc_plan_sentence_auto_fix(inst, tail, &res, &plan);
+    assert(ok == 1);
+    assert(plan.fixed_count >= 1);
+    assert(strstr(plan.replacement, "chào,") != NULL || strstr(plan.replacement, "chao,") != NULL);
+
+    ime_instance_free(inst);
+}
+
 int main(void) {
     test_classify();
     test_typing();
@@ -369,6 +465,9 @@ int main(void) {
     test_modifier_toggle();
     test_config_sync();
     test_state_file();
+    test_assist_state_file();
+    test_assist_auto_fix_sentence();
+    test_assist_auto_fix_spacing_punct();
     test_macro_when_vi_off();
     test_find_settings_binary();
     printf("test_compose: OK\n");

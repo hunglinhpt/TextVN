@@ -423,6 +423,16 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     if is_modifier_vk(vk) {
         return false;
     }
+
+    // AS-050: Hoàn tác tự sửa cả câu nếu người dùng bấm Ctrl+Z trong vòng 5 giây.
+    if mods == MOD_CTRL && vk == 0x5A {
+        if let Some(ctx) = ctx {
+            if crate::edit_session::apply_assist_undo(shared, ctx) {
+                return true;
+            }
+        }
+    }
+
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.
     if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 || vk == vkc::PACKET || vk == vkc::PROCESSKEY {

@@ -27,6 +27,14 @@ public protocol TextTarget: AnyObject {
     func selectionRange() -> NSRange
     /// Xóa `count` ký tự trước caret bằng key binding chuẩn; `false` nếu app không hỗ trợ.
     func deleteBackward(count: Int) -> Bool
+    /// Xóa ký tự xung quanh caret (before trước caret, after sau caret).
+    func deleteSurroundingText(before: Int, after: Int) -> Bool
+}
+
+extension TextTarget {
+    public func deleteSurroundingText(before: Int, after: Int) -> Bool {
+        deleteBackward(count: before)
+    }
 }
 
 /// Trạng thái marked của controller — 1 instance theo controller (main thread).

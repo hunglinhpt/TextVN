@@ -5,6 +5,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "lc_compose.h"
+#include "linux_common.h"
 #include "textvn_settings.h"
 
 #include <stdio.h>
@@ -283,6 +284,231 @@ int lc_state_sync(lc_config_state *st, const char *path, int *enabled) {
     return 1;
 }
 
+int lc_state_read_assist_enabled(const char *path, int default_enabled) {
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return default_enabled;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_STATE);
+    if (!s) return default_enabled;
+    int v = ime_settings_get_bool(s, "assist_enabled");
+    ime_settings_free(s);
+    return v < 0 ? default_enabled : v;
+}
+
+int lc_state_write_assist_enabled(const char *path, int enabled) {
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return -1;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_STATE);
+    if (!s) return -1;
+    int rc = ime_settings_set_bool(s, "assist_enabled", enabled ? 1 : 0);
+    if (rc == IME_OK) rc = ime_settings_save(s, path);
+    ime_settings_free(s);
+    return rc == IME_OK ? 0 : -1;
+}
+
+int lc_state_sync_assist(lc_config_state *st, const char *path, int *assist_enabled) {
+    if (!st || !assist_enabled) return 0;
+    char buf[1024];
+    if (!path) {
+        if (lc_state_resolve_path(buf, sizeof(buf)) != 0) return 0;
+        path = buf;
+    }
+    long long mtime_ns = 0, size = 0;
+    if (file_stamp(path, &mtime_ns, &size) != 0) return 0;
+    if (st->loaded && st->mtime_ns == mtime_ns && st->size == size) return 0;
+    st->mtime_ns = mtime_ns;
+    st->size = size;
+    st->loaded = 1;
+    *assist_enabled = lc_state_read_assist_enabled(path, *assist_enabled);
+    return 1;
+}
+
+int lc_assist_is_active(int assist_enabled, int assist_mode) {
+    return (assist_enabled != 0) && (assist_mode != LC_ASSIST_MODE_OFF);
+}
+
+int lc_config_read_assist_mode(const char *path, int default_mode) {
+    char buf[1024];
+    if (!path) {
+        if (lc_config_resolve_path(buf, sizeof(buf)) != 0) return default_mode;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_CONFIG);
+    if (!s) return default_mode;
+    char *mode = ime_settings_get_str(s, "assist.mode");
+    int res = default_mode;
+    if (mode) {
+        if (strcmp(mode, "highlight") == 0) res = LC_ASSIST_MODE_HIGHLIGHT;
+        else if (strcmp(mode, "autocorrect") == 0) res = LC_ASSIST_MODE_AUTOCORRECT;
+        else if (strcmp(mode, "off") == 0) res = LC_ASSIST_MODE_OFF;
+        ime_settings_string_free(mode);
+    }
+    ime_settings_free(s);
+    return res;
+}
+
+int lc_config_read_assist_auto_fix(const char *path, int default_auto_fix) {
+    char buf[1024];
+    if (!path) {
+        if (lc_config_resolve_path(buf, sizeof(buf)) != 0) return default_auto_fix;
+        path = buf;
+    }
+    ime_settings *s = ime_settings_load(path, IME_SETTINGS_CONFIG);
+    if (!s) return default_auto_fix;
+    char *af = ime_settings_get_str(s, "assist.auto_fix");
+    int res = default_auto_fix;
+    if (af) {
+        if (strcmp(af, "safe") == 0) res = LC_ASSIST_AUTO_FIX_SAFE;
+        else if (strcmp(af, "off") == 0) res = LC_ASSIST_AUTO_FIX_OFF;
+        ime_settings_string_free(af);
+    }
+    ime_settings_free(s);
+    return res;
+}
+
+typedef struct cand_fix {
+    size_t start;
+    size_t end;
+    const char *replacement;
+} cand_fix;
+
+static int compare_cand_fix(const void *a, const void *b) {
+    const cand_fix *ca = (const cand_fix *)a;
+    const cand_fix *cb = (const cand_fix *)b;
+    if (ca->start != cb->start) {
+        return (ca->start < cb->start) ? -1 : 1;
+    }
+    if (ca->end != cb->end) {
+        return (ca->end < cb->end) ? -1 : 1;
+    }
+    return 0;
+}
+
+int lc_plan_sentence_auto_fix(const ime_instance *inst,
+                              const char *sentence_utf8,
+                              const ime_assist_result_v1 *result,
+                              lc_sentence_fix_plan *out_plan) {
+    if (!inst || !sentence_utf8 || !result || !out_plan) return 0;
+    memset(out_plan, 0, sizeof(*out_plan));
+    if (result->abi_version != IME_ABI_VERSION || result->count == 0) return 0;
+
+    uint32_t chars[512];
+    size_t chars_len = lc_utf8_to_utf32(sentence_utf8, strlen(sentence_utf8), chars, 512);
+    if (chars_len == 0) return 0;
+
+    cand_fix candidates[IME_MAX_ASSIST_ISSUES];
+    size_t cand_count = 0;
+
+    for (uint32_t i = 0; i < result->count && i < IME_MAX_ASSIST_ISSUES; ++i) {
+        const ime_assist_issue_v1 *iss = &result->issues[i];
+        if (!iss->auto_fixable) continue;
+        if (iss->start >= iss->end || iss->end > chars_len) continue;
+        if (iss->suggest[0] == '\0') continue;
+
+        /* Check for control characters in suggest */
+        int has_ctrl = 0;
+        for (const char *p = iss->suggest; *p; ++p) {
+            if ((unsigned char)*p < 0x20) {
+                has_ctrl = 1;
+                break;
+            }
+        }
+        if (has_ctrl) continue;
+
+        /* Duplicate word: xoa tu thu hai cung dau cach lien truoc */
+        if (iss->kind == IME_ASSIST_KIND_DUPLICATE_WORD && iss->start > 0 && chars[iss->start - 1] == ' ') {
+            candidates[cand_count].start = iss->start - 1;
+            candidates[cand_count].end = iss->end;
+            candidates[cand_count].replacement = "";
+            cand_count++;
+        } else {
+            char span_buf[256];
+            lc_utf32_to_utf8(chars + iss->start, iss->end - iss->start, span_buf, sizeof(span_buf));
+            if (strcmp(span_buf, iss->suggest) != 0) {
+                candidates[cand_count].start = iss->start;
+                candidates[cand_count].end = iss->end;
+                candidates[cand_count].replacement = iss->suggest;
+                cand_count++;
+            }
+        }
+    }
+
+    if (cand_count == 0) return 0;
+
+    qsort(candidates, cand_count, sizeof(cand_fix), compare_cand_fix);
+
+    cand_fix selected[IME_MAX_ASSIST_ISSUES];
+    size_t selected_count = 0;
+    size_t last_end = 0;
+    for (size_t i = 0; i < cand_count; ++i) {
+        if (candidates[i].start < last_end) continue;
+        last_end = candidates[i].end;
+        selected[selected_count++] = candidates[i];
+    }
+
+    if (selected_count == 0) return 0;
+
+    size_t delete_from = selected[0].start;
+
+    /* Build original tail UTF-8 */
+    char orig_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
+    lc_utf32_to_utf8(chars + delete_from, chars_len - delete_from, orig_tail_utf8, sizeof(orig_tail_utf8));
+
+    /* Build new tail UTF-8 */
+    char new_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
+    size_t new_tail_len = 0;
+    new_tail_utf8[0] = '\0';
+    size_t cursor = delete_from;
+
+    for (size_t i = 0; i < selected_count; ++i) {
+        if (selected[i].start > cursor) {
+            char chunk[256];
+            lc_utf32_to_utf8(chars + cursor, selected[i].start - cursor, chunk, sizeof(chunk));
+            size_t clen = strlen(chunk);
+            if (new_tail_len + clen + 1 < sizeof(new_tail_utf8)) {
+                memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
+                new_tail_len += clen;
+                new_tail_utf8[new_tail_len] = '\0';
+            }
+        }
+        size_t rlen = strlen(selected[i].replacement);
+        if (new_tail_len + rlen + 1 < sizeof(new_tail_utf8)) {
+            memcpy(new_tail_utf8 + new_tail_len, selected[i].replacement, rlen);
+            new_tail_len += rlen;
+            new_tail_utf8[new_tail_len] = '\0';
+        }
+        cursor = selected[i].end;
+    }
+
+    if (cursor < chars_len) {
+        char chunk[256];
+        lc_utf32_to_utf8(chars + cursor, chars_len - cursor, chunk, sizeof(chunk));
+        size_t clen = strlen(chunk);
+        if (new_tail_len + clen + 1 < sizeof(new_tail_utf8)) {
+            memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
+            new_tail_len += clen;
+            new_tail_utf8[new_tail_len] = '\0';
+        }
+    }
+
+    if (strcmp(orig_tail_utf8, new_tail_utf8) == 0) return 0;
+
+    size_t glyphs = 0;
+    if (ime_assist_glyph_len(inst, orig_tail_utf8, strlen(orig_tail_utf8), &glyphs) != IME_OK || glyphs == 0) {
+        return 0;
+    }
+
+    out_plan->fixed_count = (uint32_t)selected_count;
+    out_plan->delete_glyphs = (uint32_t)glyphs;
+    snprintf(out_plan->replacement, sizeof(out_plan->replacement), "%s", new_tail_utf8);
+    return 1;
+}
+
 #define LC_CONFIG_MAX_BYTES (256 * 1024)
 
 int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
@@ -313,6 +539,30 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
         ime_settings *s = ime_settings_load(path, IME_SETTINGS_CONFIG);
         if (s) {
             st->allow_macro_when_vi_off = ime_settings_get_bool(s, "allow_macro_when_vi_off") == 1;
+            char *mode = ime_settings_get_str(s, "assist.mode");
+            if (mode) {
+                if (strcmp(mode, "highlight") == 0) {
+                    st->assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
+                } else if (strcmp(mode, "autocorrect") == 0) {
+                    st->assist_mode = LC_ASSIST_MODE_AUTOCORRECT;
+                } else {
+                    st->assist_mode = LC_ASSIST_MODE_OFF;
+                }
+                ime_settings_string_free(mode);
+            } else {
+                st->assist_mode = LC_ASSIST_MODE_OFF;
+            }
+            char *af = ime_settings_get_str(s, "assist.auto_fix");
+            if (af) {
+                if (strcmp(af, "safe") == 0) {
+                    st->assist_auto_fix = LC_ASSIST_AUTO_FIX_SAFE;
+                } else {
+                    st->assist_auto_fix = LC_ASSIST_AUTO_FIX_OFF;
+                }
+                ime_settings_string_free(af);
+            } else {
+                st->assist_auto_fix = LC_ASSIST_AUTO_FIX_OFF;
+            }
             ime_settings_free(s);
         }
     }

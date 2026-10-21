@@ -70,6 +70,11 @@ private:
     void syncState(TextVNState *st);
     /* Vong 13 (BUG-03): poll IPC + tieu thu broadcast toan cuc "*" cua tray. */
     void consumeGlobalIpc();
+    /* Trợ lý ngữ pháp (AS-060 / P4-6) */
+    void syncAssistState(TextVNState *st);
+    void consumeAssistIpc();
+    void clearAssistUI(TextVNState *st);
+    bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten);
     void updateModeAction(fcitx::InputContext *ic);
     /* `key` = phím đã chuẩn hoá (chữ hoa theo Shift/Caps Lock); `rawStates` = trạng thái
      * gốc — Key::normalize() của Fcitx5 bỏ bit CapsLock nên phải lấy từ rawKey(). */
@@ -86,6 +91,12 @@ private:
     /* Vong 13: seq broadcast "*" da tieu thu (event-based, khong sticky). */
     uint32_t globalSeqSeen_ = 0;
     lc_config_state stateWatch_{};
+    /* Trợ lý ngữ pháp (AS-060 / P4-6) */
+    bool assistEnabled_ = false;
+    bool baseAssistEnabled_ = false;
+    uint32_t assistSeqSeen_ = 0;
+    lc_config_state assistStateWatch_{};
+    bool assistUiShowing_ = false;
     fcitx::FactoryFor<TextVNState> factory_;
     std::unique_ptr<fcitx::SimpleAction> modeAction_;
     std::unique_ptr<fcitx::SimpleAction> settingsAction_;

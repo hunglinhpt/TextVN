@@ -81,6 +81,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// controller và mỗi lần app được focus, không chỉ khi nhận ConfigReload.
     private var nonPreedit = false
 
+    /// Cấu hình Trợ lý ngữ pháp (AS-060 / P4-6)
+    private var assistSettings: AssistSettings = AssistSettings()
+    /// Trạng thái hoàn tác 1 bước sau khi auto-fix (Cmd+Z trong 5s)
+    private var assistUndo: AssistUndoState?
+    /// Candidate panel của IMK cho Mode 1 (Highlight)
+    private var candidatePanel: IMKCandidates?
+    /// Danh sách gợi ý hiện tại cho candidate panel
+    private var currentCandidates: [String] = []
+
     // R2-106: phím chuyển CỐ ĐỊNH Ctrl+Shift (tap) / Ctrl+Shift+Space như Windows/Linux.
     // Vòng 16 (B3) từng thực thi `switch_key` Alt+Z/Caps Lock riêng trên macOS — lệch
     // parity, và Caps Lock không chặn được trạng thái chữ hoa của hệ thống. Khoá
@@ -108,6 +117,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             MacSpellProvider.shared.register(with: e)
         }
         self.nonPreedit = Self.configNonPreedit(in: cfgData)
+        self.assistSettings = Self.configAssist(in: cfgData)
+        if let s = server {
+            self.candidatePanel = IMKCandidates(server: s, panelType: kIMKSingleRowSteppingCandidatePanel)
+        }
         // Toggle khởi tạo theo `config.enabled` (bản cũ hardcode `true`): khi
         // config tắt VN, hotkey Ctrl+Shift+Space bị lệch một nhịp (bật → vẫn tắt).
         // Chỉ controller ĐẦU TIÊN của tiến trình khởi tạo; sau đó giữ trạng thái
@@ -132,6 +145,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         engine?.reset()
         // R2-49: config.json có thể đổi lúc TextVN.app không chạy (không có ConfigReload).
         nonPreedit = Self.configNonPreedit(in: Self.loadConfig())
+        assistSettings = Self.configAssist(in: Self.loadConfig())
+        assistUndo = nil
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
         // Vòng 16 (audit B2): focus = thời điểm an toàn để nối lại IPC nếu lần
         // trước violation/timeout (connect() idempotent — guard fd/timer).
         ipc.connect()
@@ -151,6 +168,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
+        assistUndo = nil
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
         Diagnostics.log("deactivateServer — committed-before-hide (B13)")
         super.deactivateServer(sender)
     }
@@ -161,6 +181,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
+        assistUndo = nil
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
         Diagnostics.log("commitComposition — committed-before-hide")
         super.commitComposition(sender)
     }
@@ -173,6 +196,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
+        assistUndo = nil
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
         super.inputControllerWillClose()
     }
 
@@ -236,7 +262,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         let mods = KeyTranslator.modifiers(event.modifierFlags)
 
-        // 1. Chord hệ thống (Cmd bất kỳ, Ctrl+phím khác Space toggle) → B6.
+        // 1a. Hỗ trợ Undo 1 bước khi bấm Cmd+Z ngay sau khi auto-fix (AS-060 / P4-6)
+        if Self.isCmdZ(mods: mods, keyCode: event.keyCode) {
+            if handleAssistUndo(sender: sender) {
+                return true
+            }
+        } else {
+            assistUndo = nil
+        }
+
+        // 1b. Chord hệ thống (Cmd bất kỳ khác, Ctrl+phím khác Space toggle) → B6.
         // Cmd+←, Cmd+Z, Cmd+V… đổi con trỏ/text mà engine không thấy: chốt từ đang
         // gõ (marked → text thật) và quên nó, như TSF — giữ lại thì phím dấu kế
         // tiếp xoá `owned` ký tự ở vị trí mới (BackspaceType) hoặc đè marked.
@@ -331,6 +366,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         switch toApply.action {
         case .pass:
+            if marked.isEmpty, isAssistActive(for: context.appID) {
+                let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
+                if triggerKind != FFI.assistTriggerNone {
+                    if let scalar = Unicode.Scalar(keyEvent.ch) {
+                        target.insert(String(scalar), replacementRange: NSRange(location: NSNotFound, length: 0))
+                    }
+                    processAssist(triggerKind: triggerKind, target: target, sender: sender)
+                    return true
+                }
+            }
             return false
         case .replace, .commit, .restore:
             do {
@@ -338,6 +383,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                                        target: target, marked: marked,
                                        onReset: { [weak self] in self?.engine?.reset() })
                 logAction(toApply)
+                if marked.isEmpty, isAssistActive(for: context.appID) {
+                    let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
+                    if triggerKind != FFI.assistTriggerNone {
+                        processAssist(triggerKind: triggerKind, target: target, sender: sender)
+                    }
+                }
                 return !forwardKey
             } catch {
                 // 7. Fail-open: forward phím, engine không được treo (S4, P2-1 §12).
@@ -405,6 +456,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             if let cfg = Self.loadConfig() {
                 _ = engine?.reloadConfig(Self.engineConfig(cfg))
                 nonPreedit = Self.configNonPreedit(in: cfg)
+                assistSettings = Self.configAssist(in: cfg)
                 // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
                 // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
                 if let enabled = Self.configEnabled(in: cfg) {
@@ -583,6 +635,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Thiếu khoá / config hỏng → `false` (gạch chân) — CÙNG mặc định khi decode
     /// của `ConfigModel` (TextVN.app) và CHANGELOG 0.2.27. Bản cài mới ghi khoá tường minh.
+    /// Đọc cấu hình ssist từ config.json.
+    static func configAssist(in data: Data?) -> AssistSettings {
+        AssistConfigParser.parse(from: data)
+    }
+
     static func configNonPreedit(in data: Data?) -> Bool {
         guard let data,
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -654,6 +711,137 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             // khi app không lộ subrole AXSecureTextField (S8).
             secureInputMode: IsSecureEventInputEnabled()
         )
+    }
+
+    // ------------------------------------------------------------- assist (AS-060)
+
+    func isAssistActive(for appID: String) -> Bool {
+        guard assistSettings.isOn else { return false }
+        if let appOverride = assistSettings.per_app[appID] {
+            return appOverride
+        }
+        return true
+    }
+
+    @discardableResult
+    func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil) -> Bool {
+        guard let engine = engine else { return false }
+        let issues = engine.assistCheck()
+        guard !issues.isEmpty else {
+            candidatePanel?.hide()
+            currentCandidates.removeAll()
+            return false
+        }
+
+        Diagnostics.log("assist: detected \(issues.count) issue(s)")
+
+        // Mode 2 / A3: Tự động sửa lỗi objective bằng Backspace+Type
+        if assistSettings.isAutoFixSafe {
+            let sentence = engine.sentenceTail(maxChars: assistSettings.max_sentence_chars)
+            if let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { [weak engine] text in
+                engine?.glyphLen(text) ?? text.count
+            }) {
+                if target.deleteSurroundingText(before: plan.deleteGlyphs, after: 0) {
+                    target.insert(plan.replacement, replacementRange: NSRange(location: NSNotFound, length: 0))
+                    let replGlyphs = engine.glyphLen(plan.replacement)
+                    assistUndo = AssistUndoState(
+                        timestamp: Date(),
+                        originalTail: plan.originalTail,
+                        replacementGlyphs: replGlyphs,
+                        fixedCount: plan.fixedCount
+                    )
+                    engine.reset()
+                    Diagnostics.log("assist auto-fix applied (\(plan.fixedCount) issue(s))")
+                    candidatePanel?.hide()
+                    currentCandidates.removeAll()
+                    return true
+                } else {
+                    Diagnostics.log("assist auto-fix delete failed — fail-open")
+                }
+            }
+        }
+
+        // Mode 1: Hiển thị gợi ý qua candidate panel của IMK
+        if assistSettings.isHighlight && triggerKind == FFI.assistTriggerSentence {
+            let suggestions = issues.compactMap { issue -> String? in
+                issue.suggest.isEmpty ? nil : issue.suggest
+            }
+            if !suggestions.isEmpty {
+                currentCandidates = suggestions
+                candidatePanel?.updateCandidates()
+                candidatePanel?.show()
+                Diagnostics.log("assist highlight shown (\(suggestions.count) suggestion(s))")
+                return true
+            } else {
+                candidatePanel?.hide()
+                currentCandidates.removeAll()
+            }
+        }
+
+        return false
+    }
+
+    @discardableResult
+    func handleAssistUndo(sender: Any? = nil, target: TextTarget? = nil) -> Bool {
+        guard let undo = assistUndo, undo.isValid() else {
+            assistUndo = nil
+            return false
+        }
+        let textTarget = target ?? (sender != nil ? clientTarget(sender) : nil)
+        guard let validTarget = textTarget else {
+            assistUndo = nil
+            return false
+        }
+
+        if validTarget.deleteSurroundingText(before: undo.replacementGlyphs, after: 0) {
+            validTarget.insert(undo.originalTail, replacementRange: NSRange(location: NSNotFound, length: 0))
+            engine?.reset()
+            assistUndo = nil
+            Diagnostics.log("assist undo reverted successfully")
+            return true
+        }
+
+        assistUndo = nil
+        return false
+    }
+
+    static func isCmdZ(mods: UInt32, keyCode: UInt16) -> Bool {
+        let hasCmd = (mods & FFI.modMeta) != 0
+        let noOtherMods = (mods & (FFI.modCtrl | FFI.modAlt | FFI.modShift)) == 0
+        return hasCmd && noOtherMods && keyCode == 0x06
+    }
+
+    // ------------------------------------------------------------- IMK candidate panel
+
+    public override func candidates(_ sender: Any!) -> [Any]! {
+        currentCandidates as [Any]
+    }
+
+    public override func candidateSelected(_ candidateString: NSAttributedString!) {
+        guard let str = candidateString?.string else { return }
+        Diagnostics.log("assist: candidate selected (len=\(str.count))")
+        if let target = clientTarget(client()) {
+            target.insert(str, replacementRange: NSRange(location: NSNotFound, length: 0))
+        }
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
+    }
+
+    public override func candidateSelectionChanged(_ candidateString: NSAttributedString!) {
+        // Callback tuỳ chọn khi di chuyển vệt chọn trong candidate panel
+    }
+
+    // MARK: - Testing hooks
+    var currentAssistSettings: AssistSettings {
+        get { assistSettings }
+        set { assistSettings = newValue }
+    }
+    var currentAssistUndo: AssistUndoState? {
+        get { assistUndo }
+        set { assistUndo = newValue }
+    }
+    var currentAssistCandidates: [String] {
+        currentCandidates
     }
 }
 

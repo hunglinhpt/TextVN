@@ -30,7 +30,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 #[cfg(windows)]
 use crate::assist::{
-    can_apply_fix, plan_fix, AssistCheck, AssistTrigger, FixPlan, FixPrecondition, OverlayView,
+    can_apply_fix, plan_fix, plan_sentence_auto_fix, should_auto_fix_sentence, AssistCheck,
+    AssistTrigger, AssistUndoState, FixPlan, FixPrecondition, OverlayView, SentenceFixPlan,
     SENTENCE_MAX_CHARS,
 };
 #[cfg(windows)]
@@ -91,6 +92,8 @@ pub struct TsfShared {
     pub overlay: crate::overlay::CandidateOverlay,
     /// Lỗi/câu/caret của overlay đang hiện (AS-031 · A2). `None` = overlay tắt.
     pub assist: RefCell<Option<ActiveAssist>>,
+    /// Trạng thái hoàn tác tự sửa cả câu (AS-050 · Mode 2 / A3). `None` = không có undo hoặc đã hết hạn.
+    pub assist_undo: RefCell<Option<crate::assist::AssistUndoState>>,
 }
 
 #[cfg(windows)]
@@ -109,7 +112,18 @@ impl TsfShared {
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
             assist: RefCell::new(None),
+            assist_undo: RefCell::new(None),
         }
+    }
+
+    /// Mode 2 (A3 Whole-Sentence Auto-Correction) có đang bật hay không.
+    pub fn is_assist_auto_fix_enabled(&self) -> bool {
+        self.ipc.is_assist_enabled()
+            && self
+                .thread
+                .try_borrow()
+                .map(|t| t.assist_auto_fix() == textvn_config::AssistAutoFix::Safe)
+                .unwrap_or(false)
     }
 
     pub fn is_composing(&self) -> bool {
@@ -364,10 +378,21 @@ impl KeyEditSession {
                 if comp.is_none() {
                     let trigger = super::assist::assist_trigger(self.key);
                     if let Some(check) = super::assist::after_trigger(shared, trigger) {
-                        // AS-030 (Mode 1): chỉ **điểm hiển thị** (kết thúc câu,
-                        // D11) mới hiện overlay cạnh caret; space/,/: chỉ toast.
+                        // AS-030 / AS-050: chỉ điểm hiển thị (kết thúc câu, D11)
+                        // mới hiện overlay hoặc tự sửa cả câu; space/,/: chỉ toast.
                         if trigger == AssistTrigger::Sentence {
-                            show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                            let mut auto_fixed = false;
+                            if should_auto_fix_sentence(
+                                trigger,
+                                shared.ipc.is_assist_enabled(),
+                                shared.is_assist_auto_fix_enabled(),
+                            ) {
+                                auto_fixed =
+                                    apply_sentence_auto_fix(&self.shared, &self.ctx, ec, &check);
+                            }
+                            if !auto_fixed {
+                                show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                            }
                         }
                     }
                 }
@@ -728,6 +753,290 @@ fn backspace_shift(delete_glyphs: u32) -> Option<i32> {
         return None;
     }
     i32::try_from(delete_glyphs).ok().map(|n| -n)
+}
+
+// ---------------------------------------------------------------------------
+// AS-050 (A3) — tự sửa cả câu bằng Backspace+Type (Mode 2 / Precondition D12)
+// ---------------------------------------------------------------------------
+
+/// Áp dụng tự sửa cả câu (AS-050 · Mode 2 / A3) bằng Backspace+Type.
+/// Trả `true` = đã sửa thành công; `false` = không sửa (fail-safe).
+#[cfg(windows)]
+pub fn apply_sentence_auto_fix(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    ec: u32,
+    check: &AssistCheck,
+) -> bool {
+    let glyph_len = |text: &str| {
+        shared
+            .thread
+            .try_borrow()
+            .map(|t| t.engine.glyph_len_of(text))
+            .unwrap_or_else(|_| text.chars().count())
+    };
+    let Some(view) = check.view() else {
+        return false;
+    };
+    let Some(plan) = plan_sentence_auto_fix(&check.sentence, &view.issues, glyph_len) else {
+        return false;
+    };
+    let session = ApplySentenceFixSession::new(shared.clone(), ctx.clone(), check.clone(), plan);
+    session.apply(ec)
+}
+
+/// Session áp dụng tự sửa cả câu (AS-050 · Mode 2 / A3).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct ApplySentenceFixSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+    check: AssistCheck,
+    plan: SentenceFixPlan,
+}
+
+#[cfg(windows)]
+impl ApplySentenceFixSession {
+    pub fn new(
+        shared: Rc<TsfShared>,
+        ctx: ITfContext,
+        check: AssistCheck,
+        plan: SentenceFixPlan,
+    ) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+            check,
+            plan,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for ApplySentenceFixSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)));
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl ApplySentenceFixSession {
+    pub fn apply(&self, ec: u32) -> bool {
+        unsafe {
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                return false;
+            };
+            // Precondition 1: selection là caret rỗng (không bôi đen)
+            let selection_empty = matches!(sel.IsEmpty(ec), Ok(empty) if empty.as_bool());
+            if !selection_empty {
+                return false;
+            }
+
+            // Precondition 2: buffer câu của core vẫn là câu đang kiểm tra (D8/D12)
+            let buffer_is_ours = self
+                .shared
+                .thread
+                .try_borrow()
+                .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.check.sentence)
+                .unwrap_or(false);
+            if !buffer_is_ours {
+                return false;
+            }
+
+            // Precondition 3: text store cho lùi đúng delete_glyphs glyph
+            let Some(want) = backspace_shift(self.plan.delete_glyphs) else {
+                return false;
+            };
+            let Ok(del) = sel.Clone() else {
+                return false;
+            };
+            let mut shifted = 0i32;
+            let backspace_shift_ok = del
+                .ShiftStart(ec, want, &mut shifted, std::ptr::null())
+                .is_ok()
+                && shifted == want;
+            if !backspace_shift_ok {
+                return false;
+            }
+
+            // Chụp vùng sắp xoá để snapshot/hoàn tác
+            let mut buf = vec![0u16; self.plan.delete_glyphs as usize * 2 + 2];
+            let mut fetched = 0u32;
+            let snapshot = del
+                .GetText(ec, 0, &mut buf, &mut fetched)
+                .ok()
+                .map(|_| buf[..(fetched as usize).min(buf.len())].to_vec())
+                .filter(|text| !text.is_empty());
+
+            // Backspace: xoá đúng vùng cần thay
+            let empty = [0u16; 1];
+            if del.SetText(ec, 0, &empty[..0]).is_err() {
+                return false;
+            }
+
+            // Type: gõ lại replacement qua composition
+            let inserted = (|| -> Result<()> {
+                let ctxcomp: ITfContextComposition = self.ctx.cast()?;
+                let sink: ITfCompositionSink = CompSink::new(Rc::downgrade(&self.shared)).into();
+                let start = sel.Clone()?;
+                let comp = ctxcomp.StartComposition(ec, &start, &sink)?;
+                let range = comp.GetRange()?;
+                let wide = to_wide_nul(&self.plan.replacement);
+                range.SetText(ec, 0, &wide[..wide.len() - 1])?;
+                set_caret_after(&self.ctx, ec, &range);
+                let _ = comp.EndComposition(ec);
+                Ok(())
+            })();
+
+            if inserted.is_err() {
+                if let Some(text) = snapshot {
+                    crate::trace::event(self.shared.tid, format_args!("assist A3 restore"));
+                    let _ = del.SetText(ec, 0, &text);
+                    set_caret_after(&self.ctx, ec, &del);
+                }
+                return false;
+            }
+
+            // Lưu trạng thái hoàn tác (Ctrl+Z trong 5 giây)
+            let repl_str: String = self.plan.replacement.iter().collect();
+            let repl_glyphs = self
+                .shared
+                .thread
+                .try_borrow()
+                .map(|t| t.engine.glyph_len_of(&repl_str) as u32)
+                .unwrap_or_else(|_| self.plan.replacement.len() as u32);
+
+            if let Ok(mut undo_slot) = self.shared.assist_undo.try_borrow_mut() {
+                *undo_slot = Some(AssistUndoState::new(
+                    self.plan.original_tail.clone(),
+                    repl_glyphs,
+                    self.plan.fixed_count,
+                ));
+            }
+
+            // Xóa buffer engine sau khi đã thay thế document
+            self.shared.reset_engine();
+
+            // Thông báo tray toast ngầm (không log phím/nội dung câu của user - Rule S2)
+            let count = self.plan.fixed_count;
+            let message = format!("Đã tự sửa {count} lỗi chính tả trong câu (Ctrl+Z để hoàn tác)");
+            crate::ipc_client::notify_assist_async("TextVN".to_string(), message);
+            crate::trace::event(
+                self.shared.tid,
+                format_args!("assist A3 applied: {count} issues"),
+            );
+
+            true
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AS-050 — Hoàn tác tự sửa cả câu qua Ctrl+Z
+// ---------------------------------------------------------------------------
+
+/// Áp dụng hoàn tác tự sửa cả câu nếu còn trong 5 giây. Trả `true` nếu đã xử lý.
+#[cfg(windows)]
+pub fn apply_assist_undo(shared: &Rc<TsfShared>, ctx: &ITfContext) -> bool {
+    let undo = (|| {
+        let mut slot = shared.assist_undo.try_borrow_mut().ok()?;
+        let state = slot.take()?;
+        if state.is_valid() {
+            Some(state)
+        } else {
+            None
+        }
+    })();
+    let Some(undo) = undo else {
+        return false;
+    };
+    let session: ITfEditSession =
+        ApplyAssistUndoSession::new(shared.clone(), ctx.clone(), undo).into();
+    request_sync_or_async(ctx, shared.tid, &session)
+}
+
+/// Session hoàn tác tự sửa cả câu bằng Backspace+Type (AS-050).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct ApplyAssistUndoSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+    undo: AssistUndoState,
+}
+
+#[cfg(windows)]
+impl ApplyAssistUndoSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext, undo: AssistUndoState) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+            undo,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for ApplyAssistUndoSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let applied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)))
+            .unwrap_or(false);
+        self.shared.reset_engine();
+        if applied {
+            crate::trace::event(self.shared.tid, format_args!("assist A3 undo applied"));
+        }
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl ApplyAssistUndoSession {
+    fn apply(&self, ec: u32) -> bool {
+        unsafe {
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                return false;
+            };
+            if !matches!(sel.IsEmpty(ec), Ok(empty) if empty.as_bool()) {
+                return false;
+            }
+            let Some(want) = backspace_shift(self.undo.replacement_glyphs) else {
+                return false;
+            };
+            let Ok(del) = sel.Clone() else {
+                return false;
+            };
+            let mut shifted = 0i32;
+            if del
+                .ShiftStart(ec, want, &mut shifted, std::ptr::null())
+                .is_err()
+                || shifted != want
+            {
+                return false;
+            }
+            let empty = [0u16; 1];
+            if del.SetText(ec, 0, &empty[..0]).is_err() {
+                return false;
+            }
+            let inserted = (|| -> Result<()> {
+                let ctxcomp: ITfContextComposition = self.ctx.cast()?;
+                let sink: ITfCompositionSink = CompSink::new(Rc::downgrade(&self.shared)).into();
+                let start = sel.Clone()?;
+                let comp = ctxcomp.StartComposition(ec, &start, &sink)?;
+                let range = comp.GetRange()?;
+                let chars: Vec<char> = self.undo.original_tail.chars().collect();
+                let wide = to_wide_nul(&chars);
+                range.SetText(ec, 0, &wide[..wide.len() - 1])?;
+                set_caret_after(&self.ctx, ec, &range);
+                let _ = comp.EndComposition(ec);
+                Ok(())
+            })();
+            inserted.is_ok()
+        }
+    }
 }
 
 /// Session cho `Ctrl+Shift+G`: kiểm tra lại câu rồi hiện overlay (AS-030).
@@ -1132,5 +1441,39 @@ mod tests {
             None,
             "không biểu diễn được trong i32 = không sửa"
         );
+    }
+
+    #[test]
+    fn tsf_shared_assist_auto_fix_state_tracking() {
+        let client = crate::ipc_client::IpcClient::global("test_autofix.exe");
+        let thread = crate::ThreadState::new("test_autofix.exe", 0).unwrap();
+        let shared = super::TsfShared::new(1, client, thread);
+
+        // Ban đầu assist tắt
+        assert!(!shared.is_assist_auto_fix_enabled());
+
+        // Bật assist trong IPC
+        client
+            .state
+            .assist_enabled
+            .store(true, std::sync::atomic::Ordering::Release);
+        // Nhưng auto_fix mặc định là Off -> vẫn false
+        assert!(!shared.is_assist_auto_fix_enabled());
+
+        // Nạp config với auto_fix = safe
+        let cfg_json = br#"{"config_version":1,"assist":{"auto_fix":"safe"}}"#;
+        shared
+            .thread
+            .borrow_mut()
+            .reload_config_bytes(cfg_json)
+            .unwrap();
+        assert!(shared.is_assist_auto_fix_enabled());
+
+        // Tắt assist từ tray kill-switch -> false
+        client
+            .state
+            .assist_enabled
+            .store(false, std::sync::atomic::Ordering::Release);
+        assert!(!shared.is_assist_auto_fix_enabled());
     }
 }

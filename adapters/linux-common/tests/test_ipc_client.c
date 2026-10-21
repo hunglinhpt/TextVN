@@ -76,6 +76,13 @@ static void test_offline_fallback(void) {
     int override_val = 0;
     assert(lc_ipc_client_get_app_override(client, &override_val) == 0);
 
+    /* Assist helpers must not crash offline */
+    assert(lc_ipc_client_is_assist_enabled(client) == 0);
+    uint32_t aseq = 0;
+    assert(lc_ipc_client_get_assist_override(client, &override_val, &aseq) == 0);
+    assert(lc_ipc_client_toggle_assist(client, 1) == -1);
+    assert(lc_ipc_client_send_assist_report(client, 2, 1) == -1);
+
     /* Non-blocking poll returns 0 */
     assert(lc_ipc_client_poll(client) == 0);
 
@@ -374,6 +381,48 @@ static void test_parser_global_state(void) {
 
     lc_ipc_client_free(client);
 }
+
+static void test_parser_assist_state(void) {
+    lc_ipc_client *client = lc_ipc_client_new("test.app", "/tmp/nonexistent_parser_test.sock");
+    assert(client != NULL);
+    assert(lc_ipc_client_is_assist_enabled(client) == 0);
+
+    int a = 0;
+    uint32_t seq = 0;
+    assert(lc_ipc_client_get_assist_override(client, &a, &seq) == 0);
+
+    /* StateUpdate for assist: "app_id":"assist" */
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"assist\",\"enabled\":true,\"version\":10}");
+    assert(lc_ipc_client_is_assist_enabled(client) == 1);
+    assert(lc_ipc_client_get_assist_override(client, &a, &seq) == 1);
+    assert(seq == 1);
+    assert(a == 1);
+
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"assist\",\"enabled\":false,\"version\":11}");
+    assert(lc_ipc_client_is_assist_enabled(client) == 0);
+    assert(lc_ipc_client_get_assist_override(client, &a, &seq) == 1);
+    assert(seq == 2);
+    assert(a == 0);
+
+    /* Other app_id does not touch assist */
+    handle_ipc_message(client,
+        "{\"type\":\"StateUpdate\",\"app_id\":\"code.exe\",\"enabled\":true,\"version\":12}");
+    assert(lc_ipc_client_get_assist_override(client, &a, &seq) == 1);
+    assert(seq == 2);
+    assert(a == 0);
+
+    /* Snapshot containing assist */
+    handle_ipc_message(client,
+        "{\"type\":\"Snapshot\",\"config_version\":4,\"state\":{\"*\":true,\"assist\":true},\"appdb_version\":1,\"channel\":\"stable\"}");
+    assert(lc_ipc_client_is_assist_enabled(client) == 1);
+    assert(lc_ipc_client_get_assist_override(client, &a, &seq) == 1);
+    assert(seq == 3);
+    assert(a == 1);
+
+    lc_ipc_client_free(client);
+}
 #endif
 
 int main(void) {
@@ -384,6 +433,7 @@ int main(void) {
     test_offline_fallback();
 #if defined(__linux__) || defined(__unix__)
     test_parser_global_state();
+    test_parser_assist_state();
     test_global_broadcast_state_update();
     test_global_snapshot_on_connect();
     test_partial_frame_is_buffered();

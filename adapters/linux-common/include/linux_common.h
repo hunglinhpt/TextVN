@@ -146,6 +146,32 @@ int lc_ipc_client_get_global_override(const lc_ipc_client *client, int *out_enab
                                       uint32_t *out_seq);
 
 /**
+ * Check if Assist (Trợ lý ngữ pháp) is enabled via IPC client (D20 kill-switch).
+ * Returns 1 if enabled, 0 if disabled or offline.
+ */
+int lc_ipc_client_is_assist_enabled(const lc_ipc_client *client);
+
+/**
+ * Check if tray has an assist enable/disable override (from StateUpdate or Snapshot).
+ * Returns 1 if override present (stored in *out_enabled), 0 if no override.
+ * *out_seq increments on each broadcast.
+ */
+int lc_ipc_client_get_assist_override(const lc_ipc_client *client, int *out_enabled,
+                                      uint32_t *out_seq);
+
+/**
+ * Send ToggleAssist request to tray.
+ */
+int lc_ipc_client_toggle_assist(lc_ipc_client *client, int enabled);
+
+/**
+ * Send AssistReport to tray (issues count, auto_fixed count).
+ * Rule S2 / D8 compliant: DOES NOT send user text/keystrokes.
+ */
+int lc_ipc_client_send_assist_report(lc_ipc_client *client, uint32_t issues_count,
+                                     uint32_t auto_fixed_count);
+
+/**
  * Send ToggleViEn request to tray.
  */
 int lc_ipc_client_toggle_vi_en(lc_ipc_client *client, const char *app_id, int enabled);

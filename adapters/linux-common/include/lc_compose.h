@@ -110,6 +110,18 @@ void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
 int  lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which);
 void lc_modifier_toggle_reset(lc_modifier_toggle *t);
 
+/* ---- Trợ lý ngữ pháp (AS-060 / P4-0 §7) ---- */
+typedef enum lc_assist_mode {
+    LC_ASSIST_MODE_OFF = 0,
+    LC_ASSIST_MODE_HIGHLIGHT = 1,   /* Mode 1: gợi ý / candidate */
+    LC_ASSIST_MODE_AUTOCORRECT = 2  /* Mode 2: tự sửa câu (auto-fix) */
+} lc_assist_mode;
+
+typedef enum lc_assist_auto_fix {
+    LC_ASSIST_AUTO_FIX_OFF = 0,
+    LC_ASSIST_AUTO_FIX_SAFE = 1
+} lc_assist_auto_fix;
+
 /* ---- config.json / state.json (do textvn-settings ghi — cùng định dạng tray Windows) ---- */
 typedef struct lc_config_state {
     long long mtime_ns;
@@ -118,6 +130,9 @@ typedef struct lc_config_state {
     /* config.allow_macro_when_vi_off của lần nạp hợp lệ gần nhất (adapter cần biết để
      * vẫn đưa phím qua engine khi tắt tiếng Việt). */
     int       allow_macro_when_vi_off;
+    /* Trợ lý ngữ pháp (AS-060 / P4-6) */
+    int       assist_mode;     /* LC_ASSIST_MODE_* (0=off, 1=highlight, 2=autocorrect) */
+    int       assist_auto_fix; /* LC_ASSIST_AUTO_FIX_* (0=off, 1=safe) */
 } lc_config_state;
 
 /* $XDG_CONFIG_HOME/TextVN/<name> hoặc ~/.config/TextVN/<name>. */
@@ -137,6 +152,40 @@ int lc_state_read_enabled(const char *path, int default_enabled);
 int lc_state_write_enabled(const char *path, int enabled);
 /* File đổi kể từ lần trước → đọc lại, gán *enabled, trả 1. Không đổi/không có → 0. */
 int lc_state_sync(lc_config_state *st, const char *path, int *enabled);
+
+/* state.json assist_enabled (kill-switch D20): mặc định 0 (tắt). */
+int lc_state_read_assist_enabled(const char *path, int default_enabled);
+/* Ghi assist_enabled vào state.json. 0 = OK. */
+int lc_state_write_assist_enabled(const char *path, int enabled);
+/* Đồng bộ assist_enabled khi state.json đổi. Trả 1 nếu có đổi. */
+int lc_state_sync_assist(lc_config_state *st, const char *path, int *assist_enabled);
+
+/* Trợ lý có đang hoạt động hay không (kill-switch bật VÀ mode != OFF). */
+int lc_assist_is_active(int assist_enabled, int assist_mode);
+
+/* Đọc trực tiếp assist.mode và assist.auto_fix từ config.json. */
+int lc_config_read_assist_mode(const char *path, int default_mode);
+int lc_config_read_assist_auto_fix(const char *path, int default_auto_fix);
+
+/* Kế hoạch tự sửa câu (Mode 2 - autocorrect / AS-060) */
+#define LC_MAX_SENTENCE_FIX_CHARS 512
+typedef struct lc_sentence_fix_plan {
+    uint32_t fixed_count;                       /* Số lỗi objective đã sửa */
+    uint32_t delete_glyphs;                     /* Số glyph cần xoá lùi (surrounding text) */
+    char     replacement[LC_MAX_SENTENCE_FIX_CHARS]; /* Chuỗi UTF-8 thay thế để commit */
+} lc_sentence_fix_plan;
+
+/* Tính toán kế hoạch tự sửa câu từ kết quả ime_assist_check_instance.
+ * sentence_utf8: chuỗi câu UTF-8 lấy từ ime_assist_sentence_tail.
+ * result: kết quả từ ime_assist_check_instance.
+ * inst: engine instance để gọi ime_assist_glyph_len.
+ * out_plan: nhận kế hoạch sửa câu.
+ * Trả 1 nếu có kế hoạch hợp lệ (cần sửa), 0 nếu không cần sửa hoặc không thể sửa an toàn.
+ */
+int lc_plan_sentence_auto_fix(const ime_instance *inst,
+                              const char *sentence_utf8,
+                              const ime_assist_result_v1 *result,
+                              lc_sentence_fix_plan *out_plan);
 
 /* Tìm binary bảng cài đặt `textvn-settings` (theo thứ tự): cạnh `self_dir`,
  * `self_dir/../../bin` (prefix/lib/textvn → prefix/bin), $PATH, ~/.local/bin.

@@ -445,6 +445,174 @@ pub fn can_apply_fix(pre: FixPrecondition) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// A3 — tự sửa cả câu bằng Backspace+Type (Mode 2 / AS-050 · D12 · D22 · D27)
+// ---------------------------------------------------------------------------
+
+/// Kế hoạch tự sửa cả câu (A3 — Mode 2 / AS-050).
+///
+/// Áp dụng cho các lỗi objective khi `auto_fix == "safe"`.
+/// Tìm đoạn khác biệt sớm nhất (`delete_from`), xoá từ đó tới hết câu và gõ lại
+/// phiên bản câu đã được sửa.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SentenceFixPlan {
+    /// Số lượng lỗi objective được sửa.
+    pub fixed_count: usize,
+    /// Vị trí ký tự char đầu tiên bị thay đổi trong câu (0-based).
+    pub delete_from: usize,
+    /// Số ký tự char trong câu bị xoá (từ delete_from tới hết câu).
+    pub delete_chars: usize,
+    /// Số glyph tương ứng cần xoá lùi trong document (theo bảng mã xuất của core).
+    pub delete_glyphs: u32,
+    /// Ký tự gõ lại (đuôi câu mới đã sửa từ delete_from).
+    pub replacement: Vec<char>,
+    /// Đuôi câu gốc bị xoá (dùng để hoàn tác Undo 1 bước).
+    pub original_tail: String,
+}
+
+/// Tính kế hoạch sửa cả câu cho các lỗi objective (A3 — Mode 2).
+///
+/// `sentence`: chuỗi câu gốc từ buffer core (UTF-8).
+/// `issues`: danh sách lỗi từ engine.
+/// `glyph_len`: hàm tính độ dài glyph của chuỗi (từ `Engine::glyph_len_of`).
+pub fn plan_sentence_auto_fix<F>(
+    sentence: &str,
+    issues: &[IssueView],
+    glyph_len: F,
+) -> Option<SentenceFixPlan>
+where
+    F: Fn(&str) -> usize,
+{
+    let chars: Vec<char> = sentence.chars().collect();
+    if chars.is_empty() {
+        return None;
+    }
+
+    // Thu thập các ứng viên sửa lỗi objective (auto_fixable == true)
+    let mut candidates: Vec<(usize, usize, String)> = Vec::new();
+    for issue in issues {
+        if !issue.auto_fixable {
+            continue;
+        }
+        if issue.start >= issue.end || issue.end > chars.len() {
+            continue;
+        }
+        let Some(suggestion) = issue.suggestion.as_deref() else {
+            continue;
+        };
+        if suggestion.chars().any(char::is_control) {
+            continue;
+        }
+
+        let span_text: String = chars[issue.start..issue.end].iter().collect();
+        let same_word = span_text.to_lowercase() == suggestion.to_lowercase();
+        let prev_is_space = issue.start > 0 && chars[issue.start - 1] == ' ';
+
+        if same_word && prev_is_space {
+            // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước
+            candidates.push((issue.start - 1, issue.end, String::new()));
+        } else if span_text != suggestion {
+            candidates.push((issue.start, issue.end, suggestion.to_string()));
+        }
+    }
+
+    if candidates.is_empty() {
+        return None;
+    }
+
+    // Sắp xếp theo vị trí bắt đầu
+    candidates.sort_by_key(|(start, end, _)| (*start, *end));
+
+    // Lọc bỏ các khoảng chồng lấn
+    let mut non_overlapping: Vec<(usize, usize, String)> = Vec::new();
+    let mut last_end = 0usize;
+    for cand in candidates {
+        if cand.0 < last_end {
+            continue; // Overlap -> bỏ qua để an toàn
+        }
+        last_end = cand.1;
+        non_overlapping.push(cand);
+    }
+
+    if non_overlapping.is_empty() {
+        return None;
+    }
+
+    // delete_from là vị trí bắt đầu của lỗi đầu tiên
+    let delete_from = non_overlapping[0].0;
+    let original_tail: String = chars[delete_from..].iter().collect();
+
+    // Dựng new_tail từ delete_from
+    let mut new_tail = String::with_capacity(original_tail.len());
+    let mut cursor = delete_from;
+    for (start, end, replacement) in &non_overlapping {
+        if *start > cursor {
+            new_tail.extend(chars[cursor..*start].iter());
+        }
+        new_tail.push_str(replacement);
+        cursor = *end;
+    }
+    if cursor < chars.len() {
+        new_tail.extend(chars[cursor..].iter());
+    }
+
+    if new_tail == original_tail {
+        return None; // Không có thay đổi thực tế
+    }
+
+    let glyphs = glyph_len(&original_tail);
+    if glyphs == 0 {
+        return None;
+    }
+
+    Some(SentenceFixPlan {
+        fixed_count: non_overlapping.len(),
+        delete_from,
+        delete_chars: original_tail.chars().count(),
+        delete_glyphs: u32::try_from(glyphs).ok()?,
+        replacement: new_tail.chars().collect(),
+        original_tail,
+    })
+}
+
+/// Trạng thái hoàn tác (Undo) của lần tự sửa câu A3 gần nhất (giữ trong 5 giây).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssistUndoState {
+    /// Thời điểm áp dụng tự sửa (để hết hạn sau 5 giây theo spec P4-0 §4.3).
+    pub timestamp: std::time::Instant,
+    /// Đoạn câu gốc đã bị xoá.
+    pub original_tail: String,
+    /// Số glyph đã gõ lại sau khi sửa.
+    pub replacement_glyphs: u32,
+    /// Số lỗi đã được sửa trong lần này.
+    pub fixed_count: usize,
+}
+
+impl AssistUndoState {
+    pub fn new(original_tail: String, replacement_glyphs: u32, fixed_count: usize) -> Self {
+        Self {
+            timestamp: std::time::Instant::now(),
+            original_tail,
+            replacement_glyphs,
+            fixed_count,
+        }
+    }
+
+    /// Kiểm tra trạng thái Undo có còn hiệu lực không (trong vòng 5 giây).
+    pub fn is_valid(&self) -> bool {
+        self.timestamp.elapsed() <= std::time::Duration::from_secs(5)
+    }
+}
+
+/// Quyết định xem có nên tự sửa cả câu (A3 / Mode 2) tại thời điểm trigger hay không.
+pub fn should_auto_fix_sentence(
+    trigger: AssistTrigger,
+    assist_enabled: bool,
+    auto_fix_enabled: bool,
+) -> bool {
+    assist_enabled && auto_fix_enabled && trigger == AssistTrigger::Sentence
+}
+
+// ---------------------------------------------------------------------------
 // Tiện ích thuần
 // ---------------------------------------------------------------------------
 
@@ -529,6 +697,7 @@ fn claim_notify_slot(now_ms: u64) -> bool {
 /// toast tray (AS-022), nên span `start..end` trong `result` luôn trỏ đúng vào
 /// `sentence` (không phải bản sao thứ hai của câu).
 #[cfg(windows)]
+#[derive(Clone)]
 pub struct AssistCheck {
     /// Câu đã cắt theo [`SENTENCE_MAX_CHARS`] — đúng chuỗi engine vừa kiểm tra
     /// (UTF-16 → `String`, char Unicode).
@@ -977,5 +1146,64 @@ mod tests {
         assert_eq!(truncate_chars("hoà thuỷ", 4), "hoà…");
         assert_eq!(truncate_chars("hoà thuỷ", 0), "…");
         assert_eq!(truncate_chars("hoà", 1), "…");
+    }
+
+    #[test]
+    fn plan_sentence_auto_fix_nhieu_loi_objective() {
+        let sentence = "hôm nay tôi tôi đi  học .";
+        let issues = vec![
+            issue(0, 3, "Chữ thường đầu câu", Some("Hôm")),
+            issue(12, 15, "Lặp từ: \"tôi\"", Some("tôi")),
+            issue(18, 20, "Khoảng trắng kép", Some(" ")),
+            issue(23, 24, "Thừa khoảng trắng trước dấu câu", Some("")),
+        ];
+        let plan = plan_sentence_auto_fix(sentence, &issues, |tail| tail.chars().count())
+            .expect("plan sentence");
+
+        assert_eq!(plan.fixed_count, 4);
+        assert_eq!(plan.delete_from, 0);
+        assert_eq!(plan.original_tail, sentence);
+        let rep_str: String = plan.replacement.iter().collect();
+        assert_eq!(rep_str, "Hôm nay tôi đi học.");
+    }
+
+    #[test]
+    fn plan_sentence_auto_fix_chi_sua_phan_duoi() {
+        let sentence = "Tôi nghĩ rằng nghiã là đúng.";
+        let issues = vec![issue(14, 19, "Sai vị trí dấu", Some("nghĩa"))];
+        let plan = plan_sentence_auto_fix(sentence, &issues, |tail| tail.chars().count())
+            .expect("plan sentence");
+
+        assert_eq!(plan.fixed_count, 1);
+        assert_eq!(plan.delete_from, 14);
+        assert_eq!(plan.original_tail, "nghiã là đúng.");
+        let rep_str: String = plan.replacement.iter().collect();
+        assert_eq!(rep_str, "nghĩa là đúng.");
+    }
+
+    #[test]
+    fn plan_sentence_auto_fix_bo_qua_loi_chi_goi_y() {
+        let sentence = "Hôm nay tôi thấy môt con mèo.";
+        let mut sp_issue = issue(17, 20, "Không có trong từ điển", Some("một"));
+        sp_issue.auto_fixable = false;
+        let plan = plan_sentence_auto_fix(sentence, &[sp_issue], |tail| tail.chars().count());
+        assert_eq!(plan, None);
+    }
+
+    #[test]
+    fn assist_undo_state_hieu_luc_va_het_han() {
+        let state = AssistUndoState {
+            timestamp: std::time::Instant::now(),
+            original_tail: "tôi tôi đi".to_string(),
+            replacement_glyphs: 6,
+            fixed_count: 1,
+        };
+        assert!(state.is_valid());
+
+        let expired = AssistUndoState {
+            timestamp: std::time::Instant::now() - std::time::Duration::from_secs(6),
+            ..state
+        };
+        assert!(!expired.is_valid());
     }
 }

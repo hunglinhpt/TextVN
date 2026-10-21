@@ -273,6 +273,8 @@ pub struct ThreadState {
     user_enabled: Option<bool>,
     /// `config.allow_macro_when_vi_off` của lần nạp config hợp lệ gần nhất.
     macro_when_off: bool,
+    /// `config.assist.auto_fix` của lần nạp config gần nhất (AS-050 · Mode 2 / A3).
+    assist_auto_fix: textvn_config::AssistAutoFix,
 }
 
 impl ThreadState {
@@ -284,6 +286,7 @@ impl ThreadState {
             generation,
             user_enabled: None,
             macro_when_off: false,
+            assist_auto_fix: textvn_config::AssistAutoFix::default(),
         })
     }
 
@@ -406,6 +409,7 @@ impl ThreadState {
             .and_then(|s| textvn_config::parse_config(s).ok())
         {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
+            self.assist_auto_fix = cfg.assist.auto_fix;
         }
         Ok(())
     }
@@ -414,6 +418,11 @@ impl ThreadState {
     /// để bung gõ tắt; chữ thường đi thẳng không biến đổi.
     pub fn macro_when_off(&self) -> bool {
         self.macro_when_off
+    }
+
+    /// Cấu hình tự sửa cả câu (AS-050 · Mode 2 / A3).
+    pub fn assist_auto_fix(&self) -> textvn_config::AssistAutoFix {
+        self.assist_auto_fix
     }
 }
 

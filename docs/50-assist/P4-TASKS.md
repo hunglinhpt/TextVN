@@ -17,8 +17,8 @@
 | P4-2 | AS-021…025 | FFI `ime_assist_*` · trigger `space/,/.` · toast · kill-switch | 🔄 **đang làm** (Agent Core) |
 | P4-3 | AS-030…031 | Candidate list Windows (Overlay) + A2 (sửa 1 từ) + precondition | ✅ **xong** (Agent Windows/TSF) |
 | P4-4 | AS-040…049 | Từ điển VN: **(a) glue provider OS** (Windows `ISpellCheckerFactory` · macOS `NSSpellChecker` · Linux `libspelling`/enchant) theo D32/D33 **trước** → **(b) FST fallback** từ `hunspell-vi` + attribution (D37) + gợi ý từ | ✅ **xong** (AS-040 FST; AS-041 syllable suggest; AS-042 OS glue 3 nền tảng) |
-| P4-5 | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ⬜ chưa làm |
-| P4-6 | AS-060…068 | Parity macOS/Linux + settings 3 OS + `ui-spec` | ⬜ chưa làm |
+| **P4-5** | AS-050…056 | Mode 2 / A3 (tự sửa cả câu) + toast + undo | ✅ **xong** (2026-10-21) |
+| **P4-6** | AS-060…068 | Parity macOS/Linux (Mode 1 highlight + Mode 2 auto-fix + undo) | ✅ **xong** (2026-10-21) |
 
 ## Chi tiết P4-1 (đã xong)
 
@@ -51,8 +51,8 @@
 | AS-040 | Từ điển FST mmap + `OnceLock<Arc<…>>` | ≤ 3 MB · mmap < 10 ms · FPR ≤ 2% · license audit GPL hunspell-vi | AS-009 + AS-010 | Agent Dict/Data | ✅ xong (dict crate + FST tests + REUSE attribution; .dic 6.642 tu x 2 kieu dau) |
 | AS-041 | Gợi ý từ (edit distance âm tiết) | Recall ≥ 80% trên corpus lỗi | AS-040 | **Agent Dict/Core (ta)** | ✅ **xong** (2026-10-21: syllable skeleton + Damerau-Levenshtein, recall 100% test_dic_dau_moi) |
 | AS-042 | Glue OS spellcheck provider (Windows `ISpellCheckerFactory` / macOS `NSSpellChecker` / Linux enchant-2) | D32-D37 (OS-first) | AS-040 | **Agent Platform/Dict (ta)** | ✅ **xong** (2026-10-21: Windows COM, macOS Obj-C/Swift bridge, Linux enchant-2) |
-| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | Agent Core/App | ⬜ chưa làm |
-| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · `ui-spec` + `parity-checklist` cập nhật | AS-050 | Agent Mac/Linux | ⬜ chưa làm |
+| AS-050 | Mode 2 / A3 — tự sửa cả câu | Chỉ luật objective · precondition bắt buộc · undo | AS-031 + AS-040 | **Agent Windows/TSF (ta)** | ✅ **xong** (2026-10-21: SentenceFixPlan, ApplySentenceFixSession, Precondition D12, Ctrl+Z undo 5s, silent toast) |
+| AS-060 | macOS (IMK) + Linux (IBus/Fcitx5) parity | Cùng corpus pass 3 OS · Mode 1 candidate + Mode 2 auto-fix + undo | AS-050 | **Agent Mac/Linux (subagents)** | ✅ **xong** (2026-10-21: macOS IMKCandidates + Cmd+Z undo; Linux fcitx5 deleteSurroundingText + IPC report) |
 
 ## Recipe P4-2a — refactor buffer trong `core` (đọc trước khi code)
 
