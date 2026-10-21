@@ -1,0 +1,990 @@
+# corpus/assist/vi_real_clean.ass - cau SACH da ra soat (van ban that)
+# Nguon: Tatoeba vie_sentences.tsv.bz2 (CC BY 2.0 FR - attribution bat buoc)
+# Sinh lap: python tools/assist/build_real_corpus.py
+# Mau ngau nhien tat dinh: seed 20261021, 1000/5092 cau, bo cau co loi.
+# Dinh dang: <cau>\t (cot kinds rong = sach) · '~ ' = sach nhung engine BAO NHAM
+#   - Dong KHONG co '~': test corpus assert "khong loi" -> chan hoi quy FP
+#   - Dong co '~ '   : da ra soat la sach, nhung engine dang bao nham (FPR that)
+# Dung de do FPR tren van ban that (P4-12), khong phai cau mau tong hop.
+
+Tiếc rằng cái đó là sự thật.	
+Hễ tôi kiếm được cái gì tôi thích thì nó lại đắt quá.	
+Làm ơn để bộ bài trên bàn gỗ sồi.	
+Sếp à, không phải tôi đâu!	
+Chúng tôi đã đi bộ rất nhiều.	
+Cô ta có đôi lúc tới thăm tôi.	
+Cho tôi mượn cái gì đấy để cắt sợi dây này.	
+Tôi đã có cơ hội gặp anh ấy.	
+Chúng tôi đã gặp một ông nhà văn.	
+Anh ta đến đây vì mục đích gì?	
+Vui lòng đọc các con số trên đồng hồ đo nước.	
+Tôi tìm đến ông ấy để được giúp đỡ.	
+Hôm qua, một tên trộm đã đột nhập vào nhà.	
+Rốt cuộc, họ đã bắt đầu hiểu sự thật	
+Chị ấy muốn thoát khỏi nếp đơn điệu.	
+Tốt nhất là anh đừng tới đó.	
+Cô gái làm việc ở lò nướng bánh có duyên.	
+Nước không thể thiếu đối với cây cỏ.	
+Tôi đến muộn vì trời mưa.	
+Tôi đã quen chị ấy ở Pháp.	
+Một nhà trường mới đã được xây dựng.	
+Một quả táo rơi xuống đất.	
+Bạn có gì để nói về việc này không?	
+Tôi có thể giúp bạn được không?	
+Tôi đánh mất chiếc ô của tôi.	
+Bạn đã đánh rơi bút chì của bạn.	
+Bây giờ chỉ có phép lạ mới có thể cứu được bà ấy.	
+Bạn hãy học những từ đó, từng từ một.	
+Đáng tiếc rằng chị ấy ốm.	
+Tôi đã bắt bướm bằng lưới.	
+Hôm nọ bạn nói điều đó, có phải không?	
+Bà ấy nói với người đầu bếp "cám ơn về bữa ăn".	
+Tôi biết người Đức có râu dài này.	
+Lúc này tôi đang gặp khó khăn về thư điện tử.	
+Bố anh ấy chết vì ung thư, mười năm trước đây.	
+Ở đó cũng có một công viên.	
+Tôi có được phép nêu câu hỏi không?	
+Bạn có lái xe được không?	
+Tôi đã học lái khi 18 tuổi và tôi đã được cấp bằng lái xe.	
+Buổi họp kéo dài đến 5 giờ.	
+Đó không phải là cái mà tôi gọi.	
+Kể từ bây giờ bà ấy sẽ chăm sóc ông.	
+Sấm làm hoảng sợ các đứa trẻ.	
+Anh ấy đã thừa kế một hòm gỗ cổ.	
+Mọi người phải làm chủ được số phận của mình.	
+Tôi đã đánh vỡ kính của tôi.	
+Họ thông báo lễ đính hôn của họ.	
+Tất cả các mặt hàng để bán đã được bày trên bàn.	
+Không đời nào tôi sẽ làm điều đó!	
+Bạn đừng bỏ cuộc giữa đường.	
+Bà ấy đã hiến dâng đời mình cho âm nhạc.	
+Tôi đến đây bằng xe buýt.	
+Một cô hầu bàn đẹp phục vụ chúng tôi.	
+Ai có can đảm cưỡi sư tử?	
+Vừa cười vừa nói chuyện, những đứa trẻ trèo lên đồi.	
+Cuốn sách này tương đối dễ đọc đối với tôi.	
+Đây là cửa sổ bị cậu bé làm vỡ.	
+Ngày mai tôi sẽ có mặt tại đó.	
+Betty là người đã đến muộn thế.	
+Chó của nó theo nó đi bất cứ đâu.	
+Họ chẳng chú ý nhiều đến ý kiến của tôi.	
+Tôi rất mơ ước được nhìn thấy Paris.	
+Người ta đồn rằng kho báu được chôn ở bên cạnh.	
+Nó bỏ đi với cái mũi dài.	
+Chúng tôi cưới cách đây 7 năm.	
+Cháu bé, cháu đừng sờ vào gương!	
+Xin hãy chú ý để đừng đánh vỡ cái bình này.	
+Pho tượng được tạc từ đá.	
+Bạn có phải là hội viên của hội đó không?	
+Tiếng mẹ đẻ của tôi là món quà đẹp nhất mà tôi nhận được từ mẹ tôi.	
+Có lẽ người nào đã cầm nhầm chiếc ô của tôi.	
+Tôi đưa cho anh ấy số tiền ít ỏi mà tôi có.	
+Bạn hãy nhắm mắt và ngủ đi.	
+Tất cả dân làng đều biết ông ấy.	
+Bạn có ở nhà lúc 10 giờ không?	
+Anh ấy sống ở đây sớm hơn.	
+Cả hai bố mẹ của anh ta đều đã mất.	
+Anh ấy đúng là người đàn ông mà tôi chờ đợi.	
+Văn hóa là điều gì còn lại sau khi người ta đã quên tất cả những điều người ta đã học.	
+Cả hai đều rất dễ thương.	
+Đất nước chúng tôi sẽ tốt đẹp hơn nếu chúng tôi có một thủ tướng mới.	
+Vì không thống nhất được nên họ quyết định cứ để ngỏ chuyện đó vào lúc này.	
+Mọi thứ đã xảy ra, như tôi đã mong.	
+Cô ta ôm chặt đứa bé vào ngực.	
+Hôm nay mày được mấy điểm.	
+Zê rô điểm mày ơi, buồn quá.	
+Sức mạnh của ý chí sẽ dẫn đến thành công.	
+Cây Ý Dĩ trị được rất nhiều bệnh.	
+Đêm khuya ở đây yên ắng thấy sợ luôn.	
+Yến sào là món ăn cao lương mỹ vị.	
+Thưa quý khách, hàng hóa được yết giá hết rồi ạ.	
+Tắt đèn đi. Tôi không thể ngủ được.	
+Cô ta từ chối mọi lời đề nghị.	
+Vì tôi mệt mỏi, nên tôi đi ngủ sớm.	
+Cậu cũng có thể đi với tôi.	
+Cậu luôn có thể dùng từ điển của tôi.	
+Đức vua trị vì vương quốc.	
+Cái máy ảnh này được sản xuất tại Đức.	
+Tụi bây nghĩ nó sẽ làm gì?	
+Bạn có thể cho tôi biết đường lớn ở đâu không?	
+Tôi không có ngốc như bạn tưởng đâu.	
+Bức tượng được chạm khắc từ gỗ cây anh đào.	
+Tòa nhà này không thể sửa chữa được nữa.	
+Đừng có tin bất kỳ ai ở đây hết.	
+Bạn có hiểu được sự khác biệt không?	
+Nụ cười của cô ấy là một lời nói dối nhằm che đậy nỗi buồn của cô ta.	
+Ông ta chết được 10 năm rồi.	
+Con đi bơi được không mẹ?	
+Tôi chạy bộ một giờ trước khi đi đến trường.	
+Nó còn quá trẻ để đi học.	
+Điều đó xảy ra vào ba ngày trước.	
+Tôi phải làm gì để bạn có thể chú ý đến tôi đây?	
+Chẳng ai để ý đến sự vắng mặt của nó.	
+Căn nhà đó thuộc về anh ấy.	
+Nó không thể làm điều đó.	
+Đó là một lĩnh vực xa lạ đối với tôi.	
+Bởi tôi ăn uống điều độ và làm việc có chừng mực nên tôi chóng lớn lắm.	
+Ông liếc mắt nhìn vào bảng tóm tắt mà cô đã đưa cho ông.	
+Tom đã bị thương ở đầu gối khi nó té xuống.	
+Nó không kiềm chế được và bắt đầu ném đồ.	
+Tôi đã bị trộm hết tiền và gặp khó khăn.	
+Mày chỉ sống được một lần.	
+Tôi sẽ thưởng cho cô mười ngàn đô la.	
+Cô có thể đi bộ được không?	
+Cô ngồi nghỉ cho đến khi cô đủ sức bước đi mà không cần người giúp đỡ.	
+Tom đã đến nhờ chúng tôi giúp đỡ.	
+Với hệ thống này, mạch bảo vệ đã được tích hợp.	
+Nhờ sự giàu có mà nó vào được câu lạc bộ.	
+Nhờ sự giàu có mà ông ấy vào được câu lạc bộ.	
+Không đâu bằng ở nhà mình.	
+Ăn bát cơm dẻo, nhớ nẻo đường đi.	
+Trái đất từng được tin rằng nó là một mặt phẳng.	
+Nó đã kiếm được rất nhiều tiền.	
+Anh ấy đã kiếm được rất nhiều tiền.	
+Bất kỳ ai đã hứa thì phải giữ lấy lời.	
+Tiếng Anh được dùng ở đâu?	
+Tôi có thể dùng điện thoại của bạn được không?	
+Tôi đang xoay sở để giành tiền với đồng lương ít ỏi.	
+Tùy chúng tôi giúp đỡ những người đó.	
+Cô ấy độc lập khỏi ba mẹ của cô ấy.	
+Tôi đã xây một căn nhà với tầm nhìn hườn ra núi.	
+Quá dễ để tao giải quyết vấn đề.	
+Tôi đặt số lượng sau chất lượng.	
+Jim lại không thể làm được điều đó.	
+Ông có thể chỉ đường cho cháu đi được không?	
+Bạn có thể mở cửa sổ được không?	
+Được thôi, cho nó thử lần nữa.	
+Tên lửa đã đưa vệ tinh viễn thông vào quỹ đạo.	
+Cái xe ô tô đã tông vào tường.	
+Khát vọng nhiều năm của anh ấy đã được đáp ứng.	
+Bố dượng của cậu đến đón này.	
+Cô ấy tự sưởi ấm bằng lửa.	
+Ông đã tìm kiếm Hòn đảo Huyền bí suốt nửa cuộc đời và bặt tin 2 năm rồi.	
+Rõ ràng thông điệp được gửi bởi ông thằng bé.	
+Tôi đã nói là nó có thật mà.	
+Tôi đã quyết định làm việc cực lực hơn.	
+Chúng ta đã kết hôn được 30 năm rồi.	
+Tất cả những nhân tài đều vậy cả.	
+Bạn có thể lấy quyển sách nếu bạn có thể đọc nó.	
+Hôm đó trời cứ mưa rồi lại hết cả ngày.	
+Cây bút của tôi đã cũ rồi. Tôi muốn một cái mới.	
+Giá cả chưa bao giờ đắt cả.	
+Tôi định sẽ ở qua đêm tại khách sạn này.	
+Một người phụ nữ đang ghi chép lại một cái gì đó.	
+Người ngoại đó nói tiếng Nhật như là tiếng mẹ đẻ của mình.	
+Ông lão đó đã qua đời tuần trước.	
+Chương trình đó được phát mỗi tuần.	
+Bạn tốt hơn là nên bắt đầu liền đi.	
+Cái nón này giá 1000 yên là rẻ.	
+~ Chộp chộp, bum bum. Đời tôi cô đơn nên yêu ai cũng cô đơn; Đời tôi cô đơn nên đi uống... rượu phèo...	
+Trên đường đến đây, nó đã đi lạc.	
+Tòa nhà đó sập đổ 3 năm trước.	
+Không được vứt rác ở đây.	
+Tôi nghĩ tin đồn đó là thật.	
+Bạn đã không bỏ cuộc dễ dàng quá, đúng không?	
+Hôm qua nhiệt kế còn có 0 độ.	
+Tất cả chỗ ngồi đều đã có người.	
+Anh ấy đã đến lúc tôi vừa định đi ra khỏi nhà.	
+Tối qua tụi bây ngủ ở đâu?	
+Xin điền vào mẫu đơn này.	
+Nó đã lỡ chuyến xe lửa 8:30.	
+Tôi có thể sờ râu của ông được không?	
+Tao có thể sờ râu của mày được không?	
+Cô ấy đã chọn một cái mũ.	
+Mâm bánh xe đã bị trộm rồi.	
+Nè! Anh không được đậu xe ở đây.	
+Mũi xe ôtô của tôi đã bị móp từ khi nào.	
+Gương chiếu hậu bên trái đã bị bẻ.	
+Gương chiếu hậu bên trái đã bị trộm.	
+Chúng tôi nhận được rất nhiều tuyết ở đây vào mùa đông.	
+Bóng đi một đường và thủ môn đi một nẻo.	
+Xe đạp của nó đã bị đứt dây sên.	
+Mũ bảo hiểm sẽ bảo vệ đầu của bạn.	
+Cô không được phép ăn những thứ này.	
+Điều gì thúc đẩy các cô học tiếng Đức?	
+Anh đã đọc hết quyển đó rồi à?	
+Có người đã lấy cắp chiếc ví của tôi.	
+Người bệnh đã mất kiên nhẫn	
+Khi cô ấy thấy tôi, cô ấy đã bỏ chạy mất.	
+Đạo Cơ Đốc và đạo Hồi là hai đạo phái khác nhau	
+Tôi không biết làm thế nào để cảm ơn bạn đủ.	
+Tôi đã ở đây khi Tom đến.	
+Cái rơmoóc đi kèm với ô tô.	
+Chúng tôi hy vọng là sẽ đến đúng giờ.	
+Sự thật là chúng tôi không được mời.	
+Bạn sẽ hối hận về điều đó.	
+Tại sao bạn cứ nài nỉ? Tôi đã nói là không!	
+Những cái rèm đã được mở.	
+Ô tô của tôi đã bị hỏng sáng nay và sẽ không được sửa xong trước thứ sáu.	
+Tôi chặt đứt cái đầu của con gà.	
+Bưu điện ở gần hiệu sách.	
+Em gái tôi lấy chồng đã được ba năm.	
+Tôi nghĩ tôi có thể sắp xếp việc đó.	
+Tôi sẽ cho nó vào hóa đơn của bạn.	
+Chìa khóa đâu rồi? À, bạn có rồi à.	
+Thế nào mà mày đã làm ố cái áo?	
+Cái đồng hồ này có thuộc về ai ở đây không?	
+Bột ớt được dùng rất nhiều trong các món ăn Ấn Độ.	
+Đó không phải là cách nó hoạt động.	
+Tôi không thể nhớ nổi tên người dù cố thế nào đi nữa.	
+Có đủ chỗ cho tất cả mọi người.	
+Đó là lý do tại sao chúng ta ở đây.	
+Tôi được dạy tiếng Anh ở trường.	
+Anh ta miễn cưỡng đồng ý với đề nghị của tôi.	
+Đó là một điều mâu thuẫn.	
+Đừng cười nó vì đã phạm sai lầm.	
+Tom suýt (mém) bị đuối nước.	
+Nó vẫn còn là đứa trẻ con, không đáng tức giận với nó.	
+Cô ấy đã có thể kết hôn rồi, nói cách khác, cô ấy là người phụ nữ đã có chồng.	
+Tôi hết lòng hết ý khoản đãi họ, họ cũng chưa chắc sẽ đối với tôi như thế.	
+Trong lúc dọn dẹp, chúng tôi đã tình cờ tìm được một số thứ của ông nhà.	
+Trợ lý của tôi sẽ xử lý việc đó.	
+Đừng nói gì với bà ấy về điều đó.	
+Đúng là bà ấy đã qua đời.	
+Dù vẻ bề ngoại có đạo mạo đến đâu, lòng dạ đàn ông đều là lang sói cả. Con phải nhớ đấy nhé.	
+Chị ấy ăn mặc lịch sự hơn tôi.	
+Lần khác tôi sẽ ở lại lâu hơn.	
+Tôi có thể có một bản đồ lộ trình xe buýt được không?	
+Tôi đã nhận được giấy mời.	
+Đến gặp tôi bất cứ lúc nào bạn rảnh.	
+Bạn đã làm mọi thứ bạn có thể làm.	
+Chúng tôi đã biết bạn làm điều đó.	
+Tôi đã biết nó là nhựa nhưng nó có mùi giống gỗ.	
+Cá sấu là loài động vật bí hiểm.	
+Tôi tự hỏi nó có ý gì qua điều đó.	
+Tôi tự hỏi anh ta có ý gì qua điều đó.	
+Cái này là đồ ăn, đừng có phá	
+Tom từng sống ở đây 3 năm về trước.	
+Tom đã khóc được 1 tiếng đồng hồ.	
+Tôi đã nói là tôi sẽ làm mà.	
+Nếu cậu không trả đồ cho nó thì nó sẽ bực lắm đấy!	
+Lúc nào cũng muốn đọc cuốn đó.	
+Bạn lấy nước đó từ đâu vậy?	
+Tôi lên xe buýt số 7 ở đâu được?	
+Tôi có thể chạy xe môtô ở đâu?	
+Đèn tối quá, tôi không thể đọc sách.	
+Bạn có thể khóa cửa lại được không?	
+Tom đã đọc một quyển sách.	
+Mùa hè bắt đầu sớm hơn ở đất nước tôi.	
+Ồ, tôi đã nhắc tới nó chưa vậy?	
+Bạn có thể giúp tôi đổi một chút tiền được không?	
+Gã đó là kẻ chuyên phá đám.	
+Tôi được điểm B môn đại số.	
+Tôi sẽ bảo vệ cô ấy bằng cả mạng sống của tôi.	
+Đó là lỗi chính tả. Xin lỗi.	
+Sự trợ giúp của anh ấy đến thật đúng lúc.	
+Thôi hành động như là một đứa trẻ đi.	
+Bạn sẽ không có thêm bất cứ một vấn đề nào nữa.	
+Tôi không thể đoán được là Tom sẽ đến.	
+Tôi chỉ sử dụng nó một lần.	
+Chúng tôi sẽ làm điều này để giúp đỡ họ.	
+Tôi đã huỷ cuộc hẹn với cô ấy.	
+Tôi hối hận vì không chú ý hơn đến những gì mà thày giáo đã nói.	
+Ai đã trả lời điện thoại vậy?	
+Tôi kể cho họ cái mà tôi đã nhìn thấy.	
+Đừng bao giờ đề cập tới vấn đề đấy.	
+Gần đây tôi tăng cân rồi.	
+Tôi không có gì để nói với Tom cả.	
+Cậu ấy tự hào là một nhạc sĩ.	
+Giả sử bạn có 10 triệu yên, bạn sẽ làm gì?	
+Tôi không đủ khả năng làm việc đó.	
+Tôi không thể đảm đương được việc đó.	
+Tôi yêu cô ấy nhiều đến mức có thể chết vì cô ấy.	
+Anh ấy gặp được một người trẻ tuổi tốt bụng.	
+Đố bạn biết đây là cái gì!	
+Bạn có thể tải hướng dẫn sử dụng của bộ trao đổi nhiệt tại đây.	
+Bạn cho tôi mượn xe ô tô được không?	
+Nhìn vào mắt cô ấy là biết cô ấy yêu bạn.	
+Ánh mắt cô ấy nói lên rằng cô ấy yêu bạn.	
+Bạn đã nhìn thấy người hầu nào của tôi?	
+Lúc bạn gặp cô ấy, đó là tình yêu sét đánh phải không?	
+Đó là cơ hội để cô thể hiện mình làm được những gì.	
+Tôi có khả năng tương tác xã hội tốt.	
+Chủ đề đó không nên được đem ra bàn luận.	
+Chúng tôi sẽ đưa bạn về nhà.	
+Bạn có quầng thâm dưới mắt đấy.	
+Anh nên mời họ nếu không họ sẽ tự ái đấy.	
+Hãy chắc chắn rằng cửa đó đã đóng rồi.	
+Họ có cách nhìn khác về vấn đề của ấy.	
+Ấy mua bộ đồ này ở đâu thế?	
+Tớ mệt muốn chết đi được, chả nghĩ được gì nữa.	
+Tớ đã làm tất cả những gì có thể để cứu Tom.	
+Bọn mình ở đây để hỗ trợ Tom.	
+Cậu không biết mình bỏ lỡ thứ gì đâu.	
+Tôi đã ăn đồ tối qua cho bữa trưa.	
+Người đàn ông đó để tóc dài.	
+Cô ấy thích đọc sách báo.	
+Tìm bạn mà chơi, tìm nơi mà ở.	
+Ở đâu có hoa, ở đó có bướm.	
+Cờ đến tay ai, người đó phất.	
+Anh ấy đã khuyên tôi đi tới đó.	
+Vì trời nóng cho nên người cô ta ướt đẫm mồ hôi.	
+Cẩn thận với đàn ông đấy.	
+Tôi không chịu đựng được nữa.	
+Tôi có thể xin tên và số điện thoại của bạn được không?	
+Chắc là tôi nên đổi ảnh đại diện của mình đi thì hơn nhỉ.	
+Tôi cảm thấy muốn ăn gì đó.	
+Ấn Độ là một quốc gia đông dân.	
+Ấn Độ là một nước đông dân.	
+Tôi đã không thể hoàn thành được công việc nếu không nhờ tới sự giúp đỡ của bạn.	
+Bạn là một người khá nhạy cảm đấy, đúng không?	
+Quay lại làm việc đi. Đồ lười!	
+Đó là bởi vì tôi muốn cứu giúp những người bị ốm đau.	
+Này, âm thanh đó là gì vậy?	
+Tôi đã uống một tách trà.	
+Tôi ước tôi mạnh mẽ được như bạn.	
+May quá, tôi đã đến đúng giờ. Suýt nữa thì tôi đái ra quần rồi!	
+Đây là một cái điện thoại di động.	
+Hãy bước vào vấn đề chính.	
+Nếu bạn không có gì để làm, hay là đọc sách đi?	
+Nếu trúng sổ xố thì bạn sẽ làm gì?	
+Tôi đã không thể giải được câu đố đó.	
+Tôi đã tổ chức đám cưới vào tháng trước.	
+Con ở nhà bạn được không?	
+Tôi có một điều muốn hỏi.	
+Ẩm thực Nhật Bản đã nuôi lớn tôi.	
+Nếu lúc đó tôi học nhiều hơn, có lẽ bây giờ tôi đã trở thành giáo sư rồi.	
+Tom đã kiểm soát được tình hình.	
+Ở đây từng có một ngôi chùa cổ.	
+Tom đang làm điều đó rồi.	
+Bằng cách nào đó tôi đã thoát ra khỏi chỗ đó.	
+Họ chở những người bị thương đến bệnh viện.	
+Có vẻ như ai đó đã đến thăm nhà tôi trong lúc tôi đi vắng.	
+Đó là bởi vì ở đảo New Guinea không có động vật ăn thịt lớn.	
+Để có thể đầu tư cho một công ti khác, người mà cùng tôi đầu tư liên kết đã quyết định rút lui.	
+Tôi đã cố gắng không ngáp.	
+Hãy dạy tôi cách đánh vần từ đó.	
+Chiếc ô tô đâm sượt qua góc.	
+Từ lúc ngã trong nhà bếp, cô ấy đã trở nên lú lẫn.	
+Đừng để ý những chuyện nhỏ nhặt.	
+Ngọn núi đó mọc lên sừng sững giữa vùng đồng bằng đó.	
+Nếu là vì người đó, thì cho dù bàn tay tôi có nhuốm máu tôi cũng làm được!	
+Ngày mai vì được nghỉ học nên tôi định đi chơi.	
+Cô ấy ăn vận toàn màu đen.	
+Tòa án Tối cao đã đảo ngược phán quyết ban đầu.	
+Họ coi ông ấy là một thẩm phán vĩ đại.	
+Anh ta được thừa kế tài sản từ người chú.	
+Bạn đứng sang một bên có được không?	
+Con chó của bạn đang ở đâu?	
+Tôi có thể mua sách ở đâu?	
+Tôi cuối cùng cũng đã tìm được ra cách giải quyết cho vấn đề đó.	
+Tôi sẽ ở đó hai, ba ngày.	
+Lúc đó, nhà tôi vẫn đang xây.	
+Đây là lần đầu tiên tôi thấy Tom tức đến thế.	
+Tôi dậy vào lúc sáu rưỡi.	
+Người đàn ông đó không phải là bác sĩ.	
+Tôi đã không thể từ chối.	
+A, đèn đường đã bắt đầu sáng lên.	
+Tôi muốn một thứ gì đó để ăn.	
+Cô ấy dễ thương hơn là đẹp.	
+Tôi đã vô cùng căng thẳng.	
+Có lẽ năm sau tôi sẽ làm việc ở Úc.	
+Bạn đã giúp đỡ tôi rất nhiều.	
+Cái gì? Bạn vẫn chưa biết lái ô tô à?	
+Lúc đó bạn có hồi hộp không?	
+Cô ấy lâm vào cảnh nợ nần, và cuối cùng đã phá sản.	
+Thay vì đi châu Âu, tôi đã quyết định sẽ đi châu Mỹ.	
+Cái cửa này khóa tự động.	
+Năm ngoái cô ấy đã kết hôn.	
+Cô ấy đồng ý trả một nửa tiền thuê nhà.	
+Nếu bạn có thể ăn hết củ cà rốt đó, tôi sẽ cho bạn kem.	
+Đây là cuốn sách mà bạn đang tìm đấy.	
+"Tom này, đối với bạn thì cái gì quan trọng nhất?" "Cái gì cơ? Đây là lần đầu tiên có người hỏi tôi câu đó đấy."	
+Bạn bắt đầu học tiếng Pháp từ lúc nào đấy?	
+Cô Hà sở hữu một ngôi nhà nhỏ.	
+Những cậu bé đáng thương đó đang run lẩy bẩy vì sợ.	
+Mỗi buổi tối, có nhiều người trên thế giới đi ngủ mà không có gì để ăn.	
+Chúng tôi không nói về điều đó nữa.	
+Bạn cực kỳ thô lỗ, nên tôi muốn đấm bạn lắm rồi đấy.	
+Nếu tôi là bạn, tôi sẽ đăng ký nhận học bổng.	
+"Tom này, cậu có biết đây là chữ nước nào không?" "Để xem nào, chắc là chữ Tây Tạng. Cơ mà tớ không đọc được gì hết."	
+Tôi thật sự xin lỗi vì đã bắt bạn phải đợi.	
+Mẹ tôi cưới bố tôi vào thập niên 80.	
+"Tôi sợ phẫu thuật mắt." "Đây không phải là lúc nói về điều đó. Cứ đà này, bạn có lẽ sẽ không còn nhìn được nữa đâu."	
+"Tao mượn ô tô của mày được không?" "Được, cứ mượn đi."	
+Tôi sẽ giữ bí mật điều đó.	
+Tôi đã mua một chiếc áo len màu đỏ ở cửa hàng đó.	
+Tôi đã đến ba ngày trước.	
+Trong lúc đi học về, tôi đã gặp cô ấy.	
+Tôi trong lúc đi học về đã gặp cô ấy.	
+Hôm qua tôi đã đến trường.	
+Tôi đã đến trường hôm qua.	
+Mày đừng có mà đánh trống lảng!	
+Bạn đã từng đi Pháp chưa?	
+Quốc gia đó có nhiều người dân tị nạn từ châu Âu.	
+Tôi đúng là có mắt như mù!	
+Đừng có mà lề mà lề mề nữa! Còn không mau hành động đi!	
+Tôi không thể tìm được một công việc ở Úc, thế nên tôi đã quay trở về nhà.	
+Tôi nhớ điều mà bạn đã nói.	
+Tớ xin lỗi vì đã nán lại quá lâu. Tớ sẽ về ngay đây.	
+Người đầu tiên làm điều đó là tôi đấy.	
+Trong hội trường đó có đầy ắp người.	
+Anh ấy đã không nghĩ về cô ấy.	
+Đó vẫn là một rủi ro lớn.	
+Bạn không có lý do gì để phàn nàn cả.	
+Điều này không thể chấp nhận được.	
+Chúng tôi sẽ đợi Tom ở đây.	
+Chúng ta sẽ đợi Tom ở đây.	
+Tôi chỉ đến đó có một lần.	
+Tôi không nghĩ là Tom sẽ làm điều đó.	
+Bạn có muốn biết tôi đã làm điều đó như thế nào không?	
+Cô ấy có tài năng về âm nhạc.	
+Tôi rất vui vì gặp được bạn.	
+Anh ấy đã bỏ phiếu nhất trí đề xuất đó.	
+Xe ô tô Nhật Bản được sử dụng trên toàn thế giới.	
+Bọn trẻ đã bơi khỏa thân.	
+Đó là một hiện tượng cực kỳ bình thường.	
+Cái gì? Đã mười một giờ rồi sao? Tôi cứ tưởng là bây giờ mới tầm khoảng chín giờ.	
+Cái gì cơ? Đã 11 giờ rồi á? Tôi cứ tưởng là bây giờ mới tầm khoảng 9 giờ.	
+Bạn không có bằng lái ô tô à?	
+Có phải là bố hoặc mẹ bạn được sinh ra ở Úc không?	
+Anh ấy cúi đầu với cô giáo.	
+Tôi gần như lúc nào cũng tự làm điều đó.	
+Tom đã tự tiện đi xe đạp của tôi.	
+Tôi đã tìm thấy cô ấy giữa đám đông.	
+Đàn ông không được mặc quần áo trắng đen. Bởi vì điều đó được cho rằng là sẽ mang lại vận xui.	
+Tôi muốn thử cái này. Phòng thử đồ ở đâu thế?	
+Vì lý do đó mà thịt đà điểu có giá đắt gấp hai lần thịt lợn hay thịt bò.	
+Tôi chưa quyết định được là nên đi học đại học hay là đi tìm việc.	
+Tom chưa bao giờ nói gì về điều đó cả.	
+Jim đã gọi tôi là một người hèn nhát.	
+Tôi đã quần quật làm việc nhà suốt ngày đấy.	
+Những người dưới 18 tuổi không được phép mua đồ uống có cồn.	
+Như thường lệ, cô ấy đã đến muộn cuộc họp buổi chiều.	
+Bạn đã mua quyển sách đó ở đâu?	
+Cuốn sách đó bạn mua ở đâu thế?	
+Tom nói là anh ấy biết Mary đã học cách làm điều đó ở đâu.	
+Tôi đã ăn xong bữa trưa rồi đấy.	
+Chương trình đó bây giờ đang được phát sóng.	
+Tôi đã quyết định ăn kiêng đấy.	
+Tôi mặc thử cái đó có được không?	
+Tôi muốn ở đây lâu hơn nữa.	
+Điều tiếp theo mà bạn cần phải làm đó là điền vào phiếu đăng ký này.	
+Mọi người đều đang nghĩ về cùng một điều.	
+Tom đã bị bắt vì đi quá tốc độ cho phép.	
+Một vé có giá là hai mươi Yên.	
+Đừng có mà nghĩ đến chuyện ăn sô-cô-la của tôi!	
+Tôi muốn kết hôn với cô ấy.	
+Cô biết đấy, giờ cô không là gì với tôi cả, Mary à!	
+Tom đã thở phào nhẹ nhõm khi nghe được điều đó.	
+Người thợ săn đã bắn một con gấu.	
+Tôi đã gặp anh ấy ở nhà ga.	
+Bạn có thực sự nghĩ là tôi có thể làm điều đó không?	
+Tôi nhớ trước đây đã có lần gặp anh ấy.	
+Tôi sẽ đến đó, mặc dù có lẽ là tôi sẽ đến muộn.	
+Vì lý do nào đó mà chồng cô ấy có vẻ không thích việc cô ấy nói về tôi. Thực tế thì cô ấy đã nói quá nhiều về tôi.	
+Cô ấy nghĩ là cô ấy bị cảm cúm.	
+Có một số vấn đề mà bạn không để ý.	
+Vừa nhắc đến Tào Tháo, Tào Tháo đã xuất hiện.	
+Tom nói là không có ai ở đó cả.	
+Tôi xin lỗi vì đã đến muộn.	
+Anh ấy đã đâm đầu vào một cái cột.	
+Một lần nọ, tôi đã đi đến xưởng vẽ đó vào đêm khuya cùng với một họa sĩ mà tôi mới quen. Đó là một căn phòng âm u trên gác xép.	
+Đừng bao giờ ăn cháo đá bát, vong ơn bội nghĩa với người đã giúp đỡ mình.	
+Một giọt máu đào hơn ao nước lã.	
+Nếu bạn mà chết thì tôi sẽ làm gì đây?!	
+Tất nhiên là nếu bạn cố gắng hết sức thì việc gì cũng sẽ làm được thôi!	
+Khi tôi về đến nhà vào lúc 1 giờ đêm, toàn thân tôi mệt rũ đi.	
+Vì cơn mưa rào nên tôi đã bị ướt như chuột lột.	
+Vắng chủ nhà gà mọc đuôi tôm.	
+Thật vô cùng đáng tiếc. Tôi đã rất mong được gặp bạn.	
+Các bạn đã sẵn sàng để quẩy chưa?	
+Ông ấy đã vào bằng đường cửa sổ.	
+Tôi đã hứa với Tom là tôi sẽ chờ đợi.	
+Mỗi ngày tôi đều gội đầu đấy.	
+Tôi vô cùng tự hào về đội của tôi.	
+Tôi không muốn ôm bạn đâu.	
+Tom đã hơi ngạc nhiên về câu hỏi đó.	
+Họ nghĩ là họ có thể thắng.	
+Anh ấy đã từ chối nói thêm về điều đó.	
+Dường như là Tom và Mary đã từng làm điều đó trước đây rồi.	
+Tôi hiểu rằng bạn có một vấn đề.	
+Tôi nghĩ là đã đến lúc tôi cần phải tổ chức một bữa tiệc nhỏ.	
+Đó là nơi tôi đã lớn lên.	
+Tôi đã không có ý định ở lại.	
+Tôi có thể tự giải quyết vấn đề đó.	
+Họ đã nhìn tôi một cách kỳ lạ.	
+Đó có phải là tất cả những gì bạn muốn không?	
+Tôi rất vui vì lời kêu gọi của tôi đã được hưởng ứng một cách nồng nhiệt như thế này.	
+Chúng tôi chưa thể giải quyết vấn đề được.	
+Cô ấy đã không thất vọng.	
+Họ định sẽ làm gì tôi đây?	
+Căn nhà đã có phòng bếp chưa?	
+Điều ước của bạn đã trở thành sự thật chưa?	
+Cô ấy là một người giàu có, và thậm chí còn rất xinh đẹp.	
+Tôi nghĩ là anh ấy đã giận.	
+Cô ấy được sinh ra ở Hoa Kỳ.	
+Tôi muốn hỏi bạn một vấn đề.	
+Người phụ nữ đó có hai cái ví.	
+Giấc mơ cả đời của cô ấy cuối cùng đã trở thành hiện thực.	
+Cái đó là làm từ gỗ hay là làm từ kim loại?	
+Những người mà lúc khát mới bắt đầu đi đào giếng nước là những kẻ yếu đuối và chỉ có thể chết mà thôi.	
+Mary đã quyết định là sẽ không làm việc đó.	
+Anh ấy giúp đỡ một bà lão từ chỗ ngồi đứng dậy.	
+Tôi là người sở hữu tòa nhà này.	
+Tôi là chủ sở hữu của tòa nhà này.	
+Chúng tôi đã không để ý đến thời gian.	
+Tôi sắp cạn kiệt ý tưởng rồi.	
+Cô ấy đã bị bắt phải đợi hơn một tiếng.	
+Họ đã bắt tay với đảng Tự do.	
+Bạn có giải mã được cái đó không?	
+Cá voi là một loài động vật có vú khổng lồ sống ở đại dương.	
+Bạn có cái nào nhỏ hơn cái đó không?	
+Cô ấy đã mặc một chiếc váy xinh đẹp.	
+Chúng tôi đã có một trải nghiệm không mấy dễ chịu ở đó.	
+Cô ấy đã nhìn anh ấy với sự căm ghét.	
+Bạn đã cho bố mẹ bạn xem cái đó chưa?	
+Tôi chẳng có gì để mà cho bạn cả.	
+Vụ tai nạn đã xảy ra ở gần cái ngã tư đó.	
+Bạn không được trộn nước với rượu nho.	
+Mặc dù đồ ăn ở đó không ngon, nhưng ít ra thì nó cũng rẻ.	
+Không có gì đắt đỏ hơn tình yêu.	
+Tôi đã quên mất số điện thoại của bạn rồi.	
+Bạn có cảm nhận được điều đó không?	
+Họ sẽ không biết là chúng ta ở đó.	
+Có phải cô ấy đã sờ vú bạn không?	
+Anh ấy có một cái ô tô nước ngoài.	
+Tôi đã có một người giáo viên tốt.	
+Anh ấy đã mang về vài món đồ lưu niệm.	
+Bây giờ bạn có thể về nhà.	
+Bạn giúp tôi tìm cái ví được không?	
+Tôi có thể ngồi đây được không?	
+Đáng lẽ ra tôi nên đến sớm hơn mới phải.	
+Hôm nay tôi đã học được một từ mới.	
+Chúa đã tạo ra phụ nữ để thuần hóa đàn ông.	
+Đừng thức nữa, đi ngủ đi.	
+Tôi đã tưởng là bạn biết Tom sẽ đến đây hôm nay.	
+Gần như mọi người ở đây không thể làm điều đó.	
+Nếu muốn thì bạn có thể sờ vào nó.	
+Đi bộ từ đây đến nhà ga mất nửa tiếng.	
+Con gà đó bị nấu quá chín.	
+Tôi không muốn nói về điều đó.	
+Tom là người tới đầu tiên.	
+Họ đã cảm thấy ăn năn về những việc mà họ đã làm.	
+Tôi có thể bắt đầu được không?	
+Lúc đó họ trông có vẻ là họ đang ngủ.	
+Không cần đợi lâu hơn nữa.	
+Cậu bé đó đã nhuộm tóc vì muốn được chú ý.	
+Tom đã phủ nhận tin đồn đó.	
+Trên bàn có một quả dưa bở.	
+Ba tôi đã về nhà vào lúc 9 giờ.	
+Tôi đã không nấu thứ gì để ăn hết.	
+Anh ấy có thể làm việc đó tốt hơn tôi.	
+Tôi nghĩ là Zac đã ăn một quả táo.	
+Bạn đã béo hơn trước nhiều.	
+Chỉ nghĩ đến nó thôi là tôi đã thấy đáng sợ rồi.	
+Tom không hề biết số tiền đó đến từ đâu.	
+Tôi thấy ngạc nhiên là cô ấy đã từ chối một lời đề nghị tốt đến như thế.	
+Hôm qua, tôi đã gặp lại một người bạn cũ mà đã lâu tôi không gặp.	
+Tôi nói: "Như vậy đủ rồi!"	
+Tom là một đứa trẻ cực kỳ hướng nội.	
+Tom là một đứa trẻ rất hướng nội.	
+Tôi đã dạy chú chó đó làm trò.	
+Ai mà biết được chuyện gì sẽ xảy đến với bà ấy?	
+Có quá nhiều việc để làm!	
+Xin lỗi vì đã làm bạn sợ.	
+Tôi xin lỗi vì đã làm bạn sợ hãi.	
+Đó là bài hát yêu thích của tôi.	
+Cái xe đạp ở cạnh cái cửa đó là của tôi.	
+Ông ấy đã tặng tôi một bó hoa làm quà.	
+Đã đến lượt Mary rửa bát.	
+Sẽ không có ai cứu mày đâu.	
+Mary đã nói dối Tom là cô ấy sẽ không làm điều đó.	
+Bạn bơi được như Tôm không?	
+Ông ta cứ mở miệng ra là phàn nàn về một cái gì đó.	
+Tôi không nghĩ bạn sẽ đến sớm thế này đâu.	
+Tôi đã giúp Tom sơn cái hàng rào đó.	
+Có vẻ như tôi đã để quên cái ô của mình ở trong tàu điện rồi.	
+~ Tôi không chắc Tom biết bưu điện ở đâu đâu.	
+Hôm nay trời đẹp gió mát, quả đúng là lý tưởng để đi ra ngoài đúng không nhỉ!	
+Cô ấy đã đọc bài báo này chưa?	
+Cứ đi thẳng thì sẽ có một cửa hàng đấy.	
+Ai là người đã xây cái kia vậy ạ?	
+Bà ấy mua một cuốn sách ở cửa hàng đó.	
+Ông ấy đã nhảy lộn nhào một vòng.	
+Mày nghĩ mày là cái đéo gì?	
+Mày nghĩ mày là cái thá gì?	
+Mày nghĩ mày là cái lồn gì?	
+Bây giờ tôi sẽ đi nhà thờ.	
+Cho tôi mượn cái điện thoại của bạn có được không?	
+Chú ý: Những ký tự không được hỗ trợ sẽ hiển thị bằng dấu "_".	
+Tôi không ăn lõi táo đâu.	
+Tôi cho rằng đó là mục đích của cô ta.	
+Tất cả đều đã trở thành công cốc.	
+Tuần trước tôi đã gặp Tom ở một bữa tiệc.	
+Tôi tưởng bạn nói là bạn sẽ làm điều đó vì Tom.	
+Tôi thích cách bạn làm điều đó.	
+Lần đầu bạn gặp Tom là ở đâu?	
+Bạn gặp Tom lần đầu ở đâu thế?	
+Hãy thử cái gì đó mới mẻ đi.	
+Tôi biết là bạn đang đùa.	
+Ông ấy là chủ quán rượu đó.	
+Hãy bấm nút màu xanh lá cây. Nếu bạn làm vậy, đèn sẽ được bật sáng.	
+Đã bao giờ bạn ăn đồ ăn Nhật Bản chưa?	
+Đó là tất cả những gì mà tôi cần.	
+Bạn là một người mạnh mẽ.	
+Tôi đã phải hy sinh rất nhiều để có thể tới được đây.	
+Bạn nghĩ như thế nào về bài thơ của cô ấy vậy?	
+Hôm qua là lần đầu tiên tôi gặp ông ấy đấy.	
+Dù trời có mưa thì tôi vẫn sẽ đi đạp xe.	
+Tuần này tôi đã rất bận rộn.	
+Bà ấy đã thuê ông ấy làm người phiên dịch.	
+Cửa hàng đó đã đóng cửa rồi.	
+Tom nói là cái TV đang gặp vấn đề gì đó.	
+Họ chắc chắn đã ngủ trên sàn nhà.	
+Cách suy nghĩ đó đã gây ảnh hưởng tới khá nhiều người.	
+Có người nào đó đang chơi đàn piano.	
+Đó là một xu hướng đáng buồn.	
+Có lẽ là Tom đã về nhà rồi.	
+Ông ấy đã buộc một bó củi.	
+Cho đến bây giờ, vẫn chưa có một ai có thể giải được câu hỏi này.	
+Ông tôi đã tạ thế 5 năm trước.	
+Chúng tôi đã quyết định là sẽ thực hiện kế hoạch đó.	
+Anh ấy đã quyết định sẽ kết hôn với cô ấy.	
+Tôi lo sợ sẽ đánh mất bạn.	
+Cô ấy là một người có sức hút, nhưng cô ấy nói nhiều quá.	
+OK tớ hiểu rồi. Tớ sẽ cố gắng đến sớm nhất có thể.	
+Từ đây không nhìn thấy núi Phú Sỹ đâu.	
+Ở đây không thấy núi Phú Sĩ đâu.	
+Tôi đã không biết là mình đang ở đâu.	
+Bạn cứ trả lời các câu hỏi đã.	
+Bố tôi cuối tuần sẽ về nhà.	
+Tôi không hiểu được là tác giả đang muốn nói gì.	
+Kể cả một đứa trẻ con cũng hiểu điều đó.	
+Cô ấy đang chuẩn bị bữa sáng đấy.	
+Tom đã bị bắt vì tội vượt quá tốc độ quy định.	
+Trên đầu mũi bạn đang bị dính kem tươi đấy.	
+Trên đời không có thứ gì gọi là "sự riêng tư".	
+Tom được đề cử làm huấn luyện viên trưởng tạm thời	
+Thực sự là tôi rất muốn đi.	
+Đây là sự thật đã được kiểm chứng.	
+Tớ muốn đi bộ, cậu có đi với tớ không?	
+Vấn đề này phức tạp đến mức tôi không thể giải quyết nó một mình được.	
+Cô ấy là người rất không lịch sự, đúng không	
+Anh ấy đã giành được giải ba.	
+Ông ấy đã gọi một cuộc điện thoại cho tôi vào lúc nửa đêm.	
+Cô ấy đã không thể trả lời được câu hỏi.	
+Điều đó hoàn toàn lố bịch.	
+Anh ấy đã vượt qua lớp đó với một điểm B.	
+Tôi nghĩ bạn nói rằng bạn đã hoàn thành việc đó.	
+Tôi thực sự khuyên bạn để Tom xử lý điều này.	
+Tom là người duy nhất có thể làm điều đó.	
+Cuộc tranh luận này sẽ không đưa họ đi đến đâu.	
+Khi nào thì bạn đến được.	
+Đợi đã. Bạn vừa nói "bạn gái" à? Hay là "bạn trai"?	
+Tôi thích cái ô tô của bạn.	
+Ở đó tuyết rơi nhiều lắm, đúng không nhỉ?	
+Đừng giấu chuyện đó với tôi.	
+Cô ấy làm cái đó như thế nào vậy?	
+Cô ấy làm thứ đó kiểu gì thế?	
+Có lẽ bạn quá trẻ để hiểu được chuyện gì đang xảy ra.	
+Đã 5 năm kể từ ngày bố tôi mất.	
+Mày đúng là cái đồ thích gây sự chú ý.	
+Người đó là em gái của bạn à?	
+Cô ấy xứng đáng trở thành một bác sĩ.	
+Tôi đã bảo bạn phải cẩn thận	
+Bạn đã đến những địa danh nào ở Việt Nam?	
+Điều đó đã xảy ra nhiều năm trước đây.	
+Anh ấy đã mất ba năm trước.	
+~ Anh ấy đã chết năm năm trước.	
+~ Anh ấy đã mất năm năm trước.	
+Anh ấy đã đề cập đến trang web đó.	
+"Thế nào?" - "Chả thế nào cả!"	
+Nguồn gốc của vũ trụ là gì?	
+Đừng nên có mới nới cũ, có trăng quên đèn.	
+Họ sẽ tổ chức một cuộc họp.	
+Tôi đã đợi bạn từ sáng sớm.	
+Đó là điều mà bạn không bao giờ quên.	
+Cô ấy đã đi chợ một lần mỗi tuần.	
+Tôi đã bắt đầu học tiếng Pháp 3 năm trước.	
+Tôi muốn đi Mỹ vào một ngày nào đó.	
+~ Có một điều gì đó rất quyến rũ ở em.	
+Cả hai chúng tôi đều thực sự muốn bạn có mặt ở đó.	
+Đừng có giả vờ như bạn đứng về phía tôi.	
+Nó chỉ là một nụ hôn mà thôi.	
+Bạn có thể lấy đồ của bạn ra khỏi bàn được không?	
+Tom sẽ không bình tĩnh được đâu.	
+Tôi nghĩ bạn đã làm gãy giường tôi rồi.	
+Anh ấy đã ngủ say và không thể đánh thức dậy được.	
+Ai đó đã đưa ra một thông báo về các quy tắc đỗ xe mới.	
+Tôi rất vui vì bạn đã nhận thấy điều đó.	
+Bò và gà có hữu ích gì đối với chúng ta?	
+Đồ ăn ở nhà hàng đó ngon tuyệt.	
+Cô ấy đang ngồi đối diện với tôi.	
+Tom đã xoay xở lái được xe hơi về nhà, thậm chí dù nó bị xẹp lốp.	
+Tôi đã từ chối không đến.	
+Người mẹ nổi giận vì đứa con đã rất vô lễ.	
+Chợ này bán quần áo rất rẻ.	
+Đội ngũ được huấn luyện hàng ngày.	
+Anh ấy đã đội một chiếc mũ lưỡi trai trên đầu.	
+Bạn đã đặt chip lên con chó à?	
+Tôi đã nhận được một vé phạt vì đỗ xe sai.	
+Một số người mặc quần áo để thể hiện sự giàu có hoặc địa vị của họ.	
+Cô ấy nhắm mắt lại và ngủ.	
+Tôi nghĩ mẹ tôi có thể là một người đồng tính nữ.	
+Đồ ăn ở nhà hàng đó ngon thật sự.	
+Cô ấy đã nói với bạn điều gì?	
+Tôi sẽ dọn dẹp nhà cửa vì nó quá bẩn.	
+Tôi nghĩ ngôi nhà đó trông thực sự xấu và không được đẹp.	
+Con tàu vận chuyển ô tô từ Châu Âu đến Bắc Mỹ.	
+Cô ấy đã để chiếc túi của mình lên bàn.	
+Tôi rất thích đi sở thú để xem sư tử.	
+Những việc làm vĩ đại không thể mất đi được.	
+Tôi chán vì tôi không có gì để làm cả.	
+Tôi không thể nhìn đủ rõ để đọc được cỡ chữ này nếu không đeo kính.	
+Anh ấy đã kiếm được một số tiền lớn từ xổ số.	
+Nhà cô ấy ở đằng sau nhà tôi.	
+Tôi sẽ thay bộ đồ lặn của mình ra và tìm thứ gì đó để mở cái thùng.	
+Tôi không thể để Tom biết được.	
+Ngọn lửa đã bắt đầu ở cầu thang bộ.	
+Đó không phải là trường hợp.	
+Anh ấy đã đi đường tắt đến trường thông qua công viên.	
+Anh ấy là một người đàn ông rất hòa nhã.	
+Giáo viên của tôi đã đề xuất cho tôi một khóa học mà tôi có thể đăng ký vào cuối năm.	
+Tôi đã đề xuất đi bơi vào mùa hè.	
+Chúng tôi đã đề cử ông ấy cho chức vụ̣ Bộ trưởng Nội vụ.	
+Bạn đã mong chờ thấy điều gì?	
+Có lẽ tốt nhất là bạn nên ở lại.	
+Tôi đã chỉ ngủ được khoảng ba mươi phút.	
+Lẽ ra họ đã có thể thắng cuộc đua, nhưng họ đã không cố gắng đúng mức.	
+Đó là lý do tôi đã đến nước Úc.	
+Tôi không biết mẹ tôi đang ở đâu.	
+Lúc mà tôi đến nhà cô ấy thì cô ấy đã đi đến trung tâm mua sắm rồi.	
+Tôi ước gì tôi có thể trả lời được điều đó.	
+Tôi đang chờ đợi sự trợ giúp của bạn.	
+Con đường đầy những ổ gà.	
+Thông báo đã được đưa lên trang nhất.	
+Nó đã làm tôi sợ dựng tóc gáy.	
+Chúng tôi đi đến Úc mỗi năm.	
+Tôi nghĩ là tất cả chúng ta đều đã làm điều đó trước đây.	
+Hãy cùng đi gặp một số bạn bè của tôi.	
+Tôi cảm thấy thực sự tốt ở đây.	
+Tom đã nhấp một ngụm rượu.	
+Bữa tối gần như đã sẵn sàng.	
+Mọi người đã muốn tôi làm điều đó.	
+Cô ấy không còn được ông chủ của mình ưu ái nữa.	
+Tôi đã bắt đầu một ngày đủ tốt nhưng tôi đang bắt đầu sa sút.	
+Tôi ở đây để học tiếng Pháp.	
+Hãy nói cho tôi biết bạn đã lấy được cái này ở đâu.	
+Tom đã bị phạt ba trăm đô la vì điều đó.	
+Cậu bé đã ném một hòn đá vào con ếch.	
+Đúng là cô ấy dạy tiếng Pháp.	
+Trời lúc đó đang mưa to nên chúng tôi đã phải ở nhà.	
+Tôi đã nhiều lần yêu cầu bạn không được làm chuyện đó cơ mà.	
+Nếu đã hứa thì nên giữ lấy lời.	
+Anh ấy là bạn đại học của tôi.	
+Cô ấy không có đến đây một mình.	
+Nếu không cẩn thận là sẽ bị thương đấy.	
+Tôi có cảm giác là Tom sẽ ở đó.	
+Tom là người đầu tiên ở đây, phải không?	
+Hệ thống này tệ cỡ nào thế?	
+Tôi đã bán một quyển sách.	
+Ở đây yên tĩnh vào ban đêm.	
+Đừng quên điền tên mình vào tờ đơn nhé.	
+Tôi đã thấy những thứ chứng tỏ mà Tom có ​​thể làm được.	
+Bạn đã cảm thấy như thế nào?	
+Chồng cô ấy là một đầu bếp xuất sắc.	
+Chồng của bà ấy là một đầu bếp xuất sắc.	
+Nhớ cho kỹ rằng đây không phải là trò chơi đâu đấy nhé.	
+Edward - một nhà đầu tư mạo hiểm, đã kiếm được bộn tiền từ ngành dầu mỏ.	
+Cô ấy trẻ hơn tôi năm tuổi.	
+Cô ấy đã sống ở đây cả đời.	
+Bạn đã làm điều đó một lần nữa.	
+Vì không có xe buýt nên tôi đã phải đi bộ.	
+Đây là cửa hàng nơi tôi làm việc.	
+Đừng lên xe với người lạ.	
+Đó là điều mọi người không hiểu.	
+Đó là một cô gái mà tôi biết rõ.	
+Được rồi, tôi sẽ không nói một lời nào.	
+Chủ đề của buổi họp đó là gì?	
+Câu trả lời của cô ấy là đúng.	
+Họ bước ra khỏi nơi ẩn náu.	
+Có một hộp thư ở cuối con đường. Một ngày nọ có một lá thư thú vị trong đó và nó được gửi cho tôi.	
+Tôi nghĩ có điều gì đó khiến họ sợ hãi.	
+Tôi đã nói chuyện với Tom về điều đó.	
+Thật khó để chiều bọn họ.	
+Về vấn đề này, ý kiến của tôi khác các bạn.	
+Adriano đã miêu tả người đàn ông đó.	
+Chúng tôi biết ơn sự giúp đỡ của bạn.	
+Tôi không thể nhớ đã bỏ dù ở đâu.	
+Cửa hàng đã đóng cửa rồi.	
+Bạn rất chắc chắn về điều đó.	
+Thật kỳ lạ khi bạn bè của bạn không có ở đây.	
+Tôi đã gặp cô ấy ngày hôm trước.	
+Mọi người đang rất sợ hãi.	
+Tên của bạn là gì khi bạn được tự do?	
+tôi sẽ mất mãi mãi để giải thích mọi thứ	
+đó là bởi vì bạn là 1 cô gái	
+khi tôi tìm kiếm thứ gì đó tôi thích, nó lại quá đắt	
+Cô ấy đang hỏi làm thế nào mà nó có thể xảy ra	
+Có 1 vấn đề ở đó mà bạn không nhìn thấy	
+Tôi không có thứ gì tốt hơn để làm	
+Ngày nào tôi cũng bơi ở đây.	
+Bạn có muốn thứ gì đó để uống không	
+Lớp không bắt đầu cho đến 8 rưỡi	
+Nhờ có bạn mà tôi đã hết thèm ăn	
+Tôi không biết nói gì để làm bạn trở lên tốt hơn	
+Tôi đã có quyết định của mình	
+Hãy lấy 1 quyển sách và đọc nó	
+Bạn làm cái gì để thay đổi ý kiến của mình	
+Bạn đang nói về cái gì vậy	
+Mọi người xứng đáng có cơ hội thứ 2	
+chúng tôi có thể lấy gợi ý	
+Tôi đã đạt được rất nhiều thành tựu đáng kể.	
+Năm ngoái bạn đã làm việc ở đâu?	
+Cuộc sống đầy những bí ẩn.	
+Lúc đó làm gì đã có Google Dịch.	
+Đây có thể là vấn đề sống còn.	
+Bạn đã đưa ra được lựa chọn chưa?	
+Mọi người thường nói rằng tôi có đôi mắt đẹp.	
+Hãy đăng ký kênh của tôi.	
+Mùa hè này tôi không đi đâu cả.	
+Tom không có gì để ăn cả.	
+Có thứ gì mà bạn không ăn được không?	
+Mười một là số nguyên tố.	
+Ấn Độ giáo là tôn giáo chính ở Ấn Độ.	
+Có thể một ngày nào đó, bạn sẽ hiểu điều đó.	
+Mở cửa ra. Tôi biết bạn đang ở đó.	
+Tôm dùng nước với xà bông để rửa tay	
+Những gì tôi làm đã được đền đáp.	
+Cơ sở dữ liệu đồ thị là gì?	
+Đó là một cơ sở dữ liệu không bị giới hạn.	
+Tom đã chú ý đến điều đó.	
+Cánh đồng lúa chín vàng ươm.	
+Tom đã nghĩ đến việc tự tử.	
+Tránh uống đồ uống có đường.	
+Mọi người đã sẵn sàng chưa?	
+Tom được mọi người quý mến.	
+Đó là một bước nhỏ của một người, một bước nhảy vọt lớn của nhân loại.	
+Động đất được đo lường như thế nào?	
+Tôi cảm thấy có động đất.	
+Ở Sao Hỏa có động đất không?	
+Trận động đất đã gây thiệt hại to lớn.	
+Tôi đang ở trên giường khi có động đất.	
+Đây là trận động đất tốn kém nhất thế giới.	
+Trận động đất đã san phẳng cả thị trấn.	
+Tôi về đến nhà trước nửa đêm.	
+Đây là một ví dụ đơn giản.	
+Học máy có thể được dùng để dự báo và giảm thiểu thiệt hại của thảm hoạ tự nhiên.	
+Tiền bạc ảnh hưởng đến mọi thứ.	
+Mình để chìa khoá ở đâu nhỉ?	
+Tôi đã đi mà không có anh ấy.	
+Cô ấy đang hành xử kì lạ.	
+Bài hát này kể về một người gầy bị bắt phải béo.	
+Hà Nội là thủ đô của Việt Nam.	
+Khí hậu ở Việt Nam là khí hậu nhiệt đới ẩm gió mùa, có mùa đông lạnh.	
+Đừng gắn cái đó lên đầu bạn.	
+Câu đó được sửa lại ngay lập tức.	
+Họ đã mời anh ấy đến bữa tiệc.	
+Tôi cá là cô ta là người đã lấy tiền của tôi.	
+Tôi không được phép hạnh phúc ư?	
+Họ không chắc là họ có thắng được không.	
+Chúng tôi đến đây để giúp đỡ.	
+Tom đã bán một cái tủ lạnh.	
+Tôi đáng lẽ nên uống trà gừng để đỡ đau bụng.	
+Cô ấy là một người phụ nữ từng trải.	
+Điện ảnh là nghệ thuật, ước mơ, sự bắt chước cuộc sống.	
+Đây là thử thách của tôi.	
+Bác ấy là họ hàng của tôi.	
+Anh ấy đã cắt đứt mọi liên lạc với đám trẻ.	
+Tôi biết ai đã ăn cái bánh đấy.	
+Nếu tôi biết siêu thị quá đông đúc thì tôi đã không đến rồi.	
+Đó thật sự là một từ rất đẹp.	
+Tôi đang đọc một tờ báo to.	
+Tôi có thể nhớ những số điện thoại tôi đã gọi từ bốn mươi năm trước.	
+Chuyện đó đã không xảy ra.	
+Tôi đã viết ba chữ cái rồi.	
+Đèn giao thông đang ở màu đỏ.	
+Anh ấy là người đã nói điều đó.	
+Đây là tuyến đường ngắn nhất.	
+Tôi bận nên tôi không giúp gì được.	
+Công viên này là thiên đường đối với trẻ nhỏ.	
+Tôi đã nhận địa chỉ và tiền.	
+Vải không bị tối màu khi đổ nước lên. Hiện tượng này xảy ra là bởi vì chiếc áo đó chống nước.	
+Vô sản thế giới, đoàn kết lại!	
+Một cơn sóng thần đổ bộ vào Nhật Bản.	
+Cô ấy đang rất bận đan đồ.	
+Đồng được tìm thấy với trữ lượng lớn ở đó.	
+Từ tận đáy lòng, cảm ơn bạn.	
+Nếu mọi thứ đều đơn giản như bạn nói thì sẽ chẳng có vấn đề gì cả.	
+Bạn có được trả công hậu hĩnh không?	
+Tôi nhặt được một tờ tiền âm phủ.	
+Tom đã trả nhiều tiền để mua chiếc ô tô đó.	
+Bạn là người Ý, đúng không?	
+Tôi muốn ngăn chặn điều đó.	
+Hãy đảm bảo API này tương thích ngược để các máy khách cũ cũng dùng được.	
+Chúng ta cần bột mì và đường.	
+Bạn đã làm gì vào hôm Thứ Bảy?	
+Tại sao bạn lại tán tỉnh một người đàn ông đã kết hôn?	
+Bạn có sửa được cái này không?	
+Động cơ này đã vượt qua mọi bài đánh giá hiệu năng.	
+Bố tôi đã hơn 65 tuổi rồi mà vẫn chưa nghỉ hưu.	
+Anh ấy không có đủ tiền đi bác sĩ.	
+Dự đoán của Tom đã thành sự thật.	
+Tôi đang già đi, và mọi thứ đều khác trước.	
+Một nửa số quả táo đã bị thối.	
+Người nghèo được nhà nước hỗ trợ.	
+Ba mươi ngày nữa là đến mùa xuân.	
+Tôi học từ lúc tám giờ đến mười một giờ.	
+Bạn đã lưu tệp vào thư mục nào rồi?	
+Cô ấy lười đi bộ vì mặt trời nóng.	
+Tiến hoá? Bạn bảo tôi là khỉ à?	
+Bỏ thuốc ra đi. Không được hút thuốc ở đây.	
+Cô ấy đã sơn trắng bức tường.	
+Đến lúc tắt ti vi rồi đó.	
+Cô ấy đang được điều trị vô sinh.	
+Anh ấy là một người đàn ông có hoài bão lớn.	
+Giá của nó đã tăng gấp ba lần.	
+Có vẻ như anh ấy đã xoá sạch mọi thứ.	
+Thời đó làm gì có đài ra-đi-ô.	
+Bạn có thấy ai ở chỗ đó không?	
+Các quân xe được đặt vào góc ở giai đoạn xếp cờ.	
+Sami đã sửa xe được hơn 36 năm rồi.	
+Tom bắt đầu trở nên đòi hỏi hơn.	
+Cô ấy đang chờ câu trả lời.	
+Tôi bị cướp khi đang đi bộ đến nơi làm việc.	
+Tôi chưa từng nói chuyện với cô ấy kể từ đó.	
+Cứ để kéo ở gần đi, sau này sẽ cần dùng đến.	
+Cô ấy không dùng dây để dắt chó đi dạo.	
+Đây là một dự án tuyệt vời.	
+Bố tôi rất kén chọn đồ ăn.	
+Tôi đã có nhẫn đính hôn rồi.	
+Họ đã kết hôn từ năm ngoái.	
+Anh ấy bị bạn tù đầu độc.	
+Người ấy có đôi mắt hồng.	
+Chúng tôi dùng chảo rán để rán đồ ăn.	
+Bạn đã làm gì vào cuối tuần?	
+Cô ấy làm gì thì tôi cũng làm nấy.	
+Làn da của người đó có màu ô liu.	
+Màu mắt của cô ấy đã thay đổi.	
+Sướng nhất bạn rồi, bạn sẽ được đi chơi ở Hawaii!	
+Đừng có lấy nước súc miệng của tôi để làm đồ uống pha chế. Nước này không dùng để làm cái đấy đâu.	
+Dân chủ là sự chuyên chế của số đông.	
+Độc tài là sự chuyên chế của số ít.	
+Em ấy ghét toán. Em ấy sẽ tìm đủ mọi lí do để không phải đến trường.	
+Bạn chưa biết sự thật đâu.	
+Cô ấy đã thay đổi nhiều đến nỗi chúng tôi đã không nhận ra cô.	
+Tôi đã giúp đỡ tất cả bạn bè của mình.	
+Ai sẽ hưởng lợi từ điều này?	
+Sở thú mở cửa từ mười giờ kém mười lăm đến chín giờ mười lăm.	
+Tôi nghĩ câu trả lời sẽ là có.	
+Vì Mary đói, cô đã mua bánh mì.	
+Người đàn ông sống kế bên là một nhạc sĩ.	
+Trên đời này có ba loại người: người biết đếm và người không biết đếm.	
+Quá khứ chỉ biết được chứ không thay đổi được. Tương lai chỉ thay đổi được chứ không biết được.	
+Vùng đất này không bán vì nó là đất thánh và là đất cấm.	
+Tôi đã lập trình dự án này tuỳ hứng.	
+Chiếc điện thoại này có bộ xử lí bốn lõi.	
+Dạo gần đây tôi rất là bận rộn.	
+Tôi đã yêu cô ấy bằng cả trái tim.	
+Tôi đã gặp cậu ấy trong tù.	
+Một số người thấy tôi kì lạ.	
+Nó là một vấn đề nhạy cảm.	
+Đó là một buổi tối tuyệt vời.	
+Điều bạn nói là thật chứ?	
+Tôi đã tìm được một nghiệm.	
+Giờ thì mọi thứ đã trở nên rõ ràng.	
+Cây anh đào đã nở. Vạn vật như sáng hơn.	
+Tranh sơn dầu này đã có từ đầu thế kỉ mười sáu.	
+Nô lệ đã không được coi là con người.	
+Vì lí do đó, cô ấy mất việc.	

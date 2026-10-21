@@ -62,3 +62,6 @@ id_ed25519*
 
 # Cache du lieu tai ve (khong commit)
 tools/assist/.cache/
+
+# Ung vien corpus sinh boi tools/assist/build_real_corpus.py (can ra soat tay truoc)
+tools/assist/.out/

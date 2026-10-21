@@ -293,6 +293,10 @@ public final class ImeEngine {
     /// Tính số ký tự glyph theo bảng mã xuất hiện tại của engine (D27).
     ///
     /// Dùng để adapter biết cần xoá bao nhiêu ký tự trong document khi áp dụng gợi ý.
+    ///
+    /// R-11 (fail-safe): lỗi FFI ⇒ trả **0** (không phải `text.count`): số char ≠
+    /// số glyph ở VNI/TCVN3 ⇒ đo sai ⇒ xoá lệch vị trí (mất dữ liệu). 0 ⇒ kế hoạch
+    /// sửa bị từ chối ⇒ **không sửa**.
     public func glyphLen(_ text: String) -> Int {
         var count: Int = 0
         let utf8 = Array(text.utf8)
@@ -304,7 +308,7 @@ public final class ImeEngine {
                 &count
             )
         }
-        guard rc == FFI.ok else { return text.count }
+        guard rc == FFI.ok else { return 0 }
         return count
     }
 

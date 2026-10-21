@@ -332,6 +332,20 @@ int lc_assist_is_active(int assist_enabled, int assist_mode) {
     return (assist_enabled != 0) && (assist_mode != LC_ASSIST_MODE_OFF);
 }
 
+int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sentence_trigger) {
+    /* R-5 · P4-0 §4.3: Mode 2 = mode "autocorrect" AND auto_fix "safe",
+     * chỉ khi trigger KẾT THÚC CÂU (không phải space/,). */
+    return (assist_mode == LC_ASSIST_MODE_AUTOCORRECT) &&
+           (assist_auto_fix == LC_ASSIST_AUTO_FIX_SAFE) &&
+           (is_sentence_trigger != 0);
+}
+
+int lc_assist_should_display(int assist_mode, int is_sentence_trigger) {
+    /* R-6 · D11: chỉ hiện UI ở điểm hiển thị (kết thúc câu) và khi mode != off
+     * (ở Mode 2, lỗi mơ hồ vẫn phải hiện candidate — P4-0 §4.3). */
+    return (assist_mode != LC_ASSIST_MODE_OFF) && (is_sentence_trigger != 0);
+}
+
 int lc_config_read_assist_mode(const char *path, int default_mode) {
     char buf[1024];
     if (!path) {
@@ -376,6 +390,26 @@ typedef struct cand_fix {
     size_t end;
     const char *replacement;
 } cand_fix;
+
+/* Chuyển UTF-32 → UTF-8 **không được cắt cụt** (R-10).
+ * Trả 1 = vừa buffer (dst có NUL), 0 = KHÔNG vừa ⇒ fail-safe (không dùng
+ * `lc_utf32_to_utf8` vì hàm đó cắt im lặng ⇒ kế hoạch sai ⇒ xoá nhầm). */
+static int utf32_to_utf8_exact(const uint32_t *src, size_t src_len, char *dst, size_t dst_len) {
+    if (!dst || dst_len == 0) return 0;
+    size_t need = 0;
+    for (size_t i = 0; i < src_len; ++i) {
+        uint32_t cp = src[i];
+        if (cp == 0) break;
+        if (cp <= 0x7F) need += 1;
+        else if (cp <= 0x7FF) need += 2;
+        else if (cp <= 0xFFFF) need += 3;
+        else if (cp <= 0x10FFFF) need += 4;
+        else return 0; /* codepoint không hợp lệ ⇒ fail-safe */
+    }
+    if (need + 1 > dst_len) return 0;
+    lc_utf32_to_utf8(src, src_len, dst, dst_len);
+    return 1;
+}
 
 static int compare_cand_fix(const void *a, const void *b) {
     const cand_fix *ca = (const cand_fix *)a;
@@ -428,7 +462,10 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
             cand_count++;
         } else {
             char span_buf[256];
-            lc_utf32_to_utf8(chars + iss->start, iss->end - iss->start, span_buf, sizeof(span_buf));
+            if (!utf32_to_utf8_exact(chars + iss->start, iss->end - iss->start,
+                                     span_buf, sizeof(span_buf))) {
+                continue; /* không đủ chỗ ⇒ bỏ lỗi này (fail-safe) */
+            }
             if (strcmp(span_buf, iss->suggest) != 0) {
                 candidates[cand_count].start = iss->start;
                 candidates[cand_count].end = iss->end;
@@ -455,9 +492,13 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
 
     size_t delete_from = selected[0].start;
 
-    /* Build original tail UTF-8 */
+    /* Build original tail UTF-8 — phải VỪA buffer (R-10: cắt cụt ⇒ kế hoạch
+     * sai ⇒ xoá nhầm; không vừa ⇒ fail-safe, không sửa). */
     char orig_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
-    lc_utf32_to_utf8(chars + delete_from, chars_len - delete_from, orig_tail_utf8, sizeof(orig_tail_utf8));
+    if (!utf32_to_utf8_exact(chars + delete_from, chars_len - delete_from,
+                             orig_tail_utf8, sizeof(orig_tail_utf8))) {
+        return 0;
+    }
 
     /* Build new tail UTF-8 */
     char new_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
@@ -468,7 +509,10 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
     for (size_t i = 0; i < selected_count; ++i) {
         if (selected[i].start > cursor) {
             char chunk[LC_MAX_SENTENCE_FIX_CHARS];
-            lc_utf32_to_utf8(chars + cursor, selected[i].start - cursor, chunk, sizeof(chunk));
+            if (!utf32_to_utf8_exact(chars + cursor, selected[i].start - cursor,
+                                     chunk, sizeof(chunk))) {
+                return 0;
+            }
             size_t clen = strlen(chunk);
             if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
             memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
@@ -485,7 +529,10 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
 
     if (cursor < chars_len) {
         char chunk[LC_MAX_SENTENCE_FIX_CHARS];
-        lc_utf32_to_utf8(chars + cursor, chars_len - cursor, chunk, sizeof(chunk));
+        if (!utf32_to_utf8_exact(chars + cursor, chars_len - cursor,
+                                 chunk, sizeof(chunk))) {
+            return 0;
+        }
         size_t clen = strlen(chunk);
         if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
         memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
@@ -503,6 +550,8 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
     out_plan->fixed_count = (uint32_t)selected_count;
     out_plan->delete_glyphs = (uint32_t)glyphs;
     snprintf(out_plan->replacement, sizeof(out_plan->replacement), "%s", new_tail_utf8);
+    /* R-2: lưu đuôi câu GỐC để adapter xác minh vùng sắp xoá + hoàn tác. */
+    snprintf(out_plan->original_tail, sizeof(out_plan->original_tail), "%s", orig_tail_utf8);
     return 1;
 }
 

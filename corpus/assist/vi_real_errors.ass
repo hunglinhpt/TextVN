@@ -1,0 +1,58 @@
+# corpus/assist/vi_real_errors.ass - cau tieng Viet CO LOI THAT (van ban that) + nhan
+# Nguon: Tatoeba vie_sentences.tsv.bz2 (CC BY 2.0 FR - attribution bat buoc)
+# Sinh lap: python tools/assist/build_real_corpus.py  (nhan do nguoi/agent doc tung cau)
+# Dinh dang: <cau>\t<kind1[,kind2]>  ·  '~ ' = dong MEM (engine BO SOT loi nay)
+#   - Dong KHONG co '~': nhan tay = dung output engine -> test corpus assert cung
+#   - Dong co '~ '   : loi that nhung engine khong phat hien -> test bo qua,
+#                      `textvn-cli assist score` / tools/assist/score_real.py van tinh recall
+# P4-12 RECALL-REAL: tap nay la BO NHO de do recall, khong phai "engine tu kiem tra".
+
+Anh đi đường anh , tôi đi đường tôi.	space_before_punct
+Đừng hỏi họ nghĩ gì. hãy hỏi họ làm gì.	lowercase_sentence_start
+Được, tốt rồi.Tạm biệt nhé, nhưng hãy lái cẩn thận đấy.	space_after_punct
+Mặc dầu nó đã mệt , nó vẫn tiếp tục làm việc.	space_before_punct
+Ở đâu tôi có thể đổi tiền yên lấy đô la ?	space_before_punct
+cái gì đã bị mất cắp vậy ?	space_before_punct
+Mày đã ngừng đánh vợ mày rồi hả ?	space_before_punct
+Cô đã thừa hưởng tài năng âm nhạc cuả mẹ cô.	diacritic_typo
+Thái độ cuả ông đối với cô rất lịch sự, cùng với óc hài hước dễ ưa.	diacritic_typo
+Tôi sẽ đưa tên cuả sáu người có thể làm gián điệp.	diacritic_typo
+Bạn có định rủ cô ấy đi tiệc không ?	space_before_punct
+Tôi có thể đặt chỗ trước ở đây không ?	space_before_punct
+Bạn cho mình mượn cuốn từ điển được không ?	space_before_punct
+Bạn đã tạo ra cái gì rồi ?	space_before_punct
+Tôi mặc thử đồ này được không ?	space_before_punct
+Anh có đồng ý với đề án đó không ?	space_before_punct
+Cho hỏi thư viện ở đâu vậy ?	space_before_punct
+Có ai phát âm được từ này không ?	space_before_punct
+Bạn có đang để cửa sổ mở không ?	space_before_punct
+Đội bóng đá Đức chiến thắng đội Brazin tuyệt đối .	space_before_punct
+Tôi rất mừng vì chúng mình làm được điều điều đó.	duplicate_word
+Việc đã định rồi, chúng ta có cố gắng thế nào nữa cũng vô ích , tất cả đều đã là muộn màng rồi.	space_before_punct
+Tom đã viết điều gì vậy ?	space_before_punct
+bạn đã có nhận được thêm 1 vé chưa ?	space_before_punct
+Đừng hỏi họ nghĩ gì . Hãy hỏi họ làm gì	space_before_punct
+Điều gì đã xảy ra ? Có nước ở trên căn hộ	space_before_punct
+Bạn sẽ chỉ đứng ở đó cả ngày à ?	space_before_punct
+Cô ấy đang buồn.Cô ấy cần một cái ôm.	space_after_punct
+~ Từ xưa đến giờ đả luôn luôn như vậy rồi.	diacritic_typo
+~ Tôi đã bị cơn nóng làm ảnh hường.	diacritic_typo
+~ Tôi đã tim từ tròng từ điển.	diacritic_typo
+~ Tôi có thể đõ xe của tôi ở đây không?	diacritic_typo
+~ Có một vài hiện vật lý thú đươc trưng bày ở bảo tàng.	diacritic_typo
+~ Tiền lẻ của các chấu đây.	diacritic_typo
+~ Ngườì có tính hài hước thì trẻ lâu.	diacritic_typo
+~ Nó đi bằng xe dạp đến trường học.	diacritic_typo
+~ Linh cửu được đưa đến nơi yên nghỉ cuối cùng.	diacritic_typo
+~ Sự hỗn luạn của mùa đông làm tôi muốn phát điên, cũng may mà kì nghí đông sắp đến rồi.	diacritic_typo
+~ Chúng tôi đã rất mệt mõi.	diacritic_typo
+~ Đây chính là cách mà vụ tai nạn đã xãy ra.	diacritic_typo
+~ Bạn khônf thể ăn nó vì nó rất bổ dưỡng.	diacritic_typo
+~ Cô áy không dám trở lại đó nữa.	diacritic_typo
+~ Loại mặt nạ dưỡng da có thể không được rỡa sạch.	diacritic_typo
+~ Nếu bạn để một đồng xu một Yên nổi trên mặc nước, rồi từ từ đưa một cục nam châm lại gần nó, thì đồng xu sẽ tiến lại gần cục nam châm đó.	diacritic_typo
+~ Một người đàn ông đã mặc một chiếc ảo nỉ màu xanh dương.	diacritic_typo
+~ Những đặc điểm nam tính của một người phụ nữ được coi là điểm mạnh, còn những đặc điểm nam tính của mội người đàn ông thì lại bị coi là điểm yếu.	diacritic_typo
+~ Đó không phải là chủ ý cùa tôi	diacritic_typo
+~ Đó là môt cái tên Việt Nam.	diacritic_typo
+~ Tôi đã uống ba ly bia rồi. Vâỵ là quá đủ rồi!	diacritic_typo

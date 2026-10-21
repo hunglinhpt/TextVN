@@ -77,6 +77,15 @@ public struct AssistSettings: Codable, Equatable {
     public var isOn: Bool { mode != "off" }
     public var isHighlight: Bool { mode == "highlight" }
     public var isAutoFixSafe: Bool { auto_fix == "safe" }
+
+    /// R-5 (P4-0 §4.3): **Mode 2** (tự sửa cả câu) = `mode == "autocorrect"` **và**
+    /// `auto_fix == "safe"` — cùng ngữ nghĩa cho cả 3 OS (Windows/Linux dùng cùng
+    /// quy tắc). Chỉ cần `auto_fix == "safe"` là lệch ⇒ 1 config, 3 hành vi khác nhau.
+    public var isMode2AutoFix: Bool { mode == "autocorrect" && auto_fix == "safe" }
+
+    /// R-6 (D11): **điểm hiển thị** (Mode 1) bật khi `mode != "off"` (ở Mode 2,
+    /// lỗi *mơ hồ* vẫn phải hiện candidate — chỉ lỗi objective mới tự sửa).
+    public var isDisplayEnabled: Bool { mode != "off" }
 }
 
 /// Parser cấu hình assist từ config.json.
@@ -127,23 +136,62 @@ public struct SentenceFixPlan: Equatable {
 public struct AssistUndoState: Equatable {
     public let timestamp: Date
     public let originalTail: String
+    /// Text **đã gõ lại** sau khi sửa — dùng để XÁC MINH vùng sắp xoá trước khi
+    /// hoàn tác (R-3 · fail-safe): nếu người dùng đã gõ thêm ⇒ vùng đó không
+    /// còn là của ta ⇒ **không xoá**.
+    public let replacement: String
     public let replacementGlyphs: Int
     public let fixedCount: Int
 
     public init(
         timestamp: Date = Date(),
         originalTail: String,
+        replacement: String,
         replacementGlyphs: Int,
         fixedCount: Int
     ) {
         self.timestamp = timestamp
         self.originalTail = originalTail
+        self.replacement = replacement
         self.replacementGlyphs = replacementGlyphs
         self.fixedCount = fixedCount
     }
 
     public func isValid(now: Date = Date(), timeout: TimeInterval = 5.0) -> Bool {
         now.timeIntervalSince(timestamp) <= timeout
+    }
+}
+
+/// Gợi ý trong candidate panel (Mode 1) — kèm **kế hoạch A2** để khi người dùng
+/// chọn thì **thay từ lỗi** (xoá đúng số glyph rồi gõ lại) thay vì *chèn thêm*
+/// ở caret (R-7 · A2 · D12).
+public struct AssistCandidate: Equatable {
+    /// Chuỗi hiển thị trong panel (gợi ý của engine).
+    public let text: String
+    /// Kế hoạch sửa (xoá `deleteGlyphs` glyph trước caret + gõ lại `replacement`).
+    public let plan: SentenceFixPlan
+
+    public init(text: String, plan: SentenceFixPlan) {
+        self.text = text
+        self.plan = plan
+    }
+}
+
+/// Tên loại lỗi ổn định (wire format `AssistReport.issues[].kind` — khớp
+/// `IssueKind::as_str()` của crate `assist`, xem `schemas/ipc.v1.md`).
+public func assistKindName(_ kind: UInt32) -> String {
+    switch kind {
+    case FFI.assistKindDuplicateWord: return "duplicate_word"
+    case FFI.assistKindSpaceBeforePunct: return "space_before_punct"
+    case FFI.assistKindSpaceAfterPunct: return "space_after_punct"
+    case FFI.assistKindDoubleSpace: return "double_space"
+    case FFI.assistKindLowercaseSentence: return "lowercase_sentence_start"
+    case FFI.assistKindDiacriticTypo: return "diacritic_typo"
+    case FFI.assistKindSentenceRepeat: return "sentence_repeat"
+    case FFI.assistKindDoubleNegative: return "double_negative"
+    case FFI.assistKindCommaAtEnd: return "comma_at_end"
+    case FFI.assistKindSpelling: return "spelling"
+    default: return "unknown"
     }
 }
 

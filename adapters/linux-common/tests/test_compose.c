@@ -424,7 +424,37 @@ static void test_assist_auto_fix_sentence(void) {
     assert(plan.delete_glyphs > 0);
     assert(strstr(plan.replacement, "đi") != NULL);
 
+    /* R-2: đuôi câu GỐC phải được lưu lại (adapter dùng để xác minh vùng sắp
+     * xoá trong document trước khi xoá + để hoàn tác). */
+    assert(plan.original_tail[0] != '\0');
+    assert(strstr(plan.original_tail, "tôi") != NULL);
+    /* Đuôi gốc phải là hậu tố của câu đã kiểm tra. */
+    size_t tail_str_len = strlen(tail);
+    size_t orig_len = strlen(plan.original_tail);
+    assert(orig_len > 0 && orig_len <= tail_str_len);
+    assert(strcmp(tail + (tail_str_len - orig_len), plan.original_tail) == 0);
+
     ime_instance_free(inst);
+}
+
+/* R-5/R-6: ngữ nghĩa Mode 1/Mode 2 **duy nhất** cho 3 OS (P4-0 §4.3). */
+static void test_assist_mode_semantics(void) {
+    /* Mode 2 (tự sửa cả câu): mode "autocorrect" VÀ auto_fix "safe" VÀ trigger
+     * kết thúc câu. */
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_SAFE, 1) == 1);
+    /* Thiếu mode autocorrect (chỉ auto_fix=safe) ⇒ KHÔNG tự sửa. */
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_HIGHLIGHT, LC_ASSIST_AUTO_FIX_SAFE, 1) == 0);
+    /* Thiếu auto_fix=safe ⇒ KHÔNG tự sửa. */
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_OFF, 1) == 0);
+    /* Trigger không phải kết thúc câu (space/,) ⇒ KHÔNG tự sửa. */
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_SAFE, 0) == 0);
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_OFF, LC_ASSIST_AUTO_FIX_OFF, 1) == 0);
+
+    /* Mode 1 (điểm hiển thị): chỉ ở trigger kết thúc câu, mode != off. */
+    assert(lc_assist_should_display(LC_ASSIST_MODE_HIGHLIGHT, 1) == 1);
+    assert(lc_assist_should_display(LC_ASSIST_MODE_AUTOCORRECT, 1) == 1);
+    assert(lc_assist_should_display(LC_ASSIST_MODE_HIGHLIGHT, 0) == 0);
+    assert(lc_assist_should_display(LC_ASSIST_MODE_OFF, 1) == 0);
 }
 
 static void test_assist_auto_fix_spacing_punct(void) {
@@ -467,6 +497,7 @@ int main(void) {
     test_state_file();
     test_assist_state_file();
     test_assist_auto_fix_sentence();
+    test_assist_mode_semantics();
     test_assist_auto_fix_spacing_punct();
     test_macro_when_vi_off();
     test_find_settings_binary();

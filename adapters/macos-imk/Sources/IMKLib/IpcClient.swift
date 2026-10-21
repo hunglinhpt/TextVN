@@ -29,6 +29,12 @@ public enum IpcMessage: Equatable {
     case toggleViEn(appID: String, enabled: Bool) // client gửi (review R1 F15)
     case ping
     case crashReport(code: UInt32, count: UInt32)
+    /// `AssistReport { issues, auto_fixed }` — kết quả kiểm tra / tự sửa gửi lên
+    /// tray (client → server, `schemas/ipc.v1.md`).
+    ///
+    /// **Không mang câu người dùng** (D8/S2): chỉ mã lỗi, span, thông điệp và
+    /// gợi ý do engine sinh.
+    case assistReport(issues: [AssistReportIssue], autoFixed: UInt32)
 
     // ---- server → client
     case snapshot(configVersion: UInt64, state: [String: Bool], appdbVersion: String, channel: String)
@@ -53,6 +59,12 @@ public enum IpcMessage: Equatable {
             return ["type": "Ping"]
         case let .crashReport(code, count):
             return ["type": "CrashReport", "code": code, "count": count]
+        case let .assistReport(issues, autoFixed):
+            return [
+                "type": "AssistReport",
+                "issues": issues.map { $0.json },
+                "auto_fixed": Int(autoFixed),
+            ]
         case let .snapshot(configVersion, state, appdbVersion, channel):
             return [
                 "type": "Snapshot", "config_version": configVersion,
@@ -143,8 +155,50 @@ public enum IpcMessage: Equatable {
     }
 }
 
-public protocol IpcClientDelegate: AnyObject {
-    /// Push từ server (đã decode) — LUÔN thực thi trên **main queue**.
+/// Một lỗi trong `AssistReport` (wire format của crate `textvn-ipc` — xem
+/// `schemas/ipc.v1.md`): mã lỗi ổn định + span (ký tự Unicode) + thông điệp +
+/// gợi ý. **Không** chứa câu người dùng vừa gõ (D8/S2).
+public struct AssistReportIssue: Equatable {
+    public let kind: String
+    public let spanStart: UInt32
+    public let spanEnd: UInt32
+    public let message: String
+    public let suggestions: [String]
+    public let autoFixable: Bool
+    public let confidence: UInt32
+
+    public init(
+        kind: String,
+        spanStart: UInt32,
+        spanEnd: UInt32,
+        message: String,
+        suggestions: [String] = [],
+        autoFixable: Bool = false,
+        confidence: UInt32 = 0
+    ) {
+        self.kind = kind
+        self.spanStart = spanStart
+        self.spanEnd = spanEnd
+        self.message = message
+        self.suggestions = suggestions
+        self.autoFixable = autoFixable
+        self.confidence = confidence
+    }
+
+    var json: [String: Any] {
+        [
+            "kind": kind,
+            "span_start": Int(spanStart),
+            "span_end": Int(spanEnd),
+            "message": message,
+            "suggestions": suggestions,
+            "auto_fixable": autoFixable,
+            "confidence": Int(confidence),
+        ]
+    }
+}
+
+public protocol IpcClientDelegate: AnyObject {    /// Push từ server (đã decode) — LUÔN thực thi trên **main queue**.
     func ipcClient(_ client: IpcClient, didReceive message: IpcMessage)
     /// Kết nối đứt → client tự chuyển offline (không block gõ).
     func ipcClientDidDisconnect(_ client: IpcClient)

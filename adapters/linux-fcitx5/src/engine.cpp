@@ -31,7 +31,7 @@ namespace textvn {
 /* ---- Tiện ích thuần ---- */
 
 /* Số mili giây từ epoch steady (đo hạn 5 s của undo — R-4). */
-uint64_t nowMs() {
+static uint64_t nowMs() {
     using namespace std::chrono;
     return static_cast<uint64_t>(
         duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count());
@@ -45,7 +45,7 @@ uint64_t nowMs() {
  * `expected` là Unicode (buffer của core); document chứa glyph theo bảng mã
  * xuất — với `unicode_precomposed` (mặc định) 1 char = 1 byte UTF-8-ish nên
  * so được; bảng mã khác ⇒ lệch ⇒ không sửa (an toàn hơn sửa nhầm). */
-bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &expected) {
+static bool textBeforeCaretMatches(fcitx::InputContext *ic, const std::string &expected) {
     if (!ic || expected.empty()) return false;
     fcitx::SurroundingText surrounding = ic->surroundingText();
     if (!surrounding.isValid()) return false;
@@ -318,6 +318,9 @@ void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len)
 void TextVNEngine::finishWord(TextVNState *st) {
     if (!st) return;
     clearAssistUI(st);
+    /* R-4: chốt từ ⇒ trạng thái hoàn tác cũng hết hiệu lực (caret có thể đã
+     * đổi ⇒ không xác minh được vùng cần xoá). */
+    st->assistUndoValid = false;
     if (st->comp.len > 0) {
         commitText(st, st->comp.text, st->comp.len);
         st->comp.len = 0;
@@ -431,13 +434,17 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         lc_assist_should_auto_fix(st->config.assist_mode, st->config.assist_auto_fix,
                                   isSentenceTrigger ? 1 : 0) != 0;
 
-    char sentence[512];
+    /* Buffer đủ cho 256 ký tự Unicode (cap của core) × 4 byte UTF-8 + NUL.
+     * Buffer nhỏ hơn ⇒ `ime_assist_sentence_tail` cắt cụt (có thể cắt giữa
+     * ký tự UTF-8) ⇒ câu sai ⇒ span lệch ⇒ kế hoạch xoá nhầm (fail-safe: cần
+     * buffer đủ). */
+    char sentence[256 * 4 + 1];
     size_t actual_len = 0;
     if (ime_assist_sentence_tail(st->inst, 256, sentence, sizeof(sentence), &actual_len) != IME_OK ||
-        actual_len == 0) {
+        actual_len == 0 || actual_len >= sizeof(sentence)) {
         return planEaten;
     }
-    sentence[actual_len < sizeof(sentence) ? actual_len : sizeof(sentence) - 1] = '\0';
+    sentence[actual_len] = '\0';
 
     if (isAutoCorrectMode) {
         const bool surrounding =
@@ -464,12 +471,20 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                  * giữ câu cũ ⇒ mỗi trigger lại xoá+commit lại (lặp, nhân bản
                  * history trong app). */
                 if (st->inst) ime_reset(st->inst);
-                /* R-4: lưu state hoàn tác 1 bước (Ctrl+Z trong 5 s). */
-                st->assistUndoValid = true;
-                st->assistUndoOriginalTail = fixPlan.original_tail;
-                st->assistUndoReplacement = fixPlan.replacement;
-                st->assistUndoReplacementGlyphs = fixPlan.delete_glyphs;
-                st->assistUndoTimestampMs = nowMs();
+                /* R-4: lưu state hoàn tác 1 bước (Ctrl+Z trong 5 s).
+                 * Số glyph cần xoá khi hoàn tác là của **replacement** (text đã
+                 * gõ lại), không phải của đuôi câu gốc. Không đếm được ⇒ không
+                 * lưu state (fail-safe: bỏ undo còn hơn xoá lệch vị trí). */
+                size_t replGlyphs = 0;
+                if (ime_assist_glyph_len(st->inst, fixPlan.replacement,
+                                         strlen(fixPlan.replacement), &replGlyphs) == IME_OK &&
+                    replGlyphs > 0) {
+                    st->assistUndoValid = true;
+                    st->assistUndoOriginalTail = fixPlan.original_tail;
+                    st->assistUndoReplacement = fixPlan.replacement;
+                    st->assistUndoReplacementGlyphs = static_cast<uint32_t>(replGlyphs);
+                    st->assistUndoTimestampMs = nowMs();
+                }
                 if (ipc_) {
                     lc_ipc_client_send_assist_report(ipc_, res.count, fixPlan.fixed_count);
                 }
@@ -530,6 +545,33 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     return planEaten;
 }
 
+/* R-4 (AS-050): hoàn tác tự sửa cả câu — 1 bước, hạn 5 s.
+ *
+ * Fail-safe: trước khi xoá, vùng text trước caret phải **đúng** là text đã
+ * gõ lại sau khi sửa (nếu người dùng đã gõ thêm ⇒ không xoá nhầm chữ). */
+bool TextVNEngine::applyAssistUndo(TextVNState *st) {
+    if (!st || !st->ic || !st->inst || !st->assistUndoValid) return false;
+    if (nowMs() - st->assistUndoTimestampMs > 5000) {
+        st->assistUndoValid = false; /* hết hạn ⇒ để Ctrl+Z tới app */
+        return false;
+    }
+    if (!textBeforeCaretMatches(st->ic, st->assistUndoReplacement)) {
+        return false; /* không xác minh được ⇒ KHÔNG xoá */
+    }
+    try {
+        if (st->assistUndoReplacementGlyphs > 0) {
+            st->ic->deleteSurroundingText(
+                -static_cast<int>(st->assistUndoReplacementGlyphs), 0);
+        }
+        st->ic->commitString(st->assistUndoOriginalTail);
+        st->assistUndoValid = false;
+        ime_reset(st->inst);
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
 std::string TextVNEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
                                            fcitx::InputContext &) {
     return viEnabled_ ? "V" : "E";
@@ -572,6 +614,8 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
 void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &event) {
     if (!st) return;
     clearAssistUI(st);
+    /* R-4: đổi focus ⇒ trạng thái hoàn tác hết hiệu lực. */
+    st->assistUndoValid = false;
     if (event.type() == fcitx::EventType::InputContextFocusOut) {
         if (st->comp.len > 0) showPreedit(st, nullptr, 0);
         st->comp.len = 0;
@@ -617,8 +661,9 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
             return true;
         }
         // Để Fcitx5 tự xử lý phím số 1..3 chọn ứng viên từ candidateList đang hiện
-        if (!states.testAny(fcitx::KeyState::Ctrl | fcitx::KeyState::Alt | fcitx::KeyState::Super) &&
-            key.sym() >= FcitxKey_1 && key.sym() <= FcitxKey_3) {
+        if (!states.test(fcitx::KeyState::Ctrl) && !states.test(fcitx::KeyState::Alt) &&
+            !states.test(fcitx::KeyState::Super) && key.sym() >= FcitxKey_1 &&
+            key.sym() <= FcitxKey_3) {
             return false;
         }
         clearAssistUI(st);
@@ -632,8 +677,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
      * R-3: mọi phím KHÁC ⇒ huỷ state hoàn tác (gõ tiếp không được bị Ctrl+Z
      * sau đó xoá nhầm chữ vừa gõ). */
     const bool isAssistUndoChord =
-        states.test(fcitx::KeyState::Ctrl) &&
-        !states.testAny(fcitx::KeyState::Alt | fcitx::KeyState::Super | fcitx::KeyState::Shift) &&
+        states.test(fcitx::KeyState::Ctrl) && !states.test(fcitx::KeyState::Alt) &&
+        !states.test(fcitx::KeyState::Super) && !states.test(fcitx::KeyState::Shift) &&
         key.sym() == FcitxKey_z;
     if (isAssistUndoChord) {
         if (applyAssistUndo(st)) {

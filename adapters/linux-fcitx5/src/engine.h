@@ -42,6 +42,14 @@ public:
     lc_config_state config{};
     lc_modifier_toggle toggle{};
     int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
+    /* R-4 (AS-050): hoàn tác 1 bước sau tự sửa cả câu (Ctrl+Z trong 5 s).
+     * `assistUndoReplacement` = text ĐÃ gõ lại — dùng để xác minh vùng sắp
+     * xoá trước khi hoàn tác (fail-safe: không xác minh được ⇒ không xoá). */
+    bool assistUndoValid = false;
+    std::string assistUndoOriginalTail; /* UTF-8 */
+    std::string assistUndoReplacement;  /* UTF-8 */
+    uint32_t assistUndoReplacementGlyphs = 0;
+    uint64_t assistUndoTimestampMs = 0;
 };
 
 class TextVNEngine : public fcitx::InputMethodEngineV2 {
@@ -75,6 +83,8 @@ private:
     void consumeAssistIpc();
     void clearAssistUI(TextVNState *st);
     bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten);
+    /* R-4: Ctrl+Z hoàn tác tự sửa cả câu (1 bước, 5 s). */
+    bool applyAssistUndo(TextVNState *st);
     void updateModeAction(fcitx::InputContext *ic);
     /* `key` = phím đã chuẩn hoá (chữ hoa theo Shift/Caps Lock); `rawStates` = trạng thái
      * gốc — Key::normalize() của Fcitx5 bỏ bit CapsLock nên phải lấy từ rawKey(). */

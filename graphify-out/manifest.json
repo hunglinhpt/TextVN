@@ -1116,15 +1116,15 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1792599482.5183935,
-    "seen": 1792599831.5281339,
-    "ast_hash": "a4adce88077c94c8adb0e02123a253a2",
+    "mtime": 1792600016.9190886,
+    "seen": 1792600026.3795455,
+    "ast_hash": "a004bc392b5ad63d7e37588aede8fdc5",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
-    "mtime": 1792597277.3320436,
-    "seen": 1792597839.393883,
-    "ast_hash": "32cbde7b0de39340aa07918db869d9d2",
+    "mtime": 1792599945.1921425,
+    "seen": 1792600026.3795455,
+    "ast_hash": "f46ae563601df7d114786e521c7ab998",
     "semantic_hash": ""
   },
   "adapters/windows-hook/build.rs": {
@@ -1278,15 +1278,15 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_compose.h": {
-    "mtime": 1792597071.4589458,
-    "seen": 1792597839.393883,
-    "ast_hash": "c6402a2cb5ff244806ae3f44876bf192",
+    "mtime": 1792599885.9808931,
+    "seen": 1792600026.376505,
+    "ast_hash": "ca0c9fd0805c1e6af33f6723c8105ede",
     "semantic_hash": ""
   },
   "adapters/linux-common/src/compose.c": {
-    "mtime": 1792599437.62271,
-    "seen": 1792599831.5281339,
-    "ast_hash": "53ba2ac2c71e7e305154f565c2ed7d48",
+    "mtime": 1792599917.1383793,
+    "seen": 1792600026.376505,
+    "ast_hash": "e7ee84cfdcaad9b964616eef504a6408",
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
@@ -2676,9 +2676,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
-    "mtime": 1792599811.900261,
-    "seen": 1792599831.5702994,
-    "ast_hash": "a13d52d84d7a3a029c15760366cc8204",
+    "mtime": 1792599842.5440166,
+    "seen": 1792600026.4287994,
+    "ast_hash": "70b11853f2c20c30349719f2f66eec74",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {

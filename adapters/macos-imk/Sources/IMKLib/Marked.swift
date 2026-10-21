@@ -29,12 +29,21 @@ public protocol TextTarget: AnyObject {
     func deleteBackward(count: Int) -> Bool
     /// Xóa ký tự xung quanh caret (before trước caret, after sau caret).
     func deleteSurroundingText(before: Int, after: Int) -> Bool
+    /// Text ngay **trước caret** — dùng để **xác minh precondition** (D12) trước
+    /// khi xoá: vùng sắp xoá phải đúng là đuôi câu mà engine biết.
+    ///
+    /// `nil` = không đọc được (app không cho đọc) ⇒ **không sửa** (fail-safe).
+    /// Chỉ đọc trong RAM, **không log, không gửi đi** (D8/S2).
+    func textBeforeCaret() -> String?
 }
 
 extension TextTarget {
     public func deleteSurroundingText(before: Int, after: Int) -> Bool {
         deleteBackward(count: before)
     }
+
+    /// Mặc định: không đọc được ⇒ `nil` ⇒ caller **không sửa** (fail-safe).
+    public func textBeforeCaret() -> String? { nil }
 }
 
 /// Trạng thái marked của controller — 1 instance theo controller (main thread).

@@ -163,16 +163,32 @@ int lc_state_sync_assist(lc_config_state *st, const char *path, int *assist_enab
 /* Trợ lý có đang hoạt động hay không (kill-switch bật VÀ mode != OFF). */
 int lc_assist_is_active(int assist_enabled, int assist_mode);
 
+/* R-5: Mode 2 (tự sửa cả câu) chỉ bật khi `assist.mode == "autocorrect"` VÀ
+ * `assist.auto_fix == "safe"` VÀ trigger là **kết thúc câu** (`.` `!` `?`).
+ * Cùng ngữ nghĩa cho cả 3 OS (P4-0 §4.3) — hàm thuần, test được. */
+int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sentence_trigger);
+
+/* R-6: điểm **hiển thị** (Mode 1 — candidate list) chỉ ở trigger kết thúc câu
+ * và khi `assist.mode != "off"` (D11) — hàm thuần, test được. */
+int lc_assist_should_display(int assist_mode, int is_sentence_trigger);
+
 /* Đọc trực tiếp assist.mode và assist.auto_fix từ config.json. */
 int lc_config_read_assist_mode(const char *path, int default_mode);
 int lc_config_read_assist_auto_fix(const char *path, int default_auto_fix);
 
 /* Kế hoạch tự sửa câu (Mode 2 - autocorrect / AS-060) */
-#define LC_MAX_SENTENCE_FIX_CHARS 512
+/* Đuôi câu tối đa 256 ký tự Unicode (cap của core) → UTF-8 tối đa 4 byte/ký tự
+ * = 1024 byte + NUL. Buffer phải chứa được CẢ câu (không cắt cụt — R-10). */
+#define LC_MAX_SENTENCE_FIX_CHARS 1024
 typedef struct lc_sentence_fix_plan {
     uint32_t fixed_count;                       /* Số lỗi objective đã sửa */
     uint32_t delete_glyphs;                     /* Số glyph cần xoá lùi (surrounding text) */
     char     replacement[LC_MAX_SENTENCE_FIX_CHARS]; /* Chuỗi UTF-8 thay thế để commit */
+    /* R-2: đuôi câu GỐC mà engine biết (UTF-8). Adapter dùng để
+     * (1) XÁC MINH vùng text trước caret trong document trước khi xoá
+     *     (fail-safe: không xác minh được ⇒ không sửa) và
+     * (2) hoàn tác 1 bước (Ctrl+Z). */
+    char     original_tail[LC_MAX_SENTENCE_FIX_CHARS];
 } lc_sentence_fix_plan;
 
 /* Tính toán kế hoạch tự sửa câu từ kết quả ime_assist_check_instance.

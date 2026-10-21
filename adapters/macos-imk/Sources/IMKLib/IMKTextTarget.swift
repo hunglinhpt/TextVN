@@ -84,4 +84,17 @@ final class IMKTextTarget: TextTarget {
         }
         return true
     }
+
+    /// Text ngay trước caret — **precondition D12** (R-2/R-7): trước khi xoá để
+    /// tự sửa, adapter phải xác minh vùng sắp xoá **đúng** là đuôi câu mà
+    /// engine biết; không xác minh được ⇒ **không sửa** (fail-safe).
+    ///
+    /// Chỉ đọc trong RAM của tiến trình, không log/không gửi đi (D8/S2).
+    func textBeforeCaret() -> String? {
+        let selection = client.selectedRange()
+        guard selection.location != NSNotFound, selection.location > 0 else { return nil }
+        let range = NSRange(location: 0, length: selection.location)
+        guard let text = client.attributedSubstring(from: range)?.string else { return nil }
+        return text
+    }
 }

@@ -87,8 +87,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private var assistUndo: AssistUndoState?
     /// Candidate panel của IMK cho Mode 1 (Highlight)
     private var candidatePanel: IMKCandidates?
-    /// Danh sách gợi ý hiện tại cho candidate panel
-    private var currentCandidates: [String] = []
+    /// Danh sách gợi ý hiện tại cho candidate panel (kèm kế hoạch A2 — R-7)
+    private var currentCandidates: [AssistCandidate] = []
 
     // R2-106: phím chuyển CỐ ĐỊNH Ctrl+Shift (tap) / Ctrl+Shift+Space như Windows/Linux.
     // Vòng 16 (B3) từng thực thi `switch_key` Alt+Z/Caps Lock riêng trên macOS — lệch
@@ -735,50 +735,116 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         Diagnostics.log("assist: detected \(issues.count) issue(s)")
 
-        // Mode 2 / A3: Tự động sửa lỗi objective bằng Backspace+Type
-        if assistSettings.isAutoFixSafe {
-            let sentence = engine.sentenceTail(maxChars: min(256, assistSettings.max_sentence_chars))
+        // R-5 (P4-0 §4.3): Mode 2 = mode "autocorrect" VÀ auto_fix "safe" VÀ
+        // trigger **kết thúc câu** — cùng ngữ nghĩa cho cả 3 OS (space/, chỉ là
+        // điểm kiểm tra silent — D11).
+        let isSentenceTrigger = triggerKind == FFI.assistTriggerSentence
+        let sentence = engine.sentenceTail(maxChars: min(256, assistSettings.max_sentence_chars))
+
+        if assistSettings.isMode2AutoFix && isSentenceTrigger {
+            // R-11: không đếm được glyph ⇒ 0 ⇒ kế hoạch bị từ chối ⇒ không sửa
+            // (tuyệt đối KHÔNG fallback `text.count` — sai ở VNI/TCVN3).
             if let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { [weak engine] text in
-                engine?.glyphLen(text) ?? text.count
+                engine?.glyphLen(text) ?? 0
             }) {
-                if target.deleteSurroundingText(before: plan.deleteGlyphs, after: 0) {
-                    target.insert(plan.replacement, replacementRange: NSRange(location: NSNotFound, length: 0))
+                if applyAssistFix(plan: plan, target: target) {
                     let replGlyphs = engine.glyphLen(plan.replacement)
-                    assistUndo = AssistUndoState(
-                        timestamp: Date(),
-                        originalTail: plan.originalTail,
-                        replacementGlyphs: replGlyphs,
-                        fixedCount: plan.fixedCount
-                    )
+                    if replGlyphs > 0 {
+                        assistUndo = AssistUndoState(
+                            timestamp: Date(),
+                            originalTail: plan.originalTail,
+                            replacement: plan.replacement,
+                            replacementGlyphs: replGlyphs,
+                            fixedCount: plan.fixedCount
+                        )
+                    }
                     engine.reset()
                     Diagnostics.log("assist auto-fix applied (\(plan.fixedCount) issue(s))")
+                    ipc.send(.assistReport(issues: Self.reportIssues(issues), autoFixed: UInt32(plan.fixedCount)))
                     candidatePanel?.hide()
                     currentCandidates.removeAll()
                     return true
-                } else {
-                    Diagnostics.log("assist auto-fix delete failed — fail-open")
                 }
+                Diagnostics.log("assist auto-fix skipped (precondition / delete failed) — fail-open")
             }
         }
 
-        // Mode 1: Hiển thị gợi ý qua candidate panel của IMK
-        if assistSettings.isHighlight && triggerKind == FFI.assistTriggerSentence {
-            let suggestions = issues.compactMap { issue -> String? in
-                issue.suggest.isEmpty ? nil : issue.suggest
-            }
-            if !suggestions.isEmpty {
-                currentCandidates = suggestions
+        // Mode 1: Hiển thị gợi ý qua candidate panel của IMK.
+        // R-6 (D11): chỉ ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
+        // tung panel là UI spam.
+        if assistSettings.isDisplayEnabled && isSentenceTrigger {
+            let candidates = Self.buildCandidates(sentence: sentence, issues: issues, engine: engine)
+            if !candidates.isEmpty {
+                currentCandidates = candidates
                 candidatePanel?.update()
                 candidatePanel?.show()
-                Diagnostics.log("assist highlight shown (\(suggestions.count) suggestion(s))")
+                Diagnostics.log("assist highlight shown (\(candidates.count) suggestion(s))")
+                ipc.send(.assistReport(issues: Self.reportIssues(issues), autoFixed: 0))
                 return true
-            } else {
-                candidatePanel?.hide()
-                currentCandidates.removeAll()
             }
+            candidatePanel?.hide()
+            currentCandidates.removeAll()
         }
 
         return false
+    }
+
+    /// Áp dụng kế hoạch sửa (A2/A3) — **có precondition** (D12 · R-2 · R-7).
+    ///
+    /// Vùng sắp xoá phải **đúng** là đuôi câu mà engine biết; không xác minh
+    /// được (app không cho đọc / caret ở chỗ khác) ⇒ **không sửa** (fail-safe).
+    /// Chỉ xoá **trước** caret (phần sau caret không thuộc phạm vi sửa).
+    @discardableResult
+    func applyAssistFix(plan: SentenceFixPlan, target: TextTarget) -> Bool {
+        guard plan.deleteGlyphs > 0 else { return false }
+        guard let before = target.textBeforeCaret() else {
+            Diagnostics.log("assist: precondition unavailable — skip")
+            return false
+        }
+        guard before.hasSuffix(plan.originalTail) else {
+            Diagnostics.log("assist: precondition mismatch — skip")
+            return false
+        }
+        guard target.deleteSurroundingText(before: plan.deleteGlyphs, after: 0) else {
+            Diagnostics.log("assist: delete failed — fail-open")
+            return false
+        }
+        target.insert(plan.replacement, replacementRange: NSRange(location: NSNotFound, length: 0))
+        return true
+    }
+
+    /// Dựng danh sách gợi ý **có kế hoạch sửa** (A2) — chọn gợi ý ⇒ *thay từ lỗi*
+    /// (R-7), không phải chèn thêm ở caret.
+    static func buildCandidates(
+        sentence: String,
+        issues: [AssistIssue],
+        engine: ImeEngine
+    ) -> [AssistCandidate] {
+        var out: [AssistCandidate] = []
+        for issue in issues {
+            guard out.count < 3 else { break } // tối đa 3 gợi ý (P4-0 §6)
+            guard !issue.suggest.isEmpty else { continue }
+            guard let plan = planSentenceAutoFix(sentence: sentence, issues: [issue], glyphLen: { text in
+                engine.glyphLen(text)
+            }) else { continue } // lỗi chỉ gợi ý (A1) → không áp dụng được
+            out.append(AssistCandidate(text: issue.suggest, plan: plan))
+        }
+        return out
+    }
+
+    /// Chuyển lỗi engine → wire format `AssistReport` (không có câu người dùng).
+    static func reportIssues(_ issues: [AssistIssue]) -> [AssistReportIssue] {
+        issues.prefix(3).map { issue in
+            AssistReportIssue(
+                kind: assistKindName(issue.kind),
+                spanStart: issue.start,
+                spanEnd: issue.end,
+                message: issue.message,
+                suggestions: issue.suggest.isEmpty ? [] : [issue.suggest],
+                autoFixable: issue.autoFixable,
+                confidence: issue.confidence
+            )
+        }
     }
 
     @discardableResult
@@ -789,6 +855,13 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
         let textTarget = target ?? (sender != nil ? clientTarget(sender) : nil)
         guard let validTarget = textTarget else {
+            assistUndo = nil
+            return false
+        }
+
+        // R-3 (fail-safe): vùng sắp xoá phải **đúng** là text ta vừa gõ lại sau
+        // khi sửa; người dùng đã gõ thêm ⇒ KHÔNG xoá (tránh nuốt chữ của họ).
+        guard let before = validTarget.textBeforeCaret(), before.hasSuffix(undo.replacement) else {
             assistUndo = nil
             return false
         }
@@ -814,14 +887,19 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     // ------------------------------------------------------------- IMK candidate panel
 
     public override func candidates(_ sender: Any!) -> [Any]! {
-        currentCandidates as [Any]
+        currentCandidates.map { $0.text } as [Any]
     }
 
     public override func candidateSelected(_ candidateString: NSAttributedString!) {
         guard let str = candidateString?.string else { return }
         Diagnostics.log("assist: candidate selected (len=\(str.count))")
-        if let target = clientTarget(client()) {
-            target.insert(str, replacementRange: NSRange(location: NSNotFound, length: 0))
+        // R-7: chọn gợi ý ⇒ **thay từ lỗi** (xoá đúng số glyph rồi gõ lại) —
+        // trước đây *chèn* gợi ý ở caret ⇒ sinh "chèn thêm" + trùng lặp.
+        if let candidate = currentCandidates.first(where: { $0.text == str }),
+           let target = clientTarget(client()) {
+            if !applyAssistFix(plan: candidate.plan, target: target) {
+                Diagnostics.log("assist: candidate apply skipped (precondition)")
+            }
         }
         candidatePanel?.hide()
         currentCandidates.removeAll()
@@ -841,7 +919,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         set { assistUndo = newValue }
     }
     var currentAssistCandidates: [String] {
-        currentCandidates
+        currentCandidates.map { $0.text }
     }
 }
 

@@ -91,6 +91,13 @@ final class AssistTests: XCTestCase {
         let autoFixSettings = try JSONDecoder().decode(AssistSettings.self, from: Data(autoFixJson.utf8))
         XCTAssertTrue(autoFixSettings.isOn)
         XCTAssertTrue(autoFixSettings.isAutoFixSafe)
+        XCTAssertFalse(autoFixSettings.isMode2AutoFix)
+
+        let mode2Json = #"{"mode": "autocorrect", "auto_fix": "safe"}"#
+        let mode2Settings = try JSONDecoder().decode(AssistSettings.self, from: Data(mode2Json.utf8))
+        XCTAssertTrue(mode2Settings.isOn)
+        XCTAssertTrue(mode2Settings.isMode2AutoFix)
+        XCTAssertTrue(mode2Settings.isDisplayEnabled)
     }
 
     func testAssistConfigParser() {
