@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1792520430.4770305,
-    "seen": 1792520660.2139444,
-    "ast_hash": "6f99e863b6b1aab57d8aaded679c0a3a",
+    "mtime": 1792521202.9312208,
+    "seen": 1792521325.3745854,
+    "ast_hash": "90697611db1c0163d77bdb90bd7d0aaf",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792520503.2695007,
-    "seen": 1792520660.2139444,
-    "ast_hash": "c3ff25b0557e76b85c175765749f1f77",
+    "mtime": 1792521233.0873072,
+    "seen": 1792521325.3745854,
+    "ast_hash": "6ac543345d3a085ba10a9f5d6b908200",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1792520400.4837773,
-    "seen": 1792520660.2139444,
-    "ast_hash": "a3f09b7657540f5313929631135f3c27",
+    "mtime": 1792521167.0625598,
+    "seen": 1792521325.3745854,
+    "ast_hash": "8447ca17fd3b7d9c6df31398e5567f0b",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
@@ -2472,9 +2472,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-TASKS.md": {
-    "mtime": 1792520618.3352249,
-    "seen": 1792520660.2371178,
-    "ast_hash": "45ac7c9629f221a9f1c918162a1e2fcb",
+    "mtime": 1792521283.4274318,
+    "seen": 1792521325.4150562,
+    "ast_hash": "42271860931bc93c8d0713dd3d10c2e7",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-4-OS-NATIVE-ASSIST.md": {

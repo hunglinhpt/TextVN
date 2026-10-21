@@ -42,9 +42,9 @@
     "semantic_hash": ""
   },
   "cli/src/verify.rs": {
-    "mtime": 1792518877.7633471,
-    "seen": 1792519058.1339815,
-    "ast_hash": "1e090568d1ad41cf60f4abd4e410da72",
+    "mtime": 1792547859.8579924,
+    "seen": 1792562010.9737368,
+    "ast_hash": "d105f605e3ef11ed4a2e2423dc5b02d6",
     "semantic_hash": ""
   },
   "config/Cargo.toml": {
@@ -204,15 +204,15 @@
     "semantic_hash": ""
   },
   "ffi/include/textvn_ffi.h": {
-    "mtime": 1792518711.2511535,
-    "seen": 1792519058.1408367,
-    "ast_hash": "f4fa827a152a27167ca7f6956830981d",
+    "mtime": 1792547561.9635437,
+    "seen": 1792562010.9767365,
+    "ast_hash": "e0abdadacc35efe44ffb6765338c6674",
     "semantic_hash": ""
   },
   "ffi/src/lib.rs": {
-    "mtime": 1792518892.2299778,
-    "seen": 1792519058.1408367,
-    "ast_hash": "1220a940aa39b6cc95de114ca28bf0f6",
+    "mtime": 1792547782.4174984,
+    "seen": 1792562010.9767365,
+    "ast_hash": "8b924aaf0a68b5bb9667991fdf433dec",
     "semantic_hash": ""
   },
   "ffi/tests/abi_invariants.rs": {
@@ -396,9 +396,9 @@
     "semantic_hash": ""
   },
   "docs/00-INDEX.md": {
-    "mtime": 1792516173.913978,
-    "seen": 1792516209.9746044,
-    "ast_hash": "22a6f5cfaa06a83e5272252ed4d18009",
+    "mtime": 1792561389.2171428,
+    "seen": 1792562010.9923294,
+    "ast_hash": "0d8f3c710a3e01d7cfcdb917b2dc3a6a",
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
@@ -1398,9 +1398,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CTextVNFFI/include/textvn_ffi.h": {
-    "mtime": 1790641184.781449,
-    "seen": 1790741385.9519608,
-    "ast_hash": "dba9eb9600c88ff251fce87bb82e67e0",
+    "mtime": 1792547561.9635437,
+    "seen": 1792562010.9687374,
+    "ast_hash": "e0abdadacc35efe44ffb6765338c6674",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/CoreBridge.swift": {
@@ -2358,9 +2358,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-0-MASTER-PLAN.md": {
-    "mtime": 1792516141.4218524,
-    "seen": 1792516209.9972692,
-    "ast_hash": "261f2ac4a46cc319d13056fbf63aa6a9",
+    "mtime": 1792558614.6838539,
+    "seen": 1792562010.9953287,
+    "ast_hash": "3c5ad98b7daee129dc87561bd59f9b3e",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-1-harper-evaluation.md": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "assist/src/lib.rs": {
-    "mtime": 1792513499.0806623,
-    "seen": 1792514363.0409718,
-    "ast_hash": "2fb0357f5870c4b6c9f64dd45201c58f",
+    "mtime": 1792547464.5477774,
+    "seen": 1792562010.9727366,
+    "ast_hash": "d1a81e4807648087feb75350127a074f",
     "semantic_hash": ""
   },
   "assist/src/mask.rs": {
@@ -2394,15 +2394,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/capitalize_sentence.rs": {
-    "mtime": 1792513301.6079779,
-    "seen": 1792514363.0419674,
-    "ast_hash": "1841112e410f702b511cd7f43baffc8d",
+    "mtime": 1792547490.2680323,
+    "seen": 1792562010.9727366,
+    "ast_hash": "a958c22f77c4ee95996767303a726cda",
     "semantic_hash": ""
   },
   "assist/src/rules/diacritic_typo.rs": {
-    "mtime": 1792513301.606969,
-    "seen": 1792514363.0419674,
-    "ast_hash": "e06d0eca00bb1439c72fc0e3ceddcbdf",
+    "mtime": 1792561290.406604,
+    "seen": 1792562010.9727366,
+    "ast_hash": "0fac304655e1cf5528b474bc35b35bd7",
     "semantic_hash": ""
   },
   "assist/src/rules/double_space.rs": {
@@ -2412,15 +2412,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1792513293.4348173,
-    "seen": 1792514363.0419674,
-    "ast_hash": "d2e379b444413e43079027b044df6bb3",
+    "mtime": 1792561290.5069687,
+    "seen": 1792562010.9727366,
+    "ast_hash": "f92179a738c267a5c8ba6e47602a4a6b",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1792513131.8850796,
-    "seen": 1792514363.0419674,
-    "ast_hash": "d2011c81ecd4f2ae097eb41d7bf1c0a7",
+    "mtime": 1792561145.8982012,
+    "seen": 1792562010.9727366,
+    "ast_hash": "3d89cb57dfefda0c5d34b8ac8552bc80",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
@@ -2448,15 +2448,15 @@
     "semantic_hash": ""
   },
   "assist/tests/corpus.rs": {
-    "mtime": 1792513368.520096,
-    "seen": 1792514363.0419674,
-    "ast_hash": "785d9dff377974ee39906fe935cd5ff4",
+    "mtime": 1792561217.1083348,
+    "seen": 1792562010.9727366,
+    "ast_hash": "55736e706ba6b87a23d36508cebe7280",
     "semantic_hash": ""
   },
   "cli/src/assist.rs": {
-    "mtime": 1792514211.1975014,
-    "seen": 1792514363.0429678,
-    "ast_hash": "eb7a1f0b873de50716effb8656800bba",
+    "mtime": 1792561430.246734,
+    "seen": 1792562010.9737368,
+    "ast_hash": "ea145e5791f1236f4ea931aef71273a1",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-2-CROSS-REVIEW-2026-10-20.md": {
@@ -2472,9 +2472,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-TASKS.md": {
-    "mtime": 1792521283.4274318,
-    "seen": 1792521325.4150562,
-    "ast_hash": "42271860931bc93c8d0713dd3d10c2e7",
+    "mtime": 1792561923.1687875,
+    "seen": 1792562010.9963286,
+    "ast_hash": "d125e1d41f6c0c45302813117db60ad2",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-4-OS-NATIVE-ASSIST.md": {
@@ -2502,15 +2502,93 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-7-REVIEW-AS-021-022.md": {
-    "mtime": 1792519881.8321998,
-    "seen": 1792519996.2620027,
-    "ast_hash": "441589a8c71c722f6be39201739feeae",
+    "mtime": 1792543752.7826273,
+    "seen": 1792562010.9963286,
+    "ast_hash": "5c8d2c67238cc5d4373de82aa2f20d97",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/overlay.rs": {
     "mtime": 1792520555.0079584,
     "seen": 1792520660.2139444,
     "ast_hash": "27fefa4d51e4e4056eaa38fd5e86aec3",
+    "semantic_hash": ""
+  },
+  "assist/src/dict.rs": {
+    "mtime": 1792543992.5259871,
+    "seen": 1792562010.9727366,
+    "ast_hash": "f41b52afb0eb8f33fed0ac5d3fc77434",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/comma_at_end.rs": {
+    "mtime": 1792547782.2753305,
+    "seen": 1792562010.9727366,
+    "ast_hash": "ec438831d965b523a8b0cf792328a601",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/double_negative.rs": {
+    "mtime": 1792547446.6795835,
+    "seen": 1792562010.9727366,
+    "ast_hash": "a636af6e85f5f544a8eacee715492f3f",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/sentence_repeat.rs": {
+    "mtime": 1792547782.2783365,
+    "seen": 1792562010.9727366,
+    "ast_hash": "8c6ce2b842a9fb74545a002c001cff2a",
+    "semantic_hash": ""
+  },
+  "dict/Cargo.toml": {
+    "mtime": 1792544076.4288213,
+    "seen": 1792562010.9767365,
+    "ast_hash": "8553b2471d68a00de8e8ead8a289e7ba",
+    "semantic_hash": ""
+  },
+  "dict/src/build.rs": {
+    "mtime": 1792547782.402475,
+    "seen": 1792562010.9767365,
+    "ast_hash": "fc131721b0c549ac2bb89cc37d6c9b28",
+    "semantic_hash": ""
+  },
+  "dict/src/fst.rs": {
+    "mtime": 1792547782.4034753,
+    "seen": 1792562010.9767365,
+    "ast_hash": "c835f971413c0f32d7d3f604e011c982",
+    "semantic_hash": ""
+  },
+  "dict/src/lib.rs": {
+    "mtime": 1792561768.9335494,
+    "seen": 1792562010.9767365,
+    "ast_hash": "40089da80fa14d3573d55c16a122a759",
+    "semantic_hash": ""
+  },
+  "dict/src/mmap.rs": {
+    "mtime": 1792547782.4054747,
+    "seen": 1792562010.9767365,
+    "ast_hash": "6afe6b85b52915dfd93594833739d05d",
+    "semantic_hash": ""
+  },
+  "dict/src/reader.rs": {
+    "mtime": 1792547782.406478,
+    "seen": 1792562010.9767365,
+    "ast_hash": "af590b1f0da18ec4c3494c8f72076834",
+    "semantic_hash": ""
+  },
+  "tools/assist/gen_clean_corpus.ps1": {
+    "mtime": 1792546121.9793124,
+    "seen": 1792562010.9839618,
+    "ast_hash": "6b7d079a124827eb6a79aa6146db0e8f",
+    "semantic_hash": ""
+  },
+  "tools/assist/gen_corpus_tatoeba.py": {
+    "mtime": 1792561195.7099643,
+    "seen": 1792562010.9839618,
+    "ast_hash": "4537360073008c9b1a62defd9d393234",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-8-QUALITY-BASELINE.md": {
+    "mtime": 1792561836.302857,
+    "seen": 1792562010.9963286,
+    "ast_hash": "8e11fe5e7b4e84cd0e8776d3088ec667",
     "semantic_hash": ""
   }
 }
