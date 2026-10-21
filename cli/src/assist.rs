@@ -376,9 +376,7 @@ fn cmd_score(rest: &[String]) -> i32 {
                     actual.iter().filter(|(k, _, _)| k == kind).collect();
                 let span_ok = match *span {
                     None => true,
-                    Some((s, e)) => {
-                        same_kind.iter().any(|(_, as_, ae)| *as_ == s && *ae == e)
-                    }
+                    Some((s, e)) => same_kind.iter().any(|(_, as_, ae)| *as_ == s && *ae == e),
                 };
                 if !same_kind.is_empty() {
                     total_matched += 1;
