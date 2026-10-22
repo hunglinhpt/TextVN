@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "docs/release/parity-checklist.md": {
-    "mtime": 1792627818.4368482,
-    "seen": 1792627840.1886451,
-    "ast_hash": "4113f17576e73bb9510bf48d3fee46e6",
+    "mtime": 1792653593.1659157,
+    "seen": 1792653799.2527022,
+    "ast_hash": "59ad4eeacd80cd31930d96585979e8a6",
     "semantic_hash": ""
   },
   "installer/windows/build_installer.ps1": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
-    "mtime": 1792602036.0202694,
-    "seen": 1792627840.1612167,
-    "ast_hash": "a741fabadba97de2666d45cb1cbb2b91",
+    "mtime": 1792653741.8264632,
+    "seen": 1792653799.2222598,
+    "ast_hash": "b81933f682a512794eceb7f4e83ee4a0",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNApp/main.swift": {
@@ -1386,9 +1386,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Tests/TextVNAppTests/TextVNAppTests.swift": {
-    "mtime": 1792613369.1750536,
-    "seen": 1792627840.1612167,
-    "ast_hash": "530cc4ec7a217fec95f1953de1e56c88",
+    "mtime": 1792653562.9497497,
+    "seen": 1792653799.2222598,
+    "ast_hash": "b23fa0a2a4422f37512a422174a213e3",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Package.swift": {
