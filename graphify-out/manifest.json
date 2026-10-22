@@ -1872,9 +1872,9 @@
     "semantic_hash": ""
   },
   "docs/release/ui-spec.md": {
-    "mtime": 1792599707.4799967,
-    "seen": 1792599831.5763404,
-    "ast_hash": "4b078af06a75005bd720c3570727c144",
+    "mtime": 1792650151.847672,
+    "seen": 1792650441.0838106,
+    "ast_hash": "2e05fd21b10126d4d75eaf4adc4f3930",
     "semantic_hash": ""
   },
   "docs/specs/reference-parity.md": {
@@ -2004,9 +2004,9 @@
     "semantic_hash": ""
   },
   "PRIVACY_POLICY.txt": {
-    "mtime": 1791617098.2606494,
-    "seen": 1791702628.18752,
-    "ast_hash": "5c1b1f77043bb451922a4d81f144c136",
+    "mtime": 1792650320.1434116,
+    "seen": 1792650441.0767646,
+    "ast_hash": "bf0d12a5465ab2de69cda3936de89570",
     "semantic_hash": ""
   },
   "data/en_common.txt": {
@@ -2676,9 +2676,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
-    "mtime": 1792649877.531125,
-    "seen": 1792649978.4510684,
-    "ast_hash": "51442313b2fde75cc7b942c6bbbb65d0",
+    "mtime": 1792650365.6701562,
+    "seen": 1792650441.0818062,
+    "ast_hash": "d717f5a056b520b2e7321ec1ff0667fc",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {
@@ -2787,6 +2787,12 @@
     "mtime": 1792649761.8366175,
     "seen": 1792649978.4500382,
     "ast_hash": "35c3e5edd635f66e5f96804391cb57d7",
+    "semantic_hash": ""
+  },
+  "docs/compliance/assist-os-provider.md": {
+    "mtime": 1792650254.5957527,
+    "seen": 1792650441.0818062,
+    "ast_hash": "40152b8ab5d22132afe00d11e4b41211",
     "semantic_hash": ""
   }
 }
