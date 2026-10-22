@@ -66,8 +66,8 @@
     "semantic_hash": ""
   },
   "core/src/buffer.rs": {
-    "mtime": 1790641184.6933887,
-    "seen": 1790741385.9529593,
+    "mtime": 1792684628.7506523,
+    "seen": 1792685330.65619,
     "ast_hash": "87acaa9399e266789a8b5f931dd89e5a",
     "semantic_hash": ""
   },
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1792518571.7712483,
-    "seen": 1792519058.134578,
-    "ast_hash": "da246a24f9642400dd0e270f37b284ea",
+    "mtime": 1792684446.5966773,
+    "seen": 1792685330.65619,
+    "ast_hash": "7e7657771f16622602d5bab9b6cf8e7c",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -102,9 +102,9 @@
     "semantic_hash": ""
   },
   "core/src/method/telex.rs": {
-    "mtime": 1791617098.2747436,
-    "seen": 1791702628.1795223,
-    "ast_hash": "fcf1bb76c7d3bf8f08491ca2bd0f5e15",
+    "mtime": 1792684675.5613008,
+    "seen": 1792685330.65619,
+    "ast_hash": "74b5ee66fe67228aae5572afafa9db4d",
     "semantic_hash": ""
   },
   "core/src/method/viqr.rs": {
@@ -114,9 +114,9 @@
     "semantic_hash": ""
   },
   "core/src/method/vni.rs": {
-    "mtime": 1791617098.2747436,
-    "seen": 1791702628.1795223,
-    "ast_hash": "d55c4c4f54bb055a2f215befbecec454",
+    "mtime": 1792684833.7442515,
+    "seen": 1792685330.65619,
+    "ast_hash": "7b55d6c640ca8176a1932b35f8d1858c",
     "semantic_hash": ""
   },
   "core/src/post/caps.rs": {
@@ -168,15 +168,15 @@
     "semantic_hash": ""
   },
   "core/src/transform/tone.rs": {
-    "mtime": 1791617098.2765439,
-    "seen": 1791702628.1805217,
-    "ast_hash": "61116fd16ce224247de0d6d1cb461c90",
+    "mtime": 1792683334.956328,
+    "seen": 1792685330.6571898,
+    "ast_hash": "d584eb4293f8508831387d074ef9ed65",
     "semantic_hash": ""
   },
   "core/src/transform/undo.rs": {
-    "mtime": 1791617098.2765439,
-    "seen": 1791702628.1805217,
-    "ast_hash": "cc6948cf157279e8efa379fbd213cf11",
+    "mtime": 1792684675.572301,
+    "seen": 1792685330.6571898,
+    "ast_hash": "4eb698d2f487a3f80af06ef8de55ea5b",
     "semantic_hash": ""
   },
   "core/src/transform/vowel_table.rs": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "core/src/validate.rs": {
-    "mtime": 1791617098.2765439,
-    "seen": 1791702628.1805217,
-    "ast_hash": "2f4af0b0aaa59febaebaa977361ad399",
+    "mtime": 1792684675.5773008,
+    "seen": 1792685330.6581895,
+    "ast_hash": "36d52e5f3170f6af586783e1296017d2",
     "semantic_hash": ""
   },
   "ffi/Cargo.toml": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1792649833.4144807,
-    "seen": 1792649978.4530542,
-    "ast_hash": "55205b4ca7b3262e0bc3d3be1d349ad9",
+    "mtime": 1792685214.6258912,
+    "seen": 1792685330.6872535,
+    "ast_hash": "8dca7b6cc2ff81f8bdc185f064af050f",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "core/tests/en_restore.rs": {
-    "mtime": 1792299427.4071019,
-    "seen": 1792306932.4741712,
-    "ast_hash": "66407327033456b65ce3855894db5283",
+    "mtime": 1792684675.5863297,
+    "seen": 1792685330.6581895,
+    "ast_hash": "dc28ba81752d55852bf7a50f0807fa13",
     "semantic_hash": ""
   },
   "tools/release/verify-store-package.sh": {
@@ -2400,9 +2400,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/diacritic_typo.rs": {
-    "mtime": 1792600630.340886,
-    "seen": 1792627840.1652687,
-    "ast_hash": "0fac304655e1cf5528b474bc35b35bd7",
+    "mtime": 1792685093.7519097,
+    "seen": 1792685330.6531909,
+    "ast_hash": "17ff3b24ec08b7efdd9920d969d4f3c5",
     "semantic_hash": ""
   },
   "assist/src/rules/double_space.rs": {
