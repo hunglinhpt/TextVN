@@ -62,14 +62,20 @@ pub fn is_vowel(c: char) -> bool {
 /// - Bấm lại **đúng** dấu → gỡ dấu + gõ literal `key` (`ass` → `as`).
 /// - Chưa có âm nào → `key` là chữ thường (`sun`).
 /// - `key` = chính ký tự người dùng gõ (để gõ literal khi undo/literal).
-pub fn apply_key(out: &mut Vec<char>, tone: usize, key: char, style: DiacriticStyle, free: bool) {
+pub fn apply_key(
+    out: &mut Vec<char>,
+    tone: usize,
+    key: char,
+    style: DiacriticStyle,
+    free: bool,
+) -> bool {
     if !free && !out.last().map(|&l| is_vowel(l)).unwrap_or(false) {
         out.push(key);
-        return;
+        return false;
     }
     let Some(tidx) = pick_tone_target(out, style) else {
         out.push(key); // chưa có âm nào → đây là chữ thường
-        return;
+        return false;
     };
     // Dấu hiện có có thể nằm ở âm khác (vị trí đích đổi khi gõ thêm chữ).
     let cur = current_tone(out);
@@ -77,10 +83,12 @@ pub fn apply_key(out: &mut Vec<char>, tone: usize, key: char, style: DiacriticSt
         // Bấm lại đúng dấu → bỏ dấu + gõ literal (ass → as)
         strip_all_tones(out);
         out.push(key);
+        true
     } else {
         // Áp / thay dấu (free_marking) — một từ chỉ có một dấu thanh.
         strip_all_tones(out);
         out[tidx] = apply_tone(out[tidx], tone);
+        false
     }
 }
 

@@ -57,7 +57,7 @@ pub fn fold_with_caps(
     caps_lock: bool,
 ) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
-    let mut ws = WState::default();
+    let mut state = FoldState::default();
     for &c in raw {
         push_key(
             &mut out,
@@ -66,7 +66,7 @@ pub fn fold_with_caps(
             free_marking,
             w_marker,
             caps_lock,
-            &mut ws,
+            &mut state,
         );
     }
     out
@@ -83,6 +83,27 @@ struct WState {
     literal: bool,
 }
 
+/// Trạng thái của một từ trong quá trình fold phím:
+/// Đóng băng (freeze) các phím đã bị undo để không bao giờ "sống lại"
+/// gây lặp dấu toggle / nhân đôi nhân ba (như `asss` → `ass`, `eeee` → `eee`, `dddd` → `ddd`, `awww` → `aww`).
+#[derive(Default)]
+struct FoldState {
+    ws: WState,
+    undone_tones: [bool; 26],   // Đã gỡ dấu thanh của key này ('a'..='z')
+    undone_circums: [bool; 26], // Đã gỡ mũ của key này ('a'..='z')
+    stroke_undone: bool,        // Đã gỡ gạch 'd'
+    horn_undone: bool,          // Đã gỡ sừng 'w'
+}
+
+#[inline]
+fn char_idx(c: char) -> Option<usize> {
+    if c.is_ascii_alphabetic() {
+        Some((c.to_ascii_lowercase() as u8 - b'a') as usize)
+    } else {
+        None
+    }
+}
+
 /// Từ đang có cặp `ươ` (do rule `uo` tự tạo khi chưa có `w` nào).
 fn has_uo_pair(out: &[char]) -> bool {
     out.windows(2).any(|p| {
@@ -97,11 +118,13 @@ fn push_key(
     free: bool,
     w_marker: bool,
     caps_lock: bool,
-    ws: &mut WState,
+    state: &mut FoldState,
 ) {
-    let w_mapped = std::mem::take(&mut ws.mapped);
+    let w_mapped = std::mem::take(&mut state.ws.mapped);
     // Phím dấu so theo chữ thường khi Caps Lock bật; ký tự gõ literal vẫn là `c` gốc.
     let key = if caps_lock { c.to_ascii_lowercase() } else { c };
+    let c_idx = char_idx(key);
+
     // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
     let tone = if w_marker {
         keys::tone_of_key(key)
@@ -109,7 +132,15 @@ fn push_key(
         keys_st::tone_of_key(key)
     };
     if let Some(tone) = tone {
-        apply_key(out, tone, c, style, free);
+        if c_idx.is_some_and(|i| state.undone_tones[i]) {
+            out.push(c);
+            return;
+        }
+        if apply_key(out, tone, c, style, free) {
+            if let Some(i) = c_idx {
+                state.undone_tones[i] = true;
+            }
+        }
         return;
     }
 
@@ -132,20 +163,24 @@ fn push_key(
         &keys_st::HORN
     };
     if horn_table.iter().any(|&(k, _, _)| k == key) {
+        if state.horn_undone || state.ws.literal {
+            out.push(c);
+            return;
+        }
         // `ww`: `w` vừa thành `ư` → gỡ thành chữ `w` (UniKey `ww` → `w`); các `w` sau trong từ
         // là chữ thường.
         if w_mapped {
             if let Some(last) = out.last_mut() {
                 *last = c;
             }
-            ws.literal = true;
+            state.ws.literal = true;
             return;
         }
         // `uo` đã được rule tự đổi thành `ươ`: `w` đầu tiên của từ là XÁC NHẬN, không
         // phải bấm lại để gỡ — thói quen UniKey `nguowif` → `người`, `dduowcj` → `được`
         // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
-        let first_w = !ws.seen;
-        ws.seen = true;
+        let first_w = !state.ws.seen;
+        state.ws.seen = true;
         if first_w && has_uo_pair(out) {
             return;
         }
@@ -153,6 +188,7 @@ fn push_key(
             Horn::Applied => return,
             Horn::Undone => {
                 out.push(c); // gỡ sừng + gõ chữ `w` (`uww` → `uw`, R2-63)
+                state.horn_undone = true;
                 return;
             }
             Horn::No => {
@@ -161,9 +197,10 @@ fn push_key(
                 // `w` thứ hai). Không có `qư` nên sau `q` vẫn là chữ `w` (`qwert`). Simple
                 // Telex: chữ `w`.
                 let after_q = out.last().is_some_and(|l| l.eq_ignore_ascii_case(&'q'));
-                if w_marker && !ws.literal && !after_q && !out.iter().any(|&ch| is_vowel(ch)) {
+                if w_marker && !state.ws.literal && !after_q && !out.iter().any(|&ch| is_vowel(ch))
+                {
                     out.push(if c.is_uppercase() { 'Ư' } else { 'ư' });
-                    ws.mapped = true;
+                    state.ws.mapped = true;
                     return;
                 }
                 out.push(c);
@@ -174,6 +211,10 @@ fn push_key(
 
     // 3) Đôi circumflex: ee→ê (eee→e), aa→â, oo→ô
     if let Some((plain, circ)) = circum_pair(c) {
+        if c_idx.is_some_and(|i| state.undone_circums[i]) {
+            out.push(c);
+            return;
+        }
         if let Some(&last) = out.last() {
             // `uo` được fold tạm thành `ươ` để `duocj` → `được`. Khi người
             // dùng tiếp tục `oo` (chuoi → chuôi), o thứ hai xác nhận vần uô,
@@ -193,6 +234,9 @@ fn push_key(
                     let idx = out.len() - 1;
                     out[idx] = form_like(last, plain, lt); // gỡ circumflex, giữ dấu thanh
                     out.push(c); // + gõ chữ đó (`xooong` → `xoong`, R2-63)
+                    if let Some(i) = c_idx {
+                        state.undone_circums[i] = true;
+                    }
                     return;
                 }
                 // Âm gốc, hoặc đổi dấu `ă`/`ơ` → `â`/`ô` (`awa` → `â`, `towo` → `tô`; R2-70 —
@@ -208,6 +252,10 @@ fn push_key(
 
     // 4) 'd' đôi: dd→đ, ddd→dd (gỡ + gõ chữ `d`, R2-63)
     if is_plain_d(c) {
+        if state.stroke_undone {
+            out.push(c);
+            return;
+        }
         if let Some(&last) = out.last() {
             if is_plain_d(last) {
                 let idx = out.len() - 1;
@@ -218,10 +266,11 @@ fn push_key(
                 let idx = out.len() - 1;
                 out[idx] = to_plain(last);
                 out.push(c);
+                state.stroke_undone = true;
                 return;
             }
         }
-        if free && late_stroke(out, c) {
+        if free && late_stroke(out, c, &mut state.stroke_undone) {
             return;
         }
         out.push(c);
@@ -258,7 +307,7 @@ fn post_fixes(out: &mut [char]) {
 /// phụ) hoặc đã có phụ âm cuối hợp lệ — từ tiếng Anh chưa biến đổi như `did`, `dad`, `dead`,
 /// `died` đi thẳng như cũ (đổi thành `đi`/`đa` thì là âm tiết Việt, auto-restore không cứu
 /// được).
-fn late_stroke(out: &mut Vec<char>, key: char) -> bool {
+fn late_stroke(out: &mut Vec<char>, key: char, stroke_undone: &mut bool) -> bool {
     let (Some(&first), Some(&second)) = (out.first(), out.get(1)) else {
         return false;
     };
@@ -283,6 +332,7 @@ fn late_stroke(out: &mut Vec<char>, key: char) -> bool {
     } else {
         out[0] = to_plain(first);
         out.push(key);
+        *stroke_undone = true;
     }
     true
 }
@@ -354,6 +404,45 @@ mod tests {
 
     fn n(s: &str) -> String {
         f(s, DiacriticStyle::New)
+    }
+
+    #[test]
+    fn repetition_toggle_freeze() {
+        // 1. Phím dấu thanh: s f r x j
+        assert_eq!(n("as"), "á");
+        assert_eq!(n("ass"), "as");
+        assert_eq!(n("asss"), "ass");
+        assert_eq!(n("assss"), "asss");
+        assert_eq!(n("passs"), "pass");
+        assert_eq!(n("classs"), "class");
+
+        // 2. Phím mũ: ee, aa, oo
+        assert_eq!(n("ee"), "ê");
+        assert_eq!(n("eee"), "ee");
+        assert_eq!(n("eeee"), "eee");
+        assert_eq!(n("eeeee"), "eeee");
+        assert_eq!(n("aa"), "â");
+        assert_eq!(n("aaa"), "aa");
+        assert_eq!(n("aaaa"), "aaa");
+        assert_eq!(n("oo"), "ô");
+        assert_eq!(n("ooo"), "oo");
+        assert_eq!(n("oooo"), "ooo");
+
+        // 3. Phím đ: dd
+        assert_eq!(n("dd"), "đ");
+        assert_eq!(n("ddd"), "dd");
+        assert_eq!(n("dddd"), "ddd");
+        assert_eq!(n("ddddd"), "dddd");
+
+        // 4. Phím sừng/breve: aw, uw, ow
+        assert_eq!(n("aw"), "ă");
+        assert_eq!(n("aww"), "aw");
+        assert_eq!(n("awww"), "aww");
+        assert_eq!(n("awwww"), "awww");
+        assert_eq!(n("uww"), "uw");
+        assert_eq!(n("uwww"), "uww");
+        assert_eq!(n("oww"), "ow");
+        assert_eq!(n("owww"), "oww");
     }
 
     #[test]

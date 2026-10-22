@@ -85,7 +85,11 @@ pub fn mark_cluster(
 /// - âm khớp `gốc` → đổi sang `đích` (giữ dấu thanh)
 /// - âm đã ở `đích` → gỡ về `gốc` + gõ literal `key`
 /// - không khớp / không có âm → gõ literal `key`
-pub fn mark_vowel(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]) {
+pub fn mark_vowel(
+    out: &mut Vec<char>,
+    key: char,
+    table: &[(char, usize, usize)],
+) -> Option<Marked> {
     let marked = mark_cluster(out, |w, idx| {
         let ch = w[idx];
         let (e, t) = locate(ch)?;
@@ -112,6 +116,7 @@ pub fn mark_vowel(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]
     if marked != Some(Marked::Applied) {
         out.push(key);
     }
+    marked
 }
 
 /// Marker sừng `ơ`/`ư` (VNI `7`, VIQR `+`): áp lên cụm nguyên âm cuối ([`mark_cluster`]);
@@ -119,7 +124,7 @@ pub fn mark_vowel(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]
 ///
 /// `table` = bảng sinh từ data `(key, âm gốc, âm đích)` (xem `mark_vowel`).
 /// Quy tắc cụm `uo` là **thuật toán** nên vẫn nằm ở đây, không mô tả được bằng bảng.
-pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]) {
+pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)]) -> Option<Marked> {
     let marked = mark_cluster(out, |w, idx| {
         let ch = w[idx];
         let (e, t) = locate(ch)?;
@@ -164,6 +169,7 @@ pub fn mark_horn(out: &mut Vec<char>, key: char, table: &[(char, usize, usize)])
     if marked != Some(Marked::Applied) {
         out.push(key);
     }
+    marked
 }
 
 #[cfg(test)]

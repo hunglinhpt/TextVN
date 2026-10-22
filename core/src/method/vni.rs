@@ -19,7 +19,7 @@ use super::keys_generated::vni as keys;
 use super::DiacriticStyle;
 use crate::transform::stroke::{is_plain_d, is_stroke, to_plain, to_stroke};
 use crate::transform::tone::{apply_key, remove_tone};
-use crate::transform::undo::{mark_horn, mark_vowel};
+use crate::transform::undo::{mark_horn, mark_vowel, Marked};
 
 /// Chữ số 0..=9 là marker của VNI (engine coi là ký tự của từ, không phải ranh giới).
 /// Nguồn: `data/tables/vni.toml` → `keys_generated::vni::is_marker`.
@@ -27,28 +27,50 @@ pub fn is_marker(c: char) -> bool {
     keys::is_marker(c)
 }
 
+#[derive(Default)]
+struct VniState {
+    undone_digits: [bool; 10], // '0'..='9'
+}
+
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
+    let mut state = VniState::default();
     for &c in raw {
-        push_key(&mut out, c, style, free_marking);
+        push_key(&mut out, c, style, free_marking, &mut state);
     }
     out
 }
 
-fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
+fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool, state: &mut VniState) {
+    if c.is_ascii_digit() {
+        let d = (c as u8 - b'0') as usize;
+        if state.undone_digits[d] {
+            out.push(c);
+            return;
+        }
+    }
+
     // 1..5 — dấu thanh (dùng chung logic Telex: bấm lại đúng dấu → literal)
     if let Some(tone) = keys::tone_of_key(c) {
-        apply_key(out, tone, c, style, free);
+        if apply_key(out, tone, c, style, free) && c.is_ascii_digit() {
+            state.undone_digits[(c as u8 - b'0') as usize] = true;
+        }
         return;
     }
     // 6 — mũ · 7 — sừng · 8 — breve: tất cả lấy từ bảng data, không hardcode.
     if keys::CIRCUMFLEX.iter().any(|&(k, _, _)| k == c) {
-        mark_vowel(out, c, &keys::CIRCUMFLEX);
+        if mark_vowel(out, c, &keys::CIRCUMFLEX) == Some(Marked::Undone) && c.is_ascii_digit() {
+            state.undone_digits[(c as u8 - b'0') as usize] = true;
+        }
     } else if keys::HORN.iter().any(|&(k, _, _)| k == c) {
-        mark_horn(out, c, &keys::HORN);
+        if mark_horn(out, c, &keys::HORN) == Some(Marked::Undone) && c.is_ascii_digit() {
+            state.undone_digits[(c as u8 - b'0') as usize] = true;
+        }
     } else if keys::BREVE.iter().any(|&(k, _, _)| k == c) {
-        mark_vowel(out, c, &keys::BREVE);
+        if mark_vowel(out, c, &keys::BREVE) == Some(Marked::Undone) && c.is_ascii_digit() {
+            state.undone_digits[(c as u8 - b'0') as usize] = true;
+        }
     } else if keys::TONE_REMOVE_KEY == Some(c) {
         // `0` gỡ dấu thanh như Telex `z` (UniKey `vneTone0`, R2-69 — bản cũ xoá cả mũ/sừng/`đ`
         // nên `đường`+`0` ra `duong`, rồi auto-restore trả về `d9u7o7ng20`). Chỉ là phím gỡ dấu
@@ -58,7 +80,9 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
         }
     } else if c == keys::STROKE_KEY {
         // 9 — đ
-        stroke(out, c);
+        if stroke(out, c) && c.is_ascii_digit() {
+            state.undone_digits[(c as u8 - b'0') as usize] = true;
+        }
     } else if is_plain_d(c) {
         // `d` + `d` → đ (VNI dùng `9`, nhưng giữ thói quen gõ đôi cho dễ dùng)
         if let Some(&last) = out.last() {
@@ -75,16 +99,19 @@ fn push_key(out: &mut Vec<char>, c: char, style: DiacriticStyle, free: bool) {
 }
 
 /// `9`: `d` gần nhất → `đ`; đã `đ` → gỡ + literal; không có `d` → literal.
-fn stroke(out: &mut Vec<char>, key: char) {
+/// Trả về true nếu vừa gỡ `đ` về `d` + literal (undone).
+fn stroke(out: &mut Vec<char>, key: char) -> bool {
     let Some(idx) = out.iter().rposition(|&ch| is_plain_d(ch) || is_stroke(ch)) else {
         out.push(key);
-        return;
+        return false;
     };
     if is_stroke(out[idx]) {
         out[idx] = to_plain(out[idx]);
         out.push(key);
+        true
     } else {
         out[idx] = to_stroke(out[idx]);
+        false
     }
 }
 
@@ -110,6 +137,30 @@ mod tests {
         assert_eq!(n("d9uo7ng2"), "đường");
         assert_eq!(n("d9u7o7ng2"), "đường");
         assert_eq!(n("d9uong2"), "đuòng"); // không sừng → 2 áp lên 'o'
+    }
+
+    #[test]
+    fn vni_repetition_freeze() {
+        // Dấu thanh 1
+        assert_eq!(n("a1"), "á");
+        assert_eq!(n("a11"), "a1");
+        assert_eq!(n("a111"), "a11");
+        // Mũ 6
+        assert_eq!(n("a6"), "â");
+        assert_eq!(n("a66"), "a6");
+        assert_eq!(n("a666"), "a66");
+        // Sừng 7
+        assert_eq!(n("u7"), "ư");
+        assert_eq!(n("u77"), "u7");
+        assert_eq!(n("u777"), "u77");
+        // Breve 8
+        assert_eq!(n("a8"), "ă");
+        assert_eq!(n("a88"), "a8");
+        assert_eq!(n("a888"), "a88");
+        // Đ 9
+        assert_eq!(n("d9"), "đ");
+        assert_eq!(n("d99"), "d9");
+        assert_eq!(n("d999"), "d99");
     }
 
     #[test]

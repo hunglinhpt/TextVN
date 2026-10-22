@@ -237,3 +237,68 @@ fn top_3000_english_words_type_correctly() {
         )
     );
 }
+
+#[test]
+fn test_repetition_freeze_and_punctuation_boundaries() {
+    let type_keys_seq = |keys: &str| -> String {
+        let mut e = Engine::new(EngineOptions::default());
+        let mut buf: Vec<char> = Vec::new();
+        for c in keys.chars() {
+            let k = KeyEvent::char_down(c);
+            match e.key(&k).action {
+                Action::Pass => buf.push(c),
+                Action::Replace {
+                    delete_count,
+                    insert,
+                }
+                | Action::Restore {
+                    delete_count,
+                    insert,
+                } => {
+                    buf.truncate(buf.len() - delete_count as usize);
+                    buf.extend(insert);
+                }
+                Action::Commit { insert } => buf.extend(insert),
+            }
+        }
+        buf.into_iter().collect()
+    };
+
+    // Auto-restore on space
+    assert_eq!(type_keys_seq("pass "), "pass ");
+    assert_eq!(type_keys_seq("class "), "class ");
+    assert_eq!(type_keys_seq("process "), "process ");
+    assert_eq!(type_keys_seq("google "), "google ");
+    assert_eq!(type_keys_seq("facebook "), "facebook ");
+
+    // Auto-restore on punctuation boundaries
+    assert_eq!(type_keys_seq("pass,"), "pass,");
+    assert_eq!(type_keys_seq("pass."), "pass.");
+    assert_eq!(type_keys_seq("class:"), "class:");
+    assert_eq!(type_keys_seq("word?"), "word?");
+    assert_eq!(type_keys_seq("download!"), "download!");
+    assert_eq!(type_keys_seq("system/"), "system/");
+
+    // Freeze undo / Chống nhân đôi nhân ba khi gõ lặp phím:
+    assert_eq!(type_keys_seq("as"), "á");
+    assert_eq!(type_keys_seq("ass"), "as");
+    assert_eq!(type_keys_seq("asss"), "ass");
+    assert_eq!(type_keys_seq("assss"), "asss");
+    assert_eq!(type_keys_seq("passs"), "pass");
+    assert_eq!(type_keys_seq("classs"), "class");
+
+    assert_eq!(type_keys_seq("ee"), "ê");
+    assert_eq!(type_keys_seq("eee"), "ee");
+    assert_eq!(type_keys_seq("eeee"), "eee");
+    assert_eq!(type_keys_seq("eeeee"), "eeee");
+
+    assert_eq!(type_keys_seq("dd"), "đ");
+    assert_eq!(type_keys_seq("ddd"), "dd");
+    assert_eq!(type_keys_seq("dddd"), "ddd");
+    assert_eq!(type_keys_seq("ddddd"), "dddd");
+
+    assert_eq!(type_keys_seq("aw"), "ă");
+    assert_eq!(type_keys_seq("aww"), "aw");
+    assert_eq!(type_keys_seq("awww"), "aww");
+    assert_eq!(type_keys_seq("awwww"), "awww");
+}

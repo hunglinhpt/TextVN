@@ -18,6 +18,7 @@
 //! Nguồn: cấu trúc âm tiết Việt (âm đầu + vần + âm cuộc) theo `PLAN §4.2` stage 5;
 //! bảng vần viết tay (chưa có `data/tables/` — deviation ghi `docs/00-INDEX §5`).
 
+use crate::transform::stroke::is_stroke;
 use crate::transform::tone::{current_tone, is_vowel, tone_of};
 use crate::transform::undo::unmark;
 
@@ -140,6 +141,120 @@ pub fn coda_after_nucleus_ok(cs: &[char], st: Structure) -> bool {
 
 /// **5 quy tắc âm tiết + luật thanh âm cuối tắc + vần mở** — `true` nếu `cs` là một âm tiết
 /// Việt hợp lệ.
+/// Kiểm tra xem một chuỗi ký tự hiển thị `cs` có thể là **tiền tố** của một âm tiết tiếng Việt hợp lệ hay không.
+/// Dùng cho cơ chế auto-restore mid-word kiểu UniKey: phát hiện vi phạm ngữ âm học ngay giữa từ
+/// để khôi phục ngay chuỗi gõ tiếng Anh mà không cần đợi phím Space/Enter.
+pub fn is_valid_syllable_prefix(cs: &[char]) -> bool {
+    if cs.is_empty() {
+        return true;
+    }
+
+    // 1. Nếu từ chỉ có phụ âm:
+    let has_any_vowel = cs.iter().any(|&c| is_vowel(c));
+    if !has_any_vowel {
+        // Đã biến đổi thành 'đ'/'Đ' (không có nguyên âm) → hợp lệ (viết tắt ĐT, ĐHQG, 50.000đ...)
+        if cs.iter().any(|&c| is_stroke(c)) {
+            return true;
+        }
+        let lower_cs = lower_str(cs);
+        return ONSETS.iter().any(|o| o.starts_with(&lower_cs));
+    }
+
+    // 2. Tìm vị trí nguyên âm đầu tiên và cuối cùng
+    let Some(vstart) = cs.iter().position(|&c| is_vowel(c)) else {
+        return true;
+    };
+    let Some(vend) = cs.iter().rposition(|&c| is_vowel(c)) else {
+        return true;
+    };
+
+    // 2.1. Tính liên tục của nguyên âm:
+    // Giữa nguyên âm đầu và nguyên âm cuối trong một âm tiết KHÔNG thể có phụ âm!
+    // (Loại ngay: sýtê [y..t..ê], download [o..n..a], water, internet...)
+    for &ch in &cs[vstart..=vend] {
+        if !is_vowel(ch) {
+            return false;
+        }
+    }
+
+    // 2.2. Tách onset
+    let qu = vstart == 1 && matches!(cs[0], 'q' | 'Q') && matches!(cs[1], 'u' | 'U');
+    let gi =
+        vstart == 1 && vend > 1 && matches!(cs[0], 'g' | 'G') && matches!(unmark(cs[1]), 'i' | 'I');
+    let onset_end = if qu || gi { 2 } else { vstart };
+    if onset_end > vend {
+        // "qu" đứng đầu mà chưa có nguyên âm tiếp theo
+        return true;
+    }
+
+    // Onset phải là một onset hợp lệ
+    let onset_str = lower_str(&cs[..onset_end]);
+    if !ONSETS.contains(&onset_str.as_str()) {
+        return false;
+    }
+
+    // 2.3. Vần (nucleus)
+    let nucleus_bare: Vec<char> = cs[onset_end..=vend].iter().map(|&c| unmark(c)).collect();
+    let nucleus_str = lower_str(&nucleus_bare);
+
+    // Vần tối đa 3 nguyên âm và phải thuộc bảng NUCLEI hoặc là dạng trung gian khi gõ uwow (ưo, ưoi, ưou)
+    let is_valid_nuc = NUCLEI.contains(&nucleus_str.as_str())
+        || matches!(nucleus_str.as_str(), "ưo" | "ưoi" | "ưou");
+    if nucleus_bare.len() > 3 || !is_valid_nuc {
+        return false;
+    }
+
+    // 2.4. Số lượng dấu thanh: tối đa 1
+    if !tone_marks_ok(cs) {
+        return false;
+    }
+
+    // 2.5. Phụ âm cuối (coda)
+    if vend + 1 < cs.len() {
+        let coda_chars = &cs[vend + 1..];
+        let coda_str = lower_str(coda_chars);
+
+        // Quy tắc vần mở: Vần thuộc OPEN_NUCLEI (ai, ao, au, ay, ui, ưa, uơ...) KHÔNG thể có âm cuối!
+        // (Loại ngay: using [u..s..], playing [play..i..], auto [au..t..]...)
+        if OPEN_NUCLEI.contains(&nucleus_str.as_str()) {
+            return false;
+        }
+
+        match coda_chars.len() {
+            1 => {
+                // Ký tự đầu của coda CHỈ có thể là: c, m, n, p, t
+                // Mọi phụ âm khác (b, d, đ, f, g, h, j, k, l, q, r, s, v, w, x, z) đều bất khả thi!
+                // (Loại ngay: asdf [ád], word [ươr], pass [pas], google [g], dark [r], help [l]...)
+                let c0 = coda_str.chars().next().unwrap();
+                if !matches!(c0, 'c' | 'm' | 'n' | 'p' | 't') {
+                    return false;
+                }
+            }
+            2 => {
+                // Coda 2 ký tự chỉ có thể là: ch, ng, nh
+                if !matches!(coda_str.as_str(), "ch" | "ng" | "nh") {
+                    return false;
+                }
+            }
+            _ => {
+                // Tiếng Việt không có coda nào từ 3 ký tự trở lên
+                return false;
+            }
+        }
+
+        // Quy tắc âm cuối tắc: c, ch, p, t chỉ đi với thanh sắc (1) hoặc nặng (5)
+        // (Loại ngay: sort [sỏt], part [pảt], hurt [hủt]...)
+        if matches!(coda_str.as_str(), "c" | "ch" | "p" | "t") {
+            let t = current_tone(cs);
+            if t != 0 && t != 1 && t != 5 {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+
 pub fn is_valid_word(cs: &[char]) -> bool {
     let Some(st) = decompose(cs) else {
         return false;
@@ -159,6 +274,65 @@ mod tests {
 
     fn v(s: &str) -> bool {
         is_valid_word(&s.chars().collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn syllable_prefix_validation() {
+        let p = |s: &str| is_valid_syllable_prefix(&s.chars().collect::<Vec<_>>());
+
+        // Hợp lệ
+        assert!(p(""));
+        assert!(p("d"));
+        assert!(p("đ"));
+        assert!(p("tr"));
+        assert!(p("ngh"));
+        assert!(p("a"));
+        assert!(p("ba"));
+        assert!(p("má"));
+        assert!(p("viê"));
+        assert!(p("viêt"));
+        assert!(p("việt"));
+        assert!(p("tiê"));
+        assert!(p("tiên"));
+        assert!(p("tiêng"));
+        assert!(p("tiếng"));
+        assert!(p("đu"));
+        assert!(p("đươ"));
+        assert!(p("đươc"));
+        assert!(p("được"));
+        assert!(p("ngươ"));
+        assert!(p("ngươi"));
+        assert!(p("người"));
+        assert!(p("xo"));
+        assert!(p("xoo"));
+        assert!(p("xoon"));
+        assert!(p("xoong"));
+        assert!(p("qu"));
+        assert!(p("qua"));
+        assert!(p("quở"));
+        assert!(p("gi"));
+        assert!(p("giáo"));
+        assert!(p("giữa"));
+        assert!(p("gìn"));
+        assert!(p("khuỷu"));
+        assert!(p("thuở"));
+        assert!(p("hoà"));
+        assert!(p("hòa"));
+
+        // Không hợp lệ (vi phạm ngữ âm tiếng Việt)
+        assert!(!p("ád")); // asdf
+        assert!(!p("ươr")); // word
+        assert!(!p("dơnl")); // download
+        assert!(!p("sýtê")); // system
+        assert!(!p("pas")); // pass
+        assert!(!p("clas")); // class
+        assert!(!p("gôg")); // google
+        assert!(!p("aut")); // auto (open nucleus + coda)
+        assert!(!p("uíng")); // using
+        assert!(!p("sỏt")); // stop coda with tone 3 (sort)
+        assert!(!p("pảt")); // stop coda with tone 3 (part)
+        assert!(!p("f")); // f is not in ONSETS
+        assert!(!p("face")); // onset f invalid
     }
 
     #[test]

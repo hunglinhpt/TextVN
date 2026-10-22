@@ -583,6 +583,7 @@ impl Engine {
             self.word.caps_lock = true;
         }
         self.word.raw.push(c);
+
         let display = self.fold_current();
 
         if !self.word.active && display == self.word.raw {
@@ -1146,7 +1147,7 @@ mod tests {
         );
 
         // Không bao giờ thêm dấu: phím undo không "sống lại".
-        for (keys, shown, after) in [("ass", "as", "a"), ("asss", "ás", "á")] {
+        for (keys, shown, after) in [("ass", "as", "a"), ("asss", "ass", "as")] {
             let mut e = engine();
             let mut buf = type_buf(&mut e, keys);
             assert_eq!(text(&buf), shown, "{keys}");
