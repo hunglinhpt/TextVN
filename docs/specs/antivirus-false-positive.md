@@ -98,6 +98,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | A5 | **Không log phím/text người dùng** (S2) — log chỉ PID/heartbeat/kết quả | ✅ |
 | A6 | **Linux: framework IME chính thống** — fcitx5/ibus (`adapters/linux-*`) | ✅ |
 | A7 | **macOS: InputMethodKit (IMK)** — adapter macOS đã có code: `adapters/macos-imk/` (IMK primary, ADR-006) + `adapters/macos-tap/` (CGEventTap **opt-in per-app**, marker loop-guard, self-disable — P2-2); policy tap = mirror §8.1 A3 (opt-in, filter chain, không private API). Trạng thái verify trên máy Mac thật: `docs/30-macos/IMPLEMENTATION-STATUS.md` | 🔄 Farch-4 (code xong, chờ verify máy thật) |
+| A14 | **Trợ lý ngữ pháp (Assist) hoàn toàn cục bộ & an toàn** — chạy hoàn toàn in-process (Rust engine), 0 network access, 0 child process/spawn, 0 log nội dung phím gõ/văn bản (S2), chỉ can thiệp text qua API IME chuẩn (TSF edit session / IMK insertText / Fcitx5/IBus surrounding text) với precondition caret D12 và undo 1 bước A3 | ✅ |
 
 ### 8.2. Regression guard (Farch-3)
 
@@ -125,6 +126,7 @@ Yêu cầu của user (2026-09-28): tối ưu kiến trúc để không kích ho
 | Auto-spawn hook? | **Không** — chỉ qua menu opt-in; `hook_watchdog_loop` chỉ sleep-loop (`tray/src/ipc_server.rs:427-431`) |
 | Release mặc định | `tsf-only`, `textvn-win-hook` bị exclude (`build-release.ps1:92,112-116`) |
 | Field-detect fail-safe | Unknown/secure → gate S3 đóng → pass-through (`field-detect/src/lib.rs:132-135`) |
+| Assist engine (Trợ lý) | In-process (Rust `assist` crate), 0 mạng, 0 spawn process, 0 log phím/nội dung (S2), chỉ giao tiếp qua IPC pipe/socket cục bộ để gửi thống kê ẩn danh |
 
 ### 8.5. Findings (G6 — giữ ID, không xóa)
 

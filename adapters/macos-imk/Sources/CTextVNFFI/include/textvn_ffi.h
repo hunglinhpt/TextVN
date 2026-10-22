@@ -152,6 +152,14 @@ typedef struct ime_assist_issue {
   char     suggest[IME_MAX_ASSIST_SUGGEST];         /* UTF-8, 0-terminated */
 } ime_assist_issue_v1;
 
+/*
+ * ime_assist_result_v1:
+ * Caller-owned, value-only result buffer for assist inspections.
+ * Ownership: Allocated and managed entirely by caller (stack or heap).
+ * Lifetime: Engine never retains pointers to this struct or its contents.
+ * Capacity: Capped at IME_MAX_ASSIST_ISSUES (8) issues. Extra issues beyond
+ *           capacity are dropped safely.
+ */
 typedef struct ime_assist_result {
   uint32_t            abi_version;                  /* = IME_ABI_VERSION */
   uint32_t            count;                        /* 0..IME_MAX_ASSIST_ISSUES */

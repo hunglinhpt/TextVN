@@ -39,7 +39,7 @@
 | Fassist-8 | minor | Chưa có ADR "không vendor Harper" | ✅ Fixed — **ADR-012** |
 | Fassist-9 | minor | `00-INDEX.md` §1 chưa liệt kê Phần 4 | ✅ Fixed @604434c |
 | Fassist-10 | minor | `PLAN.md` §2.3 chưa trỏ Phần 4 | ✅ Fixed @604434c |
-| Fassist-11 | minor | `antivirus-false-positive.md` §8 chưa có dòng Assist | ❌ **Còn mở** (xem §Ghi còn mở) |
+| Fassist-11 | minor | `antivirus-false-positive.md` §8 chưa có dòng Assist | ✅ **Đã xử lý** — thêm A14 vào §8.1 + §8.4 (0 network, 0 new process, 0 content log) |
 | Fassist-12 | minor | Thiếu checklist manual (overlay/parity UI) 3 OS | 🟡 Một phần — `parity-checklist.md` đã có dòng `assist.*` (trạng thái 3 OS); còn chờ hoàn thiện Cài đặt 3 OS (P4-6) |
 
 ---
@@ -65,7 +65,7 @@
 | Fassist-23 | minor | UI hiển thị text người dùng: không log/clipboard/a11y-tree | ✅ Ghi §6 + Audit lượt 8/17 xác nhận 0 log |
 | Fassist-24 | minor | Không auto-disable khi UI phiền | ✅ → **D20** |
 | Fassist-25 | minor | Không thu thập metrics ngầm | ✅ → **D20** |
-| Fassist-26 | minor | Threat model (app độc hại đẩy text) phải ghi `PLAN.md` §6.1 | ❌ **Còn mở** — STRIDE chưa có dòng assist |
+| Fassist-26 | minor | Threat model (app độc hại đẩy text) phải ghi `PLAN.md` §6.1 | ✅ **Đã xử lý** — thêm kịch bản context tampering vào `PLAN.md` §6.1 STRIDE |
 | Fassist-27 | **major** | Thiếu tiêu chí "đủ tốt" (recall) | ✅ → **D19** recall ≥ 80% · FPR ≤ 2% · 2 người đánh giá |
 | Fassist-28 | minor | Thiếu bằng chứng cho từng task (DoD) | ✅ §9 + P4-TASKS (bằng chứng mỗi tick) |
 | Fassist-29 | minor | 3 giả định lớn chưa kiểm chứng | ✅ → **D18** spike S1/S2/S3 |
@@ -118,7 +118,7 @@
 | Fassist-54 | minor | REUSE/Spdx file mới | ✅ OK |
 | Fassist-55 | minor | DoD #1–#4 | ✅ 34 unit + 3 integration pass · clippy 0 · deny OK |
 | Fassist-56 | minor→**major** | CLI không giới hạn số lỗi in ra (spike lộ: 8.000 dòng) | ✅ Sửa ở P4-1b: min 50 lỗi mặc định + `--max <n>` |
-| Fassist-57 | minor | `textvn-cli assist` chưa vào `docs/developer-guide.md` | ❌ **Còn mở** (grep xác nhận chưa có) |
+| Fassist-57 | minor | `textvn-cli assist` chưa vào `docs/developer-guide.md` | ✅ **Đã xử lý** — tài liệu hoá đầy đủ trong `docs/user-guide.md` và `docs/developer-guide.md` (@ce6c3e2) |
 | Fassist-58 | minor | Chưa đo recall/FPR thật (cần ≥ 300 câu có lỗi) | 🟡 Một phần — P4-8 đã đo 1.500+ câu thật (FPR thực ≈ 0%); còn thiếu **2 người đánh giá độc lập** trước khi thành gate CI/bật tính năng |
 
 ---
@@ -175,7 +175,7 @@
 | Fassist-84 | **major** | **Mirror header Swift stale** → job macOS đỏ từ `dba598c` | ✅ Đã sửa (`dd1afeb`) — 7/7 workflow xanh; bài học: sửa header = sửa cả 2 bản cùng commit |
 | Fassist-85 | minor | Header không do cbindgen sinh → sửa tay được nhưng phải cả 2 bản | ✅ Đã ghi rõ quy trình |
 | Fassist-79 | minor | Điểm hiển thị (D11) chưa có trong diff AS-022 | ✅ Đúng phạm vi — thuộc UI (AS-023/AS-030), không chặn |
-| (F78) | minor | Header chưa tài liệu hoá cap + ownership của `ime_assist_result_v1` | ❌ **Còn mở** (P4-7 §4 — task nhỏ, không đổi ABI) |
+| Fassist-78 | minor | Header chưa tài liệu hoá cap + ownership của `ime_assist_result_v1` | ✅ **Đã xử lý** — tài liệu hoá cap `IME_MAX_ASSIST_ISSUES` + caller-owned struct trong `ffi/include/` và CTextVNFFI |
 
 ---
 
@@ -241,7 +241,7 @@
 | R-3 | **major** | `parity-checklist.md` dòng `assist.*` **stale**: ghi "macOS ✗ · Linux ✗ adapter chưa nối" trong khi code **đã nối** | macOS `AssistModel.swift` + `TextVNInputController.processAssist` · Fcitx5 `engine.cpp::checkAndApplyAssist` | ✅ **Đã sửa** — dòng `assist.*` viết lại theo trạng thật (**⏳**, không ghi ✓) + chú thích ⏳ trong legend |
 | R-4 | **major** | Fcitx5 Mode 2 **không có precondition D12** — gọi `deleteSurroundingText` + `commitString` thẳng ⇒ rủi ro sửa nhầm vùng text của app | `adapters/linux-fcitx5/src/engine.cpp` (`checkAndApplyAssist`) — **không** có `FixPrecondition` (Windows có 4 điều kiện: selection rỗng · caret không đổi · buffer là của ta · lùi đúng glyph); `63d8ef0` **chưa** sửa mục này | 🔄 **Đang sửa** (lane Linux) |
 | R-5 | **major** | Fcitx5 **thiếu undo A3** ⇒ lệch parity Windows (`AssistUndoState` 5 s) và macOS (`Cmd+Z`) | `grep -i undo adapters/linux-fcitx5/src/engine.cpp` ⇒ **0 dòng** (kể cả sau `63d8ef0`) | 🔄 **Đang sửa** (lane Linux) |
-| R-6 | **major** | **IBus chưa nối** ⇒ "parity Linux" chưa đạt (mới đạt Fcitx5) | `adapters/linux-ibus/` không có mã assist (`engine.c`/`main.c` không gọi `ime_assist_*`) | ❌ **Còn mở** (nhóm task P4-6 · AS-060…068) |
+| R-6 | **major** | **IBus chưa nối** ⇒ "parity Linux" chưa đạt (mới đạt Fcitx5) | `adapters/linux-ibus/` không có mã assist (`engine.c`/`main.c` không gọi `ime_assist_*`) | ✅ **Đã xử lý** (@f630ff6) — hoàn thiện `engine.c` + `tests/e2e_ibus.c` (Mode 1 lookup table, Mode 2 Backspace+Type, undo 5s, `ime_reset`) |
 | R-7 | **major** | **3 bản sao** logic "plan sửa câu" (Rust / Swift / C) ⇒ vi phạm **G15** + dễ lệch hành vi 3 OS | `windows-tsf/src/assist.rs::plan_sentence_auto_fix` · `macos-imk/…/AssistModel.swift::planSentenceAutoFix` · `linux-common/src/compose.c::lc_plan_sentence_auto_fix` | ❌ **Còn mở** — đề xuất: đưa vào crate `assist` + FFI `ime_assist_*` (1 nguồn sự thật) |
 | R-8 | **major** *(quy trình)* | Push **khi CI đỏ** + task **đã tick ✅** ⇒ vi phạm **G13** ⇒ thiếu luật "tick ✅ phải kèm CI xanh" | commit `c701600` (`ci-macos`/`ci-linux`/`ci-shared` FAILURE) + tick ✅ trong `P4-TASKS.md` | ✅ **Đã sửa** — thêm luật **G17** vào `docs/00-WORKFLOW.md` (§1 + §7 change log + §11 checklist) |
 | R-9 | **major** | Lệch **semantics xoá lặp từ** giữa 3 OS: Windows/macOS so `sameWord && prevIsSpace`; Linux so `kind == IME_ASSIST_KIND_DUPLICATE_WORD` | `assist.rs` (plan_sentence_auto_fix) · `AssistModel.swift` (planSentenceAutoFix) · `compose.c` (`lc_plan_sentence_auto_fix`) | 🔄 **Đang sửa** — chọn 1 semantics chung (đề xuất: theo `kind`) + test hồi quy 3 OS |
@@ -257,31 +257,26 @@
 
 | Nhóm | Finding (`Fassist-n` · `R-n`) | Ghi chú |
 |---|---|---|
-| **Đã đóng** (xử lý trong plan/code/docs đã sửa) | 1, 3–10, 13–25, 27–45, 46–56, 59, 60, 64–77, 79, 84–97, 103–110 | Thể hiện qua D1–D40, ADR-012/013/014, P4-TASKS ✅ (AS-001…060), hoặc docs/code đã sửa |
+| **Đã đóng** (xử lý trong plan/code/docs đã sửa) | 1, 3–11, 13–27, 28–45, 46–57, 59, 60, 64–79, 84–97, 103–110 | Thể hiện qua D1–D40, ADR-012/013/014, P4-TASKS ✅ (AS-001…060), hoặc docs/code đã sửa |
 | **Superseded / đổi phân loại, giữ ID theo G6** | 2 (sai tiền đề → superseded bởi 32) · 56 (minor → major sau spike, rồi đã sửa) | ID không xoá |
 | **Chấp nhận có ghi lý do (hết trách nhiệm v1)** | 74 (pop 1 char = hướng bảo toàn) · 80–83 (số đo "kỳ vọng" trên corpus mẫu — cần corpus thật + 2 người đánh giá) · 100, 102 (từ điển FST → v2) | Không còn hành động bắt buộc v1 |
-| **Còn MỞ** | 11, 12 (một phần), 26, 57, 58, 61, 63, 78, 99, 101 | Xem danh sách bàn giao bên dưới |
-| **Vòng R (AS-050/AS-060) — ĐÃ SỬA** | R-1, R-2, R-3, R-8, R-10, R-14 | Tick sai + tick khi CI đỏ + docs stale → đã sửa: `P4-TASKS.md` (tick ⏳) · `docs/00-WORKFLOW.md` (**G17**) · `docs/release/parity-checklist.md` (dòng `assist.*`) · `docs/release/ui-spec.md` (§8) |
+| **Còn MỞ** | 12 (một phần), 58, 61, 63, 99, 101 | Xem danh sách bàn giao bên dưới |
+| **Vòng R (AS-050/AS-060) — ĐÃ SỬA** | R-1, R-2, R-3, R-6, R-8, R-10, R-14 | Tick sai + tick khi CI đỏ + docs stale + IBus nối (@f630ff6) → đã sửa: `P4-TASKS.md` · `docs/00-WORKFLOW.md` (**G17**) · `docs/release/parity-checklist.md` · `docs/release/ui-spec.md` (§8) |
 | **Vòng R — ĐANG SỬA** | R-4, R-5, R-9, R-11, R-12 | Lane Linux/Fcitx5: precondition D12 · undo A3 · semantics lặp từ 3 OS · cắt span UTF-8 · cơ chế A2 qua candidate list |
-| **Vòng R — CÒN MỞ** | R-6, R-7, R-13 | IBus chưa nối · gộp 3 bản sao logic plan sửa câu (G15) · `assist.*` 2 nguồn sự thật trong Swift |
+| **Vòng R — CÒN MỞ** | R-7, R-13 | gộp 3 bản sao logic plan sửa câu (G15) · `assist.*` 2 nguồn sự thật trong Swift |
 
 ## VIỆC CỒN MỞ — bàn giao người đọc sau
 
 | ID | Mô tả | Nơi xử lý dự kiến |
 |---|---|---|
-| Fassist-11 | Thêm dòng **Assist** vào `docs/specs/antivirus-false-positive.md` §8 (chính sách kiến trúc: 0 network, không tiến trình mới, provider OS out-of-proc) | Doc §8 (việc nhỏ, budget thấp) |
-| Fassist-26 | Ghi threat "app độc hại đẩy text để trigger assist" vào `PLAN.md` §6.1 STRIDE | `PLAN.md` §6.1 |
-| Fassist-57 | `textvn-cli assist` chưa có trong `docs/developer-guide.md` | P4-2 / khi rewrite docs dev guide |
 | Fassist-58 | **2 người đánh giá độc lập** trên corpus thật (≥ 300 câu có lỗi, thống nhất ≥ 80%) trước khi recall/FPR thành gate CI / bật tính năng từng luật (D19) | Gate trước khi mở `mode≠off` cho user |
 | Fassist-61 + Fassist-101 | **Đo lại RSS/binary/p95 của tài nguyên assist (kể cả `dict` FST) trong tiến trình IME/TIP thật** (S4a đo bằng CLI độc lập — không đại diện in-proc) | P4-2/AS-042 tích hợp → đo lại |
 | Fassist-63 | Parity macOS: toast ≠ quy hoạch 2 OS kia; parity-checklist ghi macOS ✗ (adapter chưa nối assist) | P4-6/AS-060 lane sau |
 | Fassist-12 (một phần) | Checklist manual UI/overlay 3 OS đầy đủ (khi Settings 3 OS nối assist) | P4-6 (Settings) + `parity-checklist.md` |
-| Fassist-78 | Header `ime_assist_result_v1`: tài liệu hoá **cap + ownership** (caller-owned, chỉ nhận giá trị) — sửa cả `ffi/include/` và mirror Swift **cùng commit** | `ffi/include/textvn_ffi.h` + mirror |
 | Fassist-99 | Thông báo/patch upstream `hunspell-vi` + ghi `docs/compliance/` (phái sinh FST) | `docs/compliance/` khi HLS v2 |
 | P4-10-F8 | `docs/compliance/assist-os-provider.md` + `LICENSES/` cho libspelling/enchant (LGPL, link động) + privacy notice "text rời tiến trình" (P4-10 §7.3.4) | `docs/compliance/` + `antivirus-false-positive.md` |
 | P4-10 §9 (10 mục) | ⚠️ Chưa verify được (không có máy thật tương ứng): `availableLanguages` có `vi`; độ trễ NSSpellChecker/block main; provider Windows có gửi mạng không; `RPC_E_CANTCALLOUT` trong edit session; user dictionary đọc được; Δsize/ΔRSS `Win32_Globalization`… | Verify khi code/probe OS provider tương ứng |
 | v2 (Fassist-100/102) | Luật spelling dùng trait `Dictionary` + đo recall/FPR có từ điển + nguồn từ điển **permissive/CC0** | Backlog v2 Phần 4 |
-| **R-6** | **IBus chưa nối assist** — parity Linux chưa đạt (`git grep -n assist -- adapters/linux-ibus` = 0 dòng) | Nhóm task P4-6 (AS-060…068) · lane Linux |
 | **R-7** | **Gộp 3 bản sao** logic "plan sửa câu" (Rust `assist.rs` · Swift `AssistModel.swift` · C `compose.c`) thành **1 nguồn sự thật** (crate `assist` + FFI) — hiện tại vi phạm **G15** và đã sinh lệch hành vi (R-9) | P4-6 / refactor chung sau khi lane Linux ổn định |
 | **R-13** | `AssistSettings`/`AssistDisplay` **định nghĩa 2 lần** trong Swift (`ConfigModel.swift` + `AssistModel.swift`) → gộp 1 chỗ + test đồng bộ mặc định (AGENTS.md §3) | P4-6 (lane macOS) |
 | **R-4/R-5/R-9/R-11/R-12** | Lane Fcitx5: thêm **precondition D12** + **undo A3** · thống nhất **semantics lặp từ** 3 OS · bỏ **cắt span âm thầm** · cơ chế A2 qua candidate list | Đang sửa — **xanh CI + verify tay** thì tick ✅ AS-060 (theo **G17**) |

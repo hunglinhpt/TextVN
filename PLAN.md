@@ -411,6 +411,7 @@ Chrome · Edge · Firefox · Safari · Word · Excel · PowerPoint · Outlook ·
 | **Ngụy trang open source** | Như tranh cãi EVKey | License header từng file, `THIRD_PARTY.yml` truy vết, CI check license, clean-room cho mọi code liên quan EVKey/WinVNKey |
 | **DLL injection / hijacking** | Windows load DLL sai thư mục | SafeDllSearchMode, absolute path, `SetDefaultDllDirectories`, ký mọi binary |
 | **Denial of typing** | Crash treo IME → mất bàn phím | Watchdog auto-restart < 500 ms; adapter fail-open (PASS through) — **không bao giờ chặn phím khi engine chết** |
+| **Malicious surrounding text / Context tampering (Assist)** | Ứng dụng độc hại/trang web giả mạo cố tình đẩy surrounding text dị thường (text cực dài, Unicode bất thường, hoặc sửa buffer ngoài ý muốn) nhằm trigger auto-fix sai lệch hoặc gây DoS bộ nhớ/CPU | Engine giới hạn tail buffer (max 256 char / `LC_MAX_SENTENCE_FIX_CHARS`); luật chỉ chạy trên câu do người dùng thực gõ (`Engine.sentence`); Precondition D12 (selection rỗng, caret ở đuôi, text khớp tuyệt đối); fail-open pass-through nếu có bất kỳ sai lệch nào |
 
 ### 6.2 License & compliance plan
 
