@@ -145,6 +145,7 @@ scripts/build-linux.sh          # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha2
 | Gói MSIX | `tools/win/build-msix.ps1` → `tools/win/verify-msix.py` → `installer/windows/tests/test-msix-sideload.ps1` | luật manifest của Partner Center; cài gói ký tạm, mở app, kiểm từ ngoài gói (stage-out, TIP HKCU, Run), gỡ gói → guard dọn sạch |
 | C sanitizer | job `linux-common tests (ASan + UBSan)` | lỗi bộ nhớ/UB trong IPC client, compose, utf của `linux-common` |
 | Bảng điều khiển Linux | `ctest` trong `target/linux-adapters/settings` | `settings_model` (vá khoá, gõ tắt, file hỏng) |
+| Trợ lý ngữ pháp | `cargo test -p textvn-assist` · `cargo run -p textvn-cli -- assist check "<câu>" [--json] [--fix] [--sentence]` (`--file <path>` kiểm từng dòng) | luật objective (lặp từ, khoảng trắng, viết hoa…), offset **ký tự Unicode** (không phải byte), corpus `corpus/assist/*.ass`; xem [P4-TASKS.md](50-assist/P4-TASKS.md) |
 
 Thêm case corpus: `corpus/shared/<chủ đề>_NN.keys` (cú pháp: `docs/10-shared/P0-4-test-and-corpus.md`,
 `:mods +CapsLock` cho Caps Lock, `:enabled off` cho chế độ E). Mỗi thay đổi hành vi gõ
