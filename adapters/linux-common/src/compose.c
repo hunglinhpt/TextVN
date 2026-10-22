@@ -385,184 +385,40 @@ int lc_config_read_assist_auto_fix(const char *path, int default_auto_fix) {
     return res;
 }
 
-typedef struct cand_fix {
-    size_t start;
-    size_t end;
-    const char *replacement;
-} cand_fix;
-
-/* Chuyển UTF-32 → UTF-8 **không được cắt cụt** (R-10).
- * Trả 1 = vừa buffer (dst có NUL), 0 = KHÔNG vừa ⇒ fail-safe (không dùng
- * `lc_utf32_to_utf8` vì hàm đó cắt im lặng ⇒ kế hoạch sai ⇒ xoá nhầm). */
-static int utf32_to_utf8_exact(const uint32_t *src, size_t src_len, char *dst, size_t dst_len) {
-    if (!dst || dst_len == 0) return 0;
-    size_t need = 0;
-    for (size_t i = 0; i < src_len; ++i) {
-        uint32_t cp = src[i];
-        if (cp == 0) break;
-        if (cp <= 0x7F) need += 1;
-        else if (cp <= 0x7FF) need += 2;
-        else if (cp <= 0xFFFF) need += 3;
-        else if (cp <= 0x10FFFF) need += 4;
-        else return 0; /* codepoint không hợp lệ ⇒ fail-safe */
+static size_t lc_strlcpy(char *dst, const char *src, size_t siz) {
+    if (!dst || siz == 0) return 0;
+    if (!src) {
+        dst[0] = '\0';
+        return 0;
     }
-    if (need + 1 > dst_len) return 0;
-    lc_utf32_to_utf8(src, src_len, dst, dst_len);
-    return 1;
-}
-
-static int compare_cand_fix(const void *a, const void *b) {
-    const cand_fix *ca = (const cand_fix *)a;
-    const cand_fix *cb = (const cand_fix *)b;
-    if (ca->start != cb->start) {
-        return (ca->start < cb->start) ? -1 : 1;
-    }
-    if (ca->end != cb->end) {
-        return (ca->end < cb->end) ? -1 : 1;
-    }
-    return 0;
+    size_t slen = strlen(src);
+    size_t n = (slen < siz - 1) ? slen : siz - 1;
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+    return slen;
 }
 
 int lc_plan_sentence_auto_fix(const ime_instance *inst,
                               const char *sentence_utf8,
                               const ime_assist_result_v1 *result,
                               lc_sentence_fix_plan *out_plan) {
-    if (!inst || !sentence_utf8 || !result || !out_plan) return 0;
+    if (!out_plan || !sentence_utf8 || !result) return 0;
     memset(out_plan, 0, sizeof(*out_plan));
     if (result->abi_version != IME_ABI_VERSION || result->count == 0) return 0;
 
-    uint32_t chars[512];
-    size_t chars_len = lc_utf8_to_utf32(sentence_utf8, strlen(sentence_utf8), chars, 512);
-    if (chars_len == 0) return 0;
+    ime_assist_plan_v1 ffi_plan;
+    memset(&ffi_plan, 0, sizeof(ffi_plan));
+    ffi_plan.abi_version = IME_ABI_VERSION;
 
-    cand_fix candidates[IME_MAX_ASSIST_ISSUES];
-    size_t cand_count = 0;
-
-    for (uint32_t i = 0; i < result->count && i < IME_MAX_ASSIST_ISSUES; ++i) {
-        const ime_assist_issue_v1 *iss = &result->issues[i];
-        if (!iss->auto_fixable) continue;
-        if (iss->start >= iss->end || iss->end > chars_len) continue;
-        if (iss->suggest[0] == '\0') continue;
-
-        /* Check for control characters in suggest */
-        int has_ctrl = 0;
-        for (const char *p = iss->suggest; *p; ++p) {
-            if ((unsigned char)*p < 0x20) {
-                has_ctrl = 1;
-                break;
-            }
-        }
-        if (has_ctrl) continue;
-
-        /* Duplicate word: xoa tu thu hai cung dau cach lien truoc */
-        if (iss->kind == IME_ASSIST_KIND_DUPLICATE_WORD && iss->start > 0 && chars[iss->start - 1] == ' ') {
-            candidates[cand_count].start = iss->start - 1;
-            candidates[cand_count].end = iss->end;
-            candidates[cand_count].replacement = "";
-            cand_count++;
-        } else if (iss->kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT) {
-            /* L3 "thua khoang trang truoc dau cau": span = KHOANG TRANG, con
-             * `suggest` chi la dau cau de HIEN THI. Thay span bang `suggest`
-             * se nhan doi dau cau ("chao,, ban") ⇒ phai XOA span (dung nghia
-             * `Fix::Delete` cua crate `assist`).
-             *
-             * P4-0 §5.1 (L3): span = khoang trang thua, fix = xoa khoang trang. */
-            candidates[cand_count].start = iss->start;
-            candidates[cand_count].end = iss->end;
-            candidates[cand_count].replacement = "";
-            cand_count++;
-        } else {
-            char span_buf[256];
-            if (!utf32_to_utf8_exact(chars + iss->start, iss->end - iss->start,
-                                     span_buf, sizeof(span_buf))) {
-                continue; /* không đủ chỗ ⇒ bỏ lỗi này (fail-safe) */
-            }
-            if (strcmp(span_buf, iss->suggest) != 0) {
-                candidates[cand_count].start = iss->start;
-                candidates[cand_count].end = iss->end;
-                candidates[cand_count].replacement = iss->suggest;
-                cand_count++;
-            }
-        }
-    }
-
-    if (cand_count == 0) return 0;
-
-    qsort(candidates, cand_count, sizeof(cand_fix), compare_cand_fix);
-
-    cand_fix selected[IME_MAX_ASSIST_ISSUES];
-    size_t selected_count = 0;
-    size_t last_end = 0;
-    for (size_t i = 0; i < cand_count; ++i) {
-        if (candidates[i].start < last_end) continue;
-        last_end = candidates[i].end;
-        selected[selected_count++] = candidates[i];
-    }
-
-    if (selected_count == 0) return 0;
-
-    size_t delete_from = selected[0].start;
-
-    /* Build original tail UTF-8 — phải VỪA buffer (R-10: cắt cụt ⇒ kế hoạch
-     * sai ⇒ xoá nhầm; không vừa ⇒ fail-safe, không sửa). */
-    char orig_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
-    if (!utf32_to_utf8_exact(chars + delete_from, chars_len - delete_from,
-                             orig_tail_utf8, sizeof(orig_tail_utf8))) {
+    int32_t rc = ime_assist_plan_sentence_fix(inst, sentence_utf8, result, &ffi_plan);
+    if (rc != 1 || ffi_plan.fixed_count == 0) {
         return 0;
     }
 
-    /* Build new tail UTF-8 */
-    char new_tail_utf8[LC_MAX_SENTENCE_FIX_CHARS];
-    size_t new_tail_len = 0;
-    new_tail_utf8[0] = '\0';
-    size_t cursor = delete_from;
-
-    for (size_t i = 0; i < selected_count; ++i) {
-        if (selected[i].start > cursor) {
-            char chunk[LC_MAX_SENTENCE_FIX_CHARS];
-            if (!utf32_to_utf8_exact(chars + cursor, selected[i].start - cursor,
-                                     chunk, sizeof(chunk))) {
-                return 0;
-            }
-            size_t clen = strlen(chunk);
-            if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
-            memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
-            new_tail_len += clen;
-            new_tail_utf8[new_tail_len] = '\0';
-        }
-        size_t rlen = strlen(selected[i].replacement);
-        if (new_tail_len + rlen + 1 >= sizeof(new_tail_utf8)) return 0;
-        memcpy(new_tail_utf8 + new_tail_len, selected[i].replacement, rlen);
-        new_tail_len += rlen;
-        new_tail_utf8[new_tail_len] = '\0';
-        cursor = selected[i].end;
-    }
-
-    if (cursor < chars_len) {
-        char chunk[LC_MAX_SENTENCE_FIX_CHARS];
-        if (!utf32_to_utf8_exact(chars + cursor, chars_len - cursor,
-                                 chunk, sizeof(chunk))) {
-            return 0;
-        }
-        size_t clen = strlen(chunk);
-        if (new_tail_len + clen + 1 >= sizeof(new_tail_utf8)) return 0;
-        memcpy(new_tail_utf8 + new_tail_len, chunk, clen);
-        new_tail_len += clen;
-        new_tail_utf8[new_tail_len] = '\0';
-    }
-
-    if (strcmp(orig_tail_utf8, new_tail_utf8) == 0) return 0;
-
-    size_t glyphs = 0;
-    if (ime_assist_glyph_len(inst, orig_tail_utf8, strlen(orig_tail_utf8), &glyphs) != IME_OK || glyphs == 0) {
-        return 0;
-    }
-
-    out_plan->fixed_count = (uint32_t)selected_count;
-    out_plan->delete_glyphs = (uint32_t)glyphs;
-    snprintf(out_plan->replacement, sizeof(out_plan->replacement), "%s", new_tail_utf8);
-    /* R-2: lưu đuôi câu GỐC để adapter xác minh vùng sắp xoá + hoàn tác. */
-    snprintf(out_plan->original_tail, sizeof(out_plan->original_tail), "%s", orig_tail_utf8);
+    out_plan->fixed_count = ffi_plan.fixed_count;
+    out_plan->delete_glyphs = ffi_plan.delete_glyphs;
+    lc_strlcpy(out_plan->replacement, ffi_plan.replacement, sizeof(out_plan->replacement));
+    lc_strlcpy(out_plan->original_tail, ffi_plan.original_tail, sizeof(out_plan->original_tail));
     return 1;
 }
 

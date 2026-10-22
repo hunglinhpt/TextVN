@@ -52,6 +52,7 @@ extern "C" {
 #define IME_MAX_ASSIST_ISSUES              8
 #define IME_MAX_ASSIST_MSG                 128
 #define IME_MAX_ASSIST_SUGGEST             64
+#define IME_MAX_SENTENCE_FIX_CHARS         1024
 
 #define IME_ASSIST_TRIGGER_NONE            0u
 #define IME_ASSIST_TRIGGER_WORD            1u
@@ -166,6 +167,16 @@ typedef struct ime_assist_result {
   ime_assist_issue_v1 issues[IME_MAX_ASSIST_ISSUES];
 } ime_assist_result_v1;
 
+typedef struct ime_assist_plan {
+  uint32_t abi_version;
+  uint32_t fixed_count;
+  uint32_t delete_from;    /* vị trí char bắt đầu xóa */
+  uint32_t delete_chars;   /* số ký tự char cần xóa */
+  uint32_t delete_glyphs;  /* số glyph cần xóa lùi (surrounding text) */
+  char     replacement[IME_MAX_SENTENCE_FIX_CHARS];   /* chuỗi UTF-8 thay thế */
+  char     original_tail[IME_MAX_SENTENCE_FIX_CHARS]; /* chuỗi UTF-8 đuôi câu cũ */
+} ime_assist_plan_v1;
+
 typedef struct ime_os_spell {
   uint32_t abi_version;                                     /* = IME_ABI_VERSION */
   int32_t  (*contains)(void *ctx, const char *word, uint32_t byte_len);  /* 1 = dung, 0 = sai, -1 = khong ro / fail-open */
@@ -224,6 +235,10 @@ int32_t      ime_assist_check_v1(const uint16_t *text_utf16, int32_t len,
 int32_t      ime_assist_sentence_tail_v1(const uint16_t *text_utf16, int32_t len,
                                          int32_t max_chars,
                                          uint16_t *out_utf16, int32_t out_cap);
+int32_t      ime_assist_plan_sentence_fix(const ime_instance *inst,
+                                          const char *sentence_utf8,
+                                          const ime_assist_result_v1 *result,
+                                          ime_assist_plan_v1 *out_plan);
 #ifdef __cplusplus
 }
 #endif

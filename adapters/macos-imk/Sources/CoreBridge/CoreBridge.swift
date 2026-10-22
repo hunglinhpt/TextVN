@@ -63,6 +63,9 @@ public enum FFI {
     public static let assistTriggerWord: UInt32 = UInt32(IME_ASSIST_TRIGGER_WORD)
     public static let assistTriggerSentence: UInt32 = UInt32(IME_ASSIST_TRIGGER_SENTENCE)
 
+    // sentence fix limit
+    public static let maxSentenceFixChars: Int = Int(IME_MAX_SENTENCE_FIX_CHARS)
+
     public static func assistTriggerKind(ch: UInt32) -> UInt32 {
         ime_assist_trigger_kind(ch)
     }
@@ -143,6 +146,32 @@ public struct AssistIssue: Equatable {
         self.confidence = confidence
         self.message = message
         self.suggest = suggest
+    }
+}
+
+/// Kế hoạch tự sửa cả câu (AS-050 / Mode 2 / A3) — tương đồng SentenceFixPlan của Windows TSF.
+public struct SentenceFixPlan: Equatable {
+    public let fixedCount: Int
+    public let deleteFrom: Int
+    public let deleteChars: Int
+    public let deleteGlyphs: Int
+    public let replacement: String
+    public let originalTail: String
+
+    public init(
+        fixedCount: Int,
+        deleteFrom: Int,
+        deleteChars: Int,
+        deleteGlyphs: Int,
+        replacement: String,
+        originalTail: String
+    ) {
+        self.fixedCount = fixedCount
+        self.deleteFrom = deleteFrom
+        self.deleteChars = deleteChars
+        self.deleteGlyphs = deleteGlyphs
+        self.replacement = replacement
+        self.originalTail = originalTail
     }
 }
 
@@ -368,6 +397,126 @@ public final class ImeEngine {
             }
         }
         return result
+    }
+
+    /// Mã hoá mảng `[AssistIssue]` thành C-struct `ime_assist_result_v1` trên stack (P0-2 §0).
+    public static func encodeAssistResult(_ issues: [AssistIssue]) -> ime_assist_result_v1 {
+        var res = ime_assist_result_v1()
+        res.abi_version = FFI.abiVersion
+        let count = min(issues.count, Int(IME_MAX_ASSIST_ISSUES))
+        res.count = UInt32(count)
+        withUnsafeMutablePointer(to: &res.issues) { ptr in
+            let issuesPtr = UnsafeMutableRawPointer(ptr).assumingMemoryBound(to: ime_assist_issue_v1.self)
+            for i in 0..<count {
+                let issue = issues[i]
+                var rawIssue = ime_assist_issue_v1()
+                rawIssue.kind = issue.kind
+                rawIssue.start = issue.start
+                rawIssue.end = issue.end
+                rawIssue.auto_fixable = issue.autoFixable ? 1 : 0
+                rawIssue.confidence = issue.confidence
+
+                let msgBytes = Array(issue.message.utf8)
+                let msgLen = min(msgBytes.count, Int(IME_MAX_ASSIST_MSG) - 1)
+                if msgLen > 0 {
+                    withUnsafeMutableBytes(of: &rawIssue.message) { raw in
+                        msgBytes.withUnsafeBytes { src in
+                            if let srcBase = src.baseAddress, let dstBase = raw.baseAddress {
+                                dstBase.copyMemory(from: srcBase, byteCount: msgLen)
+                            }
+                        }
+                    }
+                }
+
+                let suggBytes = Array(issue.suggest.utf8)
+                let suggLen = min(suggBytes.count, Int(IME_MAX_ASSIST_SUGGEST) - 1)
+                rawIssue.suggest_len = UInt32(suggLen)
+                if suggLen > 0 {
+                    withUnsafeMutableBytes(of: &rawIssue.suggest) { raw in
+                        suggBytes.withUnsafeBytes { src in
+                            if let srcBase = src.baseAddress, let dstBase = raw.baseAddress {
+                                dstBase.copyMemory(from: srcBase, byteCount: suggLen)
+                            }
+                        }
+                    }
+                }
+
+                issuesPtr[i] = rawIssue
+            }
+        }
+        return res
+    }
+
+    /// Tính kế hoạch tự sửa câu (Mode 2 / AS-050) qua C-ABI `ime_assist_plan_sentence_fix`.
+    ///
+    /// Gọi FFI của engine để tính toán kế hoạch sửa câu an toàn (objective fixes).
+    /// Fail-open: trả `nil` nếu lỗi dữ liệu hoặc không có gì cần sửa. Không log câu (S2).
+    public func planSentenceFix(
+        sentence: String,
+        result: ime_assist_result_v1
+    ) -> SentenceFixPlan? {
+        Self.planSentenceFix(instance: instance, sentence: sentence, result: result)
+    }
+
+    /// Tính kế hoạch tự sửa câu từ danh sách `[AssistIssue]` trên instance hiện tại.
+    public func planSentenceFix(
+        sentence: String,
+        issues: [AssistIssue]
+    ) -> SentenceFixPlan? {
+        planSentenceFix(sentence: sentence, result: Self.encodeAssistResult(issues))
+    }
+
+    /// Static wrapper gọi `ime_assist_plan_sentence_fix` với instance tuỳ chọn (nil = không instance).
+    public static func planSentenceFix(
+        sentence: String,
+        result: ime_assist_result_v1
+    ) -> SentenceFixPlan? {
+        planSentenceFix(instance: nil, sentence: sentence, result: result)
+    }
+
+    /// Static wrapper gọi `ime_assist_plan_sentence_fix` với instance cụ thể hoặc nil.
+    public static func planSentenceFix(
+        instance: OpaquePointer?,
+        sentence: String,
+        result: ime_assist_result_v1
+    ) -> SentenceFixPlan? {
+        var outPlan = ime_assist_plan_v1()
+        outPlan.abi_version = FFI.abiVersion
+        var mutableResult = result
+        mutableResult.abi_version = FFI.abiVersion
+        let cSentence = cString(from: sentence)
+        let rc = cSentence.withUnsafeBufferPointer { buf in
+            ime_assist_plan_sentence_fix(
+                instance,
+                buf.baseAddress,
+                &mutableResult,
+                &outPlan
+            )
+        }
+        guard rc != 0 else { return nil }
+        let repl = withUnsafeBytes(of: outPlan.replacement) { raw in
+            String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+        }
+        let origTail = withUnsafeBytes(of: outPlan.original_tail) { raw in
+            String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
+        }
+        return SentenceFixPlan(
+            fixedCount: Int(outPlan.fixed_count),
+            deleteFrom: Int(outPlan.delete_from),
+            deleteChars: Int(outPlan.delete_chars),
+            deleteGlyphs: Int(outPlan.delete_glyphs),
+            replacement: repl,
+            originalTail: origTail
+        )
+    }
+
+    /// Static wrapper gọi `ime_assist_plan_sentence_fix` từ `[AssistIssue]`.
+    public static func planSentenceFix(
+        instance: OpaquePointer? = nil,
+        sentence: String,
+        issues: [AssistIssue]
+    ) -> SentenceFixPlan? {
+        planSentenceFix(instance: instance, sentence: sentence, result: encodeAssistResult(issues))
     }
 
     // ---------------------------------------------------------------- decode

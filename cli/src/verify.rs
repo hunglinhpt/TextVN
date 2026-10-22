@@ -130,6 +130,10 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
         ("IME_MAX_ASSIST_ISSUES", IME_MAX_ASSIST_ISSUES as i64),
         ("IME_MAX_ASSIST_MSG", IME_MAX_ASSIST_MSG as i64),
         ("IME_MAX_ASSIST_SUGGEST", IME_MAX_ASSIST_SUGGEST as i64),
+        (
+            "IME_MAX_SENTENCE_FIX_CHARS",
+            IME_MAX_SENTENCE_FIX_CHARS as i64,
+        ),
         ("IME_ASSIST_TRIGGER_NONE", IME_ASSIST_TRIGGER_NONE as i64),
         ("IME_ASSIST_TRIGGER_WORD", IME_ASSIST_TRIGGER_WORD as i64),
         (
@@ -171,6 +175,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_assist_set_spell_provider",
         "ime_assist_check_v1",
         "ime_assist_sentence_tail_v1",
+        "ime_assist_plan_sentence_fix",
     ]
 }
 
@@ -254,6 +259,18 @@ fn abi_structs() -> Vec<(&'static str, &'static [&'static str])> {
                 contains,
                 suggest,
                 ctx,
+            }),
+        ),
+        (
+            "ime_assist_plan_v1",
+            field_names!(ime_assist_plan_v1 {
+                abi_version,
+                fixed_count,
+                delete_from,
+                delete_chars,
+                delete_glyphs,
+                replacement,
+                original_tail,
             }),
         ),
     ]

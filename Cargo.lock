@@ -221,6 +221,7 @@ version = "0.2.34"
 dependencies = [
  "serde_json",
  "textvn-appdb",
+ "textvn-assist",
  "textvn-config",
  "textvn-ffi",
  "textvn-field-detect",

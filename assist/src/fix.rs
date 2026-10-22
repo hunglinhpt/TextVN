@@ -31,6 +31,21 @@ pub enum Fix {
     },
 }
 
+/// Kế hoạch tự sửa cả câu (AS-050 · D12 · D22 · D27).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SentenceFixPlan {
+    /// Số lượng lỗi objective được sửa.
+    pub fixed_count: usize,
+    /// Vị trí ký tự char đầu tiên bị thay đổi trong câu (0-based).
+    pub delete_from: usize,
+    /// Số ký tự Unicode trong câu bị xoá (từ delete_from tới hết câu).
+    pub delete_chars: usize,
+    /// Chuỗi UTF-8 thay thế từ delete_from tới hết câu.
+    pub replacement: String,
+    /// Đuôi câu gốc bị xoá từ delete_from tới hết câu.
+    pub original_tail: String,
+}
+
 /// Doi offset ky tu Unicode sang offset byte UTF-8.
 #[allow(dead_code)]
 fn char_to_byte(text: &str, char_idx: usize) -> usize {
@@ -94,6 +109,83 @@ pub fn apply_auto_fixes(text: &str, issues: &[Issue]) -> String {
     }
     out.extend(chars[cursor.min(chars.len())..].iter());
     out
+}
+
+/// Tính kế hoạch sửa cả câu cho các lỗi objective (Mode 2 / AS-050).
+///
+/// - Dựa trên logic của [`apply_auto_fixes`]: chỉ áp dụng lỗi `auto_fixable` có [`Fix`].
+/// - Chọn các fix không overlap, sắp xếp theo start tăng dần.
+/// - `delete_from` là vị trí `start` của fix đầu tiên (`selected[0].0`).
+/// - `original_tail` = chuỗi ký tự từ `delete_from` tới hết câu (`chars[delete_from..]`).
+/// - `replacement` = chuỗi đã sửa từ `delete_from` tới hết câu.
+/// - `delete_chars` = số ký tự Unicode của `original_tail`.
+/// - Trả về `None` nếu `replacement == original_tail` hoặc `selected.is_empty()`.
+pub fn plan_sentence_fix(text: &str, issues: &[Issue]) -> Option<SentenceFixPlan> {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.is_empty() {
+        return None;
+    }
+
+    let mut candidates: Vec<(usize, usize, &str)> = Vec::new();
+    for issue in issues {
+        if !issue.auto_fixable {
+            continue;
+        }
+        let Some(fix) = issue.fix.as_ref() else {
+            continue;
+        };
+        match fix {
+            Fix::Delete { start, end } => candidates.push((*start, *end, "")),
+            Fix::Replace { start, end, text } => candidates.push((*start, *end, text.as_str())),
+            Fix::Insert { at, text } => candidates.push((*at, *at, text.as_str())),
+        }
+    }
+    candidates.retain(|&(start, end, _)| start <= end && end <= chars.len());
+    candidates.sort_by_key(|(start, end, _)| (*start, *end));
+
+    let mut selected: Vec<(usize, usize, &str)> = Vec::new();
+    let mut last_end = 0usize;
+    for (start, end, replacement) in candidates {
+        if start < last_end {
+            // Overlap voi fix da chon - bo qua, giu loi cho nguoi dung.
+            continue;
+        }
+        last_end = end;
+        selected.push((start, end, replacement));
+    }
+
+    if selected.is_empty() {
+        return None;
+    }
+
+    let delete_from = selected[0].0;
+    let original_tail: String = chars[delete_from..].iter().collect();
+
+    let mut replacement = String::with_capacity(original_tail.len());
+    let mut cursor = delete_from;
+    for (start, end, rep) in &selected {
+        if *start > cursor {
+            replacement.extend(chars[cursor..*start].iter());
+        }
+        replacement.push_str(rep);
+        cursor = (*end).max(cursor);
+    }
+    if cursor < chars.len() {
+        replacement.extend(chars[cursor..].iter());
+    }
+
+    if replacement == original_tail {
+        return None;
+    }
+
+    let delete_chars = original_tail.chars().count();
+    Some(SentenceFixPlan {
+        fixed_count: selected.len(),
+        delete_from,
+        delete_chars,
+        replacement,
+        original_tail,
+    })
 }
 
 /// Do dai span theo ky tu Unicode.
@@ -177,5 +269,103 @@ mod tests {
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].kind, IssueKind::LowercaseSentenceStart);
         assert_eq!(apply_auto_fixes(text, &issues), "Hôm nay tôi đi học.");
+    }
+
+    #[test]
+    fn test_plan_sentence_fix_khong_loi() {
+        let text = "Tôi đi học.";
+        let issues = crate::check_sentence(text);
+        assert_eq!(plan_sentence_fix(text, &issues), None);
+    }
+
+    #[test]
+    fn test_plan_sentence_fix_lap_tu_fragment() {
+        let text = "Tôi tôi đi học.";
+        let issues = crate::check(text);
+        let plan = plan_sentence_fix(text, &issues).expect("co plan");
+        assert_eq!(plan.fixed_count, 1);
+        assert_eq!(plan.delete_from, 3);
+        assert_eq!(plan.original_tail, " tôi đi học.");
+        assert_eq!(plan.replacement, " đi học.");
+        assert_eq!(plan.delete_chars, " tôi đi học.".chars().count());
+
+        let head: String = text.chars().take(plan.delete_from).collect();
+        assert_eq!(format!("{head}{}", plan.replacement), "Tôi đi học.");
+        assert_eq!(
+            format!("{head}{}", plan.replacement),
+            apply_auto_fixes(text, &issues)
+        );
+    }
+
+    #[test]
+    fn test_plan_sentence_fix_nhieu_loi_sentence() {
+        let text = "tôi tôi đi học .";
+        let issues = crate::check_sentence(text);
+        // Co 3 loi: lowercase start, duplicate word, space before punct
+        assert_eq!(issues.len(), 3);
+        let plan = plan_sentence_fix(text, &issues).expect("co plan");
+        assert_eq!(plan.fixed_count, 3);
+        assert_eq!(plan.delete_from, 0);
+        assert_eq!(plan.original_tail, text);
+        assert_eq!(plan.replacement, "Tôi đi học.");
+        assert_eq!(plan.delete_chars, text.chars().count());
+        assert_eq!(plan.replacement, apply_auto_fixes(text, &issues));
+    }
+
+    #[test]
+    fn test_plan_sentence_fix_overlap_bo_qua() {
+        let text = "xin chào bạn";
+        // Tao 2 issue co fix chong nhau
+        let issues = vec![
+            Issue {
+                kind: IssueKind::DuplicateWord,
+                span: Span { start: 0, end: 3 },
+                message: "test 1".to_string(),
+                suggestions: vec![],
+                auto_fixable: true,
+                confidence: 100,
+                fix: Some(Fix::Replace {
+                    start: 0,
+                    end: 3,
+                    text: "Xin".to_string(),
+                }),
+            },
+            Issue {
+                kind: IssueKind::DuplicateWord,
+                span: Span { start: 2, end: 5 },
+                message: "test 2".to_string(),
+                suggestions: vec![],
+                auto_fixable: true,
+                confidence: 100,
+                fix: Some(Fix::Replace {
+                    start: 2,
+                    end: 5,
+                    text: "XYZ".to_string(),
+                }),
+            },
+        ];
+        let plan = plan_sentence_fix(text, &issues).expect("co plan");
+        assert_eq!(plan.fixed_count, 1);
+        assert_eq!(plan.delete_from, 0);
+        assert_eq!(plan.replacement, "Xin chào bạn");
+    }
+
+    #[test]
+    fn test_plan_sentence_fix_bo_qua_non_auto_fixable() {
+        let text = "quẫn bách";
+        let issues = vec![Issue {
+            kind: IssueKind::Spelling,
+            span: Span { start: 0, end: 4 },
+            message: "từ lạ".to_string(),
+            suggestions: vec!["quân".to_string()],
+            auto_fixable: false,
+            confidence: 60,
+            fix: Some(Fix::Replace {
+                start: 0,
+                end: 4,
+                text: "quân".to_string(),
+            }),
+        }];
+        assert_eq!(plan_sentence_fix(text, &issues), None);
     }
 }

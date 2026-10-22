@@ -79,6 +79,7 @@ pub const IME_ASSIST_KIND_SPELLING: u32 = 10;
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
 pub const IME_MAX_ASSIST_SUGGEST: usize = 64;
+pub const IME_MAX_SENTENCE_FIX_CHARS: usize = 1024;
 
 pub const IME_ASSIST_TRIGGER_NONE: u32 = 0;
 pub const IME_ASSIST_TRIGGER_WORD: u32 = 1;
@@ -157,6 +158,25 @@ pub struct ime_assist_result_v1 {
     pub abi_version: u32,
     pub count: u32,
     pub issues: [ime_assist_issue_v1; IME_MAX_ASSIST_ISSUES],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ime_assist_plan_v1 {
+    pub abi_version: u32,
+    pub fixed_count: u32,
+    pub delete_from: u32,
+    pub delete_chars: u32,
+    pub delete_glyphs: u32,
+    pub replacement: [c_char; IME_MAX_SENTENCE_FIX_CHARS],
+    pub original_tail: [c_char; IME_MAX_SENTENCE_FIX_CHARS],
+}
+
+impl ime_assist_plan_v1 {
+    #[allow(dead_code)]
+    pub fn zeroed() -> Self {
+        unsafe { std::mem::zeroed::<ime_assist_plan_v1>() }
+    }
 }
 
 /// C-ABI callback provider từ điển cho spell checking OS (P4-10 §5.2 · AS-042).
@@ -1093,6 +1113,148 @@ pub extern "C" fn ime_assist_sentence_tail_v1(
     }
 }
 
+/// Tính kế hoạch tự sửa cả câu cho các lỗi objective (G15 / AS-050 · D12 · D22 · D27).
+///
+/// Bọc trong catch_unwind (P0-2 §5).
+/// Trả về 1 nếu có kế hoạch hợp lệ ghi vào out_plan, 0 nếu không có hoặc lỗi.
+#[no_mangle]
+pub extern "C" fn ime_assist_plan_sentence_fix(
+    inst: *const ime_instance,
+    sentence_utf8: *const c_char,
+    result: *const ime_assist_result_v1,
+    out_plan: *mut ime_assist_plan_v1,
+) -> i32 {
+    if sentence_utf8.is_null() || result.is_null() || out_plan.is_null() {
+        return 0;
+    }
+    let res = unsafe { &*result };
+    if res.abi_version != IME_ABI_VERSION {
+        return 0;
+    }
+    let out = unsafe { &mut *out_plan };
+    out.abi_version = IME_ABI_VERSION;
+
+    catch_unwind(AssertUnwindSafe(|| {
+        let c_str = unsafe { CStr::from_ptr(sentence_utf8) };
+        let sentence = match c_str.to_str() {
+            Ok(s) => s,
+            Err(_) => return 0,
+        };
+        let chars: Vec<char> = sentence.chars().collect();
+        if chars.is_empty() {
+            return 0;
+        }
+
+        let count = (res.count as usize).min(res.issues.len());
+        let mut issues = Vec::with_capacity(count);
+
+        for raw in res.issues.iter().take(count) {
+            if raw.auto_fixable == 0 {
+                continue;
+            }
+            let start = raw.start as usize;
+            let end = raw.end as usize;
+            if start >= end || end > chars.len() {
+                continue;
+            }
+            let suggest_str = match unsafe { CStr::from_ptr(raw.suggest.as_ptr()) }.to_str() {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            if suggest_str.chars().any(char::is_control) {
+                continue;
+            }
+
+            let issue_kind = match raw.kind {
+                IME_ASSIST_KIND_DUPLICATE_WORD => textvn_assist::IssueKind::DuplicateWord,
+                IME_ASSIST_KIND_SPACE_BEFORE_PUNCT => textvn_assist::IssueKind::SpaceBeforePunct,
+                IME_ASSIST_KIND_SPACE_AFTER_PUNCT => textvn_assist::IssueKind::SpaceAfterPunct,
+                IME_ASSIST_KIND_DOUBLE_SPACE => textvn_assist::IssueKind::DoubleSpace,
+                IME_ASSIST_KIND_LOWERCASE_SENTENCE => {
+                    textvn_assist::IssueKind::LowercaseSentenceStart
+                }
+                IME_ASSIST_KIND_DIACRITIC_TYPO => textvn_assist::IssueKind::DiacriticTypo,
+                IME_ASSIST_KIND_SENTENCE_REPEAT => textvn_assist::IssueKind::SentenceRepeat,
+                IME_ASSIST_KIND_DOUBLE_NEGATIVE => textvn_assist::IssueKind::DoubleNegative,
+                IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
+                IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
+                _ => continue,
+            };
+
+            let fix = if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD
+                && start > 0
+                && chars[start - 1] == ' '
+            {
+                Some(textvn_assist::Fix::Delete {
+                    start: start - 1,
+                    end,
+                })
+            } else if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD
+                || raw.kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT
+            {
+                Some(textvn_assist::Fix::Delete { start, end })
+            } else {
+                let span_text: String = chars[start..end].iter().collect();
+                if span_text == suggest_str {
+                    None
+                } else {
+                    Some(textvn_assist::Fix::Replace {
+                        start,
+                        end,
+                        text: suggest_str.to_string(),
+                    })
+                }
+            };
+
+            let Some(fix) = fix else {
+                continue;
+            };
+
+            issues.push(textvn_assist::Issue {
+                kind: issue_kind,
+                span: textvn_assist::Span { start, end },
+                message: String::new(),
+                suggestions: vec![suggest_str.to_string()],
+                auto_fixable: true,
+                confidence: raw.confidence as u8,
+                fix: Some(fix),
+            });
+        }
+
+        let Some(plan) = textvn_assist::plan_sentence_fix(sentence, &issues) else {
+            return 0;
+        };
+
+        if plan.replacement.len() >= IME_MAX_SENTENCE_FIX_CHARS
+            || plan.original_tail.len() >= IME_MAX_SENTENCE_FIX_CHARS
+        {
+            return 0;
+        }
+
+        let tail_chars: Vec<char> = plan.original_tail.chars().collect();
+        let glyphs = if !inst.is_null() {
+            let inst_ref = unsafe { &*inst };
+            inst_ref.engine.glyph_len_of(&tail_chars) as u32
+        } else {
+            plan.delete_chars as u32
+        };
+
+        if glyphs == 0 {
+            return 0;
+        }
+
+        out.fixed_count = plan.fixed_count as u32;
+        out.delete_from = plan.delete_from as u32;
+        out.delete_chars = plan.delete_chars as u32;
+        out.delete_glyphs = glyphs;
+        copy_str_to_c_buf(&plan.replacement, &mut out.replacement);
+        copy_str_to_c_buf(&plan.original_tail, &mut out.original_tail);
+
+        1
+    }))
+    .unwrap_or(0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1405,6 +1567,10 @@ mod tests {
     fn assist_abi_sizes_and_offsets() {
         assert_eq!(size_of::<ime_assist_issue_v1>(), 216);
         assert_eq!(size_of::<ime_assist_result_v1>(), 8 + 8 * 216);
+        assert_eq!(
+            size_of::<ime_assist_plan_v1>(),
+            20 + 2 * IME_MAX_SENTENCE_FIX_CHARS
+        );
 
         assert_eq!(offset_of!(ime_assist_issue_v1, kind), 0);
         assert_eq!(offset_of!(ime_assist_issue_v1, start), 4);
@@ -1418,6 +1584,17 @@ mod tests {
         assert_eq!(offset_of!(ime_assist_result_v1, abi_version), 0);
         assert_eq!(offset_of!(ime_assist_result_v1, count), 4);
         assert_eq!(offset_of!(ime_assist_result_v1, issues), 8);
+
+        assert_eq!(offset_of!(ime_assist_plan_v1, abi_version), 0);
+        assert_eq!(offset_of!(ime_assist_plan_v1, fixed_count), 4);
+        assert_eq!(offset_of!(ime_assist_plan_v1, delete_from), 8);
+        assert_eq!(offset_of!(ime_assist_plan_v1, delete_chars), 12);
+        assert_eq!(offset_of!(ime_assist_plan_v1, delete_glyphs), 16);
+        assert_eq!(offset_of!(ime_assist_plan_v1, replacement), 20);
+        assert_eq!(
+            offset_of!(ime_assist_plan_v1, original_tail),
+            20 + IME_MAX_SENTENCE_FIX_CHARS
+        );
     }
 
     #[test]
@@ -1944,5 +2121,173 @@ mod tests {
         assert_eq!(res.count, 0);
 
         ime_instance_free(inst);
+    }
+
+    #[test]
+    fn assist_plan_sentence_fix_happy_path() {
+        let inst = new_default();
+        let sentence = "tôi tôi đi học.";
+        let sentence_c = CString::new(sentence).unwrap();
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(
+            ime_assist_check(sentence_c.as_ptr(), sentence.len(), &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 2);
+
+        let mut plan = ime_assist_plan_v1::zeroed();
+        let ok = ime_assist_plan_sentence_fix(inst, sentence_c.as_ptr(), &res, &mut plan);
+        assert_eq!(ok, 1);
+        assert_eq!(plan.abi_version, IME_ABI_VERSION);
+        assert_eq!(plan.fixed_count, 2);
+        assert_eq!(plan.delete_from, 0);
+        assert_eq!(plan.delete_chars, sentence.chars().count() as u32);
+        assert_eq!(plan.delete_glyphs, sentence.chars().count() as u32);
+
+        let rep = unsafe { CStr::from_ptr(plan.replacement.as_ptr()) }
+            .to_str()
+            .unwrap();
+        let tail = unsafe { CStr::from_ptr(plan.original_tail.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert_eq!(rep, "Tôi đi học.");
+        assert_eq!(tail, "tôi tôi đi học.");
+
+        ime_instance_free(inst);
+    }
+
+    #[test]
+    fn assist_plan_sentence_fix_tail_only_and_null_inst() {
+        let inst = new_default();
+        let sentence = "Tôi tôi đi học.";
+        let sentence_c = CString::new(sentence).unwrap();
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(
+            ime_assist_check(sentence_c.as_ptr(), sentence.len(), &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 1);
+
+        // Test with valid inst
+        let mut plan = ime_assist_plan_v1::zeroed();
+        let ok = ime_assist_plan_sentence_fix(inst, sentence_c.as_ptr(), &res, &mut plan);
+        assert_eq!(ok, 1);
+        assert_eq!(plan.fixed_count, 1);
+        assert_eq!(plan.delete_from, 3);
+        assert_eq!(plan.delete_chars, 12);
+        assert_eq!(plan.delete_glyphs, 12);
+
+        let rep = unsafe { CStr::from_ptr(plan.replacement.as_ptr()) }
+            .to_str()
+            .unwrap();
+        let tail = unsafe { CStr::from_ptr(plan.original_tail.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert_eq!(rep, " đi học.");
+        assert_eq!(tail, " tôi đi học.");
+
+        // Test with NULL inst (fallback to char count)
+        let mut plan_no_inst = ime_assist_plan_v1::zeroed();
+        let ok2 = ime_assist_plan_sentence_fix(
+            std::ptr::null(),
+            sentence_c.as_ptr(),
+            &res,
+            &mut plan_no_inst,
+        );
+        assert_eq!(ok2, 1);
+        assert_eq!(plan_no_inst.delete_glyphs, 12);
+
+        ime_instance_free(inst);
+    }
+
+    #[test]
+    fn assist_plan_sentence_fix_space_before_punct() {
+        let sentence = "đi học .";
+        let sentence_c = CString::new(sentence).unwrap();
+
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert_eq!(
+            ime_assist_check(sentence_c.as_ptr(), sentence.len(), &mut res),
+            IME_OK
+        );
+        assert_eq!(res.count, 2); // lowercase sentence start + space before punct
+
+        let mut plan = ime_assist_plan_v1::zeroed();
+        let ok =
+            ime_assist_plan_sentence_fix(std::ptr::null(), sentence_c.as_ptr(), &res, &mut plan);
+        assert_eq!(ok, 1);
+        assert_eq!(plan.fixed_count, 2);
+        let rep = unsafe { CStr::from_ptr(plan.replacement.as_ptr()) }
+            .to_str()
+            .unwrap();
+        assert_eq!(rep, "Đi học.");
+    }
+
+    #[test]
+    fn assist_plan_sentence_fix_no_issues_and_rejects_bad_args() {
+        let clean = "Tôi đi học.";
+        let clean_c = CString::new(clean).unwrap();
+
+        let mut empty_res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        let mut plan = ime_assist_plan_v1::zeroed();
+
+        // No issues -> 0
+        assert_eq!(
+            ime_assist_plan_sentence_fix(std::ptr::null(), clean_c.as_ptr(), &empty_res, &mut plan),
+            0
+        );
+
+        // Null sentence -> 0
+        assert_eq!(
+            ime_assist_plan_sentence_fix(std::ptr::null(), std::ptr::null(), &empty_res, &mut plan),
+            0
+        );
+
+        // Null result -> 0
+        assert_eq!(
+            ime_assist_plan_sentence_fix(
+                std::ptr::null(),
+                clean_c.as_ptr(),
+                std::ptr::null(),
+                &mut plan
+            ),
+            0
+        );
+
+        // Null out_plan -> 0
+        assert_eq!(
+            ime_assist_plan_sentence_fix(
+                std::ptr::null(),
+                clean_c.as_ptr(),
+                &empty_res,
+                std::ptr::null_mut()
+            ),
+            0
+        );
+
+        // Bad ABI version -> 0
+        empty_res.abi_version = 999;
+        assert_eq!(
+            ime_assist_plan_sentence_fix(std::ptr::null(), clean_c.as_ptr(), &empty_res, &mut plan),
+            0
+        );
     }
 }

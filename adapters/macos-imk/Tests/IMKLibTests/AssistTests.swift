@@ -382,6 +382,44 @@ final class AssistTests: XCTestCase {
         XCTAssertTrue(hasDuplicate || hasSpaceBeforePunct)
     }
 
+    func testEnginePlanSentenceFixDirectFFI() throws {
+        let issue = AssistIssue(
+            kind: FFI.assistKindDuplicateWord,
+            start: 9,
+            end: 12,
+            autoFixable: true,
+            confidence: 95,
+            message: "Lặp từ",
+            suggest: "bạn"
+        )
+        let sentence = "chào bạn bạn nhé."
+
+        // Static helper with [AssistIssue]
+        let plan = ImeEngine.planSentenceFix(sentence: sentence, issues: [issue])
+        XCTAssertNotNil(plan)
+        XCTAssertEqual(plan?.fixedCount, 1)
+        XCTAssertEqual(plan?.deleteFrom, 8)
+        XCTAssertEqual(plan?.originalTail, " bạn nhé.")
+        XCTAssertEqual(plan?.replacement, " nhé.")
+
+        // Static helper with ime_assist_result_v1
+        let result = ImeEngine.encodeAssistResult([issue])
+        XCTAssertEqual(result.count, 1)
+        let planFromRes = ImeEngine.planSentenceFix(sentence: sentence, result: result)
+        XCTAssertEqual(plan, planFromRes)
+
+        // Instance helper with ImeEngine
+        let engine = try ImeEngine(configJSON: nil)
+        let planInst = engine.planSentenceFix(sentence: sentence, result: result)
+        XCTAssertNotNil(planInst)
+        XCTAssertEqual(planInst?.deleteFrom, 8)
+        XCTAssertEqual(planInst?.replacement, " nhé.")
+
+        // Empty sentence or no issues returns nil (fail-open)
+        XCTAssertNil(ImeEngine.planSentenceFix(sentence: "", result: result))
+        XCTAssertNil(ImeEngine.planSentenceFix(sentence: "Chào bạn.", issues: []))
+    }
+
     // ------------------------------------------------------------- 5. Controller flow
 
     func testControllerProcessAssistAutoFixMode() throws {

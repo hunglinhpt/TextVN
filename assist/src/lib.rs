@@ -16,7 +16,7 @@ pub mod mask;
 pub mod rules;
 pub mod tokenize;
 
-pub use fix::{apply_auto_fixes, Fix};
+pub use fix::{apply_auto_fixes, plan_sentence_fix, Fix, SentenceFixPlan};
 pub use tokenize::{tokenize, Token, TokenKind};
 
 /// Loai loi - id on dinh dung cho corpus / CLI / JSON.

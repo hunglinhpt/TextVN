@@ -542,98 +542,103 @@ where
         return None;
     }
 
-    // Thu thập các ứng viên sửa lỗi objective (auto_fixable == true)
-    let mut candidates: Vec<(usize, usize, String)> = Vec::new();
-    for issue in issues {
-        if !issue.auto_fixable {
-            continue;
-        }
-        if issue.start >= issue.end || issue.end > chars.len() {
-            continue;
-        }
-        let Some(suggestion) = issue.suggestion.as_deref() else {
-            continue;
-        };
-        if suggestion.chars().any(char::is_control) {
-            continue;
-        }
+    let core_issues: Vec<textvn_assist::Issue> = issues
+        .iter()
+        .filter_map(|issue| {
+            if !issue.auto_fixable {
+                return None;
+            }
+            if issue.start >= issue.end || issue.end > chars.len() {
+                return None;
+            }
 
-        let span_text: String = chars[issue.start..issue.end].iter().collect();
-        let prev_is_space = issue.start > 0 && chars[issue.start - 1] == ' ';
+            let fix = if issue.kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD {
+                let start = if issue.start > 0 && chars[issue.start - 1] == ' ' {
+                    issue.start - 1
+                } else {
+                    issue.start
+                };
+                Some(textvn_assist::Fix::Delete {
+                    start,
+                    end: issue.end,
+                })
+            } else if issue.kind == textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT {
+                Some(textvn_assist::Fix::Delete {
+                    start: issue.start,
+                    end: issue.end,
+                })
+            } else {
+                let suggestion = issue.suggestion.as_deref()?;
+                if suggestion.chars().any(char::is_control) {
+                    return None;
+                }
+                let span_text: String = chars[issue.start..issue.end].iter().collect();
+                if span_text == suggestion {
+                    return None;
+                }
+                Some(textvn_assist::Fix::Replace {
+                    start: issue.start,
+                    end: issue.end,
+                    text: suggestion.to_string(),
+                })
+            };
 
-        // Ngữ nghĩa `Fix` theo **kind** (xoá span hay thay span) — nguồn duy nhất,
-        // xem [`fix_candidate`]. KHÔNG đoán bằng text
-        // (`span.to_lowercase() == suggestion.to_lowercase()`): L6 ("b" vs "B") ⇒
-        // rơi vào nhánh xoá ⇒ **mất 1 ký tự** (Q-2).
-        let Some(candidate) = fix_candidate(
-            issue.kind,
-            &span_text,
-            suggestion,
-            issue.start,
-            issue.end,
-            prev_is_space,
-        ) else {
-            continue; // span đã đúng ⇒ không có thay đổi
-        };
-        candidates.push(candidate);
-    }
+            let kind = match issue.kind {
+                textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD => {
+                    textvn_assist::IssueKind::DuplicateWord
+                }
+                textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT => {
+                    textvn_assist::IssueKind::SpaceBeforePunct
+                }
+                textvn_ffi::IME_ASSIST_KIND_SPACE_AFTER_PUNCT => {
+                    textvn_assist::IssueKind::SpaceAfterPunct
+                }
+                textvn_ffi::IME_ASSIST_KIND_DOUBLE_SPACE => textvn_assist::IssueKind::DoubleSpace,
+                textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE => {
+                    textvn_assist::IssueKind::LowercaseSentenceStart
+                }
+                textvn_ffi::IME_ASSIST_KIND_DIACRITIC_TYPO => {
+                    textvn_assist::IssueKind::DiacriticTypo
+                }
+                textvn_ffi::IME_ASSIST_KIND_SENTENCE_REPEAT => {
+                    textvn_assist::IssueKind::SentenceRepeat
+                }
+                textvn_ffi::IME_ASSIST_KIND_DOUBLE_NEGATIVE => {
+                    textvn_assist::IssueKind::DoubleNegative
+                }
+                textvn_ffi::IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
+                textvn_ffi::IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
+                _ => return None,
+            };
 
-    if candidates.is_empty() {
-        return None;
-    }
+            Some(textvn_assist::Issue {
+                kind,
+                span: textvn_assist::Span {
+                    start: issue.start,
+                    end: issue.end,
+                },
+                message: issue.message.clone(),
+                suggestions: issue.suggestion.clone().into_iter().collect(),
+                auto_fixable: issue.auto_fixable,
+                confidence: 100,
+                fix,
+            })
+        })
+        .collect();
 
-    // Sắp xếp theo vị trí bắt đầu
-    candidates.sort_by_key(|(start, end, _)| (*start, *end));
-
-    // Lọc bỏ các khoảng chồng lấn
-    let mut non_overlapping: Vec<(usize, usize, String)> = Vec::new();
-    let mut last_end = 0usize;
-    for cand in candidates {
-        if cand.0 < last_end {
-            continue; // Overlap -> bỏ qua để an toàn
-        }
-        last_end = cand.1;
-        non_overlapping.push(cand);
-    }
-
-    if non_overlapping.is_empty() {
-        return None;
-    }
-
-    // delete_from là vị trí bắt đầu của lỗi đầu tiên
-    let delete_from = non_overlapping[0].0;
-    let original_tail: String = chars[delete_from..].iter().collect();
-
-    // Dựng new_tail từ delete_from
-    let mut new_tail = String::with_capacity(original_tail.len());
-    let mut cursor = delete_from;
-    for (start, end, replacement) in &non_overlapping {
-        if *start > cursor {
-            new_tail.extend(chars[cursor..*start].iter());
-        }
-        new_tail.push_str(replacement);
-        cursor = *end;
-    }
-    if cursor < chars.len() {
-        new_tail.extend(chars[cursor..].iter());
-    }
-
-    if new_tail == original_tail {
-        return None; // Không có thay đổi thực tế
-    }
-
-    let glyphs = glyph_len(&original_tail);
+    let p = textvn_assist::plan_sentence_fix(sentence, &core_issues)?;
+    let glyphs = glyph_len(&p.original_tail) as u32;
     if glyphs == 0 {
         return None;
     }
 
     Some(SentenceFixPlan {
-        fixed_count: non_overlapping.len(),
-        delete_from,
-        delete_chars: original_tail.chars().count(),
-        delete_glyphs: u32::try_from(glyphs).ok()?,
-        replacement: new_tail.chars().collect(),
-        original_tail,
+        fixed_count: p.fixed_count,
+        delete_from: p.delete_from,
+        delete_chars: p.delete_chars,
+        delete_glyphs: glyphs,
+        replacement: p.replacement.chars().collect(),
+        original_tail: p.original_tail,
     })
 }
 

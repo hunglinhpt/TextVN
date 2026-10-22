@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 textvn-appdb = { path = "../../appdb" }
+textvn-assist = { path = "../../assist" }
 textvn-config = { path = "../../config" }
 textvn-field-detect = { path = "../../field-detect" }
 textvn-ffi = { path = "../../ffi" }

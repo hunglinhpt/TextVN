@@ -145,30 +145,7 @@ public enum AssistConfigParser {
 }
 
 /// Kế hoạch tự sửa cả câu (AS-050 / Mode 2 / A3) — tương đồng SentenceFixPlan của Windows TSF.
-public struct SentenceFixPlan: Equatable {
-    public let fixedCount: Int
-    public let deleteFrom: Int
-    public let deleteChars: Int
-    public let deleteGlyphs: Int
-    public let replacement: String
-    public let originalTail: String
-
-    public init(
-        fixedCount: Int,
-        deleteFrom: Int,
-        deleteChars: Int,
-        deleteGlyphs: Int,
-        replacement: String,
-        originalTail: String
-    ) {
-        self.fixedCount = fixedCount
-        self.deleteFrom = deleteFrom
-        self.deleteChars = deleteChars
-        self.deleteGlyphs = deleteGlyphs
-        self.replacement = replacement
-        self.originalTail = originalTail
-    }
-}
+public typealias SentenceFixPlan = CoreBridge.SentenceFixPlan
 
 /// Trạng thái hoàn tác của lần tự sửa câu A3 gần nhất (giữ trong 5 giây theo spec P4-0 §4.3).
 public struct AssistUndoState: Equatable {
@@ -251,11 +228,12 @@ public func assistKindName(_ kind: UInt32) -> String {
     }
 }
 
-/// Tính kế hoạch tự sửa câu từ danh sách lỗi của engine (AS-050 / Mode 2 / A3).
+/// Tính kế hoạch tự sửa câu từ danh sách lỗi của engine (AS-050 / Mode 2 / A3)
+/// qua C-ABI chung `ime_assist_plan_sentence_fix`.
 ///
-/// Ngữ nghĩa sửa quyết định theo **kind** của lỗi (`IME_ASSIST_KIND_*`) — khớp
-/// crate `assist` (`assist/src/fix.rs`), `adapters/linux-common/src/compose.c` và
-/// adapter Windows (Q-2): `duplicate_word` / `space_before_punct` ⇒ **xoá** span;
+/// Ngữ nghĩa sửa quyết định theo **kind** của lỗi (`IME_ASSIST_KIND_*`) bởi crate `assist`
+/// (`assist/src/fix.rs`) thống nhất cho cả 3 nền tảng (R-7 / Q-2):
+/// `duplicate_word` / `space_before_punct` ⇒ **xoá** span;
 /// còn lại ⇒ **thay** span bằng `suggest`. KHÔNG đoán bằng text.
 ///
 /// - Parameters:
@@ -268,109 +246,19 @@ public func planSentenceAutoFix(
     issues: [AssistIssue],
     glyphLen: (String) -> Int
 ) -> SentenceFixPlan? {
-    let chars = Array(sentence)
-    guard !chars.isEmpty else { return nil }
-
-    // 1. Thu thập các ứng viên sửa lỗi objective (autoFixable == true)
-    struct Candidate {
-        let start: Int
-        let end: Int
-        let replacement: String
+    let result = ImeEngine.encodeAssistResult(issues)
+    guard let plan = ImeEngine.planSentenceFix(sentence: sentence, result: result) else {
+        return nil
     }
-
-    var candidates: [Candidate] = []
-    for issue in issues {
-        guard issue.autoFixable else { continue }
-        let start = Int(issue.start)
-        let end = Int(issue.end)
-        guard start < end, end <= chars.count else { continue }
-
-        let suggestion = issue.suggest
-        if suggestion.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) {
-            continue
-        }
-
-        let spanText = String(chars[start..<end])
-        let prevIsSpace = start > 0 && chars[start - 1] == " "
-
-        // Ngữ nghĩa `Fix` theo **kind** (khớp crate `assist` (`assist/src/fix.rs`)
-        // và `adapters/linux-common/src/compose.c`):
-        // - `duplicate_word` → **xoá** lần lặp + 1 space liền trước (`Fix::Delete`);
-        // - `space_before_punct` → **xoá** span (khoảng trắng thừa), `suggest`
-        //   chỉ là đầu câu để **hiển thị** (`Fix::Delete`);
-        // - còn lại → **thay** span bằng `suggest` (`Fix::Replace`).
-        //
-        // KHÔNG đoán bằng text (`spanText.lowercased() == suggestion.lowercased()`):
-        // L6 ("chữ thường đầu câu") có span = 1 chữ thường, gợi ý = 1 chữ hoa ⇒
-        // `"b" == "B"` ⇒ rơi vào nhánh **xoá** ⇒ **mất 1 ký tự** (Q-2 —
-        // "Xin chào. bạn khỏe không" → "Xin chào. ạn khỏe không").
-        if issue.kind == FFI.assistKindDuplicateWord && prevIsSpace {
-            // Lặp từ: xoá từ thứ hai cùng dấu cách liền trước (semantics Fix::Delete)
-            candidates.append(Candidate(start: start - 1, end: end, replacement: ""))
-        } else if issue.kind == FFI.assistKindSpaceBeforePunct {
-            // L3 "thừa khoảng trắng trước dấu câu" (P4-0 §5.1): span = KHOẢNG
-            // TRẮNG thừa, còn `suggest` chỉ là **đầu câu để HIỂN THỊ** (dấu
-            // câu). Mô hình sửa của engine là `Fix::Delete` ⇒ phải **XOÁ
-            // span**, KHÔNG thay span bằng `suggest` — thay span sẽ nhân đôi
-            // dấu câu ("chào bạn,,"). Cùng ngữ nghĩa với crate `assist`
-            // (`assist/src/rules/space_before_punct.rs`) và với
-            // `adapters/linux-common/src/compose.c` (đã sửa).
-            candidates.append(Candidate(start: start, end: end, replacement: ""))
-        } else if spanText != suggestion && !suggestion.isEmpty {
-            candidates.append(Candidate(start: start, end: end, replacement: suggestion))
-        }
-    }
-
-    guard !candidates.isEmpty else { return nil }
-
-    // 2. Sắp xếp theo vị trí bắt đầu
-    candidates.sort { $0.start < $1.start }
-
-    // 3. Lọc bỏ các khoảng chồng lấn (overlap)
-    var nonOverlapping: [Candidate] = []
-    var lastEnd = 0
-    for cand in candidates {
-        if cand.start < lastEnd {
-            continue // Overlap -> bỏ qua để an toàn
-        }
-        lastEnd = cand.end
-        nonOverlapping.append(cand)
-    }
-
-    guard !nonOverlapping.isEmpty else { return nil }
-
-    // 4. delete_from là vị trí bắt đầu của lỗi đầu tiên cần sửa
-    let deleteFrom = nonOverlapping[0].start
-    let originalTail = String(chars[deleteFrom...])
-
-    // 5. Dựng new_tail từ deleteFrom
-    var newTail = ""
-    newTail.reserveCapacity(originalTail.count)
-    var cursor = deleteFrom
-    for cand in nonOverlapping {
-        if cand.start > cursor {
-            newTail.append(contentsOf: chars[cursor..<cand.start])
-        }
-        newTail.append(cand.replacement)
-        cursor = cand.end
-    }
-    if cursor < chars.count {
-        newTail.append(contentsOf: chars[cursor...])
-    }
-
-    if newTail == originalTail {
-        return nil // Không có thay đổi thực tế
-    }
-
-    let glyphs = glyphLen(originalTail)
+    let glyphs = glyphLen(plan.originalTail)
     guard glyphs > 0 else { return nil }
 
     return SentenceFixPlan(
-        fixedCount: nonOverlapping.count,
-        deleteFrom: deleteFrom,
-        deleteChars: originalTail.count,
+        fixedCount: plan.fixedCount,
+        deleteFrom: plan.deleteFrom,
+        deleteChars: plan.deleteChars,
         deleteGlyphs: glyphs,
-        replacement: newTail,
-        originalTail: originalTail
+        replacement: plan.replacement,
+        originalTail: plan.originalTail
     )
 }
