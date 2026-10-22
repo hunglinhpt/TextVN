@@ -204,9 +204,9 @@
     "semantic_hash": ""
   },
   "ffi/include/textvn_ffi.h": {
-    "mtime": 1792577084.81677,
-    "seen": 1792589719.0485618,
-    "ast_hash": "412d11b63c49e19eac18908c27635b8b",
+    "mtime": 1792643162.3576355,
+    "seen": 1792643360.3703725,
+    "ast_hash": "9c165e4cc3ab758d67b55dc2099cf370",
     "semantic_hash": ""
   },
   "ffi/src/lib.rs": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "PLAN.md": {
-    "mtime": 1792510332.07104,
-    "seen": 1792510486.70514,
-    "ast_hash": "4a672689f84a8fc6e9d392aece7f5cfd",
+    "mtime": 1792643153.4905467,
+    "seen": 1792643360.385392,
+    "ast_hash": "2921554b5bc9e6c0f7b15f377f91e35a",
     "semantic_hash": ""
   },
   "data/stop_en.txt": {
@@ -1044,9 +1044,9 @@
     "semantic_hash": ""
   },
   "docs/specs/antivirus-false-positive.md": {
-    "mtime": 1791766485.476083,
-    "seen": 1792306932.4933515,
-    "ast_hash": "bc765c49755fc7e78d5114699ee82d8f",
+    "mtime": 1792643144.2547832,
+    "seen": 1792643360.3923872,
+    "ast_hash": "d1ac48265b95b4d9d44334604e13cad4",
     "semantic_hash": ""
   },
   "tray/src/settings_dialog.rs": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/include/linux_common.h": {
-    "mtime": 1792597039.4694157,
-    "seen": 1792597839.393883,
-    "ast_hash": "1e202505cf7818f63ec0d6591af0ba21",
+    "mtime": 1792628213.009666,
+    "seen": 1792643360.3542817,
+    "ast_hash": "6e87ec6f5caf6f7f7ce8d52bab452bd3",
     "semantic_hash": ""
   },
   "adapters/linux-common/src/env.c": {
@@ -1074,9 +1074,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/src/ipc_client.c": {
-    "mtime": 1792597192.8567326,
-    "seen": 1792597839.393883,
-    "ast_hash": "d6869099ba727a211465144591bcddc5",
+    "mtime": 1792628226.2468283,
+    "seen": 1792643360.3542817,
+    "ast_hash": "2d560f3ad33b097c2bf912c262e302f0",
     "semantic_hash": ""
   },
   "adapters/linux-common/src/log.c": {
@@ -1104,9 +1104,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_ipc_client.c": {
-    "mtime": 1792597546.7959063,
-    "seen": 1792597839.393883,
-    "ast_hash": "7cd46ecfecd92269d8e7976769af2c66",
+    "mtime": 1792628315.146467,
+    "seen": 1792643360.3542817,
+    "ast_hash": "5c2a67690460cd992df28d53250f2a2d",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/addon.cpp": {
@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1792608969.4452188,
-    "seen": 1792627840.1601977,
-    "ast_hash": "4e1a96e0e072a34b4551c1d34e34c7ff",
+    "mtime": 1792628250.0818095,
+    "seen": 1792643360.3542817,
+    "ast_hash": "fd884d760f40db7db992654140b01eff",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -1182,9 +1182,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/CMakeLists.txt": {
-    "mtime": 1792601471.9415479,
-    "seen": 1792627840.1826236,
-    "ast_hash": "095bda14d1b93c7d2e2e8c41cc5903ff",
+    "mtime": 1792628254.8555214,
+    "seen": 1792643360.385392,
+    "ast_hash": "87bc1d4909c525bb7400b85c7aeb426c",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/CMakeLists.txt": {
@@ -1212,9 +1212,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.c": {
-    "mtime": 1792602116.7657323,
-    "seen": 1792627840.1601977,
-    "ast_hash": "d355a639137a466b6a662a8e08d01b17",
+    "mtime": 1792628237.1567848,
+    "seen": 1792643360.3558042,
+    "ast_hash": "a2858fd2895a5b48c9f8f39522b63d1d",
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.h": {
@@ -1278,21 +1278,21 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_compose.h": {
-    "mtime": 1792599885.9808931,
-    "seen": 1792600026.376505,
-    "ast_hash": "ca0c9fd0805c1e6af33f6723c8105ede",
+    "mtime": 1792628204.3558788,
+    "seen": 1792643360.3542817,
+    "ast_hash": "27f0ff713bc85eb83aac725811efaefc",
     "semantic_hash": ""
   },
   "adapters/linux-common/src/compose.c": {
-    "mtime": 1792602136.911872,
-    "seen": 1792627840.1592145,
-    "ast_hash": "476a297b376916a326941833d442b936",
+    "mtime": 1792628218.5273476,
+    "seen": 1792643360.3542817,
+    "ast_hash": "7cd9880c9563ae12db0829e2db270604",
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
-    "mtime": 1792602273.0642943,
-    "seen": 1792627840.1601977,
-    "ast_hash": "07f9845ae6125f4fe7b93899661da11d",
+    "mtime": 1792628418.300006,
+    "seen": 1792643360.3542817,
+    "ast_hash": "16b7f43db30282892b4871bde31af501",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/tests/e2e_fcitx5.py": {
@@ -1398,9 +1398,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CTextVNFFI/include/textvn_ffi.h": {
-    "mtime": 1792577084.81677,
-    "seen": 1792589718.9843779,
-    "ast_hash": "412d11b63c49e19eac18908c27635b8b",
+    "mtime": 1792643166.9986653,
+    "seen": 1792643360.3583107,
+    "ast_hash": "9c165e4cc3ab758d67b55dc2099cf370",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/CoreBridge/CoreBridge.swift": {
@@ -1854,9 +1854,9 @@
     "semantic_hash": ""
   },
   "docs/developer-guide.md": {
-    "mtime": 1792297653.8102703,
-    "seen": 1792306932.4923444,
-    "ast_hash": "4ef73116c71e2401fc3813a724948754",
+    "mtime": 1792642676.869803,
+    "seen": 1792643360.390372,
+    "ast_hash": "49811fe4517538916d8758c88050115e",
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
@@ -1890,9 +1890,9 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1792308668.1658268,
-    "seen": 1792308939.4184802,
-    "ast_hash": "6bd7ae1485c44a78ec360d819cb181ba",
+    "mtime": 1792642676.8688178,
+    "seen": 1792643360.3943915,
+    "ast_hash": "ba2a46e843667b818b5880163e089015",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
@@ -2676,9 +2676,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
-    "mtime": 1792599842.5440166,
-    "seen": 1792600026.4287994,
-    "ast_hash": "70b11853f2c20c30349719f2f66eec74",
+    "mtime": 1792643282.2029364,
+    "seen": 1792643360.390372,
+    "ast_hash": "ff71ddd46cc090b01a437c579f3b4767",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {
@@ -2763,6 +2763,18 @@
     "mtime": 1792614125.789028,
     "seen": 1792627840.1876397,
     "ast_hash": "49875fe70e08dd238c3d933195e49949",
+    "semantic_hash": ""
+  },
+  "adapters/linux-common/src/assist_result.c": {
+    "mtime": 1792628190.414639,
+    "seen": 1792643360.3542817,
+    "ast_hash": "88b41a8bc36701eadb528b9f4c449de0",
+    "semantic_hash": ""
+  },
+  "adapters/linux-common/tests/test_assist_result.c": {
+    "mtime": 1792628409.6164584,
+    "seen": 1792643360.3542817,
+    "ast_hash": "7ff08413b2aca2f3cea83247b75bc27b",
     "semantic_hash": ""
   }
 }

@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1792601411.0668757,
-    "seen": 1792627840.1906445,
-    "ast_hash": "d67adfba02027c717601e50f0cf6c765",
+    "mtime": 1792649843.4794292,
+    "seen": 1792649978.4540744,
+    "ast_hash": "7960e8345a683107c381c9ec46279ee5",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1792603348.9969637,
-    "seen": 1792627840.1896446,
-    "ast_hash": "380008a9e01ab2d1480c423e39496383",
+    "mtime": 1792649833.4144807,
+    "seen": 1792649978.4530542,
+    "ast_hash": "55205b4ca7b3262e0bc3d3be1d349ad9",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -2676,9 +2676,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
-    "mtime": 1792643282.2029364,
-    "seen": 1792643360.390372,
-    "ast_hash": "ff71ddd46cc090b01a437c579f3b4767",
+    "mtime": 1792649877.531125,
+    "seen": 1792649978.4510684,
+    "ast_hash": "51442313b2fde75cc7b942c6bbbb65d0",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {
@@ -2775,6 +2775,18 @@
     "mtime": 1792628409.6164584,
     "seen": 1792643360.3542817,
     "ast_hash": "7ff08413b2aca2f3cea83247b75bc27b",
+    "semantic_hash": ""
+  },
+  "tools/win/measure_assist_rss.ps1": {
+    "mtime": 1792643943.541204,
+    "seen": 1792649978.440501,
+    "ast_hash": "f091d0de9888d3a1c42db38365abbb0a",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P4-11-MEASUREMENTS.md": {
+    "mtime": 1792649761.8366175,
+    "seen": 1792649978.4500382,
+    "ast_hash": "35c3e5edd635f66e5f96804391cb57d7",
     "semantic_hash": ""
   }
 }
