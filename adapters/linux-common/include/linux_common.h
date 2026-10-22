@@ -165,11 +165,36 @@ int lc_ipc_client_get_assist_override(const lc_ipc_client *client, int *out_enab
 int lc_ipc_client_toggle_assist(lc_ipc_client *client, int enabled);
 
 /**
- * Send AssistReport to tray (issues count, auto_fixed count).
- * Rule S2 / D8 compliant: DOES NOT send user text/keystrokes.
+ * Send AssistReport to tray (issues + auto_fixed count).
+ *
+ * Q-14: payload mang **tối đa `LC_ASSIST_REPORT_MAX_ISSUES` lỗi** với
+ * `kind`/`span_start`/`span_end`/`message`/`suggestions`/`auto_fixable`/
+ * `confidence` (khớp `schemas/ipc.v1.md` + crate `textvn-ipc`) — **không**
+ * phải `"issues":[]` rỗng. `result == NULL` ⇒ gửi `"issues":[]` (tương thích
+ * với lời gọi cũ/chỉ báo số lỗi đã sửa).
+ *
+ * Rule S2 / D8 compliant: DOES NOT send user text/keystrokes — chỉ các trường
+ * do engine sinh (message/suggestions có thể chứa **đoạn** câu, xem schema).
+ * Trả -1 khi offline / không dựng được payload (buffer không vừa) ⇒ fail-safe,
+ * không gửi frame hỏng.
  */
-int lc_ipc_client_send_assist_report(lc_ipc_client *client, uint32_t issues_count,
+#define LC_ASSIST_REPORT_MAX_ISSUES 3
+/* Đủ cho 3 lỗi có message/suggest bị escape nặng nhất (128/64 byte → \u00XX):
+ * ~1,4 KB mỗi lỗi + khung ⇒ 8 KB an toàn, vẫn nhỏ hơn LC_IPC_MAX_FRAME. */
+#define LC_ASSIST_REPORT_JSON_MAX 8192
+
+int lc_ipc_client_send_assist_report(lc_ipc_client *client,
+                                     const ime_assist_result_v1 *result,
                                      uint32_t auto_fixed_count);
+
+/**
+ * Dựng payload JSON `AssistReport` (hàm THUẦN — test được không cần socket):
+ * `{"type":"AssistReport","issues":[…],"auto_fixed":N}`.
+ * Trả số byte đã ghi (không tính NUL), 0 = buffer không vừa / tham số sai
+ * (khi đó `out[0] == '\0'` và caller **không được** gửi).
+ */
+size_t lc_assist_report_json(const ime_assist_result_v1 *result, uint32_t auto_fixed_count,
+                             char *out, size_t out_len);
 
 /**
  * Send ToggleViEn request to tray.

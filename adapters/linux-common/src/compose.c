@@ -620,6 +620,13 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
             } else {
                 st->assist_auto_fix = LC_ASSIST_AUTO_FIX_OFF;
             }
+            /* D16 (Fassist-20): L6 bị lọc ở adapter khi IME đã tự viết hoa.
+             * Khoá GỐC của config.v1.json (P0-3 §1.1), mặc định schema = true
+             * (`ime_settings_get_bool` đã trả mặc định khi khoá thiếu). */
+            int auto_caps = ime_settings_get_bool(s, "auto_capitalize");
+            st->auto_capitalize = (auto_caps < 0)
+                                      ? LC_ASSIST_DEFAULT_AUTO_CAPITALIZE
+                                      : (auto_caps != 0 ? 1 : 0);
             ime_settings_free(s);
         }
     }

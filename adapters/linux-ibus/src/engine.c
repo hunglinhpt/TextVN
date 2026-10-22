@@ -325,6 +325,15 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
         return plan_eaten;
     }
 
+    /* D16 (Fassist-20) — Q-6: crate `assist` luôn trả L6 ("chữ thường đầu
+     * câu"); khi `config.auto_capitalize` bật thì IME đã tự viết hoa ⇒ báo/sửa
+     * L6 là trùng chức năng. Lọc **sau** khi engine đã check (giữ nguyên các
+     * luật khác) và **trước** cả Mode 2 lẫn Mode 1 ⇒ cả hai đều không thấy L6.
+     * Cùng hàm với Fcitx5 (`lc_assist_filter_auto_capitalize`). */
+    if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&self->config)) == 0) {
+        return plan_eaten;
+    }
+
     const gboolean is_auto_correct_mode =
         lc_assist_should_auto_fix(self->config.assist_mode, self->config.assist_auto_fix,
                                   is_sentence_trigger ? 1 : 0) != 0;
@@ -389,7 +398,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                     self->assist_undo_timestamp_ms = (guint64)(g_get_monotonic_time() / 1000);
                 }
                 if (s_ipc) {
-                    lc_ipc_client_send_assist_report(s_ipc, res.count, fix_plan.fixed_count);
+                    lc_ipc_client_send_assist_report(s_ipc, &res, fix_plan.fixed_count);
                 }
                 return TRUE;
             }
@@ -452,7 +461,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
             ibus_engine_update_lookup_table(engine, self->lookup_table, TRUE);
 
             if (s_ipc) {
-                lc_ipc_client_send_assist_report(s_ipc, res.count, 0);
+                lc_ipc_client_send_assist_report(s_ipc, &res, 0);
             }
         }
     }

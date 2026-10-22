@@ -490,6 +490,15 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         return planEaten;
     }
 
+    /* D16 (Fassist-20) — Q-6: crate `assist` luôn trả L6 ("chữ thường đầu
+     * câu"); khi `config.auto_capitalize` bật thì IME đã tự viết hoa ⇒ báo/sửa
+     * L6 là trùng chức năng. Lọc **sau** khi engine đã check (giữ nguyên các
+     * luật khác) và **trước** cả Mode 2 lẫn Mode 1 ⇒ cả hai đều không thấy L6.
+     * Cùng hàm + cùng đường config với IBus (`lc_config_sync` → `st->config`). */
+    if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&st->config)) == 0) {
+        return planEaten;
+    }
+
     /* R-5 (P4-0 §4.3): Mode 2 = mode "autocorrect" VÀ auto_fix "safe" VÀ
      * trigger **kết thúc câu** — cùng ngữ nghĩa cho cả 3 OS. */
     const bool isAutoCorrectMode =
@@ -575,7 +584,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                     st->assistUndoTimestampMs = nowMs();
                 }
                 if (ipc_) {
-                    lc_ipc_client_send_assist_report(ipc_, res.count, fixPlan.fixed_count);
+                    lc_ipc_client_send_assist_report(ipc_, &res, fixPlan.fixed_count);
                 }
                 return true; /* Consumed: replacement already contains trigger/fix */
             }
@@ -623,7 +632,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
                 assistUiShowing_ = true;
                 if (ipc_) {
-                    lc_ipc_client_send_assist_report(ipc_, res.count, 0);
+                    lc_ipc_client_send_assist_report(ipc_, &res, 0);
                 }
             }
         } catch (...) {

@@ -81,7 +81,7 @@ static void test_offline_fallback(void) {
     uint32_t aseq = 0;
     assert(lc_ipc_client_get_assist_override(client, &override_val, &aseq) == 0);
     assert(lc_ipc_client_toggle_assist(client, 1) == -1);
-    assert(lc_ipc_client_send_assist_report(client, 2, 1) == -1);
+    assert(lc_ipc_client_send_assist_report(client, NULL, 1) == -1);
 
     /* Non-blocking poll returns 0 */
     assert(lc_ipc_client_poll(client) == 0);

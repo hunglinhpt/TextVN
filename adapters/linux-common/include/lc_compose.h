@@ -122,6 +122,11 @@ typedef enum lc_assist_auto_fix {
     LC_ASSIST_AUTO_FIX_SAFE = 1
 } lc_assist_auto_fix;
 
+/* D16 (Fassist-20): mặc định `config.auto_capitalize` — khớp
+ * `Config::default().auto_capitalize` (crate `config`, P0-3 §1.1) và
+ * `settings_model.c` (`get_bool(s, "auto_capitalize", 1)`). */
+#define LC_ASSIST_DEFAULT_AUTO_CAPITALIZE 1
+
 /* ---- config.json / state.json (do textvn-settings ghi — cùng định dạng tray Windows) ---- */
 typedef struct lc_config_state {
     long long mtime_ns;
@@ -133,6 +138,11 @@ typedef struct lc_config_state {
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     int       assist_mode;     /* LC_ASSIST_MODE_* (0=off, 1=highlight, 2=autocorrect) */
     int       assist_auto_fix; /* LC_ASSIST_AUTO_FIX_* (0=off, 1=safe) */
+    /* D16 (Fassist-20): `config.auto_capitalize` của lần nạp **hợp lệ** gần
+     * nhất. Bật ⇒ bỏ lỗi L6 ở tầng adapter (IME đã tự viết hoa ⇒ trùng chức
+     * năng). Đọc trong `lc_config_sync` — cùng đường với `assist_mode`/
+     * `assist_auto_fix`, không mở đường config mới. */
+    int       auto_capitalize;
 } lc_config_state;
 
 /* $XDG_CONFIG_HOME/TextVN/<name> hoặc ~/.config/TextVN/<name>. */
@@ -171,6 +181,29 @@ int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sente
 /* R-6: điểm **hiển thị** (Mode 1 — candidate list) chỉ ở trigger kết thúc câu
  * và khi `assist.mode != "off"` (D11) — hàm thuần, test được. */
 int lc_assist_should_display(int assist_mode, int is_sentence_trigger);
+
+/* ---- D16 (Fassist-20): loại L6 khi `config.auto_capitalize` bật ---- */
+
+/* Crate `assist` **không** đọc config (0-dep, không I/O) ⇒ nó **luôn** trả lỗi
+ * L6 ("chữ thường đầu câu"). Khi `auto_capitalize=true` thì IME đã tự viết hoa
+ * ⇒ báo/sửa L6 là **trùng chức năng** ⇒ lớp adapter (chỗ đọc được config) lọc.
+ *
+ * `lc_assist_auto_capitalize_enabled` — giá trị hiệu lực từ `lc_config_state`:
+ * `st == NULL` hoặc config chưa nạp ⇒ `LC_ASSIST_DEFAULT_AUTO_CAPITALIZE` (1),
+ * khớp `Config::default().auto_capitalize` của crate `config`.
+ *
+ * `lc_assist_filter_auto_capitalize` — lọc **tại chỗ** `result->issues` (giữ
+ * nguyên thứ tự các lỗi khác), trả số lỗi còn lại. Gọi **sau**
+ * `ime_assist_check_instance` và **trước** cả Mode 1 (hiển thị candidate) lẫn
+ * Mode 2 (tự sửa câu) — hai chế độ không bao giờ thấy L6 khi auto_capitalize
+ * bật. `auto_capitalize == 0` ⇒ không đổi gì. Hàm thuần (test: không cần engine). */
+int      lc_assist_auto_capitalize_enabled(const lc_config_state *st);
+uint32_t lc_assist_filter_auto_capitalize(ime_assist_result_v1 *result, int auto_capitalize);
+
+/* Mã loại lỗi ổn định cho wire format (`AssistReport.issues[].kind` — khớp
+ * `IssueKind::as_str()` của crate `assist`, macOS `assistKindName` và
+ * `schemas/ipc.v1.md`). Mã lạ → "unknown". */
+const char *lc_assist_kind_name(uint32_t kind);
 
 /* Đọc trực tiếp assist.mode và assist.auto_fix từ config.json. */
 int lc_config_read_assist_mode(const char *path, int default_mode);

@@ -567,17 +567,21 @@ int lc_ipc_client_toggle_assist(lc_ipc_client *client, int enabled) {
     return 0;
 }
 
-int lc_ipc_client_send_assist_report(lc_ipc_client *client, uint32_t issues_count,
+int lc_ipc_client_send_assist_report(lc_ipc_client *client,
+                                     const ime_assist_result_v1 *result,
                                      uint32_t auto_fixed_count) {
     if (!client || client->fd < 0 || !client->is_online) return -1;
 
-    (void)issues_count;
-    char msg[128];
-    snprintf(msg, sizeof(msg),
-             "{\"type\":\"AssistReport\",\"issues\":[],\"auto_fixed\":%u}",
-             (unsigned)auto_fixed_count);
+    /* Q-14: payload có `issues[]` thật (tối đa LC_ASSIST_REPORT_MAX_ISSUES) —
+     * trước đây luôn `"issues":[]` nên tray mất chi tiết lỗi (macOS gửi đủ).
+     * Dựng bằng hàm thuần `lc_assist_report_json` (test được không cần socket);
+     * không vừa buffer ⇒ KHÔNG gửi (fail-safe: thà mất toast còn hơn frame hỏng
+     * làm server đóng kết nối). */
+    char msg[LC_ASSIST_REPORT_JSON_MAX];
+    size_t len = lc_assist_report_json(result, auto_fixed_count, msg, sizeof(msg));
+    if (len == 0) return -1;
 
-    if (lc_ipc_send_frame(client->fd, msg, strlen(msg)) != 0) {
+    if (lc_ipc_send_frame(client->fd, msg, len) != 0) {
         client_disconnect(client);
         return -1;
     }

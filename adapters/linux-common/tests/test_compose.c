@@ -241,8 +241,13 @@ static void test_config_sync(void) {
     ime_instance *inst = engine_with(NO_CAPS);
     lc_config_state st;
     memset(&st, 0, sizeof(st));
+    /* D16: chưa nạp config ⇒ auto_capitalize hiệu lực = mặc định schema (1). */
+    assert(lc_assist_auto_capitalize_enabled(&st) == 1);
     assert(lc_config_sync(inst, &st, path) == 1);
     assert(lc_config_sync(inst, &st, path) == 0 && "không đổi → không nạp lại");
+    /* D16: đọc qua đúng đường config của assist (lc_config_sync → lc_config_state). */
+    assert(st.auto_capitalize == 0);
+    assert(lc_assist_auto_capitalize_enabled(&st) == 0);
 
     doc d;
     memset(&d, 0, sizeof(d));
@@ -253,13 +258,16 @@ static void test_config_sync(void) {
     assert(lc_config_sync(inst, &st, "/nonexistent/config.json") == 0);
     assert(st.allow_macro_when_vi_off == 0);
 
-    /* Đổi file → nạp lại và đọc cờ gõ tắt khi tắt VN. */
+    /* Đổi file → nạp lại và đọc cờ gõ tắt khi tắt VN. Khoá `auto_capitalize`
+     * thiếu ⇒ mặc định schema = bật (D16). */
     const char *with_flag = "{\"config_version\":1,\"method\":\"vni\",\"allow_macro_when_vi_off\":true}";
     FILE *f = fopen(path, "wb");
     assert(f && fwrite(with_flag, 1, strlen(with_flag), f) == strlen(with_flag));
     fclose(f);
     assert(lc_config_sync(inst, &st, path) == 1);
     assert(st.allow_macro_when_vi_off == 1);
+    assert(st.auto_capitalize == 1);
+    assert(lc_assist_auto_capitalize_enabled(&st) == 1);
 
     /* Config hỏng: engine giữ config cũ → cờ cũng giữ nguyên. */
     f = fopen(path, "wb");
@@ -267,6 +275,7 @@ static void test_config_sync(void) {
     fclose(f);
     assert(lc_config_sync(inst, &st, path) == 1);
     assert(st.allow_macro_when_vi_off == 1);
+    assert(st.auto_capitalize == 1);
     ime_instance_free(inst);
     unlink(path);
 }
@@ -495,6 +504,56 @@ static void test_assist_auto_fix_spacing_punct(void) {
     ime_instance_free(inst);
 }
 
+/* Q-6 / D16 (Fassist-20): L6 ("chữ thường đầu câu") phải bị lọc ở adapter khi
+ * `config.auto_capitalize=true`, cho **cả** Mode 1 (hiển thị) và Mode 2 (tự sửa)
+ * — dùng đúng chuỗi "Xin chào. bạn khỏe không" của corpus/assist/vi_basic.ass.
+ *
+ * Mode 2 dùng `lc_plan_sentence_auto_fix` (compose.c — cần POSIX) nên test này
+ * nằm ở đây (chạy CI Linux); phần hàm thuần + engine nằm ở test_assist_result.c
+ * (chạy được cả Windows). */
+static void test_assist_l6_auto_capitalize_mode2(void) {
+    const char *cfg = "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"assist\":{\"mode\":\"autocorrect\",\"auto_fix\":\"safe\"}}";
+    ime_instance *inst = engine_with(cfg);
+    doc d;
+    memset(&d, 0, sizeof(d));
+    /* Telex: "Xin chaof. bajn khoer khoong." → "Xin chào. bạn khỏe không." */
+    type_str(&d, inst, "Xin chaof. bajn khoer khoong.");
+
+    ime_assist_result_v1 res;
+    memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    assert(ime_assist_check_instance(inst, &res) == IME_OK);
+
+    int l6 = 0;
+    for (uint32_t i = 0; i < res.count; ++i) {
+        if (res.issues[i].kind == IME_ASSIST_KIND_LOWERCASE_SENTENCE) l6++;
+    }
+    assert(l6 == 1 && "câu corpus phải có đúng 1 lỗi L6");
+
+    char tail[256 * 4 + 1];
+    size_t tail_len = 0;
+    assert(ime_assist_sentence_tail(inst, 256, tail, sizeof(tail), &tail_len) == IME_OK);
+    assert(tail_len > 0 && tail_len < sizeof(tail));
+    tail[tail_len] = '\0';
+
+    /* auto_capitalize=false ⇒ Mode 2 VẪN tự sửa L6 (hành vi cũ, không đổi). */
+    lc_sentence_fix_plan plan;
+    assert(lc_plan_sentence_auto_fix(inst, tail, &res, &plan) == 1);
+    assert(plan.fixed_count == 1);
+    assert(plan.delete_glyphs > 0);
+    assert(plan.replacement[0] == 'B'); /* "bạn" → "Bạn" (span 10..11) */
+
+    /* auto_capitalize=true ⇒ adapter lọc L6 TRƯỚC khi lập kế hoạch ⇒ Mode 2
+     * không sửa gì (không trùng chức năng với auto_capitalize). */
+    ime_assist_result_v1 filtered = res;
+    assert(lc_assist_filter_auto_capitalize(&filtered, 1) == 0);
+    lc_sentence_fix_plan blocked;
+    assert(lc_plan_sentence_auto_fix(inst, tail, &filtered, &blocked) == 0);
+
+    ime_instance_free(inst);
+}
+
 int main(void) {
     test_classify();
     test_typing();
@@ -507,6 +566,7 @@ int main(void) {
     test_assist_auto_fix_sentence();
     test_assist_mode_semantics();
     test_assist_auto_fix_spacing_punct();
+    test_assist_l6_auto_capitalize_mode2();
     test_macro_when_vi_off();
     test_find_settings_binary();
     printf("test_compose: OK\n");
