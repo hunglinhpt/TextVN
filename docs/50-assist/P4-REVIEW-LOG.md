@@ -286,3 +286,33 @@
 **Cập nhật 2026-10-21 (vòng R, AS-050/AS-060 — 14 finding `R-1…R-14`):** Phần 4 nay có **124 finding** (110 `Fassist` + 8 ID tạm + 14 `R`) + **8 việc còn mở** (`Fassist-*` 10 → 10 việc cũ vẫn nguyên) + **3 việc mới** (R-6 IBus chưa nối · R-7 gộp 3 bản sao logic · R-13 config Swift 2 nguồn sự thật) và **5 việc đang sửa** ở lane Fcitx5 (R-4/R-5/R-9/R-11/R-12).
 **Trạng thái thật sau vòng R:** Windows TSF — **code xong** (overlay + A2 + A3) nhưng **chưa verify tay** ⇒ ⏳ · macOS IMK — **đã nối**, còn lỗi ⇒ ⏳ · Linux — **Fcitx5 đã nối** (còn lỗi) / **IBus chưa làm** ⇒ ⏳ · **Settings cả 3 OS chưa có UI cho assist** ⇒ ✗.
 **Quy trình:** đã bổ sung luật **G17** (`docs/00-WORKFLOW.md`) — *không tick ✅ khi CI của commit đó còn đỏ; tick ✅ phải kèm bằng chứng CI xanh (+ verify tay)* — do sự cố commit `c701600` push khi CI đỏ mà task đã tick ✅.
+
+---
+
+## VÒNG Q — Review 3 vòng sau loạt fix R (SA/QA → Audit → PO/UX) — 2026-10-22 (`Q-1…Q-14`)
+
+**Vai trò:** 3 vòng độc lập trên 6 commit `50f7996` · `30da75b` · `95ee211` · `f630ff6` · `8a277e1` · `cc7e0f1`.
+**Số finding:** 14 (`Q-1…Q-14`) — **2 blocker**, **5 major**, **7 minor**. Đã sửa **12/14**.
+
+| ID | Mức | Finding | Bằng chứng | Trạng thái |
+|---|---|---|---|---|
+| Q-1 | **BLOCKER** | **Fcitx5 xoá 0 ký tự ⇒ nhân đôi câu.** Code gọi `deleteSurroundingText(-n, 0)`; API fcitx5 là `deleteSurroundingText(int offset, unsigned size)` — tham số 2 là **số ký tự cần xoá** ⇒ size=0 ⇒ đuôi câu cũ không bị xoá rồi `commitString` chèn thêm ⇒ hỏng **mọi** Mode 2 / chọn ứng viên Mode 1 / undo | Header fcitx5 `inputcontext.h` + `dbusfrontend.cpp` (`"iu"`) + so chuẩn IBus `(-n, n)` | ✅ Sửa `a0a4ee6` (`(-n, n)` mọi call site) + test đếm **số ký tự bị xoá** |
+| Q-2 | **BLOCKER** | (a) Fcitx5 coi `SurroundingText::cursor()` là **byte** ⇒ cắt sai với tiếng Việt ⇒ precondition **luôn lệch** ⇒ Mode 1/2/undo không bao giờ chạy; (b) Windows/macOS dùng heuristic chuỗi (`span.lower == suggest.lower`) ⇒ lỗi **L6 ở vị trí > 0 bị XOÁ** thay vì thay bằng chữ hoa ("Xin chào. bạn…" → "Xin chào. ạn…") | upstream: `setText()` dùng `utf8::lengthValidated` = **ký tự**; Linux `compose.c` quyết định theo `kind` | ✅ (a) `a0a4ee6` — dùng `utf8::ncharByteLength` + so theo ký tự + test FAIL trên bản cũ; (b) `e4dfdec` — bỏ heuristic, quyết định theo `kind` (bắt chước Linux) |
+| Q-3 | **MAJOR** | **Windows: Ctrl+Z undo không bao giờ chạy** — `clear_assist_undo()` chạy **trước** khi kiểm phím modifier ⇒ vừa nhấn **Ctrl** đã xoá state | `key_event.rs` (thứ tự) vs Linux/macOS (`return` trước) | ✅ `e4dfdec` — chỉ clear khi phím **sinh ký tự** |
+| Q-4 | **MAJOR** | **macOS: app không có case `AssistReport`** ⇒ `protocolViolation` ⇒ **đóng kênh IPC** mỗi lần assist báo (mất toggle V/E · kill-switch · snapshot) | `IpcServer.swift` default-nhánh vs `IpcClient.send(.assistReport)` | ✅ `10bc694` — thêm `AssistReport`/`ToggleAssist` → `Ack`, **không log nội dung message** (S2), gate theo abi peer |
+| Q-5 | **MAJOR** | **Windows: `glyph_len_of` fallback `chars().count()`** khi FFI lỗi ⇒ sai với VNI/TCVN3 (1 glyph = nhiều char) ⇒ xoá lệch vị trí | `lib.rs` vs macOS đã trả 0 | ✅ `e4dfdec` — trả **0** (fail-safe ⇒ không sửa) + test |
+| Q-6 | **MAJOR** | **D16 chưa hiện thực**: adapter không lọc **L6** khi `auto_capitalize=true` (mặc định bật) ⇒ IME đã tự viết hoa mà TextVN vẫn báo/sửa ⇒ trùng chức năng; lệch cả 3 OS | `assist` crate 0-dep (không đọc config) — lọc phải ở adapter | ✅ `68b80d3` (Windows + macOS, dùng đúng đường config sẵn có) + `765e2e7` (Linux: `lc_assist_filter_auto_capitalize` dùng chung IBus/Fcitx5) |
+| Q-7 | **MAJOR** | **Compliance**: corpus Tatoeba (CC BY 2.0 FR) không có attribution thật; `REUSE.toml` blanket khai **GPL cho cả corpus**; `docs/compliance/` thiếu file; `P4-12` khẳng định sai | `LICENSES/` (3 file, thiếu Tatoeba) · `REUSE.toml` blanket `**` | ✅ `f9e9b4b` — `LicenseRef-Tatoeba` + REUSE override + `docs/compliance/tatoeba-attribution.md` + sửa claim |
+| Q-8 | minor | macOS chưa kiểm **selection rỗng** trước khi sửa ⇒ `insert(NSRange(NSNotFound,0))` có thể nuốt selection của người dùng | Windows đã có `sel.IsEmpty()` | ✅ `68b80d3` |
+| Q-9 | minor→major | **macOS bỏ qua kill-switch D20** (`state["assist"]` không được áp) ⇒ chỉ tắt được qua file config | `TextVNInputController.swift` chỉ áp ViState | ✅ `10bc694` — `ViStateStore.assistEnabled` + gate mọi đường assist |
+| Q-10 | minor | `assist.display.idle_ms` **chưa dùng ở OS nào** — hiển thị Mode 1 chỉ theo trigger kết thúc câu (**D43** thay idle 700 ms chưa triển khai) | grep `idle_ms` — chỉ có trong config/schema/UI | ❌ **Còn mở** — đã ghi quyết định **D43**; hoặc triển khai idle 700 ms, hoặc bỏ khoá khỏi schema/UI ở v1.1 |
+| Q-11 | minor | Docs stale sau các fix Q (P4-TASKS/parity-checklist chưa phản ánh D16 + IPC `AssistReport`) | — | 🔄 Cập nhật khi chốt verify tay |
+| Q-12 | minor | Comment trong Swift mô tả sai hành vi (idle_ms / cơ chế sửa) sau khi đổi sang lọc theo `kind` | — | ❌ **Còn mở** (sửa cùng lane R-13 gộp `assist.*`) |
+| Q-13 | minor | `tools/assist/score_real.py` chỉ theo dõi `assist/src` + `cli/src` ⇒ **cảnh báo "binary cũ"** không bắt thay đổi ở `core/ffi/dict/config` ⇒ số đo recall/FPR có thể lấy từ binary lệch | `SOURCE_DIRS` | ✅ `10bc694` — thêm `core/src`, `ffi/src`, `dict/src`, `config/src` |
+| Q-14 | minor | Linux gửi `AssistReport` với `"issues":[]` **rỗng** ⇒ tray mất chi tiết lỗi (macOS gửi đủ) | `ipc_client.c` hard-code payload | ✅ `765e2e7` — `lc_assist_report_json()` (hàm thuần, test được): tối đa 3 lỗi `kind/span/message/suggestions/auto_fixable/confidence`, escape JSON, fail-safe khi không vừa buffer |
+
+**Bằng chứng CI (G17):** `595dbeb` (chứa toàn bộ code của `765e2e7`) — **6/6 workflow xanh**: ci-linux · ci-windows · ci-macos · ci-shared · ci-deb · ci-aur. Riêng `68b80d3` từng **đỏ** ci-macos (`decoded` là `let`) → sửa `774f7b9`, CI xanh lại — ghi lại để giữ vết (G13).
+
+**Giới hạn verify (trung thực):**
+- C test `test_assist_result` chạy **thật** trên Windows host (link `textvn_ffi.lib`) → `PASS`; C++/C còn lại (fcitx5/IBus) mới **CI Linux** cover (không có desktop session trên máy này).
+- **Chưa verify tay GUI** (overlay Windows / IMK macOS / IBus-Fcitx5 panel) sau loạt fix Q ⇒ **chưa** tick ✅ các task AS-060/parity liên quan (vẫn ⏳ theo **G17**).
