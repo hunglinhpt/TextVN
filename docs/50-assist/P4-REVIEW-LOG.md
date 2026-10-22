@@ -40,7 +40,7 @@
 | Fassist-9 | minor | `00-INDEX.md` §1 chưa liệt kê Phần 4 | ✅ Fixed @604434c |
 | Fassist-10 | minor | `PLAN.md` §2.3 chưa trỏ Phần 4 | ✅ Fixed @604434c |
 | Fassist-11 | minor | `antivirus-false-positive.md` §8 chưa có dòng Assist | ✅ **Đã xử lý** — thêm A14 vào §8.1 + §8.4 (0 network, 0 new process, 0 content log) |
-| Fassist-12 | minor | Thiếu checklist manual (overlay/parity UI) 3 OS | 🟡 Một phần — `parity-checklist.md` đã có dòng `assist.*` (trạng thái 3 OS); còn chờ hoàn thiện Cài đặt 3 OS (P4-6) |
+| Fassist-12 | minor | Thiếu checklist manual (overlay/parity UI) 3 OS | ✅ **Đã xử lý** — hoàn thiện UI Settings 3 OS (@7ae12cb) + bổ sung §8.4 Checklist kiểm thử thủ công 8 bước trong `docs/release/ui-spec.md` + `parity-checklist.md` dòng 58 |
 
 ---
 
@@ -135,7 +135,7 @@
 | Fassist-60 | minor | Từ điển GPLv2 → phái sinh FST phải attribution + REUSE | ✅ Đã thực hiện (thuộc P4-4) + chốt lại ở Fassist-98/ADR-014 |
 | Fassist-61 | minor | S4a đo trên tiến trình CLI ≠ TIP in-process | ❌ **Còn mở** — phải đo lại trong TIP/IME thật ở P4-2 |
 | Fassist-62 | minor | Từ điển 6.642 từ đơn → recall có thể không đạt | 🟡 Đã đo (AS-041/Damerau: recall 100% trên corpus lỗi); con số recall/FPR "từ điển thật" vẫn phụ thuộc v2 (Fassist-100) |
-| Fassist-63 | minor | macOS dùng toast ≠ trải nghiệm 2 OS kia | ❌ **Còn mở** → ghi parity-checklist; macOS adapter chưa nối assist ✗ |
+| Fassist-63 | minor | macOS dùng toast ≠ trải nghiệm 2 OS kia | ✅ **Đã xử lý** — macOS dùng `IMKCandidates` panel chuẩn cho Mode 1 và auto-fix Backspace+Type Mode 2; `parity-checklist.md` đã cập nhật macOS ⏳ chờ verify máy thật |
 | Fassist-64 | minor | S4b giữ D9 (không sửa) | ✅ Không thay đổi |
 | Fassist-65 | **major** | 2 call site có hậu kỳ hậu-encode (site 523 cắt `MAX_TEXT` sau `emit`) | ✅ Đã xử lý qua recipe P4-2a sạch (`record()` giữ semantics, oracle = test `core` không đổi — AS-020 143/143 pass) |
 | Fassist-66 | minor | `recent.pop()` xoá 1 glyph vs `sentence` 1 char Unicode | ✅ Xác nhận 2 buffer tách bạch (D24/D27) trong P4-2a |
@@ -218,7 +218,7 @@
 | P4-10-F5 | minor | `hasCorrection` không public trên `NSSpellChecker` | ✅ Đã sửa spec |
 | P4-10-F6 | minor | `checkGrammar` có nhưng dùng sẽ lệch hành vi 3 OS | ✅ Giữ F68 (không dùng v1) |
 | P4-10-F7 | minor | libspelling kéo GTK4 vào engine ⇒ enchant-2 trực tiếp làm mặc định Linux | ✅ Chọn enchant-2 (AS-042) |
-| P4-10-F8 | minor | `cargo-deny` không kiểm soát license thư viện C ⇒ thêm `docs/compliance/` | ❌ **Còn mở** (compliance hiện chỉ có `naming-check.md`) |
+| P4-10-F8 | minor | `cargo-deny` không kiểm soát license thư viện C ⇒ thêm `docs/compliance/` | ✅ **Đã xử lý** — tạo `docs/compliance/assist-os-provider.md` + cập nhật privacy notice trong `PRIVACY_POLICY.txt` |
 
 > (*) ID tạm **chờ chủ P4-TASKS cấp số** — bảng này ghi nhận ánh xạ sang `Fassist-*` đã cấp số; không tự gán mã mới (G3).
 
@@ -260,7 +260,7 @@
 | **Đã đóng** (xử lý trong plan/code/docs đã sửa) | 1, 3–11, 13–27, 28–45, 46–57, 59, 60, 64–79, 84–97, 103–110 | Thể hiện qua D1–D40, ADR-012/013/014, P4-TASKS ✅ (AS-001…060), hoặc docs/code đã sửa |
 | **Superseded / đổi phân loại, giữ ID theo G6** | 2 (sai tiền đề → superseded bởi 32) · 56 (minor → major sau spike, rồi đã sửa) | ID không xoá |
 | **Chấp nhận có ghi lý do (hết trách nhiệm v1)** | 74 (pop 1 char = hướng bảo toàn) · 80–83 (số đo "kỳ vọng" trên corpus mẫu — cần corpus thật + 2 người đánh giá) · 100, 102 (từ điển FST → v2) | Không còn hành động bắt buộc v1 |
-| **Còn MỞ** | 12 (một phần), 58, 63, 99, 101 | Xem danh sách bàn giao bên dưới |
+| **Còn MỞ** | 58, 99, 101 | Xem danh sách bàn giao bên dưới |
 | **Vòng R (AS-050/AS-060) — ĐÃ SỬA** | R-1, R-2, R-3, R-4, R-5, R-6, R-8, R-9, R-10, R-11, R-12, R-14 | Tick sai + tick khi CI đỏ + docs stale + IBus nối (@f630ff6) + Fcitx5 (precondition D12, undo A3, semantics lặp từ, span UTF-8) → đã sửa: `P4-TASKS.md` · `docs/00-WORKFLOW.md` (**G17**) · `docs/release/parity-checklist.md` · `docs/release/ui-spec.md` (§8) |
 | **Vòng R — CÒN MỞ** | R-7, R-13 | gộp 3 bản sao logic plan sửa câu (G15) · `assist.*` 2 nguồn sự thật trong Swift |
 
@@ -270,10 +270,7 @@
 |---|---|---|
 | Fassist-58 | **2 người đánh giá độc lập** trên corpus thật (≥ 300 câu có lỗi, thống nhất ≥ 80%) trước khi recall/FPR thành gate CI / bật tính năng từng luật (D19) | Gate trước khi mở `mode≠off` cho user |
 | Fassist-101 | **Đo lại RSS/binary/p95 khi bật luật cần từ điển FST/OS provider** (v2) | Backlog v2 Phần 4 (Fassist-61 in-proc RSS đã đo xong: `P4-11-MEASUREMENTS.md` + `verified-ops.md` B17) |
-| Fassist-63 | Parity macOS: toast ≠ quy hoạch 2 OS kia; parity-checklist ghi macOS ✗ (adapter chưa nối assist) | P4-6/AS-060 lane sau |
-| Fassist-12 (một phần) | Checklist manual UI/overlay 3 OS đầy đủ (khi Settings 3 OS nối assist) | P4-6 (Settings) + `parity-checklist.md` |
 | Fassist-99 | Thông báo/patch upstream `hunspell-vi` + ghi `docs/compliance/` (phái sinh FST) | `docs/compliance/` khi HLS v2 |
-| P4-10-F8 | `docs/compliance/assist-os-provider.md` + `LICENSES/` cho libspelling/enchant (LGPL, link động) + privacy notice "text rời tiến trình" (P4-10 §7.3.4) | `docs/compliance/` + `antivirus-false-positive.md` |
 | P4-10 §9 (10 mục) | ⚠️ Chưa verify được (không có máy thật tương ứng): `availableLanguages` có `vi`; độ trễ NSSpellChecker/block main; provider Windows có gửi mạng không; `RPC_E_CANTCALLOUT` trong edit session; user dictionary đọc được; Δsize/ΔRSS `Win32_Globalization`… | Verify khi code/probe OS provider tương ứng |
 | v2 (Fassist-100/102) | Luật spelling dùng trait `Dictionary` + đo recall/FPR có từ điển + nguồn từ điển **permissive/CC0** | Backlog v2 Phần 4 |
 | **R-7** | **Gộp 3 bản sao** logic "plan sửa câu" (Rust `assist.rs` · Swift `AssistModel.swift` · C `compose.c`) thành **1 nguồn sự thật** (crate `assist` + FFI) — hiện tại vi phạm **G15** và đã sinh lệch hành vi (R-9) | P4-6 / refactor chung sau khi lane Linux ổn định |

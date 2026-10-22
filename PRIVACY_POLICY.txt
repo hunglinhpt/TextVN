@@ -1,7 +1,7 @@
 PRIVACY POLICY — TextVN (Vietnamese Input Method)
 =================================================
 
-Last updated / Cập nhật: October 9, 2026
+Last updated / Cập nhật: October 22, 2026
 Developer / Nhà phát triển: LinhBH.CoM (Vietnam)
 Contact / Liên hệ: https://github.com/hunglinhpt/TextVN/issues
 
@@ -47,6 +47,13 @@ WHAT WE COLLECT: NOTHING.
    the Store package, that check unregisters the input method and deletes
    those copied files; the tray menu item "Gỡ cài đặt" does the same
    immediately and then opens Settings > Apps.
+8. Grammar and Spelling Assist (Optional, Off by Default): The Assist
+   feature operates entirely offline and in-process. Keystroke content is
+   never logged or stored. When using operating-system spellcheck integration
+   (Windows Spell Checking API, macOS NSSpellChecker, Linux Enchant),
+   queries are handled by local operating-system components without any network
+   transmission by TextVN. The feature is disabled by default and can be turned
+   off at any time in Settings or the tray menu.
 
 CHILDREN'S PRIVACY: TextVN does not collect any data from any user of any
 age, so there is nothing to protect or disclose.
@@ -91,7 +98,14 @@ CHÚNG TÔI THU THẬP: KHÔNG CÓ GÌ.
    Khi bạn gỡ gói Store, bước kiểm tra đó gỡ đăng ký bộ gõ và xoá các tệp đã
    chép; mục "Gỡ cài đặt" ở menu khay làm việc này ngay rồi mở Cài đặt ›
    Ứng dụng.
-8. Quyền riêng tư của trẻ em: TextVN không thu thập dữ liệu của người dùng
+8. Trợ lý ngữ pháp và chính tả (Tùy chọn, mặc định tắt): Tính năng Trợ lý
+   ngữ pháp hoạt động hoàn toàn cục bộ (offline) trong tiến trình. Nội dung gõ
+   phím không bao giờ bị ghi lại hay lưu trữ. Khi sử dụng kiểm tra chính tả của
+   hệ điều hành (Windows Spell Checking API, macOS NSSpellChecker, Linux Enchant),
+   các truy vấn được xử lý bởi thành phần nội bộ của hệ điều hành và không có dữ
+   liệu nào được TextVN gửi qua mạng. Tính năng này mặc định tắt và có thể bật/tắt
+   bất kỳ lúc nào trong Cài đặt hoặc menu khay.
+9. Quyền riêng tư của trẻ em: TextVN không thu thập dữ liệu của người dùng
    ở mọi lứa tuổi.
 
 CHÍNH SÁCH NÀY THAY ĐỔI KHI NÀO: tệp này là nguồn chân lý duy nhất, nằm

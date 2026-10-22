@@ -135,9 +135,9 @@ Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật
 > §4.1–§4.5 + §6 (D4 · D11 · D12 · D13 · D30 · D38) · định dạng render chuẩn:
 > `textvn-cli assist show` (D38) · code Windows: `adapters/windows-tsf/src/assist.rs` (`OverlayView`).
 >
-> **Trạng thái parity (2026-10-21, xem `parity-checklist.md` §4):** Windows ⏳ (overlay đã nối, **chưa verify tay**) ·
-> macOS ⏳ (đã nối, còn lỗi đang sửa) · Linux ⏳ (**Fcitx5** đã nối / **IBus chưa làm**) ·
-> **Settings cả 3 OS chưa có UI cho assist** — hiện chỉ sửa được trong file config, mặc định `assist.mode = "off"`.
+> **Trạng thái parity (cập nhật 2026-10-22, CI 7/7 xanh):** Windows ⏳ (overlay TSF/Mode 1 + Mode 2/A3, chờ verify GUI app thật) · macOS ⏳ (`AssistModel.swift` + IMK candidate + `Cmd+Z` undo, chờ verify máy thật) · Linux ⏳ (Fcitx5 và IBus đều đã nối + precondition D12 + undo, chờ verify máy thật) · **Settings cả 3 OS ✓** (khung "Trợ lý ngữ pháp" Win32/SwiftUI/GTK4 nhãn khớp nhau). Mặc định tắt hoàn toàn (`mode:"off"`, `auto_fix:"off"`).
+
+
 
 ### 8.1 Nội dung panel
 
@@ -166,3 +166,16 @@ Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật
 - **Mode 2 — "tự sửa cả câu" (A3)**: chỉ luật **objective** được tự sửa; có **precondition D12** (caret ở cuối câu + câu do chính ta gõ) → thiếu precondition thì **không sửa, chỉ gợi ý**; hộp thoại "Đã sửa N lỗi" + `Ctrl+Z` (giữ **5 s**).
 - **A11y/riêng tư**: nhãn tiếng Việt · bàn phím đầy đủ · dark mode · **không** đưa nội dung câu vào accessibility tree; **không** log/ghi file nội dung câu (chỉ số lỗi) — S2.
 - **Điểm kiểm tra ≠ điểm hiển thị** (D11): `space` `,` `;` `:` chỉ kiểm tra **im lặng**, không hiện panel.
+
+### 8.4 Checklist kiểm thử giao diện thủ công (Manual UI Verification Checklist)
+
+| STT | Bước kiểm thử | Thao tác | Kết quả mong muốn | Windows (TSF) | macOS (IMK) | Linux (Fcitx5/IBus) |
+|---|---|---|---|:---:|:---:|:---:|
+| 1 | Cài đặt mặc định | Mở bảng Cài đặt | Nhóm "Trợ lý ngữ pháp": Chế độ = "Tắt", Tự động sửa = "Tắt" (làm mờ khi Chế độ = Tắt) | □ | □ | □ |
+| 2 | Bật Mode 1 (Chỉ gợi ý) | Chọn Chế độ = "Chỉ gợi ý", lưu | Icon nhận cấu hình qua IPC; gõ câu có lỗi (`tôi tôi đi học.`) | Hiện popup/candidate list cạnh con trỏ với 1-3 lỗi; không tự sửa text | □ | □ | □ |
+| 3 | Chọn gợi ý Mode 1 | Bấm phím chọn lỗi (1/Enter/click) | Thay thế lỗi bằng từ gợi ý qua Backspace+Type; caret ở vị trí hợp lệ | □ | □ | □ |
+| 4 | Bật Mode 2 (Tự sửa lỗi) | Chọn Chế độ = "Tự sửa lỗi", Tự động sửa = "An toàn", lưu | Gõ câu có lỗi khách quan (`hôm nay tôi đi học .`) rồi bấm dấu chấm | Tự sửa thành `Hôm nay tôi đi học.`; hiện thông báo toast nhẹ | □ | □ | □ |
+| 5 | Hoàn tác Undo Mode 2 | Bấm `Ctrl+Z` (Windows/Linux) hoặc `Cmd+Z` (macOS) trong 5 giây sau auto-fix | Khôi phục chính xác đuôi câu cũ trước khi sửa | □ | □ | □ |
+| 6 | Hết hạn hoàn tác | Đợi quá 5 giây rồi bấm `Ctrl+Z` / `Cmd+Z` | Undo của ứng dụng hoạt động bình thường, không khôi phục text cũ | □ | □ | □ |
+| 7 | Precondition D12 | Bôi đen hoặc di chuyển con trỏ trước khi gõ phím trigger | Không kích hoạt auto-fix; không làm xáo trộn text của ứng dụng | □ | □ | □ |
+| 8 | Tắt hoàn toàn (Kill-switch) | Chọn Chế độ = "Tắt" trong Cài đặt hoặc menu tray | Mọi xử lý assist ngừng ngay lập tức, pass-through 100% | □ | □ | □ |
