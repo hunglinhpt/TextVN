@@ -138,7 +138,8 @@ public enum AssistConfigParser {
         else {
             return settings
         }
-        decoded.auto_capitalize = autoCapitalize
+        // `auto_capitalize` đã được chèn vào object `assist` ở trên ⇒ decoder tự
+        // đọc (CodingKeys.auto_capitalize) — KHÔNG gán lại ở đây (`decoded` là let).
         return decoded
     }
 }
