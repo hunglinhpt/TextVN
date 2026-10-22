@@ -33,7 +33,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 | Control | Khoá | Windows | Linux | macOS | Test |
 |---|---|---|---|---|---|
 | Bảng gõ tắt (soạn dạng text, báo dòng lỗi) | `macros[]` | ✓ | ✓ | ✓ (danh sách thêm/xoá, cùng luật `MacroRules`) | `config::macro_text::tests`, `test_settings_model` |
-| Bung bằng Tab / Space | `macro_trigger` | ✓ | ✓ | ✗ (chưa có lựa chọn trên UI; engine theo giá trị trong file, mặc định Tab) | corpus `macro_expand_*` |
+| Bung bằng Tab / Space | `macro_trigger` | ✓ | ✓ | ✓ (MacroSheet: Picker Tab / Space, mặc định Tab) | corpus `macro_expand_*`, `testMacroTriggerRoundtrip` |
 | Không bung sau Home/End/Ctrl+V | — | ✓ (engine) | ✓ (engine) | ✓ (engine) | `macro_not_expanded_after_caret_jump_or_chord` |
 
 ## 3. Hệ thống & nút
@@ -44,7 +44,7 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 | Bật hội thoại này khi khởi động | `show_dialog_on_startup` | ✓ | — (không có tiến trình khay) | ✓ (chỉ khi không autostart; cần GUI smoke) |
 | Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (cài đặt Windows) | ✓ | — | — |
 | Hướng dẫn / Thông tin | — | ✓ | ✓ | Thông tin ✓; Hướng dẫn ✗ — nội dung "Thông tin" giống hệt 3 nền tảng (`about_text_matches_every_platform`, ui-spec §3) |
-| Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | Nút Mặc định ✓, chưa xác nhận giữ macro |
+| Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | ✓ (`resetToDefaults()` bảo toàn `macros`, `english_words`, `emoji`, `autostart` theo S9) | `testConfigStoreResetToDefaults` |
 | Cài & bật TSF | `textvn-cli register` | ✓ | — | — |
 | Đóng / Kết thúc | ẩn về khay / thoát tray | ✓ | Đóng | ✓ (menu bar; cần GUI smoke) |
 | Mở bảng từ menu bộ gõ | "Cài đặt TextVN…" | tray | IBus property · Fcitx5 status action | ✓ (NSStatusItem; cần GUI smoke) |

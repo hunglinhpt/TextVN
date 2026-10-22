@@ -94,6 +94,23 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertEqual(loaded.macros[0].expand, "Việt Nam")
     }
 
+    func testMacroTriggerRoundtrip() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_macro_trigger_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        var config = TextVNConfig()
+        XCTAssertEqual(config.macro_trigger, "tab")
+
+        config.macro_trigger = "space"
+        try config.save(to: fileURL)
+
+        let loaded = TextVNConfig.load(from: fileURL)
+        XCTAssertEqual(loaded.macro_trigger, "space")
+    }
+
     // MARK: - 1b. `assist` — Trợ lý ngữ pháp (P4-0 §7)
 
     /// Mặc định khối `assist` phải khớp 1-1 với crate `config` (`AssistSettings`)

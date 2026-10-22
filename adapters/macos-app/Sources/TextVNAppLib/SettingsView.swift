@@ -477,6 +477,18 @@ public struct MacroEditorSheet: View {
             }
 
             HStack {
+                Text("Bung gõ tắt bằng phím:")
+                Picker("", selection: $store.config.macro_trigger) {
+                    Text("Tab").tag("tab")
+                    Text("Space").tag("space")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 140)
+                .onChange(of: store.config.macro_trigger) { _ in persistAndNotify() }
+                Spacer()
+            }
+
+            HStack {
                 Spacer()
                 Button("Đóng") {
                     dismiss()
@@ -485,6 +497,6 @@ public struct MacroEditorSheet: View {
             }
         }
         .padding(16)
-        .frame(width: 420, height: 340)
+        .frame(width: 420, height: 380)
     }
 }
