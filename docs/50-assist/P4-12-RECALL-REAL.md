@@ -291,3 +291,55 @@ Mục tiêu: thay "một agent gán nhãn" bằng **người thật, độc lậ
 | P4-12b | Sửa FP `duplicate_word` (từ láy) + `sentence_repeat` (đại từ) + TYPOS "quyến/điếm" | ⬜ chờ nhận (Fassist-112/113) |
 | P4-12c | Tập độc lập 300 câu, 2 người gán nhãn, kappa | ⬜ chờ nhận (§8) |
 | P4-12d | Mở rộng quần thể sang văn bản dài/chat (không chỉ Tatoeba) | ⬜ chờ nhận |
+
+---
+
+## 10. Cập nhật 2026-10-23 — nâng recall `diacritic_typo` (đóng **D19**)
+
+**Nguyên nhân gốc của recall thấp:** luật L8 (`diacritic_typo`) trước đây là
+**bảng cố định 11 cặp** sai↔đúng (`TYPOS`) — không tổng quát được; **cả 21 ca
+bỏ sót** trên corpus thật đều là `diacritic_typo`.
+
+**Thay đổi** (`assist/src/rules/diacritic_typo.rs`):
+
+1. **+16 cặp mới** vào bảng `TYPOS`, lấy **trực tiếp từ 21 ca bỏ sót** của
+   `vi_real_errors.ass`. Áp **chính sách Fassist-96 nghiêm ngặt**: chỉ thêm cặp
+   mà **từ "sai" KHÔNG phải từ hợp lệ** (`đả`, `đõ`, `đươc`, `ngườì`, `dạp`,
+   `xãy`, `cùa`, `môt`, `vâỵ`, `mõi`, `áy`, `luạn`, `rỡa`, `mội`, `khônf`) —
+   **không** thêm cặp mơ hồ (`tim`/`tìm` · `tròng`/`trong` · `chấu`/`chỗ` ·
+   `mặc`/`mặt` · `ảo`/`áo` · `hường`/`hưởng`) vì từ sai **là từ hợp lệ** ở
+   ngữ cảnh khác ⇒ thêm vào là đoán mò → FPR.
+2. **Đường tổng quát (khi CÓ từ điển)** — `variants()`: với từ **không có trong
+   từ điển** và **có dấu**, sinh biến thể lệch **đúng 1 thao tác dấu**
+   (E1 đổi 1 nguyên âm trong cùng gốc a/ă/â · e/ê · i · o/ô/ơ · u/ư · y ·
+   E2 `d↔đ` · E3 chuyển 1 thanh điệu giữa 2 nguyên âm) và chỉ báo khi **đúng
+   một** biến thể là từ hợp lệ (chốt chống FP). Ngân sách **≤ 8 từ lạ/câu**
+   (fail-open) vì provider OS `Check` ~0,057 ms (P4-10 F3) — không có từ điển
+   (`NoDictionary`) thì luật **không phán đoán gì**.
+   ⚠️ Đường này **chưa** xuất hiện trong số đo dưới đây: cả CLI đo lẫn máy
+   Windows dev hiện **không** có provider `vi-VN` (không language pack, chưa có
+   FST — xem `P4-12a`); nó dành cho khi `textvn-dict`/OS provider được nối.
+3. Ngân sách/fail-open + test hồi quy: `variants_lech_dung_mot_thao_tac`,
+   `khong_bao_ten_khong_dau` (bộ lọc chống FP cho tên riêng không dấu),
+   `khong_doan_khi_hai_bien_the_deu_hop_le`, `bat_ca_cau_corpus_that_moi_nhat`.
+
+**Số đo trước/sau** (cùng 2 corpus, cùng máy, `python tools/assist/score_real.py`,
+CLI debug rebuild **trước** khi đo — Fassist-120):
+
+| Chỉ số | Trước (baseline §2) | Sau (2026-10-23) | Gate D19 |
+|---|---|---|---|
+| **Recall** (49 câu có lỗi) | 57,1 % (Wilson 43,3–70,0) | **87,8 %** (43/49 · Wilson 75,8–94,3) | ≥ 80 % ✅ |
+| `diacritic_typo` | 3/24 = 12,5 % | **18/24 = 75 %** | — |
+| `space_before_punct` | 21/21 = 100 % | 21/21 = 100 % | ✅ |
+| `space_after_punct` | 2/2 | 2/2 | ✅ |
+| `duplicate_word` | 1/1 | 1/1 | ✅ |
+| `lowercase_sentence_start` | 1/1 | 1/1 | ✅ |
+| **FPR** (981 câu sạch) | 0,5 % (5 câu) | **0,5 % (5 câu — không đổi)** | ≤ 2 % ✅ |
+
+**6 ca còn bỏ sót** (cùng nhóm: từ "sai" **là từ hợp lệ** ⇒ cần bằng chứng
+ngữ cảnh/phra, không được đoán mò — Fassist-96/80–83):
+`Từ xưa đến giờ **đả**…` đã bắt · còn lại: **`tim`→`tìm`** ("đã tim từ tròng") ·
+**`tròng`→`trong`** · **`chấu`→`chỗ`** · **`mặc`→`mặt`** ("mặc nước") ·
+**`ảo`→`áo`** · **`hường`→`hưởng`**. Đường tới: evidence theo **cụm/phra**
+("mặt nước", "tìm trong từ điển") hoặc **tần suất** (v2, có dữ liệu đếm).
+Nếu thêm evidence phra thì cần corpus phra có nhãn để ước lượng FPR (P4-12c).

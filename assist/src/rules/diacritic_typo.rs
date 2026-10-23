@@ -37,6 +37,16 @@ use crate::tokenize::Token;
 use crate::{Fix, Issue, IssueKind, Span};
 
 /// Bảng lỗi → lời viết đúng (chữ thường) — **không cần từ điển**.
+///
+/// Chính sách Fassist-96 (giữ nguyên): chỉ thêm cặp mà **từ "sai" KHÔNG phải
+/// từ hợp lệ** của tiếng Việt — thêm cặp mà từ sai còn dùng được ("tròng"/
+/// "trong", "mặc"/"mặt", "ảo"/"áo", "tim"/"tìm", "chấu"/"chỗ", "hường"/"hưởng")
+/// là **dự đoán mò**: sẽ bêu đúng câu đúng (FPR) khi ngữ cảnh là hợp lệ.
+///
+/// Nguồn các mục mới (2026-10-22, P4-12/D19): 21 ca `diacritic_typo` **bị bỏ
+/// sót** trên corpus thật `corpus/assist/vi_real_errors.ass` (đã 2 người đánh
+/// giá) — trong đó 16 cặp không-được-phép-bổ-sung ở trên là **từ sai không
+/// phải từ** ⇒ an toàn.
 const TYPOS: &[(&str, &str)] = &[
     ("nghiã", "nghĩa"),
     ("nghỉa", "nghĩa"),
@@ -51,6 +61,22 @@ const TYPOS: &[(&str, &str)] = &[
     // sai dấu ở đây cần ngữ cảnh để phân biệt (Fassist-96).
     ("quyến", "quyển"),
     ("nguyến", "nguyễn"),
+    // ---- P4-12/D19 (2026-10-22): ca corpus thật bị bỏ sót, từ sai không phải từ ----
+    ("đả", "đã"), // "đả luôn luôn như vậy" → "đã"
+    ("đõ", "đỗ"), // "đõ xe" → "đỗ xe"
+    ("đươc", "được"), // "đươc trưng bày" → "được trưng bày"
+    ("ngườì", "người"),
+    ("dạp", "đạp"), // "xe dạp" → "xe đạp"
+    ("xãy", "xảy"), // "xãy ra" → "xảy ra"
+    ("cùa", "của"), // "cùa tôi" → "của tôi"
+    ("môt", "một"),
+    ("vâỵ", "vậy"), // "Vâỵ là quá đủ" → "Vậy là…"
+    ("mõi", "mỏi"), // "mệt mõi" → "mệt mỏi"
+    ("áy", "ấy"), // "Cô áy" → "Cô ấy"
+    ("luạn", "loạn"), // "hỗn luạn" → "hỗn loạn"
+    ("rỡa", "rửa"), // "rỡa sạch" → "rửa sạch"
+    ("mội", "một"), // "mội người" → "một người"
+    ("khônf", "không"), // "khônf thể" → "không thể"
 ];
 
 /// 12 nhóm nguyên âm tiếng Việt × 6 cột (thanh điệu): không dấu · sắc · huyền ·
@@ -174,8 +200,17 @@ fn variants(word: &str) -> Vec<String> {
     out
 }
 
+/// Số từ **không xác định** được phép sinh biến thể tối đa trong MỘT câu.
+///
+/// Với từ điển OS (provider `Check` ~0,057 ms — P4-10 F3) mỗi biến thể ~1 nhát
+/// `contains`: chặn ở đây để câu bất thường (nhiều tên riêng lạ) không biến
+/// thành hàng chục nhát tra cứu. Hết ngân sách ⇒ **bỏ qua** các từ còn lại
+/// (fail-open: không báo còn hơn báo sai/chậm).
+const MAX_UNKNOWN_TOKENS: usize = 8;
+
 /// Bat tu sai vi tri dau.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
+    let mut budget = MAX_UNKNOWN_TOKENS;
     for token in &ctx.tokens {
         if !is_word(token) {
             continue;
@@ -198,6 +233,10 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if !has_diacritic(&lower) || ctx.dict.contains(&lower) {
             continue;
         }
+        if budget == 0 {
+            continue; // hết ngân sách từ lạ trong câu — fail-open
+        }
+        budget -= 1;
         let mut hit: Option<String> = None;
         let mut ambiguous = false;
         for cand in variants(&lower) {
@@ -298,7 +337,9 @@ mod tests {
 
     #[test]
     fn khong_doan_khi_hai_bien_the_deu_hop_le() {
-        // Từ điển giả: cả "đỗ" và "đồ" đều hợp lệ ⇒ "đõ" mơ hồ ⇒ KHÔNG báo.
+        // Từ điển giả: cả "khỗ" và "khồ" đều hợp lệ ⇒ "khõ" mơ hồ ⇒ KHÔNG báo.
+        // (Chọn "khõ" — không nằm trong bảng cố định TYPOS — để đo **đường
+        // từ điển**, không phải đường bảng.)
         struct Fake(&'static [&'static str]);
         impl crate::dict::Dictionary for Fake {
             fn contains(&self, w: &str) -> bool {
@@ -308,20 +349,49 @@ mod tests {
                 Vec::new()
             }
         }
-        let both = Fake(&["đỗ", "đồ"]);
-        let issues: Vec<Issue> = crate::check_with("đõ", &both)
+        let both = Fake(&["khỗ", "khồ"]);
+        let issues: Vec<Issue> = crate::check_with("khõ", &both)
             .into_iter()
             .filter(|i| i.kind == IssueKind::DiacriticTypo)
             .collect();
         assert!(issues.is_empty(), "mơ hồ ⇒ không đủ bằng chứng ⇒ bỏ qua");
 
-        // Từ điển giả: chỉ "được" hợp lệ ⇒ báo đúng 1 lỗi với gợi ý "được".
-        let one = Fake(&["được"]);
-        let issues: Vec<Issue> = crate::check_with("tôi đươc", &one)
+        // Từ điển giả: chỉ "khỗ" hợp lệ ⇒ báo đúng 1 lỗi với gợi ý "khỗ".
+        let one = Fake(&["khỗ"]);
+        let issues: Vec<Issue> = crate::check_with("tôi khõ", &one)
             .into_iter()
             .filter(|i| i.kind == IssueKind::DiacriticTypo)
             .collect();
         assert_eq!(issues.len(), 1);
-        assert_eq!(issues[0].suggestions[0], "được");
+        assert_eq!(issues[0].suggestions[0], "khỗ");
+    }
+
+    #[test]
+    fn bat_ca_cau_corpus_that_moi_nhat() {
+        // 16 cặp mới trong bảng TYPOS phải bắt đúng (hồi quy P4-12/D19).
+        for (wrong, right) in [
+            ("đả", "đã"),
+            ("đõ", "đỗ"),
+            ("đươc", "được"),
+            ("ngườì", "người"),
+            ("dạp", "đạp"),
+            ("xãy", "xảy"),
+            ("cùa", "của"),
+            ("môt", "một"),
+            ("vâỵ", "vậy"),
+            ("mõi", "mỏi"),
+            ("áy", "ấy"),
+            ("luạn", "loạn"),
+            ("rỡa", "rửa"),
+            ("mội", "một"),
+            ("khônf", "không"),
+        ] {
+            let issues: Vec<Issue> = check(&format!("tài {wrong}"))
+                .into_iter()
+                .filter(|i| i.kind == IssueKind::DiacriticTypo)
+                .collect();
+            assert_eq!(issues.len(), 1, "phải bắt được từ sai '{wrong}'");
+            assert_eq!(issues[0].suggestions[0], right, "gợi ý của '{wrong}'");
+        }
     }
 }
