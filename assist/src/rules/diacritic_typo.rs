@@ -62,20 +62,20 @@ const TYPOS: &[(&str, &str)] = &[
     ("quyến", "quyển"),
     ("nguyến", "nguyễn"),
     // ---- P4-12/D19 (2026-10-22): ca corpus thật bị bỏ sót, từ sai không phải từ ----
-    ("đả", "đã"), // "đả luôn luôn như vậy" → "đã"
-    ("đõ", "đỗ"), // "đõ xe" → "đỗ xe"
+    ("đả", "đã"),     // "đả luôn luôn như vậy" → "đã"
+    ("đõ", "đỗ"),     // "đõ xe" → "đỗ xe"
     ("đươc", "được"), // "đươc trưng bày" → "được trưng bày"
     ("ngườì", "người"),
     ("dạp", "đạp"), // "xe dạp" → "xe đạp"
     ("xãy", "xảy"), // "xãy ra" → "xảy ra"
     ("cùa", "của"), // "cùa tôi" → "của tôi"
     ("môt", "một"),
-    ("vâỵ", "vậy"), // "Vâỵ là quá đủ" → "Vậy là…"
-    ("mõi", "mỏi"), // "mệt mõi" → "mệt mỏi"
-    ("áy", "ấy"), // "Cô áy" → "Cô ấy"
-    ("luạn", "loạn"), // "hỗn luạn" → "hỗn loạn"
-    ("rỡa", "rửa"), // "rỡa sạch" → "rửa sạch"
-    ("mội", "một"), // "mội người" → "một người"
+    ("vâỵ", "vậy"),     // "Vâỵ là quá đủ" → "Vậy là…"
+    ("mõi", "mỏi"),     // "mệt mõi" → "mệt mỏi"
+    ("áy", "ấy"),       // "Cô áy" → "Cô ấy"
+    ("luạn", "loạn"),   // "hỗn luạn" → "hỗn loạn"
+    ("rỡa", "rửa"),     // "rỡa sạch" → "rửa sạch"
+    ("mội", "một"),     // "mội người" → "một người"
     ("khônf", "không"), // "khônf thể" → "không thể"
 ];
 
