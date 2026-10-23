@@ -50,11 +50,14 @@ cuả nha tôi	diacritic_typo
 tiêng viet đẹp	diacritic_typo
 fải đúng không	diacritic_typo
 nhứng người ấy	diacritic_typo
-quyến sách	diacritic_typo
 nguyến Văn A	diacritic_typo
 # --- nhom: cau sach (khong loi) ---
-# "yeu" la tu HOP LE (yeu tuong, yeu dieu) -> khong bao loi (Fassist-96)
+# "yểu" la tu HOP LE (yeu tuong, yeu dieu) -> khong bao loi (Fassist-96)
 yểu nói nào
+# Vong 23 (audit " nhu Grammarly"): "quyến" la tu HOP LE (quyến rũ, quyến luyến)
+# -> khong bao loi theo Fassist-96 — sai "quyến sách" vs "quyển sách" can ngu
+# canh, thuoc v2. Truoc day entry nay qua la duoc bao (vi pham chinh sach).
+quyến sách
 # lap co chu y (luon luon, rat rat) va tu hop le (truong) KHONG phai loi (Fassist-94/96)
 rất rất đẹp
 trương học

@@ -13,6 +13,11 @@ const INTENTIONAL_REPEATS: &[&str] = &[
     // từ ghép đôi: "lâu lâu", "vội vội", "vàng vàng"… (Fassist-94)
     "lâu", "vội", "vàng", "chầm", "lẩn", "lầm", "cốp", "lốp", "ríu", "húp", "quẩy", "thong",
     "phèng", "sột", "tí",
+    // Vòng 23 (audit "như Grammarly", đo FPR trên tập sạch Tatoeba): các từ
+    // lặp hợp lệ còn sót — từ tượng thanh ("chộp chộp, bum bum"), cách nhấn
+    // thế thao ("ở đâu đâu") và số từ + danh từ cùng hình ("năm năm trước" —
+    // "năm" số từ, "năm" danh từ, cách nói chuẩn mực).
+    "chộp", "bum", "đâu", "năm",
 ];
 
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.

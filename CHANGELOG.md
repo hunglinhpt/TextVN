@@ -7,7 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [Unreleased]
+## [0.2.36] — 2026-10-23
+
+### Fixed
+- **Trợ lý ngữ pháp: FPR 0 % trên tập sạch 981 câu** (audit vòng 23 "như
+  Grammarly" — 3 lượt rà từng dòng toàn bộ tính năng): bỏ 5 cặp trong bảng
+  typo mà **từ "sai" là từ hợp lệ** (vi phạm chính sách Fassist-96 của chính
+  repo) — trước đây Mode 2 **tự sửa chữ đúng thành chữ sai**: "quyến rũ"→
+  "quyển", "thuở xưa"→"thướ", "đả thông"→"đã", "áy náy"→"ấy", "ngôi điếm"→
+  "điểm" (chứng minh 5/5 câu đúng bị bêu + auto-fix sai). Đổi Recall câu
+  87,8 % → 83,7 % (2 ca mơ hồ chuyển về nhóm cần ngữ cảnh — đánh đổi một
+  chiều, không bao giờ lấy FPR đổi recall).
+- Bổ sung 4 từ lặp hợp lệ vào whitelist (hết báo nhầm "năm năm trước", "ở
+  đâu đâu", "chộp chộp, bum bum") — 4/5 FP còn lại trên tập sạch sạch hết.
+- Gate nhận diện tiếng Việt (L0) giờ nhận **chữ hoa có dấu** — câu VIẾT HOA
+  TOÀN BỘ không còn bị bỏ qua kiểm tra.
+- Hồi quy mới: `khong_beu_tu_hop_le_tung_o_bang_typos`,
+  `cau_viet_hoa_toan_bo_van_la_tieng_viet`; corpus dòng mềm `~` hóa cứng.
+  Số đo đầy đủ: `docs/50-assist/P4-12-RECALL-REAL.md` §11.
 
 ## [0.2.35] — 2026-10-23
 
@@ -1399,6 +1416,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.36]: https://github.com/hunglinhpt/TextVN/compare/v0.2.35...v0.2.36
 [0.2.35]: https://github.com/hunglinhpt/TextVN/compare/v0.2.34...v0.2.35
 [0.2.34]: https://github.com/hunglinhpt/TextVN/compare/v0.2.33...v0.2.34
 [0.2.33]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...v0.2.33

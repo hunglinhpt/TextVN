@@ -43,7 +43,24 @@ pub fn is_vietnamese(text: &str) -> bool {
 ///
 /// Export công khai để luật spelling tái dùng (G15): từ **không chứa** chữ nào
 /// trong danh sách này coi là thuật ngữ tiếng Anh / ASCII → bỏ qua.
+///
+/// So qua **chữ thường** của ký tự ⇒ câu VIẾT HOA TOÀN BỘ ("HÔM NAY TÔI ĐI
+/// HỌC") cũng được L0 nhận là tiếng Việt (vòng 23: trước đây list chỉ có hoa
+/// cho ă/â/ê/ô/ơ/ư/đ, thiếu toàn bộ nguyên âm mang thanh viết hoa ⇒ câu all-caps
+/// có thể rơi dưới ngưỡng 0.5 và bị bỏ qua toàn bộ).
 pub fn is_vietnamese_letter(ch: char) -> bool {
+    let mut lower = ch.to_lowercase();
+    let Some(first) = lower.next() else {
+        return false;
+    };
+    if lower.next().is_some() {
+        return false; // ánh xạ nhiều ký tự (İ → i̇) — không phải chữ Việt đơn
+    }
+    is_vietnamese_letter_lower(first)
+}
+
+/// Chữ thường có dấu đặc thù tiếng Việt (bảng gốc của L0).
+fn is_vietnamese_letter_lower(ch: char) -> bool {
     matches!(
         ch,
         'đ' | 'Đ'
@@ -130,6 +147,14 @@ mod tests {
     fn cau_tieng_viet() {
         assert!(is_vietnamese("Tôi đi học ở trường."));
         assert!(is_vietnamese("tôi tôi đi"));
+    }
+
+    /// Vòng 23: câu VIẾT HOA TOÀN BỘ cũng là tiếng Việt (ngưỡng 0.5 qua chữ
+    /// thường hoá — "NAY" không có dấu nhưng "HÔM/TÔI/ĐI" có).
+    #[test]
+    fn cau_viet_hoa_toan_bo_van_la_tieng_viet() {
+        assert!(is_vietnamese("HÔM NAY TÔI ĐI HỌC"));
+        assert!(is_vietnamese("THUỞ XƯA CÓ MỘT CÔ BÉ."));
     }
 
     #[test]

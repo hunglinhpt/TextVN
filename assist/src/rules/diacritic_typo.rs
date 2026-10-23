@@ -51,18 +51,14 @@ const TYPOS: &[(&str, &str)] = &[
     ("nghiã", "nghĩa"),
     ("nghỉa", "nghĩa"),
     ("cuả", "của"),
-    ("điếm", "điểm"),
     ("tiêng", "tiếng"),
-    ("thuở", "thướ"),
     ("fải", "phải"),
     ("nhứng", "nhưng"),
     // LƯU Ý: không thêm "trương" — đó là từ HỢP LỆ ("khẩn trương", "trầu trương");
     // KHONG them cac tu HOP LE: "truong" (khan truong), "yeu" (yeu tuong) - sai dau o day can ngu canh (Fassist-96).
     // sai dấu ở đây cần ngữ cảnh để phân biệt (Fassist-96).
-    ("quyến", "quyển"),
     ("nguyến", "nguyễn"),
     // ---- P4-12/D19 (2026-10-22): ca corpus thật bị bỏ sót, từ sai không phải từ ----
-    ("đả", "đã"),     // "đả luôn luôn như vậy" → "đã"
     ("đõ", "đỗ"),     // "đõ xe" → "đỗ xe"
     ("đươc", "được"), // "đươc trưng bày" → "được trưng bày"
     ("ngườì", "người"),
@@ -70,13 +66,17 @@ const TYPOS: &[(&str, &str)] = &[
     ("xãy", "xảy"), // "xãy ra" → "xảy ra"
     ("cùa", "của"), // "cùa tôi" → "của tôi"
     ("môt", "một"),
-    ("vâỵ", "vậy"),     // "Vâỵ là quá đủ" → "Vậy là…"
-    ("mõi", "mỏi"),     // "mệt mõi" → "mệt mỏi"
-    ("áy", "ấy"),       // "Cô áy" → "Cô ấy"
-    ("luạn", "loạn"),   // "hỗn luạn" → "hỗn loạn"
-    ("rỡa", "rửa"),     // "rỡa sạch" → "rửa sạch"
-    ("mội", "một"),     // "mội người" → "một người"
+    ("vâỵ", "vậy"),   // "Vâỵ là quá đủ" → "Vậy là…"
+    ("mõi", "mỏi"),   // "mệt mõi" → "mệt mỏi"
+    ("luạn", "loạn"), // "hỗn luạn" → "hỗn loạn"
+    ("rỡa", "rửa"),   // "rỡa sạch" → "rửa sạch"
+    ("mội", "một"),   // "mội người" → "một người"
     ("khônf", "không"), // "khônf thể" → "không thể"
+                      // VÒNG 23 (2026-10-23, audit "như Grammarly"): XOÁ 5 cặp mà từ "sai" là
+                      // từ HỢP LỆ — vi phạm chính sách Fassist-96 của chính file này, bêu + TỰ
+                      // SỬA SAI chữ đúng: "quyến rũ"→"quyển", "thuở xưa"→"thướ" ("thướ" còn
+                      // không có trong từ điển), "đả thông"→"đã", "áy náy"→"ấy", "ngôi điếm"→
+                      // "điểm". Lỗi ngữ cảnh thuộc v2 (như "tròng/trong" đã ghi ở header).
 ];
 
 /// 12 nhóm nguyên âm tiếng Việt × 6 cột (thanh điệu): không dấu · sắc · huyền ·
@@ -290,6 +290,7 @@ fn push_issue(token: &Token, text: &str, correct: &str, out: &mut Vec<Issue>) {
 mod tests {
     use super::*;
     use crate::check;
+    use crate::check_sentence;
 
     #[test]
     fn bat_sai_dau() {
@@ -368,9 +369,10 @@ mod tests {
 
     #[test]
     fn bat_ca_cau_corpus_that_moi_nhat() {
-        // 16 cặp mới trong bảng TYPOS phải bắt đúng (hồi quy P4-12/D19).
+        // 13 cặp còn lại trong bảng TYPOS phải bắt đúng (hồi quy P4-12/D19;
+        // vòng 23 bỏ 5 cặp vi phạm Fassist-96 — "đả/áy/điếm/thuở/quyến" là từ
+        // hợp lệ, xem comment cuối bảng).
         for (wrong, right) in [
-            ("đả", "đã"),
             ("đõ", "đỗ"),
             ("đươc", "được"),
             ("ngườì", "người"),
@@ -380,7 +382,6 @@ mod tests {
             ("môt", "một"),
             ("vâỵ", "vậy"),
             ("mõi", "mỏi"),
-            ("áy", "ấy"),
             ("luạn", "loạn"),
             ("rỡa", "rửa"),
             ("mội", "một"),
@@ -392,6 +393,28 @@ mod tests {
                 .collect();
             assert_eq!(issues.len(), 1, "phải bắt được từ sai '{wrong}'");
             assert_eq!(issues[0].suggestions[0], right, "gợi ý của '{wrong}'");
+        }
+    }
+
+    /// Vòng 23 (audit "như Grammarly"): các từ HỢP LỆ từng nằm nhầm trong bảng
+    /// TYPOS giờ phải **im lặng** — không bêu, không tự sửa chữ đúng.
+    #[test]
+    fn khong_beu_tu_hop_le_tung_o_bang_typos() {
+        for sentence in [
+            "Cô ấy quyến rũ đến lạ thường.",
+            "Thuở xưa có một cô bé.",
+            "Họ đả thông mọi bế tắc.",
+            "Tôi thấy áy náy lắm.",
+            "Ngôi điếm cũ bên đường.",
+        ] {
+            let issues: Vec<Issue> = check_sentence(sentence)
+                .into_iter()
+                .filter(|i| i.kind == IssueKind::DiacriticTypo)
+                .collect();
+            assert!(
+                issues.is_empty(),
+                "\"{sentence}\" là câu ĐÚNG — không được bêu diacritic_typo (Fassist-96)"
+            );
         }
     }
 }

@@ -33,9 +33,9 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.2.35" date="2026-10-23">
+    <release version="0.2.36" date="2026-10-23">
       <description>
-        <p>Grammar assistant hardening. Recall on real-world Vietnamese error corpora is raised from 57% to 88% (misspelled-word typos from 13% to 75%) at a 0.5% false-positive rate, using a table for misspellings that are not valid words plus a general variant-based path. Line-by-line audits across the three platforms fixed several safeguards: before applying an auto-fix or an undo, macOS now verifies that the glyph count of the text it is about to delete matches the grapheme count the app will actually erase (legacy output charsets can no longer erase extra characters); the Windows undo no longer clears its state when an asynchronous edit session is granted, so Ctrl+Z now completes reliably; disabling the grammar assistant for one application (assist.per_app) now works on Windows as it did on macOS; and the auto-fix planning logic exists once, in a single shared source used by Windows, macOS and Linux, with the FFI refusing any plan whose delete-glyph count does not equal the Unicode character count.</p>
+        <p>Grammar assistant quality audit (three full line-by-line passes). The assistant now never flags correct text: five typo-table entries whose "wrong" word is actually a valid Vietnamese word (quyến, thuở, đả, áy, điếm) were removed — they made auto-correct rewrite correct words (quyến rũ to quyển, thuở xưa to thướ). Measured on the labeled real-text corpora: false positives drop from 0.5% to 0.0% on 981 clean sentences (Wilson 0.0–0.4%), sentence recall is 83.7%, the deliberate trade of two ambiguous cases for zero false flags. Four more valid reduplications (năm năm, đâu đâu, chộp chộp, bum bum) are whitelisted, and all-caps accented Vietnamese sentences are now recognized for checking.</p>
       </description>
     </release>
     <release version="0.2.34" date="2026-10-18">

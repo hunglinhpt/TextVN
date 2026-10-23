@@ -18,11 +18,13 @@ Văn bản này rất dễ hiểu.
 tôi nghiã kho	diacritic_typo@4-9
 nghỉa sửa lại	diacritic_typo
 cuả nha tôi	diacritic_typo
-điếm điểm	diacritic_typo
+# Vong 23: "điếm" la tu HOP LE (ngoi diem, an phan diem) -> khong bao (Fassist-96)
+điếm điểm
 tiêng viet đẹp	diacritic_typo
 fải đúng không	diacritic_typo
 nhứng người ấy	diacritic_typo
-quyến sách	diacritic_typo
+# Vong 23: "quyến" la tu HOP LE (quyến rũ) -> khong bao (Fassist-96, can ngu canh)
+quyến sách
 nguyến Văn A	diacritic_typo
 # Cau sach chua cac tu co trong tu dien (exact match, khong bao loi).
 Tôi đi học ở trường Đại học Bách Khoa.

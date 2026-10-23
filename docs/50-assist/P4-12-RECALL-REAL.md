@@ -343,3 +343,30 @@ ngữ cảnh/phra, không được đoán mò — Fassist-96/80–83):
 **`ảo`→`áo`** · **`hường`→`hưởng`**. Đường tới: evidence theo **cụm/phra**
 ("mặt nước", "tìm trong từ điển") hoặc **tần suất** (v2, có dữ liệu đếm).
 Nếu thêm evidence phra thì cần corpus phra có nhãn để ước lượng FPR (P4-12c).
+
+## 11. Cập nhật 2026-10-23 (vòng 23 — audit "như Grammarly"): FPR → 0 %
+
+Audit 3 lượt trên toàn bộ trợ lý ngữ pháp phát hiện bảng TYPOS và whitelist
+lặp-từ **vi phạm chính sách Fassist-96 của chính chúng**: 5 cặp mà từ "sai"
+là **từ hợp lệ** (`quyến`/`thuở`/`đả`/`áy`/`điếm` — đều có trong từ điển
+hunspell-vi) ⇒ Mode 2 (autocorrect) **tự sửa chữ đúng thành chữ sai** trên
+văn bản thật: "quyến rũ"→"quyển", "thuở xưa"→"thướ" ("thướ" còn không có
+trong từ điển), "đả thông"→"đã", "áy náy"→"ấy", "ngôi điếm"→"điểm".
+Chứng minh bằng probe 5/5 câu đúng đều bị bêu + auto-fix sai. Đồng thời bổ
+sung 4 từ lặp hợp lệ còn sót ("năm năm trước", "ở đâu đâu", "chộp chộp,
+bum bum") và gate L0 nhận **chữ hoa có dấu** (câu all-caps).
+
+**Số đo sau vòng 23** (cùng 2 corpus, `python tools/assist/score_real.py`,
+CLI rebuild trước khi đo):
+
+| Chỉ số | Trước (§10) | Sau vòng 23 | Ghi chú |
+|---|---|---|---|
+| **Recall** (49 câu có lỗi) | 87,8 % (43/49) | **83,7 % (41/49 · Wilson 71,0–91,5)** | đổi 2 ca mơ hồ lấy FPR 0 |
+| `diacritic_typo` | 18/24 = 75 % | **16/24 = 66,7 %** | 2 ca "đả"/"áy" chuyển về nhóm cần ngữ cảnh |
+| **FPR** (981 câu sạch) | 0,5 % (5 câu) | **0,0 % (0 câu · Wilson 0,0–0,4)** | **0 câu đúng bị bêu** — chuẩn "như Grammarly": thà im lặng còn hơn sửa sai |
+
+Đánh đổi là **có chủ đích và một chiều** (không bao giờ đánh đổi FPR lấy
+recall): mọi lỗi còn bỏ sót đều thuộc nhóm "cần bằng chứng ngữ cảnh" đã ghi
+ở §10. Hồi quy: `khong_beu_tu_hop_le_tung_o_bang_typos` +
+`cau_viet_hoa_toan_bo_van_la_tieng_viet` (mới), 2 corpus dòng mềm `~` được
+hóa cứng sau khi engine im lặng với chúng.
