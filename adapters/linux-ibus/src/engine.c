@@ -274,6 +274,9 @@ static void apply_assist_candidate(TextVNIbusEngine *self, guint index) {
             clear_assist_ui(self);
             return;
         }
+        /* W1-audit: FFI chỉ trả kế hoạch khi `delete_glyphs` == số char Unicode
+           của phần bị xoá (bảng mã xuất ≠ Unicode ⇒ không có kế hoạch), nên
+           dùng `delete_glyphs` làm số **char** cho IBus là đúng ngữ nghĩa. */
         ibus_engine_delete_surrounding_text(engine, -(gint)cand->delete_glyphs, cand->delete_glyphs);
     }
     if (cand->replacement[0] != '\0') {
@@ -379,6 +382,8 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                     ibus_engine_commit_text(engine, text_from_ucs4(&trigger_char, 1));
                 }
                 if (fix_plan.delete_glyphs > 0) {
+                    /* W1-audit: như `apply_assist_candidate` — FFI đã bảo đảm
+                       glyph == char Unicode trước khi trả kế hoạch. */
                     ibus_engine_delete_surrounding_text(engine, -(gint)fix_plan.delete_glyphs,
                                                         fix_plan.delete_glyphs);
                 }

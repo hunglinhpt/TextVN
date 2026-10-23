@@ -310,3 +310,28 @@
 **Giới hạn verify (trung thực):**
 - C test `test_assist_result` chạy **thật** trên Windows host (link `textvn_ffi.lib`) → `PASS`; C++/C còn lại (fcitx5/IBus) mới **CI Linux** cover (không có desktop session trên máy này).
 - **Chưa verify tay GUI** (overlay Windows / IMK macOS / IBus-Fcitx5 panel) sau loạt fix Q ⇒ **chưa** tick ✅ các task AS-060/parity liên quan (vẫn ⏳ theo **G17**).
+
+---
+
+## VÒNG AUDIT SÂU (D19 hậu-recall) — 2026-10-23 (`W1…W5`, `R-7`)
+
+**Bối cảnh:** sau khi nâng recall `diacritic_typo` (D19 · `a557d3a`) và CI xanh lại (`1e52a99`), rà soát lại **toàn bộ** đường assist end-to-end, 3 vòng độc lập (Windows · parity 3 OS · nguồn chung FFI) + đối chiếu từng dòng với `assist/src`, `ffi/src`, `linux-common`, `linux-ibus`/`fcitx5`, `windows-tsf`, `macos-imk`.
+
+| ID | Mức | Finding | Sửa |
+|---|---|---|---|
+| W1 | **MAJOR** | macOS xoá theo **glyph** nhưng `deleteBackward`/`deleteSurroundingText` xoá theo **grapheme**; bảng mã xuất ≠ Unicode (VNI/TCVN3: 1 chữ = 2 glyph) hoặc text NFD ⇒ xoá thừa/thiếu ký tự | ✅ `applyAssistFix`: `originalTail.count == deleteGlyphs`; undo: `replacement.count == replacementGlyphs` — lệch ⇒ **không sửa** (fail-safe, cùng triết lý `verify_delete_range` của Windows) |
+| W2 | minor | macOS đọc `document-data` cả prefix để xác minh đuôi câu — cửa sổ đọc→xoá có thể lệch nếu app đổi text bất đồng bộ | ✅ **Đã rà, giữ nguyên**: mọi xoá đều qua precondition `textBeforeCaret().hasSuffix(originalTail)` + selection rỗng ngay trước khi xoá; IMK callback chạy trên main thread nên app không chen được giữa đọc và xoá trong cùng lượt. Ghi nhận là giới hạn thiết kế (không phải bug) |
+| W3 | **MAJOR** | Windows: nhánh **bất đồng bộ** của undo xoá `assist_undo` ngay khi session được cấp — session fail ⇒ vừa nuốt `Ctrl+Z` vừa mất state hoàn tác | ✅ Không xoá sớm; `ApplyAssistUndoSession::DoEditSession` tự xoá **khi áp dụng thành công** (idempotent với đường đồng bộ) |
+| W4 | **MAJOR** (parity) | `assist.per_app` chỉ có hiệu lực trên macOS (`assistAllowed`); Windows/Linux bỏ qua ⇒ config ghi mà không tác dụng | ✅ **Windows**: `ThreadState` giữ `AssistSettings`, gate `assist_app_disabled` trong `check_sentence` (mọi đường: overlay/Mode 2/`Ctrl+Shift+G` đều đi qua đây); test `per_app_tat_assist_rieng_theo_config`. **Linux: gap có lý do** — engine IBus/Fcitx5 không có app identity (không có API tương đương `GetModuleFileName`/`bundleIdentifier` trong khuôn khổ adapter) ⇒ ghi tài liệu, không giả lập |
+| W5 | minor | Nhóm config **chết**: `assist.display.*`, `trigger_keys`, `language` được parse/persist (kể cả UI Linux) nhưng **không** ảnh hưởng hành vi runtime ở OS nào; `max_sentence_chars` chỉ macOS đọc | Ghi nhận (Q-10 mở rộng). v1.1: hoặc triển khai idle-700ms/trigger tuỳ biến, hoặc bỏ khoá khỏi schema/UI |
+| R-7 | **MAJOR** (kiến trúc) | Logic "sửa kiểu gì/xoá đâu" **chép 3 nơi** (FFI · Windows · mô phỏng Linux) — đã từng lệch (Q-2b) | ✅ Gộp về **một nguồn**: `textvn_ffi::plan_issues_from_raw` + `PlanIssueRaw`; Windows `plan_sentence_auto_fix` và FFI `ime_assist_plan_sentence_fix` cùng gọi; test `plan_issues_from_raw_loc_va_ngu_nghia_sua` khoá luật lọc (kind lạ · span ngoài câu · span == gợi ý · ký tự điều khiển · lặp từ nuốt dấu cách) |
+| W1-ffi | **MAJOR** | Linux IBus/Fcitx5 dùng `delete_glyphs` làm **số char** cho `deleteSurroundingText`; bảng mã ≠ Unicode ⇒ xoá lệch | ✅ FFI chỉ trả kế hoạch khi `glyphs == số char Unicode` của `original_tail` (fail-safe) + comment tại 2 call site `linux-ibus/src/engine.c`; test FFI hiện có phủ đường identity |
+
+**Test/CI của vòng này:** `cargo test -p textvn-assist -p textvn-ffi -p textvn-win-tsf` → **199 pass** (60+4+8 · 36+3 · 89); clippy 0 warning; `textvn-cli replay corpus/shared corpus/win` → **134/134**.
+
+**Còn mở sau vòng này (không blocker v1, chờ CI/máy thật):**
+- Linux `assist.per_app` — cần app identity (W4-gap).
+- `R-13` (Swift `AssistSettings` 2 nguồn) · `Q-10` (idle_ms) · `Q-12` (comment idle cũ trong Swift) — cùng lane v1.1.
+- `R-8` auto-disable theo streak (D20) chưa làm; `R-9` macOS candidate panel không hiện message; `R-6` `Ctrl+Shift+G` gọi lại chỉ Windows.
+- Verify tay GUI 3 OS (G17) trước khi tick ✅ parity.
+

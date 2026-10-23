@@ -856,6 +856,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             Diagnostics.log("assist: precondition mismatch — skip")
             return false
         }
+        // W1-audit (2026-10-23, parity với Windows `verify_delete_range`): số
+        // glyph engine (Unicode scalar/bảng mã xuất) phải **trùng** số grapheme
+        // của đuôi đã xác minh — `deleteBackward` xoá theo **grapheme**. Lệch
+        // (chuỗi kết hợp/NFD, bảng mã xuất ≠ Unicode: 1 chữ Việt = 2 glyph) ⇒
+        // xoá thừa/thiếu ký tự ⇒ **không xác minh được ⇒ không sửa** (fail-safe).
+        guard plan.originalTail.count == plan.deleteGlyphs else {
+            Diagnostics.log("assist: glyph/grapheme mismatch — skip")
+            return false
+        }
         guard target.deleteSurroundingText(before: plan.deleteGlyphs, after: 0) else {
             Diagnostics.log("assist: delete failed — fail-open")
             return false
@@ -927,6 +936,13 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // R-3 (fail-safe): vùng sắp xoá phải **đúng** là text ta vừa gõ lại sau
         // khi sửa; người dùng đã gõ thêm ⇒ KHÔNG xoá (tránh nuốt chữ của họ).
         guard let before = validTarget.textBeforeCaret(), before.hasSuffix(undo.replacement) else {
+            assistUndo = nil
+            return false
+        }
+        // W1-audit (2026-10-23): cùng guard với `applyAssistFix` — undo xoá theo
+        // grapheme (`deleteBackward`), Chromium glyph của engine phải trùng số
+        // grapheme của replacement đã xác minh; lệch ⇒ không xoá (fail-safe).
+        guard undo.replacement.count == undo.replacementGlyphs else {
             assistUndo = nil
             return false
         }

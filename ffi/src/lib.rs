@@ -1113,6 +1113,103 @@ pub extern "C" fn ime_assist_sentence_tail_v1(
     }
 }
 
+/// Một lỗi "thô" đầu vào cho kế hoạch sửa câu — **biên chung** của
+/// [`ime_assist_result_v1`] (FFI) và `IssueView` (Windows TSF).
+///
+/// R-7 (G15 — một quyết định, một nơi): toàn bộ logic "sửa kiểu gì, xoá đâu"
+/// chỉ còn **MỘT** bản sống trong [`plan_issues_from_raw`]; macOS/Linux đi qua
+/// FFI (`ime_assist_plan_sentence_fix`), Windows đi qua hàm này rồi tự bọc
+/// [`textvn_assist::plan_sentence_fix`]. Trước đây logic này chép ở 2 nơi
+/// (ffi + windows-tsf) ⇒ sớm muộn lệch nhau (và đã lệch lần: Q-2 heuristic).
+#[derive(Debug, Clone)]
+pub struct PlanIssueRaw {
+    /// `IME_ASSIST_KIND_*` — quyết định `Fix::Delete` hay `Fix::Replace`.
+    pub kind: u32,
+    /// Span trong câu (char Unicode, inclusive-exclusive).
+    pub start: usize,
+    pub end: usize,
+    /// Chỉ lỗi auto-fixable mới vào kế hoạch.
+    pub auto_fixable: bool,
+    pub confidence: u8,
+    /// Gợi ý đầu tiên (rỗng = không có).
+    pub suggest: String,
+}
+
+/// Quy đổi lỗi thô → list [`textvn_assist::Issue`] kèm `Fix` — **nguồn duy nhất**
+/// của ngữ nghĩa sửa (theo `kind`, KHÔNG đoán bằng text — Q-2).
+pub fn plan_issues_from_raw(sentence: &str, raws: &[PlanIssueRaw]) -> Vec<textvn_assist::Issue> {
+    let chars: Vec<char> = sentence.chars().collect();
+    let mut issues = Vec::new();
+
+    for raw in raws {
+        if !raw.auto_fixable {
+            continue;
+        }
+        let start = raw.start;
+        let end = raw.end;
+        if start >= end || end > chars.len() {
+            continue;
+        }
+        let suggest_str = &raw.suggest;
+        if suggest_str.chars().any(char::is_control) {
+            continue;
+        }
+
+        let issue_kind = match raw.kind {
+            IME_ASSIST_KIND_DUPLICATE_WORD => textvn_assist::IssueKind::DuplicateWord,
+            IME_ASSIST_KIND_SPACE_BEFORE_PUNCT => textvn_assist::IssueKind::SpaceBeforePunct,
+            IME_ASSIST_KIND_SPACE_AFTER_PUNCT => textvn_assist::IssueKind::SpaceAfterPunct,
+            IME_ASSIST_KIND_DOUBLE_SPACE => textvn_assist::IssueKind::DoubleSpace,
+            IME_ASSIST_KIND_LOWERCASE_SENTENCE => textvn_assist::IssueKind::LowercaseSentenceStart,
+            IME_ASSIST_KIND_DIACRITIC_TYPO => textvn_assist::IssueKind::DiacriticTypo,
+            IME_ASSIST_KIND_SENTENCE_REPEAT => textvn_assist::IssueKind::SentenceRepeat,
+            IME_ASSIST_KIND_DOUBLE_NEGATIVE => textvn_assist::IssueKind::DoubleNegative,
+            IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
+            IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
+            _ => continue,
+        };
+
+        let fix =
+            if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD && start > 0 && chars[start - 1] == ' ' {
+                Some(textvn_assist::Fix::Delete {
+                    start: start - 1,
+                    end,
+                })
+            } else if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD
+                || raw.kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT
+            {
+                Some(textvn_assist::Fix::Delete { start, end })
+            } else {
+                let span_text: String = chars[start..end].iter().collect();
+                if span_text == *suggest_str {
+                    None
+                } else {
+                    Some(textvn_assist::Fix::Replace {
+                        start,
+                        end,
+                        text: suggest_str.to_string(),
+                    })
+                }
+            };
+
+        let Some(fix) = fix else {
+            continue;
+        };
+
+        issues.push(textvn_assist::Issue {
+            kind: issue_kind,
+            span: textvn_assist::Span { start, end },
+            message: String::new(),
+            suggestions: vec![suggest_str.to_string()],
+            auto_fixable: true,
+            confidence: raw.confidence,
+            fix: Some(fix),
+        });
+    }
+
+    issues
+}
+
 /// Tính kế hoạch tự sửa cả câu cho các lỗi objective (G15 / AS-050 · D12 · D22 · D27).
 ///
 /// Bọc trong catch_unwind (P0-2 §5).
@@ -1140,86 +1237,31 @@ pub extern "C" fn ime_assist_plan_sentence_fix(
             Ok(s) => s,
             Err(_) => return 0,
         };
-        let chars: Vec<char> = sentence.chars().collect();
-        if chars.is_empty() {
+        if sentence.is_empty() {
             return 0;
         }
 
+        // Quy đổi C-ABI → biên chung (R-7): toàn bộ quyết định sửa nằm trong
+        // [`plan_issues_from_raw`] — một bản cho cả 3 OS.
         let count = (res.count as usize).min(res.issues.len());
-        let mut issues = Vec::with_capacity(count);
-
-        for raw in res.issues.iter().take(count) {
-            if raw.auto_fixable == 0 {
-                continue;
-            }
-            let start = raw.start as usize;
-            let end = raw.end as usize;
-            if start >= end || end > chars.len() {
-                continue;
-            }
-            let suggest_str = match unsafe { CStr::from_ptr(raw.suggest.as_ptr()) }.to_str() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            if suggest_str.chars().any(char::is_control) {
-                continue;
-            }
-
-            let issue_kind = match raw.kind {
-                IME_ASSIST_KIND_DUPLICATE_WORD => textvn_assist::IssueKind::DuplicateWord,
-                IME_ASSIST_KIND_SPACE_BEFORE_PUNCT => textvn_assist::IssueKind::SpaceBeforePunct,
-                IME_ASSIST_KIND_SPACE_AFTER_PUNCT => textvn_assist::IssueKind::SpaceAfterPunct,
-                IME_ASSIST_KIND_DOUBLE_SPACE => textvn_assist::IssueKind::DoubleSpace,
-                IME_ASSIST_KIND_LOWERCASE_SENTENCE => {
-                    textvn_assist::IssueKind::LowercaseSentenceStart
+        let raws: Vec<PlanIssueRaw> = res.issues[..count]
+            .iter()
+            .map(|raw| {
+                let suggest = unsafe { CStr::from_ptr(raw.suggest.as_ptr()) }
+                    .to_str()
+                    .unwrap_or("")
+                    .to_string();
+                PlanIssueRaw {
+                    kind: raw.kind,
+                    start: raw.start as usize,
+                    end: raw.end as usize,
+                    auto_fixable: raw.auto_fixable != 0,
+                    confidence: raw.confidence.min(100) as u8,
+                    suggest,
                 }
-                IME_ASSIST_KIND_DIACRITIC_TYPO => textvn_assist::IssueKind::DiacriticTypo,
-                IME_ASSIST_KIND_SENTENCE_REPEAT => textvn_assist::IssueKind::SentenceRepeat,
-                IME_ASSIST_KIND_DOUBLE_NEGATIVE => textvn_assist::IssueKind::DoubleNegative,
-                IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
-                IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
-                _ => continue,
-            };
-
-            let fix = if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD
-                && start > 0
-                && chars[start - 1] == ' '
-            {
-                Some(textvn_assist::Fix::Delete {
-                    start: start - 1,
-                    end,
-                })
-            } else if raw.kind == IME_ASSIST_KIND_DUPLICATE_WORD
-                || raw.kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT
-            {
-                Some(textvn_assist::Fix::Delete { start, end })
-            } else {
-                let span_text: String = chars[start..end].iter().collect();
-                if span_text == suggest_str {
-                    None
-                } else {
-                    Some(textvn_assist::Fix::Replace {
-                        start,
-                        end,
-                        text: suggest_str.to_string(),
-                    })
-                }
-            };
-
-            let Some(fix) = fix else {
-                continue;
-            };
-
-            issues.push(textvn_assist::Issue {
-                kind: issue_kind,
-                span: textvn_assist::Span { start, end },
-                message: String::new(),
-                suggestions: vec![suggest_str.to_string()],
-                auto_fixable: true,
-                confidence: raw.confidence as u8,
-                fix: Some(fix),
-            });
-        }
+            })
+            .collect();
+        let issues = plan_issues_from_raw(sentence, &raws);
 
         let Some(plan) = textvn_assist::plan_sentence_fix(sentence, &issues) else {
             return 0;
@@ -1240,6 +1282,15 @@ pub extern "C" fn ime_assist_plan_sentence_fix(
         };
 
         if glyphs == 0 {
+            return 0;
+        }
+
+        // Audit vòng 1 (tháng 10-2026): số glyph cần xoá phải **trùng** số char
+        // Unicode của phần bị xoá. Khi bảng mã xuất vẫn là Unicode thì luôn khớp;
+        // bảng mã khác (VNI/TCVN3: 1 chữ Việt = 2 glyph) ⇒ Linux xoá theo CHAR sẽ
+        // xoá thừa ⇒ **không có kế hoạch** (fail-safe — cùng triết lý với
+        // `verify_delete_range` của Windows chặn ở biên document).
+        if glyphs as usize != tail_chars.len() {
             return 0;
         }
 
@@ -2289,5 +2340,99 @@ mod tests {
             ime_assist_plan_sentence_fix(std::ptr::null(), clean_c.as_ptr(), &empty_res, &mut plan),
             0
         );
+    }
+
+    /// R-7 (audit vòng 3, 2026-10-23): `plan_issues_from_raw` là **nguồn duy nhất**
+    /// của ngữ nghĩa sửa (FFI + Windows). Test khoá các luật lọc để sửa một nơi
+    /// là cả 3 OS đổi theo: không auto-fixable · kind lạ · span ngoài câu ·
+    /// span == gợi ý · gợi ý chứa ký tự điều khiển · lặp từ nuốt luôn dấu cách
+    /// đứng trước.
+    #[test]
+    fn plan_issues_from_raw_loc_va_ngu_nghia_sua() {
+        let sentence = "tôi tôi đi học .";
+        let raws = vec![
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_DUPLICATE_WORD,
+                start: 4,
+                end: 7,
+                auto_fixable: true,
+                confidence: 90,
+                suggest: "tôi".to_string(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_SPELLING,
+                start: 8,
+                end: 10,
+                auto_fixable: false,
+                confidence: 50,
+                suggest: String::new(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_DIACRITIC_TYPO,
+                start: 8,
+                end: 10,
+                auto_fixable: true,
+                confidence: 80,
+                suggest: "đi".to_string(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_DIACRITIC_TYPO,
+                start: 11,
+                end: 14,
+                auto_fixable: true,
+                confidence: 80,
+                suggest: "học\n".to_string(),
+            },
+            PlanIssueRaw {
+                kind: 9_999,
+                start: 11,
+                end: 14,
+                auto_fixable: true,
+                confidence: 80,
+                suggest: "học".to_string(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_DIACRITIC_TYPO,
+                start: 14,
+                end: 99,
+                auto_fixable: true,
+                confidence: 80,
+                suggest: ".".to_string(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_SPACE_BEFORE_PUNCT,
+                start: 14,
+                end: 15,
+                auto_fixable: true,
+                confidence: 95,
+                suggest: String::new(),
+            },
+        ];
+
+        let issues = plan_issues_from_raw(sentence, &raws);
+        assert_eq!(issues.len(), 2, "chỉ lỗi hợp lệ mới vào kế hoạch");
+        assert_eq!(issues[0].kind, textvn_assist::IssueKind::DuplicateWord);
+        assert_eq!(issues[0].confidence, 90);
+        assert!(
+            matches!(
+                issues[0].fix,
+                Some(textvn_assist::Fix::Delete { start: 3, end: 7 })
+            ),
+            "lặp từ phải nuốt luôn dấu cách trước nó: {:?}",
+            issues[0].fix
+        );
+        assert_eq!(issues[1].kind, textvn_assist::IssueKind::SpaceBeforePunct);
+        assert!(
+            matches!(
+                issues[1].fix,
+                Some(textvn_assist::Fix::Delete { start: 14, end: 15 })
+            ),
+            "xoá đúng dấu cách trước dấu chấm: {:?}",
+            issues[1].fix
+        );
+        // `message` rỗng là chủ ý (kế hoạch sửa không dùng câu thông báo);
+        // gợi ý vẫn giữ nguyên để adapter hiển thị nếu cần.
+        assert!(issues.iter().all(|i| i.message.is_empty()));
+        assert_eq!(issues[0].suggestions, vec!["tôi".to_string()]);
     }
 }

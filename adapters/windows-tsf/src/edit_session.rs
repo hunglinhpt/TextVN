@@ -1120,7 +1120,11 @@ pub fn apply_assist_undo(shared: &Rc<TsfShared>, ctx: &ITfContext) -> bool {
         Ok(code) if code.is_ok()
     );
     if granted {
-        shared.clear_assist_undo();
+        // Audit vòng 1 (W3): KHÔNG xoá state ngay khi session được cấp bất đồng bộ
+        // — kết quả áp dụng chỉ biết khi `DoEditSession` chạy; session tự xoá
+        // state khi hoàn tác thành công. Xoá sớm ⇒ session fail thì vừa nuốt
+        // phím Ctrl+Z vừa mất khả năng hoàn tác. State còn sót sẽ tự hết hạn
+        // sau 5 s (`AssistUndoState::is_valid`).
         true
     } else {
         false
@@ -1164,6 +1168,13 @@ impl ITfEditSession_Impl for ApplyAssistUndoSession_Impl {
         let applied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)))
             .unwrap_or(false);
         self.shared.reset_engine();
+        // W3: session tự xoá state khi hoàn tác THÀNH CÔNG — đúng cho cả đường
+        // đồng bộ lẫn bất đồng bộ (nhánh bất đồng bộ của caller không chờ biết
+        // kết quả ⇒ chỉ session nơi này biết và được phép xoá; dự phòng cho
+        // đường đồng bộ, `clear_assist_undo` idempotent).
+        if applied {
+            self.shared.clear_assist_undo();
+        }
         self.result.set(Some(applied));
         if applied {
             crate::trace::event(self.shared.tid, format_args!("assist A3 undo applied"));

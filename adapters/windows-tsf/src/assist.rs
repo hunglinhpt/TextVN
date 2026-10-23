@@ -542,89 +542,24 @@ where
         return None;
     }
 
-    let core_issues: Vec<textvn_assist::Issue> = issues
+    // R-7 (G15 — một quyết định, một nơi): ngữ nghĩa "sửa kiểu gì, xoá đâu"
+    // nằm DUY NHẤT ở `textvn_ffi::plan_issues_from_raw` (bản Rust duy nhất của
+    // `ime_assist_plan_sentence_fix` — cùng bản mà macOS/Linux đã dùng). Adapter
+    // chỉ quy đổi `IssueView` (mô hình overlay) sang biên chung:
+    // - `message` không đi vào kế hoạch (`plan_sentence_fix` chỉ xem `fix`);
+    // - `confidence` của Windows luôn 100 (IssueView không giữ).
+    let raws: Vec<textvn_ffi::PlanIssueRaw> = issues
         .iter()
-        .filter_map(|issue| {
-            if !issue.auto_fixable {
-                return None;
-            }
-            if issue.start >= issue.end || issue.end > chars.len() {
-                return None;
-            }
-
-            let fix = if issue.kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD {
-                let start = if issue.start > 0 && chars[issue.start - 1] == ' ' {
-                    issue.start - 1
-                } else {
-                    issue.start
-                };
-                Some(textvn_assist::Fix::Delete {
-                    start,
-                    end: issue.end,
-                })
-            } else if issue.kind == textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT {
-                Some(textvn_assist::Fix::Delete {
-                    start: issue.start,
-                    end: issue.end,
-                })
-            } else {
-                let suggestion = issue.suggestion.as_deref()?;
-                if suggestion.chars().any(char::is_control) {
-                    return None;
-                }
-                let span_text: String = chars[issue.start..issue.end].iter().collect();
-                if span_text == suggestion {
-                    return None;
-                }
-                Some(textvn_assist::Fix::Replace {
-                    start: issue.start,
-                    end: issue.end,
-                    text: suggestion.to_string(),
-                })
-            };
-
-            let kind = match issue.kind {
-                textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD => {
-                    textvn_assist::IssueKind::DuplicateWord
-                }
-                textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT => {
-                    textvn_assist::IssueKind::SpaceBeforePunct
-                }
-                textvn_ffi::IME_ASSIST_KIND_SPACE_AFTER_PUNCT => {
-                    textvn_assist::IssueKind::SpaceAfterPunct
-                }
-                textvn_ffi::IME_ASSIST_KIND_DOUBLE_SPACE => textvn_assist::IssueKind::DoubleSpace,
-                textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE => {
-                    textvn_assist::IssueKind::LowercaseSentenceStart
-                }
-                textvn_ffi::IME_ASSIST_KIND_DIACRITIC_TYPO => {
-                    textvn_assist::IssueKind::DiacriticTypo
-                }
-                textvn_ffi::IME_ASSIST_KIND_SENTENCE_REPEAT => {
-                    textvn_assist::IssueKind::SentenceRepeat
-                }
-                textvn_ffi::IME_ASSIST_KIND_DOUBLE_NEGATIVE => {
-                    textvn_assist::IssueKind::DoubleNegative
-                }
-                textvn_ffi::IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
-                textvn_ffi::IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
-                _ => return None,
-            };
-
-            Some(textvn_assist::Issue {
-                kind,
-                span: textvn_assist::Span {
-                    start: issue.start,
-                    end: issue.end,
-                },
-                message: issue.message.clone(),
-                suggestions: issue.suggestion.clone().into_iter().collect(),
-                auto_fixable: issue.auto_fixable,
-                confidence: 100,
-                fix,
-            })
+        .map(|issue| textvn_ffi::PlanIssueRaw {
+            kind: issue.kind,
+            start: issue.start,
+            end: issue.end,
+            auto_fixable: issue.auto_fixable,
+            confidence: 100,
+            suggest: issue.suggestion.clone().unwrap_or_default(),
         })
         .collect();
+    let core_issues: Vec<textvn_assist::Issue> = textvn_ffi::plan_issues_from_raw(sentence, &raws);
 
     let p = textvn_assist::plan_sentence_fix(sentence, &core_issues)?;
     let glyphs = glyph_len(&p.original_tail) as u32;
@@ -948,13 +883,21 @@ pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistC
     //
     // D16: `auto_capitalize` đọc **cùng đường** với `assist.mode`/`assist.auto_fix`
     // (`ThreadState` — nạp `config.v1.json` từ `%APPDATA%\TextVN\config.json`).
-    let (sentence, auto_capitalize) = {
+    let (sentence, auto_capitalize, assist_app_disabled) = {
         let thread = shared.thread.try_borrow().ok()?; // fail-open: engine đang bận
+                                                       // W4-audit (2026-10-23): `config.assist.per_app` — app bị tắt riêng
+                                                       // ⇒ không check, không gợi ý, không tự sửa, không toast (parity với
+                                                       // macOS `assistAllowed`). Mặc định (map rỗng) ⇒ không tắt gì.
+        let disabled = thread.assist_app_disabled(&thread.field_context().app_id);
         (
             thread.engine.sentence_tail(SENTENCE_MAX_CHARS),
             thread.auto_capitalize(),
+            disabled,
         )
     };
+    if assist_app_disabled {
+        return None;
+    }
     if began.elapsed().as_millis() > CHECK_BUDGET_MS {
         return None; // ngân sách: bỏ im lặng
     }
@@ -986,6 +929,31 @@ mod tests {
     use super::*;
     use crate::compose::vk;
     use textvn_ffi::MOD_ALT;
+
+    /// W4-audit (2026-10-23): `config.assist.per_app` — app bị tắt riêng trong
+    /// config ⇒ `ThreadState::assist_app_disabled` trả `true` cho app đó; map
+    /// rỗng (mặc định) ⇒ không tắt gì. `check_sentence` gate theo
+    /// `field_context().app_id` (host exe — chính là app đang gõ).
+    #[test]
+    fn per_app_tat_assist_rieng_theo_config() {
+        let mut t = crate::ThreadState::new("code.exe", 0).unwrap();
+        assert!(!t.assist_app_disabled("code.exe"), "mặc định: không tắt");
+        let cfg: &str = r#"{"config_version":1,"assist":{"per_app":{"code.exe":false}}}"#;
+        t.reload_config_bytes(cfg.as_bytes()).unwrap();
+        assert!(t.assist_app_disabled("code.exe"));
+        assert!(
+            t.assist_app_disabled("Code.EXE"),
+            "app_id so không phân biệt hoa/thường"
+        );
+        assert!(
+            !t.assist_app_disabled("notepad.exe"),
+            "app khác không bị thu hồi"
+        );
+        // Config khác (không có per_app) ⇒ giữ mặc định = không tắt.
+        t.reload_config_bytes(br#"{"config_version":1,"assist":{"mode":"highlight"}}"#)
+            .unwrap();
+        assert!(!t.assist_app_disabled("code.exe"));
+    }
 
     #[test]
     fn trigger_phan_loai_dung_theo_d11() {
