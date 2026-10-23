@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.35" date="2026-10-23">
+      <description>
+        <p>Grammar assistant hardening. Recall on real-world Vietnamese error corpora is raised from 57% to 88% (misspelled-word typos from 13% to 75%) at a 0.5% false-positive rate, using a table for misspellings that are not valid words plus a general variant-based path. Line-by-line audits across the three platforms fixed several safeguards: before applying an auto-fix or an undo, macOS now verifies that the glyph count of the text it is about to delete matches the grapheme count the app will actually erase (legacy output charsets can no longer erase extra characters); the Windows undo no longer clears its state when an asynchronous edit session is granted, so Ctrl+Z now completes reliably; disabling the grammar assistant for one application (assist.per_app) now works on Windows as it did on macOS; and the auto-fix planning logic exists once, in a single shared source used by Windows, macOS and Linux, with the FFI refusing any plan whose delete-glyph count does not equal the Unicode character count.</p>
+      </description>
+    </release>
     <release version="0.2.34" date="2026-10-18">
       <description>
         <p>Linux packaging for distribution stores: an Arch/AUR package is now provided (built from source with a QA workflow that runs makepkg for real inside an Arch container, checks metadata and package contents), alongside a written analysis of why Flatpak/Snap/AppImage cannot host a system-level input method. The Fcitx5 addon now requires C++20 because Fcitx5 6.x headers use std::ranges and std::span — without it the source does not compile on rolling-release distros. macOS installation via the official Homebrew tap (brew install --cask hunglinhpt/tap/textvn) is now the recommended route, with the cask kept in sync automatically from signed release checksums.</p>

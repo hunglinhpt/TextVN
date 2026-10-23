@@ -1,3 +1,13 @@
+textvn (0.2.35-0ppa1) noble; urgency=medium
+
+  * New upstream release 0.2.35: grammar assistant hardening - recall on
+    real-world corpora 57% to 88% (typos 13% to 75%) at 0.5% false positives;
+    shared auto-fix planning across Windows, macOS and Linux; safer delete
+    verification before apply/undo; per-app assist toggle now honoured on
+    Windows as well.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Fri, 23 Oct 2026 09:00:00 +0000
+
 textvn (0.2.34-0ppa1) noble; urgency=medium
 
   * New upstream release 0.2.34: Linux distro packaging (AUR + this PPA),

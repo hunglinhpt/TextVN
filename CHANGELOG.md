@@ -9,6 +9,8 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.35] — 2026-10-23
+
 ### Added
 - **Kênh Debian/Ubuntu: PPA + lộ trình kho chính thức** — `debian/` hoàn chỉnh
   (control/rules multiarch `/usr/lib/<triplet>/fcitx5/`, changelog, copyright
@@ -22,6 +24,30 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   Input Method Team) + audit deps: cây Linux chỉ cần serde/serde_json (đã có
   `librust-*-dev`). Checklist thêm B7f; `debian/changelog` = site 15 của
   check-version-sync.
+- **Trợ lý ngữ pháp rà lại sâu sau D19 (audit 3 vòng, `W1…W5`/`R-7`)**:
+  logic kế hoạch tự sửa gộp về **một nguồn duy nhất** (`textvn_ffi::plan_issues_from_raw`)
+  dùng chung cho cả 3 nền tảng; FFI chỉ trả kế hoạch khi `delete_glyphs` == số
+  char Unicode của đuôi xoá (bảng mã VNI/TCVN3 không thể xoá lệch trên
+  Linux/macOS); `assist.per_app` nay có hiệu lực trên **Windows** như macOS.
+
+### Fixed
+- **Recall corpus thật 57,1% → 87,8%** (D19 · `a557d3a`): luật `diacritic_typo`
+  nâng 12,5% → **75%** với FPR giữ **0,5%** (⇐/≥ chuẩn D19: recall ≥ 80%,
+  FPR ≤ 2%) — thêm bảng cặp từ-sai-KHÔNG-phải-từ-hợp-lệ (chính sách
+  Fassist-96) + đường tổng quát qua biến thể E1/E2/E3 giới hạn ngân sách
+  ≤8 từ lạ/câu.
+- **macOS (W1)**: xác minh `glyph == grapheme` trước khi xoá trong cả auto-fix
+  lẫn undo — bảng mã xuất ≠ Unicode/NFD ⇒ từ chối sửa (fail-safe, ngang
+  `verify_delete_range` của Windows) thay vì xoá thừa/thiếu ký tự.
+- **Windows (W3)**: nhánh undo bất đồng bộ không xoá state sớm nữa — session
+  tự xoá khi hoàn tác **thành công**; `Ctrl+Z` hiếm khi fail không còn nuốt
+  phím đồng thời mất khả năng hoàn tác.
+- CI: `cargo fmt` cho bảng TYPOS mới (`1e52a99`).
+
+> **Bản release candidate** — ký GPG + Sigstore như các bản trước, kèm chữ ký
+> git trên commit/tag (huy hiệu "Verified" — R6). **Chưa** Authenticode
+> (Windows — chờ SignPath Foundation) và **chưa** Developer ID + notarization
+> (macOS) — vẫn là candidate, không phải production.
 
 ## [0.2.34] — 2026-10-18
 
@@ -1373,6 +1399,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.35]: https://github.com/hunglinhpt/TextVN/compare/v0.2.34...v0.2.35
 [0.2.34]: https://github.com/hunglinhpt/TextVN/compare/v0.2.33...v0.2.34
 [0.2.33]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...v0.2.33
 [0.2.32]: https://github.com/hunglinhpt/TextVN/compare/v0.2.31...v0.2.32

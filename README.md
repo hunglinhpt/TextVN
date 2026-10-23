@@ -31,15 +31,20 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.34](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.34)**
+Bản mới nhất: **[GitHub Release v0.2.35](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.35)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.34 mở
-**kênh phân phối Linux cho distro store**: gói AUR (build từ mã nguồn, QA makepkg thật
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.35 củng cố
+**Trợ lý ngữ pháp**: recall trên corpus thật 57,1% → **87,8%** (FPR 0,5%), kế hoạch tự
+sửa gộp về **một nguồn dùng chung 3 nền tảng**, xác minh glyph/block-chars trước khi xoá
+(macOS/Linux — bảng mã ≠ Unicode không xoá lệch), `assist.per_app` có hiệu lực trên
+Windows, undo Windows còn state khi session bất đồng bộ, mở thêm kênh Debian/PPA
+(`ppa:hunglinhpt/textvn`). Bản 0.2.34 mở **kênh phân phối Linux cho distro store**:
+gói AUR (build từ mã nguồn, QA makepkg thật
 trong container Arch — `paru -S textvn`) và phân tích vì sao Flatpak/Snap/AppImage không
 phù hợp cho IME hệ thống; sửa lỗi Fcitx5 addon không biên dịch được trên distro rolling
 (C++20, R2-117). Bản 0.2.33 đổi **mặc định sau cài sang dấu cũ** trên cả 3 nền tảng

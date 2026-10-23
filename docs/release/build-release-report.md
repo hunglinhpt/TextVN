@@ -1,5 +1,16 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.35 — trợ lý ngữ pháp: recall 87,8% + audit sâu (W1–W5, R-7) + kênh Debian/PPA
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Trợ lý ngữ pháp (vòng D19 + audit 3 vòng):** recall corpus thật 57,1% → **87,8%** / diacritic_typo 12,5% → **75%**, FPR **0,5%** (chuẩn D19: ≥80% / ≤2%) — bảng cặp từ-sai-không-phải-từ-hợp-lệ (Fassist-96) + đường biến thể E1/E2/E3 ngân sách ≤8 từ lạ/câu (`a557d3a`). Audit sâu từng dòng: **W1** macOS guard glyph==grapheme trước khi xoá (apply+undo); **W3** undo Windows nhánh async không mất state; **W4** `assist.per_app` có hiệu lực trên Windows (gate `check_sentence` + test); **R-7** logic sửa gộp **một nguồn** `textvn_ffi::plan_issues_from_raw` cho cả 3 OS; guard FFI `glyphs == số char Unicode` fail-safe cho VNI/TCVN3 (bảo vệ IBus/Fcitx5/Linux). Chi tiết `P4-REVIEW-LOG.md` §"VÒNG AUDIT SÂU". Kênh Debian/Ubuntu (PPA `ppa:hunglinhpt/textvn` + lộ trình kho chính thức, R2-119) |
+| Gate local (máy Windows dev) | `cargo xtask preflight` **23/23 PASS** (homebrew SKIP — thiếu ruby cục bộ, CI chặn thật; store-validate SKIP — không artifact dist/) · replay shared+win **134/134** · replay adapter Linux **56/56** · repo replay tổng không fail |
+| Test trực tiếp các mảng đổi trong bản này | assist 60+4+8 · ffi 36+3 (thêm test `plan_issues_from_raw_loc_va_ngu_nghia_sua`) · win-tsf 89 (thêm test `per_app_tat_assist_rieng_theo_config`) — **199 pass, 0 fail, clippy 0 warning** |
+| CI trên commit audit `d4d1565` | 7/7 workflow xanh (ci-aur, ci-deb, ci-shared, ci-windows, ci-linux, ci-macos, repo-hygiene) — link run bổ sung ở mục Phát hành sau tag |
+| Lỗi/sự cố mới trong phiên (B4⑤) | CI đỏ `a557d3a` do `cargo fmt` bảng TYPOS mới → sửa `1e52a99` (bài học: luôn `cargo fmt --all` trước commit test mới) |
+| Trạng thái | release candidate: chưa Authenticode (chờ SignPath Foundation), macOS chưa Developer ID/notarization |
+
 ## Bản 0.2.34 — kênh Linux distro (AUR + ci-aur) + fcitx5 C++20 (R2-117)
 
 | Hạng mục | Bằng chứng |
