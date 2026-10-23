@@ -8,8 +8,6 @@
 > cập nhật — tự động bằng workflow `store-publish` qua Store submission API (§7), hoặc nộp
 > tay trên Partner Center (§3–§4).
 
-## 0. Trạng thái — ĐÃ PHÁT HÀNH trên Microsoft Store (2026-10-11)
-
 | Hạng mục | Trạng thái | Bằng chứng |
 |---|---|---|
 | **Trang Store** | ✅ [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB) — miễn phí, mục Năng suất, x64, nhà phát hành `LinhBH.CoM` | API catalog Store (`storeedgefd.dsx.mp.microsoft.com/v9.0/products/9NV2R7JNNFGK`, đọc 2026-10-12): `ReleaseDateUtc 2026-10-11T14:43:50Z`, `LastUpdateDateUtc 2026-10-12T06:26:34Z`, PFN `23651Linhi.TextVN_qgnrpq341n182`. winget: `winget install --id 9NV2R7JNNFGK -s msstore` (installer `msstore`, scope user) |
@@ -22,7 +20,8 @@
 | `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
 | `DisplayName` | ✅ `TextVN` | Tên đã reserve của sản phẩm MSIX (lựa chọn A, §2) — `Package/Identity/Name` do Partner Center sinh từ tên này |
 | **`Package/Identity/Name`** | ✅ `23651Linhi.TextVN` | Partner Center › sản phẩm MSIX › Product identity; PFN `23651Linhi.TextVN_qgnrpq341n182`, Store ID `9NV2R7JNNFGK` |
-| Gói nộp hiện hành 0.2.34 | ✅ asset `TextVN-0.2.34-windows-x64.msix` của GitHub Release v0.2.34, SHA-256 `7868c8ed59ca447c53e117dbbb5c9466a9294ed60101ba5e7bbce2ebc01f894c` | Build trong chính lượt phát hành (tag `v0.2.34` git-signed, release-candidate 4/4 job xanh) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.34/TextVN-0.2.34-windows-x64.msix`. Lưu ý: Kaspersky cách ly binary bản Store khi stage ra AppData — `docs/specs/antivirus-false-positive.md` §10 |
+| Gói nộp hiện hành 0.2.36 | ✅ asset `TextVN-0.2.36-windows-x64.msix` của GitHub Release v0.2.36, SHA-256 `fbda3c522f7ad5a56b41161c6d1308eff73cd0a0d5ebaac35b3a6135bd02ba16` | Build trong chính lượt phát hành (tag `v0.2.36` git-signed, release-candidate 4/4 job xanh) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.36/TextVN-0.2.36-windows-x64.msix` |
+| Gói nộp 0.2.34 | ✅ asset `TextVN-0.2.34-windows-x64.msix` của GitHub Release v0.2.34, SHA-256 `7868c8ed59ca447c53e117dbbb5c9466a9294ed60101ba5e7bbce2ebc01f894c` | Build trong chính lượt phát hành (tag `v0.2.34` git-signed, release-candidate 4/4 job xanh) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.34/TextVN-0.2.34-windows-x64.msix`. Lưu ý: Kaspersky cách ly binary bản Store khi stage ra AppData — `docs/specs/antivirus-false-positive.md` §10 |
 | Gói nộp 0.2.33 | ✅ asset `TextVN-0.2.33-windows-x64.msix` của GitHub Release v0.2.33, SHA-256 `ee41ee1f51ea84e6b6285d6f91a258909697641a55dbe9db1737d03678462162` | Build trong chính lượt phát hành (tag `v0.2.33` git-signed, release-candidate 4/4 job xanh) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.33/TextVN-0.2.33-windows-x64.msix`. Lưu ý: Kaspersky cách ly binary bản Store khi stage ra AppData — `docs/specs/antivirus-false-positive.md` §10 |
 | Gói nộp 0.2.32 | ✅ asset `TextVN-0.2.32-windows-x64.msix` của GitHub Release v0.2.32, SHA-256 `f983185406f70d048ae5e3b20ed961e1d00a7769e6f99a50cbe121b922f26602` | Build trong chính lượt phát hành ([release-candidate #38190208484](https://github.com/hunglinhpt/TextVN/actions/runs/38190208484)) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.32/TextVN-0.2.32-windows-x64-store.msix`. Lưu ý: Kaspersky cách ly binary bản Store khi stage ra AppData — `docs/specs/antivirus-false-positive.md` §10 |
 | Gói nộp 0.2.29 | ✅ asset `TextVN-0.2.29-windows-x64.msix` của GitHub Release v0.2.29, SHA-256 `435326b6d8d7fd00592c62ed621a4d469af573c35a111437a95df0a9c9e3d5fa` | Build trong chính lượt phát hành ([release-candidate #38044174107](https://github.com/hunglinhpt/TextVN/actions/runs/38044174107)) với identity từ repo variable; có chữ ký GPG/Sigstore; bản chép `approved/v0.2.29/TextVN-0.2.29-windows-x64-store.msix` |
@@ -33,8 +32,6 @@ Gói `.msix` kèm GitHub Release 0.2.28 mang identity **tạm** (`LinhBH.CoM.Tex
 Gói `.msix` trên release 0.2.27 / branch `approved` **KHÔNG nộp được** (identity
 placeholder, Version `0.2.27.0`, mô tả mojibake, ảnh 71×71 sai) — phải build lại
 theo §3.
-
-## 1. Vì sao gói MSIX của TextVN có cơ chế "stage-out"
 
 Bộ gõ Windows (TSF TIP) là DLL được **mọi ứng dụng** nạp. Microsoft Docs:
 module nạp vào tiến trình ngoài gói "không được phép" từ bên trong gói, và mọi
@@ -57,8 +54,6 @@ ghi `HKCU`/file mới dưới `AppData` của tiến trình có package identity
    giờ** xin quyền Administrator (cần cài cho mọi người dùng → bộ cài
    `*-machine.exe`).
 
-## 2. Partner Center — việc của chủ tài khoản
-
 1. **Chọn tên sản phẩm MSIX.** Phản hồi chính thức của Microsoft (10.2.9, xem
    `store-policy-10-2-9.md` §1): muốn dùng **cùng tên** cho MSIX thì phải **xoá tên
    khỏi sản phẩm Win32 (EXE)** trước. Hai lựa chọn:
@@ -72,8 +67,6 @@ ghi `HKCU`/file mới dưới `AppData` của tiến trình có package identity
    **`Package/Identity/Name`** (dạng `12345LinhBHCoM.TextVN`). Kiểm hai giá trị còn
    lại đúng như bảng §0 (`Package/Identity/Publisher`, `Package/Properties/
    PublisherDisplayName`).
-
-## 3. Build gói nộp Store
 
 **Cách 1 — CI, build lại riêng gói cho bản đã phát hành (khuyến nghị):**
 
@@ -112,8 +105,6 @@ tăng dần). Store chỉ cập nhật khi Version mới **lớn hơn** — đ�
 `installer\windows\tests\test-msix-sideload.ps1 -Msix <file.msix>` — ký tạm, cài,
 mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thật một lần.
 
-## 4. Nộp submission
-
 1. **Packages:** upload file `.msix` (không ký — Store tự ký). Chờ validate.
 2. **Properties:** Category *Utilities & tools*; Privacy policy URL =
    `https://github.com/hunglinhpt/TextVN/blob/main/PRIVACY_POLICY.txt` (mục 7/EN và
@@ -141,8 +132,6 @@ mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thậ
 
 6. Submit. Certification thường 1–3 ngày.
 
-## 5. Rủi ro còn lại & cách xử lý
-
 | Rủi ro | Mức | Nếu bị từ chối |
 |---|---|---|
 | Tester coi việc chép binary ra ngoài gói là trái 10.2.2 / hướng dẫn đóng gói | Trung bình | Trả lời bằng ghi chú ở §4.5 (đây là cách duy nhất để một TSF IME hoạt động; hướng dẫn IME của Microsoft yêu cầu đăng ký qua `ITfInputProcessorProfileMgr`); nếu vẫn từ chối → đường EXE ký Authenticode (SignPath) |
@@ -150,8 +139,6 @@ mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thậ
 | Win11 24H2+ từ chối kích hoạt TIP chỉ-per-user (B7) | **Đã gặp** (2026-10-11, máy chủ repo Windows 11 build 26300, bản cài từ Store: `RegisterProfile`/`ActivateProfile` = `0x80004005`; runner CI Windows Server 2022 không gặp) | Bản Store không xin UAC — hướng dẫn chuyển sang bộ cài `*-machine.exe` (đăng ký HKLM) |
 | Antivirus cách ly tệp đã stage ra AppData (chưa ký Authenticode) | **Đã gặp** với Kaspersky 21.26 (2026-10-11, ~2 phút sau lần mở đầu) | `docs/specs/antivirus-false-positive.md` §10: AV-5 lấy tên detection, AV-1 báo nhầm (hash 4 binary của gói), AV-2 SignPath, AV-6 Kaspersky Allowlist, AV-7 giảm hành vi giống dropper của kênh Store |
 | Version hiển thị trong Cài đặt là 1.2.27.0 (khác 0.2.27 trong app) | Thấp | Do map version (§3) — ghi chú trong mô tả nếu cần |
-
-## 6. Sau khi publish
 
 - **Đã publish 2026-10-11** — trang Store: https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB
   (README, `docs/user-guide.md` và `HUONG_DAN_SU_DUNG.txt` trỏ link này; winget:
@@ -163,8 +150,6 @@ mở, kiểm, gỡ, kiểm dọn sạch; nên chạy trên Windows 11 24H2 thậ
 - Gỡ: Cài đặt › Ứng dụng › TextVN › Gỡ; lần đăng nhập kế guard dọn phần còn lại
   (hoặc dùng "Gỡ cài đặt" ở menu khay trước).
 
-## 7. Tự động nộp bản cập nhật bằng GitHub Actions (`store-publish.yml`)
-
 Workflow `.github/workflows/store-publish.yml` nộp asset `.msix` của một GitHub Release
 làm bản cập nhật cho sản phẩm `9NV2R7JNNFGK`, bằng **Microsoft Store Developer CLI**
 (`msstore`) — CLI chính thức của Microsoft cho CI/CD, gọi Store submission API của
@@ -173,9 +158,7 @@ GitHub Actions](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-d
 [Microsoft Store Developer CLI Commands (MSIX)](https://learn.microsoft.com/en-us/windows/apps/publish/msstore-dev-cli/commands);
 hành vi chi tiết đối chiếu mã nguồn [microsoft/msstore-cli v0.4.3](https://github.com/microsoft/msstore-cli/tree/v0.4.3).
 
-### 7.1 Workflow làm gì
-
-| Job | Máy | Secret | Việc |
+#| Job | Máy | Secret | Việc |
 |---|---|---|---|
 | `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `verify-msix.py --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`) |
 | `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → `msstore reconfigure` (kiểm luôn đăng nhập) → tắt telemetry CLI → **đọc trạng thái Store** (submission đang chờ/đã phát hành, version gói) và chặn sớm → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`; `check` bỏ qua) → `msstore submission status` + tóm tắt run |
@@ -206,9 +189,7 @@ Hành vi của `msstore publish` (mã nguồn v0.4.3) cần biết:
 - Version gói phải **lớn hơn** bản đang trên Store (map §3 luôn tăng); nộp lại số cũ thì
   Partner Center từ chối.
 
-### 7.2 Cài đặt một lần (chủ tài khoản Partner Center)
-
-1. **Tenant:** Partner Center › Account settings › Tenants — tài khoản phải liên kết một
+#1. **Tenant:** Partner Center › Account settings › Tenants — tài khoản phải liên kết một
    Microsoft Entra tenant ([liên kết tenant có sẵn](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/associate-existing-azure-ad-tenant-with-partner-center-account)
    hoặc [tạo tenant mới](https://learn.microsoft.com/en-us/windows/apps/publish/partner-center/create-new-azure-ad-tenant)).
 2. **App Entra:** <https://entra.microsoft.com> › Identity › Applications › App registrations ›
@@ -233,9 +214,7 @@ Hành vi của `msstore publish` (mã nguồn v0.4.3) cần biết:
 8. **Nộp thật:** khi có tag mới hơn bản trên Store, chạy lại với `mode` = `draft` → kiểm
    Partner Center có bản nháp mang gói mới → bấm Submit (hoặc chạy với `submit`).
 
-### 7.3 Bật tự động sau mỗi lần phát hành
-
-Repo variable **`STORE_AUTO_PUBLISH`** (Settings › Secrets and variables › Actions ›
+#Repo variable **`STORE_AUTO_PUBLISH`** (Settings › Secrets and variables › Actions ›
 Variables):
 
 | Giá trị | Sau khi `release-candidate` của một tag phát hành thành công |
@@ -248,9 +227,7 @@ Trigger là `workflow_run` của `release-candidate` (lượt do push tag và k�
 `success`), **không** phải `release: published`: release do `GITHUB_TOKEN` tạo không kích hoạt
 workflow khác (GitHub chỉ ngoại lệ `workflow_dispatch`/`repository_dispatch`).
 
-### 7.4 Bảo mật & bảo trì
-
-- `verify` không có secret; `submit` chỉ nộp đúng gói `verify` đã kiểm (so SHA-256 lần nữa).
+#- `verify` không có secret; `submit` chỉ nộp đúng gói `verify` đã kiểm (so SHA-256 lần nữa).
   Chạy tay chỉ nhận từ `main` (secret chỉ đi cùng workflow đã review).
 - Không dùng action bên thứ ba để cài CLI: action `microsoft/microsoft-store-apppublisher`
   mặc định tải bản `latest` và không kiểm hash, nên workflow tải thẳng

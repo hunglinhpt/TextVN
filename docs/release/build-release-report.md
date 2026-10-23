@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.36 — trợ lý ngữ pháp FPR 0 % (audit 3 lượt "như Grammarly")
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Audit 3 lượt từng dòng toàn bộ trợ lý ngữ pháp (assist crate + FFI + 3 adapters + config/corpus/docs). **A1 CRITICAL**: bỏ 5 cặp bảng TYPOS mà từ "sai" là từ hợp lệ (quyến/thuở/đả/áy/điếm — vi phạm Fassist-96, chứng minh 5/5 câu đúng bị autocorrect sửa sai). 4 từ lặp hợp lệ vào whitelist. A2: gate L0 nhận chữ hoa có dấu. Đo lại trung thực (`tools/assist/score_real.py`, CLI rebuild trước đo): **FPR 0,5 % → 0,0 % (0/981, Wilson 0,0–0,4)**, recall câu 87,8 % → 83,7 % (đổi 2 ca mơ hồ lấy FPR 0 — đánh đổi một chiều), diacritic 66,7 %. Chi tiết: `docs/50-assist/P4-12-RECALL-REAL.md` §11 |
+| Release | v0.2.36 publish từ tag ký GPG trỏ commit `938bbd3` — release-candidate [#39983783445](https://github.com/hunglinhpt/TextVN/actions/runs/39983783445) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | push `main` `938bbd3`: [ci-shared #39980147717](https://github.com/hunglinhpt/TextVN/actions/runs/39980147717), [ci-windows #39980147661](https://github.com/hunglinhpt/TextVN/actions/runs/39980147661), [ci-linux #39980147800](https://github.com/hunglinhpt/TextVN/actions/runs/39980147800), [ci-macos #39980147744](https://github.com/hunglinhpt/TextVN/actions/runs/39980147744), [ci-aur #39980147646](https://github.com/hunglinhpt/TextVN/actions/runs/39980147646), [ci-deb #39980147733](https://github.com/hunglinhpt/TextVN/actions/runs/39980147733), [repo-hygiene #39980147742](https://github.com/hunglinhpt/TextVN/actions/runs/39980147742) — xanh cả 7. Local: 658 test pass, clippy 0, fmt sạch, preflight 23/23 |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums (pin từ `SHA256SUMS.txt` đã ký) | machine exe `66050e2e…8ad2` · setup exe `7bb80bb8…f98d` · MSIX (nộp Store) `fbda3c52…ba16` · portable `4ec25f51…3a43` · Linux `3ec5d51a…8bc7` · pkg `c8848521…41e9` · **mac zip `054716ef…5543`** · mac tar.gz `cfea7a86…c6a4` · PKGBUILD source archive v0.2.36 `ad1b8055…3bf5` |
+| Homebrew (B7b) | cask `sha256` = mac zip `054716ef…5543` |
+| AUR (B7e) | PKGBUILD/.SRCINFO `sha256sums` = archive v0.2.36 `ad1b8055…3bf5`; ci-aur xanh; publish lên AUR còn chờ owner (account + SSH key) |
+| PPA (B7f) | debian/changelog `0.2.36-0ppa1`; ci-deb xanh; upload còn chờ owner (Ubuntu SSO + GPG key) |
+| approved (B7c) | `approved/v0.2.36/` — 34 file release + chữ ký, byte-identical |
+
 ## Bản 0.2.35 — trợ lý ngữ pháp: recall 87,8% + audit sâu (W1–W5, R-7) + kênh Debian/PPA
 
 | Hạng mục | Bằng chứng |
