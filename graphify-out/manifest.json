@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1792614873.86485,
-    "seen": 1792627840.164261,
-    "ast_hash": "064c9ef86982322e861b522f01800c05",
+    "mtime": 1792719599.622581,
+    "seen": 1792738087.6510108,
+    "ast_hash": "1f815887c804610cd0ad15a3e96f931d",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "ffi/src/lib.rs": {
-    "mtime": 1792678585.6296735,
-    "seen": 1792678773.452209,
-    "ast_hash": "b4e9e5a657659a69c9b1bf66b179bc8c",
+    "mtime": 1792721496.9274905,
+    "seen": 1792738087.6996021,
+    "ast_hash": "a07715a82867a17112ec7d1ed4ca0fa2",
     "semantic_hash": ""
   },
   "ffi/tests/abi_invariants.rs": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1792649843.4794292,
-    "seen": 1792649978.4540744,
-    "ast_hash": "7960e8345a683107c381c9ec46279ee5",
+    "mtime": 1792737915.9266055,
+    "seen": 1792738087.8492575,
+    "ast_hash": "86c92d5577945e824b5e12ff8bcd2f56",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792612362.208675,
-    "seen": 1792627840.164261,
-    "ast_hash": "46731d056dcb07512999aecced622eb5",
+    "mtime": 1792719519.267588,
+    "seen": 1792738087.649111,
+    "ast_hash": "6788d1805edb58fcffcfebae1e788e27",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "docs/release/parity-checklist.md": {
-    "mtime": 1792653593.1659157,
-    "seen": 1792653799.2527022,
-    "ast_hash": "59ad4eeacd80cd31930d96585979e8a6",
+    "mtime": 1792737829.3305292,
+    "seen": 1792738087.8382623,
+    "ast_hash": "382fb8c376e8b24878979c49e752163f",
     "semantic_hash": ""
   },
   "installer/windows/build_installer.ps1": {
@@ -1212,9 +1212,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.c": {
-    "mtime": 1792628237.1567848,
-    "seen": 1792643360.3558042,
-    "ast_hash": "a2858fd2895a5b48c9f8f39522b63d1d",
+    "mtime": 1792721507.9158187,
+    "seen": 1792738087.6111953,
+    "ast_hash": "055f8f3e3a50197187a6c59395f2ede0",
     "semantic_hash": ""
   },
   "adapters/linux-ibus/src/engine.h": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1792615076.2310765,
-    "seen": 1792627840.1627533,
-    "ast_hash": "e9be354042ca71aa62a014d015e93f5b",
+    "mtime": 1792719653.0947237,
+    "seen": 1792738087.6369824,
+    "ast_hash": "33e7aafde9bf62d10c15e837fd7076a1",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -2400,9 +2400,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/diacritic_typo.rs": {
-    "mtime": 1792685093.7519097,
-    "seen": 1792685330.6531909,
-    "ast_hash": "17ff3b24ec08b7efdd9920d969d4f3c5",
+    "mtime": 1792714981.594046,
+    "seen": 1792738087.6591756,
+    "ast_hash": "afe3070cd913f72b4dc916c7d1e3e930",
     "semantic_hash": ""
   },
   "assist/src/rules/double_space.rs": {
@@ -2628,9 +2628,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/assist.rs": {
-    "mtime": 1792678585.2906022,
-    "seen": 1792678773.4382026,
-    "ast_hash": "2f75aac095f31d319819cbc98553b047",
+    "mtime": 1792719730.4602075,
+    "seen": 1792738087.647109,
+    "ast_hash": "a04e2d3e2550ed4ff9c180f8fa5efea7",
     "semantic_hash": ""
   },
   "dict/src/os_linux.rs": {
@@ -2676,15 +2676,15 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-REVIEW-LOG.md": {
-    "mtime": 1792678686.783541,
-    "seen": 1792678773.4818995,
-    "ast_hash": "51debc8b521cf31bb42d5573e97976b7",
+    "mtime": 1792737818.203646,
+    "seen": 1792738087.8286948,
+    "ast_hash": "24a32c56fabbcc33913cfa3122def60f",
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {
-    "mtime": 1792614130.3103402,
-    "seen": 1792627840.1861346,
-    "ast_hash": "8063a44ab2d9f70c0fb3d45665f6502b",
+    "mtime": 1792714695.1718826,
+    "seen": 1792738087.8237958,
+    "ast_hash": "5a19db578e31fc9b4242f7e5932ac938",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_assist_text.h": {
