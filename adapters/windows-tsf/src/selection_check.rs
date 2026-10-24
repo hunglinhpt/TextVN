@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Kiểm tra ngữ pháp **vùng bôi đen** (vòng 30 — yêu cầu chủ repo 2026-10-24):
+//! người dùng bôi đen một câu đang soạn thảo → trợ lý check + hiện popup
+//! (tổng lỗi + nút "Sửa tất cả") neo cạnh vùng chọn; bấm nút thay toàn bộ
+//! vùng bằng câu đã sửa.
+//!
+//! Phân biệt "bôi đen để đọc/copy" vs "đang soạn thảo":
+//! - Chỉ kích hoạt khi selection được tạo/mở rộng bằng **bàn phím**
+//!   (Shift+←/→/↑/↓/Home/End — key-up không giữ Ctrl/Win) — người copy
+//!   bôi bằng chuột hoặc bấm Ctrl+A/C/X: chuột không qua key sink,
+//!   Ctrl+* bị loại theo modifier.
+//! - Debounce 500 ms sau phím cuối — gõ dở Shift+→ liên tục không pop.
+//! - Chỉ check khi trợ lý Mode 1 bật (highlight/autocorrect), vùng
+//!   3..500 ký tự và có chữ cái (không bắt bôi đen số/ảnh).
+//!
+//! Sửa vùng chọn dùng `SetText` trên đúng range selection (hành vi gõ
+//! thường — người dùng đang chọn để thay) — KHÔNG phải engine
+//! `SelectionReplace` (D22); undo thuộc app (Ctrl+Z của Notepad/Word).
+
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+use windows::core::{implement, Result};
+use windows::Win32::Foundation::RECT;
+use windows::Win32::UI::TextServices::{
+    ITfContext, ITfEditSession, ITfEditSession_Impl, ITfRange, TF_ES_ASYNCDONTCARE, TF_ES_READ,
+    TF_ES_READWRITE,
+};
+use windows::Win32::UI::WindowsAndMessaging::{KillTimer, SetTimer};
+
+use crate::edit_session::{selection_range, TsfShared};
+use crate::overlay::Anchor;
+
+/// Timer ID của panel (không đụng TIMER_WATCHDOG của overlay).
+const TIMER_SELECTION_CHECK: usize = 0x5EC1;
+/// Debounce sau phím selection cuối.
+const DEBOUNCE_MS: u32 = 500;
+/// Giới hạn vùng check (ký tự UTF-16).
+const MIN_SELECTION_CHARS: usize = 3;
+const MAX_SELECTION_CHARS: usize = 500;
+
+// (Weak<TsfShared>, ctx) chờ debounce — thread UI của app (TSF apartment).
+thread_local! {
+    static PENDING: RefCell<Option<(Weak<TsfShared>, ITfContext)>> = const { RefCell::new(None) };
+}
+
+// Overlay hwnd (để SetTimer) — đăng ký từ `overlay::get_or_create_hwnd`.
+thread_local! {
+    static TIMER_HWND: RefCell<isize> = const { RefCell::new(0) };
+}
+
+/// Ghi nhận hwnd dùng cho timer debounce (gọi khi overlay tạo hwnd).
+#[cfg(windows)]
+pub fn register_timer_hwnd(hwnd: isize) {
+    TIMER_HWND.with(|c| *c.borrow_mut() = hwnd);
+}
+
+/// Key-up có khả năng kết thúc một lựa chọn bàn phím không? (không Ctrl/Win —
+/// Ctrl+A/C/X/V là chọn-all/copy/cut/paste: bỏ qua để không nhầm "để copy").
+#[cfg(windows)]
+fn is_selection_key_up(vk: u32, mods: u32) -> bool {
+    const MOD_CTRL: u32 = 0x2; // keymap::MOD_CTRL
+    const MOD_WIN: u32 = 0x8; // bàn Win
+    if mods & (MOD_CTRL | MOD_WIN) != 0 {
+        return false;
+    }
+    matches!(
+        vk,
+        0x10 |          // Shift (nhả sau Shift+←)
+        0x25..=0x28 |   // ← ↑ ↓ →
+        0x21 | 0x22 |   // PgUp/PgDn
+        0x23 | 0x24 |   // End/Home
+        0x70..=0x7B     // F1..F12 (Shift+F? hiếm nhưng vô hại)
+    ) || (vk >= 'A' as u32 && vk <= 'Z' as u32 && mods & 0x1 != 0) // Shift+letter (selection start)
+}
+
+/// Nhận key-up từ `OnTestKeyUp`/`OnKeyDown`-up path: lên lịch debounce check.
+#[cfg(windows)]
+pub fn on_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, mods: u32) {
+    let Some(ctx) = ctx else { return };
+    if !is_selection_key_up(vk, mods) {
+        return;
+    }
+    // Chỉ khi trợ lý đang bật (Mode 1 hiển thị) — không đụng gì khi tắt.
+    if !shared.is_assist_display_enabled() {
+        return;
+    }
+    let hwnd = TIMER_HWND.with(|c| *c.borrow());
+    if hwnd == 0 {
+        return; // overlay chưa từng tạo hwnd — không có nơi chạy timer
+    }
+    PENDING.with(|p| {
+        *p.borrow_mut() = Some((Rc::downgrade(shared), ctx.clone()));
+    });
+    // SAFETY: hwnd thuộc thread này (overlay của cùng TsfShared).
+    unsafe {
+        let _ = SetTimer(
+            Some(windows::Win32::Foundation::HWND(
+                hwnd as *mut std::ffi::c_void,
+            )),
+            TIMER_SELECTION_CHECK,
+            DEBOUNCE_MS,
+            None,
+        );
+    }
+}
+
+/// Timer fire → chạy check (gọi từ `overlay_wnd_proc` WM_TIMER).
+#[cfg(windows)]
+pub fn on_timer() {
+    let hwnd = TIMER_HWND.with(|c| *c.borrow());
+    if hwnd != 0 {
+        // SAFETY: một lần fire là đủ — hủy timer.
+        unsafe {
+            let _ = KillTimer(
+                Some(windows::Win32::Foundation::HWND(
+                    hwnd as *mut std::ffi::c_void,
+                )),
+                TIMER_SELECTION_CHECK,
+            );
+        }
+    }
+    let Some((weak, ctx)) = PENDING.with(|p| p.borrow_mut().take()) else {
+        return;
+    };
+    let Some(shared) = weak.upgrade() else {
+        return;
+    };
+    let session: ITfEditSession = SelectionCheckSession::new(shared.clone(), ctx.clone()).into();
+    // SAFETY: ctx hợp lệ trong callback TSF của thread này.
+    let hr =
+        unsafe { ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READ) };
+    let _ = hr;
+}
+
+/// Session đọc selection + check + hiện popup (vòng 30).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct SelectionCheckSession {
+    _guard: crate::class::ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl SelectionCheckSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext) -> Self {
+        Self {
+            _guard: crate::class::ObjGuard::new(),
+            shared,
+            ctx,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for SelectionCheckSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run(ec)));
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl SelectionCheckSession {
+    fn run(&self, ec: u32) -> bool {
+        if !self.shared.is_assist_display_enabled() {
+            return false;
+        }
+        unsafe {
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                return false;
+            };
+            // Vùng chọn rỗng (caret) = không bôi đen → thôi.
+            let Ok(empty) = sel.IsEmpty(ec) else {
+                return false;
+            };
+            if empty.as_bool() {
+                return false;
+            }
+            // Đọc text vùng chọn (đúng những gì user đang nhìn).
+            let mut buf = vec![0u16; MAX_SELECTION_CHARS + 1];
+            let mut fetched = 0u32;
+            if sel.GetText(ec, 0, &mut buf, &mut fetched).is_err() || fetched == 0 {
+                return false;
+            }
+            let units: Vec<u16> = buf[..(fetched as usize).min(buf.len())].to_vec();
+            if units.len() < MIN_SELECTION_CHARS {
+                return false; // quá ngắn
+            }
+            let Some(text) = String::from_utf16(&units).ok() else {
+                return false;
+            };
+            if !text.chars().any(|c| c.is_alphabetic()) {
+                return false; // toàn số/ký hiệu — không phải câu
+            }
+            // Check (engine thuần; auto_capitalize như đường thường).
+            let auto_cap = self
+                .shared
+                .thread
+                .try_borrow()
+                .map(|t| t.auto_capitalize())
+                .unwrap_or(true);
+            let Some(check) = crate::assist::check_text(&text, auto_cap) else {
+                return false; // câu sạch — không popup (D11)
+            };
+            // Neo popup cạnh VÙNG CHỌN (GetTextExt trên range chọn).
+            let anchor = self.selection_anchor(&sel, ec);
+            crate::edit_session::show_assist_overlay_for_selection(
+                &self.shared,
+                &self.ctx,
+                ec,
+                &check,
+                sel.clone(),
+                anchor,
+            );
+            true
+        }
+    }
+
+    /// Neo cạnh vùng chọn: `GetTextExt` trên range (nhiều app trả về rect
+    /// bao vùng chọn — lấy góc dưới phải). Fallback: anchor caret thường.
+    unsafe fn selection_anchor(&self, sel: &ITfRange, ec: u32) -> Option<Anchor> {
+        if let Ok(view) = self.ctx.GetActiveView() {
+            let mut rc = RECT::default();
+            let mut clipped = windows::core::BOOL::default();
+            if view.GetTextExt(ec, sel, &mut rc, &mut clipped).is_ok()
+                && rc.right > rc.left
+                && rc.bottom > rc.top
+            {
+                return Some(Anchor::new(rc.left, rc.top, rc.right, rc.bottom));
+            }
+        }
+        None
+    }
+}
+
+/// Session ÁP "Sửa tất cả" lên vùng chọn (vòng 30): SetText câu đã sửa vào
+/// đúng range selection (precondition: text vùng chọn VẪN bằng câu đã check).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct ApplySelectionFixSession {
+    _guard: crate::class::ObjGuard,
+    range: ITfRange,
+    expect: String,
+    fixed: String,
+}
+
+#[cfg(windows)]
+impl ApplySelectionFixSession {
+    pub fn new(range: ITfRange, expect: String, fixed: String) -> Self {
+        Self {
+            _guard: crate::class::ObjGuard::new(),
+            range,
+            expect,
+            fixed,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for ApplySelectionFixSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run(ec)));
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl ApplySelectionFixSession {
+    fn run(&self, _ec: u32) -> bool {
+        unsafe {
+            // Precondition: selection vẫn còn và text vẫn là câu đã check
+            // (người dùng chưa gõ xen/đổi vùng chọn giữa lúc popup hiện và
+            // lúc bấm nút — fail-safe không ghi đè gì khác).
+            let Ok(empty) = self.range.IsEmpty(_ec) else {
+                return false;
+            };
+            if empty.as_bool() {
+                return false;
+            }
+            let mut buf = vec![0u16; MAX_SELECTION_CHARS + 1];
+            let mut fetched = 0u32;
+            if self.range.GetText(_ec, 0, &mut buf, &mut fetched).is_err() {
+                return false;
+            }
+            let cur =
+                String::from_utf16(&buf[..(fetched as usize).min(buf.len())]).unwrap_or_default();
+            if cur != self.expect {
+                return false;
+            }
+            // SetText thay vùng chọn — undo thuộc app (Notepad/Word Ctrl+Z).
+            let wide: Vec<u16> = self.fixed.encode_utf16().collect();
+            self.range.SetText(_ec, 0, &wide).is_ok()
+        }
+    }
+}
+
+/// Yêu cầu áp sửa vùng chọn (gọi từ FixAll khi popup đến từ selection-check).
+#[cfg(windows)]
+pub fn request_apply_selection_fix(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    range: &ITfRange,
+    expect: &str,
+    fixed: &str,
+) -> bool {
+    let session: ITfEditSession =
+        ApplySelectionFixSession::new(range.clone(), expect.to_string(), fixed.to_string()).into();
+    // SAFETY: ctx hợp lệ trên thread UI.
+    let hr = unsafe {
+        ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE)
+    };
+    matches!(hr, Ok(code) if code.is_ok())
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::is_selection_key_up;
+
+    /// Vòng 30 — phân biệt bôi-đen-để-sửa vs đọc/copy: chỉ key-up
+    /// selection KHÔNG Ctrl/Win (Ctrl+A/C/X = copy ops → bỏ).
+    #[test]
+    fn chi_selection_key_khong_ctrl() {
+        const SHIFT: u32 = 0x1;
+        const CTRL: u32 = 0x2;
+        const WIN: u32 = 0x8;
+        // Shift + mũi tên/Home/End → là.
+        assert!(is_selection_key_up(0x25, SHIFT)); // ←
+        assert!(is_selection_key_up(0x27, SHIFT)); // →
+        assert!(is_selection_key_up(0x23, SHIFT)); // End
+        assert!(is_selection_key_up(0x24, SHIFT)); // Home
+        assert!(is_selection_key_up(0x10, 0)); // Shift tự nhả
+                                               // Ctrl giữ (Ctrl+C/Ctrl+X/Ctrl+A) → KHÔNG (tránh nhầm copy).
+        assert!(!is_selection_key_up(0x43, CTRL)); // C
+        assert!(!is_selection_key_up(0x58, CTRL)); // X
+        assert!(!is_selection_key_up(0x25, CTRL)); // Ctrl+← (word-nav)
+                                                   // Win giữ → không.
+        assert!(!is_selection_key_up(0x25, WIN));
+        // Phím thường không Shift (gõ chữ) → không kích hoạt.
+        assert!(!is_selection_key_up(0x41, 0)); // 'a'
+                                                // F-key không modifier → vô hại, nhận.
+        assert!(is_selection_key_up(0x70, 0));
+    }
+}

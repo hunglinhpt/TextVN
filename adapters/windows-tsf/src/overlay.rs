@@ -256,6 +256,14 @@ impl CandidateOverlay {
         }
     }
 
+    /// Ghi hwnd cho selection-check debounce timer (vòng 30 — gọi mỗi lần
+    /// hwnd được tạo/làm mới trong `get_or_create_hwnd`).
+    fn register_selection_timer(hwnd: HWND) {
+        if !hwnd.0.is_null() {
+            crate::selection_check::register_timer_hwnd(hwnd.0 as isize);
+        }
+    }
+
     /// Đăng ký nơi nhận hành động chuột (gọi MỘT lần khi dựng `TsfShared`;
     /// closure giữ `Weak<TsfShared>` — panel không giữ Rc vòng).
     pub fn set_action_sink(&self, sink: ActionSink) {
@@ -294,6 +302,7 @@ impl CandidateOverlay {
     fn get_or_create_hwnd(&self) -> HWND {
         let current = self.hwnd.get();
         if !current.0.is_null() && unsafe { IsWindow(Some(current)).as_bool() } {
+            Self::register_selection_timer(current);
             return current;
         }
         if !Self::ensure_class_registered() {
@@ -320,6 +329,7 @@ impl CandidateOverlay {
             match hwnd {
                 Ok(h) => {
                     self.hwnd.set(h);
+                    Self::register_selection_timer(h);
                     h
                 }
                 Err(_) => HWND::default(),
@@ -685,6 +695,12 @@ unsafe extern "system" fn overlay_wnd_proc(
         // Không bao giờ activate — focus ở lại app đang gõ.
         WM_MOUSEACTIVATE => LRESULT(MA_NOACTIVATE as isize),
         WM_TIMER => {
+            // Vòng 30: debounce check vùng bôi đen (timer riêng của
+            // selection_check — không đụng watchdog).
+            if wparam.0 == 0x5EC1 {
+                crate::selection_check::on_timer();
+                return LRESULT(0);
+            }
             if wparam.0 == TIMER_WATCHDOG && should_dismiss(hwnd) {
                 let _ = KillTimer(Some(hwnd), TIMER_WATCHDOG);
                 let _ = ShowWindow(hwnd, SW_HIDE);

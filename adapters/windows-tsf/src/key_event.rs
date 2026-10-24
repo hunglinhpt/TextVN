@@ -93,7 +93,12 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         Ok(eaten.into())
     }
 
-    fn OnTestKeyUp(&self, pic: Ref<'_, ITfContext>, wparam: WPARAM, _l: LPARAM) -> Result<BOOL> {
+    fn OnTestKeyUp(
+        &self,
+        pic: Ref<'_, ITfContext>,
+        wparam: WPARAM,
+        _lparam: LPARAM,
+    ) -> Result<BOOL> {
         if self
             .shared
             .deferred_replay
@@ -104,6 +109,11 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         }
         trace_key(&self.shared, "test-up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
+        // Vòng 30: bôi đen bằng bàn phím → debounce check ngữ pháp vùng chọn.
+        let mods = active_modifiers();
+        guarded(|| {
+            maybe_schedule_selection_check(&self.shared, pic.ok().ok(), wparam.0 as u32, mods)
+        });
         Ok(false.into())
     }
 
@@ -267,6 +277,22 @@ fn handle_key_up(shared: &TsfShared, ctx: Option<&ITfContext>, vk: u32) -> bool 
     shared.modifier_toggle.set(toggle);
     if fire {
         toggle_vietnamese(shared, ctx);
+    }
+    false
+}
+
+/// Vòng 30: key-up của phím selection (Shift/mũi tên/Home/End, không Ctrl)
+/// lên lịch kiểm tra ngữ pháp vùng bôi đen — cần `Rc<TsfShared>` (PENDING giữ
+/// Weak) nên gọi từ `OnTestKeyUp` có `shared: Rc`.
+#[cfg(windows)]
+pub(crate) fn maybe_schedule_selection_check(
+    shared: &std::rc::Rc<TsfShared>,
+    ctx: Option<&ITfContext>,
+    vk: u32,
+    mods: u32,
+) -> bool {
+    if let Some(ctx) = ctx {
+        crate::selection_check::on_key_up(shared, Some(ctx), vk, mods);
     }
     false
 }

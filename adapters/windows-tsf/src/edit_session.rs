@@ -71,6 +71,10 @@ pub struct ActiveAssist {
     /// Kết quả FFI nguyên vẹn lúc show — FixAll từ chuột dùng lại
     /// (`ApplySentenceFixSession` chỉ đọc `check.sentence`).
     pub check: AssistCheck,
+    /// Vòng 30: popup đến từ **selection-check** (bôi đen) — range chọn
+    /// (`None` = popup thường theo luồng gõ). FixAll từ chuột rẽ nhánh
+    /// SetText-vùng-chọn thay vì Backspace+Type.
+    pub selection: Option<windows::Win32::UI::TextServices::ITfRange>,
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -581,6 +585,7 @@ pub fn show_assist_overlay(
         caret,
         ctx: ctx.clone(),
         check: check.clone(),
+        selection: None,
     };
     let Ok(mut slot) = shared.assist.try_borrow_mut() else {
         return false;
@@ -591,6 +596,68 @@ pub fn show_assist_overlay(
     if !shared.overlay.is_visible() {
         // Không tạo được cửa sổ (thiếu quyền/GDI lỗi): bỏ state, không để A2
         // sửa text mà người dùng không thấy gì.
+        hide_assist_overlay(shared);
+        return false;
+    }
+    true
+}
+
+/// Vòng 30 — hiện popup cho **vùng bôi đen** (selection-check): như
+/// `show_assist_overlay` nhưng (a) KHÔNG yêu cầu selection rỗng — selection
+/// chính là đối tượng; (b) anchor = rect vùng chọn (GetTextExt); (c) giữ
+/// range trong `ActiveAssist.selection` để FixAll SetText đúng vùng.
+#[cfg(windows)]
+pub fn show_assist_overlay_for_selection(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    ec: u32,
+    check: &AssistCheck,
+    range: windows::Win32::UI::TextServices::ITfRange,
+    anchor: Option<crate::overlay::Anchor>,
+) -> bool {
+    if !shared.is_assist_display_enabled() {
+        return false;
+    }
+    let Some(view) = check.view() else {
+        return false;
+    };
+    if !crate::assist::should_show_overlay(
+        crate::assist::AssistTrigger::Sentence,
+        true,
+        view.issues.len(),
+    ) {
+        return false;
+    }
+    // SAFETY: foreground chỉ cho watchdog (0 = không kiểm).
+    let owner =
+        unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() }.0 as isize;
+    let Some(caret) = selection_range(ctx, ec) else {
+        return false;
+    };
+    let model = ActiveAssist {
+        view: view.clone(),
+        sentence: check.sentence.clone(),
+        caret,
+        ctx: ctx.clone(),
+        check: check.clone(),
+        selection: Some(range),
+    };
+    {
+        let Ok(mut slot) = shared.assist.try_borrow_mut() else {
+            return false;
+        };
+        *slot = Some(model);
+    }
+    // Anchor: ưu tiên rect vùng chọn; không có thì fallback caret-anchor thường.
+    let anchor = anchor.or_else(|| caret_anchor(ctx, ec, shared.tid));
+    let Some(anchor) = anchor else {
+        if let Ok(mut s) = shared.assist.try_borrow_mut() {
+            *s = None;
+        }
+        return false;
+    };
+    shared.overlay.show(&view, anchor, owner);
+    if !shared.overlay.is_visible() {
         hide_assist_overlay(shared);
         return false;
     }
@@ -1484,7 +1551,7 @@ fn to_wide_nul(text: &[char]) -> Vec<u16> {
 
 /// Selection mặc định của context (caret/vùng chọn). S3-1: KHÔNG dùng `GetStart`.
 #[cfg(windows)]
-fn selection_range(ctx: &ITfContext, ec: u32) -> Option<ITfRange> {
+pub(crate) fn selection_range(ctx: &ITfContext, ec: u32) -> Option<ITfRange> {
     let mut sel = [TF_SELECTION::default()];
     let mut fetched = 0u32;
     // SAFETY: buffer 1 phần tử + ec hợp lệ trong edit session.
@@ -1521,7 +1588,7 @@ pub fn get_caret_rect(ctx: &ITfContext, ec: u32) -> Option<RECT> {
 /// được thì `GetGUIThreadInfo().rcCaret` (app IMM32/legacy). Chỉ **vị trí** —
 /// không đọc chữ của app (D8).
 #[cfg(windows)]
-fn caret_anchor(ctx: &ITfContext, ec: u32, tid: u32) -> Option<Anchor> {
+pub(crate) fn caret_anchor(ctx: &ITfContext, ec: u32, tid: u32) -> Option<Anchor> {
     if let Some(rc) = get_caret_rect(ctx, ec) {
         let anchor = Anchor::new(rc.left, rc.top, rc.right, rc.bottom);
         if anchor.is_valid() {
@@ -1752,6 +1819,30 @@ fn apply_sentence_fix_from_mouse(shared: &Rc<TsfShared>) {
         return;
     };
     hide_assist_overlay(shared);
+    // Vòng 30: popup đến từ bôi đen → sửa bằng SetText đúng vùng chọn
+    // (precondition: text vùng chọn vẫn bằng câu đã check — session tự kiểm).
+    if let Some(range) = active.selection.clone() {
+        let plan = {
+            let Ok(thread) = shared.thread.try_borrow() else {
+                return;
+            };
+            let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
+            plan_sentence_auto_fix(&active.sentence, &active.view.issues, glyph_len)
+        };
+        let Some(plan) = plan else {
+            return;
+        };
+        let head: String = active.sentence.chars().take(plan.delete_from).collect();
+        let fixed = head + &plan.replacement.iter().collect::<String>();
+        crate::selection_check::request_apply_selection_fix(
+            shared,
+            &active.ctx,
+            &range,
+            &active.sentence,
+            &fixed,
+        );
+        return;
+    }
     let plan = {
         let Ok(thread) = shared.thread.try_borrow() else {
             return;

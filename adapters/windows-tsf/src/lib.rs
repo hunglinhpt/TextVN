@@ -45,6 +45,8 @@ pub mod key_event;
 #[cfg(windows)]
 pub mod replay;
 #[cfg(windows)]
+pub mod selection_check;
+#[cfg(windows)]
 pub mod tip;
 pub mod trace;
 
