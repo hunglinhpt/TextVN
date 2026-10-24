@@ -176,6 +176,16 @@ impl Tip_Impl {
 
         let ipc = IpcClient::global(&exe_name);
         let shared = Rc::new(TsfShared::new(tid, ipc, thread));
+        // Vòng 27: panel assist NHẬN chuột (nút "Sửa tất cả", click từ gạch
+        // chân/dòng lỗi) — dispatch về edit_session qua Weak (không cycle Rc).
+        {
+            let weak = Rc::downgrade(&shared);
+            shared.overlay.set_action_sink(Box::new(move |action| {
+                if let Some(shared) = weak.upgrade() {
+                    crate::edit_session::handle_overlay_mouse_action(&shared, action);
+                }
+            }));
+        }
         shared.config_seen.set(ipc.config_version());
 
         let sink: ITfKeyEventSink = KeySink::new(shared.clone()).into();

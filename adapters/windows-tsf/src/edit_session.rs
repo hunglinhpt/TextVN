@@ -65,6 +65,12 @@ pub struct ActiveAssist {
     /// Caret (range rỗng) lúc hiện overlay — A2 chỉ so **vị trí**
     /// (`CompareStart`/`CompareEnd`), không đọc chữ.
     pub caret: ITfRange,
+    /// Context lúc hiện overlay — click chuột trên panel xin edit session
+    /// riêng qua `request_sync_or_async` (vòng 27: panel bấm được).
+    pub ctx: ITfContext,
+    /// Kết quả FFI nguyên vẹn lúc show — FixAll từ chuột dùng lại
+    /// (`ApplySentenceFixSession` chỉ đọc `check.sentence`).
+    pub check: AssistCheck,
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -569,6 +575,8 @@ pub fn show_assist_overlay(
         view: view.clone(),
         sentence: check.sentence.clone(),
         caret,
+        ctx: ctx.clone(),
+        check: check.clone(),
     };
     let Ok(mut slot) = shared.assist.try_borrow_mut() else {
         return false;
@@ -1631,6 +1639,80 @@ fn apply_display_attribute(ctx: &ITfContext, ec: u32, range: &ITfRange) {
             }
         }
     }
+}
+
+/// Vòng 27 — dispatch hành động chuột từ panel assist (gọi trên thread UI của
+/// app, nơi panel sống): Select → vẽ lại; Apply → A2 sửa một từ; FixAll →
+/// A3 tự sửa cả câu (như Mode 2 nhưng **user chủ động** — precondition và
+/// Undo 5 giây giống hệt).
+#[cfg(windows)]
+pub(crate) fn handle_overlay_mouse_action(
+    shared: &Rc<TsfShared>,
+    action: crate::overlay::OverlayMouseAction,
+) {
+    match action {
+        crate::overlay::OverlayMouseAction::Select(issue_index) => {
+            // Chọn lỗi trong model + vẽ lại panel (không đụng document).
+            if let Ok(mut slot) = shared.assist.try_borrow_mut() {
+                if let Some(active) = slot.as_mut() {
+                    if active.view.select_index(issue_index) {
+                        let view = active.view.clone();
+                        shared.overlay.set_view(&view);
+                    }
+                }
+            }
+        }
+        crate::overlay::OverlayMouseAction::Apply(issue_index) => {
+            // A2: ctx lưu trong ActiveAssist lúc show — click chuột KHÔNG có
+            // edit cookie từ TSF nên tự xin session (sync → async).
+            let ctx = shared
+                .assist
+                .try_borrow()
+                .ok()
+                .and_then(|slot| slot.as_ref().map(|a| a.ctx.clone()));
+            let _ = apply_assist_suggestion(shared, ctx.as_ref(), issue_index);
+        }
+        crate::overlay::OverlayMouseAction::FixAll => {
+            apply_sentence_fix_from_mouse(shared);
+        }
+    }
+}
+
+/// Vòng 27 — nút "Sửa tất cả": tính kế hoạch A3 từ model đang hiện rồi xin
+/// edit session áp dụng qua `request_sync_or_async` (click chuột không có
+/// edit cookie từ TSF). `ApplySentenceFixSession::apply` tự kiểm precondition
+/// (selection rỗng, buffer còn là câu của ta) và lưu Undo 5 giây.
+#[cfg(windows)]
+fn apply_sentence_fix_from_mouse(shared: &Rc<TsfShared>) {
+    let Some(active) = shared
+        .assist
+        .try_borrow_mut()
+        .ok()
+        .and_then(|mut slot| slot.take())
+    else {
+        return;
+    };
+    hide_assist_overlay(shared);
+    let plan = {
+        let Ok(thread) = shared.thread.try_borrow() else {
+            return;
+        };
+        let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
+        // Kế hoạch chỉ áp **lỗi objective** (auto_fixable) — lỗi chỉ-gợi ý giữ
+        // lại cho người dùng quyết (A1), đúng ngữ nghĩa Mode 2.
+        plan_sentence_auto_fix(&active.sentence, &active.view.issues, glyph_len)
+    };
+    let Some(plan) = plan else {
+        return;
+    };
+    let session: ITfEditSession = ApplySentenceFixSession::new(
+        shared.clone(),
+        active.ctx.clone(),
+        active.check.clone(),
+        plan,
+    )
+    .into();
+    request_sync_or_async(&active.ctx, shared.tid, &session);
 }
 
 #[cfg(all(test, windows))]

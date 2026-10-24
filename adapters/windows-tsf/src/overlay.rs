@@ -107,6 +107,98 @@ const COLOR_ERROR: COLORREF = COLORREF(0x0025_25D9);
 #[cfg(windows)]
 const COLOR_SELECTED_BG: COLORREF = COLORREF(0x00FE_F0E8);
 
+/// Hành động chuột trên panel (vòng 27 — "như Grammarly": bấm vào được).
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayMouseAction {
+    /// Chọn lỗi thứ `i` (click lên từ gạch chân / dòng lỗi chưa chọn).
+    Select(usize),
+    /// Áp gợi ý của lỗi thứ `i` (click lần nữa trên lỗi đang chọn).
+    Apply(usize),
+    /// Nút "Sửa tất cả" — tự sửa cả câu (như Mode 2 nhưng user chủ động).
+    FixAll,
+}
+
+/// Kết quả hit-test thuần — test được không cần Win32.
+///
+/// - Click vào nút "Sửa tất cả" → [`OverlayMouseAction::FixAll`].
+/// - Click vào dòng lỗi `i`: chưa chọn → Select(i); đang chọn → Apply(i).
+/// - Click lên ký tự trong span của lỗi `i`: chưa chọn → Select(i);
+///   đang chọn → Apply(i).
+/// - Ngoài các vùng trên → `None` (click xuyên qua panel).
+///
+/// Hình học hit-test ghi trong paint (vòng 27) — gom nhóm để hàm hit-test
+/// không quá 7 tham số.
+#[cfg(windows)]
+struct HitGeometry<'a> {
+    view: &'a OverlayView,
+    skip: usize,
+    char_xs: &'a [i32],
+    content_top: i32,
+    line_h: i32,
+    row_rects: &'a [RECT],
+    button_rect: Option<RECT>,
+}
+
+#[cfg(windows)]
+fn mouse_hit_test(g: &HitGeometry, x: i32, y: i32) -> Option<OverlayMouseAction> {
+    let view = g.view;
+    let skip = g.skip;
+    let char_xs = g.char_xs;
+    let content_top = g.content_top;
+    let line_h = g.line_h;
+    let row_rects = g.row_rects;
+    let button_rect = g.button_rect;
+    // 1. Nút "Sửa tất cả".
+    if let Some(r) = button_rect {
+        if x >= r.left && x <= r.right && y >= r.top && y <= r.bottom {
+            return Some(OverlayMouseAction::FixAll);
+        }
+    }
+    // 2. Dòng lỗi: click chọn; click lần nữa trên dòng đang chọn → áp.
+    for (i, r) in row_rects.iter().enumerate() {
+        if x >= r.left && x <= r.right && y >= r.top && y <= r.bottom {
+            return Some(if view.selected == i {
+                OverlayMouseAction::Apply(i)
+            } else {
+                OverlayMouseAction::Select(i)
+            });
+        }
+    }
+    // 3. Ký tự trong span lỗi (dòng câu): xác định char index bằng `char_xs`.
+    if y >= content_top && y < content_top + line_h && char_xs.len() >= 2 {
+        let mut char_idx = None;
+        for (ci, w) in char_xs.windows(2).enumerate() {
+            if x >= w[0] && x < w[1] {
+                char_idx = Some(skip + ci);
+                break;
+            }
+        }
+        if let Some(pos) = char_idx {
+            for (i, issue) in view.issues.iter().enumerate() {
+                if pos >= issue.start && pos < issue.end {
+                    return Some(if view.selected == i {
+                        OverlayMouseAction::Apply(i)
+                    } else {
+                        OverlayMouseAction::Select(i)
+                    });
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Dispatch hành động chuột về edit_session (gọi từ WndProc — cùng thread UI).
+#[cfg(windows)]
+fn dispatch_mouse_action(action: OverlayMouseAction) {
+    ACTION_SINK.with(|cell| {
+        if let Some(sink) = cell.borrow().as_ref() {
+            sink(action);
+        }
+    });
+}
+
 /// Model + chủ sở hữu + hạn tự tắt của panel đang hiện (thread UI của app).
 #[cfg(windows)]
 struct Shown {
@@ -118,11 +210,25 @@ struct Shown {
     /// Trạng thái chuột trái ở lần kiểm tra trước: chỉ **lần nhấn mới** mới đóng
     /// (giữ chuột từ trước khi panel hiện không làm panel tắt ngay).
     lbutton_down: bool,
+    /// Vòng 26: hình học hit-test ghi trong paint — nút "Sửa tất cả",
+    /// các dòng lỗi, toạ độ từng ký tự dòng câu (để bắt click lên từ gạch chân).
+    button_rect: Option<RECT>,
+    row_rects: Vec<RECT>,
+    char_xs: Vec<i32>,
+    skip: usize,
+    content_top: i32,
+    line_h: i32,
 }
+
+/// Callback dispatch hành động chuột về edit_session (giữ `Weak<TsfShared>`).
+#[cfg(windows)]
+type ActionSink = Box<dyn Fn(OverlayMouseAction)>;
 
 #[cfg(windows)]
 thread_local! {
     static SHOWN: RefCell<Option<Shown>> = const { RefCell::new(None) };
+    /// Đăng ký một lần khi TsfShared dựng — panel không giữ Rc vòng.
+    static ACTION_SINK: RefCell<Option<ActionSink>> = const { RefCell::new(None) };
 }
 
 /// Panel overlay của MỘT thread UI (TIP in-process: mỗi app một instance).
@@ -137,6 +243,14 @@ impl CandidateOverlay {
         Self {
             hwnd: Cell::new(HWND::default()),
         }
+    }
+
+    /// Đăng ký nơi nhận hành động chuột (gọi MỘT lần khi dựng `TsfShared`;
+    /// closure giữ `Weak<TsfShared>` — panel không giữ Rc vòng).
+    pub fn set_action_sink(&self, sink: ActionSink) {
+        ACTION_SINK.with(|cell| {
+            *cell.borrow_mut() = Some(sink);
+        });
     }
 
     /// Đăng ký window class một lần trong process (fail-open: `false` = bỏ).
@@ -221,6 +335,12 @@ impl CandidateOverlay {
                     owner,
                     deadline: Instant::now() + Duration::from_millis(OVERLAY_IDLE_MS),
                     lbutton_down: left_button_down(),
+                    button_rect: None,
+                    row_rects: Vec::new(),
+                    char_xs: Vec::new(),
+                    skip: 0,
+                    content_top: 0,
+                    line_h: LINE_H,
                 });
             }
         });
@@ -437,22 +557,38 @@ fn place(hwnd: HWND, anchor: Anchor, width: i32, height: i32) -> (i32, i32) {
 
 /// Có nên tự tắt panel ngay bây giờ (hết 8 s · app mất foreground · click chuột).
 #[cfg(windows)]
-fn should_dismiss() -> bool {
+fn should_dismiss(hwnd: HWND) -> bool {
     let down = left_button_down();
-    let (expired, owner, clicked) = SHOWN.with(|cell| {
+    let (expired, owner, clicked_outside) = SHOWN.with(|cell| {
         let Ok(mut borrowed) = cell.try_borrow_mut() else {
             return (false, 0, false);
         };
         let Some(shown) = borrowed.as_mut() else {
             return (false, 0, false);
         };
-        // Chỉ **lần nhấn mới** đóng panel (panel không nhận chuột —
-        // `HTTRANSPARENT` — nên click nào cũng là "rời đi").
+        // Vòng 26: panel NHẬN chuột trên vùng tương tác — chỉ click NGOÀI panel
+        // mới đóng (click trong panel do WM_LBUTTONDOWN của panel xử lý).
         let clicked = down && !shown.lbutton_down;
+        let inside = clicked && {
+            let mut pt = POINT::default();
+            let _ = unsafe { GetCursorPos(&mut pt) };
+            let mut rc = RECT::default();
+            let ok_rect = unsafe { GetClientRect(hwnd, &mut rc) }.is_ok();
+            ok_rect
+                && unsafe { ScreenToClient(hwnd, &mut pt).as_bool() }
+                && pt.x >= rc.left
+                && pt.x <= rc.right
+                && pt.y >= rc.top
+                && pt.y <= rc.bottom
+        };
         shown.lbutton_down = down;
-        (Instant::now() >= shown.deadline, shown.owner, clicked)
+        (
+            Instant::now() >= shown.deadline,
+            shown.owner,
+            clicked && !inside,
+        )
     });
-    if expired || clicked {
+    if expired || clicked_outside {
         return true;
     }
     unsafe { owner != 0 && GetForegroundWindow().0 as isize != owner }
@@ -476,12 +612,64 @@ unsafe extern "system" fn overlay_wnd_proc(
         // Fassist-23: KHÔNG cấp MSAA/UIA object ⇒ nội dung overlay không vào
         // accessibility tree (app khác không đọc được câu người dùng).
         WM_GETOBJECT => LRESULT(0),
-        // Click xuyên qua panel (panel chỉ để đọc; chọn bằng bàn phím).
-        WM_NCHITTEST => LRESULT(HTTRANSPARENT as isize),
+        // Vòng 26: panel NHẬN chuột trên vùng tương tác (nút "Sửa tất cả",
+        // dòng lỗi, từ gạch chân) — vùng còn lại click xuyên qua như cũ.
+        WM_NCHITTEST => {
+            let pt = POINT {
+                x: (lparam.0 & 0xFFFF) as i16 as i32,
+                y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
+            };
+            let mut client = pt;
+            let _ = ScreenToClient(hwnd, &mut client);
+            let interactive = SHOWN.with(|cell| {
+                cell.borrow().as_ref().is_some_and(|shown| {
+                    let g = HitGeometry {
+                        view: &shown.view,
+                        skip: shown.skip,
+                        char_xs: &shown.char_xs,
+                        content_top: shown.content_top,
+                        line_h: shown.line_h,
+                        row_rects: &shown.row_rects,
+                        button_rect: shown.button_rect,
+                    };
+                    mouse_hit_test(&g, client.x, client.y).is_some()
+                })
+            });
+            if interactive {
+                LRESULT(HTCLIENT as isize)
+            } else {
+                LRESULT(HTTRANSPARENT as isize)
+            }
+        }
+        WM_LBUTTONDOWN => {
+            let pt = POINT {
+                x: (lparam.0 & 0xFFFF) as i16 as i32,
+                y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
+            };
+            let action = SHOWN.with(|cell| {
+                cell.borrow().as_ref().and_then(|shown| {
+                    let g = HitGeometry {
+                        view: &shown.view,
+                        skip: shown.skip,
+                        char_xs: &shown.char_xs,
+                        content_top: shown.content_top,
+                        line_h: shown.line_h,
+                        row_rects: &shown.row_rects,
+                        button_rect: shown.button_rect,
+                    };
+                    mouse_hit_test(&g, pt.x, pt.y)
+                })
+            });
+            if let Some(action) = action {
+                dispatch_mouse_action(action);
+                let _ = InvalidateRect(Some(hwnd), None, true);
+            }
+            LRESULT(0)
+        }
         // Không bao giờ activate — focus ở lại app đang gõ.
         WM_MOUSEACTIVATE => LRESULT(MA_NOACTIVATE as isize),
         WM_TIMER => {
-            if wparam.0 == TIMER_WATCHDOG && should_dismiss() {
+            if wparam.0 == TIMER_WATCHDOG && should_dismiss(hwnd) {
                 let _ = KillTimer(Some(hwnd), TIMER_WATCHDOG);
                 let _ = ShowWindow(hwnd, SW_HIDE);
                 SHOWN.with(|cell| {
@@ -539,15 +727,18 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
     let _ = SetBkMode(hdc, TRANSPARENT);
 
     SHOWN.with(|cell| {
-        let Ok(borrowed) = cell.try_borrow() else {
+        let Ok(mut borrowed) = cell.try_borrow_mut() else {
             return;
         };
-        let Some(shown) = borrowed.as_ref() else {
+        let Some(shown) = borrowed.as_mut() else {
             return;
         };
         let view = &shown.view;
         let left = rect.left + PAD;
         let right = rect.right - PAD;
+        shown.button_rect = None;
+        shown.row_rects.clear();
+        shown.char_xs.clear();
 
         // --- tổng kết kiểu Grammarly (vòng 26): "N lỗi trong câu vừa gõ" ---
         {
@@ -569,6 +760,44 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             );
             SelectObject(hdc, old_font);
             let _ = DeleteObject(header_font.into());
+            // Nút "Sửa tất cả" (vòng 26): hiện khi có ≥1 lỗi tự sửa được —
+            // click → FixAll (áp cả câu, có Undo 5 giây).
+            if view.issues.iter().any(|i| i.auto_fixable) {
+                let btn_font = create_font(13, FW_SEMIBOLD);
+                SelectObject(hdc, btn_font.into());
+                let mut units: Vec<u16> = "Sửa tất cả".encode_utf16().collect();
+                let mut size = SIZE::default();
+                let tw = if GetTextExtentPoint32W(hdc, &units, &mut size).as_bool() {
+                    size.cx
+                } else {
+                    0
+                };
+                let bw = tw + 16;
+                let bh = HEADER_H - 2;
+                let br = RECT {
+                    left: right - bw,
+                    top: rect.top + PAD - 3,
+                    right,
+                    bottom: rect.top + PAD - 3 + bh,
+                };
+                let bg = CreateSolidBrush(COLOR_SELECTED_BG);
+                let _ = FillRect(hdc, &br, bg);
+                let _ = DeleteObject(bg.into());
+                let border = CreateSolidBrush(COLOR_BORDER);
+                let _ = FrameRect(hdc, &br, border);
+                let _ = DeleteObject(border.into());
+                let _ = SetTextColor(hdc, COLOR_TEXT);
+                let mut tr = br;
+                let _ = DrawTextW(
+                    hdc,
+                    &mut units,
+                    &mut tr,
+                    DT_CENTER | DT_SINGLELINE | DT_VCENTER,
+                );
+                SelectObject(hdc, old_font);
+                let _ = DeleteObject(btn_font.into());
+                shown.button_rect = Some(br);
+            }
         }
         let content_top = rect.top + PAD + HEADER_H;
 
@@ -576,7 +805,6 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
         let (skip, visible) = view.visible_sentence(MAX_OVERLAY_SENTENCE_CHARS);
         let mut xs = Vec::with_capacity(visible.len() + 1);
         let mut x = left;
-        let mut drawn = 0usize;
         let mut line_h = LINE_H;
         for ch in visible {
             let mut buf = [0u16; 2];
@@ -595,10 +823,12 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             let _ = SetTextColor(hdc, COLOR_TEXT);
             let _ = TextOutW(hdc, x, content_top, units);
             x += width;
-            drawn += 1;
         }
         xs.push(x);
-        let _ = drawn;
+        shown.char_xs = xs.clone();
+        shown.skip = skip;
+        shown.content_top = content_top;
+        shown.line_h = line_h;
 
         let pen = CreatePen(PS_SOLID, 2, COLOR_ERROR);
         let old_pen = SelectObject(hdc, pen.into());
@@ -617,6 +847,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
 
         // --- danh sách lỗi + gợi ý (chọn bằng ↑/↓, Alt+1..3) ---
         let mut y = content_top + line_h + 2;
+        shown.row_rects.clear();
         for (idx, _) in view.issues.iter().enumerate() {
             if idx == view.selected {
                 let sel = CreateSolidBrush(COLOR_SELECTED_BG);
@@ -650,6 +881,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 &mut r,
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS,
             );
+            shown.row_rects.push(r);
             y += LINE_H;
         }
         if view.hidden_count() > 0 {
@@ -718,6 +950,98 @@ impl Default for CandidateOverlay {
     }
 }
 
+#[cfg(all(test, windows))]
+mod mouse_tests {
+    use super::*;
+    use crate::assist::IssueView;
+
+    fn view() -> OverlayView {
+        let chars: Vec<char> = "tôi tôi đi".chars().collect();
+        let issues = vec![IssueView {
+            start: 4,
+            end: 7,
+            message: "Lặp từ".into(),
+            suggestion: Some("tôi".into()),
+            auto_fixable: true,
+            kind: textvn_ffi::IME_ASSIST_KIND_DIACRITIC_TYPO,
+        }];
+        OverlayView::from_parts(chars, issues, 1).expect("view")
+    }
+
+    /// Vòng 27 — hit-test thuần: nút / dòng lỗi / từ gạch chân / ngoài panel.
+    #[test]
+    fn hit_test_vung_tuong_tac() {
+        let v = view();
+        let rows = vec![RECT {
+            left: 10,
+            top: 40,
+            right: 200,
+            bottom: 60,
+        }];
+        let button = Some(RECT {
+            left: 150,
+            top: 6,
+            right: 230,
+            bottom: 28,
+        });
+        // Click nút "Sửa tất cả" → FixAll.
+        macro_rules! geo {
+            ($v:expr, $char_xs:expr, $rows:expr, $button:expr) => {
+                HitGeometry {
+                    view: $v,
+                    skip: 0,
+                    char_xs: $char_xs,
+                    content_top: 30,
+                    line_h: 20,
+                    row_rects: $rows,
+                    button_rect: $button,
+                }
+            };
+        }
+        assert_eq!(
+            mouse_hit_test(&geo!(&v, &[0, 10], &rows, button), 200, 20),
+            Some(OverlayMouseAction::FixAll)
+        );
+        // from_parts đặt selected = 0 → click dòng 0 đang chọn → Apply(0).
+        assert_eq!(
+            mouse_hit_test(&geo!(&v, &[0, 10], &rows, button), 100, 50),
+            Some(OverlayMouseAction::Apply(0))
+        );
+        // Click dòng chưa chọn → Select.
+        let mut v_other = v.clone();
+        v_other.selected = 0;
+        let rows2 = vec![
+            RECT {
+                left: 10,
+                top: 40,
+                right: 200,
+                bottom: 60,
+            },
+            RECT {
+                left: 10,
+                top: 60,
+                right: 200,
+                bottom: 80,
+            },
+        ];
+        assert_eq!(
+            mouse_hit_test(&geo!(&v_other, &[0, 10], &rows2, button), 100, 70),
+            Some(OverlayMouseAction::Select(1))
+        );
+        // Click lên ký tự trong span (char_xs phủ span 4..7) → lỗi đang chọn
+        // → Apply(0).
+        let char_xs = vec![0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
+        assert_eq!(
+            mouse_hit_test(&geo!(&v, &char_xs, &rows, button), 45, 35),
+            Some(OverlayMouseAction::Apply(0))
+        );
+        // Click ngoài panel → None (xuyên qua như cũ).
+        assert_eq!(
+            mouse_hit_test(&geo!(&v, &char_xs, &rows, button), 5, 300),
+            None
+        );
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
