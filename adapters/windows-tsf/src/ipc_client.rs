@@ -116,7 +116,11 @@ impl Default for IpcState {
             global_enabled: AtomicBool::new(true),
             app_enabled: AtomicBool::new(true),
             has_app_override: AtomicBool::new(false),
-            assist_enabled: AtomicBool::new(false),
+            // Vòng 29 (root cause "trợ lý không hoạt động 0.2.40"): tray
+            // state.json mặc định assist_enabled=true từ 0.2.38, nhưng DLL nạp
+            // vào app khi CHƯA nhận Snapshot thì gate này false ⇒ tắt toàn bộ
+            // trợ lý (không popup/gạch chân/sửa) dù config nói highlight.
+            assist_enabled: AtomicBool::new(true),
         }
     }
 }
@@ -591,12 +595,14 @@ mod tests {
     #[test]
     fn assist_state_update_and_snapshot() {
         let client = IpcClient::detached();
-        assert!(!client.is_assist_enabled());
-        client.state.apply_update("notepad.exe", "assist", true);
+        // Vòng 29: mặc định BẬT (khớp tray state.json + config default) —
+        // trước đây false khiến trợ lý chết hoàn toàn khi tray chưa snapshot.
         assert!(client.is_assist_enabled());
         client
             .state
             .apply_states("notepad.exe", &map(&[("assist", false)]));
         assert!(!client.is_assist_enabled());
+        client.state.apply_update("notepad.exe", "assist", true);
+        assert!(client.is_assist_enabled());
     }
 }

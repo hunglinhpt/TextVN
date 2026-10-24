@@ -64,6 +64,14 @@ pub const CHECK_BUDGET_MS: u128 = 10;
 /// LOẠI (ồn — yêu cầu chủ repo 2026-10-24); chỉ toast khi Mode 2 tự sửa
 /// (người dùng phải biết text đã đổi + Ctrl+Z), 60 s/lần.
 pub const NOTIFY_COOLDOWN_MS: u64 = 60_000;
+/// Toast phát hiện lỗi (fallback popup dưới-phải): 8 s — chống spam khi gõ
+/// nhiều câu có lỗi liên tiếp nhưng đủ nhanh để người dùng thấy (vòng 29).
+pub const DETECT_COOLDOWN_MS: u64 = 8_000;
+/// Mốc toast phát hiện gần nhất (riêng slot với auto-fix).
+use std::sync::atomic::Ordering;
+
+#[cfg(windows)]
+static LAST_DETECT_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 // ---------------------------------------------------------------------------
 // Mode 1 — mô hình hiển thị overlay (D4/D30/D38)
@@ -916,17 +924,24 @@ pub fn after_trigger(
         return None;
     }
     let check = check_sentence(shared)?;
-    // Vòng 26: KHÔNG toast "Phát hiện N lỗi" — popup overlay tại caret đã
-    // hiển thị câu + gạch chân + tổng lỗi (kiểu Grammarly); toast khay gây
-    // ồn khi gõ thường. Chỉ toast khi Mode 2 tự sửa (edit_session gọi
-    // `notify_auto_fixed`).
+    // Vòng 29: popup dưới-phải (toast) là FALLBACK — hiện khi overlay tại
+    // caret không hiển thị được (app không cho anchor, selection bôi đen,
+    // thiếu quyền GDI). Overlay hiện được thì toast im (tránh 2 popup cùng
+    // lúc). Caller truyền kết quả show vào `overlay_shown`.
     Some(check)
 }
 
-/// Toast khay duy nhất của assist: **Mode 2 vừa tự sửa** — người dùng phải
-/// biết text đã đổi + cách hoàn tác. Cooldown [`NOTIFY_COOLDOWN_MS`]
-/// (claim nguyên tử: 2 thread cùng gọi chỉ một bên hiện).
-/// Toast chỉ mang số lỗi đã sửa — KHÔNG chứa câu người dùng (S2/R21).
+/// Gọi sau khi caller thử hiện overlay: `overlay_shown = false` ⇒ toast
+/// fallback (vòng 29). Thuần enough để test.
+#[cfg(windows)]
+pub fn after_trigger_finish(check: &AssistCheck, overlay_shown: bool) {
+    if !overlay_shown && check.issue_count() > 0 {
+        notify_detected(check.issue_count());
+    }
+}
+
+/// Toast "Đã tự sửa" (Mode 2): người dùng phải biết text đã đổi + hoàn tác.
+/// Cooldown 60 s ([`AUTO_FIX_COOLDOWN_MS`]) — riêng slot với toast phát hiện.
 #[cfg(windows)]
 pub fn notify_auto_fixed(fixed_count: usize) -> bool {
     if fixed_count == 0 {
@@ -937,6 +952,34 @@ pub fn notify_auto_fixed(fixed_count: usize) -> bool {
     }
     let message =
         format!("Đã tự sửa {fixed_count} lỗi trong câu (Ctrl+Z để hoàn tác trong 5 giây)");
+    crate::ipc_client::notify_assist_async("TextVN — Trợ lý ngữ pháp".to_string(), message);
+    true
+}
+
+/// Toast **phát hiện lỗi** (Mode 1 — popup dưới-phải, vòng 29): hiện khi
+/// overlay tại caret không hiển thị được (app không cho anchor/selection
+/// không rỗng) để người dùng vẫn biết trợ lý đang hoạt động. Cooldown 8 s
+/// riêng ([`DETECT_COOLDOWN_MS`]) — không đụng slot của auto-fix.
+#[cfg(windows)]
+pub fn notify_detected(issue_count: usize) -> bool {
+    if issue_count == 0 {
+        return false;
+    }
+    let now = millis_since_epoch();
+    // Cooldown riêng 8 s (DETECT_COOLDOWN_MS — audit F2: trước đây dùng
+    // nhầm notify_allowed 60 s khiến popup "không hoạt động").
+    let last = LAST_DETECT_MS.load(Ordering::Acquire);
+    if now.saturating_sub(last) < DETECT_COOLDOWN_MS {
+        return false;
+    }
+    // CAS mốc cũ→now: 2 thread cùng phát hiện chỉ 1 bên thắng.
+    if LAST_DETECT_MS
+        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return false; // thread khác vừa claim — bỏ (đã có toast).
+    }
+    let message = format!("Phát hiện {issue_count} lỗi trong câu vừa gõ.");
     crate::ipc_client::notify_assist_async("TextVN — Trợ lý ngữ pháp".to_string(), message);
     true
 }
@@ -1017,6 +1060,15 @@ mod tests {
         assert_eq!(word_count("tôi tôi đi học"), 4);
         assert_eq!(word_count("Xin chào 😀 của của nhé"), 6);
         assert!(word_count("tôi tôi") < MIN_SENTENCE_WORDS);
+    }
+
+    /// Vòng 29 (audit F2): DETECT_COOLDOWN_MS = 8 s — popup phát hiện lỗi
+    /// fallback KHÔNG bị kẹt 60 s của auto-fix.
+    #[test]
+    fn detect_cooldown_8s_rieng_slot() {
+        assert_eq!(DETECT_COOLDOWN_MS, 8_000);
+        assert_eq!(NOTIFY_COOLDOWN_MS, 60_000);
+        assert_ne!(DETECT_COOLDOWN_MS, NOTIFY_COOLDOWN_MS);
     }
 
     #[test]

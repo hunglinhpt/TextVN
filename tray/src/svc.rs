@@ -31,6 +31,13 @@ pub struct StateData {
     /// người dùng từng tắt (state.json có `false` tường minh) giữ nguyên tắt.
     #[serde(default = "default_assist_enabled")]
     pub assist_enabled: bool,
+    /// Vòng 29: migration MỘT LẦN cho kill-switch. Bản ≤0.2.37 ghi
+    /// `assist_enabled: false` theo DEFAULT CŨ vào state.json; người đã chạy
+    /// 0.2.38–0.2.40 giữ `false` mãi (last_version đã ≥0.2.38 nên so version
+    /// không bắt được — audit F1). Flag này=false và assist=false ⇒ bật lại
+    /// đúng 1 lần rồi ghi flag; sau đó mọi lần tắt là ý người dùng.
+    #[serde(default)]
+    pub assist_default_on: bool,
 }
 
 fn default_assist_enabled() -> bool {
@@ -79,6 +86,7 @@ impl SvcManager {
                     apps: BTreeMap::new(),
                     last_version: String::new(),
                     assist_enabled: true,
+                    assist_default_on: true,
                 })
         } else {
             let default_state = StateData {
@@ -86,6 +94,7 @@ impl SvcManager {
                 apps: BTreeMap::new(),
                 last_version: String::new(),
                 assist_enabled: true,
+                assist_default_on: true,
             };
             if let Ok(json) = serde_json::to_string_pretty(&default_state) {
                 let _ = atomic_write_file(&state_file, json.as_bytes());
@@ -104,6 +113,14 @@ impl SvcManager {
             !initial_state.last_version.is_empty() && initial_state.last_version != current_version;
         let previous_version =
             (!initial_state.last_version.is_empty()).then(|| initial_state.last_version.clone());
+        // Vòng 29 (migration kill-switch — audit F1): bản ≤0.2.37 ghi
+        // `assist_enabled: false` theo DEFAULT CŨ; ai đã chạy 0.2.38–0.2.40
+        // giữ false mãi (last_version ≥ 0.2.38 ⇒ so version KHÔNG bắt được).
+        // Flag persisted: đúng 1 lần bật lại; tắt sau đó là ý người dùng.
+        if !initial_state.assist_default_on && !initial_state.assist_enabled {
+            initial_state.assist_enabled = true;
+        }
+        initial_state.assist_default_on = true;
         initial_state.last_version = current_version.to_string();
         {
             // Ghi lại state (nhãn phiên bản mới + state reset) một cách atomic.
@@ -433,6 +450,40 @@ fn session_version_seed() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    /// Vòng 29 — migration kill-switch một-lần (audit F1):
+    /// state.json cũ (≤0.2.37 hoặc 0.2.38–0.2.40 nâng từ bản cũ) có
+    /// assist_enabled=false và THIẾU flag ⇒ bật lại đúng 1 lần; tắt tay sau
+    /// đó (flag đã true) ⇒ giữ tắt.
+    #[test]
+    fn migration_kill_switch_bat_lai_dung_mot_lan() {
+        let dir = std::env::temp_dir().join(format!(
+            "textvn_migration_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let state_file = dir.join("state.json");
+        // state.json cũ: false + không flag (serde default false).
+        std::fs::write(
+            &state_file,
+            r#"{"global_enabled":true,"apps":{},"last_version":"0.2.40","assist_enabled":false}"#,
+        )
+        .unwrap();
+        let svc = super::SvcManager::new(Some(dir.clone()));
+        assert!(svc.is_assist_enabled(), "migration phải bật lại đúng 1 lần");
+        // File đã ghi flag=true; tắt tay → khởi động lại giữ tắt.
+        svc.set_assist_enabled(false);
+        let svc2 = super::SvcManager::new(Some(dir.clone()));
+        assert!(
+            !svc2.is_assist_enabled(),
+            "tắt tay sau migration giữ nguyên tắt"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// R2-28: menu khay phải hiển thị đúng cái TIP làm — 4 tổ hợp toàn cục × override.
     #[test]
     fn effective_enabled_matches_tip_rule() {

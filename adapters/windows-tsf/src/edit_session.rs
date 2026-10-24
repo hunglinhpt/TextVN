@@ -434,7 +434,11 @@ impl KeyEditSession {
                                     apply_sentence_auto_fix(&self.shared, &self.ctx, ec, &check);
                             }
                             if !auto_fixed {
-                                show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                                let shown =
+                                    show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                                // Vòng 29: overlay không hiện được (app không
+                                // anchor…) → toast fallback popup dưới-phải.
+                                super::assist::after_trigger_finish(&check, shown);
                             }
                         }
                     }
