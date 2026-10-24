@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.42" date="2026-10-24">
+      <description>
+        <p>Grammar check on selected text: keyboard-select a sentence you are editing (Shift+arrows/Home/End) and after half a second the assistant popup appears anchored at the selection with the error total and the "Sửa tất cả" (fix all) button; clicking it replaces exactly the selected range with the corrected sentence (the selection content is re-verified inside the edit lock before writing; Ctrl+Z belongs to your app). Selecting to read or copy never triggers it — mouse selection does not pass through the key sink and Ctrl/Alt combinations are filtered out. Selections longer than 256 characters are skipped rather than half-checked. Verified by a two-pass independent audit across Notepad, Word and Chrome scenarios, and across the upgrade path where a running old-version input DLL picks up the new tray snapshot without a reboot.</p>
+      </description>
+    </release>
     <release version="0.2.41" date="2026-10-24">
       <description>
         <p>Fixes the grammar assistant being completely dead for many users ("popup doesn't work, underline and correct don't work"): the input-method DLL disabled the whole assistant until the tray's first snapshot arrived; a settings file carried over from 0.2.37 or earlier kept the kill-switch off forever even after upgrading through 0.2.38-0.2.40 (a one-time migration now turns it back on exactly once — turning it off afterwards sticks); and the detection toast removed in 0.2.38 is back as an 8-second-cooldown fallback popup (bottom-right) for apps where the caret panel cannot anchor. Verified end-to-end by an independent audit agent across an 11-gate table; benchmarks unchanged (0/981 Vietnamese and 0/295 English false positives).</p>

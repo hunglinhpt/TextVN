@@ -1,3 +1,12 @@
+textvn (0.2.42-0ppa1) noble; urgency=medium
+
+  * Grammar check on keyboard-selected text: popup at selection + fix-all
+    replaces the selected range (re-verified in edit lock; app undo).
+    Read/copy selections never trigger it; >256-char selections skipped.
+    Two-pass audit verified Notepad/Word/Chrome + no-reboot upgrade path.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 24 Oct 2026 21:30:00 +0000
+
 textvn (0.2.41-0ppa1) noble; urgency=medium
 
   * Fix grammar assistant dead on upgrade: DLL default kill-switch, one-time

@@ -7,6 +7,43 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.42] — 2026-10-24
+
+### Added
+- **Kiểm tra ngữ pháp vùng bôi đen** (vòng 30 — yêu cầu chủ repo): bôi đen
+  một câu **bằng bàn phím** (Shift+←→↑↓/Home/End) khi trợ lý đang bật →
+  sau 500 ms popup hiện cạnh vùng chọn với tổng số lỗi + nút **"Sửa tất
+  cả"** — bấm thay ĐÚNG vùng chọn bằng câu đã sửa (undo = Ctrl+Z của app).
+  Phân biệt bôi-đen-để-sửa vs đọc/copy: chuột không qua key sink; Ctrl
+  (Ctrl+A/C/X) và Alt bị lọc; vùng >256 ký tự bỏ (không check nửa câu).
+  Precondition đọc-lại text vùng chọn **trong edit lock** trước khi ghi —
+  người dùng gõ xen giữa lúc popup hiện thì KHÔNG ghi gì.
+
+### Fixed
+- Audit 2 lượt (pass-1: 8 finding gồm 2 HIGH; pass-2: SHIP): nút chết cho
+  vùng 257-500 (check_text cắt đuôi 256 — hạ MAX về 256); hook chỉ ở pha
+  TEST mà Notepad/Chrome/VS Code bỏ pha đó (thêm vào cả OnKeyUp); thiếu
+  reset_engine sau SetText; timer chết khi hwnd overlay bị destroy (IsWindow
+  guard); F-key/Alt false-positive; timer ID hardcode 2 chỗ.
+- **Verify upgrade-mix KHÔNG cần restart máy**: DLL 0.2.40 đang chạy trong
+  app + tray 0.2.42 mới cài → DLL cũ reconnect pipe ≤10 s → Snapshot mới
+  (assist:true sau migration) → trợ lý sống lại ngay trong app đang mở
+  (wire IPC byte-identical giữa 2 bản — agent xác nhận bằng git diff).
+
+**English** — 0.2.42 adds grammar check on selected text: keyboard-select
+(Shift+arrows/Home/End) a sentence you are editing and after 500 ms the
+popup appears anchored at the selection with the error total and the
+"Sửa tất cả" button; clicking replaces exactly the selected range with
+the corrected sentence (content re-verified inside the edit lock before
+writing; Ctrl+Z belongs to the app). Read/copy selections never trigger it
+(mouse selection does not pass the key sink; Ctrl/Alt filtered); selections
+over 256 characters are skipped rather than half-checked. Two-pass audit:
+8 findings fixed (2 HIGH — dead button for 257-500 chars; hook missed
+Notepad/Chrome/VS Code which skip the TEST phase), then a final pass
+verified Notepad/Word/Chrome scenarios and the no-reboot upgrade path
+(old DLL in a running app picks up the new tray snapshot within 10 s and
+the assistant comes back alive). 674 tests, clippy 0, preflight 23/23.
+
 ## [0.2.41] — 2026-10-24
 
 ### Fixed
@@ -1645,6 +1682,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.42]: https://github.com/hunglinhpt/TextVN/compare/v0.2.41...v0.2.42
 [0.2.41]: https://github.com/hunglinhpt/TextVN/compare/v0.2.40...v0.2.41
 [0.2.40]: https://github.com/hunglinhpt/TextVN/compare/v0.2.39...v0.2.40
 [0.2.39]: https://github.com/hunglinhpt/TextVN/compare/v0.2.38...v0.2.39

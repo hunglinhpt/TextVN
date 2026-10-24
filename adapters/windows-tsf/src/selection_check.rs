@@ -11,7 +11,7 @@
 //!   Ctrl+* bị loại theo modifier.
 //! - Debounce 500 ms sau phím cuối — gõ dở Shift+→ liên tục không pop.
 //! - Chỉ check khi trợ lý Mode 1 bật (highlight/autocorrect), vùng
-//!   3..500 ký tự và có chữ cái (không bắt bôi đen số/ảnh).
+//!   3..256 ký tự và có chữ cái (không bắt bôi đen số/ảnh).
 //!
 //! Sửa vùng chọn dùng `SetText` trên đúng range selection (hành vi gõ
 //! thường — người dùng đang chọn để thay) — KHÔNG phải engine
