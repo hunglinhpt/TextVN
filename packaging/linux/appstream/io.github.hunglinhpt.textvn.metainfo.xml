@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.41" date="2026-10-24">
+      <description>
+        <p>Fixes the grammar assistant being completely dead for many users ("popup doesn't work, underline and correct don't work"): the input-method DLL disabled the whole assistant until the tray's first snapshot arrived; a settings file carried over from 0.2.37 or earlier kept the kill-switch off forever even after upgrading through 0.2.38-0.2.40 (a one-time migration now turns it back on exactly once — turning it off afterwards sticks); and the detection toast removed in 0.2.38 is back as an 8-second-cooldown fallback popup (bottom-right) for apps where the caret panel cannot anchor. Verified end-to-end by an independent audit agent across an 11-gate table; benchmarks unchanged (0/981 Vietnamese and 0/295 English false positives).</p>
+      </description>
+    </release>
     <release version="0.2.40" date="2026-10-24">
       <description>
         <p>Full three-platform audit round by parallel expert agents (24 findings). Critical fixes: the article rule could corrupt real Vietnamese words ("an khang" was auto-corrected to "a khang") — in Vietnamese sentences it now requires another English indicator word; UNESCO-class acronyms (read /juː/) no longer accept the wrong article; the macOS input-method default now matches the settings UI (highlight) so upgraded users actually get the assistant; Linux fresh installs default to highlight too; the IPC wire name for article_an is registered on Linux. Panel behavior: after any fix the panel re-checks the corrected sentence and either updates with the remaining issues or disappears when clean; a new assist.display.hide_on_auto_fix option hides the popup entirely while auto-correct mode is running; clicking a non-interactive area inside the panel now dismisses it, and the first click on the pre-selected issue selects rather than applies (no accidental edits). Tray toasts are auto-fix-only with a 60-second cooldown on all platforms. Performance measured on the real engine: 14-52 µs per check, two hundred times under budget. Benchmarks unchanged: 0/981 Vietnamese and 0/295 English false positives, 100% recall.</p>

@@ -7,6 +7,40 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.41] — 2026-10-24
+
+### Fixed
+- **Sửa trợ lý ngữ pháp CHẾT hoàn toàn khi nâng cấp** (user báo "popup
+  dưới-phải + gạch chân + correct không hoạt động ở 0.2.40") — 3 root
+  cause, audit agent xác nhận end-to-end qua bảng 11 cổng:
+  1. `IpcState::default()` khởi `assist_enabled = false` — DLL nạp vào app
+     khi tray chưa gửi Snapshot ⇒ tắt toàn bộ trợ lý. Default giờ = true
+     (khớp tray + config).
+  2. state.json từ bản ≤0.2.37 giữ `assist_enabled: false` theo DEFAULT CŨ
+     mãi kể cả sau 0.2.38–0.2.40 (so version KHÔNG bắt được — audit F1
+     CRITICAL). Migration persisted-flag `assist_default_on`: bật lại đúng
+     MỘT lần; tắt tay sau đó giữ nguyên tắt (test kịch bản thật).
+  3. Toast phát hiện lỗi bị xoá ở 0.2.38/28 — khôi phục làm **fallback
+     popup dưới-phải 8 giây/lần** khi overlay tại caret không neo được
+     (app không cho anchor); overlay hiện được thì toast im. Cooldown
+     riêng slot (audit F2: nhầm dùng 60 s của auto-fix).
+- Audit xác nhận thêm: Mode 2/A2/A3 mouse path sạch; Win11 balloon hiện
+  đúng không cần AUMID; macOS/Linux không có pattern chết tương tự; VI
+  0/981 + EN 0/295 FP và recall 100% giữ nguyên.
+
+**English** — 0.2.41 fixes the grammar assistant being completely dead for
+upgraders ("popup doesn't work, underline and correct don't work on
+0.2.40") — three root causes, verified end-to-end by an independent audit
+agent over an 11-gate table: (1) the input-method DLL defaulted its
+kill-switch to off until the tray's first snapshot arrived; (2) a state
+file from 0.2.37 or earlier kept the kill-switch off forever even after
+upgrading through 0.2.38-0.2.40 — a one-time persisted-flag migration now
+turns it back on exactly once, and turning it off afterwards sticks;
+(3) the detection toast removed in 0.2.38 returns as an 8-second-cooldown
+bottom-right fallback popup for apps where the caret panel cannot anchor.
+Benchmarks unchanged: 0/981 VI + 0/295 EN false positives, 100% recall;
+673 tests, clippy 0, preflight 23/23.
+
 ## [0.2.40] — 2026-10-24
 
 ### Fixed
@@ -1611,6 +1645,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.41]: https://github.com/hunglinhpt/TextVN/compare/v0.2.40...v0.2.41
 [0.2.40]: https://github.com/hunglinhpt/TextVN/compare/v0.2.39...v0.2.40
 [0.2.39]: https://github.com/hunglinhpt/TextVN/compare/v0.2.38...v0.2.39
 [0.2.38]: https://github.com/hunglinhpt/TextVN/compare/v0.2.37...v0.2.38

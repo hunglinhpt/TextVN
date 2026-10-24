@@ -1,3 +1,11 @@
+textvn (0.2.41-0ppa1) noble; urgency=medium
+
+  * Fix grammar assistant dead on upgrade: DLL default kill-switch, one-time
+    migration for pre-0.2.38 state files, detection toast restored as 8s
+    fallback popup. Benchmarks unchanged (0/981 VI + 0/295 EN FP).
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 24 Oct 2026 19:00:00 +0000
+
 textvn (0.2.40-0ppa1) noble; urgency=medium
 
   * Three-platform audit round (24 findings): article rule no longer
