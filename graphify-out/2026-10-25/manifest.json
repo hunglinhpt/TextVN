@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792854584.0555208,
-    "seen": 1792862409.667517,
-    "ast_hash": "67b3ceda5b5b03eb092aba4a2ccb49b0",
+    "mtime": 1792868672.6466117,
+    "seen": 1792870932.9725914,
+    "ast_hash": "b07d968242c6317700f967b0db770f99",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/ipc_client.rs": {
-    "mtime": 1792596914.4815454,
-    "seen": 1792597839.3989244,
-    "ast_hash": "3a04e8f6042f976951bf81742779a93d",
+    "mtime": 1792867818.5694764,
+    "seen": 1792870932.9725914,
+    "ast_hash": "af92864e4c5a07aed3c9ade5738ef334",
     "semantic_hash": ""
   },
   ".github/workflows/hook-spike.yml": {
@@ -852,9 +852,9 @@
     "semantic_hash": ""
   },
   "tray/src/svc.rs": {
-    "mtime": 1792836713.2863412,
-    "seen": 1792840244.7985146,
-    "ast_hash": "d8f8ace1cab2c28c2abaa37b4bba3c75",
+    "mtime": 1792868673.0037897,
+    "seen": 1792870932.9933858,
+    "ast_hash": "61bd26edb263e6970d3aae80e8ed009b",
     "semantic_hash": ""
   },
   "tray/src/autostart.rs": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1792860494.6743953,
-    "seen": 1792862409.708127,
-    "ast_hash": "f4059a02ec7736eaf9d2e935320fd8fa",
+    "mtime": 1792869386.3895066,
+    "seen": 1792870932.9943964,
+    "ast_hash": "08fb91db1ffeccf7caaf85c1461fd0d7",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792860494.6743953,
-    "seen": 1792862409.7096586,
-    "ast_hash": "f05b1c13f81598c472e39b228ce5d5e2",
+    "mtime": 1792869386.3910158,
+    "seen": 1792870932.9953952,
+    "ast_hash": "39200fae8e20c66028bd6a4ef6dea5ad",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1792860461.5885782,
-    "seen": 1792862409.662675,
-    "ast_hash": "99716b2ddf04c6f97753c424e4c65631",
+    "mtime": 1792869358.392861,
+    "seen": 1792870932.969591,
+    "ast_hash": "0cc471a2844eaca7027e33fdef973b01",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1792860461.635219,
-    "seen": 1792862409.662675,
-    "ast_hash": "a4d658c14a20e1178423c9cbffd9683d",
+    "mtime": 1792869358.4382885,
+    "seen": 1792870932.969591,
+    "ast_hash": "fa3b3e249b577525827930e030a5633d",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1792860461.6856954,
-    "seen": 1792862409.6643524,
-    "ast_hash": "826d745e814679cfc5108dd2eca1c13b",
+    "mtime": 1792869358.4831161,
+    "seen": 1792870932.9705887,
+    "ast_hash": "05eaaf65e59ce5705728045e30158d12",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1792862316.9350407,
-    "seen": 1792862409.6860437,
-    "ast_hash": "58f2dbbdb37772740947f2703a0643b8",
+    "mtime": 1792870854.2330003,
+    "seen": 1792870932.9832997,
+    "ast_hash": "f7e9507071ddc5b3396802ddf27022a4",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1792862316.9390547,
-    "seen": 1792862409.7278328,
-    "ast_hash": "50ce81021894068b1c753b848eaf4196",
+    "mtime": 1792870854.2365246,
+    "seen": 1792870933.0018961,
+    "ast_hash": "6da19148f56c274fba626ef891ed3dc6",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2022,9 +2022,9 @@
     "semantic_hash": ""
   },
   "docs/release/store-submission.md": {
-    "mtime": 1792862316.9410398,
-    "seen": 1792862409.7303708,
-    "ast_hash": "7f404ad67fbe23d60b83bbc7b7332fdb",
+    "mtime": 1792870854.238605,
+    "seen": 1792870933.0028949,
+    "ast_hash": "bedebed1dbc20bf048f82b3c36d2a6d8",
     "semantic_hash": ""
   },
   "xtask/src/preflight.rs": {
@@ -2166,9 +2166,9 @@
     "semantic_hash": ""
   },
   "docs/release/msix-submission.md": {
-    "mtime": 1792862316.9400437,
-    "seen": 1792862409.728846,
-    "ast_hash": "14b8a3558e39b424f48598f5b4300135",
+    "mtime": 1792870854.238605,
+    "seen": 1792870933.0018961,
+    "ast_hash": "ccf64d0fd4fd8967930ce51eb0c9358e",
     "semantic_hash": ""
   },
   "docs/release/signing-status-mac.md": {
@@ -2628,9 +2628,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/assist.rs": {
-    "mtime": 1792837855.0444102,
-    "seen": 1792840244.7806015,
-    "ast_hash": "5be20d3493cc9cda3266655fff39c106",
+    "mtime": 1792868768.093096,
+    "seen": 1792870932.9725914,
+    "ast_hash": "1d7b5d51fed308fcdade8b3c834bd7b4",
     "semantic_hash": ""
   },
   "dict/src/os_linux.rs": {
@@ -2640,9 +2640,9 @@
     "semantic_hash": ""
   },
   "tray/src/assist.rs": {
-    "mtime": 1792859293.626853,
-    "seen": 1792862409.6978595,
-    "ast_hash": "0ee804abae55d9910f6b8581e5ef5f1c",
+    "mtime": 1792867747.7308235,
+    "seen": 1792870932.9918454,
+    "ast_hash": "7accd4e50f50f10645738ebc12c6f61f",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/MacSpellProvider.swift": {
