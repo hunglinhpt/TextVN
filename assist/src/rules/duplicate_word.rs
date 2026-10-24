@@ -20,6 +20,23 @@ const INTENTIONAL_REPEATS: &[&str] = &[
     "chộp", "bum", "đâu", "năm",
 ];
 
+/// Từ có nằm trong cặp ngoặc kép `"` nào không (đếm số `"` trước vị trí).
+fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
+    ctx.chars[..pos].iter().filter(|c| **c == '"').count() % 2 == 1
+}
+
+/// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
+/// corpus `en_basic.ass`: "no no" KHÔNG trong whitelist — PO chốt là lỗi).
+const EN_INTENTIONAL_REPEATS: &[&str] = &[
+    // ngữ pháp: "that that" (mệnh đề quan hệ), "had had" (quá khứ hoàn thành)
+    "that", "had", // tăng nghĩa/tình thái
+    "very", "long", "so", "well", "there", "now", "bye", "night", "win", "great",
+    // từ tượng thanh/lời nhạc
+    "ha", "blah", "yada", "na", "la", "hey", "yeah", "dum", "boom", "chop",
+    // năm đọc theo cặp ("twenty twenty")
+    "twenty", "nineteen", "seventy", "eighty", "ninety",
+];
+
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // Token: [Word][Space][Word] - can nhin 2 token lui.
@@ -43,8 +60,28 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         // "luôn luôn", "mãi mãi"… la lap co chu y, khong phai loi (Fassist-94).
-        if INTENTIONAL_REPEATS.contains(&cur_text.to_lowercase().as_str()) {
+        let lower = cur_text.to_lowercase();
+        let whitelist: &[&str] = if ctx.lang == crate::rules::language::Lang::En {
+            EN_INTENTIONAL_REPEATS
+        } else {
+            INTENTIONAL_REPEATS
+        };
+        if whitelist.contains(&lower.as_str()) {
             continue;
+        }
+        // Vòng 24 (audit EN trap 18-19, chỉ En): lặp TÊN RIÊNG hô gọi
+        // ("Emma Emma wait!") — CẢ HAI viết hoa; lỗi thật ở đầu câu chỉ có
+        // từ ĐẦU viết hoa ("They they said") vẫn phải bắt. Từ trong ngoặc
+        // kép (lời thoại lặp) cũng bỏ qua.
+        if ctx.lang == crate::rules::language::Lang::En {
+            let cur_cap = cur_text.chars().next().is_some_and(|c| c.is_uppercase());
+            let prev_cap = prev_text.chars().next().is_some_and(|c| c.is_uppercase());
+            if cur_cap && prev_cap {
+                continue;
+            }
+            if in_quotes(ctx, cur.start) {
+                continue;
+            }
         }
         if ctx.is_masked(cur.start, cur.end) {
             continue;

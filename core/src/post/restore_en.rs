@@ -37,6 +37,11 @@ pub const EN_COMMON_DATA: &str = include_str!("../../../data/en_common.txt");
 pub const VN_COMMON_DATA: &str = include_str!("../../../data/vn_common.txt");
 /// `data/stop_en.txt` — danh sách mẫu cho `config.english_words` (opt-in).
 pub const STOP_EN_DATA: &str = include_str!("../../../data/stop_en.txt");
+/// `data/en_freq3000.txt` — 3000 từ EN tần suất cao nhất, nguồn cho **gợi ý
+/// hoàn tất** (Tab/Space, vòng 24): danh sách `en_common` (~100 từ) chỉ phục
+/// vụ chính sách restore (Fassist-96) nên quá ngắn cho completion — README
+/// đã quảng cáo "3000 từ" từ 0.2.33, bản này mới thực sự nạp đủ nguồn.
+pub const EN_FREQ_DATA: &str = include_str!("../../../data/en_freq3000.txt");
 
 /// Chuỗi gõ có nằm trong danh sách `english_words` của người dùng không?
 /// (không phân biệt hoa thường)
@@ -72,6 +77,12 @@ pub fn en_common_contains(word: &str) -> bool {
 /// Âm tiết Việt thông dụng được bảo vệ (đích fold phải tránh)?
 pub fn vn_common_contains(syllable: &str) -> bool {
     data_contains(VN_COMMON_DATA, syllable)
+}
+
+/// Từ có nằm trong nguồn EN **hoàn tất** (en_common + 3000 từ tần suất) không?
+/// Guard Space-completion (vòng 24): chuỗi gõ đã là từ EN đúng → không kéo dài.
+pub fn is_known_en_word(word: &str) -> bool {
+    data_contains(EN_COMMON_DATA, word) || data_contains(EN_FREQ_DATA, word)
 }
 
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
@@ -144,6 +155,13 @@ pub fn complete_word(
         }
     };
     for l in EN_COMMON_DATA.lines() {
+        let l = l.trim();
+        if !l.is_empty() && !l.starts_with('#') {
+            consider(&mut best, l);
+        }
+    }
+    // Nguồn 3000 từ tần suất (vòng 24) — completion cần vốn từ lớn.
+    for l in EN_FREQ_DATA.lines() {
         let l = l.trim();
         if !l.is_empty() && !l.starts_with('#') {
             consider(&mut best, l);

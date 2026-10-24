@@ -1,0 +1,309 @@
+# corpus/assist/en_real_clean.ass - REAL clean English sentences (EN v1 FPR set)
+# Nguon: Tatoeba per_language export eng_sentences.tsv.bz2 (CC BY 2.0 FR)
+# License du lieu: CC BY 2.0 FR (Tatoeba) - attribution BAT BUOC:
+#   docs/compliance/tatoeba-attribution.md + REUSE.toml (LicenseRef-Tatoeba).
+# Sinh lap: python tools/assist/gen_corpus_en_tatoeba.py (seed=20261023, 295/234292 cau, snapshot 2026-10-24)
+# Tinh tai lap: cung snapshot (cache tools/assist/.cache/) + seed +
+# EXCLUDE_IDS trong script => file giong het; snapshot moi (hang tuan) =>
+# pool khac - dung snapshot da ghi o tren de tai lap file nay.
+# HUMAN-IN-LOOP: mau da duoc ra soat ngay 2026-10-24 (agent) - sach theo
+# 5 luat EN v1; cau khong dat -> them ID vao EXCLUDE_IDS roi chay lai.
+# Dinh dang: <cau>\t (cot kinds rong = sach, DONG CUNG -> CI assert 0 loi).
+# '~ ' = da ra soat la sach nhung engine DANG BAO NHAM (FPR that) -
+#   them khi engine EN co mat va phat hien FP tren file nay.
+# Chi dung de do FPR (P4-12 EN); khong phai engine tu kiem tra.
+What kind of training do you have?	
+Are you guys serious?	
+What else do you think happened?	
+Do you know where I might be able to find Tom?	
+Don't you know everything I have is yours, too?	
+Tom didn't really have to do that, did he?	
+Don't you believe us?	
+How can we get Algeria's terrible economy working again?	
+Tom didn't actually want to do that with us, did he?	
+Have you finished breakfast yet?	
+Were Tom and Mary at home yesterday?	
+How do you spell it?	
+What should I wear today?	
+Do you really think Tom and Mary were embarrassed?	
+Should I call you Tom?	
+Did you see yesterday's match against Australia?	
+Who wouldn't like to speak French?	
+Did you know that Tom has a house on Park Street?	
+Hurry up, slowcoach!	
+May I have this one as well?	
+What should I write here?	
+What was it that caught your attention?	
+Did you know that Tom was unhappy?	
+Do you like sci-fi movies?	
+He's dating someone, isn't he?	
+Why were Tom and Mary not at the meeting?	
+Is there a doctor in the house?	
+How many phones does she own?	
+What is the nature of the Zionist project in Palestine?	
+What songs do you find inspiring?	
+You're always asking me for money!	
+Can you let the dog in?	
+Did you put coriander in this?	
+Who else ate with you?	
+Can you make that happen?	
+Why do you still have this?	
+How was your season?	
+We'll see each other later!	
+Would you have helped me if I'd asked you to?	
+Were you listening to me?	
+Do you sometimes talk out loud to yourself?	
+Will Tom and Mary do that by themselves?	
+Have you ever pirated something?	
+Couldn’t they have tried harder?	
+When is the last time you had your piano tuned?	
+Why does Tom never win?	
+Where is the nearest EV charger?	
+Would you mind if we didn't do that today?	
+Obviously a normal woman would lose interest if she saw a book like that!	
+She's very angry now, isn't she?	
+Everything is so new to me!	
+Is there oil in Western Sahara?	
+Can one person make a difference?	
+What kind of men do you like?	
+Are you fluent in Finnish?	
+Who is closest to the door?	
+How many years have you been snowboarding?	
+Do you need a roommate?	
+Can you sing the Canadian National Anthem?	
+What are some cute girl hairstyles?	
+Does this shirt come in any other colors?	
+When was the last time you cleaned your apartment?	
+Did anyone see Tom yesterday?	
+Which movie did you like better?	
+How do you know that I'm not going to do that again?	
+Did you decide to con me?	
+It's very exciting, isn't it?	
+New look, same great taste!	
+Are you interested in that?	
+Are you waiting for him?	
+What really happened here?	
+Do they see the sky?	
+Are you the Tom Jackson?	
+Tom is expected to be here until 2:30.	
+Is there something you wish to tell me?	
+Are you under thirty?	
+Aren't you at university?	
+Who's the most creative person you know?	
+How can we get the ball away from the dog?	
+Why do people have children?	
+What have you got us into?	
+What if something happened to them?	
+What did you think had happened?	
+A wonderful view, isn't it?	
+Did you go snorkeling?	
+What do you mean exactly?	
+Tom is really successful, isn't he?	
+What could they possibly want us to do?	
+Who does he look like?	
+Did Tom tell you I called?	
+You didn't hurt Tom, did you?	
+Is there anyone who can help me?	
+The neighbors' dog won't stop barking!	
+Do you feel stressed?	
+It's chilly this morning, isn't it?	
+Do you think Tom looks like his mother?	
+Why don't we get Tom a dog?	
+Didn't you throw up?	
+You have a cold, don't you?	
+What did you take a picture of?	
+What symptoms do you have?	
+Where do you wash your bus?	
+Do you know how to reach her?	
+Why don't we have Tom do it for us?	
+I must be there before 2:30.	
+What is missing in this car?	
+Is it really hot in Washington?	
+Has she gotten married before?	
+Could that happen again?	
+Do you think you speak English better than I do?	
+What are you having for lunch?	
+What adjustments do I need to make to get this to work?	
+What time are they starting?	
+This is a good newspaper, isn't it?	
+What are some things that you and Tom have in common?	
+How much money do Tom and Mary owe you?	
+Where did he buy his pants?	
+Will you please tell Tom and Mary they have nothing to worry about?	
+Was Tom kind to Mary?	
+What are you doing with that tray?	
+This is more important!	
+Excuse me, could you please tell me where the restroom is?	
+Does every action have a consequence?	
+Did Tom really tell you I was dead?	
+What do we need to do to prevent this from happening again?	
+Don't you think it's a bad thing?	
+You forgave me, didn't you?	
+Do you need an extra blanket?	
+How detailed was Tom's plan?	
+Why do I have to be here anyway?	
+Whose car did you come in?	
+Do you think it'll last long?	
+Have you already decided what your dissertation is going to be on?	
+Will the justice system enforce new reforms?	
+What is your vocation?	
+Did you buy a nice bicycle?	
+Why didn't you write to me?	
+How often does this happen?	
+Why do you always wear that hat?	
+Lead your friend to me!	
+He's good, isn't he?	
+Who do you like better, your mom or your dad?	
+What time's lunch round yours?	
+Why do you want to see her?	
+Why don't you tell Tom what you want for Christmas?	
+Do you travel by sea or by air?	
+Who are you spending Christmas with?	
+Did you enjoy your coffee?	
+He's babysitting tonight, isn't he?	
+Is Tom on any medication?	
+Why don't we wait and see what happens?	
+What have you been doing all this time?	
+What do you mean, I can't park my car here?!	
+Tom is a soccer player, isn't he?	
+What are you waiting for to meet him?	
+How many plates and cups are there?	
+Did you know that your socks don't match?	
+How many years have you been a cab driver?	
+Her business was started with capital of $2,000.	
+Has someone lost something?	
+Where do the flowers need to be sent to?	
+Mary, are you in there?	
+Why would anyone eat that?	
+Did you see Tom today?	
+What's Tom going to do about that?	
+You have to settle for one of the two!	
+How would Ziri solve this problem?	
+How soundly he is sleeping!	
+Do you think that you can handle it?	
+Did someone say I said that?	
+What's our game plan?	
+You're not really as stupid as you pretend to be, are you?	
+Do you have a guide map of the city?	
+Can you see through the eyes of Player2?	
+Mary is a problem-solver, isn't she?	
+Did the world really act as fast as possible to meet the threat to the environment?	
+Do we represent you?	
+Thanks for that useful tip!	
+You didn't know that Tom wanted to do that, did you?	
+Is that seat available?	
+What kind of food do you usually cook?	
+You want to see my new mattress?	
+Do Tom and Mary scare you?	
+Would you like to hear something funny?	
+Tom arrived at work at 2.30.	
+He's pretty tall, isn't he?	
+Where is the registrar's office?	
+What's all this stuff doing here?	
+Why do I always have to put up with these things?	
+She's eating lunch, isn't she?	
+Did you buy anything for me?	
+What movie have you seen the most times?	
+He's a bit drunk, isn't he?	
+Is Cantonese a language or a dialect?	
+Why did you say that?	
+Tom is stalling, isn't he?	
+Is there anything you don't do?	
+Did you let the cat in?	
+Can't you do something about that?	
+Why can't we do it now?	
+How did you find out that Tom didn't do that?	
+Are you going to tell him?	
+The world's first parking meter was installed in Oklahoma City in 1935.	
+Where did you buy this side-handle teapot?	
+What's the wifi password?	
+Are you in America yet?	
+Are there a lot of tall buildings in Boston?	
+Did he get a receipt?	
+What's your marital status?	
+She's grumpy today, isn't she?	
+You wouldn't ask Tom to do that, would you?	
+Why can't we be together?	
+Is life just a battle?	
+Does anyone want to be a stewardess?	
+Were you home all morning?	
+Do you cross the river every day?	
+That's alright, no problem!	
+Why did you keep her picture?	
+Where did you buy that wig?	
+Why isn't Tom doing something about it?	
+Where's the nearest EV charging station?	
+Tom got straight A's.	
+Can I set a place at the table for you?	
+I can't tell which witch is which!	
+Did you move the furniture?	
+This is the first time I've caught such a big fish!	
+Will you light the fire?	
+To become CEO of a multinational company is easier said than done!	
+Have you ever breast-fed a baby?	
+Would you please not smoke here?	
+Do you practice mindfulness in learning?	
+Do you often eat out?	
+Did you say Tom was fair?	
+Would it trouble you to come and see me tomorrow?	
+May the new year bring you happiness!	
+Why are you so out of breath?	
+Which meal would you recommend?	
+What's the soup of the day?	
+Can I offer a suggestion?	
+May I ask where you're going?	
+Does the city literally owe its existence to Mussolini?	
+Where were you when we needed you?	
+I'll go with you to school, okay?	
+How about we go to the stadium today?	
+When did you find out about Tom and Mary?	
+Tom is a really good singer, isn't he?	
+Where did she decide to go?	
+Did you do anything fun today?	
+Have you got a mobile phone with you?	
+Do you think you could describe the man you saw to a sketch artist?	
+I should tell Tom to be there tomorrow at 2:30.	
+There's a lot of them, aren't there?	
+When are we going to tell them?	
+Have you done your homework?	
+Oh Mary, I think that your boyfriend's here!	
+It took a long time, didn't it?	
+Why are they doing this to you?	
+In Wales, it is compulsory for students to study chemistry at GCSE level (16 years old).	
+What did we do wrong to deserve this sanction?	
+If only I'd stayed at home!	
+How good was Tom today?	
+Shall I buy that for you?	
+Why do I have to compete with Tom?	
+Why is he so adamant on this?	
+Do you think Tom made it all up?	
+Where are your friends going?	
+What are they protesting against?	
+Where did you put the apples that you bought the other day?	
+Will you wake me at seven?	
+Does anybody know where they are?	
+The English established colonies in America in 1609.	
+What do you mean, we don't have to?	
+Did you see what Tom saw?	
+Tom and Mary wouldn't do that, would they?	
+Did you plan that with him?	
+Don't you have anything better to do with your time?	
+How many furry friends share your living space?	
+Tom isn't home right now, is he?	
+Is it true that Tom and Mary were in Boston last week?	
+When did you return from Australia?	
+How much profit do you expect?	
+What makes you think Tom will enjoy doing that?	
+Are they arriving this evening?	
+Did you order yourself a hamburger?	
+Who is walking the dog?	
+Could you call me back later?	
+Are you a cat person or a dog person?	
+Tom is quick-witted, isn't he?	
+What's Algeria's infrastructure deficit?	
+Are you still planning to talk to Tom?	
+Now, what do you want to see?	
+Of course, how could I say no?	
+Mary is doing fine, isn't she?	
+Has everyone met Tom?	
+Have you contacted Tom about this?	

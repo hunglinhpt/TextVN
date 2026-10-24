@@ -42,6 +42,10 @@ pub enum IssueKind {
     CommaAtEnd,
     /// AS-040 - tu la khong co trong tu dien (chi goi y, confidence 60).
     Spelling,
+    /// EN - mạo từ "a/an" không khớp âm đầu ("a apple" → "an apple",
+    /// "an university" → "a university"). Chỉ chạy trên câu En-dominant
+    /// (vòng 24); danh sách ngoại lệ đóng theo ÂM (không theo chữ).
+    ArticleAn,
 }
 
 impl IssueKind {
@@ -58,6 +62,7 @@ impl IssueKind {
             Self::DoubleNegative => "double_negative",
             Self::CommaAtEnd => "comma_at_end",
             Self::Spelling => "spelling",
+            Self::ArticleAn => "article_an",
         }
     }
 
@@ -74,6 +79,7 @@ impl IssueKind {
             "double_negative" => Self::DoubleNegative,
             "comma_at_end" => Self::CommaAtEnd,
             "spelling" => Self::Spelling,
+            "article_an" => Self::ArticleAn,
             _ => return None,
         })
     }
@@ -88,6 +94,7 @@ impl IssueKind {
                 | Self::DoubleSpace
                 | Self::LowercaseSentenceStart
                 | Self::DiacriticTypo
+                | Self::ArticleAn
         )
     }
 }
@@ -170,12 +177,16 @@ fn check_with_internal(
     start_of_sentence: bool,
     dict: &dyn dict::Dictionary,
 ) -> Vec<Issue> {
-    // L0 (D16): cau khong phai tieng Viet -> bo qua toan bo (v1 khong ho tro
-    // tieng Anh, D9) de khong bao dong gia.
-    if !rules::language::is_vietnamese(text) {
-        return Vec::new();
-    }
+    // L0 (D16 → vòng 24): phân loại ngôn ngữ. Không nhận diện được → im lặng
+    // (fail-open). En-dominant: các luật hiện có **tự chặn** trên nội dung
+    // tiếng Việt (diacritic/spelling cần chữ Việt, repeat/negative dùng từ
+    // chức năng Việt) nên chạy an toàn; riêng a/an là luật chỉ tiếng Anh.
+    let lang = match rules::language::classify(text) {
+        Some(lang) => lang,
+        None => return Vec::new(),
+    };
     let ctx = rules::Ctx::new_with_dict(text, start_of_sentence, dict);
+    debug_assert_eq!(ctx.lang, lang);
     let mut issues = Vec::new();
     rules::duplicate_word::check(&ctx, &mut issues);
     rules::space_before_punct::check(&ctx, &mut issues);
@@ -187,6 +198,9 @@ fn check_with_internal(
     rules::double_negative::check(&ctx, &mut issues);
     rules::comma_at_end::check(&ctx, &mut issues);
     rules::spelling::check(&ctx, &mut issues);
+    if lang == rules::language::Lang::En {
+        rules::article_an::check(&ctx, &mut issues);
+    }
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }

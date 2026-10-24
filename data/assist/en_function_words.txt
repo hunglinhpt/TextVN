@@ -1,0 +1,71 @@
+# data/assist/en_function_words.txt - 60 tu "function word" pho bien nhat tieng
+# Anh (artikel/menh tu, gioi tu, lien tu, dai tu, tro dong tu, phu tu chuc nang).
+#
+# Muc dich: phat hien cau tieng Anh cho grammar assistant EN (tuong tu heuristic
+# is_vietnamese cua ban VI: ty le tu thuoc danh sach nay cao -> cau la tieng
+# Anh). Engine so sanh KHONG phan biet hoa/thuong.
+#
+# Nguon: danh sach tri thuc chung cong cong (top tan suat english: google-10000
+# / Oxford typiccal top-60), bien so tay - trivial word list, khong co sang tao
+# ban quyen (public domain; phu hop MIT nhu data/en_freq3000.txt).
+# Dinh dang: 1 tu / dong, chu thuong, khong sap dac biet (theo tan suat giam dan).
+the
+of
+and
+a
+to
+in
+is
+you
+that
+it
+he
+was
+for
+on
+are
+as
+with
+his
+they
+i
+at
+be
+this
+have
+from
+or
+one
+had
+by
+but
+not
+what
+all
+were
+we
+when
+your
+can
+said
+there
+an
+each
+which
+she
+do
+how
+their
+if
+will
+up
+about
+out
+many
+then
+them
+these
+so
+some
+her
+would

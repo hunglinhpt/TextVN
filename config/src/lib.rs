@@ -136,6 +136,21 @@ pub struct Config {
 pub struct SuggestSettings {
     /// Bật Tab hoàn tất từ tiếng Việt. Mặc định `false`.
     pub enabled: bool,
+    /// Phím kích hoạt hoàn tất (vòng 24): `tab` (mặc định — hành vi cũ) hoặc
+    /// `tab_and_space` — Space CŨNG hoàn tất từ (kèm space) khi từ đang gõ
+    /// CHƯA phải từ đúng hoàn chỉnh (không bao giờ viết lại từ đã đúng).
+    pub trigger: SuggestTrigger,
+}
+
+/// Phím kích hoạt hoàn tất từ (`suggest.trigger`, vòng 24).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SuggestTrigger {
+    /// Chỉ Tab (mặc định — giữ hành vi cũ).
+    #[default]
+    Tab,
+    /// Tab và Space.
+    TabAndSpace,
 }
 
 /// `assist.mode` (P4-0 §7): mức can thiệp của Trợ lý ngữ pháp.

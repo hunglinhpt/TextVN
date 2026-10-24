@@ -151,7 +151,9 @@ fn ambiguous_pairs_keep_vietnamese() {
 fn top_3000_english_words_type_correctly() {
     const SOURCE: &str = include_str!("../../data/en_freq3000.txt");
     // (EN, fold tiếng Việt thông dụng được giữ) — output 2026-10-18, mặc định dấu cũ.
-    const AMBIGUOUS: [(&str, &str); 54] = [
+    const AMBIGUOUS: [(&str, &str); 55] = [
+        // Vòng 24: "los" bỏ khỏi en_common (fold "ló" được bảo vệ).
+        ("los", "ló"),
         ("of", "ò"),
         ("this", "thí"),
         ("or", "ỏ"),

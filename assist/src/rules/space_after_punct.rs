@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! L4 - thieu khoang trang sau dau cau ("chao,ban").
 
-use super::{issue, needs_space_after, Ctx};
+use super::{is_abbreviation_dot, issue, needs_space_after, Ctx};
 use crate::tokenize::TokenKind;
 use crate::{Fix, Issue, IssueKind, Span};
 
@@ -13,6 +13,12 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         if !needs_space_after(ctx.chars[punct.start]) {
+            continue;
+        }
+        // Vòng 24 (audit EN trap 31-35 — bug SỐNG phía VI từ trước): dấu `.`
+        // của từ viết tắt/tên miền ("e.g.", "a.m.", "U.S.", "example.com") —
+        // chèn space sẽ phá chữ đúng ("a.m." → "a. m.").
+        if ctx.chars[punct.start] == '.' && is_abbreviation_dot(ctx, &punct) {
             continue;
         }
         let next = ctx.tokens[i + 1];

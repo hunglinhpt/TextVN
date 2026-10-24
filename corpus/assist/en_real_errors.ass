@@ -1,0 +1,57 @@
+# corpus/assist/en_real_errors.ass - cau tieng Anh CO LOI THAT (viet tay theo
+# kieu loi that pho bien: chat/email/comment) + nhan (EN v1).
+# Nguon: viet tay boi agent (KHONG phai Tatoeba - khong ke thuoc CC BY).
+# Dinh dang: <cau>\t<kind1[,kind2]>  ·  '~ ' = dong MEM (engine BO SOT loi nay)
+#   - Dong KHONG co '~': nhan tay = dung output engine -> test corpus assert cung
+#   - Dong co '~ '   : loi that nhung engine v1 KHONG the phat hien (can ngu
+#                      canh/hoc thuat) -> test bo qua, score_real van dem recall.
+# Chi dung 5 kind EN v1 (da co trong IssueKind): duplicate_word,
+# space_before_punct, space_after_punct, double_space, lowercase_sentence_start.
+# P4-12 RECALL-REAL (phan EN): tap nay la bo nho de do recall, khong phai
+# "engine tu kiem tra".
+
+I went to to the store yesterday.	duplicate_word
+This is is a good idea.	duplicate_word
+We should meet at at noon tomorrow.	duplicate_word
+She knows knows the answer already.	duplicate_word
+They they said the plane was delayed.	duplicate_word
+The the meeting got moved to Friday.	duplicate_word
+I just want to to sleep.	duplicate_word
+He he told me the same thing.	duplicate_word
+What time is it ?	space_before_punct
+I'm going home now , see you tomorrow.	space_before_punct
+Really ? I had no idea.	space_before_punct
+She said yes , but she looked unsure.	space_before_punct
+We tried calling , but no one answered.	space_before_punct
+Hello,my name is David.	space_after_punct
+Wait,I'm almost ready.	space_after_punct
+It was raining,we stayed inside.	space_after_punct
+Trust me,it will work.	space_after_punct
+First we shopped,then we cooked.	space_after_punct
+I  miss you so much.	double_space
+See you  tomorrow.	double_space
+Can we  talk about this later?	double_space
+The  results are in.	double_space
+We talked for hours. then she finally left.	lowercase_sentence_start
+He loves music. his favorite band is Nirvana.	lowercase_sentence_start
+Are you serious? that's unbelievable.	lowercase_sentence_start
+Stop! don't touch anything.	lowercase_sentence_start
+He said. i don't believe him.	lowercase_sentence_start
+She won the race. everyone cheered.	lowercase_sentence_start
+# --- loi nhom (nhieu loai trong 1 cau) ---
+I  called you , but you didn't answer.	double_space,space_before_punct
+the the point is , we  failed.	duplicate_word,space_before_punct,double_space
+Hello. how are you ?	lowercase_sentence_start,space_before_punct
+# --- MEM: loi that nhung engine v1 KHONG the bat (can ngu canh / tu dien) ---
+# Label `word_confusion` la kind v2 (CHUA co trong IssueKind) - chi de do
+# recall tuong lai; corpus test bo qua dong '~ '.
+~ Their going to the beach tomorrow.	word_confusion
+~ Your the best friend I have.	word_confusion
+~ The dog wagged it's tail happily.	word_confusion
+~ Its been a long day at work.	word_confusion
+~ I'd rather stay home then go out tonight.	word_confusion
+~ This shirt is to big for me.	word_confusion
+~ I don't want to loose the game.	word_confusion
+~ The medicine will effect your sleep.	word_confusion
+~ We should of known better.	word_confusion
+~ He could of told me earlier.	word_confusion

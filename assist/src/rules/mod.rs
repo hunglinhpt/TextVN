@@ -5,6 +5,7 @@
 //! Luat mo ho (ngu phap hoc thuat) de cho v2 - khi do phai co `auto_fixable =
 //! false` va chi hien goi y.
 
+pub mod article_an;
 pub mod capitalize_sentence;
 pub mod comma_at_end;
 pub mod diacritic_typo;
@@ -38,6 +39,8 @@ pub struct Ctx<'a> {
     pub start_of_sentence: bool,
     /// Từ điển cho luật spelling ([`NoDictionary`] = mọi từ coi là đúng).
     pub dict: &'a dyn Dictionary,
+    /// Ngôn ngữ chi phối của câu (vòng 24 — trợ lý tiếng Anh/mix văn phòng).
+    pub lang: language::Lang,
 }
 
 /// Số lần gọi `suggest` tối đa cho một câu (Fassist-105, P4-0 D40).
@@ -60,6 +63,7 @@ impl Ctx<'_> {
             chars: text.chars().collect(),
             start_of_sentence,
             dict: &NO_DICTIONARY,
+            lang: language::classify(text).unwrap_or(language::Lang::Vi),
         }
     }
 
@@ -75,6 +79,7 @@ impl Ctx<'_> {
             chars: text.chars().collect(),
             start_of_sentence,
             dict,
+            lang: language::classify(text).unwrap_or(language::Lang::Vi),
         }
     }
 
@@ -119,6 +124,12 @@ pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) ->
     if dots >= 3 {
         return false;
     }
+    // Vòng 24 (audit EN trap 27-33): dấu `.` sau **từ viết tắt** không phải kết
+    // thúc câu — "8 a.m. nhé" / "U.S. Army" / "i.e. apple": nếu coi là hết câu,
+    // capitalize sẽ bêu chữ thường sau viết tắt ("a.m. nhé" → "Nhé").
+    if is_abbreviation_dot(ctx, punct) {
+        return false;
+    }
     let mut depth = 0i32;
     let mut in_quote = false;
     for &c in &ctx.chars[..punct.start] {
@@ -130,6 +141,54 @@ pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) ->
         }
     }
     depth == 0 && !in_quote
+}
+
+/// Danh sách viết tắt kết thúc bằng `.` (đóng — chỉ các dạng phổ biến nhất;
+/// dạng lạ → fail-open coi là viết tắt, không bêu).
+const ABBREV_WORDS: &[&str] = &["etc", "cf", "vs", "eg", "ie"];
+
+/// `.` tại vị trí `punct` có phải dấu chấm của **từ viết tắt** không (vòng 24)?
+///
+/// Đúng khi từ ngay trước là:
+/// - từ ASCII ≤ 2 ký tự ("a.m.", "p.m.", "U.S.", "U.K.", "e.g.", "i.e.",
+///   "J. Smith", "et al." — "al" 2 ký tự), HOẶC
+/// - trong danh sách đóng [`ABBREV_WORDS`] ("etc.", "cf.", "vs."),
+/// - "3.a" (số trước + một chữ cái sau — mục con).
+pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
+    // "3.a" (mục con): số ngay trước + MỘT chữ cái ASCII ngay sau — không
+    // áp cho chữ thường sau chấm ("rồi.Tạm" là LỖI thiếu space thật; tên
+    // miền "example.com" đã được che bởi `mask` nên không tới đây).
+    let digit_before = punct.start > 0 && ctx.chars[punct.start - 1].is_ascii_digit();
+    let single_letter_after = ctx
+        .chars
+        .get(punct.end)
+        .is_some_and(|c| c.is_ascii_alphabetic())
+        && ctx
+            .chars
+            .get(punct.end + 1)
+            .is_none_or(|c| !c.is_alphanumeric());
+    if digit_before && single_letter_after {
+        return true;
+    }
+    // Từ ngay trước dấu `.`.
+    let prev = ctx
+        .tokens
+        .iter()
+        .rev()
+        .find(|t| t.end <= punct.start && t.kind != crate::tokenize::TokenKind::Space);
+    let Some(prev) = prev else {
+        return false;
+    };
+    if prev.kind != crate::tokenize::TokenKind::Word {
+        // "3." (số) — không phải viết tắt.
+        return false;
+    }
+    let word: String = ctx.chars[prev.start..prev.end].iter().collect();
+    if !word.chars().all(|c| c.is_ascii_alphabetic()) {
+        return false; // từ có dấu Việt ("nhé.") — kết thúc câu thật
+    }
+    let lower = word.to_lowercase();
+    word.chars().count() <= 2 || ABBREV_WORDS.contains(&lower.as_str())
 }
 
 /// Tao issue **chi goi y** (khong tu sua) — cho luat mo ho (Fassist-90).

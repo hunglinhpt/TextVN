@@ -57,6 +57,7 @@ public enum FFI {
     public static let assistKindDoubleNegative: UInt32 = UInt32(IME_ASSIST_KIND_DOUBLE_NEGATIVE)
     public static let assistKindCommaAtEnd: UInt32 = UInt32(IME_ASSIST_KIND_COMMA_AT_END)
     public static let assistKindSpelling: UInt32 = UInt32(IME_ASSIST_KIND_SPELLING)
+    public static let assistKindArticleAn: UInt32 = UInt32(IME_ASSIST_KIND_ARTICLE_AN)
 
     // assist triggers (IME_ASSIST_TRIGGER_*)
     public static let assistTriggerNone: UInt32 = UInt32(IME_ASSIST_TRIGGER_NONE)

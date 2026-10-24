@@ -1,0 +1,28 @@
+# corpus/assist/en_proposed_rules.ass - ky vong cho 2 kind MOI (v2): article_an
+# va lowercase_pronoun (CHUA co trong IssueKind - assist/src/lib.rs).
+# QUAN TRONG: moi dong deu co tien to '~ ' (dong MEM) de corpus test
+# (assist/tests/corpus.rs) KHONG assert - neu viet dong cung, test se FAIL
+# vi engine chua bao kind nay. Khi engine them kind vao IssueKind: bo '~ '
+# tung dong de bien thanh spec cung (hard) + bo comment nay.
+# Dinh dang: ~ <cau>\t<kind1[,kind2]>
+#
+# --- kind article_an: sai menh tu a/an truoc am thanh (/ju:/ -> "a
+# university"; nguyen am /aʊ/ -> "an hour" - theo AM THANH, khong theo chu cai) ---
+He is an university student.	article_an
+It takes a hour to get there.	article_an
+She ate a apple and an banana.	article_an,article_an
+That was a honest mistake.	article_an
+We waited for a hour or so.	article_an
+He is a engineer at a airline.	article_an,article_an
+# Cau dung (se la cau SACH khi kind duoc implement - tham chieu chinh sach):
+#   "A university is an hour away." / "An honest effort is rarely wasted."
+#
+# --- kind lowercase_pronoun: dai tu "I" viet thuong o GIUA cau (phan biet voi
+# lowercase_sentence_start: kind cu chi bat DAU CAU THAT sau . ! ?) ---
+~ When i get home, i will call you.	lowercase_pronoun,lowercase_pronoun
+~ She and i have been friends for years.	lowercase_pronoun
+~ My brother told me that i could borrow his car.	lowercase_pronoun
+~ Between you and i, this plan seems odd.	lowercase_pronoun
+~ i think, therefore i am.	lowercase_pronoun,lowercase_pronoun
+# CANH BAO token: "i.e." khong duoc bao (dau cham tach tu); "iPhone" khong
+# lien quan (hoa o giua tu) - engine phai bo qua ca hai.

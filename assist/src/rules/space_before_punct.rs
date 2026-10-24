@@ -23,6 +23,16 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if prev.len() != 1 {
             continue;
         }
+        // Vòng 24 (audit EN trap 36): dãy dấu chấm cách (APA ". . .") và "..."
+        // rời — space trước MỘT chấm thuộc dãy rung, không phải lỗi. Dấu chấm
+        // cuối câu thật có ký tự khác dấu chấm ở cả hai phía của space.
+        if ctx.chars[punct.start] == '.' {
+            let before_space = prev.start > 0 && ctx.chars[prev.start - 1] == '.';
+            let after_dot = ctx.chars.get(punct.end) == Some(&'.');
+            if before_space || after_dot {
+                continue;
+            }
+        }
         if ctx.is_masked(prev.start, prev.end) {
             continue;
         }

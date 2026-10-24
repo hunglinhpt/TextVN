@@ -118,3 +118,5 @@ trê
 vả
 ưa
 mả
+## Vòng 24: fold của tiền tố freq3000 ("los"→"ló") là âm tiết thông dụng — cản completion.
+ló

@@ -1,0 +1,97 @@
+# corpus/assist/en_basic.ass - cau tieng Anh + loi mong doi (EN v1 "grammar
+# assistant" P4-EN; mirror cua vi_basic.ass - Fassist-43).
+# Dinh dang: <cau>\t<kind1,kind2,...>   (cot kinds rong = cau sach)
+# kind EN v1 (chi dung kind DA CO trong IssueKind): duplicate_word
+#       | space_before_punct | space_after_punct | double_space
+#       | lowercase_sentence_start
+# Ghi chu: cau duoc kiem tra nhu FRAGMENT (check) - ky tu dau doan KHONG coi
+# la dau cau that; de test "hoa dau cau" hay viet "Hello. how are you".
+# Chinh sach lap tu HOP LE (phan EN cua Fassist-94/96): "that that" (menh de
+# quan he chong), "had had" (qua khu hoan thanh), "very very" (tang nghia)
+# KHONG phai loi -> engine EN can danh sach cho phep rieng (giong
+# INTENTIONAL_REPEATS cua ban VI). "no no" (tu choi nhấn) phai viet "No, no"
+# -> van la loi. Tu 1 ky tu ("a a", "I I") KHONG bao lap tu (tranh bao gia).
+# Chu thuong dau cau: kind hien chi chi bat DAU CAU THAT (sau . ! ?);
+# "i" roi rac giua cau la kind v2 lowercase_pronoun (en_proposed_rules.ass).
+# Chinh sach v2 (CHUA co trong tap nay de tranh phuc tap): tach cau theo
+# viet tat (a.m./e.g./U.S./Mr.), trich dan, homophone (their/there).
+# CANH BAO TICH HOP: assist/tests/corpus.rs TU DONG nap moi file .ass nen
+# tap nay chi XANH khi engine bo gate L0 cho cau tieng Anh (hien tai
+# is_vietnamese() lam cau toan ASCII -> 0 loi) + implement 5 luat EN v1.
+# Test: assist/tests/corpus.rs (chay CI 3 OS).
+#
+# --- group: lap tu (L1/L2 EN) ---
+the the book is on the table	duplicate_word@4-7
+she she wants to come with us	duplicate_word@4-7
+we we went to the park yesterday	duplicate_word
+he he said nothing at all	duplicate_word
+I saw an an old photo of us	duplicate_word
+they they arrived late last night	duplicate_word
+is is this the right way	duplicate_word
+when when did you get here	duplicate_word
+and and then we all went home	duplicate_word
+no no that is not what I meant	duplicate_word
+# --- group: thua khoang trang truoc dau cau (L3 EN) ---
+Hello , world	space_before_punct@5-6
+I went home .	space_before_punct
+Are you coming ?	space_before_punct
+Stop !	space_before_punct
+Bring the map ; we need it	space_before_punct
+One rule : be kind	space_before_punct
+She smiled , then left	space_before_punct
+It is late , we should go	space_before_punct
+# --- group: thieu khoang trang sau dau cau (L4 EN) ---
+Hello,my name is Anna	space_after_punct@5-6
+I went home,then slept	space_after_punct
+Really?that is odd	space_after_punct
+Wait!you are scaring me	space_after_punct
+Hold on;let me explain	space_after_punct
+Note:this is important	space_after_punct
+# --- group: khoang trang kep (L5 EN) ---
+Hello  world	double_space@6-7
+I  went  home	double_space,double_space
+Very  good work today	double_space
+Today  is a good day	double_space
+# --- group: chu thuong dau cau (L6 EN) ---
+He said. i think so	lowercase_sentence_start@9-10
+We left early. then we went home	lowercase_sentence_start
+I know. this is the right answer	lowercase_sentence_start
+He loves music. his favorite band is famous	lowercase_sentence_start
+Are you serious? that is amazing	lowercase_sentence_start
+Run! he is right behind you	lowercase_sentence_start
+She asked me why. i had no answer	lowercase_sentence_start
+# --- group: cau sach - lap tu HOP LE (Fassist-94 phan EN) ---
+# "that that" = menh de quan he chong; "had had" = qua khu hoan thanh;
+# "very very" = tang nghia (giong "rất rất" cua ban VI) -> 0 loi.
+I know that that is true.
+He had had breakfast before we arrived.
+It is very very cold today.
+A university is an hour away.
+He said that that book was his.
+By the time we arrived, they had had lunch.
+# --- group: cau sach - da dang (0 loi, chan FPR) ---
+The cat sat on the mat.
+We visited Paris, London, and Rome.
+Dr. Smith arrived at the hospital early.
+I bought eggs, milk, and bread.
+She asked me to call her tomorrow.
+It's 5:30 already, isn't it?
+Pi is approximately 3.14159.
+The version 2.0 update went live.
+The well-known author gave a talk.
+Their house is over there.
+You're welcome to bring your friends.
+I can't believe it's already October.
+My brother and I went fishing.
+Neither answer is wrong; both are right.
+Turn left at the second traffic light, then go straight.
+# --- group: cau tieng Viet (engine EN phai bo qua nhu L0 nguoc) ---
+Tôi đi học ở trường Đại học Bách Khoa.
+Hôm nay tôi làm việc ở văn phòng.
+# --- group: URL/email (mask - khong bao loi) ---
+see https://example.com/a.b for details
+email me at test@example.com anytime
+# --- group: loi nhom (nhieu loai trong 1 cau; kinds xep theo span tang dan) ---
+the the book , is here	duplicate_word@4-7,space_before_punct@12-13
+I  went home,then  slept	double_space,space_after_punct,double_space
+Hello. how  are you ?	lowercase_sentence_start@7-8,double_space@11-12,space_before_punct@19-20

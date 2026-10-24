@@ -1,8 +1,8 @@
 # Attribution dữ liệu Tatoeba (CC BY 2.0 FR)
 
-> **Mã task:** Q-7 (audit compliance — corpus Tatoeba chưa có attribution thật)
-> **Phạm vi:** attribution bắt buộc cho corpus đo FPR/recall lấy từ Tatoeba
-> **Ngày:** 2026-10-22 · **Trạng thái:** ✅ ĐẠT — REUSE khai đúng license, có file license riêng, có attribution thật
+> **Mã task:** Q-7 (audit compliance — corpus Tatoeba chưa có attribution thật) · bổ sung EN 2026-10-24
+> **Phạm vi:** attribution bắt buộc cho corpus đo FPR/recall lấy từ Tatoeba (VI + EN)
+> **Ngày:** 2026-10-22 (VI) · 2026-10-24 (EN) · **Trạng thái:** ✅ ĐẠT — REUSE khai đúng license, có file license riêng, có attribution thật
 > **Liên quan:** [`naming-check.md`](naming-check.md) · [`../../LICENSES/LicenseRef-Tatoeba.txt`](../../LICENSES/LicenseRef-Tatoeba.txt) · [`../../REUSE.toml`](../../REUSE.toml)
 
 ---
@@ -11,8 +11,9 @@
 
 > Câu tiếng Việt trong `corpus/assist/vi_tatoeba_clean.ass`, `corpus/assist/vi_real_clean.ass`
 > và `corpus/assist/vi_real_errors.ass` lấy từ **Tatoeba** (<https://tatoeba.org/>), theo export
-> per-language `vie_sentences.tsv.bz2`, phát hành dưới giấy phép **Creative Commons
-> Attribution 2.0 France (CC BY 2.0 FR)** — <https://creativecommons.org/licenses/by/2.0/fr/>.
+> per-language `vie_sentences.tsv.bz2`; câu tiếng Anh trong `corpus/assist/en_real_clean.ass`
+> lấy theo export per-language `eng_sentences.tsv.bz2`. Cả hai phát hành dưới giấy phép
+> **Creative Commons Attribution 2.0 France (CC BY 2.0 FR)** — <https://creativecommons.org/licenses/by/2.0/fr/>.
 > Đã **lọc, chọn mẫu, gán nhãn lỗi và tách thành nhiều file**; **không sửa nội dung câu**.
 
 ---
@@ -23,9 +24,9 @@
 |---|---|
 | **Tên tập dữ liệu** | **Tatoeba** — tập câu ví dụ + bản dịch do cộng đồng đóng góp, vận hành bởi **Tatoeba Association** (hiệp hội phi lợi nhuận đăng ký tại Pháp) |
 | **Trang chủ** | <https://tatoeba.org/> |
-| **Export đã dùng** | per-language, tiếng Việt — `vie_sentences.tsv.bz2` |
-| **URL export** | <https://downloads.tatoeba.org/exports/per_language/vie/vie_sentences.tsv.bz2> |
-| **Ngày truy cập / tải** | **2026-10-21** — export hằng tuần (thứ Bảy 06:30 UTC); 3 file corpus trong repo này được sinh từ **bản snapshot tải ngày 2026-10-21** |
+| **Export đã dùng** | per-language: tiếng Việt `vie_sentences.tsv.bz2` (2026-10-21) · tiếng Anh `eng_sentences.tsv.bz2` (2026-10-24) |
+| **URL export** | <https://downloads.tatoeba.org/exports/per_language/vie/vie_sentences.tsv.bz2> · <https://downloads.tatoeba.org/exports/per_language/eng/eng_sentences.tsv.bz2> |
+| **Ngày truy cập / tải** | VI: **2026-10-21** · EN: **2026-10-24** — export hằng tuần (thứ Bảy 06:30 UTC); các file corpus trong repo được sinh từ **bản snapshot đã ghi ngày** |
 | **Lịch cập nhật export** | hằng tuần — xem <https://tatoeba.org/en/downloads> |
 | **Giấy phép** | **CC BY 2.0 FR** (Creative Commons Attribution 2.0 France) |
 | **Văn bản giấy phép** | <https://creativecommons.org/licenses/by/2.0/fr/legalcode> |
@@ -79,8 +80,9 @@ nêu rõ các thay đổi đã làm (§5) + không đặt thêm ràng buộc nà
 | `corpus/assist/vi_tatoeba_clean.ass` | 1.500 câu sạch (mọi dòng có tiền tố `~ `) | 1.500 | `LicenseRef-Tatoeba` |
 | `corpus/assist/vi_real_clean.ass` | 981 câu đã rà soát (976 dòng assert cứng + 5 dòng `~`) | 981 | `LicenseRef-Tatoeba` |
 | `corpus/assist/vi_real_errors.ass` | 49 câu có lỗi thật (28 dòng assert cứng + 21 dòng `~`) | 49 | `LicenseRef-Tatoeba` |
+| `corpus/assist/en_real_clean.ass` | 295 câu tiếng Anh sạch đã rà soát (đều assert cứng; sinh bởi `gen_corpus_en_tatoeba.py`, seed `20261023`, snapshot 2026-10-24) | 295 | `LicenseRef-Tatoeba` |
 
-⇒ **2.530 dòng dữ liệu** (có overlap giữa các file: cả 3 đều lấy từ cùng quần thể đã lọc).
+⇒ **2.825 dòng dữ liệu** (có overlap giữa các file VI: cả 3 đều lấy từ cùng quần thể đã lọc).
 
 ### 4.2. File corpus **KHÔNG** lấy từ Tatoeba ⇒ giữ `GPL-3.0-or-later`
 
@@ -91,6 +93,9 @@ nêu rõ các thay đổi đã làm (§5) + không đặt thêm ràng buộc nà
 | `corpus/assist/vi_docs_clean.ass` | trích từ `docs/` **của chính repo này** | 55 | `GPL-3.0-or-later` |
 | `corpus/assist/vi_grammar.ass` | tự viết (luật ngữ pháp L9/L10/L12) | 13 | `GPL-3.0-or-later` |
 | `corpus/assist/vi_regressions.ass` | tự viết (hồi quy lỗi) | 20 | `GPL-3.0-or-later` |
+| `corpus/assist/en_basic.ass` | tự viết (câu mẫu EN + loại lỗi mong đợi) | 63 | `GPL-3.0-or-later` |
+| `corpus/assist/en_real_errors.ass` | tự viết (lỗi EN thật theo kiểu lỗi phổ biến) | 41 | `GPL-3.0-or-later` |
+| `corpus/assist/en_proposed_rules.ass` | tự viết (kỳ vọng kind v2, mọi dòng `~ `) | 11 | `GPL-3.0-or-later` |
 
 Các file `corpus/{shared,win,mac}/*.keys` là **keystroke corpus tự sinh của TextVN** ⇒ `GPL-3.0-or-later`.
 
@@ -108,6 +113,15 @@ precedence = "override"
 SPDX-FileCopyrightText = [
     "Tatoeba contributors (tatoeba.org) — câu tiếng Việt trong export vie_sentences.tsv.bz2",
     "2026 LinhBH.CoM — tập lọc/gán nhãn (đạo hình thức)",
+]
+SPDX-License-Identifier = "LicenseRef-Tatoeba"
+
+[[annotations]]
+path = ["corpus/assist/en_real_clean.ass"]
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "Tatoeba contributors (tatoeba.org) — câu tiếng Anh trong export eng_sentences.tsv.bz2",
+    "2026 LinhBH.CoM — tập lọc/chọn mẫu (đạo hình thức)",
 ]
 SPDX-License-Identifier = "LicenseRef-Tatoeba"
 ```
@@ -140,6 +154,12 @@ SPDX-License-Identifier = "LicenseRef-Tatoeba"
    - `vi_real_errors.ass` — 49 câu có lỗi thật.
 5. **KHÔNG sửa nội dung câu**: không sửa chính tả, không thêm/bớt dấu câu, không dịch.
    Chỉ thêm tiền tố `~ ` và cột nhãn ⇒ **văn bản câu giữ nguyên** so với Tatoeba.
+6. **Pipeline EN (2026-10-24)** — [`../../tools/assist/gen_corpus_en_tatoeba.py`](../../tools/assist/gen_corpus_en_tatoeba.py):
+   lọc 20–120 ký tự, bỏ URL/ký tự đặc biệt/dấu nháy kép/viết tắt gây bẫy tách câu (a.m./U.S./Mr.)/
+   "i" viết thường rời rạc/lỗi cơ học (khoảng trắng, dấu câu, lặp từ ngoài whitelist `that/had/very`);
+   quần thể sau lọc **234.292 câu**; chọn mẫu ngẫu nhiên seed `20261023` (300 → bỏ 5 câu sau rà soát tay
+   qua `EXCLUDE_IDS`: 4 câu lỗi thật ngoài phạm vi v1 + 1 câu chứa từ ngữ không phù hợp) ⇒ **295 câu**,
+   đều là dòng assert cứng. Loại bỏ ID diễn ra **sau** chọn mẫu ⇒ thêm loại không làm đổi cả mẫu (tái lập).
 
 ---
 
@@ -198,9 +218,10 @@ tham chiếu `corpus/`. ⇒ **Corpus chỉ nằm trong kho mã nguồn (git), kh
 | File | Vai trò |
 |---|---|
 | [`../../LICENSES/LicenseRef-Tatoeba.txt`](../../LICENSES/LicenseRef-Tatoeba.txt) | Text giấy phép tùy biến `LicenseRef-Tatoeba` (bắt buộc có cho `reuse lint`) |
-| [`../../REUSE.toml`](../../REUSE.toml) | Annotation `precedence = "override"` khai CC BY 2.0 FR cho đúng 3 file Tatoeba |
+| [`../../REUSE.toml`](../../REUSE.toml) | Annotation `precedence = "override"` khai CC BY 2.0 FR cho 4 file Tatoeba (3 VI + 1 EN) |
 | [`naming-check.md`](naming-check.md) | Báo cáo compliance khác (tên/namespace) |
 | [`../50-assist/P4-12-RECALL-REAL.md`](../50-assist/P4-12-RECALL-REAL.md) §2.1 | Nguồn + cách lấy mẫu + quy ước `~` |
 | [`../50-assist/P4-8-QUALITY-BASELINE.md`](../50-assist/P4-8-QUALITY-BASELINE.md) §2.3 | Kết quả đo FPR trên 1.500 câu Tatoeba |
-| [`../../tools/assist/gen_corpus_tatoeba.py`](../../tools/assist/gen_corpus_tatoeba.py) | Script sinh corpus (URL export + bộ lọc) |
+| [`../../tools/assist/gen_corpus_tatoeba.py`](../../tools/assist/gen_corpus_tatoeba.py) | Script sinh corpus VI (URL export + bộ lọc) |
+| [`../../tools/assist/gen_corpus_en_tatoeba.py`](../../tools/assist/gen_corpus_en_tatoeba.py) | Script sinh corpus EN (URL export + bộ lọc + seed + `EXCLUDE_IDS`) |
 | [`../../tools/assist/build_real_corpus.py`](../../tools/assist/build_real_corpus.py) | Script sinh tập có nhãn (seed `20261021`) |

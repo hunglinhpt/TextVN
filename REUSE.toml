@@ -47,3 +47,18 @@ SPDX-FileCopyrightText = [
     "2026 LinhBH.CoM — tập lọc/gán nhãn (đạo hình thức)",
 ]
 SPDX-License-Identifier = "LicenseRef-Tatoeba"
+
+# Corpus EN lấy từ Tatoeba (export per_language eng_sentences.tsv.bz2) — cùng
+# pattern CC BY 2.0 FR như block tiếng Việt phía trên (attribution bắt buộc).
+# CHỈ en_real_clean.ass chứa câu Tatoeba thật (sinh bởi
+# tools/assist/gen_corpus_en_tatoeba.py); các file en_basic.ass /
+# en_real_errors.ass / en_proposed_rules.ass do agent tự viết → dùng blanket
+# GPL-3.0-or-later ở đầu file.
+[[annotations]]
+path = ["corpus/assist/en_real_clean.ass"]
+precedence = "override"
+SPDX-FileCopyrightText = [
+    "Tatoeba contributors (tatoeba.org) — câu tiếng Anh trong export eng_sentences.tsv.bz2",
+    "2026 LinhBH.CoM — tập lọc/chọn mẫu (đạo hình thức)",
+]
+SPDX-License-Identifier = "LicenseRef-Tatoeba"

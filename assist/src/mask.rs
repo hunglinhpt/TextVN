@@ -45,6 +45,38 @@ pub fn masked_ranges(text: &str) -> Vec<(usize, usize)> {
         from = start + 4;
     }
 
+    // Vòng 24 (audit EN trap 34): tên miền/phần mở rộng trần — "example.com",
+    // "main.rs", "Node.js" — mask.rs cũ chỉ che `://`/`@`/`www.` nên
+    // space_after_punct chèn space giữa "example" và "com". Che mọi
+    // `từ.tld` với TLD/phần mở rộng trong danh sách đóng.
+    let tlds = [
+        "com", "net", "org", "io", "vn", "edu", "gov", "co", "uk", "dev", "app", "info", "biz",
+        "me", "py", "rs", "ts", "js", "md", "sh", "to", "ai", "exe", "dll",
+    ];
+    for i in 0..chars.len() {
+        if chars[i] != '.' || i == 0 || i + 1 >= chars.len() {
+            continue;
+        }
+        let before_ok = chars[i - 1].is_alphanumeric();
+        let after: String = chars[i + 1..]
+            .iter()
+            .take_while(|c| c.is_alphanumeric())
+            .collect::<String>()
+            .to_lowercase();
+        if !before_ok || after.is_empty() {
+            continue;
+        }
+        if tlds.contains(&after.as_str()) {
+            let start = expand_word(&chars, i, true);
+            let end = i + 1 + after.chars().count();
+            // Bỏ qua nếu đã nằm trong vùng che sẵn (URL `://`, email `@`).
+            let already = ranges.iter().any(|&(rs, re)| start >= rs && end <= re);
+            if !already {
+                ranges.push((start, end));
+            }
+        }
+    }
+
     ranges.sort_unstable();
     ranges.dedup();
     ranges

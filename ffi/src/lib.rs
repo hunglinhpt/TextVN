@@ -75,6 +75,8 @@ pub const IME_ASSIST_KIND_DOUBLE_NEGATIVE: u32 = 8;
 pub const IME_ASSIST_KIND_COMMA_AT_END: u32 = 9;
 /// AS-040 - tu la khong co trong tu dien (chi goi y, confidence 60).
 pub const IME_ASSIST_KIND_SPELLING: u32 = 10;
+/// EN - ma tu "a/an" lech am dau (vong 24; chi chay tren cau En-dominant).
+pub const IME_ASSIST_KIND_ARTICLE_AN: u32 = 11;
 
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
@@ -285,6 +287,7 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
         textvn_assist::IssueKind::DoubleNegative => IME_ASSIST_KIND_DOUBLE_NEGATIVE,
         textvn_assist::IssueKind::CommaAtEnd => IME_ASSIST_KIND_COMMA_AT_END,
         textvn_assist::IssueKind::Spelling => IME_ASSIST_KIND_SPELLING,
+        textvn_assist::IssueKind::ArticleAn => IME_ASSIST_KIND_ARTICLE_AN,
     }
 }
 
@@ -373,6 +376,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         english_words: cfg.english_words.clone(),
         quick_telex: cfg.quick_telex,
         suggest_vn_complete: cfg.suggest.enabled,
+        suggest_space_complete: cfg.suggest.trigger == textvn_config::SuggestTrigger::TabAndSpace,
         output_charset: match cfg.output_charset {
             textvn_config::OutputCharset::UnicodePrecomposed => {
                 textvn_core::OutputCharset::UnicodePrecomposed
@@ -1166,6 +1170,7 @@ pub fn plan_issues_from_raw(sentence: &str, raws: &[PlanIssueRaw]) -> Vec<textvn
             IME_ASSIST_KIND_DOUBLE_NEGATIVE => textvn_assist::IssueKind::DoubleNegative,
             IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
             IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
+            IME_ASSIST_KIND_ARTICLE_AN => textvn_assist::IssueKind::ArticleAn,
             _ => continue,
         };
 

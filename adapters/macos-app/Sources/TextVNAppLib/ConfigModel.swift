@@ -129,15 +129,26 @@ public struct AssistDisplay: Codable, Equatable {
 public struct SuggestSettings: Codable, Equatable {
     /// Bật Tab hoàn tất từ tiếng Việt. Mặc định `false`.
     public var enabled: Bool
+    /// Phím kích hoạt (vòng 24): "tab" (mặc định) | "tab_and_space".
+    public var trigger: String
 
-    public init(enabled: Bool = false) {
+    public init(enabled: Bool = false, trigger: String = "tab") {
         self.enabled = enabled
+        self.trigger = trigger
     }
 
     /// Decode khoan dung: thiếu trường lấy mặc định (cùng quy ước `TextVNConfig`).
     public init(from decoder: Decoder) throws {
-        enabled = try decoder.container(keyedBy: CodingKeys.self)
-            .decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        // Giá trị lạ → "tab" (mặc định) — không giữ giá trị không hợp lệ.
+        let t = try c.decodeIfPresent(String.self, forKey: .trigger) ?? "tab"
+        trigger = (t == "tab_and_space") ? "tab_and_space" : "tab"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled
+        case trigger
     }
 }
 
