@@ -7,6 +7,27 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.39] — 2026-10-24
+
+### Added
+- **Panel trợ lý ngữ pháp bấm được bằng chuột** (vòng 27 — "như Grammarly"):
+  - Nút **"Sửa tất cả"** trên panel — áp sửa cả câu (chỉ lỗi chắc chắn), có
+    hoàn tác Ctrl+Z trong 5 giây;
+  - **Click lên từ gạch chân** hoặc dòng lỗi → chọn gợi ý; **click lần nữa**
+    → áp sửa từ đó (precondition caret + Undo giữ nguyên);
+  - Click **trong** panel không còn làm panel tắt (chỉ click ngoài mới tắt).
+- Auto-correct mode (bật `Tự sửa lỗi` + `An toàn`) giữ nguyên hành vi: tự
+  sửa câu tại dấu kết thúc câu, toast 60 giây/lần kèm Ctrl+Z.
+
+**English** — 0.2.39 makes the grammar-assistant popup fully mouse-driven:
+a "Sửa tất cả" (fix all) button applies the whole-sentence correction with
+the 5-second Ctrl+Z undo; clicking an underlined word or an issue row
+selects that suggestion and clicking again applies it; clicks inside the
+popup no longer dismiss it (only outside clicks do). Auto-correct mode
+keeps fixing qualifying sentences automatically at the sentence end as
+before. Corpora unchanged: 0/981 (VI) and 0/295 (EN) false positives,
+100% recall.
+
 ## [0.2.38] — 2026-10-24
 
 ### Changed
@@ -1545,6 +1566,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.39]: https://github.com/hunglinhpt/TextVN/compare/v0.2.38...v0.2.39
 [0.2.38]: https://github.com/hunglinhpt/TextVN/compare/v0.2.37...v0.2.38
 [0.2.37]: https://github.com/hunglinhpt/TextVN/compare/v0.2.36...v0.2.37
 [0.2.36]: https://github.com/hunglinhpt/TextVN/compare/v0.2.35...v0.2.36

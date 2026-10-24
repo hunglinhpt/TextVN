@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.39" date="2026-10-24">
+      <description>
+        <p>The grammar-assistant popup is now fully mouse-driven: a "Sửa tất cả" (fix all) button applies the whole-sentence correction with the 5-second Ctrl+Z undo, clicking an underlined word or an issue row selects that suggestion, and clicking it again applies the fix. Clicks inside the popup no longer dismiss it (only outside clicks do). Auto-correct mode keeps fixing qualifying sentences automatically at the sentence end as before. Vietnamese and English corpora unchanged: 0/981 and 0/295 false positives, 100% recall.</p>
+      </description>
+    </release>
     <release version="0.2.38" date="2026-10-24">
       <description>
         <p>The grammar assistant is now enabled by default in suggest-only mode (auto-fix stays opt-in and the tray/menu switch still turns it off instantly). It now covers English and office-style mixed Vietnamese/English sentences end to end: the popup at the caret shows the typed sentence with red underlines under each wrong word plus a Grammarly-style total ("N lỗi trong câu vừa gõ"), replacing the frequent tray toast — that toast now appears only when auto-fix rewrote a sentence (at most once per 60 seconds, always with the Ctrl+Z hint). Vietnamese false-positive rate stays 0/981 and English 0/295 on the labeled real-text corpora with 100% recall on both labeled error sets.</p>

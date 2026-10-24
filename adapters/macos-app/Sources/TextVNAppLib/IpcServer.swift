@@ -22,7 +22,7 @@ public final class IpcServer {
     /// fallback hằng khi chạy trong swift test (R2 finding 2).
     public static let serverVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.38"
+        ?? "0.2.39"
 
     public weak var delegate: IpcServerDelegate?
 
