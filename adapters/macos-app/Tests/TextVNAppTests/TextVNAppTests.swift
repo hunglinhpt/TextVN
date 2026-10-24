@@ -236,7 +236,9 @@ final class TextVNAppTests: XCTestCase {
         let encoded = try JSONEncoder().encode(parsed)
         let obj = try XCTUnwrap(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         XCTAssertEqual(obj["enabled"] as? Bool, true)
-        XCTAssertEqual(obj.count, 1, "chỉ `enabled` trùng schema (Rust bỏ các khoá khác)")
+        // Vòng 24: `trigger` (tab | tab_and_space) tham gia schema + round-trip.
+        XCTAssertEqual(obj["trigger"] as? String, "tab")
+        XCTAssertEqual(obj.count, 2, "enabled + trigger")
 
         XCTAssertEqual(try JSONDecoder().decode(SuggestSettings.self, from: encoded), parsed)
         XCTAssertEqual(try JSONDecoder().decode(SuggestSettings.self, from: Data("{}".utf8)),
