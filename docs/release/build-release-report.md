@@ -1,5 +1,21 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.41 — sửa trợ lý chết khi nâng cấp (3 root cause, audit agent xác nhận)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | (1) `IpcState::default()` assist_enabled **false** — DLL tắt toàn bộ trợ lý khi tray chưa snapshot → default **true**; (2) state.json ≤0.2.37 giữ `assist_enabled:false` mãi kể cả 0.2.38–0.2.40 (so-version KHÔNG bắt được — audit F1 CRITICAL) → migration persisted-flag `assist_default_on` bật lại đúng 1 lần (test kịch bản thật: false-cũ → bật; tắt tay sau → giữ tắt); (3) toast phát hiện khôi phục làm **fallback popup dưới-phải 8s** khi overlay không neo được (audit F2: nhầm 60s) — `notify_detected` CAS nguyên tử + slot riêng `LAST_DETECT_MS` |
+| Audit xác nhận | Agent end-to-end: gate-table 11 cổng Mode 1 + Mode 2/A2/A3 mouse; Win11 balloon OK; macOS/Linux không pattern chết tương tự; upgrade-mix old-tray bounded (installer stop-tray); VI-off = im theo thiết kế |
+| Đo | VI **0/981 FP** · EN **0/295 FP** — giữ nguyên (engine crates không đổi); 673 test, clippy 0 |
+| Release | v0.2.41 tag ký GPG — release-candidate [#40125231623](https://github.com/hunglinhpt/TextVN/actions/runs/40125231623) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh (2 vòng: clippy-linux import Ordering) |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `0f66b531…980b` · setup exe `e01233f4…25cb` · MSIX `3f2afbe1…7456` · portable `fb60e672…b7a1` · Linux `d28c1c51…a81a` · pkg `8f712a04…596d` · **mac zip `a8616815…61ab`** · mac tar.gz `1b480002…a02b` · PKGBUILD archive `ad16b88e…cb05` |
+| Homebrew (B7b) | cask `sha256` = mac zip `a8616815…61ab` |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.41 `ad16b88e…cb05` |
+| PPA (B7f) | debian/changelog `0.2.41-0ppa1` |
+| approved (B7c) | `approved/v0.2.41/` — 34 file, byte-identical |
+
 ## Bản 0.2.40 — audit 3 nền tảng (2 agent chuyên gia song song, 24 finding) + panel re-check
 
 | Hạng mục | Bằng chứng |
