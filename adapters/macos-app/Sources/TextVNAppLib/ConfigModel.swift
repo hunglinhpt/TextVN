@@ -90,6 +90,8 @@ public struct EmojiEntry: Codable, Equatable {
 /// `schemas/config.v1.schema.json`: cùng tên trường, cùng mặc định — JSON là
 /// hợp đồng chung 3 nền tảng, không đổi một bên mà không đối chiếu bên kia.
 public struct AssistDisplay: Codable, Equatable {
+    /// Vòng 28: khi Tự sửa lỗi đang chạy — ẩn panel gợi ý còn lại sau auto-fix.
+    public var hide_on_auto_fix: Bool
     /// Hiện gợi ý khi gặp dấu kết thúc câu (`.` `!` `?`) — mặc định `true`.
     public var show_on_sentence_end: Bool
     /// Ngừng gõ bao lâu (ms) thì hiện gợi ý — mặc định `700`.
@@ -97,11 +99,20 @@ public struct AssistDisplay: Codable, Equatable {
     /// Hiện gợi ý ngay khi gõ dấu phẩy — mặc định `false` (tránh spam UI).
     public var show_on_comma: Bool
 
+    private enum CodingKeys: String, CodingKey {
+        case hide_on_auto_fix
+        case show_on_sentence_end
+        case idle_ms
+        case show_on_comma
+    }
+
     public init(
+        hide_on_auto_fix: Bool = false,
         show_on_sentence_end: Bool = true,
         idle_ms: Int = 700,
         show_on_comma: Bool = false
     ) {
+        self.hide_on_auto_fix = hide_on_auto_fix
         self.show_on_sentence_end = show_on_sentence_end
         self.idle_ms = idle_ms
         self.show_on_comma = show_on_comma
@@ -112,6 +123,8 @@ public struct AssistDisplay: Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = AssistDisplay()
+        hide_on_auto_fix =
+            try c.decodeIfPresent(Bool.self, forKey: .hide_on_auto_fix) ?? d.hide_on_auto_fix
         show_on_sentence_end =
             try c.decodeIfPresent(Bool.self, forKey: .show_on_sentence_end) ?? d.show_on_sentence_end
         idle_ms = try c.decodeIfPresent(Int.self, forKey: .idle_ms) ?? d.idle_ms

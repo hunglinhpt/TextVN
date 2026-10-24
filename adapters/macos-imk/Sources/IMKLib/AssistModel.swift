@@ -37,7 +37,8 @@ public struct AssistDisplay: Codable, Equatable {
     }
 }
 
-/// Cấu hình Trợ lý ngữ pháp (P4-0 §7 · AS-060). Mặc định tắt hoàn toàn (mode: "off").
+/// Cấu hình Trợ lý ngữ pháp (P4-0 §7 · AS-060). Mặc định BẬT ở chế độ
+/// Chỉ gợi ý (vòng 26 — khớp serde `Config::default()`); Tự sửa vẫn tắt.
 public struct AssistSettings: Codable, Equatable {
     public var mode: String
     public var auto_fix: String
@@ -62,7 +63,7 @@ public struct AssistSettings: Codable, Equatable {
     public static let defaultAutoCapitalize = true
 
     public init(
-        mode: String = "off",
+        mode: String = "highlight",
         auto_fix: String = "off",
         language: String = "vi",
         trigger_keys: [String] = ["space", ",", "."],

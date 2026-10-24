@@ -42,6 +42,7 @@ const char *lc_assist_kind_name(uint32_t kind) {
     case IME_ASSIST_KIND_DOUBLE_NEGATIVE:    return "double_negative";
     case IME_ASSIST_KIND_COMMA_AT_END:       return "comma_at_end";
     case IME_ASSIST_KIND_SPELLING:           return "spelling";
+    case IME_ASSIST_KIND_ARTICLE_AN:         return "article_an";
     default:                                 return "unknown";
     }
 }

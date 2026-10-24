@@ -670,6 +670,40 @@ pub struct ApplyAssistFixSession {
     /// Model + câu + caret đã chụp lúc hiện overlay (precondition D12).
     active: ActiveAssist,
     plan: FixPlan,
+    /// Câu đầy đủ sau fix (head + replacement) — re-check sau session.
+    fixed_sentence: String,
+}
+
+/// Vòng 28 — re-check sau khi A2/A3 sửa xong: chạy `check_text` trên câu
+/// đầy đủ đã sửa (head giữ nguyên + đuôi mới), còn lỗi thì hiện lại panel
+/// với tổng lỗi mới; sạch thì panel giữ ẩn. `mode2` = auto-fix đang chạy
+/// (`hide_on_auto_fix` của người dùng được tôn trọng).
+#[cfg(windows)]
+pub(crate) fn recheck_after_fix(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    ec: u32,
+    fixed_sentence: &str,
+) {
+    let (auto_capitalize, hide_on_auto_fix, mode2) = {
+        let Ok(thread) = shared.thread.try_borrow() else {
+            return;
+        };
+        (
+            thread.auto_capitalize(),
+            thread.assist_display_hide_on_auto_fix(),
+            crate::assist::mode2_auto_fix_enabled(thread.assist_mode(), thread.assist_auto_fix()),
+        )
+    };
+    if mode2 && hide_on_auto_fix {
+        return; // người dùng chọn ẩn panel khi auto-fix đang chạy
+    }
+    // Câu đầy đủ sau fix = phần đầu giữ nguyên + đuôi mới (engine đã reset,
+    // không đọc lại buffer — ta BIẾT chắc text vừa ghi).
+    let Some(new_check) = super::assist::check_text(fixed_sentence, auto_capitalize) else {
+        return; // câu sạch → panel giữ ẩn
+    };
+    let _ = show_assist_overlay(shared, ctx, ec, &new_check);
 }
 
 #[cfg(windows)]
@@ -680,12 +714,17 @@ impl ApplyAssistFixSession {
         active: ActiveAssist,
         plan: FixPlan,
     ) -> Self {
+        // Câu sau fix = head (giữ nguyên trước issue.start) + đuôi mới.
+        let head_len = active.sentence.chars().count() - plan.delete_chars;
+        let head: String = active.sentence.chars().take(head_len).collect();
+        let fixed = head + &plan.replacement.iter().collect::<String>();
         Self {
             _guard: ObjGuard::new(),
             shared,
             ctx,
             active,
             plan,
+            fixed_sentence: fixed,
         }
     }
 }
@@ -700,6 +739,9 @@ impl ITfEditSession_Impl for ApplyAssistFixSession_Impl {
         self.shared.reset_engine();
         if applied {
             crate::trace::event(self.shared.tid, format_args!("assist A2 applied"));
+            // Vòng 28: re-check câu ĐÃ sửa — sạch thì panel tự tắt (đã ẩn
+            // trước session), còn lỗi thì panel cập nhật hiển thị phần còn lại.
+            recheck_after_fix(&self.shared, &self.ctx, ec, &self.fixed_sentence);
         }
         Ok(())
     }
@@ -907,7 +949,14 @@ pub fn apply_sentence_auto_fix(
         return false;
     };
     let session = ApplySentenceFixSession::new(shared.clone(), ctx.clone(), check.clone(), plan);
-    session.apply(ec)
+    let applied = session.apply(ec);
+    if applied {
+        // Vòng 28: Mode 2 tự sửa xong — re-check câu đã sửa. Còn lỗi chỉ-gợi ý
+        // → panel hiện phần còn lại (trừ khi người dùng chọn
+        // `hide_on_auto_fix`); sạch → không panel (như cũ).
+        recheck_after_fix(shared, ctx, ec, &session.fixed_sentence);
+    }
+    applied
 }
 
 /// Session áp dụng tự sửa cả câu (AS-050 · Mode 2 / A3).
@@ -919,6 +968,8 @@ pub struct ApplySentenceFixSession {
     ctx: ITfContext,
     check: AssistCheck,
     plan: SentenceFixPlan,
+    /// Câu đầy đủ sau fix (head + replacement) — re-check sau session.
+    fixed_sentence: String,
 }
 
 #[cfg(windows)]
@@ -929,12 +980,16 @@ impl ApplySentenceFixSession {
         check: AssistCheck,
         plan: SentenceFixPlan,
     ) -> Self {
+        // Câu sau fix = head (trước delete_from) + đuôi đã sửa.
+        let head: String = check.sentence.chars().take(plan.delete_from).collect();
+        let fixed = head + &plan.replacement.iter().collect::<String>();
         Self {
             _guard: ObjGuard::new(),
             shared,
             ctx,
             check,
             plan,
+            fixed_sentence: fixed,
         }
     }
 }

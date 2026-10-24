@@ -77,7 +77,7 @@
     "assist": {
       "type": "object",
       "default": {
-        "mode": "off",
+        "mode": "highlight",
         "auto_fix": "off",
         "language": "vi",
         "trigger_keys": ["space", ",", "."],
@@ -136,6 +136,11 @@
               "type": "boolean",
               "default": false,
               "$comment": "Mac dinh TAT: hien ngay khi go dau phay se spam UI khi go thuong (D11)."
+            },
+            "hide_on_auto_fix": {
+              "type": "boolean",
+              "default": false,
+              "$comment": "Vong 28: khi Tu sua loi dang chay - KHONG hien panel goi y con lai sau khi auto-fix (text da duoc sua lang le). Mac dinh FALSE - van hien loi con lai."
             }
           },
           "$comment": "Diem HIEN THI tach khoi diem kiem tra (D11)."

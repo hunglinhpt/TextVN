@@ -44,6 +44,8 @@ const A_DESPITE_VOWEL_LETTER: &[&str] = &[
     "you",
     "your",
     "youth",
+    "unesco",
+    "unicef",
 ];
 
 /// "an" trước từ bắt đầu bằng **chữ phụ âm** nhưng **âm nguyên âm** (h câm).
@@ -67,8 +69,7 @@ const BOTH_OK: &[&str] = &[
 /// Acronym phát âm **như một từ** ("NATO", "NASA") — không đọc từng chữ,
 /// áp luật chữ đầu bình thường ("a NATO", "a NASA").
 const WORD_PRONOUNCED_ACRONYMS: &[&str] = &[
-    "nato", "unicef", "nasa", "unesco", "laser", "radar", "scuba", "asap", "tosla", "opec",
-    "mercosur",
+    "nato", "nasa", "laser", "radar", "scuba", "asap", "tosla", "opec", "mercosur",
 ];
 
 /// Tên chữ cái phát âm bắt đầu bằng nguyên âm (đọc từng chữ: "an MBA",
@@ -99,10 +100,12 @@ fn expected_article(next: &str) -> Option<&'static str> {
     if BOTH_OK.contains(&next_lower.as_str()) {
         return None; // cả hai đúng — không can thiệp
     }
-    // Acronym ALL-CAPS 2-5 chữ đọc TỪNG CHỮ ("an MBA") — trừ dạng đọc-như-từ.
+    // Acronym ALL-CAPS đọc TỪNG CHỮ ("an MBA") — trừ dạng đọc-như-từ.
+    // Vòng 28: áp cho MỌI độ dài ("a UNESCO" — 6 chữ vẫn đọc /juː/ → "a";
+    // trước đây chỉ kiểm ≤5 chữ → "an UNESCO" sai bị bêu).
     let letters: Vec<char> = next.chars().collect();
     if next.chars().all(|c| c.is_ascii_uppercase())
-        && (1..=5).contains(&letters.len())
+        && !letters.is_empty()
         && next.chars().all(|c| c.is_ascii_alphabetic())
         && !WORD_PRONOUNCED_ACRONYMS.contains(&next_lower.as_str())
     {
@@ -129,6 +132,15 @@ fn expected_article(next: &str) -> Option<&'static str> {
 
 /// Bắt mạo từ "a"/"an" lệch với âm đầu của từ kế tiếp.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
+    // Vòng 28 (audit HIGH): "an" là từ TIẾNG VIỆT THẬT ("an khang", "an toan")
+    // — trong câu Vi-dominant, chỉ báo lỗi a/an khi câu có ít nhất một
+    // **từ-điểm tiếng Anh** ("gửi a email nhé" có "email"; "an khang thịnh
+    // vượng" không có → im lặng, không bao giờ sửa chữ Việt).
+    if ctx.lang == crate::rules::language::Lang::Vi
+        && !crate::rules::language::has_en_indicator(ctx.chars.as_slice())
+    {
+        return;
+    }
     let mut i = 0usize;
     while i + 1 < ctx.tokens.len() {
         let article = ctx.tokens[i];
@@ -307,6 +319,30 @@ mod tests {
         assert_eq!(en_issues("a 8-bit value").len(), 1);
         assert!(en_issues("a 5-year plan").is_empty());
         assert!(en_issues("an 11th-hour fix").is_empty());
+    }
+
+    /// Vòng 28 (audit HIGH): "an" là từ tiếng Việt thật — câu Vi không có
+    /// từ-điểm EN khác thì KHÔNG bao giờ soi a/an (trước đây "an khang" bị
+    /// tự sửa thành "a khang"!).
+    #[test]
+    fn an_tieng_viet_that_khong_bi_soi() {
+        for s in [
+            "Chúc bạn an khang thịnh vượng nhé.",
+            "Làm việc an toan là quan trọng.",
+            "Gia đình sống trong an bình.",
+        ] {
+            assert!(en_issues(s).is_empty(), "\"{s}\" không được soi a/an");
+        }
+        // Câu mix có từ-điểm EN ("email") → vẫn bắt được lỗi thật.
+        assert_eq!(en_issues("Anh gửi a email cho tôi nhé.").len(), 1);
+    }
+
+    /// Vòng 28 (audit MEDIUM): UNESCO/unicef đọc /juː/ → "a UNESCO" đúng,
+    /// "an UNESCO" sai (trước đây nằm nhầm danh sách đọc-từng-chữ).
+    #[test]
+    fn unesco_doc_nhu_tu() {
+        assert!(en_issues("a UNESCO site is here").is_empty());
+        assert_eq!(en_issues("this is an UNESCO site").len(), 1);
     }
 
     #[test]

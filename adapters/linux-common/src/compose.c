@@ -463,7 +463,9 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
                 }
                 ime_settings_string_free(mode);
             } else {
-                st->assist_mode = LC_ASSIST_MODE_OFF;
+                /* Vong 26/28: config có nhưng thiếu assist.mode -> HIGHLIGHT
+                 * (mặc định sản phẩm; trước đây là OFF — fresh-install lệch). */
+                st->assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
             }
             char *af = ime_settings_get_str(s, "assist.auto_fix");
             if (af) {

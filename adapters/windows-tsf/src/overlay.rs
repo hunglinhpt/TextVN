@@ -8,7 +8,8 @@
 //!
 //! Bất biến:
 //! - **Không chiếm focus**: `WS_EX_NOACTIVATE` + `ShowWindow(SW_SHOWNOACTIVATE)`
-//!   + `WM_MOUSEACTIVATE → MA_NOACTIVATE`; `HTTRANSPARENT` để click xuyên qua.
+//!   + `WM_MOUSEACTIVATE → MA_NOACTIVATE`; vùng tương tác nhận click
+//!     (vòng 27), vùng còn lại `HTTRANSPARENT` (click xuyên qua = đóng panel).
 //! - **Không vào accessibility tree** (Fassist-23): `WS_EX_TOOLWINDOW` (không
 //!   Alt+Tab) + `WM_GETOBJECT → 0` (không cấp MSAA/UIA object) + không bao giờ
 //!   gọi `NotifyWinEvent`/UIA provider ⇒ app khác không đọc được câu qua a11y.
@@ -138,6 +139,9 @@ struct HitGeometry<'a> {
     line_h: i32,
     row_rects: &'a [RECT],
     button_rect: Option<RECT>,
+    /// Đã có click-chọn trong lần hiện này chưa (vòng 28): `false` → click
+    /// lên lỗi được chọn sẵn phải Select chứ không phải Apply.
+    mouse_selected: bool,
 }
 
 #[cfg(windows)]
@@ -158,7 +162,7 @@ fn mouse_hit_test(g: &HitGeometry, x: i32, y: i32) -> Option<OverlayMouseAction>
     // 2. Dòng lỗi: click chọn; click lần nữa trên dòng đang chọn → áp.
     for (i, r) in row_rects.iter().enumerate() {
         if x >= r.left && x <= r.right && y >= r.top && y <= r.bottom {
-            return Some(if view.selected == i {
+            return Some(if view.selected == i && g.mouse_selected {
                 OverlayMouseAction::Apply(i)
             } else {
                 OverlayMouseAction::Select(i)
@@ -177,7 +181,7 @@ fn mouse_hit_test(g: &HitGeometry, x: i32, y: i32) -> Option<OverlayMouseAction>
         if let Some(pos) = char_idx {
             for (i, issue) in view.issues.iter().enumerate() {
                 if pos >= issue.start && pos < issue.end {
-                    return Some(if view.selected == i {
+                    return Some(if view.selected == i && g.mouse_selected {
                         OverlayMouseAction::Apply(i)
                     } else {
                         OverlayMouseAction::Select(i)
@@ -210,6 +214,13 @@ struct Shown {
     /// Trạng thái chuột trái ở lần kiểm tra trước: chỉ **lần nhấn mới** mới đóng
     /// (giữ chuột từ trước khi panel hiện không làm panel tắt ngay).
     lbutton_down: bool,
+    /// WM_LBUTTONDOWN vừa được panel xử lý (vùng tương tác) → watchdog
+    /// không được coi là click-rời-đi (vòng 28).
+    click_handled: bool,
+    /// Đã có click-chọn một lỗi lần nào trong lần hiện này (vòng 28):
+    /// click ĐẦU TIÊN trên lỗi được chọn sẵn (selected=0) phải là Select
+    /// chứ không phải Apply (tránh 1 click vô tình sửa document).
+    mouse_selected: bool,
     /// Vòng 26: hình học hit-test ghi trong paint — nút "Sửa tất cả",
     /// các dòng lỗi, toạ độ từng ký tự dòng câu (để bắt click lên từ gạch chân).
     button_rect: Option<RECT>,
@@ -341,6 +352,8 @@ impl CandidateOverlay {
                     skip: 0,
                     content_top: 0,
                     line_h: LINE_H,
+                    click_handled: false,
+                    mouse_selected: false,
                 });
             }
         });
@@ -557,7 +570,7 @@ fn place(hwnd: HWND, anchor: Anchor, width: i32, height: i32) -> (i32, i32) {
 
 /// Có nên tự tắt panel ngay bây giờ (hết 8 s · app mất foreground · click chuột).
 #[cfg(windows)]
-fn should_dismiss(hwnd: HWND) -> bool {
+fn should_dismiss(_hwnd: HWND) -> bool {
     let down = left_button_down();
     let (expired, owner, clicked_outside) = SHOWN.with(|cell| {
         let Ok(mut borrowed) = cell.try_borrow_mut() else {
@@ -566,26 +579,17 @@ fn should_dismiss(hwnd: HWND) -> bool {
         let Some(shown) = borrowed.as_mut() else {
             return (false, 0, false);
         };
-        // Vòng 26: panel NHẬN chuột trên vùng tương tác — chỉ click NGOÀI panel
-        // mới đóng (click trong panel do WM_LBUTTONDOWN của panel xử lý).
+        // Vòng 26+28: click NGOÀI panel (HTTRANSPARENT — đi vào app) hoặc
+        // click vùng KHÔNG tương tác trong panel → đóng. Click vùng tương tác
+        // do WndProc xử lý (đặt `click_handled`) → không đóng.
         let clicked = down && !shown.lbutton_down;
-        let inside = clicked && {
-            let mut pt = POINT::default();
-            let _ = unsafe { GetCursorPos(&mut pt) };
-            let mut rc = RECT::default();
-            let ok_rect = unsafe { GetClientRect(hwnd, &mut rc) }.is_ok();
-            ok_rect
-                && unsafe { ScreenToClient(hwnd, &mut pt).as_bool() }
-                && pt.x >= rc.left
-                && pt.x <= rc.right
-                && pt.y >= rc.top
-                && pt.y <= rc.bottom
-        };
+        let handled = clicked && shown.click_handled;
+        shown.click_handled = false;
         shown.lbutton_down = down;
         (
             Instant::now() >= shown.deadline,
             shown.owner,
-            clicked && !inside,
+            clicked && !handled,
         )
     });
     if expired || clicked_outside {
@@ -631,6 +635,7 @@ unsafe extern "system" fn overlay_wnd_proc(
                         line_h: shown.line_h,
                         row_rects: &shown.row_rects,
                         button_rect: shown.button_rect,
+                        mouse_selected: shown.mouse_selected,
                     };
                     mouse_hit_test(&g, client.x, client.y).is_some()
                 })
@@ -656,11 +661,22 @@ unsafe extern "system" fn overlay_wnd_proc(
                         line_h: shown.line_h,
                         row_rects: &shown.row_rects,
                         button_rect: shown.button_rect,
+                        mouse_selected: shown.mouse_selected,
                     };
                     mouse_hit_test(&g, pt.x, pt.y)
                 })
             });
             if let Some(action) = action {
+                SHOWN.with(|cell| {
+                    if let Ok(mut shown) = cell.try_borrow_mut() {
+                        if let Some(shown) = shown.as_mut() {
+                            shown.click_handled = true;
+                            if matches!(action, OverlayMouseAction::Select(_)) {
+                                shown.mouse_selected = true;
+                            }
+                        }
+                    }
+                });
                 dispatch_mouse_action(action);
                 let _ = InvalidateRect(Some(hwnd), None, true);
             }
@@ -995,6 +1011,21 @@ mod mouse_tests {
                     line_h: 20,
                     row_rects: $rows,
                     button_rect: $button,
+                    mouse_selected: false,
+                }
+            };
+        }
+        macro_rules! geo_sel {
+            ($v:expr, $char_xs:expr, $rows:expr, $button:expr) => {
+                HitGeometry {
+                    view: $v,
+                    skip: 0,
+                    char_xs: $char_xs,
+                    content_top: 30,
+                    line_h: 20,
+                    row_rects: $rows,
+                    button_rect: $button,
+                    mouse_selected: true,
                 }
             };
         }
@@ -1002,9 +1033,15 @@ mod mouse_tests {
             mouse_hit_test(&geo!(&v, &[0, 10], &rows, button), 200, 20),
             Some(OverlayMouseAction::FixAll)
         );
-        // from_parts đặt selected = 0 → click dòng 0 đang chọn → Apply(0).
+        // Vòng 28: click ĐẦU TIÊN trên lỗi được chọn sẵn (selected=0) →
+        // Select (không phải Apply — 1 click vô tình không sửa document).
         assert_eq!(
             mouse_hit_test(&geo!(&v, &[0, 10], &rows, button), 100, 50),
+            Some(OverlayMouseAction::Select(0))
+        );
+        // Sau khi đã click-chọn (mouse_selected=true) → click lại = Apply.
+        assert_eq!(
+            mouse_hit_test(&geo_sel!(&v, &[0, 10], &rows, button), 100, 50),
             Some(OverlayMouseAction::Apply(0))
         );
         // Click dòng chưa chọn → Select.
@@ -1032,7 +1069,7 @@ mod mouse_tests {
         // → Apply(0).
         let char_xs = vec![0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110];
         assert_eq!(
-            mouse_hit_test(&geo!(&v, &char_xs, &rows, button), 45, 35),
+            mouse_hit_test(&geo_sel!(&v, &char_xs, &rows, button), 45, 35),
             Some(OverlayMouseAction::Apply(0))
         );
         // Click ngoài panel → None (xuyên qua như cũ).

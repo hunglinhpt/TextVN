@@ -46,7 +46,7 @@ mới yêu cầu protocol version/schema review trước.
 
   | Trường | Kiểu | Ý nghĩa |
   |---|---|---|
-  | `kind` | chuỗi | Mã loại lỗi ổn định (`duplicate_word`, `space_before_punct`, `double_space`, `lowercase_sentence_start`, `diacritic_typo`, `sentence_repeat`, `double_negative`, `comma_at_end`, `spelling`, …) |
+  | `kind` | chuỗi | Mã loại lỗi ổn định (`duplicate_word`, `space_before_punct`, `space_after_punct`, `double_space`, `lowercase_sentence_start`, `diacritic_typo`, `sentence_repeat`, `double_negative`, `comma_at_end`, `spelling`, `article_an`) |
   | `span_start`, `span_end` | số nguyên | Vùng lỗi theo **ký tự Unicode** (inclusive/exclusive); adapter đổi sang UTF-16 ở biên FFI (D27/D29) |
   | `message` | chuỗi | Thông điệp tiếng Việt ngắn do engine sinh |
   | `suggestions` | mảng chuỗi | Gợi ý thay thế cho đúng vùng lỗi (có thể rỗng) |

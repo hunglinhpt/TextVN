@@ -290,6 +290,8 @@ pub struct ThreadState {
     /// Mặc định = `config.auto_capitalize` của crate `config` (`true`) — khớp
     /// `Config::default()` nên không lệch khi config chưa nạp được.
     auto_capitalize: bool,
+    /// `config.assist.display.hide_on_auto_fix` (vòng 28) — ẩn panel sau fix.
+    assist_display_hide_on_auto_fix: bool,
     /// `config.assist` của lần nạp config gần nhất — hiện chỉ dùng cho
     /// `assist.per_app` (W4-audit 2026-10-23: parity với macOS
     /// `AssistSettings.per_app` — app bị tắt riêng trong config ⇒ **không**
@@ -313,6 +315,10 @@ impl ThreadState {
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
             assist_mode: textvn_config::AssistMode::default(),
             auto_capitalize: textvn_config::Config::default().auto_capitalize,
+            assist_display_hide_on_auto_fix: textvn_config::Config::default()
+                .assist
+                .display
+                .hide_on_auto_fix,
             assist: textvn_config::AssistSettings::default(),
         })
     }
@@ -439,6 +445,7 @@ impl ThreadState {
             self.assist_auto_fix = cfg.assist.auto_fix;
             self.assist_mode = cfg.assist.mode;
             self.auto_capitalize = cfg.auto_capitalize;
+            self.assist_display_hide_on_auto_fix = cfg.assist.display.hide_on_auto_fix;
             self.assist = cfg.assist;
         }
         Ok(())
@@ -467,6 +474,11 @@ impl ThreadState {
     /// `config.v1.json` (`reload_config_bytes`).
     pub fn auto_capitalize(&self) -> bool {
         self.auto_capitalize
+    }
+
+    /// `config.assist.display.hide_on_auto_fix` (vòng 28).
+    pub fn assist_display_hide_on_auto_fix(&self) -> bool {
+        self.assist_display_hide_on_auto_fix
     }
 
     /// `config.assist.per_app` (W4-audit 2026-10-23 · parity với macOS

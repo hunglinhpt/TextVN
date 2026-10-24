@@ -38,6 +38,30 @@ const EN_FUNCTION_WORDS: &[&str] = &[
     "report", "file", "asap", "email", "update", "deadline", "review", "feedback",
 ];
 
+/// Câu (đã tách chars) có **từ-điểm tiếng Anh** không — dùng để mở khoá luật
+/// a/an trong câu Vi-dominant (vòng 28: "gửi a email nhé" có "email";
+/// "an khang thịnh vượng" không có → luật a/an im lặng).
+pub fn has_en_indicator(chars: &[char]) -> bool {
+    for token in crate::tokenize::tokenize(&chars.iter().collect::<String>()) {
+        if token.kind != TokenKind::Word {
+            continue;
+        }
+        let word: String = chars[token.start..token.end]
+            .iter()
+            .collect::<String>()
+            .to_lowercase();
+        // "a"/"an" là TỪ TIẾNG VIỆT thật ("an khang") — chính nó không phải
+        // tín hiệu EN (vòng 28: nếu tính thì mọi câu chứa "an" mở khoá a/an).
+        if word == "a" || word == "an" {
+            continue;
+        }
+        if EN_FUNCTION_WORDS.contains(&word.as_str()) {
+            return true;
+        }
+    }
+    false
+}
+
 /// Phân loại câu: Vi-dominant / En-dominant / không nhận diện (xem header).
 ///
 /// - `Some(Vi)`: ≥ 50 % từ có dấu Việt (hành vi cũ) hoặc câu không có từ nào.

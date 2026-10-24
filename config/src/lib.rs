@@ -230,6 +230,10 @@ pub struct AssistDisplay {
     pub idle_ms: u32,
     /// Hiện gợi ý ngay khi gõ dấu phẩy (mặc định tắt — tránh spam UI).
     pub show_on_comma: bool,
+    /// Vòng 28: khi **Tự sửa lỗi** đang chạy, KHÔNG hiện panel gợi ý còn lại
+    /// sau khi auto-fix xong (text đã được sửa lặng lẽ — panel là noise với
+    /// người dùng chọn ẩn). Mặc định `false` — vẫn hiện lỗi còn lại.
+    pub hide_on_auto_fix: bool,
 }
 
 impl Default for AssistDisplay {
@@ -238,6 +242,7 @@ impl Default for AssistDisplay {
             show_on_sentence_end: true,
             idle_ms: 700,
             show_on_comma: false,
+            hide_on_auto_fix: false,
         }
     }
 }

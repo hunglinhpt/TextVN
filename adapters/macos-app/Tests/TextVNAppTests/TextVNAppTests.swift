@@ -199,7 +199,7 @@ final class TextVNAppTests: XCTestCase {
         try oldJSON.data(using: .utf8)!.write(to: fileURL)
 
         let old = try JSONDecoder().decode(TextVNConfig.self, from: Data(oldJSON.utf8))
-        XCTAssertEqual(old.assist, AssistSettings(), "JSON cũ không có assist → mặc định tắt")
+        XCTAssertEqual(old.assist, AssistSettings(), "JSON cũ không có assist → mặc định highlight (vòng 26)")
 
         var cfg = TextVNConfig.load(from: fileURL)
         XCTAssertEqual(cfg.assist, AssistSettings())

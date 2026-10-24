@@ -225,9 +225,13 @@ nhưng giữ nguyên bảng gõ tắt.
 Kiểm tra **cả câu** tiếng Việt lẫn tiếng Anh (kể cả câu mix văn phòng như
 "vui lòng check lại file report nhé"), hoàn toàn trên máy bạn: không gửi chữ gõ
 đi đâu và không ghi nội dung gõ vào log. **Mặc định bật ở chế độ Chỉ gợi ý**
-từ 0.2.38 — panel tại caret hiện câu vừa gõ với **gạch chân đỏ đúng từ sai**
-+ tổng số lỗi kiểu Grammarly; không muốn thấy panel, chọn Chế độ = *Tắt* hoặc
-tắt nhanh bằng công tắc khay/menu bar (không cần mở bảng điều khiển).
+từ 0.2.38. **Windows**: panel tại caret hiện câu vừa gõ với **gạch chân đỏ
+đúng từ sai** + tổng số lỗi + nút **Sửa tất cả** (bấm chuột được: click từ
+gạch chân chọn gợi ý, click lần nữa áp sửa); click ngoài panel đóng panel.
+**macOS**: danh sách gợi ý trong bảng candidate của IMK. **Linux** (IBus/
+Fcitx5): danh sách gợi ý trong bảng candidate + dòng phụ "Trợ lý TextVN".
+Không muốn thấy gợi ý, chọn Chế độ = *Tắt* (Windows thêm công tắc nhanh ở
+khay hệ thống).
 
 | Mục | Giá trị | Ý nghĩa |
 |---|---|---|
@@ -238,7 +242,7 @@ tắt nhanh bằng công tắc khay/menu bar (không cần mở bảng điều k
 
 - Chỉ sửa khi con trỏ đang ở cuối câu và không bôi đen; không xác minh được văn bản trước con trỏ thì **không sửa gì** (an toàn hơn sửa nhầm).
 - Hoàn tác đúng một bước: bấm **Ctrl + Z** (macOS: **⌘ + Z**) trong vòng 5 giây sau khi tự sửa; sang phím khác hoặc quá 5 giây thì không hoàn tác bằng cách này.
-- Windows và Linux có thêm công tắc bật/tắt nhanh ở khay/menu; kích hoạt ngay, không cần mở bảng điều khiển.
+- Windows có thêm công tắc bật/tắt nhanh ở khay hệ thống; kích hoạt ngay, không cần mở bảng điều khiển.
 - **Không hiện toast khay khi gõ thường** (tránh noise): toast chỉ xuất hiện khi chế độ *Tự sửa lỗi* vừa tự sửa câu (kèm nhắc Ctrl+Z), tối đa 1 lần/60 giây.
 - Chuẩn chất lượng "không bao giờ bêu chữ đúng": **0/981 câu tiếng Việt đúng** bị báo nhầm trên tập kiểm độc lập (bản 0.2.36); thà im lặng còn hơn sửa sai.
 - Đang thử nghiệm: đã qua kiểm thử tự động nhưng chưa kiểm trên mọi ứng dụng. Nếu thấy sửa sai, đặt Chế độ về *Tắt* và báo lỗi kèm tên ứng dụng (đừng dán nội dung câu riêng tư).
