@@ -512,7 +512,7 @@ mod tests {
             r#"{"config_version":1,"method":"vni","macros":[{"trigger":"a","expand":"b","when":"vi_on"}]}"#,
             DocKind::Config,
         );
-        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("highlight"));
         assert_eq!(
             doc.get_bool("assist.display.show_on_sentence_end"),
             Some(true)
@@ -576,7 +576,7 @@ mod tests {
             r#"{"config_version":1,"assist":{"per_app":{"code.exe":false},"custom":9}}"#,
             DocKind::Config,
         );
-        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("highlight"));
         assert_eq!(doc.get_u32("assist.display.idle_ms"), Some(700));
         doc.set_u32("assist.display.idle_ms", 900).unwrap();
         let out: Value = serde_json::from_str(&doc.to_json()).unwrap();
@@ -612,7 +612,7 @@ mod tests {
             doc.set_str("assist.mode", "fix_everything"),
             Err(DocError::BadValue)
         );
-        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("off"));
+        assert_eq!(doc.get_str("assist.mode").as_deref(), Some("highlight"));
     }
 
     #[test]

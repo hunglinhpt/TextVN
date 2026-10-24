@@ -118,7 +118,19 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->quick_telex = get_bool(s, "quick_telex", 0);
         out->allow_macro_when_vi_off = get_bool(s, "allow_macro_when_vi_off", 0);
         /* Đường lồng qua C-API (không parse JSON tay): thiếu key con → mặc định schema. */
-        out->assist_mode = get_index(s, "assist.mode", tv_assist_mode_values, TV_ASSIST_MODE_COUNT);
+        /* Vong 26 (0.2.38): thieu khoa assist.mode = highlight (1) — tro ly
+         * bat mac dinh o che do chi goi y; tv_index_of tra 0 (off) khi thieu
+         * nen phai doc raw de phan biet. */
+        {
+            char *raw_mode = ime_settings_get_str(s, "assist.mode");
+            if (raw_mode) {
+                out->assist_mode = tv_index_of(tv_assist_mode_values,
+                                               TV_ASSIST_MODE_COUNT, raw_mode);
+                ime_settings_string_free(raw_mode);
+            } else {
+                out->assist_mode = 1; /* highlight */
+            }
+        }
         out->assist_auto_fix =
             get_index(s, "assist.auto_fix", tv_assist_auto_fix_values, TV_ASSIST_AUTO_FIX_COUNT);
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);

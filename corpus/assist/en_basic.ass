@@ -95,3 +95,11 @@ email me at test@example.com anytime
 the the book , is here	duplicate_word@4-7,space_before_punct@12-13
 I  went home,then  slept	double_space,space_after_punct,double_space
 Hello. how  are you ?	lowercase_sentence_start@7-8,double_space@11-12,space_before_punct@19-20
+
+# --- vong 26: cau mix van phong VI/EN (routing theo tu + article_an moi ngon ngu) ---
+anh check the the file nhé	duplicate_word@14-17
+please send a email to tôi nhé	article_an@12-13
+I know that that is true nhé
+gửi report sớm nhé  thanks	double_space@19-20
+meeting lúc 8 a.m. phòng họp lớn
+tôi thấy e.g. trong report chưa đúng

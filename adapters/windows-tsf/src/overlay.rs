@@ -86,6 +86,9 @@ const PAD: i32 = 10;
 const LINE_H: i32 = 20;
 #[cfg(windows)]
 const HINT_H: i32 = 18;
+/// Dòng tổng kết "N lỗi trong câu vừa gõ" (vòng 26 — kiểu Grammarly).
+#[cfg(windows)]
+const HEADER_H: i32 = 22;
 #[cfg(windows)]
 const MIN_W: i32 = 240;
 #[cfg(windows)]
@@ -394,7 +397,7 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
     }
     let _ = hwnd;
     let lines = view.issues.len() as i32 + i32::from(view.hidden_count() > 0);
-    let height = PAD * 2 + text_h + lines * LINE_H + HINT_H;
+    let height = PAD * 2 + HEADER_H + text_h + lines * LINE_H + HINT_H;
     let width = (max_w + PAD * 2).clamp(MIN_W, MAX_W);
     (width, height)
 }
@@ -503,6 +506,20 @@ unsafe extern "system" fn overlay_wnd_proc(
     }
 }
 
+/// Dòng tổng kết kiểu Grammarly (vòng 26): đếm lỗi hiện + ẩn.
+#[cfg(windows)]
+fn summary_text(view: &OverlayView) -> String {
+    let total = view.total_issues;
+    let hidden = view.hidden_count();
+    if hidden > 0 {
+        format!("{total} lỗi trong câu vừa gõ (+{hidden} đoạn khác)")
+    } else if total > 1 {
+        format!("{total} lỗi trong câu vừa gõ")
+    } else {
+        "1 lỗi trong câu vừa gõ".to_string()
+    }
+}
+
 #[cfg(windows)]
 unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
     let mut rect = RECT::default();
@@ -532,6 +549,29 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
         let left = rect.left + PAD;
         let right = rect.right - PAD;
 
+        // --- tổng kết kiểu Grammarly (vòng 26): "N lỗi trong câu vừa gõ" ---
+        {
+            let header_font = create_font(14, FW_SEMIBOLD);
+            SelectObject(hdc, header_font.into());
+            let mut header: Vec<u16> = summary_text(view).encode_utf16().collect();
+            let mut hr = RECT {
+                left,
+                top: rect.top + PAD - 2,
+                right,
+                bottom: rect.top + PAD - 2 + HEADER_H,
+            };
+            let _ = SetTextColor(hdc, COLOR_ERROR);
+            let _ = DrawTextW(
+                hdc,
+                &mut header,
+                &mut hr,
+                DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS,
+            );
+            SelectObject(hdc, old_font);
+            let _ = DeleteObject(header_font.into());
+        }
+        let content_top = rect.top + PAD + HEADER_H;
+
         // --- câu vừa gõ + gạch chân đỏ đúng span (char Unicode) ---
         let (skip, visible) = view.visible_sentence(MAX_OVERLAY_SENTENCE_CHARS);
         let mut xs = Vec::with_capacity(visible.len() + 1);
@@ -553,7 +593,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             }
             xs.push(x);
             let _ = SetTextColor(hdc, COLOR_TEXT);
-            let _ = TextOutW(hdc, x, rect.top + PAD, units);
+            let _ = TextOutW(hdc, x, content_top, units);
             x += width;
             drawn += 1;
         }
@@ -566,7 +606,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             let a = issue.start.saturating_sub(skip).min(xs.len() - 1);
             let b = issue.end.saturating_sub(skip).min(xs.len() - 1);
             if a < b {
-                let y = rect.top + PAD + line_h - 3;
+                let y = content_top + line_h - 3;
                 // GDI: MoveToEx + LineTo (không dùng font underline để chỉ đúng span).
                 let _ = MoveToEx(hdc, xs[a], y, None);
                 let _ = LineTo(hdc, xs[b], y);
@@ -576,7 +616,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
         let _ = DeleteObject(pen.into());
 
         // --- danh sách lỗi + gợi ý (chọn bằng ↑/↓, Alt+1..3) ---
-        let mut y = rect.top + PAD + line_h + 2;
+        let mut y = content_top + line_h + 2;
         for (idx, _) in view.issues.iter().enumerate() {
             if idx == view.selected {
                 let sel = CreateSolidBrush(COLOR_SELECTED_BG);

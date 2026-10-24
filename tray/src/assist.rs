@@ -205,12 +205,20 @@ mod tests {
         assert!(!decide(&a, false, 3, 2, None).should_show());
     }
 
-    /// `mode = off` (mặc định) thì không toast dù kill-switch đang bật.
+    /// `mode = off` (người dùng chọn tắt) thì không toast dù kill-switch bật.
     #[test]
     fn mode_off_never_notifies() {
-        let a = AssistSettings::default();
-        assert_eq!(a.mode, AssistMode::Off);
+        // Vòng 26: mặc định là Highlight — test dùng Off tường minh.
+        let a = AssistSettings {
+            mode: AssistMode::Off,
+            ..AssistSettings::default()
+        };
         assert_eq!(decide(&a, true, 5, 0, None), ToastDecision::ModeOff);
+        // Mặc định mới: Highlight → có lỗi thì hiện.
+        assert_eq!(
+            decide(&AssistSettings::default(), true, 5, 0, None),
+            ToastDecision::Show
+        );
     }
 
     /// Câu sạch (0 lỗi, 0 tự sửa) → không hiện gì (D11).
@@ -305,10 +313,12 @@ mod tests {
                 .unwrap_or(0)
         ));
         let svc = SvcManager::new(Some(dir.clone()));
-        assert!(!svc.is_assist_enabled(), "mặc định tắt (D20)");
-        assert!(!notify_simple(&svc, "TextVN", "Lỗi chính tả"));
-        svc.set_assist_enabled(true);
+        // Vòng 26: kill-switch mặc định BẬT (theo assist.mode = highlight);
+        // người dùng tắt bằng menu thì im lặng ngay.
+        assert!(svc.is_assist_enabled(), "mặc định bật (vòng 26)");
         assert!(notify_simple(&svc, "TextVN", "Lỗi chính tả"));
+        svc.set_assist_enabled(false);
+        assert!(!notify_simple(&svc, "TextVN", "Lỗi chính tả"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

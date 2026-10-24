@@ -198,9 +198,10 @@ fn check_with_internal(
     rules::double_negative::check(&ctx, &mut issues);
     rules::comma_at_end::check(&ctx, &mut issues);
     rules::spelling::check(&ctx, &mut issues);
-    if lang == rules::language::Lang::En {
-        rules::article_an::check(&ctx, &mut issues);
-    }
+    // Vòng 26: a/an chạy ở MỌI ngôn ngữ — lỗi mạo từ xuất hiện cả trong câu
+    // mix ("please send a email nhé"); guard nội bộ của rule tự chặn từ
+    // tiếng Việt có dấu ("a ô" → thoát).
+    rules::article_an::check(&ctx, &mut issues);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }

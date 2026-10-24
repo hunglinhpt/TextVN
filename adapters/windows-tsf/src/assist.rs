@@ -59,10 +59,11 @@ pub const MIN_SENTENCE_WORDS: usize = 3;
 /// 0,52 ms/câu) — 10 ms là trần an toàn, không phải p99.
 pub const CHECK_BUDGET_MS: u128 = 10;
 
-/// Khoảng cách tối thiểu giữa 2 lần toast tray — thắt chặt D11 (không spam UI
-/// khi gõ thường; `Fassist-14`). Toast hiển thị chi tiết theo câu đã được
-/// overlay tại caret giữ (AS-030), tray toast chỉ là fallback P4-0 §6.
-pub const NOTIFY_COOLDOWN_MS: u64 = 2_500;
+/// Khoảng cách giữa 2 lần toast tray **tự sửa** (vòng 26): Mode 1 đã có popup
+/// overlay tại caret (gạch chân + tổng lỗi) nên toast "Phát hiện N lỗi" bị
+/// LOẠI (ồn — yêu cầu chủ repo 2026-10-24); chỉ toast khi Mode 2 tự sửa
+/// (người dùng phải biết text đã đổi + Ctrl+Z), 60 s/lần.
+pub const NOTIFY_COOLDOWN_MS: u64 = 60_000;
 
 // ---------------------------------------------------------------------------
 // Mode 1 — mô hình hiển thị overlay (D4/D30/D38)
@@ -719,7 +720,7 @@ static LAST_NOTIFY_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU
 /// Claim cooldown: `true` = đạt quyền báo (so sánh nguyên tử — 2 thread UI cùng
 /// claim cũng chỉ một bên thắng).
 #[cfg(windows)]
-fn claim_notify_slot(now_ms: u64) -> bool {
+pub(crate) fn claim_notify_slot(now_ms: u64) -> bool {
     use std::sync::atomic::Ordering;
     let last = LAST_NOTIFY_MS.load(Ordering::Acquire);
     if !notify_allowed(now_ms, last) {
@@ -915,13 +916,29 @@ pub fn after_trigger(
         return None;
     }
     let check = check_sentence(shared)?;
-    // Báo tray KHÔNG block: thread nền, đường gõ không bao giờ đợi pipe; tray
-    // không chạy → bỏ im lặng (fail-open). Toast chỉ mang số lỗi (S2).
-    if claim_notify_slot(millis_since_epoch()) {
-        let (title, message) = notification_payload(check.issue_count());
-        crate::ipc_client::notify_assist_async(title, message);
-    }
+    // Vòng 26: KHÔNG toast "Phát hiện N lỗi" — popup overlay tại caret đã
+    // hiển thị câu + gạch chân + tổng lỗi (kiểu Grammarly); toast khay gây
+    // ồn khi gõ thường. Chỉ toast khi Mode 2 tự sửa (edit_session gọi
+    // `notify_auto_fixed`).
     Some(check)
+}
+
+/// Toast khay duy nhất của assist: **Mode 2 vừa tự sửa** — người dùng phải
+/// biết text đã đổi + cách hoàn tác. Cooldown [`NOTIFY_COOLDOWN_MS`]
+/// (claim nguyên tử: 2 thread cùng gọi chỉ một bên hiện).
+/// Toast chỉ mang số lỗi đã sửa — KHÔNG chứa câu người dùng (S2/R21).
+#[cfg(windows)]
+pub fn notify_auto_fixed(fixed_count: usize) -> bool {
+    if fixed_count == 0 {
+        return false;
+    }
+    if !claim_notify_slot(millis_since_epoch()) {
+        return false;
+    }
+    let message =
+        format!("Đã tự sửa {fixed_count} lỗi trong câu (Ctrl+Z để hoàn tác trong 5 giây)");
+    crate::ipc_client::notify_assist_async("TextVN — Trợ lý ngữ pháp".to_string(), message);
+    true
 }
 
 #[cfg(test)]
@@ -1004,7 +1021,8 @@ mod tests {
 
     #[test]
     fn notify_cooldown_chong_spam_tray() {
-        let now = 10_000_u64;
+        // Vòng 26: cooldown 60 s — toast chỉ cho Mode 2 tự sửa.
+        let now = 120_000_u64;
         assert!(notify_allowed(now, 0));
         assert!(!notify_allowed(
             now,

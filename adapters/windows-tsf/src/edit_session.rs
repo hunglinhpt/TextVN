@@ -1056,13 +1056,12 @@ impl ApplySentenceFixSession {
             // Xóa buffer engine sau khi đã thay thế document
             self.shared.reset_engine();
 
-            // Thông báo tray toast ngầm (không log phím/nội dung câu của user - Rule S2)
-            let count = self.plan.fixed_count;
-            let message = format!("Đã tự sửa {count} lỗi chính tả trong câu (Ctrl+Z để hoàn tác)");
-            crate::ipc_client::notify_assist_async("TextVN".to_string(), message);
+            // Toast khay DUY NHẤT của assist (vòng 26): Mode 2 vừa tự sửa —
+            // cooldown 60 s, chỉ mang số lỗi (S2 — không log nội dung câu).
+            super::assist::notify_auto_fixed(self.plan.fixed_count);
             crate::trace::event(
                 self.shared.tid,
-                format_args!("assist A3 applied: {count} issues"),
+                format_args!("assist A3 applied: {} issues", self.plan.fixed_count),
             );
 
             true

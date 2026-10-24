@@ -7,6 +7,48 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.38] — 2026-10-24
+
+### Changed
+- **Trợ lý ngữ pháp bật mặc định ở chế độ Chỉ gợi ý** (0.2.38): fresh install
+  và người dùng chưa từng tắt thấy panel gợi ý ngay; *Tự sửa lỗi* vẫn tắt
+  (không bao giờ tự sửa nếu người dùng không bật thêm); kill-switch
+  (công tắc khay/menu) vẫn tắt được tức thì. Đồng bộ đủ 3 nền tảng:
+  config serde + schema + Swift ConfigModel + Windows tray state +
+  Linux `assist.mode` thiếu-khoá → highlight + kill-switch default theo
+  config (Windows state, Linux `lc_state_read_assist_enabled`).
+
+### Added
+- **Panel tổng lỗi kiểu Grammarly tại caret**: câu vừa gõ với **gạch chân đỏ
+  đúng từng từ/đoạn sai** + dòng tổng kết "N lỗi trong câu vừa gõ" — thay
+  cho toast khay thường xuyên.
+- **Câu mix vượt Grammarly** (vòng 26): whitelist lặp từ chọn theo
+  **TỪNG TỪ** ("check the the file nhé" bắt, "I know that that is true nhé"
+  bỏ qua — cùng một câu); guard tên riêng hô gọi + ngoặc kép áp mọi ngôn
+  ngữ ("Lê Lê ơi", nói "không không"); a/an chạy cả trong câu Việt mix
+  ("please send a email to tôi nhé" → "an email").
+
+### Fixed
+- **Toast khay không còn gây noise**: toast "Phát hiện N lỗi" bị loại hoàn
+  toàn (popup tại caret đã hiển thị đủ); toast duy nhất còn lại là khi
+  *Tự sửa lỗi* vừa thay text — cooldown 60 giây, kèm nhắc Ctrl+Z.
+
+**English** — 0.2.38 turns the grammar assistant **on by default in
+suggest-only mode** (auto-fix stays opt-in; the tray/menu switch still kills
+it instantly), synced across all three platforms. The caret popup now shows
+the typed sentence with a red underline under each wrong word plus a
+Grammarly-style total ("N lỗi trong câu vừa gõ"), replacing the frequent
+tray toast — that toast now fires only after auto-fix actually rewrote a
+sentence (at most once per 60 seconds, always with the Ctrl+Z hint). Mixed
+sentences get stronger than Grammarly: the duplicate-word whitelist is
+chosen **per word** ("check the the file nhé" is caught while "I know that
+that is true nhé" passes — same sentence), vocative/proper-name and quoted
+speech guards apply to accented Vietnamese names too, and the a/an rule
+runs inside Vietnamese sentences ("please send a email to tôi nhé" → "an
+email"). Measured on labeled real-text corpora: Vietnamese 0/981 and
+English 0/295 false positives, recall 100% on both labeled error sets;
+668 tests pass, preflight 23/23.
+
 ## [0.2.37] — 2026-10-24
 
 ### Added
@@ -1503,6 +1545,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.38]: https://github.com/hunglinhpt/TextVN/compare/v0.2.37...v0.2.38
 [0.2.37]: https://github.com/hunglinhpt/TextVN/compare/v0.2.36...v0.2.37
 [0.2.36]: https://github.com/hunglinhpt/TextVN/compare/v0.2.35...v0.2.36
 [0.2.35]: https://github.com/hunglinhpt/TextVN/compare/v0.2.34...v0.2.35

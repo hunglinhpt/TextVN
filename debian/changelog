@@ -1,3 +1,11 @@
+textvn (0.2.38-0ppa1) noble; urgency=medium
+
+  * Grammar assistant on by default (suggest-only), English + mixed VI/EN
+    sentences covered, Grammarly-style caret popup with underline and error
+    total, tray toast only after auto-fix (60 s cooldown).
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 24 Oct 2026 09:30:00 +0000
+
 textvn (0.2.37-0ppa1) noble; urgency=medium
 
   * English grammar assistant v1 (article a/an by sound, English duplicate

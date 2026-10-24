@@ -35,6 +35,10 @@ const EN_INTENTIONAL_REPEATS: &[&str] = &[
     "ha", "blah", "yada", "na", "la", "hey", "yeah", "dum", "boom", "chop",
     // năm đọc theo cặp ("twenty twenty")
     "twenty", "nineteen", "seventy", "eighty", "ninety",
+    // vòng 26: gộp từ whitelist VI 0.2.36 thêm (câu mix "Chộp chộp, bum bum"
+    // — "bum" ASCII rơi vào whitelist EN nên phải có ở ĐÂY; "chộp" có dấu
+    // vẫn ở whitelist VI nhưng gộp cho nhất quán).
+    "bum", "chộp", "đâu", "năm",
 ];
 
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.
@@ -60,8 +64,12 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         // "luôn luôn", "mãi mãi"… la lap co chu y, khong phai loi (Fassist-94).
+        // Vòng 26: chọn whitelist theo **TỪNG TỪ** chứ không theo câu — câu
+        // mix ("check the the file nhé") có lặp từ EN giữa câu tiếng Việt:
+        // từ ASCII → whitelist EN, từ có dấu Việt → whitelist VI.
         let lower = cur_text.to_lowercase();
-        let whitelist: &[&str] = if ctx.lang == crate::rules::language::Lang::En {
+        let is_ascii_word = lower.chars().all(|c| c.is_ascii_alphabetic());
+        let whitelist: &[&str] = if is_ascii_word {
             EN_INTENTIONAL_REPEATS
         } else {
             INTENTIONAL_REPEATS
@@ -69,19 +77,20 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if whitelist.contains(&lower.as_str()) {
             continue;
         }
-        // Vòng 24 (audit EN trap 18-19, chỉ En): lặp TÊN RIÊNG hô gọi
-        // ("Emma Emma wait!") — CẢ HAI viết hoa; lỗi thật ở đầu câu chỉ có
-        // từ ĐẦU viết hoa ("They they said") vẫn phải bắt. Từ trong ngoặc
-        // kép (lời thoại lặp) cũng bỏ qua.
-        if ctx.lang == crate::rules::language::Lang::En {
-            let cur_cap = cur_text.chars().next().is_some_and(|c| c.is_uppercase());
-            let prev_cap = prev_text.chars().next().is_some_and(|c| c.is_uppercase());
-            if cur_cap && prev_cap {
-                continue;
-            }
-            if in_quotes(ctx, cur.start) {
-                continue;
-            }
+        // Vòng 24 (audit EN trap 18-19) — vòng 26 áp cho TỪ ASCII ở MỌI câu
+        // (không chỉ câu En-dominant): lặp TÊN RIÊNG hô gọi ("Emma Emma
+        // wait!") — CẢ HAI viết hoa; lỗi thật ở đầu câu chỉ có từ ĐẦU viết
+        // hoa ("They they said") vẫn phải bắt. Từ trong ngoặc kép bỏ qua.
+        // Vòng 26: guard này áp cho MỌI ngôn ngữ — tên riêng có dấu Việt
+        // ("Lê Lê ơi") và trích lời nói nguyên văn ("nói \"không không\"")
+        // là hợp lệ bất kể bảng chữ.
+        let cur_cap = cur_text.chars().next().is_some_and(|c| c.is_uppercase());
+        let prev_cap = prev_text.chars().next().is_some_and(|c| c.is_uppercase());
+        if cur_cap && prev_cap {
+            continue;
+        }
+        if in_quotes(ctx, cur.start) {
+            continue;
         }
         if ctx.is_masked(cur.start, cur.end) {
             continue;
@@ -122,6 +131,29 @@ mod tests {
     #[test]
     fn khong_bat_khi_khong_lap() {
         assert!(check("tôi đi học").is_empty());
+    }
+
+    /// Vòng 26 — câu mix văn phòng: whitelist theo TỪNG TỪ.
+    #[test]
+    fn cau_mix_whitelist_theo_tu() {
+        // Lặp EN hợp lệ giữa câu Việt ("that that" mệnh đề quan hệ) → không báo.
+        assert!(check("bạn check that that case nhé").is_empty());
+        assert!(check("gửi link bum bum cho tôi").is_empty());
+        // Lặp EN là LỖI trong câu Việt → vẫn bắt.
+        let issues = check("anh check the the file nhé");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].kind, crate::IssueKind::DuplicateWord);
+        // Lặp VI hợp lệ vẫn qua whitelist VI.
+        assert!(check("chờ lâu lâu cũng được").is_empty());
+    }
+
+    /// Vòng 26 — guard vocative/quote cho từ ASCII ở mọi ngôn ngữ.
+    #[test]
+    fn guard_ten_rieng_va_ngoac_kep_moi_ngon_ngu() {
+        // Tên riêng hô gọi (cả hai viết hoa) — không báo.
+        assert!(check("Linh Linh ơi, xem lại giúp").is_empty());
+        // Lời thoại trong ngoặc kép lặp — không báo.
+        assert!(check("cậu nói \"không không\" mà").is_empty());
     }
 
     #[test]

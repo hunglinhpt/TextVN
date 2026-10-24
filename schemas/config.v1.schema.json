@@ -93,7 +93,7 @@
       "properties": {
         "mode": {
           "enum": ["off", "highlight", "autocorrect"],
-          "default": "off",
+          "default": "highlight",
           "$comment": "P4-0 §7. off = khong kiem tra (mac dinh, D20 kill-switch); highlight = chi goi y (Mode 1); autocorrect = tu sua loi objective + goi y loi mo ho (Mode 2)."
         },
         "auto_fix": {

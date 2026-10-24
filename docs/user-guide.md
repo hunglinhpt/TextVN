@@ -216,13 +216,18 @@ Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 | Khởi động cùng Windows (macOS: Khởi động cùng OS) / Bật hội thoại này khi khởi động | Windows và macOS |
 | Gõ không gạch chân (Non-preedit) · Chạy ngầm trong menu bar | chỉ macOS |
 | Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows (đúng giá trị trước đó, gồm cả phím đổi ngôn ngữ) và TextVN không còn tự kéo bạn về TextVN khi Windows đổi bàn phím. Gỡ cài đặt cũng trả lại như vậy |
-| Trợ lý ngữ pháp → Chế độ · Tự động sửa | xem mục *Trợ lý ngữ pháp* ngay dưới bảng này (mặc định **Tắt**) |
+| Trợ lý ngữ pháp → Chế độ · Tự động sửa | xem mục *Trợ lý ngữ pháp* ngay dưới bảng này (mặc định **Chỉ gợi ý** từ 0.2.38) |
 
 Mọi thay đổi lưu ngay, không cần khởi động lại. **Mặc định** đưa mọi tuỳ chọn về ban đầu
 nhưng giữ nguyên bảng gõ tắt.
 ### Trợ lý ngữ pháp (thử nghiệm)
 
-Kiểm tra **cả câu** tiếng Việt vừa gõ, hoàn toàn trên máy bạn: không gửi chữ gõ đi đâu và không ghi nội dung gõ vào log. Mặc định **tắt hoàn toàn**; bật trong khung *Trợ lý ngữ pháp* của bảng điều khiển (macOS: bấm **Mở rộng**).
+Kiểm tra **cả câu** tiếng Việt lẫn tiếng Anh (kể cả câu mix văn phòng như
+"vui lòng check lại file report nhé"), hoàn toàn trên máy bạn: không gửi chữ gõ
+đi đâu và không ghi nội dung gõ vào log. **Mặc định bật ở chế độ Chỉ gợi ý**
+từ 0.2.38 — panel tại caret hiện câu vừa gõ với **gạch chân đỏ đúng từ sai**
++ tổng số lỗi kiểu Grammarly; không muốn thấy panel, chọn Chế độ = *Tắt* hoặc
+tắt nhanh bằng công tắc khay/menu bar (không cần mở bảng điều khiển).
 
 | Mục | Giá trị | Ý nghĩa |
 |---|---|---|
@@ -234,6 +239,7 @@ Kiểm tra **cả câu** tiếng Việt vừa gõ, hoàn toàn trên máy bạn:
 - Chỉ sửa khi con trỏ đang ở cuối câu và không bôi đen; không xác minh được văn bản trước con trỏ thì **không sửa gì** (an toàn hơn sửa nhầm).
 - Hoàn tác đúng một bước: bấm **Ctrl + Z** (macOS: **⌘ + Z**) trong vòng 5 giây sau khi tự sửa; sang phím khác hoặc quá 5 giây thì không hoàn tác bằng cách này.
 - Windows và Linux có thêm công tắc bật/tắt nhanh ở khay/menu; kích hoạt ngay, không cần mở bảng điều khiển.
+- **Không hiện toast khay khi gõ thường** (tránh noise): toast chỉ xuất hiện khi chế độ *Tự sửa lỗi* vừa tự sửa câu (kèm nhắc Ctrl+Z), tối đa 1 lần/60 giây.
 - Chuẩn chất lượng "không bao giờ bêu chữ đúng": **0/981 câu tiếng Việt đúng** bị báo nhầm trên tập kiểm độc lập (bản 0.2.36); thà im lặng còn hơn sửa sai.
 - Đang thử nghiệm: đã qua kiểm thử tự động nhưng chưa kiểm trên mọi ứng dụng. Nếu thấy sửa sai, đặt Chế độ về *Tắt* và báo lỗi kèm tên ứng dụng (đừng dán nội dung câu riêng tư).
 

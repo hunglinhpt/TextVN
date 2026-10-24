@@ -274,7 +274,10 @@ pub struct AssistSettings {
 impl Default for AssistSettings {
     fn default() -> Self {
         AssistSettings {
-            mode: AssistMode::Off,
+            // Vòng 26 (0.2.38): mặc định BẬT ở chế độ Chỉ gợi ý (Mode 1) —
+            // không bao giờ tự sửa chữ (Tự sửa lỗi vẫn tắt). Kill-switch
+            // (menu khay) vẫn tắt được ngay lập tức.
+            mode: AssistMode::Highlight,
             auto_fix: AssistAutoFix::Off,
             language: AssistLanguage::Vi,
             trigger_keys: default_assist_trigger_keys(),
@@ -469,7 +472,8 @@ mod tests {
         let cfg = parse_config(r#"{"config_version":1}"#).unwrap();
         let a = &cfg.assist;
         assert_eq!(a, &Config::default().assist);
-        assert_eq!(a.mode, AssistMode::Off);
+        // Vòng 26: mặc định BẬT ở chế độ Chỉ gợi ý (không tự sửa).
+        assert_eq!(a.mode, AssistMode::Highlight);
         assert_eq!(a.auto_fix, AssistAutoFix::Off);
         assert_eq!(a.language, AssistLanguage::Vi);
         assert_eq!(a.trigger_keys, vec!["space", ",", "."]);
@@ -478,7 +482,10 @@ mod tests {
         assert!(!a.display.show_on_comma);
         assert_eq!(a.max_sentence_chars, 500);
         assert!(a.per_app.is_empty());
-        assert!(!a.is_on(), "mặc định phải là off (D20)");
+        // Vòng 26: mặc định BẬT ở chế độ Chỉ gợi ý (auto_fix vẫn tắt —
+        // không bao giờ tự sửa nếu người dùng không bật thêm).
+        assert!(a.is_on(), "mặc định là highlight (vòng 26)");
+        assert_eq!(a.auto_fix, AssistAutoFix::Off, "tự sửa vẫn tắt mặc định");
         assert!(!a.is_app_disabled("notepad"), "thiếu khoá = dùng chung");
     }
 
@@ -540,7 +547,7 @@ mod tests {
         let cfg = parse_config(&default_json()).unwrap();
         assert_eq!(cfg, Config::default());
         let value: serde_json::Value = serde_json::from_str(&default_json()).unwrap();
-        assert_eq!(value["assist"]["mode"], "off");
+        assert_eq!(value["assist"]["mode"], "highlight");
         assert_eq!(value["assist"]["display"]["idle_ms"], 700);
         assert_eq!(value["assist"]["trigger_keys"][0], "space");
     }
@@ -767,7 +774,7 @@ mod tests {
         );
 
         // Mặc định: code và schema phải trùng (kể cả mặc định lồng trong object).
-        assert_eq!(aprops["mode"]["default"], "off");
+        assert_eq!(aprops["mode"]["default"], "highlight");
         assert_eq!(aprops["auto_fix"]["default"], "off");
         assert_eq!(aprops["language"]["default"], "vi");
         assert_eq!(aprops["max_sentence_chars"]["default"], 500);

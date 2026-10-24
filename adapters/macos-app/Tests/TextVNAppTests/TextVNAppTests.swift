@@ -118,7 +118,7 @@ final class TextVNAppTests: XCTestCase {
     /// (bảng P4-0 §7, D20: mặc định tắt hoàn toàn).
     func testAssistDefaultsMatchRustConfigAndSchema() {
         let assist = AssistSettings()
-        XCTAssertEqual(assist.mode, "off")
+        XCTAssertEqual(assist.mode, "highlight") // vòng 26: mặc định bật Chỉ gợi ý
         XCTAssertEqual(assist.auto_fix, "off")
         XCTAssertEqual(assist.language, "vi")
         XCTAssertEqual(assist.trigger_keys, ["space", ",", "."])

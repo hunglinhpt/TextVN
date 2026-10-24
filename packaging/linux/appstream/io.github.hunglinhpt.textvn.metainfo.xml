@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.38" date="2026-10-24">
+      <description>
+        <p>The grammar assistant is now enabled by default in suggest-only mode (auto-fix stays opt-in and the tray/menu switch still turns it off instantly). It now covers English and office-style mixed Vietnamese/English sentences end to end: the popup at the caret shows the typed sentence with red underlines under each wrong word plus a Grammarly-style total ("N lỗi trong câu vừa gõ"), replacing the frequent tray toast — that toast now appears only when auto-fix rewrote a sentence (at most once per 60 seconds, always with the Ctrl+Z hint). Vietnamese false-positive rate stays 0/981 and English 0/295 on the labeled real-text corpora with 100% recall on both labeled error sets.</p>
+      </description>
+    </release>
     <release version="0.2.37" date="2026-10-24">
       <description>
         <p>English grammar assistant (v1): sentences dominated by English are now checked — a new article rule fixes "a apple" to "an apple" by sound with closed exception lists (a university, an hour, an MBA, a NATO, an 8-bit), and the duplicate-word rule learns English-valid repeats (that that, had had, very very) while still catching real errors. Office-style mixed Vietnamese/English sentences ("vui lòng check lại file report nhé", "Anh gửi report cho team ASAP") are now covered — previously silently skipped. Four live Vietnamese-side bugs fixed: auto-inserting spaces inside abbreviations and domains (e.g., a.m., U.S., example.com), spaced ellipsis, and capitalizing code or list markers. Word completion gained an optional Space trigger (suggest.trigger = tab_and_space, off by default, never rewrites an already-correct word) and now draws on the full 3000-word frequency dictionary. Measured on labeled real-text corpora: Vietnamese 0/981 and English 0/295 false positives, recall 100% on both labeled error sets.</p>

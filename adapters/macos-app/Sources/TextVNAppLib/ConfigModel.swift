@@ -152,7 +152,8 @@ public struct SuggestSettings: Codable, Equatable {
     }
 }
 
-/// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định TẮT HOÀN TOÀN (D20 kill-switch):
+/// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định BẬT ở chế độ Chỉ gợi ý (vòng 26;
+/// không bao giờ tự sửa — `auto_fix` vẫn tắt); kill-switch (D20) vẫn tắt được ngay:
 /// thiếu khối này (config bản cũ) hay thiếu trường = tắt, không tự sửa, không hiện gì.
 /// Khớp 1-1 với crate `config` (`config::AssistSettings`) và schema — THIẾU struct
 /// này từng là mẫu mất dữ liệu: model chưa biết khoá thì mỗi lần lưu từ bảng cài
@@ -175,7 +176,7 @@ public struct AssistSettings: Codable, Equatable {
     public var per_app: [String: Bool]
 
     public init(
-        mode: String = "off",
+        mode: String = "highlight",
         auto_fix: String = "off",
         language: String = "vi",
         trigger_keys: [String] = ["space", ",", "."],

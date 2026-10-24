@@ -354,10 +354,10 @@ mod tests {
         let s = ime_settings_load(cpath.as_ptr(), IME_SETTINGS_CONFIG);
         assert!(!s.is_null());
 
-        // File chưa có: đọc ra mặc định của schema.
+        // File chưa có: đọc ra mặc định của schema (vòng 26: highlight).
         assert_eq!(
             take(ime_settings_get_str(s, c("assist.mode").as_ptr())),
-            "off"
+            "highlight"
         );
         assert_eq!(
             ime_settings_get_bool(s, c("assist.display.show_on_sentence_end").as_ptr()),

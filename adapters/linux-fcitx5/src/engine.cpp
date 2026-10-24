@@ -303,7 +303,7 @@ TextVNEngine::TextVNEngine(fcitx::Instance *instance)
     lc_log_init("fcitx5-textvn");
     ipc_ = lc_ipc_client_new("fcitx5", nullptr);
     viEnabled_ = lc_state_read_enabled(nullptr, 1) != 0;
-    assistEnabled_ = lc_state_read_assist_enabled(nullptr, 0) != 0;
+    assistEnabled_ = lc_state_read_assist_enabled(nullptr, 1) != 0;
     baseAssistEnabled_ = assistEnabled_;
     instance_->inputContextManager().registerProperty("textvnState", &factory_);
 

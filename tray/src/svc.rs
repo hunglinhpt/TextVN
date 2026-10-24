@@ -27,8 +27,14 @@ pub struct StateData {
     #[serde(default)]
     pub last_version: String,
     /// Trạng thái bật/tắt của Trợ lý ngữ pháp (D20 kill-switch).
-    #[serde(default)]
+    /// Mặc định BẬT (vòng 26 — theo mặc định `assist.mode = highlight`);
+    /// người dùng từng tắt (state.json có `false` tường minh) giữ nguyên tắt.
+    #[serde(default = "default_assist_enabled")]
     pub assist_enabled: bool,
+}
+
+fn default_assist_enabled() -> bool {
+    true
 }
 
 pub struct SvcManager {
@@ -72,14 +78,14 @@ impl SvcManager {
                     global_enabled: true,
                     apps: BTreeMap::new(),
                     last_version: String::new(),
-                    assist_enabled: false,
+                    assist_enabled: true,
                 })
         } else {
             let default_state = StateData {
                 global_enabled: true,
                 apps: BTreeMap::new(),
                 last_version: String::new(),
-                assist_enabled: false,
+                assist_enabled: true,
             };
             if let Ok(json) = serde_json::to_string_pretty(&default_state) {
                 let _ = atomic_write_file(&state_file, json.as_bytes());

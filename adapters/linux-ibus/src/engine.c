@@ -187,7 +187,7 @@ static void consume_assist_ipc(void) {
 static void sync_assist_state(TextVNIbusEngine *self) {
     (void)self;
     if (!s_assist_state_loaded) {
-        s_assist_enabled = lc_state_read_assist_enabled(NULL, 0) ? TRUE : FALSE;
+        s_assist_enabled = lc_state_read_assist_enabled(NULL, 1) ? TRUE : FALSE;
         s_base_assist = s_assist_enabled;
         s_assist_state_loaded = TRUE;
     }

@@ -30,23 +30,26 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
   tiếng Anh (từ điển 3000 từ tần suất cao), Tab hoàn tất từ — tiếng Anh luôn bật, tiếng Việt
   bật qua `suggest.enabled` — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
   nhật biểu tượng trạng thái.
-- **Trợ lý ngữ pháp (thử nghiệm, tắt mặc định)**: kiểm tra cả câu tiếng Việt vừa gõ ngay
+- **Trợ lý ngữ pháp (thử nghiệm, bật mặc định ở chế độ Chỉ gợi ý)**: kiểm tra cả câu
+  tiếng Việt **lẫn tiếng Anh (kể cả câu mix văn phòng)** ngay
   trên máy (không gửi đi đâu, không log nội dung) — bắt lặp từ, khoảng trắng/space quanh
   dấu câu, viết hoa đầu câu, **sai vị trí dấu** ("nghiã"→"nghĩa") và gợi ý sửa; chế độ *Tự
-  sửa lỗi* tự sửa các lỗi chắc chắn rồi hoàn tác được bằng Ctrl+Z trong 5 giây. Chuẩn chất
-  lượng "không bao giờ bêu chữ đúng": **0 %** câu đúng bị báo nhầm trên tập kiểm 981 câu
-  (0.2.36, chi tiết [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+  sửa lỗi* tự sửa các lỗi chắc chắn rồi hoàn tác được bằng Ctrl+Z trong 5 giây. Panel
+  tại caret hiển thị câu vừa gõ **gạch chân đỏ đúng từ sai** + tổng số lỗi (kiểu
+  Grammarly), không toast khay khi gõ thường. Chuẩn chất lượng "không bao giờ bêu chữ
+  đúng": **0 %** câu đúng bị báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng
+  Anh (0.2.38, chi tiết [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.37](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.37)**
+Bản mới nhất: **[GitHub Release v0.2.38](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.38)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.37 thêm
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.38 **bật trợ lý ngữ pháp mặc định** (Chỉ gợi ý) với panel tại caret kiểu Grammarly + toast khay chỉ khi tự sửa. Bản 0.2.37 thêm
 **Trợ lý ngữ pháp tiếng Anh** (a/an theo âm, lặp từ EN) + **câu mix Việt–Anh văn phòng**
 được kiểm tra + hoàn tất từ bằng **Space** (tùy chọn) — đo trên corpus thật: 0/981 (VI) và
 0/295 (EN) câu đúng bị báo nhầm, recall 100% cả 2 tập lỗi. Bản 0.2.36 nâng
@@ -202,18 +205,22 @@ same config file on all three platforms.
   words), Tab completion — English always on, Vietnamese via `suggest.enabled`
   — automatic sentence capitalization, instant Ctrl+Shift VI/EN toggle with
   tray-icon state.
-- **Grammar assistant (experimental, off by default)**: checks the Vietnamese
-  sentence you just typed, fully on-device (nothing sent anywhere, nothing
-  logged) — duplicate words, spaces around punctuation, sentence
-  capitalization, **misplaced tone marks** ("nghiã" → "nghĩa") with fix
-  suggestions; the *Auto-fix* mode fixes the certain errors and supports a
-  one-step Ctrl+Z undo for 5 seconds. Quality bar "never flags correct
-  text": **0 %** of correct sentences flagged on a 981-sentence benchmark
-  (0.2.36, details in [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+- **Grammar assistant (experimental, on by default in suggest-only mode)**:
+  checks the sentence you just typed — Vietnamese **and English, including
+  office-style mixed sentences** ("vui lòng check lại file report nhé") —
+  fully on-device (nothing sent anywhere, nothing logged): duplicate words,
+  spaces around punctuation, sentence capitalization, misplaced tone marks
+  ("nghiã" → "nghĩa"), English a/an ("a apple" → "an apple") with a
+  suggestion popup at the caret that underlines the wrong words and shows
+  the total count, Grammarly-style; the *Auto-fix* mode fixes the certain
+  errors and supports a one-step Ctrl+Z undo for 5 seconds. Quality bar
+  "never flags correct text": **0 %** of correct sentences flagged on a
+  981-sentence Vietnamese + 295-sentence English benchmark (0.2.38,
+  details in [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
 
 ## Download & install
 
-Latest: **[GitHub Release v0.2.37](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.37)**
+Latest: **[GitHub Release v0.2.38](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.38)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
