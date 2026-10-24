@@ -84,11 +84,12 @@ final class AssistTests: XCTestCase {
 
     func testAssistSettingsDefaultsAndDecoding() throws {
         let settings = AssistSettings()
-        XCTAssertEqual(settings.mode, "off")
+        // Vòng 28: mặc định BẬT Chỉ gợi ý (khớp serde Config::default()).
+        XCTAssertEqual(settings.mode, "highlight")
         XCTAssertEqual(settings.auto_fix, "off")
         XCTAssertEqual(settings.language, "vi")
-        XCTAssertFalse(settings.isOn)
-        XCTAssertFalse(settings.isHighlight)
+        XCTAssertTrue(settings.isOn)
+        XCTAssertTrue(settings.isHighlight)
         XCTAssertFalse(settings.isAutoFixSafe)
 
         let highlightJson = #"{"mode": "highlight", "auto_fix": "off"}"#

@@ -991,10 +991,13 @@ final class AssistIpcTests: XCTestCase {
         XCTAssertTrue(
             TextVNInputController.assistAllowed(
                 killSwitchOn: true, settings: settings, appID: "com.apple.safari"))
-        // mode "off" ⇒ tắt (dù kill-switch bật).
+        // mode "off" tường minh ⇒ tắt (dù kill-switch bật) — mặc định vòng 28
+        // là "highlight" nên phải set tay.
+        var offSettings = AssistSettings()
+        offSettings.mode = "off"
         XCTAssertFalse(
             TextVNInputController.assistAllowed(
-                killSwitchOn: true, settings: AssistSettings(), appID: "com.apple.safari"))
+                killSwitchOn: true, settings: offSettings, appID: "com.apple.safari"))
         // Override per-app vẫn tôn trọng.
         settings.per_app = ["com.apple.safari": false]
         XCTAssertFalse(

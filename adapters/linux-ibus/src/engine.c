@@ -38,14 +38,6 @@ static int            s_base_vi = TRUE;  /* C4: trang thai tu state.json/broadca
 static gboolean        s_assist_enabled = FALSE;
 static gboolean        s_assist_state_loaded = FALSE;
 static lc_config_state s_assist_state_watch;
-/* Vong 26/28: không có config file -> assist_mode mặc định HIGHLIGHT
- * (struct zeroed = OFF trước đây — fresh-install lệch macOS/Windows). */
-static lc_config_state s_state_assist_default(void) {
-    lc_config_state st;
-    memset(&st, 0, sizeof(st));
-    st.assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
-    return st;
-}
 static uint32_t        s_assist_seq_seen = 0;
 static int             s_base_assist = FALSE;
 
@@ -521,6 +513,9 @@ static void launch_settings(void) {
 static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
     memset(&self->comp, 0, sizeof(self->comp));
     memset(&self->config, 0, sizeof(self->config));
+    /* Vong 26/28: fresh-install (chưa có config) -> HIGHLIGHT — struct zeroed
+     * là OFF trước đây, lệch mặc định 3 nen tang. */
+    self->config.assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
     lc_modifier_toggle_reset(&self->toggle);
     self->secure = FALSE;
     self->inst = NULL;
