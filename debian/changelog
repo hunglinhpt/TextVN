@@ -1,3 +1,14 @@
+textvn (0.2.40-0ppa1) noble; urgency=medium
+
+  * Three-platform audit round (24 findings): article rule no longer
+    corrupts Vietnamese words ("an khang"); UNESCO-class acronyms fixed;
+    macOS/Linux defaults aligned to highlight; panel re-checks after fix
+    (updates or hides); hide_on_auto_fix option; first click selects.
+  * Performance: 14-52 us per check (200x under budget); corpora unchanged
+    0/981 VI + 0/295 EN false positives, 100% recall.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 24 Oct 2026 17:30:00 +0000
+
 textvn (0.2.39-0ppa1) noble; urgency=medium
 
   * Grammar-assist popup fully mouse-driven: "Sửa tất cả" button (whole

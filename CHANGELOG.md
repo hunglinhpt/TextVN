@@ -7,6 +7,51 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.40] — 2026-10-24
+
+### Fixed
+- **Audit 3 nền tảng bởi 2 agent audit chuyên gia song song (24 finding)**:
+  - **CRITICAL — article_an phá chữ Việt**: "an khang thịnh vượng" bị
+    auto-fix thành "a khang"! Câu Vi-dominant giờ chỉ mở khoá a/an khi có
+    từ-điểm tiếng Anh khác ("email"/"report"…); "a"/"an" tự thân KHÔNG là
+    tín hiệu (probe chứng minh 12/12 case đúng).
+  - **HIGH — UNESCO-class**: unesco/unicef đọc /juː/ → "a UNESCO" đúng,
+    "an UNESCO" sai bị tha vì nằm nhầm danh sách đọc-từng-chữ.
+  - **HIGH — macOS IMK default lệch**: mode "off" trong khi app UI là
+    highlight → người nâng cấp không có block assist bị TẮT hoàn toàn dù
+    UI nói đang bật; Linux fresh-install tương tự (memset = 0 = off).
+  - Linux `lc_assist_kind_name` thiếu case 11 "article_an" (replace
+    trượt vòng 24 — bẫy lặp lại); ipc.v1.md kind list đủ 11 loại.
+  - Click panel: vùng KHÔNG tương tác trong panel giờ ĐÓNG panel; click
+    ĐẦU TIÊN trên lỗi chọn-sẵn = Select (không sửa document do 1 click
+    vô tình); toast khay đồng bộ chính sách 60s trên MỌI nền tảng.
+- **Performance đo bằng engine thật (release)**: mọi đường IME 14–52 µs/
+  check — gấp 200 lần dưới ngân sách 10 ms (probe riêng cho URL/TLD-heavy,
+  8-từ-lạ, câu 256 ký tự VI/EN/mix).
+
+### Added
+- **Panel tự cập nhật sau fix** (yêu cầu chủ repo): A2/A3/Mode-2 re-check
+  câu ĐÃ sửa — còn lỗi hiển thị phần còn lại với tổng mới, sạch thì tự tắt.
+- **`assist.display.hide_on_auto_fix`** (tùy chọn, mặc định false): ẩn
+  panel hoàn toàn khi chế độ Tự sửa lỗi đang chạy — người dùng muốn auto
+  sửa lặng lẽ không bị làm phiền (config serde + schema + Swift parity).
+
+**English** — 0.2.40 is a full three-platform audit round by two parallel
+expert audit agents (24 findings). Critical: the article rule corrupted
+real Vietnamese ("an khang" → "a khang") — in Vietnamese sentences it now
+requires another English indicator word; UNESCO-class acronyms (read
+/juː/) are fixed; the macOS input-method and Linux fresh-install defaults
+now actually turn the assistant on (highlight), matching the settings UI;
+the Linux IPC wire name for article_an is registered. The panel now
+re-checks the corrected sentence after any fix (updates with remaining
+issues or disappears when clean), a `hide_on_auto_fix` option hides the
+popup while auto-correct runs, clicking a non-interactive panel area
+dismisses it, and the first click on the pre-selected issue only selects.
+Tray toasts are auto-fix-only with a 60-second cooldown everywhere.
+Performance measured on the real engine: 14-52 µs per check (200× under
+budget). Benchmarks unchanged: 0/981 VI + 0/295 EN false positives, 100%
+recall; 671 tests, clippy 0, preflight 23/23.
+
 ## [0.2.39] — 2026-10-24
 
 ### Added
@@ -1566,6 +1611,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.40]: https://github.com/hunglinhpt/TextVN/compare/v0.2.39...v0.2.40
 [0.2.39]: https://github.com/hunglinhpt/TextVN/compare/v0.2.38...v0.2.39
 [0.2.38]: https://github.com/hunglinhpt/TextVN/compare/v0.2.37...v0.2.38
 [0.2.37]: https://github.com/hunglinhpt/TextVN/compare/v0.2.36...v0.2.37
