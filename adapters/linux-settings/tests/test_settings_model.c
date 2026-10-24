@@ -124,7 +124,8 @@ static void test_assist(tv_paths *p) {
                "[{\"trigger\":\"a\",\"expand\":\"b\",\"when\":\"vi_on\"}]}");
     tv_snapshot s;
     tv_snapshot_load(&s, p);
-    assert(s.assist_mode == 0 && s.assist_idle_ms == 700 && "file cũ thiếu assist → mặc định");
+    /* Vong 26: file cũ thiếu assist -> assist_mode mặc định HIGHLIGHT (1). */
+    assert(s.assist_mode == 1 && s.assist_idle_ms == 700 && "file cũ thiếu assist → mặc định");
 
     /* Ghi qua model — mỗi thao tác là một patch khoá riêng. */
     assert(tv_config_set_assist_mode(p, 1) == 0);
