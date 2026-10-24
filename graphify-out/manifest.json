@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1792769825.842997,
-    "seen": 1792773483.0432827,
-    "ast_hash": "dbcbba4353146b01e13b8350ff060bb9",
+    "mtime": 1792812447.8103607,
+    "seen": 1792812644.57671,
+    "ast_hash": "8be3b0d101a5966627b012a9c184439a",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792769855.077363,
-    "seen": 1792773483.0432827,
-    "ast_hash": "380b40e1fd060047c84139c4ff48e0b5",
+    "mtime": 1792812392.102174,
+    "seen": 1792812644.5777106,
+    "ast_hash": "85049554f13f09b69839884930c0e776",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1890,9 +1890,9 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1792642676.8688178,
-    "seen": 1792643360.3943915,
-    "ast_hash": "ba2a46e843667b818b5880163e089015",
+    "mtime": 1792812468.1250844,
+    "seen": 1792812644.5867252,
+    "ast_hash": "74dfc9d107d64af3d5e3df60a685198d",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1792324948.189739,
-    "seen": 1792325179.8802443,
-    "ast_hash": "e134d442fde4012eea5a58b0ba2978f4",
+    "mtime": 1792812483.657035,
+    "seen": 1792812644.584726,
+    "ast_hash": "d600f93272b973f6f25e6f8d1035907e",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1792324948.1408086,
-    "seen": 1792325179.8736858,
-    "ast_hash": "a70c92603e4c38b3e2bac20706b6a952",
+    "mtime": 1792812483.6927204,
+    "seen": 1792812644.57671,
+    "ast_hash": "84e7ebe8dbf34a99454ba17603be5396",
     "semantic_hash": ""
   },
   "tools/release/publish-aur.sh": {
