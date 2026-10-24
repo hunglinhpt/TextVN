@@ -177,13 +177,20 @@ impl SelectionCheckSession {
             if empty.as_bool() {
                 return false;
             }
-            // Đọc text vùng chọn (đúng những gì user đang nhìn).
-            let mut buf = vec![0u16; MAX_SELECTION_CHARS + 1];
+            // Đọc text vùng chọn với buffer chừa 2 slot dự phòng: nếu
+            // `fetched` chạm hết buffer ⇒ vùng DÀI HƠN MAX — check nửa câu
+            // là sai ngữ nghĩa → bỏ (guard cắt cụt, audit v30).
+            let cap = MAX_SELECTION_CHARS + 2;
+            let mut buf = vec![0u16; cap];
             let mut fetched = 0u32;
             if sel.GetText(ec, 0, &mut buf, &mut fetched).is_err() || fetched == 0 {
                 return false;
             }
-            let units: Vec<u16> = buf[..(fetched as usize).min(buf.len())].to_vec();
+            let n = (fetched as usize).min(buf.len());
+            if n > MAX_SELECTION_CHARS {
+                return false; // vùng vượt MAX — không popup nửa câu
+            }
+            let units: Vec<u16> = buf[..n].to_vec();
             if units.len() < MIN_SELECTION_CHARS {
                 return false; // quá ngắn
             }
@@ -278,13 +285,18 @@ impl ApplySelectionFixSession {
             if empty.as_bool() {
                 return false;
             }
-            let mut buf = vec![0u16; MAX_SELECTION_CHARS + 1];
+            // Guard cắt cụt: vùng dài hơn MAX ⇒ đã đổi so với câu đã check.
+            let cap = MAX_SELECTION_CHARS + 2;
+            let mut buf = vec![0u16; cap];
             let mut fetched = 0u32;
             if self.range.GetText(_ec, 0, &mut buf, &mut fetched).is_err() {
                 return false;
             }
-            let cur =
-                String::from_utf16(&buf[..(fetched as usize).min(buf.len())]).unwrap_or_default();
+            let n = (fetched as usize).min(buf.len());
+            if n > MAX_SELECTION_CHARS {
+                return false;
+            }
+            let cur = String::from_utf16(&buf[..n]).unwrap_or_default();
             if cur != self.expect {
                 return false;
             }
