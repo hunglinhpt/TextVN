@@ -127,7 +127,9 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertFalse(assist.display.show_on_comma)
         XCTAssertEqual(assist.max_sentence_chars, 500)
         XCTAssertTrue(assist.per_app.isEmpty)
-        XCTAssertFalse(assist.isOn, "mặc định phải tắt hoàn toàn (D20)")
+        // Vòng 26: mặc định BẬT ở chế độ Chỉ gợi ý; Tự sửa lỗi vẫn tắt.
+        XCTAssertTrue(assist.isOn, "mặc định là highlight (vòng 26)")
+        XCTAssertEqual(assist.auto_fix, "off", "tự sửa vẫn tắt mặc định")
         // Danh sách phím hợp lệ = CÙNG danh sách với `config::ASSIST_TRIGGER_KEYS`.
         XCTAssertEqual(AssistSettings.validTriggerKeys, ["space", ",", ".", "!", "?", ";", ":"])
         // Xoá trợ lý của người dùng = mất dữ liệu → config mặc định phải giữ một

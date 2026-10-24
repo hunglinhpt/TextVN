@@ -72,8 +72,9 @@ static void test_defaults_when_missing(tv_paths *p) {
     assert(s.vi_enabled == 1 && s.new_diacritic == 0);
     assert(s.free_marking && s.auto_restore_english && s.auto_capitalize);
     assert(!s.quick_telex && !s.allow_macro_when_vi_off && !s.config_was_corrupt);
-    /* Tro ly ngu phap: file chua co khoi assist -> mac dinh schema (TAT, 700 ms). */
-    assert(s.assist_mode == 0 && s.assist_idle_ms == TV_ASSIST_DEFAULT_IDLE_MS);
+    /* Tro ly ngu phap: file chua co khoi assist -> mac dinh schema
+     * (Vong 26: HIGHLIGHT = 1, 700 ms; tu sua van tat). */
+    assert(s.assist_mode == 1 && s.assist_idle_ms == TV_ASSIST_DEFAULT_IDLE_MS);
 }
 
 static void test_patch_keeps_user_data(tv_paths *p) {
