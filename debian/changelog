@@ -1,3 +1,12 @@
+textvn (0.2.37-0ppa1) noble; urgency=medium
+
+  * English grammar assistant v1 (article a/an by sound, English duplicate
+    whitelist), mixed VI/EN office sentences covered, 4 live Vietnamese-side
+    bugs fixed (abbreviation/domain space insertion, ellipsis, code
+    capitalization), optional Space-triggered word completion.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sat, 24 Oct 2026 07:30:00 +0000
+
 textvn (0.2.36-0ppa1) noble; urgency=medium
 
   * Grammar-assist quality audit round: FPR 0.5% -> 0.0% on 981 clean

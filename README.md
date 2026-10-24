@@ -39,14 +39,17 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.36](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.36)**
+Bản mới nhất: **[GitHub Release v0.2.37](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.37)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.36 nâng
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.37 thêm
+**Trợ lý ngữ pháp tiếng Anh** (a/an theo âm, lặp từ EN) + **câu mix Việt–Anh văn phòng**
+được kiểm tra + hoàn tất từ bằng **Space** (tùy chọn) — đo trên corpus thật: 0/981 (VI) và
+0/295 (EN) câu đúng bị báo nhầm, recall 100% cả 2 tập lỗi. Bản 0.2.36 nâng
 chất lượng **Trợ lý ngữ pháp** lên chuẩn "không bao giờ bêu chữ đúng": **FPR 0 %** trên
 981 câu sạch (bỏ 5 cặp typo vi phạm chính sách khiến autocorrect sửa sai "quyến rũ",
 "thuở xưa"…; recall câu 83,7 %), câu VIẾT HOA có dấu được kiểm tra. Bản 0.2.35 ra mắt
@@ -210,7 +213,7 @@ same config file on all three platforms.
 
 ## Download & install
 
-Latest: **[GitHub Release v0.2.36](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.36)**
+Latest: **[GitHub Release v0.2.37](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.37)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).

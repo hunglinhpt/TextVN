@@ -7,6 +7,55 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.37] — 2026-10-24
+
+### Added
+- **Trợ lý ngữ pháp tiếng Anh (v1)**: câu En-dominant được kiểm tra — rule
+  mạo từ **a/an theo ÂM** (không theo chữ) với danh sách ngoại lệ đóng
+  ("a university", "an hour", "an MBA" đọc-chữ, "a NATO" đọc-từ, "an 8-bit"
+  đọc số; dạng mơ hồ historic/FAQ/SQL → không bao giờ soi; dạng lạ → im
+  lặng — fail-open); duplicate_word học lặp hợp lệ tiếng Anh ("that that",
+  "had had", "very very", "ha ha"…) nhưng vẫn bắt lỗi thật ("the the book",
+  "They they said"); guard lặp tên riêng hô gọi + từ trong ngoặc kép.
+  Kind mới `article_an` (FFI 11) wired đủ: Rust FFI + header C (2 bản) +
+  C `lc_assist_kind_name` + Swift CoreBridge/AssistModel + ABI verify.
+- **Câu mix Việt–Anh văn phòng** ("vui lòng check lại file report nhé",
+  "Anh gửi report cho team ASAP") được kiểm tra — trước đây bị bỏ qua im
+  lặng. Gate ngôn ngữ mới: Vi-dominant / En-dominant / im-lặng (fail-open);
+  các luật trung lập (khoảng trắng, dấu câu, lặp từ, viết hoa) chạy ở cả
+  hai ngôn ngữ; luật riêng ngôn ngữ tự chặn trên nội dung không thuộc.
+- **Hoàn tất từ bằng Space** (tùy chọn `suggest.trigger = "tab_and_space"`,
+  mặc định `tab` — không đổi hành vi cũ): Space cũng hoàn tất từ đang gõ
+  dở và kèm chính dấu cách; **nghiêm ngặt hơn Tab** — không bao giờ viết
+  lại từ đã đúng ("test"+Space = "test "). Completion nạp đủ nguồn
+  **3000 từ tần suất** (`data/en_freq3000.txt` — trước đây chỉ ~100 mục).
+
+### Fixed
+- 4 bug SỐNG phía Việt phát hiện bởi audit expert (agent song song): chèn
+  space giữa viết tắt/tên miền ("e.g."→"e. g.", "a.m."→"a. m.", "U.S."→
+  "U. S.", "example.com"→"example. com" — đã SỐNG từ trước khi có EN);
+  khoảng trắng trước dãy chấm rời (". . ."); viết hoa hoá code/danh sách
+  đề mục ("i = i + 1"→"I = i + 1", "i. introduction"→"I. Introduction").
+  Đo lại: **VI 0/981 FP (giữ nguyên), EN 0/295 FP (corpus Tatoeba thật,
+  CC BY 2.0 FR attribution đầy đủ), recall 100 % cả hai tập lỗi có nhãn**;
+  666 test pass, preflight 23/23.
+
+**English** — 0.2.37 ships the English grammar assistant v1: sentences
+dominated by English are now checked — a new sound-based a/an article rule
+with closed exception lists (a university, an hour, an MBA, a NATO, an
+8-bit; ambiguous forms like historic/FAQ are never flagged), and the
+duplicate-word rule learns English-valid repeats (that that, had had, very
+very) while still catching real errors. Office-style mixed Vietnamese/
+English sentences ("vui lòng check lại file report nhé") are now covered —
+previously silently skipped. Four live Vietnamese-side bugs fixed: spaces
+auto-inserted inside abbreviations/domains (e.g., a.m., U.S., example.com),
+spaced ellipsis, and capitalizing code/list markers. Word completion gains
+an optional Space trigger (`suggest.trigger = tab_and_space`, off by
+default — never rewrites an already-correct word) and now draws on the
+full 3000-word frequency dictionary. Measured on labeled real-text
+corpora: Vietnamese 0/981 and English 0/295 false positives, recall 100 %
+on both labeled error sets.
+
 ## [0.2.36] — 2026-10-23
 
 ### Fixed
@@ -1454,6 +1503,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.37]: https://github.com/hunglinhpt/TextVN/compare/v0.2.36...v0.2.37
 [0.2.36]: https://github.com/hunglinhpt/TextVN/compare/v0.2.35...v0.2.36
 [0.2.35]: https://github.com/hunglinhpt/TextVN/compare/v0.2.34...v0.2.35
 [0.2.34]: https://github.com/hunglinhpt/TextVN/compare/v0.2.33...v0.2.34

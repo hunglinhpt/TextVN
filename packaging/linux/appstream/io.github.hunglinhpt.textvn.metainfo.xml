@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.37" date="2026-10-24">
+      <description>
+        <p>English grammar assistant (v1): sentences dominated by English are now checked — a new article rule fixes "a apple" to "an apple" by sound with closed exception lists (a university, an hour, an MBA, a NATO, an 8-bit), and the duplicate-word rule learns English-valid repeats (that that, had had, very very) while still catching real errors. Office-style mixed Vietnamese/English sentences ("vui lòng check lại file report nhé", "Anh gửi report cho team ASAP") are now covered — previously silently skipped. Four live Vietnamese-side bugs fixed: auto-inserting spaces inside abbreviations and domains (e.g., a.m., U.S., example.com), spaced ellipsis, and capitalizing code or list markers. Word completion gained an optional Space trigger (suggest.trigger = tab_and_space, off by default, never rewrites an already-correct word) and now draws on the full 3000-word frequency dictionary. Measured on labeled real-text corpora: Vietnamese 0/981 and English 0/295 false positives, recall 100% on both labeled error sets.</p>
+      </description>
+    </release>
     <release version="0.2.36" date="2026-10-23">
       <description>
         <p>Grammar assistant quality audit (three full line-by-line passes). The assistant now never flags correct text: five typo-table entries whose "wrong" word is actually a valid Vietnamese word (quyến, thuở, đả, áy, điếm) were removed — they made auto-correct rewrite correct words (quyến rũ to quyển, thuở xưa to thướ). Measured on the labeled real-text corpora: false positives drop from 0.5% to 0.0% on 981 clean sentences (Wilson 0.0–0.4%), sentence recall is 83.7%, the deliberate trade of two ambiguous cases for zero false flags. Four more valid reduplications (năm năm, đâu đâu, chộp chộp, bum bum) are whitelisted, and all-caps accented Vietnamese sentences are now recognized for checking.</p>
