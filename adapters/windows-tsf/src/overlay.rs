@@ -697,7 +697,7 @@ unsafe extern "system" fn overlay_wnd_proc(
         WM_TIMER => {
             // Vòng 30: debounce check vùng bôi đen (timer riêng của
             // selection_check — không đụng watchdog).
-            if wparam.0 == 0x5EC1 {
+            if wparam.0 == crate::selection_check::TIMER_SELECTION_CHECK {
                 crate::selection_check::on_timer();
                 return LRESULT(0);
             }

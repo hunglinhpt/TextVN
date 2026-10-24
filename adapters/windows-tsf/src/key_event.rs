@@ -163,6 +163,13 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         // Pha nào tới trước xử lý; `ModifierToggle` chỉ trả true một lần.
         trace_key(&self.shared, "up", wparam.0 as u32, "");
         guarded(|| handle_key_up(&self.shared, pic.ok().ok(), wparam.0 as u32));
+        // F2 (audit v30): Notepad/Chrome/VS Code bỏ pha TEST ⇒ OnTestKeyUp
+        // không fire — hook selection-check ở CẢ hai pha up (PENDING ghi đè
+        // + SetTimer re-arm idempotent).
+        let mods = active_modifiers();
+        guarded(|| {
+            maybe_schedule_selection_check(&self.shared, pic.ok().ok(), wparam.0 as u32, mods)
+        });
         Ok(false.into())
     }
 

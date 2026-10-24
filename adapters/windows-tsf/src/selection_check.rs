@@ -31,12 +31,15 @@ use crate::edit_session::{selection_range, TsfShared};
 use crate::overlay::Anchor;
 
 /// Timer ID của panel (không đụng TIMER_WATCHDOG của overlay).
-const TIMER_SELECTION_CHECK: usize = 0x5EC1;
 /// Debounce sau phím selection cuối.
 const DEBOUNCE_MS: u32 = 500;
-/// Giới hạn vùng check (ký tự UTF-16).
+/// Giới hạn vùng check (ký tự UTF-16). Bằng `SENTENCE_MAX_CHARS` của engine
+/// (256 — audit v30 F1: check_text cắt đuôi 256 nên vùng dài hơn luôn làm
+/// nút "Sửa tất cả" chết vì precondition đọc-đầu ≠ expect-đuôi).
 const MIN_SELECTION_CHARS: usize = 3;
-const MAX_SELECTION_CHARS: usize = 500;
+const MAX_SELECTION_CHARS: usize = 256;
+/// Timer ID — overlay WndProc so khớp hằng này (audit F7: không hardcode 2 chỗ).
+pub(crate) const TIMER_SELECTION_CHECK: usize = 0x5EC1;
 
 // (Weak<TsfShared>, ctx) chờ debounce — thread UI của app (TSF apartment).
 thread_local! {
@@ -63,14 +66,18 @@ fn is_selection_key_up(vk: u32, mods: u32) -> bool {
     if mods & (MOD_CTRL | MOD_WIN) != 0 {
         return false;
     }
+    const MOD_ALT: u32 = 0x4; // keymap::MOD_ALT (Alt+← = Back của browser)
+    if mods & MOD_ALT != 0 {
+        return false;
+    }
     matches!(
         vk,
         0x10 |          // Shift (nhả sau Shift+←)
-        0x25..=0x28 |   // ← ↑ ↓ →
+        0x25
+            ..=0x28 |   // ← ↑ ↓ →
         0x21 | 0x22 |   // PgUp/PgDn
-        0x23 | 0x24 |   // End/Home
-        0x70..=0x7B     // F1..F12 (Shift+F? hiếm nhưng vô hại)
-    ) || (vk >= 'A' as u32 && vk <= 'Z' as u32 && mods & 0x1 != 0) // Shift+letter (selection start)
+        0x23 | 0x24 // End/Home
+    ) || (vk >= 'A' as u32 && vk <= 'Z' as u32 && mods & 0x1 != 0) // Shift+letter (bôi đầu từ)
 }
 
 /// Nhận key-up từ `OnTestKeyUp`/`OnKeyDown`-up path: lên lịch debounce check.
@@ -87,6 +94,20 @@ pub fn on_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, mods
     let hwnd = TIMER_HWND.with(|c| *c.borrow());
     if hwnd == 0 {
         return; // overlay chưa từng tạo hwnd — không có nơi chạy timer
+    }
+    // F4 (audit v30): hwnd có thể đã bị DestroyWindow khi TIP deactivate —
+    // SetTimer lên hwnd chết kẹt PENDING mãi. Hwnd chết → reset + bỏ.
+    // SAFETY: IsWindow chỉ đọc trạng thái window của thread này.
+    let alive = unsafe {
+        windows::Win32::UI::WindowsAndMessaging::IsWindow(Some(windows::Win32::Foundation::HWND(
+            hwnd as *mut std::ffi::c_void,
+        )))
+        .as_bool()
+    };
+    if !alive {
+        TIMER_HWND.with(|c| *c.borrow_mut() = 0);
+        PENDING.with(|p| *p.borrow_mut() = None);
+        return;
     }
     PENDING.with(|p| {
         *p.borrow_mut() = Some((Rc::downgrade(shared), ctx.clone()));
@@ -247,6 +268,7 @@ impl SelectionCheckSession {
 #[implement(ITfEditSession)]
 pub struct ApplySelectionFixSession {
     _guard: crate::class::ObjGuard,
+    shared: std::rc::Rc<TsfShared>,
     range: ITfRange,
     expect: String,
     fixed: String,
@@ -254,9 +276,15 @@ pub struct ApplySelectionFixSession {
 
 #[cfg(windows)]
 impl ApplySelectionFixSession {
-    pub fn new(range: ITfRange, expect: String, fixed: String) -> Self {
+    pub fn new(
+        shared: std::rc::Rc<TsfShared>,
+        range: ITfRange,
+        expect: String,
+        fixed: String,
+    ) -> Self {
         Self {
             _guard: crate::class::ObjGuard::new(),
+            shared,
             range,
             expect,
             fixed,
@@ -302,7 +330,13 @@ impl ApplySelectionFixSession {
             }
             // SetText thay vùng chọn — undo thuộc app (Notepad/Word Ctrl+Z).
             let wide: Vec<u16> = self.fixed.encode_utf16().collect();
-            self.range.SetText(_ec, 0, &wide).is_ok()
+            let ok = self.range.SetText(_ec, 0, &wide).is_ok();
+            if ok {
+                // F3 (audit v30): document đã đổi — buffer câu engine stale
+                // nếu vùng chọn đè lên phần engine tự gõ; reset như A2/A3.
+                self.shared.reset_engine();
+            }
+            ok
         }
     }
 }
@@ -316,8 +350,13 @@ pub fn request_apply_selection_fix(
     expect: &str,
     fixed: &str,
 ) -> bool {
-    let session: ITfEditSession =
-        ApplySelectionFixSession::new(range.clone(), expect.to_string(), fixed.to_string()).into();
+    let session: ITfEditSession = ApplySelectionFixSession::new(
+        shared.clone(),
+        range.clone(),
+        expect.to_string(),
+        fixed.to_string(),
+    )
+    .into();
     // SAFETY: ctx hợp lệ trên thread UI.
     let hr = unsafe {
         ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE)
@@ -350,7 +389,10 @@ mod tests {
         assert!(!is_selection_key_up(0x25, WIN));
         // Phím thường không Shift (gõ chữ) → không kích hoạt.
         assert!(!is_selection_key_up(0x41, 0)); // 'a'
-                                                // F-key không modifier → vô hại, nhận.
-        assert!(is_selection_key_up(0x70, 0));
+                                                // F-key bị lọc (audit v30 F5: bôi đen bằng chuột rồi bấm F5
+                                                // không được coi là "đang soạn thảo").
+        assert!(!is_selection_key_up(0x70, 0));
+        // Alt+← (Back browser) → KHÔNG.
+        assert!(!is_selection_key_up(0x25, 0x4));
     }
 }
