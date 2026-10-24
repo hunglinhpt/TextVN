@@ -228,12 +228,13 @@ Kiểm tra **cả câu** tiếng Việt vừa gõ, hoàn toàn trên máy bạn:
 |---|---|---|
 | Chế độ | Tắt | không làm gì |
 | | Chỉ gợi ý | khi kết thúc câu (. ! ?) hiện danh sách gợi ý sửa, bạn tự chọn hoặc bỏ qua |
-| | Tự sửa lỗi | tự sửa các lỗi chắc chắn (lặp từ, thừa khoảng trắng trước dấu câu, viết hoa đầu câu) |
+| | Tự sửa lỗi | tự sửa các lỗi chắc chắn (lặp từ, thừa khoảng trắng trước/triếu sau dấu câu, viết hoa đầu câu, **sai vị trí dấu** như "nghiã"→"nghĩa") |
 | Tự động sửa | Tắt · An toàn (lỗi khách quan) | **Tự sửa lỗi chỉ hoạt động khi chọn đủ cả hai**: Chế độ = *Tự sửa lỗi* và Tự động sửa = *An toàn* |
 
 - Chỉ sửa khi con trỏ đang ở cuối câu và không bôi đen; không xác minh được văn bản trước con trỏ thì **không sửa gì** (an toàn hơn sửa nhầm).
 - Hoàn tác đúng một bước: bấm **Ctrl + Z** (macOS: **⌘ + Z**) trong vòng 5 giây sau khi tự sửa; sang phím khác hoặc quá 5 giây thì không hoàn tác bằng cách này.
 - Windows và Linux có thêm công tắc bật/tắt nhanh ở khay/menu; kích hoạt ngay, không cần mở bảng điều khiển.
+- Chuẩn chất lượng "không bao giờ bêu chữ đúng": **0/981 câu tiếng Việt đúng** bị báo nhầm trên tập kiểm độc lập (bản 0.2.36); thà im lặng còn hơn sửa sai.
 - Đang thử nghiệm: đã qua kiểm thử tự động nhưng chưa kiểm trên mọi ứng dụng. Nếu thấy sửa sai, đặt Chế độ về *Tắt* và báo lỗi kèm tên ứng dụng (đừng dán nội dung câu riêng tư).
 
 Thiết kế và giới hạn: [P4-0-MASTER-PLAN.md](50-assist/P4-0-MASTER-PLAN.md).

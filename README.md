@@ -1,5 +1,7 @@
 # TextVN — Bộ gõ tiếng Việt cho Windows, macOS và Linux
 
+Tiếng Việt · English (mục [English](#english) cuối trang)
+
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![CI Windows](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-windows.yml?branch=main&label=CI%20Windows)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-windows.yml?query=branch%3Amain)
 [![CI Linux](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-linux.yml?branch=main&label=CI%20Linux)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-linux.yml?query=branch%3Amain)
@@ -28,6 +30,12 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
   tiếng Anh (từ điển 3000 từ tần suất cao), Tab hoàn tất từ — tiếng Anh luôn bật, tiếng Việt
   bật qua `suggest.enabled` — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
   nhật biểu tượng trạng thái.
+- **Trợ lý ngữ pháp (thử nghiệm, tắt mặc định)**: kiểm tra cả câu tiếng Việt vừa gõ ngay
+  trên máy (không gửi đi đâu, không log nội dung) — bắt lặp từ, khoảng trắng/space quanh
+  dấu câu, viết hoa đầu câu, **sai vị trí dấu** ("nghiã"→"nghĩa") và gợi ý sửa; chế độ *Tự
+  sửa lỗi* tự sửa các lỗi chắc chắn rồi hoàn tác được bằng Ctrl+Z trong 5 giây. Chuẩn chất
+  lượng "không bao giờ bêu chữ đúng": **0 %** câu đúng bị báo nhầm trên tập kiểm 981 câu
+  (0.2.36, chi tiết [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
 
 ## Tải và cài
 
@@ -81,6 +89,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
 | **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN, 3000 từ tần suất + từ điển bổ sung cá nhân, luôn bật); gõ dở `ngư` → Tab thành `ngưng` (tiếng Việt, 3000 âm tiết tần suất, bật qua `suggest.enabled`) | Không có |
 | **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
+| **Trợ lý ngữ pháp câu tiếng Việt** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ, dấu câu, viết hoa, sai dấu) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu đúng; hoàn tác 1 bước Ctrl+Z | Không có |
 | **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
 | **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
 | **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
@@ -158,5 +167,166 @@ Xem [CONTRIBUTING.md](CONTRIBUTING.md) và [SECURITY.md](SECURITY.md). Báo lỗ
 chính xác chuỗi phím, kết quả nhận được, ứng dụng và hệ điều hành.
 
 ## Giấy phép
+
+[GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
+
+
+---
+
+# English
+
+TextVN is an open-source Vietnamese input method. One shared Rust engine powers
+**Windows** (Text Services Framework), **macOS** (Input Method Kit) and
+**Linux** (IBus, Fcitx5), with the same control panel, the same options and the
+same config file on all three platforms.
+
+- **Types like UniKey/OpenKey**: Telex, VNI, VIQR, Simple Telex; standard tone
+  placement with **old-style diacritics by default** (`hòa`, `thủy`, `khỏe`;
+  switch to new style `hoà`/`thuỷ` in the control panel), `uow` → ươ, `z`
+  strips tones, tone keys work after the vowel or at the end of the word, and
+  Caps Lock typing is supported.
+- **No lost characters, no doubled characters, no underline**: the whole word
+  stays inside the composition range with no underline (TF_LS_NONE on Windows
+  TSF; macOS uses non-preedit typing after install; Fcitx5/IBus attach no
+  underline — only Chromium/Electron/Qt apps on Linux draw their own) and is
+  committed at word boundaries — no synthetic Backspace, so none of the
+  classic hook-style IME bugs in Chrome, Electron, Excel or the address bar.
+- **Avoids antivirus false positives**: the default package installs no global
+  keyboard hook, injects no code into other processes and never fakes keys
+  with `SendInput` ([why](docs/specs/antivirus-false-positive.md)).
+- **Utilities**: TCVN3 / VNI-Windows / decomposed-Unicode output charsets,
+  text shortcuts, Quick Telex, English auto-restore (3000 most frequent
+  words), Tab completion — English always on, Vietnamese via `suggest.enabled`
+  — automatic sentence capitalization, instant Ctrl+Shift VI/EN toggle with
+  tray-icon state.
+- **Grammar assistant (experimental, off by default)**: checks the Vietnamese
+  sentence you just typed, fully on-device (nothing sent anywhere, nothing
+  logged) — duplicate words, spaces around punctuation, sentence
+  capitalization, **misplaced tone marks** ("nghiã" → "nghĩa") with fix
+  suggestions; the *Auto-fix* mode fixes the certain errors and supports a
+  one-step Ctrl+Z undo for 5 seconds. Quality bar "never flags correct
+  text": **0 %** of correct sentences flagged on a 981-sentence benchmark
+  (0.2.36, details in [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+
+## Download & install
+
+Latest: **[GitHub Release v0.2.36](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.36)**
+(release candidate, built and tested by CI). **Every release file carries a GPG
+signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
+`SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
+Not yet available: Authenticode signing for Windows (waiting on SignPath
+Foundation — SmartScreen may warn, antivirus may mis-quarantine: seen with
+Kaspersky, see
+[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) and
+Apple Developer ID / notarization for macOS (Gatekeeper warns on first open).
+0.2.36 hardens the **grammar assistant** to the "never flags correct text"
+bar: **0 % false positives** on 981 clean sentences (removes 5 policy-violating
+typo pairs that made autocorrect rewrite correct words like "quyến rũ",
+"thuở xưa"; sentence recall 83.7 %), all-caps accented sentences are now
+checked. 0.2.35 introduced the **grammar assistant**; 0.2.34 opened **Linux
+distribution channels**: AUR (`paru -S textvn`) and the Debian/Ubuntu PPA;
+0.2.33 switched the **fresh-install default to old-style diacritics** on all
+three platforms (existing users keep their choice) and added the 16-combo
+charset × method regression matrix, a 3000-word English auto-restore
+dictionary and optional Vietnamese Tab completion — details:
+[CHANGELOG.md](CHANGELOG.md). Release commits and tags are git-signed.
+
+| Platform | Install | Run without installing |
+|---|---|---|
+| Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` (current user, no admin) · `TextVN-setup-<ver>-windows-x64-machine.exe` (all users, Program Files, one UAC prompt) | `TextVN-portable-<ver>-windows-x64-*.zip` → run `TextVN.exe` |
+| Windows (Microsoft Store) | ✅ **[TextVN on Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (free, Store ID `9NV2R7JNNFGK`) — click *Get*, open TextVN once to register the input method for your account; the Store updates it automatically, package signed by Microsoft. CLI: `winget install --id 9NV2R7JNNFGK -s msstore`. The `TextVN-<ver>-windows-x64.msix` on GitHub Release is the Store submission package (unsigned) — not directly installable | — |
+| macOS 13+ (Apple Silicon / Intel) | **Homebrew (recommended): `brew install --cask hunglinhpt/tap/textvn`** — puts the input method into `~/Library/Input Methods` and the menu-bar app into `/Applications`; updates via `brew upgrade`. Or `TextVN-mac-v<ver>.pkg` → open to install, or `installer -pkg … -target CurrentUserHomeDirectory` (no sudo) | `TextVN-macos-universal-v<ver>.zip` (or `.tar.gz`) with `TextVN-IM.app` + `TextVN.app` — see the [user guide, macOS section](docs/user-guide.md) |
+| Linux (IBus / Fcitx5) | **AUR** (Arch/Manjaro…): `paru -S textvn` — builds from the tagged source, real makepkg QA in CI · **Ubuntu PPA** (prepared — owner activates `ppa:hunglinhpt/textvn`, see [linux-distribution.md](docs/release/linux-distribution.md)): `sudo add-apt-repository ppa:hunglinhpt/textvn && sudo apt install textvn` · Or `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, no root; `sudo ./install.sh --system` for all users) — Linux store-channel analysis: [linux-distribution.md](docs/release/linux-distribution.md) | same tarball → `./textvn-portable.sh` |
+
+Install, uninstall, usage and troubleshooting: **[User guide](docs/user-guide.md)** (Vietnamese).
+
+Windows note: `TextVN-setup-<ver>-windows-x64.exe` installs **for the current
+user** (`%LOCALAPPDATA%\Programs\TextVN`, no UAC);
+`TextVN-setup-<ver>-windows-x64-machine.exe` installs **for all users**
+(Program Files, one UAC prompt). Each Windows account gets the input method
+registered on TextVN's first run; upgrades **keep** your typing method,
+options and per-app settings. On **Windows 11 24H2+** some machines reject
+per-user-only input methods (bug B7 in `docs/specs/win-test-common-errors.md`):
+the per-user installer, the portable build and the Store package therefore
+**never ask for UAC** — TextVN tells you once and points to the
+`-machine.exe` installer (only a Program Files install can register
+machine-wide).
+
+## Highlights over other Vietnamese IMEs
+
+What TextVN does that UniKey / EVKey / OpenKey currently **don't** (or do
+differently — per their public feature pages as of 2026-10):
+
+- **Automatic EN/VI detection while typing mixed text** — a 3000-word English
+  frequency dictionary plus a common-Vietnamese-syllable protection grid:
+  type both languages without switching modes; English words come back intact
+  at the space. Traditional IMEs transform everything — `text` becomes `tẽt`.
+- **Mode-based Vietnamese priority** — ambiguous pairs (`cow`/`cơ`,
+  `sex`/`sẽ`, `queen`/`quên`) resolve by the current mode, UniKey-style for
+  Vietnamese while staying friendly to English.
+- **Tab completion** — half-typed `tes` + Tab → `test` (English, always on);
+  `ngư` + Tab → `ngưng` (Vietnamese, 3000 frequent syllables, enable via
+  `suggest.enabled`).
+- **Vietnamese sentence grammar assistant** — checks, suggests and (opt-in)
+  auto-fixes the sentence you just typed (duplicate words, punctuation
+  spacing, capitalization, misplaced tone marks), fully offline; 0 % of
+  correct sentences flagged on a 981-sentence benchmark; one-step Ctrl+Z undo.
+- **Escape restores your raw keystrokes** at any moment.
+- **Ctrl+Shift mode switch in every app** — an observing-only tap detector
+  (eats no keys) with double-toggle debouncing.
+- **No preedit underline, no admin install** — per-user TSF in HKCU, portable
+  builds that just run, no UAC.
+- **Self-healing ghost registrations** — if the registration points to a
+  deleted folder, run `TextVN.exe` from the new folder and it fixes itself.
+- **DPI-aware dialogs** across mixed-DPI monitors.
+- **Store-grade silent install** — `/VERYSILENT /SUPPRESSMSGBOXES
+  /NORESTART`; CI exercises silent install/uninstall, ARP entries and a
+  Store-validator simulation on every PR and release.
+- **Private by default** — 100 % local key processing, no telemetry, no
+  network; auto-disables in password fields; public privacy policy in-repo.
+
+The Rust engine is tested by corpus replay (230+ `*.keys` scenarios) through
+four adapter simulations (headless, tsf, mac, linux) on three operating
+systems at every commit; the language-conflict rules are published at
+[docs/specs/language-detection.md](docs/specs/language-detection.md).
+
+## Status
+
+| Platform | Status |
+|---|---|
+| Windows 10/11 x64 (TSF) | ✅ Release candidate — real TSF typing is CI-tested on Windows (installer, portable, MSIX trial install). Only Authenticode signing is missing (waiting on SignPath Foundation). **Published on the [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (MSIX, since 2026-10-11). |
+| macOS 13+ Apple Silicon / Intel | ✅ Release candidate — IMK input method + menu-bar app + per-user `.pkg` (no sudo); CI builds both architectures (arm64 + x86_64) and runs `swift test` on arm64. No Developer ID / notarization yet (releases are ad-hoc signed) → Gatekeeper warns on first open ([signing-status-mac.md](docs/release/signing-status-mac.md)). The CGEventTap module (`adapters/macos-tap`) has code + tests but is **not** shipped. |
+| Linux IBus / Fcitx5 | ✅ Release candidate — `install.sh` tarball (per-user or `--system`) + run-in-place, GTK4 settings; CI tests with real ibus-daemon and fcitx5. AUR PKGBUILD + Debian `debian/` packaging are in-repo with real build QA (see [linux-distribution.md](docs/release/linux-distribution.md)). |
+
+Test results of the current version:
+[build-release-report.md](docs/release/build-release-report.md) · changes:
+[CHANGELOG.md](CHANGELOG.md).
+
+## Build from source
+
+```powershell
+# Windows: Rust stable + VS 2022 Build Tools (C++)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -BuildInstaller -MachineInstaller   # needs Inno Setup 6.5+
+```
+
+```bash
+# macOS 13+: Xcode CLT 15+, rustup with aarch64-apple-darwin + x86_64-apple-darwin targets
+cd adapters/macos-imk
+./build-rust.sh                   # build engine + swift build + assemble TextVN-IM.app
+./build-rust.sh --lib-only        # libtextvn_ffi.a only (for swift test)
+./build-rust.sh --release         # release build
+```
+
+```bash
+# Linux (Ubuntu/Debian)
+scripts/install_linux.sh        # build + install per-user
+scripts/build-linux.sh          # produce the release tarball
+```
+
+Architecture, testing, conventions and the release process: see the
+**[developer guide](docs/developer-guide.md)** (Vietnamese) and
+[docs/release/release-process.md](docs/release/release-process.md).
+
+## License
 
 [GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM

@@ -26,6 +26,21 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   `cau_viet_hoa_toan_bo_van_la_tieng_viet`; corpus dòng mềm `~` hóa cứng.
   Số đo đầy đủ: `docs/50-assist/P4-12-RECALL-REAL.md` §11.
 
+**English** — 0.2.36 hardens the grammar assistant to the "never flags
+correct text" bar (three full line-by-line audit passes): removed 5 typo-table
+pairs whose "wrong" word is actually a valid Vietnamese word (they violated
+the project's own no-ambiguity policy and made auto-correct rewrite correct
+words: "quyến rũ" → "quyển", "thuở xưa" → "thướ", "đả thông" → "đã", "áy náy"
+→ "ấy", "ngôi điếm" → "điểm"; proven on 5/5 correct sentences). Whitelisted 4
+more valid reduplications ("năm năm trước", "ở đâu đâu", "chộp chộp, bum bum")
+and taught the Vietnamese-language gate to recognize accented ALL-CAPS
+sentences. Measured honestly on the labeled real-text corpora (CLI rebuilt
+before measuring): **false positives 0.5 % → 0.0 % (0 of 981 clean sentences,
+Wilson 0.0–0.4)**; sentence recall 87.8 % → 83.7 % — a deliberate one-way
+trade (never trade FPR for recall). New regression tests
+(`khong_beu_tu_hop_le_tung_o_bang_typos`, `cau_viet_hoa_toan_bo_van_la_tieng_viet`);
+full numbers in `docs/50-assist/P4-12-RECALL-REAL.md` §11.
+
 ## [0.2.35] — 2026-10-23
 
 ### Added
@@ -65,6 +80,15 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 > git trên commit/tag (huy hiệu "Verified" — R6). **Chưa** Authenticode
 > (Windows — chờ SignPath Foundation) và **chưa** Developer ID + notarization
 > (macOS) — vẫn là candidate, không phải production.
+
+**English** — 0.2.35 introduces the experimental **grammar assistant**
+(check-as-you-type suggestions and opt-in whole-sentence auto-fix for
+duplicate words, punctuation spacing, capitalization and misplaced tone
+marks; off by default, fully on-device), raising real-corpus recall from
+57.1 % to 87.8 % at 0.5 % FPR, unifying the fix-planning logic into one
+shared source across Windows/macOS/Linux with glyph-count verification
+before deleting, enabling `assist.per_app` on Windows, and adding the
+Debian/PPA packaging channel (`ppa:hunglinhpt/textvn`).
 
 ## [0.2.34] — 2026-10-18
 
@@ -117,6 +141,12 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   sử dụng, `HUONG_DAN_SU_DUNG.txt`, tài liệu nộp Store và ghi chú phát hành tự sinh của
   `release.yml` trỏ link này.
 
+**English** — 0.2.34 opens Linux distro-store distribution: an AUR package
+built from the tagged source with a CI gate that runs real `makepkg` inside
+an Arch container, plus a written analysis of why Flatpak/Snap/AppImage
+cannot host a system-level IME; fixes the Fcitx5 addon not compiling on
+rolling distros (C++20, R2-117).
+
 ## [0.2.33] — 2026-10-18
 
 ### Changed
@@ -159,6 +189,14 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   undo (`ass` → `as`, chuẩn Telex/UniKey) — 2 hàng test mới khoá hành vi này.
 - `test_settings_model.c`: 2 assertion cập nhật theo mặc định dấu cũ (thiếu khoá
   → `new_diacritic == 0`; reset mặc định → dấu cũ).
+
+**English** — 0.2.33 changes the fresh-install default to Vietnamese typing
+enabled with old-style tone placement (`hòa`, `thủy`, `khỏe`) on all three
+platforms (existing users keep their choice), adds a 16-combo charset ×
+input-method regression matrix with hard-coded TCVN3/VNI anchors, expands
+the English auto-restore dictionary to the 3000 most frequent words (with
+the rule that Vietnamese syllables having no alternative Telex spelling
+always win), and adds optional Vietnamese Tab completion (`suggest.enabled`).
 
 ## [0.2.32] — 2026-10-12
 

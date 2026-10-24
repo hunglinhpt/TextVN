@@ -35,7 +35,7 @@ repo/docs). Tóm tắt các mốc hay bị bỏ sót:
    `testDefaultConfig` (Swift) + assertion trong `test_settings_model.c` +
    `schemas/config.v1.schema.json` khi đổi default; **cask Homebrew cần cả
    `version` lẫn `sha256`** (B7b, R2-116).
-3. **B4 — bộ docs phát hành**: CHANGELOG entry + link compare cuối file ·
+3. **B4 — bộ docs phát hành**: CHANGELOG entry **song ngữ VI+EN** + link compare cuối file · README (kể cả phần `# English` cuối file) ·
    README "Bản mới nhất" + tóm tắt · appstream `<release>` đứng đầu ·
    `build-release-report.md` mục bản mới. Thiếu mục nào = chưa được tag.
 4. **Tag** git-signed (commit.gpgsign/tag.gpgsign đã bật) → push → `release-candidate`
