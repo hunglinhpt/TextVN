@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.37 — Trợ lý ngữ pháp tiếng Anh v1 + Space hoàn tất từ + câu mix VI/EN
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **EN assistant v1**: routing ngôn ngữ (Vi/En/im-lặng fail-open) + rule `article_an` theo ÂM (danh sách đóng: a university/an hour/an MBA/a NATO/an 8-bit; mơ hồ historic/FAQ không bao giờ soi) — kind FFI 11 wired đủ Rust + 2 header C + C + Swift + ABI verify. `duplicate_word` EN: whitelist lặp hợp lệ (that that/had had/very very/ha ha…), guard vocative cả-hai-viết-hoa + ngoặc kép. **Câu mix văn phòng** ("vui lòng check lại file report nhé", "Anh gửi report cho team ASAP") trước đây bị im lặng — giờ được kiểm tra. **4 bug SỐNG phía VI**: chèn space vào viết tắt/tên miền (e.g./a.m./U.S./example.com), ellipsis rời, viết hoa code/danh sách đề mục. **REQ-B**: `suggest.trigger = tab_and_space` (mặc định tab) — Space hoàn tất từ + kèm dấu cách, không bao giờ viết lại từ đã đúng; completion nạp đủ 3000 từ tần suất |
+| Đo (CLI release rebuild trước đo) | VI: **0/981 FP**, recall **28/28 = 100 %** · EN: **0/295 FP** (corpus Tatoeba thật, CC BY 2.0 FR — REUSE.toml + attribution đầy đủ), recall **31/31 = 100 %** (sentence + fragment) |
+| Release | v0.2.37 publish từ tag ký GPG — release-candidate [#40070891727](https://github.com/hunglinhpt/TextVN/actions/runs/40070891727) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh (ci-shared/ci-windows/ci-linux/ci-macos/ci-aur/ci-deb/repo-hygiene); vòng trước bắt: header C macOS thiếu `IME_ASSIST_KIND_ARTICLE_AN` (2 bản textvn_ffi.h), Swift test suggest round-trip thiếu `trigger`, fmt verify.rs |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `91d18a71…0c26` · setup exe `f268349c…d555` · MSIX `7f333528…6204` · portable `fe6ac711…e4fd` · Linux `0cb04dcb…7935` · pkg `a8e0defc…e7f45` → `a8e0defc…7f45` · **mac zip `9b1fb0f1…123d`** · mac tar.gz `1e32fc83…f640` · PKGBUILD archive `6d3663e9…a69e` |
+| Homebrew (B7b) | cask `sha256` = mac zip `9b1fb0f1…123d` |
+| AUR (B7e) | PKGBUILD/.SRCINFO `sha256sums` = archive v0.2.37 `6d3663e9…a69e` |
+| PPA (B7f) | debian/changelog `0.2.37-0ppa1`; ci-deb xanh; upload chờ owner |
+| approved (B7c) | `approved/v0.2.37/` — 34 file, byte-identical |
+
 ## Bản 0.2.36 — trợ lý ngữ pháp FPR 0 % (audit 3 lượt "như Grammarly")
 
 | Hạng mục | Bằng chứng |
