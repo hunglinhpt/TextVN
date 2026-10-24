@@ -169,6 +169,7 @@ static void test_assist(tv_paths *p) {
     assert(strstr(out, "\"vni\"") && "method phai con");
     assert(strstr(out, "\"idle_ms\": 250") && "idle_ms khong bi reset");
     tv_snapshot_load(&s, p);
+    /* Đã set "off" tường minh → đọc ra 0 (không phải default highlight). */
     assert(s.assist_mode == 0 && s.assist_idle_ms == 250);
 
     /* Giá trị out-of-range của mode index bị từ chối, file giữ nguyên. */
@@ -188,7 +189,8 @@ static void test_assist_partial_block(tv_paths *p) {
     assert(doc);
     /* Mặc định đủ: mode và display thiếu đều lay từ schema. */
     char *mode = ime_settings_get_str(doc, "assist.mode");
-    assert(mode && strcmp(mode, "off") == 0);
+    /* Vong 26: thieu mode -> mac dinh highlight. */
+    assert(mode && strcmp(mode, "highlight") == 0);
     ime_settings_string_free(mode);
     assert(ime_settings_get_bool(doc, "assist.display.show_on_sentence_end") == 1);
     assert(ime_settings_get_u32(doc, "assist.display.idle_ms") == 90);
