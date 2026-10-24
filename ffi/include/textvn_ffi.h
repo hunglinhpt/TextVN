@@ -48,6 +48,7 @@ extern "C" {
 #define IME_ASSIST_KIND_DOUBLE_NEGATIVE   8u
 #define IME_ASSIST_KIND_COMMA_AT_END      9u
 #define IME_ASSIST_KIND_SPELLING         10u
+#define IME_ASSIST_KIND_ARTICLE_AN      11u
 
 #define IME_MAX_ASSIST_ISSUES              8
 #define IME_MAX_ASSIST_MSG                 128
