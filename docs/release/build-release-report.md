@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.38 — trợ lý ngữ pháp bật mặc định + panel tổng lỗi kiểu Grammarly
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Default ON**: `assist.mode` = highlight (config serde + schema + Swift + Windows tray state serde-default + Linux thiếu-khoá → 1); kill-switch default theo config (Windows `assist_enabled` serde-default true, Linux `lc_state_read_assist_enabled(…, 1)`, macOS ViState đã default true). **Panel Grammarly tại caret**: gạch chân đỏ đúng span (có sẵn) + dòng tổng kết mới "N lỗi trong câu vừa gõ (+M khác)" (overlay `summary_text` + `HEADER_H`). **Toast policy**: loại toast "Phát hiện N lỗi"; toast duy nhất = auto-fix vừa thay text, cooldown 2.5 s → 60 s, kèm Ctrl+Z (`notify_auto_fixed`). **Mixed vượt trội**: whitelist lặp từ theo TỪNG TỪ (ASCII → EN list), guard vocative cả-hai-viết-hoa + ngoặc kép MỌI ngôn ngữ ("Lê Lê ơi", nói "không không"), article_an chạy trong câu Việt mix |
+| Đo (CLI release rebuild trước đo) | VI: **0/981 FP**, recall **28/28** · EN: **0/295 FP**, recall **31/31** · Mixed probe 10/10 đúng |
+| Release | v0.2.38 publish từ tag ký GPG — release-candidate [#40087813329](https://github.com/hunglinhpt/TextVN/actions/runs/40087813329) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh; vòng land bắt: Swift test D20 (`isOn`), C `test_defaults_when_missing` + `test_assist` + `test_assist_partial_block` (default highlight), Linux cross-check cfg (`summary_text`/`paint_overlay`/`notify_auto_fixed`/`HEADER_H`), fmt `verify.rs` |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `f6a064d4…f6ac` · setup exe `2cfa8130…0b62` · MSIX `690eac64…f1f2` · portable `1d3c48e6…1305` · Linux `726141a6…2192` · pkg `912c4e3e…2aac` · **mac zip `2c8f33e3…4f763` → `2c8f33e3…b4f763`** · mac tar.gz `4c0ceb8d…294a45` · PKGBUILD archive `78f131ec…f47a1` |
+| Homebrew (B7b) | cask `sha256` = mac zip `2c8f33e3…b4f763` |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.38 `78f131ec…f47a1` |
+| PPA (B7f) | debian/changelog `0.2.38-0ppa1`; ci-deb xanh |
+| approved (B7c) | `approved/v0.2.38/` — 34 file, byte-identical |
+
 ## Bản 0.2.37 — Trợ lý ngữ pháp tiếng Anh v1 + Space hoàn tất từ + câu mix VI/EN
 
 | Hạng mục | Bằng chứng |
