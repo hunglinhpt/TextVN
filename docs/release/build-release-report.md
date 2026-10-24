@@ -1,5 +1,21 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.40 — audit 3 nền tảng (2 agent chuyên gia song song, 24 finding) + panel re-check
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **CRITICAL article_an phá chữ Việt** ("an khang"→"a khang" khi auto-fix): câu Vi-dominant chỉ mở khoá a/an khi có từ-điểm EN khác; "a"/"an" tự thân KHÔNG là tín hiệu — probe 12/12 đúng. **HIGH UNESCO-class** (/juː/: "a UNESCO" đúng, "an UNESCO" sai bị tha). **HIGH macOS IMK + Linux fresh-install default** đồng bộ highlight (trước off — người dùng không nhận được trợ lý dù UI nói bật). Linux kind 11 wired (replace trượt vòng 24 — bẫy lặp). Click panel: vùng không-tương-tác đóng panel; first-click Select; toast khay 60s mọi nền tảng. **Panel re-check sau fix** (câu đã sửa — còn lỗi hiển thị, sạch tự tắt) + `hide_on_auto_fix`. Docs: popup Windows-only, quick-switch chỉ Windows |
+| Perf (probe release, engine thật) | Mọi đường IME 14–52 µs/check — 200× dưới ngân sách 10 ms (URL/TLD-heavy 32, 256-char VI/EN 31/32, mix 15) |
+| Đo (CLI release rebuild trước đo) | VI **0/981 FP** recall **28/28** · EN **0/295 FP** recall **31/31** — giữ nguyên qua mọi fix |
+| Release | v0.2.40 publish từ tag ký GPG — release-candidate [#40114314189](https://github.com/hunglinhpt/TextVN/actions/runs/40114314189) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh (2 vòng: unused-fn + IMK Swift tests); 671 test, clippy 0, fmt sạch, preflight 23/23 |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `7025e3a7…dbd2` · setup exe `a4a5c589…b63c` · MSIX `dec7041f…9465` · portable `74574ef2…c11d` · Linux `ff549aca…dea4` · pkg `135e4061…0b9` → `135e4061…0b9` · **mac zip `3b7923b3…4105` → `3b7923b3…105`** · mac tar.gz `05a579b9…8240` · PKGBUILD archive `3fe74013…8169` |
+| Homebrew (B7b) | cask `sha256` = mac zip `3b7923b3…105` |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.40 `3fe74013…8169` |
+| PPA (B7f) | debian/changelog `0.2.40-0ppa1`; ci-deb xanh |
+| approved (B7c) | `approved/v0.2.40/` — 34 file, byte-identical |
+
 ## Bản 0.2.39 — panel trợ lý bấm được bằng chuột (Sửa tất cả + click từ gạch chân)
 
 | Hạng mục | Bằng chứng |
