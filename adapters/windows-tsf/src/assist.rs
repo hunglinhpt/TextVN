@@ -68,8 +68,6 @@ pub const NOTIFY_COOLDOWN_MS: u64 = 60_000;
 /// nhiều câu có lỗi liên tiếp nhưng đủ nhanh để người dùng thấy (vòng 29).
 pub const DETECT_COOLDOWN_MS: u64 = 8_000;
 /// Mốc toast phát hiện gần nhất (riêng slot với auto-fix).
-use std::sync::atomic::Ordering;
-
 #[cfg(windows)]
 static LAST_DETECT_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -962,6 +960,7 @@ pub fn notify_auto_fixed(fixed_count: usize) -> bool {
 /// riêng ([`DETECT_COOLDOWN_MS`]) — không đụng slot của auto-fix.
 #[cfg(windows)]
 pub fn notify_detected(issue_count: usize) -> bool {
+    use std::sync::atomic::Ordering;
     if issue_count == 0 {
         return false;
     }
