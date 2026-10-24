@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.39 — panel trợ lý bấm được bằng chuột (Sửa tất cả + click từ gạch chân)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Overlay NHẬN chuột** (vòng 27): `WM_NCHITTEST` HTCLIENT trên vùng tương tác (nút "Sửa tất cả" / dòng lỗi / từ gạch chân) còn lại HTTRANSPARENT; `WM_LBUTTONDOWN` → `mouse_hit_test` thuần (HitGeometry) → Select/Apply/FixAll dispatch qua `ACTION_SINK` (Weak<TsfShared>, đăng ký ở tip.rs); `should_dismiss` chỉ đóng khi click NGOÀI panel; `ActiveAssist` giữ `ctx` + `AssistCheck` — FixAll tính kế hoạch A3 rồi `request_sync_or_async`, precondition + Undo 5 giây do session tự kiểm. Auto-correct (Mode 2) giữ nguyên |
+| Đo | Corpora không đổi: VI 0/981 FP, EN 0/295 FP, recall 100% |
+| Release | v0.2.39 publish từ tag ký GPG — release-candidate [#40091488102](https://github.com/hunglinhpt/TextVN/actions/runs/40091488102) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh; local 669 test (thêm 5 case mouse_hit_test), clippy 0, preflight 23/23 |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `07a3c5be…8c90` · setup exe `79e9e129…0eb4` · MSIX `87283aad…9801` · portable `9bc1fcff…01d9a` → `9bc1fcff…d9a` · Linux `6b7aae8e…6b3` · pkg `3654af5e…8dc04` → `3654af5e…c04` · **mac zip `44335175…508de` → `44335175…08de`** · mac tar.gz `e4503f9d…9b684` → `e4503f9d…b684` · PKGBUILD archive `bedce41f…2b98` |
+| Homebrew (B7b) | cask `sha256` = mac zip `44335175…08de` |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.39 `bedce41f…2b98` |
+| PPA (B7f) | debian/changelog `0.2.39-0ppa1`; ci-deb xanh |
+| approved (B7c) | `approved/v0.2.39/` — 34 file, byte-identical |
+
 ## Bản 0.2.38 — trợ lý ngữ pháp bật mặc định + panel tổng lỗi kiểu Grammarly
 
 | Hạng mục | Bằng chứng |
