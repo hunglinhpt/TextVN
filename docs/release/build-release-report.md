@@ -1,5 +1,21 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.42 — check ngữ pháp vùng bôi đen (audit 2 lượt: 8 finding → SHIP)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Selection-check** (vòng 30): Shift+←→↑↓/Home/End (không Ctrl/Alt) → debounce 500 ms → đọc vùng chọn (3..256 ký tự, cap-detection +2 slot) → check → popup neo GetTextExt vùng chọn + nút Sửa-tất-cả; bấm → `ApplySelectionFixSession` (TF_ES_READWRITE): precondition `IsEmpty`+`GetText==expect` **trong edit lock** (không TOCTOU — audit pass-1 xác nhận) → SetText đúng range → `reset_engine()`. Đọc/copy không bao giờ kích hoạt: chuột không qua key sink, Ctrl/Alt lọc, F-key bỏ (F5); hook ở CẢ OnTestKeyUp + OnKeyUp (Notepad/Chrome/VS Code bỏ pha TEST — F2 HIGH); IsWindow guard hwnd chết (F4) |
+| Audit 2 lượt | Pass-1: 8 finding (F1 HIGH nút chết 257-500 vì check_text cắt đuôi 256 → MAX hạ 256; F2 HIGH hook thiếu pha UP; F3 reset_engine; F4 timer chết; F5 F-key FP; F7 const). Pass-2: **SHIP** — per-fix verdict bảng + kịch bản Notepad (scenario 2 verify bằng test `acceptance_dod_scenarios_1_to_7`), Word (CUAS/lock reasoning), Chrome address bar (mouse+Ctrl+C = NO popup), **upgrade-mix no-reboot PASS** (DLL 0.2.40 chạy trong app + tray mới: reconnect ≤10 s → Snapshot assist:true — wire ipc byte-identical qua git diff v0.2.40..HEAD) |
+| Đo | Corpus giữ nguyên (engine không đổi): VI 0/981 + EN 0/295 FP; 674 test, clippy 0 |
+| Release | v0.2.42 tag ký GPG — release-candidate [#40130546478](https://github.com/hunglinhpt/TextVN/actions/runs/40130546478) 4/4 job; **34 asset** |
+| CI trên commit gắn tag | 7/7 xanh (3 vòng commit: feature + guard + audit fixes) |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`) |
+| Checksums | machine exe `b93443ed…5977` · setup exe `85201745…d329` · MSIX `4216fdbe…9107` · portable `a4bf6959…e76f` · Linux `b726bb20…bb67` · pkg `b862cba9…0dd2a` · **mac zip `23babf71…3ae7`** · mac tar.gz `2ce6fc9f…14d8` · PKGBUILD archive `084018f8…d2ff` |
+| Homebrew (B7b) | cask `sha256` = mac zip `23babf71…3ae7` |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.42 `084018f8…d2ff` |
+| PPA (B7f) | debian/changelog `0.2.42-0ppa1` |
+| approved (B7c) | `approved/v0.2.42/` — 34 file, byte-identical |
+
 ## Bản 0.2.41 — sửa trợ lý chết khi nâng cấp (3 root cause, audit agent xác nhận)
 
 | Hạng mục | Bằng chứng |
