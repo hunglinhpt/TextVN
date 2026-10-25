@@ -352,7 +352,21 @@ fn handle_overlay_key(
         }
         // Enter: áp gợi ý của lỗi đang chọn (A2 — Backspace+Type, D22).
         OverlayAction::Apply => {
-            apply_assist_suggestion(shared, ctx, selected_assist_issue(shared));
+            // Vòng 31 (audit v30 F6): popup đến từ BÔI ĐEN (selection) —
+            // Enter phải áp Sửa-tất-cả vùng chọn (A2 đơn-từ cần selection
+            // rỗng nên luôn no-op, nuốt phím mà không sửa = mất Enter của
+            // người dùng định xuống dòng/thay vùng).
+            let selection_popup = shared
+                .assist
+                .try_borrow()
+                .ok()
+                .and_then(|slot| slot.as_ref().map(|a| a.selection.is_some()))
+                .unwrap_or(false);
+            if selection_popup {
+                super::edit_session::selection_fix_all_from_keyboard(shared);
+            } else {
+                apply_assist_suggestion(shared, ctx, selected_assist_issue(shared));
+            }
             Some(true)
         }
         // Alt+1..3: áp gợi ý của lỗi thứ n.

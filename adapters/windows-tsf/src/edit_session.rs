@@ -1799,17 +1799,25 @@ pub(crate) fn handle_overlay_mouse_action(
             let _ = apply_assist_suggestion(shared, ctx.as_ref(), issue_index);
         }
         crate::overlay::OverlayMouseAction::FixAll => {
-            apply_sentence_fix_from_mouse(shared);
+            apply_sentence_fix_all(shared);
         }
     }
 }
 
-/// Vòng 27 — nút "Sửa tất cả": tính kế hoạch A3 từ model đang hiện rồi xin
-/// edit session áp dụng qua `request_sync_or_async` (click chuột không có
-/// edit cookie từ TSF). `ApplySentenceFixSession::apply` tự kiểm precondition
-/// (selection rỗng, buffer còn là câu của ta) và lưu Undo 5 giây.
+/// Vòng 31 (audit v30 F6): Enter trên popup từ BÔI ĐEN = Sửa-tất-cả vùng
+/// chọn — cùng đường với nút chuột (precondition session tự kiểm).
 #[cfg(windows)]
-fn apply_sentence_fix_from_mouse(shared: &Rc<TsfShared>) {
+pub(crate) fn selection_fix_all_from_keyboard(shared: &Rc<TsfShared>) {
+    apply_sentence_fix_all(shared);
+}
+
+/// "Sửa tất cả" — nút chuột lẫn Enter trên popup (Vòng 31): tính kế hoạch A3
+/// từ model đang hiện rồi xin edit session áp dụng qua `request_sync_or_async`
+/// (chuột/phím không có edit cookie từ TSF). `ApplySentenceFixSession::apply`
+/// tự kiểm precondition (selection rỗng, buffer còn là câu của ta) và lưu
+/// Undo 5 giây; popup từ bôi đen đi nhánh `ApplySelectionFixSession`.
+#[cfg(windows)]
+pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
     let Some(active) = shared
         .assist
         .try_borrow_mut()

@@ -269,6 +269,7 @@ impl SelectionCheckSession {
 pub struct ApplySelectionFixSession {
     _guard: crate::class::ObjGuard,
     shared: std::rc::Rc<TsfShared>,
+    ctx: ITfContext,
     range: ITfRange,
     expect: String,
     fixed: String,
@@ -278,6 +279,7 @@ pub struct ApplySelectionFixSession {
 impl ApplySelectionFixSession {
     pub fn new(
         shared: std::rc::Rc<TsfShared>,
+        ctx: ITfContext,
         range: ITfRange,
         expect: String,
         fixed: String,
@@ -285,6 +287,7 @@ impl ApplySelectionFixSession {
         Self {
             _guard: crate::class::ObjGuard::new(),
             shared,
+            ctx,
             range,
             expect,
             fixed,
@@ -335,6 +338,10 @@ impl ApplySelectionFixSession {
                 // F3 (audit v30): document đã đổi — buffer câu engine stale
                 // nếu vùng chọn đè lên phần engine tự gõ; reset như A2/A3.
                 self.shared.reset_engine();
+                // Parity v0.2.42: sau fix re-check câu đã sửa — sạch thì
+                // panel giữ ẩn (đã hide trước khi vào session), còn lỗi
+                // gợi ý thì hiện lại popup (popup thường tại caret).
+                crate::edit_session::recheck_after_fix(&self.shared, &self.ctx, _ec, &self.fixed);
             }
             ok
         }
@@ -352,6 +359,7 @@ pub fn request_apply_selection_fix(
 ) -> bool {
     let session: ITfEditSession = ApplySelectionFixSession::new(
         shared.clone(),
+        ctx.clone(),
         range.clone(),
         expect.to_string(),
         fixed.to_string(),
