@@ -1,3 +1,13 @@
+textvn (0.2.43-0ppa1) noble; urgency=medium
+
+  * Enter on the selection popup now applies "Fix all" (last low finding
+    from the selection-check audit): the key used to be swallowed because
+    the old apply path requires an empty selection. Same guarded session
+    as the fix-all button (re-verified in edit lock; app undo), then the
+    corrected sentence is re-checked — panel hides when clean.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sun, 25 Oct 2026 04:40:00 +0000
+
 textvn (0.2.42-0ppa1) noble; urgency=medium
 
   * Grammar check on keyboard-selected text: popup at selection + fix-all

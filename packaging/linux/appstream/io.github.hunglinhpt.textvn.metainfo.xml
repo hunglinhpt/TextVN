@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.43" date="2026-10-25">
+      <description>
+        <p>Enter on the selected-text popup now applies "Sửa tất cả" (fix all) instead of doing nothing: previously the key was swallowed because the old apply path requires an empty selection, so pressing Enter on a keyboard-selected sentence's popup never fixed anything. Enter now behaves exactly like the fix-all button — the selected range is replaced with the corrected sentence through the same guarded session (the selection content is re-verified inside the edit lock before writing; Ctrl+Z belongs to your app) — and the corrected sentence is re-checked afterwards, so the panel hides when clean and keeps showing remaining suggestions otherwise. The next Enter inserts a newline as usual.</p>
+      </description>
+    </release>
     <release version="0.2.42" date="2026-10-24">
       <description>
         <p>Grammar check on selected text: keyboard-select a sentence you are editing (Shift+arrows/Home/End) and after half a second the assistant popup appears anchored at the selection with the error total and the "Sửa tất cả" (fix all) button; clicking it replaces exactly the selected range with the corrected sentence (the selection content is re-verified inside the edit lock before writing; Ctrl+Z belongs to your app). Selecting to read or copy never triggers it — mouse selection does not pass through the key sink and Ctrl/Alt combinations are filtered out. Selections longer than 256 characters are skipped rather than half-checked. Verified by a two-pass independent audit across Notepad, Word and Chrome scenarios, and across the upgrade path where a running old-version input DLL picks up the new tray snapshot without a reboot.</p>

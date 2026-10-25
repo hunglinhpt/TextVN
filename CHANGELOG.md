@@ -7,6 +7,34 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.43] — 2026-10-25
+
+### Fixed
+- **Enter trên popup vùng bôi đen giờ áp "Sửa tất cả"** (audit vòng 30
+  finding 6 — finding LOW cuối cùng của tính năng selection-check):
+  trước đây phím Enter trên popup selection-check bị nuốt mà KHÔNG sửa
+  gì, vì đường áp cũ `apply_assist_suggestion` cần selection RỖNG
+  (precondition A2 của sửa đơn-từ) nên luôn no-op trên popup selection.
+  Giờ Enter = cùng hành vi nút **"Sửa tất cả"**: thay đúng vùng chọn
+  bằng câu đã sửa (`ApplySelectionFixSession` — precondition đọc-lại
+  text vùng chọn **trong edit lock**, undo thuộc app Ctrl+Z), sau đó
+  **re-check câu đã sửa** — sạch thì panel tắt, còn lỗi gợi ý thì popup
+  hiện lại (parity với đường caret v0.2.42). Enter tiếp theo xuống dòng
+  bình thường.
+
+**English** — 0.2.43 fixes the last open finding (LOW) from the
+selection-check audit: pressing Enter on a selection popup used to
+swallow the key and apply nothing, because the old apply path requires
+an EMPTY selection (its precondition targets single-word fixes). Enter
+on a selection popup now behaves exactly like the "Sửa tất cả" (fix
+all) button — the selected range is replaced with the corrected
+sentence through the same guarded session (content re-verified inside
+the edit lock before writing; Ctrl+Z belongs to the app) — and the
+fixed sentence is re-checked afterwards, so the panel hides when clean
+and keeps showing remaining suggestions otherwise (parity with the
+caret path from 0.2.42). The next Enter inserts a newline as usual.
+674 tests, clippy 0, preflight 23/23.
+
 ## [0.2.42] — 2026-10-24
 
 ### Added
@@ -1682,6 +1710,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.43]: https://github.com/hunglinhpt/TextVN/compare/v0.2.42...v0.2.43
 [0.2.42]: https://github.com/hunglinhpt/TextVN/compare/v0.2.41...v0.2.42
 [0.2.41]: https://github.com/hunglinhpt/TextVN/compare/v0.2.40...v0.2.41
 [0.2.40]: https://github.com/hunglinhpt/TextVN/compare/v0.2.39...v0.2.40
