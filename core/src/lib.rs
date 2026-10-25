@@ -489,8 +489,8 @@ impl Engine {
                 flags: 0,
             };
         }
-        // P6 Text Prediction: Bất kỳ phím nào khác Tab đều huỷ trạng thái duyệt vòng
-        if k.vk != keymap::vk::TAB {
+        // P6 Text Prediction: Bất kỳ phím nào khác Tab hoặc Ctrl+Space đều huỷ trạng thái duyệt vòng
+        if k.vk != keymap::vk::TAB && !k.is_ctrl_space() {
             self.last_predict = None;
         }
         // Chống loop (P0-3 §6): phím adapter tự bơm → PASS tuyệt đối.
@@ -501,7 +501,7 @@ impl Engine {
         if k.is_modifier() {
             return Outcome::pass();
         }
-        if k.is_chord() {
+        if k.is_chord() && !k.is_ctrl_space() {
             // Ctrl+V/Ctrl+Z/Ctrl+←/Ctrl+Backspace/Alt+Tab… đổi text hoặc vị trí con trỏ mà
             // engine không thấy: bỏ quyền sở hữu từ đang gõ (như phím điều hướng — B7) để
             // phím kế tiếp không REPLACE `owned` ký tự ở chỗ khác, và quên đuôi text để gõ
@@ -543,9 +543,11 @@ impl Engine {
             keymap::vk::BACK => return self.on_backspace(),
             keymap::vk::ESCAPE => return self.on_escape(),
             keymap::vk::RETURN | keymap::vk::SPACE | keymap::vk::TAB => {
+                let is_ctrl_space = k.is_ctrl_space();
+                let is_tab_or_ctrl_space = k.vk == keymap::vk::TAB || is_ctrl_space;
                 let c = k.printable().unwrap_or(' ');
-                // P6 Text Prediction: Tab liên tiếp → duyệt vòng qua danh sách ứng viên
-                if k.vk == keymap::vk::TAB && k.mods & keymap::MOD_SHIFT == 0 {
+                // P6 Text Prediction: Tab hoặc Ctrl+Space liên tiếp → duyệt vòng qua danh sách ứng viên
+                if is_tab_or_ctrl_space && k.mods & keymap::MOD_SHIFT == 0 {
                     if let Some(out) = self.try_cycle_predict() {
                         return out;
                     }
@@ -554,8 +556,9 @@ impl Engine {
                 // hoàn tất từ — nhưng **nghiêm ngặt hơn Tab** (Space là phím
                 // ngầm định, người dùng không yêu cầu gì): chỉ hoàn tất khi từ
                 // đang gõ CHƯA phải từ đúng hoàn chỉnh, và kèm chính dấu cách.
-                let space_complete = k.vk == keymap::vk::SPACE && self.opts.suggest_space_complete;
-                if k.vk == keymap::vk::TAB || space_complete {
+                let space_complete =
+                    k.vk == keymap::vk::SPACE && !is_ctrl_space && self.opts.suggest_space_complete;
+                if is_tab_or_ctrl_space || space_complete {
                     let append: Option<char> = space_complete.then_some(c);
                     if let Some(out) = self.try_vn_complete(k, vi_on, append) {
                         return out;
@@ -564,11 +567,17 @@ impl Engine {
                         return out;
                     }
                     // P6 Text Prediction: Dự đoán cụm từ tiếp theo khi vừa gõ xong từ
-                    if k.vk == keymap::vk::TAB && append.is_none() {
+                    if is_tab_or_ctrl_space && append.is_none() {
                         if let Some(out) = self.try_predict_next_phrase(k, vi_on) {
                             return out;
                         }
                     }
+                }
+                if is_ctrl_space {
+                    // Khi Ctrl+Space không khớp dự đoán: không chèn khoảng trắng vào document,
+                    // trả Outcome::pass() để adapter kích hoạt Trợ lý ngữ pháp (Text Correct)
+                    // hoặc để app nhận phím.
+                    return Outcome::pass();
                 }
                 self.last_predict = None;
                 return self.on_boundary(c, strategy);
@@ -1158,7 +1167,7 @@ impl Engine {
         // opt-in `suggest_space_complete` ("ebit" + Space) — đúng cơ chế
         // vòng 24, không đổi default config (P5: không lệch 15 site).
         let space_mode = append.is_some();
-        if !self.word.active && !space_mode {
+        if !self.word.active && !space_mode && !k.is_ctrl_space() {
             return None;
         }
         if self.word.is_empty() || self.word.raw.len() < 2 {

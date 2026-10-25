@@ -533,7 +533,12 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
 
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.
-    if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 || vk == vkc::PACKET || vk == vkc::PROCESSKEY {
+    // Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct.
+    let is_ctrl_space = vk == 0x20 && (mods & !MOD_CAPS) == MOD_CTRL;
+    if (mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 && !is_ctrl_space)
+        || vk == vkc::PACKET
+        || vk == vkc::PROCESSKEY
+    {
         end_composition(shared, ctx);
         shared.reset_engine();
         return false;
@@ -549,7 +554,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         return false;
     };
 
-    let key = KeyKind::classify(vk, translate_key(vk, lparam));
+    let key = KeyKind::classify_with_mods(vk, translate_key(vk, lparam), mods);
     if !shared.is_composing() && !key.needs_session_when_idle() {
         // Backspace/Esc/điều hướng khi không composing: chỉ cho engine dọn trạng thái.
         if let Ok(mut thread) = shared.thread.try_borrow_mut() {

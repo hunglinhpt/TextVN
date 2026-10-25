@@ -61,9 +61,12 @@ fn apply_outcome(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
             }
             vk::ESCAPE | vk::LEFT => {}
             _ => {
-                if let Some(c) = k.printable() {
-                    if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
-                        buf.push(c);
+                // Ctrl+Space là hotkey, khi Pass không tự chèn ' ' vào văn bản
+                if !k.is_ctrl_space() {
+                    if let Some(c) = k.printable() {
+                        if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
+                            buf.push(c);
+                        }
                     }
                 }
             }
@@ -245,4 +248,87 @@ fn test_tab_without_prediction_passes_through() {
     let tab = key_for_char('\t');
     let action = press_key(&mut e, &mut doc, &tab);
     assert_eq!(action, Action::Pass, "Tab không khớp phải Pass cho app");
+}
+
+fn key_ctrl_space() -> KeyEvent {
+    KeyEvent {
+        vk: vk::SPACE,
+        mods: keymap::MOD_CTRL,
+        key_down: true,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn test_ctrl_space_prefix_completion_and_cycle() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+
+    // Gõ "phats" → "phát"
+    for c in "phats".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    assert_eq!(doc.iter().collect::<String>(), "phát");
+
+    // Nhấn Ctrl + Space: hoàn thành thành "phát triển"
+    let action = press_key(&mut e, &mut doc, &key_ctrl_space());
+    assert!(matches!(action, Action::Replace { .. }));
+    assert_eq!(doc.iter().collect::<String>(), "phát triển");
+
+    // Nhấn Ctrl + Space tiếp theo: duyệt sang ứng viên "phát sinh"
+    let action2 = press_key(&mut e, &mut doc, &key_ctrl_space());
+    assert!(matches!(action2, Action::Replace { .. }));
+    assert_eq!(doc.iter().collect::<String>(), "phát sinh");
+
+    // Nhấn Tab tiếp theo: duyệt tiếp sang "phát biểu" (Tab và Ctrl+Space dùng chung trạng thái duyệt vòng)
+    let action3 = press_key(&mut e, &mut doc, &key_for_char('\t'));
+    assert!(matches!(action3, Action::Replace { .. }));
+    assert_eq!(doc.iter().collect::<String>(), "phát biểu");
+}
+
+#[test]
+fn test_ctrl_space_next_phrase_prediction() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+
+    // Gõ cụm "cộng hòa "
+    for c in "coongj hoaf ".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    assert_eq!(doc.iter().collect::<String>(), "cộng hòa ");
+
+    // Nhấn Ctrl + Space: dự đoán cụm từ tiếp theo → "xã hội chủ nghĩa việt nam"
+    press_key(&mut e, &mut doc, &key_ctrl_space());
+    assert_eq!(
+        doc.iter().collect::<String>(),
+        "cộng hòa xã hội chủ nghĩa việt nam"
+    );
+
+    // Tiếng Anh: "Thank you " + Ctrl+Space → "Thank you very much"
+    let mut e2 = engine_with_predict();
+    let mut doc2 = Vec::new();
+    for c in "Thank you ".chars() {
+        press_key(&mut e2, &mut doc2, &key_for_char(c));
+    }
+    assert_eq!(doc2.iter().collect::<String>(), "Thank you ");
+    press_key(&mut e2, &mut doc2, &key_ctrl_space());
+    assert_eq!(doc2.iter().collect::<String>(), "Thank you very much");
+}
+
+#[test]
+fn test_ctrl_space_without_prediction_passes_without_inserting_space() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+
+    // Gõ từ không có gợi ý tiền tố
+    for c in "xyz".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    assert_eq!(doc.iter().collect::<String>(), "xyz");
+
+    // Nhấn Ctrl + Space: không có prediction → Action::Pass
+    let action = press_key(&mut e, &mut doc, &key_ctrl_space());
+    assert_eq!(action, Action::Pass);
+    // Tuyệt đối KHÔNG chèn dấu cách vào văn bản
+    assert_eq!(doc.iter().collect::<String>(), "xyz");
 }

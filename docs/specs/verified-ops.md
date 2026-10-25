@@ -44,6 +44,7 @@
 
 
 | B20 | Text Prediction Song ngữ Anh - Việt (P6): prefix completion + next-phrase prediction + tab cycling | ✓ 165 core + 6 integration tests pass 100%, preflight 23/23 PASS, p50=700ns (2026-10-25) | Tra cứu từ ghép VN, n-gram cụm từ tiếp theo VN/EN, không I/O, an toàn S9 Shift+Tab passthrough, G8 zero text logging |
+| B21 | Trigger Ctrl+Space cho cả Text Prediction và Text Correct (Trợ lý sửa lỗi từ và câu) | ✓ 23/23 preflight PASS, 96/96 TSF tests, 9/9 text_prediction tests, p50=687ns (2026-10-25) | Trigger song song với Tab: hoàn tất tiền tố, dự đoán cụm tiếp theo, duyệt vòng ứng viên; khi không khớp hoặc có lỗi/bôi đen thì gọi on-demand assist check hiện overlay sửa lỗi |
 
 ## C. Windows platform (chi tiết → spike specs)
 

@@ -86,6 +86,11 @@ impl KeyEvent {
         self.mods & (MOD_CTRL | MOD_ALT | MOD_SUPER | MOD_META) != 0
     }
 
+    /// Tổ hợp phím Ctrl + Space (dùng để trigger Text Prediction & Text Correct).
+    pub fn is_ctrl_space(&self) -> bool {
+        self.vk == vk::SPACE && (self.mods & !MOD_CAPS) == MOD_CTRL
+    }
+
     /// Phím modifier đơn lẻ (Shift/Ctrl/Alt/Super/CapsLock/Fn) — không sinh chữ.
     pub fn is_modifier(&self) -> bool {
         matches!(

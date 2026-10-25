@@ -450,6 +450,59 @@ impl KeyEditSession {
                         }
                     }
                 }
+                if self.key == KeyKind::CtrlSpace && step.action == textvn_ffi::ACTION_PASS {
+                    // Ctrl+Space không khớp prediction: kích hoạt Trợ lý ngữ pháp (Text Correct) cho từ và câu
+                    let has_sel = unsafe { sel.IsEmpty(ec) }
+                        .map(|empty| !empty.as_bool())
+                        .unwrap_or(false);
+                    if has_sel {
+                        let auto_cap = shared
+                            .thread
+                            .try_borrow()
+                            .map(|t| t.auto_capitalize())
+                            .unwrap_or(true);
+                        let cap = crate::selection_check::MAX_SELECTION_CHARS + 2;
+                        let mut buf = vec![0u16; cap];
+                        let mut fetched = 0u32;
+                        if (unsafe { sel.GetText(ec, 0, &mut buf, &mut fetched) }).is_ok()
+                            && fetched > 0
+                        {
+                            let n = (fetched as usize).min(buf.len());
+                            if n <= crate::selection_check::MAX_SELECTION_CHARS {
+                                if let Ok(text) = String::from_utf16(&buf[..n]) {
+                                    if text.chars().any(|c| c.is_alphabetic()) {
+                                        if let Some(check) =
+                                            crate::assist::check_text_fragment(&text, auto_cap)
+                                        {
+                                            let anchor = unsafe {
+                                                crate::selection_check::get_selection_anchor(
+                                                    &self.ctx, &sel, ec,
+                                                )
+                                            };
+                                            show_assist_overlay_for_selection(
+                                                &self.shared,
+                                                &self.ctx,
+                                                ec,
+                                                &check,
+                                                sel.clone(),
+                                                anchor,
+                                            );
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Không bôi đen: kiểm tra từ / câu ở vị trí con trỏ (on-demand)
+                        if let Some(check) = crate::assist::check_sentence_on_demand(shared) {
+                            let shown = show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                            super::assist::after_trigger_finish(&check, shown);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 plan.eaten
             }
             Err(_) => {

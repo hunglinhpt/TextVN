@@ -53,6 +53,7 @@ pub enum KeyKind {
     Escape,
     Enter,
     Tab,
+    CtrlSpace,
     /// Không sinh ký tự: mũi tên, Delete, Home/End, F-key, PageUp…
     Other,
 }
@@ -82,6 +83,14 @@ impl KeyKind {
 
     /// `ime_key_v1.ch` gửi engine: chỉ ký tự in được; phím đặc biệt để engine tự
     /// nhận qua `vk` (engine map Enter→`\n`, Tab→`\t`).
+    /// Phân loại kèm modifier: nhận diện Ctrl+Space (trigger Text Prediction & Text Correct).
+    pub fn classify_with_mods(vk: u32, ch: u32, mods: u32) -> KeyKind {
+        if vk == 0x20 && (mods & !textvn_ffi::MOD_CAPS) == textvn_ffi::MOD_CTRL {
+            return KeyKind::CtrlSpace;
+        }
+        Self::classify(vk, ch)
+    }
+
     pub fn engine_ch(self) -> u32 {
         match self {
             KeyKind::Char(c) => c as u32,
@@ -102,7 +111,10 @@ impl KeyKind {
 
     /// Phím cần edit session khi chưa có composition (có thể sinh text/macro).
     pub fn needs_session_when_idle(self) -> bool {
-        matches!(self, KeyKind::Char(_) | KeyKind::Enter | KeyKind::Tab)
+        matches!(
+            self,
+            KeyKind::Char(_) | KeyKind::Enter | KeyKind::Tab | KeyKind::CtrlSpace
+        )
     }
 }
 
@@ -267,6 +279,13 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     eaten: true,
                 }
             }
+            // Ctrl+Space không khớp prediction: không chèn khoảng trắng, giữ composition cho assist check
+            KeyKind::CtrlSpace => CompositionPlan {
+                delete_before: 0,
+                text: None,
+                end: false,
+                eaten: false,
+            },
             // Ranh giới / phím điều hướng: commit nguyên văn rồi để app xử lý phím.
             _ => CompositionPlan::pass_through(composing),
         },
@@ -370,7 +389,7 @@ mod tests {
                 KeyKind::Backspace => {
                     doc.committed.pop();
                 }
-                KeyKind::Escape | KeyKind::Other => {}
+                KeyKind::Escape | KeyKind::CtrlSpace | KeyKind::Other => {}
             }
         }
         plan
@@ -411,6 +430,14 @@ mod tests {
         assert_eq!(KeyKind::classify(0x41, 'a' as u32), KeyKind::Char('a'));
         assert_eq!(KeyKind::classify(0x20, ' ' as u32), KeyKind::Char(' '));
         assert_eq!(KeyKind::Enter.engine_ch(), 0);
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, 0, textvn_ffi::MOD_CTRL),
+            KeyKind::CtrlSpace
+        );
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, ' ' as u32, 0),
+            KeyKind::Char(' ')
+        );
         assert!(is_modifier_vk(vk::SHIFT) && is_modifier_vk(0xA3) && !is_modifier_vk(0x41));
     }
 
@@ -584,6 +611,16 @@ mod tests {
         };
         let plan = plan_key(&['a', 'b'], KeyKind::Char('c'), &step);
         assert_eq!(plan, CompositionPlan::pass_through(true));
+    }
+
+    #[test]
+    fn ctrl_space_plan_never_inserts_space_on_pass() {
+        let step = EngineStep::pass();
+        let plan = plan_key(&['a', 'b'], KeyKind::CtrlSpace, &step);
+        assert!(!plan.eaten);
+        assert_eq!(plan.text, None);
+        assert_eq!(plan.delete_before, 0);
+        assert!(!plan.end);
     }
 
     #[test]

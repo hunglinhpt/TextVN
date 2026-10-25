@@ -342,7 +342,7 @@ pub fn overlay_action(vk: u32, mods: u32) -> OverlayAction {
     }
     match vk {
         VK_UP => OverlayAction::Previous,
-        VK_DOWN => OverlayAction::Next,
+        VK_DOWN | 0x09 => OverlayAction::Next,
         VK_RETURN if !shift => OverlayAction::Apply,
         VK_ESCAPE => OverlayAction::Close,
         _ => OverlayAction::Dismiss,
@@ -859,14 +859,23 @@ pub fn remove_auto_capitalize_conflicts(
 /// `ime_assist_sentence_tail_v1` (cắt đuôi tối đa [`SENTENCE_MAX_CHARS`] char,
 /// không chẻ surrogate) và `ime_assist_check_v1` (đếm lỗi).
 pub fn check_text(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> {
+    check_text_min_words(sentence, auto_capitalize, MIN_SENTENCE_WORDS)
+}
+
+/// Kiểm tra text với ngưỡng từ tối thiểu tùy biến (dùng cho cả on-demand trigger lẫn selection).
+pub fn check_text_min_words(
+    sentence: &str,
+    auto_capitalize: bool,
+    min_words: usize,
+) -> Option<AssistCheck> {
     use textvn_ffi::{
         ime_assist_check_v1, ime_assist_sentence_tail_v1, IME_ABI_VERSION, IME_MAX_ASSIST_ISSUES,
         IME_MAX_ASSIST_MSG, IME_MAX_ASSIST_SUGGEST,
     };
 
     let began = std::time::Instant::now();
-    if word_count(sentence) < MIN_SENTENCE_WORDS {
-        return None; // câu < 3 từ → bỏ qua (D11)
+    if word_count(sentence) < min_words {
+        return None;
     }
     let utf16: Vec<u16> = sentence.encode_utf16().collect();
     let mut tail = [0_u16; 2 * SENTENCE_MAX_CHARS + 1];
@@ -923,7 +932,7 @@ pub fn check_text(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> 
 /// L6 từ D16). Lọc xong rỗng → `None` (không popup cho lỗi ảo).
 #[cfg(windows)]
 pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> {
-    let mut check = check_text(sentence, auto_capitalize)?;
+    let mut check = check_text_min_words(sentence, auto_capitalize, 1)?;
     let n = check.result.count as usize;
     let mut kept = 0usize;
     for i in 0..n {
@@ -950,6 +959,33 @@ pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<Assi
 
 /// Chạy kiểm tra câu trong ngân sách [`CHECK_BUDGET_MS`] — **không** side effect
 /// UI. `None` = tắt assist / câu ngắn / câu sạch / vượt ngân sách (bỏ im lặng).
+#[cfg(windows)]
+/// Kiểm tra câu hoặc từ theo yêu cầu tức thì (on-demand qua Ctrl+Space).
+/// Hỗ trợ cả từ đơn và câu ngắn (tối thiểu 1 từ).
+#[cfg(windows)]
+pub fn check_sentence_on_demand(shared: &crate::edit_session::TsfShared) -> Option<AssistCheck> {
+    if !shared.is_assist_enabled() {
+        return None;
+    }
+    let began = std::time::Instant::now();
+    let (sentence, auto_capitalize, assist_app_disabled) = {
+        let thread = shared.thread.try_borrow().ok()?;
+        let disabled = thread.assist_app_disabled(&thread.field_context().app_id);
+        (
+            thread.engine.sentence_tail(SENTENCE_MAX_CHARS),
+            thread.auto_capitalize(),
+            disabled,
+        )
+    };
+    if assist_app_disabled || sentence.trim().is_empty() {
+        return None;
+    }
+    if began.elapsed().as_millis() > CHECK_BUDGET_MS {
+        return None;
+    }
+    check_text_min_words(&sentence, auto_capitalize, 1)
+}
+
 #[cfg(windows)]
 pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistCheck> {
     // D20 kill-switch + `assist.mode` (mode=off ⇒ tắt hoàn toàn, không check,
@@ -1326,6 +1362,7 @@ mod tests {
         use textvn_ffi::{MOD_CTRL, MOD_SHIFT, MOD_SUPER};
         assert_eq!(overlay_action(VK_UP, 0), OverlayAction::Previous);
         assert_eq!(overlay_action(VK_DOWN, 0), OverlayAction::Next);
+        assert_eq!(overlay_action(0x09, 0), OverlayAction::Next); // Tab chuyển sang lỗi tiếp theo
         assert_eq!(overlay_action(VK_RETURN, 0), OverlayAction::Apply);
         // Shift+Enter là xuống dòng, không phải áp dụng.
         assert_eq!(overlay_action(VK_RETURN, MOD_SHIFT), OverlayAction::Dismiss);

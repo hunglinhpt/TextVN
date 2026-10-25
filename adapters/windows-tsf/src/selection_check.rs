@@ -37,7 +37,7 @@ const DEBOUNCE_MS: u32 = 500;
 /// (256 — audit v30 F1: check_text cắt đuôi 256 nên vùng dài hơn luôn làm
 /// nút "Sửa tất cả" chết vì precondition đọc-đầu ≠ expect-đuôi).
 const MIN_SELECTION_CHARS: usize = 3;
-const MAX_SELECTION_CHARS: usize = 256;
+pub const MAX_SELECTION_CHARS: usize = 256;
 /// Timer ID — overlay WndProc so khớp hằng này (audit F7: không hardcode 2 chỗ).
 pub(crate) const TIMER_SELECTION_CHECK: usize = 0x5EC1;
 
@@ -287,18 +287,27 @@ impl SelectionCheckSession {
     /// Neo cạnh vùng chọn: `GetTextExt` trên range (nhiều app trả về rect
     /// bao vùng chọn — lấy góc dưới phải). Fallback: anchor caret thường.
     unsafe fn selection_anchor(&self, sel: &ITfRange, ec: u32) -> Option<Anchor> {
-        if let Ok(view) = self.ctx.GetActiveView() {
-            let mut rc = RECT::default();
-            let mut clipped = windows::core::BOOL::default();
-            if view.GetTextExt(ec, sel, &mut rc, &mut clipped).is_ok()
-                && rc.right > rc.left
-                && rc.bottom > rc.top
-            {
-                return Some(Anchor::new(rc.left, rc.top, rc.right, rc.bottom));
-            }
-        }
-        None
+        get_selection_anchor(&self.ctx, sel, ec)
     }
+}
+
+/// Lấy anchor cạnh vùng chọn bôi đen.
+pub(crate) unsafe fn get_selection_anchor(
+    ctx: &ITfContext,
+    sel: &ITfRange,
+    ec: u32,
+) -> Option<Anchor> {
+    if let Ok(view) = ctx.GetActiveView() {
+        let mut rc = RECT::default();
+        let mut clipped = windows::core::BOOL::default();
+        if view.GetTextExt(ec, sel, &mut rc, &mut clipped).is_ok()
+            && rc.right > rc.left
+            && rc.bottom > rc.top
+        {
+            return Some(Anchor::new(rc.left, rc.top, rc.right, rc.bottom));
+        }
+    }
+    None
 }
 
 /// Session ÁP "Sửa tất cả" lên vùng chọn (vòng 30): SetText câu đã sửa vào
