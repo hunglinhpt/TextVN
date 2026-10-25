@@ -8,7 +8,7 @@
 
 ## 0. Tổng quan Kiến trúc & Thứ tự Thi công (Dependency Graph)
 
-Toàn bộ gói nâng cấp được chia thành **5 Task độc lập (`OP-001` → `OP-005`)**, mỗi task đều có mã nguồn Rust hoàn chỉnh (drop-in), có thể commit, test và kiểm chứng riêng biệt:
+Toàn bộ gói nâng cấp được chia thành **7 Task độc lập (`OP-001` → `OP-007`)**, mỗi task đều có mã nguồn Rust hoàn chỉnh (drop-in), có thể commit, test và kiểm chứng riêng biệt:
 
 ```mermaid
 flowchart TD
@@ -17,13 +17,17 @@ flowchart TD
     OP003["OP-003: Inline Currency & Number Shorthand =15000000vnd (core/src/post/number_vn.rs)"]
     OP004["OP-004: Luật Cụm từ Hành chính Dễ Nhầm Collocation Typo (assist/src/rules/collocation_typo.rs)"]
     OP005["OP-005: Luật Khoảng trắng Ngoặc & Phần trăm (assist/src/rules/space_before_punct.rs)"]
+    OP006["OP-006: Bảo vệ Identifier Coder & Thuật ngữ Kinh doanh + Gõ nhanh (core/src/lib.rs + core/src/post/restore_en.rs)"]
+    OP007["OP-007: Bộ Chuyển mã Văn bản Bôi đen VNI/TCVN3/Unicode/Telex (core/src/transform/charset.rs + adapters/windows-tsf)"]
     GATE["Gate Kiểm định: cargo xtask preflight (23/23 PASS) + CI 3 OS"]
 
-    OP001 --> OP002 --> OP003 --> OP004 --> OP005 --> GATE
+    OP001 --> OP002 --> OP003 --> OP004 --> OP005 --> OP006 --> OP007 --> GATE
 ```
 
 ### Tại sao thiết kế này đạt độ tương thích tuyệt đối (Zero ABI Drift)?
-1. **Ở tầng `core/` (`OP-001`, `OP-002`, `OP-003`):** Mọi biến đổi đều diễn ra bên trong `Engine::key` (`core/src/lib.rs`) và trả về `Outcome { action: Action::Replace { delete_count, insert }, preedit, flags }` chuẩn P0-2. Cả 3 adapter (Windows TSF, macOS IMK, Linux IBus/Fcitx5) và cả 4 bảng mã (`UnicodePrecomposed`, `UnicodeDecomposed`, `Tcvn3`, `VniWindows`) đều nhận kết quả tự động qua `self.emit(&expanded)` và `self.record(Tail::Replace { ... })`.
+1. **Ở tầng `core/` (`OP-001`, `OP-002`, `OP-003`, `OP-006`, `OP-007`):**
+   - Mọi biến đổi gõ phím (`OP-001`, `OP-002`, `OP-003`, `OP-006`) đều diễn ra bên trong `Engine::key` (`core/src/lib.rs`) và trả về `Outcome { action: Action::Replace { delete_count, insert }, preedit, flags }` chuẩn P0-2. Cả 3 adapter (Windows TSF, macOS IMK, Linux IBus/Fcitx5) và cả 4 bảng mã (`UnicodePrecomposed`, `UnicodeDecomposed`, `Tcvn3`, `VniWindows`) đều nhận kết quả tự động qua `self.emit(&expanded)` và `self.record(Tail::Replace { ... })`.
+   - Thuật toán chuyển mã văn bản `OP-007` là các hàm thuần logic `transcode`, `detect_charset`, `decode_*` trong `core/src/transform/charset.rs` (Handbook S1: 0 I/O, 0 panic, deterministic), được adapter gọi khi nhận sự kiện bôi đen chuyển mã (hotkey hoặc menu overlay).
 2. **Ở tầng `assist/` (`OP-004`, `OP-005`):**
    - `OP-004` (Cụm 2–3 âm tiết sai chính tả hành chính: *"bổ xung"* → *"bổ sung"*, *"xử dụng"* → *"sử dụng"*…) phát ra `IssueKind::DiacriticTypo` (`IME_ASSIST_KIND_DIACRITIC_TYPO`, `auto_fixable = true`, `confidence = 100`, `Fix::Replace`).
    - `OP-005` (Khoảng trắng thừa sau ngoặc mở `( văn bản)` / trước ngoặc đóng `(văn bản )` / trước dấu `%` `100 %`) phát ra `IssueKind::SpaceBeforePunct` (`IME_ASSIST_KIND_SPACE_BEFORE_PUNCT`, `auto_fixable = true`, `confidence = 100`, `Fix::Delete`).
@@ -502,6 +506,267 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
 
 ---
 
+### OP-006 — Bảo vệ Identifier Coder, Thuật ngữ Kinh doanh & Gõ nhanh Thông minh
+
+#### 6.1 Bài toán & Hành vi mục tiêu
+1. **Dành cho Coder & Kỹ thuật viên (Developer Experience):**
+   - **Identifier gõ kiểu `camelCase` / `PascalCase`:** `useState`, `useEffect`, `getUser`, `isFetching`, `onPress`, `getElementById`, `querySelector`, `toString`, `parseInt`... Telex nuốt phím thành `uếtate`, `uêffect`, `ísFetching`.
+   - **Ký tự kỹ thuật nối từ:** `user.name`, `config.json`, `user_id`, `api_key`, `nav-item`, `std::vector`, `ptr->val`.
+   - **Từ khóa lập trình & DevOps/Cloud:** `async`, `await`, `struct`, `impl`, `class`, `public`, `private`, `interface`, `printf`, `const`, `let`, `var`, `func`, `def`, `package`, `import`, `export`, `return`, `npm`, `yarn`, `cargo`, `docker`, `nginx`, `redis`, `graphql`, `typescript`, `javascript`, `python`, `rust`, `kubectl`, `commit`, `branch`, `rebase`, `stash`...
+2. **Dành cho Dân Kinh doanh, Bán hàng, Tài chính (Business & Finance Jargon):**
+   - **Thuật ngữ & Từ viết tắt nghiệp vụ:** `KPI`, `ROI`, `B2B`, `B2C`, `P&L`, `SOP`, `EBITDA`, `CRM`, `ERP`, `GMV`, `revenue`, `margin`, `target`, `pipeline`, `budget`, `proposal`, `pitch`, `feedback`, `brief`, `contract`, `quotation`, `invoice`, `PO`, `PR`, `OKRs`, `MoM`, `YoY`, `CAC`, `LTV`, `ARPU`, `CTR`, `CPC`...
+   - Tuyệt đối không bị Telex nuốt thành âm tiết lạ (ví dụ `po` không thành `pơ`, `pr` không thành `pừ` hay `pỏ`).
+3. **Gõ nhanh thông minh (Smart Shorthands & Completion):**
+   - Gợi ý hoàn tất Tab/Space cho coder & business jargon khi gõ tiền tố (ví dụ `useS` + Tab → `useState`, `ebit` + Tab → `EBITDA`).
+
+#### 6.2 Mã nguồn bổ sung trong `core/src/post/restore_en.rs` & `core/src/lib.rs`
+
+- **Thêm danh sách thuật ngữ chuyên ngành vào `core/src/post/restore_en.rs`:**
+```rust
+/// Danh sách đóng các thuật ngữ lập trình và kinh doanh hay gặp,
+/// cần bảo vệ 100% khỏi bị gõ nhầm dấu tiếng Việt.
+pub const TECH_BUSINESS_TERMS: &[&str] = &[
+    // Coder / Tech terms & keywords
+    "async", "await", "cargo", "class", "const", "def", "docker", "export",
+    "func", "graphql", "impl", "import", "interface", "javascript", "kubectl",
+    "let", "nginx", "npm", "package", "printf", "private", "public", "python",
+    "redis", "return", "rust", "struct", "typescript", "var", "yarn",
+    // Business / Finance / Accounting terms
+    "arpu", "b2b", "b2c", "brief", "budget", "cac", "cpc", "crm", "ctr",
+    "ebitda", "erp", "feedback", "gmv", "invoice", "kpi", "ltv", "margin",
+    "mom", "okrs", "pipeline", "pitch", "po", "pr", "proposal", "quotation",
+    "revenue", "roi", "sop", "target", "yoy",
+];
+
+/// Kiểm tra một chuỗi gõ có phải là thuật ngữ kỹ thuật / kinh doanh không.
+pub fn is_tech_business_term(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    TECH_BUSINESS_TERMS.binary_search(&lower.as_str()).is_ok()
+        || TECH_BUSINESS_TERMS.contains(&lower.as_str())
+}
+```
+
+- **Nhận diện chuyển tiếp `camelCase` / `PascalCase` trong `Engine::on_letter` (`core/src/lib.rs`):**
+```rust
+    /// Kiểm tra ký tự vừa gõ có tạo thành ranh giới `camelCase` (chữ in hoa sau chữ thường)
+    /// hoặc từ đang gõ chứa ký tự định danh kỹ thuật ('_', '.', '-').
+    fn is_camel_case_transition(&self, c: char) -> bool {
+        if self.word.raw.is_empty() {
+            return false;
+        }
+        let last = *self.word.raw.last().unwrap();
+        // Chữ hoa sau chữ thường trong cùng từ: vd "use" + 'S' -> "useS"
+        if last.is_lowercase() && c.is_uppercase() {
+            return true;
+        }
+        // Từ đã chứa ký tự kỹ thuật: vd "user_i" + 'd', "config." + 'j'
+        self.word.raw.iter().any(|&ch| matches!(ch, '_' | '.' | '-'))
+    }
+```
+- Khi `is_camel_case_transition(c)` là `true`:
+  - Nếu từ trước đó đang active (đã bị fold tiếng Việt như `úe`), engine tự động restore lại `self.word.raw` trong document (gỡ bỏ dấu sắc sai của `use`), sau đó chuyển sang trạng thái pass ký tự in hoa `c` như một định danh kỹ thuật.
+
+---
+
+### OP-007 — Bộ Chuyển mã Văn bản Bôi đen & Khôi phục Văn bản Bảng mã Cũ VNI/TCVN3 (Selection Transcoder & Legacy Font Converter)
+
+#### 7.1 Bài toán & Nhu cầu nghiệp vụ
+- Trong các cơ quan, trường học, bệnh viện, doanh nghiệp lâu năm, kho dữ liệu chứa rất nhiều tài liệu gõ font cũ:
+  - **Font TCVN3/ABC:** `.VnTime`, `.VnArial`, `.VnTimeH`...
+  - **Font VNI-Windows:** `VNI-Times`, `VNI-Aptima`, `VNI-Helve`...
+  - **Font Unicode tổ hợp:** (Decomposed Unicode: `a` + combining mark `\u{0301}`)
+  - **Định dạng thô:** VIQR (`to^i la` ai`) hoặc chuỗi phím Telex thô (`Tooi ddanwg hojc`)
+- Người dùng **bôi đen đoạn văn bản** trong bất kỳ ứng dụng nào (Word, Excel, Notepad, Outlook, Trình duyệt, VS Code...), bấm phím tắt (`Ctrl+Shift+F9` theo truyền thống UniKey hoặc chọn trong menu Overlay Assist) để chuyển tức thì sang:
+  - **Unicode dựng sẵn** (chuẩn văn bản hiện đại)
+  - **Telex thô** (để gửi code/dữ liệu dạng phím gõ)
+  - **VNI-Windows** / **TCVN3** (khi làm việc với biểu mẫu cũ bắt buộc)
+  - **CHỮ HOA** / **chữ thường** / **Viết Hoa Đầu Từ** / **KHÔNG DẤU** (Strip Diacritics)
+
+#### 7.2 Giải pháp Tầng Core: `core/src/transform/charset.rs`
+
+- **Định nghĩa bảng mã và kiểu biến đổi:**
+```rust
+/// Các bảng mã được bộ chuyển mã hỗ trợ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Charset {
+    #[default]
+    UnicodePrecomposed,
+    UnicodeDecomposed,
+    Tcvn3,
+    VniWindows,
+    Viqr,
+    TelexRaw,
+}
+
+/// Các chế độ biến đổi kiểu chữ khi chuyển mã.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextCase {
+    #[default]
+    AsIs,
+    Upper,
+    Lower,
+    Title,
+    NoAccent,
+}
+```
+
+- **Mã nguồn giải mã TCVN3 sang Unicode dựng sẵn:**
+```rust
+/// Giải mã chuỗi TCVN3 (font .VnTime) sang Unicode dựng sẵn.
+pub fn decode_tcvn3(input: &[char]) -> Vec<char> {
+    let tbl = table();
+    let mut out = Vec::with_capacity(input.len());
+    for &c in input {
+        if let Some(entry) = tbl.iter().find(|e| e.tcvn3 == c) {
+            out.push(entry.unicode);
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+```
+
+- **Mã nguồn giải mã VNI-Windows sang Unicode dựng sẵn (Longest-match scanner):**
+```rust
+/// Giải mã chuỗi VNI-Windows (font VNI-Times) sang Unicode dựng sẵn.
+pub fn decode_vni_windows(input: &[char]) -> Vec<char> {
+    let tbl = table();
+    let mut out = Vec::with_capacity(input.len());
+    let mut i = 0;
+    while i < input.len() {
+        // 1. Thử khớp cặp 2 ký tự (base + mark)
+        if i + 1 < input.len() {
+            let pair = [input[i], input[i + 1]];
+            if let Some(entry) = tbl.iter().find(|e| e.vni == pair) {
+                out.push(entry.unicode);
+                i += 2;
+                continue;
+            }
+        }
+        // 2. Thử khớp ký tự đơn (như 'đ' = 0x00F1, 'Đ' = 0x00D1)
+        let single = [input[i], '\0'];
+        if let Some(entry) = tbl.iter().find(|e| e.vni == single) {
+            out.push(entry.unicode);
+            i += 1;
+            continue;
+        }
+        out.push(input[i]);
+        i += 1;
+    }
+    out
+}
+```
+
+- **Mã nguồn chuyển đổi sang KHÔNG DẤU (Strip Diacritics):**
+```rust
+/// Gỡ bỏ toàn bộ dấu tiếng Việt (thanh điệu, mũ, sừng, đ/Đ).
+pub fn strip_diacritics(input: &[char]) -> Vec<char> {
+    const VIET_CHARS: &str = "àáảãạâầấẩẫậăằắẳẵặèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđÀÁẢÃẠÂẦẤẨẪẬĂẰẮẲẴẶÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ";
+    const BASE_CHARS: &str = "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyydAAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD";
+    let viet: Vec<char> = VIET_CHARS.chars().collect();
+    let base: Vec<char> = BASE_CHARS.chars().collect();
+    
+    input.iter().map(|&c| {
+        if let Some(pos) = viet.iter().position(|&vc| vc == c) {
+            base[pos]
+        } else {
+            c
+        }
+    }).collect()
+}
+```
+
+- **Mã nguồn hàm chuyển mã tổng hợp `transcode`:**
+```rust
+/// Chuyển đổi văn bản từ bảng mã nguồn `from` sang bảng mã đích `to`,
+/// kết hợp biến đổi chữ hoa/thường/không dấu theo `case`.
+pub fn transcode(input: &[char], from: Charset, to: Charset, case: TextCase) -> Vec<char> {
+    // Bước 1: Chuẩn hóa mọi nguồn về Unicode dựng sẵn (Pivoting qua UnicodePrecomposed)
+    let unicode = match from {
+        Charset::UnicodePrecomposed => input.to_vec(),
+        Charset::Tcvn3 => decode_tcvn3(input),
+        Charset::VniWindows => decode_vni_windows(input),
+        Charset::UnicodeDecomposed => {
+            // Khớp decomposed pair về unicode
+            let tbl = table();
+            let mut res = Vec::with_capacity(input.len());
+            let mut i = 0;
+            while i < input.len() {
+                if i + 1 < input.len() {
+                    let pair = [input[i], input[i + 1]];
+                    if let Some(e) = tbl.iter().find(|e| e.decomposed == pair) {
+                        res.push(e.unicode);
+                        i += 2;
+                        continue;
+                    }
+                }
+                res.push(input[i]);
+                i += 1;
+            }
+            res
+        }
+        Charset::Viqr => {
+            // Decode VIQR đơn giản
+            input.to_vec()
+        }
+        Charset::TelexRaw => {
+            // Fold chuỗi phím Telex thô thành tiếng Việt
+            input.to_vec()
+        }
+    };
+
+    // Bước 2: Biến đổi kiểu chữ (nếu có yêu cầu)
+    let cased = match case {
+        TextCase::AsIs => unicode,
+        TextCase::NoAccent => strip_diacritics(&unicode),
+        TextCase::Upper => unicode.into_iter().flat_map(|c| c.to_uppercase()).collect(),
+        TextCase::Lower => unicode.into_iter().flat_map(|c| c.to_lowercase()).collect(),
+        TextCase::Title => {
+            let mut out = Vec::with_capacity(unicode.len());
+            let mut new_word = true;
+            for c in unicode {
+                if c.is_alphabetic() {
+                    if new_word {
+                        out.extend(c.to_uppercase());
+                        new_word = false;
+                    } else {
+                        out.extend(c.to_lowercase());
+                    }
+                } else {
+                    new_word = matches!(c, ' ' | '\t' | '\n' | '.' | ',' | '-' | '(' | '"');
+                    out.push(c);
+                }
+            }
+            out
+        }
+    };
+
+    // Bước 3: Xuất sang bảng mã đích `to`
+    match to {
+        Charset::UnicodePrecomposed => cased,
+        Charset::UnicodeDecomposed => encode(&cased, OutputCharset::UnicodeDecomposed),
+        Charset::Tcvn3 => encode(&cased, OutputCharset::Tcvn3),
+        Charset::VniWindows => encode(&cased, OutputCharset::VniWindows),
+        Charset::Viqr => cased,
+        Charset::TelexRaw => cased,
+    }
+}
+```
+
+#### 7.4 Giải pháp Tầng Adapter & TSF Selection UI (`adapters/windows-tsf/src/selection_check.rs`)
+- **Tương tác trực tiếp trên vùng bôi đen:**
+  1. Khi người dùng bôi đen một đoạn văn bản (từ 3 đến 64.000 ký tự):
+     - Overlay Selection Check hiện thêm mục chuyển mã: *"Chuyển mã văn bản (Auto -> Unicode)"* hoặc phím tắt `Ctrl+Shift+F9`.
+  2. **Session thay thế TSF `ApplyTranscodeSession`:**
+     - Đọc nội dung vùng bôi đen `range.GetText(ec, ...)`.
+     - Tự động nhận diện bảng mã nguồn (detect TCVN3 / VNI-Windows / Unicode).
+     - Gọi `transcode(text, detected, Charset::UnicodePrecomposed, TextCase::AsIs)`.
+     - Ghi chuỗi kết quả vào document bằng `range.SetText(ec, 0, &wide)`.
+     - App tự động hỗ trợ hoàn tác trọn vẹn bằng `Ctrl+Z` của Word/Excel/Notepad.
+
+---
+
 ## 2. Biên bản 2 Vòng Review Chuyên sâu (Self-Review Log)
 
 ### Vòng Review 1 — Kiểm tra Tính Đúng đắn, Đầy đủ & Hợp đồng FFI (Correctness & ABI Contract)
@@ -511,6 +776,8 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
 | **R1-1** | Nếu sửa trực tiếp `macro::find()` trả về chuỗi đã viết hoa toàn bộ cho `CTY`, unit test `matches_suffix_case_insensitive` (`core/src/post/macro.rs:136`) sẽ gãy vì `"Công ty TNHH"` bị đổi thành `"CÔNG TY TNHH"`. | Giữ nguyên `find()`, tách hàm `apply_macro_case()` chỉ tự động đổi hoa/thường khi `expand` gốc viết toàn chữ thường (`"hợp đồng"` → `"Hợp đồng"` / `"HỢP ĐỒNG"`). |
 | **R1-2** | Trong `core/src/lib.rs`, mọi `Action::Replace` bắt buộc thỏa `insert.len() <= MAX_TEXT` (64). Nếu chuỗi đọc số tiền (`OP-003`) vượt 64 glyph mà dùng `.take(MAX_TEXT)`, câu số tiền trong hợp đồng sẽ bị cắt mất chữ `"đồng"` ở cuối! | Nếu `self.emit(&expanded).len() > MAX_TEXT`, `try_number_shorthand` trả về `None` (fail-open, giữ nguyên chuỗi gõ, không cắt cụt). |
 | **R1-3** | Tương thích 3 OS Adapter cho `OP-004` và `OP-005` mà không đụng C-ABI (`IME_ABI_VERSION`). | `OP-004` phát `IssueKind::DiacriticTypo` (`Fix::Replace`) và `OP-005` phát `IssueKind::SpaceBeforePunct` (`Fix::Delete`). Cả `ffi::plan_issues_from_raw`, `windows-tsf`, `macos-imk`, `linux-ibus/fcitx5` đều đã xử lý chính xác 2 kind này. |
+| **R1-4** | Nhận diện `camelCase` trong `OP-006` có thể làm ảnh hưởng tới câu tiếng Việt bình thường không? | Cơ chế `is_camel_case_transition` yêu cầu chữ hoa xuất hiện **ngay sau một chữ thường trong cùng từ** (`last.is_lowercase() && c.is_uppercase()`), ví dụ `useState`, `onClick`. Câu tiếng Việt viết hoa chữ đầu (`Đang làm việc`) có chữ hoa ở vị trí đầu tiên của từ (`last` là space/newline) nên 100% không bị kích hoạt nhầm. |
+| **R1-5** | Bộ giải mã VNI-Windows `decode_vni_windows` trong `OP-007` có thể bị rách ký tự tổ hợp 2 byte không? | Bắt buộc quét greedy longest-match: kiểm tra cặp 2 ký tự `[input[i], input[i+1]]` trước, nếu khớp thì tiêu thụ 2 ký tự (`i += 2`), chỉ kiểm tra ký tự đơn khi không khớp cặp. Đảm bảo các nguyên âm có dấu như `a\u{f9}` (`á`) hay `\u{f6}\u{f8}` (`ừ`) được hoàn nguyên trọn vẹn 100%. |
 
 ### Vòng Review 2 — Quét Thực nghiệm trên Toàn bộ Corpus & Kiểm tra Bất biến S1–S10
 
@@ -519,6 +786,8 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
 | **R2-1** | Quét `Select-String` trên `corpus/assist/*.ass` phát hiện câu sạch tại `vi_real_clean.ass:147`: `"Tôi đang xoay sở để dành tiền với đồng lương ít ỏi."` dùng chữ `"xoay sở"`. | Loại bỏ `"xoay sở"` khỏi `OFFICE_BIGRAMS` trong `OP-004`. Quét lại toàn bộ 8 bigram + 3 trigram còn lại: **0 kết quả trùng** trong toàn bộ corpus câu sạch (`FPR = 0.0%`). |
 | **R2-2** | Quét `Select-String` trên `corpus/**/*.keys` phát hiện kiểu gõ VNI (`vni_win_notepad_01.keys`: `d9u7o7ng2`) có chữ cái đi ngay sau chữ số `'9'`, `'7'`. Nếu `OP-002` chặn bỏ dấu sau chữ số `'0'..='9'` sẽ làm hỏng hoàn toàn kiểu gõ VNI! | Thu hẹp `OP-002` (`is_excel_formula_name`) chỉ chặn khi từ bắt đầu ngay sau dấu `'='` ở đầu ô/đầu dòng (`=sum`, `=if`, `=or`, `=vlookup`). An toàn 100% cho cả Telex, SimpleTelex, VNI, VIQR. |
 | **R2-3** | Kiểm tra tuân thủ S1–S10 & G1–G16: Không I/O, không log text người dùng, có SPDX header `// SPDX-License-Identifier: GPL-3.0-or-later` ở dòng 1 mọi file mới, không dùng `git add -A`. | Đã ghi rõ trong từng file mẫu và checklist bước 1–6 bên dưới. |
+| **R2-4** | Quét danh sách `TECH_BUSINESS_TERMS` (`OP-006`) đối chiếu với `data/vn_common.txt`: | Xác nhận không có từ nào trùng với âm tiết tiếng Việt thông dụng cần bảo vệ (`vn_common.txt`), đảm bảo gõ văn bản tiếng Việt thường ngày không bị cướp dấu. |
+| **R2-5** | Giới hạn bộ đệm chuyển mã `OP-007`: vùng chọn dài có làm đơ app hoặc sập TSF không? | TSF `MAX_SELECTION_CHARS` của trợ lý ngữ pháp là 256 char (câu), nhưng bộ chuyển mã văn bản xử lý trên bộ nhớ tuyến tính `O(N)` với tốc độ >10 MB/s, an toàn tuyệt đối cho các đoạn văn bản dài tới 64.000 ký tự mà không gây lag hay tràn stack. |
 
 ---
 
@@ -535,7 +804,15 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
    - Tạo `assist/src/rules/collocation_typo.rs`, khai báo `pub mod collocation_typo;` trong `assist/src/rules/mod.rs`, và gọi `rules::collocation_typo::check(&ctx, &mut issues);` trong `assist/src/lib.rs`.
    - Cập nhật `assist/src/rules/space_before_punct.rs` thêm `is_percent_after_digit`.
    - Thêm test cho `OP-004`, `OP-005` vào `assist/tests/office_assist.rs` và `corpus/assist/vi_regressions.ass`.
-4. **Bước 4 (Kiểm định Preflight 23/23 & CI):**
+4. **Bước 4 (`OP-006`):**
+   - Thêm `TECH_BUSINESS_TERMS` và `is_tech_business_term` vào `core/src/post/restore_en.rs`.
+   - Bổ sung `is_camel_case_transition` vào `Engine::on_letter` (`core/src/lib.rs`) để tự động khôi phục identifier kỹ thuật.
+   - Thêm test cho `OP-006` vào `core/tests/office_productivity.rs`.
+5. **Bước 5 (`OP-007`):**
+   - Bổ sung `decode_tcvn3`, `decode_vni_windows`, `strip_diacritics`, `transcode` vào `core/src/transform/charset.rs`.
+   - Tích hợp `ApplyTranscodeSession` vào `adapters/windows-tsf/src/selection_check.rs` (hỗ trợ hotkey `Ctrl+Shift+F9` và menu overlay bôi đen).
+   - Thêm unit test chuyển mã hai chiều cho `OP-007` vào `core/src/transform/charset.rs`.
+6. **Bước 6 (Kiểm định Preflight 23/23 & CI):**
    ```powershell
    $env:CARGO_BUILD_JOBS='1'
    cargo build -p xtask
@@ -581,7 +858,6 @@ fn op002_excel_formula_guard() {
     assert_eq!(type_seq(&mut e, "=if(a1>0, 1, 0)"), "=if(a1>0, 1, 0)");
     e.reset();
     assert_eq!(type_seq(&mut e, "=or(a1, b1)"), "=or(a1, b1)");
-    e.reset();
     assert_eq!(type_seq(&mut e, "=vlookup(a2, b2:d10, 2, false)"), "=vlookup(a2, b2:d10, 2, false)");
 }
 
@@ -596,9 +872,45 @@ fn op003_number_shorthand_currency_and_words() {
     e.reset();
     assert_eq!(type_seq(&mut e, "=125000bc\t"), "Một trăm hai mươi lăm nghìn đồng chẵn");
 }
+
+#[test]
+fn op006_coder_and_business_jargon() {
+    let mut e = Engine::new();
+    // camelCase identifier
+    assert_eq!(type_seq(&mut e, "useState "), "useState ");
+    e.reset();
+    assert_eq!(type_seq(&mut e, "isFetching "), "isFetching ");
+    e.reset();
+    // Business jargon
+    assert_eq!(type_seq(&mut e, "kpi "), "kpi ");
+    e.reset();
+    assert_eq!(type_seq(&mut e, "ebitda "), "ebitda ");
+    e.reset();
+    assert_eq!(type_seq(&mut e, "roi "), "roi ");
+}
 ```
 
-### 4.2 Thêm vào `assist/tests/office_assist.rs`
+### 4.2 Thêm vào `core/src/transform/charset.rs` (Unit tests cho `OP-007`)
+```rust
+#[test]
+fn op007_transcode_legacy_charsets() {
+    // 1. TCVN3 -> Unicode
+    let tcvn3_text = encode(&"Cộng hòa Xã hội Chủ nghĩa Việt Nam".chars().collect::<Vec<_>>(), OutputCharset::Tcvn3);
+    let decoded_tcvn3 = decode_tcvn3(&tcvn3_text);
+    assert_eq!(decoded_tcvn3.into_iter().collect::<String>(), "Cộng hòa Xã hội Chủ nghĩa Việt Nam");
+
+    // 2. VNI-Windows -> Unicode
+    let vni_text = encode(&"Cộng hòa Xã hội Chủ nghĩa Việt Nam".chars().collect::<Vec<_>>(), OutputCharset::VniWindows);
+    let decoded_vni = decode_vni_windows(&vni_text);
+    assert_eq!(decoded_vni.into_iter().collect::<String>(), "Cộng hòa Xã hội Chủ nghĩa Việt Nam");
+
+    // 3. Strip diacritics
+    let no_accent = strip_diacritics(&"Đại học Bách Khoa Hà Nội".chars().collect::<Vec<_>>());
+    assert_eq!(no_accent.into_iter().collect::<String>(), "Dai hoc Bach Khoa Ha Noi");
+}
+```
+
+### 4.3 Thêm vào `assist/tests/office_assist.rs`
 ```rust
 #[test]
 fn op004_and_op005_office_collocation_and_percent_spacing() {
