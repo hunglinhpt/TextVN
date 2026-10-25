@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.43 — Enter trên popup vùng bôi đen áp Sửa-tất-cả (audit v30 F6 — finding LOW cuối)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | F6: nhánh Apply của `handle_overlay_key` phát hiện popup từ bôi đen (`ActiveAssist.selection.is_some()`) → `selection_fix_all_from_keyboard` = cùng đường nút chuột "Sửa tất cả" (`ApplySelectionFixSession`: SetText đúng range, precondition đọc-lại trong edit lock, `reset_engine`, undo thuộc app). Trước đây Enter bị nuốt no-op vì `apply_assist_suggestion` cần selection rỗng (A2 đơn-từ). Thêm parity v0.2.42: sau SetText `recheck_after_fix` trên câu đã sửa — sạch panel tắt, còn lỗi gợi ý popup hiện lại tại caret |
+| Đo | 674 test (0 fail), clippy -D warnings 0, preflight 23/23 (full clean rebuild — rustc ICE 0xc0000409 do target hỏng, không phải code) |
+| CI trên commit gắn tag 68db7b0 | 7/7 xanh: ci-shared, ci-linux, ci-windows, ci-macos, ci-deb, ci-aur, repo-hygiene |
+| Release | v0.2.43 tag ký GPG — release-candidate [#40153578257](https://github.com/hunglinhpt/TextVN/actions/runs/40153578257) 4/4 job (linux/windows/macos/publish); **34 asset** |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`), 9/9 dòng hash khớp file tải về |
+| Checksums | machine exe `af2c8c8f…10c8` · setup exe `5e94b94a…2c9c` · MSIX `1ad5806e…9770` · portable `86d6c597…1802` · Linux `1955e903…64bb` · mac zip `3c9a4c96…8f8e` · mac tar.gz `e1669b35…100d` · pkg `d57700e7…2626` · PKGBUILD archive `51c32410…1aaa` |
+| Homebrew (B7b) | cask `version "0.2.43"` + `sha256` = mac zip `3c9a4c96…8f8e` — sync-cask [#40154963633](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40154963633) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.43 `51c32410…1aaa` |
+| PPA (B7f) | debian/changelog `0.2.43-0ppa1` |
+| approved (B7c) | `approved/v0.2.43/` — 34 file byte-identical (SHA256SUMS raw hash trùng khớp), raw URL 200 |
+
 ## Bản 0.2.42 — check ngữ pháp vùng bôi đen (audit 2 lượt: 8 finding → SHIP)
 
 | Hạng mục | Bằng chứng |
