@@ -20,6 +20,7 @@ static GString *g_preedit;  /* preedit đang hiển thị */
  * trực tiếp được). */
 static gboolean g_push_surrounding = FALSE;
 static guint    g_lookup_candidates = 0; /* số ứng viên trong candidate list */
+static gboolean g_lookup_visible = FALSE; /* R2-129: candidate list đang hiện */
 
 static void push_surrounding(IBusInputContext *ic) {
     if (!g_push_surrounding) return;
@@ -50,8 +51,15 @@ static void on_update_lookup(IBusInputContext *ic, IBusLookupTable *table, gbool
                              gpointer data) {
     (void)ic;
     (void)data;
+    g_lookup_visible = visible && table;
     if (!visible || !table) return;
     g_lookup_candidates = ibus_lookup_table_get_number_of_candidates(table);
+}
+
+static void on_hide_lookup(IBusInputContext *ic, gpointer data) {
+    (void)ic;
+    (void)data;
+    g_lookup_visible = FALSE;
 }
 
 static void on_commit(IBusInputContext *ic, IBusText *text, gpointer data) {
@@ -198,6 +206,7 @@ int main(void) {
     g_signal_connect(ic, "hide-preedit-text", G_CALLBACK(on_hide_preedit), NULL);
     g_signal_connect(ic, "delete-surrounding-text", G_CALLBACK(on_delete_surrounding), NULL);
     g_signal_connect(ic, "update-lookup-table", G_CALLBACK(on_update_lookup), NULL);
+    g_signal_connect(ic, "hide-lookup-table", G_CALLBACK(on_hide_lookup), NULL);
     ibus_input_context_focus_in(ic);
 
     /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s. */
@@ -388,6 +397,26 @@ int main(void) {
     ok &= (g_lookup_candidates > 0);
     printf("%s assist Mode 1 (highlight) candidates=%u\n",
            g_lookup_candidates > 0 ? "PASS" : "FAIL", g_lookup_candidates);
+    clear(ic);
+
+    /* R2-129: danh sách SỐNG — hiện ngay ở RANH GIỚI TỪ (chưa cần dấu chấm);
+     * phím số trần vẫn là GÕ SỐ (không áp nhầm gợi ý); câu đã đúng ⇒ ẩn. */
+    g_lookup_candidates = 0;
+    g_lookup_visible = FALSE;
+    type(ic, "Tooi tooi ddi ");
+    {
+        int shown = g_lookup_visible && g_lookup_candidates > 0;
+        printf("%s assist live list shows at word boundary (R2-129)\n", shown ? "PASS" : "FAIL");
+        ok &= shown;
+    }
+    type(ic, "1");
+    ok &= check("live list: digit is typed", "Tôi tôi đi 1");
+    clear(ic);
+    g_lookup_visible = FALSE;
+    type(ic, "Tooi ddi hocj ");
+    printf("%s assist live list stays hidden for a clean sentence (R2-129)\n",
+           !g_lookup_visible ? "PASS" : "FAIL");
+    ok &= !g_lookup_visible;
     clear(ic);
 
     g_push_surrounding = FALSE;

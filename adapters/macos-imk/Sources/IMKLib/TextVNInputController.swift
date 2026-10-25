@@ -403,6 +403,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                     return true
                 }
             }
+            // R2-129: Backspace khi bảng gợi ý SỐNG đang hiện ⇒ kiểm tra lại câu
+            // (buffer câu của engine đã bỏ ký tự): sửa xong thì ẩn ngay.
+            if keyEvent.vk == Self.vkBack, marked.isEmpty, !currentCandidates.isEmpty,
+               isAssistActive(for: context.appID) {
+                processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
+            }
             return false
         case .replace, .commit, .restore:
             do {
@@ -414,6 +420,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                     let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
                     if triggerKind != FFI.assistTriggerNone {
                         processAssist(triggerKind: triggerKind, target: target, sender: sender)
+                    } else if keyEvent.vk == Self.vkBack, !currentCandidates.isEmpty {
+                        // R2-129: Backspace khi bảng gợi ý sống đang hiện ⇒ kiểm tra lại.
+                        processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
                     }
                 }
                 return !forwardKey
@@ -539,6 +548,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// VK canonical (Win) của Enter/Tab — `keymap::vk` trong core.
     static let vkReturn: UInt32 = 0x0D
     static let vkTab: UInt32 = 0x09
+    static let vkBack: UInt32 = 0x08
 
     /// COMMIT/RESTORE kết thúc bằng ranh giới Enter/Tab (`\n` `\r` `\t`) → bản đã
     /// bỏ ký tự đó (app sẽ nhận phím thật); outcome khác → `nil` (giữ nguyên).
@@ -820,6 +830,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         let wordCount = sentence.split(omittingEmptySubsequences: true) { $0.isWhitespace }.count
         let minWords = isOnDemand ? 1 : 3
         if wordCount < minWords {
+            // R2-129: không còn đủ ngữ cảnh ⇒ không để bảng gợi ý cũ treo lại.
+            candidatePanel?.hide()
+            currentCandidates.removeAll()
             return false
         }
 
@@ -855,17 +868,23 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
 
         // Mode 1: Hiển thị gợi ý qua candidate panel của IMK.
-        // R-6 (D11): chỉ ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
-        // tung panel là UI spam. Tôn trọng `hide_on_auto_fix` khi Mode 2 bật.
+        // R2-129 (chủ repo 2026-10-26 — parity Windows/Linux): bảng gợi ý SỐNG —
+        // hiện/cập nhật ở MỌI điểm kiểm tra (ranh giới từ lẫn kết thúc câu), ẩn
+        // khi câu sạch (nhánh `issues.isEmpty` ở trên). Bảng IMK không nhận phím
+        // gõ (không chuyển phím vào panel) nên gõ tiếp bình thường. Tôn trọng
+        // `hide_on_auto_fix` của Mode 2 ở điểm kết thúc câu (lúc tự sửa chạy).
         let hideInMode2 = assistSettings.isMode2AutoFix && assistSettings.display.hide_on_auto_fix
-        if assistSettings.isDisplayEnabled && isSentenceTrigger && (isOnDemand || !hideInMode2) {
+        if assistSettings.isDisplayEnabled && (isOnDemand || !(hideInMode2 && isSentenceTrigger)) {
             let candidates = Self.buildCandidates(sentence: sentence, issues: issues, engine: engine)
             if !candidates.isEmpty {
                 currentCandidates = candidates
                 candidatePanel?.update()
                 candidatePanel?.show()
                 Diagnostics.log("assist highlight shown (\(candidates.count) suggestion(s))")
-                ipc.send(.assistReport(issues: Self.reportIssues(issues), autoFixed: 0))
+                // Báo IPC ở điểm kết thúc câu / on-demand (không mỗi dấu cách).
+                if isSentenceTrigger || isOnDemand {
+                    ipc.send(.assistReport(issues: Self.reportIssues(issues), autoFixed: 0))
+                }
                 return true
             }
             candidatePanel?.hide()

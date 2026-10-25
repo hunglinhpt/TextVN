@@ -324,6 +324,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                                        const char *committed) {
     if (!self || !self->inst) return plan_eaten;
     if (!s_vi_enabled || !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode)) {
+        clear_assist_ui(self);
         return plan_eaten;
     }
 
@@ -331,6 +332,8 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
     memset(&res, 0, sizeof(res));
     res.abi_version = IME_ABI_VERSION;
     if (ime_assist_check_instance(self->inst, &res) != IME_OK || res.count == 0) {
+        /* R2-129: câu đã đúng ⇒ ẩn danh sách sống ngay. */
+        clear_assist_ui(self);
         return plan_eaten;
     }
 
@@ -340,6 +343,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
      * luật khác) và **trước** cả Mode 2 lẫn Mode 1 ⇒ cả hai đều không thấy L6.
      * Cùng hàm với Fcitx5 (`lc_assist_filter_auto_capitalize`). */
     if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&self->config)) == 0) {
+        clear_assist_ui(self);
         return plan_eaten;
     }
 
@@ -375,6 +379,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
             }
         }
         if (words < 3) {
+            clear_assist_ui(self);
             return plan_eaten;
         }
     }
@@ -498,6 +503,8 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
             if (s_ipc) {
                 lc_ipc_client_send_assist_report(s_ipc, &res, 0);
             }
+        } else {
+            clear_assist_ui(self); /* không còn gợi ý áp được ⇒ không để danh sách cũ */
         }
     }
 
@@ -719,21 +726,26 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                             (state & (IBUS_MOD1_MASK | IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0);
     if (which != LC_MOD_NONE) return FALSE; /* modifier đứng riêng: không commit */
 
-    /* Xử lý phím khi giao diện gợi ý trợ lý đang mở */
+    /* Phím khi danh sách gợi ý SỐNG đang hiện (R2-129 — parity Windows): không
+     * chiếm phím gõ; Esc đóng; Alt+1..3 áp gợi ý (phím số trần là gõ số — trước
+     * đây "giá 100" áp nhầm gợi ý); Enter/Tab/mũi tên/chord đóng rồi đi tiếp. */
     if (self->assist_ui_showing) {
-        if (keyval == IBUS_KEY_Escape) {
+        int live = lc_assist_live_key((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
+                                      (state & IBUS_MOD1_MASK) != 0,
+                                      (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0);
+        if (live == LC_LIVE_CLOSE) {
             clear_assist_ui(self);
             return TRUE;
         }
-        if (!(state & (IBUS_CONTROL_MASK | IBUS_MOD1_MASK | IBUS_SUPER_MASK)) &&
-            keyval >= IBUS_KEY_1 && keyval <= IBUS_KEY_3) {
-            guint idx = keyval - IBUS_KEY_1;
+        if (live >= LC_LIVE_APPLY_1) {
+            guint idx = (guint)(live - LC_LIVE_APPLY_1);
             if (idx < self->assist_candidate_count) {
                 apply_assist_candidate(self, idx);
                 return TRUE;
             }
+            live = LC_LIVE_DISMISS;
         }
-        clear_assist_ui(self);
+        if (live == LC_LIVE_DISMISS) clear_assist_ui(self);
     }
 
     uint32_t mods = textvn_ibus_mods(state);
@@ -838,6 +850,12 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         gboolean is_sentence = (trigger_kind == IME_ASSIST_TRIGGER_SENTENCE);
         return check_and_apply_assist(self, key.ch, is_sentence, plan.eaten ? TRUE : FALSE,
                                       committed);
+    }
+    /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
+     * thì ẩn ngay, còn lỗi thì cập nhật). */
+    if (key.kind == LC_KEY_BACKSPACE && self->assist_ui_showing && s_vi_enabled &&
+        self->comp.len == 0 && self->inst) {
+        return check_and_apply_assist(self, 0, FALSE, plan.eaten ? TRUE : FALSE, committed);
     }
 
     return plan.eaten ? TRUE : FALSE;

@@ -474,11 +474,29 @@ static void test_assist_mode_semantics(void) {
     assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_SAFE, 0) == 0);
     assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_OFF, LC_ASSIST_AUTO_FIX_OFF, 1) == 0);
 
-    /* Mode 1 (điểm hiển thị): chỉ ở trigger kết thúc câu, mode != off. */
+    /* Mode 1 (điểm hiển thị) — R2-129: danh sách SỐNG ở mọi điểm kiểm tra
+     * (ranh giới từ lẫn kết thúc câu) khi mode != off. */
     assert(lc_assist_should_display(LC_ASSIST_MODE_HIGHLIGHT, 1) == 1);
     assert(lc_assist_should_display(LC_ASSIST_MODE_AUTOCORRECT, 1) == 1);
-    assert(lc_assist_should_display(LC_ASSIST_MODE_HIGHLIGHT, 0) == 0);
+    assert(lc_assist_should_display(LC_ASSIST_MODE_HIGHLIGHT, 0) == 1);
     assert(lc_assist_should_display(LC_ASSIST_MODE_OFF, 1) == 0);
+    assert(lc_assist_should_display(LC_ASSIST_MODE_OFF, 0) == 0);
+
+    /* R2-129: phím khi danh sách sống đang hiện — không chiếm phím gõ. */
+    assert(lc_assist_live_key('a', 0, 0, 0) == LC_LIVE_KEEP);
+    assert(lc_assist_live_key('1', 0, 0, 0) == LC_LIVE_KEEP);      /* số trần = gõ số */
+    assert(lc_assist_live_key(' ', 0, 0, 0) == LC_LIVE_KEEP);
+    assert(lc_assist_live_key('.', 0, 0, 0) == LC_LIVE_KEEP);
+    assert(lc_assist_live_key(0xff08, 0, 0, 0) == LC_LIVE_KEEP);   /* BackSpace */
+    assert(lc_assist_live_key(0x01001ea1, 0, 0, 0) == LC_LIVE_KEEP); /* ạ (XKB vn) */
+    assert(lc_assist_live_key(0xff1b, 0, 0, 0) == LC_LIVE_CLOSE);  /* Escape */
+    assert(lc_assist_live_key('1', 0, 1, 0) == LC_LIVE_APPLY_1);
+    assert(lc_assist_live_key('3', 0, 1, 0) == LC_LIVE_APPLY_1 + 2);
+    assert(lc_assist_live_key('4', 0, 1, 0) == LC_LIVE_DISMISS);
+    assert(lc_assist_live_key(0xff0d, 0, 0, 0) == LC_LIVE_DISMISS); /* Return */
+    assert(lc_assist_live_key(0xff09, 0, 0, 0) == LC_LIVE_DISMISS); /* Tab */
+    assert(lc_assist_live_key(0xff52, 0, 0, 0) == LC_LIVE_DISMISS); /* Up */
+    assert(lc_assist_live_key('c', 1, 0, 0) == LC_LIVE_DISMISS);    /* Ctrl+C */
 }
 
 static void test_assist_auto_fix_spacing_punct(void) {

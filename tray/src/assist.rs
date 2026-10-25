@@ -72,12 +72,14 @@ pub fn decide(
     if !assist.is_on() {
         return ToastDecision::ModeOff;
     }
-    // Câu sạch (0 lỗi + 0 tự sửa) → im lặng (D11).
-    if issue_count == 0 && auto_fixed == 0 {
+    // R2-126 (chủ repo 2026-10-26: "báo noti phát hiện gõ sai nhiều noise mà
+    // không giải quyết được gì"): CHỈ toast khi văn bản ĐÃ bị tự sửa (Mode 2 —
+    // người dùng phải biết + Ctrl+Z). Phát hiện lỗi chưa sửa → im lặng: panel
+    // sửa lỗi tại caret là kênh duy nhất (vòng 29 từng toast cả phát hiện).
+    let _ = issue_count;
+    if auto_fixed == 0 {
         return ToastDecision::NothingToSay;
     }
-    // Vòng 29: phát hiện lỗi MỚI → hiện toast popup dưới-phải (balloon
-    // OS-native của Windows); auto-fix → "Đã sửa" + nhắc Ctrl+Z.
     if since_last_ms.is_some_and(|since| since < TOAST_MIN_INTERVAL_MS) {
         return ToastDecision::TooSoon;
     }
@@ -218,10 +220,10 @@ mod tests {
             ..AssistSettings::default()
         };
         assert_eq!(decide(&a, true, 5, 2, None), ToastDecision::ModeOff);
-        // Mặc định Highlight: có lỗi → hiện (vòng 29); câu sạch → im (D11).
+        // R2-126: phát hiện lỗi (chưa tự sửa) → KHÔNG toast; câu sạch → im (D11).
         assert_eq!(
             decide(&AssistSettings::default(), true, 5, 0, None),
-            ToastDecision::Show
+            ToastDecision::NothingToSay
         );
         assert_eq!(
             decide(&AssistSettings::default(), true, 0, 0, None),
@@ -241,13 +243,13 @@ mod tests {
         );
     }
 
-    /// Mode 1 có lỗi → toast popup dưới-phải (vòng 29 — fallback khi overlay
-    /// không hiện được; 8 s cooldown); Mode 2 tự sửa → "Đã sửa".
+    /// R2-126: Mode 1 có lỗi → KHÔNG toast (panel lo việc sửa); chỉ Mode 2
+    /// tự sửa → "Đã sửa" + Ctrl+Z.
     #[test]
-    fn highlight_and_autocorrect_show_when_there_is_something() {
+    fn only_auto_fix_shows_a_toast() {
         assert_eq!(
             decide(&enabled(AssistMode::Highlight), true, 1, 0, None),
-            ToastDecision::Show
+            ToastDecision::NothingToSay
         );
         assert_eq!(
             decide(&enabled(AssistMode::Autocorrect), true, 0, 2, None),
@@ -258,14 +260,14 @@ mod tests {
     /// Chống spam (8 s — vòng 29): trong cửa sổ thì bỏ; sau đó hiện lại.
     #[test]
     fn toast_is_rate_limited() {
-        let a = enabled(AssistMode::Highlight);
-        assert_eq!(decide(&a, true, 3, 0, Some(0)), ToastDecision::TooSoon);
+        let a = enabled(AssistMode::Autocorrect);
+        assert_eq!(decide(&a, true, 3, 1, Some(0)), ToastDecision::TooSoon);
         assert_eq!(
-            decide(&a, true, 3, 0, Some(TOAST_MIN_INTERVAL_MS - 1)),
+            decide(&a, true, 3, 1, Some(TOAST_MIN_INTERVAL_MS - 1)),
             ToastDecision::TooSoon
         );
         assert_eq!(
-            decide(&a, true, 3, 0, Some(TOAST_MIN_INTERVAL_MS)),
+            decide(&a, true, 3, 1, Some(TOAST_MIN_INTERVAL_MS)),
             ToastDecision::Show
         );
     }

@@ -356,9 +356,29 @@ int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sente
 }
 
 int lc_assist_should_display(int assist_mode, int is_sentence_trigger) {
-    /* R-6 · D11: chỉ hiện UI ở điểm hiển thị (kết thúc câu) và khi mode != off
-     * (ở Mode 2, lỗi mơ hồ vẫn phải hiện candidate — P4-0 §4.3). */
-    return (assist_mode != LC_ASSIST_MODE_OFF) && (is_sentence_trigger != 0);
+    /* R2-129 (chủ repo 2026-10-26: "popup cần hiện nhanh nhất hoặc ẩn đi nhanh
+     * nhất theo tình trạng câu đúng sai") — parity Windows: danh sách gợi ý
+     * SỐNG, hiện ở MỌI điểm kiểm tra (ranh giới từ lẫn kết thúc câu) khi
+     * mode != off; câu sạch thì adapter ẩn. Thay R-6/D11 cũ (chỉ kết thúc câu). */
+    (void)is_sentence_trigger;
+    return assist_mode != LC_ASSIST_MODE_OFF;
+}
+
+int lc_assist_live_key(uint32_t keysym, int ctrl, int alt, int super) {
+    /* Keysym X11 (IBus keyval == FcitxKeySym). */
+    if (!ctrl && !alt && !super && keysym == 0xff1b) return LC_LIVE_CLOSE; /* Escape */
+    if (alt && !ctrl && !super && keysym >= 0x31 && keysym <= 0x33) {
+        return LC_LIVE_APPLY_1 + (int)(keysym - 0x31); /* Alt+1..3 */
+    }
+    if (ctrl || alt || super) return LC_LIVE_DISMISS;
+    if ((keysym >= 0x20 && keysym <= 0x7e) || /* ASCII in được (chữ, số, cách, dấu câu) */
+        (keysym >= 0xa0 && keysym <= 0xff) || /* Latin-1 */
+        (keysym >= 0x01000100 && keysym <= 0x0110ffff) || /* keysym Unicode (bàn phím Việt XKB) */
+        keysym == 0xff08 || /* BackSpace */
+        (keysym >= 0xffaa && keysym <= 0xffb9)) { /* numpad * + , - . / 0..9 */
+        return LC_LIVE_KEEP;
+    }
+    return LC_LIVE_DISMISS; /* Enter, Tab, mũi tên, Home/End, F-key… */
 }
 
 int lc_config_read_assist_mode(const char *path, int default_mode) {

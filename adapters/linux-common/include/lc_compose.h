@@ -181,9 +181,23 @@ int lc_assist_is_active(int assist_enabled, int assist_mode);
  * Cùng ngữ nghĩa cho cả 3 OS (P4-0 §4.3) — hàm thuần, test được. */
 int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sentence_trigger);
 
-/* R-6: điểm **hiển thị** (Mode 1 — candidate list) chỉ ở trigger kết thúc câu
- * và khi `assist.mode != "off"` (D11) — hàm thuần, test được. */
+/* Điểm **hiển thị** (Mode 1 — candidate list): R2-129 — danh sách SỐNG, hiện ở
+ * mọi điểm kiểm tra (ranh giới từ + kết thúc câu) khi `assist.mode != "off"`;
+ * câu sạch ⇒ adapter ẩn. `is_sentence_trigger` giữ cho ABI nội bộ — hàm thuần. */
 int lc_assist_should_display(int assist_mode, int is_sentence_trigger);
+
+/* R2-129: phím khi danh sách gợi ý SỐNG đang hiện (parity Windows `PopupKind::Live`)
+ * — danh sách không chiếm phím gõ: chữ/số/cách/dấu câu/Backspace giữ danh sách
+ * (`LC_LIVE_KEEP`, phím đi tiếp như thường); Esc đóng; Alt+1..3 áp gợi ý thứ n
+ * (KHÔNG dùng phím số trần — gõ "giá 100" sẽ áp nhầm); phím khác (Enter, Tab,
+ * mũi tên, chord) đóng danh sách rồi đi tiếp. `keysym` = keysym X11. */
+enum {
+    LC_LIVE_KEEP = 0,
+    LC_LIVE_DISMISS = 1,
+    LC_LIVE_CLOSE = 2,
+    LC_LIVE_APPLY_1 = 10, /* + chỉ số gợi ý (0..2) */
+};
+int lc_assist_live_key(uint32_t keysym, int ctrl, int alt, int super);
 
 /* ---- D16 (Fassist-20): loại L6 khi `config.auto_capitalize` bật ---- */
 

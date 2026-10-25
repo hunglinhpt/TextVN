@@ -485,6 +485,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                                       bool isSentenceTrigger, bool planEaten) {
     if (!st || !st->inst || !st->ic) return planEaten;
     if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
+        clearAssistUI(st);
         return planEaten;
     }
 
@@ -492,6 +493,8 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     std::memset(&res, 0, sizeof(res));
     res.abi_version = IME_ABI_VERSION;
     if (ime_assist_check_instance(st->inst, &res) != IME_OK || res.count == 0) {
+        /* R2-129: câu đã đúng ⇒ ẩn danh sách sống ngay (parity Windows/IBus). */
+        clearAssistUI(st);
         return planEaten;
     }
 
@@ -501,6 +504,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
      * luật khác) và **trước** cả Mode 2 lẫn Mode 1 ⇒ cả hai đều không thấy L6.
      * Cùng hàm + cùng đường config với IBus (`lc_config_sync` → `st->config`). */
     if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&st->config)) == 0) {
+        clearAssistUI(st);
         return planEaten;
     }
 
@@ -542,6 +546,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
             }
         }
         if (words < 3) {
+            clearAssistUI(st);
             return planEaten;
         }
     }
@@ -621,8 +626,8 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     }
 
     /* Mode 1: highlight / suggestions (CandidateList & tooltip).
-     * R-6 (D11): chỉ hiện ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
-     * tung panel là UI spam. */
+     * R2-129: danh sách SỐNG — hiện/cập nhật ở mọi điểm kiểm tra (ranh giới từ
+     * lẫn kết thúc câu), ẩn khi câu sạch; không chiếm phím gõ (handleKey). */
     if (lc_assist_should_display(st->config.assist_mode, isSentenceTrigger ? 1 : 0)) {
         try {
             auto candList = std::make_unique<fcitx::CommonCandidateList>();
@@ -663,6 +668,8 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 if (ipc_) {
                     lc_ipc_client_send_assist_report(ipc_, &res, 0);
                 }
+            } else {
+                clearAssistUI(st); /* không còn gợi ý áp được ⇒ không để danh sách cũ */
             }
         } catch (...) {
         }
@@ -788,18 +795,30 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
                                 states.test(fcitx::KeyState::Super));
     if (which != LC_MOD_NONE) return false;
 
+    /* Phím khi danh sách gợi ý SỐNG đang hiện (R2-129 — parity Windows/IBus):
+     * không chiếm phím gõ; Esc đóng; Alt+1..3 áp gợi ý (trước đây phím số trần
+     * trả `false` cho app — vừa gõ chữ số vừa KHÔNG chọn được gợi ý, vì Fcitx5
+     * không tự chọn ứng viên thay engine); Enter/Tab/mũi tên/chord đóng rồi đi tiếp. */
     if (!isRelease && assistUiShowing_) {
-        if (key.sym() == FcitxKey_Escape) {
+        int live = lc_assist_live_key(static_cast<uint32_t>(key.sym()),
+                                      states.test(fcitx::KeyState::Ctrl),
+                                      states.test(fcitx::KeyState::Alt),
+                                      states.test(fcitx::KeyState::Super));
+        if (live == LC_LIVE_CLOSE) {
             clearAssistUI(st);
             return true;
         }
-        // Để Fcitx5 tự xử lý phím số 1..3 chọn ứng viên từ candidateList đang hiện
-        if (!states.test(fcitx::KeyState::Ctrl) && !states.test(fcitx::KeyState::Alt) &&
-            !states.test(fcitx::KeyState::Super) && key.sym() >= FcitxKey_1 &&
-            key.sym() <= FcitxKey_3) {
-            return false;
+        if (live >= LC_LIVE_APPLY_1) {
+            const int idx = live - LC_LIVE_APPLY_1;
+            auto list = st->ic->inputPanel().candidateList();
+            if (list && idx < list->size()) {
+                list->candidate(idx).select(st->ic);
+                assistUiShowing_ = false; /* select() đã reset input panel */
+                return true;
+            }
+            live = LC_LIVE_DISMISS;
         }
-        clearAssistUI(st);
+        if (live == LC_LIVE_DISMISS) clearAssistUI(st);
     }
 
     uint32_t mods = fcitxMods(states);
@@ -911,6 +930,12 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     if (triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
         bool isSentence = (triggerKind == IME_ASSIST_TRIGGER_SENTENCE);
         return checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0);
+    }
+    /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
+     * thì ẩn ngay, còn lỗi thì cập nhật). */
+    if (k.kind == LC_KEY_BACKSPACE && assistUiShowing_ && viEnabled_ && st->comp.len == 0 &&
+        st->inst) {
+        return checkAndApplyAssist(st, 0, false, plan.eaten != 0);
     }
 
     return plan.eaten != 0;
