@@ -26,7 +26,11 @@ pub fn format_thousands(digits: &str) -> String {
     let bytes = trimmed.as_bytes();
     let mut out = String::with_capacity(bytes.len() + bytes.len() / 3);
     for (i, &b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
+        // `% 3` thay vì `u32::is_multiple_of`: hàm đó CHƯA ổn định trên rustc
+        // 1.85 của Debian trixie (ci-deb build bằng toolchain distro) —
+        // clippy mới hơn thì gợi ý đổi, nên miễn trừ tường minh tại chỗ.
+        #[allow(clippy::manual_is_multiple_of)]
+        if i > 0 && (bytes.len() - i) % 3 == 0 {
             out.push('.');
         }
         out.push(b as char);
