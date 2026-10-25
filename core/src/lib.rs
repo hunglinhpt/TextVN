@@ -737,7 +737,15 @@ impl Engine {
             let expanded = post::r#macro::apply_macro_case(&self.word.raw, text);
             (owned, expanded)
         } else {
-            return None;
+            // OP-003 (P5): không khớp macro/emoji → thử cú pháp số tiền
+            // `=<số>(d|vnd|bc)`. Vượt MAX_TEXT khi encode → fail-open (R1-2:
+            // KHÔNG cắt cụt câu số tiền như đường macro).
+            let (sh_len, sh_str) = post::number_vn::find_number_shorthand(&self.recent)?;
+            let sh_chars: Vec<char> = sh_str.chars().collect();
+            if self.emit(&sh_chars).len() > MAX_TEXT {
+                return None;
+            }
+            (sh_len, sh_chars)
         };
         // ⚠️ `MAX_TEXT` cat SAU encode (F65): phan app nhan vao document bi cat o day,
         // nen phan Unicode cua buffer cau phai cat theo cung quy tac (chi lay chu vua du).

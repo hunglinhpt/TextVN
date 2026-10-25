@@ -601,3 +601,41 @@ fn op002_excel_formula_guard() {
     });
     assert_eq!(type_sequence(&mut e5, "x=too "), "x=tô ");
 }
+
+/// OP-003 (P5): gõ tắt số tiền `=<số>(d|vnd|bc)` + phím macro trigger →
+/// định dạng chấm phân cách / đọc bằng chữ tiếng Việt (kế toán, hợp đồng).
+#[test]
+fn op003_number_shorthand_currency_and_words() {
+    let mut e = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e, "=15450000d\t"), "15.450.000 đồng");
+    let mut e2 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e2, "=15450000vnd\t"), "15.450.000 VNĐ");
+    let mut e3 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        type_sequence(&mut e3, "=15000000bc\t"),
+        "Mười lăm triệu đồng chẵn"
+    );
+    let mut e4 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        type_sequence(&mut e4, "=125000bc\t"),
+        "Một trăm hai mươi lăm nghìn đồng chẵn"
+    );
+    // Không phải cú pháp số tiền (`=` sau chữ) → Tab đi qua nguyên văn.
+    let mut e5 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e5, "a=15d\t"), "a=15d\t");
+}

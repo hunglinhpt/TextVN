@@ -7,6 +7,7 @@
 
 pub mod caps;
 pub mod emoji;
+pub mod number_vn;
 pub mod r#macro;
 pub mod quick_telex;
 pub mod restore_en;
