@@ -1202,17 +1202,15 @@ pub fn plan_issues_from_raw(sentence: &str, raws: &[PlanIssueRaw]) -> Vec<textvn
             {
                 Some(textvn_assist::Fix::Delete { start, end })
             } else if raw.kind == IME_ASSIST_KIND_DOUBLE_SPACE {
-                let del_start = if start > 0 && chars[start - 1] == ' ' {
-                    start
-                } else if end > start + 1 && chars[start] == ' ' {
-                    start + 1
+                if start > 0 && chars[start - 1] == ' ' {
+                    Some(textvn_assist::Fix::Delete { start, end })
                 } else {
-                    start
-                };
-                Some(textvn_assist::Fix::Delete {
-                    start: del_start,
-                    end,
-                })
+                    Some(textvn_assist::Fix::Replace {
+                        start,
+                        end,
+                        text: " ".to_string(),
+                    })
+                }
             } else if raw.kind == IME_ASSIST_KIND_SPACE_AFTER_PUNCT {
                 Some(textvn_assist::Fix::Insert {
                     at: end,
@@ -2504,6 +2502,24 @@ mod tests {
         assert_eq!(plan.replacement, "đi, học.");
         let head: String = sentence.chars().take(plan.delete_from).collect();
         assert_eq!(format!("{head}{}", plan.replacement), "Tôi đi, học.");
+
+        // Synthetic span bao trùm cả chuỗi dấu cách (như AssistTests.swift trên macOS: 3..5)
+        let sentence_full_span = "Tôi  đi học.";
+        let raws_full_span = vec![PlanIssueRaw {
+            kind: IME_ASSIST_KIND_DOUBLE_SPACE,
+            start: 3,
+            end: 5,
+            auto_fixable: true,
+            confidence: 85,
+            suggest: " ".to_string(),
+        }];
+        let issues_full = plan_issues_from_raw(sentence_full_span, &raws_full_span);
+        let plan_full =
+            textvn_assist::plan_sentence_fix(sentence_full_span, &issues_full).expect("plan");
+        assert_eq!(plan_full.fixed_count, 1);
+        assert_eq!(plan_full.delete_from, 3);
+        assert_eq!(plan_full.original_tail, "  đi học.");
+        assert_eq!(plan_full.replacement, " đi học.");
     }
 
     #[test]
