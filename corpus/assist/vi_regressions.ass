@@ -63,3 +63,10 @@ Em vừa tạo an unit test mới cho module thanh toán.	article_an
 Anh tạo giúp em a issue trên hệ thống nhé.	article_an
 Hôm nay tôi đi học.Ngày mai tôi đi làm.	space_after_punct
 Em hỏi anh rồi?) mà chưa thấy phản hồi.	lowercase_sentence_start
+# --- OP-004/OP-005 (P5): cụm từ hành chính + khoảng trắng '%' ---
+# "xoay sở" là văn phạm ĐÚNG (vi_real_clean.ass:147) — KHÔNG được bêu.
+Tôi đang xoay sở để dành tiền với đồng lương ít ỏi.
+Chúng tôi xin bổ xung tài liệu và kiểm xoát tiến độ đạt 100 %.	diacritic_typo,diacritic_typo,space_before_punct
+Đơn vị xử dụng ngân sách rất chính sác sau khi sát nhập.	diacritic_typo,diacritic_typo,diacritic_typo
+Anh ấy giành thời gian ôn tập để dành chiến thắng.	diacritic_typo,diacritic_typo
+Báo cáo quý này tăng trưởng 15 % so với kế hoạch.	space_before_punct

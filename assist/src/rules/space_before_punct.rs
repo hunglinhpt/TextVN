@@ -12,7 +12,22 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if punct.kind != TokenKind::Punct {
             continue;
         }
-        if !needs_space_after(ctx.chars[punct.start]) {
+        // OP-005 (P5): khoảng trắng thừa giữa CHỮ SỐ và '%' ("100 %" →
+        // "100%") — báo cáo tài chính rất hay gõ thừa; corpus kiểm chứng
+        // không câu sạch nào dùng "số space %" (FPR = 0). Bypass gate
+        // `needs_space_after` vì '%' không nằm trong bộ dấu câu của nó.
+        // KHÔNG đòi punct.len()==1: tokenizer gộp punct cùng loại ("100 %.")
+        // thành run "%." — chỉ cần run BẮT ĐẦU bằng '%'.
+        let is_percent_after_digit = ctx.chars[punct.start] == '%'
+            && i >= 2
+            && ctx.tokens[i - 1].kind == TokenKind::Space
+            && ctx.tokens[i - 1].len() == 1
+            && ctx.chars[ctx.tokens[i - 1].start] == ' '
+            && ctx.tokens[i - 2].kind == TokenKind::Other
+            && ctx.chars[ctx.tokens[i - 2].start..ctx.tokens[i - 2].end]
+                .iter()
+                .all(|c| c.is_ascii_digit());
+        if !is_percent_after_digit && !needs_space_after(ctx.chars[punct.start]) {
             continue;
         }
         let prev = ctx.tokens[i - 1];

@@ -191,6 +191,9 @@ fn check_with_internal(
     rules::double_space::check(&ctx, &mut issues);
     rules::capitalize_sentence::check(&ctx, &mut issues);
     rules::diacritic_typo::check(&ctx, &mut issues);
+    // OP-004 (P5): cụm từ hành chính sai chính tả ("bổ xung" → "bổ sung")
+    // — chạy SAU diacritic_typo để guard overlap của rule thấy lỗi đã có.
+    rules::collocation_typo::check(&ctx, &mut issues);
     rules::sentence_repeat::check(&ctx, &mut issues);
     rules::double_negative::check(&ctx, &mut issues);
     rules::comma_at_end::check(&ctx, &mut issues);

@@ -94,3 +94,31 @@ fn office_bilingual_article_an_and_vietnamese_an_protection() {
         );
     }
 }
+
+/// OP-004 + OP-005 (P5): cụm từ hành chính sai chính tả + khoảng trắng
+/// trước '%' — sửa đúng qua `plan_sentence_fix` (đường Mode 2/FixAll).
+#[test]
+fn op004_and_op005_office_collocation_and_percent_spacing() {
+    let cases = [
+        (
+            "Chúng tôi xin bổ xung tài liệu và kiểm xoát tiến độ đạt 100 %.",
+            "Chúng tôi xin bổ sung tài liệu và kiểm soát tiến độ đạt 100%.",
+        ),
+        (
+            "Đơn vị xử dụng ngân sách rất chính sác sau khi sát nhập.",
+            "Đơn vị sử dụng ngân sách rất chính xác sau khi sáp nhập.",
+        ),
+        (
+            "Anh ấy giành thời gian ôn tập để dành chiến thắng.",
+            "Anh ấy dành thời gian ôn tập để giành chiến thắng.",
+        ),
+    ];
+    for (raw, expected) in cases {
+        let issues = check_sentence(raw);
+        assert!(!issues.is_empty(), "phải phát hiện lỗi trong: `{raw}`");
+        let plan = plan_sentence_fix(raw, &issues).unwrap_or_else(|| panic!("phải lập được kế hoạch sửa: `{raw}`"));
+        let prefix: String = raw.chars().take(plan.delete_from).collect();
+        let fixed = format!("{prefix}{}", plan.replacement);
+        assert_eq!(fixed, expected, "kết quả sửa câu `{raw}`");
+    }
+}

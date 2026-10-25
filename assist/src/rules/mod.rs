@@ -7,6 +7,7 @@
 
 pub mod article_an;
 pub mod capitalize_sentence;
+pub mod collocation_typo;
 pub mod comma_at_end;
 pub mod diacritic_typo;
 pub mod double_negative;
