@@ -18,6 +18,15 @@ pub struct Word {
     /// Có phím nào của từ được gõ khi Caps Lock bật → phím dấu viết hoa (S F R X J W Z)
     /// vẫn là phím dấu, như UniKey. Gõ hoa bằng Shift (`USA`) thì vẫn là chữ.
     pub caps_lock: bool,
+    /// OP-006 (P5): từ được nhận diện là **identifier kỹ thuật** (camelCase —
+    /// chữ hoa giữa từ như `useS` của `useState`) → phần còn lại của từ gõ
+    /// thẳng raw, KHÔNG fold ("ress" của `onPress` không thành "rés").
+    /// Nhận diện 1 lần là áp cho trọn từ (flag xoá cùng `clear()`).
+    pub identifier: bool,
+    /// Chữ đầu từ vừa bị engine **tự viết hoa** (auto-capitalize) — camel
+    /// transition không kích hoạt trên từ này ("bAn" sau dấu chấm: 'B' là
+    /// của engine, 'A' giữa từ chỉ đi qua — R1-4 bổ sung khi implement).
+    pub auto_capped: bool,
 }
 
 impl Word {
@@ -28,6 +37,8 @@ impl Word {
         self.active = false;
         self.owned = 0;
         self.caps_lock = false;
+        self.identifier = false;
+        self.auto_capped = false;
     }
 
     pub fn is_empty(&self) -> bool {

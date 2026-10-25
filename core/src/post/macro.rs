@@ -122,7 +122,11 @@ pub fn apply_macro_case(typed_trigger: &[char], expand: &str) -> Vec<char> {
     if expand_chars.iter().any(|c| c.is_uppercase()) {
         return expand_chars;
     }
-    let letters: Vec<char> = typed_trigger.iter().copied().filter(|c| c.is_alphabetic()).collect();
+    let letters: Vec<char> = typed_trigger
+        .iter()
+        .copied()
+        .filter(|c| c.is_alphabetic())
+        .collect();
     if letters.is_empty() {
         return expand_chars;
     }

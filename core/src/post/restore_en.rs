@@ -43,6 +43,100 @@ pub const STOP_EN_DATA: &str = include_str!("../../../data/stop_en.txt");
 /// đã quảng cáo "3000 từ" từ 0.2.33, bản này mới thực sự nạp đủ nguồn.
 pub const EN_FREQ_DATA: &str = include_str!("../../../data/en_freq3000.txt");
 
+/// OP-006 (P5): thuật ngữ lập trình + kinh doanh cấp **gợi ý hoàn tất từ**
+/// (`try_english_complete`: "ebit" + Tab → "EBITDA"). Case chuẩn lưu dạng hiển
+/// thị; so khớp lowercase nên người gõ "kpi" cũng khớp KPI.
+///
+/// LƯU Ý: danh sách này KHÔNG tham gia `should_restore` — heuristic hồi quy
+/// corpus đã bảo vệ các từ này đủ (`rust`→"rút", `var`→"vả" là cặp mơ hồ
+/// policy R2 giữ tiếng Việt; `target`/`margin`/`brief` fold ra âm Việt vô hiệu
+/// được nhánh `is_valid_word` trả lại raw). Ghim vào test để không ai lật.
+/// So khớp tuyến tính 1 lần/kết thúc từ — 63 mục không đáng kể.
+pub const TECH_BUSINESS_TERMS: &[&str] = &[
+    // Coder / Tech terms & keywords
+    "async",
+    "await",
+    "cargo",
+    "class",
+    "const",
+    "def",
+    "docker",
+    "export",
+    "func",
+    "graphql",
+    "impl",
+    "import",
+    "interface",
+    "javascript",
+    "kubectl",
+    "let",
+    "nginx",
+    "npm",
+    "package",
+    "printf",
+    "private",
+    "public",
+    "python",
+    "redis",
+    "return",
+    "rust",
+    "struct",
+    "typescript",
+    "var",
+    "yarn",
+    // Identifier camelCase quen thuộc — hoàn tất qua tiền tố lowercase
+    // ("uses" + Tab → "useState"): sau camel-repair từ ĐÃ active nên
+    // thỏa gate Tab của `try_english_complete` (v24: Tab chỉ cứu từ
+    // đã transform).
+    "useState",
+    "useEffect",
+    "getUser",
+    "isFetching",
+    "onPress",
+    "getElementById",
+    "querySelector",
+    "toString",
+    "parseInt",
+    // Business / Finance / Accounting terms (case chuẩn để completion)
+    "ARPU",
+    "B2B",
+    "B2C",
+    "CAC",
+    "CPC",
+    "CRM",
+    "CTR",
+    "EBITDA",
+    "ERP",
+    "GMV",
+    "KPI",
+    "LTV",
+    "OKRs",
+    "ROI",
+    "SOP",
+    "YoY",
+    "brief",
+    "budget",
+    "contract",
+    "feedback",
+    "invoice",
+    "margin",
+    "pipeline",
+    "pitch",
+    "proposal",
+    "quotation",
+    "revenue",
+    "target",
+];
+
+/// Kiểm tra một chuỗi gõ có phải thuật ngữ kỹ thuật / kinh doanh không
+/// (không phân biệt hoa/thường).
+pub fn is_tech_business_term(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    TECH_BUSINESS_TERMS
+        .iter()
+        .any(|t| t.to_lowercase() == lower)
+}
+
 /// Chuỗi gõ có nằm trong danh sách `english_words` của người dùng không?
 /// (không phân biệt hoa thường)
 fn listed(raw: &[char], english_words: &[String]) -> bool {
@@ -172,6 +266,16 @@ pub fn complete_word(
                 consider(&mut best, l);
             }
         }
+        // OP-006 (P5): thuật ngữ tech/business — "ebit" + Tab → "EBITDA",
+        // cùng guard âm-tiết-Việt như freq-scan ("cac" có thể là "các" thiếu
+        // dấu → không cướp). `consider` so prefix case-sensitive nên phải
+        // hạ lowercase trước; case chuẩn được khôi ở bước trả về cuối.
+        for t in TECH_BUSINESS_TERMS {
+            let tl = t.to_lowercase();
+            if tl.starts_with(typed_lower) {
+                consider(&mut best, &tl);
+            }
+        }
     }
     for w in english_words {
         // Từ điển cá nhân so khớp không phân biệt hoa thường (như `listed`): người
@@ -181,7 +285,17 @@ pub fn complete_word(
             consider(&mut best, &w);
         }
     }
-    best.map(|b| b.to_lowercase())
+    // OP-006: candidate từ TECH_BUSINESS_TERMS trả về **dạng chuẩn** giữ case
+    // ("EBITDA") — còn lại lowercase như cũ.
+    best.map(|b| {
+        match TECH_BUSINESS_TERMS
+            .iter()
+            .find(|t| t.to_lowercase() == b.to_lowercase())
+        {
+            Some(t) => t.to_string(),
+            None => b.to_lowercase(),
+        }
+    })
 }
 
 #[cfg(test)]
@@ -211,6 +325,37 @@ mod tests {
     fn keeps_valid_vietnamese() {
         assert!(!should_restore(&chars("duocj"), &chars("được"), &[]));
         assert!(!should_restore(&chars("hoaf"), &chars("hoà"), &[]));
+    }
+
+    /// OP-006/R2-4: thuật ngữ tech KPÍNH ra raw chính xác nhưng fold là âm tiết
+    /// Việt thông dụng/ hợp lệ → theo policy corpus cặp mơ hồ GIỮ tiếng Việt;
+    /// danh sách `TECH_BUSINESS_TERMS` chỉ cấp completion, không đè restore.
+    #[test]
+    fn op006_keep_vn_beats_tech_terms() {
+        // "rust" → "rút" (âm Việt hợp lệ, không phổ biến) vẫn KHÔNG restore.
+        assert!(!should_restore(&chars("rust"), &chars("rút"), &[]));
+        // "var" → "vả" (âm Việt thông dụng) giữ tiếng Việt.
+        assert!(!should_restore(&chars("var"), &chars("vả"), &[]));
+        // Thuật ngữ fold ra âm Việt KHÔNG hợp lệ → restore đúng.
+        assert!(should_restore(&chars("target"), &chars("tảget"), &[]));
+        assert!(should_restore(&chars("margin"), &chars("mảgin"), &[]));
+    }
+
+    /// OP-006: Tab completion tech/business giữ case chuẩn; âm Việt hợp lệ
+    /// ("cac" cơ bản) chặn toàn bộ quét mở rộng như freq-3000.
+    #[test]
+    fn op006_tech_terms_completion_keeps_case() {
+        assert_eq!(complete_word("ebi", "ebi", &[]), Some("EBITDA".to_string()));
+        assert_eq!(complete_word("kp", "kp", &[]), Some("KPI".to_string()));
+        assert_eq!(
+            complete_word("ebit", "ebit", &[]),
+            Some("EBITDA".to_string())
+        );
+        // R2-4: "cac" không khớp tiền tố thuật ngữ nào (CAC ≠ "các") → None;
+        // freq-scan cũng không có từ "cac*" trong từ điển EN.
+        assert_eq!(complete_word("cac", "cac", &[]), None);
+        // Hoàn tất yêu cầu tiền tố nghiêm ngặt — gõ đủ "kpi" không tự kéo dài.
+        assert_eq!(complete_word("kpi", "kpi", &[]), None);
     }
 
     /// R2-58: `đ` trong token không nguyên âm (giá tiền, chữ viết tắt) giữ nguyên.

@@ -14,6 +14,6 @@ pub mod vowel_table;
 // == GENERATED từ `data/tables/vowels.toml` (`cargo xtask gen-tables`) — KHÔNG sửa tay.
 pub mod vowel_table_generated;
 
-pub use charset::OutputCharset;
+pub use charset::{transcode, Charset, OutputCharset, TextCase};
 pub use diacritic_style::{pick_tone_target, DiacriticStyle};
 pub use tone::{apply_tone, is_vowel, key_to_tone, strip_tone, tone_of, tone_to_key};

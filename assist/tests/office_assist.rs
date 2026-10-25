@@ -116,7 +116,8 @@ fn op004_and_op005_office_collocation_and_percent_spacing() {
     for (raw, expected) in cases {
         let issues = check_sentence(raw);
         assert!(!issues.is_empty(), "phải phát hiện lỗi trong: `{raw}`");
-        let plan = plan_sentence_fix(raw, &issues).unwrap_or_else(|| panic!("phải lập được kế hoạch sửa: `{raw}`"));
+        let plan = plan_sentence_fix(raw, &issues)
+            .unwrap_or_else(|| panic!("phải lập được kế hoạch sửa: `{raw}`"));
         let prefix: String = raw.chars().take(plan.delete_from).collect();
         let fixed = format!("{prefix}{}", plan.replacement);
         assert_eq!(fixed, expected, "kết quả sửa câu `{raw}`");

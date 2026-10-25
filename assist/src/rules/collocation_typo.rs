@@ -136,14 +136,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                     } else {
                         (t2, &w2_orig)
                     };
-                    push_collocation_issue(
-                        ctx,
-                        bad_tok.start,
-                        bad_tok.end,
-                        &bad_orig,
-                        right,
-                        out,
-                    );
+                    push_collocation_issue(ctx, bad_tok.start, bad_tok.end, bad_orig, right, out);
                     i += 4;
                     continue;
                 }
@@ -174,7 +167,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             } else {
                 (t1, &w1_orig)
             };
-            push_collocation_issue(ctx, bad_tok.start, bad_tok.end, &bad_orig, right, out);
+            push_collocation_issue(ctx, bad_tok.start, bad_tok.end, bad_orig, right, out);
             i += 2;
             continue;
         }
@@ -206,7 +199,10 @@ mod tests {
     fn bat_cum_sai_va_giu_hoa_thuong() {
         let issues = check_sentence("Chúng tôi xin bổ xung tài liệu.");
         assert_eq!(issues.len(), 1);
-        assert_eq!(issues[0].suggestions.first().map(String::as_str), Some("sung"));
+        assert_eq!(
+            issues[0].suggestions.first().map(String::as_str),
+            Some("sung")
+        );
 
         // Viết hoa đầu câu → giữ hoa.
         let issues2 = check_sentence("Xử dụng ngân sách cần minh bạch.");

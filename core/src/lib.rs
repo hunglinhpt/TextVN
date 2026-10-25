@@ -19,7 +19,7 @@ pub use method::Method;
 pub use post::emoji::Emoji;
 pub use post::r#macro::{MacroDef, MacroTrigger, MacroWhen};
 pub use strategy::{ActionKind, Strategy};
-pub use transform::{DiacriticStyle, OutputCharset};
+pub use transform::{transcode, Charset, DiacriticStyle, OutputCharset, TextCase};
 
 /// `ime_result_v1.action` — khớp hằng số P0-2 §1.
 pub const ACTION_PASS: u32 = 0;
@@ -600,6 +600,7 @@ impl Engine {
             && post::caps::sentence_start(&self.recent)
         {
             caps_fired = true;
+            self.word.auto_capped = true; // OP-006: camel không fire trên từ này
             post::caps::capitalize(c)
         } else {
             c
@@ -608,7 +609,64 @@ impl Engine {
         if k.mods & keymap::MOD_CAPS != 0 {
             self.word.caps_lock = true;
         }
+
+        // OP-006 (P5): identifier kỹ thuật — chữ HOA giữa từ ("use" + 'S' của
+        // `useState`, "on" + 'P' của `onPress`, "Mc" + 'D' của `McDonald`).
+        // Nhận diện MỘT lần là áp cho trọn từ (word.identifier): phần còn lại
+        // ("tate", "ress") gõ thẳng raw — không identifier flag thì "ress"
+        // thành "rés" ('s' sau nguyên âm là dấu sắc). Từ đã fold thì hoàn
+        // nguyên raw trước ("úe" → "use"). auto_capped chặn từ engine vừa tự
+        // viết hoa ("bAn" sau dấu chấm — R1-4).
+        // Chỉ CẮM CỜ ở đây: việc hoàn nguyên raw làm nhánh identifier NGAY
+        // DƯỚI bằng đúng MỘT `Replace` trọn từ trong cùng phím này. Record kép
+        // trong một phím (Replace camel + Replace identifier) khiến adapter chỉ
+        // nhận action sau với `delete_count` tính theo raw trong khi document
+        // còn giữ glyph precomposed trước fold — lệch sổ ("useState": doc "úe"
+        // 2 glyph, delete 3 theo raw 3 phím) đã lọt qua test bisect OP-006.
+        if !self.word.identifier && !self.word.auto_capped && self.is_camel_case_transition(c) {
+            self.word.identifier = true;
+        }
+
         self.word.raw.push(c);
+
+        // OP-006: identifier đã nhận diện — gõ thẳng raw (không fold), đồng bộ
+        // document bằng Replace trọn từ (cơ chế như fold path nhưng
+        // display = raw, nên auto-restore ở ranh giới là no-op).
+        if self.word.identifier {
+            let raw = self.word.raw.clone();
+            if self.word.active {
+                let out = self.emit(&raw);
+                if out.len() > MAX_TEXT {
+                    self.word.raw.pop();
+                    return self.close_word(c, strategy);
+                }
+                let delete = self.word.owned as u16;
+                self.record(Tail::Replace {
+                    delete: self.word.owned,
+                    glyph: &out,
+                    unicode: &raw,
+                });
+                self.word.display = raw.clone();
+                self.word.owned = out.len();
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: delete,
+                        insert: out.clone(),
+                    },
+                    preedit: out,
+                    flags: FLAG_CONSUMED,
+                };
+            }
+            // Chưa active: các ký tự trước đã PASS — chữ này pass tiếp.
+            self.word.passed.push(c);
+            self.word.display = raw;
+            self.record(Tail::Replace {
+                delete: 0,
+                glyph: &[c],
+                unicode: &[c],
+            });
+            return Outcome::pass();
+        }
 
         let display = self.fold_current();
 
@@ -693,6 +751,19 @@ impl Engine {
             return false;
         }
         eq_idx == 0 || matches!(self.recent[eq_idx - 1], '\n' | '\t')
+    }
+
+    /// OP-006 (P5): ký tự `c` vừa gõ có tạo **ranh giới camelCase** không —
+    /// chữ in hoa NGAY SAU chữ thường trong cùng từ (`use` + 'S', `on` + 'P',
+    /// `Mc` + 'D'). Câu tiếng Việt viết hoa ĐẦU từ không bao giờ dính (raw
+    /// rỗng ở chữ đầu); acronym toàn hoa (`USA`, `NDA`) không dính ('U' hoa
+    /// trước 'S' hoa). `_`/`.`/`-` là ranh giới từ riêng nên không cần soi.
+    fn is_camel_case_transition(&self, c: char) -> bool {
+        if self.word.raw.is_empty() {
+            return false;
+        }
+        let last = *self.word.raw.last().unwrap();
+        last.is_lowercase() && c.is_uppercase()
     }
 
     /// Trigger key của macro/emoji → mở rộng text (P0-3 §1.1, `post/macro.rs`).
@@ -918,6 +989,13 @@ impl Engine {
         // active) — giải cứu từ bị Telex biến đổi nhầm. Space (append =
         // Some) theo yêu cầu vòng 24: hoàn tất cả từ đang gõ dở CHƯA biến
         // đổi (kí tự đã PASS nằm trong document — xoá bằng pending_delete).
+        // OP-006 (P5): "useS" + Tab → "useState" đi nhánh active (camel-repair
+        // đã activate từ). Từ CHƯA fold ("ebit" + Tab) KHÔNG mở gate này —
+        // Tab nhàn rỗi là indent của IDE/điều hướng ô Excel, tự động thay
+        // chữ sẽ phá workflow (plan §3 Checklist Bước 4 chỉ nghiệm thu
+        // completion qua nhánh active). Đường mở cho tiền tố chưa fold:
+        // opt-in `suggest_space_complete` ("ebit" + Space) — đúng cơ chế
+        // vòng 24, không đổi default config (P5: không lệch 15 site).
         let space_mode = append.is_some();
         if !self.word.active && !space_mode {
             return None;

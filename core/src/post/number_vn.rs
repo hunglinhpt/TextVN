@@ -26,7 +26,7 @@ pub fn format_thousands(digits: &str) -> String {
     let bytes = trimmed.as_bytes();
     let mut out = String::with_capacity(bytes.len() + bytes.len() / 3);
     for (i, &b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i) % 3 == 0 {
+        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(b as char);
@@ -82,7 +82,7 @@ pub fn read_vnd_words(digits: &str) -> Option<String> {
     let padded_len = trimmed.len().div_ceil(3) * 3;
     let pad = padded_len - trimmed.len();
     let mut full = Vec::with_capacity(padded_len);
-    full.extend(std::iter::repeat(0u8).take(pad));
+    full.extend(std::iter::repeat_n(0u8, pad));
     full.extend(trimmed.bytes().map(|b| b - b'0'));
 
     let num_groups = padded_len / 3;
@@ -132,15 +132,16 @@ pub fn find_number_shorthand(tail: &[char]) -> Option<(usize, String)> {
     }
     let token: String = tail[eq_pos + 1..].iter().collect();
     let lower = token.to_ascii_lowercase();
-    let (digits, mode) = if let Some(d) = lower.strip_suffix("vnd") {
-        (d, "vnd")
+    // (clippy::question_mark) chuỗi hậu tố suy biến qua `?` thay vì return-None
+    // rải rác: `vnd` ưu tiên trước `d` (vì `d` là tiền tố của `vnd`).
+    let matched = if let Some(d) = lower.strip_suffix("vnd") {
+        Some((d, "vnd"))
     } else if let Some(d) = lower.strip_suffix("bc") {
-        (d, "bc")
-    } else if let Some(d) = lower.strip_suffix('d') {
-        (d, "d")
+        Some((d, "bc"))
     } else {
-        return None;
+        lower.strip_suffix('d').map(|d| (d, "d"))
     };
+    let (digits, mode) = matched?;
     if digits.is_empty() || digits.len() > 12 || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
@@ -198,7 +199,10 @@ mod tests {
         assert_eq!(read_vnd_words("44").as_deref(), Some("Bốn mươi tư đồng"));
         assert_eq!(read_vnd_words("25").as_deref(), Some("Hai mươi lăm đồng"));
         // 105 = một trăm lẻ năm; 100 = một trăm đồng.
-        assert_eq!(read_vnd_words("105").as_deref(), Some("Một trăm lẻ năm đồng"));
+        assert_eq!(
+            read_vnd_words("105").as_deref(),
+            Some("Một trăm lẻ năm đồng")
+        );
         assert_eq!(read_vnd_words("100").as_deref(), Some("Một trăm đồng"));
         // 0 → "Không đồng" (trim đầu tiên; toàn số 0 cũng vậy); vượt 12 chữ
         // số / có ký tự lạ → None (fail-open).
@@ -211,8 +215,14 @@ mod tests {
     #[test]
     fn find_shorthand_mau_va_loai_tru() {
         let t = |s: &str| s.chars().collect::<Vec<char>>();
-        assert_eq!(find_number_shorthand(&t("=15450000d")), Some((10, "15.450.000 đồng".to_string())));
-        assert_eq!(find_number_shorthand(&t("=15450000vnd")), Some((12, "15.450.000 VNĐ".to_string())));
+        assert_eq!(
+            find_number_shorthand(&t("=15450000d")),
+            Some((10, "15.450.000 đồng".to_string()))
+        );
+        assert_eq!(
+            find_number_shorthand(&t("=15450000vnd")),
+            Some((12, "15.450.000 VNĐ".to_string()))
+        );
         assert_eq!(
             find_number_shorthand(&t("=15000000bc")),
             Some((11, "Mười lăm triệu đồng chẵn".to_string()))

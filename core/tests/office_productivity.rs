@@ -564,7 +564,10 @@ fn op001_case_adaptive_macro() {
         auto_capitalize: false,
         ..Default::default()
     });
-    assert_eq!(type_sequence(&mut e5, "CTY	".to_lowercase().as_str()), "Công ty TNHH");
+    assert_eq!(
+        type_sequence(&mut e5, "CTY	".to_lowercase().as_str()),
+        "Công ty TNHH"
+    );
 }
 
 /// OP-002 (P5): bảo vệ tên hàm công thức bảng tính — `=sum(...)`, `=if(...)`,
@@ -638,4 +641,55 @@ fn op003_number_shorthand_currency_and_words() {
         ..Default::default()
     });
     assert_eq!(type_sequence(&mut e5, "a=15d\t"), "a=15d\t");
+}
+
+/// OP-006 (P5): identifier `camelCase`/`PascalCase` của coder gõ trực tiếp,
+/// thuật ngữ tech/business tự khôi phục tại dấu cách; âm tiết tiếng Việt không
+/// bị cấm (phím dấu vẫn hoạt động — R2-4), tự viết hoa đầu câu không kích hoạt
+/// camel (R1-4).
+#[test]
+fn op006_coder_and_business_jargon() {
+    // camelCase/identifier: "use"+"S" nhận diện camel → phần sau gõ thẳng raw.
+    let mut e = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e, "useState "), "useState ");
+    let mut e2 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e2, "onPress "), "onPress ");
+    let mut e3 = Engine::new(EngineOptions::default());
+    assert_eq!(
+        type_sequence(&mut e3, "getElementById()"),
+        "getElementById()"
+    );
+
+    // Thuật ngữ tech/business: fold do phím dấu nằm trong tên được khôi phục.
+    let mut e4 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e4, "target "), "target ");
+    let mut e5 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e5, "margin "), "margin ");
+    let mut e6 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e6, "brief "), "brief ");
+    let mut e7 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e7, "cargo "), "cargo ");
+
+    // R2-4: âm tiết tiếng Việt THƯỜNG không bị cướp dù trùng tiền tố thuật ngữ
+    // ("cac" là CAC) — phím dấu vẫn sinh dấu bình thường.
+    let mut e8 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e8, "cacs "), "các ");
+    let mut e9 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e9, "momj "), "mọm ");
+
+    // R1-4: tự viết hoa đầu câu ('B') → camel KHÔNG fire trên từ đó ("BAn").
+    let mut e10 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e10, ". bAn "), ". BAn ");
+
+    // OP-006: Tab hoàn tất thuật ngữ tech/business giữ case chuẩn — từ sau
+    // camel-repair ĐÃ active nên đi qua gate Tab (v24): `useS` + Tab → `useState`.
+    let mut e11 = Engine::new(EngineOptions::default());
+    assert_eq!(type_sequence(&mut e11, "useS\t"), "useState");
+    // Từ CHƯA fold không được Tab cứu (indent IDE/Excel giữ nguyên — v24),
+    // nhưng opt-in `suggest_space_complete` hoàn tất được ("ebit" + Space).
+    let mut e12 = Engine::new(EngineOptions {
+        suggest_space_complete: true,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e12, "ebit "), "EBITDA ");
 }
