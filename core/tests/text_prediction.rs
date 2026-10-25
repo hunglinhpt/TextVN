@@ -167,7 +167,7 @@ fn test_predict_next_phrase_vietnamese() {
     press_key(&mut e, &mut doc, &key_for_char('\t'));
     assert_eq!(
         doc.iter().collect::<String>(),
-        "cộng hòa xã hội chủ nghĩa việt nam"
+        "cộng hòa xã hội chủ nghĩa Việt Nam"
     );
 
     // Kính gửi + Tab → quý khách hàng
@@ -301,7 +301,7 @@ fn test_ctrl_space_next_phrase_prediction() {
     press_key(&mut e, &mut doc, &key_ctrl_space());
     assert_eq!(
         doc.iter().collect::<String>(),
-        "cộng hòa xã hội chủ nghĩa việt nam"
+        "cộng hòa xã hội chủ nghĩa Việt Nam"
     );
 
     // Tiếng Anh: "Thank you " + Ctrl+Space → "Thank you very much"
@@ -331,4 +331,135 @@ fn test_ctrl_space_without_prediction_passes_without_inserting_space() {
     assert_eq!(action, Action::Pass);
     // Tuyệt đối KHÔNG chèn dấu cách vào văn bản
     assert_eq!(doc.iter().collect::<String>(), "xyz");
+}
+
+// --- R2-120 (audit P6 2026-10-25): lỗi nghiệp vụ dự đoán đã tái hiện bằng probe ---
+
+fn typed(e: &mut Engine, input: &str) -> String {
+    let mut doc = Vec::new();
+    for c in input.chars() {
+        press_key(e, &mut doc, &key_for_char(c));
+    }
+    doc.iter().collect()
+}
+
+fn predict_engine(style: textvn_core::DiacriticStyle) -> Engine {
+    Engine::new(EngineOptions {
+        method: Method::Telex,
+        suggest_vn_complete: true,
+        diacritic_style: style,
+        ..Default::default()
+    })
+}
+
+/// Ngữ cảnh nhiều từ vừa gõ xong (KHÔNG cần dấu cách) → cụm nối tiếp đi trước
+/// hoàn tất tiền tố của âm tiết cuối. Lỗi cũ: "phát triển"+Tab → "phát triển
+/// khai", "hợp đồng"+Tab → "hợp đồng ý", "Kính gửi"+Tab → chèn Tab.
+#[test]
+fn r2_120_ngu_canh_nhieu_tu_truoc_hoan_tat_tien_to() {
+    let old = textvn_core::DiacriticStyle::Old;
+    for (input, want) in [
+        ("phats trieenr\t", "phát triển phần mềm"),
+        ("hopwj ddoongf\t", "hợp đồng kinh tế"),
+        ("Kinhs guwir\t", "Kính gửi quý khách hàng"),
+        ("coongj hoaf\t", "cộng hòa xã hội chủ nghĩa Việt Nam"),
+        ("Thank you\t", "Thank you very much"),
+        // Có dấu cách vẫn như cũ.
+        ("phats trieenr \t", "phát triển phần mềm"),
+        // Từ đơn không có khoá nhiều từ → vẫn hoàn tất tiền tố.
+        ("phats\t", "phát triển"),
+    ] {
+        assert_eq!(typed(&mut predict_engine(old), input), want, "{input:?}");
+    }
+    // Duyệt vòng sau khi chốt từ: chỉ thay phần cụm, giữ "Kính gửi".
+    assert_eq!(
+        typed(&mut predict_engine(old), "Kinhs guwir\t\t"),
+        "Kính gửi ban giám đốc"
+    );
+}
+
+/// Cụm nối tiếp không thừa kế viết hoa chữ đầu của từ trước; chữ hoa chuẩn của
+/// dữ liệu (Việt Nam, tiêu ngữ) được giữ; HOA TOÀN BỘ kéo theo.
+#[test]
+fn r2_120_chu_hoa_cum_noi_tiep() {
+    let old = textvn_core::DiacriticStyle::Old;
+    for (input, want) in [
+        ("Xin \t", "Xin chào"),
+        ("Xin\t", "Xin chào"),
+        ("XIN \t", "XIN CHÀO"),
+        ("Coongj hoaf \t", "Cộng hòa xã hội chủ nghĩa Việt Nam"),
+        ("DDoocj laapj\t", "Độc lập - Tự do - Hạnh phúc"),
+    ] {
+        assert_eq!(typed(&mut predict_engine(old), input), want, "{input:?}");
+    }
+}
+
+/// Xuống dòng là ngữ cảnh mới — Tab đi qua cho app (trước đây chèn
+/// " quý khách hàng" ở đầu dòng mới).
+#[test]
+fn r2_120_khong_du_doan_qua_dong_moi() {
+    let mut e = predict_engine(textvn_core::DiacriticStyle::Old);
+    assert_eq!(typed(&mut e, "Kinhs guwir\n\t"), "Kính gửi\n\t");
+}
+
+/// Kiểu dấu mới: ngữ cảnh "hoà" khớp khoá kiểu cũ và ứng viên chèn theo kiểu
+/// người dùng (không trộn "hòa"/"hoà" trong cùng văn bản).
+#[test]
+fn r2_120_kieu_dau_moi() {
+    let new = textvn_core::DiacriticStyle::New;
+    assert_eq!(
+        typed(&mut predict_engine(new), "Coongj hoaf\t"),
+        "Cộng hoà xã hội chủ nghĩa Việt Nam"
+    );
+    assert_eq!(typed(&mut predict_engine(new), "hoaf\t"), "hoài");
+}
+
+/// Đang duyệt vòng ứng viên: Tab kế tiếp đổi ứng viên — kể cả khi phím Tab
+/// cũng là phím gõ tắt và đuôi ứng viên trùng một trigger gõ tắt.
+#[test]
+fn r2_120_duyet_vong_uu_tien_hon_go_tat() {
+    let mut e = Engine::new(EngineOptions {
+        method: Method::Telex,
+        suggest_vn_complete: true,
+        macro_trigger: textvn_core::MacroTrigger::Tab,
+        macros: vec![textvn_core::MacroDef {
+            trigger: "triển".into(),
+            expand: "SAI".into(),
+            when: textvn_core::MacroWhen::Always,
+        }],
+        ..Default::default()
+    });
+    assert_eq!(typed(&mut e, "phats\t\t"), "phát sinh");
+}
+
+/// Ctrl+Space không khớp dự đoán: bỏ quyền sở hữu từ (WORD_END — adapter chốt
+/// composition) nhưng giữ buffer câu cho trợ lý ngữ pháp on-demand (R2-121).
+#[test]
+fn r2_121_ctrl_space_khong_khop_nha_tu_giu_cau() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+    for c in "tooi ddi hocj".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    let out = e.key(&key_ctrl_space());
+    assert_eq!(out.action, Action::Pass);
+    assert_ne!(out.flags & textvn_core::FLAG_WORD_END, 0);
+    assert_eq!(e.sentence_tail(64), "tôi đi học");
+    // Phím dấu kế tiếp KHÔNG được sửa lại từ "học" đã nhả (chord semantics).
+    let out = e.key(&key_for_char('s'));
+    assert_eq!(out.action, Action::Pass);
+}
+
+/// VN tắt: Ctrl+Space không ghi dấu cách ảo vào đuôi text.
+#[test]
+fn r2_121_ctrl_space_khi_tat_tieng_viet_khong_ghi_cach_ao() {
+    let mut e = Engine::new(EngineOptions {
+        enabled: false,
+        ..Default::default()
+    });
+    for c in "abc".chars() {
+        e.key(&key_for_char(c));
+    }
+    assert_eq!(e.key(&key_ctrl_space()).action, Action::Pass);
+    assert_eq!(e.sentence_tail(64), "");
 }

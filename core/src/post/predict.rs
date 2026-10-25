@@ -16,6 +16,35 @@
 use crate::post::restore_en::{EN_COMMON_DATA, EN_FREQ_DATA, TECH_BUSINESS_TERMS};
 use crate::post::suggest_vn::VN_FREQ_DATA;
 use crate::transform::charset::strip_diacritics;
+use crate::transform::tone::normalize_tone;
+use crate::transform::DiacriticStyle;
+
+/// Đặt lại dấu thanh từng từ theo `style` (`hòa` ↔ `hoà`, `thủy` ↔ `thuỷ`).
+///
+/// Dữ liệu dự đoán viết theo **kiểu cũ**; người dùng chọn kiểu mới thì ngữ cảnh
+/// gõ ra là `hoà` — phải đưa về cùng kiểu mới so khớp được, và ứng viên chèn
+/// vào phải theo kiểu người dùng (không trộn hai kiểu trong một văn bản).
+pub fn restyle(text: &str, style: DiacriticStyle) -> String {
+    fn flush(word: &mut Vec<char>, out: &mut String, style: DiacriticStyle) {
+        if !word.is_empty() {
+            normalize_tone(word, style);
+            out.extend(word.iter());
+            word.clear();
+        }
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut word: Vec<char> = Vec::new();
+    for c in text.chars() {
+        if c.is_alphabetic() {
+            word.push(c);
+        } else {
+            flush(&mut word, &mut out, style);
+            out.push(c);
+        }
+    }
+    flush(&mut word, &mut out, style);
+    out
+}
 
 /// Danh sách từ ghép tiếng Việt thông dụng (văn phòng, công nghệ, hành chính).
 pub const VN_COMPOUNDS_DATA: &str = include_str!("../../../data/vn_compounds.txt");
@@ -53,6 +82,17 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         .into_iter()
         .collect();
     let typed_has_diacritics = typed_lower != typed_unaccented;
+    // Dữ liệu viết kiểu dấu cũ: "hoà" (kiểu mới) phải khớp "hòa bình".
+    // Tiền tố gõ dở đặt dấu khác vị trí với từ đầy đủ ("hòa" kiểu cũ là tiền
+    // tố "hoài" chỉ khi đặt kiểu mới "hoà") → so cả hai kiểu.
+    let typed_old = restyle(typed_lower, DiacriticStyle::Old);
+    let typed_new = restyle(typed_lower, DiacriticStyle::New);
+    let starts = |w: &str| {
+        w.starts_with(typed_lower)
+            || w.starts_with(typed_old.as_str())
+            || w.starts_with(typed_new.as_str())
+    };
+    let same = |w: &str| w == typed_lower || w == typed_old || w == typed_new;
 
     // 1. Nếu đang ở mode tiếng Việt hoặc chuỗi gõ có dấu tiếng Việt
     if is_vi {
@@ -63,10 +103,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
             if syll.is_empty() || syll.starts_with('#') {
                 continue;
             }
-            if syll.starts_with(typed_lower)
-                && syll != typed_lower
-                && !ranked.iter().any(|c| c.word == syll)
-            {
+            if starts(syll) && !same(syll) && !ranked.iter().any(|c| c.word == syll) {
                 ranked.push(PrefixCandidate {
                     word: syll.to_string(),
                     exact_match: true,
@@ -89,11 +126,11 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
                 .and_then(|w| w.trim().parse().ok())
                 .unwrap_or(50);
 
-            if word.is_empty() || word == typed_lower {
+            if word.is_empty() || same(word) {
                 continue;
             }
 
-            let matches_accented = word.starts_with(typed_lower);
+            let matches_accented = starts(word);
             // Chỉ khớp không dấu nếu người dùng chưa gõ dấu
             let matches_unaccented =
                 if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
@@ -205,86 +242,43 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
 /// Trả về danh sách ứng viên cụm từ tiếp theo (tối đa `limit`), xếp theo độ dài khóa ngữ cảnh
 /// giảm dần (trigram trước bigram) và trọng số `weight`.
 pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<String> {
-    let trimmed = context_tail.trim();
+    predict_next_phrase_matches(context_tail, limit)
+        .into_iter()
+        .map(|m| m.prediction.to_string())
+        .collect()
+}
+
+/// Một ứng viên cụm từ tiếp theo kèm **số từ của khoá ngữ cảnh** đã khớp.
+///
+/// `key_words >= 2` = ngữ cảnh nhiều từ ("phát triển", "kính gửi") — tín hiệu
+/// mạnh hơn hoàn tất tiền tố của riêng âm tiết cuối (engine dùng để quyết định
+/// thứ tự Tab: `phát triển`+Tab phải ra "phần mềm", không phải "triển khai").
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PhraseMatch {
+    pub prediction: &'static str,
+    pub key_words: usize,
+}
+
+/// Như [`predict_next_phrase_candidates`] nhưng trả kèm số từ của khoá khớp.
+///
+/// Ngữ cảnh kết thúc bằng **xuống dòng** (`"Kính gửi\n"`) là dòng mới — không
+/// dự đoán nối tiếp dòng trên (trước đây chèn `" quý khách hàng"` đầu dòng mới).
+pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<PhraseMatch> {
+    let trimmed_end = context_tail.trim_end_matches([' ', '\t']);
+    if trimmed_end.ends_with(['\n', '\r']) {
+        return Vec::new();
+    }
+    let trimmed = trimmed_end.trim_start();
     if trimmed.is_empty() || limit == 0 {
         return Vec::new();
     }
-    let context_lower = trimmed.to_lowercase();
+    // Khoá dữ liệu viết kiểu dấu cũ — "cộng hoà" (kiểu mới) vẫn khớp "cộng hòa".
+    let context_lower = restyle(&trimmed.to_lowercase(), DiacriticStyle::Old);
 
-    // Cấu trúc tạm để chứa (key_len, weight, prediction)
-    let mut matches: Vec<(usize, u32, &str)> = Vec::new();
-
-    // 1. Quét ngữ cảnh tiếng Việt
-    for line in VN_PHRASES_DATA.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            let key = parts[0].trim();
-            let pred = parts[1].trim();
-            let weight: u32 = parts.get(2).and_then(|w| w.parse().ok()).unwrap_or(50);
-            if context_lower.ends_with(key) {
-                // Đảm bảo ranh giới từ ở đầu key nếu context dài hơn key
-                let matched_boundary = if context_lower.len() == key.len() {
-                    true
-                } else {
-                    let prefix_len = context_lower.len() - key.len();
-                    context_lower
-                        .as_bytes()
-                        .get(prefix_len - 1)
-                        .is_none_or(|&b| {
-                            b == b' '
-                                || b == b'.'
-                                || b == b','
-                                || b == b'!'
-                                || b == b'?'
-                                || b == b'\n'
-                        })
-                };
-
-                if matched_boundary {
-                    matches.push((key.len(), weight, pred));
-                }
-            }
-        }
-    }
-
-    // 2. Quét ngữ cảnh tiếng Anh
-    for line in EN_PHRASES_DATA.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 2 {
-            let key = parts[0].trim();
-            let pred = parts[1].trim();
-            let weight: u32 = parts.get(2).and_then(|w| w.parse().ok()).unwrap_or(50);
-            if context_lower.ends_with(key) {
-                let matched_boundary = if context_lower.len() == key.len() {
-                    true
-                } else {
-                    let prefix_len = context_lower.len() - key.len();
-                    context_lower
-                        .as_bytes()
-                        .get(prefix_len - 1)
-                        .is_none_or(|&b| {
-                            b == b' '
-                                || b == b'.'
-                                || b == b','
-                                || b == b'!'
-                                || b == b'?'
-                                || b == b'\n'
-                        })
-                };
-
-                if matched_boundary {
-                    matches.push((key.len(), weight, pred));
-                }
-            }
-        }
+    // (độ dài khoá, trọng số, dự đoán, số từ của khoá)
+    let mut matches: Vec<(usize, u32, &'static str, usize)> = Vec::new();
+    for data in [VN_PHRASES_DATA, EN_PHRASES_DATA] {
+        collect_phrase_matches(data, &context_lower, &mut matches);
     }
 
     // Xếp theo: key_len lớn hơn (trigram > bigram) -> weight cao hơn
@@ -292,9 +286,12 @@ pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<S
 
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::with_capacity(limit);
-    for (_, _, pred) in matches {
+    for (_, _, pred, key_words) in matches {
         if seen.insert(pred) {
-            out.push(pred.to_string());
+            out.push(PhraseMatch {
+                prediction: pred,
+                key_words,
+            });
             if out.len() >= limit {
                 break;
             }
@@ -303,21 +300,84 @@ pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<S
     out
 }
 
+/// Quét một bảng TSV `context \t prediction \t weight` — khoá phải khớp đuôi
+/// ngữ cảnh **trọn từ** (trước khoá là đầu chuỗi / khoảng trắng / dấu câu).
+fn collect_phrase_matches(
+    data: &'static str,
+    context_lower: &str,
+    out: &mut Vec<(usize, u32, &'static str, usize)>,
+) {
+    for line in data.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut parts = line.split('\t');
+        let (Some(key), Some(pred)) = (parts.next(), parts.next()) else {
+            continue;
+        };
+        let (key, pred) = (key.trim(), pred.trim());
+        if key.is_empty() || pred.is_empty() || !context_lower.ends_with(key) {
+            continue;
+        }
+        let weight: u32 = parts
+            .next()
+            .and_then(|w| w.trim().parse().ok())
+            .unwrap_or(50);
+        // Ranh giới từ ở đầu khoá (byte trước khoá; ký tự nhiều byte có byte
+        // cuối là continuation byte nên không bao giờ trùng các byte ASCII này).
+        let prefix_len = context_lower.len() - key.len();
+        let matched_boundary = prefix_len == 0
+            || matches!(
+                context_lower.as_bytes()[prefix_len - 1],
+                b' ' | b'.' | b',' | b'!' | b'?' | b'\n' | b'\t' | b'(' | b'"' | b':'
+            );
+        if matched_boundary {
+            out.push((key.len(), weight, pred, key.split_whitespace().count()));
+        }
+    }
+}
+
+/// Chữ hoa/thường của **cụm nối tiếp** (next-phrase) theo từ đứng trước.
+///
+/// Khác [`adapt_capitalization`] (hoàn tất chính từ đang gõ): cụm nối tiếp là
+/// từ **khác** — từ trước viết hoa chữ đầu (đầu câu "Xin", "Best", tiêu đề)
+/// KHÔNG được làm cụm sau viết hoa ("Xin Chào", "Best Regards" sai chính tả).
+/// Chỉ từ trước viết **HOA TOÀN BỘ** (≥ 2 chữ cái — "CỘNG HÒA", không phải
+/// đại từ "I") mới kéo cụm sau thành chữ hoa (quốc hiệu, tiêu đề văn bản).
+/// Còn lại giữ nguyên chữ hoa/thường chuẩn trong dữ liệu ("Việt Nam").
+pub fn adapt_continuation_case(prev_word: &str, text: &str) -> String {
+    if is_all_caps_word(prev_word) {
+        text.to_uppercase()
+    } else {
+        text.to_string()
+    }
+}
+
+/// Từ viết hoa toàn bộ, có ít nhất 2 chữ cái ("HD", "PHÁT" — không phải "I", "A").
+fn is_all_caps_word(word: &str) -> bool {
+    let mut letters = 0usize;
+    for c in word.chars().filter(|c| c.is_alphabetic()) {
+        if !c.is_uppercase() {
+            return false;
+        }
+        letters += 1;
+    }
+    letters >= 2
+}
+
 /// Khôi phục chữ hoa/thường theo mẫu gõ gốc.
 ///
 /// - Nếu mẫu gốc viết hoa chữ cái đầu (`"Phát"`, `"Thank"`) → viết hoa chữ cái đầu kết quả (`"Phát triển"`, `"Thank you"`).
-/// - Nếu mẫu gốc viết hoa toàn bộ (`"PHÁT"`, `"THANK"`) → viết hoa toàn bộ kết quả.
-/// - Ngược lại giữ nguyên chữ thường.
+/// - Nếu mẫu gốc viết hoa toàn bộ (`"PHÁT"`, `"THANK"`; ≥ 2 chữ cái) → viết hoa toàn bộ kết quả.
+/// - Ngược lại giữ nguyên chữ hoa/thường chuẩn của ứng viên.
 pub fn adapt_capitalization(sample: &str, text: &str) -> String {
     if sample.is_empty() || text.is_empty() {
         return text.to_string();
     }
     let first_sample = sample.chars().next().unwrap();
-    let is_all_upper = sample
-        .chars()
-        .all(|c| !c.is_alphabetic() || c.is_uppercase());
 
-    if is_all_upper && sample.chars().any(|c| c.is_alphabetic()) {
+    if is_all_caps_word(sample) {
         text.to_uppercase()
     } else if first_sample.is_uppercase() {
         let mut chars = text.chars();
@@ -363,7 +423,17 @@ mod tests {
     fn test_predict_next_phrase_vietnamese() {
         let preds = predict_next_phrase_candidates("cộng hòa", 3);
         assert!(!preds.is_empty());
-        assert_eq!(preds[0], "xã hội chủ nghĩa việt nam");
+        assert_eq!(preds[0], "xã hội chủ nghĩa Việt Nam");
+        // Kiểu dấu mới ("hoà") khớp khoá kiểu cũ ("hòa").
+        assert_eq!(
+            predict_next_phrase_candidates("Cộng hoà", 1),
+            vec!["xã hội chủ nghĩa Việt Nam".to_string()]
+        );
+        assert_eq!(
+            restyle("hòa bình thủy", DiacriticStyle::New),
+            "hoà bình thuỷ"
+        );
+        assert_eq!(restyle("hoà, thuỷ", DiacriticStyle::Old), "hòa, thủy");
 
         let preds_kinh = predict_next_phrase_candidates("kính gửi", 3);
         assert!(!preds_kinh.is_empty());
@@ -391,5 +461,34 @@ mod tests {
         assert_eq!(adapt_capitalization("Phát", "phát triển"), "Phát triển");
         assert_eq!(adapt_capitalization("PHÁT", "phát triển"), "PHÁT TRIỂN");
         assert_eq!(adapt_capitalization("Thank", "very much"), "Very much");
+    }
+
+    /// R2-120: cụm nối tiếp không thừa kế "viết hoa chữ đầu" của từ trước
+    /// ("Xin" đầu câu → "Xin chào", không "Xin Chào"); chỉ HOA TOÀN BỘ (≥2
+    /// chữ cái) mới kéo theo; chữ hoa chuẩn trong dữ liệu ("Việt Nam") giữ.
+    #[test]
+    fn cum_noi_tiep_giu_chu_hoa_chuan() {
+        assert_eq!(adapt_continuation_case("Xin", "chào"), "chào");
+        assert_eq!(adapt_continuation_case("Best", "regards"), "regards");
+        assert_eq!(adapt_continuation_case("XIN", "chào"), "CHÀO");
+        assert_eq!(adapt_continuation_case("I", "hope"), "hope");
+        assert_eq!(
+            adapt_continuation_case("hòa", "xã hội chủ nghĩa Việt Nam"),
+            "xã hội chủ nghĩa Việt Nam"
+        );
+        assert_eq!(adapt_capitalization("I", "it"), "It");
+    }
+
+    /// R2-120: xuống dòng = ngữ cảnh mới — không dự đoán nối dòng trên.
+    #[test]
+    fn khong_du_doan_qua_dong_moi() {
+        assert!(predict_next_phrase_candidates("kính gửi\n", 3).is_empty());
+        assert!(predict_next_phrase_candidates("kính gửi\r\n  ", 3).is_empty());
+        assert!(!predict_next_phrase_candidates("kính gửi  ", 3).is_empty());
+        let m = predict_next_phrase_matches("ông phát triển", 3);
+        assert_eq!(m[0].key_words, 2);
+        assert_eq!(predict_next_phrase_matches("xin", 1)[0].key_words, 1);
+        // Ranh giới trọn từ: "toàn" không khớp khoá "an toàn" trong "bàn toàn".
+        assert!(predict_next_phrase_candidates("ban toàn", 3).is_empty());
     }
 }

@@ -1,7 +1,7 @@
 # Ngữ cảnh tiếng Việt (Next-Word / Phrase Prediction - P6)
 # context_lower	predicted_phrase	weight
-cộng hòa	xã hội chủ nghĩa việt nam	100
-độc lập	tự do hạnh phúc	100
+cộng hòa	xã hội chủ nghĩa Việt Nam	100
+độc lập	- Tự do - Hạnh phúc	100
 kính gửi	quý khách hàng	100
 kính gửi	ban giám đốc	95
 kính gửi	quý công ty	90
