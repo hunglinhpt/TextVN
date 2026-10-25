@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792872125.520164,
-    "seen": 1792875094.952973,
-    "ast_hash": "2788d2c7dfb066a31f333f96c12ff488",
+    "mtime": 1792892899.0219717,
+    "seen": 1792893063.1141129,
+    "ast_hash": "8029d9801201b2d028e2801eaf73a795",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1792873231.3172214,
-    "seen": 1792875094.953521,
-    "ast_hash": "b878a4ca212b93c8c29d0212f3df6db6",
+    "mtime": 1792892572.0159428,
+    "seen": 1792893063.1151133,
+    "ast_hash": "7695d19ebe7d99eb558e435d066a6c40",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
@@ -2814,9 +2814,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/selection_check.rs": {
-    "mtime": 1792873739.6055644,
-    "seen": 1792875094.953521,
-    "ast_hash": "1a67f4cf2b18ad9605d9ca7a90622444",
+    "mtime": 1792892955.792488,
+    "seen": 1792893063.1151133,
+    "ast_hash": "4698338c3b93699e54256ca852cc2444",
     "semantic_hash": ""
   }
 }
