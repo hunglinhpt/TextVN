@@ -42,7 +42,20 @@ Audit theo yêu cầu chủ repo ("audit sâu nghiệp vụ, technical, test end
 | R2-129 | major | Chủ repo: "popup cần hiện nhanh nhất hoặc ẩn đi nhanh nhất theo tình trạng câu đúng sai" — popup chỉ hiện ở dấu `. ! ?`, tắt ở phím kế tiếp dù câu còn sai; popup tự hiện nuốt Enter để "sửa" (người dùng muốn xuống dòng) | Thiết kế D11 cũ chỉ hiển thị ở điểm kết thúc câu; mọi phím khác Dismiss | **Popup sống**: kiểm tra ở mỗi ranh giới từ (space , ; :) và Backspace khi popup đang hiện — câu sai hiện/cập nhật ngay tại caret, câu đúng ẩn ngay; popup sống **không chiếm phím** (gõ chữ giữ popup, Enter/Tab/mũi tên tới app và đóng popup; Esc đóng; Alt+1…3 áp gợi ý; Ctrl+Space chuyển sang chế độ chọn-sửa ↑/↓/Tab/Enter) · `PopupKind` + `overlay_action_for` + test · E2E |
 | R2-130 | major | Chủ repo: "trước khi cài bản mới cần scan bản cũ có tồn tại hay không, gỡ sạch khi cài bản mới" | R2-124 mới gỡ bản per-user khi cài bản máy; nâng cấp cùng phạm vi ghi đè tại chỗ, để lại file bản cũ (dữ liệu đổi tên, `data\assist\*.dic` ngừng phát hành, `textvn_ffi.dll`) | Quét + log bản cùng phạm vi (`LogSameScopeInstall`); `[InstallDelete]` dọn trọn `{app}\data`, `{app}\resources`, file đã bỏ trước khi chép (giữ đăng ký bộ gõ + cấu hình — không chạy trình gỡ cùng phạm vi vì nó huỷ bộ gõ, cài im lặng không đăng ký lại); cài per-user khi có bản máy: hỏi rồi gỡ bằng UAC (`ShellExec runas`), cài im lặng thì dừng · CI kịch bản file cũ giả |
 
-**Chưa làm (ghi nhận, không phải lỗi hồi quy):** popup sống R2-129 mới có ở **Windows** (macOS dùng bảng candidate của IMK, Linux dùng candidate list — D30; parity hành vi hiện/ẩn theo câu là việc vòng sau) · Linux chưa có trợ lý **on-demand** qua Ctrl+Space (chỉ có dự đoán; Ctrl+Space không khớp thì tới app như chord) · chưa có **ghost text** (xem trước ứng viên mờ trước khi nhấn Tab, kiểu Grammarly/Copilot) — cần UI overlay riêng từng OS · macOS: Ctrl+Space mặc định là phím tắt hệ thống *Chọn nguồn nhập trước* (IMK không nhận được nếu người dùng chưa tắt).
+**Parity macOS/Linux (2026-10-26, chủ repo: "rà soát làm tương tự cho Linux và macOS"):**
+
+| Hạng mục | Windows | macOS (IMK candidate panel) | Linux (IBus lookup table / Fcitx5 candidate list) |
+|---|---|---|---|
+| R2-129 hiện/ẩn theo câu | overlay sống | `processAssist` hiển thị ở MỌI điểm kiểm tra (ranh giới từ + kết thúc câu), ẩn khi câu sạch/quá ngắn; Backspace khi bảng đang hiện → kiểm tra lại | `lc_assist_should_display` hiện ở mọi điểm kiểm tra; ẩn khi câu sạch/quá ngắn/không còn gợi ý; Backspace → kiểm tra lại (IBus + Fcitx5) |
+| Không chiếm phím gõ | `PopupKind::Live` | bảng IMK vốn không nhận phím (không chuyển phím vào panel) — chọn bằng chuột | `lc_assist_live_key` (hàm thuần dùng chung): gõ chữ giữ danh sách; Esc đóng; **Alt+1..3** áp gợi ý (trước đây phím số trần 1..3: IBus nuốt để áp — gõ "giá 100" áp nhầm; Fcitx5 trả `false` → vừa gõ số vừa KHÔNG chọn được vì Fcitx5 không tự chọn ứng viên thay engine); phím khác đóng rồi đi tiếp |
+| R2-126 không toast phát hiện | bỏ `notify_detected` | menu bar app chỉ ghi log `AssistReport` (không thông báo); báo IPC chỉ ở kết thúc câu/on-demand | không có tiến trình nhận IPC trên Linux |
+| Tray (`textvn-tray`) | `assist::decide` chỉ toast khi `auto_fixed > 0` (trước đây toast cả phát hiện — vòng 29) | — | — |
+| R2-128 xoá vượt vùng đang soạn | nới composition | `ApplyReplace` thu marked rồi `deleteBackward` — không có giới hạn kiểu TSF | preedit không nằm trong document; `delete_surrounding_text` xoá text đã commit — không cần sửa |
+| R2-125/R2-127 neo + vẽ panel | sửa | panel do IMK vẽ | panel do IBus/Fcitx5 vẽ |
+
+Test: `test_compose.c` (`lc_assist_should_display`/`lc_assist_live_key`), `e2e_ibus.c` (danh sách hiện ở ranh giới từ, phím số trần vẫn là gõ số, câu sạch không hiện), tray `only_auto_fix_shows_a_toast` — C/Swift xác thực trên `ci-linux`/`ci-macos`.
+
+**Chưa làm (ghi nhận, không phải lỗi hồi quy):** Linux chưa có trợ lý **on-demand** qua Ctrl+Space (chỉ có dự đoán; Ctrl+Space không khớp thì tới app như chord) · chưa có **ghost text** (xem trước ứng viên mờ trước khi nhấn Tab, kiểu Grammarly/Copilot) — cần UI overlay riêng từng OS · macOS: Ctrl+Space mặc định là phím tắt hệ thống *Chọn nguồn nhập trước* (IMK không nhận được nếu người dùng chưa tắt).
 
 ## 3. Kiểm chứng
 

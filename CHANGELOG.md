@@ -51,7 +51,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   dụng từ chối sửa phần chữ trước vùng đang soạn nên bỏ qua im lặng.
 - **Panel sống theo câu** (R2-129): câu sai hiện panel ngay ở dấu cách/dấu phẩy,
   sửa xong ẩn ngay; panel không chiếm phím gõ (Enter vẫn xuống dòng); Ctrl + Space
-  để chọn và sửa bằng phím.
+  để chọn và sửa bằng phím. **macOS và Linux cùng hành vi**; Linux chọn gợi ý bằng
+  **Alt + 1…3** (trước đây phím số trần — gõ "giá 100" có thể áp nhầm gợi ý, và
+  trên Fcitx5 phím số không chọn được gợi ý). Tray Windows chỉ còn toast khi đã
+  tự sửa (không toast "phát hiện lỗi").
 - **Bộ cài quét và dọn bản cũ** (R2-130): nâng cấp tại chỗ dọn sạch file của bản
   cũ (dữ liệu đổi tên, từ điển ngừng phát hành, DLL cũ) mà giữ cài đặt và bộ gõ;
   cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ bằng quyền quản trị.
@@ -76,7 +79,10 @@ for the sentence and issue list, R2-127); macros/money shorthand that reach befo
 the composing text work in Notepad/Word (TSF `TF_E_RANGE_NOT_COVERED`, the
 composition is now extended instead, R2-128); the panel is "live" — shown as soon
 as the sentence has an error, hidden as soon as it is fixed, never stealing typing
-keys, Ctrl+Space to navigate and apply (R2-129); in-place upgrades remove the old
+keys, Ctrl+Space to navigate and apply (R2-129) — same behaviour on macOS and Linux,
+where suggestions are now applied with Alt+1..3 instead of bare digits (bare digits
+type digits again; on Fcitx5 they never selected anything); the tray only toasts
+after an auto-fix; in-place upgrades remove the old
 version's leftover files and the per-user installer can remove an all-users install
 with UAC (R2-130). Real-app E2E: 28/28 (`tools/win/e2e-assist-p6.ps1`).
 

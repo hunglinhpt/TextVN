@@ -234,8 +234,11 @@ dấu cách/dấu phẩy kế tiếp, sửa xong (kể cả bằng Backspace) th
 tên đi tới ứng dụng. Sửa bằng phím: **Ctrl + Space** (chuyển sang chọn lỗi
 ↑/↓ hoặc Tab, Enter để sửa), **Alt + 1…3** áp gợi ý thứ n, **Esc** đóng. Chữ
 trong panel to hơn để dễ đọc.
-**macOS**: danh sách gợi ý trong bảng candidate của IMK. **Linux** (IBus/
-Fcitx5): danh sách gợi ý trong bảng candidate + dòng phụ "Trợ lý TextVN".
+**macOS**: danh sách gợi ý trong bảng candidate của IMK (bấm chuột để chọn).
+**Linux** (IBus/Fcitx5): danh sách gợi ý trong bảng candidate + dòng phụ "Trợ
+lý TextVN"; chọn gợi ý bằng **Alt + 1…3** (phím số trần là gõ số), **Esc** đóng.
+Cả hai cũng **sống theo câu** như Windows: hiện khi câu đang sai, ẩn khi đã đúng,
+không chiếm phím gõ.
 Không muốn thấy gợi ý, chọn Chế độ = *Tắt* (Windows thêm công tắc nhanh ở
 khay hệ thống).
 
