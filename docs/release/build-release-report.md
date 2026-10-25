@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.44 — audit sâu 3 lượt trợ lý ngữ pháp (khoá FP cuối)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | 3 vòng audit dòng-từng-dòng (pass-1 core+wiring 2 agent song song: 1 CRITICAL + 2 HIGH + 4 MEDIUM + 3 LOW core / 2 MAJOR + 8 MINOR + 1 INFO wiring; pass-2 đối kháng trên diff; pass-3 spot-check + docs). Khá nổi: **L9 sentence_repeat TẮT** (bêu văn phạm đúng "cho anh. Anh xem" — recall 0 row), **1.061 âm tiết Việt ASCII** nhận diện tiếng Việt thiếu dấu (a/an hết đụng "an toan"), a/an exception theo GỐC (hour\*/honor\*/heir\*/honest\*/honour\* + /juː/: unicode/euphemism/ukulele), số gộp **11xx/18xx**, 31 extension file mask, ngoặc cong “ ”, ĐH./TP., double-space trước `#`, Fcitx5 fresh-install ON, R2-28 global-AND-override đồng bộ 3 OS, gate <3 từ parity macOS/Linux, DPI panel assist (GetDpiForWindow + WM_DPICHANGED), check chỉ ở sentence-end (bỏ waste Word-trigger), E29 (FFI cut UTF-8 boundary + DOUBLE_SPACE/SPACE_AFTER_PUNCT plan) + E30 (recheck popup bấm tiếp được + FixAll đủ 8 lỗi) đăng ký `project-common-errors` |
+| Đo | VI **0/981 FP** recall 83,7 % · EN **0/295 FP** recall 31/31 · 43 probe adversarial sạch · **701 test** (tăng từ 674) · clippy -D warnings 0 · preflight 23/23 · ime_key p50 4,2 µs / p99 10,2 µs (budget 500 µs) |
+| CI trên commit gắn tag b7d110c4 | 7/7 xanh (ci-shared, ci-linux, ci-windows, ci-macos, ci-deb, ci-aur, repo-hygiene) |
+| Release | v0.2.44 tag ký GPG — release-candidate [#40162813369](https://github.com/hunglinhpt/TextVN/actions/runs/40162813369) 4/4 job; **34 asset** |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`), 9/9 hash khớp file tải về |
+| Checksums | machine exe `302c0832…d748` · setup exe `46bd16cf…698a` · MSIX `c8239148…723d` · portable `dd64c976…6c75` · Linux `e1bb9850…1e0ef` · mac zip `a59fc327…65fb` · mac tar.gz `6cbad4b7…0685` · pkg `84037296…a6c6` · PKGBUILD archive `77335ab0…4f8fb` |
+| Homebrew (B7b) | cask `version "0.2.44"` + `sha256` = mac zip `a59fc327…65fb` — sync-cask [#40163734087](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40163734087) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.44 `77335ab0…4f8fb` |
+| PPA (B7f) | debian/changelog `0.2.44-0ppa1` |
+| approved (B7c) | `approved/v0.2.44/` — 34 file byte-identical (SHA256SUMS raw hash trùng khớp), raw URL 200 |
+
 ## Bản 0.2.43 — Enter trên popup vùng bôi đen áp Sửa-tất-cả (audit v30 F6 — finding LOW cuối)
 
 | Hạng mục | Bằng chứng |
