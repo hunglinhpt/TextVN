@@ -72,15 +72,15 @@
     "semantic_hash": ""
   },
   "core/src/keymap.rs": {
-    "mtime": 1790641184.7863052,
-    "seen": 1790741385.9529593,
-    "ast_hash": "58342f503c72f31e0caf2c4fa41e7ee7",
+    "mtime": 1792937200.826224,
+    "seen": 1792938673.4640648,
+    "ast_hash": "264f68b5a5fe58e509a97aa79d405c32",
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1792936117.4618993,
-    "seen": 1792936382.9374366,
-    "ast_hash": "3c295ca71292e088641fd99943f191a8",
+    "mtime": 1792938274.8721454,
+    "seen": 1792938673.4640648,
+    "ast_hash": "4f447cb04436bcad0ccfdb9e9a16f41d",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1792936291.8239396,
-    "seen": 1792936382.966472,
-    "ast_hash": "f15baf31d214f8807e004be99e77fb21",
+    "mtime": 1792938549.0205357,
+    "seen": 1792938673.4876137,
+    "ast_hash": "c6e19fc4f55502e4b64fc8aa6141c319",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792898460.1525826,
-    "seen": 1792899498.7132995,
-    "ast_hash": "586cb5227dcea38b24627c1f974c3049",
+    "mtime": 1792938274.7175338,
+    "seen": 1792938673.459011,
+    "ast_hash": "86cb16dc8f8e37085db7b884149ca570",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1792917642.8023524,
-    "seen": 1792919822.6502204,
-    "ast_hash": "e568756532290fec21e471bf15bbff97",
+    "mtime": 1792937925.5085535,
+    "seen": 1792938673.4600308,
+    "ast_hash": "acaaf61218191e4b6e68dc2a414e05f8",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
@@ -1518,9 +1518,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/compose.rs": {
-    "mtime": 1791617098.2691991,
-    "seen": 1791702628.178543,
-    "ast_hash": "ab7c390149d64c3a581ee84d7dce12ec",
+    "mtime": 1792938274.7037907,
+    "seen": 1792938673.459011,
+    "ast_hash": "30059093439648293c07b5ae268eee1e",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/replay.rs": {
@@ -2628,9 +2628,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/assist.rs": {
-    "mtime": 1792917691.1736734,
-    "seen": 1792919822.6492205,
-    "ast_hash": "b37d13c32beb62c564cc0d00b7145c5d",
+    "mtime": 1792938432.8452811,
+    "seen": 1792938673.459011,
+    "ast_hash": "349cd91151449ec8aec3f0492cf7ed94",
     "semantic_hash": ""
   },
   "dict/src/os_linux.rs": {
@@ -2814,9 +2814,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/selection_check.rs": {
-    "mtime": 1792917592.5857832,
-    "seen": 1792919822.6502204,
-    "ast_hash": "cb602c4d6a25989829772c5a9865da06",
+    "mtime": 1792938349.106449,
+    "seen": 1792938673.4600308,
+    "ast_hash": "115a88c704581ae600653331bfef6324",
     "semantic_hash": ""
   },
   "data/assist/vn_ascii_syllables.txt": {
@@ -2862,9 +2862,9 @@
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1792936008.090409,
-    "seen": 1792936382.9404342,
-    "ast_hash": "7d4a026f710dd270eaba5ff7bc4c3264",
+    "mtime": 1792938274.9238086,
+    "seen": 1792938673.466062,
+    "ast_hash": "c21dee1e824f3d2bc353b3b502698088",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
