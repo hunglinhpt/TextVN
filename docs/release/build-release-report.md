@@ -1,5 +1,21 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.45 — gói năng suất văn phòng P5 (OP-001…OP-007, mỗi task 2 lượt review)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **P5** (`docs/50-assist/P5-OFFICE-PRODUCTIVITY-PLAN.md` → trạng thái IMPLEMENTED + bảng delta): OP-001 gõ tắt thích ứng hoa/thường (giữ expand có chữ hoa chủ đích); OP-002 guard công thức Excel (`=sum/if/vlookup` đầu ô; KHÔNG chặn sau chữ số — VNI); OP-003 số tiền `=…d/vnd/bc` + Tab (đọc chuẩn kế toán, fail-open MAX_TEXT); OP-004 8 bigram + 3 trigram hành chính (guard "kiểm sát nhập" + "xoay sở"); OP-005 `100 %` → `100%` (bỏ điều kiện punct.len==1 vì tokenizer gộp run); OP-006 `Word.identifier`/`auto_capped` + TECH_BUSINESS_TERMS (camel giữ raw trọn từ, không tham gia should_restore); OP-007 core `detect/transcode/Charset/TextCase/decode_tcvn3/decode_vni/strip_diacritics` + `TranscodeSession` Windows + chord Ctrl+Shift+F9 |
+| Đo | **718 test workspace** (core 160 lib + 15 office, charset 11, win-tsf 95) · clippy -D warnings 0 · preflight 23/23 · VI corpus 0/981 FP recall 83,7% (không đổi) · EN 0/295 |
+| CI trên commit gắn tag | 7/7 xanh (ci-shared, ci-linux, ci-windows, ci-macos, ci-deb, ci-aur, repo-hygiene) — 2 lỗi đã bắt và sửa trong phiên: `is_multiple_of` chưa ổn định trên rustc Debian trixie (đổi `% 3` + allow MSRV có lý do) và literal SPDX trong bảng plan làm reuse parse hỏng |
+| Ghi chú giới hạn | OP-007 v1: VIQR/TelexRaw pass-through (có tài liệu); chord chuyển mã mới nối **Windows** — macOS/Linux dùng core sẵn, cần UI/chord riêng ở vòng sau |
+| Release | v0.2.45 tag ký GPG — release-candidate [#40178841488](https://github.com/hunglinhpt/TextVN/actions/runs/40178841488) 4/4 job (windows/macos/linux/publish); **34 asset** |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); 9/9 hash khớp file tải về |
+| Checksums | machine exe `10a9761c…3a04` · MSIX `1221b617…f646` · mac zip `7e1dc111…3ad3` · Linux `733f7310…d461` · PKGBUILD archive `f4e135cd…f76a` |
+| Homebrew (B7b) | cask `version "0.2.45"` + `sha256` = mac zip `7e1dc111…3ad3` — sync-cask [#40179919575](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40179919575) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.45 `f4e135cd…f76a` |
+| PPA (B7f) | debian/changelog `0.2.45-0ppa1` |
+| approved (B7c) | `approved/v0.2.45/` — 34 file byte-identical (SHA256SUMS raw hash trùng khớp), raw URL 200 |
+
 ## Bản 0.2.44 — audit sâu 3 lượt trợ lý ngữ pháp (khoá FP cuối)
 
 | Hạng mục | Bằng chứng |
