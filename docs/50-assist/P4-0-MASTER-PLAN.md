@@ -152,6 +152,7 @@
 - Hiển thị: **candidate list chuẩn của IME** (D13) — 1 dòng gợi ý đầu + danh sách lỗi; **overlay tự vẽ** chỉ là fallback ở Windows.
 - Nội dung: câu vừa gõ + lỗi **gạch chân đỏ trong candidate panel** + thông điệp tiếng Việt ngắn ("Lặp từ: \"của của\"").
 - Phím: `↑/↓` lỗi · `Enter` áp dụng gợi ý · `Alt+1..3` chọn gợi ý · `Esc` bỏ · `Ctrl+Shift+G` gọi lại.
+- **Cập nhật 2026-10-26 (R2-129, yêu cầu chủ repo — Windows):** overlay **sống theo câu** — kiểm tra ở mỗi ranh giới từ (space , ; :) + Backspace khi đang hiện: câu sai hiện/cập nhật ngay, câu đúng ẩn ngay. Overlay tự hiện **không chiếm phím gõ** (gõ chữ giữ overlay; `Enter`/`Tab`/mũi tên tới app và đóng overlay; `Esc` đóng; `Alt+1..3` áp gợi ý); `↑/↓`/`Tab`/`Enter` chỉ thuộc overlay khi người dùng gọi bằng **Ctrl+Space** (hoặc popup bôi đen). Toast "phát hiện lỗi" bị bỏ (R2-126). Chi tiết: `P6-TEXT-PREDICTION.md` §2.
 - **Áp dụng gợi ý = A2** (xem §4.4) — Backspace+Type cho **từ** lỗi, có precondition.
 
 ### 4.3 Mode 2 — "tự sửa cả câu" (P4-5)

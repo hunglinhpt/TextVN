@@ -37,6 +37,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   bản cài riêng cho tài khoản (cùng mục khởi động cũ) — trước đây hai bản chạy
   lẫn nhau, tray/bộ gõ cũ có thể chạy thay bản mới (mất trợ lý ngữ pháp, toast);
   cài cho tài khoản khi đã có bản cho mọi người dùng thì dừng và hướng dẫn.
+- **Panel trợ lý ngữ pháp luôn hiện được** (R2-125): trước đây panel không neo
+  được vị trí caret ở nhiều ứng dụng (Notepad Win11…) nên **không bao giờ hiện**,
+  chỉ còn toast — sửa 3 lỗi tìm vị trí caret, thêm đường lui tới control đang
+  focus. Kiểm chứng E2E trên Notepad/Word/Excel thật.
+- **Bỏ toast "Phát hiện N lỗi"** (R2-126): lỗi được sửa ngay trong panel thay vì
+  thông báo gây nhiễu; Ctrl + Space chỉ dùng phím khi panel thật sự hiện.
+- **Panel dễ đọc hơn** (R2-127): chữ to hơn ~1,3 lần; sửa lỗi vẽ câu và danh sách
+  lỗi bằng font hệ thống không có dấu tiếng Việt ("đi học" từng hiện "li hlc"),
+  gạch đỏ đúng chỗ, không còn cắt chữ.
+- **Gõ tắt/số tiền vượt phần đang gõ dở hoạt động trên Notepad Win11 và Word**
+  (R2-128): `=15000000bc`+Space ra `Mười lăm triệu đồng chẵn` — trước đây ứng
+  dụng từ chối sửa phần chữ trước vùng đang soạn nên bỏ qua im lặng.
+- **Panel sống theo câu** (R2-129): câu sai hiện panel ngay ở dấu cách/dấu phẩy,
+  sửa xong ẩn ngay; panel không chiếm phím gõ (Enter vẫn xuống dòng); Ctrl + Space
+  để chọn và sửa bằng phím.
+- **Bộ cài quét và dọn bản cũ** (R2-130): nâng cấp tại chỗ dọn sạch file của bản
+  cũ (dữ liệu đổi tên, từ điển ngừng phát hành, DLL cũ) mà giữ cài đặt và bộ gõ;
+  cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ bằng quyền quản trị.
 
 **English** — Unreleased: bilingual text prediction (P6, opt-in via
 `suggest.enabled`): Tab or Ctrl+Space completes words/compounds and predicts the
@@ -50,7 +68,17 @@ app (R2-121); the auto-shown assistant panel no longer swallows Tab (R2-122); no
 duplicated Tab/Ctrl+Space in IMM32/CUAS apps when TextVN consumed the key
 (R2-123); the all-users installer now removes a leftover per-user install and
 its stale autostart entry, and the per-user installer refuses to install next to
-an all-users install (R2-124).
+an all-users install (R2-124). After real-app E2E on Notepad/Word/Excel: the
+grammar panel now always shows (caret anchoring fixed — it never appeared in
+Windows 11 Notepad, R2-125); the noisy "N issues detected" toast is gone (R2-126);
+the panel is larger and draws Vietnamese correctly (it used the stock system font
+for the sentence and issue list, R2-127); macros/money shorthand that reach before
+the composing text work in Notepad/Word (TSF `TF_E_RANGE_NOT_COVERED`, the
+composition is now extended instead, R2-128); the panel is "live" — shown as soon
+as the sentence has an error, hidden as soon as it is fixed, never stealing typing
+keys, Ctrl+Space to navigate and apply (R2-129); in-place upgrades remove the old
+version's leftover files and the per-user installer can remove an all-users install
+with UAC (R2-130). Real-app E2E: 28/28 (`tools/win/e2e-assist-p6.ps1`).
 
 ## [0.2.45] — 2026-10-25
 

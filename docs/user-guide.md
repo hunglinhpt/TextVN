@@ -228,6 +228,12 @@ Kiểm tra **cả câu** tiếng Việt lẫn tiếng Anh (kể cả câu mix v�
 từ 0.2.38. **Windows**: panel tại caret hiện câu vừa gõ với **gạch chân đỏ
 đúng từ sai** + tổng số lỗi + nút **Sửa tất cả** (bấm chuột được: click từ
 gạch chân chọn gợi ý, click lần nữa áp sửa); click ngoài panel đóng panel.
+Từ bản sau 0.2.45 panel **sống theo câu**: câu đang sai thì panel hiện ngay ở
+dấu cách/dấu phẩy kế tiếp, sửa xong (kể cả bằng Backspace) thì ẩn ngay; panel
+**không chiếm phím gõ** — gõ tiếp bình thường, Enter vẫn là xuống dòng, Tab/mũi
+tên đi tới ứng dụng. Sửa bằng phím: **Ctrl + Space** (chuyển sang chọn lỗi
+↑/↓ hoặc Tab, Enter để sửa), **Alt + 1…3** áp gợi ý thứ n, **Esc** đóng. Chữ
+trong panel to hơn để dễ đọc.
 **macOS**: danh sách gợi ý trong bảng candidate của IMK. **Linux** (IBus/
 Fcitx5): danh sách gợi ý trong bảng candidate + dòng phụ "Trợ lý TextVN".
 Không muốn thấy gợi ý, chọn Chế độ = *Tắt* (Windows thêm công tắc nhanh ở
@@ -333,7 +339,9 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
-| Windows: không thấy popup/toast của Trợ lý ngữ pháp | (1) Toast góc phải màn hình do **TextVN.exe** (khay hệ thống) hiển thị — tray không chạy thì không có toast: mở TextVN từ Start menu. (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** (toast tối đa 1 lần/60 giây) — muốn thấy panel gợi ý tại caret, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ (bộ cài cho mọi người dùng từ bản sau 0.2.45 tự gỡ bản cho tài khoản). |
+| Windows: không thấy panel của Trợ lý ngữ pháp | (1) Bản ≤ 0.2.45 không neo được panel trong một số ứng dụng (Notepad Win11…) nên chỉ hiện toast "Phát hiện N lỗi" — bản sau 0.2.45 luôn hiện panel và **bỏ toast phát hiện** (R2-125/R2-126). (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** rồi hiện toast "Đã tự sửa…" (tối đa 1 lần/60 giây, do **TextVN.exe** ở khay hiển thị) — muốn thấy panel gợi ý, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ. Từ bản sau 0.2.45 bộ cài **tự quét bản cũ**: cài cho mọi người dùng tự gỡ bản cho tài khoản; cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ (cần quyền quản trị); nâng cấp tại chỗ dọn sạch file của bản cũ (giữ cài đặt và bộ gõ). |
+| Word: chữ có dấu bị đổi thành không dấu ("hàng" → "hang") hoặc chữ đầu câu tự viết hoa | Đây là **AutoCorrect của Word** khi văn bản đặt ngôn ngữ kiểm tra chính tả là tiếng Anh (gõ tay cũng bị). Đặt ngôn ngữ văn bản là tiếng Việt (*Review → Language → Set Proofing Language*), hoặc tắt *File → Options → Proofing → AutoCorrect Options → Automatically use suggestions from the spelling checker*. |
+| Excel: Tab không hoàn tất từ trong ô | Excel tự dùng Tab để chuyển ô (không chuyển phím cho bộ gõ) — dùng **Ctrl + Space** để dự đoán trong ô. |
 | Tab / Ctrl + Space không dự đoán gì | Dự đoán **tắt mặc định**: bật `"suggest": { "enabled": true }` (mục *Dự đoán văn bản* ở trên). macOS: tắt phím tắt hệ thống Ctrl + Space (xem trên). |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
