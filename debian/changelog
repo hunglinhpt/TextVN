@@ -1,3 +1,15 @@
+textvn (0.2.45-0ppa1) noble; urgency=medium
+
+  * P5 office-productivity pack: case-adaptive text macros, spreadsheet
+    formula guard (=sum/=if/=vlookup at cell start), money shorthand
+    (=15450000d/vnd/bc + Tab), office collocation fixes, percent spacing
+    (100 % -> 100%), coder/business identifier protection (camelCase,
+    KPI/EBITDA/margin) with Tab completion, and selection transcoding
+    (TCVN3/VNI/decomposed Unicode -> Unicode; Windows Ctrl+Shift+F9).
+    All on-device; detection fail-safe. 718 workspace tests.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sun, 25 Oct 2026 13:40:00 +0000
+
 textvn (0.2.44-0ppa1) noble; urgency=medium
 
   * Three-pass deep audit of the grammar assistant: disables the

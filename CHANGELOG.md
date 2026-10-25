@@ -7,6 +7,59 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.45] — 2026-10-25
+
+### Added
+- **Gói năng suất văn phòng P5** (kế hoạch `docs/50-assist/P5-OFFICE-PRODUCTIVITY-PLAN.md`,
+  7 task, mỗi task qua 2 lượt review riêng) — tất cả **trên máy bạn**, không
+  gửi dữ liệu đi đâu:
+  - **Gõ tắt thích ứng kiểu chữ** (OP-001): `hd` → `hợp đồng`, `Hd` →
+    `Hợp đồng`, `HD` → `HỢP ĐỒNG`; gõ tắt đã có chữ hoa chủ đích
+    (`cty` = `Công ty TNHH`) giữ nguyên 100%.
+  - **Bảo vệ công thức bảng tính** (OP-002): `=sum(a1:a10)`, `=if(...)`,
+    `=vlookup(...)` ở đầu ô Excel/Sheets không còn bị bỏ dấu thành `=ũm(`;
+    gõ chữ số vẫn bình thường (không phá kiểu gõ VNI); trong ngoặc kép của
+    công thức vẫn gõ tiếng Việt.
+  - **Gõ tắt số tiền** (OP-003): `=15450000d`+Tab → `15.450.000 đồng`,
+    `=15450000vnd`+Tab → `15.450.000 VNĐ`, `=15000000bc`+Tab →
+    `Mười lăm triệu đồng chẵn` (đọc chuẩn kế toán: mốt/tư/lăm, "không trăm
+    lẻ", "chẵn" khi tròn nghìn, tối đa 12 chữ số).
+  - **Cụm từ hành chính dễ nhầm** (OP-004): tự phát hiện & sửa "bổ xung"→
+    "bổ sung", "xử dụng"→"sử dụng", "kiểm xoát"→"kiểm soát", "chính sác"→
+    "chính xác", "sát nhập"→"sáp nhập", "thăm quan"→"tham quan",
+    "tựu chung"→"tựu trung", "giành thời gian"→"dành thời gian"… (danh sách
+    đóng, giữ hoa/thường, không bêu "xoay sở" hay "kiểm sát nhập").
+  - **Khoảng trắng trước %** (OP-005): `đạt 100 %` → `đạt 100%`.
+  - **Bảo vệ identifier coder & thuật ngữ kinh doanh** (OP-006):
+    `useState`/`onPress`/`getElementById` không bị bỏ dấu giữa từ; thuật
+    ngữ tech/business (KPI, EBITDA, margin, revenue, cargo, docker…) tự
+    khôi phục; Tab hoàn tất giữ case chuẩn (`ebit`+Tab → `EBITDA`). Âm tiết
+    tiếng Việt thường vẫn được bảo vệ (`cacs` vẫn ra `các`).
+  - **Chuyển mã văn bản bôi đen** (OP-007): bôi đen → **Ctrl+Shift+F9** →
+    tự nhận diện **TCVN3 (.VnTime)** / **VNI-Windows** / **Unicode tổ hợp**
+    và chuyển về Unicode dựng sẵn (undo = Ctrl+Z của app). Nhận diện
+    fail-safe: văn bản Unicode thật hoặc không đủ tín hiệu thì **không đụng**
+    (không bao giờ "hạ cấp" văn bản đúng).
+
+**English** — 0.2.45 ships the seven-task P5 office-productivity pack
+(`docs/50-assist/P5-OFFICE-PRODUCTIVITY-PLAN.md`, each task double-reviewed),
+all on-device: case-adaptive text macros (`hd`/`Hd`/`HD` → lowercase/capitalised/
+UPPERCASE expansion, deliberate casing preserved), spreadsheet formula guard
+(`=sum(...)`, `=if(...)`, `=vlookup(...)` typed at the start of a cell are no
+longer accent-mangled; the VNI number-based input method keeps working), money
+shorthand (`=15450000d`+Tab → `15.450.000 đồng`, `…vnd` → `VNĐ`, `…bc` →
+`Mười lăm triệu đồng chẵn` with accounting-grade Vietnamese number reading),
+office collocation fixes ("bổ xung"→"bổ sung", "xử dụng"→"sử dụng", "sát
+nhập"→"sáp nhập" …, closed list with case preservation and guards for correct
+phrases), percent spacing (`100 %` → `100%`), coder/business identifier
+protection (`useState`, `onPress`, `getElementById` never accent-folded; KPI/
+EBITDA/margin/revenue restored; Tab completion keeps canonical casing), and a
+selection transcoder: select text and press **Ctrl+Shift+F9** to detect TCVN3
+(.VnTime) / VNI-Windows / decomposed-Unicode and convert it to precomposed
+Unicode (app undo applies). Detection is fail-safe — real Unicode text or
+ambiguous input is never touched. Verified: 159 core unit tests, 95 Windows TSF
+tests, 718 workspace tests, preflight 23/23, VI corpus 0/981 false positives.
+
 ## [0.2.44] — 2026-10-25
 
 ### Fixed
@@ -1771,6 +1824,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.45]: https://github.com/hunglinhpt/TextVN/compare/v0.2.44...v0.2.45
 [0.2.44]: https://github.com/hunglinhpt/TextVN/compare/v0.2.43...v0.2.44
 [0.2.43]: https://github.com/hunglinhpt/TextVN/compare/v0.2.42...v0.2.43
 [0.2.42]: https://github.com/hunglinhpt/TextVN/compare/v0.2.41...v0.2.42
