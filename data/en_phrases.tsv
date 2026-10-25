@@ -1,0 +1,39 @@
+# Ngữ cảnh tiếng Anh (Next-Word / Phrase Prediction - P6)
+# context_lower	predicted_phrase	weight
+thank you	very much	100
+thank you	for your email	95
+thank you	for your support	90
+thank you	for your help	85
+looking forward to	hearing from you	100
+looking forward to	working with you	95
+as soon as	possible	100
+please let me	know	100
+please find	attached	100
+please check	and confirm	95
+feel free to	contact me	100
+feel free to	reach out	95
+in order to	ensure	100
+in order to	avoid	90
+best	regards	100
+best	wishes	90
+at the	same time	100
+at the	moment	95
+at the	end of the day	90
+let me	know	100
+let me	check	90
+let me	see	85
+for more	information	100
+according to	the contract	95
+according to	the schedule	90
+based on	the feedback	95
+based on	the results	90
+with respect to	the agreement	90
+in accordance with	the regulations	95
+on behalf of	the company	95
+due to	unforeseen circumstances	90
+take into	account	95
+take into	consideration	90
+keep in	touch	100
+keep in	mind	95
+look into	this issue	95
+get back to	you soon	100

@@ -201,6 +201,17 @@ pub struct Engine {
     /// VNI Windows / Unicode tổ hợp). Song song `sentence` — dùng để xoá đúng số
     /// ký tự Unicode khi engine xoá `delete` glyph khỏi document.
     sentence_widths: Vec<u8>,
+    /// Vòng lặp Tab dự đoán từ/cụm từ (P6 Text Prediction).
+    last_predict: Option<PredictCycle>,
+}
+
+#[derive(Debug, Clone)]
+struct PredictCycle {
+    inserted_glyphs: usize,
+    candidates: Vec<String>,
+    current_index: usize,
+    sample: String,
+    had_leading_space: bool,
 }
 
 /// Thay đổi đuôi document mà engine ghi nhận (P4-2a · ADR-013).
@@ -232,6 +243,7 @@ impl Engine {
             recent: Vec::new(),
             sentence: Vec::new(),
             sentence_widths: Vec::new(),
+            last_predict: None,
         }
     }
 
@@ -239,6 +251,7 @@ impl Engine {
     pub fn set_options(&mut self, opts: EngineOptions) {
         self.opts = opts;
         self.word.clear();
+        self.last_predict = None;
         self.record(Tail::Clear);
     }
 
@@ -262,6 +275,7 @@ impl Engine {
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
         self.word.clear();
+        self.last_predict = None;
         self.record(Tail::Clear);
     }
 
@@ -475,6 +489,10 @@ impl Engine {
                 flags: 0,
             };
         }
+        // P6 Text Prediction: Bất kỳ phím nào khác Tab đều huỷ trạng thái duyệt vòng
+        if k.vk != keymap::vk::TAB {
+            self.last_predict = None;
+        }
         // Chống loop (P0-3 §6): phím adapter tự bơm → PASS tuyệt đối.
         if k.is_injected {
             return Outcome::pass();
@@ -526,6 +544,12 @@ impl Engine {
             keymap::vk::ESCAPE => return self.on_escape(),
             keymap::vk::RETURN | keymap::vk::SPACE | keymap::vk::TAB => {
                 let c = k.printable().unwrap_or(' ');
+                // P6 Text Prediction: Tab liên tiếp → duyệt vòng qua danh sách ứng viên
+                if k.vk == keymap::vk::TAB && k.mods & keymap::MOD_SHIFT == 0 {
+                    if let Some(out) = self.try_cycle_predict() {
+                        return out;
+                    }
+                }
                 // Vòng 24 (`suggest.trigger = "tab_and_space"`): Space cũng
                 // hoàn tất từ — nhưng **nghiêm ngặt hơn Tab** (Space là phím
                 // ngầm định, người dùng không yêu cầu gì): chỉ hoàn tất khi từ
@@ -539,7 +563,14 @@ impl Engine {
                     if let Some(out) = self.try_english_complete(k, vi_on, append) {
                         return out;
                     }
+                    // P6 Text Prediction: Dự đoán cụm từ tiếp theo khi vừa gõ xong từ
+                    if k.vk == keymap::vk::TAB && append.is_none() {
+                        if let Some(out) = self.try_predict_next_phrase(k, vi_on) {
+                            return out;
+                        }
+                    }
                 }
+                self.last_predict = None;
                 return self.on_boundary(c, strategy);
             }
             _ => {}
@@ -933,15 +964,17 @@ impl Engine {
         if append.is_some() && validate::is_valid_word(&self.word.display) {
             return None;
         }
-        let completion = post::suggest_vn::complete_vn_word(&typed)?;
-        let mut insert: Vec<char> = completion.chars().collect();
-        if self.word.raw.first().is_some_and(|c| c.is_uppercase()) {
-            if let Some(first) = insert.first_mut() {
-                if let Some(up) = first.to_uppercase().next() {
-                    *first = up;
-                }
-            }
-        }
+        let candidates = post::predict::predict_prefix_candidates(&typed, true, 5);
+        let (completion, all_candidates) = if !candidates.is_empty() {
+            (candidates[0].clone(), candidates)
+        } else {
+            let single = post::suggest_vn::complete_vn_word(&typed)?;
+            let list = vec![single.clone()];
+            (single, list)
+        };
+        let raw_sample: String = self.word.raw.iter().collect();
+        let adapted = post::predict::adapt_capitalization(&raw_sample, &completion);
+        let mut insert: Vec<char> = adapted.chars().collect();
         if let Some(c) = append {
             insert.push(c); // Space: hoàn tất + chính dấu cách (như restore-EN)
         }
@@ -951,6 +984,19 @@ impl Engine {
         }
         let delete = self.word.owned as u16;
         self.word.clear();
+
+        if append.is_none() && all_candidates.len() > 1 {
+            self.last_predict = Some(PredictCycle {
+                inserted_glyphs: out.len(),
+                candidates: all_candidates,
+                current_index: 0,
+                sample: raw_sample,
+                had_leading_space: false,
+            });
+        } else {
+            self.last_predict = None;
+        }
+
         // Document nhận bản đã encode (`out`), buffer câu nhận bản Unicode (`insert`).
         self.record(Tail::Replace {
             delete: delete as usize,
@@ -964,6 +1010,121 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+        })
+    }
+
+    /// P6 Text Prediction: Duyệt vòng các ứng viên thay thế khi nhấn Tab liên tiếp.
+    fn try_cycle_predict(&mut self) -> Option<Outcome> {
+        let (cand, sample, had_leading_space, next_idx) = {
+            let cycle = self.last_predict.as_ref()?;
+            if cycle.candidates.len() <= 1 {
+                return None;
+            }
+            let next_idx = (cycle.current_index + 1) % cycle.candidates.len();
+            (
+                cycle.candidates[next_idx].clone(),
+                cycle.sample.clone(),
+                cycle.had_leading_space,
+                next_idx,
+            )
+        };
+        let adapted = post::predict::adapt_capitalization(&sample, &cand);
+        let mut insert_chars: Vec<char> = Vec::new();
+        if had_leading_space {
+            insert_chars.push(' ');
+        }
+        insert_chars.extend(adapted.chars());
+
+        let out = self.emit(&insert_chars);
+        if out.len() > MAX_TEXT {
+            return None;
+        }
+
+        let cycle = self.last_predict.as_mut()?;
+        let delete = cycle.inserted_glyphs as u16;
+        cycle.inserted_glyphs = out.len();
+        cycle.current_index = next_idx;
+
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &out,
+            unicode: &insert_chars,
+        });
+
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: delete,
+                insert: out,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED,
+        })
+    }
+
+    /// P6 Text Prediction: Dự đoán cụm từ tiếp theo theo ngữ cảnh (Next-Word / Phrase Prediction).
+    fn try_predict_next_phrase(&mut self, k: &KeyEvent, vi_on: bool) -> Option<Outcome> {
+        if !vi_on || !self.opts.suggest_vn_complete {
+            return None;
+        }
+        if k.mods & keymap::MOD_SHIFT != 0 {
+            return None;
+        }
+        if self.word.active || !self.word.is_empty() {
+            return None;
+        }
+
+        let sentence_tail = self.sentence_tail(64);
+        if sentence_tail.trim().is_empty() {
+            return None;
+        }
+
+        let candidates = post::predict::predict_next_phrase_candidates(&sentence_tail, 5);
+        if candidates.is_empty() {
+            return None;
+        }
+
+        let last_word = sentence_tail.split_whitespace().last().unwrap_or("");
+
+        let completion = candidates[0].clone();
+        let adapted = post::predict::adapt_capitalization(last_word, &completion);
+
+        let had_leading_space = !sentence_tail.ends_with(' ') && !sentence_tail.ends_with('\t');
+        let mut insert: Vec<char> = Vec::new();
+        if had_leading_space {
+            insert.push(' ');
+        }
+        insert.extend(adapted.chars());
+
+        let out = self.emit(&insert);
+        if out.len() > MAX_TEXT {
+            return None;
+        }
+
+        if candidates.len() > 1 {
+            self.last_predict = Some(PredictCycle {
+                inserted_glyphs: out.len(),
+                candidates,
+                current_index: 0,
+                sample: last_word.to_string(),
+                had_leading_space,
+            });
+        } else {
+            self.last_predict = None;
+        }
+
+        self.record(Tail::Replace {
+            delete: 0,
+            glyph: &out,
+            unicode: &insert,
+        });
+
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: 0,
+                insert: out,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED,
         })
     }
 

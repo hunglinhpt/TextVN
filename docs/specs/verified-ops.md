@@ -43,6 +43,8 @@
 | B19 | `python tools/assist/gen_corpus_en_tatoeba.py` (sinh `corpus/assist/en_real_clean.ass` từ Tatoeba eng_sentences.tsv.bz2, ~25 MB tải qua mạng) | ✓ 2026-10-24: pool 234.292 câu → mẫu seed `20261023` 300 câu → bỏ 5 ID sau rà soát tay → **295 câu**; chạy lại lần 2 → file **byte-identical** (sha256 khớp) | Cache trong `tools/assist/.cache/` (git-ignored) ⇒ chạy lại offline; xuất LF cố định (`newline="\n"`); loại ID diễn ra **sau** chọn mẫu nên thêm `EXCLUDE_IDS` không resample. Lưu ý: corpus EN mới chỉ xanh khi engine EN v1 implement (xem header `en_basic.ass`) |
 
 
+| B20 | Text Prediction Song ngữ Anh - Việt (P6): prefix completion + next-phrase prediction + tab cycling | ✓ 165 core + 6 integration tests pass 100%, preflight 23/23 PASS, p50=700ns (2026-10-25) | Tra cứu từ ghép VN, n-gram cụm từ tiếp theo VN/EN, không I/O, an toàn S9 Shift+Tab passthrough, G8 zero text logging |
+
 ## C. Windows platform (chi tiết → spike specs)
 
 | # | Thao tác | Kết quả | Chi tiết |

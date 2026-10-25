@@ -1,0 +1,50 @@
+# Ngữ cảnh tiếng Việt (Next-Word / Phrase Prediction - P6)
+# context_lower	predicted_phrase	weight
+cộng hòa	xã hội chủ nghĩa việt nam	100
+độc lập	tự do hạnh phúc	100
+kính gửi	quý khách hàng	100
+kính gửi	ban giám đốc	95
+kính gửi	quý công ty	90
+kính gửi	quý đối tác	85
+trân trọng	cảm ơn	100
+trân trọng	kính chào	95
+trân trọng	thông báo	90
+hợp đồng	kinh tế	100
+hợp đồng	lao động	95
+hợp đồng	dịch vụ	90
+hợp đồng	mua bán	85
+biên bản	bàn giao	100
+biên bản	nghiệm thu	95
+biên bản	họp	90
+biên bản	làm việc	85
+căn cứ	vào quy định	100
+căn cứ	nghị định	95
+căn cứ	thông tư	90
+vui lòng	liên hệ	100
+vui lòng	kiểm tra lại	95
+vui lòng	xác nhận	90
+vui lòng	phản hồi	85
+thông báo	về việc	100
+thông báo	kết luận	90
+giải pháp	công nghệ	100
+giải pháp	tối ưu	90
+xin	chào	100
+xin	cảm ơn	95
+xin	lỗi	90
+xin	phép	85
+báo cáo	kết quả	100
+báo cáo	tài chính	95
+kế hoạch	công tác	100
+kế hoạch	kinh doanh	95
+quy trình	làm việc	100
+quy trình	vận hành	95
+tiêu chuẩn	chất lượng	100
+an toàn	thông tin	100
+an toàn	lao động	95
+bảo mật	dữ liệu	100
+phát triển	phần mềm	100
+phát triển	bền vững	95
+quản lý	dự án	100
+quản lý	chất lượng	95
+chúc mừng	năm mới	100
+hẹn gặp	lại	100
