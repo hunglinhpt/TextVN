@@ -23,7 +23,7 @@
 
 use crate::assist::OverlayView;
 #[cfg(windows)]
-use crate::assist::{MAX_OVERLAY_SENTENCE_CHARS, OVERLAY_HINT, OVERLAY_IDLE_MS};
+use crate::assist::{MAX_OVERLAY_SENTENCE_CHARS, OVERLAY_IDLE_MS};
 #[cfg(windows)]
 use std::cell::RefCell;
 
@@ -73,6 +73,36 @@ impl Anchor {
     pub fn is_valid(self) -> bool {
         self.right > self.left && self.bottom > self.top
     }
+
+    /// Rect caret (toạ độ MÀN HÌNH) → anchor. Caret rỗng thường cho rect **bề
+    /// rộng 0** (RichEdit, Notepad Win11) — vẫn là vị trí đúng, chỉ nới cho có
+    /// kích thước (R2-125: trước đây bị loại → panel không bao giờ hiện). Rect
+    /// toàn 0 / ngược chiều = app không đo được.
+    pub fn from_caret_rect(left: i32, top: i32, right: i32, bottom: i32) -> Option<Anchor> {
+        if (left, top, right, bottom) == (0, 0, 0, 0) || right < left || bottom < top {
+            return None;
+        }
+        let mut a = Anchor::new(left, top, right, bottom);
+        if a.right == a.left {
+            a.right = a.left + 1;
+        }
+        if a.bottom == a.top {
+            a.bottom = a.top + 16;
+        }
+        Some(a)
+    }
+
+    /// Không đo được caret: neo **góc dưới-trái bên trong** control đang focus
+    /// (toạ độ màn hình) — panel hiện ngay dưới control, hết chỗ thì lật lên
+    /// trong control (`place`). Thà gần đúng còn hơn không hiện gì (R2-125).
+    pub fn inside_bottom_left(left: i32, top: i32, right: i32, bottom: i32) -> Option<Anchor> {
+        if right <= left || bottom <= top {
+            return None;
+        }
+        let x = left + ((right - left) / 2).min(12);
+        let y = bottom - 2;
+        Some(Anchor::new(x, (y - 16).max(top), x + 1, y))
+    }
 }
 
 #[cfg(windows)]
@@ -84,18 +114,18 @@ const TIMER_WATCHDOG: usize = 1001;
 const WATCHDOG_INTERVAL_MS: u32 = 200;
 
 #[cfg(windows)]
-const PAD: i32 = 10;
+const PAD: i32 = 14;
 #[cfg(windows)]
-const LINE_H: i32 = 20;
+const LINE_H: i32 = 28;
 #[cfg(windows)]
-const HINT_H: i32 = 18;
+const HINT_H: i32 = 24;
 /// Dòng tổng kết "N lỗi trong câu vừa gõ" (vòng 26 — kiểu Grammarly).
 #[cfg(windows)]
-const HEADER_H: i32 = 22;
+const HEADER_H: i32 = 30;
 #[cfg(windows)]
-const MIN_W: i32 = 240;
+const MIN_W: i32 = 340;
 #[cfg(windows)]
-const MAX_W: i32 = 560;
+const MAX_W: i32 = 760;
 
 /// Kích thước panel đã scale theo DPI của monitor đang neo (vòng 32 — audit
 /// F-C: consts cố định 96-DPI làm panel nhỏ ~2/3 so với chữ của app ở màn
@@ -129,11 +159,13 @@ fn metrics_for_hwnd(hwnd: HWND) -> Metrics {
         header_h: s(HEADER_H),
         min_w: s(MIN_W),
         max_w: s(MAX_W),
-        font_main: s(15),
-        font_small: s(12),
-        font_header: s(14),
-        font_btn: s(13),
-        btn_pad: s(16),
+        // R2-127 (chủ repo 2026-10-26: "popup hơi khó nhìn, cho to ra"):
+        // chữ chính 15→20 px, phụ 12→15, tiêu đề 14→18 (≈1,3×, cùng tỉ lệ).
+        font_main: s(20),
+        font_small: s(15),
+        font_header: s(18),
+        font_btn: s(16),
+        btn_pad: s(20),
     }
 }
 
@@ -565,14 +597,15 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
                     &mut rc,
                     DT_CALCRECT | DT_SINGLELINE | DT_LEFT,
                 );
-                max_w = max_w.max(rc.right - rc.left);
+                // Dư nửa lề như dòng nhắc phím (DT_END_ELLIPSIS lúc vẽ).
+                max_w = max_w.max(rc.right - rc.left + m.pad / 2);
                 text_h = text_h.max(h + 4);
             }
             // Dòng nhắc phím vẽ bằng font nhỏ: đo đúng cỡ đó để panel đủ rộng
             // (không cắt mất phím tắt quan trọng).
             let small = create_font(m.font_small, FW_NORMAL);
             SelectObject(dc, small.into());
-            let mut hint: Vec<u16> = OVERLAY_HINT.encode_utf16().collect();
+            let mut hint: Vec<u16> = view.hint().encode_utf16().collect();
             let mut hint_rc = RECT::default();
             let _ = DrawTextW(
                 dc,
@@ -580,7 +613,9 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
                 &mut hint_rc,
                 DT_CALCRECT | DT_SINGLELINE | DT_LEFT,
             );
-            max_w = max_w.max(hint_rc.right - hint_rc.left);
+            // Dư nửa lề: DrawTextW lúc vẽ có thể rộng hơn đo vài px (ClearType/
+            // overhang) → DT_END_ELLIPSIS cắt mất "Esc đóng" (thấy ở ảnh chụp).
+            max_w = max_w.max(hint_rc.right - hint_rc.left + m.pad / 2);
             SelectObject(dc, old);
             let _ = DeleteObject(small.into());
             let _ = DeleteObject(font.into());
@@ -848,7 +883,11 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 &mut hr,
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS,
             );
-            SelectObject(hdc, old_font);
+            // R2-127: chọn lại FONT CHÍNH (không phải `old_font` = font gốc
+            // của DC): trước đây câu + danh sách lỗi bị vẽ bằng font hệ thống
+            // nhỏ, không có glyph tiếng Việt ("đi học" hiện "li hlc") và gạch
+            // đỏ lệch vì vị trí ký tự đo bằng font khác.
+            SelectObject(hdc, font.into());
             let _ = DeleteObject(header_font.into());
             // Nút "Sửa tất cả" (vòng 26): hiện khi có ≥1 lỗi tự sửa được —
             // click → FixAll (áp cả câu, có Undo 5 giây).
@@ -884,7 +923,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                     &mut tr,
                     DT_CENTER | DT_SINGLELINE | DT_VCENTER,
                 );
-                SelectObject(hdc, old_font);
+                SelectObject(hdc, font.into());
                 let _ = DeleteObject(btn_font.into());
                 shown.button_rect = Some(br);
             }
@@ -920,7 +959,8 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
         shown.content_top = content_top;
         shown.line_h = line_h;
 
-        let pen = CreatePen(PS_SOLID, 2, COLOR_ERROR);
+        // Nét gạch đỏ dày theo cỡ chữ (2 px ở 96 DPI cỡ cũ → ~3 px cỡ mới).
+        let pen = CreatePen(PS_SOLID, (m.font_main / 7).max(2), COLOR_ERROR);
         let old_pen = SelectObject(hdc, pen.into());
         for issue in &view.issues {
             let a = issue.start.saturating_sub(skip).min(xs.len() - 1);
@@ -995,7 +1035,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
 
         // --- nhắc phím ---
         SelectObject(hdc, small.into());
-        let mut hint: Vec<u16> = OVERLAY_HINT.encode_utf16().collect();
+        let mut hint: Vec<u16> = view.hint().encode_utf16().collect();
         let mut r = RECT {
             left,
             top: rect.bottom - m.pad - m.hint_h,
@@ -1157,6 +1197,26 @@ mod mouse_tests {
 mod tests {
     use super::*;
     use crate::assist::IssueView;
+
+    /// R2-125: caret rỗng cho rect bề rộng 0 (Notepad Win11/RichEdit) vẫn là
+    /// vị trí hợp lệ — trước đây bị loại nên panel không bao giờ hiện.
+    #[test]
+    fn r2_125_caret_rect_be_rong_0_van_neo_duoc() {
+        assert_eq!(
+            Anchor::from_caret_rect(500, 300, 500, 320),
+            Some(Anchor::new(500, 300, 501, 320))
+        );
+        assert_eq!(
+            Anchor::from_caret_rect(500, 300, 500, 300),
+            Some(Anchor::new(500, 300, 501, 316))
+        );
+        assert_eq!(Anchor::from_caret_rect(0, 0, 0, 0), None);
+        assert_eq!(Anchor::from_caret_rect(10, 10, 5, 20), None);
+        // Không biết caret: góc dưới-trái bên trong control.
+        let a = Anchor::inside_bottom_left(100, 100, 900, 700).unwrap();
+        assert!(a.is_valid() && a.left == 112 && a.bottom == 698 && a.top >= 100);
+        assert_eq!(Anchor::inside_bottom_left(0, 0, 0, 0), None);
+    }
 
     fn sample() -> OverlayView {
         OverlayView::from_parts(

@@ -87,9 +87,53 @@ pub struct ActiveAssist {
 /// Đánh dấu popup đang hiện là popup on-demand (Ctrl+Space) — R2-122.
 #[cfg(windows)]
 fn mark_assist_on_demand(shared: &TsfShared) {
-    if let Ok(mut slot) = shared.assist.try_borrow_mut() {
-        if let Some(active) = slot.as_mut() {
+    let view = match shared.assist.try_borrow_mut() {
+        Ok(mut slot) => slot.as_mut().map(|active| {
             active.on_demand = true;
+            // R2-129: chế độ chọn-sửa — vẽ lại dòng nhắc ↑/↓ · Enter sửa.
+            active.view.interactive = true;
+            active.view.clone()
+        }),
+        Err(_) => None,
+    };
+    if let Some(view) = view {
+        shared.overlay.set_view(&view);
+    }
+}
+
+/// Popup đang hiện có phải popup **sống** (R2-129: tự hiện theo câu, không
+/// phải Ctrl+Space / bôi đen) không.
+#[cfg(windows)]
+fn live_popup_visible(shared: &TsfShared) -> bool {
+    shared.overlay.is_visible()
+        && shared
+            .assist
+            .try_borrow()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(|a| !a.on_demand && a.selection.is_none()))
+            .unwrap_or(false)
+}
+
+/// R2-129 (chủ repo 2026-10-26: "popup cần hiện nhanh nhất hoặc ẩn đi nhanh
+/// nhất theo tình trạng câu đúng sai"): kiểm tra lại câu ở mỗi ranh giới từ
+/// (và Backspace khi popup sống đang hiện) — câu còn lỗi → hiện/cập nhật popup
+/// tại caret; câu đã đúng → ẩn ngay. Không đè popup Ctrl+Space / bôi đen.
+#[cfg(windows)]
+fn refresh_live_popup(shared: &Rc<TsfShared>, ctx: &ITfContext, ec: u32) {
+    if !shared.is_assist_display_enabled() {
+        return;
+    }
+    if shared.overlay.is_visible() && !live_popup_visible(shared) {
+        return; // popup chọn-sửa / bôi đen của người dùng: giữ nguyên
+    }
+    match super::assist::check_sentence(shared) {
+        Some(check) => {
+            show_assist_overlay(shared, ctx, ec, &check);
+        }
+        None => {
+            if live_popup_visible(shared) {
+                hide_assist_overlay(shared);
+            }
         }
     }
 }
@@ -441,7 +485,21 @@ impl KeyEditSession {
                 // sách (`assist::CHECK_BUDGET_MS`) — không chặn luồng gõ.
                 if comp.is_none() {
                     let trigger = super::assist::assist_trigger(self.key);
-                    if let Some(check) = super::assist::after_trigger(shared, trigger) {
+                    // R2-129: popup sống — ranh giới từ (space , ; :) và Backspace
+                    // khi popup sống đang hiện: hiện/cập nhật/ẩn theo câu đúng sai.
+                    if trigger == AssistTrigger::Word
+                        || (self.key == KeyKind::Backspace && live_popup_visible(shared))
+                    {
+                        refresh_live_popup(&self.shared, &self.ctx, ec);
+                    }
+                    let sentence_check = super::assist::after_trigger(shared, trigger);
+                    if trigger == AssistTrigger::Sentence
+                        && sentence_check.is_none()
+                        && live_popup_visible(shared)
+                    {
+                        hide_assist_overlay(shared); // câu kết thúc đã đúng → ẩn ngay
+                    }
+                    if let Some(check) = sentence_check {
                         // AS-030 / AS-050: chỉ điểm hiển thị (kết thúc câu, D11)
                         // mới hiện overlay hoặc tự sửa cả câu; space/,/: chỉ toast.
                         if trigger == AssistTrigger::Sentence {
@@ -455,11 +513,9 @@ impl KeyEditSession {
                                     apply_sentence_auto_fix(&self.shared, &self.ctx, ec, &check);
                             }
                             if !auto_fixed {
-                                let shown =
-                                    show_assist_overlay(&self.shared, &self.ctx, ec, &check);
-                                // Vòng 29: overlay không hiện được (app không
-                                // anchor…) → toast fallback popup dưới-phải.
-                                super::assist::after_trigger_finish(&check, shown);
+                                // R2-126: panel sửa lỗi là kênh duy nhất — không
+                                // còn toast "phát hiện lỗi" khi panel không hiện.
+                                show_assist_overlay(&self.shared, &self.ctx, ec, &check);
                             }
                         }
                     }
@@ -514,13 +570,13 @@ impl KeyEditSession {
                         }
                     } else {
                         // Không bôi đen: kiểm tra từ / câu ở vị trí con trỏ (on-demand)
+                        // Chỉ ăn phím khi panel THẬT SỰ hiện (R2-126: không toast
+                        // thay thế, không nuốt Ctrl+Space của app một cách vô ích).
                         if let Some(check) = crate::assist::check_sentence_on_demand(shared) {
-                            let shown = show_assist_overlay(&self.shared, &self.ctx, ec, &check);
-                            if shown {
+                            if show_assist_overlay(&self.shared, &self.ctx, ec, &check) {
                                 mark_assist_on_demand(shared);
+                                return true;
                             }
-                            super::assist::after_trigger_finish(&check, shown);
-                            return true;
                         }
                     }
                     // R2-121: Ctrl+Space tới app (không dự đoán, không lỗi) — như
@@ -649,25 +705,30 @@ pub(crate) fn show_assist_overlay_with_recheck(
     check: &AssistCheck,
     from_recheck: bool,
 ) -> bool {
+    // Trace chẩn đoán (`TEXTVN_TSF_TRACE`): chỉ LÝ DO + số đếm, không chữ (S2).
+    let skip = |why: &str| {
+        crate::trace::event(shared.tid, format_args!("assist overlay skip: {why}"));
+        false
+    };
     if !shared.is_assist_display_enabled() {
-        return false; // D20 kill-switch + `assist.mode` (R-6: giống macOS/Linux)
+        return skip("display off"); // D20 kill-switch + `assist.mode` (R-6: giống macOS/Linux)
     }
     let Some(view) = check.view() else {
-        return false;
+        return skip("no view");
     };
     if !crate::assist::should_show_overlay(AssistTrigger::Sentence, true, view.issues.len()) {
-        return false;
+        return skip("no issue");
     }
     let Some(anchor) = caret_anchor(ctx, ec, shared.tid) else {
-        return false; // không neo được (app không cho toạ độ) → im lặng
+        return skip("no anchor"); // không neo được (app không cho toạ độ) → im lặng
     };
     let Some(caret) = selection_range(ctx, ec) else {
-        return false;
+        return skip("no selection");
     };
     // Chỉ neo khi selection là caret rỗng: bôi đen = người dùng đang chọn text,
     // sửa lúc này là ghi đè lựa chọn của họ (D12 fail-safe).
     if !matches!(unsafe { caret.IsEmpty(ec) }, Ok(empty) if empty.as_bool()) {
-        return false;
+        return skip("selection not empty");
     }
     // SAFETY: foreground window chỉ để watchdog biết "app đổi foreground"; 0 =
     // không kiểm tra (không lấy được).
@@ -693,8 +754,12 @@ pub(crate) fn show_assist_overlay_with_recheck(
         // Không tạo được cửa sổ (thiếu quyền/GDI lỗi): bỏ state, không để A2
         // sửa text mà người dùng không thấy gì.
         hide_assist_overlay(shared);
-        return false;
+        return skip("window not visible");
     }
+    crate::trace::event(
+        shared.tid,
+        format_args!("assist overlay shown issues={}", view.issues.len()),
+    );
     true
 }
 
@@ -714,9 +779,11 @@ pub fn show_assist_overlay_for_selection(
     if !shared.is_assist_display_enabled() {
         return false;
     }
-    let Some(view) = check.view() else {
+    let Some(mut view) = check.view() else {
         return false;
     };
+    // Popup bôi đen là chế độ chọn-sửa (Enter = sửa tất cả vùng chọn) — R2-129.
+    view.interactive = true;
     if !crate::assist::should_show_overlay(
         crate::assist::AssistTrigger::Sentence,
         true,
@@ -1619,21 +1686,54 @@ fn apply_plan(
             del.Collapse(ec, TF_ANCHOR_START)?;
             let want = -i32::from(plan.delete_before);
             let mut shifted = 0i32;
-            del.ShiftStart(ec, want, &mut shifted, std::ptr::null())?;
+            if let Err(e) = del.ShiftStart(ec, want, &mut shifted, std::ptr::null()) {
+                crate::trace::event(
+                    shared.tid,
+                    format_args!("delete_before shift err {:#x}", e.code().0),
+                );
+                return Err(e);
+            }
             // Text store không cho lùi đủ (app IMM32): không xóa gì cả.
             if shifted != want {
+                crate::trace::event(
+                    shared.tid,
+                    format_args!("delete_before shifted {shifted} want {want}"),
+                );
                 return Err(Error::from(E_FAIL));
             }
-            let snap = del.Clone()?;
-            let mut buf = vec![0u16; plan.delete_before as usize];
-            let mut fetched = 0u32;
-            if snap.GetText(ec, 0, &mut buf, &mut fetched).is_ok()
-                && fetched as usize == plan.delete_before as usize
-            {
-                restore = Some((del.Clone()?, buf[..fetched as usize].to_vec()));
+            if let Some(c) = comp.as_ref() {
+                // R2-128: TIP đang giữ composition chỉ được sửa text TRONG
+                // composition của mình — SetText vùng trước nó bị từ chối
+                // `TF_E_RANGE_NOT_COVERED` (0x80040507, bắt bằng trace trên
+                // Notepad Win11/Word: `=15000000bc`+Space không bung). Cách
+                // chuẩn TSF: NỚI composition ra trước phủ phần cần xoá; SetText
+                // composition bên dưới thay cả khối (không xoá rời → không cần
+                // hoàn tác A9: lỗi thì text cũ vẫn nguyên trong composition).
+                if let Err(e) = c.ShiftStart(ec, &del) {
+                    crate::trace::event(
+                        shared.tid,
+                        format_args!("delete_before extend composition err {:#x}", e.code().0),
+                    );
+                    return Err(e);
+                }
+            } else {
+                let snap = del.Clone()?;
+                let mut buf = vec![0u16; plan.delete_before as usize];
+                let mut fetched = 0u32;
+                if snap.GetText(ec, 0, &mut buf, &mut fetched).is_ok()
+                    && fetched as usize == plan.delete_before as usize
+                {
+                    restore = Some((del.Clone()?, buf[..fetched as usize].to_vec()));
+                }
+                let empty = [0u16; 1];
+                if let Err(e) = del.SetText(ec, 0, &empty[..0]) {
+                    crate::trace::event(
+                        shared.tid,
+                        format_args!("delete_before settext err {:#x}", e.code().0),
+                    );
+                    return Err(e);
+                }
             }
-            let empty = [0u16; 1];
-            del.SetText(ec, 0, &empty[..0])?;
         }
 
         // Chèn + kết thúc composition đặt trong closure để hoàn tác A9 khi lỗi. Mọi
@@ -1730,36 +1830,92 @@ pub fn get_caret_rect(ctx: &ITfContext, ec: u32) -> Option<RECT> {
     }
 }
 
-/// Neo panel cạnh caret: `ITfContextView::GetTextExt` (TSF-aware) trước, không
-/// được thì `GetGUIThreadInfo().rcCaret` (app IMM32/legacy). Chỉ **vị trí** —
-/// không đọc chữ của app (D8).
+/// Neo panel cạnh caret — chỉ **vị trí**, không đọc chữ của app (D8). Thứ tự
+/// (R2-125 — trước đây Notepad Win11 rơi hết các nhánh nên panel không bao giờ
+/// hiện, chỉ còn toast):
+/// 1. `ITfContextView::GetTextExt` của caret (rect bề rộng 0 vẫn nhận);
+/// 2. `GetTextExt` của **ký tự ngay trước caret** (app không đo range rỗng) —
+///    neo cạnh phải ký tự đó;
+/// 3. `GetGUIThreadInfo(thread hiện tại).rcCaret` (app IMM32/legacy) đổi
+///    **client → màn hình**;
+/// 4. góc dưới-trái bên trong control đang focus (gần đúng, vẫn hơn không hiện).
 #[cfg(windows)]
-pub(crate) fn caret_anchor(ctx: &ITfContext, ec: u32, tid: u32) -> Option<Anchor> {
-    if let Some(rc) = get_caret_rect(ctx, ec) {
-        let anchor = Anchor::new(rc.left, rc.top, rc.right, rc.bottom);
-        if anchor.is_valid() {
-            return Some(anchor);
-        }
+pub(crate) fn caret_anchor(ctx: &ITfContext, ec: u32, _client_id: u32) -> Option<Anchor> {
+    if let Some(anchor) = tsf_caret_anchor(ctx, ec) {
+        return Some(anchor);
     }
-    // SAFETY: GetGUIThreadInfo chỉ đọc trạng thái GUI của thread ta đang chạy.
+    // SAFETY: GetGUIThreadInfo/ClientToScreen/GetWindowRect chỉ đọc trạng thái GUI
+    // của thread UI hiện tại (edit session chạy trên thread đó).
     unsafe {
         let mut info = GUITHREADINFO {
             cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
             ..Default::default()
         };
-        if GetGUIThreadInfo(tid, &mut info).is_err() || info.hwndCaret.0.is_null() {
+        // GetGUIThreadInfo nhận THREAD ID Win32 — `TsfShared::tid` là TfClientId
+        // của TSF (đối số `RequestEditSession`), truyền vào đây luôn thất bại.
+        let thread = windows::Win32::System::Threading::GetCurrentThreadId();
+        if GetGUIThreadInfo(thread, &mut info).is_err() {
             return None;
         }
-        let rc = info.rcCaret;
-        let mut anchor = Anchor::new(rc.left, rc.top, rc.right, rc.bottom);
-        // rcCaret có thể chỉ là điểm (rộng 0): cho panel một chiều cao tối thiểu.
-        if anchor.right <= anchor.left {
-            anchor.right = anchor.left + 1;
+        if !info.hwndCaret.0.is_null() {
+            // rcCaret là toạ độ CLIENT của hwndCaret.
+            let mut tl = windows::Win32::Foundation::POINT {
+                x: info.rcCaret.left,
+                y: info.rcCaret.top,
+            };
+            let mut br = windows::Win32::Foundation::POINT {
+                x: info.rcCaret.right,
+                y: info.rcCaret.bottom,
+            };
+            if windows::Win32::Graphics::Gdi::ClientToScreen(info.hwndCaret, &mut tl).as_bool()
+                && windows::Win32::Graphics::Gdi::ClientToScreen(info.hwndCaret, &mut br).as_bool()
+            {
+                if let Some(anchor) = Anchor::from_caret_rect(tl.x, tl.y, br.x, br.y) {
+                    return Some(anchor);
+                }
+            }
         }
-        if anchor.bottom <= anchor.top {
-            anchor.bottom = anchor.top + 16;
+        let focus = if !info.hwndFocus.0.is_null() {
+            info.hwndFocus
+        } else {
+            info.hwndActive
+        };
+        if focus.0.is_null() {
+            return None;
         }
-        Some(anchor)
+        let mut rc = RECT::default();
+        if windows::Win32::UI::WindowsAndMessaging::GetWindowRect(focus, &mut rc).is_err() {
+            return None;
+        }
+        Anchor::inside_bottom_left(rc.left, rc.top, rc.right, rc.bottom)
+    }
+}
+
+/// Bước 1–2 của [`caret_anchor`]: đo caret qua TSF (toạ độ màn hình).
+#[cfg(windows)]
+fn tsf_caret_anchor(ctx: &ITfContext, ec: u32) -> Option<Anchor> {
+    // SAFETY: gọi trong edit session (ec hợp lệ); chỉ đọc toạ độ.
+    unsafe {
+        let view = ctx.GetActiveView().ok()?;
+        let sel = selection_range(ctx, ec)?;
+        let mut rc = RECT::default();
+        let mut clipped = windows::core::BOOL::default();
+        if view.GetTextExt(ec, &sel, &mut rc, &mut clipped).is_ok() {
+            if let Some(anchor) = Anchor::from_caret_rect(rc.left, rc.top, rc.right, rc.bottom) {
+                return Some(anchor);
+            }
+        }
+        let prev = sel.Clone().ok()?;
+        let mut shifted = 0i32;
+        if prev
+            .ShiftStart(ec, -1, &mut shifted, std::ptr::null())
+            .is_ok()
+            && shifted == -1
+            && view.GetTextExt(ec, &prev, &mut rc, &mut clipped).is_ok()
+        {
+            return Anchor::from_caret_rect(rc.right, rc.top, rc.right, rc.bottom);
+        }
+        None
     }
 }
 

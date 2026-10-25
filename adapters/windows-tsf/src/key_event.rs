@@ -22,7 +22,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::TextServices::*;
 
 #[cfg(windows)]
-use crate::assist::{overlay_action_for, OverlayAction};
+use crate::assist::{overlay_action_for, OverlayAction, PopupKind};
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
@@ -344,7 +344,14 @@ fn handle_overlay_key(
         .ok()
         .and_then(|slot| slot.as_ref().map(|a| (a.selection.is_some(), a.on_demand)))
         .unwrap_or((false, false));
-    match overlay_action_for(vk, mods, on_demand) {
+    let kind = if on_demand {
+        PopupKind::OnDemand
+    } else if selection_popup {
+        PopupKind::Selection
+    } else {
+        PopupKind::Live
+    };
+    match overlay_action_for(vk, mods, kind) {
         // Ctrl+Shift+G: kiểm tra lại câu + hiện overlay (không phụ thuộc overlay).
         OverlayAction::Recall => {
             let ctx = ctx?; // không có ctx = không xin được session → để phím đi
@@ -388,6 +395,9 @@ fn handle_overlay_key(
             hide_assist_overlay(shared);
             None
         }
+        // R2-129: popup sống — phím gõ đi thẳng, popup giữ nguyên (lần kiểm
+        // tra kế tiếp ở ranh giới từ/Backspace cập nhật hoặc ẩn theo câu).
+        OverlayAction::Keep => None,
     }
 }
 

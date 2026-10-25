@@ -64,12 +64,10 @@ pub const CHECK_BUDGET_MS: u128 = 10;
 /// LOẠI (ồn — yêu cầu chủ repo 2026-10-24); chỉ toast khi Mode 2 tự sửa
 /// (người dùng phải biết text đã đổi + Ctrl+Z), 60 s/lần.
 pub const NOTIFY_COOLDOWN_MS: u64 = 60_000;
-/// Toast phát hiện lỗi (fallback popup dưới-phải): 8 s — chống spam khi gõ
-/// nhiều câu có lỗi liên tiếp nhưng đủ nhanh để người dùng thấy (vòng 29).
-pub const DETECT_COOLDOWN_MS: u64 = 8_000;
-/// Mốc toast phát hiện gần nhất (riêng slot với auto-fix).
-#[cfg(windows)]
-static LAST_DETECT_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+// R2-126 (chủ repo 2026-10-26): KHÔNG còn toast "Phát hiện N lỗi" làm đường
+// lui khi panel không hiện (vòng 29) — "báo noti nhiều noise mà không giải
+// quyết được gì". Kênh DUY NHẤT để sửa là panel tại caret (`caret_anchor` có
+// fallback tới tận control đang focus — R2-125); không hiện được thì im lặng.
 
 // ---------------------------------------------------------------------------
 // Mode 1 — mô hình hiển thị overlay (D4/D30/D38)
@@ -94,6 +92,9 @@ pub const OVERLAY_IDLE_MS: u64 = 8_000;
 
 /// Nhắc phím — chuỗi tĩnh, không chứa nội dung người dùng.
 pub const OVERLAY_HINT: &str = "↑/↓ chọn lỗi · Enter sửa · Alt+1…3 gợi ý · Esc đóng";
+/// Dòng nhắc của popup **sống** (R2-129): popup tự hiện khi câu đang sai,
+/// KHÔNG chiếm phím gõ — muốn chọn/sửa bằng phím thì Ctrl+Space.
+pub const OVERLAY_HINT_LIVE: &str = "Ctrl+Space chọn & sửa · Alt+1…3 áp gợi ý · Esc đóng";
 
 /// VK dùng cho overlay (khớp Win32).
 pub const VK_UP: u32 = 0x26;
@@ -146,6 +147,9 @@ pub struct OverlayView {
     pub total_issues: usize,
     /// Chỉ số lỗi đang chọn (`issues`).
     pub selected: usize,
+    /// Popup đang ở chế độ **chọn-sửa** (Ctrl+Space / bôi đen) — ↑/↓/Enter
+    /// thuộc panel. `false` = popup sống (R2-129), không chiếm phím gõ.
+    pub interactive: bool,
 }
 
 impl OverlayView {
@@ -183,6 +187,7 @@ impl OverlayView {
             issues,
             total_issues: total,
             selected: 0,
+            interactive: false,
         })
     }
 
@@ -279,8 +284,17 @@ impl OverlayView {
         if self.hidden_count() > 0 {
             out.push_str(&format!("  (+{} lỗi khác)\n", self.hidden_count()));
         }
-        out.push_str(OVERLAY_HINT);
+        out.push_str(self.hint());
         out
+    }
+
+    /// Dòng nhắc phím theo chế độ popup (R2-129).
+    pub fn hint(&self) -> &'static str {
+        if self.interactive {
+            OVERLAY_HINT
+        } else {
+            OVERLAY_HINT_LIVE
+        }
     }
 }
 
@@ -311,6 +325,9 @@ pub enum OverlayAction {
     Recall,
     /// Phím khác: đóng overlay rồi để phím đi tiếp (gõ tiếp = tự tắt).
     Dismiss,
+    /// Popup sống (R2-129): phím gõ đi thẳng vào văn bản, popup GIỮ NGUYÊN
+    /// (cập nhật/ẩn ở lần kiểm tra kế tiếp theo câu đúng sai).
+    Keep,
 }
 
 /// Bản đồ phím của overlay — **hàm thuần**, test không cần dựng TSF.
@@ -351,15 +368,50 @@ pub fn overlay_action(vk: u32, mods: u32) -> OverlayAction {
     }
 }
 
-/// Bản đồ phím theo **nguồn** popup (R2-122): Tab/Shift+Tab chuyển lỗi CHỈ ở
-/// popup người dùng chủ động gọi (Ctrl+Space). Popup tự hiện sau dấu câu
-/// (Mode 1) không được nuốt Tab — người dùng đang Tab sang ô form/Excel hay
-/// thụt lề: Tab đóng popup rồi đi tiếp tới app (P4-0 §4.2 "phím khác").
-pub fn overlay_action_for(vk: u32, mods: u32, on_demand: bool) -> OverlayAction {
-    if vk == VK_TAB && !on_demand {
-        return OverlayAction::Dismiss;
+/// Nguồn/chế độ của popup đang hiện — quyết định phím nào thuộc panel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PopupKind {
+    /// Tự hiện khi câu đang sai (R2-129) — KHÔNG chiếm phím gõ.
+    Live,
+    /// Bôi đen (selection-check vòng 30) — Enter = sửa tất cả vùng chọn.
+    Selection,
+    /// Người dùng chủ động gọi (Ctrl+Space) — ↑/↓/Tab/Enter thuộc panel.
+    OnDemand,
+}
+
+/// Phím gõ chữ (không Ctrl/Alt/Win): chữ, số, dấu cách, dấu câu OEM, numpad,
+/// Backspace — popup sống để nguyên, phím đi thẳng vào văn bản.
+pub fn is_typing_key(vk: u32, mods: u32) -> bool {
+    use textvn_ffi::{MOD_ALT, MOD_CTRL, MOD_SUPER};
+    if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 {
+        return false;
     }
-    overlay_action(vk, mods)
+    matches!(
+        vk,
+        0x08 | 0x20 | 0x30..=0x39 | 0x41..=0x5A | 0x60..=0x6F | 0xBA..=0xC0 | 0xDB..=0xDF | 0xE2
+    )
+}
+
+/// Bản đồ phím theo **nguồn** popup.
+///
+/// - R2-122: Tab/Shift+Tab chuyển lỗi CHỈ ở popup gọi bằng Ctrl+Space; popup
+///   khác để Tab tới app (chuyển ô form/Excel, thụt lề).
+/// - R2-129 (chủ repo 2026-10-26: popup hiện/ẩn nhanh theo câu đúng sai):
+///   popup **sống** không chiếm phím — gõ chữ giữ popup (`Keep`), Enter/Tab/
+///   mũi tên/… tới app và đóng popup; chỉ Esc, Alt+1…3, Ctrl+Shift+G thuộc
+///   panel. Trước đây popup tự hiện nuốt Enter để "sửa" — người dùng xuống
+///   dòng thì bị sửa câu thay vì xuống dòng.
+pub fn overlay_action_for(vk: u32, mods: u32, kind: PopupKind) -> OverlayAction {
+    match kind {
+        PopupKind::OnDemand => overlay_action(vk, mods),
+        PopupKind::Selection if vk == VK_TAB => OverlayAction::Dismiss,
+        PopupKind::Selection => overlay_action(vk, mods),
+        PopupKind::Live => match overlay_action(vk, mods) {
+            a @ (OverlayAction::Recall | OverlayAction::Close | OverlayAction::Suggestion(_)) => a,
+            _ if is_typing_key(vk, mods) => OverlayAction::Keep,
+            _ => OverlayAction::Dismiss,
+        },
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -978,6 +1030,7 @@ pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<Assi
 #[cfg(windows)]
 pub fn check_sentence_on_demand(shared: &crate::edit_session::TsfShared) -> Option<AssistCheck> {
     if !shared.is_assist_enabled() {
+        crate::trace::event(shared.tid, format_args!("assist on-demand: assist off"));
         return None;
     }
     let began = std::time::Instant::now();
@@ -991,12 +1044,25 @@ pub fn check_sentence_on_demand(shared: &crate::edit_session::TsfShared) -> Opti
         )
     };
     if assist_app_disabled || sentence.trim().is_empty() {
+        crate::trace::event(
+            shared.tid,
+            format_args!("assist on-demand: no sentence/app off"),
+        );
         return None;
     }
     if began.elapsed().as_millis() > CHECK_BUDGET_MS {
         return None;
     }
-    check_text_min_words(&sentence, auto_capitalize, 1)
+    let check = check_text_min_words(&sentence, auto_capitalize, 1);
+    crate::trace::event(
+        shared.tid,
+        format_args!(
+            "assist on-demand: chars={} issues={}",
+            sentence.chars().count(),
+            check.as_ref().map_or(0, |c| c.issue_count())
+        ),
+    );
+    check
 }
 
 #[cfg(windows)]
@@ -1045,20 +1111,7 @@ pub fn after_trigger(
         return None;
     }
     let check = check_sentence(shared)?;
-    // Vòng 29: popup dưới-phải (toast) là FALLBACK — hiện khi overlay tại
-    // caret không hiển thị được (app không cho anchor, selection bôi đen,
-    // thiếu quyền GDI). Overlay hiện được thì toast im (tránh 2 popup cùng
-    // lúc). Caller truyền kết quả show vào `overlay_shown`.
     Some(check)
-}
-
-/// Gọi sau khi caller thử hiện overlay: `overlay_shown = false` ⇒ toast
-/// fallback (vòng 29). Thuần enough để test.
-#[cfg(windows)]
-pub fn after_trigger_finish(check: &AssistCheck, overlay_shown: bool) {
-    if !overlay_shown && check.issue_count() > 0 {
-        notify_detected(check.issue_count());
-    }
 }
 
 /// Toast "Đã tự sửa" (Mode 2): người dùng phải biết text đã đổi + hoàn tác.
@@ -1073,35 +1126,6 @@ pub fn notify_auto_fixed(fixed_count: usize) -> bool {
     }
     let message =
         format!("Đã tự sửa {fixed_count} lỗi trong câu (Ctrl+Z để hoàn tác trong 5 giây)");
-    crate::ipc_client::notify_assist_async("TextVN — Trợ lý ngữ pháp".to_string(), message);
-    true
-}
-
-/// Toast **phát hiện lỗi** (Mode 1 — popup dưới-phải, vòng 29): hiện khi
-/// overlay tại caret không hiển thị được (app không cho anchor/selection
-/// không rỗng) để người dùng vẫn biết trợ lý đang hoạt động. Cooldown 8 s
-/// riêng ([`DETECT_COOLDOWN_MS`]) — không đụng slot của auto-fix.
-#[cfg(windows)]
-pub fn notify_detected(issue_count: usize) -> bool {
-    use std::sync::atomic::Ordering;
-    if issue_count == 0 {
-        return false;
-    }
-    let now = millis_since_epoch();
-    // Cooldown riêng 8 s (DETECT_COOLDOWN_MS — audit F2: trước đây dùng
-    // nhầm notify_allowed 60 s khiến popup "không hoạt động").
-    let last = LAST_DETECT_MS.load(Ordering::Acquire);
-    if now.saturating_sub(last) < DETECT_COOLDOWN_MS {
-        return false;
-    }
-    // CAS mốc cũ→now: 2 thread cùng phát hiện chỉ 1 bên thắng.
-    if LAST_DETECT_MS
-        .compare_exchange(last, now, Ordering::AcqRel, Ordering::Acquire)
-        .is_err()
-    {
-        return false; // thread khác vừa claim — bỏ (đã có toast).
-    }
-    let message = format!("Phát hiện {issue_count} lỗi trong câu vừa gõ.");
     crate::ipc_client::notify_assist_async("TextVN — Trợ lý ngữ pháp".to_string(), message);
     true
 }
@@ -1202,15 +1226,6 @@ mod tests {
         assert!(word_count("tôi tôi") < MIN_SENTENCE_WORDS);
     }
 
-    /// Vòng 29 (audit F2): DETECT_COOLDOWN_MS = 8 s — popup phát hiện lỗi
-    /// fallback KHÔNG bị kẹt 60 s của auto-fix.
-    #[test]
-    fn detect_cooldown_8s_rieng_slot() {
-        assert_eq!(DETECT_COOLDOWN_MS, 8_000);
-        assert_eq!(NOTIFY_COOLDOWN_MS, 60_000);
-        assert_ne!(DETECT_COOLDOWN_MS, NOTIFY_COOLDOWN_MS);
-    }
-
     #[test]
     fn notify_cooldown_chong_spam_tray() {
         // Vòng 26: cooldown 60 s — toast chỉ cho Mode 2 tự sửa.
@@ -1292,7 +1307,10 @@ mod tests {
         assert_eq!(lines[0], "Hôm nay tôi tôi đi học .");
         assert_eq!(lines[1], "            ^^^");
         assert_eq!(lines[2], "  1. Lặp từ: \"tôi\"  -> tôi");
-        assert_eq!(*lines.last().unwrap(), OVERLAY_HINT);
+        assert_eq!(*lines.last().unwrap(), OVERLAY_HINT_LIVE);
+        let mut v2 = v.clone();
+        v2.interactive = true;
+        assert_eq!(v2.render_plain().lines().last().unwrap(), OVERLAY_HINT);
     }
 
     /// Span > câu bị bỏ (fail-safe) và `count` lỗi vượt 3 → gộp "+N".
@@ -1377,14 +1395,50 @@ mod tests {
         assert_eq!(overlay_action(VK_DOWN, 0), OverlayAction::Next);
         assert_eq!(overlay_action(VK_TAB, 0), OverlayAction::Next); // Tab chuyển sang lỗi tiếp theo
         assert_eq!(overlay_action(VK_TAB, MOD_SHIFT), OverlayAction::Previous);
-        // R2-122: popup TỰ HIỆN không nuốt Tab (chuyển ô form/Excel, thụt lề).
-        assert_eq!(overlay_action_for(VK_TAB, 0, false), OverlayAction::Dismiss);
+        // R2-122: popup không gọi bằng Ctrl+Space không nuốt Tab.
+        use PopupKind::{Live, OnDemand, Selection};
+        assert_eq!(overlay_action_for(VK_TAB, 0, Live), OverlayAction::Dismiss);
         assert_eq!(
-            overlay_action_for(VK_TAB, MOD_SHIFT, false),
+            overlay_action_for(VK_TAB, MOD_SHIFT, Selection),
             OverlayAction::Dismiss
         );
-        assert_eq!(overlay_action_for(VK_TAB, 0, true), OverlayAction::Next);
-        assert_eq!(overlay_action_for(VK_DOWN, 0, false), OverlayAction::Next);
+        assert_eq!(overlay_action_for(VK_TAB, 0, OnDemand), OverlayAction::Next);
+        assert_eq!(
+            overlay_action_for(VK_DOWN, 0, Selection),
+            OverlayAction::Next
+        );
+        // R2-129: popup sống không chiếm phím gõ — chữ/số/cách/Backspace giữ popup,
+        // Enter/mũi tên tới app (đóng popup), Esc/Alt+n vẫn thuộc panel.
+        for vk in [0x41, 0x5A, 0x31, 0x20, 0x08, 0xBE, 0xBC, 0x61] {
+            assert_eq!(
+                overlay_action_for(vk, 0, Live),
+                OverlayAction::Keep,
+                "{vk:#x}"
+            );
+        }
+        assert_eq!(
+            overlay_action_for(0x41, MOD_SHIFT, Live),
+            OverlayAction::Keep
+        );
+        assert_eq!(
+            overlay_action_for(VK_RETURN, 0, Live),
+            OverlayAction::Dismiss
+        );
+        assert_eq!(overlay_action_for(VK_DOWN, 0, Live), OverlayAction::Dismiss);
+        assert_eq!(overlay_action_for(VK_UP, 0, Live), OverlayAction::Dismiss);
+        assert_eq!(overlay_action_for(VK_ESCAPE, 0, Live), OverlayAction::Close);
+        assert_eq!(
+            overlay_action_for(0x31, textvn_ffi::MOD_ALT, Live),
+            OverlayAction::Suggestion(0)
+        );
+        assert_eq!(
+            overlay_action_for(0x20, MOD_CTRL, Live),
+            OverlayAction::Dismiss
+        );
+        assert_eq!(
+            overlay_action_for(VK_RETURN, 0, OnDemand),
+            OverlayAction::Apply
+        );
         assert_eq!(overlay_action(VK_RETURN, 0), OverlayAction::Apply);
         // Shift+Enter là xuống dòng, không phải áp dụng.
         assert_eq!(overlay_action(VK_RETURN, MOD_SHIFT), OverlayAction::Dismiss);

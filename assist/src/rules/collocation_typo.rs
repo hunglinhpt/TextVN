@@ -76,7 +76,9 @@ fn push_collocation_issue(
             start: bad_start,
             end: bad_end,
         },
-        format!("Sai chính tả trong cụm từ: \"{bad_orig}\" → \"{fixed}\""),
+        // Gợi ý đã đi riêng trong `suggestions` (panel hiện "… -> sung") —
+        // không lặp lại trong thông điệp (R2-127: dòng lỗi bị cắt "-> su…").
+        format!("Sai chính tả trong cụm từ: \"{bad_orig}\""),
         vec![fixed.clone()],
         Fix::Replace {
             start: bad_start,

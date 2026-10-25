@@ -557,6 +557,19 @@ mod tests {
         assert_eq!(doc.text(), "Công ty TNHH");
     }
 
+    /// OP-003 qua adapter: `=<số>bc` + Space (macro_trigger = space) — phần
+    /// `=` và chữ số đã commit TRƯỚC composition "bc" nên phải xoá vượt ranh
+    /// giới composition (delete_before).
+    #[test]
+    fn op003_money_shorthand_through_adapter() {
+        for trig in ["space", "tab"] {
+            let cfg = format!(r#"{{"config_version":1,"macro_trigger":"{trig}"}}"#);
+            let key = if trig == "space" { " " } else { "\t" };
+            let doc = run(cfg.as_bytes(), &format!("=15000000bc{key}"));
+            assert_eq!(doc.text(), "Mười lăm triệu đồng chẵn", "trigger {trig}");
+        }
+    }
+
     #[test]
     fn auto_capitalize_goes_into_composition() {
         let cfg = br#"{"config_version":1,"auto_capitalize":true}"#;
