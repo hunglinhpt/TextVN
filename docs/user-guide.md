@@ -266,6 +266,34 @@ Bộ tiện ích cho công việc hằng ngày — chạy **trên máy bạn**, 
 Chuyển mã chỉ ghi khi chắc chắn: văn bản đã là Unicode, hoặc không đủ tín hiệu nhận diện,
 thì **không đụng gì** (thà bỏ qua còn hơn phá văn bản).
 
+### Dự đoán văn bản — Tab / Ctrl + Space (bản sau 0.2.45)
+
+Bật bằng `"suggest": { "enabled": true }` trong `config.v1.json` (**mặc định tắt** —
+Tab giữ nguyên hành vi cũ của ứng dụng cho tới khi bạn bật). Khi bật:
+
+| Bạn gõ | Nhấn | Kết quả |
+|---|---|---|
+| `phát` | Tab | `phát triển` — Tab tiếp: `phát sinh` → `phát biểu` … (duyệt vòng) |
+| `phát triển` (có hoặc chưa có dấu cách) | Tab | `phát triển phần mềm` — ngữ cảnh nhiều từ được ưu tiên hơn hoàn tất âm tiết cuối |
+| `Kính gửi` | Tab | `Kính gửi quý khách hàng` — Tab tiếp: `ban giám đốc` → `quý công ty` … |
+| `Cộng hòa` · `CỘNG HÒA` | Tab | `Cộng hòa xã hội chủ nghĩa Việt Nam` · `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM` |
+| `Độc lập` | Tab | `Độc lập - Tự do - Hạnh phúc` |
+| `Thank you` · `looking forward to` | Tab | `Thank you very much` · `looking forward to hearing from you` |
+
+- **Ctrl + Space** làm đúng như Tab; nếu không có dự đoán nào, Ctrl + Space mở **Trợ lý ngữ
+  pháp theo yêu cầu** cho câu đang gõ hoặc vùng đang bôi đen (Windows: panel tại caret, dùng
+  ↑/↓ hoặc Tab/Shift+Tab để chuyển lỗi, Enter để sửa; macOS: bảng gợi ý). Không có gợi ý
+  lẫn lỗi thì phím tới ứng dụng như bình thường.
+- Chữ hoa/thường: viết hoa đầu từ đang gõ thì ứng viên viết hoa theo; cụm **nối tiếp** không
+  tự viết hoa theo từ trước (`Xin` + Tab → `Xin chào`, không phải `Xin Chào`); tên riêng giữ
+  đúng chính tả (`Việt Nam`). Kiểu dấu (`hòa`/`hoà`) theo lựa chọn *Kiểu đặt dấu* của bạn.
+- Xuống dòng là ngữ cảnh mới: Tab ở đầu dòng mới không nối cụm của dòng trên.
+- Không khớp gì thì Tab đi qua cho ứng dụng (thụt lề, chuyển ô Excel/form) như cũ;
+  **Shift + Tab** không bao giờ bị TextVN dùng.
+- **macOS**: `Ctrl + Space` mặc định là phím tắt *Chọn nguồn nhập trước* của hệ thống — muốn
+  dùng với TextVN, tắt phím tắt đó ở *System Settings → Keyboard → Keyboard Shortcuts →
+  Input Sources* (Tab vẫn dùng được mà không cần đổi gì).
+
 ## 5. Gõ tắt
 
 Bảng điều khiển → **Gõ tắt...** → mỗi dòng một mục:
@@ -305,6 +333,8 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Linux: vừa cài mà chưa thấy TextVN | Đăng xuất rồi đăng nhập lại (biến môi trường per-user có hiệu lực từ phiên mới), hoặc thêm *TextVN* trong Cài đặt → Bàn phím (GNOME) / `fcitx5-configtool`. |
 | Linux: ứng dụng Electron/Chromium (VS Code, Chrome, Discord…) không gõ được | Trên Wayland chạy với `--enable-wayland-ime` (Chrome/Electron ≥ 120) hoặc chạy trên X11 (`--ozone-platform=x11`); đảm bảo `GTK_IM_MODULE=ibus` (hoặc `fcitx`). |
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
+| Windows: không thấy popup/toast của Trợ lý ngữ pháp | (1) Toast góc phải màn hình do **TextVN.exe** (khay hệ thống) hiển thị — tray không chạy thì không có toast: mở TextVN từ Start menu. (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** (toast tối đa 1 lần/60 giây) — muốn thấy panel gợi ý tại caret, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ (bộ cài cho mọi người dùng từ bản sau 0.2.45 tự gỡ bản cho tài khoản). |
+| Tab / Ctrl + Space không dự đoán gì | Dự đoán **tắt mặc định**: bật `"suggest": { "enabled": true }` (mục *Dự đoán văn bản* ở trên). macOS: tắt phím tắt hệ thống Ctrl + Space (xem trên). |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
 Báo lỗi: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**

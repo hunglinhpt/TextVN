@@ -45,6 +45,8 @@
 
 | B20 | Text Prediction Song ngữ Anh - Việt (P6): prefix completion + next-phrase prediction + tab cycling | ✓ 165 core + 6 integration tests pass 100%, preflight 23/23 PASS, p50=700ns (2026-10-25) | Tra cứu từ ghép VN, n-gram cụm từ tiếp theo VN/EN, không I/O, an toàn S9 Shift+Tab passthrough, G8 zero text logging |
 | B21 | Trigger Ctrl+Space cho cả Text Prediction và Text Correct (Trợ lý sửa lỗi từ và câu) | ✓ 23/23 preflight PASS, 96/96 TSF tests, 9/9 text_prediction tests, p50=687ns (2026-10-25) | Trigger song song với Tab: hoàn tất tiền tố, dự đoán cụm tiếp theo, duyệt vòng ứng viên; khi không khớp hoặc có lỗi/bôi đen thì gọi on-demand assist check hiện overlay sửa lỗi |
+| B22 | **Compile thử `installer/windows/TextVN-setup.iss` không cần build release**: tạo thư mục giả chứa 4 file 1 byte (`TextVN.exe`, `textvn-cli.exe`, `textvn_win_tsf.dll`, `textvn-tsf-x86.dll`) trong scratchpad → `& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "/DMyAppVersion=0.0.1" "/DTargetDir=<dir giả>" "/O<out>" installer\windows\TextVN-setup.iss` (thêm `"/DMachineInstall=1" "/DOutputSuffix=-machine"` cho biến thể máy) | ✓ 2026-10-25: exit 0 cả 2 biến thể (R2-124) | Chỉ kiểm cú pháp Pascal Script/section — **không chạy** setup.exe giả; hành vi cài thật kiểm trên `ci-windows` (`test-installer.ps1`) |
+| B23 | **Chứng minh test hồi quy bắt đúng lỗi**: `git stash push -- <file nguồn đã sửa> <data>` (giữ file test) → `cargo test -p <crate> --test <file>` phải FAIL → `git stash pop` | ✓ 2026-10-25: `text_prediction` 9/16 FAIL trên mã cũ, 16/16 PASS trên mã mới (R2-120/R2-121) | Nhanh hơn checkout commit cũ; nhớ `git status` sau `pop` |
 
 ## C. Windows platform (chi tiết → spike specs)
 

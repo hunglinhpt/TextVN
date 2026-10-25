@@ -1,0 +1,8 @@
+# Xuống dòng LF cho mã nguồn — E31: commit c6c29912 từng đổi core/src/keymap.rs
+# sang CRLF (diff cả file, che thay đổi thật khi review). Git tự chuẩn hoá khi add.
+*.rs    text eol=lf
+*.c     text eol=lf
+*.h     text eol=lf
+*.cpp   text eol=lf
+*.swift text eol=lf
+*.tsv   text eol=lf

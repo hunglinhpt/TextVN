@@ -7,6 +7,51 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Dự đoán văn bản song ngữ** (P6, bật bằng `"suggest": { "enabled": true }`,
+  mặc định tắt): **Tab** hoặc **Ctrl + Space** hoàn tất từ/từ ghép (`phát` →
+  `phát triển`), dự đoán cụm tiếp theo theo ngữ cảnh (`Kính gửi` → `quý khách
+  hàng`, `Thank you` → `very much`), Tab liên tiếp duyệt vòng ứng viên.
+  Ctrl + Space không có dự đoán thì mở **trợ lý ngữ pháp theo yêu cầu** cho câu
+  đang gõ hoặc vùng bôi đen (Windows, macOS). Nghiệp vụ:
+  `docs/50-assist/P6-TEXT-PREDICTION.md`.
+
+### Fixed
+- **Dự đoán đúng ngữ cảnh** (R2-120): `phát triển`+Tab ra `phát triển phần mềm`
+  (trước: "phát triển khai"), `hợp đồng`+Tab ra `hợp đồng kinh tế` (trước: "hợp
+  đồng ý"); dự đoán ngay sau từ vừa gõ, không cần dấu cách; `Xin`+Tab ra `Xin
+  chào` (không "Xin Chào"); tên riêng/tiêu ngữ đúng chính tả (`Việt Nam`,
+  `Độc lập - Tự do - Hạnh phúc`); không nối cụm sang dòng mới; kiểu dấu mới
+  (`hoà`) được hỗ trợ và ứng viên theo kiểu dấu của bạn.
+- **Ctrl + Space không làm lệch chữ** (R2-121): khi không có dự đoán/lỗi, từ
+  đang gõ được chốt và TextVN quên đuôi văn bản trước khi phím tới ứng dụng
+  (Windows, macOS, Linux) — trước đây có thể xoá/sửa nhầm chữ ở phím kế tiếp.
+- **Tab không bị panel trợ lý tự hiện nuốt mất** (R2-122): Tab chỉ chuyển lỗi
+  trong panel bạn tự mở bằng Ctrl + Space; panel tự hiện sau dấu câu thì Tab
+  đóng panel và tới ứng dụng (chuyển ô form/Excel, thụt lề) như cũ.
+- **Không thừa Tab/Ctrl + Space ở ứng dụng cũ (IMM32/CUAS)** khi TextVN đã dùng
+  phím đó để hoàn tất/gõ tắt/mở trợ lý (R2-123).
+- **Bộ cài không để lại hai bản TextVN** (R2-124): cài cho mọi người dùng tự gỡ
+  bản cài riêng cho tài khoản (cùng mục khởi động cũ) — trước đây hai bản chạy
+  lẫn nhau, tray/bộ gõ cũ có thể chạy thay bản mới (mất trợ lý ngữ pháp, toast);
+  cài cho tài khoản khi đã có bản cho mọi người dùng thì dừng và hướng dẫn.
+
+**English** — Unreleased: bilingual text prediction (P6, opt-in via
+`suggest.enabled`): Tab or Ctrl+Space completes words/compounds and predicts the
+next phrase from context, repeated presses cycle candidates; Ctrl+Space with no
+prediction opens the grammar assistant on demand (Windows, macOS). Fixed:
+context-aware ordering (`phát triển`+Tab → "phần mềm", not "triển khai"),
+prediction right after a word without a space, no Title-Casing of continuations,
+correct proper nouns, no prediction across line breaks, new-style tone marks
+(R2-120); Ctrl+Space no longer desyncs the composing word when it reaches the
+app (R2-121); the auto-shown assistant panel no longer swallows Tab (R2-122); no
+duplicated Tab/Ctrl+Space in IMM32/CUAS apps when TextVN consumed the key
+(R2-123); the all-users installer now removes a leftover per-user install and
+its stale autostart entry, and the per-user installer refuses to install next to
+an all-users install (R2-124).
+
 ## [0.2.45] — 2026-10-25
 
 ### Added
