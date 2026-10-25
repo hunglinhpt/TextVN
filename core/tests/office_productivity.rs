@@ -513,3 +513,91 @@ fn office_field_roles_and_strategy_resolution() {
     });
     assert_eq!(e.strategy(), Strategy::Preedit);
 }
+/// Macros dùng chung cho test OP-001.
+fn hd_cty_macros() -> Vec<MacroDef> {
+    vec![
+        MacroDef {
+            trigger: "hd".into(),
+            expand: "hợp đồng".into(),
+            when: MacroWhen::Always,
+        },
+        MacroDef {
+            trigger: "cty".into(),
+            expand: "Công ty TNHH".into(),
+            when: MacroWhen::Always,
+        },
+    ]
+}
+
+/// OP-001 (P5): gõ tắt thích ứng hoa/thường — `hd`/`Hd`/`HD` ra đúng kiểu chữ;
+/// expand gốc có chữ hoa chủ đích (`Công ty TNHH`) giữ nguyên 100% (R1-1).
+#[test]
+fn op001_case_adaptive_macro() {
+    let mut e = Engine::new(EngineOptions {
+        macros: hd_cty_macros(),
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e, "hd	"), "hợp đồng");
+    let mut e2 = Engine::new(EngineOptions {
+        macros: hd_cty_macros(),
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e2, "Hd	"), "Hợp đồng");
+    let mut e3 = Engine::new(EngineOptions {
+        macros: hd_cty_macros(),
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e3, "HD	"), "HỢP ĐỒNG");
+    // Expand gốc đã có chữ hoa chủ đích → giữ nguyên kể cả gõ toàn hoa.
+    let mut e4 = Engine::new(EngineOptions {
+        macros: hd_cty_macros(),
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e4, "CTY	"), "Công ty TNHH");
+    // Gõ thường vẫn như cũ.
+    let mut e5 = Engine::new(EngineOptions {
+        macros: hd_cty_macros(),
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e5, "CTY	".to_lowercase().as_str()), "Công ty TNHH");
+}
+
+/// OP-002 (P5): bảo vệ tên hàm công thức bảng tính — `=sum(...)`, `=if(...)`,
+/// `=or(...)`, `=vlookup(...)` không bị Telex fold thành âm tiết Việt.
+#[test]
+fn op002_excel_formula_guard() {
+    let mut e = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e, "=sum(a1:a10)"), "=sum(a1:a10)");
+    let mut e2 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e2, "=if(a1>0, 1, 0)"), "=if(a1>0, 1, 0)");
+    let mut e3 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e3, "=or(a1, b1)"), "=or(a1, b1)");
+    let mut e4 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(
+        type_sequence(&mut e4, "=vlookup(a2, b2:d10, 2, false)"),
+        "=vlookup(a2, b2:d10, 2, false)"
+    );
+    // `=` KHÔNG ở đầu ô (`x==1`) → vẫn gõ tiếng Việt bình thường phía sau.
+    let mut e5 = Engine::new(EngineOptions {
+        auto_capitalize: false,
+        ..Default::default()
+    });
+    assert_eq!(type_sequence(&mut e5, "x=too "), "x=tô ");
+}

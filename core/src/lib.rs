@@ -576,6 +576,22 @@ impl Engine {
             return self.close_word(c, strategy);
         }
 
+        // OP-002 (P5): bảo vệ tên hàm công thức bảng tính — từ bắt đầu NGAY SAU
+        // dấu `=` ở đầu ô/đầu dòng (`=sum`, `=if`, `=vlookup`) gõ thẳng raw,
+        // không fold (Telex `=sum(` → `=ũm(`). KHÔNG chặn sau chữ số (R2-2:
+        // VNI dùng `1..9` làm phím dấu — `d9u7o7ng2` → `đường`). Dấu `(` là
+        // ranh giới đóng từ nên bên trong ngoặc vẫn gõ tiếng Việt bình thường.
+        if self.is_excel_formula_name() {
+            self.word.raw.push(c);
+            self.word.passed.push(c);
+            self.record(Tail::Replace {
+                delete: 0,
+                glyph: &[c],
+                unicode: &[c],
+            });
+            return Outcome::pass();
+        }
+
         // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
         // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
         let mut caps_fired = false;
@@ -659,6 +675,26 @@ impl Engine {
         }
     }
 
+    /// OP-002 (P5): từ hiện tại có phải **tên hàm công thức bảng tính** dính
+    /// liền sau dấu `=` ở đầu ô/đầu dòng không (`=sum`, `=if`, `=or`,
+    /// `=vlookup`). Đầu ô = `=` ở đầu buffer hoặc ngay sau `\n`/`\t`; dấu `=`
+    /// sau chữ/số/gạch dưới (`x==1`, `a=b`) KHÔNG phải công thức.
+    fn is_excel_formula_name(&self) -> bool {
+        let word_glyphs = if self.word.active {
+            self.word.owned
+        } else {
+            self.word.passed.len()
+        };
+        if self.recent.len() <= word_glyphs {
+            return false;
+        }
+        let eq_idx = self.recent.len() - word_glyphs - 1;
+        if self.recent[eq_idx] != '=' {
+            return false;
+        }
+        eq_idx == 0 || matches!(self.recent[eq_idx - 1], '\n' | '\t')
+    }
+
     /// Trigger key của macro/emoji → mở rộng text (P0-3 §1.1, `post/macro.rs`).
     ///
     /// Trigger key bị **nuốt**; `Shift`+trigger = combo hệ thống → không đụng (S9, bug B6).
@@ -687,8 +723,22 @@ impl Engine {
         } else {
             None
         };
-        let (len, text) = match_display.or(match_raw)?;
-        let expanded: Vec<char> = text.chars().collect();
+        // OP-001 (P5): thích ứng hoa/thường theo cách gõ trigger thực tế —
+        // display match gõ `Hd`/`HD`; raw match (từ đã fold, "hd"→"hợp đồng"
+        // trong document) dùng `self.word.raw` làm "cách gõ". Phân biệt theo
+        // NGUỒN match (display/raw), không theo độ dài — `owned` của raw match
+        // có thể ≤ recent.len() và slice recent lúc đó là text đã fold, không
+        // phải trigger người dùng gõ.
+        let (len, expanded) = if let Some((len, text)) = match_display {
+            let start = self.recent.len().saturating_sub(len);
+            let expanded = post::r#macro::apply_macro_case(&self.recent[start..], text);
+            (len, expanded)
+        } else if let Some((owned, text)) = match_raw {
+            let expanded = post::r#macro::apply_macro_case(&self.word.raw, text);
+            (owned, expanded)
+        } else {
+            return None;
+        };
         // ⚠️ `MAX_TEXT` cat SAU encode (F65): phan app nhan vao document bi cat o day,
         // nen phan Unicode cua buffer cau phai cat theo cung quy tac (chi lay chu vua du).
         let insert: Vec<char> = self.emit(&expanded).into_iter().take(MAX_TEXT).collect();

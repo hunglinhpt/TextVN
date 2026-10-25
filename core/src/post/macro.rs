@@ -108,6 +108,39 @@ pub fn find<'a>(
     best
 }
 
+/// OP-001 (P5): thích ứng hoa/thường của chuỗi mở rộng theo **cách gõ thực tế**
+/// của trigger — nhưng CHỈ khi `expand` gốc viết toàn chữ thường.
+///
+/// - Gõ `hd`   → `hợp đồng` (giữ nguyên).
+/// - Gõ `Hd`   → `Hợp đồng` (viết hoa chữ đầu — đầu câu/mục lục).
+/// - Gõ `HD`   → `HỢP ĐỒNG` (tiêu đề bảng biểu; ≥2 chữ hoa mới toàn-hoa).
+/// - `expand` gốc đã có chữ hoa chủ đích (`cty` → `Công ty TNHH`,
+///   `vn` → `Việt Nam`) → **giữ nguyên 100%**, không hạ `TNHH` xuống thường
+///   (R1-1: bảo toàn unit test `matches_suffix_case_insensitive`).
+pub fn apply_macro_case(typed_trigger: &[char], expand: &str) -> Vec<char> {
+    let expand_chars: Vec<char> = expand.chars().collect();
+    if expand_chars.iter().any(|c| c.is_uppercase()) {
+        return expand_chars;
+    }
+    let letters: Vec<char> = typed_trigger.iter().copied().filter(|c| c.is_alphabetic()).collect();
+    if letters.is_empty() {
+        return expand_chars;
+    }
+    if letters.len() >= 2 && letters.iter().all(|c| c.is_uppercase()) {
+        return expand.to_uppercase().chars().collect();
+    }
+    if letters[0].is_uppercase() {
+        let mut out = expand_chars;
+        if let Some(first) = out.iter_mut().find(|c| c.is_alphabetic()) {
+            if let Some(up) = first.to_uppercase().next() {
+                *first = up;
+            }
+        }
+        return out;
+    }
+    expand_chars
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
