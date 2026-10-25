@@ -91,6 +91,81 @@ const VI_WORDS_AFTER_AN: &[&str] = &[
     "cung", "duoc", "khong", "minh", "chung", "anh", "chi", "em", "ban", "con", "ong", "ba",
 ];
 
+/// Từ tiếng Việt đứng TRƯỚC "an" tạo thành từ ghép/địa danh ("công an", "bình an",
+/// "bất an", "Nghệ An", "Hội An", "Long An", "dự an", "phương an"…).
+/// Không chặn các động từ/giới từ như "tạo", "gửi", "viết", "là", "có" để câu
+/// pha trộn ("Em vừa tạo an unit test") vẫn bắt được lỗi mạo từ tiếng Anh.
+const VI_WORDS_BEFORE_AN: &[&str] = &[
+    "công",
+    "bình",
+    "bất",
+    "phúc",
+    "tâm",
+    "trường",
+    "đại",
+    "vạn",
+    "thương",
+    "hội",
+    "nghệ",
+    "long",
+    "tân",
+    "định",
+    "duyên",
+    "thuận",
+    "dĩ",
+    "phú",
+    "vĩnh",
+    "khánh",
+    "thái",
+    "thanh",
+    "hồng",
+    "xuân",
+    "đông",
+    "nam",
+    "bắc",
+    "tây",
+    "phước",
+    "lộc",
+    "mỹ",
+    "thọ",
+    "kỳ",
+    "quảng",
+    "hoài",
+    "bảo",
+    "gia",
+    "quốc",
+    "thiên",
+    "triều",
+    "liên",
+    "hiệp",
+    "kiến",
+    "tuyên",
+    "dự",
+    "đề",
+    "phương",
+    "bản",
+    "vụ",
+    "phá",
+    "kết",
+    "chúc",
+    "cầu",
+    "nhà",
+    "đường",
+    "phường",
+    "quận",
+    "huyện",
+    "tỉnh",
+    "xã",
+    "thôn",
+    "ấp",
+    "chùa",
+    "đền",
+    "sông",
+    "núi",
+    "chợ",
+    "cảng",
+];
+
 /// Từ chức năng tiếng Anh (động từ chia, liên từ, giới từ) không bao giờ đứng
 /// ngay sau mạo từ "a"/"an" như danh từ ("Plan A is", "a and b", "Option A or B").
 const NON_NOUN_FOLLOWERS: &[&str] = &[
@@ -273,17 +348,16 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 i += 1;
                 continue;
             }
-            // Nếu từ đứng trước "an" là từ có dấu tiếng Việt ("công an", "bình an",
-            // "chúc an", "về an", "giữ an"), "an" là âm tiết tiếng Việt chứ không phải mạo từ EN.
+            // Nếu từ đứng trước "an" tạo thành cụm từ ghép/địa danh tiếng Việt ("công an",
+            // "bình an", "bất an", "Nghệ An", "Hội An"), "an" là âm tiết tiếng Việt.
             if i >= 2 && ctx.tokens[i - 1].kind == TokenKind::Space {
                 let prev_word = ctx.tokens[i - 2];
-                if prev_word.kind == TokenKind::Word
-                    && ctx.chars[prev_word.start..prev_word.end]
-                        .iter()
-                        .any(|&c| crate::rules::language::is_vietnamese_letter(c))
-                {
-                    i += 1;
-                    continue;
+                if prev_word.kind == TokenKind::Word {
+                    let prev_lower = ctx.token_text(&prev_word).to_lowercase();
+                    if VI_WORDS_BEFORE_AN.contains(&prev_lower.as_str()) {
+                        i += 1;
+                        continue;
+                    }
                 }
             }
         }

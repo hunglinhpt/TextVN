@@ -90,6 +90,9 @@ const EN_MIXED_INDICATORS: &[&str] = &[
     "meeting", "report", "file", "asap", "email", "update", "deadline", "review", "feedback",
     "apple", "office", "user", "users", "account", "issue", "issues", "project", "task", "call",
     "link", "code", "test", "bug", "fix", "feature", "version", "release",
+    // Vòng 32: từ EN âm-h-câm — "a hour" trong câu Việt là lỗi mạo từ thật
+    // ("Chúng ta chờ khoảng a hour…"); "hour" không fold vào âm tiết Việt.
+    "hour", "hours",
 ];
 
 /// Câu (đã tách chars) có **từ-điểm tiếng Anh** không — dùng để mở khoá luật
@@ -112,6 +115,13 @@ pub fn has_en_indicator_tokens(chars: &[char], tokens: &[Token]) -> bool {
         }
         let word: String = slice.iter().map(|c| c.to_ascii_lowercase()).collect();
         if EN_MIXED_INDICATORS.contains(&word.as_str()) {
+            return true;
+        }
+        if slice.len() >= 3
+            && !vn_ascii_syllables().contains(word.as_str())
+            && (en_freq_words().contains(word.as_str())
+                || slice.iter().all(|c| c.is_ascii_uppercase()))
+        {
             return true;
         }
     }

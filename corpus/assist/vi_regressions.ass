@@ -37,3 +37,29 @@ chạy query.sql trước khi test.xlsx xong
 cậu nói “không không” mà
 Anh nói “tôi đi. bạn ở lại”.
 tôi học tại ĐH. y khoa
+
+# --- Kịch bản văn phòng & pha trộn Việt-Anh (Office Productivity Corpus) ---
+# 1. Câu văn phòng sạch có URL, email, tên miền, đường dẫn, mã lệnh, viết tắt, emoticon:
+Vui lòng gửi báo cáo qua email hr@company.vn trước 17h chiều nay.
+Anh xem tài liệu tại https://docs.rs hoặc github.com nhé.
+Em đã lưu bản nháp ở C:\Users\Admin\Documents\baocao.docx rồi ạ.
+Chạy lệnh `cargo test --workspace` trước khi tạo pull request.
+Cuộc họp tại TP. Hồ Chí Minh với PGS. TS. Nguyễn Văn A diễn ra tốt đẹp.
+Tự do và an ninh là nền tảng quan trọng của xã hội.
+Phương án A và kế hoạch B đều khả thi trong quý này.
+Báo cáo có mục N/A và phần Q&A ở trang cuối.
+Anh An gửi mẫu xe Audi A8 cho khách hàng xem thử.
+Cảm ơn bạn nhiều nhé :) hẹn gặp lại vào tuần sau :D
+Hôm nay phòng có 3 nội dung: nhân sự; tài chính; kế hoạch quý tới.
+# 2. Câu văn phòng có lỗi ngữ pháp/khoảng trắng/mạo từ cần phát hiện chính xác:
+Tôi đi học.Ai cũng vui vẻ.	space_after_punct
+Em xin gửi gửi báo cáo tuần này.	duplicate_word
+Anh kiểm tra giúp em  tiến độ dự án nhé.	double_space
+Chiều nay họp lúc 14h ,anh nhớ tham gia nhé.	space_before_punct,space_after_punct
+Báo cáo đã hoàn thành. tuy nhiên cần bổ sung số liệu.	lowercase_sentence_start
+Chúng tôi không có ai không đồng ý với đề xuất này.	double_negative
+Em đã cập nhật bảng tính,	comma_at_end
+Em vừa tạo an unit test mới cho module thanh toán.	article_an
+Anh tạo giúp em a issue trên hệ thống nhé.	article_an
+Hôm nay tôi đi học.Ngày mai tôi đi làm.	space_after_punct
+Em hỏi anh rồi?) mà chưa thấy phản hồi.	lowercase_sentence_start
