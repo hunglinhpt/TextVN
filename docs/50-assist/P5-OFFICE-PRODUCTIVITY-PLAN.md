@@ -1,6 +1,6 @@
 # P5 — Kế hoạch & Giải pháp Chi tiết: Nâng cao Năng suất Văn phòng (Office Productivity Handoff)
 
-- **Ngày:** 2026-10-25 · **Trạng thái:** Ready for Implementation (Đã qua 2 vòng Review thực nghiệm trên toàn bộ Corpus) · **Phạm vi:** `core/`, `assist/`, `corpus/`
+- **Ngày:** 2026-10-25 · **Trạng thái:** ✅ **IMPLEMENTED (0.2.45)** — OP-001…OP-007 đã hoàn tất, mỗi task qua 2 lượt review riêng (xem §5) · **Phạm vi:** `core/`, `assist/`, `corpus/`, `adapters/windows-tsf/`
 - **Mục tiêu:** Giải quyết triệt để các điểm nghẽn năng suất khi làm việc văn phòng (Email, Word, Excel, Teams/Slack, Hợp đồng, Báo cáo tài chính/hành chính) mà **không phá vỡ C-ABI (`IME_ABI_VERSION`)**, **không thêm I/O vào `core/` hoặc `assist/` (S1)**, **không thêm cấu hình bắt buộc gây lệch 15 site version/config**, và **tự động hoạt động đồng nhất trên cả 3 nền tảng (Windows TSF, macOS IMK, Linux IBus/Fcitx5)**.
 - **Tham chiếu:** `docs/00-WORKFLOW.md` (G1–G16) · `docs/01-AGENT-HANDBOOK.md` (S1–S9, DoD 7 mục) · `docs/10-shared/P0-2-engine-ffi-contract.md` · `docs/50-assist/P4-0-MASTER-PLAN.md`
 
@@ -766,6 +766,19 @@ pub fn transcode(input: &[char], from: Charset, to: Charset, case: TextCase) -> 
      - App tự động hỗ trợ hoàn tác trọn vẹn bằng `Ctrl+Z` của Word/Excel/Notepad.
 
 ---
+
+## 1b. Trạng thái triển khai (2026-10-25)
+
+| Task | Trạng thái | Ghi chú khi implement (khác plan gốc ở đâu) |
+|---|---|---|
+| OP-001 case-adaptive macro | ✅ | `apply_macro_case` + phân nhánh theo **NGUỒN match** (display/raw), không theo độ dài — `owned` của raw match có thể ≤ `recent.len()` nên slice `recent` lúc đó là text đã fold |
+| OP-002 Excel formula guard | ✅ | Giữ nguyên thiết kế (chỉ chặn sau `=` đầu ô/đầu dòng; KHÔNG chặn sau chữ số — VNI dùng 1..9 làm phím dấu) |
+| OP-003 số tiền | ✅ | `repeat_n` chỉ có từ Rust 1.82 → dùng `repeat().take()` (MSRV); chuẩn đọc "không trăm lẻ" cho nhóm có hàng trăm = 0 |
+| OP-004 collocation | ✅ | Không có `issue_fix`/`preserve_case` trong repo (plan giả định) → viết `issue` + helper `preserve_case` cục bộ; thêm guard **"kiểm sát nhập"** (sát thuộc "kiểm sát") ngoài 2 vòng review kế hoạch |
+| OP-005 khoảng trắng % | ✅ | Bỏ điều kiện `punct.len() == 1`: tokenizer gộp punct run (`"100 %."` → `"%."`) nên chỉ cần run **bắt đầu** bằng `%` |
+| OP-006 identifier/tech | ✅ | Thiết kế đầy đủ hơn plan: thêm `Word.identifier` (áp cho TRỌN từ — "ress" của `onPress` không thành "rés") + `Word.auto_capped` (auto-capitalize không kích hoạt camel). `TECH_BUSINESS_TERMS` **không** tham gia `should_restore` (corpus R2-56 đã bảo vệ `rust`→`rút`, `var`→`vả`) — chỉ làm candidate gợi ý hoàn tất giữ case chuẩn |
+| OP-007 core transcode | ✅ | `Charset`(6)/`TextCase`(5)/`decode_tcvn3` (rfind chọn dòng thường — TCVN3 dùng chung byte cho hoa/thường)/`decode_vni_windows` (greedy pair-first)/`strip_diacritics`/`transcode` + **`detect`** (mới, fail-safe: chỉ nhận TCVN3/VNI khi giải mã làm văn bản "Việt hơn" ≥3 chữ và nhiều hơn input, phân xử bằng độ phủ bảng mã). VIQR/TelexRaw v1 pass-through (có tài liệu) |
+| OP-007 adapter | ✅ Windows | `TranscodeSession` trong `selection_check.rs`: đọc vùng chọn (≤64 000 code unit) trong edit lock → `detect` → `transcode` → đọc-lại chống TOCTOU → `SetText` → `reset_engine` + `clear_assist_undo`. Chord `Ctrl+Shift+F9` (hàm thuần `is_transcode_chord` có test). macOS/Linux: **chưa nối chord** (core đã sẵn — việc của vòng sau, cần UI menu/candidate riêng) |
 
 ## 2. Biên bản 2 Vòng Review Chuyên sâu (Self-Review Log)
 

@@ -19,7 +19,7 @@ pub use method::Method;
 pub use post::emoji::Emoji;
 pub use post::r#macro::{MacroDef, MacroTrigger, MacroWhen};
 pub use strategy::{ActionKind, Strategy};
-pub use transform::{transcode, Charset, DiacriticStyle, OutputCharset, TextCase};
+pub use transform::{detect, transcode, Charset, DiacriticStyle, OutputCharset, TextCase};
 
 /// `ime_result_v1.action` — khớp hằng số P0-2 §1.
 pub const ACTION_PASS: u32 = 0;

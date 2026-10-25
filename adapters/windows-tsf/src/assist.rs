@@ -101,6 +101,17 @@ pub const VK_DOWN: u32 = 0x28;
 pub const VK_RETURN: u32 = 0x0D;
 pub const VK_ESCAPE: u32 = 0x1B;
 pub const VK_G: u32 = 0x47;
+/// `F9` — chord `Ctrl+Shift+F9` chuyển mã vùng bôi đen (OP-007 · P5 §7.4).
+pub const VK_F9: u32 = 0x78;
+
+/// OP-007: `Ctrl+Shift+F9` (không Alt/Win) — chord chuyển mã vùng bôi đen.
+/// Hàm THUẦN để test được (nhánh xử lý thật cần TSF context).
+pub fn is_transcode_chord(vk: u32, mods: u32) -> bool {
+    use textvn_ffi::{MOD_ALT, MOD_CTRL, MOD_SHIFT, MOD_SUPER};
+    vk == VK_F9
+        && mods & (MOD_CTRL | MOD_SHIFT) == (MOD_CTRL | MOD_SHIFT)
+        && mods & (MOD_ALT | MOD_SUPER) == 0
+}
 
 /// Một lỗi đã chuẩn hoá để hiển thị. `start..end` là **char Unicode** trong
 /// [`OverlayView::sentence`].
@@ -1051,6 +1062,24 @@ mod tests {
     use super::*;
     use crate::compose::vk;
     use textvn_ffi::MOD_ALT;
+
+    /// OP-007 (P5): chord `Ctrl+Shift+F9` chuyển mã vùng bôi đen — chỉ đúng
+    /// tổ hợp Ctrl+Shift (không Alt/Win), không dính `Ctrl+F9`/`Shift+F9`.
+    #[test]
+    fn transcode_chord_chi_ctrl_shift_f9() {
+        use textvn_ffi::{MOD_CTRL, MOD_SHIFT, MOD_SUPER};
+        assert!(is_transcode_chord(VK_F9, MOD_CTRL | MOD_SHIFT));
+        assert!(is_transcode_chord(
+            VK_F9,
+            MOD_CTRL | MOD_SHIFT | textvn_ffi::MOD_CAPS
+        ));
+        assert!(!is_transcode_chord(VK_F9, MOD_CTRL));
+        assert!(!is_transcode_chord(VK_F9, MOD_SHIFT));
+        assert!(!is_transcode_chord(VK_F9, MOD_CTRL | MOD_SHIFT | MOD_ALT));
+        assert!(!is_transcode_chord(VK_F9, MOD_CTRL | MOD_SHIFT | MOD_SUPER));
+        assert!(!is_transcode_chord(VK_F9, 0));
+        assert!(!is_transcode_chord(VK_G, MOD_CTRL | MOD_SHIFT)); // Ctrl+Shift+G là Recall
+    }
 
     /// W4-audit (2026-10-23): `config.assist.per_app` — app bị tắt riêng trong
     /// config ⇒ `ThreadState::assist_app_disabled` trả `true` cho app đó; map

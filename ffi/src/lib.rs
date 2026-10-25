@@ -30,6 +30,10 @@ use textvn_strategy::{ResolveInput, Strategy};
 pub use textvn_core::keymap::{
     MOD_ALT, MOD_CAPS, MOD_CTRL, MOD_FN, MOD_META, MOD_SHIFT, MOD_SUPER,
 };
+/// OP-007 (P5): bộ chuyển mã vùng bôi đen — adapter (Windows TSF, sau này
+/// macOS/Linux) dùng chung, không phải khai báo phụ thuộc `textvn-core`
+/// riêng. Hàm thuần logic (S1), không đổi ABI C.
+pub use textvn_core::{detect, transcode, Charset, TextCase};
 /// Hằng **action** — 1 nguồn sự thật: `core` định nghĩa, header C khai báo `IME_ACTION_*`
 /// với cùng giá trị (P0-2 §6). Re-export để adapter Rust, test và fuzz target không
 /// phải chép số trần — chép tay là nguồn lệch ABI kinh điển.

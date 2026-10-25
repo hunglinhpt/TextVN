@@ -445,6 +445,131 @@ pub fn request_apply_selection_fix(
     matches!(hr, Ok(code) if code.is_ok())
 }
 
+/// Trần ký tự cho bộ chuyển mã vùng chọn (OP-007): rộng hơn hạn mức 256 của
+/// trợ lý ngữ pháp vì chuyển mã là thao tác văn bản thuần (một đoạn/bảng dài
+/// vẫn hợp lệ). 64 000 code unit ≈ 64 KB bộ nhớ tạm — tuyến tính, không lag.
+#[cfg(windows)]
+pub(crate) const MAX_TRANSCODE_CHARS: usize = 64_000;
+
+/// Session chuyển mã vùng bôi đen sang Unicode dựng sẵn (OP-007 · P5 §7.4).
+///
+/// Đọc vùng chọn **trong edit lock**, tự nhận diện bảng mã (`core::detect` —
+/// fail-safe: mơ hồ ⇒ `UnicodePrecomposed` ⇒ không ghi gì), chuyển mã, rồi
+/// ghi lại bằng `SetText` trên đúng range. Undo thuộc app (Ctrl+Z).
+///
+/// Precondition: đọc-lại vùng chọn phải bằng nội dung đã đọc lúc bắt đầu —
+/// người dùng đổi vùng chọn giữa chừng thì **không ghi** (cùng nguyên tắc
+/// với `ApplySelectionFixSession`).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct TranscodeSession {
+    _guard: crate::class::ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl TranscodeSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext) -> Self {
+        Self {
+            _guard: crate::class::ObjGuard::new(),
+            shared,
+            ctx,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for TranscodeSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run(ec)));
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl TranscodeSession {
+    fn run(&self, ec: u32) -> bool {
+        unsafe {
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                return false;
+            };
+            match sel.IsEmpty(ec) {
+                Ok(empty) if !empty.as_bool() => {}
+                _ => return false,
+            }
+            // Đọc vùng chọn: chừa 2 slot để phát hiện vùng DÀI HƠN trần.
+            let cap = MAX_TRANSCODE_CHARS + 2;
+            let mut buf = vec![0u16; cap];
+            let mut fetched = 0u32;
+            if sel.GetText(ec, 0, &mut buf, &mut fetched).is_err() || fetched == 0 {
+                return false;
+            }
+            let n = (fetched as usize).min(buf.len());
+            if n > MAX_TRANSCODE_CHARS {
+                crate::trace::event(
+                    self.shared.tid,
+                    format_args!("transcode skip: selection > {MAX_TRANSCODE_CHARS}"),
+                );
+                return false;
+            }
+            let Some(text) = String::from_utf16(&buf[..n]).ok() else {
+                return false;
+            };
+            let chars: Vec<char> = text.chars().collect();
+            let from = textvn_ffi::detect(&chars);
+            if from == textvn_ffi::Charset::UnicodePrecomposed {
+                // Văn bản đã là Unicode dựng sẵn (hoặc không chắc) ⇒ không đụng.
+                return false;
+            }
+            let converted: Vec<char> = textvn_ffi::transcode(
+                &chars,
+                from,
+                textvn_ffi::Charset::UnicodePrecomposed,
+                textvn_ffi::TextCase::AsIs,
+            );
+            if converted == chars {
+                return false; // không đổi gì ⇒ không ghi document
+            }
+            // Đọc-lại NGAY TRONG lock trước khi ghi — chống TOCTOU.
+            let mut recheck = vec![0u16; cap];
+            let mut re_fetched = 0u32;
+            if sel.GetText(ec, 0, &mut recheck, &mut re_fetched).is_err()
+                || re_fetched as usize != n
+                || String::from_utf16(&recheck[..(re_fetched as usize).min(cap)])
+                    .map(|s| s != text)
+                    .unwrap_or(true)
+            {
+                return false;
+            }
+            let out: String = converted.into_iter().collect();
+            let wide: Vec<u16> = out.encode_utf16().collect();
+            if sel.SetText(ec, 0, &wide).is_err() {
+                return false;
+            }
+            // Document đã đổi: buffer câu engine stale + undo A3 không còn đúng.
+            self.shared.reset_engine();
+            self.shared.clear_assist_undo();
+            crate::trace::event(
+                self.shared.tid,
+                format_args!("transcode applied: {n} units"),
+            );
+            true
+        }
+    }
+}
+
+/// OP-007 — yêu cầu chuyển mã vùng bôi đen (gọi từ chord Ctrl+Shift+F9).
+/// `true` = đã xin được session (phím nên bị nuốt).
+#[cfg(windows)]
+pub fn request_transcode(shared: &Rc<TsfShared>, ctx: &ITfContext) -> bool {
+    let session: ITfEditSession = TranscodeSession::new(shared.clone(), ctx.clone()).into();
+    let hr = unsafe {
+        ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE)
+    };
+    matches!(hr, Ok(code) if code.is_ok())
+}
+
 #[cfg(all(test, windows))]
 mod tests {
     use super::is_selection_key_up;

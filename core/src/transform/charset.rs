@@ -221,6 +221,78 @@ pub fn strip_diacritics(input: &[char]) -> Vec<char> {
         .collect()
 }
 
+/// Số ký tự **chữ Việt có dấu** trong `input` (dùng cho `detect`).
+fn viet_diacritic_count(input: &[char]) -> usize {
+    input
+        .iter()
+        .filter(|c| VIET_CHARS.contains(**c) && !matches!(**c, 'đ' | 'Đ'))
+        .count()
+}
+
+/// OP-007 — nhận diện bảng mã của một đoạn văn bản bôi đen (fail-safe).
+///
+/// Chỉ trả về nguồn **khác** Unicode dựng sẵn khi chắc chắn; mọi trường hợp
+/// mơ hồ trả `UnicodePrecomposed` ⇒ `transcode` thành no-op, caller không ghi
+/// gì (tuyệt đối không "hạ cấp" văn bản Unicode thật):
+///
+/// - Có dấu kết hợp U+0300–U+036F → [`Charset::UnicodeDecomposed`].
+/// - Đã có ≥1 chữ Việt có dấu dựng sẵn → Unicode (không đụng).
+/// - Còn lại (thuần ASCII/Latin-1): giải mã thử TCVN3 và VNI-Windows, chỉ
+///   nhận bảng mã nào làm xuất hiện **≥3** chữ Việt có dấu; hoà hoặc dưới
+///   ngưỡng → Unicode. Cặp VNI khớp được (base+dấu) là tín hiệu mạnh hơn ký
+///   tự đơn, nên hoà ưu tiên VNI.
+pub fn detect(input: &[char]) -> Charset {
+    if input.iter().any(|c| ('\u{0300}'..='\u{036F}').contains(c)) {
+        return Charset::UnicodeDecomposed;
+    }
+    const MIN_GAIN: usize = 3;
+    let base = viet_diacritic_count(input);
+    let tcvn = decode_tcvn3(input);
+    let vni = decode_vni_windows(input);
+    let tcvn_gain = viet_diacritic_count(&tcvn);
+    let vni_gain = viet_diacritic_count(&vni);
+
+    // "Độ phủ bảng mã": số ký tự non-ASCII của input nằm trong cột của bảng
+    // mã đó. Văn bản TCVN3 thật phủ gần 100 % cột TCVN3 nên phân xử được khi
+    // cả 2 phép giải mã đều "làm Việt hơn" (chữ trong 2 bảng mã chồng nhau
+    // một phần — ví dụ 0xE9 vừa là 'é' Latin-1, vừa là 'ộ' TCVN3).
+    let tbl = table();
+    let tcvn_cover = input
+        .iter()
+        .filter(|c| !c.is_ascii() && tbl.iter().any(|e| e.tcvn3 == **c))
+        .count();
+    let vni_cover = input
+        .iter()
+        .filter(|c| !c.is_ascii() && tbl.iter().any(|e| e.vni.contains(*c)))
+        .count();
+    let vni_pair_hit = input.windows(2).any(|w| {
+        let pair = [w[0], w[1]];
+        tbl.iter().any(|e| e.vni == pair)
+    });
+
+    // Chỉ nhận khi giải mã làm văn bản Việt hơn RÕ RỆT (≥ MIN_GAIN và nhiều
+    // hơn input) — văn bản Unicode thật giải mã sai sẽ không tăng, nên không
+    // bao giờ bị "hạ cấp".
+    let tcvn_ok = tcvn_gain >= MIN_GAIN && tcvn_gain > base;
+    let vni_ok = vni_gain >= MIN_GAIN && vni_gain > base;
+    match (tcvn_ok, vni_ok) {
+        (false, false) => Charset::UnicodePrecomposed,
+        (true, false) => Charset::Tcvn3,
+        (false, true) => Charset::VniWindows,
+        (true, true) => {
+            if vni_cover > tcvn_cover {
+                Charset::VniWindows
+            } else if tcvn_cover > vni_cover {
+                Charset::Tcvn3
+            } else if vni_pair_hit {
+                Charset::VniWindows
+            } else {
+                Charset::Tcvn3
+            }
+        }
+    }
+}
+
 /// Chuyển văn bản từ bảng mã nguồn `from` sang bảng mã đích `to` kèm biến
 /// đổi kiểu chữ `case`, pivot qua Unicode dựng sẵn: decode `from` → biến đổi
 /// chữ → `encode` định mức bảng đích. Total function và deterministic (ký tự
@@ -435,6 +507,51 @@ mod tests {
             .collect::<String>(),
             expect
         );
+    }
+
+    #[test]
+    fn op007_detect_legacy_and_unicode() {
+        let chars = |s: &str| s.chars().collect::<Vec<char>>();
+        let text = "Cộng hòa Xã hội Chủ nghĩa Việt Nam";
+        let uni = chars(text);
+
+        // Unicode thật (đã có dấu dựng sẵn) → không đụng.
+        assert_eq!(detect(&uni), Charset::UnicodePrecomposed);
+
+        // Văn bản Latin-1 không phải tiếng Việt (tiếng Pháp/ASCII) → không đụng.
+        assert_eq!(
+            detect(&chars("Cafe au lait, bonjour")),
+            Charset::UnicodePrecomposed
+        );
+        assert_eq!(
+            detect(&chars("Hello world 123")),
+            Charset::UnicodePrecomposed
+        );
+
+        // Unicode tổ hợp → UnicodeDecomposed.
+        let decomp = encode(&uni, OutputCharset::UnicodeDecomposed);
+        assert_eq!(detect(&decomp), Charset::UnicodeDecomposed);
+
+        // TCVN3 thật (encode từ Unicode) → nhận đúng + transcode tròn.
+        let tcvn = encode(&uni, OutputCharset::Tcvn3);
+        let det = detect(&tcvn);
+        assert_eq!(det, Charset::Tcvn3, "phải nhận ra TCVN3");
+        assert_eq!(
+            transcode(&tcvn, det, Charset::UnicodePrecomposed, TextCase::AsIs),
+            uni
+        );
+
+        // VNI-Windows thật → nhận đúng + transcode tròn.
+        let vni = encode(&uni, OutputCharset::VniWindows);
+        let det = detect(&vni);
+        assert_eq!(det, Charset::VniWindows, "phải nhận ra VNI-Windows");
+        assert_eq!(
+            transcode(&vni, det, Charset::UnicodePrecomposed, TextCase::AsIs),
+            uni
+        );
+
+        // Câu quá ngắn/không đủ tín hiệu → fail-safe (không đụng).
+        assert_eq!(detect(&chars("abc")), Charset::UnicodePrecomposed);
     }
 
     #[test]

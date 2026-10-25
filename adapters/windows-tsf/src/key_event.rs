@@ -518,6 +518,19 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         }
     }
 
+    // OP-007 (P5): Ctrl+Shift+F9 — chuyển mã vùng bôi đen về Unicode dựng sẵn
+    // (font cũ .VnTime / VNI-Times / Unicode tổ hợp). Chạy TRƯỚC nhánh chord
+    // hệ thống (nhánh đó chỉ kết thúc composition rồi để app nhận phím).
+    // Chỉ nuốt phím khi xin được edit session — không thì phím tới app như cũ.
+    if crate::assist::is_transcode_chord(vk, mods) {
+        if let Some(ctx) = ctx {
+            end_composition(shared, Some(ctx));
+            if crate::selection_check::request_transcode(shared, ctx) {
+                return true;
+            }
+        }
+    }
+
     // Chord hệ thống (B6), phím do phần mềm bơm vào (VK_PACKET) hoặc IME khác đã
     // xử lý: commit từ đang gõ rồi để app nhận phím.
     if mods & (MOD_CTRL | MOD_ALT | MOD_SUPER) != 0 || vk == vkc::PACKET || vk == vkc::PROCESSKEY {

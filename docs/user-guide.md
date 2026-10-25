@@ -249,6 +249,23 @@ khay hệ thống).
 
 Thiết kế và giới hạn: [P4-0-MASTER-PLAN.md](50-assist/P4-0-MASTER-PLAN.md).
 
+### Năng suất văn phòng (từ 0.2.45)
+
+Bộ tiện ích cho công việc hằng ngày — chạy **trên máy bạn**, không gửi gì đi đâu:
+
+| Tính năng | Cách dùng | Kết quả |
+|---|---|---|
+| Gõ tắt theo kiểu chữ | gõ `hd` / `Hd` / `HD` + Tab | `hợp đồng` / `Hợp đồng` / `HỢP ĐỒNG` (gõ tắt đã có chữ hoa chủ đích như `cty` = `Công ty TNHH` thì giữ nguyên) |
+| Công thức bảng tính | gõ `=sum(a1:a10)`, `=if(...)`, `=vlookup(...)` ở đầu ô | giữ nguyên công thức, không bị bỏ dấu tiếng Việt; trong ngoặc kép của công thức vẫn gõ tiếng Việt bình thường |
+| Số tiền nhanh | `=15450000d` + Tab · `=15450000vnd` + Tab · `=15000000bc` + Tab | `15.450.000 đồng` · `15.450.000 VNĐ` · `Mười lăm triệu đồng chẵn` |
+| Cụm từ hành chính | gõ sai các cụm quen thuộc | tự sửa: "bổ xung"→"bổ sung", "xử dụng"→"sử dụng", "kiểm xoát"→"kiểm soát", "chính sác"→"chính xác", "sát nhập"→"sáp nhập", "giành thời gian"→"dành thời gian"… |
+| Khoảng trắng trước % | `đạt 100 %` | tự sửa thành `100%` |
+| Identifier cho coder | `useState`, `onPress`, `getElementById`… | không bị bỏ dấu giữa từ; thuật ngữ tech/business (KPI, EBITDA, margin, cargo…) tự khôi phục khi gặp dấu cách; Tab hoàn tất theo tiền tố (`ebit`+Tab → `EBITDA`) |
+| **Chuyển mã văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (Windows) | tự nhận diện font cũ **TCVN3 (.VnTime)** / **VNI-Windows** / **Unicode tổ hợp** và chuyển về Unicode dựng sẵn; undo bằng Ctrl+Z của ứng dụng |
+
+Chuyển mã chỉ ghi khi chắc chắn: văn bản đã là Unicode, hoặc không đủ tín hiệu nhận diện,
+thì **không đụng gì** (thà bỏ qua còn hơn phá văn bản).
+
 ## 5. Gõ tắt
 
 Bảng điều khiển → **Gõ tắt...** → mỗi dòng một mục:
