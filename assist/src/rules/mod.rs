@@ -19,7 +19,7 @@ pub mod space_before_punct;
 pub mod spelling;
 
 use crate::dict::{Dictionary, NoDictionary};
-use crate::tokenize::{tokenize, Token, TokenKind};
+use crate::tokenize::{Token, TokenKind};
 use crate::{Issue, IssueKind, Span};
 
 /// Từ điển mặc định của [`Ctx::new`]: mọi từ coi là **đúng** — `check`/
@@ -57,14 +57,7 @@ impl Ctx<'_> {
     /// `start_of_sentence` = `true` khi text la **cau tron ven** (ky tu dau la
     /// dau cau that); `false` khi la **doan** (co the nam giua cau).
     pub fn new(text: &str, start_of_sentence: bool) -> Ctx<'static> {
-        Ctx {
-            tokens: tokenize(text),
-            masked: crate::mask::masked_ranges(text),
-            chars: text.chars().collect(),
-            start_of_sentence,
-            dict: &NO_DICTIONARY,
-            lang: language::classify(text).unwrap_or(language::Lang::Vi),
-        }
+        Self::new_with_dict(text, start_of_sentence, &NO_DICTIONARY)
     }
 
     /// Tạo ngữ cảnh với **từ điển** do caller nạp (cho [`check_with`](crate::check_with)).
@@ -73,19 +66,48 @@ impl Ctx<'_> {
         start_of_sentence: bool,
         dict: &'a dyn Dictionary,
     ) -> Ctx<'a> {
+        let chars: Vec<char> = text.chars().collect();
+        let tokens = crate::tokenize::tokenize_chars(&chars);
+        let lang = language::classify_tokens(&chars, &tokens).unwrap_or(language::Lang::Vi);
+        let masked = crate::mask::masked_ranges_chars(&chars);
         Ctx {
-            tokens: tokenize(text),
-            masked: crate::mask::masked_ranges(text),
-            chars: text.chars().collect(),
+            tokens,
+            masked,
+            chars,
             start_of_sentence,
             dict,
-            lang: language::classify(text).unwrap_or(language::Lang::Vi),
+            lang,
         }
+    }
+
+    /// Tạo ngữ cảnh chỉ khi L0 nhận diện được ngôn ngữ (1 lần tách chars + 1 lần tokenize).
+    pub(crate) fn try_new_with_dict<'a>(
+        text: &str,
+        start_of_sentence: bool,
+        dict: &'a dyn Dictionary,
+    ) -> Option<Ctx<'a>> {
+        let chars: Vec<char> = text.chars().collect();
+        let tokens = crate::tokenize::tokenize_chars(&chars);
+        let lang = language::classify_tokens(&chars, &tokens)?;
+        let masked = crate::mask::masked_ranges_chars(&chars);
+        Some(Ctx {
+            tokens,
+            masked,
+            chars,
+            start_of_sentence,
+            dict,
+            lang,
+        })
     }
 
     /// Chuoi cua mot token.
     pub fn token_text(&self, token: &Token) -> String {
         self.chars[token.start..token.end].iter().collect()
+    }
+
+    /// Slice ky tu cua mot token (0-alloc).
+    pub fn token_chars(&self, token: &Token) -> &[char] {
+        &self.chars[token.start..token.end]
     }
 
     /// Vung `[start, end)` co bi che hay khong.
@@ -102,41 +124,63 @@ pub(crate) fn is_sentence_end(ch: char) -> bool {
     matches!(ch, '.' | '!' | '?')
 }
 
-/// Dau `.` co phai that su ket thuc cau khong?
+/// Dau `.` / `!` / `?` co phai that su ket thuc cau khong?
 ///
-/// - `.` nam **trong ngoac** ("(Từ điển EN...) đặt ở...") hoac **trong dau nhay**
-///   khong phai het cau -> bo qua (Fassist-86).
+/// - Nam **trong ngoac** ("(Từ điển EN...) đặt ở...") hoac **trong dau nhay**
+///   ("Anh hỏi \"Sao thế?\" rồi đi") khong phai het cau -> bo qua (Fassist-86).
 pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
-    if !is_sentence_end(ctx.chars[punct.start]) {
+    let slice = &ctx.chars[punct.start..punct.end];
+    let first = slice[0];
+    let last = *slice.last().unwrap_or(&first);
+    // Cho phép token Punct kết thúc bằng `.`/`!`/`?` ngay sau ngoặc đóng / nháy đóng
+    // (ví dụ `")."` trong `"Tôi đi học (ở Hà Nội). bạn khỏe không"`).
+    let has_end_punct = is_sentence_end(first)
+        || (is_sentence_end(last)
+            && slice[..slice.len() - 1]
+                .iter()
+                .all(|&c| matches!(c, ')' | ']' | '"' | '”' | '\'')));
+    if !has_end_punct {
         return false;
     }
-    if ctx.chars[punct.start] != '.' {
-        return true;
+    if first == '.' || last == '.' {
+        // Ba cham lien (hoac nhieu hon) = ellipsis trong tieng Viet, khong phai het
+        // cau ("dieu tot... ban nghi sao?") -> bo qua (Fassist-95).
+        let dot_pos = slice
+            .iter()
+            .position(|&c| c == '.')
+            .map(|p| punct.start + p)
+            .unwrap_or(punct.start);
+        let mut dots = 0usize;
+        let mut i = dot_pos;
+        while i < ctx.chars.len() && ctx.chars[i] == '.' {
+            dots += 1;
+            i += 1;
+        }
+        if dots >= 3 {
+            return false;
+        }
+        // Vòng 24 (audit EN trap 27-33): dấu `.` sau **từ viết tắt** không phải kết
+        // thúc câu — "8 a.m. nhé" / "U.S. Army" / "i.e. apple": nếu coi là hết câu,
+        // capitalize sẽ bêu chữ thường sau viết tắt ("a.m. nhé" → "Nhé").
+        if first == '.' && is_abbreviation_dot(ctx, punct) {
+            return false;
+        }
     }
-    // Ba cham lien (hoac nhieu hon) = ellipsis trong tieng Viet, khong phai het
-    // cau ("dieu tot... ban nghi sao?") -> bo qua (Fassist-95).
-    let mut dots = 0usize;
-    let mut i = punct.start;
-    while i < ctx.chars.len() && ctx.chars[i] == '.' {
-        dots += 1;
-        i += 1;
-    }
-    if dots >= 3 {
-        return false;
-    }
-    // Vòng 24 (audit EN trap 27-33): dấu `.` sau **từ viết tắt** không phải kết
-    // thúc câu — "8 a.m. nhé" / "U.S. Army" / "i.e. apple": nếu coi là hết câu,
-    // capitalize sẽ bêu chữ thường sau viết tắt ("a.m. nhé" → "Nhé").
-    if is_abbreviation_dot(ctx, punct) {
-        return false;
-    }
+    // Tính cân bằng ngoặc/nháy đến hết phần đóng ngoặc trước dấu kết câu.
+    let check_until = if !is_sentence_end(first) && is_sentence_end(last) {
+        punct.end - 1
+    } else {
+        punct.start
+    };
     let mut depth = 0i32;
     let mut in_quote = false;
-    for &c in &ctx.chars[..punct.start] {
+    // Vòng 32 (audit A5): nháy CONG “ ” cùng họ với " — câu trích
+    // ("Anh nói “tôi đi. bạn ở lại”.") không kết thúc ở dấu chấm TRONG nháy.
+    for &c in &ctx.chars[..check_until] {
         match c {
             '(' => depth += 1,
             ')' => depth = (depth - 1).max(0),
-            '"' => in_quote = !in_quote,
+            '"' | '“' | '”' => in_quote = !in_quote,
             _ => {}
         }
     }
@@ -144,15 +188,17 @@ pub(crate) fn is_real_sentence_end(ctx: &Ctx, punct: &crate::tokenize::Token) ->
 }
 
 /// Danh sách viết tắt kết thúc bằng `.` (đóng — chỉ các dạng phổ biến nhất;
-/// dạng lạ → fail-open coi là viết tắt, không bêu).
-const ABBREV_WORDS: &[&str] = &["etc", "cf", "vs", "eg", "ie"];
+/// không bao gồm từ thường 2 chữ cái như "em", "ai", "to", "it", "me", "ok").
+const ABBREV_WORDS: &[&str] = &[
+    "etc", "cf", "vs", "eg", "ie", "mr", "mrs", "ms", "dr", "jr", "sr", "st", "al", "co", "inc",
+    "ltd", "prof", "fig", "vol", "no", "op", "tp", "ts", "gs", "ks", "bs", "th", "cn",
+];
 
 /// `.` tại vị trí `punct` có phải dấu chấm của **từ viết tắt** không (vòng 24)?
 ///
-/// Đúng khi từ ngay trước là:
-/// - từ ASCII ≤ 2 ký tự ("a.m.", "p.m.", "U.S.", "U.K.", "e.g.", "i.e.",
-///   "J. Smith", "et al." — "al" 2 ký tự), HOẶC
-/// - trong danh sách đóng [`ABBREV_WORDS`] ("etc.", "cf.", "vs."),
+/// Đúng khi từ ngay sát trước dấu `.` là:
+/// - 1 chữ cái ASCII ("a.m.", "p.m.", "U.S.", "U.K.", "e.g.", "i.e.", "J. Smith", "v.v."), HOẶC
+/// - trong danh sách đóng [`ABBREV_WORDS`] ("etc.", "cf.", "vs.", "Mr.", "Dr.", "et al."),
 /// - "3.a" (số trước + một chữ cái sau — mục con).
 pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
     // "3.a" (mục con): số ngay trước + MỘT chữ cái ASCII ngay sau — không
@@ -170,7 +216,7 @@ pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> 
     if digit_before && single_letter_after {
         return true;
     }
-    // Từ ngay trước dấu `.`.
+    // Từ phải nằm NGAY SÁT trước dấu `.` (`prev.end == punct.start`).
     let prev = ctx
         .tokens
         .iter()
@@ -179,16 +225,22 @@ pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> 
     let Some(prev) = prev else {
         return false;
     };
-    if prev.kind != crate::tokenize::TokenKind::Word {
-        // "3." (số) — không phải viết tắt.
+    if prev.end != punct.start || prev.kind != crate::tokenize::TokenKind::Word {
         return false;
     }
-    let word: String = ctx.chars[prev.start..prev.end].iter().collect();
-    if !word.chars().all(|c| c.is_ascii_alphabetic()) {
-        return false; // từ có dấu Việt ("nhé.") — kết thúc câu thật
+    let slice = &ctx.chars[prev.start..prev.end];
+    // Vòng 32 (audit A6): viết tắt Việt viết HOA ("ĐH.", "ĐC.", "ĐT.", "QG.")
+    // — từ toàn-hoa 2-3 ký tự, bất kể script, đứng trước `.` là viết tắt;
+    // chữ thường có dấu ("nhé.") vẫn kết-thúc-câu như cũ.
+    if !slice.iter().all(|c| c.is_ascii_alphabetic()) {
+        let all_upper = (2..=3).contains(&slice.len()) && slice.iter().all(|c| c.is_uppercase());
+        return all_upper;
     }
-    let lower = word.to_lowercase();
-    word.chars().count() <= 2 || ABBREV_WORDS.contains(&lower.as_str())
+    if slice.len() == 1 {
+        return true;
+    }
+    let lower: String = slice.iter().map(|c| c.to_ascii_lowercase()).collect();
+    ABBREV_WORDS.contains(&lower.as_str())
 }
 
 /// Tao issue **chi goi y** (khong tu sua) — cho luat mo ho (Fassist-90).

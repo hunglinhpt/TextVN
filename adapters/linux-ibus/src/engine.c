@@ -282,6 +282,12 @@ static void apply_assist_candidate(TextVNIbusEngine *self, guint index) {
     if (cand->replacement[0] != '\0') {
         ibus_engine_commit_text(engine, ibus_text_new_from_string(cand->replacement));
     }
+    /* R-4: sau khi sửa câu trong document, buffer câu của engine đã cũ ⇒
+     * phải reset để câu tiếp theo không bị lệch span (parity với Fcitx5/Windows). */
+    if (self->inst) {
+        ime_reset(self->inst);
+    }
+    self->assist_undo_valid = FALSE;
     clear_assist_ui(self);
 }
 
@@ -607,7 +613,10 @@ static void engine_focus_in(IBusEngine *engine) {
     consume_assist_ipc();
     int app_enabled = 1;
     if (s_ipc && lc_ipc_client_get_app_override(s_ipc, &app_enabled)) {
-        s_vi_enabled = app_enabled != 0;
+        /* Vòng 32 (audit F-B, R2-28): TOÀN CỤC AND override — khớp Windows
+         * `effective_enabled`: override chỉ TẮT riêng được app, không "hồi
+         * sinh" app khi toàn cục đang EN (kill-switch là master). */
+        s_vi_enabled = s_base_vi && (app_enabled != 0);
     } else {
         /* C4 (audit): override da bi clear (app khong co trong snapshot) —
          * phai ve ve BASE (state.json/broadcast "*"), khong de ke thừa EN cua

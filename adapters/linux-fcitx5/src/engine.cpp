@@ -259,6 +259,11 @@ TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
     if (ime_instance_new(nullptr, 0, &inst) != IME_OK) {
         inst = nullptr;
     }
+    /* Vòng 32 (audit F-A): fresh-install (chưa có config.json) — struct zeroed
+     * là OFF, lệch mặc định 3 nền tảng (IBus đặt tường minh trong engine_init).
+     * Đặt HIGHLIGHT TRƯỚC sync: file có assist.mode thì sync đè đúng giá trị;
+     * thiếu khoá sync cũng trả HIGHLIGHT; không có file thì giữ HIGHLIGHT. */
+    config.assist_mode = LC_ASSIST_MODE_HIGHLIGHT;
     lc_config_sync(inst, &config, nullptr);
     if (inst) {
         ime_context_v1 ctx;
@@ -694,7 +699,10 @@ void TextVNEngine::activate(const fcitx::InputMethodEntry &, fcitx::InputContext
         consumeAssistIpc();
         int appEnabled = 1;
         if (ipc_ && lc_ipc_client_get_app_override(ipc_, &appEnabled)) {
-            viEnabled_ = appEnabled != 0;
+            /* Vòng 32 (audit F-B, R2-28): TOÀN CỤC AND override — khớp Windows
+             * `effective_enabled`: override chỉ TẮT riêng được app, không "hồi
+             * sinh" app khi toàn cục đang EN (kill-switch là master). */
+            viEnabled_ = baseViEnabled_ && (appEnabled != 0);
         } else {
             /* C4 (audit): override da bi clear - ve ve BASE (state.json/broadcast
              * "*"), khong de ke thua che do cua app truoc. */

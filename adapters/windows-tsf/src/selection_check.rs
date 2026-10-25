@@ -57,6 +57,24 @@ pub fn register_timer_hwnd(hwnd: isize) {
     TIMER_HWND.with(|c| *c.borrow_mut() = hwnd);
 }
 
+/// Huỷ timer selection-check đang chờ và xoá PENDING (khi gõ phím mới, đổi
+/// focus hoặc huỷ TIP/overlay).
+#[cfg(windows)]
+pub fn cancel_pending() {
+    let hwnd = TIMER_HWND.with(|c| *c.borrow());
+    if hwnd != 0 {
+        unsafe {
+            let _ = KillTimer(
+                Some(windows::Win32::Foundation::HWND(
+                    hwnd as *mut std::ffi::c_void,
+                )),
+                TIMER_SELECTION_CHECK,
+            );
+        }
+    }
+    PENDING.with(|p| *p.borrow_mut() = None);
+}
+
 /// Key-up có khả năng kết thúc một lựa chọn bàn phím không? (không Ctrl/Win —
 /// Ctrl+A/C/X/V là chọn-all/copy/cut/paste: bỏ qua để không nhầm "để copy").
 #[cfg(windows)]
@@ -91,23 +109,23 @@ pub fn on_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, mods
     if !shared.is_assist_display_enabled() {
         return;
     }
-    let hwnd = TIMER_HWND.with(|c| *c.borrow());
-    if hwnd == 0 {
-        return; // overlay chưa từng tạo hwnd — không có nơi chạy timer
-    }
-    // F4 (audit v30): hwnd có thể đã bị DestroyWindow khi TIP deactivate —
-    // SetTimer lên hwnd chết kẹt PENDING mãi. Hwnd chết → reset + bỏ.
-    // SAFETY: IsWindow chỉ đọc trạng thái window của thread này.
-    let alive = unsafe {
-        windows::Win32::UI::WindowsAndMessaging::IsWindow(Some(windows::Win32::Foundation::HWND(
-            hwnd as *mut std::ffi::c_void,
-        )))
-        .as_bool()
-    };
+    let mut hwnd = TIMER_HWND.with(|c| *c.borrow());
+    // F4 (audit v30): hwnd có thể chưa được tạo (lần chọn đầu tiên trong phiên)
+    // hoặc đã bị DestroyWindow khi TIP deactivate — đảm bảo tạo/làm mới hwnd.
+    let alive = hwnd != 0
+        && unsafe {
+            windows::Win32::UI::WindowsAndMessaging::IsWindow(Some(
+                windows::Win32::Foundation::HWND(hwnd as *mut std::ffi::c_void),
+            ))
+            .as_bool()
+        };
     if !alive {
-        TIMER_HWND.with(|c| *c.borrow_mut() = 0);
-        PENDING.with(|p| *p.borrow_mut() = None);
-        return;
+        hwnd = shared.overlay.ensure_timer_hwnd();
+        if hwnd == 0 {
+            TIMER_HWND.with(|c| *c.borrow_mut() = 0);
+            PENDING.with(|p| *p.borrow_mut() = None);
+            return;
+        }
     }
     PENDING.with(|p| {
         *p.borrow_mut() = Some((Rc::downgrade(shared), ctx.clone()));
@@ -187,6 +205,20 @@ impl SelectionCheckSession {
         if !self.shared.is_assist_display_enabled() {
             return false;
         }
+        let (auto_cap, app_disabled) = self
+            .shared
+            .thread
+            .try_borrow()
+            .map(|t| {
+                (
+                    t.auto_capitalize(),
+                    t.assist_app_disabled(&t.field_context().app_id),
+                )
+            })
+            .unwrap_or((true, false));
+        if app_disabled {
+            return false;
+        }
         unsafe {
             let Some(sel) = selection_range(&self.ctx, ec) else {
                 return false;
@@ -196,6 +228,15 @@ impl SelectionCheckSession {
                 return false;
             };
             if empty.as_bool() {
+                return false;
+            }
+            // Security gate S3 + read-only: tuyệt đối không đọc/sửa ô mật khẩu,
+            // PIN hoặc trường chỉ-đọc.
+            let signals = crate::edit_session::read_field_signals(&self.ctx, ec, &sel);
+            if signals.read_only
+                || crate::classify_tsf_field(&signals).security
+                    != textvn_field_detect::SecurityState::NonSecure
+            {
                 return false;
             }
             // Đọc text vùng chọn với buffer chừa 2 slot dự phòng: nếu
@@ -221,14 +262,12 @@ impl SelectionCheckSession {
             if !text.chars().any(|c| c.is_alphabetic()) {
                 return false; // toàn số/ký hiệu — không phải câu
             }
-            // Check (engine thuần; auto_capitalize như đường thường).
-            let auto_cap = self
-                .shared
-                .thread
-                .try_borrow()
-                .map(|t| t.auto_capitalize())
-                .unwrap_or(true);
-            let Some(check) = crate::assist::check_text(&text, auto_cap) else {
+            // Check với ngữ nghĩa FRAGMENT (vòng 32, audit A7): vùng chọn là
+            // đoạn giữa câu — token 0 không phải đầu câu ⇒ L6 tại span 0 là FP.
+            let Some(check) = crate::assist::check_text_fragment(&text, auto_cap) else {
+                // Vòng 32: vùng chọn sạch mà vẫn còn popup cũ (neo theo caret/
+                // câu đã qua) = popup treo sai ngữ cảnh — ẩn cho đồng bộ.
+                crate::edit_session::hide_assist_overlay(&self.shared);
                 return false; // câu sạch — không popup (D11)
             };
             // Neo popup cạnh VÙNG CHỌN (GetTextExt trên range chọn).
@@ -338,10 +377,44 @@ impl ApplySelectionFixSession {
                 // F3 (audit v30): document đã đổi — buffer câu engine stale
                 // nếu vùng chọn đè lên phần engine tự gõ; reset như A2/A3.
                 self.shared.reset_engine();
-                // Parity v0.2.42: sau fix re-check câu đã sửa — sạch thì
-                // panel giữ ẩn (đã hide trước khi vào session), còn lỗi
-                // gợi ý thì hiện lại popup (popup thường tại caret).
-                crate::edit_session::recheck_after_fix(&self.shared, &self.ctx, _ec, &self.fixed);
+                self.shared.clear_assist_undo();
+                let auto_cap = self
+                    .shared
+                    .thread
+                    .try_borrow()
+                    .map(|t| t.auto_capitalize())
+                    .unwrap_or(true);
+                // Sau fix re-check câu đã sửa: còn lỗi thì cập nhật lại popup
+                // ngay trên vùng chọn để người dùng bấm sửa tiếp được; sạch thì
+                // thu gọn selection về cuối câu.
+                if let Some(new_check) = crate::assist::check_text_fragment(&self.fixed, auto_cap) {
+                    let anchor = if let Ok(view) = self.ctx.GetActiveView() {
+                        let mut rc = RECT::default();
+                        let mut clipped = windows::core::BOOL::default();
+                        if view
+                            .GetTextExt(_ec, &self.range, &mut rc, &mut clipped)
+                            .is_ok()
+                            && rc.right > rc.left
+                            && rc.bottom > rc.top
+                        {
+                            Some(Anchor::new(rc.left, rc.top, rc.right, rc.bottom))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    crate::edit_session::show_assist_overlay_for_selection(
+                        &self.shared,
+                        &self.ctx,
+                        _ec,
+                        &new_check,
+                        self.range.clone(),
+                        anchor,
+                    );
+                } else {
+                    crate::edit_session::set_caret_after(&self.ctx, _ec, &self.range);
+                }
             }
             ok
         }

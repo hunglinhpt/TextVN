@@ -300,8 +300,8 @@
 | Q-8 | minor | macOS chưa kiểm **selection rỗng** trước khi sửa ⇒ `insert(NSRange(NSNotFound,0))` có thể nuốt selection của người dùng | Windows đã có `sel.IsEmpty()` | ✅ `68b80d3` |
 | Q-9 | minor→major | **macOS bỏ qua kill-switch D20** (`state["assist"]` không được áp) ⇒ chỉ tắt được qua file config | `TextVNInputController.swift` chỉ áp ViState | ✅ `10bc694` — `ViStateStore.assistEnabled` + gate mọi đường assist |
 | Q-10 | minor | `assist.display.idle_ms` **chưa dùng ở OS nào** — hiển thị Mode 1 chỉ theo trigger kết thúc câu (**D43** thay idle 700 ms chưa triển khai) | grep `idle_ms` — chỉ có trong config/schema/UI | ❌ **Còn mở** — đã ghi quyết định **D43**; hoặc triển khai idle 700 ms, hoặc bỏ khoá khỏi schema/UI ở v1.1 |
-| Q-11 | minor | Docs stale sau các fix Q (P4-TASKS/parity-checklist chưa phản ánh D16 + IPC `AssistReport`) | — | 🔄 Cập nhật khi chốt verify tay |
-| Q-12 | minor | Comment trong Swift mô tả sai hành vi (idle_ms / cơ chế sửa) sau khi đổi sang lọc theo `kind` | — | ❌ **Còn mở** (sửa cùng lane R-13 gộp `assist.*`) |
+| Q-11 | minor | Docs stale sau các fix Q (P4-TASKS/parity-checklist chưa phản ánh D16 + IPC `AssistReport`) | — | ✅ **Đã sửa** (2026-10-25) |
+| Q-12 | minor | Comment trong Swift mô tả sai hành vi (idle_ms / cơ chế sửa / mặc định `mode`) sau khi đổi sang lọc theo `kind` và bật mặc định `highlight` | — | ✅ **Đã sửa** (`ConfigModel.swift`, `AssistModel.swift`, `lc_compose.h`) |
 | Q-13 | minor | `tools/assist/score_real.py` chỉ theo dõi `assist/src` + `cli/src` ⇒ **cảnh báo "binary cũ"** không bắt thay đổi ở `core/ffi/dict/config` ⇒ số đo recall/FPR có thể lấy từ binary lệch | `SOURCE_DIRS` | ✅ `10bc694` — thêm `core/src`, `ffi/src`, `dict/src`, `config/src` |
 | Q-14 | minor | Linux gửi `AssistReport` với `"issues":[]` **rỗng** ⇒ tray mất chi tiết lỗi (macOS gửi đủ) | `ipc_client.c` hard-code payload | ✅ `765e2e7` — `lc_assist_report_json()` (hàm thuần, test được): tối đa 3 lỗi `kind/span/message/suggestions/auto_fixable/confidence`, escape JSON, fail-safe khi không vừa buffer |
 
@@ -331,7 +331,25 @@
 
 **Còn mở sau vòng này (không blocker v1, chờ CI/máy thật):**
 - Linux `assist.per_app` — cần app identity (W4-gap).
-- `R-13` (Swift `AssistSettings` 2 nguồn) · `Q-10` (idle_ms) · `Q-12` (comment idle cũ trong Swift) — cùng lane v1.1.
+- `R-13` (Swift `AssistSettings` 2 nguồn) · `Q-10` (idle_ms) — cùng lane v1.1 (`Q-12` đã sửa 2026-10-25).
 - `R-8` auto-disable theo streak (D20) chưa làm; `R-9` macOS candidate panel không hiện message; `R-6` `Ctrl+Shift+G` gọi lại chỉ Windows.
 - Verify tay GUI 3 OS (G17) trước khi tick ✅ parity.
+
+---
+
+## VÒNG AUDIT SÂU 3 LẦN TOÀN DIỆN (2026-10-25 — Pass 1 · Pass 2 · Pass 3)
+
+**Bối cảnh:** rà soát từng dòng code và từng tính năng qua 3 vòng độc lập:
+- **Pass 1 (`assist/`, `ffi/`, `core/`)**:
+  - `ffi/src/lib.rs`: `copy_str_to_c_buf` và `ime_assist_sentence_tail` lùi về ranh giới UTF-8 hợp lệ (`is_char_boundary`) trước khi cắt buffer C; `fill_assist_result` ưu tiên lỗi `auto_fixable` khi `issues.len() > 8` rồi giữ thứ tự span và ghi `suggest_len` đúng số byte UTF-8 đã chép; `plan_issues_from_raw` xử lý đúng `IME_ASSIST_KIND_DOUBLE_SPACE` (`Fix::Delete`) và `IME_ASSIST_KIND_SPACE_AFTER_PUNCT` (`Fix::Insert` `" "`); `options_from_config` ánh xạ `suggest.trigger == TabAndSpace` vào `EngineOptions::suggest_space_complete`.
+  - `assist/`: loại bỏ 7 lần `tokenize(text)` lặp và 5 lần cấp phát `Vec<char>` thừa mỗi lần `check_with_dict` bằng `tokenize_chars`, `masked_ranges_chars`, `classify_tokens`, `is_vietnamese_tokens`, `has_en_indicator_tokens`, `Ctx::try_new_with_dict` (xoá luôn vòng lặp $O(N^2)$ `text.chars().skip(...)` trong `language::classify`); tách `EN_MIXED_INDICATORS` (bỏ các từ ngắn trùng âm tiết Việt như `"do"`, `"to"`, `"in"`, `"on"`, `"can"`, `"he"`, `"be"`, `"an"`) để câu thuần Việt không kích hoạt nhầm `article_an`; hoàn thiện `article_an` (bổ sung `"unit"`, `"union"`, `"united"`, `"universal"`, `"utility"`, `"usage"`…, đòi hỏi khoảng trắng giữa mạo từ và từ sau để không bắt `"Audi A8"`, chặn tên riêng `"Anh An"`, từ có dấu Việt đứng trước `"an"` và `VI_WORDS_AFTER_AN`); `spelling` bỏ qua token đã có lỗi trong `out` (không nhân đôi lỗi với `diacritic_typo`); `mask` không nuốt đầu câu viết hoa sau dấu chấm thiếu cách (`.Ai`, `.To`) làm tên miền; `is_real_sentence_end` và `is_abbreviation_dot` xử lý đúng ngoặc/nháy và từ 2 chữ cái (`"em."`, `"ai."`, `"ok."`).
+  - `core/`: `try_vn_complete` từ chối `Shift+Tab` (S9) và mã hoá phần chèn qua `self.emit(&insert)` để đồng bộ `sentence_widths` trên bảng mã VNI/TCVN3/Composite; `try_english_complete` và `restore_en::complete_word` không ghi đè âm tiết tiếng Việt hợp lệ (`"em"`, `"con"`, `"cho"`, `"nói"`, `"tủ"`, `"vé"`…) bằng từ tiếng Anh trong `EN_FREQ_DATA`.
+- **Pass 2 (`adapters/windows-tsf/`, `tray/`)**:
+  - `adapters/windows-tsf/src/assist.rs`: `fix_candidate` xử lý đúng `DOUBLE_SPACE` (xoá khoảng trắng thừa) và `SPACE_AFTER_PUNCT` (chèn `" "` sau dấu câu); thêm `AssistCheck::all_issue_views()` trả đủ tối đa 8 lỗi FFI (không bị cắt ở `MAX_OVERLAY_ISSUES = 3`) cho Mode 2 và "Sửa tất cả"; `after_trigger` chỉ chạy `check_sentence` ở `AssistTrigger::Sentence`.
+  - `adapters/windows-tsf/src/edit_session.rs`: thêm cờ `from_recheck` vào `ActiveAssist` và `ApplySentenceFixSession` để popup hiện lại sau `recheck_after_fix` vẫn bấm sửa tiếp được (vẫn xác minh chặt `verify_delete_range` trên text UTF-16 thật của document); `recheck_after_fix` chỉ ẩn theo `hide_on_auto_fix` khi `was_auto_fix = true` (Mode 2 tự động); `apply_assist_suggestion` hỗ trợ cả popup `selection` (click từng gợi ý hoặc `Alt+1..3` trên vùng bôi đen).
+  - `adapters/windows-tsf/src/selection_check.rs`, `overlay.rs`, `key_event.rs`, `tip.rs`: đảm bảo tạo `TIMER_HWND` ngay ở lần bôi đen đầu tiên trong phiên (`ensure_timer_hwnd`); bổ sung kiểm tra `assist_app_disabled` (`per_app`) và security gate S3 (`read_field_signals` — mật khẩu/PIN/read-only) trong `SelectionCheckSession`; huỷ timer `cancel_pending()` khi gõ phím mới, đổi focus hoặc đóng TIP; sau khi sửa vùng chọn, nếu câu sạch thì thu gọn caret về cuối câu, nếu còn lỗi thì cập nhật lại popup trên vùng chọn.
+  - `tray/src/settings.rs` & `tray/src/svc.rs`: `SettingsController::flush_now` lưu đầy đủ mọi trường cấu hình (`free_marking`, `auto_restore_english`, `auto_capitalize`, `output_charset`, `allow_macro_when_vi_off`, `macro_trigger`) và xoá override app (`remove_app_override`); `is_assist_enabled` poison-safe.
+- **Pass 3 (`adapters/macos-*`, `adapters/linux-*`, `docs/`)**:
+  - `TextVNInputController.swift` & `adapters/linux-ibus/src/engine.c`: gọi `engine.reset()` và xoá `assistUndo` sau khi áp dụng gợi ý Mode 1 (`R-4`); `TextVNInputController.swift` dùng `maxChars: 256` khớp `assistCheck()`, tôn trọng `display.hide_on_auto_fix`, và kiểm tra `utf16.count == deleteGlyphs` (`R-2`); `IMKTextTarget.swift` giới hạn đọc tối đa 1024 UTF-16 code unit trước caret; `SettingsView.swift` làm mờ `"Tự động sửa"` khi `assist.mode == "off"`.
+
 

@@ -25,7 +25,6 @@ typedef struct TvWin {
     GtkWidget *dd_method;
     GtkWidget *dd_assist_mode;
     GtkWidget *dd_assist_fix;
-    GtkWidget *chk_hide_auto;
     GtkWidget *chk_enabled;
     GtkWidget *rad_new;
     GtkWidget *rad_old;

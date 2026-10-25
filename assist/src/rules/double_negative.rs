@@ -18,17 +18,23 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         .filter(|&k| ctx.tokens[k].kind == TokenKind::Word)
         .collect();
     for (pos, &w) in words.iter().enumerate() {
+        let Some(&next_w) = words.get(pos + 1) else {
+            break;
+        };
+        if ctx.tokens[w].len() != 5 || ctx.tokens[next_w].len() != 2 {
+            continue;
+        }
         let a = ctx.token_text(&ctx.tokens[w]);
-        let b = words
-            .get(pos + 1)
-            .map(|&n| ctx.token_text(&ctx.tokens[n]))
-            .unwrap_or_default();
+        let b = ctx.token_text(&ctx.tokens[next_w]);
         if a.to_lowercase() != "không" || b.to_lowercase() != "có" {
             continue;
         }
         // tim "khong" thu hai trong toi da 4 tu ke
         for &n in words.iter().skip(pos + 2).take(MAX_GAP_WORDS + 1) {
-            if ctx.token_text(&ctx.tokens[n]).to_lowercase() == "không" {
+            if ctx.tokens[n].len() == 5
+                && !ctx.is_masked(ctx.tokens[w].start, ctx.tokens[n].end)
+                && ctx.token_text(&ctx.tokens[n]).to_lowercase() == "không"
+            {
                 out.push(issue_suggestion(
                     IssueKind::DoubleNegative,
                     Span {

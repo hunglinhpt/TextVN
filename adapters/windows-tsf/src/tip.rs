@@ -126,6 +126,7 @@ impl Tip_Impl {
             return Ok(());
         };
         let inner = std::mem::take(&mut *inner);
+        crate::selection_check::cancel_pending();
         if let Some(shared) = &inner.shared {
             // B2: không bỏ lại chữ đang soạn khi người dùng đổi bộ gõ.
             end_composition(shared, None);
@@ -258,6 +259,7 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
             // Mọi lần đổi document (kể cả mất focus): commit từ đang soạn vào đúng
             // document cũ, rồi bắt đầu sạch ở document mới — không mang buffer sang.
             if let Some(shared) = self.shared() {
+                crate::selection_check::cancel_pending();
                 end_composition(&shared, None);
                 shared.reset_engine();
                 shared.pending_eaten_vk.set(None);

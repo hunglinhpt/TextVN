@@ -247,6 +247,7 @@ public struct SettingsView: View {
                                 }
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
+                                .disabled(store.config.assist.mode == "off")
                                 .onChange(of: store.config.assist.auto_fix) { _ in persistAndNotify() }
                             }
                         }

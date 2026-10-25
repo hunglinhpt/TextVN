@@ -291,21 +291,34 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
     }
 }
 
-fn copy_str_to_c_buf(src: &str, dst: &mut [c_char]) {
+fn copy_str_to_c_buf(src: &str, dst: &mut [c_char]) -> usize {
     let bytes = src.as_bytes();
     let max = dst.len().saturating_sub(1);
-    let len = bytes.len().min(max);
+    let mut len = bytes.len().min(max);
+    while len > 0 && !src.is_char_boundary(len) {
+        len -= 1;
+    }
     for (d, &b) in dst[..len].iter_mut().zip(&bytes[..len]) {
         *d = b as c_char;
     }
     dst[len] = 0;
+    len
 }
 
 fn fill_assist_result(issues: &[textvn_assist::Issue], out: &mut ime_assist_result_v1) {
-    let count = issues.len().min(IME_MAX_ASSIST_ISSUES);
+    let selected: Vec<&textvn_assist::Issue> = if issues.len() <= IME_MAX_ASSIST_ISSUES {
+        issues.iter().collect()
+    } else {
+        let mut by_prio: Vec<&textvn_assist::Issue> = issues.iter().collect();
+        by_prio.sort_by_key(|i| (!i.auto_fixable, i.span.start, i.span.end, i.kind));
+        by_prio.truncate(IME_MAX_ASSIST_ISSUES);
+        by_prio.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
+        by_prio
+    };
+    let count = selected.len();
     out.abi_version = IME_ABI_VERSION;
     out.count = count as u32;
-    for (i, issue) in issues.iter().take(count).enumerate() {
+    for (i, issue) in selected.into_iter().enumerate() {
         let item = &mut out.issues[i];
         *item = unsafe { std::mem::zeroed::<ime_assist_issue_v1>() };
         item.kind = map_issue_kind(issue.kind);
@@ -315,8 +328,8 @@ fn fill_assist_result(issues: &[textvn_assist::Issue], out: &mut ime_assist_resu
         item.confidence = issue.confidence as u32;
         copy_str_to_c_buf(&issue.message, &mut item.message);
         if let Some(sugg) = issue.suggestions.first() {
-            copy_str_to_c_buf(sugg, &mut item.suggest);
-            item.suggest_len = sugg.len().min(IME_MAX_ASSIST_SUGGEST - 1) as u32;
+            let written = copy_str_to_c_buf(sugg, &mut item.suggest);
+            item.suggest_len = written as u32;
         }
     }
 }
@@ -376,7 +389,8 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         english_words: cfg.english_words.clone(),
         quick_telex: cfg.quick_telex,
         suggest_vn_complete: cfg.suggest.enabled,
-        suggest_space_complete: cfg.suggest.trigger == textvn_config::SuggestTrigger::TabAndSpace,
+        suggest_space_complete: cfg.suggest.enabled
+            && cfg.suggest.trigger == textvn_config::SuggestTrigger::TabAndSpace,
         output_charset: match cfg.output_charset {
             textvn_config::OutputCharset::UnicodePrecomposed => {
                 textvn_core::OutputCharset::UnicodePrecomposed
@@ -913,7 +927,10 @@ pub extern "C" fn ime_assist_sentence_tail(
         let bytes = text.as_bytes();
         unsafe { *out_len = bytes.len() };
         if !out_buf.is_null() && buf_len > 0 {
-            let copy_len = bytes.len().min(buf_len.saturating_sub(1));
+            let mut copy_len = bytes.len().min(buf_len.saturating_sub(1));
+            while copy_len > 0 && !text.is_char_boundary(copy_len) {
+                copy_len -= 1;
+            }
             let out_slice = unsafe { slice::from_raw_parts_mut(out_buf as *mut u8, buf_len) };
             out_slice[..copy_len].copy_from_slice(&bytes[..copy_len]);
             out_slice[copy_len] = 0;
@@ -1184,6 +1201,23 @@ pub fn plan_issues_from_raw(sentence: &str, raws: &[PlanIssueRaw]) -> Vec<textvn
                 || raw.kind == IME_ASSIST_KIND_SPACE_BEFORE_PUNCT
             {
                 Some(textvn_assist::Fix::Delete { start, end })
+            } else if raw.kind == IME_ASSIST_KIND_DOUBLE_SPACE {
+                let del_start = if start > 0 && chars[start - 1] == ' ' {
+                    start
+                } else if end > start + 1 && chars[start] == ' ' {
+                    start + 1
+                } else {
+                    start
+                };
+                Some(textvn_assist::Fix::Delete {
+                    start: del_start,
+                    end,
+                })
+            } else if raw.kind == IME_ASSIST_KIND_SPACE_AFTER_PUNCT {
+                Some(textvn_assist::Fix::Insert {
+                    at: end,
+                    text: " ".to_string(),
+                })
             } else {
                 let span_text: String = chars[start..end].iter().collect();
                 if span_text == *suggest_str {
@@ -2439,5 +2473,47 @@ mod tests {
         // gợi ý vẫn giữ nguyên để adapter hiển thị nếu cần.
         assert!(issues.iter().all(|i| i.message.is_empty()));
         assert_eq!(issues[0].suggestions, vec!["tôi".to_string()]);
+    }
+
+    #[test]
+    fn plan_issues_from_raw_double_space_va_space_after_punct() {
+        let sentence = "Tôi  đi,học.";
+        let raws = vec![
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_DOUBLE_SPACE,
+                start: 4,
+                end: 5,
+                auto_fixable: true,
+                confidence: 100,
+                suggest: " ".to_string(),
+            },
+            PlanIssueRaw {
+                kind: IME_ASSIST_KIND_SPACE_AFTER_PUNCT,
+                start: 7,
+                end: 8,
+                auto_fixable: true,
+                confidence: 100,
+                suggest: ", ".to_string(),
+            },
+        ];
+        let issues = plan_issues_from_raw(sentence, &raws);
+        assert_eq!(issues.len(), 2);
+        let plan = textvn_assist::plan_sentence_fix(sentence, &issues).expect("phai co plan");
+        assert_eq!(plan.fixed_count, 2);
+        assert_eq!(plan.delete_from, 4);
+        assert_eq!(plan.replacement, "đi, học.");
+        let head: String = sentence.chars().take(plan.delete_from).collect();
+        assert_eq!(format!("{head}{}", plan.replacement), "Tôi đi, học.");
+    }
+
+    #[test]
+    fn copy_str_to_c_buf_khong_cat_giua_codepoint_utf8() {
+        // "đ" (2 byte) + "ể" (3 byte): tổng 5 byte. Buffer 5 byte (max 4 byte)
+        // không được cắt giữa "ể" ở byte 4 mà phải lùi về ranh giới byte 2.
+        let mut buf = [0 as c_char; 5];
+        let n = copy_str_to_c_buf("để", &mut buf);
+        assert_eq!(n, 2);
+        let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) };
+        assert_eq!(cstr.to_str().unwrap(), "đ");
     }
 }

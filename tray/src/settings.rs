@@ -224,6 +224,30 @@ impl SettingsController {
                     .is_ok()
                 && self
                     .svc
+                    .set_free_marking(self.draft_config.free_marking)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_auto_restore_english(self.draft_config.auto_restore_english)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_auto_capitalize(self.draft_config.auto_capitalize)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_output_charset(self.draft_config.output_charset)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_allow_macro_when_vi_off(self.draft_config.allow_macro_when_vi_off)
+                    .is_ok()
+                && self
+                    .svc
+                    .set_macro_trigger(self.draft_config.macro_trigger)
+                    .is_ok()
+                && self
+                    .svc
                     .set_assist_mode(self.draft_config.assist.mode)
                     .is_ok()
                 && self
@@ -237,6 +261,14 @@ impl SettingsController {
         }
 
         if self.dirty_state {
+            let existing = self.svc.app_states();
+            for app in existing.keys() {
+                if !self.draft_apps.contains_key(app) {
+                    let ver = self.svc.remove_app_override(app);
+                    let actual = self.svc.is_app_enabled(app);
+                    self.ipc.broadcast_state_update(app, actual, ver);
+                }
+            }
             for (app, &enabled) in &self.draft_apps {
                 let ver = self.svc.set_app_enabled(app, enabled);
                 // Phát state thật (persist lỗi → giữ state cũ, review R3 minor 8).
@@ -295,6 +327,29 @@ mod tests {
         assert!(!ctrl.dirty_config);
         assert_eq!(svc.config().assist.mode, AssistMode::Highlight);
         assert_eq!(svc.config().assist.auto_fix, AssistAutoFix::Safe);
+
+        ctrl.set_free_marking(false);
+        ctrl.set_auto_restore(false);
+        ctrl.set_auto_capitalize(false);
+        ctrl.set_output_charset(OutputCharset::VniWindows);
+        ctrl.set_allow_macro_when_vi_off(true);
+        ctrl.set_macro_trigger(MacroTrigger::Tab);
+        ctrl.flush_now();
+        assert!(!ctrl.dirty_config);
+        let cfg = svc.config();
+        assert!(!cfg.free_marking);
+        assert!(!cfg.auto_restore_english);
+        assert!(!cfg.auto_capitalize);
+        assert_eq!(cfg.output_charset, OutputCharset::VniWindows);
+        assert!(cfg.allow_macro_when_vi_off);
+        assert_eq!(cfg.macro_trigger, MacroTrigger::Tab);
+
+        ctrl.set_app_state("code.exe", false);
+        ctrl.flush_now();
+        assert_eq!(svc.app_override("code.exe"), Some(false));
+        ctrl.remove_app_state("code.exe");
+        ctrl.flush_now();
+        assert_eq!(svc.app_override("code.exe"), None);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

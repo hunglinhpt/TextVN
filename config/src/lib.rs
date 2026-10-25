@@ -123,8 +123,9 @@ pub struct Config {
     /// engine dùng; thiếu khoá = tắt (Tab giữ hành vi cũ).
     #[serde(default)]
     pub suggest: SuggestSettings,
-    /// Trợ lý ngữ pháp (Phần 4 — `P4-0-MASTER-PLAN.md` §7). Mặc định **tắt
-    /// hoàn toàn** (`mode: off`) theo D20: bật là lựa chọn rõ ràng của người dùng.
+    /// Trợ lý ngữ pháp (Phần 4 — `P4-0-MASTER-PLAN.md` §7). Mặc định **Chỉ
+    /// gợi ý** (`mode: highlight`) từ 0.2.38 — người dùng từng tắt tường minh
+    /// (`mode: "off"`) giữ nguyên (serde default chỉ áp cho khoá thiếu).
     #[serde(default)]
     pub assist: AssistSettings,
 }
@@ -157,7 +158,8 @@ pub enum SuggestTrigger {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AssistMode {
-    /// Không kiểm tra, không hiện gì (mặc định — D20 kill-switch).
+    /// Không kiểm tra, không hiện gì (kill-switch của người dùng — lưu ý:
+    /// mặc định SAU CÀI là Highlight, xem [`AssistSettings::default`]).
     #[default]
     Off,
     /// Chỉ gợi ý lỗi (Mode 1 — P4-0 §4.2).
@@ -255,12 +257,13 @@ pub fn default_assist_trigger_keys() -> Vec<String> {
     vec!["space".to_string(), ",".to_string(), ".".to_string()]
 }
 
-/// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mọi trường đều có mặc định an toàn:
-/// thiếu khoá = tắt, không tự sửa, không hiện gì.
+/// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định sau cài (vòng 26/0.2.38):
+/// `mode: highlight` (Chỉ gợi ý), `auto_fix: off` — thiếu khoá nhận mặc định
+/// đó; người dùng từng tắt tường minh giữ nguyên lựa chọn.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AssistSettings {
-    /// Mức can thiệp (mặc định `off`).
+    /// Mức can thiệp (mặc định `highlight` — xem [`AssistSettings::default`]).
     pub mode: AssistMode,
     /// Tự sửa lỗi objective (mặc định `off` — P4-0 §4.3).
     pub auto_fix: AssistAutoFix,

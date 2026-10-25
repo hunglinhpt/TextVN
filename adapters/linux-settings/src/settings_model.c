@@ -136,6 +136,15 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
+    } else {
+        /* Vòng 32 (audit F-J): chưa có config.json — dialog phải hiện DEFAULT
+         * sản phẩm (khớp Config::default của config/src/lib.rs), không phải
+         * struct zeroed: trợ lý "Tắt" + 3 tuỳ chọn gõ tắt hết là SAI. */
+        out->assist_mode = 1;          /* highlight */
+        out->assist_auto_fix = 0;      /* off */
+        out->auto_restore_english = 1;
+        out->free_marking = 1;
+        out->auto_capitalize = 1;
     }
     out->vi_enabled = lc_state_read_enabled(p->state, 1);
 }

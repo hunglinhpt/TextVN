@@ -163,7 +163,7 @@ int lc_state_write_enabled(const char *path, int enabled);
 /* File đổi kể từ lần trước → đọc lại, gán *enabled, trả 1. Không đổi/không có → 0. */
 int lc_state_sync(lc_config_state *st, const char *path, int *enabled);
 
-/* state.json assist_enabled (kill-switch D20): mặc định 0 (tắt). */
+/* state.json assist_enabled (kill-switch D20): mặc định 1 (bật, vòng 26). */
 int lc_state_read_assist_enabled(const char *path, int default_enabled);
 /* Ghi assist_enabled vào state.json. 0 = OK. */
 int lc_state_write_assist_enabled(const char *path, int enabled);

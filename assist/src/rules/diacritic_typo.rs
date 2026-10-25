@@ -149,12 +149,22 @@ fn variants(word: &str) -> Vec<String> {
     for (i, &ch) in chars.iter().enumerate() {
         // E1 — đổi MỘT nguyên âm sang mọi dạng cùng gốc (kể cả đổi cả thanh).
         if let Some((r, c)) = vowel_pos(ch) {
+            // Một âm tiết tiếng Việt chỉ có tối đa 1 dấu thanh (cột > 0): nếu
+            // một vị trí khác trong từ đã mang dấu thanh thì vị trí `i` chỉ xét
+            // cột 0 (không dấu thanh), tránh sinh biến thể 2 dấu thanh vô nghĩa.
+            let other_has_tone = chars
+                .iter()
+                .enumerate()
+                .any(|(j, &ch_j)| j != i && vowel_pos(ch_j).is_some_and(|(_, col)| col > 0));
             let g = base_group(r);
             for (r2, row) in VOWELS.iter().enumerate() {
                 if base_group(r2) != g {
                     continue;
                 }
                 for (c2, &v) in row.iter().enumerate() {
+                    if other_has_tone && c2 > 0 {
+                        continue;
+                    }
                     if r2 == r && c2 == c {
                         continue;
                     }
@@ -263,7 +273,10 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
 /// Đẩy issue, **giữ hoa/thường của ký tự đầu** và dùng span = token.
 fn push_issue(token: &Token, text: &str, correct: &str, out: &mut Vec<Issue>) {
     let mut fixed = correct.to_string();
-    if let Some(first) = text.chars().next() {
+    let is_all_caps = text.chars().count() > 1 && text.chars().all(|c| c.is_uppercase());
+    if is_all_caps {
+        fixed = fixed.to_uppercase();
+    } else if let Some(first) = text.chars().next() {
         if first.is_uppercase() {
             let mut chars = fixed.chars();
             let head = chars.next().unwrap_or(' ');

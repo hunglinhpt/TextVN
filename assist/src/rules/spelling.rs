@@ -46,6 +46,14 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if tok.len() < MIN_WORD_CHARS {
             continue;
         }
+        // Không báo trùng trên token đã được luật trước (như `diacritic_typo`) bắt,
+        // tránh nhân đôi issue trên cùng span và lãng phí ngân sách suggest OS.
+        if out
+            .iter()
+            .any(|i| i.span.start <= tok.start && tok.end <= i.span.end)
+        {
+            continue;
+        }
         let word = ctx.token_text(tok);
         // Chữ hoa nằm giữa từ ("iPhone") → tên riêng, bỏ qua. Ký tự đầu được
         // phép hoa: đầu câu, hoặc tên riêng một âm tiết ("Hà", "Bách").

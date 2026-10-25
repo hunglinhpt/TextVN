@@ -65,16 +65,17 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         let Some(next) = word_after(ctx, i) else {
             continue;
         };
-        let prev_text = ctx.token_text(&prev);
-        let next_text = ctx.token_text(&next);
-        if prev_text.to_lowercase() != next_text.to_lowercase() {
+        if prev.len() != next.len() || prev.len() < 2 || ctx.is_masked(prev.start, next.end) {
             continue;
         }
-        if prev_text.chars().count() < 2 {
+        let prev_text = ctx.token_text(&prev);
+        let next_text = ctx.token_text(&next);
+        let prev_lower = prev_text.to_lowercase();
+        if prev_lower != next_text.to_lowercase() {
             continue;
         }
         // Chi bat voi tu chuc nang (Fassist-91) - lap tu noi dung la cach viet hop le.
-        if !FUNCTION_WORDS.contains(&prev_text.to_lowercase().as_str()) {
+        if !FUNCTION_WORDS.contains(&prev_lower.as_str()) {
             continue;
         }
         out.push(issue_suggestion(

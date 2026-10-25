@@ -298,6 +298,12 @@ impl CandidateOverlay {
         }
     }
 
+    /// Đảm bảo HWND tồn tại cho selection-check debounce timer ngay cả trước
+    /// lần hiện popup đầu tiên trong phiên.
+    pub fn ensure_timer_hwnd(&self) -> isize {
+        self.get_or_create_hwnd().0 as isize
+    }
+
     /// HWND của panel (tạo lần đầu, fail-open: HWND rỗng nếu lỗi).
     fn get_or_create_hwnd(&self) -> HWND {
         let current = self.hwnd.get();
@@ -450,6 +456,7 @@ impl Default for CandidateOverlay {
 #[cfg(windows)]
 impl Drop for CandidateOverlay {
     fn drop(&mut self) {
+        crate::selection_check::cancel_pending();
         let hwnd = self.hwnd.get();
         if !hwnd.0.is_null() && unsafe { IsWindow(Some(hwnd)).as_bool() } {
             let _ = unsafe { DestroyWindow(hwnd) };

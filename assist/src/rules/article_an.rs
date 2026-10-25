@@ -27,9 +27,40 @@ const A_DESPITE_VOWEL_LETTER: &[&str] = &[
     "user",
     "users",
     "uniform",
+    "uniforms",
     "unique",
+    "unit",
+    "units",
+    "union",
+    "unions",
+    "united",
+    "universal",
+    "universe",
+    "utility",
+    "utilities",
+    "usage",
+    "usable",
+    "unilateral",
+    "unanimous",
+    "unicorn",
+    "uranium",
+    "urine",
+    "urinal",
+    "utensil",
+    "utensils",
+    "utopia",
+    "utopian",
     "usual",
     "usually",
+    "unicode",
+    "ukulele",
+    "euphemism",
+    "euphemisms",
+    "euphemistic",
+    "euphoria",
+    "euphoric",
+    "eulogy",
+    "eulogies",
     "ubiquitous",
     "euro",
     "european",
@@ -48,9 +79,38 @@ const A_DESPITE_VOWEL_LETTER: &[&str] = &[
     "unicef",
 ];
 
+/// Từ tiếng Việt không dấu hoặc từ ghép đi sau "an" ("an ninh", "an khang", "an vui",
+/// "an sinh", "an bình/toàn" chưa gõ dấu, hoặc từ nối tiếng Việt sau tên riêng "An").
+/// Tuyệt đối không bao giờ sửa "an" → "a" trước các từ này trong câu mix/Việt.
+const VI_WORDS_AFTER_AN: &[&str] = &[
+    "ninh", "khang", "sinh", "vui", "binh", "toan", "tam", "nhan", "nam", "long", "lac", "phuoc",
+    "loc", "pha", "son", "giang", "duong", "phu", "thanh", "thinh", "hoa", "phuc", "cat", "tuong",
+    "chau", "khe", "my", "nhon", "phong", "quang", "thai", "thuan", "thuy", "tien", "tinh",
+    "truong", "tu", "vien", "vinh", "xuan", "yen", "cho", "do", "hay", "khi", "nhu", "theo",
+    "trong", "sau", "nay", "la", "va", "co", "ca", "ra", "vo", "ve", "nha", "nhau", "nhung",
+    "cung", "duoc", "khong", "minh", "chung", "anh", "chi", "em", "ban", "con", "ong", "ba",
+];
+
+/// Từ chức năng tiếng Anh (động từ chia, liên từ, giới từ) không bao giờ đứng
+/// ngay sau mạo từ "a"/"an" như danh từ ("Plan A is", "a and b", "Option A or B").
+const NON_NOUN_FOLLOWERS: &[&str] = &[
+    "is", "are", "was", "were", "be", "been", "am", "and", "or", "nor", "but", "of", "in", "on",
+    "at", "to", "for", "from", "with", "by", "as", "than", "that", "this", "these", "those",
+    "will", "would", "can", "could", "should", "must", "may", "might", "has", "have", "had",
+    "does", "did",
+];
+
 /// "an" trước từ bắt đầu bằng **chữ phụ âm** nhưng **âm nguyên âm** (h câm).
-const AN_DESPITE_CONSONANT_LETTER: &[&str] =
-    &["hour", "hours", "honest", "heir", "honor", "honorary"];
+/// Vòng 32 (audit A3): so theo **gốc từ** — mọi dẫn xuất cùng âm kể cả
+/// British "honour" — thay vì liệt kê từng dạng rồi thiếu ("hourglass",
+/// "honorable", "heirloom" từng bị bêu ngược chiều "a…").
+fn an_despite_consonant_letter(next_lower: &str) -> bool {
+    next_lower.starts_with("hour")      // hour, hours, hourly, hourglass
+        || next_lower.starts_with("honest") // honest, honestly, honesty
+        || next_lower.starts_with("heir")   // heir, heiress, heirloom
+        || next_lower.starts_with("honor")  // honor, honored, honorary…
+        || next_lower.starts_with("honour") // British spelling
+}
 
 /// Từ/acronym mà CẢ HAI dạng đều nghe tự nhiên — không bao giờ soi.
 const BOTH_OK: &[&str] = &[
@@ -69,7 +129,7 @@ const BOTH_OK: &[&str] = &[
 /// Acronym phát âm **như một từ** ("NATO", "NASA") — không đọc từng chữ,
 /// áp luật chữ đầu bình thường ("a NATO", "a NASA").
 const WORD_PRONOUNCED_ACRONYMS: &[&str] = &[
-    "nato", "nasa", "laser", "radar", "scuba", "asap", "tosla", "opec", "mercosur",
+    "nato", "nasa", "laser", "radar", "scuba", "asap", "opec", "mercosur",
 ];
 
 /// Tên chữ cái phát âm bắt đầu bằng nguyên âm (đọc từng chữ: "an MBA",
@@ -85,9 +145,15 @@ fn number_starts_with_vowel_sound(digits: &str) -> Option<bool> {
         return None;
     }
     // Mọi số bắt đầu bằng 8 đọc "eight/eighty/eight-hundred" = âm nguyên âm;
-    // 11 ("eleven") và 18 ("eighteen") nữa. Số còn lại đọc âm phụ âm
-    // (one/two/five/ten…). "1" = "one" (/w/) → "a".
-    Some(d[0] == '8' || digits == "11" || digits == "18")
+    // 11 ("eleven") và 18 ("eighteen") nữa — kể cả dạng đọc gộp "11xx/18xx =
+    // eleven/eighteen hundred" và "11xxx/18xxx = eleven/eighteen thousand"
+    // (vòng 32, audit A4: "an 1100" từng bị bêu "a"). Số 3 chữ "11x" đọc
+    // "one hundred …" (/w/ → "a"); "110000" = "one hundred ten thousand" → "a".
+    let len = d.len();
+    Some(
+        d[0] == '8'
+            || (matches!(len, 2 | 4 | 5) && (digits.starts_with("11") || digits.starts_with("18"))),
+    )
 }
 
 /// Mạo từ đúng cho từ kế tiếp `next` (nguyên bản — cần phân biệt hoa/thường
@@ -97,8 +163,8 @@ fn expected_article(next: &str) -> Option<&'static str> {
         return None; // từ có dấu/ký tự lạ → thoát
     }
     let next_lower = next.to_lowercase();
-    if BOTH_OK.contains(&next_lower.as_str()) {
-        return None; // cả hai đúng — không can thiệp
+    if BOTH_OK.contains(&next_lower.as_str()) || NON_NOUN_FOLLOWERS.contains(&next_lower.as_str()) {
+        return None; // cả hai đúng hoặc không phải cụm danh từ — không can thiệp
     }
     // Acronym ALL-CAPS đọc TỪNG CHỮ ("an MBA") — trừ dạng đọc-như-từ.
     // Vòng 28: áp cho MỌI độ dài ("a UNESCO" — 6 chữ vẫn đọc /juː/ → "a";
@@ -123,7 +189,7 @@ fn expected_article(next: &str) -> Option<&'static str> {
     if A_DESPITE_VOWEL_LETTER.contains(&next_lower.as_str()) {
         return Some("a");
     }
-    if AN_DESPITE_CONSONANT_LETTER.contains(&next_lower.as_str()) {
+    if an_despite_consonant_letter(&next_lower) {
         return Some("an");
     }
     let first = next_lower.chars().next()?;
@@ -137,16 +203,28 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // **từ-điểm tiếng Anh** ("gửi a email nhé" có "email"; "an khang thịnh
     // vượng" không có → im lặng, không bao giờ sửa chữ Việt).
     if ctx.lang == crate::rules::language::Lang::Vi
-        && !crate::rules::language::has_en_indicator(ctx.chars.as_slice())
+        && !crate::rules::language::has_en_indicator_tokens(&ctx.chars, &ctx.tokens)
     {
         return;
     }
     let mut i = 0usize;
     while i + 1 < ctx.tokens.len() {
         let article = ctx.tokens[i];
-        if !is_word(&article) {
+        if !is_word(&article) || article.len() > 2 {
             i += 1;
             continue;
+        }
+        // Không bắt khi "a"/"an" dính liền ký tự không phải khoảng trắng phía trước
+        // ("N/A", "Q&A", "1a", "v.a").
+        if i > 0 {
+            let prev_tok = ctx.tokens[i - 1];
+            let allowed_before = prev_tok.kind == TokenKind::Space
+                || (prev_tok.end == article.start
+                    && matches!(ctx.chars[prev_tok.end - 1], '"' | '\'' | '(' | '['));
+            if !allowed_before {
+                i += 1;
+                continue;
+            }
         }
         let text = ctx.token_text(&article);
         let lower = text.to_lowercase();
@@ -154,20 +232,61 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             i += 1;
             continue;
         }
+        // Chữ viết hoa ("A", "An", "AN") giữa câu là tên riêng ("Anh An", "Bạn An")
+        // hoặc ký hiệu ("Plan A", "Team A") — chỉ xét khi đứng ở ĐẦU CÂU và không phải "AN".
+        if text.chars().next().is_some_and(|c| c.is_uppercase()) {
+            let all_caps_an = text.len() > 1 && text.chars().all(|c| c.is_uppercase());
+            let at_sentence_start = i == 0 || super::capitalize_sentence::is_sentence_start(ctx, i);
+            if all_caps_an || !at_sentence_start {
+                i += 1;
+                continue;
+            }
+        }
         if ctx.is_masked(article.start, article.end) {
             i += 1;
             continue;
         }
-        // Từ kế tiếp (bỏ space).
-        let mut j = i + 1;
-        if ctx.tokens[j].kind == TokenKind::Space {
-            if j + 1 >= ctx.tokens.len() {
-                break;
-            }
-            j += 1;
+        // BẮT BUỘC phải có khoảng trắng giữa mạo từ và từ kế tiếp ("Audi A8", "model a8",
+        // "an1" có chữ dính số mà không có space → không phải mạo từ + từ).
+        let j = i + 1;
+        if ctx.tokens[j].kind != TokenKind::Space || j + 1 >= ctx.tokens.len() {
+            i += 1;
+            continue;
         }
+        let j = j + 1;
         let next = ctx.tokens[j];
         let next_text = ctx.token_text(&next);
+        // Vòng 32 (audit A1): tiếng Việt gõ KHÔNG DẤU ("An buon qua",
+        // "an toan la quan trong") — câu thuần ASCII bị classified En nên
+        // gate Vi phía trên không chặn. Từ kế là âm tiết Việt-ASCII (không
+        // phải từ EN thông dụng) ⇒ im lặng, không bao giờ sửa chữ Việt.
+        if next.kind == TokenKind::Word
+            && crate::rules::language::is_vietnamese_ascii_word(&next_text.to_lowercase())
+        {
+            i += 1;
+            continue;
+        }
+        // Bảo vệ tuyệt đối chữ "an" tiếng Việt ("an ninh", "an khang", "công an", "bình an").
+        if lower == "an" {
+            let next_lower = next_text.to_lowercase();
+            if VI_WORDS_AFTER_AN.contains(&next_lower.as_str()) {
+                i += 1;
+                continue;
+            }
+            // Nếu từ đứng trước "an" là từ có dấu tiếng Việt ("công an", "bình an",
+            // "chúc an", "về an", "giữ an"), "an" là âm tiết tiếng Việt chứ không phải mạo từ EN.
+            if i >= 2 && ctx.tokens[i - 1].kind == TokenKind::Space {
+                let prev_word = ctx.tokens[i - 2];
+                if prev_word.kind == TokenKind::Word
+                    && ctx.chars[prev_word.start..prev_word.end]
+                        .iter()
+                        .any(|&c| crate::rules::language::is_vietnamese_letter(c))
+                {
+                    i += 1;
+                    continue;
+                }
+            }
+        }
         // Token số ("a 5-year") là TokenKind::Other và bị tách TỪNG chữ số —
         // gom cả dãy để đọc đúng ("11th" → "11" → "eleven" → "an").
         if next.kind == TokenKind::Other && next_text.chars().all(|c| c.is_ascii_digit()) {
@@ -349,5 +468,97 @@ mod tests {
     fn tu_co_dau_viet_khong_soi() {
         // "a ô" — thoát vì từ kế không ASCII.
         assert!(en_issues("a ô trong phòng").is_empty());
+    }
+
+    #[test]
+    fn bao_ve_an_ninh_ten_rieng_va_ky_hieu_dinh_lien() {
+        for s in [
+            "Tự do và an ninh là quan trọng.",
+            "Nhờ lý do đó mà gia đình an khang.",
+            "Chúc anh chị sống an vui bên ngôi nhà to.",
+            "Gửi email báo cáo về an ninh mạng nhé.",
+            "Anh An check lại report nhé.",
+            "Plan A is ready for the team.",
+            "N/A update for the team.",
+            "Audi A8 is a great car.",
+            "Please write a unit test for this module.",
+            "It is a universal rule.",
+        ] {
+            assert!(
+                crate::check_sentence(s)
+                    .iter()
+                    .all(|i| i.kind != IssueKind::ArticleAn),
+                "\"{s}\" không được báo nhầm ArticleAn"
+            );
+        }
+    }
+
+    /// Vòng 32 (audit A1): tiếng Việt gõ THIẾU DẤU — câu thuần ASCII bị
+    /// classified En, gate Vi không chặn ⇒ phải chặn bằng bộ âm tiết Việt.
+    #[test]
+    fn tieng_viet_khong_dau_khong_bi_soi() {
+        for s in [
+            "An buon qua",
+            "an toan la quan trong",
+            "an ninh day du",
+            "AN TOAN LA QUAN TRONG",
+            "email nay giup toi an tam",
+            "an uong lan an choi lan", // "an" lặp — cả hai là âm tiết Việt
+        ] {
+            assert!(
+                crate::check_sentence(s)
+                    .iter()
+                    .all(|i| i.kind != IssueKind::ArticleAn),
+                "tiếng Việt không dấu \"{s}\" không được bêu ArticleAn"
+            );
+        }
+        // Tiếng Anh thật vẫn phải bắt (không nuốt luật).
+        assert_eq!(
+            crate::check_sentence("a apple on the table")
+                .iter()
+                .filter(|i| i.kind == IssueKind::ArticleAn)
+                .count(),
+            1
+        );
+    }
+
+    /// Vòng 32 (audit A3): dẫn xuất h-câm / /juː/ — so theo gốc từ.
+    #[test]
+    fn dan_xuat_h_cam_va_ju_van_dung() {
+        for s in [
+            "an hourglass on the desk",
+            "an hourly job",
+            "an honorable man",
+            "an heirloom ring",
+            "an heiress to the fortune",
+            "a Unicode string",
+            "a utility function",
+            "a union of workers",
+            "a euphemism for death",
+        ] {
+            assert!(
+                crate::check_sentence(s)
+                    .iter()
+                    .all(|i| i.kind != IssueKind::ArticleAn),
+                "tiếng Anh đúng \"{s}\" không được bêu ArticleAn"
+            );
+        }
+    }
+
+    /// Vòng 32 (audit A4): số đọc gộp eleven/eighteen hundred (thousand).
+    #[test]
+    fn so_doc_gop_11xx_18xx() {
+        for s in ["an 1100", "an 1850", "an 18,000 men", "an 11-year gap"] {
+            assert!(
+                crate::check_sentence(s)
+                    .iter()
+                    .all(|i| i.kind != IssueKind::ArticleAn),
+                "\"{s}\" đọc eleven/eighteen — 'an' là đúng"
+            );
+        }
+        // 3 chữ "11x" đọc "one hundred …" → "a" đúng như nguồn.
+        assert!(crate::check_sentence("a 110-page book")
+            .iter()
+            .all(|i| i.kind != IssueKind::ArticleAn));
     }
 }

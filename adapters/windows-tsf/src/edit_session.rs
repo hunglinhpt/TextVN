@@ -75,6 +75,9 @@ pub struct ActiveAssist {
     /// (`None` = popup thường theo luồng gõ). FixAll từ chuột rẽ nhánh
     /// SetText-vùng-chọn thay vì Backspace+Type.
     pub selection: Option<windows::Win32::UI::TextServices::ITfRange>,
+    /// Popup được dựng từ `recheck_after_fix` (sau khi sửa lần 1, buffer engine
+    /// đã `reset()` nhưng document tại caret vẫn khớp `sentence`).
+    pub from_recheck: bool,
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -555,6 +558,17 @@ pub fn show_assist_overlay(
     ec: u32,
     check: &AssistCheck,
 ) -> bool {
+    show_assist_overlay_with_recheck(shared, ctx, ec, check, false)
+}
+
+#[cfg(windows)]
+pub(crate) fn show_assist_overlay_with_recheck(
+    shared: &Rc<TsfShared>,
+    ctx: &ITfContext,
+    ec: u32,
+    check: &AssistCheck,
+    from_recheck: bool,
+) -> bool {
     if !shared.is_assist_display_enabled() {
         return false; // D20 kill-switch + `assist.mode` (R-6: giống macOS/Linux)
     }
@@ -586,6 +600,7 @@ pub fn show_assist_overlay(
         ctx: ctx.clone(),
         check: check.clone(),
         selection: None,
+        from_recheck,
     };
     let Ok(mut slot) = shared.assist.try_borrow_mut() else {
         return false;
@@ -641,6 +656,7 @@ pub fn show_assist_overlay_for_selection(
         ctx: ctx.clone(),
         check: check.clone(),
         selection: Some(range),
+        from_recheck: false,
     };
     {
         let Ok(mut slot) = shared.assist.try_borrow_mut() else {
@@ -702,6 +718,22 @@ pub fn apply_assist_suggestion(
     let Some(plan) = plan else {
         return false; // không có gợi ý / gợi ý vô nghĩa → chỉ hiển thị (A1)
     };
+    if let Some(range) = active.selection.clone() {
+        let head_len = active
+            .sentence
+            .chars()
+            .count()
+            .saturating_sub(plan.delete_chars);
+        let head: String = active.sentence.chars().take(head_len).collect();
+        let fixed = head + &plan.replacement.iter().collect::<String>();
+        return crate::selection_check::request_apply_selection_fix(
+            shared,
+            &active.ctx,
+            &range,
+            &active.sentence,
+            &fixed,
+        );
+    }
     let session: ITfEditSession =
         ApplyAssistFixSession::new(shared.clone(), ctx.clone(), active, plan).into();
     request_sync_or_async(ctx, shared.tid, &session)
@@ -747,14 +779,16 @@ pub struct ApplyAssistFixSession {
 
 /// Vòng 28 — re-check sau khi A2/A3 sửa xong: chạy `check_text` trên câu
 /// đầy đủ đã sửa (head giữ nguyên + đuôi mới), còn lỗi thì hiện lại panel
-/// với tổng lỗi mới; sạch thì panel giữ ẩn. `mode2` = auto-fix đang chạy
-/// (`hide_on_auto_fix` của người dùng được tôn trọng).
+/// với tổng lỗi mới; sạch thì panel giữ ẩn. `was_auto_fix` = chỉ lần tự sửa
+/// tự động của Mode 2 mới tôn trọng `hide_on_auto_fix`; người dùng chủ động
+/// sửa (A2 / nút "Sửa tất cả") vẫn hiện lại nếu còn lỗi.
 #[cfg(windows)]
 pub(crate) fn recheck_after_fix(
     shared: &Rc<TsfShared>,
     ctx: &ITfContext,
     ec: u32,
     fixed_sentence: &str,
+    was_auto_fix: bool,
 ) {
     let (auto_capitalize, hide_on_auto_fix, mode2) = {
         let Ok(thread) = shared.thread.try_borrow() else {
@@ -766,7 +800,7 @@ pub(crate) fn recheck_after_fix(
             crate::assist::mode2_auto_fix_enabled(thread.assist_mode(), thread.assist_auto_fix()),
         )
     };
-    if mode2 && hide_on_auto_fix {
+    if was_auto_fix && mode2 && hide_on_auto_fix {
         return; // người dùng chọn ẩn panel khi auto-fix đang chạy
     }
     // Câu đầy đủ sau fix = phần đầu giữ nguyên + đuôi mới (engine đã reset,
@@ -774,7 +808,7 @@ pub(crate) fn recheck_after_fix(
     let Some(new_check) = super::assist::check_text(fixed_sentence, auto_capitalize) else {
         return; // câu sạch → panel giữ ẩn
     };
-    let _ = show_assist_overlay(shared, ctx, ec, &new_check);
+    let _ = show_assist_overlay_with_recheck(shared, ctx, ec, &new_check, true);
 }
 
 #[cfg(windows)]
@@ -808,11 +842,12 @@ impl ITfEditSession_Impl for ApplyAssistFixSession_Impl {
         // Dù sửa được hay không, sau khi session này chạm document thì buffer
         // engine không còn chắc khớp: xoá để phím sau bắt đầu sạch (không lệch).
         self.shared.reset_engine();
+        self.shared.clear_assist_undo();
         if applied {
             crate::trace::event(self.shared.tid, format_args!("assist A2 applied"));
             // Vòng 28: re-check câu ĐÃ sửa — sạch thì panel tự tắt (đã ẩn
             // trước session), còn lỗi thì panel cập nhật hiển thị phần còn lại.
-            recheck_after_fix(&self.shared, &self.ctx, ec, &self.fixed_sentence);
+            recheck_after_fix(&self.shared, &self.ctx, ec, &self.fixed_sentence, false);
         }
         Ok(())
     }
@@ -844,14 +879,16 @@ impl ApplyAssistFixSession {
                     .map(|c| c == 0)
                     .unwrap_or(false);
             // -- Precondition 3: buffer câu của core vẫn là câu lúc hiện overlay
-            //    ⇒ các từ đó do TA gõ (người dùng chưa sửa xen vào). Đọc buffer
-            //    của chính mình, không đọc nội dung app khác (D8). --
-            let buffer_is_ours = self
-                .shared
-                .thread
-                .try_borrow()
-                .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.active.sentence)
-                .unwrap_or(false);
+            //    (hoặc popup được dựng ngay từ `recheck_after_fix`, khi đó
+            //    Precondition 5 `verify_delete_range` bên dưới xác minh nội dung
+            //    thật trong document trước caret). --
+            let buffer_is_ours = self.active.from_recheck
+                || self
+                    .shared
+                    .thread
+                    .try_borrow()
+                    .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.active.sentence)
+                    .unwrap_or(false);
 
             // -- Precondition 4: text store cho lùi ĐÚNG delete_glyphs glyph --
             let Some(want) = backspace_shift(self.plan.delete_glyphs) else {
@@ -1010,22 +1047,30 @@ pub fn apply_sentence_auto_fix(
             .map(|t| t.engine.glyph_len_of(text))
             .unwrap_or(0)
     };
-    let Some(view) = check.view() else {
+    let issues = check.all_issue_views();
+    if issues.is_empty() {
         return false;
-    };
+    }
     // Ngữ nghĩa `Fix` theo **kind** (L3 `Fix::Delete` ⇒ xoá span, không chèn
     // `suggest` — chèn ⇒ nhân đôi dấu câu "chào bạn,,") đã nằm trong
     // `plan_sentence_auto_fix` (khớp mô hình Rust + `linux-common`).
-    let Some(plan) = plan_sentence_auto_fix(&check.sentence, &view.issues, glyph_len) else {
+    let Some(plan) = plan_sentence_auto_fix(&check.sentence, &issues, glyph_len) else {
         return false;
     };
-    let session = ApplySentenceFixSession::new(shared.clone(), ctx.clone(), check.clone(), plan);
+    let session = ApplySentenceFixSession::new(
+        shared.clone(),
+        ctx.clone(),
+        check.clone(),
+        plan,
+        false,
+        true,
+    );
     let applied = session.apply(ec);
     if applied {
         // Vòng 28: Mode 2 tự sửa xong — re-check câu đã sửa. Còn lỗi chỉ-gợi ý
         // → panel hiện phần còn lại (trừ khi người dùng chọn
         // `hide_on_auto_fix`); sạch → không panel (như cũ).
-        recheck_after_fix(shared, ctx, ec, &session.fixed_sentence);
+        recheck_after_fix(shared, ctx, ec, &session.fixed_sentence, true);
     }
     applied
 }
@@ -1041,6 +1086,8 @@ pub struct ApplySentenceFixSession {
     plan: SentenceFixPlan,
     /// Câu đầy đủ sau fix (head + replacement) — re-check sau session.
     fixed_sentence: String,
+    from_recheck: bool,
+    was_auto_fix: bool,
 }
 
 #[cfg(windows)]
@@ -1050,6 +1097,8 @@ impl ApplySentenceFixSession {
         ctx: ITfContext,
         check: AssistCheck,
         plan: SentenceFixPlan,
+        from_recheck: bool,
+        was_auto_fix: bool,
     ) -> Self {
         // Câu sau fix = head (trước delete_from) + đuôi đã sửa.
         let head: String = check.sentence.chars().take(plan.delete_from).collect();
@@ -1061,6 +1110,8 @@ impl ApplySentenceFixSession {
             check,
             plan,
             fixed_sentence: fixed,
+            from_recheck,
+            was_auto_fix,
         }
     }
 }
@@ -1068,7 +1119,17 @@ impl ApplySentenceFixSession {
 #[cfg(windows)]
 impl ITfEditSession_Impl for ApplySentenceFixSession_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)));
+        let applied = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.apply(ec)))
+            .unwrap_or(false);
+        if applied {
+            recheck_after_fix(
+                &self.shared,
+                &self.ctx,
+                ec,
+                &self.fixed_sentence,
+                self.was_auto_fix,
+            );
+        }
         Ok(())
     }
 }
@@ -1087,12 +1148,15 @@ impl ApplySentenceFixSession {
             }
 
             // Precondition 2: buffer câu của core vẫn là câu đang kiểm tra (D8/D12)
-            let buffer_is_ours = self
-                .shared
-                .thread
-                .try_borrow()
-                .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.check.sentence)
-                .unwrap_or(false);
+            // (hoặc popup đến từ `recheck_after_fix` và Precondition D12
+            // `verify_delete_range` bên dưới xác minh nội dung thật trong document).
+            let buffer_is_ours = self.from_recheck
+                || self
+                    .shared
+                    .thread
+                    .try_borrow()
+                    .map(|t| t.engine.sentence_tail(SENTENCE_MAX_CHARS) == self.check.sentence)
+                    .unwrap_or(false);
             if !buffer_is_ours {
                 return false;
             }
@@ -1619,7 +1683,7 @@ pub(crate) fn caret_anchor(ctx: &ITfContext, ec: u32, tid: u32) -> Option<Anchor
 
 /// Đặt caret (selection rỗng) ngay sau `range`.
 #[cfg(windows)]
-fn set_caret_after(ctx: &ITfContext, ec: u32, range: &ITfRange) {
+pub(crate) fn set_caret_after(ctx: &ITfContext, ec: u32, range: &ITfRange) {
     // SAFETY: gọi trong edit session; ManuallyDrop được giải phóng thủ công bên dưới.
     unsafe {
         let Ok(caret) = range.Clone() else { return };
@@ -1669,7 +1733,7 @@ fn caret_at_composition_end(ec: u32, comp: &ITfComposition, sel: &ITfRange) -> b
 
 /// Tín hiệu field in-proc: read-only, InputScope, style `ES_PASSWORD` của HWND focus.
 #[cfg(windows)]
-fn read_field_signals(ctx: &ITfContext, ec: u32, sel: &ITfRange) -> TsfFieldSignals {
+pub(crate) fn read_field_signals(ctx: &ITfContext, ec: u32, sel: &ITfRange) -> TsfFieldSignals {
     let mut signals = TsfFieldSignals::default();
     // SAFETY: các lời gọi đọc trong edit session; VARIANT được VariantClear đúng một lần.
     unsafe {
@@ -1818,6 +1882,28 @@ pub(crate) fn selection_fix_all_from_keyboard(shared: &Rc<TsfShared>) {
 /// Undo 5 giây; popup từ bôi đen đi nhánh `ApplySelectionFixSession`.
 #[cfg(windows)]
 pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
+    // Vòng 32: tính plan TRƯỚC khi take — popup chỉ chứa lỗi chỉ-gợi ý (không
+    // có lỗi objective) thì "Sửa tất cả" không làm được gì ⇒ GIỮ nguyên popup
+    // (người dùng còn bấm được từng gợi ý), thay vì đóng mà không có gì xảy
+    // ra — trước đây Enter trên popup selection như vậy bị nuốt phím oan.
+    let has_plan = shared.assist.try_borrow().ok().and_then(|slot| {
+        let active = slot.as_ref()?;
+        let thread = shared.thread.try_borrow().ok()?;
+        let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
+        let all_issues = active.check.all_issue_views();
+        plan_sentence_auto_fix(&active.sentence, &all_issues, glyph_len)
+            .map(|_| ())
+            .or_else(|| {
+                active
+                    .selection
+                    .as_ref()
+                    .and_then(|_| plan_fix(&active.view, active.view.selected, glyph_len))
+                    .map(|_| ())
+            })
+    });
+    if has_plan.is_none() {
+        return;
+    }
     let Some(active) = shared
         .assist
         .try_borrow_mut()
@@ -1827,21 +1913,33 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
         return;
     };
     hide_assist_overlay(shared);
+    let all_issues = active.check.all_issue_views();
     // Vòng 30: popup đến từ bôi đen → sửa bằng SetText đúng vùng chọn
     // (precondition: text vùng chọn vẫn bằng câu đã check — session tự kiểm).
     if let Some(range) = active.selection.clone() {
-        let plan = {
+        let fixed = {
             let Ok(thread) = shared.thread.try_borrow() else {
                 return;
             };
             let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
-            plan_sentence_auto_fix(&active.sentence, &active.view.issues, glyph_len)
+            if let Some(plan) = plan_sentence_auto_fix(&active.sentence, &all_issues, glyph_len) {
+                let head: String = active.sentence.chars().take(plan.delete_from).collect();
+                Some(head + &plan.replacement.iter().collect::<String>())
+            } else {
+                plan_fix(&active.view, active.view.selected, glyph_len).map(|plan| {
+                    let head_len = active
+                        .sentence
+                        .chars()
+                        .count()
+                        .saturating_sub(plan.delete_chars);
+                    let head: String = active.sentence.chars().take(head_len).collect();
+                    head + &plan.replacement.iter().collect::<String>()
+                })
+            }
         };
-        let Some(plan) = plan else {
+        let Some(fixed) = fixed else {
             return;
         };
-        let head: String = active.sentence.chars().take(plan.delete_from).collect();
-        let fixed = head + &plan.replacement.iter().collect::<String>();
         crate::selection_check::request_apply_selection_fix(
             shared,
             &active.ctx,
@@ -1858,7 +1956,7 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
         let glyph_len = |text: &str| thread.engine.glyph_len_of(text);
         // Kế hoạch chỉ áp **lỗi objective** (auto_fixable) — lỗi chỉ-gợi ý giữ
         // lại cho người dùng quyết (A1), đúng ngữ nghĩa Mode 2.
-        plan_sentence_auto_fix(&active.sentence, &active.view.issues, glyph_len)
+        plan_sentence_auto_fix(&active.sentence, &all_issues, glyph_len)
     };
     let Some(plan) = plan else {
         return;
@@ -1868,6 +1966,8 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
         active.ctx.clone(),
         active.check.clone(),
         plan,
+        active.from_recheck,
+        false,
     )
     .into();
     request_sync_or_async(&active.ctx, shared.tid, &session);

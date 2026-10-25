@@ -22,7 +22,14 @@ const INTENTIONAL_REPEATS: &[&str] = &[
 
 /// Từ có nằm trong cặp ngoặc kép `"` nào không (đếm số `"` trước vị trí).
 fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
-    ctx.chars[..pos].iter().filter(|c| **c == '"').count() % 2 == 1
+    // Vòng 32 (audit A5): nháy CONG “ ” cùng họ với " — lặp từ trong
+    // trích lời ("cậu nói “không không” mà") là nguyên văn, không phải lỗi.
+    ctx.chars[..pos]
+        .iter()
+        .filter(|c| matches!(**c, '"' | '“' | '”'))
+        .count()
+        % 2
+        == 1
 }
 
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
@@ -48,26 +55,22 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         let cur = ctx.tokens[i];
         let gap = ctx.tokens[i - 1];
         let prev = ctx.tokens[i - 2];
-        if !is_word(&cur) || !is_word(&prev) {
+        if !is_word(&cur) || !is_word(&prev) || cur.len() != prev.len() || cur.len() < 2 {
             continue;
         }
-        if gap.kind != TokenKind::Space || gap.len() != 1 {
+        if gap.kind != TokenKind::Space || gap.len() != 1 || ctx.chars[gap.start] != ' ' {
             continue;
         }
         let cur_text = ctx.token_text(&cur);
         let prev_text = ctx.token_text(&prev);
-        // Tu 1 ky tu de tranh bao dong gia ("a a").
-        if cur_text.chars().count() < 2 {
-            continue;
-        }
-        if cur_text.to_lowercase() != prev_text.to_lowercase() {
+        let lower = cur_text.to_lowercase();
+        if lower != prev_text.to_lowercase() {
             continue;
         }
         // "luôn luôn", "mãi mãi"… la lap co chu y, khong phai loi (Fassist-94).
         // Vòng 26: chọn whitelist theo **TỪNG TỪ** chứ không theo câu — câu
         // mix ("check the the file nhé") có lặp từ EN giữa câu tiếng Việt:
         // từ ASCII → whitelist EN, từ có dấu Việt → whitelist VI.
-        let lower = cur_text.to_lowercase();
         let is_ascii_word = lower.chars().all(|c| c.is_ascii_alphabetic());
         let whitelist: &[&str] = if is_ascii_word {
             EN_INTENTIONAL_REPEATS
@@ -92,7 +95,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if in_quotes(ctx, cur.start) {
             continue;
         }
-        if ctx.is_masked(cur.start, cur.end) {
+        if ctx.is_masked(prev.start, cur.end) {
             continue;
         }
         out.push(issue(

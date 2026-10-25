@@ -55,6 +55,43 @@ fn char_to_byte(text: &str, char_idx: usize) -> usize {
         .unwrap_or(text.len())
 }
 
+/// Chọn các fix không chồng nhau, nằm trong biên câu, và thực sự làm đổi chuỗi.
+fn select_non_overlapping_fixes<'a>(
+    chars: &[char],
+    issues: &'a [Issue],
+) -> Vec<(usize, usize, &'a str)> {
+    let mut candidates: Vec<(usize, usize, &'a str)> = Vec::new();
+    for issue in issues {
+        if !issue.auto_fixable {
+            continue;
+        }
+        let Some(fix) = issue.fix.as_ref() else {
+            continue;
+        };
+        match fix {
+            Fix::Delete { start, end } => candidates.push((*start, *end, "")),
+            Fix::Replace { start, end, text } => candidates.push((*start, *end, text.as_str())),
+            Fix::Insert { at, text } => candidates.push((*at, *at, text.as_str())),
+        }
+    }
+    candidates.retain(|&(start, end, rep)| {
+        start <= end && end <= chars.len() && chars[start..end].iter().copied().ne(rep.chars())
+    });
+    candidates.sort_by_key(|(start, end, _)| (*start, *end));
+
+    let mut selected: Vec<(usize, usize, &'a str)> = Vec::new();
+    let mut last_end = 0usize;
+    for (start, end, replacement) in candidates {
+        if start < last_end {
+            // Overlap voi fix da chon - bo qua, giu loi cho nguoi dung.
+            continue;
+        }
+        last_end = end;
+        selected.push((start, end, replacement));
+    }
+    selected
+}
+
 /// Ap cac loi sua duoc tu dong vao `text`.
 ///
 /// - Chi ap loi `auto_fixable` va co [`Fix`].
@@ -65,35 +102,7 @@ fn char_to_byte(text: &str, char_idx: usize) -> usize {
 /// Tra ve `text` goc neu khong co fix nao ap duoc.
 pub fn apply_auto_fixes(text: &str, issues: &[Issue]) -> String {
     let chars: Vec<char> = text.chars().collect();
-
-    // Chon cac fix khong chong nhau, sap xep theo vi tri.
-    let mut candidates: Vec<(usize, usize, &str)> = Vec::new();
-    for issue in issues {
-        if !issue.auto_fixable {
-            continue;
-        }
-        let Some(fix) = issue.fix.as_ref() else {
-            continue;
-        };
-        match fix {
-            Fix::Delete { start, end } => candidates.push((*start, *end, "")),
-            Fix::Replace { start, end, text } => candidates.push((*start, *end, text)),
-            Fix::Insert { at, text } => candidates.push((*at, *at, text)),
-        }
-    }
-    candidates.sort_by_key(|(start, end, _)| (*start, *end));
-
-    let mut selected: Vec<(usize, usize, &str)> = Vec::new();
-    let mut last_end = 0usize;
-    for (start, end, replacement) in candidates {
-        if start < last_end {
-            // Overlap voi fix da chon - bo qua, giu loi cho nguoi dung.
-            continue;
-        }
-        last_end = end;
-        selected.push((start, end, replacement));
-    }
-
+    let selected = select_non_overlapping_fixes(&chars, issues);
     if selected.is_empty() {
         return text.to_string();
     }
@@ -126,34 +135,7 @@ pub fn plan_sentence_fix(text: &str, issues: &[Issue]) -> Option<SentenceFixPlan
         return None;
     }
 
-    let mut candidates: Vec<(usize, usize, &str)> = Vec::new();
-    for issue in issues {
-        if !issue.auto_fixable {
-            continue;
-        }
-        let Some(fix) = issue.fix.as_ref() else {
-            continue;
-        };
-        match fix {
-            Fix::Delete { start, end } => candidates.push((*start, *end, "")),
-            Fix::Replace { start, end, text } => candidates.push((*start, *end, text.as_str())),
-            Fix::Insert { at, text } => candidates.push((*at, *at, text.as_str())),
-        }
-    }
-    candidates.retain(|&(start, end, _)| start <= end && end <= chars.len());
-    candidates.sort_by_key(|(start, end, _)| (*start, *end));
-
-    let mut selected: Vec<(usize, usize, &str)> = Vec::new();
-    let mut last_end = 0usize;
-    for (start, end, replacement) in candidates {
-        if start < last_end {
-            // Overlap voi fix da chon - bo qua, giu loi cho nguoi dung.
-            continue;
-        }
-        last_end = end;
-        selected.push((start, end, replacement));
-    }
-
+    let selected = select_non_overlapping_fixes(&chars, issues);
     if selected.is_empty() {
         return None;
     }

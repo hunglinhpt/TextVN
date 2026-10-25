@@ -330,6 +330,15 @@ fn handle_overlay_key(
             hide_assist_overlay(shared);
         }
     }
+    // Vòng 31/32: popup đến từ BÔI ĐEN (selection) — áp đơn-từ (A2 cần
+    // selection rỗng) vô nghĩa trên popup này; Enter/Alt+1..3 đều phải đi
+    // Sửa-tất-cả vùng chọn (cùng đường nút chuột), không nuốt phím oan.
+    let selection_popup = shared
+        .assist
+        .try_borrow()
+        .ok()
+        .and_then(|slot| slot.as_ref().map(|a| a.selection.is_some()))
+        .unwrap_or(false);
     match overlay_action(vk, mods) {
         // Ctrl+Shift+G: kiểm tra lại câu + hiện overlay (không phụ thuộc overlay).
         OverlayAction::Recall => {
@@ -352,16 +361,6 @@ fn handle_overlay_key(
         }
         // Enter: áp gợi ý của lỗi đang chọn (A2 — Backspace+Type, D22).
         OverlayAction::Apply => {
-            // Vòng 31 (audit v30 F6): popup đến từ BÔI ĐEN (selection) —
-            // Enter phải áp Sửa-tất-cả vùng chọn (A2 đơn-từ cần selection
-            // rỗng nên luôn no-op, nuốt phím mà không sửa = mất Enter của
-            // người dùng định xuống dòng/thay vùng).
-            let selection_popup = shared
-                .assist
-                .try_borrow()
-                .ok()
-                .and_then(|slot| slot.as_ref().map(|a| a.selection.is_some()))
-                .unwrap_or(false);
             if selection_popup {
                 super::edit_session::selection_fix_all_from_keyboard(shared);
             } else {
@@ -369,7 +368,7 @@ fn handle_overlay_key(
             }
             Some(true)
         }
-        // Alt+1..3: áp gợi ý của lỗi thứ n.
+        // Alt+1..3: áp gợi ý của lỗi thứ n (hỗ trợ cả popup thường lẫn popup selection).
         OverlayAction::Suggestion(index) => {
             apply_assist_suggestion(shared, ctx, index);
             Some(true)
@@ -492,6 +491,9 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     // bị bỏ qua, nếu không thì nhấn Ctrl đã xoá state ⇒ undo A3 chết.
     let is_assist_undo_chord = mods == MOD_CTRL && vk == 0x5A;
     update_assist_undo_state(shared, vk, mods);
+    if !is_modifier_vk(vk) {
+        crate::selection_check::cancel_pending();
+    }
 
     // AS-030/AS-031 (Mode 1 + A2): phím của overlay (↑/↓, Enter, Alt+1..3, Esc,
     // Ctrl+Shift+G). Bản đồ phím là hàm THUẦN `assist::overlay_action`; mọi lời

@@ -43,10 +43,13 @@ public struct ViState: Equatable {
         }
     }
 
-    /// Trạng thái hiệu dụng cho app đang gõ.
+    /// Trạng thái hiệu dụng cho app đang gõ — R2-28 (vòng 32: đồng bộ 3 nền
+    /// tảng, khớp Windows `effective_enabled`): TOÀN CỤC AND override (thiếu
+    /// override = bật). Override chỉ TẮT riêng được một app; toàn cục đang
+    /// EN thì app nào cũng EN —kill-switch không bị override "hồi sinh".
     public func enabled(for appID: String?) -> Bool {
         guard let appID, !appID.isEmpty else { return globalEnabled }
-        return appOverrides[appID] ?? globalEnabled
+        return globalEnabled && (appOverrides[appID] ?? true)
     }
 }
 

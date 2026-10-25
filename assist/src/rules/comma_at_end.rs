@@ -18,7 +18,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     if tok.kind != TokenKind::Punct {
         return;
     }
-    if ctx.chars[tok.start] != ',' {
+    if ctx.chars[tok.start] != ',' || ctx.is_masked(tok.start, tok.end) {
         return;
     }
     out.push(issue_suggestion(

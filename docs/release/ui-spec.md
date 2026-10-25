@@ -171,7 +171,7 @@ Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật
 
 | STT | Bước kiểm thử | Thao tác | Kết quả mong muốn | Windows (TSF) | macOS (IMK) | Linux (Fcitx5/IBus) |
 |---|---|---|---|:---:|:---:|:---:|
-| 1 | Cài đặt mặc định | Mở bảng Cài đặt | Nhóm "Trợ lý ngữ pháp": Chế độ = "Tắt", Tự động sửa = "Tắt" (làm mờ khi Chế độ = Tắt) | □ | □ | □ |
+| 1 | Cài đặt mặc định | Mở bảng Cài đặt | Nhóm "Trợ lý ngữ pháp": Chế độ = "Chỉ gợi ý" (mặc định bật, vòng 26), Tự động sửa = "Tắt" (làm mờ khi Chế độ = Tắt trên cả 3 OS) | □ | □ | □ |
 | 2 | Bật Mode 1 (Chỉ gợi ý) | Chọn Chế độ = "Chỉ gợi ý", lưu | Icon nhận cấu hình qua IPC; gõ câu có lỗi (`tôi tôi đi học.`) | Hiện popup/candidate list cạnh con trỏ với 1-3 lỗi; không tự sửa text | □ | □ | □ |
 | 3 | Chọn gợi ý Mode 1 | Bấm phím chọn lỗi (1/Enter/click) | Thay thế lỗi bằng từ gợi ý qua Backspace+Type; caret ở vị trí hợp lệ | □ | □ | □ |
 | 4 | Bật Mode 2 (Tự sửa lỗi) | Chọn Chế độ = "Tự sửa lỗi", Tự động sửa = "An toàn", lưu | Gõ câu có lỗi khách quan (`hôm nay tôi đi học .`) rồi bấm dấu chấm | Tự sửa thành `Hôm nay tôi đi học.`; hiện thông báo toast nhẹ | □ | □ | □ |

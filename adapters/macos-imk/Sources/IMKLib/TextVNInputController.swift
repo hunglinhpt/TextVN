@@ -781,7 +781,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // trigger **kết thúc câu** — cùng ngữ nghĩa cho cả 3 OS (space/, chỉ là
         // điểm kiểm tra silent — D11).
         let isSentenceTrigger = triggerKind == FFI.assistTriggerSentence
-        let sentence = engine.sentenceTail(maxChars: min(256, assistSettings.max_sentence_chars))
+        // W5: `engine.assistCheck` luôn cắt đuôi 256 char (`ime_assist_check_instance`),
+        // nên `sentenceTail` phải dùng đúng `maxChars: 256` để offset `issue.start..end`
+        // không lệch khi `assistSettings.max_sentence_chars < 256`.
+        let sentence = engine.sentenceTail(maxChars: 256)
 
         if assistSettings.isMode2AutoFix && isSentenceTrigger {
             // R-11: không đếm được glyph ⇒ 0 ⇒ kế hoạch bị từ chối ⇒ không sửa
@@ -813,8 +816,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         // Mode 1: Hiển thị gợi ý qua candidate panel của IMK.
         // R-6 (D11): chỉ ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
-        // tung panel là UI spam.
-        if assistSettings.isDisplayEnabled && isSentenceTrigger {
+        // tung panel là UI spam. Tôn trọng `hide_on_auto_fix` khi Mode 2 bật.
+        let hideInMode2 = assistSettings.isMode2AutoFix && assistSettings.display.hide_on_auto_fix
+        if assistSettings.isDisplayEnabled && isSentenceTrigger && !hideInMode2 {
             let candidates = Self.buildCandidates(sentence: sentence, issues: issues, engine: engine)
             if !candidates.isEmpty {
                 currentCandidates = candidates
@@ -861,7 +865,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // của đuôi đã xác minh — `deleteBackward` xoá theo **grapheme**. Lệch
         // (chuỗi kết hợp/NFD, bảng mã xuất ≠ Unicode: 1 chữ Việt = 2 glyph) ⇒
         // xoá thừa/thiếu ký tự ⇒ **không xác minh được ⇒ không sửa** (fail-safe).
-        guard plan.originalTail.count == plan.deleteGlyphs else {
+        guard plan.originalTail.count == plan.deleteGlyphs,
+              plan.originalTail.utf16.count == plan.deleteGlyphs else {
             Diagnostics.log("assist: glyph/grapheme mismatch — skip")
             return false
         }
@@ -942,7 +947,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // W1-audit (2026-10-23): cùng guard với `applyAssistFix` — undo xoá theo
         // grapheme (`deleteBackward`), Chromium glyph của engine phải trùng số
         // grapheme của replacement đã xác minh; lệch ⇒ không xoá (fail-safe).
-        guard undo.replacement.count == undo.replacementGlyphs else {
+        guard undo.replacement.count == undo.replacementGlyphs,
+              undo.replacement.utf16.count == undo.replacementGlyphs else {
             assistUndo = nil
             return false
         }
@@ -978,7 +984,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // trước đây *chèn* gợi ý ở caret ⇒ sinh "chèn thêm" + trùng lặp.
         if let candidate = currentCandidates.first(where: { $0.text == str }),
            let target = clientTarget(client()) {
-            if !applyAssistFix(plan: candidate.plan, target: target) {
+            if applyAssistFix(plan: candidate.plan, target: target) {
+                // R-4: sau khi sửa câu trong document, buffer câu của engine đã
+                // cũ ⇒ phải reset để câu tiếp theo không bị lệch span.
+                engine?.reset()
+                assistUndo = nil
+            } else {
                 Diagnostics.log("assist: candidate apply skipped (precondition)")
             }
         }

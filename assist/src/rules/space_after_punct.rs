@@ -12,17 +12,31 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if punct.kind != TokenKind::Punct {
             continue;
         }
-        if !needs_space_after(ctx.chars[punct.start]) {
+        let last_ch = ctx.chars[punct.end - 1];
+        if !needs_space_after(last_ch) {
             continue;
         }
         // Vòng 24 (audit EN trap 31-35 — bug SỐNG phía VI từ trước): dấu `.`
         // của từ viết tắt/tên miền ("e.g.", "a.m.", "U.S.", "example.com") —
         // chèn space sẽ phá chữ đúng ("a.m." → "a. m.").
-        if ctx.chars[punct.start] == '.' && is_abbreviation_dot(ctx, &punct) {
+        if last_ch == '.' && is_abbreviation_dot(ctx, &punct) {
             continue;
         }
         let next = ctx.tokens[i + 1];
         if next.kind != TokenKind::Word {
+            continue;
+        }
+        // Emoticon chữ (":v", ":D", ":P") khi đứng sau khoảng trắng ("xin chào :v").
+        if last_ch == ':'
+            && punct.len() == 1
+            && i > 0
+            && ctx.tokens[i - 1].kind == TokenKind::Space
+            && next.len() == 1
+            && matches!(
+                ctx.chars[next.start],
+                'v' | 'V' | 'd' | 'D' | 'p' | 'P' | 'o' | 'O'
+            )
+        {
             continue;
         }
         if ctx.is_masked(punct.start, next.end) {

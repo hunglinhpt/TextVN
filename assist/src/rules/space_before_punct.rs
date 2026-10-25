@@ -28,9 +28,26 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // cuối câu thật có ký tự khác dấu chấm ở cả hai phía của space.
         if ctx.chars[punct.start] == '.' {
             let before_space = prev.start > 0 && ctx.chars[prev.start - 1] == '.';
-            let after_dot = ctx.chars.get(punct.end) == Some(&'.');
+            let after_dot = punct.len() > 1 && ctx.chars.get(punct.start + 1) == Some(&'.');
             if before_space || after_dot {
                 continue;
+            }
+        }
+        // Emoticon ASCII (":)", ":(", ";)", ":D", ":v", ":P", ":3"): không báo thừa space trước `:`.
+        if matches!(ctx.chars[punct.start], ':' | ';') {
+            if punct.len() > 1 {
+                continue;
+            }
+            if let Some(next_tok) = ctx.tokens.get(i + 1) {
+                if next_tok.start == punct.end
+                    && next_tok.len() == 1
+                    && matches!(
+                        ctx.chars[next_tok.start],
+                        'v' | 'V' | 'd' | 'D' | 'p' | 'P' | '3' | 'o' | 'O'
+                    )
+                {
+                    continue;
+                }
             }
         }
         if ctx.is_masked(prev.start, prev.end) {

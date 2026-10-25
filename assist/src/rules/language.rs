@@ -10,10 +10,51 @@
 //!   CẢ HAI chế độ nên câu mix luôn được kiểm tra.
 //! - Không có từ nào → coi là Vi (không có gì để bỏ qua — giữ hành vi cũ).
 
-use crate::tokenize::TokenKind;
+use crate::tokenize::{Token, TokenKind};
+use std::collections::HashSet;
+use std::sync::OnceLock;
 
 /// Tỷ lệ từ "có dấu" tối thiểu để coi câu là tiếng Việt.
 const VIETNAMESE_RATIO: f64 = 0.5;
+
+/// Âm tiết Việt KHÔNG DẤU (deaccent từ `vn_freq3000`, vòng 32 — audit A1) và
+/// top-3000 từ EN — nhúng lúc biên dịch (crate 0-I/O, S1). Dùng để nhận diện
+/// **tiếng Việt gõ thiếu dấu** ("an toan", "An buon qua") — những câu này bị
+/// classified En vì thuần ASCII, khiến luật a/an bêu chữ Việt.
+const VN_ASCII_SYLLABLES_DATA: &str = include_str!("../../../data/assist/vn_ascii_syllables.txt");
+const EN_FREQ_DATA: &str = include_str!("../../../data/en_freq3000.txt");
+
+fn vn_ascii_syllables() -> &'static HashSet<&'static str> {
+    static SET: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    SET.get_or_init(|| {
+        VN_ASCII_SYLLABLES_DATA
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
+fn en_freq_words() -> &'static HashSet<&'static str> {
+    static SET: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    SET.get_or_init(|| {
+        EN_FREQ_DATA
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
+/// `word` (đã lowercase) là **âm tiết Việt không dấu** và KHÔNG phải từ EN
+/// thông dụng — tín hiệu "tiếng Việt gõ thiếu dấu" mạnh (từ nằm ở giao điểm
+/// hai tập như "to"/"do"/"an" bị loại: quá mơ hồ để quyết).
+pub fn is_vietnamese_ascii_word(word_lower: &str) -> bool {
+    if word_lower.is_empty() || !word_lower.chars().all(|c| c.is_ascii_lowercase()) {
+        return false;
+    }
+    vn_ascii_syllables().contains(word_lower) && !en_freq_words().contains(word_lower)
+}
 
 /// Ngôn ngữ chi phối của câu — quyết định bộ luật chạy (xem [`classify`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,24 +79,39 @@ const EN_FUNCTION_WORDS: &[&str] = &[
     "report", "file", "asap", "email", "update", "deadline", "review", "feedback",
 ];
 
+/// Từ-điểm tiếng Anh KHÔNG trùng từ đơn tiếng Việt không dấu ("do", "to", "in",
+/// "on", "can", "he", "be", "i", "as", "at", "by", "or", "a", "an" trùng "tự do",
+/// "nhà to", "máy in", "can đảm"… nên tuyệt đối không dùng để mở khoá a/an trong
+/// câu tiếng Việt thuần).
+const EN_MIXED_INDICATORS: &[&str] = &[
+    "the", "is", "are", "was", "were", "been", "of", "and", "that", "it", "you", "for", "with",
+    "this", "from", "not", "she", "they", "we", "his", "her", "its", "have", "has", "had", "does",
+    "did", "will", "would", "could", "should", "please", "check", "send", "thanks", "team",
+    "meeting", "report", "file", "asap", "email", "update", "deadline", "review", "feedback",
+    "apple", "office", "user", "users", "account", "issue", "issues", "project", "task", "call",
+    "link", "code", "test", "bug", "fix", "feature", "version", "release",
+];
+
 /// Câu (đã tách chars) có **từ-điểm tiếng Anh** không — dùng để mở khoá luật
 /// a/an trong câu Vi-dominant (vòng 28: "gửi a email nhé" có "email";
-/// "an khang thịnh vượng" không có → luật a/an im lặng).
+/// "an khang thịnh vượng" / "Tự do và an ninh" không có → luật a/an im lặng).
 pub fn has_en_indicator(chars: &[char]) -> bool {
-    for token in crate::tokenize::tokenize(&chars.iter().collect::<String>()) {
+    let tokens = crate::tokenize::tokenize_chars(chars);
+    has_en_indicator_tokens(chars, &tokens)
+}
+
+/// Kiểm tra từ-điểm tiếng Anh trên `chars` + `tokens` đã tách sẵn (0-alloc thừa).
+pub fn has_en_indicator_tokens(chars: &[char], tokens: &[Token]) -> bool {
+    for token in tokens {
         if token.kind != TokenKind::Word {
             continue;
         }
-        let word: String = chars[token.start..token.end]
-            .iter()
-            .collect::<String>()
-            .to_lowercase();
-        // "a"/"an" là TỪ TIẾNG VIỆT thật ("an khang") — chính nó không phải
-        // tín hiệu EN (vòng 28: nếu tính thì mọi câu chứa "an" mở khoá a/an).
-        if word == "a" || word == "an" {
+        let slice = &chars[token.start..token.end];
+        if !slice.iter().all(|c| c.is_ascii_alphabetic()) {
             continue;
         }
-        if EN_FUNCTION_WORDS.contains(&word.as_str()) {
+        let word: String = slice.iter().map(|c| c.to_ascii_lowercase()).collect();
+        if EN_MIXED_INDICATORS.contains(&word.as_str()) {
             return true;
         }
     }
@@ -70,47 +126,37 @@ pub fn has_en_indicator(chars: &[char]) -> bool {
 /// - `None`: không nhận diện được (tên riêng, số, ký hiệu) — **im lặng hoàn
 ///   toàn**, đúng hành vi cũ của L0 (fail-open: thà bỏ qua còn hơn báo sai).
 pub fn classify(text: &str) -> Option<Lang> {
-    if is_vietnamese(text) {
+    let chars: Vec<char> = text.chars().collect();
+    let tokens = crate::tokenize::tokenize_chars(&chars);
+    classify_tokens(&chars, &tokens)
+}
+
+/// Phân loại ngôn ngữ trên `chars` và `tokens` đã tách sẵn (tránh lặp `tokenize` 5–8 lần).
+pub fn classify_tokens(chars: &[char], tokens: &[Token]) -> Option<Lang> {
+    if is_vietnamese_tokens(chars, tokens) {
         return Some(Lang::Vi);
     }
     let mut en_words = 0usize;
-    let mut any_word = false;
-    for token in crate::tokenize::tokenize(text) {
-        if token.kind != TokenKind::Word {
-            continue;
-        }
-        any_word = true;
-        let word: String = text
-            .chars()
-            .skip(token.start)
-            .take(token.end - token.start)
-            .collect::<String>()
-            .to_lowercase();
-        if EN_FUNCTION_WORDS.contains(&word.as_str()) {
-            en_words += 1;
-        }
-    }
-    if !any_word {
-        return Some(Lang::Vi); // câu rỗng/chỉ ký hiệu — giữ hành vi cũ
-    }
-    // Câu thuần ASCII không dấu (≥2 từ, không chữ Việt có dấu) — coi là
-    // tiếng Anh: các luật tự chặn bảo vệ (diacritic/spelling cần chữ Việt).
-    let chars: Vec<char> = text.chars().collect();
     let mut words = 0usize;
     let mut ascii_words = 0usize;
-    for token in crate::tokenize::tokenize(text) {
+    for token in tokens {
         if token.kind != TokenKind::Word {
             continue;
         }
         words += 1;
-        let all_ascii = chars[token.start..token.end]
-            .iter()
-            .all(|c| c.is_ascii_alphabetic());
-        if all_ascii {
+        let slice = &chars[token.start..token.end];
+        if slice.iter().all(|c| c.is_ascii_alphabetic()) {
             ascii_words += 1;
+            let word: String = slice.iter().map(|c| c.to_ascii_lowercase()).collect();
+            if EN_FUNCTION_WORDS.contains(&word.as_str()) {
+                en_words += 1;
+            }
         }
     }
-    if words >= 1 && words == ascii_words {
+    if words == 0 {
+        return Some(Lang::Vi); // câu rỗng/chỉ ký hiệu — giữ hành vi cũ
+    }
+    if words == ascii_words {
         return Some(Lang::En);
     }
     if en_words >= MIN_EN_FUNCTION_WORDS {
@@ -130,12 +176,16 @@ pub fn classify(text: &str) -> Option<Lang> {
 ///   cụm EN mượn ở giữa — luật VI tự chặn trên từ không dấu).
 /// - Còn lại → `false`.
 pub fn is_vietnamese(text: &str) -> bool {
-    // Offset cua token la **ky tu Unicode** -> phai tach thanh Vec<char>
-    // (slice byte se panic voi tieng Viet co dau, Fassist-39).
     let chars: Vec<char> = text.chars().collect();
+    let tokens = crate::tokenize::tokenize_chars(&chars);
+    is_vietnamese_tokens(&chars, &tokens)
+}
+
+/// Kiểm tra câu tiếng Việt trên `chars` và `tokens` đã tách sẵn.
+pub fn is_vietnamese_tokens(chars: &[char], tokens: &[Token]) -> bool {
     let mut words = 0usize;
     let mut vietnamese = 0usize;
-    for token in crate::tokenize::tokenize(text) {
+    for token in tokens {
         if token.kind != TokenKind::Word {
             continue;
         }

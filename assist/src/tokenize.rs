@@ -60,13 +60,22 @@ fn classify(ch: char) -> TokenKind {
 /// - Khoang trang gom cac ky tu trang lien tiep thanh mot token.
 /// - Ky tu khac (`Other`) tach tung ky tu.
 pub fn tokenize(text: &str) -> Vec<Token> {
+    tokenize_iter(text.chars())
+}
+
+/// Tach mang ky tu `chars` thanh token (tranh duyet UTF-8 2 lan khi caller da co `&[char]`).
+pub fn tokenize_chars(chars: &[char]) -> Vec<Token> {
+    tokenize_iter(chars.iter().copied())
+}
+
+fn tokenize_iter(iter: impl Iterator<Item = char>) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut cur_kind: Option<TokenKind> = None;
     let mut cur_start = 0usize;
     let mut cur_end = 0usize;
     let mut char_idx = 0usize;
 
-    for ch in text.chars() {
+    for ch in iter {
         let kind = classify(ch);
         let end = char_idx + 1;
         match cur_kind {

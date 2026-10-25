@@ -263,7 +263,28 @@ impl SvcManager {
 
     /// Trợ lý ngữ pháp có đang bật hay không (D20).
     pub fn is_assist_enabled(&self) -> bool {
-        self.state.read().map(|s| s.assist_enabled).unwrap_or(false)
+        self.state
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .assist_enabled
+    }
+
+    /// Xoá override riêng của một app (trở về theo trạng thái toàn cục).
+    pub fn remove_app_override(&self, app_id: &str) -> u64 {
+        let mut st = self.state.write().unwrap_or_else(|e| e.into_inner());
+        let key = app_id.to_lowercase();
+        let prev = st.apps.remove(&key);
+        if prev.is_none() {
+            return self.state_version.load(Ordering::SeqCst);
+        }
+        if self.persist_state(&st).is_err() {
+            if let Some(v) = prev {
+                st.apps.insert(key, v);
+            }
+            eprintln!("TextVN: persist state.json thất bại — giữ state cũ");
+            return self.state_version.load(Ordering::SeqCst);
+        }
+        self.state_version.fetch_add(1, Ordering::SeqCst) + 1
     }
 
     /// Đặt trạng thái bật/tắt riêng cho từng app.
@@ -388,6 +409,11 @@ impl SvcManager {
             c.macros = macros;
             c.macro_trigger = trigger;
         })
+    }
+
+    /// Đổi phím kích hoạt gõ tắt (`space` | `tab` | `any_word_break`).
+    pub fn set_macro_trigger(&self, trigger: MacroTrigger) -> Result<u64, DocError> {
+        self.update_config(|c| c.macro_trigger = trigger)
     }
 
     /// Nút "Mặc định": mọi tuỳ chọn gõ về mặc định; giữ bảng gõ tắt, emoji, từ tiếng Anh

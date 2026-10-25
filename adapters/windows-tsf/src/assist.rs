@@ -147,29 +147,7 @@ impl OverlayView {
             return None;
         }
         let reported = res.count as usize;
-        let usable = reported.min(res.issues.len());
-        let mut issues = Vec::new();
-        for raw in res.issues.iter().take(usable) {
-            let start = (raw.start as usize).min(chars.len());
-            let end = (raw.end as usize).min(chars.len());
-            if start >= end {
-                continue; // span rỗng/lạ → bỏ
-            }
-            let message = c_buf_to_string(&raw.message);
-            let suggestion = c_buf_to_string(&raw.suggest);
-            issues.push(IssueView {
-                start,
-                end,
-                message: if message.is_empty() {
-                    "Lỗi ngữ pháp".to_string()
-                } else {
-                    message
-                },
-                suggestion: (!suggestion.is_empty()).then_some(suggestion),
-                auto_fixable: raw.auto_fixable != 0,
-                kind: raw.kind,
-            });
-        }
+        let issues = issues_from_ffi(res, &chars);
         Self::from_parts(chars, issues, reported)
     }
 
@@ -388,11 +366,25 @@ fn fix_candidate(
     end: usize,
     prev_is_space: bool,
 ) -> Option<(usize, usize, String)> {
-    if kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD && prev_is_space {
-        return Some((start - 1, end, String::new()));
+    if kind == textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD {
+        let from = if prev_is_space { start - 1 } else { start };
+        return Some((from, end, String::new()));
     }
     if kind == textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT {
         return Some((start, end, String::new()));
+    }
+    if kind == textvn_ffi::IME_ASSIST_KIND_DOUBLE_SPACE {
+        let from = if prev_is_space {
+            start
+        } else if end > start + 1 && span_text.starts_with(' ') {
+            start + 1
+        } else {
+            start
+        };
+        return Some((from, end, String::new()));
+    }
+    if kind == textvn_ffi::IME_ASSIST_KIND_SPACE_AFTER_PUNCT {
+        return Some((end, end, " ".to_string()));
     }
     if span_text == suggestion {
         return None;
@@ -749,10 +741,50 @@ pub struct AssistCheck {
     pub result: textvn_ffi::ime_assist_result_v1,
 }
 
+/// Trích danh sách `IssueView` hợp lệ từ `ime_assist_result_v1` (tối đa 8 lỗi,
+/// không cắt ở `MAX_OVERLAY_ISSUES`).
+fn issues_from_ffi(res: &textvn_ffi::ime_assist_result_v1, chars: &[char]) -> Vec<IssueView> {
+    let reported = res.count as usize;
+    let usable = reported.min(res.issues.len());
+    let mut issues = Vec::with_capacity(usable);
+    for raw in res.issues.iter().take(usable) {
+        let start = (raw.start as usize).min(chars.len());
+        let end = (raw.end as usize).min(chars.len());
+        if start >= end {
+            continue;
+        }
+        let message = c_buf_to_string(&raw.message);
+        let suggestion = c_buf_to_string(&raw.suggest);
+        issues.push(IssueView {
+            start,
+            end,
+            message: if message.is_empty() {
+                "Lỗi ngữ pháp".to_string()
+            } else {
+                message
+            },
+            suggestion: (!suggestion.is_empty()).then_some(suggestion),
+            auto_fixable: raw.auto_fixable != 0,
+            kind: raw.kind,
+        });
+    }
+    issues
+}
+
 impl AssistCheck {
     /// Số lỗi thật sự có dữ liệu (chặn `count` hỏng từ biên FFI).
     pub fn issue_count(&self) -> usize {
         (self.result.count as usize).min(self.result.issues.len())
+    }
+
+    /// Tất cả lỗi hợp lệ từ kết quả FFI (tối đa `IME_MAX_ASSIST_ISSUES = 8`,
+    /// không bị cắt `MAX_OVERLAY_ISSUES = 3`) — dùng cho Mode 2 và "Sửa tất cả".
+    pub fn all_issue_views(&self) -> Vec<IssueView> {
+        let chars: Vec<char> = self.sentence.chars().collect();
+        if chars.is_empty() {
+            return Vec::new();
+        }
+        issues_from_ffi(&self.result, &chars)
     }
 
     /// Model overlay (D38) dựng từ chính kết quả này; `None` = không có gì hiện.
@@ -874,6 +906,37 @@ pub fn check_text(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> 
     })
 }
 
+/// Vòng 32 (audit A7): như [`check_text`] nhưng coi input là **đoạn giữa câu**
+/// (vùng bôi đen) — token 0 không phải đầu câu thật ⇒ L6 "chữ thường đầu
+/// câu" tại span 0 là FP, lọc bỏ (auto_capitalize=false mới lộ — true đã lọc
+/// L6 từ D16). Lọc xong rỗng → `None` (không popup cho lỗi ảo).
+#[cfg(windows)]
+pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> {
+    let mut check = check_text(sentence, auto_capitalize)?;
+    let n = check.result.count as usize;
+    let mut kept = 0usize;
+    for i in 0..n {
+        // `slot` copy-out (struct FFI Copy) — tránh borrow khi ghi đè in-place.
+        let slot = check.result.issues[i];
+        let is_l6_at_zero =
+            slot.kind == textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE && slot.start == 0;
+        if !is_l6_at_zero {
+            check.result.issues[kept] = slot;
+            kept += 1;
+        }
+    }
+    let zero = unsafe { std::mem::zeroed::<textvn_ffi::ime_assist_issue_v1>() };
+    for slot in check.result.issues.iter_mut().skip(kept) {
+        *slot = zero;
+    }
+    check.result.count = kept as u32;
+    if kept == 0 {
+        None
+    } else {
+        Some(check)
+    }
+}
+
 /// Chạy kiểm tra câu trong ngân sách [`CHECK_BUDGET_MS`] — **không** side effect
 /// UI. `None` = tắt assist / câu ngắn / câu sạch / vượt ngân sách (bỏ im lặng).
 #[cfg(windows)]
@@ -911,14 +974,14 @@ pub fn check_sentence(shared: &crate::edit_session::TsfShared) -> Option<AssistC
     check_text(&sentence, auto_capitalize)
 }
 
-/// Điểm kiểm tra sau mỗi phím trigger: check câu + (cooldown) báo tray chỉ mang
-/// **số lỗi**. Trả kết quả để caller hiện overlay ở điểm hiển thị (D11/D38).
+/// Điểm kiểm tra sau mỗi phím trigger kết thúc câu: check câu + trả kết quả để
+/// caller hiện overlay hoặc tự sửa ở điểm hiển thị (D11/D38).
 #[cfg(windows)]
 pub fn after_trigger(
     shared: &crate::edit_session::TsfShared,
     trigger: AssistTrigger,
 ) -> Option<AssistCheck> {
-    if trigger == AssistTrigger::None {
+    if trigger != AssistTrigger::Sentence {
         return None;
     }
     let check = check_sentence(shared)?;
@@ -1769,5 +1832,51 @@ mod tests {
             result.issues[1].kind, 0,
             "phần đuôi không dùng phải được xoá (fail-safe)"
         );
+    }
+
+    #[test]
+    fn a2_double_space_va_space_after_punct_sua_dung() {
+        let s_ds = "Hôm nay  tôi đi học.";
+        let v_ds = view(
+            s_ds,
+            vec![issue(K_DOUBLE_SPACE, 8, 9, "Khoảng trắng kép", Some(" "))],
+        );
+        let plan_ds = plan_fix(&v_ds, 0, |t| t.chars().count()).expect("plan double space");
+        assert_eq!(
+            plan_ds.replacement.iter().collect::<String>(),
+            "tôi đi học."
+        );
+
+        let s_ap = "Hôm nay,tôi đi học.";
+        let v_ap = view(
+            s_ap,
+            vec![issue(
+                textvn_ffi::IME_ASSIST_KIND_SPACE_AFTER_PUNCT,
+                7,
+                8,
+                "Thiếu khoảng trắng sau dấu câu",
+                Some(", "),
+            )],
+        );
+        let plan_ap = plan_fix(&v_ap, 0, |t| t.chars().count()).expect("plan space after punct");
+        let head_len = s_ap.chars().count() - plan_ap.delete_chars;
+        let head: String = s_ap.chars().take(head_len).collect();
+        let fixed = format!("{head}{}", plan_ap.replacement.iter().collect::<String>());
+        assert_eq!(fixed, "Hôm nay, tôi đi học.");
+    }
+
+    #[test]
+    fn all_issue_views_giu_du_hon_3_loi_cho_mode2_va_fix_all() {
+        let sentence = "hôm nay tôi tôi đi  học ,vậy .";
+        let check = check_text(sentence, false).expect("check");
+        let all = check.all_issue_views();
+        let view = check.view().expect("view");
+        assert!(all.len() > MAX_OVERLAY_ISSUES);
+        assert_eq!(view.issues.len(), MAX_OVERLAY_ISSUES);
+        let plan =
+            plan_sentence_auto_fix(&check.sentence, &all, |t| t.chars().count()).expect("plan");
+        let head: String = check.sentence.chars().take(plan.delete_from).collect();
+        let fixed = format!("{head}{}", plan.replacement.iter().collect::<String>());
+        assert_eq!(fixed, "Hôm nay tôi đi học, vậy.");
     }
 }

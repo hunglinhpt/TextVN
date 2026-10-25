@@ -15,15 +15,18 @@ public struct AssistDisplay: Codable, Equatable {
     public var show_on_sentence_end: Bool
     public var idle_ms: Int
     public var show_on_comma: Bool
+    public var hide_on_auto_fix: Bool
 
     public init(
         show_on_sentence_end: Bool = true,
         idle_ms: Int = 700,
-        show_on_comma: Bool = false
+        show_on_comma: Bool = false,
+        hide_on_auto_fix: Bool = false
     ) {
         self.show_on_sentence_end = show_on_sentence_end
         self.idle_ms = idle_ms
         self.show_on_comma = show_on_comma
+        self.hide_on_auto_fix = hide_on_auto_fix
     }
 
     public init(from decoder: Decoder) throws {
@@ -34,6 +37,8 @@ public struct AssistDisplay: Codable, Equatable {
         idle_ms = try c.decodeIfPresent(Int.self, forKey: .idle_ms) ?? d.idle_ms
         show_on_comma =
             try c.decodeIfPresent(Bool.self, forKey: .show_on_comma) ?? d.show_on_comma
+        hide_on_auto_fix =
+            try c.decodeIfPresent(Bool.self, forKey: .hide_on_auto_fix) ?? d.hide_on_auto_fix
     }
 }
 
@@ -129,7 +134,7 @@ public enum AssistConfigParser {
         var settings = AssistSettings()
         settings.auto_capitalize = autoCapitalize
         guard let assistObj = obj["assist"] as? [String: Any] else {
-            // Không có object `assist` ⇒ assist tắt, nhưng cờ gốc vẫn phải đúng.
+            // Không có object `assist` ⇒ dùng mặc định (mode="highlight"), giữ cờ gốc.
             return settings
         }
         var assist = assistObj

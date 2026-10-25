@@ -89,10 +89,19 @@ final class IMKTextTarget: TextTarget {
     /// tự sửa, adapter phải xác minh vùng sắp xoá **đúng** là đuôi câu mà
     /// engine biết; không xác minh được ⇒ **không sửa** (fail-safe).
     ///
-    /// Chỉ đọc trong RAM của tiến trình, không log/không gửi đi (D8/S2).
+    /// Chỉ đọc tối đa 1024 UTF-16 code unit gần nhất trước caret (câu tối đa
+    /// 256 ký tự) để tránh cấp phát IPC lớn trên tài liệu dài, và chỉ giữ
+    /// trong RAM tạm của tiến trình, không log/không gửi đi (D8/S2).
     func textBeforeCaret() -> String? {
         let selection = client.selectedRange()
         guard selection.location != NSNotFound, selection.location > 0 else { return nil }
+        let maxRead = 1024
+        if selection.location > maxRead {
+            let tailRange = NSRange(location: selection.location - maxRead, length: maxRead)
+            if let text = client.attributedSubstring(from: tailRange)?.string {
+                return text
+            }
+        }
         let range = NSRange(location: 0, length: selection.location)
         guard let text = client.attributedSubstring(from: range)?.string else { return nil }
         return text

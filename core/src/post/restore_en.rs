@@ -160,11 +160,17 @@ pub fn complete_word(
             consider(&mut best, l);
         }
     }
-    // Nguồn 3000 từ tần suất (vòng 24) — completion cần vốn từ lớn.
-    for l in EN_FREQ_DATA.lines() {
-        let l = l.trim();
-        if !l.is_empty() && !l.starts_with('#') {
-            consider(&mut best, l);
+    // Nguồn 3000 từ tần suất (vòng 24) — completion cần vốn từ lớn, nhưng chỉ
+    // quét khi `folded_lower` CHƯA phải âm tiết tiếng Việt hợp lệ (bảo vệ
+    // "em", "con", "cho", "cá", "nó", "chó", "nói", "bỏ", "tủ", "vẻ"… khỏi bị
+    // biến thành "email", "confirm", "choice", "case", "nose", "choose"…).
+    let folded_chars: Vec<char> = folded_lower.chars().collect();
+    if !is_valid_word(&folded_chars) {
+        for l in EN_FREQ_DATA.lines() {
+            let l = l.trim();
+            if !l.is_empty() && !l.starts_with('#') {
+                consider(&mut best, l);
+            }
         }
     }
     for w in english_words {

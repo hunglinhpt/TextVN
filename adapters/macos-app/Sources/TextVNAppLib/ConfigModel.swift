@@ -166,14 +166,13 @@ public struct SuggestSettings: Codable, Equatable {
 }
 
 /// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định BẬT ở chế độ Chỉ gợi ý (vòng 26;
-/// không bao giờ tự sửa — `auto_fix` vẫn tắt); kill-switch (D20) vẫn tắt được ngay:
-/// thiếu khối này (config bản cũ) hay thiếu trường = tắt, không tự sửa, không hiện gì.
+/// không bao giờ tự sửa — `auto_fix` vẫn tắt); kill-switch (D20) vẫn tắt được ngay.
 /// Khớp 1-1 với crate `config` (`config::AssistSettings`) và schema — THIẾU struct
 /// này từng là mẫu mất dữ liệu: model chưa biết khoá thì mỗi lần lưu từ bảng cài
 /// đặt macOS âm thầm xoá khoá đó của người dùng (đã gặp với `english_words`,
 /// `emoji` — xem chú thích 0.2.13 các trường bên dưới).
 public struct AssistSettings: Codable, Equatable {
-    /// `off` | `highlight` | `autocorrect` — mức can thiệp, mặc định `off` (D20).
+    /// `off` | `highlight` | `autocorrect` — mức can thiệp, mặc định `highlight` (vòng 26).
     public var mode: String
     /// `off` | `safe` — chỉ luật objective mới được tự sửa (D7), mặc định `off`.
     public var auto_fix: String
@@ -266,7 +265,7 @@ public struct TextVNConfig: Codable, Equatable {
     /// `english_words`/`emoji`/`assist`) nếu không mỗi lần lưu từ app cũng
     /// xoá cài đặt `suggest` của người dùng.
     public var suggest: SuggestSettings
-    /// Trợ lý ngữ pháp (P4-0 §7) — mặc định tắt hoàn toàn (D20). Model PHẢI biết
+    /// Trợ lý ngữ pháp (P4-0 §7) — mặc định Chỉ gợi ý (`highlight`, vòng 26). Model PHẢI biết
     /// khoá này (giống `english_words`/`emoji`) nếu không lần lưu nào từ app cũng
     /// xoá cài đặt assist của người dùng.
     public var assist: AssistSettings

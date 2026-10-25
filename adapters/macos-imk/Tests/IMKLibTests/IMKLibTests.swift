@@ -629,7 +629,10 @@ final class ViStateAndHotkeyTests: XCTestCase {
         var state = ViState(globalEnabled: true)
         state.apply(snapshot: ["*": false, "com.apple.safari": true])
         XCTAssertFalse(state.globalEnabled)
-        XCTAssertTrue(state.enabled(for: "com.apple.safari"), "override per-app thắng mặc định")
+        // R2-28 (vòng 32): toàn cục là master — override chỉ TẮT riêng được
+        // app, không "hồi sinh" app khi toàn cục tắt (khớp Windows).
+        XCTAssertFalse(state.enabled(for: "com.apple.safari"),
+                       "toàn cục tắt thì app có override bật vẫn phải EN")
         XCTAssertFalse(state.enabled(for: "com.apple.TextEdit"))
 
         // IMK bản cũ gửi "" — quy về "*" (một quy ước, R3 F3-1).

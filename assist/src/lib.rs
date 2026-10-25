@@ -181,12 +181,9 @@ fn check_with_internal(
     // (fail-open). En-dominant: các luật hiện có **tự chặn** trên nội dung
     // tiếng Việt (diacritic/spelling cần chữ Việt, repeat/negative dùng từ
     // chức năng Việt) nên chạy an toàn; riêng a/an là luật chỉ tiếng Anh.
-    let lang = match rules::language::classify(text) {
-        Some(lang) => lang,
-        None => return Vec::new(),
+    let Some(ctx) = rules::Ctx::try_new_with_dict(text, start_of_sentence, dict) else {
+        return Vec::new();
     };
-    let ctx = rules::Ctx::new_with_dict(text, start_of_sentence, dict);
-    debug_assert_eq!(ctx.lang, lang);
     let mut issues = Vec::new();
     rules::duplicate_word::check(&ctx, &mut issues);
     rules::space_before_punct::check(&ctx, &mut issues);
@@ -318,5 +315,35 @@ mod tests {
         let has_spelling = issues.iter().any(|i| i.kind == IssueKind::Spelling);
         assert!(has_lowercase, "phải bắt lỗi chữ thường ở đầu câu");
         assert!(has_spelling, "phải bắt lỗi chính tả từ điển");
+    }
+
+    #[test]
+    fn spelling_khong_nhan_doi_tren_tu_da_bat_diacritic_typo() {
+        let issues = check_with("Tôi nghiã thế.", &TuDienRong);
+        let on_nghia: Vec<_> = issues
+            .iter()
+            .filter(|i| i.span.start == 4 && i.span.end == 9)
+            .collect();
+        assert_eq!(
+            on_nghia.len(),
+            1,
+            "từ đã bắt DiacriticTypo không được báo chồng thêm Spelling"
+        );
+        assert_eq!(on_nghia[0].kind, IssueKind::DiacriticTypo);
+    }
+
+    #[test]
+    fn abbrev_khong_nuot_tu_2_chu_cai_va_dau_cham_ngoac_kep() {
+        // "em." / "ai." là kết thúc câu thật, không phải từ viết tắt.
+        let issues = check_sentence("Chào em.Anh đi đây.");
+        assert!(issues.iter().any(|i| i.kind == IssueKind::SpaceAfterPunct));
+        let issues2 = check_sentence("Anh yêu em. chúc em ngủ ngon.");
+        assert!(issues2
+            .iter()
+            .any(|i| i.kind == IssueKind::LowercaseSentenceStart));
+        // Dấu hỏi/chấm than trong ngoặc kép không phải kết thúc câu ngoài.
+        assert!(check_sentence("Anh hỏi \"Sao thế?\" rồi đi tiếp.").is_empty());
+        // Dấu ba chấm tách khoảng trắng không báo thừa khoảng trắng trước dấu chấm.
+        assert!(check_sentence("Tôi nghĩ ... bạn nói đúng.").is_empty());
     }
 }

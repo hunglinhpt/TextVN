@@ -533,7 +533,7 @@ impl Engine {
                 let space_complete = k.vk == keymap::vk::SPACE && self.opts.suggest_space_complete;
                 if k.vk == keymap::vk::TAB || space_complete {
                     let append: Option<char> = space_complete.then_some(c);
-                    if let Some(out) = self.try_vn_complete(vi_on, append) {
+                    if let Some(out) = self.try_vn_complete(k, vi_on, append) {
                         return out;
                     }
                     if let Some(out) = self.try_english_complete(k, vi_on, append) {
@@ -783,8 +783,16 @@ impl Engine {
     /// (`post/suggest_vn::complete_vn_word`) → thay toàn bộ từ bằng âm tiết hoàn
     /// chỉnh và đóng từ. Gõ tắt (macro) có ưu tiên cao hơn (đã chạy trước trong
     /// `key()`); Tab không khớp → đi qua cho app.
-    fn try_vn_complete(&mut self, vi_on: bool, append: Option<char>) -> Option<Outcome> {
+    fn try_vn_complete(
+        &mut self,
+        k: &KeyEvent,
+        vi_on: bool,
+        append: Option<char>,
+    ) -> Option<Outcome> {
         if !vi_on || !self.opts.suggest_vn_complete {
+            return None;
+        }
+        if k.mods & keymap::MOD_SHIFT != 0 {
             return None;
         }
         if !self.word.active || self.word.display.len() < 2 {
@@ -808,18 +816,22 @@ impl Engine {
         if let Some(c) = append {
             insert.push(c); // Space: hoàn tất + chính dấu cách (như restore-EN)
         }
+        let out = self.emit(&insert);
+        if out.len() > MAX_TEXT {
+            return None;
+        }
         let delete = self.word.owned as u16;
         self.word.clear();
-        // Document nhận đúng chuỗi hoàn tất (không encode) → glyph = Unicode.
+        // Document nhận bản đã encode (`out`), buffer câu nhận bản Unicode (`insert`).
         self.record(Tail::Replace {
             delete: delete as usize,
-            glyph: &insert,
+            glyph: &out,
             unicode: &insert,
         });
         Some(Outcome {
             action: Action::Replace {
                 delete_count: delete,
-                insert,
+                insert: out,
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
@@ -857,8 +869,13 @@ impl Engine {
         }
         let typed: String = self.word.raw.iter().collect::<String>();
         // Space nghiêm ngặt hơn Tab: chuỗi gõ ĐÃ là từ EN thông dụng đúng
-        // ("report") không được kéo dài ("reports") — người dùng gõ xong từ rồi.
-        if space_mode && post::restore_en::is_known_en_word(&typed.to_lowercase()) {
+        // ("report") không được kéo dài ("reports") — người dùng gõ xong từ rồi;
+        // và từ đang active đã là âm tiết tiếng Việt hợp lệ ("té", "chó", "nói")
+        // thì Space chỉ đóng từ, không bao giờ tự biến thành từ EN.
+        if space_mode
+            && (post::restore_en::is_known_en_word(&typed.to_lowercase())
+                || (self.word.active && validate::is_valid_word(&self.word.display)))
+        {
             return None;
         }
         // Từ chưa biến đổi: display rỗng — fold chính là typed.
@@ -1558,6 +1575,32 @@ mod tests {
         let mut buf = type_buf(&mut e, "nguw");
         press(&mut e, &mut buf, keymap::vk::TAB);
         assert_eq!(text(&buf), "ngưng", "Tab vẫn hoàn tất");
+
+        // Bảo vệ từ tiếng Việt hợp lệ ("em", "con", "cho", "cá", "nó", "chó")
+        // khỏi bị biến thành từ tiếng Anh trong EN_FREQ_DATA ("email", "confirm",
+        // "choice", "case", "nose", "choose") khi bấm Space hoặc Tab.
+        for (keys, expected_space, expected_tab) in [
+            ("em", "em ", "em\t"),
+            ("con", "con ", "con\t"),
+            ("cho", "cho ", "cho\t"),
+            ("cas", "cá ", "cá\t"),
+            ("nos", "nó ", "nó\t"),
+            ("chos", "chó ", "chó\t"),
+        ] {
+            let mut e_sp = Engine::new(EngineOptions {
+                suggest_vn_complete: false,
+                suggest_space_complete: true,
+                ..Default::default()
+            });
+            let mut buf_sp = type_buf(&mut e_sp, keys);
+            press(&mut e_sp, &mut buf_sp, keymap::vk::SPACE);
+            assert_eq!(text(&buf_sp), expected_space, "{keys}+Space");
+
+            let mut e_tab = Engine::new(EngineOptions::default());
+            let mut buf_tab = type_buf(&mut e_tab, keys);
+            press(&mut e_tab, &mut buf_tab, keymap::vk::TAB);
+            assert_eq!(text(&buf_tab), expected_tab, "{keys}+Tab");
+        }
     }
 
     /// Nhánh từ điển B5: danh sách từ EN do chủ gõ khai báo → `text` trả lại `text`

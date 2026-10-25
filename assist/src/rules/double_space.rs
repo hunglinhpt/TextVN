@@ -7,6 +7,11 @@ use crate::{Fix, Issue, IssueKind, Span};
 
 /// Bat run khoang trang >= 2 ky tu (bo qua xuong dong / tab).
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
+    // Dòng code / danh sách (vòng 32 — cùng tiêu chí với capitalize, vòng 24):
+    // khoảng trắng kép trong code là căn lề CỐ Ý ("x = 5;  y = 6") — fail-open.
+    if super::capitalize_sentence::looks_like_code_or_list(ctx) {
+        return;
+    }
     for token in &ctx.tokens {
         if token.kind != TokenKind::Space {
             continue;
@@ -16,6 +21,11 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         if run.len() < 2 {
+            continue;
+        }
+        // Chuẩn comment cùng dòng (PEP 8: 2 space trước `#`; YAML/shell/C):
+        // "i = i + 1  # tăng i" là văn bản ĐÚNG — không bêu.
+        if ctx.chars.get(token.end) == Some(&'#') {
             continue;
         }
         if ctx.is_masked(token.start, token.end) {
@@ -53,5 +63,22 @@ mod tests {
     #[test]
     fn khong_bat_xuong_dong() {
         assert!(check("a\n\nb").is_empty());
+    }
+
+    /// Vòng 32 — khoảng trắng kép trước `#` là chuẩn comment cùng dòng
+    /// (PEP 8/YAML/shell) — KHÔNG bêu văn bản đúng.
+    #[test]
+    fn khong_bat_khoang_truoc_comment() {
+        assert!(check("i = i + 1  # tăng i").is_empty());
+        assert!(check("gõ  #TextVN nhé").is_empty());
+        // Khoảng kép thường vẫn phải bắt.
+        assert_eq!(check("xin  chào").len(), 1);
+    }
+
+    /// Vòng 32 — dòng code căn lề cố ý ("x = 5;  y = 6") không bêu
+    /// (cùng tiêu chí code với capitalize, vòng 24).
+    #[test]
+    fn khong_bat_dong_code() {
+        assert!(check("x = 5;  y = 6").is_empty());
     }
 }

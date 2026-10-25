@@ -116,7 +116,7 @@ ngôn ngữ công khai tại
 |---|---|
 | Windows 10/11 x64 (TSF) | ✅ Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows (bộ cài, portable, MSIX cài thử). Còn thiếu duy nhất chữ ký Authenticode (chờ SignPath Foundation duyệt). **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (gói MSIX, từ 2026-10-11). |
 | macOS 13+ Apple Silicon / Intel | ✅ Release candidate — bộ gõ IMK + app menu bar + `.pkg` per-user (không sudo); CI build 2 kiến trúc (arm64 + x86_64), chạy `swift test` trên arm64. Chưa ký Developer ID/notarize (bản phát hành ký ad-hoc, `.pkg` chưa ký) → Gatekeeper cảnh báo lần mở đầu ([signing-status-mac.md](docs/release/signing-status-mac.md)). Module CGEventTap (`adapters/macos-tap`) có mã + test nhưng **không** có trong bản phát hành. |
-| Linux IBus / Fcitx5 | ✅ Release candidate — tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; CI kiểm tra với ibus-daemon và fcitx5 thật. Chưa có `.deb`/`.rpm`/AUR. |
+| Linux IBus / Fcitx5 | ✅ Release candidate — tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; CI kiểm tra với ibus-daemon và fcitx5 thật. Đã có AUR (`paru -S textvn`) và PPA Ubuntu/Debian (`ppa:hunglinhpt/textvn`, chưa có `.rpm`). |
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
 thay đổi: [CHANGELOG.md](CHANGELOG.md).
@@ -231,7 +231,13 @@ Kaspersky, see
 Apple Developer ID / notarization for macOS (Gatekeeper warns on first open).
 0.2.43 makes **Enter on the selected-text popup apply "Fix all"** (it used to
 swallow the key and apply nothing — the last open finding from the
-selection-check audit).
+selection-check audit); 0.2.42 updates the popup right after fixing so it
+closes when the sentence is clean or refreshes with the remaining issues;
+0.2.41 adds **selected-text grammar checking** (select 3–256 chars with the
+keyboard → 500 ms debounce → popup with "Fix all") and clickable suggestion
+rows/underlines; 0.2.38–0.2.40 enabled the **grammar assistant by default in
+suggest-only mode** with a Grammarly-style caret popup and English `a`/`an`
+checks in English and mixed VI-EN sentences.
 0.2.36 hardens the **grammar assistant** to the "never flags correct text"
 bar: **0 % false positives** on 981 clean sentences (removes 5 policy-violating
 typo pairs that made autocorrect rewrite correct words like "quyến rũ",
