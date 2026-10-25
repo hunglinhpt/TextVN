@@ -366,6 +366,13 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         switch toApply.action {
         case .pass:
+            if keyEvent.isCtrlSpace() {
+                // Ctrl+Space không khớp prediction: kích hoạt kiểm tra on-demand (nếu assist bật), không chèn space
+                if isAssistActive(for: context.appID) {
+                    processAssist(triggerKind: FFI.assistTriggerSentence, target: target, sender: sender, isOnDemand: true)
+                }
+                return false
+            }
             // Chủ đích (vòng 32, audit F-F — ghi nhận thiết kế): khi trợ lý bật,
             // phím trigger (space/./,/…/Enter) được IMK CHÈN trực tiếp
             // (`target.insert`) thay vì đi đường key-event native — IMK cần
@@ -763,7 +770,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     @discardableResult
-    func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil) -> Bool {
+    func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil, isOnDemand: Bool = false) -> Bool {
         // Gate thứ 2 (defense in depth): kill-switch tắt ⇒ không check, không
         // hiện gợi ý, không tự sửa, không báo IPC.
         guard assistKillSwitchOn else { return false }
@@ -797,8 +804,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // Vòng 32 (audit F-G): parity Windows D11 — câu < 3 từ không popup/không
         // tự sửa (đoạn ngắn đang gõ dở, thiếu ngữ cảnh; Windows chặn ở
         // `check_text`, hai nền tảng còn lại phải tự chặn như nhau).
+        // On-demand (Ctrl+Space) cho phép kiểm tra từ cụm ngắn (>= 1 từ).
         let wordCount = sentence.split(omittingEmptySubsequences: true) { $0.isWhitespace }.count
-        if wordCount < 3 {
+        let minWords = isOnDemand ? 1 : 3
+        if wordCount < minWords {
             return false
         }
 
@@ -1034,6 +1043,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 /// Đếm chord thuần Swift (mirror `KeyEvent::is_chord` — P0-2 §1).
 extension KeyEvent {
     func isChordSwift() -> Bool {
-        mods & (FFI.modCtrl | FFI.modAlt | FFI.modMeta) != 0
+        if isCtrlSpace() { return false }
+        return mods & (FFI.modCtrl | FFI.modAlt | FFI.modMeta) != 0
+    }
+
+    func isCtrlSpace() -> Bool {
+        vk == 0x20 && (mods & ~FFI.modCaps) == FFI.modCtrl
     }
 }

@@ -41,6 +41,13 @@ lc_key lc_key_classify(uint32_t vk, uint32_t ch) {
     return k;
 }
 
+lc_key lc_key_classify_with_mods(uint32_t vk, uint32_t ch, uint32_t mods) {
+    if ((vk == LC_VK_SPACE || ch == ' ') && ((mods & ~IME_MOD_CAPS) == IME_MOD_CTRL)) {
+        return (lc_key){ LC_KEY_CTRL_SPACE, 0 };
+    }
+    return lc_key_classify(vk, ch);
+}
+
 uint32_t lc_key_engine_ch(lc_key key) {
     return key.kind == LC_KEY_CHAR ? key.ch : 0;
 }
@@ -49,12 +56,13 @@ void lc_key_to_ime(lc_key key, uint32_t vk, uint32_t mods, ime_key_v1 *out) {
     memset(out, 0, sizeof(*out));
     out->abi_version = IME_ABI_VERSION;
     switch (key.kind) {
-    case LC_KEY_BACKSPACE: out->vk = LC_VK_BACK;   break;
-    case LC_KEY_TAB:       out->vk = LC_VK_TAB;    break;
-    case LC_KEY_ENTER:     out->vk = LC_VK_RETURN; break;
-    case LC_KEY_ESCAPE:    out->vk = LC_VK_ESCAPE; break;
-    case LC_KEY_CHAR:      out->vk = key.ch == ' ' ? LC_VK_SPACE : vk; break;
-    case LC_KEY_OTHER:     out->vk = vk; break;
+    case LC_KEY_BACKSPACE:  out->vk = LC_VK_BACK;   break;
+    case LC_KEY_TAB:        out->vk = LC_VK_TAB;    break;
+    case LC_KEY_ENTER:      out->vk = LC_VK_RETURN; break;
+    case LC_KEY_ESCAPE:     out->vk = LC_VK_ESCAPE; break;
+    case LC_KEY_CTRL_SPACE: out->vk = LC_VK_SPACE;  break;
+    case LC_KEY_CHAR:       out->vk = key.ch == ' ' ? LC_VK_SPACE : vk; break;
+    case LC_KEY_OTHER:      out->vk = vk; break;
     }
     out->ch = lc_key_engine_ch(key);
     out->mods = mods;
@@ -117,6 +125,12 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
             out->has_text = 1;
             out->end = out->text_len == 0;
             out->eaten = 1;
+            return;
+        }
+        if (key.kind == LC_KEY_CTRL_SPACE) {
+            /* Ctrl+Space không khớp prediction: không chèn space vào preedit, giữ composition */
+            out->end = 0;
+            out->eaten = 0;
             return;
         }
         lc_plan_pass_through(cur, out);

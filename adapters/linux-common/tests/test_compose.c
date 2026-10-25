@@ -134,6 +134,9 @@ static void test_classify(void) {
     lc_key a = lc_key_classify('A', 'a');
     assert(a.kind == LC_KEY_CHAR && a.ch == 'a');
     assert(lc_key_classify(0x20, ' ').kind == LC_KEY_CHAR);
+    assert(lc_key_classify_with_mods(0x20, ' ', IME_MOD_CTRL).kind == LC_KEY_CTRL_SPACE);
+    assert(lc_key_classify_with_mods(0x20, ' ', IME_MOD_CTRL | IME_MOD_CAPS).kind == LC_KEY_CTRL_SPACE);
+    assert(lc_key_classify_with_mods(0x20, ' ', 0).kind == LC_KEY_CHAR);
     assert(lc_key_classify(0, 0x7F).kind == LC_KEY_OTHER);
     assert(lc_key_engine_ch((lc_key){ LC_KEY_ENTER, 0 }) == 0);
 }
@@ -199,6 +202,12 @@ static void test_plan_edge_cases(void) {
     cur.len = 1;
     lc_plan_key(&cur, (lc_key){ LC_KEY_TAB, 0 }, &r, &p);
     assert(p.delete_before == 3 && p.end && p.eaten && p.text_len == 1);
+
+    /* Ctrl+Space on PASS must not end composition and must not be eaten */
+    memset(&r, 0, sizeof(r));
+    r.action = IME_ACTION_PASS;
+    lc_plan_key(&cur, (lc_key){ LC_KEY_CTRL_SPACE, 0 }, &r, &p);
+    assert(!p.eaten && !p.end && !p.has_text);
 }
 
 static void test_modifier_toggle(void) {

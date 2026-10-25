@@ -774,20 +774,26 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     }
 
     /* B6: chord hệ thống; S3: ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng →
-     * commit, phím đi thẳng. */
+     * commit, phím đi thẳng. Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
+    uint32_t vk = 0, ch = 0;
+    textvn_ibus_map_key(keyval, &vk, &ch);
+    gboolean is_ctrl_space = (vk == 0x20 || keyval == 0x20) && ((mods & ~IME_MOD_CAPS) == IME_MOD_CTRL);
+
     gboolean macro_only = !s_vi_enabled && self->config.allow_macro_when_vi_off;
-    if ((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) || self->secure ||
+    if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || self->secure ||
         !(s_vi_enabled || macro_only) || !self->inst) {
         finish_word(self);
         return FALSE;
     }
     if (self->ctx_enabled != (s_vi_enabled ? 1 : 0)) push_context(self, s_vi_enabled);
 
-    uint32_t vk = 0, ch = 0;
-    textvn_ibus_map_key(keyval, &vk, &ch);
-    lc_key key = lc_key_classify(vk, ch);
+    lc_key key = lc_key_classify_with_mods(vk, ch, mods);
     ime_key_v1 k;
-    lc_key_to_ime(key, vk, mods & (IME_MOD_SHIFT | IME_MOD_CAPS), &k);
+    uint32_t ime_mods = mods & (IME_MOD_SHIFT | IME_MOD_CAPS);
+    if (is_ctrl_space) {
+        ime_mods |= IME_MOD_CTRL;
+    }
+    lc_key_to_ime(key, vk, ime_mods, &k);
 
     ime_result_v1 r;
     if (ime_key(self->inst, &k, &r) != IME_OK || (r.flags & IME_FLAG_ERROR)) {

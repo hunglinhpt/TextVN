@@ -45,6 +45,7 @@ typedef enum lc_key_kind {
     LC_KEY_ESCAPE,
     LC_KEY_ENTER,
     LC_KEY_TAB,
+    LC_KEY_CTRL_SPACE,
     LC_KEY_OTHER      /* mũi tên, Delete, Home/End, F-key… */
 } lc_key_kind;
 
@@ -56,6 +57,8 @@ typedef struct lc_key {
 /* `ch` = ký tự Unicode của keysym (0 nếu không sinh ký tự). Ký tự điều khiển được
  * quy về phím tương ứng; phím không sinh ký tự không bao giờ bị coi là chữ. */
 lc_key   lc_key_classify(uint32_t vk, uint32_t ch);
+/* Phân loại kèm modifier: nhận diện Ctrl+Space (trigger Text Prediction & Text Correct). */
+lc_key   lc_key_classify_with_mods(uint32_t vk, uint32_t ch, uint32_t mods);
 /* `ime_key_v1.ch` gửi engine: chỉ ký tự in được (Enter/Tab để engine nhận qua vk). */
 uint32_t lc_key_engine_ch(lc_key key);
 /* Dựng `ime_key_v1` (key-down) cho phím đã phân loại. */

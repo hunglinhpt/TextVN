@@ -625,6 +625,29 @@ final class ViStateAndHotkeyTests: XCTestCase {
         )
     }
 
+    func testCtrlSpaceExclusionFromChord() {
+        let ctrlSpace = KeyEvent(
+            vk: 0x20, ch: 0, mods: FFI.modCtrl,
+            keyDown: true, isRepeat: false
+        )
+        XCTAssertTrue(ctrlSpace.isCtrlSpace())
+        XCTAssertFalse(ctrlSpace.isChordSwift(), "Ctrl+Space không được coi là system chord để cho phép engine dự đoán")
+
+        let ctrlSpaceWithCaps = KeyEvent(
+            vk: 0x20, ch: 0, mods: FFI.modCtrl | FFI.modCaps,
+            keyDown: true, isRepeat: false
+        )
+        XCTAssertTrue(ctrlSpaceWithCaps.isCtrlSpace())
+        XCTAssertFalse(ctrlSpaceWithCaps.isChordSwift())
+
+        let ctrlA = KeyEvent(
+            vk: 0x41, ch: 0, mods: FFI.modCtrl,
+            keyDown: true, isRepeat: false
+        )
+        XCTAssertFalse(ctrlA.isCtrlSpace())
+        XCTAssertTrue(ctrlA.isChordSwift())
+    }
+
     func testViStateSnapshotAndPerAppOverrides() {
         var state = ViState(globalEnabled: true)
         state.apply(snapshot: ["*": false, "com.apple.safari": true])

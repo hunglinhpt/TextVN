@@ -840,11 +840,16 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         consumeAssistIpc();
     }
 
-    /* B6 chord; S3 ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng → phím đi thẳng. */
+    /* B6 chord; S3 ô mật khẩu; VN tắt (trừ khi còn gõ tắt); engine hỏng → phím đi thẳng.
+     * Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
+    uint32_t vk = 0, ch = 0;
+    mapFcitxKey(key, &vk, &ch);
+    const bool is_ctrl_space = (vk == LC_VK_SPACE || ch == ' ') && ((mods & ~IME_MOD_CAPS) == IME_MOD_CTRL);
+
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
     const bool macroOnly = !viEnabled_ && st->config.allow_macro_when_vi_off;
-    if ((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) || secure ||
+    if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || secure ||
         !(viEnabled_ || macroOnly) || !st->inst) {
         finishWord(st);
         return false;
@@ -861,11 +866,13 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         st->ctxEnabled = ctx.enabled;
     }
 
-    uint32_t vk = 0, ch = 0;
-    mapFcitxKey(key, &vk, &ch);
-    const lc_key k = lc_key_classify(vk, ch);
+    const lc_key k = lc_key_classify_with_mods(vk, ch, mods);
     ime_key_v1 ik;
-    lc_key_to_ime(k, vk, mods & (IME_MOD_SHIFT | IME_MOD_CAPS), &ik);
+    uint32_t ime_mods = mods & (IME_MOD_SHIFT | IME_MOD_CAPS);
+    if (is_ctrl_space) {
+        ime_mods |= IME_MOD_CTRL;
+    }
+    lc_key_to_ime(k, vk, ime_mods, &ik);
 
     ime_result_v1 r;
     if (ime_key(st->inst, &ik, &r) != IME_OK || (r.flags & IME_FLAG_ERROR)) {
