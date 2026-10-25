@@ -117,6 +117,23 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 #define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
 #endif
 
+[InstallDelete]
+; R2-130 (chu repo 2026-10-26: "truoc khi cai ban moi phai quet ban cu va go sach"):
+; nang cap TAI CHO (cung pham vi) don sach phan cua ban cu truoc khi chep ban moi -
+; du lieu/tai nguyen chep lai tron goi (file da doi ten/da bo cua ban cu khong con
+; sot, ke ca tu dien GPL-2.0-only data\assist\*.dic ngung phat hanh - Fassist-98),
+; file chuong trinh da ngung phat hanh. KHONG chay trinh go cua ban cu CUNG pham vi:
+; no huy dang ky bo go + tra Ctrl+Shift, ma cai im lang khong dang ky lai -> mat bo
+; go toi khi tray tu dang ky. Cau hinh nguoi dung o %APPDATA% giu nguyen.
+Type: filesandordirs; Name: "{app}\data"
+Type: filesandordirs; Name: "{app}\resources"
+; textvn_ffi.dll: ban <= 0.2.0 (FFI tach DLL, nay link tinh vao TIP/CLI).
+Type: files; Name: "{app}\textvn_ffi.dll"
+#ifndef IncludeCompatibilityHook
+; Ban co goi hook tuong thich: bo goi nay khong con thi khong de file cu chay lai.
+Type: files; Name: "{app}\textvn-hook.exe"
+#endif
+
 [UninstallDelete]
 ; DLL cũ bị rename khi nâng cấp (RenameLockedTsfDll) — dọn cùng uninstaller;
 ; file còn bị nạp Windows sẽ tự xoá sau khi các tiến trình nhả (sau đăng xuất).
@@ -284,7 +301,34 @@ begin
     Exit;
   if not IsAdminInstallMode then
   begin
-    Log('R2-124: machine-wide TextVN found at ' + Location + ' - per-user install refused');
+    Log('R2-130: machine-wide TextVN found at ' + Location);
+    // Che do tuong tac: hoi roi go ban may bang quyen quan tri (UAC) - go sach truoc
+    // khi cai. Cai im lang khong hoi duoc (khong UAC) -> dung lai, khong de 2 ban.
+    if not WizardSilent and
+       (SuppressibleMsgBox('May nay da co TextVN cai cho MOI nguoi dung (' + Location + ').' + #13#10#13#10 +
+          'Go ban do (can quyen quan tri) roi cai ban moi cho tai khoan nay?' + #13#10 +
+          'Chon No de dung lai: hai ban cung luc se chay lan nhau.',
+          mbConfirmation, MB_YESNO, IDNO) = IDYES) then
+    begin
+      if ShellExec('runas', UninstExe, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '',
+                   SW_HIDE, ewWaitUntilTerminated, Code) then
+      begin
+        for I := 0 to 119 do
+        begin
+          if not RegKeyExists(HKEY_LOCAL_MACHINE_64, ArpKey) then
+            Break;
+          Sleep(500);
+        end;
+      end
+      else
+        Log(Format('R2-130: elevated uninstall of the machine-wide TextVN not started (code %d)', [Code]));
+      if not RegKeyExists(HKEY_LOCAL_MACHINE_64, ArpKey) then
+      begin
+        Log('R2-130: machine-wide TextVN removed before the per-user install');
+        Exit;
+      end;
+    end;
+    Log('R2-130: machine-wide TextVN still present - per-user install refused');
     Result := 'TextVN da duoc cai cho MOI nguoi dung tren may nay (' + Location + ').' + #13#10#13#10 +
       'Hai ban TextVN cung luc se chay lan nhau (bo go cu, mat tro ly ngu phap).' + #13#10 +
       'Hay chay bo cai nay voi quyen quan tri (chuot phai > Run as administrator) de nang cap ban do, ' +
@@ -320,6 +364,26 @@ begin
   end;
 end;
 
+// R2-130: ghi nhan ban CUNG pham vi (nang cap tai cho, [InstallDelete] don phan cu).
+procedure LogSameScopeInstall();
+var
+  Root: Integer;
+  Ver, Loc: String;
+begin
+  if IsAdminInstallMode then
+    Root := HKEY_LOCAL_MACHINE_64
+  else
+    Root := HKEY_CURRENT_USER;
+  if RegQueryStringValue(Root, ArpKey, 'DisplayVersion', Ver) then
+  begin
+    if not RegQueryStringValue(Root, ArpKey, 'InstallLocation', Loc) then
+      Loc := '';
+    Log('R2-130: previous same-scope TextVN ' + Ver + ' at ' + Loc + ' - clean in-place upgrade');
+  end
+  else
+    Log('R2-130: no previous same-scope TextVN');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   // Vong 13: neu mot uninstaller Inno van dang chay (no copy minh ra %TEMP%
@@ -333,6 +397,7 @@ begin
     Log('Waiting for a running Inno uninstaller to finish...');
     Sleep(500);
   end;
+  LogSameScopeInstall();
   Result := HandleOtherScopeInstall();
   if Result <> '' then
     Exit;

@@ -194,6 +194,13 @@ try {
 # bien nhat): PrepareToInstall phai dung tray truoc khi chep file, khong thi file bi khoa.
 $own = Start-Process -FilePath (Join-Path $app 'TextVN.exe') -ArgumentList '--autostart' -WorkingDirectory $app -PassThru
 if (-not (Wait-TrayRunning (Join-Path $app 'TextVN.exe'))) { throw 'installed tray did not start before the upgrade-over-running-tray test' }
+# R2-130: nang cap tai cho phai DON SACH phan cua ban cu - gia lap file ban cu da bo
+# (data doi ten, tu dien .dic ngung phat hanh, textvn_ffi.dll cua ban <= 0.2.0).
+$staleData = Join-Path $app 'data\zz-stale-r2-130.txt'
+$staleDic = Join-Path $app 'data\assist\zz-stale-r2-130.dic'
+$staleFfi = Join-Path $app 'textvn_ffi.dll'
+New-Item -ItemType Directory -Force -Path (Join-Path $app 'data\assist') | Out-Null
+foreach ($f in @($staleData, $staleDic, $staleFfi)) { Set-Content -Path $f -Value 'stale' -Encoding ascii }
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
 $setupLog = (Get-Content $log -ErrorAction SilentlyContinue | Out-String)
 if ($p.ExitCode -ne 0) {
@@ -204,6 +211,10 @@ $own.Refresh()
 if (-not $own.HasExited) { throw 'upgrade did not stop the running tray of {app} before replacing files (A3)' }
 if ($setupLog -notmatch 'Tray stop exit code: 0') { throw 'PrepareToInstall did not report a clean tray stop (A3/R2-105)' }
 Write-Host 'PASS upgrade over a running tray: tray stopped first, files replaced, exit 0 (A3/R2-105)'
+if ($setupLog -notmatch 'R2-130: previous same-scope TextVN') { throw 'R2-130: upgrade did not scan/log the previous same-scope install' }
+foreach ($f in @($staleData, $staleDic, $staleFfi)) { if (Test-Path $f) { throw "R2-130: in-place upgrade left a file of the old version: $f" } }
+if (-not (Test-Path (Join-Path $app 'data\appdb.default.json'))) { throw 'R2-130: data dir not re-installed after the clean upgrade' }
+Write-Host 'PASS R2-130 in-place upgrade removed old-version leftovers (data, .dic, textvn_ffi.dll) and re-installed data'
 
 # R2-99: go cai dat khi tray DANG CHAY (nguoi dung bam "Go cai dat" luc TextVN dang bat):
 # bo go phai dung tray truoc moi buoc - tray con chay thi khoa TextVN.exe, go khong sach.
