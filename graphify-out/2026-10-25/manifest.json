@@ -1,8 +1,8 @@
 {
   "adapters/windows-tsf/Cargo.toml": {
-    "mtime": 1792678149.2144125,
-    "seen": 1792678773.4382026,
-    "ast_hash": "478272b3c5e52285c80627e620da2e5c",
+    "mtime": 1792899904.042763,
+    "seen": 1792902005.8438756,
+    "ast_hash": "84581ac6fffa65f74f7efae743ad3f43",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
@@ -54,9 +54,9 @@
     "semantic_hash": ""
   },
   "config/src/lib.rs": {
-    "mtime": 1792899401.763983,
-    "seen": 1792899498.7269795,
-    "ast_hash": "4c85728ca8bb602165df5f549a124f58",
+    "mtime": 1792899592.3038704,
+    "seen": 1792902005.8484375,
+    "ast_hash": "862d8347e66c4e8ba3c02c82c849b7d9",
     "semantic_hash": ""
   },
   "core/Cargo.toml": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "ffi/src/lib.rs": {
-    "mtime": 1792898825.103237,
-    "seen": 1792899498.7434263,
-    "ast_hash": "720e897c759d3ae87cf92e8c82aaef3b",
+    "mtime": 1792899983.2291245,
+    "seen": 1792902005.853376,
+    "ast_hash": "e8431c2dae2b832268c0258f630e7026",
     "semantic_hash": ""
   },
   "ffi/tests/abi_invariants.rs": {
@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "schemas/config.v1.schema.json": {
-    "mtime": 1792854765.1727738,
-    "seen": 1792862409.6860437,
-    "ast_hash": "35843858ba8b81dff871b65d3177e09c",
+    "mtime": 1792899556.1349354,
+    "seen": 1792902005.855032,
+    "ast_hash": "090118225afa80b96aefc0c41ceb8187",
     "semantic_hash": ""
   },
   "spikes/tsf-min/Cargo.toml": {
@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.cpp": {
-    "mtime": 1792897725.513283,
-    "seen": 1792899498.681972,
-    "ast_hash": "51834d944caa174b435bda0fd1f6c742",
+    "mtime": 1792899529.2846248,
+    "seen": 1792902005.8367074,
+    "ast_hash": "a365f0e48ef33c85caa3152a28034df5",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/src/engine.h": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1792898875.372376,
-    "seen": 1792899498.701724,
-    "ast_hash": "5b9e3ade29703c885b2878211f272e02",
+    "mtime": 1792899578.3182437,
+    "seen": 1792902005.8423662,
+    "ast_hash": "66455c99cee1313b614a8423bd986de6",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -2442,15 +2442,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/language.rs": {
-    "mtime": 1792899132.3769054,
-    "seen": 1792899498.7197855,
-    "ast_hash": "b46cf9b289081b57e5f8c79c18390d16",
+    "mtime": 1792901725.1120481,
+    "seen": 1792902005.8469222,
+    "ast_hash": "a1eb89cbaeff4fe7a6051d67a70c943e",
     "semantic_hash": ""
   },
   "assist/tests/corpus.rs": {
-    "mtime": 1792570919.637845,
-    "seen": 1792575397.6362402,
-    "ast_hash": "fcd160ccf32303f1462c6d75395ca93d",
+    "mtime": 1792901551.9996457,
+    "seen": 1792902005.8469222,
+    "ast_hash": "7be327d5b6613d5f53a683eab53ab50c",
     "semantic_hash": ""
   },
   "cli/src/assist.rs": {
@@ -2508,9 +2508,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/overlay.rs": {
-    "mtime": 1792898506.4413815,
-    "seen": 1792899498.715296,
-    "ast_hash": "f6b21a3c12fb420aadf7ff72d78752bc",
+    "mtime": 1792901894.485453,
+    "seen": 1792902005.8454006,
+    "ast_hash": "2841047f0e9bbb11e7b535c77462ecb3",
     "semantic_hash": ""
   },
   "assist/src/dict.rs": {
@@ -2532,9 +2532,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_repeat.rs": {
-    "mtime": 1792897935.2488315,
-    "seen": 1792899498.7197855,
-    "ast_hash": "acd9531292c09a29135baea82bc3f218",
+    "mtime": 1792901373.4748085,
+    "seen": 1792902005.8469222,
+    "ast_hash": "27c3e16d1c058b3969cfed149b224e34",
     "semantic_hash": ""
   },
   "dict/Cargo.toml": {
@@ -2796,9 +2796,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/article_an.rs": {
-    "mtime": 1792899132.3550527,
-    "seen": 1792899498.7197855,
-    "ast_hash": "bafb2f5a73e07fd64969b86b78517f84",
+    "mtime": 1792901279.4474237,
+    "seen": 1792902005.8454006,
+    "ast_hash": "bd4cf3d650952abc64ad4a8b11ba9867",
     "semantic_hash": ""
   },
   "tools/assist/gen_corpus_en_tatoeba.py": {
@@ -2823,6 +2823,18 @@
     "mtime": 1792898084.5643463,
     "seen": 1792899498.819069,
     "ast_hash": "fcf7436991673cd509b77e742b8bdd33",
+    "semantic_hash": ""
+  },
+  "assist/tests/office_assist.rs": {
+    "mtime": 1792901752.6207273,
+    "seen": 1792902005.8469222,
+    "ast_hash": "3031c827feaeef6d3b8faf8e374cc7bc",
+    "semantic_hash": ""
+  },
+  "core/tests/office_productivity.rs": {
+    "mtime": 1792901470.4048965,
+    "seen": 1792902005.851742,
+    "ast_hash": "d0fe9dd9f050f7573da8dc8a929daa2a",
     "semantic_hash": ""
   }
 }
