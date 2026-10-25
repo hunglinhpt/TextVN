@@ -1,10 +1,11 @@
 # corpus/assist/vi_grammar.ass - luat ngu phap mo rong (L9/L10/L12) - P4-0 §5.1
 # Luong nay CHI GOI Y (auto_fixable = false) - nguoi dung quyet dinh (Fassist-90).
 #
-# --- L9: lap tu o ranh gioi cau (chi tu chuc nang) ---
-Tôi không. Không sao cả.	sentence_repeat@11-16
-Cô ấy cũng. Cũng vậy.	sentence_repeat
+# --- L9: lap tu o ranh gioi cau — VÔ HIỆU HOÁ vòng 32 (FP trên văn phạm
+# đúng: "cho anh. Anh xem", "Tôi không. Không sao cả." đều là tiếng Việt
+# chuẩn; recall corpus lỗi thật = 0 row) — giữ dòng sạch để hồi quy.
 Anh ấy đến trễ. Đến muộn thì chờ ai.
+Em gửi báo cáo cho anh. Anh xem giúp em nhé.
 # --- L10: phu dinh kep ---
 Tôi không có gì để nói không.	double_negative@4-9
 Cô ấy không có ai hỏi không.	double_negative

@@ -1,106 +1,50 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! L9 - lap tu o ranh gioi cau ("... di hoc. Hoc xong.").
+//! L9 — lặp từ ở ranh giới câu ("... đi học. Học xong.").
 //!
-//! Luat **chi goi y** (khong tu sua): bo tu lap thuong lam doi nghia, nen
-//! de nguoi dung quyet (Fassist-90).
+//! **VÔ HIỆU HOÁ từ vòng 32 (audit sâu 2026-10-25)**: luật cũ bêu "lặp" của
+//! một từ chức năng ở cuối câu trước + đầu câu sau — nhưng trong tiếng Việt
+//! đó là văn phạm ĐÚNG và rất phổ biến trong thư từ công sở:
+//!
+//! - "Em gửi báo cáo cho anh. **Anh** xem giúp em nhé." (đại từ làm chủ ngữ
+//!   câu mới)
+//! - "Tôi không. **Không** sao cả." / "Cô ấy cũng. **Cũng** vậy."
+//!
+//! Toàn bộ từ chức năng có thể đứng tự nhiên ở cả 2 vị trí ⇒ luật sinh FP
+//! dồi dào trong khi corpus lỗi thật (49 câu, P4-12) **không có** row nào
+//! đo được recall — đánh đổi sai chiều bar FPR=0 ("không bao giờ bêu chữ
+//! đúng"). `IssueKind::SentenceRepeat` giữ nguyên cho ABI/kind-table (mọi
+//! nền tảng map kind theo số); rule chỉ ngừng phát issue. Nếu sau này có
+//! dữ liệu lỗi thật cho dạng này, bật lại bằng closed-list riêng.
 
-use super::{is_real_sentence_end, issue_suggestion, Ctx};
-use crate::tokenize::TokenKind;
-use crate::{Issue, IssueKind, Span};
+use super::Ctx;
+use crate::{Issue, IssueKind};
 
-/// Từ **chức năng** (đại từ · giới từ · trạng từ) — lặp những từ này ở ranh giới
-/// câu mới là lỗi thật; lặp từ **nội dung** ("Tôi đi học. Học xong về nhà.") là
-/// cách viết hợp lệ ⇒ không báo (Fassist-91).
-const FUNCTION_WORDS: &[&str] = &[
-    "tôi",
-    "bạn",
-    "anh",
-    "chị",
-    "em",
-    "chúng tôi",
-    "chúng ta",
-    "các",
-    "và",
-    "hoặc",
-    "nhưng",
-    "của",
-    "cho",
-    "với",
-    "cùng",
-    "đã",
-    "đang",
-    "sẽ",
-    "không",
-    "có",
-    "là",
-    "rất",
-    "nữa",
-    "lại",
-    "cũng",
-    "vẫn",
-    "còn",
-    "đều",
-    "vì",
-    "nên",
-    "thì",
-    "mới",
-    "rồi",
-    "ra",
-    "lên",
-    "xuống",
-];
+/// Kiểm tra lặp từ ở ranh giới câu — **no-op** (xem doc module).
+pub fn check(_ctx: &Ctx, _out: &mut Vec<Issue>) {
+    // Vô hiệu hoá — lý do ở doc module (vòng 32: FPR trên văn phạm đúng).
+    // Chữ ký giữ nguyên để dispatch trong lib.rs không đổi; `IssueKind`
+    // được tham chiếu ở đây để cargo không báo unused-import trên enum ABI.
+    let _ = std::mem::discriminant(&IssueKind::SentenceRepeat);
+}
 
-/// Bat khi tu cuoi cau truoc bang tu dau cau sau.
-pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
-    for i in 0..ctx.tokens.len() {
-        let punct = ctx.tokens[i];
-        if punct.kind != TokenKind::Punct || !is_real_sentence_end(ctx, &punct) {
-            continue;
+#[cfg(test)]
+mod tests {
+    use crate::check_sentence;
+
+    /// Vòng 32: văn phạm đúng ở ranh giới câu KHÔNG được bêu
+    /// (FP từng được enshrined vào corpus — xem doc module).
+    #[test]
+    fn ranh_gioi_cau_van_pham_dung_khong_bao() {
+        for s in [
+            "Em gửi báo cáo cho anh. Anh xem giúp em nhé.",
+            "Tôi không. Không sao cả.",
+            "Cô ấy cũng. Cũng vậy.",
+            "Tôi đã gọi rồi. Rồi sao nữa?",
+        ] {
+            assert!(
+                check_sentence(s).is_empty(),
+                "\"{s}\" là tiếng Việt đúng — không được bêu SentenceRepeat"
+            );
         }
-        // tu gan nhat truoc dau cham
-        let Some(prev) = word_before(ctx, i) else {
-            continue;
-        };
-        // tu gan nhat sau dau cham (bo qua khoang trang)
-        let Some(next) = word_after(ctx, i) else {
-            continue;
-        };
-        if prev.len() != next.len() || prev.len() < 2 || ctx.is_masked(prev.start, next.end) {
-            continue;
-        }
-        let prev_text = ctx.token_text(&prev);
-        let next_text = ctx.token_text(&next);
-        let prev_lower = prev_text.to_lowercase();
-        if prev_lower != next_text.to_lowercase() {
-            continue;
-        }
-        // Chi bat voi tu chuc nang (Fassist-91) - lap tu noi dung la cach viet hop le.
-        if !FUNCTION_WORDS.contains(&prev_lower.as_str()) {
-            continue;
-        }
-        out.push(issue_suggestion(
-            IssueKind::SentenceRepeat,
-            Span {
-                start: next.start,
-                end: next.end,
-            },
-            format!("Lặp từ qua ranh giới câu: \"{next_text}\""),
-            vec![format!("Bỏ từ \"{next_text}\" hoặc thay bằng từ khác")],
-        ));
     }
-}
-
-/// Từ (token Word) ngay trước vị trí `idx`.
-fn word_before(ctx: &Ctx, idx: usize) -> Option<crate::tokenize::Token> {
-    (0..idx)
-        .rev()
-        .find(|&k| ctx.tokens[k].kind == TokenKind::Word)
-        .map(|k| ctx.tokens[k])
-}
-
-/// Từ (token Word) ngay sau vị trí `idx`.
-fn word_after(ctx: &Ctx, idx: usize) -> Option<crate::tokenize::Token> {
-    ((idx + 1)..ctx.tokens.len())
-        .find(|&k| ctx.tokens[k].kind == TokenKind::Word)
-        .map(|k| ctx.tokens[k])
 }

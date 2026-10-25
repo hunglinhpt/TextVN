@@ -355,6 +355,30 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
     }
     sentence[actual_len] = '\0';
 
+    /* Vòng 32 (audit F-G): parity Windows D11 — câu < 3 từ không popup/không
+     * tự sửa (đoạn ngắn đang gõ dở, thiếu ngữ cảnh; Windows chặn ở
+     * `check_text` còn 2 nền tảng còn lại phải tự chặn như nhau). Đếm từ
+     * trên đuôi đã đọc: byte >= 0x80 là lead/continuation UTF-8 = chữ có dấu. */
+    {
+        int words = 0;
+        gboolean in_word = FALSE;
+        for (size_t wi = 0; wi < actual_len; wi++) {
+            unsigned char c = (unsigned char)sentence[wi];
+            gboolean is_word_c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+            if (is_word_c) {
+                if (!in_word) {
+                    words++;
+                    in_word = TRUE;
+                }
+            } else {
+                in_word = FALSE;
+            }
+        }
+        if (words < 3) {
+            return plan_eaten;
+        }
+    }
+
     IBusEngine *engine = (IBusEngine *)self;
 
     if (is_auto_correct_mode) {

@@ -125,7 +125,9 @@ fn corpus_co_du_lop_hieu_biet() {
             kinds.extend(expected.into_iter().map(|(k, _)| k));
         }
     }
-    // V1 phai phu 6 loai loi (L1/L2/L11 gop 1 loai) + L6 + L8 + L9/L10/L12.
+    // V1 phai phu 6 loai loi (L1/L2/L11 gop 1 loai) + L6 + L8 + L10/L12.
+    // KHÔNG có "sentence_repeat": L9 vô hiệu hoá từ vòng 32 (FP trên văn
+    // phạm đúng — xem doc `rules/sentence_repeat.rs`).
     for required in [
         "duplicate_word",
         "space_before_punct",
@@ -133,7 +135,6 @@ fn corpus_co_du_lop_hieu_biet() {
         "double_space",
         "lowercase_sentence_start",
         "diacritic_typo",
-        "sentence_repeat",
         "double_negative",
         "comma_at_end",
         // KHÔNG thêm "spelling": corpus chạy `check()` (fragment, NoDictionary)

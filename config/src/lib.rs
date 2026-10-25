@@ -474,7 +474,8 @@ mod tests {
         assert!(!Config::default().suggest.enabled);
     }
 
-    /// `assist` (P4-0 §7): mặc định **tắt hoàn toàn**, đúng bảng spec.
+    /// `assist` (P4-0 §7): mặc định sau cài = Chỉ gợi ý (highlight, vòng 26),
+    /// auto_fix tắt — khớp schema + Swift + Linux memset.
     #[test]
     fn assist_defaults_match_p4_0_section_7() {
         let cfg = parse_config(r#"{"config_version":1}"#).unwrap();

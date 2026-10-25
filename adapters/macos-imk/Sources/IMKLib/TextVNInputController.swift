@@ -366,6 +366,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         switch toApply.action {
         case .pass:
+            // Chủ đích (vòng 32, audit F-F — ghi nhận thiết kế): khi trợ lý bật,
+            // phím trigger (space/./,/…/Enter) được IMK CHÈN trực tiếp
+            // (`target.insert`) thay vì đi đường key-event native — IMK cần
+            // chính điểm kiểm tra này để check câu NGAY TRƯỚC khi dấu câu
+            // commit vào document. Hệ quả: app nhạy đường-vào (terminal
+            // history, autocomplete) thấy trigger qua insertText thay vì
+            // keyDown khi trợ lý bật, và đường native khi tắt. Windows/Linux
+            // không có khác biệt này (phím đi native, check silent sau).
             if marked.isEmpty, isAssistActive(for: context.appID) {
                 let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
                 if triggerKind != FFI.assistTriggerNone {
@@ -785,6 +793,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // nên `sentenceTail` phải dùng đúng `maxChars: 256` để offset `issue.start..end`
         // không lệch khi `assistSettings.max_sentence_chars < 256`.
         let sentence = engine.sentenceTail(maxChars: 256)
+
+        // Vòng 32 (audit F-G): parity Windows D11 — câu < 3 từ không popup/không
+        // tự sửa (đoạn ngắn đang gõ dở, thiếu ngữ cảnh; Windows chặn ở
+        // `check_text`, hai nền tảng còn lại phải tự chặn như nhau).
+        let wordCount = sentence.split(omittingEmptySubsequences: true) { $0.isWhitespace }.count
+        if wordCount < 3 {
+            return false
+        }
 
         if assistSettings.isMode2AutoFix && isSentenceTrigger {
             // R-11: không đếm được glyph ⇒ 0 ⇒ kế hoạch bị từ chối ⇒ không sửa

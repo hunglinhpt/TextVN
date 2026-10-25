@@ -522,6 +522,30 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     }
     sentence[actual_len] = '\0';
 
+    /* Vòng 32 (audit F-G): parity Windows D11 — câu < 3 từ không popup/không
+     * tự sửa (đoạn ngắn đang gõ dở, thiếu ngữ cảnh; Windows chặn ở
+     * `check_text` còn 2 nền tảng còn lại phải tự chặn như nhau). Đếm từ
+     * trên đuôi đã đọc: byte >= 0x80 là lead/continuation UTF-8 = chữ có dấu. */
+    {
+        int words = 0;
+        bool inWord = false;
+        for (size_t wi = 0; wi < actual_len; wi++) {
+            const unsigned char c = static_cast<unsigned char>(sentence[wi]);
+            const bool isWordC = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+            if (isWordC) {
+                if (!inWord) {
+                    words++;
+                    inWord = true;
+                }
+            } else {
+                inWord = false;
+            }
+        }
+        if (words < 3) {
+            return planEaten;
+        }
+    }
+
     if (isAutoCorrectMode) {
         const bool surrounding =
             st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) &&

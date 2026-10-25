@@ -84,7 +84,8 @@
         "display": {
           "show_on_sentence_end": true,
           "idle_ms": 700,
-          "show_on_comma": false
+          "show_on_comma": false,
+          "hide_on_auto_fix": false
         },
         "max_sentence_chars": 500,
         "per_app": {}
@@ -94,7 +95,7 @@
         "mode": {
           "enum": ["off", "highlight", "autocorrect"],
           "default": "highlight",
-          "$comment": "P4-0 §7. off = khong kiem tra (mac dinh, D20 kill-switch); highlight = chi goi y (Mode 1); autocorrect = tu sua loi objective + goi y loi mo ho (Mode 2)."
+          "$comment": "P4-0 §7. off = khong kiem tra (kill-switch cua nguoi dung); highlight = chi goi y (Mode 1, MAC DINH tu 0.2.38); autocorrect = tu sua loi objective + goi y loi mo ho (Mode 2)."
         },
         "auto_fix": {
           "enum": ["off", "safe"],

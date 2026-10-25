@@ -43,6 +43,8 @@ use windows::Win32::Graphics::Gdi::*;
 #[cfg(windows)]
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
+use windows::Win32::UI::HiDpi::GetDpiForWindow;
+#[cfg(windows)]
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -94,6 +96,46 @@ const HEADER_H: i32 = 22;
 const MIN_W: i32 = 240;
 #[cfg(windows)]
 const MAX_W: i32 = 560;
+
+/// Kích thước panel đã scale theo DPI của monitor đang neo (vòng 32 — audit
+/// F-C: consts cố định 96-DPI làm panel nhỏ ~2/3 so với chữ của app ở màn
+/// 150 %; B10 đã scale 3 cửa sổ settings/tray nhưng panel assist bị sót).
+/// Mọi công thức layout/paint/hit-test lấy số liệu từ ĐÂY, không dùng consts
+/// trực tiếp nữa.
+#[cfg(windows)]
+struct Metrics {
+    pad: i32,
+    line_h: i32,
+    hint_h: i32,
+    header_h: i32,
+    min_w: i32,
+    max_w: i32,
+    font_main: i32,
+    font_small: i32,
+    font_header: i32,
+    font_btn: i32,
+    btn_pad: i32,
+}
+
+#[cfg(windows)]
+fn metrics_for_hwnd(hwnd: HWND) -> Metrics {
+    // Panel luôn PerMonitorV2-aware qua manifest host; fail → 96 (như cũ).
+    let dpi = unsafe { GetDpiForWindow(hwnd) }.max(96);
+    let s = |v: i32| (((v as i64) * (dpi as i64) + 48) / 96) as i32;
+    Metrics {
+        pad: s(PAD),
+        line_h: s(LINE_H),
+        hint_h: s(HINT_H),
+        header_h: s(HEADER_H),
+        min_w: s(MIN_W),
+        max_w: s(MAX_W),
+        font_main: s(15),
+        font_small: s(12),
+        font_header: s(14),
+        font_btn: s(13),
+        btn_pad: s(16),
+    }
+}
 
 #[cfg(windows)]
 const COLOR_BG: COLORREF = COLORREF(0x00F8_F9FA);
@@ -352,6 +394,7 @@ impl CandidateOverlay {
         if hwnd.0.is_null() {
             return;
         }
+        let m = metrics_for_hwnd(hwnd);
         let (width, height) = measure(hwnd, view);
         let (x, y) = place(hwnd, anchor, width, height);
 
@@ -367,7 +410,7 @@ impl CandidateOverlay {
                     char_xs: Vec::new(),
                     skip: 0,
                     content_top: 0,
-                    line_h: LINE_H,
+                    line_h: m.line_h,
                     click_handled: false,
                     mouse_selected: false,
                 });
@@ -493,12 +536,13 @@ unsafe fn create_font(height: i32, weight: FONT_WEIGHT) -> HFONT {
 /// Kích thước panel theo nội dung (đo trên DC màn hình, không cần HWND).
 #[cfg(windows)]
 fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
+    let m = metrics_for_hwnd(hwnd);
     let dc = unsafe { GetDC(None) };
-    let mut max_w = MIN_W - PAD * 2;
-    let mut text_h = LINE_H;
+    let mut max_w = m.min_w - m.pad * 2;
+    let mut text_h = m.line_h;
     if !dc.is_invalid() {
         unsafe {
-            let font = create_font(15, FW_NORMAL);
+            let font = create_font(m.font_main, FW_NORMAL);
             let old = SelectObject(dc, font.into());
             let (_, visible) = view.visible_sentence(MAX_OVERLAY_SENTENCE_CHARS);
             let mut sentence_w = 0;
@@ -508,7 +552,7 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
                 let mut size = SIZE::default();
                 if GetTextExtentPoint32W(dc, units, &mut size).as_bool() {
                     sentence_w += size.cx;
-                    text_h = LINE_H.max(size.cy + 4);
+                    text_h = m.line_h.max(size.cy + 4);
                 }
             }
             max_w = max_w.max(sentence_w);
@@ -526,7 +570,7 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
             }
             // Dòng nhắc phím vẽ bằng font nhỏ: đo đúng cỡ đó để panel đủ rộng
             // (không cắt mất phím tắt quan trọng).
-            let small = create_font(12, FW_NORMAL);
+            let small = create_font(m.font_small, FW_NORMAL);
             SelectObject(dc, small.into());
             let mut hint: Vec<u16> = OVERLAY_HINT.encode_utf16().collect();
             let mut hint_rc = RECT::default();
@@ -545,10 +589,9 @@ fn measure(hwnd: HWND, view: &OverlayView) -> (i32, i32) {
             ReleaseDC(None, dc);
         }
     }
-    let _ = hwnd;
     let lines = view.issues.len() as i32 + i32::from(view.hidden_count() > 0);
-    let height = PAD * 2 + HEADER_H + text_h + lines * LINE_H + HINT_H;
-    let width = (max_w + PAD * 2).clamp(MIN_W, MAX_W);
+    let height = m.pad * 2 + m.header_h + text_h + lines * m.line_h + m.hint_h;
+    let width = (max_w + m.pad * 2).clamp(m.min_w, m.max_w);
     (width, height)
 }
 
@@ -729,6 +772,13 @@ unsafe extern "system" fn overlay_wnd_proc(
             let _ = EndPaint(hwnd, &ps);
             LRESULT(0)
         }
+        // Vòng 32 (F-C): panel kéo qua monitor khác DPI — vẽ lại theo metrics
+        // mới (kích thước cửa sổ chỉnh lại ở lần show kế tiếp; panel chỉ sống
+        // ~8 s nên không giữ anchor để relayout tại đây).
+        WM_DPICHANGED => {
+            let _ = InvalidateRect(Some(hwnd), None, true);
+            LRESULT(0)
+        }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
     }
 }
@@ -753,6 +803,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
     if GetClientRect(hwnd, &mut rect).is_err() {
         return;
     }
+    let m = metrics_for_hwnd(hwnd);
     let bg = CreateSolidBrush(COLOR_BG);
     let _ = FillRect(hdc, &rect, bg);
     let _ = DeleteObject(bg.into());
@@ -760,8 +811,8 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
     let _ = FrameRect(hdc, &rect, border);
     let _ = DeleteObject(border.into());
 
-    let font = create_font(15, FW_NORMAL);
-    let small = create_font(12, FW_NORMAL);
+    let font = create_font(m.font_main, FW_NORMAL);
+    let small = create_font(m.font_small, FW_NORMAL);
     let old_font = SelectObject(hdc, font.into());
     let _ = SetBkMode(hdc, TRANSPARENT);
 
@@ -773,22 +824,22 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             return;
         };
         let view = &shown.view;
-        let left = rect.left + PAD;
-        let right = rect.right - PAD;
+        let left = rect.left + m.pad;
+        let right = rect.right - m.pad;
         shown.button_rect = None;
         shown.row_rects.clear();
         shown.char_xs.clear();
 
         // --- tổng kết kiểu Grammarly (vòng 26): "N lỗi trong câu vừa gõ" ---
         {
-            let header_font = create_font(14, FW_SEMIBOLD);
+            let header_font = create_font(m.font_header, FW_SEMIBOLD);
             SelectObject(hdc, header_font.into());
             let mut header: Vec<u16> = summary_text(view).encode_utf16().collect();
             let mut hr = RECT {
                 left,
-                top: rect.top + PAD - 2,
+                top: rect.top + m.pad - 2,
                 right,
-                bottom: rect.top + PAD - 2 + HEADER_H,
+                bottom: rect.top + m.pad - 2 + m.header_h,
             };
             let _ = SetTextColor(hdc, COLOR_ERROR);
             let _ = DrawTextW(
@@ -802,7 +853,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             // Nút "Sửa tất cả" (vòng 26): hiện khi có ≥1 lỗi tự sửa được —
             // click → FixAll (áp cả câu, có Undo 5 giây).
             if view.issues.iter().any(|i| i.auto_fixable) {
-                let btn_font = create_font(13, FW_SEMIBOLD);
+                let btn_font = create_font(m.font_btn, FW_SEMIBOLD);
                 SelectObject(hdc, btn_font.into());
                 let mut units: Vec<u16> = "Sửa tất cả".encode_utf16().collect();
                 let mut size = SIZE::default();
@@ -811,13 +862,13 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 } else {
                     0
                 };
-                let bw = tw + 16;
-                let bh = HEADER_H - 2;
+                let bw = tw + m.btn_pad;
+                let bh = m.header_h - 2;
                 let br = RECT {
                     left: right - bw,
-                    top: rect.top + PAD - 3,
+                    top: rect.top + m.pad - 3,
                     right,
-                    bottom: rect.top + PAD - 3 + bh,
+                    bottom: rect.top + m.pad - 3 + bh,
                 };
                 let bg = CreateSolidBrush(COLOR_SELECTED_BG);
                 let _ = FillRect(hdc, &br, bg);
@@ -838,13 +889,13 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 shown.button_rect = Some(br);
             }
         }
-        let content_top = rect.top + PAD + HEADER_H;
+        let content_top = rect.top + m.pad + m.header_h;
 
         // --- câu vừa gõ + gạch chân đỏ đúng span (char Unicode) ---
         let (skip, visible) = view.visible_sentence(MAX_OVERLAY_SENTENCE_CHARS);
         let mut xs = Vec::with_capacity(visible.len() + 1);
         let mut x = left;
-        let mut line_h = LINE_H;
+        let mut line_h = m.line_h;
         for ch in visible {
             let mut buf = [0u16; 2];
             let units = ch.encode_utf16(&mut buf);
@@ -894,7 +945,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                     left: rect.left + 4,
                     top: y - 2,
                     right: rect.right - 4,
-                    bottom: y + LINE_H - 2,
+                    bottom: y + m.line_h - 2,
                 };
                 let _ = FillRect(hdc, &row, sel);
                 let _ = DeleteObject(sel.into());
@@ -904,7 +955,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 left,
                 top: y,
                 right,
-                bottom: y + LINE_H,
+                bottom: y + m.line_h,
             };
             let _ = SetTextColor(
                 hdc,
@@ -921,7 +972,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS,
             );
             shown.row_rects.push(r);
-            y += LINE_H;
+            y += m.line_h;
         }
         if view.hidden_count() > 0 {
             let mut text: Vec<u16> = format!("  (+{} lỗi khác)", view.hidden_count())
@@ -931,7 +982,7 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
                 left,
                 top: y,
                 right,
-                bottom: y + LINE_H,
+                bottom: y + m.line_h,
             };
             let _ = SetTextColor(hdc, COLOR_MUTED);
             let _ = DrawTextW(
@@ -947,9 +998,9 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
         let mut hint: Vec<u16> = OVERLAY_HINT.encode_utf16().collect();
         let mut r = RECT {
             left,
-            top: rect.bottom - PAD - HINT_H,
+            top: rect.bottom - m.pad - m.hint_h,
             right,
-            bottom: rect.bottom - PAD,
+            bottom: rect.bottom - m.pad,
         };
         let _ = SetTextColor(hdc, COLOR_MUTED);
         let _ = DrawTextW(
