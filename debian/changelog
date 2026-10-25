@@ -1,3 +1,18 @@
+textvn (0.2.44-0ppa1) noble; urgency=medium
+
+  * Three-pass deep audit of the grammar assistant: disables the
+    cross-sentence word-repeat rule (false positives on correct
+    Vietnamese), recognises diacritic-less Vietnamese via a 1,061-entry
+    ASCII syllable list (a/an rule never rewrites it), stem-based a/an
+    exceptions (an hourglass, a Unicode string), grouped number readings
+    (an 1100), 31 office file extensions masked, curly-quote and ĐH.
+    abbreviation handling, Fcitx5 fresh-install default ON, global-AND-
+    override switch semantics on all platforms, <3-words gate parity,
+    DPI-scaled Windows panel. Zero false positives on 981 VI + 295 EN
+    clean sentences; 701 tests.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Sun, 25 Oct 2026 12:05:00 +0000
+
 textvn (0.2.43-0ppa1) noble; urgency=medium
 
   * Enter on the selection popup now applies "Fix all" (last low finding

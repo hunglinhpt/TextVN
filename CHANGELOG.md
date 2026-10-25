@@ -7,6 +7,67 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.44] — 2026-10-25
+
+### Fixed
+- **Audit sâu 3 lượt toàn bộ trợ lý ngữ pháp** (từng dòng code, từng nền
+  tảng) — khoá loạt FP cuối cùng để đạt chuẩn "không bao giờ bêu chữ đúng":
+  - **Luật lặp-từ-ranh-giới-câu (L9) bị tắt**: bêu văn phạm ĐÚNG ("Em gửi
+    báo cáo cho anh. **Anh** xem giúp em nhé.", "Tôi không. **Không** sao
+    cả.") — corpus lỗi thật không có row nào đo được recall ⇒ mất recall 0,
+    đổi FP 0. Kind giữ nguyên cho ABI.
+  - **Tiếng Việt gõ thiếu dấu không bị sửa thành tiếng Anh nữa**: "an toan
+    la quan trong" từng có nguy cơ mở luật a/an — nhận diện bằng bộ **1.061
+    âm tiết Việt không dấu** (sinh từ vn_freq3000, trừ giao điểm top-3000
+    từ EN: "to"/"do"/"an" quá mơ hồ); "An buon qua", "email nay giup toi
+    an tam" sạch.
+  - **Mạo từ a/an**: mở bảng ngoại lệ theo GỐC TỪ (hour\*/honest\*/heir\*/
+    honor\*/honour\* — "an hourglass/honorable/heirloom" hết bị sửa ngược
+    thành "a"), thêm /juː/ còn thiếu ("a Unicode string", "a euphemism",
+    "a ukulele"), số đọc gộp **11xx/18xx = eleven/eighteen hundred** ("an
+    1100", "an 1850" hết bị bêu), bỏ typo chết "tosla".
+  - **Tên file văn phòng**: "report.pdf", "query.sql", "baocao.docx"…
+    (31 phần mở rộng mới) không bị chèn dấu cách giữa tên ("report. pdf").
+  - **Ngoặc kép cong “ ”**: lặp từ trong trích lời ("cậu nói “không
+    không” mà") và dấu chấm trong trích ("…“tôi đi. bạn ở lại”.") không
+    còn bị bêu; **viết tắt Việt viết hoa** ("tôi học tại ĐH. y khoa") hết
+    bị tự viết hoa chữ sau.
+  - **Code**: khoảng trắng kép trước `#` (chuẩn PEP 8) và dòng code căn
+    lề ("x = 5;  y = 6") không còn bị bêu.
+  - **Đa nền tảng**: Fcitx5 fresh-install giờ BẬT trợ lý như IBus/Windows/
+    macOS (struct zeroed = Tắt trước đây); ngữ nghĩa toàn-cục-AND-override
+    đồng bộ cả 3 OS theo luật R2-28 (kill-switch không bị per-app "hồi
+    sinh"); gate "câu < 3 từ" port sang macOS/Linux (1 câu = 1 hành vi);
+    Linux reconnect cap 10 s khớp hợp đồng.
+  - **Windows**: panel trợ lý scale theo **DPI màn hình** (màn 150 % hết
+    bị nhỏ ~2/3); câu < 3 từ im trên mọi nền tảng; FixAll trên popup chỉ
+    gợi ý không còn đóng panel mà không làm gì.
+  - **Performance**: check chỉ chạy ở điểm kết thúc câu (bỏ check thầm ở
+    space/,/: — kết quả từng bị vứt); diacritic variants giảm sinh biến
+    thể 2-dấu-thanh vô nghĩa; ime_key p50 4,2 µs / p99 10,2 µs (ngân sách
+    500 µs).
+
+**English** — 0.2.44 ships a three-pass, line-by-line audit of the whole
+grammar assistant and closes the last false-positive classes: the
+cross-sentence word-repeat rule is disabled (it flagged perfectly correct
+Vietnamese like "…cho anh. Anh xem…"); diacritic-less Vietnamese ("an toan
+la quan trong") is now recognised via a 1,061-entry Vietnamese ASCII
+syllable list so the a/an rule never rewrites it; the a/an exception lists
+use word stems (an hourglass/honorable/heirloom), add missing /juː/ words
+(a Unicode string, a euphemism) and grouped number readings (an 1100/an
+1850 = eleven/eighteen hundred); 31 office file extensions are masked
+("report.pdf" no longer gets a space inserted); curly quotes “ ” and
+Vietnamese capital abbreviations (ĐH.) are handled; double space before an
+inline `#` comment and aligned code lines are never flagged. Cross-platform:
+Fcitx5 fresh installs now have the assistant ON like every other platform,
+the global-AND-override semantics match Windows on macOS/Linux (R2-28),
+the <3-words gate is ported to macOS/Linux, Linux reconnect caps at 10 s.
+Windows: the assist panel scales with monitor DPI, and the sentence check
+only runs at sentence end (measurements: ime_key p50 4.2 µs / p99 10.2 µs
+against a 500 µs budget). VI corpus 0/981 false positives, EN 0/295,
+83.7 % sentence recall unchanged; 43 adversarial probes clean; 701 tests,
+clippy 0, preflight 23/23.
+
 ## [0.2.43] — 2026-10-25
 
 ### Fixed
@@ -1710,6 +1771,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[0.2.44]: https://github.com/hunglinhpt/TextVN/compare/v0.2.43...v0.2.44
 [0.2.43]: https://github.com/hunglinhpt/TextVN/compare/v0.2.42...v0.2.43
 [0.2.42]: https://github.com/hunglinhpt/TextVN/compare/v0.2.41...v0.2.42
 [0.2.41]: https://github.com/hunglinhpt/TextVN/compare/v0.2.40...v0.2.41

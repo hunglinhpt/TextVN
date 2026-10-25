@@ -42,14 +42,14 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.43](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.43)**
+Bản mới nhất: **[GitHub Release v0.2.44](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.44)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
 Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
 virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.43 làm phím **Enter trên popup vùng bôi đen áp "Sửa tất cả"** (trước đây bị nuốt mà không sửa — finding cuối cùng của vòng audit selection-check). Bản 0.2.42 thêm check ngữ pháp khi bôi đen câu (Shift+mũi tên → popup + Sửa tất cả). Bản 0.2.41 sửa trợ lý chết khi nâng cấp (3 root cause). Bản 0.2.40 là vòng audit 3 nền tảng (sửa lỗi article_an phá chữ Việt, đồng bộ default). Bản 0.2.39 làm panel trợ lý **bấm được bằng chuột** (nút Sửa tất cả, click từ gạch chân). Bản 0.2.38 **bật trợ lý ngữ pháp mặc định** (Chỉ gợi ý) với panel tại caret kiểu Grammarly + toast khay chỉ khi tự sửa. Bản 0.2.37 thêm
+Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.44 là vòng **audit sâu 3 lượt toàn bộ trợ lý ngữ pháp** (khóa loạt FP cuối: tiếng Việt thiếu dấu, tên file, ngoặc cong, viết tắt ĐH., DPI panel, Fcitx5 fresh-install). Bản 0.2.43 làm phím **Enter trên popup vùng bôi đen áp "Sửa tất cả"** (trước đây bị nuốt mà không sửa — finding cuối cùng của vòng audit selection-check). Bản 0.2.42 thêm check ngữ pháp khi bôi đen câu (Shift+mũi tên → popup + Sửa tất cả). Bản 0.2.41 sửa trợ lý chết khi nâng cấp (3 root cause). Bản 0.2.40 là vòng audit 3 nền tảng (sửa lỗi article_an phá chữ Việt, đồng bộ default). Bản 0.2.39 làm panel trợ lý **bấm được bằng chuột** (nút Sửa tất cả, click từ gạch chân). Bản 0.2.38 **bật trợ lý ngữ pháp mặc định** (Chỉ gợi ý) với panel tại caret kiểu Grammarly + toast khay chỉ khi tự sửa. Bản 0.2.37 thêm
 **Trợ lý ngữ pháp tiếng Anh** (a/an theo âm, lặp từ EN) + **câu mix Việt–Anh văn phòng**
 được kiểm tra + hoàn tất từ bằng **Space** (tùy chọn) — đo trên corpus thật: 0/981 (VI) và
 0/295 (EN) câu đúng bị báo nhầm, recall 100% cả 2 tập lỗi. Bản 0.2.36 nâng
@@ -220,7 +220,7 @@ same config file on all three platforms.
 
 ## Download & install
 
-Latest: **[GitHub Release v0.2.43](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.43)**
+Latest: **[GitHub Release v0.2.44](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.44)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
@@ -229,6 +229,9 @@ Foundation — SmartScreen may warn, antivirus may mis-quarantine: seen with
 Kaspersky, see
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) and
 Apple Developer ID / notarization for macOS (Gatekeeper warns on first open).
+0.2.44 is a **three-pass deep audit of the whole grammar assistant** (locks in
+zero false positives: diacritic-less Vietnamese, office file names, curly
+quotes, ĐH. abbreviations, DPI-scaled panel, Fcitx5 fresh install).
 0.2.43 makes **Enter on the selected-text popup apply "Fix all"** (it used to
 swallow the key and apply nothing — the last open finding from the
 selection-check audit); 0.2.42 updates the popup right after fixing so it
