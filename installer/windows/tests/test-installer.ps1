@@ -89,12 +89,36 @@ if ($p.ExitCode -eq 10 -and $setupLog -match 'refused elevated TSF registration 
 }
 
 # ---- Kich ban (2): /ALLUSERS - machine + user activation ----
+# R2-124: ban PER-USER con sot (bat that 2026-10-25: per-user 0.2.33 + may 0.2.45
+# cung ton tai, muc Run HKCU tro exe cu). Gia lap ban per-user bang muc ARP HKCU
+# cua chinh AppId (uninstaller gia = whoami.exe: thoat ngay, khong xoa gi) + muc
+# Run HKCU tro vao thu muc do -> bo cai may phai PHAT HIEN, chay uninstaller cua
+# no va don muc Run cu. Runner elevated khong tao duoc ban per-user Inno that
+# (xem kich ban 1) nen day la cach kiem duong phat hien tren CI.
+$arpUser = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{9C5E4A7D-092E-4D23-9F93-87B75F3FA7B3}_is1'
+$runUser = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$fakeUserApp = Join-Path $env:TEMP 'TextVN-fake-peruser'
+New-Item -ItemType Directory -Force -Path $fakeUserApp | Out-Null
+New-Item -Path $arpUser -Force | Out-Null
+Set-ItemProperty -Path $arpUser -Name 'UninstallString' -Value ('"' + (Join-Path $env:SystemRoot 'System32\whoami.exe') + '"')
+Set-ItemProperty -Path $arpUser -Name 'InstallLocation' -Value ($fakeUserApp + '\')
+$prevRunUser = (Get-ItemProperty -Path $runUser -ErrorAction SilentlyContinue).TextVN
+Set-ItemProperty -Path $runUser -Name 'TextVN' -Value ('"' + (Join-Path $fakeUserApp 'TextVN.exe') + '" --autostart')
+
 $p = Start-Process -FilePath $Setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/ALLUSERS', "/LOG=$log") -Wait -PassThru
+$setupLog = (Get-Content $log -ErrorAction SilentlyContinue | Out-String)
+Remove-Item -Path $arpUser -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item -Path $fakeUserApp -Recurse -Force -ErrorAction SilentlyContinue
+$staleRun = (Get-ItemProperty -Path $runUser -ErrorAction SilentlyContinue).TextVN
+if ($prevRunUser) { Set-ItemProperty -Path $runUser -Name 'TextVN' -Value $prevRunUser }
 if ($p.ExitCode -ne 0) {
     Get-Content $log -ErrorAction SilentlyContinue | Select-Object -Last 40
     Show-RegisterLogTail
     throw "setup exit $($p.ExitCode)"
 }
+if ($setupLog -notmatch 'R2-124: per-user TextVN found') { throw 'R2-124: machine install did not detect the per-user install (same AppId, HKCU ARP)' }
+if ($staleRun -and $staleRun -like "*TextVN-fake-peruser*") { throw "R2-124: stale HKCU Run entry of the per-user install left behind ('$staleRun')" }
+Write-Host 'PASS R2-124 machine install detects + removes the per-user install (uninstaller run, stale HKCU Run cleaned)'
 foreach ($f in @('TextVN.exe', 'textvn-cli.exe', 'textvn-tsf.dll', 'unins000.exe')) {
     if (-not (Test-Path (Join-Path $app $f))) { throw "installed file missing: $f" }
 }

@@ -186,6 +186,10 @@ Filename: "{app}\textvn-cli.exe"; Parameters: "unregister --scope machine --if-o
 [Code]
 const
   TipKey = 'SOFTWARE\Microsoft\CTF\TIP\{6F2B9C31-8E47-4D2A-9C84-1D5A3E70F9B8}';
+  // Khoa ARP Inno cua chinh AppId (o tren) - HKCU cho ban per-user, HKLM (view
+  // 64-bit) cho ban may. Cung AppId nen Inno KHONG tu thay ban o hive con lai.
+  ArpKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{9C5E4A7D-092E-4D23-9F93-87B75F3FA7B3}_is1';
+  RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
 
 function CliPath(): String;
 begin
@@ -241,6 +245,81 @@ end;
 var
   WaitIdx: Integer;
 
+// R2-124: TextVN o PHAM VI CON LAI (per-user <-> may). Inno chi nhan ban cung
+// hive voi lan cai hien tai, nen cai ban may 0.2.45 de nguyen ban per-user 0.2.33
+// (bat that tren may chu repo 2026-10-25): 2 bo file, 2 muc Run (HKCU tro exe cu,
+// HKLM tro exe moi) -> tray nao len truoc thang (mutex), tray cu con tu dang ky
+// lai COM HKCU (self-heal) de len HKLM -> nguoi dung chay TIP cu, khong co tro ly.
+function OtherScopeUninstaller(var UninstExe, Location: String): Boolean;
+var
+  UninstStr: String;
+  Root: Integer;
+begin
+  Result := False;
+  if IsAdminInstallMode then
+    Root := HKEY_CURRENT_USER
+  else
+    Root := HKEY_LOCAL_MACHINE_64;
+  if not RegQueryStringValue(Root, ArpKey, 'UninstallString', UninstStr) then
+    Exit;
+  if not RegQueryStringValue(Root, ArpKey, 'InstallLocation', Location) then
+    Location := '';
+  UninstExe := RemoveQuotes(UninstStr);
+  Result := FileExists(UninstExe);
+end;
+
+// Cai MAY: go ban per-user cua chinh tai khoan dang cai (chay uninstaller cua no
+// bang token goc, im lang) - uninstaller do tu dung tray cua no, go dang ky TSF
+// cua thu muc no va xoa muc Run HKCU tro vao no. Cai PER-USER khi da co ban may:
+// khong go duoc ban may (can quyen admin) -> dung lai va huong dan, khong de hai
+// ban chay song song. Gioi han: cai may bang tai khoan admin KHAC (over-the-
+// shoulder) thi HKCU o day la cua admin -> khong thay ban per-user cua user goc.
+function HandleOtherScopeInstall(): String;
+var
+  UninstExe, Location, RunValue: String;
+  Code, I: Integer;
+begin
+  Result := '';
+  if not OtherScopeUninstaller(UninstExe, Location) then
+    Exit;
+  if not IsAdminInstallMode then
+  begin
+    Log('R2-124: machine-wide TextVN found at ' + Location + ' - per-user install refused');
+    Result := 'TextVN da duoc cai cho MOI nguoi dung tren may nay (' + Location + ').' + #13#10#13#10 +
+      'Hai ban TextVN cung luc se chay lan nhau (bo go cu, mat tro ly ngu phap).' + #13#10 +
+      'Hay chay bo cai nay voi quyen quan tri (chuot phai > Run as administrator) de nang cap ban do, ' +
+      'hoac go ban do trong Settings > Apps truoc roi cai lai.';
+    Exit;
+  end;
+  Log('R2-124: per-user TextVN found at ' + Location + ' - removing it before the machine install');
+  if not ExecAsOriginalUser(UninstExe, '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '',
+                            SW_HIDE, ewWaitUntilTerminated, Code) then
+  begin
+    Log('R2-124: cannot start the per-user uninstaller');
+    Exit;
+  end;
+  // Uninstaller Inno tu chep ra %TEMP% roi tien trinh goc thoat ngay: cho khoa
+  // ARP HKCU bien mat (toi da 30 s) truoc khi chep file ban may.
+  for I := 0 to 59 do
+  begin
+    if not RegKeyExists(HKEY_CURRENT_USER, ArpKey) then
+      Break;
+    Sleep(500);
+  end;
+  if RegKeyExists(HKEY_CURRENT_USER, ArpKey) then
+    Log(Format('R2-124: per-user uninstaller exit=%d but its ARP entry is still present', [Code]))
+  else
+    Log(Format('R2-124: per-user TextVN removed (uninstaller exit=%d)', [Code]));
+  // Ban per-user cu (<= 0.2.26) chua tu xoa muc Run HKCU tro vao thu muc cua no.
+  if (Location <> '') and
+     RegQueryStringValue(HKEY_CURRENT_USER, RunKey, 'TextVN', RunValue) and
+     (Pos(Lowercase(RemoveBackslashUnlessRoot(Location) + '\'), Lowercase(RunValue)) > 0) then
+  begin
+    RegDeleteValue(HKEY_CURRENT_USER, RunKey, 'TextVN');
+    Log('R2-124: removed stale HKCU Run entry of the per-user install');
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   // Vong 13: neu mot uninstaller Inno van dang chay (no copy minh ra %TEMP%
@@ -254,6 +333,9 @@ begin
     Log('Waiting for a running Inno uninstaller to finish...');
     Sleep(500);
   end;
+  Result := HandleOtherScopeInstall();
+  if Result <> '' then
+    Exit;
   // Vong 16 (audit A3): dung TRAY DANG CHAY truoc khi chep file — nang cap
   // tai cho la ca pho bien nhat (autostart). Tray van xu ly WM_ENDSESSION cho
   // RestartManager (R2-102).
