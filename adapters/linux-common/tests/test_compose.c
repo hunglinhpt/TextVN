@@ -203,11 +203,17 @@ static void test_plan_edge_cases(void) {
     lc_plan_key(&cur, (lc_key){ LC_KEY_TAB, 0 }, &r, &p);
     assert(p.delete_before == 3 && p.end && p.eaten && p.text_len == 1);
 
-    /* Ctrl+Space on PASS must not end composition and must not be eaten */
+    /* R2-121: Ctrl+Space PASS (không khớp dự đoán) → không chèn space, không
+     * nuốt phím, CHỐT preedit đang mở (engine đã nhả từ) và reset engine. */
     memset(&r, 0, sizeof(r));
     r.action = IME_ACTION_PASS;
+    r.flags = IME_FLAG_WORD_END;
     lc_plan_key(&cur, (lc_key){ LC_KEY_CTRL_SPACE, 0 }, &r, &p);
-    assert(!p.eaten && !p.end && !p.has_text);
+    assert(!p.eaten && p.end && !p.has_text && p.reset_engine);
+    /* Không có preedit: không có gì để chốt. */
+    cur.len = 0;
+    lc_plan_key(&cur, (lc_key){ LC_KEY_CTRL_SPACE, 0 }, &r, &p);
+    assert(!p.eaten && !p.end && !p.has_text && p.reset_engine);
 }
 
 static void test_modifier_toggle(void) {

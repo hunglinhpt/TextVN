@@ -127,13 +127,14 @@ void lc_plan_key(const lc_comp *cur, lc_key key, const ime_result_v1 *r, lc_plan
             out->eaten = 1;
             return;
         }
-        if (key.kind == LC_KEY_CTRL_SPACE) {
-            /* Ctrl+Space không khớp prediction: không chèn space vào preedit, giữ composition */
-            out->end = 0;
-            out->eaten = 0;
-            return;
-        }
         lc_plan_pass_through(cur, out);
+        if (key.kind == LC_KEY_CTRL_SPACE) {
+            /* R2-121: Ctrl+Space không khớp dự đoán → như chord B6: chốt preedit
+             * (engine đã nhả từ — WORD_END), phím tới app và quên đuôi text (app có
+             * thể chèn dấu cách / dời caret mà engine không thấy). Giữ preedit mở
+             * thì phím kế tiếp lệch model của engine. */
+            out->reset_engine = 1;
+        }
         return;
     }
 

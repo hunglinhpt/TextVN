@@ -22,7 +22,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::TextServices::*;
 
 #[cfg(windows)]
-use crate::assist::{overlay_action, OverlayAction};
+use crate::assist::{overlay_action_for, OverlayAction};
 #[cfg(windows)]
 use crate::class::ObjGuard;
 #[cfg(windows)]
@@ -135,11 +135,16 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         // CUAS đã đổi phím thành VK_PROCESSKEY vì pha test nhận nó: từ đã commit, giờ trả
         // phím gốc về cho app, xếp SAU kết quả composition (`replay.rs`).
         if let Some(event) = deferred {
-            if !eaten {
-                // Nếu lock/session đã fail sau test TRUE, vẫn đóng composition
-                // trước khi replay; CUAS không còn đường nào tự trả phím gốc.
-                end_composition(&self.shared, fallback_ctx);
+            if eaten {
+                // R2-123: TIP đã ĂN phím (Tab hoàn tất/dự đoán, gõ tắt, Ctrl+Space
+                // mở trợ lý, ↑/↓ của overlay) — không có "phím gốc" nào phải trả
+                // cho app; replay ở đây chèn thêm Tab/Ctrl+Space thừa vào app CUAS.
+                trace_key(&self.shared, "down", vk, "consumed");
+                return Ok(true.into());
             }
+            // Nếu lock/session đã fail sau test TRUE, vẫn đóng composition
+            // trước khi replay; CUAS không còn đường nào tự trả phím gốc.
+            end_composition(&self.shared, fallback_ctx);
             if guarded(|| crate::replay::schedule(event)) {
                 trace_key(&self.shared, "down", vk, "replayed");
             } else {
@@ -333,13 +338,13 @@ fn handle_overlay_key(
     // Vòng 31/32: popup đến từ BÔI ĐEN (selection) — áp đơn-từ (A2 cần
     // selection rỗng) vô nghĩa trên popup này; Enter/Alt+1..3 đều phải đi
     // Sửa-tất-cả vùng chọn (cùng đường nút chuột), không nuốt phím oan.
-    let selection_popup = shared
+    let (selection_popup, on_demand) = shared
         .assist
         .try_borrow()
         .ok()
-        .and_then(|slot| slot.as_ref().map(|a| a.selection.is_some()))
-        .unwrap_or(false);
-    match overlay_action(vk, mods) {
+        .and_then(|slot| slot.as_ref().map(|a| (a.selection.is_some(), a.on_demand)))
+        .unwrap_or((false, false));
+    match overlay_action_for(vk, mods, on_demand) {
         // Ctrl+Shift+G: kiểm tra lại câu + hiện overlay (không phụ thuộc overlay).
         OverlayAction::Recall => {
             let ctx = ctx?; // không có ctx = không xin được session → để phím đi

@@ -279,14 +279,10 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     eaten: true,
                 }
             }
-            // Ctrl+Space không khớp prediction: không chèn khoảng trắng, giữ composition cho assist check
-            KeyKind::CtrlSpace => CompositionPlan {
-                delete_before: 0,
-                text: None,
-                end: false,
-                eaten: false,
-            },
-            // Ranh giới / phím điều hướng: commit nguyên văn rồi để app xử lý phím.
+            // Ranh giới / phím điều hướng / Ctrl+Space không khớp dự đoán: commit
+            // nguyên văn rồi để app xử lý phím. Ctrl+Space KHÔNG được giữ composition
+            // mở (R2-121): engine đã nhả từ (WORD_END) — composition còn mở thì phím
+            // kế tiếp lệch model, và overlay on-demand sửa vào giữa composition.
             _ => CompositionPlan::pass_through(composing),
         },
         ACTION_REPLACE | ACTION_RESTORE | ACTION_COMMIT => {
@@ -620,7 +616,10 @@ mod tests {
         assert!(!plan.eaten);
         assert_eq!(plan.text, None);
         assert_eq!(plan.delete_before, 0);
-        assert!(!plan.end);
+        // R2-121: chốt composition (engine đã nhả từ) — không giữ mở.
+        assert!(plan.end);
+        // Không composing: không có gì để chốt.
+        assert!(!plan_key(&[], KeyKind::CtrlSpace, &step).end);
     }
 
     #[test]

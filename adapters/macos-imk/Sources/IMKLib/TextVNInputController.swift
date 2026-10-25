@@ -367,10 +367,22 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         switch toApply.action {
         case .pass:
             if keyEvent.isCtrlSpace() {
-                // Ctrl+Space không khớp prediction: kích hoạt kiểm tra on-demand (nếu assist bật), không chèn space
-                if isAssistActive(for: context.appID) {
-                    processAssist(triggerKind: FFI.assistTriggerSentence, target: target, sender: sender, isOnDemand: true)
+                // R2-121: Ctrl+Space không khớp dự đoán — engine đã nhả từ
+                // (WORD_END) nhưng GIỮ buffer câu cho lượt kiểm tra on-demand:
+                // chốt marked thành text thật (KHÔNG reset engine ở đây), rồi
+                // kiểm tra. Popup hiện ⇒ nuốt phím (parity Windows); không ⇒
+                // phím tới app và quên đuôi text như chord B6 (app có thể đổi
+                // text/caret với phím này mà engine không thấy).
+                if !marked.text.isEmpty {
+                    target.insert(marked.text, replacementRange: .notFound)
+                    marked.clear()
                 }
+                if isAssistActive(for: context.appID),
+                   processAssist(triggerKind: FFI.assistTriggerSentence, target: target,
+                                 sender: sender, isOnDemand: true) {
+                    return true
+                }
+                engine?.reset()
                 return false
             }
             // Chủ đích (vòng 32, audit F-F — ghi nhận thiết kế): khi trợ lý bật,
@@ -811,7 +823,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return false
         }
 
-        if assistSettings.isMode2AutoFix && isSentenceTrigger {
+        // On-demand (Ctrl+Space — người dùng CHỦ ĐỘNG hỏi): luôn hiện gợi ý để
+        // người dùng chọn, không tự sửa im lặng (parity Windows
+        // `check_sentence_on_demand` → overlay) — R2-121.
+        if assistSettings.isMode2AutoFix && isSentenceTrigger && !isOnDemand {
             // R-11: không đếm được glyph ⇒ 0 ⇒ kế hoạch bị từ chối ⇒ không sửa
             // (tuyệt đối KHÔNG fallback `text.count` — sai ở VNI/TCVN3).
             if let plan = planSentenceAutoFix(sentence: sentence, issues: issues, glyphLen: { [weak engine] text in
@@ -843,7 +858,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // R-6 (D11): chỉ ở **điểm hiển thị** (kết thúc câu) — mỗi dấu cách lại
         // tung panel là UI spam. Tôn trọng `hide_on_auto_fix` khi Mode 2 bật.
         let hideInMode2 = assistSettings.isMode2AutoFix && assistSettings.display.hide_on_auto_fix
-        if assistSettings.isDisplayEnabled && isSentenceTrigger && !hideInMode2 {
+        if assistSettings.isDisplayEnabled && isSentenceTrigger && (isOnDemand || !hideInMode2) {
             let candidates = Self.buildCandidates(sentence: sentence, issues: issues, engine: engine)
             if !candidates.isEmpty {
                 currentCandidates = candidates

@@ -81,7 +81,7 @@ typedef struct lc_plan {
     size_t   text_len;
     int      end;                   /* commit `text` (hoặc preedit hiện tại) rồi đóng */
     int      eaten;                 /* 1 = nuốt phím; 0 = app nhận phím gốc */
-    int      reset_engine;          /* preedit tràn LC_COMP_MAX: commit + ime_reset */
+    int      reset_engine;          /* commit + ime_reset (preedit tràn LC_COMP_MAX; Ctrl+Space tới app) */
 } lc_plan;
 
 /* Tính kế hoạch cho một phím từ kết quả engine. Hàm thuần. */

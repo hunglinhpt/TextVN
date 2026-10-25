@@ -78,6 +78,20 @@ pub struct ActiveAssist {
     /// Popup được dựng từ `recheck_after_fix` (sau khi sửa lần 1, buffer engine
     /// đã `reset()` nhưng document tại caret vẫn khớp `sentence`).
     pub from_recheck: bool,
+    /// Popup do người dùng **chủ động gọi** (Ctrl+Space). Chỉ popup này mới
+    /// dùng Tab để chuyển lỗi; popup tự hiện sau dấu câu để Tab tới app
+    /// (chuyển ô form/Excel, thụt lề) — R2-122.
+    pub on_demand: bool,
+}
+
+/// Đánh dấu popup đang hiện là popup on-demand (Ctrl+Space) — R2-122.
+#[cfg(windows)]
+fn mark_assist_on_demand(shared: &TsfShared) {
+    if let Ok(mut slot) = shared.assist.try_borrow_mut() {
+        if let Some(active) = slot.as_mut() {
+            active.on_demand = true;
+        }
+    }
 }
 
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
@@ -479,15 +493,20 @@ impl KeyEditSession {
                                                     &self.ctx, &sel, ec,
                                                 )
                                             };
-                                            show_assist_overlay_for_selection(
+                                            // Chỉ ăn phím khi popup THẬT SỰ hiện
+                                            // (display tắt / không dựng được view
+                                            // → phím về app như thường).
+                                            if show_assist_overlay_for_selection(
                                                 &self.shared,
                                                 &self.ctx,
                                                 ec,
                                                 &check,
                                                 sel.clone(),
                                                 anchor,
-                                            );
-                                            return true;
+                                            ) {
+                                                mark_assist_on_demand(shared);
+                                                return true;
+                                            }
                                         }
                                     }
                                 }
@@ -497,10 +516,18 @@ impl KeyEditSession {
                         // Không bôi đen: kiểm tra từ / câu ở vị trí con trỏ (on-demand)
                         if let Some(check) = crate::assist::check_sentence_on_demand(shared) {
                             let shown = show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                            if shown {
+                                mark_assist_on_demand(shared);
+                            }
                             super::assist::after_trigger_finish(&check, shown);
                             return true;
                         }
                     }
+                    // R2-121: Ctrl+Space tới app (không dự đoán, không lỗi) — như
+                    // chord B6: app có thể chèn dấu cách (Win32 Edit sinh WM_CHAR
+                    // 0x20 cho Ctrl+Space) hay dời caret mà engine không thấy →
+                    // quên đuôi text, nếu không buffer câu/gõ tắt lệch document.
+                    shared.reset_engine();
                     return false;
                 }
                 plan.eaten
@@ -654,6 +681,7 @@ pub(crate) fn show_assist_overlay_with_recheck(
         check: check.clone(),
         selection: None,
         from_recheck,
+        on_demand: false,
     };
     let Ok(mut slot) = shared.assist.try_borrow_mut() else {
         return false;
@@ -710,6 +738,7 @@ pub fn show_assist_overlay_for_selection(
         check: check.clone(),
         selection: Some(range),
         from_recheck: false,
+        on_demand: false,
     };
     {
         let Ok(mut slot) = shared.assist.try_borrow_mut() else {

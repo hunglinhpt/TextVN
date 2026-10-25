@@ -98,6 +98,7 @@ pub const OVERLAY_HINT: &str = "↑/↓ chọn lỗi · Enter sửa · Alt+1…3
 /// VK dùng cho overlay (khớp Win32).
 pub const VK_UP: u32 = 0x26;
 pub const VK_DOWN: u32 = 0x28;
+pub const VK_TAB: u32 = 0x09;
 pub const VK_RETURN: u32 = 0x0D;
 pub const VK_ESCAPE: u32 = 0x1B;
 pub const VK_G: u32 = 0x47;
@@ -342,11 +343,23 @@ pub fn overlay_action(vk: u32, mods: u32) -> OverlayAction {
     }
     match vk {
         VK_UP => OverlayAction::Previous,
-        VK_DOWN | 0x09 => OverlayAction::Next,
+        VK_TAB if shift => OverlayAction::Previous,
+        VK_DOWN | VK_TAB => OverlayAction::Next,
         VK_RETURN if !shift => OverlayAction::Apply,
         VK_ESCAPE => OverlayAction::Close,
         _ => OverlayAction::Dismiss,
     }
+}
+
+/// Bản đồ phím theo **nguồn** popup (R2-122): Tab/Shift+Tab chuyển lỗi CHỈ ở
+/// popup người dùng chủ động gọi (Ctrl+Space). Popup tự hiện sau dấu câu
+/// (Mode 1) không được nuốt Tab — người dùng đang Tab sang ô form/Excel hay
+/// thụt lề: Tab đóng popup rồi đi tiếp tới app (P4-0 §4.2 "phím khác").
+pub fn overlay_action_for(vk: u32, mods: u32, on_demand: bool) -> OverlayAction {
+    if vk == VK_TAB && !on_demand {
+        return OverlayAction::Dismiss;
+    }
+    overlay_action(vk, mods)
 }
 
 // ---------------------------------------------------------------------------
@@ -1362,7 +1375,16 @@ mod tests {
         use textvn_ffi::{MOD_CTRL, MOD_SHIFT, MOD_SUPER};
         assert_eq!(overlay_action(VK_UP, 0), OverlayAction::Previous);
         assert_eq!(overlay_action(VK_DOWN, 0), OverlayAction::Next);
-        assert_eq!(overlay_action(0x09, 0), OverlayAction::Next); // Tab chuyển sang lỗi tiếp theo
+        assert_eq!(overlay_action(VK_TAB, 0), OverlayAction::Next); // Tab chuyển sang lỗi tiếp theo
+        assert_eq!(overlay_action(VK_TAB, MOD_SHIFT), OverlayAction::Previous);
+        // R2-122: popup TỰ HIỆN không nuốt Tab (chuyển ô form/Excel, thụt lề).
+        assert_eq!(overlay_action_for(VK_TAB, 0, false), OverlayAction::Dismiss);
+        assert_eq!(
+            overlay_action_for(VK_TAB, MOD_SHIFT, false),
+            OverlayAction::Dismiss
+        );
+        assert_eq!(overlay_action_for(VK_TAB, 0, true), OverlayAction::Next);
+        assert_eq!(overlay_action_for(VK_DOWN, 0, false), OverlayAction::Next);
         assert_eq!(overlay_action(VK_RETURN, 0), OverlayAction::Apply);
         // Shift+Enter là xuống dòng, không phải áp dụng.
         assert_eq!(overlay_action(VK_RETURN, MOD_SHIFT), OverlayAction::Dismiss);
