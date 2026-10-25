@@ -72,15 +72,15 @@
     "semantic_hash": ""
   },
   "core/src/keymap.rs": {
-    "mtime": 1792937200.826224,
-    "seen": 1792938673.4640648,
-    "ast_hash": "264f68b5a5fe58e509a97aa79d405c32",
+    "mtime": 1792945977.2633028,
+    "seen": 1792946407.5751746,
+    "ast_hash": "da72115640d2fd1359219c0cca376904",
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1792938274.8721454,
-    "seen": 1792938673.4640648,
-    "ast_hash": "4f447cb04436bcad0ccfdb9e9a16f41d",
+    "mtime": 1792946014.6699998,
+    "seen": 1792946407.5751746,
+    "ast_hash": "65a19edafa00d39aaac1e8cc06b37660",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -684,9 +684,9 @@
     "semantic_hash": ""
   },
   "docs/specs/verified-ops.md": {
-    "mtime": 1792938549.0205357,
-    "seen": 1792938673.4876137,
-    "ast_hash": "c6e19fc4f55502e4b64fc8aa6141c319",
+    "mtime": 1792946204.412205,
+    "seen": 1792946407.6057606,
+    "ast_hash": "1669ef7b57bca0f801294f4533230ae6",
     "semantic_hash": ""
   },
   ".github/scripts/check_doc_links.py": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1792938274.7175338,
-    "seen": 1792938673.459011,
-    "ast_hash": "86cb16dc8f8e37085db7b884149ca570",
+    "mtime": 1792946014.6684766,
+    "seen": 1792946407.5701075,
+    "ast_hash": "25ce23fcb8a1d082934cfb5e9dd00eb7",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -738,9 +738,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/key_event.rs": {
-    "mtime": 1792937925.5085535,
-    "seen": 1792938673.4600308,
-    "ast_hash": "acaaf61218191e4b6e68dc2a414e05f8",
+    "mtime": 1792946014.6684766,
+    "seen": 1792946407.5701075,
+    "ast_hash": "75ac5eb0b6c1dc226bc35034d376a414",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/tip.rs": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1792899087.120152,
-    "seen": 1792899498.8579595,
-    "ast_hash": "1de74a16c99d0758f45a447d5755d743",
+    "mtime": 1792946204.412205,
+    "seen": 1792946407.6047626,
+    "ast_hash": "b90321b0fffb2db24be17c2585d23948",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1792917812.8947167,
-    "seen": 1792919822.7177148,
-    "ast_hash": "296e0f1c0041be34bc6750966c57fe2d",
+    "mtime": 1792946140.8163347,
+    "seen": 1792946407.5942419,
+    "ast_hash": "9d2f0a64c244a4b94aaa34d38ded8acb",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1278,21 +1278,21 @@
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_compose.h": {
-    "mtime": 1792939941.655517,
-    "seen": 1792940352.6367927,
-    "ast_hash": "18787a837169ccfc9226042c40434a92",
+    "mtime": 1792945947.133782,
+    "seen": 1792946407.5601633,
+    "ast_hash": "6e98a6e8861ad4e7bacee54abbcff3eb",
     "semantic_hash": ""
   },
   "adapters/linux-common/src/compose.c": {
-    "mtime": 1792939969.0590453,
-    "seen": 1792940352.6377926,
-    "ast_hash": "ae2ff4e0b19bd230f8f6d51e0af2f176",
+    "mtime": 1792946014.6659286,
+    "seen": 1792946407.5601633,
+    "ast_hash": "b68138caf948beab62f53bc1b07d43b3",
     "semantic_hash": ""
   },
   "adapters/linux-common/tests/test_compose.c": {
-    "mtime": 1792940136.4731324,
-    "seen": 1792940352.6403136,
-    "ast_hash": "c47dd6e59cc221bc16d5113b2e389fa3",
+    "mtime": 1792946014.6664648,
+    "seen": 1792946407.5611682,
+    "ast_hash": "53cba2f72e403fbf250f1d662c1e3b68",
     "semantic_hash": ""
   },
   "adapters/linux-fcitx5/tests/e2e_fcitx5.py": {
@@ -1464,9 +1464,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/TextVNInputController.swift": {
-    "mtime": 1792940049.6570716,
-    "seen": 1792940352.6635711,
-    "ast_hash": "64c65f6339c15c31e7ecd0b52c913c9a",
+    "mtime": 1792946014.6664648,
+    "seen": 1792946407.56812,
+    "ast_hash": "4ce6f276d4d1e4b9239992caf7f8e7e5",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Tests/IMKLibTests/IMKLibTests.swift": {
@@ -1518,9 +1518,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/compose.rs": {
-    "mtime": 1792938274.7037907,
-    "seen": 1792938673.459011,
-    "ast_hash": "30059093439648293c07b5ae268eee1e",
+    "mtime": 1792946014.6674776,
+    "seen": 1792946407.5701075,
+    "ast_hash": "e75a73a7de85d46a16c504b79c1d86ce",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/replay.rs": {
@@ -1608,9 +1608,9 @@
     "semantic_hash": ""
   },
   "installer/windows/tests/test-installer.ps1": {
-    "mtime": 1791766485.4866092,
-    "seen": 1792306932.4776886,
-    "ast_hash": "fab0b1037a296bf499334b9c18f90255",
+    "mtime": 1792946014.6715748,
+    "seen": 1792946407.5811782,
+    "ast_hash": "3f364e77bf0dcdf637b2554e78135d9d",
     "semantic_hash": ""
   },
   "installer/windows/tests/test-portable.ps1": {
@@ -1890,9 +1890,9 @@
     "semantic_hash": ""
   },
   "docs/user-guide.md": {
-    "mtime": 1792917679.4571457,
-    "seen": 1792919822.7461295,
-    "ast_hash": "e2858e40b364dc03ea5c532a004deb3a",
+    "mtime": 1792946060.9177814,
+    "seen": 1792946407.6057606,
+    "ast_hash": "ead3ff07245315ed66160a171dcb85a0",
     "semantic_hash": ""
   },
   "installer/windows/portable/HUONG_DAN_SU_DUNG.txt": {
@@ -2628,9 +2628,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/assist.rs": {
-    "mtime": 1792938432.8452811,
-    "seen": 1792938673.459011,
-    "ast_hash": "349cd91151449ec8aec3f0492cf7ed94",
+    "mtime": 1792946014.6674776,
+    "seen": 1792946407.5701075,
+    "ast_hash": "311d1935e8ff30bcfcd7d5bd483c60e4",
     "semantic_hash": ""
   },
   "dict/src/os_linux.rs": {
@@ -2856,21 +2856,27 @@
     "semantic_hash": ""
   },
   "core/src/post/predict.rs": {
-    "mtime": 1792936161.9289453,
-    "seen": 1792936382.9384384,
-    "ast_hash": "dd58706e81ef954dee3128ea3b231656",
+    "mtime": 1792946014.670545,
+    "seen": 1792946407.5761733,
+    "ast_hash": "99138e2349ef6ea64e3cffc2cb0bdff9",
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1792938274.9238086,
-    "seen": 1792938673.466062,
-    "ast_hash": "c21dee1e824f3d2bc353b3b502698088",
+    "mtime": 1792946020.920342,
+    "seen": 1792946407.5781646,
+    "ast_hash": "dd1cc7dfb0fcff296656d85e613431fb",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
     "mtime": 1792935276.9811556,
     "seen": 1792936382.9589474,
     "ast_hash": "425d160145bc9be6ef4c488b91fecc24",
+    "semantic_hash": ""
+  },
+  "docs/50-assist/P6-TEXT-PREDICTION.md": {
+    "mtime": 1792946139.3975894,
+    "seen": 1792946407.602823,
+    "ast_hash": "bd02d2308522547205c0bbc8b58eb1d3",
     "semantic_hash": ""
   }
 }
