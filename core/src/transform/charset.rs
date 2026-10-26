@@ -293,6 +293,139 @@ pub fn detect(input: &[char]) -> Charset {
     }
 }
 
+/// Byte cp1252/cp1258 của ký tự `c` khi app đã giải mã nhầm UTF-8 theo bảng mã
+/// ANSI (R2-139). Latin-1 (gồm C1 U+0080–U+009F — byte cp1252 không định nghĩa
+/// được Windows giải thành C1) là đồng nhất; thêm 27 ký tự đặc biệt 0x80–0x9F
+/// của cp1252 và 14 ký tự riêng của cp1258 (Windows tiếng Việt: Ă Đ Ơ Ư ă đ ơ ư,
+/// dấu kết hợp, ₫). Hai bảng hợp nhất được vì không ký tự nào ứng HAI byte.
+fn ansi_byte(c: char) -> Option<u8> {
+    let cp = c as u32;
+    if cp <= 0xFF {
+        return Some(cp as u8);
+    }
+    Some(match c {
+        '€' => 0x80,
+        '‚' => 0x82,
+        'ƒ' => 0x83,
+        '„' => 0x84,
+        '…' => 0x85,
+        '†' => 0x86,
+        '‡' => 0x87,
+        'ˆ' => 0x88,
+        '‰' => 0x89,
+        'Š' => 0x8A,
+        '‹' => 0x8B,
+        'Œ' => 0x8C,
+        'Ž' => 0x8E,
+        '‘' => 0x91,
+        '’' => 0x92,
+        '“' => 0x93,
+        '”' => 0x94,
+        '•' => 0x95,
+        '–' => 0x96,
+        '—' => 0x97,
+        '˜' => 0x98,
+        '™' => 0x99,
+        'š' => 0x9A,
+        '›' => 0x9B,
+        'œ' => 0x9C,
+        'ž' => 0x9E,
+        'Ÿ' => 0x9F,
+        'Ă' => 0xC3,
+        '\u{0300}' => 0xCC,
+        'Đ' => 0xD0,
+        '\u{0309}' => 0xD2,
+        'Ơ' => 0xD5,
+        'Ư' => 0xDD,
+        '\u{0303}' => 0xDE,
+        'ă' => 0xE3,
+        '\u{0301}' => 0xEC,
+        'đ' => 0xF0,
+        '\u{0323}' => 0xF2,
+        'ơ' => 0xF5,
+        'ư' => 0xFD,
+        '₫' => 0xFE,
+        _ => return None,
+    })
+}
+
+/// Ký tự hợp lệ trong văn bản tiếng Việt đã khôi phục: chữ Việt, Latin-1, dấu
+/// câu chung (U+2000–U+206F: “ ” – … ‘ ’), ₫ €, và mọi ký tự của bảng cp1252/
+/// cp1258 (vòng đầu của văn bản mã hoá ĐÔI giải ra chính các ký tự này — `œ`,
+/// `Š`, `ƒ`…). Giải ra ký tự ngoài tập này ⇒ đây không phải chữ lạ do UTF-8 của
+/// văn bản Việt ⇒ không sửa (fail-safe).
+fn plausible_repaired(c: char) -> bool {
+    (c as u32) <= 0xFF
+        || ansi_byte(c).is_some()
+        || VIET_CHARS.contains(c)
+        || ('\u{2000}'..='\u{206F}').contains(&c)
+        || matches!(c, '₫' | '€')
+}
+
+/// Một vòng khôi phục UTF-8 bị giải mã nhầm theo cp1252/cp1258. Mỗi ký tự ↔ đúng
+/// một byte nên vị trí khớp 1-1: chuỗi byte giải được UTF-8 đa byte thì thay bằng
+/// ký tự giải ra, còn lại giữ nguyên ký tự gốc (văn bản lẫn chữ đúng + chữ lạ).
+fn repair_mojibake_once(input: &[char]) -> Option<Vec<char>> {
+    let bytes: Vec<Option<u8>> = input.iter().map(|&c| ansi_byte(c)).collect();
+    let mut out = Vec::with_capacity(input.len());
+    let mut viet_sequences = 0usize;
+    let mut i = 0;
+    while i < input.len() {
+        let lead = match bytes[i] {
+            Some(b) if b >= 0xC2 => b,
+            _ => {
+                out.push(input[i]);
+                i += 1;
+                continue;
+            }
+        };
+        let need = match lead {
+            0xC2..=0xDF => 1,
+            0xE0..=0xEF => 2,
+            0xF0..=0xF4 => 3,
+            _ => 0,
+        };
+        let end = i + need;
+        let seq: Option<Vec<u8>> = if need == 0 || end >= input.len() {
+            None
+        } else {
+            bytes[i..=end]
+                .iter()
+                .copied()
+                .collect::<Option<Vec<u8>>>()
+                .filter(|s| s[1..].iter().all(|b| (0x80..=0xBF).contains(b)))
+        };
+        match seq.as_deref().map(std::str::from_utf8) {
+            Some(Ok(decoded)) => {
+                let ch = decoded.chars().next()?;
+                if !plausible_repaired(ch) {
+                    return None;
+                }
+                if VIET_CHARS.contains(ch) {
+                    viet_sequences += 1;
+                }
+                out.push(ch);
+                i += need + 1;
+            }
+            _ => {
+                out.push(input[i]);
+                i += 1;
+            }
+        }
+    }
+    (viet_sequences > 0).then_some(out)
+}
+
+/// R2-139 (chủ repo: "mở file lên nhưng chữ bị biến thành ký tự lạ") — khôi phục
+/// văn bản tiếng Việt UTF-8 bị app giải mã nhầm theo bảng mã ANSI: cp1252
+/// (`Tiáº¿ng Viá»‡t`) hoặc cp1258 trên Windows tiếng Việt; mã hoá đôi thì thêm một
+/// vòng. `None` = không phải loại chữ lạ này (không có chuỗi UTF-8 nào giải ra chữ
+/// Việt, hoặc giải ra ký tự ngoài văn bản Việt) ⇒ caller không đụng văn bản.
+pub fn repair_mojibake(input: &[char]) -> Option<Vec<char>> {
+    let first = repair_mojibake_once(input)?;
+    Some(repair_mojibake_once(&first).unwrap_or(first))
+}
+
 /// Chuyển văn bản từ bảng mã nguồn `from` sang bảng mã đích `to` kèm biến
 /// đổi kiểu chữ `case`, pivot qua Unicode dựng sẵn: decode `from` → biến đổi
 /// chữ → `encode` định mức bảng đích. Total function và deterministic (ký tự

@@ -565,6 +565,24 @@ impl EngineSession {
         let _ = ime_reset(self.instance);
     }
 
+    /// R2-139: chuyển đổi vùng bôi đen theo kiểu gõ + bảng mã đang dùng
+    /// (`Engine::convert_selection`). `None` = không đổi gì.
+    pub fn convert_selection(&self, text: &str) -> Option<String> {
+        // VNI/Unicode tổ hợp: 1 chữ Việt → 2 ký tự (mỗi ký tự ≤ 4 byte UTF-8).
+        let mut buf = vec![0u8; text.len() * 2 + 64];
+        let n = textvn_ffi::ime_convert_selection(
+            self.instance,
+            text.as_ptr().cast(),
+            text.len(),
+            buf.as_mut_ptr().cast(),
+            buf.len(),
+        );
+        let n = usize::try_from(n)
+            .ok()
+            .filter(|&n| n > 0 && n < buf.len())?;
+        String::from_utf8(buf[..n].to_vec()).ok()
+    }
+
     /// R2-134: phần chữ Tab SẼ nối thêm (ghost text) — không đổi trạng thái engine.
     pub fn peek_completion(&self) -> Option<String> {
         let mut buf = [0u8; 512];

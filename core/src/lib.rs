@@ -19,7 +19,9 @@ pub use method::Method;
 pub use post::emoji::Emoji;
 pub use post::r#macro::{MacroDef, MacroTrigger, MacroWhen};
 pub use strategy::{ActionKind, Strategy};
-pub use transform::{detect, transcode, Charset, DiacriticStyle, OutputCharset, TextCase};
+pub use transform::{
+    detect, repair_mojibake, transcode, Charset, DiacriticStyle, OutputCharset, TextCase,
+};
 
 /// `ime_result_v1.action` — khớp hằng số P0-2 §1.
 pub const ACTION_PASS: u32 = 0;
@@ -220,6 +222,45 @@ struct PredictCycle {
     continuation: bool,
 }
 
+/// Gõ `chunk` + một dấu cách qua engine mới, mô phỏng document (Replace/Restore
+/// xoá rồi chèn, Commit chèn, Pass chèn chính ký tự) rồi bỏ dấu cách cuối.
+fn retype_chunk(opts: &EngineOptions, chunk: &[char]) -> Vec<char> {
+    let mut engine = Engine::new(opts.clone());
+    let mut doc: Vec<char> = Vec::with_capacity(chunk.len() + 1);
+    for &c in chunk.iter().chain(std::iter::once(&' ')) {
+        let key = if c == ' ' {
+            KeyEvent {
+                vk: keymap::vk::SPACE,
+                ch: ' ' as u32,
+                key_down: true,
+                ..KeyEvent::default()
+            }
+        } else {
+            KeyEvent::char_down(c)
+        };
+        match engine.key(&key).action {
+            Action::Pass => doc.push(c),
+            Action::Replace {
+                delete_count,
+                insert,
+            }
+            | Action::Restore {
+                delete_count,
+                insert,
+            } => {
+                let keep = doc.len().saturating_sub(usize::from(delete_count));
+                doc.truncate(keep);
+                doc.extend(insert);
+            }
+            Action::Commit { insert } => doc.extend(insert),
+        }
+    }
+    if doc.last() == Some(&' ') {
+        doc.pop();
+    }
+    doc
+}
+
 /// Thay đổi đuôi document mà engine ghi nhận (P4-2a · ADR-013).
 ///
 /// `recent` (glyph) và `sentence` (Unicode) là **hai buffer tách bạch**: app làm việc
@@ -263,6 +304,71 @@ impl Engine {
 
     pub fn options(&self) -> &EngineOptions {
         &self.opts
+    }
+
+    /// OP-007b · R2-139 (chủ repo: "bôi đen văn bản ở bảng mã khác chuyển về Telex
+    /// hoặc mode đang chạy", "mở file lên nhưng chữ bị biến thành ký tự lạ") —
+    /// chuyển đổi THÔNG MINH một vùng bôi đen, theo thứ tự:
+    ///
+    /// 1. chữ lạ do app đọc nhầm UTF-8 theo cp1252/cp1258 → khôi phục
+    ///    (`repair_mojibake`);
+    /// 2. bảng mã cũ (TCVN3/ABC, VNI-Windows, Unicode tổ hợp — `detect`) → giải mã;
+    /// 3. kết quả xuất sang **bảng mã TextVN đang dùng** (`output_charset`);
+    /// 4. không có gì ở 1–3 ⇒ các từ **thuần ASCII** được gõ lại theo kiểu gõ
+    ///    đang dùng (`tooi ddi hocj` → `tôi đi học` — gõ nhầm chế độ E); từ đã có
+    ///    dấu giữ nguyên.
+    ///
+    /// `None` = không đổi gì (caller không ghi document). Không đổi trạng thái
+    /// engine thật (gõ lại chạy trên engine riêng).
+    pub fn convert_selection(&self, text: &[char]) -> Option<Vec<char>> {
+        let unicode = repair_mojibake(text).or_else(|| match detect(text) {
+            Charset::UnicodePrecomposed => None,
+            from => Some(transcode(
+                text,
+                from,
+                Charset::UnicodePrecomposed,
+                TextCase::AsIs,
+            )),
+        });
+        let encoded = self.emit(unicode.as_deref().unwrap_or(text));
+        if encoded != text {
+            return Some(encoded);
+        }
+        let retyped = self.retype_ascii_words(text);
+        (retyped != text).then_some(retyped)
+    }
+
+    /// Gõ lại từng cụm thuần ASCII (ngăn bởi khoảng trắng) qua một engine mới cùng
+    /// kiểu gõ/bảng mã/kiểu dấu — kết quả y như người dùng gõ cụm đó ở chế độ V.
+    /// Tắt gõ tắt/emoji/tự viết hoa/hoàn tất bằng Space: chỉ chuyển phím, không
+    /// thêm chữ.
+    fn retype_ascii_words(&self, text: &[char]) -> Vec<char> {
+        let mut opts = self.opts.clone();
+        opts.enabled = true;
+        opts.macros.clear();
+        opts.emoji.clear();
+        opts.auto_capitalize = false;
+        opts.suggest_space_complete = false;
+        let mut out = Vec::with_capacity(text.len());
+        let mut i = 0;
+        while i < text.len() {
+            if text[i].is_whitespace() {
+                out.push(text[i]);
+                i += 1;
+                continue;
+            }
+            let start = i;
+            while i < text.len() && !text[i].is_whitespace() {
+                i += 1;
+            }
+            let chunk = &text[start..i];
+            if chunk.iter().all(|c| c.is_ascii_graphic()) {
+                out.extend(retype_chunk(&opts, chunk));
+            } else {
+                out.extend_from_slice(chunk);
+            }
+        }
+        out
     }
 
     pub fn set_context(&mut self, ctx: Context) {

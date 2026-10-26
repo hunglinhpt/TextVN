@@ -201,6 +201,11 @@ int32_t      ime_reset_with_tail(ime_instance *inst, const char *utf8, size_t le
 /* P6-11 · R2-134: ghost text — phần chữ Tab SẼ nối thêm sau con trỏ (UTF-8 + NUL,
  * tối đa cap byte). Trả số byte (0 = không có gợi ý); không đổi trạng thái engine. */
 int32_t      ime_peek_completion(const ime_instance *inst, char *out, size_t cap);
+/* OP-007b · R2-139: chuyển đổi vùng bôi đen (chữ lạ do đọc nhầm UTF-8, bảng mã cũ →
+ * bảng mã đang dùng, chữ ASCII gõ nhầm chế độ E → gõ lại theo kiểu gõ). UTF-8 vào/ra
+ * (+ NUL, tối đa cap byte). Trả số byte; 0 = không đổi gì. */
+int32_t      ime_convert_selection(const ime_instance *inst, const char *text_utf8, size_t len,
+                                   char *out, size_t cap);
 int32_t      ime_reload_config(ime_instance *inst, const uint8_t *cfg, size_t len);
 int32_t      ime_suggest(ime_instance *inst, const uint32_t *word, uint32_t word_len,
                          ime_suggest_v1 *out);          /* trả IME_ERR_INTERNAL nếu feature tắt */

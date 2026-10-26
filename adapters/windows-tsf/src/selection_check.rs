@@ -501,11 +501,21 @@ impl TranscodeSession {
     fn run(&self, ec: u32) -> bool {
         unsafe {
             let Some(sel) = selection_range(&self.ctx, ec) else {
+                crate::trace::event(
+                    self.shared.tid,
+                    format_args!("transcode skip: no selection"),
+                );
                 return false;
             };
             match sel.IsEmpty(ec) {
                 Ok(empty) if !empty.as_bool() => {}
-                _ => return false,
+                _ => {
+                    crate::trace::event(
+                        self.shared.tid,
+                        format_args!("transcode skip: selection empty"),
+                    );
+                    return false;
+                }
             }
             // Đọc vùng chọn: chừa 2 slot để phát hiện vùng DÀI HƠN trần.
             let cap = MAX_TRANSCODE_CHARS + 2;
@@ -525,21 +535,18 @@ impl TranscodeSession {
             let Some(text) = String::from_utf16(&buf[..n]).ok() else {
                 return false;
             };
-            let chars: Vec<char> = text.chars().collect();
-            let from = textvn_ffi::detect(&chars);
-            if from == textvn_ffi::Charset::UnicodePrecomposed {
-                // Văn bản đã là Unicode dựng sẵn (hoặc không chắc) ⇒ không đụng.
-                return false;
-            }
-            let converted: Vec<char> = textvn_ffi::transcode(
-                &chars,
-                from,
-                textvn_ffi::Charset::UnicodePrecomposed,
-                textvn_ffi::TextCase::AsIs,
-            );
-            if converted == chars {
+            // R2-139: chuyển đổi THÔNG MINH theo kiểu gõ + bảng mã đang dùng —
+            // chữ lạ do đọc nhầm UTF-8, bảng mã cũ → bảng mã đang dùng, từ ASCII gõ
+            // nhầm chế độ E → gõ lại (logic duy nhất trong core, dùng chung 3 OS).
+            let converted = self
+                .shared
+                .thread
+                .try_borrow()
+                .ok()
+                .and_then(|thread| thread.engine.convert_selection(&text));
+            let Some(converted) = converted.filter(|c| *c != text) else {
                 return false; // không đổi gì ⇒ không ghi document
-            }
+            };
             // Đọc-lại NGAY TRONG lock trước khi ghi — chống TOCTOU.
             let mut recheck = vec![0u16; cap];
             let mut re_fetched = 0u32;
@@ -551,8 +558,7 @@ impl TranscodeSession {
             {
                 return false;
             }
-            let out: String = converted.into_iter().collect();
-            let wide: Vec<u16> = out.encode_utf16().collect();
+            let wide: Vec<u16> = converted.encode_utf16().collect();
             if sel.SetText(ec, 0, &wide).is_err() {
                 return false;
             }

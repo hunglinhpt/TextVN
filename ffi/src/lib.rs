@@ -695,6 +695,50 @@ pub extern "C" fn ime_peek_completion(
     bytes.len() as i32
 }
 
+/// OP-007b · R2-139: chuyển đổi vùng bôi đen theo kiểu gõ + bảng mã của instance
+/// (`Engine::convert_selection` — chữ lạ do đọc nhầm UTF-8, bảng mã cũ → bảng mã
+/// đang dùng, từ ASCII gõ nhầm chế độ E → gõ lại). Vào/ra UTF-8; ghi kèm NUL vào
+/// `out` (`cap` byte). Trả số byte đã ghi; 0 = không đổi gì / không vừa `cap`;
+/// lỗi caller = `IME_ERR_*`. Không đổi trạng thái engine, không log nội dung (S2).
+#[no_mangle]
+pub extern "C" fn ime_convert_selection(
+    inst: *const ime_instance,
+    text_utf8: *const c_char,
+    len: usize,
+    out: *mut c_char,
+    cap: usize,
+) -> i32 {
+    if inst.is_null() || text_utf8.is_null() || out.is_null() || cap == 0 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &*inst };
+    // SAFETY: caller cấp `len` byte đọc được tại `text_utf8`, `cap` byte ghi được tại `out`.
+    let input = unsafe { std::slice::from_raw_parts(text_utf8.cast::<u8>(), len) };
+    let buf = unsafe { std::slice::from_raw_parts_mut(out.cast::<u8>(), cap) };
+    buf[0] = 0;
+    let Ok(text) = std::str::from_utf8(input) else {
+        return 0;
+    };
+    let converted = catch_unwind(AssertUnwindSafe(|| {
+        let chars: Vec<char> = text.chars().collect();
+        inst.engine
+            .convert_selection(&chars)
+            .map(|v| v.into_iter().collect::<String>())
+    }))
+    .ok()
+    .flatten();
+    let Some(converted) = converted else {
+        return 0;
+    };
+    let bytes = converted.as_bytes();
+    if bytes.len() + 1 > cap {
+        return 0;
+    }
+    buf[..bytes.len()].copy_from_slice(bytes);
+    buf[bytes.len()] = 0;
+    bytes.len() as i32
+}
+
 /// Config mới không hợp lệ → **giữ config đang chạy** + `IME_ERR_CONFIG`
 /// (P0-3 §1.3 "sai schema → giữ config cũ"; WIN-053).
 #[no_mangle]

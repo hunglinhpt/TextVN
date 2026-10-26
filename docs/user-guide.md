@@ -283,7 +283,7 @@ Bộ tiện ích cho công việc hằng ngày — chạy **trên máy bạn**, 
 | Cụm từ hành chính | gõ sai các cụm quen thuộc | tự sửa: "bổ xung"→"bổ sung", "xử dụng"→"sử dụng", "kiểm xoát"→"kiểm soát", "chính sác"→"chính xác", "sát nhập"→"sáp nhập", "giành thời gian"→"dành thời gian"… |
 | Khoảng trắng trước % | `đạt 100 %` | tự sửa thành `100%` |
 | Identifier cho coder | `useState`, `onPress`, `getElementById`… | không bị bỏ dấu giữa từ; thuật ngữ tech/business (KPI, EBITDA, margin, cargo…) tự khôi phục khi gặp dấu cách; Tab hoàn tất theo tiền tố (`ebit`+Tab → `EBITDA`) |
-| **Chuyển mã văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (Windows) | tự nhận diện font cũ **TCVN3 (.VnTime)** / **VNI-Windows** / **Unicode tổ hợp** và chuyển về Unicode dựng sẵn; undo bằng Ctrl+Z của ứng dụng |
+| **Chuyển đổi văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (Windows) | tự nhận ra và sửa: **chữ lạ** khi mở file sai bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), **bảng mã cũ** TCVN3/ABC (.VnTime) · VNI-Windows · Unicode tổ hợp → **bảng mã TextVN đang dùng**, và **chữ gõ nhầm chế độ E** (`tooi ddi hocj` → `tôi đi học`, theo kiểu gõ đang dùng — từ đã có dấu giữ nguyên). Chạy cả ở Notepad++ và ô nhập WinForms/Delphi; undo bằng Ctrl+Z của ứng dụng |
 
 Chuyển mã chỉ ghi khi chắc chắn: văn bản đã là Unicode, hoặc không đủ tín hiệu nhận diện,
 thì **không đụng gì** (thà bỏ qua còn hơn phá văn bản).

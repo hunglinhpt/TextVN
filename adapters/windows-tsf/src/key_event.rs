@@ -617,7 +617,21 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     if crate::assist::is_transcode_chord(vk, mods) {
         if let Some(ctx) = ctx {
             end_composition(shared, Some(ctx));
-            if crate::selection_check::request_transcode(shared, ctx) {
+            // R2-139: app CUAS (Notepad++, ô EDIT/WinForms/Delphi) — text store
+            // không chứa vùng chọn ⇒ đọc/thay thẳng qua control.
+            if crate::cuas::is_transitory(ctx) {
+                let handled = crate::cuas::schedule_selection_convert(shared.tid, ctx, |text| {
+                    shared
+                        .thread
+                        .try_borrow()
+                        .ok()
+                        .and_then(|thread| thread.engine.convert_selection(text))
+                });
+                if handled {
+                    shared.reset_engine();
+                    return true;
+                }
+            } else if crate::selection_check::request_transcode(shared, ctx) {
                 return true;
             }
         }

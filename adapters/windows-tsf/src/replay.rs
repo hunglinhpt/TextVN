@@ -55,7 +55,7 @@ enum Pending {
         vk: usize,
         lparam: isize,
     },
-    TailFix(crate::cuas::TailFix),
+    TailFix(crate::cuas::Job),
 }
 
 /// Phím đã được CUAS giữ ở `OnTestKeyDown`. Capture target/lParam ngay trong
@@ -77,7 +77,7 @@ thread_local! {
     static WINDOW: Cell<isize> = const { Cell::new(0) };
     static QUEUE: RefCell<VecDeque<Pending>> = const { RefCell::new(VecDeque::new()) };
     /// Việc sửa câu đang chờ nhả phím bổ trợ + số lần đã thử.
-    static WAITING: RefCell<Option<(crate::cuas::TailFix, u32)>> = const { RefCell::new(None) };
+    static WAITING: RefCell<Option<(crate::cuas::Job, u32)>> = const { RefCell::new(None) };
 }
 
 /// Phím bổ trợ đang giữ theo trạng thái hàng đợi của thread (GetKeyState).
@@ -91,7 +91,7 @@ fn modifiers_down() -> bool {
 }
 
 /// Giao việc sửa câu khi không còn phím bổ trợ; còn giữ thì hẹn timer.
-fn run_or_wait(hwnd: HWND, job: crate::cuas::TailFix, tries: u32) {
+fn run_or_wait(hwnd: HWND, job: crate::cuas::Job, tries: u32) {
     if !modifiers_down() {
         crate::cuas::run(&job);
         return;
@@ -168,7 +168,7 @@ pub fn schedule(event: DeferredReplay) -> bool {
 
 /// R2-132: hẹn sửa đuôi câu ở app CUAS — đi vòng `HOPS` lượt như phím replay để
 /// app đã nhận xong kết quả composition trước khi đọc document feed.
-pub fn schedule_tail_fix(job: crate::cuas::TailFix) -> bool {
+pub fn schedule_tail_fix(job: crate::cuas::Job) -> bool {
     let Some(wnd) = window() else {
         return false;
     };

@@ -9,7 +9,8 @@
 #   DevDir must also hold textvn-tsf-x86.dll = the i686 build of textvn-win-tsf).
 # Cases: live popup, click "Sua tat ca", Alt+1, Tab prediction, Ctrl+Space fixes the whole
 #   sentence, fix then predict, Alt+Space never taken by TextVN (R2-136: window menu opens),
-#   Ctrl+Shift+G interactive popup keeps Tab, ghost text before Tab, plain typing.
+#   Ctrl+Shift+G interactive popup keeps Tab, Ctrl+Shift+F9 retype (typed in E) + garbled UTF-8
+#   repair (R2-139), ghost text before Tab, plain typing.
 # Registers the dev TSF DLL as a TEMPORARY HKCU override and always restores the Program Files
 # registration in finally (needs the installed build at -ProdCli). Takes the keyboard and mouse
 # for ~4 minutes (SendInput). Edge runs with its own --user-data-dir under %TEMP% (the user's
@@ -130,6 +131,8 @@ public static class D {
         var sb = new StringBuilder(n + 1); SendMessageW(edit, 0x000D, (IntPtr)(n + 1), sb); return sb.ToString();
     }
     public static void WmClear(IntPtr edit) { SendMessageW(edit, 0x000C, IntPtr.Zero, new StringBuilder("")); }
+    public static void WmSet(IntPtr edit, string text) { SendMessageW(edit, 0x000C, IntPtr.Zero, new StringBuilder(text)); }
+    public static void WmSelectAll(IntPtr edit) { SendMessageW(edit, 0x00B1, IntPtr.Zero, (IntPtr)(-1)); }
     public static IntPtr Overlay() {
         IntPtr h = IntPtr.Zero;
         while ((h = FindWindowExW(IntPtr.Zero, h, "TextVNAssistOverlay", null)) != IntPtr.Zero) { if (IsWindowVisible(h)) return h; }
@@ -203,7 +206,7 @@ function Start-Notepad {
         if ($edit -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 250 }
     }
     $e = $edit
-    return @{ Name = 'notepad'; Win = $main; Clear = { [D]::WmClear($e); Start-Sleep -Milliseconds 150 }.GetNewClosure(); Text = { [D]::WmText($e) }.GetNewClosure() }
+    return @{ Name = 'notepad'; Win = $main; Clear = { [D]::WmClear($e); Start-Sleep -Milliseconds 150 }.GetNewClosure(); Text = { [D]::WmText($e) }.GetNewClosure(); Set = { param($t) [D]::WmSet($e, $t) }.GetNewClosure(); Select = { [D]::WmSelectAll($e) }.GetNewClosure() }
 }
 function Start-Edge {
     $exe = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
@@ -262,7 +265,7 @@ function Start-Probe([string]$mode) {
     for ($i = 0; $i -lt 30 -and $main -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 300; $pr.Refresh(); $main = $pr.MainWindowHandle }
     $ed = [D]::FindWindowExW($main, [IntPtr]::Zero, $cls, $null)
     $e = $ed
-    return @{ Name = ('x86' + $mode); Win = $main; Clear = { [D]::WmClear($e); Start-Sleep -Milliseconds 150 }.GetNewClosure(); Text = { [D]::WmText($e) }.GetNewClosure() }
+    return @{ Name = ('x86' + $mode); Win = $main; Clear = { [D]::WmClear($e); Start-Sleep -Milliseconds 150 }.GetNewClosure(); Text = { [D]::WmText($e) }.GetNewClosure(); Set = { param($t) [D]::WmSet($e, $t) }.GetNewClosure(); Select = { [D]::WmSelectAll($e) }.GetNewClosure() }
 }
 function Start-Npp {
     $exe = 'C:\Program Files\Notepad++\notepad++.exe'
@@ -274,7 +277,7 @@ function Start-Npp {
     for ($i = 0; $i -lt 20 -and $sci -eq [IntPtr]::Zero; $i++) { $sci = [D]::FindVisibleDescendant($main, 'Scintilla'); if ($sci -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 250 } }
     Write-Host ("npp scintilla=" + $sci)
     $s = $sci
-    return @{ Name = 'npp'; Win = $main; Clear = { [D]::Chord(0x11, 0x41); [D]::Tap(0x2E); Start-Sleep -Milliseconds 200 }.GetNewClosure(); Text = { [D]::WmText($s) }.GetNewClosure() }
+    return @{ Name = 'npp'; Win = $main; Clear = { [D]::Chord(0x11, 0x41); [D]::Tap(0x2E); Start-Sleep -Milliseconds 200 }.GetNewClosure(); Text = { [D]::WmText($s) }.GetNewClosure(); Select = { [D]::WmSelectAll($s) }.GetNewClosure() }
 }
 
 function Run-Case($app, [string]$name, [scriptblock]$body) {
@@ -378,6 +381,30 @@ try {
             $w = U 't{u}00f4i t{u}00f4i {u}0111i h{u}1ecdc '
             $r = WaitText $app $w
             Report $n 'Ctrl+Shift+G popup: Tab stays in popup (R2-122)' ($ov -and $ov2 -and $r[0]) $w $r[1] "overlay=$ov afterTab=$ov2"
+        }
+        Run-Case $app 'convert typed in E' {
+            # R2-139: forgot to switch to V -> raw Telex; select all + Ctrl+Shift+F9 -> Vietnamese.
+            Set-ViEnabled $false $app.Win | Out-Null
+            & $app.Clear; [D]::Type('>')
+            [D]::Type('tooi ddi hocj'); Start-Sleep -Milliseconds 300
+            Set-ViEnabled $true $app.Win | Out-Null
+            if ($app.Select) { & $app.Select } else { [D]::Chord(0x11, 0x41) }; Start-Sleep -Milliseconds 200
+            [D]::Down(0x11); [D]::Down(0x10); [D]::Tap(0x78); [D]::Up(0x10); [D]::Up(0x11)
+            $w = U 't{u}00f4i {u}0111i h{u}1ecdc'
+            $r = WaitText $app $w
+            Report $n 'Ctrl+Shift+F9 retypes text typed in E mode (R2-139)' $r[0] $w $r[1] ''
+        }
+        if ($app.Set) {
+            Run-Case $app 'convert mojibake' {
+                # R2-139: UTF-8 file opened as ANSI (cp1252) -> garbled; select all + Ctrl+Shift+F9.
+                $good = U 'Ti{u}1ebfng Vi{u}1ec7t chu{u}1ea9n'
+                $bad = [System.Text.Encoding]::GetEncoding(1252).GetString([System.Text.Encoding]::UTF8.GetBytes($good))
+                & $app.Set $bad; Start-Sleep -Milliseconds 300
+                if ($app.Select) { & $app.Select } else { [D]::Chord(0x11, 0x41) }; Start-Sleep -Milliseconds 200
+                [D]::Down(0x11); [D]::Down(0x10); [D]::Tap(0x78); [D]::Up(0x10); [D]::Up(0x11)
+                $r = WaitText $app $good
+                Report $n 'Ctrl+Shift+F9 repairs garbled UTF-8 (R2-139)' $r[0] $good $r[1] ''
+            }
         }
         Run-Case $app 'ghost text' {
             [D]::Type('phats trieenr'); Start-Sleep -Milliseconds 400
