@@ -157,6 +157,14 @@ static APP_INSTANCE: std::sync::OnceLock<TrayApp> = std::sync::OnceLock::new();
 
 /// R2-138: DLL bộ gõ cạnh TextVN.exe được ghi SAU lần khởi động máy gần nhất
 /// (nâng cấp trong phiên này) — không đọc được thì coi như không (không nhắc).
+#[cfg(not(windows))]
+fn installed_since_boot() -> bool {
+    false
+}
+
+/// R2-138: DLL bộ gõ cạnh TextVN.exe được ghi SAU lần khởi động máy gần nhất
+/// (nâng cấp trong phiên này) — không đọc được thì coi như không (không nhắc).
+#[cfg(windows)]
 fn installed_since_boot() -> bool {
     let Some(dll) = std::env::current_exe()
         .ok()
