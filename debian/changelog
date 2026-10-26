@@ -1,3 +1,13 @@
+textvn (0.2.47-0ppa1) noble; urgency=medium
+
+  * One assistant hotkey (Ctrl+Space or Alt+Space) fixes every user-fixable
+    issue of the sentence first (spelling suggestions included) and predicts
+    like Tab when the sentence is clean; the key reaches the app otherwise.
+  * Picking a suggestion applies spelling suggestions too.
+  * The text Tab would insert is previewed on the IBus/Fcitx5 auxiliary line.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Mon, 26 Oct 2026 12:00:00 +0000
+
 textvn (0.2.46-0ppa1) noble; urgency=medium
 
   * Bilingual text prediction (opt-in suggest.enabled): Tab/Ctrl+Space

@@ -7,6 +7,65 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.47] — 2026-10-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Added
+- **Chữ mờ gợi ý sẵn** (R2-134, khi bật dự đoán `suggest.enabled`): Windows hiện
+  phần chữ Tab sẽ chèn bằng **chữ xám ngay sau con trỏ** (kiểu Grammarly/Copilot)
+  — chỉ là hình vẽ, không bao giờ lọt vào văn bản; macOS hiện ô `⇥ …` trong bảng
+  ứng viên, Linux hiện dòng phụ `⇥ …` của bảng IBus/Fcitx5.
+- **Phím tắt trợ lý sửa hết rồi dự đoán** (R2-131/R2-133): Windows/Linux
+  **Ctrl + Space hoặc Alt + Space**, macOS **Option + Space** — câu có lỗi thì
+  sửa **hết** một lần (kể cả lỗi chính tả có gợi ý, hoàn tác Ctrl+Z 5 giây), câu
+  đã đúng thì dự đoán như Tab, bấm tiếp dự đoán theo câu đã sửa; không có gì để
+  làm thì phím tới ứng dụng như thường (Alt + Space vẫn mở menu cửa sổ, Option +
+  Space vẫn gõ dấu cách cứng). Windows: **Ctrl + Shift + G** mở panel chọn từng lỗi.
+
+### Fixed
+- **Nút "Sửa tất cả" và chọn gợi ý sửa được lỗi chính tả** (R2-131): trước đây lỗi
+  chính tả (loại chỉ-gợi-ý) bị bỏ qua cả khi bạn chủ động bấm sửa — nút không
+  hiện/không làm gì, Enter/Alt+1…3/click trên gợi ý bị nuốt. Chế độ Tự sửa lỗi
+  vẫn chỉ tự sửa lỗi chắc chắn.
+- **Alt + 1…3 áp gợi ý trên Windows** (R2-133): Windows không đưa tổ hợp Alt vào
+  bộ gõ theo đường thường nên phím không bao giờ tới TextVN — nay đăng ký phím
+  dành riêng; khi không có popup, Alt + 1…3 vẫn tới ứng dụng.
+- **Notepad++ và ứng dụng Win32 cũ (IMM32)** (R2-132): popup hiện nhưng mọi kiểu
+  sửa (nút, Enter, Alt + 1…3, phím tắt) không làm gì vì ứng dụng không cho bộ gõ
+  sửa chữ đã gõ — nay TextVN đọc lại dòng hiện tại để xác minh rồi sửa bằng phím;
+  chờ bạn nhả Ctrl/Alt để không thành Ctrl+Backspace (xoá cả từ).
+- **VS Code và ứng dụng Electron** (R2-135): phím tắt bấm khi đang gõ dở từ
+  từng làm hỏng chữ (editor vẽ lại vùng nhập bất đồng bộ) — nay chốt từ rồi sửa
+  sau một nhịp ngắn; Alt + Space khi không có gì để sửa vẫn mở menu cửa sổ ở
+  cửa sổ khung tự vẽ (VS Code). VS Code không vẽ chữ mờ (đã có gợi ý riêng),
+  Tab dự đoán vẫn hoạt động.
+
+Kiểm chứng E2E trên ứng dụng thật: Notepad Win11, Edge (engine của Teams/WebView2),
+Notepad++ và VS Code (Electron) 44/44 (`tools/win/e2e-assist-apps.ps1`) +
+Notepad/Word/Excel 28/28. Chi tiết: `docs/50-assist/P6-TEXT-PREDICTION.md` §2b.
+
+**English** — 0.2.47: ghost text — with prediction enabled, Windows draws the
+text Tab would insert in grey right after the caret (drawn only, never typed
+into the document); macOS shows a `⇥ …` candidate, Linux a `⇥ …` auxiliary line
+(R2-134). One assistant hotkey fixes then predicts: Ctrl+Space or Alt+Space on
+Windows/Linux, Option+Space on macOS — fixes every user-fixable issue of the
+sentence at once (spelling suggestions included, Ctrl+Z undo for 5 s), predicts
+like Tab when the sentence is clean, and passes the key to the app when there is
+nothing to do (Alt+Space still opens the window menu); Ctrl+Shift+G opens the
+pick-and-fix panel on Windows (R2-131/R2-133). Fixed: "Fix all" and picking a
+suggestion now apply spelling suggestions (R2-131); Alt+1..3 now applies a
+suggestion on Windows via TSF preserved keys and is handed back to the app when
+no panel is shown (R2-133); Notepad++ and other IMM32 apps can now be fixed —
+the current line is verified through IMR_DOCUMENTFEED and the fix is typed as
+keys after modifiers are released (R2-132); VS Code/Electron: the hotkey pressed
+mid-word no longer garbles text (the fix runs a beat later, after the editor
+re-renders its input), and Alt+Space with nothing to fix still opens the window
+menu of frameless windows; no ghost text in VS Code (it has its own) while Tab
+prediction works (R2-135). Real-app E2E: Notepad, Edge (Teams/WebView2 engine),
+Notepad++ and VS Code (Electron) 44/44; Notepad/Word/Excel 28/28.
+
 ## [0.2.46] — 2026-10-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -1905,7 +1964,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...HEAD
+[0.2.47]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...v0.2.47
 [0.2.46]: https://github.com/hunglinhpt/TextVN/compare/v0.2.45...v0.2.46
 [0.2.45]: https://github.com/hunglinhpt/TextVN/compare/v0.2.44...v0.2.45
 [0.2.44]: https://github.com/hunglinhpt/TextVN/compare/v0.2.43...v0.2.44

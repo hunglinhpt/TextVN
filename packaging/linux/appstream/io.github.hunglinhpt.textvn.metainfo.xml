@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.47" date="2026-10-26">
+      <description>
+        <p>One assistant hotkey that fixes then predicts: Ctrl+Space or Alt+Space fixes every user-fixable issue of the sentence at once (spelling suggestions included, Ctrl+Z undo), predicts the next words like Tab when the sentence is clean, and passes the key to the application when there is nothing to do. Picking a suggestion now applies spelling suggestions too. While typing, the text Tab would insert is previewed on the IBus/Fcitx5 auxiliary line (never inserted into the document until accepted).</p>
+      </description>
+    </release>
     <release version="0.2.46" date="2026-10-26">
       <description>
         <p>Bilingual text prediction (opt-in): Tab or Ctrl+Space completes words and compounds and predicts the next phrase from context (Kính gửi → quý khách hàng, Thank you → very much), with correct casing, proper nouns and tone-mark style. The grammar assistant is now live: suggestions appear as soon as the sentence has an error and disappear when it is fixed, without taking over typing keys; on IBus/Fcitx5 a suggestion is applied with Alt+1..3 (bare digits type digits again) and Esc closes the list. Ctrl+Space no longer desyncs the word being typed when the key reaches the application.</p>

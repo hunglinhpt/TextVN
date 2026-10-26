@@ -1,5 +1,15 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.47 — phím tắt sửa hết + dự đoán, Alt+1..3 Windows, Notepad++, chữ mờ gợi ý (phản hồi chủ repo)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo sau 0.2.46 (`docs/50-assist/P6-TEXT-PREDICTION.md` §2b): **R2-131** kế hoạch sửa chủ động dùng chung 3 OS (`explicit_fix_text`, FFI `ime_assist_plan_sentence_fix_ex`) — nút "Sửa tất cả"/chọn gợi ý sửa được lỗi chính tả; phím tắt trợ lý sửa hết TRƯỚC rồi mới dự đoán, engine nạp câu đã sửa (`ime_reset_with_tail`) · **R2-132** app IMM32/CUAS (Notepad++) sửa qua `IMR_DOCUMENTFEED` + `VK_BACK`/`WM_CHAR`, chờ nhả phím bổ trợ · **R2-133** Alt+Space / Alt+1..3 qua TSF preserved key, phím rảnh trả lại app (`SC_KEYMENU` / `WM_SYSKEYDOWN`); macOS Option+Space, Linux Ctrl/Alt+Space · **R2-134** chữ mờ gợi ý (`Engine::peek_completion`, FFI `ime_peek_completion`, Windows `ghost.rs`; macOS ô bảng ứng viên, Linux dòng phụ) · **R2-135** VS Code/Electron: phím tắt khi đang gõ dở từ hẹn sửa 120 ms (Monaco vẽ lại textarea bất đồng bộ), Alt+Space rảnh ở cửa sổ không `WS_SYSMENU` tự mở menu hệ thống · Ctrl+Shift+G mở popup chọn-sửa |
+| Đo | `cargo test` win-tsf 97 · ffi 40 · core (text_prediction 18) · cli · clippy -D warnings 0 · C `test_compose` (`test_assist_hotkey_explicit_preview`) + Swift (Option+Space, nhánh explicit) trên CI · preflight **23/23** · **E2E thật**: `tools/win/e2e-assist-apps.ps1` **44/44** (Notepad 11, Edge 11, Notepad++ 11, VS Code/Electron 11) + `tools/win/e2e-assist-p6.ps1` **28/28** (Notepad/Word/Excel) — trước sửa 12/21 |
+| CI commit code | `a82a4902` 7/7 · `db1c0f3b` 7/7 · `5e8092d9` 7/7 (ci-linux C/IBus/Fcitx5 e2e + ci-macos Swift xanh cho phần parity) · `7f9d5034` — xem mục Phát hành |
+| Ghi chú giới hạn | Windows chưa nối bộ kiểm tra chính tả của hệ điều hành (D39) ⇒ lỗi chính tả từ điển ("nghành") chưa được báo trên Windows · macOS/Linux xem trước dự đoán trong bảng ứng viên/dòng phụ (không chữ mờ tại chỗ — marked text/preedit có thể bị app tự chốt) · phần mềm giữ Alt+Space toàn cục (PowerToys Run, Copilot, ChatGPT) nhận phím trước TextVN |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.46 — dự đoán văn bản P6 + trợ lý ngữ pháp sống theo câu (audit sâu + E2E thật)
 
 | Hạng mục | Bằng chứng |
