@@ -889,9 +889,10 @@ unsafe fn paint_overlay(hwnd: HWND, hdc: HDC) {
             // đỏ lệch vì vị trí ký tự đo bằng font khác.
             SelectObject(hdc, font.into());
             let _ = DeleteObject(header_font.into());
-            // Nút "Sửa tất cả" (vòng 26): hiện khi có ≥1 lỗi tự sửa được —
-            // click → FixAll (áp cả câu, có Undo 5 giây).
-            if view.issues.iter().any(|i| i.auto_fixable) {
+            // Nút "Sửa tất cả" (vòng 26): hiện khi có ≥1 lỗi người dùng sửa
+            // được (R2-131: gồm cả lỗi chính tả có gợi ý) — click → FixAll
+            // (áp cả câu, có Undo 5 giây).
+            if view.issues.iter().any(|i| i.user_fixable()) {
                 let btn_font = create_font(m.font_btn, FW_SEMIBOLD);
                 SelectObject(hdc, btn_font.into());
                 let mut units: Vec<u16> = "Sửa tất cả".encode_utf16().collect();

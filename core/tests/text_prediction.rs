@@ -463,3 +463,29 @@ fn r2_121_ctrl_space_khi_tat_tieng_viet_khong_ghi_cach_ao() {
     assert_eq!(e.key(&key_ctrl_space()).action, Action::Pass);
     assert_eq!(e.sentence_tail(64), "");
 }
+
+/// R2-131 (chủ repo: phím tắt "sửa hết cùng với text prediction"): sau khi
+/// trợ lý sửa câu, adapter nạp câu đã sửa vào engine — Ctrl+Space bấm tiếp phải
+/// dự đoán theo ngữ cảnh đó (trước đây engine bị reset sạch ⇒ không dự đoán).
+#[test]
+fn r2_131_reset_with_tail_giu_ngu_canh_du_doan_sau_khi_sua() {
+    let mut e = engine_with_predict();
+    e.reset_with_tail("tôi muốn phát triển");
+    assert_eq!(e.sentence_tail(64), "tôi muốn phát triển");
+    let mut doc: Vec<char> = "tôi muốn phát triển".chars().collect();
+    press_key(&mut e, &mut doc, &key_ctrl_space());
+    assert_eq!(
+        doc.iter().collect::<String>(),
+        "tôi muốn phát triển phần mềm",
+        "dự đoán nối tiếp theo câu đã sửa"
+    );
+    // Không nạp: engine reset sạch ⇒ Ctrl+Space không có ngữ cảnh để dự đoán.
+    let mut bare = engine_with_predict();
+    bare.reset();
+    let mut doc2: Vec<char> = "tôi muốn phát triển".chars().collect();
+    press_key(&mut bare, &mut doc2, &key_ctrl_space());
+    assert_eq!(doc2.iter().collect::<String>(), "tôi muốn phát triển");
+    // Ký tự điều khiển trong tail ⇒ chỉ reset (không nạp rác vào buffer câu).
+    e.reset_with_tail("a\u{7}b");
+    assert_eq!(e.sentence_tail(64), "");
+}

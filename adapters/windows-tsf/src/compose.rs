@@ -29,6 +29,7 @@ pub mod vk {
     pub const BACK: u32 = 0x08;
     pub const TAB: u32 = 0x09;
     pub const RETURN: u32 = 0x0D;
+    pub const SPACE: u32 = 0x20;
     pub const SHIFT: u32 = 0x10;
     pub const CONTROL: u32 = 0x11;
     pub const MENU: u32 = 0x12;

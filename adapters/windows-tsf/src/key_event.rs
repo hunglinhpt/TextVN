@@ -184,7 +184,57 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
             return Ok(false.into());
         }
         // SAFETY: rguid do TSF cấp, đã kiểm non-null.
-        if unsafe { *rguid } != crate::guids::GUID_PRESERVED_TOGGLE {
+        let guid = unsafe { *rguid };
+        // R2-133: phím Alt của trợ lý — chỉ ăn khi có việc, không thì phím tới
+        // app nguyên vẹn (Alt+Space mở menu hệ thống, Alt+1 của app…).
+        let suggestion = match guid {
+            g if g == crate::guids::GUID_PRESERVED_ALT1 => Some(0),
+            g if g == crate::guids::GUID_PRESERVED_ALT2 => Some(1),
+            g if g == crate::guids::GUID_PRESERVED_ALT3 => Some(2),
+            _ => None,
+        };
+        let alt_vk = match suggestion {
+            Some(index) => Some(0x31 + index as u32),
+            None if guid == crate::guids::GUID_PRESERVED_ASSIST => Some(vkc::SPACE),
+            None => None,
+        };
+        // Phím chính TIP vừa trả lại cho app quay về đây ⇒ để yên (chống vòng lặp).
+        if let Some(vk) = alt_vk {
+            if take_redelivered(vk) {
+                trace::event(self.shared.tid, format_args!("preserved redelivered-again"));
+                return Ok(false.into());
+            }
+        }
+        if let Some(index) = suggestion {
+            let eaten = guarded(|| {
+                if !self.shared.overlay.is_visible() {
+                    return false;
+                }
+                let ctx = pic.ok().ok();
+                apply_assist_suggestion(&self.shared, ctx, index);
+                true
+            });
+            if !eaten {
+                redeliver_alt_key(0x31 + index as u32);
+            }
+            trace::event(
+                self.shared.tid,
+                format_args!("preserved alt+{} {}", index + 1, eaten_label(eaten)),
+            );
+            return Ok(eaten.into());
+        }
+        if guid == crate::guids::GUID_PRESERVED_ASSIST {
+            let eaten = guarded(|| run_assist_hotkey(&self.shared, pic.ok().ok()));
+            if !eaten {
+                redeliver_alt_key(vkc::SPACE);
+            }
+            trace::event(
+                self.shared.tid,
+                format_args!("preserved alt+space {}", eaten_label(eaten)),
+            );
+            return Ok(eaten.into());
+        }
+        if guid != crate::guids::GUID_PRESERVED_TOGGLE {
             return Ok(false.into());
         }
         // WIN-015: chỉ xử lý ở đây (không xử lý lại trong OnKeyDown → không toggle 2 lần).
@@ -200,6 +250,97 @@ impl ITfKeyEventSink_Impl for KeySink_Impl {
         });
         Ok(true.into())
     }
+}
+
+#[cfg(windows)]
+thread_local! {
+    /// R2-133: phím Alt TIP vừa trả lại cho app (vk + lúc trả).
+    static REDELIVERED: Cell<Option<(u32, std::time::Instant)>> = const { Cell::new(None) };
+}
+
+/// Phím `vk` có phải chính phím TIP vừa trả lại (≤ 500 ms) không — có thì xoá dấu.
+#[cfg(windows)]
+fn take_redelivered(vk: u32) -> bool {
+    REDELIVERED.with(|cell| match cell.get() {
+        Some((v, at)) if v == vk && at.elapsed().as_millis() <= 500 => {
+            cell.set(None);
+            true
+        }
+        _ => false,
+    })
+}
+
+/// R2-133: TSF luôn nuốt preserved key — đo thật: `OnPreservedKey` trả FALSE mà
+/// Alt+Space vẫn không mở menu hệ thống. Phím Alt TextVN không dùng tới phải tự
+/// trả lại:
+/// - Alt+Space: `WM_SYSCOMMAND(SC_KEYMENU, ' ')` tới cửa sổ gốc — đúng việc
+///   `DefWindowProc` làm với Alt+Space (Chromium/Edge bỏ qua `WM_SYSKEYDOWN` post
+///   lại vì Alt vật lý đã nhả — đo thật trên Edge);
+/// - Alt+1..3: post `WM_SYSKEYDOWN`/`WM_SYSKEYUP` (bit 29 = Alt) vào cửa sổ đang
+///   focus — app xử lý như phím thật (mnemonic, accelerator Alt+1 của app).
+#[cfg(windows)]
+fn redeliver_alt_key(vk: u32) {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetAncestor, PostMessageW, GA_ROOT, SC_KEYMENU, WM_SYSCOMMAND, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    };
+    // SAFETY: gọi trên thread UI của app (callback preserved key).
+    let target = unsafe { GetFocus() };
+    if target.is_invalid() {
+        return;
+    }
+    if vk == vkc::SPACE {
+        // SAFETY: HWND của thread hiện tại; post tới cửa sổ gốc cùng process.
+        unsafe {
+            let root = GetAncestor(target, GA_ROOT);
+            let root = if root.is_invalid() { target } else { root };
+            let _ = PostMessageW(
+                Some(root),
+                WM_SYSCOMMAND,
+                WPARAM(SC_KEYMENU as usize),
+                LPARAM(0x20),
+            );
+        }
+        return;
+    }
+    // SAFETY: MapVirtualKeyW chỉ tra bảng layout.
+    let scan = unsafe { MapVirtualKeyW(vk, MAPVK_VK_TO_VSC) } as isize;
+    let down = LPARAM(1 | (scan << 16) | (1 << 29));
+    let up = LPARAM(1 | (scan << 16) | (1 << 29) | (0b11 << 30));
+    REDELIVERED.with(|cell| cell.set(Some((vk, std::time::Instant::now()))));
+    // SAFETY: post tới control của app trong cùng process; lỗi bỏ qua.
+    unsafe {
+        let _ = PostMessageW(Some(target), WM_SYSKEYDOWN, WPARAM(vk as usize), down);
+        let _ = PostMessageW(Some(target), WM_SYSKEYUP, WPARAM(vk as usize), up);
+    }
+}
+
+/// R2-133: Alt+Space = cùng luồng Ctrl+Space (sửa hết lỗi câu → dự đoán → trả
+/// phím). Chạy đúng `KeyEditSession` của Ctrl+Space để engine thấy một phím
+/// Ctrl+Space (dự đoán/duyệt vòng giống hệt), chỉ khác phím vật lý.
+#[cfg(windows)]
+fn run_assist_hotkey(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>) -> bool {
+    let Some(ctx) = ctx else {
+        return false;
+    };
+    if shared.engine_mode().is_none() {
+        return false; // TextVN tắt cho app này: phím thuộc app
+    }
+    if !shared.is_composing() {
+        shared.sync_config();
+    }
+    let result = Rc::new(Cell::new(None));
+    let session: ITfEditSession = KeyEditSession::new(
+        shared.clone(),
+        ctx.clone(),
+        vkc::SPACE,
+        MOD_CTRL,
+        KeyKind::CtrlSpace,
+        result.clone(),
+    )
+    .into();
+    // SAFETY: ctx hợp lệ trong callback preserved key; session đồng bộ.
+    let hr = unsafe { ctx.RequestEditSession(shared.tid, &session, TF_ES_SYNC | TF_ES_READWRITE) };
+    matches!((hr, result.get()), (Ok(code), Some(true)) if code.is_ok())
 }
 
 /// Đảo bật/tắt tiếng Việt: commit từ đang gõ, đổi ngay trong process, báo tray.

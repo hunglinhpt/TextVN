@@ -283,6 +283,25 @@ impl Engine {
         self.record(Tail::Clear);
     }
 
+    /// `ime_reset_with_tail` (R2-131) — reset rồi ghi nhận `unicode_tail` là đuôi
+    /// document ngay trước con trỏ. Adapter gọi sau khi trợ lý sửa câu (nút "Sửa
+    /// tất cả", phím tắt): document giờ chứa câu ĐÃ sửa — nạp lại để lần dự đoán
+    /// kế tiếp còn ngữ cảnh ("sửa hết rồi dự đoán" bằng cùng một phím) và lượt
+    /// kiểm tra sau không thấy câu cũ. Không mở từ mới (từ đã chốt).
+    pub fn reset_with_tail(&mut self, unicode_tail: &str) {
+        self.reset();
+        let unicode: Vec<char> = unicode_tail.chars().collect();
+        if unicode.is_empty() || unicode.iter().any(|c| c.is_control()) {
+            return;
+        }
+        let glyph = self.emit(&unicode);
+        self.record(Tail::Replace {
+            delete: 0,
+            glyph: &glyph,
+            unicode: &unicode,
+        });
+    }
+
     /// Ghi nhận thay đổi đuôi document vào **cả hai** buffer (`recent` glyph +
     /// `sentence` Unicode) — chỗ **duy nhất** được sửa chúng (P4-2a · ADR-013).
     ///

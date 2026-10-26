@@ -144,6 +144,7 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             "IME_ASSIST_TRIGGER_SENTENCE",
             IME_ASSIST_TRIGGER_SENTENCE as i64,
         ),
+        ("IME_ASSIST_PLAN_EXPLICIT", IME_ASSIST_PLAN_EXPLICIT as i64),
     ]
 }
 
@@ -166,6 +167,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_set_context",
         "ime_key",
         "ime_reset",
+        "ime_reset_with_tail",
         "ime_reload_config",
         "ime_suggest",
         "ime_appdb_verify",
@@ -180,6 +182,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_assist_check_v1",
         "ime_assist_sentence_tail_v1",
         "ime_assist_plan_sentence_fix",
+        "ime_assist_plan_sentence_fix_ex",
     ]
 }
 

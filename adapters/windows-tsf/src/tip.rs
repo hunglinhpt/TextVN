@@ -35,6 +35,46 @@ const TOGGLE_KEY: TF_PRESERVEDKEY = TF_PRESERVEDKEY {
     uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
 };
 
+/// R2-133: phím Alt của trợ lý (Alt+Space, Alt+1..3 hàng số — KHÔNG đăng ký
+/// Alt+numpad: đó là nhập mã ký tự Alt+0xxx). `OnPreservedKey` chỉ ăn phím khi
+/// có việc (popup đang hiện / câu có lỗi / có dự đoán); không thì phím tới app
+/// như thường (Alt+Space vẫn mở menu hệ thống).
+#[cfg(windows)]
+const ASSIST_KEYS: [(GUID, TF_PRESERVEDKEY, &str); 4] = [
+    (
+        crate::guids::GUID_PRESERVED_ASSIST,
+        TF_PRESERVEDKEY {
+            uVKey: VK_SPACE.0 as u32,
+            uModifiers: TF_MOD_ALT,
+        },
+        "TextVN Assist",
+    ),
+    (
+        crate::guids::GUID_PRESERVED_ALT1,
+        TF_PRESERVEDKEY {
+            uVKey: 0x31,
+            uModifiers: TF_MOD_ALT,
+        },
+        "TextVN Suggestion 1",
+    ),
+    (
+        crate::guids::GUID_PRESERVED_ALT2,
+        TF_PRESERVEDKEY {
+            uVKey: 0x32,
+            uModifiers: TF_MOD_ALT,
+        },
+        "TextVN Suggestion 2",
+    ),
+    (
+        crate::guids::GUID_PRESERVED_ALT3,
+        TF_PRESERVEDKEY {
+            uVKey: 0x33,
+            uModifiers: TF_MOD_ALT,
+        },
+        "TextVN Suggestion 3",
+    ),
+];
+
 #[cfg(windows)]
 #[derive(Default)]
 struct TipInner {
@@ -144,6 +184,9 @@ impl Tip_Impl {
             }
             if let Some(km) = &inner.keymgr {
                 let _ = km.UnpreserveKey(&GUID_PRESERVED_TOGGLE, &TOGGLE_KEY);
+                for (guid, key, _) in &ASSIST_KEYS {
+                    let _ = km.UnpreserveKey(guid, key);
+                }
                 let _ = km.UnadviseKeyEventSink(inner.tid);
             }
         }
@@ -203,6 +246,10 @@ impl Tip_Impl {
                 &TOGGLE_KEY,
                 &desc[..desc.len() - 1],
             );
+            for (guid, key, name) in &ASSIST_KEYS {
+                let desc: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
+                let _ = keymgr.PreserveKey(tid, guid, key, &desc[..desc.len() - 1]);
+            }
         }
 
         // WIN-014: OnSetFocus → commit trước khi đổi document (B2).

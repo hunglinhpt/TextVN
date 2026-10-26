@@ -41,6 +41,8 @@ pub mod ipc_client {
     }
 }
 #[cfg(windows)]
+pub mod cuas;
+#[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]
 pub mod replay;
@@ -559,6 +561,11 @@ impl EngineSession {
     /// Xóa từ đang gõ (focus change, composition bị app kết thúc, chord…).
     pub fn reset(&mut self) {
         let _ = ime_reset(self.instance);
+    }
+
+    /// R2-131: reset + nạp `tail` (câu trợ lý vừa sửa) làm đuôi buffer câu.
+    pub fn reset_with_tail(&mut self, tail: &str) {
+        let _ = textvn_ffi::ime_reset_with_tail(self.instance, tail.as_ptr().cast(), tail.len());
     }
 
     /// OnKeyDown gọi hàm này sau khi đã lấy `ToUnicodeEx`. `None` nghĩa là key

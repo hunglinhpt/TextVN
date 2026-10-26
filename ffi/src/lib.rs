@@ -637,6 +637,32 @@ pub extern "C" fn ime_reset(inst: *mut ime_instance) -> i32 {
     }
 }
 
+/// R2-131: `ime_reset` + ghi nhận `utf8` (câu trợ lý vừa sửa, đã nằm trong
+/// document trước con trỏ) làm đuôi buffer câu — phím tắt bấm tiếp dự đoán được
+/// theo ngữ cảnh. `utf8` NULL/không hợp lệ ⇒ chỉ reset (fail-safe).
+#[no_mangle]
+pub extern "C" fn ime_reset_with_tail(
+    inst: *mut ime_instance,
+    utf8: *const c_char,
+    len: usize,
+) -> i32 {
+    if inst.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    let tail = if utf8.is_null() || len == 0 {
+        ""
+    } else {
+        // SAFETY: caller bảo đảm `len` byte đọc được tại `utf8`.
+        let bytes = unsafe { std::slice::from_raw_parts(utf8.cast::<u8>(), len) };
+        std::str::from_utf8(bytes).unwrap_or("")
+    };
+    match catch_unwind(AssertUnwindSafe(|| inst.engine.reset_with_tail(tail))) {
+        Ok(()) => IME_OK,
+        Err(_) => IME_ERR_INTERNAL,
+    }
+}
+
 /// Config mới không hợp lệ → **giữ config đang chạy** + `IME_ERR_CONFIG`
 /// (P0-3 §1.3 "sai schema → giữ config cũ"; WIN-053).
 #[no_mangle]
@@ -1160,14 +1186,71 @@ pub struct PlanIssueRaw {
     pub suggest: String,
 }
 
+/// Cờ của [`ime_assist_plan_sentence_fix_ex`]: kế hoạch cho hành động **người
+/// dùng chủ động** (nút "Sửa tất cả", phím tắt, chọn một gợi ý) — gồm cả lỗi
+/// chỉ-gợi-ý có cách sửa máy móc ([`explicit_fix_text`]). Không cờ = Mode 2 tự
+/// sửa: chỉ lỗi objective (`auto_fixable`).
+pub const IME_ASSIST_PLAN_EXPLICIT: u32 = 1;
+
+/// Chữ thay span khi **người dùng chủ động** sửa một lỗi chỉ-gợi-ý (R2-131).
+///
+/// Chỉ loại có cách sửa máy móc: chính tả (gợi ý đầu = từ thay thế) và dấu phẩy
+/// cuối câu (thay bằng dấu chấm — gợi ý của luật là câu hướng dẫn, không phải
+/// chữ thay). Phủ định kép / câu lặp cần viết lại ⇒ `None` (chỉ hiển thị).
+pub fn explicit_fix_text(kind: u32, suggest: &str) -> Option<String> {
+    match kind {
+        IME_ASSIST_KIND_SPELLING => (!suggest.is_empty() && !suggest.chars().any(char::is_control))
+            .then(|| suggest.to_string()),
+        IME_ASSIST_KIND_COMMA_AT_END => Some(".".to_string()),
+        _ => None,
+    }
+}
+
 /// Quy đổi lỗi thô → list [`textvn_assist::Issue`] kèm `Fix` — **nguồn duy nhất**
 /// của ngữ nghĩa sửa (theo `kind`, KHÔNG đoán bằng text — Q-2).
 pub fn plan_issues_from_raw(sentence: &str, raws: &[PlanIssueRaw]) -> Vec<textvn_assist::Issue> {
+    plan_issues_from_raw_ex(sentence, raws, false)
+}
+
+/// Như [`plan_issues_from_raw`]; `explicit` = hành động người dùng chủ động
+/// (R2-131): lỗi chỉ-gợi-ý có [`explicit_fix_text`] cũng vào kế hoạch.
+pub fn plan_issues_from_raw_ex(
+    sentence: &str,
+    raws: &[PlanIssueRaw],
+    explicit: bool,
+) -> Vec<textvn_assist::Issue> {
     let chars: Vec<char> = sentence.chars().collect();
     let mut issues = Vec::new();
 
     for raw in raws {
         if !raw.auto_fixable {
+            if !explicit {
+                continue;
+            }
+            let (start, end) = (raw.start, raw.end);
+            if start >= end || end > chars.len() {
+                continue;
+            }
+            let Some(text) = explicit_fix_text(raw.kind, &raw.suggest) else {
+                continue;
+            };
+            if chars[start..end].iter().copied().eq(text.chars()) {
+                continue;
+            }
+            let kind = if raw.kind == IME_ASSIST_KIND_COMMA_AT_END {
+                textvn_assist::IssueKind::CommaAtEnd
+            } else {
+                textvn_assist::IssueKind::Spelling
+            };
+            issues.push(textvn_assist::Issue {
+                kind,
+                span: textvn_assist::Span { start, end },
+                message: String::new(),
+                suggestions: vec![text.clone()],
+                auto_fixable: true,
+                confidence: raw.confidence,
+                fix: Some(textvn_assist::Fix::Replace { start, end, text }),
+            });
             continue;
         }
         let start = raw.start;
@@ -1262,6 +1345,20 @@ pub extern "C" fn ime_assist_plan_sentence_fix(
     result: *const ime_assist_result_v1,
     out_plan: *mut ime_assist_plan_v1,
 ) -> i32 {
+    ime_assist_plan_sentence_fix_ex(inst, sentence_utf8, result, 0, out_plan)
+}
+
+/// Như [`ime_assist_plan_sentence_fix`] kèm `flags`: [`IME_ASSIST_PLAN_EXPLICIT`]
+/// = kế hoạch cho hành động người dùng chủ động (R2-131 — nút "Sửa tất cả",
+/// phím tắt sửa câu, chọn một gợi ý): gồm cả lỗi chính tả có gợi ý.
+#[no_mangle]
+pub extern "C" fn ime_assist_plan_sentence_fix_ex(
+    inst: *const ime_instance,
+    sentence_utf8: *const c_char,
+    result: *const ime_assist_result_v1,
+    flags: u32,
+    out_plan: *mut ime_assist_plan_v1,
+) -> i32 {
     if sentence_utf8.is_null() || result.is_null() || out_plan.is_null() {
         return 0;
     }
@@ -1302,7 +1399,8 @@ pub extern "C" fn ime_assist_plan_sentence_fix(
                 }
             })
             .collect();
-        let issues = plan_issues_from_raw(sentence, &raws);
+        let explicit = flags & IME_ASSIST_PLAN_EXPLICIT != 0;
+        let issues = plan_issues_from_raw_ex(sentence, &raws, explicit);
 
         let Some(plan) = textvn_assist::plan_sentence_fix(sentence, &issues) else {
             return 0;
@@ -2212,6 +2310,130 @@ mod tests {
         assert_eq!(ime_assist_check_instance(inst, &mut res), IME_OK);
         assert_eq!(res.count, 0);
 
+        ime_instance_free(inst);
+    }
+
+    /// Dựng 1 lỗi thô cho test kế hoạch (span char Unicode).
+    fn raw_issue(
+        kind: u32,
+        start: u32,
+        end: u32,
+        auto_fixable: bool,
+        suggest: &str,
+    ) -> ime_assist_issue_v1 {
+        let mut issue: ime_assist_issue_v1 = unsafe { std::mem::zeroed() };
+        issue.kind = kind;
+        issue.start = start;
+        issue.end = end;
+        issue.auto_fixable = u32::from(auto_fixable);
+        issue.confidence = if auto_fixable { 100 } else { 60 };
+        copy_str_to_c_buf(suggest, &mut issue.suggest);
+        issue.suggest_len = suggest.len() as u32;
+        issue
+    }
+
+    fn plan_text(plan: &ime_assist_plan_v1) -> String {
+        unsafe { CStr::from_ptr(plan.replacement.as_ptr()) }
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
+
+    /// R2-131 (chủ repo: "chưa bấm được nút sửa tất cả"): lỗi chính tả là lỗi
+    /// chỉ-gợi-ý — Mode 2 tự sửa KHÔNG đụng tới, nhưng hành động người dùng chủ
+    /// động (nút/phím tắt/chọn gợi ý) phải sửa được cả câu.
+    #[test]
+    fn r2_131_explicit_plan_sua_ca_loi_chinh_ta_mode2_thi_khong() {
+        let inst = new_default();
+        let sentence = "ngành nghề nghành tôi";
+        let sentence_c = CString::new(sentence).unwrap();
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 1,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        res.issues[0] = raw_issue(IME_ASSIST_KIND_SPELLING, 11, 17, false, "ngành");
+
+        let mut plan = ime_assist_plan_v1::zeroed();
+        assert_eq!(
+            ime_assist_plan_sentence_fix(inst, sentence_c.as_ptr(), &res, &mut plan),
+            0,
+            "Mode 2 (không cờ) không tự sửa lỗi chỉ-gợi-ý"
+        );
+        let mut plan = ime_assist_plan_v1::zeroed();
+        assert_eq!(
+            ime_assist_plan_sentence_fix_ex(
+                inst,
+                sentence_c.as_ptr(),
+                &res,
+                IME_ASSIST_PLAN_EXPLICIT,
+                &mut plan
+            ),
+            1
+        );
+        assert_eq!(plan.delete_from, 11);
+        assert_eq!(plan_text(&plan), "ngành tôi");
+        ime_instance_free(inst);
+    }
+
+    /// R2-131: dấu phẩy cuối câu → dấu chấm (gợi ý của luật là câu hướng dẫn,
+    /// không phải chữ thay); phủ định kép cần viết lại ⇒ không có kế hoạch;
+    /// lỗi objective + chính tả cùng câu ⇒ sửa hết trong MỘT kế hoạch.
+    #[test]
+    fn r2_131_explicit_plan_dau_phay_cuoi_va_phu_dinh_kep() {
+        let inst = new_default();
+        let sentence = "tôi tôi đi họcc,";
+        let sentence_c = CString::new(sentence).unwrap();
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 3,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        res.issues[0] = raw_issue(IME_ASSIST_KIND_DUPLICATE_WORD, 4, 7, true, "tôi");
+        res.issues[1] = raw_issue(IME_ASSIST_KIND_SPELLING, 11, 15, false, "học");
+        res.issues[2] = raw_issue(
+            IME_ASSIST_KIND_COMMA_AT_END,
+            15,
+            16,
+            false,
+            "Đổi thành dấu chấm câu",
+        );
+        let mut plan = ime_assist_plan_v1::zeroed();
+        assert_eq!(
+            ime_assist_plan_sentence_fix_ex(
+                inst,
+                sentence_c.as_ptr(),
+                &res,
+                IME_ASSIST_PLAN_EXPLICIT,
+                &mut plan
+            ),
+            1
+        );
+        assert_eq!(plan.fixed_count, 3);
+        assert_eq!(plan.delete_from, 3);
+        assert_eq!(plan_text(&plan), " đi học.");
+
+        res.count = 1;
+        res.issues[0] = raw_issue(
+            IME_ASSIST_KIND_DOUBLE_NEGATIVE,
+            0,
+            3,
+            false,
+            "Cân nhắc viết lại để tránh phủ định kép",
+        );
+        let mut plan = ime_assist_plan_v1::zeroed();
+        assert_eq!(
+            ime_assist_plan_sentence_fix_ex(
+                inst,
+                sentence_c.as_ptr(),
+                &res,
+                IME_ASSIST_PLAN_EXPLICIT,
+                &mut plan
+            ),
+            0,
+            "phủ định kép không có cách sửa máy móc"
+        );
+        assert_eq!(explicit_fix_text(IME_ASSIST_KIND_SPELLING, ""), None);
         ime_instance_free(inst);
     }
 

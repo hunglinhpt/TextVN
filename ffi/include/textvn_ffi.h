@@ -195,6 +195,9 @@ void         ime_instance_free(ime_instance *inst);
 int32_t      ime_set_context(ime_instance *inst, const ime_context_v1 *ctx);
 int32_t      ime_key(ime_instance *inst, const ime_key_v1 *k, ime_result_v1 *out);
 int32_t      ime_reset(ime_instance *inst);             /* xóa buffer (word boundary/focus change) */
+/* R2-131: ime_reset + ghi nhận utf8 (câu trợ lý vừa sửa, đã nằm trước con
+ * trỏ) làm đuôi buffer câu — dự đoán tiếp theo ngữ cảnh. NULL ⇒ chỉ reset. */
+int32_t      ime_reset_with_tail(ime_instance *inst, const char *utf8, size_t len);
 int32_t      ime_reload_config(ime_instance *inst, const uint8_t *cfg, size_t len);
 int32_t      ime_suggest(ime_instance *inst, const uint32_t *word, uint32_t word_len,
                          ime_suggest_v1 *out);          /* trả IME_ERR_INTERNAL nếu feature tắt */
@@ -240,6 +243,15 @@ int32_t      ime_assist_plan_sentence_fix(const ime_instance *inst,
                                           const char *sentence_utf8,
                                           const ime_assist_result_v1 *result,
                                           ime_assist_plan_v1 *out_plan);
+/* R2-131: như ime_assist_plan_sentence_fix kèm flags. IME_ASSIST_PLAN_EXPLICIT
+ * = hành động người dùng chủ động (nút "Sửa tất cả", phím tắt, chọn một gợi ý):
+ * gồm cả lỗi chính tả có gợi ý và dấu phẩy cuối câu (Mode 2 tự sửa: flags = 0). */
+#define IME_ASSIST_PLAN_EXPLICIT 1u
+int32_t      ime_assist_plan_sentence_fix_ex(const ime_instance *inst,
+                                             const char *sentence_utf8,
+                                             const ime_assist_result_v1 *result,
+                                             uint32_t flags,
+                                             ime_assist_plan_v1 *out_plan);
 #ifdef __cplusplus
 }
 #endif

@@ -135,6 +135,19 @@ pub struct IssueView {
     pub kind: u32,
 }
 
+impl IssueView {
+    /// Người dùng bấm sửa được lỗi này không (nút "Sửa tất cả", Enter, Alt+n —
+    /// R2-131): lỗi objective, hoặc lỗi chỉ-gợi-ý có cách sửa máy móc.
+    pub fn user_fixable(&self) -> bool {
+        self.auto_fixable
+            || self
+                .suggestion
+                .as_deref()
+                .and_then(|s| textvn_ffi::explicit_fix_text(self.kind, s))
+                .is_some()
+    }
+}
+
 /// Model overlay: câu vừa gõ + lỗi + lỗi đang chọn. Thuần, không Win32 — dựng
 /// được trong test từ [`OverlayView::from_parts`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -496,11 +509,6 @@ where
     F: Fn(&str) -> usize,
 {
     let issue = view.issues.get(issue_index)?;
-    if !issue.auto_fixable {
-        // Lỗi **chỉ gợi ý** (vd. spelling: `auto_fixable = false` — A1/D12):
-        // người dùng tự quyết, A2 không tự sửa.
-        return None;
-    }
     if issue.start >= issue.end || issue.end > view.sentence.len() {
         return None;
     }
@@ -508,6 +516,17 @@ where
     if suggestion.is_empty() || suggestion.chars().any(char::is_control) {
         return None; // không có gợi ý / gợi ý chứa ký tự điều khiển → không sửa
     }
+    // A2 luôn là hành động NGƯỜI DÙNG chủ động (Enter/click/Alt+n). R2-131:
+    // lỗi chỉ-gợi-ý (chính tả, dấu phẩy cuối câu) cũng sửa được — chữ thay lấy
+    // từ nguồn chung `textvn_ffi::explicit_fix_text` (cùng bản macOS/Linux);
+    // loại cần viết lại (phủ định kép…) vẫn chỉ hiển thị.
+    let explicit_text;
+    let suggestion = if issue.auto_fixable {
+        suggestion
+    } else {
+        explicit_text = textvn_ffi::explicit_fix_text(issue.kind, suggestion)?;
+        explicit_text.as_str()
+    };
     let span_text: String = view.sentence[issue.start..issue.end].iter().collect();
     let prev_is_space = issue.start > 0 && view.sentence[issue.start - 1] == ' ';
     // Ngữ nghĩa `Fix` theo **kind** (xoá span hay thay span) — xem [`fix_candidate`].
@@ -612,6 +631,32 @@ pub fn plan_sentence_auto_fix<F>(
 where
     F: Fn(&str) -> usize,
 {
+    plan_sentence_fix_with(sentence, issues, glyph_len, false)
+}
+
+/// Kế hoạch "Sửa tất cả" do **người dùng chủ động** (nút, Ctrl+Space/Alt+Space —
+/// R2-131): như [`plan_sentence_auto_fix`] nhưng gồm cả lỗi chỉ-gợi-ý có cách
+/// sửa máy móc (`textvn_ffi::explicit_fix_text`).
+pub fn plan_sentence_user_fix<F>(
+    sentence: &str,
+    issues: &[IssueView],
+    glyph_len: F,
+) -> Option<SentenceFixPlan>
+where
+    F: Fn(&str) -> usize,
+{
+    plan_sentence_fix_with(sentence, issues, glyph_len, true)
+}
+
+fn plan_sentence_fix_with<F>(
+    sentence: &str,
+    issues: &[IssueView],
+    glyph_len: F,
+    explicit: bool,
+) -> Option<SentenceFixPlan>
+where
+    F: Fn(&str) -> usize,
+{
     let chars: Vec<char> = sentence.chars().collect();
     if chars.is_empty() {
         return None;
@@ -634,7 +679,8 @@ where
             suggest: issue.suggestion.clone().unwrap_or_default(),
         })
         .collect();
-    let core_issues: Vec<textvn_assist::Issue> = textvn_ffi::plan_issues_from_raw(sentence, &raws);
+    let core_issues: Vec<textvn_assist::Issue> =
+        textvn_ffi::plan_issues_from_raw_ex(sentence, &raws, explicit);
 
     let p = textvn_assist::plan_sentence_fix(sentence, &core_issues)?;
     let glyphs = glyph_len(&p.original_tail) as u32;
@@ -1534,13 +1580,28 @@ mod tests {
         assert_eq!(plan_fix(&ok, 0, |_| 0), None);
     }
 
+    /// R2-131 (chủ repo: "chưa bấm được nút sửa tất cả"): A2 luôn do người
+    /// dùng chủ động ⇒ lỗi chính tả (chỉ-gợi-ý) sửa được bằng gợi ý đầu; loại
+    /// cần viết lại (phủ định kép) vẫn không có kế hoạch.
     #[test]
-    fn khong_tu_sua_loi_chi_goi_y() {
-        // Spelling: có gợi ý nhưng `auto_fixable = false` ⇒ A2 **không** tự sửa
-        // (đúng `assist::fix::apply_auto_fixes` — chỉ áp lỗi auto_fixable).
-        let mut suggestion_only = issue(K_SPELLING, 0, 4, "Không có trong từ điển", Some("một"));
+    fn r2_131_a2_sua_loi_chinh_ta_khi_nguoi_dung_chon() {
+        let mut suggestion_only = issue(K_SPELLING, 0, 3, "Không có trong từ điển", Some("một"));
         suggestion_only.auto_fixable = false;
+        assert!(suggestion_only.user_fixable());
         let v = view("môt hai", vec![suggestion_only]);
+        let plan = plan_fix(&v, 0, |t| t.chars().count()).expect("plan chính tả");
+        assert_eq!(plan.replacement.iter().collect::<String>(), "một hai");
+
+        let mut rewrite = issue(
+            textvn_ffi::IME_ASSIST_KIND_DOUBLE_NEGATIVE,
+            0,
+            4,
+            "Phủ định kép",
+            Some("Cân nhắc viết lại để tránh phủ định kép"),
+        );
+        rewrite.auto_fixable = false;
+        assert!(!rewrite.user_fixable());
+        let v = view("môt hai", vec![rewrite]);
         assert_eq!(plan_fix(&v, 0, |t| t.chars().count()), None);
     }
 
@@ -1629,8 +1690,13 @@ mod tests {
         let sentence = "Hôm nay tôi thấy môt con mèo.";
         let mut sp_issue = issue(K_SPELLING, 17, 20, "Không có trong từ điển", Some("một"));
         sp_issue.auto_fixable = false;
-        let plan = plan_sentence_auto_fix(sentence, &[sp_issue], |tail| tail.chars().count());
+        let plan =
+            plan_sentence_auto_fix(sentence, &[sp_issue.clone()], |tail| tail.chars().count());
         assert_eq!(plan, None);
+        // R2-131: "Sửa tất cả" do người dùng bấm thì sửa cả lỗi chính tả.
+        let user = plan_sentence_user_fix(sentence, &[sp_issue], |tail| tail.chars().count())
+            .expect("plan người dùng");
+        assert_eq!(user.replacement.iter().collect::<String>(), "một con mèo.");
     }
 
     #[test]
