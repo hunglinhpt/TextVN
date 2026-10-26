@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.49" date="2026-10-26">
+      <description>
+        <p>The core can now convert a selection smartly: repair Vietnamese text garbled by opening a UTF-8 file with the wrong encoding, convert legacy TCVN3/ABC and VNI-Windows text to the encoding in use, and re-type text that was typed while Vietnamese input was off. The selection hotkey that uses it ships on Windows first.</p>
+      </description>
+    </release>
     <release version="0.2.48" date="2026-10-26">
       <description>
         <p>The assistant hotkey is Ctrl+Space only: Alt+Space is no longer used by TextVN because it belongs to the desktop's window menu and to global launchers. Ctrl+Space fixes the sentence when it has errors, predicts when it is clean, and reaches the application untouched when there is nothing to do; Alt+1..3 still applies a suggestion while the list is shown.</p>

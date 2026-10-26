@@ -7,6 +7,43 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.49] — 2026-10-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Added
+- **Ctrl + Shift + F9 chuyển đổi văn bản bôi đen thông minh** (R2-139, Windows): tự nhận ra
+  và sửa **chữ lạ khi mở file sai bảng mã** (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`, kể cả trên
+  Windows tiếng Việt và văn bản bị mã hoá hai lần), **bảng mã cũ** TCVN3/ABC (.VnTime) ·
+  VNI-Windows · Unicode tổ hợp → **bảng mã TextVN đang dùng**, và **chữ gõ nhầm khi quên bật
+  tiếng Việt** (`tooi ddi hocj` → `tôi đi học` theo kiểu gõ đang dùng; từ đã có dấu giữ
+  nguyên). Chạy cả ở Notepad++, ô nhập WinForms/Delphi; Ctrl+Z của ứng dụng hoàn tác.
+- **Nhắc mở lại ứng dụng sau khi cập nhật** (R2-138): bộ gõ được nạp vào ứng dụng lúc ứng
+  dụng mở, nên Zalo, VS Code… đang chạy vẫn dùng bản cũ cho tới khi mở lại. Trang cuối bộ cài
+  và khay hệ thống (một lần, khi máy chưa khởi động lại) giờ nhắc việc này.
+
+### Fixed
+- **Ô nhập kiểu WinForms/Delphi và ô EDIT của Windows** (R2-137): popup trợ lý hiện nhưng
+  "Sửa tất cả", Alt + 1…3, Ctrl + Space không sửa được — nay sửa được (đọc lại chữ để xác
+  minh, thay một lần, Ctrl+Z của ô nhập hoàn tác được).
+
+Kiểm chứng E2E trên ứng dụng thật: Notepad, Edge, Notepad++, VS Code và ứng dụng 32-bit
+(RichEdit, EDIT — đường bộ gõ x86 như Zalo) 75/75 + Notepad/Word/Excel 28/28.
+
+**English** — 0.2.49: Ctrl+Shift+F9 now converts a selection smartly (R2-139, Windows): it
+repairs **garbled text from a file opened with the wrong encoding** (UTF-8 read as
+cp1252/cp1258, including double encoding), converts **legacy encodings** (TCVN3/ABC,
+VNI-Windows, decomposed Unicode) **to the encoding TextVN currently outputs**, and
+**re-types text typed while Vietnamese was off** (`tooi ddi hocj` → `tôi đi học`, with the
+current input method; words that already carry marks are kept) — also in Notepad++ and
+WinForms/Delphi text boxes, undoable with the app's Ctrl+Z. After an update, the installer's
+last page and a one-time tray notice remind you to **reopen running applications** (they
+keep the old input method until reopened — R2-138). Fixed: in standard Windows EDIT,
+WinForms and Delphi text boxes the assistant's Fix all, Alt+1..3 and Ctrl+Space now apply
+(R2-137). Real-app E2E: Notepad, Edge, Notepad++, VS Code and 32-bit RichEdit/EDIT hosts
+75/75; Notepad/Word/Excel 28/28.
+
 ## [0.2.48] — 2026-10-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -1990,7 +2027,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...HEAD
+[0.2.49]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...v0.2.49
 [0.2.48]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...v0.2.48
 [0.2.47]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...v0.2.47
 [0.2.46]: https://github.com/hunglinhpt/TextVN/compare/v0.2.45...v0.2.46

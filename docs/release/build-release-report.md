@@ -1,5 +1,15 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.49 — Ctrl+Shift+F9 thông minh, ô WinForms/Delphi, nhắc mở lại ứng dụng (R2-137..R2-139)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **R2-139** `Engine::convert_selection` / FFI `ime_convert_selection` — chữ lạ UTF-8 (cp1252/cp1258, mã hoá đôi), bảng mã cũ → bảng mã đang dùng, gõ lại từ ASCII gõ nhầm chế độ E; Windows TSF + đường CUAS (EM_GETSELTEXT / EM_GETSEL / SCI_GETSELTEXT / IMR_RECONVERTSTRING) · **R2-137** ô họ EDIT (WinForms/Delphi) sửa được (EM_GETSEL + EM_SETSEL/EM_REPLACESEL) · **R2-138** Zalo/VS Code "không chạy" = DLL bộ gõ 0.2.45 còn nạp (không phải lỗi x86) — trang cuối bộ cài + toast tray nhắc mở lại ứng dụng · `tools/win/x86probe` host 32-bit · E9 tái diễn (ci-shared đỏ `aeffe9ba`, sửa `55698c44`) |
+| Đo | core `selection_convert` 3 test · win-tsf 97 · tray (gồm `r2_138_*`) · clippy -D warnings 0 (Windows + `--target x86_64-unknown-linux-gnu`) · ISCC 2 biến thể exit 0 · **E2E thật** `tools/win/e2e-assist-apps.ps1` **75/75** (Notepad, Edge, Notepad++, VS Code, RichEdit/EDIT 32-bit) + `e2e-assist-p6.ps1` **28/28** |
+| CI commit code | `55698c44` (sửa ci-shared) xanh · `17991285` 7/7 (ci-macos: 2 job bị runner huỷ ở phút 15 dù timeout 30–40 phút — chạy lại xanh 6/6, không đổi code) |
+| Ghi chú giới hạn | Ctrl+Shift+F9 mới có trên Windows (core dùng chung đã sẵn cho macOS/Linux) · Windows chưa có bộ kiểm tra chính tả từ điển (D39) |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.48 — phím tắt trợ lý chỉ Ctrl+Space (R2-136, chủ repo chốt)
 
 | Hạng mục | Bằng chứng |
