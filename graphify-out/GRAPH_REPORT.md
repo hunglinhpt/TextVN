@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-10-26)
 
 ## Corpus Check
-- 440 files · ~758,254 words
+- 440 files · ~758,459 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `79715754`
+- Built from commit: `0f8ce213`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2042,7 +2042,7 @@ Nodes (3): [0.2.37] — 2026-10-24, Added, Fixed
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `windows-tsf/src/assist.rs`, `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `TextVNInputController`, `textBeforeCaretMatches`, `ImeEngine`, `engine.c`, `test_compose.c`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `compose.c`, `ConfigWatcher`, `OwnerRule`, `NSRange`, `TapDecision`, `.suggest`, `AppDelegate`, `StrategyResolver`, `IpcClient`, `ViState`, `.register`, `RoundTwoMacAppTests`, `EventTapController`, `ConfigStore`, `TextVNInputController`, `.inject`, `AXSnapshot`, `Equatable`, `ImeEngine`, `Foundation`, `Problem`, `AutostartManager`, `IpcServerAssistTests`, `MarkedState`, `KeyTranslator`, `TextVNAppTests`, `MockHandler`?**
   _High betweenness centrality (0.099) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `windows-tsf/src/assist.rs` to `TsfShared`, `engine.cpp`?**
