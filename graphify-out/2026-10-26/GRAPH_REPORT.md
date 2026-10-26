@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-10-26)
 
 ## Corpus Check
-- 434 files · ~732,827 words
+- 434 files · ~733,072 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c5c2dea8`
+- Built from commit: `63352b38`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2022,11 +2022,11 @@ Nodes (5): Cross-check checklist (Review 2) — kết quả, P0 — REVIEW LOG (
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `string` to `windows-tsf/src/assist.rs`, `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `engine.cpp`, `ImeEngine`, `TextVNInputController`, `AssistTests`, `test_compose.c`?**
-  _High betweenness centrality (0.131) - this node is a cross-community bridge._
+  _High betweenness centrality (0.132) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `windows-tsf/src/assist.rs` to `TsfShared`, `string`?**
-  _High betweenness centrality (0.124) - this node is a cross-community bridge._
+  _High betweenness centrality (0.126) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `.inject`, `ConfigWatcher`, `NSRange`, `ImeEngine`, `.suggest`, `AppDelegate`, `XCTestCase`, `StrategyResolver`, `IpcClient`, `ViState`, `.register`, `MockHandler`, `ConfigStore`, `TextVNInputController`, `OwnerRule`, `AXSnapshot`, `Equatable`, `AssistTests`, `KeyTranslator`, `Foundation`, `Problem`, `EventTapController`, `TapDecision`, `AutostartManager`, `CodingKeys`, `IpcServerAssistTests`, `MarkedState`, `FieldContext`, `FieldDetect`, `TextVNAppTests`?**
-  _High betweenness centrality (0.102) - this node is a cross-community bridge._
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 4 inferred relationships involving `AppDelegate` (e.g. with `B. Trên macOS: Quên cập nhật Icon Menu Bar & Luồng giao diện (UI Thread Violation)` and `(A) macOS app / IMK / packaging / CI — `F3-*``) actually correct?**
