@@ -7,7 +7,13 @@
 | Nội dung | **R2-136** (`docs/50-assist/P6-TEXT-PREDICTION.md` §2b): bỏ Alt+Space của 0.2.47 trên Windows/Linux — đụng menu cửa sổ + PowerToys Run/Copilot/ChatGPT; đo trên máy chủ repo: Ctrl+Alt+Space bị Claude desktop giữ, Alt+/ bị TSF chặn như Alt+Space, Ctrl+Space/Ctrl+. tới thẳng key sink. Chủ repo chọn chỉ Ctrl+Space. Windows gỡ preserved key Alt+Space + đường trả menu hệ thống; Linux `lc_is_assist_hotkey` chỉ Ctrl+Space; macOS giữ Option+Space; Alt+1..3 giữ |
 | Đo | win-tsf 97 · clippy -D warnings 0 · preflight 23/23 · C `test_compose` (Alt+Space = 0) trên ci-linux · **E2E thật** `tools/win/e2e-assist-apps.ps1` **44/44** (Alt+Space khi câu có lỗi vẫn mở menu cửa sổ, chữ không đổi — 4 app) + `tools/win/e2e-assist-p6.ps1` **28/28** |
 | CI commit code | `55510fc1` 6/6 xanh (ci-linux C `test_compose` + IBus/Fcitx5 e2e, ci-windows, ci-shared, repo-hygiene, ci-deb, ci-aur — không đụng macOS) |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| CI trên commit gắn tag | `361f58f2` (Verified) 7/7 xanh (gồm ci-macos) |
+| Release | v0.2.48 tag ký GPG (Good signature, object `361f58f2`) — release-candidate [#40325147977](https://github.com/hunglinhpt/TextVN/actions/runs/40325147977) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe/MSIX khớp; `.asc` hai file đó hợp lệ (Sigstore do job publish tự verify) |
+| Checksums | machine exe `d92c630a…16cc` · MSIX `2f990d8b…3fcc` · mac zip `9751f532…7b36` · Linux `c8d4feda…3d52` · PKGBUILD archive `0ae6f034…d978` |
+| Homebrew (B7b/B7d) | cask `version "0.2.48"` + `sha256` = mac zip `9751f532…7b36` — sync-cask [#40330232310](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40330232310) success, raw cask trên tap khớp |
+| AUR / PPA (B7e/B7f) | PKGBUILD/.SRCINFO = archive v0.2.48; debian/changelog `0.2.48-0ppa1` — `publish-aur.sh` / `prepare-ppa.sh --upload` là bước của chủ repo (khoá SSH AUR / DEBSIGN) |
+| approved (B7c) | `approved/v0.2.48/` — 34 file byte-identical, raw URL 200 (machine exe, MSIX, SHA256SUMS) · Store: nộp MSIX qua `store-publish` / Partner Center là bước của chủ repo |
 
 ## Bản 0.2.47 — phím tắt sửa hết + dự đoán, Alt+1..3 Windows, Notepad++, chữ mờ gợi ý (phản hồi chủ repo)
 
