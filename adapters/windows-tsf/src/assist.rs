@@ -93,8 +93,10 @@ pub const OVERLAY_IDLE_MS: u64 = 8_000;
 /// Nhắc phím — chuỗi tĩnh, không chứa nội dung người dùng.
 pub const OVERLAY_HINT: &str = "↑/↓ chọn lỗi · Enter sửa · Alt+1…3 gợi ý · Esc đóng";
 /// Dòng nhắc của popup **sống** (R2-129): popup tự hiện khi câu đang sai,
-/// KHÔNG chiếm phím gõ — muốn chọn/sửa bằng phím thì Ctrl+Space.
-pub const OVERLAY_HINT_LIVE: &str = "Ctrl+Space chọn & sửa · Alt+1…3 áp gợi ý · Esc đóng";
+/// KHÔNG chiếm phím gõ. R2-131: Ctrl+Space/Alt+Space sửa hết lỗi câu; muốn chọn
+/// từng lỗi bằng phím thì Ctrl+Shift+G (popup chọn-sửa ↑/↓ · Enter).
+pub const OVERLAY_HINT_LIVE: &str =
+    "Ctrl/Alt+Space sửa hết · Alt+1…3 áp gợi ý · Ctrl+Shift+G chọn · Esc đóng";
 
 /// VK dùng cho overlay (khớp Win32).
 pub const VK_UP: u32 = 0x26;

@@ -663,6 +663,38 @@ pub extern "C" fn ime_reset_with_tail(
     }
 }
 
+/// P6-11 · R2-134: ghost text — phần chữ Tab SẼ nối thêm sau con trỏ, ghi UTF-8
+/// kèm NUL vào `out` (`cap` byte). Trả số byte đã ghi (0 = không có gợi ý /
+/// không vừa `cap`); lỗi caller = `IME_ERR_*`. Không đổi trạng thái engine,
+/// không log nội dung (S2).
+#[no_mangle]
+pub extern "C" fn ime_peek_completion(
+    inst: *const ime_instance,
+    out: *mut c_char,
+    cap: usize,
+) -> i32 {
+    if inst.is_null() || out.is_null() || cap == 0 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &*inst };
+    // SAFETY: caller cấp `cap` byte ghi được tại `out`.
+    let buf = unsafe { std::slice::from_raw_parts_mut(out.cast::<u8>(), cap) };
+    buf[0] = 0;
+    let ghost = catch_unwind(AssertUnwindSafe(|| inst.engine.peek_completion()))
+        .ok()
+        .flatten();
+    let Some(ghost) = ghost else {
+        return 0;
+    };
+    let bytes = ghost.as_bytes();
+    if bytes.len() + 1 > cap {
+        return 0; // không cắt giữa ký tự UTF-8 — không vừa thì không vẽ
+    }
+    buf[..bytes.len()].copy_from_slice(bytes);
+    buf[bytes.len()] = 0;
+    bytes.len() as i32
+}
+
 /// Config mới không hợp lệ → **giữ config đang chạy** + `IME_ERR_CONFIG`
 /// (P0-3 §1.3 "sai schema → giữ config cũ"; WIN-053).
 #[no_mangle]

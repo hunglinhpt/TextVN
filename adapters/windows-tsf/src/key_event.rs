@@ -322,6 +322,7 @@ fn run_assist_hotkey(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>) -> bool {
     let Some(ctx) = ctx else {
         return false;
     };
+    shared.ghost.hide();
     if shared.engine_mode().is_none() {
         return false; // TextVN tắt cho app này: phím thuộc app
     }
@@ -649,6 +650,8 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     update_assist_undo_state(shared, vk, mods);
     if !is_modifier_vk(vk) {
         crate::selection_check::cancel_pending();
+        // R2-134: chữ mờ chỉ sống tới phím kế tiếp (phím gõ vẽ lại nếu còn gợi ý).
+        shared.ghost.hide();
     }
 
     // AS-030/AS-031 (Mode 1 + A2): phím của overlay (↑/↓, Enter, Alt+1..3, Esc,
@@ -746,6 +749,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
 #[cfg(windows)]
 pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
     hide_assist_overlay(shared);
+    shared.ghost.hide();
     let Some(comp) = shared.take_composition() else {
         return;
     };

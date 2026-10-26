@@ -163,6 +163,8 @@ pub struct TsfShared {
     pub modifier_toggle: Cell<ModifierToggle>,
     /// Overlay hiển thị gợi ý trợ lý ngữ pháp (AS-030 · Mode 1).
     pub overlay: crate::overlay::CandidateOverlay,
+    /// R2-134: chữ mờ gợi ý sẵn (ghost text) sau con trỏ.
+    pub ghost: crate::ghost::GhostText,
     /// Lỗi/câu/caret của overlay đang hiện (AS-031 · A2). `None` = overlay tắt.
     pub assist: RefCell<Option<ActiveAssist>>,
     /// Trạng thái hoàn tác tự sửa cả câu (AS-050 · Mode 2 / A3). `None` = không có undo hoặc đã hết hạn.
@@ -184,6 +186,7 @@ impl TsfShared {
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
             overlay: crate::overlay::CandidateOverlay::new(),
+            ghost: crate::ghost::GhostText::new(),
             assist: RefCell::new(None),
             assist_undo: RefCell::new(None),
         }
@@ -544,6 +547,13 @@ impl KeyEditSession {
                         }
                     }
                 }
+                // R2-134: chữ mờ gợi ý sẵn sau mỗi phím gõ (Tab/phím tắt sẽ chèn đúng nó).
+                if matches!(
+                    self.key,
+                    KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab
+                ) {
+                    update_ghost(&self.shared, &self.ctx, ec);
+                }
                 if self.key == KeyKind::CtrlSpace && step.action == textvn_ffi::ACTION_PASS {
                     // Ctrl+Space không khớp prediction: kích hoạt Trợ lý ngữ pháp (Text Correct) cho từ và câu
                     let has_sel = unsafe { sel.IsEmpty(ec) }
@@ -619,6 +629,105 @@ impl KeyEditSession {
                 false
             }
         }
+    }
+}
+
+/// R2-134: vẽ (hoặc ẩn) chữ mờ gợi ý theo `peek_completion` của engine. Chỉ vẽ
+/// khi đo được caret CHÍNH XÁC (`GetTextExt` — không dùng neo dự phòng của panel)
+/// và sau caret không còn chữ trên dòng (không đè lên chữ thật).
+#[cfg(windows)]
+fn update_ghost(shared: &Rc<TsfShared>, ctx: &ITfContext, ec: u32) {
+    let ghost = shared
+        .thread
+        .try_borrow()
+        .ok()
+        .and_then(|thread| thread.engine.peek_completion());
+    let anchor = ghost
+        .as_ref()
+        .filter(|_| !text_after_caret(ctx, ec))
+        .and_then(|_| tsf_caret_anchor(ctx, ec));
+    match (ghost, anchor) {
+        (Some(text), Some(anchor)) => {
+            let font_px = estimate_font_px(ctx, ec, anchor.bottom - anchor.top);
+            // SAFETY: chỉ đọc HWND foreground để watchdog tắt khi đổi app.
+            let owner = unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() }.0
+                as isize;
+            shared.ghost.show(&text, anchor, owner, font_px);
+        }
+        _ => shared.ghost.hide(),
+    }
+}
+
+/// Cỡ chữ (px, chiều cao em) để chữ mờ trông như chữ của app. Caret rect gồm cả
+/// giãn dòng (Notepad Win11: caret ~2× chữ — đo thật), nên lấy thêm ước lượng từ
+/// bề rộng của từ vừa gõ (≈ 0,43 em/ký tự — trung bình chữ Việt thường ở font tỉ
+/// lệ; font đơn cách rộng hơn chút) và chọn số nhỏ hơn.
+#[cfg(windows)]
+fn estimate_font_px(ctx: &ITfContext, ec: u32, caret_h: i32) -> i32 {
+    let by_caret = (caret_h * 4 / 5).max(10);
+    // SAFETY: trong edit session; chỉ đọc chữ/toạ độ tối đa 8 ký tự trước caret.
+    let by_word = unsafe {
+        (|| -> Option<i32> {
+            let view = ctx.GetActiveView().ok()?;
+            let sel = selection_range(ctx, ec)?;
+            let back = sel.Clone().ok()?;
+            back.Collapse(ec, TF_ANCHOR_END).ok()?;
+            let mut shifted = 0i32;
+            back.ShiftStart(ec, -8, &mut shifted, std::ptr::null())
+                .ok()?;
+            let mut buf = [0u16; 16];
+            let mut fetched = 0u32;
+            back.GetText(ec, 0, &mut buf, &mut fetched).ok()?;
+            let text = &buf[..(fetched as usize).min(buf.len())];
+            // Chỉ phần chữ liền trước caret (từ vừa gõ), không qua khoảng trắng.
+            let word = text
+                .iter()
+                .rev()
+                .take_while(|&&u| u > 0x20 && !(0xD800..=0xDFFF).contains(&u))
+                .count();
+            if word < 2 {
+                return None;
+            }
+            let start = word as i32 - text.len() as i32;
+            let mut moved = 0i32;
+            back.ShiftStart(ec, -start, &mut moved, std::ptr::null())
+                .ok()?;
+            let mut rc = windows::Win32::Foundation::RECT::default();
+            let mut clipped = windows::core::BOOL::default();
+            view.GetTextExt(ec, &back, &mut rc, &mut clipped).ok()?;
+            let width = rc.right - rc.left;
+            (width > 0).then(|| width * 23 / (10 * word as i32))
+        })()
+    };
+    by_word.map_or(by_caret, |w| w.clamp(8, by_caret))
+}
+
+/// Sau caret còn chữ trên cùng dòng (đang sửa giữa câu) không.
+#[cfg(windows)]
+fn text_after_caret(ctx: &ITfContext, ec: u32) -> bool {
+    let Some(sel) = selection_range(ctx, ec) else {
+        return true; // không biết ⇒ không vẽ
+    };
+    // SAFETY: trong edit session (ec hợp lệ); chỉ đọc 1 ký tự sau caret.
+    unsafe {
+        let Ok(next) = sel.Clone() else {
+            return true;
+        };
+        let _ = next.Collapse(ec, TF_ANCHOR_END);
+        let mut shifted = 0i32;
+        if next
+            .ShiftEnd(ec, 1, &mut shifted, std::ptr::null())
+            .is_err()
+            || shifted != 1
+        {
+            return false; // cuối document
+        }
+        let mut buf = [0u16; 2];
+        let mut fetched = 0u32;
+        if next.GetText(ec, 0, &mut buf, &mut fetched).is_err() || fetched == 0 {
+            return false;
+        }
+        !matches!(buf[0], 0x0D | 0x0A | 0x0B)
     }
 }
 
@@ -1771,7 +1880,13 @@ impl ITfEditSession_Impl for AssistRecallSession_Impl {
             let Some(check) = crate::assist::check_sentence(shared) else {
                 return false;
             };
-            show_assist_overlay(shared, &self.ctx, ec, &check)
+            let shown = show_assist_overlay(shared, &self.ctx, ec, &check);
+            if shown {
+                // R2-131: Ctrl+Space/Alt+Space giờ sửa hết ngay — Ctrl+Shift+G là
+                // đường chọn từng lỗi bằng phím (↑/↓/Tab · Enter, R2-122).
+                mark_assist_on_demand(shared);
+            }
+            shown
         }))
         .unwrap_or(false);
         if !showed {

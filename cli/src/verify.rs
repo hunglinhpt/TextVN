@@ -168,6 +168,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_key",
         "ime_reset",
         "ime_reset_with_tail",
+        "ime_peek_completion",
         "ime_reload_config",
         "ime_suggest",
         "ime_appdb_verify",

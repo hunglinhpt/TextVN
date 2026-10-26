@@ -7,7 +7,8 @@
 # Build: $env:CARGO_TARGET_DIR=<thu muc tam>; cargo build --release -p textvn-win-tsf -p textvn-cli
 # (E27: khong ghi de DLL dang duoc nap). Can ban cai Program Files (ProdCli) de khoi phuc.
 # Chiem ban phim ~3 phut (SendInput). Bat che do V cho test va tra lai che do cua nguoi dung.
-# Chi ghi chuoi test (S2). Ket qua 2026-10-26: 28/28 PASS (P6-TEXT-PREDICTION.md).
+# Chi ghi chuoi test (S2). Ket qua 2026-10-26: 28/28 PASS (P6-TEXT-PREDICTION.md); Ctrl+Space sua ngay tu R2-131.
+# Notepad/Edge/Notepad++ + phim tat Alt + ghost text: tools/win/e2e-assist-apps.ps1.
 param(
     [Parameter(Mandatory = $true)][string]$DevDir,
     [string]$ProdCli = 'C:\Program Files\TextVN\textvn-cli.exe',
@@ -202,16 +203,14 @@ try {
     $w = U '\u0111\u01b0\u1ee3c ';                      NP-Case 'sanity dduocj' "dduocj " (Eq $w) $w
 
     if ($Only -and 'assist' -notlike "*$Only*") { throw 'ONLY-DONE' }
-    # Assist on-demand: Ctrl+Space opens popup, Enter applies the selected fix.
+    # R2-131: Ctrl+Space fixes the whole sentence at once (no popup to pick from).
     for ($i = 0; $i -lt 10 -and -not [E2E]::Focus($main); $i++) { Start-Sleep -Milliseconds 300 }
     [E2E]::Clear($edit); Start-Sleep -Milliseconds 200
     [E2E]::Type('>')
     [E2E]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 300
-    [E2E]::Type('~'); Start-Sleep -Milliseconds 700
-    $ov = [E2E]::OverlayVisible()
-    [E2E]::Type("`n"); Start-Sleep -Milliseconds 900
+    [E2E]::Type('~'); Start-Sleep -Milliseconds 900
     $got = Norm ([E2E]::Text($edit)); $w = U 't\u00f4i \u0111i h\u1ecdc'
-    Report 'notepad' 'assist on-demand Ctrl+Space + Enter fixes duplicate' ($got -ceq $w) $w $got "overlay=$ov"
+    Report 'notepad' 'Ctrl+Space fixes the whole sentence (R2-131)' ($got -ceq $w) $w $got ''
     [E2E]::Type('<')
 
     # R2-122: auto popup after sentence end must NOT swallow Tab.
@@ -224,11 +223,11 @@ try {
     Report 'notepad' 'auto popup lets Tab through (R2-122)' ($got -ceq $w) $w $got "overlay=$ov"
     [E2E]::Type('<')
 
-    # R2-122: on-demand popup uses Tab to move between issues (no tab char inserted).
+    # R2-122: the pick-and-fix popup (Ctrl+Shift+G since R2-131) uses Tab to move between issues.
     [E2E]::Clear($edit); Start-Sleep -Milliseconds 200
     [E2E]::Type('>')
     [E2E]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 300
-    [E2E]::Type('~'); Start-Sleep -Milliseconds 700
+    [E2E]::Down(0x11); [E2E]::Down(0x10); [E2E]::Tap(0x47); [E2E]::Up(0x10); [E2E]::Up(0x11); Start-Sleep -Milliseconds 700
     $ov = [E2E]::OverlayVisible()
     [E2E]::Type("`t"); Start-Sleep -Milliseconds 400
     $ov2 = [E2E]::OverlayVisible()
@@ -236,15 +235,13 @@ try {
     $got = Norm ([E2E]::Text($edit)); $w = U 't\u00f4i t\u00f4i \u0111i h\u1ecdc'
     Report 'notepad' 'on-demand popup: Tab stays in popup (R2-122)' ($got -ceq $w -and $ov) $w $got "overlay=$ov afterTab=$ov2"
 
-    # OP-004 collocation through on-demand popup.
+    # OP-004 collocation fixed by the Ctrl+Space hotkey (R2-131).
     [E2E]::Clear($edit); Start-Sleep -Milliseconds 200
     [E2E]::Type('>')
     [E2E]::Type('chungs tooi boor xung taif lieeuj'); Start-Sleep -Milliseconds 300
-    [E2E]::Type('~'); Start-Sleep -Milliseconds 700
-    $ov = [E2E]::OverlayVisible()
-    [E2E]::Type("`n"); Start-Sleep -Milliseconds 900
+    [E2E]::Type('~'); Start-Sleep -Milliseconds 900
     $got = Norm ([E2E]::Text($edit)); $w = U 'ch\u00fang t\u00f4i b\u1ed5 sung t\u00e0i li\u1ec7u'
-    Report 'notepad' 'OP-004 bo xung via Ctrl+Space popup' ($got -ceq $w) $w $got "overlay=$ov"
+    Report 'notepad' 'OP-004 bo xung fixed by Ctrl+Space' ($got -ceq $w) $w $got ''
     [E2E]::Type('<')
     [E2E]::Clear($edit)
 

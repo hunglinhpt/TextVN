@@ -489,3 +489,44 @@ fn r2_131_reset_with_tail_giu_ngu_canh_du_doan_sau_khi_sua() {
     e.reset_with_tail("a\u{7}b");
     assert_eq!(e.sentence_tail(64), "");
 }
+
+/// R2-134 (chủ repo: "chữ mờ gợi ý sẵn chưa được"): `peek_completion` trả đúng
+/// phần chữ Tab SẼ nối thêm — để adapter vẽ mờ trước khi nhấn — và KHÔNG đổi
+/// trạng thái engine (Tab thật sau đó cho đúng kết quả đã xem trước).
+#[test]
+fn r2_134_peek_completion_xem_truoc_dung_phan_tab_noi_them() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+    for c in "phats trieenr".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    assert_eq!(e.peek_completion().as_deref(), Some(" phần mềm"));
+    // Xem trước nhiều lần không đổi gì.
+    assert_eq!(e.peek_completion().as_deref(), Some(" phần mềm"));
+    assert_eq!(doc.iter().collect::<String>(), "phát triển");
+    // Tab thật = đúng phần đã xem trước.
+    press_key(&mut e, &mut doc, &key_for_char('\t'));
+    assert_eq!(doc.iter().collect::<String>(), "phát triển phần mềm");
+    // Đang duyệt vòng: Tab kế THAY ứng viên (không nối thêm) ⇒ không vẽ ghost.
+    assert_eq!(e.peek_completion(), None);
+
+    // Hoàn tất tiền tố của từ đang gõ.
+    let mut e2 = engine_with_predict();
+    let mut doc2 = Vec::new();
+    for c in "phats".chars() {
+        press_key(&mut e2, &mut doc2, &key_for_char(c));
+    }
+    assert_eq!(e2.peek_completion().as_deref(), Some(" triển"));
+
+    // Không có gì để dự đoán / dự đoán tắt ⇒ None.
+    let mut e3 = engine_with_predict();
+    assert_eq!(typed(&mut e3, "zzz"), "zzz");
+    assert_eq!(e3.peek_completion(), None);
+    let mut off = Engine::new(EngineOptions {
+        method: Method::Telex,
+        enabled: true,
+        ..Default::default()
+    });
+    assert_eq!(typed(&mut off, "phats trieenr"), "phát triển");
+    assert_eq!(off.peek_completion(), None);
+}

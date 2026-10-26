@@ -183,7 +183,9 @@ pub const MAX_TEXT: usize = 64;
 /// `MAX_TEXT` để RESTORE/ESC trả lại đủ chuỗi gõ. Vượt → đóng từ (`close_word`).
 const MAX_WORD_KEYS: usize = MAX_TEXT - 1;
 
-/// Engine — 1 instance = 1 thread (P0-2 §3).
+/// Engine — 1 instance = 1 thread (P0-2 §3). `Clone` cho `peek_completion`
+/// (chạy thử Tab trên bản sao — trạng thái thật không đổi).
+#[derive(Clone)]
 pub struct Engine {
     opts: EngineOptions,
     ctx: Context,
@@ -281,6 +283,43 @@ impl Engine {
         self.word.clear();
         self.last_predict = None;
         self.record(Tail::Clear);
+    }
+
+    /// `ime_peek_completion` (P6-11 · R2-134, chủ repo: "chữ mờ gợi ý sẵn") —
+    /// phần chữ mà Tab **sẽ** nối thêm ngay sau con trỏ, để adapter vẽ mờ (ghost
+    /// text) trước khi người dùng nhấn. Chạy thử Tab trên **bản sao** engine
+    /// (giữ cả vòng duyệt đang dở): trạng thái thật không đổi, kết quả đúng y
+    /// như Tab sẽ làm. `None` khi dự đoán tắt, Tab không khớp gì, hoặc kết quả
+    /// không phải nối thêm thuần (Tab đổi chữ đã gõ — duyệt vòng, khôi phục
+    /// tiếng Anh) ⇒ không vẽ.
+    pub fn peek_completion(&self) -> Option<String> {
+        if !self.opts.suggest_vn_complete {
+            return None;
+        }
+        let mut probe = self.clone();
+        let tab = KeyEvent {
+            vk: keymap::vk::TAB,
+            ch: '\t' as u32,
+            key_down: true,
+            ..KeyEvent::default()
+        };
+        let Action::Replace {
+            delete_count,
+            insert,
+        } = probe.key(&tab).action
+        else {
+            return None;
+        };
+        let n = usize::from(delete_count);
+        if insert.len() <= n || n > self.recent.len() {
+            return None;
+        }
+        // Phần bị "xoá" phải đúng là chữ đang nằm trước con trỏ ⇒ Tab chỉ nối thêm.
+        if insert[..n] != self.recent[self.recent.len() - n..] {
+            return None;
+        }
+        let ghost: String = insert[n..].iter().collect();
+        (!ghost.trim().is_empty()).then_some(ghost)
     }
 
     /// `ime_reset_with_tail` (R2-131) — reset rồi ghi nhận `unicode_tail` là đuôi

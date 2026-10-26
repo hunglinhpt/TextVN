@@ -43,6 +43,8 @@ pub mod ipc_client {
 #[cfg(windows)]
 pub mod cuas;
 #[cfg(windows)]
+pub mod ghost;
+#[cfg(windows)]
 pub mod key_event;
 #[cfg(windows)]
 pub mod replay;
@@ -561,6 +563,16 @@ impl EngineSession {
     /// Xóa từ đang gõ (focus change, composition bị app kết thúc, chord…).
     pub fn reset(&mut self) {
         let _ = ime_reset(self.instance);
+    }
+
+    /// R2-134: phần chữ Tab SẼ nối thêm (ghost text) — không đổi trạng thái engine.
+    pub fn peek_completion(&self) -> Option<String> {
+        let mut buf = [0u8; 512];
+        let n = textvn_ffi::ime_peek_completion(self.instance, buf.as_mut_ptr().cast(), buf.len());
+        let n = usize::try_from(n)
+            .ok()
+            .filter(|&n| n > 0 && n < buf.len())?;
+        String::from_utf8(buf[..n].to_vec()).ok()
     }
 
     /// R2-131: reset + nạp `tail` (câu trợ lý vừa sửa) làm đuôi buffer câu.

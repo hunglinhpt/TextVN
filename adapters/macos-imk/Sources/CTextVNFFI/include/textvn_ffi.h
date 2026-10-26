@@ -198,6 +198,9 @@ int32_t      ime_reset(ime_instance *inst);             /* xóa buffer (word bou
 /* R2-131: ime_reset + ghi nhận utf8 (câu trợ lý vừa sửa, đã nằm trước con
  * trỏ) làm đuôi buffer câu — dự đoán tiếp theo ngữ cảnh. NULL ⇒ chỉ reset. */
 int32_t      ime_reset_with_tail(ime_instance *inst, const char *utf8, size_t len);
+/* P6-11 · R2-134: ghost text — phần chữ Tab SẼ nối thêm sau con trỏ (UTF-8 + NUL,
+ * tối đa cap byte). Trả số byte (0 = không có gợi ý); không đổi trạng thái engine. */
+int32_t      ime_peek_completion(const ime_instance *inst, char *out, size_t cap);
 int32_t      ime_reload_config(ime_instance *inst, const uint8_t *cfg, size_t len);
 int32_t      ime_suggest(ime_instance *inst, const uint32_t *word, uint32_t word_len,
                          ime_suggest_v1 *out);          /* trả IME_ERR_INTERNAL nếu feature tắt */
