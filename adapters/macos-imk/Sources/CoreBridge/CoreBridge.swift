@@ -271,6 +271,30 @@ public final class ImeEngine {
         ime_reset(instance)
     }
 
+    /// R2-131: `ime_reset_with_tail` — reset rồi nạp câu trợ lý vừa sửa (đã nằm
+    /// trước con trỏ) làm đuôi buffer câu: phím tắt bấm tiếp dự đoán được theo
+    /// ngữ cảnh. Lỗi ⇒ như `reset()`.
+    public func resetWithTail(_ tail: String) {
+        let utf8 = Array(tail.utf8)
+        let rc = utf8.withUnsafeBufferPointer { buf in
+            ime_reset_with_tail(
+                instance,
+                buf.baseAddress.map { UnsafeRawPointer($0).assumingMemoryBound(to: CChar.self) },
+                buf.count
+            )
+        }
+        if rc != FFI.ok { ime_reset(instance) }
+    }
+
+    /// R2-134: `ime_peek_completion` — phần chữ Tab SẼ nối thêm sau con trỏ
+    /// (xem trước dự đoán). Không đổi trạng thái engine; `nil` = không có gợi ý.
+    public func peekCompletion() -> String? {
+        var buf = [CChar](repeating: 0, count: 512)
+        let n = ime_peek_completion(instance, &buf, buf.count)
+        guard n > 0 else { return nil }
+        return String(cString: buf)
+    }
+
     /// `ime_reload_config` — hot-reload; giữ đúng luồng sở hữu (main thread).
     public func reloadConfig(_ json: Data) -> Bool {
         let rc = json.withUnsafeBytes { raw in
@@ -475,11 +499,14 @@ public final class ImeEngine {
         planSentenceFix(instance: nil, sentence: sentence, result: result)
     }
 
-    /// Static wrapper gọi `ime_assist_plan_sentence_fix` với instance cụ thể hoặc nil.
+    /// Static wrapper gọi `ime_assist_plan_sentence_fix_ex` với instance cụ thể hoặc nil.
+    /// `explicit` = hành động người dùng CHỦ ĐỘNG (chọn gợi ý, phím tắt sửa câu —
+    /// R2-131): gồm cả lỗi chính tả có gợi ý; Mode 2 tự sửa: `false`.
     public static func planSentenceFix(
         instance: OpaquePointer?,
         sentence: String,
-        result: ime_assist_result_v1
+        result: ime_assist_result_v1,
+        explicit: Bool = false
     ) -> SentenceFixPlan? {
         var outPlan = ime_assist_plan_v1()
         outPlan.abi_version = FFI.abiVersion
@@ -487,10 +514,11 @@ public final class ImeEngine {
         mutableResult.abi_version = FFI.abiVersion
         let cSentence = cString(from: sentence)
         let rc = cSentence.withUnsafeBufferPointer { buf in
-            ime_assist_plan_sentence_fix(
+            ime_assist_plan_sentence_fix_ex(
                 instance,
                 buf.baseAddress,
                 &mutableResult,
+                explicit ? UInt32(IME_ASSIST_PLAN_EXPLICIT) : 0,
                 &outPlan
             )
         }

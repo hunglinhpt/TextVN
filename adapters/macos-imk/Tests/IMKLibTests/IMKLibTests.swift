@@ -646,6 +646,17 @@ final class ViStateAndHotkeyTests: XCTestCase {
         )
         XCTAssertFalse(ctrlA.isCtrlSpace())
         XCTAssertTrue(ctrlA.isChordSwift())
+
+        // R2-133: Option+Space = phím tắt trợ lý trên Mac (engine thấy Ctrl+Space).
+        let optSpace = KeyEvent(vk: 0x20, ch: 0xA0, mods: FFI.modAlt, keyDown: true, isRepeat: false)
+        XCTAssertTrue(optSpace.isAltSpace())
+        XCTAssertTrue(optSpace.isAssistHotkey())
+        XCTAssertFalse(optSpace.isChordSwift(), "Option+Space phải tới engine/trợ lý")
+        XCTAssertTrue(optSpace.asCtrlSpace().isCtrlSpace())
+        let optA = KeyEvent(vk: 0x41, ch: 0, mods: FFI.modAlt, keyDown: true, isRepeat: false)
+        XCTAssertFalse(optA.isAssistHotkey())
+        XCTAssertTrue(optA.isChordSwift())
+        XCTAssertEqual(TextVNInputController.previewLabel(" phần mềm"), "⇥ phần mềm")
     }
 
     func testViStateSnapshotAndPerAppOverrides() {

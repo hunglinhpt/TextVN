@@ -329,6 +329,14 @@ final class AssistTests: XCTestCase {
 
         let plan = planSentenceAutoFix(sentence: sentence, issues: [spIssue], glyphLen: { $0.count })
         XCTAssertNil(plan, "Lỗi autoFixable == false phải bị bỏ qua")
+
+        // R2-131: người dùng CHỦ ĐỘNG (chọn gợi ý / phím tắt) ⇒ sửa được lỗi chính tả.
+        let explicitPlan = planSentenceAutoFix(
+            sentence: sentence, issues: [spIssue], glyphLen: { $0.count }, explicit: true
+        )
+        XCTAssertNotNil(explicitPlan)
+        XCTAssertEqual(explicitPlan?.replacement, "một con mèo.")
+        XCTAssertEqual(explicitPlan?.originalTail, "mọt con mèo.")
     }
 
     func testPlanSentenceAutoFixEmptyOrCleanSentence() {

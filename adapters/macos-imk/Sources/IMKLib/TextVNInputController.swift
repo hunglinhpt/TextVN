@@ -89,6 +89,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private var candidatePanel: IMKCandidates?
     /// Danh sách gợi ý hiện tại cho candidate panel (kèm kế hoạch A2 — R-7)
     private var currentCandidates: [AssistCandidate] = []
+    /// R2-134: phần chữ Tab SẼ nối thêm (xem trước dự đoán) đang hiện trong bảng
+    /// ứng viên khi không có gợi ý trợ lý — `nil` = không hiện.
+    private var predictionPreview: String?
 
     // R2-106: phím chuyển CỐ ĐỊNH Ctrl+Shift (tap) / Ctrl+Shift+Space như Windows/Linux.
     // Vòng 16 (B3) từng thực thi `switch_key` Alt+Z/Caps Lock riêng trên macOS — lệch
@@ -336,8 +339,20 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             engine?.reset()
         }
 
+        // R2-131/R2-133 (chủ repo: "trên Mac thì Alt+Space thay cho Ctrl+Space"):
+        // phím tắt trợ lý = Option+Space (Ctrl+Space thường bị hệ thống giữ để đổi
+        // nguồn nhập) hoặc Ctrl+Space nếu tới được. Câu có lỗi sửa được ⇒ SỬA HẾT
+        // trước; không ⇒ engine dự đoán như Tab (engine luôn thấy Ctrl+Space);
+        // không có gì ⇒ phím về app (Option+Space vẫn gõ được dấu cách cứng).
+        hidePredictionPreview()
+        if keyEvent.isAssistHotkey(), isAssistActive(for: context.appID),
+           hotkeyFixSentence(target: target) {
+            return true
+        }
+        let engineKey = keyEvent.isAltSpace() ? keyEvent.asCtrlSpace() : keyEvent
+
         // 6. Engine quyết định.
-        guard let outcome = engine?.key(keyEvent) else { return false }
+        guard let outcome = engine?.key(engineKey) else { return false }
         if outcome.isError {
             Diagnostics.log("engine error flag — pass-through")
             // Vòng 16 (audit B4): pipeline crash-report từng đứt hoàn toàn
@@ -366,7 +381,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
         switch toApply.action {
         case .pass:
-            if keyEvent.isCtrlSpace() {
+            if keyEvent.isAssistHotkey() {
                 // R2-121: Ctrl+Space không khớp dự đoán — engine đã nhả từ
                 // (WORD_END) nhưng GIỮ buffer câu cho lượt kiểm tra on-demand:
                 // chốt marked thành text thật (KHÔNG reset engine ở đây), rồi
@@ -425,6 +440,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                         processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
                     }
                 }
+                updatePredictionPreview()
                 return !forwardKey
             } catch {
                 // 7. Fail-open: forward phím, engine không được treo (S4, P2-1 §12).
@@ -894,6 +910,89 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         return false
     }
 
+    /// R2-131: bước "sửa hết" của phím tắt trợ lý — câu có lỗi người dùng sửa
+    /// được ⇒ sửa cả câu (kể cả chính tả), trả `true`. Precondition D12 nằm trong
+    /// `applyAssistFix` (đuôi document phải khớp đuôi câu engine biết).
+    func hotkeyFixSentence(target: TextTarget) -> Bool {
+        guard assistKillSwitchOn, let engine = engine else { return false }
+        let issues = filterAutoCapitalizeConflicts(
+            engine.assistCheck(),
+            autoCapitalize: assistSettings.auto_capitalize
+        )
+        guard !issues.isEmpty else { return false }
+        let sentence = engine.sentenceTail(maxChars: 256)
+        guard let plan = planSentenceAutoFix(
+            sentence: sentence, issues: issues,
+            glyphLen: { [weak engine] text in engine?.glyphLen(text) ?? 0 },
+            explicit: true
+        ) else { return false }
+        // Chốt từ đang gõ (marked → text thật) để document chứa đúng câu engine biết.
+        if !marked.text.isEmpty {
+            target.insert(marked.text, replacementRange: NSRange(location: NSNotFound, length: 0))
+            marked.clear()
+        }
+        guard applyAssistFix(plan: plan, target: target) else {
+            // Đã chốt marked nhưng không sửa được: engine quên từ (không lệch document).
+            engine.reset()
+            return false
+        }
+        let replGlyphs = engine.glyphLen(plan.replacement)
+        if replGlyphs > 0 {
+            assistUndo = AssistUndoState(
+                timestamp: Date(),
+                originalTail: plan.originalTail,
+                replacement: plan.replacement,
+                replacementGlyphs: replGlyphs,
+                fixedCount: plan.fixedCount
+            )
+        }
+        reseedAfterFix(engine: engine, sentence: sentence, plan: plan)
+        candidatePanel?.hide()
+        currentCandidates.removeAll()
+        Diagnostics.log("assist hotkey fix applied (\(plan.fixedCount) issue(s))")
+        return true
+    }
+
+    /// R2-131: sau khi sửa câu trong document — nạp câu đã sửa làm ngữ cảnh dự
+    /// đoán; không ghép được thì reset như cũ.
+    private func reseedAfterFix(engine: ImeEngine, sentence: String, plan: SentenceFixPlan) {
+        if sentence.hasSuffix(plan.originalTail) {
+            engine.resetWithTail(String(sentence.dropLast(plan.originalTail.count)) + plan.replacement)
+        } else {
+            engine.reset()
+        }
+    }
+
+    /// R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt
+    /// SẼ nối thêm trong bảng ứng viên IMK (không chạm marked text/văn bản — app
+    /// có thể tự chốt marked text). Chỉ khi không có gợi ý trợ lý đang hiện.
+    private func updatePredictionPreview() {
+        guard currentCandidates.isEmpty, let engine = engine,
+              let ghost = engine.peekCompletion() else {
+            hidePredictionPreview()
+            return
+        }
+        let trimmed = ghost.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            hidePredictionPreview()
+            return
+        }
+        predictionPreview = ghost
+        candidatePanel?.update()
+        candidatePanel?.show()
+    }
+
+    private func hidePredictionPreview() {
+        guard predictionPreview != nil else { return }
+        predictionPreview = nil
+        if currentCandidates.isEmpty { candidatePanel?.hide() }
+    }
+
+    /// Nhãn xem trước trong bảng ứng viên ("⇥ phần mềm").
+    static func previewLabel(_ ghost: String) -> String {
+        "⇥ " + ghost.trimmingCharacters(in: .whitespaces)
+    }
+
     /// Áp dụng kế hoạch sửa (A2/A3) — **có precondition** (D12 · R-2 · R-7).
     ///
     /// Vùng sắp xoá phải **đúng** là đuôi câu mà engine biết; không xác minh
@@ -959,9 +1058,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         for issue in issues {
             guard out.count < 3 else { break } // tối đa 3 gợi ý (P4-0 §6)
             guard !issue.suggest.isEmpty else { continue }
+            // R2-131: chọn gợi ý = hành động CHỦ ĐỘNG ⇒ gồm cả lỗi chính tả có gợi ý.
             guard let plan = planSentenceAutoFix(sentence: sentence, issues: [issue], glyphLen: { text in
                 engine.glyphLen(text)
-            }) else { continue } // lỗi chỉ gợi ý (A1) → không áp dụng được
+            }, explicit: true) else { continue } // loại cần viết lại → không áp dụng được
             out.append(AssistCandidate(text: issue.suggest, plan: plan))
         }
         return out
@@ -1033,20 +1133,37 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     // ------------------------------------------------------------- IMK candidate panel
 
     public override func candidates(_ sender: Any!) -> [Any]! {
-        currentCandidates.map { $0.text } as [Any]
+        if currentCandidates.isEmpty, let ghost = predictionPreview {
+            return [Self.previewLabel(ghost)] as [Any]
+        }
+        return currentCandidates.map { $0.text } as [Any]
     }
 
     public override func candidateSelected(_ candidateString: NSAttributedString!) {
         guard let str = candidateString?.string else { return }
+        // R2-134: chọn bản xem trước = nhận dự đoán (chốt marked + phần nối thêm).
+        if currentCandidates.isEmpty, let ghost = predictionPreview, str == Self.previewLabel(ghost) {
+            predictionPreview = nil
+            if let target = clientTarget(client()) {
+                target.insert(marked.text + ghost, replacementRange: NSRange(location: NSNotFound, length: 0))
+                marked.clear()
+                engine?.reset()
+            }
+            candidatePanel?.hide()
+            return
+        }
         Diagnostics.log("assist: candidate selected (len=\(str.count))")
         // R-7: chọn gợi ý ⇒ **thay từ lỗi** (xoá đúng số glyph rồi gõ lại) —
         // trước đây *chèn* gợi ý ở caret ⇒ sinh "chèn thêm" + trùng lặp.
         if let candidate = currentCandidates.first(where: { $0.text == str }),
            let target = clientTarget(client()) {
+            let sentence = engine?.sentenceTail(maxChars: 256) ?? ""
             if applyAssistFix(plan: candidate.plan, target: target) {
                 // R-4: sau khi sửa câu trong document, buffer câu của engine đã
-                // cũ ⇒ phải reset để câu tiếp theo không bị lệch span.
-                engine?.reset()
+                // cũ ⇒ nạp câu đã sửa (R2-131) để câu tiếp theo không lệch span.
+                if let engine = engine {
+                    reseedAfterFix(engine: engine, sentence: sentence, plan: candidate.plan)
+                }
                 assistUndo = nil
             } else {
                 Diagnostics.log("assist: candidate apply skipped (precondition)")
@@ -1077,11 +1194,27 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 /// Đếm chord thuần Swift (mirror `KeyEvent::is_chord` — P0-2 §1).
 extension KeyEvent {
     func isChordSwift() -> Bool {
-        if isCtrlSpace() { return false }
+        if isAssistHotkey() { return false }
         return mods & (FFI.modCtrl | FFI.modAlt | FFI.modMeta) != 0
     }
 
     func isCtrlSpace() -> Bool {
         vk == 0x20 && (mods & ~FFI.modCaps) == FFI.modCtrl
+    }
+
+    /// R2-133: Option+Space — phím tắt trợ lý trên Mac (Ctrl+Space hệ thống giữ).
+    func isAltSpace() -> Bool {
+        vk == 0x20 && (mods & ~FFI.modCaps) == FFI.modAlt
+    }
+
+    /// Phím tắt trợ lý: Ctrl+Space hoặc Option+Space (parity Windows/Linux).
+    func isAssistHotkey() -> Bool {
+        isCtrlSpace() || isAltSpace()
+    }
+
+    /// Bản Ctrl+Space của phím này — engine dự đoán/duyệt vòng như nhau.
+    func asCtrlSpace() -> KeyEvent {
+        KeyEvent(vk: 0x20, ch: 0x20, mods: (mods & FFI.modCaps) | FFI.modCtrl,
+                 keyDown: keyDown, isRepeat: isRepeat, isInjected: isInjected)
     }
 }

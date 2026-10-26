@@ -382,8 +382,110 @@ void TextVNEngine::commitText(TextVNState *st, const uint32_t *text, size_t len)
     if (len > 0) st->ic->commitString(utf32ToUtf8(text, len));
 }
 
+void TextVNEngine::hidePreview(TextVNState *st) {
+    if (!previewShowing_) return;
+    previewShowing_ = false;
+    if (!st || !st->ic || assistUiShowing_) return;
+    try {
+        st->ic->inputPanel().setAuxDown(fcitx::Text());
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    } catch (...) {
+    }
+}
+
+/* R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt SẼ
+ * nối thêm ở dòng phụ của bảng Fcitx5 cạnh con trỏ — không chạm preedit/văn bản. */
+void TextVNEngine::updatePreview(TextVNState *st) {
+    if (!st || !st->ic || !st->inst || assistUiShowing_ || !viEnabled_) {
+        hidePreview(st);
+        return;
+    }
+    char ghost[512];
+    char label[540];
+    if (ime_peek_completion(st->inst, ghost, sizeof(ghost)) <= 0 ||
+        !lc_preview_label(ghost, label, sizeof(label))) {
+        hidePreview(st);
+        return;
+    }
+    try {
+        st->ic->inputPanel().setAuxDown(fcitx::Text(std::string(label)));
+        st->ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+        previewShowing_ = true;
+    } catch (...) {
+    }
+}
+
+/* R2-131 (chủ repo: "Ctrl+Space phải xác định từ lỗi trong câu để sửa hết cùng
+ * với text prediction"): câu có lỗi người dùng sửa được ⇒ sửa cả câu (kể cả
+ * chính tả), trả true; không thì false (engine dự đoán tiếp như Tab).
+ * Precondition D12 kiểm TRƯỚC khi đụng document: từ còn ở preedit chưa nằm
+ * trong document ⇒ so surrounding với đuôi câu BỎ phần preedit. */
+bool TextVNEngine::hotkeyFixSentence(TextVNState *st) {
+    if (!st || !st->ic || !st->inst || !viEnabled_ ||
+        !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
+        return false;
+    }
+    if (!st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText) ||
+        !st->ic->surroundingText().isValid()) {
+        return false;
+    }
+    ime_assist_result_v1 res;
+    std::memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    if (ime_assist_check_instance(st->inst, &res) != IME_OK || res.count == 0) return false;
+    if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&st->config)) == 0) {
+        return false;
+    }
+    char sentence[256 * 4 + 1];
+    size_t actualLen = 0;
+    if (ime_assist_sentence_tail(st->inst, 256, sentence, sizeof(sentence), &actualLen) != IME_OK ||
+        actualLen == 0 || actualLen >= sizeof(sentence)) {
+        return false;
+    }
+    sentence[actualLen] = 0;
+    lc_sentence_fix_plan plan;
+    if (!lc_plan_sentence_fix_ex(st->inst, sentence, &res, 1, &plan) || plan.delete_glyphs == 0) {
+        return false;
+    }
+    const std::string pending = st->comp.len > 0 ? utf32ToUtf8(st->comp.text, st->comp.len) : std::string();
+    char docTail[LC_MAX_SENTENCE_FIX_CHARS];
+    if (!lc_strip_suffix(plan.original_tail, pending.c_str(), docTail, sizeof(docTail))) return false;
+    if (docTail[0] != 0 && !textBeforeCaretMatches(st->ic, docTail)) return false;
+
+    try {
+        if (st->comp.len > 0) {
+            commitText(st, st->comp.text, st->comp.len);
+            st->comp.len = 0;
+        }
+        clearAssistUI(st);
+        deleteBeforeCaret(st->ic, plan.delete_glyphs);
+        st->ic->commitString(plan.replacement);
+    } catch (...) {
+        ime_reset(st->inst);
+        return true; /* document đã bị chạm — không để engine xử lý tiếp phím này */
+    }
+    size_t replGlyphs = 0;
+    if (ime_assist_glyph_len(st->inst, plan.replacement, std::strlen(plan.replacement), &replGlyphs) ==
+            IME_OK &&
+        replGlyphs > 0) {
+        st->assistUndoValid = true;
+        st->assistUndoOriginalTail = plan.original_tail;
+        st->assistUndoReplacement = plan.replacement;
+        st->assistUndoReplacementGlyphs = static_cast<uint32_t>(replGlyphs);
+        st->assistUndoTimestampMs = nowMs();
+    }
+    char fixed[256 * 4 + LC_MAX_SENTENCE_FIX_CHARS];
+    if (lc_fixed_sentence(sentence, plan.original_tail, plan.replacement, fixed, sizeof(fixed))) {
+        ime_reset_with_tail(st->inst, fixed, std::strlen(fixed));
+    } else {
+        ime_reset(st->inst);
+    }
+    return true;
+}
+
 void TextVNEngine::finishWord(TextVNState *st) {
     if (!st) return;
+    hidePreview(st);
     clearAssistUI(st);
     /* R-4: chốt từ ⇒ trạng thái hoàn tác cũng hết hiệu lực (caret có thể đã
      * đổi ⇒ không xác minh được vùng cần xoá). */
@@ -650,7 +752,8 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                  * chọn sẽ **chèn** gợi ý vào caret thay vì thay lỗi (sai).
                  * Cùng quy tắc với IBus (`apply_assist_candidate`) và macOS
                  * (`buildCandidates`). */
-                if (!lc_plan_sentence_auto_fix(st->inst, sentence, &single, &singlePlan)) {
+                /* R2-131: chọn gợi ý = hành động CHỦ ĐỘNG ⇒ gồm cả lỗi chính tả. */
+                if (!lc_plan_sentence_fix_ex(st->inst, sentence, &single, 1, &singlePlan)) {
                     continue;
                 }
                 candList->append(std::make_unique<AssistCandidateWord>(
@@ -794,6 +897,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
                             states.test(fcitx::KeyState::Alt) ||
                                 states.test(fcitx::KeyState::Super));
     if (which != LC_MOD_NONE) return false;
+    /* R2-134: bản xem trước chỉ sống tới phím kế tiếp (vẽ lại sau phím gõ). */
+    hidePreview(st);
 
     /* Phím khi danh sách gợi ý SỐNG đang hiện (R2-129 — parity Windows/IBus):
      * không chiếm phím gõ; Esc đóng; Alt+1..3 áp gợi ý (trước đây phím số trần
@@ -863,7 +968,12 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
      * Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
     uint32_t vk = 0, ch = 0;
     mapFcitxKey(key, &vk, &ch);
-    const bool is_ctrl_space = (vk == LC_VK_SPACE || ch == ' ') && ((mods & ~IME_MOD_CAPS) == IME_MOD_CTRL);
+    /* R2-133: phím tắt trợ lý = Ctrl+Space hoặc Alt+Space (engine luôn thấy
+     * Ctrl+Space — dự đoán/duyệt vòng giống hệt nhau). */
+    const bool is_ctrl_space =
+        lc_is_assist_hotkey(static_cast<uint32_t>(key.sym()), states.test(fcitx::KeyState::Ctrl),
+                            states.test(fcitx::KeyState::Alt), states.test(fcitx::KeyState::Shift),
+                            states.test(fcitx::KeyState::Super)) != 0;
 
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
@@ -883,6 +993,14 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         ctx.hint = -1;
         ime_set_context(st->inst, &ctx);
         st->ctxEnabled = ctx.enabled;
+    }
+
+    /* R2-131: phím tắt — câu có lỗi sửa được ⇒ sửa hết TRƯỚC; không ⇒ dự đoán. */
+    if (is_ctrl_space && hotkeyFixSentence(st)) return true;
+    if (is_ctrl_space) {
+        vk = LC_VK_SPACE;
+        ch = ' ';
+        mods = (mods & IME_MOD_CAPS) | IME_MOD_CTRL;
     }
 
     const lc_key k = lc_key_classify_with_mods(vk, ch, mods);
@@ -929,15 +1047,22 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const uint32_t triggerKind = (k.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(k.ch) : IME_ASSIST_TRIGGER_NONE;
     if (triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
         bool isSentence = (triggerKind == IME_ASSIST_TRIGGER_SENTENCE);
-        return checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0);
+        const bool eaten = checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0);
+        updatePreview(st);
+        return eaten;
     }
     /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
      * thì ẩn ngay, còn lỗi thì cập nhật). */
     if (k.kind == LC_KEY_BACKSPACE && assistUiShowing_ && viEnabled_ && st->comp.len == 0 &&
         st->inst) {
-        return checkAndApplyAssist(st, 0, false, plan.eaten != 0);
+        const bool eaten = checkAndApplyAssist(st, 0, false, plan.eaten != 0);
+        updatePreview(st);
+        return eaten;
     }
 
+    if (k.kind == LC_KEY_CHAR || k.kind == LC_KEY_BACKSPACE || k.kind == LC_KEY_TAB) {
+        updatePreview(st);
+    }
     return plan.eaten != 0;
 }
 

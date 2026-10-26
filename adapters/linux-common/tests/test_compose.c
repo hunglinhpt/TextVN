@@ -587,6 +587,52 @@ static void test_assist_l6_auto_capitalize_mode2(void) {
     ime_instance_free(inst);
 }
 
+/* R2-131/R2-133/R2-134: phím tắt trợ lý (Ctrl+Space hoặc Alt+Space), kế hoạch
+ * sửa CHỦ ĐỘNG (gồm lỗi chính tả), câu sau sửa, nhãn xem trước dự đoán. */
+static void test_assist_hotkey_explicit_preview(void) {
+    assert(lc_is_assist_hotkey(0x20, 1, 0, 0, 0) == 1);    /* Ctrl+Space */
+    assert(lc_is_assist_hotkey(0x20, 0, 1, 0, 0) == 1);    /* Alt+Space */
+    assert(lc_is_assist_hotkey(0xff80, 0, 1, 0, 0) == 1);  /* Alt+KP_Space */
+    assert(lc_is_assist_hotkey(0x20, 0, 0, 0, 0) == 0);    /* Space trần */
+    assert(lc_is_assist_hotkey(0x20, 1, 1, 0, 0) == 0);    /* Ctrl+Alt+Space */
+    assert(lc_is_assist_hotkey(0x20, 1, 0, 1, 0) == 0);    /* Ctrl+Shift+Space = toggle */
+    assert(lc_is_assist_hotkey(0x20, 0, 1, 0, 1) == 0);    /* Super */
+    assert(lc_is_assist_hotkey('a', 1, 0, 0, 0) == 0);
+
+    char out[256];
+    assert(lc_strip_suffix("abc def", " def", out, sizeof(out)) == 1 && strcmp(out, "abc") == 0);
+    assert(lc_strip_suffix("abc", "x", out, sizeof(out)) == 0);
+    assert(lc_fixed_sentence("toi toi di hoc", " toi di hoc", " di hoc", out, sizeof(out)) == 1);
+    assert(strcmp(out, "toi di hoc") == 0);
+    assert(lc_fixed_sentence("toi di hoc", "xyz", "abc", out, sizeof(out)) == 0);
+    assert(lc_preview_label(" phan mem", out, sizeof(out)) == 1);
+    assert(strcmp(out, "\xe2\x87\xa5 phan mem") == 0);
+    assert(lc_preview_label("   ", out, sizeof(out)) == 0);
+    char tiny[4];
+    assert(lc_preview_label("phan mem", tiny, sizeof(tiny)) == 0);
+
+    /* Lỗi chính tả = chỉ-gợi-ý: Mode 2 (không cờ) không sửa, hành động chủ động thì sửa. */
+    ime_instance *inst = engine_with(NO_CAPS);
+    const char *sentence = "nganh nghe nghanh toi";
+    ime_assist_result_v1 res;
+    memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    res.count = 1;
+    res.issues[0].kind = IME_ASSIST_KIND_SPELLING;
+    res.issues[0].start = 11;
+    res.issues[0].end = 17;
+    res.issues[0].auto_fixable = 0;
+    res.issues[0].confidence = 60;
+    strcpy(res.issues[0].suggest, "nganh");
+    res.issues[0].suggest_len = 5;
+    lc_sentence_fix_plan plan;
+    assert(lc_plan_sentence_auto_fix(inst, sentence, &res, &plan) == 0);
+    assert(lc_plan_sentence_fix_ex(inst, sentence, &res, 1, &plan) == 1);
+    assert(strcmp(plan.replacement, "nganh toi") == 0);
+    assert(strcmp(plan.original_tail, "nghanh toi") == 0);
+    ime_instance_free(inst);
+}
+
 int main(void) {
     test_classify();
     test_typing();
@@ -600,6 +646,7 @@ int main(void) {
     test_assist_mode_semantics();
     test_assist_auto_fix_spacing_punct();
     test_assist_l6_auto_capitalize_mode2();
+    test_assist_hotkey_explicit_preview();
     test_macro_when_vi_off();
     test_find_settings_binary();
     printf("test_compose: OK\n");

@@ -253,6 +253,36 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
                               const ime_assist_result_v1 *result,
                               lc_sentence_fix_plan *out_plan);
 
+/* R2-131: như lc_plan_sentence_auto_fix; `explicit_fix` != 0 = hành động người
+ * dùng CHỦ ĐỘNG (chọn gợi ý, Alt+1..3, phím tắt sửa câu) — gồm cả lỗi chính tả
+ * có gợi ý và dấu phẩy cuối câu (FFI ime_assist_plan_sentence_fix_ex,
+ * IME_ASSIST_PLAN_EXPLICIT). Mode 2 tự sửa: 0. */
+int lc_plan_sentence_fix_ex(const ime_instance *inst,
+                            const char *sentence_utf8,
+                            const ime_assist_result_v1 *result,
+                            int explicit_fix,
+                            lc_sentence_fix_plan *out_plan);
+
+/* R2-133: phím tắt trợ lý = Ctrl+Space HOẶC Alt+Space (không Shift/Super) —
+ * parity Windows/macOS (Option+Space). Phím nào bị hệ thống/DE giữ (Fcitx5
+ * trigger Ctrl+Space, GNOME Alt+Space) thì phím còn lại vẫn dùng được. */
+int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super);
+
+/* `tail` kết thúc bằng `suffix` ⇒ chép phần trước suffix vào `out`, trả 1;
+ * không khớp / không vừa ⇒ 0. Dùng tính đuôi document khi từ đang gõ còn ở
+ * preedit (chưa nằm trong document). */
+int lc_strip_suffix(const char *tail, const char *suffix, char *out, size_t cap);
+
+/* R2-131: câu sau khi sửa = `sentence` bỏ đuôi `original_tail` + `replacement`
+ * (nạp lại engine bằng ime_reset_with_tail để dự đoán tiếp theo ngữ cảnh).
+ * 0 = sentence không kết thúc bằng original_tail / không vừa `cap`. */
+int lc_fixed_sentence(const char *sentence, const char *original_tail,
+                      const char *replacement, char *out, size_t cap);
+
+/* R2-134: nhãn xem trước dự đoán ("⇥ phần mềm") từ kết quả
+ * ime_peek_completion — bỏ khoảng trắng đầu. 0 = rỗng / không vừa. */
+int lc_preview_label(const char *ghost, char *out, size_t cap);
+
 /* Tìm binary bảng cài đặt `textvn-settings` (theo thứ tự): cạnh `self_dir`,
  * `self_dir/../../bin` (prefix/lib/textvn → prefix/bin), $PATH, ~/.local/bin.
  * `self_dir` có thể NULL. 0 = tìm thấy (đường dẫn tuyệt đối trong `out`). */

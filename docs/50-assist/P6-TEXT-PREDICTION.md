@@ -72,6 +72,18 @@ Popup chọn-sửa bằng phím (↑/↓/Tab · Enter, R2-122) giờ mở bằng
 
 E2E thật sau sửa (máy chủ repo, 2026-10-26): `tools/win/e2e-assist-apps.ps1` **33/33** (Notepad 11, Edge 11, Notepad++ 11 — live popup, click "Sửa tất cả", Alt+1, Tab, Ctrl+Space/Alt+Space sửa hết, sửa rồi dự đoán, Alt+Space rảnh mở menu hệ thống, Ctrl+Shift+G giữ Tab, ghost text, gõ thường) + `tools/win/e2e-assist-p6.ps1` **28/28** (Notepad/Word/Excel, ca on-demand cập nhật theo R2-131).
 
+**Parity macOS/Linux (vòng 2):**
+
+| Hạng mục | Windows | macOS (IMK) | Linux (IBus / Fcitx5) |
+|---|---|---|---|
+| Phím tắt trợ lý | Ctrl+Space (key sink) + Alt+Space (preserved key, trả lại app khi rảnh) | **Option+Space** (Ctrl+Space hệ thống thường giữ để đổi nguồn nhập) + Ctrl+Space nếu tới được; engine luôn thấy Ctrl+Space (`asCtrlSpace`); rảnh ⇒ phím về app (Option+Space vẫn gõ dấu cách cứng) | Ctrl+Space hoặc Alt+Space (`lc_is_assist_hotkey` — phím nào bị Fcitx5 trigger/GNOME giữ thì phím còn lại vẫn dùng được); rảnh ⇒ phím về app |
+| Sửa hết trước, rồi dự đoán | `hotkey_fix_sentence` trong `KeyEditSession` | `hotkeyFixSentence` (chốt marked → `applyAssistFix` xác minh đuôi document) | `hotkey_fix_sentence` / `hotkeyFixSentence`: precondition D12 kiểm TRƯỚC khi đụng document (IBus: surrounding cache + preedit; Fcitx5: so surrounding với đuôi câu bỏ phần preedit — `lc_strip_suffix`) rồi mới chốt preedit, xoá, gõ lại |
+| Chọn gợi ý chính tả | `plan_fix` chủ động | `buildCandidates(explicit: true)` | `lc_plan_sentence_fix_ex(…, 1, …)` khi dựng danh sách |
+| Nạp câu đã sửa | `reset_engine_with_tail` | `ImeEngine.resetWithTail` | `ime_reset_with_tail` + `lc_fixed_sentence` |
+| Xem trước dự đoán | chữ mờ ngay sau caret (`ghost.rs`) | 1 ô "⇥ phần mềm" trong bảng ứng viên IMK (chọn = nhận dự đoán) — không ghép vào marked text vì app có thể tự chốt marked | dòng phụ (aux) "⇥ phần mềm" của bảng IBus/Fcitx5 — không ghép vào preedit (Qt tự chốt preedit khi mất focus ⇒ chữ gợi ý lọt vào văn bản) |
+
+Test: `test_compose.c` (`test_assist_hotkey_explicit_preview`), Swift `testCtrlSpaceExclusionFromChord` (Option+Space) + `testPlanSentenceAutoFixSkipsNonAutoFixableSpelling` (nhánh `explicit`) — xác thực trên `ci-linux`/`ci-macos`.
+
 **Chưa làm:** luật chính tả theo từ điển trên Windows im lặng vì chưa nối `ISpellCheckerFactory` (D39: không phát hành từ điển hunspell-vi; macOS có `NSSpellChecker`) — "nghành" không được báo trên Windows.
 
 ## 3. Kiểm chứng

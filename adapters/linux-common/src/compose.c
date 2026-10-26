@@ -437,6 +437,56 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
                               const char *sentence_utf8,
                               const ime_assist_result_v1 *result,
                               lc_sentence_fix_plan *out_plan) {
+    return lc_plan_sentence_fix_ex(inst, sentence_utf8, result, 0, out_plan);
+}
+
+int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super) {
+    if (keysym != 0x20 && keysym != 0xff80) return 0; /* space / KP_Space */
+    if (shift || super) return 0;
+    return (ctrl != 0) != (alt != 0); /* đúng MỘT trong Ctrl / Alt */
+}
+
+int lc_strip_suffix(const char *tail, const char *suffix, char *out, size_t cap) {
+    if (!tail || !suffix || !out || cap == 0) return 0;
+    size_t tl = strlen(tail), sl = strlen(suffix);
+    if (sl > tl || memcmp(tail + (tl - sl), suffix, sl) != 0) return 0;
+    if (tl - sl + 1 > cap) return 0;
+    memcpy(out, tail, tl - sl);
+    out[tl - sl] = '\0';
+    return 1;
+}
+
+int lc_fixed_sentence(const char *sentence, const char *original_tail,
+                      const char *replacement, char *out, size_t cap) {
+    if (!replacement) return 0;
+    char head[LC_MAX_SENTENCE_FIX_CHARS * 2];
+    if (!lc_strip_suffix(sentence, original_tail, head, sizeof(head))) return 0;
+    size_t hl = strlen(head), rl = strlen(replacement);
+    if (hl + rl + 1 > cap) return 0;
+    memcpy(out, head, hl);
+    memcpy(out + hl, replacement, rl);
+    out[hl + rl] = '\0';
+    return 1;
+}
+
+int lc_preview_label(const char *ghost, char *out, size_t cap) {
+    if (!ghost || !out || cap == 0) return 0;
+    while (*ghost == ' ') ghost++;
+    if (*ghost == '\0') return 0;
+    static const char prefix[] = "\xe2\x87\xa5 "; /* "⇥ " */
+    size_t pl = sizeof(prefix) - 1, gl = strlen(ghost);
+    if (pl + gl + 1 > cap) return 0;
+    memcpy(out, prefix, pl);
+    memcpy(out + pl, ghost, gl);
+    out[pl + gl] = '\0';
+    return 1;
+}
+
+int lc_plan_sentence_fix_ex(const ime_instance *inst,
+                            const char *sentence_utf8,
+                            const ime_assist_result_v1 *result,
+                            int explicit_fix,
+                            lc_sentence_fix_plan *out_plan) {
     if (!out_plan || !sentence_utf8 || !result) return 0;
     memset(out_plan, 0, sizeof(*out_plan));
     if (result->abi_version != IME_ABI_VERSION || result->count == 0) return 0;
@@ -445,7 +495,9 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
     memset(&ffi_plan, 0, sizeof(ffi_plan));
     ffi_plan.abi_version = IME_ABI_VERSION;
 
-    int32_t rc = ime_assist_plan_sentence_fix(inst, sentence_utf8, result, &ffi_plan);
+    int32_t rc = ime_assist_plan_sentence_fix_ex(inst, sentence_utf8, result,
+                                                 explicit_fix ? IME_ASSIST_PLAN_EXPLICIT : 0u,
+                                                 &ffi_plan);
     if (rc != 1 || ffi_plan.fixed_count == 0) {
         return 0;
     }

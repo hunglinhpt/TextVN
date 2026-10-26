@@ -251,10 +251,15 @@ public func assistKindName(_ kind: UInt32) -> String {
 public func planSentenceAutoFix(
     sentence: String,
     issues: [AssistIssue],
-    glyphLen: (String) -> Int
+    glyphLen: (String) -> Int,
+    explicit: Bool = false
 ) -> SentenceFixPlan? {
+    // R2-131: `explicit` = người dùng CHỦ ĐỘNG (chọn gợi ý, phím tắt sửa câu) ⇒
+    // gồm cả lỗi chính tả có gợi ý — nguồn chung FFI `ime_assist_plan_sentence_fix_ex`.
     let result = ImeEngine.encodeAssistResult(issues)
-    guard let plan = ImeEngine.planSentenceFix(sentence: sentence, result: result) else {
+    guard let plan = ImeEngine.planSentenceFix(
+        instance: nil, sentence: sentence, result: result, explicit: explicit
+    ) else {
         return nil
     }
     let glyphs = glyphLen(plan.originalTail)

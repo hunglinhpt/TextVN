@@ -100,7 +100,34 @@ static void clear_assist_ui(TextVNIbusEngine *self) {
 }
 
 /* Commit preedit hiện tại nguyên văn + reset engine (focus/chord/secure/toggle). */
+/* R2-134: ẩn bản xem trước dự đoán (dòng phụ) nếu đang hiện. */
+static void hide_preview(TextVNIbusEngine *self) {
+    if (!self->preview_showing) return;
+    self->preview_showing = FALSE;
+    if (!self->assist_ui_showing) ibus_engine_hide_auxiliary_text((IBusEngine *)self);
+}
+
+/* R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt SẼ
+ * nối thêm ở dòng phụ của bảng IBus cạnh con trỏ. Không chèn vào preedit: một
+ * số toolkit tự chốt preedit khi mất focus ⇒ chữ gợi ý lọt vào văn bản. */
+static void update_preview(TextVNIbusEngine *self) {
+    if (!self->inst || self->assist_ui_showing || !s_vi_enabled) {
+        hide_preview(self);
+        return;
+    }
+    char ghost[512];
+    char label[540];
+    if (ime_peek_completion(self->inst, ghost, sizeof(ghost)) <= 0 ||
+        !lc_preview_label(ghost, label, sizeof(label))) {
+        hide_preview(self);
+        return;
+    }
+    ibus_engine_update_auxiliary_text((IBusEngine *)self, ibus_text_new_from_string(label), TRUE);
+    self->preview_showing = TRUE;
+}
+
 static void finish_word(TextVNIbusEngine *self) {
+    hide_preview(self);
     clear_assist_ui(self);
     /* R-4: chốt từ => trạng thái hoàn tác cũng hết hiệu lực (caret có thể đã đổi) */
     self->assist_undo_valid = FALSE;
@@ -314,6 +341,73 @@ static gboolean apply_assist_undo(TextVNIbusEngine *self) {
     return TRUE;
 }
 
+/* R2-131 (chủ repo: "Ctrl+Space phải xác định từ lỗi trong câu để sửa hết cùng
+ * với text prediction"): bước "sửa hết" của phím tắt trợ lý (Ctrl+Space /
+ * Alt+Space). Câu có lỗi người dùng sửa được ⇒ sửa cả câu (kể cả chính tả) và
+ * trả TRUE; không thì FALSE (engine dự đoán tiếp như Tab). Precondition D12
+ * kiểm TRƯỚC khi đụng document: đuôi document = surrounding (cache) + từ còn ở
+ * preedit. */
+static gboolean hotkey_fix_sentence(TextVNIbusEngine *self) {
+    IBusEngine *engine = (IBusEngine *)self;
+    if (!self->inst || !s_vi_enabled ||
+        !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode) ||
+        !(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) {
+        return FALSE;
+    }
+    ime_assist_result_v1 res;
+    memset(&res, 0, sizeof(res));
+    res.abi_version = IME_ABI_VERSION;
+    if (ime_assist_check_instance(self->inst, &res) != IME_OK || res.count == 0) return FALSE;
+    if (lc_assist_filter_auto_capitalize(&res, lc_assist_auto_capitalize_enabled(&self->config)) == 0) {
+        return FALSE;
+    }
+    char sentence[256 * 4 + 1];
+    size_t actual_len = 0;
+    if (ime_assist_sentence_tail(self->inst, 256, sentence, sizeof(sentence), &actual_len) != IME_OK ||
+        actual_len == 0 || actual_len >= sizeof(sentence)) {
+        return FALSE;
+    }
+    sentence[actual_len] = '\0';
+    lc_sentence_fix_plan plan;
+    if (!lc_plan_sentence_fix_ex(self->inst, sentence, &res, 1, &plan) || plan.delete_glyphs == 0) {
+        return FALSE;
+    }
+    char pending[LC_COMP_MAX * 4 + 1];
+    pending[0] = '\0';
+    if (self->comp.len > 0) lc_utf32_to_utf8(self->comp.text, self->comp.len, pending, sizeof(pending));
+    if (!text_before_caret_matches(self, plan.original_tail, pending)) return FALSE;
+
+    /* Precondition khớp: chốt từ đang ở preedit (document = câu engine biết),
+     * xoá đúng số glyph rồi gõ lại bản sửa. */
+    if (self->comp.len > 0) {
+        commit_text(self, self->comp.text, self->comp.len);
+        self->comp.len = 0;
+    }
+    clear_assist_ui(self);
+    ibus_engine_delete_surrounding_text(engine, -(gint)plan.delete_glyphs, plan.delete_glyphs);
+    ibus_engine_commit_text(engine, ibus_text_new_from_string(plan.replacement));
+
+    size_t repl_glyphs = 0;
+    if (ime_assist_glyph_len(self->inst, plan.replacement, strlen(plan.replacement), &repl_glyphs) ==
+            IME_OK &&
+        repl_glyphs > 0) {
+        self->assist_undo_valid = TRUE;
+        g_strlcpy(self->assist_undo_original_tail, plan.original_tail,
+                  sizeof(self->assist_undo_original_tail));
+        g_strlcpy(self->assist_undo_replacement, plan.replacement, sizeof(self->assist_undo_replacement));
+        self->assist_undo_replacement_glyphs = (uint32_t)repl_glyphs;
+        self->assist_undo_timestamp_ms = (guint64)(g_get_monotonic_time() / 1000);
+    }
+    /* Nạp câu đã sửa làm ngữ cảnh: bấm phím tắt lần nữa ⇒ dự đoán tiếp. */
+    char fixed[256 * 4 + LC_MAX_SENTENCE_FIX_CHARS];
+    if (lc_fixed_sentence(sentence, plan.original_tail, plan.replacement, fixed, sizeof(fixed))) {
+        ime_reset_with_tail(self->inst, fixed, strlen(fixed));
+    } else {
+        ime_reset(self->inst);
+    }
+    return TRUE;
+}
+
 /* Kiểm tra và thực thi Trợ lý ngữ pháp (AS-060 / P4-6)
  *
  * `committed` = text engine vừa commit trong phím này (UTF-8, rỗng nếu không
@@ -468,8 +562,9 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
             /* Không lập được kế hoạch sửa ⇒ KHÔNG hiện ứng viên (nếu hiện,
              * chọn sẽ **chèn** gợi ý vào caret thay vì thay lỗi — sai).
              * Cùng quy tắc với macOS (AssistModel). */
+            /* R2-131: chọn gợi ý = hành động CHỦ ĐỘNG ⇒ gồm cả lỗi chính tả. */
             lc_sentence_fix_plan single_plan;
-            if (!lc_plan_sentence_auto_fix(self->inst, sentence, &single, &single_plan)) {
+            if (!lc_plan_sentence_fix_ex(self->inst, sentence, &single, 1, &single_plan)) {
                 continue;
             }
             uint32_t del_glyphs = single_plan.delete_glyphs;
@@ -725,6 +820,8 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                             (state & IBUS_SHIFT_MASK) != 0,
                             (state & (IBUS_MOD1_MASK | IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0);
     if (which != LC_MOD_NONE) return FALSE; /* modifier đứng riêng: không commit */
+    /* R2-134: bản xem trước chỉ sống tới phím kế tiếp (vẽ lại sau phím gõ). */
+    hide_preview(self);
 
     /* Phím khi danh sách gợi ý SỐNG đang hiện (R2-129 — parity Windows): không
      * chiếm phím gõ; Esc đóng; Alt+1..3 áp gợi ý (phím số trần là gõ số — trước
@@ -789,7 +886,12 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
      * commit, phím đi thẳng. Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
     uint32_t vk = 0, ch = 0;
     textvn_ibus_map_key(keyval, &vk, &ch);
-    gboolean is_ctrl_space = (vk == 0x20 || keyval == 0x20) && ((mods & ~IME_MOD_CAPS) == IME_MOD_CTRL);
+    /* R2-133: phím tắt trợ lý = Ctrl+Space hoặc Alt+Space (engine luôn thấy
+     * Ctrl+Space — dự đoán/duyệt vòng giống hệt nhau). */
+    gboolean is_ctrl_space = lc_is_assist_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
+                                                 (state & IBUS_MOD1_MASK) != 0,
+                                                 (state & IBUS_SHIFT_MASK) != 0,
+                                                 (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0) != 0;
 
     gboolean macro_only = !s_vi_enabled && self->config.allow_macro_when_vi_off;
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || self->secure ||
@@ -798,6 +900,14 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         return FALSE;
     }
     if (self->ctx_enabled != (s_vi_enabled ? 1 : 0)) push_context(self, s_vi_enabled);
+
+    /* R2-131: phím tắt — câu có lỗi sửa được ⇒ sửa hết TRƯỚC; không ⇒ dự đoán. */
+    if (is_ctrl_space && hotkey_fix_sentence(self)) return TRUE;
+    if (is_ctrl_space) {
+        vk = 0x20;
+        ch = 0x20;
+        mods = (mods & IME_MOD_CAPS) | IME_MOD_CTRL;
+    }
 
     lc_key key = lc_key_classify_with_mods(vk, ch, mods);
     ime_key_v1 k;
@@ -848,16 +958,23 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     uint32_t trigger_kind = (key.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(key.ch) : IME_ASSIST_TRIGGER_NONE;
     if (trigger_kind != IME_ASSIST_TRIGGER_NONE && s_vi_enabled && self->comp.len == 0 && self->inst) {
         gboolean is_sentence = (trigger_kind == IME_ASSIST_TRIGGER_SENTENCE);
-        return check_and_apply_assist(self, key.ch, is_sentence, plan.eaten ? TRUE : FALSE,
-                                      committed);
+        gboolean eaten = check_and_apply_assist(self, key.ch, is_sentence, plan.eaten ? TRUE : FALSE,
+                                                committed);
+        update_preview(self);
+        return eaten;
     }
     /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
      * thì ẩn ngay, còn lỗi thì cập nhật). */
     if (key.kind == LC_KEY_BACKSPACE && self->assist_ui_showing && s_vi_enabled &&
         self->comp.len == 0 && self->inst) {
-        return check_and_apply_assist(self, 0, FALSE, plan.eaten ? TRUE : FALSE, committed);
+        gboolean eaten = check_and_apply_assist(self, 0, FALSE, plan.eaten ? TRUE : FALSE, committed);
+        update_preview(self);
+        return eaten;
     }
 
+    if (key.kind == LC_KEY_CHAR || key.kind == LC_KEY_BACKSPACE || key.kind == LC_KEY_TAB) {
+        update_preview(self);
+    }
     return plan.eaten ? TRUE : FALSE;
 }
 

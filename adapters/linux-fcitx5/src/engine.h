@@ -83,6 +83,11 @@ private:
     void syncAssistState(TextVNState *st);
     void consumeAssistIpc();
     void clearAssistUI(TextVNState *st);
+    /* R2-134: bản xem trước dự đoán ("⇥ phần mềm") ở dòng phụ của bảng Fcitx5. */
+    void updatePreview(TextVNState *st);
+    void hidePreview(TextVNState *st);
+    /* R2-131: bước "sửa hết" của phím tắt trợ lý (Ctrl+Space / Alt+Space). */
+    bool hotkeyFixSentence(TextVNState *st);
     bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten);
     /* R-4: Ctrl+Z hoàn tác tự sửa cả câu (1 bước, 5 s). */
     bool applyAssistUndo(TextVNState *st);
@@ -108,6 +113,7 @@ private:
     uint32_t assistSeqSeen_ = 0;
     lc_config_state assistStateWatch_{};
     bool assistUiShowing_ = false;
+    bool previewShowing_ = false;
     fcitx::FactoryFor<TextVNState> factory_;
     std::unique_ptr<fcitx::SimpleAction> modeAction_;
     std::unique_ptr<fcitx::SimpleAction> settingsAction_;

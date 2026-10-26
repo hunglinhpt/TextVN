@@ -43,6 +43,8 @@ struct _TextVNIbusEngine {
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     IBusLookupTable      *lookup_table;
     gboolean              assist_ui_showing;
+    /* R2-134: dòng phụ đang hiện bản xem trước dự đoán ("⇥ phần mềm"). */
+    gboolean              preview_showing;
     guint                 assist_candidate_count;
     TextVNAssistCandidate assist_candidates[3];
 
