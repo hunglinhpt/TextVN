@@ -237,15 +237,15 @@ tên đi tới ứng dụng. Chữ trong panel to hơn để dễ đọc.
 
 | Hệ điều hành | Phím | Khi câu có lỗi | Khi câu đã đúng | Khi không có gì để làm |
 |---|---|---|---|---|
-| Windows | **Ctrl + Space** hoặc **Alt + Space** | sửa **hết** lỗi của câu (kể cả lỗi chính tả có gợi ý) | dự đoán chữ như Tab (bấm tiếp = ứng viên kế) | phím tới ứng dụng như thường (Alt + Space vẫn mở menu cửa sổ, Ctrl + Space vẫn gọi gợi ý code của IDE) |
+| Windows | **Ctrl + Space** | sửa **hết** lỗi của câu (kể cả lỗi chính tả có gợi ý) | dự đoán chữ như Tab (bấm tiếp = ứng viên kế) | phím tới ứng dụng như thường (Ctrl + Space vẫn gọi gợi ý code của IDE) |
 | macOS | **Option + Space** (hoặc Ctrl + Space nếu đã tắt phím tắt đổi nguồn nhập của hệ thống) | như trên | như trên | phím tới ứng dụng (Option + Space vẫn gõ dấu cách cứng) |
-| Linux | **Ctrl + Space** hoặc **Alt + Space** | như trên | như trên | phím tới ứng dụng |
+| Linux | **Ctrl + Space** | như trên | như trên | phím tới ứng dụng |
 
 - Sửa xong bấm phím tắt lần nữa là dự đoán tiếp theo câu đã sửa; **Ctrl + Z** (macOS **⌘ + Z**) trong 5 giây hoàn tác lần sửa.
 - Nút **Sửa tất cả** trên panel (Windows) cũng sửa cả lỗi chính tả có gợi ý. Lỗi cần viết lại câu (phủ định kép…) chỉ hiển thị, không tự sửa.
 - Chọn từng lỗi bằng phím (Windows): **Ctrl + Shift + G** mở panel ở chế độ chọn — ↑/↓ hoặc Tab chuyển lỗi, Enter sửa. **Alt + 1…3** áp gợi ý thứ n (mọi ứng dụng, kể cả Teams/Electron/Notepad++); **Esc** đóng.
 - Notepad++ và các ứng dụng Win32 cũ (IMM32) cũng sửa được: TextVN đọc lại dòng hiện tại để xác minh trước khi sửa; ứng dụng không cho đọc thì không sửa gì.
-- Phần mềm khác giữ Alt + Space toàn cục (PowerToys Run, Copilot, ChatGPT…) sẽ nhận phím trước TextVN — khi đó dùng Ctrl + Space.
+- **Alt + Space không phải phím của TextVN** (bản sau 0.2.47): tổ hợp này thuộc menu cửa sổ của Windows và các trình khởi chạy (PowerToys Run, Copilot, ChatGPT…), nên TextVN không bao giờ giữ nó. Ctrl + Alt + Space cũng hay là phím toàn cục của ứng dụng khác (ví dụ Claude desktop).
 
 **macOS**: danh sách gợi ý trong bảng candidate của IMK (bấm chuột để chọn).
 **Linux** (IBus/Fcitx5): danh sách gợi ý trong bảng candidate + dòng phụ "Trợ
@@ -306,7 +306,7 @@ Tab giữ nguyên hành vi cũ của ứng dụng cho tới khi bạn bật). Kh
   Tab sẽ chèn — nhấn Tab để nhận, gõ tiếp thì chữ mờ biến mất (chữ mờ chỉ là hình vẽ, không
   bao giờ lọt vào văn bản). macOS hiện ô `⇥ phần mềm` trong bảng ứng viên (bấm để nhận);
   Linux hiện dòng phụ `⇥ phần mềm` của bảng IBus/Fcitx5.
-- **Phím tắt trợ lý** (Windows/Linux: Ctrl + Space hoặc Alt + Space; macOS: Option + Space)
+- **Phím tắt trợ lý** (Windows/Linux: Ctrl + Space; macOS: Option + Space)
   sửa hết lỗi của câu trước, câu đã đúng thì dự đoán như Tab — xem bảng *Phím tắt trợ lý* ở
   mục Trợ lý ngữ pháp. Đang bôi đen thì Ctrl + Space kiểm tra vùng bôi đen. Không có lỗi lẫn
   dự đoán thì phím tới ứng dụng như bình thường.
@@ -362,9 +362,9 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Linux: Steam / game 32-bit không gõ được với Fcitx5 | Giới hạn của Fcitx5 với ứng dụng 32-bit: chạy Steam với `GTK_IM_MODULE=xim`. |
 | Windows: không thấy panel của Trợ lý ngữ pháp | (1) Bản ≤ 0.2.45 không neo được panel trong một số ứng dụng (Notepad Win11…) nên chỉ hiện toast "Phát hiện N lỗi" — bản sau 0.2.45 luôn hiện panel và **bỏ toast phát hiện** (R2-125/R2-126). (2) Chế độ *Tự sửa lỗi* sửa câu **im lặng** rồi hiện toast "Đã tự sửa…" (tối đa 1 lần/60 giây, do **TextVN.exe** ở khay hiển thị) — muốn thấy panel gợi ý, chọn *Chỉ gợi ý*. (3) Máy có **hai bản cài** (cho tài khoản `%LOCALAPPDATA%\Programs\TextVN` và cho mọi người dùng `Program Files\TextVN`) thì tray/bộ gõ của bản cũ có thể chạy thay bản mới: *Settings → Apps* gỡ bản cũ. Từ bản sau 0.2.45 bộ cài **tự quét bản cũ**: cài cho mọi người dùng tự gỡ bản cho tài khoản; cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ (cần quyền quản trị); nâng cấp tại chỗ dọn sạch file của bản cũ (giữ cài đặt và bộ gõ). |
 | Word: chữ có dấu bị đổi thành không dấu ("hàng" → "hang") hoặc chữ đầu câu tự viết hoa | Đây là **AutoCorrect của Word** khi văn bản đặt ngôn ngữ kiểm tra chính tả là tiếng Anh (gõ tay cũng bị). Đặt ngôn ngữ văn bản là tiếng Việt (*Review → Language → Set Proofing Language*), hoặc tắt *File → Options → Proofing → AutoCorrect Options → Automatically use suggestions from the spelling checker*. |
-| Excel: Tab không hoàn tất từ trong ô | Excel tự dùng Tab để chuyển ô (không chuyển phím cho bộ gõ) — dùng **Ctrl + Space** hoặc **Alt + Space** để dự đoán trong ô. |
+| Excel: Tab không hoàn tất từ trong ô | Excel tự dùng Tab để chuyển ô (không chuyển phím cho bộ gõ) — dùng **Ctrl + Space** để dự đoán trong ô. |
 | Tab / phím tắt không dự đoán gì, không thấy chữ mờ | Dự đoán **tắt mặc định**: bật `"suggest": { "enabled": true }` (mục *Dự đoán văn bản* ở trên). macOS: dùng Option + Space, hoặc tắt phím tắt hệ thống Ctrl + Space (xem trên). Chữ mờ không hiện khi con trỏ đang ở giữa dòng (còn chữ phía sau) hoặc ứng dụng không cho biết vị trí con trỏ. |
-| Alt + Space không mở menu cửa sổ | Câu đang có lỗi hoặc có dự đoán thì Alt + Space thuộc TextVN (sửa/dự đoán); câu sạch thì mở menu cửa sổ như thường. PowerToys Run/Copilot/ChatGPT đăng ký Alt + Space toàn cục thì giữ phím trước TextVN — dùng Ctrl + Space. |
+| Bản 0.2.47: Alt + Space bị TextVN dùng để sửa câu thay vì mở menu cửa sổ | Bản sau 0.2.47 bỏ Alt + Space khỏi TextVN theo yêu cầu (đụng menu cửa sổ và các trình khởi chạy) — phím tắt trợ lý chỉ còn **Ctrl + Space** (macOS **Option + Space**). Cập nhật lên bản mới. |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
 Báo lỗi: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**

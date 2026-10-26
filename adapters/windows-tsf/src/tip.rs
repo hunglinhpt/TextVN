@@ -35,20 +35,13 @@ const TOGGLE_KEY: TF_PRESERVEDKEY = TF_PRESERVEDKEY {
     uModifiers: TF_MOD_CONTROL | TF_MOD_SHIFT,
 };
 
-/// R2-133: phím Alt của trợ lý (Alt+Space, Alt+1..3 hàng số — KHÔNG đăng ký
-/// Alt+numpad: đó là nhập mã ký tự Alt+0xxx). `OnPreservedKey` chỉ ăn phím khi
-/// có việc (popup đang hiện / câu có lỗi / có dự đoán); không thì phím tới app
-/// như thường (Alt+Space vẫn mở menu hệ thống).
+/// R2-133: Alt+1..3 hàng số của trợ lý — KHÔNG đăng ký Alt+numpad (đó là nhập
+/// mã ký tự Alt+0xxx). `OnPreservedKey` chỉ ăn phím khi popup đang hiện; không
+/// thì trả phím lại cho app. R2-136 (chủ repo): KHÔNG đăng ký Alt+Space — tổ hợp
+/// đó thuộc menu cửa sổ / PowerToys Run / Copilot / ChatGPT; phím tắt trợ lý chỉ
+/// là Ctrl+Space (tới thẳng key sink, rảnh thì app nhận nguyên vẹn).
 #[cfg(windows)]
-const ASSIST_KEYS: [(GUID, TF_PRESERVEDKEY, &str); 4] = [
-    (
-        crate::guids::GUID_PRESERVED_ASSIST,
-        TF_PRESERVEDKEY {
-            uVKey: VK_SPACE.0 as u32,
-            uModifiers: TF_MOD_ALT,
-        },
-        "TextVN Assist",
-    ),
+const ASSIST_KEYS: [(GUID, TF_PRESERVEDKEY, &str); 3] = [
     (
         crate::guids::GUID_PRESERVED_ALT1,
         TF_PRESERVEDKEY {

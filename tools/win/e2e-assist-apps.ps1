@@ -5,8 +5,8 @@
 #   notepad = Notepad Win11 (TSF-aware RichEdit), edge = Edge --app textarea (Chromium TSF =
 #   the engine of Teams/WebView2/Electron), npp = Notepad++ (Scintilla, IMM32 via CUAS),
 #   vscode = a separate VS Code instance (Electron; own profile under %TEMP%, extensions off).
-# Cases: live popup, click "Sua tat ca", Alt+1, Tab prediction, Ctrl+Space / Alt+Space fix the
-#   whole sentence, fix then predict, Alt+Space with nothing to do opens the system menu,
+# Cases: live popup, click "Sua tat ca", Alt+1, Tab prediction, Ctrl+Space fixes the whole
+#   sentence, fix then predict, Alt+Space never taken by TextVN (R2-136: window menu opens),
 #   Ctrl+Shift+G interactive popup keeps Tab, ghost text before Tab, plain typing.
 # Registers the dev TSF DLL as a TEMPORARY HKCU override and always restores the Program Files
 # registration in finally (needs the installed build at -ProdCli). Takes the keyboard and mouse
@@ -321,12 +321,17 @@ try {
             $r = WaitText $app $fixedNoSp
             Report $n 'Ctrl+Space fixes whole sentence' $r[0] $fixedNoSp $r[1] ''
         }
-        Run-Case $app 'hotkey alt+space' {
-            [D]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 300
+        Run-Case $app 'alt+space not taken' {
+            # R2-136 (owner decision): Alt+Space is NOT a TextVN key - even with errors pending it
+            # must reach Windows (window menu) and the text must stay as typed.
+            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 500
             [D]::Chord(0x12, 0x20)
-            $r = WaitText $app $fixedNoSp
-            $menu = [D]::SysMenuVisible(); if ($menu) { [D]::Tap(0x1B) }
-            Report $n 'Alt+Space fixes whole sentence' ($r[0] -and -not $menu) $fixedNoSp $r[1] "sysmenu=$menu"
+            $menu = $false
+            for ($t = 0; $t -lt 1500 -and -not $menu; $t += 100) { Start-Sleep -Milliseconds 100; $menu = [D]::SysMenuVisible() }
+            if ($menu) { [D]::Tap(0x1B); Start-Sleep -Milliseconds 300 }
+            $w = U 't{u}00f4i t{u}00f4i {u}0111i h{u}1ecdc '
+            $r = WaitText $app $w
+            Report $n 'Alt+Space with errors pending opens the window menu, text unchanged (R2-136)' ($menu -and $r[0]) "sysmenu + $w" ("sysmenu=$menu text=" + $r[1]) ''
         }
         Run-Case $app 'hotkey fix then predict' {
             [D]::Type('tooi tooi phats trieenr'); Start-Sleep -Milliseconds 300

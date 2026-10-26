@@ -442,8 +442,8 @@ int lc_plan_sentence_auto_fix(const ime_instance *inst,
 
 int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super) {
     if (keysym != 0x20 && keysym != 0xff80) return 0; /* space / KP_Space */
-    if (shift || super) return 0;
-    return (ctrl != 0) != (alt != 0); /* đúng MỘT trong Ctrl / Alt */
+    if (shift || super || alt) return 0;
+    return ctrl != 0;
 }
 
 int lc_strip_suffix(const char *tail, const char *suffix, char *out, size_t cap) {

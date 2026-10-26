@@ -968,8 +968,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
      * Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
     uint32_t vk = 0, ch = 0;
     mapFcitxKey(key, &vk, &ch);
-    /* R2-133: phím tắt trợ lý = Ctrl+Space hoặc Alt+Space (engine luôn thấy
-     * Ctrl+Space — dự đoán/duyệt vòng giống hệt nhau). */
+    /* R2-131/R2-136: phím tắt trợ lý = Ctrl+Space (Alt+Space không thuộc TextVN). */
     const bool is_ctrl_space =
         lc_is_assist_hotkey(static_cast<uint32_t>(key.sym()), states.test(fcitx::KeyState::Ctrl),
                             states.test(fcitx::KeyState::Alt), states.test(fcitx::KeyState::Shift),

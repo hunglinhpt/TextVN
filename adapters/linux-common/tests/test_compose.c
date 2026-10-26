@@ -587,12 +587,12 @@ static void test_assist_l6_auto_capitalize_mode2(void) {
     ime_instance_free(inst);
 }
 
-/* R2-131/R2-133/R2-134: phím tắt trợ lý (Ctrl+Space hoặc Alt+Space), kế hoạch
+/* R2-131/R2-134/R2-136: phím tắt trợ lý (chỉ Ctrl+Space), kế hoạch
  * sửa CHỦ ĐỘNG (gồm lỗi chính tả), câu sau sửa, nhãn xem trước dự đoán. */
 static void test_assist_hotkey_explicit_preview(void) {
     assert(lc_is_assist_hotkey(0x20, 1, 0, 0, 0) == 1);    /* Ctrl+Space */
-    assert(lc_is_assist_hotkey(0x20, 0, 1, 0, 0) == 1);    /* Alt+Space */
-    assert(lc_is_assist_hotkey(0xff80, 0, 1, 0, 0) == 1);  /* Alt+KP_Space */
+    assert(lc_is_assist_hotkey(0xff80, 1, 0, 0, 0) == 1);  /* Ctrl+KP_Space */
+    assert(lc_is_assist_hotkey(0x20, 0, 1, 0, 0) == 0);    /* Alt+Space: KHÔNG (R2-136) */
     assert(lc_is_assist_hotkey(0x20, 0, 0, 0, 0) == 0);    /* Space trần */
     assert(lc_is_assist_hotkey(0x20, 1, 1, 0, 0) == 0);    /* Ctrl+Alt+Space */
     assert(lc_is_assist_hotkey(0x20, 1, 0, 1, 0) == 0);    /* Ctrl+Shift+Space = toggle */

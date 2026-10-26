@@ -263,9 +263,10 @@ int lc_plan_sentence_fix_ex(const ime_instance *inst,
                             int explicit_fix,
                             lc_sentence_fix_plan *out_plan);
 
-/* R2-133: phím tắt trợ lý = Ctrl+Space HOẶC Alt+Space (không Shift/Super) —
- * parity Windows/macOS (Option+Space). Phím nào bị hệ thống/DE giữ (Fcitx5
- * trigger Ctrl+Space, GNOME Alt+Space) thì phím còn lại vẫn dùng được. */
+/* R2-131/R2-136: phím tắt trợ lý = Ctrl+Space (không Shift/Alt/Super) — parity
+ * Windows (macOS: Option+Space vì Ctrl+Space là phím đổi nguồn nhập của hệ
+ * thống). Alt+Space KHÔNG thuộc TextVN (menu cửa sổ GNOME/KDE, launcher). Tham
+ * số `alt` giữ để chặn Ctrl+Alt+Space (thường là phím tắt toàn cục của app khác). */
 int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super);
 
 /* `tail` kết thúc bằng `suffix` ⇒ chép phần trước suffix vào `out`, trả 1;

@@ -86,7 +86,7 @@ private:
     /* R2-134: bản xem trước dự đoán ("⇥ phần mềm") ở dòng phụ của bảng Fcitx5. */
     void updatePreview(TextVNState *st);
     void hidePreview(TextVNState *st);
-    /* R2-131: bước "sửa hết" của phím tắt trợ lý (Ctrl+Space / Alt+Space). */
+    /* R2-131: bước "sửa hết" của phím tắt trợ lý (Ctrl+Space). */
     bool hotkeyFixSentence(TextVNState *st);
     bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten);
     /* R-4: Ctrl+Z hoàn tác tự sửa cả câu (1 bước, 5 s). */

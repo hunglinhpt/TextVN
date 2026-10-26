@@ -457,7 +457,7 @@ impl KeyEditSession {
         }
 
         // R2-131 (chủ repo: "Ctrl+Space phải xác định từ lỗi trong câu để sửa hết
-        // cùng với text prediction"): phím tắt trợ lý (Ctrl+Space / Alt+Space) —
+        // cùng với text prediction"): phím tắt trợ lý Ctrl+Space (R2-136: chỉ Ctrl+Space) —
         // câu có lỗi người dùng sửa được ⇒ SỬA HẾT trước (kể cả chính tả); câu
         // sạch ⇒ engine dự đoán như Tab (bấm tiếp = duyệt vòng); không có gì ⇒
         // phím về app (IntelliSense, menu hệ thống… không bị chiếm vô ích).
@@ -1984,7 +1984,7 @@ impl ITfEditSession_Impl for AssistRecallSession_Impl {
             };
             let shown = show_assist_overlay(shared, &self.ctx, ec, &check);
             if shown {
-                // R2-131: Ctrl+Space/Alt+Space giờ sửa hết ngay — Ctrl+Shift+G là
+                // R2-131: Ctrl+Space giờ sửa hết ngay — Ctrl+Shift+G là
                 // đường chọn từng lỗi bằng phím (↑/↓/Tab · Enter, R2-122).
                 mark_assist_on_demand(shared);
             }

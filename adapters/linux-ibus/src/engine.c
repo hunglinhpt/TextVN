@@ -342,8 +342,7 @@ static gboolean apply_assist_undo(TextVNIbusEngine *self) {
 }
 
 /* R2-131 (chủ repo: "Ctrl+Space phải xác định từ lỗi trong câu để sửa hết cùng
- * với text prediction"): bước "sửa hết" của phím tắt trợ lý (Ctrl+Space /
- * Alt+Space). Câu có lỗi người dùng sửa được ⇒ sửa cả câu (kể cả chính tả) và
+ * với text prediction"): bước "sửa hết" của phím tắt trợ lý (Ctrl+Space). Câu có lỗi người dùng sửa được ⇒ sửa cả câu (kể cả chính tả) và
  * trả TRUE; không thì FALSE (engine dự đoán tiếp như Tab). Precondition D12
  * kiểm TRƯỚC khi đụng document: đuôi document = surrounding (cache) + từ còn ở
  * preedit. */
@@ -886,8 +885,7 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
      * commit, phím đi thẳng. Ngoại lệ: Ctrl+Space được giữ lại cho Text Prediction & Text Correct. */
     uint32_t vk = 0, ch = 0;
     textvn_ibus_map_key(keyval, &vk, &ch);
-    /* R2-133: phím tắt trợ lý = Ctrl+Space hoặc Alt+Space (engine luôn thấy
-     * Ctrl+Space — dự đoán/duyệt vòng giống hệt nhau). */
+    /* R2-131/R2-136: phím tắt trợ lý = Ctrl+Space (Alt+Space không thuộc TextVN). */
     gboolean is_ctrl_space = lc_is_assist_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
                                                  (state & IBUS_MOD1_MASK) != 0,
                                                  (state & IBUS_SHIFT_MASK) != 0,

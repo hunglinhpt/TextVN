@@ -13,12 +13,10 @@ pub const DISPATTR_TEXTVN: GUID = GUID::from_u128(0x9D2E7A44_1B5C_4F63_A086_33D1
 pub const LANGID_VI: u16 = 0x042A; // vi-VN
 pub const LANGID_EN: u16 = 0x0409; // en-US
 pub const GUID_PRESERVED_TOGGLE: GUID = GUID::from_u128(0x7A5B8C2D_3E4F_4A1B_9C8D_5E6F7A8B9C0D);
-/// R2-133: Alt+Space — phím tắt trợ lý (sửa hết lỗi câu → dự đoán), cùng luồng
-/// Ctrl+Space. Tổ hợp Alt là `WM_SYSKEYDOWN`: TSF không đưa vào key sink, chỉ
-/// preserved key mới nhận được (đo thật: Alt+1 chỉ thấy ở key trace).
-#[cfg(windows)]
-pub const GUID_PRESERVED_ASSIST: GUID = GUID::from_u128(0x2C6F1E83_5A4D_4B7E_8F19_A3D2C4B5E601);
-/// R2-133: Alt+1..3 — áp gợi ý thứ n của popup trợ lý đang hiện.
+/// R2-133: Alt+1..3 — áp gợi ý thứ n của popup trợ lý đang hiện. Tổ hợp Alt là
+/// `WM_SYSKEYDOWN`: TSF không đưa vào key sink, chỉ preserved key mới nhận được
+/// (đo thật: Alt+1 chỉ thấy ở key trace). (`…E601` từng là Alt+Space — R2-136
+/// bỏ; không tái dùng GUID đó.)
 #[cfg(windows)]
 pub const GUID_PRESERVED_ALT1: GUID = GUID::from_u128(0x2C6F1E83_5A4D_4B7E_8F19_A3D2C4B5E611);
 #[cfg(windows)]

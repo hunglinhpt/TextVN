@@ -56,11 +56,6 @@ enum Pending {
         lparam: isize,
     },
     TailFix(crate::cuas::TailFix),
-    /// R2-133: Alt+Space rảnh ở cửa sổ khung tự vẽ (không `WS_SYSMENU`) — mở
-    /// menu hệ thống ngoài callback TSF (`TrackPopupMenu` chạy vòng modal).
-    SystemMenu {
-        root: isize,
-    },
 }
 
 /// Phím đã được CUAS giữ ở `OnTestKeyDown`. Capture target/lParam ngay trong
@@ -186,68 +181,6 @@ pub fn schedule_tail_fix(job: crate::cuas::TailFix) -> bool {
     true
 }
 
-/// R2-133: hẹn mở menu hệ thống của cửa sổ gốc chứa `focus` (Alt+Space TextVN
-/// không dùng, cửa sổ khung tự vẽ bỏ qua `SC_KEYMENU`). `false` = không hẹn được.
-pub fn schedule_system_menu(focus: HWND) -> bool {
-    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GA_ROOT};
-    // SAFETY: HWND của thread hiện tại.
-    let root = unsafe { GetAncestor(focus, GA_ROOT) };
-    if root.is_invalid() {
-        return false;
-    }
-    let Some(wnd) = window() else {
-        return false;
-    };
-    QUEUE.with(|q| {
-        q.borrow_mut().push_back(Pending::SystemMenu {
-            root: root.0 as isize,
-        })
-    });
-    // SAFETY: cửa sổ message-only của chính thread này.
-    if unsafe { PostMessageW(Some(wnd), WM_REPLAY, WPARAM(1), LPARAM(0)) }.is_err() {
-        QUEUE.with(|q| q.borrow_mut().pop_back());
-        return false;
-    }
-    true
-}
-
-/// Mở menu hệ thống tại góc trên-trái cửa sổ (như Alt+Space gốc) và gửi lệnh đã
-/// chọn về cửa sổ — cùng cách Chromium làm cho cửa sổ khung tự vẽ.
-fn show_system_menu(root: isize) {
-    use windows::Win32::Foundation::RECT;
-    use windows::Win32::UI::WindowsAndMessaging::{
-        GetSystemMenu, GetWindowRect, TrackPopupMenu, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_TOPALIGN,
-        WM_SYSCOMMAND,
-    };
-    let root = HWND(root as *mut _);
-    // SAFETY: cửa sổ của chính thread UI này; menu hệ thống thuộc cửa sổ đó.
-    unsafe {
-        if !IsWindow(Some(root)).as_bool() {
-            return;
-        }
-        let menu = GetSystemMenu(root, false);
-        if menu.is_invalid() {
-            return;
-        }
-        let mut rc = RECT::default();
-        if GetWindowRect(root, &mut rc).is_err() {
-            return;
-        }
-        let cmd = TrackPopupMenu(
-            menu,
-            TPM_RETURNCMD | TPM_LEFTALIGN | TPM_TOPALIGN,
-            rc.left + 8,
-            rc.top + 32,
-            None,
-            root,
-            None,
-        );
-        if cmd.0 != 0 {
-            let _ = PostMessageW(Some(root), WM_SYSCOMMAND, WPARAM(cmd.0 as usize), LPARAM(0));
-        }
-    }
-}
-
 /// Huỷ cửa sổ của thread (TIP Deactivate). Phím còn chờ được trả luôn cho app;
 /// việc sửa câu còn chờ bị bỏ (TIP sắp đi — không post Backspace mù).
 pub fn shutdown() {
@@ -256,7 +189,6 @@ pub fn shutdown() {
         if let Pending::Key { .. } = p {
             deliver(&p);
         }
-        // Menu hệ thống còn chờ: bỏ (TIP sắp đi — không mở vòng modal lúc huỷ).
     }
     let wnd = WINDOW.with(|w| w.replace(0));
     if wnd != 0 {
@@ -280,7 +212,6 @@ fn deliver(p: &Pending) {
         }
         // Việc sửa câu đi qua `run_or_wait` (chờ nhả phím bổ trợ), không qua đây.
         Pending::TailFix(_) => {}
-        Pending::SystemMenu { root } => show_system_menu(*root),
     }
 }
 
