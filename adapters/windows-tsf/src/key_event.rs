@@ -273,9 +273,12 @@ fn take_redelivered(vk: u32) -> bool {
 /// R2-133: TSF luôn nuốt preserved key — đo thật: `OnPreservedKey` trả FALSE mà
 /// Alt+Space vẫn không mở menu hệ thống. Phím Alt TextVN không dùng tới phải tự
 /// trả lại:
-/// - Alt+Space: `WM_SYSCOMMAND(SC_KEYMENU, ' ')` tới cửa sổ gốc — đúng việc
-///   `DefWindowProc` làm với Alt+Space (Chromium/Edge bỏ qua `WM_SYSKEYDOWN` post
-///   lại vì Alt vật lý đã nhả — đo thật trên Edge);
+/// - Alt+Space, cửa sổ gốc có `WS_SYSMENU`: `WM_SYSCOMMAND(SC_KEYMENU, ' ')` —
+///   đúng việc `DefWindowProc` làm với Alt+Space (Edge bỏ qua `WM_SYSKEYDOWN` post
+///   lại — đo thật); cửa sổ khung tự vẽ KHÔNG có `WS_SYSMENU` (VS Code/Electron
+///   bỏ qua cả `SC_KEYMENU` lẫn phím post lại — đo thật) ⇒ tự mở menu hệ thống
+///   như Chromium làm (`GetSystemMenu` + `TrackPopupMenu`), ngoài callback TSF
+///   (`replay::schedule_system_menu`);
 /// - Alt+1..3: post `WM_SYSKEYDOWN`/`WM_SYSKEYUP` (bit 29 = Alt) vào cửa sổ đang
 ///   focus — app xử lý như phím thật (mnemonic, accelerator Alt+1 của app).
 #[cfg(windows)]
@@ -289,18 +292,27 @@ fn redeliver_alt_key(vk: u32) {
         return;
     }
     if vk == vkc::SPACE {
-        // SAFETY: HWND của thread hiện tại; post tới cửa sổ gốc cùng process.
-        unsafe {
+        // SAFETY: HWND của thread hiện tại; chỉ đọc style và post tới cửa sổ gốc
+        // cùng process.
+        let sent = unsafe {
             let root = GetAncestor(target, GA_ROOT);
             let root = if root.is_invalid() { target } else { root };
-            let _ = PostMessageW(
-                Some(root),
-                WM_SYSCOMMAND,
-                WPARAM(SC_KEYMENU as usize),
-                LPARAM(0x20),
-            );
+            let style = windows::Win32::UI::WindowsAndMessaging::GetWindowLongW(
+                root,
+                windows::Win32::UI::WindowsAndMessaging::GWL_STYLE,
+            ) as u32;
+            style & windows::Win32::UI::WindowsAndMessaging::WS_SYSMENU.0 != 0
+                && PostMessageW(
+                    Some(root),
+                    WM_SYSCOMMAND,
+                    WPARAM(SC_KEYMENU as usize),
+                    LPARAM(0x20),
+                )
+                .is_ok()
+        };
+        if sent || crate::replay::schedule_system_menu(target) {
+            return;
         }
-        return;
     }
     // SAFETY: MapVirtualKeyW chỉ tra bảng layout.
     let scan = unsafe { MapVirtualKeyW(vk, MAPVK_VK_TO_VSC) } as isize;

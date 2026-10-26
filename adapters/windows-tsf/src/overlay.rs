@@ -786,6 +786,11 @@ unsafe extern "system" fn overlay_wnd_proc(
                 crate::selection_check::on_timer();
                 return LRESULT(0);
             }
+            // R2-135: bước sửa câu của phím tắt hẹn giờ (Electron/Monaco).
+            if wparam.0 == crate::edit_session::TIMER_DEFERRED_FIX {
+                crate::edit_session::on_deferred_fix_timer(hwnd);
+                return LRESULT(0);
+            }
             if wparam.0 == TIMER_WATCHDOG && should_dismiss(hwnd) {
                 let _ = KillTimer(Some(hwnd), TIMER_WATCHDOG);
                 let _ = ShowWindow(hwnd, SW_HIDE);

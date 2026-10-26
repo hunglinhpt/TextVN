@@ -642,10 +642,25 @@ fn update_ghost(shared: &Rc<TsfShared>, ctx: &ITfContext, ec: u32) {
         .try_borrow()
         .ok()
         .and_then(|thread| thread.engine.peek_completion());
+    let after = ghost.is_some() && text_after_caret(ctx, ec);
     let anchor = ghost
         .as_ref()
-        .filter(|_| !text_after_caret(ctx, ec))
+        .filter(|_| !after)
         .and_then(|_| tsf_caret_anchor(ctx, ec));
+    if ghost.is_some() && anchor.is_none() {
+        // Chỉ lý do, không chữ (S2).
+        crate::trace::event(
+            shared.tid,
+            format_args!(
+                "ghost skip: {}",
+                if after {
+                    "text after caret"
+                } else {
+                    "no caret rect"
+                }
+            ),
+        );
+    }
     match (ghost, anchor) {
         (Some(text), Some(anchor)) => {
             let font_px = estimate_font_px(ctx, ec, anchor.bottom - anchor.top);
@@ -702,7 +717,10 @@ fn estimate_font_px(ctx: &ITfContext, ec: u32, caret_h: i32) -> i32 {
     by_word.map_or(by_caret, |w| w.clamp(8, by_caret))
 }
 
-/// Sau caret còn chữ trên cùng dòng (đang sửa giữa câu) không.
+/// Sau caret còn chữ NHÌN THẤY trên cùng dòng (đang sửa giữa câu) không —
+/// khoảng trắng cuối dòng không tính (vẽ đè lên khoảng trống không che chữ).
+/// VS Code/Monaco: textarea ẩn không phản ánh đúng chữ sau caret (đo thật) ⇒
+/// coi như còn chữ ⇒ không vẽ (editor đó vốn có chữ mờ riêng — Copilot).
 #[cfg(windows)]
 fn text_after_caret(ctx: &ITfContext, ec: u32) -> bool {
     let Some(sel) = selection_range(ctx, ec) else {
@@ -716,18 +734,22 @@ fn text_after_caret(ctx: &ITfContext, ec: u32) -> bool {
         let _ = next.Collapse(ec, TF_ANCHOR_END);
         let mut shifted = 0i32;
         if next
-            .ShiftEnd(ec, 1, &mut shifted, std::ptr::null())
+            .ShiftEnd(ec, 32, &mut shifted, std::ptr::null())
             .is_err()
-            || shifted != 1
+            || shifted <= 0
         {
             return false; // cuối document
         }
-        let mut buf = [0u16; 2];
+        let mut buf = [0u16; 34];
         let mut fetched = 0u32;
         if next.GetText(ec, 0, &mut buf, &mut fetched).is_err() || fetched == 0 {
             return false;
         }
-        !matches!(buf[0], 0x0D | 0x0A | 0x0B)
+        let after = &buf[..(fetched as usize).min(buf.len())];
+        after
+            .iter()
+            .take_while(|&&u| !matches!(u, 0x0D | 0x0A | 0x0B))
+            .any(|&u| !matches!(u, 0x20 | 0x09 | 0xA0))
     }
 }
 
@@ -748,6 +770,7 @@ fn hotkey_fix_sentence(
     };
     // Chốt từ đang gõ để chữ thật nằm trong document trước khi lùi — KHÔNG reset
     // engine (`finish`) vì precondition `buffer_is_ours` so buffer câu của engine.
+    let was_composing = comp.is_some();
     if let Some(c) = comp.take() {
         // SAFETY: trong DoEditSession với ec hợp lệ; composition của TIP.
         let _ = unsafe { c.EndComposition(ec) };
@@ -758,6 +781,24 @@ fn hotkey_fix_sentence(
     hide_assist_overlay(shared);
     let session =
         ApplySentenceFixSession::new(shared.clone(), ctx.clone(), check, plan, false, false);
+    if was_composing {
+        // R2-135: VS Code/Monaco (Electron) dựng lại thay đổi từ trạng thái
+        // textarea và vẽ lại textarea BẤT ĐỒNG BỘ sau khi composition kết thúc —
+        // sửa câu ngay (cùng session, hay session async kế tiếp) bị gộp thành một
+        // thay đổi sai (đo thật: "tôi tôi đi học" → "tôiiot phần đi học"). Hẹn
+        // sửa sau `DEFERRED_FIX_MS` như một cú click "Sửa tất cả" (đường đó đúng
+        // trên VS Code); gõ phím khác trong lúc chờ ⇒ buffer câu đổi ⇒ session tự
+        // bỏ (precondition `buffer_is_ours`).
+        let scheduled = schedule_deferred_fix(shared, ctx, session);
+        crate::trace::event(
+            shared.tid,
+            format_args!("assist hotkey fix: deferred scheduled={scheduled}"),
+        );
+        if !scheduled {
+            shared.reset_engine();
+        }
+        return Some(scheduled);
+    }
     let outcome = session.apply_outcome(ec);
     crate::trace::event(shared.tid, format_args!("assist hotkey fix: {outcome:?}"));
     match outcome {
@@ -772,6 +813,67 @@ fn hotkey_fix_sentence(
             Some(false)
         }
     }
+}
+
+/// Timer của bước sửa hẹn giờ (R2-135) — overlay WndProc so khớp hằng này.
+#[cfg(windows)]
+pub(crate) const TIMER_DEFERRED_FIX: usize = 0x5EC2;
+/// Đủ để Chromium/Monaco nhận chữ vừa chốt và vẽ lại textarea (đo thật VS Code).
+#[cfg(windows)]
+const DEFERRED_FIX_MS: u32 = 120;
+
+#[cfg(windows)]
+thread_local! {
+    /// Bước sửa câu đang chờ timer (thread UI của app).
+    static DEFERRED_FIX: RefCell<Option<(std::rc::Weak<TsfShared>, ApplySentenceFixSession)>> =
+        const { RefCell::new(None) };
+}
+
+/// Hẹn chạy `session` sau `DEFERRED_FIX_MS` trên timer của overlay (ngoài luồng
+/// phím, như click chuột — `request_sync_or_async`).
+#[cfg(windows)]
+fn schedule_deferred_fix(
+    shared: &Rc<TsfShared>,
+    _ctx: &ITfContext,
+    session: ApplySentenceFixSession,
+) -> bool {
+    let hwnd = shared.overlay.ensure_timer_hwnd();
+    if hwnd == 0 {
+        return false;
+    }
+    DEFERRED_FIX.with(|slot| *slot.borrow_mut() = Some((Rc::downgrade(shared), session)));
+    // SAFETY: hwnd là overlay của chính thread này.
+    let timer = unsafe {
+        windows::Win32::UI::WindowsAndMessaging::SetTimer(
+            Some(windows::Win32::Foundation::HWND(hwnd as *mut _)),
+            TIMER_DEFERRED_FIX,
+            DEFERRED_FIX_MS,
+            None,
+        )
+    };
+    timer != 0
+}
+
+/// Timer fire (gọi từ `overlay_wnd_proc` WM_TIMER) → xin session sửa câu.
+#[cfg(windows)]
+pub(crate) fn on_deferred_fix_timer(hwnd: windows::Win32::Foundation::HWND) {
+    // SAFETY: timer của chính cửa sổ này; một lần fire là đủ.
+    unsafe {
+        let _ = windows::Win32::UI::WindowsAndMessaging::KillTimer(Some(hwnd), TIMER_DEFERRED_FIX);
+    }
+    let Some((weak, session)) = DEFERRED_FIX.with(|slot| slot.borrow_mut().take()) else {
+        return;
+    };
+    let Some(shared) = weak.upgrade() else {
+        return;
+    };
+    let ctx = session.ctx.clone();
+    let session: ITfEditSession = session.into();
+    let requested = request_sync_or_async(&ctx, shared.tid, &session);
+    crate::trace::event(
+        shared.tid,
+        format_args!("assist hotkey fix: timer requested={requested}"),
+    );
 }
 
 /// Session kết thúc composition (focus đổi, chord, tắt bộ gõ, Deactivate).

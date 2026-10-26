@@ -3,7 +3,8 @@
 #
 # E2E on REAL apps for the assistant hotkeys + ghost text (R2-131..R2-134):
 #   notepad = Notepad Win11 (TSF-aware RichEdit), edge = Edge --app textarea (Chromium TSF =
-#   the engine of Teams/WebView2/Electron), npp = Notepad++ (Scintilla, IMM32 via CUAS).
+#   the engine of Teams/WebView2/Electron), npp = Notepad++ (Scintilla, IMM32 via CUAS),
+#   vscode = a separate VS Code instance (Electron; own profile under %TEMP%, extensions off).
 # Cases: live popup, click "Sua tat ca", Alt+1, Tab prediction, Ctrl+Space / Alt+Space fix the
 #   whole sentence, fix then predict, Alt+Space with nothing to do opens the system menu,
 #   Ctrl+Shift+G interactive popup keeps Tab, ghost text before Tab, plain typing.
@@ -11,11 +12,12 @@
 # registration in finally (needs the installed build at -ProdCli). Takes the keyboard and mouse
 # for ~4 minutes (SendInput). Edge runs with its own --user-data-dir under %TEMP% (the user's
 # Edge is not touched). Only test strings are logged (S2). Trace: %TEMP%\textvn-e2e-apps-trace.log
-# Result 2026-10-26: 33/33 PASS (P6-TEXT-PREDICTION.md section 2b).
+# Result 2026-10-26: 44/44 PASS (P6-TEXT-PREDICTION.md section 2b).
 param(
     [Parameter(Mandatory = $true)][string]$DevDir,
     [string]$ProdCli = 'C:\Program Files\TextVN\textvn-cli.exe',
-    [string[]]$Apps = @('notepad', 'edge', 'npp'),
+    [string[]]$Apps = @('notepad', 'edge', 'npp', 'vscode'),
+    [string]$VSCodeExe = '',
     [string]$Only = '',
     [switch]$Shots,
     [switch]$NoRegister
@@ -214,6 +216,37 @@ function Start-Edge {
     $w = $win
     return @{ Name = 'edge'; Win = $win; Clear = { [D]::Chord(0x11, 0x41); [D]::Tap(0x2E); Start-Sleep -Milliseconds 250 }.GetNewClosure(); Text = { $t = [D]::Title($w); if ($t -match '^\[(.*)\]') { $Matches[1] } else { $t } }.GetNewClosure() }
 }
+function Start-VSCode {
+    # Electron: a SEPARATE VS Code instance (own --user-data-dir/--extensions-dir under %TEMP%,
+    # extensions disabled) so the user's own VS Code session is never touched. Text is read back
+    # from the auto-saved file.
+    $exe = $VSCodeExe
+    if (-not $exe -or -not (Test-Path $exe)) { $c = Get-Command code -ErrorAction SilentlyContinue; if ($c) { $exe = Join-Path (Split-Path (Split-Path $c.Source)) 'Code.exe' } }
+    if (-not $exe -or -not (Test-Path $exe)) { return $null }
+    $file = Join-Path $here 'vscode.txt'
+    Set-Content -Path $file -Value '' -NoNewline -Encoding ascii
+    # Auto-save so the text is read from the file WITHOUT a keystroke (Ctrl+S is a chord:
+    # TextVN forgets its sentence context on chords, which would break "fix then predict").
+    $userDir = Join-Path (Join-Path $here 'vscode-profile') 'User'
+    New-Item -ItemType Directory -Force $userDir | Out-Null
+    Set-Content -Path (Join-Path $userDir 'settings.json') -Encoding ascii -Value '{ "files.autoSave": "afterDelay", "files.autoSaveDelay": 50, "editor.quickSuggestions": { "other": false, "comments": false, "strings": false }, "editor.wordBasedSuggestions": "off", "workbench.startupEditor": "none" }'
+    $args2 = @("--user-data-dir=$(Join-Path $here 'vscode-profile')", "--extensions-dir=$(Join-Path $here 'vscode-ext')", '--disable-extensions', '--disable-workspace-trust', '--skip-welcome', '--skip-release-notes', '--new-window', $file)
+    # A shell started from an Electron host (VS Code terminal / extension) inherits
+    # ELECTRON_RUN_AS_NODE + VSCODE_*: Code.exe would then run as plain Node and exit at once.
+    $saved = @{}
+    Get-ChildItem env: | Where-Object { $_.Name -eq 'ELECTRON_RUN_AS_NODE' -or $_.Name -like 'VSCODE_*' } | ForEach-Object { $saved[$_.Name] = $_.Value; Remove-Item ("env:" + $_.Name) }
+    try { Start-Process $exe -ArgumentList $args2 | Out-Null }
+    finally { foreach ($k in $saved.Keys) { Set-Item ("env:" + $k) $saved[$k] } }
+    $win = [IntPtr]::Zero
+    for ($i = 0; $i -lt 80 -and $win -eq [IntPtr]::Zero; $i++) {
+        Start-Sleep -Milliseconds 500
+        $cand = Get-Process -Name Code -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero -and $_.MainWindowTitle -like 'vscode.txt*' } | Select-Object -First 1
+        if ($cand) { $win = $cand.MainWindowHandle }
+    }
+    Start-Sleep -Milliseconds 1500
+    $f = $file
+    return @{ Name = 'vscode'; Win = $win; Clear = { [D]::Chord(0x11, 0x41); [D]::Tap(0x2E); Start-Sleep -Milliseconds 250 }.GetNewClosure(); Text = { [System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8) }.GetNewClosure() }
+}
 function Start-Npp {
     $exe = 'C:\Program Files\Notepad++\notepad++.exe'
     $p = Start-Process $exe -ArgumentList @('-multiInst', '-nosession', '-notabbar') -PassThru
@@ -249,7 +282,7 @@ try {
         if ($reg -ne $devDll) { throw "HKCU override not pointing to dev DLL (got '$reg')" }
     }
     foreach ($appName in $Apps) {
-        $app = switch ($appName) { 'notepad' { Start-Notepad } 'edge' { Start-Edge } 'npp' { Start-Npp } }
+        $app = switch ($appName) { 'notepad' { Start-Notepad } 'edge' { Start-Edge } 'npp' { Start-Npp } 'vscode' { Start-VSCode } }
         if (-not $app -or $app.Win -eq [IntPtr]::Zero) { Write-Host "SKIP $appName (no window)"; continue }
         [D]::Focus($app.Win) | Out-Null; [D]::Type('a'); Start-Sleep -Milliseconds 1200; & $app.Clear
         # The cases need Vietnamese mode (V); the user's own mode is restored after each app.
@@ -333,7 +366,10 @@ try {
             $after = [D]::Ghost() -ne [IntPtr]::Zero
             $w = U 'ph{u}00e1t tri{u}1ec3n ph{u}1ea7n m{u}1ec1m'
             $r = WaitText $app $w
-            Report $n 'ghost text before Tab, gone after Tab' ($vis -and -not $after -and $r[0]) "ghost then $w" ("ghost=$vis after=$after text=" + $r[1]) $info
+            # VS Code/Monaco: by design no ghost (hidden textarea does not reflect the text after the
+            # caret; the editor has its own inline suggestions) - Tab prediction must still work.
+            $wantGhost = $n -ne 'vscode'
+            Report $n 'ghost text before Tab (not in VS Code), gone after Tab' (($vis -eq $wantGhost) -and -not $after -and $r[0]) "ghost=$wantGhost then $w" ("ghost=$vis after=$after text=" + $r[1]) $info
         }
         Run-Case $app 'plain typing' {
             [D]::Type('Vieetj Nam ')
@@ -346,7 +382,9 @@ try {
 }
 finally {
     foreach ($id in $owned) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
-    Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*textvn-e2e-apps*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    foreach ($exeName in @('msedge.exe', 'Code.exe')) {
+        Get-CimInstance Win32_Process -Filter "Name='$exeName'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*textvn-e2e-apps*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    }
     Start-Sleep -Milliseconds 500
     if (-not $NoRegister) {
         & $ProdCli register | Out-Host
