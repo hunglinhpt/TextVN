@@ -7,8 +7,14 @@
 | Nội dung | **R2-139** `Engine::convert_selection` / FFI `ime_convert_selection` — chữ lạ UTF-8 (cp1252/cp1258, mã hoá đôi), bảng mã cũ → bảng mã đang dùng, gõ lại từ ASCII gõ nhầm chế độ E; Windows TSF + đường CUAS (EM_GETSELTEXT / EM_GETSEL / SCI_GETSELTEXT / IMR_RECONVERTSTRING) · **R2-137** ô họ EDIT (WinForms/Delphi) sửa được (EM_GETSEL + EM_SETSEL/EM_REPLACESEL) · **R2-138** Zalo/VS Code "không chạy" = DLL bộ gõ 0.2.45 còn nạp (không phải lỗi x86) — trang cuối bộ cài + toast tray nhắc mở lại ứng dụng · `tools/win/x86probe` host 32-bit · E9 tái diễn (ci-shared đỏ `aeffe9ba`, sửa `55698c44`) |
 | Đo | core `selection_convert` 3 test · win-tsf 97 · tray (gồm `r2_138_*`) · clippy -D warnings 0 (Windows + `--target x86_64-unknown-linux-gnu`) · ISCC 2 biến thể exit 0 · **E2E thật** `tools/win/e2e-assist-apps.ps1` **75/75** (Notepad, Edge, Notepad++, VS Code, RichEdit/EDIT 32-bit) + `e2e-assist-p6.ps1` **28/28** |
 | CI commit code | `55698c44` (sửa ci-shared) xanh · `17991285` 7/7 (ci-macos: 2 job bị runner huỷ ở phút 15 dù timeout 30–40 phút — chạy lại xanh 6/6, không đổi code) |
+| CI trên commit gắn tag | `79715754` (Verified) 7/7 — lần đầu ci-shared `test (macos-latest)` + ci-macos 3 job `cancelled` ~15 phút (sự cố R7 `release-process.md`), `gh run rerun --failed` [40355804589](https://github.com/hunglinhpt/TextVN/actions/runs/40355804589) / [40355804872](https://github.com/hunglinhpt/TextVN/actions/runs/40355804872) xanh hết rồi mới tag |
 | Ghi chú giới hạn | Ctrl+Shift+F9 mới có trên Windows (core dùng chung đã sẵn cho macOS/Linux) · Windows chưa có bộ kiểm tra chính tả từ điển (D39) |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| Release | v0.2.49 tag ký GPG (Good signature, object `79715754`) — release-candidate [#40361089697](https://github.com/hunglinhpt/TextVN/actions/runs/40361089697) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe/MSIX khớp; `.asc` hai file đó hợp lệ (Sigstore do job publish tự verify) |
+| Checksums | machine exe `218a913f…2543` · MSIX `652a96b5…2152` · mac zip `0bdc4f09…a8e1` · Linux `eb9e181b…129e` · PKGBUILD archive `7c88e2ee…fe45` |
+| Homebrew (B7b/B7d) | cask `version "0.2.49"` + `sha256` = mac zip `0bdc4f09…a8e1` — sync-cask [#40363783038](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40363783038) |
+| AUR / PPA (B7e/B7f) | PKGBUILD/.SRCINFO = archive v0.2.49; debian/changelog `0.2.49-0ppa1` — `publish-aur.sh` / `prepare-ppa.sh --upload` là bước của chủ repo |
+| approved (B7c) | `approved/v0.2.49/` — 34 file byte-identical, raw URL 200 (machine exe, MSIX, SHA256SUMS) · Store: nộp MSIX qua `store-publish` / Partner Center là bước của chủ repo |
 
 ## Bản 0.2.48 — phím tắt trợ lý chỉ Ctrl+Space (R2-136, chủ repo chốt)
 
