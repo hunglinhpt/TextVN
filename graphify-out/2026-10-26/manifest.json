@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1793007167.8558657,
-    "seen": 1793018868.143055,
-    "ast_hash": "013dd1ce8f02edd3b652af9d9a8d1e82",
+    "mtime": 1793021077.8690865,
+    "seen": 1793021167.0854354,
+    "ast_hash": "8446400f369c8e09c8a075a77913e053",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793018418.350693,
-    "seen": 1793018868.248874,
-    "ast_hash": "b1bb552cea69d09064f42945ea022887",
+    "mtime": 1793021151.4529645,
+    "seen": 1793021167.1065185,
+    "ast_hash": "e0dc7ca389205ad57d82ee351781b611",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2022,9 +2022,9 @@
     "semantic_hash": ""
   },
   "docs/release/store-submission.md": {
-    "mtime": 1792994360.9389944,
-    "seen": 1792994713.0428753,
-    "ast_hash": "03afa5e2e96c2ca49434294153fa5d51",
+    "mtime": 1793021077.8710706,
+    "seen": 1793021167.107516,
+    "ast_hash": "33fc804ae2f4860627d1de9dcf9ac4dc",
     "semantic_hash": ""
   },
   "xtask/src/preflight.rs": {
@@ -2166,9 +2166,9 @@
     "semantic_hash": ""
   },
   "docs/release/msix-submission.md": {
-    "mtime": 1792994360.9378722,
-    "seen": 1792994713.041262,
-    "ast_hash": "e6045f55e981df071ed6872401b04020",
+    "mtime": 1793021077.8700714,
+    "seen": 1793021167.1065185,
+    "ast_hash": "6fde3567611eecea8bff5da2ede22a74",
     "semantic_hash": ""
   },
   "docs/release/signing-status-mac.md": {
