@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# tools/win/e2e-assist-apps.ps1 -DevDir <dir with textvn_win_tsf.dll + textvn-cli.exe> [-Apps notepad,edge,npp] [-Only name] [-Shots]
+# tools/win/e2e-assist-apps.ps1 -DevDir <dir with textvn_win_tsf.dll + textvn-cli.exe> [-Apps notepad,edge,npp,vscode,x86rich,x86edit] [-X86Probe <x86probe.exe>] [-Only name] [-Shots]
 #
 # E2E on REAL apps for the assistant hotkeys + ghost text (R2-131..R2-134):
 #   notepad = Notepad Win11 (TSF-aware RichEdit), edge = Edge --app textarea (Chromium TSF =
 #   the engine of Teams/WebView2/Electron), npp = Notepad++ (Scintilla, IMM32 via CUAS),
-#   vscode = a separate VS Code instance (Electron; own profile under %TEMP%, extensions off).
+#   vscode = a separate VS Code instance (Electron; own profile under %TEMP%, extensions off),
+#   x86rich / x86edit = tools/win/x86probe (32-bit RichEdit / EDIT host, needs -X86Probe <exe>;
+#   DevDir must also hold textvn-tsf-x86.dll = the i686 build of textvn-win-tsf).
 # Cases: live popup, click "Sua tat ca", Alt+1, Tab prediction, Ctrl+Space fixes the whole
 #   sentence, fix then predict, Alt+Space never taken by TextVN (R2-136: window menu opens),
 #   Ctrl+Shift+G interactive popup keeps Tab, ghost text before Tab, plain typing.
@@ -18,6 +20,7 @@ param(
     [string]$ProdCli = 'C:\Program Files\TextVN\textvn-cli.exe',
     [string[]]$Apps = @('notepad', 'edge', 'npp', 'vscode'),
     [string]$VSCodeExe = '',
+    [string]$X86Probe = '',
     [string]$Only = '',
     [switch]$Shots,
     [switch]$NoRegister
@@ -247,6 +250,20 @@ function Start-VSCode {
     $f = $file
     return @{ Name = 'vscode'; Win = $win; Clear = { [D]::Chord(0x11, 0x41); [D]::Tap(0x2E); Start-Sleep -Milliseconds 250 }.GetNewClosure(); Text = { [System.IO.File]::ReadAllText($f, [System.Text.Encoding]::UTF8) }.GetNewClosure() }
 }
+function Start-Probe([string]$mode) {
+    # 32-bit host (tools/win/x86probe): exercises textvn-tsf-x86.dll (Zalo/Office 32-bit).
+    # rich = RichEdit50W (TSF-aware), edit = EDIT (IMM32 via CUAS - WinForms/Delphi family).
+    if (-not $X86Probe -or -not (Test-Path $X86Probe)) { return $null }
+    $title = if ($mode -eq 'edit') { 'TextVN x86 probe EDIT' } else { 'TextVN x86 probe RICH' }
+    $cls = if ($mode -eq 'edit') { 'Edit' } else { 'RICHEDIT50W' }
+    $pr = Start-Process $X86Probe -ArgumentList $mode -PassThru
+    $owned.Add($pr.Id)
+    $main = [IntPtr]::Zero
+    for ($i = 0; $i -lt 30 -and $main -eq [IntPtr]::Zero; $i++) { Start-Sleep -Milliseconds 300; $pr.Refresh(); $main = $pr.MainWindowHandle }
+    $ed = [D]::FindWindowExW($main, [IntPtr]::Zero, $cls, $null)
+    $e = $ed
+    return @{ Name = ('x86' + $mode); Win = $main; Clear = { [D]::WmClear($e); Start-Sleep -Milliseconds 150 }.GetNewClosure(); Text = { [D]::WmText($e) }.GetNewClosure() }
+}
 function Start-Npp {
     $exe = 'C:\Program Files\Notepad++\notepad++.exe'
     $p = Start-Process $exe -ArgumentList @('-multiInst', '-nosession', '-notabbar') -PassThru
@@ -282,7 +299,7 @@ try {
         if ($reg -ne $devDll) { throw "HKCU override not pointing to dev DLL (got '$reg')" }
     }
     foreach ($appName in $Apps) {
-        $app = switch ($appName) { 'notepad' { Start-Notepad } 'edge' { Start-Edge } 'npp' { Start-Npp } 'vscode' { Start-VSCode } }
+        $app = switch ($appName) { 'notepad' { Start-Notepad } 'edge' { Start-Edge } 'npp' { Start-Npp } 'vscode' { Start-VSCode } 'x86rich' { Start-Probe 'rich' } 'x86edit' { Start-Probe 'edit' } }
         if (-not $app -or $app.Win -eq [IntPtr]::Zero) { Write-Host "SKIP $appName (no window)"; continue }
         [D]::Focus($app.Win) | Out-Null; [D]::Type('a'); Start-Sleep -Milliseconds 1200; & $app.Clear
         # The cases need Vietnamese mode (V); the user's own mode is restored after each app.

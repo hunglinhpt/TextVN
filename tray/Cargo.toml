@@ -41,4 +41,6 @@ windows = { version = "0.61", features = [
     "Win32_UI_Accessibility",
     # CoTaskMemFree cho SHGetKnownFolderPath (gốc Program Files tin cậy — R2-03/R2-15).
     "Win32_System_Com",
+    # GetTickCount64 — thời điểm khởi động máy cho nhắc mở lại ứng dụng (R2-138).
+    "Win32_System_SystemInformation",
 ] }

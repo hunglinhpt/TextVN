@@ -155,6 +155,28 @@ struct TrayApp {
 
 static APP_INSTANCE: std::sync::OnceLock<TrayApp> = std::sync::OnceLock::new();
 
+/// R2-138: DLL bộ gõ cạnh TextVN.exe được ghi SAU lần khởi động máy gần nhất
+/// (nâng cấp trong phiên này) — không đọc được thì coi như không (không nhắc).
+fn installed_since_boot() -> bool {
+    let Some(dll) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("textvn-tsf.dll")))
+    else {
+        return false;
+    };
+    let Ok(installed_at) = std::fs::metadata(&dll).and_then(|m| m.modified()) else {
+        return false;
+    };
+    // SAFETY: GetTickCount64 chỉ đọc đồng hồ hệ thống.
+    let uptime = std::time::Duration::from_millis(unsafe {
+        windows::Win32::System::SystemInformation::GetTickCount64()
+    });
+    let Some(booted_at) = std::time::SystemTime::now().checked_sub(uptime) else {
+        return false;
+    };
+    textvn_tray::needs_reopen_notice(installed_at, booted_at)
+}
+
 /// `NIM_ADD` icon khay theo trạng thái hiện tại. `false` khi shell chưa sẵn sàng.
 #[cfg(windows)]
 fn add_tray_icon(hwnd: HWND, app: &TrayApp) -> bool {
@@ -1097,6 +1119,15 @@ fn run_tray_app() {
     if let Some(app) = APP_INSTANCE.get() {
         if !add_tray_icon(hwnd, app) {
             let _ = unsafe { SetTimer(Some(hwnd), TIMER_TRAY_RETRY, 2000, None) };
+        }
+    }
+
+    // R2-138: vừa nâng cấp mà máy chưa khởi động lại ⇒ các ứng dụng đang mở vẫn
+    // giữ DLL bộ gõ bản cũ (TSF nạp TIP vào app lúc app mở) — nhắc một lần.
+    if let Some(prev) = svc.previous_version().filter(|_| svc.version_migrated()) {
+        if std::env::var_os("TEXTVN_SKIP_TSF_REGISTRATION").is_none() && installed_since_boot() {
+            let (title, msg) = textvn_tray::upgrade_notice(prev, env!("CARGO_PKG_VERSION"));
+            textvn_tray::show_tray_notification(&title, &msg);
         }
     }
 

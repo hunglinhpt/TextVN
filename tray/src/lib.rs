@@ -60,6 +60,29 @@ pub fn copy_to_wide_buf(buf: &mut [u16], s: &str) {
 
 pub const TRAY_ICON_UID: u32 = 100;
 
+/// R2-138: nội dung nhắc sau khi nâng cấp. DLL bộ gõ (TSF TIP) nạp vào từng ứng
+/// dụng lúc ứng dụng mở và không bao giờ được thay khi ứng dụng còn chạy — đo
+/// thật: Zalo/VS Code mở từ hôm trước vẫn chạy bộ gõ 0.2.45 qua 3 lần nâng cấp,
+/// chủ repo tưởng tính năng mới hỏng.
+pub fn upgrade_notice(previous: &str, current: &str) -> (String, String) {
+    (
+        format!("TextVN đã cập nhật lên {current}"),
+        format!(
+            "Mở lại các ứng dụng đang mở (Zalo, VS Code, Word…) để dùng bản mới — \
+             ứng dụng mở trước khi cập nhật vẫn chạy bộ gõ bản {previous}."
+        ),
+    )
+}
+
+/// Có cần nhắc mở lại ứng dụng không: chỉ khi bộ gõ được cài SAU lần khởi động
+/// máy gần nhất (khởi động lại máy rồi thì mọi ứng dụng đã nạp bản mới).
+pub fn needs_reopen_notice(
+    installed_at: std::time::SystemTime,
+    booted_at: std::time::SystemTime,
+) -> bool {
+    installed_at > booted_at
+}
+
 /// Hiển thị thông báo balloon / toast trên khay hệ thống (P4-2 · AS-023).
 #[cfg(windows)]
 pub fn show_tray_notification(title: &str, message: &str) {
@@ -455,6 +478,24 @@ pub fn notify_start_compatibility_hook() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// R2-138: nhắc mở lại ứng dụng chỉ khi máy chưa khởi động lại kể từ lúc cài;
+    /// nội dung nêu cả bản mới lẫn bản cũ app đang chạy (và vừa giới hạn balloon).
+    #[test]
+    fn r2_138_nhac_mo_lai_ung_dung_sau_nang_cap() {
+        use std::time::{Duration, SystemTime};
+        let boot = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+        assert!(needs_reopen_notice(boot + Duration::from_secs(60), boot));
+        assert!(!needs_reopen_notice(boot - Duration::from_secs(60), boot));
+        let (title, msg) = upgrade_notice("0.2.45", "0.2.49");
+        assert!(title.contains("0.2.49"));
+        assert!(msg.contains("0.2.45") && msg.contains("Mở lại"));
+        assert!(
+            title.encode_utf16().count() < 64,
+            "szInfoTitle 64 code unit"
+        );
+        assert!(msg.encode_utf16().count() < 256, "szInfo 256 code unit");
+    }
 
     #[test]
     fn trusted_install_gate_is_prefix_not_substring() {

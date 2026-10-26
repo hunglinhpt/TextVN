@@ -1,0 +1,13 @@
+[package]
+name = "x86probe"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+description = "32-bit RichEdit/EDIT test host for the TextVN x86 TIP (E2E only, not shipped)"
+
+[dependencies]
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_LibraryLoader", "Win32_Graphics_Gdi", "Win32_UI_Input_KeyboardAndMouse"] }
+
+# Standalone: not a member of the TextVN workspace (never built into a release).
+[workspace]

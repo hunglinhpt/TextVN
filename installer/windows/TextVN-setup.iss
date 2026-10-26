@@ -113,6 +113,15 @@ DisableWelcomePage=no
 Name: "vietnamese"; MessagesFile: "languages\Vietnamese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Messages]
+; R2-138: DLL bộ gõ nạp vào từng ứng dụng lúc ứng dụng mở — ứng dụng đang chạy giữ
+; bản cũ tới khi mở lại (Zalo/VS Code chạy 0.2.45 qua 3 lần nâng cấp, chủ repo tưởng
+; tính năng mới hỏng). Nhắc ngay ở trang cuối; tray nhắc thêm một lần (cài im lặng).
+vietnamese.FinishedLabel=Quá trình cài đặt [name] đã thành công. Hãy mở lại các ứng dụng đang mở (Zalo, VS Code, Word…) để chúng dùng bộ gõ bản mới.
+vietnamese.FinishedLabelNoIcons=Quá trình cài đặt [name] đã thành công. Hãy mở lại các ứng dụng đang mở (Zalo, VS Code, Word…) để chúng dùng bộ gõ bản mới.
+english.FinishedLabel=Setup has finished installing [name]. Reopen the applications that are already running (Zalo, VS Code, Word…) so they use the new input method.
+english.FinishedLabelNoIcons=Setup has finished installing [name]. Reopen the applications that are already running (Zalo, VS Code, Word…) so they use the new input method.
+
 #ifndef TargetDir
 #define TargetDir "..\..\target\x86_64-pc-windows-msvc\release"
 #endif

@@ -244,7 +244,7 @@ tên đi tới ứng dụng. Chữ trong panel to hơn để dễ đọc.
 - Sửa xong bấm phím tắt lần nữa là dự đoán tiếp theo câu đã sửa; **Ctrl + Z** (macOS **⌘ + Z**) trong 5 giây hoàn tác lần sửa.
 - Nút **Sửa tất cả** trên panel (Windows) cũng sửa cả lỗi chính tả có gợi ý. Lỗi cần viết lại câu (phủ định kép…) chỉ hiển thị, không tự sửa.
 - Chọn từng lỗi bằng phím (Windows): **Ctrl + Shift + G** mở panel ở chế độ chọn — ↑/↓ hoặc Tab chuyển lỗi, Enter sửa. **Alt + 1…3** áp gợi ý thứ n (mọi ứng dụng, kể cả Teams/Electron/Notepad++); **Esc** đóng.
-- Notepad++ và các ứng dụng Win32 cũ (IMM32) cũng sửa được: TextVN đọc lại dòng hiện tại để xác minh trước khi sửa; ứng dụng không cho đọc thì không sửa gì.
+- Notepad++ và các ứng dụng Win32 cũ (IMM32) cũng sửa được, kể cả ô nhập kiểu WinForms/Delphi (phần mềm kế toán, hành chính — bản sau 0.2.48): TextVN đọc lại chữ trước con trỏ để xác minh trước khi sửa; ứng dụng không cho đọc thì không sửa gì.
 - **Alt + Space không phải phím của TextVN** (bản sau 0.2.47): tổ hợp này thuộc menu cửa sổ của Windows và các trình khởi chạy (PowerToys Run, Copilot, ChatGPT…), nên TextVN không bao giờ giữ nó. Ctrl + Alt + Space cũng hay là phím toàn cục của ứng dụng khác (ví dụ Claude desktop).
 
 **macOS**: danh sách gợi ý trong bảng candidate của IMK (bấm chuột để chọn).
@@ -364,6 +364,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Word: chữ có dấu bị đổi thành không dấu ("hàng" → "hang") hoặc chữ đầu câu tự viết hoa | Đây là **AutoCorrect của Word** khi văn bản đặt ngôn ngữ kiểm tra chính tả là tiếng Anh (gõ tay cũng bị). Đặt ngôn ngữ văn bản là tiếng Việt (*Review → Language → Set Proofing Language*), hoặc tắt *File → Options → Proofing → AutoCorrect Options → Automatically use suggestions from the spelling checker*. |
 | Excel: Tab không hoàn tất từ trong ô | Excel tự dùng Tab để chuyển ô (không chuyển phím cho bộ gõ) — dùng **Ctrl + Space** để dự đoán trong ô. |
 | Tab / phím tắt không dự đoán gì, không thấy chữ mờ | Dự đoán **tắt mặc định**: bật `"suggest": { "enabled": true }` (mục *Dự đoán văn bản* ở trên). macOS: dùng Option + Space, hoặc tắt phím tắt hệ thống Ctrl + Space (xem trên). Chữ mờ không hiện khi con trỏ đang ở giữa dòng (còn chữ phía sau) hoặc ứng dụng không cho biết vị trí con trỏ. |
+| Vừa cập nhật mà một ứng dụng (Zalo, VS Code, Word…) chưa có tính năng mới, hoặc trợ lý/dự đoán không chạy ở đó | Bộ gõ được nạp vào ứng dụng **lúc ứng dụng mở** — ứng dụng đang chạy trước khi cập nhật vẫn dùng bản cũ cho tới khi **mở lại** (hoặc khởi động lại máy). Từ bản sau 0.2.48 bộ cài và khay hệ thống nhắc việc này. |
 | Bản 0.2.47: Alt + Space bị TextVN dùng để sửa câu thay vì mở menu cửa sổ | Bản sau 0.2.47 bỏ Alt + Space khỏi TextVN theo yêu cầu (đụng menu cửa sổ và các trình khởi chạy) — phím tắt trợ lý chỉ còn **Ctrl + Space** (macOS **Option + Space**). Cập nhật lên bản mới. |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
