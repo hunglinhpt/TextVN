@@ -7,6 +7,32 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.48] — 2026-10-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Changed
+- **Phím tắt trợ lý chỉ còn Ctrl + Space** trên Windows và Linux (R2-136, theo yêu cầu): bỏ
+  **Alt + Space** của 0.2.47 vì tổ hợp này thuộc menu cửa sổ và các trình khởi chạy
+  (PowerToys Run, Copilot, ChatGPT…) — TextVN không bao giờ giữ Alt + Space nữa, kể cả khi
+  câu đang có lỗi. Ctrl + Space tới thẳng bộ gõ: câu có lỗi thì sửa hết, câu đúng thì dự
+  đoán, không có việc thì phím tới ứng dụng nguyên vẹn. macOS giữ **Option + Space**;
+  **Alt + 1…3** (áp gợi ý khi popup đang hiện) giữ nguyên.
+
+Kiểm chứng E2E trên ứng dụng thật: Notepad, Edge, Notepad++, VS Code 44/44 (Alt + Space
+khi câu có lỗi vẫn mở menu cửa sổ, chữ không đổi) + Notepad/Word/Excel 28/28.
+
+**English** — 0.2.48: the assistant hotkey is Ctrl+Space only on Windows and Linux
+(R2-136, owner's decision): 0.2.47's Alt+Space is dropped because it belongs to the
+window menu and to global launchers (PowerToys Run, Copilot, ChatGPT) — TextVN never
+takes Alt+Space any more, even with errors pending. Ctrl+Space reaches the input method
+directly: it fixes the sentence when it has errors, predicts when it is clean, and passes
+to the app untouched when there is nothing to do. macOS keeps Option+Space; Alt+1..3
+(apply a suggestion while the panel is shown) is unchanged. Real-app E2E: Notepad, Edge,
+Notepad++ and VS Code 44/44 (Alt+Space with errors pending still opens the window menu,
+text unchanged); Notepad/Word/Excel 28/28.
+
 ## [0.2.47] — 2026-10-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -1964,7 +1990,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...HEAD
+[0.2.48]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...v0.2.48
 [0.2.47]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...v0.2.47
 [0.2.46]: https://github.com/hunglinhpt/TextVN/compare/v0.2.45...v0.2.46
 [0.2.45]: https://github.com/hunglinhpt/TextVN/compare/v0.2.44...v0.2.45

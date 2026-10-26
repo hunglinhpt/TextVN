@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.48 — phím tắt trợ lý chỉ Ctrl+Space (R2-136, chủ repo chốt)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **R2-136** (`docs/50-assist/P6-TEXT-PREDICTION.md` §2b): bỏ Alt+Space của 0.2.47 trên Windows/Linux — đụng menu cửa sổ + PowerToys Run/Copilot/ChatGPT; đo trên máy chủ repo: Ctrl+Alt+Space bị Claude desktop giữ, Alt+/ bị TSF chặn như Alt+Space, Ctrl+Space/Ctrl+. tới thẳng key sink. Chủ repo chọn chỉ Ctrl+Space. Windows gỡ preserved key Alt+Space + đường trả menu hệ thống; Linux `lc_is_assist_hotkey` chỉ Ctrl+Space; macOS giữ Option+Space; Alt+1..3 giữ |
+| Đo | win-tsf 97 · clippy -D warnings 0 · preflight 23/23 · C `test_compose` (Alt+Space = 0) trên ci-linux · **E2E thật** `tools/win/e2e-assist-apps.ps1` **44/44** (Alt+Space khi câu có lỗi vẫn mở menu cửa sổ, chữ không đổi — 4 app) + `tools/win/e2e-assist-p6.ps1` **28/28** |
+| CI commit code | `55510fc1` 6/6 xanh (ci-linux C `test_compose` + IBus/Fcitx5 e2e, ci-windows, ci-shared, repo-hygiene, ci-deb, ci-aur — không đụng macOS) |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.47 — phím tắt sửa hết + dự đoán, Alt+1..3 Windows, Notepad++, chữ mờ gợi ý (phản hồi chủ repo)
 
 | Hạng mục | Bằng chứng |
