@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.46" date="2026-10-26">
+      <description>
+        <p>Bilingual text prediction (opt-in): Tab or Ctrl+Space completes words and compounds and predicts the next phrase from context (Kính gửi → quý khách hàng, Thank you → very much), with correct casing, proper nouns and tone-mark style. The grammar assistant is now live: suggestions appear as soon as the sentence has an error and disappear when it is fixed, without taking over typing keys; on IBus/Fcitx5 a suggestion is applied with Alt+1..3 (bare digits type digits again) and Esc closes the list. Ctrl+Space no longer desyncs the word being typed when the key reaches the application.</p>
+      </description>
+    </release>
     <release version="0.2.45" date="2026-10-25">
       <description>
         <p>Office-productivity pack (on-device): case-adaptive text macros (hd/Hd/HD expand to lowercase/capitalised/UPPERCASE, deliberate casing preserved), spreadsheet formula guard (=sum/=if/=vlookup typed at the start of a cell are no longer accent-mangled while the VNI input method keeps working), money shorthand (=15450000d+Tab → 15.450.000 đồng, …vnd → VNĐ, …bc → accounting-grade Vietnamese words), office collocation fixes (bổ xung→bổ sung, xử dụng→sử dụng, sát nhập→sáp nhập and more, closed list with guards for correct phrases), percent spacing (100 %→100%), coder/business identifier protection (useState/onPress/getElementById never accent-folded; KPI, EBITDA, margin, revenue restored; Tab completion keeps canonical casing), and a selection transcoder: select text and press Ctrl+Shift+F9 (Windows) to detect TCVN3 (.VnTime) / VNI-Windows / decomposed Unicode and convert it to precomposed Unicode. Detection is fail-safe — real Unicode or ambiguous input is never modified.</p>

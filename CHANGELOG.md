@@ -7,7 +7,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [Unreleased]
+## [0.2.46] — 2026-10-26
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
 
 ### Added
 - **Dự đoán văn bản song ngữ** (P6, bật bằng `"suggest": { "enabled": true }`,
@@ -1902,7 +1905,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.32...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...HEAD
+[0.2.46]: https://github.com/hunglinhpt/TextVN/compare/v0.2.45...v0.2.46
 [0.2.45]: https://github.com/hunglinhpt/TextVN/compare/v0.2.44...v0.2.45
 [0.2.44]: https://github.com/hunglinhpt/TextVN/compare/v0.2.43...v0.2.44
 [0.2.43]: https://github.com/hunglinhpt/TextVN/compare/v0.2.42...v0.2.43

@@ -1,5 +1,15 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.46 — dự đoán văn bản P6 + trợ lý ngữ pháp sống theo câu (audit sâu + E2E thật)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **P6 dự đoán văn bản** (`docs/50-assist/P6-TEXT-PREDICTION.md`, opt-in `suggest.enabled`): Tab/Ctrl+Space hoàn tất + cụm nối tiếp, duyệt vòng; audit R2-120 (ngữ cảnh nhiều từ trước tiền tố, dự đoán ngay sau từ, chữ hoa/tên riêng/tiêu ngữ, xuống dòng, kiểu dấu mới) · R2-121 Ctrl+Space nhả từ 3 OS · R2-122 Tab ở overlay · R2-123 replay CUAS · **trợ lý ngữ pháp**: R2-125 panel Windows luôn neo được (Notepad Win11 trước đây KHÔNG BAO GIỜ hiện) · R2-126 bỏ toast "phát hiện lỗi" (cả tray) · R2-127 panel to + vẽ đúng font tiếng Việt · R2-128 gõ tắt/số tiền vượt composition (TF_E_RANGE_NOT_COVERED) · R2-129 **gợi ý sống theo câu** Windows/macOS/Linux, không chiếm phím gõ, Linux Alt+1..3 · **bộ cài**: R2-124 gỡ bản per-user khi cài bản máy · R2-130 nâng cấp tại chỗ dọn sạch bản cũ + gỡ bản máy bằng UAC · hygiene E31 (CRLF → `.gitattributes`) |
+| Đo | **745 test workspace** (41 binary; core text_prediction 16, win-tsf 97, tray 78) · clippy -D warnings 0 · preflight 23/23 · **E2E trên ứng dụng thật 28/28** (`tools/win/e2e-assist-p6.ps1`: Notepad Win11 19, Word 6, Excel 3) · test mới FAIL trên mã cũ 9/16 (chứng minh bắt đúng lỗi) |
+| CI commit code | `2d57bda6` 7/7 · `7a79220d` 7/7 (ci-windows log `PASS R2-124 …`) · parity `97e7b187` — xem mục Phát hành |
+| Ghi chú giới hạn | Ghost text (xem trước ứng viên mờ) chưa có · Linux chưa có trợ lý on-demand qua Ctrl+Space · macOS: Ctrl+Space mặc định là phím tắt đổi nguồn nhập của hệ thống · Word AutoCorrect (văn bản đặt ngôn ngữ tiếng Anh) tự đổi "hàng"→"hang" — không phải TextVN |
+| Phát hành | ⏳ điền sau tag (B6–B8): run release-candidate, 34 asset, chữ ký, checksums, Homebrew/AUR/PPA/approved |
+
 ## Bản 0.2.45 — gói năng suất văn phòng P5 (OP-001…OP-007, mỗi task 2 lượt review)
 
 | Hạng mục | Bằng chứng |

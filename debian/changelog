@@ -1,3 +1,15 @@
+textvn (0.2.46-0ppa1) noble; urgency=medium
+
+  * Bilingual text prediction (opt-in suggest.enabled): Tab/Ctrl+Space
+    completes words and predicts the next phrase from context; Ctrl+Space
+    with no prediction opens the grammar assistant on demand.
+  * Grammar suggestions are live: shown as soon as the sentence has an
+    error, hidden when it is fixed, never stealing typing keys; IBus/Fcitx5
+    apply a suggestion with Alt+1..3 (bare digits type digits again).
+  * Ctrl+Space no longer desyncs the composing word when it reaches the app.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Mon, 26 Oct 2026 04:00:00 +0000
+
 textvn (0.2.45-0ppa1) noble; urgency=medium
 
   * P5 office-productivity pack: case-adaptive text macros, spreadsheet
