@@ -1,6 +1,22 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
-## Vòng 35 (0.2.49+dev) — audit R1/R2/R3 trợ lý ngữ pháp 3 nền tảng
+## Bản 0.2.50 — transcode 3 OS + D39 + dự đoán bật được từ UI + vòng 35
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Ctrl+Shift+F9 macOS/Linux** (IMKTextTarget.selectedText/text-in; IBus+Fcitx5 `lc_selection_slice` char-offset + recheck TOCTOU + `deleteSelectionRange` qua gate test) — Windows đã có; **D39 WinSpell** (Spell Checking API, cổng `vi-VN` bắt buộc, worker MTA + timeout 50 ms + cầu chì mono-clock, `ime_assist_check_v1_with` + 25 exports verify); **suggest toggle 3 OS** (tray dialog layout +42px + macOS SettingsView + Linux GTK — dự đoán KHÔNG THỂ bật trước đây); **TEXTVN_ASSIST_DEBUG=1**; **vòng 35 audit R1/R2/R3** — 2 HIGH (mask phá tên file + Swift existential dispatch chết chord macOS) + 5 MEDIUM (PANIC "10,", Windows fresh-install Off, layout, S3 hẹp, comma whitelist) + 10 LOW |
+| Đo | **755 test** · FPR **0/981** + **0/61 probe** · recall 83,7% · replay 248/248 · clippy 0 · cross-check Linux · preflight 23/23 |
+| CI trên commit gắn tag e1a88fc | 7/7 xanh |
+| Release | v0.2.50 tag ký GPG — release-candidate [#40567828808](https://github.com/hunglinhpt/TextVN/actions/runs/40567828808) 4/4 job; **34 asset** |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature (FPR `3921595A…A822`); 9/9 hash khớp |
+| Checksums | machine exe `01a3769d…7a12` · MSIX `125f0830…4b18` · mac zip `a40c272d…0786` · PKGBUILD archive `9635acd3…65a3` |
+| Homebrew (B7b) | cask `version "0.2.50"` + `sha256` = mac zip `a40c272d…0786` — sync-cask [#40571682508](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40571682508) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.50 `9635acd3…65a3` |
+| PPA (B7f) | debian/changelog `0.2.50-0ppa1` |
+| approved (B7c) | `approved/v0.2.50/` — 34 file byte-identical (SHA256SUMS raw hash trùng khớp), raw URL 200 |
+| Ghi chú giới hạn | VIQR/TelexRaw transcode pass-through v1; Linux spell provider (enchant) xếp backlog — D39 Windows xong trước vì parity macOS đã có NSSpellChecker |
+
+## Vòng 35 (0.2.49+dev)## Vòng 35 (0.2.49+dev) — audit R1/R2/R3 trợ lý ngữ pháp 3 nền tảng
 
 | Hạng mục | Bằng chứng |
 |---|---|
