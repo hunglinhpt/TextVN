@@ -490,21 +490,27 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// không engine ⇒ phím tới app. Document đã đổi ⇒ reset engine + huỷ undo
     /// trợ lý (Windows: `reset_engine` + `clear_assist_undo`). Không log text (S2).
     private func performSelectionConvert(_ sender: Any!) -> Bool {
-        // S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
-        // khẩu. Secure event input toàn cục (S8) hoặc field bị đánh dấu secure
-        // bởi field-detect (AX gather, cached cho luồng gõ) ⇒ không đọc/sửa.
+        // S3 (review 1 + A3): ô mật khẩu — selection trong ô password chính là
+        // mật khẩu. Chặn 3 lớp: (1) secure event input toàn cục (S8); (2) field
+        // bị đánh dấu secure bởi field-detect; (3) field CHƯA xếp loại xong
+        // (role == .unknown — AX-gather async 0,3s; fallback `secure:false` của
+        // gatherContext không được tin trong cửa sổ đầu sau focus).
         if secureMode {
             return false
         }
         let pid = Self.clientPid(sender)
-        if fieldDetect.cached(for: pid)?.secure == true {
+        guard let ctx = fieldDetect.cached(for: pid),
+              ctx.role != FieldRole.unknown, !ctx.secure else {
             return false
         }
         guard let engine, let target = clientTarget(sender) else { return false }
-        guard let selected = target.selectedText() else { return false }
-        guard let converted = engine.convertSelection(selected) else { return true }
+        // A4: đọc range TRƯỚC rồi đọc text THEO ĐÚNG range đó — 1 nguồn, chống
+        // TOCTOU giữa 2 lời gọi IMK rời (selectedText + selectionRange).
         let range = target.selectionRange()
-        guard range.location != NSNotFound, range.length > 0 else { return false }
+        guard range.location != NSNotFound, range.length > 0, range.length <= 64_000
+        else { return false }
+        guard let selected = target.text(in: range) else { return false }
+        guard let converted = engine.convertSelection(selected) else { return true }
         target.insert(converted, replacementRange: range)
         engine.reset()
         assistUndo = nil

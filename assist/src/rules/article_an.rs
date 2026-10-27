@@ -67,7 +67,6 @@ const A_DESPITE_VOWEL_LETTER: &[&str] = &[
     "europe",
     "one",
     "ones",
-    "one-way",
     "once",
     "ewe",
     "uterus",

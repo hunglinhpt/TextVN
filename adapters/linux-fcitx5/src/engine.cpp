@@ -719,7 +719,9 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
         bool inWord = false;
         for (size_t wi = 0; wi < actual_len; wi++) {
             const unsigned char c = static_cast<unsigned char>(sentence[wi]);
-            const bool isWordC = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+            /* A7 (vòng 34): parity Windows — chữ số đếm là từ. */
+            const bool isWordC = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                 (c >= '0' && c <= '9') || c >= 0x80;
             if (isWordC) {
                 if (!inWord) {
                     words++;

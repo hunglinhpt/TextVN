@@ -20,7 +20,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, RecvTimeoutError, SyncSender, TrySendError};
 use std::sync::OnceLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use windows::core::HSTRING;
 use windows::Win32::Globalization::{ISpellChecker, ISpellCheckerFactory, SpellCheckerFactory};
@@ -172,10 +172,10 @@ impl WinSpell {
 }
 
 fn millis_now() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    // A11 (vòng 34): mono clock (Instant) thay wall clock — người dùng lùi giờ
+    // hệ thống không làm breaker "hết cooldown" sớm.
+    static START: OnceLock<Instant> = OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as u64
 }
 
 // ---------------------------------------------------------------------------
@@ -368,10 +368,8 @@ mod tests {
         assert!(spell.healthy());
         spell.trip_breaker();
         assert!(!spell.healthy());
-        // Cooldown trôi (giả lập: đẩy mốc lùi 10s + 1ms).
-        spell
-            .breaker_until
-            .store(millis_now() - 1, Ordering::Release);
+        // Cooldown trôi (giả lập: đặt mốc về 0 — mono clock luôn >= 0 ⇒ healthy).
+        spell.breaker_until.store(0, Ordering::Release);
         assert!(spell.healthy());
     }
 }

@@ -598,7 +598,7 @@ const DIALOG_LAYOUT: [Ctl; 34] = [
         "BUTTON",
         "Tùy chọn gõ",
         BS_GROUPBOX,
-        (15, 142, 870, 205),
+        (15, 142, 870, 247),
         ID_LBL_BASE + 5,
     ),
     ctl(

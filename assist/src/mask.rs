@@ -64,12 +64,22 @@ pub fn masked_ranges_chars(chars: &[char]) -> Vec<(usize, usize)> {
         "xml", "html", "css", "sql", "zip", "rar", "png", "jpg", "jpeg", "gif", "webp", "tiff",
         "wav", "ini", "log", "bak", "tmp", "cfg", "conf", "env", "bat", "ps1", "rb", "php", "java",
         "cpp", "cs", "kt", "go",
+        // Vòng 34 (audit R1-F1a): tiếp tục bổ sung — thiếu thì space_after_punct
+        // chèn space giữa TÊN FILE ("config.toml" → "config. toml") với
+        // confidence 100 + auto_fixable ⇒ Sửa-tất-cả phá luôn tên file.
+        "swift", "ipynb", "proto", "gradle", "so", "lock", "o", "h", "c", "pas", "vue", "zig",
+        "f90", "pl", "lua", "rmd", "sbt", "sln", "csproj", "tcl", "asm", "r", "jl", "d", "nim",
+        "ex", "exs", "erl", "hs", "ml", "clj", "groovy", "dart", "cmake", "toml", "rst", "tex",
+        "bib", "coffee", "pug", "haml", "slim", "svelte", "astro", "prisma", "graphqlx",
     ];
     for i in 0..chars.len() {
         if chars[i] != '.' || i == 0 || i + 1 >= chars.len() {
             continue;
         }
-        let before_ok = chars[i - 1].is_ascii_alphanumeric();
+        // Vòng 34 (R1-F1b): chữ liền trước dấu chấm chấp nhận CẢ Unicode
+        // (tên file tiếng Việt "đề.doc" — 'ề' không phải ASCII-alnum nhưng
+        // là alnum); ext trong danh sách đóng đã chặn phía sau.
+        let before_ok = chars[i - 1].is_alphanumeric();
         if !before_ok {
             continue;
         }
@@ -78,7 +88,9 @@ pub fn masked_ranges_chars(chars: &[char]) -> Vec<(usize, usize)> {
             .iter()
             .take_while(|c| c.is_alphanumeric())
             .count();
-        if after_len == 0 || after_len > 4 {
+        // Vòng 34 (audit R1-F1a): cap 4 → 6 — "config.toml" (4 ✓ nhưng
+        // "main.swift"/"index.ipynb" = 5, "schema.gradle" = 6 từng bị sót).
+        if after_len == 0 || after_len > 6 {
             continue;
         }
         let after_chars = &after_slice[..after_len];
@@ -93,11 +105,11 @@ pub fn masked_ranges_chars(chars: &[char]) -> Vec<(usize, usize)> {
             continue;
         }
         let start = expand_word(chars, i, true);
-        // Phần trước dấu chấm của tên miền/file phải thuần ASCII chữ/số/gạch/chấm.
-        if !chars[start..i]
-            .iter()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
-        {
+        // Vòng 34 (audit R1-F1b): bỏ ràng buộc base thuần ASCII — tên file
+        // tiếng Việt có dấu ("Báo cáo.xlsx", "in file đề.doc") từng bị sót
+        // mask ⇒ space_after_punct phá tên file. Base qua `expand_word` đã
+        // chỉ gồm word-char (alnum Unicode/.-_) liền trước dấu chấm.
+        if start >= i {
             continue;
         }
         let after_lower: String = after_chars.iter().map(|c| c.to_ascii_lowercase()).collect();

@@ -553,7 +553,10 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
         gboolean in_word = FALSE;
         for (size_t wi = 0; wi < actual_len; wi++) {
             unsigned char c = (unsigned char)sentence[wi];
-            gboolean is_word_c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80;
+            /* A7 (vòng 34): chữ số ĐẾM LÀ TỪ (parity Windows split_whitespace —
+             * "học lớp 12 năm 2024" = 4 từ mọi nền tảng). */
+            gboolean is_word_c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                                 (c >= '0' && c <= '9') || c >= 0x80;
             if (is_word_c) {
                 if (!in_word) {
                     words++;

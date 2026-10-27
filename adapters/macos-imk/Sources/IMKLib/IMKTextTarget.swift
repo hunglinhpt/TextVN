@@ -113,9 +113,14 @@ final class IMKTextTarget: TextTarget {
     /// có ⇒ `nil` — phím được để tới app một cách rõ ràng (fail-open). Text chỉ
     /// giữ trong RAM tạm của tiến trình, không log/không gửi đi (D8/S2).
     func selectedText() -> String? {
-        let sel = client.selectedRange()
-        guard sel.location != NSNotFound, sel.length > 0, sel.length <= 64_000 else { return nil }
-        guard let text = client.attributedSubstring(from: sel)?.string, !text.isEmpty else { return nil }
+        text(in: client.selectedRange())
+    }
+
+    /// A4 (vòng 34): text theo range CHO TRƯỚC — caller đọc range 1 lần rồi
+    /// lấy text theo đúng range đó, chống TOCTOU giữa 2 lời gọi IMK rời.
+    func text(in range: NSRange) -> String? {
+        guard range.location != NSNotFound, range.length > 0, range.length <= 64_000 else { return nil }
+        guard let text = client.attributedSubstring(from: range)?.string, !text.isEmpty else { return nil }
         return text
     }
 }

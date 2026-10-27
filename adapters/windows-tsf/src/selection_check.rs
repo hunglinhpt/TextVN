@@ -95,7 +95,11 @@ fn is_selection_key_up(vk: u32, mods: u32) -> bool {
             ..=0x28 |   // ← ↑ ↓ →
         0x21 | 0x22 |   // PgUp/PgDn
         0x23 | 0x24 // End/Home
-    ) || (vk >= 'A' as u32 && vk <= 'Z' as u32 && mods & 0x1 != 0) // Shift+letter (bôi đầu từ)
+    )
+    // A10 (vòng 34): BỎ Shift+letter — gõ chữ hoa thường thường ("Ngành")
+    // nhả Shift ⇒ debounce 500ms ⇒ session READ vô ích (selection rỗng) ở
+    // MỌI lần nghỉ gõ sau chữ hoa. Bôi-đen-đầu-từ bằng Shift+letter thực tế
+    // luôn kéo dài bằng mũi tên/Home/End (nó cũng nằm trong danh sách trên).
 }
 
 /// Nhận key-up từ `OnTestKeyUp`/`OnKeyDown`-up path: lên lịch debounce check.
@@ -355,6 +359,18 @@ impl ITfEditSession_Impl for ApplySelectionFixSession_Impl {
 impl ApplySelectionFixSession {
     fn run(&self, _ec: u32) -> bool {
         unsafe {
+            // A6 (vòng 34, parity TranscodeSession/SelectionCheckSession): gate
+            // S3 + read-only re-check TRƯỚC khi ghi — ô mật khẩu/PIN/chỉ-đọc.
+            let signals = crate::edit_session::read_field_signals(&self.ctx, _ec, &self.range);
+            if signals.read_only
+                || crate::classify_tsf_field(&signals).security
+                    != textvn_field_detect::SecurityState::NonSecure
+            {
+                return false;
+            }
+            if !self.shared.is_assist_display_enabled() {
+                return false;
+            }
             // Precondition: selection vẫn còn và text vẫn là câu đã check
             // (người dùng chưa gõ xen/đổi vùng chọn giữa lúc popup hiện và
             // lúc bấm nút — fail-safe không ghi đè gì khác).
@@ -620,8 +636,12 @@ mod tests {
         assert!(!is_selection_key_up(0x25, WIN));
         // Phím thường không Shift (gõ chữ) → không kích hoạt.
         assert!(!is_selection_key_up(0x41, 0)); // 'a'
-                                                // F-key bị lọc (audit v30 F5: bôi đen bằng chuột rồi bấm F5
-                                                // không được coi là "đang soạn thảo").
+                                                // A10: Shift+letter không còn là tín hiệu selection (gõ chữ hoa thường
+                                                // thường nhả Shift ⇒ session READ vô ích; bôi-đen bằng Shift+letter
+                                                // thực tế luôn kéo dài bằng mũi tên — nằm trong danh sách phím trên).
+        assert!(!is_selection_key_up(0x41, 0x1)); // Shift+a
+                                                  // F-key bị lọc (audit v30 F5: bôi đen bằng chuột rồi bấm F5
+                                                  // không được coi là "đang soạn thảo").
         assert!(!is_selection_key_up(0x70, 0));
         // Alt+← (Back browser) → KHÔNG.
         assert!(!is_selection_key_up(0x25, 0x4));

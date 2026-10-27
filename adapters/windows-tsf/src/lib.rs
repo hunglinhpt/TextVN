@@ -321,7 +321,10 @@ impl ThreadState {
             user_enabled: None,
             macro_when_off: false,
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
-            assist_mode: textvn_config::AssistMode::default(),
+            // Vòng 34 (audit A2): fresh-install chưa có config.json — enum
+            // `#[default] Off` làm trợ lý CHẾT hoàn toàn (đúng lớp lỗi F-A mà
+            // Linux/macOS đã vá); AssistSettings::default() = highlight.
+            assist_mode: textvn_config::AssistSettings::default().mode,
             auto_capitalize: textvn_config::Config::default().auto_capitalize,
             assist_display_hide_on_auto_fix: textvn_config::Config::default()
                 .assist

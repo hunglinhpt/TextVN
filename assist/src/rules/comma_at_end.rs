@@ -21,6 +21,48 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     if ctx.chars[tok.start] != ',' || ctx.is_masked(tok.start, tok.end) {
         return;
     }
+    // Vòng 34 (audit R1-F2): ký kết email chuẩn tiếng Việt ("Trân trọng,",
+    // "Cảm ơn anh,", "Thân,"…) KHÔNG phải lỗi — câu ≤ 3 từ và từ trước dấu
+    // phẩy nằm trong danh sách đóng ⇒ im lặng (corpus không có case này —
+    // điểm mù phát hiện khi probe).
+    {
+        let words: Vec<&crate::tokenize::Token> = ctx
+            .tokens
+            .iter()
+            .filter(|t| t.kind == TokenKind::Word)
+            .collect();
+        if words.len() <= 3 {
+            // Vòng 34 (R1-F2, siết lại sau probe): KÝ KẾT EMAIL = TỪ ĐẦU câu
+            // thuộc danh sách đóng ("Cảm ơn anh,", "Trân trọng,", "Thân,").
+            // "Tôi gặp anh," (lỗi thật — dấu phẩy cuối câu treo) vẫn được bêu
+            // vì từ đầu "tôi" ∉ danh sách.
+            const SIGN_OFF_OPENERS: &[&str] = &[
+                // Gồm dạng TỪ ĐẦU của sign-off 2 từ ("trân trọng" → "trân",
+                // "cảm ơn" → "cảm") — câu ≤ 3 từ nên không có FP thực.
+                "trân trọng",
+                "trân",
+                "thân",
+                "thân ái",
+                "cảm ơn",
+                "cảm",
+                "thanks",
+                "regards",
+                "best",
+                "cheers",
+                "hello",
+                "hi",
+                "xin chào",
+                "chào",
+            ];
+            let first = ctx.chars[words[0].start..words[0].end]
+                .iter()
+                .collect::<String>()
+                .to_lowercase();
+            if SIGN_OFF_OPENERS.contains(&first.as_str()) {
+                return;
+            }
+        }
+    }
     out.push(issue_suggestion(
         IssueKind::CommaAtEnd,
         Span {

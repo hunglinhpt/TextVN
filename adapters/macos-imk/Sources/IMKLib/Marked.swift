@@ -51,6 +51,9 @@ extension TextTarget {
 
     /// Mặc định: không selection ⇒ `nil` ⇒ chord để phím tới app (fail-open).
     public func selectedText() -> String? { nil }
+
+    /// Mặc định: không đọc được text theo range ⇒ `nil` (fail-open, A4).
+    public func text(in range: NSRange) -> String? { nil }
 }
 
 /// Trạng thái marked của controller — 1 instance theo controller (main thread).

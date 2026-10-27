@@ -26,7 +26,13 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             && ctx.tokens[i - 2].kind == TokenKind::Other
             && ctx.chars[ctx.tokens[i - 2].start..ctx.tokens[i - 2].end]
                 .iter()
-                .all(|c| c.is_ascii_digit());
+                .all(|c| c.is_ascii_digit())
+            // Vòng 34 (R1-F5): "phép 10 % 3" — modulo toán học có space + CHỮ
+            // SỐ sau '%' ⇒ bỏ qua (chỉ flag khi sau '%' là chữ/cụm từ).
+            && !ctx.chars.get(punct.end).is_some_and(|c| c.is_ascii_digit())
+            && !(punct.end + 1 < ctx.chars.len()
+                && ctx.chars[punct.end] == ' '
+                && ctx.chars[punct.end + 1].is_ascii_digit());
         if !is_percent_after_digit && !needs_space_after(ctx.chars[punct.start]) {
             continue;
         }
