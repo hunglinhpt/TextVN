@@ -85,9 +85,16 @@ bool scanSourceForRawDeleteCalls(const std::string &path, size_t *totalCalls) {
         size_t lineEnd = src.find('\n', pos);
         if (lineEnd == std::string::npos) lineEnd = src.size();
         const std::string line = src.substr(lineStart, lineEnd - lineStart);
-        /* Đúng quy ước: offset âm (trước caret) + size = số ký tự cần xoá. */
-        if (line.find("deleteSurroundingText(-static_cast<int>(n), n)") ==
-            std::string::npos) {
+        /* Đúng quy ước: (a) offset âm (trước caret) + size = số ký tự cần xoá
+         * (deleteBeforeCaret); (b) selection replace — offset ∈ {0, −n} với
+         * size = n ≥ 1 (deleteSelectionRange, OP-007/R2-139 — invariant trong
+         * lc_selection_slice: caret luôn là MỘT đầu selection). */
+        const bool before_caret =
+            line.find("deleteSurroundingText(-static_cast<int>(n), n)") !=
+            std::string::npos;
+        const bool selection_range =
+            line.find("deleteSurroundingText(offset, nchars)") != std::string::npos;
+        if (!before_caret && !selection_range) {
             std::fprintf(stderr, "FAIL: loi goi sai quy uoc trong %s:\n  %s\n",
                          path.c_str(), line.c_str());
             return false;
@@ -104,6 +111,18 @@ int main() {
     FakeInputContext ic(manager);
 
     /* ---- 1) Quy ước API: xoá n ký tự TRƯỚC caret ⇒ (offset = -n, size = n) ---- */
+    /* ---- 2b) OP-007/R2-139: xoá selection qua deleteSelectionRange ----
+     * Selection NGƯỢC hướng (caret ở đầu selection): offset = 0 — xoá SAU
+     * caret; selection THUẬN (caret ở cuối): offset = -n — xoá TRƯỚC caret. */
+    deleteSelectionRange(&ic, 0, 4);
+    assert(ic.deletes.back().offset == 0);
+    assert(ic.deletes.back().size == 4u);
+    deleteSelectionRange(&ic, -4, 4);
+    assert(ic.deletes.back().offset == -4);
+    assert(ic.deletes.back().size == 4u);
+    deleteSelectionRange(&ic, 0, 0); /* size = 0 bị helper chặn — không gọi */
+    assert(ic.deletes.size() == 2 + 1); /* 7 + 4 + 4 trước đó, size=0 không cộng */
+
     deleteBeforeCaret(&ic, 7);
     assert(ic.deletes.size() == 1);
     assert(ic.deletes[0].offset == -7);   /* âm ⇒ vùng xoá nằm TRƯỚC caret */

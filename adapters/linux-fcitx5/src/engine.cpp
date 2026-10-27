@@ -99,6 +99,18 @@ void deleteBeforeCaret(fcitx::InputContext *ic, uint32_t n) {
     ic->deleteSurroundingText(-static_cast<int>(n), n);
 }
 
+/* OP-007 · R2-139: xoá ĐÚNG vùng selection (chord Ctrl+Shift+F9) — khác
+ * `deleteBeforeCaret` ở chỗ selection có thể nằm ở CẢ HAI phía caret:
+ * `offset = del_offset ∈ {0, −char_len}` (caret luôn là MỘT đầu selection —
+ * invariant được chứng minh trong `lc_selection_slice`, test C
+ * `test_transcode_selection_slice`), `nchars = char_len ≥ 1` nên quy ước
+ * "size == 0 ⇒ nhân đôi câu" không thể xảy ra. Gate
+ * `test_fcitx5_delete_surrounding` allowlist đúng 2 dạng gọi này. */
+void deleteSelectionRange(fcitx::InputContext *ic, int offset, unsigned int nchars) {
+    if (!ic || nchars == 0) return;
+    ic->deleteSurroundingText(offset, nchars);
+}
+
 /* Mode 1 (chọn ứng viên trong candidate list): xoá đúng số ký tự cũ rồi gõ
  * bản sửa.
  *
@@ -183,8 +195,8 @@ static bool performSelectionConvert(TextVNState *st) {
         recheck.cursor() != cursor) {
         return true;
     }
-    st->ic->deleteSurroundingText(static_cast<int>(info.del_offset),
-                                  static_cast<unsigned int>(info.char_len));
+    deleteSelectionRange(st->ic, static_cast<int>(info.del_offset),
+                         static_cast<unsigned int>(info.char_len));
     st->ic->commitString(out);
     /* Document đã đổi: buffer câu engine stale + undo trợ lý không còn đúng
      * (Windows: reset_engine + clear_assist_undo). */

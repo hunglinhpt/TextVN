@@ -143,6 +143,11 @@ std::string utf32ToUtf8(const uint32_t *text, size_t len);
  * fcitx5 trong engine.cpp. */
 void deleteBeforeCaret(fcitx::InputContext *ic, uint32_t n);
 
+/* OP-007 · R2-139: xoá đúng vùng selection (chord Ctrl+Shift+F9) — selection
+ * có thể nằm CẢ HAI phía caret (offset ∈ {0, −n}); gate test
+ * `test_fcitx5_delete_surrounding` allowlist đúng 2 dạng gọi này. */
+void deleteSelectionRange(fcitx::InputContext *ic, int offset, unsigned int nchars);
+
 /* Mode 1: áp dụng ứng viên đã chọn — xoá đúng số ký tự cũ rồi gõ bản sửa.
  * Trả false ⇒ KHÔNG xác minh được (client không hỗ trợ surrounding text, hoặc
  * vùng trước caret không phải đuôi câu engine biết) ⇒ caller không làm gì cả
