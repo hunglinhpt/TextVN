@@ -106,4 +106,16 @@ final class IMKTextTarget: TextTarget {
         guard let text = client.attributedSubstring(from: range)?.string else { return nil }
         return text
     }
+
+    /// OP-007 · R2-139: text của vùng chọn hiện tại — dùng bởi chord
+    /// `Ctrl+Shift+F9` (chuyển mã vùng bôi đen). Trần 64 000 ký tự khớp
+    /// `selection_check::MAX_TRANSCODE_CHARS` của Windows; selection rỗng/không
+    /// có ⇒ `nil` — phím được để tới app một cách rõ ràng (fail-open). Text chỉ
+    /// giữ trong RAM tạm của tiến trình, không log/không gửi đi (D8/S2).
+    func selectedText() -> String? {
+        let sel = client.selectedRange()
+        guard sel.location != NSNotFound, sel.length > 0, sel.length <= 64_000 else { return nil }
+        guard let text = client.attributedSubstring(from: sel)?.string, !text.isEmpty else { return nil }
+        return text
+    }
 }

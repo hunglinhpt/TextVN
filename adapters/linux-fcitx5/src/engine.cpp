@@ -130,6 +130,69 @@ bool applyAssistCandidate(fcitx::InputContext *ic, uint32_t deleteGlyphs,
     return true;
 }
 
+/* ---- OP-007 (P5 §7.4) · R2-139: Ctrl+Shift+F9 chuyển mã vùng bôi đen ----
+ *
+ * Selection = đoạn giữa anchor và cursor của surrounding text (CẢ HAI đếm
+ * theo KÝ TỰ Unicode — surrounding_match.cpp §"QUY ƯỚC OFFSET"); anchor ==
+ * cursor khi không có selection. Trần 64 000 ký tự —
+ * `selection_check::MAX_TRANSCODE_CHARS` của Windows.
+ *
+ * Không selection / trần vượt / UTF-8 lỗi ⇒ KHÔNG làm gì và KHÔNG nuốt phím
+ * (fail-open: F9 tới app — khác Windows 1 nhí vì API Fcitx5 đồng bộ, không có
+ * RequestEditSession async để nuốt). Đã đọc được selection mà engine không
+ * đổi gì ⇒ không ghi document nhưng VẪN nuốt (khớp "đã xử lý đường convert").
+ *
+ * Recheck chống TOCTOU (đọc lại trước xoá): surrounding là truy vấn DBus
+ * TRỰC TIẾP nên 2 lần gọi có thể lệch nhau — lệch ⇒ KHÔNG ghi document
+ * (fail-safe R-2), hủy phím (như Windows khi session gặp sự cố). */
+static constexpr uint32_t kMaxTranscodeChars = 64000;
+
+static bool performSelectionConvert(TextVNState *st) {
+    if (!st || !st->ic || !st->inst) return false;
+    if (!st->ic->capabilityFlags().test(fcitx::CapabilityFlag::SurroundingText)) return false;
+    /* S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
+     * khẩu; không đọc/không sửa. */
+    if (st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive)) {
+        return false;
+    }
+    /* Chụp MỘT lần surrounding: text/anchor/cursor phải cùng chụp. */
+    const fcitx::SurroundingText surrounding = st->ic->surroundingText();
+    if (!surrounding.isValid()) return false;
+    const unsigned anchor = surrounding.anchor();
+    const unsigned cursor = surrounding.cursor();
+    const std::string &text = surrounding.text();
+    lc_selection_info info{};
+    if (!lc_selection_slice(text.c_str(), cursor, anchor, kMaxTranscodeChars, &info)) {
+        return false; /* không selection / trần / UTF-8 lỗi */
+    }
+    const std::string sel = text.substr(info.start_byte, info.byte_len);
+
+    /* FFI ime_convert_selection: UTF-8 vào/ra; cap 2× đầu vào + 32 (khớp
+     * CoreBridge Swift — đầu ra không dài hơn đáng kể); 0 = không đổi / không fit. */
+    std::string out(info.byte_len * 2 + 32, '\0');
+    const int n = ime_convert_selection(st->inst, sel.data(), sel.size(), out.data(), out.size());
+    if (n <= 0 || static_cast<size_t>(n) >= out.size()) {
+        return true; /* không đổi gì — nuốt phím nhưng không ghi document */
+    }
+    out.resize(static_cast<size_t>(n));
+    if (out == sel) return true; /* không đổi gì */
+
+    /* Recheck chống TOCTOU: lệch ⇒ KHÔNG ghi document (R-2). */
+    const fcitx::SurroundingText recheck = st->ic->surroundingText();
+    if (!recheck.isValid() || recheck.text() != text || recheck.anchor() != anchor ||
+        recheck.cursor() != cursor) {
+        return true;
+    }
+    st->ic->deleteSurroundingText(static_cast<int>(info.del_offset),
+                                  static_cast<unsigned int>(info.char_len));
+    st->ic->commitString(out);
+    /* Document đã đổi: buffer câu engine stale + undo trợ lý không còn đúng
+     * (Windows: reset_engine + clear_assist_undo). */
+    ime_reset(st->inst);
+    st->assistUndoValid = false;
+    return true;
+}
+
 void mapFcitxKey(const fcitx::Key &key, uint32_t *vk, uint32_t *ch) {
     const fcitx::KeySym sym = key.sym();
     switch (sym) {
@@ -954,6 +1017,20 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         lc_modifier_toggle_reset(&st->toggle);
         toggleVietnamese(st);
         return true;
+    }
+
+    /* OP-007 (P5 §7.4) · R2-139: Ctrl+Shift+F9 — chuyển mã vùng bôi đen.
+     * Chạy TRƯỚC nhánh chord hệ thống (parity Windows key_event.rs §613-638);
+     * chốt preedit trước khi đổi selection (như `end_composition`). Chỉ nuốt
+     * khi đã chạy đường convert tới cùng; còn lại phím F9 tới app. */
+    if (lc_is_transcode_hotkey(static_cast<uint32_t>(key.sym()),
+                               states.test(fcitx::KeyState::Ctrl),
+                               states.test(fcitx::KeyState::Alt),
+                               states.test(fcitx::KeyState::Shift),
+                               states.test(fcitx::KeyState::Super))) {
+        if (st->comp.len > 0) finishWord(st);
+        if (performSelectionConvert(st)) return true;
+        return false;
     }
 
     if (st->comp.len == 0) {

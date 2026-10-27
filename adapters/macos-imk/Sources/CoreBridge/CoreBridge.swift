@@ -295,6 +295,35 @@ public final class ImeEngine {
         return String(cString: buf)
     }
 
+    /// OP-007b · R2-139: `ime_convert_selection` — chuyển mã vùng bôi đen theo
+    /// kiểu gõ + bảng mã của instance (chữ lạ do đọc nhầm UTF-8, bảng mã cũ →
+    /// bảng mã đang dùng, chữ ASCII gõ nhầm chế độ E → gõ lại). `nil` = không
+    /// đổi gì / lỗi (fail-open — adapter KHÔNG ghi document). Không đổi trạng
+    /// thái engine, không log text (S2).
+    ///
+    /// Cap = 2× đầu vào + 32: đầu ra của các chuyển đổi không dài hơn đáng kể,
+    /// còn "không vừa cap" của FFI trả 0 như "không đổi" ⇒ cap hào phóng là
+    /// cách tách an toàn. Trần đầu vào 192 000 byte = 64 000 ký tự × 3 byte
+    /// (khớp trần Windows `MAX_TRANSCODE_CHARS`).
+    public func convertSelection(_ text: String) -> String? {
+        let utf8 = Array(text.utf8)
+        guard !utf8.isEmpty, utf8.count <= 192_000 else { return nil }
+        let cap = utf8.count * 2 + 32
+        var buf = [CChar](repeating: 0, count: cap)
+        let n = utf8.withUnsafeBufferPointer { raw in
+            ime_convert_selection(
+                instance,
+                UnsafeRawPointer(raw.baseAddress!).assumingMemoryBound(to: CChar.self),
+                raw.count,
+                &buf,
+                cap
+            )
+        }
+        guard n > 0, n < cap else { return nil }
+        buf[Int(n)] = 0 // dừng đúng tại n byte kể cả FFI không ghi NUL
+        return String(cString: buf)
+    }
+
     /// `ime_reload_config` — hot-reload; giữ đúng luồng sở hữu (main thread).
     public func reloadConfig(_ json: Data) -> Bool {
         let rc = json.withUnsafeBytes { raw in

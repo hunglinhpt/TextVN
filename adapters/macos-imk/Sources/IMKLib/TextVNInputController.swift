@@ -291,6 +291,19 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             return toggleVietnamese()
         }
 
+        // OP-007 (P5 §7.4) · R2-139: chord Ctrl+Shift+F9 chuyển mã vùng bôi đen —
+        // như Windows (`key_event.rs`), chạy TRƯỚC nhánh chord hệ thống. Không
+        // (R2-131/R2-133, như Windows). KHÔNG nuốt khi không có selection:
+        // API IMK đồng bộ, nuốt vô ích sẽ chết Mission Control/menu Help —
+        // đáng không. Selection đổi được mới nuốt (`performSelectionConvert`).
+        if Self.isTranscodeChord(mods: mods, keyCode: event.keyCode) {
+            finishWordBeforeChord(sender) // chốt marked = `end_composition` (Windows)
+            if performSelectionConvert(sender) {
+                return true
+            }
+            return false // không selection / engine nil ⇒ phím tới app (fail-open)
+        }
+
         // Modifier đơn: IMK phát flagsChanged (đã xử lý); keyDown thường không tới đây.
         guard event.type == .keyDown, let keyEvent = translator.translate(event) else {
             return false
@@ -470,6 +483,35 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         engine?.reset()
     }
 
+    /// OP-007 (R2-139): đọc vùng chọn → engine chuyển mã → thay thế bằng IMK
+    /// `insertText` với replacement range = vùng chọn. `true` = đã chạy đường
+    /// convert tới khi đọc được selection (kể cả khi engine quyết không đổi —
+    /// khớp Windows "RequestEditSession OK ⇒ nuốt"); `false` = không selection /
+    /// không engine ⇒ phím tới app. Document đã đổi ⇒ reset engine + huỷ undo
+    /// trợ lý (Windows: `reset_engine` + `clear_assist_undo`). Không log text (S2).
+    private func performSelectionConvert(_ sender: Any!) -> Bool {
+        // S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
+        // khẩu. Secure event input toàn cục (S8) hoặc field bị đánh dấu secure
+        // bởi field-detect (AX gather, cached cho luồng gõ) ⇒ không đọc/sửa.
+        if secureMode {
+            return false
+        }
+        let pid = Self.clientPid(sender)
+        if fieldDetect.cached(for: pid)?.secure == true {
+            return false
+        }
+        guard let engine, let target = clientTarget(sender) else { return false }
+        guard let selected = target.selectedText() else { return false }
+        guard let converted = engine.convertSelection(selected) else { return true }
+        let range = target.selectionRange()
+        guard range.location != NSNotFound, range.length > 0 else { return false }
+        target.insert(converted, replacementRange: range)
+        engine.reset()
+        assistUndo = nil
+        Diagnostics.log("transcode selection applied")
+        return true
+    }
+
     // ------------------------------------------------------------- strategy
 
     /// Strategy qua FFI dùng chung (`StrategyResolver` — Swift KHÔNG viết lại thuật
@@ -597,6 +639,17 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         return keyCode == kVK_Space
             && (mods & ~ignore) == (FFI.modCtrl | FFI.modShift)
     }
+
+    /// OP-007 (P5 §7.4) · R2-139: chord `Ctrl+Shift+F9` chuyển mã vùng bôi
+    /// đen — so MASK bỏ Caps/Fn như `isToggleChord` (parity khớp `win-tsf
+    /// assist::is_transcode_chord`: Ctrl+Shift, không Alt/Win; Ctrl+F9 /
+    /// Shift+F9 là Recall phải không dính). Tách static để test.
+    static func isTranscodeChord(mods: UInt32, keyCode: UInt16) -> Bool {
+        let ignore = FFI.modCaps | FFI.modFn
+        return keyCode == kVK_F9
+            && (mods & ~ignore) == (FFI.modCtrl | FFI.modShift)
+    }
+
 
     /// Kiểm tra modifier tap: Ctrl+Shift được bấm cùng lúc rồi nhả ra mà không kèm phím khác (như Windows/Linux).
     static func isCtrlShiftTap(

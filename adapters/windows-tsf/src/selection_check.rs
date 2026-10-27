@@ -517,6 +517,16 @@ impl TranscodeSession {
                     return false;
                 }
             }
+            // S3 + read-only (review 1, parity SelectionCheckSession): tuyệt
+            // đối không đọc/sửa ô mật khẩu/PIN — selection trong ô password
+            // chính là mật khẩu.
+            let signals = crate::edit_session::read_field_signals(&self.ctx, ec, &sel);
+            if signals.read_only
+                || crate::classify_tsf_field(&signals).security
+                    != textvn_field_detect::SecurityState::NonSecure
+            {
+                return false;
+            }
             // Đọc vùng chọn: chừa 2 slot để phát hiện vùng DÀI HƠN trần.
             let cap = MAX_TRANSCODE_CHARS + 2;
             let mut buf = vec![0u16; cap];

@@ -446,6 +446,60 @@ int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super
     return ctrl != 0;
 }
 
+int lc_is_transcode_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super) {
+    if (keysym != 0xffc6u) return 0; /* XK_F9 */
+    if (alt || super) return 0;      /* Alt/Super thuộc phím tắt app khác */
+    return ctrl && shift;
+}
+
+/* Số byte của codeunit UTF-8 bắt đầu tại `p`; 0 nếu byte đầu không hợp lệ. */
+static int utf8_char_len(const unsigned char *p) {
+    unsigned char c = p[0];
+    if (c < 0x80) return 1;
+    if ((c & 0xE0) == 0xC0) return 2;
+    if ((c & 0xF0) == 0xE0) return 3;
+    if ((c & 0xF8) == 0xF0) return 4;
+    return 0;
+}
+
+int lc_selection_slice(const char *text, unsigned cursor, unsigned anchor,
+                       unsigned max_chars, lc_selection_info *out) {
+    if (!text || !out) return 0;
+    const size_t start = anchor < cursor ? anchor : cursor;
+    const size_t end = anchor > cursor ? anchor : cursor;
+    if (end <= start) return 0; /* không selection (anchor == cursor) */
+    if (end - start > (size_t)max_chars) return 0; /* trần — không cắt cụt */
+
+    /* Đi tới ranh giới byte của chữ thứ `start` và `end` — decode có kiểm
+     * định (kill khi UTF-8 lỗi / tiếp-thiếu continuation / byte NUL giữa). */
+    const unsigned char *p = (const unsigned char *)text;
+    size_t idx = 0, chars = 0, start_byte = 0, end_byte = 0;
+    while (p[idx] != 0) {
+        if (chars == start) start_byte = idx;
+        if (chars == end) {
+            end_byte = idx;
+            break;
+        }
+        const int n = utf8_char_len(p + idx);
+        if (n == 0) return 0; /* UTF-8 lỗi ⇒ fail-safe */
+        for (int b = 1; b < n; ++b) {
+            if (p[idx + b] == 0 || (p[idx + b] & 0xC0) != 0x80) return 0;
+        }
+        idx += (size_t)n;
+        chars++;
+    }
+    if (chars < end) return 0; /* cursor/anchor ngoài text ⇒ dữ liệu lệch */
+    /* Selection kéo tới HẾT chuỗi: vòng lặp thoát ở byte NUL ngay khi `chars`
+     * đạt `end` nên chưa kịp ghi `end_byte` ⇒ dùng tổng số byte (`idx`).
+     * `end_byte == 0` chắc chắn là "chưa ghi" vì `end ≥ 1` luôn (end > start). */
+    if (end_byte == 0) end_byte = idx;
+    out->start_byte = start_byte;
+    out->byte_len = end_byte - start_byte;
+    out->char_len = end - start;
+    out->del_offset = (long)start - (long)cursor;
+    return 1;
+}
+
 int lc_strip_suffix(const char *tail, const char *suffix, char *out, size_t cap) {
     if (!tail || !suffix || !out || cap == 0) return 0;
     size_t tl = strlen(tail), sl = strlen(suffix);

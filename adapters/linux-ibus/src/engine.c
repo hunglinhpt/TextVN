@@ -341,6 +341,87 @@ static gboolean apply_assist_undo(TextVNIbusEngine *self) {
     return TRUE;
 }
 
+/* OP-007 (P5 §7.4) · R2-139: Ctrl+Shift+F9 — chuyển mã vùng bôi đen (như
+ * Windows/macOS). IBus surrounding text là BẢN CACHE client đẩy lên TRƯỚC
+ * phím (xem text_before_caret_matches) ⇒ selection có thể stale (RL5/B7);
+ * đọc/xoá/commit đi qua `lc_selection_slice` để slice luôn nằm trên ranh
+ * giới ký tự. Trần 64 000 ký tự — `selection_check::MAX_TRANSCODE_CHARS`
+ * của Windows.
+ *
+ * cursor/anchor đếm theo KÝ TỰ Unicode; anchor == cursor khi không có
+ * selection; selection = đoạn [min, max).
+ *
+ * Không selection / trần vượt / UTF-8 lỗi ⇒ KHÔNG làm gì và KHÔNG nuốt phím
+ * (fail-open: F9 tới app — khác Windows 1 nhí vì API IBus đồng bộ, không có
+ * RequestEditSession async). Đọc được selection mà không đổi gì ⇒ không ghi
+ * document nhưng VẪN nuốt (khớp "đã xử lý đường convert"). Cache stale của
+ * IBus ⇒ phần xoá có thể lệch — chấp nhận theo chính sách RL5/B7 như đường
+ * assist (đặt ở comment delete_surrounding_text dùng chung). */
+#define TRANSCODE_MAX_CHARS 64000u
+
+static gboolean perform_selection_convert(TextVNIbusEngine *self) {
+    IBusEngine *engine = (IBusEngine *)self;
+    if (!self || !self->inst) return FALSE;
+    if (!(engine->client_capabilities & IBUS_CAP_SURROUNDING_TEXT)) return FALSE;
+    /* S3 (review 1): ô mật khẩu — selection trong ô password chính là mật
+     * khẩu; không đọc/không sửa. */
+    if (self->secure) return FALSE;
+
+    /* Chụp MỘT lần surrounding: text/cursor/anchor phải cùng chụp. */
+    IBusText *text = NULL;
+    guint cursor_pos = 0;
+    guint anchor_pos = 0;
+    ibus_engine_get_surrounding_text(engine, &text, &cursor_pos, &anchor_pos);
+    if (!text) return FALSE;
+    /* ibus_text_get_text trả con trỏ NỘI BỘ (không copy, không free) —
+     * `text` là REF transfer-full (ibusengine.c: `g_object_ref(priv->...)`)
+     * ⇒ MỌI exit path sau get phải `g_object_unref(text)` (trừ khi chưa ref). */
+    const gchar *str = ibus_text_get_text(text);
+    if (!str) {
+        g_object_unref(text);
+        return FALSE;
+    }
+
+    lc_selection_info info;
+    if (!lc_selection_slice(str, cursor_pos, anchor_pos, TRANSCODE_MAX_CHARS, &info)) {
+        g_object_unref(text);
+        return FALSE; /* không selection / trần / UTF-8 lỗi */
+    }
+    const char *sel = str + info.start_byte;
+
+    /* FFI ime_convert_selection: UTF-8 vào/ra; cap 2× đầu vào + 32 (khớp
+     * CoreBridge Swift — đầu ra không dài hơn đáng kể); 0 = không đổi /
+     * không fit. */
+    size_t cap = info.byte_len * 2 + 32;
+    char *out = g_malloc(cap);
+    const int n = ime_convert_selection(self->inst, sel, info.byte_len, out, cap);
+    if (n <= 0 || (size_t)n >= cap) {
+        g_free(out);
+        g_object_unref(text);
+        return TRUE; /* không đổi gì — nuốt phím nhưng không ghi document */
+    }
+    out[n] = '\0';
+    if ((size_t)n == info.byte_len && memcmp(out, sel, info.byte_len) == 0) {
+        g_free(out);
+        g_object_unref(text);
+        return TRUE; /* không đổi gì */
+    }
+    /* Không còn dùng `str`/`sel` — hạ ref TRƯỚC khi sửa document. */
+    g_object_unref(text);
+
+    /* Xoá selection: offset từ caret (âm nếu bắt đầu TRƯỚC caret) — parity
+     * `delete_surrounding_text` của đường assist; rồi commit bản mới. */
+    ibus_engine_delete_surrounding_text(engine, (gint)info.del_offset, (guint)info.char_len);
+    ibus_engine_commit_text(engine, ibus_text_new_from_string(out));
+    g_free(out);
+    /* Document đã đổi: buffer câu engine stale + undo trợ lý không còn đúng
+     * (Windows: reset_engine + clear_assist_undo). */
+    ime_reset(self->inst);
+    self->assist_undo_valid = FALSE;
+    return TRUE;
+}
+
+
 /* R2-131 (chủ repo: "Ctrl+Space phải xác định từ lỗi trong câu để sửa hết cùng
  * với text prediction"): bước "sửa hết" của phím tắt trợ lý (Ctrl+Space). Câu có lỗi người dùng sửa được ⇒ sửa cả câu (kể cả chính tả) và
  * trả TRUE; không thì FALSE (engine dự đoán tiếp như Tab). Precondition D12
@@ -869,6 +950,19 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         lc_modifier_toggle_reset(&self->toggle);
         toggle_vietnamese(self);
         return TRUE;
+    }
+
+    /* OP-007 (P5 §7.4) · R2-139: Ctrl+Shift+F9 — chuyển mã vùng bôi đen.
+     * Chạy TRƯỚC nhánh chord hệ thống (parity Windows key_event.rs §613-638);
+     * chốt preedit trước khi thay đoạn text (như `end_composition`). Chỉ nuốt
+     * phím khi đã chạy đường convert tới cùng; còn lại F9 tới app. */
+    if (lc_is_transcode_hotkey((uint32_t)keyval, (state & IBUS_CONTROL_MASK) != 0,
+                               (state & IBUS_MOD1_MASK) != 0,
+                               (state & IBUS_SHIFT_MASK) != 0,
+                               (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0)) {
+        if (self->comp.len > 0) finish_word(self);
+        if (perform_selection_convert(self)) return TRUE;
+        return FALSE;
     }
 
     if (self->comp.len == 0) {

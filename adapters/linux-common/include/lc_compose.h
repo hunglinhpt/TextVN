@@ -269,6 +269,37 @@ int lc_plan_sentence_fix_ex(const ime_instance *inst,
  * số `alt` giữ để chặn Ctrl+Alt+Space (thường là phím tắt toàn cục của app khác). */
 int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super);
 
+/* OP-007 (P5 §7.4) · R2-139: phím tắt Ctrl+Shift+F9 — chuyển mã vùng bôi đen
+ * (như Windows `assist::is_transcode_chord`, macOS `isTranscodeChord`). Chỉ
+ * Ctrl+Shift, KHÔNG Alt/Super; keysym XK_F9 = 0xffc6. CapsLock không có tham
+ * số (parity ADR-011 — bit Caps không làm chết hotkey). Hàm thuần, test ở
+ * tests/test_compose.c. */
+int lc_is_transcode_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super);
+
+/* OP-007 (R2-139): thẻ thông tin selection láy từ surrounding text của
+ * Fcitx5/IBus — `cursor`/`anchor` trừ ibus_engine_get_surrounding_text /
+ * fcitx::SurroundingText đều đếm theo KÝ TỰ Unicode (xem
+ * surrounding_match.cpp §"QUY ƯỚC OFFSET"); anchor == cursor khi không có
+ * selection ⇒ selection = đoạn [min, max). */
+typedef struct lc_selection_info {
+    size_t start_byte; /* byte offset BẮT ĐẦU selection trong text */
+    size_t byte_len;   /* UTF-8 byte count của selection */
+    size_t char_len;   /* số ký tự Unicode của selection */
+    /* offset từ caret tới BẮT ĐẦU selection (đơn vị ký tự) — quy ước
+     * `deleteSurroundingText(offset, size)` của Fcitx5/IBus: âm = TRƯỚC caret. */
+    long   del_offset;
+} lc_selection_info;
+
+/* Cắt selection từ text UTF-8 nguyên vẹn của client (cursor/anchor theo KÝ
+ * TỰ — có thể bất đồng bộ nếu client cache cũ, RL5/B7 ⇒ fail-safe). Trả 1 +
+ * điền `out` khi đọc được (selection ≥ 1 ký tự, ≤ `max_chars`); 0 khi không
+ * selection / anchor hoặc cursor ngoài text / UTF-8 lỗi — caller không làm
+ * gì, không nuốt phím (fail-open). Trần `max_chars` khớp
+ * `selection_check::MAX_TRANSCODE_CHARS` của Windows (64 000). Không phụ
+ * thuộc glib (chạy được cả trên Windows test). */
+int lc_selection_slice(const char *text, unsigned cursor, unsigned anchor,
+                       unsigned max_chars, lc_selection_info *out);
+
 /* `tail` kết thúc bằng `suffix` ⇒ chép phần trước suffix vào `out`, trả 1;
  * không khớp / không vừa ⇒ 0. Dùng tính đuôi document khi từ đang gõ còn ở
  * preedit (chưa nằm trong document). */

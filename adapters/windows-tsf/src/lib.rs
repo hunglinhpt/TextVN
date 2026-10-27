@@ -19,6 +19,8 @@ use textvn_strategy::{Strategy, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY, IME_FIELD
 
 pub mod assist;
 pub mod compose;
+#[cfg(windows)]
+pub mod os_spell;
 pub mod overlay;
 
 #[cfg(windows)]

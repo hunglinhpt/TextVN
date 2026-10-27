@@ -982,8 +982,8 @@ pub fn check_text_min_words(
     min_words: usize,
 ) -> Option<AssistCheck> {
     use textvn_ffi::{
-        ime_assist_check_v1, ime_assist_sentence_tail_v1, IME_ABI_VERSION, IME_MAX_ASSIST_ISSUES,
-        IME_MAX_ASSIST_MSG, IME_MAX_ASSIST_SUGGEST,
+        ime_assist_check_v1_with, ime_assist_sentence_tail_v1, IME_ABI_VERSION,
+        IME_MAX_ASSIST_ISSUES, IME_MAX_ASSIST_MSG, IME_MAX_ASSIST_SUGGEST,
     };
 
     let began = std::time::Instant::now();
@@ -1023,7 +1023,17 @@ pub fn check_text_min_words(
             suggest: [0; IME_MAX_ASSIST_SUGGEST],
         }; IME_MAX_ASSIST_ISSUES],
     };
-    let issue_count = ime_assist_check_v1(tail.as_ptr(), written as i32, &mut result);
+    // D39 · P4-10 §5.2: provider tĩnh `vi-VN` của `os_spell` — probe capability
+    // 1 lần/phiên (OnceLock); máy không có bộ kiểm tra tiếng Việt ⇒ NULL
+    // (`NoDictionary`, y hệt bản cũ — W2/AC-1). Đường stateless không có
+    // instance nên provider truyền per-call; chỉ Windows (Linux/macOS dùng
+    // đường instance-based `ime_assist_check_instance` có provider riêng).
+    #[cfg(windows)]
+    let provider = crate::os_spell::WinSpell::provider_ptr().unwrap_or(std::ptr::null());
+    #[cfg(not(windows))]
+    let provider: *const textvn_ffi::ime_os_spell_v1 = std::ptr::null();
+    let issue_count =
+        ime_assist_check_v1_with(tail.as_ptr(), written as i32, provider, &mut result);
     if issue_count <= 0 {
         return None; // câu sạch / fail-open → im lặng (D11: kết quả im lặng)
     }

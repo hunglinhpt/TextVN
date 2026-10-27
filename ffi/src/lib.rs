@@ -1169,6 +1169,71 @@ pub extern "C" fn ime_assist_check_v1(
     count as i32
 }
 
+/// Như [`ime_assist_check_v1`] nhưng nhận **provider từ điển OS** tùy chọn
+/// (D39 · P4-10 §5.2): `provider == NULL` ⇒ đường `NoDictionary` như cũ; ABI
+/// lệch ⇒ `IME_ERR_ABI`. Provider chỉ mở khóa luật `spelling` (chỉ-gợi ý,
+/// confidence 60 — A1/D12: không tự sửa) trên từ tiếng Việt có dấu — mọi gate
+/// FPR khác nằm trong luật + adapter (cổng capability `vi-VN`, W2).
+#[no_mangle]
+pub extern "C" fn ime_assist_check_v1_with(
+    text_utf16: *const u16,
+    len: i32,
+    provider: *const ime_os_spell_v1,
+    out: *mut ime_assist_result_v1,
+) -> i32 {
+    if out.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let out = unsafe { &mut *out };
+    if out.abi_version != IME_ABI_VERSION {
+        out.count = 0;
+        return IME_ERR_ABI;
+    }
+    if text_utf16.is_null() {
+        return if len == 0 {
+            out.count = 0;
+            IME_OK
+        } else {
+            IME_ERR_INVALID_ARG
+        };
+    }
+    out.count = 0;
+    if len < 0 {
+        return IME_OK; // fail-open: len âm là dữ liệu bất định → 0 issue
+    }
+    let units = unsafe { slice::from_raw_parts(text_utf16, len as usize) };
+    let text = match guarded(|| utf16_to_string(units)) {
+        Some(Ok(text)) => text,
+        _ => return IME_OK, // fail-open: UTF-16 lệch → 0 issue, không panic
+    };
+    // Provider hỏng (ABI lệch / trỏ tới dữ liệu rác) → im lặng theo provider,
+    // KHÔNG làm chết đường check chính: `CSpellProvider` fail-open mọi callback.
+    let provider = if provider.is_null() {
+        None
+    } else {
+        let p = unsafe { *provider };
+        if p.abi_version != IME_ABI_VERSION {
+            return IME_ERR_ABI;
+        }
+        Some(CSpellProvider::new(p))
+    };
+    let count = match catch_unwind(AssertUnwindSafe(|| {
+        let issues = match provider {
+            Some(ref p) => textvn_assist::check_sentence_with(&text, p),
+            None => textvn_assist::check_sentence(&text),
+        };
+        fill_assist_result(&issues, out);
+        issues.len().min(IME_MAX_ASSIST_ISSUES)
+    })) {
+        Ok(issue_count) => issue_count,
+        Err(_) => {
+            out.count = 0; // fail-open: mọi panic → 0 issue (S4)
+            0
+        }
+    };
+    count as i32
+}
+
 /// Lấy **phần đuôi câu** của chuỗi UTF-16, tối đa `max_chars` ký tự Unicode
 /// (phần tử cuối của `Engine::sentence_tail` — cho adapter dùng làm "câu vừa gõ").
 ///

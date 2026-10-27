@@ -182,6 +182,7 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_assist_glyph_len",
         "ime_assist_set_spell_provider",
         "ime_assist_check_v1",
+        "ime_assist_check_v1_with",
         "ime_assist_sentence_tail_v1",
         "ime_assist_plan_sentence_fix",
         "ime_assist_plan_sentence_fix_ex",

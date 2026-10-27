@@ -240,6 +240,12 @@ int32_t      ime_assist_set_spell_provider(ime_instance *inst,
  * Lỗi dữ liệu (UTF-16 lệch, panic) → fail-open: 0 issue, không panic. Không log câu (S2). */
 int32_t      ime_assist_check_v1(const uint16_t *text_utf16, int32_t len,
                                  ime_assist_result_v1 *out);
+/* D39 (P4-10 §5.2): như ime_assist_check_v1 + provider từ điển OS tùy chọn
+ * (ime_os_spell_v1, xem ime_assist_set_spell_provider). provider == NULL
+ * làm việc đúng như ime_assist_check_v1; ABI lệch = IME_ERR_ABI. */
+int32_t      ime_assist_check_v1_with(const uint16_t *text_utf16, int32_t len,
+                                 const ime_os_spell_v1 *provider,
+                                 ime_assist_result_v1 *out);
 /* Lấy phần đuôi câu của text_utf16, tối đa `max_chars` ký tự Unicode (D27/D29),
  * ghi dạng UTF-16 kèm NUL kết thúc vào out_utf16 (cap = out_cap code unit).
  * Trả về số code unit đã ghi (không tính NUL); lỗi caller = IME_ERR_*; lỗi dữ

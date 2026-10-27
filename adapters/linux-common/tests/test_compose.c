@@ -587,6 +587,55 @@ static void test_assist_l6_auto_capitalize_mode2(void) {
     ime_instance_free(inst);
 }
 
+/* OP-007 (R2-139): phím tắt Ctrl+Shift+F9 chuyển mã vùng bôi đen — chỉ đúng
+ * tổ hợp Ctrl+Shift (không Alt/Super); Ctrl+F9 / Shift+F9 là Recall không dính. */
+static void test_transcode_hotkey(void) {
+    assert(lc_is_transcode_hotkey(0xffc6u, 1, 0, 1, 0) == 1); /* Ctrl+Shift+F9 */
+    assert(lc_is_transcode_hotkey(0xffc6u, 1, 1, 1, 0) == 0); /* + Alt */
+    assert(lc_is_transcode_hotkey(0xffc6u, 1, 0, 1, 1) == 0); /* + Super */
+    assert(lc_is_transcode_hotkey(0xffc6u, 1, 0, 0, 0) == 0); /* Ctrl+F9 (Recall) */
+    assert(lc_is_transcode_hotkey(0xffc6u, 0, 0, 1, 0) == 0); /* Shift+F9 (Recall) */
+    assert(lc_is_transcode_hotkey(0xffc6u, 0, 0, 0, 0) == 0); /* F9 trần */
+    assert(lc_is_transcode_hotkey(0xffc7u, 1, 0, 1, 0) == 0); /* F10 ≠ F9 */
+    assert(lc_is_transcode_hotkey(0x20u, 1, 0, 1, 0) == 0);   /* Ctrl+Shift+Space = toggle */
+}
+
+/* OP-007 (R2-139): cắt selection từ surrounding text của IBus/Fcitx5 —
+ * cursor/anchor đếm theo KÝ TỰ Unicode; del_offset theo quy ước
+ * deleteSurroundingText (âm = bắt đầu TRƯỚC caret). */
+static void test_transcode_selection_slice(void) {
+    lc_selection_info info;
+
+    /* ASCII: "Tieng Viet", cursor=10, anchor=6 → "Viet". */
+    const char *ascii = "Tieng Viet";
+    assert(lc_selection_slice(ascii, 10, 6, 64000, &info) == 1);
+    assert(info.start_byte == 6 && info.byte_len == 4 && info.char_len == 4);
+    assert(info.del_offset == -4); /* 6 − 10 */
+
+    /* UTF-8 3-byte ('ộ' = U+1ED9 → E1 BB 99): slice cắt ĐÚNG ranh giới byte. */
+    const char *utf8 = "Di h\xe1\xbb\x99" "c."; /* "Di học." */
+    assert(lc_selection_slice(utf8, 7, 4, 64000, &info) == 1);
+    assert(info.start_byte == 4 && info.byte_len == 5 && info.char_len == 3);
+    assert(info.del_offset == -3);
+
+    /* Chọn ngược (anchor > cursor): start = cursor ⇒ del_offset == 0.
+     * Invariant: caret luôn là MỘT đầu selection ⇒ del_offset ∈ {0, −char_len},
+     * KHÔNG BAO GIỜ dương ⇒ không bao giờ xoá chữ SAU caret. */
+    assert(lc_selection_slice(ascii, 6, 10, 64000, &info) == 1);
+    assert(info.start_byte == 6 && info.char_len == 4 && info.del_offset == 0);
+    assert(info.del_offset == 0 || info.del_offset == -(long)info.char_len);
+
+    /* Không có selection (anchor == cursor). */
+    assert(lc_selection_slice(ascii, 5, 5, 64000, &info) == 0);
+    /* Vượt trần 64 000 ký tự. */
+    assert(lc_selection_slice(ascii, 10, 0, 3, &info) == 0);
+    /* Cursor nằm ngoài text (dữ liệu lệch). */
+    assert(lc_selection_slice(ascii, 99, 6, 64000, &info) == 0);
+    /* UTF-8 lỗi giữa chừng → fail-safe. */
+    assert(lc_selection_slice("ab\xc3", 3, 1, 64000, &info) == 0);
+    assert(lc_selection_slice(NULL, 1, 0, 64000, &info) == 0);
+}
+
 /* R2-131/R2-134/R2-136: phím tắt trợ lý (chỉ Ctrl+Space), kế hoạch
  * sửa CHỦ ĐỘNG (gồm lỗi chính tả), câu sau sửa, nhãn xem trước dự đoán. */
 static void test_assist_hotkey_explicit_preview(void) {
@@ -647,6 +696,8 @@ int main(void) {
     test_assist_auto_fix_spacing_punct();
     test_assist_l6_auto_capitalize_mode2();
     test_assist_hotkey_explicit_preview();
+    test_transcode_hotkey();
+    test_transcode_selection_slice();
     test_macro_when_vi_off();
     test_find_settings_binary();
     printf("test_compose: OK\n");
