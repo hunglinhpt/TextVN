@@ -343,6 +343,17 @@ int lc_state_sync_assist(lc_config_state *st, const char *path, int *assist_enab
     return 1;
 }
 
+/* TEXTVN_ASSIST_DEBUG=1 — log lý do các gate trợ lý mở/đóng (chẩn đoán máy
+ * người dùng; S2: KHÔNG bao giờ log nội dung câu/phím — chỉ cờ và số đếm). */
+int lc_assist_debug_enabled(void) {
+    static int cached = -1;
+    if (cached < 0) {
+        const char *v = getenv("TEXTVN_ASSIST_DEBUG");
+        cached = (v && *v && strcmp(v, "0") != 0) ? 1 : 0;
+    }
+    return cached;
+}
+
 int lc_assist_is_active(int assist_enabled, int assist_mode) {
     return (assist_enabled != 0) && (assist_mode != LC_ASSIST_MODE_OFF);
 }

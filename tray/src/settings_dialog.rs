@@ -44,7 +44,7 @@ const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 /// Kích thước dưới đây là **vùng client**; khung cửa sổ tính bằng AdjustWindowRectEx
 /// để thanh tiêu đề dày/mỏng (theme, DPI) không cắt mất hàng nút cuối.
 const CLIENT_DESIGN_WIDTH: i32 = 900;
-const CLIENT_DESIGN_HEIGHT: i32 = 649;
+const CLIENT_DESIGN_HEIGHT: i32 = 691;
 const MACRO_DESIGN_WIDTH: i32 = 720;
 const MACRO_DESIGN_HEIGHT: i32 = 560;
 const COMPACT_SCALE: f64 = 2.0 / 3.0;
@@ -67,6 +67,7 @@ const ID_BTN_SETUP_TSF: isize = 2015;
 const ID_CHK_AUTO_CAPITALIZE: isize = 2016;
 const ID_CHK_QUICK_TELEX: isize = 2017;
 const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
+const ID_CHK_SUGGEST: isize = 2025;
 const ID_CHK_SHOW_ON_STARTUP: isize = 2019;
 const ID_BTN_MACROS: isize = 2020;
 const ID_CHK_CTRL_SHIFT: isize = 2021;
@@ -553,7 +554,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 33] = [
+const DIALOG_LAYOUT: [Ctl; 34] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -659,34 +660,43 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         (R, 302, 400, 32),
         ID_CHK_MACRO_WHEN_OFF,
     ),
+    // P6 (parity Windows/macOS/Linux): dự đoán văn bản opt-in — thiếu toggle
+    // này làm dự đoán KHÔNG THỂ bật (bug 0.2.49).
+    ctl(
+        "BUTTON",
+        "Gợi ý hoàn tất từ (Tab / Ctrl+Space)",
+        CHK,
+        (L, 344, 830, 32),
+        ID_CHK_SUGGEST,
+    ),
     // 3. Trợ lý ngữ pháp
     ctl(
         "BUTTON",
         "Trợ lý ngữ pháp",
         BS_GROUPBOX,
-        (15, 357, 870, 85),
+        (15, 399, 870, 85),
         ID_LBL_BASE + 7,
     ),
-    ctl("STATIC", "Chế độ:", 0, (L, 395, 95, 30), ID_LBL_BASE + 8),
+    ctl("STATIC", "Chế độ:", 0, (L, 437, 95, 30), ID_LBL_BASE + 8),
     ctl(
         "COMBOBOX",
         "",
         CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0 | WS_GROUP.0,
-        (135, 392, 300, 200),
+        (135, 434, 300, 200),
         ID_COMBO_ASSIST_MODE,
     ),
     ctl(
         "STATIC",
         "Tự động sửa:",
         0,
-        (R, 395, 130, 30),
+        (R, 437, 130, 30),
         ID_LBL_BASE + 9,
     ),
     ctl(
         "COMBOBOX",
         "",
         CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
-        (605, 392, 265, 200),
+        (605, 434, 265, 200),
         ID_COMBO_ASSIST_AUTO_FIX,
     ),
     // 4. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
@@ -694,44 +704,44 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "Hệ thống",
         BS_GROUPBOX,
-        (15, 452, 870, 124),
+        (15, 494, 870, 124),
         ID_LBL_BASE + 6,
     ),
     ctl(
         "BUTTON",
         "Khởi động cùng Windows",
         CHK,
-        (L, 486, CW, 32),
+        (L, 528, CW, 32),
         ID_CHK_AUTOSTART,
     ),
     ctl(
         "BUTTON",
         "Bật hội thoại này khi khởi động",
         CHK,
-        (R, 486, 400, 32),
+        (R, 528, 400, 32),
         ID_CHK_SHOW_ON_STARTUP,
     ),
     ctl(
         "BUTTON",
         "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
         CHK,
-        (L, 528, 830, 32),
+        (L, 570, 830, 32),
         ID_CHK_CTRL_SHIFT,
     ),
     // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-    ctl("BUTTON", "Hướng dẫn", BTN, (15, 586, 100, 48), ID_BTN_HELP),
+    ctl("BUTTON", "Hướng dẫn", BTN, (15, 628, 100, 48), ID_BTN_HELP),
     ctl(
         "BUTTON",
         "Thông tin",
         BTN,
-        (121, 586, 100, 48),
+        (121, 628, 100, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
         "Gõ tắt...",
         BTN,
-        (227, 586, 100, 48),
+        (227, 628, 100, 48),
         ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
@@ -739,21 +749,21 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "Từ điển EN...",
         BTN,
-        (333, 586, 130, 48),
+        (333, 628, 130, 48),
         ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
         "Cài & bật TSF",
         BTN,
-        (469, 586, 130, 48),
+        (469, 628, 130, 48),
         ID_BTN_SETUP_TSF,
     ),
     ctl(
         "BUTTON",
         "Mặc định",
         BTN,
-        (605, 586, 95, 48),
+        (605, 628, 95, 48),
         ID_BTN_DEFAULT,
     ),
     // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
@@ -761,10 +771,10 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "Đóng",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (706, 586, 85, 48),
+        (706, 628, 85, 48),
         ID_BTN_CLOSE,
     ),
-    ctl("BUTTON", "Kết thúc", BTN, (797, 586, 88, 48), ID_BTN_EXIT),
+    ctl("BUTTON", "Kết thúc", BTN, (797, 628, 88, 48), ID_BTN_EXIT),
 ];
 
 /// Đặt lại vị trí/kích thước toàn bộ control theo DPI — chạy lúc tạo VÀ khi
@@ -855,6 +865,7 @@ fn populate_controls_from_config(hwnd: HWND) {
         set_chk(hwnd, ID_CHK_AUTO_CAPITALIZE, cfg.auto_capitalize);
         set_chk(hwnd, ID_CHK_QUICK_TELEX, cfg.quick_telex);
         set_chk(hwnd, ID_CHK_MACRO_WHEN_OFF, cfg.allow_macro_when_vi_off);
+        set_chk(hwnd, ID_CHK_SUGGEST, cfg.suggest.enabled);
         set_chk(
             hwnd,
             ID_CHK_AUTOSTART,
@@ -972,6 +983,7 @@ fn apply_option_checkbox(
         ID_CHK_FREE_MARKING => svc.set_free_marking(checked),
         ID_CHK_AUTO_CAPITALIZE => svc.set_auto_capitalize(checked),
         ID_CHK_QUICK_TELEX => svc.set_quick_telex(checked),
+        ID_CHK_SUGGEST => svc.set_suggest_enabled(checked),
         ID_CHK_MACRO_WHEN_OFF => svc.set_allow_macro_when_vi_off(checked),
         ID_CHK_SHOW_ON_STARTUP => svc.set_show_dialog_on_startup(checked),
         _ => return None,
@@ -2161,6 +2173,7 @@ mod tests {
             "Đặt dấu tự do",
             "Tự viết hoa chữ đầu câu",
             "Quick Telex (cc→ch, nn→ng…)",
+            "Gợi ý hoàn tất từ (Tab / Ctrl+Space)",
             "Gõ tắt cả khi tắt tiếng Việt",
             "Gõ tắt...",
             "Từ điển EN...",

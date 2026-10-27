@@ -33,6 +33,7 @@ typedef struct TvWin {
     GtkWidget *chk_capitalize;
     GtkWidget *chk_quick;
     GtkWidget *chk_macro_off;
+    GtkWidget *chk_suggest;
 
     GtkWidget *words_window;
     GtkWidget *words_view;
@@ -120,6 +121,7 @@ static void populate(TvWin *w) {
     set_active(w->chk_capitalize, s.auto_capitalize);
     set_active(w->chk_quick, s.quick_telex);
     set_active(w->chk_macro_off, s.allow_macro_when_vi_off);
+    set_active(w->chk_suggest, s.suggest_enabled);
     w->updating = FALSE;
 }
 
@@ -547,6 +549,10 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     w->chk_quick = option(w, g2, "Quick Telex (cc→ch, nn→ng…)", "quick_telex", 0, 3);
     w->chk_macro_off =
         option(w, g2, "Gõ tắt cả khi tắt tiếng Việt", "allow_macro_when_vi_off", 1, 3);
+    /* P6 (parity Windows/macOS): dự đoán văn bản — opt-in, mặc định TẮT.
+     * Thiếu toggle này trên Linux làm dự đoán KHÔNG THỂ bật (bug 0.2.49). */
+    w->chk_suggest =
+        option(w, g2, "Gợi ý hoàn tất từ (Tab / Ctrl+Space)", "suggest.enabled", 0, 4);
 
     /* 3. Trợ lý ngữ pháp (AS-060) — cùng nhãn/thứ tự với Windows & macOS */
     GtkWidget *g3 = framed_grid(main_box, "Trợ lý ngữ pháp");

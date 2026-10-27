@@ -134,6 +134,8 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->assist_auto_fix =
             get_index(s, "assist.auto_fix", tv_assist_auto_fix_values, TV_ASSIST_AUTO_FIX_COUNT);
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
+        /* P6: dự đoán văn bản opt-in — thiếu khoá = TẮT (khớp schema). */
+        out->suggest_enabled = get_bool(s, "suggest.enabled", 0);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
     } else {
@@ -145,6 +147,7 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->auto_restore_english = 1;
         out->free_marking = 1;
         out->auto_capitalize = 1;
+        out->suggest_enabled = 0;      /* dự đoán opt-in — TẮT mặc định */
     }
     out->vi_enabled = lc_state_read_enabled(p->state, 1);
 }

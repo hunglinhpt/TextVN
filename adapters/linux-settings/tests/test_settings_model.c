@@ -75,6 +75,8 @@ static void test_defaults_when_missing(tv_paths *p) {
     /* Tro ly ngu phap: file chua co khoi assist -> mac dinh schema
      * (Vong 26: HIGHLIGHT = 1, 700 ms; tu sua van tat). */
     assert(s.assist_mode == 1 && s.assist_idle_ms == TV_ASSIST_DEFAULT_IDLE_MS);
+    /* P6: dự đoán văn bản opt-in — mặc định TẮT (khớp schema Windows/macOS). */
+    assert(!s.suggest_enabled);
 }
 
 static void test_patch_keeps_user_data(tv_paths *p) {

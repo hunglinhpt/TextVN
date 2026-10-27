@@ -185,6 +185,10 @@ public struct SettingsView: View {
                                 .onChange(of: store.config.auto_capitalize) { _ in persistAndNotify() }
                             Toggle("Quick Telex (cc→ch, nn→ng…)", isOn: $store.config.quick_telex)
                                 .onChange(of: store.config.quick_telex) { _ in persistAndNotify() }
+                            // P6 (parity Windows/Linux): dự đoán văn bản opt-in —
+                            // trước 0.2.50 thiếu toggle này làm dự đoán KHÔNG THỂ bật.
+                            Toggle("Gợi ý hoàn tất từ (Tab / Ctrl+Space)", isOn: $store.config.suggest.enabled)
+                                .onChange(of: store.config.suggest.enabled) { _ in persistAndNotify() }
                             HStack {
                                 Toggle("Gõ tắt cả khi tắt tiếng Việt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }

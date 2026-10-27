@@ -276,6 +276,9 @@ int lc_is_assist_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super
  * tests/test_compose.c. */
 int lc_is_transcode_hotkey(uint32_t keysym, int ctrl, int alt, int shift, int super);
 
+/* TEXTVN_ASSIST_DEBUG=1 — chẩn đoán gate trợ lý (S2: không log nội dung). */
+int lc_assist_debug_enabled(void);
+
 /* OP-007 (R2-139): thẻ thông tin selection láy từ surrounding text của
  * Fcitx5/IBus — `cursor`/`anchor` trừ ibus_engine_get_surrounding_text /
  * fcitx::SurroundingText đều đếm theo KÝ TỰ Unicode (xem

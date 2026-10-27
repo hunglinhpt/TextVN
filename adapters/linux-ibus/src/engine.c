@@ -497,7 +497,16 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                                        gboolean is_sentence_trigger, gboolean plan_eaten,
                                        const char *committed) {
     if (!self || !self->inst) return plan_eaten;
+    const int dbg = lc_assist_debug_enabled();
+    if (dbg) {
+        lc_log(LC_LOG_INFO, "IBus", "assist: trigger=%u vi=%d state=%d mode=%d",
+               trigger_char, s_vi_enabled, s_assist_enabled, self->config.assist_mode);
+    }
     if (!s_vi_enabled || !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode)) {
+        if (dbg) {
+            lc_log(LC_LOG_INFO, "IBus", "assist skip: vi=%d state=%d mode=%d",
+                   s_vi_enabled, s_assist_enabled, self->config.assist_mode);
+        }
         clear_assist_ui(self);
         return plan_eaten;
     }
@@ -507,9 +516,11 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
     res.abi_version = IME_ABI_VERSION;
     if (ime_assist_check_instance(self->inst, &res) != IME_OK || res.count == 0) {
         /* R2-129: câu đã đúng ⇒ ẩn danh sách sống ngay. */
+        if (dbg) lc_log(LC_LOG_INFO, "IBus", "assist: engine im lặng (count=0)");
         clear_assist_ui(self);
         return plan_eaten;
     }
+    if (dbg) lc_log(LC_LOG_INFO, "IBus", "assist: phát hiện %u lỗi", res.count);
 
     /* D16 (Fassist-20) — Q-6: crate `assist` luôn trả L6 ("chữ thường đầu
      * câu"); khi `config.auto_capitalize` bật thì IME đã tự viết hoa ⇒ báo/sửa
@@ -553,6 +564,7 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
             }
         }
         if (words < 3) {
+            if (dbg) lc_log(LC_LOG_INFO, "IBus", "assist skip: câu < 3 từ (D11)");
             clear_assist_ui(self);
             return plan_eaten;
         }

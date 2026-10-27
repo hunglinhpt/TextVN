@@ -71,6 +71,9 @@ typedef struct tv_snapshot {
     int assist_mode;        /* chỉ số tv_assist_mode_values */
     int assist_auto_fix;    /* chỉ số tv_assist_auto_fix_values */
     uint32_t assist_idle_ms;
+    /* P6 dự đoán văn bản (opt-in — suggest.enabled, mặc định TẮT như Windows/
+     * macOS): thiếu toggle này trên Linux làm dự đoán KHÔNG THỂ bật (parity). */
+    int suggest_enabled;
 } tv_snapshot;
 
 void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);

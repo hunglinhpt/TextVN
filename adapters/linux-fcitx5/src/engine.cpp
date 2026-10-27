@@ -649,7 +649,13 @@ void TextVNEngine::syncAssistState(TextVNState *) {
 bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                                       bool isSentenceTrigger, bool planEaten) {
     if (!st || !st->inst || !st->ic) return planEaten;
+    const bool dbg = lc_assist_debug_enabled() != 0;
     if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
+        if (dbg) {
+            fcitx::LOG_INFO() << "TextVN assist skip: vi=" << viEnabled_
+                              << " state=" << assistEnabled_
+                              << " mode=" << st->config.assist_mode;
+        }
         clearAssistUI(st);
         return planEaten;
     }
@@ -659,6 +665,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     res.abi_version = IME_ABI_VERSION;
     if (ime_assist_check_instance(st->inst, &res) != IME_OK || res.count == 0) {
         /* R2-129: câu đã đúng ⇒ ẩn danh sách sống ngay (parity Windows/IBus). */
+        if (dbg) fcitx::LOG_INFO() << "TextVN assist: engine im lặng (count=0)";
         clearAssistUI(st);
         return planEaten;
     }
@@ -711,6 +718,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
             }
         }
         if (words < 3) {
+            if (dbg) fcitx::LOG_INFO() << "TextVN assist skip: câu < 3 từ (D11)";
             clearAssistUI(st);
             return planEaten;
         }

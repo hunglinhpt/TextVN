@@ -372,6 +372,12 @@ impl SvcManager {
         self.update_config(|c| c.quick_telex = enable)
     }
 
+    /// P6 (parity Windows/macOS/Linux): bật/tắt dự đoán văn bản
+    /// (`suggest.enabled` — opt-in, mặc định TẮT).
+    pub fn set_suggest_enabled(&self, enable: bool) -> Result<u64, DocError> {
+        self.update_config(|c| c.suggest.enabled = enable)
+    }
+
     /// Cho phép gõ tắt cả khi đang tắt tiếng Việt.
     pub fn set_allow_macro_when_vi_off(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.allow_macro_when_vi_off = enable)
