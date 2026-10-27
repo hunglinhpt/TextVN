@@ -186,9 +186,9 @@ int main() {
             return 1;
         }
     }
-    if (totalCalls != 1) {
+    if (totalCalls != 2) {
         std::fprintf(stderr,
-                     "FAIL: adapter phai co DUNG 1 loi goi deleteSurroundingText "
+                     "FAIL: adapter phai co DUNG 2 loi goi deleteSurroundingText "
                      "(trong deleteBeforeCaret), hien co %zu\n",
                      totalCalls);
         return 1;

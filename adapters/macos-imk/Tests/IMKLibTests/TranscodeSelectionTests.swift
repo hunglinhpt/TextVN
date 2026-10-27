@@ -45,7 +45,7 @@ final class TranscodeSelectionTests: XCTestCase {
             "có Cmd → sai")
         XCTAssertFalse(
             TextVNInputController.isTranscodeChord(
-                mods: ctrlShift, keyCode: UInt16(kVK_G)),
+                mods: ctrlShift, keyCode: UInt16(kVK_ANSI_G)),
             "Ctrl+Shift+G là Recall — sai")
         XCTAssertFalse(
             TextVNInputController.isTranscodeChord(
