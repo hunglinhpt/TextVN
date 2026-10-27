@@ -26,7 +26,6 @@ use super::{issue, Ctx};
 use crate::tokenize::TokenKind;
 use crate::{Fix, Issue, IssueKind, Span};
 
-
 /// Tính từ phổ biến sau copula + "to" → "too" (đóng).
 const TO_TOO_ADJECTIVES: &[&str] = &[
     "big",
