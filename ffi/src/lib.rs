@@ -81,6 +81,10 @@ pub const IME_ASSIST_KIND_COMMA_AT_END: u32 = 9;
 pub const IME_ASSIST_KIND_SPELLING: u32 = 10;
 /// EN - ma tu "a/an" lech am dau (vong 24; chi chay tren cau En-dominant).
 pub const IME_ASSIST_KIND_ARTICLE_AN: u32 = 11;
+/// EN vòng 36: cặp từ dễ nhầm ("should of" → "should have"…).
+pub const IME_ASSIST_KIND_WORD_CONFUSION: u32 = 12;
+/// EN vòng 36: đại từ "i" thường giữa câu → "I".
+pub const IME_ASSIST_KIND_LOWERCASE_PRONOUN: u32 = 13;
 
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
@@ -292,6 +296,8 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
         textvn_assist::IssueKind::CommaAtEnd => IME_ASSIST_KIND_COMMA_AT_END,
         textvn_assist::IssueKind::Spelling => IME_ASSIST_KIND_SPELLING,
         textvn_assist::IssueKind::ArticleAn => IME_ASSIST_KIND_ARTICLE_AN,
+        textvn_assist::IssueKind::WordConfusion => IME_ASSIST_KIND_WORD_CONFUSION,
+        textvn_assist::IssueKind::LowercasePronoun => IME_ASSIST_KIND_LOWERCASE_PRONOUN,
     }
 }
 
@@ -1416,6 +1422,8 @@ pub fn plan_issues_from_raw_ex(
             IME_ASSIST_KIND_COMMA_AT_END => textvn_assist::IssueKind::CommaAtEnd,
             IME_ASSIST_KIND_SPELLING => textvn_assist::IssueKind::Spelling,
             IME_ASSIST_KIND_ARTICLE_AN => textvn_assist::IssueKind::ArticleAn,
+            IME_ASSIST_KIND_WORD_CONFUSION => textvn_assist::IssueKind::WordConfusion,
+            IME_ASSIST_KIND_LOWERCASE_PRONOUN => textvn_assist::IssueKind::LowercasePronoun,
             _ => continue,
         };
 

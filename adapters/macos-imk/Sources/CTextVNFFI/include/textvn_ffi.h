@@ -49,6 +49,9 @@ extern "C" {
 #define IME_ASSIST_KIND_COMMA_AT_END      9u
 #define IME_ASSIST_KIND_SPELLING         10u
 #define IME_ASSIST_KIND_ARTICLE_AN      11u
+/* EN vòng 36: cặp từ dễ nhầm + đại từ "i" thường (en_confusions.rs). */
+#define IME_ASSIST_KIND_WORD_CONFUSION  12u
+#define IME_ASSIST_KIND_LOWERCASE_PRONOUN 13u
 
 #define IME_MAX_ASSIST_ISSUES              8
 #define IME_MAX_ASSIST_MSG                 128

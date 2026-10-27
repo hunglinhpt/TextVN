@@ -58,6 +58,10 @@ public enum FFI {
     public static let assistKindCommaAtEnd: UInt32 = UInt32(IME_ASSIST_KIND_COMMA_AT_END)
     public static let assistKindSpelling: UInt32 = UInt32(IME_ASSIST_KIND_SPELLING)
     public static let assistKindArticleAn: UInt32 = UInt32(IME_ASSIST_KIND_ARTICLE_AN)
+    /// EN vòng 36: cặp từ dễ nhầm (en_confusions.rs).
+    public static let assistKindWordConfusion: UInt32 = UInt32(IME_ASSIST_KIND_WORD_CONFUSION)
+    /// EN vòng 36: đại từ "i" thường giữa câu.
+    public static let assistKindLowercasePronoun: UInt32 = UInt32(IME_ASSIST_KIND_LOWERCASE_PRONOUN)
 
     // assist triggers (IME_ASSIST_TRIGGER_*)
     public static let assistTriggerNone: UInt32 = UInt32(IME_ASSIST_TRIGGER_NONE)

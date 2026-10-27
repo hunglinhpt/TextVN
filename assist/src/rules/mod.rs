@@ -13,6 +13,7 @@ pub mod diacritic_typo;
 pub mod double_negative;
 pub mod double_space;
 pub mod duplicate_word;
+pub mod en_confusions;
 pub mod language;
 pub mod sentence_repeat;
 pub mod space_after_punct;

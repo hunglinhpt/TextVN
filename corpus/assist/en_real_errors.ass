@@ -45,13 +45,13 @@ Hello. how are you ?	lowercase_sentence_start,space_before_punct
 # --- MEM: loi that nhung engine v1 KHONG the bat (can ngu canh / tu dien) ---
 # Label `word_confusion` la kind v2 (CHUA co trong IssueKind) - chi de do
 # recall tuong lai; corpus test bo qua dong '~ '.
-~ Their going to the beach tomorrow.	word_confusion
-~ Your the best friend I have.	word_confusion
+Their going to the beach tomorrow.	word_confusion
+Your the best friend I have.	word_confusion
 ~ The dog wagged it's tail happily.	word_confusion
-~ Its been a long day at work.	word_confusion
-~ I'd rather stay home then go out tonight.	word_confusion
-~ This shirt is to big for me.	word_confusion
+Its been a long day at work.	word_confusion
+I'd rather stay home then go out tonight.	word_confusion
+This shirt is to big for me.	word_confusion
 ~ I don't want to loose the game.	word_confusion
 ~ The medicine will effect your sleep.	word_confusion
-~ We should of known better.	word_confusion
-~ He could of told me earlier.	word_confusion
+We should of known better.	word_confusion
+He could of told me earlier.	word_confusion

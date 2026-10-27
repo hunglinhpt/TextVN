@@ -46,6 +46,13 @@ pub enum IssueKind {
     /// "an university" → "a university"). Chỉ chạy trên câu En-dominant
     /// (vòng 24); danh sách ngoại lệ đóng theo ÂM (không theo chữ).
     ArticleAn,
+    /// EN vòng 36 - cặp từ dễ nhầm ("should of" → "should have",
+    /// "their going" → "they're going", "is to big" → "is too big",
+    /// "better then" → "better than"…). Danh sách đóng + guard chặt.
+    WordConfusion,
+    /// EN vòng 36 - đại từ "i" thường giữa câu → "I" (không phải đầu câu —
+    /// L6 lo phần đó; guard "i.e.").
+    LowercasePronoun,
 }
 
 impl IssueKind {
@@ -63,6 +70,8 @@ impl IssueKind {
             Self::CommaAtEnd => "comma_at_end",
             Self::Spelling => "spelling",
             Self::ArticleAn => "article_an",
+            Self::WordConfusion => "word_confusion",
+            Self::LowercasePronoun => "lowercase_pronoun",
         }
     }
 
@@ -80,6 +89,8 @@ impl IssueKind {
             "comma_at_end" => Self::CommaAtEnd,
             "spelling" => Self::Spelling,
             "article_an" => Self::ArticleAn,
+            "word_confusion" => Self::WordConfusion,
+            "lowercase_pronoun" => Self::LowercasePronoun,
             _ => return None,
         })
     }
@@ -95,6 +106,8 @@ impl IssueKind {
                 | Self::LowercaseSentenceStart
                 | Self::DiacriticTypo
                 | Self::ArticleAn
+                | Self::WordConfusion
+                | Self::LowercasePronoun
         )
     }
 }
@@ -202,6 +215,11 @@ fn check_with_internal(
     // mix ("please send a email nhé"); guard nội bộ của rule tự chặn từ
     // tiếng Việt có dấu ("a ô" → thoát).
     rules::article_an::check(&ctx, &mut issues);
+    // Vòng 36 (EN grammar): cặp từ dễ nhầm + đại từ "i" — CHỈ câu En-dominant
+    // (guard `ctx.lang == En` trong rule; câu Việt không bao giờ đụng — bài
+    // học article_an R2-28).
+    rules::en_confusions::check_confusions(&ctx, &mut issues);
+    rules::en_confusions::check_pronoun(&ctx, &mut issues);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }
