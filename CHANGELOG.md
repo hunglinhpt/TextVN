@@ -7,6 +7,49 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.50] — 2026-10-28
+
+### Added
+- **Ctrl + Shift + F9 trên cả 3 nền tảng** (trước đây chỉ Windows): macOS đọc
+  vùng chọn qua IMK và thay bằng văn bản chuyển mã; Linux IBus/Fcitx5 đọc
+  surrounding text (anchor/cursor), chuyển mã rồi xoá/commit đúng ranh giới
+  ký tự — đều có gate S3 (ô mật khẩu không đọc/sửa), chống TOCTOU và trần
+  64 000 ký tự.
+- **Kiểm tra chính tả từ điển hệ điều hành trên Windows** (D39): Spell
+  Checking API với **cổng bắt buộc `vi-VN`** — máy không có bộ kiểm tra
+  tiếng Việt (mặc định) thì giữ hành vi cũ (fail-open "thà im lặng còn hơn
+  báo sai"); worker COM riêng + timeout 50 ms + cầu chì.
+- **Bật được dự đoán văn bản từ bảng điều khiển** trên cả 3 nền tảng
+  (trước đây `suggest.enabled` chỉ sửa tay config — dự đoán thực chất
+  KHÔNG THỂ bật).
+- **Chẩn đoán trợ lý trên Linux**: `TEXTVN_ASSIST_DEBUG=1` log lý do gate
+  mở/đóng (chỉ cờ + số đếm, không log nội dung câu — S2).
+
+### Fixed
+- **Vòng 35 — audit 3 lượt trợ lý ngữ pháp 3 nền tảng** (R1 2 agent song
+  song, R2 đối kháng diff, R3 docs): 2 HIGH (mask phá tên file
+  "config.toml"/"Báo cáo.xlsx" với confidence 100; macOS chord F9 chết vì
+  Swift dispatch tĩnh qua existential), 5 MEDIUM (PANIC "10," khi câu không
+  có token chữ; Windows trợ lý chết fresh-install — assist_mode default Off;
+  layout checkbox dự đoán đè viền; S3 macOS cửa sổ hẹp; comma_at_end bêu
+  ký kết email) và 10 LOW đã fix. Kiểm chứng CI: 4 vòng CI liên tiếp, mỗi
+  vòng sửa xong mới sang vòng kế.
+
+**English** — 0.2.50 completes the grammar-assistant loop across all three
+platforms: Ctrl+Shift+F9 text transcode now works on macOS and Linux too
+(selection read + charset conversion with S3 password-field gates, TOCTOU
+re-checks and a 64 000-char cap); Windows gains OS spell checking (D39)
+through the Windows Spell Checking API with a mandatory `vi-VN` capability
+gate and fail-open semantics; the text-prediction toggle is finally
+reachable in the settings UI on all three platforms; and Linux gains a
+`TEXTVN_ASSIST_DEBUG=1` diagnostics mode. A three-pass audit (two parallel
+read-only agents, then adversarial review of the diff, then docs) fixed
+2 HIGH, 5 MEDIUM and 10 LOW findings — including a Swift existential-dispatch
+bug that silently killed the macOS transcode chord, a panic on "10,"
+(digit tokens are not Words), and a fresh-install bug that left the Windows
+assistant dead until the tray wrote its first config. 755 tests, FPR 0/981,
+recall 83.7%, clippy 0, preflight 23/23.
+
 ## [0.2.49] — 2026-10-26
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2028,6 +2071,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...HEAD
+[0.2.50]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...v0.2.50
 [0.2.49]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...v0.2.49
 [0.2.48]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...v0.2.48
 [0.2.47]: https://github.com/hunglinhpt/TextVN/compare/v0.2.46...v0.2.47

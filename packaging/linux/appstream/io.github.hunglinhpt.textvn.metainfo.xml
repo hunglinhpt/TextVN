@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.50" date="2026-10-28">
+      <description>
+        <p>Ctrl+Shift+F9 selection transcoding now works on macOS and Linux too (previously Windows only): select text, press the chord, and garbled text from wrong encodings, legacy TCVN3/VNI content or ASCII typed in the wrong mode is converted to the active charset — with password-field gates, TOCTOU re-checks and a 64,000-character cap. Windows gains OS spell checking through the Spell Checking API (mandatory vi-VN capability gate; machines without a Vietnamese checker keep the old fail-open behavior). The text-prediction toggle is now reachable in the settings UI on all three platforms (it was config-only before), and Linux gains a TEXTVN_ASSIST_DEBUG=1 diagnostics mode. A three-pass audit fixed 2 HIGH, 5 MEDIUM and 10 LOW findings, including a Swift existential-dispatch bug that silently killed the macOS chord and a panic on digit-only sentences.</p>
+      </description>
+    </release>
     <release version="0.2.49" date="2026-10-26">
       <description>
         <p>The core can now convert a selection smartly: repair Vietnamese text garbled by opening a UTF-8 file with the wrong encoding, convert legacy TCVN3/ABC and VNI-Windows text to the encoding in use, and re-type text that was typed while Vietnamese input was off. The selection hotkey that uses it ships on Windows first.</p>

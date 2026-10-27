@@ -1,3 +1,16 @@
+textvn (0.2.50-0ppa1) noble; urgency=medium
+
+  * Ctrl+Shift+F9 selection transcoding on macOS and Linux (IBus/Fcitx5
+    surrounding-text slice + deleteSelectionRange with S3 gates and TOCTOU
+    re-check). Windows OS spell checking (D39, vi-VN capability gate,
+    fail-open). Prediction toggle reachable in the settings UI on all three
+    platforms. TEXTVN_ASSIST_DEBUG=1 diagnostics on Linux. Three-pass audit
+    fixed 2 HIGH + 5 MEDIUM + 10 LOW (mask file-name corruption, comma
+    whitelist, Windows fresh-install assistant default, Swift existential
+    dispatch). 755 tests; FPR 0/981.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Tue, 28 Oct 2026 09:30:00 +0000
+
 textvn (0.2.49-0ppa1) noble; urgency=medium
 
   * Engine: smart selection conversion (garbled UTF-8 repair, legacy
