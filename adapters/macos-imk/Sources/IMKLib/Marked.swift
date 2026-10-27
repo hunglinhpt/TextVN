@@ -35,6 +35,10 @@ public protocol TextTarget: AnyObject {
     /// `nil` = không đọc được (app không cho đọc) ⇒ **không sửa** (fail-safe).
     /// Chỉ đọc trong RAM, **không log, không gửi đi** (D8/S2).
     func textBeforeCaret() -> String?
+    /// OP-007 · R2-139: text của **vùng chọn** hiện tại (chord Ctrl+Shift+F9).
+    /// `nil` = không selection / trần 64k vượt / app không cho đọc ⇒ caller
+    /// không làm gì (fail-open). Chỉ giữ trong RAM, không log/không gửi (D8/S2).
+    func selectedText() -> String?
 }
 
 extension TextTarget {
@@ -44,6 +48,9 @@ extension TextTarget {
 
     /// Mặc định: không đọc được ⇒ `nil` ⇒ caller **không sửa** (fail-safe).
     public func textBeforeCaret() -> String? { nil }
+
+    /// Mặc định: không selection ⇒ `nil` ⇒ chord để phím tới app (fail-open).
+    public func selectedText() -> String? { nil }
 }
 
 /// Trạng thái marked của controller — 1 instance theo controller (main thread).

@@ -283,15 +283,19 @@ Bộ tiện ích cho công việc hằng ngày — chạy **trên máy bạn**, 
 | Cụm từ hành chính | gõ sai các cụm quen thuộc | tự sửa: "bổ xung"→"bổ sung", "xử dụng"→"sử dụng", "kiểm xoát"→"kiểm soát", "chính sác"→"chính xác", "sát nhập"→"sáp nhập", "giành thời gian"→"dành thời gian"… |
 | Khoảng trắng trước % | `đạt 100 %` | tự sửa thành `100%` |
 | Identifier cho coder | `useState`, `onPress`, `getElementById`… | không bị bỏ dấu giữa từ; thuật ngữ tech/business (KPI, EBITDA, margin, cargo…) tự khôi phục khi gặp dấu cách; Tab hoàn tất theo tiền tố (`ebit`+Tab → `EBITDA`) |
-| **Chuyển đổi văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (Windows) | tự nhận ra và sửa: **chữ lạ** khi mở file sai bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), **bảng mã cũ** TCVN3/ABC (.VnTime) · VNI-Windows · Unicode tổ hợp → **bảng mã TextVN đang dùng**, và **chữ gõ nhầm chế độ E** (`tooi ddi hocj` → `tôi đi học`, theo kiểu gõ đang dùng — từ đã có dấu giữ nguyên). Chạy cả ở Notepad++ và ô nhập WinForms/Delphi; undo bằng Ctrl+Z của ứng dụng |
+| **Chuyển đổi văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (cả Windows, macOS và Linux) | tự nhận ra và sửa: **chữ lạ** khi mở file sai bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), **bảng mã cũ** TCVN3/ABC (.VnTime) · VNI-Windows · Unicode tổ hợp → **bảng mã TextVN đang dùng**, và **chữ gõ nhầm chế độ E** (`tooi ddi hocj` → `tôi đi học`, theo kiểu gõ đang dùng — từ đã có dấu giữ nguyên). Chạy cả ở Notepad++ và ô nhập WinForms/Delphi; undo bằng Ctrl+Z của ứng dụng |
 
 Chuyển mã chỉ ghi khi chắc chắn: văn bản đã là Unicode, hoặc không đủ tín hiệu nhận diện,
 thì **không đụng gì** (thà bỏ qua còn hơn phá văn bản).
 
 ### Dự đoán văn bản — Tab / Ctrl + Space (bản sau 0.2.45)
 
-Bật bằng `"suggest": { "enabled": true }` trong `config.v1.json` (**mặc định tắt** —
-Tab giữ nguyên hành vi cũ của ứng dụng cho tới khi bạn bật). Khi bật:
+**Bật trong bảng điều khiển** (từ 0.2.50): đánh dấu *"Gợi ý hoàn tất từ (Tab /
+Ctrl+Space)"* ở mục tuỳ chọn gõ — có trên cả Windows (khay hệ thống), macOS và
+Linux. Hoặc sửa `config.v1.json`: `"suggest": { "enabled": true }`
+(**mặc định tắt** — Tab giữ nguyên hành vi cũ của ứng dụng cho tới khi bạn bật).
+⚠️ Trên Linux, bản **trước 0.2.50 không có nút bật** trong bảng cài đặt — nếu
+bạn đang dùng bản cũ, cập nhật lên bản mới rồi bật trong bảng điều khiển. Khi bật:
 
 | Bạn gõ | Nhấn | Kết quả |
 |---|---|---|
@@ -320,6 +324,24 @@ Tab giữ nguyên hành vi cũ của ứng dụng cho tới khi bạn bật). Kh
   *Chọn nguồn nhập trước* của hệ thống — muốn dùng cả Ctrl + Space, tắt phím tắt đó ở
   *System Settings → Keyboard → Keyboard Shortcuts → Input Sources* (Tab vẫn dùng được mà
   không cần đổi gì).
+
+### Chẩn đoán trợ lý trên Linux (nếu gợi ý không hiện)
+
+Chạy engine với biến môi trường `TEXTVN_ASSIST_DEBUG=1` rồi mở journal để xem
+chính xác gate nào đang chặn (**chỉ log cờ và số đếm — không bao giờ log nội
+dung câu bạn gõ**):
+
+```bash
+# IBus (Ubuntu/GNOME mặc định): khởi động lại engine với debug
+killall ibus-engine-textvn 2>/dev/null
+TEXTVN_ASSIST_DEBUG=1 /usr/libexec/ibus-engine-textvn &
+journalctl --user -f | grep "assist"
+```
+
+Các dòng sẽ cho biết: `vi/state/mode` (bộ gõ đang bật? trợ lý bật? chế độ gì),
+`count=0` (câu sạch — không có gì để gợi ý), hay `câu < 3 từ` (câu quá ngắn —
+thiết kế D11). Nếu `mode=0` dù chưa từng tắt: bật **Chế độ = Chỉ gợi ý** trong
+`textvn-settings`; nếu `state=0`: bật lại ở khay/menu.
 
 ## 5. Gõ tắt
 
