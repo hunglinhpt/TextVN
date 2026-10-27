@@ -1,6 +1,15 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
-## Bản 0.2.49 — Ctrl+Shift+F9 thông minh, ô WinForms/Delphi, nhắc mở lại ứng dụng (R2-137..R2-139)
+## Vòng 35 (0.2.49+dev) — audit R1/R2/R3 trợ lý ngữ pháp 3 nền tảng
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | R1: 2 agent READ-ONLY song song (core rules + wiring 3 OS) — 2 HIGH (mask tên file: +34 ext, cap 6, base Unicode; comma_at_end ký kết email) + 3 MEDIUM (A1 layout checkbox, A2 Windows assist_mode default Off fresh-install, A3 macOS S3 role unknown) + LOW đã fix. R2 đối kháng trên diff: BUG-1 PANIC "10," (words rỗng — digits = Other token), BUG-2 whitelist 2-từ DEAD (dispatch chỉ đọc token đầu), BUG-3 HIGH macOS chord F9 chết (Swift extension member không dispatch động qua existential — nâng thành protocol requirement), LOW ABI fail-open. R3: docs + SHIP |
+| Tính năng đi kèm (cùng chu kỳ) | Ctrl+Shift+F9 chuyển mã vùng bôi đen macOS (IMKTextTarget) + Linux (IBus/Fcitx5 — lc_selection_slice char-offset, recheck TOCTOU fcitx5, deleteSelectionRange qua gate test) — Windows đã có từ 0.2.49; D39 Windows OS spell provider (WinSpell worker MTA, cổng vi-VN bắt buộc, cầu chì mono-clock, ime_assist_check_v1_with); suggest toggle 3 OS (Windows tray dialog + macOS SettingsView + Linux GTK — trước đây dự đoán KHÔNG THỂ bật vì không UI); TEXTVN_ASSIST_DEBUG=1 chẩn đoán gate trợ lý Linux; S3 secure gate 4 đường transcode; Windows fresh-install assist_mode highlight (parity F-A) |
+| Đo | **755 test** · FPR **0/981** + **0/61 probe** mở rộng (tên file ext mới + ký kết email + modulo + văn phòng) · recall 83,7% + 13/13 probe · replay 248/248 · clippy -D warnings 0 · cross-check Linux · preflight 23/23 · CI 5/5 xanh trên 8c6c762 (ci-deb/ci-aur path-filter không trigger) |
+| CI | 4 vòng CI liên tiếp: 6fe36de (2 fail Swift/C++ — sửa) → 71de1e8 (2 fail — sửa) → f953fac (1 fail test — sửa) → 4d77a1b 6/6 → 9954255 7/7 → 8c6c762 5/5 |
+
+## Bản 0.2.49## Bản 0.2.49 — Ctrl+Shift+F9 thông minh, ô WinForms/Delphi, nhắc mở lại ứng dụng (R2-137..R2-139)
 
 | Hạng mục | Bằng chứng |
 |---|---|

@@ -337,6 +337,38 @@
 
 ---
 
+## VÒNG 35 — R1/R2/R3 (2026-10-27): audit 2 agent song song + đối kháng diff
+
+**R1 (2 agent READ-ONLY song song — core rules + wiring 3 OS):**
+- Core: F1a/F1b HIGH (mask thiếu ext + base ASCII-only — `config.toml`,
+  `Báo cáo.xlsx` bị space_after_punct phá tên file confidence 100); F2
+  (comma_at_end bêu ký kết email "Trân trọng,"); F5 (modulo `N % M`);
+  F9 (one-way dead); F3/F4/F6-F8 backlog ghi nhận. OP-001/003/006 rà kỹ
+  không có bug chứng minh được.
+- Wiring: A1 (groupbox 205 đè checkbox suggest mới); A2 (Windows ThreadState
+  assist_mode default Off khi chưa có config.json — trợ lý chết, parity F-A
+  Linux/macOS đã vá nhưng Windows sót); A3 (macOS S3 cửa sổ hẹp — field chưa
+  xếp loại không được tin); A4/A6/A7/A10/A11 LOW đã fix cùng đợt.
+
+**R2 (đối kháng trên diff — bắt 3 bug do chính vòng 34):**
+- BUG-1 MEDIUM-HIGH: comma_at_end PANIC `words[0]` khi câu không có token
+  Word ("10," — chữ số = Other) → exit 101; guard `(1..=3)`.
+- BUG-2 MEDIUM: whitelist entry 2-từ DEAD ("xin chào" — so khớp chỉ đọc token
+  Word ĐẦU) → FP "Xin chào,"; rút về dạng từ đầu ("trân"/"cảm"/"xin").
+- BUG-3 HIGH: macOS chord Ctrl+Shift+F9 CHẾT — `text(in:)` là extension
+  default KHÔNG phải protocol requirement ⇒ Swift dispatch TĨNH qua
+  existential luôn trả default nil. Nâng thành requirement. Bài học Swift:
+  member thêm vào extension-only KHÔNG dispatch động qua `any Protocol`.
+- LOW: ime_assist_check_v1_with ABI lệch → NoDictionary (fail-open) thay
+  IME_ERR_ABI chết đường check.
+
+**R3 (tự review + docs):** SHIP — 755 test, FPR 0/981 + 0/61 probe mở rộng
+(tên file + email + modulo), recall 83.7% không tụt, clippy 0, cross-check
+Linux OK, CI 5/5 xanh (ci-deb/ci-aur path-filter không trigger — không đụng
+debian/packaging-arch).
+
+---
+
 ## VÒNG AUDIT SÂU 3 LẦN TOÀN DIỆN (2026-10-25 — Pass 1 · Pass 2 · Pass 3)
 
 **Bối cảnh:** rà soát từng dòng code và từng tính năng qua 3 vòng độc lập:
