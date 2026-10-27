@@ -114,14 +114,17 @@ int main() {
     /* ---- 2b) OP-007/R2-139: xoá selection qua deleteSelectionRange ----
      * Selection NGƯỢC hướng (caret ở đầu selection): offset = 0 — xoá SAU
      * caret; selection THUẬN (caret ở cuối): offset = -n — xoá TRƯỚC caret. */
-    deleteSelectionRange(&ic, 0, 4);
-    assert(ic.deletes.back().offset == 0);
-    assert(ic.deletes.back().size == 4u);
-    deleteSelectionRange(&ic, -4, 4);
-    assert(ic.deletes.back().offset == -4);
-    assert(ic.deletes.back().size == 4u);
-    deleteSelectionRange(&ic, 0, 0); /* size = 0 bị helper chặn — không gọi */
-    assert(ic.deletes.size() == 2 + 1); /* 7 + 4 + 4 trước đó, size=0 không cộng */
+    /* Dùng context RIÊNG — block này đứng trước phần gốc dùng `ic`, không
+     * được làm lệch các assert đếm `ic.deletes` của phần gốc. */
+    FakeInputContext ic_sel(manager);
+    deleteSelectionRange(&ic_sel, 0, 4);
+    assert(ic_sel.deletes.back().offset == 0); /* selection ngược — SAU caret */
+    assert(ic_sel.deletes.back().size == 4u);
+    deleteSelectionRange(&ic_sel, -4, 4);
+    assert(ic_sel.deletes.back().offset == -4); /* selection thuận — TRƯỚC caret */
+    assert(ic_sel.deletes.back().size == 4u);
+    deleteSelectionRange(&ic_sel, 0, 0); /* size = 0 bị helper chặn — không push */
+    assert(ic_sel.deletes.size() == 2);
 
     deleteBeforeCaret(&ic, 7);
     assert(ic.deletes.size() == 1);
