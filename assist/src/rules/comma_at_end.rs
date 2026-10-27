@@ -31,14 +31,19 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             .iter()
             .filter(|t| t.kind == TokenKind::Word)
             .collect();
-        if words.len() <= 3 {
+        // BUG-1 (R2): words CÓ THỂ RỖNG ("10," — chữ số là token Other, không
+        // phải Word) ⇒ words[0] index out of bounds → panic exit 101 (corpus
+        // score_real có dạng này chết cả bộ đo). Chỉ chạy khi 1..=3 từ.
+        if (1..=3).contains(&words.len()) {
             // Vòng 34 (R1-F2, siết lại sau probe): KÝ KẾT EMAIL = TỪ ĐẦU câu
             // thuộc danh sách đóng ("Cảm ơn anh,", "Trân trọng,", "Thân,").
             // "Tôi gặp anh," (lỗi thật — dấu phẩy cuối câu treo) vẫn được bêu
             // vì từ đầu "tôi" ∉ danh sách.
             const SIGN_OFF_OPENERS: &[&str] = &[
                 // Gồm dạng TỪ ĐẦU của sign-off 2 từ ("trân trọng" → "trân",
-                // "cảm ơn" → "cảm") — câu ≤ 3 từ nên không có FP thực.
+                // "cảm ơn" → "cảm", "xin chào" → "xin" — BUG-2 R2: entry 2-từ
+                // dead vì so khớp chỉ đọc token Word ĐẦU). Câu ≤ 3 từ nên
+                // không có FP thực.
                 "trân trọng",
                 "trân",
                 "thân",
@@ -52,6 +57,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 "hello",
                 "hi",
                 "xin chào",
+                "xin",
                 "chào",
             ];
             let first = ctx.chars[words[0].start..words[0].end]
