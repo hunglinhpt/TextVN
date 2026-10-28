@@ -35,7 +35,9 @@ fn vn_ascii_syllables() -> &'static HashSet<&'static str> {
     })
 }
 
-fn en_freq_words() -> &'static HashSet<&'static str> {
+/// Tập top-3000+`domain` từ EN (nhúng `en_freq3000.txt`) — dùng cho L0 và
+/// allowlist của luật `en_spelling` (vòng 37).
+pub(crate) fn en_freq_words() -> &'static HashSet<&'static str> {
     static SET: OnceLock<HashSet<&'static str>> = OnceLock::new();
     SET.get_or_init(|| {
         EN_FREQ_DATA

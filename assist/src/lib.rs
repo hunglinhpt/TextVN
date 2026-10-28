@@ -220,6 +220,9 @@ fn check_with_internal(
     // học article_an R2-28).
     rules::en_confusions::check_confusions(&ctx, &mut issues);
     rules::en_confusions::check_pronoun(&ctx, &mut issues);
+    // Vòng 37 (AS-060): EN spelling qua OS spell API — CHỈ câu En-dominant,
+    // suggest-only, gate khoảng cách Damerau ≤ 2 (FPR bar); NoDictionary im lặng.
+    rules::en_spelling::check(&ctx, &mut issues);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }
