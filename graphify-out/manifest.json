@@ -2928,9 +2928,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/os_spell.rs": {
-    "mtime": 1793199345.6686947,
-    "seen": 1793200537.958262,
-    "ast_hash": "4ce0ad6ae5754cc8523f3a9291bc6c03",
+    "mtime": 1793202175.4250197,
+    "seen": 1793202254.8548853,
+    "ast_hash": "2614666099e4cbc5f2a90c642282d80f",
     "semantic_hash": ""
   },
   "assist/src/rules/en_confusions.rs": {
