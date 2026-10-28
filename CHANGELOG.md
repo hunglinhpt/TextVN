@@ -7,6 +7,33 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.51] — 2026-10-28
+
+### Added
+- **Ngữ pháp tiếng Anh hoàn tất** (vòng 36 — trước đây trợ lý tiếng Anh chỉ
+  có luật a/an, mọi cặp lỗi phổ biến đều im lặng — word_confusion 0/10 +
+  lowercase_pronoun 0/7 trên corpus đề xuất):
+  - **Cặp từ dễ nhầm** (danh sách đóng, chỉ câu En-dominant — không bao giờ
+    đụng câu Việt): `should/could/would/must of` → `have` (guard "of
+    course"); `your welcome/the/not/right` → `you're`; `its been/a/an` →
+    `it's`; `their the/not/going` → `they're` (guard "going-away" đúng);
+    `is to big` → `is too big` (copula + tính từ đóng; "went to big cities"
+    đúng); `better then` → `better than` (so sánh-hơn, quét ngược ≤4 từ,
+    dừng tại dấu kết câu).
+  - **Đại từ "i" thường giữa câu** → "I" (guard "i.e.", không đụng
+    "iPhone", không trùng L6 đầu câu, không đụng dòng code "i = i + 1").
+- Mới: kind FFI `word_confusion` (12) + `lowercase_pronoun` (13) — sync đủ
+  6 điểm (2 header C + assist_result.c + cli verify + Swift CoreBridge).
+
+**English** — 0.2.51 completes English grammar support (previously only the
+a/an rule was active — every common confusion pair was silently ignored):
+should/could/would/must of → have; your welcome → you're welcome; its been →
+it's been; their going → they're going; is to big → is too big; better then →
+better than; and the standalone lowercase pronoun "i" → "I". All closed lists
+with tight guards, English-dominant sentences only, never touching Vietnamese
+text: 760 tests, English FPR 0/14 guard probes, Vietnamese FPR 0/981, recall
+83.7%, clippy 0, preflight 23/23.
+
 ## [0.2.50] — 2026-10-28
 
 ### Added
@@ -2071,6 +2098,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...HEAD
+[0.2.51]: https://github.com/hunglinhpt/TextVN/compare/v0.2.50...v0.2.51
 [0.2.50]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...v0.2.50
 [0.2.49]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...v0.2.49
 [0.2.48]: https://github.com/hunglinhpt/TextVN/compare/v0.2.47...v0.2.48

@@ -1,3 +1,14 @@
+textvn (0.2.51-0ppa1) noble; urgency=medium
+
+  * Completes English grammar support (previously only a/an): should of →
+    should have, your welcome → you're welcome, its been → it's been,
+    their going → they're going, is to big → is too big, better then →
+    better than, lowercase pronoun i → I. Closed lists, English-dominant
+    sentences only, never touching Vietnamese text. New FFI kinds
+    word_confusion (12) and lowercase_pronoun (13).
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Tue, 28 Oct 2026 11:00:00 +0000
+
 textvn (0.2.50-0ppa1) noble; urgency=medium
 
   * Ctrl+Shift+F9 selection transcoding on macOS and Linux (IBus/Fcitx5
