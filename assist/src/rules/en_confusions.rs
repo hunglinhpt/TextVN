@@ -268,6 +268,117 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
+
+        // 6) "has/have/had lead to" → "led"
+        if matches!(a.as_str(), "has" | "have" | "had") && b == "lead" && c == "to" {
+            push_replace(
+                ctx,
+                w1,
+                "led",
+                IssueKind::WordConfusion,
+                "\"lead to\" → \"led to\": quá khứ phân từ của lead là \"led\"".to_string(),
+                out,
+            );
+            continue;
+        }
+
+        // 7) "the affect of" → "the effect of"
+        if a == "the" && b == "affect" && c == "of" {
+            push_replace(
+                ctx,
+                w1,
+                "effect",
+                IssueKind::WordConfusion,
+                "\"the affect of\" → \"the effect of\": danh từ chỉ tác động là \"effect\""
+                    .to_string(),
+                out,
+            );
+            continue;
+        }
+    }
+
+    for w in words.windows(2) {
+        let (w0, w1) = (&w[0], &w[1]);
+        if w0.is_empty() || ctx.is_masked(w0.start, w1.end) {
+            continue;
+        }
+        let a = token_word(ctx, w0);
+        let b = token_word(ctx, w1);
+
+        // 8) "there own" / "they're own" → "their own"
+        if (a == "there" || a == "they're") && b == "own" {
+            push_replace(
+                ctx,
+                w0,
+                "their",
+                IssueKind::WordConfusion,
+                "\"their own\": sở hữu trước \"own\" cần \"their\"".to_string(),
+                out,
+            );
+            continue;
+        }
+
+        // 9) "accept for" → "except for"
+        if a == "accept" && b == "for" {
+            push_replace(
+                ctx,
+                w0,
+                "except",
+                IssueKind::WordConfusion,
+                "\"accept for\" → \"except for\": mang nghĩa loại trừ".to_string(),
+                out,
+            );
+            continue;
+        }
+
+        // 10) "to/will/can/might loose" → "lose"
+        if matches!(
+            a.as_str(),
+            "to" | "will" | "can" | "might" | "won't" | "cannot"
+        ) && b == "loose"
+        {
+            push_replace(
+                ctx,
+                w1,
+                "lose",
+                IssueKind::WordConfusion,
+                "\"loose\" → \"lose\": sau động từ khiếm khuyết/to-infinitive là động từ \"lose\""
+                    .to_string(),
+                out,
+            );
+            continue;
+        }
+
+        // 11) "principle engineer/architect/developer" → "principal"
+        if a == "principle"
+            && matches!(
+                b.as_str(),
+                "engineer" | "architect" | "developer" | "consultant" | "designer" | "investigator"
+            )
+        {
+            push_replace(
+                ctx,
+                w0,
+                "principal",
+                IssueKind::WordConfusion,
+                "\"principle\" → \"principal\": chức danh chuyên môn cần \"principal\"".to_string(),
+                out,
+            );
+            continue;
+        }
+
+        // 12) "take affect" → "take effect"
+        if a == "take" && b == "affect" {
+            push_replace(
+                ctx,
+                w1,
+                "effect",
+                IssueKind::WordConfusion,
+                "\"take affect\" → \"take effect\": thành ngữ mang nghĩa có hiệu lực".to_string(),
+                out,
+            );
+            continue;
+        }
     }
     // 6) "then" → "than" (vòng 36, R2 sửa): so-sánh-hơn có thể KHÔNG kề
     // ("I'd rather stay home then go out" — rather cách 3 từ). Quét ngược
@@ -370,6 +481,30 @@ mod tests {
         );
         assert_eq!(
             kinds("I'd rather stay home then go out tonight."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("They built there own software framework."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("Everyone agree accept for John."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("The incident has lead to serious issues."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("We might loose our database connection."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("He was promoted to principle engineer today."),
+            vec![IssueKind::WordConfusion]
+        );
+        assert_eq!(
+            kinds("The new policy will take affect tomorrow."),
             vec![IssueKind::WordConfusion]
         );
     }

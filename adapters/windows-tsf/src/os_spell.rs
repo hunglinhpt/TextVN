@@ -4,10 +4,15 @@
 //! `ime_assist_check_v1_with`.
 //!
 //! Thiết kế theo đặc tả (đo thực nghiệm trong P4-10 §2):
-//! - **Cổng capability bắt buộc**: `IsSupported("vi-VN")` — máy Windows mặc
-//!   định KHÔNG có bộ kiểm tra tiếng Việt (`E_INVALIDARG`) ⇒ `try_new` trả
-//!   `None` ⇒ đường check đi `NoDictionary` như cũ (không bao giờ dùng
-//!   checker `en-US` cho tiếng Việt — đo được 3/8 từ đúng bị báo sai).
+//! - **Dual-language (vòng 37, AS-060)**: worker giữ TỐI ĐA 2 checker trên
+//!   cùng apartment — `vi-VN` (luật spelling tiếng Việt) + `en-US` fallback
+//!   `en-GB`/`en-CA`/`en-AU` (luật `en_spelling` tiếng Anh). **Dispatch theo
+//!   chữ trong từ**: từ có chữ alphabetic không-ASCII → checker `vi`; thuần
+//!   ASCII → checker `en`. Không bao giờ dùng checker `en` cho từ tiếng Việt
+//!   (P4-10 §2.5: đo 3/8 từ đúng bị báo sai) — từ Việt khi thiếu checker
+//!   `vi-VN` → fail-open im lặng như cũ.
+//! - **Cổng capability**: `try_new` trả `None` khi CẢ HAI `vi-VN` lẫn `en`
+//!   không có (`IsSupported` FALSE) ⇒ đường check đi `NoDictionary`.
 //! - **Provider out-of-proc** ⇒ không có timeout API: mọi lời gọi chạy trên
 //!   **1 worker thread thường trực** (COM apartment riêng — không được dùng
 //!   `ISpellChecker` qua thread khác, §2.3), caller chờ
@@ -37,15 +42,40 @@ const CALL_TIMEOUT_MS: Duration = Duration::from_millis(50);
 const READY_TIMEOUT_MS: Duration = Duration::from_millis(50);
 /// Sau một lần timeout, fail-open tức thì trong khoảng này (cầu chì).
 const BREAKER_COOLDOWN_MS: u64 = 10_000;
-/// Ngôn ngữ yêu cầu — KHÔNG bao giờ thay bằng `en-US` (P4-10 §2.5 kết luận 1).
+/// Từ điển tiếng Việt — chỉ cho từ có chữ không-ASCII (xem [`Lang::of`]).
 const LANG_TAG: &str = "vi-VN";
+/// Thứ tự probe từ điển tiếng Anh (AS-060) — lấy cái đầu `IsSupported`.
+/// Windows gần như luôn có sẵn `en-US`/`en-GB`.
+const EN_LANG_TAGS: &[&str] = &["en-US", "en-GB", "en-CA", "en-AU"];
+
+/// Ngôn ngữ của từ — quyết định checker nào xử lý (dispatch dual-language).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Lang {
+    Vi,
+    En,
+}
+
+impl Lang {
+    /// Từ có chữ alphabetic KHÔNG phải ASCII → tiếng Việt (chữ có dấu);
+    /// thuần ASCII → tiếng Anh. Luật VI chỉ kiểm từ có chữ Việt có dấu nên
+    /// giao diện dispatch trùng khớp tuyệt đối với hai luật.
+    fn of(word: &str) -> Self {
+        if word.chars().any(|c| c.is_alphabetic() && !c.is_ascii()) {
+            Lang::Vi
+        } else {
+            Lang::En
+        }
+    }
+}
 
 enum Job {
     Contains {
+        lang: Lang,
         word: String,
         reply: SyncSender<bool>,
     },
     Suggest {
+        lang: Lang,
         word: String,
         limit: usize,
         reply: SyncSender<Vec<String>>,
@@ -57,6 +87,10 @@ enum Job {
 pub struct WinSpell {
     tx: SyncSender<Job>,
     breaker_until: AtomicU64,
+    /// Máy có checker `vi-VN` không (không → fail-open cho từ Việt).
+    has_vi: bool,
+    /// Máy có checker tiếng Anh không (không → fail-open cho từ EN).
+    has_en: bool,
 }
 
 // SAFETY: `SyncSender` chỉ chạm từ luồng UI (điểm gọi duy nhất là đường check
@@ -66,33 +100,41 @@ unsafe impl Sync for WinSpell {}
 static WIN_SPELL: OnceLock<Option<WinSpell>> = OnceLock::new();
 
 impl WinSpell {
-    /// Khởi tạo 1 lần/phiên (probe capability). `None` = máy không có từ điển
-    /// `vi-VN` ⇒ dùng `NoDictionary` (đường mặc định — W2).
+    /// Khởi tạo 1 lần/phiên (probe capability 2 ngôn ngữ). `None` = máy không
+    /// có cả `vi-VN` lẫn từ điển EN ⇒ dùng `NoDictionary` (đường mặc định).
     pub fn get() -> Option<&'static WinSpell> {
         WIN_SPELL.get_or_init(Self::try_new).as_ref()
     }
 
     /// Con trỏ tới provider C-ABI tĩnh (dùng với `ime_assist_check_v1_with`).
-    /// `None` = máy không có `vi-VN` ⇒ caller dùng `ime_assist_check_v1`.
+    /// `None` = máy không có NGÔN NGỮ NÀO ⇒ caller dùng `ime_assist_check_v1`.
     pub fn provider_ptr() -> Option<*const textvn_ffi::ime_os_spell_v1> {
         Self::get().map(|_| std::ptr::addr_of!(OS_PROVIDER.0))
     }
 
+    /// Máy có checker cho `lang` không (không ⇒ fail-open ở caller).
+    fn available(&self, lang: Lang) -> bool {
+        match lang {
+            Lang::Vi => self.has_vi,
+            Lang::En => self.has_en,
+        }
+    }
+
     fn try_new() -> Option<Self> {
         let (tx, rx) = sync_channel::<Job>(1);
-        let (ready_tx, ready_rx) = sync_channel::<bool>(1);
-        let tag = LANG_TAG.to_owned();
+        let (ready_tx, ready_rx) = sync_channel::<(bool, bool)>(1);
         std::thread::Builder::new()
             .name("textvn-spell".into())
             .spawn(move || unsafe {
                 // W-apartment (P4-10 §2.3): tạo/dùng/huỷ `ISpellChecker` trên
                 // ĐÚNG thread này; qua channel chỉ truyền String/Vec<String>.
                 let co_init = CoInitializeEx(None, COINIT_MULTITHREADED);
-                let checker = create_checker(&tag);
-                ready_tx.send(checker.is_some()).ok();
-                if let Some(checker) = checker {
+                let vi = create_checker(LANG_TAG);
+                let en = create_en_checker();
+                ready_tx.send((vi.is_some(), en.is_some())).ok();
+                if vi.is_some() || en.is_some() {
                     while let Ok(job) = rx.recv() {
-                        handle_job(&checker, job);
+                        handle_job(vi.as_ref(), en.as_ref(), job);
                     }
                 }
                 if co_init.is_ok() {
@@ -101,12 +143,16 @@ impl WinSpell {
             })
             .ok()?;
         match ready_rx.recv_timeout(READY_TIMEOUT_MS) {
-            Ok(true) => Some(Self {
+            // Đủ MỘT ngôn ngữ là dùng được (máy Windows gần như luôn có EN;
+            // máy CI không có VI thì luật VI tự fail-open).
+            Ok((has_vi, has_en)) if has_vi || has_en => Some(Self {
                 tx,
                 breaker_until: AtomicU64::new(0),
+                has_vi,
+                has_en,
             }),
-            // Probe quá hạn / không có `vi-VN` / spawn lỗi → bỏ worker (thread
-            // còn sống sẽ kết thúc khi `rx` bị drop — sender không trả về).
+            // Probe quá hạn / không có ngôn ngữ nào / spawn lỗi → bỏ worker
+            // (thread còn sống kết thúc khi `rx` bị drop — sender không trả về).
             _ => None,
         }
     }
@@ -126,13 +172,15 @@ impl WinSpell {
     }
 
     /// `true` = từ ĐÚNG (có trong từ điển) — fail-open đúng chiều "thà im
-    /// lặng còn hơn báo sai": lỗi/timeout ⇒ coi như đúng.
+    /// lặng còn hơn báo sai": lỗi/timeout/thiếu checker ngôn ngữ ⇒ coi như đúng.
     pub fn contains(&self, word: &str) -> bool {
-        if !self.healthy() {
+        let lang = Lang::of(word);
+        if !self.healthy() || !self.available(lang) {
             return true;
         }
         let (tx, rx) = sync_channel(1);
         if !self.send_job(Job::Contains {
+            lang,
             word: word.to_owned(),
             reply: tx,
         }) {
@@ -149,11 +197,13 @@ impl WinSpell {
     }
 
     pub fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
-        if !self.healthy() || limit == 0 {
+        let lang = Lang::of(word);
+        if !self.healthy() || !self.available(lang) || limit == 0 {
             return Vec::new();
         }
         let (tx, rx) = sync_channel(1);
         if !self.send_job(Job::Suggest {
+            lang,
             word: word.to_owned(),
             limit,
             reply: tx,
@@ -259,16 +309,47 @@ unsafe fn create_checker(tag: &str) -> Option<ISpellChecker> {
     let factory: ISpellCheckerFactory =
         CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER).ok()?;
     let tag = HSTRING::from(tag);
-    // Cổng capability D33/W2: `IsSupported` FALSE ⇒ None (KHÔNG thử en-US).
+    // Cổng capability D33/W2: `IsSupported` FALSE ⇒ None (KHÔNG thử ngôn ngữ khác).
     if !factory.IsSupported(&tag).ok()?.as_bool() {
         return None;
     }
     factory.CreateSpellChecker(&tag).ok()
 }
 
-unsafe fn handle_job(checker: &ISpellChecker, job: Job) {
+/// Tạo checker tiếng Anh (AS-060) — lấy tag đầu tiên `IsSupported`.
+/// Không có ⇒ `None` (luật `en_spelling` tự fail-open).
+unsafe fn create_en_checker() -> Option<ISpellChecker> {
+    let factory: ISpellCheckerFactory =
+        CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER).ok()?;
+    for tag in EN_LANG_TAGS {
+        let h = HSTRING::from(*tag);
+        let supported = factory
+            .IsSupported(&h)
+            .ok()
+            .map(|b| b.as_bool())
+            .unwrap_or(false);
+        if supported {
+            if let Ok(checker) = factory.CreateSpellChecker(&h) {
+                return Some(checker);
+            }
+        }
+    }
+    None
+}
+
+/// Chọn checker theo ngôn ngữ của job; thiếu ⇒ fail-open (không bao giờ dùng
+/// checker sai ngôn ngữ — P4-10 §2.5).
+unsafe fn handle_job(vi: Option<&ISpellChecker>, en: Option<&ISpellChecker>, job: Job) {
     match job {
-        Job::Contains { word, reply } => {
+        Job::Contains { lang, word, reply } => {
+            let checker = match lang {
+                Lang::Vi => vi,
+                Lang::En => en,
+            };
+            let Some(checker) = checker else {
+                reply.send(true).ok(); // thiếu checker ngôn ngữ → từ "đúng"
+                return;
+            };
             // `Check("")` trả E_INVALIDARG ⇒ chặn trước; chuỗi rỗng coi như đúng.
             if word.is_empty() {
                 reply.send(true).ok();
@@ -281,7 +362,20 @@ unsafe fn handle_job(checker: &ISpellChecker, job: Job) {
             };
             reply.send(ok).ok();
         }
-        Job::Suggest { word, limit, reply } => {
+        Job::Suggest {
+            lang,
+            word,
+            limit,
+            reply,
+        } => {
+            let checker = match lang {
+                Lang::Vi => vi,
+                Lang::En => en,
+            };
+            let Some(checker) = checker else {
+                reply.send(Vec::new()).ok(); // thiếu checker → không gợi ý
+                return;
+            };
             let mut out = Vec::new();
             if let Ok(suggestions) = checker.Suggest(&HSTRING::from(word)) {
                 // `Next` cần mảng PWSTR; dừng theo số slot nhận được (S_FALSE = hết).
@@ -364,6 +458,8 @@ mod tests {
         let spell = WinSpell {
             tx: sync_channel(1).0,
             breaker_until: AtomicU64::new(0),
+            has_vi: true,
+            has_en: true,
         };
         assert!(spell.healthy());
         spell.trip_breaker();

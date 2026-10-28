@@ -216,6 +216,56 @@ fn test_predict_next_phrase_english() {
 }
 
 #[test]
+fn test_predict_genz_tech_os_english_phrases() {
+    let mut e = engine_with_predict();
+    let mut doc = Vec::new();
+
+    // Gen Z slang
+    for c in "no cap ".chars() {
+        press_key(&mut e, &mut doc, &key_for_char(c));
+    }
+    assert_eq!(doc.iter().collect::<String>(), "no cap ");
+    press_key(&mut e, &mut doc, &key_for_char('\t'));
+    assert_eq!(
+        doc.iter().collect::<String>(),
+        "no cap that was the cleanest code refactor ever"
+    );
+
+    // Tech / Coder
+    let mut e2 = engine_with_predict();
+    let mut doc2 = Vec::new();
+    for c in "looks good to ".chars() {
+        press_key(&mut e2, &mut doc2, &key_for_char(c));
+    }
+    press_key(&mut e2, &mut doc2, &key_for_char('\t'));
+    assert_eq!(
+        doc2.iter().collect::<String>(),
+        "looks good to me, approved and ready to merge"
+    );
+
+    // OS APIs: Win32
+    let mut e3 = engine_with_predict();
+    let mut doc3 = Vec::new();
+    for c in "hresult hr = ".chars() {
+        press_key(&mut e3, &mut doc3, &key_for_char(c));
+    }
+    press_key(&mut e3, &mut doc3, &key_for_char('\t'));
+    assert_eq!(doc3.iter().collect::<String>(), "hresult hr = S_OK;");
+
+    // OS APIs: POSIX
+    let mut e4 = engine_with_predict();
+    let mut doc4 = Vec::new();
+    for c in "epoll_create1(".chars() {
+        press_key(&mut e4, &mut doc4, &key_for_char(c));
+    }
+    press_key(&mut e4, &mut doc4, &key_for_char('\t'));
+    assert_eq!(
+        doc4.iter().collect::<String>(),
+        "epoll_create1( EPOLL_CLOEXEC);"
+    );
+}
+
+#[test]
 fn test_shift_tab_is_always_passed_through() {
     let mut e = engine_with_predict();
     let mut doc = Vec::new();
