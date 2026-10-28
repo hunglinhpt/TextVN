@@ -6,7 +6,11 @@
 |---|---|
 | Nội dung | **Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện** (AS-060): 3.356 từ vựng tần suất phủ coder, tech, business, OS APIs (Win32, POSIX, Cocoa) và Gen Z slang; 3.750 mẫu câu & cụm từ ngữ cảnh (`en_phrases.tsv`) sinh bởi Rust generator native (`xtask gen-en-phrases`) tuân thủ bất biến R1-2 ($\le 64$ ký tự); phím tắt `Tab` và `Ctrl + Space`; closed-list word confusion (`their own`, `except for`, `led to`, `lose`, `principal`, `take effect`, `the effect of`); OS spell dual-language Windows worker (`vi-VN` + `en-US`) với RAII `ComApartment` chống crash COM |
 | Đo | **765+ test toàn workspace** · 100% round-trip gõ khôi phục từ điển 3.356 từ · 19/19 text_prediction test PASS · replay 4 adapter (win, tsf, mac, linux) PASS · clippy 0 warning · preflight 23/23 |
-| Release | Chuẩn bị release candidate 0.2.52 |
+| CI trên commit gắn tag a3bdd1e | **7/7 xanh** (`ci-shared`, `ci-windows`, `ci-linux`, `ci-macos`, `ci-deb`, `ci-aur`, `repo-hygiene`) — commit Verified |
+| Release | v0.2.52 tag ký GPG — release-candidate [#40728035702](https://github.com/hunglinhpt/TextVN/actions/runs/40728035702) 4/4 job; **34 asset**; GPG Good |
+| Checksums | machine exe `e6f49638…87ad` · setup exe `5dc196a8…6f46` · MSIX `2992a46a…a3f2` · mac zip `0000b9cb…1e64` · portable zip `e353b11c…c5d8` · linux tar.gz `a891ba3f…bc31` · mac pkg `dba479b9…fc67` |
+| Homebrew (B7b) | cask `version "0.2.52"` + `sha256` = mac zip `0000b9cb…1e64` — sync-cask [#40731432955](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40731432955) success |
+| approved (B7c) | `approved/v0.2.52/` — 34 file byte-identical (SHA256SUMS raw hash trùng khớp), raw URL 200 |
 
 ## Bản 0.2.51 — ngữ pháp tiếng Anh hoàn tất (vòng 36)
 
