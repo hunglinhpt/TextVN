@@ -1,6 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
-## Bản 0.2.50 — transcode 3 OS + D39 + dự đoán bật được từ UI + vòng 35
+## Bản 0.2.51 — ngữ pháp tiếng Anh hoàn tất (vòng 36)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **WordConfusion (kind 12) + LowercasePronoun (kind 13)** — trước đây trợ lý tiếng Anh chỉ có a/an, mọi cặp lỗi phổ biến im lặng (word_confusion 0/10 + lowercase_pronoun 0/7 trên corpus đề xuất): should/could/would/must of → have (guard "of course"); your welcome/the/not/right → you're; its been/a/an → it's; their the/not/going → they're (guard going-away); copula + to + adj(đóng) → too; so-sánh-hơn + then → than (quét ngược ≤4 token, dừng dấu kết câu); đại từ "i" → "I" (guard i.e./L6-trùng/code-line). FFI kind 12/13 sync đủ 6 điểm (2 header C + assist_result.c + cli verify + Swift). CHỈ câu En-dominant — không đụng câu Việt |
+| Đo | **760 test** · EN FPR **0/14** guard probe + recall **9/9** · VI FPR 0/981 recall 83,7% · clippy 0 · cross-check Linux · preflight 23/23 · CI 7/7 xanh trên ff40406 |
+| Release | v0.2.51 tag ký GPG — release-candidate 4/4 job; **34 asset**; GPG Good; 9/9 hash khớp |
+| Checksums | machine exe `cddab063…ac9` · MSIX `ba1b04d7…9e79` · mac zip `134481f7…ad77` · PKGBUILD archive `b34bd1ed…2fa6` |
+| Homebrew (B7b) | cask `version "0.2.51"` + `sha256` = mac zip `134481f7…ad77` — sync-cask [#40610147980](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40610147980) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.51 `b34bd1ed…2fa6` |
+| PPA (B7f) | debian/changelog `0.2.51-0ppa1` |
+| approved (B7c) | `approved/v0.2.51/` — 34 file byte-identical, raw URL 200 |
+| Backlog có chủ ý | it's-tail đảo chiều ("The dog wagged it's tail"), loose/lose, effect/affect — FPR risk, cần ngữ cảnh |
+
+## Vòng 35 (0.2.49+dev)## Bản 0.2.50 — transcode 3 OS + D39 + dự đoán bật được từ UI + vòng 35
 
 | Hạng mục | Bằng chứng |
 |---|---|
