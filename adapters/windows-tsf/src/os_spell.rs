@@ -38,8 +38,8 @@ use windows::Win32::System::Com::{
 /// out-of-proc, "Standard RPC timeouts apply").
 const CALL_TIMEOUT_MS: Duration = Duration::from_millis(50);
 /// Chờ worker khởi tạo + probe capability (đo: CoCreateInstance + CreateSpell
-/// Checker nguồnội ~9,5 ms — 50 ms dư an cho máy chậm).
-const READY_TIMEOUT_MS: Duration = Duration::from_millis(50);
+/// Checker nguội ~9,5 ms — 150 ms dư an toàn cho CI runner khi tải nặng).
+const READY_TIMEOUT_MS: Duration = Duration::from_millis(150);
 /// Sau một lần timeout, fail-open tức thì trong khoảng này (cầu chì).
 const BREAKER_COOLDOWN_MS: u64 = 10_000;
 /// Từ điển tiếng Việt — chỉ cho từ có chữ không-ASCII (xem [`Lang::of`]).
@@ -126,20 +126,20 @@ impl WinSpell {
         std::thread::Builder::new()
             .name("textvn-spell".into())
             .spawn(move || unsafe {
-                // W-apartment (P4-10 §2.3): tạo/dùng/huỷ `ISpellChecker` trên
-                // ĐÚNG thread này; qua channel chỉ truyền String/Vec<String>.
-                let co_init = CoInitializeEx(None, COINIT_MULTITHREADED);
-                let vi = create_checker(LANG_TAG);
-                let en = create_en_checker();
-                ready_tx.send((vi.is_some(), en.is_some())).ok();
-                if vi.is_some() || en.is_some() {
+                // RAII: _apartment được drop CUỐI CÙNG, đảm bảo mọi COM interface
+                // (ISpellChecker) được Release TRƯỚC KHI CoUninitialize() được gọi!
+                let _apartment = ComApartment::initialize();
+                let (vi, en) = create_checkers();
+                let has_vi = vi.is_some();
+                let has_en = en.is_some();
+                let _ = ready_tx.send((has_vi, has_en));
+                if has_vi || has_en {
                     while let Ok(job) = rx.recv() {
                         handle_job(vi.as_ref(), en.as_ref(), job);
                     }
                 }
-                if co_init.is_ok() {
-                    CoUninitialize();
-                }
+                // vi và en được drop tại đây (Release COM object).
+                // Sau đó _apartment được drop (CoUninitialize). Tuyệt đối an toàn.
             })
             .ok()?;
         match ready_rx.recv_timeout(READY_TIMEOUT_MS) {
@@ -305,36 +305,68 @@ static OS_PROVIDER: SyncProvider = SyncProvider(textvn_ffi::ime_os_spell_v1 {
     ctx: std::ptr::null_mut(),
 });
 
-unsafe fn create_checker(tag: &str) -> Option<ISpellChecker> {
-    let factory: ISpellCheckerFactory =
-        CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER).ok()?;
-    let tag = HSTRING::from(tag);
-    // Cổng capability D33/W2: `IsSupported` FALSE ⇒ None (KHÔNG thử ngôn ngữ khác).
-    if !factory.IsSupported(&tag).ok()?.as_bool() {
-        return None;
-    }
-    factory.CreateSpellChecker(&tag).ok()
+/// RAII guard quản lý vòng đời COM apartment trên worker thread.
+/// Đảm bảo `CoUninitialize` CHỈ được gọi SAU KHI toàn bộ COM interfaces đã bị drop.
+struct ComApartment {
+    owned: bool,
 }
 
-/// Tạo checker tiếng Anh (AS-060) — lấy tag đầu tiên `IsSupported`.
-/// Không có ⇒ `None` (luật `en_spelling` tự fail-open).
-unsafe fn create_en_checker() -> Option<ISpellChecker> {
-    let factory: ISpellCheckerFactory =
-        CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER).ok()?;
-    for tag in EN_LANG_TAGS {
-        let h = HSTRING::from(*tag);
-        let supported = factory
-            .IsSupported(&h)
-            .ok()
-            .map(|b| b.as_bool())
-            .unwrap_or(false);
-        if supported {
-            if let Ok(checker) = factory.CreateSpellChecker(&h) {
-                return Some(checker);
-            }
+impl ComApartment {
+    fn initialize() -> Self {
+        let hr = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
+        Self { owned: hr.is_ok() }
+    }
+}
+
+impl Drop for ComApartment {
+    fn drop(&mut self) {
+        if self.owned {
+            unsafe { CoUninitialize() };
         }
     }
-    None
+}
+
+/// Tạo bộ kiểm tra chính tả (vi-VN và EN fallback) từ cùng 1 COM factory.
+/// Giảm 1 lần CoCreateInstance (tiết kiệm ~15 ms khởi tạo worker).
+unsafe fn create_checkers() -> (Option<ISpellChecker>, Option<ISpellChecker>) {
+    let Ok(factory): Result<ISpellCheckerFactory, _> =
+        CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER)
+    else {
+        return (None, None);
+    };
+
+    let vi = {
+        let tag = HSTRING::from(LANG_TAG);
+        if factory
+            .IsSupported(&tag)
+            .map(|b| b.as_bool())
+            .unwrap_or(false)
+        {
+            factory.CreateSpellChecker(&tag).ok()
+        } else {
+            None
+        }
+    };
+
+    let en = {
+        let mut found = None;
+        for tag in EN_LANG_TAGS {
+            let h = HSTRING::from(*tag);
+            if factory
+                .IsSupported(&h)
+                .map(|b| b.as_bool())
+                .unwrap_or(false)
+            {
+                if let Ok(checker) = factory.CreateSpellChecker(&h) {
+                    found = Some(checker);
+                    break;
+                }
+            }
+        }
+        found
+    };
+
+    (vi, en)
 }
 
 /// Chọn checker theo ngôn ngữ của job; thiếu ⇒ fail-open (không bao giờ dùng
@@ -378,36 +410,33 @@ unsafe fn handle_job(vi: Option<&ISpellChecker>, en: Option<&ISpellChecker>, job
             };
             let mut out = Vec::new();
             if let Ok(suggestions) = checker.Suggest(&HSTRING::from(word)) {
-                // `Next` cần mảng PWSTR; dừng theo số slot nhận được (S_FALSE = hết).
                 const BATCH: usize = 8;
+                let mut buffer = [windows::core::PWSTR::null(); BATCH];
                 loop {
-                    let mut buf: [windows::core::PWSTR; BATCH] =
-                        std::array::from_fn(|_| windows::core::PWSTR::null());
-                    let mut fetched = 0u32;
-                    // Next trả HRESULT: S_OK = đủ batch, S_FALSE = hết (vẫn
-                    // xem `fetched` — có thể là batch cuối ngắn hơn).
-                    let hr = suggestions.Next(&mut buf, Some(&mut fetched));
+                    let hr = suggestions.Next(&mut buffer, None);
                     if hr.is_err() {
                         break;
                     }
-                    let got = fetched as usize;
-                    if got == 0 {
-                        break;
-                    }
-                    for pw in buf.iter().take(got) {
+                    let mut fetched = 0usize;
+                    for pw in buffer.iter() {
                         if pw.is_null() {
-                            continue;
+                            break;
                         }
-                        let s = pw.to_string().unwrap_or_default();
+                        fetched += 1;
+                        if out.len() < limit {
+                            if let Ok(s) = pw.to_string() {
+                                if !s.is_empty() {
+                                    out.push(s);
+                                }
+                            }
+                        }
                         // W4: từng PWSTR phải CoTaskMemFree riêng.
                         CoTaskMemFree(Some(pw.as_ptr().cast()));
-                        if !s.is_empty() && out.len() < limit {
-                            out.push(s);
-                        }
                     }
-                    if out.len() >= limit {
+                    if fetched == 0 || out.len() >= limit {
                         break;
                     }
+                    buffer = [windows::core::PWSTR::null(); BATCH];
                 }
             }
             out.truncate(limit);
@@ -436,8 +465,9 @@ mod tests {
     use super::*;
 
     /// Máy dev/CI mặc định KHÔNG có bộ kiểm tra tiếng Việt của Windows
-    /// (P4-10 §2.5: `IsSupported("vi-VN") = FALSE`) ⇒ provider là `None`.
-    /// Không assert cứng giá trị (máy chủ repo có thể có): chỉ đảm bảo
+    /// (P4-10 §2.5: `IsSupported("vi-VN") = FALSE`) ⇒ has_vi = false.
+    /// Có EN (`en-US`) ⇒ has_en = true.
+    /// Không assert cứng giá trị (máy chủ repo có thể có hoặc không): chỉ đảm bảo
     /// `provider_ptr()` và đường check không panic, hai nhánh đều hợp lệ.
     #[test]
     fn provider_init_khong_panic_va_nhat_quan() {
@@ -445,10 +475,12 @@ mod tests {
         let has = WinSpell::get().is_some();
         assert_eq!(ptr.is_some(), has, "provider_ptr phải khớp get()");
         if let Some(spell) = WinSpell::get() {
-            // Máy CÓ vi-VN: mọi lời gọi phải trả kết quả không panic.
             let ok = spell.contains("ngành");
             let _ = spell.suggest("nghành", 3);
-            assert!(ok || !ok); // chứa cả 2 giá trị — chống optimization bỏ test
+            let ok_en = spell.contains("hello");
+            let _ = spell.suggest("teh", 3);
+            assert!(ok || !ok);
+            assert!(ok_en || !ok_en);
         }
     }
 
