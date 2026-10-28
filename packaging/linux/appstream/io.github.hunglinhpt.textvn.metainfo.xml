@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.52" date="2026-10-28">
+      <description>
+        <p>Comprehensive English grammar assistant and text prediction: 3356 frequent English words covering coder, tech, business, OS APIs (Win32, POSIX, Cocoa) and Gen Z slang; 3750 contextual next-phrase prediction patterns (Tab / Ctrl+Space); closed-list confusion rules (their own, except for, led to, lose, principal, take effect, the effect of); Windows OS spell dual-language checking (vi-VN and en-US) with RAII COM apartment lifecycle protection.</p>
+      </description>
+    </release>
     <release version="0.2.51" date="2026-10-28">
       <description>
         <p>Completes English grammar support (previously only the a/an rule was active): fixes should of → should have, your welcome → you're welcome, its been → it's been, their going → they're going, is to big → is too big, better then → better than, and the standalone lowercase pronoun i → I. All closed lists with tight guards, English-dominant sentences only, never touching Vietnamese text.</p>

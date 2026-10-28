@@ -10,7 +10,7 @@
 # rồi chạy `makepkg --printsrcinfo` đối chiếu .SRCINFO, CI sẽ chặn nếu lệch.
 
 pkgname=textvn
-pkgver=0.2.51
+pkgver=0.2.52
 pkgrel=1
 pkgdesc="Bộ gõ tiếng Việt (Telex, VNI, VIQR, Simple Telex) cho IBus và Fcitx5 — engine Rust"
 arch=('x86_64')

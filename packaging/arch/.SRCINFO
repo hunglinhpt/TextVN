@@ -1,6 +1,6 @@
 pkgbase = textvn
 	pkgdesc = Bộ gõ tiếng Việt (Telex, VNI, VIQR, Simple Telex) cho IBus và Fcitx5 — engine Rust
-	pkgver = 0.2.51
+	pkgver = 0.2.52
 	pkgrel = 1
 	url = https://github.com/hunglinhpt/TextVN
 	arch = x86_64
@@ -14,7 +14,7 @@ pkgbase = textvn
 	depends = gtk4
 	optdepends = ibus: engine IBus (GNOME và các desktop dùng IBus)
 	optdepends = fcitx5: addon Fcitx5 (KDE/Plasma và các desktop dùng Fcitx5)
-	source = textvn-0.2.51.tar.gz::https://github.com/hunglinhpt/TextVN/archive/refs/tags/v0.2.51.tar.gz
+	source = textvn-0.2.52.tar.gz::https://github.com/hunglinhpt/TextVN/archive/refs/tags/v0.2.52.tar.gz
 	sha256sums = b34bd1ed8d02b80a6f14ee1272eb685ed0fdc202f07fd76c7308b0ce7e072fa6
 
 pkgname = textvn

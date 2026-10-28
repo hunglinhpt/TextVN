@@ -1,3 +1,15 @@
+textvn (0.2.52-0ppa1) noble; urgency=medium
+
+  * Comprehensive English grammar assistant and text prediction: 3356
+    frequent words covering tech, business, OS APIs (Win32, POSIX, Cocoa)
+    and Gen Z slang. 3750 contextual next-phrase patterns under invariant
+    R1-2 (continuation length <= 64). OS spell dual-language checking
+    (vi-VN and en-US) with RAII ComApartment protection against COM lifecycle
+    faults. Hotkeys Tab (prefix/next-phrase completion) and Ctrl+Space (auto-fix
+    and prediction).
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Wed, 28 Oct 2026 16:00:00 +0000
+
 textvn (0.2.51-0ppa1) noble; urgency=medium
 
   * Completes English grammar support (previously only a/an): should of →

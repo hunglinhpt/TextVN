@@ -1,5 +1,13 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.52 — Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện (vòng 37 / AS-060)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện** (AS-060): 3.356 từ vựng tần suất phủ coder, tech, business, OS APIs (Win32, POSIX, Cocoa) và Gen Z slang; 3.750 mẫu câu & cụm từ ngữ cảnh (`en_phrases.tsv`) sinh bởi Rust generator native (`xtask gen-en-phrases`) tuân thủ bất biến R1-2 ($\le 64$ ký tự); phím tắt `Tab` và `Ctrl + Space`; closed-list word confusion (`their own`, `except for`, `led to`, `lose`, `principal`, `take effect`, `the effect of`); OS spell dual-language Windows worker (`vi-VN` + `en-US`) với RAII `ComApartment` chống crash COM |
+| Đo | **765+ test toàn workspace** · 100% round-trip gõ khôi phục từ điển 3.356 từ · 19/19 text_prediction test PASS · replay 4 adapter (win, tsf, mac, linux) PASS · clippy 0 warning · preflight 23/23 |
+| Release | Chuẩn bị release candidate 0.2.52 |
+
 ## Bản 0.2.51 — ngữ pháp tiếng Anh hoàn tất (vòng 36)
 
 | Hạng mục | Bằng chứng |

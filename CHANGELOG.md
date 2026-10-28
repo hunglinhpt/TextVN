@@ -7,6 +7,34 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.52] — 2026-10-28
+
+### Added
+- **Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện** (vòng 37 / AS-060):
+  - **Mở rộng vốn từ vựng tần suất**: 3.356 từ tiếng Anh (vượt mốc 3.000 từ)
+    bao gồm thuật ngữ coder, tech, business, OS APIs (Win32 `HRESULT`, `GetLastError`,
+    `VirtualAlloc`; POSIX `syscall`, `epoll_create`, `pthread_create`; Cocoa
+    `NSString`, `CGRect`, `RunLoop`) và tiếng lóng Gen Z (`rizz`, `skibidi`, `sigma`,
+    `slay`, `delulu`, `brainrot`, `pookie`). Đảm bảo 100% test hồi quy gõ khôi phục.
+  - **Dự đoán cụm từ tiếp theo**: 3.750 mẫu câu & cụm từ ngữ cảnh (`en_phrases.tsv`)
+    sinh bởi generator native Rust (`cargo xtask gen-en-phrases`), tuân thủ nghiêm
+    ngặt bất biến R1-2 (độ dài $\le 64$ ký tự). Hỗ trợ phím tắt `Tab` (hoàn tất tiền tố
+    và dự đoán cụm) và `Ctrl + Space` (tự sửa từ/câu rồi kích hoạt dự đoán).
+  - **Cặp từ dễ nhầm lẫn mới** (closed list, FPR = 0): `their own` (thay vì `there own`),
+    `except for` (thay vì `accept for`), `led to` (thay vì `has lead to`), `lose`
+    (thay vì `to/will loose`), `principal` (thay vì `principle engineer/architect`),
+    `take effect`, `the effect of`.
+  - **Kiểm tra chính tả tiếng Anh OS Spell dual-language**: worker Spell Checking API
+    trên Windows hỗ trợ song ngữ `vi-VN` và `en-US`/`en-GB`, dispatch thông minh theo
+    ký tự ASCII/Unicode, bảo vệ RAII `ComApartment` chống xung đột vòng đời COM.
+
+**English** — 0.2.52 delivers a comprehensive English grammar assistant and text prediction engine:
+3356 frequent English words covering tech, coder, business, OS APIs (Win32, POSIX, Cocoa) and Gen Z slang;
+3750 contextual next-phrase prediction patterns in `data/en_phrases.tsv` generated with pure native Rust,
+strictly bounded by invariant R1-2 (length <= 64); closed-list confusion rules (their own, except for,
+led to, lose vs loose, principal vs principle, take effect, the effect of); and dual-language Windows OS
+spell checking (vi-VN + en-US) protected by RAII ComApartment against COM teardown faults.
+
 ## [0.2.51] — 2026-10-28
 
 ### Added
@@ -2097,7 +2125,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.52]: https://github.com/hunglinhpt/TextVN/compare/v0.2.51...v0.2.52
 [0.2.51]: https://github.com/hunglinhpt/TextVN/compare/v0.2.50...v0.2.51
 [0.2.50]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...v0.2.50
 [0.2.49]: https://github.com/hunglinhpt/TextVN/compare/v0.2.48...v0.2.49

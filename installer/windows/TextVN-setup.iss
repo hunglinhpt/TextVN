@@ -1,4 +1,4 @@
-﻿; SPDX-License-Identifier: GPL-3.0-or-later
+; SPDX-License-Identifier: GPL-3.0-or-later
 ; Script dong goi bo cai dat TextVN cho Windows bang Inno Setup 6 (WIN-054 / P1-4 §4).
 ; Ho tro cai dat linh hoat:
 ; TSF RegisterProfile/RegisterCategory can HKLM: cai machine mot lan, sau do
@@ -16,7 +16,7 @@
 ; va ket version cu (review R3 blocker 1). Fallback duoi day duoc gate
 ; `cargo xtask check-version-sync` giu khop Cargo.toml.
 #ifndef MyAppVersion
-  #define MyAppVersion "0.2.51"
+  #define MyAppVersion "0.2.52"
 #endif
 ; Publisher ARP PHAI khop TUNG CHU voi "Publisher display name" tren Partner
 ; Center. Lich su 7 vong (B13f/STO-03/B18) — chu tai khoan TIM DUOC dung trang
