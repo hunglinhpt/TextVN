@@ -30,9 +30,30 @@
 use crate::transform::stroke::is_stroke;
 use crate::transform::tone::is_vowel;
 use crate::validate::is_valid_word;
+use std::collections::HashSet;
+use std::sync::OnceLock;
 
 /// `data/en_common.txt` — nhúng lúc biên dịch (core **không** I/O: S1).
 pub const EN_COMMON_DATA: &str = include_str!("../../../data/en_common.txt");
+/// `data/assist/vn_ascii_syllables.txt` — âm tiết Việt KHÔNG dấu (deaccent
+/// từ `vn_freq3000`, cùng file với L0 của `assist` — dùng chung một nguồn dữ
+/// liệu duy nhất). Guard R2-4/R2-56 cho `complete_word` (vòng 37): chuỗi gõ
+/// là âm tiết Việt không dấu thì KHÔNG quét freq/tech tìm từ EN — "cac" không
+/// được hoàn tất thành "cache" ("các" thiếu dấu), "dat" → "date" ("đắt"…
+/// thiếu dấu). File nhúng, core vẫn 0-I/O (S1).
+const VN_ASCII_SYLLABLES_DATA: &str = include_str!("../../../data/assist/vn_ascii_syllables.txt");
+
+/// Tập âm tiết Việt không dấu (build 1 lần lúc gọi đầu — OnceLock, 0 I/O).
+fn vn_ascii_syllables() -> &'static HashSet<&'static str> {
+    static SET: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    SET.get_or_init(|| {
+        VN_ASCII_SYLLABLES_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
 /// `data/vn_common.txt` — nhúng lúc biên dịch.
 pub const VN_COMMON_DATA: &str = include_str!("../../../data/vn_common.txt");
 /// `data/stop_en.txt` — danh sách mẫu cho `config.english_words` (opt-in).
@@ -259,7 +280,15 @@ pub fn complete_word(
     // "em", "con", "cho", "cá", "nó", "chó", "nói", "bỏ", "tủ", "vẻ"… khỏi bị
     // biến thành "email", "confirm", "choice", "case", "nose", "choose"…).
     let folded_chars: Vec<char> = folded_lower.chars().collect();
-    if !is_valid_word(&folded_chars) {
+    // R2-4/R2-56 (vòng 37): chuỗi gõ là âm tiết Việt KHÔNG dấu và không phải
+    // từ EN đã biết → BỎ QUA quét freq/tech. Đóng chốt cả họ lỗi
+    // tiền-tố-VN-thiếu-dấu + từ-domain ("cac"→"cache" (các), "dat"→"date"
+    // (đắt/đất), "suc"→"such" (sức)…) — trước đây chỉ được ghim lẻ "cac" ở
+    // test R2-4 vì freq-list chưa có tiền tố trùng. Quét `en_common` phía trên
+    // không đổi: danh sách đó đã lọc theo policy `en_common.txt`.
+    let vn_only_typed =
+        vn_ascii_syllables().contains(typed_lower) && !is_known_en_word(typed_lower);
+    if !is_valid_word(&folded_chars) && !vn_only_typed {
         for l in EN_FREQ_DATA.lines() {
             let l = l.trim();
             if !l.is_empty() && !l.starts_with('#') {
@@ -356,6 +385,25 @@ mod tests {
         assert_eq!(complete_word("cac", "cac", &[]), None);
         // Hoàn tất yêu cầu tiền tố nghiêm ngặt — gõ đủ "kpi" không tự kéo dài.
         assert_eq!(complete_word("kpi", "kpi", &[]), None);
+    }
+
+    /// R2-4/R2-56 (vòng 37): tiền tố là âm tiết Việt KHÔNG dấu không được quét
+    /// freq/tech thành từ EN — "cac" (các thiếu dấu) KHÔNG được → "cache" dù
+    /// "cache" đã nằm trong freq-list domain; "dat" (đắt/đất) không → "date";
+    /// "bac" (bạc/bách) không → "back". Chặn tái diễn cả họ lỗi FPR này.
+    #[test]
+    fn r2_4_vn_ascii_prefix_not_completed_to_en() {
+        assert_eq!(complete_word("cac", "cac", &[]), None);
+        assert_eq!(complete_word("dat", "dat", &[]), None);
+        assert_eq!(complete_word("bac", "bac", &[]), None);
+        // Đối chứng dương: tiền tố KHÔNG phải âm tiết Việt vẫn hoàn tất bình
+        // thường ("gith" → "github" — từ domain tech mới của vòng 37).
+        assert_eq!(
+            complete_word("gith", "gith", &[]),
+            Some("github".to_string())
+        );
+        // Từ EN đã biết (trong freq/en_common) không bị guard chặn tiền tố.
+        assert_eq!(complete_word("lot", "lot", &[]), Some("lots".to_string()));
     }
 
     /// R2-58: `đ` trong token không nguyên âm (giá tiền, chữ viết tắt) giữ nguyên.
