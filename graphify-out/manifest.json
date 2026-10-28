@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "core/src/post/restore_en.rs": {
-    "mtime": 1792917420.2350028,
-    "seen": 1792919822.6658537,
-    "ast_hash": "57a1b4cb31f0827afca3fb8a3f3fdb82",
+    "mtime": 1793199900.9409482,
+    "seen": 1793200537.9632995,
+    "ast_hash": "5e2ceadc106c739a69e51534ce8f084e",
     "semantic_hash": ""
   },
   "core/src/transform/diacritic_style.rs": {
@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "xtask/src/main.rs": {
-    "mtime": 1791617098.312215,
-    "seen": 1791702628.18752,
-    "ast_hash": "7e86959dd847d3c3ad8dd013a814af3e",
+    "mtime": 1793200059.1999218,
+    "seen": 1793200537.9782794,
+    "ast_hash": "bf643f4b7a27bb31f4bd6bfdf2eafd30",
     "semantic_hash": ""
   },
   "xtask/src/toml.rs": {
@@ -2304,9 +2304,9 @@
     "semantic_hash": ""
   },
   "data/en_freq3000.txt": {
-    "mtime": 1792297941.9982822,
-    "seen": 1792306932.4882672,
-    "ast_hash": "36b741602ac2385c126854725dfcf1b2",
+    "mtime": 1793199871.109282,
+    "seen": 1793200537.9812791,
+    "ast_hash": "4291ba11645c617f0e7b565350221471",
     "semantic_hash": ""
   },
   "data/vn_freq3000.txt": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "assist/src/lib.rs": {
-    "mtime": 1793131038.4215314,
-    "seen": 1793148069.825825,
-    "ast_hash": "64baccb8961f9e50ef538298698516ec",
+    "mtime": 1793164356.2661977,
+    "seen": 1793200537.9592621,
+    "ast_hash": "01fcd5e2596ced1e0ac84662461b112a",
     "semantic_hash": ""
   },
   "assist/src/mask.rs": {
@@ -2418,9 +2418,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1793131644.8150196,
-    "seen": 1793148069.8268278,
-    "ast_hash": "ce43ee823384ee9f2f62b73935a52ed8",
+    "mtime": 1793164356.2661977,
+    "seen": 1793200537.9592621,
+    "ast_hash": "cea7451ad5260cf3dca62e150221277d",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
@@ -2442,9 +2442,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/language.rs": {
-    "mtime": 1792901725.1120481,
-    "seen": 1792902005.8469222,
-    "ast_hash": "a1eb89cbaeff4fe7a6051d67a70c943e",
+    "mtime": 1793164252.8448553,
+    "seen": 1793200537.9592621,
+    "ast_hash": "45a1b8141042003344132d83053596ae",
     "semantic_hash": ""
   },
   "assist/tests/corpus.rs": {
@@ -2862,9 +2862,9 @@
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1792989193.9103868,
-    "seen": 1792993362.179309,
-    "ast_hash": "145ef8d71d98df47c48ea55feee27ca4",
+    "mtime": 1793200299.4586973,
+    "seen": 1793200537.9642982,
+    "ast_hash": "c2abdac09bd58810f4bec11726ea6fa8",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
@@ -2928,15 +2928,27 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/os_spell.rs": {
-    "mtime": 1793123591.8640683,
-    "seen": 1793126763.3065622,
-    "ast_hash": "9e2f304fa74a60b696eef1c214d26ff9",
+    "mtime": 1793199345.6686947,
+    "seen": 1793200537.958262,
+    "ast_hash": "4ce0ad6ae5754cc8523f3a9291bc6c03",
     "semantic_hash": ""
   },
   "assist/src/rules/en_confusions.rs": {
-    "mtime": 1793131735.532671,
-    "seen": 1793148069.8268278,
-    "ast_hash": "e39e082d30079b845087fb36cc8fdeea",
+    "mtime": 1793200414.2831397,
+    "seen": 1793200537.9592621,
+    "ast_hash": "c247ba81806eacd032e2328b56f809a9",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/en_spelling.rs": {
+    "mtime": 1793199362.4450555,
+    "seen": 1793200537.9592621,
+    "ast_hash": "891f6b9df70a85e59d8cc83023896207",
+    "semantic_hash": ""
+  },
+  "xtask/src/gen_en_phrases.rs": {
+    "mtime": 1793200414.6153831,
+    "seen": 1793200537.9773037,
+    "ast_hash": "ac45312e7bca591162c74d6230249e16",
     "semantic_hash": ""
   }
 }
