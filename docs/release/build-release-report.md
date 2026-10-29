@@ -1,6 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
-## Bản 0.2.52 — Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện (vòng 37 / AS-060)
+## Bản 0.2.53 — SVA contraction + VN collocation +7 + EN Tab completion mở (vòng 38)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **EN SVA contraction** (vòng 37-38): tokenizer tách dấu nháy ("don't" = don + ' + t) làm luật hòa hợp chủ-vị luột qua MỌI câu coast rút gọn — `merge_contractions` gộp `Word + ' + Word` KỀ NHAU thành 1 token logic trước khi so cặp ("He don't" → "doesn't"; "If I were you" subjunctive tôn trọng). **VN collocation +7** (user probe): sẳn sàng→sẵn, chần chờ→chừ, cần mẩn→mẫn, cố găng→gắng, bàng hoang→hoàng, giành giựt→giật + PHRASE_FIXES thay trọn cụm ("trực trặc" → "trúc trắc"). **EN Tab completion mở cho từ CHƯA fold** khi dự đoán bật ("develop" + Tab → "developed"; tắt dự đoán giữ hành vi cũ) — ghost preview EN hoạt động cùng cơ chế |
+| Đo | **791 test** · FPR **0/981** · VN FP probe thành ngữ/láy **0/26** ("song song" sạch) · EN FP **0/19** · EN recall 12/14 + VN collocation recall 7/7 sau fix · clippy 0 · cross-check Linux · preflight 23/23 |
+| CI trên commit gắn tag 3284d6b | 7/7 xanh (windows typing flake 1 lần — rerun xanh theo B5; macos mid-run tự phục hồi) |
+| Release | v0.2.53 tag ký GPG — release-candidate 4/4 job; **34 asset**; GPG Good; 9/9 hash khớp |
+| Checksums | machine exe `84f3f43b…568f` · MSIX `01724e10…f062` · mac zip `1d5545f8…02e1` · PKGBUILD archive `0281be51…97e9` |
+| Homebrew (B7b) | cask `version "0.2.53"` + `sha256` = mac zip `1d5545f8…02e1` — sync-cask [#40912165512](https://github.com/hunglinhpt/homebrew-tap/actions/runs/40912165512) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO = archive v0.2.53 `0281be51…97e9` |
+| PPA (B7f) | debian/changelog `0.2.53-0ppa1` |
+| approved (B7c) | `approved/v0.2.53/` — 34 file byte-identical, raw URL 200 |
+
+## Bản 0.2.52## Bản 0.2.52 — Trợ lý ngữ pháp & Text Prediction tiếng Anh toàn diện (vòng 37 / AS-060)
 
 | Hạng mục | Bằng chứng |
 |---|---|
