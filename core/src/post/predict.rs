@@ -18,6 +18,112 @@ use crate::post::suggest_vn::VN_FREQ_DATA;
 use crate::transform::charset::strip_diacritics;
 use crate::transform::tone::normalize_tone;
 use crate::transform::DiacriticStyle;
+use std::sync::OnceLock;
+
+// ---------------------------------------------------------------------------
+// Vòng 41 (perf audit): dữ liệu tĩnh parse **MỘT LẦN** qua OnceLock.
+//
+// `predict_prefix_candidates` và `predict_next_phrase_matches` chạy **mỗi
+// phím** khi dự đoán bật; quét ~6.000 dòng `lines()` + split/parse TSV mỗi
+// gọi đo được ~0,7 ms (release, `core/tests/perf_probe.rs`). Cache tĩnh cắt
+// phần parse; so khớp tiền tố / đuôi ngữ cảnh vẫn per-call theo input.
+// ---------------------------------------------------------------------------
+
+fn vn_freq_lines() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        VN_FREQ_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
+/// Từ ghép kèm trọng số: `(word, weight)`.
+fn vn_compounds() -> &'static [(&'static str, u32)] {
+    static CACHE: OnceLock<Vec<(&'static str, u32)>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        VN_COMPOUNDS_DATA
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    return None;
+                }
+                let mut parts = line.split('\t');
+                let word = parts.next().unwrap_or("").trim();
+                let weight: u32 = parts
+                    .next()
+                    .and_then(|w| w.trim().parse().ok())
+                    .unwrap_or(50);
+                if word.is_empty() {
+                    return None;
+                }
+                Some((word, weight))
+            })
+            .collect()
+    })
+}
+
+fn en_common_lines() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        EN_COMMON_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
+fn en_freq_lines() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        EN_FREQ_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
+/// Hàng TSV ngữ cảnh đã parse: `(key, prediction, weight)`.
+type PhraseRow = (&'static str, &'static str, u32);
+
+fn vn_phrase_rows() -> &'static [PhraseRow] {
+    static CACHE: OnceLock<Vec<PhraseRow>> = OnceLock::new();
+    CACHE.get_or_init(|| parse_phrase_rows(VN_PHRASES_DATA))
+}
+
+fn en_phrase_rows() -> &'static [PhraseRow] {
+    static CACHE: OnceLock<Vec<PhraseRow>> = OnceLock::new();
+    CACHE.get_or_init(|| parse_phrase_rows(EN_PHRASES_DATA))
+}
+
+fn parse_phrase_rows(data: &'static str) -> Vec<PhraseRow> {
+    data.lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                return None;
+            }
+            let mut parts = line.split('\t');
+            let (Some(key), Some(pred)) = (parts.next(), parts.next()) else {
+                return None;
+            };
+            let (key, pred) = (key.trim(), pred.trim());
+            if key.is_empty() || pred.is_empty() {
+                return None;
+            }
+            let weight: u32 = parts
+                .next()
+                .and_then(|w| w.trim().parse().ok())
+                .unwrap_or(50);
+            Some((key, pred, weight))
+        })
+        .collect()
+}
 
 /// Đặt lại dấu thanh từng từ theo `style` (`hòa` ↔ `hoà`, `thủy` ↔ `thuỷ`).
 ///
@@ -98,11 +204,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
     if is_vi {
         // 1a. Tra cứu âm tiết đơn tần suất cao (data/vn_freq3000.txt)
         // Ưu tiên hoàn tất âm tiết đang gõ dở
-        for line in VN_FREQ_DATA.lines() {
-            let syll = line.trim();
-            if syll.is_empty() || syll.starts_with('#') {
-                continue;
-            }
+        for &syll in vn_freq_lines() {
             if starts(syll) && !same(syll) && !ranked.iter().any(|c| c.word == syll) {
                 ranked.push(PrefixCandidate {
                     word: syll.to_string(),
@@ -114,19 +216,8 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         }
 
         // 1b. Tra cứu từ ghép tiếng Việt (data/vn_compounds.txt)
-        for line in VN_COMPOUNDS_DATA.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-            let mut parts = line.split('\t');
-            let word = parts.next().unwrap_or("").trim();
-            let weight: u32 = parts
-                .next()
-                .and_then(|w| w.trim().parse().ok())
-                .unwrap_or(50);
-
-            if word.is_empty() || same(word) {
+        for &(word, weight) in vn_compounds() {
+            if same(word) {
                 continue;
             }
 
@@ -172,11 +263,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
     }
 
     // en_common
-    for line in EN_COMMON_DATA.lines() {
-        let word = line.trim();
-        if word.is_empty() || word.starts_with('#') {
-            continue;
-        }
+    for &word in en_common_lines() {
         if word.starts_with(typed_lower)
             && word != typed_lower
             && !ranked.iter().any(|c| c.word == word)
@@ -191,11 +278,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
     }
 
     // en_freq3000
-    for line in EN_FREQ_DATA.lines() {
-        let word = line.trim();
-        if word.is_empty() || word.starts_with('#') {
-            continue;
-        }
+    for &word in en_freq_lines() {
         if word.starts_with(typed_lower)
             && word != typed_lower
             && !ranked.iter().any(|c| c.word == word)
@@ -277,8 +360,8 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
 
     // (độ dài khoá, trọng số, dự đoán, số từ của khoá)
     let mut matches: Vec<(usize, u32, &'static str, usize)> = Vec::new();
-    for data in [VN_PHRASES_DATA, EN_PHRASES_DATA] {
-        collect_phrase_matches(data, &context_lower, &mut matches);
+    for rows in [vn_phrase_rows(), en_phrase_rows()] {
+        collect_phrase_matches(rows, &context_lower, &mut matches);
     }
 
     // Xếp theo: key_len lớn hơn (trigram > bigram) -> weight cao hơn
@@ -300,30 +383,19 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
     out
 }
 
-/// Quét một bảng TSV `context \t prediction \t weight` — khoá phải khớp đuôi
-/// ngữ cảnh **trọn từ** (trước khoá là đầu chuỗi / khoảng trắng / dấu câu).
+/// So khoá khớp đuôi ngữ cảnh **trọn từ** (trước khoá là đầu chuỗi / khoảng
+/// trắng / dấu câu). Vòng 41 (perf): nhận hàng ĐÃ parse từ OnceLock —
+/// split/parse TSV chạy một lần lúc khởi động, phần per-call chỉ còn
+/// `ends_with` + kiểm ranh giới từ.
 fn collect_phrase_matches(
-    data: &'static str,
+    rows: &[PhraseRow],
     context_lower: &str,
     out: &mut Vec<(usize, u32, &'static str, usize)>,
 ) {
-    for line in data.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
+    for &(key, pred, weight) in rows {
+        if !context_lower.ends_with(key) {
             continue;
         }
-        let mut parts = line.split('\t');
-        let (Some(key), Some(pred)) = (parts.next(), parts.next()) else {
-            continue;
-        };
-        let (key, pred) = (key.trim(), pred.trim());
-        if key.is_empty() || pred.is_empty() || !context_lower.ends_with(key) {
-            continue;
-        }
-        let weight: u32 = parts
-            .next()
-            .and_then(|w| w.trim().parse().ok())
-            .unwrap_or(50);
         // Ranh giới từ ở đầu khoá (byte trước khoá; ký tự nhiều byte có byte
         // cuối là continuation byte nên không bao giờ trùng các byte ASCII này).
         let prefix_len = context_lower.len() - key.len();
