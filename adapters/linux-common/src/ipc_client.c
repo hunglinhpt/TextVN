@@ -334,11 +334,42 @@ static int try_connect(lc_ipc_client *client) {
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) return -1;
 
+    /* Vòng 40 (audit Linux T1): connect PHẢI non-blocking với timeout ngắn —
+     * hàm này chạy trên ĐƯỜNG PHÍM (focus-in, đầu từ). Nếu tray treo với
+     * backlog đầy, connect blocking xếp hàng chờ VÔ HẠN ⇒ bàn phím đóng băng
+     * tới khi tray hồi phục. Đặt O_NONBLOCK TRƯỚC connect, chờ POLLOUT tối
+     * đa 200ms qua poll + SO_ERROR; hết giờ thì coi như offline (giống nhánh
+     * connect lỗi — fail-open, đợi lần poll sau). */
+    int flags0 = fcntl(fd, F_GETFL, 0);
+    if (flags0 >= 0) {
+        fcntl(fd, F_SETFL, flags0 | O_NONBLOCK);
+    }
     if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
-        close(fd);
-        client->is_online = 0;
-        client->fd = -1;
-        return -1;
+        if (errno != EINPROGRESS) {
+            close(fd);
+            client->is_online = 0;
+            client->fd = -1;
+            return -1;
+        }
+        struct pollfd pfd;
+        pfd.fd = fd;
+        pfd.events = POLLOUT;
+        pfd.revents = 0;
+        int pret = poll(&pfd, 1, 200);
+        if (pret <= 0) {
+            close(fd);
+            client->is_online = 0;
+            client->fd = -1;
+            return -1;
+        }
+        int so_err = 0;
+        socklen_t err_len = sizeof(so_err);
+        if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &so_err, &err_len) != 0 || so_err != 0) {
+            close(fd);
+            client->is_online = 0;
+            client->fd = -1;
+            return -1;
+        }
     }
 
 #if defined(__linux__) && defined(SO_PEERCRED)
