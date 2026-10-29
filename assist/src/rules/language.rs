@@ -172,7 +172,23 @@ pub fn classify_tokens(chars: &[char], tokens: &[Token]) -> Option<Lang> {
         return Some(Lang::En);
     }
     if en_words >= MIN_EN_FUNCTION_WORDS {
-        Some(Lang::En)
+        return Some(Lang::En);
+    }
+    // Vòng 41 (probe đối kháng "y kiến hay"): câu có NEO DẤU VIỆT (≥1 từ có
+    // dấu) nhưng tín hiệu yếu (<2 từ dấu, <2 từ chức năng EN) — trước đây trả
+    // None ⇒ **TOÀN BỘ assist tắt** trên câu mix ngắn (kể cả lặp từ/cụm từ
+    // không được bắt). Luật VI tự chặn trên từ không dấu (thiết kế vòng 24:
+    // diacritic cần TYPOS entry, repeat có whitelist theo từ) nên neo-dấu ⇒
+    // Vi an toàn. KHÔNG có dấu Việt nào ⇒ không đoán (giữ fail-open None —
+    // chuỗi lạ/ngoại lai không bị đụng).
+    let has_diacritic = tokens.iter().any(|t| {
+        t.kind == TokenKind::Word
+            && chars[t.start..t.end]
+                .iter()
+                .any(|&c| is_vietnamese_letter(c))
+    });
+    if has_diacritic {
+        Some(Lang::Vi)
     } else {
         None
     }

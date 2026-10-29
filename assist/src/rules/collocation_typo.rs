@@ -75,6 +75,22 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     // ("hoc" là âm tiết hợp lệ) nhưng bigram gần như một nghĩa — sửa từ 1,
     // từ 2 giữ nguyên phải là từ đúng sẵn ("sinh").
     ("hoc", "sinh", 0, "học"),
+    // Vòng 41 (batch 2 — mỗi cặp đã probe nghĩa sống cả 2 chiều: "y" không
+    // đứng trước "kiến/tưởng" với nghĩa khác; "binh" hợp lệ lẻ nhưng "binh
+    // thường" không; "tuyệt đôi/vơi", "cổ vấn", "lao dộng", "nghỉ ngợi",
+    // "lắm việc" BỊ LOẠI vì nghĩa sống "lắm việc thật").
+    ("y", "kiến", 0, "ý"),
+    ("y", "tưởng", 0, "ý"),
+    ("binh", "thường", 0, "bình"),
+    ("tuyệt", "đôi", 1, "đối"),
+    ("tuyệt", "vơi", 1, "vời"),
+    ("cổ", "vấn", 0, "cố"),
+    ("hướng", "dẩn", 1, "dẫn"),
+    ("lợi", "nhuần", 1, "nhuận"),
+    ("bồi", "dưởng", 1, "dưỡng"),
+    ("phầm", "mềm", 0, "phần"),
+    ("lao", "dộng", 1, "động"),
+    ("nghỉ", "ngợi", 1, "ngơi"),
 ];
 
 /// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.
