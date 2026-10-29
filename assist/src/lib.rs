@@ -225,6 +225,9 @@ fn check_with_internal(
     // học article_an R2-28).
     rules::en_confusions::check_confusions(&ctx, &mut issues);
     rules::en_confusions::check_pronoun(&ctx, &mut issues);
+    // Vòng 40 (RH-2, R2 persona): từ EN thừa trùng nghĩa trong câu Việt
+    // ("đã been hủy", "trước before 17h") — cặp đóng, suggestion-only.
+    rules::en_confusions::check_redundant_mix(&ctx, &mut issues);
     // Vòng 37 (AS-060): EN spelling qua OS spell API — CHỈ câu En-dominant,
     // suggest-only, gate khoảng cách Damerau ≤ 2 (FPR bar); NoDictionary im lặng.
     rules::en_spelling::check(&ctx, &mut issues);

@@ -398,3 +398,106 @@ lặng lẽ lặng lẽ
 liên tục liên tục
 khách hàng hàng đầu
 hồ sơ sơ yếu lý lịch
+# ---- (6) vòng 40: từ láy X X còn thiếu (FPR-1: 'chăm chăm'/'chằm chằm' bị tự xoá) ----
+chăm chăm
+chằm chằm
+chào chào
+hăm hăm
+yên yên
+kín kín
+sai sai
+như như
+ực ực
+hự hự
+chớp chớp
+làn làn
+lấp lấp
+lêu lêu
+lù lù
+mưa mưa
+sồn sồn
+sừ sừ
+trăn trăn
+trầm trầm
+tút tút
+nghiêng nghiêng
+nhòe nhòe
+nhún nhún
+
+# ---- (7) vòng 40: thành ngữ / tục ngữ thường gặp (<= 9 am tiet) ----
+học ăn học nói học gói học mở
+học thầy không tày học bạn
+học một biết mười
+muốn biết đường đi trước hỏi người đi trước
+đi một ngày đàng học một sàng khôn
+trăm nghe không bằng một thấy
+ba cây chụm lại nên hòn núi cao
+một con ngựa đau cả tàu bỏ cỏ
+năng nhặt chặt xới
+kiến tha lâu cũng đầy tổ
+anh em như thể tay chân
+không thầy đỗ mày
+có chí thì nên
+gần bùn mà chẳng hôi tanh mùi bùn
+gió đưa gió đẩy
+một trăm cái biết không bằng một cái quen
+nước xa không cứu được lửa gần
+tay hòm chìa khóa
+thêm bạn thêm vui
+thuận vợ thuận chồng
+trống đánh xuôi kèn thổi ngược
+ván đã đóng thuyền
+vỏ quýt dày có móng tay nhọn
+một giọt máu đào hơn ao nước lã
+dãi dầu mưa nắng
+đầu đường xó chợ
+được voi đòi tiên
+gãi đúng chỗ ngứa
+già né gió trẻ né mưa
+kính lão đắc thọ
+làm dâu trăm họ
+mắm muối đời còn
+nóng mặt hổ hang
+ngọt nhạt có nhau
+sông cạn đá mòn
+sống gửi thác về
+tay không bắt giặc
+thủy chung son sắt
+tiên trách kỷ hậu trách nhân
+tối lửa tắt đèn
+trâu chậm uống nước đục
+trèo cao ngã nặng
+vạn sự tùy duyên
+bàng hoàng hụt hẫng
+bóng gió đục khoét
+chân tay vặt vãnh
+công khai minh bạch
+dở khóc dở cười
+gậy ông đập lưng ông
+góp gió thành bão
+hàng xóm láng giềng
+hăng hái nhiệt tình
+lời qua tiếng lại
+lòng lang dạ thú
+một lòng một dạ
+ngồi mát ăn bát vàng
+ngoan ngoãn hiểu chuyện
+ngọt ngào đường mật
+nói năng lưu loát
+nói thật làm thật
+phép vua thua lệ làng
+phu phụ đồng tâm
+rượu ngon cần bạn hiền
+thì thầm thì thào
+thua keo này bày keo khác
+tóc mai sợi vắn sợi dài
+vàng thau lẫn lộn
+vẹn cả đôi đường
+
+# ---- (8) vòng 40: cụm cố định văn phòng / thư tín ----
+trân trọng thông báo
+trân trọng cảm ơn
+xin chân thành cảm ơn
+xin trân trọng kính mời
+thay mặt ban giám đốc
+kính thưa quý vị

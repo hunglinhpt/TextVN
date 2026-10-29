@@ -53,6 +53,30 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("bàng", "hoang", 1, "hoàng"),
     ("giành", "giựt", 1, "giật"),
     ("hoành", "thành", 0, "hoàn"),
+    // Vòng 40 (R2 persona + mở rộng văn phòng): cặp sai âm tiết — bigram sai
+    // không thể là từ/cụm hợp lệ ("cảm" hợp lệ nhưng "cảm kết" không; "cá",
+    // "trang", "sủa", "nhát" hợp lệ lẻ nhưng cặp kèm từ trước không thể đúng).
+    ("cảm", "kết", 0, "cam"),
+    ("xắp", "xếp", 0, "sắp"),
+    ("chẩn", "bị", 0, "chuẩn"),
+    ("quãng", "cáo", 0, "quảng"),
+    ("miến", "phí", 0, "miễn"),
+    ("hớp", "đồng", 0, "hợp"),
+    ("thăm", "gia", 0, "tham"),
+    ("hộp", "hành", 0, "họp"),
+    ("khai", "tác", 1, "thác"),
+    ("khảo", "sác", 1, "sát"),
+    ("chỉnh", "sủa", 1, "sửa"),
+    ("đanh", "giá", 0, "đánh"),
+    ("hoành", "trang", 1, "tráng"),
+    ("duy", "nhát", 1, "nhất"),
+    ("trãi", "nghiệm", 0, "trải"),
+    ("báo", "cá", 1, "cáo"),
+    ("hoàn", "tòan", 1, "toàn"),
+    // RH-3 (R2 persona giáo viên): âm tiết Việt KHÔNG DẤU mơ hồ riêng lẻ
+    // ("hoc" là âm tiết hợp lệ) nhưng bigram gần như một nghĩa — sửa từ 1,
+    // từ 2 giữ nguyên phải là từ đúng sẵn ("sinh").
+    ("hoc", "sinh", 0, "học"),
 ];
 
 /// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.

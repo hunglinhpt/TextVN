@@ -92,7 +92,11 @@ public final class KeyTranslator {
     private static var cachedSourceID: String?
 
     static func currentLayoutData() -> Data? {
-        let source = TISCopyCurrentKeyboardLayoutInputSource().takeRetainedValue()
+        // Vòng 40 (audit macOS LOW-3): TIS có thể trả NULL (input source
+        // không phải keyboard layout) — force unwrap là trap crash IM.
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue() else {
+            return nil
+        }
         let sourceID = Self.sourceID(of: source)
         if sourceID == cachedSourceID, let data = cachedLayout {
             return data

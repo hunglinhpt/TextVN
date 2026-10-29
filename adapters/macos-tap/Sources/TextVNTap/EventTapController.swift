@@ -366,7 +366,10 @@ final class TapTranslator {
 
 enum LayoutCache {
     static var current: Data? {
-        let source = TISCopyCurrentKeyboardLayoutInputSource().takeRetainedValue()
+        // Vòng 40 (audit macOS LOW-3): TIS trả NULL → guard, không force unwrap.
+        guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue() else {
+            return nil
+        }
         guard let ptr = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
             return nil
         }

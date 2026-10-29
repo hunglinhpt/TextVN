@@ -231,6 +231,8 @@ public func assistKindName(_ kind: UInt32) -> String {
     case FFI.assistKindCommaAtEnd: return "comma_at_end"
     case FFI.assistKindSpelling: return "spelling"
     case FFI.assistKindArticleAn: return "article_an"
+    case FFI.assistKindWordConfusion: return "word_confusion"
+    case FFI.assistKindLowercasePronoun: return "lowercase_pronoun"
     default: return "unknown"
     }
 }

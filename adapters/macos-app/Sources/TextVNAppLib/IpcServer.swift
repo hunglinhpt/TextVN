@@ -315,6 +315,11 @@ public final class IpcServer {
                     protocolViolation(cfd, "frame")
                 }
             }
+        } else if bytesRead < 0 && errno == EINTR {
+            // Vòng 40 (audit macOS LOW-1): đọc bị ngắt bởi signal — client
+            // còn sống, đợi lần poll sau, KHÔNG ngắt kết nối oan (khớp nhánh
+            // EINTR của IpcClient.swift).
+            return
         } else if bytesRead == 0 || (bytesRead < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
             closeClient(cfd)
         }
@@ -341,8 +346,11 @@ public final class IpcServer {
     /// (và Snapshot vượt 64KB → encodeFrame nil → client thật không nhận Snapshot).
     /// Chấp nhận bundle-id/lowercase/dot/dash/gạch dưới; cap 256 ký tự (giống
     /// giới hạn app_id phía FFI), cap tổng số mục.
+    /// Vòng 40 (audit macOS LOW-6): 256 mục × app_id 256 byte ≈ 70KB VƯỢT
+    /// maxFrameLength 65536 → encodeFrame trả nil → Snapshot bị drop IM
+    /// LẶNG. Hạ cap còn 200 mục (200×256 = 51.2KB + khung header < 64KB).
     static let maxAppIDLength = 256
-    static let maxAppStateEntries = 256
+    static let maxAppStateEntries = 200
 
     static func isValidAppID(_ appID: String) -> Bool {
         guard appID.count <= maxAppIDLength, !appID.isEmpty else { return false }

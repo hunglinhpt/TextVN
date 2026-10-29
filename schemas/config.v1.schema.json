@@ -18,7 +18,7 @@
     },
     "diacritic_style": {
       "enum": ["new", "old"],
-      "default": "new",
+      "default": "old",
       "$comment": "new = hoà (dau o am cuoi), old = hòa (dau o am dau) - bug B12"
     },
     "free_marking": { "type": "boolean", "default": true },

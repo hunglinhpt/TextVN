@@ -580,3 +580,35 @@ fn r2_134_peek_completion_xem_truoc_dung_phan_tab_noi_them() {
     assert_eq!(typed(&mut off, "phats trieenr"), "phát triển");
     assert_eq!(off.peek_completion(), None);
 }
+
+/// Vòng 40: dự đoán theo role văn phòng — khoá mới trong vn_phrases.tsv/en_phrases.tsv
+/// khớp đuôi ngữ cảnh trọn từ, gợi ý cụm đúng role.
+#[test]
+fn du_doan_theo_role_van_phong() {
+    use textvn_core::post::predict::predict_next_phrase_candidates;
+
+    // Kế toán: "hóa đơn " → "điện tử"
+    assert!(predict_next_phrase_candidates("hóa đơn ", 5).contains(&"điện tử".to_string()));
+    // Nhân sự: "nghỉ phép " → "từ ngày"
+    assert!(
+        predict_next_phrase_candidates("tôi xin nghỉ phép ", 5).contains(&"từ ngày".to_string())
+    );
+    // Kinh doanh: "đơn hàng " → "sẽ được giao"
+    assert!(
+        predict_next_phrase_candidates("đơn hàng ", 5).contains(&"sẽ được giao".to_string()),
+        "đơn hàng => {:?}",
+        predict_next_phrase_candidates("đơn hàng ", 5)
+    );
+    // CSKH: "quý khách vui lòng " → "chờ trong ít phút"
+    assert!(predict_next_phrase_candidates("quý khách vui lòng ", 8)
+        .contains(&"chờ trong ít phút".to_string()));
+    // Giáo viên: "bài tập " → "về nhà"
+    assert!(predict_next_phrase_candidates("bài tập ", 5).contains(&"về nhà".to_string()));
+    // EN email: "looking forward to " → "hearing from you"
+    assert!(predict_next_phrase_candidates("looking forward to ", 5)
+        .contains(&"hearing from you".to_string()));
+    // Khoá phải khớp TRỌN TỪ: "hóa đơn" không khớp trong "máy hóa đơnxy"
+    assert!(!predict_next_phrase_candidates("máy hóa đơnxy ", 5).contains(&"điện tử".to_string()));
+    // Xuống dòng = không dự đoán nối.
+    assert!(predict_next_phrase_candidates("kính gửi\n", 5).is_empty());
+}

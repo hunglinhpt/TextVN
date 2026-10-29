@@ -45,8 +45,9 @@ const VI_SKIP_WORDS: &[&str] = &[
     "không", "gì", "sao", "đâu", "nhé", "nhá", "chứ", "nhỉ", "nào", "thôi", "cứ", "đấy", "này",
     "kia", "ấy", "đó", "ư", "ha", "à", // mệnh lệnh/hướng
     "đi", "lên", "xuống", "ra", "vào", "xem", "thử", // tình thái/thời gian
-    "rồi", "nữa", "vẫn", "cũng", "đều", "còn", "chưa", "sẽ", "thì", "mà", "là", "của", "và",
-    "nhưng", "hoặc", "vì", "nếu", "dù", "tuy", "lắm", "quá", "thế", // số từ đếm
+    // ("sẽ" KHÔNG skip — "sẽ xác nhận lại sẽ xác nhận lại" là lỗi thật, RH-1)
+    "rồi", "nữa", "vẫn", "cũng", "đều", "còn", "chưa", "thì", "mà", "là", "của", "và", "nhưng",
+    "hoặc", "vì", "nếu", "dù", "tuy", "lắm", "quá", "thế", // số từ đếm
     "một", "hai", "ba", "bốn", "sáu", "bảy", "tám", "chín", "mười",
 ];
 
@@ -63,97 +64,142 @@ const EN_SKIP_WORDS: &[&str] = &[
 /// nhắc lại có chủ ý, không phải lỗi.
 const IMPERATIVE_AFTER: &[&str] = &["đi", "nhé", "nhá", "nào", "thôi", "cứ", "đấy", "xem", "thử"];
 
-/// Bat loi lap cum 2 tu: X Y X Y (4 tu lien tiep, 3 dau cach don).
+/// Bat loi lap cum lien ke: 2 tu (X Y X Y), 3 tu (X Y Z X Y Z) hoac 4 tu
+/// (X Y Z T X Y Z T).
+///
+/// Vòng 40 (R2 persona RH-1): lặp CỤM ≥ 3 TỪ ("đã hoàn thành đã hoàn thành",
+/// "sẽ xác nhận lại sẽ xác nhận lại") là dạng paste-double phổ biến nhất ở
+/// văn phòng — chỉ quét cửa sổ 2 từ là lọt. Các cụm lồng nhau ("thanh toán"
+/// ⊂ "đã thanh toán đã thanh toán") được dedup giữ cụm DÀI nhất.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     if looks_like_code_or_list(ctx) {
         return;
     }
-    // Layout token: [p0][sp][p1][sp][q0][sp][q1] — q1 ở vị trí `i`.
-    for i in 6..ctx.tokens.len() {
-        let (p0, p1, q0, q1) = (
-            ctx.tokens[i - 6],
-            ctx.tokens[i - 4],
-            ctx.tokens[i - 2],
-            ctx.tokens[i],
-        );
-        if ![p0, p1, q0, q1].iter().all(is_word) {
+    let mut found: Vec<Issue> = Vec::new();
+    for window_size in [2usize, 3usize, 4usize] {
+        // Cửa sổ gồm 2*ws từ xen 2*ws-1 dấu cách → 4*ws-1 token, kết thúc tại `i`.
+        let span_tokens = 4 * window_size - 1;
+        if ctx.tokens.len() < span_tokens {
             continue;
         }
-        // 3 dấu cách đơn giữa các từ.
-        let single_space = |k: usize| {
-            let t = &ctx.tokens[k];
-            t.kind == TokenKind::Space && t.len() == 1 && ctx.chars[t.start] == ' '
-        };
-        if !single_space(i - 5) || !single_space(i - 3) || !single_space(i - 1) {
-            continue;
+        for i in (span_tokens - 1)..ctx.tokens.len() {
+            check_window(ctx, i, window_size, &mut found);
         }
-        let texts: Vec<String> = [p0, p1, q0, q1].iter().map(|t| ctx.token_text(t)).collect();
-        // Mỗi từ ≥ 2 ký tự ("à ơi à ơi" hát — không đụng).
-        if texts.iter().any(|t| t.chars().count() < 2) {
-            continue;
-        }
-        let lower = |t: &str| t.to_lowercase();
-        let (ph1, ph2) = (
-            format!("{} {}", lower(&texts[0]), lower(&texts[1])),
-            format!("{} {}", lower(&texts[2]), lower(&texts[3])),
-        );
-        if ph1 != ph2 {
-            continue;
-        }
-        // HOA toàn phần = nhấn mạnh/đầu thư, không phải lỗi gõ.
-        if texts
-            .iter()
-            .all(|t| t.chars().next().is_some_and(|c| c.is_uppercase()))
-        {
-            continue;
-        }
-        let words: Vec<&str> = ph1.split(' ').collect();
-        // Cụm xã giao idiomatic.
-        if PHRASE_WHITELIST.contains(&ph1.as_str()) {
-            continue;
-        }
-        // Whitelist từ đơn + từ hỏi/số/tình trạng: lặp chứa từ này là kiểu nói.
-        let skipped = words.iter().any(|w| {
-            let ascii = w.chars().all(|c| c.is_ascii_alphabetic());
-            let base: &[&str] = if ascii { EN_SKIP_WORDS } else { VI_SKIP_WORDS };
-            let intentional: &[&str] = if ascii {
-                EN_INTENTIONAL_REPEATS
-            } else {
-                INTENTIONAL_REPEATS
-            };
-            base.contains(w) || intentional.contains(w)
-        });
-        if skipped {
-            continue;
-        }
-        let start = q0.start;
-        let end = q1.end;
-        if in_quotes(ctx, start) || ctx.is_masked(start, end) {
-            continue;
-        }
-        // Kết thúc câu ngay sau bản sao 2 ("Nhanh lên nhanh lên!") = lặp kiểu
-        // nói — chỉ bắt khi sau cụm còn ít nhất một từ nữa.
-        let has_word_after = ctx.tokens[i + 1..].iter().any(is_word);
-        if !has_word_after {
-            continue;
-        }
-        // Trợ từ mệnh lệnh ngay sau ("ăn cơm ăn cơm đi nhé") = lời nhắc lại.
-        if let Some(next) = ctx.tokens[i + 1..].iter().find(|t| is_word(t)) {
-            if IMPERATIVE_AFTER.contains(&ctx.token_text(next).to_lowercase().as_str()) {
-                continue;
-            }
-        }
-        out.push(issue(
-            IssueKind::DuplicateWord,
-            Span { start, end },
-            format!("Lặp cụm từ: \"{ph1}\""),
-            vec![texts[0].clone() + " " + &texts[1]],
-            Fix::Delete {
-                start: ctx.tokens[i - 3].start,
-                end,
-            },
-        ));
     }
+    // Cửa sổ 2 từ lồng trong cửa sổ 3 từ ("thanh toán" ⊂ "đã thanh toán đã
+    // thanh toán") — giữ bản DÀI (báo 1 lỗi, không double-report).
+    let keep: Vec<bool> = found
+        .iter()
+        .enumerate()
+        .map(|(ai, a)| {
+            !found
+                .iter()
+                .enumerate()
+                .any(|(bi, b)| bi != ai && a.span.start >= b.span.start && a.span.end <= b.span.end)
+        })
+        .collect();
+    out.extend(
+        found
+            .into_iter()
+            .zip(keep)
+            .filter(|(_, k)| *k)
+            .map(|(i, _)| i),
+    );
+}
+
+/// Kiểm tra cụm lặp `window_size` từ KẾT THÚC tại token `i` (bản sao 2).
+fn check_window(ctx: &Ctx, i: usize, window_size: usize, out: &mut Vec<Issue>) {
+    let span_tokens = 4 * window_size - 1;
+    let first = i + 1 - span_tokens;
+    let word_idx: Vec<usize> = (0..2 * window_size).map(|k| first + 2 * k).collect();
+    let space_idx: Vec<usize> = (0..2 * window_size - 1)
+        .map(|k| first + 2 * k + 1)
+        .collect();
+    let single_space = |k: usize| {
+        let t = &ctx.tokens[k];
+        t.kind == TokenKind::Space && t.len() == 1 && ctx.chars[t.start] == ' '
+    };
+    if !word_idx.iter().all(|&k| is_word(&ctx.tokens[k]))
+        || !space_idx.iter().copied().all(single_space)
+    {
+        return;
+    }
+    let texts: Vec<String> = word_idx
+        .iter()
+        .map(|&k| ctx.token_text(&ctx.tokens[k]))
+        .collect();
+    // Mỗi từ ≥ 2 ký tự ("à ơi à ơi" hát — không đụng).
+    if texts.iter().any(|t| t.chars().count() < 2) {
+        return;
+    }
+    let half = window_size;
+    let lower = |t: &str| t.to_lowercase();
+    let ph1 = texts[..half]
+        .iter()
+        .map(|t| lower(t))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let ph2 = texts[half..]
+        .iter()
+        .map(|t| lower(t))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if ph1 != ph2 {
+        return;
+    }
+    // HOA toàn phần = nhấn mạnh/đầu thư, không phải lỗi gõ.
+    if texts
+        .iter()
+        .all(|t| t.chars().next().is_some_and(|c| c.is_uppercase()))
+    {
+        return;
+    }
+    let words: Vec<&str> = ph1.split(' ').collect();
+    // Cụm xã giao idiomatic.
+    if PHRASE_WHITELIST.contains(&ph1.as_str()) {
+        return;
+    }
+    // Whitelist từ đơn + từ hỏi/số/tình trạng: lặp chứa từ này là kiểu nói.
+    let skipped = words.iter().any(|w| {
+        let ascii = w.chars().all(|c| c.is_ascii_alphabetic());
+        let base: &[&str] = if ascii { EN_SKIP_WORDS } else { VI_SKIP_WORDS };
+        let intentional: &[&str] = if ascii {
+            EN_INTENTIONAL_REPEATS
+        } else {
+            INTENTIONAL_REPEATS
+        };
+        base.contains(w) || intentional.contains(w)
+    });
+    if skipped {
+        return;
+    }
+    let start = ctx.tokens[word_idx[half]].start;
+    let end = ctx.tokens[word_idx[2 * half - 1]].end;
+    if in_quotes(ctx, start) || ctx.is_masked(start, end) {
+        return;
+    }
+    // Kết thúc câu ngay sau bản sao 2 ("Nhanh lên nhanh lên!") = lặp kiểu
+    // nói — chỉ bắt khi sau cụm còn ít nhất một từ nữa.
+    let has_word_after = ctx.tokens[i + 1..].iter().any(is_word);
+    if !has_word_after {
+        return;
+    }
+    // Trợ từ mệnh lệnh ngay sau ("ăn cơm ăn cơm đi nhé") = lời nhắc lại.
+    if let Some(next) = ctx.tokens[i + 1..].iter().find(|t| is_word(t)) {
+        if IMPERATIVE_AFTER.contains(&ctx.token_text(next).to_lowercase().as_str()) {
+            return;
+        }
+    }
+    out.push(issue(
+        IssueKind::DuplicateWord,
+        Span { start, end },
+        format!("Lặp cụm từ: \"{ph1}\""),
+        vec![texts[..half].join(" ")],
+        Fix::Delete {
+            start: ctx.tokens[space_idx[half - 1]].start,
+            end,
+        },
+    ));
 }
 
 #[cfg(test)]
@@ -184,6 +230,35 @@ mod tests {
     fn khong_bat_lenh_nhac_lai_co_tro_tu() {
         assert!(check("ăn cơm ăn cơm đi nhé").is_empty());
         assert!(check("về nhà về nhà nào").is_empty());
+    }
+
+    /// Vòng 40 (RH-1, R2 persona): lặp CỤM 3 TỪ (X Y Z X Y Z).
+    #[test]
+    fn bat_lap_cum_3_tu() {
+        assert_eq!(check("Em đã hoàn thành đã hoàn thành bài tập.").len(), 1);
+        assert_eq!(
+            check("Quý khách đã thanh toán đã thanh toán thành công.").len(),
+            1
+        );
+        assert_eq!(check("Tôi sẽ xác nhận lại sẽ xác nhận lại sau.").len(), 1);
+        assert_eq!(check("Shop đã xác nhận đã xác nhận đơn hàng.").len(), 1);
+        // Fix xoá đúng bản sao 2 của cụm 3 từ.
+        let text = "Em đã hoàn thành đã hoàn thành bài tập.";
+        let fixed = crate::apply_auto_fixes(text, &check(text));
+        assert_eq!(fixed, "Em đã hoàn thành bài tập.");
+    }
+
+    #[test]
+    fn bat_cum_4_tu_sat_bien_anh_rui() {
+        // LH: trùng với assist/tests/abnormal.rs — lần chót xác nhận cùng lib.
+        assert_eq!(check("anh đã xác nhận lại đã xác nhận lại rồi").len(), 1);
+    }
+
+    #[test]
+    fn khong_bat_cum_3_tu_hop_le() {
+        // Xã giao/idiomatic vẫn được guard chặn ở cửa sổ 3 từ.
+        assert!(check("một hai ba một hai ba").is_empty());
+        assert!(check("Cô ấy đi nhanh lắm nhanh lắm").is_empty());
     }
 
     #[test]

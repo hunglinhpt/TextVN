@@ -573,8 +573,12 @@ impl EngineSession {
     /// R2-139: chuyển đổi vùng bôi đen theo kiểu gõ + bảng mã đang dùng
     /// (`Engine::convert_selection`). `None` = không đổi gì.
     pub fn convert_selection(&self, text: &str) -> Option<String> {
-        // VNI/Unicode tổ hợp: 1 chữ Việt → 2 ký tự (mỗi ký tự ≤ 4 byte UTF-8).
-        let mut buf = vec![0u8; text.len() * 2 + 64];
+        // Vòng 40 (audit Windows T-2): Unicode TỔ HỢP nở tối đa ~5 byte từ 1
+        // byte input ("ặ" = a + U+0306 + U+0323, 1→5) — buffer ×2 cũ thiếu
+        // cho đoạn dài (> ~60 ký tự) ⇒ FFI trả 0 fail-open ⇒ transcode chết
+        // thầm. Trần trên đường này là MAX_TRANSCODE_CHARS (gate ở
+        // selection_check) nên ×6 vừa đủ và không vượt ngân sách bộ nhớ.
+        let mut buf = vec![0u8; text.len() * 6 + 64];
         let n = textvn_ffi::ime_convert_selection(
             self.instance,
             text.as_ptr().cast(),

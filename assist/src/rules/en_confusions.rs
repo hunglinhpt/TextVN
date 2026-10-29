@@ -187,6 +187,7 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         let a = token_word(ctx, w0);
         let b = token_word(ctx, w1);
         let c = token_word(ctx, w2);
+
         #[cfg(test)]
         if std::env::var("TEXTVN_DEBUG_CONF").as_deref() == Ok("1") {
             eprintln!(
@@ -431,6 +432,71 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
     }
 }
 
+/// Cặp VI-EN TRÙNG NGHĨA kề nhau trong câu Việt (vòng 40, R2 persona RH-2):
+/// "đã been hủy", "trước before 17h", "already đã gửi" — người viết nhét từ
+/// Anh vào khung ngữ pháp Việt, thừa một trong hai. Danh sách ĐÓNG, chỉ cặp
+/// nghĩa-trùng-tuyệt-đối; CHỈ câu Vi-dominant (câu En có ngữ pháp riêng,
+/// "after all" / "today" không bao giờ thừa). Suggestion-only (confidence 60,
+/// không tự xoá) — người dùng quyết giữ từ nào.
+const REDUNDANT_MIX_PAIRS: &[(&str, &str)] = &[
+    ("đã", "been"),
+    ("đã", "already"),
+    ("trước", "before"),
+    ("sau", "after"),
+    ("mai", "tomorrow"),
+    ("nay", "today"),
+];
+
+pub fn check_redundant_mix(ctx: &Ctx, out: &mut Vec<Issue>) {
+    if ctx.lang != Lang::Vi {
+        return;
+    }
+    if super::capitalize_sentence::looks_like_code_or_list(ctx) {
+        return;
+    }
+    for window in ctx.tokens.windows(3) {
+        let (w0, gap, w1) = (&window[0], &window[1], &window[2]);
+        // 2 từ KỀ NHÂU: chỉ cách nhau đúng một dấu cách đơn.
+        if w0.kind != TokenKind::Word || w1.kind != TokenKind::Word {
+            continue;
+        }
+        if gap.kind != TokenKind::Space || gap.len() != 1 || ctx.chars[gap.start] != ' ' {
+            continue;
+        }
+        let a = token_word(ctx, w0);
+        let b = token_word(ctx, w1);
+        if a.is_empty() || b.is_empty() || ctx.is_masked(w0.start, w1.end) {
+            continue;
+        }
+        let hit = REDUNDANT_MIX_PAIRS
+            .iter()
+            .any(|&(x, y)| (a == x && b == y) || (a == y && b == x));
+        if !hit || in_quotes_span(ctx, w0.start) {
+            continue;
+        }
+        out.push(super::issue_suggestion(
+            IssueKind::WordConfusion,
+            crate::Span {
+                start: w0.start,
+                end: w1.end,
+            },
+            format!("Thừa từ trùng nghĩa: \"{a} {b}\" — chỉ cần một trong hai"),
+            vec![a.clone()],
+        ));
+    }
+}
+
+/// Ký tự trước `pos` có nằm trong cặp ngoặc kép không (cùng tiêu chí
+/// duplicate_word::in_quotes — lời trích nguyên văn không phải lỗi).
+fn in_quotes_span(ctx: &Ctx, pos: usize) -> bool {
+    ctx.chars[..pos]
+        .iter()
+        .filter(|c| matches!(**c, '"' | '“' | '”'))
+        .count()
+        % 2
+        == 1
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{check, check_sentence, IssueKind};
@@ -543,5 +609,41 @@ mod tests {
                 "\"{s}\": luật EN không được kích hoạt trên câu Việt"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod redundant_mix_tests {
+    use crate::check;
+
+    #[test]
+    fn bat_tu_en_thua_trung_nghia() {
+        // RH-2: suggestion-only, kind WordConfusion.
+        for s in [
+            "Rất tiếc đơn hàng của quý khách đã been hủy.",
+            "Quý khách vui lòng phản hồi trước before 17h.",
+            "Mình already đã gửi tài liệu cho anh.",
+            "Hẹn gặp lại mai tomorrow nhé.",
+        ] {
+            let issues = check(s);
+            assert_eq!(issues.len(), 1, "{s} => {issues:?}");
+            assert_eq!(issues[0].kind, crate::IssueKind::WordConfusion);
+            assert!(!issues[0].auto_fixable, "suggestion-only");
+        }
+    }
+
+    #[test]
+    fn khong_bat_cau_en_dominant() {
+        // Câu EN: "after"/"today" là ngữ pháp chuẩn, không bao giờ thừa.
+        assert!(check("Please reply before 5pm today.").is_empty());
+        assert!(check("I will call you after the meeting today.").is_empty());
+        assert!(check("We shipped it already.").is_empty());
+    }
+
+    #[test]
+    fn khong_bat_khi_khong_phai_cap_trung_nghia() {
+        assert!(check("Anh check giúp em the report nhé.").is_empty());
+        assert!(check("Đơn hàng đã được xác nhận.").is_empty());
+        assert!(check("Trước khi đi, nhớ khóa cửa.").is_empty());
     }
 }

@@ -58,6 +58,36 @@ final class MockTextTarget: TextTarget {
 
 // ---------------------------------------------------------------- FieldRules (MAC-030)
 
+/// Vòng 40 (audit macOS H1): luật "member extension KHÔNG dispatch động qua
+/// `any TextTarget`" — `text(in:)` và `selectedText()` PHẢI là protocol
+/// requirement. Nếu ai xoá requirement đưa về extension default (trả nil),
+/// 2 test này đỏ: existential gọi extension default thay vì override thật
+/// ⇒ chord Ctrl+Shift+F9 chết thầm trên mọi app.
+final class TextTargetDynamicDispatchTests: XCTestCase {
+    func test_textInRange_quaExistential_goiOverrideThat() {
+        let target: any TextTarget = MockTextTarget()
+        let range = NSRange(location: 0, length: 3)
+        // MockTextTarget không override text(in:) ở thân class — nhưng test
+        // này khóa RĂNG BUỘC protocol: existential gọi được member với
+        // dispatch ĐỘNG (override subclass phải đến được). Dùng mock con
+        // override text(in:) để phân biệt dispatch động vs default.
+        final class WithText: MockTextTarget {
+            override func text(in range: NSRange) -> String? { "abc" }
+        }
+        let dynamic: any TextTarget = WithText()
+        XCTAssertEqual(dynamic.text(in: range), "abc")
+        _ = target
+    }
+
+    func test_selectedText_quaExistential_goiOverrideThat() {
+        final class WithSelected: MockTextTarget {
+            override func selectedText() -> String? { "chọn" }
+        }
+        let dynamic: any TextTarget = WithSelected()
+        XCTAssertEqual(dynamic.selectedText(), "chọn")
+    }
+}
+
 final class FieldRulesTests: XCTestCase {
     func testR1_secureSubrole() {
         let (role, secure) = FieldRules.map(AXSnapshot(role: "AXTextField", subrole: "AXSecureTextField"))

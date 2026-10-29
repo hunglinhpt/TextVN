@@ -136,6 +136,42 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
         return;
     }
 
+    // 1.0 Vòng 40 (R2 persona RH-4): dấu phẩy SAU "nhưng" giữa câu — phẩy
+    // tiếng Việt đặt TRƯỚC liên từ tương phản ("tốt nhưng, còn…" sai;
+    // "bận, nhưng…" đúng). "nhưng" có phẩy NGAY TRƯỚC ("bận, nhưng, nếu
+    // rảnh, …") là ngoặc đơn xen hợp lệ → không báo. Suggestion-only.
+    for (idx, tok) in ctx.tokens.iter().enumerate() {
+        if tok.kind != TokenKind::Word || idx == 0 || ctx.token_text(tok).to_lowercase() != "nhưng"
+        {
+            continue;
+        }
+        let Some(next) = ctx.tokens.get(idx + 1) else {
+            continue;
+        };
+        if next.kind != TokenKind::Punct || !ctx.chars[next.start..next.end].contains(&',') {
+            continue;
+        }
+        let comma_before = ctx.tokens[..idx]
+            .iter()
+            .rev()
+            .find(|t| t.kind != TokenKind::Space)
+            .is_some_and(|t| {
+                t.kind == TokenKind::Punct && ctx.chars[t.start..t.end].contains(&',')
+            });
+        if comma_before {
+            continue;
+        }
+        out.push(super::issue_suggestion(
+            IssueKind::WordConfusion,
+            Span {
+                start: tok.start,
+                end: next.end,
+            },
+            "Dấu phẩy sau \"nhưng\" — phẩy đặt TRƯỚC \"nhưng\", không đặt sau".to_string(),
+            vec![],
+        ));
+    }
+
     // 1.1 Thừa liên từ liền kề: "tuy nhiên nhưng"
     for i in 2..ctx.tokens.len() {
         let (t0, gap, t1) = (ctx.tokens[i - 2], ctx.tokens[i - 1], ctx.tokens[i]);
@@ -771,6 +807,27 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
 mod tests {
     use super::*;
     use crate::check;
+
+    /// Vòng 40 (RH-4): phẩy sau "nhưng" giữa câu — suggestion-only.
+    #[test]
+    fn vi_phay_sau_nhung() {
+        let issues = check("Bài của em làm rất tốt nhưng, còn một số lỗi.");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].kind, IssueKind::WordConfusion);
+        assert!(!issues[0].auto_fixable);
+    }
+
+    #[test]
+    fn vi_phay_sau_nhung_khong_bat_hop_le() {
+        // Phẩy ĐÚNG vị trí (trước "nhưng").
+        assert!(check("Tôi bận, nhưng tôi vẫn cố đến.").is_empty());
+        // "nhưng" có phẩy trước = ngoặc đơn xen hợp lệ.
+        assert!(check("Tôi bận, nhưng, nếu rảnh, tôi sẽ đến.").is_empty());
+        // Không có phẩy nào cả.
+        assert!(check("Bài tốt nhưng còn lỗi.").is_empty());
+        // "nhưng" đầu câu.
+        assert!(check("Nhưng mà sao vậy?").is_empty());
+    }
 
     #[test]
     fn vi_correlative_mac_du_nen() {

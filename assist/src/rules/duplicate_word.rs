@@ -48,6 +48,23 @@ pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
     "bum", "chộp", "đâu", "năm",
 ];
 
+/// Từ CHỨC NĂNG lặp ≥ 3 lần ("the the the file", "đã đã đã gửi") gần như
+/// LUÔN là lỗi gõ — guard run≥3 chỉ miễn cho từ nội dung/tượng thanh
+/// (vòng 40, R2 persona RH-7). Đại từ lặp viết hoa đầu câu ("Cô Cô sẽ chữa")
+/// cũng là lỗi thật (RH-6) — guard vocative chỉ giữ cho tên riêng.
+const REPEAT3_FUNCTION_WORDS: &[&str] = &[
+    // EN
+    "the", "a", "an", "to", "of", "and", "but", "or", "that", "this", "it", "is", "are", "was",
+    "were", "do", "does", "did", "have", "has", "had", "will", "would", "can", "could", "should",
+    "must", // VI
+    "đã", "chưa", "được", "có", "bị", "thì", "mà", "là", "của",
+];
+
+/// Đại từ/xưng hô lặp viết hoa đầu câu ("Cô Cô sẽ chữa bài", "Em Em xin lỗi")
+/// là lỗi gõ thật — KHÔNG thuộc guard vocative tên riêng ("Lê Lê ơi").
+/// "anh/chị/bạn" bỏ ra (vừa là đại từ vừa là tên người — giữ guard cũ).
+const PRONOUN_CAP_FIRE: &[&str] = &["em", "cô", "thầy", "tôi", "mình", "chúng", "please", "i"];
+
 /// Số lần liên tiếp từ này lặp ở vị trí `i` (≥ 2 khi `tokens[i]` lặp
 /// `tokens[i-2]`): "no no no", "la la la" = nhấn mạnh/lời hát, không phải lỗi.
 fn run_length(ctx: &Ctx, i: usize, lower: &str) -> usize {
@@ -122,7 +139,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // là hợp lệ bất kể bảng chữ.
         let cur_cap = cur_text.chars().next().is_some_and(|c| c.is_uppercase());
         let prev_cap = prev_text.chars().next().is_some_and(|c| c.is_uppercase());
-        if cur_cap && prev_cap {
+        if cur_cap && prev_cap && !PRONOUN_CAP_FIRE.contains(&lower.as_str()) {
             continue;
         }
         if in_quotes(ctx, cur.start) {
@@ -132,8 +149,14 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         // Lặp ≥ 3 lần liền ("no no no", "la la la", "hu hu hu") = nhấn mạnh /
-        // tượng thanh có chủ ý. Cả cụm đã bị bỏ qua ở lần lặp đầu tiên.
-        if run_length(ctx, i, &lower) >= 3 || repeats_before(ctx, i, &lower) {
+        // tượng thanh có chủ ý — chỉ với từ NỘI DUNG. Từ chức năng lặp ≥ 3
+        // ("the the the file", "đã đã đã gửi") là lỗi gõ thật (vòng 40 RH-7),
+        // báo đúng MỘT lần ở bản sao đầu; các bản sao sau (repeats_before)
+        // là phần còn lại của cùng một chuỗi lỗi.
+        let long_run = run_length(ctx, i, &lower) >= 3 || repeats_before(ctx, i, &lower);
+        if long_run
+            && (!REPEAT3_FUNCTION_WORDS.contains(&lower.as_str()) || repeats_before(ctx, i, &lower))
+        {
             continue;
         }
         out.push(issue(
@@ -200,5 +223,26 @@ mod tests {
     #[test]
     fn khong_bat_hai_tu_khac_nhau() {
         assert!(check("của nhà").is_empty());
+    }
+
+    /// Vòng 40 (RH-6): đại từ lặp viết hoa đầu câu là lỗi thật, không thuộc
+    /// guard vocative tên riêng.
+    #[test]
+    fn bat_dai_tu_lap_hoa_dau_cau() {
+        assert_eq!(check("Cô Cô sẽ chữa bài sau.").len(), 1);
+        assert_eq!(check("Em Em xin lỗi ạ.").len(), 1);
+        // Tên riêng vẫn được guard vocative giữ.
+        assert!(check("Linh Linh ơi, xem lại giúp").is_empty());
+    }
+
+    /// Vòng 40 (RH-7): từ chức năng lặp ≥ 3 lần = lỗi gõ, báo ĐÚNG 1 lần.
+    #[test]
+    fn bat_tu_chuc_nang_lap_3_lan() {
+        assert_eq!(check("the the the file").len(), 1);
+        assert_eq!(check("đã đã đã gửi").len(), 1);
+        // Từ nội dung/tượng thanh lặp ≥ 3 vẫn là nhấn mạnh hợp lệ.
+        assert!(check("no no no").is_empty());
+        assert!(check("la la la").is_empty());
+        assert!(check("very very very good").is_empty());
     }
 }

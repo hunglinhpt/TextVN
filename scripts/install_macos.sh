@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-USER_HOME="${HOME:-~}"
+USER_HOME="${HOME:?HOME rỗng - không biết cài cho ai}"
 
 echo "=== TextVN macOS Installation ==="
 
@@ -54,7 +54,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "config_version": 1,
   "enabled": true,
   "method": "telex",
-  "diacritic_style": "new",
+  "diacritic_style": "old",
   "free_marking": true,
   "auto_restore_english": true,
   "auto_capitalize": true,

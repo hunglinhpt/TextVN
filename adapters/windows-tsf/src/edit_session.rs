@@ -2072,10 +2072,35 @@ fn apply_plan(
                 let snap = del.Clone()?;
                 let mut buf = vec![0u16; plan.delete_before as usize];
                 let mut fetched = 0u32;
-                if snap.GetText(ec, 0, &mut buf, &mut fetched).is_ok()
-                    && fetched as usize == plan.delete_before as usize
-                {
-                    restore = Some((del.Clone()?, buf[..fetched as usize].to_vec()));
+                // Vòng 40 (audit Windows T-1): KHÔNG xoá khi không chụp được
+                // snapshot hoàn tác — GetText lỗi/thiếu mà xoá rồi thì lỗi
+                // insert sau đó không có gì trả lại (mất chữ đã commit).
+                // Cùng triết lý "không xác minh được ⇒ không sửa" như
+                // verify_delete_range.
+                match snap.GetText(ec, 0, &mut buf, &mut fetched) {
+                    Ok(()) if fetched as usize == plan.delete_before as usize => {
+                        restore = Some((del.Clone()?, buf[..fetched as usize].to_vec()));
+                    }
+                    Ok(()) => {
+                        crate::trace::event(
+                            shared.tid,
+                            format_args!(
+                                "delete_before gettext short {fetched}/{} - bo khong xoa",
+                                plan.delete_before
+                            ),
+                        );
+                        return Err(Error::from(E_FAIL));
+                    }
+                    Err(e) => {
+                        crate::trace::event(
+                            shared.tid,
+                            format_args!(
+                                "delete_before gettext err {:#x} - bo khong xoa",
+                                e.code().0
+                            ),
+                        );
+                        return Err(e);
+                    }
                 }
                 let empty = [0u16; 1];
                 if let Err(e) = del.SetText(ec, 0, &empty[..0]) {
@@ -2127,7 +2152,10 @@ fn apply_plan(
 
         if let Err(err) = insert_result {
             if let Some((range, text)) = restore.take() {
-                crate::trace::event(0x4139, format_args!("insert fail - hoan tac text da xoa"));
+                crate::trace::event(
+                    shared.tid,
+                    format_args!("insert fail - hoan tac text da xoa"),
+                );
                 let _ = range.SetText(ec, 0, &text);
             }
             return Err(err);

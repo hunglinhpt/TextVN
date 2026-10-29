@@ -48,7 +48,6 @@ yes yes
 okay okay
 ok ok
 sorry sorry
-please please
 wait wait
 stop stop
 come come

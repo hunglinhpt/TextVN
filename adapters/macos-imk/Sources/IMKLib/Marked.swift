@@ -39,6 +39,13 @@ public protocol TextTarget: AnyObject {
     /// `nil` = không selection / trần 64k vượt / app không cho đọc ⇒ caller
     /// không làm gì (fail-open). Chỉ giữ trong RAM, không log/không gửi (D8/S2).
     func selectedText() -> String?
+    /// A4 (vòng 40 audit macOS H1): text theo range BẤT KỲ cho chord chuyển
+    /// mã vùng bôi đen. **BẮT BUỘC là protocol requirement** — member chỉ có
+    /// ở extension KHÔNG bao giờ dispatch động qua `any TextTarget`
+    /// (caller `clientTarget()` trả existential; bản override thật của
+    /// IMKTextTarget bị static-dispatch nuốt, chord chết thầm). Default
+    /// `nil` fail-open ở extension dưới.
+    func text(in range: NSRange) -> String?
 }
 
 extension TextTarget {
