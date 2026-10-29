@@ -4,7 +4,7 @@
 //! không treo** trên input kỳ dị: rỗng, cực dài, NUL, zero-width, emoji,
 //! combining diacritics, script lạ, CRLF, cắt giữa ký tự, lặp hàng nghìn.
 
-use textvn_assist::{check, check_sentence, check_with, dict::Dictionary};
+use textvn_assist::{apply_auto_fixes, check, check_sentence, check_with, dict::Dictionary};
 
 /// Từ điển rỗng — mọi từ coi là đúng (luật spelling không bêu).
 struct EmptyDict;
@@ -195,4 +195,77 @@ fn lua_chon_trong_idiom_khong_bao() {
     assert!(check("Làm việc chăm chăm để hoàn thành sớm.").is_empty());
     assert!(check("Nhìn chằm chằm vào màn hình lâu hại mắt.").is_empty());
     assert!(check("Cậu ấy chạy băng băng ra sân.").is_empty());
+}
+
+// ================= Vòng 40 — R2 adversarial: hồi quy finding N/T =================
+
+#[test]
+fn r2_bigram_hop_le_khong_bao() {
+    // N1/N2/N3/T4: cặp đã bị bỏ khỏi bảng đóng — câu sống phải SẠCH.
+    assert!(check("Cuối tuần tôi về quê thăm gia đình.").is_empty());
+    assert!(check("Mẹ mua một hộp hành tỏi về để nấu ăn.").is_empty());
+    assert!(check("Đó là tờ báo cá nhân của anh ấy.").is_empty());
+    assert!(check("Duy nhát một nhát dao thật mạnh.").is_empty());
+    // Cặp đúng vẫn bắt.
+    assert_eq!(check("cảm kết của công ty").len(), 1);
+    assert_eq!(check("sắp xếp xắp xếp lại hồ sơ").len(), 1);
+}
+
+#[test]
+fn r2_double_negative_particle_dau_cham() {
+    // T3: particle hỏi + dấu CHẤM (chat/IM) — miễn bất kể dấu kết câu.
+    assert!(check("Không có size 42 không ạ.").is_empty());
+    assert!(check("Bên mình không có hàng không ạ.").is_empty());
+    assert!(check("Không có ai không à.").is_empty());
+    // Anchor + lỗi thật vẫn bắt.
+    assert!(!check("Tôi không có gì để nói không.").is_empty());
+    assert!(!check("Không có ai không biết quy định này.").is_empty());
+}
+
+#[test]
+fn r2_comma_at_end_rat_mong() {
+    // T2: "Rất mong…" — opener theo token ĐẦU là "rất".
+    assert!(check("Rất mong sớm nhận được phản hồi của Quý công ty,").is_empty());
+    assert!(check("Rất mong nhận được phản hồi,").is_empty());
+}
+
+#[test]
+fn r2_phrase_repeat_suggestion_only() {
+    // T1: lặp cụm chỉ GỢI Ý — không tự xoá chữ người dùng.
+    for s in [
+        "Vui lòng vui lòng kiểm tra giúp em.",
+        "Em đã hoàn thành đã hoàn thành bài tập.",
+        "Ngày mai ngày mai anh mới về.",
+        "Em ơi em ơi, anh đây.",
+    ] {
+        let issues = check(s);
+        assert!(!issues.is_empty(), "{s} phải được nhận diện");
+        assert!(!issues[0].auto_fixable, "{s} không được auto-fix");
+        assert!(issues[0].fix.is_none());
+        assert_eq!(apply_auto_fixes(s, &issues), s);
+    }
+}
+
+#[test]
+fn r2_redundant_mix_ten_rieng_hoa() {
+    // T5: tên riêng/tiêu đề viết hoa — bỏ qua; dạng thường vẫn bắt.
+    assert!(check("Hôm nay Today show sẽ phát sóng đặc biệt.").is_empty());
+    assert!(check("Phần sau After School hay hơn hẳn.").is_empty());
+    assert!(check("Trước Before Sunrise, anh ấy đã làm hai phim khác.").is_empty());
+    assert_eq!(
+        check("Rất tiếc đơn hàng của quý khách đã been hủy.").len(),
+        1
+    );
+    assert_eq!(check("Mình already đã gửi tài liệu cho anh.").len(), 1);
+}
+
+#[test]
+fn r2_phay_sau_nhung_trich_loi_va_dau_cau_moi() {
+    // L3: trích lời + "Nhưng" đầu câu mới — hợp lệ, không báo.
+    assert!(check("Cô bảo: \"nhưng, nếu rảnh, cứ đến nhé.\"").is_empty());
+    assert!(check("Tôi bận. Nhưng, nếu rảnh, tôi sẽ đến.").is_empty());
+    // Lỗi thật giữa câu vẫn báo (suggestion-only).
+    let issues = check("Bài của em làm rất tốt nhưng, còn một số lỗi.");
+    assert_eq!(issues.len(), 1);
+    assert!(!issues[0].auto_fixable);
 }

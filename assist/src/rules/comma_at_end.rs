@@ -34,9 +34,11 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // BUG-1 (R2): words CÓ THỂ RỖNG ("10," — chữ số là token Other, không
         // phải Word) ⇒ words[0] index out of bounds → panic exit 101 (corpus
         // score_real có dạng này chết cả bộ đo). Chỉ chạy khi 1..=3 từ.
-        // Vòng 39 (R1 văn phòng): trần 3→6 từ — "Trân trọng cảm ơn,",
-        // "Rất mong sớm nhận được phản hồi của Quý công ty," đều ≥4 từ.
-        if (1..=6).contains(&words.len()) {
+        // Vòng 39 (R1 văn phòng): trần 3→6 từ — "Trân trọng cảm ơn," ≥4 từ.
+        // Vòng 40 (R2-T2): trần 6→12 — "Rất mong sớm nhận được phản hồi của
+        // Quý công ty," 11 từ vẫn là dòng email bị bêu; opener guard theo
+        // token đầu ("rất") chặn đúng, FP sign-off tệ hơn miss phẩy-treo dài.
+        if (1..=12).contains(&words.len()) {
             // Vòng 34 (R1-F2, siết lại sau probe): KÝ KẾT EMAIL = TỪ ĐẦU câu
             // thuộc danh sách đóng ("Cảm ơn anh,", "Trân trọng,", "Thân,").
             // "Tôi gặp anh," (lỗi thật — dấu phẩy cuối câu treo) vẫn được bêu
@@ -63,6 +65,9 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 "chào",
                 // Vòng 39 (R1 văn phòng): opener email/lời chào thật —
                 // "Kính gửi Quý công ty,", "Gửi anh,", "Thưa anh,", "Dear Sir,"...
+                // Vòng 40 (R2-T2): "rất" — entry "rất mong" dead (so khớp chỉ
+                // đọc token đầu); mọi sign-off "Rất mong sớm nhận được phản
+                // hồi," phải qua token đầu "rất".
                 "kính gửi",
                 "kính",
                 "gửi",
@@ -70,7 +75,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 "kính thưa",
                 "chúc",
                 "mong",
-                "rất mong",
+                "rất",
                 "dear",
             ];
             let first = ctx.chars[words[0].start..words[0].end]

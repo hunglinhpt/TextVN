@@ -54,24 +54,22 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("giành", "giựt", 1, "giật"),
     ("hoành", "thành", 0, "hoàn"),
     // Vòng 40 (R2 persona + mở rộng văn phòng): cặp sai âm tiết — bigram sai
-    // không thể là từ/cụm hợp lệ ("cảm" hợp lệ nhưng "cảm kết" không; "cá",
-    // "trang", "sủa", "nhát" hợp lệ lẻ nhưng cặp kèm từ trước không thể đúng).
+    // phải thỏa điều kiện "cặp sai KHÔNG THỂ hợp lệ nào khác" (R2-F1: 4 cặp
+    // 'thăm gia'/'hộp hành'/'báo cá'/'duy nhát' bị đối kháng bóc — 'thăm gia
+    // đình', 'một hộp hành', 'báo cá nhân', 'Duy nhát một nhát' đều hợp lệ ⇒
+    // ĐÃ BỎ; thêm cặp mới phải probe cả nghĩa sống trước khi đưa bảng đóng).
     ("cảm", "kết", 0, "cam"),
     ("xắp", "xếp", 0, "sắp"),
     ("chẩn", "bị", 0, "chuẩn"),
     ("quãng", "cáo", 0, "quảng"),
     ("miến", "phí", 0, "miễn"),
     ("hớp", "đồng", 0, "hợp"),
-    ("thăm", "gia", 0, "tham"),
-    ("hộp", "hành", 0, "họp"),
     ("khai", "tác", 1, "thác"),
     ("khảo", "sác", 1, "sát"),
     ("chỉnh", "sủa", 1, "sửa"),
     ("đanh", "giá", 0, "đánh"),
     ("hoành", "trang", 1, "tráng"),
-    ("duy", "nhát", 1, "nhất"),
     ("trãi", "nghiệm", 0, "trải"),
-    ("báo", "cá", 1, "cáo"),
     ("hoàn", "tòan", 1, "toàn"),
     // RH-3 (R2 persona giáo viên): âm tiết Việt KHÔNG DẤU mơ hồ riêng lẻ
     // ("hoc" là âm tiết hợp lệ) nhưng bigram gần như một nghĩa — sửa từ 1,

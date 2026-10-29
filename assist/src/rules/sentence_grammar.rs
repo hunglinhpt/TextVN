@@ -161,6 +161,21 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
         if comma_before {
             continue;
         }
+        // R2-L3: trích lời trong ngoặc kép và "Nhưng" ĐẦU CÂU MỚI ("Tôi bận.
+        // Nhưng, nếu rảnh, …") — 2 dạng hợp lệ, không báo.
+        let prev_non_space = ctx.tokens[..idx]
+            .iter()
+            .rev()
+            .find(|t| t.kind != TokenKind::Space);
+        let after_sentence_end = prev_non_space.is_some_and(|t| {
+            t.kind == TokenKind::Punct && {
+                let slice = &ctx.chars[t.start..t.end];
+                slice.contains(&'.') || slice.contains(&'!') || slice.contains(&'?')
+            }
+        });
+        if after_sentence_end || super::duplicate_word::in_quotes(ctx, tok.start) {
+            continue;
+        }
         out.push(super::issue_suggestion(
             IssueKind::WordConfusion,
             Span {

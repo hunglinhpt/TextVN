@@ -21,9 +21,9 @@
 
 use super::capitalize_sentence::looks_like_code_or_list;
 use super::duplicate_word::{in_quotes, EN_INTENTIONAL_REPEATS, INTENTIONAL_REPEATS};
-use super::{is_word, issue, Ctx};
+use super::{is_word, Ctx};
 use crate::tokenize::TokenKind;
-use crate::{Fix, Issue, IssueKind, Span};
+use crate::{Issue, IssueKind, Span};
 
 /// Cụm 2 từ lặp có chủ ý (xã giao/lời thoại) — KHÔNG phải lỗi.
 const PHRASE_WHITELIST: &[&str] = &[
@@ -190,15 +190,15 @@ fn check_window(ctx: &Ctx, i: usize, window_size: usize, out: &mut Vec<Issue>) {
             return;
         }
     }
-    out.push(issue(
+    // Vòng 40 (R2-T1): SUGGESTION-ONLY — lặp cụm nhấn mạnh là ngữ pháp sống
+    // ("ngày mai ngày mai", "chờ đợi chờ đợi", "em ơi em ơi") mà whitelist
+    // đóng không thể bao quát; auto-xoá cụm 2-4 từ khi đoán sai là xoá CHỮ
+    // CỦA NGƯỜI DÙNG. conf=60, không fix — người dùng quyết (xoá bằng popup).
+    out.push(super::issue_suggestion(
         IssueKind::DuplicateWord,
         Span { start, end },
         format!("Lặp cụm từ: \"{ph1}\""),
         vec![texts[..half].join(" ")],
-        Fix::Delete {
-            start: ctx.tokens[space_idx[half - 1]].start,
-            end,
-        },
     ));
 }
 
@@ -208,15 +208,15 @@ mod tests {
     use crate::check;
 
     #[test]
-    fn bat_lap_cum_2_tu() {
+    fn bat_lap_cum_2_tu_suggestion_only() {
+        // R2-T1: suggestion-only — KHÔNG tự xoá (lặp nhấn mạnh là ngữ pháp sống).
         let issues = check("Vui lòng vui lòng kiểm tra giúp em.");
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].kind, IssueKind::DuplicateWord);
-        assert_eq!(issues[0].suggestions[0], "Vui lòng");
-        // Fix xoá bản sao 2 + dấu cách trước.
+        assert!(!issues[0].auto_fixable);
+        assert!(issues[0].fix.is_none());
         let text = "Vui lòng vui lòng kiểm tra giúp em.";
-        let fixed = crate::apply_auto_fixes(text, &issues);
-        assert_eq!(fixed, "Vui lòng kiểm tra giúp em.");
+        assert_eq!(crate::apply_auto_fixes(text, &issues), text);
     }
 
     #[test]
@@ -242,10 +242,9 @@ mod tests {
         );
         assert_eq!(check("Tôi sẽ xác nhận lại sẽ xác nhận lại sau.").len(), 1);
         assert_eq!(check("Shop đã xác nhận đã xác nhận đơn hàng.").len(), 1);
-        // Fix xoá đúng bản sao 2 của cụm 3 từ.
+        // Suggestion-only: auto-fix KHÔNG đụng text.
         let text = "Em đã hoàn thành đã hoàn thành bài tập.";
-        let fixed = crate::apply_auto_fixes(text, &check(text));
-        assert_eq!(fixed, "Em đã hoàn thành bài tập.");
+        assert_eq!(crate::apply_auto_fixes(text, &check(text)), text);
     }
 
     #[test]

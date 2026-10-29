@@ -468,6 +468,14 @@ pub fn check_redundant_mix(ctx: &Ctx, out: &mut Vec<Issue>) {
         if a.is_empty() || b.is_empty() || ctx.is_masked(w0.start, w1.end) {
             continue;
         }
+        // R2-T5: tên riêng/tiêu đề viết HOA ("Hôm nay Today show", "Trước
+        // Before Sunrise", "Duy nhát…") — HOA đầu của BẤT KỲ từ nào trong
+        // cặp ⇒ bỏ qua (chỉ bắt dạng thường; suggestion-only nên recall
+        // mất ở đầu-câu-hoa là chấp nhận được).
+        let cap = |tok: &crate::tokenize::Token| ctx.chars[tok.start].is_uppercase();
+        if cap(w0) || cap(w1) {
+            continue;
+        }
         let hit = REDUNDANT_MIX_PAIRS
             .iter()
             .any(|&(x, y)| (a == x && b == y) || (a == y && b == x));

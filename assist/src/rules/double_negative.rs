@@ -35,14 +35,15 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 && !ctx.is_masked(ctx.tokens[w].start, ctx.tokens[n].end)
                 && ctx.token_text(&ctx.tokens[n]).to_lowercase() == "không"
             {
-                // Vòng 39 (R1 FP 19-22): "không" thứ hai là TỪ CUỐI câu hỏi ⇒
-                // trợ từ hỏi tự nhiên ("Không có ai không?", "Không có size
-                // 42 không ạ?") — KHÔNG phải phủ định kép. Điều kiện là câu
-                // hỏi: kết thúc bằng "?" HOẶC sau "không" chỉ còn trợ từ hỏi
-                // ("ạ", "nhé", "chứ", "nhỉ", "ha", "à", "nhá") rồi "?".
-                // "không" cuối câu bằng dấu CHẤM ("Tôi không có gì để nói
-                // không." — corpus anchor) vẫn là lỗi thật; "không" KHÔNG
-                // cuối câu ("Không có ai không biết quy định này.") cũng vậy.
+                // Vòng 39 (R1 FP 19-22) + vòng 40 (R2-T3): "không" thứ hai là
+                // TỪ CUỐI câu hỏi ⇒ trợ từ hỏi tự nhiên ("Không có ai không?",
+                // "Không có size 42 không ạ?") — KHÔNG phải phủ định kép.
+                // R2-T3: chat/IM hỏi bằng dấu CHẤM + particle ("Không có size
+                // 42 không ạ.") rất phổ biến — particle NGAY SAU "không" thứ
+                // hai ("ạ", "nhé", "chứ", "nhỉ", "ha", "à", "nhá") miễn bất kể
+                // dấu kết câu. Không particle thì cần "?" ("Tôi không có gì
+                // để nói không." — corpus anchor — vẫn lỗi; "Không có ai
+                // không biết quy định này." không cuối câu — vẫn lỗi).
                 const PARTICLES: &[&str] = &["ạ", "nhé", "chứ", "nhỉ", "ha", "à", "nhá"];
                 let is_question = ctx
                     .chars
@@ -50,12 +51,26 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                     .rev()
                     .find(|c| !c.is_whitespace())
                     .is_some_and(|c| *c == '?');
-                let trailing_particle = is_question
-                    && words.iter().rev().all(|&k| {
+                // Chỉ xét các từ SAU "không" thứ hai (từ trước n là phần "không có…").
+                let after_n: Vec<&usize> = words
+                    .iter()
+                    .rev()
+                    .take_while(|&&k| ctx.tokens[k].start > ctx.tokens[n].end)
+                    .collect();
+                let particle_after = !after_n.is_empty()
+                    && after_n.iter().all(|&&k| {
                         let w = ctx.token_text(&ctx.tokens[k]).to_lowercase();
-                        ctx.tokens[k].start < ctx.tokens[n].end || PARTICLES.contains(&w.as_str())
+                        PARTICLES.contains(&w.as_str())
                     });
-                if trailing_particle {
+                if particle_after
+                    || (is_question
+                        && words.iter().rev().all(|&k| {
+                            ctx.tokens[k].start < ctx.tokens[n].end
+                                || PARTICLES.contains(
+                                    &ctx.token_text(&ctx.tokens[k]).to_lowercase().as_str(),
+                                )
+                        }))
+                {
                     continue;
                 }
                 out.push(issue_suggestion(
