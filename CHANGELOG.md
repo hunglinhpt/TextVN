@@ -7,6 +7,65 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.54] — 2026-10-30
+
+### Added
+- **Phát hiện lặp cụm 2–4 từ** ("vui lòng vui lòng kiểm tra giúp em", "đã
+  hoàn thành đã hoàn thành bài tập", "sẽ xác nhận lại sẽ xác nhận lại sau") —
+  dedup giữ cụm dài nhất, **chỉ gợi ý không tự xoá** (lặp nhấn mạnh là ngữ
+  pháp sống: "ngày mai ngày mai", "em ơi em ơi").
+- **Từ tiếng Anh thừa trùng nghĩa trong câu Việt**: "đã been hủy",
+  "trước before 17h", "already đã gửi" — cặp đóng, chỉ gợi ý.
+- **Phẩy sai chỗ sau "nhưng"** giữa câu ("tốt nhưng, còn một số lỗi") —
+  gợi ý; "bận, nhưng, nếu rảnh,…" (ngoặc đơn xen) và trích lời không đụng.
+- **+19 cặp collocation văn phòng**: cảm kết→cam kết, xắp xếp→sắp xếp,
+  chẩn bị→chuẩn bị, quãng cáo→quảng cáo, miến phí→miễn phí, hớp đồng→hợp
+  đồng, học sinh (thiếu dấu)…
+- **+68 thành ngữ/tục ngữ** vào vùng bảo vệ (có chí thì nên, phép vua thua
+  lệ làng, vỏ quýt dày có móng tay nhọn, làm dâu trăm họ…) và **+24 từ láy**
+  (chăm chăm, chằm chằm, trăn trăn, chớp chớp…) — hết bị sửa oan.
+- **Dự đoán theo role văn phòng** (+114 mẫu Việt / +18 mẫu Anh): kế toán
+  ("hóa đơn " → "điện tử"), nhân sự ("nghỉ phép " → "từ ngày"), kinh doanh
+  ("báo giá " → "cho quý khách"), CSKH ("quý khách vui lòng " → "chờ trong
+  ít phút"), giáo viên ("bài tập " → "về nhà"), email Anh ("looking forward
+  to " → "hearing from you").
+
+### Fixed
+- **Windows**: lỗi error-path xoá mất chữ đã commit khi snapshot hoàn tác
+  đọc lỗi (giờ trả lỗi TRƯỚC khi xoá — không chụp được ⇒ không sửa); buffer
+  chuyển mã ×6 — Ctrl+Shift+F9 hết chết thầm với đoạn dài tổ hợp; trace ghi
+  đúng tid.
+- **macOS**: hồi sinh chord **Ctrl+Shift+F9 chuyển mã vùng bôi đen** —
+  `text(in:)` bị nuốt bởi static dispatch qua `any TextTarget` (nâng thành
+  protocol requirement + test khóa luật); mặc định **dấu CŨ** đồng bộ trên
+  schema + install_macos.sh; server IPC hết ngắt kết nối oan khi EINTR;
+  guard TIS trả NULL (hết crash hiếm); Snapshot IPC hạ cap 200 mục (hết
+  drop im lặng khi vượt khung 64KB); hiển thị đúng loại lỗi EN kind 12/13.
+- **Linux**: connect IPC **non-blocking + timeout 200ms** — tray treo không
+  còn đóng băng bàn phím (trước đây connect chặn trên đường phím).
+- **Trợ lý**: particle hỏi bằng dấu CHẤM ("Không có size 42 không ạ.") hết
+  bị báo phủ định kép; "Rất mong sớm nhận được phản hồi của Quý công ty,"
+  hết bị báo phẩy cuối; tên riêng/tiêu đề viết hoa ("Today show", "Before
+  Sunrise") không bị nhầm cặp trùng nghĩa; từ chức năng lặp ≥3 ("the the
+  the file", "đã đã đã gửi") bắt đúng 1 lần; đại từ lặp hoa đầu câu
+  ("Cô Cô sẽ chữa bài") được nhận diện.
+- **Abnormal tests vét cạn**: 22 test đầu vào kỳ dị (rỗng, 100k ký tự, NUL,
+  emoji, RTL, zero-width, cắt biên cụm 2/3/4 từ) — fail-open, không panic.
+
+**English** — 0.2.54 adds multi-window phrase-repeat detection (2-4 words,
+suggestion-only so emphatic repetition like "ngày mai ngày mai" is never
+auto-deleted), a redundant-English-word rule for Vietnamese sentences ("đã
+been hủy", "trước before 17h"), a comma-after-"nhưng" suggestion, 19 office
+collocation pairs, 68 idioms/proverbs and 24 reduplicative words to the
+protected-phrase whitelist, and role-based phrase prediction for office
+workers (+114 Vietnamese / +18 English patterns). Cross-platform fixes:
+Windows no longer deletes committed text when the undo-snapshot read fails
+and no longer silently no-ops long decomposed transcodes (6× buffer); macOS
+restores the Ctrl+Shift+F9 selection-transcode chord (Swift protocol
+requirement regression), syncs the legacy-diacritics default, and hardens
+IPC/TIS error paths; Linux uses a non-blocking IPC connect with a 200ms
+timeout so a hung tray can no longer freeze the typing path.
+
 ## [0.2.53] — 2026-10-29
 
 ### Fixed
@@ -2150,6 +2209,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.54]: https://github.com/hunglinhpt/TextVN/compare/v0.2.53...v0.2.54
 [0.2.53]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...v0.2.53
 [0.2.52]: https://github.com/hunglinhpt/TextVN/compare/v0.2.51...v0.2.52
 [0.2.51]: https://github.com/hunglinhpt/TextVN/compare/v0.2.50...v0.2.51

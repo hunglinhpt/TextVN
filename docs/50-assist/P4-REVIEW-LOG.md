@@ -384,4 +384,43 @@ debian/packaging-arch).
 - **Pass 3 (`adapters/macos-*`, `adapters/linux-*`, `docs/`)**:
   - `TextVNInputController.swift` & `adapters/linux-ibus/src/engine.c`: gọi `engine.reset()` và xoá `assistUndo` sau khi áp dụng gợi ý Mode 1 (`R-4`); `TextVNInputController.swift` dùng `maxChars: 256` khớp `assistCheck()`, tôn trọng `display.hide_on_auto_fix`, và kiểm tra `utf16.count == deleteGlyphs` (`R-2`); `IMKTextTarget.swift` giới hạn đọc tối đa 1024 UTF-16 code unit trước caret; `SettingsView.swift` làm mờ `"Tự động sửa"` khi `assist.mode == "off"`.
 
+---
 
+## VÒNG 39-40 — audit persona + đối kháng + 3 OS từng dòng (2026-10-29 → 2026-10-30)
+
+**R1 (vòng 39, agent persona văn phòng):** lặp cụm 2 từ mới (X Y X Y) + guard
+FP (SIGN_OFF_OPENERS kính gửi/dear/thưa…, SVA comma guards, particle hỏi
+"không… không?", +7 bigram, +23 láy) — FPR 0/4239, recall 30/30 regressions.
+CI xanh 4/4 (`1ef441a`).
+
+**R2 vòng 2 (agent persona GV/HS/CSKH/bán-hàng/mix, 143 câu):** 2 FPR thật
+(từ láy "chăm chăm"/"chằm chằm" bị tự xoá — file láy thiếu) + 7 recall hole
+(RH-1 lặp cụm ≥3 từ 8/20 lọt; RH-2 từ EN thừa "đã been"; RH-3 "hoc sinh";
+RH-4 phẩy sau "nhưng"; RH-5 "please please" được-che; RH-6 "Cô Cô"; RH-7
+"the the the file"). Fix đủ: cửa sổ phrase_repeat 2→4 từ + dedup giữ dài +
+bỏ "sẽ" khỏi skip; check_redundant_mix cặp đóng suggestion-only; bigram
+"hoc sinh"; PRONOUN_CAP_FIRE; REPEAT3_FUNCTION_WORDS; gỡ "please please".
+
+**R2 đối kháng (agent, ~45 câu):** 4 FPR thật do bigram bảng đóng —
+"thăm gia đình"/"một hộp hành"/"báo cá nhân"/"Duy nhát một nhát dao" bị
+auto-fix conf=100 phá nghĩa (E34: điều kiện "cặp không thể hợp lệ" phải
+probe nghĩa sống — đơn vị+DT, ĐT+DT, tên riêng) → bỏ cả 4 cặp; T1 lặp nhấn
+mạnh "ngày mai ngày mai"/"em ơi em ơi" conf=100 auto-fix → phrase_repeat hạ
+suggestion-only; T2 "Rất mong…Quý công ty," → opener "rất" + trần 12; T3
+"Không có size 42 không ạ." (dấu chấm) → particle miễn bất kể dấu kết; T5
+"Today show"/"Before Sunrise" → guard HOA; L3 trích lời/đầu-câu-mới.
+
+**Audit 3 OS từng dòng (abnormal cases):** Windows T-1 (error-path xoá chữ
+khi snapshot hoàn tác đọc lỗi → giờ trả lỗi trước khi xoá), T-2 (buffer
+transcode ×6 — tổ hợp 1→5 byte, đoạn dài chết thầm); macOS H1 (`text(in:)`
+chỉ là extension default — chord Ctrl+Shift+F9 chết 100%, LUẬT SWIFT vi
+phạm lại lần 2: member ngoài protocol KHÔNG dispatch động qua `any
+TextTarget` → nâng requirement + test khóa qua existential, mock ĐỘC LẬP
+KHÔNG subclass final), M1 (default dấu CŨ schema + install_macos.sh — 2
+site lệch serde "old"), LOW (EINTR, TIS-guard ×2, USER_HOME, Snapshot-200);
+Linux T1 (connect blocking trên đường phím — tray treo = đóng băng bàn phím
+→ non-blocking + poll 200ms).
+
+**Verify:** 776 test · FPR 0/2739 + tatoeba rule-touched 0/1500 · recall
+28/28 + 38/38 + 30/30 · 25/25 persona · 11/11 đối kháng · clippy 0 ·
+preflight 23/23 · CI 7/7 xanh (`eea0b0b`, `a39227c`, `11c3b9d`).

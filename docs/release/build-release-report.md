@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.54 — lặp cụm 2-4 từ + từ EN thừa + audit 3 OS (vòng 39-40)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Vòng 39 (R1 persona)**: lặp cụm 2 từ ("vui lòng vui lòng"), guard FP văn phòng (kính gửi/dear/thưa…, SVA comma guards, "không… không?" câu hỏi, +7 bigram, +23 láy). **Vòng 40 (R2 persona + R2 đối kháng)**: lặp cụm 2-4 từ suggestion-only + dedup giữ cụm dài; từ EN thừa trùng nghĩa trong câu Việt ("đã been", "trước before 17h") suggestion-only; phẩy sau "nhưng" (guard ngoặc-xen/trích-lời/đầu-câu-mới); +19 bigram văn phòng (R2 bỏ 4 cặp vi phạm bar: thăm gia/hộp hành/báo cá/duy nhát — E34); +68 thành ngữ/tục ngữ + +24 láy; dự đoán theo role văn phòng +114 VN/+18 EN; particle hỏi dấu chấm ("không ạ."); "Rất mong…,"; tên riêng hoa ("Today show"); từ chức năng lặp ≥3 ("the the the file"). **Audit 3 OS từng dòng (abnormal)**: Windows T-1 không xoá khi snapshot hoàn tác lỗi + T-2 buffer transcode ×6; macOS H1 `text(in:)` protocol requirement (chord Ctrl+Shift+F9 hồi sinh) + M1 default dấu CŨ schema+install_macos.sh + EINTR/TIS/Snapshot-200; Linux T1 connect non-blocking + poll 200ms |
+| Đo | **776 test** (744 workspace + 22 abnormal) · FPR **0/2739** clean corpora (vi_real 0/981, en_real 0/295, synthetic 0/1408, docs 0/55) + tatoeba rule-touched 0/1500 · recall 28/28 vi_real_errors + 38/38 en_real_errors + 30/30 vi_regressions · 25/25 case persona vòng 2 · 11/11 case R2 đối kháng sau fix · clippy 0 · preflight 23/23 |
+| CI trên commit gắn tag | xem B3 |
+| Release | v0.2.54 tag ký GPG — release-candidate 4/4 job; 34 asset; GPG verify |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | cask version "0.2.54" + sha256 mac zip — điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.54 — hash archive điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.54-0ppa1` |
+| approved (B7c) | `approved/v0.2.54/` — điền sau B7c |
+
 ## Bản 0.2.53 — SVA contraction + VN collocation +7 + EN Tab completion mở (vòng 38)
 
 | Hạng mục | Bằng chứng |

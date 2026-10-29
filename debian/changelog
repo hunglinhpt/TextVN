@@ -1,3 +1,13 @@
+textvn (0.2.54-0ppa1) noble; urgency=medium
+
+  * Vong 39-40: lap cum 2-4 tu (suggestion-only), tu EN thua trong cau Viet,
+    phay sau "nhung", +19 bigram van phong, +68 thanh ngu/tuc ngu, +24 tu lay,
+    du doan theo role van phong (+114 VN / +18 EN), audit 3 OS (Windows
+    error-path mat chu, macOS chord Ctrl+Shift+F9 hoi sinh, Linux connect
+    non-blocking), abnormal tests vét can.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Thu, 30 Oct 2026 01:30:00 +0700
+
 textvn (0.2.53-0ppa1) noble; urgency=medium
 
   * Fixes English subject-verb agreement for contractions ("He don't" now
