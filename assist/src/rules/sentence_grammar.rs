@@ -298,16 +298,9 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         // nên kiêu ngạo" — cặp đúng rồi, không phải lỗi khập
                         // khiễng). Cả 2 dạng bỏ qua.
                         let nen_is_should =
-                            words_with_idx[..k]
-                                .iter()
-                                .rev()
-                                .next()
-                                .is_some_and(|(_, _, prev)| {
-                                    matches!(
-                                        prev.as_str(),
-                                        "không" | "chưa" | "vẫn" | "đừng" | "chẳng"
-                                    )
-                                });
+                            words_with_idx[..k].last().is_some_and(|(_, _, prev)| {
+                                matches!(prev.as_str(), "không" | "chưa" | "vẫn" | "đừng" | "chẳng")
+                            });
                         // marker_idx là TOKEN index (khớp comma_between ở
                         // trên) — quét "nhưng" trong khoảng token giữa marker
                         // và từ hiện tại.
