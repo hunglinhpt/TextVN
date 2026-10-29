@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1793027528.215035,
-    "seen": 1793032783.2040396,
-    "ast_hash": "a6245114b3351939d71801596606af23",
+    "mtime": 1793287407.46407,
+    "seen": 1793291545.4826279,
+    "ast_hash": "0dbc2736a0534e219502b216b6e2da95",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793204079.728464,
-    "seen": 1793204538.6193178,
-    "ast_hash": "6c98930c0e6d32b199336d81c613be58",
+    "mtime": 1793289605.049055,
+    "seen": 1793291545.5700974,
+    "ast_hash": "beff79bde65b80946e7ebc30dbf35339",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793204115.4896615,
-    "seen": 1793204538.6203017,
-    "ast_hash": "22e35a922f1d0f08cad9da1d9d204f70",
+    "mtime": 1793289605.049055,
+    "seen": 1793291545.5730963,
+    "ast_hash": "511eff2ff92c48e36c628a07c827d61e",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1793203710.6266747,
-    "seen": 1793204538.5871828,
-    "ast_hash": "960c7b06b75125d1c920fe5567560953",
+    "mtime": 1793289510.373603,
+    "seen": 1793291545.432965,
+    "ast_hash": "c91b0255215597e7c85fdf744f86a946",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1793203720.3246799,
-    "seen": 1793204538.5871828,
-    "ast_hash": "b4a0aa0ff56bf9e12ac9a8ccffe88c86",
+    "mtime": 1793289510.3906336,
+    "seen": 1793291545.4339693,
+    "ast_hash": "9936302144cda2d9549dc5dd7b09e72d",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1793203744.7384977,
-    "seen": 1793204538.5881822,
-    "ast_hash": "bf3a95c5b8460f0415e7fe124cdcea21",
+    "mtime": 1793289510.423206,
+    "seen": 1793291545.4415224,
+    "ast_hash": "8b00dcfb4df716aa3ad2b4b11ec44154",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1793206623.7049387,
-    "seen": 1793206905.549433,
-    "ast_hash": "5d61d316d4b9db2ea61927075e14a97c",
+    "mtime": 1793289510.5410688,
+    "seen": 1793291545.5097437,
+    "ast_hash": "9ffd5abdc042026cb810764496ffb36c",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793206842.293741,
-    "seen": 1793206905.5700822,
-    "ast_hash": "2787a9e4b42baf3f808fcf97ed3652d0",
+    "mtime": 1793291513.2231655,
+    "seen": 1793291545.6082246,
+    "ast_hash": "04a525474de1a43b5bf903e1adeb45f9",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2022,9 +2022,9 @@
     "semantic_hash": ""
   },
   "docs/release/store-submission.md": {
-    "mtime": 1793148039.1755855,
-    "seen": 1793148069.854257,
-    "ast_hash": "9468bc3aa01863d625cdb10a841e9a9c",
+    "mtime": 1793291513.222166,
+    "seen": 1793291545.614227,
+    "ast_hash": "22a3dc5ae86ddd75ad2be11c3826a0b5",
     "semantic_hash": ""
   },
   "xtask/src/preflight.rs": {
@@ -2166,9 +2166,9 @@
     "semantic_hash": ""
   },
   "docs/release/msix-submission.md": {
-    "mtime": 1793148039.1660511,
-    "seen": 1793148069.854257,
-    "ast_hash": "c97a4398f6686b3a64a1ef5db08f91cc",
+    "mtime": 1793291513.2151587,
+    "seen": 1793291545.6112216,
+    "ast_hash": "ebe6599872fef260dd6b1bd8c963695d",
     "semantic_hash": ""
   },
   "docs/release/signing-status-mac.md": {
@@ -2832,15 +2832,15 @@
     "semantic_hash": ""
   },
   "core/tests/office_productivity.rs": {
-    "mtime": 1792915405.3755753,
-    "seen": 1792919822.670336,
-    "ast_hash": "3f4cdd2850e99d0da6084d16540ae088",
+    "mtime": 1793287651.4715748,
+    "seen": 1793291545.4946718,
+    "ast_hash": "eb2c484d2c02466b483bd7dd2ed1e538",
     "semantic_hash": ""
   },
   "assist/src/rules/collocation_typo.rs": {
-    "mtime": 1793282451.289377,
-    "seen": 1793282842.8269901,
-    "ast_hash": "6b5b58c3e7c3570bd2b5b2b93c2e3725",
+    "mtime": 1793287651.2806845,
+    "seen": 1793291545.4676416,
+    "ast_hash": "d3a72101b8749d78321f0f7fdba79bef",
     "semantic_hash": ""
   },
   "core/src/post/number_vn.rs": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_grammar.rs": {
-    "mtime": 1793282673.9965737,
-    "seen": 1793282842.8306077,
-    "ast_hash": "16a731a53e581440580bc18e3053bd31",
+    "mtime": 1793286819.5870168,
+    "seen": 1793291545.4716282,
+    "ast_hash": "f3e560c9325bd5149db720c6f164789a",
     "semantic_hash": ""
   },
   "xtask/src/gen_vn_phrases.rs": {
