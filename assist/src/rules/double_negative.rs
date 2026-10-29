@@ -35,6 +35,29 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 && !ctx.is_masked(ctx.tokens[w].start, ctx.tokens[n].end)
                 && ctx.token_text(&ctx.tokens[n]).to_lowercase() == "không"
             {
+                // Vòng 39 (R1 FP 19-22): "không" thứ hai là TỪ CUỐI câu hỏi ⇒
+                // trợ từ hỏi tự nhiên ("Không có ai không?", "Không có size
+                // 42 không ạ?") — KHÔNG phải phủ định kép. Điều kiện là câu
+                // hỏi: kết thúc bằng "?" HOẶC sau "không" chỉ còn trợ từ hỏi
+                // ("ạ", "nhé", "chứ", "nhỉ", "ha", "à", "nhá") rồi "?".
+                // "không" cuối câu bằng dấu CHẤM ("Tôi không có gì để nói
+                // không." — corpus anchor) vẫn là lỗi thật; "không" KHÔNG
+                // cuối câu ("Không có ai không biết quy định này.") cũng vậy.
+                const PARTICLES: &[&str] = &["ạ", "nhé", "chứ", "nhỉ", "ha", "à", "nhá"];
+                let is_question = ctx
+                    .chars
+                    .iter()
+                    .rev()
+                    .find(|c| !c.is_whitespace())
+                    .is_some_and(|c| *c == '?');
+                let trailing_particle = is_question
+                    && words.iter().rev().all(|&k| {
+                        let w = ctx.token_text(&ctx.tokens[k]).to_lowercase();
+                        ctx.tokens[k].start < ctx.tokens[n].end || PARTICLES.contains(&w.as_str())
+                    });
+                if trailing_particle {
+                    continue;
+                }
                 out.push(issue_suggestion(
                     IssueKind::DoubleNegative,
                     Span {

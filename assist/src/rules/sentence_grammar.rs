@@ -226,9 +226,18 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
 
         // Kiểm tra xung đột ở vế 2 (sau vế 1 ít nhất 2 từ):
         if let Some((clause, marker_idx)) = clause_type {
+            // Vòng 39 (R1 văn phòng FP 7-15): comma GIỮA marker và từ xung đột
+            // ⇒ mệnh đề vế 1 đã đóng bằng dấu phẩy (trạng ngữ/tác nhân), cặp
+            // quan hệ từ không áp — mọi FP đều có phẩy, lỗi thật không.
+            let comma_between = ctx.tokens[marker_idx + 1..tok_idx]
+                .iter()
+                .any(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
             if tok_idx > marker_idx + 3 {
                 match clause {
                     ViCorrelativeClause::Contrast => {
+                        if comma_between {
+                            break;
+                        }
                         // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
                         let is_cho_nen =
                             w == "cho" && k + 1 < n && words_with_idx[k + 1].2 == "nên";
@@ -257,6 +266,29 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         }
                     }
                     ViCorrelativeClause::Cause => {
+                        // Vòng 39 (R1 FP 8-13): CHỈ bêu khi marker ĐỨNG ĐẦU
+                        // câu và KHÔNG có phẩy trước "nhưng". FP: "Báo cáo này
+                        // do phòng kế toán lập, nhưng..." ("do" = tác nhân bị
+                        // động), "Do đó, ..." (anaphora), "Vì sao ..., nhưng..."
+                        // (nghi vấn) — đều có phẩy hoặc marker giữa câu.
+                        let marker_at_start = marker_idx == 0
+                            || ctx.tokens[..marker_idx]
+                                .iter()
+                                .all(|t| t.kind != TokenKind::Word);
+                        let next_w2 = if k + 1 < n {
+                            words_with_idx[k + 1].2.as_str()
+                        } else {
+                            ""
+                        };
+                        // "Vì sao ... nhưng..." (nghi vấn) và "Do đó ... nhưng..."
+                        // (anaphora) — marker không phải nguyên nhân thật.
+                        let interrogative_or_anaphora =
+                            next_w2 == "sao" || (w == "do" && next_w2 == "đó");
+                        if w == "nhưng"
+                            && (!marker_at_start || comma_between || interrogative_or_anaphora)
+                        {
+                            break;
+                        }
                         // "Vì... nhưng..." → sai!
                         if w == "nhưng" {
                             let orig = ctx.token_text(&tok);
@@ -285,6 +317,16 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         }
                     }
                     ViCorrelativeClause::Condition => {
+                        // Vòng 39 (R1 FP 14-15): chỉ bêu khi mệnh đề "nhưng"
+                        // là MỆNH ĐỀ CUỐI (sau nó không còn phẩy + mệnh đề
+                        // chính). FP: "Nếu ... nhưng ..., anh vui lòng báo lại."
+                        // — "nhưng" nằm trong vế điều kiện.
+                        let comma_after = ctx.tokens[tok_idx + 1..]
+                            .iter()
+                            .any(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
+                        if w == "nhưng" && comma_after {
+                            break;
+                        }
                         // "Nếu... nhưng..." → sai!
                         if w == "nhưng" {
                             let orig = ctx.token_text(&tok);

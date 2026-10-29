@@ -115,6 +115,30 @@ vàng vọt
 trăng trắng
 đo đỏ
 xanh xao
+hiu hiu
+bùng bùng
+khò khò
+tạm tạm
+rùng rùng
+băng băng
+hoe hoe
+lơ lửng
+lủng lẳng
+lăn tăn
+lấp lánh
+lung linh
+lung tung
+na ná
+nhấp nhô
+xu xoàng
+lóc cóc
+lộp độp
+khục khục
+hù hù
+ù ù
+è è
+phanh phinh
+tòn teng
 
 # ---- (1b) lay lap lai cua danh tu / luong tu / dai tu: nghia "moi/tung" ----
 ngày ngày
@@ -368,3 +392,9 @@ phú quý vinh hoa
 thời thế thế thời
 chân chính chân thành
 thật thà chất phác
+
+# ---- (4) vòng 39: cụm lặp ABAB hợp lệ (nhấn mạnh) + cầu nối compound ----
+lặng lẽ lặng lẽ
+liên tục liên tục
+khách hàng hàng đầu
+hồ sơ sơ yếu lý lịch

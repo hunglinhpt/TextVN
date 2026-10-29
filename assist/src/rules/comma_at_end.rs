@@ -34,7 +34,9 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // BUG-1 (R2): words CÓ THỂ RỖNG ("10," — chữ số là token Other, không
         // phải Word) ⇒ words[0] index out of bounds → panic exit 101 (corpus
         // score_real có dạng này chết cả bộ đo). Chỉ chạy khi 1..=3 từ.
-        if (1..=3).contains(&words.len()) {
+        // Vòng 39 (R1 văn phòng): trần 3→6 từ — "Trân trọng cảm ơn,",
+        // "Rất mong sớm nhận được phản hồi của Quý công ty," đều ≥4 từ.
+        if (1..=6).contains(&words.len()) {
             // Vòng 34 (R1-F2, siết lại sau probe): KÝ KẾT EMAIL = TỪ ĐẦU câu
             // thuộc danh sách đóng ("Cảm ơn anh,", "Trân trọng,", "Thân,").
             // "Tôi gặp anh," (lỗi thật — dấu phẩy cuối câu treo) vẫn được bêu
@@ -59,6 +61,17 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                 "xin chào",
                 "xin",
                 "chào",
+                // Vòng 39 (R1 văn phòng): opener email/lời chào thật —
+                // "Kính gửi Quý công ty,", "Gửi anh,", "Thưa anh,", "Dear Sir,"...
+                "kính gửi",
+                "kính",
+                "gửi",
+                "thưa",
+                "kính thưa",
+                "chúc",
+                "mong",
+                "rất mong",
+                "dear",
             ];
             let first = ctx.chars[words[0].start..words[0].end]
                 .iter()

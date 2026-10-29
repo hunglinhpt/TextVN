@@ -16,6 +16,7 @@ pub mod duplicate_word;
 pub mod en_confusions;
 pub mod en_spelling;
 pub mod language;
+pub mod phrase_repeat;
 pub mod sentence_grammar;
 pub mod sentence_repeat;
 pub mod space_after_punct;

@@ -200,6 +200,10 @@ fn check_with_internal(
     };
     let mut issues = Vec::new();
     rules::duplicate_word::check(&ctx, &mut issues);
+    // Vòng 39 (audit persona văn phòng): lặp CỤM 2 từ liền kề (X Y X Y) —
+    // "vui lòng vui lòng", "đã được đã được"; lặp láy hợp lệ đã được guard
+    // whitelist + vi_fixed_phrases chặn trước (FPR bar).
+    rules::phrase_repeat::check(&ctx, &mut issues);
     rules::space_before_punct::check(&ctx, &mut issues);
     rules::space_after_punct::check(&ctx, &mut issues);
     rules::double_space::check(&ctx, &mut issues);

@@ -7,7 +7,7 @@ use crate::{Fix, Issue, IssueKind, Span};
 
 /// Từ lặp **có chủ ý** (reduplicative) trong tiếng Việt — "luôn luôn", "mãi mãi",
 /// "dần dần"… là cách tăng nghĩa, **không phải lỗi** (Fassist-94).
-const INTENTIONAL_REPEATS: &[&str] = &[
+pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     // tăng nghĩa: "luôn luôn", "mãi mãi", "dần dần", "rất rất"…
     "luôn", "mãi", "dần", "chính", "thật", "từ", "từng", "ngay", "vừa", "rất",
     // từ ghép đôi: "lâu lâu", "vội vội", "vàng vàng"… (Fassist-94)
@@ -21,7 +21,7 @@ const INTENTIONAL_REPEATS: &[&str] = &[
 ];
 
 /// Từ có nằm trong cặp ngoặc kép `"` nào không (đếm số `"` trước vị trí).
-fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
+pub(crate) fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
     // Vòng 32 (audit A5): nháy CONG “ ” cùng họ với " — lặp từ trong
     // trích lời ("cậu nói “không không” mà") là nguyên văn, không phải lỗi.
     ctx.chars[..pos]
@@ -34,7 +34,7 @@ fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
 
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
 /// corpus `en_basic.ass`: "no no" KHÔNG trong whitelist — PO chốt là lỗi).
-const EN_INTENTIONAL_REPEATS: &[&str] = &[
+pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
     // ngữ pháp: "that that" (mệnh đề quan hệ), "had had" (quá khứ hoàn thành)
     "that", "had", // tăng nghĩa/tình thái
     "very", "long", "so", "well", "there", "now", "bye", "night", "win", "great",

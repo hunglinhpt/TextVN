@@ -52,6 +52,7 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("cố", "găng", 1, "gắng"),
     ("bàng", "hoang", 1, "hoàng"),
     ("giành", "giựt", 1, "giật"),
+    ("hoành", "thành", 0, "hoàn"),
 ];
 
 /// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.
