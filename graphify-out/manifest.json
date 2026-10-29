@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "assist/src/lib.rs": {
-    "mtime": 1793261367.8889441,
-    "seen": 1793261886.5051248,
-    "ast_hash": "49fcb2f34dec2fa4d04901852791d326",
+    "mtime": 1793295073.195523,
+    "seen": 1793295626.7534292,
+    "ast_hash": "63a1ee7d2fdc37438a2ee292c49c4390",
     "semantic_hash": ""
   },
   "assist/src/mask.rs": {
@@ -2412,15 +2412,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1793260995.8638062,
-    "seen": 1793261886.5056756,
-    "ast_hash": "8e2756ad7b14b3a473af00ec7f740301",
+    "mtime": 1793294995.4038603,
+    "seen": 1793295626.7534292,
+    "ast_hash": "cb26e1cc74cd1603269bd3b0ba76b652",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1793261358.2738633,
-    "seen": 1793261886.5061905,
-    "ast_hash": "b736f9553470d5efda77db05489e0810",
+    "mtime": 1793295319.0139394,
+    "seen": 1793295626.7544296,
+    "ast_hash": "2172eab9e6c74cdaf8bd0282941e557a",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
@@ -2520,15 +2520,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/comma_at_end.rs": {
-    "mtime": 1793125726.9454079,
-    "seen": 1793126763.3075757,
-    "ast_hash": "4dd62b7a82d496ce01bfa10c2608e0a4",
+    "mtime": 1793294510.8485126,
+    "seen": 1793295626.7534292,
+    "ast_hash": "1d896679788dcdceb105c6de02402af6",
     "semantic_hash": ""
   },
   "assist/src/rules/double_negative.rs": {
-    "mtime": 1792897937.8746824,
-    "seen": 1792899498.7197855,
-    "ast_hash": "f8e2b95f7da4107808ec8723a4ce2377",
+    "mtime": 1793295289.6777072,
+    "seen": 1793295626.7534292,
+    "ast_hash": "2599cbfd23aac14391296f10ea8caa83",
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_repeat.rs": {
@@ -2838,9 +2838,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/collocation_typo.rs": {
-    "mtime": 1793287651.2806845,
-    "seen": 1793291545.4676416,
-    "ast_hash": "d3a72101b8749d78321f0f7fdba79bef",
+    "mtime": 1793294510.8485126,
+    "seen": 1793295626.7534292,
+    "ast_hash": "615cac4418d5af70280b60eb75cece1a",
     "semantic_hash": ""
   },
   "core/src/post/number_vn.rs": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_grammar.rs": {
-    "mtime": 1793286819.5870168,
-    "seen": 1793291545.4716282,
-    "ast_hash": "f3e560c9325bd5149db720c6f164789a",
+    "mtime": 1793294562.171559,
+    "seen": 1793295626.7544296,
+    "ast_hash": "07c7157971641f31b77d0b52d972f828",
     "semantic_hash": ""
   },
   "xtask/src/gen_vn_phrases.rs": {
@@ -2976,9 +2976,15 @@
     "semantic_hash": ""
   },
   "data/assist/vi_fixed_phrases.txt": {
-    "mtime": 1793254506.8405735,
-    "seen": 1793261886.5264816,
-    "ast_hash": "142efb60d5ceb59a67eaf1c1d729334f",
+    "mtime": 1793295587.1696763,
+    "seen": 1793295626.7781622,
+    "ast_hash": "ee58291cbff576efb0ade1e1e54674e1",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/phrase_repeat.rs": {
+    "mtime": 1793295360.4689648,
+    "seen": 1793295626.7544296,
+    "ast_hash": "581250ce9d79fda0bc7eef911b861473",
     "semantic_hash": ""
   }
 }
