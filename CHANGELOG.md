@@ -7,6 +7,30 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.53] — 2026-10-29
+
+### Fixed
+- **EN: hòa hợp chủ-vị với dạng rút gọn** ("He don't" → "doesn't"): tokenizer
+  tách dấu nháy thành token riêng làm luật SVA luột qua MỌI câu có coast rút
+  gọn — gộp `Word + ' + Word` kề nhau thành 1 token logic trước khi so cặp.
+- **VN: +7 cặp collocation sai âm tiết** (probe từ người dùng): `sẳn sàng` →
+  `sẵn sàng`, `chần chờ` → `chần chừ`, `cần mẩn` → `cần mẫn`, `cố găng` →
+  `cố gắng`, `bàng hoang` → `bàng hoàng`, `giành giựt` → `giành giật`,
+  `trực trặc` → `trúc trắc` (thay trọn cụm 2 âm — PHRASE_FIXES).
+- **EN: Tab hoàn tất từ CHƯA fold khi dự đoán bật** — "develop" + Tab →
+  "developed" (trước đây Tab chỉ nhàn rỗi vì từ không bị Telex biến đổi);
+  tắt dự đoán giữ hành vi cũ. Ghost preview EN hoạt động cùng cơ chế.
+
+**English** — 0.2.53 fixes subject-verb agreement for contractions ("He
+don't" now suggests "doesn't" — the tokenizer splits the apostrophe so every
+contracted sentence slipped past the rule), adds seven Vietnamese
+collocation pairs (sẳn sàng → sẵn sàng, chần chờ → chần chừ, cố găng → cố
+gắng, bàng hoang → bàng hoàng, giành giựt → giành giật, trực trặc → trúc
+trắc as a whole-phrase fix), and opens English Tab completion for unfolded
+words when prediction is enabled ("develop" + Tab → "developed") while
+keeping the old behavior when prediction is off. 791 tests, FPR 0/981,
+clippy 0, preflight 23/23.
+
 ## [0.2.52] — 2026-10-28
 
 ### Added
@@ -2126,6 +2150,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.53]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...v0.2.53
 [0.2.52]: https://github.com/hunglinhpt/TextVN/compare/v0.2.51...v0.2.52
 [0.2.51]: https://github.com/hunglinhpt/TextVN/compare/v0.2.50...v0.2.51
 [0.2.50]: https://github.com/hunglinhpt/TextVN/compare/v0.2.49...v0.2.50

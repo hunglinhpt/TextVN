@@ -33,7 +33,12 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.2.52" date="2026-10-28">
+    <release version="0.2.53" date="2026-10-29">
+      <description>
+        <p>Fixes English subject-verb agreement for contractions ("He don't" now suggests "doesn't" — the tokenizer splits the apostrophe so every contracted sentence slipped past the rule), adds seven Vietnamese collocation pairs (sẳn sàng → sẵn sàng, chần chờ → chần chừ, cố găng → cố gắng, bàng hoang → bàng hoàng, giành giựt → giành giật, trực trặc → trúc trắc as a whole-phrase fix), and opens English Tab completion for unfolded words when prediction is enabled ("develop" + Tab → "developed") while keeping the old behavior when prediction is off.</p>
+      </description>
+    </release>
+    <release version="0.2.52"  date="2026-10-28">
       <description>
         <p>Comprehensive English grammar assistant and text prediction: 3356 frequent English words covering coder, tech, business, OS APIs (Win32, POSIX, Cocoa) and Gen Z slang; 3750 contextual next-phrase prediction patterns (Tab / Ctrl+Space); closed-list confusion rules (their own, except for, led to, lose, principal, take effect, the effect of); Windows OS spell dual-language checking (vi-VN and en-US) with RAII COM apartment lifecycle protection.</p>
       </description>

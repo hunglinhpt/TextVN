@@ -1,3 +1,14 @@
+textvn (0.2.53-0ppa1) noble; urgency=medium
+
+  * Fixes English subject-verb agreement for contractions ("He don't" now
+    suggests "doesn't" — tokenizer splits the apostrophe), adds seven
+    Vietnamese collocation pairs (sẳn sàng → sẵn sàng, chần chờ → chần chừ,
+    trực trặc → trúc trắc as a whole-phrase fix) and opens English Tab
+    completion for unfolded words when prediction is enabled. 791 tests;
+    FPR 0/981.
+
+ -- LinhBH.CoM <hunglinhpt@gmail.com>  Wed, 29 Oct 2026 23:50:00 +0000
+
 textvn (0.2.52-0ppa1) noble; urgency=medium
 
   * Comprehensive English grammar assistant and text prediction: 3356
