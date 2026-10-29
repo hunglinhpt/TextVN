@@ -36,7 +36,6 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("sơ", "xuất", 1, "suất"),
     ("xuất", "ăn", 0, "suất"),
     ("suất", "sắc", 0, "xuất"),
-    ("đều", "cùng", 0, "cùng"),
     // Phân biệt giành / dành theo cặp từ ngữ nghĩa:
     ("dành", "độc", 0, "giành"),
     ("dành", "quyền", 0, "giành"),
@@ -57,7 +56,7 @@ const OFFICE_TRIGRAMS: &[(&str, &str, &str, usize, &str)] = &[
     ("dành", "quyền", "lực", 0, "giành"),
     ("giành", "tình", "cảm", 0, "dành"),
     ("nghe", "phong", "phanh", 2, "thanh"),
-    ("thái", "độ", "bàng quang", 2, "quan"),
+    ("độ", "bàng", "quang", 2, "quan"),
 ];
 
 /// Giữ hoa/thường của bản gốc khi đưa từ đúng ("Bổ xung" → "Bổ sung",

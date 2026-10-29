@@ -52,6 +52,35 @@ fn preserve_case(orig: &str, replacement: &str) -> String {
     replacement.to_string()
 }
 
+/// Đẩy issue thay thế đoạn `[start, end)` bằng `replacement`.
+fn push_replace_span(
+    start: usize,
+    end: usize,
+    orig: &str,
+    replacement: &str,
+    msg: String,
+    out: &mut Vec<Issue>,
+) {
+    if out
+        .iter()
+        .any(|iss| iss.span.start < end && start < iss.span.end)
+    {
+        return;
+    }
+    let fixed = preserve_case(orig, replacement);
+    out.push(issue(
+        IssueKind::WordConfusion,
+        Span { start, end },
+        msg,
+        vec![fixed.clone()],
+        Fix::Replace {
+            start,
+            end,
+            text: fixed,
+        },
+    ));
+}
+
 /// Đẩy issue thay thế từ `tok` bằng `replacement`.
 fn push_replace_issue(
     tok: &Token,
@@ -60,27 +89,7 @@ fn push_replace_issue(
     msg: String,
     out: &mut Vec<Issue>,
 ) {
-    if out
-        .iter()
-        .any(|iss| iss.span.start < tok.end && tok.start < iss.span.end)
-    {
-        return;
-    }
-    let fixed = preserve_case(orig, replacement);
-    out.push(issue(
-        IssueKind::WordConfusion,
-        Span {
-            start: tok.start,
-            end: tok.end,
-        },
-        msg,
-        vec![fixed.clone()],
-        Fix::Replace {
-            start: tok.start,
-            end: tok.end,
-            text: fixed,
-        },
-    ));
+    push_replace_span(tok.start, tok.end, orig, replacement, msg, out);
 }
 
 /// Đẩy issue xoá từ `tok` kèm khoảng trắng đứng trước `gap`.
@@ -169,6 +178,16 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
 
+        // Nếu gặp dấu kết câu giữa chừng (. ! ? ;), huỷ vế 1 vì đã sang câu khác
+        if let Some((_, marker_idx)) = clause_type {
+            let has_sentence_break = ctx.tokens[marker_idx..tok_idx].iter().any(|t| {
+                t.kind == TokenKind::Punct && matches!(ctx.chars[t.start], '.' | '!' | '?' | ';')
+            });
+            if has_sentence_break {
+                clause_type = None;
+            }
+        }
+
         // Nhận diện vế 1 (ở nửa đầu câu hoặc trước dấu phẩy):
         if clause_type.is_none() && k < n / 2 + 2 {
             let next_w = if k + 1 < n {
@@ -210,8 +229,22 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
             if tok_idx > marker_idx + 3 {
                 match clause {
                     ViCorrelativeClause::Contrast => {
-                        // "Mặc dù... nên..." → sai!
-                        if w == "nên" || w == "cho nên" {
+                        // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
+                        let is_cho_nen =
+                            w == "cho" && k + 1 < n && words_with_idx[k + 1].2 == "nên";
+                        if is_cho_nen {
+                            let tok_nen = words_with_idx[k + 1].1;
+                            let orig: String = ctx.chars[tok.start..tok_nen.end].iter().collect();
+                            push_replace_span(
+                                tok.start,
+                                tok_nen.end,
+                                &orig,
+                                "nhưng",
+                                "Cặp quan hệ từ khập khiễng: \"Mặc dù/Tuy\" biểu thị tương phản, cần đi với \"nhưng\", không đi với \"cho nên\"".to_string(),
+                                out,
+                            );
+                            break;
+                        } else if w == "nên" && (k == 0 || words_with_idx[k - 1].2 != "cho") {
                             let orig = ctx.token_text(&tok);
                             push_replace_issue(
                                 &tok,
@@ -315,6 +348,11 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
             if tok.kind != TokenKind::Word || ctx.is_masked(tok.start, tok.end) {
                 continue;
             }
+            if ctx.tokens[..i].iter().any(|t| {
+                t.kind == TokenKind::Punct && matches!(ctx.chars[t.start], '.' | '!' | '?' | ';')
+            }) {
+                break;
+            }
             let w = word_lower(ctx, tok);
             if i > 2 {
                 let gap = ctx.tokens[i - 1];
@@ -327,13 +365,24 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
                     );
                     break;
                 } else if clause == EnCorrelativeClause::Because && w == "so" {
-                    push_delete_issue(
-                        &gap,
-                        tok,
-                        "Redundant conjunction: do not use \"so\" in a sentence starting with \"Because/Since\"".to_string(),
-                        out,
-                    );
-                    break;
+                    let next_word_is_subject = ctx.tokens[i + 1..]
+                        .iter()
+                        .find(|t| t.kind == TokenKind::Word)
+                        .is_some_and(|t| {
+                            matches!(
+                                word_lower(ctx, t).as_str(),
+                                "i" | "we" | "they" | "he" | "she" | "you" | "it" | "the"
+                            )
+                        });
+                    if next_word_is_subject {
+                        push_delete_issue(
+                            &gap,
+                            tok,
+                            "Redundant conjunction: do not use \"so\" in a sentence starting with \"Because/Since\"".to_string(),
+                            out,
+                        );
+                        break;
+                    }
                 }
             }
         }
@@ -348,6 +397,15 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
     for i in 0..words.len().saturating_sub(1) {
         let (w0, w1) = (words[i], words[i + 1]);
         if ctx.is_masked(w0.start, w1.end) {
+            continue;
+        }
+
+        // Xác minh w0 và w1 cách nhau đúng 1 dấu cách đơn, không có dấu câu chen giữa
+        let Some(gap_idx) = ctx.tokens.iter().position(|t| t.start == w0.end) else {
+            continue;
+        };
+        let gap = ctx.tokens[gap_idx];
+        if gap.kind != TokenKind::Space || gap.len() != 1 || gap.end != w1.start {
             continue;
         }
         let a = word_lower(ctx, &w0);
@@ -565,6 +623,19 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         let orig_d = ctx.token_text(w3);
 
         if (a == "look" || a == "looking") && b == "forward" && c == "to" {
+            let linked = (0..3).all(|k| {
+                let (curr, next) = (w[k], w[k + 1]);
+                ctx.tokens
+                    .iter()
+                    .position(|t| t.start == curr.end)
+                    .is_some_and(|g_idx| {
+                        let g = ctx.tokens[g_idx];
+                        g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
+                    })
+            });
+            if !linked {
+                continue;
+            }
             let rep = match d.as_str() {
                 "hear" => Some("hearing"),
                 "meet" => Some("meeting"),
@@ -595,6 +666,19 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         let b = word_lower(ctx, w1);
         let c = word_lower(ctx, w2);
         if a == "cope" && b == "up" && c == "with" {
+            let linked = (0..2).all(|k| {
+                let (curr, next) = (w[k], w[k + 1]);
+                ctx.tokens
+                    .iter()
+                    .position(|t| t.start == curr.end)
+                    .is_some_and(|g_idx| {
+                        let g = ctx.tokens[g_idx];
+                        g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
+                    })
+            });
+            if !linked {
+                continue;
+            }
             if let Some(gap_idx) = ctx.tokens.iter().position(|t| t.start == w0.end) {
                 let gap = ctx.tokens[gap_idx];
                 push_delete_issue(
@@ -664,6 +748,40 @@ mod tests {
         let issues = check("I look forward to hear from you soon.");
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].suggestions, vec!["hearing"]);
+    }
+
+    #[test]
+    fn vi_correlative_mac_du_cho_nen() {
+        let issues = check("Mặc dù trời mưa cho nên chúng tôi vẫn đi học.");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].suggestions, vec!["nhưng"]);
+    }
+
+    #[test]
+    fn vi_boundary_nen_as_modal_verb_khong_bao_loi() {
+        // "nên" ở câu sau mang nghĩa khuyên bảo ("should") -> không báo lỗi
+        let issues = check("Mặc dù trời mưa. Bạn nên mang theo ô.");
+        assert!(
+            issues.is_empty(),
+            "Không được báo lỗi khi nên đứng ở câu sau: {issues:?}"
+        );
+    }
+
+    #[test]
+    fn en_so_adverb_and_punct_boundaries_khong_bao_loi() {
+        // "so" là phó từ chỉ mức độ trước tính từ ("so happy") -> không báo lỗi
+        let issues = check("Because it was cold, he was so happy with the warm tea.");
+        assert!(
+            issues.is_empty(),
+            "so happy không phải liên từ thừa: {issues:?}"
+        );
+
+        // Dấu chấm hỏi / dấu phẩy ngăn cách giữa he và go -> không phải lỗi chủ vị
+        let issues_q = check("Who is he? Go away.");
+        assert!(
+            issues_q.is_empty(),
+            "dấu câu ngăn cách không báo he goes: {issues_q:?}"
+        );
     }
 
     #[test]
