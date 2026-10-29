@@ -13,6 +13,7 @@
 pub mod dict;
 pub mod fix;
 pub mod mask;
+pub mod phrases;
 pub mod rules;
 pub mod tokenize;
 
@@ -223,6 +224,12 @@ fn check_with_internal(
     // Vòng 37 (AS-060): EN spelling qua OS spell API — CHỈ câu En-dominant,
     // suggest-only, gate khoảng cách Damerau ≤ 2 (FPR bar); NoDictionary im lặng.
     rules::en_spelling::check(&ctx, &mut issues);
+    // Ngữ pháp câu tiếng Việt & tiếng Anh (liên từ hô ứng, hoà hợp chủ vị, giới từ thừa)
+    rules::sentence_grammar::check_vi(&ctx, &mut issues);
+    rules::sentence_grammar::check_en(&ctx, &mut issues);
+    // Cụm cố định hợp lệ (từ láy "song song", thành ngữ, "knock knock"…): bỏ
+    // mọi lỗi TỪ VỰNG chồng lên vùng đó — điểm chặn duy nhất (phrases.rs).
+    phrases::drop_issues_in_protected(&mut issues, &ctx.protected);
     issues.sort_by_key(|i| (i.span.start, i.span.end, i.kind));
     issues
 }

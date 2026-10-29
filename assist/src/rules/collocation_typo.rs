@@ -24,13 +24,40 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("thăm", "quan", 0, "tham"),
     ("tựu", "chung", 1, "trung"),
     ("xán", "lạng", 1, "lạn"),
+    ("chuẩn", "đoán", 0, "chẩn"),
+    ("cọ", "sát", 1, "xát"),
+    ("chính", "chu", 0, "chỉn"),
+    ("trao", "dồi", 0, "trau"),
+    ("bạc", "mạng", 0, "bạt"),
+    ("đầy", "dẫy", 1, "rẫy"),
+    ("dấu", "diếm", 0, "giấu"),
+    ("giấu", "diếm", 1, "giếm"),
+    ("dấu", "giếm", 0, "giấu"),
+    ("sơ", "xuất", 1, "suất"),
+    ("xuất", "ăn", 0, "suất"),
+    ("suất", "sắc", 0, "xuất"),
+    ("đều", "cùng", 0, "cùng"),
+    // Phân biệt giành / dành theo cặp từ ngữ nghĩa:
+    ("dành", "độc", 0, "giành"),
+    ("dành", "quyền", 0, "giành"),
+    ("dành", "giật", 0, "giành"),
+    ("giành", "riêng", 0, "dành"),
+    ("giành", "tặng", 0, "dành"),
+    ("giành", "dụm", 0, "dành"),
+    ("giành", "trọn", 0, "dành"),
 ];
 
-/// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|2, từ_đúng)`.
+/// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.
 const OFFICE_TRIGRAMS: &[(&str, &str, &str, usize, &str)] = &[
     ("giành", "thời", "gian", 0, "dành"),
     ("dành", "chiến", "thắng", 0, "giành"),
     ("vô", "hình", "chung", 2, "trung"),
+    ("dành", "thắng", "lợi", 0, "giành"),
+    ("dành", "độc", "lập", 0, "giành"),
+    ("dành", "quyền", "lực", 0, "giành"),
+    ("giành", "tình", "cảm", 0, "dành"),
+    ("nghe", "phong", "phanh", 2, "thanh"),
+    ("thái", "độ", "bàng quang", 2, "quan"),
 ];
 
 /// Giữ hoa/thường của bản gốc khi đưa từ đúng ("Bổ xung" → "Bổ sung",
@@ -133,10 +160,10 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                     .iter()
                     .find(|&&(a, b, c, _, _)| a == w0 && b == w1 && c == w2)
                 {
-                    let (bad_tok, bad_orig) = if target_idx == 0 {
-                        (t0, &w0_orig)
-                    } else {
-                        (t2, &w2_orig)
+                    let (bad_tok, bad_orig) = match target_idx {
+                        0 => (t0, &w0_orig),
+                        1 => (t1, &w1_orig),
+                        _ => (t2, &w2_orig),
                     };
                     push_collocation_issue(ctx, bad_tok.start, bad_tok.end, bad_orig, right, out);
                     i += 4;

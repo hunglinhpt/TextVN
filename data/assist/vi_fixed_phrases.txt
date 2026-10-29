@@ -1,0 +1,370 @@
+# data/assist/vi_fixed_phrases.txt - cum tu tieng Viet HOP LE, de nhin giong loi.
+#
+# Moi dong = mot cum (chu thuong, cac am tiet cach nhau DUNG MOT dau cach).
+# `assist` coi moi cum nay la "vung duoc bao ve": luat lap tu, chinh ta, phu
+# dinh kep, nham lan... KHONG bao loi nao chong len vung do.
+#
+# Gom: (1) tu lay hoan toan ("song song", "deu deu"), (2) tu lay lap lai de
+# nhan manh / tu tuong thanh / than tu, (3) thanh ngu - cum co dinh co am tiet
+# co / Han-Viet / phu dinh kep co chu y.
+#
+# Quy uoc them cum: chi them khi cum DUNG TRONG VAN BAN CHUAN. Cum chi la loi
+# danh may ("toi toi", "cua cua") KHONG duoc dua vao day.
+
+# ---- (1) tu lay hoan toan: tinh tu / trang tu ----
+song song
+đều đều
+nhỏ nhỏ
+nhẹ nhẹ
+khẽ khẽ
+từ từ
+dần dần
+mãi mãi
+luôn luôn
+rất rất
+thật thật
+chầm chậm
+vội vội
+lâu lâu
+xa xa
+gần gần
+hơi hơi
+khá khá
+xanh xanh
+đỏ đỏ
+vàng vàng
+trắng trắng
+đen đen
+tím tím
+hồng hồng
+nâu nâu
+xám xám
+xinh xinh
+đẹp đẹp
+bé bé
+cao cao
+thấp thấp
+dài dài
+ngắn ngắn
+rộng rộng
+hẹp hẹp
+ngon ngon
+vui vui
+buồn buồn
+lạnh lạnh
+nóng nóng
+ấm ấm
+mát mát
+chua chua
+ngọt ngọt
+cay cay
+mặn mặn
+nhạt nhạt
+đắng đắng
+tốt tốt
+xấu xấu
+gầy gầy
+béo béo
+nặng nặng
+mỏng mỏng
+dày dày
+sâu sâu
+nông nông
+sáng sáng
+tối tối
+mới mới
+cũ cũ
+trẻ trẻ
+già già
+nhàn nhạt
+lành lành
+hiền hiền
+dịu dịu
+êm êm
+mềm mềm
+cứng cứng
+khô khô
+ướt ướt
+nhanh nhanh
+chậm chậm
+sớm sớm
+muộn muộn
+đông đông
+vắng vắng
+thưa thưa
+dày đặc
+thi thoảng thi thoảng
+từng từng
+ngay ngay
+vừa vừa
+đói đói
+khỏe khỏe
+yếu yếu
+mạnh mạnh
+dở dở
+giỏi giỏi
+kém kém
+lạ lạ
+quen quen
+thân thân
+sạch sạch
+bẩn bẩn
+gọn gọn
+rối rối
+vàng vọt
+trăng trắng
+đo đỏ
+xanh xao
+
+# ---- (1b) lay lap lai cua danh tu / luong tu / dai tu: nghia "moi/tung" ----
+ngày ngày
+đêm đêm
+năm năm
+tháng tháng
+sáng sáng
+chiều chiều
+tối tối
+nhà nhà
+người người
+nơi nơi
+chốn chốn
+đời đời
+ai ai
+gì gì
+đâu đâu
+từng người từng người
+
+# (khong liet ke dong tu lap: "noi noi", "hoc hoc", "lam lam"... mo ho - co the la loi go nham;
+#  luat lap tu chi GOI Y cho tu noi dung, khong tu xoa - xem rules/duplicate_word.rs)
+
+# ---- (3) tu tuong thanh / than tu / cau cam than lap lai ----
+tách tách
+cạch cạch
+bùm bùm
+bum bum
+đùng đùng
+ào ào
+rào rào
+ầm ầm
+ì ì
+vù vù
+rầm rầm
+tích tích
+tạch tạch
+cộp cộp
+ùng ùng
+oang oang
+ong ong
+ro ro
+rù rù
+xì xì
+hừ hừ
+khè khè
+hì hì
+ha ha
+hi hi
+hu hu
+hê hê
+hố hố
+ôi ôi
+ối ối
+ơi ơi
+ê ê
+à à
+ừ ừ
+ờ ờ
+ừm ừm
+vâng vâng
+dạ dạ
+bye bye
+ok ok
+chộp chộp
+cốp cốp
+lốp lốp
+ríu ríu
+húp húp
+quẩy quẩy
+thong thong
+phèng phèng
+sột sột
+tí tí
+lẩn lẩn
+lầm lầm
+ọc ọc
+oạch oạch
+rột rột
+sồn sột
+rột rột
+ò ó
+ầm ĩ
+rì rào
+lộp bộp
+
+# ---- (4) phu dinh kep CO CHU Y / cau truc xac dinh ----
+không thể không
+không phải không
+không gì không
+không ai không
+không đâu không
+không bao giờ không
+không có gì là không
+không có ai là không
+không có chuyện gì không
+không có gì mà không
+không có việc gì không
+không có điều gì không
+không có nơi nào không
+không gì là không
+không ai là không
+không nơi nào không
+chẳng ai không
+chẳng gì không
+chẳng ai là không
+chẳng có gì là không
+chẳng thể không
+chưa bao giờ không
+chưa ai không
+chưa từng không
+nào có không
+đâu có không
+không hề không
+
+# ---- (5) thanh ngu / cum co dinh (am tiet co, Han-Viet, hay bi nham la loi) ----
+ăn nên làm ra
+ăn năn hối cải
+an cư lạc nghiệp
+an bần lạc đạo
+ân đền oán trả
+ăn chắc mặc bền
+ăn cháo đá bát
+ăn mày dĩ vãng
+ăn xổi ở thì
+ăn bám
+ba chìm bảy nổi
+bách chiến bách thắng
+bách niên giai lão
+bình an vô sự
+bình yên vô sự
+cầu được ước thấy
+chân cứng đá mềm
+chậm mà chắc
+chậm như rùa
+chín người mười ý
+còn nước còn tát
+của ít lòng nhiều
+đồng cam cộng khổ
+đồng tâm hiệp lực
+đồng tâm nhất trí
+đầu tắt mặt tối
+đầu xuôi đuôi lọt
+đi đêm có ngày gặp ma
+giậu đổ bìm leo
+giận cá chém thớt
+gần mực thì đen
+hữu xạ tự nhiên hương
+hữu dũng vô mưu
+khẩu phật tâm xà
+khẩu thị tâm phi
+khổ tận cam lai
+kiến tha lâu đầy tổ
+lá lành đùm lá rách
+lá rụng về cội
+lời nói gió bay
+lòng chim dạ cá
+lực bất tòng tâm
+mưa thuận gió hòa
+mưa thuận gió hoà
+mười phân vẹn mười
+một mất một còn
+một công đôi việc
+một nắng hai sương
+nam nhi chi chí
+nghĩ ngợi
+nước chảy đá mòn
+nước đổ lá khoai
+nước đến chân mới nhảy
+ngưu tầm ngưu mã tầm mã
+nhập gia tùy tục
+nhập gia tuỳ tục
+quốc thái dân an
+quân tử nhất ngôn
+sinh lão bệnh tử
+sơn hào hải vị
+tai bay vạ gió
+tam sao thất bản
+tam tòng tứ đức
+tiên học lễ hậu học văn
+tiền trảm hậu tấu
+thiên biến vạn hóa
+thiên biến vạn hoá
+thiên la địa võng
+thiên thời địa lợi nhân hòa
+thiên thời địa lợi nhân hoà
+tứ cố vô thân
+tứ hải giai huynh đệ
+tứ đại đồng đường
+thập tử nhất sinh
+thượng hạ đồng tâm
+thuận buồm xuôi gió
+trên đe dưới búa
+trăm sông đổ về biển
+trọng nam khinh nữ
+tức nước vỡ bờ
+uống nước nhớ nguồn
+vạn sự khởi đầu nan
+vạn sự như ý
+vô tiền khoáng hậu
+xuất quỷ nhập thần
+xuất khẩu thành thơ
+yêu nước thương dân
+ếch ngồi đáy giếng
+đàn gảy tai trâu
+đánh trống bỏ dùi
+đứng núi này trông núi nọ
+nói một đằng làm một nẻo
+nói trước quên sau
+nói dai nói dài nói dại
+trời long đất lở
+tiến thoái lưỡng nan
+sống chết mặc bay
+sống để bụng chết mang đi
+hết nước hết cái
+có mới nới cũ
+có công mài sắt có ngày nên kim
+tay làm hàm nhai
+tay trắng làm nên
+tình sâu nghĩa nặng
+tình nghĩa vẹn toàn
+lên voi xuống chó
+chạy đôn chạy đáo
+vui như tết
+rối như tơ vò
+nhanh như cắt
+lớn nhanh như thổi
+đen như mực
+trắng như tuyết
+nhẹ như lông hồng
+nặng như chì
+cao như núi
+rộng như biển
+sạch sành sanh
+nhà tranh vách đất
+cơm no áo ấm
+cơm nước đầy đủ
+giang sơn gấm vóc
+non sông gấm vóc
+non nước hữu tình
+sơn thủy hữu tình
+sơn thuỷ hữu tình
+mặt trời mặt trăng
+thiên hạ thái bình
+phong tục tập quán
+chung sức đồng lòng
+đồng bào đồng chí
+đồng tiền bát gạo
+tiền bạc của cải
+tiền tài danh vọng
+phú quý vinh hoa
+thời thế thế thời
+chân chính chân thành
+thật thà chất phác

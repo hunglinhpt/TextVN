@@ -18,6 +18,7 @@ mod check_mac_targets;
 mod check_version_sync;
 mod gen_en_phrases;
 mod gen_mac_corpus;
+mod gen_vn_phrases;
 mod gen_win_corpus;
 mod mac_corpus_cases;
 mod preflight;
@@ -71,6 +72,7 @@ fn main() -> ExitCode {
         "gen-tables" => gen_tables(true),
         "check-tables" => gen_tables(false),
         "gen-en-phrases" => gen_en_phrases::run(),
+        "gen-vn-phrases" => gen_vn_phrases::run(),
         "gen-win-corpus" => gen_win_corpus::run(true),
         "check-win-corpus" => gen_win_corpus::run(false),
         "gen-mac-corpus" => gen_mac_corpus::run(true),

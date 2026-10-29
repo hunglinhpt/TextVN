@@ -16,6 +16,7 @@ pub mod duplicate_word;
 pub mod en_confusions;
 pub mod en_spelling;
 pub mod language;
+pub mod sentence_grammar;
 pub mod sentence_repeat;
 pub mod space_after_punct;
 pub mod space_before_punct;
@@ -44,6 +45,9 @@ pub struct Ctx<'a> {
     pub dict: &'a dyn Dictionary,
     /// Ngôn ngữ chi phối của câu (vòng 24 — trợ lý tiếng Anh/mix văn phòng).
     pub lang: language::Lang,
+    /// Cụm cố định hợp lệ (từ láy, thành ngữ…) — lỗi từ vựng chồng lên vùng
+    /// này bị bỏ ở điểm chặn duy nhất (`phrases::drop_issues_in_protected`).
+    pub protected: Vec<(usize, usize)>,
 }
 
 /// Số lần gọi `suggest` tối đa cho một câu (Fassist-105, P4-0 D40).
@@ -73,6 +77,8 @@ impl Ctx<'_> {
         let tokens = crate::tokenize::tokenize_chars(&chars);
         let lang = language::classify_tokens(&chars, &tokens).unwrap_or(language::Lang::Vi);
         let masked = crate::mask::masked_ranges_chars(&chars);
+        let protected =
+            crate::phrases::protected_spans(&chars, &tokens, lang == language::Lang::Vi);
         Ctx {
             tokens,
             masked,
@@ -80,6 +86,7 @@ impl Ctx<'_> {
             start_of_sentence,
             dict,
             lang,
+            protected,
         }
     }
 
@@ -93,6 +100,8 @@ impl Ctx<'_> {
         let tokens = crate::tokenize::tokenize_chars(&chars);
         let lang = language::classify_tokens(&chars, &tokens)?;
         let masked = crate::mask::masked_ranges_chars(&chars);
+        let protected =
+            crate::phrases::protected_spans(&chars, &tokens, lang == language::Lang::Vi);
         Some(Ctx {
             tokens,
             masked,
@@ -100,7 +109,13 @@ impl Ctx<'_> {
             start_of_sentence,
             dict,
             lang,
+            protected,
         })
+    }
+
+    /// Vùng `[start, end)` có chồng lên cụm cố định hợp lệ không.
+    pub fn is_protected(&self, start: usize, end: usize) -> bool {
+        self.protected.iter().any(|&(s, e)| start < e && s < end)
     }
 
     /// Chuoi cua mot token.

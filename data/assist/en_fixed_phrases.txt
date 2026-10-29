@@ -1,0 +1,156 @@
+# data/assist/en_fixed_phrases.txt - fixed English expressions that LOOK like
+# errors (immediate repetition, odd collocation) but are valid.
+#
+# One phrase per line, lowercase, words separated by exactly ONE space.
+# `assist` treats each phrase as a protected region: duplicate-word,
+# confusion and spelling rules never report inside it.
+#
+# Add a phrase ONLY if it is correct in standard text. A typo such as
+# "the the" or "is is" must never be listed here.
+
+# ---- reduplicated expressions / baby talk / interjections ----
+bye bye
+night night
+nite nite
+so so
+knock knock
+hush hush
+chop chop
+pretty pretty
+very very
+really really
+ha ha
+ho ho
+hee hee
+boo boo
+yum yum
+tut tut
+cha cha
+choo choo
+bling bling
+dum dum
+goody goody
+pom pom
+never never
+go go
+yo yo
+hip hip
+blah blah
+yada yada
+la la
+na na
+oh oh
+uh oh
+uh uh
+mm hmm
+hmm hmm
+yes yes
+okay okay
+ok ok
+sorry sorry
+please please
+wait wait
+stop stop
+come come
+bang bang
+boom boom
+ping pong
+tick tock
+walla walla
+bora bora
+bahn mi
+cous cous
+dik dik
+fifty fifty
+sing sing
+tom tom
+tsk tsk
+ta ta
+pooh pooh
+mama mama
+papa papa
+bon bon
+paw paw
+rah rah
+rin tin
+wee wee
+yoo hoo
+zig zag
+ding dong
+cuckoo cuckoo
+quack quack
+moo moo
+baa baa
+woof woof
+meow meow
+oink oink
+tweet tweet
+beep beep
+honk honk
+vroom vroom
+ha ha ha
+la la la
+na na na
+hey hey
+yeah yeah
+well well
+now now
+there there
+long long
+great great
+win win
+dumb dumb
+bye bye bye
+
+# ---- grammatical repetition (valid in a relative clause / past perfect) ----
+had had
+that that
+can can
+
+# ---- idioms with unusual-looking collocations ----
+all in all
+by and by
+day by day
+step by step
+one by one
+side by side
+back to back
+face to face
+word for word
+bit by bit
+over and over
+again and again
+more and more
+less and less
+on and on
+round and round
+little by little
+hand in hand
+neck and neck
+end to end
+from time to time
+now and then
+here and there
+up and down
+in and out
+out and about
+through and through
+far far away
+long long ago
+once upon a time
+ever and ever
+for ever and ever
+as well as
+as long as
+as soon as
+as far as
+as much as
+so far so good
+more or less
+sooner or later
+sick and tired
+safe and sound
+loud and clear
+black and white
+rock and roll
+trial and error

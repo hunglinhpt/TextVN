@@ -48,6 +48,39 @@ const EN_INTENTIONAL_REPEATS: &[&str] = &[
     "bum", "chộp", "đâu", "năm",
 ];
 
+/// Số lần liên tiếp từ này lặp ở vị trí `i` (≥ 2 khi `tokens[i]` lặp
+/// `tokens[i-2]`): "no no no", "la la la" = nhấn mạnh/lời hát, không phải lỗi.
+fn run_length(ctx: &Ctx, i: usize, lower: &str) -> usize {
+    let mut n = 2usize; // đã biết tokens[i] == tokens[i-2]
+    let mut k = i + 2;
+    while k < ctx.tokens.len() {
+        let (gap, word) = (ctx.tokens[k - 1], ctx.tokens[k]);
+        if !is_word(&word)
+            || gap.kind != TokenKind::Space
+            || gap.len() != 1
+            || ctx.token_text(&word).to_lowercase() != lower
+        {
+            break;
+        }
+        n += 1;
+        k += 2;
+    }
+    n
+}
+
+/// `tokens[i-4]` cũng là cùng từ (cách nhau 1 dấu cách) ⇒ `tokens[i]` là phần
+/// thứ ≥ 3 của chuỗi lặp ("no no no" — lần lặp thứ hai và thứ ba).
+fn repeats_before(ctx: &Ctx, i: usize, lower: &str) -> bool {
+    if i < 4 {
+        return false;
+    }
+    let (gap, word) = (ctx.tokens[i - 3], ctx.tokens[i - 4]);
+    is_word(&word)
+        && gap.kind == TokenKind::Space
+        && gap.len() == 1
+        && ctx.token_text(&word).to_lowercase() == lower
+}
+
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // Token: [Word][Space][Word] - can nhin 2 token lui.
@@ -85,7 +118,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // wait!") — CẢ HAI viết hoa; lỗi thật ở đầu câu chỉ có từ ĐẦU viết
         // hoa ("They they said") vẫn phải bắt. Từ trong ngoặc kép bỏ qua.
         // Vòng 26: guard này áp cho MỌI ngôn ngữ — tên riêng có dấu Việt
-        // ("Lê Lê ơi") và trích lời nói nguyên văn ("nói \"không không\"")
+        // ("Lê Lê ơi") và trích lời nói nguyên văn ("nói "không không"")
         // là hợp lệ bất kể bảng chữ.
         let cur_cap = cur_text.chars().next().is_some_and(|c| c.is_uppercase());
         let prev_cap = prev_text.chars().next().is_some_and(|c| c.is_uppercase());
@@ -96,6 +129,11 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         if ctx.is_masked(prev.start, cur.end) {
+            continue;
+        }
+        // Lặp ≥ 3 lần liền ("no no no", "la la la", "hu hu hu") = nhấn mạnh /
+        // tượng thanh có chủ ý. Cả cụm đã bị bỏ qua ở lần lặp đầu tiên.
+        if run_length(ctx, i, &lower) >= 3 || repeats_before(ctx, i, &lower) {
             continue;
         }
         out.push(issue(
