@@ -360,9 +360,9 @@
     "semantic_hash": ""
   },
   "xtask/src/main.rs": {
-    "mtime": 1793200059.1999218,
-    "seen": 1793200537.9782794,
-    "ast_hash": "bf643f4b7a27bb31f4bd6bfdf2eafd30",
+    "mtime": 1793261726.0784845,
+    "seen": 1793261886.5244758,
+    "ast_hash": "0824c103a875a2435c1c03cb472687c4",
     "semantic_hash": ""
   },
   "xtask/src/toml.rs": {
@@ -2382,9 +2382,9 @@
     "semantic_hash": ""
   },
   "assist/src/lib.rs": {
-    "mtime": 1793164356.2661977,
-    "seen": 1793200537.9592621,
-    "ast_hash": "01fcd5e2596ced1e0ac84662461b112a",
+    "mtime": 1793261367.8889441,
+    "seen": 1793261886.5051248,
+    "ast_hash": "49fcb2f34dec2fa4d04901852791d326",
     "semantic_hash": ""
   },
   "assist/src/mask.rs": {
@@ -2412,15 +2412,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1792898439.0108955,
-    "seen": 1792899498.7197855,
-    "ast_hash": "276978f081af47287a769925d583c088",
+    "mtime": 1793260995.8638062,
+    "seen": 1793261886.5056756,
+    "ast_hash": "8e2756ad7b14b3a473af00ec7f740301",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1793164356.2661977,
-    "seen": 1793200537.9592621,
-    "ast_hash": "cea7451ad5260cf3dca62e150221277d",
+    "mtime": 1793261358.2738633,
+    "seen": 1793261886.5061905,
+    "ast_hash": "b736f9553470d5efda77db05489e0810",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
@@ -2838,9 +2838,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/collocation_typo.rs": {
-    "mtime": 1792948600.6372988,
-    "seen": 1792973768.1279838,
-    "ast_hash": "8bdd6af5c8078e958f013c34376d0714",
+    "mtime": 1793261400.2895563,
+    "seen": 1793261886.5056756,
+    "ast_hash": "11e6f1993d9f49ada67926be42db353e",
     "semantic_hash": ""
   },
   "core/src/post/number_vn.rs": {
@@ -2949,6 +2949,36 @@
     "mtime": 1793200414.6153831,
     "seen": 1793200537.9773037,
     "ast_hash": "ac45312e7bca591162c74d6230249e16",
+    "semantic_hash": ""
+  },
+  "assist/src/phrases.rs": {
+    "mtime": 1793261725.7244852,
+    "seen": 1793261886.5051248,
+    "ast_hash": "3e415574bf3aa0a77f6702ac865f1f78",
+    "semantic_hash": ""
+  },
+  "assist/src/rules/sentence_grammar.rs": {
+    "mtime": 1793261781.3121755,
+    "seen": 1793261886.5061905,
+    "ast_hash": "c89411214cd897816caa7f6ec03439d7",
+    "semantic_hash": ""
+  },
+  "xtask/src/gen_vn_phrases.rs": {
+    "mtime": 1793261726.070919,
+    "seen": 1793261886.5244758,
+    "ast_hash": "0a1def57d2f3bfab25f292152d24bf41",
+    "semantic_hash": ""
+  },
+  "data/assist/en_fixed_phrases.txt": {
+    "mtime": 1793254293.9858806,
+    "seen": 1793261886.5264816,
+    "ast_hash": "f0e470b3641ae439700e0b735c076774",
+    "semantic_hash": ""
+  },
+  "data/assist/vi_fixed_phrases.txt": {
+    "mtime": 1793254506.8405735,
+    "seen": 1793261886.5264816,
+    "ast_hash": "142efb60d5ceb59a67eaf1c1d729334f",
     "semantic_hash": ""
   }
 }

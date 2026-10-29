@@ -2838,9 +2838,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/collocation_typo.rs": {
-    "mtime": 1793261400.2895563,
-    "seen": 1793261886.5056756,
-    "ast_hash": "11e6f1993d9f49ada67926be42db353e",
+    "mtime": 1793282451.289377,
+    "seen": 1793282842.8269901,
+    "ast_hash": "6b5b58c3e7c3570bd2b5b2b93c2e3725",
     "semantic_hash": ""
   },
   "core/src/post/number_vn.rs": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_grammar.rs": {
-    "mtime": 1793261781.3121755,
-    "seen": 1793261886.5061905,
-    "ast_hash": "c89411214cd897816caa7f6ec03439d7",
+    "mtime": 1793282673.9965737,
+    "seen": 1793282842.8306077,
+    "ast_hash": "16a731a53e581440580bc18e3053bd31",
     "semantic_hash": ""
   },
   "xtask/src/gen_vn_phrases.rs": {
