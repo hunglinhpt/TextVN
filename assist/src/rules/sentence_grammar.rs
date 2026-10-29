@@ -314,6 +314,40 @@ enum EnCorrelativeClause {
     Because,
 }
 
+/// Vòng 37: gộp chuỗi Word + apostrophe + Word KỀ NHAU thành 1 token logic
+/// ("don't", "it's", "they're"...) — tokenizer tách apostrophe thành Punct
+/// làm SVA so khớp cặp Word kề nhau luột qua mọi câu có dạng rút gọn
+/// ("He don't" — w1 = "don" khác "don't"). Chỉ gộp khi 3 token liền nhau
+/// (không có space) và dấu là nháy đơn thường hoặc cong.
+fn merge_contractions(ctx: &Ctx) -> Vec<Token> {
+    let toks = &ctx.tokens;
+    let mut out: Vec<Token> = Vec::with_capacity(toks.len());
+    let mut i = 0usize;
+    while i < toks.len() {
+        let t = toks[i];
+        if t.kind == TokenKind::Word
+            && i + 2 < toks.len()
+            && t.end == toks[i + 1].start
+            && toks[i + 1].kind == TokenKind::Punct
+            && toks[i + 1].len() == 1
+            && matches!(ctx.chars[toks[i + 1].start], '\u{27}' | '\u{2019}')
+            && toks[i + 1].end == toks[i + 2].start
+            && toks[i + 2].kind == TokenKind::Word
+        {
+            out.push(Token {
+                kind: TokenKind::Word,
+                start: t.start,
+                end: toks[i + 2].end,
+            });
+            i += 3;
+            continue;
+        }
+        out.push(t);
+        i += 1;
+    }
+    out
+}
+
 pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
     if ctx.lang != Lang::En {
         return;
@@ -322,11 +356,10 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         return;
     }
 
-    let words: Vec<Token> = ctx
-        .tokens
-        .iter()
+    // Vòng 37: gộp dạng rút gọn ("don't" -> 1 token logic) trước khi so cặp.
+    let words: Vec<Token> = merge_contractions(ctx)
+        .into_iter()
         .filter(|t| t.kind == TokenKind::Word)
-        .copied()
         .collect();
 
     // 2.1 Cặp liên từ hô ứng câu tiếng Anh (Although... but / Because... so)

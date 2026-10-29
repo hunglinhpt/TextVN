@@ -1405,7 +1405,12 @@ impl Engine {
         // opt-in `suggest_space_complete` ("ebit" + Space) — đúng cơ chế
         // vòng 24, không đổi default config (P5: không lệch 15 site).
         let space_mode = append.is_some();
-        if !self.word.active && !space_mode && !k.is_ctrl_space() {
+        // Vòng 37 (user: "tiếng Anh gợi ý không chạy tốt"): gõ tiếng Anh thuần
+        // ("develop") KHÔNG bao giờ fold ⇒ word không active ⇒ Tab nhàn rỗi
+        // mãi. Khi dự đoán bật (suggest_vn_complete — cùng opt-in với nhánh
+        // VN), Tab hoàn tất cả từ EN CHƯA fold; tắt dự đoán ⇒ hành vi cũ.
+        let prediction_on = self.opts.suggest_vn_complete;
+        if !self.word.active && !space_mode && !k.is_ctrl_space() && !prediction_on {
             return None;
         }
         if self.word.is_empty() || self.word.raw.len() < 2 {

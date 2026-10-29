@@ -44,6 +44,14 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("giành", "tặng", 0, "dành"),
     ("giành", "dụm", 0, "dành"),
     ("giành", "trọn", 0, "dành"),
+    // Vòng 37 (user probe): các cặp sai âm tiết phổ biến trong văn liệu —
+    // bigram sai không thể là từ/cụm hợp lệ (đối chiếu dict + nghĩa).
+    ("sẳn", "sàng", 0, "sẵn"),
+    ("chần", "chờ", 1, "chừ"),
+    ("cần", "mẩn", 1, "mẫn"),
+    ("cố", "găng", 1, "gắng"),
+    ("bàng", "hoang", 1, "hoàng"),
+    ("giành", "giựt", 1, "giật"),
 ];
 
 /// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.
@@ -58,6 +66,10 @@ const OFFICE_TRIGRAMS: &[(&str, &str, &str, usize, &str)] = &[
     ("nghe", "phong", "phanh", 2, "thanh"),
     ("độ", "bàng", "quang", 2, "quan"),
 ];
+
+/// Vòng 37: cụm SAI CẢ 2 âm tiết — thay TRỌN cụm (1 token/cụm không đủ).
+/// ("trực trặc" → "trúc trắc"; "trúc trặc" sai âm 2 handled riêng ở bigram).
+const OFFICE_PHRASES: &[(&str, &str)] = &[("trực trặc", "trúc trắc")];
 
 /// Giữ hoa/thường của bản gốc khi đưa từ đúng ("Bổ xung" → "Bổ sung",
 /// "XỬ DỤNG" → "SỬ DỤNG").
@@ -168,6 +180,37 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
                     i += 4;
                     continue;
                 }
+            }
+        }
+
+        // 1b. Thử khớp PHRASE 2-âm-sai (vòng 37): thay trọn span 2 từ.
+        {
+            let phrase = format!("{w0} {w1}");
+            if let Some(&(_, right)) = OFFICE_PHRASES.iter().find(|&&(wrong, _)| wrong == phrase) {
+                let span_start = t0.start;
+                let span_end = t1.end;
+                if !out
+                    .iter()
+                    .any(|iss| iss.span.start < span_end && span_start < iss.span.end)
+                {
+                    let fixed = preserve_case(&phrase, right);
+                    out.push(issue(
+                        IssueKind::DiacriticTypo,
+                        Span {
+                            start: span_start,
+                            end: span_end,
+                        },
+                        format!("Sai chính tả trong cụm từ: \"{phrase}\" → \"{fixed}\""),
+                        vec![fixed.clone()],
+                        Fix::Replace {
+                            start: span_start,
+                            end: span_end,
+                            text: fixed,
+                        },
+                    ));
+                }
+                i += 2;
+                continue;
             }
         }
 
