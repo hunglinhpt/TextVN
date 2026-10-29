@@ -213,8 +213,24 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
 
-        // 2) "your welcome/the/not/right" → "you're".
-        if a == "your" && matches!(b.as_str(), "welcome" | "the" | "not" | "right") {
+        // Helper: từ Word KẾ SAU token tại `pos` (skip Space/Punct —
+        // windows(3) đếm từ, tokens có Space xen giữa).
+        let next_word_after = |pos: usize| -> Option<String> {
+            ctx.tokens
+                .iter()
+                .position(|t| t.start == pos)
+                .and_then(|i| {
+                    ctx.tokens[i + 1..]
+                        .iter()
+                        .find(|t| t.kind == TokenKind::Word)
+                })
+                .map(|t| token_word(ctx, t))
+        };
+        // 2) "your the/not/right" → "you're". Vòng 41 (Pass A N3): bỏ
+        // "welcome" — cặp "your welcome" CHỈ có thể fire khi "Your" mở đầu
+        // câu + có từ theo sau (windows(3)), mà khi đó "welcome" luôn là
+        // tính từ hợp lệ ("Your welcome message") ⇒ entry 100% FP.
+        if a == "your" && matches!(b.as_str(), "the" | "not" | "right") {
             push_replace(
                 ctx,
                 w0,
@@ -240,10 +256,19 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
 
         // 4) "their the/not/going" → "they're" (going: token kế ≠ "-" —
-        //    "their going-away party" là đúng).
+        //    "their going-away party" là đúng; vòng 41 Pass A T1: "going" +
+        //    DANH TỪ đóng ("their going rate/price/order/concern") là cụm
+        //    danh từ hợp lệ — không fire).
         if a == "their"
             && (matches!(b.as_str(), "the" | "not")
-                || (b == "going" && ctx.chars.get(w1.end) != Some(&'-')))
+                || (b == "going"
+                    && ctx.chars.get(w1.end) != Some(&'-')
+                    && !next_word_after(w1.start).is_some_and(|w| {
+                        matches!(
+                            w.as_str(),
+                            "rate" | "price" | "order" | "concern" | "concerns" | "offer"
+                        )
+                    })))
         {
             push_replace(
                 ctx,
@@ -257,8 +282,19 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
 
         // 5) copula + "to" + tính từ → "too" ("is to big" luôn sai; "went to
-        //    big cities" đúng vì "went" ∉ copula).
-        if COPULAS.contains(&a.as_str()) && b == "to" && TO_TOO_ADJECTIVES.contains(&c.as_str()) {
+        //    big cities" đúng vì "went" ∉ copula). Vòng 41 (Pass A T2): to-
+        // infinitive ("the plan was to slow down production") — sau tính từ
+        // là PARTICLE của động từ ghép (danh sách đóng) ⇒ bỏ qua; "is to big
+        // for me" (giới từ) và "is to big to fail" (to-v) vẫn fire.
+        const PHRASAL_PARTICLES: &[&str] =
+            &["down", "up", "out", "off", "away", "back", "over", "around"];
+        let after_adj_is_particle =
+            next_word_after(w2.start).is_some_and(|w| PHRASAL_PARTICLES.contains(&w.as_str()));
+        if COPULAS.contains(&a.as_str())
+            && b == "to"
+            && TO_TOO_ADJECTIVES.contains(&c.as_str())
+            && !after_adj_is_particle
+        {
             push_replace(
                 ctx,
                 w1,
@@ -405,7 +441,11 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
                 if matches!(ctx.chars[t.start], '.' | '!' | '?') {
                     break; // sang câu mới — "then" thời gian, đúng
                 }
-                continue; // dấu phẩy/gạch vẫn trong cùng mệnh đề
+                // Vòng 41 (Pass A N2): phẩy/chấm phẩy = mệnh đề trước "then"
+                // ĐÃ ĐÓNG — "Wait a few more minutes, then try again" (mẫu
+                // câu cực phổ biến) không phải so sánh trực tiếp; quét xuyên
+                // phẩy bắt "more" định-lượng → tự sửa "than" phá câu đúng.
+                break;
             }
             if t.kind != TokenKind::Word {
                 continue;

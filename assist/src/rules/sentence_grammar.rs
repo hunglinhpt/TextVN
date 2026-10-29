@@ -292,6 +292,28 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
                         let is_cho_nen =
                             w == "cho" && k + 1 < n && words_with_idx[k + 1].2 == "nên";
+                        // Vòng 41 (Pass A N1): "nên" là SHOULD khi có phủ định/
+                        // tình thái đứng trước ("không nên", "vẫn nên") — và khi
+                        // "nhưng" ĐÃ xuất hiện sau marker ("Tuy giỏi nhưng không
+                        // nên kiêu ngạo" — cặp đúng rồi, không phải lỗi khập
+                        // khiễng). Cả 2 dạng bỏ qua.
+                        let nen_is_should =
+                            words_with_idx[..k]
+                                .iter()
+                                .rev()
+                                .next()
+                                .is_some_and(|(_, _, prev)| {
+                                    matches!(
+                                        prev.as_str(),
+                                        "không" | "chưa" | "vẫn" | "đừng" | "chẳng"
+                                    )
+                                });
+                        // marker_idx là TOKEN index (khớp comma_between ở
+                        // trên) — quét "nhưng" trong khoảng token giữa marker
+                        // và từ hiện tại.
+                        let nhung_seen = ctx.tokens[marker_idx + 1..tok_idx].iter().any(|t| {
+                            t.kind == TokenKind::Word && ctx.token_text(t).to_lowercase() == "nhưng"
+                        });
                         if is_cho_nen {
                             let tok_nen = words_with_idx[k + 1].1;
                             let orig: String = ctx.chars[tok.start..tok_nen.end].iter().collect();
@@ -304,7 +326,11 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                                 out,
                             );
                             break;
-                        } else if w == "nên" && (k == 0 || words_with_idx[k - 1].2 != "cho") {
+                        } else if w == "nên"
+                            && !nen_is_should
+                            && !nhung_seen
+                            && (k == 0 || words_with_idx[k - 1].2 != "cho")
+                        {
                             let orig = ctx.token_text(&tok);
                             push_replace_issue(
                                 &tok,
@@ -766,7 +792,10 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
                 "hear" => Some("hearing"),
                 "meet" => Some("meeting"),
                 "see" => Some("seeing"),
-                "work" => Some("working"),
+                // Vòng 41 (Pass A H5): "work" bỏ — "I look forward to work
+                // every morning" ("to work" = động từ nguyên mẫu, danh từ
+                // nơi làm việc) là câu ĐÚNG; recall mất ở "to work with you"
+                // chấp nhận được theo bar FPR.
                 "receive" => Some("receiving"),
                 _ => None,
             };

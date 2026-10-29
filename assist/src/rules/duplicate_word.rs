@@ -159,6 +159,28 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         {
             continue;
         }
+        // Vòng 41 (Pass A T5): từ chức năng lặp ≥ 3 — fix của bản sao ĐẦU xoá
+        // TRỌN run ("the the the file" --fix phải ra "the file", không để lại
+        // "the the file" vẫn lỗi).
+        let fix_end = if long_run {
+            let mut end = cur.end;
+            let mut k = i + 2;
+            while k < ctx.tokens.len() {
+                let (g, w2) = (&ctx.tokens[k - 1], &ctx.tokens[k]);
+                if !is_word(w2)
+                    || g.kind != TokenKind::Space
+                    || g.len() != 1
+                    || ctx.token_text(w2).to_lowercase() != lower
+                {
+                    break;
+                }
+                end = w2.end;
+                k += 2;
+            }
+            end
+        } else {
+            cur.end
+        };
         out.push(issue(
             IssueKind::DuplicateWord,
             Span {
@@ -169,7 +191,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             vec![prev_text],
             Fix::Delete {
                 start: gap.start,
-                end: cur.end,
+                end: fix_end,
             },
         ));
     }

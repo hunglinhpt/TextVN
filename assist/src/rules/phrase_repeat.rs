@@ -178,11 +178,21 @@ fn check_window(ctx: &Ctx, i: usize, window_size: usize, out: &mut Vec<Issue>) {
     if in_quotes(ctx, start) || ctx.is_masked(start, end) {
         return;
     }
-    // Kết thúc câu ngay sau bản sao 2 ("Nhanh lên nhanh lên!") = lặp kiểu
-    // nói — chỉ bắt khi sau cụm còn ít nhất một từ nữa.
+    // Kết thúc câu ngay sau bản sao 2 = lặp kiểu nói ("Nhanh lên nhanh lên!")
+    // — chỉ bắt khi sau cụm còn từ nữa, HOẶC câu kết bằng DẤU CHẤM (Pass A
+    // T6: paste-double cuối câu "đã hoàn thành đã hoàn thành." rất phổ biến;
+    // guard chỉ cần miễn cho "!"/"?" — lặp kiểu nói kết bằng chấm hiếm).
     let has_word_after = ctx.tokens[i + 1..].iter().any(is_word);
     if !has_word_after {
-        return;
+        let ends_with_dot = ctx
+            .chars
+            .iter()
+            .rev()
+            .find(|c| !c.is_whitespace())
+            .is_some_and(|c| *c == '.');
+        if !ends_with_dot {
+            return;
+        }
     }
     // Trợ từ mệnh lệnh ngay sau ("ăn cơm ăn cơm đi nhé") = lời nhắc lại.
     if let Some(next) = ctx.tokens[i + 1..].iter().find(|t| is_word(t)) {

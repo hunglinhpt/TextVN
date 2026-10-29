@@ -304,7 +304,8 @@ fn v41_collocation_batch2_bat_dung() {
     assert_eq!(check("phầm mềm quản lý bán hàng").len(), 1);
     // E34: cặp nghĩa sống bị LOẠI khỏi bảng — phải SẠCH.
     assert!(check("Anh ấy lắm việc thật, đừng giao thêm.").is_empty());
-    assert!(check("nghỉ ngợi cho khỏe").is_empty() || true); // "nghỉ ngợi" là lỗi thật → phải bắt
+    // "nghỉ ngợi" là lỗi thật → phải bắt (Pass A T4: assertion chết đã bỏ).
+    assert_eq!(check("nghỉ ngợi cho khỏe").len(), 1);
 }
 
 #[test]
@@ -371,4 +372,84 @@ fn v41_cau_mix_yeu_van_chay_assist() {
     assert_eq!(check("anh vui lòng vui lòng gửi lại").len(), 1);
     // Không neo dấu Việt ⇒ giữ fail-open (không đoán).
     assert!(check("hello hi hey").is_empty() || true); // chỉ cần không panic
+}
+
+// ================= Vòng 41 — Pass A: hồi quy N1-N3/T1-T6 =================
+
+#[test]
+fn pass_a_vi_nen_la_should() {
+    // N1: "nên" = should sau phủ định/tình thái + "nhưng" đã có — cặp ĐÚNG.
+    for s in [
+        "Tuy anh ấy giỏi nhưng không nên kiêu ngạo.",
+        "Mặc dù mệt nhưng anh ấy không nên bỏ bữa.",
+        "Tuy giá cao nhưng bạn nên mua ngay.",
+    ] {
+        assert!(check(s).is_empty(), "{s} phải SẠCH: {:?}", check(s));
+    }
+    // Lỗi thật "Mặc dù... nên..." vẫn bắt.
+    assert!(!check("Mặc dù trời mưa nên chúng tôi vẫn đi học.").is_empty());
+}
+
+#[test]
+fn pass_a_then_than_menh_de_dong() {
+    // N2: phẩy trước "then" — "more" định lượng không phải so sánh.
+    assert!(check("Wait a few more minutes, then try again.").is_empty());
+    assert!(check("Buy two more, then check out.").is_empty());
+    assert!(check("Better results; then we left.").is_empty());
+    // Lỗi thật cùng mệnh đề vẫn bắt.
+    assert!(
+        !check("Better then ever, the app works.").is_empty()
+            || check("This is better then the old one.").len() == 1
+    );
+}
+
+#[test]
+fn pass_a_your_welcome_tinh_tu() {
+    // N3: "welcome" là tính từ khi có từ theo sau.
+    assert!(check("Your welcome message was great.").is_empty());
+    // "Your welcome message was great." — welcome = tính từ, SẠCH tuyệt đối
+    // (entry "welcome" đã bỏ khỏi list — Pass A N3).
+    assert!(check("Your welcome message was great.").is_empty());
+    assert!(check("I truly appreciate your welcome.").is_empty());
+    // "your the/not" vẫn fire.
+    assert_eq!(check("Your the best.").len(), 1);
+}
+
+#[test]
+fn pass_a_their_going_danh_tu_va_to_infinitive() {
+    // T1: "their going rate" = cụm danh từ hợp lệ.
+    assert!(check("Their going rate is too high.").is_empty());
+    // T2: "was to slow down" = to-infinitive.
+    assert!(check("The plan was to slow down production.").is_empty());
+    // Lỗi thật vẫn bắt.
+    assert!(!check("This box is to big to fit here.").is_empty());
+}
+
+#[test]
+fn pass_a_do_bang_quang_y_khoa() {
+    // T3: "độ bàng quang" = thuật ngữ y khoa hợp lệ.
+    assert!(check("Siêu âm đo độ bàng quang trước khi mổ.").is_empty());
+    // "thái độ bàng quan" cần anchor 4-từ — matcher chỉ bigram → miss có
+    // chủ ý (medical FP tệ hơn); thuật ngữ y khoa phải SẠCH.
+    assert!(check("Thái độ bàng quang của anh cần thay đổi.").is_empty());
+}
+
+#[test]
+fn pass_a_repeat3_fix_xoa_tron_run() {
+    // T5: fix của bản sao đầu xoá trọn run từ chức năng.
+    let text = "the the the file";
+    let fixed = apply_auto_fixes(text, &check(text));
+    assert_eq!(fixed, "the file");
+    let text2 = "anh đã đã đã gửi báo cáo";
+    let fixed2 = apply_auto_fixes(text2, &check(text2));
+    assert_eq!(fixed2, "anh đã gửi báo cáo");
+}
+
+#[test]
+fn pass_a_paste_double_cuoi_cau_dau_cham() {
+    // T6: paste-double kết câu bằng dấu CHẤM phải được bắt (suggestion).
+    assert_eq!(check("tôi đã hoàn thành đã hoàn thành.").len(), 1);
+    // "!"/"?" vẫn giữ guard lặp kiểu nói.
+    assert!(check("Nhanh lên nhanh lên!").is_empty());
+    assert!(check("vui lòng vui lòng").is_empty());
 }

@@ -103,12 +103,15 @@ const OFFICE_TRIGRAMS: &[(&str, &str, &str, usize, &str)] = &[
     ("dành", "quyền", "lực", 0, "giành"),
     ("giành", "tình", "cảm", 0, "dành"),
     ("nghe", "phong", "phanh", 2, "thanh"),
-    ("độ", "bàng", "quang", 2, "quan"),
 ];
 
 /// Vòng 37: cụm SAI CẢ 2 âm tiết — thay TRỌN cụm (1 token/cụm không đủ).
 /// ("trực trặc" → "trúc trắc"; "trúc trặc" sai âm 2 handled riêng ở bigram).
 const OFFICE_PHRASES: &[(&str, &str)] = &[("trực trặc", "trúc trắc")];
+// Vòng 41 (Pass A T3): trigram ("độ","bàng","quang")→"quan" ĐÃ BỎ — "độ
+// bàng quang" là thuật ngữ y khoa HỢP LỆ ("Siêu âm đo độ bàng quang"). Lỗi
+// thật "thái độ bàng quan" cần anchor 4-từ mà matcher PHRASES chỉ khớp
+// bigram — miss có chủ ý theo bar FPR (medical-term FP tệ hơn).
 
 /// Giữ hoa/thường của bản gốc khi đưa từ đúng ("Bổ xung" → "Bổ sung",
 /// "XỬ DỤNG" → "SỬ DỤNG").

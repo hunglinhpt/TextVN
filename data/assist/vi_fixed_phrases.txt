@@ -145,9 +145,7 @@ ngày ngày
 đêm đêm
 năm năm
 tháng tháng
-sáng sáng
 chiều chiều
-tối tối
 nhà nhà
 người người
 nơi nơi
@@ -218,7 +216,6 @@ lầm lầm
 oạch oạch
 rột rột
 sồn sột
-rột rột
 ò ó
 ầm ĩ
 rì rào

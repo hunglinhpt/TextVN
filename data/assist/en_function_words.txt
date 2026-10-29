@@ -6,7 +6,7 @@
 # Anh). Engine so sanh KHONG phan biet hoa/thuong.
 #
 # Nguon: danh sach tri thuc chung cong cong (top tan suat english: google-10000
-# / Oxford typiccal top-60), bien so tay - trivial word list, khong co sang tao
+# / Oxford typical top-60), bien so tay - trivial word list, khong co sang tao
 # ban quyen (public domain; phu hop MIT nhu data/en_freq3000.txt).
 # Dinh dang: 1 tu / dong, chu thuong, khong sap dac biet (theo tan suat giam dan).
 the
