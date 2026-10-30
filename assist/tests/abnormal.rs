@@ -453,3 +453,39 @@ fn pass_a_paste_double_cuoi_cau_dau_cham() {
     assert!(check("Nhanh lên nhanh lên!").is_empty());
     assert!(check("vui lòng vui lòng").is_empty());
 }
+
+// ================= Vòng 41 batch 3 — hồi quy =================
+
+#[test]
+fn v41b3_lay_tuong_thanh_duoc_bao_ve() {
+    assert!(check("Chó sủa gâu gâu ngoài cửa.").is_empty());
+    assert!(check("Mèo kêu meo meo đòi ăn.").is_empty());
+    assert!(check("Còi xe bíp bíp ngoài đường.").is_empty());
+    assert!(check("Còi tàu tít tít vang xa.").is_empty());
+    assert!(check("Em suýt suýt khóc vì vui.").is_empty());
+}
+
+#[test]
+fn v41b3_thanh_ngu_duoc_bao_ve() {
+    assert!(check("Ăn quả nhớ kẻ trồng cây.").is_empty());
+    assert!(check("Bà ấy tài đức vẹn toàn.").is_empty());
+    assert!(check("Hai bên gừng cay muối mặn với nhau.").is_empty());
+    assert!(check("Nhà hàng đông khách tấp nập cả tối mặt tối mũi.").is_empty());
+    assert!(check("Đây là chuyện vạn bất đắc dĩ.").is_empty());
+    assert!(check("Vấn đề đó được giải quyết một đường tong băng.").is_empty());
+}
+
+#[test]
+fn v41b3_collocation_bat_dung_va_e34() {
+    // Batch 3 fire.
+    assert_eq!(check("soạn thảo sọan thảo lại văn bản").len(), 1);
+    assert_eq!(check("đôn đốc đôn dốc công việc").len(), 1);
+    assert_eq!(check("hạn chót hạn chốt là thứ Sáu").len(), 1);
+    assert_eq!(check("chu đáo chú đáo trong tiếp khách").len(), 1);
+    // E34: nghĩa sống phải SẠCH ("đường dốc", "chốt đơn", "chú ý", "trong nhà").
+    assert!(check("Xe xuống đường dốc cẩn thận.").is_empty());
+    assert!(check("Chốt đơn ngay hôm nay nhé!").is_empty());
+    assert!(check("Nhớ chú ý lái xe an toàn.").is_empty());
+    // E34 tự vạch ("cẩn","trong"): "cất cẩn trong két" hợp lệ → cặp đã BỎ.
+    assert!(check("Cẩn trọng khi cất cẩn trong két.").is_empty());
+}

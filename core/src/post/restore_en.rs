@@ -217,36 +217,77 @@ fn listed(raw: &[char], english_words: &[String]) -> bool {
     english_words.iter().any(|w| w.to_lowercase() == typed)
 }
 
-/// Data file có chứa dòng bằng đúng `word` không (so lowercase).
-///
-/// PERF-01 (audit 2026-10-04): lọc theo độ dài TRƯỚC khi `to_lowercase()`
-/// từng dòng — mỗi dòng bằng `needle` bắt buộc cùng độ dài, nên bỏ được hầu
-/// hết alloc trên đường gõ phím (từ điển 55-82 dòng, gọi ở ranh giới từ/Tab).
-fn data_contains(data: &str, word: &str) -> bool {
-    let needle = word.to_lowercase();
-    data.lines().any(|l| {
-        let l = l.trim();
-        !l.is_empty()
-            && !l.starts_with('#')
-            && l.len() == needle.len()
-            && l.to_lowercase() == needle
+// Vòng 41 (Pass B PB-1): 3 nguồn tra cứu parse **MỘT LẦN** qua OnceLock —
+// `data_contains` quét `lines()` mỗi gọi (is_known_en_word = 80µs/call trên
+// đường peek **mỗi phím**). HashSet đã-lowercase ⇒ contains O(1), ngữ nghĩa
+// giữ nguyên (so lowercase, bỏ `#`/dòng rỗng).
+fn static_lines_lower(
+    data: &'static str,
+    cache: &'static OnceLock<Vec<&'static str>>,
+) -> &'static [&'static str] {
+    cache.get_or_init(|| {
+        data.lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
     })
 }
 
-/// Từ tiếng Anh thông dụng (nhánh 2)?
+fn static_set_lower(
+    data: &'static str,
+    cache: &'static OnceLock<HashSet<String>>,
+) -> &'static HashSet<String> {
+    cache.get_or_init(|| {
+        data.lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(|l| l.to_lowercase())
+            .collect()
+    })
+}
+
+fn en_common_lines() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    static_lines_lower(EN_COMMON_DATA, &CACHE)
+}
+
+fn en_common_set() -> &'static HashSet<String> {
+    static CACHE: OnceLock<HashSet<String>> = OnceLock::new();
+    static_set_lower(EN_COMMON_DATA, &CACHE)
+}
+
+fn vn_common_set() -> &'static HashSet<String> {
+    static CACHE: OnceLock<HashSet<String>> = OnceLock::new();
+    static_set_lower(VN_COMMON_DATA, &CACHE)
+}
+
+fn en_freq_lines() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    static_lines_lower(EN_FREQ_DATA, &CACHE)
+}
+
+fn en_freq_set() -> &'static HashSet<String> {
+    static CACHE: OnceLock<HashSet<String>> = OnceLock::new();
+    static_set_lower(EN_FREQ_DATA, &CACHE)
+}
+
+/// Từ tiếng Anh thông dụng (nhánh 2)? — O(1) qua HashSet (PB-1).
 pub fn en_common_contains(word: &str) -> bool {
-    data_contains(EN_COMMON_DATA, word)
+    let needle = word.to_lowercase();
+    en_common_set().contains(needle.as_str())
 }
 
 /// Âm tiết Việt thông dụng được bảo vệ (đích fold phải tránh)?
 pub fn vn_common_contains(syllable: &str) -> bool {
-    data_contains(VN_COMMON_DATA, syllable)
+    let needle = syllable.to_lowercase();
+    vn_common_set().contains(needle.as_str())
 }
 
 /// Từ có nằm trong nguồn EN **hoàn tất** (en_common + 3000 từ tần suất) không?
 /// Guard Space-completion (vòng 24): chuỗi gõ đã là từ EN đúng → không kéo dài.
 pub fn is_known_en_word(word: &str) -> bool {
-    data_contains(EN_COMMON_DATA, word) || data_contains(EN_FREQ_DATA, word)
+    let needle = word.to_lowercase();
+    en_common_set().contains(needle.as_str()) || en_freq_set().contains(needle.as_str())
 }
 
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
@@ -318,11 +359,8 @@ pub fn complete_word(
             *best = Some(cand.to_owned());
         }
     };
-    for l in EN_COMMON_DATA.lines() {
-        let l = l.trim();
-        if !l.is_empty() && !l.starts_with('#') {
-            consider(&mut best, l);
-        }
+    for &l in en_common_lines() {
+        consider(&mut best, l);
     }
     // Nguồn 3000 từ tần suất (vòng 24) — completion cần vốn từ lớn, nhưng chỉ
     // quét khi `folded_lower` CHƯA phải âm tiết tiếng Việt hợp lệ (bảo vệ
@@ -338,11 +376,8 @@ pub fn complete_word(
     let vn_only_typed =
         vn_ascii_syllables().contains(typed_lower) && !is_known_en_word(typed_lower);
     if !is_valid_word(&folded_chars) && !vn_only_typed {
-        for l in EN_FREQ_DATA.lines() {
-            let l = l.trim();
-            if !l.is_empty() && !l.starts_with('#') {
-                consider(&mut best, l);
-            }
+        for &l in en_freq_lines() {
+            consider(&mut best, l);
         }
         // OP-006 (P5): thuật ngữ tech/business — "ebit" + Tab → "EBITDA",
         // cùng guard âm-tiết-Việt như freq-scan ("cac" có thể là "các" thiếu

@@ -91,6 +91,17 @@ const OFFICE_BIGRAMS: &[(&str, &str, usize, &str)] = &[
     ("phầm", "mềm", 0, "phần"),
     ("lao", "dộng", 1, "động"),
     ("nghỉ", "ngợi", 1, "ngơi"),
+    // Vòng 41 batch 3 — E34 đã probe: "đường dốc" hợp lệ nhưng "đôn dốc"
+    // không; "chốt đơn" hợp lệ nhưng "hạn chốt" không; "chú ý" hợp lệ nhưng
+    // "chú đáo" không; "trong nhà" hợp lệ nhưng "cẩn trong" không;
+    // "trung thục" (Thục phi) không có nghĩa; "sọan thảo" không phải từ.
+    ("sọan", "thảo", 0, "soạn"),
+    ("đôn", "dốc", 1, "đốc"),
+    ("trung", "thục", 1, "thực"),
+    ("chú", "đáo", 0, "chu"),
+    // ("cẩn","trong") BỊ E34 vạch ngay khi probe: "cất cẩn trong két" hợp lệ
+    // — cặp bỏ khỏi bảng.
+    ("hạn", "chốt", 1, "chót"),
 ];
 
 /// Bảng trigram hành chính cố định: `(từ_1, từ_2, từ_3, vị_trí_sửa: 0|1|2, từ_đúng)`.

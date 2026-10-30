@@ -1534,10 +1534,22 @@ pub extern "C" fn ime_assist_plan_sentence_fix_ex(
         let raws: Vec<PlanIssueRaw> = res.issues[..count]
             .iter()
             .map(|raw| {
-                let suggest = unsafe { CStr::from_ptr(raw.suggest.as_ptr()) }
-                    .to_str()
-                    .unwrap_or("")
-                    .to_string();
+                // Vòng 41 (Pass B PB-2): chặn đọc theo `suggest_len` — struct
+                // `result` do caller cấp (macOS có lúc tự dựng raw issue);
+                // suggest không NUL-terminated sẽ over-read ra ngoài struct.
+                // Đường chuẩn check→plan luôn NUL-đúng; thiếu NUL ⇒ cắt tại
+                // trần (fail-open giữ nguyên).
+                let max_suggest =
+                    (raw.suggest_len as usize).min(IME_MAX_ASSIST_SUGGEST.saturating_sub(1));
+                let bytes = unsafe {
+                    std::slice::from_raw_parts(raw.suggest.as_ptr().cast(), max_suggest + 1)
+                };
+                let nul = bytes
+                    .iter()
+                    .position(|&b| b == 0)
+                    .unwrap_or(max_suggest)
+                    .min(max_suggest);
+                let suggest = String::from_utf8_lossy(&bytes[..nul]).to_string();
                 PlanIssueRaw {
                     kind: raw.kind,
                     start: raw.start as usize,

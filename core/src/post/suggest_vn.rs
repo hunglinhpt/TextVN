@@ -15,16 +15,25 @@ pub const VN_FREQ_DATA: &str = include_str!("../../../data/vn_freq3000.txt");
 /// Âm tiết hoàn chỉnh ngắn nhất bắt đầu bằng `typed_lower` (so khớp prefix
 /// nghiêm ngặt, không phân biệt hoa thường đã xử lý phía caller). `None` khi
 /// gõ quá ngắn hoặc không có ứng viên dài hơn.
+/// Vòng 41 (Pass B PB-1): `complete_vn_word` quét 3004 dòng mỗi Tab/peek —
+/// parse một lần qua OnceLock, per-call chỉ còn so prefix.
+fn vn_freq_lines() -> &'static [&'static str] {
+    static CACHE: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| {
+        VN_FREQ_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect()
+    })
+}
+
 pub fn complete_vn_word(typed_lower: &str) -> Option<String> {
     if typed_lower.chars().count() < 2 {
         return None;
     }
     let mut best: Option<&str> = None;
-    for l in VN_FREQ_DATA.lines() {
-        let l = l.trim();
-        if l.is_empty() || l.starts_with('#') {
-            continue;
-        }
+    for &l in vn_freq_lines() {
         if !l.starts_with(typed_lower) || l == typed_lower {
             continue;
         }
