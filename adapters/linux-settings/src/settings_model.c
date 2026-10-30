@@ -144,6 +144,7 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
          * struct zeroed: trợ lý "Tắt" + 3 tuỳ chọn gõ tắt hết là SAI. */
         out->assist_mode = 1;          /* highlight */
         out->assist_auto_fix = 0;      /* off */
+        out->assist_idle_ms = TV_ASSIST_DEFAULT_IDLE_MS; /* Vòng 41 (Pass C C-41/4): nhánh zeroed quên field này */
         out->auto_restore_english = 1;
         out->free_marking = 1;
         out->auto_capitalize = 1;

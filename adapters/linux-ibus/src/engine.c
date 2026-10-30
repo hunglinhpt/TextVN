@@ -252,38 +252,45 @@ static gboolean text_before_caret_matches(TextVNIbusEngine *self, const char *ex
     ibus_engine_get_surrounding_text(engine, &text, &cursor_pos, &anchor_pos);
     if (!text) return FALSE;
 
+    /* Vòng 41 (Pass C C-41/1): `text` là REF transfer-full (ibusengine.c g_object_ref)
+     * ⇒ MỌI exit path phải g_object_unref — như perform_selection_convert. Thiếu
+     * unref = rò 1 IBusText (toàn bộ surrounding text) mỗi trigger assist ⇒ RSS
+     * ibus-engine tăng dần trong phiên. Dùng goto-sweep cuối hàm. */
+    gboolean matched = FALSE;
     /* ibus_text_get_text trả con trỏ NỘI bộ (không copy, không free). */
     const gchar *str = ibus_text_get_text(text);
-    if (!str) return FALSE;
+    if (str) {
+        const gchar *cursor_ptr = str;
+        guint i = 0;
+        while (i < cursor_pos && *cursor_ptr) {
+            cursor_ptr = g_utf8_next_char(cursor_ptr);
+            i++;
+        }
+        /* Caret nằm ngoài text ⇒ dữ liệu không nhất quán ⇒ không xác minh được. */
+        if (i == cursor_pos) {
+            size_t before_len = (size_t)(cursor_ptr - str);
+            size_t committed_len = committed ? strlen(committed) : 0;
 
-    const gchar *cursor_ptr = str;
-    guint i = 0;
-    while (i < cursor_pos && *cursor_ptr) {
-        cursor_ptr = g_utf8_next_char(cursor_ptr);
-        i++;
+            /* Ghép: text trước caret (cache) + text vừa commit. Chỉ cần ĐUÔI nên cắt
+             * phần đầu (không ảnh hưởng phép so — ranh giới char ở cuối giữ nguyên). */
+            char merged[ASSIST_SURROUNDING_MAX];
+            size_t keep = before_len;
+            size_t room = sizeof(merged) - committed_len - 1;
+            if (keep > room) keep = room;
+            memcpy(merged, str + (before_len - keep), keep);
+            size_t merged_len = keep;
+            if (committed_len > 0) {
+                memcpy(merged + merged_len, committed, committed_len);
+                merged_len += committed_len;
+            }
+            merged[merged_len] = '\0';
+
+            /* Hàm so ĐUÔI dùng chung (linux-common) — cùng quy tắc với Fcitx5/macOS. */
+            matched = lc_text_ends_with(merged, merged_len, expected, strlen(expected)) != 0;
+        }
     }
-    /* Caret nằm ngoài text ⇒ dữ liệu không nhất quán ⇒ không xác minh được. */
-    if (i != cursor_pos) return FALSE;
-
-    size_t before_len = (size_t)(cursor_ptr - str);
-    size_t committed_len = committed ? strlen(committed) : 0;
-
-    /* Ghép: text trước caret (cache) + text vừa commit. Chỉ cần ĐUÔI nên cắt
-     * phần đầu (không ảnh hưởng phép so — ranh giới char ở cuối giữ nguyên). */
-    char merged[ASSIST_SURROUNDING_MAX];
-    size_t keep = before_len;
-    size_t room = sizeof(merged) - committed_len - 1;
-    if (keep > room) keep = room;
-    memcpy(merged, str + (before_len - keep), keep);
-    size_t merged_len = keep;
-    if (committed_len > 0) {
-        memcpy(merged + merged_len, committed, committed_len);
-        merged_len += committed_len;
-    }
-    merged[merged_len] = '\0';
-
-    /* Hàm so ĐUÔI dùng chung (linux-common) — cùng quy tắc với Fcitx5/macOS. */
-    return lc_text_ends_with(merged, merged_len, expected, strlen(expected)) != 0;
+    g_object_unref(text);
+    return matched;
 }
 
 /* Áp dụng ứng viên được chọn trong Mode 1 */

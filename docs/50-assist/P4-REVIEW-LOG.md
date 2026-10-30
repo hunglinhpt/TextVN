@@ -424,3 +424,45 @@ Linux T1 (connect blocking trên đường phím — tray treo = đóng băng b�
 **Verify:** 776 test · FPR 0/2739 + tatoeba rule-touched 0/1500 · recall
 28/28 + 38/38 + 30/30 · 25/25 persona · 11/11 đối kháng · clippy 0 ·
 preflight 23/23 · CI 7/7 xanh (`eea0b0b`, `a39227c`, `11c3b9d`).
+
+---
+
+## VÒNG 41 — mở rộng batch 2-3 + audit 3 pass (A assist / B core-ffi / C adapters) — 2026-10-30
+
+**Batch 2-3 (role văn phòng):** +20 láy X X (chăm chăm…, thôi thôi, gâu gâu…),
++93 thành ngữ/tục ngữ/so sánh (một lần bất tín vạn lần bất tin, bán mặt cho
+đất bán lưng cho trời, dễ như trở bàn tay…), +31 bigram (y kiến, binh thường,
+hạn chốt, hoc sinh…), dự đoán role +112 VN / +30 EN (kế toán/văn thư/HR/
+sales/CSKH/GV/quản lý/email). **E34 tự chứng minh lần 2:** cặp ("cẩn","trong")
+bị chính probe vạch ("cất cẩn trong két" hợp lệ) → BỎ ngay khi thêm.
+
+**FIX NGHIÊM TRỌNG (probe đối kháng "y kiến hay"):** `classify_tokens` trả
+None khi <2 từ dấu + <2 từ chức năng EN ⇒ **TOÀN BỘ assist tắt** trên câu mix
+ngắn có neo dấu Việt. Giờ: neo-dấu ⇒ Vi (luật VI tự chặn — vòng 24); không
+dấu ⇒ giữ fail-open None.
+
+**PERF (Pass B + tự đo):** predict quét ~6.000 dòng MỖI PHÍM (715µs) → cache
+OnceLock 6 nguồn = ~20µs; Pass B soi tiếp: restore_en/suggest_vn quét 3354
+dòng mỗi peek (31-87µs) → HashSet O(1); key_event 0,4-0,55µs. PB-2: FFI plan
+chặn đọc suggest theo suggest_len (caller-tự-dựng raw không NUL hết over-read).
+
+**Pass A (assist, 3 NẶNG auto-fix phá chữ đúng + 7 TRUNG — fix đủ):** N1
+"Tuy giỏi nhưng không nên kiêu ngạo" (nên=should + nhưng đã có); N2 "more
+minutes, then try" (back-scan break ở phẩy); N3 entry "your welcome" 100% FP
+(structural — chỉ fire khi Your mở đầu + có từ sau ⇒ welcome luôn là tính từ);
+T1 "their going rate"; T2 "was to slow down" (particle đóng); T3 trigram "độ
+bàng quang" = thuật ngữ y khoa HỢP LỆ (bỏ — miss "thái độ bàng quan" có chủ
+ý, matcher 4-từ không có); T4 assertion chết; T5 fix run≥3 xoá TRỌN run; T6
+paste-double kết câu dấu chấm; T7 key TSV HOA chết + dedupe.
+
+**Pass C (adapters, 1 TRUNG + 4 THẤP):** C-41/1 LEAK IBusText trong
+text_before_caret_matches (transfer-full không unref — RSS ibus-engine tăng
+dần cả phiên) → goto-sweep unref; C-41/4 zeroed-nhánh quên assist_idle_ms
+default. C-41/2 (Windows appStates cap parity macOS) + C-41/3 (header-deadline
+pipe) + C-41/5 (SwiftUI duplicate id) backlog vòng sau. Fix vòng 40 xác nhận
+nguyên 8/8 (T-1, T-2, tid, H1, EINTR, TIS, Snapshot-200, non-blocking).
+
+**Đo vòng 41:** 168 core + 40 ffi + 135 assist lib + 41 abnormal tests ·
+FPR 0/2739 · recall 28/28 + 38/38 · tatoeba rule-touched 1/1500 (typo thật
+trong corpus) · clippy 0 · preflight exit=0 · CI 7/7 xanh (cf208ed, 2a0ea92,
+5749444, 0f6e856, f64bdc3 — 1 typing flake B5 rerun xanh).
