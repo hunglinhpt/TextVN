@@ -6,13 +6,13 @@
 |---|---|
 | Nội dung | **Pass A (assist+data)**: 3 NẶNG auto-fix phá chữ đúng (N1 nên/nhưng + N2 then/than phẩy + N3 your welcome structural) + T1-T7 (their going rate, to-infinitive particle, độ bàng quang y khoa, assertion chết, fix xoá trọn run, paste-double dấu chấm, TSV HOA chết) + E34 tự vạch cặp "cẩn trong". **Pass B (core/ffi)**: cache OnceLock predict 715µs→~20µs + restore_en/suggest_vn O(1) (peek 87µs→O(1)) + PB-2 suggest_len bound; classify neo-dấu ⇒ Vi (assist hết tắt trên câu mix ngắn). **Pass C (adapters)**: leak IBusText text_before_caret_matches (unref mọi exit path) + idle_ms zeroed-nhánh; fix vòng 40 nguyên 8/8. **Batch 2-3**: +40 thành ngữ/tục ngữ, +20 láy, +25 bigram, dự đoán role +142 mẫu |
 | Đo | 168 core + 40 ffi + 135 assist lib + 41 abnormal = 384 test khu vực assist/core · workspace xanh · FPR 0/2739 · recall 28/28 + 38/38 · tatoeba rule-touched 1/1500 (typo thật) · key_event 0,4-0,55µs/phím · predict ~20µs · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | điền sau B3 |
-| Release | v0.2.55 tag ký GPG — điền sau B6 |
-| Checksums | điền sau B7 |
-| Homebrew (B7b) | cask version "0.2.55" + sha256 mac zip — điền sau B7b |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.55 — hash archive điền sau B7e |
-| PPA (B7f) | debian/changelog `0.2.55-0ppa1` |
-| approved (B7c) | `approved/v0.2.55/` — điền sau B7c |
+| CI trên commit gắn tag 67b8f9a | 7/7 xanh ([ci-shared](https://github.com/hunglinhpt/TextVN/actions/runs/41083068741) · [ci-windows](https://github.com/hunglinhpt/TextVN/actions/runs/41083068748) · [ci-linux](https://github.com/hunglinhpt/TextVN/actions/runs/41083068707) · [ci-macos](https://github.com/hunglinhpt/TextVN/actions/runs/41083068830) · ci-aur · ci-deb · repo-hygiene) |
+| Release | [v0.2.55 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.55) — release-candidate [4/4 job](https://github.com/hunglinhpt/TextVN/actions/runs/41084235074) xanh; **34 asset**; `gpg --verify SHA256SUMS.txt` Good (FPR 3921595A…) |
+| Checksums | machine exe `3c888688…9d01` · MSIX `e43876a6…4225` · mac zip `6900d998…7539` · PKGBUILD archive `5ef103c3…769d` |
+| Homebrew (B7b) | cask `version "0.2.55"` + `sha256` = mac zip `6900d998…7539` — sync-cask [#41095419796](https://github.com/hunglinhpt/homebrew-tap/actions/runs/41095419796) success, raw cask khớp |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.55 = archive v0.2.55 `5ef103c3…769d`; publish AUR chờ owner SSH (quy trình B7e) |
+| PPA (B7f) | debian/changelog `0.2.55-0ppa1`; upload PPA = owner (prepare-ppa.sh) |
+| approved (B7c) | `approved/v0.2.55/` — 34 file byte-identical, raw URL machine.exe + msix 200 (commit `d6cb7f5`) |
 
 ## Bản 0.2.54 — lặp cụm 2-4 từ + từ EN thừa + audit 3 OS (vòng 39-40)
 
