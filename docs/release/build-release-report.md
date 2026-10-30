@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.57 — audit toàn bề mặt 3 pass D1/D2/D3 (vòng 43)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Self-audit**: strategy/config/appdb/field-detect/ipc — 0 panic, config validate chặn mọi abnormal. **D1 (typing engine 4.1k dòng)**: F1 VIQR freeze E28 + F4 `DD` hoa + F3 xoá dead code 115 dòng; perf key() 0.13µs/phím. **D2 (hành trình phím 3 OS)**: F1 NẶNG macOS toggle VI giữa từ mất chữ → commitBeforeHide trước toggle (parity Windows/Linux); F2 `.pass` chốt marked (bất biến pass⇒composition đóng); F3 ConfigReload defer. **D3 (đối kháng)**: VIQR freeze 11/11 probe, Swift fixes đúng, guard F9 markedRange NSNotFound, corpus 0/4334 + hard recall 100% |
+| Đo | 169 core lib + toàn workspace xanh · key() 0.13µs/phím (dư 3800× ngân sách) · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | điền sau B3 |
+| Release | v0.2.57 tag ký GPG — điền sau B6 |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | cask version "0.2.57" + sha256 — điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.57 — hash điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.57-0ppa1` |
+| approved (B7c) | `approved/v0.2.57/` — điền sau B7c |
+
 ## Bản 0.2.56 — audit EN mode 3 pass (vòng 42)
 
 | Hạng mục | Bằng chứng |

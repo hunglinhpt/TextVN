@@ -1,3 +1,11 @@
+textvn (0.2.57-0ppa1) noble; urgency=medium
+
+  * Vong 43 audit 3 pass D1/D2/D3: VIQR freeze marker (het toggle vo tan),
+    macOS toggle VI/ConfigReload giua tu het mat chu (commit marked truoc
+    khi nha quyen so huu), DD hoa gach, doc don dep dead code.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 31 Oct 2026 12:00:00 +0700
+
 textvn (0.2.56-0ppa1) noble; urgency=medium
 
   * Vong 42 audit EN mode: tro ly EN het bo qua tren cau mix Vi-dominant va

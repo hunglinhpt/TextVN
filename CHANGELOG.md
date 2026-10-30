@@ -7,6 +7,28 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.57] — 2026-10-31
+
+### Fixed
+- **VIQR: hết toggle vô tận** ("hoa..." từng bật-tắt dấu nặng mãi, "dddd"
+  từng gạch lại chữ `d`) — freeze marker như Telex/VNI (luật E28 áp đủ 3
+  kiểu gõ); `DD` hoa giờ gạch thành `Đ` như Telex.
+- **macOS: hết mất từ khi toggle VI giữa từ** (Ctrl+Shift hoặc
+  Ctrl+Shift+Space) — chữ đang gạch chân được chốt thành text thật trước
+  khi đổi trạng thái, khớp Windows/Linux; phím điều hướng/F-key khi đang có
+  chữ marked cũng chốt trước (hết cơ chế app thay thế vùng marked).
+- **macOS: đổi cài đặt giữa từ không còn xoá từ đang gở** — ConfigReload
+  được hoãn tới ranh giới từ (parity 3 nền tảng).
+- Dọn dẹp: xoá dead code bộ kiểm âm tiết trung gian (115 dòng), guard chống
+  nhân đôi từ khi app tự commit marked.
+
+**English** — 0.2.57 ships a three-pass whole-surface audit: VIQR mode now
+freezes repeated markers like Telex and VNI (no endless toggle on "hoa..."
+or "dddd") and uppercase DD strokes to Đ; macOS no longer loses the word
+being typed when toggling Vietnamese or reloading settings mid-word (the
+marked text is committed first, matching Windows and Linux); dead code was
+removed from the syllable validator.
+
 ## [0.2.56] — 2026-10-31
 
 ### Fixed
@@ -2278,6 +2300,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.57]: https://github.com/hunglinhpt/TextVN/compare/v0.2.56...v0.2.57
 [0.2.56]: https://github.com/hunglinhpt/TextVN/compare/v0.2.55...v0.2.56
 [0.2.55]: https://github.com/hunglinhpt/TextVN/compare/v0.2.54...v0.2.55
 [0.2.54]: https://github.com/hunglinhpt/TextVN/compare/v0.2.53...v0.2.54
