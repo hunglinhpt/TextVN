@@ -1,3 +1,12 @@
+textvn (0.2.55-0ppa1) noble; urgency=medium
+
+  * Vong 41: audit 3 pass (assist/core-ffi/adapters) — fix classify tat
+    assist cau mix ngan, 3 auto-fix pha chu dung, leak IBusText; perf cache
+    du doan 715µs → ~20µs + peek O(1); +40 thanh ngu/tuc ngu, +20 tu lay,
+    +25 bigram van phong, du doan role +142 mau.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Fri, 30 Oct 2026 16:00:00 +0700
+
 textvn (0.2.54-0ppa1) noble; urgency=medium
 
   * Vong 39-40: lap cum 2-4 tu (suggestion-only), tu EN thua trong cau Viet,

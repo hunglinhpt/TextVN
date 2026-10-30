@@ -9,7 +9,7 @@ enum AppInfo {
     /// chạy trong swift test (Bundle.main không có Info.plist app).
     static let displayVersion: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        ?? "0.2.54"
+        ?? "0.2.55"
 
     /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test Rust
     /// `about_text_matches_every_platform` đối chiếu từng chữ). Hai popup macOS

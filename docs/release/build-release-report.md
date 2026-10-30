@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.55 — audit 3 pass A/B/C + classify mix + perf cache (vòng 41)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Pass A (assist+data)**: 3 NẶNG auto-fix phá chữ đúng (N1 nên/nhưng + N2 then/than phẩy + N3 your welcome structural) + T1-T7 (their going rate, to-infinitive particle, độ bàng quang y khoa, assertion chết, fix xoá trọn run, paste-double dấu chấm, TSV HOA chết) + E34 tự vạch cặp "cẩn trong". **Pass B (core/ffi)**: cache OnceLock predict 715µs→~20µs + restore_en/suggest_vn O(1) (peek 87µs→O(1)) + PB-2 suggest_len bound; classify neo-dấu ⇒ Vi (assist hết tắt trên câu mix ngắn). **Pass C (adapters)**: leak IBusText text_before_caret_matches (unref mọi exit path) + idle_ms zeroed-nhánh; fix vòng 40 nguyên 8/8. **Batch 2-3**: +40 thành ngữ/tục ngữ, +20 láy, +25 bigram, dự đoán role +142 mẫu |
+| Đo | 168 core + 40 ffi + 135 assist lib + 41 abnormal = 384 test khu vực assist/core · workspace xanh · FPR 0/2739 · recall 28/28 + 38/38 · tatoeba rule-touched 1/1500 (typo thật) · key_event 0,4-0,55µs/phím · predict ~20µs · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | điền sau B3 |
+| Release | v0.2.55 tag ký GPG — điền sau B6 |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | cask version "0.2.55" + sha256 mac zip — điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.55 — hash archive điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.55-0ppa1` |
+| approved (B7c) | `approved/v0.2.55/` — điền sau B7c |
+
 ## Bản 0.2.54 — lặp cụm 2-4 từ + từ EN thừa + audit 3 OS (vòng 39-40)
 
 | Hạng mục | Bằng chứng |

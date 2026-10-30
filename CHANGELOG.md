@@ -7,6 +7,50 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.55] — 2026-10-30
+
+### Added
+- **+40 thành ngữ/tục ngữ/so sánh** vào vùng bảo vệ ("một lần bất tín vạn
+  lần bất tin", "bán mặt cho đất bán lưng cho trời", "dễ như trở bàn tay",
+  "gừng cay muối mặn", "vạn bất đắc dĩ"…), **+20 từ láy** ("thôi thôi",
+  "rồi rồi", "khoan khoan", "gâu gâu", "meo meo"…).
+- **+25 cặp collocation văn phòng**: `y kiến` → `ý kiến`, `binh thường` →
+  `bình thường`, `tuyệt vơi` → `tuyệt vời`, `hạn chốt` → `hạn chót`,
+  `hoc sinh` → `học sinh`, `phầm mềm` → `phần mềm`… (mỗi cặp probe nghĩa
+  sống — luật E34 tự vạch và loại cặp "cẩn trong").
+- **Dự đoán role +142 mẫu** (kế toán: "hóa đơn " → "giá trị gia tăng";
+  văn thư: "công văn " → "số"; quản lý: "giai đoạn " → "tiếp theo";
+  email Anh: "sorry for " → "the late reply").
+
+### Fixed
+- **Trợ lý không còn tự tắt trên câu mix ngắn** có neo dấu Việt ("y kiến
+  hay", "anh y kiến hay" — trước đây classify không chắc chắn ngôn ngữ ⇒
+  toàn bộ kiểm tra im lặng, kể cả lặp từ).
+- **3 luật tự sửa phá chữ đúng**: "Tuy giỏi nhưng **không nên** kiêu ngạo"
+  (hết bị đổi thành "không nhưng"); "more minutes, **then** try again" (hết
+  bị đổi thành "than"); "their **going** rate" / "was to **slow** down" (cụm
+  danh từ / động từ ghép hợp lệ).
+- **Rò bộ nhớ IBus**: `text_before_caret_matches` không giải phóng IBusText
+  (transfer-full) — RSS ibus-engine tăng dần cả phiên gõ.
+- **Hiệu năng**: dự đoán quét ~6.000 dòng **mỗi phím** (715µs) → cache tĩnh
+  **~20µs**; tra cứu hoàn tất từ 80µs → O(1); ghost text mỗi phím giảm ~4×.
+- **FFI**: kế hoạch sửa câu chặn đọc `suggest` theo `suggest_len` (caller
+  tự dựng issue không NUL-terminated hết over-read).
+- **Abnormal vét cạn**: 41 test đầu vào kỳ dị (rỗng, NUL, emoji, RTL,
+  100k ký tự, lặp nghìn lần, cắt biên cụm 2/3/4 từ, hoa-thường lẫn).
+
+**English** — 0.2.55 ships a three-pass line-by-line audit (assistant rules +
+data, engine/FFI, all three OS adapters): the assistant no longer disables
+itself on short mixed Vietnamese-English sentences with a Vietnamese anchor;
+three auto-fix rules that corrupted correct text were fixed ("Tuy giỏi nhưng
+không nên kiêu ngạo", "more minutes, then try again", "their going rate"); an
+IBusText reference leak in the IBus engine was closed; prediction/lookup
+caches cut per-keystroke work from ~700µs to ~20µs and O(1) word-completion
+lookups; the FFI sentence-fix plan now bounds `suggest` reads by `suggest_len`.
+Vocabulary: 40+ idioms/proverbs, 20+ reduplicative words, 25 office
+collocation pairs, and 142 new role-based prediction patterns (accounting,
+admin, HR, sales, support, teachers, managers, email).
+
 ## [0.2.54] — 2026-10-30
 
 ### Added
@@ -2209,6 +2253,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.55]: https://github.com/hunglinhpt/TextVN/compare/v0.2.54...v0.2.55
 [0.2.54]: https://github.com/hunglinhpt/TextVN/compare/v0.2.53...v0.2.54
 [0.2.53]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...v0.2.53
 [0.2.52]: https://github.com/hunglinhpt/TextVN/compare/v0.2.51...v0.2.52

@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.55" date="2026-10-30">
+      <description>
+        <p>Three-pass line-by-line audit across the grammar assistant, engine/FFI and all three OS adapters: the assistant no longer disables itself on short mixed Vietnamese-English sentences with a Vietnamese anchor, three auto-fix rules that could corrupt correct text were fixed ("Tuy giỏi nhưng không nên kiêu ngạo", "more minutes, then try again", "their going rate"), an IBusText reference leak in the IBus engine was closed, prediction and lookup caches cut per-keystroke work from ~700µs to ~20µs, 40+ idioms/proverbs and 20+ reduplicative words added to the fixed-phrase whitelist, 25 new office collocation pairs (y kiến→ý kiến, hạn chốt→hạn chót…), and role-based phrase prediction grew by 142 patterns for office workers.</p>
+      </description>
+    </release>
     <release version="0.2.54" date="2026-10-30">
       <description>
         <p>Phrase-repeat detection upgraded to multi-word windows (2-4 words, suggestion-only: "vui lòng vui lòng kiểm tra", "đã hoàn thành đã hoàn thành"), new redundant English word rule for Vietnamese sentences ("đã been", "trước before 17h"), comma-after-"nhưng" suggestion, 19 new office collocation pairs, 68 idioms/proverbs and 24 reduplicative words added to the fixed-phrase whitelist, role-based phrase prediction for office workers (+114 Vietnamese / +18 English patterns), and cross-platform hardening: Windows no longer deletes committed text when the undo snapshot fails and transcodes long decomposed selections, macOS restores the Ctrl+Shift+F9 selection-transcode chord (Swift protocol requirement) and syncs the legacy-diacritics default, Linux no longer freezes the typing path when the tray is hung (non-blocking IPC connect).</p>
