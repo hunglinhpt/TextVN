@@ -83,3 +83,30 @@
 
 Verdict EN-1 sau fix: các fix a16ca0b đạt chất lượng ship; corpus 4551 cases
 0 mismatch.
+
+## 6. Pass EN-2 (đối kháng 2 commit vòng 42) — finding + fix (vòng 42, 2026-10-31)
+
+- **N1+N2 NẶNG (đã fix)**: văn bản Việt **KHÔNG DẤU** ("noi it do met",
+  "gui cho i nhe") classify sang **En** (it+do = 2 từ chức năng) — F1 gate
+  lang không che được → auto-fix "does"/"I" phá chữ. Fix: (a) `do/go/say`
+  thêm gate **câu có tín hiệu Việt** (`vn_sentence_hint`: ≥1 từ âm-tiết
+  Việt-only `is_vietnamese_ascii_word` — loại giao điểm do/to — hoặc chữ Việt
+  có dấu); (b) `check_pronoun` skip khi từ kề "i" là tín hiệu Việt.
+  Đối chứng: EN thuần ("It do the job perfectly.", "and then i went home.")
+  vẫn fix ✓.
+- **R1 TRUNG (đđ fix)**: quote MỞ KHÔNG ĐÓNG / dấu inch `24"` lật parity nuốt
+  MỌI lỗi EN phía sau. Fix: `compute_quote_parity` — parity mở mà NHÁY CUỐI
+  nằm trước vị trí đó ⇒ coi như ngoài quote (parity vector nâng lên **Ctx
+  dùng chung** — 1 lần/câu).
+- **R2 TRUNG (đã fix)**: parity guard chỉ có ở windows(3) — đồng bộ cho
+  windows(2) ("there own"), then/than backscan, check_pronoun. Còn lại
+  (article_an — đã có 3 tầng guard riêng; check_en correlative — câu mở đầu
+  EN quote hiếm) ghi nhận.
+- **P1 ghi nhận (backlog)**: F2 lazy vẫn O(n²) worst ("was to slow"×80k =
+  18s) + 2.5/2.6 `position()` — IME window 256 chars nên không đau; hoist
+  HashMap khi có ngân sách.
+- Corpus đối chứng EN-2: FPR 0/4334 (4 corpus + tatoeba), hard recall 100%,
+  15/15 probe đối kháng sau fix.
+
+**Đo vòng 42**: 135 lib + 48 abnormal = 183 test assist · FPR 0/2739 ·
+recall 28/28 + 38/38 · clippy 0 · preflight exit=0.

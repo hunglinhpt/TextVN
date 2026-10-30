@@ -1024,7 +1024,7 @@ pub fn check_text_min_words(
         }; IME_MAX_ASSIST_ISSUES],
     };
     // D39 · P4-10 §5.2: provider tĩnh `vi-VN` của `os_spell` — probe capability
-    // 1 lần/phiên (OnceLock); máy không có bộ kiểm tra tiếng Việt ⇒ NULL
+    // 1 lần/phiên (SpellAttempt retry 30s (vòng 42)); máy không có bộ kiểm tra tiếng Việt ⇒ NULL
     // (`NoDictionary`, y hệt bản cũ — W2/AC-1). Đường stateless không có
     // instance nên provider truyền per-call; chỉ Windows (Linux/macOS dùng
     // đường instance-based `ime_assist_check_instance` có provider riêng).

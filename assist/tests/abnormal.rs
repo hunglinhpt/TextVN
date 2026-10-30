@@ -540,3 +540,44 @@ fn en1_f5_trich_loi_nguyen_van() {
     // Ngoài ngoặc kép vẫn bắt.
     assert!(!check("we should of known better, honestly.").is_empty());
 }
+
+// ================= Vòng 42 — Pass EN-2 hồi quy N1/N2/R1/R2 =================
+
+#[test]
+fn en2_n1_n2_viet_khong_dau_khong_bao() {
+    // N1/N2: văn bản Việt KHÔNG dấu classify sang En (it+do = 2 từ chức năng)
+    // — cặp đụng âm tiết Việt phải skip, không auto-fix phá chữ.
+    for s in [
+        "noi it do met",
+        "anh it do met",
+        "tre it do deadline",
+        "gui cho i nhe",
+    ] {
+        assert!(check(s).is_empty(), "{s} phải SẠCH: {:?}", check(s));
+    }
+    // EN thuần vẫn fix.
+    assert!(!check("It do the job perfectly.").is_empty());
+    assert!(!check("She go to school every day.").is_empty());
+    assert!(!check("and then i went home.").is_empty());
+}
+
+#[test]
+fn en2_r1_quote_mo_khong_dong_khong_nuot() {
+    // R1: parity mở mà không còn nháy phía sau = ngoài quote (chat thiếu
+    // dấu đóng / dấu inch 24").
+    assert!(!check("Anh nói \"we should of done it rồi bỏ đi.").is_empty());
+    assert!(!check("Màn hình 24\" xong they is coming sớm.").is_empty());
+    // Quote đóng đủ: nguyên văn — không sửa.
+    assert!(check("Anh nói \"we should of done it rồi\" bỏ đi.").is_empty());
+}
+
+#[test]
+fn en2_r2_nguyen_van_dong_bo_mo_luat() {
+    // R2: parity dùng chung Ctx — đủ các rule (windows(2), then/than,
+    // pronoun) chứ không chỉ windows(3).
+    assert!(check("He said \"there own way\" was odd.").is_empty());
+    assert!(check("She wrote \"we did more then we promised\" yesterday.").is_empty());
+    assert!(check("He said \"i will go\" softly.").is_empty());
+    // Ngoài quote vẫn bắt.
+    assert!(!check("there own way of doing it.").is_empty());
+}

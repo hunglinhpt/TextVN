@@ -142,6 +142,13 @@ pub fn check_pronoun(ctx: &Ctx, out: &mut Vec<Issue>) {
         if ctx.chars[tok.start] != 'i' || ctx.is_masked(tok.start, tok.end) {
             continue;
         }
+        // Vòng 42 (Pass EN-2 N2): "i" kề âm tiết Việt ("gui cho i nhe" —
+        // văn bản KHÔNG dấu classify sang En) = đại từ Việt, không phải "I".
+        if super::vn_neighbor_hint(ctx, tok.start)
+            || ctx.quote_parity.get(tok.start).copied().unwrap_or(false)
+        {
+            continue;
+        }
         // "i.e." / "i.o.u." — ký tự kế ngay là '.' ⇒ viết tắt, không phải đại từ.
         if ctx.chars.get(tok.end) == Some(&'.') {
             continue;
@@ -184,19 +191,9 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         .filter(|t| t.kind == TokenKind::Word)
         .copied()
         .collect();
-    // Vòng 42 (F5-hoist): trạng thái trong-ngoặc-kép tại MỖI vị trí ký tự —
-    // O(n) một lần thay in_quotes O(n) mỗi cửa sổ (O(n²) tổng).
-    let quote_parity: Vec<bool> = {
-        let mut v = Vec::with_capacity(ctx.chars.len());
-        let mut in_q = false;
-        for &c in &ctx.chars {
-            v.push(in_q);
-            if matches!(c, '"' | '“' | '”') {
-                in_q = !in_q;
-            }
-        }
-        v
-    };
+    // Vòng 42 (Pass EN-2 R1): parity dùng chung Ctx (O(n) 1 lần + xử lý
+    // nháy-lẻ/dấu-inch — xem compute_quote_parity).
+    let quote_parity = &ctx.quote_parity;
     for w in words.windows(3) {
         let (w0, w1, w2) = (&w[0], &w[1], &w[2]);
         if w0.is_empty() || ctx.is_masked(w0.start, w2.end) {
@@ -364,6 +361,10 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         if w0.is_empty() || ctx.is_masked(w0.start, w1.end) {
             continue;
         }
+        // Vòng 42 (Pass EN-2 R2): nguyên văn trong ngoặc kép không sửa.
+        if ctx.quote_parity.get(w0.start).copied().unwrap_or(false) {
+            continue;
+        }
         let a = token_word(ctx, w0);
         let b = token_word(ctx, w1);
 
@@ -452,6 +453,10 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
         let w = token_word(ctx, tok);
         if w != "then" || ctx.is_masked(tok.start, tok.end) {
+            continue;
+        }
+        // Vòng 42 (Pass EN-2 R2): trích lời nguyên văn không sửa.
+        if ctx.quote_parity.get(tok.start).copied().unwrap_or(false) {
             continue;
         }
         let idx = ctx

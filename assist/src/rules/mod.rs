@@ -49,6 +49,33 @@ pub struct Ctx<'a> {
     /// Cụm cố định hợp lệ (từ láy, thành ngữ…) — lỗi từ vựng chồng lên vùng
     /// này bị bỏ ở điểm chặn duy nhất (`phrases::drop_issues_in_protected`).
     pub protected: Vec<(usize, usize)>,
+    /// Vòng 42 (F5-hoist + Pass EN-2 R1): trạng thái **trong ngoặc kép** tại
+    /// mỗi vị trí ký tự — O(n) một lần, mọi luật dùng chung (per-rule
+    /// in_quotes là O(n²)). R1: parity MỞ nhưng KHÔNG còn nháy nào phía sau
+    /// ⇒ coi như ngoài quote (chat thiếu dấu đóng / dấu inch `24"` lật parity
+    /// suốt phần sau — không được nuốt lỗi phía sau).
+    pub quote_parity: Vec<bool>,
+}
+
+/// Tính quote-parity có xử lý R1 (parity mở mà không còn nháy phía sau = ngoài).
+fn compute_quote_parity(chars: &[char]) -> Vec<bool> {
+    let mut v = Vec::with_capacity(chars.len());
+    let mut in_q = false;
+    let mut last_quote: Option<usize> = None;
+    for (i, &c) in chars.iter().enumerate() {
+        v.push(in_q);
+        if matches!(c, '"' | '“' | '”') {
+            in_q = !in_q;
+            last_quote = Some(i);
+        }
+    }
+    // Vị trí nào parity mở mà NHÁY CUỐI nằm trước nó ⇒ nháy mở lẻ — ngoài quote.
+    if let Some(lq) = last_quote {
+        for b in v.iter_mut().skip(lq + 1) {
+            *b = false;
+        }
+    }
+    v
 }
 
 /// Số lần gọi `suggest` tối đa cho một câu (Fassist-105, P4-0 D40).
@@ -80,6 +107,7 @@ impl Ctx<'_> {
         let masked = crate::mask::masked_ranges_chars(&chars);
         let protected =
             crate::phrases::protected_spans(&chars, &tokens, lang == language::Lang::Vi);
+        let quote_parity = compute_quote_parity(&chars);
         Ctx {
             tokens,
             masked,
@@ -88,6 +116,7 @@ impl Ctx<'_> {
             dict,
             lang,
             protected,
+            quote_parity,
         }
     }
 
@@ -103,6 +132,7 @@ impl Ctx<'_> {
         let masked = crate::mask::masked_ranges_chars(&chars);
         let protected =
             crate::phrases::protected_spans(&chars, &tokens, lang == language::Lang::Vi);
+        let quote_parity = compute_quote_parity(&chars);
         Some(Ctx {
             tokens,
             masked,
@@ -111,6 +141,7 @@ impl Ctx<'_> {
             dict,
             lang,
             protected,
+            quote_parity,
         })
     }
 
@@ -305,6 +336,31 @@ pub(crate) fn issue(
         confidence: 100,
         fix: Some(fix),
     }
+}
+
+/// Vòng 42 (Pass EN-2 N1/N2): từ KỀ (trước/sau, bỏ Space/Punct) là **tín
+/// hiệu tiếng Việt** — âm tiết Việt-only (`is_vietnamese_ascii_word`, loại
+/// giao điểm do/to/an/he/i) hoặc chữ Việt có dấu. Cặp EN đụng âm tiết Việt
+/// ("it do lỗi", "cho i") phải skip khi hàng xóm Việt.
+pub(crate) fn vn_neighbor_hint(ctx: &Ctx, start: usize) -> bool {
+    let vn_word = |t: &Token| -> bool {
+        let w = ctx.token_text(t).to_lowercase();
+        language::is_vietnamese_ascii_word(&w) || w.chars().any(language::is_vietnamese_letter)
+    };
+    let idx = match ctx.tokens.iter().position(|t| t.start == start) {
+        Some(i) => i,
+        None => return false,
+    };
+    let prev = ctx.tokens[..idx]
+        .iter()
+        .rev()
+        .find(|t| t.kind == TokenKind::Word)
+        .is_some_and(vn_word);
+    let next = ctx.tokens[idx + 1..]
+        .iter()
+        .find(|t| t.kind == TokenKind::Word)
+        .is_some_and(vn_word);
+    prev || next
 }
 
 /// Token lai chu / so de rule khong phai tu tach lai.

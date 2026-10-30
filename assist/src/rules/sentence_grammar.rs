@@ -553,6 +553,17 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         .filter(|t| t.kind == TokenKind::Word)
         .collect();
 
+    // Vòng 42 (Pass EN-2 N1): câu có TÍN HIỆU VIỆT (≥1 từ âm-tiết-Việt-only
+    // hoặc chữ Việt có dấu) — "noi it do met" classify sang En vì it+do đủ 2
+    // từ chức năng; "do/go/say" đụng âm tiết Việt phải skip. ("the job" không
+    // có tín hiệu ⇒ "It do the job perfectly." En vẫn fix.)
+    let vn_sentence_hint = ctx.tokens.iter().any(|t| {
+        t.kind == TokenKind::Word && {
+            let w = ctx.token_text(t).to_lowercase();
+            crate::rules::language::is_vietnamese_ascii_word(&w)
+                || w.chars().any(crate::rules::language::is_vietnamese_letter)
+        }
+    });
     // 2.2 Hoà hợp chủ ngữ - vị ngữ (Subject-Verb Agreement) & Redundant Prepositions
     const MODALS: &[&str] = &[
         "to", "can", "could", "will", "would", "should", "must", "may", "might", "does", "did",
@@ -567,18 +578,8 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         .enumerate()
         .map(|(i, t)| (t.start, i))
         .collect();
-    // F5-hoist: parity trong-ngoặc-kép O(n) một lần (in_quotes per-pair O(n²)).
-    let quote_parity: Vec<bool> = {
-        let mut v = Vec::with_capacity(ctx.chars.len());
-        let mut in_q = false;
-        for &c in &ctx.chars {
-            v.push(in_q);
-            if matches!(c, '"' | '“' | '”') {
-                in_q = !in_q;
-            }
-        }
-        v
-    };
+    // F5-hoist (Pass EN-2 R1): parity dùng chung Ctx.
+    let quote_parity = &ctx.quote_parity;
 
     for i in 0..words.len().saturating_sub(1) {
         let (w0, w1) = (words[i], words[i + 1]);
@@ -615,7 +616,9 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             // Vi-dominant "Máy nó it do lỗi nhé" sẽ bị tự sửa "does" phá chữ.
             // 3 động từ đụng này chỉ fire khi câu En-dominant; các mục còn lại
             // (have/want/need/like/make/get/think/know, don't…) không trùng.
-            if matches!(b.as_str(), "do" | "go" | "say") && ctx.lang != Lang::En {
+            if matches!(b.as_str(), "do" | "go" | "say")
+                && (ctx.lang != Lang::En || vn_sentence_hint)
+            {
                 continue;
             }
             // He / She / It + base form
