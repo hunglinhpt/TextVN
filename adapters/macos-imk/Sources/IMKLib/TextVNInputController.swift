@@ -624,7 +624,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     /// marked rỗng (đầu `handle`).
     private var pendingConfigReload = false
 
-    private func applyConfigReload(version: UInt32) {
+    private func applyConfigReload(version: UInt64) {
         Diagnostics.log("ipc ConfigReload v\(version)")
         if let cfg = Self.loadConfig() {
             _ = engine?.reloadConfig(Self.engineConfig(cfg))
