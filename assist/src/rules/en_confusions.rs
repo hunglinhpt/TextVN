@@ -184,9 +184,28 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         .filter(|t| t.kind == TokenKind::Word)
         .copied()
         .collect();
+    // Vòng 42 (F5-hoist): trạng thái trong-ngoặc-kép tại MỖI vị trí ký tự —
+    // O(n) một lần thay in_quotes O(n) mỗi cửa sổ (O(n²) tổng).
+    let quote_parity: Vec<bool> = {
+        let mut v = Vec::with_capacity(ctx.chars.len());
+        let mut in_q = false;
+        for &c in &ctx.chars {
+            v.push(in_q);
+            if matches!(c, '"' | '“' | '”') {
+                in_q = !in_q;
+            }
+        }
+        v
+    };
     for w in words.windows(3) {
         let (w0, w1, w2) = (&w[0], &w[1], &w[2]);
         if w0.is_empty() || ctx.is_masked(w0.start, w2.end) {
+            continue;
+        }
+        // Vòng 42 (Pass EN-1 F5): trích lời nguyên văn trong ngoặc kép —
+        // 'He said "we should of known better"' là nguyên văn, không sửa.
+        // (parity vector O(n) tính 1 lần — guard per-window O(1).)
+        if quote_parity.get(w0.start).copied().unwrap_or(false) {
             continue;
         }
         let a = token_word(ctx, w0);
@@ -293,12 +312,13 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         // for me" (giới từ) và "is to big to fail" (to-v) vẫn fire.
         const PHRASAL_PARTICLES: &[&str] =
             &["down", "up", "out", "off", "away", "back", "over", "around"];
-        let after_adj_is_particle =
-            next_word_after(w2.start).is_some_and(|w| PHRASAL_PARTICLES.contains(&w.as_str()));
+        // Vòng 42 (Pass EN-1 F2): next_word_after O(tokens) — tính LAZY chỉ
+        // khi đã khớp copula+to+adj (trước đây vô điều kiện mỗi window 3 từ
+        // ⇒ O(n²): 100k = 4.3s).
         if COPULAS.contains(&a.as_str())
             && b == "to"
             && TO_TOO_ADJECTIVES.contains(&c.as_str())
-            && !after_adj_is_particle
+            && !next_word_after(w2.start).is_some_and(|w| PHRASAL_PARTICLES.contains(&w.as_str()))
         {
             push_replace(
                 ctx,

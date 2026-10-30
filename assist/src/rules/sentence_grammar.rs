@@ -475,7 +475,6 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         .filter(|t| t.kind == TokenKind::Word)
         .collect();
 
-    let _ = &words; // 2.1 dùng words.first()/words[1] bên dưới
     let mut en_clause: Option<EnCorrelativeClause> = None;
     if let Some(first_word) = words.first() {
         let w_first = word_lower(ctx, first_word);
@@ -568,10 +567,26 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         .enumerate()
         .map(|(i, t)| (t.start, i))
         .collect();
+    // F5-hoist: parity trong-ngoặc-kép O(n) một lần (in_quotes per-pair O(n²)).
+    let quote_parity: Vec<bool> = {
+        let mut v = Vec::with_capacity(ctx.chars.len());
+        let mut in_q = false;
+        for &c in &ctx.chars {
+            v.push(in_q);
+            if matches!(c, '"' | '“' | '”') {
+                in_q = !in_q;
+            }
+        }
+        v
+    };
 
     for i in 0..words.len().saturating_sub(1) {
         let (w0, w1) = (words[i], words[i + 1]);
         if ctx.is_masked(w0.start, w1.end) {
+            continue;
+        }
+        // Vòng 42 (Pass EN-1 F5): trích lời nguyên văn không sửa (O(1)).
+        if quote_parity.get(w0.start).copied().unwrap_or(false) {
             continue;
         }
 
@@ -595,6 +610,14 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         };
 
         if !prev_is_modal {
+            // Vòng 42 (Pass EN-1 F1): "do"/"go"/"say" là ÂM TIẾT VIỆT deaccent
+            // (do=vì/bởi, go=gõ, say=sảy — vn_ascii_syllables) — câu mix
+            // Vi-dominant "Máy nó it do lỗi nhé" sẽ bị tự sửa "does" phá chữ.
+            // 3 động từ đụng này chỉ fire khi câu En-dominant; các mục còn lại
+            // (have/want/need/like/make/get/think/know, don't…) không trùng.
+            if matches!(b.as_str(), "do" | "go" | "say") && ctx.lang != Lang::En {
+                continue;
+            }
             // He / She / It + base form
             if matches!(a.as_str(), "he" | "she" | "it") {
                 let replacement = match b.as_str() {

@@ -513,3 +513,30 @@ fn v42_en_pronoun_gi_en_only() {
     // Câu En thuần vẫn bắt.
     assert!(!check_sentence("and then i went home.").is_empty());
 }
+
+// ================= Vòng 42 — Pass EN-1 hồi quy F1/F5 =================
+
+#[test]
+fn en1_f1_do_go_say_la_am_tiet_viet() {
+    // F1: "do/go/say" = âm tiết Việt deaccent — câu mix KHÔNG được auto-fix.
+    for s in [
+        "Máy nó it do lỗi nhé anh.",
+        "Chuyện it do outlook luôn đấy.",
+        "Cái này it go sai rồi anh.",
+        "Lỗi này it say vậy thôi.",
+    ] {
+        assert!(check(s).is_empty(), "{s} phải SẠCH: {:?}", check(s));
+    }
+    // Câu En-dominant vẫn fix đúng.
+    assert!(!check("It do the job perfectly.").is_empty());
+    assert!(!check("She go to school every day.").is_empty());
+}
+
+#[test]
+fn en1_f5_trich_loi_nguyen_van() {
+    // F5: lỗi EN trong ngoặc kép = nguyên văn, không sửa.
+    assert!(check(r#"He said "we should of known better" to everyone."#).is_empty());
+    assert!(check(r#"Cô bảo "they is coming" rồi cúp máy."#).is_empty());
+    // Ngoài ngoặc kép vẫn bắt.
+    assert!(!check("we should of known better, honestly.").is_empty());
+}

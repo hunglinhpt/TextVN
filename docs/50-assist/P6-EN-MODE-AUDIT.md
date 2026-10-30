@@ -57,3 +57,29 @@
 - Probe CLI: "Anh should of done it sớm hơn." → word_confusion ✓;
   "He don't know nhé anh." → word_confusion ✓; "Tôi is học sinh." → SẠCH
   (đúng — "tôi" không thuộc cặp đại từ EN); "gửi cho i nhé" → không bêu.
+
+## 5. Pass EN-1 (agent audit độc lập) — finding + fix (vòng 42)
+
+- **F1 NẶNG (regression của RC-3, đã fix)**: `do`/`go`/`say` là ÂM TIẾT VIỆT
+  deaccent (do=vì, go=gõ, say=sảy) — câu mix "Máy nó it do lỗi nhé" bị tự sửa
+  "does" phá chữ (conf 100). Fix: 3 động từ đụng chỉ fire khi En-dominant;
+  probe đối chứng "It do the job." En vẫn fix ✓.
+- **F2 TRUNG (đã fix)**: `after_adj_is_particle` tính vô điều kiện mỗi window
+  ⇒ O(n²) (100k = 4.3s) → lazy trong điều kiện copula+to+adj.
+- **F5 THẤP (đã fix)**: lỗi EN trong ngoặc kép ("He said \"we should of
+  known better\"") không được sửa — quote-parity vector O(n) hoist cho cả
+  check_confusions + check_en_agreement (in_quotes per-window chính nó là
+  O(n²) — hoist xong abnormal suite 19.7s → 1.38s).
+- **F6 (đã fix)**: comment stale "CHỈ En-dominant", dead statement,
+  assert-comment sai.
+- **F3 TRUNG (BACKLOG — macOS EN spelling chết cấu trúc)**:
+  MacSpellProvider chỉ đăng ký "vi" (EN từ sai đi vào checker vi → fail-open
+  im lặng ⇒ recall en_spelling = 0 trên macOS, Windows có dual-language);
+  `isAvailable` probe-once không retry (cùng class RC-4 Windows vừa fix).
+  Cần: provider "en" thứ hai dispatch theo ASCII + retry cooldown — sửa Swift
+  chỉ compile trên CI, làm vòng sau khi có ngân sách verify macOS thật.
+- **F4 THẤP (ghi nhận)**: os_spell TrySendError::Full vẫn stall 50ms —
+  breaker 1 lần/10s che, chấp nhận.
+
+Verdict EN-1 sau fix: các fix a16ca0b đạt chất lượng ship; corpus 4551 cases
+0 mismatch.

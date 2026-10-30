@@ -220,9 +220,9 @@ fn check_with_internal(
     // mix ("please send a email nhé"); guard nội bộ của rule tự chặn từ
     // tiếng Việt có dấu ("a ô" → thoát).
     rules::article_an::check(&ctx, &mut issues);
-    // Vòng 36 (EN grammar): cặp từ dễ nhầm + đại từ "i" — CHỈ câu En-dominant
-    // (guard `ctx.lang == En` trong rule; câu Việt không bao giờ đụng — bài
-    // học article_an R2-28).
+    // Vòng 36 (EN grammar): cặp từ dễ nhầm — mọi ngôn ngữ từ vòng 42 (cặp
+    // ASCII ĐÓNG tự-guard; câu mix Vi-dominant cần chúng); đại từ "i" giữ
+    // En-only trong check_pronoun (guard nội bộ).
     rules::en_confusions::check_confusions(&ctx, &mut issues);
     rules::en_confusions::check_pronoun(&ctx, &mut issues);
     // Vòng 40 (RH-2, R2 persona): từ EN thừa trùng nghĩa trong câu Việt
