@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.56 — audit EN mode 3 pass (vòng 42)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Self-trace**: RC-3 câu mix bỏ qua luật EN (mở check_confusions + check_en_agreement mọi ngôn ngữ) · RC-4 WinSpell probe-once → retry 30s (SpellAttempt Mutex poison-safe) · RC-1/RC-2 đề xuất P1-P4 (P6-EN-MODE-AUDIT.md). **Pass EN-1 (agent)**: F1 do/go/say = âm tiết Việt (En-gate) · F2 lazy particle · F5 quote-parity hoist · F6 nits. **Pass EN-2 (agent đối kháng)**: N1/N2 Việt KHÔNG DẤU classify En → vn_sentence_hint + neighbor guard · R1 quote-mở-không-đóng/dấu-inch (parity suffix-fix + Ctx dùng chung) · R2 parity đồng bộ windows(2)/then-than/pronoun |
+| Đo | 135 lib + 48 abnormal = 183 test assist · 15/15 probe đối kháng sau fix · FPR 0/2739 · recall 28/28 + 38/38 · SVA 10k từ 10s → 0.15s · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | điền sau B3 |
+| Release | v0.2.56 tag ký GPG — điền sau B6 |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | cask version "0.2.56" + sha256 — điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.56 — hash điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.56-0ppa1` |
+| approved (B7c) | `approved/v0.2.56/` — điền sau B7c |
+
 ## Bản 0.2.55 — audit 3 pass A/B/C + classify mix + perf cache (vòng 41)
 
 | Hạng mục | Bằng chứng |

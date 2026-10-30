@@ -7,6 +7,31 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.56] — 2026-10-31
+
+### Fixed
+- **Trợ lý tiếng Anh trên câu mix hết bị bỏ qua**: "Anh should of done it
+  sớm hơn", "He don't know nhé anh", "Em cần discuss about kế hoạch" —
+  trước đây câu Vi-dominant (≥2 từ dấu) khiến TOÀN BỘ luật EN im lặng.
+- **Văn bản Việt KHÔNG DẤU hết bị auto-fix phá chữ**: "noi it do met",
+  "gui cho i nhe" — classify suy sang En vì "it"+"do" đủ 2 từ chức năng;
+  cặp đụng âm tiết Việt (do/go/say, đại từ i) giờ gate theo tín hiệu Việt.
+- **Chính tả EN tự phục hồi**: Windows probe từ điển quá hạn 150 ms MỘT lần
+  từng tắt spell-assist **cả phiên** — giờ retry mỗi 30 s.
+- **Nguyên văn trong ngoặc kép không bị sửa** ("He said \"we should of
+  known better\"") — đồng bộ mọi luật EN; quote mở-không-đóng / dấu inch
+  `24"` không còn nuốt lỗi phía sau.
+- **Hiệu năng**: hoà hợp chủ-vị trên văn bản dài O(n²) → O(n) (10k từ:
+  10 s → 0,15 s).
+
+**English** — 0.2.56 is the English-mode audit release: the grammar
+assistant no longer skips English rules on mixed Vietnamese-dominant
+sentences or unaccented Vietnamese text; Windows spell-check recovers after
+a slow first probe (30 s retry) instead of staying off for the whole
+session; quoted speech is no longer auto-corrected and an unterminated quote
+or inch mark can no longer swallow errors behind it; subject-verb agreement
+on long text is linear instead of quadratic.
+
 ## [0.2.55] — 2026-10-30
 
 ### Added
@@ -2253,6 +2278,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.56]: https://github.com/hunglinhpt/TextVN/compare/v0.2.55...v0.2.56
 [0.2.55]: https://github.com/hunglinhpt/TextVN/compare/v0.2.54...v0.2.55
 [0.2.54]: https://github.com/hunglinhpt/TextVN/compare/v0.2.53...v0.2.54
 [0.2.53]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...v0.2.53

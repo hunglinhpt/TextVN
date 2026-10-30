@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.56" date="2026-10-31">
+      <description>
+        <p>English-mode audit release: the grammar assistant no longer skips English rules on mixed Vietnamese-dominant sentences ("Anh should of done it sớm hơn", "He don't know nhé anh") or unaccented Vietnamese text ("noi it do met"), Windows spell-check recovers automatically after a slow first probe instead of staying off for the whole session, quoted speech is no longer auto-corrected, an unterminated quote or an inch mark (24") can no longer swallow errors behind it, and subject-verb agreement on long text dropped from quadratic to linear time.</p>
+      </description>
+    </release>
     <release version="0.2.55" date="2026-10-30">
       <description>
         <p>Three-pass line-by-line audit across the grammar assistant, engine/FFI and all three OS adapters: the assistant no longer disables itself on short mixed Vietnamese-English sentences with a Vietnamese anchor, three auto-fix rules that could corrupt correct text were fixed ("Tuy giỏi nhưng không nên kiêu ngạo", "more minutes, then try again", "their going rate"), an IBusText reference leak in the IBus engine was closed, prediction and lookup caches cut per-keystroke work from ~700µs to ~20µs, 40+ idioms/proverbs and 20+ reduplicative words added to the fixed-phrase whitelist, 25 new office collocation pairs (y kiến→ý kiến, hạn chốt→hạn chót…), and role-based phrase prediction grew by 142 patterns for office workers.</p>
