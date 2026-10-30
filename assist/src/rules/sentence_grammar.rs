@@ -468,13 +468,14 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         return;
     }
 
-    // Vòng 37: gộp dạng rút gọn ("don't" -> 1 token logic) trước khi so cặp.
+    // 2.1 Cặp liên từ hô ứng câu tiếng Anh (Although... but / Because... so).
+    // (2.2-2.5 đã tách sang check_en_agreement — chạy mọi ngôn ngữ, vòng 42.)
     let words: Vec<Token> = merge_contractions(ctx)
         .into_iter()
         .filter(|t| t.kind == TokenKind::Word)
         .collect();
 
-    // 2.1 Cặp liên từ hô ứng câu tiếng Anh (Although... but / Because... so)
+    let _ = &words; // 2.1 dùng words.first()/words[1] bên dưới
     let mut en_clause: Option<EnCorrelativeClause> = None;
     if let Some(first_word) = words.first() {
         let w_first = word_lower(ctx, first_word);
@@ -532,12 +533,41 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
             }
         }
     }
+}
+
+/// Hoà hợp chủ-vị + giới từ thừa + cặp giới từ sai + "look forward to" (2.2–2.5).
+///
+/// Vòng 42 (audit EN mode RC-3): chạy trên **MỌI ngôn ngữ** — các mẫu là cặp
+/// ASCII ĐÓNG của tiếng Anh ("he don't", "they is", "discuss about"…) không
+/// trùng ngữ cảnh tiếng Việt hợp lệ; câu mix Vi-dominant ("He don't know nhé
+/// anh") trước đây bị bỏ qua hoàn toàn vì gate En-dominant. Riêng 2.1
+/// (correlative Although/Because) giữ En-only — cấu trúc mệnh đề EN cần
+/// ngữ cảnh câu EN trọn vẹn.
+pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
+    if super::capitalize_sentence::looks_like_code_or_list(ctx) {
+        return;
+    }
+
+    // Vòng 37: gộp dạng rút gọn ("don't" -> 1 token logic) trước khi so cặp.
+    let words: Vec<Token> = merge_contractions(ctx)
+        .into_iter()
+        .filter(|t| t.kind == TokenKind::Word)
+        .collect();
 
     // 2.2 Hoà hợp chủ ngữ - vị ngữ (Subject-Verb Agreement) & Redundant Prepositions
     const MODALS: &[&str] = &[
         "to", "can", "could", "will", "would", "should", "must", "may", "might", "does", "did",
         "shall", "cannot", "won't",
     ];
+
+    // Vòng 42 (perf, abnormal 100k): lookup O(1) thay `position()` O(n) mỗi
+    // cặp — khi hàm chạy trên MỌI câu (RC-3), O(n²) trên 10k từ = 10 s.
+    let tok_start_idx: std::collections::HashMap<usize, usize> = ctx
+        .tokens
+        .iter()
+        .enumerate()
+        .map(|(i, t)| (t.start, i))
+        .collect();
 
     for i in 0..words.len().saturating_sub(1) {
         let (w0, w1) = (words[i], words[i + 1]);
@@ -546,7 +576,7 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
 
         // Xác minh w0 và w1 cách nhau đúng 1 dấu cách đơn, không có dấu câu chen giữa
-        let Some(gap_idx) = ctx.tokens.iter().position(|t| t.start == w0.end) else {
+        let Some(gap_idx) = tok_start_idx.get(&w0.end).copied() else {
             continue;
         };
         let gap = ctx.tokens[gap_idx];
@@ -660,7 +690,7 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
 
         // 2.3 Giới từ thừa: "discuss about", "return back", "revert back", "reply back", "repeat again"
-        if let Some(gap_idx) = ctx.tokens.iter().position(|t| t.start == w0.end) {
+        if let Some(gap_idx) = tok_start_idx.get(&w0.end).copied() {
             let gap = ctx.tokens[gap_idx];
             if gap.kind == TokenKind::Space {
                 if (a == "discuss" || a == "discussed" || a == "discussing") && b == "about" {

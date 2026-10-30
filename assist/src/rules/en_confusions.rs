@@ -167,9 +167,14 @@ pub fn check_pronoun(ctx: &Ctx, out: &mut Vec<Issue>) {
 
 /// Các cặp từ dễ nhầm tiếng Anh (kind 12) — danh sách đóng, guard chặt.
 pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
-    if ctx.lang != Lang::En {
-        return;
-    }
+    // Vòng 42 (audit EN mode RC-3): CHỈ câu En-dominant trước đây ⇒ câu mix
+    // Vi-dominant ("Anh should of done it sớm hơn") bị bỏ qua TOÀN BỘ cặp
+    // từ-dễ-nhầm. Các cặp là bigram/trigram ASCII ĐÓNG của tiếng Anh
+    // ("should of", "your the", "its been", "more … then"…) — văn bản tiếng
+    // Việt chứa chúng là dùng từ Anh mượn và LUẬT PHẢI áp; không có cặp nào
+    // trùng ngữ cảnh tiếng Việt hợp lệ (E34 probe + corpus FPR 0 xác nhận).
+    // Riêng đại từ "i" (check_pronoun) giữ En-only — "i" là âm tiết Việt
+    // ASCII, mở sẽ bêu chữ Việt.
     if super::capitalize_sentence::looks_like_code_or_list(ctx) {
         return;
     }
@@ -645,18 +650,20 @@ mod tests {
         }
     }
 
-    /// Chỉ câu En: câu Việt/mix không kích hoạt word confusion / pronoun.
-    /// L6 ("bạn" — đầu câu thường, sentence mode) là lỗi Việt hợp lệ riêng.
+    /// Vòng 42 (RC-3): word-confusion cặp ASCII đóng chạy CẢ câu mix
+    /// ("bạn should of known nhé" = dùng từ Anh mượn ⇒ PHẢI bắt); riêng đại
+    /// từ "i" giữ En-only — "i" là âm tiết Việt ASCII ("gửi cho i nhé").
     #[test]
-    fn chi_chay_tren_cau_en() {
-        for s in ["bạn should of known nhé", "gửi cho i nhé"] {
-            assert!(
-                kinds(s)
-                    .into_iter()
-                    .all(|k| !matches!(k, IssueKind::WordConfusion | IssueKind::LowercasePronoun)),
-                "\"{s}\": luật EN không được kích hoạt trên câu Việt"
-            );
-        }
+    fn cau_mix_confusion_fire_pronoun_van_en_only() {
+        // sentence mode: "bạn" đầu câu thường → L6 hợp lệ kèm theo.
+        assert!(kinds("bạn should of known nhé").contains(&IssueKind::WordConfusion));
+        // "i" thường giữa câu Việt — LowercasePronoun KHÔNG được bêu.
+        assert!(
+            kinds("gửi cho i nhé")
+                .into_iter()
+                .all(|k| !matches!(k, IssueKind::LowercasePronoun)),
+            "đại từ i giữ En-only"
+        );
     }
 }
 

@@ -97,13 +97,41 @@ pub struct WinSpell {
 // trợ lý của TIP — TSF apartment); phía nhận là 1 worker thread duy nhất.
 unsafe impl Sync for WinSpell {}
 
-static WIN_SPELL: OnceLock<Option<WinSpell>> = OnceLock::new();
+/// Vòng 42 (audit EN mode RC-4): probe thất bại/quá hạn MỘT lần cũ bị
+/// `OnceLock` cache `None` **cả phiên** — spell-assist tắt vĩnh viễn dù máy
+/// có từ điển (máy tải nặng probe > READY_TIMEOUT_MS là đủ). Giờ: probe lại
+/// sau `RETRY_COOLDOWN` — thành công lần nào là giữ `&'static` vĩnh viễn.
+struct SpellAttempt {
+    result: Option<&'static WinSpell>,
+    failed_at: Option<std::time::Instant>,
+}
+
+const SPELL_RETRY_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(30);
+
+static WIN_SPELL: std::sync::Mutex<Option<SpellAttempt>> = std::sync::Mutex::new(None);
 
 impl WinSpell {
-    /// Khởi tạo 1 lần/phiên (probe capability 2 ngôn ngữ). `None` = máy không
-    /// có cả `vi-VN` lẫn từ điển EN ⇒ dùng `NoDictionary` (đường mặc định).
+    /// Khởi tạo (probe capability 2 ngôn ngữ, retry mỗi 30 s khi hỏng).
+    /// `None` = lần probe gần nhất không có ngôn ngữ nào/quá hạn ⇒ fail-open.
     pub fn get() -> Option<&'static WinSpell> {
-        WIN_SPELL.get_or_init(Self::try_new).as_ref()
+        let mut guard = WIN_SPELL.lock().unwrap_or_else(|e| e.into_inner());
+        match guard.as_ref() {
+            Some(SpellAttempt {
+                result: Some(w), ..
+            }) => Some(w),
+            Some(SpellAttempt {
+                result: None,
+                failed_at: Some(t),
+            }) if t.elapsed() < SPELL_RETRY_COOLDOWN => None,
+            _ => {
+                let result = Self::try_new().map(|w| &*Box::leak(Box::new(w)));
+                *guard = Some(SpellAttempt {
+                    result,
+                    failed_at: Some(std::time::Instant::now()),
+                });
+                result
+            }
+        }
     }
 
     /// Con trỏ tới provider C-ABI tĩnh (dùng với `ime_assist_check_v1_with`).

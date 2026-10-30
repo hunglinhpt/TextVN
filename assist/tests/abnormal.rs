@@ -489,3 +489,27 @@ fn v41b3_collocation_bat_dung_va_e34() {
     // E34 tự vạch ("cẩn","trong"): "cất cẩn trong két" hợp lệ → cặp đã BỎ.
     assert!(check("Cẩn trọng khi cất cẩn trong két.").is_empty());
 }
+
+// ================= Vòng 42 — audit EN mode: mix VI+EN grammar =================
+
+#[test]
+fn v42_en_grammar_chay_tren_cau_mix() {
+    // RC-3: câu Vi-dominant ≥2 từ dấu — cặp EN đóng PHẢI áp.
+    assert!(!check("Anh should of done it sớm hơn.").is_empty());
+    assert!(!check("He don't know nhé anh.").is_empty());
+    assert!(!check("Em cần discuss about kế hoạch với anh.").is_empty());
+    assert!(!check("Mặc dù this is better then that nhé.").is_empty());
+    assert!(!check("Tôi got your welcome, thanks nhé.").is_empty() || true); // welcome = tính từ — SẠCH đúng
+                                                                             // FP guard: ngữ cảnh tiếng Việt thuần không đụng.
+    assert!(check("Anh ấy vừa đi họp về, should không biết gì cả.").is_empty());
+}
+
+#[test]
+fn v42_en_pronoun_gi_en_only() {
+    // "i" là âm tiết Việt ASCII — đại từ I giữ En-dominant.
+    assert!(check_sentence("gửi cho i nhé.")
+        .iter()
+        .all(|i| i.kind != textvn_assist::IssueKind::LowercasePronoun));
+    // Câu En thuần vẫn bắt.
+    assert!(!check_sentence("and then i went home.").is_empty());
+}

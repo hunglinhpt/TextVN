@@ -234,6 +234,9 @@ fn check_with_internal(
     // Ngữ pháp câu tiếng Việt & tiếng Anh (liên từ hô ứng, hoà hợp chủ vị, giới từ thừa)
     rules::sentence_grammar::check_vi(&ctx, &mut issues);
     rules::sentence_grammar::check_en(&ctx, &mut issues);
+    // Vòng 42 (RC-3): SVA + giới từ thừa chạy cả câu mix Vi-dominant ("He
+    // don't know nhé anh") — cặp ASCII đóng, tự-guard.
+    rules::sentence_grammar::check_en_agreement(&ctx, &mut issues);
     // Cụm cố định hợp lệ (từ láy "song song", thành ngữ, "knock knock"…): bỏ
     // mọi lỗi TỪ VỰNG chồng lên vùng đó — điểm chặn duy nhất (phrases.rs).
     phrases::drop_issues_in_protected(&mut issues, &ctx.protected);
