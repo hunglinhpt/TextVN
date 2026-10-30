@@ -110,3 +110,34 @@ Verdict EN-1 sau fix: các fix a16ca0b đạt chất lượng ship; corpus 4551 
 
 **Đo vòng 42**: 135 lib + 48 abnormal = 183 test assist · FPR 0/2739 ·
 recall 28/28 + 38/38 · clippy 0 · preflight exit=0.
+
+## 7. Vòng 43 — audit 3 pass "mọi ngõ ngách" (D1/D2/D3) — 2026-10-31
+
+- **Self-audit các crate chưa từng soi** (strategy/config/appdb/field-detect/
+  ipc): 0 panic production, `config validate` chặn sạch mọi abnormal (type
+  sai/macro loop/macro rỗng/macro 100k/emoji trùng/per-app key 400 ký tự/
+  JSON hỏng), IPC codec error taxonomy đầy đủ. PASS.
+- **Pass D1 — static typing engine** (method/transform/validate, 4.1k dòng):
+  256 test core + 24 test tạm pass; perf key() = **0.13µs/phím** (dư 3800×
+  ngân sách). Fix: **F1 TRUNG** VIQR thiếu freeze E28 (`hoa...` toggle vô tận,
+  `dddd` gạch lại) → undone_tone/mark/stroke state per-word; **F4** VIQR `DD`
+  hoa không gạch → eq_ignore_ascii_case; **F3** xoá dead code
+  `is_valid_syllable_prefix` (115 dòng — whitelist chỉ đúng Telex, hazard nếu
+  cắm VNI). **F2 THẤP ghi spec**: từ >63 phím spam-literal co display bị ăn
+  1 phím khi close_word (không lệch sổ, không panic).
+- **Pass D2 — hành trình phím 3 adapter**: fix vòng 40-42 nguyên 6/6 trên
+  đường phím. Fix: **F1 NẶNG** macOS toggle VI giữa từ KHÔNG chốt marked +
+  reset (2 nền tảng kia có — parity; phím kế thay thế marked = MẤT TỪ) →
+  commitBeforeHide(sender) trước toggle; **F2 TRUNG** nhánh `.pass` vi phạm
+  bất biến "phím pass ⇒ composition đã đóng" → chốt marked cuối nhánh
+  (parity Windows pass_through/composing); **F3 TRUNG** ConfigReload giữa từ
+  clear buffer (core set_options) → defer qua `pendingConfigReload` tới
+  marked rỗng. F4-F7 THẤP ghi nhận (dead-key/OSK, replay keyup, toggle tray
+  trễ 1 từ, Fcitx5 flag per-engine).
+- **Pass D3 — đối kháng** VIQR freeze (11/11 probe: đa âm, interleave,
+  free_marking=false, ESC/Backspace rebuild, hoa-thường, sừng cụm) + Swift
+  fixes (call site sender, .pass các đường tránh đúng, defer không nuốt
+  message) + góc cuối (register.rs WOW64 nguyên, viqr.toml đủ, 11 YAML OK)
+  + corpus **0/4334** + hard recall 100%. Follow-up đã vá: guard F9
+  `markedRange == NSNotFound` trong commitBeforeHide (app tự commit marked →
+  chèn thêm = nhân đôi) + nit comment.

@@ -225,6 +225,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
            cg.getIntegerValueField(.eventSourceUserData) == InjectedMarker.userData {
             return false
         }
+        // Vòng 43 (Pass D2 F3): ConfigReload đã hoãn — áp ngay khi marked rỗng.
+        if pendingConfigReload, marked.isEmpty {
+            pendingConfigReload = false
+            applyConfigReload(version: 0)
+        }
 
         // 2. flagsChanged — cập nhật modifier và phát hiện tổ hợp Ctrl+Shift tap (chuẩn macOS/Windows).
         if event.type == .flagsChanged {
@@ -246,7 +251,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 let now = ProcessInfo.processInfo.systemUptime
                 if now - lastToggleTime >= 0.25 {
                     lastToggleTime = now
-                    _ = toggleVietnamese()
+                    _ = toggleVietnamese(sender)
                 }
                 otherKeyPressed = true
             }
@@ -288,7 +293,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // làm hotkey chết khi CapsLock on. Linux so mask y hệt (`engine.cpp` §3).
         if Self.isToggleChord(mods: mods, keyCode: event.keyCode) {
             otherKeyPressed = true
-            return toggleVietnamese()
+            return toggleVietnamese(sender)
         }
 
         // OP-007 (P5 §7.4) · R2-139: chord Ctrl+Shift+F9 chuyển mã vùng bôi đen —
@@ -437,6 +442,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                isAssistActive(for: context.appID) {
                 processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
             }
+            // Vòng 43 (Pass D2 F2): bất biến "phím .pass ⇒ composition đã đóng" —
+            // parity Windows `CompositionPlan::pass_through(composing)` và Linux
+            // `lc_plan_pass_through` (end = đang compose). Phím điều hướng/F-key
+            // khiến core clear word + PASS: marked còn mở tại đây ⇒ app nhận phím
+            // thay thế marked range ⇒ mất từ đang gở. Chốt thành text thật.
+            if !marked.text.isEmpty {
+                target.insert(marked.text, replacementRange: .notFound)
+                marked.clear()
+                engine?.reset()
+            }
             return false
         case .replace, .commit, .restore:
             do {
@@ -475,6 +490,15 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private func commitBeforeHide(_ sender: Any!) {
         guard !marked.text.isEmpty, let target = clientTarget(sender) else {
             marked.clear()
+            engine?.reset()
+            return
+        }
+        // Vòng 43 (Pass D3 follow-up): guard F9 như ApplyReplace.commit — app
+        // đã TỰ commit marked (NSTextView hay làm khi mất focus/click) thì
+        // markedRange == NSNotFound; chèn thêm marked.text là NHÂN ĐÔI từ.
+        if target.markedRange().location == NSNotFound {
+            marked.clear()
+            engine?.reset()
             return
         }
         // B13: chữ đang marked trở thành text vĩnh viễn — không mất chữ.
@@ -552,17 +576,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         assert(Thread.isMainThread, "ipcClient must be called on main thread")
         switch message {
         case let .configReload(version):
-            Diagnostics.log("ipc ConfigReload v\(version)")
-            if let cfg = Self.loadConfig() {
-                _ = engine?.reloadConfig(Self.engineConfig(cfg))
-                nonPreedit = Self.configNonPreedit(in: cfg)
-                assistSettings = Self.configAssist(in: cfg)
-                // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
-                // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
-                if let enabled = Self.configEnabled(in: cfg) {
-                    viState.apply(stateUpdate: IpcMessage.globalAppID, enabled: enabled)
-                }
+            // Vòng 43 (Pass D2 F3): core `set_options` CLEAR từ đang gở —
+            // Windows/IBus/Fcitx5 chỉ sync config khi KHÔNG có composition
+            // (IBus/Fcitx5 comp rỗng; Windows `sync_config` chạy cùng điều
+            // kiện ở đường phím) ⇒ macOS defer khi marked đang mở.
+            if !marked.isEmpty {
+                Diagnostics.log("ipc ConfigReload v\(version) — defer tới ranh giới từ")
+                pendingConfigReload = true
+                return
             }
+            applyConfigReload(version: version)
         case let .stateUpdate(appID, enabled, _):
             // Toàn cục = `IpcMessage.globalAppID` ("*") — MỘT quy ước (R3 F3-1);
             // app khác → override per-app (menu bar "Bật tiếng Việt cho <app>").
@@ -596,9 +619,33 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         Diagnostics.log("ipc offline — engine keeps last config")
     }
 
+    /// Vòng 43 (Pass D2 F3): ConfigReload đến qua IPC KHÔNG có client — khi
+    /// đang có marked thì hoãn sang `pendingConfigReload`, áp ở phím kế có
+    /// marked rỗng (đầu `handle`).
+    private var pendingConfigReload = false
+
+    private func applyConfigReload(version: UInt32) {
+        Diagnostics.log("ipc ConfigReload v\(version)")
+        if let cfg = Self.loadConfig() {
+            _ = engine?.reloadConfig(Self.engineConfig(cfg))
+            nonPreedit = Self.configNonPreedit(in: cfg)
+            assistSettings = Self.configAssist(in: cfg)
+            // `config.enabled` là nguồn sự thật của toggle toàn cục (macOS
+            // không có state.json) — giữ viState đồng bộ khi đổi từ Settings.
+            if let enabled = Self.configEnabled(in: cfg) {
+                viState.apply(stateUpdate: IpcMessage.globalAppID, enabled: enabled)
+            }
+        }
+    }
+
     // ------------------------------------------------------------- helpers
 
-    private func toggleVietnamese() -> Bool {
+    private func toggleVietnamese(_ sender: Any!) -> Bool {
+        // Vòng 43 (Pass D2 F1): chốt marked + reset engine TRƯỚC khi đổi state —
+        // parity Windows (`toggle_vietnamese` end_composition + reset_engine) và
+        // IBus/Fcitx5 (`finish_word`). Thiếu bước này, phím kế đi đường .pass với
+        // marked còn mở ⇒ NSTextInputClient thay thế marked range ⇒ MẤT từ đang gõ.
+        commitBeforeHide(sender)
         // Offline (TextVN.app không chạy): trạng thái giữ trong ViStateStore và được
         // gửi lại ở Snapshot kế tiếp (R2-44) — send() dưới đây bị bỏ khi offline.
         let newValue = ViStateStore.shared.toggleGlobal(online: ipcOnline)
