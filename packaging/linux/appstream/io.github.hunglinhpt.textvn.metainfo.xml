@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.59" date="2026-10-31">
+      <description>
+        <p>New format warnings from the accounting/HR/sales personas: impossible dates ("32/13/2025", "31/02/2026" — calendar-aware, requires a 4-digit year to avoid false positives on fractions) and inconsistently grouped money amounts ("1.250.00đ", "1.25.000đ") are flagged as suggestions on all three platforms, with two new assist kinds synced across the FFI ABI, Windows overlay, macOS panel and Linux aux text.</p>
+      </description>
+    </release>
     <release version="0.2.58" date="2026-10-31">
       <description>
         <p>Persona audit across seven office and everyday-user profiles: unaccented Vietnamese chat ("an com chua do", "i di ngu som nhe") is no longer mangled by the English article and pronoun rules, Vietnamese words followed by stray English auxiliaries ("Chưa been đối chiếu", "cần been reviewed") are now flagged as suggestions, and an English comma-after-"but" rule mirrors the Vietnamese one.</p>

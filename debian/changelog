@@ -1,3 +1,11 @@
+textvn (0.2.59-0ppa1) noble; urgency=medium
+
+  * Vong 45: canh bao ngay thang vo ly (32/13/2025, 31/02/2026 — calendar-
+    aware) + so tien phan cach hon loan (1.250.00d, 1.25.000d) — suggestion-
+    only; kind moi 14/15 dong bo 6 diem.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 31 Oct 2026 15:00:00 +0700
+
 textvn (0.2.58-0ppa1) noble; urgency=medium
 
   * Vong 44 persona audit: chat khong dau het bi auto-fix pha chu ("an com",

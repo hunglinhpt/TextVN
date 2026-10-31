@@ -7,6 +7,22 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.59] — 2026-10-31
+
+### Added
+- **Cảnh báo ngày tháng vô lý**: "32/13/2025", "31/02/2026" (tháng 2 không
+  có ngày 31 — calendar-aware) — chỉ báo khi CÓ năm 4 chữ số (phân số
+  "32/13" không bao giờ bị báo). Suggestion-only, 2 kind mới đồng bộ đủ
+  FFI/Windows/macOS/Linux.
+- **Cảnh báo số tiền phân cách hỗn loạn**: "1.250.00đ", "1.25.000đ",
+  "1.250.00VND" — nhóm phân cách ≠ 3 chữ số. "1.500.000đ" chuẩn → sạch.
+
+**English** — 0.2.59 adds format warnings from the accounting/HR/sales
+personas: impossible dates ("32/13/2025", "31/02/2026" — calendar-aware,
+requires a 4-digit year) and inconsistently grouped money amounts
+("1.250.00đ") are flagged as suggestions, with two new assist kinds synced
+across the FFI ABI and all three platform panels.
+
 ## [0.2.58] — 2026-10-31
 
 ### Fixed
@@ -2318,6 +2334,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.59]: https://github.com/hunglinhpt/TextVN/compare/v0.2.58...v0.2.59
 [0.2.58]: https://github.com/hunglinhpt/TextVN/compare/v0.2.57...v0.2.58
 [0.2.57]: https://github.com/hunglinhpt/TextVN/compare/v0.2.56...v0.2.57
 [0.2.56]: https://github.com/hunglinhpt/TextVN/compare/v0.2.55...v0.2.56

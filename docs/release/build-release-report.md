@@ -1,5 +1,20 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.59 — format warnings ngày tháng + số tiền (vòng 45)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Kind MỚI 14=InvalidDate + 15=InvalidMoney (đề xuất persona kế toán/HR/bán hàng vòng 44) — sync đủ 6 điểm (assist enum · ffi map 2 chiều + consts · header C 2 bản byte-identical · cli verify · assist_result.c · CoreBridge/AssistModel Swift). Rule format_warning.rs: date dd/dd/yyyy calendar-aware (bắt buộc năm 4 chữ số — fraction "32/13" không báo) + money đ/vnd nhóm ≠3 chữ. Pass E1 (agent đối kháng): 12/12 date + money sạch đúng, fix 2 TRUNG (boundary off-by-one cuối văn bản + VND/VNĐ hoa) |
+| Đo | 135 lib + 54 abnormal tests · 12/12 probe date/money + 5/5 sau fix E1 · FPR 0/2739 · recall 28/28 + 38/38 · ABI verify PASS (25 exports + 15 kind consts) · clippy 0 · preflight exit=0 |
+| Khảo sát | VI spell-check (R-3): vi-DauMoi 6642 từ thiếu từ thật ("khóa/môtô/sô-cô-la") ⇒ cần hunspell 30-70k trước khi mở — infrastructure sẵn sàng. Panel EN/VI: cần message catalog refactor — thiết kế P6 doc §9 |
+| CI trên commit gắn tag | điền sau B3 |
+| Release | v0.2.59 tag ký GPG — điền sau B6 |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.59 — hash điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.59-0ppa1` |
+| approved (B7c) | `approved/v0.2.59/` — điền sau B7c |
+
 ## Bản 0.2.58 — persona 7 profile + parity VI/EN (vòng 44)
 
 | Hạng mục | Bằng chứng |
