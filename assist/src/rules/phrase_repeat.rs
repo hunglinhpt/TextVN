@@ -20,7 +20,7 @@
 //!   được-bảo-vệ (từ láy, thành ngữ) không báo.
 
 use super::capitalize_sentence::looks_like_code_or_list;
-use super::duplicate_word::{in_quotes, EN_INTENTIONAL_REPEATS, INTENTIONAL_REPEATS};
+use super::duplicate_word::{EN_INTENTIONAL_REPEATS, INTENTIONAL_REPEATS};
 use super::{is_word, Ctx};
 use crate::tokenize::TokenKind;
 use crate::{Issue, IssueKind, Span};
@@ -88,23 +88,20 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     }
     // Cửa sổ 2 từ lồng trong cửa sổ 3 từ ("thanh toán" ⊂ "đã thanh toán đã
     // thanh toán") — giữ bản DÀI (báo 1 lỗi, không double-report).
-    let keep: Vec<bool> = found
-        .iter()
-        .enumerate()
-        .map(|(ai, a)| {
-            !found
-                .iter()
-                .enumerate()
-                .any(|(bi, b)| bi != ai && a.span.start >= b.span.start && a.span.end <= b.span.end)
-        })
-        .collect();
-    out.extend(
-        found
-            .into_iter()
-            .zip(keep)
-            .filter(|(_, k)| *k)
-            .map(|(i, _)| i),
-    );
+    // Vòng 46 (Pass E2): sweep O(k log k) thay O(k²) pairwise — "then "×32k
+    // từng 15s ở retain. Sort (start asc, end desc) ⇒ span bị CHỨA (end ≤
+    // max-end của span khởi đầu trước nó) drop đúng nghĩa containment.
+    found.sort_unstable_by_key(|i| (i.span.start, std::cmp::Reverse(i.span.end)));
+    let mut max_end = 0usize;
+    found.retain(|i| {
+        if i.span.end <= max_end {
+            false
+        } else {
+            max_end = i.span.end;
+            true
+        }
+    });
+    out.extend(found);
 }
 
 /// Kiểm tra cụm lặp `window_size` từ KẾT THÚC tại token `i` (bản sao 2).
@@ -175,7 +172,8 @@ fn check_window(ctx: &Ctx, i: usize, window_size: usize, out: &mut Vec<Issue>) {
     }
     let start = ctx.tokens[word_idx[half]].start;
     let end = ctx.tokens[word_idx[2 * half - 1]].end;
-    if in_quotes(ctx, start) || ctx.is_masked(start, end) {
+    // Vòng 46 (Pass E2 perf): parity Ctx O(1) thay in_quotes O(n)/window.
+    if ctx.quote_parity.get(start).copied().unwrap_or(false) || ctx.is_masked(start, end) {
         return;
     }
     // Kết thúc câu ngay sau bản sao 2 = lặp kiểu nói ("Nhanh lên nhanh lên!")

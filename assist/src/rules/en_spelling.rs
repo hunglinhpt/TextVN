@@ -75,6 +75,25 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         return;
     }
     let dict = Budgeted::new(ctx.dict, super::DEFAULT_SUGGEST_BUDGET);
+    // Vòng 46 (Pass E2 perf): index "span đã bêu" O(n log n) MỘT lần —
+    // out.iter().any() mỗi Word token = O(n²) khi luật trước để lại nhiều
+    // issue ("then then..." — dup/phrase để lại 32k span).
+    // Snapshot cố định ĐỦ vì span của chính rule này là từng-từ-rời nhau
+    // (không bao giờ tự che token kế — words rời nhau).
+    let mut covered: Vec<(usize, usize)> = out.iter().map(|i| (i.span.start, i.span.end)).collect();
+    covered.sort_unstable();
+    let mut prefix_max_end: Vec<usize> = Vec::with_capacity(covered.len() + 1);
+    let mut running = 0usize;
+    for &(_, e) in &covered {
+        prefix_max_end.push(running.max(e));
+        running = running.max(e);
+    }
+    prefix_max_end.insert(0, 0);
+    let covered_by_prior = |start: usize, end: usize| -> bool {
+        let idx = covered.partition_point(|&(s, _)| s <= start);
+        // các span bắt đầu <= start — max end trong số đó
+        prefix_max_end[idx] >= end
+    };
     for tok in &ctx.tokens {
         if tok.kind != TokenKind::Word || ctx.is_masked(tok.start, tok.end) {
             continue;
@@ -83,10 +102,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         // Không chồng issue lên span luật trước đã bêu (dup/diacritic/confusion…).
-        if out
-            .iter()
-            .any(|i| i.span.start <= tok.start && tok.end <= i.span.end)
-        {
+        if covered_by_prior(tok.start, tok.end) {
             continue;
         }
         let slice = ctx.token_chars(tok);

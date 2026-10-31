@@ -533,7 +533,7 @@ fn check_comma_after_conjunction(ctx: &Ctx, out: &mut Vec<Issue>, conjunction: &
                 slice.contains(&'.') || slice.contains(&'!') || slice.contains(&'?')
             }
         });
-        if after_sentence_end || super::duplicate_word::in_quotes(ctx, tok.start) {
+        if after_sentence_end || ctx.quote_parity.get(tok.start).copied().unwrap_or(false) {
             continue;
         }
         out.push(super::issue_suggestion(

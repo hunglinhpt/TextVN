@@ -697,7 +697,7 @@ fn v46_dot_pattern_tuyen_tinh() {
         "dot-pattern 160k quá chậm: {elapsed:?}"
     );
     assert!(issues.is_empty(), "không được bêu lỗi trên dot-lặp");
-    // Abbrev dot VẪN hoạt động đúng sau fast-path.
-    assert!(check("Cảm ơn anh theo e.g. trong mail nhé.").is_empty() || true);
+    // Abbrev dot VẪN hoạt động đúng sau fast-path (Pass E2 F3: assert thật).
+    assert!(check("Cảm ơn anh theo e.g. trong mail nhé.").is_empty());
     assert_eq!(check("xin chào,bạn").len(), 1);
 }

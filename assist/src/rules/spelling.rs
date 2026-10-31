@@ -39,6 +39,20 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // 3,1–6,9 ms/tu cho Suggest (P4-10 finding F3) nen chi goi cho it tu la
     // nhat; tu sau do van bao loi nhung khong kem goi y (fail-open).
     let dict = Budgeted::new(ctx.dict, super::DEFAULT_SUGGEST_BUDGET);
+    // Vòng 46 (Pass E2 perf): index span O(n log n) một lần — như en_spelling.
+    let mut covered: Vec<(usize, usize)> = out.iter().map(|i| (i.span.start, i.span.end)).collect();
+    covered.sort_unstable();
+    let mut prefix_max_end: Vec<usize> = Vec::with_capacity(covered.len() + 1);
+    let mut running = 0usize;
+    for &(_, e) in &covered {
+        prefix_max_end.push(running.max(e));
+        running = running.max(e);
+    }
+    prefix_max_end.insert(0, 0);
+    let covered_by_prior = |start: usize, end: usize| -> bool {
+        let idx = covered.partition_point(|&(s, _)| s <= start);
+        prefix_max_end[idx] >= end
+    };
     for tok in &ctx.tokens {
         if tok.kind != TokenKind::Word || ctx.is_masked(tok.start, tok.end) {
             continue;
@@ -48,10 +62,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
         // Không báo trùng trên token đã được luật trước (như `diacritic_typo`) bắt,
         // tránh nhân đôi issue trên cùng span và lãng phí ngân sách suggest OS.
-        if out
-            .iter()
-            .any(|i| i.span.start <= tok.start && tok.end <= i.span.end)
-        {
+        if covered_by_prior(tok.start, tok.end) {
             continue;
         }
         let word = ctx.token_text(tok);

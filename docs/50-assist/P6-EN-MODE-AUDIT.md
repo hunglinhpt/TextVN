@@ -201,3 +201,28 @@ từ điển VN offline. **Đo:** FPR 0/2739 · recall 28/28 + 38/38 · 135 lib 
   trong 15 rule + panel 3 OS; bản địa hóa = refactor message catalog +
   config ui.language + settings UI 3 OS — thiết kế trong P6 doc, làm vòng
   riêng (không phải nửa vời).
+
+## 10. Vòng 46 (tiếp) — Pass E2 đối kháng + quét O(n²) toàn luật (2026-10-31)
+
+- **E2 verdict SHIP ĐƯỢC**: parity is_abbreviation_dot_at 13/13 probe
+  (Punct/Space/đầu-văn-bản/multi-char/mix-case); format_warning 18/18
+  (boundary EOF/LF/CRLF, VnD mix-case, VNĐ); corpus test 206/206; FPR
+  0/2739 + tatoeba 0/1500.
+- **Quét O(n²) toàn luật (probe "then "×n, "vui lòng vui lòng "×n)** — 4
+  điểm tìm thấy, fix đủ:
+  1. `space_after_punct` qua is_abbreviation_dot scan-ngược → fast-path
+     `is_abbreviation_dot_at` O(1) (4.1s → 496µs /160k);
+  2. `duplicate_word` run_length O(n) tại MỖI vị trí → repeats_before O(1)
+     TRƯỚC, run_length chỉ ở bản-đầu (34s → O(n));
+  3. `phrase_repeat` dedup O(k²) pairwise → sort sweep O(k log k)
+     (15s → 471ms);
+  4. **`in_quotes` quét chars[..pos] mỗi từ lặp** (dup/phrase/grammar) →
+     `ctx.quote_parity` O(1) dùng chung (đã có từ vòng 42) + xoá fn chết.
+  5. `en_spelling`/`spelling` `out.iter().any()` mỗi Word token × out tích
+     luỹ → snapshot covered + prefix-max O(n log n) một lần.
+  **Kết quả: "then "×160k 1.36s → 237ms; "vui lòng..."×640k 45s → 0.9s —
+  toàn bộ tuyến tính (×2 khi ×2 input).**
+- **F1 backlog có thiết kế**: `is_real_sentence_end` (capitalize đường
+  sentence-start, pattern "1. item 2. item") vẫn O(n²) qua is_abbreviation_dot
+  scan + quote-balance chars[..n] — cần indexed variant cho capitalize.
+- **Đã dọn**: in_quotes fn chết, assert `|| true` vô nghĩa (Pass E2 F3).

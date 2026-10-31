@@ -20,18 +20,6 @@ pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     "chộp", "bum", "đâu", "năm",
 ];
 
-/// Từ có nằm trong cặp ngoặc kép `"` nào không (đếm số `"` trước vị trí).
-pub(crate) fn in_quotes(ctx: &Ctx, pos: usize) -> bool {
-    // Vòng 32 (audit A5): nháy CONG “ ” cùng họ với " — lặp từ trong
-    // trích lời ("cậu nói “không không” mà") là nguyên văn, không phải lỗi.
-    ctx.chars[..pos]
-        .iter()
-        .filter(|c| matches!(**c, '"' | '“' | '”'))
-        .count()
-        % 2
-        == 1
-}
-
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
 /// corpus `en_basic.ass`: "no no" KHÔNG trong whitelist — PO chốt là lỗi).
 pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
@@ -142,7 +130,9 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         if cur_cap && prev_cap && !PRONOUN_CAP_FIRE.contains(&lower.as_str()) {
             continue;
         }
-        if in_quotes(ctx, cur.start) {
+        // Vòng 46 (Pass E2 perf): parity dùng chung Ctx O(1) — in_quotes quét
+        // chars[..pos] mỗi candidate = O(n²) trên từ-lặp dày.
+        if ctx.quote_parity.get(cur.start).copied().unwrap_or(false) {
             continue;
         }
         if ctx.is_masked(prev.start, cur.end) {
@@ -153,10 +143,18 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // ("the the the file", "đã đã đã gửi") là lỗi gõ thật (vòng 40 RH-7),
         // báo đúng MỘT lần ở bản sao đầu; các bản sao sau (repeats_before)
         // là phần còn lại của cùng một chuỗi lỗi.
-        let long_run = run_length(ctx, i, &lower) >= 3 || repeats_before(ctx, i, &lower);
-        if long_run
-            && (!REPEAT3_FUNCTION_WORDS.contains(&lower.as_str()) || repeats_before(ctx, i, &lower))
-        {
+        // Vòng 46 (Pass E2): repeats_before O(1) TRƯỚC run_length O(n) —
+        // "then "×32k từng 34s vì run_length quét tới cuối run tại MỖI vị trí
+        // (O(n²)). Đảo thứ tự: bản sao đã-báo (repeats) skip O(1); chỉ bản
+        // ĐẦU của run mới trả run_length — tổng O(n) (telescoping).
+        let repeats = repeats_before(ctx, i, &lower);
+        let run_len = if repeats {
+            3
+        } else {
+            run_length(ctx, i, &lower)
+        };
+        let long_run = repeats || run_len >= 3;
+        if long_run && (!REPEAT3_FUNCTION_WORDS.contains(&lower.as_str()) || repeats) {
             continue;
         }
         // Vòng 41 (Pass A T5): từ chức năng lặp ≥ 3 — fix của bản sao ĐẦU xoá
