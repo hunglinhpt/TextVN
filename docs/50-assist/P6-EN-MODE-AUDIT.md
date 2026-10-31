@@ -177,3 +177,27 @@ FPR auto-fix conf 100:
 cách hỗn loạn ("1.250.00đ"); (3) spell-check tiếng Việt (R-3) — cần nguồn
 từ điển VN offline. **Đo:** FPR 0/2739 · recall 28/28 + 38/38 · 135 lib +
 52 abnormal tests · 15/15 probe parity.
+
+## 9. Vòng 45 (tiếp) — Pass E1 đối kháng kind 14/15 (2026-10-31)
+
+- **Sync 6 điểm kind 14/15: ĐẠT** — header 2 bản byte-identical, ffi map 2
+  chiều, verify const, assist_result.c, CoreBridge, AssistModel;
+  suggestion-only nhất quán (không auto_fixable, không explicit_fix_text).
+- **FPR corpus 0/4334** — rule mới fire 0 lần trên toàn corpus; hard recall
+  100% tái lập.
+- **Đối kháng date 12/12 sạch** (0-padded, fraction, ISO năm-đầu, năm 2 chữ,
+  URL mask, serial 5-digit); **money** (thập phân comma, USD, Đ hoa, 100đ).
+- **Fix 2 TRUNG (E1)**: (1) boundary off-by-one — pattern ngắn nhất 8 chars,
+  điều kiện `i + 8 <= n` ("Hóa đơn ngày 31/4/2026" cuối văn bản từng Miss);
+  (2) suffix **VND/VNĐ hoa** — chars[j+2] nhận d/D/Đ.
+- **THẤP chấp nhận**: FP class "12/34/5678" (mã/serial — suggestion-only,
+  0 FP trên corpus); "0.5đ" thập phân — tiền đ là số nguyên, chủ ý.
+- **VI spell-check (R-3) — KẾT LUẬN KHẢO SÁT**: thí nghiệm đếm từ corpus
+  sạch thiếu trong vi-DauMoi.dic (6642 từ) → **"khóa", "môtô", "sô-cô-la",
+  "khỏa" là từ THẬT bị thiếu** ⇒ dictionary quá nhỏ, VI spell-check trên nó
+  VI PHẠM FPR=0. Cần hunspell VI đầy đủ (30-70k từ) trước khi mở tính năng —
+  infrastructure (FST embed + provider) sẵn sàng khi có dict. Ghi backlog.
+- **Panel EN/VI — KẾT LUẬN KHẢO SÁT**: 150+ chuỗi tiếng Việt sinh từ sâu
+  trong 15 rule + panel 3 OS; bản địa hóa = refactor message catalog +
+  config ui.language + settings UI 3 OS — thiết kế trong P6 doc, làm vòng
+  riêng (không phải nửa vời).

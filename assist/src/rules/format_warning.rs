@@ -44,7 +44,9 @@ fn check_dates(ctx: &Ctx, out: &mut Vec<Issue>) {
     let chars = &ctx.chars;
     let n = chars.len();
     let mut i = 0usize;
-    while i + 9 < n {
+    // Pass EN-1 TRUNG-1: pattern ngắn nhất "d/d/dddd" = 8 chars — cũ 9
+    // nuốt ngày nằm ĐÚNG CUỐI văn bản ("Hóa đơn ngày 31/4/2026"Miss).
+    while i + 8 <= n {
         // Pattern: d{1,2} / d{1,2} / d{4} — quét thủ công, không regex.
         if !is_digit(chars[i]) {
             i += 1;
@@ -160,14 +162,14 @@ fn check_money(ctx: &Ctx, out: &mut Vec<Issue>) {
             groups.push((g_start, g_end));
             j = g_end;
         }
-        // Suffix tiền tệ VN: đ / Đ / vnd / VND (bắt ngay sau, không space).
-        let suffix_is_vn = j < n
-            && (chars[j] == 'đ'
-                || chars[j] == 'Đ'
-                || ((chars[j] == 'v' || chars[j] == 'V')
-                    && j + 2 < n
-                    && (chars[j + 1] == 'n' || chars[j + 1] == 'N')
-                    && chars[j + 2] == 'd'));
+        // Suffix tiền tệ VN: đ / Đ / vnd / VND / VNĐ (bắt ngay sau, không
+        // space; VND/VNĐ hoa phổ biến trong bảng giá — Pass EN-1 TRUNG-2).
+        let suffix_vnd = j < n
+            && (chars[j] == 'v' || chars[j] == 'V')
+            && j + 2 < n
+            && (chars[j + 1] == 'n' || chars[j + 1] == 'N')
+            && (chars[j + 2] == 'd' || chars[j + 2] == 'D' || chars[j + 2] == 'Đ');
+        let suffix_is_vn = j < n && (chars[j] == 'đ' || chars[j] == 'Đ' || suffix_vnd);
         if groups.len() < 2 || !suffix_is_vn {
             i = j.max(i + 1);
             continue;
