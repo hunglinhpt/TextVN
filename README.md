@@ -105,6 +105,44 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
 | **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
 
+### Tính năng đầy đủ (tích luỹ đến 0.2.60)
+
+**Kiểu gõ & biến đổi**
+- Telex, VNI, TCVN3 (VIQR đọc được), Quick Telex (cc→ch, gg→gi…), gõ tự do (free marking)
+- 3 bảng mã xuất: Unicode, TCVN3, VNI (+ Unicode tổ hợp) — chuyển đổi qua lại giữ nguyên chữ
+- Kiểu dấu cũ/mới chọn được (`hoà`/`hòa`, `thuỷ`/`thủy`) — cả dữ liệu dự đoán tự theo kiểu đã chọn
+- Chữ hoa thông minh: `DD` → `Đ`, Caps Lock/Shift từng phím, tự viết hoa đầu câu (tắt được)
+- Escape khôi phục nguyên chuỗi phím đã gõ ở mọi thời điểm
+- Chống vòng lặp phím (E28): gõ lặp dấu không sinh chu kỳ vô tận — đủ 3 kiểu Telex/VNI/VIQR
+- Gõ tắt (macro) theo kiểu chữ (HD→HỢP ĐỒNG), chạy được cả khi tắt tiếng Việt (tùy chọn)
+- Emoji gõ tắt; số tiền `=1.550.000đ` → chữ Việt; bảo vệ công thức Excel và identifier code
+
+**Gợi ý & dự đoán (P6 — Tab, Ctrl+Space)**
+- Hoàn tất từ tiếng Việt: `ngư`+Tab → `ngưng` (3000 âm tiết + từ ghép văn phòng)
+- Hoàn tất từ tiếng Anh: `develop`+Tab → `developed` (3000 từ tần suất + thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân)
+- Dự đoán cụm tiếp theo theo ngữ cảnh (`kính gửi ` → `quý khách hàng`; theo role: kế toán, nhân sự, kinh doanh, CSKH, giáo viên — 140+ mẫu Việt / 30+ mẫu Anh)
+- Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành
+- Ctrl+Space: sửa hết lỗi câu (kể cả chính tả) rồi dự đoán tiếp — một phím hai việc
+
+**Trợ lý ngữ pháp (kiểu Grammarly, offline hoàn toàn)**
+- 15 loại lỗi: lặp từ/cụm 2–4 từ, thiếu/thừa khoảng trắng, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (32/13, 31/02 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ)
+- Panel popup tại caret (Windows: overlay; macOS: bảng ứng viên; Linux: lookup table + aux) — bấm được bằng chuột, Alt+1…3, Enter áp "Sửa tất cả"
+- Mode 1 chỉ gợi ý / Mode 2 tự sửa (lỗi objective tự sửa, lỗi mơ hồ gợi ý) — hoàn tác Ctrl+Z 5 giây
+- Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả) và khi bôi đen câu dài
+- Per-app: tắt riêng từng ứng dụng; tự tắt ở ô mật khẩu; FPR 0 % trên 2739 câu đúng chuẩn mực
+
+**Chuyển mã & tiện ích văn phòng (P5)**
+- Ctrl+Shift+F9 chuyển mã vùng bôi đen: TCVN3/VNI/Unicode tổ hợp → Unicode, tự nhận diện bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), gõ lại chữ gõ nhầm khi quên bật (`tooi ddi hocj` → `tôi đi học`) — cả 3 hệ điều hành
+- 3000 từ tần suất + thuật ngữ EN (coder/tech/business/OS APIs) cho restore tiếng Anh thông minh
+- Bảo vệ: từ điển EN cá nhân, identifier camelCase, chuỗi trong nháy kép nguyên văn
+
+**Điều khiển & riêng tư**
+- Ctrl+Space sửa/dự đoán · Ctrl+Shift gạt VN/EN (nhớ trạng thái) · Ctrl+Shift+F9 chuyển mã
+- Per-app override + ignore list; bảng cài đặt riêng từng OS (tray Windows, GTK4 Linux, app menu macOS)
+- Offline 100 %, không telemetry, không mạng; tự tắt ô mật khẩu; riêng tư công khai trong repo
+
+Engine Rust dùng chung, 190+ test trợ lý + 230 kịch bản replay qua 4 adapter trên 3 OS mỗi commit.
+
 Engine bằng Rust, test bằng corpus replay (hơn 230 kịch bản `*.keys`) qua 4 mô phỏng
 adapter (headless, tsf, mac, linux) trên 3 hệ điều hành ở mỗi commit; quy tắc xung đột
 ngôn ngữ công khai tại
@@ -120,6 +158,24 @@ ngôn ngữ công khai tại
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
 thay đổi: [CHANGELOG.md](CHANGELOG.md).
+
+### Tóm tắt phiên bản gần đây
+
+| Phiên bản | Nội dung chính |
+|---|---|
+| 0.2.60 | Hiệu năng: 5 đường O(n²) → tuyến tính (dán 640k ký tự 45s → 0.9s); ngày vô lý cuối văn bản |
+| 0.2.59 | Cảnh báo ngày tháng vô lý (32/13, 31/02 — calendar-aware) + số tiền phân cách hỗn loạn (1.250.00đ) |
+| 0.2.58 | Chat không dấu hết bị phá chữ ("an com", "i di"); trợ động từ EN lạc sau từ VI; parity phẩy-but |
+| 0.2.57 | VIQR freeze marker; macOS toggle VI/đổi cài đặt giữa từ hết mất chữ; `DD` hoa gạch |
+| 0.2.56 | EN mode: luật EN chạy trên câu mix; WinSpell tự phục hồi; nguyên văn trong ngoặc kép không sửa; SVA O(n) |
+| 0.2.55 | Lặp cụm 2–4 từ; từ EN thừa trong câu Việt; audit 3 pass A/B/C; dự đoán nhanh 35× |
+| 0.2.54 | Lặp cụm suggestion-only; audit 3 OS từng dòng; abnormal tests vét cạn |
+| 0.2.52–53 | SVA dạng rút gọn ("He don't"); EN Tab mở cho từ chưa fold; collocation +7 |
+| 0.2.50–51 | EN grammar hoàn tất (should of, your welcome, then/than…); Ngữ pháp câu EN + SVA; bảng cài đặt bật dự đoán |
+| 0.2.45–49 | P5 văn phòng: macro kiểu chữ, số tiền, bảo vệ Excel/identifier; Ctrl+Shift+F9 chuyển mã thông minh 3 OS; ghost preview |
+| 0.2.44 | Audit sâu 3 lượt; 1061 âm tiết VN cho từ thiếu dấu; a/an theo gốc Âm-phiêu |
+
+Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Dựng từ mã nguồn
 
@@ -316,6 +372,44 @@ differently — per their public feature pages as of 2026-10):
 - **Private by default** — 100 % local key processing, no telemetry, no
   network; auto-disables in password fields; public privacy policy in-repo.
 
+### Full feature set (accumulated through 0.2.60)
+
+**Input methods & transforms**
+- Telex, VNI, TCVN3 (VIQR readable), Quick Telex (cc→ch, gg→gi…), free marking
+- 3 output charsets: Unicode, TCVN3, VNI (+ decomposed Unicode) — lossless round-trip conversion
+- Old/new diacritic style switch (`hoà`/`hòa`, `thuỷ`/`thủy`) — prediction data follows the chosen style
+- Smart caps: `DD` → `Đ`, per-key Caps Lock/Shift, auto-capitalize sentence starts (optional)
+- Escape restores the exact typed string at any point
+- Anti-key-loop (E28): repeated tone keys never cycle endlessly — across Telex/VNI/VIQR
+- Text macros with case styles (HD→HỢP ĐỒNG); work even with Vietnamese off (optional)
+- Emoji shortcuts; `=1.550.000đ` → Vietnamese words; Excel formula and identifier protection
+
+**Suggestions & prediction (P6 — Tab, Ctrl+Space)**
+- Vietnamese word completion: `ngư`+Tab → `ngưng` (3000 syllables + office compounds)
+- English completion: `develop`+Tab → `developed` (3000 frequency words + tech/business terms + personal dictionary)
+- Next-phrase prediction by context (`kính gửi ` → `quý khách hàng`; role-based: accounting, HR, sales, support, teachers — 140+ VI / 30+ EN patterns)
+- Ghost preview after the caret on all three platforms
+- Ctrl+Space: fix the whole sentence (including spelling) then keep predicting — one key, two jobs
+
+**Grammar assistant (Grammarly-style, fully offline)**
+- 15 issue kinds: word/2–4-word-phrase repeats, spacing, sentence-case, diacritic typos, double negatives, end-of-sentence and post-conjunction commas, a/an, EN confusions, lowercase "i", EN spelling (OS spell), VI spelling (dictionary), impossible dates (32/13, 31/02 — calendar-aware), inconsistent money grouping (1.250.00đ)
+- Popup panel at the caret (Windows overlay; macOS candidate panel; Linux lookup table + aux) — mouse-clickable, Alt+1…3, Enter applies fix-all
+- Mode 1 suggest-only / Mode 2 auto-correct (objective errors fixed, ambiguous ones suggested) — Ctrl+Z undo for 5 seconds
+- Selection checking (arrow keys → popup + fix-all) and long-sentence checks
+- Per-app disable; auto-off in password fields; 0 % false positives on a 2739-sentence curated clean set
+
+**Transcoding & office extras (P5)**
+- Ctrl+Shift+F9 converts the selection: TCVN3/VNI/decomposed → Unicode with automatic charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), re-types text typed while the IME was off (`tooi ddi hocj` → `tôi đi học`) — all three platforms
+- 3000 frequency words + EN terminology (coder/tech/business/OS APIs) for smart English restore
+- Protection: personal EN dictionary, camelCase identifiers, quoted strings kept verbatim
+
+**Control & privacy**
+- Ctrl+Space fix/predict · Ctrl+Shift VI/EN toggle (state remembered) · Ctrl+Shift+F9 transcode
+- Per-app overrides + ignore lists; native settings per OS (Windows tray, Linux GTK4, macOS menu bar app)
+- 100 % offline, no telemetry, no network; auto-off in password fields; public privacy policy in the repo
+
+One Rust engine, 190+ assistant tests + 230 replay scenarios through 4 adapter simulators on 3 OSes per commit.
+
 The Rust engine is tested by corpus replay (230+ `*.keys` scenarios) through
 four adapter simulations (headless, tsf, mac, linux) on three operating
 systems at every commit; the language-conflict rules are published at
@@ -332,6 +426,24 @@ systems at every commit; the language-conflict rules are published at
 Test results of the current version:
 [build-release-report.md](docs/release/build-release-report.md) · changes:
 [CHANGELOG.md](CHANGELOG.md).
+
+### Recent releases at a glance
+
+| Version | Highlights |
+|---|---|
+| 0.2.60 | Performance: five O(n²) paths → linear (640k-char paste 45s → 0.9s); end-of-text date detection |
+| 0.2.59 | Impossible-date warnings (32/13, 31/02 — calendar-aware) + inconsistent money grouping (1.250.00đ) |
+| 0.2.58 | Unaccented Vietnamese chat no longer mangled ("an com", "i di"); stray EN auxiliaries flagged; comma-after-"but" parity |
+| 0.2.57 | VIQR marker freeze; macOS toggle/settings mid-word no longer lose text; uppercase DD stroke |
+| 0.2.56 | EN rules run on mixed sentences; WinSpell self-recovery; quoted speech verbatim; SVA O(n) |
+| 0.2.55 | 2–4-word phrase repeats; stray EN words in Vietnamese sentences; 3-pass A/B/C audit; 35× prediction speedup |
+| 0.2.54 | Phrase repeats suggestion-only; line-by-line 3-OS audit; exhaustive abnormal tests |
+| 0.2.52–53 | Contracted SVA ("He don't"); EN Tab for unfolded words; +7 collocations |
+| 0.2.50–51 | Full EN grammar (should of, your welcome, then/than…); sentence grammar + SVA; prediction toggle UI |
+| 0.2.45–49 | P5 office: case-style macros, money words, Excel/identifier protection; smart Ctrl+Shift+F9 transcode 3 OS; ghost preview |
+| 0.2.44 | Deep 3-round audit; 1061 VN syllables for unaccented words; vowel-origin a/an rules |
+
+Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Build from source
 

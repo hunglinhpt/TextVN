@@ -21,6 +21,8 @@ static GString *g_preedit;  /* preedit đang hiển thị */
 static gboolean g_push_surrounding = FALSE;
 static guint    g_lookup_candidates = 0; /* số ứng viên trong candidate list */
 static gboolean g_lookup_visible = FALSE; /* R2-129: candidate list đang hiện */
+static GString *g_aux = NULL;   /* Vòng 47: auxiliary text (ghost preview) */
+static gboolean g_aux_visible = FALSE;
 
 static void push_surrounding(IBusInputContext *ic) {
     if (!g_push_surrounding) return;
@@ -60,6 +62,15 @@ static void on_hide_lookup(IBusInputContext *ic, gpointer data) {
     (void)ic;
     (void)data;
     g_lookup_visible = FALSE;
+}
+
+/* Vòng 47: auxiliary text = dòng ghost preview ("chữ mờ gợi ý sẵn" R2-134). */
+static void on_update_auxiliary(IBusInputContext *ic, IBusText *text, gboolean visible,
+                                gpointer data) {
+    (void)ic;
+    (void)data;
+    g_string_assign(g_aux, visible && text ? ibus_text_get_text(text) : "");
+    g_aux_visible = visible && text && g_aux->len > 0;
 }
 
 static void on_commit(IBusInputContext *ic, IBusText *text, gpointer data) {
@@ -198,15 +209,18 @@ int main(void) {
     }
     g_doc = g_string_new("");
     g_preedit = g_string_new("");
+    g_aux = g_string_new("");
 
     IBusInputContext *ic = ibus_bus_create_input_context(bus, "textvn-e2e");
-    ibus_input_context_set_capabilities(ic, IBUS_CAP_PREEDIT_TEXT | IBUS_CAP_FOCUS);
+    ibus_input_context_set_capabilities(ic, IBUS_CAP_PREEDIT_TEXT | IBUS_CAP_FOCUS |
+                                               IBUS_CAP_AUXILIARY_TEXT);
     g_signal_connect(ic, "commit-text", G_CALLBACK(on_commit), NULL);
     g_signal_connect(ic, "update-preedit-text", G_CALLBACK(on_preedit), NULL);
     g_signal_connect(ic, "hide-preedit-text", G_CALLBACK(on_hide_preedit), NULL);
     g_signal_connect(ic, "delete-surrounding-text", G_CALLBACK(on_delete_surrounding), NULL);
     g_signal_connect(ic, "update-lookup-table", G_CALLBACK(on_update_lookup), NULL);
     g_signal_connect(ic, "hide-lookup-table", G_CALLBACK(on_hide_lookup), NULL);
+    g_signal_connect(ic, "update-auxiliary-text", G_CALLBACK(on_update_auxiliary), NULL);
     ibus_input_context_focus_in(ic);
 
     /* Engine có thể chưa kịp đăng ký: thử lại tối đa ~3s. */
@@ -343,6 +357,51 @@ int main(void) {
     type(ic, "USA ");
     ok &= check("Shift USA giữ nguyên", "USA ");
     clear(ic);
+
+    /* ---- Vòng 47: Text Prediction (gợi ý từ) — suggest.enabled + Tab + ghost ----
+     *
+     * suggest_vn (P6): từ đang gõ là tiền tố nghiêm ngặt của âm tiết/từ ghép
+     * trong vn_freq3000/vn_compounds → Tab hoàn tất; ghost = peek_completion
+     * hiện dòng auxiliary. Client phải bật IBUS_CAP_AUXILIARY_TEXT. */
+    write_textvn_file("config.json",
+                      "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"suggest\":{\"enabled\":true}}");
+    clear(ic);
+
+    /* Ghost preview: gõ prefix "phats" (phát) — dòng phụ hiện " triển". */
+    type(ic, "phats");
+    {
+        int ghost_ok = g_aux_visible && strstr(g_aux->str, "triển") != NULL;
+        printf("%s ghost preview aux='%.60s'
+", ghost_ok ? "PASS" : "FAIL",
+               g_aux->str);
+        ok &= ghost_ok;
+    }
+    /* Tab hoàn tất: "phats" + Tab → "phát triển" commit vào document. */
+    press(ic, IBUS_KEY_Tab, 0);
+    ok &= check("suggest Tab phát→phát triển", "phát triển");
+    clear(ic);
+
+    /* Từ sai tiền tố không có ứng viên → Tab đi qua app (không nuốt). */
+    type(ic, "zzzq");
+    g_aux_visible = FALSE;
+    press(ic, IBUS_KEY_Tab, 0);
+    ok &= check("Tab không ứng viên đi qua", "zzzq");
+    clear(ic);
+
+    /* Space-complete nghiêm ngặt (suggest.trigger=tab_and_space): "an com" —
+     * từ "com" chưa hoàn chỉnh + Space → "ăn cơm"? KHÔNG — space-complete chỉ
+     * hoàn tất âm tiết đúng hoàn chỉnh khi TỪ đang gõ CHƯA phải từ đúng;
+     * "com" đã là từ đúng → Space chỉ đóng từ (R2-120 nghiêm ngặt). */
+    type(ic, "nghiu");
+    {
+        int ghost2 = g_aux_visible;
+        printf("%s ghost after 'nghiu' (ứng viên tồn tại hoặc không — phụ thuộc dữ liệu)
+",
+               ghost2 ? "INFO" : "INFO");
+    }
+    clear(ic);
+    write_textvn_file("config.json", "{\"config_version\":1}");
 
     /* Ô mật khẩu: không biến đổi. */
     ibus_input_context_set_content_type(ic, IBUS_INPUT_PURPOSE_PASSWORD, 0);

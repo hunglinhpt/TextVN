@@ -304,5 +304,32 @@ pump(0.1)
 type_("duocj")
 check("ô mật khẩu passthrough", "duocj")
 
+# ---- Vòng 47: Text Prediction (gợi ý từ) — suggest.enabled + Tab ----
+# Ghost preview trên Fcitx5 đi qua panel.setAuxDown — DBus client e2e không
+# nhận signal auxiliary (fcitx5 không forward aux xuống IC client cùng cách
+# IBus) — kiểm tra HÀNH VI cuối: Tab hoàn tất từ khi suggest bật.
+write_textvn_file("config.json", {"config_version": 1, "auto_capitalize": False,
+                                  "suggest": {"enabled": True}})
+pump(0.3)  # ConfigReload qua file monitor
+clear()
+type_("phats")
+# Tab: "phats" (phát) + Tab → "phát triển" (suggest_vn hoàn tất từ ghép).
+send(0xFF09, 0, False)   # Tab down
+pump(0.1)
+send(0xFF09, 0, True)    # Tab up
+pump(0.1)
+check("suggest Tab phát→phát triển", "phát triển")
+clear()
+# Từ không có ứng viên → Tab đi qua app (không nuốt).
+type_("zzzq")
+send(0xFF09, 0, False)
+pump(0.1)
+send(0xFF09, 0, True)
+pump(0.1)
+check("Tab không ứng viên đi qua", "zzzq")
+clear()
+write_textvn_file("config.json", {"config_version": 1})
+pump(0.3)
+
 print("e2e_fcitx5: OK" if ok else "e2e_fcitx5: FAILED")
 sys.exit(0 if ok else 1)
