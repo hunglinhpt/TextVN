@@ -6,13 +6,13 @@
 |---|---|
 | Nội dung | Pass E2 đối kháng (SHIP ĐƯỢC — parity 13/13, format 18/18, corpus 206/206) + quét O(n²) hệ thống: (1) space_after_punct qua is_abbreviation_dot scan-ngược → 3 lớp _dot/_at/_word_dot fast-path O(1) (4.1s→496µs); (2) duplicate_word repeats_before O(1) trước run_length O(n) (telescoping); (3) phrase_repeat dedup sort-sweep O(k log k); (4) in_quotes → Ctx.quote_parity O(1) + xoá fn chết; (5) en_spelling/spelling out.iter().any() → snapshot covered + prefix-max. F1 backlog có thiết kế: is_real_sentence_end đường sentence-start |
 | Đo | 'then '×160k 1.36s → 237ms · 'vui lòng...'×640k 45s → 0.9s · 'then '×32k 34s → 5.6s (dup) + 15s (phrase) → tuyến tính ×2/×2 · 190 test assist · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | điền sau B3 |
-| Release | v0.2.60 tag ký GPG — điền sau B6 |
-| Checksums | điền sau B7 |
-| Homebrew (B7b) | điền sau B7b |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.60 — hash điền sau B7e |
-| PPA (B7f) | debian/changelog `0.2.60-0ppa1` |
-| approved (B7c) | `approved/v0.2.60/` — điền sau B7c |
+| CI trên commit gắn tag 818f48d | 6/6 workflow áp dụng xanh (ci-shared · ci-windows · ci-linux · ci-macos · ci-aur · ci-deb) |
+| Release | [v0.2.60 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.60) — release-candidate [4/4 job](https://github.com/hunglinhpt/TextVN/actions/runs/41183851308) xanh; **34 asset**; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `d60d0e65…f6aa` · MSIX `5ff0802c…bdfe` · mac zip `8bec8696…9c16` · PKGBUILD archive `a5a5199d…563f` |
+| Homebrew (B7b) | cask `version "0.2.60"` + `sha256` = mac zip `8bec8696…9c16` — sync-cask [#41191152214](https://github.com/hunglinhpt/homebrew-tap/actions/runs/41191152214) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.60 = archive v0.2.60 `a5a5199d…563f`; publish AUR chờ owner SSH |
+| PPA (B7f) | debian/changelog `0.2.60-0ppa1`; upload PPA = owner |
+| approved (B7c) | `approved/v0.2.60/` — 34 file byte-identical, raw URL machine.exe + msix 200 (commit `ee25051`) |
 
 ## Bản 0.2.59 — format warnings ngày tháng + số tiền (vòng 45)
 
