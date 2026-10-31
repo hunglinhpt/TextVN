@@ -7,6 +7,22 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.60] — 2026-10-31
+
+### Fixed
+- **Hiệu năng tuyến tính trên mọi đường** (audit probe hệ thống): 5 đường
+  O(n²) trong trợ lý — phát hiện thiếu khoảng trắng sau dấu chấm trên văn
+  bản dày dấu câu, quét từ lặp/cụm lặp, kiểm tra ngoặc kép, guard trùng
+  span của spelling — dán văn bản 640k ký tự: **45s → 0.9s**.
+- **Ngày tháng cuối văn bản được phát hiện lại** ("Hóa đơn ngày 31/4/2026"
+  đứng cuối — boundary off-by-one).
+
+**English** — 0.2.60 performance-audit release: five quadratic paths in the
+grammar assistant (missing-space detection, repeat scanning, quote-state
+checks, spelling overlap guards) are now linear — a 640k-character paste
+drops from 45 seconds to under one second. End-of-text invalid dates are
+detected again after a boundary off-by-one.
+
 ## [0.2.59] — 2026-10-31
 
 ### Added
@@ -2334,6 +2350,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.60]: https://github.com/hunglinhpt/TextVN/compare/v0.2.59...v0.2.60
 [0.2.59]: https://github.com/hunglinhpt/TextVN/compare/v0.2.58...v0.2.59
 [0.2.58]: https://github.com/hunglinhpt/TextVN/compare/v0.2.57...v0.2.58
 [0.2.57]: https://github.com/hunglinhpt/TextVN/compare/v0.2.56...v0.2.57

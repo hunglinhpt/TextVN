@@ -1,3 +1,11 @@
+textvn (0.2.60-0ppa1) noble; urgency=medium
+
+  * Vong 46: quet O(n2) toan luat tro ve tuyen tinh — space_after_punct/
+    dup_word/phrase_repeat/in_quotes/en_spelling spelling (640k chars paste
+    45s → 0.9s); khoi phuc date boundary cuoi van ban.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 31 Oct 2026 16:30:00 +0700
+
 textvn (0.2.59-0ppa1) noble; urgency=medium
 
   * Vong 45: canh bao ngay thang vo ly (32/13/2025, 31/02/2026 — calendar-

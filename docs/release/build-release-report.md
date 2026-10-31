@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.60 — quét O(n²) toàn luật về tuyến tính (vòng 46)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Pass E2 đối kháng (SHIP ĐƯỢC — parity 13/13, format 18/18, corpus 206/206) + quét O(n²) hệ thống: (1) space_after_punct qua is_abbreviation_dot scan-ngược → 3 lớp _dot/_at/_word_dot fast-path O(1) (4.1s→496µs); (2) duplicate_word repeats_before O(1) trước run_length O(n) (telescoping); (3) phrase_repeat dedup sort-sweep O(k log k); (4) in_quotes → Ctx.quote_parity O(1) + xoá fn chết; (5) en_spelling/spelling out.iter().any() → snapshot covered + prefix-max. F1 backlog có thiết kế: is_real_sentence_end đường sentence-start |
+| Đo | 'then '×160k 1.36s → 237ms · 'vui lòng...'×640k 45s → 0.9s · 'then '×32k 34s → 5.6s (dup) + 15s (phrase) → tuyến tính ×2/×2 · 190 test assist · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | điền sau B3 |
+| Release | v0.2.60 tag ký GPG — điền sau B6 |
+| Checksums | điền sau B7 |
+| Homebrew (B7b) | điền sau B7b |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.60 — hash điền sau B7e |
+| PPA (B7f) | debian/changelog `0.2.60-0ppa1` |
+| approved (B7c) | `approved/v0.2.60/` — điền sau B7c |
+
 ## Bản 0.2.59 — format warnings ngày tháng + số tiền (vòng 45)
 
 | Hạng mục | Bằng chứng |

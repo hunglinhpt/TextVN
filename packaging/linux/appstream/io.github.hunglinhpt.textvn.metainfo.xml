@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.60" date="2026-10-31">
+      <description>
+        <p>Performance audit release: five quadratic paths in the grammar assistant (missing-space detection on punctuation-heavy text, repeated-word and repeated-phrase scanning, quote-state checks, and spelling overlap guards) were made linear — a 640k-character paste that took 45 seconds now completes in under one second. Also restores end-of-text detection for invalid dates.</p>
+      </description>
+    </release>
     <release version="0.2.59" date="2026-10-31">
       <description>
         <p>New format warnings from the accounting/HR/sales personas: impossible dates ("32/13/2025", "31/02/2026" — calendar-aware, requires a 4-digit year to avoid false positives on fractions) and inconsistently grouped money amounts ("1.250.00đ", "1.25.000đ") are flagged as suggestions on all three platforms, with two new assist kinds synced across the FFI ABI, Windows overlay, macOS panel and Linux aux text.</p>
