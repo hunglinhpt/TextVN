@@ -308,6 +308,10 @@ check("ô mật khẩu passthrough", "duocj")
 # Ghost preview trên Fcitx5 đi qua panel.setAuxDown — DBus client e2e không
 # nhận signal auxiliary (fcitx5 không forward aux xuống IC client cùng cách
 # IBus) — kiểm tra HÀNH VI cuối: Tab hoàn tất từ khi suggest bật.
+# Nhớ TRẢ capability thường sau test mật khẩu (CAP_PASSWORD ⇒ secure S3 ⇒
+# mọi phím passthrough — Tab không bao giờ hoàn tất nếu quên reset).
+ic.SetCapability(dbus.UInt64(CAP_PREEDIT | CAP_FORMATTED))
+pump(0.1)
 write_textvn_file("config.json", {"config_version": 1, "auto_capitalize": False,
                                   "suggest": {"enabled": True}})
 pump(0.3)  # ConfigReload qua file monitor
