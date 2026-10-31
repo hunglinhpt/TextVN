@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793428565.5988438,
-    "seen": 1793430841.1515484,
-    "ast_hash": "f3a98649fd518b84341f4ada15efa6fa",
+    "mtime": 1793436320.491198,
+    "seen": 1793442356.0474265,
+    "ast_hash": "e646bcc29013d8cc22090c93cd697d9c",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793428565.5998304,
-    "seen": 1793430841.1515484,
-    "ast_hash": "5abec3b60485fd82bc96c2d5b0ef0216",
+    "mtime": 1793436320.4921982,
+    "seen": 1793442356.0484242,
+    "ast_hash": "e394533525d0d8e09da2aeb5e4c4ec76",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1793428533.6576264,
-    "seen": 1793430841.1278565,
-    "ast_hash": "9188510876aa908989f0f63bf4f79b9c",
+    "mtime": 1793436285.2541754,
+    "seen": 1793442356.0235512,
+    "ast_hash": "dbbdfdf11128a98ddcea9d03a22700fb",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1793428533.6576264,
-    "seen": 1793430841.1278565,
-    "ast_hash": "7e0cd282f830ee36432e600a131055ef",
+    "mtime": 1793436285.2541754,
+    "seen": 1793442356.0235512,
+    "ast_hash": "6d529a9d0d1bcd1c016f2a8aea3197cc",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1793428533.6586094,
-    "seen": 1793430841.128857,
-    "ast_hash": "bf827aca54f90f243d44e0a84e425b4f",
+    "mtime": 1793436285.2541754,
+    "seen": 1793442356.0245512,
+    "ast_hash": "65baff944ee9404a9d09d4950f49242d",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1793430646.3737843,
-    "seen": 1793430841.1410406,
-    "ast_hash": "0346e1966e47ea0c042f34ed7ab5c0f2",
+    "mtime": 1793440942.1947434,
+    "seen": 1793442356.0371704,
+    "ast_hash": "5d1e1267887e584b4d462daee5c49159",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793430827.5550761,
-    "seen": 1793430841.1585479,
-    "ast_hash": "99a28f543d8ee2a8cd6b64bd6612593f",
+    "mtime": 1793442326.5793538,
+    "seen": 1793442356.0554492,
+    "ast_hash": "0705b617fef281ddec3d524c9ecdfebd",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2412,21 +2412,21 @@
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1793306520.4030714,
-    "seen": 1793380066.2643151,
-    "ast_hash": "723a78c25365949bafa8249e8620b19d",
+    "mtime": 1793435708.325732,
+    "seen": 1793442356.0296285,
+    "ast_hash": "b0693ff57eee251efc3447f10621207c",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
-    "mtime": 1793426642.530717,
-    "seen": 1793430841.1340365,
-    "ast_hash": "000800eab5235070e4b4ba0eed68da07",
+    "mtime": 1793432193.189919,
+    "seen": 1793442356.0296285,
+    "ast_hash": "841632823d6ec67288c0a9eceeda13f5",
     "semantic_hash": ""
   },
   "assist/src/rules/space_after_punct.rs": {
-    "mtime": 1792897885.9229753,
-    "seen": 1792899498.7197855,
-    "ast_hash": "a96230a0baa537c64b65a0c34a7ab61f",
+    "mtime": 1793432193.205696,
+    "seen": 1793442356.0296285,
+    "ast_hash": "8099226fa4ac105079baf57a385e9a31",
     "semantic_hash": ""
   },
   "assist/src/rules/space_before_punct.rs": {
@@ -2592,9 +2592,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/spelling.rs": {
-    "mtime": 1792897872.4936833,
-    "seen": 1792899498.7197855,
-    "ast_hash": "fa3b1093aebf958fb79c72598c155576",
+    "mtime": 1793435622.7271519,
+    "seen": 1793442356.0296285,
+    "ast_hash": "fb62810eb9e5d70d653b94d983e456fe",
     "semantic_hash": ""
   },
   "assist/tests/dictionary_budget.rs": {
@@ -2934,15 +2934,15 @@
     "semantic_hash": ""
   },
   "assist/src/rules/en_confusions.rs": {
-    "mtime": 1793422958.1502357,
-    "seen": 1793425704.7778296,
-    "ast_hash": "8ff1c54c58899e7aa2ea3d66d77ae567",
+    "mtime": 1793434214.8228087,
+    "seen": 1793442356.0296285,
+    "ast_hash": "f6737b0938e9cf9af351989e526498c9",
     "semantic_hash": ""
   },
   "assist/src/rules/en_spelling.rs": {
-    "mtime": 1793199362.4450555,
-    "seen": 1793200537.9592621,
-    "ast_hash": "891f6b9df70a85e59d8cc83023896207",
+    "mtime": 1793435622.706985,
+    "seen": 1793442356.0296285,
+    "ast_hash": "449c2893190bcad691466a655175e189",
     "semantic_hash": ""
   },
   "xtask/src/gen_en_phrases.rs": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_grammar.rs": {
-    "mtime": 1793414495.8651915,
-    "seen": 1793425704.7788296,
-    "ast_hash": "978ce52424a439f6031a26d063841634",
+    "mtime": 1793435277.3087637,
+    "seen": 1793442356.0296285,
+    "ast_hash": "1d91babea2d50b4811e5e8ef8196f363",
     "semantic_hash": ""
   },
   "xtask/src/gen_vn_phrases.rs": {
@@ -2982,21 +2982,21 @@
     "semantic_hash": ""
   },
   "assist/src/rules/phrase_repeat.rs": {
-    "mtime": 1793306233.8189213,
-    "seen": 1793380066.2643151,
-    "ast_hash": "8f480e86ef03b74b9a7a2b0c8e605686",
+    "mtime": 1793435708.3272593,
+    "seen": 1793442356.0296285,
+    "ast_hash": "e6df5ad31dd1d3642325774f7bb84466",
     "semantic_hash": ""
   },
   "assist/tests/abnormal.rs": {
-    "mtime": 1793426710.2346578,
-    "seen": 1793430841.1340365,
-    "ast_hash": "0dc5384521ef942f0ab637c9c26053dd",
+    "mtime": 1793434214.8740792,
+    "seen": 1793442356.030626,
+    "ast_hash": "bed8a7277b696f19e2ba5b7d420ab1d4",
     "semantic_hash": ""
   },
   "docs/50-assist/P6-EN-MODE-AUDIT.md": {
-    "mtime": 1793427983.6312566,
-    "seen": 1793430841.1575475,
-    "ast_hash": "e29295781c3a07071563142e695a4de7",
+    "mtime": 1793435781.4272804,
+    "seen": 1793442356.0554492,
+    "ast_hash": "9f49d1a6c06b1b1bf7e55743ad6c37ba",
     "semantic_hash": ""
   },
   "assist/src/rules/format_warning.rs": {
