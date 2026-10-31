@@ -372,8 +372,7 @@ int main(void) {
     type(ic, "phats");
     {
         int ghost_ok = g_aux_visible && strstr(g_aux->str, "triển") != NULL;
-        printf("%s ghost preview aux='%.60s'
-", ghost_ok ? "PASS" : "FAIL",
+        printf("%s ghost preview aux='%.60s" "\n", ghost_ok ? "PASS" : "FAIL",
                g_aux->str);
         ok &= ghost_ok;
     }
@@ -396,8 +395,7 @@ int main(void) {
     type(ic, "nghiu");
     {
         int ghost2 = g_aux_visible;
-        printf("%s ghost after 'nghiu' (ứng viên tồn tại hoặc không — phụ thuộc dữ liệu)
-",
+        printf("%s ghost after 'nghiu' (tồn tại ứng viên hay không — theo dữ liệu)" "\n",
                ghost2 ? "INFO" : "INFO");
     }
     clear(ic);
