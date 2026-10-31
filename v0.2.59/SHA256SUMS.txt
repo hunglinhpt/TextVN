@@ -1,0 +1,19 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+0cb37841c630f5817d28975b679d51f22e140cd92e3e5b0785614057fec31a5e  TextVN-0.2.59-linux-x86_64.tar.gz
+ce8bf0884f4326c059b474519bcac1163f9b1fa92f7c86f8c50b7aace49b520e  TextVN-0.2.59-windows-x64.msix
+f254ee8be8ebd7c64f704d153b689c729197005659ac59cf27b557bac2b13202  TextVN-mac-v0.2.59.pkg
+d916bf743e40e5cd9d2698ba606b3bbeeb0bf1f51c6c705eed2130ec8c7d4745  TextVN-macos-universal-v0.2.59.tar.gz
+d47de419cbc3dc1de49eacb45abd04c3e5f86643b47d8b1a4e2dfeb5b07360eb  TextVN-macos-universal-v0.2.59.zip
+b22ceb352aab092fc2efebffeec48a6178931be99d382b44e26b33743b32b1e7  TextVN-portable-0.2.59-windows-x64-20261031064616.zip
+4dca804f347497d2b05a9b0b3088cd0becbd42687c0f9f5dfc425e6cd0dfee41  TextVN-setup-0.2.59-windows-x64-machine.exe
+ed57cca4a42ef6e0bb57e1030ed0ff8718aed84921abc49a69b7508fd3cb9a76  TextVN-setup-0.2.59-windows-x64.exe
+b432cc435a4981b1dff5575cdeb73ea1c6d6160c3a55aa3fe5cdba7d49201f29  gpg-release-key.asc
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQQ5IVlavJYRmfFTA7bEW4TQx/SoIgUCauWRywAKCRDEW4TQx/So
+Ii/nAPwIwSprBAOrIT1knoPQ0qGpnGRD9KraW/sirzKQAP9MoAEA+n4C+Db2K3Wm
+mptU1r0xT0BqdwCk4IomB/b+G21ltAo=
+=Il8z
+-----END PGP SIGNATURE-----
