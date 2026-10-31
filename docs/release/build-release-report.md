@@ -6,13 +6,13 @@
 |---|---|
 | Nội dung | **P-2 persona battery** (agent, 140 câu + 25 thăm dò — 7 profile): 6 persona công việc 78/78 CLEAN; nhóm người dùng thường lộ 2 FPR auto-fix — FPR-1 article_an "an com" (instance check dùng is_vn_ascii_syllable không loại giao điểm EN freq) + FPR-2 pronoun "i di" (has_vn_lazy_hint: ≥1 âm tiết VN ∧ 0 từ EN thật; EN_FUNC +am/then) · **R-1** trợ động từ EN lạc sau từ VI +5 cặp suggestion-only + T5 thu hẹp (VI hoa đầu câu = vị trí) · **Parity** phẩy-sau-but EN (helper chung với nhưng VI); ma trận OS × tính năng đủ (gap duy nhất macOS EN spelling F3 backlog) |
 | Đo | 135 lib + 52 abnormal tests · 14/14 probe parity/FPR sau fix · FPR 0/2739 · recall 28/28 + 38/38 · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | điền sau B3 |
-| Release | v0.2.58 tag ký GPG — điền sau B6 |
-| Checksums | điền sau B7 |
-| Homebrew (B7b) | cask version "0.2.58" + sha256 — điền sau B7b |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.58 — hash điền sau B7e |
-| PPA (B7f) | debian/changelog `0.2.58-0ppa1` |
-| approved (B7c) | `approved/v0.2.58/` — điền sau B7c |
+| CI trên commit gắn tag 600e005 | 5/5 workflow áp dụng xanh (ci-shared · ci-windows · ci-linux · ci-macos · repo-hygiene — ci-aur/ci-deb path-filter không trigger trên assist-only) |
+| Release | [v0.2.58 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.58) — release-candidate [4/4 job](https://github.com/hunglinhpt/TextVN/actions/runs/41172664401) xanh; **34 asset**; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `55b75060…a0a6` · MSIX `6474ee94…7908` · mac zip `a7a2b6ee…cef54` · PKGBUILD archive `9523c21c…00a78` |
+| Homebrew (B7b) | cask `version "0.2.58"` + `sha256` = mac zip `a7a2b6ee…cef54` — sync-cask [#41173882614](https://github.com/hunglinhpt/homebrew-tap/actions/runs/41173882614) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.58 = archive v0.2.58 `9523c21c…00a78`; publish AUR chờ owner SSH |
+| PPA (B7f) | debian/changelog `0.2.58-0ppa1`; upload PPA = owner |
+| approved (B7c) | `approved/v0.2.58/` — 34 file byte-identical, raw URL machine.exe + msix 200 (commit `4d3b889`) |
 
 ## Bản 0.2.57 — audit toàn bề mặt 3 pass D1/D2/D3 (vòng 43)
 
