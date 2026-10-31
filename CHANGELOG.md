@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.58] — 2026-10-31
+
+### Fixed
+- **Chat tiếng Việt không dấu hết bị auto-fix phá chữ**: "an com chua do"
+  (ăn cơm) hết bị đổi thành "a com"; "i di ngu som nhe" (i đi ngủ sớm nhé)
+  hết bị đổi thành "I" — luật a/an và đại từ I nhận diện **văn bản Việt
+  lười** (âm tiết Việt, kể cả trùng từ EN) trước khi bắn.
+- **Trợ động từ EN lạc sau từ Việt được báo**: "Chưa been đối chiếu công
+  nợ", "cần been reviewed" — gợi ý (không tự sửa).
+- **Parity VI/EN**: phẩy sai sau "but" giữa câu tiếng Anh được báo đối xứng
+  với "nhưng" ("good but, still broken").
+
+**English** — 0.2.58 persona-audit release: unaccented Vietnamese chat is no
+longer mangled by the English article and pronoun rules ("an com chua do",
+"i di ngu som nhe"); stray English auxiliaries after Vietnamese words
+("Chưa been đối chiếu") are flagged as suggestions; an English
+comma-after-"but" rule mirrors the Vietnamese one.
+
 ## [0.2.57] — 2026-10-31
 
 ### Fixed
@@ -2300,6 +2318,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.58]: https://github.com/hunglinhpt/TextVN/compare/v0.2.57...v0.2.58
 [0.2.57]: https://github.com/hunglinhpt/TextVN/compare/v0.2.56...v0.2.57
 [0.2.56]: https://github.com/hunglinhpt/TextVN/compare/v0.2.55...v0.2.56
 [0.2.55]: https://github.com/hunglinhpt/TextVN/compare/v0.2.54...v0.2.55

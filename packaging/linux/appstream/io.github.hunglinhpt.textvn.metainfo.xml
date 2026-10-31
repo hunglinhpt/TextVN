@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.58" date="2026-10-31">
+      <description>
+        <p>Persona audit across seven office and everyday-user profiles: unaccented Vietnamese chat ("an com chua do", "i di ngu som nhe") is no longer mangled by the English article and pronoun rules, Vietnamese words followed by stray English auxiliaries ("Chưa been đối chiếu", "cần been reviewed") are now flagged as suggestions, and an English comma-after-"but" rule mirrors the Vietnamese one.</p>
+      </description>
+    </release>
     <release version="0.2.57" date="2026-10-31">
       <description>
         <p>Three-pass whole-surface audit (typing engine, keystroke journey on all three OS adapters, adversarial verification): VIQR mode now freezes repeated markers like Telex and VNI do (no more endless toggle on "hoa..." or "dddd"), uppercase DD strokes to Đ, macOS no longer loses the word being typed when toggling Vietnamese or reloading settings mid-word (commits the marked text first, matching Windows and Linux), and dead code was removed from the syllable validator.</p>
