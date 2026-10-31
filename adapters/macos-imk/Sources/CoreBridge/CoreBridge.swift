@@ -62,6 +62,8 @@ public enum FFI {
     public static let assistKindWordConfusion: UInt32 = UInt32(IME_ASSIST_KIND_WORD_CONFUSION)
     /// EN vòng 36: đại từ "i" thường giữa câu.
     public static let assistKindLowercasePronoun: UInt32 = UInt32(IME_ASSIST_KIND_LOWERCASE_PRONOUN)
+    public static let assistKindInvalidDate: UInt32 = UInt32(IME_ASSIST_KIND_INVALID_DATE)
+    public static let assistKindInvalidMoney: UInt32 = UInt32(IME_ASSIST_KIND_INVALID_MONEY)
 
     // assist triggers (IME_ASSIST_TRIGGER_*)
     public static let assistTriggerNone: UInt32 = UInt32(IME_ASSIST_TRIGGER_NONE)

@@ -139,6 +139,14 @@ fn abi_constants() -> Vec<(&'static str, i64)> {
             "IME_ASSIST_KIND_LOWERCASE_PRONOUN",
             IME_ASSIST_KIND_LOWERCASE_PRONOUN as i64,
         ),
+        (
+            "IME_ASSIST_KIND_INVALID_DATE",
+            IME_ASSIST_KIND_INVALID_DATE as i64,
+        ),
+        (
+            "IME_ASSIST_KIND_INVALID_MONEY",
+            IME_ASSIST_KIND_INVALID_MONEY as i64,
+        ),
         ("IME_MAX_ASSIST_ISSUES", IME_MAX_ASSIST_ISSUES as i64),
         ("IME_MAX_ASSIST_MSG", IME_MAX_ASSIST_MSG as i64),
         ("IME_MAX_ASSIST_SUGGEST", IME_MAX_ASSIST_SUGGEST as i64),

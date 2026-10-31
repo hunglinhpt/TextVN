@@ -15,6 +15,7 @@ pub mod double_space;
 pub mod duplicate_word;
 pub mod en_confusions;
 pub mod en_spelling;
+pub mod format_warning;
 pub mod language;
 pub mod phrase_repeat;
 pub mod sentence_grammar;

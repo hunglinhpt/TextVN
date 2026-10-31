@@ -233,6 +233,8 @@ public func assistKindName(_ kind: UInt32) -> String {
     case FFI.assistKindArticleAn: return "article_an"
     case FFI.assistKindWordConfusion: return "word_confusion"
     case FFI.assistKindLowercasePronoun: return "lowercase_pronoun"
+    case FFI.assistKindInvalidDate: return "invalid_date"
+    case FFI.assistKindInvalidMoney: return "invalid_money"
     default: return "unknown"
     }
 }

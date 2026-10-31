@@ -54,6 +54,14 @@ pub enum IssueKind {
     /// EN vòng 36 - đại từ "i" thường giữa câu → "I" (không phải đầu câu —
     /// L6 lo phần đó; guard "i.e.").
     LowercasePronoun,
+    /// Vòng 45 (đề xuất persona kế toán/HR): ngày tháng VÔ LÝ
+    /// ("32/13/2025", "31/02/2026" — tháng 2 không có ngày 31). Chỉ fire
+    /// khi CÓ NĂM 4 chữ số (tránh phân số "32/13"). Suggestion-only.
+    InvalidDate,
+    /// Vòng 45 (đề xuất persona kế toán/bán hàng): nhóm phân cách số tiền
+    /// hỗn loạn ("1.250.00đ" — nhóm cuối 2 chữ; "1.25.000đ"). Chỉ fire khi
+    /// có đ/vnd. Suggestion-only.
+    InvalidMoney,
 }
 
 impl IssueKind {
@@ -73,6 +81,8 @@ impl IssueKind {
             Self::ArticleAn => "article_an",
             Self::WordConfusion => "word_confusion",
             Self::LowercasePronoun => "lowercase_pronoun",
+            Self::InvalidDate => "invalid_date",
+            Self::InvalidMoney => "invalid_money",
         }
     }
 
@@ -92,6 +102,8 @@ impl IssueKind {
             "article_an" => Self::ArticleAn,
             "word_confusion" => Self::WordConfusion,
             "lowercase_pronoun" => Self::LowercasePronoun,
+            "invalid_date" => Self::InvalidDate,
+            "invalid_money" => Self::InvalidMoney,
             _ => return None,
         })
     }
@@ -232,6 +244,9 @@ fn check_with_internal(
     // suggest-only, gate khoảng cách Damerau ≤ 2 (FPR bar); NoDictionary im lặng.
     rules::en_spelling::check(&ctx, &mut issues);
     // Ngữ pháp câu tiếng Việt & tiếng Anh (liên từ hô ứng, hoà hợp chủ vị, giới từ thừa)
+    // Vòng 45 (đề xuất persona): ngày tháng vô lý + số tiền phân cách
+    // hỗn loạn — suggestion-only, quét trên chars (số = token Other).
+    rules::format_warning::check(&ctx, &mut issues);
     rules::sentence_grammar::check_vi(&ctx, &mut issues);
     rules::sentence_grammar::check_en(&ctx, &mut issues);
     // Vòng 42 (RC-3): SVA + giới từ thừa chạy cả câu mix Vi-dominant ("He

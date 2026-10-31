@@ -45,6 +45,8 @@ const char *lc_assist_kind_name(uint32_t kind) {
     case IME_ASSIST_KIND_ARTICLE_AN:         return "article_an";
     case IME_ASSIST_KIND_WORD_CONFUSION:     return "word_confusion";
     case IME_ASSIST_KIND_LOWERCASE_PRONOUN:  return "lowercase_pronoun";
+    case IME_ASSIST_KIND_INVALID_DATE:       return "invalid_date";
+    case IME_ASSIST_KIND_INVALID_MONEY:      return "invalid_money";
     default:                                 return "unknown";
     }
 }

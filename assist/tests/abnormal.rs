@@ -641,3 +641,44 @@ fn p2_r1_aux_en_lac_sau_tu_viet() {
     assert!(check("Hôm nay Today show sẽ phát sóng đặc biệt.").is_empty());
     assert!(check("Trước Before Sunrise, anh ấy đã làm hai phim khác.").is_empty());
 }
+
+// ================= Vòng 45 — format_warning: ngày tháng + số tiền =================
+
+#[test]
+fn v45_ngay_thang_vo_ly() {
+    // Fire: day/month vượt giới hạn + calendar-aware.
+    for s in [
+        "Hạn chót là 32/13/2025 nhé.",
+        "Gặp ngày 31/02/2026 để ký.",
+        "Deadline 31/04/2026 nhé.",
+        "Họp ngày 00/05/2026.",
+        "Ký ngày 31/11/2026.", // tháng 11 chỉ 30 ngày
+    ] {
+        let issues = check(s);
+        assert!(!issues.is_empty(), "{s} phải được báo: {issues:?}");
+        assert_eq!(issues[0].kind, textvn_assist::IssueKind::InvalidDate);
+        assert!(!issues[0].auto_fixable, "suggestion-only");
+    }
+    // Clean: ngày hợp lệ + fraction không năm.
+    assert!(check("Báo cáo 15/10/2026 đã gửi.").is_empty());
+    assert!(check("Ngày 29/02/2024 họp thường niên.").is_empty());
+    assert!(check("Tỷ số 32/13 lạ quá.").is_empty());
+    assert!(check("Tổng cộng 1.500.000đ cho 15/10/2026, 100% hoàn tất.").is_empty());
+}
+
+#[test]
+fn v45_so_tien_phan_cach_hon_loan() {
+    for s in [
+        "Chuyển khoản 1.250.00đ giúp mình.",
+        "Giá 1.25.000đ mỗi cái.",
+    ] {
+        let issues = check(s);
+        assert!(!issues.is_empty(), "{s} phải được báo");
+        assert_eq!(issues[0].kind, textvn_assist::IssueKind::InvalidMoney);
+        assert!(!issues[0].auto_fixable);
+    }
+    // Clean: phân cách chuẩn + suffix đa dạng.
+    assert!(check("Tổng cộng 1.500.000đ.").is_empty());
+    assert!(check("Đơn giá 250.000đ.").is_empty());
+    assert!(check("Chuyển 10.000.000vnd.").is_empty());
+}

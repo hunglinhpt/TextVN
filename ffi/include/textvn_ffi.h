@@ -52,6 +52,9 @@ extern "C" {
 /* EN vòng 36: cặp từ dễ nhầm + đại từ "i" thường (en_confusions.rs). */
 #define IME_ASSIST_KIND_WORD_CONFUSION  12u
 #define IME_ASSIST_KIND_LOWERCASE_PRONOUN 13u
+/* Vòng 45 (đề xuất persona): định dạng vô lý — suggestion-only. */
+#define IME_ASSIST_KIND_INVALID_DATE    14u
+#define IME_ASSIST_KIND_INVALID_MONEY   15u
 
 #define IME_MAX_ASSIST_ISSUES              8
 #define IME_MAX_ASSIST_MSG                 128

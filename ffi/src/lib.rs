@@ -85,6 +85,8 @@ pub const IME_ASSIST_KIND_ARTICLE_AN: u32 = 11;
 pub const IME_ASSIST_KIND_WORD_CONFUSION: u32 = 12;
 /// EN vòng 36: đại từ "i" thường giữa câu → "I".
 pub const IME_ASSIST_KIND_LOWERCASE_PRONOUN: u32 = 13;
+pub const IME_ASSIST_KIND_INVALID_DATE: u32 = 14;
+pub const IME_ASSIST_KIND_INVALID_MONEY: u32 = 15;
 
 pub const IME_MAX_ASSIST_ISSUES: usize = 8;
 pub const IME_MAX_ASSIST_MSG: usize = 128;
@@ -298,6 +300,8 @@ fn map_issue_kind(kind: textvn_assist::IssueKind) -> u32 {
         textvn_assist::IssueKind::ArticleAn => IME_ASSIST_KIND_ARTICLE_AN,
         textvn_assist::IssueKind::WordConfusion => IME_ASSIST_KIND_WORD_CONFUSION,
         textvn_assist::IssueKind::LowercasePronoun => IME_ASSIST_KIND_LOWERCASE_PRONOUN,
+        textvn_assist::IssueKind::InvalidDate => IME_ASSIST_KIND_INVALID_DATE,
+        textvn_assist::IssueKind::InvalidMoney => IME_ASSIST_KIND_INVALID_MONEY,
     }
 }
 
@@ -1424,6 +1428,8 @@ pub fn plan_issues_from_raw_ex(
             IME_ASSIST_KIND_ARTICLE_AN => textvn_assist::IssueKind::ArticleAn,
             IME_ASSIST_KIND_WORD_CONFUSION => textvn_assist::IssueKind::WordConfusion,
             IME_ASSIST_KIND_LOWERCASE_PRONOUN => textvn_assist::IssueKind::LowercasePronoun,
+            IME_ASSIST_KIND_INVALID_DATE => textvn_assist::IssueKind::InvalidDate,
+            IME_ASSIST_KIND_INVALID_MONEY => textvn_assist::IssueKind::InvalidMoney,
             _ => continue,
         };
 
