@@ -252,19 +252,7 @@ const ABBREV_WORDS: &[&str] = &[
 /// - trong danh sách đóng [`ABBREV_WORDS`] ("etc.", "cf.", "vs.", "Mr.", "Dr.", "et al."),
 /// - "3.a" (số trước + một chữ cái sau — mục con).
 pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
-    // "3.a" (mục con): số ngay trước + MỘT chữ cái ASCII ngay sau — không
-    // áp cho chữ thường sau chấm ("rồi.Tạm" là LỖI thiếu space thật; tên
-    // miền "example.com" đã được che bởi `mask` nên không tới đây).
-    let digit_before = punct.start > 0 && ctx.chars[punct.start - 1].is_ascii_digit();
-    let single_letter_after = ctx
-        .chars
-        .get(punct.end)
-        .is_some_and(|c| c.is_ascii_alphabetic())
-        && ctx
-            .chars
-            .get(punct.end + 1)
-            .is_none_or(|c| !c.is_alphanumeric());
-    if digit_before && single_letter_after {
+    if is_abbreviation_dot_digit_prefix(ctx, punct) {
         return true;
     }
     // Từ phải nằm NGAY SÁT trước dấu `.` (`prev.end == punct.start`).
@@ -276,6 +264,53 @@ pub(crate) fn is_abbreviation_dot(ctx: &Ctx, punct: &crate::tokenize::Token) -> 
     let Some(prev) = prev else {
         return false;
     };
+    is_abbreviation_word_dot(ctx, prev, punct)
+}
+
+/// Vòng 46 (audit perf D-dot): fast-path O(1) cho caller ĐÃ CÓ index của
+/// punct (space_after_punct) — `is_abbreviation_dot` scan ngược O(n) mỗi
+/// dot ⇒ O(n²) trên chuỗi dot dày ("1.1.1..." 160k chars = 4.2s). Token
+/// trước punct = `tokens[i - 1]` trực tiếp; hành vi NGHỆ THUẬT giống hệt
+/// bản scan (Space/other-kind ở giữa ⇒ `prev.end != punct.start` ⇒ false).
+pub(crate) fn is_abbreviation_dot_at(
+    ctx: &Ctx,
+    prev: Option<&crate::tokenize::Token>,
+    punct: &crate::tokenize::Token,
+) -> bool {
+    if is_abbreviation_dot_digit_prefix(ctx, punct) {
+        return true;
+    }
+    let Some(prev) = prev else {
+        return false;
+    };
+    if prev.end != punct.start || prev.kind != crate::tokenize::TokenKind::Word {
+        return false;
+    }
+    is_abbreviation_word_dot(ctx, prev, punct)
+}
+
+/// "3.a" (mục con): số ngay trước + MỘT chữ cái ASCII ngay sau — không
+/// áp cho chữ thường sau chấm ("rồi.Tạm" là LỖI thiếu space thật; tên
+/// miền "example.com" đã được che bởi `mask` nên không tới đây).
+fn is_abbreviation_dot_digit_prefix(ctx: &Ctx, punct: &crate::tokenize::Token) -> bool {
+    let digit_before = punct.start > 0 && ctx.chars[punct.start - 1].is_ascii_digit();
+    let single_letter_after = ctx
+        .chars
+        .get(punct.end)
+        .is_some_and(|c| c.is_ascii_alphabetic())
+        && ctx
+            .chars
+            .get(punct.end + 1)
+            .is_none_or(|c| !c.is_alphanumeric());
+    digit_before && single_letter_after
+}
+
+/// Kiểm từ NGAY SÁT trước dấu `.` là viết tắt ("ĐH.", "e.g.", "U.S.").
+fn is_abbreviation_word_dot(
+    ctx: &Ctx,
+    prev: &crate::tokenize::Token,
+    punct: &crate::tokenize::Token,
+) -> bool {
     if prev.end != punct.start || prev.kind != crate::tokenize::TokenKind::Word {
         return false;
     }

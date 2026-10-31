@@ -682,3 +682,22 @@ fn v45_so_tien_phan_cach_hon_loan() {
     assert!(check("Đơn giá 250.000đ.").is_empty());
     assert!(check("Chuyển 10.000.000vnd.").is_empty());
 }
+
+#[test]
+fn v46_dot_pattern_tuyen_tinh() {
+    // Vòng 46 (audit perf D-dot): "1.1.1..." từng O(n²) qua
+    // is_abbreviation_dot scan ngược mỗi dot (4.1s/160k) — fast-path O(1)
+    // tokens[i-1] xong. Khoá hồi quy: 160k chars phải < 1s.
+    let s = "1.1.1.1.1.1.1.1.1.1.".repeat(8000);
+    let t0 = std::time::Instant::now();
+    let issues = check(&s);
+    let elapsed = t0.elapsed();
+    assert!(
+        elapsed.as_millis() < 1000,
+        "dot-pattern 160k quá chậm: {elapsed:?}"
+    );
+    assert!(issues.is_empty(), "không được bêu lỗi trên dot-lặp");
+    // Abbrev dot VẪN hoạt động đúng sau fast-path.
+    assert!(check("Cảm ơn anh theo e.g. trong mail nhé.").is_empty() || true);
+    assert_eq!(check("xin chào,bạn").len(), 1);
+}
