@@ -334,8 +334,12 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // "an toan la quan trong") — câu thuần ASCII bị classified En nên
         // gate Vi phía trên không chặn. Từ kế là âm tiết Việt-ASCII (không
         // phải từ EN thông dụng) ⇒ im lặng, không bao giờ sửa chữ Việt.
+        // Vòng 44 (Pass P-2 FPR-1): instance-level — từ kế là âm tiết
+        // Việt-ASCII (KHÔNG loại giao điểm EN: "com"/"di" có trong cả
+        // en_freq3000) ⇒ im ("an com" = ăn cơm; "a email" vẫn bắt).
         if next.kind == TokenKind::Word
-            && crate::rules::language::is_vietnamese_ascii_word(&next_text.to_lowercase())
+            && (crate::rules::language::is_vietnamese_ascii_word(&next_text.to_lowercase())
+                || crate::rules::language::is_vn_ascii_syllable(&next_text.to_lowercase()))
         {
             i += 1;
             continue;

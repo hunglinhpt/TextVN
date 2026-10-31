@@ -581,3 +581,63 @@ fn en2_r2_nguyen_van_dong_bo_mo_luat() {
     // Ngoài quote vẫn bắt.
     assert!(!check("there own way of doing it.").is_empty());
 }
+
+// ================= Vòng 44 — parity VI/EN: phẩy sau liên từ =================
+
+#[test]
+fn v44_phay_sau_but_parity_en() {
+    // Parity: "good but, still" (EN) = "tốt nhưng, còn" (VI) — cùng luật.
+    assert!(!check("good but, still broken").is_empty());
+    assert!(!check("The plan was good but, poorly executed.").is_empty());
+    // Guards: phẩy TRƯỚC = ngoặc xen; đầu câu mới; trong quote — SẠCH.
+    assert!(check("He tried, but, being new, failed.").is_empty());
+    assert!(check("But, of course, it works.").is_empty());
+    assert!(check("Anh nói \"but, ok\" rồi đi.").is_empty());
+    // VI vẫn nguyên.
+    assert!(!check("tốt nhưng, còn lỗi").is_empty());
+}
+
+// ================= Vòng 44 — Pass P-2: chat không dấu + R-1 =================
+
+#[test]
+fn p2_fpr1_an_com_viet_khong_dau() {
+    // FPR-1: "an com" = ăn cơm — article_an auto-fix phá chữ (chat lười).
+    for s in [
+        "an com chua do",
+        "di an com di",
+        "an com ngon qua",
+        "chua an com",
+    ] {
+        assert!(check(s).is_empty(), "{s} phải SẠCH: {:?}", check(s));
+    }
+    // EN giữ: a/an lệch vẫn bắt, an đúng vẫn sạch ("an email"/"an hour"
+    // là tiếng Anh ĐÚNG — e/hour đọc nguyên âm).
+    assert!(!check("a email arrived").is_empty());
+    assert!(check("an hour ago").is_empty());
+    assert!(check("an email from the boss").is_empty());
+    assert!(!check("an book on the desk").is_empty());
+}
+
+#[test]
+fn p2_fpr2_i_di_viet_khong_dau() {
+    // FPR-2: "i di" = i đi (teen chat) — pronoun auto-fix phá chữ. "di" nằm
+    // GIAO ĐIỂM VN↔EN freq nên neighbor hint lỏng gãy — gate câu-lười ≥2
+    // âm tiết VN chặn.
+    for s in ["i di ngu som nhe", "i di an", "i di hoc"] {
+        assert!(check(s).is_empty(), "{s} phải SẠCH: {:?}", check(s));
+    }
+    // EN giữ.
+    assert!(!check("i went home early").is_empty());
+    assert!(!check("and then i went home.").is_empty());
+}
+
+#[test]
+fn p2_r1_aux_en_lac_sau_tu_viet() {
+    // R-1: trợ động từ EN lạc sau từ khẳng định/phủ định VI — suggestion.
+    assert!(!check("Chưa been đối chiếu công nợ tháng 10.").is_empty());
+    assert!(!check("Kế hoạch hành động cần been reviewed.").is_empty());
+    assert!(!check("Đang been xử lý rồi nhé.").is_empty());
+    // T5 thu hẹp: từ EN hoa = tên riêng — SẠCH; VI hoa đầu câu — vẫn bắt.
+    assert!(check("Hôm nay Today show sẽ phát sóng đặc biệt.").is_empty());
+    assert!(check("Trước Before Sunrise, anh ấy đã làm hai phim khác.").is_empty());
+}

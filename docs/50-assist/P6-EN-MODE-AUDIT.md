@@ -141,3 +141,39 @@ recall 28/28 + 38/38 · clippy 0 · preflight exit=0.
   + corpus **0/4334** + hard recall 100%. Follow-up đã vá: guard F9
   `markedRange == NSNotFound` trong commitBeforeHide (app tự commit marked →
   chèn thêm = nhân đôi) + nit comment.
+
+## 8. Vòng 44 — persona 7 profile + parity VI/EN (2026-10-31)
+
+**Parity OS × tính năng (tự audit từ code):** đủ — ghost/kinds 13/transcode/
+suggest UI/Mode 2/per-app/EN-words UI trên cả 3 OS. Gap duy nhất: macOS EN
+spelling (F3 backlog vòng 42); Linux không có OS spell (by design — không có
+API hệ thống nhất quán); Linux tray-toggle trễ 1 từ (F6); macOS dead-key
+Option+chữ (F4). **Parity VI/EN engine:** phẩy-sau-"but" (EN) thiếu đối xứng
+"nhưng" (VI) → helper chung `check_comma_after_conjunction`; L6 parity ✓
+sentence mode.
+
+**P-2 persona battery (agent, 140 câu + 25 thăm dò — 7 profile):** 6 persona
+công việc 78/78 CLEAN · nhóm NGƯỜI DÙNG BÌNH THƯỜNG (chat không dấu) lộ 2
+FPR auto-fix conf 100:
+- **FPR-1** `article_an` bêu "an com" (ăn cơm) → "a com" — instance-check cũ
+  dùng bản loại-giao-điểm ("com" có trong en_freq3000). Fix: instance-level
+  dùng `is_vn_ascii_syllable` (không loại giao điểm) cho **từ kề ngay** a/an.
+- **FPR-2** `lowercase_pronoun` bêu "i di" (= i đi — "di" cũng giao điểm) →
+  công thức `has_vn_lazy_hint`: **≥1 âm tiết VN ∧ 0 từ EN thật** (không âm
+  tiết VN, không EN-function — went/home/brother là EN thật) ⇒ "i di an" im,
+  "and then i went home"/"My brother told me that i could" vẫn chạy.
+- EN_FUNC +2: "am" (ẩm — "therefore i am" bị nuốt), "then" (thến — "and then
+  i" bị nuốt).
+- **R-1 (đã fix)**: trợ động từ EN lạc sau từ VI ("Chưa been đối chiếu",
+  "cần been reviewed") → +5 cặp (chưa/cần/đang/sẽ/vẫn, been) suggestion-only;
+  thu hẹp guard T5 (từ VI hoa ĐẦU CÂU = vị trí, không phải tên riêng — từ EN
+  hoa mới là title).
+- **R-2 (backlog)**: phẩy sai giữa câu chung ("Cần chốt scope, trước thứ
+  Sáu") — cần rule mới, FPR khó; **R-3**: typo biến dạng ("chỉnhin") — cần
+  spell-check VI (ngoài scope).
+
+**Đề xuất tính năng (từ persona — chưa làm):** (1) cảnh báo ngày tháng vô lý
+(32/13, 31/02 — kế toán/HR viết deadline); (2) cảnh báo format số tiền phân
+cách hỗn loạn ("1.250.00đ"); (3) spell-check tiếng Việt (R-3) — cần nguồn
+từ điển VN offline. **Đo:** FPR 0/2739 · recall 28/28 + 38/38 · 135 lib +
+52 abnormal tests · 15/15 probe parity.

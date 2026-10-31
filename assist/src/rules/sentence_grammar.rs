@@ -136,56 +136,10 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
         return;
     }
 
-    // 1.0 Vòng 40 (R2 persona RH-4): dấu phẩy SAU "nhưng" giữa câu — phẩy
-    // tiếng Việt đặt TRƯỚC liên từ tương phản ("tốt nhưng, còn…" sai;
-    // "bận, nhưng…" đúng). "nhưng" có phẩy NGAY TRƯỚC ("bận, nhưng, nếu
-    // rảnh, …") là ngoặc đơn xen hợp lệ → không báo. Suggestion-only.
-    for (idx, tok) in ctx.tokens.iter().enumerate() {
-        if tok.kind != TokenKind::Word || idx == 0 || ctx.token_text(tok).to_lowercase() != "nhưng"
-        {
-            continue;
-        }
-        let Some(next) = ctx.tokens.get(idx + 1) else {
-            continue;
-        };
-        if next.kind != TokenKind::Punct || !ctx.chars[next.start..next.end].contains(&',') {
-            continue;
-        }
-        let comma_before = ctx.tokens[..idx]
-            .iter()
-            .rev()
-            .find(|t| t.kind != TokenKind::Space)
-            .is_some_and(|t| {
-                t.kind == TokenKind::Punct && ctx.chars[t.start..t.end].contains(&',')
-            });
-        if comma_before {
-            continue;
-        }
-        // R2-L3: trích lời trong ngoặc kép và "Nhưng" ĐẦU CÂU MỚI ("Tôi bận.
-        // Nhưng, nếu rảnh, …") — 2 dạng hợp lệ, không báo.
-        let prev_non_space = ctx.tokens[..idx]
-            .iter()
-            .rev()
-            .find(|t| t.kind != TokenKind::Space);
-        let after_sentence_end = prev_non_space.is_some_and(|t| {
-            t.kind == TokenKind::Punct && {
-                let slice = &ctx.chars[t.start..t.end];
-                slice.contains(&'.') || slice.contains(&'!') || slice.contains(&'?')
-            }
-        });
-        if after_sentence_end || super::duplicate_word::in_quotes(ctx, tok.start) {
-            continue;
-        }
-        out.push(super::issue_suggestion(
-            IssueKind::WordConfusion,
-            Span {
-                start: tok.start,
-                end: next.end,
-            },
-            "Dấu phẩy sau \"nhưng\" — phẩy đặt TRƯỚC \"nhưng\", không đặt sau".to_string(),
-            vec![],
-        ));
-    }
+    // 1.0 Vòng 40 (R2 persona RH-4) + vòng 44 (parity EN): phẩy SAU liên từ
+    // tương phản giữa câu ("tốt nhưng, còn…" / "good but, still…") — phẩy đặt
+    // TRƯỚC liên từ. Helper dùng chung "nhưng" (VI) + "but" (EN).
+    check_comma_after_conjunction(ctx, out, "nhưng");
 
     // 1.1 Thừa liên từ liền kề: "tuy nhiên nhưng"
     for i in 2..ctx.tokens.len() {
@@ -534,6 +488,66 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
     }
 }
 
+/// Vòng 44 (parity VI/EN): phẩy SAU liên từ tương phản giữa câu — dùng chung
+/// "nhưng" (VI, vòng 40 RH-4) và "but" (EN). Guards: phẩy NGAY TRƯỚC = ngoặc
+/// đơn xen hợp lệ; trích lời; ĐẦU CÂU MỚI; câu bắt đầu bằng liên từ.
+/// Suggestion-only.
+fn check_comma_after_conjunction(ctx: &Ctx, out: &mut Vec<Issue>, conjunction: &str) {
+    let label = if conjunction == "but" {
+        "but"
+    } else {
+        "nhưng"
+    };
+    for (idx, tok) in ctx.tokens.iter().enumerate() {
+        if tok.kind != TokenKind::Word
+            || idx == 0
+            || ctx.token_text(tok).to_lowercase() != conjunction
+        {
+            continue;
+        }
+        let Some(next) = ctx.tokens.get(idx + 1) else {
+            continue;
+        };
+        if next.kind != TokenKind::Punct || !ctx.chars[next.start..next.end].contains(&',') {
+            continue;
+        }
+        let comma_before = ctx.tokens[..idx]
+            .iter()
+            .rev()
+            .find(|t| t.kind != TokenKind::Space)
+            .is_some_and(|t| {
+                t.kind == TokenKind::Punct && ctx.chars[t.start..t.end].contains(&',')
+            });
+        if comma_before {
+            continue;
+        }
+        // R2-L3: trích lời trong ngoặc kép và ĐẦU CÂU MỚI ("Tôi bận. Nhưng,
+        // nếu rảnh, …" / "It works. But, of course, …") — hợp lệ, không báo.
+        let prev_non_space = ctx.tokens[..idx]
+            .iter()
+            .rev()
+            .find(|t| t.kind != TokenKind::Space);
+        let after_sentence_end = prev_non_space.is_some_and(|t| {
+            t.kind == TokenKind::Punct && {
+                let slice = &ctx.chars[t.start..t.end];
+                slice.contains(&'.') || slice.contains(&'!') || slice.contains(&'?')
+            }
+        });
+        if after_sentence_end || super::duplicate_word::in_quotes(ctx, tok.start) {
+            continue;
+        }
+        out.push(super::issue_suggestion(
+            IssueKind::WordConfusion,
+            Span {
+                start: tok.start,
+                end: next.end,
+            },
+            format!("Dấu phẩy sau \"{label}\" — phẩy đặt TRƯỚC \"{label}\", không đặt sau"),
+            vec![],
+        ));
+    }
+}
+
 /// Hoà hợp chủ-vị + giới từ thừa + cặp giới từ sai + "look forward to" (2.2–2.5).
 ///
 /// Vòng 42 (audit EN mode RC-3): chạy trên **MỌI ngôn ngữ** — các mẫu là cặp
@@ -546,6 +560,8 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
     if super::capitalize_sentence::looks_like_code_or_list(ctx) {
         return;
     }
+    // Vòng 44 (parity): phẩy sau "but" giữa câu — đối xứng "nhưng" VI.
+    check_comma_after_conjunction(ctx, out, "but");
 
     // Vòng 37: gộp dạng rút gọn ("don't" -> 1 token logic) trước khi so cặp.
     let words: Vec<Token> = merge_contractions(ctx)

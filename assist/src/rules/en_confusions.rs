@@ -130,6 +130,11 @@ pub fn check_pronoun(ctx: &Ctx, out: &mut Vec<Issue>) {
     if ctx.lang != Lang::En {
         return;
     }
+    // Vòng 44 (Pass P-2 FPR-2): VIỆT LƯỜI KHÔNG DẤU ("i di ngu som nhe") —
+    // 0 từ EN thật trong câu ⇒ pronoun im (định nghĩa has_vn_lazy_hint).
+    if super::language::has_vn_lazy_hint(&ctx.chars, &ctx.tokens) {
+        return;
+    }
     // R2 (vòng 36): "i = i + 1" là code — đại từ "i" trong dòng code không
     // phải tiếng Anh (cùng tiêu chí code/danh sách với double_space/capitalize).
     if super::capitalize_sentence::looks_like_code_or_list(ctx) {
@@ -515,6 +520,14 @@ const REDUNDANT_MIX_PAIRS: &[(&str, &str)] = &[
     ("sau", "after"),
     ("mai", "tomorrow"),
     ("nay", "today"),
+    // Vòng 44 (Pass P-2 R-1): trợ động từ EN lạc sau từ khẳng định/phủ định
+    // VI — "Chưa been đối chiếu công nợ", "cần been reviewed" (kế toán/QLDA
+    // hay gõ). Suggestion-only, VI-dominant gate giữ nguyên.
+    ("chưa", "been"),
+    ("cần", "been"),
+    ("đang", "been"),
+    ("sẽ", "been"),
+    ("vẫn", "been"),
 ];
 
 pub fn check_redundant_mix(ctx: &Ctx, out: &mut Vec<Issue>) {
@@ -542,8 +555,10 @@ pub fn check_redundant_mix(ctx: &Ctx, out: &mut Vec<Issue>) {
         // Before Sunrise", "Duy nhát…") — HOA đầu của BẤT KỲ từ nào trong
         // cặp ⇒ bỏ qua (chỉ bắt dạng thường; suggestion-only nên recall
         // mất ở đầu-câu-hoa là chấp nhận được).
-        let cap = |tok: &crate::tokenize::Token| ctx.chars[tok.start].is_uppercase();
-        if cap(w0) || cap(w1) {
+        // Vòng 44 (P-2): tên riêng/tiêu đề — chỉ từ EN (w1) HOA mới skip
+        // ("Today show", "Before Sunrise"); từ VI hoa ĐẦU CÂU ("Chưa been…"
+        // — hoa vì VỊ TRÍ) vẫn bắt, otherwise cả lớp lỗi đầu câu bị nuốt.
+        if ctx.chars[w1.start].is_uppercase() {
             continue;
         }
         let hit = REDUNDANT_MIX_PAIRS

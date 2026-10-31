@@ -51,6 +51,51 @@ pub(crate) fn en_freq_words() -> &'static HashSet<&'static str> {
 /// `word` (đã lowercase) là **âm tiết Việt không dấu** và KHÔNG phải từ EN
 /// thông dụng — tín hiệu "tiếng Việt gõ thiếu dấu" mạnh (từ nằm ở giao điểm
 /// hai tập như "to"/"do"/"an" bị loại: quá mơ hồ để quyết).
+///
+/// Vòng 44 (Pass P-2 FPR-1): từ có là âm tiết Việt-ASCII không — KHÔNG loại
+/// giao điểm EN freq ("com"/"di" có trong cả en_freq3000). Chỉ dùng cho
+/// **từ kề ngay** a/an (instance-level) — câu-level vẫn dùng
+/// `has_vn_lazy_hint` (loại giao điểm + loại EN function words).
+pub fn is_vn_ascii_syllable(word_lower: &str) -> bool {
+    !word_lower.is_empty()
+        && word_lower.chars().all(|c| c.is_ascii_lowercase())
+        && vn_ascii_syllables().contains(word_lower)
+}
+
+/// Vòng 44 (P-2): từ có thuộc danh sách từ chức năng/từ-điểm EN không —
+/// dùng để loại khỏi tín hiệu tiếng Việt ở **điểm quyết định** ("that" =
+/// thắt, "he" = hề, "me" = mẹ… đều là âm tiết Việt deaccent NHƯNG là từ EN
+/// gốc — neighbor guard của đại từ "i" phải bỏ qua chúng).
+/// Vòng 44 (Pass P-2 FPR-1/2): văn bản **VIỆT LƯỜI KHÔNG DẤU** — định nghĩa
+/// đúng bản chất: câu có ≥1 âm tiết VN-ASCII (kể cả giao điểm EN: di/com/an)
+/// VÀ **0 từ EN thật** (không âm tiết VN, không thuộc EN function words —
+/// "went/home/brother/borrow" là EN thật; "i/thAT/di/an" là VN hoặc function).
+/// Khi đó các luật EN-only (pronoun "i"…) phải im:
+/// - "i di ngu som nhe" → 0 EN thật → im ✓ (FPR-2)
+/// - "an com chua do" → 0 EN thật → im ✓ (FPR-1)
+/// - "and then i went home" → went/home = 2 EN thật → CHẠY ✓
+/// - "My brother told me that i could borrow" → 4 EN thật → CHẠY ✓
+pub fn has_vn_lazy_hint(chars: &[char], tokens: &[Token]) -> bool {
+    let mut vn_count = 0usize;
+    let mut en_content = 0usize;
+    for t in tokens.iter().filter(|t| t.kind == TokenKind::Word) {
+        let w: String = chars[t.start..t.end]
+            .iter()
+            .collect::<String>()
+            .to_lowercase();
+        if vn_ascii_syllables().contains(w.as_str()) {
+            vn_count += 1;
+        } else if !EN_FUNCTION_WORDS.contains(&w.as_str()) {
+            en_content += 1;
+        }
+    }
+    vn_count >= 1 && en_content == 0
+}
+
+pub fn is_en_function_word(word_lower: &str) -> bool {
+    EN_FUNCTION_WORDS.contains(&word_lower)
+}
+
 pub fn is_vietnamese_ascii_word(word_lower: &str) -> bool {
     if word_lower.is_empty() || !word_lower.chars().all(|c| c.is_ascii_lowercase()) {
         return false;
@@ -75,7 +120,7 @@ const EN_FUNCTION_WORDS: &[&str] = &[
     "the", "is", "are", "was", "were", "be", "been", "to", "of", "and", "a", "an", "in", "that",
     "it", "you", "for", "on", "with", "as", "at", "by", "this", "from", "or", "not", "he", "she",
     "they", "we", "i", "his", "her", "its", "have", "has", "had", "do", "does", "did", "will",
-    "would", "can", "could", "please", "check", "send", "thanks", "team", "meeting",
+    "would", "can", "could", "am", "then", "please", "check", "send", "thanks", "team", "meeting",
     // Từ-điểm văn phòng (không phải function word ngữ pháp nhưng là tín hiệu
     // EN mạnh trong câu mix của văn phòng Việt — vòng 24).
     "report", "file", "asap", "email", "update", "deadline", "review", "feedback",

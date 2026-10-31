@@ -345,7 +345,11 @@ pub(crate) fn issue(
 pub(crate) fn vn_neighbor_hint(ctx: &Ctx, start: usize) -> bool {
     let vn_word = |t: &Token| -> bool {
         let w = ctx.token_text(t).to_lowercase();
-        language::is_vietnamese_ascii_word(&w) || w.chars().any(language::is_vietnamese_letter)
+        // Vòng 44 (P-2): âm tiết Việt **loại EN function words** ("that"=thắt,
+        // "me"=mẹ, "he"=hề — nếu không, "My brother told me that i could"
+        // bị hint nuốt rule). Giao điểm EN freq GIỮ ("di"=đi — FPR-2 gốc).
+        (language::is_vn_ascii_syllable(&w) && !language::is_en_function_word(&w))
+            || w.chars().any(language::is_vietnamese_letter)
     };
     let idx = match ctx.tokens.iter().position(|t| t.start == start) {
         Some(i) => i,
