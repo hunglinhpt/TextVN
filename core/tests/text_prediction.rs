@@ -461,7 +461,9 @@ fn r2_120_kieu_dau_moi() {
         typed(&mut predict_engine(new), "Coongj hoaf\t"),
         "Cộng hoà xã hội chủ nghĩa Việt Nam"
     );
-    assert_eq!(typed(&mut predict_engine(new), "hoaf\t"), "hoài");
+    // Vòng 52: "hoà" là âm tiết hoàn chỉnh → mở rộng từ ghép "hoà giải"
+    // (âm đầu == tiền tố) trước âm tiết khác "hoài".
+    assert_eq!(typed(&mut predict_engine(new), "hoaf\t"), "hoà giải");
 }
 
 /// Đang duyệt vòng ứng viên: Tab kế tiếp đổi ứng viên — kể cả khi phím Tab
@@ -484,18 +486,22 @@ fn r2_120_duyet_vong_uu_tien_hon_go_tat() {
 
 /// Ctrl+Space không khớp dự đoán: bỏ quyền sở hữu từ (WORD_END — adapter chốt
 /// composition) nhưng giữ buffer câu cho trợ lý ngữ pháp on-demand (R2-121).
+///
+/// Vòng 52: "tôi đi học" dùng để bây giờ "học" khớp compound mới "học sinh"
+/// (dự đoán đúng) — đổi ngữ cảnh sang "trời" (không có âm tiết/cụm nào dài
+/// hay phrase-key nào kết thúc bằng nó) — giữ kịch bản "Ctrl+Space KHÔNG khớp".
 #[test]
 fn r2_121_ctrl_space_khong_khop_nha_tu_giu_cau() {
     let mut e = engine_with_predict();
     let mut doc = Vec::new();
-    for c in "tooi ddi hocj".chars() {
+    for c in "tooi xanh xanh".chars() {
         press_key(&mut e, &mut doc, &key_for_char(c));
     }
     let out = e.key(&key_ctrl_space());
     assert_eq!(out.action, Action::Pass);
     assert_ne!(out.flags & textvn_core::FLAG_WORD_END, 0);
-    assert_eq!(e.sentence_tail(64), "tôi đi học");
-    // Phím dấu kế tiếp KHÔNG được sửa lại từ "học" đã nhả (chord semantics).
+    assert_eq!(e.sentence_tail(64), "tôi xanh xanh");
+    // Phím dấu kế tiếp KHÔNG được sửa lại từ "xanh" đã nhả (chord semantics).
     let out = e.key(&key_for_char('s'));
     assert_eq!(out.action, Action::Pass);
 }
@@ -611,4 +617,49 @@ fn du_doan_theo_role_van_phong() {
     assert!(!predict_next_phrase_candidates("máy hóa đơnxy ", 5).contains(&"điện tử".to_string()));
     // Xuống dòng = không dự đoán nối.
     assert!(predict_next_phrase_candidates("kính gửi\n", 5).is_empty());
+}
+
+/// Vòng 52 (probe QA): các đầu từ từng bị ô nhiễm bởi âm tiết hiếm từ dic
+/// ("tiến" → "tiếng", "xác" → "xách"…) — nay mở rộng đúng nghĩa (từ ghép có
+/// âm đầu == tiền tố); "ngư" không có compound như vậy → giữ hoàn tất âm tiết.
+#[test]
+fn probe_dau_tu_viet_sach() {
+    use textvn_core::post::predict::{predict_next_phrase_candidates, predict_prefix_candidates};
+    // Kỳ vọng: ứng viên đầu PHẢI là mở rộng đúng nghĩa (từ ghép âm-đầu-khớp),
+    // không bao giờ là âm tiết hiếm khác chỉ vì prefix byte-match.
+    for (typed, allowed) in [
+        ("tiến", &["tiến độ"][..]),
+        ("xác", &["xác thực", "xác nhận"][..]),
+        ("đề", &["đề nghị", "đề xuất"][..]),
+        ("hóa", &["hóa đơn điện tử", "hóa đơn"][..]),
+        ("trân", &["trân trọng"][..]),
+        ("nghỉ", &["nghỉ phép", "nghỉ việc"][..]),
+        ("bảo", &["bảo hành", "bảo mật", "bảo hiểm xã hội"][..]),
+        ("phát", &["phát triển"][..]),
+        ("công", &["công nghệ"][..]),
+        // "ngư": không có compound âm-đầu-khớp → hoàn tất âm tiết (luật cũ).
+        ("ngư", &["ngưa"][..]),
+    ] {
+        let c = predict_prefix_candidates(typed, true, 5);
+        assert!(
+            allowed.contains(&c.first().map(String::as_str).unwrap_or("")),
+            "{typed} => {c:?} (phải nằm trong {allowed:?})"
+        );
+    }
+    for ctx in [
+        "chúng tôi xin",
+        "vui lòng kiểm tra",
+        "số tiền",
+        "kế hoạch",
+        "i hope",
+        "the meeting",
+        "we apologize",
+        "dear",
+        "có công mài",
+        "ăn quả",
+    ] {
+        let p = predict_prefix_candidates(ctx.split(' ').next_back().unwrap(), !ctx.is_ascii(), 5);
+        let n = predict_next_phrase_candidates(&format!("{ctx} "), 5);
+        assert!(!p.is_empty() || !n.is_empty(), "{ctx}: KHÔNG gợi ý nào");
+    }
 }

@@ -704,7 +704,9 @@ fn op037_en_tab_completion_unfolded_word() {
         auto_capitalize: false,
         ..Default::default()
     });
-    assert_eq!(type_sequence(&mut e, "develop	"), "developed"); // rank: từ ngắn hơn trước
+    // Vòng 52: pool 10k thêm "develops" (8) ngắn hơn "developed" (9) —
+    // luật rank (ngắn nhất trước) chọn "develops".
+    assert_eq!(type_sequence(&mut e, "develop	"), "develops");
     let mut e2 = Engine::new(EngineOptions {
         suggest_vn_complete: true,
         auto_capitalize: false,

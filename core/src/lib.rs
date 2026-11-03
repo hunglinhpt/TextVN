@@ -2018,29 +2018,29 @@ mod tests {
         assert_eq!(text(&buf), "ngư\t", "suggest tắt → Tab đi qua");
         assert!(!e.word.active, "Tab đóng từ");
 
-        // Bật: "nguw" → `ngư` + Tab → `ngưng` (từ ngắn nhất, hoà độ dài thì
-        // lấy mục đứng trước trong từ điển tần suất).
+        // Bật: "nguw" → `ngư` + Tab → `ngưa` (vòng 52: pool mở rộng từ dic —
+        // âm tiết ngắn nhất theo (độ dài, bảng chữ), trước đây là "ngưng").
         let mut e = Engine::new(EngineOptions {
             suggest_vn_complete: true,
             ..Default::default()
         });
         let mut buf = type_buf(&mut e, "nguw");
         let action = press(&mut e, &mut buf, keymap::vk::TAB);
-        assert_eq!(text(&buf), "ngưng");
+        assert_eq!(text(&buf), "ngưa");
         assert!(
             matches!(action, Action::Replace { .. }),
             "phải REPLACE toàn bộ từ"
         );
         assert!(!e.word.active, "hoàn tất xong phải đóng từ");
 
-        // Hoa đầu từ được giữ: "Nguw" + Tab → "Ngưng".
+        // Hoa đầu từ được giữ: "Nguw" + Tab → "Ngưa".
         let mut e = Engine::new(EngineOptions {
             suggest_vn_complete: true,
             ..Default::default()
         });
         let mut buf = type_buf(&mut e, "Nguw");
         press(&mut e, &mut buf, keymap::vk::TAB);
-        assert_eq!(text(&buf), "Ngưng");
+        assert_eq!(text(&buf), "Ngưa");
 
         // Tiền tố không khớp ứng viên nào → Tab đi qua (indent/chuyển ô).
         let mut e = Engine::new(EngineOptions {
@@ -2051,15 +2051,23 @@ mod tests {
         press(&mut e, &mut buf, keymap::vk::TAB);
         assert_eq!(text(&buf), "zz\t");
 
-        // Viết tắt EN vẫn ưu tiên restore-EN: "tes" + Tab khi cả hai bật —
-        // `tés` không phải prefix âm tiết VN nào → rơi xuống gợi ý EN `test`.
+        // Vòng 52: pool âm tiết VN mở rộng — "tes" gõ Telex ra "té" và nay có
+        // âm tiết dài hơn ("téc") → VN hoàn tất trước EN (R2-56: VN thắng).
+        // Đối chứng EN vẫn hoạt động với tiền tố KHÔNG có ứng viên VN ("rel").
         let mut e = Engine::new(EngineOptions {
             suggest_vn_complete: true,
             ..Default::default()
         });
         let mut buf = type_buf(&mut e, "tes");
         press(&mut e, &mut buf, keymap::vk::TAB);
-        assert_eq!(text(&buf), "test", "EN completion vẫn hoạt động");
+        assert_eq!(text(&buf), "téc", "VN pool mở rộng hoàn tất trước");
+        let mut e2 = Engine::new(EngineOptions {
+            suggest_vn_complete: true,
+            ..Default::default()
+        });
+        let mut buf2 = type_buf(&mut e2, "rele");
+        press(&mut e2, &mut buf2, keymap::vk::TAB);
+        assert_eq!(text(&buf2), "release", "EN completion vẫn hoạt động");
     }
 
     /// Vòng 24 (`suggest.trigger = "tab_and_space"`): Space cũng hoàn tất từ.
@@ -2123,7 +2131,7 @@ mod tests {
         });
         let mut buf = type_buf(&mut e, "nguw");
         press(&mut e, &mut buf, keymap::vk::TAB);
-        assert_eq!(text(&buf), "ngưng", "Tab vẫn hoàn tất");
+        assert_eq!(text(&buf), "ngưa", "Tab vẫn hoàn tất");
 
         // Bảo vệ từ tiếng Việt hợp lệ ("em", "con", "cho", "cá", "nó", "chó")
         // khỏi bị biến thành từ tiếng Anh trong EN_FREQ_DATA ("email", "confirm",

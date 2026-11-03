@@ -64,6 +64,12 @@ pub const STOP_EN_DATA: &str = include_str!("../../../data/stop_en.txt");
 /// đã quảng cáo "3000 từ" từ 0.2.33, bản này mới thực sự nạp đủ nguồn.
 pub const EN_FREQ_DATA: &str = include_str!("../../../data/en_freq3000.txt");
 
+/// `data/en_words10k.txt` — google-10000-english (vòng 52): mở rộng vốn từ
+/// **hoàn tất** lên ~10k. CHỈ prediction (prefix ghost + Tab), KHÔNG tham gia
+/// `should_restore`/`is_known_en_word` — chính sách restore giữ nguyên để
+/// corpus FPR 0 không đổi.
+pub const EN_WORDS_10K_DATA: &str = include_str!("../../../data/en_words10k.txt");
+
 /// OP-006 (P5): thuật ngữ lập trình + kinh doanh cấp **gợi ý hoàn tất từ**
 /// (`try_english_complete`: "ebit" + Tab → "EBITDA"). Case chuẩn lưu dạng hiển
 /// thị; so khớp lowercase nên người gõ "kpi" cũng khớp KPI.
@@ -266,6 +272,21 @@ fn en_freq_lines() -> &'static [&'static str] {
     static_lines_lower(EN_FREQ_DATA, &CACHE)
 }
 
+/// google-10000-english đã sắp alphabet (vòng 52) — binary search trong
+/// `complete_word`, chỉ chạy khi qua gate âm-tiết-Việt.
+fn en_words10k_sorted() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut v: Vec<&'static str> = EN_WORDS_10K_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect();
+        v.sort_unstable();
+        v
+    })
+}
+
 fn en_freq_set() -> &'static HashSet<String> {
     static CACHE: OnceLock<HashSet<String>> = OnceLock::new();
     static_set_lower(EN_FREQ_DATA, &CACHE)
@@ -378,6 +399,18 @@ pub fn complete_word(
     if !is_valid_word(&folded_chars) && !vn_only_typed {
         for &l in en_freq_lines() {
             consider(&mut best, l);
+        }
+        // Vòng 52: google-10000-english — vốn từ hoàn tất ~10k, binary search
+        // (chỉ scan vùng prefix). Cùng gate âm-tiết-Việt như freq-scan trên.
+        {
+            let sorted = en_words10k_sorted();
+            let start = sorted.partition_point(|w| *w < typed_lower);
+            for &l in &sorted[start..] {
+                if !l.starts_with(typed_lower) {
+                    break;
+                }
+                consider(&mut best, l);
+            }
         }
         // OP-006 (P5): thuật ngữ tech/business — "ebit" + Tab → "EBITDA",
         // cùng guard âm-tiết-Việt như freq-scan ("cac" có thể là "các" thiếu

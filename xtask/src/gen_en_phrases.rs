@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `cargo xtask gen-en-phrases` — sinh bộ dữ liệu ~3000 mẫu câu và cụm từ tiếng Anh
-//! thông dụng cho trợ lý Text Prediction và Ngữ pháp tiếng Anh (P6).
+//! `cargo xtask gen-en-phrases` — sinh bộ dữ liệu mẫu câu và cụm từ tiếng Anh
+//! cho Text Prediction (P6) — **vòng 52 (2026-11-04): mở rộng theo cấu trúc
+//! mới của `gen_vn_phrases`**:
+//! 1. **Câu thật đầy đủ** (office/email/business/customer service/life): chia
+//!    tại MỌI ranh giới từ — mọi dòng đều đúng ngữ nghĩa.
+//! 2. **English idioms** (chỉ mục thật): chia tại mọi điểm.
+//! 3. **Cặp curated + ma trận ngữ nghĩa-controlled** (subject×predicate,
+//!    verb×object, deadline frames) — không cross-product vô nghĩa.
 //!
-//! Bao gồm 5 nhóm lĩnh vực chính:
-//! 1. Văn phòng & Giao tiếp công sở (Office & Workplace)
-//! 2. Lập trình & Kỹ thuật phần mềm (Tech & Coder)
-//! 3. Kinh doanh, Quản lý & Tài chính (Business & Finance)
-//! 4. Lập trình hệ thống & API hệ điều hành (Win32, POSIX/Linux, Cocoa/macOS)
-//! 5. Ngôn ngữ thế hệ Gen Z & Xu hướng hiện đại (Gen Z slang & modern expressions)
-//!
-//! Bất biến: 100% Rust native, 0 dependency ngoài std, format TSV:
-//! `context_lower \t predicted_phrase \t weight`
+//! Bất biến: 100% Rust native, 0 dependency ngoài std, format TSV
+//! `context_lower \t predicted_phrase \t weight`, prediction ≤ 60 ký tự (R1-2).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -28,9 +27,252 @@ pub fn run() -> Result<(), String> {
         }
     };
 
-    // ----------------------------------------------------
-    // NHÓM 1: VĂN PHÒNG & GIAO TIẾP CÔNG SỞ (OFFICE)
-    // ----------------------------------------------------
+    // ------------------------------------------------------------------
+    // 1. CÂU THẬT ĐẦY ĐỦ — chia tại mọi ranh giới từ.
+    // ------------------------------------------------------------------
+    let sentences: &[&str] = &[
+        // ---- Email openers / formal (14) ----
+        "I hope this email finds you well",
+        "Thank you for your email and for your patience",
+        "I am writing to follow up on our meeting last week",
+        "I am writing to confirm the details of our upcoming call",
+        "Thank you for reaching out regarding the new proposal",
+        "Please find attached the report you requested",
+        "Please find the updated version of the document attached",
+        "Further to our conversation I am pleased to confirm the schedule",
+        "As discussed I have attached the revised timeline for the project",
+        "I wanted to let you know that the issue has been resolved",
+        "I wanted to quickly follow up on the status of the invoice",
+        "Just a quick reminder that the deadline is this Friday",
+        "Just checking in to see if you had a chance to review",
+        "Thanks for your quick response to my last email",
+        // ---- Email bodies / requests (16) ----
+        "Could you please send me the final version by end of day",
+        "Could you please let me know your availability for next week",
+        "Please let me know if you need any additional information",
+        "Please let me know if the schedule works for you",
+        "Please review the attached document and share your feedback",
+        "Kindly confirm your attendance by Thursday afternoon",
+        "Kindly review the terms and conditions before signing",
+        "We would appreciate your feedback on the first draft",
+        "We would like to request your approval for the budget plan",
+        "Would you mind taking a quick look at the numbers below",
+        "Would it be possible to reschedule our meeting to next Tuesday",
+        "I have attached the invoice for your reference",
+        "I have forwarded your request to the relevant department",
+        "I will get back to you as soon as I have an update",
+        "I will keep you posted on any further developments",
+        "Let me know if you have any questions about the proposal",
+        // ---- Email closers (10) ----
+        "Thank you in advance for your support",
+        "Thank you again for your time and consideration",
+        "Looking forward to hearing from you soon",
+        "Looking forward to working with you on this project",
+        "Please do not hesitate to contact me if you need anything",
+        "Should you have any questions please feel free to reach out",
+        "Best regards and have a great week ahead",
+        "I appreciate your help with this matter",
+        "Thank you for your understanding and cooperation",
+        "Have a wonderful day and talk to you soon",
+        // ---- Meetings / project management (14) ----
+        "The meeting is scheduled for ten o'clock on Monday morning",
+        "The meeting has been moved to next Wednesday due to a scheduling conflict",
+        "Please review the agenda before our call tomorrow",
+        "The minutes of the meeting will be shared by end of day",
+        "We need to revisit the timeline for the second phase of the project",
+        "The project is currently on track and within budget",
+        "The project is slightly behind schedule due to resource constraints",
+        "We should prioritize the most urgent tasks first",
+        "Let's schedule a quick sync to align on the next steps",
+        "Let's touch base early next week to review the progress",
+        "Everyone should come prepared with their status updates",
+        "The client has requested some changes to the original scope",
+        "We have reached an agreement on the key deliverables",
+        "The next milestone is due at the end of this month",
+        // ---- Accounting / finance (12) ----
+        "The invoice has been processed and payment will be issued this week",
+        "Please review the attached statement and confirm the balance",
+        "The payment has been transferred to your bank account",
+        "We have not yet received the payment for invoice one zero two",
+        "The budget for next quarter is currently being finalized",
+        "The report shows a ten percent increase in operating costs",
+        "All expenses must be submitted with proper receipts attached",
+        "The financial statements have been audited and approved",
+        "Kindly reconcile the outstanding balance before month end",
+        "The refund has been issued to your original payment method",
+        "Please send the tax documents before the filing deadline",
+        "The accounts payable team will process the request shortly",
+        // ---- Human resources (10) ----
+        "Your leave request has been approved by your manager",
+        "The interview is scheduled for two o'clock on Thursday",
+        "Please submit your timesheet by the end of the week",
+        "The new employee orientation will take place next Monday",
+        "Your performance review is scheduled for the end of this month",
+        "We are currently hiring for two positions in the sales team",
+        "Please update your emergency contact information in the system",
+        "The benefits package includes health insurance and annual bonus",
+        "The contract will be renewed for another twelve months",
+        "Please complete the training module before the deadline",
+        // ---- Customer service (14) ----
+        "Thank you for contacting our support team",
+        "We apologize for the inconvenience caused by this delay",
+        "We are currently looking into this issue for you",
+        "Your request has been received and is being processed",
+        "Our team will contact you within twenty four hours",
+        "The issue has been resolved and the service is back online",
+        "You can track your order status on our website",
+        "Your order has been shipped and will arrive in two days",
+        "We have issued a full refund to your account",
+        "Please do not hesitate to contact us if you need further assistance",
+        "We value your feedback and appreciate your patience",
+        "The warranty covers all manufacturing defects for two years",
+        "Our technical team is investigating the root cause of the problem",
+        "We would like to offer you a discount on your next purchase",
+        // ---- Sales / business (10) ----
+        "The quotation is valid for thirty days from the date of issue",
+        "We are pleased to offer you a special discount this month",
+        "Our team will contact you to schedule a product demonstration",
+        "The contract includes a twelve month maintenance package",
+        "We look forward to a long and successful partnership",
+        "Please let us know your preferred delivery schedule",
+        "The minimum order quantity for this product is fifty units",
+        "The price list has been updated for the new fiscal year",
+        "We can offer flexible payment terms for large orders",
+        "The proposal includes a detailed breakdown of all costs",
+        // ---- Tech / IT (10) ----
+        "The system is scheduled for maintenance tonight at midnight",
+        "Please save your work before the maintenance window begins",
+        "The new version has been deployed to all production servers",
+        "The server response time has returned to normal levels",
+        "Please clear your browser cache and try logging in again",
+        "The login issue has been identified and is being fixed",
+        "Please reset your password using the link in the email",
+        "The backup completed successfully last night",
+        "The data will be encrypted both in transit and at rest",
+        "Please report any unusual behavior to the security team",
+        // ---- Small talk / life (14) ----
+        "How was your weekend with the family",
+        "How have you been since we last met",
+        "It was great catching up with you last week",
+        "Thanks again for helping me out with the report",
+        "Let me know when you are free for a quick coffee",
+        "Are you joining us for lunch at the new place",
+        "The weather has been really nice this week",
+        "Traffic was terrible this morning on the way to work",
+        "I will be working from home tomorrow morning",
+        "I am taking a few days off next week for a family trip",
+        "Happy birthday and have a fantastic celebration",
+        "Congratulations on the promotion and well deserved",
+        "Get well soon and take all the time you need",
+        "Have a safe trip and enjoy the holiday",
+        // ---- Scheduling / calendar (8) ----
+        "I need to reschedule our meeting to Thursday afternoon",
+        "Please send me a calendar invite for the review session",
+        "The appointment has been confirmed for ten thirty tomorrow",
+        "I am available any time between two and five o'clock",
+        "The deadline for the final submission is this Friday",
+        "Please block my calendar for the training session",
+        "The delivery is scheduled for Monday morning",
+        "Can we move the call to earlier in the day",
+    ];
+
+    for s in sentences {
+        add_all_splits(s, &mut add);
+    }
+
+    // ------------------------------------------------------------------
+    // 2. ENGLISH IDIOMS (chỉ mục thật) — chia tại mọi điểm.
+    // ------------------------------------------------------------------
+    let idioms: &[&str] = &[
+        "A piece of cake",
+        "Break a leg",
+        "Hit the ground running",
+        "Beat around the bush",
+        "Bite the bullet",
+        "Call it a day",
+        "Cut to the chase",
+        "Get the ball rolling",
+        "Get out of hand",
+        "Go the extra mile",
+        "Back to the drawing board",
+        "On the same page",
+        "In the long run",
+        "At the eleventh hour",
+        "Once in a blue moon",
+        "Under the weather",
+        "The ball is in your court",
+        "A blessing in disguise",
+        "Actions speak louder than words",
+        "Add insult to injury",
+        "Against the clock",
+        "Barking up the wrong tree",
+        "Burn the midnight oil",
+        "By the book",
+        "Cost an arm and a leg",
+        "Cry over spilt milk",
+        "Every cloud has a silver lining",
+        "Fortune favors the brave",
+        "Give someone the benefit of the doubt",
+        "Hit the nail on the head",
+        "In the heat of the moment",
+        "Jump on the bandwagon",
+        "Keep something at bay",
+        "Kill two birds with one stone",
+        "Leave no stone unturned",
+        "Let sleeping dogs lie",
+        "Look before you leap",
+        "Make a long story short",
+        "Miss the boat",
+        "No pain no gain",
+        "Not a bed of roses",
+        "On thin ice",
+        "Out of the frying pan into the fire",
+        "Practice makes perfect",
+        "Pull yourself together",
+        "Put all your eggs in one basket",
+        "Rain cats and dogs",
+        "Rome was not built in a day",
+        "See eye to eye",
+        "Speak of the devil",
+        "Spill the beans",
+        "Take it with a grain of salt",
+        "The best of both worlds",
+        "The early bird catches the worm",
+        "The last straw",
+        "The tip of the iceberg",
+        "Through thick and thin",
+        "Time is money",
+        "To be on cloud nine",
+        "To make matters worse",
+        "When it rains it pours",
+        "Wrap your head around something",
+        "Your guess is as good as mine",
+        "A dime a dozen",
+        "Better late than never",
+        "Curiosity killed the cat",
+        "Go back to square one",
+        "Haste makes waste",
+        "It takes two to tango",
+        "Learn the ropes",
+        "On the ball",
+        "Pull the plug",
+        "Raise the bar",
+        "Strike while the iron is hot",
+        "Take the bull by the horns",
+        "Think outside the box",
+        "Up in the air",
+        "When pigs fly",
+        "You can't judge a book by its cover",
+    ];
+
+    for s in idioms {
+        add_all_splits(s, &mut add);
+    }
+
+    // ------------------------------------------------------------------
+    // 3. NHÓM CURATED DOMAIN (bảng cũ regression-tested — giữ nguyên):
+    //    office / tech-git / tech_verbs / business / OS APIs / Gen Z.
+    // ------------------------------------------------------------------
     let office_data = [
         ("thank you", "very much", 100),
         ("thank you", "for your email", 98),
@@ -806,64 +1048,404 @@ pub fn run() -> Result<(), String> {
         add(c, p, w);
     }
 
-    // ----------------------------------------------------
-    // SINH TỔ HỢP TỰ ĐỘNG ĐẠT CHUẨN ~3000 MẪU CÂU (5 NHÓM)
-    // ----------------------------------------------------
-    let prefixes = [
+    // ------------------------------------------------------------------
+    // 4. CẶP CURATED + MA TRẬN NGỮ NGHĨA-CONTROLLED.
+    // ------------------------------------------------------------------
+    // 4a. Cặp curated (mở rộng).
+    for &(ctx, pred, weight) in &[
+        ("thank you", "very much", 100),
+        ("thank you", "for your email", 96),
+        ("thank you", "for your support", 94),
+        ("thank you", "for your time", 92),
+        ("thank you", "in advance", 92),
+        ("thank you again", "for your help", 90),
+        ("thanks", "a lot", 96),
+        ("thanks", "in advance", 92),
+        ("thanks for", "your quick response", 90),
+        ("thanks for", "letting me know", 88),
+        ("looking forward to", "hearing from you", 100),
+        ("looking forward to", "working with you", 94),
+        ("looking forward to", "your feedback", 92),
+        ("looking forward", "to hearing from you soon", 94),
+        ("please let me know", "if you have any questions", 94),
+        ("please let me know", "your availability", 92),
+        ("please let me know", "if the schedule works", 90),
+        ("please find", "attached the report", 94),
+        ("please find", "the updated document", 90),
+        ("please review", "the attached document", 92),
+        ("please review", "and share your feedback", 88),
+        ("could you please", "send me the final version", 90),
+        ("could you please", "confirm your attendance", 88),
+        ("could you please", "let me know", 88),
+        ("i am writing to", "follow up on", 92),
+        ("i am writing to", "confirm", 88),
+        ("i am writing to", "inform you that", 88),
+        ("i would like to", "request your approval", 90),
+        ("i would like to", "schedule a meeting", 88),
+        ("i would like to", "follow up on", 86),
+        ("we would like to", "invite you to", 88),
+        ("we would like to", "inform you that", 86),
+        ("we apologize for", "the inconvenience", 94),
+        ("we apologize", "for the delay", 92),
+        ("i apologize for", "the late reply", 88),
+        ("in order to", "ensure", 92),
+        ("in order to", "avoid any confusion", 86),
+        ("in order to", "meet the deadline", 86),
+        ("as soon as", "possible", 94),
+        ("as soon as", "I have an update", 88),
+        ("as discussed", "I have attached", 88),
+        ("as per", "your request", 88),
+        ("as per", "our agreement", 86),
+        ("kindly note", "that the deadline", 86),
+        ("kindly confirm", "your attendance", 88),
+        ("kindly review", "the attached document", 86),
+        ("just a quick", "reminder that", 88),
+        ("just checking in", "to see if", 86),
+        ("no cap", "that was the cleanest code refactor ever", 96),
+        ("sounds good", "to me", 92),
+        ("looks good", "to me, approved and ready to merge", 94),
+        ("sounds like", "a plan", 88),
+        ("on my way", "to the office", 86),
+        ("out of office", "until next Monday", 86),
+        ("eod", "today please", 84),
+        ("asap", "please", 88),
+        ("fyi", "the meeting is moved", 84),
+        ("imo", "we should prioritize", 82),
+        ("btw", "the client confirmed", 82),
+        ("talk soon", "and have a great day", 84),
+        ("best regards", "and have a great week", 86),
+        ("kind regards", "and thank you again", 84),
+        ("get well soon", "and take your time", 84),
+        ("happy to help", "any time", 86),
+        ("happy birthday", "and have a fantastic day", 86),
+        ("congratulations on", "the promotion", 88),
+        ("congratulations", "on the well deserved success", 84),
+        ("the meeting is", "scheduled for", 90),
+        ("the meeting has been", "rescheduled to", 88),
+        ("the deadline is", "this Friday", 90),
+        ("the deadline for", "the final submission", 86),
+        ("the report is", "attached for your review", 86),
+        ("the invoice has been", "processed", 86),
+        ("the payment has been", "transferred", 88),
+        ("the issue has been", "resolved", 90),
+        ("the issue has been", "escalated to our team", 84),
+        ("your request has been", "received and processed", 86),
+        ("your order has been", "shipped", 88),
+        ("we are currently", "looking into this issue", 88),
+        ("we are pleased to", "offer you", 88),
+        ("we look forward to", "a long term partnership", 86),
+        ("we value", "your feedback", 88),
+        ("do not hesitate", "to contact me", 90),
+        ("feel free to", "reach out", 88),
+        ("let me know", "if you need anything", 90),
+        ("let me know", "when you are available", 86),
+        ("keep me", "posted on the progress", 86),
+        ("i will keep", "you posted", 88),
+        ("i will get back", "to you shortly", 88),
+        ("i have attached", "the document", 90),
+        ("i have forwarded", "your request", 86),
+        ("per our", "last conversation", 84),
+        ("at your", "earliest convenience", 86),
+        ("by end of", "day today", 88),
+        ("by the end of", "this week", 88),
+        ("on track", "and within budget", 86),
+        ("behind schedule", "due to", 84),
+        ("ahead of", "schedule", 84),
+        ("stay tuned", "for updates", 82),
+        ("long story", "short", 86),
+        ("works for", "me", 88),
+        ("dear", "sir or madam", 92),
+        ("dear", "mr", 88),
+        ("dear", "ms", 86),
+        ("dear team", "and colleagues", 84),
+        ("dear all", "please be informed", 84),
+        ("does that", "work for you", 86),
+        ("see you", "at the meeting", 84),
+        ("see you", "next week", 84),
+        ("have a great", "weekend", 88),
+        ("have a good", "one", 84),
+    ] {
+        add(ctx, pred, weight);
+    }
+
+    // 4b. Ma trận subject × predicate (mọi tổ hợp tự nhiên).
+    for subject in [
+        "I",
+        "We",
+        "The team",
+        "Our team",
+        "He",
+        "She",
+        "They",
+        "The client",
+    ] {
+        for predicate in [
+            "will get back to you shortly",
+            "will keep you posted on the progress",
+            "has reviewed the attached document",
+            "has approved the final version",
+            "is currently working on the fix",
+            "is out of office until Monday",
+            "will join the call at three o'clock",
+            "has been notified about the change",
+            "will handle the follow up email",
+            "is responsible for the next milestone",
+            "will prepare the agenda for tomorrow",
+            "has shared the updated timeline",
+        ] {
+            add(subject, predicate, 88);
+        }
+    }
+
+    // 4c. Ma trận verb × object (business collocations).
+    let verb_objects: &[(&str, &[&str])] = &[
+        (
+            "send",
+            &[
+                "the report by Friday",
+                "me the updated file",
+                "the invoice",
+                "a calendar invite",
+                "the final draft",
+                "your feedback",
+                "the signed contract",
+                "the payment confirmation",
+            ],
+        ),
+        (
+            "please send",
+            &[
+                "the report by Friday",
+                "the updated file",
+                "the invoice",
+                "a calendar invite",
+                "the final draft",
+                "your feedback",
+            ],
+        ),
+        (
+            "review",
+            &[
+                "the attached document",
+                "the latest draft",
+                "the proposal",
+                "the terms and conditions",
+                "the meeting notes",
+                "the quarterly report",
+            ],
+        ),
+        (
+            "please review",
+            &[
+                "the attached document",
+                "the latest draft",
+                "the proposal",
+                "the meeting notes",
+                "the quarterly report",
+            ],
+        ),
+        (
+            "confirm",
+            &[
+                "your attendance",
+                "the delivery date",
+                "the meeting time",
+                "receipt of this email",
+                "the payment details",
+                "the final numbers",
+            ],
+        ),
+        (
+            "please confirm",
+            &[
+                "your attendance",
+                "the delivery date",
+                "the meeting time",
+                "receipt of this email",
+                "the payment details",
+            ],
+        ),
+        (
+            "schedule",
+            &[
+                "a quick call",
+                "a follow up meeting",
+                "a product demo",
+                "the next review",
+                "an interview",
+                "a training session",
+            ],
+        ),
+        (
+            "follow up",
+            &[
+                "on the open items",
+                "with the client",
+                "on the pending invoice",
+                "on our last conversation",
+                "with the vendor",
+                "on the support ticket",
+            ],
+        ),
+        (
+            "update",
+            &[
+                "the project status",
+                "the contact list",
+                "the timeline",
+                "the budget forecast",
+                "the order details",
+                "the team on progress",
+            ],
+        ),
+        (
+            "prepare",
+            &[
+                "the monthly report",
+                "the meeting agenda",
+                "a cost estimate",
+                "the presentation slides",
+                "the project plan",
+                "the minutes of the meeting",
+            ],
+        ),
+        (
+            "share",
+            &[
+                "the updated document",
+                "your availability",
+                "the meeting notes",
+                "the feedback",
+                "the contact details",
+                "the results",
+            ],
+        ),
+        (
+            "complete",
+            &[
+                "the pending tasks",
+                "the onboarding steps",
+                "the annual review",
+                "the form and return it",
+                "the payment process",
+            ],
+        ),
+    ];
+    for (verb, objects) in verb_objects {
+        for obj in *objects {
+            add(verb, obj, 88);
+            add(&format!("kindly {verb}"), obj, 78);
+            add(&format!("could you {verb}"), obj, 78);
+        }
+    }
+
+    // 4d. Deadline frames: action × deadline.
+    for action in [
+        "send the report",
+        "submit the form",
+        "confirm your attendance",
+        "review the document",
+        "complete the payment",
+        "sign the contract",
+        "send your feedback",
+        "submit the expenses",
+        "book the meeting room",
+        "finalize the proposal",
+        "update the status",
+        "share the slides",
+    ] {
+        for deadline in [
+            "by end of day",
+            "by Friday",
+            "by next Monday",
+            "by noon today",
+            "before the meeting",
+            "by the end of the week",
+            "within 24 hours",
+            "by the deadline",
+            "as soon as possible",
+            "before month end",
+        ] {
+            add(action, deadline, 84);
+        }
+    }
+
+    // 4e. Greetings × wishes.
+    for greeting in [
+        "Happy birthday",
+        "Happy new year",
+        "Have a great",
+        "Have a wonderful",
+        "Wishing you",
+    ] {
+        for wish in [
+            "day ahead",
+            "weekend",
+            "a wonderful day",
+            "a relaxing weekend",
+            "all the best",
+            "a speedy recovery",
+            "a happy holiday season",
+            "success in your new role",
+            "a safe trip",
+            "great success",
+        ] {
+            add(greeting, wish, 82);
+        }
+    }
+
+    // 4f. Appointment frames: purpose × time.
+    for purpose in [
+        "the kickoff meeting",
+        "the quarterly review",
+        "a quick sync",
+        "the performance review",
+        "the product demo",
+        "the client meeting",
+        "the team standup",
+        "the annual audit",
+        "the training session",
+        "the onboarding call",
+    ] {
+        for time in [
+            "at ten o'clock",
+            "tomorrow morning",
+            "next Monday",
+            "at two this afternoon",
+            "on Thursday",
+            "at the end of the week",
+            "on the fifteenth",
+            "after lunch",
+            "this Friday",
+            "next week",
+        ] {
+            add(purpose, time, 82);
+        }
+    }
+
+    // 4g. Cross-product đã LỌC: chỉ prefix infinitive-frame (mọi tổ hợp với
+    //     verb-phrase đều tự nhiên — bỏ prefix ngữ-cảnh xã giao gây câu rác).
+    let infinitive_prefixes = [
         "i would like to",
         "could you please",
         "please make sure to",
         "we need to ensure",
         "it is important to",
         "don't forget to",
-        "let us know if",
-        "as discussed earlier",
-        "according to the",
-        "based on the latest",
-        "in order to achieve",
-        "we are pleased to",
         "i am happy to",
-        "we look forward to",
-        "thank you for your",
-        "with regard to the",
-        "please confirm that",
-        "make sure that the",
-        "before we deploy to",
-        "the team agreed to",
-        "as mentioned in the",
+        "we are pleased to",
         "can you please check",
-        "it seems that the",
-        "there is an issue with",
         "we have successfully",
-        "after reviewing the",
-        "in case of any",
-        "for further information",
-        "the system is ready to",
-        "our goal is to",
-        "in accordance with the",
         "please remember that",
         "i will follow up on",
-        "the results indicate that",
         "we recommend that you",
-        "due to unexpected",
-        "at your earliest",
-        "feel free to reach out",
         "we are currently working on",
-        "the error occurred when",
         "to resolve this issue",
-        "the documentation explains how to",
-        "we have resolved all",
-        "please refer to the",
         "it is essential that",
-        "take into account the",
-        "the benchmark results show",
-        "as soon as we receive",
-        "it is lowkey",
-        "it is highkey",
-        "that is a huge",
-        "no cap we need to",
+        "the team agreed to",
+        "please confirm that",
+        "make sure that the",
     ];
-
     let subjects_pred = [
         // Office / Workplace (15)
         "review the attached project schedule",
@@ -937,20 +1519,18 @@ pub fn run() -> Result<(), String> {
         "hit different when everything runs smoothly",
     ];
 
-    // Tạo tổ hợp
-    let mut count = 0;
-    for &p in &prefixes {
+    for &p in &infinitive_prefixes {
         for &s in &subjects_pred {
-            let weight = 80 + (count % 16);
-            add(p, s, weight);
-            count += 1;
+            add(p, s, 84);
         }
     }
 
-    println!("Tổng số mẫu câu / cụm từ EN đã sinh: {}", set.len());
+    println!("Tổng số mẫu câu / cụm từ tiếng Anh đã sinh: {}", set.len());
 
-    let mut out_str = String::with_capacity(set.len() * 50);
+    let mut out_str = String::with_capacity(set.len() * 60);
     out_str.push_str("# Ngữ cảnh tiếng Anh (Next-Word / Phrase Prediction - P6)\n");
+    out_str
+        .push_str("# Vòng 52: câu thật chia mọi ranh giới từ + idioms + cặp curated + ma trận\n");
     out_str.push_str("# context_lower\tpredicted_phrase\tweight\n");
     for (ctx, pred, weight) in &set {
         out_str.push_str(ctx);
@@ -971,4 +1551,24 @@ pub fn run() -> Result<(), String> {
         target_path.display()
     );
     Ok(())
+}
+
+/// Thêm mọi cặp (tiền tố → phần còn lại) của câu `s`:
+/// `w1 → w2…wn`, `w1 w2 → w3…wn`, … Khoá ≥ 1 từ, dự đoán ≥ 1 từ.
+/// Weight theo số từ khoá: 1 từ = 70, 2 từ = 82, ≥3 từ = 92.
+fn add_all_splits(s: &str, add: &mut impl FnMut(&str, &str, u32)) {
+    let words: Vec<&str> = s.split_whitespace().collect();
+    if words.len() < 2 {
+        return;
+    }
+    for split in 1..words.len() {
+        let key = words[..split].join(" ");
+        let rest = words[split..].join(" ");
+        let weight = match split {
+            1 => 70,
+            2 => 82,
+            _ => 92,
+        };
+        add(&key, &rest, weight);
+    }
 }

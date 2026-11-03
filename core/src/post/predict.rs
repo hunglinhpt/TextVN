@@ -12,9 +12,16 @@
 //! - **Hiệu năng cao**: Tra cứu < 50 µs, 0 allocation khi reject (S1).
 //! - **Bảo vệ tiếng Việt**: Tuân thủ luật R2-56 (từ Việt ngắn không bị cướp).
 //! - **Chống tràn buffer**: Giới hạn độ dài chèn `<= MAX_TEXT = 64` (R1-2).
+//!
+//! Vòng 52 (mở rộng corpora ~31k mục): nguồn mới `en_words10k.txt`
+//! (google-10000-english — CHỈ prediction, không đụng chính sách restore);
+//! tối ưu quét: binary search trên danh sách đã sắp + bucket theo byte cuối
+//! của khoá phrase + dedup HashSet — giữ NGUYÊN ngữ nghĩa xếp hạng cũ.
 
-use crate::post::restore_en::{EN_COMMON_DATA, EN_FREQ_DATA, TECH_BUSINESS_TERMS};
-use crate::post::suggest_vn::VN_FREQ_DATA;
+use crate::post::restore_en::{
+    EN_COMMON_DATA, EN_FREQ_DATA, EN_WORDS_10K_DATA, TECH_BUSINESS_TERMS,
+};
+use crate::post::suggest_vn::VN_SYLLABLES_DATA;
 use crate::transform::charset::strip_diacritics;
 use crate::transform::tone::normalize_tone;
 use crate::transform::DiacriticStyle;
@@ -22,27 +29,28 @@ use std::sync::OnceLock;
 
 // ---------------------------------------------------------------------------
 // Vòng 41 (perf audit): dữ liệu tĩnh parse **MỘT LẦN** qua OnceLock.
-//
-// `predict_prefix_candidates` và `predict_next_phrase_matches` chạy **mỗi
-// phím** khi dự đoán bật; quét ~6.000 dòng `lines()` + split/parse TSV mỗi
-// gọi đo được ~0,7 ms (release, `core/tests/perf_probe.rs`). Cache tĩnh cắt
-// phần parse; so khớp tiền tố / đuôi ngữ cảnh vẫn per-call theo input.
+// Vòng 52: danh sách từ vựng sắp sẵn alphabet để binary search mỗi lần gọi —
+// pool ~20k mục quét tuyến tính từng đo ~100+ µs/call trên đường peek.
 // ---------------------------------------------------------------------------
 
-fn vn_freq_lines() -> &'static [&'static str] {
+/// Âm tiết VN đã sắp alphabet (binary search 3 biến thể dấu).
+fn vn_syllables_sorted() -> &'static [&'static str] {
     static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
     CACHE.get_or_init(|| {
-        VN_FREQ_DATA
+        let mut v: Vec<&'static str> = VN_SYLLABLES_DATA
             .lines()
             .map(str::trim)
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .collect()
+            .collect();
+        v.sort_unstable();
+        v
     })
 }
 
-/// Từ ghép kèm trọng số: `(word, weight)`.
-fn vn_compounds() -> &'static [(&'static str, u32)] {
-    static CACHE: OnceLock<Vec<(&'static str, u32)>> = OnceLock::new();
+/// Từ ghép kèm trọng số: `(word, deaccented, weight)` — deaccent build 1 lần
+/// (trước đây tính strip_diacritics mỗi từ mỗi call → alloc × ~1200 mục).
+fn vn_compounds() -> &'static [(&'static str, &'static str, u32)] {
+    static CACHE: OnceLock<Vec<(&'static str, &'static str, u32)>> = OnceLock::new();
     CACHE.get_or_init(|| {
         VN_COMPOUNDS_DATA
             .lines()
@@ -60,7 +68,11 @@ fn vn_compounds() -> &'static [(&'static str, u32)] {
                 if word.is_empty() {
                     return None;
                 }
-                Some((word, weight))
+                let deaccented: String = strip_diacritics(&word.chars().collect::<Vec<_>>())
+                    .into_iter()
+                    .collect();
+                let de: &'static str = Box::leak(deaccented.into_boxed_str());
+                Some((word, de, weight))
             })
             .collect()
     })
@@ -77,14 +89,47 @@ fn en_common_lines() -> &'static [&'static str] {
     })
 }
 
-fn en_freq_lines() -> &'static [&'static str] {
+/// Thuật ngữ tech/business kèm dạng lowercase (build 1 lần — `seen` dedup
+/// theo dạng chuẩn giữ case, comparator char_count vẫn đếm từ dạng gốc).
+fn tech_terms_lower() -> &'static [(&'static str, &'static str)] {
+    static CACHE: OnceLock<Vec<(&'static str, &'static str)>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        TECH_BUSINESS_TERMS
+            .iter()
+            .map(|t| {
+                let lower: String = t.to_lowercase();
+                let lo: &'static str = Box::leak(lower.into_boxed_str());
+                (*t, lo)
+            })
+            .collect()
+    })
+}
+
+/// Danh sách EN đã sắp alphabet — 1 binary search / call.
+fn en_freq_sorted() -> &'static [&'static str] {
     static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
     CACHE.get_or_init(|| {
-        EN_FREQ_DATA
+        let mut v: Vec<&'static str> = EN_FREQ_DATA
             .lines()
             .map(str::trim)
             .filter(|l| !l.is_empty() && !l.starts_with('#'))
-            .collect()
+            .collect();
+        v.sort_unstable();
+        v
+    })
+}
+
+/// google-10000-english (vòng 52) — nguồn PREDICTION prefix, đã sắp.
+fn en_words10k_sorted() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut v: Vec<&'static str> = EN_WORDS_10K_DATA
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .collect();
+        v.sort_unstable();
+        v
     })
 }
 
@@ -125,6 +170,35 @@ fn parse_phrase_rows(data: &'static str) -> Vec<PhraseRow> {
         .collect()
 }
 
+/// Bucket các hàng phrase theo **byte cuối của khoá** (vòng 52): ngữ cảnh chỉ
+/// có thể khớp khoá mà kết thúc bằng đúng byte cuối của nó → mỗi call chỉ quét
+/// bucket tương ứng (giảm ~20-30× với ~10k hàng thay vì quét toàn bảng).
+fn phrase_buckets(
+    rows: &'static [PhraseRow],
+) -> &'static std::collections::HashMap<u8, &'static [PhraseRow]> {
+    static VN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
+    static EN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
+    let cache = match rows.first() {
+        _ if std::ptr::eq(rows.as_ptr(), vn_phrase_rows().as_ptr()) => &VN,
+        _ => &EN,
+    };
+    cache.get_or_init(|| {
+        let mut groups: std::collections::HashMap<u8, Vec<PhraseRow>> =
+            std::collections::HashMap::new();
+        for &row in rows {
+            let last = *row.0.as_bytes().last().unwrap_or(&b' ');
+            groups.entry(last).or_default().push(row);
+        }
+        groups
+            .into_iter()
+            .map(|(k, v)| {
+                let slice: &'static [PhraseRow] = Box::leak(v.into_boxed_slice());
+                (k, slice)
+            })
+            .collect()
+    })
+}
+
 /// Đặt lại dấu thanh từng từ theo `style` (`hòa` ↔ `hoà`, `thủy` ↔ `thuỷ`).
 ///
 /// Dữ liệu dự đoán viết theo **kiểu cũ**; người dùng chọn kiểu mới thì ngữ cảnh
@@ -152,7 +226,7 @@ pub fn restyle(text: &str, style: DiacriticStyle) -> String {
     out
 }
 
-/// Danh sách từ ghép tiếng Việt thông dụng (văn phòng, công nghệ, hành chính).
+/// Từ điển âm tiết tiếng Việt (vòng 52: 3000 tần suất + dict bổ sung).
 pub const VN_COMPOUNDS_DATA: &str = include_str!("../../../data/vn_compounds.txt");
 
 /// Bảng ngữ cảnh cụm từ tiếp theo tiếng Việt (TSV: context \t prediction \t weight).
@@ -161,17 +235,17 @@ pub const VN_PHRASES_DATA: &str = include_str!("../../../data/vn_phrases.tsv");
 /// Bảng ngữ cảnh cụm từ tiếp theo tiếng Anh (TSV: context \t prediction \t weight).
 pub const EN_PHRASES_DATA: &str = include_str!("../../../data/en_phrases.tsv");
 
-/// Dự đoán hoàn tất tiền tố (Prefix Completion).
-///
-/// Trả về danh sách ứng viên (tối đa `limit`), xếp theo độ ưu tiên:
-/// từ ghép tiếng Việt khớp tiền tố → âm tiết tần suất cao → thuật ngữ EN / freq EN.
-/// Cấu trúc ứng viên prefix với thông tin xếp hạng
+/// Ứng viên prefix với thông tin xếp hạng — giữ `&'static str` (vòng 52: không
+/// alloc String cho ứng viên bị loại; chỉ `take(limit)` cuối cùng mới cấp phát).
 #[derive(Debug, Clone)]
 struct PrefixCandidate {
-    word: String,
+    word: &'static str,
     exact_match: bool,
     char_count: usize,
     weight: u32,
+    /// Từ ghép có ÂM ĐẦU == tiền tố ("tiến độ" cho "tiến") — mở rộng đúng
+    /// nghĩa; compound chỉ prefix-match byte ("người yêu" cho "ngư") thì false.
+    ext: bool,
 }
 
 /// Dự đoán hoàn tất tiền tố (Prefix Completion).
@@ -183,7 +257,10 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         return Vec::new();
     }
 
+    // Vòng 52: dedup qua HashSet O(1) thay `ranked.iter().any()` O(n) mỗi push
+    // (prefix ngắn như "t" từng thu hàng nghìn ứng viên → O(n²) so String).
     let mut ranked: Vec<PrefixCandidate> = Vec::new();
+    let mut seen: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
     let typed_unaccented: String = strip_diacritics(&typed_lower.chars().collect::<Vec<_>>())
         .into_iter()
         .collect();
@@ -199,24 +276,47 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
             || w.starts_with(typed_new.as_str())
     };
     let same = |w: &str| w == typed_lower || w == typed_old || w == typed_new;
+    // Vòng 52 (probe): từ ghép là mở rộng đúng nghĩa khi ÂM ĐẦU == tiền tố
+    // ("tiến độ" của "tiến" — người gõ đã gõ xong âm tiết, muốn thành từ
+    // ghép); compound chỉ prefix-match byte ("người yêu" của "ngư") thì KHÔNG
+    // — "ngư" đang gõ dở âm tiết dài hơn, giữ luật hoàn-tất-âm-tiết-trước.
+    let compound_ext = |word: &str| word.split(' ').next().is_some_and(same);
 
     // 1. Nếu đang ở mode tiếng Việt hoặc chuỗi gõ có dấu tiếng Việt
     if is_vi {
-        // 1a. Tra cứu âm tiết đơn tần suất cao (data/vn_freq3000.txt)
-        // Ưu tiên hoàn tất âm tiết đang gõ dở
-        for &syll in vn_freq_lines() {
-            if starts(syll) && !same(syll) && !ranked.iter().any(|c| c.word == syll) {
+        // 1a. Âm tiết đơn (vn_syllables.txt) — binary search theo từng biến thể
+        // (giữ nguyên ngữ nghĩa `starts() && !same()` của vòng trước).
+        let push_syll =
+            |syll: &'static str,
+             ranked: &mut Vec<PrefixCandidate>,
+             seen: &mut std::collections::HashSet<&'static str>| {
+                if same(syll) || !seen.insert(syll) {
+                    return;
+                }
                 ranked.push(PrefixCandidate {
-                    word: syll.to_string(),
+                    word: syll,
                     exact_match: true,
                     char_count: syll.chars().count(),
                     weight: 90,
+                    ext: false,
                 });
+            };
+        for variant in [typed_lower, typed_old.as_str(), typed_new.as_str()] {
+            let sorted = vn_syllables_sorted();
+            let start = sorted.partition_point(|w| *w < variant);
+            for &syll in &sorted[start..] {
+                if !syll.starts_with(variant) {
+                    break;
+                }
+                if starts(syll) {
+                    push_syll(syll, &mut ranked, &mut seen);
+                }
             }
         }
 
-        // 1b. Tra cứu từ ghép tiếng Việt (data/vn_compounds.txt)
-        for &(word, weight) in vn_compounds() {
+        // 1b. Từ ghép tiếng Việt (vn_compounds.txt) — ~1200 mục, quét tuyến
+        // tính nhưng deaccent đã build sẵn trong cache (không alloc per-call).
+        for &(word, word_unaccented, weight) in vn_compounds() {
             if same(word) {
                 continue;
             }
@@ -225,85 +325,99 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
             // Chỉ khớp không dấu nếu người dùng chưa gõ dấu
             let matches_unaccented =
                 if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
-                    let word_unaccented: String =
-                        strip_diacritics(&word.chars().collect::<Vec<_>>())
-                            .into_iter()
-                            .collect();
                     word_unaccented.starts_with(&typed_unaccented)
                 } else {
                     false
                 };
 
-            if (matches_accented || matches_unaccented) && !ranked.iter().any(|c| c.word == word) {
+            if (matches_accented || matches_unaccented) && seen.insert(word) {
                 ranked.push(PrefixCandidate {
-                    word: word.to_string(),
+                    word,
                     exact_match: matches_accented,
                     char_count: word.chars().count(),
                     weight,
+                    ext: compound_ext(word),
                 });
             }
         }
     }
 
     // 2. Tra cứu từ tiếng Anh (khi gõ từ tiếng Anh hoặc thuật ngữ coder/kinh doanh)
-    // Ưu tiên TECH_BUSINESS_TERMS
-    for term in TECH_BUSINESS_TERMS {
-        let tl = term.to_lowercase();
-        if tl.starts_with(typed_lower) && tl != typed_lower {
-            let formatted = term.to_string();
-            if !ranked.iter().any(|c| c.word == formatted) {
-                ranked.push(PrefixCandidate {
-                    word: formatted,
-                    exact_match: true,
-                    char_count: term.chars().count(),
-                    weight: 85,
-                });
-            }
-        }
-    }
-
-    // en_common
-    for &word in en_common_lines() {
-        if word.starts_with(typed_lower)
-            && word != typed_lower
-            && !ranked.iter().any(|c| c.word == word)
-        {
+    // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
+    // `to_lowercase()` + leak mỗi call (vòng 52: chống rò rỉ bộ nhớ mỗi phím).
+    for &(term, tl) in tech_terms_lower() {
+        if tl.starts_with(typed_lower) && tl != typed_lower && seen.insert(term) {
             ranked.push(PrefixCandidate {
-                word: word.to_string(),
+                word: term,
                 exact_match: true,
-                char_count: word.chars().count(),
-                weight: 70,
+                char_count: term.chars().count(),
+                weight: 85,
+                ext: false,
             });
         }
     }
 
-    // en_freq3000
-    for &word in en_freq_lines() {
-        if word.starts_with(typed_lower)
-            && word != typed_lower
-            && !ranked.iter().any(|c| c.word == word)
-        {
+    // en_common (danh sách restore-policy, ~150 mục — tuyến tính)
+    for &word in en_common_lines() {
+        if word.starts_with(typed_lower) && word != typed_lower && seen.insert(word) {
             ranked.push(PrefixCandidate {
-                word: word.to_string(),
+                word,
+                exact_match: true,
+                char_count: word.chars().count(),
+                weight: 70,
+                ext: false,
+            });
+        }
+    }
+
+    // en_freq3000 (vòng 52: binary search)
+    for word in prefix_scan(en_freq_sorted(), typed_lower) {
+        if word != typed_lower && seen.insert(word) {
+            ranked.push(PrefixCandidate {
+                word,
                 exact_match: true,
                 char_count: word.chars().count(),
                 weight: 60,
+                ext: false,
+            });
+        }
+    }
+
+    // en_words10k — google-10000-english (vòng 52): nguồn mở rộng prediction,
+    // weight 55 dưới freq3000. KHÔNG đụng chính sách restore/assist.
+    for word in prefix_scan(en_words10k_sorted(), typed_lower) {
+        if word != typed_lower && seen.insert(word) {
+            ranked.push(PrefixCandidate {
+                word,
+                exact_match: true,
+                char_count: word.chars().count(),
+                weight: 55,
+                ext: false,
             });
         }
     }
 
     // Xếp theo:
+    // Xếp theo (vòng 52):
     // 1. exact_match (khớp trực tiếp có dấu)
-    // 2. Từ đơn (âm tiết) ưu tiên trước từ ghép nếu đang gõ âm tiết
-    // 3. Nếu là từ đơn: độ dài ngắn hơn trước (hoàn tất âm tiết); nếu là từ ghép: weight cao hơn trước
+    // 2. mở rộng đúng nghĩa — từ ghép có ÂM ĐẦU == tiền tố ("tiến độ" của "tiến")
+    // 3. nhóm: có mở rộng đúng nghĩa ("tiến") → từ ghép trước âm tiết khác;
+    //    không có ("ngư" — đang gõ dở âm tiết dài hơn) → hoàn tất âm tiết trước
+    // 4. từ đơn: ngắn hơn trước; từ ghép: weight cao hơn trước
+    let has_ext = ranked.iter().any(|c| c.ext);
     ranked.sort_by(|a, b| {
-        let a_syll = !a.word.contains(' ');
-        let b_syll = !b.word.contains(' ');
+        let a_single = !a.word.contains(' ');
+        let b_single = !b.word.contains(' ');
         b.exact_match
             .cmp(&a.exact_match)
-            .then_with(|| b_syll.cmp(&a_syll))
+            .then_with(|| b.ext.cmp(&a.ext))
             .then_with(|| {
-                if a_syll && b_syll {
+                let a_pri = if has_ext { !a_single } else { a_single };
+                let b_pri = if has_ext { !b_single } else { b_single };
+                b_pri.cmp(&a_pri)
+            })
+            .then_with(|| {
+                if a_single && b_single {
                     a.char_count
                         .cmp(&b.char_count)
                         .then_with(|| b.weight.cmp(&a.weight))
@@ -313,15 +427,32 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
                         .then_with(|| a.char_count.cmp(&b.char_count))
                 }
             })
-            .then_with(|| a.word.cmp(&b.word))
+            .then_with(|| a.word.cmp(b.word))
     });
 
-    ranked.into_iter().take(limit).map(|c| c.word).collect()
+    ranked
+        .into_iter()
+        .take(limit)
+        .map(|c| c.word.to_string())
+        .collect()
+}
+
+/// Quét vùng prefix của danh sách đã sắp (vòng 52): binary search điểm bắt đầu
+/// rồi đi đến khi từ không còn khớp prefix.
+fn prefix_scan<'a>(
+    sorted: &'static [&'static str],
+    typed: &'a str,
+) -> impl Iterator<Item = &'static str> + 'a {
+    let start = sorted.partition_point(|w| *w < typed);
+    sorted[start..]
+        .iter()
+        .copied()
+        .take_while(move |w| w.starts_with(typed))
 }
 
 /// Dự đoán cụm từ tiếp theo theo ngữ cảnh (Next-Word / Phrase Prediction).
 ///
-/// `context_tail`: Đuôi văn bản gần nhất (Unicode) trước con trỏ (đã trim khoảng trắng đuôi).
+/// `context_tail`: Đuôi văn bản gần nhất trước con trỏ (đã trim khoảng trắng đuôi).
 /// Trả về danh sách ứng viên cụm từ tiếp theo (tối đa `limit`), xếp theo độ dài khóa ngữ cảnh
 /// giảm dần (trigram trước bigram) và trọng số `weight`.
 pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<String> {
@@ -360,8 +491,15 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
 
     // (độ dài khoá, trọng số, dự đoán, số từ của khoá)
     let mut matches: Vec<(usize, u32, &'static str, usize)> = Vec::new();
+    // Vòng 52 (perf): bucket theo byte cuối — chỉ quét các hàng có khả năng
+    // khớp (`ends_with` bắt buộc byte cuối trùng), thay vì toàn bộ ~10k hàng.
     for rows in [vn_phrase_rows(), en_phrase_rows()] {
-        collect_phrase_matches(rows, &context_lower, &mut matches);
+        let buckets = phrase_buckets(rows);
+        if let Some(&last) = context_lower.as_bytes().last() {
+            if let Some(bucket) = buckets.get(&last) {
+                collect_phrase_matches(bucket, &context_lower, &mut matches);
+            }
+        }
     }
 
     // Xếp theo: key_len lớn hơn (trigram > bigram) -> weight cao hơn
@@ -386,7 +524,8 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
 /// So khoá khớp đuôi ngữ cảnh **trọn từ** (trước khoá là đầu chuỗi / khoảng
 /// trắng / dấu câu). Vòng 41 (perf): nhận hàng ĐÃ parse từ OnceLock —
 /// split/parse TSV chạy một lần lúc khởi động, phần per-call chỉ còn
-/// `ends_with` + kiểm ranh giới từ.
+/// `ends_with` + kiểm ranh giới từ. Vòng 52: gọi trên **bucket** byte-cuối
+/// (xem [`phrase_buckets`]) nên số hàng quét giảm ~20-30×.
 fn collect_phrase_matches(
     rows: &[PhraseRow],
     context_lower: &str,
@@ -489,6 +628,9 @@ mod tests {
         let candidates = predict_prefix_candidates("techn", false, 3);
         assert!(!candidates.is_empty());
         assert!(candidates.iter().any(|c| c.starts_with("techn")));
+        // Vòng 52: nguồn 10k — "atmos" hoàn tất từ google-10000
+        let c10k = predict_prefix_candidates("atmos", false, 5);
+        assert!(c10k.iter().any(|c| c.starts_with("atmos")));
     }
 
     #[test]
@@ -516,6 +658,25 @@ mod tests {
         assert_eq!(preds_tt[0], "cảm ơn");
     }
 
+    /// Vòng 52: thành ngữ — gõ nửa đầu gợi ý nửa sau.
+    #[test]
+    fn thanh_ngu_du_doan_nua_sau() {
+        let preds = predict_next_phrase_candidates("có công mài sắt", 5);
+        assert!(
+            preds.iter().any(|p| p.contains("nên kim")),
+            "có công mài sắt => {preds:?}"
+        );
+        let preds2 = predict_next_phrase_candidates("ăn quả", 5);
+        assert!(preds2.iter().any(|p| p.contains("trồng cây")));
+        // Câu thật chia ranh giới: ngữ cảnh dài khớp chính xác phần còn lại.
+        let m = predict_next_phrase_matches("anh chị vui lòng kiểm tra lại", 5);
+        assert!(
+            m.iter().any(|p| p.prediction.contains("thông tin")),
+            "splits => {:?}",
+            m
+        );
+    }
+
     #[test]
     fn test_predict_next_phrase_english() {
         let preds = predict_next_phrase_candidates("thank you", 3);
@@ -525,6 +686,10 @@ mod tests {
         let preds_look = predict_next_phrase_candidates("looking forward to", 3);
         assert!(!preds_look.is_empty());
         assert_eq!(preds_look[0], "hearing from you");
+
+        // Idiom EN (vòng 52)
+        let preds_idiom = predict_next_phrase_candidates("kill two birds", 5);
+        assert!(preds_idiom.iter().any(|p| p.contains("one stone")));
     }
 
     #[test]
@@ -562,5 +727,31 @@ mod tests {
         assert_eq!(predict_next_phrase_matches("xin", 1)[0].key_words, 1);
         // Ranh giới trọn từ: "toàn" không khớp khoá "an toàn" trong "bàn toàn".
         assert!(predict_next_phrase_candidates("ban toàn", 3).is_empty());
+    }
+
+    /// Vòng 52 (data invariant): mọi hàng TSV đều parse được, prediction ≤ 60
+    /// ký tự (R1-2), khoá ≤ 60, không dòng rác.
+    #[test]
+    fn du_lieu_phrases_invariant() {
+        for (name, data) in [("vn", VN_PHRASES_DATA), ("en", EN_PHRASES_DATA)] {
+            let rows = parse_phrase_rows(data);
+            assert!(rows.len() >= 2000, "{name}: quá ít hàng: {}", rows.len());
+            let mut uniq: Vec<&PhraseRow> = rows.iter().collect();
+            uniq.sort();
+            uniq.dedup();
+            assert_eq!(uniq.len(), rows.len(), "{name}: hàng trùng");
+            for (key, pred, weight) in rows {
+                assert!(!key.is_empty() && !pred.is_empty(), "{name}: hàng rỗng");
+                assert!(
+                    pred.chars().count() <= 60,
+                    "{name}: prediction > 60 ký tự: {pred}"
+                );
+                assert!(weight > 0 && weight <= 100, "{name}: weight {weight}");
+                assert!(
+                    !key.chars().any(|c| c.is_uppercase()),
+                    "{name}: khoá phải lowercase: {key}"
+                );
+            }
+        }
     }
 }
