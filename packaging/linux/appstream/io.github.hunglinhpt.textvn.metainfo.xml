@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.61" date="2026-11-03">
+      <description>
+        <p>MobaXterm (and other PuTTY-family terminals) can now be typed in: the app database gained a prefix-matching rule that hands typing ownership to the keyboard-hook engine for MobaXterm, and the MobaXterm window class is recognised as a terminal field. Linux end-to-end tests now cover text prediction (ghost preview and Tab completion) on both IBus and Fcitx5.</p>
+      </description>
+    </release>
     <release version="0.2.60" date="2026-10-31">
       <description>
         <p>Performance audit release: five quadratic paths in the grammar assistant (missing-space detection on punctuation-heavy text, repeated-word and repeated-phrase scanning, quote-state checks, and spelling overlap guards) were made linear — a 640k-character paste that took 45 seconds now completes in under one second. Also restores end-of-text detection for invalid dates.</p>

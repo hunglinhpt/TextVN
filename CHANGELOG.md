@@ -7,6 +7,29 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.61] — 2026-11-03
+
+### Fixed
+- **MobaXterm gõ không ra chữ** (và terminal PuTTY-family): app không đi qua
+  TSF nên TIP không nhận phím — appdb thêm `exe_prefix` (bản portable tên exe
+  kèm version) + entry `win.mobaxterm` engine_owner=hook (cơ chế ăn phím +
+  inject SendInput có sẵn); field-detect nhận class `TMobaXtermForm` → terminal.
+
+### Added
+- **e2e Linux gợi ý từ**: ghost preview + Tab hoàn tất ("phats"+Tab →
+  "phát triển") kiểm chứng thật trên ibus-daemon và fcitx5; Tab không ứng
+  viên đi qua app. Panel assist Mode 1 đã có test từ trước.
+- **README**: "Tính năng đầy đủ" tích luỹ mọi phiên bản + "Tóm tắt phiên
+  bản" 0.2.44→0.2.60 (VI + EN).
+
+**English** — 0.2.61 fixes typing in MobaXterm and other PuTTY-family
+terminals: these apps bypass TSF so the TIP never receives keys — the app
+database gained prefix-based exe matching and a hook-owned MobaXterm entry
+(the SendInput injection mechanism already existed), and the MobaXterm
+window class is now recognised as a terminal field. Linux e2e tests now
+cover text prediction (ghost preview + Tab completion) on both IBus and
+Fcitx5 with real daemons.
+
 ## [0.2.60] — 2026-10-31
 
 ### Fixed
@@ -2350,6 +2373,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.61]: https://github.com/hunglinhpt/TextVN/compare/v0.2.60...v0.2.61
 [0.2.60]: https://github.com/hunglinhpt/TextVN/compare/v0.2.59...v0.2.60
 [0.2.59]: https://github.com/hunglinhpt/TextVN/compare/v0.2.58...v0.2.59
 [0.2.58]: https://github.com/hunglinhpt/TextVN/compare/v0.2.57...v0.2.58

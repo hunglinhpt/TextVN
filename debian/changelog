@@ -1,3 +1,10 @@
+textvn (0.2.61-0ppa1) noble; urgency=medium
+
+  * Vong 48: MobaXterm go khong ra chu — appdb exe_prefix + entry hook-owner;
+    e2e Linux goi y tu (ghost/Tab) cho IBus + Fcitx5; README tinh nang day du.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Mon, 03 Nov 2026 10:00:00 +0700
+
 textvn (0.2.60-0ppa1) noble; urgency=medium
 
   * Vong 46: quet O(n2) toan luat tro ve tuyen tinh — space_after_punct/
