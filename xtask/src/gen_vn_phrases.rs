@@ -26,7 +26,31 @@ pub fn run() -> Result<(), String> {
         let p = pred.trim().to_string();
         // Invariant R1-2: độ dài cụm chèn không vượt quá MAX_TEXT = 64
         if !c.is_empty() && !p.is_empty() && p.chars().count() <= 60 {
-            set.insert((c, p, weight));
+            // 2 nguồn có thể trùng (key,pred) khác weight — giữ MAX để hết
+            // dòng trùng chỉ-đổi-weight trong TSV (audit vòng 52 CẢNH-BÁO 1).
+            let existing = set
+                .iter()
+                .find(|(k, pr, _)| k == &c && pr == &p)
+                .map(|(_, _, w)| *w);
+            match existing {
+                Some(w) if w >= weight => {}
+                Some(_) => {
+                    set.remove(&(c.clone(), p.clone(), 0));
+                    // weight cũ chưa biết chính xác — xoá mọi biến thể rồi chèn
+                    let dupes: Vec<_> = set
+                        .iter()
+                        .filter(|(k, pr, _)| k == &c && pr == &p)
+                        .cloned()
+                        .collect();
+                    for d in dupes {
+                        set.remove(&d);
+                    }
+                    set.insert((c, p, weight));
+                }
+                None => {
+                    set.insert((c, p, weight));
+                }
+            }
         }
     };
 
@@ -365,7 +389,7 @@ pub fn run() -> Result<(), String> {
     ];
 
     for s in sentences {
-        add_all_splits(s, &mut add);
+        add_splits_from(1, s, &mut add);
     }
 
     // ------------------------------------------------------------------
@@ -525,7 +549,10 @@ pub fn run() -> Result<(), String> {
     ];
 
     for s in idioms {
-        add_all_splits(s, &mut add);
+        // Vòng 52 (audit CẢNH-BÁO 2): thành ngữ neo từ khoá ≥ 2 từ — khoá 1
+        // từ generic ("được", "ở", "một") khiến ngữ cảnh văn bản thường
+        // ("rất mong nhận được ") gợi ý nửa thành ngữ vô nghĩa.
+        add_splits_from(2, s, &mut add);
     }
 
     // ------------------------------------------------------------------
@@ -562,15 +589,14 @@ pub fn run() -> Result<(), String> {
     Ok(())
 }
 
-/// Thêm mọi cặp (tiền tố → phần còn lại) của câu `s`:
-/// `w1 → w2…wn`, `w1 w2 → w3…wn`, … Khoá ≥ 1 từ, dự đoán ≥ 1 từ.
-/// Weight theo số từ khoá: 1 từ = 70, 2 từ = 82, ≥3 từ = 92.
-fn add_all_splits(s: &str, add: &mut impl FnMut(&str, &str, u32)) {
+/// Thêm mọi cặp (tiền tố → phần còn lại) của câu `s` bắt đầu từ `min_split`
+/// từ: `w1…ws → ws+1…wn`. Weight theo số từ khoá: 1 từ = 70, 2 từ = 82, ≥3 từ = 92.
+fn add_splits_from(min_split: usize, s: &str, add: &mut impl FnMut(&str, &str, u32)) {
     let words: Vec<&str> = s.split_whitespace().collect();
-    if words.len() < 2 {
+    if words.len() < min_split + 1 {
         return;
     }
-    for split in 1..words.len() {
+    for split in min_split..words.len() {
         let key = words[..split].join(" ");
         let rest = words[split..].join(" ");
         let weight = match split {

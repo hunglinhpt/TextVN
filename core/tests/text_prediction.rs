@@ -461,9 +461,9 @@ fn r2_120_kieu_dau_moi() {
         typed(&mut predict_engine(new), "Coongj hoaf\t"),
         "Cộng hoà xã hội chủ nghĩa Việt Nam"
     );
-    // Vòng 52: "hoà" là âm tiết hoàn chỉnh → mở rộng từ ghép "hoà giải"
+    // Vòng 52: "hoà" là âm tiết hoàn chỉnh → mở rộng từ ghép "hoà bình"
     // (âm đầu == tiền tố) trước âm tiết khác "hoài".
-    assert_eq!(typed(&mut predict_engine(new), "hoaf\t"), "hoà giải");
+    assert_eq!(typed(&mut predict_engine(new), "hoaf\t"), "hoà bình");
 }
 
 /// Đang duyệt vòng ứng viên: Tab kế tiếp đổi ứng viên — kể cả khi phím Tab
@@ -662,4 +662,24 @@ fn probe_dau_tu_viet_sach() {
         let n = predict_next_phrase_candidates(&format!("{ctx} "), 5);
         assert!(!p.is_empty() || !n.is_empty(), "{ctx}: KHÔNG gợi ý nào");
     }
+}
+
+/// Vòng 52 (fix audit độc lập): compounds "quốc *"/"hòa bình" sống lại; ngữ
+/// cảnh "…nhận được " không gợi ý nửa thành ngữ (thành ngữ neo khoá ≥2 từ).
+#[test]
+fn vong52_audit_fixes_quoc_va_hoa() {
+    use textvn_core::post::predict::{predict_next_phrase_candidates, predict_prefix_candidates};
+    let q = predict_prefix_candidates("quốc", true, 5);
+    assert!(
+        q.first().is_some_and(|w| w.starts_with("quốc ")),
+        "quốc => {q:?}"
+    );
+    let h = predict_prefix_candidates("hòa", true, 8);
+    assert!(h.iter().any(|c| c == "hòa bình"), "hòa => {h:?}");
+    let d = predict_next_phrase_candidates("rất mong nhận được ", 5);
+    assert!(
+        !d.iter()
+            .any(|p| p.contains("da dê") || p.contains("thì nhờ")),
+        "được => {d:?}"
+    );
 }

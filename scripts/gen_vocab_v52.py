@@ -124,6 +124,13 @@ def gen_vn_syllables() -> int:
         if old not in seen:
             seen.add(old)
             dic_added.append(old)
+    # Audit vòng 52 GHI-NHẬN 6: dic thiếu âm tiết trần ("ổ", "ở", "ạ") mà
+    # compound/phrase data dùng ("ổ cứng", "với ạ") — bổ sung thủ công
+    # (đều là âm tiết hợp lệ theo core::validate).
+    for extra in ("ổ", "ở", "ạ", "ả", "ã", "á", "à"):
+        if extra not in seen:
+            seen.add(extra)
+            dic_added.append(extra)
     dic_added.sort()
 
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
@@ -193,6 +200,12 @@ def gen_vn_compounds() -> int:
             print(f"  bỏ mục ký tự lạ: {w!r}")
             continue
         old[w] = int(parts[1]) if len(parts) > 1 and parts[1].strip().isdigit() else 50
+
+    # Audit vòng 52 GHI-NHẬN 5: mục HOA đầu từ ("RAM", "CV xin việc") không bao
+    # giờ khớp typed-lowercase → hạ về lowercase để completion sống lại.
+    for dead in ("RAM", "CV xin việc"):
+        if dead in old:
+            old[dead.lower()] = old.pop(dead)
 
     # (nhóm, [(từ ghép, weight)]): weight 100 = văn phòng dùng nhiều nhất.
     groups = [
@@ -337,7 +350,7 @@ def gen_vn_compounds() -> int:
             ("tuyển dụng", 100), ("tuyển sinh", 84), ("tuyển chọn", 82), ("tuyển mộ", 74),
             ("phỏng vấn", 96), ("phỏng vấn sơ bộ", 80), ("phỏng vấn vòng cuối", 80),
             ("buổi phỏng vấn", 84), ("hồ sơ ứng tuyển", 84), ("đơn ứng tuyển", 84),
-            ("CV xin việc", 84), ("sơ yếu lý lịch", 86), ("giấy tờ tùy thân", 82),
+            ("sơ yếu lý lịch", 86), ("giấy tờ tùy thân", 82),
             ("thư mời phỏng vấn", 80), ("thư từ chối", 74), ("thư mời làm việc", 80),
             ("thư báo nhận việc", 78), ("thư nhận việc", 80), ("thư cảm ơn", 84),
             ("đề nghị tuyển", 80), ("nhu cầu tuyển", 76), ("vị trí tuyển", 82),
@@ -384,7 +397,7 @@ def gen_vn_compounds() -> int:
             ("thiết bị ngoại vi", 76), ("thiết bị đeo", 74), ("điện thoại", 98),
             ("máy tính", 100), ("laptop", 90), ("bàn phím", 88), ("chuột máy tính", 82),
             ("màn hình", 96), ("ổ cứng", 86), ("ổ đĩa", 86), ("bộ nhớ", 92),
-            ("bộ xử lý", 82), ("bộ vi xử lý", 78), ("RAM", 84), ("chip xử lý", 78),
+            ("bộ xử lý", 82), ("bộ vi xử lý", 78), ("chip xử lý", 78),
             ("file", 100), ("thư mục", 96), ("đường dẫn", 88), ("đuôi file", 82),
             ("nén file", 80), ("giải nén", 82), ("tải file", 82), ("tải xuống", 88),
             ("tải lên", 86), ("chia sẻ file", 84), ("quyền truy cập", 88),
@@ -517,6 +530,30 @@ def gen_vn_compounds() -> int:
             ("chia sẻ bài", 74), ("tin nhắn", 90), ("cuộc gọi", 88), ("cuộc họp mặt", 76),
             ("nhắn tin", 84), ("gọi điện", 84), ("liên lạc", 88), ("kết nối", 90),
             ("thân thiết", 84), ("tạm biệt", 86), ("hẹn sớm", 74),
+        ]),
+        ("quốc gia - tổ chức - bổ sung vòng 52", [
+            ("quốc gia", 96), ("quốc tế", 96), ("quốc phòng", 88), ("quốc khánh", 84),
+            ("quốc hiệu", 80), ("quốc ngữ", 82), ("quốc hội", 84), ("quốc lộ", 78),
+            ("quốc dân", 80), ("quốc ca", 80), ("quốc kỳ", 82), ("quốc tang", 74),
+            ("hòa bình", 94), ("hòa đồng", 82), ("hòa hợp", 86), ("hòa nhã", 78),
+            ("hòa giải", 84), ("hòa quyện", 74), ("hòa tan", 76), ("hòa nhập", 82),
+            ("hội nghị", 92), ("hội thảo", 90), ("hội trường", 88), ("hội viên", 84),
+            ("hội thẩm", 76), ("hội hè", 72), ("hội kiều", 70), ("hội luận", 72),
+            ("hội nhập", 84), ("hội tụ", 74), ("tiến triển", 88), ("tiến hành", 90),
+            ("tiến lên", 84), ("tiến tới", 82), ("tiến lùi", 74), ("tiến vượt", 70),
+            ("tiến trình", 86), ("tiến nhanh", 76), ("tiến mạnh", 74),
+            ("tổ chức", 100), ("tổ quốc", 90), ("tổ ong", 74), ("tổ tiên", 84),
+            ("tổ hợp", 84), ("tổ đội", 74), ("tổ dân phố", 76), ("tổ y tế", 76),
+            ("nhà nước", 94), ("nhà văn hóa", 84), ("nhà máy", 92), ("nhà ga", 84),
+            ("nhà xe", 78), ("nhà trẻ", 74), ("nhà văn", 76), ("nhà báo", 78),
+            ("nhà khoa học", 80), ("nhà kinh doanh", 80), ("nhà đầu tư", 84),
+            ("chính phủ", 94), ("chính quyền", 90), ("chính sách", 100),
+            ("chính thức", 96), ("chính xác", 96), ("chính đáng", 84), ("chính trực", 80),
+            ("chính hiện", 70), ("chính chuyên", 70), ("chỉnh sửa", 90), ("chỉnh lý", 78),
+            ("chỉnh đốn", 80), ("chỉnh trang", 76), ("cộng đồng", 94), ("cộng hòa", 96),
+            ("cộng sự", 78), ("cộng hưởng", 76), ("xã hội", 96), ("xã giao", 84),
+            ("xã đoàn", 74), ("xã luận", 78), ("đoàn kết", 92), ("đoàn thể", 80),
+            ("đoàn viên", 76), ("đoàn tàu", 84), ("đoàn xe", 80), ("đoàn kết viên", 70),
         ]),
         ("thời gian - tần suất", [
             ("hôm nay", 100), ("hôm qua", 94), ("hôm kia", 80), ("ngày mai", 96),

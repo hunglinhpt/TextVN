@@ -2,9 +2,6 @@
 # Vòng 52: câu thật chia mọi ranh giới từ + idioms + cặp curated + ma trận
 # context_lower	predicted_phrase	weight
 [nsstring stringwithformat:	@"%@/%@", basePath, filename];	95
-a	blessing in disguise	70
-a	dime a dozen	70
-a	piece of cake	70
 a blessing	in disguise	82
 a blessing in	disguise	92
 a dime	a dozen	82
@@ -26,18 +23,15 @@ according to	the contract	95
 according to	the schedule	90
 accounts payable	processed according to net-30 payment terms	90
 accounts receivable	aging report shows 98 percent collected on time	90
-actions	speak louder than words	70
 actions speak	louder than words	82
 actions speak louder	than words	92
 actions speak louder than	words	92
-add	insult to injury	70
 add insult	to injury	82
 add insult to	injury	92
 added unit tests	to cover all edge cases	95
 added unit tests	to prevent regression of this bug	90
 addressed all	linter warnings and formatting issues	90
 addressed all	review comments from the team	95
-against	the clock	70
 against the	clock	82
 ahead of	schedule	84
 all	expenses must be submitted with proper receipts attached	70
@@ -75,13 +69,11 @@ as discussed i have attached the revised timeline for the	project	92
 as per	our agreement	86
 as per	your request	88
 as soon as	I have an update	88
-as soon as	possible	94
 as soon as	possible	100
 as soon as	the deployment is completed	85
 as soon as	we receive the signed agreement	90
 asap	please	88
 asynchronous	event loop handles incoming connections	90
-at	the eleventh hour	70
 at the	eleventh hour	82
 at the	end of the day	90
 at the	moment	95
@@ -90,18 +82,15 @@ at the eleventh	hour	92
 at your	earliest convenience	86
 ate and left	no crumbs with that UI design	95
 aura points	gained by fixing a bug nobody else could solve	95
-back	to the drawing board	70
 back to	the drawing board	82
 back to the	drawing board	92
 back to the drawing	board	92
 balance sheet	reflects healthy cash reserves and zero debt	95
-barking	up the wrong tree	70
 barking up	the wrong tree	82
 barking up the	wrong tree	92
 barking up the wrong	tree	92
 based on	the feedback	95
 based on	the results	90
-beat	around the bush	70
 beat around	the bush	82
 beat around the	bush	92
 before committing code	check git status for untracked files	85
@@ -121,12 +110,10 @@ best regards and have a	great week ahead	92
 best regards and have a great	week ahead	92
 best regards and have a great week	ahead	92
 bet	i will review the PR in ten minutes	95
-better	late than never	70
 better late	than never	82
 better late than	never	92
 big yikes	on that production database outage	90
 bind(	sockfd, (struct sockaddr *)&addr, sizeof(addr));	95
-bite	the bullet	70
 bite the	bullet	82
 book the meeting room	as soon as possible	84
 book the meeting room	before month end	84
@@ -139,19 +126,15 @@ book the meeting room	by the deadline	84
 book the meeting room	by the end of the week	84
 book the meeting room	within 24 hours	84
 brainrot	from scrolling tech twitter all morning	85
-break	a leg	70
 break a	leg	82
 bro is	cooked if this migration fails	90
 btw	the client confirmed	82
-burn	the midnight oil	70
 burn the	midnight oil	82
 burn the midnight	oil	92
-by	the book	70
 by end of	day today	88
 by the	book	82
 by the end of	this week	88
 cache invalidation	strategy based on TTL expiration	90
-call	it a day	70
 call it	a day	82
 call it a	day	92
 can	we move the call to earlier in the day	70
@@ -280,7 +263,6 @@ congratulations on the promotion and well	deserved	92
 connect(	sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));	95
 connection timed out	while connecting to remote database	90
 continuous integration	pipeline runs on every commit	95
-cost	an arm and a leg	70
 cost an	arm and a leg	82
 cost an arm	and a leg	92
 cost an arm and	a leg	92
@@ -456,15 +438,12 @@ could you update	the timeline	78
 crash out	over missing a single semicolon	85
 create index	idx_users_email on users(email)	90
 create table if not exists	audit_log (id bigserial primary key, event text)	90
-cry	over spilt milk	70
 cry over	spilt milk	82
 cry over spilt	milk	92
-curiosity	killed the cat	70
 curiosity killed	the cat	82
 curiosity killed the	cat	92
 customer acquisition cost	decreased significantly this fiscal year	90
 customer lifetime value	continues to increase with multi-year contracts	95
-cut	to the chase	70
 cut to	the chase	82
 cut to the	chase	92
 dear	mr	88
@@ -557,7 +536,6 @@ eod	today please	84
 epoll_create1(	EPOLL_CLOEXEC);	95
 epoll_ctl(	epfd, EPOLL_CTL_ADD, fd, &ev);	95
 epoll_wait(	epfd, events, MAX_EVENTS, -1);	95
-every	cloud has a silver lining	70
 every cloud	has a silver lining	82
 every cloud has	a silver lining	92
 every cloud has a	silver lining	92
@@ -573,7 +551,6 @@ fcntl(	fd, F_SETFL, flags | O_NONBLOCK);	95
 feel free to	ask for clarification at any time	90
 feel free to	contact me	100
 feel free to	contact me if you need anything else	90
-feel free to	reach out	88
 feel free to	reach out	95
 finalize the proposal	as soon as possible	84
 finalize the proposal	before month end	84
@@ -594,7 +571,6 @@ follow up	with the vendor	88
 for more	information	100
 for your	information and records	90
 for your	reference and convenience	95
-fortune	favors the brave	70
 fortune favors	the brave	82
 fortune favors the	brave	92
 fr fr	we need to refactor this module soon	90
@@ -609,8 +585,6 @@ further to our conversation i am pleased to	confirm the schedule	92
 further to our conversation i am pleased to confirm	the schedule	92
 further to our conversation i am pleased to confirm the	schedule	92
 fyi	the meeting is moved	84
-get	out of hand	70
-get	the ball rolling	70
 get	well soon and take all the time you need	70
 get back to	you soon	100
 get out	of hand	82
@@ -642,15 +616,12 @@ git push	origin main	95
 git rebase	-i HEAD~3	85
 git rebase	origin/main	90
 git stash	pop	95
-give	someone the benefit of the doubt	70
 give someone	the benefit of the doubt	82
 give someone the	benefit of the doubt	92
 give someone the benefit	of the doubt	92
 give someone the benefit of	the doubt	92
 give someone the benefit of the	doubt	92
 glazing	the new framework before even trying it	85
-go	back to square one	70
-go	the extra mile	70
 go back	to square one	82
 go back to	square one	92
 go back to square	one	92
@@ -685,7 +656,6 @@ happy new year	great success	82
 happy new year	success in your new role	82
 happy new year	weekend	82
 happy to help	any time	86
-haste	makes waste	70
 haste makes	waste	82
 have	a safe trip and enjoy the holiday	70
 have	a wonderful day and talk to you soon	70
@@ -701,7 +671,6 @@ have a great	all the best	82
 have a great	day ahead	82
 have a great	great success	82
 have a great	success in your new role	82
-have a great	weekend	82
 have a great	weekend	88
 have a safe	trip and enjoy the holiday	92
 have a safe trip	and enjoy the holiday	92
@@ -738,8 +707,6 @@ he	will keep you posted on the progress	88
 he	will prepare the agenda for tomorrow	88
 high availability	cluster with automated failover	90
 highkey	this design pattern makes everything so clean	90
-hit	the ground running	70
-hit	the nail on the head	70
 hit the	ground running	82
 hit the	nail on the head	82
 hit the ground	running	92
@@ -910,7 +877,6 @@ i appreciate your help with	this matter	92
 i appreciate your help with this	matter	92
 i have	attached the invoice for your reference	82
 i have	forwarded your request to the relevant department	82
-i have attached	the document	90
 i have attached	the document	100
 i have attached	the invoice for your reference	92
 i have attached the	invoice for your reference	92
@@ -1122,8 +1088,6 @@ if (failed(hr))	{ LogError(hr); goto cleanup; }	90
 if (failed(hr))	{ return hr; }	95
 if (succeeded(hr))	{ return true; }	95
 imo	we should prioritize	82
-in	the heat of the moment	70
-in	the long run	70
 in accordance with	standard human resources procedures	85
 in accordance with	the agreed terms of reference	85
 in accordance with	the company code of conduct	85
@@ -1138,7 +1102,6 @@ in case of error	rollback the active database transaction	85
 in order to	avoid	90
 in order to	avoid any confusion	86
 in order to	avoid any potential delays	85
-in order to	ensure	92
 in order to	ensure	100
 in order to	ensure high service quality	90
 in order to	meet the deadline	86
@@ -1154,7 +1117,6 @@ in the heat	of the moment	92
 in the heat of	the moment	92
 in the heat of the	moment	92
 in the long	run	92
-it	takes two to tango	70
 it	was great catching up with you last week	70
 it is essential that	align team objectives with annual goals	84
 it is essential that	allocate aligned memory with VirtualAlloc	84
@@ -1300,7 +1262,6 @@ it works on	my machine	90
 it's giving	production ready energy	90
 it's giving	senior engineer vibes honestly	95
 iykyk	this edge case is legendary	90
-jump	on the bandwagon	70
 jump on	the bandwagon	82
 jump on the	bandwagon	92
 just	a quick reminder that the deadline is this Friday	70
@@ -1327,14 +1288,12 @@ just checking in to see if you had a	chance to review	92
 just checking in to see if you had a chance	to review	92
 just checking in to see if you had a chance to	review	92
 just wanted to	check in on the status of the deliverable	90
-keep	something at bay	70
 keep in	mind	95
 keep in	touch	100
 keep me	posted on the progress	86
 keep something	at bay	82
 keep something at	bay	92
 key performance indicators	show steady quarter over quarter growth	95
-kill	two birds with one stone	70
 kill two	birds with one stone	82
 kill two birds	with one stone	92
 kill two birds with	one stone	92
@@ -1358,7 +1317,6 @@ kindly confirm	the meeting time	78
 kindly confirm	the payment details	78
 kindly confirm	the shipping address for the equipment	85
 kindly confirm	whether this meets your expectations	85
-kindly confirm	your attendance	78
 kindly confirm	your attendance	88
 kindly confirm	your attendance by Thursday afternoon	82
 kindly confirm	your availability for the team dinner	85
@@ -1401,7 +1359,6 @@ kindly reconcile the outstanding	balance before month end	92
 kindly reconcile the outstanding balance	before month end	92
 kindly reconcile the outstanding balance before	month end	92
 kindly reconcile the outstanding balance before month	end	92
-kindly review	the attached document	78
 kindly review	the attached document	86
 kindly review	the latest draft	78
 kindly review	the meeting notes	78
@@ -1441,14 +1398,11 @@ kindly update	the project status	78
 kindly update	the team on progress	78
 kindly update	the timeline	78
 kubectl get	pods -n production	90
-learn	the ropes	70
 learn the	ropes	82
-leave	no stone unturned	70
 leave no	stone unturned	82
 leave no stone	unturned	92
 let	me know if you have any questions about the proposal	70
 let	me know when you are free for a quick coffee	70
-let	sleeping dogs lie	70
 let him	cook, this architecture might actually work	95
 let me	check	90
 let me	know	100
@@ -1501,20 +1455,17 @@ living rent free	in my mind all week long	95
 lock in	and finish the remaining tasks before release	95
 locked in	for the entire sprint planning session	90
 long story	short	86
-look	before you leap	70
 look before	you leap	82
 look before you	leap	92
 look into	this issue	95
 looking	forward to hearing from you soon	70
 looking	forward to working with you on this project	70
-looking forward	to hearing from you soon	82
 looking forward	to hearing from you soon	94
 looking forward	to working with you on this project	82
 looking forward to	hearing from you	100
 looking forward to	hearing from you soon	92
 looking forward to	our meeting tomorrow morning	90
 looking forward to	seeing you at the conference	85
-looking forward to	working with you	94
 looking forward to	working with you	95
 looking forward to	working with you on this project	92
 looking forward to	your feedback	92
@@ -1538,7 +1489,6 @@ looks good to	me, thanks for addressing the feedback	90
 lowkey	excited about the new release coming out	90
 lowkey	i think this implementation is much better	95
 main character	energy throughout the entire presentation	90
-make	a long story short	70
 make a	long story short	82
 make a long	story short	92
 make a long story	short	92
@@ -1610,27 +1560,20 @@ make sure that the	write automated tests for this edge case	84
 market penetration	strategy focuses on enterprise software clients	90
 memory leak	detected by address sanitizer in background thread	90
 microservice	architecture running on Kubernetes	90
-miss	the boat	70
 miss the	boat	82
 munmap(	addr, length);	95
 needs minor	refactoring before we can merge	85
-no	pain no gain	70
 no cap	fr fr that feature is so useful	90
-no cap	that was the cleanest code refactor ever	95
 no cap	that was the cleanest code refactor ever	96
 no pain	no gain	82
 no pain no	gain	92
 non-disclosure agreement	must be signed prior to technical discussions	95
-not	a bed of roses	70
 not a	bed of roses	82
 not a bed	of roses	92
 not a bed of	roses	92
 nserror *error =	nil;	95
 null pointer	dereference caught during runtime	90
 objectives and key results	have been aligned across all departments	90
-on	the ball	70
-on	the same page	70
-on	thin ice	70
 on behalf of	the company	95
 on behalf of	the entire leadership team	90
 on my way	to the office	86
@@ -1639,7 +1582,6 @@ on the	same page	82
 on the same	page	92
 on thin	ice	82
 on track	and within budget	86
-once	in a blue moon	70
 once in	a blue moon	82
 once in a	blue moon	92
 once in a blue	moon	92
@@ -1686,7 +1628,6 @@ our technical team is investigating the root	cause of the problem	92
 our technical team is investigating the root cause	of the problem	92
 our technical team is investigating the root cause of	the problem	92
 our technical team is investigating the root cause of the	problem	92
-out	of the frying pan into the fire	70
 out of	the frying pan into the fire	82
 out of memory	error during large file processing	90
 out of office	until next Monday	86
@@ -2039,7 +1980,6 @@ please reset your password using the link in	the email	92
 please reset your password using the link in the	email	92
 please review	and share your feedback	88
 please review	the agenda before our call tomorrow	82
-please review	the attached document	88
 please review	the attached document	92
 please review	the attached document and share your feedback	82
 please review	the attached statement and confirm the balance	82
@@ -2116,7 +2056,6 @@ please update your emergency contact information in the	system	92
 pookie	can you please approve my pull request	85
 pop off	with those new features, users will love it	90
 postmessage(	hwnd, WM_QUIT, 0, 0);	95
-practice	makes perfect	70
 practice makes	perfect	82
 prepare	a cost estimate	88
 prepare	the meeting agenda	88
@@ -2129,21 +2068,16 @@ pthread_cond_wait(	&cond, &mutex);	95
 pthread_create(	&thread, NULL, worker_routine, (void *)arg);	95
 pthread_mutex_lock(	&mutex);	95
 pthread_mutex_unlock(	&mutex);	95
-pull	the plug	70
-pull	yourself together	70
 pull the	plug	82
 pull yourself	together	82
-put	all your eggs in one basket	70
 put all	your eggs in one basket	82
 put all your	eggs in one basket	92
 put all your eggs	in one basket	92
 put all your eggs in	one basket	92
 put all your eggs in one	basket	92
 quarterly business review	presentation is scheduled for next week	90
-rain	cats and dogs	70
 rain cats	and dogs	82
 rain cats and	dogs	92
-raise	the bar	70
 raise the	bar	82
 rate limiting	middleware prevents API abuse	90
 ready for	code review and testing	95
@@ -2171,7 +2105,6 @@ review the document	by the deadline	84
 review the document	by the end of the week	84
 review the document	within 24 hours	84
 rizz	in the way they explained that complex architecture	90
-rome	was not built in a day	70
 rome was	not built in a day	82
 rome was not	built in a day	92
 rome was not built	in a day	92
@@ -2185,7 +2118,6 @@ schedule	a quick call	88
 schedule	a training session	88
 schedule	an interview	88
 schedule	the next review	88
-see	eye to eye	70
 see eye	to eye	82
 see eye to	eye	92
 see you	at the meeting	84
@@ -2281,10 +2213,8 @@ socket(	AF_INET, SOCK_STREAM, 0);	95
 sounds good	thank you	90
 sounds good	to me	92
 sounds like	a plan	88
-speak	of the devil	70
 speak of	the devil	82
 speak of the	devil	92
-spill	the beans	70
 spill the	beans	82
 spill the	tea on what happened during the executive meeting	90
 stack trace	indicates an unhandled panic in worker	90
@@ -2292,7 +2222,6 @@ standing on	business regarding code quality standards	95
 statement of work	details project scope, milestones, and deliverables	95
 stay tuned	for updates	82
 strategic roadmap	outlines product vision for the next two years	90
-strike	while the iron is hot	70
 strike while	the iron is hot	82
 strike while the	iron is hot	92
 strike while the iron	is hot	92
@@ -2317,8 +2246,6 @@ submit the form	by noon today	84
 submit the form	by the deadline	84
 submit the form	by the end of the week	84
 submit the form	within 24 hours	84
-take	it with a grain of salt	70
-take	the bull by the horns	70
 take into	account	95
 take into	account all user requirements	90
 take into	consideration	90
@@ -2347,13 +2274,11 @@ thank you	for reaching out	84
 thank you	for reaching out regarding the new proposal	82
 thank you	for taking the time to speak with me	82
 thank you	for the quick turnaround on this	82
-thank you	for your email	96
 thank you	for your email	98
 thank you	for your email and for your patience	82
 thank you	for your help	85
 thank you	for your patience and understanding	83
 thank you	for your prompt reply	83
-thank you	for your support	90
 thank you	for your support	94
 thank you	for your time	92
 thank you	for your understanding and cooperation	82
@@ -2413,9 +2338,7 @@ thanks for your quick response to my last	email	92
 the	accounts payable team will process the request shortly	70
 the	appointment has been confirmed for ten thirty tomorrow	70
 the	backup completed successfully last night	70
-the	ball is in your court	70
 the	benefits package includes health insurance and annual bonus	70
-the	best of both worlds	70
 the	budget for next quarter is currently being finalized	70
 the	client has requested some changes to the original scope	70
 the	contract includes a twelve month maintenance package	70
@@ -2423,11 +2346,9 @@ the	contract will be renewed for another twelve months	70
 the	data will be encrypted both in transit and at rest	70
 the	deadline for the final submission is this Friday	70
 the	delivery is scheduled for Monday morning	70
-the	early bird catches the worm	70
 the	financial statements have been audited and approved	70
 the	interview is scheduled for two o'clock on Thursday	70
 the	issue has been resolved and the service is back online	70
-the	last straw	70
 the	login issue has been identified and is being fixed	70
 the	meeting is scheduled for ten o'clock on Monday morning	70
 the	minimum order quantity for this product is fifty units	70
@@ -2444,7 +2365,6 @@ the	refund has been issued to your original payment method	70
 the	report shows a ten percent increase in operating costs	70
 the	server response time has returned to normal levels	70
 the	system is scheduled for maintenance tonight at midnight	70
-the	tip of the iceberg	70
 the	warranty covers all manufacturing defects for two years	70
 the	weather has been really nice this week	70
 the accounts	payable team will process the request shortly	82
@@ -2966,20 +2886,15 @@ they	will handle the follow up email	88
 they	will join the call at three o'clock	88
 they	will keep you posted on the progress	88
 they	will prepare the agenda for tomorrow	88
-think	outside the box	70
 think outside	the box	82
 think outside the	box	92
 this is to confirm	our reservation for the event	90
 this is to confirm	that we received your payment	95
 thread safe	access guaranteed by mutex synchronization	90
 thread safe	implementation using atomic operations	95
-through	thick and thin	70
 through thick	and thin	82
 through thick and	thin	92
-time	is money	70
 time is	money	82
-to	be on cloud nine	70
-to	make matters worse	70
 to be	on cloud nine	82
 to be on	cloud nine	92
 to be on cloud	nine	92
@@ -3060,11 +2975,9 @@ traffic was terrible this morning on	the way to work	92
 traffic was terrible this morning on the	way to work	92
 traffic was terrible this morning on the way	to work	92
 traffic was terrible this morning on the way to	work	92
-under	the weather	70
 under the	weather	82
 understood the	assignment and delivered ahead of schedule	95
 unserious	behavior leaving console.log in production code	90
-up	in the air	70
 up in	the air	82
 up in the	air	92
 update	the budget forecast	88
@@ -3575,8 +3488,6 @@ we would like to request your approval	for the budget plan	92
 we would like to request your approval for	the budget plan	92
 we would like to request your approval for the	budget plan	92
 we would like to request your approval for the budget	plan	92
-when	it rains it pours	70
-when	pigs fly	70
 when it	rains it pours	82
 when it rains	it pours	92
 when it rains it	pours	92
@@ -3620,12 +3531,10 @@ would you mind taking a quick look	at the numbers below	92
 would you mind taking a quick look at	the numbers below	92
 would you mind taking a quick look at the	numbers below	92
 would you mind taking a quick look at the numbers	below	92
-wrap	your head around something	70
 wrap your	head around something	82
 wrap your head	around something	92
 wrap your head around	something	92
 you	can track your order status on our website	70
-you	can't judge a book by its cover	70
 you can	track your order status on our website	82
 you can track	your order status on our website	92
 you can track your	order status on our website	92
@@ -3639,7 +3548,6 @@ you can't judge a	book by its cover	92
 you can't judge a book	by its cover	92
 you can't judge a book by	its cover	92
 you can't judge a book by its	cover	92
-your	guess is as good as mine	70
 your	leave request has been approved by your manager	70
 your	order has been shipped and will arrive in two days	70
 your	performance review is scheduled for the end of this month	70

@@ -574,7 +574,6 @@ phỏng vấn vòng cuối	80
 buổi phỏng vấn	84
 hồ sơ ứng tuyển	84
 đơn ứng tuyển	84
-CV xin việc	84
 sơ yếu lý lịch	86
 giấy tờ tùy thân	82
 thư mời phỏng vấn	80
@@ -724,7 +723,6 @@ màn hình	96
 bộ nhớ	92
 bộ xử lý	82
 bộ vi xử lý	78
-RAM	84
 chip xử lý	78
 file	100
 thư mục	96
@@ -1216,3 +1214,85 @@ trước hạn	82
 quá muộn	80
 sớm nhất	88
 sớm mai	74
+ram	84
+cv xin việc	84
+quốc gia	96
+quốc tế	96
+quốc phòng	88
+quốc khánh	84
+quốc hiệu	80
+quốc ngữ	82
+quốc hội	84
+quốc lộ	78
+quốc dân	80
+quốc ca	80
+quốc kỳ	82
+quốc tang	74
+hòa bình	94
+hòa đồng	82
+hòa hợp	86
+hòa nhã	78
+hòa quyện	74
+hòa tan	76
+hòa nhập	82
+hội nghị	92
+hội thảo	90
+hội trường	88
+hội viên	84
+hội thẩm	76
+hội hè	72
+hội kiều	70
+hội luận	72
+hội nhập	84
+hội tụ	74
+tiến triển	88
+tiến hành	90
+tiến lên	84
+tiến tới	82
+tiến lùi	74
+tiến vượt	70
+tiến trình	86
+tiến nhanh	76
+tiến mạnh	74
+tổ quốc	90
+tổ ong	74
+tổ tiên	84
+tổ hợp	84
+tổ đội	74
+tổ dân phố	76
+tổ y tế	76
+nhà nước	94
+nhà văn hóa	84
+nhà máy	92
+nhà ga	84
+nhà xe	78
+nhà trẻ	74
+nhà văn	76
+nhà báo	78
+nhà khoa học	80
+nhà kinh doanh	80
+chính phủ	94
+chính quyền	90
+chính xác	96
+chính đáng	84
+chính trực	80
+chính hiện	70
+chính chuyên	70
+chỉnh sửa	90
+chỉnh lý	78
+chỉnh đốn	80
+chỉnh trang	76
+cộng đồng	94
+cộng hòa	96
+cộng sự	78
+cộng hưởng	76
+xã hội	96
+xã giao	84
+xã đoàn	74
+xã luận	78
+đoàn kết	92
+đoàn thể	80
+đoàn viên	76
+đoàn tàu	84
+đoàn xe	80
+đoàn kết viên	70
