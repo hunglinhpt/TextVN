@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-11-04)
 
 ## Corpus Check
-- 455 files · ~859,411 words
+- 455 files · ~859,479 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `78131708`
+- Built from commit: `d239b7dc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2146,11 +2146,11 @@ Nodes (3): [0.2.61] — 2026-11-03, Added, Fixed
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `test_compose.c`, `string`, `TextVNInputController`, `ImeEngine`, `Option`, `engine.c`?**
-  _High betweenness centrality (0.100) - this node is a cross-community bridge._
+  _High betweenness centrality (0.099) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `Option` to `windows-tsf/src/assist.rs`, `engine.cpp`, `TsfShared`, `AssistCheck`, `OverlayView`?**
   _High betweenness centrality (0.095) - this node is a cross-community bridge._
 - **Why does `2. Nhật ký finding` connect `ipc_client.c` to `.register`, `.inject`, `IpcClient`, `EventTapController`, `Problem`, `TextVNInputController`, `MarkedState`, `Equatable`, `KeyOutcome`, `TextVNAppTests`, `IpcServer`?**
-  _High betweenness centrality (0.073) - this node is a cross-community bridge._
+  _High betweenness centrality (0.075) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**
