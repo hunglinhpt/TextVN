@@ -33,6 +33,12 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+      <release version="0.2.63" date="2026-11-04">
+        <description>
+          <p>Mở rộng corpora dự đoán ~31.000 mục: 6.675 âm tiết Việt, 1.214 từ ghép, 9.868 từ tiếng Anh và 10.208 cặp câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ + thành ngữ thật).</p>
+          <p>Xếp hạng mở rộng đúng nghĩa ("tiến" → "tiến độ"), hiệu năng micro-giây; bộ test QA văn phòng hỗn hợp; 3 fix báo-nhầm cuối (dòng code, regex, "Phân công công việc").</p>
+        </description>
+      </release>
     <release version="0.2.62" date="2026-11-03">
       <description>
         <p>Three-pass audit of the MobaXterm typing fix plus a terminal-family sweep: KiTTY (a PuTTY fork without TSF) moved to the hook-owned engine, TeraTerm/SecureCRT/Xshell entries added with the role gate dropped where UIA cannot classify, the shipped database no longer contains a duplicated entry, the appdb schema now documents exe_prefix matching, the assist panel never overlaps the line being typed after work-area clamping, and i32 saturation guards hostile caret coordinates.</p>

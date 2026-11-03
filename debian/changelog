@@ -1,3 +1,11 @@
+textvn (0.2.63-0ppa1) noble; urgency=medium
+
+  * Mở rộng corpora dự đoán ~31.000 mục (vòng 52): 6.675 âm tiết Việt +
+    1.214 từ ghép + 9.868 từ tiếng Anh + 10.208 cặp câu/cụm/thành ngữ.
+  * QA battery văn phòng hỗn hợp 23 test + 3 fix FPR (vòng 51).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Wed, 04 Nov 2026 00:00:00 +0700
+
 textvn (0.2.62-0ppa1) noble; urgency=medium
 
   * Vong 49-50: TSF-bypass sweep (kitty/teraterm/securecrt/xshell hook-
