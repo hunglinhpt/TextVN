@@ -10,6 +10,11 @@ use crate::{Issue, IssueKind, Span};
 
 /// Bat dau phay ngay truoc het cau.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
+    // Vòng 51 (QA office FPR): regex/code `{2,}` comma bị báo cuối câu —
+    // parity với các luật khác: dòng code không báo comma_at_end.
+    if super::capitalize_sentence::looks_like_code_or_list(ctx) {
+        return;
+    }
     // lay token cuoi khac khoang trang
     let Some(last) = ctx.tokens.iter().rposition(|t| t.kind != TokenKind::Space) else {
         return;

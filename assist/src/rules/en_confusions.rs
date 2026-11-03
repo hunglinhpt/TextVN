@@ -452,7 +452,9 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
     // ("I'd rather stay home then go out" — rather cách 3 từ). Quét ngược
     // tối đa 4 token Word: gặp so-sánh-hơn ⇒ "then" là "than"; gặp dấu kết
     // câu ⇒ hết cụm ("Better. Then we left." — "then" thời gian, đúng).
-    for tok in &ctx.tokens {
+    // Vòng 46 (Pass E2 F2): enumerate O(1) thay position() O(idx) mỗi "then"
+    // — "then "×32k từng 277s (debug).
+    for (idx, tok) in ctx.tokens.iter().enumerate() {
         if tok.kind != TokenKind::Word || tok.is_empty() {
             continue;
         }
@@ -464,11 +466,6 @@ pub fn check_confusions(ctx: &Ctx, out: &mut Vec<Issue>) {
         if ctx.quote_parity.get(tok.start).copied().unwrap_or(false) {
             continue;
         }
-        let idx = ctx
-            .tokens
-            .iter()
-            .position(|t| t.start == tok.start)
-            .unwrap_or(0);
         let mut hit = false;
         let mut back = 0usize;
         for t in ctx.tokens[..idx].iter().rev() {

@@ -18,6 +18,9 @@ pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     // thế thao ("ở đâu đâu") và số từ + danh từ cùng hình ("năm năm trước" —
     // "năm" số từ, "năm" danh từ, cách nói chuẩn mực).
     "chộp", "bum", "đâu", "năm",
+    // Vòng 51 (QA office): "công" là morphology cực sản xuất ("Phân **công**
+    // **công** việc" — compound boundary, không phải lặp từ).
+    "công",
 ];
 
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu

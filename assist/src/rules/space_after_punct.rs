@@ -7,6 +7,13 @@ use crate::{Fix, Issue, IssueKind, Span};
 
 /// Bat dau cau khong cach tu ngay sau.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
+    // Vòng 51 (QA office FPR): dòng CODE ("user.role", "obj.prop") — dot giữa
+    // 2 word token = truy cập thuộc tính, KHÔNG phải thiếu space. Guard dùng
+    // chung looks_like_code_or_list (có `=`/`{`/`}`/`()` marker) — parity với
+    // các luật khác. FN chấp nhận: prose có dấu `=` mất space_after check.
+    if super::capitalize_sentence::looks_like_code_or_list(ctx) {
+        return;
+    }
     for i in 0..ctx.tokens.len().saturating_sub(1) {
         let punct = ctx.tokens[i];
         if punct.kind != TokenKind::Punct {

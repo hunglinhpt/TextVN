@@ -73,6 +73,26 @@ pub(crate) fn looks_like_code_or_list(ctx: &Ctx) -> bool {
     {
         return true;
     }
+    // Vòng 51 (QA office): marker code bổ sung — SQL comment `--`, C comment
+    // `//`, JSON key `"..."`:`, arrow `=>`. Các marker này hầu như không xuất
+    // hiện trong văn xuôi tiếng Việt nên FN rủi ro thấp so với FPR trên
+    // dòng code hỗn hợp (QA probe: SQL `-- truy vấn,kiểm tra`, JSON
+    // `"description":`...).
+    if ctx
+        .chars
+        .windows(2)
+        .any(|w| w == ['-', '-'] || w == ['/', '/'] || w == ['=', '>'])
+    {
+        return true;
+    }
+    if ctx.chars.windows(3).any(|w| w == ['"', ':', ' ']) {
+        return true;
+    }
+    // SQL string literal: N'...' hoặc '...' sau VALUES — dấu nháy đơn xuất
+    // hiện ≥ 2 lần trong câu ⇒ có string literal (prose VN hiếm dùng 2 nháy).
+    if ctx.chars.iter().filter(|&&c| c == 39 as char).count() >= 2 {
+        return true;
+    }
     // Marker đề mục: token 0 = từ ASCII 1-4 ký tự thường + dấu `.` ngay sau.
     if let Some(first) = ctx.tokens.first() {
         if first.kind == TokenKind::Word {
