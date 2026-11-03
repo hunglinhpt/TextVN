@@ -76,6 +76,11 @@ struct Matcher {
 struct MatchClause {
     #[serde(default)]
     exe: Option<String>,
+    /// Vòng 48 (MobaXterm): prefix tên exe không phân biệt hoa/thường — bản
+    /// portable tên exe kèm version ("MobaXterm_Personal_24.2.exe") nên
+    /// exact-match `exe` không đủ.
+    #[serde(rename = "exe_prefix", default)]
+    exe_prefix: Option<String>,
     #[serde(default)]
     bundle: Option<String>,
     #[serde(rename = "class", default)]
@@ -278,10 +283,25 @@ impl MatchClause {
         // có. Adapter OS phải lọc app_id trước khi gọi resolver; đọc field ở
         // đây để giữ wire schema v1 tương thích mà không giả lập quan hệ đó.
         let _and_subprocess_is_adapter_constraint = self.and_subprocess;
-        self.exe.is_some() || self.bundle.is_some() || self.class_name.is_some()
+        self.exe.is_some()
+            || self.exe_prefix.is_some()
+            || self.bundle.is_some()
+            || self.class_name.is_some()
     }
 
     fn matches(&self, app_id: &str) -> bool {
+        // Vòng 48 (MobaXterm): prefix-match tên exe — bản portable tên exe
+        // kèm version ("MobaXterm_Personal_24.2.exe") nên exact `exe` không đủ.
+        if let Some(prefix) = &self.exe_prefix {
+            if app_id.len() >= prefix.len()
+                && app_id
+                    .chars()
+                    .zip(prefix.chars())
+                    .all(|(a, b)| a.eq_ignore_ascii_case(&b))
+            {
+                return true;
+            }
+        }
         id_matches(
             [
                 self.exe.as_deref(),
@@ -556,8 +576,9 @@ mod tests {
     #[test]
     fn shipped_preset_has_forty_ordered_entries() {
         let db = AppDb::parse(include_str!("../../data/appdb.default.json")).unwrap();
-        // 20 Windows + 20 macOS (P2-3 §3) — thêm preset phải kèm corpus case.
-        assert_eq!(db.entry_count(), 40);
+        // 21 Windows + 20 macOS (P2-3 §3; 0.2.61 thêm win.mobaxterm) — thêm
+        // preset phải kèm corpus case.
+        assert_eq!(db.entry_count(), 41);
         assert_eq!(
             db.preset_for("chrome.exe", IME_FIELD_ADDRESS_BAR),
             Some(Preset {
@@ -568,6 +589,12 @@ mod tests {
         );
         assert_eq!(
             db.preset_for("pwsh.exe", textvn_strategy::IME_FIELD_TERMINAL)
+                .unwrap()
+                .engine_owner,
+            Some(EngineOwner::Hook)
+        );
+        assert_eq!(
+            db.preset_for("MobaXterm.exe", textvn_strategy::IME_FIELD_UNKNOWN)
                 .unwrap()
                 .engine_owner,
             Some(EngineOwner::Hook)

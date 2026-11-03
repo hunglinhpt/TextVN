@@ -180,3 +180,44 @@ fn finder_rename_editbox() {
         Strategy::SelectionReplace
     );
 }
+
+/// Vòng 48 (MobaXterm): exe exact + exe_prefix (bản portable kèm version) —
+/// mọi field_role (entry không `when`) → ForwardAsCommit, engine_owner hook.
+#[test]
+fn mobaxterm_hook_owned_forward_as_commit() {
+    let d = db();
+    // Bản cài đặt: exe exact.
+    assert_eq!(
+        resolve(&d, "MobaXterm.exe", IME_FIELD_UNKNOWN, 0),
+        Strategy::ForwardAsCommit
+    );
+    // Bản portable: tên exe kèm version — chỉ exe_prefix khớp được.
+    assert_eq!(
+        resolve(
+            &d,
+            "MobaXterm_Personal_24.2.exe",
+            IME_FIELD_TERMINAL,
+            MAC_CAPS
+        ),
+        Strategy::ForwardAsCommit
+    );
+    assert_eq!(
+        resolve(&d, "MobaXterm_Personal_24.2.exe", IME_FIELD_UNKNOWN, 0),
+        Strategy::ForwardAsCommit
+    );
+    // engine_owner = hook (TSF nhường — MobaXterm không đi qua TSF).
+    let preset = d
+        .preset_for("MobaXterm.exe", IME_FIELD_UNKNOWN)
+        .expect("preset phải khớp");
+    assert!(matches!(
+        preset.engine_owner,
+        Some(textvn_appdb::EngineOwner::Hook)
+    ));
+    // Phân biệt: app không liên quan không bị prefix nuốt ("Mo", "Mob").
+    assert!(
+        d.preset_for("Moba.exe", IME_FIELD_UNKNOWN).is_none()
+            || d.preset_for("Moba.exe", IME_FIELD_UNKNOWN)
+                .and_then(|p| p.engine_owner)
+                != Some(textvn_appdb::EngineOwner::Hook)
+    );
+}

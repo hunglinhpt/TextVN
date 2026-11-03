@@ -126,9 +126,17 @@ fn role(e: &UiaElement) -> u32 {
         return IME_FIELD_TEXTAREA;
     }
     // R9
-    if ["cascadia_hosting_window_class", "putty", "xterm", "wezterm"]
-        .into_iter()
-        .any(has_class)
+    // Vòng 48 (MobaXterm): class cửa sổ chính "TMobaXtermForm" (has_class
+    // quét cả ancestor — control terminal con kế thừa chuỗi class).
+    if [
+        "cascadia_hosting_window_class",
+        "putty",
+        "xterm",
+        "wezterm",
+        "tmobaxtermform",
+    ]
+    .into_iter()
+    .any(has_class)
     {
         return IME_FIELD_TERMINAL;
     }
@@ -457,6 +465,22 @@ mod tests {
                 },
                 IME_FIELD_TERMINAL,
             ),
+            // Vòng 48 (MobaXterm): class cửa sổ chính + control con kế thừa.
+            (
+                UiaElement {
+                    class_name: "TMobaXtermForm".into(),
+                    ..Default::default()
+                },
+                IME_FIELD_TERMINAL,
+            ),
+            (
+                UiaElement {
+                    class_name: "ChildTerminal".into(),
+                    ancestor_classes: vec!["TMobaXtermForm".into()],
+                    ..Default::default()
+                },
+                IME_FIELD_TERMINAL,
+            ),
             // R10 / negative paths
             (UiaElement::default(), IME_FIELD_UNKNOWN),
             (
@@ -533,7 +557,8 @@ mod tests {
                 IME_FIELD_CANDIDATE,
             ),
         ];
-        assert_eq!(cases.len(), 30, "WIN-030 minimum mock matrix");
+        // Vòng 48: +2 case MobaXterm (class chính + control con kế thừa).
+        assert_eq!(cases.len(), 32, "WIN-030 minimum mock matrix");
         for (element, expected_role) in cases {
             assert_eq!(role_of(element), expected_role);
         }
