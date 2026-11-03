@@ -1,5 +1,19 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.62 — MobaXterm 3-pass + TSF-bypass sweep + panel fix (vòng 49-50)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **3-pass audit MobaXterm** (self + E-system probe + E3 agent đối kháng): N1 dup win.mobaxterm (xoá, count 42); N2 exe_prefix thiếu schema appdb.v1 (F2-005 class) — thêm matchClause; T1 SecureCRT/Xshell gate `when: terminal` gần chết (UIA UNKNOWN) — bỏ gate; T2 test v49 không phủ fallback — thêm height-1000 case; TH1 i32 saturating; TH2 kitty_portable; T3 preset_matrix legacy×3-role. **TSF-bypass sweep**: kitty.exe tách khỏi win.wt → terminal.legacy hook-owner; +ttermpro/SecureCRT/xshell. **Panel che vùng gõ**: place() tách place_in_work pure + bất biến không-giao-dòng-caret + i32 saturating (4 test v49) |
+| Đo | 10 appdb + 13 field-detect (matrix 33 case) + 104 win-tsf tests · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag 4003e9b | 6/6 workflow áp dụng xanh (ci-shared · ci-windows · ci-linux · ci-macos · ci-aur · ci-deb) |
+| Release | [v0.2.62 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.62) — release-candidate 4/4 job xanh; **34 asset**; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `a766080b…da49` · MSIX `1a00c4f7…e323` · mac zip `782a5f5d…994d7` · PKGBUILD archive `e3ddfc2d…a9fb9` |
+| Homebrew (B7b) | cask `version "0.2.62"` + `sha256` = mac zip `782a5f5d…994d7` — sync-cask success, raw cask khớp |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.62 = archive v0.2.62 `e3ddfc2d…a9fb9`; publish AUR chờ owner SSH |
+| PPA (B7f) | debian/changelog `0.2.62-0ppa1`; upload PPA = owner |
+| approved (B7c) | `approved/v0.2.62/` — 34 file byte-identical, raw URL machine.exe + msix 200 (commit `fba6fa7`) |
+
 ## Bản 0.2.61 — MobaXterm + e2e Linux gợi ý từ (vòng 47-48)
 
 | Hạng mục | Bằng chứng |
