@@ -576,10 +576,10 @@ mod tests {
     #[test]
     fn shipped_preset_has_forty_ordered_entries() {
         let db = AppDb::parse(include_str!("../../data/appdb.default.json")).unwrap();
-        // 23 Windows + 20 macOS (P2-3 §3; 0.2.61 win.mobaxterm, 0.2.62
-        // sweep TSF-bypass: kitty tách khỏi win.wt, +xshell) — thêm preset
-        // phải kèm corpus case.
-        assert_eq!(db.entry_count(), 43);
+        // 22 Windows + 20 macOS (P2-3 §3; 0.2.61 win.mobaxterm — E3 N1 bỏ
+        // bản dup; 0.2.62 sweep TSF-bypass: kitty tách khỏi win.wt,
+        // +xshell) — thêm preset phải kèm corpus case.
+        assert_eq!(db.entry_count(), 42);
         assert_eq!(
             db.preset_for("chrome.exe", IME_FIELD_ADDRESS_BAR),
             Some(Preset {
@@ -601,14 +601,33 @@ mod tests {
             Some(EngineOwner::Hook)
         );
         // kitty.exe (KiTTY — fork PuTTY, không TSF) phải là hook, KHÔNG tsf.
+        // E3 T1: bỏ `when` — SecureCRT (MFC)/Xshell UIA hay về UNKNOWN.
         assert_eq!(
-            db.preset_for("kitty.exe", textvn_strategy::IME_FIELD_TERMINAL)
+            db.preset_for("kitty.exe", textvn_strategy::IME_FIELD_UNKNOWN)
                 .unwrap()
                 .engine_owner,
             Some(EngineOwner::Hook)
         );
         assert_eq!(
-            db.preset_for("ttermpro.exe", textvn_strategy::IME_FIELD_TERMINAL)
+            db.preset_for("kitty_portable.exe", textvn_strategy::IME_FIELD_UNKNOWN)
+                .unwrap()
+                .engine_owner,
+            Some(EngineOwner::Hook)
+        );
+        assert_eq!(
+            db.preset_for("ttermpro.exe", textvn_strategy::IME_FIELD_UNKNOWN)
+                .unwrap()
+                .engine_owner,
+            Some(EngineOwner::Hook)
+        );
+        assert_eq!(
+            db.preset_for("SecureCRT.exe", textvn_strategy::IME_FIELD_UNKNOWN)
+                .unwrap()
+                .engine_owner,
+            Some(EngineOwner::Hook)
+        );
+        assert_eq!(
+            db.preset_for("xshell.exe", textvn_strategy::IME_FIELD_UNKNOWN)
                 .unwrap()
                 .engine_owner,
             Some(EngineOwner::Hook)

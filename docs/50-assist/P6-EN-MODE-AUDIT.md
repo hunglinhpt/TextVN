@@ -226,3 +226,38 @@ từ điển VN offline. **Đo:** FPR 0/2739 · recall 28/28 + 38/38 · 135 lib 
   sentence-start, pattern "1. item 2. item") vẫn O(n²) qua is_abbreviation_dot
   scan + quote-balance chars[..n] — cần indexed variant cho capitalize.
 - **Đã dọn**: in_quotes fn chết, assert `|| true` vô nghĩa (Pass E2 F3).
+
+## 11. Vòng 49-50 — MobaXterm 3-pass audit + panel che vùng gõ (2026-11-03)
+
+**MobaXterm 3-pass (E3 = pass 3/3, 2 pass trước: self + E-system):**
+- **N1 NẶNG (đã fix)**: entry `win.mobaxterm` bị NHÂN ĐÔI trong
+  appdb.default.json (commit chèn bản mới quên bản cũ) — first-match-wins
+  che runtime nhưng hợp đồng entry_count sai (43 thay vì 42). Xoá dup,
+  count 42, comment "22 Windows + 20 macOS".
+- **N2 NẶNG (đã fix)**: `exe_prefix` THIẾU trong schemas/appdb.v1.schema.json
+  (`additionalProperties: false` ⇒ shipped db vi phạm schema chính nó —
+  đúng lớp lỗi F2-005 "engine_owner thiếu schema"). Fix: thêm vào
+  matchClause properties.
+- **T1 TRUNG (đã fix)**: SecureCRT/Xshell entry gate `when: terminal` mà R9
+  không có class của chúng (SecureCRT = MFC, UIA hay về UNKNOWN) ⇒ entry
+  gần như chết. Fix: bỏ `when` (parity win.mobaxterm — UIA UNKNOWN vẫn match);
+  +kitty_portable.exe; test asserts UNKNOWN role cho cả nhóm.
+- **T2 TRUNG (đã fix)**: 4 test v49 không phủ nhánh fallback (height 500 <
+  khoảng trống trên ⇒ không bao giờ flip) → thêm case height 1000 (dưới tràn
+  ⇒ flip-trên bị clamp ⇒ fallback) — khoá bất biến không-đè-caret.
+- **TH1 (đã fix)**: place_in_work i32 overflow (`anchor.bottom + 4` với
+  caret ≈ i32::MAX) → saturating_add. TH2: +kitty_portable.exe. T3: xshell
+  corpus case (preset_matrix test cả nhóm legacy × 3 role).
+
+**Panel che vùng gõ (user report — đã fix)**: `place()` tách thành
+`place_in_work` pure (work area tham số — unit test được); fix: clamp
+work-area có thể đẩy panel ĐÈ lên dòng caret (caret gần đỉnh màn hình +
+panel cao) ⇒ bất biến không-giao-dòng-caret, xung đột ⇒ fallback dưới caret
+(saturating_add). 4 test v49 cũ không phủ nhánh (E3 T2) → thêm fallback test.
+
+**Panel Linux/macOS**: không cần fix — Fcitx5 setAuxDown + CommonCandidateList
+và macOS IMKCandidates do UI framework tự đặt cạnh marked text (không có lớp
+clamp tự viết như Windows).
+
+**Đo vòng 49-50**: 10 appdb + 13 field-detect + 104 win-tsf tests · FPR
+0/2739 · recall 28/28+38/38 · corpus E2 206/206 · clippy 0 · preflight 23/23.

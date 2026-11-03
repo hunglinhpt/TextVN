@@ -171,6 +171,36 @@ fn unknown_app_field_defaults() {
     );
 }
 
+/// Vòng 49 (TSF-bypass sweep + E3 T3): terminal legacy không TSF → hook-owner
+/// ForwardAsCommit ở MỌI role (bỏ `when` — UIA hay về UNKNOWN).
+#[test]
+fn terminal_legacy_hook_owned_moi_role() {
+    let d = db();
+    for app in [
+        "putty.exe",
+        "kitty.exe",
+        "kitty_portable.exe",
+        "ttermpro.exe",
+        "SecureCRT.exe",
+        "MobaXterm.exe",
+    ] {
+        for role in [IME_FIELD_TERMINAL, IME_FIELD_UNKNOWN, IME_FIELD_BODY] {
+            assert_eq!(
+                resolve(&d, app, role, 0),
+                Strategy::ForwardAsCommit,
+                "{app} role {role} phải ForwardAsCommit"
+            );
+        }
+    }
+    // Xshell — entry riêng cùng nhóm.
+    for role in [IME_FIELD_TERMINAL, IME_FIELD_UNKNOWN] {
+        assert_eq!(
+            resolve(&d, "xshell.exe", role, 0),
+            Strategy::ForwardAsCommit
+        );
+    }
+}
+
 /// editbox Finder → SelectionReplace (rename file — preset mac.finder.rename).
 #[test]
 fn finder_rename_editbox() {

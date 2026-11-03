@@ -678,7 +678,9 @@ fn place_in_work(anchor: Anchor, width: i32, height: i32, work: RECT) -> (i32, i
     // tràn mép dưới chấp nhận được, che dòng đang gõ thì không.
     let overlaps_caret_line = y < anchor.bottom && y + height > anchor.top;
     if overlaps_caret_line {
-        y = anchor.bottom + 4;
+        // TH1 (Pass E3): saturating — app hostile có thể trả caret ≈ i32::MAX
+        // qua Anchor::from_caret_rect; cộng tràn = panic (debug) / wrap.
+        y = anchor.bottom.saturating_add(4);
     }
     (x, y)
 }
@@ -1264,6 +1266,25 @@ mod tests {
         assert_eq!(y, anchor.bottom + 4);
         assert!(y + 200 <= work.bottom);
         assert!(x >= work.left);
+    }
+
+    // Vòng 49-E3 T2: phủ nhánh fallback — panel cao 1000px, caret gần đỉnh:
+    // dưới tràn ⇒ flip-trên bị clamp xuống ĐÈ dòng caret ⇒ fallback dưới
+    // caret (không re-clamp work.top — self-protection đã chứng minh).
+    #[cfg(windows)]
+    #[test]
+    fn v49_panel_fallback_khi_panel_cao_hon_khong_gian_tren() {
+        let anchor = Anchor::new(400, 60, 402, 76); // caret gần đỉnh
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let (_, y) = place_in_work(anchor, 420, 1000, work);
+        // Bất biến: KHÔNG giao dòng caret (60..76) — fallback y=80.
+        assert_eq!(y, anchor.bottom + 4);
+        assert!(y >= anchor.bottom, "panel đáy phải dưới caret top");
     }
 
     #[cfg(windows)]
