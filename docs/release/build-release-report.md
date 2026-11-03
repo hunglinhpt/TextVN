@@ -6,13 +6,13 @@
 |---|---|
 | Nội dung | **MobaXterm gõ không ra chữ**: appdb kind match mới `exe_prefix` (schema v1 tương thích) + entry `win.mobaxterm` engine_owner=hook (TSF nhường qua owns_engine có sẵn; hook ăn phím + inject SendInput WIN-041/042 có sẵn) + field-detect class `TMobaXtermForm` → TERMINAL. **e2e Linux gợi ý từ**: IBus C (IBUS_CAP_AUXILIARY_TEXT + ghost '⇥ triển' + Tab 'phát triển' — PASS thật trên CI qua ibus-daemon) + Fcitx5 Python (suggest Tab + capability reset sau test mật khẩu). **Docs**: README 'Tính năng đầy đủ' + 'Tóm tắt phiên bản' 0.2.44→0.2.60 (VI+EN) |
 | Đo | 9 appdb + 13 field-detect tests (matrix 32 case) · 206 test assist · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | điền sau B3 |
-| Release | v0.2.61 tag ký GPG — điền sau B6 |
-| Checksums | điền sau B7 |
-| Homebrew (B7b) | điền sau B7b |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.61 — hash điền sau B7e |
-| PPA (B7f) | debian/changelog `0.2.61-0ppa1` |
-| approved (B7c) | `approved/v0.2.61/` — điền sau B7c |
+| CI trên commit gắn tag 9ea344b | 7/7 workflow xanh (ci-shared · ci-windows · ci-linux e2e ibus+fcitx5 · ci-macos · ci-aur · ci-deb · repo-hygiene) |
+| Release | [v0.2.61 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.61) — release-candidate [4/4 job](https://github.com/hunglinhpt/TextVN/actions/runs/41555092067) xanh; **34 asset**; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `3bed7c89…261c` · MSIX `360ebb69…d15d` · mac zip `04b37e87…b5c7` · PKGBUILD archive `63ca3623…b77b` |
+| Homebrew (B7b) | cask `version "0.2.61"` + `sha256` = mac zip `04b37e87…b5c7` — sync-cask [#41662418259](https://github.com/hunglinhpt/homebrew-tap/actions/runs/41662418259) success |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.61 = archive v0.2.61 `63ca3623…b77b`; publish AUR chờ owner SSH |
+| PPA (B7f) | debian/changelog `0.2.61-0ppa1`; upload PPA = owner |
+| approved (B7c) | `approved/v0.2.61/` — 34 file byte-identical, raw URL machine.exe + msix 200 (commit `4a562ea`) |
 
 ## Bản 0.2.60 — quét O(n²) toàn luật về tuyến tính (vòng 46)
 

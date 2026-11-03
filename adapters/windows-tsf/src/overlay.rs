@@ -639,8 +639,12 @@ fn place(hwnd: HWND, anchor: Anchor, width: i32, height: i32) -> (i32, i32) {
         right: anchor.right,
         bottom: anchor.bottom,
     };
-    let mut x = anchor.left;
-    let mut y = anchor.bottom + 4;
+    let mut work = RECT {
+        left: 0,
+        top: 0,
+        right: 1920,
+        bottom: 1080,
+    };
     unsafe {
         let mon = MonitorFromRect(&anchor_rect, MONITOR_DEFAULTTONEAREST);
         let mut info = MONITORINFO {
@@ -648,18 +652,34 @@ fn place(hwnd: HWND, anchor: Anchor, width: i32, height: i32) -> (i32, i32) {
             ..Default::default()
         };
         if GetMonitorInfoW(mon, &mut info).as_bool() {
-            let work = info.rcWork;
-            if x + width > work.right {
-                x = work.right - width;
-            }
-            if y + height > work.bottom {
-                y = anchor.top - height - 4;
-            }
-            x = x.max(work.left);
-            y = y.max(work.top);
+            work = info.rcWork;
         }
     }
     let _ = hwnd;
+    place_in_work(anchor, width, height, work)
+}
+
+/// Pure (work area là tham số) — unit test được mà không cần màn hình thật.
+#[cfg(windows)]
+fn place_in_work(anchor: Anchor, width: i32, height: i32, work: RECT) -> (i32, i32) {
+    let mut x = anchor.left;
+    let mut y = anchor.bottom + 4;
+    if x + width > work.right {
+        x = work.right - width;
+    }
+    if y + height > work.bottom {
+        y = anchor.top - height - 4;
+    }
+    x = x.max(work.left);
+    y = y.max(work.top);
+    // Vòng 49 (user: "panel che mất vùng gõ"): clamp work-area có thể đẩy
+    // panel ĐÈ lên dòng caret (caret gần đỉnh màn hình + panel cao —
+    // flip-trên bị clamp xuống). Xung đột dòng caret ⇒ về chỗ dưới caret:
+    // tràn mép dưới chấp nhận được, che dòng đang gõ thì không.
+    let overlaps_caret_line = y < anchor.bottom && y + height > anchor.top;
+    if overlaps_caret_line {
+        y = anchor.bottom + 4;
+    }
     (x, y)
 }
 
@@ -1206,6 +1226,77 @@ mod tests {
 
     /// R2-125: caret rỗng cho rect bề rộng 0 (Notepad Win11/RichEdit) vẫn là
     /// vị trí hợp lệ — trước đây bị loại nên panel không bao giờ hiện.
+    // Vòng 49 (user: "panel che mất vùng gõ"): place_in_work không được đè
+    // lên dòng caret sau clamp work-area. RECT/win32 — chỉ Windows.
+    #[cfg(windows)]
+    #[test]
+    fn v49_panel_khong_che_dong_caret_khi_caret_ganh_dinh() {
+        let anchor = Anchor::new(400, 60, 402, 76); // caret gần đỉnh màn hình
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        // Panel cao 500px — không đủ chỗ phía trên ⇒ clamp về work.top.
+        let (x, y) = place_in_work(anchor, 420, 500, work);
+        // Bất biến: panel KHÔNG giao dòng caret (anchor.top..anchor.bottom).
+        assert!(
+            y + 500 <= anchor.top || y >= anchor.bottom,
+            "panel ({x},{y},+420,+500) đè dòng caret (60..76)"
+        );
+        // Fallback phải là chỗ DƯỚI caret.
+        assert_eq!(y, anchor.bottom + 4);
+        assert!(x >= work.left);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn v49_panel_duoi_caret_binh_thuong() {
+        let anchor = Anchor::new(400, 300, 402, 316);
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let (x, y) = place_in_work(anchor, 420, 200, work);
+        assert_eq!(y, anchor.bottom + 4);
+        assert!(y + 200 <= work.bottom);
+        assert!(x >= work.left);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn v49_panel_flip_tren_khi_het_cho_duoi() {
+        let anchor = Anchor::new(400, 980, 402, 996); // gần đáy work area
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let (x, y) = place_in_work(anchor, 420, 200, work);
+        // Flip lên trên: đáy panel = anchor.top - 4.
+        assert_eq!(y + 200, anchor.top - 4);
+        assert!(x >= work.left);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn v49_panel_x_clamp_phai_right() {
+        let anchor = Anchor::new(1880, 300, 1882, 316);
+        let work = RECT {
+            left: 0,
+            top: 0,
+            right: 1920,
+            bottom: 1040,
+        };
+        let (x, y) = place_in_work(anchor, 420, 200, work);
+        assert_eq!(x + 420, work.right);
+        assert_eq!(y, anchor.bottom + 4);
+    }
+
     #[test]
     fn r2_125_caret_rect_be_rong_0_van_neo_duoc() {
         assert_eq!(

@@ -128,12 +128,14 @@ fn role(e: &UiaElement) -> u32 {
     // R9
     // Vòng 48 (MobaXterm): class cửa sổ chính "TMobaXtermForm" (has_class
     // quét cả ancestor — control terminal con kế thừa chuỗi class).
+    // Vòng 49 (TSF-bypass sweep): +VTWin32 (TeraTerm).
     if [
         "cascadia_hosting_window_class",
         "putty",
         "xterm",
         "wezterm",
         "tmobaxtermform",
+        "vtwin32",
     ]
     .into_iter()
     .any(has_class)
@@ -458,6 +460,15 @@ mod tests {
                 },
                 IME_FIELD_TERMINAL,
             ),
+            // Vòng 49 (TSF-bypass sweep): KiTTY dùng lại class "PuTTY" (fork);
+            // TeraTerm = "VTWin32".
+            (
+                UiaElement {
+                    class_name: "VTWin32".into(),
+                    ..Default::default()
+                },
+                IME_FIELD_TERMINAL,
+            ),
             (
                 UiaElement {
                     ancestor_classes: vec!["WezTerm".into()],
@@ -558,7 +569,7 @@ mod tests {
             ),
         ];
         // Vòng 48: +2 case MobaXterm (class chính + control con kế thừa).
-        assert_eq!(cases.len(), 32, "WIN-030 minimum mock matrix");
+        assert_eq!(cases.len(), 33, "WIN-030 minimum mock matrix");
         for (element, expected_role) in cases {
             assert_eq!(role_of(element), expected_role);
         }
