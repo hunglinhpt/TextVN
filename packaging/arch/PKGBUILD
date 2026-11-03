@@ -10,7 +10,7 @@
 # rồi chạy `makepkg --printsrcinfo` đối chiếu .SRCINFO, CI sẽ chặn nếu lệch.
 
 pkgname=textvn
-pkgver=0.2.61
+pkgver=0.2.62
 pkgrel=1
 pkgdesc="Bộ gõ tiếng Việt (Telex, VNI, VIQR, Simple Telex) cho IBus và Fcitx5 — engine Rust"
 arch=('x86_64')
@@ -24,7 +24,7 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/hunglinhpt/TextVN/archive/r
 # R2-118: hash phải là archive của ĐÚNG tag pkgver — tính SAU khi tag tồn tại
 # (B7e: `sha256sum <(curl -sL .../archive/refs/tags/v$pkgver.tar.gz)`); publish-aur.sh
 # từ chối push nếu lệch version, CI ci-aur build cây hiện tại nên không phụ thuộc.
-sha256sums=('a5a5199db5df9c804a752fa933edd98767553680f51b7fe7c3350c801878563f')
+sha256sums=('63ca362382d7c767f8f149928d69c5e9647692aace2376ffef7e9df00fe4b77b')
 
 prepare() {
     # Source archive của GitHub trích ra TextVN-<ver>/ (tên repo) — đổi tên cho

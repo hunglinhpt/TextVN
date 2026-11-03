@@ -7,6 +7,27 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.62] — 2026-11-03
+
+### Fixed
+- **TSF-bypass sweep**: KiTTY (fork PuTTY, không TSF) tách khỏi entry Windows
+  Terminal sang hook-owner; TeraTerm/SecureCRT/Xshell thêm entry hook (bỏ gate
+  role — UIA hay về UNKNOWN trên app MFC/legacy); entry win.mobaxterm trùng
+  lặp được xoá; schema appdb.v1 bổ sung `exe_prefix`.
+- **Panel trợ lý không còn đè lên dòng đang gõ**: clamp work-area có thể đẩy
+  panel đè lên dòng caret khi caret gần đỉnh màn hình — bất biến
+  không-giao-dòng-caret + fallback dưới caret (i32 saturating).
+- MobaXterm audit 3 pass (self / E-system / E3 đối kháng): exe_prefix logic
+  đúng (app_id là base-name — xác minh 3 nguồn), kitty tách đúng, panel
+  bất biến đúng.
+
+**English** — 0.2.62 ships the three-pass audit of the MobaXterm fix plus a
+terminal-family sweep: KiTTY moved to the hook-owned engine (PuTTY fork,
+no TSF), TeraTerm/SecureCRT/Xshell added as hook-owned with the role gate
+dropped, a duplicated appdb entry removed, exe_prefix documented in the
+appdb schema, and the assist panel no longer overlaps the typing line after
+work-area clamping (i32 saturated).
+
 ## [0.2.61] — 2026-11-03
 
 ### Fixed
@@ -2373,6 +2394,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.52...HEAD
+[0.2.62]: https://github.com/hunglinhpt/TextVN/compare/v0.2.61...v0.2.62
 [0.2.61]: https://github.com/hunglinhpt/TextVN/compare/v0.2.60...v0.2.61
 [0.2.60]: https://github.com/hunglinhpt/TextVN/compare/v0.2.59...v0.2.60
 [0.2.59]: https://github.com/hunglinhpt/TextVN/compare/v0.2.58...v0.2.59

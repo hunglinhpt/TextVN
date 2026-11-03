@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.62" date="2026-11-03">
+      <description>
+        <p>Three-pass audit of the MobaXterm typing fix plus a terminal-family sweep: KiTTY (a PuTTY fork without TSF) moved to the hook-owned engine, TeraTerm/SecureCRT/Xshell entries added with the role gate dropped where UIA cannot classify, the shipped database no longer contains a duplicated entry, the appdb schema now documents exe_prefix matching, the assist panel never overlaps the line being typed after work-area clamping, and i32 saturation guards hostile caret coordinates.</p>
+      </description>
+    </release>
     <release version="0.2.61" date="2026-11-03">
       <description>
         <p>MobaXterm (and other PuTTY-family terminals) can now be typed in: the app database gained a prefix-matching rule that hands typing ownership to the keyboard-hook engine for MobaXterm, and the MobaXterm window class is recognised as a terminal field. Linux end-to-end tests now cover text prediction (ghost preview and Tab completion) on both IBus and Fcitx5.</p>

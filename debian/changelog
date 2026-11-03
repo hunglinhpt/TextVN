@@ -1,3 +1,11 @@
+textvn (0.2.62-0ppa1) noble; urgency=medium
+
+  * Vong 49-50: TSF-bypass sweep (kitty/teraterm/securecrt/xshell hook-
+    owner; kitty tam bai win.wt) + panel khong de dong caret + schema
+    exe_prefix + MobaXterm fix 3-pass audit.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Tue, 03 Nov 2026 18:00:00 +0700
+
 textvn (0.2.61-0ppa1) noble; urgency=medium
 
   * Vong 48: MobaXterm go khong ra chu — appdb exe_prefix + entry hook-owner;
