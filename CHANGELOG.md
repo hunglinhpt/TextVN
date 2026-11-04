@@ -7,6 +7,75 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.64] — 2026-11-04
+
+### Added
+- **User Style Profile (P7)** — học từ/cặp sửa-lỗi CÁ NHÂN (vòng 54): opt-in
+  tắt mặc định (G8 — chỉ từ + cặp sai→đúng + count, không giờ/app/câu),
+  cap chặt (200 từ / 50 cặp / ≤32 ký tự / ≤16KB — sanitize sau parse),
+  kết hợp từ điển cá nhân `english_words`; prediction ưu tiên từ cá nhân
+  (sort TOP, list rỗng = byte-for-byte cũ); assist correction cá nhân
+  suggestion-only thắng bảng tĩnh; FFI `ime_style_note_correction` +
+  `ime_style_profile_drain` (persist per-OS v2).
+- **Bộ 1000 kịch bản abnormal** (`abnormal_1000.rs`) — sinh thủ tục
+  deterministic (40 seed × 23 mutation + 80 biên), 4 rào chặn (no-panic/
+  budget tuyến tính/idempotent-fix/UTF-8+span), G8 clip-60.
+- **DFMEA + DRBFM** (`docs/50-assist/P7-STYLE-PROFILE-DFMEA.md`): 18 failure
+  modes + 8 design review + gate tests, đề xuất tối ưu thu từ audit.
+- **Corpora dự đoán 35.681 mục** (vòng 53): 6.672 âm tiết Việt + 1.941 từ ghép
+  (13 domain mới — bất động sản, ngân hàng-bảo hiểm, logistics xuất nhập
+  khẩu, sản xuất, đấu thầu, truyền thông, nghiên cứu, xây dựng, nông nghiệp,
+  du lịch, y tế, thủ tục hành chính, cảm xúc-quan hệ) + 9.868 từ tiếng Anh +
+  **13.854 cặp câu/cụm/thành ngữ** (8.782 VI + 5.072 EN) — thêm ~500 câu thật
+  chia mọi ranh giới từ, 24 thành ngữ/idiom mới, curated ~170 cặp, ma trận
+  mở rộng (vị ngữ 30 chủ đề, 12 nhóm động từ mới).
+- **Bộ test QA văn phòng mở rộng** (`office_mixed_work_v53.rs`, 20 test):
+  8 persona mới (bất động sản, ngân hàng-bảo hiểm, logistics, sản xuất, đấu
+  thầu, y tế, du lịch, thủ tục hành chính) + câu mix VI-EN + đường dẫn/URL/
+  email + **abnormal mở rộng** (input 65k ký tự, surrogate pair lặp, ZWJ giữa
+  từ Việt, bidi, replacement char, lỗi thật sát emoji) + NFR <1ms/câu.
+
+### Fixed
+- **FP "chuyến bay bay thẳng"** (QA du lịch bắt): "bay" danh từ + động từ
+  cùng hình là cách nói chuẩn — vào whitelist lặp từ cả VI lẫn EN ("bay" toàn
+  ASCII nên rơi whitelist EN theo luật từng-từ — chỉ thêm VI là chưa đủ).
+- 5 mục rác trong bảng compounds bị gate build chặn tự động (`m2 sàn`,
+  `L/C`, `MOU`, `container 40 feet`, `to-do list`, `cấp cứu 115`).
+
+### Changed
+- **`cargo xtask gen-vocab` (Rust) thay script Python** — đúng ngôn ngữ policy
+  Rust + C/C++ + Swift; dep duy nhất `textvn-core` (path, 0 crate ngoài) để
+  dùng một nguồn sự thật `is_valid_word` + `normalize_tone` (validator tự
+  chặn loanword/typo, bỏ danh sách loại thủ công).
+- Perf với pool +14%: compounds bucket theo byte đầu (~10× giảm quét prefix
+  ngắn), phrase buckets bỏ so-con-trỏ, guard `Vec::with_capacity` — prefix
+  8.4–52.8µs · Tab 183ns · next-phrase 0.7–2.4µs mỗi lần gọi (release).
+
+**English** — 0.2.64 ships the **User Style Profile (P7)** — opt-in personal
+learning of frequently-typed words and accepted typo→fix corrections (G8:
+words + counts only, no sentences/timing; hard caps 200 words / 50 pairs /
+16KB with sanitize-on-parse), personal words ranked TOP in prediction (empty
+list = byte-for-byte old behavior) and personal corrections win over the
+static table (suggestion-only), plus the deterministic **1000-case abnormal
+suite** (40 seeds × 23 mutations + boundary lengths 0…65536 with four guards)
+and the **DFMEA/DRBFM design-review document** (18 failure modes + gate
+tests). It also grows the prediction corpora to **35,681 entries**:
+6,672 Vietnamese syllables + 1,941 compounds across 13 new domains (real
+estate, banking & insurance, logistics, manufacturing, tendering, media,
+research, construction, agriculture, travel, healthcare, administrative
+procedures, relationships) + 9,868 English words + **13,854 context→phrase
+pairs** (8,782 VI + 5,072 EN) with ~500 new real sentences split at every
+word boundary, 24 new idioms, ~170 curated pairs and expanded matrices. The
+Python data script is replaced by a **Rust `cargo xtask gen-vocab` task**
+(language policy: Rust/C/C++/Swift only — reusing the engine's own validator
+as the single source of truth). The travel QA scenario caught a real
+false positive — "chuyến bay bay thẳng" (noun + verb sharing a form) —
+"bay" now sits in both repeat whitelists. Compound lookups are bucketed by
+first byte (~10× fewer scans on short prefixes): 8.4–52.8µs prefix, 183ns
+Tab, 0.7–2.4µs next-phrase per call. An extended QA battery (20 tests,
+8 new office personas, 65k-char inputs, surrogate/BIDI/ZWJ abnormals)
+keeps FPR at 0/2,739 with recall 28/28 + 38/38.
+
 ## [0.2.63] — 2026-11-04
 
 ### Added
@@ -2723,3 +2792,4 @@ git push origin v0.1.0
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
+[0.2.64]: https://github.com/hunglinhpt/TextVN/compare/v0.2.63...v0.2.64

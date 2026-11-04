@@ -1,3 +1,11 @@
+textvn (0.2.64-0ppa1) noble; urgency=medium
+
+  * Corpora dự đoán 35.681 mục (vòng 53): gen-vocab Rust thay Python đúng
+    ngôn ngữ policy; compounds +13 domain; QA battery 8 persona mới + abnormal
+    mở rộng; fix FP "chuyến bay bay".
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Wed, 04 Nov 2026 18:00:00 +0700
+
 textvn (0.2.63-0ppa1) noble; urgency=medium
 
   * Mở rộng corpora dự đoán ~31.000 mục (vòng 52): 6.675 âm tiết Việt +
