@@ -51763,7 +51763,7 @@
       "node_kind": "heading",
       "norm_label": "bang chung quy trinh chay thanh cong",
       "source_file": "docs/release/release-process.md",
-      "source_location": "L158"
+      "source_location": "L159"
     },
     {
       "id": "docs_release_release_process_b\u1ed9_docs_c\u1ee7a_m\u1ed9t_b\u1ea3n_ph\u00e1t_h\u00e0nh_ch\u00fa_th\u00edch_t\u1eebng_file",
@@ -102896,6 +102896,18 @@
       "type": "external"
     },
     {
+      "id": "unicodedata",
+      "label": "unicodedata",
+      "_origin": "semantic",
+      "community": 364,
+      "community_name": "gen_vocab_v52.py",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "unicodedata",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "pipe_name",
       "label": "pipe_name",
       "_origin": "semantic",
@@ -103060,6 +103072,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "keymap",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "complete_vn_word",
+      "label": "complete_vn_word",
+      "_origin": "semantic",
+      "community": 410,
+      "community_name": "predict_next_phrase_candidates",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "complete_vn_word",
       "source_file": "",
       "type": "external"
     },
@@ -103256,6 +103280,18 @@
       "type": "external"
     },
     {
+      "id": "vn_syllables_data",
+      "label": "vn_syllables_data",
+      "_origin": "semantic",
+      "community": 79,
+      "community_name": "predict.rs",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "vn_syllables_data",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "globalization",
       "label": "globalization",
       "_origin": "semantic",
@@ -103336,39 +103372,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "tokenkind",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "unicodedata",
-      "label": "unicodedata",
-      "community": 364,
-      "community_name": "gen_vocab_v52.py",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "unicodedata",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "complete_vn_word",
-      "label": "complete_vn_word",
-      "community": 410,
-      "community_name": "predict_next_phrase_candidates",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "complete_vn_word",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "vn_syllables_data",
-      "label": "vn_syllables_data",
-      "community": 79,
-      "community_name": "predict.rs",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "vn_syllables_data",
       "source_file": "",
       "type": "external"
     }
@@ -258354,7 +258357,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/release-process.md",
-      "source_location": "L158",
+      "source_location": "L159",
       "weight": 1.0
     },
     {
@@ -308085,5 +308088,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "78131708552f7362fb68391c9e3caddcb25f28e5"
+  "built_at_commit": "d239b7dc0355beb6949b5a617478414028c21b6a"
 }

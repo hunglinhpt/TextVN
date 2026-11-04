@@ -1,9 +1,9 @@
 # Graph Report - TextVN  (2026-11-04)
 
 ## Corpus Check
-- 455 files · ~859,479 words
+- 455 files · ~859,597 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
+- Unclassified: 323 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
 ## Summary
 - 8908 nodes · 17635 edges · 478 communities (408 shown, 70 thin omitted)
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d239b7dc`
+- Built from commit: `9feee29f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
