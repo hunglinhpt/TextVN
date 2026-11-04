@@ -6,13 +6,13 @@
 |---|---|
 | Nội dung | **Corpora**: compounds 1.294→1.941 (13 domain mới), vn_phrases 8.782 + en_phrases 5.072 (+500 câu thật, 24 idioms, ~170 curated, matrices mở rộng), tổng 21.827 từ vựng + 13.854 câu/cụm = **35.681 mục**. **Policy**: scripts/gen_vocab_v52.py (Python) XÓA — thay `cargo xtask gen-vocab` (Rust, dep textvn-core path 0 crate ngoài, validator làm nguồn sự thật duy nhất). **QA mở rộng**: office_mixed_work_v53 20 test — 8 persona mới + mix VI-EN + đường dẫn/URL/email + abnormal (65k input, surrogate, ZWJ, bidi, replacement, lỗi sát emoji) + NFR <1ms. **Fix FP**: "chuyến bay bay thẳng" — "bay" whitelist cả VI lẫn EN (QA du lịch bắt, chỉ thêm VI là chưa đủ vì "bay" ASCII rơi whitelist EN). **Perf**: compounds bucket byte-đầu, phrase flag tường minh, with_capacity guard — prefix 8.4-52.8µs · Tab 183ns · next-phrase 0.7-2.4µs |
 | Đo | workspace 926/926 · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | 7/7 workflow xanh (ci-shared · ci-windows · ci-linux · ci-macos · ci-aur · ci-deb · repo-hygiene) |
-| Release | [v0.2.64 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) — release-candidate 4/4; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
-| Checksums | (pin sau khi publish) |
-| Homebrew (B7b) | cask `version "0.2.64"` + sha256 mac zip (sync-cask) |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.64 (R2-120c: bump đủ 17 site) |
+| CI trên commit gắn tag 4044d52 | 7/7 workflow xanh (ci-shared 10m30s · ci-windows 4m57s · ci-linux 5m25s · ci-macos 5m7s rerun-R7 · ci-aur 2m · ci-deb 2m15s · repo-hygiene) |
+| Release | [v0.2.64 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) Verified=true — [RC 41901880801](https://github.com/hunglinhpt/TextVN/actions/runs/41901880801) 4/4 job xanh; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
+| Homebrew (B7b) | cask `version "0.2.64"` + `sha256 d81cc6ec…` = mac zip trong SHA256SUMS ✓ |
+| approved (B7c) | `approved/v0.2.64/` 18 file byte-identical (commit `1ca4f9e`), raw URL machine.exe + msix **200** |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.64 = archive `120f4091…`; publish AUR chờ owner SSH |
 | PPA (B7f) | debian/changelog `0.2.64-0ppa1` |
-
+| Checksums | machine exe `e381d461c0203b84…` · MSIX `215139231cafb7b7…` · mac zip `d81cc6ec827ffde0…` · linux tar.gz `8af754a6932cefb5…` · PKGBUILD archive `120f40914e1aaf7c…` (gpg --verify SHA256SUMS.txt Good) |
 ## Bản 0.2.63 — corpora dự đoán ~31k mục + QA văn phòng (vòng 51-52)
 
 | Hạng mục | Bằng chứng |
