@@ -128,6 +128,11 @@ pub struct Config {
     /// (`mode: "off"`) giữ nguyên (serde default chỉ áp cho khoá thiếu).
     #[serde(default)]
     pub assist: AssistSettings,
+    /// User Style Profile (P7 — vòng 54): dữ liệu học cá nhân (từ hay dùng +
+    /// cặp sai→đúng đã chấp nhận). OPT-IN tắt mặc định (G8); cap chặt
+    /// (200 từ / 50 cặp / ≤16KB — `sanitize` chạy sau parse).
+    #[serde(default)]
+    pub style_profile: StyleProfileSettings,
 }
 
 /// Phần `"suggest"` của `config.v1.json` (P0-3 §1.1). Các trường khác trong
@@ -314,6 +319,181 @@ fn default_true() -> bool {
     true
 }
 
+// ---------------------------------------------------------------------------
+// User Style Profile (USP — P7, vòng 54): dữ liệu học CÁ NHÂN (từ hay dùng +
+// cặp sai→đúng user đã chấp nhận). OPT-IN tắt mặc định (G8); cap chặt theo
+// yêu cầu chủ repo "style lưu không được phép quá lớn".
+// ---------------------------------------------------------------------------
+
+/// Số từ cá nhân tối đa.
+pub const STYLE_WORD_CAP: usize = 200;
+/// Số cặp sai→đúng tối đa.
+pub const STYLE_CORRECTION_CAP: usize = 50;
+/// Độ dài 1 từ/cặp tối đa (ký tự Unicode).
+pub const STYLE_ENTRY_MAX_CHARS: usize = 32;
+/// Trần tổng bytes của khối style khi serialize (code cấm vượt 16384 dù user chỉnh).
+pub const STYLE_MAX_TOTAL_BYTES: usize = 16 * 1024;
+
+/// Từ cá nhân: từ + số lần dùng.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StyleWord {
+    pub word: String,
+    pub count: u32,
+}
+
+/// Cặp sai→đúng user đã chấp nhận (số lần).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StyleCorrection {
+    pub from: String,
+    pub to: String,
+    pub count: u32,
+}
+
+/// Khối `style_profile` của `config.v1.json`. Thiếu khoá = default (tắt, rỗng).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StyleProfileSettings {
+    /// Master switch — mặc định TẮT (G8; không học gì khi chưa bật).
+    pub enabled: bool,
+    /// Từ user hay gõ (VI+EN), sắp count giảm dần.
+    pub words: Vec<StyleWord>,
+    /// Cặp sai→đúng user đã CHẤP NHẬN sửa (click Apply/Fix-all), count giảm dần.
+    pub corrections: Vec<StyleCorrection>,
+    /// Trần tổng bytes user chọn (4096..65536; code cấm vượt 16384).
+    pub max_total_bytes: u32,
+}
+
+impl Default for StyleProfileSettings {
+    fn default() -> Self {
+        StyleProfileSettings {
+            enabled: false,
+            words: Vec::new(),
+            corrections: Vec::new(),
+            max_total_bytes: STYLE_MAX_TOTAL_BYTES as u32,
+        }
+    }
+}
+
+impl StyleProfileSettings {
+    /// Từ/cặp có hợp lệ để lưu? — chặn G8 (đoạn văn), số, dấu câu, điều
+    /// khiển, emoji; cho phép chữ cái Unicode + dấu cách (tối đa 3 từ) + `-`.
+    pub fn valid_entry(s: &str) -> bool {
+        let n = s.chars().count();
+        if !(2..=STYLE_ENTRY_MAX_CHARS).contains(&n) {
+            return false;
+        }
+        if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 3 {
+            return false;
+        }
+        s.chars()
+            .all(|c| c.is_alphabetic() || c == ' ' || c == '-' || c == '\'')
+    }
+
+    /// Sanitize in-place: bỏ mục không hợp lệ, dedupe (cộng count), sort count
+    /// giảm dần, prune cap + bytes cap. Idempotent, không bao giờ fail —
+    /// dữ liệu do máy ghi, 1 mục hỏng không được chết cả config.
+    pub fn sanitize(&mut self) {
+        // Words — dedupe theo lowercase, sort count desc.
+        let mut merged: BTreeMap<String, u32> = BTreeMap::new();
+        for w in &self.words {
+            let key = w.word.trim().to_lowercase();
+            if !Self::valid_entry(&key) {
+                continue;
+            }
+            *merged.entry(key).or_insert(0) += w.count.max(1);
+        }
+        let mut ws: Vec<StyleWord> = merged
+            .into_iter()
+            .map(|(word, count)| StyleWord { word, count })
+            .collect();
+        ws.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.word.cmp(&b.word)));
+        ws.truncate(STYLE_WORD_CAP);
+        self.words = ws;
+        // Corrections — dedupe (from,to) cộng count, sort desc, prune.
+        let mut cmap: BTreeMap<(String, String), u32> = BTreeMap::new();
+        for c in &self.corrections {
+            let (f, t) = (c.from.trim().to_lowercase(), c.to.trim().to_lowercase());
+            if f == t || !Self::valid_entry(&f) || !Self::valid_entry(&t) {
+                continue;
+            }
+            *cmap.entry((f, t)).or_insert(0) += c.count.max(1);
+        }
+        let mut cs: Vec<StyleCorrection> = cmap
+            .into_iter()
+            .map(|((from, to), count)| StyleCorrection { from, to, count })
+            .collect();
+        cs.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.from.cmp(&b.from)));
+        cs.truncate(STYLE_CORRECTION_CAP);
+        self.corrections = cs;
+        // Bytes cap — prune mục count thấp nhất tới khi vừa (trần cứng 16KB).
+        let limit = (self.max_total_bytes as usize).min(STYLE_MAX_TOTAL_BYTES);
+        while self.total_bytes() > limit {
+            let drop_word = self
+                .words
+                .last()
+                .is_some_and(|w| self.corrections.last().is_none_or(|c| c.count <= w.count));
+            if drop_word && !self.words.is_empty() {
+                self.words.pop();
+            } else if !self.corrections.is_empty() {
+                self.corrections.pop();
+            } else {
+                break;
+            }
+        }
+    }
+
+    /// Tổng bytes ước lượng của khối (words + corrections + overhead field).
+    pub fn total_bytes(&self) -> usize {
+        let words: usize = self.words.iter().map(|w| w.word.len() + 14).sum();
+        let corr: usize = self
+            .corrections
+            .iter()
+            .map(|c| c.from.len() + c.to.len() + 26)
+            .sum();
+        words + corr
+    }
+
+    /// Merge delta học từ engine (đã validate nguồn) + sanitize. Cặp trùng
+    /// cộng count; từ mới có count = delta.
+    pub fn merge_deltas(&mut self, words: &[(String, u32)], corrections: &[(String, String, u32)]) {
+        for (w, n) in words {
+            if Self::valid_entry(w) && *n > 0 {
+                if let Some(e) = self
+                    .words
+                    .iter_mut()
+                    .find(|e| e.word.eq_ignore_ascii_case(w))
+                {
+                    e.count = e.count.saturating_add(*n);
+                } else {
+                    self.words.push(StyleWord {
+                        word: w.clone(),
+                        count: *n,
+                    });
+                }
+            }
+        }
+        for (f, t, n) in corrections {
+            if Self::valid_entry(f) && Self::valid_entry(t) && !f.eq_ignore_ascii_case(t) && *n > 0
+            {
+                if let Some(e) = self
+                    .corrections
+                    .iter_mut()
+                    .find(|e| e.from.eq_ignore_ascii_case(f) && e.to.eq_ignore_ascii_case(t))
+                {
+                    e.count = e.count.saturating_add(*n);
+                } else {
+                    self.corrections.push(StyleCorrection {
+                        from: f.clone(),
+                        to: t.clone(),
+                        count: *n,
+                    });
+                }
+            }
+        }
+        self.sanitize();
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Config {
@@ -334,6 +514,7 @@ impl Default for Config {
             quick_telex: false,
             suggest: SuggestSettings::default(),
             assist: AssistSettings::default(),
+            style_profile: StyleProfileSettings::default(),
         }
     }
 }
@@ -375,8 +556,11 @@ pub fn parse_config(json: &str) -> Result<Config, ConfigError> {
     if probe.config_version != 1 {
         return Err(ConfigError::Version);
     }
-    let cfg: Config = serde_json::from_str(json).map_err(|_| ConfigError::Schema)?;
+    let mut cfg: Config = serde_json::from_str(json).map_err(|_| ConfigError::Schema)?;
     cfg.validate_assist()?;
+    // USP (P7): prune im lặng — dữ liệu do máy ghi, mục hỏng không được chết
+    // cả config (fail-open về default mất macros/english_words đang chạy).
+    cfg.style_profile.sanitize();
     Ok(cfg)
 }
 

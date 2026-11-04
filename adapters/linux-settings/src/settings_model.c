@@ -136,6 +136,8 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
         /* P6: dự đoán văn bản opt-in — thiếu khoá = TẮT (khớp schema). */
         out->suggest_enabled = get_bool(s, "suggest.enabled", 0);
+        /* P7 (vong 54): style_profile — OPT-IN tat mac dinh. */
+        out->style_profile_enabled = get_bool(s, "style_profile.enabled", 0);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
     } else {
@@ -149,6 +151,7 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->free_marking = 1;
         out->auto_capitalize = 1;
         out->suggest_enabled = 0;      /* dự đoán opt-in — TẮT mặc định */
+        out->style_profile_enabled = 0; /* USP opt-in — TẮT mặc định (G8) */
     }
     out->vi_enabled = lc_state_read_enabled(p->state, 1);
 }

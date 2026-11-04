@@ -267,13 +267,16 @@ pub const EN_PHRASES_DATA: &str = include_str!("../../../data/en_phrases.tsv");
 /// alloc String cho ứng viên bị loại; chỉ `take(limit)` cuối cùng mới cấp phát).
 #[derive(Debug, Clone)]
 struct PrefixCandidate {
-    word: &'static str,
+    word: std::borrow::Cow<'static, str>,
     exact_match: bool,
     char_count: usize,
     weight: u32,
     /// Từ ghép có ÂM ĐẦU == tiền tố ("tiến độ" cho "tiến") — mở rộng đúng
     /// nghĩa; compound chỉ prefix-match byte ("người yêu" cho "ngư") thì false.
     ext: bool,
+    /// P7 (vòng 54): từ CÁ NHÂN (style_profile) — khoá sort TOP. List rỗng
+    /// mặc định → khoá này không đổi kết quả gì (0 hồi quy).
+    personal: bool,
 }
 
 /// Dự đoán hoàn tất tiền tố (Prefix Completion).
@@ -281,6 +284,27 @@ struct PrefixCandidate {
 /// Trả về danh sách ứng viên (tối đa `limit`), xếp theo độ ưu tiên:
 /// khớp trực tiếp (có dấu) > độ dài ký tự ngắn hơn (hoàn tất âm tiết trước) > weight cao hơn.
 pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -> Vec<String> {
+    predict_prefix_candidates_with_personal(typed_lower, is_vi, limit, &[])
+}
+
+/// P7 (vòng 54): như [`predict_prefix_candidates`] + ứng viên CÁ NHÂN
+/// (`style_profile.words` — (từ, count)) — `personal: true` xếp TOP.
+/// List rỗng → hành vi byte-for-byte cũ (0 hồi quy).
+pub fn predict_prefix_candidates_with_personal(
+    typed_lower: &str,
+    is_vi: bool,
+    limit: usize,
+    personal: &[(String, u32)],
+) -> Vec<String> {
+    predict_impl(typed_lower, is_vi, limit, personal)
+}
+
+fn predict_impl(
+    typed_lower: &str,
+    is_vi: bool,
+    limit: usize,
+    personal: &[(String, u32)],
+) -> Vec<String> {
     if typed_lower.chars().count() < 2 || limit == 0 {
         return Vec::new();
     }
@@ -288,7 +312,8 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
     // Vòng 52: dedup qua HashSet O(1) thay `ranked.iter().any()` O(n) mỗi push
     // (prefix ngắn như "t" từng thu hàng nghìn ứng viên → O(n²) so String).
     let mut ranked: Vec<PrefixCandidate> = Vec::new();
-    let mut seen: std::collections::HashSet<&'static str> = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<std::borrow::Cow<'static, str>> =
+        std::collections::HashSet::new();
     let typed_unaccented: String = strip_diacritics(&typed_lower.chars().collect::<Vec<_>>())
         .into_iter()
         .collect();
@@ -317,16 +342,17 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         let push_syll =
             |syll: &'static str,
              ranked: &mut Vec<PrefixCandidate>,
-             seen: &mut std::collections::HashSet<&'static str>| {
-                if same(syll) || !seen.insert(syll) {
+             seen: &mut std::collections::HashSet<std::borrow::Cow<'static, str>>| {
+                if same(syll) || !seen.insert(std::borrow::Cow::Borrowed(syll)) {
                     return;
                 }
                 ranked.push(PrefixCandidate {
-                    word: syll,
+                    word: std::borrow::Cow::Borrowed(syll),
                     exact_match: true,
                     char_count: syll.chars().count(),
                     weight: 90,
                     ext: false,
+                    personal: false,
                 });
             };
         for variant in [typed_lower, typed_old.as_str(), typed_new.as_str()] {
@@ -362,13 +388,16 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
                         false
                     };
 
-                if (matches_accented || matches_unaccented) && seen.insert(word) {
+                if (matches_accented || matches_unaccented)
+                    && seen.insert(std::borrow::Cow::Borrowed(word))
+                {
                     ranked.push(PrefixCandidate {
-                        word,
+                        word: std::borrow::Cow::Borrowed(word),
                         exact_match: matches_accented,
                         char_count: word.chars().count(),
                         weight,
                         ext: compound_ext(word),
+                        personal: false,
                     });
                 }
             }
@@ -387,43 +416,77 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         }
     }
 
+    // 1c. P7 (vòng 54): ứng viên CÁ NHÂN — push với personal=true, sort TOP.
+    // Đủ cả VI lẫn EN (từ cá nhân học từ chính user gõ); chỉ nhận prefix
+    // khớp (starts 3 biến thể) và chưa trùng seen.
+    for (pword, pcount) in personal {
+        if pword.chars().count() < 2 || same(pword) {
+            continue;
+        }
+        if starts(pword) {
+            // Cow::Owned — danh sách cá nhân sống trong EngineOptions (per-instance).
+            let word: std::borrow::Cow<str> = std::borrow::Cow::Owned(pword.clone());
+            if seen.insert(word.clone()) {
+                ranked.push(PrefixCandidate {
+                    word,
+                    exact_match: true,
+                    char_count: pword.chars().count(),
+                    // Boost theo count: 100 + min(count,30) — nổi trên mọi
+                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng.
+                    weight: 100u32.saturating_add((*pcount).min(30)),
+                    ext: compound_ext(pword),
+                    personal: true,
+                });
+            }
+        }
+    }
+
     // 2. Tra cứu từ tiếng Anh (khi gõ từ tiếng Anh hoặc thuật ngữ coder/kinh doanh)
     // Ưu tiên TECH_BUSINESS_TERMS — lowercase build 1 lần (OnceLock) thay vì
     // `to_lowercase()` + leak mỗi call (vòng 52: chống rò rỉ bộ nhớ mỗi phím).
     for &(term, tl) in tech_terms_lower() {
-        if tl.starts_with(typed_lower) && tl != typed_lower && seen.insert(term) {
+        if tl.starts_with(typed_lower)
+            && tl != typed_lower
+            && seen.insert(std::borrow::Cow::Borrowed(term))
+        {
             ranked.push(PrefixCandidate {
-                word: term,
+                word: std::borrow::Cow::Borrowed(term),
                 exact_match: true,
                 char_count: term.chars().count(),
                 weight: 85,
                 ext: false,
+                personal: false,
             });
         }
     }
 
     // en_common (danh sách restore-policy, ~150 mục — tuyến tính)
     for &word in en_common_lines() {
-        if word.starts_with(typed_lower) && word != typed_lower && seen.insert(word) {
+        if word.starts_with(typed_lower)
+            && word != typed_lower
+            && seen.insert(std::borrow::Cow::Borrowed(word))
+        {
             ranked.push(PrefixCandidate {
-                word,
+                word: std::borrow::Cow::Borrowed(word),
                 exact_match: true,
                 char_count: word.chars().count(),
                 weight: 70,
                 ext: false,
+                personal: false,
             });
         }
     }
 
     // en_freq3000 (vòng 52: binary search)
     for word in prefix_scan(en_freq_sorted(), typed_lower) {
-        if word != typed_lower && seen.insert(word) {
+        if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
             ranked.push(PrefixCandidate {
-                word,
+                word: std::borrow::Cow::Borrowed(word),
                 exact_match: true,
                 char_count: word.chars().count(),
                 weight: 60,
                 ext: false,
+                personal: false,
             });
         }
     }
@@ -431,13 +494,14 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
     // en_words10k — google-10000-english (vòng 52): nguồn mở rộng prediction,
     // weight 55 dưới freq3000. KHÔNG đụng chính sách restore/assist.
     for word in prefix_scan(en_words10k_sorted(), typed_lower) {
-        if word != typed_lower && seen.insert(word) {
+        if word != typed_lower && seen.insert(std::borrow::Cow::Borrowed(word)) {
             ranked.push(PrefixCandidate {
-                word,
+                word: std::borrow::Cow::Borrowed(word),
                 exact_match: true,
                 char_count: word.chars().count(),
                 weight: 55,
                 ext: false,
+                personal: false,
             });
         }
     }
@@ -455,6 +519,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
         let b_single = !b.word.contains(' ');
         b.exact_match
             .cmp(&a.exact_match)
+            .then_with(|| b.personal.cmp(&a.personal))
             .then_with(|| b.ext.cmp(&a.ext))
             .then_with(|| {
                 let a_pri = if has_ext { !a_single } else { a_single };
@@ -472,7 +537,7 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
                         .then_with(|| a.char_count.cmp(&b.char_count))
                 }
             })
-            .then_with(|| a.word.cmp(b.word))
+            .then_with(|| a.word.cmp(&b.word))
     });
 
     ranked

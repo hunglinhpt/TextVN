@@ -165,6 +165,66 @@ public struct SuggestSettings: Codable, Equatable {
     }
 }
 
+/// `style_profile` — User Style Profile (P7, vòng 54): dữ liệu học CÁ NHÂN
+/// (từ hay dùng + cặp sai→đúng đã chấp nhận). OPT-IN tắt mặc định (G8); cap
+/// chặt (200 từ / 50 cặp / ≤16KB). Khớp 1-1 với crate `config`
+/// (`config::StyleProfileSettings`) — model PHẢI biết khoá này nếu không mỗi
+/// lần lưu từ app macOS xoá dữ liệu học của người dùng.
+public struct StyleProfileSettings: Codable, Equatable {
+    /// Master switch — mặc định TẮT (G8).
+    public var enabled: Bool
+    /// Từ user hay gõ (VI+EN), count giảm dần.
+    public var words: [StyleWord]
+    /// Cặp sai→đúng user đã CHẤP NHẬN sửa, count giảm dần.
+    public var corrections: [StyleCorrection]
+    /// Trần tổng bytes (code cấm vượt 16384).
+    public var max_total_bytes: Int
+
+    public init(
+        enabled: Bool = false,
+        words: [StyleWord] = [],
+        corrections: [StyleCorrection] = [],
+        max_total_bytes: Int = 16384
+    ) {
+        self.enabled = enabled
+        self.words = words
+        self.corrections = corrections
+        self.max_total_bytes = max_total_bytes
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, words, corrections, max_total_bytes
+    }
+}
+
+/// Một từ cá nhân.
+public struct StyleWord: Codable, Equatable {
+    public var word: String
+    public var count: Int
+
+    public init(word: String, count: Int) {
+        self.word = word
+        self.count = count
+    }
+
+    private enum CodingKeys: String, CodingKey { case word, count }
+}
+
+/// Một cặp sai→đúng cá nhân.
+public struct StyleCorrection: Codable, Equatable {
+    public var from: String
+    public var to: String
+    public var count: Int
+
+    public init(from: String, to: String, count: Int) {
+        self.from = from
+        self.to = to
+        self.count = count
+    }
+
+    private enum CodingKeys: String, CodingKey { case from, to, count }
+}
+
 /// `assist` — Trợ lý ngữ pháp (P4-0 §7). Mặc định BẬT ở chế độ Chỉ gợi ý (vòng 26;
 /// không bao giờ tự sửa — `auto_fix` vẫn tắt); kill-switch (D20) vẫn tắt được ngay.
 /// Khớp 1-1 với crate `config` (`config::AssistSettings`) và schema — THIẾU struct
@@ -269,6 +329,9 @@ public struct TextVNConfig: Codable, Equatable {
     /// khoá này (giống `english_words`/`emoji`) nếu không lần lưu nào từ app cũng
     /// xoá cài đặt assist của người dùng.
     public var assist: AssistSettings
+    /// User Style Profile (P7, vòng 54) — model PHẢI biết khoá này nếu không
+    /// lần lưu nào từ app cũng XOÁ dữ liệu học của người dùng.
+    public var style_profile: StyleProfileSettings
 
     public init(
         config_version: Int = 1,
@@ -291,7 +354,8 @@ public struct TextVNConfig: Codable, Equatable {
         english_words: [String] = [],
         emoji: [EmojiEntry] = [],
         suggest: SuggestSettings = SuggestSettings(),
-        assist: AssistSettings = AssistSettings()
+        assist: AssistSettings = AssistSettings(),
+        style_profile: StyleProfileSettings = StyleProfileSettings()
     ) {
         self.config_version = config_version
         self.enabled = enabled
@@ -314,6 +378,7 @@ public struct TextVNConfig: Codable, Equatable {
         self.emoji = emoji
         self.suggest = suggest
         self.assist = assist
+        self.style_profile = style_profile
     }
 
     /// Decode khoan dung: khoá THIẾU lấy mặc định (config do bản cũ/mới hơn ghi
@@ -343,6 +408,9 @@ public struct TextVNConfig: Codable, Equatable {
         emoji = try c.decodeIfPresent([EmojiEntry].self, forKey: .emoji) ?? d.emoji
         suggest = try c.decodeIfPresent(SuggestSettings.self, forKey: .suggest) ?? d.suggest
         assist = try c.decodeIfPresent(AssistSettings.self, forKey: .assist) ?? d.assist
+        // P7 (vòng 54): thiếu khoá = giữ default — model biết khoá là để KHÔNG
+        // xoá dữ liệu học khi lưu từ app (mẫu english_words 0.2.13).
+        style_profile = try c.decodeIfPresent(StyleProfileSettings.self, forKey: .style_profile) ?? d.style_profile
     }
 
     public static func `default`() -> TextVNConfig {

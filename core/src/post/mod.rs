@@ -12,4 +12,5 @@ pub mod number_vn;
 pub mod predict;
 pub mod quick_telex;
 pub mod restore_en;
+pub mod style_profile;
 pub mod suggest_vn;

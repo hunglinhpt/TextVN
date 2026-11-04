@@ -272,6 +272,17 @@ int32_t      ime_assist_plan_sentence_fix_ex(const ime_instance *inst,
                                              const ime_assist_result_v1 *result,
                                              uint32_t flags,
                                              ime_assist_plan_v1 *out_plan);
+/* P7 (vòng 54) — User Style Profile (OPT-IN, G8: chỉ từ + cặp sai→đúng +
+ * count; KHÔNG nội dung câu/phím). Học: ghi cặp user CHẤP NHẬN vào pending
+ * (validate 2..=32 ký tự alphabetic/space; sai = IME_ERR_INVALID_ARG).
+ * Drain: trả JSON {"words":[{word,count}..],"corrections":[{from,to,count}..]}
+ * hoặc "{}" rồi XÓA pending — tray/IMK/settings gọi định kỳ để persist. */
+int32_t      ime_style_note_correction(ime_instance *inst,
+                                       const uint8_t *from_utf8, size_t from_len,
+                                       const uint8_t *to_utf8, size_t to_len);
+int32_t      ime_style_profile_drain(ime_instance *inst,
+                                     uint8_t *out_buf, size_t buf_len,
+                                     size_t *out_len);
 #ifdef __cplusplus
 }
 #endif

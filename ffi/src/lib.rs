@@ -401,6 +401,28 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
             .collect(),
         // `config.english_words[]` — danh sách từ EN giữ nguyên (opt-in, xem core/post/restore_en.rs)
         english_words: cfg.english_words.clone(),
+        // P7 (vòng 54): User Style Profile — từ cá nhân (boost) + cặp sai→đúng
+        // (suggestion-only). Rỗng khi `style_profile.enabled == false`.
+        style_words: if cfg.style_profile.enabled {
+            cfg.style_profile
+                .words
+                .iter()
+                .map(|w| (w.word.clone(), w.count))
+                .collect()
+        } else {
+            Vec::new()
+        },
+        style_corrections: if cfg.style_profile.enabled {
+            cfg.style_profile
+                .corrections
+                .iter()
+                .map(|c| (c.from.clone(), c.to.clone()))
+                .collect()
+        } else {
+            Vec::new()
+        },
+        // P7: master-switch HỌC — chỉ bật khi style_profile.enabled (G8).
+        style_learning_enabled: cfg.style_profile.enabled,
         quick_telex: cfg.quick_telex,
         suggest_vn_complete: cfg.suggest.enabled,
         suggest_space_complete: cfg.suggest.enabled
@@ -1004,12 +1026,18 @@ pub extern "C" fn ime_assist_check_instance(
     let inst = unsafe { &mut *inst };
     match catch_unwind(AssertUnwindSafe(|| {
         let text = inst.engine.sentence_tail(256);
+        // P7 (vòng 54): cặp sai→đúng CÁ NHÂN — rỗng khi USP tắt (hành vi cũ).
+        let personal = inst.engine.options_style_corrections();
         let issues = match inst.spell_provider {
             Some(ref sp) => {
                 let provider = CSpellProvider::new(*sp);
-                textvn_assist::check_sentence_with(&text, &provider)
+                textvn_assist::check_sentence_with_style(&text, &provider, &personal)
             }
-            None => textvn_assist::check_sentence(&text),
+            None => textvn_assist::check_sentence_with_style(
+                &text,
+                &textvn_assist::dict::NoDictionary,
+                &personal,
+            ),
         };
         fill_assist_result(&issues, out);
     })) {
@@ -1610,6 +1638,75 @@ pub extern "C" fn ime_assist_plan_sentence_fix_ex(
         1
     }))
     .unwrap_or(0)
+}
+
+/// P7 (vòng 54): GHI cặp sai→đúng user CHẤP NHẬN vào pending của engine
+/// (learning). `from`/`to` UTF-8 ≤ 32 ký tự; từ có số/dấu câu bị từ chối
+/// (IME_ERR_INVALID_ARG). Guard secure: ô mật khẩu không học (S3/G8).
+#[no_mangle]
+pub extern "C" fn ime_style_note_correction(
+    inst: *mut ime_instance,
+    from_utf8: *const u8,
+    from_len: usize,
+    to_utf8: *const u8,
+    to_len: usize,
+) -> i32 {
+    if inst.is_null() || from_utf8.is_null() || to_utf8.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    if from_len == 0 || from_len > 128 || to_len == 0 || to_len > 128 {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    let from = match guarded(|| {
+        String::from_utf8_lossy(unsafe { slice::from_raw_parts(from_utf8, from_len) }).to_string()
+    }) {
+        Some(f) => f,
+        None => return IME_ERR_INVALID_ARG,
+    };
+    let to = match guarded(|| {
+        String::from_utf8_lossy(unsafe { slice::from_raw_parts(to_utf8, to_len) }).to_string()
+    }) {
+        Some(t) => t,
+        None => return IME_ERR_INVALID_ARG,
+    };
+    if from.trim() == to.trim() {
+        return IME_ERR_INVALID_ARG;
+    }
+    inst.engine.style_note_correction(&from, &to);
+    IME_OK
+}
+
+/// P7 (vòng 54): DRAIN dữ liệu học pending (từ + cặp) dạng JSON rồi XÓA
+/// pending — tray/IMK/settings gọi định kỳ để persist vào config.
+/// `out_buf == NULL && buf_len == 0` → chỉ ghi `*out_len` cần thiết.
+/// Không pending → `*out_len = 0`, IME_OK.
+#[no_mangle]
+pub extern "C" fn ime_style_profile_drain(
+    inst: *mut ime_instance,
+    out_buf: *mut u8,
+    buf_len: usize,
+    out_len: *mut usize,
+) -> i32 {
+    if inst.is_null() || out_len.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    let json = inst.engine.style_drain_json();
+    let bytes = json.as_bytes();
+    unsafe { *out_len = bytes.len() };
+    if out_buf.is_null() {
+        return IME_OK;
+    }
+    if bytes.len() > buf_len {
+        return IME_ERR_INTERNAL; // buffer nhỏ hơn JSON — caller cấp lại
+    }
+    if !bytes.is_empty() {
+        unsafe {
+            slice::from_raw_parts_mut(out_buf, bytes.len()).copy_from_slice(bytes);
+        }
+    }
+    IME_OK
 }
 
 #[cfg(test)]

@@ -198,16 +198,47 @@ pub fn check_sentence_with(text: &str, dict: &dyn dict::Dictionary) -> Vec<Issue
     check_with_internal(text, true, dict)
 }
 
+/// P7 (vòng 54): như [`check_sentence_with`] + cặp sai→đúng CÁ NHÂN
+/// (`style_profile.corrections` — suggestion-only). List rỗng → hành vi cũ.
+pub fn check_sentence_with_style(
+    text: &str,
+    dict: &dyn dict::Dictionary,
+    personal: &[(String, String)],
+) -> Vec<Issue> {
+    check_with_style_internal(text, true, dict, personal)
+}
+
 fn check_with_internal(
     text: &str,
     start_of_sentence: bool,
     dict: &dyn dict::Dictionary,
 ) -> Vec<Issue> {
+    check_with_style_internal(text, start_of_sentence, dict, &[])
+}
+
+/// P7 (vòng 54): như [`check_with_internal`] + cặp sai→đúng CÁ NHÂN
+/// (`style_profile.corrections` — suggestion-only, ưu tiên trước bảng tĩnh).
+/// List rỗng → hành vi byte-for-byte cũ.
+pub fn check_with_style(
+    text: &str,
+    start_of_sentence: bool,
+    dict: &dyn dict::Dictionary,
+    personal: &[(String, String)],
+) -> Vec<Issue> {
+    check_with_style_internal(text, start_of_sentence, dict, personal)
+}
+
+fn check_with_style_internal(
+    text: &str,
+    start_of_sentence: bool,
+    dict: &dyn dict::Dictionary,
+    personal: &[(String, String)],
+) -> Vec<Issue> {
     // L0 (D16 → vòng 24): phân loại ngôn ngữ. Không nhận diện được → im lặng
     // (fail-open). En-dominant: các luật hiện có **tự chặn** trên nội dung
     // tiếng Việt (diacritic/spelling cần chữ Việt, repeat/negative dùng từ
     // chức năng Việt) nên chạy an toàn; riêng a/an là luật chỉ tiếng Anh.
-    let Some(ctx) = rules::Ctx::try_new_with_dict(text, start_of_sentence, dict) else {
+    let Some(ctx) = rules::Ctx::try_new_with_style(text, start_of_sentence, dict, personal) else {
         return Vec::new();
     };
     let mut issues = Vec::new();
@@ -221,6 +252,9 @@ fn check_with_internal(
     rules::double_space::check(&ctx, &mut issues);
     rules::capitalize_sentence::check(&ctx, &mut issues);
     rules::diacritic_typo::check(&ctx, &mut issues);
+    // P7 (vòng 54): correction CÁ NHÂN tra trước bảng tĩnh — cặp user đã
+    // chấp nhận thắng; suggestion-only shape DiacriticTypo (apply/undo chạy).
+    rules::personal_corrections::check(&ctx, &mut issues);
     // OP-004 (P5): cụm từ hành chính sai chính tả ("bổ xung" → "bổ sung")
     // — chạy SAU diacritic_typo để guard overlap của rule thấy lỗi đã có.
     rules::collocation_typo::check(&ctx, &mut issues);

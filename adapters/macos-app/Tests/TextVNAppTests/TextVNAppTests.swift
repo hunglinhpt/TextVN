@@ -29,6 +29,11 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.macros.isEmpty)
         XCTAssertFalse(config.suggest.enabled, "mặc định tắt — Tab giữ hành vi cũ (0.2.33)")
         XCTAssertEqual(config.assist, AssistSettings(), "P4-0 §7: assist mặc định tắt hoàn toàn")
+        // P7 (vòng 54): USP — OPT-IN tắt mặc định (G8), dữ liệu học rỗng.
+        XCTAssertFalse(config.style_profile.enabled, "USP mặc định tắt (G8)")
+        XCTAssertTrue(config.style_profile.words.isEmpty)
+        XCTAssertTrue(config.style_profile.corrections.isEmpty)
+        XCTAssertEqual(config.style_profile.max_total_bytes, 16384)
     }
 
     /// Lưu từ bảng cài đặt macOS không được xoá `emoji[]` hay đổi `when: vi_on` của

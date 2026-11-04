@@ -55,6 +55,54 @@
       "default": [],
       "$comment": "Tu tieng Anh giu nguyen khi Telex bien thanh chuoi co dau trong nhu tieng Viet (text -> tễt). MAC DINH RONG va khong bat san: `test` -> `tết` la ca mo ho nguoc lai (tết la tu Viet that) - bat san se pha tieng Viet. Mau: data/stop_en.txt"
     },
+    "style_profile": {
+      "type": "object",
+      "default": { "enabled": false, "words": [], "corrections": [], "max_total_bytes": 16384 },
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "$comment": "OPT-IN (G8): mac dinh TAT - khong hoc gi khi chua bat."
+        },
+        "words": {
+          "type": "array",
+          "maxItems": 200,
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["word", "count"],
+            "properties": {
+              "word": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "corrections": {
+          "type": "array",
+          "maxItems": 50,
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "count"],
+            "properties": {
+              "from": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "to": { "type": "string", "minLength": 1, "maxLength": 32 },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "max_total_bytes": {
+          "type": "integer",
+          "minimum": 4096,
+          "maximum": 65536,
+          "default": 16384
+        }
+      },
+      "$comment": "User Style Profile (USP) - du lieu hoc CA NHAN (tu hay dung + cap sai-dung da chap nhan + dem). OPT-IN, mac dinh TAT (G8). Cap quy dinh trong config::StyleProfileSettings - sanitize chay sau parse. Khong bao gio chua cau van hoan chinh hay noi dung phim nguoi dung."
+    },
     "suggest": {
       "type": "object",
       "default": { "enabled": false },

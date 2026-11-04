@@ -202,6 +202,9 @@ fn abi_exports() -> Vec<&'static str> {
         "ime_assist_sentence_tail_v1",
         "ime_assist_plan_sentence_fix",
         "ime_assist_plan_sentence_fix_ex",
+        // P7 (vòng 54): User Style Profile — học (note) + drain JSON.
+        "ime_style_note_correction",
+        "ime_style_profile_drain",
     ]
 }
 

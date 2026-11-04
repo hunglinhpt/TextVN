@@ -17,6 +17,7 @@ pub mod en_confusions;
 pub mod en_spelling;
 pub mod format_warning;
 pub mod language;
+pub mod personal_corrections;
 pub mod phrase_repeat;
 pub mod sentence_grammar;
 pub mod sentence_repeat;
@@ -56,6 +57,9 @@ pub struct Ctx<'a> {
     /// ⇒ coi như ngoài quote (chat thiếu dấu đóng / dấu inch `24"` lật parity
     /// suốt phần sau — không được nuốt lỗi phía sau).
     pub quote_parity: Vec<bool>,
+    /// P7 (vòng 54): cặp sai→đúng CÁ NHÂN (style_profile.corrections) —
+    /// luật `personal_corrections` tra TRƯỚC bảng tĩnh. Rỗng khi USP tắt.
+    pub personal_corrections: &'a [(String, String)],
 }
 
 /// Tính quote-parity có xử lý R1 (parity mở mà không còn nháy phía sau = ngoài).
@@ -118,14 +122,17 @@ impl Ctx<'_> {
             lang,
             protected,
             quote_parity,
+            personal_corrections: &[],
         }
     }
 
     /// Tạo ngữ cảnh chỉ khi L0 nhận diện được ngôn ngữ (1 lần tách chars + 1 lần tokenize).
-    pub(crate) fn try_new_with_dict<'a>(
+    /// P7 (vòng 54): như [`try_new_with_dict`] + cặp cá nhân.
+    pub(crate) fn try_new_with_style<'a>(
         text: &str,
         start_of_sentence: bool,
         dict: &'a dyn Dictionary,
+        personal: &'a [(String, String)],
     ) -> Option<Ctx<'a>> {
         let chars: Vec<char> = text.chars().collect();
         let tokens = crate::tokenize::tokenize_chars(&chars);
@@ -143,6 +150,7 @@ impl Ctx<'_> {
             lang,
             protected,
             quote_parity,
+            personal_corrections: personal,
         })
     }
 

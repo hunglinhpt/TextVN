@@ -7,3 +7,7 @@ license.workspace = true
 
 [dependencies]
 # Khong dependency: crate nay thuan logic, khong I/O, khong network (P4-0 §3).
+
+[dev-dependencies]
+# abnormal_1000: test tầng predict qua API thuần của core (path dep — 0 crate ngoài)
+textvn-core = { path = "../core" }

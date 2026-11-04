@@ -74,6 +74,8 @@ typedef struct tv_snapshot {
     /* P6 dự đoán văn bản (opt-in — suggest.enabled, mặc định TẮT như Windows/
      * macOS): thiếu toggle này trên Linux làm dự đoán KHÔNG THỂ bật (parity). */
     int suggest_enabled;
+    /* P7 (vong 54): User Style Profile — OPT-IN tat mac dinh (G8). */
+    int style_profile_enabled;
 } tv_snapshot;
 
 void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);

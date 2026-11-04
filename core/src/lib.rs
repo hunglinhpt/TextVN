@@ -123,6 +123,26 @@ pub struct EngineOptions {
     pub suggest_space_complete: bool,
     /// `config.output_charset` — bảng mã chữ đi ra document (`transform/charset.rs`).
     pub output_charset: OutputCharset,
+    /// `config.style_profile.words` (P7 — vòng 54): từ cá nhân (từ, count).
+    /// Rỗng khi USP tắt/mặc định — hành vi prediction giữ nguyên.
+    pub style_words: Vec<(String, u32)>,
+    /// `config.style_profile.corrections` (P7): cặp sai→đúng cá nhân
+    /// (suggestion-only ở assist — P7-DFMEA F8).
+    pub style_corrections: Vec<(String, String)>,
+    /// P7: master-switch HỌC (riêng với dùng-dữ-đã-config) — ffi gate theo
+    /// `style_profile.enabled`. Mặc định false (G8).
+    pub style_learning_enabled: bool,
+}
+
+impl EngineOptions {
+    /// P7 (vòng 54): USP học chỉ khi enabled (config `style_profile.enabled`
+    /// map qua `style_words/style_corrections` non-empty?) — dùng cờ riêng
+    /// để tắt học nhưng vẫn giữ boost từ đã-config: learning bật khi CÓ
+    /// cấu hình style profile (words/corrections được nạp) — và callers
+    /// đặt `style_words` rỗng khi USP tắt (ffi gate).
+    pub(crate) fn style_enabled_for_learning(&self) -> bool {
+        self.style_learning_enabled
+    }
 }
 
 impl Default for EngineOptions {
@@ -143,6 +163,9 @@ impl Default for EngineOptions {
             suggest_vn_complete: false,
             suggest_space_complete: false,
             output_charset: OutputCharset::UnicodePrecomposed,
+            style_words: Vec::new(),
+            style_corrections: Vec::new(),
+            style_learning_enabled: false,
         }
     }
 }
@@ -207,6 +230,40 @@ pub struct Engine {
     sentence_widths: Vec<u8>,
     /// Vòng lặp Tab dự đoán từ/cụm từ (P6 Text Prediction).
     last_predict: Option<PredictCycle>,
+    /// P7 (vòng 54): dữ liệu học CÁ NHÂN pending (chỉ khi USP bật) —
+    /// từ gõ xong + cặp user chấp nhận. Drain qua FFI rồi XÓA (G8: chỉ từ +
+    /// count tối thiểu, không giờ/app/câu; Debug không in nội dung).
+    style_pending: StylePending,
+}
+
+/// P7: entry hợp lệ để HỌC — chặn G8 (đoạn văn), số, dấu câu, điều khiển.
+fn valid_style_entry(s: &str) -> bool {
+    let n = s.chars().count();
+    if !(2..=32).contains(&n) {
+        return false;
+    }
+    if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 3 {
+        return false;
+    }
+    s.chars()
+        .all(|c| c.is_alphabetic() || c == ' ' || c == '-' || c == '\'')
+}
+
+/// Pending learning — P7. `words`: từ → delta count; `corrections`: (from,to) → delta.
+#[derive(Default, Clone)]
+pub struct StylePending {
+    words: std::collections::BTreeMap<String, u32>,
+    corrections: std::collections::BTreeMap<(String, String), u32>,
+}
+
+impl std::fmt::Debug for StylePending {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // G8: KHÔNG in từ/cặp — chỉ số lượng.
+        f.debug_struct("StylePending")
+            .field("words", &self.words.len())
+            .field("corrections", &self.corrections.len())
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -285,6 +342,7 @@ impl Engine {
     pub fn new(opts: EngineOptions) -> Engine {
         Engine {
             opts,
+            style_pending: StylePending::default(),
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
@@ -295,6 +353,64 @@ impl Engine {
     }
 
     /// `ime_reload_config` — đổi options giữa chừng → reset từ đang gõ dở.
+    /// P7 (vòng 54): cặp sai→đúng cá nhân cho assist (rỗng khi tắt/mặc định).
+    pub fn options_style_corrections(&self) -> Vec<(String, String)> {
+        self.opts.style_corrections.clone()
+    }
+
+    /// P7: ghi cặp user chấp nhận (validate: 2..=32 ký tự, alphabetic+space).
+    pub fn style_note_correction(&mut self, from: &str, to: &str) {
+        if !valid_style_entry(from) || !valid_style_entry(to) {
+            return;
+        }
+        *self
+            .style_pending
+            .corrections
+            .entry((from.trim().to_lowercase(), to.trim().to_lowercase()))
+            .or_insert(0) += 1;
+    }
+
+    /// P7: học từ user gõ xong (gọi tại word-end khi USP bật).
+    pub(crate) fn style_note_word(&mut self, word: &str) {
+        if !valid_style_entry(word) {
+            return;
+        }
+        *self
+            .style_pending
+            .words
+            .entry(word.to_lowercase())
+            .or_insert(0) += 1;
+    }
+
+    /// P7: drain pending dạng JSON `{"words":[..],"corrections":[..]}` rồi XÓA.
+    /// Rỗng → `"{}"`. JSON tối thiểu, không thư viện ngoài.
+    pub fn style_drain_json(&mut self) -> String {
+        if self.style_pending.words.is_empty() && self.style_pending.corrections.is_empty() {
+            return "{}".to_string();
+        }
+        let mut words: Vec<String> = self
+            .style_pending
+            .words
+            .iter()
+            .map(|(w, n)| format!("{{\"word\":\"{w}\",\"count\":{n}}}"))
+            .collect();
+        words.sort();
+        let mut corr: Vec<String> = self
+            .style_pending
+            .corrections
+            .iter()
+            .map(|((f, t), n)| format!("{{\"from\":\"{f}\",\"to\":\"{t}\",\"count\":{n}}}"))
+            .collect();
+        corr.sort();
+        self.style_pending.words.clear();
+        self.style_pending.corrections.clear();
+        format!(
+            "{{\"words\":[{}],\"corrections\":[{}]}}",
+            words.join(","),
+            corr.join(",")
+        )
+    }
+
     pub fn set_options(&mut self, opts: EngineOptions) {
         self.opts = opts;
         self.word.clear();
@@ -1082,6 +1198,20 @@ impl Engine {
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
 
+        // P7 (vòng 54): học từ user GÕ XONG (word-end, USP bật) — trước
+        // auto-restore để cả nhánh restore cũng học chuỗi EN thật của user.
+        // G8: chỉ từ đơn + count; secure check ở caller key() đã chặn ô mật khẩu
+        // (đường này không chạy khi secure — engine không nhận context secure).
+        if self.opts.style_enabled_for_learning() {
+            if was_active {
+                let display: String = self.word.display.iter().collect();
+                self.style_note_word(&display);
+            } else if !self.word.passed.is_empty() {
+                let passed: String = self.word.passed.iter().collect();
+                self.style_note_word(&passed);
+            }
+        }
+
         // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
         if was_active && self.opts.auto_restore_english {
             let raw = self.word.raw.clone();
@@ -1170,7 +1300,14 @@ impl Engine {
         if append.is_some() && validate::is_valid_word(&self.word.display) {
             return None;
         }
-        let candidates = post::predict::predict_prefix_candidates(&typed, true, 5);
+        // P7 (vòng 54): từ cá nhân (style_profile) tham gia ứng viên —
+        // list rỗng (mặc định) → hành vi cũ byte-for-byte.
+        let candidates = post::predict::predict_prefix_candidates_with_personal(
+            &typed,
+            true,
+            5,
+            &self.opts.style_words,
+        );
         let candidates = if !candidates.is_empty() {
             candidates
         } else {
@@ -1433,10 +1570,19 @@ impl Engine {
         } else {
             typed.clone()
         };
+        // P7 (vòng 54): từ cá nhân tham gia ứng viên EN completion (đi trước
+        // english_words — cùng cơ chế consider shortest; list rỗng → như cũ).
+        let mut en_words: Vec<String> = self
+            .opts
+            .style_words
+            .iter()
+            .map(|(w, _)| w.clone())
+            .collect();
+        en_words.extend(self.opts.english_words.iter().cloned());
         let completion = post::restore_en::complete_word(
             &typed.to_lowercase(),
             &folded.to_lowercase(),
-            &self.opts.english_words,
+            &en_words,
         )?;
         let mut insert: Vec<char> = completion.chars().collect();
         if self.word.raw.first().is_some_and(|c| c.is_uppercase()) {
