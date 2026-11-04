@@ -1,8 +1,8 @@
 # Âm tiết tiếng Việt — dữ liệu prediction/Tab-completion (vòng 52)
 # 3000 đầu = tần suất cao nhất (hermitdave/FrequencyWords, OPUS 2018,
 #   thứ tự + byte giữ nguyên từ vn_freq3000.txt); phần sau = bổ sung từ
-#   data/assist/vi-DauMoi.dic (đã lọc thường/1 âm tiết, kiểu dấu CŨ).
-# Sinh bởi scripts/gen_vocab_v52.py — KHÔNG sửa tay, chạy lại script.
+#   data/assist/vi-DauMoi.dic (đã lọc thường/1 âm tiết/validator, kiểu CŨ).
+# Sinh bởi `cargo xtask gen-vocab` — KHÔNG sửa tay, chạy lại task.
 # 3000 âm tiết tiếng Việt tần suất cao nhất (nguồn: hermitdave/FrequencyWords,
 # OpenSubtitles 2018 qua OPUS — dùng cho gợi ý hoàn tất từ Tab; chỉ giữ âm tiết
 # hợp lệ theo is_valid_word). Fixture cho test `vn_tab_complete`.
@@ -6411,15 +6411,20 @@ yểu
 áng
 áy
 ã
+è
 èo
+é
 éc
 ém
 én
 ét
 êu
+ì
 ìn
 ình
+í
 ín
+ò
 òa
 òi
 òm
@@ -6428,10 +6433,12 @@ yểu
 óng
 óp
 ót
+ù
 ùa
 ùm
 ùn
 ùng
+ú
 úa
 úi
 úm
@@ -6566,6 +6573,7 @@ yểu
 đừ
 đừa
 đử
+ĩ
 ĩnh
 ươi
 ươm
@@ -6597,24 +6605,31 @@ yểu
 ẵm
 ặc
 ặp
+ẹ
 ẹo
 ẹp
 ẹt
 ẻn
 ẻo
 ẽo
+ế
 ếm
+ề
 ềnh
 ễnh
+ệ
 ệch
 ện
 ệnh
+ỉ
 ỉa
 ỉm
 ỉn
 ỉu
+ị
 ịch
 ịt
+ọ
 ọc
 ọe
 ọi
@@ -6625,30 +6640,41 @@ yểu
 ỏm
 ỏn
 ỏng
+ố
 ốp
 ốt
+ồ
 ồm
 ồng
 ổ
 ổi
+ộ
 ộc
 ộn
 ộp
+ớ
 ới
 ớm
 ớn
+ờ
 ờn
 ở
 ỡm
+ợ
 ợt
+ụ
 ụa
 ục
 ụp
 ụt
+ủ
 ủa
 ủn
+ứ
 ứa
+ừ
 ừng
 ửng
 ựa
 ực
+ỷ

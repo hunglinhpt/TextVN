@@ -6,10 +6,12 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
-# CỐ Ý KHÔNG có dependency: `xtask` là công cụ build, thêm dep vào workspace
-# sẽ kéo theo lockfile + `cargo deny` cho tất cả crate khác. Parser TOML ở đây
-# chỉ cần đúng schema `data/tables/*.toml` (xem `toml.rs`).
+# Vòng 53: duy nhất một dep — `textvn-core` PATH (core + strategy đều 0 crate
+# ngoài) để gen-vocab dùng đúng một nguồn sự thật `is_valid_word` /
+# `normalize_tone` (thay script Python vi phạm ngôn ngữ policy). Parser TOML ở
+# đây chỉ cần đúng schema `data/tables/*.toml` (xem `toml.rs`).
 [dependencies]
+textvn-core = { path = "../core" }
 
 [[bin]]
 name = "xtask"

@@ -351,6 +351,9 @@ dependencies = [
 [[package]]
 name = "xtask"
 version = "0.2.63"
+dependencies = [
+ "textvn-core",
+]
 
 [[package]]
 name = "zmij"

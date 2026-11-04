@@ -1,1298 +1,1947 @@
 # Từ ghép tiếng Việt thông dụng — văn phòng/hành chính/kế toán/nhân sự/
-# IT/kinh doanh/giáo dục/y tế/pháp lý/đời sống/thời gian (vòng 52).
-# Format: từ_ghép<TAB>weight (weight 1-100). Sinh bởi scripts/gen_vocab_v52.py
-# — KHÔNG sửa tay (các mục cũ giữ weight tay nguyên vẹn).
-phát triển	100
-công nghệ	100
-công ty	98
-quản lý	100
-khách hàng	100
-hợp đồng	100
-thông tin	100
-kinh doanh	100
-kế hoạch	95
-báo cáo	95
-thực hiện	95
-yêu cầu	95
-giải pháp	95
-sản phẩm	95
-dịch vụ	95
-dữ liệu	95
-hệ thống	95
-phần mềm	95
-ứng dụng	95
-kết quả	95
-tiến độ	90
-chất lượng	90
-tiêu chuẩn	90
-quy định	90
-quy trình	90
-quyết định	90
-hướng dẫn	90
-kinh tế	90
-tài chính	90
-đầu tư	90
-doanh nghiệp	90
-dự án	90
-nhân viên	90
-thành viên	90
-giám đốc	90
-hội đồng	90
+# IT/kinh doanh/giáo dục/y tế/pháp lý/đời sống/thời gian (vòng 52) +
+# 13 domain vòng 53 (bất động sản, ngân hàng-bảo hiểm, logistics, sản xuất,
+# đấu thầu, truyền thông, nghiên cứu, xây dựng, nông nghiệp, du lịch,
+# y tế, thủ tục hành chính, cảm xúc-quan hệ, biểu mẫu-quản trị).
+# Format: từ_ghép<TAB>weight. Sinh bởi `cargo xtask gen-vocab` — KHÔNG sửa tay.
 an toàn	90
-bảo mật	90
-hỗ trợ	90
-kết nối	90
-thanh toán	90
-hóa đơn	90
-biên bản	90
-tài liệu	90
-thỏa thuận	85
-cam kết	85
-trách nhiệm	85
-quyền lợi	85
-bảo hiểm	85
-bảo trì	85
-vận hành	85
-nâng cấp	85
-cải tiến	85
-tối ưu	85
-hiệu quả	85
-năng suất	85
-chuyên nghiệp	85
-uy tín	85
-bền vững	85
-thông báo	85
-thông tư	85
-nghị định	85
-nghị quyết	85
-chính sách	85
-chiến lược	85
-phương án	85
-phối hợp	85
-phê duyệt	85
-phát sinh	85
-phát biểu	80
-phát hành	80
-công việc	85
-công tác	85
-công bố	80
-cơ quan	80
-danh sách	80
-điều kiện	80
-đổi mới	80
-đồng thuận	80
-đồng ý	80
-giao dịch	80
-hạn chế	80
-hoạt động	80
-hồ sơ	80
-hợp tác	80
-hợp lý	80
-hợp pháp	80
-khả năng	80
-khó khăn	75
-kinh nghiệm	85
-kiểm tra	85
-kỹ thuật	85
-liên hệ	85
-lợi ích	80
-mục tiêu	85
-năng lực	85
-ngân sách	85
-nghiên cứu	85
-nghĩa vụ	80
-nguyên tắc	80
-nội dung	80
-sáng tạo	80
-sở hữu	80
-tạo lập	75
-thành công	85
-thành lập	80
-thời gian	85
-thực tế	80
-thương mại	80
-tổ chức	80
-triển khai	85
-trực tiếp	80
-tương ứng	75
-tư vấn	80
-văn bản	80
-xác nhận	85
-xây dựng	85
-xử lý	85
-bàn giao	85
-bảo đảm	80
-chứng từ	80
-chủ tịch	80
-đáp ứng	80
-đăng ký	80
-công văn	96
-tờ trình	96
-chỉ thị	88
-quy chế	86
-đề án	84
-dự thảo	88
-chương trình	96
-lộ trình	88
-định hướng	88
-nhiệm vụ	100
-thẩm quyền	84
-phạm vi	88
-căn cứ pháp lý	82
-lý do	88
-lãnh đạo	96
-cấp trên	78
-cấp dưới	74
-phòng ban	94
-bộ phận	94
-chuyên môn	90
-nghiệp vụ	92
-đầu việc	84
-việc đang làm	78
-vấn đề	100
-vướng mắc	82
-ý kiến	94
-đề xuất	96
-kiến nghị	88
-phản ánh	84
-phản hồi	100
-góp ý	88
-phê bình	78
-tự phê bình	74
-đánh giá	96
-nhận xét	92
-kết luận	94
-khuyến nghị	86
-đề nghị	96
-thỉnh cầu	74
-đơn từ	84
-giấy tờ	90
-sổ sách	86
-bản sao	84
-bản gốc	86
-bản sao y	78
-bản mềm	80
-bản cứng	76
-file đính kèm	86
-đính kèm	94
-phụ lục	86
-biểu mẫu	92
-mẫu đơn	84
-mẫu số	78
-con dấu	84
-chữ ký	92
-chữ ký số	90
-đóng dấu	80
-trình ký	84
-xét duyệt	88
-thẩm định	86
-kiểm duyệt	82
-duyệt đơn	82
-trình duyệt	80
+an toàn công trường	76
+an toàn lao động	86
+an toàn thực phẩm	78
+an tâm	82
+anh chị em	78
+ao cá	72
+ban biên tập	74
+ban chấp hành	80
+ban công	80
+ban giám đốc	92
 ban hành	92
-có hiệu lực	88
-áp dụng	92
-sửa đổi	88
-bổ sung	90
-thay thế	86
-bãi bỏ	78
-hết hiệu lực	82
-tổng hợp	96
-phân tích	100
-so sánh	90
-thống kê	94
-bảng biểu	88
-biểu đồ	90
-số liệu	100
-chỉ số	90
-thành phần	84
-tỷ trọng	78
-tỷ lệ	94
-tỷ suất	78
-mức độ	90
-khối lượng	86
-hiệu suất	90
-thời hạn	94
-hạn chót	88
-deadline	88
-gia hạn	90
-kéo dài	82
-rút ngắn	84
-tạm dừng	84
-tạm hoãn	82
-hoãn lại	82
-tiếp tục	96
-khởi động	84
-khởi công	82
-khánh thành	80
-nghiệm thu	90
-đưa vào sử dụng	82
-bảo dưỡng	82
-sửa chữa	88
-kiểm soát	94
-giám sát	94
-giám định	82
-soi chiếu	74
-đối chiếu	92
-rà soát	90
-kiểm điểm	78
-xác minh	86
-chứng thực	82
-công chứng	82
-thông qua	88
-chấp thuận	84
-tán thành	80
-bày tỏ	78
-phát ngôn	76
-phát biểu ý kiến	72
-cuộc họp	100
-họp giao ban	88
-họp hội đồng	84
-họp trực tuyến	86
-họp nhóm	90
-họp khẩn	88
-họp nhanh	86
-họp mặt	82
-họp bàn	80
-họp triển khai	84
-họp tổng kết	84
-lịch họp	92
-phòng họp	92
-thành phần tham dự	80
-chủ trì	88
-thư ký	86
+ban lãnh đạo	90
+ban ngày	80
+ban quản lý	84
+ban thư ký	76
+ban tổ chức	82
+ban đêm	80
+ban đầu	92
+biên bản	90
+biên bản ghi nhớ	82
 biên bản họp	92
-nội dung họp	90
-bảng chia sẻ	76
-trình chiếu	88
-bản trình bày	88
-slide	88
-thuyết trình	94
-trình bày	96
-bày tỏ quan điểm	82
-trao đổi	96
-thảo luận	100
-bàn bạc	88
-cạnh tranh	88
-đấu giá	74
-xung đột	82
-hòa giải	78
-dàn xếp	74
-thông cảm	84
-thấu hiểu	86
-giúp đỡ	92
-giúp việc	76
-kết hợp	92
-phân công	94
-phân chia	88
-chia sẻ	94
-tiếp nhận	94
-chuyển giao	88
-ủy quyền	84
-thay mặt	90
-đại diện	94
-thay đổi	96
-điều chỉnh	92
-cập nhật	100
-lời mời	88
-thư mời	88
-giấy mời	84
-thiệp mời	74
-triệu tập	74
-mời họp	88
-xin phép	94
-cho phép	90
-giấy phép	92
-được phép	88
-nghiêm cấm	76
-từ chối	90
-khước từ	76
-chấp nhận	94
-khó chịu	80
-vui lòng	100
-rất vui	88
-rất tiếc	86
-xin lỗi	100
-cảm ơn	100
-xin chào	100
-chào buổi sáng	88
-chào tạm biệt	84
-hẹn gặp lại	92
-chúc sức khỏe	84
-chúc ngủ ngon	80
-chúc mừng	100
-chúc thọ	74
-trân trọng	98
-kính thư	82
-thân gửi	88
-thân mến	84
-kính thưa	86
-thưa anh	84
-thưa chị	84
-thưa quý vị	84
-kính dâng	70
-trân trọng kính mời	82
-rất mong	92
-hy vọng	92
-tin rằng	80
-tin chắc	82
-cho biết	90
-nêu rõ	84
-nhấn mạnh	90
-lưu ý	98
-chú ý	92
-chú trọng	86
-đặc biệt	92
-cực kỳ	84
-hết sức	86
-tối đa	88
-hóa đơn đỏ	90
-hóa đơn điện tử	92
-hóa đơn giấy	78
+biên bản làm việc	84
+biên bản nghiệm thu	86
+biên bản xác nhận	78
 biên lai	84
-phiếu thu	88
-phiếu chi	88
-phiếu nhập kho	82
-phiếu xuất kho	82
-phiếu giao hàng	84
-chứng từ kế toán	88
-sổ cái	84
-sổ kế toán	86
-sổ phụ ngân hàng	86
-sổ tay	82
-bút toán	84
-định khoản	80
-bảng cân đối	86
-báo cáo tài chính	94
-báo cáo thuế	90
+biên tập	82
+biển báo an toàn	72
+biểu mẫu	92
+biểu tượng	88
+biểu đồ	90
+biểu đồ cột	74
+biểu đồ tròn	74
+biểu đồ trực quan	78
+biểu đồ đường	74
+biệt thự	86
+buffet	74
+buồng phòng	74
+buổi chiều	88
+buổi học	84
+buổi phỏng vấn	84
+buổi sáng	88
+buổi trưa	82
+buổi tối	84
+bài báo	84
+bài báo khoa học	80
+bài giảng	88
+bài kiểm tra	94
+bài luận	82
+bài làm	82
+bài phỏng vấn	76
+bài thi	88
+bài thuyết trình	84
+bài tập	96
+bài tập về nhà	88
+bài viết	88
+bài đăng	78
+bàn bạc	88
+bàn giao	85
+bàn giao công trình	82
+bàn giao nhà	84
+bàn phím	88
+bàn thờ	76
+bày tỏ	78
+bày tỏ quan điểm	82
+bác sĩ	92
+bán buôn	80
+bán hàng	100
+bán lẻ	84
+bán sỉ	80
+bán tài sản	76
+báo chí	84
+báo cáo	95
+báo cáo khoa học	78
 báo cáo lãi lỗ	82
 báo cáo lưu chuyển	78
 báo cáo nội bộ	82
-tờ khai thuế	86
-thuế môn bài	78
-thuế thu nhập	88
-thuế giá trị	80
-thuế suất	78
-miễn thuế	76
-giảm thuế	78
-hoàn thuế	78
-nộp thuế	86
-trốn thuế	74
-truy thu	74
-công nợ	94
-nợ phải thu	84
-nợ phải trả	84
-nợ xấu	80
-trả nợ	84
-đòi nợ	78
-vay nợ	80
-vay vốn	86
-tiền mặt	92
-tiền lương	92
-tiền thưởng	88
-tiền phạt	80
-tiền cọc	84
-tiền điện	84
-tiền nước	82
-tiền nhà	82
-tiền điện thoại	80
-lương tháng	90
-lương năm	84
-lương cơ bản	90
-lương khoán	80
-lương thưởng	92
-tính lương	88
-trả lương	88
-ứng lương	82
-bảng lương	90
-thang lương	86
-bậc lương	84
-phụ cấp	88
-trợ cấp	84
-cấp bậc	78
-thưởng nóng	80
-thưởng lễ tết	82
-thưởng quý	82
-thưởng năm	84
-tính thưởng	76
-dự toán	86
-quyết toán	86
-tổng kết	90
-kê khai	88
-kê đơn	70
-kê khai thuế	86
-khấu trừ	82
-trích trước	76
-trích khấu hao	78
-khấu hao	82
-hao mòn	74
-tài sản	96
-tài sản cố định	88
-tài sản lưu động	78
-tài sản thế chấp	82
-bán tài sản	76
-tăng tài sản	74
-vốn chủ sở hữu	84
-vốn điều lệ	84
-vốn đầu tư	88
-vốn lưu động	80
-góp vốn	82
-rút vốn	80
-thu hồi vốn	80
-chia cổ tức	82
-cổ phần	90
-cổ phiếu	88
-cổ đông	88
-thị trường chứng khoán	84
-tăng vốn	78
-lợi nhuận	100
-lỗ vốn	78
-lãi gộp	80
-lãi ròng	78
-lãi kép	78
-lãi suất	92
-lãi xuất	70
-số dư	90
-số dư đầu kỳ	84
-số dư cuối kỳ	84
-số dư nợ	82
-dư nợ	80
-dư địa	74
-đơn giá	88
-đơn hàng	100
-giá bán	90
-giá mua	86
-giá thành	86
-giá vốn	84
-giá trị	100
-giá cả	92
-tăng giá	84
-giảm giá	88
-khuyến mãi	92
-khuyến mại	90
-ưu đãi	94
-trợ giá	74
-bình ổn giá	76
-chênh lệch	86
-thanh toán trước	84
-thanh toán sau	82
-thanh toán online	84
-thanh toán dư	76
-thanh lý	84
-thanh lý hợp đồng	86
-tạm ứng	86
-tạm thu	76
-tạm nợ	78
-ứng trước	80
-trả sau	80
-trả trước	82
-trả góp	86
-kỳ hạn	86
-hạn mức	84
-hạn thanh toán	88
-quá hạn	86
-trễ hạn	78
-đáo hạn	78
-số dư kỳ	76
-tỷ giá	88
-tỷ giá USD	78
-ngoại tệ	80
-chuyển tiền	92
-chuyển khoản	100
-nhận chuyển	74
-thu hộ	78
-chi hộ	78
-ngân hàng	100
-ngân quỹ	76
-quỹ dự phòng	82
-quỹ lương	80
-ngân khố	74
-kho bạc	78
-tín dụng	86
-tín phiếu	74
-thế chấp	82
-cầm cố	74
-bảo lãnh	86
-bảo hiểm xã hội	92
-bảo hiểm y tế	88
-bảo hiểm thất nghiệp	84
-bảo hiểm nhân thọ	82
-bảo hiểm tài sản	80
-mức đóng	82
-mức phạt	78
-vi phạm	92
-xử phạt	84
-hồ sơ thuế	80
-nhân sự	100
-nhân công	82
-nhân lực	90
-nhân tài	82
-nhân khẩu	76
-cán bộ	94
-công nhân	88
-công chức	84
-viên chức	80
-lao động	96
-người lao động	90
-người quản lý	84
-cấp quản lý	82
-quản đốc	74
-tổng giám đốc	90
-phó giám đốc	88
-giám đốc điều hành	84
-ban giám đốc	92
-ban lãnh đạo	90
-ban biên tập	74
-ban tổ chức	82
-ban chấp hành	80
-ban thư ký	76
-hội đồng quản trị	86
-hội đồng sơ thẩm	72
-tổ trưởng	78
-trưởng phòng	92
-phó phòng	86
-trưởng nhóm	90
-trưởng ban	84
-phó chủ tịch	84
-thư ký hội đồng	74
-kế toán trưởng	88
-kiểm soát viên	74
-thực tập sinh	88
-nhân viên thử việc	82
-nhân viên chính thức	84
-nhân viên bán thời gian	80
-nhân viên toàn thời gian	76
-freelancer	82
-cộng tác viên	84
-tuyển dụng	100
-tuyển sinh	84
-tuyển chọn	82
-tuyển mộ	74
-phỏng vấn	96
-phỏng vấn sơ bộ	80
-phỏng vấn vòng cuối	80
-buổi phỏng vấn	84
-hồ sơ ứng tuyển	84
-đơn ứng tuyển	84
-sơ yếu lý lịch	86
-giấy tờ tùy thân	82
-thư mời phỏng vấn	80
-thư từ chối	74
-thư mời làm việc	80
-thư báo nhận việc	78
-thư nhận việc	80
-thư cảm ơn	84
-đề nghị tuyển	80
-nhu cầu tuyển	76
-vị trí tuyển	82
-mô tả công việc	90
-bản mô tả	80
-yêu cầu công việc	86
-chế độ đãi ngộ	86
-đãi ngộ	80
-phúc lợi	86
-thử việc	88
-chính thức	96
-nhận việc	90
-nghỉ việc	88
-xin nghỉ việc	88
-đơn xin nghỉ	84
-thôi việc	82
-chấm dứt hợp đồng	84
-sa thải	76
-cắt giảm	80
-nghỉ phép	100
-nghỉ thai sản	84
-nghỉ ốm	84
-nghỉ không lương	82
-nghỉ bù	84
-nghỉ rota	70
-xin nghỉ phép	96
-đăng ký nghỉ	84
-phép năm	88
-ngày phép	84
-dư phép	74
-hết phép	76
-chấm công	90
-bảng chấm công	88
-quét thẻ	74
-tang chức	70
-đào tạo	100
-bồi dưỡng	84
-huấn luyện	82
-đào tạo nội bộ	84
-đào tạo lại	78
-kỹ năng mềm	86
-kỹ năng cứng	84
-chuyên cần	74
-thi đua	80
-khen thưởng	90
-kỷ luật	86
-khiển trách	76
-cảnh cáo	80
-hồ sơ nhân sự	88
-hợp đồng lao động	94
-hợp đồng thử việc	84
-hợp đồng xác định thời hạn	80
-cam kết thực hiện	84
-thỏa thuận lao động	82
-biên bản làm việc	84
-quy chế thưởng	78
-nội quy	86
-nội quy lao động	84
-cơ cấu tổ chức	84
-sơ đồ tổ chức	86
-chức danh	88
-chức vụ	90
-nhiệm kỳ	78
-bổ nhiệm	88
-bãi nhiệm	74
-thuyên chuyển	82
-luân chuyển	78
-thăng chức	84
-giáng chức	74
-nâng bậc	78
-xếp loại	86
-đánh giá nhân viên	86
-đánh giá định kỳ	84
-đánh giá cuối kỳ	84
-mục tiêu công việc	80
-đánh giá KPI	80
-phỏng vấn sơ tuyển	74
-phần cứng	96
-phần mềm độc hại	82
-mã nguồn	94
-mã hóa	88
-mã lỗi	82
-mã vạch	82
-mã QR	84
-thư viện mã nguồn	76
-kho mã	78
-trình biên dịch	84
-trình quản lý	86
-trình cài đặt	84
-trình gỡ lỗi	76
-trình chạy nền	74
-cơ sở dữ liệu	96
-truy vấn	90
-bảng dữ liệu	84
-cột dữ liệu	78
-dòng dữ liệu	78
-khóa chính	82
-khóa ngoại	80
-chỉ mục	80
-sao lưu	94
-phục hồi	90
-khôi phục	92
-đồng bộ	92
-bất đồng bộ	80
-xử lý ngoại lệ	80
-xử lý dữ liệu	88
-xử lý ảnh	80
-xử lý ngôn ngữ	80
-hệ điều hành	92
-hệ thống mạng	88
-hệ thống tệp	78
-hệ thống con	76
-hệ thống giám sát	80
-mạng nội bộ	84
-mạng xã hội	92
-mạng không dây	80
-địa chỉ mạng	78
-tường lửa	82
-định tuyến	78
-cổng kết nối	80
-máy chủ	98
-máy khách	86
-máy ảo	88
-máy in	92
-máy quét	80
-máy chiếu	84
-thiết bị	100
-thiết bị đầu cuối	78
-thiết bị ngoại vi	76
-thiết bị đeo	74
-điện thoại	98
-máy tính	100
-laptop	90
-bàn phím	88
-chuột máy tính	82
-màn hình	96
-ổ cứng	86
-ổ đĩa	86
-bộ nhớ	92
-bộ xử lý	82
-bộ vi xử lý	78
-chip xử lý	78
-file	100
-thư mục	96
-đường dẫn	88
-đuôi file	82
-nén file	80
-giải nén	82
-tải file	82
-tải xuống	88
-tải lên	86
-chia sẻ file	84
-quyền truy cập	88
-đăng nhập	100
-đăng xuất	88
-tài khoản	100
-mật khẩu	98
-xác thực	88
-xác thực hai lớp	76
-quên mật khẩu	84
-đổi mật khẩu	84
-khôi phục mật khẩu	80
-phiên đăng nhập	78
-rò rỉ dữ liệu	82
-tin tặc	78
-vi rút	76
-phần mềm gián điệp	74
-cập nhật bản vá	78
-bản vá lỗi	82
-sửa lỗi	96
-gỡ lỗi	80
-bản dựng	84
-phát hành bản mới	80
-phiên bản	100
-bản cập nhật	88
-bản chính thức	82
-bản dùng thử	80
-kiểm thử	94
-kiểm thử tự động	82
-kiểm thử hiệu năng	78
-kiểm thử bảo mật	78
-mã nguồn mở	84
-trí tuệ nhân tạo	92
-học máy	86
-học sâu	80
-mạng nơ ron	78
-dữ liệu lớn	84
-điện toán đám mây	84
-lưu trữ đám mây	80
-danh tính số	72
-giao diện	96
-giao diện người dùng	84
-trải nghiệm người dùng	84
-trò chuyện trực tuyến	76
-hộp thư	82
-hộp thư đến	86
-thư rác	84
-thư nháp	78
-chuyển tiếp thư	76
-địa chỉ thư điện tử	78
-danh bạ	80
-lịch làm việc	88
-lịch cá nhân	80
-họp online	84
-chia sẻ màn hình	82
-bảng tin	78
-thanh công cụ	76
-thanh trạng thái	76
-cửa sổ	90
-cửa sổ bật lên	76
-thanh cuộn	74
-nút bấm	84
-biểu tượng	88
-biểu đồ trực quan	78
-bản in	84
-bản nháp	88
-bản cuối	84
-xuất bản	86
-đóng gói	86
-cài đặt	100
-gỡ cài đặt	84
-cấu hình	98
-thiết lập	94
-cổng USB	80
-bộ nhớ đệm	78
-bộ nhớ ngoài	74
-khách hàng tiềm năng	86
-khách hàng thân thiết	84
-khách hàng mới	80
-khách hàng cũ	76
-quý khách	98
-quý khách hàng	98
-thượng khách	70
-nhà cung cấp	94
-nhà phân phối	86
-nhà đầu tư	88
-nhà thầu	84
-đối tác	98
-đối thủ	88
-đối thủ cạnh tranh	86
-đối trọng	70
-đại lý	86
-chi nhánh	90
-văn phòng đại diện	82
-trung tâm bảo hành	80
-cửa hàng	94
-chợ đầu mối	74
-sàn giao dịch	82
-sàn thương mại	84
-gian hàng	84
-giỏ hàng	88
-đặt hàng	94
-đặt trước	84
-hủy đơn	82
-hủy hàng	78
-trả hàng	82
-đổi hàng	82
-giao hàng	96
-giao hàng tận nơi	82
-nhận hàng	90
-kiểm hàng	76
-gói hàng	78
-đóng gói hàng	76
-vận đơn	76
-vận chuyển	92
-phí vận chuyển	84
-freeship	84
-giao nhanh	82
-giao hỏa tốc	78
-tình trạng đơn	78
-xác nhận đơn	82
-xuất hóa đơn	84
-thanh toán khi nhận hàng	82
-sale	88
-giảm giá sốc	78
-mã giảm giá	84
-mã ưu đãi	82
-voucher	82
-phiếu quà tặng	76
-chương trình khuyến mãi	82
-bán hàng	100
-bán buôn	80
-bán lẻ	84
-bán sỉ	80
-đại sứ thương hiệu	74
-thương hiệu	98
-nhãn hiệu	88
-thương hiệu riêng	78
-xây dựng thương hiệu	80
-định vị thương hiệu	78
-tiếp thị	92
-quảng cáo	96
-ra mắt sản phẩm	82
-sản phẩm mới	88
-dịch vụ khách hàng	88
-chăm sóc khách hàng	92
-hồ sơ khách hàng	80
-dữ liệu khách hàng	80
-tư vấn viên	84
+báo cáo thuế	90
+báo cáo tài chính	94
 báo giá	94
 báo giá chính thức	80
-yêu cầu báo giá	80
-soạn báo giá	76
-chốt đơn	92
-chốt hợp đồng	88
-ký hợp đồng	92
-phụ lục hợp đồng	82
-dự thảo hợp đồng	80
-rút khỏi hợp đồng	72
-đàm phán	90
-thương lượng	78
-giá sàn	74
-chiết khấu	86
-hoa hồng	84
-doanh số	88
-doanh thu	100
-chi phí	100
-chi phí vận hành	84
-chi phí cố định	78
-chi phí phát sinh	82
-chi phí dự kiến	78
-khoản mục chi	78
-khoản mục thu	76
-dòng tiền	88
-lưu chuyển tiền tệ	78
-tăng trưởng	94
-tăng trưởng âm	74
-sụt giảm	80
-thị trường	100
-thị phần	90
-thị trường nội địa	80
-thị trường quốc tế	82
-thị trường ngách	74
-xâm nhập thị trường	76
-mở rộng thị trường	80
-thấu hiểu khách hàng	78
-hành trình khách hàng	76
-trải nghiệm khách hàng	80
-giữ chân khách hàng	80
-tỷ lệ chuyển đổi	82
-đầu mối	78
-nguồn khách	76
-cuộc gọi	88
-cuộc gọi nhỡ	76
-gọi lại	82
-hotline	88
-tổng đài	82
-khiếu nại	90
-giải quyết khiếu nại	82
-bảo hành	92
-hậu mãi	78
-phiếu bảo hành	82
-thẻ thành viên	80
-tích điểm	80
-bài giảng	88
-bài tập	96
-bài tập về nhà	88
-bài kiểm tra	94
-bài thi	88
-bài luận	82
-bài thuyết trình	84
-giáo án	82
-giáo trình	84
-giáo viên	96
-giảng viên	88
-trợ giảng	76
-học sinh	96
-sinh viên	96
-học viên	86
-học phí	88
-học bổng	84
-học kỳ	86
-năm học	90
-thời khóa biểu	84
-tín chỉ	80
-điểm số	86
-điểm danh	80
-xếp loại học lực	78
-nghỉ học	84
-đi học muộn	76
-buổi học	84
-lớp học	90
-phòng học	84
-trường học	92
-nộp bài	88
-chấm bài	84
-sửa bài	78
-bài làm	82
-đề cương	80
-đề thi	84
-đáp án	84
-thang điểm	76
-tốt nghiệp	88
-tuyển sinh đại học	78
-hồ sơ nhập học	80
-khám bệnh	86
-khám định kỳ	82
-khám tổng quát	82
-khám sức khỏe	84
-bệnh án	78
-toa thuốc	76
-viện phí	76
-viện viên	70
-bệnh viện	92
-phòng khám	90
-cơ sở y tế	82
-nhân viên y tế	82
-y tá	76
-bác sĩ	92
-sổ khám bệnh	74
-lịch hẹn khám	78
-tái khám	78
-chuyển viện	74
-cấp cứu	84
-lây nhiễm	76
-dịch bệnh	82
-phòng dịch	76
-cách ly	78
-thuốc men	78
-giấy chứng nhận	88
-giấy phép kinh doanh	84
-giấy ủy quyền	84
-giấy giới thiệu	82
-giấy xác nhận	84
-căn cước	86
-hộ khẩu	84
-hộ chiếu	84
-thẻ căn cước	82
-sổ đỏ	78
-sổ hồng	76
-hợp đồng thuê	80
-hợp đồng mua bán	84
-hợp đồng nguyên tắc	78
-hợp đồng điều khoản	76
-công chứng nhà nước	76
-tòa án	84
-viện kiểm sát	78
-luật sư	86
-đơn kiện	76
-đơn khởi kiện	78
+báo giá dự thầu	80
+báo giá vật liệu	76
+bây giờ	96
+bãi bỏ	78
+bãi nhiệm	74
+bão bùng	70
+bê tông	80
+bê tông cốt thép	76
+bên a	72
+bên b	72
+bên bán	78
+bên giao	78
+bên giao khoán	72
+bên gửi hàng	76
+bên mua	78
+bên nhận	78
+bên thứ ba	78
+bình an	82
+bình luận	86
+bình ổn giá	76
+bón phân	72
+bóng đá	84
+bún phở	74
+bút toán	84
+băng rôn	74
+bưu cục	80
+bưu phẩm	80
+bưu điện	78
+bạn bè	90
+bạn thân	84
+bạn đồng hành	72
+bản chính thức	82
+bản cuối	84
+bản cập nhật	88
+bản cứng	76
+bản dùng thử	80
+bản dựng	84
+bản ghi	78
+bản ghi chép	74
+bản gốc	86
+bản in	84
+bản mô tả	80
+bản mềm	80
+bản nháp	88
+bản sao	84
+bản sao y	78
+bản thảo	84
+bản trình bày	88
+bản vá lỗi	82
+bản vẽ	84
+bản vẽ kỹ thuật	80
+bản vẽ thi công	78
+bản vẽ thiết kế	80
 bản án	80
-quyết định xử	70
 bản án sơ thẩm	74
-kháng cáo	74
-tranh chấp	84
-trọng tài	76
-quyền và nghĩa vụ	80
-pháp luật	92
-pháp lý	84
-pháp nhân	76
-thân nhân	74
-người thừa kế	76
-di chúc	76
-đăng ký kết hôn	76
+bảng biểu	88
+bảng chia sẻ	76
+bảng chấm công	88
+bảng cân đối	86
+bảng dữ liệu	84
+bảng lương	90
+bảng phân công	78
+bảng so sánh	80
+bảng số liệu	86
+bảng theo dõi	80
+bảng tin	78
+bảng tổng hợp	84
+bảng đánh giá	78
+bảo dưỡng	82
+bảo hiểm	85
+bảo hiểm du lịch	78
+bảo hiểm nhà	78
+bảo hiểm nhân thọ	82
+bảo hiểm sức khỏe	84
+bảo hiểm thất nghiệp	84
+bảo hiểm tài sản	80
+bảo hiểm xe	82
+bảo hiểm xã hội	92
+bảo hiểm y tế	88
+bảo hành	92
+bảo hành công trình	76
+bảo hộ lao động	82
+bảo lãnh	86
+bảo mật	90
+bảo quản	82
+bảo trì	85
+bảo trì công trình	78
+bảo đảm	80
+bảo đảm dự thầu	76
+bảo đảm thực hiện	78
+bất đồng bộ	80
+bất động sản	100
+bậc lương	84
+bận rộn	84
+bến xe	76
+bền vững	85
+bệnh viện	92
+bệnh án	78
+bố mẹ	88
+bồi dưỡng	84
+bồi thường	88
+bổ nhiệm	88
+bổ sung	90
+bộ nhớ	92
+bộ nhớ ngoài	74
+bộ nhớ đệm	78
+bộ phận	94
+bộ vi xử lý	78
+bộ xử lý	82
 bữa sáng	84
 bữa trưa	86
 bữa tối	84
 bữa ăn	84
+ca sáng	78
+ca sản xuất	80
+ca đêm	78
+cam kết	85
+cam kết thực hiện	84
+cao học	82
+cha mẹ	84
+checklist	78
+chi hộ	78
+chi nhánh	90
+chi phí	100
+chi phí cố định	78
+chi phí dự kiến	78
+chi phí phát sinh	82
+chi phí vận hành	84
+chi phí y tế	80
+chia cổ tức	82
+chia sẻ	94
+chia sẻ bài	74
+chia sẻ cùng	72
+chia sẻ file	84
+chia sẻ màn hình	82
+chip xử lý	78
+chiến dịch	88
+chiến dịch truyền thông	82
+chiến lược	85
+chiết khấu	86
+chiều mai	82
+chiều nay	82
+cho biết	90
+cho phép	90
+cho thuê nhà	86
+chung cư	94
+chung tay	78
+chuyên cần	74
+chuyên môn	90
+chuyên nghiệp	85
+chuyên ngành	86
+chuyến bay	86
+chuyến đi	84
+chuyển giao	88
+chuyển giao công nghệ	80
+chuyển khoản	100
+chuyển phát	84
+chuyển tiếp thư	76
+chuyển tiền	92
+chuyển viện	74
+chuột máy tính	82
+chào buổi sáng	88
+chào tạm biệt	84
+cháu nội	74
+chênh lệch	86
+chính chuyên	70
+chính hiện	70
+chính phủ	94
+chính quyền	90
+chính sách	85
+chính thức	96
+chính trực	80
+chính xác	96
+chính đáng	84
+chú trọng	86
+chú ý	92
+chúc mừng	100
+chúc ngủ ngon	80
+chúc sức khỏe	84
+chúc thọ	74
+chăm chỉ	88
+chăm sóc	88
+chăm sóc khách hàng	92
+chơi game	82
+chương trình	96
+chương trình học	80
+chương trình khuyến mãi	82
+chạy thử	76
+chấm bài	84
+chấm công	90
+chấm dứt hợp đồng	84
+chấp nhận	94
+chấp thuận	84
+chất lượng	90
+chẩn đoán	84
+chế biến	84
+chế biến thực phẩm	78
+chế độ ăn	78
+chế độ đãi ngộ	86
+chỉ mục	80
+chỉ số	90
+chỉ số đo lường	76
+chỉ thị	88
+chỉ tiêu	90
+chỉ tiêu kế hoạch	80
+chỉ tiêu năm	76
+chỉnh lý	78
+chỉnh sửa	90
+chỉnh trang	76
+chỉnh đốn	80
+chốt hợp đồng	88
+chốt đơn	92
+chợ đầu mối	74
+chủ trì	88
+chủ tịch	80
+chủ đầu tư	86
+chức danh	88
+chức vụ	90
+chứng nhận	90
+chứng nhận doanh nghiệp	76
+chứng nhận đăng ký	78
+chứng thực	82
+chứng từ	80
+chứng từ kế toán	88
+chứng từ thanh toán	80
+chứng từ xuất nhập khẩu	82
+chữ ký	92
+chữ ký số	90
+chữa bệnh	80
+cic nợ	70
+con cái	82
+con dấu	84
+container	84
+container lớn	74
+cuối năm	88
+cuối quý	80
+cuối tháng	90
+cuối tuần	94
+cuộc gọi	88
+cuộc gọi nhỡ	76
+cuộc họp	100
+cuộc họp mặt	76
+cv xin việc	84
+cà phê	88
+cà phê sữa	78
+cài đặt	100
+các bên	92
+cách cư xử	76
+cách ly	78
+cách tiếp cận	82
+cán bộ	94
+cân bằng cuộc sống	76
+cân nặng	82
+cây trồng	78
+có hiệu lực	88
+cô chú	74
+công bố	80
+công chức	84
+công chứng	82
+công chứng chứng thực	80
+công chứng nhà nước	76
+công cụ	80
+công nghệ	100
+công nghệ sản xuất	82
+công nhân	88
+công nợ	94
+công suất	90
+công suất thiết kế	78
+công trình	94
+công trường	82
+công ty	98
+công tác	85
+công việc	85
+công văn	96
+công văn số	78
+cùng nhau	88
+căn cước	86
+căn cứ	92
+căn cứ pháp lý	82
+căn hộ	96
+căng thẳng	84
+cơ cấu tổ chức	84
+cơ quan	80
+cơ sở dữ liệu	96
+cơ sở y tế	82
 cơm nhà	80
 cơm trưa	84
 cơm tối	78
-nấu ăn	86
-đi chợ	76
-đi siêu thị	80
-mua sắm	88
-mua nhà	78
-thuê nhà	80
-sửa nhà	76
-dọn nhà	76
-dọn dẹp	82
-giặt ủi	76
-gia đình	96
-ông bà	84
-cha mẹ	84
-bố mẹ	88
-anh chị em	78
-con cái	82
-cháu nội	74
-họ hàng	80
-bạn bè	90
-bạn thân	84
-người yêu	84
-vợ chồng	84
-kết hôn	82
+cư dân	84
+cước phí	82
+cước vận chuyển	82
 cưới hỏi	76
-đám cưới	82
-đám giỗ	70
-sinh nhật	90
-lễ tết	86
-Tết Nguyên Đán	82
-nghỉ lễ	84
-nghỉ hè	76
-kỳ nghỉ	86
-du lịch	90
-đi chơi	80
-cà phê	88
-cà phê sữa	78
-trà sữa	84
-bún phở	74
-gọi đồ	76
-ship đồ	74
-giao đồ ăn	78
-thời tiết	88
-nắng nóng	80
-mưa gió	76
-bão bùng	70
-giao thông	88
-kẹt xe	84
-đường trường	74
-xăng xe	76
-đi làm	92
-tan làm	82
-ca đêm	78
-ca sáng	78
-thức khuya	82
-dậy sớm	80
-ngủ trưa	78
-tập thể dục	82
-thể thao	86
-bóng đá	84
-cầu lông	78
-gym fitness	74
-sức khỏe	94
-tinh thần	88
+cạnh tranh	88
+cải tiến	85
+cải tạo	82
 cảm cúm	78
-đau đầu	80
-mệt mỏi	84
-thư giãn	86
-nghỉ ngơi	88
-xả hơi	74
-điện ảnh	78
-xem phim	84
-nghe nhạc	82
-đọc sách	84
-chơi game	82
-bài đăng	78
-bình luận	86
-chia sẻ bài	74
-tin nhắn	90
-cuộc họp mặt	76
-nhắn tin	84
+cảm giác	84
+cảm nhận	78
+cảm xúc	84
+cảm ơn	100
+cảnh cáo	80
+cấp bậc	78
+cấp cứu	84
+cấp dưới	74
+cấp phép	84
+cấp quản lý	82
+cấp trên	78
+cấu hình	98
+cầm cố	74
+cầu lông	78
+cập nhật	100
+cập nhật bản vá	78
+cắt giảm	80
+cọc trước	82
+cố gắng	90
+cốt thép	72
+cổ phiếu	88
+cổ phần	90
+cổ đông	88
+cổng kết nối	80
+cổng usb	80
+cộng hòa	96
+cộng hưởng	76
+cộng sự	78
+cộng tác viên	84
+cộng đồng	94
+cột biểu đồ	70
+cột dữ liệu	78
+cửa hàng	94
+cửa sổ	90
+cửa sổ bật lên	76
+cực kỳ	84
+danh bạ	80
+danh mục	92
+danh sách	80
+danh sách khách hàng	82
+danh sách nhân sự	80
+danh sách việc cần làm	76
+danh tính số	72
+deadline	88
+di chúc	76
+dinh dưỡng	70
+dinhdưỡng	70
+diện tích	96
+diện tích sàn	76
+doanh nghiệp	90
+doanh số	88
+doanh thu	100
+du lịch	90
+du thuyền	74
+duyệt đơn	82
+dài hạn	84
+dàn xếp	74
+dàn ý	78
+dây chuyền	90
+dây chuyền sản xuất	88
+dòng dữ liệu	78
+dòng tiền	88
+dư nợ	80
+dư phép	74
+dư địa	74
+dược sĩ	76
+dậy sớm	80
+dịch bệnh	82
+dịch hại	72
+dịch vụ	95
+dịch vụ khách hàng	88
+dịch vụ phòng	76
+dọn dẹp	82
+dọn nhà	76
+dụng cụ	80
+dừng máy	74
+dữ liệu	95
+dữ liệu khách hàng	80
+dữ liệu lớn	84
+dữ liệu nghiên cứu	78
+dự thảo	88
+dự thảo hợp đồng	80
+dự toán	86
+dự án	90
+dự án nghiên cứu	78
+dự án nhà ở	82
+file	100
+file đính kèm	86
+freelancer	82
+freeship	84
+ga tàu	76
+gia hạn	90
+gia hạn bảo hiểm	80
+gia đình	96
+gian hàng	84
+giao diện	96
+giao diện người dùng	84
+giao dịch	80
+giao hàng	96
+giao hàng tận nơi	82
+giao hỏa tốc	78
+giao nhanh	82
+giao nhận	84
+giao thông	88
+giao trễ	74
+giao đồ ăn	78
+gieo trồng	76
+giá bán	90
+giá cả	92
+giá mua	86
+giá sàn	74
+giá thành	86
+giá trị	100
+giá trị hợp đồng	84
+giá vốn	84
+giám sát	94
+giám sát thi công	80
+giám định	82
+giám đốc	90
+giám đốc điều hành	84
+giáng chức	74
+giáo trình	84
+giáo viên	96
+giáo án	82
+giúp việc	76
+giúp đỡ	92
+giúp đỡ nhau	76
+giả thuyết	76
+giải ngân	84
+giải nén	82
+giải pháp	95
+giải quyết khiếu nại	82
+giảm giá	88
+giảm giá sốc	78
+giảm thuế	78
+giảng viên	88
+giấy chứng nhận	88
+giấy giới thiệu	82
+giấy mời	84
+giấy phép	92
+giấy phép kinh doanh	84
+giấy phép xây dựng	78
+giấy sang tên	78
+giấy tờ	90
+giấy tờ pháp lý	78
+giấy tờ tùy thân	82
+giấy xác nhận	84
+giấy ủy quyền	84
+giặt ủi	76
+giỏ hàng	88
+giống cây	74
+giống vật	72
+giữ chân khách hàng	80
+giữ xe	76
+giữa năm	76
+giữa tháng	80
+giữa tuần	80
+gym fitness	74
+gói hàng	78
+gói thầu	88
+góp vốn	82
+góp ý	88
+gạch đá	72
+gần đây	88
+gọi lại	82
+gọi món	78
 gọi điện	84
-liên lạc	88
-thân thiết	84
-tạm biệt	86
-hẹn sớm	74
+gọi đồ	76
+gỡ cài đặt	84
+gỡ lỗi	80
+gửi tiền	88
+gửi xe	80
+hai bên	90
+hao mòn	74
+hashtag	72
+hiện nay	88
+hiện tại	94
+hiệu quả	85
+hiệu suất	90
+hoa hồng	84
+hotline	88
+hoàn công	74
+hoàn thiện	90
+hoàn thuế	78
+hoãn lại	82
+hoạt động	80
+huấn luyện	82
+hy vọng	92
+hàng cấm	74
+hàng hóa	96
+hàng hóa mẫu	74
+hàng hỏng	74
+hàng lỗi	76
+hàng ngày	88
+hàng nhập	80
+hàng năm	88
+hàng quý	80
+hàng tháng	88
+hàng tuần	88
+hàng xuất	80
+hàng đạt	76
+hành lý	82
+hành trình khách hàng	76
+hành động	88
+hình ảnh	94
+hòa bình	94
+hòa giải	78
+hòa hợp	86
+hòa nhã	78
+hòa nhập	82
+hòa quyện	74
+hòa tan	76
+hòa đồng	82
+hóa đơn	90
+hóa đơn giấy	78
+hóa đơn nhà hàng	74
+hóa đơn nông sản	70
+hóa đơn điện tử	92
+hóa đơn đỏ	90
+hôm kia	80
 hôm nay	100
 hôm qua	94
-hôm kia	80
+hướng dẫn	90
+hướng dẫn thực hiện	82
+hướng dẫn viên	80
+hạn chót	88
+hạn chế	80
+hạn mức	84
+hạn mức thẻ	78
+hạn sử dụng	84
+hạn thanh toán	88
+hạng vé	74
+hạnh phúc	92
+hải quan	96
+hải sản	82
+hầu như	78
+hậu mãi	78
+hẹn gặp lại	92
+hẹn sớm	74
+hết hiệu lực	82
+hết phép	76
+hết sức	86
+hệ thống	95
+hệ thống con	76
+hệ thống giám sát	80
+hệ thống mạng	88
+hệ thống tệp	78
+hệ điều hành	92
+họ hàng	80
+học bổng	84
+học giả	72
+học kỳ	86
+học máy	86
+học phí	88
+học sinh	96
+học sâu	80
+học viên	86
+học vị	74
+họp bàn	80
+họp báo	80
+họp giao ban	88
+họp hội đồng	84
+họp khẩn	88
+họp mặt	82
+họp nhanh	86
+họp nhóm	90
+họp online	84
+họp triển khai	84
+họp trực tuyến	86
+họp tổng kết	84
+hối phiếu	74
+hồ sơ	80
+hồ sơ bệnh án	78
+hồ sơ bồi thường	82
+hồ sơ dự thầu	86
+hồ sơ dự án	80
+hồ sơ hoàn công	74
+hồ sơ khách hàng	80
+hồ sơ kỹ thuật	82
+hồ sơ mời thầu	84
+hồ sơ nhân sự	88
+hồ sơ nhập học	80
+hồ sơ pháp lý	82
+hồ sơ thuế	80
+hồ sơ vay	82
+hồ sơ ảnh	72
+hồ sơ ứng tuyển	84
+hỗ trợ	90
+hộ chiếu	84
+hộ khẩu	84
+hộ kinh doanh	82
+hội hè	72
+hội kiều	70
+hội luận	72
+hội nghị	92
+hội nhập	84
+hội thảo	90
+hội thảo khoa học	80
+hội thẩm	76
+hội trường	88
+hội tụ	74
+hội viên	84
+hội đồng	90
+hội đồng quản trị	86
+hội đồng sơ thẩm	72
+hộp thư	82
+hộp thư đến	86
+hợp lý	80
+hợp pháp	80
+hợp tác	80
+hợp tác kinh doanh	84
+hợp tác xã	82
+hợp đồng	100
+hợp đồng bảo hiểm	90
+hợp đồng lao động	94
+hợp đồng mua bán	84
+hợp đồng ngoại	78
+hợp đồng nguyên tắc	78
+hợp đồng thuê	80
+hợp đồng thử việc	84
+hợp đồng xác định thời hạn	80
+hợp đồng điều khoản	76
+hợp đồng đặt cọc	84
+hủy hàng	78
+hủy đơn	82
+khai báo hải quan	80
+khai thác	78
+khen thưởng	90
+khi đó	84
+khiếu nại	90
+khiển trách	76
+kho bãi	80
+kho bạc	78
+kho hàng	88
+kho hồ sơ	72
+kho lhương	70
+kho lương	70
+kho mã	78
+kho vận	78
+khoanh vùng lỗi	72
+khoản mục chi	78
+khoản mục thu	76
+khoản vay	90
+khu dân cư	82
+khu nghỉ dưỡng	80
+khu vực	94
+khu đô thị	86
+khu đất	82
+khung nhà	72
+khuyến mãi	92
+khuyến mại	90
+khuyến nghị	86
+khách du lịch	78
+khách hàng	100
+khách hàng cũ	76
+khách hàng mới	80
+khách hàng thân thiết	84
+khách hàng tiềm năng	86
+khách quốc tế	76
+khách sạn	94
+khám bệnh	86
+khám chuyên khoa	78
+khám chữa bệnh	80
+khám sức khỏe	84
+khám sức khỏe định kỳ	78
+khám tổng quát	82
+khám định kỳ	82
+kháng cáo	74
+khánh thành	80
+khó chịu	80
+khó khăn	75
+khóa chính	82
+khóa ngoại	80
+khôi phục	92
+khôi phục mật khẩu	80
+khước từ	76
+khả năng	80
+khảo sát	92
+khấu hao	82
+khấu trừ	82
+khối lượng	86
+khởi công	82
+khởi động	84
+kinh doanh	100
+kinh nghiệm	85
+kinh tế	90
+kiến nghị	88
+kiến trúc sư	82
+kiểm duyệt	82
+kiểm hàng	76
+kiểm kê	84
+kiểm soát	94
+kiểm soát chất lượng	88
+kiểm soát viên	74
+kiểm thử	94
+kiểm thử bảo mật	78
+kiểm thử hiệu năng	78
+kiểm thử tự động	82
+kiểm tra	85
+kiểm tra thực hiện	78
+kiểm điểm	78
+kiểm đếm	84
+kiện hàng	84
+kéo dài	82
+kê khai	88
+kê khai thuế	86
+kê đơn	70
+kênh truyền hình	78
+kính dâng	70
+kính thư	82
+kính thưa	86
+ký gửi	74
+ký gửi hành lý	76
+ký hợp đồng	92
+ký kết	90
+ký kết hợp đồng	86
+kẹt xe	84
+kế hoạch	95
+kế hoạch sản xuất	86
+kế hoạch truyền thông	82
+kế toán trưởng	88
+kết hôn	82
+kết hợp	92
+kết luận	94
+kết nối	90
+kết quả	95
+kết quả khảo sát	80
+kết quả nghiên cứu	82
+kết quả xét nghiệm	80
+kịch bản	84
+kỳ báo cáo	82
+kỳ hạn	86
+kỳ hạn gửi	78
+kỳ họp	80
+kỳ kiểm kê	76
+kỳ nghỉ	86
+kỳ thi	82
+kỳ đánh giá	78
+kỷ luật	86
+kỹ năng cứng	84
+kỹ năng mềm	86
+kỹ sư	88
+kỹ thuật	85
+lao động	96
+laptop	90
+linh kiện	86
+livestream	76
+liên hệ	85
+liên lạc	88
+liên tục	92
+lo lắng	86
+luân chuyển	78
+luận văn	84
+luận án	82
+luật pháp	84
+luật sư	86
+lâu dài	84
+lây nhiễm	76
+lãi gộp	80
+lãi kép	78
+lãi ròng	78
+lãi suất	92
+lãi xuất	70
+lãnh đạo	96
+lên sóng	78
+lòng biết ơn	76
+lòng trắc ẩn	72
+lòng tốt	76
+lô hàng	86
+lô đất	84
+lúc này	88
+lúc đó	84
+lý do	88
+lưu chuyển tiền tệ	78
+lưu trú	78
+lưu trữ	88
+lưu trữ đám mây	80
+lưu ý	98
+lương cơ bản	90
+lương khoán	80
+lương năm	84
+lương tháng	90
+lương thưởng	92
+lượt thích	74
+lượt xem	76
+lễ tân	80
+lễ tết	86
+lệnh sản xuất	78
+lịch cá nhân	80
+lịch giao hàng	82
+lịch hẹn khám	78
+lịch họp	92
+lịch làm việc	88
+lịch trình	82
+lỗ vốn	78
+lộ trình	88
+lớp học	90
+lời mời	88
+lời nói	86
+lợi nhuận	100
+lợi ích	80
+miễn thuế	76
+mou	76
+mua nhà	78
+mua sắm	88
+mua sắm công	82
+màn hình	96
+máy chiếu	84
+máy chủ	98
+máy in	92
+máy khách	86
+máy móc	90
+máy móc thiết bị	88
+máy quét	80
+máy tính	100
+máy ảo	88
+mã giảm giá	84
+mã hs	80
+mã hàng hóa	76
+mã hóa	88
+mã lỗi	82
+mã nguồn	94
+mã nguồn mở	84
+mã otp	82
+mã pin	80
+mã qr	84
+mã số doanh nghiệp	78
+mã số thuế	84
+mã vạch	82
+mã ưu đãi	82
+mãi mãi	84
+mãi mặn mà	70
+mét vuông	90
+móng nhà	74
+mô tả công việc	90
+mùa vụ	84
+mũ bảo hộ	74
+mưa gió	76
+mạng không dây	80
+mạng nơ ron	78
+mạng nội bộ	84
+mạng xã hội	92
+mẫu biểu	80
+mẫu khảo sát	74
+mẫu số	78
+mẫu đơn	84
+mật khẩu	98
+mặt bằng	92
+mặt tiền	88
+mệt mỏi	84
+mối quan hệ	90
+mối quan hệ tốt đẹp	78
+mới đây	78
+mời họp	88
+mở rộng thị trường	80
+mục tiêu	85
+mục tiêu công việc	80
+mục tiêu nghiên cứu	78
+mức bồi thường	80
+mức chi	76
+mức phạt	78
+mức thu	76
+mức đóng	82
+mức độ	90
+ngay bây giờ	84
+nghe nhạc	82
+nghiêm cấm	76
+nghiên cứu	85
+nghiên cứu khoa học	86
+nghiên cứu sinh	76
+nghiệm thu	90
+nghiệm thu công trình	82
+nghiệm thu kỹ thuật	80
+nghiệp vụ	92
+nghĩa vụ	80
+nghỉ bù	84
+nghỉ dưỡng	84
+nghỉ hè	76
+nghỉ học	84
+nghỉ không lương	82
+nghỉ lễ	84
+nghỉ ngơi	88
+nghỉ phép	100
+nghỉ rota	70
+nghỉ thai sản	84
+nghỉ việc	88
+nghỉ ốm	84
+nghị quyết	85
+nghị định	85
+ngoại thất	80
+ngoại tệ	80
+nguyên tắc	80
+nguyên vật liệu	86
+nguồn khách	76
+nguồn tham khảo	76
+ngày kia	76
 ngày mai	96
 ngày mốt	78
-ngày kia	76
-tuần này	90
-tuần trước	88
-tuần sau	88
-tuần tới	88
-cuối tuần	94
-đầu tuần	86
-giữa tuần	80
-tháng này	88
-tháng trước	86
-tháng sau	86
-tháng tới	86
-đầu tháng	84
-giữa tháng	80
-cuối tháng	90
-đầu quý	78
-cuối quý	80
-quý này	82
-quý trước	80
-quý sau	80
+ngày phép	84
+ngày sản xuất	80
+ngân hàng	100
+ngân khố	74
+ngân quỹ	76
+ngân sách	85
+người lao động	90
+người phát ngôn	78
+người quản lý	84
+người theo dõi	74
+người thân	86
+người thụ hưởng	82
+người thừa kế	76
+người yêu	84
+người đại diện	84
+người đồng nghiệp	78
+ngưỡng	78
+ngắn hạn	80
+ngủ trưa	78
+nhiệm kỳ	78
+nhiệm vụ	100
+nhu cầu tuyển	76
+nhà báo	78
+nhà bếp	82
+nhà cung cấp	94
+nhà ga	84
+nhà giống	70
+nhà hàng	92
+nhà khoa học	80
+nhà kinh doanh	80
+nhà máy	92
+nhà nghiên cứu	78
+nhà nước	94
+nhà phân phối	86
+nhà phố	88
+nhà thầu	84
+nhà thầu phụ	74
+nhà trẻ	74
+nhà trọ	78
+nhà văn	76
+nhà văn hóa	84
+nhà xe	78
+nhà đất	94
+nhà đầu tư	88
+nhà ở xã hội	80
+nhân công	82
+nhân khẩu	76
+nhân lực	90
+nhân sự	100
+nhân tài	82
+nhân viên	90
+nhân viên bán thời gian	80
+nhân viên chính thức	84
+nhân viên thử việc	82
+nhân viên toàn thời gian	76
+nhân viên tư vấn	84
+nhân viên y tế	82
+nhãn hiệu	88
+nhấn mạnh	90
+nhận chuyển	74
+nhận hàng	90
+nhận nhà	84
+nhận phòng	84
+nhận tiền	82
+nhận việc	90
+nhận xét	92
+nhập kho	82
+nhập khẩu	92
+nhập tồn	74
+nhập viện	80
+nhật ký	84
+nhật ký công việc	76
+nhắn tin	84
+niềm hy vọng	72
+niềm tin	84
+niềm vui	84
+nuôi trồng	74
+nâng bậc	78
+nâng cấp	85
+nén file	80
+nêu rõ	84
+nông dân	84
+nông nghiệp	90
+nông sản	84
+nông trại	80
+nút bấm	84
+năm học	90
 năm nay	84
 năm ngoái	84
 năm sau	84
 năm tới	84
-đầu năm	84
-cuối năm	88
-giữa năm	76
-sáng nay	82
-sáng mai	82
-chiều nay	82
-chiều mai	82
-tối nay	82
-tối qua	78
-buổi sáng	88
-buổi trưa	82
-buổi chiều	88
-buổi tối	84
-ban ngày	80
-ban đêm	80
-ban đầu	92
-sau này	84
-trước đây	86
-hiện nay	88
-hiện tại	94
-bây giờ	96
-ngay bây giờ	84
-lúc này	88
-lúc đó	84
-khi đó	84
-đến nay	88
-từ trước đến nay	80
-hàng ngày	88
-hàng tuần	88
-hàng tháng	88
-hàng quý	80
-hàng năm	88
-thường xuyên	92
-liên tục	92
-thỉnh thoảng	82
-đôi khi	86
-hầu như	78
-gần đây	88
-mới đây	78
-trong tương lai	80
-tương lai gần	74
-lâu dài	84
-ngắn hạn	80
-dài hạn	84
-trung hạn	80
-trong ngắn hạn	74
-tạm thời	86
-vĩnh viễn	82
-mãi mãi	84
-mãi mặn mà	70
-đúng giờ	86
-đúng hạn	88
-trễ deadline	74
-trước hạn	82
+năng lực	85
+năng lực sản xuất	82
+năng suất	85
+nấu ăn	86
+nắng nóng	80
+nếu xảy ra tổn thất	74
+nỗ lực	84
+nội dung	80
+nội dung họp	90
+nội quy	86
+nội quy lao động	84
+nội thất	90
+nộp bài	88
+nộp thuế	86
+nợ phải thu	84
+nợ phải trả	84
+nợ quá hạn	82
+nợ xấu	80
+phiên bản	100
+phiên đăng nhập	78
+phiếu bảo hành	82
+phiếu chi	88
+phiếu giao hàng	84
+phiếu kho	78
+phiếu khảo sát	80
+phiếu nhập kho	82
+phiếu quà tặng	76
+phiếu thu	88
+phiếu xuất kho	82
+phun thuốc	72
+phác đồ điều trị	74
+pháp luật	92
+pháp lý	84
+pháp nhân	76
+phát biểu	80
+phát biểu ý kiến	72
+phát hành	80
+phát hành bản mới	80
+phát ngôn	76
+phát sinh	85
+phát sóng	80
+phát triển	100
+phát trực tiếp	78
+phân chia	88
+phân công	94
+phân tích	100
+phép năm	88
+phê bình	78
+phê duyệt	85
+phí bảo hiểm	86
+phí chuyển khoản	84
+phí gửi xe	78
+phí handling	72
+phí lưu kho	78
+phí quản lý	80
+phí thường niên	78
+phí vận chuyển	84
+phòng ban	94
+phòng bếp	82
+phòng bệnh	78
+phòng chống dịch	76
+phòng dịch	76
+phòng gia đình	74
+phòng học	84
+phòng họp	92
+phòng khách	86
+phòng khám	90
+phòng ngủ	86
+phòng thí nghiệm	84
+phòng đôi	76
+phòng đơn	76
+phó chủ tịch	84
+phó giám đốc	88
+phó phòng	86
+phúc lợi	86
+phương pháp	94
+phương pháp nghiên cứu	80
+phương án	85
+phạm vi	88
+phạm vi công việc	84
+phạm vi nghiên cứu	78
+phản hồi	100
+phản ánh	84
+phần cứng	96
+phần mềm	95
+phần mềm gián điệp	74
+phần mềm độc hại	82
+phỏng vấn	96
+phỏng vấn sơ bộ	80
+phỏng vấn sơ tuyển	74
+phỏng vấn vòng cuối	80
+phối hợp	85
+phụ cấp	88
+phụ lục	86
+phụ lục hợp đồng	82
+phụ tùng	80
+phục hồi	90
+phục vụ	90
+poster	76
+quan hệ	90
+quan hệ công việc	78
+quan hệ đối tác	82
+quy chế	86
+quy chế thưởng	78
+quy cách đóng gói	78
+quy trình	90
+quy trình bồi thường	80
+quy trình kỹ thuật	84
+quy định	90
+quy định pháp luật	84
+quyết toán	86
+quyết toán hợp đồng	78
+quyết định	90
+quyết định ban hành	76
+quyết định xử	70
+quyền lợi	85
+quyền truy cập	88
+quyền và nghĩa vụ	80
+quà tặng	80
+quá cảnh	72
+quá hạn	86
 quá muộn	80
-sớm nhất	88
-sớm mai	74
-ram	84
-cv xin việc	84
-quốc gia	96
-quốc tế	96
-quốc phòng	88
-quốc khánh	84
-quốc hiệu	80
-quốc ngữ	82
-quốc hội	84
-quốc lộ	78
-quốc dân	80
+quét thẻ	74
+quên mật khẩu	84
+quý khách	98
+quý khách hàng	98
+quý này	82
+quý sau	80
+quý trước	80
+quản lý	100
+quản đốc	74
+quảng cáo	96
 quốc ca	80
+quốc dân	80
+quốc gia	96
+quốc hiệu	80
+quốc hội	84
+quốc khánh	84
 quốc kỳ	82
+quốc lộ	78
+quốc ngữ	82
+quốc phòng	88
 quốc tang	74
-hòa bình	94
-hòa đồng	82
-hòa hợp	86
-hòa nhã	78
-hòa quyện	74
-hòa tan	76
-hòa nhập	82
-hội nghị	92
-hội thảo	90
-hội trường	88
-hội viên	84
-hội thẩm	76
-hội hè	72
-hội kiều	70
-hội luận	72
-hội nhập	84
-hội tụ	74
-tiến triển	88
+quốc tế	96
+quỹ dự phòng	82
+quỹ lương	80
+ra mắt sản phẩm	82
+ram	84
+robot	78
+robot công nghiệp	74
+ruộng đồng	74
+rà soát	90
+rà soát hợp đồng	78
+rò rỉ dữ liệu	82
+rút khỏi hợp đồng	72
+rút ngắn	84
+rút tiền	88
+rút tiền mặt	84
+rút vốn	80
+rất mong	92
+rất tiếc	86
+rất vui	88
+sa thải	76
+sale	88
+sao kê	84
+sao kê tài khoản	82
+sao lưu	94
+sau này	84
+ship đồ	74
+sinh nhật	90
+sinh viên	96
+slide	88
+so sánh	90
+so sánh báo giá	76
+soi chiếu	74
+soạn báo giá	76
+soạn hợp đồng	80
+soạn thảo	88
+spot quảng cáo	70
+standee	72
+sàn giao dịch	82
+sàn thương mại	84
+sáng mai	82
+sáng nay	82
+sáng tạo	80
+sân bay	86
+sân thượng	78
+sâu bệnh	74
+sơ yếu lý lịch	86
+sơ đồ	84
+sơ đồ khối	74
+sơ đồ tổ chức	86
+sản lượng	84
+sản phẩm	95
+sản phẩm mới	88
+sản xuất	100
+số dư	90
+số dư cuối kỳ	84
+số dư kỳ	76
+số dư nợ	82
+số dư tài khoản	84
+số dư đầu kỳ	84
+số hiệu văn bản	74
+số liệu	100
+số lô	78
+số điện thoại cấp cứu	72
+sổ cái	84
+sổ hồng	76
+sổ khám bệnh	74
+sổ kế toán	86
+sổ phụ ngân hàng	86
+sổ sách	86
+sổ sức khỏe	74
+sổ tay	82
+sổ theo dõi	76
+sổ tiết kiệm	86
+sổ đỏ	78
+sớm mai	74
+sớm nhất	88
+sở hữu	80
+sụt giảm	80
+sức khỏe	94
+sức khỏe tinh thần	74
+sức khỏe định kỳ	78
+sửa bài	78
+sửa chữa	88
+sửa chữa lớn	76
+sửa chữa nhà	80
+sửa lỗi	96
+sửa nhà	76
+sửa đổi	88
+sự chia sẻ	78
+sự cân bằng	76
+sự cố gắng	76
+sự cố kỹ thuật	80
+sự cố máy móc	76
+sự cố vấn	70
+sự hợp tác	80
+sự quan tâm	80
+sự thấu hiểu	76
+sự tin cậy	72
+sự tin tưởng	78
+sự tử tế	74
+sự đồng hành	74
+tai nạn lao động	78
+tan làm	82
+tang chức	70
+tham quan	88
+thang bậc	72
+thang lương	86
+thang máy	86
+thang điểm	76
+thanh cuộn	74
+thanh công cụ	76
+thanh lý	84
+thanh lý hợp đồng	86
+thanh toán	90
+thanh toán dư	76
+thanh toán khi nhận hàng	82
+thanh toán online	84
+thanh toán sau	82
+thanh toán trước	84
+thanh toán đợt	76
+thanh trạng thái	76
+thay mặt	90
+thay thế	86
+thay đổi	96
+theo dõi sức khỏe	76
+theo dõi y tế	72
+theo pháp luật	84
+thi công	92
+thi công xây dựng	82
+thi đua	80
+thiết bị	100
+thiết bị ngoại vi	76
+thiết bị thí nghiệm	74
+thiết bị đeo	74
+thiết bị đầu cuối	78
+thiết kế	92
+thiết kế cơ bản	76
+thiết kế kỹ thuật	78
+thiết kế nhà	80
+thiết lập	94
+thiệp mời	74
+thu hoạch	84
+thu hồi vốn	80
+thu hộ	78
+thuyên chuyển	82
+thuyết trình	94
+thuê nhà	80
+thuê nhà trọ	80
+thuế giá trị	80
+thuế môn bài	78
+thuế nhập khẩu	84
+thuế suất	78
+thuế thu nhập	88
+thuế xuất khẩu	82
+thuốc men	78
+thành công	85
+thành lập	80
+thành lập công ty	80
+thành lập doanh nghiệp	78
+thành phần	84
+thành phần tham dự	80
+thành viên	90
+thái độ	88
+thái độ làm việc	80
+tháng này	88
+tháng sau	86
+tháng trước	86
+tháng tới	86
+thân gửi	88
+thân mến	84
+thân nhân	74
+thân thiết	84
+thép	76
+thí nghiệm	82
+thôi việc	82
+thông báo	85
+thông cáo báo chí	80
+thông cảm	84
+thông qua	88
+thông quan	86
+thông số kỹ thuật	82
+thông tin	100
+thông tư	85
+thông điệp	82
+thăng chức	84
+thư báo nhận việc	78
+thư cảm ơn	84
+thư giãn	86
+thư ký	86
+thư ký hội đồng	74
+thư mời	88
+thư mời hợp tác	76
+thư mời làm việc	80
+thư mời phỏng vấn	80
+thư mục	96
+thư nháp	78
+thư nhận việc	80
+thư rác	84
+thư tín dụng	80
+thư tín dụng quốc tế	74
+thư từ chối	74
+thư viện mã nguồn	76
+thưa anh	84
+thưa chị	84
+thưa quý vị	84
+thương hiệu	98
+thương hiệu riêng	78
+thương lượng	78
+thương mại	80
+thường xuyên	92
+thưởng lễ tết	82
+thưởng nóng	80
+thưởng năm	84
+thưởng quý	82
+thượng khách	70
+thảo luận	100
+thấu hiểu	86
+thấu hiểu khách hàng	78
+thầu phụ	72
+thầu xây dựng	80
+thẩm quyền	84
+thẩm định	86
+thẻ atm	82
+thẻ boarding	70
+thẻ căn cước	82
+thẻ ghi nợ	84
+thẻ kho	74
+thẻ nội địa	78
+thẻ quốc tế	80
+thẻ thành viên	80
+thẻ tín dụng	88
+thế chấp	82
+thế chấp ngân hàng	84
+thể thao	86
+thỉnh cầu	74
+thỉnh thoảng	82
+thị phần	90
+thị trường	100
+thị trường chứng khoán	84
+thị trường ngách	74
+thị trường nông sản	74
+thị trường nội địa	80
+thị trường quốc tế	82
+thỏa thuận	85
+thỏa thuận hợp tác	84
+thỏa thuận lao động	82
+thống kê	94
+thời gian	85
+thời gian giao hàng	84
+thời gian thực hiện	82
+thời hạn	94
+thời hạn bảo hiểm	80
+thời hạn lưu trữ	74
+thời khóa biểu	84
+thời tiết	88
+thợ hồ	70
+thợ xây	74
+thủ tục	92
+thủ tục hành chính	84
+thủy sản	80
+thức khuya	82
+thử việc	88
+thực hiện	95
+thực tập	86
+thực tập sinh	88
+thực tế	80
+thực đơn	80
+tin chắc	82
+tin nhắn	90
+tin rằng	80
+tin tặc	78
+tinh thần	88
+tip phục vụ	70
+tiêm phòng	78
+tiêu chuẩn	90
+tiêu chuẩn kỹ thuật	84
+tiêu chí	88
+tiêu chí tuyển	70
+tiêu chí đánh giá	80
+tiêu đề	82
 tiến hành	90
 tiến lên	84
-tiến tới	82
 tiến lùi	74
-tiến vượt	70
-tiến trình	86
-tiến nhanh	76
 tiến mạnh	74
-tổ quốc	90
-tổ ong	74
-tổ tiên	84
-tổ hợp	84
-tổ đội	74
+tiến nhanh	76
+tiến sĩ	84
+tiến triển	88
+tiến trình	86
+tiến tới	82
+tiến vượt	70
+tiến độ	90
+tiến độ thi công	82
+tiếp nhận	94
+tiếp thị	92
+tiếp tục	96
+tiết kiệm	92
+tiền cọc	84
+tiền gửi	84
+tiền lương	92
+tiền mặt	92
+tiền nhà	82
+tiền nước	82
+tiền phạt	80
+tiền thưởng	88
+tiền vay	84
+tiền điện	84
+tiền điện nước	80
+tiền điện thoại	80
+tiểu luận	80
+toa thuốc	76
+tour du lịch	82
+tra soát	76
+trang trí nhà	78
+trang trại	80
+tranh chấp	84
+trao đổi	96
+trend	78
+triển khai	85
+triệu tập	74
+trong ngắn hạn	74
+trong tương lai	80
+trung hạn	80
+trung tâm bảo hành	80
+trung tâm y tế	80
+truy thu	74
+truy vấn	90
+truyền thông	96
+trà sữa	84
+trách nhiệm	85
+trân trọng	98
+trân trọng kính mời	82
+trình biên dịch	84
+trình bày	96
+trình chiếu	88
+trình chạy nền	74
+trình cài đặt	84
+trình duyệt	80
+trình gỡ lỗi	76
+trình ký	84
+trình quản lý	86
+trí tuệ nhân tạo	92
+trích dẫn	78
+trích khấu hao	78
+trích trước	76
+trò chuyện trực tuyến	76
+trước hạn	82
+trước đây	86
+trường học	92
+trường hợp bảo hiểm	76
+trưởng ban	84
+trưởng nhóm	90
+trưởng phòng	92
+trại giống	70
+trả góp	86
+trả góp nhà	80
+trả góp tháng	84
+trả hàng	82
+trả lãi	80
+trả lương	88
+trả nợ	84
+trả nợ gốc	80
+trả phòng	84
+trả sau	80
+trả trước	82
+trải nghiệm khách hàng	80
+trải nghiệm người dùng	84
+trần số lượng	70
+trễ deadline	74
+trễ hạn	78
+trọng lượng	86
+trọng tài	76
+trốn thuế	74
+trợ cấp	84
+trợ giá	74
+trợ giảng	76
+trợ lý nghiên cứu	76
+trục số	70
+trực tiếp	80
+tuyển chọn	82
+tuyển dụng	100
+tuyển mộ	74
+tuyển sinh	84
+tuyển sinh đại học	78
+tuần này	90
+tuần sau	88
+tuần trước	88
+tuần tới	88
+tài chính	90
+tài khoản	100
+tài liệu	90
+tài liệu tham khảo	80
+tài sản	96
+tài sản cố định	88
+tài sản lưu động	78
+tài sản thế chấp	82
+tái khám	78
+tán thành	80
+tình cảm	86
+tình trạng đơn	78
+tích điểm	80
+tín chỉ	80
+tín dụng	86
+tín phiếu	74
+tính lương	88
+tính thưởng	76
+tòa án	84
+tóm tắt	90
+tăng giá	84
+tăng trưởng	94
+tăng trưởng âm	74
+tăng tài sản	74
+tăng vốn	78
+tư vấn	80
+tư vấn viên	84
+tương lai gần	74
+tương tác	82
+tương ứng	75
+tường lửa	82
+tạm biệt	86
+tạm dừng	84
+tạm hoãn	82
+tạm nợ	78
+tạm thu	76
+tạm thời	86
+tạm ứng	86
+tạo lập	75
+tạp chí khoa học	76
+tải file	82
+tải lên	86
+tải xuống	88
+tầng hầm	76
+tập thể dục	82
+tặng kèm	74
+tết nguyên đán	82
+tối nay	82
+tối qua	78
+tối đa	88
+tối ưu	85
+tốt nghiệp	88
+tồn kho	88
+tổ chức	80
+tổ chức thực hiện	82
 tổ dân phố	76
+tổ hợp	84
+tổ ong	74
+tổ quốc	90
+tổ sản xuất	82
+tổ tiên	84
+tổ trưởng	78
 tổ y tế	76
-nhà nước	94
-nhà văn hóa	84
-nhà máy	92
-nhà ga	84
-nhà xe	78
-nhà trẻ	74
-nhà văn	76
-nhà báo	78
-nhà khoa học	80
-nhà kinh doanh	80
-chính phủ	94
-chính quyền	90
-chính xác	96
-chính đáng	84
-chính trực	80
-chính hiện	70
-chính chuyên	70
-chỉnh sửa	90
-chỉnh lý	78
-chỉnh đốn	80
-chỉnh trang	76
-cộng đồng	94
-cộng hòa	96
-cộng sự	78
-cộng hưởng	76
-xã hội	96
+tổ đội	74
+tổn thất	80
+tổng giá trị	80
+tổng giám đốc	90
+tổng hợp	96
+tổng kết	90
+tổng kết thực hiện	74
+tổng quan	84
+tổng quan nghiên cứu	74
+tổng đài	82
+tờ khai	90
+tờ khai hải quan	88
+tờ khai thuế	86
+tờ rơi	74
+tờ trình	96
+từ chối	90
+từ trước đến nay	80
+tự phê bình	74
+tự động hóa	88
+tỷ giá	88
+tỷ giá usd	78
+tỷ lệ	94
+tỷ lệ chuyển đổi	82
+tỷ lệ lỗi	78
+tỷ lệ đạt	78
+tỷ suất	78
+tỷ trọng	78
+uy tín	85
+vay mua nhà	88
+vay mua xe	84
+vay nợ	80
+vay tiêu dùng	82
+vay vốn	86
+vi phạm	92
+vi rút	76
+video	88
+video quảng cáo	78
+viên chức	80
+việc đang làm	78
+viện kiểm sát	78
+viện phí	76
+viện phí bảo hiểm	72
+viện viên	70
+viện đường	70
+voucher	82
+vui lòng	100
+vui vẻ	90
+vé máy bay	90
+vé tàu	80
+văn bản	80
+văn bản pháp luật	80
+văn bản đi	74
+văn bản đến	74
+văn phòng đại diện	82
+vĩnh viễn	82
+vướng mắc	82
+vườn cây	74
+vấn đề	100
+vận chuyển	92
+vận chuyển nông sản	74
+vận hành	85
+vận hành công trình	76
+vận hành thử	76
+vận tải	88
+vận đơn	76
+vận đơn đường biển	78
+vật liệu	86
+vật liệu xây dựng	80
+vật nuôi	78
+vật tư	82
+vắc xin	78
+vệ sinh an toàn	80
+vị trí tuyển	82
+vốn chủ sở hữu	84
+vốn lưu động	80
+vốn điều lệ	84
+vốn đầu tư	88
+vợ chồng	84
+vụ mùa	76
+xe khách	78
+xem phim	84
+xi măng	78
+xin chào	100
+xin lỗi	100
+xin nghỉ phép	96
+xin nghỉ việc	88
+xin phép	94
+xung đột	82
+xuất bản	86
+xuất hóa đơn	84
+xuất kho	82
+xuất khẩu	92
+xuất khẩu nông sản	78
+xuất nhập khẩu	88
+xuất tồn	72
+xuất viện	80
+xuất xứ	82
+xác minh	86
+xác nhận	85
+xác nhận đơn	82
+xác thực	88
+xác thực hai lớp	76
+xác thực otp	80
+xách tay	74
+xâm nhập thị trường	76
+xây dựng	85
+xây dựng thương hiệu	80
+xây nhà	84
 xã giao	84
-xã đoàn	74
+xã hội	96
 xã luận	78
+xã đoàn	74
+xét duyệt	88
+xét nghiệm	84
+xăng xe	76
+xưởng sản xuất	84
+xả hơi	74
+xả stress	72
+xếp loại	86
+xếp loại học lực	78
+xử lý	85
+xử lý dữ liệu	88
+xử lý ngoại lệ	80
+xử lý ngôn ngữ	80
+xử lý ảnh	80
+xử phạt	84
+y tá	76
+y tế công cộng	74
+yên tâm	90
+yêu cầu	95
+yêu cầu báo giá	80
+yêu cầu công việc	86
+áp dụng	92
+ông bà	84
+ý chí	78
+ý kiến	94
+đau đầu	80
+đi chơi	80
+đi chợ	76
+đi học muộn	76
+đi làm	92
+đi siêu thị	80
+điều chỉnh	92
+điều dưỡng	78
+điều khoản	92
+điều khoản hợp đồng	84
+điều khoản loại trừ	74
+điều kiện	80
+điều kiện thanh toán	82
+điều lệ công ty	80
+điều trị	86
+điểm danh	80
+điểm số	86
+điểm tham quan	78
+điểm đến	82
+điện thoại	98
+điện toán đám mây	84
+điện ảnh	78
+đoàn du lịch	74
 đoàn kết	92
-đoàn thể	80
-đoàn viên	76
-đoàn tàu	84
-đoàn xe	80
 đoàn kết viên	70
+đoàn thể	80
+đoàn tàu	84
+đoàn viên	76
+đoàn xe	80
+đuôi file	82
+đàm phán	90
+đàm phán giá	74
+đàm phán hợp đồng	78
+đào tạo	100
+đào tạo lại	78
+đào tạo nội bộ	84
+đám cưới	82
+đám giỗ	70
+đánh giá	96
+đánh giá cuối kỳ	84
+đánh giá kpi	80
+đánh giá nhân viên	86
+đánh giá định kỳ	84
+đáo hạn	78
+đáp án	84
+đáp ứng	80
+đãi ngộ	80
+đính kèm	94
+đòi nợ	78
+đóng dấu	80
+đóng gói	86
+đóng gói hàng	76
+đóng góp khoa học	72
+đôi khi	86
+đúng giờ	86
+đúng hạn	88
+đăng ký	80
+đăng ký biến động	74
+đăng ký kinh doanh	84
+đăng ký kết hôn	76
+đăng ký nghỉ	84
+đăng ký thuế	80
+đăng nhập	100
+đăng tải	82
+đăng xuất	88
+đơn bảo hiểm	84
+đơn giá	88
+đơn hàng	100
+đơn khởi kiện	78
+đơn kiện	76
+đơn thuốc	80
+đơn từ	84
+đơn vị vận chuyển	80
+đơn xin	82
+đơn xin nghỉ	84
+đơn ứng tuyển	84
+đưa vào sử dụng	82
+đường dẫn	88
+đường trường	74
+được phép	88
+đại diện	94
+đại lý	86
+đại lý vận chuyển	74
+đại sứ thương hiệu	74
+đất nền	84
+đấu giá	74
+đấu thầu	94
+đầu mối	78
+đầu năm	84
+đầu quý	78
+đầu ra	84
+đầu tháng	84
+đầu tuần	86
+đầu tư	90
+đầu việc	84
+đầu vào	84
+đặc biệt	92
+đặt bàn	82
+đặt cọc	88
+đặt hàng	94
+đặt món	78
+đặt phòng	88
+đặt tour	80
+đặt trước	84
+đến nay	88
+đề cương	80
+đề nghị	96
+đề nghị tuyển	80
+đề thi	84
+đề tài	86
+đề tài nghiên cứu	82
+đề xuất	96
+đề án	84
+địa chỉ mạng	78
+địa chỉ thư điện tử	78
+định hướng	88
+định khoản	80
+định kỳ	88
+định mức	82
+định tuyến	78
+định vị thương hiệu	78
+đọc sách	84
+đối chiếu	92
+đối thủ	88
+đối thủ cạnh tranh	86
+đối trọng	70
+đối tác	98
+đối tác chiến lược	84
+đối tượng khảo sát	76
+đồng bộ	92
+đồng lòng	76
+đồng nghiệp	88
+đồng thuận	80
+đồng ý	80
+đổi hàng	82
+đổi mật khẩu	84
+đổi mới	80
+đột xuất	76
+đợt thanh toán	78
+ưu đãi	94
+ổ cứng	86
+ổ đĩa	86
+ủy quyền	84
+ứng dụng	95
+ứng lương	82
+ứng trước	80

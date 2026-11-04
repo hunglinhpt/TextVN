@@ -89,6 +89,35 @@ fn en_common_lines() -> &'static [&'static str] {
     })
 }
 
+/// Vòng 53 (perf): từ ghép bucket theo **byte đầu** — 1.9k mục quét tuyến
+/// tính từng ~60µs trên prefix ngắn; bucket chỉ quét nhóm đầu-vòng (giảm ~10×).
+/// Kết hợp không-dấu và có-dấu cùng lưu (khớp qua 2 đường).
+/// Nhóm từ ghép theo byte đầu: (từ, dạng-không-dấu, weight).
+type CompoundRow = (&'static str, &'static str, u32);
+
+fn vn_compounds_buckets() -> &'static std::collections::HashMap<u8, &'static [CompoundRow]> {
+    static CACHE: OnceLock<std::collections::HashMap<u8, &'static [CompoundRow]>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut groups: std::collections::HashMap<u8, Vec<CompoundRow>> =
+            std::collections::HashMap::new();
+        for &(word, de, weight) in vn_compounds() {
+            if let Some(&b0) = word.as_bytes().first() {
+                groups.entry(b0).or_default().push((word, de, weight));
+            }
+            if let Some(&b0) = de.as_bytes().first() {
+                groups.entry(b0).or_default().push((word, de, weight));
+            }
+        }
+        groups
+            .into_iter()
+            .map(|(k, v)| {
+                let slice: &'static [CompoundRow] = Box::leak(v.into_boxed_slice());
+                (k, slice)
+            })
+            .collect()
+    })
+}
+
 /// Thuật ngữ tech/business kèm dạng lowercase (build 1 lần — `seen` dedup
 /// theo dạng chuẩn giữ case, comparator char_count vẫn đếm từ dạng gốc).
 fn tech_terms_lower() -> &'static [(&'static str, &'static str)] {
@@ -173,15 +202,14 @@ fn parse_phrase_rows(data: &'static str) -> Vec<PhraseRow> {
 /// Bucket các hàng phrase theo **byte cuối của khoá** (vòng 52): ngữ cảnh chỉ
 /// có thể khớp khoá mà kết thúc bằng đúng byte cuối của nó → mỗi call chỉ quét
 /// bucket tương ứng (giảm ~20-30× với ~10k hàng thay vì quét toàn bảng).
+/// Vòng 53: nhận cờ `vn` tường minh thay so-con-trỏ (an toàn khi một bảng rỗng).
 fn phrase_buckets(
     rows: &'static [PhraseRow],
+    vn: bool,
 ) -> &'static std::collections::HashMap<u8, &'static [PhraseRow]> {
     static VN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
     static EN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
-    let cache = match rows.first() {
-        _ if std::ptr::eq(rows.as_ptr(), vn_phrase_rows().as_ptr()) => &VN,
-        _ => &EN,
-    };
+    let cache = if vn { &VN } else { &EN };
     cache.get_or_init(|| {
         let mut groups: std::collections::HashMap<u8, Vec<PhraseRow>> =
             std::collections::HashMap::new();
@@ -316,29 +344,46 @@ pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -
 
         // 1b. Từ ghép tiếng Việt (vn_compounds.txt) — ~1200 mục, quét tuyến
         // tính nhưng deaccent đã build sẵn trong cache (không alloc per-call).
-        for &(word, word_unaccented, weight) in vn_compounds() {
-            if same(word) {
-                continue;
-            }
+        // Vòng 53 (perf): quét bucket byte-đầu (có-dấu + không-dấu) thay toàn bảng.
+        let buckets = vn_compounds_buckets();
+        let mut scan = |key: u8| {
+            for &(word, word_unaccented, weight) in buckets.get(&key).copied().into_iter().flatten()
+            {
+                if same(word) {
+                    continue;
+                }
 
-            let matches_accented = starts(word);
-            // Chỉ khớp không dấu nếu người dùng chưa gõ dấu
-            let matches_unaccented =
-                if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
-                    word_unaccented.starts_with(&typed_unaccented)
-                } else {
-                    false
-                };
+                let matches_accented = starts(word);
+                // Chỉ khớp không dấu nếu người dùng chưa gõ dấu
+                let matches_unaccented =
+                    if !matches_accented && !typed_has_diacritics && !typed_unaccented.is_empty() {
+                        word_unaccented.starts_with(&typed_unaccented)
+                    } else {
+                        false
+                    };
 
-            if (matches_accented || matches_unaccented) && seen.insert(word) {
-                ranked.push(PrefixCandidate {
-                    word,
-                    exact_match: matches_accented,
-                    char_count: word.chars().count(),
-                    weight,
-                    ext: compound_ext(word),
-                });
+                if (matches_accented || matches_unaccented) && seen.insert(word) {
+                    ranked.push(PrefixCandidate {
+                        word,
+                        exact_match: matches_accented,
+                        char_count: word.chars().count(),
+                        weight,
+                        ext: compound_ext(word),
+                    });
+                }
             }
+        };
+        if let Some(&b0) = typed_lower.as_bytes().first() {
+            scan(b0);
+        }
+        if let Some(&b0) = typed_unaccented.as_bytes().first() {
+            scan(b0);
+        }
+        if let Some(&b0) = typed_old.as_bytes().first() {
+            scan(b0);
+        }
+        if let Some(&b0) = typed_new.as_bytes().first() {
+            scan(b0);
         }
     }
 
@@ -493,8 +538,8 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
     let mut matches: Vec<(usize, u32, &'static str, usize)> = Vec::new();
     // Vòng 52 (perf): bucket theo byte cuối — chỉ quét các hàng có khả năng
     // khớp (`ends_with` bắt buộc byte cuối trùng), thay vì toàn bộ ~10k hàng.
-    for rows in [vn_phrase_rows(), en_phrase_rows()] {
-        let buckets = phrase_buckets(rows);
+    for (i, rows) in [vn_phrase_rows(), en_phrase_rows()].into_iter().enumerate() {
+        let buckets = phrase_buckets(rows, i == 0);
         if let Some(&last) = context_lower.as_bytes().last() {
             if let Some(bucket) = buckets.get(&last) {
                 collect_phrase_matches(bucket, &context_lower, &mut matches);
@@ -506,7 +551,9 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
     matches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
 
     let mut seen = std::collections::HashSet::new();
-    let mut out = Vec::with_capacity(limit);
+    // Vòng 53: guard limit độc hại (usize::MAX sẽ abort khi cấp phát —
+    // call site cứng 5 nhưng đề phòng API công khai).
+    let mut out = Vec::with_capacity(limit.min(64));
     for (_, _, pred, key_words) in matches {
         if seen.insert(pred) {
             out.push(PhraseMatch {

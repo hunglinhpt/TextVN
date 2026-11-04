@@ -21,6 +21,10 @@ pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     // Vòng 51 (QA office): "công" là morphology cực sản xuất ("Phân **công**
     // **công** việc" — compound boundary, không phải lặp từ).
     "công",
+    // Vòng 53 (QA du lịch): "chuyến **bay** **bay** thẳng" — danh từ "bay"
+    // (chuyến bay) + động từ "bay" (cùng hình) là cách nói chuẩn; auto-xoá
+    // sẽ phá chữ đúng (FPR=0 ưu tiên FN cho cặp mơ hồ này).
+    "bay",
 ];
 
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
@@ -37,6 +41,10 @@ pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
     // — "bum" ASCII rơi vào whitelist EN nên phải có ở ĐÂY; "chộp" có dấu
     // vẫn ở whitelist VI nhưng gộp cho nhất quán).
     "bum", "chộp", "đâu", "năm",
+    // Vòng 53: "chuyến bay bay thẳng" — "bay" ASCII (không dấu) rơi vào
+    // whitelist EN theo luật từng-từ; danh từ "bay" + động từ "bay" cùng
+    // hình là cách nói chuẩn tiếng Việt.
+    "bay",
 ];
 
 /// Từ CHỨC NĂNG lặp ≥ 3 lần ("the the the file", "đã đã đã gửi") gần như
@@ -202,6 +210,15 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
 mod tests {
     use super::*;
     use crate::check;
+
+    #[test]
+    fn vong53_probe_hang_co_bay() {
+        assert!(
+            INTENTIONAL_REPEATS.contains(&"bay"),
+            "whitelist phải có bay — {} mục",
+            INTENTIONAL_REPEATS.len()
+        );
+    }
 
     #[test]
     fn bat_lap_tu_thuong() {
