@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1793818915.6682382,
-    "seen": 1793818964.1865516,
-    "ast_hash": "fcf606445c2c52e950d0df669aa6a68a",
+    "mtime": 1793824454.029004,
+    "seen": 1793824638.4655168,
+    "ast_hash": "df483353cc3b78f758832579fac63b54",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793818915.8322814,
-    "seen": 1793818964.21777,
-    "ast_hash": "6a6ebf64173a0d7d8e653bab6e5a48a0",
+    "mtime": 1793824478.2317536,
+    "seen": 1793824638.487058,
+    "ast_hash": "8863fefdb64fe1a682f3545afdb8e333",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
