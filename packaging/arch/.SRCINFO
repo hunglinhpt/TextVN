@@ -15,6 +15,6 @@ pkgbase = textvn
 	optdepends = ibus: engine IBus (GNOME và các desktop dùng IBus)
 	optdepends = fcitx5: addon Fcitx5 (KDE/Plasma và các desktop dùng Fcitx5)
 	source = textvn-0.2.63.tar.gz::https://github.com/hunglinhpt/TextVN/archive/refs/tags/v0.2.63.tar.gz
-	sha256sums = e3ddfc2d088f770c1c236bb854685b9ddac3c01cfe216305862faf9f7a0a9fb9
+	sha256sums = 5036dd414d53bae95c9ee6ef730ba383d201901833af40c6f9266ee611ef4bd1
 
 pkgname = textvn

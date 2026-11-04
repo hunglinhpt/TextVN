@@ -6,13 +6,16 @@
 |---|---|
 | Nội dung | **Vòng 52**: vn_syllables 6.646 âm tiết (3000 tần suất + dict bổ sung, sửa bug new_to_old qu/gi trước đây làm hỏng "quỳ"→"qùy"); en_words10k 9.868 từ (google-10000, chỉ prediction); compounds 126→1.294; vn_phrases 6.381 + en_phrases 3.590 cặp (câu thật chia mọi ranh giới từ + thành ngữ thật neo khoá ≥2 từ + ma trận ngữ nghĩa-controlled, giữ bảng regression-tested, cross-product EN lọc chỉ prefix infinitive); engine bucket byte-cuối + binary search + HashSet dedup + rank "mở rộng đúng nghĩa" (âm đầu == tiền tố). **Vòng 51**: office_mixed_work 23 test/13 fn (10 persona + abnormal + NFR); 3 FPR fix (space_after_punct code gate, comma_at_end code gate, "công" whitelist). **Audit độc lập agent**: 0 chặn-release; 3 cảnh-báo đã sửa (dedup TSV giữ max weight, thành ngữ hết neo key "được" generic, +82 compounds quốc/hòa/hội/tiến); R2-120b cap perf-test 500µs |
 | Đo | core 239/239 · workspace 903/903 · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 · perf release: prefix 5-42µs · Tab 269ns · next-phrase 0.6-2.5µs |
-| CI trên commit gắn tag | 7/7 workflow áp dụng xanh (ci-shared · ci-windows · ci-linux · ci-macos · ci-aur · ci-deb · repo-hygiene) |
+| CI trên commit gắn tag ec58d25 | ci-shared ✓ (rerun — macos job cancel-flake R7) · ci-windows ✓ · ci-linux ✓ · ci-aur ✓ (bbbfdb9/950504a) · ci-macos ✓ + ci-deb ✓ (workflow_dispatch trên ec58d25 — run push bị cancel-flake R7) · repo-hygiene ✓ |
+| R7 flake phiên này | test (macos-latest) trong ci-shared: "cancelled, 0 steps" ×2 (cancel-in-progress do push docs xen giữa + capacity) → rerun xanh; ci-macos x86_64 "job was not acquired by Runner" → rerun xanh — KHÔNG phải lỗi code |
+| RC | [release-candidate 41729465811](https://github.com/hunglinhpt/TextVN/actions/runs/41729465811) — 4/4 job xanh (linux 5m34s · macos 5m51s · windows 14m25s · publish 33s) |
 | Release | [v0.2.63 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) — release-candidate 4/4 job xanh; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
-| Checksums | (pin sau khi publish) |
-| Homebrew (B7b) | cask `version "0.2.63"` + sha256 = mac zip (sync-cask) |
+| Checksums | machine exe `23e885a2d0761193…` · MSIX `7527729ecdfabff9…` · mac zip `955e4125e3896905…` · linux tar.gz `a93d19037bf7ab9b…` · PKGBUILD archive `5036dd414d53bae9…` (gpg --verify SHA256SUMS.txt Good; hash file tải về đối chiếu khớp) |
+| Homebrew (B7b) | cask `version "0.2.63"` + `sha256 955e4125e3896905…` = mac zip trong SHA256SUMS ✓ |
+| approved (B7c) | `approved/v0.2.63/` 18 file byte-identical (commit `b3e5dbd`), raw URL machine.exe + msix **200** |
 | AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.63 = archive v0.2.63; publish AUR chờ owner SSH |
 | PPA (B7f) | debian/changelog `0.2.63-0ppa1`; upload PPA = owner |
-| approved (B7c) | `approved/v0.2.63/` byte-identical (sau publish) |
+
 
 ## Bản 0.2.62 — MobaXterm 3-pass + TSF-bypass sweep + panel fix (vòng 49-50)
 
