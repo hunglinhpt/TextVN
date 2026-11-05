@@ -35238,7 +35238,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.47 \u2014 phim tat sua het + du \u0111oan, alt+1..3 windows, notepad++, chu mo goi y (phan hoi chu repo)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L271"
+      "source_location": "L273"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_48_ph\u00edm_t\u1eaft_tr\u1ee3_l\u00fd_ch\u1ec9_ctrl_space_r2_136_ch\u1ee7_repo_ch\u1ed1t",
@@ -35250,7 +35250,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.48 \u2014 phim tat tro ly chi ctrl+space (r2-136, chu repo chot)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L256"
+      "source_location": "L258"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_35_0_2_49_dev_b\u1ea3n_0_2_50_transcode_3_os_d39_d\u1ef1_\u0111o\u00e1n_b\u1eadt_\u0111\u01b0\u1ee3c_t\u1eeb_ui_v\u00f2ng_35",
@@ -35262,7 +35262,7 @@
       "node_kind": "heading",
       "norm_label": "vong 35 (0.2.49+dev)## ban 0.2.50 \u2014 transcode 3 os + d39 + du \u0111oan bat \u0111uoc tu ui + vong 35",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L215"
+      "source_location": "L217"
     },
     {
       "id": "docs_release_parity_checklist_1_\u0111i\u1ec1u_khi\u1ec3n_t\u00f9y_ch\u1ecdn_g\u00f5",
@@ -42451,7 +42451,7 @@
       "node_kind": "heading",
       "norm_label": "ba nguyen nhan goc, ba fixes, xac minh may that",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1044"
+      "source_location": "L1046"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_12_h\u1ebft_l\u1ed7i_n\u00e2ng_c\u1ea5p_dll_kho\u00e1_win_space_store_x\u00e1c_minh_m\u00e1y_th\u1eadt_g\u00f5_l\u1ea1i_\u0111\u01b0\u1ee3c",
@@ -42463,7 +42463,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.12 \u2014 het loi nang cap dll khoa + win+space store + xac minh may that go lai \u0111uoc",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1038"
+      "source_location": "L1040"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_4_\u0111\u0103ng_k\u00fd_kh\u00f4ng_c\u1ea7n_admin_clean_composition_ctrl_shift_single_path",
@@ -42475,7 +42475,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.4 \u2014 \u0111ang ky khong can admin + clean composition + ctrl+shift single-path",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1343"
+      "source_location": "L1345"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_5_v\u00e1_b\u1ea3n_portable_g\u1ea1ch_ch\u00e2n_pipeline_k\u00fd_signpath",
@@ -42487,7 +42487,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.5 \u2014 va ban portable (gach chan) + pipeline ky signpath",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1302"
+      "source_location": "L1304"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_6_ch\u1ed1t_\u0111\u0103ng_k\u00fd_tsf_vi_en_h\u1ebft_ghost_registration",
@@ -42499,7 +42499,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.6 \u2014 chot \u0111ang ky tsf vi+en, het ghost registration",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1269"
+      "source_location": "L1271"
     },
     {
       "id": "docs_release_build_release_report_k\u00fd_s\u1ed1_signpath_opt_in",
@@ -42511,7 +42511,7 @@
       "node_kind": "heading",
       "norm_label": "ky so \u2014 signpath opt-in",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1314"
+      "source_location": "L1316"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_12_\u0111\u00e3_publish",
@@ -42523,7 +42523,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.12 \u0111a publish",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1077"
+      "source_location": "L1079"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_4_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -42535,7 +42535,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.4 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1356"
+      "source_location": "L1358"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_5_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -42547,7 +42547,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.5 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1324"
+      "source_location": "L1326"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_6_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -42559,7 +42559,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.6 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1285"
+      "source_location": "L1287"
     },
     {
       "id": "docs_release_build_release_report_s\u1eeda_theo_audit_v\u00f2ng_1_\u0111\u0103ng_k\u00fd_tsf_3_major_7_minor",
@@ -42571,7 +42571,7 @@
       "node_kind": "heading",
       "norm_label": "sua theo audit vong 1 \u2014 \u0111ang ky tsf (3 major + 7 minor)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1401"
+      "source_location": "L1403"
     },
     {
       "id": "docs_release_code_review_2026_10_09_round2_3_7_ki\u1ec3m_tr\u00ean_m\u00e1y_windows_th\u1eadt_v\u00e0_r\u00e0_so\u00e1t_\u0111\u1ed1i_kh\u00e1ng_tr\u01b0\u1edbc_0_2_28_2026_10_10",
@@ -54532,7 +54532,7 @@
       "node_kind": "heading",
       "norm_label": "1. goi phat hanh",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1637"
+      "source_location": "L1639"
     },
     {
       "id": "docs_release_build_release_report_3_l\u1ed7i_t\u00ecm_ra_nh\u1edd_ki\u1ec3m_th\u1eed_th\u1eadt_\u0111\u00e3_s\u1eeda_trong_b\u1ea3n_n\u00e0y",
@@ -54544,7 +54544,7 @@
       "node_kind": "heading",
       "norm_label": "3. loi tim ra nho kiem thu that (\u0111a sua trong ban nay)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1700"
+      "source_location": "L1702"
     },
     {
       "id": "docs_release_build_release_report_4_ph\u1ea1m_vi_ch\u01b0a_ki\u1ec3m_t\u1ef1_\u0111\u1ed9ng",
@@ -54556,7 +54556,7 @@
       "node_kind": "heading",
       "norm_label": "4. pham vi chua kiem tu \u0111ong",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1714"
+      "source_location": "L1716"
     },
     {
       "id": "docs_release_build_release_report_5_hi\u1ec7u_n\u0103ng",
@@ -54568,7 +54568,7 @@
       "node_kind": "heading",
       "norm_label": "5. hieu nang",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1724"
+      "source_location": "L1726"
     },
     {
       "id": "docs_release_build_release_report_6_t\u00e1i_l\u1eadp",
@@ -54580,7 +54580,7 @@
       "node_kind": "heading",
       "norm_label": "6. tai lap",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1737"
+      "source_location": "L1739"
     },
     {
       "id": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
@@ -54604,7 +54604,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.16 \u2014 portable tu chua tren win11 24h2+ (b7) + het ghost khi go (0.2.15)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L954"
+      "source_location": "L956"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_1_ph\u00e1t_h\u00e0nh_pre_release_\u0111\u00e3_x\u00e1c_minh",
@@ -54616,7 +54616,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.1 \u2014 phat hanh pre-release \u0111a xac minh",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1589"
+      "source_location": "L1591"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_20_ci_xanh_l\u1ea1i_validation_v\u00f2ng_3_harness_\u0111\u00fang_nh\u01b0_microsoft",
@@ -54628,7 +54628,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.20 \u2014 ci xanh lai + validation vong 3 (harness \u0111ung nhu microsoft)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L832"
+      "source_location": "L834"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_21_arp_publisher_kh\u1edbp_\u0111\u00fang_partner_center_sto_03_b17",
@@ -54640,7 +54640,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.21 \u2014 arp publisher khop \u0111ung partner center (sto-03) + b17",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L807"
+      "source_location": "L809"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_22_root_cause_ch\u1ed1t_arp_publisher_linh_bui_b18",
@@ -54652,7 +54652,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.22 \u2014 root cause chot: arp publisher = `linh bui` (b18)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L751"
+      "source_location": "L753"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_23_publisher_display_name_th\u1eadt_linhbh_com_v\u00f2ng_8_ch\u1ea5m_d\u1ee9t_chu\u1ed7i_\u0111o\u00e1n",
@@ -54664,7 +54664,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.23 \u2014 publisher display name that = `linhbh.com` (vong 8, cham dut chuoi \u0111oan)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L726"
+      "source_location": "L728"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_26_dual_dll_zalo_32_bit_ghost_uninstall_linux_bug_03_policy_10_2_9",
@@ -54676,7 +54676,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.26 \u2014 dual-dll (zalo 32-bit) + ghost uninstall + linux bug-03 + policy 10.2.9",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L588"
+      "source_location": "L590"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_27_macos_t\u00f4n_tr\u1ecdng_g\u00f5_kh\u00f4ng_g\u1ea1ch_ch\u00e2n_bug_05_k\u00fd_s\u1ed1_t\u1ef1_\u0111\u1ed9ng_gpg_sigstore_msix_c\u00f3_dll_x86",
@@ -54688,7 +54688,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.27 \u2014 macos ton trong \"go khong gach chan\" (bug-05) + ky so tu \u0111ong gpg/sigstore + msix co dll x86",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L577"
+      "source_location": "L579"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_28_r\u00e0_so\u00e1t_v\u00f2ng_1_2_k\u00eanh_store_msix_k\u00fd_s\u1ed1_fail_closed_c\u00e1ch_g\u00f5_m\u1edbi_s\u1eeda_r2_88_r2_98",
@@ -54700,7 +54700,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.28 \u2014 ra soat vong 1 + 2 (kenh store msix, ky so fail-closed, cach go moi) + sua r2-88...r2-98",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L562"
+      "source_location": "L564"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_29_g\u1ee1_c\u00e0i_\u0111\u1eb7t_s\u1ea1ch_tho\u00e1t_tray_tr\u01b0\u1edbc_d\u1ecdn_ng\u00f4n_ng\u1eef_textvn_\u0111\u00e3_th\u00eam_msix_identity_store_th\u1eadt",
@@ -54712,7 +54712,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.29 \u2014 go cai \u0111at sach (thoat tray truoc, don ngon ngu textvn \u0111a them) + msix identity store that",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L551"
+      "source_location": "L553"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_30_v\u00f2ng_16_audit_3_n\u1ec1n_t\u1ea3ng_a1_a15_b1_b5_b10_b13_c2_c4_c6",
@@ -54724,7 +54724,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.30 \u2014 vong 16 audit 3 nen tang (a1\u2013a15, b1\u2013b5/b10/b13, c2/c4\u2013c6)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L542"
+      "source_location": "L544"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_31_ho\u00e0n_t\u1ea5t_roadmap_audit_3_n\u1ec1n_t\u1ea3ng_a10_b7_b8_b9_b11_b12_b13_c1_c3_c7_c8_c9_gate_clippy_linux",
@@ -54736,7 +54736,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.31 \u2014 hoan tat roadmap audit 3 nen tang (a10, b7/b8/b9/b11/b12/b13, c1/c3/c7/c8/c9) + gate clippy-linux",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L518"
+      "source_location": "L520"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_32_r\u00e0_so\u00e1t_to\u00e0n_h\u1ec7_th\u1ed1ng_sau_0_2_31_r2_101_r2_115_ci_t\u1eebng_n\u1ec1n_t\u1ea3ng",
@@ -54748,7 +54748,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.32 \u2014 ra soat toan he thong sau 0.2.31 (r2-101...r2-115) + ci tung nen tang",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L494"
+      "source_location": "L496"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_34_k\u00eanh_linux_distro_aur_ci_aur_fcitx5_c_20_r2_117",
@@ -54760,7 +54760,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.34 \u2014 kenh linux distro (aur + ci-aur) + fcitx5 c++20 (r2-117)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L469"
+      "source_location": "L471"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_35_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_recall_87_8_audit_s\u00e2u_w1_w5_r_7_k\u00eanh_debian_ppa",
@@ -54772,7 +54772,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.35 \u2014 tro ly ngu phap: recall 87,8% + audit sau (w1\u2013w5, r-7) + kenh debian/ppa",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L458"
+      "source_location": "L460"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_36_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_fpr_0_audit_3_l\u01b0\u1ee3t_nh\u01b0_grammarly",
@@ -54784,7 +54784,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.36 \u2014 tro ly ngu phap fpr 0 % (audit 3 luot \"nhu grammarly\")",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L444"
+      "source_location": "L446"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_37_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_ti\u1ebfng_anh_v1_space_ho\u00e0n_t\u1ea5t_t\u1eeb_c\u00e2u_mix_vi_en",
@@ -54796,7 +54796,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.37 \u2014 tro ly ngu phap tieng anh v1 + space hoan tat tu + cau mix vi/en",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L429"
+      "source_location": "L431"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_39_panel_tr\u1ee3_l\u00fd_b\u1ea5m_\u0111\u01b0\u1ee3c_b\u1eb1ng_chu\u1ed9t_s\u1eeda_t\u1ea5t_c\u1ea3_click_t\u1eeb_g\u1ea1ch_ch\u00e2n",
@@ -54808,7 +54808,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.39 \u2014 panel tro ly bam \u0111uoc bang chuot (sua tat ca + click tu gach chan)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L399"
+      "source_location": "L401"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_40_audit_3_n\u1ec1n_t\u1ea3ng_2_agent_chuy\u00ean_gia_song_song_24_finding_panel_re_check",
@@ -54820,7 +54820,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.40 \u2014 audit 3 nen tang (2 agent chuyen gia song song, 24 finding) + panel re-check",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L383"
+      "source_location": "L385"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_41_s\u1eeda_tr\u1ee3_l\u00fd_ch\u1ebft_khi_n\u00e2ng_c\u1ea5p_3_root_cause_audit_agent_x\u00e1c_nh\u1eadn",
@@ -54832,7 +54832,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.41 \u2014 sua tro ly chet khi nang cap (3 root cause, audit agent xac nhan)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L367"
+      "source_location": "L369"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_42_check_ng\u1eef_ph\u00e1p_v\u00f9ng_b\u00f4i_\u0111en_audit_2_l\u01b0\u1ee3t_8_finding_ship",
@@ -54844,7 +54844,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.42 \u2014 check ngu phap vung boi \u0111en (audit 2 luot: 8 finding \u2192 ship)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L351"
+      "source_location": "L353"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_43_enter_tr\u00ean_popup_v\u00f9ng_b\u00f4i_\u0111en_\u00e1p_s\u1eeda_t\u1ea5t_c\u1ea3_audit_v30_f6_finding_low_cu\u1ed1i",
@@ -54856,7 +54856,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.43 \u2014 enter tren popup vung boi \u0111en ap sua-tat-ca (audit v30 f6 \u2014 finding low cuoi)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L336"
+      "source_location": "L338"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_44_audit_s\u00e2u_3_l\u01b0\u1ee3t_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_kho\u00e1_fp_cu\u1ed1i",
@@ -54868,7 +54868,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.44 \u2014 audit sau 3 luot tro ly ngu phap (khoa fp cuoi)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L321"
+      "source_location": "L323"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_45_g\u00f3i_n\u0103ng_su\u1ea5t_v\u0103n_ph\u00f2ng_p5_op_001_op_007_m\u1ed7i_task_2_l\u01b0\u1ee3t_review",
@@ -54880,7 +54880,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.45 \u2014 goi nang suat van phong p5 (op-001...op-007, moi task 2 luot review)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L305"
+      "source_location": "L307"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_46_d\u1ef1_\u0111o\u00e1n_v\u0103n_b\u1ea3n_p6_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_s\u1ed1ng_theo_c\u00e2u_audit_s\u00e2u_e2e_th\u1eadt",
@@ -54892,7 +54892,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.46 \u2014 du \u0111oan van ban p6 + tro ly ngu phap song theo cau (audit sau + e2e that)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L288"
+      "source_location": "L290"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_49_b\u1ea3n_0_2_49_ctrl_shift_f9_th\u00f4ng_minh_\u00f4_winforms_delphi_nh\u1eafc_m\u1edf_l\u1ea1i_\u1ee9ng_d\u1ee5ng_r2_137_r2_139",
@@ -54904,7 +54904,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.49## ban 0.2.49 \u2014 ctrl+shift+f9 thong minh, o winforms/delphi, nhac mo lai ung dung (r2-137..r2-139)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L240"
+      "source_location": "L242"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_51_ng\u1eef_ph\u00e1p_ti\u1ebfng_anh_ho\u00e0n_t\u1ea5t_v\u00f2ng_36",
@@ -54916,7 +54916,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.51 \u2014 ngu phap tieng anh hoan tat (vong 36)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L201"
+      "source_location": "L203"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_52_b\u1ea3n_0_2_52_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_text_prediction_ti\u1ebfng_anh_to\u00e0n_di\u1ec7n_v\u00f2ng_37_as_060",
@@ -54928,7 +54928,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.52## ban 0.2.52 \u2014 tro ly ngu phap & text prediction tieng anh toan dien (vong 37 / as-060)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L189"
+      "source_location": "L191"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_53_sva_contraction_vn_collocation_7_en_tab_completion_m\u1edf_v\u00f2ng_38",
@@ -54940,7 +54940,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.53 \u2014 sva contraction + vn collocation +7 + en tab completion mo (vong 38)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L175"
+      "source_location": "L177"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_54_l\u1eb7p_c\u1ee5m_2_4_t\u1eeb_t\u1eeb_en_th\u1eeba_audit_3_os_v\u00f2ng_39_40",
@@ -54952,7 +54952,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.54 \u2014 lap cum 2-4 tu + tu en thua + audit 3 os (vong 39-40)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L161"
+      "source_location": "L163"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_55_audit_3_pass_a_b_c_classify_mix_perf_cache_v\u00f2ng_41",
@@ -54964,7 +54964,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.55 \u2014 audit 3 pass a/b/c + classify mix + perf cache (vong 41)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L147"
+      "source_location": "L149"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_56_audit_en_mode_3_pass_v\u00f2ng_42",
@@ -54976,7 +54976,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.56 \u2014 audit en mode 3 pass (vong 42)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L133"
+      "source_location": "L135"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_57_audit_to\u00e0n_b\u1ec1_m\u1eb7t_3_pass_d1_d2_d3_v\u00f2ng_43",
@@ -54988,7 +54988,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.57 \u2014 audit toan be mat 3 pass d1/d2/d3 (vong 43)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L119"
+      "source_location": "L121"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_58_persona_7_profile_parity_vi_en_v\u00f2ng_44",
@@ -55000,7 +55000,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.58 \u2014 persona 7 profile + parity vi/en (vong 44)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L105"
+      "source_location": "L107"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_59_format_warnings_ng\u00e0y_th\u00e1ng_s\u1ed1_ti\u1ec1n_v\u00f2ng_45",
@@ -55012,7 +55012,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.59 \u2014 format warnings ngay thang + so tien (vong 45)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L90"
+      "source_location": "L92"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_60_qu\u00e9t_o_n2_to\u00e0n_lu\u1eadt_v\u1ec1_tuy\u1ebfn_t\u00ednh_v\u00f2ng_46",
@@ -55024,7 +55024,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.60 \u2014 quet o(n2) toan luat ve tuyen tinh (vong 46)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L76"
+      "source_location": "L78"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_61_mobaxterm_e2e_linux_g\u1ee3i_\u00fd_t\u1eeb_v\u00f2ng_47_48",
@@ -55036,7 +55036,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.61 \u2014 mobaxterm + e2e linux goi y tu (vong 47-48)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L62"
+      "source_location": "L64"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_62_mobaxterm_3_pass_tsf_bypass_sweep_panel_fix_v\u00f2ng_49_50",
@@ -55048,7 +55048,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.62 \u2014 mobaxterm 3-pass + tsf-bypass sweep + panel fix (vong 49-50)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L48"
+      "source_location": "L50"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_63_corpora_d\u1ef1_\u0111o\u00e1n_31k_m\u1ee5c_qa_v\u0103n_ph\u00f2ng_v\u00f2ng_51_52",
@@ -55060,7 +55060,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.63 \u2014 corpora du \u0111oan ~31k muc + qa van phong (vong 51-52)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L31"
+      "source_location": "L33"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_64_corpora_35_681_m\u1ee5c_gen_vocab_rust_qa_m\u1edf_r\u1ed9ng_v\u00f2ng_53",
@@ -55072,7 +55072,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.64 \u2014 corpora 35.681 muc + gen-vocab rust + qa mo rong (vong 53)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L16"
+      "source_location": "L18"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_65_chu\u1ea9n_unikey_v\u1ea7n_uo_ch\u1ed1ng_xung_\u0111\u1ed9t_os_ime_v\u00f2ng_55",
@@ -55096,7 +55096,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.9 \u2014 tu \u0111ien en ca nhan + quy tac uu tien + preflight 17 gate",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1130"
+      "source_location": "L1132"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_0_2_31",
@@ -55108,7 +55108,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh 0.2.31",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L534"
+      "source_location": "L536"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_0_2_32",
@@ -55120,7 +55120,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh 0.2.32",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L507"
+      "source_location": "L509"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_9_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -55132,7 +55132,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.9 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1161"
+      "source_location": "L1163"
     },
     {
       "id": "docs_release_build_release_report_verify_cu\u1ed1i_release_0_2_16_portable_tr\u00ean_m\u00e1y_ch\u1ee7_repo",
@@ -55144,7 +55144,7 @@
       "node_kind": "heading",
       "norm_label": "verify cuoi \u2014 release 0.2.16 portable tren may chu repo",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L977"
+      "source_location": "L979"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_10_r\u00e0_so\u00e1t_t\u1eebng_d\u00f2ng_iss_build_options_y\u00eau_c\u1ea7u_ch\u1ee7_repo_kh\u00f4ng_c\u00f3_option_n\u00e0o_sai",
@@ -55156,7 +55156,7 @@
       "node_kind": "heading",
       "norm_label": "vong 10 \u2014 ra soat tung dong .iss + build options (yeu cau chu repo): khong co option nao sai",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L664"
+      "source_location": "L666"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_11_b\u1ea3n_0_2_24_\u0111\u00f3ng_n\u1ed1t_3_khe_h\u1edf_c\u1ea5p_d\u00f2ng_r\u00e0_l\u1ea7n_3_b\u1ea3n_m\u00e1y_l\u00e0_b\u1ea3n_store",
@@ -55168,7 +55168,7 @@
       "node_kind": "heading",
       "norm_label": "vong 11 + ban 0.2.24 \u2014 \u0111ong not 3 khe ho cap dong (ra lan 3) + ban may la ban store",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L641"
+      "source_location": "L643"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_12_b\u1ea3n_0_2_25_audit_msix_l\u1ea7n_\u0111\u1ea7u_soi_k\u1ef9_2_l\u1ed7i_ki\u1ebfn_tr\u00fac_\u0111\u00e3_fix_tri\u1ec7t_\u0111\u1ec3",
@@ -55180,7 +55180,7 @@
       "node_kind": "heading",
       "norm_label": "vong 12 + ban 0.2.25 \u2014 audit msix lan \u0111au soi ky: 2 loi kien truc, \u0111a fix triet \u0111e",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L606"
+      "source_location": "L608"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_35_0_2_49_dev_v\u00f2ng_35_0_2_49_dev_audit_r1_r2_r3_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_3_n\u1ec1n_t\u1ea3ng",
@@ -55192,7 +55192,7 @@
       "node_kind": "heading",
       "norm_label": "vong 35 (0.2.49+dev)## vong 35 (0.2.49+dev) \u2014 audit r1/r2/r3 tro ly ngu phap 3 nen tang",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L231"
+      "source_location": "L233"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_5_0_2_21_v\u1eabn_\u0111\u1ecf_\u0111i\u1ec1u_tra_ph\u01b0\u01a1ng_\u00e1n_m\u00e1y",
@@ -55204,7 +55204,7 @@
       "node_kind": "heading",
       "norm_label": "vong 5 (0.2.21 van \u0111o) \u2014 \u0111ieu tra + phuong an may",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L785"
+      "source_location": "L787"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_6_\u0111\u00e1nh_gi\u00e1_5_g\u1ed1c_r\u1ec5_c\u1ee7a_audit_ngo\u00e0i_v\u00e1_ph\u1ea7n_c\u00f2n_thi\u1ebfu",
@@ -55216,7 +55216,7 @@
       "node_kind": "heading",
       "norm_label": "vong 6 \u2014 \u0111anh gia 5 goc re cua audit ngoai + va phan con thieu",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L771"
+      "source_location": "L773"
     },
     {
       "id": "docs_release_build_release_report_v\u00f2ng_9_2026_10_05_0_2_23_v\u1eabn_\u0111\u1ecf_exe_per_user_c\u1ea1n_leo_thang_machine_msix",
@@ -55228,7 +55228,7 @@
       "node_kind": "heading",
       "norm_label": "vong 9 (2026-10-05) \u2014 0.2.23 van \u0111o: exe per-user can, leo thang machine \u2192 msix",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L716"
+      "source_location": "L718"
     },
     {
       "id": "cli_src_register_added_language_removable",
@@ -55958,7 +55958,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.33 \u2014 mac \u0111inh dau cu sau cai + ma tran 16 combo + tu \u0111ien en top-3000 + tab hoan tat tu tieng viet",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L482"
+      "source_location": "L484"
     },
     {
       "id": "tray_src_lib_ctrl_shift_marker_record_round_trip",
@@ -66127,7 +66127,7 @@
       "node_kind": "heading",
       "norm_label": "2. ket qua kiem thu",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1648"
+      "source_location": "L1650"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_4_ho\u00e0n_t\u1ea5t_code_gate_ch\u1edd_workflow_ph\u00e1t_h\u00e0nh",
@@ -66139,7 +66139,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.4 \u2014 hoan tat code gate, cho workflow phat hanh",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L859"
+      "source_location": "L861"
     },
     {
       "id": "docs_release_build_release_report_gate_tr\u01b0\u1edbc_tag_0_2_4",
@@ -66151,7 +66151,7 @@
       "node_kind": "heading",
       "norm_label": "gate truoc tag 0.2.4",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L879"
+      "source_location": "L881"
     },
     {
       "id": "docs_release_build_release_report_g\u00f5_th\u1eadt_tr\u00ean_windows_m\u1ed7i_k\u1ecbch_b\u1ea3n_m\u1ed7i_\u1ee9ng_d\u1ee5ng",
@@ -66163,7 +66163,7 @@
       "node_kind": "heading",
       "norm_label": "go that tren windows (moi kich ban, moi ung dung)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1678"
+      "source_location": "L1680"
     },
     {
       "id": "docs_release_build_release_report_k\u1ecbch_b\u1ea3n_1_c\u00e0i_\u0111\u1eb7t",
@@ -66175,7 +66175,7 @@
       "node_kind": "heading",
       "norm_label": "kich ban 1 \u2014 cai \u0111at",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1662"
+      "source_location": "L1664"
     },
     {
       "id": "docs_release_build_release_report_k\u1ecbch_b\u1ea3n_2_gi\u1ea3i_n\u00e9n_ra_d\u00f9ng_lu\u00f4n",
@@ -66187,7 +66187,7 @@
       "node_kind": "heading",
       "norm_label": "kich ban 2 \u2014 giai nen ra dung luon",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1670"
+      "source_location": "L1672"
     },
     {
       "id": "docs_release_build_release_report_ti\u1ebfp_t\u1ee5c_audit_zcode_engine_2026_10_01",
@@ -66199,7 +66199,7 @@
       "node_kind": "heading",
       "norm_label": "tiep tuc audit zcode \u2014 engine (2026-10-01)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L896"
+      "source_location": "L898"
     },
     {
       "id": "docs_release_build_release_report_ti\u1ebfp_t\u1ee5c_audit_zcode_runtime_ch\u01b0a_c\u00f3_b\u1eb1ng_ch\u1ee9ng_production",
@@ -66211,7 +66211,7 @@
       "node_kind": "heading",
       "norm_label": "tiep tuc audit zcode \u2014 runtime chua co bang chung production",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L913"
+      "source_location": "L915"
     },
     {
       "id": "tools_assist_score_real_rationale_271",
@@ -78561,7 +78561,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.38 \u2014 tro ly ngu phap bat mac \u0111inh + panel tong loi kieu grammarly",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L414"
+      "source_location": "L416"
     },
     {
       "id": "adapters_macos_tap_tests_textvntaptests_textvntaptests",
@@ -84367,7 +84367,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.2 \u2014 va f3-13 (mo nham cai \u0111at luc login) + f3-8, nit",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1477"
+      "source_location": "L1479"
     },
     {
       "id": "docs_release_build_release_report_b\u1ed5_sung_sau_commit_ec1ac2b_tri\u1ec7t_\u0111\u1ec3_h\u00f3a_g\u1ee3i_\u00fd_l\u1ed7i_\u0111\u0103ng_k\u00fd_tsf_\u1ea3nh_l\u1ed7i_c\u1ee7a_ng\u01b0\u1eddi_d\u00f9ng",
@@ -84379,7 +84379,7 @@
       "node_kind": "heading",
       "norm_label": "bo sung sau commit `ec1ac2b` \u2014 triet \u0111e hoa goi y loi \u0111ang ky tsf (anh loi cua nguoi dung)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1498"
+      "source_location": "L1500"
     },
     {
       "id": "docs_release_build_release_report_ki\u1ec3m_ch\u1ee9ng_ch\u1ea1y_tr\u00ean_host_windows_tr\u01b0\u1edbc_commit",
@@ -84391,7 +84391,7 @@
       "node_kind": "heading",
       "norm_label": "kiem chung chay tren host windows (truoc commit)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1485"
+      "source_location": "L1487"
     },
     {
       "id": "docs_release_build_release_report_perf_job_perf_regression_\u0111\u1ecf_tr\u00ean_ci_l\u00e0_nhi\u1ec5u_runner_kh\u00f4ng_ph\u1ea3i_h\u1ed3i_quy",
@@ -84403,7 +84403,7 @@
       "node_kind": "heading",
       "norm_label": "perf \u2014 job `perf regression` \u0111o tren ci la **nhieu runner**, khong phai hoi quy",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1535"
+      "source_location": "L1537"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_2_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -84415,7 +84415,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.2 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1549"
+      "source_location": "L1551"
     },
     {
       "id": "docs_release_build_release_report_tr\u1ea1ng_th\u00e1i",
@@ -84427,7 +84427,7 @@
       "node_kind": "heading",
       "norm_label": "trang thai",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1579"
+      "source_location": "L1581"
     },
     {
       "id": "docs_compat",
@@ -84829,7 +84829,7 @@
       "node_kind": "heading",
       "norm_label": "0.2.13 \u2014 en/vi \u0111a nen tang + fix macos nuot tu \u0111ien",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L993"
+      "source_location": "L995"
     },
     {
       "id": "docs_release_build_release_report_0_2_14_dpi_g\u1ed1c_ui_th\u1ed1ng_nh\u1ea5t_common_errors",
@@ -84841,7 +84841,7 @@
       "node_kind": "heading",
       "norm_label": "0.2.14 \u2014 dpi goc + ui thong nhat + common errors",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1003"
+      "source_location": "L1005"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_13_0_2_14_ho\u00e0n_thi\u1ec7n_3_n\u1ec1n_t\u1ea3ng_dpi_theo_m\u00e0n_h\u00ecnh_ui_th\u1ed1ng_nh\u1ea5t",
@@ -84853,7 +84853,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.13 + 0.2.14 \u2014 hoan thien 3 nen tang, dpi theo man hinh, ui thong nhat",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L986"
+      "source_location": "L988"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_x\u00e1c_minh_m\u00e1y_ch\u1ee7_repo",
@@ -84865,7 +84865,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh + xac minh may chu repo",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1028"
+      "source_location": "L1030"
     },
     {
       "id": "docs_release_audit_and_production_roadmap_v0_2_19_4_1_module_windows_tsf_hook_tray_cli_register_installer_msix",
@@ -87324,7 +87324,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.10 + 0.2.11 \u2014 toggle = activate bo go, migration nang cap, publish hardening",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1083"
+      "source_location": "L1085"
     },
     {
       "id": "docs_release_build_release_report_nguy\u00ean_nh\u00e2n_fix_b\u1eb1ng_ch\u1ee9ng",
@@ -87336,7 +87336,7 @@
       "node_kind": "heading",
       "norm_label": "nguyen nhan + fix + bang chung",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1090"
+      "source_location": "L1092"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_10_v0_2_11_\u0111\u00e3_publish",
@@ -87348,7 +87348,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.10 & v0.2.11 \u0111a publish",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1120"
+      "source_location": "L1122"
     },
     {
       "id": "docs_release_build_release_report_s\u1ef1_c\u1ed1_ph\u00e1t_h\u00e0nh_m\u1edbi_r4_publish_fail_im_l\u1eb7ng",
@@ -87360,7 +87360,7 @@
       "node_kind": "heading",
       "norm_label": "su co phat hanh moi (r4) \u2014 publish fail im lang",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1113"
+      "source_location": "L1115"
     },
     {
       "id": "itfkeyeventsink",
@@ -88056,7 +88056,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.3 \u2014 icon \u0111u 3 nen tang + audit sau 2 vong (code/ci/icon)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1384"
+      "source_location": "L1386"
     },
     {
       "id": "docs_release_build_release_report_icon_tr\u1ea3_l\u1eddi_c\u00e2u_h\u1ecfi_linux_macos_\u0111\u00e3_c\u00f3_icon_nh\u01b0_windows_ch\u01b0a",
@@ -88068,7 +88068,7 @@
       "node_kind": "heading",
       "norm_label": "icon \u2014 tra loi cau hoi \"linux/macos \u0111a co icon nhu windows chua?\"",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1393"
+      "source_location": "L1395"
     },
     {
       "id": "docs_release_build_release_report_ki\u1ec3m_ch\u1ee9ng_ch\u1ea1y_tr\u00ean_host_windows_2026_10_01_sau_to\u00e0n_b\u1ed9_thay_\u0111\u1ed5i",
@@ -88080,7 +88080,7 @@
       "node_kind": "heading",
       "norm_label": "kiem chung chay tren host windows (2026-10-01, sau toan bo thay \u0111oi)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1432"
+      "source_location": "L1434"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_3_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -88092,7 +88092,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.3 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1448"
+      "source_location": "L1450"
     },
     {
       "id": "docs_release_build_release_report_quy_tr\u00ecnh_ph\u00e1t_h\u00e0nh_m\u1edbi",
@@ -88104,7 +88104,7 @@
       "node_kind": "heading",
       "norm_label": "quy trinh phat hanh moi",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1424"
+      "source_location": "L1426"
     },
     {
       "id": "docs_release_build_release_report_s\u1eeda_theo_audit_v\u00f2ng_1_github_actions_5_major_minors",
@@ -88116,7 +88116,7 @@
       "node_kind": "heading",
       "norm_label": "sua theo audit vong 1 \u2014 github actions (5 major + minors)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1414"
+      "source_location": "L1416"
     },
     {
       "id": "changelog_0_2_63_2026_11_04_179",
@@ -88566,7 +88566,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.8 \u2014 tu xac \u0111inh en/vi + tab goi y + dpi \u0111a man hinh + store silent",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1171"
+      "source_location": "L1173"
     },
     {
       "id": "docs_release_build_release_report_gi\u1ea3i_ph\u00e1p_b\u1eb1ng_ch\u1ee9ng_ki\u1ec3m_th\u1eed",
@@ -88578,7 +88578,7 @@
       "node_kind": "heading",
       "norm_label": "giai phap + bang chung kiem thu",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1179"
+      "source_location": "L1181"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_8_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -88590,7 +88590,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.8 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1213"
+      "source_location": "L1215"
     },
     {
       "id": "docs_release_build_release_report_s\u1ef1_c\u1ed1_trong_phi\u00ean_tra_tr\u01b0\u1edbc_khi_l\u1eb7p_l\u1ea1i",
@@ -88602,7 +88602,7 @@
       "node_kind": "heading",
       "norm_label": "su co trong phien \u2014 tra truoc khi lap lai",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1204"
+      "source_location": "L1206"
     },
     {
       "id": "docs_release_build_release_report_b\u1ea3n_0_2_7_ctrl_shift_\u0111\u1ed5i_mode_icon_to\u00e0n_c\u1ee5c",
@@ -88614,7 +88614,7 @@
       "node_kind": "heading",
       "norm_label": "ban 0.2.7 \u2014 ctrl+shift \u0111oi mode + icon toan cuc",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1228"
+      "source_location": "L1230"
     },
     {
       "id": "docs_release_build_release_report_ki\u1ec3m_ch\u1ee9ng_e2e_tr\u00ean_m\u00e1y_th\u1eadt_2026_10_02_sau_khi_publish",
@@ -88626,7 +88626,7 @@
       "node_kind": "heading",
       "norm_label": "kiem chung e2e tren may that (2026-10-02, sau khi publish)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1240"
+      "source_location": "L1242"
     },
     {
       "id": "docs_release_build_release_report_ph\u00e1t_h\u00e0nh_v0_2_7_\u0111\u00e3_publish_release_candidate_ch\u01b0a_k\u00fd_s\u1ed1",
@@ -88638,7 +88638,7 @@
       "node_kind": "heading",
       "norm_label": "phat hanh \u2014 v0.2.7 \u0111a publish (release candidate, chua ky so)",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1250"
+      "source_location": "L1252"
     },
     {
       "id": "changelog_0_2_12_2026_10_03",
@@ -265500,7 +265500,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1662",
+      "source_location": "L1664",
       "weight": 1.0
     },
     {
@@ -265511,7 +265511,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1670",
+      "source_location": "L1672",
       "weight": 1.0
     },
     {
@@ -265522,7 +265522,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1678",
+      "source_location": "L1680",
       "weight": 1.0
     },
     {
@@ -265533,7 +265533,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1038",
+      "source_location": "L1040",
       "weight": 1.0
     },
     {
@@ -265544,7 +265544,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L105",
+      "source_location": "L107",
       "weight": 1.0
     },
     {
@@ -265555,7 +265555,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1083",
+      "source_location": "L1085",
       "weight": 1.0
     },
     {
@@ -265566,7 +265566,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1130",
+      "source_location": "L1132",
       "weight": 1.0
     },
     {
@@ -265577,7 +265577,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1171",
+      "source_location": "L1173",
       "weight": 1.0
     },
     {
@@ -265588,7 +265588,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L119",
+      "source_location": "L121",
       "weight": 1.0
     },
     {
@@ -265599,7 +265599,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1228",
+      "source_location": "L1230",
       "weight": 1.0
     },
     {
@@ -265610,7 +265610,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1269",
+      "source_location": "L1271",
       "weight": 1.0
     },
     {
@@ -265621,18 +265621,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1302",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_56_audit_en_mode_3_pass_v\u00f2ng_42",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L133",
+      "source_location": "L1304",
       "weight": 1.0
     },
     {
@@ -265643,7 +265632,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1343",
+      "source_location": "L1345",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_56_audit_en_mode_3_pass_v\u00f2ng_42",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -265654,18 +265654,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1384",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_55_audit_3_pass_a_b_c_classify_mix_perf_cache_v\u00f2ng_41",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L147",
+      "source_location": "L1386",
       "weight": 1.0
     },
     {
@@ -265676,7 +265665,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1477",
+      "source_location": "L1479",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_55_audit_3_pass_a_b_c_classify_mix_perf_cache_v\u00f2ng_41",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L149",
       "weight": 1.0
     },
     {
@@ -265687,18 +265687,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1589",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_64_corpora_35_681_m\u1ee5c_gen_vocab_rust_qa_m\u1edf_r\u1ed9ng_v\u00f2ng_53",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L16",
+      "source_location": "L1591",
       "weight": 1.0
     },
     {
@@ -265709,7 +265698,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L161",
+      "source_location": "L163",
       "weight": 1.0
     },
     {
@@ -265720,7 +265709,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1637",
+      "source_location": "L1639",
       "weight": 1.0
     },
     {
@@ -265731,7 +265720,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1648",
+      "source_location": "L1650",
       "weight": 1.0
     },
     {
@@ -265742,7 +265731,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1700",
+      "source_location": "L1702",
       "weight": 1.0
     },
     {
@@ -265753,7 +265742,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1714",
+      "source_location": "L1716",
       "weight": 1.0
     },
     {
@@ -265764,7 +265753,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1724",
+      "source_location": "L1726",
       "weight": 1.0
     },
     {
@@ -265775,7 +265764,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1737",
+      "source_location": "L1739",
       "weight": 1.0
     },
     {
@@ -265786,7 +265775,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L175",
+      "source_location": "L177",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_64_corpora_35_681_m\u1ee5c_gen_vocab_rust_qa_m\u1edf_r\u1ed9ng_v\u00f2ng_53",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L18",
       "weight": 1.0
     },
     {
@@ -265797,7 +265797,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L189",
+      "source_location": "L191",
       "weight": 1.0
     },
     {
@@ -265808,7 +265808,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L201",
+      "source_location": "L203",
       "weight": 1.0
     },
     {
@@ -265819,7 +265819,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L215",
+      "source_location": "L217",
       "weight": 1.0
     },
     {
@@ -265830,7 +265830,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L231",
+      "source_location": "L233",
       "weight": 1.0
     },
     {
@@ -265841,7 +265841,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L240",
+      "source_location": "L242",
       "weight": 1.0
     },
     {
@@ -265852,7 +265852,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L256",
+      "source_location": "L258",
       "weight": 1.0
     },
     {
@@ -265863,7 +265863,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L271",
+      "source_location": "L273",
       "weight": 1.0
     },
     {
@@ -265874,7 +265874,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L288",
+      "source_location": "L290",
       "weight": 1.0
     },
     {
@@ -265896,18 +265896,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L305",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_63_corpora_d\u1ef1_\u0111o\u00e1n_31k_m\u1ee5c_qa_v\u0103n_ph\u00f2ng_v\u00f2ng_51_52",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L31",
+      "source_location": "L307",
       "weight": 1.0
     },
     {
@@ -265918,7 +265907,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L321",
+      "source_location": "L323",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_63_corpora_d\u1ef1_\u0111o\u00e1n_31k_m\u1ee5c_qa_v\u0103n_ph\u00f2ng_v\u00f2ng_51_52",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L33",
       "weight": 1.0
     },
     {
@@ -265929,7 +265929,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L336",
+      "source_location": "L338",
       "weight": 1.0
     },
     {
@@ -265940,7 +265940,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L351",
+      "source_location": "L353",
       "weight": 1.0
     },
     {
@@ -265951,7 +265951,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L367",
+      "source_location": "L369",
       "weight": 1.0
     },
     {
@@ -265962,7 +265962,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L383",
+      "source_location": "L385",
       "weight": 1.0
     },
     {
@@ -265973,7 +265973,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L399",
+      "source_location": "L401",
       "weight": 1.0
     },
     {
@@ -265984,7 +265984,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L414",
+      "source_location": "L416",
       "weight": 1.0
     },
     {
@@ -265995,7 +265995,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L429",
+      "source_location": "L431",
       "weight": 1.0
     },
     {
@@ -266006,7 +266006,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L444",
+      "source_location": "L446",
       "weight": 1.0
     },
     {
@@ -266017,7 +266017,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L458",
+      "source_location": "L460",
       "weight": 1.0
     },
     {
@@ -266028,18 +266028,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L469",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_62_mobaxterm_3_pass_tsf_bypass_sweep_panel_fix_v\u00f2ng_49_50",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L48",
+      "source_location": "L471",
       "weight": 1.0
     },
     {
@@ -266050,7 +266039,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L482",
+      "source_location": "L484",
       "weight": 1.0
     },
     {
@@ -266061,7 +266050,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L494",
+      "source_location": "L496",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_62_mobaxterm_3_pass_tsf_bypass_sweep_panel_fix_v\u00f2ng_49_50",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L50",
       "weight": 1.0
     },
     {
@@ -266072,7 +266072,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L518",
+      "source_location": "L520",
       "weight": 1.0
     },
     {
@@ -266083,7 +266083,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L542",
+      "source_location": "L544",
       "weight": 1.0
     },
     {
@@ -266094,7 +266094,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L551",
+      "source_location": "L553",
       "weight": 1.0
     },
     {
@@ -266105,7 +266105,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L562",
+      "source_location": "L564",
       "weight": 1.0
     },
     {
@@ -266116,7 +266116,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L577",
+      "source_location": "L579",
       "weight": 1.0
     },
     {
@@ -266127,7 +266127,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L588",
+      "source_location": "L590",
       "weight": 1.0
     },
     {
@@ -266138,7 +266138,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L606",
+      "source_location": "L608",
       "weight": 1.0
     },
     {
@@ -266149,7 +266149,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L62",
+      "source_location": "L64",
       "weight": 1.0
     },
     {
@@ -266160,7 +266160,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L641",
+      "source_location": "L643",
       "weight": 1.0
     },
     {
@@ -266171,7 +266171,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L664",
+      "source_location": "L666",
       "weight": 1.0
     },
     {
@@ -266182,7 +266182,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L716",
+      "source_location": "L718",
       "weight": 1.0
     },
     {
@@ -266193,7 +266193,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L726",
+      "source_location": "L728",
       "weight": 1.0
     },
     {
@@ -266204,18 +266204,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L751",
-      "weight": 1.0
-    },
-    {
-      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
-      "target": "docs_release_build_release_report_b\u1ea3n_0_2_60_qu\u00e9t_o_n2_to\u00e0n_lu\u1eadt_v\u1ec1_tuy\u1ebfn_t\u00ednh_v\u00f2ng_46",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "docs/release/build-release-report.md",
-      "source_location": "L76",
+      "source_location": "L753",
       "weight": 1.0
     },
     {
@@ -266226,7 +266215,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L771",
+      "source_location": "L773",
+      "weight": 1.0
+    },
+    {
+      "source": "docs_release_build_release_report_b\u00e1o_c\u00e1o_d\u1ef1ng_ki\u1ec3m_th\u1eed_textvn",
+      "target": "docs_release_build_release_report_b\u1ea3n_0_2_60_qu\u00e9t_o_n2_to\u00e0n_lu\u1eadt_v\u1ec1_tuy\u1ebfn_t\u00ednh_v\u00f2ng_46",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "docs/release/build-release-report.md",
+      "source_location": "L78",
       "weight": 1.0
     },
     {
@@ -266237,7 +266237,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L785",
+      "source_location": "L787",
       "weight": 1.0
     },
     {
@@ -266248,7 +266248,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L807",
+      "source_location": "L809",
       "weight": 1.0
     },
     {
@@ -266259,7 +266259,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L832",
+      "source_location": "L834",
       "weight": 1.0
     },
     {
@@ -266270,7 +266270,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L859",
+      "source_location": "L861",
       "weight": 1.0
     },
     {
@@ -266281,7 +266281,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L90",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -266292,7 +266292,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L954",
+      "source_location": "L956",
       "weight": 1.0
     },
     {
@@ -266303,7 +266303,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L986",
+      "source_location": "L988",
       "weight": 1.0
     },
     {
@@ -266314,7 +266314,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1090",
+      "source_location": "L1092",
       "weight": 1.0
     },
     {
@@ -266325,7 +266325,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1113",
+      "source_location": "L1115",
       "weight": 1.0
     },
     {
@@ -266336,7 +266336,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1120",
+      "source_location": "L1122",
       "weight": 1.0
     },
     {
@@ -266347,7 +266347,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1044",
+      "source_location": "L1046",
       "weight": 1.0
     },
     {
@@ -266358,7 +266358,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1077",
+      "source_location": "L1079",
       "weight": 1.0
     },
     {
@@ -266369,7 +266369,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1003",
+      "source_location": "L1005",
       "weight": 1.0
     },
     {
@@ -266380,7 +266380,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1028",
+      "source_location": "L1030",
       "weight": 1.0
     },
     {
@@ -266391,7 +266391,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L993",
+      "source_location": "L995",
       "weight": 1.0
     },
     {
@@ -266402,7 +266402,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L977",
+      "source_location": "L979",
       "weight": 1.0
     },
     {
@@ -266413,7 +266413,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1485",
+      "source_location": "L1487",
       "weight": 1.0
     },
     {
@@ -266424,7 +266424,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1498",
+      "source_location": "L1500",
       "weight": 1.0
     },
     {
@@ -266435,7 +266435,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1535",
+      "source_location": "L1537",
       "weight": 1.0
     },
     {
@@ -266446,7 +266446,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1549",
+      "source_location": "L1551",
       "weight": 1.0
     },
     {
@@ -266457,7 +266457,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1579",
+      "source_location": "L1581",
       "weight": 1.0
     },
     {
@@ -266468,7 +266468,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L534",
+      "source_location": "L536",
       "weight": 1.0
     },
     {
@@ -266479,7 +266479,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L507",
+      "source_location": "L509",
       "weight": 1.0
     },
     {
@@ -266490,7 +266490,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1393",
+      "source_location": "L1395",
       "weight": 1.0
     },
     {
@@ -266501,7 +266501,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1401",
+      "source_location": "L1403",
       "weight": 1.0
     },
     {
@@ -266512,7 +266512,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1414",
+      "source_location": "L1416",
       "weight": 1.0
     },
     {
@@ -266523,7 +266523,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1424",
+      "source_location": "L1426",
       "weight": 1.0
     },
     {
@@ -266534,7 +266534,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1432",
+      "source_location": "L1434",
       "weight": 1.0
     },
     {
@@ -266545,7 +266545,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1448",
+      "source_location": "L1450",
       "weight": 1.0
     },
     {
@@ -266556,7 +266556,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L879",
+      "source_location": "L881",
       "weight": 1.0
     },
     {
@@ -266567,7 +266567,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L896",
+      "source_location": "L898",
       "weight": 1.0
     },
     {
@@ -266578,7 +266578,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L913",
+      "source_location": "L915",
       "weight": 1.0
     },
     {
@@ -266589,7 +266589,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1356",
+      "source_location": "L1358",
       "weight": 1.0
     },
     {
@@ -266600,7 +266600,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1314",
+      "source_location": "L1316",
       "weight": 1.0
     },
     {
@@ -266611,7 +266611,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1324",
+      "source_location": "L1326",
       "weight": 1.0
     },
     {
@@ -266622,7 +266622,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1285",
+      "source_location": "L1287",
       "weight": 1.0
     },
     {
@@ -266633,7 +266633,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1240",
+      "source_location": "L1242",
       "weight": 1.0
     },
     {
@@ -266644,7 +266644,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1250",
+      "source_location": "L1252",
       "weight": 1.0
     },
     {
@@ -266655,7 +266655,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1179",
+      "source_location": "L1181",
       "weight": 1.0
     },
     {
@@ -266666,7 +266666,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1204",
+      "source_location": "L1206",
       "weight": 1.0
     },
     {
@@ -266677,7 +266677,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1213",
+      "source_location": "L1215",
       "weight": 1.0
     },
     {
@@ -266688,7 +266688,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1161",
+      "source_location": "L1163",
       "weight": 1.0
     },
     {
@@ -302911,7 +302911,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1316",
+      "source_location": "L1318",
       "weight": 1.0
     },
     {
@@ -302922,7 +302922,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1381",
+      "source_location": "L1383",
       "weight": 1.0
     },
     {
@@ -302933,7 +302933,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L948",
+      "source_location": "L950",
       "weight": 1.0
     },
     {
@@ -315918,7 +315918,7 @@
       "confidence_score": 0.95,
       "context": "deleteSelectionRange",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L219",
+      "source_location": "L221",
       "weight": 1.0
     },
     {
@@ -316446,7 +316446,7 @@
       "confidence_score": 0.95,
       "context": "lc_is_assist_hotkey",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L260",
+      "source_location": "L262",
       "weight": 1.0
     },
     {
@@ -316458,7 +316458,7 @@
       "confidence_score": 0.95,
       "context": "lc_selection_slice",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L219",
+      "source_location": "L221",
       "weight": 1.0
     },
     {
@@ -316590,7 +316590,7 @@
       "confidence_score": 0.95,
       "context": "persist()",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L998",
+      "source_location": "L1000",
       "weight": 1.0
     },
     {
@@ -316722,7 +316722,7 @@
       "confidence_score": 0.95,
       "context": "register",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1053",
+      "source_location": "L1055",
       "weight": 1.0
     },
     {
@@ -316734,7 +316734,7 @@
       "confidence_score": 0.95,
       "context": "register",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1352",
+      "source_location": "L1354",
       "weight": 1.0
     },
     {
@@ -316746,7 +316746,7 @@
       "confidence_score": 0.95,
       "context": "register",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1304",
+      "source_location": "L1306",
       "weight": 1.0
     },
     {
@@ -316758,7 +316758,7 @@
       "confidence_score": 0.95,
       "context": "register",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1297",
+      "source_location": "L1299",
       "weight": 1.0
     },
     {
@@ -317454,7 +317454,7 @@
       "confidence_score": 0.95,
       "context": "testDefaultConfig",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L488",
+      "source_location": "L490",
       "weight": 1.0
     },
     {
@@ -317514,7 +317514,7 @@
       "confidence_score": 0.95,
       "context": "test_assist",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L421",
+      "source_location": "L423",
       "weight": 1.0
     },
     {
@@ -317538,7 +317538,7 @@
       "confidence_score": 0.95,
       "context": "test_assist_hotkey_explicit_preview",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L276",
+      "source_location": "L278",
       "weight": 1.0
     },
     {
@@ -317550,7 +317550,7 @@
       "confidence_score": 0.95,
       "context": "test_assist_partial_block",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L421",
+      "source_location": "L423",
       "weight": 1.0
     },
     {
@@ -317562,7 +317562,7 @@
       "confidence_score": 0.95,
       "context": "test_defaults_when_missing",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L421",
+      "source_location": "L423",
       "weight": 1.0
     },
     {
@@ -317742,7 +317742,7 @@
       "confidence_score": 0.95,
       "context": "unregister",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1409",
+      "source_location": "L1411",
       "weight": 1.0
     },
     {
@@ -318054,7 +318054,7 @@
       "confidence_score": 0.95,
       "context": "verify",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L1655",
+      "source_location": "L1657",
       "weight": 1.0
     },
     {
@@ -318066,7 +318066,7 @@
       "confidence_score": 0.95,
       "context": "verify",
       "source_file": "docs/release/build-release-report.md",
-      "source_location": "L884",
+      "source_location": "L886",
       "weight": 1.0
     },
     {
@@ -318107,5 +318107,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d6717b89cbc6d6de6faa6f3cda99196f213b9738"
+  "built_at_commit": "3972ccd9cea956c952e90fb0ca42b5ef0f93c8d2"
 }
