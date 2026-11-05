@@ -40,30 +40,35 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
   đúng": **0 %** câu đúng bị báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng
   Anh (0.2.38, chi tiết [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
 
+## Phiên bản gần đây
+
+Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
+
+| Phiên bản | Nội dung chính |
+|---|---|
+| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35.681 mục · 13 domain từ ghép mới (bất động sản, ngân hàng-bảo hiểm, logistics…) · gen-vocab Rust thay Python · User Style Profile (học từ cá nhân, opt-in) · abnormal_1000 · DFMEA/DRBFM |
+| [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31.000 mục (6.675 âm tiết + 1.214 từ ghép + 9.868 từ Anh + 10.208 câu/cụm/thành ngữ) · mở rộng đúng nghĩa · QA văn phòng 23 test · 3 fix FPR |
+| 0.2.60 | Hiệu năng: 5 đường O(n²) → tuyến tính (dán 640k ký tự 45s → 0.9s); ngày vô lý cuối văn bản |
+| 0.2.59 | Cảnh báo ngày tháng vô lý (32/13, 31/02 — calendar-aware) + số tiền phân cách hỗn loạn (1.250.00đ) |
+| 0.2.58 | Chat không dấu hết bị phá chữ ("an com", "i di"); trợ động từ EN lạc sau từ VI; parity phẩy-but |
+| 0.2.57 | VIQR freeze marker; macOS toggle VI/đổi cài đặt giữa từ hết mất chữ; `DD` hoa gạch |
+| 0.2.56 | EN mode: luật EN chạy trên câu mix; WinSpell tự phục hồi; nguyên văn trong ngoặc kép không sửa; SVA O(n) |
+| 0.2.55 | Lặp cụm 2–4 từ; từ EN thừa trong câu Việt; audit 3 pass A/B/C; dự đoán nhanh 35× |
+| 0.2.54 | Lặp cụm suggestion-only; audit 3 OS từng dòng; abnormal tests vét cạn |
+| 0.2.52–53 | SVA dạng rút gọn ("He don't"); EN Tab mở cho từ chưa fold; collocation +7 |
+| 0.2.50–51 | EN grammar hoàn tất (should of, your welcome, then/than…); Ngữ pháp câu EN + SVA; bảng cài đặt bật dự đoán |
+| 0.2.45–49 | P5 văn phòng: macro kiểu chữ, số tiền, bảo vệ Excel/identifier; Ctrl+Shift+F9 chuyển mã thông minh 3 OS; ghost preview |
+| 0.2.44 | Audit sâu 3 lượt; 1061 âm tiết VN cho từ thiếu dấu; a/an theo gốc Âm-phiêu |
+
+Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
+
+
 ## Tải và cài
 
 Bản mới nhất: **[GitHub Release v0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
-— cách kiểm: [signing.md](docs/release/signing.md). Chưa có: chữ ký Authenticode cho
-Windows (đang chờ SignPath Foundation duyệt — SmartScreen có thể cảnh báo, phần mềm diệt
-virus có thể cách ly nhầm: đã gặp với Kaspersky, xem
-[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper cảnh báo lần mở đầu). Bản 0.2.64 đưa corpora dự đoán lên **35.681 mục** (8.613 từ Việt + 13.214 từ Anh + 13.854 cặp câu/cụm/thành ngữ — 13 domain mới từ bất động sản, ngân hàng-bảo hiểm, logistics tới y tế và du lịch), sinh bằng `cargo xtask gen-vocab` (Rust, đúng ngôn ngữ policy), QA battery 8 persona mới + abnormal mở rộng (input 65k, surrogate, bidi) và perf giữ mức micro-giây (Tab 183ns). Bản 0.2.63 là **bản mở rộng corpora dự đoán ~31.000 mục**: 6.675 âm tiết tiếng Việt + 1.214 từ ghép văn phòng + 9.868 từ tiếng Anh + 10.208 cặp câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ + thành ngữ/tục ngữ/ca dao thật — "có công mài sắt" + Tab → "có ngày nên kim"); gõ "tiến" + Tab ra "tiến độ" (mở rộng đúng nghĩa) và hiệu năng giữ mức micro-giây (Tab 269ns); kèm bộ test QA văn phòng hỗn hợp 23 test và 3 fix báo-nhầm cuối (dòng code, regex, "Phân công công việc"). Bản 0.2.62 là **vòng audit đối kháng 3 pass** cho MobaXterm + quét TSF-bypass: KiTTY/TeraTerm/SecureCRT/Xshell đưa sang engine hook (app không qua TSF), panel trợ lý không còn đè lên dòng đang gõ, schema appdb đầy đủ exe_prefix. Bản 0.2.61 fix **gõ không ra chữ trong MobaXterm** và terminal PuTTY-family (app không qua TSF — engine hook tiếp quản); thêm e2e kiểm chứng gợi ý từ (ghost + Tab) trên IBus/Fcitx5 thật. Bản 0.2.60 là **bản tối ưu hiệu năng sau audit**: 5 đường O(n²) trong trợ lý (phát hiện thiếu-space văn bản dày dấu câu, quét lặp, ngoặc kép, guard spelling) về tuyến tính — dán 640k ký tự 45s → 0.9s; phục hồi phát hiện ngày vô lý cuối văn bản. Bản 0.2.59 thêm **cảnh báo ngày tháng vô lý** ("32/13/2025", "31/02/2026" — calendar-aware) và **số tiền phân cách hỗn loạn** ("1.250.00đ") — đề xuất từ persona kế toán/HR/bán hàng. Bản 0.2.58 là **vòng audit persona 7 profile** (kế toán/nhân sự/bán hàng/CSKH/giáo viên/quản lý/người dùng thường): chat không dấu hết bị auto-fix phá chữ ("an com", "i di"), trợ động từ EN lạc sau từ Việt được báo, phẩy-sau-"but" tiếng Anh được báo đối xứng "nhưng". Bản 0.2.57 là **vòng audit toàn bề mặt 3 lượt** (tĩnh cõ gõ + hành trình phím 3 OS + đối kháng): VIQR hết toggle vô tận khi lặp phím dấu (freeze như Telex/VNI), macOS hết mất từ khi toggle VI/đổi cài đặt giữa từ, `DD` hoa gạch thành `Đ`. Bản 0.2.56 là **bản audit chế độ tiếng Anh**: trợ lý hết bỏ qua luật EN trên câu mix ("Anh should of done it sớm hơn") và văn bản Việt không dấu ("noi it do met"), chính tả EN tự phục hồi sau probe chậm, nguyên văn trong ngoặc kép không bị sửa, SVA trên văn bản dài O(n) thay O(n²). Bản 0.2.55 là **vòng audit 3 lượt từng dòng** (luật trợ lý + engine/FFI + 3 OS): sửa 3 luật tự sửa phá chữ đúng ("Tuy giỏi nhưng không nên kiêu ngạo", "more minutes, then try again", "their going rate"), fix trợ lý tự tắt trên câu mix ngắn ("y kiến hay"), đóng rò bộ nhớ IBus, và tăng tốc dự đoán ~35× (715µs → 20µs mỗi phím); kèm +40 thành ngữ/tục ngữ, +20 từ láy, +25 cặp collocation văn phòng, dự đoán role +142 mẫu. Bản 0.2.54 thêm **phát hiện lặp cụm 2–4 từ** (chỉ gợi ý: "vui lòng vui lòng kiểm tra", "đã hoàn thành đã hoàn thành"), **từ tiếng Anh thừa trong câu Việt** ("đã been hủy", "trước before 17h"), **+19 cặp collocation văn phòng** (cảm kết→cam kết, xắp xếp→sắp xếp, học sinh thiếu dấu), **+68 thành ngữ/tục ngữ + 24 từ láy** vào vùng bảo vệ, **dự đoán theo role văn phòng** (kế toán/nhân sự/kinh doanh/CSKH/giáo viên, +132 mẫu), và hardening 3 nền tảng: Windows hết mất chữ trên error-path, macOS hồi sinh chord Ctrl+Shift+F9, Linux hết đóng băng bàn phím khi tray treo. Bản 0.2.53 sửa **hòa hợp chủ-vị với dạng rút gọn tiếng Anh** ("He don't" → "doesn't"), thêm 7 cặp collocation tiếng Việt (sẳn sàng→sẵn sàng, chần chờ→chần chừ, cố găng→cố gắng, trực trặc→trúc trắc…) và mở **Tab hoàn tất từ tiếng Anh chưa fold** khi dự đoán bật. Bản 0.2.52 mở rộng **trợ lý ngữ pháp và dự đoán tiếng Anh toàn diện**: 3356 từ vựng tần suất (coder, tech, business, OS APIs Win32/POSIX/Cocoa, Gen Z slang), 3750 mẫu câu & cụm từ ngữ cảnh (Tab/Ctrl+Space), luật sửa lỗi closed-list (`their own`, `except for`, `led to`, `lose`, `principal`, `take effect`), và kiểm tra chính tả tiếng Anh OS Spell dual-language với RAII ComApartment. Bản 0.2.51 hoàn tất **ngữ pháp tiếng Anh** (trước đây chỉ có a/an): sửa `should of`→`should have`, `your welcome`→`you're welcome`, `its been`→`it's been`, `their going`→`they're going`, `is to big`→`is too big`, `better then`→`better than`, đại từ `i`→`I` — danh sách đóng chỉ chạy trên câu tiếng Anh. Bản 0.2.50 hoàn tất vòng chức năng: **Ctrl+Shift+F9 chuyển mã vùng bôi đen trên cả 3 nền tảng**, **kiểm tra chính tả từ điển của Windows** (D39), **bật được dự đoán văn bản từ bảng điều khiển** (trước đây không có nút), và một vòng audit 3 lượt sửa 2 HIGH + 5 MEDIUM + 10 LOW. Bản 0.2.49 làm **Ctrl+Shift+F9 chuyển đổi văn bản bôi đen thông minh**: sửa chữ lạ khi mở file sai bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), chuyển bảng mã cũ TCVN3/VNI sang bảng mã đang dùng, gõ lại chữ gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`); trợ lý sửa được ở ô nhập WinForms/Delphi; nhắc mở lại ứng dụng sau khi cập nhật. Bản 0.2.48 chốt **phím tắt trợ lý chỉ còn Ctrl+Space** (Windows/Linux; macOS Option+Space) — bỏ Alt+Space vì đụng menu cửa sổ và PowerToys Run/Copilot/ChatGPT. Bản 0.2.47 thêm **chữ mờ gợi ý sẵn** sau con trỏ (Windows; macOS/Linux xem trước trong bảng ứng viên) và **một phím tắt vừa sửa vừa dự đoán**: Ctrl+Space (macOS Option+Space) sửa hết lỗi của câu (kể cả chính tả) rồi mới dự đoán, không có việc thì phím về ứng dụng; nút *Sửa tất cả* và Alt+1…3 nay hoạt động ở mọi ứng dụng kể cả Teams/Electron (VS Code) và Notepad++ (E2E thật 44/44). Bản 0.2.46 thêm **dự đoán văn bản song ngữ** (bật `suggest.enabled`: Tab/Ctrl+Space hoàn tất từ và đoán cụm tiếp theo — *Kính gửi* → *quý khách hàng*) và **trợ lý ngữ pháp sống theo câu kiểu Grammarly** trên cả 3 nền tảng: câu sai hiện gợi ý ngay, sửa xong ẩn ngay, không chiếm phím gõ; panel Windows luôn hiện được (trước đây không neo được ở Notepad Win11), chữ to dễ đọc, bỏ toast "phát hiện lỗi"; bộ cài tự quét và dọn bản cũ (kiểm chứng E2E 28/28 trên Notepad/Word/Excel thật). Bản 0.2.45 thêm **gói năng suất văn phòng P5**: gõ tắt theo kiểu chữ (HD→HỢP ĐỒNG), bảo vệ công thức Excel (`=sum(...)`), gõ tắt số tiền (`=15450000bc`+Tab → *Mười lăm triệu đồng chẵn*), sửa cụm từ hành chính (bổ xung→bổ sung), khoảng trắng trước % (`100 %`→`100%`), bảo vệ identifier coder (useState/KPI/EBITDA) và **chuyển mã vùng bôi đen Ctrl+Shift+F9** (TCVN3/VNI/Unicode tổ hợp → Unicode). Bản 0.2.44 là vòng **audit sâu 3 lượt toàn bộ trợ lý ngữ pháp** (khóa loạt FP cuối: tiếng Việt thiếu dấu, tên file, ngoặc cong, viết tắt ĐH., DPI panel, Fcitx5 fresh-install). Bản 0.2.43 làm phím **Enter trên popup vùng bôi đen áp "Sửa tất cả"** (trước đây bị nuốt mà không sửa — finding cuối cùng của vòng audit selection-check). Bản 0.2.42 thêm check ngữ pháp khi bôi đen câu (Shift+mũi tên → popup + Sửa tất cả). Bản 0.2.41 sửa trợ lý chết khi nâng cấp (3 root cause). Bản 0.2.40 là vòng audit 3 nền tảng (sửa lỗi article_an phá chữ Việt, đồng bộ default). Bản 0.2.39 làm panel trợ lý **bấm được bằng chuột** (nút Sửa tất cả, click từ gạch chân). Bản 0.2.38 **bật trợ lý ngữ pháp mặc định** (Chỉ gợi ý) với panel tại caret kiểu Grammarly + toast khay chỉ khi tự sửa. Bản 0.2.37 thêm
-**Trợ lý ngữ pháp tiếng Anh** (a/an theo âm, lặp từ EN) + **câu mix Việt–Anh văn phòng**
-được kiểm tra + hoàn tất từ bằng **Space** (tùy chọn) — đo trên corpus thật: 0/981 (VI) và
-0/295 (EN) câu đúng bị báo nhầm, recall 100% cả 2 tập lỗi. Bản 0.2.36 nâng
-chất lượng **Trợ lý ngữ pháp** lên chuẩn "không bao giờ bêu chữ đúng": **FPR 0 %** trên
-981 câu sạch (bỏ 5 cặp typo vi phạm chính sách khiến autocorrect sửa sai "quyến rũ",
-"thuở xưa"…; recall câu 83,7 %), câu VIẾT HOA có dấu được kiểm tra. Bản 0.2.35 ra mắt
-**Trợ lý ngữ pháp** (kiểm tra + gợi ý + tự sửa câu, tắt mặc định). Bản 0.2.34 mở
-**kênh phân phối Linux**: AUR (`paru -S textvn`) + PPA Debian/Ubuntu; bản 0.2.33 đổi
-**mặc định sau cài sang dấu cũ** trên cả 3 nền tảng
-(người dùng cũ giữ nguyên lựa chọn), thêm ma trận hồi quy 16 combo bảng mã × kiểu gõ,
-mở rộng từ điển tự khôi phục tiếng Anh lên 3000 từ tần suất (cân theo luật ưu tiên âm
-tiết Việt không có cách gõ khác) và thêm Tab hoàn tất từ tiếng Việt (tùy chọn
-`suggest.enabled`) — chi tiết:
-[CHANGELOG.md](CHANGELOG.md). Commit và tag phát hành có chữ ký git.
+— cách kiểm: [signing.md](docs/release/signing.md).
 
 | Nền tảng | Cài đặt | Giải nén dùng ngay |
 |---|---|---|
@@ -74,15 +79,17 @@ tiết Việt không có cách gõ khác) và thêm Tab hoàn tất từ tiếng
 
 Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
 
-Lưu ý Windows: `TextVN-setup-<ver>-windows-x64.exe` cài **cho tài khoản hiện tại**
-(`%LOCALAPPDATA%\Programs\TextVN`, không UAC); `TextVN-setup-<ver>-windows-x64-machine.exe`
-cài **cho mọi người dùng** (Program Files, UAC một lần). Mỗi tài khoản Windows tự được
-đăng ký bộ gõ ở lần đầu TextVN chạy; nâng cấp **giữ nguyên** kiểu gõ, tuỳ chọn và thiết
-lập theo từng ứng dụng. Trên **Windows 11 24H2+** một số máy từ chối kích hoạt bộ gõ chỉ
-đăng ký cho tài khoản (lỗi B7 trong `docs/specs/win-test-common-errors.md`): vì an toàn,
-bản cài cho tài khoản, bản portable và bản Store **không bao giờ xin UAC** — TextVN báo
-một lần và hướng dẫn dùng bộ cài `-machine.exe` (chỉ bản nằm trong Program Files mới
-được đăng ký phạm vi máy).
+**Lưu ý Windows**: bản `-machine.exe` cài **cho mọi người dùng** (Program Files, UAC một
+lần); bản thường cài cho tài khoản hiện tại (`%LOCALAPPDATA%\Programs\TextVN`, không
+UAC). Trên **Windows 11 24H2+** một số máy từ chối kích hoạt bộ gõ chỉ đăng ký cho tài
+khoản (lỗi B7 trong `docs/specs/win-test-common-errors.md`): bản cài tài khoản, bản
+portable và bản Store **không bao giờ xin UAC** — TextVN báo một lần và hướng dẫn dùng
+bộ cài `-machine.exe`.
+
+**Lưu ý chữ ký chưa có** (đang chờ duyệt — SmartScreen/diệt-virus có thể cảnh báo lần
+đầu): Authenticode cho Windows (chờ SignPath — đã gặp Kaspersky cách ly nhầm, xem
+[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
+Developer ID/notarization cho macOS (Gatekeeper lần mở đầu). Xem [Trạng thái](#trạng-thật).
 
 ## Điểm vượt trội so với các bộ gõ khác
 
@@ -105,7 +112,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
 | **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
 
-### Tính năng đầy đủ (tích luỹ đến 0.2.64)
+## Tính năng đầy đủ (tích luỹ đến 0.2.64)
 
 **Dự đoán văn bản (P6)** — corpora ~31.000 mục: 6.675 âm tiết Việt +
 1.214 từ ghép + 9.868 từ Anh + 10.208 cặp câu/cụm/thành ngữ (câu thật chia
@@ -163,28 +170,6 @@ ngôn ngữ công khai tại
 
 Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
 thay đổi: [CHANGELOG.md](CHANGELOG.md).
-
-### Tóm tắt phiên bản gần đây
-
-| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35.681 mục · 13 domain từ ghép mới · gen-vocab Rust thay Python · QA 8 persona mới + abnormal mở rộng · fix "chuyến bay bay" |
-
-| [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora dự đoán ~31.000 mục (6.675 âm tiết + 1.214 từ ghép + 9.868 từ Anh + 10.208 câu/cụm/thành ngữ) · mở rộng đúng nghĩa · QA văn phòng 23 test · 3 fix FPR |
-
-| Phiên bản | Nội dung chính |
-|---|---|
-| 0.2.60 | Hiệu năng: 5 đường O(n²) → tuyến tính (dán 640k ký tự 45s → 0.9s); ngày vô lý cuối văn bản |
-| 0.2.59 | Cảnh báo ngày tháng vô lý (32/13, 31/02 — calendar-aware) + số tiền phân cách hỗn loạn (1.250.00đ) |
-| 0.2.58 | Chat không dấu hết bị phá chữ ("an com", "i di"); trợ động từ EN lạc sau từ VI; parity phẩy-but |
-| 0.2.57 | VIQR freeze marker; macOS toggle VI/đổi cài đặt giữa từ hết mất chữ; `DD` hoa gạch |
-| 0.2.56 | EN mode: luật EN chạy trên câu mix; WinSpell tự phục hồi; nguyên văn trong ngoặc kép không sửa; SVA O(n) |
-| 0.2.55 | Lặp cụm 2–4 từ; từ EN thừa trong câu Việt; audit 3 pass A/B/C; dự đoán nhanh 35× |
-| 0.2.54 | Lặp cụm suggestion-only; audit 3 OS từng dòng; abnormal tests vét cạn |
-| 0.2.52–53 | SVA dạng rút gọn ("He don't"); EN Tab mở cho từ chưa fold; collocation +7 |
-| 0.2.50–51 | EN grammar hoàn tất (should of, your welcome, then/than…); Ngữ pháp câu EN + SVA; bảng cài đặt bật dự đoán |
-| 0.2.45–49 | P5 văn phòng: macro kiểu chữ, số tiền, bảo vệ Excel/identifier; Ctrl+Shift+F9 chuyển mã thông minh 3 OS; ghost preview |
-| 0.2.44 | Audit sâu 3 lượt; 1061 âm tiết VN cho từ thiếu dấu; a/an theo gốc Âm-phiêu |
-
-Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Dựng từ mã nguồn
 
@@ -282,6 +267,27 @@ same config file on all three platforms.
   "never flags correct text": **0 %** of correct sentences flagged on a
   981-sentence Vietnamese + 295-sentence English benchmark (0.2.38,
   details in [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+
+## Recent releases at a glance
+
+| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust xtask generator · extended QA battery · "bay bay" FP fixed |
+
+| Version | Highlights |
+|---|---|
+| 0.2.60 | Performance: five O(n²) paths → linear (640k-char paste 45s → 0.9s); end-of-text date detection |
+| 0.2.59 | Impossible-date warnings (32/13, 31/02 — calendar-aware) + inconsistent money grouping (1.250.00đ) |
+| 0.2.58 | Unaccented Vietnamese chat no longer mangled ("an com", "i di"); stray EN auxiliaries flagged; comma-after-"but" parity |
+| 0.2.57 | VIQR marker freeze; macOS toggle/settings mid-word no longer lose text; uppercase DD stroke |
+| 0.2.56 | EN rules run on mixed sentences; WinSpell self-recovery; quoted speech verbatim; SVA O(n) |
+| 0.2.55 | 2–4-word phrase repeats; stray EN words in Vietnamese sentences; 3-pass A/B/C audit; 35× prediction speedup |
+| 0.2.54 | Phrase repeats suggestion-only; line-by-line 3-OS audit; exhaustive abnormal tests |
+| 0.2.52–53 | Contracted SVA ("He don't"); EN Tab for unfolded words; +7 collocations |
+| 0.2.50–51 | Full EN grammar (should of, your welcome, then/than…); sentence grammar + SVA; prediction toggle UI |
+| 0.2.45–49 | P5 office: case-style macros, money words, Excel/identifier protection; smart Ctrl+Shift+F9 transcode 3 OS; ghost preview |
+| 0.2.44 | Deep 3-round audit; 1061 VN syllables for unaccented words; vowel-origin a/an rules |
+
+Full details per release: [CHANGELOG.md](CHANGELOG.md).
+
 
 ## Download & install
 
@@ -381,7 +387,7 @@ differently — per their public feature pages as of 2026-10):
 - **Private by default** — 100 % local key processing, no telemetry, no
   network; auto-disables in password fields; public privacy policy in-repo.
 
-### Full feature set (accumulated through 0.2.64)
+## Full feature set (accumulated through 0.2.64)
 
 **Text prediction (P6)** — ~31,000-entry corpora: 6,675 Vietnamese
 syllables + 1,214 compounds + 9,868 English words + 10,208 context→phrase
@@ -440,26 +446,6 @@ systems at every commit; the language-conflict rules are published at
 Test results of the current version:
 [build-release-report.md](docs/release/build-release-report.md) · changes:
 [CHANGELOG.md](CHANGELOG.md).
-
-### Recent releases at a glance
-
-| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust xtask generator · extended QA battery · "bay bay" FP fixed |
-
-| Version | Highlights |
-|---|---|
-| 0.2.60 | Performance: five O(n²) paths → linear (640k-char paste 45s → 0.9s); end-of-text date detection |
-| 0.2.59 | Impossible-date warnings (32/13, 31/02 — calendar-aware) + inconsistent money grouping (1.250.00đ) |
-| 0.2.58 | Unaccented Vietnamese chat no longer mangled ("an com", "i di"); stray EN auxiliaries flagged; comma-after-"but" parity |
-| 0.2.57 | VIQR marker freeze; macOS toggle/settings mid-word no longer lose text; uppercase DD stroke |
-| 0.2.56 | EN rules run on mixed sentences; WinSpell self-recovery; quoted speech verbatim; SVA O(n) |
-| 0.2.55 | 2–4-word phrase repeats; stray EN words in Vietnamese sentences; 3-pass A/B/C audit; 35× prediction speedup |
-| 0.2.54 | Phrase repeats suggestion-only; line-by-line 3-OS audit; exhaustive abnormal tests |
-| 0.2.52–53 | Contracted SVA ("He don't"); EN Tab for unfolded words; +7 collocations |
-| 0.2.50–51 | Full EN grammar (should of, your welcome, then/than…); sentence grammar + SVA; prediction toggle UI |
-| 0.2.45–49 | P5 office: case-style macros, money words, Excel/identifier protection; smart Ctrl+Shift+F9 transcode 3 OS; ghost preview |
-| 0.2.44 | Deep 3-round audit; 1061 VN syllables for unaccented words; vowel-origin a/an rules |
-
-Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Build from source
 

@@ -150,6 +150,9 @@ pub struct TsfShared {
     pub composition: RefCell<Option<ITfComposition>>,
     /// Model text của composition (nguồn sự thật cho `plan_key`).
     pub comp_text: RefCell<Vec<char>>,
+    /// P8 (vòng 55): dead key (`Ctrl+'`…) vừa đi qua Pass — chờ letter kế
+    /// forward cho OS dựng dấu (`é`, `ê`, `ñ`…). Xem process().
+    pub dead_key_armed: Cell<bool>,
     /// VK đã được ăn ở `OnTestKeyDown`, chờ `OnKeyDown` tương ứng.
     pub pending_eaten_vk: Cell<Option<u32>>,
     /// Phím/đích được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app
@@ -180,6 +183,7 @@ impl TsfShared {
             thread: RefCell::new(thread),
             composition: RefCell::new(None),
             comp_text: RefCell::new(Vec::new()),
+            dead_key_armed: Cell::new(false),
             pending_eaten_vk: Cell::new(None),
             deferred_replay: Cell::new(None),
             config_seen: Cell::new(0),
@@ -494,6 +498,47 @@ impl KeyEditSession {
             Ok(t) => t.clone(),
             Err(_) => return false,
         };
+        // P8 (vòng 55 — dead-key parity UniKey/OS): dead key (`Ctrl+'`, `Ctrl+``,
+        // `Ctrl+^`, `Ctrl+~`, `Ctrl+_`… trên layout EN) đi qua TIP với hành vi Pass
+        // — TIP ARM chờ phím letter kế. Letter kế khi ARM phải **forward** (không
+        // ăn) để OS dead-key dựng dấu (`é`, `ê`, `ñ`…) — trước đây `plan_key`
+        // ăn phím letter Pass vào composition ⇒ OS không bao giờ thấy ⇒ dấu mũ/
+        // huyền kiểu Windows dead-key không bao giờ xuất hiện (bug chủ repo).
+        if step.action == textvn_ffi::ACTION_PASS {
+            let armed = shared.dead_key_armed.get();
+            let is_oem_or_ctrl_char = match self.key {
+                KeyKind::Char(_) => self.mods & (0x2 | 0x4) != 0, // Ctrl/Alt combo
+                KeyKind::Other => self.mods == 0 || self.mods & 0x1 != 0, // OEM phím đặc biệt
+                _ => false,
+            };
+            if !armed && is_oem_or_ctrl_char && self.vk >= 0xBA && self.vk <= 0xE2 {
+                shared.dead_key_armed.set(true);
+            } else if armed {
+                shared.dead_key_armed.set(false);
+                // Letter kế: KHÔNG ăn — commit composition hiện có (nếu đang
+                // compose) và forward phím cho OS dead-key xử lý.
+                if matches!(self.key, KeyKind::Char(_)) {
+                    if current.is_empty() {
+                        return false;
+                    }
+                    let plan = CompositionPlan {
+                        delete_before: 0,
+                        text: Some(current.clone()),
+                        end: true,
+                        eaten: false,
+                    };
+                    match apply_plan(&self.shared, &self.ctx, ec, &sel, comp, &plan) {
+                        Ok(()) => {
+                            if let Ok(mut text) = shared.comp_text.try_borrow_mut() {
+                                *text = Vec::new();
+                            }
+                            return false;
+                        }
+                        Err(_) => return false,
+                    }
+                }
+            }
+        }
         let plan = plan_key(&current, self.key, &step);
         match apply_plan(&self.shared, &self.ctx, ec, &sel, comp, &plan) {
             Ok(()) => {
@@ -512,8 +557,9 @@ impl KeyEditSession {
                 // sách (`assist::CHECK_BUDGET_MS`) — không chặn luồng gõ.
                 if comp.is_none() {
                     let trigger = super::assist::assist_trigger(self.key);
-                    // R2-129: popup sống — ranh giới từ (space , ; :) và Backspace
-                    // khi popup sống đang hiện: hiện/cập nhật/ẩn theo câu đúng sai.
+                    // P9 (vòng 55 — chủ repo: "panel chỉ hiện khi dừng ~1s"):
+                    // gõ tiếp → popup đang sống ẨN NGAY (không che vùng gõ);
+                    // điểm check lên lịch idle 1 s — dừng gõ mới hiện.
                     if trigger == AssistTrigger::Word
                         || (self.key == KeyKind::Backspace && live_popup_visible(shared))
                     {
@@ -527,8 +573,8 @@ impl KeyEditSession {
                         hide_assist_overlay(shared); // câu kết thúc đã đúng → ẩn ngay
                     }
                     if let Some(check) = sentence_check {
-                        // AS-030 / AS-050: chỉ điểm hiển thị (kết thúc câu, D11)
-                        // mới hiện overlay hoặc tự sửa cả câu; space/,/: chỉ toast.
+                        // AS-030 / AS-050: auto-fix KHÔNG qua idle — hành động
+                        // tự động chạy như cũ; chỉ PANEL hiển thị là debounce.
                         if trigger == AssistTrigger::Sentence {
                             let mut auto_fixed = false;
                             if should_auto_fix_sentence(
@@ -540,9 +586,7 @@ impl KeyEditSession {
                                     apply_sentence_auto_fix(&self.shared, &self.ctx, ec, &check);
                             }
                             if !auto_fixed {
-                                // R2-126: panel sửa lỗi là kênh duy nhất — không
-                                // còn toast "phát hiện lỗi" khi panel không hiện.
-                                show_assist_overlay(&self.shared, &self.ctx, ec, &check);
+                                super::panel_idle::schedule(&self.shared, &self.ctx);
                             }
                         }
                     }
@@ -553,6 +597,13 @@ impl KeyEditSession {
                     KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab
                 ) {
                     update_ghost(&self.shared, &self.ctx, ec);
+                }
+                // P9 (vòng 55): gõ tiếp khi popup sống → ẨN NGAY (không che
+                // vùng gõ); điểm check đã lên lịch sẽ tự re-arm dừng 1s.
+                if matches!(self.key, KeyKind::Char(_) | KeyKind::Backspace)
+                    && live_popup_visible(shared)
+                {
+                    hide_assist_overlay(shared);
                 }
                 if self.key == KeyKind::CtrlSpace && step.action == textvn_ffi::ACTION_PASS {
                     // Ctrl+Space không khớp prediction: kích hoạt Trợ lý ngữ pháp (Text Correct) cho từ và câu

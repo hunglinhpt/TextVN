@@ -104,6 +104,29 @@ fn char_idx(c: char) -> Option<usize> {
     }
 }
 
+/// P8: cặp `u`+`o` THƯỜNG liền nhau (chưa ư-ơ) trong từ — không tính `qu`.
+fn has_uo_vowel_pair(out: &[char]) -> bool {
+    out.windows(2).enumerate().any(|(i, p)| {
+        matches!(p[0], 'u' | 'U')
+            && matches!(p[1], 'o' | 'O')
+            && !(i > 0 && matches!(out[i - 1], 'q' | 'Q'))
+    })
+}
+
+/// P8: đổi cặp `uo` thường liền nhau đầu tiên thành `ươ` (giữ dấu thanh cũ).
+fn promote_uo_pair(out: &mut [char]) {
+    for i in 0..out.len().saturating_sub(1) {
+        if matches!(out[i], 'u' | 'U')
+            && matches!(out[i + 1], 'o' | 'O')
+            && !(i > 0 && matches!(out[i - 1], 'q' | 'Q'))
+        {
+            out[i] = form_like(out[i], U_HOOK, tone_of(out[i]).unwrap_or(0));
+            out[i + 1] = form_like(out[i + 1], O_HOOK, tone_of(out[i + 1]).unwrap_or(0));
+            return;
+        }
+    }
+}
+
 /// Từ đang có cặp `ươ` (do rule `uo` tự tạo khi chưa có `w` nào).
 fn has_uo_pair(out: &[char]) -> bool {
     out.windows(2).any(|p| {
@@ -135,6 +158,13 @@ fn push_key(
         if c_idx.is_some_and(|i| state.undone_tones[i]) {
             out.push(c);
             return;
+        }
+        // P8 (vòng 55, UniKey parity "dấu vào o sau u → ơ"): tone key đến mà
+        // từ còn cặp `uo` liền (qu sẽ loại ở has_uo_vowel_pair) → đổi ƯƠ
+        // TRƯỚC rồi áp dấu — `thuongf` → `thưởng` như UniKey. Từ không biến
+        // đổi nào có dấu vẫn giữ `uo` khi KHÔNG có tone (`duong` giữ nguyên).
+        if has_uo_vowel_pair(out) {
+            promote_uo_pair(out);
         }
         if apply_key(out, tone, c, style, free) {
             if let Some(i) = c_idx {
@@ -181,7 +211,18 @@ fn push_key(
         // (bản cũ ra `ngưòi`/`đưọc`). `w` kế tiếp mới gỡ như bình thường.
         let first_w = !state.ws.seen;
         state.ws.seen = true;
+        // P8 (vòng 55): rule auto giờ CHỈ áp khi từ đã biến đổi. `w` đầu:
+        // (a) ƯƠ đã có từ rule auto (`dduowcj`) → confirm-return như cũ;
+        // (b) cặp `uo` THƯỜNG liền ngay trước `w` (`thuowng`→`thương`,
+        //     `huow`→`huơ`, `thuowr`→`thuở`) → promote thật. `w` sau cụm
+        //     có âm khác giữa (`nguoiwf`: uoi) → horn chuẩn bấm lên cụm.
         if first_w && has_uo_pair(out) {
+            return;
+        }
+        // UniKey  sau cụm có cặp uo (kể cả ) vẫn nhắm :
+        //  →  — promote đúng vần.
+        if first_w && has_uo_vowel_pair(out) {
+            promote_uo_pair(out);
             return;
         }
         match horn(out, horn_table) {
@@ -292,8 +333,13 @@ fn post_fixes(out: &mut [char]) {
     let last = out[len - 1];
 
     // Cặp uo: o ngay sau u → ư + ơ (`dduocj` → `được`) — trừ `qu` (u thuộc phụ âm đầu).
+    // P8 (vòng 55 — root cause "uong"→"ương" phá chuẩn UniKey 20 năm): CHỈ
+    // tự áp khi từ ĐÃ có biến đổi VN (`đ` từ `dd`, dấu nào đó) — "dduocj"
+    // giữ hành vi cũ, còn `duong`/`truong.giap`/`uong` GIỮ NGUYÊN như
+    // UniKey (`duongf` vẫn ra `đường` qua path tone ở mục 1).
     let after_q = len >= 3 && matches!(out[len - 3], 'q' | 'Q');
-    if (last == 'o' || last == 'O') && (prev == 'u' || prev == 'U') && !after_q {
+    let transformed_vn = out.iter().any(|ch| !ch.is_ascii());
+    if (last == 'o' || last == 'O') && (prev == 'u' || prev == 'U') && !after_q && transformed_vn {
         out[len - 2] = form_like(prev, U_HOOK, tone_of(prev).unwrap_or(0));
         out[len - 1] = form_like(last, O_HOOK, tone_of(last).unwrap_or(0));
     }
@@ -657,7 +703,14 @@ mod tests {
         assert_eq!(n("dd"), "đ");
         // dùng escape cho âm sừng để không phụ thuộc normalization của literal
         assert_eq!(n("dduong"), "\u{111}\u{1B0}\u{1A1}ng");
-        assert_eq!(n("duong"), "d\u{1B0}\u{1A1}ng", "d đơn giữ nguyên (dương)");
+        // P8 (vòng 55): "duong" KHÔNG dấu giữ nguyên như UniKey 20 năm —
+        // tự ươ chỉ khi có biến đổi khác (đ/dấu). "duongf" mới ra "dường".
+        assert_eq!(n("duong"), "duong", "d đơn giữ nguyên — không tự ươ");
+        assert_eq!(
+            n("duongf"),
+            "d\u{1B0}\u{1EDD}ng",
+            "f → đường qua promote-tone"
+        );
         assert_eq!(n("ddo"), "đo");
         assert_eq!(n("dy"), "dy");
     }

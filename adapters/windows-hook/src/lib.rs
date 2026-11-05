@@ -46,8 +46,16 @@ pub enum CallbackDecision {
 
 /// Kết quả thuần sau khi gọi FFI. Adapter Win32 chỉ inject khi nhận
 /// `Transform`; mọi lỗi/PASS đều đi `CallNextHookEx`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EngineOutcome {
+    /// Phím gốc đi qua cho OS (modifier, hotkey, key engine không nhận).
     Pass,
+    /// P8 (vòng 55 — root cause "ô chữ nhật nhỏ/mũi tên xanh" trên TSF-bypass
+    /// apps): engine xử lý phím letter nhưng KHÔNG biến đổi (raw == display).
+    /// Hook vẫn PHẢI nuốt phím gốc và inject lại qua KEYEVENTF_UNICODE —
+    /// forward VK gốc thì Windows VIE IME bắt phím và dựng composition box
+    /// kẹt giữa hook-inject và OS-IME (xung đột 2 bộ gõ — RCA chủ repo).
+    PassUnicode,
     Transform,
 }
 
@@ -122,12 +130,35 @@ impl HookEngine {
             _reserved: 0,
         };
         let status = ime_key(self.instance, &key, output);
-        if status != IME_OK || output.action == ACTION_PASS || output.flags & IME_FLAG_ERROR != 0 {
+        if status != IME_OK || output.flags & IME_FLAG_ERROR != 0 {
             EngineOutcome::Pass
+        } else if output.action == ACTION_PASS {
+            // P8 (vòng 55): letter engine không biến đổi — vẫn nuốt + inject
+            // UNICODE khi là letter thuần (không Ctrl/Alt/Win) để chặn OS-IME
+            // composition box (Windows VIE IME bắt VK gốc).
+            if is_plain_letter(&event) {
+                EngineOutcome::PassUnicode
+            } else {
+                EngineOutcome::Pass
+            }
         } else {
             EngineOutcome::Transform
         }
     }
+}
+
+/// P8 (vòng 55): key_down letter thuần không modifier (Shift đơn chấp nhận —
+/// hoa/thường đã nằm trong `ch`; Ctrl/Alt/Win là hotkey phải Pass).
+pub fn is_plain_letter(event: &KeyEvent) -> bool {
+    const MOD_CTRL: u32 = 0x2;
+    const MOD_ALT: u32 = 0x4;
+    const MOD_WIN: u32 = 0x8;
+    const MOD_SUPER: u32 = 0x20;
+    event.key_down
+        && event.ch > 0
+        && event.vk >= 0x41
+        && event.vk <= 0x5A
+        && event.mods & (MOD_CTRL | MOD_ALT | MOD_WIN | MOD_SUPER) == 0
 }
 
 fn empty_result() -> ime_result_v1 {

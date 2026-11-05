@@ -22,6 +22,8 @@ pub mod compose;
 #[cfg(windows)]
 pub mod os_spell;
 pub mod overlay;
+#[cfg(windows)]
+pub mod panel_idle;
 
 #[cfg(windows)]
 pub mod class;

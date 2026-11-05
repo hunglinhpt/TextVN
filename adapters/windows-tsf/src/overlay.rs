@@ -335,6 +335,7 @@ impl CandidateOverlay {
     fn register_selection_timer(hwnd: HWND) {
         if !hwnd.0.is_null() {
             crate::selection_check::register_timer_hwnd(hwnd.0 as isize);
+            crate::panel_idle::register_timer_hwnd(hwnd.0 as isize);
         }
     }
 
@@ -811,6 +812,11 @@ unsafe extern "system" fn overlay_wnd_proc(
             // R2-135: bước sửa câu của phím tắt hẹn giờ (Electron/Monaco).
             if wparam.0 == crate::edit_session::TIMER_DEFERRED_FIX {
                 crate::edit_session::on_deferred_fix_timer(hwnd);
+                return LRESULT(0);
+            }
+            // P9 (vòng 55): panel idle 1s — dừng gõ mới hiện (không che vùng gõ).
+            if wparam.0 == crate::panel_idle::TIMER_PANEL_IDLE {
+                crate::panel_idle::on_timer();
                 return LRESULT(0);
             }
             if wparam.0 == TIMER_WATCHDOG && should_dismiss(hwnd) {

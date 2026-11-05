@@ -358,8 +358,21 @@ mod hook_app {
                 return;
             }
 
-            if matches!(outcome, EngineOutcome::Transform) {
-                outcome_to_inject = Some(result);
+            match outcome {
+                EngineOutcome::Transform => outcome_to_inject = Some(result),
+                // P8 (vòng 55): Pass trên letter thuần → vẫn nuốt + inject lại
+                // chính ký tự gõ qua KEYEVENTF_UNICODE — chặn Windows VIE IME
+                // bắt VK gốc dựng composition box (xung đột 2 bộ gõ trên
+                // TSF-bypass apps: ô chữ nhật nhỏ/mũi tên xanh).
+                EngineOutcome::PassUnicode => {
+                    let mut pass_result = result;
+                    pass_result.action = ACTION_PASS;
+                    pass_result.insert[0] = event.ch;
+                    pass_result.insert_len = 1;
+                    pass_result.delete_count = 0;
+                    outcome_to_inject = Some(pass_result);
+                }
+                EngineOutcome::Pass => {}
             }
         });
 

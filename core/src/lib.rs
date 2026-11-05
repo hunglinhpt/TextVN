@@ -1279,6 +1279,25 @@ impl Engine {
     /// (`post/suggest_vn::complete_vn_word`) → thay toàn bộ từ bằng âm tiết hoàn
     /// chỉnh và đóng từ. Gõ tắt (macro) có ưu tiên cao hơn (đã chạy trước trong
     /// `key()`); Tab không khớp → đi qua cho app.
+    /// P8/F3 (vòng 55 — username identity): từ hiện hành đứng NGAY SAU dấu
+    /// chấm/@/_/-/slash/colon (như `truong.giap`, `t.ho`, `ngoc.pt`, đường
+    /// dẫn `a/b`) thì **không hoàn tất** — người dùng đang gõ username/id/
+    /// đường dẫn, Space/Tab phải giữ nguyên ký tự (chuẩn UniKey: Space không
+    /// đổi chữ). Trả `true` = có ranh giới id-boundary ngay trước từ.
+    fn word_after_id_boundary(&self) -> bool {
+        // P8/F3: từ hiện hành chứa punctuation kiểu id (`truong.giap`, `t.ho`,
+        // `ngoc.pt`, đường dẫn `a/b`) → KHÔNG hoàn tất. Space path: word đã
+        // nhả — từ hiện hành là suffix của sentence sau space cuối;
+        // Tab path: word active — kiểm trực tiếp display.
+        const ID_PUNCT: [char; 6] = ['.', '@', '_', '-', '/', ':'];
+        if self.word.active {
+            return self.word.display.iter().any(|c| ID_PUNCT.contains(c));
+        }
+        let last_space = self.sentence.iter().rposition(|&c| c == ' ');
+        let start = last_space.map(|i| i + 1).unwrap_or(0);
+        self.sentence[start..].iter().any(|c| ID_PUNCT.contains(c))
+    }
+
     fn try_vn_complete(
         &mut self,
         k: &KeyEvent,
@@ -1292,6 +1311,10 @@ impl Engine {
             return None;
         }
         if !self.word.active || self.word.display.len() < 2 {
+            return None;
+        }
+        // P8/F3: username/id sau dấu chấm — KHÔNG hoàn tất.
+        if self.word_after_id_boundary() {
             return None;
         }
         let typed: String = self.word.display.iter().collect::<String>().to_lowercase();
@@ -1528,6 +1551,11 @@ impl Engine {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
+            return None;
+        }
+        // P8/F3 (vòng 55): username/id sau dấu chấm — KHÔNG hoàn tất EN
+        // (`t.ho` + Space phải giữ `t.ho `, không ra `t.horse `).
+        if self.word_after_id_boundary() {
             return None;
         }
         // Tab (append = None) giữ semantics cũ: chỉ từ ĐÃ transform (word
