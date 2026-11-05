@@ -1,3 +1,12 @@
+textvn (0.2.65-0ppa1) noble; urgency=medium
+
+  * Vòng 55: chuẩn UniKey vần uo ("luong"/"uong" giữ nguyên khi không dấu,
+    key dấu mới ươ); hook swallow-and-unicode chống xung đột OS-IME trên
+    TSF-bypass apps; dead-key Windows passthrough; panel debounce 1s;
+    gate username/id không hoàn tất.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Thu, 06 Nov 2026 01:00:00 +0700
+
 textvn (0.2.64-0ppa1) noble; urgency=medium
 
   * Corpora dự đoán 35.681 mục (vòng 53): gen-vocab Rust thay Python đúng

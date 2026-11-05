@@ -33,7 +33,13 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-      <release version="0.2.64" date="2026-11-04">
+      <release version="0.2.65" date="2026-11-06">
+        <description>
+          <p>Vần uo về chuẩn UniKey: "luong"/"uong" giữ nguyên khi không dấu (key dấu mới ươ như "luonwg"); chống xung đột OS-IME trên app không qua TSF; dead-key Windows hoạt động trở lại.</p>
+          <p>Panel trợ lý chỉ hiện khi dừng gõ ~1 giây; chặn hoàn tất username/id dạng "truong.giap"; 3 bộ gate 3000 case.</p>
+        </description>
+      </release>
+      <release version="0.2.65" date="2026-11-04">
         <description>
           <p>Mở rộng corpora dự đoán ~31.000 mục: 6.675 âm tiết Việt, 1.214 từ ghép, 9.868 từ tiếng Anh và 10.208 cặp câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ + thành ngữ thật).</p>
           <p>Xếp hạng mở rộng đúng nghĩa ("tiến" → "tiến độ"), hiệu năng micro-giây; bộ test QA văn phòng hỗn hợp; 3 fix báo-nhầm cuối (dòng code, regex, "Phân công công việc").</p>

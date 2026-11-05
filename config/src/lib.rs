@@ -560,7 +560,10 @@ pub fn parse_config(json: &str) -> Result<Config, ConfigError> {
     cfg.validate_assist()?;
     // USP (P7): prune im lặng — dữ liệu do máy ghi, mục hỏng không được chết
     // cả config (fail-open về default mất macros/english_words đang chạy).
-    cfg.style_profile.sanitize();
+    // Skip khi rỗng (99% config) — parse_config nằm đường hot baseline.
+    if !cfg.style_profile.words.is_empty() || !cfg.style_profile.corrections.is_empty() {
+        cfg.style_profile.sanitize();
+    }
     Ok(cfg)
 }
 

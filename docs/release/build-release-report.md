@@ -1,5 +1,18 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.65 — chuẩn UniKey vần uo + chống xung đột OS-IME (vòng 55)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **F1** vần uo chuẩn UniKey: rule auto chỉ áp khi từ đã biến đổi; w-path/tone-path promote (`luong` giữ nguyên — corpus win/mac cập nhật `luonwg`, R2-120e corpus CRLF). **F2** hook swallow-and-unicode (PassUnicode) chống OS-IME composition box trên TSF-bypass apps. **F4** dead-key armed TIP (`Ctrl+'`+`e`→`é`). **F5** panel debounce 1s (panel_idle.rs, popup ẩn ngay khi gõ tiếp). **F3** gate id-punctuation (username_identity_1000 bắt 3 case thật `t.ho`+Space→`horse`). |
+| Đo | workspace 948/948 · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | 7/7 workflow áp dụng xanh |
+| Release | [v0.2.65 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) — release-candidate 4/4; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | (pin sau khi publish) |
+| Homebrew (B7b) | cask `version "0.2.65"` + sha256 mac zip (sync-cask) |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.65 (bump đủ 17 site — R2-120c) |
+| PPA (B7f) | debian/changelog `0.2.65-0ppa1` |
+
 ## Bản 0.2.64 — corpora 35.681 mục + gen-vocab Rust + QA mở rộng (vòng 53)
 
 | Hạng mục | Bằng chứng |

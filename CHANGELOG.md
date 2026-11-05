@@ -7,6 +7,54 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.65] — 2026-11-06
+
+### Fixed
+- **Vần uo về chuẩn UniKey 20 năm** (vòng 55, RCA 5-Why — chủ repo: "user
+  quen UniKey coi gõ `uong` → `ương` là lỗi"): rule tự ươ CHỈ áp khi từ đã có
+  biến đổi VN (`dduocj`→`được` giữ nguyên); `w`-path promote thật
+  (`thuowng`→`thương`); tone-path promote trước áp dấu (`duongf`→`dường`);
+  **`luong`/`uong`/`truong.giap` GIỮ NGUYÊN**. "lương"/"tươi"/"tương" gõ
+  chuẩn UniKey: `luonwg`/`tuowi`/`tuowng`.
+- **Xung đột 2 bộ gõ trên TSF-bypass apps** (MobaXterm — ô chữ nhật nhỏ/mũi
+  tên xanh, RCA 5-Why: phím Pass VK gốc bị Windows VIE IME bắt): hook
+  **swallow-and-unicode** — letter thuần không biến đổi cũng nuốt + inject
+  qua KEYEVENTF_UNICODE (chữ gõ-ready bypass OS-IME); Ctrl/Alt/Win giữ Pass.
+- **Dead-key Windows không ra dấu** (`Ctrl+'`+`e` không ra `é`): TIP
+  `dead_key_armed` — phím OEM-range Pass arm; letter kế KHÔNG ăn + forward
+  cho OS dựng dấu.
+- **Panel hiện liên tục che vùng gõ**: debounce 1s — phím gõ re-schedule,
+  popup sống ẨN NGAY khi gõ tiếp, dừng ~1s mới check+show; auto-fix không
+  qua debounce.
+- **Username/id bị hoàn tất qua ranh giới chấm** (username_identity_1000 bắt
+  3 case thật: `t.ho`+Space→`horse`, `ngoc.pt`+Space→`pts`): gate
+  id-punctuation — từ chứa `./@/_/-///:` KHÔNG hoàn tất (Space lẫn Tab).
+
+### Added
+- **3 gate suites 3000 case**: `username_identity_1000` (username/id/email
+  giữ nguyên byte-identical), `ime_conflict_1000` (is_plain_letter matrix +
+  PassUnicode mapping + inject shape), `panel_idle_1000` (timing matrix 1s +
+  hide-on-type + throttle).
+- **DFMEA + DRBFM** (`docs/release/P8-V55-DFMEA-DRBFM.md`): 5 fix × RCA
+  5-Why × failure modes + gate tests.
+- README tái cấu trúc: "Tải và cài" sạch (bỏ khối lịch sử), "Phiên bản gần
+  đây" lên trước, đồng bộ VI/EN.
+
+**English** — 0.2.65 restores UniKey-style typing for the `uo` rhyme: plain
+`luong`/`uong`/`truong.giap` stay untouched (the auto-303 only applies once
+the word already has a Vietnamese transform; `luonwg`/`tuowi`/`tuowng` remain
+the ways to type `lương`/`tươi`/`tương`). On TSF-bypass apps (MobaXterm…), the
+hook now swallows-and-reinjects unchanged letters via KEYEVENTF_UNICODE so
+the built-in Windows Vietnamese IME can no longer grab VK keys and pop its
+composition box. Windows dead-keys (`Ctrl+'`+`e` → `é`) work again — the TIP
+arms on OEM passes and forwards the next letter instead of eating it. The
+grammar panel now waits ~1s of idle typing before showing (each keystroke
+reschedules; typing hides a live panel instantly), and Space/Tab completion
+refuses to finish words containing id-style punctuation (`truong.giap`,
+`t.ho` → Space no longer completes to `horse`). Ships three 1000-case gate
+suites (username identity / IME conflict / panel idle) and a DFMEA+DRBFM
+document covering all five fixes with 5-Why RCAs.
+
 ## [0.2.64] — 2026-11-04
 
 ### Added
@@ -2793,3 +2841,4 @@ git push origin v0.1.0
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
 [0.2.64]: https://github.com/hunglinhpt/TextVN/compare/v0.2.63...v0.2.64
+[0.2.65]: https://github.com/hunglinhpt/TextVN/compare/v0.2.64...v0.2.65
