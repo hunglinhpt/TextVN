@@ -5,5 +5,5 @@
 :type "tieenf"
 :expect "tiền"
 :key Space
-:type "luong"
+:type "luonwg"
 :expect "tiền lương"

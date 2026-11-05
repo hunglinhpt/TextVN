@@ -4,4 +4,4 @@
 :app com.apple.finder field=editbox
 
 :type "tuoi"
-:expect "tươi"
+:expect "tuoi"

@@ -98,7 +98,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
 :type "tieenf"
 :expect "tiền"
 :key Space
-:type "luong"
+:type "luonwg"
 :expect "tiền lương""#,
     ));
 
@@ -456,7 +456,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "body",
         r#"
 :type "luong"
-:expect "lương""#,
+:expect "luong""#,
     ));
     v.push(imk(
         "imk_preedit_telex_tuong_09",
@@ -465,7 +465,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "body",
         r#"
 :type "tuong"
-:expect "tương""#,
+:expect "tuong""#,
     ));
     v.push(imk(
         "imk_preedit_telex_tuoi_10",
@@ -474,7 +474,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "body",
         r#"
 :type "tuoi"
-:expect "tươi""#,
+:expect "tuoi""#,
     ));
     v.push(imk(
         "imk_preedit_telex_tuoir_11",
@@ -851,7 +851,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "editbox",
         r#"
 :type "luong"
-:expect "lương""#,
+:expect "luong""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_tuong_09",
@@ -860,7 +860,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "editbox",
         r#"
 :type "tuong"
-:expect "tương""#,
+:expect "tuong""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_tuoi_10",
@@ -869,7 +869,7 @@ pub fn all_cases() -> Vec<CorpusCase> {
         "editbox",
         r#"
 :type "tuoi"
-:expect "tươi""#,
+:expect "tuoi""#,
     ));
     v.push(bs(
         "mac_bs_type_telex_muoif_11",

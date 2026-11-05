@@ -3,4 +3,4 @@
 :app com.apple.textedit field=body
 
 :type "tuong"
-:expect "tương"
+:expect "tuong"
