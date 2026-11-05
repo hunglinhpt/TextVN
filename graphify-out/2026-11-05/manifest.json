@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793737831.4296353,
-    "seen": 1793738042.2118597,
-    "ast_hash": "aada43c40f3df3e2dc97c8c0254d3fbb",
+    "mtime": 1793818915.8062036,
+    "seen": 1793818964.2016833,
+    "ast_hash": "c3705ce228daaf7242640a13b814c6bc",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793737831.4306316,
-    "seen": 1793738042.2118597,
-    "ast_hash": "ef833f77f4a0fbda08fb7e0b1ad1ca32",
+    "mtime": 1793818915.810205,
+    "seen": 1793818964.2027187,
+    "ast_hash": "5b9eda58a6d0a03d34f50373726dec69",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1350,9 +1350,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
-    "mtime": 1793737713.0417922,
-    "seen": 1793738042.15374,
-    "ast_hash": "01b7e574aa4feb227bfe3220b1d70825",
+    "mtime": 1793818915.6576834,
+    "seen": 1793818964.1434186,
+    "ast_hash": "889fa1da3a362e2ae99be4638123dc88",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AutostartManager.swift": {
@@ -1368,9 +1368,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/IpcServer.swift": {
-    "mtime": 1793737713.04378,
-    "seen": 1793738042.15374,
-    "ast_hash": "1b1a66308983cb3783af27990b1b5bbf",
+    "mtime": 1793818915.658695,
+    "seen": 1793818964.144419,
+    "ast_hash": "054abd02a09d4bcf8b45b928dd7f3062",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
@@ -1446,9 +1446,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/IpcClient.swift": {
-    "mtime": 1793737713.0457997,
-    "seen": 1793738042.1551402,
-    "ast_hash": "fdf801c0d19503e6adaa69bcfc94556d",
+    "mtime": 1793818915.6597092,
+    "seen": 1793818964.1464481,
+    "ast_hash": "858ae86ec7789919ce9a8d88e58d1018",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/KeyTranslator.swift": {
@@ -1626,9 +1626,9 @@
     "semantic_hash": ""
   },
   "packaging/homebrew/textvn.rb": {
-    "mtime": 1793745657.1436899,
-    "seen": 1793804609.131119,
-    "ast_hash": "6ba362146785c95513bbffa09567d781",
+    "mtime": 1793824454.029004,
+    "seen": 1793824638.4655168,
+    "ast_hash": "df483353cc3b78f758832579fac63b54",
     "semantic_hash": ""
   },
   "packaging/linux/install.sh": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793804580.3135688,
-    "seen": 1793804609.1518562,
-    "ast_hash": "9226245bfb4be36d27b46ca8844d2639",
+    "mtime": 1793824478.2317536,
+    "seen": 1793824638.487058,
+    "ast_hash": "8863fefdb64fe1a682f3545afdb8e333",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {

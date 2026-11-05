@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-11-05)
 
 ## Corpus Check
-- 460 files · ~879,005 words
+- 460 files · ~879,108 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7ccf7428`
+- Built from commit: `06d2b102`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2270,7 +2270,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `string` to `ImeEngine`, `windows-tsf/src/assist.rs`, `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `KeyOutcome`, `TextVNInputController`, `engine.c`, `test_compose.c`?**
   _High betweenness centrality (0.117) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `windows-tsf/src/assist.rs` to `string`, `TsfShared`?**
-  _High betweenness centrality (0.110) - this node is a cross-community bridge._
+  _High betweenness centrality (0.109) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `AXSnapshot`, `.readAvailable`, `IpcClient`, `ConfigWatcher`, `KeyOutcome`, `compose.c`, `NSRange`, `IpcMessage`, `.suggest`, `AppDelegate`, `CodingKeys`, `StrategyResolver`, `ImeEngine`, `ViState`, `.register`, `StrategyResolverTests`, `SettingsView`, `TextVNInputController`, `Equatable`, `EventTapController`, `.inject`, `Foundation`, `ConfigStore`, `AutostartManager`, `MarkedState`, `IpcServerAssistTests`, `OwnerRule`, `TextVNAppTests`, `P2-REVIEW-LOG — Phần 2 (macOS)`?**
   _High betweenness centrality (0.092) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
