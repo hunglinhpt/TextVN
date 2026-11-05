@@ -13,7 +13,7 @@
 | approved (B7c) | `approved/v0.2.65/` 18 file byte-identical, raw URL machine.exe + msix **200** |
 | AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.65 = archive `8c089b42…`; publish AUR chờ owner SSH |
 | PPA (B7f) | debian/changelog `0.2.65-0ppa1` |
-| B9 | CI trên commit docs cuối **7/7 xanh** — tag v0.2.65 trỏ commit Verified đã xanh; git status sạch |
+| B9 | CI trên commit docs cuối **7/7 xanh** (ci-macos rerun-R7 xanh: "unsigned package candidate" not-acquired → rerun 3m4s) — tag v0.2.65 trỏ commit Verified đã xanh; git status sạch; store-publish skipped (owner nộp MSIX tay `57d9a330…`) |
 
 ## Bản 0.2.64 — corpora 35.681 mục + gen-vocab Rust + QA mở rộng (vòng 53)
 
