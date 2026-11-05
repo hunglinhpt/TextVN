@@ -12,6 +12,8 @@
 | approved (B7c) | `approved/v0.2.64/` 18 file byte-identical (commit `1ca4f9e`), raw URL machine.exe + msix **200** |
 | AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.64 = archive `120f4091…`; publish AUR chờ owner SSH |
 | PPA (B7f) | debian/changelog `0.2.64-0ppa1` |
+| Store (B7c④) | store-publish `skipped` (STORE_AUTO_PUBLISH chưa bật — owner nộp MSIX `21513923…` tay trên Partner Center, Version 0.2.65.0 > bản đang bán) |
+| B9 | CI trên commit docs cuối `73a0d43` **6/6 xanh** (shared/windows/linux/macos/aur/hygiene) — tag v0.2.64 trỏ commit Verified đã xanh; git status sạch |
 | Checksums | machine exe `e381d461c0203b84…` · MSIX `215139231cafb7b7…` · mac zip `d81cc6ec827ffde0…` · linux tar.gz `8af754a6932cefb5…` · PKGBUILD archive `120f40914e1aaf7c…` (gpg --verify SHA256SUMS.txt Good) |
 ## Bản 0.2.63 — corpora dự đoán ~31k mục + QA văn phòng (vòng 51-52)
 
