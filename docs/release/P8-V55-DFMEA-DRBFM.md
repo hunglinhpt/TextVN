@@ -1,5 +1,5 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-# P8/V55 — DFMEA + DRBFM: 4 fix phản hồi test thật của chủ repo (2026-11-05)
+# P8/V55 — DFMEA + DRBFM: 5 fix phản hồi test thật của chủ repo (2026-11-05)
 
 > Phạm vi: (F1) "uong"→"ương" tự biến đổi; (F2) xung đột 2 bộ gõ trên
 > TSF-bypass apps (MobaXterm — ô chữ nhật nhỏ/mũi tên xanh); (F3) username
@@ -17,7 +17,7 @@
    hành vi này) — chọn "tiện gõ nhanh" thay vì parity UniKey.
 4. Tại sao trái chuẩn? UniKey/EVKey 20 năm: `uo` giữ nguyên khi không có key
    dấu; ươ chỉ xuất hiện khi có `w` (`dduowng`) hoặc dấu áp vào vần
-   (`dduocj`→`được` — dấu buộc)où.
+   (`dduocj`→`được` — dấu buộc).
 5. Tại sao không phát hiện sớm? Corpus hồi quy đã **khóa hành vi sai**
    (`stroke_dd_and_d_vowel` assert `duong`→`dương`) — test phản ánh code, không
    phản ánh chuẩn user.
@@ -79,7 +79,7 @@ user MobaXterm sau 0.2.65.
 **5-Why:** `truong.giap` → `trương.giap` vì rule `uo→ươ` không điều kiện
 (cùng gốc F1); `r` sau `t` không đổi nhưng `uo` liền → ươ. **Thiết kế:** fix
 F1 xử lý gốc; gate riêng 1000-case username (dot/dash/underscore/số/email,
-kể cả style_words cá nhân có "truong" cũng không bind). **DRBFM:**假定
+kể cả style_words cá nhân có "truong" cũng không bind). **DRBFM:** Giả định nền:
 prediction ghost vẫn gợi ý nhưng commit không đổi; verification =
 username_identity_1000.
 
@@ -95,7 +95,7 @@ commit composition hiện có + forward cho OS.
 
 **DFMEA:** phím F-key/arrows nhầm arm (arm giới hạn VK 0xBA..0xE2); dead-key
 nhưng letter bị engine biến đổi trước (letter có nghĩa Telex — dead-key +
-letter có key: `Ctrl+'`+`ss`? — `s` biến sắc:吃过 ưu tiên Telex, dead-key hủy
+letter có key: `Ctrl+'`+`ss`? — `s` biến sắc: ưu tiên Telex, dead-key hủy
 — ghi nhận behavior: Telex thắng khi phím có nghĩa, dead-key chỉ còn với
 letter không biến đổi; UniKey cùng behavior). DRBFM: verification = e2e user
 Trên layout EN-US (Notepad: `Ctrl+'` `e` → `é`), gate regression edit_session

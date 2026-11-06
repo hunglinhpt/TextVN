@@ -67,7 +67,7 @@
 | B9 | **Game** (RawInput/DirectInput) & app chạy Admin | Windows | **Dual mode: TSF (chính) + Hook/IME fallback (game & elevated)** | EVKey/OpenKey |
 | B10 | **Wayland** không cho grab phím | Linux | Không grab: đi qua IBus/Fcitx5 chuẩn (text-input-v3), X11 chỉ là fallback | bamboo |
 | B11 | **macOS marked text gạch chân** khó chịu, lag | mọi IMK trên macOS | Kết hợp: IMK làm input chính (không cần Accessibility) + **commit strategy** (không giữ marked text lâu) + preset "backspace mode" per-app | OpenKey/gonhanh |
-| B12 | Dấu **đặt位置 mới** (`hoà`, `khoẻ`, `thuỷ`) vs cũ (`hòa`) | mọi nơi | Config `diacritic_style = new|old`, engine xử lý khi `f` gõ lên đã có dấu | gotiengviet/gonhanh |
+| B12 | Dấu **đặt vị trí mới** (`hoà`, `khoẻ`, `thuỷ`) vs cũ (`hòa`) | mọi nơi | Config `diacritic_style = new|old`, engine xử lý khi `f` gõ lên đã có dấu | gotiengviet/gonhanh |
 | B13 | Mất dữ liệu gõ dở khi **click sang ô khác** | mọi nơi | Giữ buffer theo context (TSF composition / IMK marked text / IBus preedit) | gotiengviet |
 
 ---
@@ -362,7 +362,7 @@ Lớp 7  Manual matrix trên 40 app × 3 OS trước mỗi release (checklist tr
 
 ### 5.2 Env compatibility (được yêu cầu đặc biệt)
 
-- **Linux env vars** phải được detect & hướng dẫn: `GTK_IM_MODULE`, `QT_IM_MODULE`, `XMODIFIERS`; document matrix app-by-app (Chromium dùng IM riêng,某些 GTK app cần `gtk-im-module=fcitx`…); có `textvn doctor` CLI chẩn đoán env và đề nghị fix.
+- **Linux env vars** phải được detect & hướng dẫn: `GTK_IM_MODULE`, `QT_IM_MODULE`, `XMODIFIERS`; document matrix app-by-app (Chromium dùng IM riêng, một số GTK app cần `gtk-im-module=fcitx`…); có `textvn doctor` CLI chẩn đoán env và đề nghị fix.
 - **Windows**: UAC/Secure Desktop không gõ được (đúng — báo rõ cho user), app elevated cần uiAccess, RDP/Conhost không hỗ trợ TSF → fallback hook.
 - **macOS**: Secure Input (mật khẩu) → IMK tự pause; App Sandbox/TCC không ảnh hưởng vì IMK hợp lệ.
 - **Terminal**: mọi terminal dùng `ForwardAsCommit`.
@@ -381,7 +381,7 @@ Lớp 7  Manual matrix trên 40 app × 3 OS trước mỗi release (checklist tr
 
 ### 5.4 App compat matrix (40 app, giữ trong `docs/compat.md`, CI chạy subset)
 
-Chrome · Edge · Firefox · Safari · Word · Excel · PowerPoint · Outlook · Google Docs · Notion · Slack · Discord · Zalo · Telegram · Messenger · VS Code · JetBrains全家 · Terminal/iTerm2/kitty/alacritty · Windows Terminal · GNOME Terminal · Blender · Photoshop · Figma · Xcode · LibreOffice · Explorer/Finder search · Spotlight/Windows Search · Steam/game (mode hook) · RDP …
+Chrome · Edge · Firefox · Safari · Word · Excel · PowerPoint · Outlook · Google Docs · Notion · Slack · Discord · Zalo · Telegram · Messenger · VS Code · bộ ứng dụng JetBrains · Terminal/iTerm2/kitty/alacritty · Windows Terminal · GNOME Terminal · Blender · Photoshop · Figma · Xcode · LibreOffice · Explorer/Finder search · Spotlight/Windows Search · Steam/game (mode hook) · RDP …
 
 ### 5.5 Performance budget
 

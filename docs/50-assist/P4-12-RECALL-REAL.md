@@ -18,7 +18,7 @@ Engine ghim: `target/debug/textvn-cli.exe` (xem §6 — **không** dùng binary 
 | **Recall** (theo loại lỗi) | **57,1 %** (28/49) | khoảng tin cậy Wilson 95 %: **43,3 – 70,0 %** |
 | **Recall** (câu phát hiện được ít nhất 1 lỗi) | **57,1 %** (28/49) | |
 | **FPR** (câu sạch bị gắn cờ) | **0,5 %** (5/981) | Wilson 95 %: **0,22 – 1,19 %** |
-| **Precision** trên tập nhãn | **100 %** (28/28) | *bằng构造* vì câu có cờ sai đã bị loại khỏi tập lỗi |
+| **Precision** trên tập nhãn | **100 %** (28/28) | *bằng cấu tạo* (by construction) vì câu có cờ sai đã bị loại khỏi tập lỗi |
 | **Precision thật** trên văn bản | **56 %** (28/50 câu bị gắn cờ là lỗi thật) | 20 FP xác nhận + 2 ca không chắc |
 | Tỉ lệ câu có lỗi objective trong quần thể | **1,1 %** (11/1.000, CI 0,6 – 2,0 %) | mẫu ngẫu nhiên đều |
 

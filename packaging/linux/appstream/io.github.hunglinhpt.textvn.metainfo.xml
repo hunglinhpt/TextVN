@@ -33,18 +33,21 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-      <release version="0.2.65" date="2026-11-06">
-        <description>
-          <p>Vần uo về chuẩn UniKey: "luong"/"uong" giữ nguyên khi không dấu (key dấu mới ươ như "luonwg"); chống xung đột OS-IME trên app không qua TSF; dead-key Windows hoạt động trở lại.</p>
-          <p>Panel trợ lý chỉ hiện khi dừng gõ ~1 giây; chặn hoàn tất username/id dạng "truong.giap"; 3 bộ gate 3000 case.</p>
-        </description>
-      </release>
-      <release version="0.2.65" date="2026-11-04">
-        <description>
-          <p>Mở rộng corpora dự đoán ~31.000 mục: 6.675 âm tiết Việt, 1.214 từ ghép, 9.868 từ tiếng Anh và 10.208 cặp câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ + thành ngữ thật).</p>
-          <p>Xếp hạng mở rộng đúng nghĩa ("tiến" → "tiến độ"), hiệu năng micro-giây; bộ test QA văn phòng hỗn hợp; 3 fix báo-nhầm cuối (dòng code, regex, "Phân công công việc").</p>
-        </description>
-      </release>
+    <release version="0.2.65" date="2026-11-06">
+      <description>
+        <p>Restores 20-year UniKey standard for the "uo" rhyme: unaccented words like "luong", "uong", "truong.giap" remain untouched; explicit "w" or tone keys produce "ươ" ("luonwg", "tuowi", "tuowng"). Fixes OS-IME conflict on TSF-bypass apps (MobaXterm, KiTTY) via hook swallow-and-unicode. Restores Windows international dead-key handling (Ctrl+'+e → é). Adds a 1-second debounce timer to the grammar assistant panel so it never obstructs active typing. Space and Tab completion now respects identifier and punctuation boundaries ("truong.giap", "t.ho"). Ships three 1000-case gate test suites.</p>
+      </description>
+    </release>
+    <release version="0.2.64" date="2026-11-04">
+      <description>
+        <p>Introduces User Style Profile (P7) for opt-in on-device learning of personal vocabulary and accepted typo corrections with strict size caps and sanitization. Expands prediction corpora to 35,681 entries across 13 new office domains (real estate, banking, logistics, manufacturing, healthcare, travel, and more). Migrates the data generation pipeline to a pure Rust xtask, eliminating external runtime dependencies. Includes a deterministic 1000-case abnormal test suite, extended office QA battery, and fixes the "chuyến bay bay" false positive.</p>
+      </description>
+    </release>
+    <release version="0.2.63" date="2026-11-04">
+      <description>
+        <p>Expands prediction corpora to ~31,000 entries (6,675 syllables, 1,214 office compounds, 9,868 English words, and 10,208 context-phrase pairs). Introduces meaning-controlled prefix extension ranking ("tiến" → "tiến độ") with microsecond lookups. Ships an office mixed-work QA battery across 10 workplace personas and resolves three false-positive cases in code lines, regex tokens, and compound word boundaries.</p>
+      </description>
+    </release>
     <release version="0.2.62" date="2026-11-03">
       <description>
         <p>Three-pass audit of the MobaXterm typing fix plus a terminal-family sweep: KiTTY (a PuTTY fork without TSF) moved to the hook-owned engine, TeraTerm/SecureCRT/Xshell entries added with the role gate dropped where UIA cannot classify, the shipped database no longer contains a duplicated entry, the appdb schema now documents exe_prefix matching, the assist panel never overlaps the line being typed after work-area clamping, and i32 saturation guards hostile caret coordinates.</p>

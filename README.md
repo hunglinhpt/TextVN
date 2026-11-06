@@ -46,8 +46,11 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Nội dung chính |
 |---|---|
+| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Panel debounce 1s · Chặn hoàn tất username/id (`truong.giap`) · 3 gate suites 3000 case + DFMEA/DRBFM |
 | [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35.681 mục · 13 domain từ ghép mới (bất động sản, ngân hàng-bảo hiểm, logistics…) · gen-vocab Rust thay Python · User Style Profile (học từ cá nhân, opt-in) · abnormal_1000 · DFMEA/DRBFM |
 | [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31.000 mục (6.675 âm tiết + 1.214 từ ghép + 9.868 từ Anh + 10.208 câu/cụm/thành ngữ) · mở rộng đúng nghĩa · QA văn phòng 23 test · 3 fix FPR |
+| [0.2.62](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.62) | Audit 3 pass MobaXterm + sweep dòng terminal (KiTTY/SecureCRT/Xshell) hook-owner · Panel không đè dòng caret |
+| [0.2.61](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.61) | Khắc phục gõ MobaXterm/PuTTY (appdb exe_prefix) · e2e Linux dự đoán văn bản (ghost/Tab) trên IBus + Fcitx5 |
 | 0.2.60 | Hiệu năng: 5 đường O(n²) → tuyến tính (dán 640k ký tự 45s → 0.9s); ngày vô lý cuối văn bản |
 | 0.2.59 | Cảnh báo ngày tháng vô lý (32/13, 31/02 — calendar-aware) + số tiền phân cách hỗn loạn (1.250.00đ) |
 | 0.2.58 | Chat không dấu hết bị phá chữ ("an com", "i di"); trợ động từ EN lạc sau từ VI; parity phẩy-but |
@@ -59,9 +62,6 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 | 0.2.50–51 | EN grammar hoàn tất (should of, your welcome, then/than…); Ngữ pháp câu EN + SVA; bảng cài đặt bật dự đoán |
 | 0.2.45–49 | P5 văn phòng: macro kiểu chữ, số tiền, bảo vệ Excel/identifier; Ctrl+Shift+F9 chuyển mã thông minh 3 OS; ghost preview |
 | 0.2.44 | Audit sâu 3 lượt; 1061 âm tiết VN cho từ thiếu dấu; a/an theo gốc Âm-phiêu |
-
-Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
-
 
 ## Tải và cài
 
@@ -112,14 +112,26 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
 | **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
 
-## Tính năng đầy đủ (tích luỹ đến 0.2.64)
+## Tính năng đầy đủ (tích luỹ đến 0.2.65)
 
-**Dự đoán văn bản (P6)** — corpora ~31.000 mục: 6.675 âm tiết Việt +
-1.214 từ ghép + 9.868 từ Anh + 10.208 cặp câu/cụm/thành ngữ (câu thật chia
-mọi ranh giới từ, thành ngữ thật, curated văn phòng theo role); Tab/Ctrl+Space
-hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
+**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora 35.681 mục:
+6.672 âm tiết Việt + 1.941 từ ghép (13 domain mới: bất động sản, ngân hàng-bảo
+hiểm, logistics, sản xuất, đấu thầu, y tế, du lịch…) + 9.868 từ Anh + 13.854 cặp
+câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ, thành ngữ thật, curated văn
+phòng theo role); User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in,
+100% offline, cap 200 từ / 50 cặp); Tab/Ctrl+Space hoàn tất từ & đoán cụm;
+xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
 
-**Kiểu gõ & biến đổi**
+**Kiểu gõ & biến đổi (chuẩn UniKey 20 năm)**
+- Vần `uo` chuẩn UniKey: `luong`/`uong`/`truong.giap` giữ nguyên khi không dấu;
+  chỉ khi có biến đổi VN hoặc gõ `w`/dấu chủ động mới thành `ươ` (`luonwg`,
+  `tuowi`, `tuowng`, `duongf`→`dường`)
+- Chống xung đột 2 bộ gõ (swallow-and-unicode): trên app bypass TSF (MobaXterm,
+  KiTTY…), hook tự nuốt phím và inject qua KEYEVENTF_UNICODE ngăn Windows VIE IME
+  cướp phím và hiện ô chữ nhật nhỏ
+- Khôi phục dead-key Windows (`Ctrl+'`+`e` → `é`) trên bàn phím quốc tế
+- Chặn hoàn tất token ID/username: không bao giờ tự động hoàn tất qua ranh giới
+  dấu chấm, gạch ngang, email (`truong.giap`, `t.ho`)
 - Telex, VNI, TCVN3 (VIQR đọc được), Quick Telex (cc→ch, gg→gi…), gõ tự do (free marking)
 - 3 bảng mã xuất: Unicode, TCVN3, VNI (+ Unicode tổ hợp) — chuyển đổi qua lại giữ nguyên chữ
 - Kiểu dấu cũ/mới chọn được (`hoà`/`hòa`, `thuỷ`/`thủy`) — cả dữ liệu dự đoán tự theo kiểu đã chọn
@@ -138,7 +150,8 @@ hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng nghĩa; tra c�
 
 **Trợ lý ngữ pháp (kiểu Grammarly, offline hoàn toàn)**
 - 15 loại lỗi: lặp từ/cụm 2–4 từ, thiếu/thừa khoảng trắng, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (32/13, 31/02 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ)
-- Panel popup tại caret (Windows: overlay; macOS: bảng ứng viên; Linux: lookup table + aux) — bấm được bằng chuột, Alt+1…3, Enter áp "Sửa tất cả"
+- Panel popup tại caret với debounce 1s: phím gõ re-schedule, popup sống ẩn ngay khi gõ tiếp, dừng ~1s mới check và hiển thị, không bao giờ đè lên dòng caret
+- Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả"
 - Mode 1 chỉ gợi ý / Mode 2 tự sửa (lỗi objective tự sửa, lỗi mơ hồ gợi ý) — hoàn tác Ctrl+Z 5 giây
 - Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả) và khi bôi đen câu dài
 - Per-app: tắt riêng từng ứng dụng; tự tắt ở ô mật khẩu; FPR 0 % trên 2739 câu đúng chuẩn mực
@@ -270,10 +283,15 @@ same config file on all three platforms.
 
 ## Recent releases at a glance
 
-| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust xtask generator · extended QA battery · "bay bay" FP fixed |
+Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Highlights |
 |---|---|
+| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Panel 1s debounce · ID/username punctuation gate · 3 gate suites 3000 cases + DFMEA/DRBFM |
+| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust `xtask gen-vocab` replaces Python · User Style Profile (opt-in personal learning) · 1000-case abnormal suite · "bay bay" FP fixed |
+| [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31,000 entries (6,675 syllables + 1,214 compounds + 9,868 EN words + 10,208 phrases) · Meaning-controlled ranking · Office QA battery (23 tests) · 3 final FPR fixes |
+| [0.2.62](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.62) | 3-pass MobaXterm audit + terminal family sweep (KiTTY/SecureCRT/Xshell) hook-owned · Panel never overlaps typing line |
+| [0.2.61](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.61) | MobaXterm/PuTTY fix (appdb `exe_prefix`) · Linux e2e text prediction (ghost/Tab) on IBus + Fcitx5 |
 | 0.2.60 | Performance: five O(n²) paths → linear (640k-char paste 45s → 0.9s); end-of-text date detection |
 | 0.2.59 | Impossible-date warnings (32/13, 31/02 — calendar-aware) + inconsistent money grouping (1.250.00đ) |
 | 0.2.58 | Unaccented Vietnamese chat no longer mangled ("an com", "i di"); stray EN auxiliaries flagged; comma-after-"but" parity |
@@ -286,12 +304,9 @@ same config file on all three platforms.
 | 0.2.45–49 | P5 office: case-style macros, money words, Excel/identifier protection; smart Ctrl+Shift+F9 transcode 3 OS; ghost preview |
 | 0.2.44 | Deep 3-round audit; 1061 VN syllables for unaccented words; vowel-origin a/an rules |
 
-Full details per release: [CHANGELOG.md](CHANGELOG.md).
-
-
 ## Download & install
 
-Latest release: **[GitHub Release v0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63)**
+Latest release: **[GitHub Release v0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
@@ -300,38 +315,6 @@ Foundation — SmartScreen may warn, antivirus may mis-quarantine: seen with
 Kaspersky, see
 [antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) and
 Apple Developer ID / notarization for macOS (Gatekeeper warns on first open).
-0.2.64 grows the corpora to 35,681 entries (13 new compound domains, 13,854 phrase pairs, generator moved to a Rust xtask per the language policy) and ships an extended QA battery (8 new office personas, 65k-char/surrogate/BIDI abnormals) with the "chuyến bay bay" false positive fixed. 0.2.63 expands the prediction corpora to ~31,000 entries — 6,675 Vietnamese syllables, 1,214 office compounds, 9,868 English words and 10,208 context→phrase pairs built from real sentences, genuine idioms and curated office collocations; prefix completion now prefers meaningful compound extensions ("tiến" → "tiến độ") at microsecond lookups, plus the office-mixed-work QA battery and three final false-positive fixes. 0.2.62 is the **three-pass adversarial audit** of the MobaXterm fix plus a terminal-family sweep: KiTTY/TeraTerm/SecureCRT/Xshell moved to the hook-owned engine, the assist panel no longer overlaps the typing line, exe_prefix documented in the appdb schema. 0.2.61 fixes **typing in MobaXterm and PuTTY-family terminals** (TSF-bypassing apps — the hook engine takes over) and adds Linux e2e coverage for text prediction (ghost + Tab) on real daemons. 0.2.60 is the **performance-audit release**: five quadratic paths in the assistant are now linear (640k-char paste 45s → 0.9s); end-of-text invalid dates detected again. 0.2.59 adds **impossible-date warnings** ("32/13/2025", "31/02/2026" — calendar-aware) and **inconsistently-grouped money warnings** ("1.250.00đ") from the accounting/HR/sales personas. 0.2.58 is a **seven-persona audit release** (accounting/HR/sales/support/teachers/PMs/everyday users): unaccented Vietnamese chat is no longer mangled by EN rules ("an com", "i di"), stray EN auxiliaries after Vietnamese words are flagged ("Chưa been đối chiếu"), and comma-after-"but" mirrors the Vietnamese rule. 0.2.57 is a **whole-surface three-pass audit release**: VIQR freezes repeated markers like Telex/VNI (no endless toggle), macOS no longer loses the word being typed when toggling Vietnamese or reloading settings mid-word, uppercase DD strokes to Đ. 0.2.56 is the **English-mode audit release**: EN grammar rules now apply on mixed Vietnamese-dominant sentences ("Anh should of done it sớm hơn") and unaccented Vietnamese text ("noi it do met"), Windows spell-check recovers after a slow probe, quoted speech is no longer auto-corrected, SVA on long text is O(n). 0.2.55 is a **three-pass line-by-line audit release** (assistant rules + engine/FFI + all 3 OS adapters): fixes three auto-fix rules that corrupted correct text ("Tuy giỏi nhưng không nên kiêu ngạo", "more minutes, then try again", "their going rate"), the assistant no longer disables itself on short mixed sentences ("y kiến hay"), closes an IBusText leak, and speeds prediction ~35× (715µs → 20µs per keystroke); plus 40+ idioms, 20+ reduplicative words, 25 office collocation pairs and 142 new role-based prediction patterns. 0.2.54 adds **multi-window phrase-repeat detection** (suggestion-only: "vui lòng vui lòng kiểm tra", "đã hoàn thành đã hoàn thành"), **redundant English words in Vietnamese sentences** ("đã been hủy", "trước before 17h"), **19 office collocation pairs**, **68 idioms/proverbs + 24 reduplicative words** to the protected whitelist, **role-based phrase prediction** (accounting/HR/sales/support/teachers, +132 patterns), and cross-platform hardening: Windows no longer loses text on error paths, macOS restores the Ctrl+Shift+F9 chord, Linux no longer freezes typing when the tray hangs. 0.2.53 fixes **English subject-verb agreement for contractions** ("He don't" → "doesn't"), adds seven Vietnamese collocation pairs (sẳn sàng → sẵn sàng, chần chờ → chần chừ, trực trặc → trúc trắc as a whole-phrase fix) and opens **English Tab completion for unfolded words** when prediction is enabled.
-0.2.52 expands the **English grammar assistant & text prediction engine**: 3356 frequent English words (coder, tech, business, Win32/POSIX/Cocoa APIs, Gen Z slang), 3750 contextual next-phrase prediction patterns (Tab / Ctrl+Space), closed-list confusion rules (`their own`, `except for`, `led to`, `lose`, `principal`, `take effect`), and dual-language Windows OS spell checking with RAII ComApartment protection.
-0.2.51 completes **English grammar** (previously only a/an): fixes `should of`→`should have`, `your welcome`→`you're welcome`, `its been`→`it's been`, `their going`→`they're going`, `is to big`→`is too big`, `better then`→`better than`, lowercase pronoun `i`→`I` — closed lists, English-dominant sentences only.
-0.2.50 completes the loop: **Ctrl+Shift+F9 on all three platforms** (macOS + Linux were missing), **Windows OS spell checking** (D39), a **prediction toggle reachable in the settings UI** (it was config-only before), and a three-pass audit fixing 2 HIGH + 5 MEDIUM + 10 LOW.
-0.2.49 makes **Ctrl+Shift+F9 a smart selection converter**: repairs garbled text from files opened with the wrong encoding, converts legacy TCVN3/VNI text to the current encoding, and re-types text typed while Vietnamese was off (`tooi ddi hocj` → `tôi đi học`); the assistant now fixes WinForms/Delphi text boxes; the installer and tray remind you to reopen running apps after an update.
-0.2.48 makes the assistant hotkey **Ctrl+Space only** (Windows/Linux; Option+Space on macOS) — Alt+Space is dropped because it belongs to the window menu and to PowerToys Run/Copilot/ChatGPT.
-0.2.47 adds **ghost text** after the caret (Windows; macOS/Linux preview it in the candidate panel) and **one hotkey that fixes then predicts**: Ctrl+Space (Option+Space on macOS) fixes every issue of the sentence (spelling included) before predicting, and passes the key to the app when there is nothing to do; *Fix all* and Alt+1..3 now work in every app, Teams/Electron (VS Code) and Notepad++ included (real-app E2E 44/44).
-0.2.46 adds **bilingual text prediction** (opt-in `suggest.enabled`: Tab/Ctrl+Space completes words and predicts the next phrase — *Kính gửi* → *quý khách hàng*) and a **live, Grammarly-style grammar assistant** on all three platforms: suggestions appear as soon as a sentence is wrong and disappear once it is fixed, without stealing typing keys; the Windows panel now always shows (it could not anchor in Windows 11 Notepad), is larger and easier to read, and the noisy "issues detected" toast is gone; the installer scans for and cleans up older installs (real-app E2E 28/28 on Notepad/Word/Excel). 
-0.2.45 ships the **P5 office-productivity pack**: case-adaptive text macros (HD→HỢP ĐỒNG), spreadsheet formula guard (`=sum(...)`), money shorthand (`=15450000bc`+Tab → *Mười lăm triệu đồng chẵn*), office collocation fixes (bổ xung→bổ sung), percent spacing (`100 %`→`100%`), coder/business identifier protection (useState/KPI/EBITDA) and a **selection transcoder on Ctrl+Shift+F9** (TCVN3/VNI/decomposed Unicode → Unicode).
-0.2.44 is a **three-pass deep audit of the whole grammar assistant** (locks in
-zero false positives: diacritic-less Vietnamese, office file names, curly
-quotes, ĐH. abbreviations, DPI-scaled panel, Fcitx5 fresh install).
-0.2.43 makes **Enter on the selected-text popup apply "Fix all"** (it used to
-swallow the key and apply nothing — the last open finding from the
-selection-check audit); 0.2.42 updates the popup right after fixing so it
-closes when the sentence is clean or refreshes with the remaining issues;
-0.2.41 adds **selected-text grammar checking** (select 3–256 chars with the
-keyboard → 500 ms debounce → popup with "Fix all") and clickable suggestion
-rows/underlines; 0.2.38–0.2.40 enabled the **grammar assistant by default in
-suggest-only mode** with a Grammarly-style caret popup and English `a`/`an`
-checks in English and mixed VI-EN sentences.
-0.2.36 hardens the **grammar assistant** to the "never flags correct text"
-bar: **0 % false positives** on 981 clean sentences (removes 5 policy-violating
-typo pairs that made autocorrect rewrite correct words like "quyến rũ",
-"thuở xưa"; sentence recall 83.7 %), all-caps accented sentences are now
-checked. 0.2.35 introduced the **grammar assistant**; 0.2.34 opened **Linux
-distribution channels**: AUR (`paru -S textvn`) and the Debian/Ubuntu PPA;
-0.2.33 switched the **fresh-install default to old-style diacritics** on all
-three platforms (existing users keep their choice) and added the 16-combo
-charset × method regression matrix, a 3000-word English auto-restore
-dictionary and optional Vietnamese Tab completion — details:
-[CHANGELOG.md](CHANGELOG.md). Release commits and tags are git-signed.
 
 | Platform | Install | Run without installing |
 |---|---|---|
@@ -387,14 +370,26 @@ differently — per their public feature pages as of 2026-10):
 - **Private by default** — 100 % local key processing, no telemetry, no
   network; auto-disables in password fields; public privacy policy in-repo.
 
-## Full feature set (accumulated through 0.2.64)
+## Full feature set (accumulated through 0.2.65)
 
-**Text prediction (P6)** — ~31,000-entry corpora: 6,675 Vietnamese
-syllables + 1,214 compounds + 9,868 English words + 10,208 context→phrase
-pairs (real sentences, idioms, office collocations); Tab/Ctrl+Space
+**Text prediction (P6) & User Style Profile (P7)** — 35,681-entry corpora:
+6,672 Vietnamese syllables + 1,941 compounds (13 new domains: real estate,
+banking & insurance, logistics, manufacturing, tendering, healthcare, travel…)
++ 9,868 English words + 13,854 context→phrase pairs (real sentences, idioms,
+role-based patterns); User Style Profile (personal vocabulary & correction
+learning, opt-in, 100% offline, strict 200-word / 50-pair cap); Tab/Ctrl+Space
 completion & next-phrase; meaningful-extension ranking; microsecond lookups.
 
-**Input methods & transforms**
+**Input methods & transforms (20-year UniKey standard)**
+- UniKey-standard `uo` rhyme: `luong`/`uong`/`truong.giap` stay unaccented by default;
+  only explicit `w` or tone keys produce `ươ` (`luonwg`, `tuowi`, `tuowng`,
+  `duongf`→`dường`)
+- Anti OS-IME conflict (swallow-and-unicode): on TSF-bypassing apps (MobaXterm,
+  KiTTY…), the hook swallows keystrokes and injects via KEYEVENTF_UNICODE to
+  prevent Windows VIE IME from grabbing keys and popping its composition box
+- Windows dead-key passthrough (`Ctrl+'`+`e` → `é`) on international layouts
+- Identifier and punctuation gate: Space/Tab never completes across dot, dash,
+  or email boundaries (`truong.giap`, `t.ho`)
 - Telex, VNI, TCVN3 (VIQR readable), Quick Telex (cc→ch, gg→gi…), free marking
 - 3 output charsets: Unicode, TCVN3, VNI (+ decomposed Unicode) — lossless round-trip conversion
 - Old/new diacritic style switch (`hoà`/`hòa`, `thuỷ`/`thủy`) — prediction data follows the chosen style
@@ -413,7 +408,8 @@ completion & next-phrase; meaningful-extension ranking; microsecond lookups.
 
 **Grammar assistant (Grammarly-style, fully offline)**
 - 15 issue kinds: word/2–4-word-phrase repeats, spacing, sentence-case, diacritic typos, double negatives, end-of-sentence and post-conjunction commas, a/an, EN confusions, lowercase "i", EN spelling (OS spell), VI spelling (dictionary), impossible dates (32/13, 31/02 — calendar-aware), inconsistent money grouping (1.250.00đ)
-- Popup panel at the caret (Windows overlay; macOS candidate panel; Linux lookup table + aux) — mouse-clickable, Alt+1…3, Enter applies fix-all
+- Popup panel at the caret with 1s debounce: keystrokes reschedule, active popup hides instantly when typing resumes, checks and displays only after ~1s idle; never overlaps the caret typing line
+- Mouse-clickable panel, Alt+1…3, Enter applies fix-all
 - Mode 1 suggest-only / Mode 2 auto-correct (objective errors fixed, ambiguous ones suggested) — Ctrl+Z undo for 5 seconds
 - Selection checking (arrow keys → popup + fix-all) and long-sentence checks
 - Per-app disable; auto-off in password fields; 0 % false positives on a 2739-sentence curated clean set
