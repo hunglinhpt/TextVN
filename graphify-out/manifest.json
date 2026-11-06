@@ -402,9 +402,9 @@
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
-    "mtime": 1790501152.5874722,
-    "seen": 1790578955.3561072,
-    "ast_hash": "72ff9f2baca313f8ce2eaa517c918f0c",
+    "mtime": 1793971173.8280036,
+    "seen": 1793971442.322191,
+    "ast_hash": "d3b723c3ea68a6b8265be92eef977d36",
     "semantic_hash": ""
   },
   "docs/10-shared/P0-1-repo-and-workflow.md": {
@@ -672,9 +672,9 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1792599677.2503605,
-    "seen": 1792599831.5622144,
-    "ast_hash": "868e4225cb65e900db6750bb08cd12b2",
+    "mtime": 1793971162.593634,
+    "seen": 1793971442.322191,
+    "ast_hash": "175307563801104641af994a52decc8e",
     "semantic_hash": ""
   },
   "docs/compliance/naming-check.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793928620.1899018,
-    "seen": 1793928913.6887686,
-    "ast_hash": "98ea57e6d73f3607150e78420f6b572c",
+    "mtime": 1793971271.873406,
+    "seen": 1793971442.3211908,
+    "ast_hash": "f30e38e6c9760dba463534d647155841",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1793739980.9026792,
-    "seen": 1793740001.2705426,
-    "ast_hash": "7d59b4d76fd97ba4ebcc7e5d00e0bfd9",
+    "mtime": 1793971197.6151333,
+    "seen": 1793971442.3287003,
+    "ast_hash": "4e6631e74a4c54048055a179da73685f",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1792812483.6927204,
-    "seen": 1792812644.57671,
-    "ast_hash": "84e7ebe8dbf34a99454ba17603be5396",
+    "mtime": 1793970983.839288,
+    "seen": 1793971442.3201907,
+    "ast_hash": "0bfb65e0dbd82060ab57ffc0bf7320e2",
     "semantic_hash": ""
   },
   "tools/release/publish-aur.sh": {

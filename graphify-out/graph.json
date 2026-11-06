@@ -60088,7 +60088,7 @@
       "node_kind": "heading",
       "norm_label": "2. chien luoc phat hanh \u2014 cac moc bat buoc theo thu tu",
       "source_file": "AGENTS.md",
-      "source_location": "L28"
+      "source_location": "L29"
     },
     {
       "id": "agents_3_ki\u1ebfn_tr\u00fac_r\u00e0ng_bu\u1ed9c_k\u1ef9_thu\u1eadt_c\u1ed1t_l\u00f5i",
@@ -60100,7 +60100,7 @@
       "node_kind": "heading",
       "norm_label": "3. kien truc & rang buoc ky thuat cot loi",
       "source_file": "AGENTS.md",
-      "source_location": "L49"
+      "source_location": "L53"
     },
     {
       "id": "agents_agents_md_lu\u1eadt_b\u1eaft_bu\u1ed9c_cho_m\u1ecdi_agent_l\u00e0m_vi\u1ec7c_trong_repo_textvn",
@@ -74155,7 +74155,7 @@
       "node_kind": "heading",
       "norm_label": "cau truc",
       "source_file": "README.md",
-      "source_location": "L219"
+      "source_location": "L217"
     },
     {
       "id": "readme_d\u1ef1ng_t\u1eeb_m\u00e3_ngu\u1ed3n",
@@ -74167,7 +74167,7 @@
       "node_kind": "heading",
       "norm_label": "dung tu ma nguon",
       "source_file": "README.md",
-      "source_location": "L187"
+      "source_location": "L185"
     },
     {
       "id": "readme_gi\u1ea5y_ph\u00e9p",
@@ -74179,7 +74179,7 @@
       "node_kind": "heading",
       "norm_label": "giay phep",
       "source_file": "README.md",
-      "source_location": "L238"
+      "source_location": "L236"
     },
     {
       "id": "readme_phi\u00ean_b\u1ea3n_g\u1ea7n_\u0111\u00e2y",
@@ -74215,7 +74215,7 @@
       "node_kind": "heading",
       "norm_label": "trang thai",
       "source_file": "README.md",
-      "source_location": "L176"
+      "source_location": "L174"
     },
     {
       "id": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_65",
@@ -74263,7 +74263,7 @@
       "node_kind": "heading",
       "norm_label": "\u0111ong gop",
       "source_file": "README.md",
-      "source_location": "L233"
+      "source_location": "L231"
     },
     {
       "id": "docs_release_audit_and_production_roadmap_v0_2_19_3_1_l\u1ed7i_kh\u00f4ng_\u0111\u1ed5i_icon_v\u00e0_kh\u00f4ng_chuy\u1ec3n_mode_g\u00f5_khi_b\u1ea5m_ctrl_shift_tr\u00ean_c\u1ea3_3_h\u1ec7_\u0111i\u1ec1u_h\u00e0nh",
@@ -86787,7 +86787,7 @@
       "node_kind": "heading",
       "norm_label": "build from source",
       "source_file": "README.md",
-      "source_location": "L446"
+      "source_location": "L430"
     },
     {
       "id": "readme_download_install",
@@ -86799,7 +86799,7 @@
       "node_kind": "heading",
       "norm_label": "download & install",
       "source_file": "README.md",
-      "source_location": "L307"
+      "source_location": "L305"
     },
     {
       "id": "readme_english",
@@ -86811,7 +86811,7 @@
       "node_kind": "heading",
       "norm_label": "english",
       "source_file": "README.md",
-      "source_location": "L245"
+      "source_location": "L243"
     },
     {
       "id": "readme_full_feature_set_accumulated_through_0_2_65",
@@ -86823,7 +86823,7 @@
       "node_kind": "heading",
       "norm_label": "full feature set (accumulated through 0.2.65)",
       "source_file": "README.md",
-      "source_location": "L373"
+      "source_location": "L359"
     },
     {
       "id": "readme_highlights_over_other_vietnamese_imes",
@@ -86835,7 +86835,7 @@
       "node_kind": "heading",
       "norm_label": "highlights over other vietnamese imes",
       "source_file": "README.md",
-      "source_location": "L340"
+      "source_location": "L338"
     },
     {
       "id": "readme_license",
@@ -86847,7 +86847,7 @@
       "node_kind": "heading",
       "norm_label": "license",
       "source_file": "README.md",
-      "source_location": "L471"
+      "source_location": "L455"
     },
     {
       "id": "readme_recent_releases_at_a_glance",
@@ -86859,7 +86859,7 @@
       "node_kind": "heading",
       "norm_label": "recent releases at a glance",
       "source_file": "README.md",
-      "source_location": "L284"
+      "source_location": "L282"
     },
     {
       "id": "readme_status",
@@ -86871,7 +86871,7 @@
       "node_kind": "heading",
       "norm_label": "status",
       "source_file": "README.md",
-      "source_location": "L434"
+      "source_location": "L418"
     },
     {
       "id": "pkg_x86probe",
@@ -88574,7 +88574,7 @@
       "node_kind": "heading",
       "norm_label": "10. don dep \u2014 checklist truoc khi \u0111ong phien / tick done",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L142"
+      "source_location": "L143"
     },
     {
       "id": "docs_00_workflow_11_c\u1eadp_nh\u1eadt_docs_nghi\u1ec7p_v\u1ee5_checklist_khi_xong",
@@ -88586,7 +88586,7 @@
       "node_kind": "heading",
       "norm_label": "11. cap nhat docs & nghiep vu \u2014 checklist khi \"xong\"",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L152"
+      "source_location": "L153"
     },
     {
       "id": "docs_00_workflow_12_1_workflow_hi\u1ec7n_c\u00f3",
@@ -88598,7 +88598,7 @@
       "node_kind": "heading",
       "norm_label": "12.1 workflow hien co",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L164"
+      "source_location": "L171"
     },
     {
       "id": "docs_00_workflow_12_2_8_check_c\u1ee7a_repo_hygiene",
@@ -88610,7 +88610,7 @@
       "node_kind": "heading",
       "norm_label": "12.2 8 check cua `repo-hygiene`",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L184"
+      "source_location": "L191"
     },
     {
       "id": "docs_00_workflow_12_3_tham_chi\u1ebfu_marketplace_y\u00eau_c\u1ea7u_user_2026_09_27",
@@ -88622,7 +88622,7 @@
       "node_kind": "heading",
       "norm_label": "12.3 tham chieu marketplace (yeu cau user 2026-09-27)",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L199"
+      "source_location": "L206"
     },
     {
       "id": "docs_00_workflow_12_4_workflow_ph\u00e1t_h\u00e0nh_release_candidate",
@@ -88634,7 +88634,7 @@
       "node_kind": "heading",
       "norm_label": "12.4 workflow phat hanh (`release-candidate`)",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L177"
+      "source_location": "L184"
     },
     {
       "id": "docs_00_workflow_12_github_actions_gi\u1eef_repo_s\u1ea1ch_sau_m\u1ed7i_l\u1ea7n_code",
@@ -88646,7 +88646,7 @@
       "node_kind": "heading",
       "norm_label": "12. github actions \u2014 giu repo sach sau moi lan code",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L162"
+      "source_location": "L169"
     },
     {
       "id": "docs_00_workflow_1_ground_rules_g_ids_\u00e1p_d\u1ee5ng_m\u1ecdi_l\u00fac",
@@ -88670,7 +88670,7 @@
       "node_kind": "heading",
       "norm_label": "2. bat buoc \u0111oc \u2014 trinh tu moi phien",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L33"
+      "source_location": "L34"
     },
     {
       "id": "docs_00_workflow_3_common_errors_ghi_\u1edf_\u0111\u00e2u_ghi_nh\u01b0_th\u1ebf_n\u00e0o",
@@ -88682,7 +88682,7 @@
       "node_kind": "heading",
       "norm_label": "3. common errors \u2014 ghi o \u0111au, ghi nhu the nao",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L48"
+      "source_location": "L49"
     },
     {
       "id": "docs_00_workflow_4_verified_ops_s\u1ed5_thao_t\u00e1c_\u0111\u00e3_ki\u1ec3m_ch\u1ee9ng",
@@ -88694,7 +88694,7 @@
       "node_kind": "heading",
       "norm_label": "4. verified ops \u2014 so thao tac \u0111a kiem chung",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L60"
+      "source_location": "L61"
     },
     {
       "id": "docs_00_workflow_5_workflow_8_b\u01b0\u1edbc_m\u1ecdi_task",
@@ -88706,7 +88706,7 @@
       "node_kind": "heading",
       "norm_label": "5. workflow 8 buoc \u2014 moi task",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L68"
+      "source_location": "L69"
     },
     {
       "id": "docs_00_workflow_6_v\u00f9ng_s\u1edf_h\u1eefu_file_snapshot_2026_09_27_c\u1eadp_nh\u1eadt_7_khi_\u0111\u1ed5i",
@@ -88718,7 +88718,7 @@
       "node_kind": "heading",
       "norm_label": "6. vung so huu file (snapshot 2026-09-27 \u2014 cap nhat \u00a77 khi \u0111oi)",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L81"
+      "source_location": "L82"
     },
     {
       "id": "docs_00_workflow_7_review_change_log",
@@ -88730,7 +88730,7 @@
       "node_kind": "heading",
       "norm_label": "7. review & change log",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L89"
+      "source_location": "L90"
     },
     {
       "id": "docs_00_workflow_8_audit_2_v\u00f2ng_5w1h",
@@ -88742,7 +88742,7 @@
       "node_kind": "heading",
       "norm_label": "8. audit 2 vong \u2014 5w1h",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L100"
+      "source_location": "L101"
     },
     {
       "id": "docs_00_workflow_9_fixbug_chu\u1ea9n_ho\u00e1_5_b\u01b0\u1edbc",
@@ -88754,7 +88754,7 @@
       "node_kind": "heading",
       "norm_label": "9. fixbug chuan hoa \u2014 5 buoc",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L132"
+      "source_location": "L133"
     },
     {
       "id": "docs_00_workflow_textvn_workflow_ground_rules_th\u1ed1ng_nh\u1ea5t_cho_m\u1ecdi_agent",
@@ -88778,7 +88778,7 @@
       "node_kind": "heading",
       "norm_label": "vong 1 \u2014 \"\u0111ung & \u0111u\" (audit *noi dung*)",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L106"
+      "source_location": "L107"
     },
     {
       "id": "docs_00_workflow_v\u00f2ng_2_nh\u1ea5t_qu\u00e1n_s\u1eb5n_s\u00e0ng_audit_tinh_th\u1ea7n_\u0111\u1ed3ng_\u0111\u1ed9i",
@@ -88790,7 +88790,7 @@
       "node_kind": "heading",
       "norm_label": "vong 2 \u2014 \"nhat quan & san sang\" (audit *tinh than \u0111ong \u0111oi*)",
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L119"
+      "source_location": "L120"
     },
     {
       "id": "changelog_0_2_42_2026_10_24",
@@ -232715,7 +232715,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L28",
+      "source_location": "L29",
       "weight": 1.0
     },
     {
@@ -232726,7 +232726,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "AGENTS.md",
-      "source_location": "L49",
+      "source_location": "L53",
       "weight": 1.0
     },
     {
@@ -254242,7 +254242,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L164",
+      "source_location": "L171",
       "weight": 1.0
     },
     {
@@ -254253,7 +254253,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L177",
+      "source_location": "L184",
       "weight": 1.0
     },
     {
@@ -254264,7 +254264,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L184",
+      "source_location": "L191",
       "weight": 1.0
     },
     {
@@ -254275,7 +254275,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L199",
+      "source_location": "L206",
       "weight": 1.0
     },
     {
@@ -254286,7 +254286,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L106",
+      "source_location": "L107",
       "weight": 1.0
     },
     {
@@ -254297,7 +254297,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L119",
+      "source_location": "L120",
       "weight": 1.0
     },
     {
@@ -254308,7 +254308,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L100",
+      "source_location": "L101",
       "weight": 1.0
     },
     {
@@ -254330,7 +254330,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L132",
+      "source_location": "L133",
       "weight": 1.0
     },
     {
@@ -254341,7 +254341,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L142",
+      "source_location": "L143",
       "weight": 1.0
     },
     {
@@ -254352,7 +254352,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L152",
+      "source_location": "L153",
       "weight": 1.0
     },
     {
@@ -254363,7 +254363,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L162",
+      "source_location": "L169",
       "weight": 1.0
     },
     {
@@ -254374,7 +254374,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L33",
+      "source_location": "L34",
       "weight": 1.0
     },
     {
@@ -254385,7 +254385,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L48",
+      "source_location": "L49",
       "weight": 1.0
     },
     {
@@ -254396,7 +254396,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0
     },
     {
@@ -254407,7 +254407,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L68",
+      "source_location": "L69",
       "weight": 1.0
     },
     {
@@ -254418,7 +254418,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L81",
+      "source_location": "L82",
       "weight": 1.0
     },
     {
@@ -254429,7 +254429,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "docs/00-WORKFLOW.md",
-      "source_location": "L89",
+      "source_location": "L90",
       "weight": 1.0
     },
     {
@@ -272667,7 +272667,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L245",
+      "source_location": "L243",
       "weight": 1.0
     },
     {
@@ -272678,7 +272678,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L284",
+      "source_location": "L282",
       "weight": 1.0
     },
     {
@@ -272689,7 +272689,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L307",
+      "source_location": "L305",
       "weight": 1.0
     },
     {
@@ -272700,7 +272700,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L340",
+      "source_location": "L338",
       "weight": 1.0
     },
     {
@@ -272711,7 +272711,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L373",
+      "source_location": "L359",
       "weight": 1.0
     },
     {
@@ -272722,7 +272722,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L434",
+      "source_location": "L418",
       "weight": 1.0
     },
     {
@@ -272733,7 +272733,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L446",
+      "source_location": "L430",
       "weight": 1.0
     },
     {
@@ -272744,7 +272744,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L471",
+      "source_location": "L455",
       "weight": 1.0
     },
     {
@@ -272766,7 +272766,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L176",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -272777,7 +272777,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L187",
+      "source_location": "L185",
       "weight": 1.0
     },
     {
@@ -272788,7 +272788,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L219",
+      "source_location": "L217",
       "weight": 1.0
     },
     {
@@ -272799,7 +272799,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L233",
+      "source_location": "L231",
       "weight": 1.0
     },
     {
@@ -272810,7 +272810,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L238",
+      "source_location": "L236",
       "weight": 1.0
     },
     {
@@ -302686,7 +302686,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L174",
+      "source_location": "L172",
       "weight": 1.0
     },
     {
@@ -302697,7 +302697,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L181",
+      "source_location": "L179",
       "weight": 1.0
     },
     {
@@ -302708,7 +302708,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L184",
+      "source_location": "L182",
       "weight": 1.0
     },
     {
@@ -302719,7 +302719,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L217",
+      "source_location": "L215",
       "weight": 1.0
     },
     {
@@ -302730,7 +302730,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L235",
+      "source_location": "L233",
       "weight": 1.0
     },
     {
@@ -302741,7 +302741,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L235",
+      "source_location": "L233",
       "weight": 1.0
     },
     {
@@ -302785,7 +302785,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L469",
+      "source_location": "L453",
       "weight": 1.0
     },
     {
@@ -317062,7 +317062,7 @@
       "confidence_score": 0.95,
       "context": "testDefaultConfig",
       "source_file": "AGENTS.md",
-      "source_location": "L35",
+      "source_location": "L36",
       "weight": 1.0
     },
     {
@@ -317739,5 +317739,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "51c531eaf250a222131b6b6fe5b12353914a662e"
+  "built_at_commit": "0ed458ffb7c11fff57bc46f8d1c66e0f2e4b7c7f"
 }
