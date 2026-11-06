@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "PLAN.md": {
-    "mtime": 1792643153.4905467,
-    "seen": 1792643360.385392,
-    "ast_hash": "2921554b5bc9e6c0f7b15f377f91e35a",
+    "mtime": 1793928722.474995,
+    "seen": 1793928913.6887686,
+    "ast_hash": "6ee093e0317b8f718e8605c4001b16df",
     "semantic_hash": ""
   },
   "data/stop_en.txt": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1793901376.7319748,
-    "seen": 1793901822.573543,
-    "ast_hash": "8ba019114391adf0ce127e83f3ceece3",
+    "mtime": 1793928471.0728886,
+    "seen": 1793928913.6887686,
+    "ast_hash": "125b83411ae9a68d0a65448c4261260b",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793901376.7509778,
-    "seen": 1793901822.5745394,
-    "ast_hash": "10156ea14b06238d1caa0d11b379d7ee",
+    "mtime": 1793928620.1899018,
+    "seen": 1793928913.6887686,
+    "ast_hash": "98ea57e6d73f3607150e78420f6b572c",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1793906026.8245606,
-    "seen": 1793906066.5722098,
-    "ast_hash": "54c088bd05c235b9d6898ee385601021",
+    "mtime": 1793928658.434495,
+    "seen": 1793928913.6962755,
+    "ast_hash": "6e71418bbcc045371e37078335919592",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2682,9 +2682,9 @@
     "semantic_hash": ""
   },
   "docs/50-assist/P4-12-RECALL-REAL.md": {
-    "mtime": 1792769731.5615635,
-    "seen": 1792773483.0482786,
-    "ast_hash": "08315e44d0cfe26542865ffdbfbf3c3b",
+    "mtime": 1793928702.5220852,
+    "seen": 1793928913.6937683,
+    "ast_hash": "24988e8499f4563e0c7b5da357074c0b",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/lc_assist_text.h": {
@@ -3090,9 +3090,9 @@
     "semantic_hash": ""
   },
   "docs/release/P8-V55-DFMEA-DRBFM.md": {
-    "mtime": 1793896237.2265906,
-    "seen": 1793899093.0175586,
-    "ast_hash": "c59d19c0f4de5c6ed80812f50c0b3f08",
+    "mtime": 1793928687.5143836,
+    "seen": 1793928913.6962755,
+    "ast_hash": "cbad310ae9209745b804ae6ce706eadc",
     "semantic_hash": ""
   }
 }
