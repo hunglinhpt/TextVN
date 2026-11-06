@@ -87,7 +87,7 @@ Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 
 2. Golden corpus thêm/truyền case tương ứng (nếu đổi hành vi gõ) → `textvn replay corpus/` pass.
 3. `cargo clippy --all-targets -- -D warnings` và `cargo fmt --check` pass.
 4. `cargo deny check` + REUSE lint pass.
-5. Doc liên quan cập nhật (spec/ADR/compat.md) **hoặc** ghi rõ "không cần" trong PR.
+5. Doc liên quan cập nhật đầy đủ (spec/ADR/compat.md, và `README.md` nếu đổi tính năng/hành vi/UX/API) — **BẮT BUỘC theo G18**: không được miễn trừ ("không cần") đối với các thay đổi tính năng hay hành vi người dùng; `README.md` và release notes phải đảm bảo song ngữ Anh - Việt đồng nhất 100%, chuẩn template khoa học mạch lạc, nêu bật tính năng vượt trội.
 6. Acceptance criteria của task trong `P{n}-TASKS.md` được tick (kèm bằng chứng: output CLI, screenshot, log).
 7. CI 3 OS xanh (hoặc OS liên quan xanh + 2 OS còn lại không đổi).
 

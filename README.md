@@ -102,7 +102,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
 | **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN, 3000 từ tần suất + từ điển bổ sung cá nhân, luôn bật); gõ dở `ngư` → Tab thành `ngưng` (tiếng Việt, 3000 âm tiết tần suất, bật qua `suggest.enabled`) | Không có |
 | **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
-| **Trợ lý ngữ pháp câu tiếng Việt** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ, dấu câu, viết hoa, sai dấu) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu đúng; hoàn tác 1 bước Ctrl+Z | Không có |
+| **Trợ lý ngữ pháp song ngữ & ngữ cảnh** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ/cụm 2–4 từ, dấu câu, viết hoa, sai dấu, ngữ pháp EN, ngày tháng vô lý, số tiền hỗn loạn) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng Anh; hoàn tác 1 bước Ctrl+Z | Không có |
 | **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
 | **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
 | **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
@@ -166,11 +166,9 @@ xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
 - Per-app override + ignore list; bảng cài đặt riêng từng OS (tray Windows, GTK4 Linux, app menu macOS)
 - Offline 100 %, không telemetry, không mạng; tự tắt ô mật khẩu; riêng tư công khai trong repo
 
-Engine Rust dùng chung, 190+ test trợ lý + 230 kịch bản replay qua 4 adapter trên 3 OS mỗi commit.
-
-Engine bằng Rust, test bằng corpus replay (hơn 230 kịch bản `*.keys`) qua 4 mô phỏng
-adapter (headless, tsf, mac, linux) trên 3 hệ điều hành ở mỗi commit; quy tắc xung đột
-ngôn ngữ công khai tại
+Một engine Rust dùng chung, 190+ test trợ lý + hơn 230 kịch bản corpus replay (`*.keys`)
+qua 4 mô phỏng adapter (headless, tsf, mac, linux) trên 3 hệ điều hành ở mỗi commit;
+quy tắc xung đột ngôn ngữ công khai tại
 [docs/specs/language-detection.md](docs/specs/language-detection.md).
 
 ## Trạng thái
@@ -342,33 +340,21 @@ machine-wide).
 What TextVN does that UniKey / EVKey / OpenKey currently **don't** (or do
 differently — per their public feature pages as of 2026-10):
 
-- **Automatic EN/VI detection while typing mixed text** — a 3000-word English
-  frequency dictionary plus a common-Vietnamese-syllable protection grid:
-  type both languages without switching modes; English words come back intact
-  at the space. Traditional IMEs transform everything — `text` becomes `tẽt`.
-- **Mode-based Vietnamese priority** — ambiguous pairs (`cow`/`cơ`,
-  `sex`/`sẽ`, `queen`/`quên`) resolve by the current mode, UniKey-style for
-  Vietnamese while staying friendly to English.
-- **Tab completion** — half-typed `tes` + Tab → `test` (English, always on);
-  `ngư` + Tab → `ngưng` (Vietnamese, 3000 frequent syllables, enable via
-  `suggest.enabled`).
-- **Vietnamese sentence grammar assistant** — checks, suggests and (opt-in)
-  auto-fixes the sentence you just typed (duplicate words, punctuation
-  spacing, capitalization, misplaced tone marks), fully offline; 0 % of
-  correct sentences flagged on a 981-sentence benchmark; one-step Ctrl+Z undo.
-- **Escape restores your raw keystrokes** at any moment.
-- **Ctrl+Shift mode switch in every app** — an observing-only tap detector
-  (eats no keys) with double-toggle debouncing.
-- **No preedit underline, no admin install** — per-user TSF in HKCU, portable
-  builds that just run, no UAC.
-- **Self-healing ghost registrations** — if the registration points to a
-  deleted folder, run `TextVN.exe` from the new folder and it fixes itself.
-- **DPI-aware dialogs** across mixed-DPI monitors.
-- **Store-grade silent install** — `/VERYSILENT /SUPPRESSMSGBOXES
-  /NORESTART`; CI exercises silent install/uninstall, ARP entries and a
-  Store-validator simulation on every PR and release.
-- **Private by default** — 100 % local key processing, no telemetry, no
-  network; auto-disables in password fields; public privacy policy in-repo.
+| Feature | TextVN | Traditional IMEs |
+|---|---|---|
+| **Automatic EN/VI detection in mixed text** | 3000-word English frequency dictionary + common Vietnamese syllable protection grid: type mixed languages without toggling modes; English words are restored intact on Space. | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; typing English requires toggling modes per word or manually stripping tones. |
+| **Mode-based Vietnamese priority** (no mangling) | Ambiguous pairs (`cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên`) resolve according to active mode — standard UniKey behavior for Vietnamese, while leaving English untransformed. | Must choose: mangle English or disable Vietnamese transformations. |
+| **Tab word completion** | Half-typed `tes` → Tab completes to `test` (EN, 3000 frequency words + custom dictionary, always on); `ngư` → Tab completes to `ngưng` (Vietnamese, 3000 frequent syllables, via `suggest.enabled`). | Not supported. |
+| **Personal EN dictionary** | Add/remove words directly in the UI (EN Dictionary…); user preference overrides all engine heuristics. | Manual config file editing (if supported at all). |
+| **Bilingual grammar & context assistant** | Checks, suggests and auto-fixes the sentence just typed (word/2–4-phrase repeats, punctuation spacing, capitalization, tone placement, EN grammar, impossible dates, money grouping) 100% offline; 0% false positives on 981 Vietnamese + 295 English clean benchmark; 1-step Ctrl+Z undo. | Not supported. |
+| **Escape raw keystroke restore** | Mistyped at any moment → Escape restores the exact raw typed string. | Most IMEs only support sentence-level undo or none. |
+| **Ctrl+Shift mode switch across all apps** | Modifier tap detector observes only (eats no keys) + debounce prevents double-toggling between tray and engine. | Global keyboard hooks can cause double-toggle or antivirus conflicts. |
+| **No preedit underline, no admin install** | Per-user TSF in HKCU, portable extract-and-run, zero UAC required. | UniKey/EVKey require installer and some variants demand administrator privileges. |
+| **Self-healing ghost registration** | If registry points to a deleted folder → re-running `TextVN.exe` from the new folder auto-repairs registration. | Requires manual uninstall and reinstallation. |
+| **DPI-aware multi-monitor dialogs** | Moving between screens with different DPI auto-scales, re-lays out, and adjusts fonts accordingly. | Often blurry, misaligned, or rendered improperly across multi-DPI setups. |
+| **Store-grade silent installation** | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` — CI verifies silent install/uninstall, ARP, and Store validator simulation on every PR and release. | No automated Store pipeline validation. |
+| **Private by default** | 100% local keystroke processing, zero telemetry, no network calls; auto-disables in password fields; public privacy policy in-repo. | Rarely publish a formal, verifiable privacy policy. |
+| **Process model & architecture** | 1 tray process + in-process TSF TIP; global keyboard hook observes modifiers only (eats no keys, injects no DLLs). | UniKey uses a global keyboard hook that intercepts all keystrokes and injects code. |
 
 ## Full feature set (accumulated through 0.2.65)
 
@@ -424,11 +410,9 @@ completion & next-phrase; meaningful-extension ranking; microsecond lookups.
 - Per-app overrides + ignore lists; native settings per OS (Windows tray, Linux GTK4, macOS menu bar app)
 - 100 % offline, no telemetry, no network; auto-off in password fields; public privacy policy in the repo
 
-One Rust engine, 190+ assistant tests + 230 replay scenarios through 4 adapter simulators on 3 OSes per commit.
-
-The Rust engine is tested by corpus replay (230+ `*.keys` scenarios) through
-four adapter simulations (headless, tsf, mac, linux) on three operating
-systems at every commit; the language-conflict rules are published at
+One shared Rust engine, 190+ assistant tests + 230+ corpus replay scenarios (`*.keys`)
+through four adapter simulations (headless, tsf, mac, linux) on three operating
+systems at every commit; language-conflict rules are published at
 [docs/specs/language-detection.md](docs/specs/language-detection.md).
 
 ## Status

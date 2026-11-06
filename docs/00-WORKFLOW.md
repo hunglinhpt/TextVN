@@ -5,7 +5,7 @@
 > **Quan hệ:** BỔ SUNG `01-AGENT-HANDBOOK.md`. Handbook là gốc về DoD / security / review;
 > file này là gốc về **thứ tự thao tác hằng ngày**. Nếu mâu thuẫn → ghi `FW-{n}` vào §7 rồi sửa cả hai
 > (không tự xử lý lén, không sửa file đang có WIP của agent khác).
-> **Trạng thái:** v2.3 (2026-10-21: thêm **G17** — không tick ✅ khi CI commit đó còn đỏ · 2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
+> **Trạng thái:** v2.4 (2026-11-06: thêm **G18** — commit & release bắt buộc cập nhật docs liên quan, README chuẩn template hoặc hơn, nêu bật tính năng vượt trội, song ngữ VI-EN 1:1 · 2026-10-21: thêm **G17** — không tick ✅ khi CI commit đó còn đỏ · 2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
 > Review 1 (*Đúng & Đủ*) = tác giả tự rà · Review 2 (*Nhất quán & Sẵn sàng*) **chờ agent thứ hai** — finding `FW-{n}`, không xóa.
 
 ## 1. Ground rules (G-IDs) — áp dụng mọi lúc
@@ -29,6 +29,7 @@
 | G15 | **Phần trùng lặp → bắt buộc viết thành lib/module dùng chung, KHÔNG viết riêng từng nơi** — code sạch, reuse tối đa: logic nào dùng ở ≥2 chỗ thì tách thành module chung (crate chung Rust / script lib chung) ngay từ đầu | user rule 2026-09-27; chống copy-paste (vd locator/rules UIA: field-detect ↔ appcomptest phải dùng chung 1 lib) |
 | G16 | **Phát hành version mới → bắt buộc đi đủ Checklist A (local) + Checklist B (repo/docs) của `docs/release/release-process.md`** — không tag khi CI commit đó chưa xanh; bản phát hành thiếu release note/changelog/version-sync/readme/metainfo/report = chưa Done | chuẩn hoá 2026-10-01 từ quy trình đã thành công của v0.2.0–v0.2.2 |
 | G17 | **Không tick ✅ cho task khi CI của commit đó còn đỏ** — mọi tick ✅ phải kèm **bằng chứng CI xanh** (link run) và, nếu acceptance yêu cầu chạy thật, **bằng chứng verify tay**; tick ✅ **sau khi** CI xanh (G13) | sự cố 2026-10-21: commit `c701600` (AS-050/AS-060) **push khi CI đỏ** (`ci-macos`/`ci-linux`/`ci-shared` FAILURE) mà `P4-TASKS.md` vẫn **tick ✅** ⇒ task bị coi là xong oan |
+| G18 | **Commit & Release bắt buộc cập nhật tài liệu liên quan & README song ngữ VI-EN toàn diện**: Mọi commit thay đổi tính năng/hành vi/API/cấu trúc và mọi release BẮT BUỘC cập nhật tài liệu liên quan (`README.md`, specs, ADR, CHANGELOG, docs nghiệp vụ). `README.md` phải chính xác, đầy đủ bằng hoặc hơn template hiện tại, không thiếu sót; nêu bật tính năng vượt trội (Rust memory-safe 3 OS, TSF không hook/inject, dự đoán P7 trie/frecency/sub-word, trợ lý ngữ pháp câu/từ ngữ cảnh, zero keylogging offline); song ngữ Anh - Việt đồng nhất 100% về cấu trúc, bảng biểu và độ sâu thông tin; trình bày khoa học mạch lạc | user rule 2026-11-06; chống thiếu sót tài liệu, lệch thông tin VI-EN, đảm bảo tính khoa học và minh bạch |
 
 ## 2. Bắt buộc đọc — trình tự mỗi phiên
 
@@ -151,6 +152,12 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 
 ## 11. Cập nhật docs & nghiệp vụ — checklist khi "xong"
 
+- [ ] **Đồng bộ tài liệu liên quan & README (G18):**
+  - Mọi commit đổi tính năng, đổi hành vi gõ/UX/API, hoặc phát hành version mới phải cập nhật `README.md` và tài liệu spec/ADR liên quan; không được bỏ qua.
+  - `README.md` đảm bảo đầy đủ bằng hoặc hơn template hiện tại, không thiếu sót: số hiệu bản mới nhất, tóm tắt, bảng tải & cài, bảng so sánh tính năng vượt trội so với IME truyền thống, danh mục tính năng đầy đủ, ma trận trạng thái 3 nền tảng.
+  - Nêu bật các ưu thế công nghệ vượt trội: engine Rust an toàn bộ nhớ 3 OS, TSF thuần Windows không hook WH_KEYBOARD_LL / không inject DLL, dự đoán từ/tiếp ngữ/cụm từ P7 sub-word cực nhanh, trợ lý ngữ pháp câu và từ theo ngữ cảnh, swallow-and-unicode, debounce panel 1s, ID punctuation gates, bảo mật tuyệt đối (zero keylogging, offline 100%).
+  - Bắt buộc song ngữ Anh - Việt 100% tương đương: phần `# English` ở cuối `README.md` và các ghi chú phát hành phải có cấu trúc, độ sâu, bảng dữ liệu và chi tiết kỹ thuật ngang bằng với tiếng Việt (không viết tóm tắt sơ sài).
+  - Trình bày khoa học, mạch lạc, định dạng chuẩn GitHub Markdown, số liệu kiểm thử chính xác (số lượng corpus, test suite, gate checks).
 - [ ] **Evidence vào đúng nơi:** số liệu / log / đường dẫn ghi vào spec-task file (không để sót trong hội thoại).
 - [ ] **Lỗi mới → G3** common-errors (§3) · **thao tác thành công mới → G4** verified-ops (§4).
 - [ ] **Nghiệp vụ lặp lại** (làm đi làm lại vẫn đúng) → nâng cấp: entry verified-ops **hoặc** script hoá trong `tools/` — chạy đúng 1 lần = không kiểm tra lại.
@@ -178,7 +185,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 
 Push tag `vN.N.N` → workflow `release.yml` build Windows/Linux/macOS + publish
 pre-release draft-first. **Quy trình đầy đủ (checklist local trước — repo sau,
-bộ docs bắt buộc, xử lý sự cố) = `docs/release/release-process.md` (G16) —
+bộ docs bắt buộc, xử lý sự cố) = `docs/release/release-process.md` (G16, G18) —
 bắt buộc đọc trước khi tag bất kỳ version nào.**
 
 ### 12.2 8 check của `repo-hygiene`

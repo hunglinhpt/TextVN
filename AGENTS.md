@@ -23,6 +23,7 @@
 | G8 | Không bao giờ log nội dung phím/text người dùng |
 | G13 | Push đỏ CI → xử lý ngay trong phiên, chưa xanh chưa Done |
 | G16 | **Phát hành version mới = đi ĐỦ Checklist A (local) + Checklist B (repo/docs) trong `docs/release/release-process.md`** — không tag khi CI của commit gắn tag chưa xanh |
+| G18 | **Commit & Release bắt buộc cập nhật tài liệu liên quan & README song ngữ VI-EN toàn diện** — Mọi thay đổi tính năng/hành vi/API và mọi bản release PHẢI cập nhật docs liên quan (`README.md`, specs, ADR, CHANGELOG); `README.md` phải chính xác, đầy đủ bằng hoặc hơn template hiện tại, không thiếu sót; nêu bật các **tính năng vượt trội** (Rust core 3 OS an toàn bộ nhớ, TSF thuần không hook/inject, dự đoán P7 trie/frecency/sub-word, trợ lý ngữ pháp câu/từ ngữ cảnh, zero keylogging offline); **bắt buộc song ngữ Anh - Việt 1:1 đồng nhất 100% về cấu trúc, độ sâu thông tin và số liệu**; trình bày khoa học mạch lạc |
 | — | Ngôn ngữ: chỉ Rust + C/C++ + Swift native, không thêm runtime mới cho user |
 
 ## 2. Chiến lược phát hành — các mốc bắt buộc theo thứ tự
@@ -35,9 +36,12 @@ repo/docs). Tóm tắt các mốc hay bị bỏ sót:
    `testDefaultConfig` (Swift) + assertion trong `test_settings_model.c` +
    `schemas/config.v1.schema.json` khi đổi default; **cask Homebrew cần cả
    `version` lẫn `sha256`** (B7b, R2-116).
-3. **B4 — bộ docs phát hành**: CHANGELOG entry **song ngữ VI+EN** + link compare cuối file · README (kể cả phần `# English` cuối file) ·
-   README "Bản mới nhất" + tóm tắt · appstream `<release>` đứng đầu ·
-   `build-release-report.md` mục bản mới. Thiếu mục nào = chưa được tag.
+3. **B4 — bộ docs phát hành bắt buộc**:
+   - `CHANGELOG.md`: entry **song ngữ VI+EN** + link compare `[N.N.N]: ...` cuối file.
+   - `README.md`: cập nhật "Bản mới nhất" + 1 dòng tóm tắt đắt giá + trạng thái chữ ký (GPG/Sigstore); **chuẩn template mẫu hoặc hơn**, không thiếu sót bất kỳ bảng ma trận, kiến trúc, hay hướng dẫn nào; **nêu bật các tính năng vượt trội** so với IME truyền thống; **song ngữ VI và EN (mục `# English` cuối file) phải đồng nhất 100%** về nội dung, cấu trúc và độ sâu kỹ thuật (không tóm tắt lược bỏ).
+   - `packaging/linux/appstream/*.metainfo.xml`: `<release version="N.N.N">` đứng đầu.
+   - `build-release-report.md`: mục bản mới với bảng gate A1–A4, perf, release run.
+   - Ghi mã sự cố mới (`B{n}`/`E{n}`/`R{n}`). Thiếu mục nào = CHƯA ĐƯỢC TAG.
 4. **Tag** git-signed (commit.gpgsign/tag.gpgsign đã bật) → push → `release-candidate`
    4/4 xanh → verify 34 asset + chữ ký (B7).
 5. **approved**: sync `vX.Y.Z/` byte-identical lên branch `approved` (B7c, raw URL 200).

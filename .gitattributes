@@ -6,3 +6,4 @@
 *.cpp   text eol=lf
 *.swift text eol=lf
 *.tsv   text eol=lf
+*.md    text eol=lf
