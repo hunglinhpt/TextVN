@@ -94,6 +94,55 @@ fn en_common_lines() -> &'static [&'static str] {
 /// Kết hợp không-dấu và có-dấu cùng lưu (khớp qua 2 đường).
 /// Nhóm từ ghép theo byte đầu: (từ, dạng-không-dấu, weight).
 type CompoundRow = (&'static str, &'static str, u32);
+/// Nhóm từ ghép tiếng Anh theo byte đầu: (từ, weight).
+pub(crate) type EnCompoundRow = (&'static str, u32);
+
+pub(crate) fn en_compounds() -> &'static [EnCompoundRow] {
+    static CACHE: OnceLock<Vec<EnCompoundRow>> = OnceLock::new();
+    CACHE.get_or_init(|| {
+        EN_COMPOUNDS_DATA
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    return None;
+                }
+                let mut parts = line.split('\t');
+                let word = parts.next().unwrap_or("").trim();
+                let weight: u32 = parts
+                    .next()
+                    .and_then(|w| w.trim().parse().ok())
+                    .unwrap_or(50);
+                if word.is_empty() {
+                    return None;
+                }
+                Some((word, weight))
+            })
+            .collect()
+    })
+}
+
+pub(crate) fn en_compounds_buckets(
+) -> &'static std::collections::HashMap<u8, &'static [EnCompoundRow]> {
+    static CACHE: OnceLock<std::collections::HashMap<u8, &'static [EnCompoundRow]>> =
+        OnceLock::new();
+    CACHE.get_or_init(|| {
+        let mut groups: std::collections::HashMap<u8, Vec<EnCompoundRow>> =
+            std::collections::HashMap::new();
+        for &(word, weight) in en_compounds() {
+            if let Some(&b0) = word.as_bytes().first() {
+                groups.entry(b0).or_default().push((word, weight));
+            }
+        }
+        groups
+            .into_iter()
+            .map(|(k, v)| {
+                let slice: &'static [EnCompoundRow] = Box::leak(v.into_boxed_slice());
+                (k, slice)
+            })
+            .collect()
+    })
+}
 
 fn vn_compounds_buckets() -> &'static std::collections::HashMap<u8, &'static [CompoundRow]> {
     static CACHE: OnceLock<std::collections::HashMap<u8, &'static [CompoundRow]>> = OnceLock::new();
@@ -256,6 +305,9 @@ pub fn restyle(text: &str, style: DiacriticStyle) -> String {
 
 /// Từ điển âm tiết tiếng Việt (vòng 52: 3000 tần suất + dict bổ sung).
 pub const VN_COMPOUNDS_DATA: &str = include_str!("../../../data/vn_compounds.txt");
+
+/// Từ điển từ ghép & cụm danh từ tiếng Anh thông dụng (~1957 mục, 16 domain).
+pub const EN_COMPOUNDS_DATA: &str = include_str!("../../../data/en_compounds.txt");
 
 /// Bảng ngữ cảnh cụm từ tiếp theo tiếng Việt (TSV: context \t prediction \t weight).
 pub const VN_PHRASES_DATA: &str = include_str!("../../../data/vn_phrases.tsv");
@@ -505,6 +557,32 @@ fn predict_impl(
                 ext: false,
                 personal: false,
             });
+        }
+    }
+
+    // en_compounds — từ ghép & cụm danh từ tiếng Anh (~1957 mục, 16 domain):
+    // Khi từ đầu khớp hoàn toàn (`ext == true`, ví dụ `"machine"` -> `"machine learning"`),
+    // được ưu tiên mở rộng giống từ ghép tiếng Việt (`"tiến"` -> `"tiến độ"`).
+    if let Some(&b0) = typed_lower.as_bytes().first() {
+        for &(word, weight) in en_compounds_buckets()
+            .get(&b0)
+            .copied()
+            .into_iter()
+            .flatten()
+        {
+            if word != typed_lower
+                && word.starts_with(typed_lower)
+                && seen.insert(std::borrow::Cow::Borrowed(word))
+            {
+                ranked.push(PrefixCandidate {
+                    word: std::borrow::Cow::Borrowed(word),
+                    exact_match: true,
+                    char_count: word.chars().count(),
+                    weight,
+                    ext: compound_ext(word),
+                    personal: false,
+                });
+            }
         }
     }
 

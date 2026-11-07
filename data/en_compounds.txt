@@ -1,0 +1,1963 @@
+# Từ ghép & cụm danh từ tiếng Anh thông dụng — 16 domain (kinh doanh, quản trị,
+# kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán-thuế,
+# ngân hàng-bảo hiểm, nhân sự, marketing-thương mại điện tử, CSKH-QA, sản phẩm-
+# UI/UX, logistics-chuỗi cung ứng-sản xuất, pháp lý-hợp đồng-đấu thầu, bất động
+# sản-xây dựng, y tế, giáo dục-nghiên cứu, giao tiếp công sở).
+# Format: english_compound<TAB>weight. Sinh bởi `cargo xtask gen-vocab` — KHÔNG sửa tay.
+ab testing	92
+academic advisor	90
+academic conference	94
+academic journal	92
+academic performance	92
+academic results	92
+academic year	96
+acceptance criteria	96
+acceptance minutes	92
+acceptance testing	94
+access control	98
+access log	92
+access token	94
+accessibility standard	90
+account balance	96
+account executive	94
+account holder	94
+account manager	96
+account number	98
+account statement	94
+accounts payable	98
+accounts receivable	98
+accuracy rate	92
+action item	96
+action items	98
+action plan	96
+activation function	90
+active user	94
+actuarial science	84
+additional details	96
+additional information	98
+additional support	94
+admin panel	92
+administrative procedure	96
+administrative reform	92
+admission office	90
+admission requirements	92
+adoption rate	94
+advance payment	94
+advertising budget	92
+advertising campaign	94
+affiliate marketing	90
+agile development	92
+agile methodology	94
+agricultural products	92
+air conditioning	94
+air freight	90
+air pollution	94
+air quality	96
+airport shuttle	90
+all hands	92
+all hands meeting	92
+analytics dashboard	94
+annual bonus	94
+annual budget	96
+annual checkup	94
+annual goals	92
+annual health check	94
+annual leave	98
+annual report	96
+annual review	92
+anomaly detection	94
+anti money laundering	90
+apartment building	92
+apartment complex	94
+api gateway	96
+api key	96
+application programming interface	98
+application security	94
+appointment letter	92
+approved vendor	90
+arbitration clause	90
+architecture diagram	94
+arrival time	94
+articles of association	90
+artificial intelligence	100
+artificial neural network	92
+as built drawing	90
+aspect ratio	90
+assembly line	94
+assessment report	92
+asset allocation	90
+asset depreciation	90
+asset management	94
+asynchronous programming	92
+atomic operation	90
+attached document	98
+attached file	98
+attached invoice	96
+attached report	96
+attached statement	92
+attendance record	92
+attention mechanism	94
+audio jack	86
+audio quality	92
+audit committee	90
+audit log	94
+audit report	94
+audit trail	94
+authorized representative	92
+authorized signatory	92
+auto insurance	92
+auto scaling	94
+automated teller machine	90
+average cost	92
+average time	92
+average value	90
+bachelor degree	94
+back end	96
+back online	92
+background check	94
+backup and recovery	92
+backward compatibility	94
+balance sheet	98
+bank account	100
+bank branch	90
+bank guarantee	94
+bank reconciliation	94
+bank statement	96
+bank transfer	98
+base salary	96
+baseline metric	90
+batch number	92
+batch size	94
+battery capacity	92
+battery life	96
+beam search	90
+bearer token	92
+benchmarking study	84
+beneficiary bank	92
+beneficiary designation	88
+beneficiary name	92
+benefits package	94
+best practices	98
+best regards	100
+best wishes	98
+beta testing	94
+beta version	92
+bid documents	94
+bid guarantee	90
+bidding process	94
+big data	94
+bilateral agreement	92
+bill of lading	96
+bill of materials	94
+billing address	96
+binary search	94
+binary tree	90
+binding agreement	92
+binding contract	92
+blood pressure	96
+blood sugar	92
+blood test	96
+blue green deployment	90
+bluetooth connection	92
+board meeting	92
+board member	88
+board of directors	98
+board resolution	88
+boarding pass	94
+bottom line	90
+bounce rate	90
+branch protection	90
+brand awareness	96
+brand equity	90
+brand guidelines	92
+brand identity	96
+brand image	92
+brand loyalty	92
+breach of contract	94
+break even point	90
+breaking change	96
+broadband connection	90
+budget allocation	94
+budget approval	94
+budget constraint	90
+budget forecast	94
+budget variance	88
+buffer overflow	94
+bug fix	98
+bug report	94
+bug tracker	88
+build pipeline	92
+build system	94
+building code	90
+building permit	94
+business administration	96
+business case	90
+business continuity	88
+business critical	92
+business days	98
+business development	100
+business hours	96
+business intelligence	94
+business license	96
+business loan	92
+business model	96
+business operations	92
+business partner	92
+business plan	96
+business process	90
+business registration	96
+business requirement	88
+business strategy	95
+business trip	96
+business unit	88
+buyer persona	90
+calendar days	92
+calendar invite	98
+call center	94
+call to action	96
+camera lens	90
+canary deployment	90
+candidate profile	90
+capital expenditure	96
+capital gain	90
+capital market	90
+car insurance	92
+carbon emissions	96
+carbon footprint	96
+carbon neutral	94
+card holder	92
+card number	94
+career development	96
+career growth	92
+career path	94
+carry on luggage	90
+case study	96
+cash deposit	90
+cash flow	100
+cash flow statement	96
+cash management	90
+cash withdrawal	92
+catch up	92
+cause and effect	92
+cellular network	92
+central bank	96
+central government	94
+central processing unit	94
+central warehouse	92
+certificate of origin	94
+certificate of quality	92
+certified copy	92
+change log	94
+change management	92
+charging station	94
+chart of accounts	92
+charter capital	92
+check list	92
+checked baggage	90
+checking account	94
+checkout process	92
+chief executive officer	98
+chief financial officer	96
+chief information officer	92
+chief marketing officer	92
+chief operating officer	95
+chief product officer	90
+chief technology officer	96
+chronic condition	90
+chronic disease	92
+churn rate	94
+circuit breaker	90
+circular economy	92
+citation style	90
+civil engineering	92
+civil servant	90
+claim form	94
+claim process	92
+claim settlement	92
+clean energy	96
+clean room	88
+click through rate	94
+climate change	98
+clinical research	92
+clinical trial	96
+closing balance	92
+cloud computing	100
+cloud infrastructure	96
+cloud migration	92
+cloud native	96
+cloud provider	90
+cloud security	94
+cloud service	94
+cloud storage	94
+code base	92
+code coverage	94
+code formatting	88
+code generation	88
+code of conduct	96
+code quality	94
+code refactoring	90
+code review	100
+code snippet	88
+collateral security	88
+color contrast	90
+color palette	92
+color scheme	92
+command line	96
+command line interface	94
+commercial invoice	96
+commercial property	94
+commit history	92
+commit message	96
+common sense	94
+communication skills	96
+company culture	94
+company policy	96
+company wide	90
+compensation and benefits	94
+compensation package	94
+competitive advantage	96
+competitive analysis	92
+competitive landscape	90
+compile time	94
+compiler optimization	90
+complaint handling	90
+completion certificate	90
+completion rate	92
+completion report	92
+component library	94
+compound annual growth rate	90
+compound interest	92
+computer science	96
+computer vision	96
+concurrency control	90
+conference call	96
+conference hall	90
+conference proceedings	90
+conference room	98
+confidence interval	92
+confidential information	96
+confidentiality agreement	94
+configuration file	94
+conflict of interest	94
+conflict resolution	88
+confusion matrix	90
+connection pool	92
+construction contractor	92
+construction materials	94
+construction permit	94
+construction progress	94
+construction project	96
+construction site	96
+consumer price index	94
+container load	88
+container orchestration	94
+content creation	94
+content delivery network	94
+content management	92
+content marketing	96
+content strategy	92
+context menu	92
+context window	96
+continuing education	90
+continuous delivery	96
+continuous deployment	98
+continuous improvement	94
+continuous integration	98
+contract appendix	92
+contract extension	94
+contract liquidation	90
+contract renewal	94
+contract termination	92
+contract value	96
+contractual deadline	90
+contractual obligation	92
+control group	92
+control panel	94
+conversion funnel	92
+conversion rate	98
+copyright infringement	90
+core competency	88
+corner case	90
+corporate communications	86
+corporate culture	90
+corporate governance	92
+corporate headquarters	88
+corporate income tax	96
+corporate social responsibility	88
+cost accounting	92
+cost benefit analysis	92
+cost breakdown	94
+cost center	92
+cost effective	94
+cost estimate	94
+cost of living	96
+cost reduction	94
+country of origin	92
+course syllabus	92
+cover letter	96
+coverage limit	90
+credit card	100
+credit history	92
+credit limit	94
+credit note	92
+credit rating	90
+credit report	90
+credit score	94
+crisis management	88
+cross functional	92
+cross functional team	90
+cross site scripting	90
+cross validation	92
+crude oil	92
+current account	92
+current assets	92
+current liabilities	90
+curriculum development	90
+curriculum vitae	94
+customer acquisition	96
+customer acquisition cost	94
+customer base	92
+customer complaint	92
+customer experience	98
+customer feedback	98
+customer journey	94
+customer lifetime value	94
+customer portal	90
+customer relationship	96
+customer relationship management	96
+customer retention	96
+customer satisfaction	98
+customer service	100
+customer success	94
+customer support	100
+customs clearance	98
+customs declaration	96
+customs officer	88
+cutting edge	92
+cyber security	100
+cycle time	92
+daily active users	92
+daily report	94
+daily standup	96
+damaged goods	92
+dark launch	88
+dark mode	96
+data analysis	100
+data analyst	94
+data breach	94
+data collection	94
+data engineer	94
+data engineering	96
+data governance	94
+data integrity	94
+data lake	94
+data lakehouse	90
+data mining	90
+data pipeline	96
+data privacy	96
+data processing	94
+data protection	96
+data quality	96
+data science	98
+data scientist	94
+data set	92
+data structure	98
+data type	94
+data visualization	94
+data warehouse	96
+database connection	94
+database index	92
+database migration	94
+database query	96
+database schema	96
+database server	92
+database transaction	94
+deadlock detection	88
+debit card	96
+debit note	90
+debt financing	90
+decision making	94
+decision tree	92
+dedicated support	88
+deductible amount	90
+deep learning	98
+deep neural network	92
+defect rate	94
+defective goods	92
+delivery address	96
+delivery date	98
+delivery note	92
+delivery schedule	98
+delivery status	94
+delivery time	96
+denial of service	90
+department head	92
+departure time	94
+dependency injection	92
+dependency management	90
+design capacity	90
+design drawing	92
+design pattern	96
+design review	94
+design specification	92
+design system	98
+design thinking	92
+desktop computer	92
+detailed itinerary	92
+detailed report	94
+development environment	94
+device driver	92
+diagnostic imaging	90
+dialog box	90
+diffusion model	90
+digestive system	90
+digital certificate	92
+digital marketing	100
+digital signature	96
+digital wallet	92
+dining room	92
+diplomatic relations	88
+direct debit	90
+disaster recovery	96
+discount code	94
+display screen	92
+dispute resolution	94
+distance learning	92
+distributed system	96
+distributed tracing	92
+distribution channel	92
+diversity and inclusion	90
+dividend payout	88
+docker container	96
+docker image	94
+doctoral degree	90
+domain name	94
+domain name system	92
+domestic market	88
+dosage instructions	90
+double room	92
+down payment	92
+downtime maintenance	88
+draft version	94
+dress code	88
+dropdown menu	92
+due diligence	94
+dynamic analysis	88
+e learning	90
+earliest convenience	96
+early adopter	90
+economic development	96
+economic growth	98
+economic indicator	92
+economic policy	92
+economic recovery	94
+economic stability	90
+economy of scale	86
+edge case	96
+effective date	96
+electric vehicle	96
+electrical wiring	90
+electronic health record	92
+electronic invoice	98
+elevator maintenance	88
+email campaign	92
+email marketing	94
+embedded system	94
+embedding space	90
+emergency contact	94
+emergency exit	94
+emergency room	96
+emerging market	88
+empirical study	90
+employee benefits	96
+employee engagement	94
+employee evaluation	92
+employee handbook	94
+employee retention	94
+employee satisfaction	92
+employee turnover	90
+employee wellness	88
+employment agreement	94
+employment contract	98
+employment history	92
+employment status	90
+employment verification	90
+empty state	88
+encryption key	92
+end of day	98
+end of month	96
+end of week	96
+end of year	94
+end to end	94
+end to end encryption	96
+end to end testing	92
+end user	98
+endpoint security	90
+energy consumption	94
+energy efficiency	96
+energy storage	92
+energy transition	90
+engagement rate	94
+enterprise registration	94
+entity relationship	88
+entrance exam	92
+environment variable	94
+environmental compliance	92
+environmental impact	96
+environmental protection	96
+equal opportunity	90
+equity financing	90
+error code	92
+error handling	96
+error log	94
+error message	94
+error rate	94
+error state	90
+escalation path	88
+estimated arrival	92
+estimated time of arrival	94
+evaluation report	92
+event driven	92
+event handler	90
+event log	92
+event loop	92
+exception handling	90
+exchange rate	98
+exchange student	88
+exclusive distributor	88
+executive board	90
+executive committee	88
+executive dashboard	92
+executive director	90
+executive summary	98
+exit interview	92
+expense claim	94
+expense report	96
+experiment results	94
+experimental group	90
+expiration date	96
+exploratory data analysis	90
+export declaration	90
+export license	90
+export processing zone	90
+external audit	94
+external monitor	94
+extreme weather	90
+factory floor	90
+factory output	92
+faculty member	92
+failure rate	92
+fall semester	92
+false negative	94
+false positive	94
+family history	92
+family trip	90
+fault tolerance	94
+feasibility study	90
+feasible solution	86
+feature branch	94
+feature engineering	94
+feature extraction	92
+feature flag	94
+feature request	96
+feature selection	90
+federated learning	88
+feedback survey	92
+fiber optic	92
+fiduciary duty	88
+field service	88
+field study	90
+file descriptor	90
+file path	92
+file system	96
+filter options	90
+final acceptance	94
+final draft	96
+final exam	96
+final payment	92
+final version	98
+financial advisor	90
+financial aid	94
+financial analysis	96
+financial audit	92
+financial controller	90
+financial forecast	94
+financial management	94
+financial modeling	92
+financial performance	94
+financial planning	96
+financial report	100
+financial reporting	96
+financial statements	100
+financial year	92
+fine tuning	96
+finished goods	94
+finite state machine	90
+fire alarm	92
+fire safety	94
+firewall configuration	90
+firmware update	94
+first aid	94
+first contact resolution	88
+first party	90
+fiscal policy	94
+fiscal quarter	92
+fiscal year	96
+fixed assets	96
+fixed deposit	90
+flash drive	90
+flexible hours	92
+floor plan	94
+flow chart	92
+flu shot	90
+focus group	92
+follow up	98
+follow up appointment	94
+follow up email	96
+follow up meeting	94
+follow up visit	94
+font family	90
+font size	94
+food safety	96
+food security	94
+force majeure	94
+foreign affairs	92
+foreign currency	92
+foreign direct investment	98
+foreign exchange	94
+foreign function interface	92
+foreign investment	96
+foreign key	92
+foreign trade	94
+forward compatibility	88
+forward proxy	88
+fossil fuels	92
+foundation model	94
+fraud detection	92
+free trade	94
+free trade agreement	96
+freight cost	92
+freight forwarder	90
+frequently asked questions	96
+friday afternoon	94
+friendly reminder	96
+front end	96
+full refund	96
+full stack	94
+full time	96
+functional programming	92
+further assistance	96
+further details	96
+further developments	92
+further information	98
+garbage collection	92
+general contractor	94
+general data protection	92
+general ledger	96
+general manager	94
+general practitioner	92
+generative ai	98
+generative model	92
+gentle reminder	94
+global market	90
+global warming	96
+go to market	94
+goal setting	92
+goals and objectives	92
+governing law	94
+government agency	96
+grace period	92
+grade point average	92
+gradient descent	94
+graduate student	94
+graphic design	92
+graphical user interface	94
+graphics processing unit	94
+great weekend	96
+greedy decoding	88
+green energy	94
+greenhouse gas	94
+gross domestic product	96
+gross margin	94
+gross profit	94
+gross revenue	92
+gross salary	94
+gross weight	92
+ground floor	94
+ground truth	94
+group project	94
+growth metric	90
+growth rate	92
+growth strategy	94
+guest user	88
+hand over	94
+handover ceremony	90
+handover file	90
+happy birthday	98
+happy new year	98
+hard copy	94
+hard disk	92
+hard drive	94
+harmonized system	88
+hash map	94
+hash table	92
+health and safety	96
+health check	96
+health insurance	98
+health records	94
+healthcare provider	96
+healthcare system	94
+heart rate	96
+heavy machinery	88
+help desk	96
+high availability	96
+high fidelity	92
+high impact	92
+high performance	96
+high priority	94
+high quality	96
+high throughput	94
+higher education	96
+hiring manager	96
+historical data	94
+home inspection	90
+home loan	94
+home page	96
+homework assignment	94
+horizontal scaling	92
+hospital discharge	90
+hotel reservation	94
+hotfix release	90
+human capital	90
+human resources	100
+hybrid work	94
+hydroelectric power	88
+hyperparameter tuning	92
+identity management	94
+identity provider	92
+image classification	92
+image generation	92
+image segmentation	90
+image sensor	88
+immune system	96
+import documents	92
+import duty	96
+import license	90
+import tax	92
+inbound marketing	90
+inbound shipment	90
+incident management	94
+incident report	94
+incident response	96
+income statement	98
+indemnification clause	90
+index fund	90
+industrial design	88
+industrial park	96
+industrial zone	94
+industry leading	90
+industry standard	92
+infection control	90
+infectious disease	92
+inflation rate	96
+influencer marketing	90
+information architecture	90
+information security	98
+informed consent	94
+infrastructure as code	96
+initial hypothesis	90
+initial public offering	92
+input device	90
+input method	96
+inspection report	92
+instruction tuning	90
+insurance agent	90
+insurance broker	88
+insurance claim	96
+insurance company	96
+insurance coverage	96
+insurance policy	98
+insurance premium	96
+intangible assets	90
+integrated circuit	90
+integrated development environment	92
+integration test	96
+integration testing	94
+intellectual property	98
+intellectual property rights	96
+intensive care	94
+intensive care unit	94
+interaction design	92
+interactive prototype	92
+interest rate	98
+interior design	94
+internal audit	96
+internal control	94
+internal transfer	88
+international cooperation	92
+international market	94
+international relations	90
+international standard	94
+international trade	96
+internet connection	98
+internet of things	96
+internet service provider	92
+intrusion detection	90
+inventory control	94
+inventory level	92
+inventory management	96
+investment portfolio	94
+invoice amount	94
+invoice number	96
+ip address	96
+issue resolution	94
+job application	96
+job description	98
+job interview	96
+job offer	96
+job opening	92
+job posting	94
+job satisfaction	90
+job title	94
+joint account	88
+joint venture	92
+journal entry	94
+kanban board	92
+key account	94
+key deliverables	90
+key findings	88
+key performance indicator	100
+key results	92
+key stakeholders	92
+key takeaway	88
+keyboard navigation	92
+keyboard shortcut	96
+keynote speaker	92
+kick off	94
+kick off meeting	94
+kind regards	98
+know your customer	92
+knowledge base	96
+knowledge graph	96
+knowledge sharing	90
+knowledge transfer	90
+known issue	94
+kubernetes cluster	96
+lab results	96
+laboratory results	94
+land transport	88
+land use right	90
+landing page	96
+language model	96
+laptop computer	92
+large language model	100
+last mile delivery	90
+last month	96
+last night	94
+last quarter	92
+last week	98
+layout shift	88
+lead generation	96
+lead qualification	90
+lead time	96
+leadership skills	92
+leadership training	90
+learning rate	96
+lease agreement	96
+least privilege	92
+leave approval	94
+leave balance	92
+leave request	98
+lecture notes	92
+legacy code	94
+legacy system	92
+legal advice	92
+legal counsel	94
+legal department	96
+legal entity	92
+legal framework	90
+legal proceedings	88
+legal representative	96
+lessons learned	90
+letter of credit	96
+letter of intent	94
+liability insurance	90
+license agreement	96
+licensed pharmacist	88
+life insurance	98
+light mode	92
+limitation of liability	92
+linear regression	92
+linked list	90
+literature review	96
+live chat	94
+living room	96
+living standard	92
+load balancer	96
+load balancing	94
+load testing	94
+loading dock	86
+loading state	90
+loan agreement	94
+loan application	94
+loan officer	88
+local area network	94
+local environment	92
+local government	94
+log aggregation	90
+logistic regression	90
+long term partnership	94
+long term strategy	88
+long weekend	94
+loss function	94
+low fidelity	88
+low latency	96
+low priority	86
+loyalty program	94
+mac address	90
+machine learning	100
+machine translation	92
+machine vision	88
+mail server	90
+maintenance fee	92
+maintenance window	94
+management fee	92
+managing director	94
+manufacturing date	92
+manufacturing plant	92
+manufacturing process	96
+market capitalization	88
+market expansion	88
+market leader	90
+market penetration	86
+market price	92
+market research	96
+market segmentation	92
+market share	96
+market trend	92
+marketing budget	94
+marketing campaign	98
+marketing materials	92
+marketing plan	96
+marketing strategy	96
+master data	90
+master degree	94
+master service agreement	94
+maternity leave	94
+maturity date	90
+mechanical keyboard	92
+media coverage	90
+media kit	88
+median value	90
+medical center	94
+medical device	94
+medical examination	94
+medical history	96
+medical insurance	94
+medical record	98
+medical staff	92
+medical treatment	94
+meeting agenda	96
+meeting minutes	98
+meeting notes	94
+meeting room	98
+memorandum of understanding	96
+memory allocation	92
+memory card	92
+memory footprint	90
+memory leak	96
+memory management	92
+memory safety	96
+memory usage	92
+mental health	98
+menu bar	94
+merge conflict	96
+mergers and acquisitions	94
+meta data	90
+metrics monitoring	92
+microservices architecture	94
+middle ware	86
+midterm exam	94
+mind map	90
+minimum order quantity	92
+minimum viable product	96
+minimum wage	94
+mission critical	94
+mission statement	88
+mobile app	98
+mobile application	96
+mobile banking	96
+mobile device	96
+mobile phone	96
+modal window	90
+model deployment	94
+model evaluation	94
+model inference	96
+model quantization	90
+model training	96
+model weights	92
+monday morning	94
+monetary policy	94
+month over month	94
+monthly active users	92
+monthly fee	94
+monthly installment	94
+monthly rent	96
+monthly report	96
+monthly review	90
+monthly statement	92
+mortgage loan	94
+motherboard chipset	86
+multi factor authentication	96
+multilateral agreement	88
+multimodal model	92
+mutex lock	90
+mutual agreement	94
+mutual fund	90
+mutual respect	92
+named entity recognition	90
+nation wide	88
+national budget	90
+national economy	92
+national holiday	94
+national security	94
+natural disaster	92
+natural gas	94
+natural language	96
+natural language generation	90
+natural language processing	98
+natural language understanding	92
+natural resources	94
+navigation bar	92
+nervous system	92
+net assets	90
+net income	96
+net profit	96
+net promoter score	92
+net revenue	94
+net salary	94
+net weight	92
+net worth	90
+net zero	94
+network bandwidth	92
+network cable	88
+network interface	92
+network latency	94
+network protocol	92
+network router	92
+network security	96
+network socket	90
+network switch	90
+network topology	88
+neural network	98
+next milestone	94
+next month	98
+next phase	94
+next quarter	96
+next steps	100
+next week	100
+next year	96
+noise pollution	90
+non disclosure agreement	98
+notarized copy	92
+notice period	94
+nuclear power	90
+null hypothesis	90
+null pointer	92
+nursing staff	90
+object detection	92
+object oriented	92
+object oriented programming	90
+objective function	90
+observability platform	90
+occupancy rate	88
+offer letter	96
+office building	96
+office hours	94
+office space	96
+official gazette	86
+official letter	92
+onboarding checklist	90
+onboarding flow	92
+onboarding process	96
+onboarding session	92
+one on one	94
+one time password	96
+one way ticket	90
+online banking	96
+online course	96
+online shopping	92
+online store	94
+open source	98
+open source project	92
+opening balance	92
+operating cost	94
+operating expenses	96
+operating income	92
+operating margin	94
+operating system	98
+operational cost	90
+operational efficiency	94
+operational excellence	90
+operational support	90
+operations manager	90
+optical character recognition	92
+order confirmation	96
+order fulfillment	94
+order history	92
+order number	96
+order status	96
+order tracking	94
+organic farming	90
+organic traffic	92
+organizational chart	92
+organizational structure	90
+original document	94
+out of order	90
+outbound note	88
+outbound sales	90
+outbound shipment	90
+outpatient clinic	90
+output device	88
+outstanding balance	96
+overdue balance	92
+overdue payment	92
+overtime hours	90
+overtime pay	92
+ownership certificate	94
+ownership transfer	92
+package manager	94
+packaging materials	90
+packing list	96
+page load	90
+paid time off	96
+paid traffic	88
+parking lot	94
+parking spot	92
+part time	94
+partial refund	90
+partnership agreement	94
+patent application	92
+paternity leave	92
+patient care	96
+patient safety	94
+payment confirmation	96
+payment gateway	94
+payment method	96
+payment receipt	94
+payment schedule	96
+payment terms	98
+payment voucher	92
+payroll processing	90
+payroll system	92
+peace of mind	92
+peak hours	92
+peak load	92
+peak traffic	90
+peer feedback	90
+peer review	96
+penetration testing	94
+pension fund	90
+performance appraisal	92
+performance bonus	94
+performance evaluation	96
+performance metrics	94
+performance review	98
+personal income tax	96
+personal loan	92
+personal protective equipment	90
+petty cash	88
+pharmaceutical company	92
+phase out	90
+phone call	96
+physical exam	92
+physical therapy	94
+pitch deck	94
+plumbing system	88
+point of contact	94
+point of sale	94
+point of view	94
+policy holder	94
+policy number	94
+policy terms	92
+population growth	90
+positive spirit	90
+post mortem	92
+power adapter	92
+power consumption	92
+power grid	94
+power of attorney	96
+power outage	94
+power plant	94
+power supply	94
+power user	90
+precision and recall	92
+predictive analytics	92
+prepaid card	88
+prescription drug	92
+prescription medication	94
+presentation slides	96
+press conference	92
+press release	96
+preventive care	92
+preventive maintenance	92
+price list	96
+pricing model	94
+pricing strategy	96
+pricing tier	90
+primary care	94
+primary key	94
+principal component analysis	88
+principal investigator	88
+principle of least privilege	90
+printed circuit board	90
+prior approval	94
+priority support	90
+privacy policy	98
+private equity	92
+private key	94
+private sector	96
+probability distribution	90
+probation period	96
+problem solving	94
+product backlog	96
+product catalog	92
+product demo	96
+product demonstration	94
+product design	96
+product development	96
+product feature	92
+product launch	98
+product lifecycle	92
+product line	92
+product management	100
+product manager	98
+product market fit	94
+product owner	96
+product quality	94
+product requirements	96
+product roadmap	98
+product specification	94
+product strategy	96
+product vision	94
+production capacity	96
+production cost	92
+production environment	96
+production line	98
+production plan	94
+production run	90
+production schedule	96
+professional development	96
+profit and loss	98
+profit margin	96
+proforma invoice	90
+progress report	96
+project budget	88
+project charter	84
+project deliverable	90
+project kickoff	88
+project management	100
+project manager	98
+project milestone	90
+project roadmap	90
+project schedule	94
+project scope	92
+project status	92
+project timeline	94
+promotional campaign	92
+promotional offer	92
+promotional video	90
+prompt engineering	96
+prompt reply	94
+prompt response	96
+prompt template	90
+proof of concept	96
+property insurance	90
+property management	94
+property owner	92
+property tax	90
+property value	94
+proprietary information	92
+pros and cons	94
+protective gear	88
+proxy server	90
+public administration	96
+public health	96
+public holiday	96
+public infrastructure	92
+public key	94
+public key infrastructure	92
+public opinion	92
+public policy	94
+public procurement	92
+public relations	96
+public safety	94
+public sector	96
+public service	96
+public tender	90
+public transport	94
+public transportation	94
+pull request	100
+purchase agreement	92
+purchase order	100
+purchase price	92
+purchase requisition	92
+purchasing power	92
+quality assurance	100
+quality check	92
+quality control	98
+quality management	96
+quality standard	94
+quantity surveyor	88
+quarter over quarter	92
+quarterly budget	92
+quarterly earnings	92
+quarterly goals	92
+quarterly report	96
+quarterly review	94
+query optimization	90
+quick call	96
+quick look	94
+quick question	96
+quick reminder	96
+quick sync	96
+quick update	96
+race condition	94
+random access memory	94
+random forest	90
+ransomware attack	90
+rate limiting	94
+raw data	94
+raw materials	98
+read write lock	88
+real estate	100
+real estate agent	92
+real time	98
+real time data	96
+real time monitoring	94
+recommendation system	94
+recovery period	92
+recruiting team	92
+reference architecture	90
+reference check	92
+reference data	88
+reference list	92
+reference number	94
+refresh rate	92
+refresh token	92
+refund policy	94
+regional director	86
+registered capital	90
+registered user	90
+regression test	96
+regression testing	94
+regular expression	94
+regulatory approval	92
+regulatory compliance	96
+regulatory requirements	94
+reimbursement form	92
+reinforcement learning	96
+release candidate	98
+release cycle	90
+release management	90
+release notes	98
+release plan	94
+remote work	96
+renewable energy	98
+rental agreement	94
+reorder point	88
+repair service	90
+repayment schedule	92
+replacement parts	92
+replacement unit	90
+request for information	92
+request for proposal	96
+request for quotation	96
+research and development	96
+research findings	92
+research grant	92
+research method	94
+research methodology	94
+research paper	98
+research project	98
+research team	94
+residential area	92
+residential property	94
+resignation letter	96
+resolution time	94
+resource allocation	92
+resource planning	88
+response time	98
+responsive design	94
+responsive layout	90
+retail price	90
+retention period	90
+retention rate	96
+retirement plan	90
+retrieval augmented generation	94
+return on ad spend	92
+return on assets	90
+return on equity	92
+return on investment	98
+return policy	94
+revenue forecast	90
+revenue growth	94
+revenue stream	92
+revenue target	90
+reverse proxy	94
+revised timeline	94
+risk assessment	94
+risk management	96
+risk mitigation	92
+role based access control	94
+roles and responsibilities	94
+roll out	94
+rolling update	92
+root cause	96
+root cause analysis	98
+round trip	96
+round trip ticket	94
+routine maintenance	90
+routing number	88
+rule of thumb	92
+rules and regulations	94
+runtime environment	92
+runtime error	94
+runtime performance	90
+rural development	88
+safe trip	94
+safety equipment	94
+safety stock	90
+salary expectations	92
+salary review	92
+salary statement	90
+sales forecast	94
+sales funnel	94
+sales manager	94
+sales order	94
+sales pipeline	96
+sales pitch	90
+sales representative	94
+sales revenue	94
+sales target	96
+sales team	96
+sample size	94
+satisfaction survey	92
+savings account	96
+scale up	92
+schedule conflict	96
+scheduled maintenance	96
+scheduling conflict	96
+scholarship application	92
+scholarship program	92
+scientific research	96
+scope of work	98
+screen reader	92
+screen resolution	94
+screen sharing	94
+scrum master	94
+sea freight	90
+search bar	94
+search engine	96
+search engine marketing	92
+search engine optimization	96
+search results	96
+secret management	92
+security audit	96
+security clearance	88
+security code	92
+security deposit	96
+security incident	94
+security patch	94
+security policy	94
+segmentation fault	92
+self assessment	92
+self attention	90
+self supervised learning	90
+selling price	92
+semantic search	94
+semantic versioning	92
+sentiment analysis	92
+sequence diagram	90
+serial number	96
+serial port	88
+serverless computing	92
+serverless function	90
+service agreement	96
+service center	92
+service desk	92
+service discovery	90
+service level agreement	96
+service level indicator	90
+service level objective	92
+service mesh	90
+session management	90
+settings menu	92
+settlement agreement	92
+severance package	90
+severance pay	88
+shadow traffic	86
+shareholder agreement	92
+shareholder meeting	90
+shareholder value	92
+shelf life	90
+shipping address	98
+shipping cost	94
+shipping fee	96
+shipping label	90
+shipping method	92
+shop drawing	92
+shopping cart	94
+short term goal	86
+shortcut key	92
+sick leave	98
+side effects	96
+sign off	96
+signal strength	92
+signing bonus	88
+signing date	94
+similarity search	92
+sincere apologies	94
+single room	92
+single sign on	96
+site inspection	92
+site reliability engineering	94
+site safety	94
+site supervisor	92
+skill set	94
+skip level	88
+slide deck	96
+smart home	92
+smart phone	94
+smart speaker	88
+smart watch	90
+social insurance	96
+social media	100
+social network	94
+social security	94
+social welfare	92
+soft copy	94
+soft skills	94
+software architecture	96
+software development	100
+software development kit	94
+software engineer	96
+software engineering	100
+software license	88
+software requirement	90
+solar panel	94
+solar power	96
+solid state drive	94
+sort order	90
+source code	100
+source control	92
+source file	88
+spare parts	94
+special discount	92
+special economic zone	90
+speech recognition	94
+speech synthesis	90
+speedy recovery	94
+spring semester	92
+sprint backlog	92
+sprint planning	96
+sprint retrospective	94
+sprint review	94
+sql injection	92
+square feet	92
+square meters	96
+stack overflow	92
+stack trace	94
+staging environment	94
+stakeholder engagement	88
+stakeholder management	92
+stand up meeting	92
+standard deviation	92
+standard operating procedure	96
+standing order	88
+state agency	92
+state machine	94
+state of the art	92
+statement of work	96
+static analysis	94
+statistical analysis	94
+statistical significance	92
+status bar	92
+status report	94
+status update	96
+stochastic gradient descent	88
+stock exchange	92
+stock market	94
+stored procedure	88
+strategic alignment	88
+strategic initiative	90
+strategic objective	90
+strategic partnership	94
+strategic planning	96
+stress testing	92
+structural engineering	92
+structured data	92
+student council	88
+student loan	88
+study guide	92
+subcontractor agreement	88
+success rate	96
+successful partnership	94
+summary report	94
+summer vacation	92
+supervised learning	94
+supplier evaluation	90
+supply and demand	92
+supply chain	100
+supply chain management	96
+support engineer	92
+support request	94
+support team	98
+support ticket	96
+supporting documents	96
+survey questionnaire	90
+survey results	94
+sustainable development	98
+swift code	92
+swot analysis	88
+sync up	92
+syntax error	94
+syntax highlighting	90
+synthetic data	90
+system architecture	96
+system call	92
+system configuration	90
+system design	96
+system log	92
+system performance	90
+system tray	94
+talent acquisition	96
+talent management	92
+target audience	98
+target customer	94
+target group	92
+target market	96
+tax authority	90
+tax code	94
+tax compliance	94
+tax deduction	92
+tax exemption	90
+tax invoice	96
+tax rate	92
+tax return	96
+team building	94
+team leader	96
+team meeting	96
+team member	98
+team spirit	92
+team standup	94
+technical architecture	90
+technical debt	96
+technical documentation	94
+technical report	94
+technical skills	94
+technical specification	94
+technical support	98
+tender documents	94
+term deposit	90
+terms and conditions	100
+terms of reference	90
+terms of service	98
+terms of use	94
+test case	96
+test coverage	94
+test data	92
+test driven development	90
+test environment	90
+test harness	88
+test suite	94
+text classification	92
+text generation	94
+text prediction	96
+thesis defense	94
+third party	96
+this afternoon	98
+this evening	96
+this friday	94
+this month	98
+this morning	98
+this quarter	96
+this week	100
+thread pool	92
+thread safety	96
+thread synchronization	90
+threat intelligence	90
+threat modeling	90
+throughput capacity	88
+ticket escalation	90
+time frame	94
+time limit	92
+time management	92
+time sensitive	94
+time series	94
+time series analysis	92
+time slot	94
+time zone	96
+timesheet submission	92
+title deed	90
+token limit	92
+tomorrow afternoon	96
+tomorrow morning	98
+top floor	90
+top priority	94
+total amount	96
+total cost	96
+total number	94
+total revenue	96
+total value	94
+touch screen	94
+town hall	90
+town hall meeting	90
+tracking number	96
+trade balance	92
+trade barrier	88
+trade deficit	90
+trade secret	90
+trade surplus	90
+trademark registration	90
+training data	96
+training materials	92
+training program	96
+training session	96
+transaction fee	92
+transaction history	94
+transaction id	92
+transfer learning	92
+transformer architecture	94
+transport layer security	94
+travel insurance	92
+travel itinerary	92
+treatment cost	92
+treatment plan	96
+trial and error	92
+trial balance	92
+troubleshooting guide	92
+tuition fee	96
+turnaround time	94
+turnover rate	90
+two factor authentication	96
+type checking	90
+type inference	90
+type system	92
+typography scale	88
+undergraduate student	92
+underwriting process	88
+unemployment insurance	92
+unemployment rate	94
+unit cost	92
+unit price	96
+unit test	98
+unit testing	96
+unpaid leave	92
+unstructured data	90
+unsupervised learning	92
+updated version	96
+urban development	92
+urban planning	92
+usability testing	94
+user acceptance testing	96
+user account	96
+user authentication	94
+user experience	100
+user feedback	96
+user flow	94
+user guide	94
+user interface	100
+user journey	94
+user manual	94
+user permission	92
+user persona	92
+user profile	94
+user research	96
+user session	92
+user story	96
+user testing	94
+utility bills	94
+utilization rate	90
+vaccination record	90
+validation data	92
+valuation multiple	88
+value added tax	98
+value chain	90
+value proposition	94
+vector database	96
+vector embedding	94
+vector search	94
+vendor management	92
+venture capital	94
+version control	96
+version history	88
+version number	90
+vertical scaling	90
+vice president	94
+video call	96
+video conference	96
+virtual machine	94
+virtual memory	90
+virtual private cloud	92
+virtual private network	94
+vision statement	88
+visual design	94
+vital signs	92
+vocational training	90
+voice assistant	90
+vulnerability assessment	94
+vulnerability scan	92
+warehouse management	96
+warm regards	98
+warranty card	90
+warranty claim	92
+warranty clause	90
+warranty period	94
+waste disposal	90
+waste management	94
+water quality	92
+water supply	94
+water treatment	92
+wealth management	90
+weather forecast	96
+web application	96
+web browser	94
+web page	94
+web server	94
+web site	92
+weekly report	96
+weekly update	92
+white paper	94
+wholesale price	90
+wide area network	90
+wind power	94
+wind turbine	90
+wire transfer	96
+wireframe prototype	90
+wireless charger	90
+wireless headphones	90
+wireless mouse	92
+wireless network	96
+withholding tax	94
+wonderful day	96
+word of mouth	92
+work environment	96
+work from home	96
+work life balance	96
+work schedule	94
+working capital	96
+working days	98
+working directory	92
+working hours	96
+working order	88
+workplace safety	94
+world wide	90
+wrap up	92
+written consent	94
+year over year	96
+zero allocation	90
+zero copy	90
+zero downtime	94
+zero trust	94
+zero trust architecture	90

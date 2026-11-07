@@ -31,6 +31,12 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
     gõ tiếp gạch thứ ba `---` hoàn nguyên `---` cho Markdown/code.
   - Tiến hóa học từ cá nhân thời gian thực (in-session continuous learning, bigram learning
     và Frecency aging tự động giảm nửa trọng số khi đầy bộ nhớ để từ mới nổi lên nhanh).
+- **Dự đoán tiếng Anh chất lượng tương đương tiếng Việt & hoạt động trên cả 2 chế độ (Mode EN & Mode VI)**:
+  - Bổ sung từ điển từ ghép & cụm danh từ tiếng Anh `data/en_compounds.txt` (**1.957 mục** trải rộng 16 domain: kinh doanh, quản trị, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán-thuế, ngân hàng-bảo hiểm, nhân sự, marketing-thương mại điện tử, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý-hợp đồng, bất động sản-xây dựng, y tế, giáo dục-nghiên cứu, giao tiếp công sở) tương đương `vn_compounds.txt` (1.941 mục).
+  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.849 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
+  - Hỗ trợ đầy đủ dự đoán tiếng Anh ở **cả 2 chế độ**:
+    1. **Mode EN (`E`, tắt tiếng Việt)**: hoàn tất tiền tố từ đơn & từ ghép (`machine` + Tab → `machine learning`), duyệt vòng 5 ứng viên bằng Tab, dự đoán câu/cụm tiếp theo (`Thank you` + Tab → `Thank you very much`, `looking forward` + Tab → `looking forward to hearing from you soon`), chữ mờ gợi ý sẵn (`peek_completion`), và tự học từ cá nhân (Dream RSI).
+    2. **Mode VI (`V`, bật tiếng Việt)**: khi phát hiện từ hoặc câu tiếng Anh (kể cả khi đang bị Telex biến đổi như `customer` → `cútomer`, `looking forward` → `looking fỏwad`, `in order` → `in ỏder`, `feel free` → `feel frê`, `see` → `sê`), tự động khôi phục và gợi ý chính xác từ đơn, từ ghép và mẫu câu tiếng Anh tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
 
 ### Fixed
 - **Chuẩn hoá bộ đếm `keys_typed` đa nền tảng**: Sử dụng predicate `k.printable().is_some() && !k.is_ctrl_space()`
@@ -59,7 +65,17 @@ strict Opt-in consent enforcement, panic-safe FFI boundaries, real-time in-sessi
 learning, and Frecency aging. Adds standard Vietnamese Telex conveniences: `[` / `]` for
 `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`) with double-bracket escape (`[[` → `[`, `]]` → `]`,
 and `[]` preserved for code), standalone `Ctrl` tap to lock/keep the current word (`tunx`,
-`Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (with `---` undo).
+`Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (with `---` undo). Brings
+English text prediction to full parity with Vietnamese across **both modes (Mode EN and Mode VI)**:
+adds `data/en_compounds.txt` (**1,957 English compounds & collocations** across 16 domains, matching
+`vn_compounds.txt`'s 1,941 entries) and expands `data/en_phrases.tsv` to **8,849 phrase/sentence
+rows** (matching `vn_phrases.tsv`'s 8,782 rows, bringing total corpora to **41,415 entries**);
+delivers single-word prefix completion, compound completion (`machine` + Tab → `machine learning`),
+5-candidate Tab cycling, next-phrase prediction (`looking forward` + Tab → `looking forward to hearing from you soon`),
+ghost text preview (`peek_completion`), and Dream RSI learning in **Mode EN (`E`)**, as well as
+automatic English word/compound/sentence prediction in **Mode VI (`V`)** even when Telex-folded
+(`customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab →
+`looking forward to hearing from you soon`, `see` → `sê` + Tab → `seem`) while preserving Vietnamese syllable guards.
 
 ---
 

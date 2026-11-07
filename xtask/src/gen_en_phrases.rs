@@ -345,6 +345,78 @@ pub fn run() -> Result<(), String> {
         "Each department's spending limit is approved by the annual budget",
         "The weekly report is due before five pm every Friday",
         "All files must be archived within the required retention period",
+        // ---- Software engineering / AI / Cloud / DevOps / Security (40) ----
+        "We need to run the full regression test suite before tagging a release",
+        "The continuous integration pipeline passed all unit and integration tests",
+        "Please make sure there are no compiler warnings or clippy lints in your branch",
+        "The memory footprint was reduced by forty percent after optimizing the cache",
+        "All public functions across the foreign function interface must catch panics",
+        "The pull request has been reviewed and approved by the core maintainers",
+        "We should add a regression test case to reproduce the reported edge case",
+        "The database migration script will run automatically during deployment",
+        "Please verify the cryptographic signature and checksum of the release binary",
+        "The load balancer distributes incoming traffic evenly across all healthy nodes",
+        "Our zero trust security policy requires multi factor authentication for access",
+        "The large language model was fine tuned on domain specific technical data",
+        "Vector embeddings are indexed in memory for sub millisecond similarity search",
+        "The incident response team identified the root cause within fifteen minutes",
+        "We deployed a hotfix to production with zero downtime using rolling updates",
+        "Please rotate the expired API keys and update the secret management vault",
+        "The distributed tracing logs show a latency spike in the payment microservice",
+        "All user data is processed locally on device without any network telemetry",
+        "The input method engine supports both Vietnamese Telex VNI and English prediction",
+        "Typing tab cycles through the top five ranked completion candidates smoothly",
+        "Personal vocabulary frecency weights adapt automatically to your writing style",
+        "The release candidate passed all twenty three preflight verification gates",
+        "Please check the documentation for detailed installation and configuration steps",
+        "We recommend upgrading to the latest stable version for security patches",
+        "The configuration schema is validated strictly before applying user settings",
+        "Thread synchronization is handled safely without risking deadlocks or data races",
+        "The automated benchmark measures keystroke savings rate across bilingual corpora",
+        "Please open an issue on the repository if you encounter any unexpected behavior",
+        "The feature flag allows us to roll out the new algorithm gradually to users",
+        "Static analysis tools caught a potential null pointer dereference early",
+        "The system architecture decouples the pure core engine from platform adapters",
+        "High availability is guaranteed by active passive failover across two regions",
+        "The backup snapshot is verified daily to ensure reliable disaster recovery",
+        "Please squash your commits and write a clear conventional commit message",
+        "The query execution plan was optimized by adding a composite database index",
+        "Rate limiting headers are returned on every API response to prevent abuse",
+        "The user interface adapts automatically to system light and dark mode themes",
+        "Keyboard navigation and screen reader accessibility are supported out of the box",
+        "The package manager resolves transitive dependencies deterministically via lockfile",
+        "End to end encryption protects sensitive messages from unauthorized interception",
+        // ---- Product / UX / Marketing / E-commerce / Operations (30) ----
+        "The product roadmap for the upcoming year focuses on user experience and speed",
+        "User research findings indicate a strong demand for bilingual text prediction",
+        "The design system provides reusable components with consistent spacing and colors",
+        "Our conversion rate increased by fifteen percent after simplifying the checkout flow",
+        "The marketing campaign will launch across all digital channels next Tuesday",
+        "Customer satisfaction scores reached an all time high in the fourth quarter",
+        "We need to align our go to market strategy with the enterprise sales team",
+        "The minimum viable product will be ready for beta testing by mid November",
+        "Please review the wireframes and leave your comments directly on the design file",
+        "The sprint retrospective highlighted several opportunities to improve velocity",
+        "Our customer support team resolves ninety percent of tickets on first contact",
+        "The quarterly business review deck is ready for the executive board meeting",
+        "We are expanding our distribution network to reach emerging regional markets",
+        "The promotional offer is valid until midnight on the last day of the month",
+        "Customer feedback from the beta program shaped our top priority features",
+        "The onboarding flow guides new users through essential settings in two minutes",
+        "We track daily active users and retention metrics on the analytics dashboard",
+        "The pricing model offers a generous free tier alongside enterprise support plans",
+        "Please coordinate with the public relations agency on the official press release",
+        "The supply chain team secured alternative vendors to mitigate lead time risks",
+        "Quality assurance signed off on the release candidate after thorough testing",
+        "The cross functional team meets every morning for a fifteen minute standup",
+        "Our annual revenue exceeded the initial financial forecast by twelve percent",
+        "The stakeholder alignment session helped clarify project scope and priorities",
+        "Please attach the signed statement of work to the procurement purchase order",
+        "The service level agreement guarantees ninety nine point nine percent uptime",
+        "We conduct regular usability testing sessions to identify friction points",
+        "The brand guidelines specify the exact typography scale and color palette",
+        "Inventory levels are synchronized in real time across all retail warehouses",
+        "Thank you for your continued trust and partnership throughout the past year",
     ];
 
     for s in sentences {
@@ -473,8 +545,12 @@ pub fn run() -> Result<(), String> {
         ("please let me", "know", 100),
         ("please find", "attached", 100),
         ("please check", "and confirm", 95),
+        ("feel free", "to contact me", 100),
+        ("feel free", "to reach out", 95),
         ("feel free to", "contact me", 100),
         ("feel free to", "reach out", 95),
+        ("in order", "to ensure", 100),
+        ("in order", "to avoid", 90),
         ("in order to", "ensure", 100),
         ("in order to", "avoid", 90),
         ("best", "regards", 100),
@@ -1448,7 +1524,7 @@ pub fn run() -> Result<(), String> {
         add(ctx, pred, weight);
     }
 
-    // 4b. Ma trận subject × predicate (mọi tổ hợp tự nhiên).
+    // 4b. Ma trận subject × predicate (mọi tổ hợp tự nhiên — ghi cả khoá 1 từ và 2 từ).
     for subject in [
         "I",
         "We",
@@ -1458,6 +1534,12 @@ pub fn run() -> Result<(), String> {
         "She",
         "They",
         "The client",
+        "The manager",
+        "The company",
+        "The system",
+        "Our support team",
+        "The project manager",
+        "The engineering team",
     ] {
         for predicate in [
             "will get back to you shortly",
@@ -1479,8 +1561,20 @@ pub fn run() -> Result<(), String> {
             "has agreed to support this task",
             "will attend the training session tomorrow",
             "has escalated the issue to management",
+            "will review the proposal this afternoon",
+            "has completed the initial assessment",
+            "will send the updated report by Friday",
+            "is scheduled to present at the meeting",
+            "has confirmed the delivery schedule",
+            "will follow up with the stakeholders",
+            "has verified all the requirements",
+            "is ready to proceed with the next phase",
+            "will coordinate with the technical team",
         ] {
             add(subject, predicate, 88);
+            if let Some((first, rest)) = predicate.split_once(' ') {
+                add(&format!("{subject} {first}"), rest, 90);
+            }
         }
     }
 
@@ -1652,12 +1746,108 @@ pub fn run() -> Result<(), String> {
                 "the project to the new lead",
             ],
         ),
+        (
+            "check",
+            &[
+                "the status of the order",
+                "the attached file for details",
+                "the system logs for errors",
+                "the calendar for availability",
+                "the inventory levels in the warehouse",
+                "the build output on the server",
+            ],
+        ),
+        (
+            "approve",
+            &[
+                "the expense claim before Friday",
+                "the leave request in the portal",
+                "the purchase order for new equipment",
+                "the revised project budget",
+                "the pull request after code review",
+                "the final design specification",
+            ],
+        ),
+        (
+            "submit",
+            &[
+                "the reimbursement form with receipts",
+                "the timesheet before the deadline",
+                "the bid documents on time",
+                "the tax return before month end",
+                "the bug report with reproduction steps",
+                "the application before the closing date",
+            ],
+        ),
+        (
+            "verify",
+            &[
+                "the account details before transfer",
+                "the checksum of the downloaded file",
+                "the customer identity and address",
+                "the test results on all platforms",
+                "the figures in the summary table",
+                "the configuration in staging",
+            ],
+        ),
+        (
+            "discuss",
+            &[
+                "the next steps during our call",
+                "the resource allocation for Q4",
+                "the contract terms with legal counsel",
+                "the feedback from the client",
+                "the technical architecture in detail",
+                "the timeline adjustments with the team",
+            ],
+        ),
+        (
+            "finalize",
+            &[
+                "the agenda for the board meeting",
+                "the contract terms this week",
+                "the release notes before tagging",
+                "the headcount plan for next year",
+                "the pricing structure for enterprise",
+                "the slides for tomorrow's presentation",
+            ],
+        ),
+        (
+            "organize",
+            &[
+                "a training workshop for new hires",
+                "a retrospective session on Friday",
+                "the project files in the shared drive",
+                "a town hall meeting next month",
+                "a team building activity this quarter",
+                "a debrief call with stakeholders",
+            ],
+        ),
+        (
+            "coordinate",
+            &[
+                "with the logistics provider on delivery",
+                "with the engineering team on release",
+                "with the finance department on billing",
+                "with the vendor on maintenance schedule",
+                "with human resources on onboarding",
+                "with the marketing team on the launch",
+            ],
+        ),
     ];
     for (verb, objects) in verb_objects {
         for obj in *objects {
             add(verb, obj, 88);
             add(&format!("kindly {verb}"), obj, 78);
             add(&format!("could you {verb}"), obj, 78);
+            add(&format!("we will {verb}"), obj, 78);
+            add(&format!("i will {verb}"), obj, 78);
+            add(&format!("let's {verb}"), obj, 78);
+            add(&format!("need to {verb}"), obj, 78);
+            add(&format!("please {verb}"), obj, 80);
+            add(&format!("can you {verb}"), obj, 78);
+            add(&format!("we should {verb}"), obj, 76);
+            add(&format!("going to {verb}"), obj, 76);
         }
     }
 
@@ -1675,6 +1865,14 @@ pub fn run() -> Result<(), String> {
         "finalize the proposal",
         "update the status",
         "share the slides",
+        "approve the budget",
+        "complete the code review",
+        "deploy the release",
+        "verify the invoice",
+        "upload the documents",
+        "finish the assessment",
+        "deliver the shipment",
+        "resolve the ticket",
     ] {
         for deadline in [
             "by end of day",
@@ -1687,6 +1885,10 @@ pub fn run() -> Result<(), String> {
             "by the deadline",
             "as soon as possible",
             "before month end",
+            "by tomorrow morning",
+            "by five o'clock today",
+            "within two business days",
+            "before the end of the quarter",
         ] {
             add(action, deadline, 84);
         }
@@ -1699,6 +1901,9 @@ pub fn run() -> Result<(), String> {
         "Have a great",
         "Have a wonderful",
         "Wishing you",
+        "Hope you have",
+        "Wishing your team",
+        "Sending you",
     ] {
         for wish in [
             "day ahead",
@@ -1711,6 +1916,8 @@ pub fn run() -> Result<(), String> {
             "success in your new role",
             "a safe trip",
             "great success",
+            "a productive week ahead",
+            "a fantastic celebration",
         ] {
             add(greeting, wish, 82);
         }
@@ -1728,6 +1935,12 @@ pub fn run() -> Result<(), String> {
         "the annual audit",
         "the training session",
         "the onboarding call",
+        "the architecture review",
+        "the sprint planning session",
+        "the design critique",
+        "the budget alignment call",
+        "the vendor negotiation",
+        "the release readiness check",
     ] {
         for time in [
             "at ten o'clock",
@@ -1740,6 +1953,10 @@ pub fn run() -> Result<(), String> {
             "after lunch",
             "this Friday",
             "next week",
+            "at three pm today",
+            "on Tuesday morning",
+            "early next week",
+            "before noon tomorrow",
         ] {
             add(purpose, time, 82);
         }
@@ -1767,6 +1984,17 @@ pub fn run() -> Result<(), String> {
         "the team agreed to",
         "please confirm that",
         "make sure that the",
+        "we are planning to",
+        "i will make sure to",
+        "would you like to",
+        "we are ready to",
+        "it is necessary to",
+        "please take time to",
+        "we decided to",
+        "i am going to",
+        "be sure to",
+        "we will continue to",
+        "let us know if we can",
     ];
     let subjects_pred = [
         // Office / Workplace (15)
@@ -1839,6 +2067,17 @@ pub fn run() -> Result<(), String> {
         "vibe check the team and ensure support",
         "delulu is not the solulu for this deadline",
         "hit different when everything runs smoothly",
+        // Finance, Legal, Logistics & Operations (10)
+        "reconcile the bank statement before the audit",
+        "submit the customs declaration for the shipment",
+        "verify the electronic invoice and tax code",
+        "prepare the quarterly cash flow forecast",
+        "review the service level agreement terms",
+        "update the inventory levels in the warehouse",
+        "finalize the procurement purchase order today",
+        "complete the annual compliance training module",
+        "coordinate with the freight forwarder on delivery",
+        "sign the memorandum of understanding this week",
     ];
 
     for &p in &infinitive_prefixes {

@@ -713,3 +713,165 @@ fn test_personal_frecency_ranking_and_next_phrase_learning() {
     let m_single = predict_next_phrase_matches_with_personal("Công ty công", 3, &personal_phrases);
     assert!(m_single.iter().any(|p| p.prediction == "nghệ tiên tiến"));
 }
+
+/// Kiểm thử dự đoán tiếng Anh chất lượng cao ở cả 2 chế độ:
+/// 1. Mode EN (`enabled: false` — bộ gõ ở chế độ E): hoàn tất tiền tố từ đơn, từ ghép
+///    (`en_compounds.txt`), duyệt vòng nhiều ứng viên bằng Tab, dự đoán câu/cụm tiếp theo
+///    (`en_phrases.tsv`), chữ mờ gợi ý sẵn (`peek_completion`), và học từ cá nhân (Dream RSI).
+/// 2. Mode VI (`enabled: true` — bộ gõ ở chế độ V): khi phát hiện từ hoặc câu tiếng Anh
+///    (kể cả khi bị Telex biến đổi tạm thời như `"customer"` -> `"cútomer"`, `"looking forward"` -> `"looking fỏwad"`),
+///    gợi ý chính xác tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
+#[test]
+fn test_english_prediction_in_both_en_mode_and_vi_mode() {
+    // --- PHẦN 1: MODE EN (`enabled: false, suggest_vn_complete: true`) ---
+    let en_engine = || {
+        Engine::new(EngineOptions {
+            method: Method::Telex,
+            enabled: false,
+            suggest_vn_complete: true,
+            style_learning_enabled: true,
+            ..Default::default()
+        })
+    };
+
+    // 1a. Hoàn tất từ ghép tiếng Anh (`en_compounds.txt`) ở Mode EN:
+    for (input, want) in [
+        ("machine\t", "machine learning"),
+        ("Machine\t", "Machine learning"),
+        ("MACHINE\t", "MACHINE LEARNING"),
+        ("customer\t", "customer service"),
+        ("project\t", "project management"),
+        ("artificial\t", "artificial intelligence"),
+        ("pull\t", "pull request"),
+        ("source\t", "source code"),
+    ] {
+        assert_eq!(
+            typed(&mut en_engine(), input),
+            want,
+            "Mode EN compound: {input:?}"
+        );
+    }
+
+    // 1b. Duyệt vòng ứng viên (Tab cycling) ở Mode EN:
+    let mut e_cycle = en_engine();
+    let mut doc_cycle = Vec::new();
+    for c in "customer".chars() {
+        press_key(&mut e_cycle, &mut doc_cycle, &key_for_char(c));
+    }
+    // Chữ mờ xem trước (ghost text) ở Mode EN:
+    assert_eq!(e_cycle.peek_completion().as_deref(), Some(" service"));
+    press_key(&mut e_cycle, &mut doc_cycle, &key_for_char('\t'));
+    assert_eq!(doc_cycle.iter().collect::<String>(), "customer service");
+    press_key(&mut e_cycle, &mut doc_cycle, &key_for_char('\t'));
+    assert_eq!(doc_cycle.iter().collect::<String>(), "customer support");
+
+    // 1c. Hoàn tất tiền tố từ đơn ở Mode EN (cả từ ngắn từng trùng âm Việt như "con", "pro"):
+    assert_eq!(typed(&mut en_engine(), "develop\t"), "develops");
+    assert_eq!(typed(&mut en_engine(), "technic\t"), "technical");
+
+    // 1d. Dự đoán câu / cụm từ tiếp theo (`en_phrases.tsv`) ở Mode EN:
+    for (input, want) in [
+        ("Thank you\t", "Thank you very much"),
+        ("Thank you \t", "Thank you very much"),
+        (
+            "looking forward\t",
+            "looking forward to hearing from you soon",
+        ),
+        (
+            "looking forward to\t",
+            "looking forward to hearing from you",
+        ),
+        ("Please find\t", "Please find attached"),
+        ("please find \t", "please find attached"),
+        ("in order\t", "in order to ensure"),
+        ("feel free\t", "feel free to contact me"),
+        ("in order to\t", "in order to ensure"),
+        ("feel free to\t", "feel free to contact me"),
+    ] {
+        assert_eq!(
+            typed(&mut en_engine(), input),
+            want,
+            "Mode EN phrase: {input:?}"
+        );
+    }
+
+    // 1e. Dream RSI & học từ cá nhân ở Mode EN:
+    let mut e_rsi = en_engine();
+    let _ = typed(&mut e_rsi, "kubernetes ");
+    let snap = e_rsi.dream_rsi_snapshot();
+    assert!(snap.keys_typed >= 11);
+    let learned = e_rsi.style_peek_json();
+    assert!(
+        learned.contains("kubernetes"),
+        "Mode EN phải học từ gõ xong vào style profile: {learned}"
+    );
+
+    // --- PHẦN 2: MODE VI (`enabled: true, suggest_vn_complete: true`) ---
+    let vi_engine = || {
+        Engine::new(EngineOptions {
+            method: Method::Telex,
+            enabled: true,
+            suggest_vn_complete: true,
+            auto_restore_english: true,
+            ..Default::default()
+        })
+    };
+
+    // 2a. Từ ghép tiếng Anh ở Mode VI (kể cả khi bị Telex biến đổi thành "cútomer", "sỏuce", "artìicial"):
+    for (input, want) in [
+        ("machine\t", "machine learning"),
+        ("customer\t", "customer service"),
+        ("Customer\t", "Customer service"),
+        ("customer\t\t", "customer support"),
+        ("project\t", "project management"),
+        ("artificial\t", "artificial intelligence"),
+        ("pull\t", "pull request"),
+        ("source\t", "source code"),
+    ] {
+        assert_eq!(
+            typed(&mut vi_engine(), input),
+            want,
+            "Mode VI EN compound: {input:?}"
+        );
+    }
+
+    // 2b. Câu / cụm tiếng Anh ở Mode VI khi từ cuối bị Telex fold ("forward" -> "fỏwad", "order" -> "ỏder", "free" -> "frê"):
+    for (input, want) in [
+        ("Thank you\t", "Thank you very much"),
+        (
+            "looking forward\t",
+            "looking forward to hearing from you soon",
+        ),
+        (
+            "Looking forward\t",
+            "Looking forward to hearing from you soon",
+        ),
+        (
+            "looking forward to\t",
+            "looking forward to hearing from you",
+        ),
+        ("in order\t", "in order to ensure"),
+        ("feel free\t", "feel free to contact me"),
+        ("in order to\t", "in order to ensure"),
+        ("feel free to\t", "feel free to contact me"),
+        ("Please find\t", "Please find attached"),
+        ("please find \t", "please find attached"),
+    ] {
+        assert_eq!(
+            typed(&mut vi_engine(), input),
+            want,
+            "Mode VI EN phrase: {input:?}"
+        );
+    }
+
+    // 2c. Từ ngắn tiếng Anh trong `en_common` bị fold ("see" -> "sê") ở Mode VI:
+    // Trước đây `try_vn_complete` cướp "sê" thành "sên"; nay nhường cho `try_english_complete` -> "seem".
+    assert_eq!(typed(&mut vi_engine(), "see\t"), "seem");
+
+    // 2d. Bảo vệ tiếng Việt ở Mode VI: từ Việt hợp lệ vẫn hoàn tất tiếng Việt chuẩn:
+    assert_eq!(typed(&mut vi_engine(), "phats\t"), "phát triển");
+    assert_eq!(
+        typed(&mut vi_engine(), "coongj hoaf\t"),
+        "cộng hòa xã hội chủ nghĩa Việt Nam"
+    );
+}

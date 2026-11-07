@@ -125,13 +125,13 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 - 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase)
 - Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`)
 
-**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora 35.681 mục:
-6.672 âm tiết Việt + 1.941 từ ghép (13 domain mới: bất động sản, ngân hàng-bảo
-hiểm, logistics, sản xuất, đấu thầu, y tế, du lịch…) + 9.868 từ Anh + 13.854 cặp
-câu/cụm/thành ngữ (câu thật chia mọi ranh giới từ, thành ngữ thật, curated văn
-phòng theo role); User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in,
-100% offline, cap 200 từ / 50 cặp); Tab/Ctrl+Space hoàn tất từ & đoán cụm;
-xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
+**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.415 mục** song ngữ chất lượng tương đương:
+6.672 âm tiết Việt + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành)
++ **9.868 từ đơn Anh + 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
++ **17.631 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.849 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
+dự đoán tiếng Anh hoạt động đồng nhất ở **cả 2 chế độ**: **Mode EN (`E`)** (hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost text, học từ Dream RSI) và **Mode VI (`V`)** (tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold như `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
+User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, cap 200 từ / 50 cặp);
+Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
 
 **Kiểu gõ & biến đổi (chuẩn UniKey 20 năm)**
 - Vần `uo` chuẩn UniKey: `luong`/`uong`/`truong.giap` giữ nguyên khi không dấu;
@@ -152,11 +152,11 @@ xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
 - Gõ tắt (macro) theo kiểu chữ (HD→HỢP ĐỒNG), chạy được cả khi tắt tiếng Việt (tùy chọn)
 - Emoji gõ tắt; số tiền `=1.550.000đ` → chữ Việt; bảo vệ công thức Excel và identifier code
 
-**Gợi ý & dự đoán (P6 — Tab, Ctrl+Space)**
-- Hoàn tất từ tiếng Việt: `ngư`+Tab → `ngưng` (3000 âm tiết + từ ghép văn phòng)
-- Hoàn tất từ tiếng Anh: `develop`+Tab → `developed` (3000 từ tần suất + thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân)
-- Dự đoán cụm tiếp theo theo ngữ cảnh (`kính gửi ` → `quý khách hàng`; theo role: kế toán, nhân sự, kinh doanh, CSKH, giáo viên — 140+ mẫu Việt / 30+ mẫu Anh)
-- Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành
+**Gợi ý & dự đoán (P6 — Tab, Ctrl+Space, cả Mode VI & Mode EN)**
+- Hoàn tất từ đơn & từ ghép tiếng Việt: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6.672 âm tiết + 1.941 từ ghép văn phòng)
+- Hoàn tất từ đơn & từ ghép tiếng Anh ở cả Mode EN và Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9.868 từ đơn + 1.957 từ ghép 16 domain + thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân, duyệt vòng 5 ứng viên bằng Tab)
+- Dự đoán cụm/câu tiếp theo theo ngữ cảnh ở cả 2 mode (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` kể cả khi gõ ở Mode VI — 8.782 mẫu Việt + 8.849 mẫu Anh)
+- Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành (cả Mode VI và Mode EN)
 - Ctrl+Space: sửa hết lỗi câu (kể cả chính tả) rồi dự đoán tiếp — một phím hai việc
 
 **Trợ lý ngữ pháp (kiểu Grammarly, offline hoàn toàn)**
@@ -381,13 +381,13 @@ differently — per their public feature pages as of 2026-10):
 - 5 prediction accept paths: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction
 - Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`)
 
-**Text prediction (P6) & User Style Profile (P7)** — 35,681-entry corpora:
-6,672 Vietnamese syllables + 1,941 compounds (13 new domains: real estate,
-banking & insurance, logistics, manufacturing, tendering, healthcare, travel…)
-+ 9,868 English words + 13,854 context→phrase pairs (real sentences, idioms,
-role-based patterns); User Style Profile (personal vocabulary & correction
-learning, opt-in, 100% offline, strict 200-word / 50-pair cap); Tab/Ctrl+Space
-completion & next-phrase; meaningful-extension ranking; microsecond lookups.
+**Text prediction (P6) & User Style Profile (P7)** — **41,415-entry** bilingual corpora with full VI-EN parity:
+6,672 Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains)
++ **9,868 English single words + 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
++ **17,631 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,849 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);
+English prediction works seamlessly in **both modes**: **Mode EN (`E`)** (single-word & compound completion, 5-candidate Tab cycling, next-phrase prediction, ghost text preview, Dream RSI personal learning) and **Mode VI (`V`)** (automatic English word/compound/sentence detection and completion even when Telex-folded, e.g., `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
+User Style Profile (personal vocabulary & correction learning, opt-in, 100% offline, strict 200-word / 50-pair cap);
+Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microsecond lookups.
 
 **Input methods & transforms (20-year UniKey standard)**
 - UniKey-standard `uo` rhyme: `luong`/`uong`/`truong.giap` stay unaccented by default;
@@ -408,11 +408,11 @@ completion & next-phrase; meaningful-extension ranking; microsecond lookups.
 - Text macros with case styles (HD→HỢP ĐỒNG); work even with Vietnamese off (optional)
 - Emoji shortcuts; `=1.550.000đ` → Vietnamese words; Excel formula and identifier protection
 
-**Suggestions & prediction (P6 — Tab, Ctrl+Space)**
-- Vietnamese word completion: `ngư`+Tab → `ngưng` (3000 syllables + office compounds)
-- English completion: `develop`+Tab → `developed` (3000 frequency words + tech/business terms + personal dictionary)
-- Next-phrase prediction by context (`kính gửi ` → `quý khách hàng`; role-based: accounting, HR, sales, support, teachers — 140+ VI / 30+ EN patterns)
-- Ghost preview after the caret on all three platforms
+**Suggestions & prediction (P6 — Tab, Ctrl+Space, in both Mode VI & Mode EN)**
+- Vietnamese word & compound completion: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6,672 syllables + 1,941 office compounds)
+- English word & compound completion in both Mode EN and Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9,868 single words + 1,957 compounds across 16 domains + tech/business terms + personal dictionary, 5-candidate Tab cycling)
+- Next-phrase prediction by context in both modes (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` even when typed in Mode VI — 8,782 VI + 8,849 EN patterns)
+- Ghost preview after the caret on all three platforms (in both Mode VI and Mode EN)
 - Ctrl+Space: fix the whole sentence (including spelling) then keep predicting — one key, two jobs
 
 **Grammar assistant (Grammarly-style, fully offline)**

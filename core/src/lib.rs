@@ -939,6 +939,10 @@ impl Engine {
 
         let strategy = self.strategy();
         let vi_on = self.opts.enabled && self.ctx.enabled;
+        // Ô mật khẩu hoặc app yêu cầu passthrough tuyệt đối (Terminal/Game...):
+        // không chạy dự đoán/duyệt vòng ứng viên. Ngược lại, khi chỉ tắt tiếng Việt
+        // (Mode EN: `vi_on == false`), bộ dự đoán tiếng Anh vẫn hoạt động đầy đủ!
+        let passthrough_only = self.secure() || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH;
 
         // P6: đang duyệt vòng ứng viên → Tab/Ctrl+Space kế tiếp đổi ứng viên,
         // ƯU TIÊN hơn gõ tắt: đuôi `recent` lúc này là ứng viên vừa chèn, không
@@ -946,7 +950,7 @@ impl Engine {
         if self.last_predict.is_some()
             && (k.vk == keymap::vk::TAB || k.is_ctrl_space())
             && k.mods & keymap::MOD_SHIFT == 0
-            && strategy != Strategy::Passthrough
+            && !passthrough_only
         {
             if let Some(out) = self.try_cycle_predict() {
                 return out;
@@ -963,21 +967,78 @@ impl Engine {
             if !self.word.is_empty() {
                 self.word.clear();
             }
+            if !passthrough_only
+                && matches!(
+                    k.vk,
+                    keymap::vk::RETURN | keymap::vk::SPACE | keymap::vk::TAB
+                )
+            {
+                let is_ctrl_space = k.is_ctrl_space();
+                let is_tab_or_ctrl_space = k.vk == keymap::vk::TAB || is_ctrl_space;
+                let c = k.printable().unwrap_or(' ');
+                let space_complete =
+                    k.vk == keymap::vk::SPACE && !is_ctrl_space && self.opts.suggest_space_complete;
+                if is_tab_or_ctrl_space || space_complete {
+                    let append: Option<char> = space_complete.then_some(c);
+                    if is_tab_or_ctrl_space {
+                        if let Some(out) = self.try_predict_next_phrase(k, vi_on, 2) {
+                            return out;
+                        }
+                    }
+                    if let Some(out) = self.try_english_complete(k, vi_on, append) {
+                        return out;
+                    }
+                    if is_tab_or_ctrl_space {
+                        if let Some(out) = self.try_predict_next_phrase(k, vi_on, 1) {
+                            return out;
+                        }
+                    }
+                }
+            }
             // Ctrl+Space là phím lệnh (không chèn chữ chắc chắn): như chord —
             // quên đuôi text thay vì ghi một dấu cách ảo vào `recent`/`sentence`.
             if k.is_ctrl_space() {
                 self.record(Tail::Clear);
                 return Outcome::pass();
             }
-            // Vẫn ghi nhận text đi thẳng: macro `always` có thể chạy khi VN tắt
-            // (`allow_macro_when_vi_off`) — EVKey spec #5.
-            self.note_pass(k);
             // Ranh giới từ (Space, dấu câu, Enter, phím điều hướng…) báo WORD_END: adapter
             // giữ từ trong composition để bung gõ tắt khi VN tắt sẽ commit từ ở đây thay vì
             // kéo gạch chân sang từ kế tiếp.
             let boundary = k
                 .printable()
                 .is_none_or(|c| !method::is_word_char(c, self.opts.method));
+            // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ đến).
+            if boundary && !passthrough_only && self.opts.style_enabled_for_learning() {
+                let mut end = self.sentence.len();
+                while end > 0 && self.sentence[end - 1].is_ascii_alphabetic() {
+                    end -= 1;
+                }
+                let word_len = self.sentence.len() - end;
+                if word_len >= 2 {
+                    let current: String = self.sentence[end..].iter().collect();
+                    self.style_note_word(&current);
+                    if end > 0 {
+                        let lookback = end.saturating_sub(40);
+                        let tail: String = self.sentence[lookback..end].iter().collect();
+                        let trimmed_end = tail.trim_end_matches([' ', '\t']);
+                        if !trimmed_end.ends_with([
+                            '.', ',', '!', '?', ';', ':', '\n', '\r', '(', ')', '"', '“', '”',
+                        ]) {
+                            if let Some(prev) = trimmed_end.split_whitespace().last() {
+                                if prev.chars().all(|ch| ch.is_alphabetic() || ch == '-') {
+                                    let phrase = format!("{prev} {current}");
+                                    if valid_style_entry(&phrase) {
+                                        self.style_note_word(&phrase);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Vẫn ghi nhận text đi thẳng: macro `always` có thể chạy khi VN tắt
+            // (`allow_macro_when_vi_off`) — EVKey spec #5.
+            self.note_pass(k);
             return Outcome {
                 flags: if boundary { FLAG_WORD_END } else { 0 },
                 ..Outcome::pass()
@@ -1542,6 +1603,24 @@ impl Engine {
             return None;
         }
         let typed: String = self.word.display.iter().collect::<String>().to_lowercase();
+        // Nếu từ đang active là một từ tiếng Anh bị Telex fold nhầm (`should_restore` = true,
+        // ví dụ `"see"` → `"sê"`, `"is"` → `"í"`, `"yes"` → `"yé"`, `"file"` → `"fỉle"`, `"user"` → `"úer"`)
+        // và không phải từ cá nhân người dùng đã học trong `style_words`, nhường cho
+        // `try_english_complete` xử lý thay vì hoàn tất nhầm thành từ tiếng Việt!
+        if self.opts.auto_restore_english
+            && post::restore_en::should_restore(
+                &self.word.raw,
+                &self.word.display,
+                &self.opts.english_words,
+            )
+            && !self
+                .opts
+                .style_words
+                .iter()
+                .any(|(w, _)| w.starts_with(&typed) && w != &typed)
+        {
+            return None;
+        }
         // Space (append) nghiêm ngặt hơn Tab: từ ĐÃ là âm tiết hợp lệ
         // ("không", "đi"…) không được viết lại — người dùng gõ đúng rồi.
         if append.is_some() && validate::is_valid_word(&self.word.display) {
@@ -1702,16 +1781,40 @@ impl Engine {
         vi_on: bool,
         min_key_words: usize,
     ) -> Option<Outcome> {
-        if !vi_on || !self.opts.suggest_vn_complete {
+        if self.secure()
+            || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH
+            || !self.opts.suggest_vn_complete
+        {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
             return None;
         }
 
-        let sentence_tail = self.sentence_tail(64);
+        let mut sentence_tail = self.sentence_tail(64);
         if sentence_tail.trim().is_empty() {
             return None;
+        }
+
+        // Ở Mode VI (`vi_on == true`), khi người dùng đang gõ câu tiếng Anh mà từ cuối
+        // chưa bấm Space bị Telex fold nhầm (ví dụ `"looking forward"` → `"looking fỏwad"`,
+        // `"in order"` → `"in ỏder"`, `"feel free"` → `"feel frê"`, `"i would"` → `"i ưould"`),
+        // khôi phục từ cuối về `raw` để khớp chính xác bảng mẫu câu tiếng Anh `en_phrases.tsv`
+        // và hoàn nguyên luôn từ đó trong cùng một `Action::Replace`!
+        let restore_active_en = vi_on
+            && self.word.active
+            && self.opts.auto_restore_english
+            && post::restore_en::should_restore(
+                &self.word.raw,
+                &self.word.display,
+                &self.opts.english_words,
+            );
+        if restore_active_en {
+            let disp_str: String = self.word.display.iter().collect();
+            let raw_str: String = self.word.raw.iter().collect();
+            if let Some(prefix) = sentence_tail.strip_suffix(&disp_str) {
+                sentence_tail = format!("{prefix}{raw_str}");
+            }
         }
 
         let matches = post::predict::predict_next_phrase_matches_with_personal(
@@ -1738,12 +1841,16 @@ impl Engine {
         phrase.extend(adapted.chars());
         let phrase_glyphs = self.emit(&phrase).len();
 
-        // Từ đang mở: chốt nguyên trạng (active → phần hiển thị; chưa biến đổi
-        // → ký tự đã PASS) rồi nối cụm vào sau, trong cùng một Replace.
+        // Từ đang mở: chốt nguyên trạng (active → phần hiển thị hoặc raw nếu là từ EN bị fold;
+        // chưa biến đổi → ký tự đã PASS) rồi nối cụm vào sau, trong cùng một Replace.
         let (delete, insert) = if self.word.is_empty() {
             (0usize, phrase)
         } else if self.word.active {
-            let mut text = self.word.display.clone();
+            let mut text = if restore_active_en {
+                self.word.raw.clone()
+            } else {
+                self.word.display.clone()
+            };
             text.extend(phrase);
             (self.word.owned, text)
         } else {
@@ -1816,7 +1923,13 @@ impl Engine {
         vi_on: bool,
         append: Option<char>,
     ) -> Option<Outcome> {
-        if !vi_on || !self.opts.auto_restore_english {
+        if self.secure() || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH {
+            return None;
+        }
+        if vi_on && !self.opts.auto_restore_english {
+            return None;
+        }
+        if !vi_on && !self.opts.suggest_vn_complete && !self.opts.suggest_space_complete {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
@@ -1827,66 +1940,103 @@ impl Engine {
         if self.word_after_id_boundary() {
             return None;
         }
-        // Tab (append = None) giữ semantics cũ: chỉ từ ĐÃ transform (word
-        // active) — giải cứu từ bị Telex biến đổi nhầm. Space (append =
-        // Some) theo yêu cầu vòng 24: hoàn tất cả từ đang gõ dở CHƯA biến
-        // đổi (kí tự đã PASS nằm trong document — xoá bằng pending_delete).
-        // OP-006 (P5): "useS" + Tab → "useState" đi nhánh active (camel-repair
-        // đã activate từ). Từ CHƯA fold ("ebit" + Tab) KHÔNG mở gate này —
-        // Tab nhàn rỗi là indent của IDE/điều hướng ô Excel, tự động thay
-        // chữ sẽ phá workflow (plan §3 Checklist Bước 4 chỉ nghiệm thu
-        // completion qua nhánh active). Đường mở cho tiền tố chưa fold:
-        // opt-in `suggest_space_complete` ("ebit" + Space) — đúng cơ chế
-        // vòng 24, không đổi default config (P5: không lệch 15 site).
         let space_mode = append.is_some();
-        // Vòng 37 (user: "tiếng Anh gợi ý không chạy tốt"): gõ tiếng Anh thuần
-        // ("develop") KHÔNG bao giờ fold ⇒ word không active ⇒ Tab nhàn rỗi
-        // mãi. Khi dự đoán bật (suggest_vn_complete — cùng opt-in với nhánh
-        // VN), Tab hoàn tất cả từ EN CHƯA fold; tắt dự đoán ⇒ hành vi cũ.
         let prediction_on = self.opts.suggest_vn_complete;
-        if !self.word.active && !space_mode && !k.is_ctrl_space() && !prediction_on {
-            return None;
-        }
-        if self.word.is_empty() || self.word.raw.len() < 2 {
-            return None;
-        }
-        let typed: String = self.word.raw.iter().collect::<String>();
-        // Space nghiêm ngặt hơn Tab: chuỗi gõ ĐÃ là từ EN thông dụng đúng
-        // ("report") không được kéo dài ("reports") — người dùng gõ xong từ rồi;
-        // và từ đang active đã là âm tiết tiếng Việt hợp lệ ("té", "chó", "nói")
-        // thì Space chỉ đóng từ, không bao giờ tự biến thành từ EN.
-        if space_mode
-            && (post::restore_en::is_known_en_word(&typed.to_lowercase())
-                || (self.word.active && validate::is_valid_word(&self.word.display)))
-        {
-            return None;
-        }
-        // Từ chưa biến đổi: display rỗng — fold chính là typed.
-        let folded: String = if self.word.active {
-            self.word.display.iter().collect::<String>()
-        } else {
-            typed.clone()
-        };
-        // P7 (vòng 54): từ cá nhân tham gia ứng viên EN completion (đi trước
-        // english_words — cùng cơ chế consider shortest; list rỗng → như cũ).
-        let mut en_words: Vec<String> = self
-            .opts
-            .style_words
-            .iter()
-            .map(|(w, _)| w.clone())
-            .collect();
-        en_words.extend(self.opts.english_words.iter().cloned());
-        let completion = post::restore_en::complete_word(
-            &typed.to_lowercase(),
-            &folded.to_lowercase(),
-            &en_words,
-        )?;
-        let mut insert: Vec<char> = completion.chars().collect();
-        if self.word.raw.first().is_some_and(|c| c.is_uppercase()) {
-            if let Some(first) = insert.first_mut() {
-                *first = first.to_ascii_uppercase();
+
+        // Trích xuất `(typed, folded, delete_count, en_context)` cho cả Mode VI và Mode EN:
+        let (typed, folded, delete, en_context) = if vi_on {
+            if !self.word.active && !space_mode && !k.is_ctrl_space() && !prediction_on {
+                return None;
             }
+            if self.word.is_empty() || self.word.raw.len() < 2 {
+                return None;
+            }
+            let typed_s: String = self.word.raw.iter().collect();
+            if space_mode
+                && (post::restore_en::is_known_en_word(&typed_s.to_lowercase())
+                    || (self.word.active && validate::is_valid_word(&self.word.display)))
+            {
+                return None;
+            }
+            let folded_s: String = if self.word.active {
+                self.word.display.iter().collect()
+            } else {
+                typed_s.clone()
+            };
+            let del = if self.word.active {
+                self.word.owned as u16
+            } else {
+                self.word.pending_delete()
+            };
+            let tail = self.sentence_tail(64);
+            let cur_len = if self.word.active {
+                self.word.display.len()
+            } else {
+                self.word.passed.len()
+            };
+            let prefix_char_count = tail.chars().count().saturating_sub(cur_len);
+            let before_word: String = tail.chars().take(prefix_char_count).collect();
+            let en_ctx = post::restore_en::has_en_context(&before_word);
+            (typed_s, folded_s, del, en_ctx)
+        } else {
+            // Mode EN (`!vi_on`): các phím chữ đã đi qua `note_pass` vào `self.sentence` / `self.recent`.
+            // Tách từ tiếng Anh ASCII ngay sát trước con trỏ.
+            let mut end = self.sentence.len();
+            while end > 0 && self.sentence[end - 1].is_ascii_alphabetic() {
+                end -= 1;
+            }
+            let word_len = self.sentence.len() - end;
+            if word_len < 2 || word_len > self.recent.len() {
+                return None;
+            }
+            if end > 0
+                && !matches!(
+                    self.sentence[end - 1],
+                    ' ' | '\t' | '\n' | '\r' | '(' | '[' | '"' | '\''
+                )
+            {
+                return None;
+            }
+            let typed_s: String = self.sentence[end..].iter().collect();
+            if space_mode && post::restore_en::is_known_en_word(&typed_s.to_lowercase()) {
+                return None;
+            }
+            (typed_s.clone(), typed_s, word_len as u16, true)
+        };
+
+        let candidates: Vec<String> = if prediction_on {
+            post::restore_en::complete_word_candidates(
+                &typed.to_lowercase(),
+                &folded.to_lowercase(),
+                &self.opts.english_words,
+                &self.opts.style_words,
+                vi_on,
+                space_mode,
+                en_context,
+                5,
+            )
+        } else {
+            let mut en_words: Vec<String> = self
+                .opts
+                .style_words
+                .iter()
+                .map(|(w, _)| w.clone())
+                .collect();
+            en_words.extend(self.opts.english_words.iter().cloned());
+            post::restore_en::complete_word(
+                &typed.to_lowercase(),
+                &folded.to_lowercase(),
+                &en_words,
+            )
+            .into_iter()
+            .collect()
+        };
+        if candidates.is_empty() {
+            return None;
         }
+        let completion = candidates[0].clone();
+        let adapted = post::predict::adapt_capitalization(&typed, &completion);
+        let mut insert: Vec<char> = adapted.chars().collect();
         if let Some(c) = append {
             insert.push(c); // Space: hoàn tất + dấu cách
         }
@@ -1904,12 +2054,21 @@ impl Engine {
                 .count()
                 .saturating_sub(typed.chars().count())) as u64,
         );
-        let delete = if self.word.active {
-            self.word.owned as u16
-        } else {
-            self.word.pending_delete()
-        };
         self.word.clear();
+
+        if append.is_none() && candidates.len() > 1 {
+            self.last_predict = Some(PredictCycle {
+                inserted_glyphs: out.len(),
+                candidates,
+                current_index: 0,
+                sample: typed,
+                had_leading_space: false,
+                continuation: false,
+            });
+        } else {
+            self.last_predict = None;
+        }
+
         // Document nhận bản đã encode (`out`), buffer câu nhận bản Unicode (`insert`).
         self.record(Tail::Replace {
             delete: delete as usize,

@@ -83,6 +83,12 @@ public enum ApplyReplace {
                 try backspaceType(deleteCount: deleteCount, insert: insert,
                                   target: target, marked: marked)
             case .passthrough:
+                if preedit.isEmpty {
+                    // Mode E (vi_on = false): dự đoán tiếng Anh hoặc gõ tắt trả về
+                    // REPLACE + preedit rỗng → xoá phần chữ đã chèn rồi ghi insert.
+                    try backspaceType(deleteCount: deleteCount, insert: insert,
+                                      target: target, marked: marked)
+                }
                 return
             }
 
