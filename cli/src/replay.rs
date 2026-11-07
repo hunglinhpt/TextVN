@@ -786,7 +786,14 @@ impl Sim {
             }
             self.preedit = decode_utf32(&out.preedit, out.preedit_len);
             if down == 0 {
-                if out.flags & textvn_ffi::IME_FLAG_WORD_END != 0 {
+                // Ctrl tap trả RESTORE ngay ở key-up (`sort` → `sỏt` → `sort`).
+                if out.action != 0 {
+                    if self.tsf.is_some() {
+                        self.apply_tsf(vk, ch, mods, injected, &out, line);
+                    } else {
+                        self.apply_action(&out, line);
+                    }
+                } else if out.flags & textvn_ffi::IME_FLAG_WORD_END != 0 {
                     self.tsf_end();
                 }
                 continue;
@@ -836,7 +843,7 @@ impl Sim {
         out: &ime_result_v1,
         line: usize,
     ) {
-        if is_modifier_vk(vk) {
+        if is_modifier_vk(vk) && out.action == 0 {
             return;
         }
         // Chord / phím bơm (VK_PACKET) / field bị gate / tắt VN (trừ khi còn gõ tắt —

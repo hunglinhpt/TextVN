@@ -143,7 +143,13 @@ fn is_shift_vk(vk: u32) -> bool {
 pub struct ModifierToggle {
     armed: bool,
     ctrl_armed: bool,
+    /// Lúc bấm Ctrl của lần tap đang chờ (phím giữ lặp key-down không đổi mốc này).
+    ctrl_since: Option<std::time::Instant>,
 }
+
+/// Giữ Ctrl lâu hơn ngần này không còn là "tap": người dùng đang Ctrl+click, Ctrl+lăn
+/// chuột… mà bộ gõ không thấy (R2-143). Macos/Linux dùng cùng trị số.
+pub const CTRL_TAP_MAX: std::time::Duration = std::time::Duration::from_millis(400);
 
 impl ModifierToggle {
     /// Key-down bất kỳ. `ctrl_down`/`shift_down` = trạng thái phím còn lại của cặp
@@ -157,6 +163,21 @@ impl ModifierToggle {
             false
         };
         self.ctrl_armed = is_ctrl_vk(vk) && !shift_down && !alt_or_win;
+    }
+
+    /// Ghi mốc bấm Ctrl của lần tap vừa được `on_key_down` chấp nhận.
+    pub fn mark_ctrl_down(&mut self, now: std::time::Instant) {
+        self.ctrl_since = if self.ctrl_armed {
+            self.ctrl_since.or(Some(now))
+        } else {
+            None
+        };
+    }
+
+    /// Ctrl đã giữ quá lâu để còn là tap?
+    pub fn ctrl_held_too_long(&self, now: std::time::Instant) -> bool {
+        self.ctrl_since
+            .is_some_and(|t| now.duration_since(t) > CTRL_TAP_MAX)
     }
 
     /// Key-up: `true` đúng MỘT lần khi nhả Ctrl/Shift của một lần bấm hợp lệ
@@ -175,10 +196,12 @@ impl ModifierToggle {
     pub fn on_ctrl_tap_up(&mut self, vk: u32) -> bool {
         if is_ctrl_vk(vk) && self.ctrl_armed {
             self.ctrl_armed = false;
+            self.ctrl_since = None;
             return true;
         }
         if is_modifier_vk(vk) {
             self.ctrl_armed = false;
+            self.ctrl_since = None;
         }
         false
     }
@@ -187,6 +210,7 @@ impl ModifierToggle {
     pub fn reset(&mut self) {
         self.armed = false;
         self.ctrl_armed = false;
+        self.ctrl_since = None;
     }
 }
 
@@ -681,6 +705,16 @@ mod tests {
         t.on_key_down(vk::CONTROL, false, false, false);
         t.on_key_down(0x43, true, false, false);
         assert!(!t.on_ctrl_tap_up(vk::CONTROL));
+
+        // Giữ Ctrl quá lâu (Ctrl+click, Ctrl+lăn chuột) → không phải tap; phím lặp không dời mốc.
+        let t0 = std::time::Instant::now();
+        t.on_key_down(vk::CONTROL, false, false, false);
+        t.mark_ctrl_down(t0);
+        t.on_key_down(vk::CONTROL, false, false, false);
+        t.mark_ctrl_down(t0 + CTRL_TAP_MAX);
+        assert!(!t.ctrl_held_too_long(t0 + CTRL_TAP_MAX));
+        assert!(t.ctrl_held_too_long(t0 + CTRL_TAP_MAX + std::time::Duration::from_millis(1)));
+        assert!(t.on_ctrl_tap_up(vk::CONTROL));
 
         // 1) `tunx` + Ctrl tap + `s` → giữ nguyên tử `tũns` (Ctrl tap chốt composition `tũn`).
         let mut eng = EngineSession::new().unwrap();

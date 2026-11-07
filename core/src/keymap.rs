@@ -108,7 +108,8 @@ impl KeyEvent {
     pub fn is_modifier(&self) -> bool {
         matches!(
             self.vk,
-            vk::SHIFT | vk::CONTROL | vk::MENU | vk::LWIN | vk::RWIN | vk::CAPSLOCK
+            // 0xA0..=0xA5: mã trái/phải VK_LSHIFT…VK_RMENU — cùng là modifier đơn.
+            vk::SHIFT | vk::CONTROL | vk::MENU | vk::LWIN | vk::RWIN | vk::CAPSLOCK | 0xA0..=0xA5
         ) && self.ch == 0
     }
 }

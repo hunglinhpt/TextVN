@@ -272,6 +272,41 @@ fn en_freq_lines() -> &'static [&'static str] {
     static_lines_lower(EN_FREQ_DATA, &CACHE)
 }
 
+/// Từ có trong danh sách 10k từ tiếng Anh không (tìm nhị phân trên bản đã sắp).
+fn en_words10k_contains(word: &str) -> bool {
+    en_words10k_sorted().binary_search(&word).is_ok()
+}
+
+/// Bản đã sắp của `en_common`/`en_freq3000`: `complete_word_candidates` chạy mỗi phím
+/// qua `peek_completion` nên tìm theo tiền tố thay vì quét cả danh sách (R2-150).
+fn en_common_sorted() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| sorted_copy(en_common_lines()))
+}
+
+fn en_freq_sorted() -> &'static [&'static str] {
+    static CACHE: OnceLock<Vec<&'static str>> = OnceLock::new();
+    CACHE.get_or_init(|| sorted_copy(en_freq_lines()))
+}
+
+fn sorted_copy(lines: &[&'static str]) -> Vec<&'static str> {
+    let mut v = lines.to_vec();
+    v.sort_unstable();
+    v
+}
+
+/// Các mục bắt đầu bằng `prefix` trong danh sách đã sắp.
+fn with_prefix<'a>(
+    sorted: &'a [&'static str],
+    prefix: &'a str,
+) -> impl Iterator<Item = &'static str> + 'a {
+    let start = sorted.partition_point(|w| *w < prefix);
+    sorted[start..]
+        .iter()
+        .copied()
+        .take_while(move |w| w.starts_with(prefix))
+}
+
 /// google-10000-english đã sắp alphabet (vòng 52) — binary search trong
 /// `complete_word`, chỉ chạy khi qua gate âm-tiết-Việt.
 fn en_words10k_sorted() -> &'static [&'static str] {
@@ -321,9 +356,9 @@ pub fn should_restore(raw: &[char], display: &[char], english_words: &[String]) 
     if raw.is_empty() || raw == display {
         return false;
     }
-    // Bấm ngoặc hai lần `[[` → `[` hoặc `]]` → `]` là thao tác chủ đích của người dùng
-    // để lấy dấu ngoặc literal trong Telex — không được auto-restore về `[[` / `]]` khi bấm Space.
-    if display.iter().all(|&c| matches!(c, '[' | ']')) {
+    // Bấm ngoặc hai lần (`m[[` → `m[`) là thao tác chủ đích để lấy dấu ngoặc literal:
+    // raw còn phím đôi nên không được trả về — dù sau đó có gõ thêm chữ.
+    if raw.windows(2).any(|p| p == ['[', '['] || p == [']', ']']) {
         return false;
     }
     if listed(raw, english_words) {
@@ -468,8 +503,7 @@ pub fn complete_word(
 /// Kiểm tra ngữ cảnh trước từ đang gõ có phải ngữ cảnh tiếng Anh không:
 /// từ liền trước là từ tiếng Anh đã biết (`is_known_en_word`) và không phải âm tiết Việt.
 pub fn has_en_context(sentence: &str) -> bool {
-    let trimmed = sentence.trim_end();
-    if let Some((_, prev_word)) = trimmed.rsplit_once(|c: char| c.is_whitespace()) {
+    if let Some(prev_word) = sentence.split_whitespace().last() {
         let prev_clean: String = prev_word
             .chars()
             .filter(|c| c.is_alphabetic())
@@ -493,8 +527,8 @@ pub fn has_en_context(sentence: &str) -> bool {
 /// - Tier 1: Từ ghép / cụm danh từ tiếng Anh (`en_compounds.txt`) có từ đầu khớp trọn vẹn
 ///   với `typed_lower` (`ext == true`, ví dụ `"machine"` → `"machine learning"`, `"customer"` → `"customer service"`).
 /// - Tier 2: Từ đơn tiếng Anh (`en_common`, `en_freq3000`, `en_words10k`, `TECH_BUSINESS_TERMS`),
-///   xếp theo `(len, -weight, lex)` để bảo toàn 100% tương thích 1st-Tab của `complete_word`
-///   nhưng cung cấp thêm các ứng viên thứ 2..5 khi bấm Tab liên tiếp!
+///   xếp theo `(len, -weight, lex)`: từ ngắn trước như `complete_word`, nhưng trong cùng độ
+///   dài từ thông dụng hơn đứng trước (`ph` → `php`, không phải `phd`); ứng viên 2..5 cho Tab liên tiếp.
 /// - Tier 3: Từ ghép tiếng Anh có từ đầu bắt đầu bằng tiền tố `typed_lower` (`ext == false`).
 #[allow(clippy::too_many_arguments)]
 pub fn complete_word_candidates(
@@ -542,6 +576,18 @@ pub fn complete_word_candidates(
         }
     };
 
+    // Từ tiếng Anh ĐÃ gõ trọn bị Telex fold nhầm (`sort` → `sỏt`, `file` → `fỉle`, `see` →
+    // `sê`): Tab đầu trả đúng từ gốc, TRƯỚC mọi tier — kể cả từ cá nhân và từ ghép. Dài hơn
+    // (`sorts`, `file system`) nằm ở các Tab sau.
+    if vi_on
+        && !space_mode
+        && folded_lower != typed_lower
+        && (is_known_en_word(typed_lower) || en_words10k_contains(typed_lower))
+        && seen.insert(typed_lower.to_string())
+    {
+        cands.push((0, 0, i32::MIN, typed_lower.to_string()));
+    }
+
     // Tier 0: Từ cá nhân học được (Dream RSI style_words + english_words)
     for (sw, count) in style_words {
         let w = sw.trim().to_lowercase();
@@ -551,13 +597,13 @@ pub fn complete_word_candidates(
             && (!space_mode || !w.contains(' '))
             && seen.insert(w.clone())
         {
-            cands.push((0, w.len(), -((*count).min(1000) as i32), canonicalize(&w)));
+            cands.push((0, w.len(), -((*count).min(1000) as i32), w));
         }
     }
     for ew in english_words {
         let w = ew.trim().to_lowercase();
         if w.len() > typed_lower.len() && w.starts_with(typed_lower) && seen.insert(w.clone()) {
-            cands.push((0, w.len(), -1, canonicalize(&w)));
+            cands.push((0, w.len(), -1, w));
         }
     }
 
@@ -582,71 +628,61 @@ pub fn complete_word_candidates(
     }
 
     // Tier 2: Từ đơn tiếng Anh (giữ nguyên thứ tự ngắn nhất trước của `complete_word`).
-    // Nếu ở Mode VI từ đang gõ là từ tiếng Anh đã hoàn chỉnh (`is_known_en_word`) nhưng đang
-    // hiển thị thành âm tiết Việt vô nghĩa (`folded_lower != typed_lower && !is_valid_word`),
-    // đưa chính từ gốc (`sort`, `smart`, `file`...) lên đầu Tier 2 để khôi phục đúng từ gốc
-    // trước khi duyệt sang dạng số nhiều `-s`/`-ed` ở lần Tab thứ 2.
-    if vi_on
-        && !space_mode
-        && folded_lower != typed_lower
-        && !is_valid_word(&folded_chars)
-        && is_known_en_word(typed_lower)
-        && seen.insert(typed_lower.to_string())
-    {
-        cands.push((2, 0, -100, canonicalize(typed_lower)));
-    }
-    for &l in en_common_lines() {
-        if l.len() > typed_lower.len() && l.starts_with(typed_lower) && seen.insert(l.to_string()) {
-            cands.push((2, l.len(), -70, canonicalize(l)));
+    for l in with_prefix(en_common_sorted(), typed_lower) {
+        if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
+            cands.push((2, l.len(), -70, l.to_string()));
         }
     }
     if allow_full_en {
-        for &l in en_freq_lines() {
-            if l.len() > typed_lower.len()
-                && l.starts_with(typed_lower)
-                && seen.insert(l.to_string())
-            {
-                cands.push((2, l.len(), -60, canonicalize(l)));
+        for l in with_prefix(en_freq_sorted(), typed_lower) {
+            if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
+                cands.push((2, l.len(), -60, l.to_string()));
             }
         }
-        {
-            let sorted = en_words10k_sorted();
-            let start = sorted.partition_point(|w| *w < typed_lower);
-            for &l in &sorted[start..] {
-                if !l.starts_with(typed_lower) {
-                    break;
-                }
-                if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
-                    cands.push((2, l.len(), -55, canonicalize(l)));
-                }
+        for l in with_prefix(en_words10k_sorted(), typed_lower) {
+            if l.len() > typed_lower.len() && seen.insert(l.to_string()) {
+                cands.push((2, l.len(), -55, l.to_string()));
             }
         }
         for t in TECH_BUSINESS_TERMS {
-            let tl = t.to_lowercase();
-            if tl.len() > typed_lower.len() && tl.starts_with(typed_lower) && seen.insert(tl) {
+            let starts = t
+                .as_bytes()
+                .get(..typed_lower.len())
+                .is_some_and(|head| head.eq_ignore_ascii_case(typed_lower.as_bytes()));
+            if starts && t.len() > typed_lower.len() && seen.insert(t.to_lowercase()) {
                 cands.push((2, t.len(), -85, (*t).to_string()));
             }
         }
     }
 
+    let lex = |a: &str, b: &str| {
+        a.bytes()
+            .map(|c| c.to_ascii_lowercase())
+            .cmp(b.bytes().map(|c| c.to_ascii_lowercase()))
+    };
     cands.sort_by(|a, b| {
         a.0.cmp(&b.0).then_with(|| match a.0 {
             // Tier 0 (personal) & Tier 1/3 (compounds): frecency / weight cao hơn trước, rồi ngắn hơn trước
             0 | 1 | 3 => {
                 a.2.cmp(&b.2)
                     .then_with(|| a.1.cmp(&b.1))
-                    .then_with(|| a.3.to_lowercase().cmp(&b.3.to_lowercase()))
+                    .then_with(|| lex(&a.3, &b.3))
             }
-            // Tier 2 (từ đơn): ngắn hơn trước (bảo toàn 100% 1st-Tab của `complete_word`), rồi weight
+            // Tier 2 (từ đơn): ngắn hơn trước, rồi weight
             _ => {
                 a.1.cmp(&b.1)
                     .then_with(|| a.2.cmp(&b.2))
-                    .then_with(|| a.3.to_lowercase().cmp(&b.3.to_lowercase()))
+                    .then_with(|| lex(&a.3, &b.3))
             }
         })
     });
 
-    cands.into_iter().take(limit).map(|c| c.3).collect()
+    // Tra dạng viết chuẩn chỉ cho vài ứng viên giữ lại, không cho cả tập khớp tiền tố.
+    cands
+        .into_iter()
+        .take(limit)
+        .map(|c| canonicalize(&c.3))
+        .collect()
 }
 
 #[cfg(test)]

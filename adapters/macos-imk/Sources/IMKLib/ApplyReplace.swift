@@ -8,7 +8,7 @@
 //! | `SelectionReplace`| thay selection, KHÔNG backspace (B1) — §6.2       |
 //! | `BackspaceType`   | `deleteBackward:` ×n + chèn — §6.3 (a)            |
 //! | `ForwardAsCommit` | giống BackspaceType — xem ghi chú §6.3-below      |
-//! | `Passthrough`     | không đụng text                                   |
+//! | `Passthrough`     | không đụng text; REPLACE + preedit rỗng (Mode EN) như `BackspaceType` |
 //!
 //! ## Quy ước đơn vị (review R1 F7 — P2-1 §6.4)
 //! - `delete_count` của engine đếm **code point** (Rust `char` = scalar).

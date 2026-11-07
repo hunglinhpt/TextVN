@@ -70,3 +70,36 @@ fn prediction_perf_ngan_sach_moi_phim() {
     assert!(d6.as_micros() < cap * k, "phrase hòa: {d6:?}");
     assert!(d7.as_micros() < cap * k, "prefix 1-chữ: {d7:?}");
 }
+
+/// R2-140 — đường NÓNG thật của ghost text: `peek_completion` chạy MỖI PHÍM trên
+/// bản sao engine, với hồ sơ cá nhân đầy (500 từ + cụm). Trước đây chưa từng đo.
+#[test]
+fn peek_completion_ho_so_day_ngan_sach_moi_phim() {
+    use textvn_core::{Engine, EngineOptions, KeyEvent};
+
+    let k = if cfg!(debug_assertions) { 100 } else { 1 };
+    let style_words: Vec<(String, u32)> = (0..500)
+        .map(|i| {
+            let w = format!("tu{i} ngu{i}");
+            (w, (i % 50 + 1) as u32)
+        })
+        .collect();
+    let mut e = Engine::new(EngineOptions {
+        suggest_vn_complete: true,
+        style_learning_enabled: true,
+        auto_capitalize: false,
+        style_words,
+        ..Default::default()
+    });
+    for c in "chúng tôi xin trana".chars() {
+        let _ = e.key(&KeyEvent::char_down(c));
+    }
+    let d = time_n(|| {
+        let _ = e.peek_completion();
+    });
+    println!("peek_completion hồ sơ đầy: {:>10?}", d);
+    assert!(
+        d < std::time::Duration::from_millis(5 * k),
+        "peek_completion mỗi phím quá chậm: {d:?}"
+    );
+}

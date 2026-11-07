@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! L1/L2/L11 - lap tu lien tiep ("toi toi", "cua cua", "rat rat").
 
+use super::language::Lang;
 use super::{is_word, issue, Ctx};
 use crate::tokenize::TokenKind;
 use crate::{Fix, Issue, IssueKind, Span};
@@ -47,8 +48,6 @@ pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
     // whitelist EN theo luật từng-từ; danh từ "bay" + động từ "bay" cùng
     // hình là cách nói chuẩn tiếng Việt.
     "bay",
-    // Từ láy ASCII tiếng Việt trong câu mix/unaccented (tránh fallback nhầm sang EN whitelist)
-    "song", "lâu", "ngay", "bon", "canh", "khàn", "vanh",
 ];
 
 /// Từ CHỨC NĂNG lặp ≥ 3 lần ("the the the file", "đã đã đã gửi") gần như
@@ -130,7 +129,10 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         } else {
             INTENTIONAL_REPEATS
         };
-        if whitelist.contains(&lower.as_str()) || INTENTIONAL_REPEATS.contains(&lower.as_str()) {
+        // Từ láy ASCII tiếng Việt ("song song", "bon bon") chỉ miễn trong câu không phải
+        // tiếng Anh — "Play the song song again." vẫn là lỗi lặp từ (R2-142).
+        let vi_repeat = ctx.lang != Lang::En && INTENTIONAL_REPEATS.contains(&lower.as_str());
+        if whitelist.contains(&lower.as_str()) || vi_repeat {
             continue;
         }
         // Vòng 24 (audit EN trap 18-19) — vòng 26 áp cho TỪ ASCII ở MỌI câu

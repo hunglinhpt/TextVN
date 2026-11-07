@@ -1026,7 +1026,7 @@ fn a1000_tat_ca_case_qua_4_rao_chan() {
     if only.is_none() {
         assert_eq!(ran, 1000, "phai chay du 1000 case");
         let max_suite = if cfg!(debug_assertions) {
-            Duration::from_secs(90)
+            Duration::from_secs(60)
         } else {
             Duration::from_secs(15)
         };

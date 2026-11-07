@@ -14,6 +14,8 @@ pub mod post;
 pub mod transform;
 pub mod validate;
 
+use std::sync::Arc;
+
 pub use keymap::KeyEvent;
 pub use method::Method;
 pub use post::emoji::Emoji;
@@ -208,11 +210,23 @@ pub const MAX_TEXT: usize = 64;
 /// `MAX_TEXT` để RESTORE/ESC trả lại đủ chuỗi gõ. Vượt → đóng từ (`close_word`).
 const MAX_WORD_KEYS: usize = MAX_TEXT - 1;
 
+/// Trần từ cá nhân sống trong phiên (`opts.style_words`).
+const STYLE_SESSION_CAP: usize = 500;
+/// Số từ mới nhất được miễn thay thế khi hồ sơ phiên đầy.
+const STYLE_FRESH_GUARD: usize = 32;
+/// Số lần thay từ giữa hai lần giảm nửa trọng số.
+const STYLE_AGE_EVERY: u16 = 64;
+/// Trần mỗi lượt drain — khớp `config::STYLE_WORD_CAP` và trần cặp sửa.
+const DRAIN_MAX_WORDS: usize = 200;
+const DRAIN_MAX_CORR: usize = 50;
+
 /// Engine — 1 instance = 1 thread (P0-2 §3). `Clone` cho `peek_completion`
 /// (chạy thử Tab trên bản sao — trạng thái thật không đổi).
 #[derive(Clone)]
 pub struct Engine {
-    opts: EngineOptions,
+    /// `Arc`: `peek_completion` sao chép engine MỖI PHÍM — hồ sơ cá nhân/macro không
+    /// được chép theo (R2-140). Ghi qua `Arc::make_mut`.
+    opts: Arc<EngineOptions>,
     ctx: Context,
     word: buffer::Word,
     /// Đuôi text engine biết chắc đã nằm trong document (trước con trỏ) — cho macro/emoji
@@ -233,7 +247,14 @@ pub struct Engine {
     /// P7 (vòng 54): dữ liệu học CÁ NHÂN pending (chỉ khi USP bật) —
     /// từ gõ xong + cặp user chấp nhận. Drain qua FFI rồi XÓA (G8: chỉ từ +
     /// count tối thiểu, không giờ/app/câu; Debug không in nội dung).
-    style_pending: StylePending,
+    style_pending: Arc<StylePending>,
+    /// Bản sao chạy thử của `peek_completion`: không học gì (R2-140).
+    probe: bool,
+    /// Số lần thay từ khi hồ sơ phiên đầy — đủ `STYLE_AGE_EVERY` mới giảm trọng số.
+    style_evictions: u16,
+    /// Vừa đổi `a--` thành `a—`: ranh giới kế tiếp không phải chữ ⇒ đó là code
+    /// (`i--;`), trả lại `--` (R2-141).
+    em_dash_tentative: bool,
 
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
@@ -395,8 +416,11 @@ enum Tail<'a> {
 impl Engine {
     pub fn new(opts: EngineOptions) -> Engine {
         Engine {
-            opts,
-            style_pending: StylePending::default(),
+            opts: Arc::new(opts),
+            style_pending: Arc::default(),
+            probe: false,
+            style_evictions: 0,
+            em_dash_tentative: false,
             dream_rsi: DreamRsi::default(),
             ctx: Context::default(),
             word: buffer::Word::default(),
@@ -414,8 +438,19 @@ impl Engine {
         self.opts.style_corrections.clone()
     }
 
+    /// Có được học từ phím vừa gõ không. Ngoài opt-in của người dùng còn loại mọi
+    /// ngữ cảnh có thể là bí mật hoặc không phải văn bản: ô mật khẩu, app passthrough,
+    /// **terminal** (`sudo` hỏi mật khẩu không phải ô secure — G8, R2-145).
     pub(crate) fn style_enabled_for_learning(&self) -> bool {
-        self.opts.style_enabled_for_learning()
+        self.opts.style_enabled_for_learning() && !self.probe && !self.prediction_blocked()
+    }
+
+    /// Ngữ cảnh không được dự đoán/chiếm Tab: ô mật khẩu, app passthrough, terminal
+    /// (Tab là hoàn tất của shell — `git che`+Tab không được ra `git chef`, R2-144).
+    fn prediction_blocked(&self) -> bool {
+        self.secure()
+            || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH
+            || self.ctx.field_role == strategy::IME_FIELD_TERMINAL
     }
 
     /// P7: ghi cặp user chấp nhận (validate: 2..=32 ký tự, alphabetic+space).
@@ -431,8 +466,7 @@ impl Engine {
             return; // from == to (kể cả chỉ khác hoa/thường) — không phải lỗi sửa
         }
         let pair = (from.trim().to_lowercase(), to.trim().to_lowercase());
-        *self
-            .style_pending
+        *Arc::make_mut(&mut self.style_pending)
             .corrections
             .entry(pair.clone())
             .or_insert(0) += 1;
@@ -443,7 +477,7 @@ impl Engine {
             .any(|(f, t)| f == &pair.0 && t == &pair.1)
             && self.opts.style_corrections.len() < 50
         {
-            self.opts.style_corrections.push(pair);
+            Arc::make_mut(&mut self.opts).style_corrections.push(pair);
         }
     }
 
@@ -456,44 +490,200 @@ impl Engine {
             return;
         }
         let lower = word.to_lowercase();
-        *self.style_pending.words.entry(lower.clone()).or_insert(0) += 1;
+        *Arc::make_mut(&mut self.style_pending)
+            .words
+            .entry(lower.clone())
+            .or_insert(0) += 1;
 
         // Tiến hóa gợi ý thời gian thực trong phiên (in-session continuous learning):
         // Cập nhật opts.style_words ngay lập tức để các lần gõ tiếp theo nhận được dự đoán
         // từ mới mà không cần đợi host app drain và nạp lại cấu hình.
         let mut need_decay = false;
-        if let Some(entry) = self.opts.style_words.iter_mut().find(|(w, _)| w == &lower) {
+        let opts = Arc::make_mut(&mut self.opts);
+        if let Some(entry) = opts.style_words.iter_mut().find(|(w, _)| w == &lower) {
             entry.1 = entry.1.saturating_add(1);
             if entry.1 >= 256 {
                 need_decay = true;
             }
         } else {
-            if self.opts.style_words.len() >= 500 {
-                // Frecency aging khi đầy bộ nhớ: giảm một nửa trọng số các từ cũ trước khi
-                // chọn từ thấp nhất để thay thế — từ mới nổi lên nhanh hơn từ cũ đã ngừng dùng.
-                for (_, c) in &mut self.opts.style_words {
-                    *c = (*c / 2).max(1);
-                }
-                if let Some(min_idx) = self
-                    .opts
-                    .style_words
+            if opts.style_words.len() >= STYLE_SESSION_CAP {
+                // Đầy: thay từ ít dùng nhất trong phần CŨ của danh sách (thứ tự = thứ tự
+                // thêm) — từ vừa học không loại lẫn nhau. Trọng số chỉ giảm nửa sau mỗi
+                // `STYLE_AGE_EVERY` lần thay: giảm mỗi lần thì vài từ mới đủ xoá lịch sử
+                // của từ dùng nhiều nhất (R2-146).
+                let old = opts.style_words.len().saturating_sub(STYLE_FRESH_GUARD);
+                if let Some(min_idx) = opts.style_words[..old]
                     .iter()
                     .enumerate()
                     .min_by_key(|(_, (_, count))| *count)
                     .map(|(idx, _)| idx)
                 {
-                    self.opts.style_words.swap_remove(min_idx);
+                    opts.style_words.remove(min_idx);
+                }
+                self.style_evictions = self.style_evictions.saturating_add(1);
+                if self.style_evictions >= STYLE_AGE_EVERY {
+                    self.style_evictions = 0;
+                    need_decay = true;
                 }
             }
-            self.opts.style_words.push((lower, 1));
+            opts.style_words.push((lower, 1));
         }
         if need_decay {
-            for (_, c) in &mut self.opts.style_words {
+            for (_, c) in &mut opts.style_words {
                 *c = (*c / 2).max(1);
             }
         }
     }
 
+    /// Học cụm hai từ `<từ trước> <current>` khi từ `current` đóng tại `before_idx` trong
+    /// buffer câu. Phải có **khoảng trắng thật** ngay trước (`abc-def`, tách từ bằng Ctrl
+    /// không phải cụm) và từ trước phải là chữ trọn vẹn, không dính dấu câu.
+    fn style_note_bigram(&mut self, before_idx: usize, current: &str) {
+        if before_idx == 0 || !matches!(self.sentence[before_idx - 1], ' ' | '\t') {
+            return;
+        }
+        let lookback = before_idx.saturating_sub(40);
+        let tail: String = self.sentence[lookback..before_idx].iter().collect();
+        let Some(prev) = tail.split_whitespace().last() else {
+            return;
+        };
+        let word_like = prev.chars().all(|ch| ch.is_alphabetic() || ch == '-')
+            && !prev.starts_with('-')
+            && !prev.ends_with('-');
+        if word_like {
+            let phrase = format!("{prev} {current}");
+            if valid_style_entry(&phrase) {
+                self.style_note_word(&phrase);
+            }
+        }
+    }
+
+    /// Chốt vòng duyệt ứng viên. Ứng viên đang hiển thị được học ở đây chứ không phải
+    /// lúc chèn: ứng viên bị Tab bỏ qua không được vào hồ sơ, và xoá ngay (Backspace/Esc)
+    /// là từ chối (R2-147).
+    fn settle_predict(&mut self, accepted: bool) {
+        let Some(cycle) = self.last_predict.take() else {
+            return;
+        };
+        if !accepted {
+            return;
+        }
+        if let Some(cand) = cycle.candidates.get(cycle.current_index) {
+            self.note_accepted(cand, &cycle.sample, cycle.continuation);
+        }
+    }
+
+    /// P7 Hook 2: học ứng viên người dùng nhận (bản lowercase chuẩn). Cụm nối tiếp học
+    /// cả dạng `<từ trước> <cụm>` để lần sau khớp theo ngữ cảnh.
+    fn note_accepted(&mut self, cand: &str, sample: &str, continuation: bool) {
+        if continuation {
+            let full_phrase = format!("{sample} {cand}");
+            if valid_style_entry(&full_phrase) {
+                self.style_note_word(&full_phrase.to_lowercase());
+            }
+            if valid_style_entry(cand) {
+                self.style_note_word(&cand.to_lowercase());
+            }
+        } else {
+            self.style_note_word(&cand.to_lowercase());
+        }
+    }
+
+    /// Trả từ đang mở về chuỗi gõ (`boundary` nếu có đi theo sau) — dùng chung cho Ctrl
+    /// tap, Ctrl+Space và ranh giới từ (RESTORE = REPLACE, P0-4 §3).
+    fn restore_raw(&mut self, boundary: Option<char>) -> Outcome {
+        let delete = self.word.owned as u16;
+        let mut insert = self.word.raw.clone();
+        insert.extend(boundary);
+        self.word.clear();
+        // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
+        self.record(Tail::Replace {
+            delete: delete as usize,
+            glyph: &insert,
+            unicode: &insert,
+        });
+        Outcome {
+            action: Action::Restore {
+                delete_count: delete,
+                insert,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+        }
+    }
+
+    /// Phím ngoặc Telex (`[` → `ơ`, `]` → `ư`) là **dấu ngoặc thật** (ranh giới từ) khi
+    /// nó không tạo được âm tiết Việt: đầu từ, sau `arr`, sau một vần đã đủ, hay trong
+    /// ô lệnh. Giữ `arr[0]`, `[1, 2, 3]`, `- [ ] việc`, `[tôi]` nguyên vẹn (R2-140).
+    fn bracket_is_boundary(&self, c: char) -> bool {
+        if !matches!(c, '[' | ']') || self.opts.method != Method::Telex {
+            return false;
+        }
+        if self.word.is_empty()
+            || self.word.identifier
+            || matches!(
+                self.ctx.field_role,
+                strategy::IME_FIELD_TERMINAL | strategy::IME_FIELD_ADDRESS_BAR
+            )
+        {
+            return true;
+        }
+        // Đóng ngoặc của `[` đứng ngay trước từ: `- [x]`, `[tooi]`.
+        let word_len = if self.word.active {
+            self.word.display.len()
+        } else {
+            self.word.passed.len()
+        };
+        let before_word = self.sentence.len().checked_sub(word_len + 1);
+        if c == ']' && before_word.is_some_and(|i| self.sentence[i] == '[') {
+            return true;
+        }
+        // Bấm lại đúng phím vừa thành nguyên âm = gỡ về dấu ngoặc (`m[[` → `m[`).
+        let vowel_undo = self.word.raw.last() == Some(&c)
+            && self
+                .word
+                .display
+                .last()
+                .is_some_and(|&d| transform::tone::is_vowel(d));
+        if vowel_undo {
+            return false;
+        }
+        let mut raw = self.word.raw.clone();
+        raw.push(c);
+        let mut display = method::fold_caps(
+            &raw,
+            self.opts.method,
+            self.opts.diacritic_style,
+            self.opts.free_marking,
+            self.word.caps_lock,
+        );
+        if validate::is_valid_word(&display) {
+            return false;
+        }
+        // Âm tiết còn dở cần âm cuối (`thươ` của `th][ng`).
+        display.push('n');
+        !validate::is_valid_word(&display)
+    }
+
+    /// Từ có phím ngoặc đã thành nguyên âm, gặp ký tự cho thấy đây là chỉ mục mảng chứ
+    /// không phải chữ Việt: `x[1]`, `d["k"]`, `s[i]` → trả lại nguyên văn.
+    fn bracket_word_is_code(&self, c: char) -> bool {
+        let raw = &self.word.raw;
+        // `foo[bar]`: `[` dính sau định danh là chỉ mục, không phải ngoặc văn xuôi `[đây]`.
+        let index_close = c == ']'
+            && self
+                .sentence
+                .len()
+                .checked_sub(self.word.display.len() + 2)
+                .is_some_and(|i| self.sentence[i].is_alphanumeric() && self.sentence[i + 1] == '[');
+        self.word.active
+            && (index_close
+                || (c == ']' && raw.contains(&'['))
+                || (matches!(raw.last(), Some('[' | ']'))
+                    && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{'))))
+    }
+
+    /// P7: ghi cặp
     /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
     pub fn style_peek_json(&self) -> String {
         if self.style_pending.words.is_empty()
@@ -503,24 +693,16 @@ impl Engine {
         {
             return "{}".to_string();
         }
-        const DRAIN_MAX_WORDS: usize = 200;
-        const DRAIN_MAX_CORR: usize = 50;
-        let mut words: Vec<String> = self
-            .style_pending
-            .words
-            .iter()
+        let words: Vec<String> = self
+            .drain_words()
+            .into_iter()
             .map(|(w, n)| format!("{{\"word\":\"{w}\",\"count\":{n}}}"))
             .collect();
-        words.sort();
-        let mut corr: Vec<String> = self
-            .style_pending
-            .corrections
-            .iter()
+        let corr: Vec<String> = self
+            .drain_corrections()
+            .into_iter()
             .map(|((f, t), n)| format!("{{\"from\":\"{f}\",\"to\":\"{t}\",\"count\":{n}}}"))
             .collect();
-        corr.sort();
-        words.truncate(DRAIN_MAX_WORDS);
-        corr.truncate(DRAIN_MAX_CORR);
         format!(
             "{{\"words\":[{}],\"corrections\":[{}],\"rsi\":{{\"keys_typed\":{},\"accepts\":{},\"chars_saved\":{},\"savings_rate_pct\":{}}}}}",
             words.join(","),
@@ -532,10 +714,45 @@ impl Engine {
         )
     }
 
-    /// P7: xóa sạch pending sau khi caller đã copy thành công.
+    /// Lượt drain lấy các từ pending nhiều lần gõ nhất trước (trước đây cắt theo vần
+    /// ABC — từ cuối bảng chữ cái luôn mất); JSON vẫn xếp ABC cho ổn định.
+    fn drain_words(&self) -> Vec<(&String, &u32)> {
+        let mut words: Vec<(&String, &u32)> = self.style_pending.words.iter().collect();
+        words.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        words.truncate(DRAIN_MAX_WORDS);
+        words.sort();
+        words
+    }
+
+    fn drain_corrections(&self) -> Vec<(&(String, String), &u32)> {
+        let mut corr: Vec<(&(String, String), &u32)> =
+            self.style_pending.corrections.iter().collect();
+        corr.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+        corr.truncate(DRAIN_MAX_CORR);
+        corr.sort();
+        corr
+    }
+
+    /// P7: xóa đúng phần `style_peek_json` vừa xuất sau khi caller đã copy thành công —
+    /// phần vượt trần drain ở lại cho lượt sau, không mất (R2-148).
     pub fn style_clear_pending(&mut self) {
-        self.style_pending.words.clear();
-        self.style_pending.corrections.clear();
+        let words: Vec<String> = self
+            .drain_words()
+            .into_iter()
+            .map(|(w, _)| w.clone())
+            .collect();
+        let corr: Vec<(String, String)> = self
+            .drain_corrections()
+            .into_iter()
+            .map(|(p, _)| p.clone())
+            .collect();
+        let pending = Arc::make_mut(&mut self.style_pending);
+        for w in &words {
+            pending.words.remove(w);
+        }
+        for p in &corr {
+            pending.corrections.remove(p);
+        }
     }
 
     /// P7: drain pending dạng JSON `{"words":[..],"corrections":[..]}` rồi XÓA.
@@ -554,9 +771,9 @@ impl Engine {
     }
 
     pub fn set_options(&mut self, opts: EngineOptions) {
-        self.opts = opts;
+        self.settle_predict(true);
+        self.opts = Arc::new(opts);
         self.word.clear();
-        self.last_predict = None;
         self.record(Tail::Clear);
     }
 
@@ -601,7 +818,7 @@ impl Engine {
     /// Tắt gõ tắt/emoji/tự viết hoa/hoàn tất bằng Space: chỉ chuyển phím, không
     /// thêm chữ.
     fn retype_ascii_words(&self, text: &[char]) -> Vec<char> {
-        let mut opts = self.opts.clone();
+        let mut opts = EngineOptions::clone(&self.opts);
         opts.enabled = true;
         opts.macros.clear();
         opts.emoji.clear();
@@ -644,8 +861,8 @@ impl Engine {
 
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
+        self.settle_predict(true);
         self.word.clear();
-        self.last_predict = None;
         self.record(Tail::Clear);
     }
 
@@ -661,6 +878,7 @@ impl Engine {
             return None;
         }
         let mut probe = self.clone();
+        probe.probe = true;
         let tab = KeyEvent {
             vk: keymap::vk::TAB,
             ch: '\t' as u32,
@@ -916,35 +1134,13 @@ impl Engine {
                 if !self.word.is_empty() {
                     if self.word.active
                         && !validate::is_valid_word(&self.word.display)
-                        && self.opts.auto_restore_english
-                        && post::restore_en::should_restore(
-                            &self.word.raw,
-                            &self.word.display,
-                            &self.opts.english_words,
-                        )
+                        && self.restorable()
                     {
-                        let delete = self.word.owned as u16;
-                        let raw = self.word.raw.clone();
-                        if self.opts.style_enabled_for_learning() {
-                            let raw_str: String = raw.iter().collect();
-                            self.style_note_word(&raw_str);
-                        }
-                        self.word.clear();
-                        self.record(Tail::Replace {
-                            delete: delete as usize,
-                            glyph: &raw,
-                            unicode: &raw,
-                        });
-                        return Outcome {
-                            action: Action::Restore {
-                                delete_count: delete,
-                                insert: raw,
-                            },
-                            preedit: Vec::new(),
-                            flags: FLAG_CONSUMED | FLAG_WORD_END,
-                        };
+                        let raw_str: String = self.word.raw.iter().collect();
+                        self.style_note_word(&raw_str);
+                        return self.restore_raw(None);
                     }
-                    if self.opts.style_enabled_for_learning() {
+                    if self.style_enabled_for_learning() {
                         let current = if self.word.active {
                             self.word.display.iter().collect::<String>()
                         } else {
@@ -968,9 +1164,10 @@ impl Engine {
                 flags: 0,
             };
         }
-        // P6 Text Prediction: Bất kỳ phím nào khác Tab hoặc Ctrl+Space đều huỷ trạng thái duyệt vòng
+        // P6 Text Prediction: Bất kỳ phím nào khác Tab hoặc Ctrl+Space đều chốt vòng duyệt;
+        // Backspace/Esc ngay sau khi chèn là từ chối ứng viên — không học.
         if k.vk != keymap::vk::TAB && !k.is_ctrl_space() {
-            self.last_predict = None;
+            self.settle_predict(!matches!(k.vk, keymap::vk::BACK | keymap::vk::ESCAPE));
         }
         // Chống loop (P0-3 §6): phím adapter tự bơm → PASS tuyệt đối.
         if k.is_injected {
@@ -1000,10 +1197,10 @@ impl Engine {
 
         let strategy = self.strategy();
         let vi_on = self.opts.enabled && self.ctx.enabled;
-        // Ô mật khẩu hoặc app yêu cầu passthrough tuyệt đối (Terminal/Game...):
+        // Ô mật khẩu, terminal hoặc app yêu cầu passthrough tuyệt đối (Game...):
         // không chạy dự đoán/duyệt vòng ứng viên. Ngược lại, khi chỉ tắt tiếng Việt
         // (Mode EN: `vi_on == false`), bộ dự đoán tiếng Anh vẫn hoạt động đầy đủ!
-        let passthrough_only = self.secure() || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH;
+        let passthrough_only = self.prediction_blocked();
 
         // P6: đang duyệt vòng ứng viên → Tab/Ctrl+Space kế tiếp đổi ứng viên,
         // ƯU TIÊN hơn gõ tắt: đuôi `recent` lúc này là ứng viên vừa chèn, không
@@ -1065,39 +1262,21 @@ impl Engine {
             // Ranh giới từ (Space, dấu câu, Enter, phím điều hướng…) báo WORD_END: adapter
             // giữ từ trong composition để bung gõ tắt khi VN tắt sẽ commit từ ở đây thay vì
             // kéo gạch chân sang từ kế tiếp.
-            let boundary = k
-                .printable()
-                .is_none_or(|c| !method::is_word_char(c, self.opts.method));
-            let learn_boundary = k
-                .printable()
-                .is_some_and(|c| !method::is_word_char(c, self.opts.method));
+            // Ngoặc chỉ là chữ khi Telex đang fold — tiếng Việt tắt thì luôn là ranh giới.
+            let ends_word =
+                |c: char| !method::is_word_char(c, self.opts.method) || matches!(c, '[' | ']');
+            let boundary = k.printable().is_none_or(ends_word);
+            let learn_boundary = k.printable().is_some_and(ends_word);
             // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ in được đến).
-            if learn_boundary && !passthrough_only && self.opts.style_enabled_for_learning() {
+            if learn_boundary && self.style_enabled_for_learning() {
                 let mut end = self.sentence.len();
                 while end > 0 && self.sentence[end - 1].is_ascii_alphabetic() {
                     end -= 1;
                 }
-                let word_len = self.sentence.len() - end;
-                if word_len >= 2 {
+                if self.sentence.len() - end >= 2 {
                     let current: String = self.sentence[end..].iter().collect();
                     self.style_note_word(&current);
-                    if end > 0 {
-                        let lookback = end.saturating_sub(40);
-                        let tail: String = self.sentence[lookback..end].iter().collect();
-                        let trimmed_end = tail.trim_end_matches([' ', '\t']);
-                        if !trimmed_end.ends_with([
-                            '.', ',', '!', '?', ';', ':', '\n', '\r', '(', ')', '"', '“', '”',
-                        ]) {
-                            if let Some(prev) = trimmed_end.split_whitespace().last() {
-                                if prev.chars().all(|ch| ch.is_alphabetic() || ch == '-') {
-                                    let phrase = format!("{prev} {current}");
-                                    if valid_style_entry(&phrase) {
-                                        self.style_note_word(&phrase);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    self.style_note_bigram(end, &current);
                 }
             }
             // Vẫn ghi nhận text đi thẳng: macro `always` có thể chạy khi VN tắt
@@ -1149,36 +1328,12 @@ impl Engine {
                 }
                 if is_ctrl_space {
                     // Nếu từ đang active là từ tiếng Anh bị Telex biến đổi sai cấu trúc Việt
-                    // (ví dụ `sort` -> `sỏt`, `script` -> `scỉpt`) mà không khớp dự đoán nào,
+                    // (ví dụ `sort` -> `sỏt`) mà không khớp dự đoán nào,
                     // phải hoàn nguyên về từ tiếng Anh gốc trước khi nhả quyền sở hữu từ!
-                    if self.word.active
-                        && self.opts.auto_restore_english
-                        && post::restore_en::should_restore(
-                            &self.word.raw,
-                            &self.word.display,
-                            &self.opts.english_words,
-                        )
-                    {
-                        let delete = self.word.owned as u16;
-                        let raw = self.word.raw.clone();
-                        if self.opts.style_enabled_for_learning() {
-                            let raw_str: String = raw.iter().collect();
-                            self.style_note_word(&raw_str);
-                        }
-                        self.word.clear();
-                        self.record(Tail::Replace {
-                            delete: delete as usize,
-                            glyph: &raw,
-                            unicode: &raw,
-                        });
-                        return Outcome {
-                            action: Action::Restore {
-                                delete_count: delete,
-                                insert: raw,
-                            },
-                            preedit: Vec::new(),
-                            flags: FLAG_CONSUMED | FLAG_WORD_END,
-                        };
+                    if self.word.active && self.restorable() {
+                        let raw_str: String = self.word.raw.iter().collect();
+                        self.style_note_word(&raw_str);
+                        return self.restore_raw(None);
                     }
                     // Ctrl+Space không khớp dự đoán: KHÔNG chèn khoảng trắng; adapter
                     // kích hoạt Trợ lý ngữ pháp (Text Correct) hoặc để app nhận phím.
@@ -1191,7 +1346,7 @@ impl Engine {
                         ..Outcome::pass()
                     };
                 }
-                self.last_predict = None;
+                self.settle_predict(true);
                 return self.on_boundary(c, strategy);
             }
             _ => {}
@@ -1214,7 +1369,7 @@ impl Engine {
             return Outcome::pass();
         };
 
-        if !method::is_word_char(c, self.opts.method) {
+        if !method::is_word_char(c, self.opts.method) || self.bracket_is_boundary(c) {
             // Số/punctuation (theo method): đóng từ (nếu có) rồi cho ký tự đi thẳng.
             return self.on_boundary(c, strategy);
         }
@@ -1502,20 +1657,14 @@ impl Engine {
     /// đuôi text (`recent`) khi chữ kế tiếp được gõ.
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
-        let will_restore = was_active
-            && self.opts.auto_restore_english
-            && post::restore_en::should_restore(
-                &self.word.raw,
-                &self.word.display,
-                &self.opts.english_words,
-            );
+        let will_restore = was_active && (self.restorable() || self.bracket_word_is_code(c));
 
         // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — khi
         // `will_restore` = true thì học chuỗi EN thật (`self.word.raw`), tuyệt đối
         // không học chuỗi bị Telex biến đổi sai cấu trúc (`self.word.display` như `sỏt`).
         // G8: chỉ từ đơn/cụm ngắn <= 3 từ + count; secure check ở caller key() đã chặn ô mật khẩu
         // (đường này không chạy khi secure — engine không nhận context secure).
-        if self.opts.style_enabled_for_learning() {
+        if self.style_enabled_for_learning() {
             let (current, sentence_cur_len) = if will_restore {
                 (
                     self.word.raw.iter().collect::<String>(),
@@ -1534,51 +1683,89 @@ impl Engine {
             };
             if !current.is_empty() {
                 self.style_note_word(&current);
-                // Tìm từ trước đó trong buffer câu (nằm trước từ hiện tại vừa kết thúc):
-                if self.sentence.len() > sentence_cur_len {
-                    let before_idx = self.sentence.len() - sentence_cur_len;
-                    let lookback = before_idx.saturating_sub(40);
-                    let tail: String = self.sentence[lookback..before_idx].iter().collect();
-                    let trimmed_end = tail.trim_end_matches([' ', '\t']);
-                    if !trimmed_end.ends_with([
-                        '.', ',', '!', '?', ';', ':', '\n', '\r', '(', ')', '"', '“', '”',
-                    ]) {
-                        if let Some(prev) = trimmed_end.split_whitespace().last() {
-                            if prev.chars().all(|ch| ch.is_alphabetic() || ch == '-') {
-                                let phrase = format!("{prev} {current}");
-                                if valid_style_entry(&phrase) {
-                                    self.style_note_word(&phrase);
-                                }
-                            }
-                        }
-                    }
+                if let Some(before_idx) = self.sentence.len().checked_sub(sentence_cur_len) {
+                    self.style_note_bigram(before_idx, &current);
                 }
             }
         }
 
         // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
         if will_restore {
-            let delete = self.word.owned as u16;
-            let mut insert = self.word.raw.clone();
-            insert.push(c); // ranh giới vẫn phải vào document (RESTORE = REPLACE — P0-4 §3)
-            self.word.clear();
-            // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
-            self.record(Tail::Replace {
-                delete: delete as usize,
-                glyph: &insert,
-                unicode: &insert,
-            });
-            return Outcome {
-                action: Action::Restore {
-                    delete_count: delete,
-                    insert,
-                },
-                preedit: Vec::new(),
-                flags: FLAG_CONSUMED | FLAG_WORD_END,
-            };
+            return self.restore_raw(Some(c)); // ranh giới vẫn phải vào document
         }
 
         self.close_word(c, strategy)
+    }
+
+    /// Từ đang mở có nên trả về chuỗi gõ không (auto-restore tiếng Anh, bug B5).
+    fn restorable(&self) -> bool {
+        self.opts.auto_restore_english
+            && post::restore_en::should_restore(
+                &self.word.raw,
+                &self.word.display,
+                &self.opts.english_words,
+            )
+    }
+
+    /// Gạch nối dài từ hai dấu `-` (R2-141). Chỉ hai dạng văn xuôi: `a--b` (dính liền
+    /// chữ — đổi ngay, ranh giới kế tiếp không phải chữ thì trả lại) và `a -- b` (cách
+    /// hai bên — đổi khi có dấu cách thứ hai). Không đụng `--force`, `i--;`, `<!-- -->`,
+    /// `|--|`, `=A1--B1`, `-- comment`. `---` luôn giữ nguyên cho Markdown.
+    fn em_dash_outcome(&mut self, c: char, tentative: bool) -> Option<Outcome> {
+        const EM: char = '\u{2014}';
+        let replace = |delete: usize, text: &[char], engine: &mut Engine| {
+            engine.record(Tail::Replace {
+                delete,
+                glyph: text,
+                unicode: text,
+            });
+            Outcome {
+                action: Action::Replace {
+                    delete_count: delete as u16,
+                    insert: text.to_vec(),
+                },
+                preedit: Vec::new(),
+                flags: FLAG_CONSUMED | FLAG_WORD_END,
+            }
+        };
+        let tail = self.recent.as_slice();
+        if tentative && tail.last() == Some(&EM) {
+            let text: Vec<char> = if c == '-' {
+                vec!['-', '-', '-']
+            } else {
+                vec!['-', '-', c]
+            };
+            return Some(replace(1, &text, self)); // `a---` hoặc `i--;`
+        }
+        if !self.opts.enabled
+            || !self.ctx.enabled
+            || !matches!(
+                self.opts.output_charset,
+                OutputCharset::UnicodePrecomposed | OutputCharset::UnicodeDecomposed
+            )
+            || matches!(
+                self.ctx.field_role,
+                strategy::IME_FIELD_TERMINAL
+                    | strategy::IME_FIELD_ADDRESS_BAR
+                    | strategy::IME_FIELD_SEARCH
+                    | strategy::IME_FIELD_CANDIDATE
+            )
+        {
+            return None;
+        }
+        let is_letter = |ch: char| ch.is_alphabetic() || ('\u{300}'..='\u{36F}').contains(&ch);
+        match (c, tail) {
+            ('-', [.., before, '-']) if is_letter(*before) => {
+                self.em_dash_tentative = true;
+                Some(replace(1, &[EM], self))
+            }
+            (' ', [.., before, ' ', '-', '-'])
+                if !before.is_whitespace() && *before != '-' && *before != EM =>
+            {
+                Some(replace(2, &[EM, ' '], self))
+            }
+            _ => None,
+        }
     }
 
     /// Đóng từ đang gõ **giữ nguyên** kết quả trong document, rồi cho `c` vào sau nó
@@ -1588,54 +1775,10 @@ impl Engine {
         let was_empty = self.word.is_empty();
         self.word.clear();
 
-        // Gõ nhanh hai dấu gạch ngang `a--b` → gạch nối dài `a—b` (em-dash U+2014).
-        // Nếu bấm thêm dấu `-` thứ ba (`---`) → hoàn nguyên về `---` cho Markdown / comment.
-        // Chỉ kích hoạt khi tiếng Việt đang bật, bảng mã hỗ trợ Unicode, và không ở Terminal / AddressBar.
-        if c == '-'
-            && !was_active
-            && was_empty
-            && self.opts.enabled
-            && self.ctx.enabled
-            && matches!(
-                self.opts.output_charset,
-                OutputCharset::UnicodePrecomposed | OutputCharset::UnicodeDecomposed
-            )
-            && !matches!(
-                self.ctx.field_role,
-                strategy::IME_FIELD_TERMINAL | strategy::IME_FIELD_ADDRESS_BAR
-            )
-        {
-            if self.recent.ends_with(&['-']) && !self.recent.ends_with(&['-', '-']) {
-                let em = ['\u{2014}'];
-                self.record(Tail::Replace {
-                    delete: 1,
-                    glyph: &em,
-                    unicode: &em,
-                });
-                return Outcome {
-                    action: Action::Replace {
-                        delete_count: 1,
-                        insert: em.to_vec(),
-                    },
-                    preedit: Vec::new(),
-                    flags: FLAG_CONSUMED | FLAG_WORD_END,
-                };
-            }
-            if self.recent.ends_with(&['\u{2014}']) {
-                let triple = ['-', '-', '-'];
-                self.record(Tail::Replace {
-                    delete: 1,
-                    glyph: &triple,
-                    unicode: &triple,
-                });
-                return Outcome {
-                    action: Action::Replace {
-                        delete_count: 1,
-                        insert: triple.to_vec(),
-                    },
-                    preedit: Vec::new(),
-                    flags: FLAG_CONSUMED | FLAG_WORD_END,
-                };
+        let tentative = std::mem::take(&mut self.em_dash_tentative);
+        if was_empty {
+            if let Some(out) = self.em_dash_outcome(c, tentative) {
+                return out;
             }
         }
 
@@ -1765,8 +1908,11 @@ impl Engine {
         }
         // P7 (vòng 54, Hook 2): học prediction-accept — ứng viên user bấm
         // Tab/Space nhận = tín hiệu "tôi hay dùng từ này" (đếm trên bản
-        // lowercase chuẩn của completion, G8: chỉ từ + count).
-        self.style_note_word(&completion.to_lowercase());
+        // lowercase chuẩn của completion, G8: chỉ từ + count). Nhiều ứng viên
+        // thì chờ người dùng chốt (`settle_predict`).
+        if append.is_some() || all_candidates.len() == 1 {
+            self.note_accepted(&completion, &raw_sample, false);
+        }
         // P10 — Dream RSI: accept tiết kiệm (completion − typed) ký tự.
         self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
         self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(
@@ -1844,9 +1990,6 @@ impl Engine {
         let prev_glyphs = cycle.inserted_glyphs as u64;
         cycle.inserted_glyphs = out.len();
         cycle.current_index = next_idx;
-        // P7 Hook 2: học ứng viên user duyệt tới (Tab/Ctrl+Space đổi candidate
-        // = tín hiệu chủ ý dùng nó; học bản lowercase chuẩn của candidate).
-        self.style_note_word(&cand.to_lowercase());
         // P10 — Dream RSI: cycle sang candidate dài hơn = tiết kiệm thêm
         // (cand mới − phần đã chèn của candidate cũ).
         self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
@@ -1889,10 +2032,7 @@ impl Engine {
         vi_on: bool,
         min_key_words: usize,
     ) -> Option<Outcome> {
-        if self.secure()
-            || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH
-            || !self.opts.suggest_vn_complete
-        {
+        if self.prediction_blocked() || !self.opts.suggest_vn_complete {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
@@ -1979,15 +2119,9 @@ impl Engine {
             .chars_saved
             .saturating_add(phrase_glyphs as u64);
 
-        // P7: Học cụm từ khi người dùng chấp nhận gợi ý cụm tiếp theo (tiến hóa bộ gõ).
-        if self.opts.style_enabled_for_learning() {
-            let full_phrase = format!("{last_word} {adapted}");
-            if valid_style_entry(&full_phrase) {
-                self.style_note_word(&full_phrase.to_lowercase());
-            }
-            if valid_style_entry(&adapted) {
-                self.style_note_word(&adapted.to_lowercase());
-            }
+        // P7: một ứng viên thì học ngay; nhiều ứng viên chờ người dùng chốt (`settle_predict`).
+        if candidates.len() == 1 {
+            self.note_accepted(&adapted, last_word, true);
         }
 
         if candidates.len() > 1 {
@@ -2031,13 +2165,16 @@ impl Engine {
         vi_on: bool,
         append: Option<char>,
     ) -> Option<Outcome> {
-        if self.secure() || self.ctx.hint == strategy::IME_STRATEGY_PASSTHROUGH {
+        if self.prediction_blocked() {
             return None;
         }
         if vi_on && !self.opts.auto_restore_english {
             return None;
         }
-        if !vi_on && !self.opts.suggest_vn_complete && !self.opts.suggest_space_complete {
+        // Mode EN: chỉ Tab/Ctrl+Space khi dự đoán bật. Space không bao giờ viết lại chữ —
+        // người dùng tắt tiếng Việt để gõ đúng chữ mình gõ (`func impl cfg`, tên riêng),
+        // và Tab không tự nhận khi dự đoán tắt (thụt lề IDE, chuyển ô Excel — R2-144).
+        if !vi_on && (!self.opts.suggest_vn_complete || append.is_some()) {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
@@ -2053,7 +2190,9 @@ impl Engine {
 
         // Trích xuất `(typed, folded, delete_count, en_context)` cho cả Mode VI và Mode EN:
         let (typed, folded, delete, en_context) = if vi_on {
-            if k.is_ctrl_space() && !prediction_on {
+            // `sort`+Ctrl+Space khi dự đoán tắt: nhường bước khôi phục về từ gốc (không
+            // kéo dài thành `sorted`); các từ khác vẫn hoàn tất theo yêu cầu (`ebit` → `EBITDA`).
+            if k.is_ctrl_space() && !prediction_on && self.word.active && self.restorable() {
                 return None;
             }
             if !self.word.active && !space_mode && !k.is_ctrl_space() && !prediction_on {
@@ -2109,9 +2248,6 @@ impl Engine {
                 return None;
             }
             let typed_s: String = self.sentence[end..].iter().collect();
-            if space_mode && post::restore_en::is_known_en_word(&typed_s.to_lowercase()) {
-                return None;
-            }
             (typed_s.clone(), typed_s, word_len as u16, true)
         };
 
@@ -2155,8 +2291,10 @@ impl Engine {
         if out.len() > MAX_TEXT {
             return None;
         }
-        // P7 Hook 2: học EN prediction-accept (candidate user nhận qua Tab/Space).
-        self.style_note_word(&completion.to_lowercase());
+        // P7 Hook 2: một ứng viên thì học ngay; nhiều ứng viên chờ chốt (`settle_predict`).
+        if append.is_some() || candidates.len() == 1 {
+            self.note_accepted(&completion, &typed, false);
+        }
         // P10 — Dream RSI: EN accept tiết kiệm ký tự khi hoàn tất từ dài hơn chuỗi đã gõ.
         let saved = completion
             .chars()
@@ -3416,9 +3554,12 @@ mod tests {
         assert_eq!(type_doc(&mut e, "m[f "), "mờ ");
         assert_eq!(type_doc(&mut e, "h[n "), "hơn ");
         assert_eq!(type_doc(&mut e, "th][ng "), "thương ");
-        assert_eq!(type_doc(&mut e, "[[ "), "[ ");
-        assert_eq!(type_doc(&mut e, "]] "), "] ");
+        // Đầu từ ngoặc là ngoặc thật — không có gì để gỡ, `[[link]]` giữ nguyên (R2-140).
+        assert_eq!(type_doc(&mut e, "[[ "), "[[ ");
+        assert_eq!(type_doc(&mut e, "]] "), "]] ");
         assert_eq!(type_doc(&mut e, "[] "), "[] ");
+        // Sau phụ âm ngoặc đã thành nguyên âm: bấm lại gỡ về dấu ngoặc.
+        assert_eq!(type_doc(&mut e, "m[[ "), "m[ ");
 
         // Backspace giữa từ dùng `[` `]` rồi gõ tiếp vẫn giữ dấu sừng và ghép vần đúng.
         let mut buf = type_buf(&mut e, "ch]a");

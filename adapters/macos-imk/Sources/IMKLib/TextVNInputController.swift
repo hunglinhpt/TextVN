@@ -67,6 +67,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     )
     /// Trạng thái theo dõi tổ hợp Ctrl+Shift tap (như Windows & Linux)
     private var ctrlDown = false
+    private var ctrlDownTime: TimeInterval = 0
     private var shiftDown = false
     private var otherKeyPressed = false
     private var lastToggleTime: TimeInterval = 0
@@ -261,12 +262,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 currentCtrl: isCtrl,
                 currentShift: isShift,
                 hasAltOrCmd: hasAltOrCmd,
-                otherKeyPressed: otherKeyPressed
+                otherKeyPressed: otherKeyPressed,
+                heldSeconds: ProcessInfo.processInfo.systemUptime - ctrlDownTime
             ) {
                 handleCtrlTap(sender)
                 otherKeyPressed = true
             }
 
+            if isCtrl && !ctrlDown {
+                ctrlDownTime = ProcessInfo.processInfo.systemUptime
+            }
             ctrlDown = isCtrl
             shiftDown = isShift
 
@@ -348,12 +353,19 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             ? OutputStrategy.backspaceType.rawValue
             : hint
         let effectiveCaps = nonPreedit ? (caps & ~FFI.capPreedit) : caps
+        let viEnabled = viState.enabled(for: context.appID)
+        let appLevelHint = viEnabled ? hint : Self.strategyResolver.strategy(
+            appID: context.appID, role: context.role, enabled: true,
+            secure: context.secure || secureMode
+        )
         engine?.setContext(
-            enabled: viState.enabled(for: context.appID), secure: context.secure || secureMode,
+            enabled: viEnabled, secure: context.secure || secureMode,
             fieldRole: context.role, caps: effectiveCaps,
             appId: context.appID,
             elementName: nil,
-            hint: effectiveHint
+            hint: Self.engineHint(
+                viEnabled: viEnabled, resolved: effectiveHint, appLevel: appLevelHint
+            )
         )
 
         guard let target = clientTarget(sender) else { return false }
@@ -728,6 +740,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         wasCtrl && wasShift && (!currentCtrl || !currentShift) && !otherKeyPressed
     }
 
+    /// Giữ Ctrl lâu hơn ngần này không còn là "tap": người dùng đang Ctrl+click, Ctrl+lăn
+    /// chuột… mà bộ gõ không thấy (R2-143 — cùng trị số Windows/Linux).
+    static let ctrlTapMaxSeconds: TimeInterval = 0.4
+
     /// Kiểm tra standalone Ctrl tap: Ctrl bấm rồi nhả đơn lẻ (không kèm Shift/Alt/Cmd hay phím khác).
     static func isCtrlTap(
         wasCtrl: Bool,
@@ -735,13 +751,34 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         currentCtrl: Bool,
         currentShift: Bool,
         hasAltOrCmd: Bool,
-        otherKeyPressed: Bool
+        otherKeyPressed: Bool,
+        heldSeconds: TimeInterval = 0
     ) -> Bool {
         wasCtrl && !wasShift && !currentCtrl && !currentShift && !hasAltOrCmd && !otherKeyPressed
+            && heldSeconds <= ctrlTapMaxSeconds
+    }
+
+    /// Hint gửi engine. Tiếng Việt tắt thì resolver luôn trả Passthrough, nhưng engine hiểu
+    /// hint đó là "app cấm tuyệt đối" và tắt luôn dự đoán tiếng Anh của Mode EN — chỉ giữ
+    /// Passthrough khi chính app/ô nhập yêu cầu (`appLevel`, resolve với tiếng Việt bật);
+    /// còn lại trả -1 (tự chọn) như TSF và Linux (R2-143).
+    static func engineHint(viEnabled: Bool, resolved: Int64, appLevel: Int64) -> Int64 {
+        if !viEnabled && appLevel != OutputStrategy.passthrough.rawValue {
+            return -1
+        }
+        return resolved
     }
 
     private func handleCtrlTap(_ sender: Any!) {
         guard let engine, let target = clientTarget(sender) else { return }
+        // Self-heal (như handle): app đã tự commit marked (click chuột…) — không áp
+        // `delete_count` cũ lên vị trí con trỏ mới.
+        if marked.text.isEmpty == false, target.markedRange().location == NSNotFound {
+            Diagnostics.log("self-heal: marked desync — ime_reset")
+            marked.clear()
+            engine.reset()
+            return
+        }
         let outcome = engine.ctrlTap()
         switch outcome.action {
         case .pass:

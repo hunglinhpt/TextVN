@@ -1571,6 +1571,12 @@ pub fn run() -> Result<(), String> {
             "is ready to proceed with the next phase",
             "will coordinate with the technical team",
         ] {
+            // `is/has` chỉ đi với chủ ngữ số ít — không sinh "I has…", "They is…".
+            let plural = matches!(subject, "I" | "We" | "They");
+            let singular_verb = matches!(predicate.split(' ').next(), Some("is" | "has"));
+            if plural && singular_verb {
+                continue;
+            }
             add(subject, predicate, 88);
             if let Some((first, rest)) = predicate.split_once(' ') {
                 add(&format!("{subject} {first}"), rest, 90);

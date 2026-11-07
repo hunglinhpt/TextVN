@@ -695,6 +695,12 @@ static void test_modifier_ctrl_tap(void) {
     assert(t.ctrl_armed == 0);
     assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
 
+    /* R2-143: giữ Ctrl quá lâu (Ctrl+click, Ctrl+lăn chuột) không phải tap. */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 0, 0);
+    t.ctrl_down_us -= LC_CTRL_TAP_MAX_US + 1000;
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
+    assert(t.ctrl_armed == 0);
+
     /* Ctrl down with Shift down -> not armed for ctrl tap */
     lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 1, 0);
     assert(t.ctrl_armed == 0);

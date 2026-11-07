@@ -69,7 +69,28 @@ pub fn fold_with_caps(
             &mut state,
         );
     }
+    if w_marker && !caps_lock && raw.iter().any(|c| matches!(c, '[' | ']')) {
+        upcase_bracket_word(raw, &mut out);
+    }
     out
+}
+
+/// Phím ngoặc không có dạng hoa (Shift+`[` là `{`) nên `ơ`/`ư` từ ngoặc luôn là chữ
+/// thường; từ gõ HOA (`CH]A`, `H[N`) phải ra `CHƯA`, `HƠN`. Chữ đứng sau ngoặc quyết
+/// định (`H[n` → `Hơn`); chưa có chữ sau thì cần ≥ 2 chữ hoa trước (`H[` vẫn là `Hơ`).
+fn upcase_bracket_word(raw: &[char], out: &mut [char]) {
+    let Some(first) = raw.iter().position(|c| matches!(c, '[' | ']')) else {
+        return;
+    };
+    let is_letter = |c: &&char| c.is_alphabetic();
+    let before = raw[..first].iter().filter(is_letter).count();
+    let after = raw[first..].iter().filter(is_letter).count();
+    let all_upper = raw.iter().filter(is_letter).all(|c| c.is_uppercase());
+    if all_upper && (after > 0 || before >= 2) {
+        for c in out.iter_mut() {
+            *c = c.to_uppercase().next().unwrap_or(*c);
+        }
+    }
 }
 
 /// Trạng thái phím `w` trong một từ (fold lại từ đầu mỗi phím nên chỉ sống trong `fold`).
@@ -158,7 +179,9 @@ fn push_key(
 
     // 0) Phím ngoặc `[` → `ơ` và `]` → `ư` (chỉ Telex chuẩn `w_marker = true`, như UniKey/macOS Telex):
     //    - `ch]a` → `chưa`, `m[f` → `mờ`, `h[n` → `hơn`, `th][ng` → `thương`, `ddu[cj` → `được`.
-    //    - Bấm ngoặc hai lần `[[` → `[`, `]]` → `]` để lấy lại dấu ngoặc literal.
+    //    - Bấm ngoặc hai lần sau phụ âm (`m[[` → `m[`) trả lại dấu ngoặc literal.
+    //    - R2-140: engine chỉ đưa phím ngoặc vào đây khi nó tạo được âm tiết Việt
+    //      (`Engine::bracket_is_boundary`) — `arr[0]`, `[1, 2]`, `- [ ] việc` giữ nguyên.
     //    - Cặp `[]` rỗng (không tồn tại vần `ơư` trong tiếng Việt) trả lại `[]` nguyên vẹn cho lập trình viên.
     if w_marker && (c == '[' || c == ']') {
         if c == '[' {
@@ -181,7 +204,8 @@ fn push_key(
             let mut promoted_u = false;
             if let Some(&last) = out.last() {
                 let after_q = out.len() >= 2 && matches!(out[out.len() - 2], 'q' | 'Q');
-                if matches!(last, 'u' | 'U') && !after_q {
+                // Dấu thanh gõ trước (`tus[ng` — free marking) vẫn là `u`: nhận cả `ú ù ủ ũ ụ`.
+                if matches!(locate(last), Some((U, _))) && !after_q {
                     let idx = out.len() - 1;
                     out[idx] = form_like(last, U_HOOK, tone_of(last).unwrap_or(0));
                     promoted_u = true;

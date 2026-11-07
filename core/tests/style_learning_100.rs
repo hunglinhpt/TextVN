@@ -137,6 +137,8 @@ fn s100_prediction_accept_hoc() {
     let ghost = e.peek_completion();
     println!("ghost: {ghost:?}");
     press(&mut e, &mut buf, &tab());
+    // Nhiều ứng viên: học khi người dùng chốt bằng phím kế tiếp (R2-147).
+    press(&mut e, &mut buf, &space());
     // drain: phải có candidate EN nhận + các từ gõ tay trước đó
     let json = e.style_drain_json();
     println!("drain: {json}");

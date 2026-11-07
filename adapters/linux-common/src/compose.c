@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 /* ---- Phân loại phím ---- */
@@ -199,8 +200,15 @@ const uint32_t *lc_plan_commit_text(const lc_comp *cur, const lc_plan *plan, siz
 
 /* ---- Ctrl+Shift ---- */
 
+static int64_t monotonic_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+}
+
 void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
                              int ctrl_down, int shift_down, int alt_or_super) {
+    int was_ctrl_armed = t->ctrl_armed;
     if (which == LC_MOD_KEY_CTRL) {
         t->armed = shift_down && !alt_or_super;
     } else if (which == LC_MOD_KEY_SHIFT) {
@@ -209,6 +217,9 @@ void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
         t->armed = 0;
     }
     t->ctrl_armed = (which == LC_MOD_KEY_CTRL) && !shift_down && !alt_or_super;
+    if (t->ctrl_armed && !was_ctrl_armed) {
+        t->ctrl_down_us = monotonic_us();
+    }
 }
 
 int lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which) {
@@ -223,7 +234,7 @@ int lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which) {
 int lc_modifier_ctrl_tap_up(lc_modifier_toggle *t, lc_modifier which) {
     if (which == LC_MOD_KEY_CTRL && t->ctrl_armed) {
         t->ctrl_armed = 0;
-        return 1;
+        return monotonic_us() - t->ctrl_down_us <= LC_CTRL_TAP_MAX_US;
     }
     if (which != LC_MOD_NONE) {
         t->ctrl_armed = 0;

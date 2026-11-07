@@ -820,13 +820,15 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
     // 2a. Từ ghép tiếng Anh ở Mode VI (kể cả khi bị Telex biến đổi thành "cútomer", "sỏuce", "artìicial"):
     for (input, want) in [
         ("machine\t", "machine learning"),
-        ("customer\t", "customer service"),
-        ("Customer\t", "Customer service"),
-        ("customer\t\t", "customer support"),
-        ("project\t", "project management"),
-        ("artificial\t", "artificial intelligence"),
+        // Từ bị fold nhầm: Tab đầu trả đúng từ gốc, Tab kế mới tới cụm (R2-149).
+        ("customer\t", "customer"),
+        ("customer\t\t", "customer service"),
+        ("Customer\t\t", "Customer service"),
+        ("customer\t\t\t", "customer support"),
+        ("project\t\t", "project management"),
+        ("artificial\t\t", "artificial intelligence"),
         ("pull\t", "pull request"),
-        ("source\t", "source code"),
+        ("source\t\t", "source code"),
     ] {
         assert_eq!(
             typed(&mut vi_engine(), input),
@@ -865,8 +867,10 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
     }
 
     // 2c. Từ ngắn tiếng Anh trong `en_common` bị fold ("see" -> "sê") ở Mode VI:
-    // Trước đây `try_vn_complete` cướp "sê" thành "sên"; nay nhường cho `try_english_complete` -> "seem".
-    assert_eq!(typed(&mut vi_engine(), "see\t"), "seem");
+    // Trước đây `try_vn_complete` cướp "sê" thành "sên"; nay nhường cho `try_english_complete`:
+    // Tab đầu trả từ gốc "see", Tab kế mới kéo dài (R2-149).
+    assert_eq!(typed(&mut vi_engine(), "see\t"), "see");
+    assert_eq!(typed(&mut vi_engine(), "see\t\t"), "seem");
 
     // 2d. Bảo vệ tiếng Việt ở Mode VI: từ Việt hợp lệ vẫn hoàn tất tiếng Việt chuẩn:
     assert_eq!(typed(&mut vi_engine(), "phats\t"), "phát triển");

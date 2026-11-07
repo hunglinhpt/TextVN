@@ -362,7 +362,8 @@ fn defer_to_key_down(
 fn handle_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) -> bool {
     let mut toggle = shared.modifier_toggle.get();
     let fire = toggle.on_key_up(vk);
-    let ctrl_tap = !fire && toggle.on_ctrl_tap_up(vk);
+    let held_too_long = toggle.ctrl_held_too_long(std::time::Instant::now());
+    let ctrl_tap = !fire && toggle.on_ctrl_tap_up(vk) && !held_too_long;
     shared.modifier_toggle.set(toggle);
     if fire {
         toggle_vietnamese(shared, ctx);
@@ -490,6 +491,7 @@ fn observe_key_down(shared: &TsfShared, vk: u32, mods: u32) {
         mods & MOD_SHIFT != 0,
         mods & (MOD_ALT | MOD_SUPER) != 0,
     );
+    toggle.mark_ctrl_down(std::time::Instant::now());
     shared.modifier_toggle.set(toggle);
 }
 

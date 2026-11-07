@@ -96,6 +96,8 @@ fn adv2_tab_accept_count_1() {
     press(&mut e, &mut buf, &letter('l'));
     press(&mut e, &mut buf, &letter('e'));
     press(&mut e, &mut buf, &tab());
+    // Nhiều ứng viên: học khi người dùng chốt bằng phím kế tiếp (R2-147).
+    press(&mut e, &mut buf, &space());
     let json = e.style_drain_json();
     assert!(
         json.contains("\"count\":1"),

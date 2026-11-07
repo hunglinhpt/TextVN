@@ -98,7 +98,12 @@ const uint32_t *lc_plan_commit_text(const lc_comp *cur, const lc_plan *plan, siz
 typedef struct lc_modifier_toggle {
     int armed;
     int ctrl_armed;
+    int64_t ctrl_down_us; /* mốc bấm Ctrl của lần tap đang chờ (đồng hồ đơn điệu) */
 } lc_modifier_toggle;
+
+/* Giữ Ctrl lâu hơn ngần này không còn là "tap": người dùng đang Ctrl+click, Ctrl+lăn
+ * chuột… mà bộ gõ không thấy (R2-143 — cùng trị số Windows/macOS). */
+#define LC_CTRL_TAP_MAX_US 400000
 
 typedef enum lc_modifier {
     LC_MOD_NONE = 0,

@@ -713,10 +713,31 @@ pub fn predict_next_phrase_matches_with_personal(
 
     // 1. Khớp cụm từ CÁ NHÂN (P7 / Dream RSI evolution):
     // Cụm từ cá nhân (2-4 từ) khớp tiền tố đuôi ngữ cảnh -> dự đoán phần còn lại với boost weight >= 100
+    // R2-150 (perf): chạy mỗi phím trên cả hồ sơ — loại nhanh bằng từ cuối của khoá trước khi
+    // ghép/chuẩn hoá. Đổi kiểu dấu giữ số chữ và phụ âm đầu nên phép loại không bỏ sót khớp thật.
+    let last_run = |s: &str| {
+        let run = s.rsplit(|c: char| !c.is_alphabetic()).next().unwrap_or("");
+        (run.chars().count(), run.chars().next())
+    };
+    let (ctx_len, ctx_first) = last_run(&context_lower);
+    let may_end_context = |word: &str| {
+        let (len, first) = last_run(word);
+        let first_differs = match (first, ctx_first) {
+            (Some(a), Some(b)) => a.is_ascii() && b.is_ascii() && !a.eq_ignore_ascii_case(&b),
+            _ => false,
+        };
+        len == ctx_len && !first_differs
+    };
     for (pentry, pcount) in personal {
+        if !pentry.contains(' ') {
+            continue;
+        }
         let words: Vec<&str> = pentry.split_whitespace().collect();
         if words.len() >= 2 && words.len() <= 4 {
             for k in (1..words.len()).rev() {
+                if !may_end_context(words[k - 1]) {
+                    continue;
+                }
                 let key = words[..k].join(" ");
                 let key_norm = restyle(&key.to_lowercase(), DiacriticStyle::Old);
                 if context_lower.ends_with(&key_norm) {

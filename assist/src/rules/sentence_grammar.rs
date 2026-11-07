@@ -202,7 +202,6 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
             };
             if (w == "mặc" && (next_w == "dù" || next_w == "dầu"))
                 || (w == "cho" && next_w == "dù")
-                || (w == "tuy" && next_w == "rằng")
                 || (w == "tuy" && next_w != "nhiên" && next_w != "vậy")
                 || (w == "dù" && next_w != "sao")
             {
@@ -213,7 +212,8 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                 || (w == "tại" && next_w == "vì")
                 || (w == "vì" && next_w != "sao")
                 || (w == "do" && next_w != "đó" && next_w != "vậy")
-                || (w == "nhờ" && next_w != "đó" && next_w != "vậy")
+                // "Nhờ anh xem giúp" là nhờ vả — chỉ "nhờ có/vào/sự" mới nêu nguyên nhân.
+                || (w == "nhờ" && matches!(next_w, "có" | "vào" | "sự"))
             {
                 clause_type = Some((ViCorrelativeClause::Cause, tok_idx));
                 continue;
@@ -235,6 +235,19 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
         // Kiểm tra xung đột ở vế 2 (sau vế 1 ít nhất 2 từ):
         if let Some((clause, marker_idx)) = clause_type {
             if tok_idx > marker_idx + 3 {
+                // Từ nối vế 2 phải đứng đúng chỗ nối: không có phẩy, hoặc ngay sau phẩy duy
+                // nhất. "Tuy bận, anh nên đi khám" (nên = should), "Do dịch, công ty đóng cửa,
+                // nhưng chúng tôi vẫn mở" (vế khác) đều là câu đúng (R2-142).
+                let commas = ctx.tokens[marker_idx + 1..tok_idx]
+                    .iter()
+                    .filter(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',')
+                    .count();
+                let after_comma = ctx.tokens[..tok_idx]
+                    .iter()
+                    .rev()
+                    .find(|t| t.kind != TokenKind::Space)
+                    .is_some_and(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
+                let joins_clauses = commas == 0 || (commas == 1 && after_comma);
                 match clause {
                     ViCorrelativeClause::Contrast => {
                         // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
@@ -268,6 +281,7 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                             );
                             break;
                         } else if w == "nên"
+                            && joins_clauses
                             && !nen_is_should
                             && !nhung_seen
                             && (k == 0 || words_with_idx[k - 1].2 != "cho")
@@ -285,10 +299,10 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                     }
                     ViCorrelativeClause::Cause => {
                         // Vòng 39 (R1 FP 8-13): CHỈ bêu khi marker ĐỨNG ĐẦU
-                        // câu và KHÔNG có phẩy trước "nhưng". FP: "Báo cáo này
-                        // do phòng kế toán lập, nhưng..." ("do" = tác nhân bị
-                        // động), "Do đó, ..." (anaphora), "Vì sao ..., nhưng..."
-                        // (nghi vấn) — đều có phẩy hoặc marker giữa câu.
+                        // câu và "nhưng" nối đúng vế 2 (`joins_clauses`). FP:
+                        // "Báo cáo này do phòng kế toán lập, nhưng..." ("do" = tác
+                        // nhân bị động), "Do đó, ..." (anaphora), "Vì sao ...,
+                        // nhưng..." (nghi vấn).
                         let marker_at_start = marker_idx == 0
                             || ctx.tokens[..marker_idx]
                                 .iter()
@@ -302,7 +316,9 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         // (anaphora) — marker không phải nguyên nhân thật.
                         let interrogative_or_anaphora =
                             next_w2 == "sao" || (w == "do" && next_w2 == "đó");
-                        if w == "nhưng" && (!marker_at_start || interrogative_or_anaphora) {
+                        if w == "nhưng"
+                            && (!marker_at_start || !joins_clauses || interrogative_or_anaphora)
+                        {
                             break;
                         }
                         // "Vì... nhưng..." → sai!
@@ -479,58 +495,64 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
     }
 
-    // 2.1b English correlatives: "neither ... or" -> "nor", "either ... and" -> "or", "both ... or" -> "and"
+    // 2.1b English correlatives: "neither ... or" -> "nor", "either ... and" -> "or",
+    // "both ... or" -> "and". Chỉ xét cụm ngắn ngay sau từ mở: dừng ở từ đi cặp đúng, ở dấu
+    // câu và ở từ mở mệnh đề — `and`/`or` xa hơn nối vế khác ("Either way, we finish and
+    // send it"; "Both teams can win or lose"). Một lượt quét tới, không quét lại (R2-142).
+    const CORRELATIVE_WINDOW: usize = 4;
+    const CLAUSE_WORDS: &[&str] = &[
+        "can", "could", "will", "would", "may", "might", "must", "should", "is", "are", "was",
+        "were", "do", "does", "did", "has", "have", "had", "that", "whether", "if",
+    ];
     for (idx, w_tok) in words.iter().enumerate() {
         let w = word_lower(ctx, w_tok);
-        if matches!(w.as_str(), "neither" | "either" | "both") {
-            for candidate_tok in words.iter().skip(idx + 1) {
-                if candidate_tok.start <= w_tok.end {
-                    continue;
-                }
-                let has_break = ctx.tokens.iter().any(|t| {
-                    t.kind == TokenKind::Punct
-                        && t.start > w_tok.end
-                        && t.end < candidate_tok.start
-                        && matches!(ctx.chars[t.start], '.' | '!' | '?' | ';')
-                });
-                if has_break {
-                    break;
-                }
-                let cand_w = word_lower(ctx, candidate_tok);
-                if w == "neither" && cand_w == "or" {
+        let (wrong, right) = match w.as_str() {
+            "neither" => ("or", "nor"),
+            "either" => ("and", "or"),
+            "both" => ("or", "and"),
+            _ => continue,
+        };
+        let opens_noun_phrase = words.get(idx + 1).is_some_and(|next| {
+            !matches!(
+                word_lower(ctx, next).as_str(),
+                "of" | "way" | "side" | "sides" | "one" | "end" | "ends" | "case"
+            )
+        });
+        if !opens_noun_phrase {
+            continue;
+        }
+        let mut prev_end = w_tok.end;
+        for candidate_tok in words.iter().skip(idx + 1).take(CORRELATIVE_WINDOW) {
+            if ctx.chars[prev_end..candidate_tok.start]
+                .iter()
+                .any(|c| !c.is_whitespace())
+            {
+                break;
+            }
+            prev_end = candidate_tok.end;
+            let cand_w = word_lower(ctx, candidate_tok);
+            if cand_w == right || CLAUSE_WORDS.contains(&cand_w.as_str()) {
+                break;
+            }
+            if cand_w == wrong {
+                let quoted = ctx
+                    .quote_parity
+                    .get(candidate_tok.start)
+                    .copied()
+                    .unwrap_or(false);
+                if !quoted && !ctx.is_masked(w_tok.start, candidate_tok.end) {
                     let orig = ctx.token_text(candidate_tok);
                     push_replace_issue(
                         candidate_tok,
                         &orig,
-                        "nor",
-                        "Correlative conjunction error: \"neither\" pairs with \"nor\", not \"or\""
-                            .to_string(),
+                        right,
+                        format!(
+                            "Correlative conjunction error: \"{w}\" pairs with \"{right}\", not \"{wrong}\""
+                        ),
                         out,
                     );
-                    break;
-                } else if w == "either" && cand_w == "and" {
-                    let orig = ctx.token_text(candidate_tok);
-                    push_replace_issue(
-                        candidate_tok,
-                        &orig,
-                        "or",
-                        "Correlative conjunction error: \"either\" pairs with \"or\", not \"and\""
-                            .to_string(),
-                        out,
-                    );
-                    break;
-                } else if w == "both" && cand_w == "or" {
-                    let orig = ctx.token_text(candidate_tok);
-                    push_replace_issue(
-                        candidate_tok,
-                        &orig,
-                        "and",
-                        "Correlative conjunction error: \"both\" pairs with \"and\", not \"or\""
-                            .to_string(),
-                        out,
-                    );
-                    break;
                 }
+                break;
             }
         }
     }
@@ -629,9 +651,99 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         }
     });
     // 2.2 Hoà hợp chủ ngữ - vị ngữ (Subject-Verb Agreement) & Redundant Prepositions
+    // Từ đứng trước thì động từ sau chủ ngữ ở dạng nguyên mẫu, hoặc "chủ ngữ" thật ra là tân
+    // ngữ/lời gọi: modal, phủ định rút gọn, động từ sai khiến/tri giác, lời chào (R2-142).
     const MODALS: &[&str] = &[
-        "to", "can", "could", "will", "would", "should", "must", "may", "might", "does", "did",
-        "shall", "cannot", "won't",
+        "to",
+        "can",
+        "could",
+        "will",
+        "would",
+        "should",
+        "must",
+        "may",
+        "might",
+        "does",
+        "did",
+        "shall",
+        "cannot",
+        "won't",
+        "doesn't",
+        "don't",
+        "didn't",
+        "can't",
+        "couldn't",
+        "wouldn't",
+        "shouldn't",
+        "mustn't",
+        "doesnt",
+        "dont",
+        "didnt",
+        "cant",
+        "let",
+        "lets",
+        "make",
+        "makes",
+        "made",
+        "help",
+        "helps",
+        "helped",
+        "hear",
+        "hears",
+        "heard",
+        "see",
+        "sees",
+        "saw",
+        "watch",
+        "watched",
+        "feel",
+        "felt",
+        "notice",
+        "noticed",
+        "hi",
+        "hello",
+        "hey",
+        "dear",
+        "thanks",
+    ];
+    // `it`/`you` cũng là tân ngữ ("When you finish it call me", "I will send you changes"):
+    // chỉ coi là chủ ngữ ở đầu vế.
+    const CLAUSE_OPENERS: &[&str] = &[
+        "and",
+        "but",
+        "or",
+        "so",
+        "because",
+        "if",
+        "when",
+        "while",
+        "that",
+        "as",
+        "since",
+        "although",
+        "though",
+        "where",
+        "after",
+        "before",
+        "once",
+        "then",
+        "until",
+        "unless",
+        "why",
+        "how",
+        "what",
+        "which",
+        "yes",
+        "no",
+        "maybe",
+        "perhaps",
+        "now",
+        "today",
+        "sometimes",
+        "usually",
+        "often",
+        "always",
+        "never",
     ];
 
     // Vòng 42 (perf, abnormal 100k): lookup O(1) thay `position()` O(n) mỗi
@@ -667,12 +779,38 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         let b = word_lower(ctx, &w1);
         let orig_b = ctx.token_text(&w1);
 
-        let prev_is_modal = if i > 0 {
-            let prev = word_lower(ctx, &words[i - 1]);
-            MODALS.contains(&prev.as_str())
-        } else {
-            false
-        };
+        let prev_word = i.checked_sub(1).map(|p| word_lower(ctx, &words[p]));
+        let prev_w = prev_word.as_deref().unwrap_or("");
+        let next_w = words.get(i + 2).map(|t| word_lower(ctx, t));
+        let next_w = next_w.as_deref().unwrap_or("");
+        let at_clause_start = i == 0
+            || CLAUSE_OPENERS.contains(&prev_w)
+            || ctx.chars[words[i - 1].end..w0.start]
+                .iter()
+                .any(|c| !c.is_whitespace());
+        let prev_is_modal =
+            MODALS.contains(&prev_w) || (matches!(a.as_str(), "it" | "you") && !at_clause_start);
+        let prev_is_determiner = matches!(
+            prev_w,
+            "the"
+                | "a"
+                | "an"
+                | "this"
+                | "that"
+                | "any"
+                | "each"
+                | "every"
+                | "no"
+                | "my"
+                | "your"
+                | "his"
+                | "her"
+                | "its"
+                | "our"
+                | "their"
+                | "main"
+                | "key"
+        );
 
         if !prev_is_modal {
             // Vòng 42 (Pass EN-1 F1): "do"/"go"/"say" là ÂM TIẾT VIỆT deaccent
@@ -719,7 +857,6 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
                     "live" => Some("lives"),
                     "bring" => Some("brings"),
                     "write" => Some("writes"),
-                    "read" => Some("reads"),
                     "speak" => Some("speaks"),
                     "meet" => Some("meets"),
                     "pay" => Some("pays"),
@@ -754,7 +891,6 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
                     "provide" => Some("provides"),
                     "include" => Some("includes"),
                     "continue" => Some("continues"),
-                    "set" => Some("sets"),
                     "learn" => Some("learns"),
                     "change" => Some("changes"),
                     "lead" => Some("leads"),
@@ -1059,7 +1195,19 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        if (a == "married" || a == "marry") && b == "with" {
+        // "married with two children" / "married with a child" là cụm chuẩn.
+        let after_article = words.get(i + 3).map(|t| word_lower(ctx, t));
+        let with_family = next_w.parse::<u32>().is_ok()
+            || matches!(
+                next_w,
+                "no" | "one" | "two" | "three" | "four" | "five" | "children" | "kids"
+            )
+            || (matches!(next_w, "a" | "an")
+                && matches!(
+                    after_article.as_deref(),
+                    Some("child" | "son" | "daughter" | "baby" | "kid" | "family")
+                ));
+        if (a == "married" || a == "marry") && b == "with" && !with_family {
             push_replace_issue(
                 &w1,
                 &orig_b,
@@ -1079,7 +1227,12 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        if (a == "focus" || a == "focuses" || a == "focused") && b == "in" {
+        // "Our focus in Vietnam" là danh từ, "focus in on" là cụm động từ.
+        if (a == "focus" || a == "focuses" || a == "focused")
+            && b == "in"
+            && next_w != "on"
+            && !prev_is_determiner
+        {
             push_replace_issue(
                 &w1,
                 &orig_b,
@@ -1119,7 +1272,11 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        if (a == "object" || a == "objects" || a == "objected") && b == "against" {
+        // "Place the object against the wall": `object` là danh từ.
+        if (a == "object" || a == "objects" || a == "objected")
+            && b == "against"
+            && !prev_is_determiner
+        {
             push_replace_issue(
                 &w1,
                 &orig_b,
@@ -1139,7 +1296,12 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        if a == "different" && (b == "with" || b == "than") {
+        // "different than I expected": trước mệnh đề `from` sai ngữ pháp.
+        let than_clause = matches!(
+            next_w,
+            "i" | "you" | "he" | "she" | "it" | "we" | "they" | "what" | "expected" | "before"
+        );
+        if a == "different" && (b == "with" || (b == "than" && !than_clause)) {
             push_replace_issue(
                 &w1,
                 &orig_b,
