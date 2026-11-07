@@ -19,6 +19,7 @@
 | **S7** | Không copy code từ EVKey/WinVNKey (đóng/ambiguous). Ý tưởng → ghi spec clean-room vào `docs/specs/` → viết mới | Tránh scandal license |
 | **S8** | FFI: **không malloc chéo ranh giới**; struct POD, caller-allocated | Tránh double-free giữa Rust/C++/Swift |
 | **S9** | Không đăng ký hotkey/hook global trừ khi adapter có justification trong ADR | Xung đột phím tắt hệ thống (bug B6) |
+| **S10** | **Dream RSI (P10/G19) & Gợi ý tiến hóa liên tục**: Mọi agent code bộ gõ buộc phải review và implement Dream RSI. Gợi ý phải luôn đo lường được hiệu quả công thái học, không làm giảm savings-rate trên corpus; tuyệt đối không log phím gõ (G8) — chỉ duy trì các bộ đếm số lượng tổng hợp (`keys_typed`, `accepts`, `chars_saved`). | Bảo toàn & liên tục cải thiện năng lực trợ lý gõ, chống thoái lui hiệu năng, bảo mật offline |
 
 Mẫu SPDX header (Rust/C), phải nằm ở dòng đầu tiên của file:
 
@@ -81,7 +82,7 @@ Mọi quyết định kiến trúc → **ADR** (template trong §7), không vi�
 
 ## 4. Definition of Done (DoD) cho một TASK
 
-Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 mục**:
+Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 8 mục**:
 
 1. Code + unit test xanh trên máy bạn (`cargo test --workspace`).
 2. Golden corpus thêm/truyền case tương ứng (nếu đổi hành vi gõ) → `textvn replay corpus/` pass.
@@ -90,6 +91,7 @@ Một task (WIN-xxx / MAC-xxx / LNX-xxx / P0-xxx) được đóng khi **đủ 7 
 5. Doc liên quan cập nhật đầy đủ (spec/ADR/compat.md, và `README.md` nếu đổi tính năng/hành vi/UX/API) — **BẮT BUỘC theo G18**: không được miễn trừ ("không cần") đối với các thay đổi tính năng hay hành vi người dùng; `README.md` và release notes phải đảm bảo song ngữ Anh - Việt đồng nhất 100%, chuẩn template khoa học mạch lạc, nêu bật tính năng vượt trội.
 6. Acceptance criteria của task trong `P{n}-TASKS.md` được tick (kèm bằng chứng: output CLI, screenshot, log).
 7. CI 3 OS xanh (hoặc OS liên quan xanh + 2 OS còn lại không đổi).
+8. **Đo lường và bảo toàn chỉ số Dream RSI (P10 & G19)**: Mọi thay đổi liên quan đến engine gõ, bộ từ điển, dự đoán từ/cụm (Tab, Space, candidate cycling, next-phrase), hoặc pipeline học cá nhân (P7) PHẢI tích hợp và kiểm tra `DreamRsi`. Không được làm giảm tỷ lệ tiết kiệm phím (`savings_rate_pct`) so với baseline trên benchmark corpus (`dream_rsi_snapshot()`); mọi đường accept mới đều phải gắn hook tăng `accepts` và `chars_saved` chuẩn xác; chỉ số phải đo đếm được bằng số liệu định lượng khách quan.
 
 ## 5. Checklist Review (dùng cho cả 2 lượt — chi tiết hóa theo lượt)
 

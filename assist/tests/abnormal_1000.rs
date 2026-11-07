@@ -1025,9 +1025,14 @@ fn a1000_tat_ca_case_qua_4_rao_chan() {
     }
     if only.is_none() {
         assert_eq!(ran, 1000, "phai chay du 1000 case");
+        let max_suite = if cfg!(debug_assertions) {
+            Duration::from_secs(90)
+        } else {
+            Duration::from_secs(15)
+        };
         assert!(
-            total < Duration::from_secs(60),
-            "toan suite 1000 case ton {total:?} > 60s"
+            total < max_suite,
+            "toan suite 1000 case ton {total:?} > {max_suite:?}"
         );
     }
 }

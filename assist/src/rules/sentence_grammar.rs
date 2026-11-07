@@ -200,18 +200,20 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
             } else {
                 ""
             };
-            if (w == "mặc" && next_w == "dù")
+            if (w == "mặc" && (next_w == "dù" || next_w == "dầu"))
                 || (w == "cho" && next_w == "dù")
-                || w == "tuy"
-                || w == "dù"
+                || (w == "tuy" && next_w == "rằng")
+                || (w == "tuy" && next_w != "nhiên" && next_w != "vậy")
+                || (w == "dù" && next_w != "sao")
             {
                 clause_type = Some((ViCorrelativeClause::Contrast, tok_idx));
                 continue;
             }
             if (w == "bởi" && next_w == "vì")
                 || (w == "tại" && next_w == "vì")
-                || w == "vì"
-                || w == "do"
+                || (w == "vì" && next_w != "sao")
+                || (w == "do" && next_w != "đó" && next_w != "vậy")
+                || (w == "nhờ" && next_w != "đó" && next_w != "vậy")
             {
                 clause_type = Some((ViCorrelativeClause::Cause, tok_idx));
                 continue;
@@ -223,7 +225,8 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                 clause_type = Some((ViCorrelativeClause::Progression, tok_idx));
                 continue;
             }
-            if (w == "giá" && next_w == "như") || w == "nếu" || w == "hễ" {
+            if (w == "giá" && (next_w == "như" || next_w == "mà")) || w == "nếu" || w == "hễ"
+            {
                 clause_type = Some((ViCorrelativeClause::Condition, tok_idx));
                 continue;
             }
@@ -231,18 +234,9 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
 
         // Kiểm tra xung đột ở vế 2 (sau vế 1 ít nhất 2 từ):
         if let Some((clause, marker_idx)) = clause_type {
-            // Vòng 39 (R1 văn phòng FP 7-15): comma GIỮA marker và từ xung đột
-            // ⇒ mệnh đề vế 1 đã đóng bằng dấu phẩy (trạng ngữ/tác nhân), cặp
-            // quan hệ từ không áp — mọi FP đều có phẩy, lỗi thật không.
-            let comma_between = ctx.tokens[marker_idx + 1..tok_idx]
-                .iter()
-                .any(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
             if tok_idx > marker_idx + 3 {
                 match clause {
                     ViCorrelativeClause::Contrast => {
-                        if comma_between {
-                            break;
-                        }
                         // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
                         let is_cho_nen =
                             w == "cho" && k + 1 < n && words_with_idx[k + 1].2 == "nên";
@@ -308,9 +302,7 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                         // (anaphora) — marker không phải nguyên nhân thật.
                         let interrogative_or_anaphora =
                             next_w2 == "sao" || (w == "do" && next_w2 == "đó");
-                        if w == "nhưng"
-                            && (!marker_at_start || comma_between || interrogative_or_anaphora)
-                        {
+                        if w == "nhưng" && (!marker_at_start || interrogative_or_anaphora) {
                             break;
                         }
                         // "Vì... nhưng..." → sai!
@@ -486,6 +478,62 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
             }
         }
     }
+
+    // 2.1b English correlatives: "neither ... or" -> "nor", "either ... and" -> "or", "both ... or" -> "and"
+    for (idx, w_tok) in words.iter().enumerate() {
+        let w = word_lower(ctx, w_tok);
+        if matches!(w.as_str(), "neither" | "either" | "both") {
+            for candidate_tok in words.iter().skip(idx + 1) {
+                if candidate_tok.start <= w_tok.end {
+                    continue;
+                }
+                let has_break = ctx.tokens.iter().any(|t| {
+                    t.kind == TokenKind::Punct
+                        && t.start > w_tok.end
+                        && t.end < candidate_tok.start
+                        && matches!(ctx.chars[t.start], '.' | '!' | '?' | ';')
+                });
+                if has_break {
+                    break;
+                }
+                let cand_w = word_lower(ctx, candidate_tok);
+                if w == "neither" && cand_w == "or" {
+                    let orig = ctx.token_text(candidate_tok);
+                    push_replace_issue(
+                        candidate_tok,
+                        &orig,
+                        "nor",
+                        "Correlative conjunction error: \"neither\" pairs with \"nor\", not \"or\""
+                            .to_string(),
+                        out,
+                    );
+                    break;
+                } else if w == "either" && cand_w == "and" {
+                    let orig = ctx.token_text(candidate_tok);
+                    push_replace_issue(
+                        candidate_tok,
+                        &orig,
+                        "or",
+                        "Correlative conjunction error: \"either\" pairs with \"or\", not \"and\""
+                            .to_string(),
+                        out,
+                    );
+                    break;
+                } else if w == "both" && cand_w == "or" {
+                    let orig = ctx.token_text(candidate_tok);
+                    push_replace_issue(
+                        candidate_tok,
+                        &orig,
+                        "and",
+                        "Correlative conjunction error: \"both\" pairs with \"and\", not \"or\""
+                            .to_string(),
+                        out,
+                    );
+                    break;
+                }
+            }
+        }
+    }
 }
 
 /// Vòng 44 (parity VI/EN): phẩy SAU liên từ tương phản giữa câu — dùng chung
@@ -637,7 +685,7 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             {
                 continue;
             }
-            // He / She / It + base form
+            // He / She / It + base form (mở rộng danh sách động từ thông dụng)
             if matches!(a.as_str(), "he" | "she" | "it") {
                 let replacement = match b.as_str() {
                     "go" => Some("goes"),
@@ -651,6 +699,65 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
                     "get" => Some("gets"),
                     "think" => Some("thinks"),
                     "know" => Some("knows"),
+                    "come" => Some("comes"),
+                    "work" => Some("works"),
+                    "see" => Some("sees"),
+                    "take" => Some("takes"),
+                    "give" => Some("gives"),
+                    "look" => Some("looks"),
+                    "find" => Some("finds"),
+                    "tell" => Some("tells"),
+                    "ask" => Some("asks"),
+                    "feel" => Some("feels"),
+                    "try" => Some("tries"),
+                    "call" => Some("calls"),
+                    "help" => Some("helps"),
+                    "use" => Some("uses"),
+                    "play" => Some("plays"),
+                    "run" => Some("runs"),
+                    "move" => Some("moves"),
+                    "live" => Some("lives"),
+                    "bring" => Some("brings"),
+                    "write" => Some("writes"),
+                    "read" => Some("reads"),
+                    "speak" => Some("speaks"),
+                    "meet" => Some("meets"),
+                    "pay" => Some("pays"),
+                    "stand" => Some("stands"),
+                    "lose" => Some("loses"),
+                    "hold" => Some("holds"),
+                    "start" => Some("starts"),
+                    "show" => Some("shows"),
+                    "hear" => Some("hears"),
+                    "stop" => Some("stops"),
+                    "follow" => Some("follows"),
+                    "watch" => Some("watches"),
+                    "teach" => Some("teaches"),
+                    "reach" => Some("reaches"),
+                    "pass" => Some("passes"),
+                    "push" => Some("pushes"),
+                    "fix" => Some("fixes"),
+                    "miss" => Some("misses"),
+                    "buy" => Some("buys"),
+                    "send" => Some("sends"),
+                    "build" => Some("builds"),
+                    "stay" => Some("stays"),
+                    "fall" => Some("falls"),
+                    "understand" => Some("understands"),
+                    "remember" => Some("remembers"),
+                    "allow" => Some("allows"),
+                    "spend" => Some("spends"),
+                    "offer" => Some("offers"),
+                    "consider" => Some("considers"),
+                    "expect" => Some("expects"),
+                    "suggest" => Some("suggests"),
+                    "provide" => Some("provides"),
+                    "include" => Some("includes"),
+                    "continue" => Some("continues"),
+                    "set" => Some("sets"),
+                    "learn" => Some("learns"),
+                    "change" => Some("changes"),
+                    "lead" => Some("leads"),
                     _ => None,
                 };
                 if let Some(rep) = replacement {
@@ -682,6 +789,74 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
                     "was" => Some("were"),
                     "has" => Some("have"),
                     "does" => Some("do"),
+                    "goes" => Some("go"),
+                    "says" => Some("say"),
+                    "wants" => Some("want"),
+                    "needs" => Some("need"),
+                    "likes" => Some("like"),
+                    "makes" => Some("make"),
+                    "gets" => Some("get"),
+                    "thinks" => Some("think"),
+                    "knows" => Some("know"),
+                    "comes" => Some("come"),
+                    "works" => Some("work"),
+                    "sees" => Some("see"),
+                    "takes" => Some("take"),
+                    "gives" => Some("give"),
+                    "looks" => Some("look"),
+                    "finds" => Some("find"),
+                    "tells" => Some("tell"),
+                    "asks" => Some("ask"),
+                    "feels" => Some("feel"),
+                    "tries" => Some("try"),
+                    "calls" => Some("call"),
+                    "helps" => Some("help"),
+                    "uses" => Some("use"),
+                    "plays" => Some("play"),
+                    "runs" => Some("run"),
+                    "moves" => Some("move"),
+                    "lives" => Some("live"),
+                    "brings" => Some("bring"),
+                    "writes" => Some("write"),
+                    "reads" => Some("read"),
+                    "speaks" => Some("speak"),
+                    "meets" => Some("meet"),
+                    "pays" => Some("pay"),
+                    "stands" => Some("stand"),
+                    "loses" => Some("lose"),
+                    "holds" => Some("hold"),
+                    "starts" => Some("start"),
+                    "shows" => Some("show"),
+                    "hears" => Some("hear"),
+                    "stops" => Some("stop"),
+                    "follows" => Some("follow"),
+                    "watches" => Some("watch"),
+                    "teaches" => Some("teach"),
+                    "reaches" => Some("reach"),
+                    "passes" => Some("pass"),
+                    "pushes" => Some("push"),
+                    "fixes" => Some("fix"),
+                    "misses" => Some("miss"),
+                    "buys" => Some("buy"),
+                    "sends" => Some("send"),
+                    "builds" => Some("build"),
+                    "stays" => Some("stay"),
+                    "falls" => Some("fall"),
+                    "understands" => Some("understand"),
+                    "remembers" => Some("remember"),
+                    "allows" => Some("allow"),
+                    "spends" => Some("spend"),
+                    "offers" => Some("offer"),
+                    "considers" => Some("consider"),
+                    "expects" => Some("expect"),
+                    "suggests" => Some("suggest"),
+                    "provides" => Some("provide"),
+                    "includes" => Some("include"),
+                    "continues" => Some("continue"),
+                    "sets" => Some("set"),
+                    "learns" => Some("learn"),
+                    "changes" => Some("change"),
+                    "leads" => Some("lead"),
                     _ => None,
                 };
                 if let Some(rep) = replacement {
@@ -724,6 +899,65 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
                         &orig_b,
                         "have",
                         "Subject-verb agreement: \"I\" takes \"have\"".to_string(),
+                        out,
+                    );
+                    continue;
+                }
+            }
+
+            // Indefinite pronouns: everyone / everybody / someone / somebody / anyone / anybody / nobody
+            if matches!(
+                a.as_str(),
+                "everyone" | "everybody" | "someone" | "somebody" | "anyone" | "anybody" | "nobody"
+            ) {
+                let replacement = match b.as_str() {
+                    "are" => Some("is"),
+                    "were" => Some("was"),
+                    "have" => Some("has"),
+                    "do" => Some("does"),
+                    "go" => Some("goes"),
+                    "say" => Some("says"),
+                    "want" => Some("wants"),
+                    "need" => Some("needs"),
+                    "like" => Some("likes"),
+                    "make" => Some("makes"),
+                    "get" => Some("gets"),
+                    "think" => Some("thinks"),
+                    "know" => Some("knows"),
+                    "see" => Some("sees"),
+                    "take" => Some("takes"),
+                    "give" => Some("gives"),
+                    "feel" => Some("feels"),
+                    "try" => Some("tries"),
+                    "use" => Some("uses"),
+                    "look" => Some("looks"),
+                    "come" => Some("comes"),
+                    "work" => Some("works"),
+                    "find" => Some("finds"),
+                    "tell" => Some("tells"),
+                    "ask" => Some("asks"),
+                    "call" => Some("calls"),
+                    "help" => Some("helps"),
+                    _ => None,
+                };
+                if let Some(rep) = replacement {
+                    push_replace_issue(
+                        &w1,
+                        &orig_b,
+                        rep,
+                        format!("Subject-verb agreement: indefinite pronoun \"{a}\" takes singular \"{rep}\""),
+                        out,
+                    );
+                    continue;
+                }
+                if b == "don't" || b == "dont" {
+                    push_replace_issue(
+                        &w1,
+                        &orig_b,
+                        "doesn't",
+                        format!(
+                            "Subject-verb agreement: indefinite pronoun \"{a}\" takes \"doesn't\""
+                        ),
                         out,
                     );
                     continue;
@@ -825,6 +1059,136 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
+        if (a == "married" || a == "marry") && b == "with" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "to",
+                "Preposition error: \"married\" takes \"to\", not \"with\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "rely" || a == "relies" || a == "relied") && b == "to" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "on",
+                "Preposition error: \"rely\" takes \"on\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "focus" || a == "focuses" || a == "focused") && b == "in" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "on",
+                "Preposition error: \"focus\" takes \"on\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "insist" || a == "insists" || a == "insisted") && b == "to" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "on",
+                "Preposition error: \"insist\" takes \"on\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "succeed" || a == "succeeds" || a == "succeeded") && b == "to" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "in",
+                "Preposition error: \"succeed\" takes \"in\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "comply" || a == "complies" || a == "complied") && b == "to" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "with",
+                "Preposition error: \"comply\" takes \"with\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "object" || a == "objects" || a == "objected") && b == "against" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "to",
+                "Preposition error: \"object\" takes \"to\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "congratulate" || a == "congratulates" || a == "congratulated") && b == "for" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "on",
+                "Preposition error: \"congratulate\" takes \"on\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if a == "different" && (b == "with" || b == "than") {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "from",
+                "Preposition error: \"different\" takes \"from\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if a == "capable" && b == "to" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "of",
+                "Preposition error: \"capable\" takes \"of\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if a == "fond" && b == "on" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "of",
+                "Preposition error: \"fond\" takes \"of\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if a == "proud" && b == "for" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "of",
+                "Preposition error: \"proud\" takes \"of\"".to_string(),
+                out,
+            );
+            continue;
+        }
+        if (a == "insist" || a == "insists" || a == "insisted") && b == "in" {
+            push_replace_issue(
+                &w1,
+                &orig_b,
+                "on",
+                "Preposition error: \"insist\" takes \"on\"".to_string(),
+                out,
+            );
+            continue;
+        }
     }
 
     // 2.5 "look forward to" + V-ing ("hear" → "hearing", "meet" → "meeting", "see" → "seeing")
@@ -834,45 +1198,51 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         let a = word_lower(ctx, w0);
+        if a != "look" && a != "looking" {
+            continue;
+        }
         let b = word_lower(ctx, w1);
+        if b != "forward" {
+            continue;
+        }
         let c = word_lower(ctx, w2);
-        let d = word_lower(ctx, w3);
-        let orig_d = ctx.token_text(w3);
+        if c != "to" {
+            continue;
+        }
 
-        if (a == "look" || a == "looking") && b == "forward" && c == "to" {
-            let linked = (0..3).all(|k| {
-                let (curr, next) = (w[k], w[k + 1]);
-                ctx.tokens
-                    .iter()
-                    .position(|t| t.start == curr.end)
-                    .is_some_and(|g_idx| {
-                        let g = ctx.tokens[g_idx];
-                        g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
-                    })
-            });
-            if !linked {
-                continue;
-            }
-            let rep = match d.as_str() {
-                "hear" => Some("hearing"),
-                "meet" => Some("meeting"),
-                "see" => Some("seeing"),
-                // Vòng 41 (Pass A H5): "work" bỏ — "I look forward to work
-                // every morning" ("to work" = động từ nguyên mẫu, danh từ
-                // nơi làm việc) là câu ĐÚNG; recall mất ở "to work with you"
-                // chấp nhận được theo bar FPR.
-                "receive" => Some("receiving"),
-                _ => None,
-            };
-            if let Some(r) = rep {
-                push_replace_issue(
-                    w3,
-                    &orig_d,
-                    r,
-                    format!("Grammar error: \"look forward to\" takes gerund \"{r}\""),
-                    out,
-                );
-            }
+        let orig_d = ctx.token_text(w3);
+        let linked = (0..3).all(|k| {
+            let (curr, next) = (w[k], w[k + 1]);
+            tok_start_idx.get(&curr.end).copied().is_some_and(|g_idx| {
+                let g = ctx.tokens[g_idx];
+                g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
+            })
+        });
+        if !linked {
+            continue;
+        }
+        let d = word_lower(ctx, w3);
+        let rep = match d.as_str() {
+            "hear" => Some("hearing"),
+            "meet" => Some("meeting"),
+            "see" => Some("seeing"),
+            "receive" => Some("receiving"),
+            "talk" => Some("talking"),
+            "discuss" => Some("discussing"),
+            "cooperate" => Some("cooperating"),
+            "collaborate" => Some("collaborating"),
+            "read" => Some("reading"),
+            "get" => Some("getting"),
+            _ => None,
+        };
+        if let Some(r) = rep {
+            push_replace_issue(
+                w3,
+                &orig_d,
+                r,
+                format!("Grammar error: \"look forward to\" takes gerund \"{r}\""),
+                out,
+            );
         }
     }
 
@@ -883,32 +1253,77 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         let a = word_lower(ctx, w0);
-        let b = word_lower(ctx, w1);
-        let c = word_lower(ctx, w2);
-        if a == "cope" && b == "up" && c == "with" {
-            let linked = (0..2).all(|k| {
-                let (curr, next) = (w[k], w[k + 1]);
-                ctx.tokens
-                    .iter()
-                    .position(|t| t.start == curr.end)
-                    .is_some_and(|g_idx| {
-                        let g = ctx.tokens[g_idx];
-                        g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
-                    })
-            });
-            if !linked {
-                continue;
-            }
-            if let Some(gap_idx) = ctx.tokens.iter().position(|t| t.start == w0.end) {
-                let gap = ctx.tokens[gap_idx];
-                push_delete_issue(
-                    &gap,
-                    w1,
-                    "Redundant preposition: the correct idiom is \"cope with\", not \"cope up with\"".to_string(),
-                    out,
-                );
-            }
+        if a != "cope" {
+            continue;
         }
+        let b = word_lower(ctx, w1);
+        if b != "up" {
+            continue;
+        }
+        let c = word_lower(ctx, w2);
+        if c != "with" {
+            continue;
+        }
+
+        let linked = (0..2).all(|k| {
+            let (curr, next) = (w[k], w[k + 1]);
+            tok_start_idx.get(&curr.end).copied().is_some_and(|g_idx| {
+                let g = ctx.tokens[g_idx];
+                g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
+            })
+        });
+        if !linked {
+            continue;
+        }
+        if let Some(gap_idx) = tok_start_idx.get(&w0.end).copied() {
+            let gap = ctx.tokens[gap_idx];
+            push_delete_issue(
+                &gap,
+                w1,
+                "Redundant preposition: the correct idiom is \"cope with\", not \"cope up with\""
+                    .to_string(),
+                out,
+            );
+        }
+    }
+
+    // 2.7 "pay attention on" → "pay attention to"
+    for w in words.windows(3) {
+        let (w0, w1, w2) = (&w[0], &w[1], &w[2]);
+        if ctx.is_masked(w0.start, w2.end) {
+            continue;
+        }
+        let a = word_lower(ctx, w0);
+        if !matches!(a.as_str(), "pay" | "pays" | "paid" | "paying") {
+            continue;
+        }
+        let b = word_lower(ctx, w1);
+        if b != "attention" {
+            continue;
+        }
+        let c = word_lower(ctx, w2);
+        if c != "on" {
+            continue;
+        }
+
+        let linked = (0..2).all(|k| {
+            let (curr, next) = (w[k], w[k + 1]);
+            tok_start_idx.get(&curr.end).copied().is_some_and(|g_idx| {
+                let g = ctx.tokens[g_idx];
+                g.kind == TokenKind::Space && g.len() == 1 && g.end == next.start
+            })
+        });
+        if !linked {
+            continue;
+        }
+        let orig_c = ctx.token_text(w2);
+        push_replace_issue(
+            w2,
+            &orig_c,
+            "to",
+            "Preposition error: \"pay attention\" takes \"to\", not \"on\"".to_string(),
+            out,
+        );
     }
 }
 
@@ -1054,6 +1469,53 @@ mod tests {
             let prefix: String = raw.chars().take(plan.delete_from).collect();
             let fixed = format!("{prefix}{}", plan.replacement);
             assert_eq!(fixed, expected);
+        }
+    }
+
+    #[test]
+    fn test_expanded_english_and_vietnamese_grammar_cases() {
+        use crate::plan_sentence_fix;
+        let cases = [
+            ("Everyone know the answer.", "Everyone knows the answer."),
+            ("Someone don't understand.", "Someone doesn't understand."),
+            (
+                "Please pay attention on the screen.",
+                "Please pay attention to the screen.",
+            ),
+            (
+                "This is different with that.",
+                "This is different from that.",
+            ),
+            (
+                "He is neither tall or handsome.",
+                "He is neither tall nor handsome.",
+            ),
+            (
+                "You can take either tea and coffee.",
+                "You can take either tea or coffee.",
+            ),
+            ("Both Mary or Peter joined.", "Both Mary and Peter joined."),
+            (
+                "Tuy rằng trời mưa, nên chúng tôi ở nhà.",
+                "Tuy rằng trời mưa, nhưng chúng tôi ở nhà.",
+            ),
+            (
+                "Mặc dầu anh ấy mệt, nên anh ấy vẫn cố gắng.",
+                "Mặc dầu anh ấy mệt, nhưng anh ấy vẫn cố gắng.",
+            ),
+            (
+                "Giá mà tôi biết trước, nhưng tôi đã nói cho bạn.",
+                "Giá mà tôi biết trước, thì tôi đã nói cho bạn.",
+            ),
+        ];
+
+        for (raw, expected) in cases {
+            let issues = check(raw);
+            assert!(!issues.is_empty(), "Phải bắt lỗi trong: {raw}");
+            let plan = plan_sentence_fix(raw, &issues).expect("Phải có plan sửa");
+            let prefix: String = raw.chars().take(plan.delete_from).collect();
+            let fixed = format!("{prefix}{}", plan.replacement);
+            assert_eq!(fixed, expected, "Failed on raw: {raw}");
         }
     }
 }

@@ -335,6 +335,33 @@ fn predict_impl(
     // — "ngư" đang gõ dở âm tiết dài hơn, giữ luật hoàn-tất-âm-tiết-trước.
     let compound_ext = |word: &str| word.split(' ').next().is_some_and(same);
 
+    // 0. P7 (vòng 54) / Dream RSI evolution: Ứng viên CÁ NHÂN — push TRƯỚC HẾT
+    // với personal=true, sort TOP.
+    // Đủ cả VI lẫn EN (từ/cụm cá nhân học từ chính user gõ). Phải duyệt TRƯỚC
+    // các bộ từ điển tĩnh (vn_syllables, vn_compounds, en_freq...) để từ người
+    // dùng đã học không bị 'seen' chặn mất trạng thái personal=true.
+    for (pword, pcount) in personal {
+        if pword.chars().count() < 2 || same(pword) {
+            continue;
+        }
+        if starts(pword) {
+            // Cow::Owned — danh sách cá nhân sống trong EngineOptions (per-instance).
+            let word: std::borrow::Cow<str> = std::borrow::Cow::Owned(pword.clone());
+            if seen.insert(word.clone()) {
+                ranked.push(PrefixCandidate {
+                    word,
+                    exact_match: true,
+                    char_count: pword.chars().count(),
+                    // Boost theo count: 100 + min(count,30) — nổi trên mọi
+                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng.
+                    weight: 100u32.saturating_add((*pcount).min(30)),
+                    ext: compound_ext(pword),
+                    personal: true,
+                });
+            }
+        }
+    }
+
     // 1. Nếu đang ở mode tiếng Việt hoặc chuỗi gõ có dấu tiếng Việt
     if is_vi {
         // 1a. Âm tiết đơn (vn_syllables.txt) — binary search theo từng biến thể
@@ -413,31 +440,6 @@ fn predict_impl(
         }
         if let Some(&b0) = typed_new.as_bytes().first() {
             scan(b0);
-        }
-    }
-
-    // 1c. P7 (vòng 54): ứng viên CÁ NHÂN — push với personal=true, sort TOP.
-    // Đủ cả VI lẫn EN (từ cá nhân học từ chính user gõ); chỉ nhận prefix
-    // khớp (starts 3 biến thể) và chưa trùng seen.
-    for (pword, pcount) in personal {
-        if pword.chars().count() < 2 || same(pword) {
-            continue;
-        }
-        if starts(pword) {
-            // Cow::Owned — danh sách cá nhân sống trong EngineOptions (per-instance).
-            let word: std::borrow::Cow<str> = std::borrow::Cow::Owned(pword.clone());
-            if seen.insert(word.clone()) {
-                ranked.push(PrefixCandidate {
-                    word,
-                    exact_match: true,
-                    char_count: pword.chars().count(),
-                    // Boost theo count: 100 + min(count,30) — nổi trên mọi
-                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng.
-                    weight: 100u32.saturating_add((*pcount).min(30)),
-                    ext: compound_ext(pword),
-                    personal: true,
-                });
-            }
         }
     }
 
@@ -520,6 +522,18 @@ fn predict_impl(
         b.exact_match
             .cmp(&a.exact_match)
             .then_with(|| b.personal.cmp(&a.personal))
+            .then_with(|| {
+                if a.personal && b.personal {
+                    // P7 / vòng 54 / frecency: hai từ cá nhân → ưu tiên tần suất dùng
+                    // (weight = 100 + count) trước độ dài ký tự (tránh từ 4 chữ ít dùng
+                    // đè từ 5 chữ dùng 50 lần).
+                    b.weight
+                        .cmp(&a.weight)
+                        .then_with(|| a.char_count.cmp(&b.char_count))
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            })
             .then_with(|| b.ext.cmp(&a.ext))
             .then_with(|| {
                 let a_pri = if has_ext { !a_single } else { a_single };
@@ -528,9 +542,17 @@ fn predict_impl(
             })
             .then_with(|| {
                 if a_single && b_single {
-                    a.char_count
-                        .cmp(&b.char_count)
-                        .then_with(|| b.weight.cmp(&a.weight))
+                    if !is_vi {
+                        // Tiếng Anh: ưu tiên tầng trọng số (85 tech/business > 70 common > 60 freq > 55 10k)
+                        // trước độ dài ký tự để các từ chuyên ngành/thông dụng không bị từ hiếm ngắn đè
+                        b.weight
+                            .cmp(&a.weight)
+                            .then_with(|| a.char_count.cmp(&b.char_count))
+                    } else {
+                        a.char_count
+                            .cmp(&b.char_count)
+                            .then_with(|| b.weight.cmp(&a.weight))
+                    }
                 } else {
                     b.weight
                         .cmp(&a.weight)
@@ -566,9 +588,9 @@ fn prefix_scan<'a>(
 /// Trả về danh sách ứng viên cụm từ tiếp theo (tối đa `limit`), xếp theo độ dài khóa ngữ cảnh
 /// giảm dần (trigram trước bigram) và trọng số `weight`.
 pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<String> {
-    predict_next_phrase_matches(context_tail, limit)
+    predict_next_phrase_matches_with_personal(context_tail, limit, &[])
         .into_iter()
-        .map(|m| m.prediction.to_string())
+        .map(|m| m.prediction.into_owned())
         .collect()
 }
 
@@ -579,7 +601,7 @@ pub fn predict_next_phrase_candidates(context_tail: &str, limit: usize) -> Vec<S
 /// thứ tự Tab: `phát triển`+Tab phải ra "phần mềm", không phải "triển khai").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhraseMatch {
-    pub prediction: &'static str,
+    pub prediction: std::borrow::Cow<'static, str>,
     pub key_words: usize,
 }
 
@@ -588,6 +610,15 @@ pub struct PhraseMatch {
 /// Ngữ cảnh kết thúc bằng **xuống dòng** (`"Kính gửi\n"`) là dòng mới — không
 /// dự đoán nối tiếp dòng trên (trước đây chèn `" quý khách hàng"` đầu dòng mới).
 pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<PhraseMatch> {
+    predict_next_phrase_matches_with_personal(context_tail, limit, &[])
+}
+
+/// Mở rộng [`predict_next_phrase_matches`] với dữ liệu từ vựng cá nhân học được (P7/Dream RSI).
+pub fn predict_next_phrase_matches_with_personal(
+    context_tail: &str,
+    limit: usize,
+    personal: &[(String, u32)],
+) -> Vec<PhraseMatch> {
     let trimmed_end = context_tail.trim_end_matches([' ', '\t']);
     if trimmed_end.ends_with(['\n', '\r']) {
         return Vec::new();
@@ -600,7 +631,35 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
     let context_lower = restyle(&trimmed.to_lowercase(), DiacriticStyle::Old);
 
     // (độ dài khoá, trọng số, dự đoán, số từ của khoá)
-    let mut matches: Vec<(usize, u32, &'static str, usize)> = Vec::new();
+    let mut matches: Vec<(usize, u32, std::borrow::Cow<'static, str>, usize)> = Vec::new();
+
+    // 1. Khớp cụm từ CÁ NHÂN (P7 / Dream RSI evolution):
+    // Cụm từ cá nhân (2-4 từ) khớp tiền tố đuôi ngữ cảnh -> dự đoán phần còn lại với boost weight >= 100
+    for (pentry, pcount) in personal {
+        let words: Vec<&str> = pentry.split_whitespace().collect();
+        if words.len() >= 2 && words.len() <= 4 {
+            for k in (1..words.len()).rev() {
+                let key = words[..k].join(" ");
+                let key_norm = restyle(&key.to_lowercase(), DiacriticStyle::Old);
+                if context_lower.ends_with(&key_norm) {
+                    let prefix_len = context_lower.len() - key_norm.len();
+                    let matched_boundary = prefix_len == 0
+                        || matches!(
+                            context_lower.as_bytes()[prefix_len - 1],
+                            b' ' | b'.' | b',' | b'!' | b'?' | b'\n' | b'\t' | b'(' | b'"' | b':'
+                        );
+                    if matched_boundary {
+                        let cont = words[k..].join(" ");
+                        let weight = 100u32.saturating_add((*pcount).min(30));
+                        matches.push((key_norm.len(), weight, std::borrow::Cow::Owned(cont), k));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Khớp từ bảng tĩnh (VN / EN phrases)
     // Vòng 52 (perf): bucket theo byte cuối — chỉ quét các hàng có khả năng
     // khớp (`ends_with` bắt buộc byte cuối trùng), thay vì toàn bộ ~10k hàng.
     for (i, rows) in [vn_phrase_rows(), en_phrase_rows()].into_iter().enumerate() {
@@ -620,7 +679,7 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
     // call site cứng 5 nhưng đề phòng API công khai).
     let mut out = Vec::with_capacity(limit.min(64));
     for (_, _, pred, key_words) in matches {
-        if seen.insert(pred) {
+        if seen.insert(pred.to_string()) {
             out.push(PhraseMatch {
                 prediction: pred,
                 key_words,
@@ -641,7 +700,7 @@ pub fn predict_next_phrase_matches(context_tail: &str, limit: usize) -> Vec<Phra
 fn collect_phrase_matches(
     rows: &[PhraseRow],
     context_lower: &str,
-    out: &mut Vec<(usize, u32, &'static str, usize)>,
+    out: &mut Vec<(usize, u32, std::borrow::Cow<'static, str>, usize)>,
 ) {
     for &(key, pred, weight) in rows {
         if !context_lower.ends_with(key) {
@@ -656,7 +715,12 @@ fn collect_phrase_matches(
                 b' ' | b'.' | b',' | b'!' | b'?' | b'\n' | b'\t' | b'(' | b'"' | b':'
             );
         if matched_boundary {
-            out.push((key.len(), weight, pred, key.split_whitespace().count()));
+            out.push((
+                key.len(),
+                weight,
+                std::borrow::Cow::Borrowed(pred),
+                key.split_whitespace().count(),
+            ));
         }
     }
 }

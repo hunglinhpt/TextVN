@@ -20,7 +20,7 @@
 | G6 | **ID thống nhất:** review phần = `F{phần}-{n}` · spike = `S{k}-{n}` (S3 = TSF/registration, S4 = UIA) · common-error = `A{n}` (Windows) / `E{n}` (project-wide) · workflow này = `FW-{n}` | tránh đụng nhau khi grep |
 | G7 | **PowerShell:** luôn viết file `.ps1` ASCII-only rồi `powershell -NoProfile -ExecutionPolicy Bypass -File <x.ps1>`; không `&&` (dùng `;`); không truyền `$var`/`$_` inline (shell nuốt); static member phải `[Type]::X` hoặc `$v::X` — **không** `$v.X` | lỗi A1–A10 trong common-errors |
 | G8 | **S2 — không bao giờ log nội dung phím / text người dùng** (chỉ vk, HRESULT, đếm, tên element) | Handbook §security, handlog S2 |
-| G9 | **Task Done = đủ DoD 7 mục** (`01-AGENT-HANDBOOK.md §4`) kèm evidence cho từng acceptance | … |
+| G9 | **Task Done = đủ DoD 8 mục** (`01-AGENT-HANDBOOK.md §4` kèm Dream RSI P10/G19) kèm evidence cho từng acceptance | … |
 | G10 | **Tài liệu phần phải đạt 2/2 review** rồi mới đánh dấu ✅ tại `00-INDEX §1` | giao thức `00-INDEX §3` |
 | G11 | **File đang có WIP chưa commit của agent khác → KHÔNG sửa, KHÔNG add** — cần thật sự thì báo user / đợi họ commit rồi làm | 00-INDEX, HANDOOK, P1-1, P1-5… đang treo WIP (2026-09-27) |
 | G12 | **Trước khi commit: `git diff --cached --name-only`** — đối chiếu đúng list mong muốn, không có file lạ | sai lúc add nhầm WIP là mất công ngược |
@@ -125,7 +125,7 @@ Finding theo G6 (`F{phần}-{n}` / `FW-{n}`) — **không xóa finding**, chỉ 
 | 5W1H | Câu hỏi | Check cụ thể |
 |---|---|---|
 | **What** | Thuật ngữ / ID / symbol có thống nhất toàn repo? | Grep mọi ID (`R*`, `G*`, `A*`, `FW*`, `WIN-*`, `S*`…) — không trùng, không đổi tên giữa 2 file |
-| **Why** | Còn thiếu gì so với DoD (Handbook §4)? | Tick đủ 7 mục DoD; mọi tham chiếu `§x` trỏ đúng mục |
+| **Why** | Còn thiếu gì so với DoD (Handbook §4)? | Tick đủ 8 mục DoD; mọi tham chiếu `§x` trỏ đúng mục |
 | **Who** | Agent tiếp nhận cần gì để bắt đầu ngay? | Mục "đọc trước" (§2) đủ; không có kiến thức ngầm (implicit) |
 | **When** | Điều kiện chạy / ghép đã rõ? | OS, trigger CI, thời điểm cleanup — ghi trong doc |
 | **Where** | Link / tham chiếu có hỏng? | CI `repo-hygiene` check #5 mỗi push (§12.2) |

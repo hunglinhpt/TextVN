@@ -25,6 +25,8 @@ pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     // (chuyến bay) + động từ "bay" (cùng hình) là cách nói chuẩn; auto-xoá
     // sẽ phá chữ đúng (FPR=0 ưu tiên FN cho cặp mơ hồ này).
     "bay",
+    // Từ láy, điệp từ, hình học & thành ngữ tiếng Việt chuẩn (chống FPR "song song", "bon bon"...):
+    "song", "bon", "canh", "khàn", "vanh",
 ];
 
 /// Lặp từ có chủ ý của TIẾNG ANH (vòng 24 — audit EN trap 1-17; đối chiếu
@@ -45,6 +47,8 @@ pub(crate) const EN_INTENTIONAL_REPEATS: &[&str] = &[
     // whitelist EN theo luật từng-từ; danh từ "bay" + động từ "bay" cùng
     // hình là cách nói chuẩn tiếng Việt.
     "bay",
+    // Từ láy ASCII tiếng Việt trong câu mix/unaccented (tránh fallback nhầm sang EN whitelist)
+    "song", "lâu", "ngay", "bon", "canh", "khàn", "vanh",
 ];
 
 /// Từ CHỨC NĂNG lặp ≥ 3 lần ("the the the file", "đã đã đã gửi") gần như
@@ -126,7 +130,7 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         } else {
             INTENTIONAL_REPEATS
         };
-        if whitelist.contains(&lower.as_str()) {
+        if whitelist.contains(&lower.as_str()) || INTENTIONAL_REPEATS.contains(&lower.as_str()) {
             continue;
         }
         // Vòng 24 (audit EN trap 18-19) — vòng 26 áp cho TỪ ASCII ở MỌI câu

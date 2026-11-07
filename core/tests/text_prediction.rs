@@ -683,3 +683,33 @@ fn vong52_audit_fixes_quoc_va_hoa() {
         "được => {d:?}"
     );
 }
+
+#[test]
+fn test_personal_frecency_ranking_and_next_phrase_learning() {
+    use textvn_core::post::predict::{
+        predict_next_phrase_matches_with_personal, predict_prefix_candidates_with_personal,
+    };
+
+    // 1. Frecency sorting: Từ cá nhân dùng nhiều (count 25) phải xếp trên từ ít dùng (count 1)
+    // dù từ ít dùng ngắn hơn về số ký tự.
+    let personal = vec![("khởi".to_string(), 1), ("khuyến".to_string(), 25)];
+    let preds = predict_prefix_candidates_with_personal("khu", true, 5, &personal);
+    assert_eq!(
+        preds.first().map(|s| s.as_str()),
+        Some("khuyến"),
+        "từ dùng nhiều (khuyến - count 25) phải đứng trước dù dài hơn"
+    );
+
+    // 2. Next-phrase prediction từ cụm từ cá nhân đã học
+    let personal_phrases = vec![
+        ("trí tuệ nhân tạo".to_string(), 15),
+        ("công nghệ tiên tiến".to_string(), 10),
+    ];
+    let m = predict_next_phrase_matches_with_personal("Nghiên cứu trí tuệ", 3, &personal_phrases);
+    assert!(!m.is_empty(), "phải gợi ý được từ cụm cá nhân");
+    assert_eq!(m[0].prediction, "nhân tạo");
+    assert_eq!(m[0].key_words, 2);
+
+    let m_single = predict_next_phrase_matches_with_personal("Công ty công", 3, &personal_phrases);
+    assert!(m_single.iter().any(|p| p.prediction == "nghệ tiên tiến"));
+}

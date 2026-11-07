@@ -421,11 +421,29 @@ impl Engine {
         if !valid_style_entry(word) {
             return;
         }
-        *self
-            .style_pending
-            .words
-            .entry(word.to_lowercase())
-            .or_insert(0) += 1;
+        let lower = word.to_lowercase();
+        *self.style_pending.words.entry(lower.clone()).or_insert(0) += 1;
+
+        // Tiến hóa gợi ý thời gian thực trong phiên (in-session continuous learning):
+        // Cập nhật opts.style_words ngay lập tức để các lần gõ tiếp theo nhận được dự đoán
+        // từ mới mà không cần đợi host app drain và nạp lại cấu hình.
+        if let Some(entry) = self.opts.style_words.iter_mut().find(|(w, _)| w == &lower) {
+            entry.1 = entry.1.saturating_add(1);
+        } else {
+            if self.opts.style_words.len() >= 500 {
+                if let Some(min_idx) = self
+                    .opts
+                    .style_words
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, (_, count))| *count)
+                    .map(|(idx, _)| idx)
+                {
+                    self.opts.style_words.swap_remove(min_idx);
+                }
+            }
+            self.opts.style_words.push((lower, 1));
+        }
     }
 
     /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
@@ -1285,17 +1303,40 @@ impl Engine {
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
 
-        // P7 (vòng 54): học từ user GÕ XONG (word-end, USP bật) — trước
+        // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — trước
         // auto-restore để cả nhánh restore cũng học chuỗi EN thật của user.
-        // G8: chỉ từ đơn + count; secure check ở caller key() đã chặn ô mật khẩu
+        // G8: chỉ từ đơn/cụm ngắn <= 3 từ + count; secure check ở caller key() đã chặn ô mật khẩu
         // (đường này không chạy khi secure — engine không nhận context secure).
         if self.opts.style_enabled_for_learning() {
-            if was_active {
-                let display: String = self.word.display.iter().collect();
-                self.style_note_word(&display);
+            let current = if was_active {
+                self.word.display.iter().collect::<String>()
             } else if !self.word.passed.is_empty() {
-                let passed: String = self.word.passed.iter().collect();
-                self.style_note_word(&passed);
+                self.word.passed.iter().collect::<String>()
+            } else {
+                String::new()
+            };
+            if !current.is_empty() {
+                self.style_note_word(&current);
+                // Tìm từ trước đó trong buffer câu (nằm trước từ hiện tại vừa kết thúc):
+                let cur_len = current.chars().count();
+                if self.sentence.len() > cur_len {
+                    let before_idx = self.sentence.len() - cur_len;
+                    let lookback = before_idx.saturating_sub(40);
+                    let tail: String = self.sentence[lookback..before_idx].iter().collect();
+                    let trimmed_end = tail.trim_end_matches([' ', '\t']);
+                    if !trimmed_end.ends_with([
+                        '.', ',', '!', '?', ';', ':', '\n', '\r', '(', ')', '"', '“', '”',
+                    ]) {
+                        if let Some(prev) = trimmed_end.split_whitespace().last() {
+                            if prev.chars().all(|ch| ch.is_alphabetic() || ch == '-') {
+                                let phrase = format!("{prev} {current}");
+                                if valid_style_entry(&phrase) {
+                                    self.style_note_word(&phrase);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1577,13 +1618,17 @@ impl Engine {
             return None;
         }
 
-        let matches = post::predict::predict_next_phrase_matches(&sentence_tail, 5);
+        let matches = post::predict::predict_next_phrase_matches_with_personal(
+            &sentence_tail,
+            5,
+            &self.opts.style_words,
+        );
         if matches.first().is_none_or(|m| m.key_words < min_key_words) {
             return None;
         }
         let candidates: Vec<String> = matches
             .iter()
-            .map(|m| post::predict::restyle(m.prediction, self.opts.diacritic_style))
+            .map(|m| post::predict::restyle(&m.prediction, self.opts.diacritic_style))
             .collect();
 
         let last_word = sentence_tail.split_whitespace().last().unwrap_or("");
@@ -1622,6 +1667,17 @@ impl Engine {
             .dream_rsi
             .chars_saved
             .saturating_add(phrase_glyphs as u64);
+
+        // P7: Học cụm từ khi người dùng chấp nhận gợi ý cụm tiếp theo (tiến hóa bộ gõ).
+        if self.opts.style_enabled_for_learning() {
+            let full_phrase = format!("{last_word} {adapted}");
+            if valid_style_entry(&full_phrase) {
+                self.style_note_word(&full_phrase.to_lowercase());
+            }
+            if valid_style_entry(&adapted) {
+                self.style_note_word(&adapted.to_lowercase());
+            }
+        }
 
         if candidates.len() > 1 {
             self.last_predict = Some(PredictCycle {

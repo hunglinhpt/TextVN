@@ -123,3 +123,74 @@ fn op004_and_op005_office_collocation_and_percent_spacing() {
         assert_eq!(fixed, expected, "kết quả sửa câu `{raw}`");
     }
 }
+
+#[test]
+fn test_song_song_protection_and_comprehensive_grammar() {
+    // 1. "Song song" là từ chuẩn tiếng Việt mô tả hình học/tiến trình — không được báo lỗi lặp từ:
+    let song_song_cases = [
+        "Hai đường thẳng song song không bao giờ cắt nhau.",
+        "Chúng tôi triển khai hai phương án song song với nhau.",
+        "Các tiến trình chạy song song để tăng hiệu năng xử lý.",
+        "Xe buýt chạy bon bon trên đường cao tốc mới.",
+    ];
+    for s in song_song_cases {
+        let issues = check_sentence(s);
+        assert!(
+            issues.is_empty(),
+            "Từ láy chuẩn/hình học `{s}` KHÔNG được báo lỗi lặp từ: {issues:?}"
+        );
+    }
+
+    // 2. Ngữ pháp câu tiếng Việt với dấu phẩy phân tách mệnh đề:
+    let vi_cases = [
+        (
+            "Mặc dù trời mưa, nên chúng tôi phải hoãn cuộc họp.",
+            "nhưng",
+        ),
+        ("Vì trời mưa, nhưng anh ấy vẫn đến đúng giờ.", "nên"),
+    ];
+    for (s, expected_rep) in vi_cases {
+        let issues = check_sentence(s);
+        assert!(
+            !issues.is_empty(),
+            "Phải bắt được lỗi cặp liên từ khập khiễng trong `{s}`"
+        );
+        let sg = issues
+            .iter()
+            .find(|i| i.kind == IssueKind::WordConfusion)
+            .unwrap_or_else(|| panic!("phải có WordConfusion cho `{s}`"));
+        assert!(
+            sg.suggestions.contains(&expected_rep.to_string()),
+            "Gợi ý cho `{s}` phải chứa `{expected_rep}`: {sg:?}"
+        );
+    }
+
+    // 3. Toàn diện ngữ pháp câu tiếng Anh (Subject-Verb Agreement + Prepositions):
+    let en_cases = [
+        ("He work very hard every day.", "works"),
+        ("She need assistance with the project.", "needs"),
+        ("They works in this office.", "work"),
+        ("We speaks fluent English.", "speak"),
+        ("We rely to this automated pipeline.", "on"),
+        ("She is married with an architect.", "to"),
+        ("I look forward to discuss the contract.", "discussing"),
+    ];
+    for (s, expected_rep) in en_cases {
+        let issues = check_sentence(s);
+        assert!(
+            !issues.is_empty(),
+            "Phải bắt được lỗi ngữ pháp câu tiếng Anh trong `{s}`"
+        );
+        let iss = issues
+            .iter()
+            .find(|i| i.kind == IssueKind::WordConfusion)
+            .unwrap_or_else(|| panic!("phải có issue WordConfusion cho `{s}`: {issues:?}"));
+        assert!(
+            iss.suggestions.contains(&expected_rep.to_string()),
+            "Gợi ý cho `{s}` phải chứa `{expected_rep}`: {iss:?}"
+        );
+    }
+
+    // "look forward to" dạng đúng (gerund) không được báo lỗi:
+    assert!(check_sentence("I look forward to discussing the contract with you.").is_empty());
+}

@@ -9,7 +9,7 @@
 ## 0. Đọc trước khi làm bất cứ việc gì (trình tự)
 
 1. `docs/00-WORKFLOW.md` — ground rules G1–G16 + quy trình audit/fixbug/dọn dẹp/CI.
-2. `PLAN.md` + `docs/01-AGENT-HANDBOOK.md` — mục tiêu, DoD 7 mục, security.
+2. `PLAN.md` + `docs/01-AGENT-HANDBOOK.md` — mục tiêu, DoD 8 mục (kèm Dream RSI), security.
 3. `specs/verified-ops.md` + `specs/win-test-common-errors.md` +
    `specs/project-common-errors.md` — cái đã kiểm chứng + lỗi đã gặp (đừng lặp).
 
