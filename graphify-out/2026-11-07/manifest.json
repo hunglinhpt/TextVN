@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1794058126.595827,
-    "seen": 1794058529.2656076,
-    "ast_hash": "1cea2e12819d6da8f71c09b34dee7701",
+    "mtime": 1794061849.435676,
+    "seen": 1794062064.40839,
+    "ast_hash": "1a3d5a126d9eed77b8f0cb954a2e7f3e",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -402,9 +402,9 @@
     "semantic_hash": ""
   },
   "docs/01-AGENT-HANDBOOK.md": {
-    "mtime": 1793971173.8280036,
-    "seen": 1793971442.322191,
-    "ast_hash": "d3b723c3ea68a6b8265be92eef977d36",
+    "mtime": 1794059476.3619027,
+    "seen": 1794062064.436275,
+    "ast_hash": "5abde64b7a668cc1a69105af318aa612",
     "semantic_hash": ""
   },
   "docs/10-shared/P0-1-repo-and-workflow.md": {
@@ -672,9 +672,9 @@
     "semantic_hash": ""
   },
   "docs/00-WORKFLOW.md": {
-    "mtime": 1794056446.8259294,
-    "seen": 1794058529.2874901,
-    "ast_hash": "4aaf5e9dcf7dbf9d1e4a5d6051408fe5",
+    "mtime": 1794059617.6849463,
+    "seen": 1794062064.436275,
+    "ast_hash": "0ab1ffafda5f83d0b0c5ab9ae3899628",
     "semantic_hash": ""
   },
   "docs/compliance/naming-check.md": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1794058117.8400097,
-    "seen": 1794058529.2945163,
-    "ast_hash": "7a4b628c736cf7fa77e49392e8fd458c",
+    "mtime": 1794059314.3649693,
+    "seen": 1794062064.4422753,
+    "ast_hash": "9818f392b030f6b5d62a6d164d443967",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1794054806.7295518,
-    "seen": 1794058529.2844708,
-    "ast_hash": "da35119cd367608c08fe29f653ca168a",
+    "mtime": 1794059486.1552467,
+    "seen": 1794062064.4322762,
+    "ast_hash": "2e0d31374be1af81fd97835468feb149",
     "semantic_hash": ""
   },
   "tools/release/publish-aur.sh": {
@@ -2412,9 +2412,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/duplicate_word.rs": {
-    "mtime": 1793807217.1238594,
-    "seen": 1793807838.6665332,
-    "ast_hash": "9902bc5545a025076555d7a14626ed69",
+    "mtime": 1794060625.7299557,
+    "seen": 1794062064.4048648,
+    "ast_hash": "1ca5b8bffd7e5fc5cc2f1e51c44af12b",
     "semantic_hash": ""
   },
   "assist/src/rules/mod.rs": {
@@ -2826,9 +2826,9 @@
     "semantic_hash": ""
   },
   "assist/tests/office_assist.rs": {
-    "mtime": 1792910717.2769032,
-    "seen": 1792919822.6567376,
-    "ast_hash": "19d93c19b5cca3168071cf60de7f156f",
+    "mtime": 1794061075.679788,
+    "seen": 1794062064.406442,
+    "ast_hash": "3509417d6adf9f3d36fe042981da2742",
     "semantic_hash": ""
   },
   "core/tests/office_productivity.rs": {
@@ -2856,15 +2856,15 @@
     "semantic_hash": ""
   },
   "core/src/post/predict.rs": {
-    "mtime": 1793814255.0427933,
-    "seen": 1793814900.534685,
-    "ast_hash": "f24f851a0441e0e03bff11a630c40c97",
+    "mtime": 1794061541.5771234,
+    "seen": 1794062064.4093978,
+    "ast_hash": "1465ded1771502777d7809d5b5b22fb5",
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1793736526.0968094,
-    "seen": 1793738042.1848805,
-    "ast_hash": "c162e541e143016da2fff9aa0208678d",
+    "mtime": 1794061075.8704422,
+    "seen": 1794062064.411901,
+    "ast_hash": "c8adeed2ad7923f80c45e6d33f832588",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
@@ -2958,9 +2958,9 @@
     "semantic_hash": ""
   },
   "assist/src/rules/sentence_grammar.rs": {
-    "mtime": 1793435277.3087637,
-    "seen": 1793442356.0296285,
-    "ast_hash": "1d91babea2d50b4811e5e8ef8196f363",
+    "mtime": 1794061849.2968955,
+    "seen": 1794062064.405437,
+    "ast_hash": "78d5d014ff3848df432c9fe89b3e4af0",
     "semantic_hash": ""
   },
   "xtask/src/gen_vn_phrases.rs": {
@@ -3048,9 +3048,9 @@
     "semantic_hash": ""
   },
   "assist/tests/abnormal_1000.rs": {
-    "mtime": 1793814381.0123506,
-    "seen": 1793814900.5316885,
-    "ast_hash": "341f154919b94e5f625419136bc39b5f",
+    "mtime": 1794060999.5918157,
+    "seen": 1794062064.405437,
+    "ast_hash": "6a75cba1e46bf9827ac8acb513f526c8",
     "semantic_hash": ""
   },
   "core/src/post/style_profile.rs": {
