@@ -93,9 +93,11 @@ void lc_comp_apply(lc_comp *cur, const lc_plan *plan);
 /* Text sẽ được commit khi `plan.end` (text mới nếu có, ngược lại preedit hiện tại). */
 const uint32_t *lc_plan_commit_text(const lc_comp *cur, const lc_plan *plan, size_t *out_len);
 
-/* ---- Phím chuyển Ctrl+Shift kiểu UniKey (nhấn cả hai rồi nhả, không kèm phím khác) ---- */
+/* ---- Phím chuyển Ctrl+Shift kiểu UniKey (nhấn cả hai rồi nhả, không kèm phím khác)
+ *      và standalone Ctrl tap (nhấn rồi nhả riêng Ctrl để giữ nguyên tử / khôi phục âm tiết) ---- */
 typedef struct lc_modifier_toggle {
     int armed;
+    int ctrl_armed;
 } lc_modifier_toggle;
 
 typedef enum lc_modifier {
@@ -111,7 +113,11 @@ void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
                              int ctrl_down, int shift_down, int alt_or_super);
 /* Key-up: trả 1 đúng MỘT lần khi nhả Ctrl/Shift của một lần bấm hợp lệ. */
 int  lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which);
+/* Key-up của riêng phím Ctrl (standalone Ctrl tap): trả 1 đúng MỘT lần khi nhả Ctrl đơn lẻ. */
+int  lc_modifier_ctrl_tap_up(lc_modifier_toggle *t, lc_modifier which);
 void lc_modifier_toggle_reset(lc_modifier_toggle *t);
+/* Gửi cặp sự kiện Ctrl key-down + Ctrl key-up vào engine và nhận kết quả ở `out` (IME_OK = 0). */
+int  lc_engine_ctrl_tap(ime_instance *inst, ime_result_v1 *out);
 
 /* ---- Trợ lý ngữ pháp (AS-060 / P4-0 §7) ---- */
 typedef enum lc_assist_mode {
@@ -138,6 +144,9 @@ typedef struct lc_config_state {
     /* config.allow_macro_when_vi_off của lần nạp hợp lệ gần nhất (adapter cần biết để
      * vẫn đưa phím qua engine khi tắt tiếng Việt). */
     int       allow_macro_when_vi_off;
+    /* config.suggest.enabled (hoặc trigger == "tab_and_space"): khi bật, Mode EN vẫn
+     * đưa phím qua engine (passthrough) để dự đoán/hoàn tất từ và cụm tiếng Anh. */
+    int       suggest_enabled;
     /* Trợ lý ngữ pháp (AS-060 / P4-6) */
     int       assist_mode;     /* LC_ASSIST_MODE_* (0=off, 1=highlight, 2=autocorrect) */
     int       assist_auto_fix; /* LC_ASSIST_AUTO_FIX_* (0=off, 1=safe) */

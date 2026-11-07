@@ -208,18 +208,50 @@ void lc_modifier_toggle_down(lc_modifier_toggle *t, lc_modifier which,
     } else {
         t->armed = 0;
     }
+    t->ctrl_armed = (which == LC_MOD_KEY_CTRL) && !shift_down && !alt_or_super;
 }
 
 int lc_modifier_toggle_up(lc_modifier_toggle *t, lc_modifier which) {
     if ((which == LC_MOD_KEY_CTRL || which == LC_MOD_KEY_SHIFT) && t->armed) {
         t->armed = 0;
+        t->ctrl_armed = 0;
         return 1;
+    }
+    return 0;
+}
+
+int lc_modifier_ctrl_tap_up(lc_modifier_toggle *t, lc_modifier which) {
+    if (which == LC_MOD_KEY_CTRL && t->ctrl_armed) {
+        t->ctrl_armed = 0;
+        return 1;
+    }
+    if (which != LC_MOD_NONE) {
+        t->ctrl_armed = 0;
     }
     return 0;
 }
 
 void lc_modifier_toggle_reset(lc_modifier_toggle *t) {
     t->armed = 0;
+    t->ctrl_armed = 0;
+}
+
+int lc_engine_ctrl_tap(ime_instance *inst, ime_result_v1 *out) {
+    if (!inst || !out) return IME_ERR_INVALID_ARG;
+    ime_key_v1 k;
+    ime_result_v1 dummy;
+    memset(&k, 0, sizeof(k));
+    memset(&dummy, 0, sizeof(dummy));
+    k.abi_version = IME_ABI_VERSION;
+    k.vk = 0x11u; /* VK_CONTROL */
+    k.mods = IME_MOD_CTRL;
+    k.key_down = 1;
+    int32_t rc = ime_key(inst, &k, &dummy);
+    if (rc != IME_OK) return rc;
+    k.mods = 0;
+    k.key_down = 0;
+    memset(out, 0, sizeof(*out));
+    return ime_key(inst, &k, out);
 }
 
 /* ---- config.json ---- */
@@ -604,6 +636,11 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
         ime_settings *s = ime_settings_load(path, IME_SETTINGS_CONFIG);
         if (s) {
             st->allow_macro_when_vi_off = ime_settings_get_bool(s, "allow_macro_when_vi_off") == 1;
+            int sug_en = ime_settings_get_bool(s, "suggest.enabled") == 1;
+            char *sug_trig = ime_settings_get_str(s, "suggest.trigger");
+            int trig_space = (sug_trig && strcmp(sug_trig, "tab_and_space") == 0);
+            if (sug_trig) ime_settings_string_free(sug_trig);
+            st->suggest_enabled = (sug_en || trig_space) ? 1 : 0;
             char *mode = ime_settings_get_str(s, "assist.mode");
             if (mode) {
                 if (strcmp(mode, "highlight") == 0) {

@@ -231,7 +231,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             applyConfigReload(version: 0)
         }
 
-        // 2. flagsChanged — cập nhật modifier và phát hiện tổ hợp Ctrl+Shift tap (chuẩn macOS/Windows).
+        // 2. flagsChanged — cập nhật modifier và phát hiện tổ hợp Ctrl+Shift tap (chuẩn macOS/Windows)
+        //    cũng như standalone Ctrl tap (chốt từ / khôi phục gõ sai).
         if event.type == .flagsChanged {
             let flags = event.modifierFlags
             let isCtrl = flags.contains(.control)
@@ -253,6 +254,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                     lastToggleTime = now
                     _ = toggleVietnamese(sender)
                 }
+                otherKeyPressed = true
+            } else if Self.isCtrlTap(
+                wasCtrl: ctrlDown,
+                wasShift: shiftDown,
+                currentCtrl: isCtrl,
+                currentShift: isShift,
+                hasAltOrCmd: hasAltOrCmd,
+                otherKeyPressed: otherKeyPressed
+            ) {
+                handleCtrlTap(sender)
                 otherKeyPressed = true
             }
 
@@ -433,6 +444,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                         target.insert(String(scalar), replacementRange: NSRange(location: NSNotFound, length: 0))
                     }
                     processAssist(triggerKind: triggerKind, target: target, sender: sender)
+                    updatePredictionPreview()
                     return true
                 }
             }
@@ -452,6 +464,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 marked.clear()
                 engine?.reset()
             }
+            updatePredictionPreview()
             return false
         case .replace, .commit, .restore:
             do {
@@ -713,6 +726,50 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         otherKeyPressed: Bool
     ) -> Bool {
         wasCtrl && wasShift && (!currentCtrl || !currentShift) && !otherKeyPressed
+    }
+
+    /// Kiểm tra standalone Ctrl tap: Ctrl bấm rồi nhả đơn lẻ (không kèm Shift/Alt/Cmd hay phím khác).
+    static func isCtrlTap(
+        wasCtrl: Bool,
+        wasShift: Bool,
+        currentCtrl: Bool,
+        currentShift: Bool,
+        hasAltOrCmd: Bool,
+        otherKeyPressed: Bool
+    ) -> Bool {
+        wasCtrl && !wasShift && !currentCtrl && !currentShift && !hasAltOrCmd && !otherKeyPressed
+    }
+
+    private func handleCtrlTap(_ sender: Any!) {
+        guard let engine, let target = clientTarget(sender) else { return }
+        let outcome = engine.ctrlTap()
+        switch outcome.action {
+        case .pass:
+            if outcome.isWordEnd {
+                if !marked.text.isEmpty {
+                    target.insert(marked.text, replacementRange: .notFound)
+                    marked.clear()
+                    engine.reset()
+                }
+            }
+        case .replace, .commit, .restore:
+            let context = gatherContext(from: sender, force: false)
+            let hint = Self.strategyResolver.strategy(
+                appID: context.appID, role: context.role,
+                enabled: viState.enabled(for: context.appID),
+                secure: context.secure || secureMode
+            )
+            let effectiveStrategy = Self.outputStrategy(hint: hint, nonPreedit: nonPreedit)
+            do {
+                try ApplyReplace.apply(outcome, strategy: effectiveStrategy,
+                                       target: target, marked: marked,
+                                       onReset: { [weak self] in self?.engine?.reset() })
+                logAction(outcome)
+            } catch {
+                Diagnostics.log("ctrl tap apply failed (\(error))")
+            }
+        }
+        updatePredictionPreview()
     }
 
     private func logAction(_ outcome: KeyOutcome) {
@@ -1248,9 +1305,26 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func candidateSelected(_ candidateString: NSAttributedString!) {
         guard let str = candidateString?.string else { return }
         // R2-134: chọn bản xem trước = nhận dự đoán (chốt marked + phần nối thêm).
+        // G19 / Dream RSI: route acceptance through synthetic Tab so Dream RSI & style learning update identically.
         if currentCandidates.isEmpty, let ghost = predictionPreview, str == Self.previewLabel(ghost) {
             predictionPreview = nil
-            if let target = clientTarget(client()) {
+            let tabEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true)
+            let outcome = engine?.key(tabEvent)
+            if let outcome, outcome.action != .pass {
+                let pid = Self.clientPid(client())
+                let appID = Self.appID(for: pid)
+                let hint = Self.strategyResolver.strategy(
+                    appID: appID, role: FieldRole.unknown,
+                    enabled: viState.enabled(for: appID),
+                    secure: secureMode
+                )
+                let effectiveStrategy = Self.outputStrategy(hint: hint, nonPreedit: nonPreedit)
+                if let target = clientTarget(client()) {
+                    try? ApplyReplace.apply(outcome, strategy: effectiveStrategy,
+                                           target: target, marked: marked,
+                                           onReset: { [weak self] in self?.engine?.reset() })
+                }
+            } else if let target = clientTarget(client()) {
                 target.insert(marked.text + ghost, replacementRange: NSRange(location: NSNotFound, length: 0))
                 marked.clear()
                 engine?.reset()
@@ -1264,6 +1338,9 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         if let candidate = currentCandidates.first(where: { $0.text == str }),
            let target = clientTarget(client()) {
             let sentence = engine?.sentenceTail(maxChars: 256) ?? ""
+            if candidate.plan.deleteGlyphs > 0, !candidate.plan.originalTail.isEmpty, !candidate.plan.replacement.isEmpty {
+                engine?.styleNoteCorrection(from: candidate.plan.originalTail, to: candidate.plan.replacement)
+            }
             if applyAssistFix(plan: candidate.plan, target: target) {
                 // R-4: sau khi sửa câu trong document, buffer câu của engine đã
                 // cũ ⇒ nạp câu đã sửa (R2-131) để câu tiếp theo không lệch span.

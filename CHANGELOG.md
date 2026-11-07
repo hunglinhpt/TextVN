@@ -27,16 +27,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
     1. **Mode EN (`E`, tắt tiếng Việt)**: hoàn tất tiền tố từ đơn & từ ghép (`machine` + Tab → `machine learning`), duyệt vòng 5 ứng viên bằng Tab, dự đoán câu/cụm tiếp theo (`Thank you` + Tab → `Thank you very much`, `looking forward` + Tab → `looking forward to hearing from you soon`), chữ mờ gợi ý sẵn (`peek_completion`), và tự học từ cá nhân (Dream RSI).
     2. **Mode VI (`V`, bật tiếng Việt)**: khi phát hiện từ hoặc câu tiếng Anh (kể cả khi đang bị Telex biến đổi như `customer` → `cútomer`, `looking forward` → `looking fỏwad`, `in order` → `in ỏder`, `feel free` → `feel frê`, `see` → `sê`), tự động khôi phục và gợi ý chính xác từ đơn, từ ghép và mẫu câu tiếng Anh tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
 
+- **Đồng bộ toàn diện 3 hệ điều hành (Windows TSF, macOS IMK, Linux IBus & Fcitx5)**:
+  - Đồng bộ dự đoán tiếng Anh (Mode EN) và chữ mờ xem trước (`peek_completion`) trên cả Linux (IBus & Fcitx5) và macOS (IMK). Khi tắt tiếng Việt (`E`), nếu `suggest.enabled` bật thì phím vẫn được đưa qua engine để cập nhật bộ đệm từ và hiển thị ghost preview chính xác.
+  - Sửa lỗi macOS IMK không hiển thị preview ở chế độ tiếng Anh hoặc các từ ASCII chưa biến đổi do nhánh `.pass` trước đây thiếu lời gọi `updatePredictionPreview()`.
+  - Hỗ trợ phím `Ctrl` bấm rồi thả riêng (standalone Ctrl tap) đồng bộ trên cả 4 adapter (Windows TSF, macOS IMK, Linux IBus, Linux Fcitx5) để chốt âm tiết hợp lệ (`tunx` + Ctrl → `tũn`) hoặc khôi phục từ gõ sai (`sort` → `sỏt` + Ctrl → `sort`).
+  - Đồng bộ Dream RSI (P10 / G19) và học sửa lỗi liên tục (`style_note_correction`) trên cả macOS và Linux khi người dùng nhấp chuột chọn ứng viên gợi ý hoặc chấp nhận dự đoán.
+  - Sửa lỗi ranh giới học từ ở Mode EN: loại bỏ Backspace và các phím không in được khỏi ranh giới học để không học tiền tố dở dang vào từ điển cá nhân.
+
 ### Fixed
 - **Sửa triệt để lỗi âm vị học tiếng Việt (`sỏt` → `sort`)**:
   - Âm cuối tắc (`-t`) trong âm vị học tiếng Việt không thể đi với thanh hỏi (`is_valid_word("sỏt") == false`). Khôi phục chính xác từ tiếng Anh gốc `sort` khi bấm `Ctrl`, `Ctrl+Space` và `Tab` (lần Tab 1 hoàn nguyên `sort`, lần 2 mới duyệt sang `sorts`).
   - Trong `on_boundary`, kiểm tra điều kiện restore trước khi học từ cá nhân; sửa hàm `valid_style_entry` để loại bỏ dứt điểm mọi âm tiết biến dạng sai cấu trúc âm vị học, bảo đảm bộ nhớ `style_words` luôn sạch và không bị ô nhiễm.
   - Tối ưu hóa tính toán Dream RSI: chỉ tăng bộ đếm ký tự tiết kiệm khi ứng viên hoàn tất thực sự dài hơn chuỗi đã gõ.
 
-**English** — 0.2.68 delivers critical phonotactic validation fixes, Vietnamese Telex typing conveniences, and full bilingual English prediction parity:
+**English** — 0.2.68 delivers critical phonotactic validation fixes, Vietnamese Telex typing conveniences, full bilingual English prediction parity, and cross-platform synchronization:
 - **Phonotactic validation & restore**: Fixes invalid Telex folds such as `sort` → `sỏt` (which is phonotactically impossible in Vietnamese phonology). `sort` is now restored immediately upon standalone `Ctrl` tap, `Ctrl+Space`, or `Tab` (first Tab restores `sort`, second Tab cycles to `sorts`). Hardens `valid_style_entry` so invalid syllables cannot pollute personal `style_words`.
 - **Vietnamese Telex conveniences**: Adds `[` / `]` for `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`) with double-bracket escape (`[[` → `[`, `]]` → `]`, and code empty brackets `[]` preserved), standalone `Ctrl` tap to lock valid Vietnamese syllables (`tunx`, `Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (`---` undo).
 - **Dual-mode bilingual prediction parity**: Adds `data/en_compounds.txt` (1,957 entries across 16 domains) and expands `data/en_phrases.tsv` to 8,849 rows (41,415 total corpora entries). Delivers full prefix completion, compound prediction, 5-candidate cycling, next-phrase prediction, and ghost text preview in both **Mode EN (`E`)** and **Mode VI (`V`)** while protecting Vietnamese syllables.
+- **Cross-platform synchronization across Windows, macOS, and Linux**: Synchronizes Mode EN passthrough prediction and ghost preview (`peek_completion`) across Windows TSF, macOS IMK, Linux IBus, and Linux Fcitx5. Adds standalone `Ctrl` tap across all 4 adapters to lock valid syllables or restore invalid phonetic words. Synchronizes Dream RSI and continuous correction style learning when selecting candidates on macOS and Linux. Fixes Mode EN learning boundaries so Backspace and non-printable keys never learn incomplete prefixes into personal dictionaries.
 
 ---
 

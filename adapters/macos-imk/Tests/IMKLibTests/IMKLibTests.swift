@@ -1079,4 +1079,84 @@ final class AssistIpcTests: XCTestCase {
         state.apply(stateUpdate: "assist", enabled: false)
         XCTAssertNil(state.appOverrides["assist"])
     }
+
+    /// Kiểm tra standalone Ctrl tap detection (P10 / Ctrl tap parity).
+    func testIsCtrlTap() {
+        XCTAssertTrue(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: false, currentCtrl: false, currentShift: false,
+                hasAltOrCmd: false, otherKeyPressed: false
+            ),
+            "Standalone Ctrl tap hợp lệ"
+        )
+        XCTAssertFalse(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: true, currentCtrl: false, currentShift: false,
+                hasAltOrCmd: false, otherKeyPressed: false
+            ),
+            "Ctrl+Shift không phải standalone Ctrl tap"
+        )
+        XCTAssertFalse(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: false, currentCtrl: true, currentShift: false,
+                hasAltOrCmd: false, otherKeyPressed: false
+            ),
+            "Ctrl chưa nhả không phải Ctrl tap"
+        )
+        XCTAssertFalse(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: false, currentCtrl: false, currentShift: false,
+                hasAltOrCmd: true, otherKeyPressed: false
+            ),
+            "Có Alt/Cmd không phải standalone Ctrl tap"
+        )
+        XCTAssertFalse(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: false, currentCtrl: false, currentShift: false,
+                hasAltOrCmd: false, otherKeyPressed: true
+            ),
+            "Có phím khác kèm theo không phải standalone Ctrl tap"
+        )
+    }
+
+    /// Kiểm tra `ctrlTap` trên ImeEngine: chốt từ hợp lệ và khôi phục từ gõ sai.
+    func testEngineCtrlTap() throws {
+        let engine = try ImeEngine(configJSON: nil)
+        engine.setContext(
+            enabled: true, secure: false, fieldRole: FFI.fieldBody,
+            caps: FFI.capPreedit, appId: "test", elementName: nil, hint: 0
+        )
+        // Type 't', 'u', 'n', 'x' -> tũn
+        for ch in ["t", "u", "n", "x"] {
+            let vk = UInt32(ch.utf8.first!)
+            _ = engine.key(KeyEvent(vk: vk, ch: vk, mods: 0, keyDown: true))
+        }
+        let outcomeLock = engine.ctrlTap()
+        XCTAssertEqual(outcomeLock.action, .pass)
+        XCTAssertTrue(outcomeLock.isWordEnd)
+
+        // Type 's', 'o', 'r', 't' -> sỏt
+        engine.reset()
+        for ch in ["s", "o", "r", "t"] {
+            let vk = UInt32(ch.utf8.first!)
+            _ = engine.key(KeyEvent(vk: vk, ch: vk, mods: 0, keyDown: true))
+        }
+        let outcomeRestore = engine.ctrlTap()
+        switch outcomeRestore.action {
+        case let .restore(_, insert):
+            XCTAssertEqual(insert, "sort")
+        default:
+            XCTFail("Mong đợi .restore('sort') nhưng nhận được \(outcomeRestore.action)")
+        }
+    }
+
+    /// Kiểm tra `styleNoteCorrection` và `styleDrainJSON` trên ImeEngine.
+    func testEngineStyleNoteCorrectionAndDrain() throws {
+        let engine = try ImeEngine(configJSON: nil)
+        engine.styleNoteCorrection(from: "nghanh", to: "nganh")
+        let json = engine.styleDrainJSON()
+        XCTAssertTrue(json.contains("corrections"))
+        XCTAssertTrue(json.contains("nghanh"))
+        XCTAssertTrue(json.contains("nganh"))
+    }
 }

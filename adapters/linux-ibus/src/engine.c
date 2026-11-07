@@ -111,7 +111,8 @@ static void hide_preview(TextVNIbusEngine *self) {
  * nối thêm ở dòng phụ của bảng IBus cạnh con trỏ. Không chèn vào preedit: một
  * số toolkit tự chốt preedit khi mất focus ⇒ chữ gợi ý lọt vào văn bản. */
 static void update_preview(TextVNIbusEngine *self) {
-    if (!self->inst || self->assist_ui_showing || !s_vi_enabled) {
+    if (!self->inst || self->assist_ui_showing ||
+        !(s_vi_enabled || self->config.suggest_enabled)) {
         hide_preview(self);
         return;
     }
@@ -315,6 +316,11 @@ static void apply_assist_candidate(TextVNIbusEngine *self, guint index) {
     }
     if (cand->replacement[0] != '\0') {
         ibus_engine_commit_text(engine, ibus_text_new_from_string(cand->replacement));
+    }
+    /* G19: note correction to style profile for continuous learning */
+    if (self->inst && cand->delete_glyphs > 0 && cand->original_tail[0] != '\0' && cand->replacement[0] != '\0') {
+        ime_style_note_correction(self->inst, (const uint8_t *)cand->original_tail, strlen(cand->original_tail),
+                                  (const uint8_t *)cand->replacement, strlen(cand->replacement));
     }
     /* R-4: sau khi sửa câu trong document, buffer câu của engine đã cũ ⇒
      * phải reset để câu tiếp theo không bị lệch span (parity với Fcitx5/Windows). */
@@ -903,8 +909,29 @@ static void engine_candidate_clicked(IBusEngine *engine, guint index, guint butt
     }
 }
 
+static void handle_ctrl_tap(TextVNIbusEngine *self) {
+    if (!self || !self->inst || self->comp.len == 0) return;
+    ime_result_v1 r;
+    if (lc_engine_ctrl_tap(self->inst, &r) != IME_OK) return;
+    lc_plan plan;
+    lc_plan_key(&self->comp, (lc_key){ LC_KEY_OTHER, 0 }, &r, &plan);
+    if (plan.end) {
+        size_t n = 0;
+        const uint32_t *t = lc_plan_commit_text(&self->comp, &plan, &n);
+        commit_text(self, t, n);
+    } else if (plan.has_text) {
+        show_preedit(self, plan.text, plan.text_len);
+    }
+    lc_comp_apply(&self->comp, &plan);
+    if (plan.reset_engine) ime_reset(self->inst);
+    update_preview(self);
+}
+
 static gboolean handle_release(TextVNIbusEngine *self, guint keyval) {
-    if (lc_modifier_toggle_up(&self->toggle, textvn_ibus_modifier_kind(keyval))) {
+    lc_modifier which = textvn_ibus_modifier_kind(keyval);
+    if (lc_modifier_ctrl_tap_up(&self->toggle, which)) {
+        handle_ctrl_tap(self);
+    } else if (lc_modifier_toggle_up(&self->toggle, which)) {
         toggle_vietnamese(self);
     }
     return FALSE; /* không bao giờ nuốt phím nhả */
@@ -1007,9 +1034,9 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                                                  (state & IBUS_SHIFT_MASK) != 0,
                                                  (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0) != 0;
 
-    gboolean macro_only = !s_vi_enabled && self->config.allow_macro_when_vi_off;
+    gboolean passthrough_on = !s_vi_enabled && (self->config.allow_macro_when_vi_off || self->config.suggest_enabled);
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || self->secure ||
-        !(s_vi_enabled || macro_only) || !self->inst) {
+        !(s_vi_enabled || passthrough_on) || !self->inst) {
         finish_word(self);
         return FALSE;
     }
@@ -1086,7 +1113,8 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
         return eaten;
     }
 
-    if (key.kind == LC_KEY_CHAR || key.kind == LC_KEY_BACKSPACE || key.kind == LC_KEY_TAB) {
+    if (key.kind == LC_KEY_CHAR || key.kind == LC_KEY_BACKSPACE || key.kind == LC_KEY_TAB ||
+        key.kind == LC_KEY_CTRL_SPACE) {
         update_preview(self);
     }
     return plan.eaten ? TRUE : FALSE;

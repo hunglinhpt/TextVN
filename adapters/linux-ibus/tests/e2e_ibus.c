@@ -310,6 +310,19 @@ int main(void) {
     ok &= check("VN giữ sau focus-out/in", "á ");
     clear(ic);
 
+    /* Standalone Ctrl tap: chốt từ hợp lệ (tunx + Ctrl -> tũn) hoặc khôi phục (sort + Ctrl -> sort) */
+    type(ic, "tunx");
+    press(ic, IBUS_KEY_Control_L, 0);
+    type(ic, "s ");
+    ok &= check("Ctrl tap chốt âm tiết (tunx + Ctrl -> tũns)", "tũns ");
+    clear(ic);
+
+    type(ic, "sort");
+    press(ic, IBUS_KEY_Control_L, 0);
+    type(ic, " ");
+    ok &= check("Ctrl tap khôi phục (sort -> sỏt + Ctrl -> sort)", "sort ");
+    clear(ic);
+
     /* Bảng cài đặt đổi state.json khi IME đang chạy → theo ngay ở phím kế tiếp. */
     write_textvn_file("state.json", "{\"global_enabled\": false}");
     type(ic, "as ");

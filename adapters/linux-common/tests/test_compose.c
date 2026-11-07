@@ -682,12 +682,152 @@ static void test_assist_hotkey_explicit_preview(void) {
     ime_instance_free(inst);
 }
 
+static void test_modifier_ctrl_tap(void) {
+    lc_modifier_toggle t = { 0 };
+    /* Standalone Ctrl down then up */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 0, 0);
+    assert(t.ctrl_armed == 1);
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 1);
+    assert(t.ctrl_armed == 0);
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
+
+    /* Ctrl down with Shift down -> not armed for ctrl tap */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 1, 0);
+    assert(t.ctrl_armed == 0);
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
+
+    /* Ctrl down with Alt -> not armed */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 0, 1);
+    assert(t.ctrl_armed == 0);
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
+
+    /* Ctrl down, then normal key arrives (which == LC_MOD_NONE) -> disarmed */
+    lc_modifier_toggle_down(&t, LC_MOD_KEY_CTRL, 0, 0, 0);
+    assert(t.ctrl_armed == 1);
+    lc_modifier_toggle_down(&t, LC_MOD_NONE, 1, 0, 0);
+    assert(t.ctrl_armed == 0);
+    assert(lc_modifier_ctrl_tap_up(&t, LC_MOD_KEY_CTRL) == 0);
+}
+
+static void test_engine_ctrl_tap(void) {
+    ime_instance *inst = engine_with(NO_CAPS);
+    doc d;
+    memset(&d, 0, sizeof(d));
+
+    /* Type tunx -> preedit becomes tũn */
+    type_str(&d, inst, "tunx");
+    char got[64];
+    doc_text(&d, got, sizeof(got));
+    assert(strcmp(got, "t\xc5\xa9n") == 0);
+    assert(d.comp.len > 0);
+
+    /* Ctrl tap locks valid syllable */
+    ime_result_v1 r;
+    assert(lc_engine_ctrl_tap(inst, &r) == IME_OK);
+    lc_plan plan;
+    lc_plan_key(&d.comp, (lc_key){ LC_KEY_OTHER, 0 }, &r, &plan);
+    assert(plan.end == 1);
+    size_t n = 0;
+    const uint32_t *t = lc_plan_commit_text(&d.comp, &plan, &n);
+    memcpy(d.committed + d.committed_len, t, n * sizeof(uint32_t));
+    d.committed_len += n;
+    lc_comp_apply(&d.comp, &plan);
+    if (plan.reset_engine) ime_reset(inst);
+    assert(d.comp.len == 0);
+
+    /* Type s -> tũns */
+    type_str(&d, inst, "s");
+    doc_text(&d, got, sizeof(got));
+    assert(strcmp(got, "t\xc5\xa9ns") == 0);
+
+    /* Reset for second scenario: sort -> sỏt */
+    d.committed_len = 0;
+    d.comp.len = 0;
+    ime_reset(inst);
+    type_str(&d, inst, "sort");
+    doc_text(&d, got, sizeof(got));
+    assert(strcmp(got, "s\xe1\xbb\x8dt") == 0);
+
+    /* Ctrl tap restores sort */
+    assert(lc_engine_ctrl_tap(inst, &r) == IME_OK);
+    assert(r.action == IME_ACTION_RESTORE);
+    lc_plan_key(&d.comp, (lc_key){ LC_KEY_OTHER, 0 }, &r, &plan);
+    assert(plan.has_text == 1);
+    lc_comp_apply(&d.comp, &plan);
+    doc_text(&d, got, sizeof(got));
+    assert(strcmp(got, "sort") == 0);
+
+    ime_instance_free(inst);
+}
+
+static void test_mode_en_prediction_passthrough(void) {
+    const char *cfg = "{\"config_version\":1,\"auto_capitalize\":false,"
+                      "\"suggest\":{\"enabled\":true,\"trigger\":\"tab_and_space\"}}";
+    ime_instance *inst = engine_with(cfg);
+    lc_config_state st;
+    memset(&st, 0, sizeof(st));
+    st.suggest_enabled = 1;
+
+    ime_context_v1 ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.abi_version = IME_ABI_VERSION;
+    ctx.enabled = 0; /* Mode EN */
+    ctx.field_role = IME_FIELD_BODY;
+    ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
+    ctx.hint = -1;
+    assert(ime_set_context(inst, &ctx) == IME_OK);
+
+    /* Type devel */
+    const char *p = "devel";
+    while (*p) {
+        ime_key_v1 k;
+        memset(&k, 0, sizeof(k));
+        k.abi_version = IME_ABI_VERSION;
+        k.vk = (uint32_t)(*p);
+        k.ch = (uint32_t)(*p);
+        k.key_down = 1;
+        ime_result_v1 r;
+        assert(ime_key(inst, &k, &r) == IME_OK);
+        assert(r.action == IME_ACTION_PASS);
+        p++;
+    }
+
+    /* Peek completion */
+    char ghost[512];
+    int gn = ime_peek_completion(inst, ghost, sizeof(ghost));
+    assert(gn > 0);
+    assert(strcmp(ghost, "op") == 0);
+
+    /* Press Tab to accept completion */
+    ime_key_v1 k;
+    memset(&k, 0, sizeof(k));
+    k.abi_version = IME_ABI_VERSION;
+    k.vk = 0x09; /* Tab */
+    k.ch = 0x09;
+    k.key_down = 1;
+    ime_result_v1 r;
+    assert(ime_key(inst, &k, &r) == IME_OK);
+    assert(r.action == IME_ACTION_REPLACE);
+    assert(r.delete_count == 5);
+    /* Insert is "develop" */
+    char word[64];
+    size_t o = 0;
+    for (size_t i = 0; i < r.insert_len; ++i) word[o++] = (char)r.insert[i];
+    word[o] = '\0';
+    assert(strcmp(word, "develop") == 0);
+
+    ime_instance_free(inst);
+}
+
 int main(void) {
     test_classify();
     test_typing();
     test_composition_holds_whole_word();
     test_plan_edge_cases();
     test_modifier_toggle();
+    test_modifier_ctrl_tap();
+    test_engine_ctrl_tap();
+    test_mode_en_prediction_passthrough();
     test_config_sync();
     test_state_file();
     test_assist_state_file();

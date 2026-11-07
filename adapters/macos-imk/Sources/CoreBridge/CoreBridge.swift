@@ -364,6 +364,61 @@ public final class ImeEngine {
         ime_assist_set_spell_provider(instance, provider)
     }
 
+    /// Standalone Ctrl tap: gửi VK_CONTROL down (Ctrl mod) rồi up (no mod).
+    /// Dùng để chốt âm tiết hợp lệ (`tunx` + Ctrl -> `tũn`) hoặc khôi phục gõ sai (`sort` -> `sỏt` + Ctrl -> `sort`).
+    public func ctrlTap() -> KeyOutcome {
+        var k = ime_key_v1()
+        k.abi_version = FFI.abiVersion
+        k.vk = 0x11 // VK_CONTROL
+        k.ch = 0
+        k.mods = FFI.modCtrl
+        k.key_down = 1
+        var dummy = ime_result_v1()
+        let rc = ime_key(instance, &k, &dummy)
+        guard rc == IME_OK else {
+            ime_reset(instance)
+            return KeyOutcome(action: .pass, flags: FFI.flagError)
+        }
+        var kUp = ime_key_v1()
+        kUp.abi_version = FFI.abiVersion
+        kUp.vk = 0x11
+        kUp.ch = 0
+        kUp.mods = 0
+        kUp.key_down = 0
+        var out = ime_result_v1()
+        let rcUp = ime_key(instance, &kUp, &out)
+        guard rcUp == IME_OK else {
+            ime_reset(instance)
+            return KeyOutcome(action: .pass, flags: FFI.flagError)
+        }
+        return Self.decode(out)
+    }
+
+    /// P7: Drain pending style profile learning records as JSON string.
+    public func styleDrainJSON() -> String {
+        var buf = [UInt8](repeating: 0, count: 4096)
+        var outLen: Int = 0
+        let rc = ime_style_profile_drain(instance, &buf, buf.count, &outLen)
+        guard rc == IME_OK, outLen > 0, outLen <= buf.count else { return "{}" }
+        return String(decoding: buf.prefix(outLen), as: UTF8.self)
+    }
+
+    /// P7: Note accepted correction pair for continuous style learning.
+    public func styleNoteCorrection(from: String, to: String) {
+        let fromBytes = Array(from.utf8)
+        let toBytes = Array(to.utf8)
+        guard !fromBytes.isEmpty, !toBytes.isEmpty else { return }
+        fromBytes.withUnsafeBufferPointer { fBuf in
+            toBytes.withUnsafeBufferPointer { tBuf in
+                _ = ime_style_note_correction(
+                    instance,
+                    fBuf.baseAddress, fBuf.count,
+                    tBuf.baseAddress, tBuf.count
+                )
+            }
+        }
+    }
+
     /// Lấy phần đuôi buffer câu của engine dưới dạng chuỗi UTF-8 (Fassist-76).
     ///
     /// - Parameter maxChars: Số ký tự Unicode tối đa (mặc định 256 — D31).

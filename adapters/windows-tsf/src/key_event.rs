@@ -29,8 +29,9 @@ use crate::class::ObjGuard;
 use crate::compose::{is_modifier_vk, vk as vkc, KeyKind};
 #[cfg(windows)]
 use crate::edit_session::{
-    apply_assist_suggestion, hide_assist_overlay, request_sync_or_async, select_assist_issue,
-    selected_assist_issue, AssistRecallSession, EndCompositionSession, KeyEditSession, TsfShared,
+    apply_assist_suggestion, apply_ctrl_tap_in_context, hide_assist_overlay, request_sync_or_async,
+    select_assist_issue, selected_assist_issue, AssistRecallSession, EndCompositionSession,
+    KeyEditSession, TsfShared,
 };
 #[cfg(windows)]
 use crate::trace;
@@ -356,14 +357,17 @@ fn defer_to_key_down(
         .flatten()
 }
 
-/// Nhả phím: chỉ dùng cho phím chuyển Ctrl+Shift; không bao giờ ăn phím.
+/// Nhả phím: dùng cho phím chuyển Ctrl+Shift và standalone Ctrl tap; không bao giờ ăn phím.
 #[cfg(windows)]
-fn handle_key_up(shared: &TsfShared, ctx: Option<&ITfContext>, vk: u32) -> bool {
+fn handle_key_up(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32) -> bool {
     let mut toggle = shared.modifier_toggle.get();
     let fire = toggle.on_key_up(vk);
+    let ctrl_tap = !fire && toggle.on_ctrl_tap_up(vk);
     shared.modifier_toggle.set(toggle);
     if fire {
         toggle_vietnamese(shared, ctx);
+    } else if ctrl_tap {
+        apply_ctrl_tap_in_context(shared, ctx);
     }
     false
 }

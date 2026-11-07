@@ -142,6 +142,7 @@ fn is_shift_vk(vk: u32) -> bool {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ModifierToggle {
     armed: bool,
+    ctrl_armed: bool,
 }
 
 impl ModifierToggle {
@@ -155,6 +156,7 @@ impl ModifierToggle {
         } else {
             false
         };
+        self.ctrl_armed = is_ctrl_vk(vk) && !shift_down && !alt_or_win;
     }
 
     /// Key-up: `true` đúng MỘT lần khi nhả Ctrl/Shift của một lần bấm hợp lệ
@@ -162,7 +164,21 @@ impl ModifierToggle {
     pub fn on_key_up(&mut self, vk: u32) -> bool {
         if (is_ctrl_vk(vk) || is_shift_vk(vk)) && self.armed {
             self.armed = false;
+            self.ctrl_armed = false;
             return true;
+        }
+        false
+    }
+
+    /// Key-up của riêng phím Ctrl (standalone Ctrl tap): `true` đúng MỘT lần khi
+    /// Ctrl được bấm và nhả riêng lẻ không kèm Shift/Alt/Win hay phím khác.
+    pub fn on_ctrl_tap_up(&mut self, vk: u32) -> bool {
+        if is_ctrl_vk(vk) && self.ctrl_armed {
+            self.ctrl_armed = false;
+            return true;
+        }
+        if is_modifier_vk(vk) {
+            self.ctrl_armed = false;
         }
         false
     }
@@ -170,6 +186,7 @@ impl ModifierToggle {
     /// Focus đổi / hotkey khác đã xử lý: hủy lần bấm đang chờ.
     pub fn reset(&mut self) {
         self.armed = false;
+        self.ctrl_armed = false;
     }
 }
 
@@ -649,5 +666,68 @@ mod tests {
         assert_eq!(plan.text, Some(vec!['😀']));
         assert!(plan.end && plan.eaten);
         assert!(text_after(&['a'], &plan).is_empty());
+    }
+
+    #[test]
+    fn standalone_ctrl_tap_locks_valid_word_and_restores_invalid_syllable() {
+        let mut t = ModifierToggle::default();
+        // Ctrl ↓, Ctrl ↑ → ctrl tap (1 lần), không toggle Ctrl+Shift.
+        t.on_key_down(vk::CONTROL, false, false, false);
+        assert!(!t.on_key_up(vk::CONTROL));
+        assert!(t.on_ctrl_tap_up(vk::CONTROL));
+        assert!(!t.on_ctrl_tap_up(vk::CONTROL));
+
+        // Ctrl+C → không phải ctrl tap.
+        t.on_key_down(vk::CONTROL, false, false, false);
+        t.on_key_down(0x43, true, false, false);
+        assert!(!t.on_ctrl_tap_up(vk::CONTROL));
+
+        // 1) `tunx` + Ctrl tap + `s` → giữ nguyên tử `tũns` (Ctrl tap chốt composition `tũn`).
+        let mut eng = EngineSession::new().unwrap();
+        let _ = eng.reload_config(b"{\"auto_capitalize\":false}");
+        let mut doc = Doc::default();
+        type_str(&mut doc, &mut eng, "tunx");
+        assert_eq!(doc.text(), "tũn");
+        let r = eng.ctrl_tap().unwrap();
+        let plan = plan_key(&doc.comp, KeyKind::Other, &EngineStep::from_result(&r));
+        assert!(
+            plan.end,
+            "Ctrl tap trên âm tiết hợp lệ phải chốt composition"
+        );
+        if let Some(txt) = &plan.text {
+            doc.comp = txt.clone();
+        }
+        doc.committed.append(&mut doc.comp);
+        type_str(&mut doc, &mut eng, "s ");
+        assert_eq!(doc.text(), "tũns ");
+
+        // 2) `sort` (`sỏt`) + Ctrl tap → khôi phục ngay thành `sort` và chốt composition.
+        let mut eng2 = EngineSession::new().unwrap();
+        let _ = eng2.reload_config(b"{\"auto_capitalize\":false,\"auto_restore_english\":true}");
+        let mut doc2 = Doc::default();
+        type_str(&mut doc2, &mut eng2, "sort");
+        assert_eq!(doc2.text(), "sỏt");
+        let r2 = eng2.ctrl_tap().unwrap();
+        let plan2 = plan_key(&doc2.comp, KeyKind::Other, &EngineStep::from_result(&r2));
+        assert!(plan2.text.is_some() && plan2.eaten);
+        if let Some(txt) = &plan2.text {
+            doc2.comp = txt.clone();
+        }
+        assert_eq!(doc2.text(), "sort");
+    }
+
+    #[test]
+    fn mode_en_english_completion_works_within_composition() {
+        let mut eng = EngineSession::new().unwrap();
+        let _ = eng.reload_config(
+            b"{\"config_version\":1,\"auto_capitalize\":false,\"suggest\":{\"enabled\":true}}",
+        );
+        eng.set_enabled(false);
+        let mut doc = Doc::default();
+        type_str(&mut doc, &mut eng, "devel");
+        assert_eq!(doc.text(), "devel");
+        assert_eq!(eng.peek_completion().as_deref(), Some("op"));
+        press(&mut doc, &mut eng, vk::TAB, 0);
+        assert_eq!(doc.text(), "develop");
     }
 }

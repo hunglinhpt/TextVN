@@ -283,6 +283,8 @@ pub struct ThreadState {
     user_enabled: Option<bool>,
     /// `config.allow_macro_when_vi_off` của lần nạp config hợp lệ gần nhất.
     macro_when_off: bool,
+    /// `config.suggest.enabled` (hoặc `trigger == "tab_and_space"`): khi bật, Mode EN vẫn đi qua engine (passthrough) để dự đoán tiếng Anh.
+    suggest_enabled: bool,
     /// `config.assist.auto_fix` của lần nạp config gần nhất (AS-050 · Mode 2 / A3).
     assist_auto_fix: textvn_config::AssistAutoFix,
     /// `config.assist.mode` của lần nạp config gần nhất (AS-050 · Mode 1/2).
@@ -322,6 +324,7 @@ impl ThreadState {
             generation,
             user_enabled: None,
             macro_when_off: false,
+            suggest_enabled: textvn_config::SuggestSettings::default().enabled,
             assist_auto_fix: textvn_config::AssistAutoFix::default(),
             // Vòng 34 (audit A2): fresh-install chưa có config.json — enum
             // `#[default] Off` làm trợ lý CHẾT hoàn toàn (đúng lớp lỗi F-A mà
@@ -455,6 +458,8 @@ impl ThreadState {
             .and_then(|s| textvn_config::parse_config(s).ok())
         {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
+            self.suggest_enabled = cfg.suggest.enabled
+                || cfg.suggest.trigger == textvn_config::SuggestTrigger::TabAndSpace;
             self.assist_auto_fix = cfg.assist.auto_fix;
             self.assist_mode = cfg.assist.mode;
             self.auto_capitalize = cfg.auto_capitalize;
@@ -468,6 +473,12 @@ impl ThreadState {
     /// để bung gõ tắt; chữ thường đi thẳng không biến đổi.
     pub fn macro_when_off(&self) -> bool {
         self.macro_when_off
+    }
+
+    /// "Dự đoán từ/câu": khi VN tắt (Mode E) phím vẫn qua engine (passthrough)
+    /// để gợi ý/hoàn tất từ và cụm tiếng Anh.
+    pub fn suggest_enabled(&self) -> bool {
+        self.suggest_enabled
     }
 
     /// Cấu hình tự sửa cả câu (AS-050 · Mode 2 / A3).
@@ -602,6 +613,53 @@ impl EngineSession {
 
     pub fn key_event_raw(&mut self, vk: u32, ch: u32, mods: u32) -> Result<ime_result_v1, i32> {
         self.key_event(vk, ch, mods)
+    }
+
+    /// Bấm rồi thả riêng phím Ctrl (standalone Ctrl tap): khóa nguyên tử âm tiết hợp lệ
+    /// (`tunx` + Ctrl -> `tũn`) hoặc khôi phục từ tiếng Anh bất khả về ngữ âm Việt (`sort` -> `sỏt` + Ctrl -> `sort`).
+    pub fn ctrl_tap(&mut self) -> Result<ime_result_v1, i32> {
+        let down = ime_key_v1 {
+            abi_version: IME_ABI_VERSION,
+            vk: 0x11,
+            ch: 0,
+            mods: textvn_ffi::MOD_CTRL,
+            key_down: 1,
+            is_repeat: 0,
+            is_injected: 0,
+            _reserved: 0,
+        };
+        let mut dummy = ime_result_v1 {
+            abi_version: 0,
+            action: 0,
+            delete_count: 0,
+            insert_len: 0,
+            preedit_len: 0,
+            _reserved: 0,
+            flags: 0,
+            insert: [0; 64],
+            preedit: [0; 64],
+        };
+        let status_down = ime_key(self.instance, &down, &mut dummy);
+        if status_down != IME_OK {
+            return Err(status_down);
+        }
+        let up = ime_key_v1 {
+            abi_version: IME_ABI_VERSION,
+            vk: 0x11,
+            ch: 0,
+            mods: 0,
+            key_down: 0,
+            is_repeat: 0,
+            is_injected: 0,
+            _reserved: 0,
+        };
+        let mut result = dummy;
+        let status_up = ime_key(self.instance, &up, &mut result);
+        if status_up == IME_OK {
+            Ok(result)
+        } else {
+            Err(status_up)
+        }
     }
 
     /// Xóa từ đang gõ (focus change, composition bị app kết thúc, chord…).

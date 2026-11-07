@@ -308,6 +308,14 @@ public:
             if (!applyAssistCandidate(ic, deleteGlyphs_, originalTail_, replacement_)) {
                 return;
             }
+            /* G19: note correction to style profile for continuous learning */
+            if (st_ && st_->inst && deleteGlyphs_ > 0 && !originalTail_.empty() && !replacement_.empty()) {
+                ime_style_note_correction(st_->inst,
+                                          reinterpret_cast<const uint8_t *>(originalTail_.data()),
+                                          originalTail_.size(),
+                                          reinterpret_cast<const uint8_t *>(replacement_.data()),
+                                          replacement_.size());
+            }
             /* R-4: đã thay document ⇒ buffer câu của engine không còn khớp ⇒
              * reset (như Mode 2) để lần trigger sau không so với câu cũ.
              * Chỉ khi KHÔNG còn từ đang gõ (preedit rỗng) — reset giữa lúc
@@ -471,7 +479,8 @@ void TextVNEngine::hidePreview(TextVNState *st) {
 /* R2-134 (chủ repo: "chữ mờ gợi ý sẵn"): xem trước phần chữ Tab / phím tắt SẼ
  * nối thêm ở dòng phụ của bảng Fcitx5 cạnh con trỏ — không chạm preedit/văn bản. */
 void TextVNEngine::updatePreview(TextVNState *st) {
-    if (!st || !st->ic || !st->inst || assistUiShowing_ || !viEnabled_) {
+    if (!st || !st->ic || !st->inst || assistUiShowing_ ||
+        !(viEnabled_ || st->config.suggest_enabled)) {
         hidePreview(st);
         return;
     }
@@ -974,7 +983,27 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const lc_modifier which = fcitxModifierKind(key.sym());
 
     if (isRelease) {
-        if (lc_modifier_toggle_up(&st->toggle, which)) toggleVietnamese(st);
+        if (lc_modifier_ctrl_tap_up(&st->toggle, which)) {
+            if (st->comp.len > 0 && st->inst) {
+                ime_result_v1 r;
+                if (lc_engine_ctrl_tap(st->inst, &r) == IME_OK) {
+                    lc_plan plan;
+                    lc_plan_key(&st->comp, lc_key{LC_KEY_OTHER, 0}, &r, &plan);
+                    if (plan.end) {
+                        size_t n = 0;
+                        const uint32_t *t = lc_plan_commit_text(&st->comp, &plan, &n);
+                        commitText(st, t, n);
+                    } else if (plan.has_text) {
+                        showPreedit(st, plan.text, plan.text_len);
+                    }
+                    lc_comp_apply(&st->comp, &plan);
+                    if (plan.reset_engine) ime_reset(st->inst);
+                    updatePreview(st);
+                }
+            }
+        } else if (lc_modifier_toggle_up(&st->toggle, which)) {
+            toggleVietnamese(st);
+        }
         return false;
     }
     lc_modifier_toggle_down(&st->toggle, which, states.test(fcitx::KeyState::Ctrl),
@@ -1075,9 +1104,9 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
 
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
-    const bool macroOnly = !viEnabled_ && st->config.allow_macro_when_vi_off;
+    const bool passthroughOn = !viEnabled_ && (st->config.allow_macro_when_vi_off || st->config.suggest_enabled);
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || secure ||
-        !(viEnabled_ || macroOnly) || !st->inst) {
+        !(viEnabled_ || passthroughOn) || !st->inst) {
         finishWord(st);
         return false;
     }
@@ -1158,7 +1187,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         return eaten;
     }
 
-    if (k.kind == LC_KEY_CHAR || k.kind == LC_KEY_BACKSPACE || k.kind == LC_KEY_TAB) {
+    if (k.kind == LC_KEY_CHAR || k.kind == LC_KEY_BACKSPACE || k.kind == LC_KEY_TAB ||
+        k.kind == LC_KEY_CTRL_SPACE) {
         updatePreview(st);
     }
     return plan.eaten != 0;

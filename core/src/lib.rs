@@ -430,11 +430,21 @@ impl Engine {
         if from.eq_ignore_ascii_case(to) {
             return; // from == to (kể cả chỉ khác hoa/thường) — không phải lỗi sửa
         }
+        let pair = (from.trim().to_lowercase(), to.trim().to_lowercase());
         *self
             .style_pending
             .corrections
-            .entry((from.trim().to_lowercase(), to.trim().to_lowercase()))
+            .entry(pair.clone())
             .or_insert(0) += 1;
+        if !self
+            .opts
+            .style_corrections
+            .iter()
+            .any(|(f, t)| f == &pair.0 && t == &pair.1)
+            && self.opts.style_corrections.len() < 50
+        {
+            self.opts.style_corrections.push(pair);
+        }
     }
 
     /// P7: học từ user gõ xong (gọi tại word-end khi USP bật).
@@ -1058,8 +1068,11 @@ impl Engine {
             let boundary = k
                 .printable()
                 .is_none_or(|c| !method::is_word_char(c, self.opts.method));
-            // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ đến).
-            if boundary && !passthrough_only && self.opts.style_enabled_for_learning() {
+            let learn_boundary = k
+                .printable()
+                .is_some_and(|c| !method::is_word_char(c, self.opts.method));
+            // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ in được đến).
+            if learn_boundary && !passthrough_only && self.opts.style_enabled_for_learning() {
                 let mut end = self.sentence.len();
                 while end > 0 && self.sentence[end - 1].is_ascii_alphabetic() {
                     end -= 1;
@@ -3519,5 +3532,37 @@ mod tests {
         assert_eq!(type_doc(&mut e, "Hà Nội -- TP.HCM"), "Hà Nội — TP.HCM");
         e.reset();
         assert_eq!(type_doc(&mut e, "---"), "---");
+    }
+
+    #[test]
+    fn mode_en_backspace_does_not_learn_incomplete_prefix() {
+        let mut e = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            style_learning_enabled: true,
+            ..Default::default()
+        });
+        e.set_context(Context {
+            enabled: false,
+            ..Default::default()
+        });
+        for c in "devel".chars() {
+            let _ = e.key(&KeyEvent::char_down(c));
+        }
+        // Backspace xóa 'l' — không được ghi nhận "devel" vào style profile.
+        let _ = e.key(&KeyEvent::key_down(keymap::vk::BACK));
+        let drained_after_bs = e.style_drain_json();
+        assert!(
+            !drained_after_bs.contains("\"devel\""),
+            "Backspace ở Mode EN không được học tiền tố dở dang: {drained_after_bs}"
+        );
+        // Gõ tiếp "lopment " (Space là ranh giới từ in được) → học "development".
+        for c in "lopment ".chars() {
+            let _ = e.key(&KeyEvent::char_down(c));
+        }
+        let drained_after_space = e.style_drain_json();
+        assert!(
+            drained_after_space.contains("\"development\""),
+            "Space ở Mode EN phải học từ hoàn chỉnh: {drained_after_space}"
+        );
     }
 }

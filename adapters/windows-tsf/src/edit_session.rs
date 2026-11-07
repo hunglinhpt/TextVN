@@ -233,17 +233,17 @@ impl TsfShared {
     }
 
     /// Xóa từ đang gõ trong engine (không đụng text của app).
-    /// `Some(vi_on)` = phím đi qua engine (VN bật, hoặc VN tắt nhưng còn gõ tắt —
-    /// `allow_macro_when_vi_off`); `None` = phím đi thẳng cho app.
+    /// `Some(vi_on)` = phím đi qua engine (VN bật, hoặc VN tắt nhưng còn gõ tắt / dự đoán
+    /// tiếng Anh — `allow_macro_when_vi_off` / `suggest.enabled`); `None` = phím đi thẳng cho app.
     pub fn engine_mode(&self) -> Option<bool> {
         let vi_on = self.ipc.is_enabled();
-        let macro_only = !vi_on
+        let passthrough_on = !vi_on
             && self
                 .thread
                 .try_borrow()
-                .map(|t| t.macro_when_off())
+                .map(|t| t.macro_when_off() || t.suggest_enabled())
                 .unwrap_or(false);
-        (vi_on || macro_only).then_some(vi_on)
+        (vi_on || passthrough_on).then_some(vi_on)
     }
 
     pub fn reset_engine(&self) {
@@ -575,7 +575,7 @@ impl KeyEditSession {
                 // R2-134: chữ mờ gợi ý sẵn sau mỗi phím gõ (Tab/phím tắt sẽ chèn đúng nó).
                 if matches!(
                     self.key,
-                    KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab
+                    KeyKind::Char(_) | KeyKind::Backspace | KeyKind::Tab | KeyKind::CtrlSpace
                 ) {
                     update_ghost(&self.shared, &self.ctx, ec);
                 }
@@ -952,6 +952,108 @@ impl ITfEditSession_Impl for EndCompositionSession_Impl {
         // SAFETY: composition thuộc TIP này, ec do TSF cấp cho session hiện hành.
         unsafe { self.composition.EndComposition(ec) }
     }
+}
+
+/// Session xử lý bấm rồi thả riêng phím Ctrl (standalone Ctrl tap):
+/// - Nếu âm tiết đang gõ không hợp lệ về ngữ âm Việt (ví dụ `sort` -> `sỏt`), engine
+///   trả `Action::Restore` -> thay composition bằng `sort` rồi đóng composition.
+/// - Nếu âm tiết hợp lệ (ví dụ `tunx` -> `tũn`), engine trả `Action::Pass` + `FLAG_WORD_END`
+///   -> đóng composition và giữ nguyên `tũn`.
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct CtrlTapSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl CtrlTapSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for CtrlTapSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let shared = &*self.shared;
+            shared.ghost.hide();
+            let mut comp = shared
+                .composition
+                .try_borrow_mut()
+                .ok()
+                .and_then(|mut c| c.take());
+            shared.absorb_termination(&mut comp);
+            let Some(sel) = selection_range(&self.ctx, ec) else {
+                finish(ec, &mut comp, shared);
+                return;
+            };
+            let current: Vec<char> = shared
+                .comp_text
+                .try_borrow()
+                .map(|t| t.clone())
+                .unwrap_or_default();
+            if current.is_empty() && comp.is_none() {
+                return;
+            }
+            let outcome = shared
+                .thread
+                .try_borrow_mut()
+                .ok()
+                .and_then(|mut t| t.engine.ctrl_tap().ok());
+            let Some(raw) = outcome else {
+                finish(ec, &mut comp, shared);
+                return;
+            };
+            let step = EngineStep::from_result(&raw);
+            let plan = plan_key(&current, KeyKind::Other, &step);
+            if apply_plan(&self.shared, &self.ctx, ec, &sel, &mut comp, &plan).is_ok() {
+                if let Ok(mut text) = shared.comp_text.try_borrow_mut() {
+                    *text = if comp.is_some() {
+                        text_after(&current, &plan)
+                    } else {
+                        Vec::new()
+                    };
+                }
+            } else {
+                finish(ec, &mut comp, shared);
+            }
+            shared.absorb_termination(&mut comp);
+            if let Ok(mut slot) = shared.composition.try_borrow_mut() {
+                *slot = comp;
+            }
+        }));
+        Ok(())
+    }
+}
+
+/// Chạy `CtrlTapSession` khi người dùng bấm rồi nhả riêng phím Ctrl trong lúc đang composing.
+#[cfg(windows)]
+pub fn apply_ctrl_tap_in_context(shared: &Rc<TsfShared>, fallback_ctx: Option<&ITfContext>) {
+    if !shared.is_composing() {
+        return;
+    }
+    let ctx = shared
+        .composition
+        .try_borrow()
+        .ok()
+        .and_then(|slot| {
+            slot.as_ref()
+                .and_then(|comp| unsafe { comp.GetRange().and_then(|r| r.GetContext()).ok() })
+        })
+        .or_else(|| fallback_ctx.cloned());
+    let Some(ctx) = ctx else {
+        shared.reset_engine();
+        return;
+    };
+    let session: ITfEditSession = CtrlTapSession::new(shared.clone(), ctx.clone()).into();
+    let _ = request_sync_or_async(&ctx, shared.tid, &session);
 }
 
 // ---------------------------------------------------------------------------
