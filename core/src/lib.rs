@@ -363,6 +363,9 @@ impl Engine {
         if !valid_style_entry(from) || !valid_style_entry(to) {
             return;
         }
+        if from.eq_ignore_ascii_case(to) {
+            return; // from == to (kể cả chỉ khác hoa/thường) — không phải lỗi sửa
+        }
         *self
             .style_pending
             .corrections
@@ -371,7 +374,7 @@ impl Engine {
     }
 
     /// P7: học từ user gõ xong (gọi tại word-end khi USP bật).
-    pub(crate) fn style_note_word(&mut self, word: &str) {
+    pub fn style_note_word(&mut self, word: &str) {
         if !valid_style_entry(word) {
             return;
         }
@@ -388,6 +391,10 @@ impl Engine {
         if self.style_pending.words.is_empty() && self.style_pending.corrections.is_empty() {
             return "{}".to_string();
         }
+        // Cap xuất (P7 spec): tối đa 200 từ / 50 cặp mỗi lần drain — giữ JSON
+        // nhỏ cho IPC/tray merge (merge_deltas phía config tự cap lại).
+        const DRAIN_MAX_WORDS: usize = 200;
+        const DRAIN_MAX_CORR: usize = 50;
         let mut words: Vec<String> = self
             .style_pending
             .words
@@ -402,6 +409,31 @@ impl Engine {
             .map(|((f, t), n)| format!("{{\"from\":\"{f}\",\"to\":\"{t}\",\"count\":{n}}}"))
             .collect();
         corr.sort();
+        words.truncate(DRAIN_MAX_WORDS);
+        corr.truncate(DRAIN_MAX_CORR);
+        // Bỏ phần vượt cap khỏi pending (chỉ giữ phần đã xuất) — drain là
+        // hợp đồng "xuất rồi xóa"; phần vượt cap bị loại theo sort alphabet
+        // (merge phía config tự có cap riêng và count cộng dồn từ lần sau).
+        let overflow_w: Vec<String> = self
+            .style_pending
+            .words
+            .keys()
+            .skip(DRAIN_MAX_WORDS)
+            .cloned()
+            .collect();
+        for k in overflow_w {
+            self.style_pending.words.remove(&k);
+        }
+        let overflow_c: Vec<(String, String)> = self
+            .style_pending
+            .corrections
+            .keys()
+            .skip(DRAIN_MAX_CORR)
+            .cloned()
+            .collect();
+        for k in overflow_c {
+            self.style_pending.corrections.remove(&k);
+        }
         self.style_pending.words.clear();
         self.style_pending.corrections.clear();
         format!(
@@ -1161,10 +1193,17 @@ impl Engine {
             let expanded = post::r#macro::apply_macro_case(&self.word.raw, text);
             (owned, expanded)
         } else {
-            // OP-003 (P5): không khớp macro/emoji → thử cú pháp số tiền
+            // OP-003 (P5) + OP-010 (vòng 56): không khớp macro/emoji → thử
+            // cú pháp ngày/tháng (`=ngay`/`=thang`/`=nam`) rồi số tiền
             // `=<số>(d|vnd|bc)`. Vượt MAX_TEXT khi encode → fail-open (R1-2:
             // KHÔNG cắt cụt câu số tiền như đường macro).
-            let (sh_len, sh_str) = post::number_vn::find_number_shorthand(&self.recent)?;
+            let (sh_len, sh_str) = if let Some((dl, dt)) =
+                post::number_vn::find_date_shorthand(&self.recent)
+            {
+                (dl, dt)
+            } else {
+                post::number_vn::find_number_shorthand(&self.recent)?
+            };
             let sh_chars: Vec<char> = sh_str.chars().collect();
             if self.emit(&sh_chars).len() > MAX_TEXT {
                 return None;
@@ -1352,6 +1391,10 @@ impl Engine {
         if out.len() > MAX_TEXT {
             return None;
         }
+        // P7 (vòng 54, Hook 2): học prediction-accept — ứng viên user bấm
+        // Tab/Space nhận = tín hiệu "tôi hay dùng từ này" (đếm trên bản
+        // lowercase chuẩn của completion, G8: chỉ từ + count).
+        self.style_note_word(&completion.to_lowercase());
         let delete = self.word.owned as u16;
         self.word.clear();
 
@@ -1420,6 +1463,9 @@ impl Engine {
         let delete = cycle.inserted_glyphs as u16;
         cycle.inserted_glyphs = out.len();
         cycle.current_index = next_idx;
+        // P7 Hook 2: học ứng viên user duyệt tới (Tab/Ctrl+Space đổi candidate
+        // = tín hiệu chủ ý dùng nó; học bản lowercase chuẩn của candidate).
+        self.style_note_word(&cand.to_lowercase());
 
         self.record(Tail::Replace {
             delete: delete as usize,
@@ -1625,6 +1671,8 @@ impl Engine {
         if out.len() > MAX_TEXT {
             return None;
         }
+        // P7 Hook 2: học EN prediction-accept (candidate user nhận qua Tab/Space).
+        self.style_note_word(&completion.to_lowercase());
         let delete = if self.word.active {
             self.word.owned as u16
         } else {
