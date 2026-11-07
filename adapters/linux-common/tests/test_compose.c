@@ -746,7 +746,7 @@ static void test_engine_ctrl_tap(void) {
     ime_reset(inst);
     type_str(&d, inst, "sort");
     doc_text(&d, got, sizeof(got));
-    assert(strcmp(got, "s\xe1\xbb\x8dt") == 0);
+    assert(strcmp(got, "s\xe1\xbb\x8ft") == 0);
 
     /* Ctrl tap restores sort */
     assert(lc_engine_ctrl_tap(inst, &r) == IME_OK);
