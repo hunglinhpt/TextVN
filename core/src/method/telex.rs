@@ -93,6 +93,11 @@ struct FoldState {
     undone_circums: [bool; 26], // Đã gỡ mũ của key này ('a'..='z')
     stroke_undone: bool,        // Đã gỡ gạch 'd'
     horn_undone: bool,          // Đã gỡ sừng 'w'
+    bracket_o_mapped: bool,     // Phím vừa rồi là '[' đã thành 'ơ'
+    bracket_o_literal: bool,    // Đã gỡ '[[' → '[' literal
+    bracket_o_promoted_u: bool, // '[' vừa tự nâng 'u' trước đó thành 'ư'
+    bracket_u_mapped: bool,     // Phím vừa rồi là ']' đã thành 'ư'
+    bracket_u_literal: bool,    // Đã gỡ ']]' → ']' literal
 }
 
 #[inline]
@@ -144,9 +149,79 @@ fn push_key(
     state: &mut FoldState,
 ) {
     let w_mapped = std::mem::take(&mut state.ws.mapped);
+    let bracket_o_mapped = std::mem::take(&mut state.bracket_o_mapped);
+    let bracket_o_promoted_u = std::mem::take(&mut state.bracket_o_promoted_u);
+    let bracket_u_mapped = std::mem::take(&mut state.bracket_u_mapped);
     // Phím dấu so theo chữ thường khi Caps Lock bật; ký tự gõ literal vẫn là `c` gốc.
     let key = if caps_lock { c.to_ascii_lowercase() } else { c };
     let c_idx = char_idx(key);
+
+    // 0) Phím ngoặc `[` → `ơ` và `]` → `ư` (chỉ Telex chuẩn `w_marker = true`, như UniKey/macOS Telex):
+    //    - `ch]a` → `chưa`, `m[f` → `mờ`, `h[n` → `hơn`, `th][ng` → `thương`, `ddu[cj` → `được`.
+    //    - Bấm ngoặc hai lần `[[` → `[`, `]]` → `]` để lấy lại dấu ngoặc literal.
+    //    - Cặp `[]` rỗng (không tồn tại vần `ơư` trong tiếng Việt) trả lại `[]` nguyên vẹn cho lập trình viên.
+    if w_marker && (c == '[' || c == ']') {
+        if c == '[' {
+            if state.bracket_o_literal {
+                out.push('[');
+                return;
+            }
+            if bracket_o_mapped {
+                if let Some(last) = out.last_mut() {
+                    *last = '[';
+                }
+                if bracket_o_promoted_u && out.len() >= 2 {
+                    let prev_idx = out.len() - 2;
+                    let prev = out[prev_idx];
+                    out[prev_idx] = form_like(prev, U, tone_of(prev).unwrap_or(0));
+                }
+                state.bracket_o_literal = true;
+                return;
+            }
+            let mut promoted_u = false;
+            if let Some(&last) = out.last() {
+                let after_q = out.len() >= 2 && matches!(out[out.len() - 2], 'q' | 'Q');
+                if matches!(last, 'u' | 'U') && !after_q {
+                    let idx = out.len() - 1;
+                    out[idx] = form_like(last, U_HOOK, tone_of(last).unwrap_or(0));
+                    promoted_u = true;
+                }
+            }
+            out.push(if caps_lock { 'Ơ' } else { 'ơ' });
+            state.bracket_o_mapped = true;
+            state.bracket_o_promoted_u = promoted_u;
+            return;
+        } else {
+            if state.bracket_u_literal {
+                out.push(']');
+                return;
+            }
+            if bracket_u_mapped {
+                if let Some(last) = out.last_mut() {
+                    *last = ']';
+                }
+                state.bracket_u_literal = true;
+                return;
+            }
+            if bracket_o_mapped {
+                if let Some(last) = out.last_mut() {
+                    *last = '[';
+                }
+                if bracket_o_promoted_u && out.len() >= 2 {
+                    let prev_idx = out.len() - 2;
+                    let prev = out[prev_idx];
+                    out[prev_idx] = form_like(prev, U, tone_of(prev).unwrap_or(0));
+                }
+                out.push(']');
+                state.bracket_o_literal = true;
+                state.bracket_u_literal = true;
+                return;
+            }
+            out.push(if caps_lock { 'Ư' } else { 'ư' });
+            state.bracket_u_mapped = true;
+            return;
+        }
+    }
 
     // 1) Key dấu thanh — bảng data (Simple Telex dùng chung bảng, chỉ khác `w`)
     let tone = if w_marker {
@@ -795,5 +870,22 @@ mod tests {
         assert_eq!(strict.iter().collect::<String>(), "đươcj");
         // free marking (mặc định): dấu tự do
         assert_eq!(f("dduocj", DiacriticStyle::New), "được");
+    }
+
+    #[test]
+    fn bracket_keys_map_to_horn_and_double_restores_bracket() {
+        assert_eq!(n("ch]a"), "chưa");
+        assert_eq!(n("m[f"), "mờ");
+        assert_eq!(n("h[n"), "hơn");
+        assert_eq!(n("t]"), "tư");
+        assert_eq!(n("nh["), "nhơ");
+        assert_eq!(n("th][ng"), "thương");
+        assert_eq!(n("u[ng"), "ương");
+        assert_eq!(n("ddu[cj"), "được");
+        assert_eq!(n("[["), "[");
+        assert_eq!(n("[[["), "[[");
+        assert_eq!(n("]]"), "]");
+        assert_eq!(n("]]]"), "]]");
+        assert_eq!(n("[]"), "[]");
     }
 }

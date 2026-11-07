@@ -1,5 +1,16 @@
-# corpus/shared/telex_horn_w_01.keys — Telex: `uw` → ư (đối chứng với simple_telex)
-:config method=telex diacritic_style=new
+# corpus/shared/telex_horn_w_01.keys — Telex: `uw` → ư, `[` `]` → ơ ư, `[[` `]]` → `[` `]`, Ctrl tap giữ từ, `a--b` → `a—b`
+:config method=telex diacritic_style=new auto_capitalize=false
 :type "tuw"
 :expect "tư"
 :expect_preedit "tư"
+:reset
+:type "ch]a m[f h[n th][ng [[ ]] [] "
+:expect "tưchưa mờ hơn thương [ ] [] "
+:reset
+:type "tunx"
+:key Ctrl
+:type " "
+:expect "tưchưa mờ hơn thương [ ] [] tũn "
+:reset
+:type "a--b"
+:expect "tưchưa mờ hơn thương [ ] [] tũn a—b"

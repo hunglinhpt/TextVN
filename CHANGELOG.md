@@ -21,6 +21,16 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   merge nếu savings-rate giảm).
 - **Tài liệu đặc tả P10**: `docs/specs/dream-rsi.md` chi tiết hoá định nghĩa, công thức
   và bảng ánh xạ accept-points.
+- **Tiện ích gõ Telex chuẩn người Việt & Tiến hóa Frecency (Dream RSI)**:
+  - Hỗ trợ phím `[` → `ơ` và `]` → `ư` trong Telex (`ch]a` → `chưa`, `m[f` → `mờ`,
+    `th][ng` → `thương`, `ddu[cj` → `được`), gõ đúp `[[` → `[` và `]]` → `]` để lấy lại
+    ngoặc vuông (giữ nguyên `[]` rỗng khi gõ code).
+  - Bấm rồi thả riêng phím `Ctrl` (standalone Ctrl tap) để khoá/giữ nguyên từ đang gõ
+    (`tunx`, `Ctrl` → `tũn`, ngăn auto-restore tiếng Anh trên từ đặc biệt và tách từ mới).
+  - Gõ nhanh hai gạch ngang `a--b` tự chuyển thành gạch nối dài `a—b` (em-dash U+2014),
+    gõ tiếp gạch thứ ba `---` hoàn nguyên `---` cho Markdown/code.
+  - Tiến hóa học từ cá nhân thời gian thực (in-session continuous learning, bigram learning
+    và Frecency aging tự động giảm nửa trọng số khi đầy bộ nhớ để từ mới nổi lên nhanh).
 
 ### Fixed
 - **Chuẩn hoá bộ đếm `keys_typed` đa nền tảng**: Sử dụng predicate `k.printable().is_some() && !k.is_ctrl_space()`
@@ -45,7 +55,11 @@ deterministic corpus bench in `textvn-bench` achieving a **21% savings rate** ac
 accepts on an office workflow benchmark, pinned as an anti-regression gate in `perf/baseline-win.json`.
 Normalizes cross-platform `keys_typed` counting via `printable()` predicate across Windows TSF,
 macOS IMK, and Linux. Hardens P7 self-learning with explicit `ConfigReload` broadcasting,
-strict Opt-in consent enforcement, and panic-safe FFI boundaries.
+strict Opt-in consent enforcement, panic-safe FFI boundaries, real-time in-session bigram
+learning, and Frecency aging. Adds standard Vietnamese Telex conveniences: `[` / `]` for
+`ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`) with double-bracket escape (`[[` → `[`, `]]` → `]`,
+and `[]` preserved for code), standalone `Ctrl` tap to lock/keep the current word (`tunx`,
+`Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (with `---` undo).
 
 ---
 

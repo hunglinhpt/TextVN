@@ -68,6 +68,19 @@ impl KeyEvent {
         }
     }
 
+    pub fn key_up(vk: u32) -> KeyEvent {
+        KeyEvent {
+            vk,
+            key_down: false,
+            ..Default::default()
+        }
+    }
+
+    /// Phím Ctrl đơn lẻ (VK_CONTROL / VK_LCONTROL / VK_RCONTROL).
+    pub fn is_ctrl_key(&self) -> bool {
+        matches!(self.vk, vk::CONTROL | 0xA2 | 0xA3) && self.ch == 0
+    }
+
     /// Ký tự của phím đặc biệt (Space→' ', Enter→'\n', Tab→'\t'); không có → None.
     pub fn printable(&self) -> Option<char> {
         if self.ch != 0 {

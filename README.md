@@ -16,8 +16,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 - **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả —
   **mặc định dấu cũ** (`hòa`, `thủy`, `khỏe`; đổi sang dấu mới `hoà`/`thuỷ` trong bảng
-  điều khiển), `uow` → ươ, `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi
-  bật Caps Lock.
+  điều khiển), `uow` → ươ, `[` / `]` → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`, gõ đúp
+  `[[` / `]]` để lấy lại dấu ngoặc `[` / `]`), bấm rồi thả riêng `Ctrl` để giữ nguyên từ
+  đang gõ (`tunx`, `Ctrl` → `tũn`), gõ nhanh `a--b` thành gạch nối dài `a—b` (`---` giữ nguyên),
+  `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi bật Caps Lock.
 - **Không mất chữ, không lặp chữ, không gạch chân**: cả từ nằm trong vùng soạn (composition/preedit)
   không đường kẻ (TF_LS_NONE trên Windows TSF; macOS gõ kiểu non-preedit sau cài; Fcitx5/IBus
   không kềm gạch — chỉ Chromium/Electron/Qt trên Linux tự vẽ gạch phía app) và chốt ở ranh
@@ -258,9 +260,12 @@ same config file on all three platforms.
 
 - **Types like UniKey/OpenKey**: Telex, VNI, VIQR, Simple Telex; standard tone
   placement with **old-style diacritics by default** (`hòa`, `thủy`, `khỏe`;
-  switch to new style `hoà`/`thuỷ` in the control panel), `uow` → ươ, `z`
-  strips tones, tone keys work after the vowel or at the end of the word, and
-  Caps Lock typing is supported.
+  switch to new style `hoà`/`thuỷ` in the control panel), `uow` → ươ, `[` / `]`
+  → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`, double-press `[[` / `]]` to restore
+  literal `[` / `]`), tap and release standalone `Ctrl` to lock/keep the current
+  word (`tunx`, `Ctrl` → `tũn`), fast double-hyphen `a--b` → em-dash `a—b` (`---`
+  preserved), `z` strips tones, tone keys work after the vowel or at the end of
+  the word, and Caps Lock typing is supported.
 - **No lost characters, no doubled characters, no underline**: the whole word
   stays inside the composition range with no underline (TF_LS_NONE on Windows
   TSF; macOS uses non-preedit typing after install; Fcitx5/IBus attach no

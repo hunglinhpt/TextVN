@@ -48,7 +48,8 @@ pub fn is_word_char(c: char, method: Method) -> bool {
     match method {
         Method::Vni => vni::is_marker(c),
         Method::Viqr => viqr::is_marker(c),
-        Method::Telex | Method::SimpleTelex => false,
+        Method::Telex => matches!(c, '[' | ']'),
+        Method::SimpleTelex => false,
     }
 }
 
@@ -174,7 +175,16 @@ pub fn keys_for(
         literal.push(*canon.last()?);
         let n = keys.len();
         let mut found = false;
-        for cand in [canon, literal] {
+        let bracket: Option<Vec<char>> = if method == Method::Telex {
+            match ch {
+                'ơ' | 'Ơ' => Some(vec!['[']),
+                'ư' | 'Ư' => Some(vec![']']),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        for cand in [Some(canon), Some(literal), bracket].into_iter().flatten() {
             keys.extend_from_slice(&cand);
             if folds_to(&keys, &bare[..=i]) {
                 found = true;

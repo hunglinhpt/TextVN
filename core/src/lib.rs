@@ -238,6 +238,9 @@ pub struct Engine {
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
     dream_rsi: DreamRsi,
+    /// Trạng thái phím Ctrl đơn lẻ (nhấn rồi thả riêng `Ctrl` để giữ nguyên từ hiện tại
+    /// và đóng ranh giới từ: `tunx` + `Ctrl` → giữ `tũn`, `sỏt` + `Ctrl` + Space → giữ `sỏt `).
+    ctrl_tap_armed: bool,
 }
 
 /// P7: entry hợp lệ để HỌC — chặn G8 (đoạn văn), số, dấu câu, điều khiển.
@@ -381,6 +384,7 @@ impl Engine {
             sentence: Vec::new(),
             sentence_widths: Vec::new(),
             last_predict: None,
+            ctrl_tap_armed: false,
         }
     }
 
@@ -427,10 +431,19 @@ impl Engine {
         // Tiến hóa gợi ý thời gian thực trong phiên (in-session continuous learning):
         // Cập nhật opts.style_words ngay lập tức để các lần gõ tiếp theo nhận được dự đoán
         // từ mới mà không cần đợi host app drain và nạp lại cấu hình.
+        let mut need_decay = false;
         if let Some(entry) = self.opts.style_words.iter_mut().find(|(w, _)| w == &lower) {
             entry.1 = entry.1.saturating_add(1);
+            if entry.1 >= 256 {
+                need_decay = true;
+            }
         } else {
             if self.opts.style_words.len() >= 500 {
+                // Frecency aging khi đầy bộ nhớ: giảm một nửa trọng số các từ cũ trước khi
+                // chọn từ thấp nhất để thay thế — từ mới nổi lên nhanh hơn từ cũ đã ngừng dùng.
+                for (_, c) in &mut self.opts.style_words {
+                    *c = (*c / 2).max(1);
+                }
                 if let Some(min_idx) = self
                     .opts
                     .style_words
@@ -443,6 +456,11 @@ impl Engine {
                 }
             }
             self.opts.style_words.push((lower, 1));
+        }
+        if need_decay {
+            for (_, c) in &mut self.opts.style_words {
+                *c = (*c / 2).max(1);
+            }
         }
     }
 
@@ -859,8 +877,30 @@ impl Engine {
 /// Xử lý 1 phím — luôn trả Outcome (fail-open do FFI đảm nhiệm, engine không panic).
 impl Engine {
     pub fn key(&mut self, k: &KeyEvent) -> Outcome {
-        // Key-up: không transform, giữ nguyên trạng thái.
+        // Key-up: xử lý nhả riêng phím Ctrl (Ctrl tap word-lock: `tunx`, Ctrl -> `tũn`,
+        // khoá từ hiện tại để không bị auto-restore khi bấm Space và tách từ mới).
         if !k.key_down {
+            if k.is_ctrl_key() && self.ctrl_tap_armed {
+                self.ctrl_tap_armed = false;
+                if !self.word.is_empty() {
+                    if self.opts.style_enabled_for_learning() {
+                        let current = if self.word.active {
+                            self.word.display.iter().collect::<String>()
+                        } else {
+                            self.word.passed.iter().collect::<String>()
+                        };
+                        if !current.is_empty() {
+                            self.style_note_word(&current);
+                        }
+                    }
+                    self.word.clear();
+                    return Outcome {
+                        action: Action::Pass,
+                        preedit: Vec::new(),
+                        flags: FLAG_WORD_END,
+                    };
+                }
+            }
             return Outcome {
                 action: Action::Pass,
                 preedit: self.preedit(),
@@ -877,8 +917,11 @@ impl Engine {
         }
         // Chord hệ thống / modifier đơn (S9, bug B6) — không bao giờ nuốt.
         if k.is_modifier() {
+            self.ctrl_tap_armed =
+                k.is_ctrl_key() && (k.mods & !(keymap::MOD_CTRL | keymap::MOD_CAPS)) == 0;
             return Outcome::pass();
         }
+        self.ctrl_tap_armed = false;
         if k.is_chord() && !k.is_ctrl_space() {
             // Ctrl+V/Ctrl+Z/Ctrl+←/Ctrl+Backspace/Alt+Tab… đổi text hoặc vị trí con trỏ mà
             // engine không thấy: bỏ quyền sở hữu từ đang gõ (như phím điều hướng — B7) để
@@ -1373,7 +1416,60 @@ impl Engine {
     /// (không auto-restore, không đổi cờ viết hoa — phần đó thuộc `on_boundary`).
     fn close_word(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
+        let was_empty = self.word.is_empty();
         self.word.clear();
+
+        // Gõ nhanh hai dấu gạch ngang `a--b` → gạch nối dài `a—b` (em-dash U+2014).
+        // Nếu bấm thêm dấu `-` thứ ba (`---`) → hoàn nguyên về `---` cho Markdown / comment.
+        // Chỉ kích hoạt khi tiếng Việt đang bật, bảng mã hỗ trợ Unicode, và không ở Terminal / AddressBar.
+        if c == '-'
+            && !was_active
+            && was_empty
+            && self.opts.enabled
+            && self.ctx.enabled
+            && matches!(
+                self.opts.output_charset,
+                OutputCharset::UnicodePrecomposed | OutputCharset::UnicodeDecomposed
+            )
+            && !matches!(
+                self.ctx.field_role,
+                strategy::IME_FIELD_TERMINAL | strategy::IME_FIELD_ADDRESS_BAR
+            )
+        {
+            if self.recent.ends_with(&['-']) && !self.recent.ends_with(&['-', '-']) {
+                let em = ['\u{2014}'];
+                self.record(Tail::Replace {
+                    delete: 1,
+                    glyph: &em,
+                    unicode: &em,
+                });
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: 1,
+                        insert: em.to_vec(),
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED | FLAG_WORD_END,
+                };
+            }
+            if self.recent.ends_with(&['\u{2014}']) {
+                let triple = ['-', '-', '-'];
+                self.record(Tail::Replace {
+                    delete: 1,
+                    glyph: &triple,
+                    unicode: &triple,
+                });
+                return Outcome {
+                    action: Action::Replace {
+                        delete_count: 1,
+                        insert: triple.to_vec(),
+                    },
+                    preedit: Vec::new(),
+                    flags: FLAG_CONSUMED | FLAG_WORD_END,
+                };
+            }
+        }
+
         self.record(Tail::Replace {
             delete: 0,
             glyph: &[c],
@@ -3037,5 +3133,90 @@ mod tests {
         let _ = type_doc(&mut e, "xin chao");
         let chars = e.sentence_tail_chars(4);
         assert_eq!(chars, &['c', 'h', 'a', 'o']);
+    }
+
+    #[test]
+    fn telex_bracket_keys_and_double_bracket_escape_in_engine() {
+        let mut e = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            ..Default::default()
+        });
+        assert_eq!(type_doc(&mut e, "ch]a "), "chưa ");
+        assert_eq!(type_doc(&mut e, "m[f "), "mờ ");
+        assert_eq!(type_doc(&mut e, "h[n "), "hơn ");
+        assert_eq!(type_doc(&mut e, "th][ng "), "thương ");
+        assert_eq!(type_doc(&mut e, "[[ "), "[ ");
+        assert_eq!(type_doc(&mut e, "]] "), "] ");
+        assert_eq!(type_doc(&mut e, "[] "), "[] ");
+
+        // Backspace giữa từ dùng `[` `]` rồi gõ tiếp vẫn giữ dấu sừng và ghép vần đúng.
+        let mut buf = type_buf(&mut e, "ch]a");
+        assert_eq!(text(&buf), "chưa");
+        press(&mut e, &mut buf, keymap::vk::BACK);
+        assert_eq!(text(&buf), "chư");
+        for c in "af ".chars() {
+            let k = KeyEvent::char_down(c);
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+        }
+        assert_eq!(text(&buf), "chừa ");
+    }
+
+    #[test]
+    fn standalone_ctrl_tap_locks_word_and_prevents_auto_restore() {
+        let mut e = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            auto_restore_english: true,
+            ..Default::default()
+        });
+        let mut buf = type_buf(&mut e, "tunx");
+        assert_eq!(text(&buf), "tũn");
+        let _ = e.key(&KeyEvent::key_down(keymap::vk::CONTROL));
+        let out_up = e.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        assert_eq!(out_up.flags & FLAG_WORD_END, FLAG_WORD_END);
+        press(&mut e, &mut buf, keymap::vk::SPACE);
+        assert_eq!(text(&buf), "tũn ");
+
+        // `sỏt` (không phải âm tiết Việt chuẩn) nếu không bấm Ctrl sẽ bị auto-restore thành `sort `;
+        // bấm rồi thả riêng Ctrl sẽ giữ nguyên `sỏt `.
+        let mut e2 = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            auto_restore_english: true,
+            ..Default::default()
+        });
+        let mut buf2 = type_buf(&mut e2, "sort");
+        assert_eq!(text(&buf2), "sỏt");
+        let _ = e2.key(&KeyEvent::key_down(keymap::vk::CONTROL));
+        let _ = e2.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        press(&mut e2, &mut buf2, keymap::vk::SPACE);
+        assert_eq!(text(&buf2), "sỏt ");
+
+        // `tun` + Ctrl tap + `x` -> `tunx` (x không còn ghép dấu ngã vào `tun`).
+        let mut e3 = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            ..Default::default()
+        });
+        let mut buf3 = type_buf(&mut e3, "tun");
+        let _ = e3.key(&KeyEvent::key_down(keymap::vk::CONTROL));
+        let _ = e3.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        for c in "x ".chars() {
+            let k = KeyEvent::char_down(c);
+            let o = e3.key(&k);
+            apply(&mut buf3, &o.action, &k);
+        }
+        assert_eq!(text(&buf3), "tunx ");
+    }
+
+    #[test]
+    fn fast_double_dash_becomes_em_dash_and_triple_dash_restores() {
+        let mut e = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            ..Default::default()
+        });
+        assert_eq!(type_doc(&mut e, "a--b"), "a—b");
+        e.reset();
+        assert_eq!(type_doc(&mut e, "Hà Nội -- TP.HCM"), "Hà Nội — TP.HCM");
+        e.reset();
+        assert_eq!(type_doc(&mut e, "---"), "---");
     }
 }

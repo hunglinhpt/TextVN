@@ -321,6 +321,11 @@ pub fn should_restore(raw: &[char], display: &[char], english_words: &[String]) 
     if raw.is_empty() || raw == display {
         return false;
     }
+    // Bấm ngoặc hai lần `[[` → `[` hoặc `]]` → `]` là thao tác chủ đích của người dùng
+    // để lấy dấu ngoặc literal trong Telex — không được auto-restore về `[[` / `]]` khi bấm Space.
+    if display.iter().all(|&c| matches!(c, '[' | ']')) {
+        return false;
+    }
     if listed(raw, english_words) {
         return true;
     }

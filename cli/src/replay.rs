@@ -786,6 +786,9 @@ impl Sim {
             }
             self.preedit = decode_utf32(&out.preedit, out.preedit_len);
             if down == 0 {
+                if out.flags & textvn_ffi::IME_FLAG_WORD_END != 0 {
+                    self.tsf_end();
+                }
                 continue;
             }
             if self.tsf.is_some() {
