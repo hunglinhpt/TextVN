@@ -7,8 +7,9 @@
 | Nội dung | **Sửa triệt để lỗi âm vị học tiếng Việt (`sỏt` -> `sort`)**: Khôi phục chính xác từ tiếng Anh gốc khi bấm thả phím `Ctrl`, `Ctrl+Space` và `Tab` (lần 1 giữ nguyên `sort`, lần 2 mới duyệt sang `sorts`); chặn triệt để không cho các âm tiết sai cấu trúc âm vị học tiếng Việt lọt vào từ điển cá nhân `style_words`. **Mở rộng dự đoán tiếng Anh chất lượng tương đương tiếng Việt**: Thêm 1.957 từ ghép tiếng Anh (`data/en_compounds.txt`) trên 16 domain + 8.849 mẫu câu (`data/en_phrases.tsv`), đưa tổng quy mô dữ liệu lên 41.415 mục; hỗ trợ dự đoán tiếng Anh đầy đủ ở cả Mode EN (`E`) và Mode VI (`V`). **Tiện ích gõ Telex chuẩn người Việt**: Phím `[`/`]` thành `ơ`/`ư`, gõ đúp `[[`/`]]` hoàn nguyên ngoặc, khoá từ bằng `Ctrl` tap (`tunx`, `Ctrl` -> `tũn`), gõ nhanh `a--b` -> `a—b`. |
 | Đo | workspace tests PASS · 24/24 text_prediction · clippy 0 · check-version-sync 15/15 · preflight exit=0 |
 | CI trên commit gắn tag | 7/7 workflow áp dụng xanh (ci-shared, ci-windows, ci-linux, ci-macos, ci-aur, ci-deb, repo-hygiene) |
-| Checksums | Sẽ cập nhật sau khi build CI và release-candidate hoàn tất |
-| Homebrew (B7b) | cask `version "0.2.68"` |
+| Release | [v0.2.68 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) Verified=true — [RC 42393464349](https://github.com/hunglinhpt/TextVN/actions/runs/42393464349) **4/4 job xanh**; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `75e25dcda877b6f7…` · MSIX `b92c83b50c6ad22e…` · mac zip `e835ad033b0964d3…` · linux tar.gz `4ccb07ce1af6ed30…` (gpg --verify SHA256SUMS.txt Good) |
+| Homebrew (B7b) | cask `version "0.2.68"` + `sha256 e835ad033b0964d3f6a26f706d08533ceda6d66898a0f7dece0f52a548a622c8` = mac zip ✓ |
 | AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.68 |
 | PPA (B7f) | debian/changelog `0.2.68-0ppa1` |
 
