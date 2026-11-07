@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-11-07)
 
 ## Corpus Check
-- 469 files · ~892,215 words
+- 469 files · ~892,303 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b27870f0`
+- Built from commit: `02d313b6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2195,11 +2195,11 @@ Nodes (3): [0.2.61] — 2026-11-03, Added, Fixed
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `checkAndApplyAssist` to `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `linux_common.h`, `TextVNInputController`, `ImeEngine`, `2. Nhật ký finding`, `Option`?**
-  _High betweenness centrality (0.101) - this node is a cross-community bridge._
+  _High betweenness centrality (0.098) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `Option` to `checkAndApplyAssist`, `windows-tsf/src/assist.rs`, `TsfShared`, `OverlayView`?**
-  _High betweenness centrality (0.097) - this node is a cross-community bridge._
+  _High betweenness centrality (0.094) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `XCTestCase`, `AXSnapshot`, `.onEvent`, `AppInfo`, `IpcClient`, `ConfigWatcher`, `MockHandler`, `NSRange`, `TapDecision`, `.suggest`, `AppDelegate`, `StrategyResolver`, `checkAndApplyAssist`, `Bool`, `IpcServerAssistTests`, `ViState`, `.register`, `ConfigStore`, `TextVNInputController`, `ImeEngine`, `OwnerRule`, `Equatable`, `2. Nhật ký finding`, `EventTapController`, `.normalizeAppID`, `Foundation`, `Problem`, `AutostartManager`, `MarkedState`, `FieldDetect`, `TextVNAppTests`, `KeyTranslator`?**
-  _High betweenness centrality (0.092) - this node is a cross-community bridge._
+  _High betweenness centrality (0.091) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**
