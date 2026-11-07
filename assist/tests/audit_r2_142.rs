@@ -73,6 +73,7 @@ fn loi_that_van_bat_duoc() {
         ("They is here.", "are"),
         ("You is late.", "are"),
         ("He is married with her.", "to"),
+        ("She got married with my brother.", "to"),
         (
             "Neither the new project manager or the director agreed.",
             "nor",

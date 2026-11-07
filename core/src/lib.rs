@@ -259,6 +259,10 @@ pub struct Engine {
     /// chuyển sang `em_dash_tentative` đúng một phím.
     em_dash_tentative: bool,
     em_dash_next: bool,
+    /// Từ vừa đóng có phím ngoặc đã thành nguyên âm (`raw`, chữ hiển thị): nếu ngay sau đó,
+    /// không qua khoảng trắng, gặp `]` không có `[` mở thì đó là chỉ mục (`m[n-1]`) — trả
+    /// nguyên văn cả cụm (R2-140).
+    bracket_word: Option<(Vec<char>, Vec<char>)>,
     /// Vừa học ứng viên: ranh giới Mode EN kế tiếp không học lại chính chữ đó.
     accepted_just_now: bool,
 
@@ -433,6 +437,7 @@ impl Engine {
             style_evictions: 0,
             em_dash_tentative: false,
             em_dash_next: false,
+            bracket_word: None,
             accepted_just_now: false,
             dream_rsi: DreamRsi::default(),
             ctx: Context::default(),
@@ -651,9 +656,6 @@ impl Engine {
         {
             return true;
         }
-        if c == ']' && self.open_bracket_in_line() {
-            return true;
-        }
         // Bấm lại đúng phím vừa thành nguyên âm = gỡ về dấu ngoặc (`m[[` → `m[`).
         let vowel_undo = self.word.raw.last() == Some(&c)
             && self
@@ -663,6 +665,11 @@ impl Engine {
                 .is_some_and(|&d| transform::tone::is_vowel(d));
         if vowel_undo {
             return false;
+        }
+        // Đóng `[` đang mở: `[x]`, `[a, b]`. Từ Việt trong ngoặc (`[… ch]a …]`) có ít nhất
+        // hai phím trước `]` — một chữ cái đơn trước `]` là mục danh sách/checkbox.
+        if c == ']' && self.word.raw.len() < 2 && self.open_bracket_in_line() {
+            return true;
         }
         let mut raw = self.word.raw.clone();
         raw.push(c);
@@ -675,25 +682,75 @@ impl Engine {
         !validate::is_valid_word(&display)
     }
 
-    /// Dòng đang gõ còn `[` chưa đóng (chữ trong buffer câu, không tính phím đã thành `ơ`).
+    /// Dòng đang gõ còn `[` mở chưa đóng. Chỉ tính `[` mở cụm (đầu dòng, sau khoảng trắng
+    /// hay dấu câu) — `[` dính sau chữ (`m[[` gỡ nguyên âm, `arr[`) là chỉ mục, không phải
+    /// ngoặc bao chữ.
     fn open_bracket_in_line(&self) -> bool {
         let mut closes = 0usize;
-        for &c in self.sentence.iter().rev() {
+        for (i, &c) in self.sentence.iter().enumerate().rev() {
             match c {
                 '\n' | '\r' => return false,
                 ']' => closes += 1,
-                '[' if closes == 0 => return true,
-                '[' => closes -= 1,
+                '[' if closes > 0 => closes -= 1,
+                '[' => {
+                    let opens_group = i == 0 || !self.sentence[i - 1].is_alphanumeric();
+                    if opens_group {
+                        return true;
+                    }
+                }
                 _ => {}
             }
         }
         false
     }
 
-    /// Từ có phím `[` đã thành nguyên âm, gặp ký tự cho thấy đây là chỉ mục mảng chứ không
-    /// phải chữ Việt → trả lại nguyên văn: đóng ngoặc không có `[` mở (`s[i]`), `[` liền
-    /// số/nháy/dấu hai chấm (`x[1]`, `d["k"]`, `s[:5]`), phép tính trên biến đếm (`s[i+1]`).
-    /// Chữ Việt (`hơn-kém`, `"thư"`, `nơi: `) không khớp mẫu nào ở đây.
+    /// `]` ngay sau một từ có phím ngoặc đã thành nguyên âm, không qua khoảng trắng và không
+    /// có `[` mở: trả nguyên văn cả cụm chỉ mục — `m[n-1]`, `s[:5]`, `d["k"]`, `x[1]`. Chữ
+    /// Việt (`chơi: `, `hơn-kém `) không bao giờ gặp `]` kiểu này nên không bị đụng.
+    fn restore_bracket_index(&mut self) -> Option<Outcome> {
+        let (raw, display) = self.bracket_word.take()?;
+        let n = self.sentence.len();
+        let start = n.checked_sub(display.len())?;
+        let mut at = None;
+        for s in (n.saturating_sub(display.len() + 24)..=start).rev() {
+            if self.sentence[s..s + display.len()] == display[..] {
+                at = Some(s);
+                break;
+            }
+        }
+        let at = at?;
+        let rest: Vec<char> = self.sentence[at + display.len()..].to_vec();
+        if rest.iter().any(|c| c.is_whitespace()) {
+            return None;
+        }
+        let delete = self.emit(&display).len() + self.emit(&rest).len();
+        if delete > self.recent.len() {
+            return None;
+        }
+        // Chữ chưa biến đổi sau dấu (`s[i:j]` — `j` đã đi thẳng vào document) nằm trong `rest`.
+        self.word.clear();
+        let mut insert = raw;
+        insert.extend(rest);
+        insert.push(']');
+        let glyph = self.emit(&insert);
+        self.record(Tail::Replace {
+            delete,
+            glyph: &glyph,
+            unicode: &insert,
+        });
+        Some(Outcome {
+            action: Action::Replace {
+                delete_count: delete as u16,
+                insert: glyph,
+            },
+            preedit: Vec::new(),
+            flags: FLAG_CONSUMED | FLAG_WORD_END,
+        })
+    }
+
+    /// Từ đang mở có phím `[` đã thành nguyên âm, gặp `]` cho thấy đây là chỉ mục: không có
+    /// `[` mở (`s[i]`) hoặc `[` dính sau định danh (`foo[bar]`) → trả lại nguyên văn. Chỉ mục
+    /// có ký tự khác ở giữa (`m[n-1]`) do `restore_bracket_index` xử lý khi gặp `]`.
     fn bracket_word_is_code(&self, c: char) -> bool {
         let raw = &self.word.raw;
         if !self.word.active {
@@ -707,11 +764,7 @@ impl Engine {
                 .checked_sub(self.word.display.len() + 2)
                 .is_some_and(|i| self.sentence[i].is_alphanumeric() && self.sentence[i + 1] == '[');
         let unmatched_close = c == ']' && raw.contains(&'[') && !self.open_bracket_in_line();
-        let after_open = raw.last() == Some(&'[')
-            && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{' | ':'));
-        let counter_index = matches!(raw.as_slice(), [.., '[', 'i' | 'j' | 'k'])
-            && matches!(c, '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=' | ':');
-        index_close || unmatched_close || after_open || counter_index
+        index_close || unmatched_close
     }
 
     /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
@@ -801,7 +854,7 @@ impl Engine {
     }
 
     pub fn set_options(&mut self, opts: EngineOptions) {
-        self.last_predict = None;
+        self.settle_predict(true);
         self.opts = Arc::new(opts);
         self.word.clear();
         self.record(Tail::Clear);
@@ -891,9 +944,9 @@ impl Engine {
 
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
-        // Không chốt vòng duyệt: reset cũng là đường fail-open khi áp ứng viên lỗi — chữ có
-        // thể chưa vào document, không được học.
-        self.last_predict = None;
+        // Đổi focus/click sau khi nhận ứng viên = giữ ứng viên đó.
+        self.settle_predict(true);
+        self.bracket_word = None;
         self.word.clear();
         self.record(Tail::Clear);
     }
@@ -1408,6 +1461,11 @@ impl Engine {
             return Outcome::pass();
         };
 
+        if c == ']' && !self.word.active && !self.open_bracket_in_line() {
+            if let Some(out) = self.restore_bracket_index() {
+                return out;
+            }
+        }
         if !method::is_word_char(c, self.opts.method) || self.bracket_is_boundary(c) {
             // Số/punctuation (theo method): đóng từ (nếu có) rồi cho ký tự đi thẳng.
             return self.on_boundary(c, strategy);
@@ -1823,7 +1881,14 @@ impl Engine {
     fn close_word(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
         let was_empty = self.word.is_empty();
+        let bracket_word = (was_active && self.word.raw.iter().any(|c| matches!(c, '[' | ']')))
+            .then(|| (self.word.raw.clone(), self.word.display.clone()));
         self.word.clear();
+        if c.is_whitespace() {
+            self.bracket_word = None;
+        } else if bracket_word.is_some() {
+            self.bracket_word = bracket_word;
+        }
 
         let tentative = std::mem::take(&mut self.em_dash_tentative);
         if was_empty {
@@ -2318,8 +2383,11 @@ impl Engine {
             return None;
         }
         // Chỉ có đúng từ đã gõ: Tab không thêm gì — để ranh giới từ trả từ gốc rồi Tab tới app
-        // (chuyển ô, thụt lề) thay vì nuốt phím.
-        if candidates.len() == 1 && candidates[0].eq_ignore_ascii_case(&typed) {
+        // (chuyển ô, thụt lề) thay vì nuốt phím. Chỉ khi ranh giới chắc chắn trả từ gốc.
+        if candidates.len() == 1
+            && candidates[0].eq_ignore_ascii_case(&typed)
+            && (!vi_on || self.restorable())
+        {
             return None;
         }
         let completion = candidates[0].clone();

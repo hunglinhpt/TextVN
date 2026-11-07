@@ -392,7 +392,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // trước; không ⇒ engine dự đoán như Tab (engine luôn thấy Ctrl+Space);
         // không có gì ⇒ phím về app (Option+Space vẫn gõ được dấu cách cứng).
         hidePredictionPreview()
-        if keyEvent.isAssistHotkey(), isAssistActive(for: context.appID),
+        if keyEvent.isAssistHotkey(), isAssistActive(for: context.appID, explicit: true),
            hotkeyFixSentence(target: target) {
             return true
         }
@@ -1015,9 +1015,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         return true
     }
 
-    func isAssistActive(for appID: String) -> Bool {
-        // Trợ lý chỉ chạy khi tiếng Việt bật — như Windows, Linux (R2-143).
-        viState.enabled(for: appID) && Self.assistAllowed(
+    /// `explicit` = phím tắt người dùng bấm (chạy cả ở Mode EN như Windows); kiểm tra tự động
+    /// theo phím gõ chỉ khi tiếng Việt bật (R2-143).
+    func isAssistActive(for appID: String, explicit: Bool = false) -> Bool {
+        (explicit || viState.enabled(for: appID)) && Self.assistAllowed(
             killSwitchOn: assistKillSwitchOn,
             settings: assistSettings,
             appID: appID

@@ -1741,8 +1741,11 @@ pub extern "C" fn ime_style_profile_persist(
             return true;
         }
         let path = std::path::Path::new(path);
-        let Ok(config) = std::fs::read_to_string(path) else {
-            return false;
+        let config = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            // Chưa có config.json = chưa bật style_profile (mặc định tắt) — không có gì để lưu.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return true,
+            Err(_) => return false,
         };
         let Some(merged) = textvn_config::merge_style_drain(&config, &drain) else {
             return true;
@@ -2697,11 +2700,21 @@ mod tests {
             ime_style_note_correction(inst, from.as_ptr(), from.len(), to.as_ptr(), to.len()),
             0
         );
-        let missing = "/khong/co/thu/muc/nay/config.json";
+        // File đọc lỗi (không phải "chưa có file") → báo lỗi, giữ pending.
+        let bad_file = std::env::temp_dir().join(format!("textvn-bad-{}.json", std::process::id()));
+        std::fs::write(&bad_file, [0xFFu8, 0xFE, 0x00]).unwrap();
+        let unreadable = bad_file.to_str().unwrap();
         assert_ne!(
+            ime_style_profile_persist(inst, unreadable.as_ptr(), unreadable.len()),
+            0,
+            "đọc/ghi không được phải báo lỗi"
+        );
+        let _ = std::fs::remove_file(&bad_file);
+        let missing = "/khong/co/thu/muc/nay/config.json";
+        assert_eq!(
             ime_style_profile_persist(inst, missing.as_ptr(), missing.len()),
             0,
-            "ghi không được phải báo lỗi"
+            "chưa có config.json = chưa bật học, không có gì để lưu"
         );
         let mut need = 0usize;
         assert_eq!(

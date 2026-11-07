@@ -1225,12 +1225,21 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             let family = |t: &&crate::tokenize::Token| {
                 matches!(
                     word_lower(ctx, t).as_str(),
-                    "child" | "son" | "daughter" | "baby" | "kid" | "family"
+                    "child"
+                        | "children"
+                        | "son"
+                        | "sons"
+                        | "daughter"
+                        | "daughters"
+                        | "baby"
+                        | "kid"
+                        | "kids"
+                        | "family"
                 )
             };
             matches!(third.as_str(), "him" | "her")
-                || (matches!(third.as_str(), "a" | "an")
-                    && !words.iter().skip(i + 3).take(2).any(|t| family(&t)))
+                || (matches!(third.as_str(), "a" | "an" | "my" | "his" | "the")
+                    && !words.iter().skip(i + 3).take(3).any(|t| family(&t)))
         };
         if marry_with_person {
             push_replace_issue(

@@ -141,6 +141,10 @@ fn r2_140_code_va_markdown_giu_nguyen_ngoac() {
         "a[i][j] ",
         "s[i+1] ",
         "t[i-1] ",
+        "m[n-1] ",
+        "a[len-1] ",
+        "x[n+1] ",
+        "d[\"k\"] ",
         "[a, b] ",
         "[n, m] ",
         "{\"a\": [b, c]} ",
@@ -177,6 +181,9 @@ fn r2_140_gox_vowel_giua_tu_khong_doi() {
         ("x[ ", "xơ "),
         ("h[n-kem ", "hơn-kem "),
         ("h[n/kem ", "hơn/kem "),
+        ("ch[i: ", "chơi: "),
+        ("b[i-looij ", "bơi-lội "),
+        ("[ghi chu: ddax ch]a xong] ", "[ghi chu: đã chưa xong] "),
         ("th][ng-maij ", "thương-mại "),
         ("\"th]\" ", "\"thư\" "),
         ("h[, ", "hơ, "),
@@ -532,11 +539,11 @@ fn r2_147_mot_ung_vien_xoa_ngay_cung_la_tu_choi() {
 }
 
 #[test]
-fn r2_147_reset_khong_hoc_chu_chua_chac_vao_document() {
+fn r2_147_doi_focus_sau_khi_nhan_van_hoc() {
     let mut e = Engine::new(learning());
     let _ = type_in(&mut e, "rele\t");
     e.reset();
-    assert!(!e.style_peek_json().contains("release"));
+    assert!(e.style_peek_json().contains("release"));
 }
 
 // ---- R2-148: cụm hai từ, drain --------------------------------------------------
@@ -780,9 +787,8 @@ fn abnormal_fuzz_tong_hop_bat_bien() {
                     doc.len()
                 );
             }
-            if k.key_down {
-                apply(&mut doc, &out.action, &k);
-            } else if !matches!(out.action, Action::Pass) {
+            // Key-up chỉ đổi document khi Ctrl tap trả RESTORE.
+            if k.key_down || !matches!(out.action, Action::Pass) {
                 apply(&mut doc, &out.action, &k);
             }
             let _ = e.peek_completion();

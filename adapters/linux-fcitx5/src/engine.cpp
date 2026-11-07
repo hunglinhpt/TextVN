@@ -1107,7 +1107,8 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
     /* Terminal: engine không dự đoán/học (R2-144/R2-145); Mode EN đưa phím thẳng tới app. */
-    if (st->terminalApp < 0) {
+    if (st->terminalApp < 0 && !st->ic->program().empty()) {
+        /* Một số client báo tên chương trình muộn: chỉ ghi nhớ khi đã có tên. */
         st->terminalApp = lc_is_terminal_app(st->ic->program().c_str()) ? 1 : 0;
     }
     const bool terminal =

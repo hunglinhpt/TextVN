@@ -68,8 +68,9 @@ static bool has_word_icase(const char *text, const char *word) {
 
 bool lc_is_terminal_app(const char *app_id) {
     static const char *const names[] = {
-        "terminal", "konsole", "kitty", "alacritty", "xterm", "foot", "wezterm", "wezterm-gui",
-        "console", "lxterminal", "tilix", "terminator", "terminology", "urxvt", "ptyxis", "kgx",
+        "terminal", "konsole", "kitty", "alacritty", "xterm", "uxterm", "foot", "footclient",
+        "wezterm", "console", "lxterminal", "qterminal", "tilix", "terminator", "terminology",
+        "urxvt", "rxvt", "rxvt-unicode", "ptyxis", "kgx",
     };
     if (!app_id) return false;
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
