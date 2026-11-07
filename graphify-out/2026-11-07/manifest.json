@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1794064182.9786668,
-    "seen": 1794064569.438503,
-    "ast_hash": "83ea6512cfd8a11c330e7a83a3d8244e",
+    "mtime": 1794066994.9767344,
+    "seen": 1794067225.4669874,
+    "ast_hash": "41236cd6cdfda85a56346ba150e53def",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "core/src/post/restore_en.rs": {
-    "mtime": 1794063523.2915628,
-    "seen": 1794064569.4405055,
-    "ast_hash": "9e70fb5cd42f5ea09da9a36fadf9d675",
+    "mtime": 1794066995.0113757,
+    "seen": 1794067225.4720511,
+    "ast_hash": "fa1694e692a05d2787d8e4524069b86d",
     "semantic_hash": ""
   },
   "core/src/transform/diacritic_style.rs": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1794064246.7315526,
-    "seen": 1794064569.464436,
-    "ast_hash": "2f2944c8cd2e0ee5c75a96880cd1b4b5",
+    "mtime": 1794067094.428722,
+    "seen": 1794067225.544473,
+    "ast_hash": "852cbd41cf42701f90046d0f7d5c3d38",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1794064242.4164817,
-    "seen": 1794064569.464436,
-    "ast_hash": "349a60008d9048ed4c622521a65e0430",
+    "mtime": 1794067121.5140097,
+    "seen": 1794067225.5484731,
+    "ast_hash": "ea01e594e0e6eb8f29a5f14ca9a2deef",
     "semantic_hash": ""
   },
   "SECURITY.md": {
@@ -1428,9 +1428,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/ApplyReplace.swift": {
-    "mtime": 1791696381.8266633,
-    "seen": 1791702628.177499,
-    "ast_hash": "b059dbe762132c0f766e988c1eb7c39b",
+    "mtime": 1794066686.8015013,
+    "seen": 1794067225.428944,
+    "ast_hash": "df1dc45882af2cfeadb311235330599e",
     "semantic_hash": ""
   },
   "adapters/macos-imk/Sources/IMKLib/FieldDetect.swift": {
@@ -2856,20 +2856,20 @@
     "semantic_hash": ""
   },
   "core/src/post/predict.rs": {
-    "mtime": 1794061541.5771234,
-    "seen": 1794062064.4093978,
-    "ast_hash": "1465ded1771502777d7809d5b5b22fb5",
+    "mtime": 1794066995.0034084,
+    "seen": 1794067225.4720511,
+    "ast_hash": "b4ffeef1941acb66ae61c7dfd64de9c1",
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1794061075.8704422,
-    "seen": 1794062064.411901,
-    "ast_hash": "c8adeed2ad7923f80c45e6d33f832588",
+    "mtime": 1794066995.0636933,
+    "seen": 1794067225.477932,
+    "ast_hash": "f581834e00611a6a19254bdbd65708bf",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
-    "mtime": 1793807476.3089743,
-    "seen": 1793807838.6926208,
+    "mtime": 1794066174.6846395,
+    "seen": 1794067225.5559819,
     "ast_hash": "00f506923dc0c3c0f281f382875016b4",
     "semantic_hash": ""
   },
@@ -2946,9 +2946,9 @@
     "semantic_hash": ""
   },
   "xtask/src/gen_en_phrases.rs": {
-    "mtime": 1793806270.788869,
-    "seen": 1793807838.6885922,
-    "ast_hash": "3d157f640ecca9594e4ccd3800dc22db",
+    "mtime": 1794066871.872468,
+    "seen": 1794067225.5364695,
+    "ast_hash": "a44d6983a386d6afd4c6c880b94cfb71",
     "semantic_hash": ""
   },
   "assist/src/phrases.rs": {
@@ -3024,8 +3024,8 @@
     "semantic_hash": ""
   },
   "data/vn_syllables.txt": {
-    "mtime": 1793807476.3044503,
-    "seen": 1793807838.6926208,
+    "mtime": 1794066174.6797335,
+    "seen": 1794067225.5559819,
     "ast_hash": "985d2116461f18eaa8d004fbaccb899b",
     "semantic_hash": ""
   },
@@ -3036,9 +3036,9 @@
     "semantic_hash": ""
   },
   "xtask/src/gen_vocab.rs": {
-    "mtime": 1793807595.4978325,
-    "seen": 1793807838.6885922,
-    "ast_hash": "ac4bb50d0392020e64bc0447a391364f",
+    "mtime": 1794066995.2920363,
+    "seen": 1794067225.5364695,
+    "ast_hash": "dcc58afa6f6a35ff25860519deec71f8",
     "semantic_hash": ""
   },
   "assist/src/rules/personal_corrections.rs": {
@@ -3129,6 +3129,12 @@
     "mtime": 1794057696.5131786,
     "seen": 1794058529.2960489,
     "ast_hash": "25cb6e13cb3b085f5e693a0e3dfdfbfe",
+    "semantic_hash": ""
+  },
+  "data/en_compounds.txt": {
+    "mtime": 1794066174.6874528,
+    "seen": 1794067225.5539804,
+    "ast_hash": "ea7da0993833f0ca620efa9d80db0d78",
     "semantic_hash": ""
   }
 }
