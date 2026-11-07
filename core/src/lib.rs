@@ -238,13 +238,13 @@ pub struct Engine {
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
     dream_rsi: DreamRsi,
-    /// Trạng thái phím Ctrl đơn lẻ (nhấn rồi thả riêng `Ctrl` để giữ nguyên từ hiện tại
-    /// và đóng ranh giới từ: `tunx` + `Ctrl` → giữ `tũn`, `sỏt` + `Ctrl` + Space → giữ `sỏt `).
+    /// Trạng thái phím Ctrl đơn lẻ (nhấn rồi thả riêng `Ctrl` để khoá từ tiếng Việt hợp lệ
+    /// hiện tại và đóng ranh giới từ: `tunx` + `Ctrl` → giữ `tũn`; với âm tiết không hợp lệ
+    /// trong tiếng Việt như `sort` → `sỏt`, bấm `Ctrl` sẽ khôi phục về `sort`).
     ctrl_tap_armed: bool,
 }
 
-/// P7: entry hợp lệ để HỌC — chặn G8 (đoạn văn), số, dấu câu, điều khiển.
-fn valid_style_entry(s: &str) -> bool {
+fn valid_style_text(s: &str) -> bool {
     let n = s.chars().count();
     if !(2..=32).contains(&n) {
         return false;
@@ -254,6 +254,26 @@ fn valid_style_entry(s: &str) -> bool {
     }
     s.chars()
         .all(|c| c.is_alphabetic() || c == ' ' || c == '-' || c == '\'')
+}
+
+/// P7: entry hợp lệ để HỌC vào từ điển cá nhân (`style_words`) — chặn G8 (đoạn văn),
+/// số, dấu câu, điều khiển, và chặn tuyệt đối các âm tiết có dấu nhưng sai cấu trúc
+/// âm vị học tiếng Việt (như `sỏt`, `cútomer`, `fỏwad` bị Telex biến đổi tạm thời).
+fn valid_style_entry(s: &str) -> bool {
+    if !valid_style_text(s) {
+        return false;
+    }
+    for tok in s.split_whitespace() {
+        if !tok.is_ascii() {
+            for part in tok.split('-').filter(|p| !p.is_empty() && !p.is_ascii()) {
+                let chars: Vec<char> = part.chars().collect();
+                if !validate::is_valid_word(&chars) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
 
 /// Pending learning — P7. `words`: từ → delta count; `corrections`: (from,to) → delta.
@@ -404,7 +424,7 @@ impl Engine {
         if !self.style_enabled_for_learning() {
             return;
         }
-        if !valid_style_entry(from) || !valid_style_entry(to) {
+        if !valid_style_text(from) || !valid_style_entry(to) {
             return;
         }
         if from.eq_ignore_ascii_case(to) {
@@ -878,11 +898,42 @@ impl Engine {
 impl Engine {
     pub fn key(&mut self, k: &KeyEvent) -> Outcome {
         // Key-up: xử lý nhả riêng phím Ctrl (Ctrl tap word-lock: `tunx`, Ctrl -> `tũn`,
-        // khoá từ hiện tại để không bị auto-restore khi bấm Space và tách từ mới).
+        // khoá từ tiếng Việt hợp lệ hiện tại và tách từ mới; nếu từ đang active là âm tiết
+        // KHÔNG hợp lệ trong tiếng Việt như `sort` -> `sỏt`, khôi phục ngay về `sort`).
         if !k.key_down {
             if k.is_ctrl_key() && self.ctrl_tap_armed {
                 self.ctrl_tap_armed = false;
                 if !self.word.is_empty() {
+                    if self.word.active
+                        && !validate::is_valid_word(&self.word.display)
+                        && self.opts.auto_restore_english
+                        && post::restore_en::should_restore(
+                            &self.word.raw,
+                            &self.word.display,
+                            &self.opts.english_words,
+                        )
+                    {
+                        let delete = self.word.owned as u16;
+                        let raw = self.word.raw.clone();
+                        if self.opts.style_enabled_for_learning() {
+                            let raw_str: String = raw.iter().collect();
+                            self.style_note_word(&raw_str);
+                        }
+                        self.word.clear();
+                        self.record(Tail::Replace {
+                            delete: delete as usize,
+                            glyph: &raw,
+                            unicode: &raw,
+                        });
+                        return Outcome {
+                            action: Action::Restore {
+                                delete_count: delete,
+                                insert: raw,
+                            },
+                            preedit: Vec::new(),
+                            flags: FLAG_CONSUMED | FLAG_WORD_END,
+                        };
+                    }
                     if self.opts.style_enabled_for_learning() {
                         let current = if self.word.active {
                             self.word.display.iter().collect::<String>()
@@ -1084,6 +1135,38 @@ impl Engine {
                     }
                 }
                 if is_ctrl_space {
+                    // Nếu từ đang active là từ tiếng Anh bị Telex biến đổi sai cấu trúc Việt
+                    // (ví dụ `sort` -> `sỏt`, `script` -> `scỉpt`) mà không khớp dự đoán nào,
+                    // phải hoàn nguyên về từ tiếng Anh gốc trước khi nhả quyền sở hữu từ!
+                    if self.word.active
+                        && self.opts.auto_restore_english
+                        && post::restore_en::should_restore(
+                            &self.word.raw,
+                            &self.word.display,
+                            &self.opts.english_words,
+                        )
+                    {
+                        let delete = self.word.owned as u16;
+                        let raw = self.word.raw.clone();
+                        if self.opts.style_enabled_for_learning() {
+                            let raw_str: String = raw.iter().collect();
+                            self.style_note_word(&raw_str);
+                        }
+                        self.word.clear();
+                        self.record(Tail::Replace {
+                            delete: delete as usize,
+                            glyph: &raw,
+                            unicode: &raw,
+                        });
+                        return Outcome {
+                            action: Action::Restore {
+                                delete_count: delete,
+                                insert: raw,
+                            },
+                            preedit: Vec::new(),
+                            flags: FLAG_CONSUMED | FLAG_WORD_END,
+                        };
+                    }
                     // Ctrl+Space không khớp dự đoán: KHÔNG chèn khoảng trắng; adapter
                     // kích hoạt Trợ lý ngữ pháp (Text Correct) hoặc để app nhận phím.
                     // Bỏ quyền sở hữu từ (như chord — app có thể đổi text/caret với
@@ -1406,25 +1489,41 @@ impl Engine {
     /// đuôi text (`recent`) khi chữ kế tiếp được gõ.
     fn on_boundary(&mut self, c: char, strategy: Strategy) -> Outcome {
         let was_active = self.word.active;
+        let will_restore = was_active
+            && self.opts.auto_restore_english
+            && post::restore_en::should_restore(
+                &self.word.raw,
+                &self.word.display,
+                &self.opts.english_words,
+            );
 
-        // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — trước
-        // auto-restore để cả nhánh restore cũng học chuỗi EN thật của user.
+        // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — khi
+        // `will_restore` = true thì học chuỗi EN thật (`self.word.raw`), tuyệt đối
+        // không học chuỗi bị Telex biến đổi sai cấu trúc (`self.word.display` như `sỏt`).
         // G8: chỉ từ đơn/cụm ngắn <= 3 từ + count; secure check ở caller key() đã chặn ô mật khẩu
         // (đường này không chạy khi secure — engine không nhận context secure).
         if self.opts.style_enabled_for_learning() {
-            let current = if was_active {
-                self.word.display.iter().collect::<String>()
+            let (current, sentence_cur_len) = if will_restore {
+                (
+                    self.word.raw.iter().collect::<String>(),
+                    self.word.display.len(),
+                )
+            } else if was_active {
+                let s = self.word.display.iter().collect::<String>();
+                let n = self.word.display.len();
+                (s, n)
             } else if !self.word.passed.is_empty() {
-                self.word.passed.iter().collect::<String>()
+                let s = self.word.passed.iter().collect::<String>();
+                let n = self.word.passed.len();
+                (s, n)
             } else {
-                String::new()
+                (String::new(), 0)
             };
             if !current.is_empty() {
                 self.style_note_word(&current);
                 // Tìm từ trước đó trong buffer câu (nằm trước từ hiện tại vừa kết thúc):
-                let cur_len = current.chars().count();
-                if self.sentence.len() > cur_len {
-                    let before_idx = self.sentence.len() - cur_len;
+                if self.sentence.len() > sentence_cur_len {
+                    let before_idx = self.sentence.len() - sentence_cur_len;
                     let lookback = before_idx.saturating_sub(40);
                     let tail: String = self.sentence[lookback..before_idx].iter().collect();
                     let trimmed_end = tail.trim_end_matches([' ', '\t']);
@@ -1445,29 +1544,25 @@ impl Engine {
         }
 
         // Auto-restore EN (bug B5): kết quả fold không phải âm tiết Việt → trả lại chuỗi gõ.
-        if was_active && self.opts.auto_restore_english {
-            let raw = self.word.raw.clone();
-            let display = self.word.display.clone();
-            if post::restore_en::should_restore(&raw, &display, &self.opts.english_words) {
-                let delete = self.word.owned as u16;
-                let mut insert = raw;
-                insert.push(c); // ranh giới vẫn phải vào document (RESTORE = REPLACE — P0-4 §3)
-                self.word.clear();
-                // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
-                self.record(Tail::Replace {
-                    delete: delete as usize,
-                    glyph: &insert,
-                    unicode: &insert,
-                });
-                return Outcome {
-                    action: Action::Restore {
-                        delete_count: delete,
-                        insert,
-                    },
-                    preedit: Vec::new(),
-                    flags: FLAG_CONSUMED | FLAG_WORD_END,
-                };
-            }
+        if will_restore {
+            let delete = self.word.owned as u16;
+            let mut insert = self.word.raw.clone();
+            insert.push(c); // ranh giới vẫn phải vào document (RESTORE = REPLACE — P0-4 §3)
+            self.word.clear();
+            // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
+            self.record(Tail::Replace {
+                delete: delete as usize,
+                glyph: &insert,
+                unicode: &insert,
+            });
+            return Outcome {
+                action: Action::Restore {
+                    delete_count: delete,
+                    insert,
+                },
+                preedit: Vec::new(),
+                flags: FLAG_CONSUMED | FLAG_WORD_END,
+            };
         }
 
         self.close_word(c, strategy)
@@ -1945,6 +2040,9 @@ impl Engine {
 
         // Trích xuất `(typed, folded, delete_count, en_context)` cho cả Mode VI và Mode EN:
         let (typed, folded, delete, en_context) = if vi_on {
+            if k.is_ctrl_space() && !prediction_on {
+                return None;
+            }
             if !self.word.active && !space_mode && !k.is_ctrl_space() && !prediction_on {
                 return None;
             }
@@ -2046,14 +2144,15 @@ impl Engine {
         }
         // P7 Hook 2: học EN prediction-accept (candidate user nhận qua Tab/Space).
         self.style_note_word(&completion.to_lowercase());
-        // P10 — Dream RSI: EN accept tiết kiệm tương tự.
-        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
-        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(
-            (completion
-                .chars()
-                .count()
-                .saturating_sub(typed.chars().count())) as u64,
-        );
+        // P10 — Dream RSI: EN accept tiết kiệm ký tự khi hoàn tất từ dài hơn chuỗi đã gõ.
+        let saved = completion
+            .chars()
+            .count()
+            .saturating_sub(typed.chars().count());
+        if saved > 0 {
+            self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+            self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(saved as u64);
+        }
         self.word.clear();
 
         if append.is_none() && candidates.len() > 1 {
@@ -3336,8 +3435,24 @@ mod tests {
         press(&mut e, &mut buf, keymap::vk::SPACE);
         assert_eq!(text(&buf), "tũn ");
 
-        // `sỏt` (không phải âm tiết Việt chuẩn) nếu không bấm Ctrl sẽ bị auto-restore thành `sort `;
-        // bấm rồi thả riêng Ctrl sẽ giữ nguyên `sỏt `.
+        // `see` -> `sê` là âm tiết Việt hợp lệ về cấu trúc (`validate::is_valid_word("sê") == true`),
+        // bình thường tự restore về `see ` do nằm trong `en_common`, nhưng nếu chủ đích bấm thả Ctrl
+        // thì khoá giữ nguyên âm tiết Việt hợp lệ `sê `.
+        let mut e_valid = Engine::new(EngineOptions {
+            auto_capitalize: false,
+            auto_restore_english: true,
+            ..Default::default()
+        });
+        let mut buf_valid = type_buf(&mut e_valid, "see");
+        assert_eq!(text(&buf_valid), "sê");
+        let _ = e_valid.key(&KeyEvent::key_down(keymap::vk::CONTROL));
+        let _ = e_valid.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        press(&mut e_valid, &mut buf_valid, keymap::vk::SPACE);
+        assert_eq!(text(&buf_valid), "sê ");
+
+        // Ngược lại, `sort` -> `sỏt` KHÔNG phải âm tiết Việt hợp lệ ("sỏt" không có nghĩa trong tiếng Việt:
+        // âm cuối tắc `-t` không thể đi với thanh hỏi). Bấm thả riêng `Ctrl` rồi `Space` hoặc bấm `Ctrl+Space`
+        // bắt buộc phải trả về `sort` chứ tuyệt đối không được giữ nguyên `sỏt`!
         let mut e2 = Engine::new(EngineOptions {
             auto_capitalize: false,
             auto_restore_english: true,
@@ -3346,9 +3461,36 @@ mod tests {
         let mut buf2 = type_buf(&mut e2, "sort");
         assert_eq!(text(&buf2), "sỏt");
         let _ = e2.key(&KeyEvent::key_down(keymap::vk::CONTROL));
-        let _ = e2.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        let ctrl_up = e2.key(&KeyEvent::key_up(keymap::vk::CONTROL));
+        apply(
+            &mut buf2,
+            &ctrl_up.action,
+            &KeyEvent::key_up(keymap::vk::CONTROL),
+        );
+        assert_eq!(text(&buf2), "sort");
         press(&mut e2, &mut buf2, keymap::vk::SPACE);
-        assert_eq!(text(&buf2), "sỏt ");
+        assert_eq!(text(&buf2), "sort ");
+
+        // `sort` (`sỏt`) + `Ctrl+Space` (chord) cũng bắt buộc trả về `sort` (cả khi bật và tắt dự đoán).
+        for suggest_on in [false, true] {
+            let mut e_cs = Engine::new(EngineOptions {
+                auto_capitalize: false,
+                auto_restore_english: true,
+                suggest_vn_complete: suggest_on,
+                ..Default::default()
+            });
+            let mut buf_cs = type_buf(&mut e_cs, "sort");
+            assert_eq!(text(&buf_cs), "sỏt");
+            let cs = KeyEvent {
+                vk: keymap::vk::SPACE,
+                mods: keymap::MOD_CTRL,
+                key_down: true,
+                ..Default::default()
+            };
+            let out_cs = e_cs.key(&cs);
+            apply(&mut buf_cs, &out_cs.action, &cs);
+            assert_eq!(text(&buf_cs), "sort", "Ctrl+Space với suggest={suggest_on}");
+        }
 
         // `tun` + Ctrl tap + `x` -> `tunx` (x không còn ghép dấu ngã vào `tun`).
         let mut e3 = Engine::new(EngineOptions {

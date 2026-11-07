@@ -874,4 +874,33 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
         typed(&mut vi_engine(), "coongj hoaf\t"),
         "cộng hòa xã hội chủ nghĩa Việt Nam"
     );
+
+    // 2e. Từ tiếng Anh đã hoàn chỉnh nhưng bị Telex biến đổi thành âm tiết Việt vô nghĩa
+    // (`sort` -> `sỏt`, `smart` -> `smảt`):
+    // - Bấm Tab hoặc Ctrl+Space lần 1 phải khôi phục về `sort` / `smart` (không được giữ `sỏt`
+    //   và không tự ý nhảy sang số nhiều `sorts` ngay lần đầu).
+    // - Khi bật `style_learning_enabled`, gõ `sort ` hay `customer ` chỉ học `sort` / `customer`,
+    //   tuyệt đối KHÔNG học chuỗi vô nghĩa `sỏt` hay `cútomer` vào `style_words`.
+    assert_eq!(typed(&mut vi_engine(), "sort\t"), "sort");
+    assert_eq!(typed(&mut vi_engine(), "sort\t\t"), "sorts");
+    assert_eq!(typed(&mut vi_engine(), "port\t"), "port");
+
+    let mut e_vi_learn = Engine::new(EngineOptions {
+        method: Method::Telex,
+        enabled: true,
+        suggest_vn_complete: true,
+        auto_restore_english: true,
+        style_learning_enabled: true,
+        ..Default::default()
+    });
+    let _ = typed(&mut e_vi_learn, "sort customer ");
+    let learned_vi = e_vi_learn.style_peek_json();
+    assert!(
+        learned_vi.contains("\"sort\"") && learned_vi.contains("\"customer\""),
+        "phải học từ tiếng Anh thật sau auto-restore: {learned_vi}"
+    );
+    assert!(
+        !learned_vi.contains("sỏt") && !learned_vi.contains("cútomer"),
+        "tuyệt đối không học âm tiết Việt sai cấu trúc vào style profile: {learned_vi}"
+    );
 }

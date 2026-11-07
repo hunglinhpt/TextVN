@@ -1648,7 +1648,7 @@ software requirement	90
 solar panel	94
 solar power	96
 solid state drive	94
-sort order	90
+sorting order	90
 source code	100
 source control	92
 source file	88

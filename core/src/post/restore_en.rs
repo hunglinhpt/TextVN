@@ -393,6 +393,22 @@ pub fn complete_word(
     // "em", "con", "cho", "cá", "nó", "chó", "nói", "bỏ", "tủ", "vẻ"… khỏi bị
     // biến thành "email", "confirm", "choice", "case", "nose", "choose"…).
     let folded_chars: Vec<char> = folded_lower.chars().collect();
+    // Nếu người dùng gõ một từ tiếng Anh ĐÃ ĐẦY ĐỦ (`is_known_en_word`) nhưng ở Mode VI
+    // bị Telex biến đổi thành một âm tiết Việt KHÔNG hợp lệ (ví dụ `sort` -> `sỏt`, `smart` -> `smảt`,
+    // `file` -> `fỉle`, `user` -> `úer`), thì Tab phải trả về chính từ tiếng Anh gốc đó (`sort`, `smart`...)
+    // thay vì tự ý nối thêm hậu tố số nhiều (`sorts`, `smarts`, `files`, `users`).
+    if folded_lower != typed_lower && !is_valid_word(&folded_chars) && is_known_en_word(typed_lower)
+    {
+        return Some(
+            match TECH_BUSINESS_TERMS
+                .iter()
+                .find(|t| t.eq_ignore_ascii_case(typed_lower))
+            {
+                Some(t) => (*t).to_string(),
+                None => typed_lower.to_string(),
+            },
+        );
+    }
     // R2-4/R2-56 (vòng 37): chuỗi gõ là âm tiết Việt KHÔNG dấu và không phải
     // từ EN đã biết → BỎ QUA quét freq/tech. Đóng chốt cả họ lỗi
     // tiền-tố-VN-thiếu-dấu + từ-domain ("cac"→"cache" (các), "dat"→"date"
@@ -565,7 +581,20 @@ pub fn complete_word_candidates(
         }
     }
 
-    // Tier 2: Từ đơn tiếng Anh (giữ nguyên thứ tự ngắn nhất trước của `complete_word`)
+    // Tier 2: Từ đơn tiếng Anh (giữ nguyên thứ tự ngắn nhất trước của `complete_word`).
+    // Nếu ở Mode VI từ đang gõ là từ tiếng Anh đã hoàn chỉnh (`is_known_en_word`) nhưng đang
+    // hiển thị thành âm tiết Việt vô nghĩa (`folded_lower != typed_lower && !is_valid_word`),
+    // đưa chính từ gốc (`sort`, `smart`, `file`...) lên đầu Tier 2 để khôi phục đúng từ gốc
+    // trước khi duyệt sang dạng số nhiều `-s`/`-ed` ở lần Tab thứ 2.
+    if vi_on
+        && !space_mode
+        && folded_lower != typed_lower
+        && !is_valid_word(&folded_chars)
+        && is_known_en_word(typed_lower)
+        && seen.insert(typed_lower.to_string())
+    {
+        cands.push((2, 0, -100, canonicalize(typed_lower)));
+    }
     for &l in en_common_lines() {
         if l.len() > typed_lower.len() && l.starts_with(typed_lower) && seen.insert(l.to_string()) {
             cands.push((2, l.len(), -70, canonicalize(l)));

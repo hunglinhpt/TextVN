@@ -3086,7 +3086,7 @@ const EN_COMPOUND_GROUPS: &[(&str, &[(&str, u32)])] = &[
             ("search bar", 94),
             ("search results", 96),
             ("filter options", 90),
-            ("sort order", 90),
+            ("sorting order", 90),
             ("page load", 90),
             ("home page", 96),
             ("web page", 94),
@@ -3117,7 +3117,7 @@ const EN_COMPOUND_GROUPS: &[(&str, &[(&str, u32)])] = &[
 /// Cấm các từ đơn đang được test ghim hoàn tất hậu tố `-s`/`-e` ở 1st-Tab làm từ đầu
 /// của compound trong `en_compounds.txt` (giữ tương thích 100% với các test hiện có).
 const RESERVED_FIRST_WORDS: &[&str] = &[
-    "develop", "improv", "rele", "lot", "tes", "see", "ebi", "ebit", "kp", "gith",
+    "develop", "improv", "rele", "lot", "tes", "see", "ebi", "ebit", "kp", "gith", "sort",
 ];
 
 fn gen_en_compounds() -> Result<usize, String> {

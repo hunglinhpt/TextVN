@@ -25,8 +25,9 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - Hỗ trợ phím `[` → `ơ` và `]` → `ư` trong Telex (`ch]a` → `chưa`, `m[f` → `mờ`,
     `th][ng` → `thương`, `ddu[cj` → `được`), gõ đúp `[[` → `[` và `]]` → `]` để lấy lại
     ngoặc vuông (giữ nguyên `[]` rỗng khi gõ code).
-  - Bấm rồi thả riêng phím `Ctrl` (standalone Ctrl tap) để khoá/giữ nguyên từ đang gõ
-    (`tunx`, `Ctrl` → `tũn`, ngăn auto-restore tiếng Anh trên từ đặc biệt và tách từ mới).
+  - Bấm rồi thả riêng phím `Ctrl` (standalone Ctrl tap) để khoá/giữ nguyên từ tiếng Việt hợp lệ
+    đang gõ (`tunx`, `Ctrl` → `tũn`, tách từ mới); với chuỗi tiếng Anh bị Telex biến đổi sai cấu trúc
+    âm vị Việt (`sort` → `sỏt`), bấm `Ctrl` hoặc `Ctrl+Space` sẽ khôi phục ngay về `sort`.
   - Gõ nhanh hai gạch ngang `a--b` tự chuyển thành gạch nối dài `a—b` (em-dash U+2014),
     gõ tiếp gạch thứ ba `---` hoàn nguyên `---` cho Markdown/code.
   - Tiến hóa học từ cá nhân thời gian thực (in-session continuous learning, bigram learning
@@ -64,8 +65,9 @@ macOS IMK, and Linux. Hardens P7 self-learning with explicit `ConfigReload` broa
 strict Opt-in consent enforcement, panic-safe FFI boundaries, real-time in-session bigram
 learning, and Frecency aging. Adds standard Vietnamese Telex conveniences: `[` / `]` for
 `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`) with double-bracket escape (`[[` → `[`, `]]` → `]`,
-and `[]` preserved for code), standalone `Ctrl` tap to lock/keep the current word (`tunx`,
-`Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (with `---` undo). Brings
+and `[]` preserved for code), standalone `Ctrl` tap to lock/keep valid Vietnamese syllables (`tunx`,
+`Ctrl` → `tũn`, while restoring invalid Telex-folded English words such as `sort` → `sỏt` back to `sort`
+on `Ctrl` / `Ctrl+Space` / `Tab`), and fast double-hyphen `a--b` → em-dash `a—b` (with `---` undo). Brings
 English text prediction to full parity with Vietnamese across **both modes (Mode EN and Mode VI)**:
 adds `data/en_compounds.txt` (**1,957 English compounds & collocations** across 16 domains, matching
 `vn_compounds.txt`'s 1,941 entries) and expands `data/en_phrases.tsv` to **8,849 phrase/sentence
