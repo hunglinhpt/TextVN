@@ -283,6 +283,9 @@ Bộ tiện ích cho công việc hằng ngày — chạy **trên máy bạn**, 
 | Cụm từ hành chính | gõ sai các cụm quen thuộc | tự sửa: "bổ xung"→"bổ sung", "xử dụng"→"sử dụng", "kiểm xoát"→"kiểm soát", "chính sác"→"chính xác", "sát nhập"→"sáp nhập", "giành thời gian"→"dành thời gian"… |
 | Khoảng trắng trước % | `đạt 100 %` | tự sửa thành `100%` |
 | Identifier cho coder | `useState`, `onPress`, `getElementById`… | không bị bỏ dấu giữa từ; thuật ngữ tech/business (KPI, EBITDA, margin, cargo…) tự khôi phục khi gặp dấu cách; Tab hoàn tất theo tiền tố (`ebit`+Tab → `EBITDA`) |
+| Ngoặc thay `ơ`/`ư` (Telex) | `ch]a` · `m[f` · `h[n` · `th][ng` | `chưa` · `mờ` · `hơn` · `thương`. Đầu từ, trong ngoặc mở và trong code `[` `]` vẫn là ngoặc: `arr[0]`, `[a, b]`, `- [ ] việc`, `m[n-1]`, `[tôi]` giữ nguyên (0.2.69). Vần bắt đầu bằng ơ/ư gõ `ow`/`uw` |
+| Gạch nối dài | `a--b` · `Hà Nội -- TP.HCM` | `a—b` · `Hà Nội — TP.HCM`; `--force`, `i--;`, `<!-- -->`, `.btn--primary`, `x = 1 -- comment` giữ nguyên; gõ thêm `-` thứ ba ra `---` |
+| Terminal | Windows Terminal, PowerShell, iTerm2, GNOME Terminal, Konsole… | Tab luôn thuộc shell (không dự đoán), không học chữ gõ ở đây (kể cả mật khẩu `sudo`); Mode E đưa phím thẳng tới app (vim, less) |
 | **Chuyển đổi văn bản bôi đen** | bôi đen đoạn văn bản → **Ctrl + Shift + F9** (cả Windows, macOS và Linux) | tự nhận ra và sửa: **chữ lạ** khi mở file sai bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), **bảng mã cũ** TCVN3/ABC (.VnTime) · VNI-Windows · Unicode tổ hợp → **bảng mã TextVN đang dùng**, và **chữ gõ nhầm chế độ E** (`tooi ddi hocj` → `tôi đi học`, theo kiểu gõ đang dùng — từ đã có dấu giữ nguyên). Chạy cả ở Notepad++ và ô nhập WinForms/Delphi; undo bằng Ctrl+Z của ứng dụng |
 
 Chuyển mã chỉ ghi khi chắc chắn: văn bản đã là Unicode, hoặc không đủ tín hiệu nhận diện,

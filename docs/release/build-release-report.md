@@ -1,5 +1,17 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.69 — audit toàn bộ tính năng mới, đồng bộ 3 OS (R2-140…R2-153, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | 5 lượt audit độc lập trên `v0.2.68..HEAD` (49 + 30 + 25 + 15 + 18 phát hiện) → sửa theo cơ chế: ngoặc Telex theo dòng + trả nguyên văn chỉ mục khi gặp `]` (R2-140), gạch nối chỉ văn xuôi (R2-141), trợ lý không sửa oan (R2-142), macOS Mode EN/Ctrl tap (R2-143), terminal giữ Tab (R2-144/R2-151), không học ở terminal (R2-145), hồ sơ đầy (R2-146), học khi chốt + Dream RSI trung thực (R2-147), drain/cụm (R2-148), Tab đầu trả từ gốc (R2-149), hiệu năng (R2-150), lưu học macOS/Linux qua FFI `ime_style_profile_persist` (R2-152), parity macOS (R2-153). DFMEA/DRBFM: `docs/release/AUDIT-0.2.69-DFMEA-DRBFM.md` |
+| Đo | workspace test xanh (mới: `core/tests/audit_r2_140.rs` 45 test gồm fuzz 1.500 lượt × 48 phím, `assist/tests/audit_r2_142.rs`, `config/tests/style_merge.rs`, FFI `r2_152_*`, C `test_field_detect`, Swift `testEngineHint…`/`testTerminalTheoBundle`) · clippy -D warnings 0 (Windows + `--target x86_64-unknown-linux-gnu`) · `cli verify` 28 hàm · replay tsf/win 134, mac 170, linux 56 · Dream RSI bench **22%** (0.2.68: 21%) |
+| Perf | `peek_completion` hồ sơ 500 mục **225 → 75 µs/phím** (release, máy dev) · liên từ 2.000 từ: O(n³) 25 s → tuyến tính |
+| Sự cố trong phiên | E36 (`ci-linux/deb/aur` đỏ — biến C thừa, `ee321b34`) · E37 (clippy test fuzz, `120ea8e3`) — cả hai sửa trong phiên, CI xanh lại |
+| CI commit code | `838f7e42` 7/7 · `f222252e` 7/7 · `d4cc3efb` 7/7 |
+| Ghi chú giới hạn | IBus với terminal Qt/X11 không gửi input purpose; terminal tích hợp VS Code trên Windows; chỉ mục `m[i, j]` — xem DFMEA §4 |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.68 — sửa triệt để âm vị học tiếng Việt (sỏt -> sort) + tiện ích Telex & dự đoán song ngữ (2026-11-07)
 
 | Hạng mục | Bằng chứng |

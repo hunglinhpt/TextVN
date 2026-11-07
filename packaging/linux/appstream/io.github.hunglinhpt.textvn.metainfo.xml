@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.69" date="2026-11-08">
+      <description>
+        <p>Full audit of the 0.2.67/0.2.68 features. Telex no longer corrupts code and Markdown (brackets, double hyphens), the assistant no longer rewrites correct sentences, terminals keep Tab and are never learned from, learned data is now saved on Linux (IBus and Fcitx5), and prediction runs about three times faster with a full personal profile.</p>
+      </description>
+    </release>
     <release version="0.2.68" date="2026-11-07">
       <description>
         <p>Fixes Vietnamese phonotactic validation to properly restore invalid Telex-folded English words (such as sort -> sỏt) back to sort on Ctrl, Ctrl+Space, and Tab; hardens personal style_words learning to reject invalid syllables. Expands bilingual English text prediction across both Mode EN and Mode VI with 1,957 English compounds across 16 domains and 8,849 phrase rows (41,415 total corpora entries). Adds Vietnamese Telex conveniences: [ / ] for ơ / ư, [[ / ]] escape, Ctrl tap word-lock, and fast double-hyphen a--b em-dash.</p>
