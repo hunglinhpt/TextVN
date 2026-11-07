@@ -1,5 +1,18 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.66 — tự học P7 hoàn chỉnh + P9 đầy đủ (vòng 56-57)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **V57-B**: learning hooks qua phím thật — VN/EN completion accept + Tab cycle accept + word-end (đã có từ 54) học `style_note_word` lowercase chuẩn; correction note tại `apply_assist_suggestion` (Windows path). **V57-C persist**: IPC `Message::StyleUpdate {json}` → tray `style_merge.rs` (merge_deltas + sanitize + cap) → persist + ConfigReload; TSF drain throttle 20 phím ranh giới (R2-120h). **V57-D audit**: style_learning_100 (10 test e2e phím thật) + rca_v57_adversarial (5 case đối kháng: peek không học, accept count 1, shape JSON, cycle không trùng, drain 2 lần). **P9 đầy đủ**: Word-trigger qua idle (R2-129 thay bằng P9); dead_key disarm tại finish(). **R2-120g/h**: baseline compact format + drain throttle. **Roadmap 15 đề xuất** docs/specs/roadmap-optimization-proposals.md |
+| Đo | workspace 966/966 · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
+| CI trên commit gắn tag | 7/7 workflow áp dụng xanh |
+| Release | [v0.2.66 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) — release-candidate 4/4; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | (pin sau khi publish) |
+| Homebrew (B7b) | cask `version "0.2.66"` + sha256 mac zip (sync-cask) |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.66 |
+| PPA (B7f) | debian/changelog `0.2.66-0ppa1` |
+
 ## Bản 0.2.65 — chuẩn UniKey vần uo + chống xung đột OS-IME (vòng 55)
 
 | Hạng mục | Bằng chứng |

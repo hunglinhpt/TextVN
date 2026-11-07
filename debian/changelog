@@ -1,3 +1,11 @@
+textvn (0.2.66-0ppa1) noble; urgency=medium
+
+  * Vòng 56-57: tự học P7 đầy đủ (word-end + prediction-accept + correction
+    persist qua IPC StyleUpdate → tray merge); P9 đầy đủ (Word-trigger cũng
+    debounce 1s); drain throttle R2-120h; roadmap đề xuất 15 mục.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 07 Nov 2026 10:00:00 +0700
+
 textvn (0.2.65-0ppa1) noble; urgency=medium
 
   * Vòng 55: chuẩn UniKey vần uo ("luong"/"uong" giữ nguyên khi không dấu,

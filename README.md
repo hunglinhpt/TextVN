@@ -65,7 +65,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65)**
+Bản mới nhất: **[GitHub Release v0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md).

@@ -7,6 +7,49 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.66] — 2026-11-07
+
+### Added
+- **Tự học P7 hoàn chỉnh (vòng 56-57)**: engine tự học qua **phím thật** —
+  word-end học từ vừa gõ xong; VN/EN completion (Tab/Ctrl+Space) học candidate
+  người dùng nhận; cycle Tab học ứng viên duyệt tới; correction học cặp
+  sai→đúng khi user bấm Apply (Windows path đã wire, macOS/Linux giữ FFI API).
+  Drain JSON có cap 200 từ/50 cặp; guards from==to, ký tự đặc biệt, 32 ký tự.
+- **Persist drain**: IPC `Message::StyleUpdate {json}` → tray
+  `style_merge.rs` merge qua `StyleProfileSettings::merge_deltas` (sanitize +
+  cap 200/50/16KB) → persist + bump version → `ConfigReload` tự phát tới mọi
+  adapter. Fail-open: tray offline → dữ liệu giữ pending (drain throttle).
+- **Roadmap 15 đề xuất** (`docs/specs/roadmap-optimization-proposals.md`):
+  UI quản lý dữ liệu học, frequency rank thật, macro ngày/tháng, fuzz config,
+  E2E MobaXterm tự động, context-aware ranking, ghost per-app…
+
+### Fixed
+- **P9 đầy đủ** (vòng 56): Word-trigger (space/,/;) cũng qua idle 1s —
+  `refresh_live_popup` cũ hiện popup NGAY giữa lúc gõ (chính tình trạng
+  "hiện liên tiếp che vùng gõ"); popup sống gõ tiếp ẨN NGAY.
+- **dead_key_armed disarm** tại `finish()` — letter kế sau focus change/
+  composition end không forward nhầm cho OS dead-key context cũ.
+- **Drain throttle 20 phím** (R2-120h) — tránh spawn thread IPC mỗi phím.
+- **Perf baseline re-record** từ CI run 42076556664 (R2-120a — parse_config
+  baseline stale, runner-image shift lần 2); **R2-120g** baseline compact
+  format (bench string-find format — json.dumps indent phá format).
+
+### Changed
+- Style-note helpers chuyển pub (core API cho adapters).
+
+**English** — 0.2.66 completes P7 self-learning: the engine now learns via
+real keystrokes — word-end commits learn the typed word, VN/EN completion
+(Tab/Ctrl+Space) learn the accepted candidate, Tab cycling learns the cycled
+candidate, and Apply on a grammar suggestion learns the typo→fix pair (the
+Windows path is wired; macOS/Linux share the same FFI drain API). Drain JSON
+is capped at 200 words / 50 pairs with guards (from==to, special chars, 32
+chars). Persist: adapters send `Message::StyleUpdate` to the tray, which
+merges via `StyleProfileSettings::merge_deltas` (sanitize + caps) and bumps
+the config version so every adapter reloads with fresh personal data; P9 is
+completed (Word-trigger also debounces 1s; dead_key disarm at composition
+end); drain is throttled to every 20 boundary keys (R2-120h). Ships the
+15-item roadmap document and perf-baseline re-record from CI (R2-120a/g).
+
 ## [0.2.65] — 2026-11-06
 
 ### Fixed
@@ -2630,4 +2673,4 @@ git push origin v0.1.0
 [0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0
-
+[0.2.66]: https://github.com/hunglinhpt/TextVN/compare/v0.2.65...v0.2.66
