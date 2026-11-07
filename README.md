@@ -16,9 +16,9 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
 
 - **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả —
   **mặc định dấu cũ** (`hòa`, `thủy`, `khỏe`; đổi sang dấu mới `hoà`/`thuỷ` trong bảng
-  điều khiển), `uow` → ươ, `[` / `]` → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`, gõ đúp
-  `[[` / `]]` để lấy lại dấu ngoặc `[` / `]`), bấm rồi thả riêng `Ctrl` để giữ nguyên từ
-  đang gõ (`tunx`, `Ctrl` → `tũn`), gõ nhanh `a--b` thành gạch nối dài `a—b` (`---` giữ nguyên),
+  điều khiển), `uow` → ươ, `[` / `]` → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`; đầu từ và trong
+  code `[` `]` vẫn là ngoặc: `arr[0]`, `- [ ] việc`), bấm rồi thả riêng `Ctrl` để giữ nguyên từ
+  đang gõ (`tunx`, `Ctrl` → `tũn`), gõ nhanh `a--b` thành gạch nối dài `a—b` (`--force`, `---` giữ nguyên),
   `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi bật Caps Lock.
 - **Không mất chữ, không lặp chữ, không gạch chân**: cả từ nằm trong vùng soạn (composition/preedit)
   không đường kẻ (TF_LS_NONE trên Windows TSF; macOS gõ kiểu non-preedit sau cài; Fcitx5/IBus
@@ -48,7 +48,8 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Nội dung chính |
 |---|---|
-| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Đồng bộ toàn diện 3 OS (Windows TSF, macOS IMK, Linux IBus/Fcitx5): dự đoán Mode EN, ghost preview, standalone Ctrl tap khóa/khôi phục từ, Dream RSI/style learning; sửa triệt để lỗi âm vị học tiếng Việt (sỏt -> sort); mở rộng 41.415 mục corpora song ngữ |
+| [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Audit toàn bộ tính năng mới (R2-140…R2-153, DFMEA/DRBFM): đồng bộ 3 OS — dự đoán Mode EN, `Ctrl` đơn, tự học lưu được trên macOS/Linux · nhận diện terminal Windows/Linux (giữ Tab cho shell, không học mật khẩu) · Telex không còn phá code/Markdown (`arr[0]`, `--force`) · trợ lý không sửa oan 40 mẫu câu đúng · `peek_completion` 225 → 75 µs · savings-rate 22% |
+| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Âm vị học `sort` → `sỏt` khôi phục đúng · tiện ích Telex `[ ]`, `Ctrl`, `a--b` · dự đoán tiếng Anh 2 chế độ, từ ghép và mẫu câu Anh |
 | [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): đo lường tiết kiệm phím (21% savings-rate trên corpus văn phòng) · Gate chống hồi quy `perf/baseline-win.json` · Chuẩn hoá `keys_typed` 3 OS · Hoàn thiện pipeline tự học P7 (IPC broadcast `ConfigReload`, opt-in consent G8, FFI `catch_unwind` an toàn) |
 | [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Tự học P7 hoàn chỉnh qua phím thật (drain cap 200 từ/50 cặp, IPC merge, live reload) · P9 debounce 1s cho word-trigger · Dead-key armed disarm · Roadmap 15 đề xuất |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Panel debounce 1s · Chặn hoàn tất username/id (`truong.giap`) · 3 gate suites 3000 case + DFMEA/DRBFM |
@@ -70,7 +71,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68)**
+Bản mới nhất: **[GitHub Release v0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md).
@@ -129,7 +130,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 **Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.415 mục** song ngữ chất lượng tương đương:
 6.672 âm tiết Việt + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành)
 + **9.868 từ đơn Anh + 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
-+ **17.631 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.849 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
++ **17.529 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.747 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
 dự đoán tiếng Anh hoạt động đồng nhất ở **cả 2 chế độ**: **Mode EN (`E`)** (hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost text, học từ Dream RSI) và **Mode VI (`V`)** (tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold như `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
 User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, cap 200 từ / 50 cặp);
 Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
@@ -156,7 +157,7 @@ Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng 
 **Gợi ý & dự đoán (P6 — Tab, Ctrl+Space, cả Mode VI & Mode EN)**
 - Hoàn tất từ đơn & từ ghép tiếng Việt: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6.672 âm tiết + 1.941 từ ghép văn phòng)
 - Hoàn tất từ đơn & từ ghép tiếng Anh ở cả Mode EN và Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9.868 từ đơn + 1.957 từ ghép 16 domain + thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân, duyệt vòng 5 ứng viên bằng Tab)
-- Dự đoán cụm/câu tiếp theo theo ngữ cảnh ở cả 2 mode (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` kể cả khi gõ ở Mode VI — 8.782 mẫu Việt + 8.849 mẫu Anh)
+- Dự đoán cụm/câu tiếp theo theo ngữ cảnh ở cả 2 mode (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` kể cả khi gõ ở Mode VI — 8.782 mẫu Việt + 8.747 mẫu Anh)
 - Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành (cả Mode VI và Mode EN)
 - Ctrl+Space: sửa hết lỗi câu (kể cả chính tả) rồi dự đoán tiếp — một phím hai việc
 
@@ -262,9 +263,9 @@ same config file on all three platforms.
 - **Types like UniKey/OpenKey**: Telex, VNI, VIQR, Simple Telex; standard tone
   placement with **old-style diacritics by default** (`hòa`, `thủy`, `khỏe`;
   switch to new style `hoà`/`thuỷ` in the control panel), `uow` → ươ, `[` / `]`
-  → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`, double-press `[[` / `]]` to restore
-  literal `[` / `]`), tap and release standalone `Ctrl` to lock/keep the current
-  word (`tunx`, `Ctrl` → `tũn`), fast double-hyphen `a--b` → em-dash `a—b` (`---`
+  → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`; at word start and in code `[` `]` stay
+  brackets: `arr[0]`, `- [ ] task`), tap and release standalone `Ctrl` to lock/keep the current
+  word (`tunx`, `Ctrl` → `tũn`), fast double-hyphen `a--b` → em-dash `a—b` (`--force`, `---`
   preserved), `z` strips tones, tone keys work after the vowel or at the end of
   the word, and Caps Lock typing is supported.
 - **No lost characters, no doubled characters, no underline**: the whole word
@@ -300,7 +301,8 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Highlights |
 |---|---|
-| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Phonotactic validation & restore (sort -> sỏt fix) on Ctrl/Ctrl+Space/Tab; style_words learning guard; Telex conveniences: []/[[ ]]/a--b/Ctrl word-lock; full English dual-mode prediction parity across Mode EN and Mode VI with 1,957 compounds and 8,849 phrase rows (41,415 total corpora entries) |
+| [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Full audit of new features (R2-140…R2-153, DFMEA/DRBFM): 3-OS parity — Mode EN prediction, standalone `Ctrl`, self-learning persisted on macOS/Linux · terminal detection on Windows/Linux (Tab stays with the shell, passwords never learned) · Telex no longer corrupts code/Markdown (`arr[0]`, `--force`) · assistant no longer rewrites 40 correct sentence patterns · `peek_completion` 225 → 75 µs · savings rate 22% |
+| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Phonotactic restore `sort` → `sỏt` fixed · Telex conveniences `[ ]`, `Ctrl`, `a--b` · English prediction in both modes, English compounds and phrases |
 | [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): keystroke savings measurement (21% savings rate on office corpus) · Anti-regression gate in `perf/baseline-win.json` · Normalized 3-OS `keys_typed` · Completed P7 self-learning pipeline (IPC broadcast `ConfigReload`, G8 opt-in consent, safe FFI `catch_unwind`) |
 | [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Full P7 self-learning from real keystrokes (drain capped at 200 words / 50 pairs, IPC merge, live reload) · Full P9 1s debounce on word triggers · Dead-key armed disarm · 15-item roadmap |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Panel 1s debounce · ID/username punctuation gate · 3 gate suites 3000 cases + DFMEA/DRBFM |
@@ -322,7 +324,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download & install
 
-Latest release: **[GitHub Release v0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68)**
+Latest release: **[GitHub Release v0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
@@ -386,7 +388,7 @@ differently — per their public feature pages as of 2026-10):
 **Text prediction (P6) & User Style Profile (P7)** — **41,415-entry** bilingual corpora with full VI-EN parity:
 6,672 Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains)
 + **9,868 English single words + 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
-+ **17,631 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,849 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);
++ **17,529 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,747 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);
 English prediction works seamlessly in **both modes**: **Mode EN (`E`)** (single-word & compound completion, 5-candidate Tab cycling, next-phrase prediction, ghost text preview, Dream RSI personal learning) and **Mode VI (`V`)** (automatic English word/compound/sentence detection and completion even when Telex-folded, e.g., `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
 User Style Profile (personal vocabulary & correction learning, opt-in, 100% offline, strict 200-word / 50-pair cap);
 Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microsecond lookups.
@@ -413,7 +415,7 @@ Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microseco
 **Suggestions & prediction (P6 — Tab, Ctrl+Space, in both Mode VI & Mode EN)**
 - Vietnamese word & compound completion: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6,672 syllables + 1,941 office compounds)
 - English word & compound completion in both Mode EN and Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9,868 single words + 1,957 compounds across 16 domains + tech/business terms + personal dictionary, 5-candidate Tab cycling)
-- Next-phrase prediction by context in both modes (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` even when typed in Mode VI — 8,782 VI + 8,849 EN patterns)
+- Next-phrase prediction by context in both modes (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` even when typed in Mode VI — 8,782 VI + 8,747 EN patterns)
 - Ghost preview after the caret on all three platforms (in both Mode VI and Mode EN)
 - Ctrl+Space: fix the whole sentence (including spelling) then keep predicting — one key, two jobs
 

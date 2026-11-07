@@ -32,10 +32,15 @@ làm rate giảm = hồi quy chất lượng gợi ý = **không merge** (G19c).
 | 1 | VN completion | Tab/Ctrl+Space sau Telex-transform (word active) | `completion.chars − typed.chars` (typed = `word.display`) | `try_vn_complete` |
 | 2 | EN/style-word completion | Tab (word chưa active — ASCII thuần) | `completion.chars − typed.chars` | `try_english_complete` |
 | 3 | Space-accept | Space với `suggest_space_complete` | như #2 (space user đã gõ không đếm là saved) | #2 với `append` |
-| 4 | Cycle candidate | Tab/Ctrl+Space khi `last_predict` mở | `cand_mới.chars − glyphs_đã_chèn_của_cand_cũ` (saturating — cycle ngắn hơn không làm trôi lùi) | `try_cycle_predict` |
+| 4 | Cycle candidate | Tab/Ctrl+Space khi `last_predict` mở | `cand_mới.chars − max(glyphs_cand_cũ, glyphs_dài_nhất_đã_chèn)` (saturating — duyệt dài → ngắn → dài không tính hai lần) | `try_cycle_predict` |
 | 5 | Next-phrase | Ctrl+Space/Space sau ngữ cảnh nhiều từ | nguyên số glyph cụm engine chèn (`phrase_glyphs`) | `try_predict_next_phrase` |
 
 Mọi hook đều `saturating_add` — không panic, không trôi lùi.
+
+**Từ chối (R2-147):** Backspace/Esc ngay sau khi chèn gỡ phần vòng duyệt đó đã cộng
+(`PredictCycle::rsi_accepts`/`rsi_saved`) — số đo chỉ gồm chữ người dùng giữ. Từ/cụm được học ở
+phím kế tiếp (`settle_predict`), không phải lúc chèn; `reset()` không học (đường fail-open khi áp
+ứng viên lỗi).
 
 ### Quy tắc khi THÊM đường accept mới (G19a)
 
@@ -64,9 +69,9 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
 ```
 
 - Adapter (TSF Windows) drain cùng words/corrections → IPC `Message::StyleUpdate`
-  → tray. `DrainShape` (tray `style_merge.rs`) **bỏ qua khối `rsi` an toàn**
-  (serde default — không `deny_unknown_fields`): merge words/corrections không
-  chết vì metrics.
+  → tray. `config::parse_style_drain` **bỏ qua khối `rsi` an toàn** (serde default — không
+  `deny_unknown_fields`): merge words/corrections không chết vì metrics. macOS/Linux không có
+  đường tray: `ime_style_profile_persist` ghi thẳng vào `config.json` lúc mất focus (R2-152).
 - Counters `DreamRsi` là **cumulative trong phiên** engine (không reset khi
   drain) — rate ổn định, phù hợp đối chiếu giữa các bản.
 
@@ -83,8 +88,8 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   - 100 phím tay không accept → rate 0 (metrics trung thực).
 - **Bench:** `cargo run -p textvn-bench --release -- dream-rsi` — corpus văn
   phòng 16 từ (8 VN Telex + 8 EN) × 3 vòng, mô phỏng user gõ nửa từ → Tab khi
-  có ghost: **deterministic** (debug = release, 3 OS cùng số). Kết quả 0.2.67:
-  saved 69/318 phím · **savings-rate 21%** · accepts 33 · engine_chars_saved 57.
+  có ghost: **deterministic** (debug = release, 3 OS cùng số). Kết quả 0.2.69:
+  saved 72/318 phím · **savings-rate 22%** · accepts 36 · engine_chars_saved 57.
   Khối `"dream_rsi"` trong `perf/baseline-win.json` (re-record khi phát hành)
   — `check` fail nếu savings-rate **hoặc** accepts giảm so baseline (G19c);
   baseline cũ thiếu khối → bỏ qua kèm ghi chú re-record.

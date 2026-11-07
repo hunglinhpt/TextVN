@@ -239,3 +239,9 @@ Adapter kiểm tra qua
 Gate phát hiện: `cargo run -p textvn-cli -- sizes` (exit 1 khi size lệch 20/532)
 + `cargo run -p textvn-cli -- verify` (exit 1 khi hằng/trường/thứ tự hàm lệch).
 
+
+## `ime_style_profile_persist` (R2-152)
+
+`int32_t ime_style_profile_persist(ime_instance *inst, const uint8_t *path_utf8, size_t path_len)`
+
+Lưu dữ liệu học pending vào file `config.json` ở `path_utf8`: đường lưu của macOS/Linux (Windows gộp ở tray qua `Message::StyleUpdate`). Ghi nguyên tử, quyền 0600, fsync; pending chỉ bị xoá sau khi ghi xong nên ghi lỗi thì lần sau thử lại. Giữ nguyên mọi khoá khác của config. Không có gì để lưu (pending rỗng, `style_profile.enabled = false`, config hỏng) → `IME_OK`.

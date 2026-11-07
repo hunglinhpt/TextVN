@@ -697,3 +697,143 @@ fn ctrl_trai_phai_cung_la_modifier() {
         assert!(k.is_modifier() && k.is_ctrl_key());
     }
 }
+
+// ---- DFMEA: fuzz tổng hợp mọi đường mới ---------------------------------------------
+
+struct Rng(u64);
+
+impl Rng {
+    fn next(&mut self, n: u64) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0 % n
+    }
+}
+
+/// Mọi tổ hợp phím trên mọi ngữ cảnh: engine không panic, không bao giờ xoá nhiều hơn chữ
+/// đang có trong document, không học và không dự đoán ở terminal, drain luôn cân ngoặc.
+#[test]
+fn abnormal_fuzz_tong_hop_bat_bien() {
+    const LETTERS: [char; 20] = [
+        'a', 'e', 'o', 'u', 'i', 's', 'f', 'r', 'x', 'j', 'w', 'd', 'h', 'n', 't', 'c', 'A', 'H',
+        'N', 'T',
+    ];
+    const OTHERS: [char; 10] = ['[', ']', '-', ' ', ' ', ' ', '0', '"', ';', '\n'];
+    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    for round in 0..1500 {
+        let suggest = round % 2 == 0;
+        let mut e = Engine::new(EngineOptions {
+            suggest_vn_complete: suggest,
+            suggest_space_complete: round % 4 == 0,
+            style_learning_enabled: true,
+            quick_telex: round % 5 == 0,
+            auto_restore_english: round % 7 != 0,
+            auto_capitalize: round % 3 == 0,
+            ..Default::default()
+        });
+        let enabled = round % 3 != 1;
+        let role = [
+            0,
+            IME_FIELD_TERMINAL,
+            IME_FIELD_ADDRESS_BAR,
+            IME_FIELD_SEARCH,
+        ][round % 4];
+        e.set_context(Context {
+            enabled,
+            field_role: role,
+            ..Default::default()
+        });
+        let mut doc: Vec<char> = Vec::new();
+        for step in 0..48 {
+            let k = match rng.next(12) {
+                0 => char_key('\t'),
+                1 => KeyEvent {
+                    vk: keymap::vk::BACK,
+                    key_down: true,
+                    ..Default::default()
+                },
+                2 => ctrl_space(),
+                3 => {
+                    let down = KeyEvent {
+                        vk: keymap::vk::CONTROL,
+                        key_down: true,
+                        ..Default::default()
+                    };
+                    let _ = e.key(&down);
+                    KeyEvent {
+                        vk: keymap::vk::CONTROL,
+                        key_down: false,
+                        ..Default::default()
+                    }
+                }
+                4..=6 => char_key(OTHERS[rng.next(10) as usize]),
+                _ => char_key(LETTERS[rng.next(20) as usize]),
+            };
+            let out = e.key(&k);
+            if let Action::Replace { delete_count, .. } | Action::Restore { delete_count, .. } =
+                &out.action
+            {
+                assert!(
+                    usize::from(*delete_count) <= doc.len(),
+                    "round {round} step {step}: xoá {delete_count} trên {} ký tự",
+                    doc.len()
+                );
+            }
+            if k.key_down {
+                apply(&mut doc, &out.action, &k);
+            } else if !matches!(out.action, Action::Pass) {
+                apply(&mut doc, &out.action, &k);
+            }
+            let _ = e.peek_completion();
+        }
+        let json = e.style_drain_json();
+        assert_eq!(
+            json.matches('{').count(),
+            json.matches('}').count(),
+            "drain lệch ngoặc: {json}"
+        );
+        if role == IME_FIELD_TERMINAL {
+            assert!(
+                !json.contains("\"word\""),
+                "terminal không được học: {json}"
+            );
+        }
+        if role == IME_FIELD_TERMINAL {
+            assert_eq!(e.dream_rsi_snapshot().accepts, 0, "terminal không dự đoán");
+        }
+    }
+}
+
+/// Nhiều engine chia sẻ `Arc` sau `clone` (peek): học ở bản thật không rò sang bản sao cũ,
+/// và `peek` trên hồ sơ đang học không đổi kết quả của phím thật.
+#[test]
+fn abnormal_peek_khong_doi_ket_qua_phim_that() {
+    for input in ["rele", "phats", "cộng hòa", "sort", "ddi", "xin"] {
+        let run = |peek: bool| {
+            let mut e = Engine::new(learning());
+            let mut doc: Vec<char> = Vec::new();
+            for c in input.chars() {
+                press(&mut e, &mut doc, &char_key(c));
+                if peek {
+                    let _ = e.peek_completion();
+                }
+            }
+            press(&mut e, &mut doc, &char_key('\t'));
+            press(&mut e, &mut doc, &char_key(' '));
+            (doc, e.style_peek_json(), e.dream_rsi_snapshot().accepts)
+        };
+        assert_eq!(run(true), run(false), "{input}");
+    }
+}
+
+#[test]
+fn abnormal_tu_cuc_dai_va_ngoac_lien_tiep() {
+    let s = "[".repeat(300) + &"]".repeat(300) + " ";
+    assert_eq!(typed(&s), s);
+    let long = "h[".repeat(200);
+    let out = typed(&long);
+    assert!(!out.is_empty());
+    let dashes = "-".repeat(500);
+    assert_eq!(typed(&dashes), dashes);
+}

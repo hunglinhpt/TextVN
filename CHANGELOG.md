@@ -7,6 +7,64 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.69] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`). Audit toàn bộ tính năng 0.2.67/0.2.68: mã R2-140…
+> R2-153, DFMEA/DRBFM tại `docs/release/AUDIT-0.2.69-DFMEA-DRBFM.md`.
+
+### Added
+- **Đồng bộ 3 hệ điều hành**: dự đoán tiếng Anh ở Mode EN, chữ gợi ý xem trước, gõ `Ctrl` đơn
+  và tự học chạy trên Windows, macOS, Linux IBus, Linux Fcitx5.
+- **macOS và Linux lưu được dữ liệu tự học** (R2-152): FFI mới `ime_style_profile_persist` ghi
+  nguyên tử vào `config.json`, quyền 0600. Trước đây chỉ Windows lưu; hai nền tảng kia mất khi
+  thoát phiên.
+- **Nhận diện terminal trên Windows và Linux** (R2-151): dự đoán không chiếm Tab của shell, không
+  học chữ gõ ở terminal (kể cả mật khẩu `sudo`), Mode EN đưa phím thẳng tới app (vim, less).
+
+### Changed
+- **Tab đầu trả đúng từ tiếng Anh gốc** khi Telex biến nó thành chuỗi không phải tiếng Việt
+  (`user` → `úer`, `sort` → `sỏt`); Tab tiếp theo mới tới từ ghép (`customer` → `customer service`).
+- **Chỉ học ứng viên bạn giữ lại**: ứng viên bị Tab bỏ qua hoặc xoá ngay không vào hồ sơ và không
+  tính vào Dream RSI. Tỉ lệ tiết kiệm phím trên corpus tăng 21% → 22%.
+- **`[` và `]` đầu từ luôn là dấu ngoặc** (`[[` giữ nguyên `[[`). Vần bắt đầu bằng ơ/ư gõ `ow`/`uw`;
+  `ch]a`, `m[f`, `h[n`, `th][ng` vẫn như cũ.
+- **Mode EN không tự viết lại chữ khi bấm Space**; Tab chỉ hoàn tất khi bật dự đoán.
+
+### Fixed
+- **Telex mặc định không còn phá code và Markdown** (R2-140): `arr[0]`, `[1, 2, 3]`, `[a, b]`,
+  `- [ ] việc`, `dict["key"]`, `s[:5]`, `[tôi]` giữ nguyên.
+- **Gạch nối dài chỉ áp cho văn xuôi** (R2-141): `--force`, `i--;`, `<!-- -->`, `=A1--B1`,
+  `x = 1 -- comment` giữ nguyên; Enter/Tab sau `a--` vẫn là phím thật.
+- **Trợ lý không còn sửa oan câu đúng** (R2-142): 40 mẫu như `Please let everyone know`,
+  `He read the report`, `Tuy bận, anh nên đi khám`, `He is married with two children`.
+- **macOS**: Mode EN có dự đoán, `Ctrl` đơn chạy được ngay sau khi gõ, không mất ngữ cảnh câu.
+- **Giữ `Ctrl` lâu (Ctrl+click, Ctrl+lăn chuột) không còn tính là gõ `Ctrl` đơn** (cả 3 OS).
+- **Trợ lý không tự sửa câu ở Mode EN** (Windows, macOS).
+- **Hồ sơ học đầy không xoá từ dùng nhiều nhất** (R2-146); cụm hai từ cần khoảng trắng thật, không
+  vắt qua dòng (R2-148); `Ctrl+Space` hoàn tất lại khi tắt dự đoán (`ebit` → `EBITDA`).
+
+### Performance
+- `peek_completion` (chạy mỗi phím khi bật gợi ý) với hồ sơ 500 mục: **225 → 75 µs** (R2-150).
+- Kiểm tra cặp liên từ trên câu dài: từ O(n³) xuống tuyến tính (2.000 từ: 25 s → dưới 1 s).
+
+**English** — 0.2.69 is a full audit of the 0.2.67/0.2.68 features (R2-140…R2-153, DFMEA/DRBFM in
+`docs/release/AUDIT-0.2.69-DFMEA-DRBFM.md`). Added: English prediction in Mode EN, preview text,
+standalone `Ctrl` and self-learning now work on Windows, macOS, Linux IBus and Linux Fcitx5; macOS
+and Linux persist learned data through the new FFI `ime_style_profile_persist` (atomic write, mode
+0600); Windows and Linux detect terminals, so prediction leaves Tab to the shell, nothing typed
+there is learned (including `sudo` passwords) and Mode EN sends keys straight to the app. Changed:
+the first Tab restores the original English word when Telex turned it into a non-Vietnamese string
+(`user` → `úer`), the next Tab reaches compounds; only candidates you keep are learned and counted
+(savings rate 21% → 22%); `[` and `]` at word start are always brackets (`[[` stays `[[`; type
+`ow`/`uw` for ơ/ư-initial rhymes; `ch]a`, `m[f`, `h[n`, `th][ng` are unchanged); Mode EN never
+rewrites text on Space. Fixed: default Telex no longer corrupts code and Markdown (`arr[0]`, `[a, b]`,
+`- [ ] task`, `dict["key"]`, `s[:5]`); em-dash applies to prose only (`--force`, `i--;`, `<!-- -->`,
+`=A1--B1` stay, Enter/Tab after `a--` remain real keys); the assistant no longer rewrites 40 correct
+sentences; macOS Mode EN prediction and standalone `Ctrl` work; holding `Ctrl` for Ctrl+click is not
+a tap; the assistant does not auto-fix in Mode EN; a full profile keeps your most-used words.
+Performance: `peek_completion` with a 500-entry profile 225 → 75 µs; correlative check is now linear.
+
 ## [0.2.68] — 2026-11-07
 
 ### Added
@@ -22,17 +80,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
     và Frecency aging tự động giảm nửa trọng số khi đầy bộ nhớ để từ mới nổi lên nhanh).
 - **Dự đoán tiếng Anh chất lượng tương đương tiếng Việt & hoạt động trên cả 2 chế độ (Mode EN & Mode VI)**:
   - Bổ sung từ điển từ ghép & cụm danh từ tiếng Anh `data/en_compounds.txt` (**1.957 mục** trải rộng 16 domain: kinh doanh, quản trị, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán-thuế, ngân hàng-bảo hiểm, nhân sự, marketing-thương mại điện tử, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý-hợp đồng, bất động sản-xây dựng, y tế, giáo dục-nghiên cứu, giao tiếp công sở) tương đương `vn_compounds.txt` (1.941 mục).
-  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.849 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
+  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.747 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
   - Hỗ trợ đầy đủ dự đoán tiếng Anh ở **cả 2 chế độ**:
     1. **Mode EN (`E`, tắt tiếng Việt)**: hoàn tất tiền tố từ đơn & từ ghép (`machine` + Tab → `machine learning`), duyệt vòng 5 ứng viên bằng Tab, dự đoán câu/cụm tiếp theo (`Thank you` + Tab → `Thank you very much`, `looking forward` + Tab → `looking forward to hearing from you soon`), chữ mờ gợi ý sẵn (`peek_completion`), và tự học từ cá nhân (Dream RSI).
     2. **Mode VI (`V`, bật tiếng Việt)**: khi phát hiện từ hoặc câu tiếng Anh (kể cả khi đang bị Telex biến đổi như `customer` → `cútomer`, `looking forward` → `looking fỏwad`, `in order` → `in ỏder`, `feel free` → `feel frê`, `see` → `sê`), tự động khôi phục và gợi ý chính xác từ đơn, từ ghép và mẫu câu tiếng Anh tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
-
-- **Đồng bộ toàn diện 3 hệ điều hành (Windows TSF, macOS IMK, Linux IBus & Fcitx5)**:
-  - Đồng bộ dự đoán tiếng Anh (Mode EN) và chữ mờ xem trước (`peek_completion`) trên cả Linux (IBus & Fcitx5) và macOS (IMK). Khi tắt tiếng Việt (`E`), nếu `suggest.enabled` bật thì phím vẫn được đưa qua engine để cập nhật bộ đệm từ và hiển thị ghost preview chính xác.
-  - Sửa lỗi macOS IMK không hiển thị preview ở chế độ tiếng Anh hoặc các từ ASCII chưa biến đổi do nhánh `.pass` trước đây thiếu lời gọi `updatePredictionPreview()`.
-  - Hỗ trợ phím `Ctrl` bấm rồi thả riêng (standalone Ctrl tap) đồng bộ trên cả 4 adapter (Windows TSF, macOS IMK, Linux IBus, Linux Fcitx5) để chốt âm tiết hợp lệ (`tunx` + Ctrl → `tũn`) hoặc khôi phục từ gõ sai (`sort` → `sỏt` + Ctrl → `sort`).
-  - Đồng bộ Dream RSI (P10 / G19) và học sửa lỗi liên tục (`style_note_correction`) trên cả macOS và Linux khi người dùng nhấp chuột chọn ứng viên gợi ý hoặc chấp nhận dự đoán.
-  - Sửa lỗi ranh giới học từ ở Mode EN: loại bỏ Backspace và các phím không in được khỏi ranh giới học để không học tiền tố dở dang vào từ điển cá nhân.
 
 ### Fixed
 - **Sửa triệt để lỗi âm vị học tiếng Việt (`sỏt` → `sort`)**:
@@ -62,20 +113,9 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   merge nếu savings-rate giảm).
 - **Tài liệu đặc tả P10**: `docs/specs/dream-rsi.md` chi tiết hoá định nghĩa, công thức
   và bảng ánh xạ accept-points.
-- **Tiện ích gõ Telex chuẩn người Việt & Tiến hóa Frecency (Dream RSI)**:
-  - Hỗ trợ phím `[` → `ơ` và `]` → `ư` trong Telex (`ch]a` → `chưa`, `m[f` → `mờ`,
-    `th][ng` → `thương`, `ddu[cj` → `được`), gõ đúp `[[` → `[` và `]]` → `]` để lấy lại
-    ngoặc vuông (giữ nguyên `[]` rỗng khi gõ code).
-  - Bấm rồi thả riêng phím `Ctrl` (standalone Ctrl tap) để khoá/giữ nguyên từ tiếng Việt hợp lệ
-    đang gõ (`tunx`, `Ctrl` → `tũn`, tách từ mới); với chuỗi tiếng Anh bị Telex biến đổi sai cấu trúc
-    âm vị Việt (`sort` → `sỏt`), bấm `Ctrl` hoặc `Ctrl+Space` sẽ khôi phục ngay về `sort`.
-  - Gõ nhanh hai gạch ngang `a--b` tự chuyển thành gạch nối dài `a—b` (em-dash U+2014),
-    gõ tiếp gạch thứ ba `---` hoàn nguyên `---` cho Markdown/code.
-  - Tiến hóa học từ cá nhân thời gian thực (in-session continuous learning, bigram learning
-    và Frecency aging tự động giảm nửa trọng số khi đầy bộ nhớ để từ mới nổi lên nhanh).
 - **Dự đoán tiếng Anh chất lượng tương đương tiếng Việt & hoạt động trên cả 2 chế độ (Mode EN & Mode VI)**:
   - Bổ sung từ điển từ ghép & cụm danh từ tiếng Anh `data/en_compounds.txt` (**1.957 mục** trải rộng 16 domain: kinh doanh, quản trị, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán-thuế, ngân hàng-bảo hiểm, nhân sự, marketing-thương mại điện tử, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý-hợp đồng, bất động sản-xây dựng, y tế, giáo dục-nghiên cứu, giao tiếp công sở) tương đương `vn_compounds.txt` (1.941 mục).
-  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.849 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
+  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.747 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
   - Hỗ trợ đầy đủ dự đoán tiếng Anh ở **cả 2 chế độ**:
     1. **Mode EN (`E`, tắt tiếng Việt)**: hoàn tất tiền tố từ đơn & từ ghép (`machine` + Tab → `machine learning`), duyệt vòng 5 ứng viên bằng Tab, dự đoán câu/cụm tiếp theo (`Thank you` + Tab → `Thank you very much`, `looking forward` + Tab → `looking forward to hearing from you soon`), chữ mờ gợi ý sẵn (`peek_completion`), và tự học từ cá nhân (Dream RSI).
     2. **Mode VI (`V`, bật tiếng Việt)**: khi phát hiện từ hoặc câu tiếng Anh (kể cả khi đang bị Telex biến đổi như `customer` → `cútomer`, `looking forward` → `looking fỏwad`, `in order` → `in ỏder`, `feel free` → `feel frê`, `see` → `sê`), tự động khôi phục và gợi ý chính xác từ đơn, từ ghép và mẫu câu tiếng Anh tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
