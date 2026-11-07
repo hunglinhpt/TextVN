@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1793895974.6721005,
-    "seen": 1793899092.9825203,
-    "ast_hash": "164614b7108098c193f311fd3cd89de7",
+    "mtime": 1794031654.378271,
+    "seen": 1794031885.9558978,
+    "ast_hash": "b1e527153de75091710e0a776fcae103",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
