@@ -10,7 +10,13 @@
 | Sự cố trong phiên | E36 (`ci-linux/deb/aur` đỏ — biến C thừa, `ee321b34`) · E37 (clippy test fuzz, `120ea8e3`) — cả hai sửa trong phiên, CI xanh lại |
 | CI commit code | `838f7e42` 7/7 · `f222252e` 7/7 · `d4cc3efb` 7/7 |
 | Ghi chú giới hạn | IBus với terminal Qt/X11 không gửi input purpose; terminal tích hợp VS Code trên Windows; chỉ mục `m[i, j]` — xem DFMEA §4 |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| CI trên commit gắn tag | `1e677021` (Verified) 7/7 xanh |
+| Release | [v0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) tag ký GPG (Good signature) — release-candidate [#42416378511](https://github.com/hunglinhpt/TextVN/actions/runs/42416378511) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe, MSIX, mac zip khớp |
+| Checksums | machine exe `66077da9…cbb3` · MSIX `b6d6469d…0e30` · mac zip `e557091b…983a` · Linux `1c268889…6cd1` · PKGBUILD archive `d0f55ea2…370a` |
+| Homebrew (B7b/B7d) | cask `version "0.2.69"` + `sha256` = mac zip — sync-cask [#42417782240](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42417782240) |
+| approved (B7c) | `approved/v0.2.69/` — 18 file byte-identical, raw URL 200 (machine exe, MSIX, SHA256SUMS) |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.69; `debian/changelog` 0.2.69-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.68 — sửa triệt để âm vị học tiếng Việt (sỏt -> sort) + tiện ích Telex & dự đoán song ngữ (2026-11-07)
 
