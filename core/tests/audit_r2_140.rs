@@ -141,7 +141,11 @@ fn r2_140_code_va_markdown_giu_nguyen_ngoac() {
         "a[i][j] ",
         "s[i+1] ",
         "t[i-1] ",
-        "m[n-1] ",
+        "[a, b] ",
+        "[n, m] ",
+        "{\"a\": [b, c]} ",
+        "s[:5] ",
+        "s[i:j] ",
         "[] ",
     ] {
         assert_eq!(typed(s), s, "ngoặc trong code/Markdown bị đổi: {s:?}");
@@ -155,6 +159,7 @@ fn r2_140_chu_viet_trong_ngoac_van_go_duoc() {
         ("[ddaay] ", "[đây] "),
         ("[Vieetj Nam] ", "[Việt Nam] "),
         ("(ch]a) ", "(chưa) "),
+        ("[h[n] ", "[hơn] "),
     ] {
         assert_eq!(typed(input), want, "{input:?}");
     }
@@ -170,6 +175,10 @@ fn r2_140_gox_vowel_giua_tu_khong_doi() {
         ("ddu[cj ", "được "),
         ("hu[ng ", "hương "),
         ("x[ ", "xơ "),
+        ("h[n-kem ", "hơn-kem "),
+        ("h[n/kem ", "hơn/kem "),
+        ("th][ng-maij ", "thương-mại "),
+        ("\"th]\" ", "\"thư\" "),
         ("h[, ", "hơ, "),
     ] {
         assert_eq!(typed(input), want, "{input:?}");
@@ -494,20 +503,40 @@ fn r2_147_xoa_ngay_la_tu_choi() {
 }
 
 #[test]
-fn r2_147_mot_ung_vien_hoc_ngay_khi_chen() {
+fn r2_147_mot_ung_vien_chot_o_phim_ke_tiep() {
     let mut e = Engine::new(learning());
     e.style_note_word("zzqtest");
     let _ = e.style_drain_json();
-    let _ = type_in(&mut e, "zzqt\t");
+    let _ = type_in(&mut e, "zzqt\t ");
     assert!(e.style_peek_json().contains("zzqtest"));
 }
 
 #[test]
-fn r2_147_reset_chot_vong_duyet() {
+fn r2_147_mot_ung_vien_xoa_ngay_cung_la_tu_choi() {
+    let mut e = Engine::new(learning());
+    e.style_note_word("zzqtest");
+    let _ = e.style_drain_json();
+    let before = e.dream_rsi_snapshot();
+    let mut doc: Vec<char> = Vec::new();
+    for c in "zzqt\t".chars() {
+        press(&mut e, &mut doc, &char_key(c));
+    }
+    let back = KeyEvent {
+        vk: keymap::vk::BACK,
+        key_down: true,
+        ..Default::default()
+    };
+    press(&mut e, &mut doc, &back);
+    assert!(!e.style_peek_json().contains("zzqtest"));
+    assert_eq!(before.accepts, e.dream_rsi_snapshot().accepts);
+}
+
+#[test]
+fn r2_147_reset_khong_hoc_chu_chua_chac_vao_document() {
     let mut e = Engine::new(learning());
     let _ = type_in(&mut e, "rele\t");
     e.reset();
-    assert!(e.style_peek_json().contains("release"));
+    assert!(!e.style_peek_json().contains("release"));
 }
 
 // ---- R2-148: cụm hai từ, drain --------------------------------------------------
@@ -605,6 +634,11 @@ fn r2_149_tab_dau_tra_tu_goc() {
     for w in ["user", "smart", "order", "forward", "sort"] {
         assert_eq!(type_in(&mut vi(), &format!("{w}\t")), w, "{w}");
     }
+    // Fold ra âm tiết Việt hợp lệ là chữ Việt người dùng đang gõ: Tab không biến thành tiếng Anh.
+    assert_eq!(type_in(&mut vi(), "hats\t"), "hát\t");
+    assert_eq!(type_in(&mut vi(), "chaos\t"), "cháo\t");
+    // Từ không còn gì để kéo dài: Tab tới app, từ về nguyên gốc.
+    assert_eq!(type_in(&mut vi(), "abraham\t"), "abraham\t");
     // Từ không bị fold (`file`, `script`) hiển thị đúng rồi: Tab là dự đoán, được kéo dài.
     assert_eq!(type_in(&mut vi(), "file\t"), "file system");
     // Từ cá nhân dài hơn không che từ gốc.

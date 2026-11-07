@@ -1222,13 +1222,15 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         // "married with six kids", "married with a son" là cụm chuẩn.
         let marry_with_person = (a == "married" || a == "marry") && b == "with" && {
             let third = next_word();
-            let after_article = words.get(i + 3).map(|t| word_lower(ctx, t));
-            matches!(third.as_str(), "him" | "her" | "my" | "his" | "the")
+            let family = |t: &&crate::tokenize::Token| {
+                matches!(
+                    word_lower(ctx, t).as_str(),
+                    "child" | "son" | "daughter" | "baby" | "kid" | "family"
+                )
+            };
+            matches!(third.as_str(), "him" | "her")
                 || (matches!(third.as_str(), "a" | "an")
-                    && !matches!(
-                        after_article.as_deref(),
-                        Some("child" | "son" | "daughter" | "baby" | "kid" | "family")
-                    ))
+                    && !words.iter().skip(i + 3).take(2).any(|t| family(&t)))
         };
         if marry_with_person {
             push_replace_issue(

@@ -36,6 +36,8 @@ fn cau_dung_khong_bi_sua() {
         "We sent you offers last week.",
         "He is married with two children.",
         "She is married with a son.",
+        "He is married with his two kids.",
+        "She is married with a young daughter.",
         "Our focus in Vietnam is growth.",
         "Please focus in on the target.",
         "It was different than I expected.",

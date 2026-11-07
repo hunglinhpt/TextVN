@@ -604,7 +604,13 @@ impl EngineSession {
         if self.instance.is_null() {
             return "{}".to_string();
         }
-        let mut buf = vec![0u8; 4096];
+        let mut need: usize = 0;
+        let probe =
+            textvn_ffi::ime_style_profile_drain(self.instance, std::ptr::null_mut(), 0, &mut need);
+        if probe != 0 || need == 0 {
+            return "{}".to_string();
+        }
+        let mut buf = vec![0u8; need];
         let mut out_len: usize = 0;
         let status = textvn_ffi::ime_style_profile_drain(
             self.instance,

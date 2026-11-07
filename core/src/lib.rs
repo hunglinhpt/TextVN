@@ -634,9 +634,10 @@ impl Engine {
         }
     }
 
-    /// Phím ngoặc Telex (`[` → `ơ`, `]` → `ư`) là **dấu ngoặc thật** (ranh giới từ) khi
-    /// nó không tạo được âm tiết Việt: đầu từ, sau `arr`, sau một vần đã đủ, hay trong
-    /// ô lệnh. Giữ `arr[0]`, `[1, 2, 3]`, `- [ ] việc`, `[tôi]` nguyên vẹn (R2-140).
+    /// Phím ngoặc Telex (`[` → `ơ`, `]` → `ư`) là **dấu ngoặc thật** (ranh giới từ): ở đầu
+    /// từ (ngoặc mở thật phổ biến hơn hẳn vần ơ/ư — những vần đó gõ `ow`/`uw`), khi đóng một
+    /// `[` đang mở trên dòng, khi không tạo được âm tiết Việt, hay trong ô lệnh. Giữ
+    /// `arr[0]`, `[1, 2, 3]`, `- [ ] việc`, `[a, b]`, `[tôi]` nguyên vẹn (R2-140).
     fn bracket_is_boundary(&self, c: char) -> bool {
         if !matches!(c, '[' | ']') || self.opts.method != Method::Telex {
             return false;
@@ -650,14 +651,7 @@ impl Engine {
         {
             return true;
         }
-        // Đóng ngoặc của `[` đứng ngay trước từ: `- [x]`, `[tooi]`.
-        let word_len = if self.word.active {
-            self.word.display.len()
-        } else {
-            self.word.passed.len()
-        };
-        let before_word = self.sentence.len().checked_sub(word_len + 1);
-        if c == ']' && before_word.is_some_and(|i| self.sentence[i] == '[') {
+        if c == ']' && self.open_bracket_in_line() {
             return true;
         }
         // Bấm lại đúng phím vừa thành nguyên âm = gỡ về dấu ngoặc (`m[[` → `m[`).
@@ -681,10 +675,30 @@ impl Engine {
         !validate::is_valid_word(&display)
     }
 
-    /// Từ có phím ngoặc đã thành nguyên âm, gặp ký tự cho thấy đây là chỉ mục mảng chứ
-    /// không phải chữ Việt: `x[1]`, `d["k"]`, `s[i]` → trả lại nguyên văn.
+    /// Dòng đang gõ còn `[` chưa đóng (chữ trong buffer câu, không tính phím đã thành `ơ`).
+    fn open_bracket_in_line(&self) -> bool {
+        let mut closes = 0usize;
+        for &c in self.sentence.iter().rev() {
+            match c {
+                '\n' | '\r' => return false,
+                ']' => closes += 1,
+                '[' if closes == 0 => return true,
+                '[' => closes -= 1,
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Từ có phím `[` đã thành nguyên âm, gặp ký tự cho thấy đây là chỉ mục mảng chứ không
+    /// phải chữ Việt → trả lại nguyên văn: đóng ngoặc không có `[` mở (`s[i]`), `[` liền
+    /// số/nháy/dấu hai chấm (`x[1]`, `d["k"]`, `s[:5]`), phép tính trên biến đếm (`s[i+1]`).
+    /// Chữ Việt (`hơn-kém`, `"thư"`, `nơi: `) không khớp mẫu nào ở đây.
     fn bracket_word_is_code(&self, c: char) -> bool {
         let raw = &self.word.raw;
+        if !self.word.active {
+            return false;
+        }
         // `foo[bar]`: `[` dính sau định danh là chỉ mục, không phải ngoặc văn xuôi `[đây]`.
         let index_close = c == ']'
             && self
@@ -692,16 +706,14 @@ impl Engine {
                 .len()
                 .checked_sub(self.word.display.len() + 2)
                 .is_some_and(|i| self.sentence[i].is_alphanumeric() && self.sentence[i + 1] == '[');
-        self.word.active
-            && (index_close
-                || (c == ']' && raw.contains(&'['))
-                || (matches!(raw.last(), Some('[' | ']'))
-                    && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{')))
-                // `s[i+1]`, `t[i-1]`: phép tính trong chỉ mục.
-                || (raw.contains(&'[') && matches!(c, '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')))
+        let unmatched_close = c == ']' && raw.contains(&'[') && !self.open_bracket_in_line();
+        let after_open = raw.last() == Some(&'[')
+            && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{' | ':'));
+        let counter_index = matches!(raw.as_slice(), [.., '[', 'i' | 'j' | 'k'])
+            && matches!(c, '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=' | ':');
+        index_close || unmatched_close || after_open || counter_index
     }
 
-    /// P7: ghi cặp
     /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
     pub fn style_peek_json(&self) -> String {
         if self.style_pending.words.is_empty()
@@ -789,7 +801,7 @@ impl Engine {
     }
 
     pub fn set_options(&mut self, opts: EngineOptions) {
-        self.settle_predict(true);
+        self.last_predict = None;
         self.opts = Arc::new(opts);
         self.word.clear();
         self.record(Tail::Clear);
@@ -879,7 +891,9 @@ impl Engine {
 
     /// `ime_reset` — xóa trạng thái từ (focus change). Không đụng buffer của app.
     pub fn reset(&mut self) {
-        self.settle_predict(true);
+        // Không chốt vòng duyệt: reset cũng là đường fail-open khi áp ứng viên lỗi — chữ có
+        // thể chưa vào document, không được học.
+        self.last_predict = None;
         self.word.clear();
         self.record(Tail::Clear);
     }
@@ -1232,6 +1246,8 @@ impl Engine {
             if let Some(out) = self.try_cycle_predict() {
                 return out;
             }
+            // Một ứng viên: Tab kế tiếp không có gì để đổi — ứng viên đó coi như đã nhận.
+            self.settle_predict(true);
         }
 
         // Gõ tắt / emoji (P0-3 §1.1) — chạy cả khi VN tắt nếu `allow_macro_when_vi_off`
@@ -1937,9 +1953,9 @@ impl Engine {
         }
         // P7 (vòng 54, Hook 2): học prediction-accept — ứng viên user bấm
         // Tab/Space nhận = tín hiệu "tôi hay dùng từ này" (đếm trên bản
-        // lowercase chuẩn của completion, G8: chỉ từ + count). Nhiều ứng viên
-        // thì chờ người dùng chốt (`settle_predict`).
-        if append.is_some() || all_candidates.len() == 1 {
+        // lowercase chuẩn của completion, G8: chỉ từ + count). Tab chờ người dùng
+        // chốt (`settle_predict`); Space đã chốt ngay trong phím này.
+        if append.is_some() {
             self.note_accepted(&completion, &raw_sample, false);
         }
         // P10 — Dream RSI: accept tiết kiệm (completion − typed) ký tự.
@@ -1952,7 +1968,7 @@ impl Engine {
         let delete = self.word.owned as u16;
         self.word.clear();
 
-        if append.is_none() && all_candidates.len() > 1 {
+        if append.is_none() {
             self.last_predict = Some(PredictCycle {
                 inserted_glyphs: out.len(),
                 candidates: all_candidates,
@@ -2144,26 +2160,18 @@ impl Engine {
             .chars_saved
             .saturating_add(phrase_glyphs as u64);
 
-        // P7: một ứng viên thì học ngay; nhiều ứng viên chờ người dùng chốt (`settle_predict`).
-        if candidates.len() == 1 {
-            self.note_accepted(&adapted, last_word, true);
-        }
-
-        if candidates.len() > 1 {
-            self.last_predict = Some(PredictCycle {
-                inserted_glyphs: phrase_glyphs,
-                candidates,
-                current_index: 0,
-                sample: last_word.to_string(),
-                had_leading_space,
-                continuation: true,
-                rsi_accepts: 1,
-                rsi_saved: phrase_glyphs as u64,
-                peak_glyphs: phrase_glyphs,
-            });
-        } else {
-            self.last_predict = None;
-        }
+        // P7: học khi người dùng chốt (`settle_predict`).
+        self.last_predict = Some(PredictCycle {
+            inserted_glyphs: phrase_glyphs,
+            candidates,
+            current_index: 0,
+            sample: last_word.to_string(),
+            had_leading_space,
+            continuation: true,
+            rsi_accepts: 1,
+            rsi_saved: phrase_glyphs as u64,
+            peak_glyphs: phrase_glyphs,
+        });
 
         self.record(Tail::Replace {
             delete,
@@ -2309,6 +2317,11 @@ impl Engine {
         if candidates.is_empty() {
             return None;
         }
+        // Chỉ có đúng từ đã gõ: Tab không thêm gì — để ranh giới từ trả từ gốc rồi Tab tới app
+        // (chuyển ô, thụt lề) thay vì nuốt phím.
+        if candidates.len() == 1 && candidates[0].eq_ignore_ascii_case(&typed) {
+            return None;
+        }
         let completion = candidates[0].clone();
         let adapted = post::predict::adapt_capitalization(&typed, &completion);
         let mut insert: Vec<char> = adapted.chars().collect();
@@ -2319,8 +2332,8 @@ impl Engine {
         if out.len() > MAX_TEXT {
             return None;
         }
-        // P7 Hook 2: một ứng viên thì học ngay; nhiều ứng viên chờ chốt (`settle_predict`).
-        if append.is_some() || candidates.len() == 1 {
+        // P7 Hook 2: Tab chờ người dùng chốt (`settle_predict`); Space chốt ngay.
+        if append.is_some() {
             self.note_accepted(&completion, &typed, false);
         }
         // P10 — Dream RSI: EN accept tiết kiệm ký tự khi hoàn tất từ dài hơn chuỗi đã gõ.
@@ -2334,7 +2347,7 @@ impl Engine {
         }
         self.word.clear();
 
-        if append.is_none() && candidates.len() > 1 {
+        if append.is_none() {
             self.last_predict = Some(PredictCycle {
                 inserted_glyphs: out.len(),
                 candidates,
@@ -3589,8 +3602,11 @@ mod tests {
         assert_eq!(type_doc(&mut e, "[[ "), "[[ ");
         assert_eq!(type_doc(&mut e, "]] "), "]] ");
         assert_eq!(type_doc(&mut e, "[] "), "[] ");
+
         // Sau phụ âm ngoặc đã thành nguyên âm: bấm lại gỡ về dấu ngoặc.
+        e.reset();
         assert_eq!(type_doc(&mut e, "m[[ "), "m[ ");
+        e.reset();
 
         // Backspace giữa từ dùng `[` `]` rồi gõ tiếp vẫn giữ dấu sừng và ghép vần đúng.
         let mut buf = type_buf(&mut e, "ch]a");

@@ -247,45 +247,12 @@ void lc_modifier_toggle_reset(lc_modifier_toggle *t) {
     t->ctrl_armed = 0;
 }
 
-/* R2-152: gộp dữ liệu học vào config.json (ghi tmp rồi rename — nguyên tử). Linux không có
- * tray; gọi lúc mất focus. Lỗi I/O = bỏ qua (pending còn nguyên cho lần sau). */
+/* R2-152: lưu dữ liệu học vào config.json (Linux không có tray; gọi lúc mất focus). */
 void lc_style_persist(ime_instance *inst) {
     char path[1024];
-    char tmp[1100];
-    if (!inst || lc_config_resolve_path(path, sizeof(path)) != 0) return;
-    FILE *in = fopen(path, "rb");
-    if (!in) return;
-    fseek(in, 0, SEEK_END);
-    long len = ftell(in);
-    fseek(in, 0, SEEK_SET);
-    if (len <= 0 || len > (1L << 20)) {
-        fclose(in);
-        return;
+    if (inst && lc_config_resolve_path(path, sizeof(path)) == 0) {
+        (void)ime_style_profile_persist(inst, (const uint8_t *)path, strlen(path));
     }
-    uint8_t *cfg = malloc((size_t)len);
-    size_t got = cfg ? fread(cfg, 1, (size_t)len, in) : 0;
-    fclose(in);
-    size_t need = 0;
-    if (got == (size_t)len &&
-        ime_style_profile_merge(inst, cfg, got, NULL, 0, &need) == IME_OK && need > 0) {
-        uint8_t *out = malloc(need);
-        size_t written = 0;
-        snprintf(tmp, sizeof(tmp), "%s.tmp", path);
-        FILE *f = out ? fopen(tmp, "wb") : NULL;
-        if (f) {
-            /* Ghi xong mới xoá pending: chạy merge thật sau khi file tạm mở được. */
-            if (ime_style_profile_merge(inst, cfg, got, out, need, &written) == IME_OK &&
-                written > 0 && fwrite(out, 1, written, f) == written) {
-                fclose(f);
-                rename(tmp, path);
-            } else {
-                fclose(f);
-                remove(tmp);
-            }
-        }
-        free(out);
-    }
-    free(cfg);
 }
 
 int lc_engine_ctrl_tap(ime_instance *inst, ime_result_v1 *out) {
@@ -689,9 +656,6 @@ int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path) {
         if (s) {
             st->allow_macro_when_vi_off = ime_settings_get_bool(s, "allow_macro_when_vi_off") == 1;
             int sug_en = ime_settings_get_bool(s, "suggest.enabled") == 1;
-            char *sug_trig = ime_settings_get_str(s, "suggest.trigger");
-            int trig_space = (sug_trig && strcmp(sug_trig, "tab_and_space") == 0);
-            if (sug_trig) ime_settings_string_free(sug_trig);
             /* Chỉ `suggest.enabled`: engine dự đoán Mode EN theo khoá này (`tab_and_space`
              * một mình không bật gì — composition vô ích). */
             st->suggest_enabled = sug_en ? 1 : 0;

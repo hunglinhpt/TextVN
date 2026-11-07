@@ -422,6 +422,8 @@ fn d_drain_json_words_va_rsi_song_chung() {
         press(&mut e, &mut buf, &letter(c));
     }
     press(&mut e, &mut buf, &tab());
+    // Ứng viên được học khi người dùng chốt bằng phím kế tiếp (R2-147).
+    press(&mut e, &mut buf, &space());
     let json = e.style_drain_json();
     assert!(json.contains("\"word\":\"triển\""), "word-end học: {json}");
     assert!(

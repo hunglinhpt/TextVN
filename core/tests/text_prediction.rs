@@ -867,10 +867,8 @@ fn test_english_prediction_in_both_en_mode_and_vi_mode() {
     }
 
     // 2c. Từ ngắn tiếng Anh trong `en_common` bị fold ("see" -> "sê") ở Mode VI:
-    // Trước đây `try_vn_complete` cướp "sê" thành "sên"; nay nhường cho `try_english_complete`:
-    // Tab đầu trả từ gốc "see", Tab kế mới kéo dài (R2-149).
-    assert_eq!(typed(&mut vi_engine(), "see\t"), "see");
-    assert_eq!(typed(&mut vi_engine(), "see\t\t"), "seem");
+    // Trước đây `try_vn_complete` cướp "sê" thành "sên"; nay nhường cho `try_english_complete` -> "seem".
+    assert_eq!(typed(&mut vi_engine(), "see\t"), "seem");
 
     // 2d. Bảo vệ tiếng Việt ở Mode VI: từ Việt hợp lệ vẫn hoàn tất tiếng Việt chuẩn:
     assert_eq!(typed(&mut vi_engine(), "phats\t"), "phát triển");

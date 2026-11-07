@@ -885,14 +885,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         try? Data(contentsOf: configURL)
     }
 
-    /// R2-152: gộp dữ liệu học vào config.json (macOS không có đường tray như Windows).
+    /// R2-152: lưu dữ liệu học vào config.json (macOS không có đường tray như Windows).
     private func persistStyleProfile() {
-        guard let engine, let config = Self.loadConfig(),
-              let merged = engine.styleMergeConfig(config) else { return }
-        do {
-            try merged.write(to: Self.configURL, options: .atomic)
-        } catch {
-            Diagnostics.log("style persist failed (\(error))")
+        guard engine?.styleProfilePersist(path: Self.configURL.path) == true else {
+            Diagnostics.log("style persist failed")
+            return
         }
     }
 
@@ -1019,7 +1016,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     func isAssistActive(for appID: String) -> Bool {
-        Self.assistAllowed(
+        // Trợ lý chỉ chạy khi tiếng Việt bật — như Windows, Linux (R2-143).
+        viState.enabled(for: appID) && Self.assistAllowed(
             killSwitchOn: assistKillSwitchOn,
             settings: assistSettings,
             appID: appID
@@ -1364,10 +1362,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // G19 / Dream RSI: route acceptance through synthetic Tab so Dream RSI & style learning update identically.
         if currentCandidates.isEmpty, let ghost = predictionPreview, str == Self.previewLabel(ghost) {
             predictionPreview = nil
-            // Ctrl+Space: cùng đường nhận như Tab nhưng không đếm vào `keys_typed` — chuột
-            // không phải phím gõ (G19b).
-            let acceptEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true).asCtrlSpace()
-            let outcome = engine?.key(acceptEvent)
+            let tabEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true)
+            let outcome = engine?.key(tabEvent)
             if let outcome, outcome.action != .pass {
                 let context = gatherContext(from: client(), force: false)
                 let hint = Self.strategyResolver.strategy(

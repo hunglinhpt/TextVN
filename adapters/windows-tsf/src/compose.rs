@@ -146,6 +146,8 @@ pub fn is_terminal_exe(exe: &str) -> bool {
             | "kitty_portable.exe"
             | "ttermpro.exe"
             | "securecrt.exe"
+            | "xshell.exe"
+            | "xshell_premium.exe"
             | "tabby.exe"
             | "hyper.exe"
             | "warp.exe"
@@ -736,6 +738,21 @@ mod tests {
         }
         for exe in ["notepad.exe", "code.exe", "winword.exe"] {
             assert!(!is_terminal_exe(exe), "{exe}");
+        }
+
+        // Mọi terminal trong appdb phải có mặt ở đây — hai danh sách không được lệch.
+        let appdb = include_str!("../../../data/appdb.default.json");
+        for line in appdb
+            .lines()
+            .filter(|l| l.contains("\"id\":\"win.") && l.contains("ForwardAsCommit"))
+        {
+            for part in line.split("\"exe\":\"").skip(1) {
+                let exe = part.split('"').next().unwrap_or("").to_lowercase();
+                assert!(
+                    is_terminal_exe(&exe),
+                    "appdb có {exe} nhưng thiếu ở is_terminal_exe"
+                );
+            }
         }
 
         // Ctrl+C → không phải ctrl tap.

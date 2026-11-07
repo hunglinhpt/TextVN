@@ -1107,8 +1107,11 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
     /* Terminal: engine không dự đoán/học (R2-144/R2-145); Mode EN đưa phím thẳng tới app. */
-    const bool terminal = st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Terminal) ||
-                          lc_is_terminal_app(st->ic->program().c_str());
+    if (st->terminalApp < 0) {
+        st->terminalApp = lc_is_terminal_app(st->ic->program().c_str()) ? 1 : 0;
+    }
+    const bool terminal =
+        st->terminalApp == 1 || st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Terminal);
     const bool passthroughOn =
         !viEnabled_ && (st->config.allow_macro_when_vi_off || (st->config.suggest_enabled && !terminal));
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || secure ||
@@ -1123,7 +1126,7 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
         ctx.enabled = viEnabled_ ? 1 : 0;
         ctx.field_role = terminal ? IME_FIELD_TERMINAL : IME_FIELD_BODY;
         ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
-        ctx.hint = terminal ? IME_STRATEGY_PREEDIT : -1;
+        ctx.hint = terminal ? static_cast<int64_t>(IME_STRATEGY_PREEDIT) : -1;
         ime_set_context(st->inst, &ctx);
         st->ctxEnabled = ctx.enabled;
         st->ctxTerminal = terminal;

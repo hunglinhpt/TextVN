@@ -576,12 +576,14 @@ pub fn complete_word_candidates(
         }
     };
 
-    // Từ tiếng Anh ĐÃ gõ trọn bị Telex fold nhầm (`sort` → `sỏt`, `file` → `fỉle`, `see` →
-    // `sê`): Tab đầu trả đúng từ gốc, TRƯỚC mọi tier — kể cả từ cá nhân và từ ghép. Dài hơn
-    // (`sorts`, `file system`) nằm ở các Tab sau.
+    // Từ tiếng Anh ĐÃ gõ trọn bị Telex fold thành chuỗi KHÔNG phải tiếng Việt (`sort` → `sỏt`,
+    // `user` → `úer`): Tab đầu trả đúng từ gốc, TRƯỚC mọi tier — kể cả từ cá nhân và từ ghép.
+    // Dài hơn (`sorts`, `user interface`) nằm ở các Tab sau. Fold ra âm tiết hợp lệ (`hats` →
+    // `hát`) là chữ Việt người dùng đang gõ, không đụng.
     if vi_on
         && !space_mode
         && folded_lower != typed_lower
+        && !is_valid_word(&folded_chars)
         && (is_known_en_word(typed_lower) || en_words10k_contains(typed_lower))
         && seen.insert(typed_lower.to_string())
     {

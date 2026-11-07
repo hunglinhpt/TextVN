@@ -1081,39 +1081,6 @@ final class AssistIpcTests: XCTestCase {
     }
 
     /// Kiểm tra standalone Ctrl tap detection (P10 / Ctrl tap parity).
-    func testEngineHintGiuModeEnChoDuDoan() {
-        let passthrough = OutputStrategy.passthrough.rawValue
-        let preedit = OutputStrategy.preedit.rawValue
-        XCTAssertEqual(
-            TextVNInputController.engineHint(
-                viEnabled: false, resolved: passthrough, appLevel: preedit
-            ),
-            -1, "Mode EN: engine phải tự chọn để dự đoán tiếng Anh chạy"
-        )
-        XCTAssertEqual(
-            TextVNInputController.engineHint(
-                viEnabled: false, resolved: passthrough, appLevel: passthrough
-            ),
-            passthrough, "App/ô mật khẩu cấm tuyệt đối: giữ Passthrough"
-        )
-        XCTAssertEqual(
-            TextVNInputController.engineHint(
-                viEnabled: true, resolved: preedit, appLevel: preedit
-            ),
-            preedit
-        )
-    }
-
-    func testCtrlGiuLauKhongPhaiTap() {
-        XCTAssertFalse(
-            TextVNInputController.isCtrlTap(
-                wasCtrl: true, wasShift: false, currentCtrl: false, currentShift: false,
-                hasAltOrCmd: false, otherKeyPressed: false, heldSeconds: 0.5
-            ),
-            "Ctrl+click/lăn chuột không phải tap"
-        )
-    }
-
     func testIsCtrlTap() {
         XCTAssertTrue(
             TextVNInputController.isCtrlTap(
@@ -1149,6 +1116,39 @@ final class AssistIpcTests: XCTestCase {
                 hasAltOrCmd: false, otherKeyPressed: true
             ),
             "Có phím khác kèm theo không phải standalone Ctrl tap"
+        )
+    }
+
+    func testEngineHintGiuModeEnChoDuDoan() {
+        let passthrough = OutputStrategy.passthrough.rawValue
+        let preedit = OutputStrategy.preedit.rawValue
+        XCTAssertEqual(
+            TextVNInputController.engineHint(
+                viEnabled: false, resolved: passthrough, appLevel: preedit
+            ),
+            -1, "Mode EN: engine phải tự chọn để dự đoán tiếng Anh chạy"
+        )
+        XCTAssertEqual(
+            TextVNInputController.engineHint(
+                viEnabled: false, resolved: passthrough, appLevel: passthrough
+            ),
+            passthrough, "App/ô mật khẩu cấm tuyệt đối: giữ Passthrough"
+        )
+        XCTAssertEqual(
+            TextVNInputController.engineHint(
+                viEnabled: true, resolved: preedit, appLevel: preedit
+            ),
+            preedit
+        )
+    }
+
+    func testCtrlGiuLauKhongPhaiTap() {
+        XCTAssertFalse(
+            TextVNInputController.isCtrlTap(
+                wasCtrl: true, wasShift: false, currentCtrl: false, currentShift: false,
+                hasAltOrCmd: false, otherKeyPressed: false, heldSeconds: 0.5
+            ),
+            "Ctrl+click/lăn chuột không phải tap"
         )
     }
 

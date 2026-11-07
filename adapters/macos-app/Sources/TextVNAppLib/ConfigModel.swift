@@ -481,7 +481,15 @@ public struct TextVNConfig: Codable, Equatable {
         ])
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(self)
+        // Bộ gõ (tiến trình khác) ghi dữ liệu học thẳng vào file — bản trong bộ nhớ của app
+        // có thể cũ, không được đè mất (R2-152).
+        var snapshot = self
+        if let disk = try? Data(contentsOf: fileURL),
+           let onDisk = try? JSONDecoder().decode(TextVNConfig.self, from: disk) {
+            snapshot.style_profile.words = onDisk.style_profile.words
+            snapshot.style_profile.corrections = onDisk.style_profile.corrections
+        }
+        let data = try encoder.encode(snapshot)
         try data.write(to: fileURL, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
     }

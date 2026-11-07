@@ -40,6 +40,9 @@ static void test_terminal_field(void) {
     assert(lc_is_terminal_app("org.gnome.Terminal"));
     assert(lc_is_terminal_app("konsole"));
     assert(!lc_is_terminal_app("org.gnome.TextEditor"));
+    assert(!lc_is_terminal_app("footage-editor"));
+    assert(lc_is_terminal_app("xfce4-terminal"));
+    assert(lc_is_terminal_app("org.gnome.Console"));
     assert(!lc_is_terminal_app(NULL));
     assert(lc_classify_field("org.kde.konsole", "text", 0, "zsh", NULL, &ctx) == 0);
     assert(ctx.field_role == IME_FIELD_TERMINAL);

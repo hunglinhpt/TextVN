@@ -407,21 +407,12 @@ public final class ImeEngine {
         return String(decoding: buf.prefix(outLen), as: UTF8.self)
     }
 
-    /// R2-152: gộp dữ liệu học pending vào tài liệu config.json. `nil` = không có gì để ghi.
-    public func styleMergeConfig(_ config: Data) -> Data? {
-        let bytes = [UInt8](config)
-        var need: Int = 0
-        let probe = bytes.withUnsafeBufferPointer {
-            ime_style_profile_merge(instance, $0.baseAddress, $0.count, nil, 0, &need)
+    /// R2-152: lưu dữ liệu học pending vào file config.json (nguyên tử, 0600).
+    public func styleProfilePersist(path: String) -> Bool {
+        let bytes = Array(path.utf8)
+        return bytes.withUnsafeBufferPointer {
+            ime_style_profile_persist(instance, $0.baseAddress, $0.count) == IME_OK
         }
-        guard probe == IME_OK, need > 0 else { return nil }
-        var out = [UInt8](repeating: 0, count: need)
-        var outLen: Int = 0
-        let rc = bytes.withUnsafeBufferPointer {
-            ime_style_profile_merge(instance, $0.baseAddress, $0.count, &out, out.count, &outLen)
-        }
-        guard rc == IME_OK, outLen > 0, outLen <= out.count else { return nil }
-        return Data(out.prefix(outLen))
     }
 
     /// P7: Note accepted correction pair for continuous style learning.

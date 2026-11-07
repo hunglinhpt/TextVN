@@ -724,7 +724,7 @@ static void push_context(TextVNIbusEngine *self, int enabled) {
     /* Terminal: engine không dự đoán/học (R2-144/R2-145); hint giữ nguyên cách xuất chữ. */
     ctx.field_role = self->terminal ? IME_FIELD_TERMINAL : IME_FIELD_BODY;
     ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
-    ctx.hint = self->terminal ? IME_STRATEGY_PREEDIT : -1;
+    ctx.hint = self->terminal ? (int64_t)IME_STRATEGY_PREEDIT : -1;
     ime_set_context(self->inst, &ctx);
     self->ctx_enabled = enabled ? 1 : 0;
 }

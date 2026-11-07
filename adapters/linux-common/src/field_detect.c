@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 #include <time.h>
 
@@ -52,15 +53,29 @@ static uint64_t get_time_ms(void) {
 #endif
 }
 
+/* Từ khoá đứng riêng trong tên app (`org.gnome.Console`, `xfce4-terminal`), không phải
+ * chuỗi con (`footage-editor`). */
+static bool has_word_icase(const char *text, const char *word) {
+    size_t n = strlen(word);
+    for (const char *p = text; *p; p++) {
+        bool starts = p == text || !isalnum((unsigned char)p[-1]);
+        if (starts && strncasecmp(p, word, n) == 0 && !isalnum((unsigned char)p[n])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool lc_is_terminal_app(const char *app_id) {
-    return app_id && (str_contains_icase(app_id, "terminal") ||
-                      str_contains_icase(app_id, "konsole")  ||
-                      str_contains_icase(app_id, "kitty")    ||
-                      str_contains_icase(app_id, "alacritty")||
-                      str_contains_icase(app_id, "xterm")    ||
-                      str_contains_icase(app_id, "foot")     ||
-                      str_contains_icase(app_id, "wezterm")  ||
-                      str_contains_icase(app_id, "console"));
+    static const char *const names[] = {
+        "terminal", "konsole", "kitty", "alacritty", "xterm", "foot", "wezterm", "wezterm-gui",
+        "console", "lxterminal", "tilix", "terminator", "terminology", "urxvt", "ptyxis", "kgx",
+    };
+    if (!app_id) return false;
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
+        if (has_word_icase(app_id, names[i])) return true;
+    }
+    return false;
 }
 
 int lc_classify_field(const char *app_id,

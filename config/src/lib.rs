@@ -547,10 +547,6 @@ struct VersionProbe {
     config_version: u32,
 }
 
-/// Parse + validate (P0-3 §1.1). Không OK → engine chạy default + `IME_ERR_CONFIG` (P0-2 §5).
-///
-/// Quy tắc: `config_version` **phải có** và phải bằng 1; các trường còn lại thì tuỳ chọn
-/// (nhận giá trị mặc định) — khoá ngoài schema bị serde bỏ qua (P0-3 §1.1 ghi rõ).
 /// Dữ liệu học đã tách từ JSON drain của engine: `(words, corrections)`.
 pub type StyleDeltas = (Vec<(String, u32)>, Vec<(String, String, u32)>);
 
@@ -605,6 +601,10 @@ pub fn merge_style_drain(config_json: &str, drain_json: &str) -> Option<String> 
     serde_json::to_string_pretty(&doc).ok()
 }
 
+/// Parse + validate (P0-3 §1.1). Không OK → engine chạy default + `IME_ERR_CONFIG` (P0-2 §5).
+///
+/// Quy tắc: `config_version` **phải có** và phải bằng 1; các trường còn lại thì tuỳ chọn
+/// (nhận giá trị mặc định) — khoá ngoài schema bị serde bỏ qua (P0-3 §1.1 ghi rõ).
 pub fn parse_config(json: &str) -> Result<Config, ConfigError> {
     let probe: VersionProbe = serde_json::from_str(json).map_err(|_| ConfigError::Schema)?;
     if probe.config_version != 1 {

@@ -283,12 +283,10 @@ int32_t      ime_style_note_correction(ime_instance *inst,
 int32_t      ime_style_profile_drain(ime_instance *inst,
                                      uint8_t *out_buf, size_t buf_len,
                                      size_t *out_len);
-/* R2-152 — gộp pending vào tài liệu config.json (macOS/Linux, không có tray). Hai pha như
- * drain; *out_len = 0 = không có gì để ghi. Caller ghi out_buf xuống file (nguyên tử). */
-int32_t      ime_style_profile_merge(ime_instance *inst,
-                                     const uint8_t *config_utf8, size_t config_len,
-                                     uint8_t *out_buf, size_t buf_len,
-                                     size_t *out_len);
+/* R2-152 — lưu pending vào file config.json (macOS/Linux, không có tray): ghi nguyên tử,
+ * 0600; pending chỉ xoá sau khi ghi xong. Không có gì để lưu cũng trả IME_OK. */
+int32_t      ime_style_profile_persist(ime_instance *inst,
+                                       const uint8_t *path_utf8, size_t path_len);
 #ifdef __cplusplus
 }
 #endif
