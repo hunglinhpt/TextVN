@@ -117,12 +117,28 @@ static void app_handles(guint keyval) {
     }
 }
 
+static gboolean is_modifier_key(guint keyval) {
+    switch (keyval) {
+    case IBUS_KEY_Control_L:
+    case IBUS_KEY_Control_R:
+    case IBUS_KEY_Shift_L:
+    case IBUS_KEY_Shift_R:
+    case IBUS_KEY_Alt_L:
+    case IBUS_KEY_Alt_R:
+    case IBUS_KEY_Super_L:
+    case IBUS_KEY_Super_R:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
 static void press(IBusInputContext *ic, guint keyval, guint state) {
     /* Client GTK đẩy surrounding text trước mỗi phím (xem push_surrounding). */
     push_surrounding(ic);
     gboolean handled = ibus_input_context_process_key_event(ic, keyval, 0, state);
     pump();
-    if (!handled) {
+    if (!handled && !is_modifier_key(keyval)) {
         if (g_preedit->len) {
             fprintf(stderr, "B2 vi phạm: app nhận phím khi preedit còn mở (%s)\n", g_preedit->str);
             exit(2);
@@ -182,6 +198,13 @@ static int state_says(gboolean enabled) {
     g_free(text);
     g_free(path);
     return ok;
+}
+
+static void ctrl_tap(IBusInputContext *ic) {
+    ibus_input_context_process_key_event(ic, IBUS_KEY_Control_L, 0, 0);
+    pump();
+    ibus_input_context_process_key_event(ic, IBUS_KEY_Control_L, 0, IBUS_RELEASE_MASK);
+    pump();
 }
 
 static void ctrl_shift_tap(IBusInputContext *ic) {
@@ -312,13 +335,13 @@ int main(void) {
 
     /* Standalone Ctrl tap: chốt từ hợp lệ (tunx + Ctrl -> tũn) hoặc khôi phục (sort + Ctrl -> sort) */
     type(ic, "tunx");
-    press(ic, IBUS_KEY_Control_L, 0);
+    ctrl_tap(ic);
     type(ic, "s ");
     ok &= check("Ctrl tap chốt âm tiết (tunx + Ctrl -> tũns)", "tũns ");
     clear(ic);
 
     type(ic, "sort");
-    press(ic, IBUS_KEY_Control_L, 0);
+    ctrl_tap(ic);
     type(ic, " ");
     ok &= check("Ctrl tap khôi phục (sort -> sỏt + Ctrl -> sort)", "sort ");
     clear(ic);

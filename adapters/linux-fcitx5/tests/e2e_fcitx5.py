@@ -140,6 +140,13 @@ def clear():
     preedit[0] = ""
 
 
+def ctrl_tap():
+    send(CTRL_L, 0, False)
+    pump()
+    send(CTRL_L, 0, True)
+    pump()
+
+
 def ctrl_shift_tap():
     send(CTRL_L, 0, False)
     pump()
@@ -250,6 +257,19 @@ ic.FocusIn()
 pump(0.2)
 type_("as ")
 check("VN giữ sau focus-out/in", "á ")
+clear()
+
+# Standalone Ctrl tap: chốt từ hợp lệ hoặc khôi phục
+type_("tunx")
+ctrl_tap()
+type_("s ")
+check("Ctrl tap chốt âm tiết (tunx + Ctrl -> tũns)", "tũns ")
+clear()
+
+type_("sort")
+ctrl_tap()
+type_(" ")
+check("Ctrl tap khôi phục (sort -> sỏt + Ctrl -> sort)", "sort ")
 clear()
 
 # Bảng cài đặt đổi state.json khi IME đang chạy → theo ngay ở phím kế tiếp.
