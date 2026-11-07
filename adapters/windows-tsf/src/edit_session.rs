@@ -129,6 +129,8 @@ pub struct TsfShared {
     /// P8 (vòng 55): dead key (`Ctrl+'`…) vừa đi qua Pass — chờ letter kế
     /// forward cho OS dựng dấu (`é`, `ê`, `ñ`…). Xem process().
     pub dead_key_armed: Cell<bool>,
+    /// P7 (vòng 57): đếm phím ranh giới để throttle drain mỗi 20 (R2-120h).
+    pub style_key_counter: Cell<u32>,
     /// VK đã được ăn ở `OnTestKeyDown`, chờ `OnKeyDown` tương ứng.
     pub pending_eaten_vk: Cell<Option<u32>>,
     /// Phím/đích được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app
@@ -160,6 +162,7 @@ impl TsfShared {
             composition: RefCell::new(None),
             comp_text: RefCell::new(Vec::new()),
             dead_key_armed: Cell::new(false),
+            style_key_counter: Cell::new(0),
             pending_eaten_vk: Cell::new(None),
             deferred_replay: Cell::new(None),
             config_seen: Cell::new(0),
@@ -584,15 +587,24 @@ impl KeyEditSession {
                     hide_assist_overlay(shared);
                 }
                 // P7 (vòng 57): drain dữ liệu HỌC pending → IPC StyleUpdate.
-                // Drain tự "{}" khi rỗng — IPC helper tự skip; gọi ở ranh giới
-                // từ (Space/,/./Backspace) đủ tần suất mà không đón线程 mỗi phím.
+                // THROTTLE 20 phím (R2-120h): drain mỗi phím sẽ spawn thread
+                // IPC liên tục khi gõ nhanh — đếm phím ranh giới, chỉ drain
+                // mỗi 20. Tray offline → JSON bỏ im lặng (mất count học 1
+                // lần — không mất text user; G8 nhẹ).
                 if matches!(self.key, KeyKind::Char(_) | KeyKind::Backspace) {
-                    let json = shared
-                        .thread
-                        .try_borrow_mut()
-                        .map(|mut t| t.engine.style_drain_json())
-                        .unwrap_or_default();
-                    crate::ipc_client::send_style_update_async(json);
+                    // R2-120a: is_multiple_of chưa có trên rustc Debian trixie —
+                    // counter reset khi chạm 20 (không dùng %).
+                    let n = shared.style_key_counter.get() + 1;
+                    let drain_now = n >= 20;
+                    shared.style_key_counter.set(if drain_now { 0 } else { n });
+                    if drain_now {
+                        let json = shared
+                            .thread
+                            .try_borrow_mut()
+                            .map(|mut t| t.engine.style_drain_json())
+                            .unwrap_or_default();
+                        crate::ipc_client::send_style_update_async(json);
+                    }
                 }
                 if self.key == KeyKind::CtrlSpace && step.action == textvn_ffi::ACTION_PASS {
                     // Ctrl+Space không khớp prediction: kích hoạt Trợ lý ngữ pháp (Text Correct) cho từ và câu
