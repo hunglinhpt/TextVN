@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/lib.rs": {
-    "mtime": 1793898192.7572937,
-    "seen": 1793899092.983519,
-    "ast_hash": "70e114404fb0383c8fe07099aae620e1",
+    "mtime": 1794043511.2127423,
+    "seen": 1794044300.2128325,
+    "ast_hash": "df2f187cb25cab44129790376e474cc4",
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1794041944.444372,
-    "seen": 1794042517.7957156,
-    "ast_hash": "33c1b1e5787d59fdbebbd774a9778b70",
+    "mtime": 1794043416.534159,
+    "seen": 1794044300.2208328,
+    "ast_hash": "0bc06c351111d152c56b12fe5eca7860",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -270,15 +270,15 @@
     "semantic_hash": ""
   },
   "ipc/src/lib.rs": {
-    "mtime": 1792576833.3331084,
-    "seen": 1792589719.0614376,
-    "ast_hash": "fa8fe6b23440f55b360b21119e668fa7",
+    "mtime": 1794042696.8146813,
+    "seen": 1794044300.2263806,
+    "ast_hash": "5fb323b160dbf0f2739df453ba6b0940",
     "semantic_hash": ""
   },
   "perf/baseline-win.json": {
-    "mtime": 1790965408.418842,
-    "seen": 1790966426.2447886,
-    "ast_hash": "92a7002e6e34d56a60d5e0b09a0e2c2b",
+    "mtime": 1794044203.1220636,
+    "seen": 1794044300.2263806,
+    "ast_hash": "770d44b3b97525bd92023db732c23204",
     "semantic_hash": ""
   },
   "schemas/appdb.v1.schema.json": {
@@ -726,9 +726,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/edit_session.rs": {
-    "mtime": 1794031654.378271,
-    "seen": 1794031885.9558978,
-    "ast_hash": "b1e527153de75091710e0a776fcae103",
+    "mtime": 1794043416.0600119,
+    "seen": 1794044300.2118354,
+    "ast_hash": "1e05a5a4fdf7bb6fcf21b32a834ee566",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/guids.rs": {
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/ipc_client.rs": {
-    "mtime": 1792867818.5694764,
-    "seen": 1792870932.9725914,
-    "ast_hash": "af92864e4c5a07aed3c9ade5738ef334",
+    "mtime": 1794043081.005259,
+    "seen": 1794044300.2128325,
+    "ast_hash": "8504ca9c619bc4800da4cd6781f2e7c7",
     "semantic_hash": ""
   },
   ".github/workflows/hook-spike.yml": {
@@ -828,15 +828,15 @@
     "semantic_hash": ""
   },
   "tray/src/ipc_server.rs": {
-    "mtime": 1792576998.1401362,
-    "seen": 1792589719.1287618,
-    "ast_hash": "1a782eaacc689334bdd75fbc2feffd07",
+    "mtime": 1794042952.1633077,
+    "seen": 1794044300.23748,
+    "ast_hash": "49296345dafebb5246fc20e408d717de",
     "semantic_hash": ""
   },
   "tray/src/lib.rs": {
-    "mtime": 1793023232.3258262,
-    "seen": 1793032783.2646267,
-    "ast_hash": "3a602b67e88e0715bc9c12bee96aaaf2",
+    "mtime": 1794043417.0998373,
+    "seen": 1794044300.23748,
+    "ast_hash": "c7a49abbcf30fbf8ffbafcad0cfe333e",
     "semantic_hash": ""
   },
   "tray/src/main.rs": {
@@ -852,9 +852,9 @@
     "semantic_hash": ""
   },
   "tray/src/svc.rs": {
-    "mtime": 1793117534.4643385,
-    "seen": 1793126763.323802,
-    "ast_hash": "ba3ed7253252eca875f29cdc4a818a3f",
+    "mtime": 1794043032.885863,
+    "seen": 1794044300.23748,
+    "ast_hash": "8833f9626cb33302c8dc066a1dc8e383",
     "semantic_hash": ""
   },
   "tray/src/autostart.rs": {
@@ -2844,9 +2844,9 @@
     "semantic_hash": ""
   },
   "core/src/post/number_vn.rs": {
-    "mtime": 1794040875.5818055,
-    "seen": 1794042517.7967215,
-    "ast_hash": "9f48cbba6dfce75b40968141ad9a083d",
+    "mtime": 1794043416.551304,
+    "seen": 1794044300.2218332,
+    "ast_hash": "e735c78e50eee368bc2563d0ecd29db4",
     "semantic_hash": ""
   },
   "docs/50-assist/P5-OFFICE-PRODUCTIVITY-PLAN.md": {
@@ -3096,15 +3096,21 @@
     "semantic_hash": ""
   },
   "core/tests/style_learning_100.rs": {
-    "mtime": 1794042418.406756,
-    "seen": 1794042517.801265,
-    "ast_hash": "4fc4865398840a85a1673891c0b1aef0",
+    "mtime": 1794043416.7991023,
+    "seen": 1794044300.2233815,
+    "ast_hash": "345e5a743c30634532920bfb90dd9415",
     "semantic_hash": ""
   },
   "docs/specs/roadmap-optimization-proposals.md": {
     "mtime": 1794032217.9803562,
     "seen": 1794042517.8325531,
     "ast_hash": "4abd8c78405847413883fc8d4f32f891",
+    "semantic_hash": ""
+  },
+  "tray/src/style_merge.rs": {
+    "mtime": 1794043417.135773,
+    "seen": 1794044300.23748,
+    "ast_hash": "b6a75c45eb052defeffdd2f743cf5c22",
     "semantic_hash": ""
   }
 }
