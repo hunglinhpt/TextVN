@@ -114,30 +114,6 @@ fn live_popup_visible(shared: &TsfShared) -> bool {
             .unwrap_or(false)
 }
 
-/// R2-129 (chủ repo 2026-10-26: "popup cần hiện nhanh nhất hoặc ẩn đi nhanh
-/// nhất theo tình trạng câu đúng sai"): kiểm tra lại câu ở mỗi ranh giới từ
-/// (và Backspace khi popup sống đang hiện) — câu còn lỗi → hiện/cập nhật popup
-/// tại caret; câu đã đúng → ẩn ngay. Không đè popup Ctrl+Space / bôi đen.
-#[cfg(windows)]
-fn refresh_live_popup(shared: &Rc<TsfShared>, ctx: &ITfContext, ec: u32) {
-    if !shared.is_assist_display_enabled() {
-        return;
-    }
-    if shared.overlay.is_visible() && !live_popup_visible(shared) {
-        return; // popup chọn-sửa / bôi đen của người dùng: giữ nguyên
-    }
-    match super::assist::check_sentence(shared) {
-        Some(check) => {
-            show_assist_overlay(shared, ctx, ec, &check);
-        }
-        None => {
-            if live_popup_visible(shared) {
-                hide_assist_overlay(shared);
-            }
-        }
-    }
-}
-
 /// State của TIP trên MỘT thread UI. Chia sẻ (Rc) giữa Tip, KeySink, CompSink và
 /// edit session; mọi RefCell chỉ mượn trong phạm vi ngắn, không giữ qua lời gọi
 /// COM có thể re-entrant. Không `unwrap`/`borrow_mut` có thể panic trong callback.
@@ -558,12 +534,14 @@ impl KeyEditSession {
                 if comp.is_none() {
                     let trigger = super::assist::assist_trigger(self.key);
                     // P9 (vòng 55 — chủ repo: "panel chỉ hiện khi dừng ~1s"):
-                    // gõ tiếp → popup đang sống ẨN NGAY (không che vùng gõ);
-                    // điểm check lên lịch idle 1 s — dừng gõ mới hiện.
+                    // Word-trigger cũng chỉ SCHEDULE — `refresh_live_popup` cũ
+                    // hiện popup NGAY khi space/,/; (chính tình trạng "hiện
+                    // liên tiếp che vùng gõ"); giờ mọi điểm đều qua idle timer.
+                    // Popup sống gõ tiếp → ẨN NGAY ở block Char/Backspace dưới.
                     if trigger == AssistTrigger::Word
                         || (self.key == KeyKind::Backspace && live_popup_visible(shared))
                     {
-                        refresh_live_popup(&self.shared, &self.ctx, ec);
+                        super::panel_idle::schedule(&self.shared, &self.ctx);
                     }
                     let sentence_check = super::assist::after_trigger(shared, trigger);
                     if trigger == AssistTrigger::Sentence
@@ -2054,6 +2032,10 @@ impl ITfEditSession_Impl for AssistRecallSession_Impl {
 /// đầu đúng tại đó; khi gõ bình thường caret vốn đã ở cuối composition.
 #[cfg(windows)]
 fn finish(ec: u32, comp: &mut Option<ITfComposition>, shared: &TsfShared) {
+    // P8 (vòng 55): dead-key state thuộc OS keyboard thread của field cũ —
+    // composition kết thúc/focus đổi phải disarm để letter kế không bị
+    // forward nhầm (OS dead-key đã hủy theo context).
+    shared.dead_key_armed.set(false);
     if let Some(c) = comp.take() {
         // SAFETY: đang ở trong DoEditSession với ec hợp lệ.
         let _ = unsafe { c.EndComposition(ec) };
