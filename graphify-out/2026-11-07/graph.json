@@ -16351,7 +16351,7 @@
       "file_type": "code",
       "norm_label": "fixoutcome",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1656"
+      "source_location": "L1668"
     },
     {
       "id": "adapters_windows_tsf_src_overlay_anchor",
@@ -16495,7 +16495,7 @@
       "file_type": "code",
       "norm_label": "applyassistfixsession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1256"
+      "source_location": "L1268"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistundosession",
@@ -16507,7 +16507,7 @@
       "file_type": "code",
       "norm_label": "applyassistundosession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1889"
+      "source_location": "L1901"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession",
@@ -16519,7 +16519,7 @@
       "file_type": "code",
       "norm_label": "applysentencefixsession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1595"
+      "source_location": "L1607"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_assistrecallsession",
@@ -16531,7 +16531,7 @@
       "file_type": "code",
       "norm_label": "assistrecallsession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2020"
+      "source_location": "L2032"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_compsink",
@@ -16543,7 +16543,7 @@
       "file_type": "code",
       "norm_label": "compsink",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L298"
+      "source_location": "L301"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_endcompositionsession",
@@ -16555,7 +16555,7 @@
       "file_type": "code",
       "norm_label": "endcompositionsession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L922"
+      "source_location": "L934"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession",
@@ -16567,7 +16567,7 @@
       "file_type": "code",
       "norm_label": "keyeditsession",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L339"
+      "source_location": "L342"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared",
@@ -67487,7 +67487,7 @@
       "file_type": "code",
       "norm_label": ".apply()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1352"
+      "source_location": "L1364"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistfixsession_impl",
@@ -67498,7 +67498,7 @@
       "file_type": "code",
       "norm_label": "applyassistfixsession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1325"
+      "source_location": "L1337"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistfixsession_impl_doeditsession",
@@ -67509,7 +67509,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1326"
+      "source_location": "L1338"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistundosession_apply",
@@ -67520,7 +67520,7 @@
       "file_type": "code",
       "norm_label": ".apply()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1940"
+      "source_location": "L1952"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistundosession_impl",
@@ -67531,7 +67531,7 @@
       "file_type": "code",
       "norm_label": "applyassistundosession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1918"
+      "source_location": "L1930"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistundosession_impl_doeditsession",
@@ -67542,7 +67542,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1919"
+      "source_location": "L1931"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession_apply_outcome",
@@ -67553,7 +67553,7 @@
       "file_type": "code",
       "norm_label": ".apply_outcome()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1671"
+      "source_location": "L1683"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession_impl",
@@ -67564,7 +67564,7 @@
       "file_type": "code",
       "norm_label": "applysentencefixsession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1634"
+      "source_location": "L1646"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession_impl_doeditsession",
@@ -67575,7 +67575,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1635"
+      "source_location": "L1647"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_assistrecallsession_impl",
@@ -67586,7 +67586,7 @@
       "file_type": "code",
       "norm_label": "assistrecallsession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2038"
+      "source_location": "L2050"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_assistrecallsession_impl_doeditsession",
@@ -67597,7 +67597,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2039"
+      "source_location": "L2051"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_backspace_shift",
@@ -67608,7 +67608,7 @@
       "file_type": "code",
       "norm_label": "backspace_shift()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1498"
+      "source_location": "L1510"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_clear_assist_undo_xoa_state",
@@ -67619,7 +67619,7 @@
       "file_type": "code",
       "norm_label": "clear_assist_undo_xoa_state()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2735"
+      "source_location": "L2747"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_endcompositionsession_impl",
@@ -67630,7 +67630,7 @@
       "file_type": "code",
       "norm_label": "endcompositionsession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L938"
+      "source_location": "L950"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_endcompositionsession_impl_doeditsession",
@@ -67641,7 +67641,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L939"
+      "source_location": "L951"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_expected_tail",
@@ -67652,7 +67652,7 @@
       "file_type": "code",
       "norm_label": "expected_tail()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1510"
+      "source_location": "L1522"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession_impl",
@@ -67663,7 +67663,7 @@
       "file_type": "code",
       "norm_label": "keyeditsession_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L372"
+      "source_location": "L375"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession_impl_doeditsession",
@@ -67674,7 +67674,7 @@
       "file_type": "code",
       "norm_label": ".doeditsession()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L373"
+      "source_location": "L376"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_rs_itfeditsession_impl",
@@ -67707,7 +67707,7 @@
       "file_type": "code",
       "norm_label": "set_caret_after()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2368"
+      "source_location": "L2380"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_to_wide_nul",
@@ -67718,7 +67718,7 @@
       "file_type": "code",
       "norm_label": "to_wide_nul()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2232"
+      "source_location": "L2244"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_clear_assist_undo",
@@ -67729,7 +67729,7 @@
       "file_type": "code",
       "norm_label": ".clear_assist_undo()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L214"
+      "source_location": "L217"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_reset_engine_with_tail",
@@ -67740,7 +67740,7 @@
       "file_type": "code",
       "norm_label": ".reset_engine_with_tail()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L254"
+      "source_location": "L257"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_verify_delete_range",
@@ -67751,7 +67751,7 @@
       "file_type": "code",
       "norm_label": "verify_delete_range()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1529"
+      "source_location": "L1541"
     },
     {
       "id": "docs_10_shared_p0_3_config_preset_strategy",
@@ -72232,7 +72232,7 @@
       "file_type": "code",
       "norm_label": "apply_assist_suggestion()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153"
+      "source_location": "L1165"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_apply_assist_undo",
@@ -72243,7 +72243,7 @@
       "file_type": "code",
       "norm_label": "apply_assist_undo()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1837"
+      "source_location": "L1849"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_apply_display_attribute",
@@ -72254,7 +72254,7 @@
       "file_type": "code",
       "norm_label": "apply_display_attribute()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2480"
+      "source_location": "L2492"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_apply_plan",
@@ -72265,7 +72265,7 @@
       "file_type": "code",
       "norm_label": "apply_plan()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082"
+      "source_location": "L2094"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_apply_sentence_auto_fix",
@@ -72276,7 +72276,7 @@
       "file_type": "code",
       "norm_label": "apply_sentence_auto_fix()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547"
+      "source_location": "L1559"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_apply_sentence_fix_all",
@@ -72287,7 +72287,7 @@
       "file_type": "code",
       "norm_label": "apply_sentence_fix_all()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2567"
+      "source_location": "L2579"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistfixsession_new",
@@ -72298,7 +72298,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303"
+      "source_location": "L1315"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applyassistundosession_new",
@@ -72309,7 +72309,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901"
+      "source_location": "L1913"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession_apply",
@@ -72320,7 +72320,7 @@
       "file_type": "code",
       "norm_label": ".apply()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1667"
+      "source_location": "L1679"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_applysentencefixsession_new",
@@ -72331,7 +72331,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609"
+      "source_location": "L1621"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_assistrecallsession_new",
@@ -72342,7 +72342,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028"
+      "source_location": "L2040"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_backspace_shift_tu_glyph_va_tu_choi_so_vo_ly",
@@ -72353,7 +72353,7 @@
       "file_type": "code",
       "norm_label": "backspace_shift_tu_glyph_va_tu_choi_so_vo_ly()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2685"
+      "source_location": "L2697"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_caret_anchor",
@@ -72364,7 +72364,7 @@
       "file_type": "code",
       "norm_label": "caret_anchor()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2287"
+      "source_location": "L2299"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_caret_at_composition_end",
@@ -72375,7 +72375,7 @@
       "file_type": "code",
       "norm_label": "caret_at_composition_end()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2395"
+      "source_location": "L2407"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_compsink_impl",
@@ -72386,7 +72386,7 @@
       "file_type": "code",
       "norm_label": "compsink_impl",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L314"
+      "source_location": "L317"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_compsink_impl_oncompositionterminated",
@@ -72397,7 +72397,7 @@
       "file_type": "code",
       "norm_label": ".oncompositionterminated()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L315"
+      "source_location": "L318"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_compsink_new",
@@ -72408,7 +72408,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L305"
+      "source_location": "L308"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_deferred_fix_ms",
@@ -72419,7 +72419,7 @@
       "file_type": "code",
       "norm_label": "deferred_fix_ms",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L863"
+      "source_location": "L875"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_endcompositionsession_new",
@@ -72430,7 +72430,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L929"
+      "source_location": "L941"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_estimate_font_px",
@@ -72441,7 +72441,7 @@
       "file_type": "code",
       "norm_label": "estimate_font_px()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L721"
+      "source_location": "L733"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_expected_tail_lay_duoi_cau",
@@ -72452,7 +72452,7 @@
       "file_type": "code",
       "norm_label": "expected_tail_lay_duoi_cau()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2726"
+      "source_location": "L2738"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_finish",
@@ -72463,7 +72463,7 @@
       "file_type": "code",
       "norm_label": "finish()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2065"
+      "source_location": "L2077"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_focus_is_password_edit",
@@ -72474,7 +72474,7 @@
       "file_type": "code",
       "norm_label": "focus_is_password_edit()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2461"
+      "source_location": "L2473"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_get_caret_rect",
@@ -72485,7 +72485,7 @@
       "file_type": "code",
       "norm_label": "get_caret_rect()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2263"
+      "source_location": "L2275"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_handle_overlay_mouse_action",
@@ -72496,7 +72496,7 @@
       "file_type": "code",
       "norm_label": "handle_overlay_mouse_action()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2521"
+      "source_location": "L2533"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_hide_assist_overlay",
@@ -72507,7 +72507,7 @@
       "file_type": "code",
       "norm_label": "hide_assist_overlay()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L968"
+      "source_location": "L980"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_hotkey_fix_sentence",
@@ -72518,7 +72518,7 @@
       "file_type": "code",
       "norm_label": "hotkey_fix_sentence()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799"
+      "source_location": "L811"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_input_scope_constants_match_sdk",
@@ -72529,7 +72529,7 @@
       "file_type": "code",
       "norm_label": "input_scope_constants_match_sdk()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2670"
+      "source_location": "L2682"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_input_scopes",
@@ -72540,7 +72540,7 @@
       "file_type": "code",
       "norm_label": "input_scopes()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2442"
+      "source_location": "L2454"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession_new",
@@ -72551,7 +72551,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351"
+      "source_location": "L354"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession_process",
@@ -72562,7 +72562,7 @@
       "file_type": "code",
       "norm_label": ".process()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L401"
+      "source_location": "L404"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_keyeditsession_run",
@@ -72573,7 +72573,7 @@
       "file_type": "code",
       "norm_label": ".run()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L383"
+      "source_location": "L386"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_l3_xoa_span_khong_nhan_doi_dau_cau",
@@ -72584,7 +72584,7 @@
       "file_type": "code",
       "norm_label": "l3_xoa_span_khong_nhan_doi_dau_cau()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2784"
+      "source_location": "L2796"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_live_popup_visible",
@@ -72617,7 +72617,7 @@
       "file_type": "code",
       "norm_label": "mode_2_chi_bat_khi_autocorrect_va_safe()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2753"
+      "source_location": "L2765"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_on_deferred_fix_timer",
@@ -72628,7 +72628,7 @@
       "file_type": "code",
       "norm_label": "on_deferred_fix_timer()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L899"
+      "source_location": "L911"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_read_field_signals",
@@ -72639,7 +72639,7 @@
       "file_type": "code",
       "norm_label": "read_field_signals()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2418"
+      "source_location": "L2430"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_recheck_after_fix",
@@ -72650,7 +72650,7 @@
       "file_type": "code",
       "norm_label": "recheck_after_fix()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1273"
+      "source_location": "L1285"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_request_sync_or_async",
@@ -72661,7 +72661,7 @@
       "file_type": "code",
       "norm_label": "request_sync_or_async()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1232"
+      "source_location": "L1244"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_rs_assistundostate",
@@ -72859,7 +72859,7 @@
       "file_type": "code",
       "norm_label": "schedule_deferred_fix()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875"
+      "source_location": "L887"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_select_assist_issue",
@@ -72870,7 +72870,7 @@
       "file_type": "code",
       "norm_label": "select_assist_issue()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L977"
+      "source_location": "L989"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_selected_assist_issue",
@@ -72881,7 +72881,7 @@
       "file_type": "code",
       "norm_label": "selected_assist_issue()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L994"
+      "source_location": "L1006"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_selection_fix_all_from_keyboard",
@@ -72892,7 +72892,7 @@
       "file_type": "code",
       "norm_label": "selection_fix_all_from_keyboard()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2557"
+      "source_location": "L2569"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_selection_range",
@@ -72903,7 +72903,7 @@
       "file_type": "code",
       "norm_label": "selection_range()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2244"
+      "source_location": "L2256"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_show_assist_overlay",
@@ -72914,7 +72914,7 @@
       "file_type": "code",
       "norm_label": "show_assist_overlay()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009"
+      "source_location": "L1021"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_show_assist_overlay_for_selection",
@@ -72925,7 +72925,7 @@
       "file_type": "code",
       "norm_label": "show_assist_overlay_for_selection()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089"
+      "source_location": "L1101"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
@@ -72936,7 +72936,7 @@
       "file_type": "code",
       "norm_label": "show_assist_overlay_with_recheck()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019"
+      "source_location": "L1031"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_text_after_caret",
@@ -72947,7 +72947,7 @@
       "file_type": "code",
       "norm_label": "text_after_caret()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L765"
+      "source_location": "L777"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_timer_deferred_fix",
@@ -72958,7 +72958,7 @@
       "file_type": "code",
       "norm_label": "timer_deferred_fix",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L860"
+      "source_location": "L872"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsf_caret_anchor",
@@ -72969,7 +72969,7 @@
       "file_type": "code",
       "norm_label": "tsf_caret_anchor()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2340"
+      "source_location": "L2352"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsf_shared_assist_auto_fix_state_tracking",
@@ -72980,7 +72980,7 @@
       "file_type": "code",
       "norm_label": "tsf_shared_assist_auto_fix_state_tracking()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2825"
+      "source_location": "L2837"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_absorb_termination",
@@ -72991,7 +72991,7 @@
       "file_type": "code",
       "norm_label": ".absorb_termination()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L284"
+      "source_location": "L287"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_engine_mode",
@@ -73002,7 +73002,7 @@
       "file_type": "code",
       "norm_label": ".engine_mode()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L235"
+      "source_location": "L238"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_is_assist_auto_fix_enabled",
@@ -73013,7 +73013,7 @@
       "file_type": "code",
       "norm_label": ".is_assist_auto_fix_enabled()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L180"
+      "source_location": "L183"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_is_assist_display_enabled",
@@ -73024,7 +73024,7 @@
       "file_type": "code",
       "norm_label": ".is_assist_display_enabled()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L206"
+      "source_location": "L209"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_is_assist_enabled",
@@ -73035,7 +73035,7 @@
       "file_type": "code",
       "norm_label": ".is_assist_enabled()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L196"
+      "source_location": "L199"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_is_composing",
@@ -73046,7 +73046,7 @@
       "file_type": "code",
       "norm_label": ".is_composing()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L220"
+      "source_location": "L223"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_new",
@@ -73057,7 +73057,7 @@
       "file_type": "code",
       "norm_label": ".new()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L155"
+      "source_location": "L157"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_reset_engine",
@@ -73068,7 +73068,7 @@
       "file_type": "code",
       "norm_label": ".reset_engine()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L246"
+      "source_location": "L249"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_sync_config",
@@ -73079,7 +73079,7 @@
       "file_type": "code",
       "norm_label": ".sync_config()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L272"
+      "source_location": "L275"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_tsfshared_take_composition",
@@ -73090,7 +73090,7 @@
       "file_type": "code",
       "norm_label": ".take_composition()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L261"
+      "source_location": "L264"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_update_ghost",
@@ -73101,7 +73101,7 @@
       "file_type": "code",
       "norm_label": "update_ghost()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L679"
+      "source_location": "L691"
     },
     {
       "id": "adapters_windows_tsf_src_edit_session_verify_delete_range_fail_safe_khi_lenh",
@@ -73112,7 +73112,7 @@
       "file_type": "code",
       "norm_label": "verify_delete_range_fail_safe_khi_lenh()",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2698"
+      "source_location": "L2710"
     },
     {
       "id": "itfeditsession",
@@ -119038,7 +119038,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1163",
+      "source_location": "L1175",
       "weight": 1.0
     },
     {
@@ -119050,7 +119050,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1225",
+      "source_location": "L1237",
       "weight": 1.0
     },
     {
@@ -119062,7 +119062,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1226",
+      "source_location": "L1238",
       "weight": 1.0
     },
     {
@@ -119074,7 +119074,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1849",
+      "source_location": "L1861",
       "weight": 1.0
     },
     {
@@ -119086,7 +119086,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1852",
+      "source_location": "L1864",
       "weight": 1.0
     },
     {
@@ -119098,7 +119098,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2185",
+      "source_location": "L2197",
       "weight": 1.0
     },
     {
@@ -119110,7 +119110,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2189",
+      "source_location": "L2201",
       "weight": 1.0
     },
     {
@@ -119122,7 +119122,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2196",
+      "source_location": "L2208",
       "weight": 1.0
     },
     {
@@ -119134,7 +119134,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2197",
+      "source_location": "L2209",
       "weight": 1.0
     },
     {
@@ -119146,7 +119146,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1574",
+      "source_location": "L1586",
       "weight": 1.0
     },
     {
@@ -119158,7 +119158,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1582",
+      "source_location": "L1594",
       "weight": 1.0
     },
     {
@@ -119170,7 +119170,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1587",
+      "source_location": "L1599",
       "weight": 1.0
     },
     {
@@ -119182,7 +119182,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2599",
+      "source_location": "L2611",
       "weight": 1.0
     },
     {
@@ -119194,7 +119194,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2648",
+      "source_location": "L2660",
       "weight": 1.0
     },
     {
@@ -119206,7 +119206,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2657",
+      "source_location": "L2669",
       "weight": 1.0
     },
     {
@@ -119218,7 +119218,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1355",
+      "source_location": "L1367",
       "weight": 1.0
     },
     {
@@ -119230,7 +119230,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1386",
+      "source_location": "L1398",
       "weight": 1.0
     },
     {
@@ -119242,7 +119242,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1450",
+      "source_location": "L1462",
       "weight": 1.0
     },
     {
@@ -119254,7 +119254,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1451",
+      "source_location": "L1463",
       "weight": 1.0
     },
     {
@@ -119266,7 +119266,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1468",
+      "source_location": "L1480",
       "weight": 1.0
     },
     {
@@ -119278,7 +119278,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1472",
+      "source_location": "L1484",
       "weight": 1.0
     },
     {
@@ -119290,7 +119290,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1476",
+      "source_location": "L1488",
       "weight": 1.0
     },
     {
@@ -119302,7 +119302,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1327",
+      "source_location": "L1339",
       "weight": 1.0
     },
     {
@@ -119314,7 +119314,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1333",
+      "source_location": "L1345",
       "weight": 1.0
     },
     {
@@ -119326,7 +119326,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1335",
+      "source_location": "L1347",
       "weight": 1.0
     },
     {
@@ -119338,7 +119338,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1337",
+      "source_location": "L1349",
       "weight": 1.0
     },
     {
@@ -119350,7 +119350,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1342",
+      "source_location": "L1354",
       "weight": 1.0
     },
     {
@@ -119362,7 +119362,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1314",
+      "source_location": "L1326",
       "weight": 1.0
     },
     {
@@ -119374,7 +119374,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1942",
+      "source_location": "L1954",
       "weight": 1.0
     },
     {
@@ -119386,7 +119386,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1948",
+      "source_location": "L1960",
       "weight": 1.0
     },
     {
@@ -119398,7 +119398,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1976",
+      "source_location": "L1988",
       "weight": 1.0
     },
     {
@@ -119410,7 +119410,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1994",
+      "source_location": "L2006",
       "weight": 1.0
     },
     {
@@ -119422,7 +119422,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1999",
+      "source_location": "L2011",
       "weight": 1.0
     },
     {
@@ -119434,7 +119434,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2001",
+      "source_location": "L2013",
       "weight": 1.0
     },
     {
@@ -119446,7 +119446,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1920",
+      "source_location": "L1932",
       "weight": 1.0
     },
     {
@@ -119458,7 +119458,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1922",
+      "source_location": "L1934",
       "weight": 1.0
     },
     {
@@ -119470,7 +119470,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1928",
+      "source_location": "L1940",
       "weight": 1.0
     },
     {
@@ -119482,7 +119482,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1908",
+      "source_location": "L1920",
       "weight": 1.0
     },
     {
@@ -119494,7 +119494,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1668",
+      "source_location": "L1680",
       "weight": 1.0
     },
     {
@@ -119506,7 +119506,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1678",
+      "source_location": "L1690",
       "weight": 1.0
     },
     {
@@ -119518,7 +119518,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1702",
+      "source_location": "L1714",
       "weight": 1.0
     },
     {
@@ -119530,7 +119530,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1723",
+      "source_location": "L1735",
       "weight": 1.0
     },
     {
@@ -119542,7 +119542,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1749",
+      "source_location": "L1761",
       "weight": 1.0
     },
     {
@@ -119554,7 +119554,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1766",
+      "source_location": "L1778",
       "weight": 1.0
     },
     {
@@ -119566,7 +119566,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1770",
+      "source_location": "L1782",
       "weight": 1.0
     },
     {
@@ -119578,7 +119578,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1772",
+      "source_location": "L1784",
       "weight": 1.0
     },
     {
@@ -119590,7 +119590,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1637",
+      "source_location": "L1649",
       "weight": 1.0
     },
     {
@@ -119602,7 +119602,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1640",
+      "source_location": "L1652",
       "weight": 1.0
     },
     {
@@ -119614,7 +119614,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1621",
+      "source_location": "L1633",
       "weight": 1.0
     },
     {
@@ -119626,7 +119626,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2045",
+      "source_location": "L2057",
       "weight": 1.0
     },
     {
@@ -119638,7 +119638,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2049",
+      "source_location": "L2061",
       "weight": 1.0
     },
     {
@@ -119650,7 +119650,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2055",
+      "source_location": "L2067",
       "weight": 1.0
     },
     {
@@ -119662,7 +119662,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2288",
+      "source_location": "L2300",
       "weight": 1.0
     },
     {
@@ -119674,7 +119674,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2737",
+      "source_location": "L2749",
       "weight": 1.0
     },
     {
@@ -119686,7 +119686,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2747",
+      "source_location": "L2759",
       "weight": 1.0
     },
     {
@@ -119698,7 +119698,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L328",
+      "source_location": "L331",
       "weight": 1.0
     },
     {
@@ -119710,7 +119710,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L307",
+      "source_location": "L310",
       "weight": 1.0
     },
     {
@@ -119722,7 +119722,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L931",
+      "source_location": "L943",
       "weight": 1.0
     },
     {
@@ -119734,7 +119734,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L727",
+      "source_location": "L739",
       "weight": 1.0
     },
     {
@@ -119746,7 +119746,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2077",
+      "source_location": "L2089",
       "weight": 1.0
     },
     {
@@ -119758,7 +119758,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2266",
+      "source_location": "L2278",
       "weight": 1.0
     },
     {
@@ -119770,7 +119770,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2546",
+      "source_location": "L2558",
       "weight": 1.0
     },
     {
@@ -119782,7 +119782,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2549",
+      "source_location": "L2561",
       "weight": 1.0
     },
     {
@@ -119794,7 +119794,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L821",
+      "source_location": "L833",
       "weight": 1.0
     },
     {
@@ -119806,7 +119806,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L823",
+      "source_location": "L835",
       "weight": 1.0
     },
     {
@@ -119818,7 +119818,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L832",
+      "source_location": "L844",
       "weight": 1.0
     },
     {
@@ -119830,7 +119830,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L838",
+      "source_location": "L850",
       "weight": 1.0
     },
     {
@@ -119842,7 +119842,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L842",
+      "source_location": "L854",
       "weight": 1.0
     },
     {
@@ -119854,7 +119854,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L846",
+      "source_location": "L858",
       "weight": 1.0
     },
     {
@@ -119866,7 +119866,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2446",
+      "source_location": "L2458",
       "weight": 1.0
     },
     {
@@ -119878,7 +119878,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L374",
+      "source_location": "L377",
       "weight": 1.0
     },
     {
@@ -119890,7 +119890,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L360",
+      "source_location": "L363",
       "weight": 1.0
     },
     {
@@ -119902,7 +119902,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L403",
+      "source_location": "L406",
       "weight": 1.0
     },
     {
@@ -119914,7 +119914,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L405",
+      "source_location": "L408",
       "weight": 1.0
     },
     {
@@ -119926,7 +119926,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L412",
+      "source_location": "L415",
       "weight": 1.0
     },
     {
@@ -119938,7 +119938,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L418",
+      "source_location": "L421",
       "weight": 1.0
     },
     {
@@ -119950,7 +119950,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L419",
+      "source_location": "L422",
       "weight": 1.0
     },
     {
@@ -119962,7 +119962,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L449",
+      "source_location": "L452",
       "weight": 1.0
     },
     {
@@ -119974,7 +119974,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L506",
+      "source_location": "L509",
       "weight": 1.0
     },
     {
@@ -119986,7 +119986,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L509",
+      "source_location": "L512",
       "weight": 1.0
     },
     {
@@ -119998,7 +119998,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L542",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -120010,7 +120010,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L551",
+      "source_location": "L554",
       "weight": 1.0
     },
     {
@@ -120022,7 +120022,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L560",
+      "source_location": "L563",
       "weight": 1.0
     },
     {
@@ -120034,7 +120034,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L561",
+      "source_location": "L564",
       "weight": 1.0
     },
     {
@@ -120046,7 +120046,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L564",
+      "source_location": "L567",
       "weight": 1.0
     },
     {
@@ -120058,7 +120058,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L577",
+      "source_location": "L580",
       "weight": 1.0
     },
     {
@@ -120070,7 +120070,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L629",
+      "source_location": "L641",
       "weight": 1.0
     },
     {
@@ -120082,7 +120082,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L637",
+      "source_location": "L649",
       "weight": 1.0
     },
     {
@@ -120094,7 +120094,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L650",
+      "source_location": "L662",
       "weight": 1.0
     },
     {
@@ -120106,7 +120106,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L660",
+      "source_location": "L672",
       "weight": 1.0
     },
     {
@@ -120118,7 +120118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L390",
+      "source_location": "L393",
       "weight": 1.0
     },
     {
@@ -120130,7 +120130,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L392",
+      "source_location": "L395",
       "weight": 1.0
     },
     {
@@ -120142,7 +120142,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L912",
+      "source_location": "L924",
       "weight": 1.0
     },
     {
@@ -120154,7 +120154,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2430",
+      "source_location": "L2442",
       "weight": 1.0
     },
     {
@@ -120166,7 +120166,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2437",
+      "source_location": "L2449",
       "weight": 1.0
     },
     {
@@ -120178,7 +120178,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1298",
+      "source_location": "L1310",
       "weight": 1.0
     },
     {
@@ -120190,7 +120190,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L888",
+      "source_location": "L900",
       "weight": 1.0
     },
     {
@@ -120202,7 +120202,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2558",
+      "source_location": "L2570",
       "weight": 1.0
     },
     {
@@ -120214,7 +120214,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2252",
+      "source_location": "L2264",
       "weight": 1.0
     },
     {
@@ -120226,7 +120226,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2376",
+      "source_location": "L2388",
       "weight": 1.0
     },
     {
@@ -120238,7 +120238,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1015",
+      "source_location": "L1027",
       "weight": 1.0
     },
     {
@@ -120250,7 +120250,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1097",
+      "source_location": "L1109",
       "weight": 1.0
     },
     {
@@ -120262,7 +120262,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1115",
+      "source_location": "L1127",
       "weight": 1.0
     },
     {
@@ -120274,7 +120274,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1135",
+      "source_location": "L1147",
       "weight": 1.0
     },
     {
@@ -120286,36 +120286,12 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1144",
+      "source_location": "L1156",
       "weight": 1.0
     },
     {
       "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
       "target": "adapters_windows_tsf_src_edit_session_tsfshared_is_assist_display_enabled",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1031",
-      "weight": 1.0
-    },
-    {
-      "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
-      "target": "adapters_windows_tsf_src_edit_session_caret_anchor",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1040",
-      "weight": 1.0
-    },
-    {
-      "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
-      "target": "adapters_windows_tsf_src_edit_session_selection_range",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -120327,6 +120303,30 @@
     },
     {
       "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
+      "target": "adapters_windows_tsf_src_edit_session_caret_anchor",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "adapters/windows-tsf/src/edit_session.rs",
+      "source_location": "L1052",
+      "weight": 1.0
+    },
+    {
+      "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
+      "target": "adapters_windows_tsf_src_edit_session_selection_range",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "adapters/windows-tsf/src/edit_session.rs",
+      "source_location": "L1055",
+      "weight": 1.0
+    },
+    {
+      "source": "adapters_windows_tsf_src_edit_session_show_assist_overlay_with_recheck",
       "target": "adapters_windows_tsf_src_edit_session_hide_assist_overlay",
       "relation": "calls",
       "_origin": "ast",
@@ -120334,7 +120334,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1074",
+      "source_location": "L1086",
       "weight": 1.0
     },
     {
@@ -120346,7 +120346,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L766",
+      "source_location": "L778",
       "weight": 1.0
     },
     {
@@ -120358,7 +120358,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2344",
+      "source_location": "L2356",
       "weight": 1.0
     },
     {
@@ -120370,7 +120370,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2827",
+      "source_location": "L2839",
       "weight": 1.0
     },
     {
@@ -120382,7 +120382,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L290",
+      "source_location": "L293",
       "weight": 1.0
     },
     {
@@ -120394,7 +120394,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L181",
+      "source_location": "L184",
       "weight": 1.0
     },
     {
@@ -120406,7 +120406,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L207",
+      "source_location": "L210",
       "weight": 1.0
     },
     {
@@ -120418,7 +120418,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L159",
+      "source_location": "L161",
       "weight": 1.0
     },
     {
@@ -120430,7 +120430,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L685",
+      "source_location": "L697",
       "weight": 1.0
     },
     {
@@ -120442,7 +120442,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L689",
+      "source_location": "L701",
       "weight": 1.0
     },
     {
@@ -120454,7 +120454,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L706",
+      "source_location": "L718",
       "weight": 1.0
     },
     {
@@ -160618,7 +160618,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1257",
+      "source_location": "L1269",
       "weight": 1.0
     },
     {
@@ -160630,7 +160630,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1258",
+      "source_location": "L1270",
       "weight": 1.0
     },
     {
@@ -160642,7 +160642,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1259",
+      "source_location": "L1271",
       "weight": 1.0
     },
     {
@@ -160654,7 +160654,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1261",
+      "source_location": "L1273",
       "weight": 1.0
     },
     {
@@ -160666,7 +160666,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1262",
+      "source_location": "L1274",
       "weight": 1.0
     },
     {
@@ -160678,7 +160678,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1890",
+      "source_location": "L1902",
       "weight": 1.0
     },
     {
@@ -160690,7 +160690,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1891",
+      "source_location": "L1903",
       "weight": 1.0
     },
     {
@@ -160702,7 +160702,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1892",
+      "source_location": "L1904",
       "weight": 1.0
     },
     {
@@ -160714,7 +160714,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1893",
+      "source_location": "L1905",
       "weight": 1.0
     },
     {
@@ -160726,7 +160726,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1596",
+      "source_location": "L1608",
       "weight": 1.0
     },
     {
@@ -160738,7 +160738,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1597",
+      "source_location": "L1609",
       "weight": 1.0
     },
     {
@@ -160750,7 +160750,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1598",
+      "source_location": "L1610",
       "weight": 1.0
     },
     {
@@ -160762,7 +160762,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1599",
+      "source_location": "L1611",
       "weight": 1.0
     },
     {
@@ -160774,7 +160774,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1600",
+      "source_location": "L1612",
       "weight": 1.0
     },
     {
@@ -160786,7 +160786,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2021",
+      "source_location": "L2033",
       "weight": 1.0
     },
     {
@@ -160798,7 +160798,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2022",
+      "source_location": "L2034",
       "weight": 1.0
     },
     {
@@ -160810,7 +160810,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2023",
+      "source_location": "L2035",
       "weight": 1.0
     },
     {
@@ -160822,7 +160822,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L299",
+      "source_location": "L302",
       "weight": 1.0
     },
     {
@@ -160834,7 +160834,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L300",
+      "source_location": "L303",
       "weight": 1.0
     },
     {
@@ -160846,7 +160846,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L923",
+      "source_location": "L935",
       "weight": 1.0
     },
     {
@@ -160858,7 +160858,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L924",
+      "source_location": "L936",
       "weight": 1.0
     },
     {
@@ -160870,7 +160870,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L340",
+      "source_location": "L343",
       "weight": 1.0
     },
     {
@@ -160882,7 +160882,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L341",
+      "source_location": "L344",
       "weight": 1.0
     },
     {
@@ -160894,7 +160894,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L342",
+      "source_location": "L345",
       "weight": 1.0
     },
     {
@@ -160906,7 +160906,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L345",
+      "source_location": "L348",
       "weight": 1.0
     },
     {
@@ -160954,7 +160954,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L144",
+      "source_location": "L146",
       "weight": 1.0
     },
     {
@@ -160966,7 +160966,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L146",
+      "source_location": "L148",
       "weight": 1.0
     },
     {
@@ -165622,7 +165622,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153",
+      "source_location": "L1165",
       "weight": 1.0
     },
     {
@@ -165634,7 +165634,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153",
+      "source_location": "L1165",
       "weight": 1.0
     },
     {
@@ -165646,7 +165646,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1837",
+      "source_location": "L1849",
       "weight": 1.0
     },
     {
@@ -165658,7 +165658,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -165670,7 +165670,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -165682,7 +165682,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547",
+      "source_location": "L1559",
       "weight": 1.0
     },
     {
@@ -165694,7 +165694,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2567",
+      "source_location": "L2579",
       "weight": 1.0
     },
     {
@@ -165706,7 +165706,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1258",
+      "source_location": "L1270",
       "weight": 1.0
     },
     {
@@ -165718,7 +165718,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -165730,7 +165730,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1891",
+      "source_location": "L1903",
       "weight": 1.0
     },
     {
@@ -165742,7 +165742,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1896",
+      "source_location": "L1908",
       "weight": 1.0
     },
     {
@@ -165754,7 +165754,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1896",
+      "source_location": "L1908",
       "weight": 1.0
     },
     {
@@ -165766,7 +165766,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -165778,7 +165778,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -165790,7 +165790,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -165802,7 +165802,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1597",
+      "source_location": "L1609",
       "weight": 1.0
     },
     {
@@ -165814,7 +165814,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -165826,7 +165826,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2022",
+      "source_location": "L2034",
       "weight": 1.0
     },
     {
@@ -165838,7 +165838,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028",
+      "source_location": "L2040",
       "weight": 1.0
     },
     {
@@ -165850,7 +165850,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2287",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -165862,7 +165862,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L300",
+      "source_location": "L303",
       "weight": 1.0
     },
     {
@@ -165874,7 +165874,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -165886,7 +165886,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L305",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -165898,7 +165898,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2065",
+      "source_location": "L2077",
       "weight": 1.0
     },
     {
@@ -165910,7 +165910,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2263",
+      "source_location": "L2275",
       "weight": 1.0
     },
     {
@@ -165922,7 +165922,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2521",
+      "source_location": "L2533",
       "weight": 1.0
     },
     {
@@ -165934,7 +165934,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -165946,7 +165946,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -165958,7 +165958,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L341",
+      "source_location": "L344",
       "weight": 1.0
     },
     {
@@ -165970,7 +165970,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L346",
+      "source_location": "L349",
       "weight": 1.0
     },
     {
@@ -165982,7 +165982,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L346",
+      "source_location": "L349",
       "weight": 1.0
     },
     {
@@ -165994,7 +165994,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -166006,7 +166006,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -166018,7 +166018,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -166030,7 +166030,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L401",
+      "source_location": "L404",
       "weight": 1.0
     },
     {
@@ -166042,7 +166042,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1273",
+      "source_location": "L1285",
       "weight": 1.0
     },
     {
@@ -166054,7 +166054,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875",
+      "source_location": "L887",
       "weight": 1.0
     },
     {
@@ -166066,7 +166066,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2557",
+      "source_location": "L2569",
       "weight": 1.0
     },
     {
@@ -166078,7 +166078,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2244",
+      "source_location": "L2256",
       "weight": 1.0
     },
     {
@@ -166090,7 +166090,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009",
+      "source_location": "L1021",
       "weight": 1.0
     },
     {
@@ -166102,7 +166102,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -166114,7 +166114,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -166126,7 +166126,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -166138,7 +166138,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2340",
+      "source_location": "L2352",
       "weight": 1.0
     },
     {
@@ -166198,7 +166198,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L136",
+      "source_location": "L138",
       "weight": 1.0
     },
     {
@@ -166210,7 +166210,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L142",
+      "source_location": "L144",
       "weight": 1.0
     },
     {
@@ -166222,7 +166222,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L148",
+      "source_location": "L150",
       "weight": 1.0
     },
     {
@@ -166234,7 +166234,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L150",
+      "source_location": "L152",
       "weight": 1.0
     },
     {
@@ -166246,7 +166246,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L284",
+      "source_location": "L287",
       "weight": 1.0
     },
     {
@@ -166258,7 +166258,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L261",
+      "source_location": "L264",
       "weight": 1.0
     },
     {
@@ -166270,7 +166270,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L679",
+      "source_location": "L691",
       "weight": 1.0
     },
     {
@@ -177466,7 +177466,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2666",
+      "source_location": "L2678",
       "weight": 1.0
     },
     {
@@ -194734,7 +194734,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153",
+      "source_location": "L1165",
       "weight": 1.0
     },
     {
@@ -194746,7 +194746,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153",
+      "source_location": "L1165",
       "weight": 1.0
     },
     {
@@ -194758,7 +194758,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1837",
+      "source_location": "L1849",
       "weight": 1.0
     },
     {
@@ -194770,7 +194770,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1837",
+      "source_location": "L1849",
       "weight": 1.0
     },
     {
@@ -194782,7 +194782,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2480",
+      "source_location": "L2492",
       "weight": 1.0
     },
     {
@@ -194794,7 +194794,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2480",
+      "source_location": "L2492",
       "weight": 1.0
     },
     {
@@ -194806,7 +194806,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -194818,7 +194818,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -194830,7 +194830,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -194842,7 +194842,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -194854,7 +194854,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -194866,7 +194866,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547",
+      "source_location": "L1559",
       "weight": 1.0
     },
     {
@@ -194878,7 +194878,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547",
+      "source_location": "L1559",
       "weight": 1.0
     },
     {
@@ -194890,7 +194890,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547",
+      "source_location": "L1559",
       "weight": 1.0
     },
     {
@@ -194902,7 +194902,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2567",
+      "source_location": "L2579",
       "weight": 1.0
     },
     {
@@ -194914,7 +194914,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -194926,7 +194926,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -194938,7 +194938,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -194950,7 +194950,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -194962,7 +194962,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -194974,7 +194974,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -194986,7 +194986,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -194998,7 +194998,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -195010,7 +195010,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -195022,7 +195022,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -195034,7 +195034,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -195046,7 +195046,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028",
+      "source_location": "L2040",
       "weight": 1.0
     },
     {
@@ -195058,7 +195058,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028",
+      "source_location": "L2040",
       "weight": 1.0
     },
     {
@@ -195070,7 +195070,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2287",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -195082,7 +195082,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2395",
+      "source_location": "L2407",
       "weight": 1.0
     },
     {
@@ -195094,7 +195094,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2395",
+      "source_location": "L2407",
       "weight": 1.0
     },
     {
@@ -195106,7 +195106,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -195118,7 +195118,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L305",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -195130,7 +195130,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L929",
+      "source_location": "L941",
       "weight": 1.0
     },
     {
@@ -195142,7 +195142,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L721",
+      "source_location": "L733",
       "weight": 1.0
     },
     {
@@ -195154,7 +195154,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2065",
+      "source_location": "L2077",
       "weight": 1.0
     },
     {
@@ -195166,7 +195166,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2065",
+      "source_location": "L2077",
       "weight": 1.0
     },
     {
@@ -195178,7 +195178,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2263",
+      "source_location": "L2275",
       "weight": 1.0
     },
     {
@@ -195190,7 +195190,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2521",
+      "source_location": "L2533",
       "weight": 1.0
     },
     {
@@ -195202,7 +195202,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2521",
+      "source_location": "L2533",
       "weight": 1.0
     },
     {
@@ -195214,7 +195214,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L968",
+      "source_location": "L980",
       "weight": 1.0
     },
     {
@@ -195226,7 +195226,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -195238,7 +195238,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -195250,7 +195250,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2442",
+      "source_location": "L2454",
       "weight": 1.0
     },
     {
@@ -195262,7 +195262,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -195274,7 +195274,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -195286,7 +195286,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -195298,7 +195298,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L401",
+      "source_location": "L404",
       "weight": 1.0
     },
     {
@@ -195334,7 +195334,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L899",
+      "source_location": "L911",
       "weight": 1.0
     },
     {
@@ -195346,7 +195346,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2418",
+      "source_location": "L2430",
       "weight": 1.0
     },
     {
@@ -195358,7 +195358,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2418",
+      "source_location": "L2430",
       "weight": 1.0
     },
     {
@@ -195370,7 +195370,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1273",
+      "source_location": "L1285",
       "weight": 1.0
     },
     {
@@ -195382,7 +195382,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1273",
+      "source_location": "L1285",
       "weight": 1.0
     },
     {
@@ -195394,7 +195394,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1232",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -195406,7 +195406,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1232",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -195418,7 +195418,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875",
+      "source_location": "L887",
       "weight": 1.0
     },
     {
@@ -195430,7 +195430,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875",
+      "source_location": "L887",
       "weight": 1.0
     },
     {
@@ -195442,7 +195442,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875",
+      "source_location": "L887",
       "weight": 1.0
     },
     {
@@ -195454,7 +195454,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L977",
+      "source_location": "L989",
       "weight": 1.0
     },
     {
@@ -195466,7 +195466,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L994",
+      "source_location": "L1006",
       "weight": 1.0
     },
     {
@@ -195478,7 +195478,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2557",
+      "source_location": "L2569",
       "weight": 1.0
     },
     {
@@ -195490,7 +195490,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2244",
+      "source_location": "L2256",
       "weight": 1.0
     },
     {
@@ -195502,7 +195502,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2368",
+      "source_location": "L2380",
       "weight": 1.0
     },
     {
@@ -195514,7 +195514,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2368",
+      "source_location": "L2380",
       "weight": 1.0
     },
     {
@@ -195526,7 +195526,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009",
+      "source_location": "L1021",
       "weight": 1.0
     },
     {
@@ -195538,7 +195538,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009",
+      "source_location": "L1021",
       "weight": 1.0
     },
     {
@@ -195550,7 +195550,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009",
+      "source_location": "L1021",
       "weight": 1.0
     },
     {
@@ -195562,7 +195562,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -195574,7 +195574,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -195586,7 +195586,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -195598,7 +195598,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -195610,7 +195610,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -195622,7 +195622,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -195634,7 +195634,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -195646,7 +195646,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -195658,7 +195658,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L765",
+      "source_location": "L777",
       "weight": 1.0
     },
     {
@@ -195670,7 +195670,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2340",
+      "source_location": "L2352",
       "weight": 1.0
     },
     {
@@ -195682,7 +195682,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L284",
+      "source_location": "L287",
       "weight": 1.0
     },
     {
@@ -195694,7 +195694,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L155",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -195706,7 +195706,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L155",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -195718,7 +195718,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L679",
+      "source_location": "L691",
       "weight": 1.0
     },
     {
@@ -195730,7 +195730,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L679",
+      "source_location": "L691",
       "weight": 1.0
     },
     {
@@ -210838,7 +210838,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -210850,7 +210850,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1326",
+      "source_location": "L1338",
       "weight": 1.0
     },
     {
@@ -210862,7 +210862,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -210874,7 +210874,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1919",
+      "source_location": "L1931",
       "weight": 1.0
     },
     {
@@ -210886,7 +210886,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -210898,7 +210898,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1671",
+      "source_location": "L1683",
       "weight": 1.0
     },
     {
@@ -210910,7 +210910,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1635",
+      "source_location": "L1647",
       "weight": 1.0
     },
     {
@@ -210922,7 +210922,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -210934,7 +210934,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2039",
+      "source_location": "L2051",
       "weight": 1.0
     },
     {
@@ -210946,7 +210946,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028",
+      "source_location": "L2040",
       "weight": 1.0
     },
     {
@@ -210958,7 +210958,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1498",
+      "source_location": "L1510",
       "weight": 1.0
     },
     {
@@ -210970,7 +210970,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2287",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -210982,7 +210982,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -210994,7 +210994,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L305",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -211006,7 +211006,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L939",
+      "source_location": "L951",
       "weight": 1.0
     },
     {
@@ -211018,7 +211018,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L929",
+      "source_location": "L941",
       "weight": 1.0
     },
     {
@@ -211030,7 +211030,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2263",
+      "source_location": "L2275",
       "weight": 1.0
     },
     {
@@ -211042,7 +211042,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -211054,7 +211054,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2442",
+      "source_location": "L2454",
       "weight": 1.0
     },
     {
@@ -211066,7 +211066,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L373",
+      "source_location": "L376",
       "weight": 1.0
     },
     {
@@ -211078,7 +211078,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -211090,7 +211090,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2418",
+      "source_location": "L2430",
       "weight": 1.0
     },
     {
@@ -211102,7 +211102,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2244",
+      "source_location": "L2256",
       "weight": 1.0
     },
     {
@@ -211114,7 +211114,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2232",
+      "source_location": "L2244",
       "weight": 1.0
     },
     {
@@ -211126,7 +211126,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2340",
+      "source_location": "L2352",
       "weight": 1.0
     },
     {
@@ -211138,7 +211138,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L235",
+      "source_location": "L238",
       "weight": 1.0
     },
     {
@@ -211150,7 +211150,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L155",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -211162,7 +211162,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L261",
+      "source_location": "L264",
       "weight": 1.0
     },
     {
@@ -230238,13 +230238,24 @@
     },
     {
       "source": "adapters_windows_tsf_src_edit_session",
+      "target": "adapters_windows_tsf_src_edit_session_selected_assist_issue",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "adapters/windows-tsf/src/edit_session.rs",
+      "source_location": "L1006",
+      "weight": 1.0
+    },
+    {
+      "source": "adapters_windows_tsf_src_edit_session",
       "target": "adapters_windows_tsf_src_edit_session_show_assist_overlay",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1009",
+      "source_location": "L1021",
       "weight": 1.0
     },
     {
@@ -230255,7 +230266,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1019",
+      "source_location": "L1031",
       "weight": 1.0
     },
     {
@@ -230277,7 +230288,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1089",
+      "source_location": "L1101",
       "weight": 1.0
     },
     {
@@ -230288,7 +230299,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1153",
+      "source_location": "L1165",
       "weight": 1.0
     },
     {
@@ -230310,7 +230321,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1232",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -230321,7 +230332,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1256",
+      "source_location": "L1268",
       "weight": 1.0
     },
     {
@@ -230332,7 +230343,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1273",
+      "source_location": "L1285",
       "weight": 1.0
     },
     {
@@ -230343,7 +230354,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1498",
+      "source_location": "L1510",
       "weight": 1.0
     },
     {
@@ -230354,7 +230365,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1510",
+      "source_location": "L1522",
       "weight": 1.0
     },
     {
@@ -230365,7 +230376,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1529",
+      "source_location": "L1541",
       "weight": 1.0
     },
     {
@@ -230376,7 +230387,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1547",
+      "source_location": "L1559",
       "weight": 1.0
     },
     {
@@ -230387,7 +230398,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1595",
+      "source_location": "L1607",
       "weight": 1.0
     },
     {
@@ -230398,7 +230409,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1656",
+      "source_location": "L1668",
       "weight": 1.0
     },
     {
@@ -230409,7 +230420,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1837",
+      "source_location": "L1849",
       "weight": 1.0
     },
     {
@@ -230420,7 +230431,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1889",
+      "source_location": "L1901",
       "weight": 1.0
     },
     {
@@ -230431,7 +230442,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2020",
+      "source_location": "L2032",
       "weight": 1.0
     },
     {
@@ -230442,7 +230453,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2065",
+      "source_location": "L2077",
       "weight": 1.0
     },
     {
@@ -230453,7 +230464,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2082",
+      "source_location": "L2094",
       "weight": 1.0
     },
     {
@@ -230464,7 +230475,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2232",
+      "source_location": "L2244",
       "weight": 1.0
     },
     {
@@ -230475,7 +230486,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2244",
+      "source_location": "L2256",
       "weight": 1.0
     },
     {
@@ -230486,7 +230497,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2263",
+      "source_location": "L2275",
       "weight": 1.0
     },
     {
@@ -230497,7 +230508,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2287",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -230508,7 +230519,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2340",
+      "source_location": "L2352",
       "weight": 1.0
     },
     {
@@ -230519,7 +230530,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2368",
+      "source_location": "L2380",
       "weight": 1.0
     },
     {
@@ -230530,7 +230541,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2395",
+      "source_location": "L2407",
       "weight": 1.0
     },
     {
@@ -230541,7 +230552,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2418",
+      "source_location": "L2430",
       "weight": 1.0
     },
     {
@@ -230552,7 +230563,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2442",
+      "source_location": "L2454",
       "weight": 1.0
     },
     {
@@ -230563,7 +230574,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2461",
+      "source_location": "L2473",
       "weight": 1.0
     },
     {
@@ -230574,7 +230585,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2480",
+      "source_location": "L2492",
       "weight": 1.0
     },
     {
@@ -230585,7 +230596,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2521",
+      "source_location": "L2533",
       "weight": 1.0
     },
     {
@@ -230596,7 +230607,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2557",
+      "source_location": "L2569",
       "weight": 1.0
     },
     {
@@ -230607,7 +230618,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2567",
+      "source_location": "L2579",
       "weight": 1.0
     },
     {
@@ -230618,7 +230629,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2670",
+      "source_location": "L2682",
       "weight": 1.0
     },
     {
@@ -230629,7 +230640,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2685",
+      "source_location": "L2697",
       "weight": 1.0
     },
     {
@@ -230640,7 +230651,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2698",
+      "source_location": "L2710",
       "weight": 1.0
     },
     {
@@ -230651,7 +230662,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2726",
+      "source_location": "L2738",
       "weight": 1.0
     },
     {
@@ -230662,7 +230673,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2735",
+      "source_location": "L2747",
       "weight": 1.0
     },
     {
@@ -230673,7 +230684,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2753",
+      "source_location": "L2765",
       "weight": 1.0
     },
     {
@@ -230684,7 +230695,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2784",
+      "source_location": "L2796",
       "weight": 1.0
     },
     {
@@ -230695,7 +230706,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2825",
+      "source_location": "L2837",
       "weight": 1.0
     },
     {
@@ -230706,7 +230717,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L298",
+      "source_location": "L301",
       "weight": 1.0
     },
     {
@@ -230717,7 +230728,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L339",
+      "source_location": "L342",
       "weight": 1.0
     },
     {
@@ -230739,7 +230750,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L679",
+      "source_location": "L691",
       "weight": 1.0
     },
     {
@@ -230750,7 +230761,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L721",
+      "source_location": "L733",
       "weight": 1.0
     },
     {
@@ -230761,7 +230772,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L765",
+      "source_location": "L777",
       "weight": 1.0
     },
     {
@@ -230772,7 +230783,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L799",
+      "source_location": "L811",
       "weight": 1.0
     },
     {
@@ -230783,7 +230794,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L860",
+      "source_location": "L872",
       "weight": 1.0
     },
     {
@@ -230794,7 +230805,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L863",
+      "source_location": "L875",
       "weight": 1.0
     },
     {
@@ -230805,7 +230816,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L875",
+      "source_location": "L887",
       "weight": 1.0
     },
     {
@@ -230827,7 +230838,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L899",
+      "source_location": "L911",
       "weight": 1.0
     },
     {
@@ -230838,7 +230849,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L922",
+      "source_location": "L934",
       "weight": 1.0
     },
     {
@@ -230849,7 +230860,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L968",
+      "source_location": "L980",
       "weight": 1.0
     },
     {
@@ -230860,18 +230871,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L977",
-      "weight": 1.0
-    },
-    {
-      "source": "adapters_windows_tsf_src_edit_session",
-      "target": "adapters_windows_tsf_src_edit_session_selected_assist_issue",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L994",
+      "source_location": "L989",
       "weight": 1.0
     },
     {
@@ -288698,7 +288698,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1325",
+      "source_location": "L1337",
       "weight": 1.0
     },
     {
@@ -288709,7 +288709,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1918",
+      "source_location": "L1930",
       "weight": 1.0
     },
     {
@@ -288720,7 +288720,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1634",
+      "source_location": "L1646",
       "weight": 1.0
     },
     {
@@ -288731,7 +288731,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2038",
+      "source_location": "L2050",
       "weight": 1.0
     },
     {
@@ -288742,7 +288742,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L314",
+      "source_location": "L317",
       "weight": 1.0
     },
     {
@@ -288753,7 +288753,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L938",
+      "source_location": "L950",
       "weight": 1.0
     },
     {
@@ -288764,7 +288764,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L372",
+      "source_location": "L375",
       "weight": 1.0
     },
     {
@@ -297069,7 +297069,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1303",
+      "source_location": "L1315",
       "weight": 1.0
     },
     {
@@ -297080,7 +297080,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1352",
+      "source_location": "L1364",
       "weight": 1.0
     },
     {
@@ -297091,7 +297091,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1326",
+      "source_location": "L1338",
       "weight": 1.0
     },
     {
@@ -297102,7 +297102,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1901",
+      "source_location": "L1913",
       "weight": 1.0
     },
     {
@@ -297113,7 +297113,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1940",
+      "source_location": "L1952",
       "weight": 1.0
     },
     {
@@ -297124,7 +297124,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1919",
+      "source_location": "L1931",
       "weight": 1.0
     },
     {
@@ -297135,7 +297135,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1609",
+      "source_location": "L1621",
       "weight": 1.0
     },
     {
@@ -297146,7 +297146,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1667",
+      "source_location": "L1679",
       "weight": 1.0
     },
     {
@@ -297157,7 +297157,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1671",
+      "source_location": "L1683",
       "weight": 1.0
     },
     {
@@ -297168,7 +297168,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1635",
+      "source_location": "L1647",
       "weight": 1.0
     },
     {
@@ -297179,7 +297179,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2028",
+      "source_location": "L2040",
       "weight": 1.0
     },
     {
@@ -297190,7 +297190,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2039",
+      "source_location": "L2051",
       "weight": 1.0
     },
     {
@@ -297201,7 +297201,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L305",
+      "source_location": "L308",
       "weight": 1.0
     },
     {
@@ -297212,7 +297212,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L315",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -297223,7 +297223,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L929",
+      "source_location": "L941",
       "weight": 1.0
     },
     {
@@ -297234,7 +297234,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L939",
+      "source_location": "L951",
       "weight": 1.0
     },
     {
@@ -297245,7 +297245,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L351",
+      "source_location": "L354",
       "weight": 1.0
     },
     {
@@ -297256,7 +297256,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L383",
+      "source_location": "L386",
       "weight": 1.0
     },
     {
@@ -297267,7 +297267,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L401",
+      "source_location": "L404",
       "weight": 1.0
     },
     {
@@ -297278,7 +297278,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L373",
+      "source_location": "L376",
       "weight": 1.0
     },
     {
@@ -297289,7 +297289,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L155",
+      "source_location": "L157",
       "weight": 1.0
     },
     {
@@ -297300,7 +297300,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L180",
+      "source_location": "L183",
       "weight": 1.0
     },
     {
@@ -297311,7 +297311,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L196",
+      "source_location": "L199",
       "weight": 1.0
     },
     {
@@ -297322,7 +297322,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L206",
+      "source_location": "L209",
       "weight": 1.0
     },
     {
@@ -297333,7 +297333,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L214",
+      "source_location": "L217",
       "weight": 1.0
     },
     {
@@ -297344,7 +297344,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L220",
+      "source_location": "L223",
       "weight": 1.0
     },
     {
@@ -297355,7 +297355,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L235",
+      "source_location": "L238",
       "weight": 1.0
     },
     {
@@ -297366,7 +297366,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L246",
+      "source_location": "L249",
       "weight": 1.0
     },
     {
@@ -297377,7 +297377,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L254",
+      "source_location": "L257",
       "weight": 1.0
     },
     {
@@ -297388,7 +297388,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L261",
+      "source_location": "L264",
       "weight": 1.0
     },
     {
@@ -297399,7 +297399,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L272",
+      "source_location": "L275",
       "weight": 1.0
     },
     {
@@ -297410,7 +297410,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L284",
+      "source_location": "L287",
       "weight": 1.0
     },
     {
@@ -312369,7 +312369,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1183",
+      "source_location": "L1195",
       "weight": 1.0
     },
     {
@@ -312381,7 +312381,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1571",
+      "source_location": "L1583",
       "weight": 1.0
     },
     {
@@ -312393,7 +312393,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2577",
+      "source_location": "L2589",
       "weight": 1.0
     },
     {
@@ -312405,7 +312405,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L2583",
+      "source_location": "L2595",
       "weight": 1.0
     },
     {
@@ -312417,7 +312417,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L1426",
+      "source_location": "L1438",
       "weight": 1.0
     },
     {
@@ -312429,7 +312429,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L809",
+      "source_location": "L821",
       "weight": 1.0
     },
     {
@@ -312441,7 +312441,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L422",
+      "source_location": "L425",
       "weight": 1.0
     },
     {
@@ -312453,7 +312453,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L518",
+      "source_location": "L521",
       "weight": 1.0
     },
     {
@@ -312465,7 +312465,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L523",
+      "source_location": "L526",
       "weight": 1.0
     },
     {
@@ -312477,7 +312477,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/windows-tsf/src/edit_session.rs",
-      "source_location": "L558",
+      "source_location": "L561",
       "weight": 1.0
     },
     {
@@ -319382,5 +319382,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "418588778952a0a693a44910dfce1aafd45e4ac6"
+  "built_at_commit": "208fd128a4db13c67111aaa654c717ae535783db"
 }

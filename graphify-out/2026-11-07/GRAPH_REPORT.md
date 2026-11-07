@@ -1,7 +1,7 @@
 # Graph Report - TextVN  (2026-11-07)
 
 ## Corpus Check
-- 468 files · ~890,877 words
+- 468 files · ~890,962 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `41858877`
+- Built from commit: `208fd128`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2207,9 +2207,9 @@ Nodes (3): [0.2.4] — 2026-10-01, Fixed, Verification
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `windows-tsf/src/assist.rs`, `string`, `TextVNInputController`, `AssistTests`, `ImeEngine`, `test_compose.c`?**
-  _High betweenness centrality (0.099) - this node is a cross-community bridge._
+  _High betweenness centrality (0.102) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `windows-tsf/src/assist.rs` to `TsfShared`, `engine.cpp`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `AXSnapshot`, `CodingKeys`, `.onEvent`, `IpcClient`, `ConfigWatcher`, `MockHandler`, `compose.c`, `TapDecision`, `.suggest`, `AppDelegate`, `StrategyResolver`, `IpcServerAssistTests`, `IpcServer`, `ViState`, `.register`, `ConfigStore`, `TextVNInputController`, `AssistTests`, `OwnerRule`, `Equatable`, `ImeEngine`, `EventTapController`, `Foundation`, `Problem`, `.inject`, `AutostartManager`, `MarkedState`, `TextVNAppTests`, `KeyTranslator`?**
   _High betweenness centrality (0.093) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
