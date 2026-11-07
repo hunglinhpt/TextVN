@@ -1,7 +1,7 @@
-# Graph Report - TextVN  (2026-11-07)
+# Graph Report - TextVN  (2026-11-08)
 
 ## Corpus Check
-- 471 files · ~921,569 words
+- 471 files · ~921,604 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2286855a`
+- Built from commit: `251f03d8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2338,11 +2338,11 @@ Nodes (3): Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục, Kiểm ch�
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `ImeEngine`, `string`, `TextVNInputController`, `AssistTests`, `test_compose.c`, `engine.c`, `AssistCheck`, `IpcServer`?**
-  _High betweenness centrality (0.099) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Why does `plan_sentence_auto_fix()` connect `AssistCheck` to `engine.cpp`, `windows-tsf/src/assist.rs`, `TsfShared`, `OverlayView`?**
   _High betweenness centrality (0.094) - this node is a cross-community bridge._
 - **Why does `String` connect `String` to `AXSnapshot`, `IpcClient`, `ConfigWatcher`, `EventTapController`, `.suggest`, `AppDelegate`, `StrategyResolver`, `IpcServer`, `ImeEngine`, `ViState`, `MacSpellProvider`, `ConfigStore`, `TextVNInputController`, `AssistTests`, `Equatable`, `2. Nhật ký finding`, `OwnerRule`, `IpcServerAssistTests`, `Foundation`, `Problem`, `MacroEntry`, `AutostartManager`, `MarkedState`, `TextVNAppTests`, `CodingKeys`, `KeyTranslator`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+  _High betweenness centrality (0.092) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**
