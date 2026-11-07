@@ -6,12 +6,14 @@
 |---|---|
 | Nội dung | **V57-B**: learning hooks qua phím thật — VN/EN completion accept + Tab cycle accept + word-end (đã có từ 54) học `style_note_word` lowercase chuẩn; correction note tại `apply_assist_suggestion` (Windows path). **V57-C persist**: IPC `Message::StyleUpdate {json}` → tray `style_merge.rs` (merge_deltas + sanitize + cap) → persist + ConfigReload; TSF drain throttle 20 phím ranh giới (R2-120h). **V57-D audit**: style_learning_100 (10 test e2e phím thật) + rca_v57_adversarial (5 case đối kháng: peek không học, accept count 1, shape JSON, cycle không trùng, drain 2 lần). **P9 đầy đủ**: Word-trigger qua idle (R2-129 thay bằng P9); dead_key disarm tại finish(). **R2-120g/h**: baseline compact format + drain throttle. **Roadmap 15 đề xuất** docs/specs/roadmap-optimization-proposals.md |
 | Đo | workspace 966/966 · FPR 0/2739 · recall 28/28+38/38 · clippy 0 · preflight exit=0 |
-| CI trên commit gắn tag | 7/7 workflow áp dụng xanh |
-| Release | [v0.2.66 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) — release-candidate 4/4; 34 asset; `gpg --verify SHA256SUMS.txt` Good |
-| Checksums | (pin sau khi publish) |
-| Homebrew (B7b) | cask `version "0.2.66"` + sha256 mac zip (sync-cask) |
-| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.66 |
+| CI trên commit gắn tag e262fa54 | 7/7 workflow áp dụng xanh |
+| Release | [v0.2.66 tag ký GPG](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) Verified=true — [RC 42367425313](https://github.com/hunglinhpt/TextVN/actions/runs/42367425313) **4/4 job xanh** (sau 2 lần fail RCA: source_tree_clean CRLF renormalize R2-120i fix-1 + .sh shebang CRLF fix-2); 34 asset; `gpg --verify SHA256SUMS.txt` Good |
+| Checksums | machine exe `1d2a0ea8504190f1…` · MSIX `306e3a0fab7a8fa6…` · mac zip `177fcaf730cf6e8e…` · linux tar.gz `0558d64f2f985744…` · PKGBUILD archive `ebf8d1d362e7f0e3…` (gpg --verify SHA256SUMS.txt Good) |
+| Homebrew (B7b) | cask `version "0.2.66"` + `sha256 177fcaf7…` = mac zip ✓ |
+| approved (B7c) | `approved/v0.2.66/` 18 file byte-identical, raw URL machine.exe + msix **200** |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.66 = archive `ebf8d1d3…`; publish AUR chờ owner SSH |
 | PPA (B7f) | debian/changelog `0.2.66-0ppa1` |
+| B9 | CI trên commit docs cuối **7/7 xanh** — tag v0.2.66 trỏ commit Verified đã xanh (renormalize commit e262fa54); git status sạch |
 
 ## Bản 0.2.65 — chuẩn UniKey vần uo + chống xung đột OS-IME (vòng 55)
 
