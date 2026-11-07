@@ -48,6 +48,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Nội dung chính |
 |---|---|
+| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Sửa triệt để lỗi âm vị học tiếng Việt (sỏt -> sort) trên phím Ctrl, Ctrl+Space, Tab; chặn học âm tiết sai cấu trúc vào style_words; tiện ích Telex []/[[ ]]/a--b/Ctrl word-lock; mở rộng 1.957 từ ghép và 8.849 mẫu câu tiếng Anh song ngữ Mode EN và Mode VI (41.415 mục) |
 | [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): đo lường tiết kiệm phím (21% savings-rate trên corpus văn phòng) · Gate chống hồi quy `perf/baseline-win.json` · Chuẩn hoá `keys_typed` 3 OS · Hoàn thiện pipeline tự học P7 (IPC broadcast `ConfigReload`, opt-in consent G8, FFI `catch_unwind` an toàn) |
 | [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Tự học P7 hoàn chỉnh qua phím thật (drain cap 200 từ/50 cặp, IPC merge, live reload) · P9 debounce 1s cho word-trigger · Dead-key armed disarm · Roadmap 15 đề xuất |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Panel debounce 1s · Chặn hoàn tất username/id (`truong.giap`) · 3 gate suites 3000 case + DFMEA/DRBFM |
@@ -69,7 +70,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67)**
+Bản mới nhất: **[GitHub Release v0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md).
@@ -299,6 +300,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Highlights |
 |---|---|
+| [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Phonotactic validation & restore (sort -> sỏt fix) on Ctrl/Ctrl+Space/Tab; style_words learning guard; Telex conveniences: []/[[ ]]/a--b/Ctrl word-lock; full English dual-mode prediction parity across Mode EN and Mode VI with 1,957 compounds and 8,849 phrase rows (41,415 total corpora entries) |
 | [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): keystroke savings measurement (21% savings rate on office corpus) · Anti-regression gate in `perf/baseline-win.json` · Normalized 3-OS `keys_typed` · Completed P7 self-learning pipeline (IPC broadcast `ConfigReload`, G8 opt-in consent, safe FFI `catch_unwind`) |
 | [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Full P7 self-learning from real keystrokes (drain capped at 200 words / 50 pairs, IPC merge, live reload) · Full P9 1s debounce on word triggers · Dead-key armed disarm · 15-item roadmap |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Panel 1s debounce · ID/username punctuation gate · 3 gate suites 3000 cases + DFMEA/DRBFM |
@@ -320,7 +322,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download & install
 
-Latest release: **[GitHub Release v0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67)**
+Latest release: **[GitHub Release v0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).

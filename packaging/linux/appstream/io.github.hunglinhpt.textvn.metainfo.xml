@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.68" date="2026-11-07">
+      <description>
+        <p>Fixes Vietnamese phonotactic validation to properly restore invalid Telex-folded English words (such as sort -> sỏt) back to sort on Ctrl, Ctrl+Space, and Tab; hardens personal style_words learning to reject invalid syllables. Expands bilingual English text prediction across both Mode EN and Mode VI with 1,957 English compounds across 16 domains and 8,849 phrase rows (41,415 total corpora entries). Adds Vietnamese Telex conveniences: [ / ] for ơ / ư, [[ / ]] escape, Ctrl tap word-lock, and fast double-hyphen a--b em-dash.</p>
+      </description>
+    </release>
     <release version="0.2.67" date="2026-11-07">
       <description>
         <p>Introduces P10 Dream RSI (G19): precise keystroke savings measurement tracking keys typed, prediction accept events, and characters saved with an offline 21% savings rate gate on office benchmarks. Completes P7 learning pipeline with automatic ConfigReload broadcasting to all active adapters, strict opt-in consent enforcement, and hardened panic-safe FFI boundaries.</p>

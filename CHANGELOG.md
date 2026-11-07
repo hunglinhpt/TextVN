@@ -7,6 +7,39 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.68] — 2026-11-07
+
+### Added
+- **Tiện ích gõ Telex chuẩn người Việt**:
+  - Hỗ trợ phím `[` → `ơ` và `]` → `ư` trong Telex (`ch]a` → `chưa`, `m[f` → `mờ`,
+    `th][ng` → `thương`, `ddu[cj` → `được`), gõ đúp `[[` → `[` và `]]` → `]` để lấy lại
+    ngoặc vuông (giữ nguyên `[]` rỗng khi gõ code).
+  - Bấm rồi thả riêng phím `Ctrl` (standalone Ctrl tap) để khoá/giữ nguyên từ tiếng Việt hợp lệ
+    đang gõ (`tunx`, `Ctrl` → `tũn`, tách từ mới).
+  - Gõ nhanh hai gạch ngang `a--b` tự chuyển thành gạch nối dài `a—b` (em-dash U+2014),
+    gõ tiếp gạch thứ ba `---` hoàn nguyên `---` cho Markdown/code.
+  - Tiến hóa học từ cá nhân thời gian thực (in-session continuous learning, bigram learning
+    và Frecency aging tự động giảm nửa trọng số khi đầy bộ nhớ để từ mới nổi lên nhanh).
+- **Dự đoán tiếng Anh chất lượng tương đương tiếng Việt & hoạt động trên cả 2 chế độ (Mode EN & Mode VI)**:
+  - Bổ sung từ điển từ ghép & cụm danh từ tiếng Anh `data/en_compounds.txt` (**1.957 mục** trải rộng 16 domain: kinh doanh, quản trị, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán-thuế, ngân hàng-bảo hiểm, nhân sự, marketing-thương mại điện tử, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý-hợp đồng, bất động sản-xây dựng, y tế, giáo dục-nghiên cứu, giao tiếp công sở) tương đương `vn_compounds.txt` (1.941 mục).
+  - Mở rộng mẫu câu/cụm tiếng Anh `data/en_phrases.tsv` lên **8.849 dòng** tương đương `vn_phrases.tsv` (8.782 dòng), nâng tổng quy mô corpora lên **41.415 mục**.
+  - Hỗ trợ đầy đủ dự đoán tiếng Anh ở **cả 2 chế độ**:
+    1. **Mode EN (`E`, tắt tiếng Việt)**: hoàn tất tiền tố từ đơn & từ ghép (`machine` + Tab → `machine learning`), duyệt vòng 5 ứng viên bằng Tab, dự đoán câu/cụm tiếp theo (`Thank you` + Tab → `Thank you very much`, `looking forward` + Tab → `looking forward to hearing from you soon`), chữ mờ gợi ý sẵn (`peek_completion`), và tự học từ cá nhân (Dream RSI).
+    2. **Mode VI (`V`, bật tiếng Việt)**: khi phát hiện từ hoặc câu tiếng Anh (kể cả khi đang bị Telex biến đổi như `customer` → `cútomer`, `looking forward` → `looking fỏwad`, `in order` → `in ỏder`, `feel free` → `feel frê`, `see` → `sê`), tự động khôi phục và gợi ý chính xác từ đơn, từ ghép và mẫu câu tiếng Anh tương đương Mode EN mà vẫn bảo vệ âm tiết tiếng Việt thông dụng.
+
+### Fixed
+- **Sửa triệt để lỗi âm vị học tiếng Việt (`sỏt` → `sort`)**:
+  - Âm cuối tắc (`-t`) trong âm vị học tiếng Việt không thể đi với thanh hỏi (`is_valid_word("sỏt") == false`). Khôi phục chính xác từ tiếng Anh gốc `sort` khi bấm `Ctrl`, `Ctrl+Space` và `Tab` (lần Tab 1 hoàn nguyên `sort`, lần 2 mới duyệt sang `sorts`).
+  - Trong `on_boundary`, kiểm tra điều kiện restore trước khi học từ cá nhân; sửa hàm `valid_style_entry` để loại bỏ dứt điểm mọi âm tiết biến dạng sai cấu trúc âm vị học, bảo đảm bộ nhớ `style_words` luôn sạch và không bị ô nhiễm.
+  - Tối ưu hóa tính toán Dream RSI: chỉ tăng bộ đếm ký tự tiết kiệm khi ứng viên hoàn tất thực sự dài hơn chuỗi đã gõ.
+
+**English** — 0.2.68 delivers critical phonotactic validation fixes, Vietnamese Telex typing conveniences, and full bilingual English prediction parity:
+- **Phonotactic validation & restore**: Fixes invalid Telex folds such as `sort` → `sỏt` (which is phonotactically impossible in Vietnamese phonology). `sort` is now restored immediately upon standalone `Ctrl` tap, `Ctrl+Space`, or `Tab` (first Tab restores `sort`, second Tab cycles to `sorts`). Hardens `valid_style_entry` so invalid syllables cannot pollute personal `style_words`.
+- **Vietnamese Telex conveniences**: Adds `[` / `]` for `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`) with double-bracket escape (`[[` → `[`, `]]` → `]`, and code empty brackets `[]` preserved), standalone `Ctrl` tap to lock valid Vietnamese syllables (`tunx`, `Ctrl` → `tũn`), and fast double-hyphen `a--b` → em-dash `a—b` (`---` undo).
+- **Dual-mode bilingual prediction parity**: Adds `data/en_compounds.txt` (1,957 entries across 16 domains) and expands `data/en_phrases.tsv` to 8,849 rows (41,415 total corpora entries). Delivers full prefix completion, compound prediction, 5-candidate cycling, next-phrase prediction, and ghost text preview in both **Mode EN (`E`)** and **Mode VI (`V`)** while protecting Vietnamese syllables.
+
+---
+
 ## [0.2.67] — 2026-11-07
 
 ### Added
@@ -2749,3 +2782,4 @@ git push origin v0.1.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0
 [0.2.66]: https://github.com/hunglinhpt/TextVN/compare/v0.2.65...v0.2.66
 [0.2.67]: https://github.com/hunglinhpt/TextVN/compare/v0.2.66...v0.2.67
+[0.2.68]: https://github.com/hunglinhpt/TextVN/compare/v0.2.67...v0.2.68

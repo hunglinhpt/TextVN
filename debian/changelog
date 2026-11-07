@@ -1,3 +1,12 @@
+textvn (0.2.68-0ppa1) noble; urgency=medium
+
+  * Sửa triệt để lỗi âm vị học tiếng Việt (sỏt -> sort) trên phím Ctrl,
+    Ctrl+Space, Tab; chặn học âm tiết sai cấu trúc vào style_words;
+    tiện ích Telex []/[[ ]]/a--b/Ctrl word-lock; mở rộng 1.957 từ ghép
+    và 8.849 mẫu câu tiếng Anh song ngữ Mode EN và Mode VI.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 07 Nov 2026 23:45:00 +0700
+
 textvn (0.2.67-0ppa1) noble; urgency=medium
 
   * P10 Dream RSI (G19): bộ đếm phím tiết kiệm nhờ prediction (keys_typed,

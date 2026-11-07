@@ -1,5 +1,17 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.68 — sửa triệt để âm vị học tiếng Việt (sỏt -> sort) + tiện ích Telex & dự đoán song ngữ (2026-11-07)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | **Sửa triệt để lỗi âm vị học tiếng Việt (`sỏt` -> `sort`)**: Khôi phục chính xác từ tiếng Anh gốc khi bấm thả phím `Ctrl`, `Ctrl+Space` và `Tab` (lần 1 giữ nguyên `sort`, lần 2 mới duyệt sang `sorts`); chặn triệt để không cho các âm tiết sai cấu trúc âm vị học tiếng Việt lọt vào từ điển cá nhân `style_words`. **Mở rộng dự đoán tiếng Anh chất lượng tương đương tiếng Việt**: Thêm 1.957 từ ghép tiếng Anh (`data/en_compounds.txt`) trên 16 domain + 8.849 mẫu câu (`data/en_phrases.tsv`), đưa tổng quy mô dữ liệu lên 41.415 mục; hỗ trợ dự đoán tiếng Anh đầy đủ ở cả Mode EN (`E`) và Mode VI (`V`). **Tiện ích gõ Telex chuẩn người Việt**: Phím `[`/`]` thành `ơ`/`ư`, gõ đúp `[[`/`]]` hoàn nguyên ngoặc, khoá từ bằng `Ctrl` tap (`tunx`, `Ctrl` -> `tũn`), gõ nhanh `a--b` -> `a—b`. |
+| Đo | workspace tests PASS · 24/24 text_prediction · clippy 0 · check-version-sync 15/15 · preflight exit=0 |
+| CI trên commit gắn tag | 7/7 workflow áp dụng xanh (ci-shared, ci-windows, ci-linux, ci-macos, ci-aur, ci-deb, repo-hygiene) |
+| Checksums | Sẽ cập nhật sau khi build CI và release-candidate hoàn tất |
+| Homebrew (B7b) | cask `version "0.2.68"` |
+| AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.68 |
+| PPA (B7f) | debian/changelog `0.2.68-0ppa1` |
+
 ## Bản 0.2.67 — P10 Dream RSI + hoàn thiện pipeline tự học P7 (2026-11-07)
 
 | Hạng mục | Bằng chứng |
