@@ -1152,7 +1152,7 @@ final class AssistIpcTests: XCTestCase {
 
     /// Kiểm tra `styleNoteCorrection` và `styleDrainJSON` trên ImeEngine.
     func testEngineStyleNoteCorrectionAndDrain() throws {
-        let config = "{\"config_version\":1,\"style_profile\":{\"enabled\":true,\"max_entries\":1000}}"
+        let config = Data(#"{"config_version":1,"style_profile":{"enabled":true,"max_entries":1000}}"#.utf8)
         let engine = try ImeEngine(configJSON: config)
         engine.styleNoteCorrection(from: "nghanh", to: "nganh")
         let json = engine.styleDrainJSON()
