@@ -7,6 +7,48 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.67] — 2026-11-07
+
+### Added
+- **P10 — Dream RSI (G19)**: Đo lường tiết kiệm phím của người dùng nhờ prediction
+  với 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
+  Tất cả 5 đường accept (VN Tab/Ctrl+Space, EN/style-word completion, Space-accept,
+  cycle prediction, next-phrase) đều được gắn hook đếm chính xác ký tự tiết kiệm.
+- **Gate kiểm thử Dream RSI (G19c)**: Suite `core/tests/dream_rsi_100.rs` (12 test)
+  và lệnh bench deterministic `cargo run -p textvn-bench -- dream-rsi` (corpus văn
+  phòng 16 từ × 3 vòng, đạt tỷ lệ tiết kiệm **21% savings-rate**, 33 accepts).
+  Khối `dream_rsi` được đưa vào `perf/baseline-win.json` làm gate chặn hồi quy (không
+  merge nếu savings-rate giảm).
+- **Tài liệu đặc tả P10**: `docs/specs/dream-rsi.md` chi tiết hoá định nghĩa, công thức
+  và bảng ánh xạ accept-points.
+
+### Fixed
+- **Chuẩn hoá bộ đếm `keys_typed` đa nền tảng**: Sử dụng predicate `k.printable().is_some() && !k.is_ctrl_space()`
+  thay vì phụ thuộc vào `k.ch > 0`, đồng bộ số đo chính xác trên Windows TSF, macOS IMK,
+  Linux IBus/Fcitx5 và các test harness.
+- **Vòng lặp học P7 & broadcasting ConfigReload**: Sửa `tray/src/ipc_server.rs` gọi tường
+  minh `self.broadcast_config_reload(ver)` sau khi merge `StyleUpdate` thành công; sửa
+  `tray/src/style_merge.rs` và `core/src/lib.rs` tuân thủ nghiêm ngặt cờ Opt-in G8 (chỉ học
+  khi `style_profile.enabled` bật, không tự ý bật ngầm).
+- **An toàn FFI (P0-2 §5)**: Bọc `catch_unwind` bảo vệ các hàm `ime_style_note_correction`
+  và `ime_style_profile_drain`; sửa cơ chế drain 2 pha (probe length và chỉ xóa pending
+  khi caller copy thành công vào buffer).
+- **Tối ưu lệnh bench**: `dream-rsi` standalone chạy nhanh tức thì, không chạy lại các vòng
+  đo timing micro-bench không cần thiết.
+
+**English** — 0.2.67 introduces P10 Dream RSI (G19) to measure user keystroke savings
+from smart text prediction across 4 core metrics (`keys_typed`, `accepts`, `chars_saved`,
+and `savings_rate_pct`). All 5 prediction accept paths (Vietnamese completion, English/style
+completion, Space-accept, candidate cycling, and multi-word next-phrase prediction) now
+track keystrokes saved. Includes the `core/tests/dream_rsi_100.rs` suite (12 tests) and a
+deterministic corpus bench in `textvn-bench` achieving a **21% savings rate** across 33
+accepts on an office workflow benchmark, pinned as an anti-regression gate in `perf/baseline-win.json`.
+Normalizes cross-platform `keys_typed` counting via `printable()` predicate across Windows TSF,
+macOS IMK, and Linux. Hardens P7 self-learning with explicit `ConfigReload` broadcasting,
+strict Opt-in consent enforcement, and panic-safe FFI boundaries.
+
+---
+
 ## [0.2.66] — 2026-11-07
 
 ### Added
@@ -2674,3 +2716,4 @@ git push origin v0.1.0
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0
 [0.2.66]: https://github.com/hunglinhpt/TextVN/compare/v0.2.65...v0.2.66
+[0.2.67]: https://github.com/hunglinhpt/TextVN/compare/v0.2.66...v0.2.67

@@ -40,8 +40,12 @@ struct DrainCorrection {
 }
 
 /// Merge JSON drain vào config hiện hành + persist + trả version mới.
-/// Không có entry hợp lệ → không đụng config (trả version hiện tại).
+/// Không có entry hợp lệ hoặc style_profile chưa bật → không đụng config.
 pub fn merge_from_json(svc: &SvcManager, json: &str) -> Result<u64, String> {
+    let cfg = svc.config();
+    if !cfg.style_profile.enabled {
+        return Err("style profile chưa bật (opt-in G8)".into());
+    }
     let shape: DrainShape =
         serde_json::from_str(json).map_err(|e| format!("drain JSON hỏng: kind {e}"))?;
     let words: Vec<(String, u32)> = shape.words.into_iter().map(|w| (w.word, w.count)).collect();
@@ -54,7 +58,6 @@ pub fn merge_from_json(svc: &SvcManager, json: &str) -> Result<u64, String> {
         return Err("drain rỗng".into());
     }
     svc.update_config(|c| {
-        c.style_profile.enabled = true; // có dữ liệu học → feature bật
         c.style_profile.merge_deltas(&words, &corrections);
     })
     .map_err(|e| format!("persist lỗi: {:?}", e))

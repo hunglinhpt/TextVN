@@ -1673,13 +1673,17 @@ pub extern "C" fn ime_style_note_correction(
     if from.trim() == to.trim() {
         return IME_ERR_INVALID_ARG;
     }
-    inst.engine.style_note_correction(&from, &to);
-    IME_OK
+    match guarded(|| {
+        inst.engine.style_note_correction(&from, &to);
+    }) {
+        Some(_) => IME_OK,
+        None => IME_ERR_INTERNAL,
+    }
 }
 
 /// P7 (vòng 54): DRAIN dữ liệu học pending (từ + cặp) dạng JSON rồi XÓA
 /// pending — tray/IMK/settings gọi định kỳ để persist vào config.
-/// `out_buf == NULL && buf_len == 0` → chỉ ghi `*out_len` cần thiết.
+/// `out_buf == NULL && buf_len == 0` → chỉ ghi `*out_len` cần thiết mà KHÔNG xóa pending.
 /// Không pending → `*out_len = 0`, IME_OK.
 #[no_mangle]
 pub extern "C" fn ime_style_profile_drain(
@@ -1692,19 +1696,23 @@ pub extern "C" fn ime_style_profile_drain(
         return IME_ERR_INVALID_ARG;
     }
     let inst = unsafe { &mut *inst };
-    let json = inst.engine.style_drain_json();
+    let json = match guarded(|| inst.engine.style_peek_json()) {
+        Some(j) => j,
+        None => return IME_ERR_INTERNAL,
+    };
     let bytes = json.as_bytes();
     unsafe { *out_len = bytes.len() };
     if out_buf.is_null() {
         return IME_OK;
     }
     if bytes.len() > buf_len {
-        return IME_ERR_INTERNAL; // buffer nhỏ hơn JSON — caller cấp lại
+        return IME_ERR_INTERNAL; // buffer nhỏ hơn JSON — caller cấp lại (pending chưa xóa)
     }
     if !bytes.is_empty() {
         unsafe {
             slice::from_raw_parts_mut(out_buf, bytes.len()).copy_from_slice(bytes);
         }
+        let _ = guarded(|| inst.engine.style_clear_pending());
     }
     IME_OK
 }

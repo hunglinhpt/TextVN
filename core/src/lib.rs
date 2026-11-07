@@ -234,6 +234,10 @@ pub struct Engine {
     /// từ gõ xong + cặp user chấp nhận. Drain qua FFI rồi XÓA (G8: chỉ từ +
     /// count tối thiểu, không giờ/app/câu; Debug không in nội dung).
     style_pending: StylePending,
+
+    /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
+    /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
+    dream_rsi: DreamRsi,
 }
 
 /// P7: entry hợp lệ để HỌC — chặn G8 (đoạn văn), số, dấu câu, điều khiển.
@@ -254,6 +258,33 @@ fn valid_style_entry(s: &str) -> bool {
 pub struct StylePending {
     words: std::collections::BTreeMap<String, u32>,
     corrections: std::collections::BTreeMap<(String, String), u32>,
+}
+
+/// P10 — Dream RSI (vòng 58): đo **số phím tiết kiệm** nhờ prediction.
+///
+/// Mục tiêu "Dream": bộ gõ tự học ngày càng đoán đúng ⇒ savings rate
+/// (chars_saved / keys_typed) **luôn tiến hóa tăng dần**. G8: chỉ counter
+/// tổng hợp, không có từ/ nội dung.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct DreamRsi {
+    /// Phím user gõ thật (không đếm phím engine inject).
+    pub keys_typed: u64,
+    /// Số lần user nhận prediction (Tab/Space/Ctrl+Space/cycle).
+    pub accepts: u64,
+    /// Tổng ký tự không phải gõ nhờ prediction hoàn tất.
+    pub chars_saved: u64,
+}
+
+impl DreamRsi {
+    /// Savings rate phần trăm: chars_saved / (chars_saved + keys_typed).
+    /// 0 khi chưa có dữ liệu (không chia 0 panic — fail-open).
+    pub fn savings_rate_pct(&self) -> u64 {
+        let total = self.chars_saved.saturating_add(self.keys_typed);
+        if total == 0 {
+            return 0;
+        }
+        self.chars_saved.saturating_mul(100) / total
+    }
 }
 
 impl std::fmt::Debug for StylePending {
@@ -343,6 +374,7 @@ impl Engine {
         Engine {
             opts,
             style_pending: StylePending::default(),
+            dream_rsi: DreamRsi::default(),
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
@@ -358,8 +390,16 @@ impl Engine {
         self.opts.style_corrections.clone()
     }
 
+    pub(crate) fn style_enabled_for_learning(&self) -> bool {
+        self.opts.style_enabled_for_learning()
+    }
+
     /// P7: ghi cặp user chấp nhận (validate: 2..=32 ký tự, alphabetic+space).
+    /// Chỉ ghi khi tính năng học style_profile.enabled bật (G8 opt-in).
     pub fn style_note_correction(&mut self, from: &str, to: &str) {
+        if !self.style_enabled_for_learning() {
+            return;
+        }
         if !valid_style_entry(from) || !valid_style_entry(to) {
             return;
         }
@@ -375,6 +415,9 @@ impl Engine {
 
     /// P7: học từ user gõ xong (gọi tại word-end khi USP bật).
     pub fn style_note_word(&mut self, word: &str) {
+        if !self.style_enabled_for_learning() {
+            return;
+        }
         if !valid_style_entry(word) {
             return;
         }
@@ -385,14 +428,15 @@ impl Engine {
             .or_insert(0) += 1;
     }
 
-    /// P7: drain pending dạng JSON `{"words":[..],"corrections":[..]}` rồi XÓA.
-    /// Rỗng → `"{}"`. JSON tối thiểu, không thư viện ngoài.
-    pub fn style_drain_json(&mut self) -> String {
-        if self.style_pending.words.is_empty() && self.style_pending.corrections.is_empty() {
+    /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
+    pub fn style_peek_json(&self) -> String {
+        if self.style_pending.words.is_empty()
+            && self.style_pending.corrections.is_empty()
+            && self.dream_rsi.keys_typed == 0
+            && self.dream_rsi.accepts == 0
+        {
             return "{}".to_string();
         }
-        // Cap xuất (P7 spec): tối đa 200 từ / 50 cặp mỗi lần drain — giữ JSON
-        // nhỏ cho IPC/tray merge (merge_deltas phía config tự cap lại).
         const DRAIN_MAX_WORDS: usize = 200;
         const DRAIN_MAX_CORR: usize = 50;
         let mut words: Vec<String> = self
@@ -411,36 +455,36 @@ impl Engine {
         corr.sort();
         words.truncate(DRAIN_MAX_WORDS);
         corr.truncate(DRAIN_MAX_CORR);
-        // Bỏ phần vượt cap khỏi pending (chỉ giữ phần đã xuất) — drain là
-        // hợp đồng "xuất rồi xóa"; phần vượt cap bị loại theo sort alphabet
-        // (merge phía config tự có cap riêng và count cộng dồn từ lần sau).
-        let overflow_w: Vec<String> = self
-            .style_pending
-            .words
-            .keys()
-            .skip(DRAIN_MAX_WORDS)
-            .cloned()
-            .collect();
-        for k in overflow_w {
-            self.style_pending.words.remove(&k);
-        }
-        let overflow_c: Vec<(String, String)> = self
-            .style_pending
-            .corrections
-            .keys()
-            .skip(DRAIN_MAX_CORR)
-            .cloned()
-            .collect();
-        for k in overflow_c {
-            self.style_pending.corrections.remove(&k);
-        }
+        format!(
+            "{{\"words\":[{}],\"corrections\":[{}],\"rsi\":{{\"keys_typed\":{},\"accepts\":{},\"chars_saved\":{},\"savings_rate_pct\":{}}}}}",
+            words.join(","),
+            corr.join(","),
+            self.dream_rsi.keys_typed,
+            self.dream_rsi.accepts,
+            self.dream_rsi.chars_saved,
+            self.dream_rsi.savings_rate_pct()
+        )
+    }
+
+    /// P7: xóa sạch pending sau khi caller đã copy thành công.
+    pub fn style_clear_pending(&mut self) {
         self.style_pending.words.clear();
         self.style_pending.corrections.clear();
-        format!(
-            "{{\"words\":[{}],\"corrections\":[{}]}}",
-            words.join(","),
-            corr.join(",")
-        )
+    }
+
+    /// P7: drain pending dạng JSON `{"words":[..],"corrections":[..]}` rồi XÓA.
+    /// Rỗng → `"{}"`. JSON tối thiểu, không thư viện ngoài.
+    pub fn style_drain_json(&mut self) -> String {
+        let json = self.style_peek_json();
+        if json != "{}" {
+            self.style_clear_pending();
+        }
+        json
+    }
+
+    /// P10 — Dream RSI: snapshot counters (không xóa — vĩnh viễn theo engine).
+    pub fn dream_rsi_snapshot(&self) -> DreamRsi {
+        self.dream_rsi
     }
 
     pub fn set_options(&mut self, opts: EngineOptions) {
@@ -825,6 +869,11 @@ impl Engine {
             self.word.clear();
             self.record(Tail::Clear);
             return Outcome::pass();
+        }
+        // P10 Dream RSI: đếm phím gõ chữ thật (đã loại key-up/injected/
+        // modifier/chord/điều hướng — printable=None). G8: chỉ counter, không nội dung.
+        if k.printable().is_some() && !k.is_ctrl_space() {
+            self.dream_rsi.keys_typed = self.dream_rsi.keys_typed.saturating_add(1);
         }
 
         let strategy = self.strategy();
@@ -1394,6 +1443,14 @@ impl Engine {
         // Tab/Space nhận = tín hiệu "tôi hay dùng từ này" (đếm trên bản
         // lowercase chuẩn của completion, G8: chỉ từ + count).
         self.style_note_word(&completion.to_lowercase());
+        // P10 — Dream RSI: accept tiết kiệm (completion − typed) ký tự.
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(
+            (completion
+                .chars()
+                .count()
+                .saturating_sub(typed.chars().count())) as u64,
+        );
         let delete = self.word.owned as u16;
         self.word.clear();
 
@@ -1460,11 +1517,19 @@ impl Engine {
 
         let cycle = self.last_predict.as_mut()?;
         let delete = cycle.inserted_glyphs as u16;
+        let prev_glyphs = cycle.inserted_glyphs as u64;
         cycle.inserted_glyphs = out.len();
         cycle.current_index = next_idx;
         // P7 Hook 2: học ứng viên user duyệt tới (Tab/Ctrl+Space đổi candidate
         // = tín hiệu chủ ý dùng nó; học bản lowercase chuẩn của candidate).
         self.style_note_word(&cand.to_lowercase());
+        // P10 — Dream RSI: cycle sang candidate dài hơn = tiết kiệm thêm
+        // (cand mới − phần đã chèn của candidate cũ).
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self
+            .dream_rsi
+            .chars_saved
+            .saturating_add((cand.chars().count() as u64).saturating_sub(prev_glyphs));
 
         self.record(Tail::Replace {
             delete: delete as usize,
@@ -1550,6 +1615,13 @@ impl Engine {
             return None;
         }
         self.word.clear();
+        // P10 — Dream RSI: nhận cụm next-phrase (Space/dấu sau từ) = tiết kiệm
+        // nguyên phần glyph engine chèn (phrase, gồm cả space engine thêm).
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self
+            .dream_rsi
+            .chars_saved
+            .saturating_add(phrase_glyphs as u64);
 
         if candidates.len() > 1 {
             self.last_predict = Some(PredictCycle {
@@ -1672,6 +1744,14 @@ impl Engine {
         }
         // P7 Hook 2: học EN prediction-accept (candidate user nhận qua Tab/Space).
         self.style_note_word(&completion.to_lowercase());
+        // P10 — Dream RSI: EN accept tiết kiệm tương tự.
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(
+            (completion
+                .chars()
+                .count()
+                .saturating_sub(typed.chars().count())) as u64,
+        );
         let delete = if self.word.active {
             self.word.owned as u16
         } else {

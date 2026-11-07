@@ -5,7 +5,7 @@
 > **Quan hệ:** BỔ SUNG `01-AGENT-HANDBOOK.md`. Handbook là gốc về DoD / security / review;
 > file này là gốc về **thứ tự thao tác hằng ngày**. Nếu mâu thuẫn → ghi `FW-{n}` vào §7 rồi sửa cả hai
 > (không tự xử lý lén, không sửa file đang có WIP của agent khác).
-> **Trạng thái:** v2.4 (2026-11-06: thêm **G18** — commit & release bắt buộc cập nhật docs liên quan, README chuẩn template hoặc hơn, nêu bật tính năng vượt trội, song ngữ VI-EN 1:1 · 2026-10-21: thêm **G17** — không tick ✅ khi CI commit đó còn đỏ · 2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
+> **Trạng thái:** v2.5 (2026-11-07: thêm **G19** — Dream RSI: mọi agent buộc review/implement đo tiết kiệm phím, không merge khi savings-rate giảm · 2026-11-06: thêm **G18** — commit & release bắt buộc cập nhật docs liên quan, README chuẩn template hoặc hơn, nêu bật tính năng vượt trội, song ngữ VI-EN 1:1 · 2026-10-21: thêm **G17** — không tick ✅ khi CI commit đó còn đỏ · 2026-09-27: thêm §8 audit 5W1H · §9 fixbug · §10 dọn dẹp · §11 docs/nghiệp vụ · §12 GitHub Actions) ·
 > Review 1 (*Đúng & Đủ*) = tác giả tự rà · Review 2 (*Nhất quán & Sẵn sàng*) **chờ agent thứ hai** — finding `FW-{n}`, không xóa.
 
 ## 1. Ground rules (G-IDs) — áp dụng mọi lúc
@@ -30,6 +30,7 @@
 | G16 | **Phát hành version mới → bắt buộc đi đủ Checklist A (local) + Checklist B (repo/docs) của `docs/release/release-process.md`** — không tag khi CI commit đó chưa xanh; bản phát hành thiếu release note/changelog/version-sync/readme/metainfo/report = chưa Done | chuẩn hoá 2026-10-01 từ quy trình đã thành công của v0.2.0–v0.2.2 |
 | G17 | **Không tick ✅ cho task khi CI của commit đó còn đỏ** — mọi tick ✅ phải kèm **bằng chứng CI xanh** (link run) và, nếu acceptance yêu cầu chạy thật, **bằng chứng verify tay**; tick ✅ **sau khi** CI xanh (G13) | sự cố 2026-10-21: commit `c701600` (AS-050/AS-060) **push khi CI đỏ** (`ci-macos`/`ci-linux`/`ci-shared` FAILURE) mà `P4-TASKS.md` vẫn **tick ✅** ⇒ task bị coi là xong oan |
 | G18 | **Commit & Release bắt buộc cập nhật tài liệu liên quan & README song ngữ VI-EN toàn diện**: Mọi commit thay đổi tính năng/hành vi/API/cấu trúc và mọi release BẮT BUỘC cập nhật tài liệu liên quan (`README.md`, specs, ADR, CHANGELOG, docs nghiệp vụ). `README.md` phải chính xác, đầy đủ bằng hoặc hơn template hiện tại, không thiếu sót; nêu bật tính năng vượt trội (Rust memory-safe 3 OS, TSF không hook/inject, dự đoán P7 trie/frecency/sub-word, trợ lý ngữ pháp câu/từ ngữ cảnh, zero keylogging offline); song ngữ Anh - Việt đồng nhất 100% về cấu trúc, bảng biểu và độ sâu thông tin; trình bày khoa học mạch lạc | user rule 2026-11-06; chống thiếu sót tài liệu, lệch thông tin VI-EN, đảm bảo tính khoa học và minh bạch |
+| G19 | **Dream RSI (P10) — mọi agent code bộ gõ buộc phải review & implement Dream RSI**: mọi thay đổi prediction/suggestion/learning phải (a) thêm đường accept mới → gắn hook `DreamRsi` (tăng `accepts` + `chars_saved` đúng công thức — VN/EN accept: candidate−đã-gõ; cycle: cand mới−glyphs cũ; next-phrase: nguyên glyph cụm), (b) không phá bộ đếm `keys_typed` (chỉ phím gõ chữ thật `ch>0`, loại key-up/injected/modifier/chord/điều hướng), (c) đo savings-rate qua `dream_rsi_snapshot()`/drain JSON khối `rsi` trong bench/gate trên corpus — **tính năng làm savings-rate giảm so baseline corpus thì không được merge**, (d) audit 3× phải có 1 view Dream RSI (metrics tiến hóa tăng dần; G8 — chỉ counter, không nội dung phím) | user rule 2026-11-07 ("gợi ý phải luôn tiến hóa, áp dụng dream rsi… áp rule cho mọi agent"); nguồn: `core/src/lib.rs` `DreamRsi` + `core/tests/dream_rsi_100.rs` |
 
 ## 2. Bắt buộc đọc — trình tự mỗi phiên
 
@@ -96,6 +97,8 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 | 2026-09-27 | v2.1: thêm `hook-spike` workflow (WIN-005, dispatch-only) vào §6 ownership + §12.1 | — |
 | 2026-09-27 | v2.2: thêm **G15** — phần trùng lặp bắt buộc là lib dùng chung, code sạch + reuse tối đa (user rule) | — |
 | 2026-10-21 | v2.3: thêm **G17** — **không tick ✅ khi CI của commit đó còn đỏ**; mọi tick ✅ phải kèm link run CI xanh (+ verify tay nếu acceptance yêu cầu). Nguồn: sự cố `c701600` (AS-050/AS-060 push khi CI đỏ nhưng task đã tick ✅) | — |
+| 2026-11-06 | v2.4: thêm **G18** — commit & release bắt buộc cập nhật tài liệu liên quan + README song ngữ VI-EN toàn diện (user rule) | — |
+| 2026-11-07 | v2.5: thêm **G19** — **Dream RSI (P10)**: mọi agent code bộ gõ buộc review & implement đo tiết kiệm phím (hook `DreamRsi` ở accept-point, `keys_typed` đúng luật, bench savings-rate trên corpus, audit 1 view RSI); tính năng làm savings-rate giảm so baseline = không merge. User rule: "gợi ý phải luôn tiến hóa, áp dụng dream rsi… áp rule cho mọi agent" | — |
 | — | Review 2 chờ agent thứ hai | `FW-{n}` |
 
 ## 8. Audit 2 vòng — 5W1H

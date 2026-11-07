@@ -33,13 +33,17 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-      <release version="0.2.66" date="2026-11-07">
-        <description>
-          <p>Tự học P7 hoàn chỉnh: engine học từ qua phím gõ thật, học candidate nhận qua Tab/Space, học cặp sửa lỗi khi bấm Apply; dữ liệu tự merge vào config qua IPC (cap 200 từ/50 cặp, chỉ từ + count — G8).</p>
-          <p>P9 đầy đủ: mọi trigger đều debounce 1s; dead-key disarm khi focus đổi; drain throttle 20 phím; roadmap 15 đề xuất.</p>
-        </description>
-      </release>
-    <release version="0.2.66" date="2026-11-06">
+    <release version="0.2.67" date="2026-11-07">
+      <description>
+        <p>Introduces P10 Dream RSI (G19): precise keystroke savings measurement tracking keys typed, prediction accept events, and characters saved with an offline 21% savings rate gate on office benchmarks. Completes P7 learning pipeline with automatic ConfigReload broadcasting to all active adapters, strict opt-in consent enforcement, and hardened panic-safe FFI boundaries.</p>
+      </description>
+    </release>
+    <release version="0.2.66" date="2026-11-07">
+      <description>
+        <p>Complete P7 User Style Profile learning: engine learns vocabulary from raw typing, accepts candidates via Tab and Space, and learns corrections upon user confirmation with automatic IPC config synchronization (strictly capped at 200 words and 50 pairs, zero keylogging). P9 complete: universal 1-second debounce across all triggers, dead-key state management across focus transitions, and 20-keystroke throttle drain.</p>
+      </description>
+    </release>
+    <release version="0.2.65" date="2026-11-06">
       <description>
         <p>Restores 20-year UniKey standard for the "uo" rhyme: unaccented words like "luong", "uong", "truong.giap" remain untouched; explicit "w" or tone keys produce "ươ" ("luonwg", "tuowi", "tuowng"). Fixes OS-IME conflict on TSF-bypass apps (MobaXterm, KiTTY) via hook swallow-and-unicode. Restores Windows international dead-key handling (Ctrl+'+e → é). Adds a 1-second debounce timer to the grammar assistant panel so it never obstructs active typing. Space and Tab completion now respects identifier and punctuation boundaries ("truong.giap", "t.ho"). Ships three 1000-case gate test suites.</p>
       </description>

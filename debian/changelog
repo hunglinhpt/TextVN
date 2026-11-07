@@ -1,3 +1,11 @@
+textvn (0.2.67-0ppa1) noble; urgency=medium
+
+  * P10 Dream RSI (G19): bộ đếm phím tiết kiệm nhờ prediction (keys_typed,
+    accepts, chars_saved, savings_rate_pct); gate bench G19c trên corpus;
+    broadcast ConfigReload sau khi merge style profile; FFI catch_unwind an toàn.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 07 Nov 2026 20:30:00 +0700
+
 textvn (0.2.66-0ppa1) noble; urgency=medium
 
   * Vòng 56-57: tự học P7 đầy đủ (word-end + prediction-accept + correction

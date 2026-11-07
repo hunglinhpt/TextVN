@@ -235,8 +235,10 @@ fn s100_matrix_92_pairs() {
             press(&mut e, &mut buf, &space());
             let json = e.style_drain_json();
             let expect = format!("{a}{b}");
-            // 2-chữ không phải từ hợp lệ vẫn học (learner chỉ kiểm entry shape)
-            if !json.contains(&expect) && json != "{}" {
+            // 2-chữ không phải từ hợp lệ vẫn học (learner chỉ kiểm entry shape);
+            // nếu biến đổi thành 1 âm tiết < 2 ký tự (ví dụ "af" -> "à") thì learner bỏ qua (words rỗng).
+            let words_empty = json.contains("\"words\":[]") || json == "{}";
+            if !json.contains(&expect) && !words_empty {
                 panic!("pair {expect}: drain sai {json}");
             }
             checked += 1;

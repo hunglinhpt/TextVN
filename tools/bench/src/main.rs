@@ -224,7 +224,7 @@ fn platform() -> &'static str {
     }
 }
 
-fn render(all: &[Measurement], with_platform: bool) -> String {
+fn render(all: &[Measurement], with_platform: bool, dream: &DreamRsiStat) -> String {
     let mut s = String::from("{\n  \"schema\": \"textvn-bench.v1\",\n");
     if with_platform {
         let _ = writeln!(s, "  \"platform\": \"{}\",", platform());
@@ -237,7 +237,8 @@ fn render(all: &[Measurement], with_platform: bool) -> String {
         let comma = if i + 1 == all.len() { "" } else { "," };
         let _ = writeln!(s, "    {}{}", m.to_json(), comma);
     }
-    s.push_str("  ]\n}\n");
+    let _ = writeln!(s, "  ],\n  \"dream_rsi\": {}", dream.to_json());
+    s.push_str("}\n");
     s
 }
 
@@ -305,6 +306,8 @@ fn compare(baseline_json: &str, fresh: &[Measurement]) -> Result<String, Vec<Str
             }
         ));
     }
+    // P10 Dream RSI (G19c): savings-rate/accepts giảm so baseline = fail.
+    check_dream_rsi(baseline_json, &bench_dream_rsi(), &mut lines, &mut fails);
     if fails.is_empty() {
         Ok(lines.join("\n"))
     } else {
@@ -319,6 +322,168 @@ fn compare(baseline_json: &str, fresh: &[Measurement]) -> Result<String, Vec<Str
 /// giữ được xu hướng hồi quy thật của code. (Đo liên tiếp 3 vòng: chênh nhau tới 13% nếu
 /// chỉ lấy 1 vòng ngẫu nhiên.)
 const ROUNDS: u32 = 3;
+
+// --- P10 Dream RSI (G19c): savings-rate trên corpus văn phòng — khối DETERMINISTIC ---
+
+/// Corpus mô phỏng gõ văn phòng: VN Telex (transform thật) + EN từ điển phổ thông.
+/// KHÔNG phụ thuộc máy (không timing) — cùng số trên 3 OS ⇒ so baseline được tuyệt đối.
+const RSI_WORDS: [&str; 16] = [
+    // VN gõ Telex (transform thật → engine học + ghost)
+    "duocj", "tooi", "lamf", "vaof", "khoong", "ddeer", "vangf", "moocj",
+    // EN (completion qua en_words10k / freq3000)
+    "release", "report", "team", "project", "client", "contract", "review", "meeting",
+];
+
+/// Một phép đo Dream RSI trên corpus.
+struct DreamRsiStat {
+    /// Số phím MÃ user phải gõ KHÔNG có prediction (tổng ký tự + space/từ).
+    baseline_keys: u64,
+    /// Số phím thật khi có prediction (mô phỏng user: gõ nửa từ → Tab nếu có ghost,
+    /// không thì gõ hết; space kết từ).
+    actual_keys: u64,
+    /// baseline − actual: số phím tiết kiệm được.
+    saved_keys: u64,
+    savings_rate_pct: u64,
+    /// Counters từ engine (đối chiếu chéo — saved_keys đo theo phím gõ thô, engine_chars_saved đo theo ký tự/glyph).
+    engine_accepts: u64,
+    engine_chars_saved: u64,
+}
+
+impl DreamRsiStat {
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"baseline_keys\":{},\"actual_keys\":{},\"saved_keys\":{},\"savings_rate_pct\":{},\"accepts\":{},\"engine_chars_saved\":{}}}",
+            self.baseline_keys,
+            self.actual_keys,
+            self.saved_keys,
+            self.savings_rate_pct,
+            self.engine_accepts,
+            self.engine_chars_saved
+        )
+    }
+}
+
+/// Mô phỏng user gõ corpus qua engine thật: gõ nửa từ → có ghost thì Tab nhận,
+/// không thì gõ nốt; space kết từ. Đếm phím thật so với baseline không-prediction.
+fn bench_dream_rsi() -> DreamRsiStat {
+    use textvn_core::keymap::{self, KeyEvent};
+    use textvn_core::{Engine, EngineOptions, Method};
+
+    let mut e = Engine::new(EngineOptions {
+        method: Method::Telex,
+        enabled: true,
+        suggest_vn_complete: true,
+        suggest_space_complete: true,
+        auto_restore_english: true,
+        ..Default::default()
+    });
+    let mut actual = 0u64;
+    for _ in 0..3 {
+        for w in RSI_WORDS {
+            let chars: Vec<char> = w.chars().collect();
+            let half = (chars.len() / 2).max(1);
+            for &c in &chars[..half] {
+                let _ = e.key(&KeyEvent::char_down(c));
+                actual += 1;
+            }
+            if e.peek_completion().is_some() {
+                let _ = e.key(&KeyEvent {
+                    vk: keymap::vk::TAB,
+                    ch: '\t' as u32,
+                    key_down: true,
+                    ..Default::default()
+                });
+                actual += 1;
+            } else {
+                for &c in &chars[half..] {
+                    let _ = e.key(&KeyEvent::char_down(c));
+                    actual += 1;
+                }
+            }
+            let _ = e.key(&KeyEvent {
+                vk: keymap::vk::SPACE,
+                ch: ' ' as u32,
+                key_down: true,
+                ..Default::default()
+            });
+            actual += 1;
+        }
+        let _ = e.key(&KeyEvent {
+            vk: keymap::vk::RETURN,
+            ch: '\n' as u32,
+            key_down: true,
+            ..Default::default()
+        });
+        actual += 1;
+    }
+    let baseline_keys: u64 = 3 * RSI_WORDS
+        .iter()
+        .map(|w| w.chars().count() as u64 + 1)
+        .sum::<u64>()
+        + 3; // 3 lần Enter kết dòng
+    let s = e.dream_rsi_snapshot();
+    let saved = baseline_keys.saturating_sub(actual);
+    DreamRsiStat {
+        baseline_keys,
+        actual_keys: actual,
+        saved_keys: saved,
+        savings_rate_pct: saved * 100 / baseline_keys.max(1),
+        engine_accepts: s.accepts,
+        engine_chars_saved: s.chars_saved,
+    }
+}
+
+/// G19c — Dream RSI hồi quy: savings-rate/accepts giảm so baseline = tính năng
+/// làm gợi ý kém hơn → fail. Khối `dream_rsi` là deterministic (không timing)
+/// nên so tuyệt đối được; baseline cũ thiếu khối → bỏ qua (chỉ ghi chú).
+fn check_dream_rsi(
+    baseline_json: &str,
+    fresh: &DreamRsiStat,
+    lines: &mut Vec<String>,
+    fails: &mut Vec<String>,
+) {
+    let Some(pos) = baseline_json.find("\"dream_rsi\"") else {
+        lines.push(
+            "  dream-rsi: baseline chưa có khối — re-record baseline để bật gate G19c".into(),
+        );
+        return;
+    };
+    let tail = &baseline_json[pos..];
+    let parse = |key: &str| -> Option<u64> {
+        let p = tail.find(key)?;
+        let num: String = tail[p + key.len()..]
+            .chars()
+            .take_while(char::is_ascii_digit)
+            .collect();
+        num.parse().ok()
+    };
+    let old_rate = parse("\"savings_rate_pct\":");
+    let old_accepts = parse("\"accepts\":");
+    lines.push(format!(
+        "  {:<22} saved {}/{} phím · rate {}% · accepts {} (G19c)",
+        "dream-rsi",
+        fresh.saved_keys,
+        fresh.baseline_keys,
+        fresh.savings_rate_pct,
+        fresh.engine_accepts
+    ));
+    if let Some(old) = old_rate {
+        if fresh.savings_rate_pct < old {
+            fails.push(format!(
+                "dream-rsi: savings-rate {old}% → {}% — G19c: tính năng làm gợi ý kém hơn, không được merge",
+                fresh.savings_rate_pct
+            ));
+        }
+    }
+    if let Some(old) = old_accepts {
+        if fresh.engine_accepts < old {
+            fails.push(format!(
+                "dream-rsi: accepts {old} → {} — ít accept hơn baseline = gợi ý tệ hơn",
+                fresh.engine_accepts
+            ));
+        }
+    }
+}
 
 /// Đo N vòng, giữ vòng có `p50` nhỏ nhất.
 fn best_of<F: FnMut() -> Measurement>(mut run: F) -> Measurement {
@@ -347,6 +512,21 @@ fn main() -> std::process::ExitCode {
         .and_then(|v| v.parse().ok())
         .unwrap_or(20_000);
 
+    if cmd == "dream-rsi" {
+        // Standalone: in số Dream RSI corpus (G19c) không cần đo timing.
+        let dream = bench_dream_rsi();
+        println!("{}", dream.to_json());
+        println!(
+            "saved {}/{} phím · savings-rate {}% · accepts {} · engine_chars_saved {}",
+            dream.saved_keys,
+            dream.baseline_keys,
+            dream.savings_rate_pct,
+            dream.engine_accepts,
+            dream.engine_chars_saved
+        );
+        return ExitCode::SUCCESS;
+    }
+
     let all = if cmd == "field-switch" {
         vec![best_of(|| bench_field_switch_resolve(iters))]
     } else {
@@ -356,10 +536,11 @@ fn main() -> std::process::ExitCode {
             best_of(|| bench_resolve(iters)),
         ]
     };
+    let dream = bench_dream_rsi();
 
     match cmd {
         "run" | "field-switch" => {
-            let output = render(&all, true);
+            let output = render(&all, true, &dream);
             if all
                 .iter()
                 .any(|m| m.budget_ns() > 0 && m.p99_ns > m.budget_ns())
@@ -379,7 +560,7 @@ fn main() -> std::process::ExitCode {
                     let _ = std::fs::create_dir_all(dir);
                 }
             }
-            if let Err(e) = std::fs::write(&p, render(&all, true)) {
+            if let Err(e) = std::fs::write(&p, render(&all, true, &dream)) {
                 eprintln!("không ghi được `{p}`: {e}");
                 return ExitCode::FAILURE;
             }
@@ -406,7 +587,7 @@ fn main() -> std::process::ExitCode {
             }
         }
         other => {
-            eprintln!("lệnh lạ `{other}` — dùng: run | write <file> | check <file> [--iters N]");
+            eprintln!("lệnh lạ `{other}` — dùng: run | write <file> | check <file> | dream-rsi [--iters N]");
             return ExitCode::FAILURE;
         }
     }
@@ -474,5 +655,80 @@ mod tests {
             err.iter().any(|e| e.contains("không có trong baseline")),
             "{err:?}"
         );
+    }
+
+    fn dream(rate: u64, accepts: u64) -> DreamRsiStat {
+        DreamRsiStat {
+            baseline_keys: 318,
+            actual_keys: 318 - rate * 318 / 100,
+            saved_keys: rate * 318 / 100,
+            savings_rate_pct: rate,
+            engine_accepts: accepts,
+            engine_chars_saved: rate * 318 / 100,
+        }
+    }
+
+    /// G19c: savings-rate giảm → fail; tăng/giữ nguyên → pass; baseline thiếu
+    /// khối → bỏ qua (chỉ ghi chú re-record).
+    #[test]
+    fn dream_rsi_check_hoi_quy() {
+        let base = r#"{"dream_rsi":{"baseline_keys":318,"actual_keys":249,"saved_keys":69,"savings_rate_pct":21,"accepts":33,"engine_chars_saved":57}}"#;
+
+        // Giữ nguyên rate + accepts → pass.
+        let mut lines = Vec::new();
+        let mut fails = Vec::new();
+        check_dream_rsi(base, &dream(21, 33), &mut lines, &mut fails);
+        assert!(fails.is_empty(), "{fails:?}");
+
+        // Rate giảm 21 → 18 → fail G19c.
+        let mut fails = Vec::new();
+        check_dream_rsi(base, &dream(18, 33), &mut lines, &mut fails);
+        assert!(
+            fails
+                .iter()
+                .any(|f| f.contains("savings-rate") && f.contains("không được merge")),
+            "{fails:?}"
+        );
+
+        // Accepts giảm 33 → 20 → fail.
+        let mut fails = Vec::new();
+        check_dream_rsi(base, &dream(21, 20), &mut lines, &mut fails);
+        assert!(fails.iter().any(|f| f.contains("accepts")), "{fails:?}");
+
+        // Rate tăng (tiến hóa) → pass.
+        let mut fails = Vec::new();
+        check_dream_rsi(base, &dream(25, 40), &mut lines, &mut fails);
+        assert!(fails.is_empty(), "{fails:?}");
+
+        // Baseline cũ không có khối dream_rsi → bỏ qua, không fail.
+        let mut fails = Vec::new();
+        let mut lines2 = Vec::new();
+        check_dream_rsi("{}", &dream(1, 1), &mut lines2, &mut fails);
+        assert!(fails.is_empty());
+        assert!(lines2.iter().any(|l| l.contains("re-record")));
+    }
+
+    /// Corpus bench_dream_rsi phải DETERMINISTIC (không timing): 2 lần chạy
+    /// liên tiếp ra cùng số — điều kiện để gate G19c so tuyệt đối.
+    #[test]
+    fn dream_rsi_sim_deterministic() {
+        let a = bench_dream_rsi();
+        let b = bench_dream_rsi();
+        assert_eq!(a.baseline_keys, b.baseline_keys);
+        assert_eq!(a.actual_keys, b.actual_keys);
+        assert_eq!(a.savings_rate_pct, b.savings_rate_pct);
+        assert_eq!(a.engine_accepts, b.engine_accepts);
+        assert!(a.engine_accepts > 0, "corpus phải sinh được accepts");
+        assert!(a.saved_keys > 0, "corpus phải tiết kiệm được phím");
+    }
+
+    /// JSON của dream_rsi parse được như khối baseline thật (bench string-find).
+    #[test]
+    fn dream_rsi_json_co_dinh_dang() {
+        let s = dream(21, 33).to_json();
+        assert!(s.starts_with("{\"baseline_keys\":"));
+        assert!(s.contains("\"savings_rate_pct\":21"));
+        assert!(s.contains("\"accepts\":33"));
+        assert!(s.ends_with('}'));
     }
 }

@@ -46,6 +46,8 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Nội dung chính |
 |---|---|
+| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): đo lường tiết kiệm phím (21% savings-rate trên corpus văn phòng) · Gate chống hồi quy `perf/baseline-win.json` · Chuẩn hoá `keys_typed` 3 OS · Hoàn thiện pipeline tự học P7 (IPC broadcast `ConfigReload`, opt-in consent G8, FFI `catch_unwind` an toàn) |
+| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Tự học P7 hoàn chỉnh qua phím thật (drain cap 200 từ/50 cặp, IPC merge, live reload) · P9 debounce 1s cho word-trigger · Dead-key armed disarm · Roadmap 15 đề xuất |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Panel debounce 1s · Chặn hoàn tất username/id (`truong.giap`) · 3 gate suites 3000 case + DFMEA/DRBFM |
 | [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35.681 mục · 13 domain từ ghép mới (bất động sản, ngân hàng-bảo hiểm, logistics…) · gen-vocab Rust thay Python · User Style Profile (học từ cá nhân, opt-in) · abnormal_1000 · DFMEA/DRBFM |
 | [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31.000 mục (6.675 âm tiết + 1.214 từ ghép + 9.868 từ Anh + 10.208 câu/cụm/thành ngữ) · mở rộng đúng nghĩa · QA văn phòng 23 test · 3 fix FPR |
@@ -65,7 +67,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66)**
+Bản mới nhất: **[GitHub Release v0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md).
@@ -103,6 +105,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN, 3000 từ tần suất + từ điển bổ sung cá nhân, luôn bật); gõ dở `ngư` → Tab thành `ngưng` (tiếng Việt, 3000 âm tiết tần suất, bật qua `suggest.enabled`) | Không có |
 | **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
 | **Trợ lý ngữ pháp song ngữ & ngữ cảnh** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ/cụm 2–4 từ, dấu câu, viết hoa, sai dấu, ngữ pháp EN, ngày tháng vô lý, số tiền hỗn loạn) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng Anh; hoàn tác 1 bước Ctrl+Z | Không có |
+| **Chỉ số tiết kiệm phím Dream RSI (P10)** | Đo lường khách quan số phím người dùng tiết kiệm được nhờ gợi ý (tỷ lệ tiết kiệm ~21% trên corpus văn phòng); kiểm soát hồi quy chặt chẽ; 100% riêng tư (chỉ đếm số lượng, không lưu ký tự) | Không có |
 | **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
 | **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
 | **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
@@ -112,7 +115,13 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 | **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
 | **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
 
-## Tính năng đầy đủ (tích luỹ đến 0.2.65)
+## Tính năng đầy đủ (tích luỹ đến 0.2.67)
+
+**Chỉ số Dream RSI (P10) & Chống thoái lui hiệu năng (G19)**
+- Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
+- Phân tích hiệu quả gợi ý theo thời gian thực: tiết kiệm 21% số phím gõ trong tác vụ văn phòng thực tế (33 accepts / 69 phím tiết kiệm trên corpus benchmark)
+- 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase)
+- Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`)
 
 **Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora 35.681 mục:
 6.672 âm tiết Việt + 1.941 từ ghép (13 domain mới: bất động sản, ngân hàng-bảo
@@ -285,6 +294,8 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Highlights |
 |---|---|
+| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): keystroke savings measurement (21% savings rate on office corpus) · Anti-regression gate in `perf/baseline-win.json` · Normalized 3-OS `keys_typed` · Completed P7 self-learning pipeline (IPC broadcast `ConfigReload`, G8 opt-in consent, safe FFI `catch_unwind`) |
+| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Full P7 self-learning from real keystrokes (drain capped at 200 words / 50 pairs, IPC merge, live reload) · Full P9 1s debounce on word triggers · Dead-key armed disarm · 15-item roadmap |
 | [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Panel 1s debounce · ID/username punctuation gate · 3 gate suites 3000 cases + DFMEA/DRBFM |
 | [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust `xtask gen-vocab` replaces Python · User Style Profile (opt-in personal learning) · 1000-case abnormal suite · "bay bay" FP fixed |
 | [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31,000 entries (6,675 syllables + 1,214 compounds + 9,868 EN words + 10,208 phrases) · Meaning-controlled ranking · Office QA battery (23 tests) · 3 final FPR fixes |
@@ -304,7 +315,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download & install
 
-Latest release: **[GitHub Release v0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65)**
+Latest release: **[GitHub Release v0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
@@ -347,6 +358,7 @@ differently — per their public feature pages as of 2026-10):
 | **Tab word completion** | Half-typed `tes` → Tab completes to `test` (EN, 3000 frequency words + custom dictionary, always on); `ngư` → Tab completes to `ngưng` (Vietnamese, 3000 frequent syllables, via `suggest.enabled`). | Not supported. |
 | **Personal EN dictionary** | Add/remove words directly in the UI (EN Dictionary…); user preference overrides all engine heuristics. | Manual config file editing (if supported at all). |
 | **Bilingual grammar & context assistant** | Checks, suggests and auto-fixes the sentence just typed (word/2–4-phrase repeats, punctuation spacing, capitalization, tone placement, EN grammar, impossible dates, money grouping) 100% offline; 0% false positives on 981 Vietnamese + 295 English clean benchmark; 1-step Ctrl+Z undo. | Not supported. |
+| **Dream RSI keystroke savings (P10)** | Objectively measures typing effort saved via smart predictions (~21% savings rate on office workflows); strict regression gates; 100% private (counters only, zero keystroke logging) | Not supported |
 | **Escape raw keystroke restore** | Mistyped at any moment → Escape restores the exact raw typed string. | Most IMEs only support sentence-level undo or none. |
 | **Ctrl+Shift mode switch across all apps** | Modifier tap detector observes only (eats no keys) + debounce prevents double-toggling between tray and engine. | Global keyboard hooks can cause double-toggle or antivirus conflicts. |
 | **No preedit underline, no admin install** | Per-user TSF in HKCU, portable extract-and-run, zero UAC required. | UniKey/EVKey require installer and some variants demand administrator privileges. |
@@ -356,7 +368,13 @@ differently — per their public feature pages as of 2026-10):
 | **Private by default** | 100% local keystroke processing, zero telemetry, no network calls; auto-disables in password fields; public privacy policy in-repo. | Rarely publish a formal, verifiable privacy policy. |
 | **Process model & architecture** | 1 tray process + in-process TSF TIP; global keyboard hook observes modifiers only (eats no keys, injects no DLLs). | UniKey uses a global keyboard hook that intercepts all keystrokes and injects code. |
 
-## Full feature set (accumulated through 0.2.65)
+## Full feature set (accumulated through 0.2.67)
+
+**Dream RSI metrics (P10) & Performance anti-regression (G19)**
+- Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
+- Real-time prediction efficiency analysis: averages 21% keystroke savings on realistic office workloads (33 accepts / 69 keys saved on benchmark corpus)
+- 5 prediction accept paths: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction
+- Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`)
 
 **Text prediction (P6) & User Style Profile (P7)** — 35,681-entry corpora:
 6,672 Vietnamese syllables + 1,941 compounds (13 new domains: real estate,

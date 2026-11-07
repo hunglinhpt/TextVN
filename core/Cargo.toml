@@ -9,3 +9,7 @@ license.workspace = true
 # Alias nội bộ — package vẫn đúng tên chuẩn `textvn-strategy` (00-INDEX §4)
 strategy = { package = "textvn-strategy", path = "../strategy" }
 
+
+[dev-dependencies]
+# Chỉ cho test: validate drain JSON cùng shape tray parse (core vẫn 0-I/O).
+serde_json.workspace = true

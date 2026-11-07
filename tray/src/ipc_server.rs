@@ -625,10 +625,10 @@ impl IpcServer {
                 }
                 Message::StyleUpdate { json } => {
                     // P7 (vòng 57): merge dữ liệu học vào config + persist +
-                    // bump version (ConfigReload tự phát tới adapters). G8:
-                    // JSON đã cap 200/50 phía engine; sanitize chạy lại ở
-                    // merge_deltas. Fail-open: JSON hỏng → Ack, bỏ im lặng.
-                    let _ = crate::style_merge::merge_from_json(&self.svc, &json);
+                    // bump version và broadcast ConfigReload tới mọi adapter.
+                    if let Ok(ver) = crate::style_merge::merge_from_json(&self.svc, &json) {
+                        self.broadcast_config_reload(ver);
+                    }
                     Some(Message::Ack)
                 }
                 Message::Ping => Some(Message::Pong {
