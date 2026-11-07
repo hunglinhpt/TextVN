@@ -147,6 +147,15 @@ pub enum Message {
         #[serde(default)]
         auto_fixed: u32,
     },
+    /// P7 (vòng 57 — User Style Profile drain): adapter gửi dữ liệu HỌC
+    /// pending xuống tray để merge + persist vào config (G8: chỉ từ + cặp
+    /// sai→đúng + count; KHÔNG nội dung câu/phím). JSON shape khớp
+    /// `ime_style_profile_drain` output:
+    /// `{"words":[{word,count}..],"corrections":[{from,to,count}..]}`.
+    StyleUpdate {
+        /// JSON drain (đã cap 200 từ/50 cặp phía engine).
+        json: String,
+    },
 }
 
 /// Một lỗi trong [`Message::AssistReport`].

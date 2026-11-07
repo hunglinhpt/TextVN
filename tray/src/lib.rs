@@ -26,6 +26,7 @@ pub mod settings_dialog;
 pub mod store;
 #[cfg(windows)]
 pub mod store_win;
+pub mod style_merge;
 pub mod svc;
 
 pub use autostart::{disable_autostart, enable_autostart, is_autostart_enabled};

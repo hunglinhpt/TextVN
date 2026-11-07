@@ -563,6 +563,43 @@ impl EngineSession {
     }
 
     /// Phím đã phân loại bởi adapter (`compose::KeyKind`): `vk` + ký tự in được.
+    /// P7 (vòng 57): drain JSON dữ liệu học pending qua FFI
+    /// `ime_style_profile_drain`. Rỗng "{}" khi không có gì học mới.
+    pub fn style_drain_json(&mut self) -> String {
+        if self.instance.is_null() {
+            return "{}".to_string();
+        }
+        let mut buf = vec![0u8; 4096];
+        let mut out_len: usize = 0;
+        let status = textvn_ffi::ime_style_profile_drain(
+            self.instance,
+            buf.as_mut_ptr(),
+            buf.len(),
+            &mut out_len,
+        );
+        if status != 0 || out_len == 0 {
+            return "{}".to_string();
+        }
+        buf.truncate(out_len);
+        String::from_utf8_lossy(&buf).to_string()
+    }
+
+    /// P7 (vòng 57): ghi cặp sai→đúng user chấp nhận (gọi tại điểm Apply).
+    pub fn style_note_correction(&mut self, from: &str, to: &str) {
+        if self.instance.is_null() {
+            return;
+        }
+        let from_b = from.as_bytes();
+        let to_b = to.as_bytes();
+        textvn_ffi::ime_style_note_correction(
+            self.instance,
+            from_b.as_ptr(),
+            from_b.len(),
+            to_b.as_ptr(),
+            to_b.len(),
+        );
+    }
+
     pub fn key_event_raw(&mut self, vk: u32, ch: u32, mods: u32) -> Result<ime_result_v1, i32> {
         self.key_event(vk, ch, mods)
     }

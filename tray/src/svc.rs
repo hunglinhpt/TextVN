@@ -324,7 +324,7 @@ impl SvcManager {
     /// Ghi config mới trước rồi mới publish trong bộ nhớ/version. Nếu lưu thất bại
     /// (đĩa đầy, ACL, thư mục bị thay bằng file…), UI và TSF phải tiếp tục dùng
     /// cấu hình cũ thay vì báo đã đổi kiểu gõ nhưng engine không thể nạp lại.
-    fn update_config(&self, f: impl FnOnce(&mut Config)) -> Result<u64, DocError> {
+    pub fn update_config(&self, f: impl FnOnce(&mut Config)) -> Result<u64, DocError> {
         let mut cfg = self.config.write().unwrap_or_else(|e| e.into_inner());
         let mut candidate = cfg.clone();
         f(&mut candidate);

@@ -157,6 +157,108 @@ pub fn find_number_shorthand(tail: &[char]) -> Option<(usize, String)> {
     Some((tail.len() - eq_pos, expanded))
 }
 
+// ─── OP-010 (vòng 56 — D12): gõ tắt ngày/tháng tự động ───────────────────────
+// - `=ngay`   → `dd/mm/yyyy` (hôm nay, theo giờ máy — S1: std::time không I/O)
+// - `=thang`  → `mm/yyyy`
+// - `=nam`    → `yyyy`
+// Kế toán/hợp đồng gõ ngày rất nhiều; macro này định dạng chuẩn dd/mm/yyyy
+// Việt Nam. Giờ hệ thống lấy qua std::time::UNIX_EPOCH (0 I/O ngoài clock,
+// deterministic trong test qua tham số `days_since_epoch`).
+
+/// Ngày/tháng từ `days_since_epoch` (1970-01-01 = 0) — thuật toán civil-from-days
+/// chuẩn (Howard Hinnant), 0 dependency, chính xác leap-year.
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64; // [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32; // [1, 12]
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+/// Ngày hiện hành (days since epoch) — tách hàm để test xác định.
+fn days_since_epoch_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64 / 86_400)
+        .unwrap_or(0)
+}
+
+/// `=ngay` / `=thang` / `=nam` → ngày/tháng/năm hiện hành dạng Việt Nam.
+/// Trả `None` nếu `token` không khớp (caller giữ chuỗi gõ).
+pub fn find_date_shorthand(tail: &[char]) -> Option<(usize, String)> {
+    const KEYS: [(&str, u8); 3] = [("ngay", 0), ("thang", 1), ("nam", 2)];
+    let eq_pos = tail.iter().rposition(|&c| c == '=')?;
+    if eq_pos > 0 && (tail[eq_pos - 1].is_alphanumeric() || tail[eq_pos - 1] == '_') {
+        return None;
+    }
+    let token: String = tail[eq_pos + 1..].iter().collect::<String>().to_lowercase();
+    let mode = KEYS.iter().find(|(k, _)| *k == token)?.1;
+    let (y, m, d) = civil_from_days(days_since_epoch_now());
+    let expanded = match mode {
+        0 => format!("{d:02}/{m:02}/{y}"),
+        1 => format!("{m:02}/{y}"),
+        _ => format!("{y}"),
+    };
+    Some((tail.len() - eq_pos, expanded))
+}
+
+#[cfg(test)]
+mod date_tests {
+    use super::*;
+
+    #[test]
+    fn civil_from_days_chuan() {
+        // 0 = 1970-01-01; 19723 = 2024-01-01 (năm nhuận); mốc cố định
+        assert_eq!(civil_from_days(0), (1970, 1, 1));
+        assert_eq!(civil_from_days(19_723), (2024, 1, 1));
+        // Leap-year boundary: 2024-02-29 = ngày 19782 từ epoch
+        assert_eq!(civil_from_days(19_782), (2024, 2, 29));
+        // 2026-11-06 (ngày build feature) = 20454 + 309 (đầu năm→6/11)
+        assert_eq!(civil_from_days(20_763), (2026, 11, 6));
+    }
+
+    #[test]
+    fn ngay_thang_nam_din_hinh() {
+        let tail: Vec<char> = "=ngay".chars().collect();
+        let (len, out) = find_date_shorthand(&tail).expect("=ngay khớp");
+        assert_eq!(len, 5);
+        // dạng dd/mm/yyyy: 10 ký tự, 2 dấu /
+        assert_eq!(out.matches('/').count(), 2);
+        assert_eq!(out.len(), 10);
+
+        let tail: Vec<char> = "=thang".chars().collect();
+        let (_, out) = find_date_shorthand(&tail).expect("=thang khớp");
+        assert_eq!(out.matches('/').count(), 1);
+        assert!(out.len() == 7, "{out}");
+
+        let tail: Vec<char> = "=nam".chars().collect();
+        let (_, out) = find_date_shorthand(&tail).expect("=nam khớp");
+        assert_eq!(out.len(), 4);
+    }
+
+    #[test]
+    fn khong_khop_giugung() {
+        // không khớp → None, chuỗi gõ giữ nguyên
+        assert!(find_date_shorthand(&"=ngayj".chars().collect::<Vec<_>>()).is_none());
+        assert!(find_date_shorthand(&"=ngay1".chars().collect::<Vec<_>>()).is_none());
+        // `abc=ngay` — '=' không phải đầu token (trước nó alphanumeric) → None
+        assert!(find_date_shorthand(&"abc=ngay".chars().collect::<Vec<_>>()).is_none());
+    }
+
+    #[test]
+    fn hoa_thuong_deu_khop() {
+        let tail: Vec<char> = "=NGAY".chars().collect();
+        assert!(find_date_shorthand(&tail).is_some());
+        let tail: Vec<char> = "=Thang".chars().collect();
+        assert!(find_date_shorthand(&tail).is_some());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

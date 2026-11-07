@@ -343,6 +343,37 @@ pub fn notify_assist_async(title: String, message: String) {
     drop(spawn);
 }
 
+/// P7 (vòng 57): gửi JSON drain dữ liệu HỌC lên tray (fire-and-forget, pattern
+/// `notify_assist_async`). Tray merge vào config + persist + bump version →
+/// ConfigReload tự phát tới mọi adapter. JSON rỗng "{}" → không gửi.
+/// G8: JSON chỉ chứa từ + cặp + count (engine drain đã đảm bảo).
+pub fn send_style_update_async(json: String) {
+    if json == "{}" || json.is_empty() {
+        return;
+    }
+    let spawn = std::thread::Builder::new()
+        .name("textvn-style-drain".into())
+        .spawn(move || {
+            let mut opened: Option<std::fs::File> = None;
+            for name in pipe_name_candidates() {
+                match textvn_ipc::pipe_client_options().open(&name) {
+                    Ok(stream) if server_is_textvn(&stream) => {
+                        opened = Some(stream);
+                        break;
+                    }
+                    Ok(stream) => drop(stream),
+                    Err(_) => continue,
+                }
+            }
+            let Some(mut stream) = opened else {
+                return; // tray không chạy → giữ pending (fail-open)
+            };
+            let _ = send_message(&mut stream, &Message::StyleUpdate { json });
+            let _ = read_next_message(&mut stream);
+        });
+    drop(spawn);
+}
+
 /// `%APPDATA%\TextVN\state.json` → map trạng thái (`"*"` = toàn cục).
 /// Debounce phía TIP cho phím chuyển Ctrl+Shift — khớp cửa sổ 250ms phía tray
 /// (`textvn_tray::try_claim_global_toggle`): một lần bấm được MỌI bên nhìn thấy

@@ -1197,13 +1197,12 @@ impl Engine {
             // cú pháp ngày/tháng (`=ngay`/`=thang`/`=nam`) rồi số tiền
             // `=<số>(d|vnd|bc)`. Vượt MAX_TEXT khi encode → fail-open (R1-2:
             // KHÔNG cắt cụt câu số tiền như đường macro).
-            let (sh_len, sh_str) = if let Some((dl, dt)) =
-                post::number_vn::find_date_shorthand(&self.recent)
-            {
-                (dl, dt)
-            } else {
-                post::number_vn::find_number_shorthand(&self.recent)?
-            };
+            let (sh_len, sh_str) =
+                if let Some((dl, dt)) = post::number_vn::find_date_shorthand(&self.recent) {
+                    (dl, dt)
+                } else {
+                    post::number_vn::find_number_shorthand(&self.recent)?
+                };
             let sh_chars: Vec<char> = sh_str.chars().collect();
             if self.emit(&sh_chars).len() > MAX_TEXT {
                 return None;

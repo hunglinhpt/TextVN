@@ -8,11 +8,22 @@ fn apply(buf: &mut Vec<char>, action: &Action, k: &KeyEvent) {
     match action {
         Action::Pass => {
             if let Some(c) = k.printable() {
-                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' { buf.push(c); }
+                if !c.is_control() || c == '\n' || c == '\t' || c == ' ' {
+                    buf.push(c);
+                }
             }
         }
-        Action::Replace { delete_count, insert } | Action::Restore { delete_count, insert } => {
-            for _ in 0..*delete_count { buf.pop(); }
+        Action::Replace {
+            delete_count,
+            insert,
+        }
+        | Action::Restore {
+            delete_count,
+            insert,
+        } => {
+            for _ in 0..*delete_count {
+                buf.pop();
+            }
             buf.extend(insert.iter().cloned());
         }
         Action::Commit { insert } => buf.extend(insert.iter().cloned()),
@@ -24,9 +35,25 @@ fn press(e: &mut Engine, buf: &mut Vec<char>, k: &KeyEvent) {
     apply(buf, &out.action, k);
 }
 
-fn letter(c: char) -> KeyEvent { KeyEvent::char_down(c) }
-fn space() -> KeyEvent { KeyEvent { vk: keymap::vk::SPACE, ch: ' ' as u32, key_down: true, ..Default::default() } }
-fn tab() -> KeyEvent { KeyEvent { vk: keymap::vk::TAB, ch: '\t' as u32, key_down: true, ..Default::default() } }
+fn letter(c: char) -> KeyEvent {
+    KeyEvent::char_down(c)
+}
+fn space() -> KeyEvent {
+    KeyEvent {
+        vk: keymap::vk::SPACE,
+        ch: ' ' as u32,
+        key_down: true,
+        ..Default::default()
+    }
+}
+fn tab() -> KeyEvent {
+    KeyEvent {
+        vk: keymap::vk::TAB,
+        ch: '\t' as u32,
+        key_down: true,
+        ..Default::default()
+    }
+}
 
 fn learning_engine() -> Engine {
     Engine::new(EngineOptions {
@@ -69,17 +96,25 @@ fn s100_word_end_khong_hoc_ky_hieu() {
     press(&mut e, &mut buf, &letter('c'));
     press(&mut e, &mut buf, &space());
     let json = e.style_drain_json();
-    assert!(!json.contains('@'), "G8: ký tự đặc biệt không vào học (drain {json})");
+    assert!(
+        !json.contains('@'),
+        "G8: ký tự đặc biệt không vào học (drain {json})"
+    );
 }
 
 #[test]
 fn s100_word_end_hoc_am_tiet_viet_co_dau() {
     let mut e = learning_engine();
     let mut buf = Vec::new();
-    for c in "trường".chars() { press(&mut e, &mut buf, &letter(c)); }
+    for c in "trường".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     press(&mut e, &mut buf, &space());
     let json = e.style_drain_json();
-    assert!(json.contains("trường") || json.contains("\\u"), "học âm tiết Việt có dấu: {json}");
+    assert!(
+        json.contains("trường") || json.contains("\\u"),
+        "học âm tiết Việt có dấu: {json}"
+    );
 }
 
 #[test]
@@ -87,19 +122,28 @@ fn s100_prediction_accept_hoc() {
     let mut e = learning_engine();
     let mut buf = Vec::new();
     // gõ "triển khai " (đã trong style_words) rồi gõ "tr" + Tab → candidate
-    for c in "triển".chars() { press(&mut e, &mut buf, &letter(c)); }
+    for c in "triển".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     press(&mut e, &mut buf, &space());
-    for c in "khai".chars() { press(&mut e, &mut buf, &letter(c)); }
+    for c in "khai".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     press(&mut e, &mut buf, &space());
     // P8: EN completion — prefix KHÔNG có ứng viên VN ("rele") + Tab → "release"
-    for c in "rele".chars() { press(&mut e, &mut buf, &letter(c)); }
+    for c in "rele".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     let ghost = e.peek_completion();
     println!("ghost: {ghost:?}");
     press(&mut e, &mut buf, &tab());
     // drain: phải có candidate EN nhận + các từ gõ tay trước đó
     let json = e.style_drain_json();
     println!("drain: {json}");
-    assert!(json.contains("release"), "prediction accept học candidate: {json}");
+    assert!(
+        json.contains("release"),
+        "prediction accept học candidate: {json}"
+    );
 }
 
 #[test]
@@ -130,7 +174,11 @@ fn s100_secure_khong_hoc() {
 fn s100_cap_200_tu() {
     let mut e = learning_engine();
     for i in 0..250 {
-        let w = format!("tu{}{}", (b'a' + (i / 26 % 26)) as char, (b'a' + i % 26) as char);
+        let w = format!(
+            "tu{}{}",
+            (b'a' + (i / 26 % 26)) as char,
+            (b'a' + i % 26) as char
+        );
         e.style_note_word(&w);
     }
     let json = e.style_drain_json();
@@ -149,7 +197,10 @@ fn s100_word_end_multi_dau_hoc() {
         press(&mut e, &mut buf, &space());
     }
     let json = e.style_drain_json();
-    assert!(json.contains("\"count\":2") || json.contains("count\":2"), "count cộng dồn: {json}");
+    assert!(
+        json.contains("\"count\":2") || json.contains("count\":2"),
+        "count cộng dồn: {json}"
+    );
 }
 
 #[test]
@@ -157,10 +208,15 @@ fn s100_van_uo_khong_hoc_2_lan_ky_tu_thua() {
     // P8: "luong" giữ nguyên — word-end học đúng "luong" (không ương)
     let mut e = learning_engine();
     let mut buf = Vec::new();
-    for c in "luong".chars() { press(&mut e, &mut buf, &letter(c)); }
+    for c in "luong".chars() {
+        press(&mut e, &mut buf, &letter(c));
+    }
     press(&mut e, &mut buf, &space());
     let json = e.style_drain_json();
-    assert!(json.contains("luong") && !json.contains("lương"), "học đúng chữ gõ: {json}");
+    assert!(
+        json.contains("luong") && !json.contains("lương"),
+        "học đúng chữ gõ: {json}"
+    );
 }
 
 // 92 case tổ hợp chữ cái: mỗi cặp 2-chữ + Space → học đúng chuỗi gõ
@@ -169,7 +225,9 @@ fn s100_matrix_92_pairs() {
     let mut checked = 0;
     for a in 'a'..='f' {
         for b in 'a'..='f' {
-            if a == b { continue; }
+            if a == b {
+                continue;
+            }
             let mut e = learning_engine();
             let mut buf = Vec::new();
             press(&mut e, &mut buf, &letter(a));
@@ -184,5 +242,8 @@ fn s100_matrix_92_pairs() {
             checked += 1;
         }
     }
-    assert!(checked == 30, "30 pair đầu ma trận (92 tổ hợp còn lại qua 8 test trên tổng 100 case mục tiêu)");
+    assert!(
+        checked == 30,
+        "30 pair đầu ma trận (92 tổ hợp còn lại qua 8 test trên tổng 100 case mục tiêu)"
+    );
 }

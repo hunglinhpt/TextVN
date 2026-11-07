@@ -583,6 +583,17 @@ impl KeyEditSession {
                 {
                     hide_assist_overlay(shared);
                 }
+                // P7 (vòng 57): drain dữ liệu HỌC pending → IPC StyleUpdate.
+                // Drain tự "{}" khi rỗng — IPC helper tự skip; gọi ở ranh giới
+                // từ (Space/,/./Backspace) đủ tần suất mà không đón线程 mỗi phím.
+                if matches!(self.key, KeyKind::Char(_) | KeyKind::Backspace) {
+                    let json = shared
+                        .thread
+                        .try_borrow_mut()
+                        .map(|mut t| t.engine.style_drain_json())
+                        .unwrap_or_default();
+                    crate::ipc_client::send_style_update_async(json);
+                }
                 if self.key == KeyKind::CtrlSpace && step.action == textvn_ffi::ACTION_PASS {
                     // Ctrl+Space không khớp prediction: kích hoạt Trợ lý ngữ pháp (Text Correct) cho từ và câu
                     let has_sel = unsafe { sel.IsEmpty(ec) }
@@ -1174,6 +1185,26 @@ pub fn apply_assist_suggestion(
     let Some(plan) = plan else {
         return false; // không có gợi ý / gợi ý vô nghĩa → chỉ hiển thị (A1)
     };
+    // P7 (vòng 57): user CHẤP NHẬN suggestion → học cặp sai→đúng (G8: chỉ
+    // từ/cụm trong span, đã có guard validation phía engine). Chỉ học Replace
+    // (Delete không có "đúng" thay thế).
+    if plan.delete_chars > 0 {
+        let from: String = active
+            .sentence
+            .chars()
+            .skip(
+                active
+                    .sentence
+                    .chars()
+                    .count()
+                    .saturating_sub(plan.delete_chars),
+            )
+            .collect();
+        let to: String = plan.replacement.iter().collect();
+        if let Ok(mut thread) = shared.thread.try_borrow_mut() {
+            thread.engine.style_note_correction(&from, &to);
+        }
+    }
     if let Some(range) = active.selection.clone() {
         let head_len = active
             .sentence

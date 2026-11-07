@@ -623,6 +623,14 @@ impl IpcServer {
                     crate::assist::notify_report(&self.svc, &issues, auto_fixed);
                     Some(Message::Ack)
                 }
+                Message::StyleUpdate { json } => {
+                    // P7 (vòng 57): merge dữ liệu học vào config + persist +
+                    // bump version (ConfigReload tự phát tới adapters). G8:
+                    // JSON đã cap 200/50 phía engine; sanitize chạy lại ở
+                    // merge_deltas. Fail-open: JSON hỏng → Ack, bỏ im lặng.
+                    let _ = crate::style_merge::merge_from_json(&self.svc, &json);
+                    Some(Message::Ack)
+                }
                 Message::Ping => Some(Message::Pong {
                     uptime_ms: self.uptime_ms(),
                 }),
