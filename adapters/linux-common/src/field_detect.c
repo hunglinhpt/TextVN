@@ -52,6 +52,17 @@ static uint64_t get_time_ms(void) {
 #endif
 }
 
+bool lc_is_terminal_app(const char *app_id) {
+    return app_id && (str_contains_icase(app_id, "terminal") ||
+                      str_contains_icase(app_id, "konsole")  ||
+                      str_contains_icase(app_id, "kitty")    ||
+                      str_contains_icase(app_id, "alacritty")||
+                      str_contains_icase(app_id, "xterm")    ||
+                      str_contains_icase(app_id, "foot")     ||
+                      str_contains_icase(app_id, "wezterm")  ||
+                      str_contains_icase(app_id, "console"));
+}
+
 int lc_classify_field(const char *app_id,
                       const char *role_name,
                       uint64_t state_flags,
@@ -84,18 +95,7 @@ int lc_classify_field(const char *app_id,
     /* R6: TERMINAL detection (P3-4 §2 R6)
      * Role TERMINAL or known terminal app_id */
     bool is_term_role = (role_name && str_contains_icase(role_name, "terminal"));
-    bool is_term_app = false;
-    if (app_id) {
-        is_term_app = (str_contains_icase(app_id, "terminal") ||
-                       str_contains_icase(app_id, "konsole")  ||
-                       str_contains_icase(app_id, "kitty")    ||
-                       str_contains_icase(app_id, "alacritty")||
-                       str_contains_icase(app_id, "xterm")    ||
-                       str_contains_icase(app_id, "foot")     ||
-                       str_contains_icase(app_id, "wezterm")  ||
-                       str_contains_icase(app_id, "console"));
-    }
-    if (is_term_role || is_term_app) {
+    if (is_term_role || lc_is_terminal_app(app_id)) {
         out->field_role = IME_FIELD_TERMINAL;
         out->secure = 0;
         out->strategy_hint = IME_STRATEGY_FORWARD_AS_COMMIT;

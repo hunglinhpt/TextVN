@@ -166,6 +166,9 @@ typedef struct lc_config_state {
 int lc_textvn_file_path(char *out, size_t max_len, const char *name);
 /* $XDG_CONFIG_HOME/TextVN/config.json hoặc ~/.config/TextVN/config.json. */
 int lc_config_resolve_path(char *out, size_t max_len);
+
+/* R2-152: gộp dữ liệu học pending của engine vào config.json (không có tray trên Linux). */
+void lc_style_persist(ime_instance *inst);
 /* Nạp lại config vào engine khi file đổi (mtime/size). Trả 1 nếu đã nạp lại.
  * `path` NULL = đường dẫn mặc định. Rẻ (một stat) — gọi ở focus-in và đầu mỗi từ. */
 int lc_config_sync(ime_instance *inst, lc_config_state *st, const char *path);

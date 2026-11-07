@@ -551,6 +551,60 @@ struct VersionProbe {
 ///
 /// Quy tắc: `config_version` **phải có** và phải bằng 1; các trường còn lại thì tuỳ chọn
 /// (nhận giá trị mặc định) — khoá ngoài schema bị serde bỏ qua (P0-3 §1.1 ghi rõ).
+/// Dữ liệu học đã tách từ JSON drain của engine: `(words, corrections)`.
+pub type StyleDeltas = (Vec<(String, u32)>, Vec<(String, String, u32)>);
+
+/// Tách JSON `ime_style_profile_drain` (`{"words":[..],"corrections":[..],"rsi":{..}}`).
+/// G8: chỉ đọc từ/cặp + count, khối `rsi` bỏ qua. `None` = JSON hỏng.
+pub fn parse_style_drain(json: &str) -> Option<StyleDeltas> {
+    #[derive(Deserialize)]
+    struct Word {
+        word: String,
+        count: u32,
+    }
+    #[derive(Deserialize)]
+    struct Correction {
+        from: String,
+        to: String,
+        count: u32,
+    }
+    #[derive(Deserialize)]
+    struct Shape {
+        #[serde(default)]
+        words: Vec<Word>,
+        #[serde(default)]
+        corrections: Vec<Correction>,
+    }
+    let shape: Shape = serde_json::from_str(json).ok()?;
+    Some((
+        shape.words.into_iter().map(|w| (w.word, w.count)).collect(),
+        shape
+            .corrections
+            .into_iter()
+            .map(|c| (c.from, c.to, c.count))
+            .collect(),
+    ))
+}
+
+/// Gộp drain vào tài liệu `config.json`, giữ nguyên mọi khoá khác — đường lưu của macOS/
+/// Linux (không có tray; Windows gộp ở tray). `None` = không có gì để ghi: config hỏng,
+/// chưa bật `style_profile` (opt-in G8), hoặc drain rỗng.
+pub fn merge_style_drain(config_json: &str, drain_json: &str) -> Option<String> {
+    let mut profile = parse_config(config_json).ok()?.style_profile;
+    if !profile.enabled {
+        return None;
+    }
+    let (words, corrections) = parse_style_drain(drain_json)?;
+    if words.is_empty() && corrections.is_empty() {
+        return None;
+    }
+    profile.merge_deltas(&words, &corrections);
+    let mut doc: serde_json::Value = serde_json::from_str(config_json).ok()?;
+    doc.as_object_mut()?
+        .insert("style_profile".into(), serde_json::to_value(&profile).ok()?);
+    serde_json::to_string_pretty(&doc).ok()
+}
+
 pub fn parse_config(json: &str) -> Result<Config, ConfigError> {
     let probe: VersionProbe = serde_json::from_str(json).map_err(|_| ConfigError::Schema)?;
     if probe.config_version != 1 {

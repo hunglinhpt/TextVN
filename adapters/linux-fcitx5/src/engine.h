@@ -43,6 +43,7 @@ public:
     lc_config_state config{};
     lc_modifier_toggle toggle{};
     int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
+    bool ctxTerminal = false; /* field_role terminal đã đẩy vào engine */
     /* R-4 (AS-050): hoàn tác 1 bước sau tự sửa cả câu (Ctrl+Z trong 5 s).
      * `assistUndoReplacement` = text ĐÃ gõ lại — dùng để xác minh vùng sắp
      * xoá trước khi hoàn tác (fail-safe: không xác minh được ⇒ không xoá). */

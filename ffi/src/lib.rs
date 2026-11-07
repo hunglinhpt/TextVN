@@ -1717,6 +1717,52 @@ pub extern "C" fn ime_style_profile_drain(
     IME_OK
 }
 
+/// R2-152 — gộp dữ liệu học pending vào tài liệu `config.json` caller đọc lên; đường lưu
+/// của macOS/Linux (Windows gộp ở tray). Engine không I/O: caller ghi `out_buf` xuống file.
+/// Hai pha như drain: `out_buf == NULL` chỉ ghi `*out_len` cần thiết, không xóa pending.
+/// `*out_len = 0` = không có gì để ghi (chưa bật `style_profile`, pending rỗng, config hỏng).
+#[no_mangle]
+pub extern "C" fn ime_style_profile_merge(
+    inst: *mut ime_instance,
+    config_utf8: *const u8,
+    config_len: usize,
+    out_buf: *mut u8,
+    buf_len: usize,
+    out_len: *mut usize,
+) -> i32 {
+    if inst.is_null() || config_utf8.is_null() || out_len.is_null() {
+        return IME_ERR_INVALID_ARG;
+    }
+    let inst = unsafe { &mut *inst };
+    let config = unsafe { slice::from_raw_parts(config_utf8, config_len) };
+    let Ok(config) = std::str::from_utf8(config) else {
+        return IME_ERR_INVALID_ARG;
+    };
+    let merged = match guarded(|| {
+        textvn_config::merge_style_drain(config, &inst.engine.style_peek_json())
+    }) {
+        Some(m) => m,
+        None => return IME_ERR_INTERNAL,
+    };
+    let Some(merged) = merged else {
+        unsafe { *out_len = 0 };
+        return IME_OK;
+    };
+    let bytes = merged.as_bytes();
+    unsafe { *out_len = bytes.len() };
+    if out_buf.is_null() {
+        return IME_OK;
+    }
+    if bytes.len() > buf_len {
+        return IME_ERR_INTERNAL; // pending chưa xóa — caller cấp lại
+    }
+    unsafe {
+        slice::from_raw_parts_mut(out_buf, bytes.len()).copy_from_slice(bytes);
+    }
+    let _ = guarded(|| inst.engine.style_clear_pending());
+    IME_OK
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2614,6 +2660,83 @@ mod tests {
     /// R2-131 (chủ repo: "chưa bấm được nút sửa tất cả"): lỗi chính tả là lỗi
     /// chỉ-gợi-ý — Mode 2 tự sửa KHÔNG đụng tới, nhưng hành động người dùng chủ
     /// động (nút/phím tắt/chọn gợi ý) phải sửa được cả câu.
+    #[test]
+    fn r2_152_merge_gop_vao_config_giu_khoa_khac_va_xoa_pending() {
+        let cfg =
+            br#"{"config_version":1,"auto_capitalize":false,"style_profile":{"enabled":true}}"#;
+        let inst = new_default();
+        assert_eq!(ime_reload_config(inst, cfg.as_ptr(), cfg.len()), 0);
+        let (from, to) = (b"nghanh", "ngành".as_bytes());
+        assert_eq!(
+            ime_style_note_correction(inst, from.as_ptr(), from.len(), to.as_ptr(), to.len()),
+            0
+        );
+
+        let mut need = 0usize;
+        let merge = |out: *mut u8, cap: usize, len: &mut usize| {
+            ime_style_profile_merge(inst, cfg.as_ptr(), cfg.len(), out, cap, len)
+        };
+        assert_eq!(merge(std::ptr::null_mut(), 0, &mut need), 0);
+        assert!(need > 0, "có pending phải báo kích thước");
+        // Buffer nhỏ: lỗi, pending còn nguyên.
+        let mut small = [0u8; 4];
+        let mut len = 0usize;
+        assert_ne!(merge(small.as_mut_ptr(), small.len(), &mut len), 0);
+
+        let mut out = vec![0u8; need];
+        assert_eq!(merge(out.as_mut_ptr(), out.len(), &mut len), 0);
+        let doc = std::str::from_utf8(&out[..len]).unwrap();
+        assert!(doc.contains("auto_capitalize"), "khoá khác phải giữ nguyên");
+        assert!(doc.contains("ngành"), "{doc}");
+
+        // Đã xoá pending: lần sau không còn gì để ghi.
+        assert_eq!(merge(std::ptr::null_mut(), 0, &mut need), 0);
+        assert_eq!(need, 0);
+    }
+
+    #[test]
+    fn r2_152_merge_tu_choi_khi_chua_bat_va_tham_so_hong() {
+        let off = br#"{"config_version":1,"style_profile":{"enabled":false}}"#;
+        let inst = new_default();
+        let mut need = 7usize;
+        assert_eq!(
+            ime_style_profile_merge(
+                inst,
+                off.as_ptr(),
+                off.len(),
+                std::ptr::null_mut(),
+                0,
+                &mut need
+            ),
+            0
+        );
+        assert_eq!(need, 0, "chưa bật style_profile thì không ghi gì (G8)");
+        let bad = [0xFFu8, 0xFE];
+        assert_ne!(
+            ime_style_profile_merge(
+                inst,
+                bad.as_ptr(),
+                bad.len(),
+                std::ptr::null_mut(),
+                0,
+                &mut need
+            ),
+            0,
+            "config không phải UTF-8"
+        );
+        assert_ne!(
+            ime_style_profile_merge(
+                std::ptr::null_mut(),
+                off.as_ptr(),
+                off.len(),
+                std::ptr::null_mut(),
+                0,
+                &mut need
+            ),
+            0
+        );
+    }
+
     #[test]
     fn r2_131_explicit_plan_sua_ca_loi_chinh_ta_mode2_thi_khong() {
         let inst = new_default();

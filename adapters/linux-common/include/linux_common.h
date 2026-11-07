@@ -64,6 +64,9 @@ typedef struct lc_field_ctx {
  * - R10: Generic ENTRY -> IME_FIELD_EDITBOX, IME_STRATEGY_PREEDIT
  * - Default: IME_FIELD_UNKNOWN, strategy_hint = -1
  */
+/* App terminal theo tên (`org.gnome.Terminal`, `konsole`…): Fcitx5 dùng `ic->program()`. */
+bool lc_is_terminal_app(const char *app_id);
+
 int lc_classify_field(const char *app_id,
                       const char *role_name,
                       uint64_t state_flags,

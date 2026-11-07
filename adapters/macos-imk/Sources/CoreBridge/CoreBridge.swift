@@ -396,11 +396,32 @@ public final class ImeEngine {
 
     /// P7: Drain pending style profile learning records as JSON string.
     public func styleDrainJSON() -> String {
-        var buf = [UInt8](repeating: 0, count: 4096)
+        var need: Int = 0
+        guard ime_style_profile_drain(instance, nil, 0, &need) == IME_OK, need > 0 else {
+            return "{}"
+        }
+        var buf = [UInt8](repeating: 0, count: need)
         var outLen: Int = 0
         let rc = ime_style_profile_drain(instance, &buf, buf.count, &outLen)
         guard rc == IME_OK, outLen > 0, outLen <= buf.count else { return "{}" }
         return String(decoding: buf.prefix(outLen), as: UTF8.self)
+    }
+
+    /// R2-152: gộp dữ liệu học pending vào tài liệu config.json. `nil` = không có gì để ghi.
+    public func styleMergeConfig(_ config: Data) -> Data? {
+        let bytes = [UInt8](config)
+        var need: Int = 0
+        let probe = bytes.withUnsafeBufferPointer {
+            ime_style_profile_merge(instance, $0.baseAddress, $0.count, nil, 0, &need)
+        }
+        guard probe == IME_OK, need > 0 else { return nil }
+        var out = [UInt8](repeating: 0, count: need)
+        var outLen: Int = 0
+        let rc = bytes.withUnsafeBufferPointer {
+            ime_style_profile_merge(instance, $0.baseAddress, $0.count, &out, out.count, &outLen)
+        }
+        guard rc == IME_OK, outLen > 0, outLen <= out.count else { return nil }
+        return Data(out.prefix(outLen))
     }
 
     /// P7: Note accepted correction pair for continuous style learning.

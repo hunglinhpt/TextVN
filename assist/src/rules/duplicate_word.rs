@@ -129,9 +129,15 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         } else {
             INTENTIONAL_REPEATS
         };
-        // Từ láy ASCII tiếng Việt ("song song", "bon bon") chỉ miễn trong câu không phải
-        // tiếng Anh — "Play the song song again." vẫn là lỗi lặp từ (R2-142).
-        let vi_repeat = ctx.lang != Lang::En && INTENTIONAL_REPEATS.contains(&lower.as_str());
+        // Từ láy ASCII tiếng Việt ("song song", kể cả câu không dấu — câu đó cũng bị coi là
+        // En) được miễn, trừ khi rõ là danh từ tiếng Anh: "Play the song song again." (R2-142).
+        let after_en_determiner = i >= 4
+            && ctx.lang == Lang::En
+            && matches!(
+                ctx.token_text(&ctx.tokens[i - 4]).to_lowercase().as_str(),
+                "the" | "a" | "an" | "this" | "that" | "my" | "your" | "our" | "his" | "her"
+            );
+        let vi_repeat = INTENTIONAL_REPEATS.contains(&lower.as_str()) && !after_en_determiner;
         if whitelist.contains(&lower.as_str()) || vi_repeat {
             continue;
         }

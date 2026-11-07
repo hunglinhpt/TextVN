@@ -721,9 +721,10 @@ static void push_context(TextVNIbusEngine *self, int enabled) {
     ctx.abi_version = IME_ABI_VERSION;
     ctx.enabled = enabled ? 1 : 0;
     ctx.secure = 0;
-    ctx.field_role = IME_FIELD_BODY;
+    /* Terminal: engine không dự đoán/học (R2-144/R2-145); hint giữ nguyên cách xuất chữ. */
+    ctx.field_role = self->terminal ? IME_FIELD_TERMINAL : IME_FIELD_BODY;
     ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
-    ctx.hint = -1;
+    ctx.hint = self->terminal ? IME_STRATEGY_PREEDIT : -1;
     ime_set_context(self->inst, &ctx);
     self->ctx_enabled = enabled ? 1 : 0;
 }
@@ -867,6 +868,7 @@ static void engine_focus_out(IBusEngine *engine) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)engine;
     forget_word(self);
     lc_modifier_toggle_reset(&self->toggle);
+    lc_style_persist(self->inst);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->focus_out(engine);
 }
 
@@ -885,6 +887,12 @@ static void engine_set_content_type(IBusEngine *engine, guint purpose, guint hin
     gboolean secure = purpose == IBUS_INPUT_PURPOSE_PASSWORD || purpose == IBUS_INPUT_PURPOSE_PIN;
     if (secure && !self->secure) finish_word(self);
     self->secure = secure;
+    /* IBUS_INPUT_PURPOSE_TERMINAL (= GTK_INPUT_PURPOSE_TERMINAL) — header cũ chưa có tên. */
+    gboolean terminal = purpose == 10;
+    if (terminal != self->terminal) {
+        self->terminal = terminal;
+        push_context(self, s_vi_enabled);
+    }
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->set_content_type(engine, purpose, hints);
 }
 
@@ -1034,7 +1042,9 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
                                                  (state & IBUS_SHIFT_MASK) != 0,
                                                  (state & (IBUS_SUPER_MASK | IBUS_MOD4_MASK)) != 0) != 0;
 
-    gboolean passthrough_on = !s_vi_enabled && (self->config.allow_macro_when_vi_off || self->config.suggest_enabled);
+    /* Terminal: Mode EN phải đưa phím thẳng tới app (vim, less). */
+    gboolean passthrough_on = !s_vi_enabled && (self->config.allow_macro_when_vi_off ||
+                                                (self->config.suggest_enabled && !self->terminal));
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || self->secure ||
         !(s_vi_enabled || passthrough_on) || !self->inst) {
         finish_word(self);

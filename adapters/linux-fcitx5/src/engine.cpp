@@ -965,7 +965,9 @@ void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &even
 
 void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
-        endWord(state(event.inputContext()), event);
+        auto *st = state(event.inputContext());
+        endWord(st, event);
+        lc_style_persist(st->inst);
     } catch (...) {
     }
 }
@@ -1104,22 +1106,27 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
 
     const bool secure =
         st->ic->capabilityFlags().testAny(fcitx::CapabilityFlag::PasswordOrSensitive);
-    const bool passthroughOn = !viEnabled_ && (st->config.allow_macro_when_vi_off || st->config.suggest_enabled);
+    /* Terminal: engine không dự đoán/học (R2-144/R2-145); Mode EN đưa phím thẳng tới app. */
+    const bool terminal = st->ic->capabilityFlags().test(fcitx::CapabilityFlag::Terminal) ||
+                          lc_is_terminal_app(st->ic->program().c_str());
+    const bool passthroughOn =
+        !viEnabled_ && (st->config.allow_macro_when_vi_off || (st->config.suggest_enabled && !terminal));
     if (((mods & (IME_MOD_CTRL | IME_MOD_ALT | IME_MOD_SUPER | IME_MOD_META)) && !is_ctrl_space) || secure ||
         !(viEnabled_ || passthroughOn) || !st->inst) {
         finishWord(st);
         return false;
     }
-    if (st->ctxEnabled != (viEnabled_ ? 1 : 0)) {
+    if (st->ctxEnabled != (viEnabled_ ? 1 : 0) || st->ctxTerminal != terminal) {
         ime_context_v1 ctx;
         std::memset(&ctx, 0, sizeof(ctx));
         ctx.abi_version = IME_ABI_VERSION;
         ctx.enabled = viEnabled_ ? 1 : 0;
-        ctx.field_role = IME_FIELD_BODY;
+        ctx.field_role = terminal ? IME_FIELD_TERMINAL : IME_FIELD_BODY;
         ctx.caps = IME_CAP_PREEDIT | IME_CAP_SELECTION;
-        ctx.hint = -1;
+        ctx.hint = terminal ? IME_STRATEGY_PREEDIT : -1;
         ime_set_context(st->inst, &ctx);
         st->ctxEnabled = ctx.enabled;
+        st->ctxTerminal = terminal;
     }
 
     /* R2-131: phím tắt — câu có lỗi sửa được ⇒ sửa hết TRƯỚC; không ⇒ dự đoán. */

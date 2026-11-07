@@ -36,6 +36,7 @@ struct _TextVNIbusEngine {
     lc_modifier_toggle    toggle;      /* Ctrl+Shift kiểu UniKey */
     gboolean              secure;      /* input purpose password/PIN */
     int                   ctx_enabled; /* ime_context_v1.enabled đã đẩy vào engine */
+    gboolean              terminal;    /* ô terminal (input purpose) — không dự đoán/học */
     IBusPropList         *props;
     IBusProperty         *mode_prop;
     IBusProperty         *setup_prop;

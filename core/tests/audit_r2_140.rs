@@ -139,6 +139,9 @@ fn r2_140_code_va_markdown_giu_nguyen_ngoac() {
         "[[wiki]] ",
         "[ -f x ] ",
         "a[i][j] ",
+        "s[i+1] ",
+        "t[i-1] ",
+        "m[n-1] ",
         "[] ",
     ] {
         assert_eq!(typed(s), s, "ngoặc trong code/Markdown bị đổi: {s:?}");
@@ -200,6 +203,15 @@ fn r2_140_go_lai_ngoac_gia_tri_lit_khong_bi_restore() {
 }
 
 #[test]
+fn r2_140_quick_telex_nhan_ngoac() {
+    let mut e = Engine::new(EngineOptions {
+        quick_telex: true,
+        ..opts()
+    });
+    assert_eq!(type_in(&mut e, "cc]a "), "chưa ");
+}
+
+#[test]
 fn r2_140_terminal_va_thanh_dia_chi_khong_fold_ngoac() {
     for role in [IME_FIELD_TERMINAL, IME_FIELD_ADDRESS_BAR] {
         let mut e = Engine::new(opts());
@@ -232,12 +244,51 @@ fn r2_141_code_cli_markdown_khong_bi_doi() {
         "|--|--|",
         "=A1--B1",
         "-- comment",
+        "x = 1 -- comment ",
+        "git checkout -- file ",
         "--- ",
         "a---b",
         "----",
     ] {
         assert_eq!(typed(s), s, "gạch ngang bị đổi: {s:?}");
     }
+}
+
+#[test]
+fn r2_141_tra_lai_giu_enter_tab_la_phim_that() {
+    for (k, want) in [(keymap::vk::RETURN, '\n'), (keymap::vk::TAB, '\t')] {
+        let mut e = Engine::new(opts());
+        let _ = type_in(&mut e, "hello--");
+        let out = e.key(&KeyEvent {
+            vk: k,
+            ch: want as u32,
+            key_down: true,
+            ..Default::default()
+        });
+        // RESTORE: adapter tách ký tự ranh giới cuối thành phím thật (không nuốt Enter).
+        assert!(
+            matches!(out.action, Action::Restore { .. }),
+            "{:?}",
+            out.action
+        );
+    }
+}
+
+#[test]
+fn r2_141_co_het_han_sau_mot_phim() {
+    let mut e = Engine::new(opts());
+    let mut doc: Vec<char> = Vec::new();
+    for c in "a--b".chars() {
+        press(&mut e, &mut doc, &char_key(c));
+    }
+    let back = KeyEvent {
+        vk: keymap::vk::BACK,
+        key_down: true,
+        ..Default::default()
+    };
+    press(&mut e, &mut doc, &back);
+    press(&mut e, &mut doc, &char_key(';'));
+    assert_eq!(doc.iter().collect::<String>(), "a—;");
 }
 
 #[test]
@@ -272,6 +323,17 @@ fn r2_144_terminal_giu_tab_cho_shell() {
     });
     field(&mut e, IME_FIELD_TERMINAL);
     assert_eq!(type_in(&mut e, "cd doc\t"), "cd doc\t");
+}
+
+#[test]
+fn r2_144_terminal_khong_hoan_tat_tu_viet() {
+    let mut e = Engine::new(EngineOptions {
+        suggest_vn_complete: true,
+        ..opts()
+    });
+    field(&mut e, IME_FIELD_TERMINAL);
+    assert_eq!(type_in(&mut e, "ddi\t"), "đi\t");
+    assert!(e.peek_completion().is_none());
 }
 
 #[test]
@@ -449,6 +511,58 @@ fn r2_147_reset_chot_vong_duyet() {
 }
 
 // ---- R2-148: cụm hai từ, drain --------------------------------------------------
+
+#[test]
+fn r2_145_mode_en_phim_dieu_khien_khong_hoc_tien_to() {
+    let mut e = Engine::new(learning());
+    mode_en(&mut e, 0);
+    let _ = type_in(&mut e, "devel");
+    // Layout macOS: Backspace có ch = 0x08, mũi tên 0x1C.
+    for ch in [0x08u32, 0x1C] {
+        let _ = e.key(&KeyEvent {
+            vk: 0x25,
+            ch,
+            key_down: true,
+            ..Default::default()
+        });
+    }
+    assert!(!e.style_peek_json().contains("devel"));
+}
+
+#[test]
+fn r2_147_mode_en_nhan_ung_vien_chi_dem_mot_lan() {
+    let mut e = Engine::new(learning());
+    mode_en(&mut e, 0);
+    let _ = type_in(&mut e, "rele\t ");
+    let json = e.style_peek_json();
+    assert!(json.contains("\"word\":\"release\",\"count\":1"), "{json}");
+}
+
+#[test]
+fn r2_147_tu_choi_go_khoi_dream_rsi() {
+    let mut e = Engine::new(learning());
+    let _ = type_in(&mut e, "rele");
+    let before = e.dream_rsi_snapshot();
+    let mut doc: Vec<char> = "rele".chars().collect();
+    press(&mut e, &mut doc, &char_key('\t'));
+    press(&mut e, &mut doc, &char_key('\t'));
+    let back = KeyEvent {
+        vk: keymap::vk::BACK,
+        key_down: true,
+        ..Default::default()
+    };
+    press(&mut e, &mut doc, &back);
+    let after = e.dream_rsi_snapshot();
+    assert_eq!(before.accepts, after.accepts);
+    assert_eq!(before.chars_saved, after.chars_saved);
+}
+
+#[test]
+fn r2_148_cum_khong_vat_qua_xuong_dong() {
+    let mut e = Engine::new(learning());
+    let _ = type_in(&mut e, "foo\n    bar ");
+    assert!(!e.style_peek_json().contains("foo bar"));
+}
 
 #[test]
 fn r2_148_cum_can_khoang_trang_that() {

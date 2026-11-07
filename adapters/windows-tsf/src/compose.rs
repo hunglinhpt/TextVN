@@ -127,6 +127,32 @@ pub fn is_modifier_vk(vk: u32) -> bool {
     ) || (vk::LSHIFT..=vk::RMENU).contains(&vk)
 }
 
+/// App terminal theo tên exe (lowercase): Tab là của shell, phím phải tới app ngay (vim,
+/// less) và chữ gõ có thể là mật khẩu — không dự đoán, không học (R2-144/R2-145).
+pub fn is_terminal_exe(exe: &str) -> bool {
+    matches!(
+        exe,
+        "windowsterminal.exe"
+            | "openconsole.exe"
+            | "conhost.exe"
+            | "cmd.exe"
+            | "powershell.exe"
+            | "pwsh.exe"
+            | "wezterm-gui.exe"
+            | "alacritty.exe"
+            | "putty.exe"
+            | "mintty.exe"
+            | "kitty.exe"
+            | "kitty_portable.exe"
+            | "ttermpro.exe"
+            | "securecrt.exe"
+            | "tabby.exe"
+            | "hyper.exe"
+            | "warp.exe"
+    ) || exe.starts_with("mobaxterm")
+        || exe.starts_with("conemu")
+}
+
 fn is_ctrl_vk(vk: u32) -> bool {
     matches!(vk, vk::CONTROL | 0xA2 | 0xA3)
 }
@@ -700,6 +726,17 @@ mod tests {
         assert!(!t.on_key_up(vk::CONTROL));
         assert!(t.on_ctrl_tap_up(vk::CONTROL));
         assert!(!t.on_ctrl_tap_up(vk::CONTROL));
+
+        for exe in [
+            "windowsterminal.exe",
+            "pwsh.exe",
+            "mobaxterm_personal_24.exe",
+        ] {
+            assert!(is_terminal_exe(exe), "{exe}");
+        }
+        for exe in ["notepad.exe", "code.exe", "winword.exe"] {
+            assert!(!is_terminal_exe(exe), "{exe}");
+        }
 
         // Ctrl+C → không phải ctrl tap.
         t.on_key_down(vk::CONTROL, false, false, false);

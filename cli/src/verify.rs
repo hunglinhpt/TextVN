@@ -205,6 +205,7 @@ fn abi_exports() -> Vec<&'static str> {
         // P7 (vòng 54): User Style Profile — học (note) + drain JSON.
         "ime_style_note_correction",
         "ime_style_profile_drain",
+        "ime_style_profile_merge",
     ]
 }
 

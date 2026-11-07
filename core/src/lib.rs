@@ -216,6 +216,8 @@ const STYLE_SESSION_CAP: usize = 500;
 const STYLE_FRESH_GUARD: usize = 32;
 /// Số lần thay từ giữa hai lần giảm nửa trọng số.
 const STYLE_AGE_EVERY: u16 = 64;
+/// Trần từ pending giữa hai lần drain.
+const STYLE_PENDING_CAP: usize = 2000;
 /// Trần mỗi lượt drain — khớp `config::STYLE_WORD_CAP` và trần cặp sửa.
 const DRAIN_MAX_WORDS: usize = 200;
 const DRAIN_MAX_CORR: usize = 50;
@@ -252,9 +254,13 @@ pub struct Engine {
     probe: bool,
     /// Số lần thay từ khi hồ sơ phiên đầy — đủ `STYLE_AGE_EVERY` mới giảm trọng số.
     style_evictions: u16,
-    /// Vừa đổi `a--` thành `a—`: ranh giới kế tiếp không phải chữ ⇒ đó là code
-    /// (`i--;`), trả lại `--` (R2-141).
+    /// Vừa đổi `a--` thành `a—`: ranh giới **ngay** phím kế tiếp không phải chữ ⇒ đó là
+    /// code (`i--;`), trả lại `--` (R2-141). `em_dash_next` là cờ đặt ở phím này,
+    /// chuyển sang `em_dash_tentative` đúng một phím.
     em_dash_tentative: bool,
+    em_dash_next: bool,
+    /// Vừa học ứng viên: ranh giới Mode EN kế tiếp không học lại chính chữ đó.
+    accepted_just_now: bool,
 
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
@@ -352,6 +358,11 @@ struct PredictCycle {
     /// `true` = cụm nối tiếp (next-phrase): chữ hoa theo
     /// `adapt_continuation_case`; `false` = hoàn tất chính từ đang gõ.
     continuation: bool,
+    /// Phần vòng duyệt này đã cộng vào Dream RSI — gỡ lại nếu người dùng từ chối.
+    rsi_accepts: u64,
+    rsi_saved: u64,
+    /// Ứng viên dài nhất đã chèn: duyệt dài → ngắn → dài không tính tiết kiệm hai lần.
+    peak_glyphs: usize,
 }
 
 /// Gõ `chunk` + một dấu cách qua engine mới, mô phỏng document (Replace/Restore
@@ -421,6 +432,8 @@ impl Engine {
             probe: false,
             style_evictions: 0,
             em_dash_tentative: false,
+            em_dash_next: false,
+            accepted_just_now: false,
             dream_rsi: DreamRsi::default(),
             ctx: Context::default(),
             word: buffer::Word::default(),
@@ -490,10 +503,11 @@ impl Engine {
             return;
         }
         let lower = word.to_lowercase();
-        *Arc::make_mut(&mut self.style_pending)
-            .words
-            .entry(lower.clone())
-            .or_insert(0) += 1;
+        // Host không drain (chưa nối) thì pending vẫn có trần — không phình theo phiên.
+        let pending = Arc::make_mut(&mut self.style_pending);
+        if pending.words.len() < STYLE_PENDING_CAP || pending.words.contains_key(&lower) {
+            *pending.words.entry(lower.clone()).or_insert(0) += 1;
+        }
 
         // Tiến hóa gợi ý thời gian thực trong phiên (in-session continuous learning):
         // Cập nhật opts.style_words ngay lập tức để các lần gõ tiếp theo nhận được dự đoán
@@ -544,7 +558,11 @@ impl Engine {
         }
         let lookback = before_idx.saturating_sub(40);
         let tail: String = self.sentence[lookback..before_idx].iter().collect();
-        let Some(prev) = tail.split_whitespace().last() else {
+        let same_line = tail.trim_end_matches([' ', '\t']);
+        if same_line.ends_with(['\n', '\r']) {
+            return;
+        }
+        let Some(prev) = same_line.split_whitespace().last() else {
             return;
         };
         let word_like = prev.chars().all(|ch| ch.is_alphabetic() || ch == '-')
@@ -566,6 +584,9 @@ impl Engine {
             return;
         };
         if !accepted {
+            // Bị từ chối: gỡ phần đã tính vào Dream RSI — số đo chỉ gồm chữ người dùng giữ.
+            self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_sub(cycle.rsi_accepts);
+            self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_sub(cycle.rsi_saved);
             return;
         }
         if let Some(cand) = cycle.candidates.get(cycle.current_index) {
@@ -576,6 +597,7 @@ impl Engine {
     /// P7 Hook 2: học ứng viên người dùng nhận (bản lowercase chuẩn). Cụm nối tiếp học
     /// cả dạng `<từ trước> <cụm>` để lần sau khớp theo ngữ cảnh.
     fn note_accepted(&mut self, cand: &str, sample: &str, continuation: bool) {
+        self.accepted_just_now = true;
         if continuation {
             let full_phrase = format!("{sample} {cand}");
             if valid_style_entry(&full_phrase) {
@@ -650,13 +672,7 @@ impl Engine {
         }
         let mut raw = self.word.raw.clone();
         raw.push(c);
-        let mut display = method::fold_caps(
-            &raw,
-            self.opts.method,
-            self.opts.diacritic_style,
-            self.opts.free_marking,
-            self.word.caps_lock,
-        );
+        let mut display = self.fold_keys(&raw);
         if validate::is_valid_word(&display) {
             return false;
         }
@@ -680,7 +696,9 @@ impl Engine {
             && (index_close
                 || (c == ']' && raw.contains(&'['))
                 || (matches!(raw.last(), Some('[' | ']'))
-                    && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{'))))
+                    && (c.is_ascii_digit() || matches!(c, '"' | '\'' | '`' | '$' | '(' | '{')))
+                // `s[i+1]`, `t[i-1]`: phép tính trong chỉ mục.
+                || (raw.contains(&'[') && matches!(c, '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=')))
     }
 
     /// P7: ghi cặp
@@ -1164,6 +1182,7 @@ impl Engine {
                 flags: 0,
             };
         }
+        self.em_dash_tentative = std::mem::take(&mut self.em_dash_next);
         // P6 Text Prediction: Bất kỳ phím nào khác Tab hoặc Ctrl+Space đều chốt vòng duyệt;
         // Backspace/Esc ngay sau khi chèn là từ chối ứng viên — không học.
         if k.vk != keymap::vk::TAB && !k.is_ctrl_space() {
@@ -1262,13 +1281,17 @@ impl Engine {
             // Ranh giới từ (Space, dấu câu, Enter, phím điều hướng…) báo WORD_END: adapter
             // giữ từ trong composition để bung gõ tắt khi VN tắt sẽ commit từ ở đây thay vì
             // kéo gạch chân sang từ kế tiếp.
-            // Ngoặc chỉ là chữ khi Telex đang fold — tiếng Việt tắt thì luôn là ranh giới.
-            let ends_word =
-                |c: char| !method::is_word_char(c, self.opts.method) || matches!(c, '[' | ']');
+            // Tiếng Việt tắt thì không có phím dấu: chỉ chữ cái mới thuộc từ. Ký tự điều
+            // khiển (layout macOS trả `\x08`, `\x1C`… cho Backspace/mũi tên) không phải
+            // ranh giới in được — học ở đó là học tiền tố dở dang.
+            let ends_word = |c: char| !c.is_alphabetic();
             let boundary = k.printable().is_none_or(ends_word);
-            let learn_boundary = k.printable().is_some_and(ends_word);
+            let learn_boundary = k.printable().is_some_and(|c| {
+                ends_word(c) && (!c.is_control() || matches!(c, '\n' | '\r' | '\t'))
+            });
+            let just_accepted = std::mem::take(&mut self.accepted_just_now);
             // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ in được đến).
-            if learn_boundary && self.style_enabled_for_learning() {
+            if learn_boundary && !just_accepted && self.style_enabled_for_learning() {
                 let mut end = self.sentence.len();
                 while end > 0 && self.sentence[end - 1].is_ascii_alphabetic() {
                     end -= 1;
@@ -1697,6 +1720,16 @@ impl Engine {
         self.close_word(c, strategy)
     }
 
+    /// Từ đứng trước ` --` ở đuôi document có chữ Việt (có dấu) không.
+    fn word_before_dashes_is_vietnamese(&self) -> bool {
+        let before = self.recent.len().saturating_sub(3);
+        self.recent[..before]
+            .iter()
+            .rev()
+            .take_while(|c| !c.is_whitespace())
+            .any(|c| !c.is_ascii())
+    }
+
     /// Từ đang mở có nên trả về chuỗi gõ không (auto-restore tiếng Anh, bug B5).
     fn restorable(&self) -> bool {
         self.opts.auto_restore_english
@@ -1708,11 +1741,12 @@ impl Engine {
     }
 
     /// Gạch nối dài từ hai dấu `-` (R2-141). Chỉ hai dạng văn xuôi: `a--b` (dính liền
-    /// chữ — đổi ngay, ranh giới kế tiếp không phải chữ thì trả lại) và `a -- b` (cách
-    /// hai bên — đổi khi có dấu cách thứ hai). Không đụng `--force`, `i--;`, `<!-- -->`,
-    /// `|--|`, `=A1--B1`, `-- comment`. `---` luôn giữ nguyên cho Markdown.
+    /// chữ — đổi ngay, ranh giới kế tiếp không phải chữ thì trả lại) và `Nội -- TP` (cách
+    /// hai bên sau chữ Việt — đổi khi có dấu cách thứ hai). Không đụng `--force`, `i--;`,
+    /// `<!-- -->`, `|--|`, `=A1--B1`, `-- comment`. `---` luôn giữ nguyên cho Markdown.
     fn em_dash_outcome(&mut self, c: char, tentative: bool) -> Option<Outcome> {
         const EM: char = '\u{2014}';
+        // RESTORE: adapter tách Enter/Tab cuối `insert` thành phím thật (chat vẫn gửi được).
         let replace = |delete: usize, text: &[char], engine: &mut Engine| {
             engine.record(Tail::Replace {
                 delete,
@@ -1720,7 +1754,7 @@ impl Engine {
                 unicode: text,
             });
             Outcome {
-                action: Action::Replace {
+                action: Action::Restore {
                     delete_count: delete as u16,
                     insert: text.to_vec(),
                 },
@@ -1756,12 +1790,12 @@ impl Engine {
         let is_letter = |ch: char| ch.is_alphabetic() || ('\u{300}'..='\u{36F}').contains(&ch);
         match (c, tail) {
             ('-', [.., before, '-']) if is_letter(*before) => {
-                self.em_dash_tentative = true;
+                self.em_dash_next = true;
                 Some(replace(1, &[EM], self))
             }
-            (' ', [.., before, ' ', '-', '-'])
-                if !before.is_whitespace() && *before != '-' && *before != EM =>
-            {
+            // Dạng cách hai bên chỉ sau chữ Việt: sau ASCII là `x = 1 -- comment`, `git
+            // checkout -- file` — code/lệnh, đổi là hỏng.
+            (' ', [.., ' ', '-', '-']) if self.word_before_dashes_is_vietnamese() => {
                 Some(replace(2, &[EM, ' '], self))
             }
             _ => None,
@@ -1840,7 +1874,7 @@ impl Engine {
         vi_on: bool,
         append: Option<char>,
     ) -> Option<Outcome> {
-        if !vi_on || !self.opts.suggest_vn_complete {
+        if !vi_on || !self.opts.suggest_vn_complete || self.prediction_blocked() {
             return None;
         }
         if k.mods & keymap::MOD_SHIFT != 0 {
@@ -1858,12 +1892,7 @@ impl Engine {
         // ví dụ `"see"` → `"sê"`, `"is"` → `"í"`, `"yes"` → `"yé"`, `"file"` → `"fỉle"`, `"user"` → `"úer"`)
         // và không phải từ cá nhân người dùng đã học trong `style_words`, nhường cho
         // `try_english_complete` xử lý thay vì hoàn tất nhầm thành từ tiếng Việt!
-        if self.opts.auto_restore_english
-            && post::restore_en::should_restore(
-                &self.word.raw,
-                &self.word.display,
-                &self.opts.english_words,
-            )
+        if self.restorable()
             && !self
                 .opts
                 .style_words
@@ -1914,13 +1943,12 @@ impl Engine {
             self.note_accepted(&completion, &raw_sample, false);
         }
         // P10 — Dream RSI: accept tiết kiệm (completion − typed) ký tự.
+        let saved = completion
+            .chars()
+            .count()
+            .saturating_sub(typed.chars().count()) as u64;
         self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
-        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(
-            (completion
-                .chars()
-                .count()
-                .saturating_sub(typed.chars().count())) as u64,
-        );
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(saved);
         let delete = self.word.owned as u16;
         self.word.clear();
 
@@ -1932,6 +1960,9 @@ impl Engine {
                 sample: raw_sample,
                 had_leading_space: false,
                 continuation: false,
+                rsi_accepts: 1,
+                rsi_saved: saved,
+                peak_glyphs: out.len(),
             });
         } else {
             self.last_predict = None;
@@ -1987,16 +2018,17 @@ impl Engine {
 
         let cycle = self.last_predict.as_mut()?;
         let delete = cycle.inserted_glyphs as u16;
-        let prev_glyphs = cycle.inserted_glyphs as u64;
+        let seen_glyphs = cycle.peak_glyphs.max(cycle.inserted_glyphs) as u64;
+        cycle.peak_glyphs = cycle.peak_glyphs.max(out.len());
         cycle.inserted_glyphs = out.len();
         cycle.current_index = next_idx;
+        let gained = (cand.chars().count() as u64).saturating_sub(seen_glyphs);
+        cycle.rsi_accepts += 1;
+        cycle.rsi_saved += gained;
         // P10 — Dream RSI: cycle sang candidate dài hơn = tiết kiệm thêm
         // (cand mới − phần đã chèn của candidate cũ).
         self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
-        self.dream_rsi.chars_saved = self
-            .dream_rsi
-            .chars_saved
-            .saturating_add((cand.chars().count() as u64).saturating_sub(prev_glyphs));
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(gained);
 
         self.record(Tail::Replace {
             delete: delete as usize,
@@ -2049,14 +2081,7 @@ impl Engine {
         // `"in order"` → `"in ỏder"`, `"feel free"` → `"feel frê"`, `"i would"` → `"i ưould"`),
         // khôi phục từ cuối về `raw` để khớp chính xác bảng mẫu câu tiếng Anh `en_phrases.tsv`
         // và hoàn nguyên luôn từ đó trong cùng một `Action::Replace`!
-        let restore_active_en = vi_on
-            && self.word.active
-            && self.opts.auto_restore_english
-            && post::restore_en::should_restore(
-                &self.word.raw,
-                &self.word.display,
-                &self.opts.english_words,
-            );
+        let restore_active_en = vi_on && self.word.active && self.restorable();
         if restore_active_en {
             let disp_str: String = self.word.display.iter().collect();
             let raw_str: String = self.word.raw.iter().collect();
@@ -2132,6 +2157,9 @@ impl Engine {
                 sample: last_word.to_string(),
                 had_leading_space,
                 continuation: true,
+                rsi_accepts: 1,
+                rsi_saved: phrase_glyphs as u64,
+                peak_glyphs: phrase_glyphs,
             });
         } else {
             self.last_predict = None;
@@ -2314,6 +2342,9 @@ impl Engine {
                 sample: typed,
                 had_leading_space: false,
                 continuation: false,
+                rsi_accepts: u64::from(saved > 0),
+                rsi_saved: saved as u64,
+                peak_glyphs: out.len(),
             });
         } else {
             self.last_predict = None;

@@ -241,7 +241,10 @@ impl TsfShared {
             && self
                 .thread
                 .try_borrow()
-                .map(|t| t.macro_when_off() || t.suggest_enabled())
+                .map(|t| {
+                    // Terminal: Mode EN phải đưa phím thẳng tới app (vim, less).
+                    t.macro_when_off() || (t.suggest_enabled() && !t.engine.is_terminal())
+                })
                 .unwrap_or(false);
         (vi_on || passthrough_on).then_some(vi_on)
     }
@@ -541,12 +544,18 @@ impl KeyEditSession {
                     // hiện popup NGAY khi space/,/; (chính tình trạng "hiện
                     // liên tiếp che vùng gõ"); giờ mọi điểm đều qua idle timer.
                     // Popup sống gõ tiếp → ẨN NGAY ở block Char/Backspace dưới.
-                    if trigger == AssistTrigger::Word
-                        || (self.key == KeyKind::Backspace && live_popup_visible(shared))
+                    // Trợ lý chỉ chạy khi tiếng Việt bật — dự đoán Mode EN không kéo theo sửa
+                    // câu; Linux/macOS cùng luật (R2-143).
+                    let assist_on = shared.ipc.is_enabled();
+                    if assist_on
+                        && (trigger == AssistTrigger::Word
+                            || (self.key == KeyKind::Backspace && live_popup_visible(shared)))
                     {
                         super::panel_idle::schedule(&self.shared, &self.ctx);
                     }
-                    let sentence_check = super::assist::after_trigger(shared, trigger);
+                    let sentence_check = assist_on
+                        .then(|| super::assist::after_trigger(shared, trigger))
+                        .flatten();
                     if trigger == AssistTrigger::Sentence
                         && sentence_check.is_none()
                         && live_popup_visible(shared)
@@ -994,6 +1003,16 @@ impl ITfEditSession_Impl for CtrlTapSession_Impl {
                 finish(ec, &mut comp, shared);
                 return;
             };
+            // Self-heal như KeyEditSession: caret đã rời composition — commit nguyên văn,
+            // không áp RESTORE của từ cũ lên vị trí mới.
+            if comp
+                .as_ref()
+                .is_some_and(|c| !caret_at_composition_end(ec, c, &sel))
+            {
+                finish(ec, &mut comp, shared);
+                shared.reset_engine();
+                return;
+            }
             let current: Vec<char> = shared
                 .comp_text
                 .try_borrow()

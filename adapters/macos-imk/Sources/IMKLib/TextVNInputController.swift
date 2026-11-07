@@ -169,6 +169,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     public override func deactivateServer(_ sender: Any!) {
         commitBeforeHide(sender)
         engine?.reset()
+        persistStyleProfile()
         ctrlDown = false
         shiftDown = false
         otherKeyPressed = false
@@ -238,6 +239,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             let flags = event.modifierFlags
             let isCtrl = flags.contains(.control)
             let isShift = flags.contains(.shift)
+            // Lần bấm mới bắt đầu từ trạng thái không giữ modifier: phím chữ vừa gõ trước đó
+            // không thuộc lần này — thiếu dòng này Ctrl tap không bao giờ chạy sau khi gõ.
+            if (isCtrl || isShift) && !ctrlDown && !shiftDown {
+                otherKeyPressed = false
+            }
             let hasAltOrCmd = flags.contains(.option) || flags.contains(.command)
             if hasAltOrCmd {
                 otherKeyPressed = true
@@ -782,12 +788,10 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         let outcome = engine.ctrlTap()
         switch outcome.action {
         case .pass:
-            if outcome.isWordEnd {
-                if !marked.text.isEmpty {
-                    target.insert(marked.text, replacementRange: .notFound)
-                    marked.clear()
-                    engine.reset()
-                }
+            if outcome.isWordEnd, !marked.text.isEmpty {
+                // Chỉ chốt marked: buffer câu giữ lại cho dự đoán/trợ lý như Windows, Linux.
+                target.insert(marked.text, replacementRange: .notFound)
+                marked.clear()
             }
         case .replace, .commit, .restore:
             let context = gatherContext(from: sender, force: false)
@@ -804,6 +808,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 logAction(outcome)
             } catch {
                 Diagnostics.log("ctrl tap apply failed (\(error))")
+                engine.reset() // fail-open như handle(): sổ engine không còn khớp document
             }
         }
         updatePredictionPreview()
@@ -871,10 +876,24 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         )
     }
 
-    static func loadConfig() -> Data? {
-        let url = FileManager.default.homeDirectoryForCurrentUser
+    static var configURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/TextVN/config.json")
-        return try? Data(contentsOf: url)
+    }
+
+    static func loadConfig() -> Data? {
+        try? Data(contentsOf: configURL)
+    }
+
+    /// R2-152: gộp dữ liệu học vào config.json (macOS không có đường tray như Windows).
+    private func persistStyleProfile() {
+        guard let engine, let config = Self.loadConfig(),
+              let merged = engine.styleMergeConfig(config) else { return }
+        do {
+            try merged.write(to: Self.configURL, options: .atomic)
+        } catch {
+            Diagnostics.log("style persist failed (\(error))")
+        }
     }
 
     /// Đọc `enabled` từ config.json (thiếu khoá → nil = giữ mặc định hiện tại).
@@ -1345,21 +1364,27 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // G19 / Dream RSI: route acceptance through synthetic Tab so Dream RSI & style learning update identically.
         if currentCandidates.isEmpty, let ghost = predictionPreview, str == Self.previewLabel(ghost) {
             predictionPreview = nil
-            let tabEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true)
-            let outcome = engine?.key(tabEvent)
+            // Ctrl+Space: cùng đường nhận như Tab nhưng không đếm vào `keys_typed` — chuột
+            // không phải phím gõ (G19b).
+            let acceptEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true).asCtrlSpace()
+            let outcome = engine?.key(acceptEvent)
             if let outcome, outcome.action != .pass {
-                let pid = Self.clientPid(client())
-                let appID = Self.appID(for: pid)
+                let context = gatherContext(from: client(), force: false)
                 let hint = Self.strategyResolver.strategy(
-                    appID: appID, role: FieldRole.unknown,
-                    enabled: viState.enabled(for: appID),
-                    secure: secureMode
+                    appID: context.appID, role: context.role,
+                    enabled: viState.enabled(for: context.appID),
+                    secure: context.secure || secureMode
                 )
                 let effectiveStrategy = Self.outputStrategy(hint: hint, nonPreedit: nonPreedit)
                 if let target = clientTarget(client()) {
-                    try? ApplyReplace.apply(outcome, strategy: effectiveStrategy,
-                                           target: target, marked: marked,
-                                           onReset: { [weak self] in self?.engine?.reset() })
+                    do {
+                        try ApplyReplace.apply(outcome, strategy: effectiveStrategy,
+                                               target: target, marked: marked,
+                                               onReset: { [weak self] in self?.engine?.reset() })
+                    } catch {
+                        Diagnostics.log("ghost accept failed (\(error))")
+                        engine?.reset() // fail-open như handle()
+                    }
                 }
             } else if let target = clientTarget(client()) {
                 target.insert(marked.text + ghost, replacementRange: NSRange(location: NSNotFound, length: 0))
@@ -1375,10 +1400,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         if let candidate = currentCandidates.first(where: { $0.text == str }),
            let target = clientTarget(client()) {
             let sentence = engine?.sentenceTail(maxChars: 256) ?? ""
-            if candidate.plan.deleteGlyphs > 0, !candidate.plan.originalTail.isEmpty, !candidate.plan.replacement.isEmpty {
-                engine?.styleNoteCorrection(from: candidate.plan.originalTail, to: candidate.plan.replacement)
-            }
             if applyAssistFix(plan: candidate.plan, target: target) {
+                // Chỉ học cặp đã sửa thật (fix bị precondition chặn thì không tính).
+                if candidate.plan.deleteGlyphs > 0, !candidate.plan.originalTail.isEmpty,
+                   !candidate.plan.replacement.isEmpty {
+                    engine?.styleNoteCorrection(
+                        from: candidate.plan.originalTail, to: candidate.plan.replacement
+                    )
+                }
                 // R-4: sau khi sửa câu trong document, buffer câu của engine đã
                 // cũ ⇒ nạp câu đã sửa (R2-131) để câu tiếp theo không lệch span.
                 if let engine = engine {

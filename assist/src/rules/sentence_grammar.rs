@@ -238,16 +238,18 @@ pub fn check_vi(ctx: &Ctx, out: &mut Vec<Issue>) {
                 // Từ nối vế 2 phải đứng đúng chỗ nối: không có phẩy, hoặc ngay sau phẩy duy
                 // nhất. "Tuy bận, anh nên đi khám" (nên = should), "Do dịch, công ty đóng cửa,
                 // nhưng chúng tôi vẫn mở" (vế khác) đều là câu đúng (R2-142).
-                let commas = ctx.tokens[marker_idx + 1..tok_idx]
-                    .iter()
-                    .filter(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',')
-                    .count();
-                let after_comma = ctx.tokens[..tok_idx]
-                    .iter()
-                    .rev()
-                    .find(|t| t.kind != TokenKind::Space)
-                    .is_some_and(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
-                let joins_clauses = commas == 0 || (commas == 1 && after_comma);
+                let joins_clauses = !matches!(w.as_str(), "nên" | "nhưng") || {
+                    let commas = ctx.tokens[marker_idx + 1..tok_idx]
+                        .iter()
+                        .filter(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',')
+                        .count();
+                    let after_comma = ctx.tokens[..tok_idx]
+                        .iter()
+                        .rev()
+                        .find(|t| t.kind != TokenKind::Space)
+                        .is_some_and(|t| t.kind == TokenKind::Punct && ctx.chars[t.start] == ',');
+                    commas == 0 || (commas == 1 && after_comma)
+                };
                 match clause {
                     ViCorrelativeClause::Contrast => {
                         // "Mặc dù... cho nên..." hoặc "Mặc dù... nên..." → sai!
@@ -499,7 +501,7 @@ pub fn check_en(ctx: &Ctx, out: &mut Vec<Issue>) {
     // "both ... or" -> "and". Chỉ xét cụm ngắn ngay sau từ mở: dừng ở từ đi cặp đúng, ở dấu
     // câu và ở từ mở mệnh đề — `and`/`or` xa hơn nối vế khác ("Either way, we finish and
     // send it"; "Both teams can win or lose"). Một lượt quét tới, không quét lại (R2-142).
-    const CORRELATIVE_WINDOW: usize = 4;
+    const CORRELATIVE_WINDOW: usize = 6;
     const CLAUSE_WORDS: &[&str] = &[
         "can", "could", "will", "would", "may", "might", "must", "should", "is", "are", "was",
         "were", "do", "does", "did", "has", "have", "had", "that", "whether", "if",
@@ -688,23 +690,17 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         "help",
         "helps",
         "helped",
-        "hear",
-        "hears",
-        "heard",
-        "see",
-        "sees",
-        "saw",
-        "watch",
-        "watched",
-        "feel",
-        "felt",
-        "notice",
-        "noticed",
         "hi",
         "hello",
         "hey",
         "dear",
         "thanks",
+    ];
+    // Tri giác: "I saw it work" nguyên mẫu đúng, nhưng "I saw he go home" vẫn là lỗi —
+    // chỉ miễn khi theo sau là dạng tân ngữ, không phải he/she.
+    const PERCEPTION: &[&str] = &[
+        "hear", "hears", "heard", "see", "sees", "saw", "watch", "watched", "feel", "felt",
+        "notice", "noticed",
     ];
     // `it`/`you` cũng là tân ngữ ("When you finish it call me", "I will send you changes"):
     // chỉ coi là chủ ngữ ở đầu vế.
@@ -744,6 +740,25 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
         "often",
         "always",
         "never",
+        "think",
+        "thinks",
+        "thought",
+        "hope",
+        "hopes",
+        "believe",
+        "believes",
+        "know",
+        "knows",
+        "knew",
+        "say",
+        "says",
+        "said",
+        "guess",
+        "wish",
+        "sure",
+        "suppose",
+        "mean",
+        "means",
     ];
 
     // Vòng 42 (perf, abnormal 100k): lookup O(1) thay `position()` O(n) mỗi
@@ -781,35 +796,43 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
 
         let prev_word = i.checked_sub(1).map(|p| word_lower(ctx, &words[p]));
         let prev_w = prev_word.as_deref().unwrap_or("");
-        let next_w = words.get(i + 2).map(|t| word_lower(ctx, t));
-        let next_w = next_w.as_deref().unwrap_or("");
         let at_clause_start = i == 0
             || CLAUSE_OPENERS.contains(&prev_w)
             || ctx.chars[words[i - 1].end..w0.start]
                 .iter()
                 .any(|c| !c.is_whitespace());
-        let prev_is_modal =
-            MODALS.contains(&prev_w) || (matches!(a.as_str(), "it" | "you") && !at_clause_start);
-        let prev_is_determiner = matches!(
+        let subject_pronoun = matches!(a.as_str(), "he" | "she" | "they" | "we" | "i");
+        let prev_is_modal = MODALS.contains(&prev_w)
+            || (PERCEPTION.contains(&prev_w) && !subject_pronoun)
+            || (matches!(a.as_str(), "it" | "you") && !at_clause_start);
+        // Từ thứ ba của cụm, chỉ tính khi cặp giới từ cần tới.
+        let next_word = || {
+            words
+                .get(i + 2)
+                .map(|t| word_lower(ctx, t))
+                .unwrap_or_default()
+        };
+        // Sau chủ ngữ/modal thì là động từ; danh từ cùng dạng ("the heavy object against",
+        // "our current focus in") không có dấu hiệu này — luật chỉ chạy khi chắc chắn.
+        let verb_position = matches!(
             prev_w,
-            "the"
-                | "a"
-                | "an"
-                | "this"
-                | "that"
-                | "any"
-                | "each"
-                | "every"
-                | "no"
-                | "my"
-                | "your"
-                | "his"
-                | "her"
-                | "its"
-                | "our"
-                | "their"
-                | "main"
-                | "key"
+            "i" | "we"
+                | "they"
+                | "you"
+                | "to"
+                | "will"
+                | "would"
+                | "must"
+                | "should"
+                | "can"
+                | "could"
+                | "may"
+                | "might"
+                | "please"
+                | "strongly"
+                | "not"
+                | "also"
+                | "always"
         );
 
         if !prev_is_modal {
@@ -1195,19 +1218,19 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        // "married with two children" / "married with a child" là cụm chuẩn.
-        let after_article = words.get(i + 3).map(|t| word_lower(ctx, t));
-        let with_family = next_w.parse::<u32>().is_ok()
-            || matches!(
-                next_w,
-                "no" | "one" | "two" | "three" | "four" | "five" | "children" | "kids"
-            )
-            || (matches!(next_w, "a" | "an")
-                && matches!(
-                    after_article.as_deref(),
-                    Some("child" | "son" | "daughter" | "baby" | "kid" | "family")
-                ));
-        if (a == "married" || a == "marry") && b == "with" && !with_family {
+        // Chỉ khi theo sau là một người ("married with her"); "married with two children",
+        // "married with six kids", "married with a son" là cụm chuẩn.
+        let marry_with_person = (a == "married" || a == "marry") && b == "with" && {
+            let third = next_word();
+            let after_article = words.get(i + 3).map(|t| word_lower(ctx, t));
+            matches!(third.as_str(), "him" | "her" | "my" | "his" | "the")
+                || (matches!(third.as_str(), "a" | "an")
+                    && !matches!(
+                        after_article.as_deref(),
+                        Some("child" | "son" | "daughter" | "baby" | "kid" | "family")
+                    ))
+        };
+        if marry_with_person {
             push_replace_issue(
                 &w1,
                 &orig_b,
@@ -1228,10 +1251,9 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             continue;
         }
         // "Our focus in Vietnam" là danh từ, "focus in on" là cụm động từ.
-        if (a == "focus" || a == "focuses" || a == "focused")
+        if (a == "focuses" || a == "focused" || (a == "focus" && verb_position))
             && b == "in"
-            && next_w != "on"
-            && !prev_is_determiner
+            && next_word() != "on"
         {
             push_replace_issue(
                 &w1,
@@ -1272,10 +1294,9 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        // "Place the object against the wall": `object` là danh từ.
-        if (a == "object" || a == "objects" || a == "objected")
+        // "Place a heavy object against the wall": `object` là danh từ.
+        if (a == "objected" || ((a == "object" || a == "objects") && verb_position))
             && b == "against"
-            && !prev_is_determiner
         {
             push_replace_issue(
                 &w1,
@@ -1296,12 +1317,14 @@ pub fn check_en_agreement(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
             continue;
         }
-        // "different than I expected": trước mệnh đề `from` sai ngữ pháp.
-        let than_clause = matches!(
-            next_w,
-            "i" | "you" | "he" | "she" | "it" | "we" | "they" | "what" | "expected" | "before"
-        );
-        if a == "different" && (b == "with" || (b == "than" && !than_clause)) {
+        // "different than I expected / most people think": trước mệnh đề `from` sai ngữ
+        // pháp — `than` chỉ sửa trước cụm danh từ rõ ràng.
+        let than_noun = b == "than"
+            && matches!(
+                next_word().as_str(),
+                "the" | "a" | "an" | "this" | "that" | "these" | "those" | "other" | "others"
+            );
+        if a == "different" && (b == "with" || than_noun) {
             push_replace_issue(
                 &w1,
                 &orig_b,

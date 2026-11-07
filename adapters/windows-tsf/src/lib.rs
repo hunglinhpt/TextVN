@@ -271,6 +271,7 @@ pub struct EngineSession {
     instance: *mut ime_instance,
     /// `ime_context_v1.enabled` đã đẩy vào engine (mặc định engine: bật).
     ctx_enabled: bool,
+    terminal: bool,
 }
 
 /// State thuộc một TSF thread. Focus mới luôn tạo `FieldContext::pending`, vì
@@ -283,7 +284,7 @@ pub struct ThreadState {
     user_enabled: Option<bool>,
     /// `config.allow_macro_when_vi_off` của lần nạp config hợp lệ gần nhất.
     macro_when_off: bool,
-    /// `config.suggest.enabled` (hoặc `trigger == "tab_and_space"`): khi bật, Mode EN vẫn đi qua engine (passthrough) để dự đoán tiếng Anh.
+    /// `config.suggest.enabled`: khi bật, Mode EN vẫn đi qua engine (passthrough) để dự đoán tiếng Anh.
     suggest_enabled: bool,
     /// `config.assist.auto_fix` của lần nạp config gần nhất (AS-050 · Mode 2 / A3).
     assist_auto_fix: textvn_config::AssistAutoFix,
@@ -318,8 +319,11 @@ pub struct ThreadState {
 impl ThreadState {
     pub fn new(app_id: impl Into<String>, caps: u32) -> Result<Self, i32> {
         let generation = 1;
+        let app_id = app_id.into();
+        let mut engine = EngineSession::new()?;
+        engine.set_terminal(compose::is_terminal_exe(&app_id));
         Ok(Self {
-            engine: EngineSession::new()?,
+            engine,
             field: FieldContext::pending(app_id, caps, generation),
             generation,
             user_enabled: None,
@@ -458,8 +462,7 @@ impl ThreadState {
             .and_then(|s| textvn_config::parse_config(s).ok())
         {
             self.macro_when_off = cfg.allow_macro_when_vi_off;
-            self.suggest_enabled = cfg.suggest.enabled
-                || cfg.suggest.trigger == textvn_config::SuggestTrigger::TabAndSpace;
+            self.suggest_enabled = cfg.suggest.enabled;
             self.assist_auto_fix = cfg.assist.auto_fix;
             self.assist_mode = cfg.assist.mode;
             self.auto_capitalize = cfg.auto_capitalize;
@@ -533,29 +536,50 @@ impl EngineSession {
         Ok(Self {
             instance,
             ctx_enabled: true,
+            terminal: false,
         })
     }
 
     /// Chế độ tiếng Việt của engine. Tắt → engine chạy passthrough: chữ PASS nguyên văn,
     /// chỉ gõ tắt còn bung (nếu `allow_macro_when_vi_off`). Chỉ gọi FFI khi đổi.
     pub fn set_enabled(&mut self, enabled: bool) {
-        if enabled == self.ctx_enabled {
-            return;
+        if enabled != self.ctx_enabled && self.push_context(enabled) {
+            self.ctx_enabled = enabled;
+            let _ = ime_reset(self.instance);
         }
+    }
+
+    /// App terminal: engine không dự đoán/học ở đây (R2-144/R2-145). Hint giữ nguyên
+    /// strategy đang chạy — terminal gõ tiếng Việt không đổi cách xuất chữ.
+    pub fn set_terminal(&mut self, terminal: bool) {
+        self.terminal = terminal;
+        self.push_context(self.ctx_enabled);
+    }
+
+    pub fn is_terminal(&self) -> bool {
+        self.terminal
+    }
+
+    fn push_context(&self, enabled: bool) -> bool {
         let ctx = ime_context_v1 {
             abi_version: IME_ABI_VERSION,
             enabled: enabled as u32,
             secure: 0,
-            field_role: 0,
+            field_role: if self.terminal {
+                textvn_strategy::IME_FIELD_TERMINAL
+            } else {
+                0
+            },
             caps: 0,
             app_id: std::ptr::null(),
             element_name: std::ptr::null(),
-            hint: -1,
+            hint: if self.terminal {
+                textvn_strategy::IME_STRATEGY_BACKSPACE_TYPE
+            } else {
+                -1
+            },
         };
-        if ime_set_context(self.instance, &ctx) == IME_OK {
-            self.ctx_enabled = enabled;
-            let _ = ime_reset(self.instance);
-        }
+        ime_set_context(self.instance, &ctx) == IME_OK
     }
 
     /// Nạp lại cấu hình engine runtime qua C-ABI ime_reload_config.
