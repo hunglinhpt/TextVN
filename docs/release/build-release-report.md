@@ -6,6 +6,7 @@
 |---|---|
 | Nội dung | **P10 Dream RSI (G19)**: Đo lường tiết kiệm phím công thái học với 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`). Hook 5 đường accept gợi ý (VN/EN Tab, Space, Cycle, Next-phrase). Test suite `core/tests/dream_rsi_100.rs` (12 test) + lệnh bench `cargo run -p textvn-bench -- dream-rsi` đạt **21% savings-rate** (33 accepts / 69 phím tiết kiệm trên corpus benchmark). Pinned baseline trong `perf/baseline-win.json` làm gate chống hồi quy. **Chuẩn hoá `keys_typed` 3 OS**: Predicate `k.printable().is_some() && !k.is_ctrl_space()` đồng bộ số đo Windows TSF, macOS IMK, Linux IBus/Fcitx5. **Hoàn thiện pipeline tự học P7**: Broadcast `ConfigReload` qua IPC sau khi merge; tuân thủ nghiêm ngặt Opt-in consent G8; bảo vệ FFI qua `catch_unwind` (P0-2 §5) và cơ chế drain 2 pha an toàn bộ đệm. |
 | Đo | workspace tests PASS · dream_rsi_100 (12/12) · clippy 0 · check-version-sync 15/15 · preflight exit=0 |
+| CI trên commit gắn tag | 7/7 workflow áp dụng xanh (ci-shared, ci-windows, ci-linux, ci-macos, ci-aur, ci-deb, repo-hygiene) |
 | Checksums | Sẽ cập nhật sau khi build CI và release-candidate hoàn tất |
 | Homebrew (B7b) | cask `version "0.2.67"` |
 | AUR (B7e) | PKGBUILD/.SRCINFO pkgver 0.2.67 |
