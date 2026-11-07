@@ -52,6 +52,21 @@ static void doc_text(const doc *d, char *out, size_t n) {
     out[o] = '\0';
 }
 
+static void apply_plan(doc *d, ime_instance *inst, const lc_plan *plan) {
+    if (plan->delete_before) {
+        assert(plan->delete_before <= d->committed_len);
+        d->committed_len -= plan->delete_before;
+    }
+    if (plan->end) {
+        size_t n = 0;
+        const uint32_t *t = lc_plan_commit_text(&d->comp, plan, &n);
+        memcpy(d->committed + d->committed_len, t, n * sizeof(uint32_t));
+        d->committed_len += n;
+    }
+    lc_comp_apply(&d->comp, plan);
+    if (plan->reset_engine) ime_reset(inst);
+}
+
 static lc_plan press(doc *d, ime_instance *inst, uint32_t vk, uint32_t ch) {
     lc_key key = lc_key_classify(vk, ch);
     ime_key_v1 k;
@@ -61,18 +76,7 @@ static lc_plan press(doc *d, ime_instance *inst, uint32_t vk, uint32_t ch) {
     lc_plan plan;
     lc_plan_key(&d->comp, key, &r, &plan);
 
-    if (plan.delete_before) {
-        assert(plan.delete_before <= d->committed_len);
-        d->committed_len -= plan.delete_before;
-    }
-    if (plan.end) {
-        size_t n = 0;
-        const uint32_t *t = lc_plan_commit_text(&d->comp, &plan, &n);
-        memcpy(d->committed + d->committed_len, t, n * sizeof(uint32_t));
-        d->committed_len += n;
-    }
-    lc_comp_apply(&d->comp, &plan);
-    if (plan.reset_engine) ime_reset(inst);
+    apply_plan(d, inst, &plan);
     if (!plan.eaten) {
         /* Bất biến B2: app chỉ nhận phím khi preedit đã đóng. */
         assert(d->comp.len == 0);
@@ -727,12 +731,7 @@ static void test_engine_ctrl_tap(void) {
     lc_plan plan;
     lc_plan_key(&d.comp, (lc_key){ LC_KEY_OTHER, 0 }, &r, &plan);
     assert(plan.end == 1);
-    size_t n = 0;
-    const uint32_t *t = lc_plan_commit_text(&d.comp, &plan, &n);
-    memcpy(d.committed + d.committed_len, t, n * sizeof(uint32_t));
-    d.committed_len += n;
-    lc_comp_apply(&d.comp, &plan);
-    if (plan.reset_engine) ime_reset(inst);
+    apply_plan(&d, inst, &plan);
     assert(d.comp.len == 0);
 
     /* Type s -> tũns */
@@ -753,7 +752,7 @@ static void test_engine_ctrl_tap(void) {
     assert(r.action == IME_ACTION_RESTORE);
     lc_plan_key(&d.comp, (lc_key){ LC_KEY_OTHER, 0 }, &r, &plan);
     assert(plan.has_text == 1);
-    lc_comp_apply(&d.comp, &plan);
+    apply_plan(&d, inst, &plan);
     doc_text(&d, got, sizeof(got));
     assert(strcmp(got, "sort") == 0);
 

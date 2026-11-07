@@ -1123,7 +1123,7 @@ final class AssistIpcTests: XCTestCase {
     func testEngineCtrlTap() throws {
         let engine = try ImeEngine(configJSON: nil)
         engine.setContext(
-            enabled: true, secure: false, fieldRole: FFI.fieldBody,
+            enabled: true, secure: false, fieldRole: FieldRole.body,
             caps: FFI.capPreedit, appId: "test", elementName: nil, hint: 0
         )
         // Type 't', 'u', 'n', 'x' -> tũn
