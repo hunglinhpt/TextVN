@@ -127,7 +127,7 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 - 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase)
 - Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`)
 
-**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.415 mục** song ngữ chất lượng tương đương:
+**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.313 mục** song ngữ chất lượng tương đương:
 6.672 âm tiết Việt + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành)
 + **9.868 từ đơn Anh + 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
 + **17.529 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.747 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
@@ -385,7 +385,7 @@ differently — per their public feature pages as of 2026-10):
 - 5 prediction accept paths: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction
 - Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`)
 
-**Text prediction (P6) & User Style Profile (P7)** — **41,415-entry** bilingual corpora with full VI-EN parity:
+**Text prediction (P6) & User Style Profile (P7)** — **41,313-entry** bilingual corpora with full VI-EN parity:
 6,672 Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains)
 + **9,868 English single words + 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
 + **17,529 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,747 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);

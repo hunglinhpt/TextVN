@@ -32,15 +32,17 @@ làm rate giảm = hồi quy chất lượng gợi ý = **không merge** (G19c).
 | 1 | VN completion | Tab/Ctrl+Space sau Telex-transform (word active) | `completion.chars − typed.chars` (typed = `word.display`) | `try_vn_complete` |
 | 2 | EN/style-word completion | Tab (word chưa active — ASCII thuần) | `completion.chars − typed.chars` | `try_english_complete` |
 | 3 | Space-accept | Space với `suggest_space_complete` | như #2 (space user đã gõ không đếm là saved) | #2 với `append` |
-| 4 | Cycle candidate | Tab/Ctrl+Space khi `last_predict` mở | `cand_mới.chars − max(glyphs_cand_cũ, glyphs_dài_nhất_đã_chèn)` (saturating — duyệt dài → ngắn → dài không tính hai lần) | `try_cycle_predict` |
+| 4 | Cycle candidate (không cộng `accepts` — cả vòng là một lượt nhận) | Tab/Ctrl+Space khi `last_predict` mở | `cand_mới.chars − max(glyphs_cand_cũ, glyphs_dài_nhất_đã_chèn)` (saturating — duyệt dài → ngắn → dài không tính hai lần) | `try_cycle_predict` |
 | 5 | Next-phrase | Ctrl+Space/Space sau ngữ cảnh nhiều từ | nguyên số glyph cụm engine chèn (`phrase_glyphs`) | `try_predict_next_phrase` |
 
 Mọi hook đều `saturating_add` — không panic, không trôi lùi.
 
 **Từ chối (R2-147):** Backspace/Esc ngay sau khi chèn gỡ phần vòng duyệt đó đã cộng
 (`PredictCycle::rsi_accepts`/`rsi_saved`) — số đo chỉ gồm chữ người dùng giữ. Từ/cụm được học ở
-phím kế tiếp (`settle_predict`), không phải lúc chèn; `reset()` không học (đường fail-open khi áp
-ứng viên lỗi).
+phím kế tiếp (`settle_predict`), không phải lúc chèn; `reset()` vẫn học (đường fail-open khi áp
+ứng viên lỗi được chấp nhận là rủi ro nhỏ: `reset()` coi như người dùng giữ ứng viên — đổi focus,
+click sau khi nhận là đường phổ biến hơn nhiều so với áp lỗi). Duyệt vòng chỉ cộng `chars_saved`;
+`accepts` đếm một lần cho cả vòng.
 
 ### Quy tắc khi THÊM đường accept mới (G19a)
 

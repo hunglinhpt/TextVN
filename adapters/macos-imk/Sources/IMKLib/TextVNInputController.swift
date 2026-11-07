@@ -364,9 +364,12 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             appID: context.appID, role: context.role, enabled: true,
             secure: context.secure || secureMode
         )
+        // Terminal theo bundle: role AX có thể chưa có (cache trống, iTerm2) — engine vẫn phải
+        // biết để không chiếm Tab của shell, không học mật khẩu (R2-151).
+        let engineRole = Self.isTerminalApp(context.appID) ? FieldRole.terminal : context.role
         engine?.setContext(
             enabled: viEnabled, secure: context.secure || secureMode,
-            fieldRole: context.role, caps: effectiveCaps,
+            fieldRole: engineRole, caps: effectiveCaps,
             appId: context.appID,
             elementName: nil,
             hint: Self.engineHint(
@@ -762,6 +765,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     ) -> Bool {
         wasCtrl && !wasShift && !currentCtrl && !currentShift && !hasAltOrCmd && !otherKeyPressed
             && heldSeconds <= ctrlTapMaxSeconds
+    }
+
+    /// App terminal theo bundle ID (so không phân biệt hoa thường).
+    static func isTerminalApp(_ bundleID: String) -> Bool {
+        let terminals: Set<String> = [
+            "com.apple.terminal", "com.googlecode.iterm2", "net.kovidgoyal.kitty",
+            "io.alacritty", "org.alacritty", "com.github.wez.wezterm", "dev.warp.warp-stable",
+            "co.zeit.hyper", "com.mitchellh.ghostty", "org.tabby",
+        ]
+        return terminals.contains(bundleID.lowercased())
     }
 
     /// Hint gửi engine. Tiếng Việt tắt thì resolver luôn trả Passthrough, nhưng engine hiểu
@@ -1365,7 +1378,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
             predictionPreview = nil
             let tabEvent = KeyEvent(vk: Self.vkTab, ch: 0x09, mods: 0, keyDown: true)
             let outcome = engine?.key(tabEvent)
-            if let outcome, outcome.action != .pass {
+            // Chỉ áp khi Tab vẫn ra đúng chữ đã xem trước; trạng thái engine đổi thì chèn bản
+            // xem trước như nhánh dưới — không bao giờ chèn ký tự Tab thay cho gợi ý.
+            var matchesGhost = false
+            if let outcome, case let .replace(_, insert, _) = outcome.action {
+                matchesGhost = insert.hasSuffix(ghost)
+            }
+            if let outcome, outcome.action != .pass, !matchesGhost {
+                engine?.reset()
+            }
+            if let outcome, matchesGhost {
                 let context = gatherContext(from: client(), force: false)
                 let hint = Self.strategyResolver.strategy(
                     appID: context.appID, role: context.role,

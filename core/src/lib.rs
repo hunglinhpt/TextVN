@@ -720,7 +720,8 @@ impl Engine {
         }
         let at = at?;
         let rest: Vec<char> = self.sentence[at + display.len()..].to_vec();
-        if rest.iter().any(|c| c.is_whitespace()) {
+        // `chơi[1]` (chú thích): `[` mới mở trong phần sau là ngoặc riêng, chữ trước giữ nguyên.
+        if rest.iter().any(|c| c.is_whitespace() || *c == '[') {
             return None;
         }
         let delete = self.emit(&display).len() + self.emit(&rest).len();
@@ -907,6 +908,10 @@ impl Engine {
         opts.emoji.clear();
         opts.auto_capitalize = false;
         opts.suggest_space_complete = false;
+        // Gõ lại không dự đoán, không học: bỏ hồ sơ cá nhân khỏi bản sao (mỗi cụm một engine).
+        opts.style_learning_enabled = false;
+        opts.style_words.clear();
+        opts.style_corrections.clear();
         let mut out = Vec::with_capacity(text.len());
         let mut i = 0;
         while i < text.len() {
@@ -1355,8 +1360,11 @@ impl Engine {
             // ranh giới in được — học ở đó là học tiền tố dở dang.
             let ends_word = |c: char| !c.is_alphabetic();
             let boundary = k.printable().is_none_or(ends_word);
+            // Dấu nháy giữa từ (`don't`) không kết thúc từ để học — học `don` là học rác.
             let learn_boundary = k.printable().is_some_and(|c| {
-                ends_word(c) && (!c.is_control() || matches!(c, '\n' | '\r' | '\t'))
+                ends_word(c)
+                    && !matches!(c, '\'' | '’')
+                    && (!c.is_control() || matches!(c, '\n' | '\r' | '\t'))
             });
             let just_accepted = std::mem::take(&mut self.accepted_just_now);
             // P7 / Dream RSI: Học từ/cụm tiếng Anh người dùng gõ xong ở Mode EN (khi ranh giới từ in được đến).
@@ -1862,8 +1870,18 @@ impl Engine {
             return None;
         }
         let is_letter = |ch: char| ch.is_alphabetic() || ('\u{300}'..='\u{36F}').contains(&ch);
+        // `.btn--primary`, `block__elem--mod`: định danh (CSS BEM, biến) — không phải văn xuôi.
+        let in_identifier = || {
+            let letters = tail[..tail.len().saturating_sub(1)]
+                .iter()
+                .rev()
+                .take_while(|c| is_letter(**c) || c.is_ascii_digit())
+                .count();
+            let at = tail.len().saturating_sub(1 + letters);
+            at > 0 && matches!(tail[at - 1], '.' | '_' | '-' | '#' | '$' | '@' | ':' | '/')
+        };
         match (c, tail) {
-            ('-', [.., before, '-']) if is_letter(*before) => {
+            ('-', [.., before, '-']) if is_letter(*before) && !in_identifier() => {
                 self.em_dash_next = true;
                 Some(replace(1, &[EM], self))
             }
@@ -2104,11 +2122,11 @@ impl Engine {
         cycle.inserted_glyphs = out.len();
         cycle.current_index = next_idx;
         let gained = (cand.chars().count() as u64).saturating_sub(seen_glyphs);
-        cycle.rsi_accepts += 1;
         cycle.rsi_saved += gained;
         // P10 — Dream RSI: cycle sang candidate dài hơn = tiết kiệm thêm
         // (cand mới − phần đã chèn của candidate cũ).
-        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        // Duyệt vòng không phải lượt nhận mới: `accepts` đếm một lần cho cả vòng.
+
         self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(gained);
 
         self.record(Tail::Replace {

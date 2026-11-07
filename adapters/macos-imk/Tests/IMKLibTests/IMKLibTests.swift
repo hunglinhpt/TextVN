@@ -1142,6 +1142,12 @@ final class AssistIpcTests: XCTestCase {
         )
     }
 
+    func testTerminalTheoBundle() {
+        XCTAssertTrue(TextVNInputController.isTerminalApp("com.apple.Terminal"))
+        XCTAssertTrue(TextVNInputController.isTerminalApp("com.googlecode.iterm2"))
+        XCTAssertFalse(TextVNInputController.isTerminalApp("com.apple.TextEdit"))
+    }
+
     func testCtrlGiuLauKhongPhaiTap() {
         XCTAssertFalse(
             TextVNInputController.isCtrlTap(

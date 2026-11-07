@@ -967,7 +967,7 @@ void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputConte
     try {
         auto *st = state(event.inputContext());
         endWord(st, event);
-        lc_style_persist(st->inst);
+        if (st) lc_style_persist(st->inst);
     } catch (...) {
     }
 }

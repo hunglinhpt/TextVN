@@ -213,7 +213,8 @@ fn d_vn_path_cycle_accept_savings() {
     press(&mut e, &mut buf, &tab());
     assert_eq!(buf.iter().collect::<String>(), "đkkhoangtv", "cycle Tab");
     let s2 = e.dream_rsi_snapshot();
-    assert_eq!(s2.accepts, 2);
+    // Duyệt vòng vẫn là một lượt nhận (R2-147) — chỉ phần tiết kiệm thêm được cộng.
+    assert_eq!(s2.accepts, 1);
     assert_eq!(s2.chars_saved, 8); // 6 + (10 − 8)
     assert_eq!(s2.keys_typed, 5); // 3 chữ + 2 Tab
                                   // Cycle KHÔNG bao giờ làm chars_saved trôi lùi (saturating).

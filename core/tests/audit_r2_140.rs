@@ -182,6 +182,7 @@ fn r2_140_gox_vowel_giua_tu_khong_doi() {
         ("h[n-kem ", "hơn-kem "),
         ("h[n/kem ", "hơn/kem "),
         ("ch[i: ", "chơi: "),
+        ("ch[i[1] ", "chơi[1] "),
         ("b[i-looij ", "bơi-lội "),
         ("[ghi chu: ddax ch]a xong] ", "[ghi chu: đã chưa xong] "),
         ("th][ng-maij ", "thương-mại "),
@@ -262,6 +263,8 @@ fn r2_141_code_cli_markdown_khong_bi_doi() {
         "-- comment",
         "x = 1 -- comment ",
         "git checkout -- file ",
+        ".btn--primary ",
+        "block__elem--mod ",
         "--- ",
         "a---b",
         "----",
@@ -591,6 +594,24 @@ fn r2_147_tu_choi_go_khoi_dream_rsi() {
     let after = e.dream_rsi_snapshot();
     assert_eq!(before.accepts, after.accepts);
     assert_eq!(before.chars_saved, after.chars_saved);
+}
+
+#[test]
+fn r2_145_mode_en_dau_nhay_khong_hoc_manh_tu() {
+    let mut e = Engine::new(learning());
+    mode_en(&mut e, 0);
+    let _ = type_in(&mut e, "don't isn't doesn't ");
+    let json = e.style_peek_json();
+    for frag in ["\"don\"", "\"isn\"", "\"doesn\""] {
+        assert!(!json.contains(frag), "{frag}: {json}");
+    }
+}
+
+#[test]
+fn r2_147_duyet_vong_chi_tinh_mot_luot_nhan() {
+    let mut e = Engine::new(learning());
+    let _ = type_in(&mut e, "rele\t\t\t ");
+    assert_eq!(e.dream_rsi_snapshot().accepts, 1);
 }
 
 #[test]
