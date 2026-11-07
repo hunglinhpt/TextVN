@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1794066994.9767344,
-    "seen": 1794067225.4669874,
-    "ast_hash": "41236cd6cdfda85a56346ba150e53def",
+    "mtime": 1794068397.2988043,
+    "seen": 1794068635.877072,
+    "ast_hash": "6a179b7cc1a417d32470fe2a45224400",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "core/src/post/restore_en.rs": {
-    "mtime": 1794066995.0113757,
-    "seen": 1794067225.4720511,
-    "ast_hash": "fa1694e692a05d2787d8e4524069b86d",
+    "mtime": 1794068397.3310883,
+    "seen": 1794068635.878072,
+    "ast_hash": "f3aeac9520b1ada63cd4d5c369a021bf",
     "semantic_hash": ""
   },
   "core/src/transform/diacritic_style.rs": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1794067094.428722,
-    "seen": 1794067225.544473,
-    "ast_hash": "852cbd41cf42701f90046d0f7d5c3d38",
+    "mtime": 1794068588.491034,
+    "seen": 1794068635.8972878,
+    "ast_hash": "037a57344cb230499d672ee658bdc509",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -2862,14 +2862,14 @@
     "semantic_hash": ""
   },
   "core/tests/text_prediction.rs": {
-    "mtime": 1794066995.0636933,
-    "seen": 1794067225.477932,
-    "ast_hash": "f581834e00611a6a19254bdbd65708bf",
+    "mtime": 1794068470.1588824,
+    "seen": 1794068635.8805773,
+    "ast_hash": "87248c2b824d7631790b00bff9c8710e",
     "semantic_hash": ""
   },
   "data/vn_compounds.txt": {
-    "mtime": 1794066174.6846395,
-    "seen": 1794067225.5559819,
+    "mtime": 1794068331.771884,
+    "seen": 1794068635.8992882,
     "ast_hash": "00f506923dc0c3c0f281f382875016b4",
     "semantic_hash": ""
   },
@@ -3024,8 +3024,8 @@
     "semantic_hash": ""
   },
   "data/vn_syllables.txt": {
-    "mtime": 1794066174.6797335,
-    "seen": 1794067225.5559819,
+    "mtime": 1794068331.7673953,
+    "seen": 1794068635.8992882,
     "ast_hash": "985d2116461f18eaa8d004fbaccb899b",
     "semantic_hash": ""
   },
@@ -3036,9 +3036,9 @@
     "semantic_hash": ""
   },
   "xtask/src/gen_vocab.rs": {
-    "mtime": 1794066995.2920363,
-    "seen": 1794067225.5364695,
-    "ast_hash": "dcc58afa6f6a35ff25860519deec71f8",
+    "mtime": 1794068090.7064452,
+    "seen": 1794068635.8952878,
+    "ast_hash": "fbb01c1724262373e0b7249c54775b5a",
     "semantic_hash": ""
   },
   "assist/src/rules/personal_corrections.rs": {
@@ -3132,9 +3132,9 @@
     "semantic_hash": ""
   },
   "data/en_compounds.txt": {
-    "mtime": 1794066174.6874528,
-    "seen": 1794067225.5539804,
-    "ast_hash": "ea7da0993833f0ca620efa9d80db0d78",
+    "mtime": 1794068331.7747335,
+    "seen": 1794068635.8992882,
+    "ast_hash": "e32d9c692f92310ef6dff793c3fd43fa",
     "semantic_hash": ""
   }
 }
