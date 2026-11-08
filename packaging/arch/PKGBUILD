@@ -24,7 +24,7 @@ source=("$pkgname-$pkgver.tar.gz::https://github.com/hunglinhpt/TextVN/archive/r
 # R2-118: hash phải là archive của ĐÚNG tag pkgver — tính SAU khi tag tồn tại
 # (B7e: `sha256sum <(curl -sL .../archive/refs/tags/v$pkgver.tar.gz)`); publish-aur.sh
 # từ chối push nếu lệch version, CI ci-aur build cây hiện tại nên không phụ thuộc.
-sha256sums=('a836b6192fadcefc2b153bd15b07eb46cf75cf30a8e857eea34009f07497c937')
+sha256sums=('8db48fa216b00fadcccb87202a7d112bcdf52b889e15a849de6f03ed302d5066')
 
 prepare() {
     # Source archive của GitHub trích ra TextVN-<ver>/ (tên repo) — đổi tên cho
