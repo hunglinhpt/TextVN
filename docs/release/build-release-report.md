@@ -6,8 +6,14 @@
 |---|---|
 | Nội dung | Phản hồi chủ repo: "panel không hiện khi dừng 1 s, kể cả sau `.` `,`, ở chế độ gợi ý và sửa lỗi an toàn". Gốc rễ: `panel_idle::on_timer` dùng `ec = 0` giả ⇒ popup chưa từng hiện từ đường idle (từ 0.2.62); chỉ Space/`,`/`;`/`:` lên lịch; timer không bao giờ bị huỷ; E2E cũ chờ 700 ms. Sửa: `PanelIdleSession`, `idle_arms` (mọi phím gõ, kể cả composing), huỷ timer ở `reset_engine`, bảo vệ popup Ctrl+Shift+G, `SettleThenFixSession` cho sửa giữa từ, bỏ báo dấu phẩy treo |
 | Đo | `idle_popup_routing.rs` 11 test (bảng phím, 16 điểm dừng × highlight/autocorrect/off, hợp đồng nguồn) · workspace test xanh · clippy -D warnings 0 (Windows + Linux target) · **E2E thật** `e2e-assist-apps.ps1`: Edge **18/18**, Notepad++ và VS Code 5/5 ca popup (Notepad Win11 không chạy được vì tab dùng chung process) |
-| Ghi chú giới hạn | Popup khi dừng gõ chỉ có trên Windows — Linux/macOS hiện danh sách gợi ý tại phím kết câu/dấu cách (DFMEA §4) |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| Ghi chú giới hạn | Popup khi dừng gõ chỉ có trên Windows ở bản này — Linux/macOS làm ở 0.2.71 (R2-155) |
+| CI trên commit gắn tag | `832c229d` (Verified) 7/7 xanh |
+| Release | [v0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) tag ký GPG (Good signature) — release-candidate [#42443747125](https://github.com/hunglinhpt/TextVN/actions/runs/42443747125) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe, MSIX, mac zip khớp |
+| Checksums | machine exe `3c57cd32…49a7` · MSIX `1d4b9d8b…4ca7` · mac zip `2b318d87…ad00` · Linux `d0aa5541…231c` · PKGBUILD archive `612553e6…7294` |
+| Homebrew (B7b/B7d) | cask `version "0.2.70"` + `sha256` = mac zip — sync-cask [#42446767832](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42446767832) |
+| approved (B7c) | `approved/v0.2.70/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.70; `debian/changelog` 0.2.70-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.69 — audit toàn bộ tính năng mới, đồng bộ 3 OS (R2-140…R2-153, 2026-11-08)
 
