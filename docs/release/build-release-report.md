@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.70 — bảng trợ lý hiện lại khi dừng gõ 1 giây (R2-154 / E38, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo: "panel không hiện khi dừng 1 s, kể cả sau `.` `,`, ở chế độ gợi ý và sửa lỗi an toàn". Gốc rễ: `panel_idle::on_timer` dùng `ec = 0` giả ⇒ popup chưa từng hiện từ đường idle (từ 0.2.62); chỉ Space/`,`/`;`/`:` lên lịch; timer không bao giờ bị huỷ; E2E cũ chờ 700 ms. Sửa: `PanelIdleSession`, `idle_arms` (mọi phím gõ, kể cả composing), huỷ timer ở `reset_engine`, bảo vệ popup Ctrl+Shift+G, `SettleThenFixSession` cho sửa giữa từ, bỏ báo dấu phẩy treo |
+| Đo | `idle_popup_routing.rs` 11 test (bảng phím, 16 điểm dừng × highlight/autocorrect/off, hợp đồng nguồn) · workspace test xanh · clippy -D warnings 0 (Windows + Linux target) · **E2E thật** `e2e-assist-apps.ps1`: Edge **18/18**, Notepad++ và VS Code 5/5 ca popup (Notepad Win11 không chạy được vì tab dùng chung process) |
+| Ghi chú giới hạn | Popup khi dừng gõ chỉ có trên Windows — Linux/macOS hiện danh sách gợi ý tại phím kết câu/dấu cách (DFMEA §4) |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.69 — audit toàn bộ tính năng mới, đồng bộ 3 OS (R2-140…R2-153, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

@@ -1,3 +1,17 @@
+textvn (0.2.70-0ppa1) noble; urgency=medium
+
+  * Windows: bảng trợ lý ngữ pháp hiện lại khi dừng gõ 1 giây (R2-154);
+    không đổi hành vi Linux/macOS.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 08 Nov 2026 16:00:00 +0700
+
+textvn (0.2.70-0ppa1) noble; urgency=medium
+
+  * Windows: bảng trợ lý ngữ pháp hiện lại khi dừng gõ 1 giây (R2-154);
+    không đổi hành vi Linux/macOS.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 08 Nov 2026 16:00:00 +0700
+
 textvn (0.2.69-0ppa1) noble; urgency=medium
 
   * Audit toàn bộ tính năng 0.2.67/0.2.68 (R2-140..R2-153): Telex không

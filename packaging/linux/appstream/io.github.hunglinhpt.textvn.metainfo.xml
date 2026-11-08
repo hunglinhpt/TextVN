@@ -33,6 +33,16 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.70" date="2026-11-08">
+      <description>
+        <p>Windows: the grammar assistant panel appears again when you pause typing for one second, also in the middle of a word and after a comma or full stop. Fixed a bug where the idle timer never produced a popup.</p>
+      </description>
+    </release>
+    <release version="0.2.70" date="2026-11-08">
+      <description>
+        <p>Windows: the grammar assistant panel appears again when you pause typing for one second, also in the middle of a word and after a comma or full stop. Fixed a bug where the idle timer never produced a popup.</p>
+      </description>
+    </release>
     <release version="0.2.69" date="2026-11-08">
       <description>
         <p>Full audit of the 0.2.67/0.2.68 features. Telex no longer corrupts code and Markdown (brackets, double hyphens), the assistant no longer rewrites correct sentences, terminals keep Tab and are never learned from, learned data is now saved on Linux (IBus and Fcitx5), and prediction runs about three times faster with a full personal profile.</p>

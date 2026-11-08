@@ -7,6 +7,41 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.70] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Fixed
+- **Windows: bảng trợ lý ngữ pháp hiện lại khi bạn dừng gõ 1 giây** (R2-154, mã E38). Từ 0.2.62
+  bảng không còn che chữ đang gõ nhưng cũng **không bao giờ hiện nữa**: bộ hẹn giờ gọi hàm vẽ
+  bảng với "edit cookie" giả nên TSF luôn từ chối, và chỉ phím cách/`,`/`;`/`:` mới đặt hẹn giờ.
+  Giờ **mọi phím gõ** (chữ, dấu câu, xoá — kể cả khi từ chưa xong) đặt lại hẹn giờ; dừng 1 giây
+  thì kiểm tra từ và câu rồi hiện bảng; gõ tiếp bảng ẩn ngay. Chạy ở cả chế độ gợi ý lẫn sửa lỗi
+  an toàn, sau `.` và `,` cũng kích hoạt.
+- Bấm "Sửa tất cả" hay Alt+1…3 khi bảng hiện giữa từ đang gõ: chốt từ rồi sửa (không cắt đôi từ,
+  đúng trên VS Code/Electron).
+- Bảng Ctrl+Shift+G (chọn bằng phím) không bị bảng hẹn giờ thay thế; đổi ô nhập/focus huỷ hẹn giờ
+  cũ; dấu phẩy vừa gõ không còn bị báo "dấu phẩy ở cuối câu".
+
+### Tests
+- Mới: `idle_popup_routing.rs` (bảng phím, 16 điểm dừng × 3 chế độ, hợp đồng nguồn cấm edit
+  cookie giả) và 6 ca E2E thật (`live popup *`, `* mid-word`) chờ đúng 1000 ms. E2E Edge 18/18,
+  Notepad++ và VS Code 5/5 ca popup.
+
+**English** — 0.2.70 (Windows): the grammar assistant panel appears again when you pause typing
+for one second (R2-154, E38). Since 0.2.62 the panel no longer covered what you type but never
+showed at all: the idle timer called the drawing code with a fake edit cookie, which TSF always
+rejects, and only space/`,`/`;`/`:` set the timer. Now every typing key (letters, punctuation,
+backspace — also while the word is unfinished) re-arms the timer; after one second of silence the
+word and sentence are checked and the panel shows; typing on hides it at once. Works in both
+suggestion and safe-correction modes, and after `.` and `,`. "Fix all" and Alt+1…3 with the panel
+open mid-word settle the word first (no split words; correct on VS Code/Electron). The
+Ctrl+Shift+G keyboard panel is no longer replaced by the idle panel, a stale timer is cancelled on
+focus change, and a trailing comma is no longer reported as "comma at end of sentence". New tests:
+`idle_popup_routing.rs` and six real-app E2E cases that wait the true 1000 ms (Edge 18/18,
+Notepad++ and VS Code 5/5 popup cases).
+
 ## [0.2.69] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2760,7 +2795,9 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.65...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.70...HEAD
+[0.2.70]: https://github.com/hunglinhpt/TextVN/compare/v0.2.69...v0.2.70
+[0.2.69]: https://github.com/hunglinhpt/TextVN/compare/v0.2.68...v0.2.69
 [0.2.65]: https://github.com/hunglinhpt/TextVN/compare/v0.2.64...v0.2.65
 [0.2.64]: https://github.com/hunglinhpt/TextVN/compare/v0.2.63...v0.2.64
 [0.2.63]: https://github.com/hunglinhpt/TextVN/compare/v0.2.62...v0.2.63
