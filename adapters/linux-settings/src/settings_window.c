@@ -498,8 +498,15 @@ static GtkWidget *labeled_dropdown(TvWin *w, GtkWidget *grid, const char *label,
     return dd;
 }
 
-static GtkWidget *button(GtkWidget *row, const char *label, GCallback cb, TvWin *w) {
-    GtkWidget *b = gtk_button_new_with_label(label);
+/* Nút có biểu tượng + gợi ý (tooltip) — parity Windows/macOS (R2-156). */
+static GtkWidget *button(GtkWidget *row, const char *icon, const char *label, const char *hint,
+                         GCallback cb, TvWin *w) {
+    GtkWidget *b = gtk_button_new();
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    gtk_box_append(GTK_BOX(box), gtk_image_new_from_icon_name(icon));
+    gtk_box_append(GTK_BOX(box), gtk_label_new(label));
+    gtk_button_set_child(GTK_BUTTON(b), box);
+    gtk_widget_set_tooltip_text(b, hint);
     g_signal_connect(b, "clicked", cb, w);
     gtk_box_append(GTK_BOX(row), b);
     return b;
@@ -562,15 +569,23 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     /* 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải) */
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_widget_set_margin_top(row, 4);
-    button(row, "Hướng dẫn", G_CALLBACK(on_help), w);
-    button(row, "Thông tin", G_CALLBACK(on_about), w);
-    button(row, "Gõ tắt...", G_CALLBACK(on_macros), w);
-    button(row, "Từ điển EN...", G_CALLBACK(on_words), w);
+    button(row, "help-browser-symbolic", "Hướng dẫn",
+           "Cách gõ Telex/VNI, gõ tắt và các phím tắt", G_CALLBACK(on_help), w);
+    button(row, "dialog-information-symbolic", "Thông tin",
+           "Phiên bản và thông tin TextVN", G_CALLBACK(on_about), w);
+    button(row, "input-keyboard-symbolic", "Gõ tắt...",
+           "Thêm/sửa gõ tắt (ví dụ hd = hợp đồng)", G_CALLBACK(on_macros), w);
+    button(row, "accessories-dictionary-symbolic", "Từ điển EN...",
+           "Từ tiếng Anh luôn giữ nguyên khi gõ (ví dụ text, cow)", G_CALLBACK(on_words), w);
     GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_set_hexpand(spacer, TRUE);
     gtk_box_append(GTK_BOX(row), spacer);
-    button(row, "Mặc định", G_CALLBACK(on_default), w);
-    GtkWidget *close = button(row, "Đóng", G_CALLBACK(on_close), w);
+    button(row, "edit-undo-symbolic", "Mặc định",
+           "Đặt mọi tuỳ chọn về mặc định (không xoá gõ tắt)", G_CALLBACK(on_default), w);
+    GtkWidget *close = button(row, "window-close-symbolic", "Đóng",
+                              "Đóng cửa sổ cài đặt — bộ gõ VẪN CHẠY (IBus/Fcitx5 chạy cùng phiên "
+                              "đăng nhập, không có gì để thoát)",
+                              G_CALLBACK(on_close), w);
     gtk_window_set_default_widget(GTK_WINDOW(w->window), close);
     gtk_box_append(GTK_BOX(main_box), row);
 

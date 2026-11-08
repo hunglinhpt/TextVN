@@ -45,8 +45,9 @@ Chú thích: ✓ = có và có test · — = không áp dụng trên nền tản
 | Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (cài đặt Windows) | ✓ | — | — |
 | Hướng dẫn / Thông tin | — | ✓ | ✓ | Thông tin ✓; Hướng dẫn ✗ — nội dung "Thông tin" giống hệt 3 nền tảng (`about_text_matches_every_platform`, ui-spec §3) |
 | Mặc định (giữ gõ tắt) | `SettingsDoc::reset_defaults` | ✓ | ✓ | ✓ (`resetToDefaults()` bảo toàn `macros`, `english_words`, `emoji`, `autostart` theo S9) | `testConfigStoreResetToDefaults` |
-| Cài & bật TSF | `textvn-cli register` | ✓ | — | — |
-| Đóng / Kết thúc | ẩn về khay / thoát tray | ✓ | Đóng | ✓ (menu bar; cần GUI smoke) |
+| ~~Cài & bật TSF~~ (bỏ ở 0.2.72) | tray tự `textvn-cli register` khi khởi động (`tsf_registration_is_current`) | bỏ | — | — |
+| Ẩn vào khay / Thoát (Windows) · Đóng (Linux, macOS) | Windows: ẩn về khay (bộ gõ vẫn chạy) / thoát tray; Linux, macOS: đóng cửa sổ cài đặt | ✓ biểu tượng + gợi ý | Đóng ✓ biểu tượng + gợi ý | ✓ (`Label` + `.help`; menu bar có "Thoát TextVN"; cần GUI smoke) |
+| Biểu tượng + gợi ý ở hàng nút | tooltip `TTM_ADDTOOLW` (Windows), `gtk_widget_set_tooltip_text` (Linux), `.help` (macOS) | ✓ | ✓ | ✓ |
 | Mở bảng từ menu bộ gõ | "Cài đặt TextVN…" | tray | IBus property · Fcitx5 status action | ✓ (NSStatusItem; cần GUI smoke) |
 
 ## 4. Chưa có trên UI (chỉ sửa được trong file)

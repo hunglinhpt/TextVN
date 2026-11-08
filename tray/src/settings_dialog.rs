@@ -4,7 +4,7 @@
 //! Thiết kế native Win32 GUI:
 //! - Khởi động tức thì (<5ms), không tốn RAM, không cần framework nặng.
 //! - Bảng điều khiển chuẩn: Kiểu gõ, Bảng mã, Tùy chọn gõ, Bỏ dấu mới/cũ, Khởi động cùng Windows.
-//! - Nút "Đóng" hoặc nút [X] tự động ẩn về khay (Minimize to Tray).
+//! - Nút "Ẩn vào khay" hoặc nút [X]/Esc ẩn về khay (bộ gõ vẫn chạy); nút "Thoát" tắt hẳn.
 //! - Đồng bộ trạng thái tức thì với SvcManager và broadcast IPC reload.
 
 use std::sync::atomic::AtomicIsize;
@@ -33,7 +33,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 #[cfg(windows)]
 use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 #[cfg(windows)]
-use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, IsWindowEnabled, SetFocus};
+use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 
@@ -63,7 +63,6 @@ const ID_BTN_DEFAULT: isize = 2011;
 const ID_BTN_EXIT: isize = 2012;
 const ID_BTN_HELP: isize = 2013;
 const ID_BTN_ABOUT: isize = 2014;
-const ID_BTN_SETUP_TSF: isize = 2015;
 const ID_CHK_AUTO_CAPITALIZE: isize = 2016;
 const ID_CHK_QUICK_TELEX: isize = 2017;
 const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
@@ -151,8 +150,10 @@ VNI: 1-5 = sắc huyền hỏi ngã nặng;  6 = mũ (â ê ô);  7 = móc (ơ �
 Quick Telex: cc=ch  gg=gi  kk=kh  nn=ng  qq=qu  pp=ph  tt=th.\r\n\r\n\
 Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi gõ, nhập chữ tắt rồi nhấn Tab \
 (hoặc Space) để bung ra.\r\n\r\n\
-Nếu chưa gõ được tiếng Việt: bấm [Cài & bật TSF], rồi chọn TextVN trong danh sách bộ gõ \
-(Win + Space).";
+Ẩn vào khay: đóng cửa sổ này nhưng TextVN vẫn chạy nền (bộ gõ vẫn hoạt động); mở lại từ biểu \
+tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
+Nếu chưa gõ được tiếng Việt: TextVN tự đăng ký bộ gõ khi khởi động — thoát hẳn rồi mở lại, \
+chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli doctor`.";
 
 static SETTINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 
@@ -554,7 +555,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 34] = [
+const DIALOG_LAYOUT: [Ctl; 33] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -728,53 +729,60 @@ const DIALOG_LAYOUT: [Ctl; 34] = [
         (L, 570, 830, 32),
         ID_CHK_CTRL_SHIFT,
     ),
-    // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải)
-    ctl("BUTTON", "Hướng dẫn", BTN, (15, 628, 100, 48), ID_BTN_HELP),
+    // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải). Mỗi nút có biểu tượng + gợi ý
+    // (`BUTTON_HINTS`). "Ẩn vào khay" ≠ "Thoát": tên cũ "Đóng"/"Kết thúc" khiến người dùng
+    // tưởng Đóng là tắt ứng dụng.
     ctl(
         "BUTTON",
-        "Thông tin",
+        "\u{2753}  Hướng dẫn",
         BTN,
-        (121, 628, 100, 48),
+        (15, 628, 118, 48),
+        ID_BTN_HELP,
+    ),
+    ctl(
+        "BUTTON",
+        "\u{2139}  Thông tin",
+        BTN,
+        (139, 628, 112, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
-        "Gõ tắt...",
+        "\u{2328}  Gõ tắt...",
         BTN,
-        (227, 628, 100, 48),
+        (257, 628, 112, 48),
         ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
     ctl(
         "BUTTON",
-        "Từ điển EN...",
+        "\u{270E}  Từ điển EN...",
         BTN,
-        (333, 628, 130, 48),
+        (375, 628, 140, 48),
         ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
-        "Cài & bật TSF",
+        "\u{21BA}  Mặc định",
         BTN,
-        (469, 628, 130, 48),
-        ID_BTN_SETUP_TSF,
-    ),
-    ctl(
-        "BUTTON",
-        "Mặc định",
-        BTN,
-        (605, 628, 95, 48),
+        (521, 628, 100, 48),
         ID_BTN_DEFAULT,
     ),
-    // Đóng đưa cửa sổ về khay; Kết thúc tắt hẳn ứng dụng.
+    // Ẩn vào khay đưa cửa sổ về khay (bộ gõ vẫn chạy); Thoát tắt hẳn ứng dụng.
     ctl(
         "BUTTON",
-        "Đóng",
+        "\u{2B07}  Ẩn vào khay",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (706, 628, 85, 48),
+        (632, 628, 150, 48),
         ID_BTN_CLOSE,
     ),
-    ctl("BUTTON", "Kết thúc", BTN, (797, 628, 88, 48), ID_BTN_EXIT),
+    ctl(
+        "BUTTON",
+        "\u{23FB}  Thoát",
+        BTN,
+        (788, 628, 98, 48),
+        ID_BTN_EXIT,
+    ),
 ];
 
 /// Đặt lại vị trí/kích thước toàn bộ control theo DPI — chạy lúc tạo VÀ khi
@@ -802,6 +810,91 @@ fn layout_dialog_controls(parent: HWND, dpi: i32) {
     }
 }
 
+/// Gợi ý (tooltip) của hàng nút — người dùng phải phân biệt được "Ẩn vào khay" và "Thoát".
+#[cfg(windows)]
+const BUTTON_HINTS: [(isize, &str); 7] = [
+    (ID_BTN_HELP, "Cách gõ Telex/VNI, gõ tắt và các phím tắt"),
+    (ID_BTN_ABOUT, "Phiên bản và thông tin TextVN"),
+    (ID_BTN_MACROS, "Thêm/sửa gõ tắt (ví dụ hd = hợp đồng)"),
+    (
+        ID_BTN_ENGLISH,
+        "Từ tiếng Anh luôn giữ nguyên khi gõ (ví dụ text, cow)",
+    ),
+    (
+        ID_BTN_DEFAULT,
+        "Đặt mọi tuỳ chọn về mặc định (không xoá gõ tắt)",
+    ),
+    (
+        ID_BTN_CLOSE,
+        "Đóng cửa sổ này, TextVN VẪN CHẠY nền ở khay hệ thống và bộ gõ vẫn hoạt động. \
+         (Nút X và phím Esc cũng làm vậy.)",
+    ),
+    (
+        ID_BTN_EXIT,
+        "Tắt hẳn TextVN, kể cả biểu tượng ở khay. Muốn giữ bộ gõ chạy nền thì bấm Ẩn vào khay.",
+    ),
+];
+
+/// Tooltip cho hàng nút (`TTF_SUBCLASS`: control tự chuyển chuột cho tooltip).
+#[cfg(windows)]
+fn add_button_tooltips(parent: HWND, h_instance: HINSTANCE) {
+    use windows::Win32::UI::Controls::{
+        TOOLTIPS_CLASSW, TTDT_INITIAL, TTF_IDISHWND, TTF_SUBCLASS, TTM_ADDTOOLW, TTM_SETDELAYTIME,
+        TTM_SETMAXTIPWIDTH, TTS_ALWAYSTIP, TTS_NOPREFIX, TTTOOLINFOW,
+    };
+    let tip = unsafe {
+        CreateWindowExW(
+            WS_EX_TOPMOST,
+            TOOLTIPS_CLASSW,
+            PCWSTR::null(),
+            WINDOW_STYLE(WS_POPUP.0 | TTS_ALWAYSTIP | TTS_NOPREFIX),
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            Some(parent),
+            None,
+            Some(h_instance),
+            None,
+        )
+    };
+    let Ok(tip) = tip else {
+        return;
+    };
+    unsafe {
+        let _ = SendMessageW(tip, TTM_SETMAXTIPWIDTH, Some(WPARAM(0)), Some(LPARAM(380)));
+        let _ = SendMessageW(
+            tip,
+            TTM_SETDELAYTIME,
+            Some(WPARAM(TTDT_INITIAL as usize)),
+            Some(LPARAM(300)),
+        );
+    }
+    for (id, text) in BUTTON_HINTS {
+        let Ok(button) = (unsafe { GetDlgItem(Some(parent), id as i32) }) else {
+            continue;
+        };
+        let mut wide = w(text);
+        let info = TTTOOLINFOW {
+            cbSize: std::mem::size_of::<TTTOOLINFOW>() as u32,
+            uFlags: TTF_IDISHWND | TTF_SUBCLASS,
+            hwnd: parent,
+            uId: button.0 as usize,
+            lpszText: PWSTR(wide.as_mut_ptr()),
+            ..Default::default()
+        };
+        // TTM_ADDTOOL chép chuỗi — `wide` chỉ cần sống tới hết lời gọi.
+        unsafe {
+            let _ = SendMessageW(
+                tip,
+                TTM_ADDTOOLW,
+                Some(WPARAM(0)),
+                Some(LPARAM(&info as *const TTTOOLINFOW as isize)),
+            );
+        }
+    }
+}
+
 #[cfg(windows)]
 fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
     let scale = COMPACT_SCALE * dpi as f64 / 96.0;
@@ -824,6 +917,7 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         );
         set_font(hwnd, font);
     }
+    add_button_tooltips(parent, h_instance);
 
     for (id, labels) in [
         (ID_COMBO_CHARSET, &CHARSET_LABELS[..]),
@@ -1042,7 +1136,6 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
-                ID_BTN_SETUP_TSF => start_tsf_setup(hwnd),
 
                 ID_BTN_DEFAULT => {
                     if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
@@ -1159,27 +1252,6 @@ unsafe extern "system" fn dialog_wnd_proc(
                         );
                     }
                 }
-            }
-            LRESULT(0)
-        }
-        WM_TSF_SETUP_DONE => {
-            let result = TSF_SETUP_RESULT
-                .lock()
-                .ok()
-                .and_then(|mut slot| slot.take());
-            if let Ok(button) = GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) {
-                let _ = EnableWindow(button, true);
-            }
-            match result {
-                Some(Ok(())) => show_information(
-                    hwnd,
-                    "TextVN TSF",
-                    "Đã đăng ký và kích hoạt bộ gõ TextVN.\r\n\r\nHãy thử gõ Telex trong Notepad. Nếu vẫn chưa hoạt động, chọn TextVN trong danh sách bộ gõ (Win + Space) hoặc kiểm tra phần mềm bảo mật.",
-                ),
-                Some(Err(reason)) => {
-                    show_information(hwnd, "Không thể đăng ký TextVN TSF", &reason)
-                }
-                None => {}
             }
             LRESULT(0)
         }
@@ -1885,176 +1957,6 @@ fn show_information(owner: HWND, title: &str, content: &str) {
     }
 }
 
-/// Đăng ký TIP theo user từ chính dialog để lỗi quyền hiện rõ trong UI thay vì
-/// thất bại im lặng. CLI là thành phần cùng gói và được chạy ẩn.
-///
-/// Trả `Err(lý do thật)`: exit code + đuôi `register.log` — trước đây dialog luôn
-/// đổ cho "quyền ghi HKCU" kể cả khi nguyên nhân là thiếu DLL/CLI, khiến người
-/// dùng sửa sai chỗ (ảnh lỗi thực tế: sandbox chặn HKCU + thiếu log).
-/// Kết quả "Cài & bật TSF" từ thread nền về dialog (R2-32).
-#[cfg(windows)]
-const WM_TSF_SETUP_DONE: u32 = WM_APP + 40;
-#[cfg(windows)]
-static TSF_SETUP_RESULT: std::sync::Mutex<Option<std::result::Result<(), String>>> =
-    std::sync::Mutex::new(None);
-
-/// R2-32: `textvn-cli register` mất 1–5 s (broadcast `WM_SETTINGCHANGE` chờ cả cửa sổ
-/// của chính tray). Chạy đồng bộ ở đây là chặn thread UI — cũng là thread giữ
-/// `WH_KEYBOARD_LL`: dialog "Not Responding", mọi phím toàn hệ thống chờ hook, quá
-/// `LowLevelHooksTimeout` thì Windows gỡ hook (Ctrl+Shift chết tới khi tray khởi động
-/// lại). Chạy ở thread nền, khoá nút trong lúc chờ, báo kết quả bằng message.
-#[cfg(windows)]
-fn start_tsf_setup(hwnd: HWND) {
-    let Ok(button) = (unsafe { GetDlgItem(Some(hwnd), ID_BTN_SETUP_TSF as i32) }) else {
-        return;
-    };
-    // Nút đang khoá = lượt trước chưa xong.
-    if !unsafe { IsWindowEnabled(button) }.as_bool() {
-        return;
-    }
-    let _ = unsafe { EnableWindow(button, false) };
-    let raw = hwnd.0 as isize;
-    let spawned = std::thread::Builder::new()
-        .name("textvn-tsf-setup".into())
-        .spawn(move || {
-            let result = register_and_activate_tsf();
-            if let Ok(mut slot) = TSF_SETUP_RESULT.lock() {
-                *slot = Some(result);
-            }
-            // Dialog đã đóng thì PostMessage thất bại — kết quả bị bỏ, không sao.
-            let _ = unsafe {
-                PostMessageW(
-                    Some(HWND(raw as *mut _)),
-                    WM_TSF_SETUP_DONE,
-                    WPARAM(0),
-                    LPARAM(0),
-                )
-            };
-        });
-    if spawned.is_err() {
-        let _ = unsafe { EnableWindow(button, true) };
-        show_information(
-            hwnd,
-            "Không thể đăng ký TextVN TSF",
-            "Không tạo được tiến trình nền để chạy textvn-cli. Thử lại sau.",
-        );
-    }
-}
-
-#[cfg(windows)]
-fn register_and_activate_tsf() -> std::result::Result<(), String> {
-    let Ok(mut cli_path) = std::env::current_exe() else {
-        return Err("Không xác định được thư mục cài đặt (current_exe lỗi). \
-                    Hãy mở TextVN từ đúng thư mục đã cài/giải nén."
-            .to_string());
-    };
-    cli_path.set_file_name("textvn-cli.exe");
-    if !cli_path.is_file() {
-        return Err(format!(
-            "Thiếu textvn-cli.exe cạnh TextVN.exe ({}).\r\n\r\nGói cài/portable bị thiếu tệp — \
-             hãy tải lại gói đầy đủ và bấm [Cài & bật TSF] lại.",
-            cli_path.display()
-        ));
-    }
-
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    let status = std::process::Command::new(&cli_path)
-        .arg("register")
-        .creation_flags(CREATE_NO_WINDOW)
-        .status();
-    let exit_code = match status {
-        Ok(st) if st.success() => return Ok(()),
-        Ok(st) => st.code().unwrap_or(-1),
-        Err(err) => return Err(format!("Không chạy được textvn-cli.exe: {err}")),
-    };
-
-    let mut message = format!("textvn-cli register thất bại (exit code {exit_code}).\r\n");
-    let log_path = register_log_path();
-    match &log_path {
-        Some(path) => {
-            if let Some(tail) = read_log_tail(path, 12) {
-                message.push_str("\r\nChi tiết từ register.log:\r\n");
-                message.push_str(&tail);
-            } else {
-                message.push_str("\r\nKhông đọc được register.log (file trống/thiếu quyền).");
-            }
-            message.push_str(&format!("\r\n\r\nLog đầy đủ: {}", path.display()));
-        }
-        None => message.push_str("\r\nKhông xác định được %LOCALAPPDATA% để đọc register.log."),
-    }
-    message.push_str("\r\n\r\n");
-    message.push_str(&advice_for_failure(exit_code, &message));
-    Err(message)
-}
-
-/// `%LOCALAPPDATA%\TextVN\logs\register.log` — CLI ghi mọi bước vào đây (kể cả
-/// khi setup chạy CLI ẩn console, lý do thật chỉ nằm trong file).
-#[cfg_attr(not(windows), allow(dead_code))]
-fn register_log_path() -> Option<std::path::PathBuf> {
-    let base = std::env::var_os("LOCALAPPDATA")?;
-    Some(
-        std::path::PathBuf::from(base)
-            .join("TextVN")
-            .join("logs")
-            .join("register.log"),
-    )
-}
-
-/// `max_lines` dòng cuối của log (thuần path → test được trên mọi OS).
-#[cfg_attr(not(windows), allow(dead_code))]
-fn read_log_tail(path: &std::path::Path, max_lines: usize) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    let lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
-    if lines.is_empty() {
-        return None;
-    }
-    // register.log duoc append qua nhieu lan chay. Khong de loi ACL/DLL cua
-    // lan cu lot vao advice cho lan hien tai khi log moi ngan hon max_lines.
-    let run_start = lines
-        .iter()
-        .rposition(|line| line.contains("=== TextVN register ("))
-        .unwrap_or(0);
-    let start = lines.len().saturating_sub(max_lines).max(run_start);
-    Some(lines[start..].join("\r\n"))
-}
-
-/// Gợi ý theo nguyên nhân THẬT trong log/exit code (giữ cả gợi ý HKCU cho lỗi
-/// ACL thật — `ERROR_ACCESS_DENIED (5)` khi tài khoản bị policy chặn ghi).
-#[cfg_attr(not(windows), allow(dead_code))]
-fn advice_for_failure(exit_code: i32, detail: &str) -> String {
-    if exit_code == 3 {
-        return "Windows yêu cầu quyền Administrator để đăng ký profile TSF ở phạm vi máy. \
-                Hãy dùng bộ cài TextVN chính thức; không nâng quyền trực tiếp cho file trong thư mục portable."
-            .to_string();
-    }
-    if detail.contains("Đăng ký qua API TSF → 0x80004005")
-        && detail.contains("hậu kiểm đăng ký TSF không đạt")
-    {
-        return "Đã ghi được HKCU nhưng Windows chưa nhận profile TSF; đây không phải lỗi quyền ghi HKCU. \
-                Hãy cài bằng bộ cài TextVN mới (đăng ký machine một lần rồi bật cho tài khoản hiện tại). \
-                Không chạy textvn-cli.exe trong thư mục portable với quyền Administrator."
-            .to_string();
-    }
-    if detail.contains("ACCESS_DENIED") || detail.contains("0x00000005") {
-        // Nhánh phải khớp log THẬT: CLI bản mới in
-        // `FAIL 0x00000005 (ERROR_ACCESS_DENIED)`, bản 0.2.0/0.2.1 đã cài chỉ in
-        // hex `FAIL 0x00000005` — thiếu hex thì nhánh này là dead code và người
-        // dùng bị ACL thật luôn nhận gợi ý generic.
-        return "Windows từ chối ghi HKCU\\Software\\Classes\\CLSID cho tài khoản hiện tại.\r\n\
-                Kiểm tra quyền tài khoản và chính sách phần mềm bảo mật, sau đó bấm [Cài & bật TSF] lại."
-            .to_string();
-    }
-    if detail.contains("Không tìm thấy textvn-tsf.dll") {
-        return "Thiếu textvn-tsf.dll cạnh textvn-cli.exe.\r\n\
-                Hãy cài lại bằng installer hoặc giải nén lại gói portable đầy đủ rồi thử lại."
-            .to_string();
-    }
-    "Xem register.log (đường dẫn ở trên) để biết bước thất bại; \
-     nếu cần hỗ trợ, gửi kèm file log này."
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2076,7 +1978,6 @@ mod tests {
             ID_BTN_EXIT,
             ID_BTN_HELP,
             ID_BTN_ABOUT,
-            ID_BTN_SETUP_TSF,
             ID_CHK_AUTO_CAPITALIZE,
             ID_CHK_QUICK_TELEX,
             ID_CHK_MACRO_WHEN_OFF,
@@ -2223,73 +2124,71 @@ mod tests {
         }
     }
 
+    /// Hàng nút (0.2.72): mỗi nút có biểu tượng + gợi ý; "Ẩn vào khay" và "Thoát" không còn dễ
+    /// nhầm là cùng tắt ứng dụng; không còn nút "Cài & bật TSF" (tray tự đăng ký khi khởi động).
+    #[cfg(windows)]
+    #[test]
+    fn button_row_has_icons_hints_and_no_tsf_button() {
+        let row = [
+            (ID_BTN_HELP, "Hướng dẫn"),
+            (ID_BTN_ABOUT, "Thông tin"),
+            (ID_BTN_MACROS, "Gõ tắt..."),
+            (ID_BTN_ENGLISH, "Từ điển EN..."),
+            (ID_BTN_DEFAULT, "Mặc định"),
+            (ID_BTN_CLOSE, "Ẩn vào khay"),
+            (ID_BTN_EXIT, "Thoát"),
+        ];
+        let find = |id: isize| {
+            DIALOG_LAYOUT
+                .iter()
+                .find(|c| c.id == id)
+                .expect("thiếu nút")
+        };
+        for (id, label) in row {
+            let text = find(id).text;
+            let first = text.chars().next().unwrap();
+            assert!(!first.is_ascii(), "`{text}` thiếu biểu tượng đầu nhãn");
+            assert!(
+                text.split_once("  ").is_some_and(|(_, rest)| rest == label),
+                "{text}"
+            );
+            let hint = BUTTON_HINTS.iter().find(|(h, _)| *h == id).map(|(_, t)| *t);
+            assert!(
+                hint.is_some_and(|t| t.chars().count() > 15),
+                "nút `{label}` thiếu gợi ý"
+            );
+        }
+        assert_eq!(BUTTON_HINTS.len(), row.len());
+        for c in &DIALOG_LAYOUT {
+            assert!(!c.text.contains("TSF"), "còn nút/nhãn TSF: {}", c.text);
+            assert_ne!(
+                c.text.trim(),
+                "Đóng",
+                "nhãn `Đóng` gây hiểu nhầm là tắt ứng dụng"
+            );
+            assert_ne!(c.text.trim(), "Kết thúc");
+        }
+        let hint = |id: isize| BUTTON_HINTS.iter().find(|(h, _)| *h == id).unwrap().1;
+        assert!(hint(ID_BTN_CLOSE).contains("VẪN CHẠY"));
+        assert!(hint(ID_BTN_EXIT).contains("Tắt hẳn"));
+        // Không nút nào chồng lên nút khác và không tràn bề rộng thiết kế.
+        let mut rects: Vec<_> = row.iter().map(|(id, _)| find(*id).rect).collect();
+        rects.sort();
+        for pair in rects.windows(2) {
+            assert!(
+                pair[0].0 + pair[0].2 <= pair[1].0,
+                "nút chồng nhau: {pair:?}"
+            );
+        }
+        let last = rects.last().unwrap();
+        assert!(last.0 + last.2 <= CLIENT_DESIGN_WIDTH);
+        assert!(!HELP_TEXT.contains("Cài & bật"));
+    }
+
     #[test]
     fn crlf_conversion_round_trips() {
         let lf = "vn = Việt Nam\ncty = Công ty\n";
         assert_eq!(to_crlf(lf).replace("\r\n", "\n"), lf);
-    }
-
-    /// Lỗi đăng ký TSF: dialog phải hiện lý do THẬT từ `register.log` thay vì
-    /// luôn đổ cho HKCU ACL. `read_log_tail` là hàm thuần path → test mọi OS.
-    #[test]
-    fn register_log_tail_reads_last_lines() {
-        let dir = std::env::temp_dir().join(format!("textvn-reglog-{}", std::process::id()));
-        let _ = std::fs::create_dir_all(&dir);
-        let log = dir.join("register.log");
-        let content = (1..=20)
-            .map(|i| format!("line-{i}"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        std::fs::write(&log, content).unwrap();
-        let tail = read_log_tail(&log, 5).expect("phải đọc được log");
-        assert_eq!(tail.lines().count(), 5, "chỉ lấy 5 dòng cuối");
-        assert!(tail.contains("line-20"), "dòng mới nhất phải có");
-        assert!(!tail.contains("line-14"), "dòng cũ hơn ngoài cửa sổ bị cắt");
-
-        std::fs::write(
-            &log,
-            "[pid=1] === TextVN register (HKCU) ===\n[pid=1] Registry create → FAIL 0x00000005\n[pid=2] === TextVN register (HKCU) ===\n[pid=2] COM server HKCU → OK\n[pid=2] FAIL: hậu kiểm đăng ký TSF không đạt\n",
-        )
-        .unwrap();
-        let latest = read_log_tail(&log, 12).unwrap();
-        assert!(
-            !latest.contains("0x00000005"),
-            "không trộn lỗi của lần trước"
-        );
-        assert!(latest.contains("hậu kiểm đăng ký TSF không đạt"));
-
-        std::fs::write(&log, "  \n\n").unwrap();
-        assert!(read_log_tail(&log, 5).is_none(), "log rỗng → None");
-        assert!(read_log_tail(&dir.join("missing.log"), 5).is_none());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// Gợi ý phải khớp nguyên nhân THẬT (exit code 3 / ACL / thiếu DLL), kể cả
-    /// định dạng log của bản cũ đã cài trên máy người dùng.
-    #[test]
-    fn advice_matches_real_cause() {
-        assert!(advice_for_failure(3, "").contains("Administrator"));
-        // Bản mới: log in tên ký hiệu kèm hex.
-        assert!(advice_for_failure(
-            1,
-            "  Registry create HKCU\\Software\\Classes\\CLSID\\{6F2B…} → \
-             FAIL 0x00000005 (ERROR_ACCESS_DENIED)"
-        )
-        .contains("Classes\\CLSID"));
-        // Bản 0.2.0/0.2.1: log chỉ in hex — vẫn phải nhận gợi ý ACL đúng chỗ.
-        assert!(advice_for_failure(
-            1,
-            "  Registry create Software\\Classes\\CLSID\\{…} → FAIL 0x00000005"
-        )
-        .contains("Classes\\CLSID"));
-        assert!(advice_for_failure(1, "FAIL 0x0000002e").contains("register.log"));
-        assert!(
-            advice_for_failure(1, "Không tìm thấy textvn-tsf.dll (hoặc textvn_win_tsf.dll)")
-                .contains("textvn-tsf.dll")
-        );
-        assert!(advice_for_failure(1, "lỗi lạ").contains("register.log"));
-        let tsf_log = "COM server HKCU → OK\nĐăng ký qua API TSF → 0x80004005 (cần quyền admin cho HKLM)\nFAIL: hậu kiểm đăng ký TSF không đạt";
-        assert!(advice_for_failure(1, tsf_log).contains("không phải lỗi quyền ghi HKCU"));
     }
 }
 

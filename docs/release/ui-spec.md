@@ -26,11 +26,15 @@
 │ │ [ ] Khởi động cùng Windows            [x] Bật hội thoại này khi khởi động │
 │ │ [x] Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)  │ │
 │ └───────────────────────────────────────────────────────────────────┘ │
-│ [Hướng dẫn] [Thông tin] [Gõ tắt...] [Từ điển EN...] [Cài & bật TSF]¹ [Mặc định] [Đóng] [Kết thúc]¹ │
+│ [?Hướng dẫn] [ℹThông tin] [⌨Gõ tắt...] [✎Từ điển EN...] [↺Mặc định] [⬇Ẩn vào khay]¹ [⏻Thoát]¹ │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-¹ Chỉ Windows. Linux không có nhóm "Hệ thống": IBus/Fcitx5 tự chạy cùng phiên đăng nhập,
+¹ Chỉ Windows (0.2.72): **"Ẩn vào khay"** đưa cửa sổ về khay nhưng bộ gõ VẪN CHẠY (nút X và Esc làm
+như vậy); **"Thoát"** tắt hẳn ứng dụng — tên cũ "Đóng"/"Kết thúc" khiến người dùng tưởng Đóng là tắt
+ứng dụng. Nút "Cài & bật TSF" đã bỏ vì tray tự đăng ký bộ gõ khi khởi động. **Mọi nút có biểu tượng
+và gợi ý (tooltip)** trên cả 3 nền tảng; Linux/macOS chỉ có "Đóng" (đóng cửa sổ, không có gì để
+thoát; macOS có "Thoát TextVN" ở menu bar). Linux không có nhóm "Hệ thống": IBus/Fcitx5 tự chạy cùng phiên đăng nhập,
 không có tiến trình khay riêng; bảng mở từ menu IBus/Fcitx5 ("Cài đặt TextVN…") hoặc
 launcher ứng dụng. ² macOS dùng bố cục SwiftUI riêng nhưng **cùng nhãn + cùng thứ tự
 tuỳ chọn**; các hàng riêng của macOS (`Khởi động cùng OS`, `Gõ không gạch chân

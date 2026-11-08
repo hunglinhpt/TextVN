@@ -661,8 +661,11 @@ fn ensure_tsf_tip_registered(first_run: bool) {
         .status();
     if !status.is_ok_and(|s| s.success()) {
         // Không hiện hộp thoại khi autostart (tránh làm phiền mỗi lần đăng nhập),
-        // nhưng lần mở Settings người dùng có nút "Cài & bật TSF" với lỗi rõ ràng.
-        eprintln!("TextVN: TSF registration did not complete; open Settings to repair it.");
+        // và tray tự thử lại ở lần khởi động kế tiếp (`tsf_registration_is_current`).
+        eprintln!(
+            "TextVN: TSF registration did not complete; it is retried on the next start. \
+             Run `textvn-cli doctor` for details."
+        );
     }
 }
 

@@ -125,35 +125,40 @@ public struct SettingsView: View {
                         persistAndNotify()
                         onClose?()
                     }) {
-                        Text("Đóng")
+                        Label("Đóng", systemImage: "xmark.circle")
                             .frame(width: 100)
                     }
                     .keyboardShortcut(.defaultAction)
+                    .help("Đóng cửa sổ cài đặt — TextVN VẪN CHẠY ở menu bar. Chọn Thoát TextVN trong menu bar để tắt hẳn.")
 
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             isExpanded.toggle()
                         }
                     }) {
-                        Text(isExpanded ? "<< Thu nhỏ" : "Mở rộng >>")
+                        Label(isExpanded ? "<< Thu nhỏ" : "Mở rộng >>",
+                              systemImage: isExpanded ? "chevron.up" : "chevron.down")
                             .frame(width: 100)
                     }
+                    .help("Thu nhỏ/mở rộng bảng tuỳ chọn")
 
                     Button(action: {
                         store.resetToDefaults()
                         try? AutostartManager.shared.setAutostart(enabled: store.config.autostart)
                         persistAndNotify()
                     }) {
-                        Text("Mặc định")
+                        Label("Mặc định", systemImage: "arrow.uturn.backward")
                             .frame(width: 100)
                     }
+                    .help("Đặt mọi tuỳ chọn về mặc định (không xoá gõ tắt)")
 
                     Button(action: {
                         activeAlert = .about
                     }) {
-                        Text("Thông tin")
+                        Label("Thông tin", systemImage: "info.circle")
                             .frame(width: 100)
                     }
+                    .help("Phiên bản và thông tin TextVN")
                 }
             }
 
@@ -193,14 +198,20 @@ public struct SettingsView: View {
                                 Toggle("Gõ tắt cả khi tắt tiếng Việt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }
                                 Spacer()
-                                Button("Gõ tắt...") {
+                                Button {
                                     showMacroSheet = true
+                                } label: {
+                                    Label("Gõ tắt...", systemImage: "keyboard")
                                 }
                                 .font(.system(size: 11))
-                                Button("Từ điển EN...") {
+                                .help("Thêm/sửa gõ tắt (ví dụ hd = hợp đồng)")
+                                Button {
                                     showEnglishSheet = true
+                                } label: {
+                                    Label("Từ điển EN...", systemImage: "character.book.closed")
                                 }
                                 .font(.system(size: 11))
+                                .help("Từ tiếng Anh luôn giữ nguyên khi gõ (ví dụ text, cow)")
                             }
                             // Nhãn khớp ui-spec §2 + Linux/Windows (F3-8; thay toggle
                             // "Bỏ dấu kiểu mới" cũ gây nghĩa ngược).

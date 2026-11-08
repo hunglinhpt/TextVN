@@ -44,7 +44,7 @@ Mỗi bản phát hành có hai cách dùng — chọn một.
 | **Microsoft Store** | Mở [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB) → *Tải* (hoặc `winget install --id 9NV2R7JNNFGK -s msstore`), rồi mở TextVN **một lần** để app đăng ký bộ gõ cho tài khoản của bạn (bản Store hỏi trước khi đổi phím Ctrl + Shift). Gỡ: Settings → Apps → TextVN → Uninstall — lần đăng nhập kế tiếp TextVN tự gỡ đăng ký bộ gõ và xoá tệp đã chép. | Muốn Store tự cập nhật, gói do Microsoft ký. |
 
 Lần đầu TextVN chạy cho một tài khoản Windows, app tự đăng ký bộ gõ cho tài khoản đó (kể cả
-khi đã cài cho mọi người dùng). Nếu vẫn chưa gõ được: mở Bảng điều khiển → **[Cài & bật TSF]**,
+khi đã cài cho mọi người dùng). Nếu vẫn chưa gõ được: chọn *Thoát* trong Bảng điều khiển rồi mở TextVN lại (app tự đăng ký lại khi khởi động),
 rồi chọn *TextVN* trong danh sách bộ gõ (**Win + Space**). Nâng cấp lên bản mới **giữ nguyên**
 kiểu gõ, tuỳ chọn và thiết lập theo từng ứng dụng của bạn.
 
@@ -377,7 +377,7 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 
 | Hiện tượng | Cách xử lý |
 |---|---|
-| Windows: không thấy TextVN khi nhấn Win + Space | Bảng điều khiển → **Cài & bật TSF**; chạy `textvn-cli doctor` và xem `%LOCALAPPDATA%\TextVN\logs\register.log`. Nếu COM HKCU OK nhưng API TSF báo `0x80004005`, xem lưu ý cài đặt ở trên. |
+| Windows: không thấy TextVN khi nhấn Win + Space | Thoát hẳn TextVN rồi mở lại (app tự đăng ký bộ gõ khi khởi động; không còn nút "Cài & bật TSF" từ 0.2.72); chạy `textvn-cli doctor` và xem `%LOCALAPPDATA%\TextVN\logs\register.log`. Nếu COM HKCU OK nhưng API TSF báo `0x80004005`, xem lưu ý cài đặt ở trên. |
 | Windows: gõ trong ô mật khẩu không ra dấu | Chủ ý — TextVN tắt trong ô mật khẩu. |
 | Windows: Ctrl + Shift lúc được lúc không, hoặc đổi sang bàn phím khác | Windows mặc định cũng dùng Ctrl + Shift để đổi bố cục bàn phím — nếu Windows còn giữ phím này, một lần bấm vừa đổi mode TextVN vừa đổi bàn phím hệ thống. Bảng điều khiển → chọn **Dành Ctrl + Shift cho TextVN** (bộ cài chọn sẵn), hoặc tự tắt ở *Settings → Time & language → Typing → Advanced keyboard settings → Input language hot keys → Switch Keyboard Layout: (None)*. **Ctrl + Shift + Space** luôn dùng được. `textvn-cli doctor` cho biết Windows còn giữ phím này không. |
 

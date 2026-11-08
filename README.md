@@ -29,8 +29,10 @@ một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình
   không tiêm mã vào process khác, không giả lập phím bằng `SendInput`
   ([lý do](docs/specs/antivirus-false-positive.md)).
 - **Tiện ích**: bảng mã TCVN3/VNI Windows/Unicode tổ hợp, gõ tắt, Quick Telex, khôi phục từ
-  tiếng Anh (từ điển 3000 từ tần suất cao), Tab hoàn tất từ — tiếng Anh luôn bật, tiếng Việt
-  bật qua `suggest.enabled` — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
+  tiếng Anh (nhận ra bằng luật ngữ âm Việt — chữ gõ mà biến đổi ra không phải âm tiết hợp lệ
+  thì trả lại nguyên — cùng 103 từ Anh dễ nhầm, 116 thuật ngữ kỹ thuật/kinh doanh và từ điển
+  EN cá nhân), Tab hoàn tất từ tiếng Anh lẫn tiếng Việt (bật qua `suggest.enabled`, mặc định
+  tắt) — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
   nhật biểu tượng trạng thái.
 - **Trợ lý ngữ pháp (thử nghiệm, bật mặc định ở chế độ Chỉ gợi ý)**: kiểm tra cả câu
   tiếng Việt **lẫn tiếng Anh (kể cả câu mix văn phòng)** ngay
@@ -106,12 +108,12 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 
 | Tính năng | TextVN | Bộ gõ truyền thống |
 |---|---|---|
-| **Tự xác định EN/VI khi gõ chung đoạn văn** | Từ điển EN 3000 từ tần suất cao nhất + lưới bảo vệ âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
+| **Tự xác định EN/VI khi gõ chung đoạn văn** | Luật ngữ âm Việt (chữ gõ mà biến đổi ra không phải âm tiết hợp lệ thì trả lại nguyên) + 103 từ Anh dễ nhầm + 116 thuật ngữ + từ điển EN cá nhân + lưới bảo vệ 94 âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
 | **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
-| **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN, 3000 từ tần suất + từ điển bổ sung cá nhân, luôn bật); gõ dở `ngư` → Tab thành `ngưng` (tiếng Việt, 3000 âm tiết tần suất, bật qua `suggest.enabled`) | Không có |
+| **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN: 9.868 từ đơn + 1.957 từ ghép + 116 thuật ngữ + từ cá nhân); gõ dở `ngư` → Tab thành `ngưng` (VI: 6.672 âm tiết + 1.941 từ ghép); cả hai bật qua `suggest.enabled` (mặc định tắt) | Không có |
 | **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
 | **Trợ lý ngữ pháp song ngữ & ngữ cảnh** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ/cụm 2–4 từ, dấu câu, viết hoa, sai dấu, ngữ pháp EN, ngày tháng vô lý, số tiền hỗn loạn) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng Anh; hoàn tác 1 bước Ctrl+Z | Không có |
-| **Chỉ số tiết kiệm phím Dream RSI (P10)** | Đo lường khách quan số phím người dùng tiết kiệm được nhờ gợi ý (tỷ lệ tiết kiệm ~21% trên corpus văn phòng); kiểm soát hồi quy chặt chẽ; 100% riêng tư (chỉ đếm số lượng, không lưu ký tự) | Không có |
+| **Chỉ số tiết kiệm phím Dream RSI (P10)** | Đo lường khách quan số phím người dùng tiết kiệm được nhờ gợi ý (tỷ lệ tiết kiệm ~22% trên corpus văn phòng); kiểm soát hồi quy chặt chẽ; 100% riêng tư (chỉ đếm số lượng, không lưu ký tự) | Không có |
 | **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
 | **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
 | **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
@@ -125,13 +127,13 @@ khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
 
 **Chỉ số Dream RSI (P10) & Chống thoái lui hiệu năng (G19)**
 - Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
-- Phân tích hiệu quả gợi ý theo thời gian thực: tiết kiệm 21% số phím gõ trong tác vụ văn phòng thực tế (33 accepts / 69 phím tiết kiệm trên corpus benchmark)
+- Phân tích hiệu quả gợi ý theo thời gian thực: tiết kiệm 22% số phím gõ trong tác vụ văn phòng thực tế (36 lượt nhận / 72 phím tiết kiệm trên corpus benchmark)
 - 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase)
 - Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`)
 
-**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.313 mục** song ngữ chất lượng tương đương:
+**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.313 mục** (đếm theo file dữ liệu; hai danh sách từ Anh có phần trùng nhau) song ngữ chất lượng tương đương:
 6.672 âm tiết Việt + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành)
-+ **9.868 từ đơn Anh + 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
++ **3.346 từ Anh tần suất cao** (`en_freq3000.txt`) **+ 9.868 từ đơn Anh** (`en_words10k.txt`) **+ 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
 + **17.529 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.747 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
 dự đoán tiếng Anh hoạt động đồng nhất ở **cả 2 chế độ**: **Mode EN (`E`)** (hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost text, học từ Dream RSI) và **Mode VI (`V`)** (tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold như `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
 User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, cap 200 từ / 50 cặp);
@@ -157,15 +159,15 @@ Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng 
 - Emoji gõ tắt; số tiền `=1.550.000đ` → chữ Việt; bảo vệ công thức Excel và identifier code
 
 **Gợi ý & dự đoán (P6 — Tab, Ctrl+Space, cả Mode VI & Mode EN)**
-- Hoàn tất từ đơn & từ ghép tiếng Việt: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6.672 âm tiết + 1.941 từ ghép văn phòng)
-- Hoàn tất từ đơn & từ ghép tiếng Anh ở cả Mode EN và Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9.868 từ đơn + 1.957 từ ghép 16 domain + thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân, duyệt vòng 5 ứng viên bằng Tab)
+- Hoàn tất từ đơn & từ ghép tiếng Việt: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6.672 âm tiết + 1.941 từ ghép văn phòng, bật qua `suggest.enabled`)
+- Hoàn tất từ đơn & từ ghép tiếng Anh ở cả Mode EN và Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9.868 từ đơn + 3.346 từ tần suất cao + 1.957 từ ghép 16 domain + 116 thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân, duyệt vòng 5 ứng viên bằng Tab; Tab đầu trả đúng từ gốc khi Telex biến nó thành chuỗi không phải tiếng Việt)
 - Dự đoán cụm/câu tiếp theo theo ngữ cảnh ở cả 2 mode (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` kể cả khi gõ ở Mode VI — 8.782 mẫu Việt + 8.747 mẫu Anh)
 - Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành (cả Mode VI và Mode EN)
 - Ctrl+Space: sửa hết lỗi câu (kể cả chính tả) rồi dự đoán tiếp — một phím hai việc
 
 **Trợ lý ngữ pháp (kiểu Grammarly, offline hoàn toàn)**
 - 15 loại lỗi: lặp từ/cụm 2–4 từ, thiếu/thừa khoảng trắng, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (32/13, 31/02 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ)
-- Panel popup tại caret với debounce 1s: phím gõ re-schedule, popup sống ẩn ngay khi gõ tiếp, dừng ~1s mới check và hiển thị, không bao giờ đè lên dòng caret
+- Panel gợi ý khi **dừng gõ 1 giây** (cả 3 hệ điều hành): mọi phím gõ chữ/dấu câu/xoá hẹn lại đồng hồ, gõ tiếp là ẩn ngay, dừng đủ 1 s mới kiểm tra từ + câu rồi hiện (cả chế độ gợi ý lẫn sửa lỗi an toàn, kể cả sau `.` `,`); giữa từ đang gõ chỉ Windows hiện (Linux/macOS đợi từ chốt)
 - Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả"
 - Mode 1 chỉ gợi ý / Mode 2 tự sửa (lỗi objective tự sửa, lỗi mơ hồ gợi ý) — hoàn tác Ctrl+Z 5 giây
 - Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả) và khi bôi đen câu dài
@@ -173,7 +175,7 @@ Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng 
 
 **Chuyển mã & tiện ích văn phòng (P5)**
 - Ctrl+Shift+F9 chuyển mã vùng bôi đen: TCVN3/VNI/Unicode tổ hợp → Unicode, tự nhận diện bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), gõ lại chữ gõ nhầm khi quên bật (`tooi ddi hocj` → `tôi đi học`) — cả 3 hệ điều hành
-- 3000 từ tần suất + thuật ngữ EN (coder/tech/business/OS APIs) cho restore tiếng Anh thông minh
+- Restore tiếng Anh thông minh: luật ngữ âm Việt + 103 từ Anh dễ nhầm + 116 thuật ngữ EN (coder/tech/business/OS APIs) + từ điển cá nhân
 - Bảo vệ: từ điển EN cá nhân, identifier camelCase, chuỗi trong nháy kép nguyên văn
 
 **Điều khiển & riêng tư**
@@ -280,9 +282,11 @@ same config file on all three platforms.
   keyboard hook, injects no code into other processes and never fakes keys
   with `SendInput` ([why](docs/specs/antivirus-false-positive.md)).
 - **Utilities**: TCVN3 / VNI-Windows / decomposed-Unicode output charsets,
-  text shortcuts, Quick Telex, English auto-restore (3000 most frequent
-  words), Tab completion — English always on, Vietnamese via `suggest.enabled`
-  — automatic sentence capitalization, instant Ctrl+Shift VI/EN toggle with
+  text shortcuts, Quick Telex, English auto-restore (detected by Vietnamese
+  phonotactics — a typed word whose fold is not a valid syllable is restored
+  — plus 103 easily-confused English words, 116 technical/business terms and
+  the personal EN dictionary), Tab completion for English and Vietnamese
+  (via `suggest.enabled`, off by default) — automatic sentence capitalization, instant Ctrl+Shift VI/EN toggle with
   tray-icon state.
 - **Grammar assistant (experimental, on by default in suggest-only mode)**:
   checks the sentence you just typed — Vietnamese **and English, including
@@ -366,12 +370,12 @@ differently — per their public feature pages as of 2026-10):
 
 | Feature | TextVN | Traditional IMEs |
 |---|---|---|
-| **Automatic EN/VI detection in mixed text** | 3000-word English frequency dictionary + common Vietnamese syllable protection grid: type mixed languages without toggling modes; English words are restored intact on Space. | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; typing English requires toggling modes per word or manually stripping tones. |
+| **Automatic EN/VI detection in mixed text** | Vietnamese phonotactics (a typed word whose fold is not a valid syllable is restored) + 103 easily-confused English words + 116 terms + personal EN dictionary + a protection grid of 94 common Vietnamese syllables: type mixed languages without toggling modes; English words are restored intact on Space. | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; typing English requires toggling modes per word or manually stripping tones. |
 | **Mode-based Vietnamese priority** (no mangling) | Ambiguous pairs (`cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên`) resolve according to active mode — standard UniKey behavior for Vietnamese, while leaving English untransformed. | Must choose: mangle English or disable Vietnamese transformations. |
-| **Tab word completion** | Half-typed `tes` → Tab completes to `test` (EN, 3000 frequency words + custom dictionary, always on); `ngư` → Tab completes to `ngưng` (Vietnamese, 3000 frequent syllables, via `suggest.enabled`). | Not supported. |
+| **Tab word completion** | Half-typed `tes` → Tab completes to `test` (EN: 9,868 single words + 1,957 compounds + 116 terms + personal words); `ngư` → Tab completes to `ngưng` (VI: 6,672 syllables + 1,941 compounds); both via `suggest.enabled` (off by default). | Not supported. |
 | **Personal EN dictionary** | Add/remove words directly in the UI (EN Dictionary…); user preference overrides all engine heuristics. | Manual config file editing (if supported at all). |
 | **Bilingual grammar & context assistant** | Checks, suggests and auto-fixes the sentence just typed (word/2–4-phrase repeats, punctuation spacing, capitalization, tone placement, EN grammar, impossible dates, money grouping) 100% offline; 0% false positives on 981 Vietnamese + 295 English clean benchmark; 1-step Ctrl+Z undo. | Not supported. |
-| **Dream RSI keystroke savings (P10)** | Objectively measures typing effort saved via smart predictions (~21% savings rate on office workflows); strict regression gates; 100% private (counters only, zero keystroke logging) | Not supported |
+| **Dream RSI keystroke savings (P10)** | Objectively measures typing effort saved via smart predictions (~22% savings rate on office workflows); strict regression gates; 100% private (counters only, zero keystroke logging) | Not supported |
 | **Escape raw keystroke restore** | Mistyped at any moment → Escape restores the exact raw typed string. | Most IMEs only support sentence-level undo or none. |
 | **Ctrl+Shift mode switch across all apps** | Modifier tap detector observes only (eats no keys) + debounce prevents double-toggling between tray and engine. | Global keyboard hooks can cause double-toggle or antivirus conflicts. |
 | **No preedit underline, no admin install** | Per-user TSF in HKCU, portable extract-and-run, zero UAC required. | UniKey/EVKey require installer and some variants demand administrator privileges. |
@@ -385,13 +389,13 @@ differently — per their public feature pages as of 2026-10):
 
 **Dream RSI metrics (P10) & Performance anti-regression (G19)**
 - Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
-- Real-time prediction efficiency analysis: averages 21% keystroke savings on realistic office workloads (33 accepts / 69 keys saved on benchmark corpus)
+- Real-time prediction efficiency analysis: averages 22% keystroke savings on realistic office workloads (36 accepts / 72 keys saved on benchmark corpus)
 - 5 prediction accept paths: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction
 - Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`)
 
-**Text prediction (P6) & User Style Profile (P7)** — **41,313-entry** bilingual corpora with full VI-EN parity:
+**Text prediction (P6) & User Style Profile (P7)** — **41,313-entry** (counted per data file; the two English word lists overlap) bilingual corpora with full VI-EN parity:
 6,672 Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains)
-+ **9,868 English single words + 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
++ **3,346 high-frequency English words** (`en_freq3000.txt`) **+ 9,868 English single words** (`en_words10k.txt`) **+ 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
 + **17,529 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,747 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);
 English prediction works seamlessly in **both modes**: **Mode EN (`E`)** (single-word & compound completion, 5-candidate Tab cycling, next-phrase prediction, ghost text preview, Dream RSI personal learning) and **Mode VI (`V`)** (automatic English word/compound/sentence detection and completion even when Telex-folded, e.g., `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
 User Style Profile (personal vocabulary & correction learning, opt-in, 100% offline, strict 200-word / 50-pair cap);
@@ -417,15 +421,15 @@ Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microseco
 - Emoji shortcuts; `=1.550.000đ` → Vietnamese words; Excel formula and identifier protection
 
 **Suggestions & prediction (P6 — Tab, Ctrl+Space, in both Mode VI & Mode EN)**
-- Vietnamese word & compound completion: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6,672 syllables + 1,941 office compounds)
-- English word & compound completion in both Mode EN and Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9,868 single words + 1,957 compounds across 16 domains + tech/business terms + personal dictionary, 5-candidate Tab cycling)
+- Vietnamese word & compound completion: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6,672 syllables + 1,941 office compounds, via `suggest.enabled`)
+- English word & compound completion in both Mode EN and Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9,868 single words + 3,346 high-frequency words + 1,957 compounds across 16 domains + 116 tech/business terms + personal dictionary, 5-candidate Tab cycling; the first Tab returns the original word when Telex turned it into a non-Vietnamese string)
 - Next-phrase prediction by context in both modes (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` even when typed in Mode VI — 8,782 VI + 8,747 EN patterns)
 - Ghost preview after the caret on all three platforms (in both Mode VI and Mode EN)
 - Ctrl+Space: fix the whole sentence (including spelling) then keep predicting — one key, two jobs
 
 **Grammar assistant (Grammarly-style, fully offline)**
 - 15 issue kinds: word/2–4-word-phrase repeats, spacing, sentence-case, diacritic typos, double negatives, end-of-sentence and post-conjunction commas, a/an, EN confusions, lowercase "i", EN spelling (OS spell), VI spelling (dictionary), impossible dates (32/13, 31/02 — calendar-aware), inconsistent money grouping (1.250.00đ)
-- Popup panel at the caret with 1s debounce: keystrokes reschedule, active popup hides instantly when typing resumes, checks and displays only after ~1s idle; never overlaps the caret typing line
+- Suggestion panel after you **pause typing for 1 second** (all 3 operating systems): every letter/punctuation/backspace key re-arms the timer, typing on hides it at once, only a full 1 s pause checks the word + sentence and shows it (suggestion and safe-correction modes alike, also after `.` `,`); mid-word it shows on Windows only (Linux/macOS wait for the word to settle)
 - Mouse-clickable panel, Alt+1…3, Enter applies fix-all
 - Mode 1 suggest-only / Mode 2 auto-correct (objective errors fixed, ambiguous ones suggested) — Ctrl+Z undo for 5 seconds
 - Selection checking (arrow keys → popup + fix-all) and long-sentence checks
@@ -433,7 +437,7 @@ Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microseco
 
 **Transcoding & office extras (P5)**
 - Ctrl+Shift+F9 converts the selection: TCVN3/VNI/decomposed → Unicode with automatic charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), re-types text typed while the IME was off (`tooi ddi hocj` → `tôi đi học`) — all three platforms
-- 3000 frequency words + EN terminology (coder/tech/business/OS APIs) for smart English restore
+- Smart English restore: Vietnamese phonotactics + 103 easily-confused English words + 116 EN terms (coder/tech/business/OS APIs) + personal dictionary
 - Protection: personal EN dictionary, camelCase identifiers, quoted strings kept verbatim
 
 **Control & privacy**
