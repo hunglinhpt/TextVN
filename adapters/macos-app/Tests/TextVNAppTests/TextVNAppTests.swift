@@ -29,8 +29,11 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.macros.isEmpty)
         XCTAssertFalse(config.suggest.enabled, "mặc định tắt — Tab giữ hành vi cũ (0.2.33)")
         XCTAssertEqual(config.assist, AssistSettings(), "P4-0 §7: assist mặc định tắt hoàn toàn")
-        // P7 (vòng 54): USP — OPT-IN tắt mặc định (G8), dữ liệu học rỗng.
-        XCTAssertFalse(config.style_profile.enabled, "USP mặc định tắt (G8)")
+        // P7: tự học BẬT mặc định từ 0.2.74 (chưa quyết định), dữ liệu học rỗng.
+        XCTAssertTrue(config.style_profile.enabled, "tự học bật mặc định")
+        XCTAssertFalse(config.style_profile.decided)
+        XCTAssertTrue(config.style_profile.effectiveEnabled)
+        XCTAssertTrue(config.style_profile.rsi.isZero)
         XCTAssertTrue(config.style_profile.words.isEmpty)
         XCTAssertTrue(config.style_profile.corrections.isEmpty)
         XCTAssertEqual(config.style_profile.max_total_bytes, 16384)
@@ -532,6 +535,57 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertFalse(store.reloadFromDisk())
         XCTAssertEqual(store.config.method, "viqr")
         XCTAssertTrue(FileManager.default.fileExists(atPath: fileURL.path), "hot-reload không dời file")
+    }
+
+    /// 0.2.74: tự học bật mặc định; file cũ (enabled:false, thiếu decided/rsi) vẫn đọc được và vẫn BẬT;
+    /// nút của người dùng (decided) được tôn trọng; xoá dữ liệu học giữ công tắt.
+    func testStyleLearningDefaultOnDecidedAndClear() throws {
+        let old = Data(#"{"style_profile":{"enabled":false,"words":[{"word":"kubernetes","count":3}]}}"#.utf8)
+        let cfg = try JSONDecoder().decode(TextVNConfig.self, from: old)
+        XCTAssertTrue(cfg.style_profile.effectiveEnabled, "chưa decided → bật")
+        XCTAssertEqual(cfg.style_profile.words.count, 1)
+        XCTAssertTrue(cfg.style_profile.rsi.isZero)
+
+        var profile = cfg.style_profile
+        profile.enabled = false
+        profile.decided = true
+        XCTAssertFalse(profile.effectiveEnabled, "đã chọn tắt → tôn trọng")
+
+        profile.rsi = RsiTotals(keys_typed: 60, accepts: 4, chars_saved: 40)
+        XCTAssertEqual(profile.rsi.savingsRatePct, 40)
+        XCTAssertEqual(
+            profile.statsText,
+            "Đã học: 1 từ · 0 cặp sửa  |  Dream RSI: tiết kiệm 40% số phím (40 ký tự)")
+        XCTAssertEqual(RsiTotals().savingsRatePct, 0)
+
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("textvn_test_learn_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let fileURL = tempDir.appendingPathComponent("config.json")
+        let store = ConfigStore(url: fileURL)
+        store.config.style_profile = profile
+        try store.config.save(to: fileURL, replaceLearned: true)
+        // Bộ gõ ghi thêm dữ liệu học trực tiếp vào file → lưu từ app không được đè mất.
+        var engine = store.config
+        engine.style_profile.words.append(StyleWord(word: "docker", count: 2))
+        engine.style_profile.rsi.chars_saved = 99
+        try engine.save(to: fileURL, replaceLearned: true)
+        store.config.method = "vni"
+        store.persist()
+        let after = try JSONDecoder().decode(TextVNConfig.self, from: Data(contentsOf: fileURL))
+        XCTAssertEqual(after.style_profile.words.count, 2)
+        XCTAssertEqual(after.style_profile.rsi.chars_saved, 99)
+
+        store.reload()
+        store.clearLearnedData()
+        let cleared = try JSONDecoder().decode(TextVNConfig.self, from: Data(contentsOf: fileURL))
+        XCTAssertTrue(cleared.style_profile.words.isEmpty)
+        XCTAssertTrue(cleared.style_profile.rsi.isZero)
+        XCTAssertFalse(cleared.style_profile.effectiveEnabled, "xoá không đổi công tắt")
+
+        store.resetToDefaults()
+        XCTAssertTrue(store.config.style_profile.effectiveEnabled, "Mặc định → bật, chưa quyết định")
     }
 
     /// F3-2: cửa sổ host và view dùng chung một nguồn cỡ.

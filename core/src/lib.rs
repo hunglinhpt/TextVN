@@ -269,6 +269,12 @@ pub struct Engine {
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
     dream_rsi: DreamRsi,
+    /// Phần `dream_rsi` đã giao cho host qua drain (đã `style_clear_pending`) — để mỗi lượt
+    /// drain chỉ xuất **delta** (host cộng dồn vào `config.style_profile.rsi`, không đếm đúp).
+    rsi_reported: DreamRsi,
+    /// Ảnh `dream_rsi` lúc `style_peek_json` xuất gần nhất; `style_clear_pending` chốt nó thành
+    /// `rsi_reported` (phím gõ giữa peek và clear không bị mất).
+    rsi_peeked: std::cell::Cell<DreamRsi>,
     /// Trạng thái phím Ctrl đơn lẻ (nhấn rồi thả riêng `Ctrl` để khoá từ tiếng Việt hợp lệ
     /// hiện tại và đóng ranh giới từ: `tunx` + `Ctrl` → giữ `tũn`; với âm tiết không hợp lệ
     /// trong tiếng Việt như `sort` → `sỏt`, bấm `Ctrl` sẽ khôi phục về `sort`).
@@ -287,6 +293,33 @@ fn valid_style_text(s: &str) -> bool {
         .all(|c| c.is_alphabetic() || c == ' ' || c == '-' || c == '\'')
 }
 
+/// Hình dạng có thể là một từ thật (không phải gõ nhầm/rác bàn phím) — lọc trước khi HỌC từ ASCII:
+/// không lặp một chữ ≥ 3 lần liền (`aaaa`, `wwwww`), không chuỗi phụ âm dài ≥ 6 (`sdfghjk`), và từ dài
+/// hơn 4 chữ phải có nguyên âm (viết tắt `npm`, `ssh`, `css` thì không cần). Học nhầm rác làm gợi ý
+/// sau này đề xuất rác — hồ sơ cá nhân càng dùng càng phải tốt hơn, không tệ đi.
+fn plausible_ascii_word(tok: &str) -> bool {
+    let letters: Vec<char> = tok
+        .chars()
+        .filter(|c| c.is_ascii_alphabetic())
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
+    if letters.windows(3).any(|w| w[0] == w[1] && w[1] == w[2]) {
+        return false;
+    }
+    let is_vowel = |c: &char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u' | 'y');
+    if letters.len() > 4 && !letters.iter().any(is_vowel) {
+        return false;
+    }
+    let mut run = 0usize;
+    for c in &letters {
+        run = if is_vowel(c) { 0 } else { run + 1 };
+        if run >= 6 {
+            return false;
+        }
+    }
+    true
+}
+
 /// P7: entry hợp lệ để HỌC vào từ điển cá nhân (`style_words`) — chặn G8 (đoạn văn),
 /// số, dấu câu, điều khiển, và chặn tuyệt đối các âm tiết có dấu nhưng sai cấu trúc
 /// âm vị học tiếng Việt (như `sỏt`, `cútomer`, `fỏwad` bị Telex biến đổi tạm thời).
@@ -295,6 +328,9 @@ fn valid_style_entry(s: &str) -> bool {
         return false;
     }
     for tok in s.split_whitespace() {
+        if tok.is_ascii() && !plausible_ascii_word(tok) {
+            return false;
+        }
         if !tok.is_ascii() {
             for part in tok.split('-').filter(|p| !p.is_empty() && !p.is_ascii()) {
                 let chars: Vec<char> = part.chars().collect();
@@ -440,6 +476,8 @@ impl Engine {
             bracket_word: None,
             accepted_just_now: false,
             dream_rsi: DreamRsi::default(),
+            rsi_reported: DreamRsi::default(),
+            rsi_peeked: std::cell::Cell::new(DreamRsi::default()),
             ctx: Context::default(),
             word: buffer::Word::default(),
             recent: Vec::new(),
@@ -770,13 +808,29 @@ impl Engine {
 
     /// P7: xem JSON pending hiện tại mà KHÔNG xóa (dùng cho FFI 2 pha / probe size).
     pub fn style_peek_json(&self) -> String {
+        let delta = DreamRsi {
+            keys_typed: self
+                .dream_rsi
+                .keys_typed
+                .saturating_sub(self.rsi_reported.keys_typed),
+            accepts: self
+                .dream_rsi
+                .accepts
+                .saturating_sub(self.rsi_reported.accepts),
+            chars_saved: self
+                .dream_rsi
+                .chars_saved
+                .saturating_sub(self.rsi_reported.chars_saved),
+        };
         if self.style_pending.words.is_empty()
             && self.style_pending.corrections.is_empty()
-            && self.dream_rsi.keys_typed == 0
-            && self.dream_rsi.accepts == 0
+            && delta.keys_typed == 0
+            && delta.accepts == 0
+            && delta.chars_saved == 0
         {
             return "{}".to_string();
         }
+        self.rsi_peeked.set(self.dream_rsi);
         let words: Vec<String> = self
             .drain_words()
             .into_iter()
@@ -788,13 +842,16 @@ impl Engine {
             .map(|((f, t), n)| format!("{{\"from\":\"{f}\",\"to\":\"{t}\",\"count\":{n}}}"))
             .collect();
         format!(
-            "{{\"words\":[{}],\"corrections\":[{}],\"rsi\":{{\"keys_typed\":{},\"accepts\":{},\"chars_saved\":{},\"savings_rate_pct\":{}}}}}",
+            "{{\"words\":[{}],\"corrections\":[{}],\"rsi\":{{\"keys_typed\":{},\"accepts\":{},\"chars_saved\":{},\"savings_rate_pct\":{}}},\"rsi_delta\":{{\"keys_typed\":{},\"accepts\":{},\"chars_saved\":{}}}}}",
             words.join(","),
             corr.join(","),
             self.dream_rsi.keys_typed,
             self.dream_rsi.accepts,
             self.dream_rsi.chars_saved,
-            self.dream_rsi.savings_rate_pct()
+            self.dream_rsi.savings_rate_pct(),
+            delta.keys_typed,
+            delta.accepts,
+            delta.chars_saved
         )
     }
 
@@ -837,6 +894,13 @@ impl Engine {
         for p in &corr {
             pending.corrections.remove(p);
         }
+        // Số đo Dream RSI đã giao cùng lượt peek: lượt sau chỉ xuất phần tăng thêm.
+        let peeked = self.rsi_peeked.get();
+        self.rsi_reported = DreamRsi {
+            keys_typed: self.rsi_reported.keys_typed.max(peeked.keys_typed),
+            accepts: self.rsi_reported.accepts.max(peeked.accepts),
+            chars_saved: self.rsi_reported.chars_saved.max(peeked.chars_saved),
+        };
     }
 
     /// P7: drain pending dạng JSON `{"words":[..],"corrections":[..]}` rồi XÓA.

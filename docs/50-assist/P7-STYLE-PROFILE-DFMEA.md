@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 # P7 — User Style Profile: DFMEA + DRBFM (vòng 54)
 
-> Tính năng: học từ/cặp sửa-lỗi **cá nhân** (opt-in, tắt mặc định) dùng cho
+> Tính năng: học từ/cặp sửa-lỗi **cá nhân** (từ 0.2.74 **bật mặc định**, tắt/xóa bằng nút trong
+> Cài đặt; trước đó opt-in tắt mặc định) dùng cho
 > Text Prediction (boost) và Trợ lý ngữ pháp (correction ưu tiên). Dữ liệu
 > lưu trong `config.v1.json` có **cap chặt** (chủ repo: "style lưu không được
 > phép quá lớn"), kết hợp từ điển cá nhân `english_words` hiện có.

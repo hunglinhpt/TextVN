@@ -136,8 +136,12 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->assist_idle_ms = get_u32(s, "assist.display.idle_ms", TV_ASSIST_DEFAULT_IDLE_MS);
         /* P6: dự đoán văn bản opt-in — thiếu khoá = TẮT (khớp schema). */
         out->suggest_enabled = get_bool(s, "suggest.enabled", 0);
-        /* P7 (vong 54): style_profile — OPT-IN tat mac dinh. */
-        out->style_profile_enabled = get_bool(s, "style_profile.enabled", 0);
+        /* P7: tự học bật mặc định (0.2.74) — khoá ảo tính cả `decided`. */
+        out->style_profile_enabled = get_bool(s, "style_profile.effective_enabled", 1);
+        out->style_words = get_u32(s, "style_profile.words_count", 0);
+        out->style_corrections = get_u32(s, "style_profile.corrections_count", 0);
+        out->rsi_rate_pct = get_u32(s, "style_profile.rsi_rate_pct", 0);
+        out->rsi_chars_saved = get_u32(s, "style_profile.rsi.chars_saved", 0);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
     } else {
@@ -151,7 +155,7 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->free_marking = 1;
         out->auto_capitalize = 1;
         out->suggest_enabled = 0;      /* dự đoán opt-in — TẮT mặc định */
-        out->style_profile_enabled = 0; /* USP opt-in — TẮT mặc định (G8) */
+        out->style_profile_enabled = 1; /* tự học BẬT mặc định (0.2.74) */
     }
     out->vi_enabled = lc_state_read_enabled(p->state, 1);
 }
@@ -237,6 +241,11 @@ int tv_state_set_enabled(const tv_paths *p, int enabled) {
 
 int tv_config_reset_defaults(const tv_paths *p) {
     return patch_file(p->config, IME_SETTINGS_CONFIG, edit_reset, NULL);
+}
+
+int tv_config_clear_learned(const tv_paths *p) {
+    /* Khoá hành động của SettingsDoc (ghi-một-lần, không lưu): xoá từ/cặp/Dream RSI. */
+    return tv_config_set_bool(p, "style_profile.clear_learned", 1);
 }
 
 char *tv_macros_load(const tv_paths *p, int *trigger_space) {

@@ -74,8 +74,14 @@ typedef struct tv_snapshot {
     /* P6 dự đoán văn bản (opt-in — suggest.enabled, mặc định TẮT như Windows/
      * macOS): thiếu toggle này trên Linux làm dự đoán KHÔNG THỂ bật (parity). */
     int suggest_enabled;
-    /* P7 (vong 54): User Style Profile — OPT-IN tat mac dinh (G8). */
+    /* P7 tự học: BẬT mặc định từ 0.2.74 (người dùng tắt bằng nút; file cũ ghi enabled:false khi
+     * chưa từng chọn vẫn tính là bật). Đọc khoá ảo style_profile.effective_enabled. */
     int style_profile_enabled;
+    /* Số mục đã học + Dream RSI cộng dồn (khoá ảo/khoá thật qua C-API, không parse JSON tay). */
+    uint32_t style_words;
+    uint32_t style_corrections;
+    uint32_t rsi_rate_pct;
+    uint32_t rsi_chars_saved;
 } tv_snapshot;
 
 void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);
@@ -92,8 +98,10 @@ int tv_config_set_assist_mode(const tv_paths *p, int mode_index);
 int tv_config_set_assist_idle_ms(const tv_paths *p, uint32_t idle_ms);
 /* ssist.auto_fix (chỉ số tv_assist_auto_fix_values). 0 = OK, <0 = lỗi. */
 int tv_config_set_assist_auto_fix(const tv_paths *p, int fix_index);
-/* Nút Mặc định: mọi tuỳ chọn về mặc định, giữ gõ tắt/emoji/từ tiếng Anh. */
+/* Nút Mặc định: mọi tuỳ chọn về mặc định, giữ gõ tắt/emoji/từ tiếng Anh/dữ liệu tự học. */
 int tv_config_reset_defaults(const tv_paths *p);
+/* Xoá dữ liệu đã học (từ, cặp sửa, số liệu Dream RSI); giữ công tắt tự học. 0 = OK. */
+int tv_config_clear_learned(const tv_paths *p);
 
 /* Bảng gõ tắt dạng text (free bằng ime_settings_string_free). *trigger_space = 1 nếu
  * bung bằng Space, 0 nếu Tab. */

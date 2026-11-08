@@ -28,7 +28,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
   - **Mode VI (`V`)**: Nhận diện thông minh từ ngữ tiếng Anh xen kẽ. Tự động phục hồi từ/cụm tiếng Anh bị gõ theo Telex mà không phải âm tiết tiếng Việt hợp lệ (ví dụ: `customer` thành `cútomer` + Tab → `customer service`; `looking forward` thành `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
 - **Phím tiện ích Standalone `Ctrl` Tap**: Bấm thả phím `Ctrl` đơn lẻ để chốt từ hợp lệ (`tunx` + Ctrl → chốt âm tiết `tũn`), hoặc lập tức khôi phục từ sai chính tả tiếng Việt về nguyên bản tiếng Anh (`sort` → `sỏt` + Ctrl → `sort`).
 - **Công nghệ đo lường công thái học Dream RSI (P10 / G19)**: Đo lường khách quan số phím bấm thực tế tiết kiệm được. Đạt tỷ lệ tiết kiệm 22% số phím gõ trong tác vụ văn phòng thực tế; kiểm soát chống hồi quy hiệu năng nghiêm ngặt qua CI (`perf/baseline-win.json`).
-- **Hồ sơ phong cách người dùng (User Style Profile P7)**: Tự động ghi nhận từ vựng riêng và cặp sửa lỗi người dùng chấp nhận, học 100% offline, chỉ kích hoạt khi người dùng cho phép (opt-in G8), bảo vệ nghiêm ngặt quyền riêng tư.
+- **Hồ sơ phong cách người dùng (User Style Profile P7)**: Tự động ghi nhận từ vựng riêng và cặp sửa lỗi người dùng chấp nhận, học 100% offline **trên chính máy này**, **bật mặc định** (không bao giờ học ở ô mật khẩu hay terminal; không ghi lại phím hay câu văn, G8). Tắt/bật, xem số liệu và xóa dữ liệu đã học ngay trong khung *Trợ lý ngữ pháp* của Cài đặt (3 OS), kèm số liệu **Dream RSI** (phần trăm phím tiết kiệm nhờ gợi ý) cộng dồn qua các phiên.
 
 ### 3. Trợ lý Ngữ pháp & Ngữ cảnh On-Device (Grammarly-Grade Offline)
 - **Kiểm soát 15 nhóm lỗi toàn diện**: Bắt lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, viết hoa đầu câu, sai vị trí dấu thanh ("nghiã" → "nghĩa"), **sai dấu thanh theo từ điển âm tiết dựng sẵn ("chềt" → "chết", bắt 99% lỗi dấu thanh tổng hợp, 0% báo nhầm trên corpus sạch — không cần từ điển hệ điều hành)**, phủ định kép, phẩy sau liên từ, mạo từ tiếng Anh a/an, cặp từ dễ nhầm lẫn EN, đại từ "i", chính tả EN/VI, cảnh báo ngày tháng phi lý (31/02, 32/13 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ).
@@ -83,7 +83,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 - Hoạt động đồng bộ ở **cả 2 chế độ**:
   - **Mode EN (`E`)**: Hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost preview 75 µs, học từ Dream RSI.
   - **Mode VI (`V`)**: Tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold (ví dụ: `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
-- **User Style Profile (P7)**: Tự học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, giới hạn an toàn 200 từ / 50 cặp.
+- **User Style Profile (P7)**: Tự học từ cá nhân & cặp sửa lỗi, bật mặc định (tắt/xóa được trong Cài đặt), 100% offline, giới hạn an toàn 200 từ / 50 cặp; hiển thị Dream RSI cộng dồn.
 - Tra cứu cấu trúc Trie + Frecency tốc độ micro-giây, xếp hạng mở rộng đúng nghĩa ngữ cảnh.
 
 ### 3. Kiểu Gõ & Biến Đổi Âm Vị Học Chuẩn Mực
@@ -253,7 +253,7 @@ Tiếng Việt · English
   - **Mode VI (`V`)**: Intelligent mixed English detection. Automatically rescues English words/phrases mistransformed by Telex rules when they do not form valid Vietnamese syllables (e.g., `customer` typed as `cútomer` + Tab → expands to `customer service`; `looking forward` typed as `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
 - **Standalone `Ctrl` Tap Utility**: Tap and release standalone `Ctrl` to lock valid syllables (`tunx` + Ctrl → commits `tũn`), or instantly restore mistyped Vietnamese words to their original English form (`sort` → `sỏt` + Ctrl → `sort`).
 - **Dream RSI Ergonomic Measurement (P10 / G19)**: Objectively measures physical keystrokes saved. Delivers a 22% keystroke savings rate on realistic office corpora; strictly guarded against performance regressions via automated CI gates (`perf/baseline-win.json`).
-- **User Style Profile (P7)**: Automatically learns personal vocabulary and accepted correction pairs, 100% offline, strictly opt-in per privacy rule G8, with safe memory caps (200 words / 50 pairs).
+- **User Style Profile (P7)**: Automatically learns personal vocabulary and accepted correction pairs, 100% offline **on this machine only**, **on by default** (never learns in password fields or terminals; never records keystrokes or sentences, G8). Switch it off/on, see the numbers and wipe the learned data right in the *Grammar Assistant* group of Settings (all 3 OSes), together with the cumulative **Dream RSI** figure (percentage of keystrokes saved by suggestions) across sessions.
 
 ### 3. On-Device Grammar & Context Assistant (Grammarly-Grade Offline)
 - **Comprehensive 15-Category Issue Detection**: Detects word repeats, 2–4-word phrase repeats, punctuation spacing, sentence capitalization, misplaced tone marks ("nghiã" → "nghĩa"), **wrong tone marks via a built-in syllable dictionary ("chềt" → "chết", 99% of synthetic tone errors caught, 0% false positives on the clean corpus — no OS dictionary needed)**, double negatives, post-conjunction commas, English a/an articles, easily-confused English pairs, lowercase pronoun "i", English/Vietnamese spelling, calendar-aware invalid dates (31/02, 32/13), and inconsistent money grouping (1.250.00đ).
@@ -308,7 +308,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 - Seamless dual-mode operation:
   - **Mode EN (`E`)**: Single-word and compound completion, 5-candidate Tab cycling, next-phrase prediction, 75 µs ghost text preview, Dream RSI personal learning.
   - **Mode VI (`V`)**: Automatic English word and phrase detection even when Telex-folded (e.g., `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
-- **User Style Profile (P7)**: Personal vocabulary and correction pair learning, strictly opt-in, 100% offline, safe memory cap (200 words / 50 pairs).
+- **User Style Profile (P7)**: Personal vocabulary and correction pair learning, on by default (switch off / wipe in Settings), 100% offline, safe memory cap (200 words / 50 pairs); shows cumulative Dream RSI.
 - Microsecond lookups via Trie + Frecency structures, meaningful-extension contextual ranking.
 
 ### 3. Typing Engines & Phonotactic Transformation Standard

@@ -57,13 +57,29 @@
     },
     "style_profile": {
       "type": "object",
-      "default": { "enabled": false, "words": [], "corrections": [], "max_total_bytes": 16384 },
+      "default": { "enabled": true, "decided": false, "rsi": { "keys_typed": 0, "accepts": 0, "chars_saved": 0 }, "words": [], "corrections": [], "max_total_bytes": 16384 },
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "type": "boolean",
+          "default": true,
+          "$comment": "Cong tat tu hoc. BAT mac dinh tu 0.2.74 (chu repo yeu cau); chi hoc tren may nay, khong hoc o o mat khau/terminal. Doc qua config::StyleProfileSettings::effective_enabled (can ca `decided`)."
+        },
+        "decided": {
+          "type": "boolean",
           "default": false,
-          "$comment": "OPT-IN (G8): mac dinh TAT - khong hoc gi khi chua bat."
+          "$comment": "true khi nguoi dung da tu chon bang nut Cai dat -> ton trong `enabled`. false = chua quyet dinh -> coi nhu BAT, ke ca file <= 0.2.73 da ghi enabled:false khi chua co nut trong UI."
+        },
+        "rsi": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": { "keys_typed": 0, "accepts": 0, "chars_saved": 0 },
+          "properties": {
+            "keys_typed": { "type": "integer", "minimum": 0 },
+            "accepts": { "type": "integer", "minimum": 0 },
+            "chars_saved": { "type": "integer", "minimum": 0 }
+          },
+          "$comment": "Dream RSI (P10) cong don qua cac phien - chi BO DEM (G8: khong phim, khong chu). Cong tu `rsi_delta` cua moi lan drain."
         },
         "words": {
           "type": "array",
@@ -101,7 +117,7 @@
           "default": 16384
         }
       },
-      "$comment": "User Style Profile (USP) - du lieu hoc CA NHAN (tu hay dung + cap sai-dung da chap nhan + dem). OPT-IN, mac dinh TAT (G8). Cap quy dinh trong config::StyleProfileSettings - sanitize chay sau parse. Khong bao gio chua cau van hoan chinh hay noi dung phim nguoi dung."
+      "$comment": "User Style Profile (USP) - du lieu hoc CA NHAN (tu hay dung + cap sai-dung da chap nhan + dem). BAT mac dinh tu 0.2.74, tat bang nut Cai dat (G8: chi tren may nay, khong keylogging). Cap quy dinh trong config::StyleProfileSettings - sanitize chay sau parse. Khong bao gio chua cau van hoan chinh hay noi dung phim nguoi dung."
     },
     "suggest": {
       "type": "object",

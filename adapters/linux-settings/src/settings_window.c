@@ -34,6 +34,9 @@ typedef struct TvWin {
     GtkWidget *chk_quick;
     GtkWidget *chk_macro_off;
     GtkWidget *chk_suggest;
+    GtkWidget *chk_style;        /* P7 tự học (bật mặc định từ 0.2.74) */
+    GtkWidget *btn_style_clear;  /* xoá dữ liệu đã học */
+    GtkWidget *lbl_style_stats;  /* "Đã học: … | Dream RSI: …" */
 
     GtkWidget *words_window;
     GtkWidget *words_view;
@@ -122,6 +125,17 @@ static void populate(TvWin *w) {
     set_active(w->chk_quick, s.quick_telex);
     set_active(w->chk_macro_off, s.allow_macro_when_vi_off);
     set_active(w->chk_suggest, s.suggest_enabled);
+    set_active(w->chk_style, s.style_profile_enabled);
+    {
+        /* Cùng định dạng với Windows (`style_stats_text`) và macOS. */
+        char stats[256];
+        g_snprintf(stats, sizeof(stats),
+                   "Đã học: %u từ · %u cặp sửa  |  Dream RSI: tiết kiệm %u%% số phím (%u ký tự)",
+                   s.style_words, s.style_corrections, s.rsi_rate_pct, s.rsi_chars_saved);
+        gtk_label_set_text(GTK_LABEL(w->lbl_style_stats), stats);
+        gtk_widget_set_sensitive(w->btn_style_clear, s.style_words || s.style_corrections ||
+                                                         s.rsi_chars_saved || s.rsi_rate_pct);
+    }
     w->updating = FALSE;
 }
 
@@ -165,6 +179,49 @@ static void on_check(GtkCheckButton *btn, TvWin *w) {
         rc = tv_config_set_bool(&w->paths, key, on);
     }
     if (rc != 0) save_failed(w);
+}
+
+/* Xác nhận xoá dữ liệu học (không hoàn tác) — mặc định "Không", như Windows. */
+static void on_clear_confirmed(GtkButton *b, TvWin *w) {
+    GtkWidget *dlg = GTK_WIDGET(g_object_get_data(G_OBJECT(b), "tv-dialog"));
+    if (tv_config_clear_learned(&w->paths) != 0) save_failed(w);
+    populate(w);
+    if (dlg) gtk_window_destroy(GTK_WINDOW(dlg));
+}
+
+static void on_style_clear(GtkButton *b, TvWin *w) {
+    (void)b;
+    GtkWidget *dlg = gtk_window_new();
+    gtk_window_set_title(GTK_WINDOW(dlg), "Xóa dữ liệu đã học?");
+    gtk_window_set_transient_for(GTK_WINDOW(dlg), GTK_WINDOW(w->window));
+    gtk_window_set_modal(GTK_WINDOW(dlg), TRUE);
+    gtk_window_set_resizable(GTK_WINDOW(dlg), FALSE);
+    gtk_window_set_destroy_with_parent(GTK_WINDOW(dlg), TRUE);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+    gtk_widget_set_margin_start(box, 18);
+    gtk_widget_set_margin_end(box, 18);
+    gtk_widget_set_margin_top(box, 18);
+    gtk_widget_set_margin_bottom(box, 12);
+    GtkWidget *label = gtk_label_new(
+        "Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này? Việc này không hoàn "
+        "tác được. Gõ tắt và từ điển EN của bạn được giữ nguyên.");
+    gtk_label_set_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(label), 70);
+    gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
+    gtk_box_append(GTK_BOX(box), label);
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_widget_set_halign(row, GTK_ALIGN_END);
+    GtkWidget *no = gtk_button_new_with_label("Không");
+    GtkWidget *yes = gtk_button_new_with_label("Xóa");
+    g_object_set_data(G_OBJECT(yes), "tv-dialog", dlg);
+    g_signal_connect_swapped(no, "clicked", G_CALLBACK(gtk_window_destroy), dlg);
+    g_signal_connect(yes, "clicked", G_CALLBACK(on_clear_confirmed), w);
+    gtk_box_append(GTK_BOX(row), no);
+    gtk_box_append(GTK_BOX(row), yes);
+    gtk_box_append(GTK_BOX(box), row);
+    gtk_window_set_child(GTK_WINDOW(dlg), box);
+    gtk_window_set_default_widget(GTK_WINDOW(dlg), no);
+    gtk_window_present(GTK_WINDOW(dlg));
 }
 
 static void on_default(GtkButton *b, TvWin *w) {
@@ -565,6 +622,21 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     GtkWidget *g3 = framed_grid(main_box, "Trợ lý ngữ pháp");
     w->dd_assist_mode = labeled_dropdown(w, g3, "Chế độ:", tv_assist_mode_labels, 0, 0);
     w->dd_assist_fix = labeled_dropdown(w, g3, "Tự động sửa:", tv_assist_auto_fix_labels, 1, 0);
+    /* Tự học (P7) + Dream RSI (P10) — cùng nhãn/thứ tự với Windows & macOS. Công tắt ghi qua
+     * khoá `style_profile.enabled` (SettingsDoc tự đánh dấu `decided`). */
+    w->chk_style = option(w, g3, "Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)",
+                          "style_profile.enabled", 0, 1);
+    {
+        GtkWidget *clear_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        gtk_widget_set_halign(clear_row, GTK_ALIGN_END);
+        w->btn_style_clear = button(clear_row, "edit-clear-symbolic", "Xóa dữ liệu đã học",
+                                    "Xóa từ, cặp sửa và số liệu Dream RSI đã học trên máy này",
+                                    G_CALLBACK(on_style_clear), w);
+        gtk_grid_attach(GTK_GRID(g3), clear_row, 1, 1, 1, 1);
+    }
+    w->lbl_style_stats = gtk_label_new("");
+    gtk_label_set_xalign(GTK_LABEL(w->lbl_style_stats), 0.0f);
+    gtk_grid_attach(GTK_GRID(g3), w->lbl_style_stats, 0, 2, 2, 1);
 
     /* 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải) */
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);

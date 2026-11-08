@@ -9,6 +9,30 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Added
+- **Tự học (P7) + Dream RSI có nút trong Cài đặt và bật mặc định** (R2-158, E43) trên cả 3 nền tảng, trong khung
+  *Trợ lý ngữ pháp*: ô *Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)*, dòng số liệu
+  *Đã học: N từ · M cặp sửa | Dream RSI: tiết kiệm X% số phím (K ký tự)*, nút *Xóa dữ liệu đã học* (có hỏi lại).
+  Trước đây không có nút nào để bật nên tính năng không bao giờ chạy với người dùng thật.
+- **Dream RSI cộng dồn qua các phiên**: drain mang `rsi_delta`; `config.style_profile.rsi` lưu tổng. Tray (Windows)
+  gom số đo và ghi tối đa 1 lần/60 giây, không phát `ConfigReload` (reload làm engine reset từ đang gõ).
+
+### Changed
+- `style_profile.enabled` mặc định **bật**; thêm `decided` để phân biệt "mặc định" với "đã chọn": file của bản
+  ≤ 0.2.73 (tự lưu `enabled:false`) vẫn được coi là bật cho tới khi bạn tự bấm tắt. Không học ở ô mật khẩu / terminal.
+- Nút *Mặc định* giữ dữ liệu đã học (như gõ tắt, từ điển EN).
+- Tự học **lọc rác bàn phím**: không học `aaaa`, `wwwww`, `sdfghjkl` (lặp ≥ 3 chữ liền, chuỗi phụ âm ≥ 6, từ dài > 4 chữ không nguyên âm); từ thật và viết tắt (`npm`, `ssh`) vẫn học — gợi ý không tệ đi theo thời gian.
+
+**English** — Unreleased: **self-learning (P7) and Dream RSI now have a switch in Settings and are on by default**
+on all three platforms (R2-158, E43), in the *Grammar Assistant* group: a checkbox, a live line *Learned: N words ·
+M pairs | Dream RSI: X% keystrokes saved (K characters)* and a *Wipe learned data* button (with confirmation). Before,
+nothing in the UI could turn it on, so it never ran for real users. Dream RSI totals now persist across sessions
+(`rsi_delta` in the drain, `style_profile.rsi` in the config); the Windows tray batches the counters and writes at most
+once a minute without a `ConfigReload` (a reload resets the word being typed). `style_profile.enabled` defaults to on,
+with a new `decided` flag separating "default" from "chosen": files saved by ≤ 0.2.73 (which auto-wrote
+`enabled:false`) count as on until you switch it off yourself. Never learns in password fields or terminals. *Reset
+to defaults* keeps learned data. Learning also **filters keyboard junk** (`aaaa`, `wwwww`, `sdfghjkl`) while real words and acronyms (`npm`, `ssh`) are still learned.
+
 ## [0.2.73] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa

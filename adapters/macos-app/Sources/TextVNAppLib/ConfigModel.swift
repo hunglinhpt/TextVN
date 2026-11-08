@@ -165,14 +165,50 @@ public struct SuggestSettings: Codable, Equatable {
     }
 }
 
-/// `style_profile` — User Style Profile (P7, vòng 54): dữ liệu học CÁ NHÂN
-/// (từ hay dùng + cặp sai→đúng đã chấp nhận). OPT-IN tắt mặc định (G8); cap
-/// chặt (200 từ / 50 cặp / ≤16KB). Khớp 1-1 với crate `config`
-/// (`config::StyleProfileSettings`) — model PHẢI biết khoá này nếu không mỗi
-/// lần lưu từ app macOS xoá dữ liệu học của người dùng.
+/// Tổng Dream RSI cộng dồn (P10) — chỉ bộ đếm (G8: không phím, không chữ). Khớp
+/// `config::RsiTotals`.
+public struct RsiTotals: Codable, Equatable {
+    public var keys_typed: UInt64
+    public var accepts: UInt64
+    public var chars_saved: UInt64
+
+    public init(keys_typed: UInt64 = 0, accepts: UInt64 = 0, chars_saved: UInt64 = 0) {
+        self.keys_typed = keys_typed
+        self.accepts = accepts
+        self.chars_saved = chars_saved
+    }
+
+    private enum CodingKeys: String, CodingKey { case keys_typed, accepts, chars_saved }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        keys_typed = try c.decodeIfPresent(UInt64.self, forKey: .keys_typed) ?? 0
+        accepts = try c.decodeIfPresent(UInt64.self, forKey: .accepts) ?? 0
+        chars_saved = try c.decodeIfPresent(UInt64.self, forKey: .chars_saved) ?? 0
+    }
+
+    /// `chars_saved / (chars_saved + keys_typed)` (%), 0 khi chưa có số liệu — như Rust.
+    public var savingsRatePct: Int {
+        let total = Double(chars_saved) + Double(keys_typed)
+        return total == 0 ? 0 : Int(Double(chars_saved) * 100.0 / total)
+    }
+
+    public var isZero: Bool { keys_typed == 0 && accepts == 0 && chars_saved == 0 }
+}
+
+/// `style_profile` — User Style Profile (P7): dữ liệu học CÁ NHÂN (từ hay dùng + cặp
+/// sai→đúng đã chấp nhận) + tổng Dream RSI. Từ 0.2.74 BẬT mặc định (chỉ trên máy này; không
+/// học ở ô mật khẩu/terminal); cap chặt (200 từ / 50 cặp / ≤16KB). Khớp 1-1 với crate
+/// `config` (`config::StyleProfileSettings`) — model PHẢI biết mọi khoá, nếu không mỗi lần
+/// lưu từ app macOS xoá dữ liệu học của người dùng.
 public struct StyleProfileSettings: Codable, Equatable {
-    /// Master switch — mặc định TẮT (G8).
+    /// Công tắt tự học (đọc qua `effectiveEnabled`).
     public var enabled: Bool
+    /// Người dùng đã tự chọn (nút Cài đặt) → tôn trọng `enabled`; chưa chọn → coi như BẬT
+    /// (kể cả file cũ ghi `enabled:false` khi chưa có nút trong UI).
+    public var decided: Bool
+    /// Tổng Dream RSI cộng dồn.
+    public var rsi: RsiTotals
     /// Từ user hay gõ (VI+EN), count giảm dần.
     public var words: [StyleWord]
     /// Cặp sai→đúng user đã CHẤP NHẬN sửa, count giảm dần.
@@ -181,20 +217,46 @@ public struct StyleProfileSettings: Codable, Equatable {
     public var max_total_bytes: Int
 
     public init(
-        enabled: Bool = false,
+        enabled: Bool = true,
+        decided: Bool = false,
+        rsi: RsiTotals = RsiTotals(),
         words: [StyleWord] = [],
         corrections: [StyleCorrection] = [],
         max_total_bytes: Int = 16384
     ) {
         self.enabled = enabled
+        self.decided = decided
+        self.rsi = rsi
         self.words = words
         self.corrections = corrections
         self.max_total_bytes = max_total_bytes
     }
 
     private enum CodingKeys: String, CodingKey {
-        case enabled, words, corrections, max_total_bytes
+        case enabled, decided, rsi, words, corrections, max_total_bytes
     }
+
+    /// File cũ thiếu khoá (`decided`, `rsi`) vẫn đọc được — thiếu khoá = mặc định.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        decided = try c.decodeIfPresent(Bool.self, forKey: .decided) ?? false
+        rsi = try c.decodeIfPresent(RsiTotals.self, forKey: .rsi) ?? RsiTotals()
+        words = try c.decodeIfPresent([StyleWord].self, forKey: .words) ?? []
+        corrections = try c.decodeIfPresent([StyleCorrection].self, forKey: .corrections) ?? []
+        max_total_bytes = try c.decodeIfPresent(Int.self, forKey: .max_total_bytes) ?? 16384
+    }
+
+    /// Có học không: đã chọn → theo lựa chọn; chưa chọn → BẬT.
+    public var effectiveEnabled: Bool { !decided || enabled }
+
+    /// Dòng số liệu dưới công tắt — CÙNG định dạng Windows (`style_stats_text`) và Linux.
+    public var statsText: String {
+        "Đã học: \(words.count) từ · \(corrections.count) cặp sửa  |  "
+            + "Dream RSI: tiết kiệm \(rsi.savingsRatePct)% số phím (\(rsi.chars_saved) ký tự)"
+    }
+
+    public var hasLearnedData: Bool { !words.isEmpty || !corrections.isEmpty || !rsi.isZero }
 }
 
 /// Một từ cá nhân.
@@ -473,7 +535,7 @@ public struct TextVNConfig: Codable, Equatable {
         }
     }
 
-    public func save(to url: URL? = nil) throws {
+    public func save(to url: URL? = nil, replaceLearned: Bool = false) throws {
         let fileURL = url ?? Self.defaultConfigURL()
         let dir = fileURL.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [
@@ -483,11 +545,14 @@ public struct TextVNConfig: Codable, Equatable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         // Bộ gõ (tiến trình khác) ghi dữ liệu học thẳng vào file — bản trong bộ nhớ của app
         // có thể cũ, không được đè mất (R2-152).
+        // `replaceLearned` (nút "Xóa dữ liệu đã học"): bản trong bộ nhớ MỚI ĐÚNG, không lấy lại từ đĩa.
         var snapshot = self
-        if let disk = try? Data(contentsOf: fileURL),
+        if !replaceLearned,
+           let disk = try? Data(contentsOf: fileURL),
            let onDisk = try? JSONDecoder().decode(TextVNConfig.self, from: disk) {
             snapshot.style_profile.words = onDisk.style_profile.words
             snapshot.style_profile.corrections = onDisk.style_profile.corrections
+            snapshot.style_profile.rsi = onDisk.style_profile.rsi
         }
         let data = try encoder.encode(snapshot)
         try data.write(to: fileURL, options: .atomic)
@@ -547,6 +612,18 @@ public final class ConfigStore: ObservableObject {
         return FileManager.default.fileExists(atPath: fileURL.path)
     }
 
+    /// Nút "Xóa dữ liệu đã học": xoá từ, cặp sửa, số liệu Dream RSI; giữ công tắt tự học.
+    public func clearLearnedData() {
+        config.style_profile.words = []
+        config.style_profile.corrections = []
+        config.style_profile.rsi = RsiTotals()
+        do {
+            try config.save(to: customURL, replaceLearned: true)
+        } catch {
+            NSLog("[TextVN] Failed to save config: %@", error.localizedDescription)
+        }
+    }
+
     public func resetToDefaults() {
         // Vòng 16 (audit B5): nút "Mặc định" từng xoá CẢ macros/english_words/
         // emoji và tắt autostart một cách âm thầm (vi phạm S9 — dữ liệu người
@@ -555,7 +632,12 @@ public final class ConfigStore: ObservableObject {
         let keepWords = config.english_words
         let keepEmoji = config.emoji
         let keepAutostart = config.autostart
+        let keepLearned = config.style_profile
         self.config = .default()
+        // Dữ liệu tự học được giữ (như gõ tắt); riêng công tắt trở về mặc định (bật, chưa chọn).
+        self.config.style_profile = keepLearned
+        self.config.style_profile.enabled = true
+        self.config.style_profile.decided = false
         self.config.macros = keepMacros
         self.config.english_words = keepWords
         self.config.emoji = keepEmoji

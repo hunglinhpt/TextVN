@@ -349,12 +349,55 @@ pub struct StyleCorrection {
     pub count: u32,
 }
 
-/// Khối `style_profile` của `config.v1.json`. Thiếu khoá = default (tắt, rỗng).
+/// Tổng Dream RSI cộng dồn qua mọi phiên (P10) — chỉ **bộ đếm** (G8: không phím, không chữ).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RsiTotals {
+    /// Phím chữ thật người dùng đã gõ (cùng định nghĩa `DreamRsi::keys_typed`).
+    pub keys_typed: u64,
+    /// Số lần nhận gợi ý.
+    pub accepts: u64,
+    /// Ký tự không phải gõ nhờ gợi ý.
+    pub chars_saved: u64,
+}
+
+impl RsiTotals {
+    /// Tỷ lệ tiết kiệm `chars_saved / (chars_saved + keys_typed)` (%), 0 khi chưa có số liệu.
+    pub fn savings_rate_pct(&self) -> u32 {
+        // u128: không tràn kể cả khi hai bộ đếm sát u64::MAX.
+        let total = self.chars_saved as u128 + self.keys_typed as u128;
+        (self.chars_saved as u128 * 100)
+            .checked_div(total)
+            .unwrap_or(0) as u32
+    }
+
+    /// Cộng dồn một lượt delta (saturating — không bao giờ tràn/panic).
+    pub fn add(&mut self, delta: &RsiTotals) {
+        self.keys_typed = self.keys_typed.saturating_add(delta.keys_typed);
+        self.accepts = self.accepts.saturating_add(delta.accepts);
+        self.chars_saved = self.chars_saved.saturating_add(delta.chars_saved);
+    }
+
+    /// Có số liệu nào chưa.
+    pub fn is_zero(&self) -> bool {
+        self.keys_typed == 0 && self.accepts == 0 && self.chars_saved == 0
+    }
+}
+
+/// Khối `style_profile` của `config.v1.json`. Thiếu khoá = default (BẬT, rỗng).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StyleProfileSettings {
-    /// Master switch — mặc định TẮT (G8; không học gì khi chưa bật).
+    /// Công tắc tự học. Từ 0.2.74 **bật mặc định** (chỉ học trên máy này, offline, không bao
+    /// giờ học ở ô mật khẩu/terminal — `prediction_blocked`); tắt bằng nút trong Cài đặt.
+    /// Đọc qua [`Self::effective_enabled`], không đọc trực tiếp.
     pub enabled: bool,
+    /// `true` khi người dùng đã tự chọn (nút Cài đặt, hoặc sửa file) → tôn trọng `enabled`.
+    /// `false` = chưa quyết định → coi như BẬT, kể cả file cũ ghi `enabled:false` do bản ≤ 0.2.73
+    /// tự lưu giá trị mặc định (lúc đó chưa có nút trong UI để chọn).
+    pub decided: bool,
+    /// Tổng Dream RSI cộng dồn (P10) — hiển thị ở Cài đặt, không chứa nội dung gõ.
+    pub rsi: RsiTotals,
     /// Từ user hay gõ (VI+EN), sắp count giảm dần.
     pub words: Vec<StyleWord>,
     /// Cặp sai→đúng user đã CHẤP NHẬN sửa (click Apply/Fix-all), count giảm dần.
@@ -366,7 +409,9 @@ pub struct StyleProfileSettings {
 impl Default for StyleProfileSettings {
     fn default() -> Self {
         StyleProfileSettings {
-            enabled: false,
+            enabled: true,
+            decided: false,
+            rsi: RsiTotals::default(),
             words: Vec::new(),
             corrections: Vec::new(),
             max_total_bytes: STYLE_MAX_TOTAL_BYTES as u32,
@@ -375,6 +420,11 @@ impl Default for StyleProfileSettings {
 }
 
 impl StyleProfileSettings {
+    /// Có học không: người dùng đã chọn → theo lựa chọn; chưa chọn → BẬT (mặc định từ 0.2.74).
+    pub fn effective_enabled(&self) -> bool {
+        !self.decided || self.enabled
+    }
+
     /// Từ/cặp có hợp lệ để lưu? — chặn G8 (đoạn văn), số, dấu câu, điều
     /// khiển, emoji; cho phép chữ cái Unicode + dấu cách (tối đa 3 từ) + `-`.
     pub fn valid_entry(s: &str) -> bool {
@@ -582,19 +632,34 @@ pub fn parse_style_drain(json: &str) -> Option<StyleDeltas> {
     ))
 }
 
+/// Tách khối `rsi_delta` (số đếm Dream RSI **kể từ lần drain trước**) của JSON drain. Thiếu khối
+/// hoặc JSON hỏng → số 0 (drain cũ/không có số đo không được làm hỏng việc gộp từ/cặp).
+pub fn parse_style_rsi_delta(json: &str) -> RsiTotals {
+    #[derive(Deserialize)]
+    struct Shape {
+        #[serde(default)]
+        rsi_delta: RsiTotals,
+    }
+    serde_json::from_str::<Shape>(json)
+        .map(|s| s.rsi_delta)
+        .unwrap_or_default()
+}
+
 /// Gộp drain vào tài liệu `config.json`, giữ nguyên mọi khoá khác — đường lưu của macOS/
 /// Linux (không có tray; Windows gộp ở tray). `None` = không có gì để ghi: config hỏng,
-/// chưa bật `style_profile` (opt-in G8), hoặc drain rỗng.
+/// người dùng đã tắt tự học, hoặc drain rỗng.
 pub fn merge_style_drain(config_json: &str, drain_json: &str) -> Option<String> {
     let mut profile = parse_config(config_json).ok()?.style_profile;
-    if !profile.enabled {
+    if !profile.effective_enabled() {
         return None;
     }
     let (words, corrections) = parse_style_drain(drain_json)?;
-    if words.is_empty() && corrections.is_empty() {
+    let rsi = parse_style_rsi_delta(drain_json);
+    if words.is_empty() && corrections.is_empty() && rsi.is_zero() {
         return None;
     }
     profile.merge_deltas(&words, &corrections);
+    profile.rsi.add(&rsi);
     let mut doc: serde_json::Value = serde_json::from_str(config_json).ok()?;
     doc.as_object_mut()?
         .insert("style_profile".into(), serde_json::to_value(&profile).ok()?);

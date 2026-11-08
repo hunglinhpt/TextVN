@@ -625,8 +625,9 @@ impl IpcServer {
                 }
                 Message::StyleUpdate { json } => {
                     // P7 (vòng 57): merge dữ liệu học vào config + persist +
-                    // bump version và broadcast ConfigReload tới mọi adapter.
-                    if let Ok(ver) = crate::style_merge::merge_from_json(&self.svc, &json) {
+                    // bump version và broadcast ConfigReload tới mọi adapter. Drain chỉ có số đo
+                    // Dream RSI được gom/ghi âm thầm — KHÔNG reload (reload reset từ đang gõ).
+                    if let Ok(Some(ver)) = crate::style_merge::merge_from_json(&self.svc, &json) {
                         self.broadcast_config_reload(ver);
                     }
                     Some(Message::Ack)

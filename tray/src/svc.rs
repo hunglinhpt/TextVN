@@ -422,17 +422,38 @@ impl SvcManager {
         self.update_config(|c| c.macro_trigger = trigger)
     }
 
-    /// Nút "Mặc định": mọi tuỳ chọn gõ về mặc định; giữ bảng gõ tắt, emoji, từ tiếng Anh
-    /// (UniKey cũng không xoá bảng gõ tắt khi bấm Mặc định).
+    /// Nút "Mặc định": mọi tuỳ chọn gõ về mặc định; giữ bảng gõ tắt, emoji, từ tiếng Anh và
+    /// **dữ liệu tự học** (UniKey cũng không xoá bảng gõ tắt khi bấm Mặc định) — riêng công tắt
+    /// tự học trở lại mặc định (bật, chưa quyết định).
     pub fn reset_config_defaults(&self) -> Result<u64, DocError> {
         self.update_config(|c| {
             let keep = (
                 std::mem::take(&mut c.macros),
                 std::mem::take(&mut c.emoji),
                 std::mem::take(&mut c.english_words),
+                std::mem::take(&mut c.style_profile),
             );
             *c = Config::default();
-            (c.macros, c.emoji, c.english_words) = keep;
+            (c.macros, c.emoji, c.english_words, c.style_profile) = keep;
+            c.style_profile.enabled = true;
+            c.style_profile.decided = false;
+        })
+    }
+
+    /// Bật/tắt tự học (P7) bằng nút Cài đặt — ghi `decided` để lựa chọn được tôn trọng.
+    pub fn set_style_learning(&self, enable: bool) -> Result<u64, DocError> {
+        self.update_config(|c| {
+            c.style_profile.enabled = enable;
+            c.style_profile.decided = true;
+        })
+    }
+
+    /// Xoá dữ liệu đã học (từ, cặp sửa, tổng Dream RSI); giữ công tắt tự học.
+    pub fn clear_learned_style(&self) -> Result<u64, DocError> {
+        self.update_config(|c| {
+            c.style_profile.words.clear();
+            c.style_profile.corrections.clear();
+            c.style_profile.rsi = textvn_config::RsiTotals::default();
         })
     }
 

@@ -76,6 +76,13 @@ Lý do: rate phải phản ánh **gõ chữ thật** — đếm sai là metrics 
   đường tray: `ime_style_profile_persist` ghi thẳng vào `config.json` lúc mất focus (R2-152).
 - Counters `DreamRsi` là **cumulative trong phiên** engine (không reset khi
   drain) — rate ổn định, phù hợp đối chiếu giữa các bản.
+- **Bền vững qua phiên (0.2.74):** drain còn mang khối `rsi_delta` = phần tăng **kể từ lần drain
+  trước** (engine giữ `rsi_reported`, chốt khi `style_clear_pending`; peek không tiêu thụ). Host cộng
+  dồn `rsi_delta` (KHÔNG cộng khối `rsi`) vào `config.style_profile.rsi` → Cài đặt hiển thị "Dream RSI:
+  tiết kiệm X% số phím (N ký tự)" cùng định dạng 3 OS. Windows: tray gom drain chỉ-có-số-đo và ghi tối
+  đa 1 lần/60 s, **không** phát `ConfigReload` (reload reset từ đang gõ); drain có từ/cặp thật ghi ngay
+  kèm số đo đang gom. Giới hạn đã biết: Backspace hoàn tác một accept đã được báo (R2-147) làm
+  số hiện tại thấp hơn số đã giao → delta kế tiếp bị thiếu 1 accept (sai lệch nhỏ, không âm).
 
 ## 5. Gate + bench (G19c)
 

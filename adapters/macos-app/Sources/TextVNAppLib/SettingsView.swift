@@ -18,16 +18,32 @@ public struct SettingsView: View {
     private enum ActiveAlert: Identifiable {
         case about
         case autostartFailed(String)
+        case clearLearned
 
         var id: String {
             switch self {
             case .about: return "about"
+            case .clearLearned: return "clearLearned"
             case let .autostartFailed(message): return "autostart:" + message
             }
         }
 
-        var alert: Alert {
+        func alert(store: ConfigStore) -> Alert {
             switch self {
+            case .clearLearned:
+                return Alert(
+                    title: Text("Xóa dữ liệu đã học?"),
+                    message: Text(
+                        "Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này? "
+                            + "Việc này không hoàn tác được. Gõ tắt và từ điển EN của bạn được giữ nguyên."
+                    ),
+                    primaryButton: .destructive(Text("Xóa")) {
+                        store.clearLearnedData()
+                        IpcServer.shared.broadcastConfigReload(
+                            version: UInt64(Date().timeIntervalSince1970))
+                    },
+                    secondaryButton: .cancel(Text("Không"))
+                )
             case .about:
                 return Alert(
                     title: Text(AppInfo.aboutTitle),
@@ -51,7 +67,7 @@ public struct SettingsView: View {
 
     /// Cỡ nội dung theo trạng thái — nguồn duy nhất cho view và cửa sổ host.
     public static func contentSize(expanded: Bool) -> CGSize {
-        CGSize(width: 505, height: expanded ? 580 : 245)
+        CGSize(width: 505, height: expanded ? 650 : 245)
     }
 
     public init(
@@ -265,6 +281,28 @@ public struct SettingsView: View {
                                 .disabled(store.config.assist.mode == "off")
                                 .onChange(of: store.config.assist.auto_fix) { _ in persistAndNotify() }
                             }
+                            // Tự học (P7) + Dream RSI (P10) — cùng nhãn/thứ tự với Windows & Linux.
+                            HStack {
+                                Toggle("Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)", isOn: Binding(
+                                    get: { store.config.style_profile.effectiveEnabled },
+                                    set: { newValue in
+                                        store.config.style_profile.enabled = newValue
+                                        store.config.style_profile.decided = true
+                                        persistAndNotify()
+                                    }
+                                ))
+                                Spacer()
+                                Button {
+                                    activeAlert = .clearLearned
+                                } label: {
+                                    Label("Xóa dữ liệu đã học", systemImage: "trash")
+                                }
+                                .help("Xóa từ, cặp sửa và số liệu Dream RSI đã học trên máy này")
+                                .disabled(!store.config.style_profile.hasLearnedData)
+                            }
+                            Text(store.config.style_profile.statsText)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 4)
@@ -310,7 +348,7 @@ public struct SettingsView: View {
             alignment: .topLeading
         )
         .onChange(of: isExpanded) { expanded in onExpandedChange?(expanded) }
-        .alert(item: $activeAlert) { $0.alert }
+        .alert(item: $activeAlert) { $0.alert(store: store) }
         .sheet(isPresented: $showMacroSheet) {
             MacroEditorSheet(store: store)
         }

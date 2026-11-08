@@ -212,10 +212,31 @@ impl SettingsDoc {
             .and_then(|v| v.as_u64().and_then(|n| u32::try_from(n).ok()))
     }
 
+    /// Khoá **ảo** chỉ đọc cho UI (không có trong file): số mục đã học, tự học đang bật thật
+    /// (tính cả `decided`), tỷ lệ Dream RSI. Giúp Linux đọc qua C-API sẵn có (không thêm hàm ABI).
+    fn virtual_value(&self, key: &str) -> Option<Value> {
+        let profile = || -> Option<crate::StyleProfileSettings> {
+            let cfg = parse_config(&self.to_json()).ok()?;
+            Some(cfg.style_profile)
+        };
+        match key {
+            "style_profile.words_count" => Some(Value::from(profile()?.words.len() as u64)),
+            "style_profile.corrections_count" => {
+                Some(Value::from(profile()?.corrections.len() as u64))
+            }
+            "style_profile.effective_enabled" => Some(Value::Bool(profile()?.effective_enabled())),
+            "style_profile.rsi_rate_pct" => Some(Value::from(profile()?.rsi.savings_rate_pct())),
+            _ => None,
+        }
+    }
+
     fn value(&self, key: &str) -> Option<Value> {
         match self.kind {
             DocKind::State => self.map.get(key).cloned(),
             DocKind::Config => {
+                if let Some(v) = self.virtual_value(key) {
+                    return Some(v);
+                }
                 let segs: Vec<&str> = key.split('.').collect();
                 lookup_nested(
                     &Value::Object(self.map.clone()),
@@ -233,6 +254,37 @@ impl SettingsDoc {
     fn set_value(&mut self, key: &str, value: Value) -> Result<(), DocError> {
         if self.kind == DocKind::State {
             self.map.insert(key.to_string(), value);
+            return Ok(());
+        }
+        // Khoá hành động (ghi-một-lần, không lưu): xoá dữ liệu đã học.
+        if key == "style_profile.clear_learned" {
+            return match value {
+                Value::Bool(true) => {
+                    self.clear_learned();
+                    Ok(())
+                }
+                Value::Bool(false) => Ok(()),
+                _ => Err(DocError::UnknownKey),
+            };
+        }
+        // Người dùng tự bật/tắt tự học bằng nút → đánh dấu `decided` để lựa chọn được tôn trọng
+        // (mặc định bật, kể cả file cũ ghi `enabled:false` do tự lưu mặc định — 0.2.74).
+        if key == "style_profile.enabled" {
+            if !matches!(value, Value::Bool(_)) {
+                return Err(DocError::UnknownKey);
+            }
+            let mut trial = self.map.clone();
+            insert_nested(&mut trial, &["style_profile", "enabled"], value);
+            insert_nested(&mut trial, &["style_profile", "decided"], Value::Bool(true));
+            let probe = SettingsDoc {
+                kind: self.kind,
+                map: trial,
+                corrupt: self.corrupt,
+            };
+            if parse_config(&probe.to_json()).is_err() {
+                return Err(DocError::BadValue);
+            }
+            self.map = probe.map;
             return Ok(());
         }
         let segs: Vec<&str> = key.split('.').collect();
@@ -327,10 +379,31 @@ impl SettingsDoc {
             return;
         }
         for (key, value) in defaults() {
-            if matches!(key.as_str(), "macros" | "emoji" | "english_words") {
+            // Dữ liệu người dùng (gõ tắt, emoji, từ EN, **dữ liệu tự học**) được giữ; riêng công
+            // tắt tự học trả về mặc định (bật, chưa quyết định) ở bước dưới.
+            if matches!(
+                key.as_str(),
+                "macros" | "emoji" | "english_words" | "style_profile"
+            ) {
                 continue;
             }
             self.map.insert(key, value);
+        }
+        if let Some(Value::Object(sp)) = self.map.get_mut("style_profile") {
+            sp.insert("enabled".into(), Value::Bool(true));
+            sp.insert("decided".into(), Value::Bool(false));
+        }
+    }
+
+    /// Xoá dữ liệu đã học (từ, cặp sửa, tổng Dream RSI); giữ công tắt tự học và mọi khoá khác.
+    pub fn clear_learned(&mut self) {
+        if self.kind != DocKind::Config {
+            return;
+        }
+        if let Some(Value::Object(sp)) = self.map.get_mut("style_profile") {
+            sp.insert("words".into(), Value::Array(Vec::new()));
+            sp.insert("corrections".into(), Value::Array(Vec::new()));
+            sp.remove("rsi");
         }
     }
 

@@ -632,8 +632,14 @@ fn r2_148_cum_can_khoang_trang_that() {
 #[test]
 fn r2_148_drain_uu_tien_tu_go_nhieu_va_khong_mat_phan_con_lai() {
     let mut e = Engine::new(learning());
-    for i in 0..300 {
-        e.style_note_word(&format!("aword{}", letters(i)));
+    for i in 0..300u32 {
+        // Có nguyên âm xen giữa, không lặp ba chữ — qua bộ lọc "từ có hình dạng thật" của P7.
+        let w = format!(
+            "aword{}o{}",
+            char::from(b'a' + (i / 26) as u8),
+            char::from(b'a' + (i % 26) as u8)
+        );
+        e.style_note_word(&w);
     }
     for _ in 0..3 {
         e.style_note_word("zebra");

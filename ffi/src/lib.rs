@@ -403,7 +403,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         english_words: cfg.english_words.clone(),
         // P7 (vòng 54): User Style Profile — từ cá nhân (boost) + cặp sai→đúng
         // (suggestion-only). Rỗng khi `style_profile.enabled == false`.
-        style_words: if cfg.style_profile.enabled {
+        style_words: if cfg.style_profile.effective_enabled() {
             cfg.style_profile
                 .words
                 .iter()
@@ -412,7 +412,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
         } else {
             Vec::new()
         },
-        style_corrections: if cfg.style_profile.enabled {
+        style_corrections: if cfg.style_profile.effective_enabled() {
             cfg.style_profile
                 .corrections
                 .iter()
@@ -422,7 +422,7 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
             Vec::new()
         },
         // P7: master-switch HỌC — chỉ bật khi style_profile.enabled (G8).
-        style_learning_enabled: cfg.style_profile.enabled,
+        style_learning_enabled: cfg.style_profile.effective_enabled(),
         quick_telex: cfg.quick_telex,
         suggest_vn_complete: cfg.suggest.enabled,
         suggest_space_complete: cfg.suggest.enabled
@@ -2804,6 +2804,64 @@ mod tests {
         std::fs::write(&path, cfg).unwrap();
         assert_eq!(ime_style_profile_persist(inst, p.as_ptr(), p.len()), 0);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), cfg);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 0.2.74: config KHÔNG có khối style_profile (mặc định) → tự học BẬT; file cũ ghi
+    /// `enabled:false` chưa `decided` cũng bật; `decided:true` + tắt → không ghi gì. Số đo Dream RSI
+    /// đi theo dạng delta và cộng dồn qua hai lần lưu.
+    #[test]
+    fn p7_tu_hoc_bat_mac_dinh_luu_kem_dream_rsi_delta() {
+        let dir = std::env::temp_dir().join(format!("textvn-p7on-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.json");
+        let p = path.to_str().unwrap();
+        let type_word = |inst: *mut ime_instance, w: &str| {
+            for c in w.chars() {
+                let _ = key_char(inst, c);
+            }
+            let _ = key_char(inst, ' ');
+        };
+        for (cfg, expect_learn) in [
+            (r#"{"config_version":1}"#, true),
+            (
+                r#"{"config_version":1,"style_profile":{"enabled":false}}"#,
+                true,
+            ),
+            (
+                r#"{"config_version":1,"style_profile":{"enabled":false,"decided":true}}"#,
+                false,
+            ),
+        ] {
+            std::fs::write(&path, cfg).unwrap();
+            let inst = new_default();
+            assert_eq!(ime_reload_config(inst, cfg.as_ptr(), cfg.len()), 0);
+            type_word(inst, "blorptastic");
+            assert_eq!(ime_style_profile_persist(inst, p.as_ptr(), p.len()), 0);
+            let saved = std::fs::read_to_string(&path).unwrap();
+            assert_eq!(
+                saved.contains("blorptastic"),
+                expect_learn,
+                "{cfg} → {saved}"
+            );
+            if expect_learn {
+                let cfg2 = textvn_config::parse_config(&saved).unwrap();
+                assert_eq!(cfg2.style_profile.words[0].word, "blorptastic");
+                assert!(cfg2.style_profile.rsi.keys_typed >= 11, "{saved}");
+                let first = cfg2.style_profile.rsi.keys_typed;
+                // Gõ thêm rồi lưu lần hai: cộng dồn delta, không đếm đúp phần đã lưu.
+                type_word(inst, "ab");
+                assert_eq!(ime_style_profile_persist(inst, p.as_ptr(), p.len()), 0);
+                let again =
+                    textvn_config::parse_config(&std::fs::read_to_string(&path).unwrap()).unwrap();
+                assert_eq!(
+                    again.style_profile.rsi.keys_typed,
+                    first + 3,
+                    "\"ab\" + dấu cách"
+                );
+            }
+            ime_instance_free(inst);
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 

@@ -44,7 +44,7 @@ const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 /// Kích thước dưới đây là **vùng client**; khung cửa sổ tính bằng AdjustWindowRectEx
 /// để thanh tiêu đề dày/mỏng (theme, DPI) không cắt mất hàng nút cuối.
 const CLIENT_DESIGN_WIDTH: i32 = 900;
-const CLIENT_DESIGN_HEIGHT: i32 = 691;
+const CLIENT_DESIGN_HEIGHT: i32 = 759;
 const MACRO_DESIGN_WIDTH: i32 = 720;
 const MACRO_DESIGN_HEIGHT: i32 = 560;
 const COMPACT_SCALE: f64 = 2.0 / 3.0;
@@ -74,6 +74,10 @@ const ID_BTN_ENGLISH: isize = 2022;
 const ID_COMBO_ASSIST_MODE: isize = 2023;
 const ID_COMBO_ASSIST_AUTO_FIX: isize = 2024;
 const ID_LBL_WORDLIST_HINT: isize = 4101;
+// P7/P10 (0.2.74): tự học + Dream RSI nằm trong khung Trợ lý ngữ pháp.
+const ID_CHK_STYLE: isize = 2026;
+const ID_BTN_STYLE_CLEAR: isize = 2027;
+const ID_LBL_STYLE_STATS: isize = 4102;
 // ID cho STATIC/GROUPBOX (không tương tác) — cần để re-layout theo DPI (WM_DPICHANGED).
 const ID_LBL_BASE: isize = 3000;
 // Control IDs — cửa sổ Gõ tắt
@@ -555,7 +559,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 33] = [
+const DIALOG_LAYOUT: [Ctl; 36] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -675,7 +679,7 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "Trợ lý ngữ pháp",
         BS_GROUPBOX,
-        (15, 399, 870, 85),
+        (15, 399, 870, 153),
         ID_LBL_BASE + 7,
     ),
     ctl("STATIC", "Chế độ:", 0, (L, 437, 95, 30), ID_LBL_BASE + 8),
@@ -700,33 +704,50 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         (605, 434, 265, 200),
         ID_COMBO_ASSIST_AUTO_FIX,
     ),
+    // Tự học (P7) + Dream RSI (P10): công tắt, nút xoá dữ liệu, dòng số liệu. Bật mặc định
+    // (0.2.74); chỉ học trên máy này, không học ở ô mật khẩu/terminal.
+    ctl(
+        "BUTTON",
+        STYLE_CHECKBOX_LABEL,
+        CHK,
+        (L, 478, 600, 32),
+        ID_CHK_STYLE,
+    ),
+    ctl(
+        "BUTTON",
+        STYLE_CLEAR_LABEL,
+        BTN,
+        (650, 474, 220, 38),
+        ID_BTN_STYLE_CLEAR,
+    ),
+    ctl("STATIC", "", 0, (L, 518, 838, 28), ID_LBL_STYLE_STATS),
     // 4. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
     ctl(
         "BUTTON",
         "Hệ thống",
         BS_GROUPBOX,
-        (15, 494, 870, 124),
+        (15, 562, 870, 124),
         ID_LBL_BASE + 6,
     ),
     ctl(
         "BUTTON",
         "Khởi động cùng Windows",
         CHK,
-        (L, 528, CW, 32),
+        (L, 596, CW, 32),
         ID_CHK_AUTOSTART,
     ),
     ctl(
         "BUTTON",
         "Bật hội thoại này khi khởi động",
         CHK,
-        (R, 528, 400, 32),
+        (R, 596, 400, 32),
         ID_CHK_SHOW_ON_STARTUP,
     ),
     ctl(
         "BUTTON",
         "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
         CHK,
-        (L, 570, 830, 32),
+        (L, 638, 830, 32),
         ID_CHK_CTRL_SHIFT,
     ),
     // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải). Mỗi nút có biểu tượng + gợi ý
@@ -736,21 +757,21 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "\u{2753}  Hướng dẫn",
         BTN,
-        (15, 628, 118, 48),
+        (15, 696, 118, 48),
         ID_BTN_HELP,
     ),
     ctl(
         "BUTTON",
         "\u{2139}  Thông tin",
         BTN,
-        (139, 628, 112, 48),
+        (139, 696, 112, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
         "\u{2328}  Gõ tắt...",
         BTN,
-        (257, 628, 112, 48),
+        (257, 696, 112, 48),
         ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
@@ -758,14 +779,14 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "\u{270E}  Từ điển EN...",
         BTN,
-        (375, 628, 140, 48),
+        (375, 696, 140, 48),
         ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
         "\u{21BA}  Mặc định",
         BTN,
-        (521, 628, 100, 48),
+        (521, 696, 100, 48),
         ID_BTN_DEFAULT,
     ),
     // Ẩn vào khay đưa cửa sổ về khay (bộ gõ vẫn chạy); Thoát tắt hẳn ứng dụng.
@@ -773,14 +794,14 @@ const DIALOG_LAYOUT: [Ctl; 33] = [
         "BUTTON",
         "\u{2B07}  Ẩn vào khay",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (632, 628, 150, 48),
+        (632, 696, 150, 48),
         ID_BTN_CLOSE,
     ),
     ctl(
         "BUTTON",
         "\u{23FB}  Thoát",
         BTN,
-        (788, 628, 98, 48),
+        (788, 696, 98, 48),
         ID_BTN_EXIT,
     ),
 ];
@@ -960,6 +981,8 @@ fn populate_controls_from_config(hwnd: HWND) {
         set_chk(hwnd, ID_CHK_QUICK_TELEX, cfg.quick_telex);
         set_chk(hwnd, ID_CHK_MACRO_WHEN_OFF, cfg.allow_macro_when_vi_off);
         set_chk(hwnd, ID_CHK_SUGGEST, cfg.suggest.enabled);
+        set_chk(hwnd, ID_CHK_STYLE, cfg.style_profile.effective_enabled());
+        refresh_style_stats(hwnd, &cfg.style_profile);
         set_chk(
             hwnd,
             ID_CHK_AUTOSTART,
@@ -1078,6 +1101,7 @@ fn apply_option_checkbox(
         ID_CHK_AUTO_CAPITALIZE => svc.set_auto_capitalize(checked),
         ID_CHK_QUICK_TELEX => svc.set_quick_telex(checked),
         ID_CHK_SUGGEST => svc.set_suggest_enabled(checked),
+        ID_CHK_STYLE => svc.set_style_learning(checked),
         ID_CHK_MACRO_WHEN_OFF => svc.set_allow_macro_when_vi_off(checked),
         ID_CHK_SHOW_ON_STARTUP => svc.set_show_dialog_on_startup(checked),
         _ => return None,
@@ -1136,6 +1160,22 @@ unsafe extern "system" fn dialog_wnd_proc(
                 ),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
+                ID_BTN_STYLE_CLEAR => {
+                    // Xoá không hoàn tác được → hỏi lại (mặc định "Không").
+                    let title = w("Xóa dữ liệu đã học?");
+                    let body = w(STYLE_CLEAR_CONFIRM);
+                    let answer = MessageBoxW(
+                        Some(hwnd),
+                        PCWSTR(body.as_ptr()),
+                        PCWSTR(title.as_ptr()),
+                        MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2,
+                    );
+                    if answer == IDYES
+                        && save_config_change(hwnd, |ctx| ctx.svc.clear_learned_style())
+                    {
+                        populate_controls_from_config(hwnd);
+                    }
+                }
 
                 ID_BTN_DEFAULT => {
                     if save_config_change(hwnd, |ctx| ctx.svc.reset_config_defaults()) {
@@ -1942,6 +1982,44 @@ unsafe extern "system" fn macro_wnd_proc(
     }
 }
 
+/// Nhãn công tắt tự học — CÙNG chữ trên Windows/Linux/macOS (test `labels_match_linux_settings_panel`).
+pub const STYLE_CHECKBOX_LABEL: &str = "Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)";
+/// Nhãn nút xoá dữ liệu học — cùng chữ 3 nền tảng.
+pub const STYLE_CLEAR_LABEL: &str = "Xóa dữ liệu đã học";
+/// Hộp thoại xác nhận xoá — cùng nội dung 3 nền tảng.
+pub const STYLE_CLEAR_CONFIRM: &str = "Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này? Việc này không hoàn tác được. Gõ tắt và từ điển EN của bạn được giữ nguyên.";
+
+/// Dòng số liệu dưới công tắt tự học (cùng định dạng 3 nền tảng): số mục đã học + Dream RSI.
+pub fn style_stats_text(
+    words: usize,
+    corrections: usize,
+    rsi: &textvn_config::RsiTotals,
+) -> String {
+    format!(
+        "Đã học: {words} từ · {corrections} cặp sửa  |  Dream RSI: tiết kiệm {}% số phím ({} ký tự)",
+        rsi.savings_rate_pct(),
+        rsi.chars_saved
+    )
+}
+
+/// Cập nhật dòng số liệu + trạng thái nút xoá theo hồ sơ hiện tại.
+#[cfg(windows)]
+fn refresh_style_stats(hwnd: HWND, profile: &textvn_config::StyleProfileSettings) {
+    let text = w(&style_stats_text(
+        profile.words.len(),
+        profile.corrections.len(),
+        &profile.rsi,
+    ));
+    if let Ok(h) = unsafe { GetDlgItem(Some(hwnd), ID_LBL_STYLE_STATS as i32) } {
+        let _ = unsafe { SetWindowTextW(h, PCWSTR(text.as_ptr())) };
+    }
+    let has_data =
+        !profile.words.is_empty() || !profile.corrections.is_empty() || !profile.rsi.is_zero();
+    if let Ok(h) = unsafe { GetDlgItem(Some(hwnd), ID_BTN_STYLE_CLEAR as i32) } {
+        let _ = unsafe { EnableWindow(h, has_data) };
+    }
+}
+
 #[cfg(windows)]
 fn show_information(owner: HWND, title: &str, content: &str) {
     let title = w(title);
@@ -1985,6 +2063,9 @@ mod tests {
             ID_BTN_MACROS,
             ID_COMBO_ASSIST_MODE,
             ID_COMBO_ASSIST_AUTO_FIX,
+            ID_CHK_STYLE,
+            ID_BTN_STYLE_CLEAR,
+            ID_LBL_STYLE_STATS,
             ID_EDIT_MACROS,
             ID_RAD_TRIGGER_TAB,
             ID_RAD_TRIGGER_SPACE,
@@ -2078,6 +2159,8 @@ mod tests {
             "Gõ tắt cả khi tắt tiếng Việt",
             "Gõ tắt...",
             "Từ điển EN...",
+            STYLE_CHECKBOX_LABEL,
+            STYLE_CLEAR_LABEL,
         ] {
             assert!(
                 linux.contains(label),
@@ -2088,6 +2171,45 @@ mod tests {
                 "nhãn `{label}` thiếu trong bảng cài đặt macOS"
             );
         }
+    }
+
+    /// Dòng số liệu tự học + Dream RSI: cùng định dạng 3 nền tảng (macOS dựng ở `ConfigModel.swift`).
+    #[test]
+    fn style_stats_line_matches_every_platform() {
+        let linux = include_str!("../../adapters/linux-settings/src/settings_window.c");
+        let mac = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/ConfigModel.swift");
+        for part in [
+            "Đã học:",
+            "từ ·",
+            "cặp sửa",
+            "Dream RSI: tiết kiệm",
+            "số phím",
+            "ký tự)",
+        ] {
+            assert!(linux.contains(part), "Linux thiếu `{part}`");
+            assert!(mac.contains(part), "macOS thiếu `{part}`");
+        }
+        let rsi = textvn_config::RsiTotals {
+            keys_typed: 60,
+            accepts: 4,
+            chars_saved: 40,
+        };
+        assert_eq!(
+            style_stats_text(1, 0, &rsi),
+            "Đã học: 1 từ · 0 cặp sửa  |  Dream RSI: tiết kiệm 40% số phím (40 ký tự)"
+        );
+        assert_eq!(
+            style_stats_text(0, 0, &textvn_config::RsiTotals::default()),
+            "Đã học: 0 từ · 0 cặp sửa  |  Dream RSI: tiết kiệm 0% số phím (0 ký tự)"
+        );
+        // Hộp thoại xác nhận cùng nội dung 3 nền tảng.
+        assert!(linux.contains("Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này?"));
+        assert!(
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift")
+                .contains("Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này?")
+        );
+        assert!(STYLE_CLEAR_CONFIRM
+            .contains("Xóa toàn bộ từ, cặp sửa và số liệu Dream RSI đã học trên máy này?"));
     }
 
     /// Popup "Thông tin": CÙNG câu giới thiệu + chi tiết trên 3 nền tảng (yêu cầu chủ

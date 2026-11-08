@@ -77,8 +77,41 @@ static void test_defaults_when_missing(tv_paths *p) {
     assert(s.assist_mode == 1 && s.assist_idle_ms == TV_ASSIST_DEFAULT_IDLE_MS);
     /* P6: dự đoán văn bản opt-in — mặc định TẮT (khớp schema Windows/macOS). */
     assert(!s.suggest_enabled);
-    /* P7 (vòng 54): USP — OPT-IN tắt mặc định (G8; khớp schema/config). */
+    /* P7: tự học BẬT mặc định từ 0.2.74 (khớp schema/config), chưa học gì. */
+    assert(s.style_profile_enabled);
+    assert(s.style_words == 0 && s.style_corrections == 0 && s.rsi_rate_pct == 0);
+}
+
+/* 0.2.74: file cũ (≤ 0.2.73) ghi enabled:false khi chưa từng chọn vẫn tính là BẬT; bấm công tắt
+ * ghi decided → tôn trọng; xoá dữ liệu học giữ nguyên công tắt. */
+static void test_style_learning_default_on_and_decided(tv_paths *p) {
+    write_file(p->config,
+               "{\"config_version\":1,\"style_profile\":{\"enabled\":false,"
+               "\"words\":[{\"word\":\"kubernetes\",\"count\":3}],"
+               "\"corrections\":[{\"from\":\"nghanh\",\"to\":\"ngành\",\"count\":1}],"
+               "\"rsi\":{\"keys_typed\":60,\"accepts\":4,\"chars_saved\":40}}}");
+    tv_snapshot s;
+    tv_snapshot_load(&s, p);
+    assert(s.style_profile_enabled);               /* chưa decided → bật */
+    assert(s.style_words == 1 && s.style_corrections == 1);
+    assert(s.rsi_rate_pct == 40 && s.rsi_chars_saved == 40); /* 40 / (40 + 60) */
+
+    assert(tv_config_set_bool(p, "style_profile.enabled", 0) == 0); /* người dùng tắt */
+    tv_snapshot_load(&s, p);
     assert(!s.style_profile_enabled);
+    assert(s.style_words == 1);                    /* tắt không xoá dữ liệu */
+
+    assert(tv_config_set_bool(p, "style_profile.enabled", 1) == 0);
+    assert(tv_config_clear_learned(p) == 0);
+    tv_snapshot_load(&s, p);
+    assert(s.style_profile_enabled);
+    assert(s.style_words == 0 && s.style_corrections == 0 && s.rsi_rate_pct == 0);
+
+    /* Mặc định: giữ dữ liệu học, trả công tắt về chưa-quyết-định (bật). */
+    assert(tv_config_set_bool(p, "style_profile.enabled", 0) == 0);
+    assert(tv_config_reset_defaults(p) == 0);
+    tv_snapshot_load(&s, p);
+    assert(s.style_profile_enabled);
 }
 
 static void test_patch_keeps_user_data(tv_paths *p) {
@@ -264,6 +297,7 @@ int main(void) {
     test_paths();
     test_defaults_when_missing(&p);
     test_state(&p);
+    test_style_learning_default_on_and_decided(&p);
     test_patch_keeps_user_data(&p);
     test_macros(&p);
     test_reset_defaults(&p);

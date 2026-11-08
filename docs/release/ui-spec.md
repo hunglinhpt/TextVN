@@ -140,6 +140,8 @@ Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật
 > `textvn-cli assist show` (D38) · code Windows: `adapters/windows-tsf/src/assist.rs` (`OverlayView`).
 >
 > **Trạng thái parity (cập nhật 2026-10-22, CI 7/7 xanh):** Windows ⏳ (overlay TSF/Mode 1 + Mode 2/A3, chờ verify GUI app thật) · macOS ⏳ (`AssistModel.swift` + IMK candidate + `Cmd+Z` undo, chờ verify máy thật) · Linux ⏳ (Fcitx5 và IBus đều đã nối + precondition D12 + undo, chờ verify máy thật) · **Settings cả 3 OS ✓** (khung "Trợ lý ngữ pháp" Win32/SwiftUI/GTK4 nhãn khớp nhau). Mặc định tắt hoàn toàn (`mode:"off"`, `auto_fix:"off"`).
+>
+> **Tự học + Dream RSI (0.2.74):** khung "Trợ lý ngữ pháp" của Cài đặt có thêm một hàng chung 3 OS — ô *Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)* (bật mặc định), nút *Xóa dữ liệu đã học* (hộp thoại xác nhận, mặc định "Không") và dòng số liệu *Đã học: N từ · M cặp sửa  |  Dream RSI: tiết kiệm X% số phím (K ký tự)*. Nút xóa mờ khi chưa có dữ liệu. Không học ở ô mật khẩu/terminal; không gửi đi đâu.
 
 
 
