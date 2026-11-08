@@ -7,7 +7,10 @@
 | Nội dung | Phản hồi chủ repo: tự học/Dream RSI/Hồ sơ phong cách chưa bật mặc định, chưa có nút UI. `style_profile.enabled` mặc định bật + `decided`; khung Trợ lý ngữ pháp có công tắt + số liệu + nút Xóa trên Windows/Linux/macOS (cùng nhãn, parity test); `rsi_delta` + `style_profile.rsi` lưu Dream RSI bền; tray gom số đo ≤ 1 lần/60 s không `ConfigReload`; lọc rác bàn phím khi học; Mặc định giữ dữ liệu học; sửa SIGBUS test CLI (E44) |
 | Đo | workspace test xanh · clippy -D warnings 0 (Windows + Linux target) · preflight 23/23 · `learning_curve` 5, `style_doc` 4, config `style_merge` 4, tray `style_merge` 1, ffi `p7_*` 1, C `test_style_learning_*`, Swift `testStyleLearningDefaultOnDecidedAndClear` |
 | Ghi chú giới hạn | Chưa chụp ảnh hộp thoại thật (tray chủ repo đang chạy); Backspace hoàn tác accept đã báo làm delta kế tiếp thiếu ≤ 1 accept; xóa dữ liệu không xóa phần pending còn trong RAM của engine (lượt drain sau có thể ghi lại vài từ vừa gõ) |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| Phát hành | tag `v0.2.74` git-signed trên `05cf3df5`; CI 7/7 xanh trên commit gắn tag; release-candidate: `publish` đỏ lần đầu do tải cosign lỗi tạm (curl 22) → `gh run rerun --failed` xanh, **34 asset**; `gpg --verify SHA256SUMS.txt` Good signature, 4 `.asc` Good, hash 5 file khớp `SHA256SUMS.txt` |
+| Homebrew (B7b/B7d) | cask `version "0.2.74"` + `sha256` = mac zip `9ce4ec5dae67d5af…` (repo); sync-cask của tap đỏ do `github.com/releases/download` trả 504 diện rộng (cả v0.2.73) — chạy lại khi CDN hồi |
+| approved (B7c) | `approved/v0.2.74/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.74 (sha `a836b6192fadcefc…`); `debian/changelog` 0.2.74-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.73 — luật `spelling` theo âm tiết dựng sẵn (P4-13, R2-157, E42, 2026-11-08)
 
