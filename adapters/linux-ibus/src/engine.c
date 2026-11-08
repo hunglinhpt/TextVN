@@ -1150,6 +1150,7 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
             self->assist_autofixed = FALSE;
             assist_idle_cancel(self);
         } else {
+            clear_assist_ui(self); /* gõ tiếp là ẩn ngay; timer mới hiện lại sau 1 s */
             assist_idle_arm(self);
         }
         update_preview(self);
@@ -1157,6 +1158,7 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     }
     /* R2-155: mọi phím gõ chữ/xoá hẹn lại timer idle (danh sách đang hiện đã bị ẩn ở đầu hàm). */
     if (lc_assist_idle_arms(key.kind == LC_KEY_CHAR, key.kind == LC_KEY_BACKSPACE, s_vi_enabled)) {
+        clear_assist_ui(self); /* phím số/chữ trần không đóng danh sách sống — ẩn ở đây */
         assist_idle_arm(self);
     }
 
