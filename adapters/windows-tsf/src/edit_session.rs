@@ -249,7 +249,19 @@ impl TsfShared {
         (vi_on || passthrough_on).then_some(vi_on)
     }
 
+    #[track_caller]
     pub fn reset_engine(&self) {
+        // Chẩn đoán (`TEXTVN_TSF_TRACE`): chỉ vị trí gọi, không chữ (S2).
+        crate::trace::event(
+            self.tid,
+            format_args!(
+                "reset_engine from line {}",
+                std::panic::Location::caller().line()
+            ),
+        );
+        // Engine reset = focus đổi / chord / câu bị bỏ: timer idle còn treo sẽ check nhầm
+        // ngữ cảnh cũ (chưa từng có chỗ nào huỷ nó — R2-154).
+        super::panel_idle::cancel();
         if let Ok(mut thread) = self.thread.try_borrow_mut() {
             thread.engine.reset();
         }
@@ -547,12 +559,6 @@ impl KeyEditSession {
                     // Trợ lý chỉ chạy khi tiếng Việt bật — dự đoán Mode EN không kéo theo sửa
                     // câu; Linux/macOS cùng luật (R2-143).
                     let assist_on = shared.ipc.is_enabled();
-                    if assist_on
-                        && (trigger == AssistTrigger::Word
-                            || (self.key == KeyKind::Backspace && live_popup_visible(shared)))
-                    {
-                        super::panel_idle::schedule(&self.shared, &self.ctx);
-                    }
                     let sentence_check = assist_on
                         .then(|| super::assist::after_trigger(shared, trigger))
                         .flatten();
@@ -575,11 +581,21 @@ impl KeyEditSession {
                                 auto_fixed =
                                     apply_sentence_auto_fix(&self.shared, &self.ctx, ec, &check);
                             }
-                            if !auto_fixed {
-                                super::panel_idle::schedule(&self.shared, &self.ctx);
+                            if auto_fixed {
+                                // Mode 2 đã tự sửa (và tự hiện phần còn lại theo cấu hình) —
+                                // không để timer idle hiện lại chồng lên.
+                                super::panel_idle::cancel();
                             }
                         }
                     }
+                }
+                // R2-154 (chủ repo: "dừng 1 s phải detect từ và câu"): MỌI phím gõ chữ/dấu/xoá
+                // — kể cả khi đang composing, kể cả `.` `,` — lên lịch lại timer idle. Trước
+                // đây chỉ phím Space/`,`/`;`/`:` lên lịch, nên dừng giữa từ hay sau chữ
+                // cuối chưa có dấu cách thì không bao giờ có popup; và timer hẹn từ phím
+                // trigger vẫn nổ giữa lúc đang gõ tiếp.
+                if super::panel_idle::idle_arms(self.key, shared.ipc.is_enabled()) {
+                    super::panel_idle::schedule(&self.shared, &self.ctx);
                 }
                 // R2-134: chữ mờ gợi ý sẵn sau mỗi phím gõ (Tab/phím tắt sẽ chèn đúng nó).
                 if matches!(
@@ -886,7 +902,7 @@ const DEFERRED_FIX_MS: u32 = 120;
 #[cfg(windows)]
 thread_local! {
     /// Bước sửa câu đang chờ timer (thread UI của app).
-    static DEFERRED_FIX: RefCell<Option<(std::rc::Weak<TsfShared>, ApplySentenceFixSession)>> =
+    static DEFERRED_FIX: RefCell<Option<(std::rc::Weak<TsfShared>, ITfContext, ITfEditSession)>> =
         const { RefCell::new(None) };
 }
 
@@ -895,14 +911,16 @@ thread_local! {
 #[cfg(windows)]
 fn schedule_deferred_fix(
     shared: &Rc<TsfShared>,
-    _ctx: &ITfContext,
-    session: ApplySentenceFixSession,
+    ctx: &ITfContext,
+    session: impl Into<ITfEditSession>,
 ) -> bool {
     let hwnd = shared.overlay.ensure_timer_hwnd();
     if hwnd == 0 {
         return false;
     }
-    DEFERRED_FIX.with(|slot| *slot.borrow_mut() = Some((Rc::downgrade(shared), session)));
+    let session: ITfEditSession = session.into();
+    DEFERRED_FIX
+        .with(|slot| *slot.borrow_mut() = Some((Rc::downgrade(shared), ctx.clone(), session)));
     // SAFETY: hwnd là overlay của chính thread này.
     let timer = unsafe {
         windows::Win32::UI::WindowsAndMessaging::SetTimer(
@@ -922,14 +940,12 @@ pub(crate) fn on_deferred_fix_timer(hwnd: windows::Win32::Foundation::HWND) {
     unsafe {
         let _ = windows::Win32::UI::WindowsAndMessaging::KillTimer(Some(hwnd), TIMER_DEFERRED_FIX);
     }
-    let Some((weak, session)) = DEFERRED_FIX.with(|slot| slot.borrow_mut().take()) else {
+    let Some((weak, ctx, session)) = DEFERRED_FIX.with(|slot| slot.borrow_mut().take()) else {
         return;
     };
     let Some(shared) = weak.upgrade() else {
         return;
     };
-    let ctx = session.ctx.clone();
-    let session: ITfEditSession = session.into();
     let requested = request_sync_or_async(&ctx, shared.tid, &session);
     crate::trace::event(
         shared.tid,
@@ -1356,7 +1372,7 @@ pub fn apply_assist_suggestion(
     }
     let session: ITfEditSession =
         ApplyAssistFixSession::new(shared.clone(), ctx.clone(), active, plan).into();
-    request_sync_or_async(ctx, shared.tid, &session)
+    request_fix_after_settle(shared, ctx, session)
 }
 
 /// Xin edit session: ưu tiên đồng bộ (biết ngay kết quả); TSF từ chối thì xin
@@ -2147,6 +2163,126 @@ impl ApplyAssistUndoSession {
     }
 }
 
+/// Panel trợ lý khi người dùng DỪNG gõ ~1 s (`panel_idle::on_timer`). Timer không có edit
+/// cookie nên phải xin session: trước đây gọi thẳng với `ec = 0` ⇒ `GetSelection` luôn lỗi
+/// ⇒ "no selection" ⇒ popup KHÔNG BAO GIỜ hiện từ đường idle (R2-154).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct PanelIdleSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+}
+
+#[cfg(windows)]
+impl PanelIdleSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for PanelIdleSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let shared = &self.shared;
+            if !shared.is_assist_display_enabled() {
+                return;
+            }
+            // Popup chọn-sửa bằng phím (Ctrl+Shift+G) đang mở: không được thay bằng popup
+            // idle không tương tác — Tab/↑↓/Enter của người dùng sẽ rơi vào app.
+            let on_demand_open = shared.overlay.is_visible()
+                && shared
+                    .assist
+                    .try_borrow()
+                    .ok()
+                    .and_then(|slot| slot.as_ref().map(|a| a.on_demand))
+                    .unwrap_or(false);
+            if on_demand_open {
+                return;
+            }
+            let Some(check) = crate::assist::check_sentence_on_demand(shared) else {
+                return;
+            };
+            let _ = show_assist_overlay_with_recheck(shared, &self.ctx, ec, &check, true);
+        }));
+        Ok(())
+    }
+}
+
+/// Chốt composition đang mở (nguyên văn, KHÔNG reset engine) rồi hẹn chạy `then` sau
+/// `DEFERRED_FIX_MS` — đường chung cho click "Sửa tất cả"/áp một gợi ý khi popup hiện
+/// giữa từ đang gõ. Cùng lý do với `hotkey_fix_sentence` (R2-135: Monaco vẽ lại textarea
+/// bất đồng bộ nên không sửa ngay trong session chốt).
+#[cfg(windows)]
+#[implement(ITfEditSession)]
+pub struct SettleThenFixSession {
+    _guard: ObjGuard,
+    shared: Rc<TsfShared>,
+    ctx: ITfContext,
+    then: RefCell<Option<ITfEditSession>>,
+}
+
+#[cfg(windows)]
+impl SettleThenFixSession {
+    pub fn new(shared: Rc<TsfShared>, ctx: ITfContext, then: ITfEditSession) -> Self {
+        Self {
+            _guard: ObjGuard::new(),
+            shared,
+            ctx,
+            then: RefCell::new(Some(then)),
+        }
+    }
+}
+
+#[cfg(windows)]
+impl ITfEditSession_Impl for SettleThenFixSession_Impl {
+    fn DoEditSession(&self, ec: u32) -> Result<()> {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let shared = &self.shared;
+            let comp = shared
+                .composition
+                .try_borrow_mut()
+                .ok()
+                .and_then(|mut c| c.take());
+            if let Some(c) = comp {
+                // SAFETY: trong DoEditSession với ec hợp lệ; composition của TIP.
+                let _ = unsafe { c.EndComposition(ec) };
+            }
+            if let Ok(mut text) = shared.comp_text.try_borrow_mut() {
+                text.clear();
+            }
+            let then = self.then.borrow_mut().take();
+            let scheduled = then
+                .map(|s| schedule_deferred_fix(shared, &self.ctx, s))
+                .unwrap_or(false);
+            crate::trace::event(
+                shared.tid,
+                format_args!("assist settle-then-fix: scheduled={scheduled}"),
+            );
+            if !scheduled {
+                shared.reset_engine();
+            }
+        }));
+        Ok(())
+    }
+}
+
+/// Xin chạy `fix` an toàn: composition đang mở (popup hiện giữa từ) ⇒ chốt trước rồi sửa
+/// hẹn giờ; không composing ⇒ chạy ngay như cũ.
+#[cfg(windows)]
+fn request_fix_after_settle(shared: &Rc<TsfShared>, ctx: &ITfContext, fix: ITfEditSession) -> bool {
+    if !shared.is_composing() {
+        return request_sync_or_async(ctx, shared.tid, &fix);
+    }
+    let settle: ITfEditSession = SettleThenFixSession::new(shared.clone(), ctx.clone(), fix).into();
+    request_sync_or_async(ctx, shared.tid, &settle)
+}
+
 /// Session cho `Ctrl+Shift+G`: kiểm tra lại câu rồi hiện overlay (AS-030).
 #[cfg(windows)]
 #[implement(ITfEditSession)]
@@ -2171,6 +2307,8 @@ impl AssistRecallSession {
 impl ITfEditSession_Impl for AssistRecallSession_Impl {
     fn DoEditSession(&self, ec: u32) -> Result<()> {
         let shared = &self.shared;
+        // Người dùng chủ động mở popup: timer idle còn treo không được chen vào.
+        crate::panel_idle::cancel();
         let showed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let Some(check) = crate::assist::check_sentence(shared) else {
                 return false;
@@ -2787,7 +2925,7 @@ pub(crate) fn apply_sentence_fix_all(shared: &Rc<TsfShared>) {
         false,
     )
     .into();
-    let requested = request_sync_or_async(&active.ctx, shared.tid, &session);
+    let requested = request_fix_after_settle(shared, &active.ctx, session);
     crate::trace::event(
         shared.tid,
         format_args!("assist fix-all: session requested={requested}"),

@@ -311,18 +311,55 @@ try {
 
         $fixed = U 't{u}00f4i {u}0111i h{u}1ecdc '
         Run-Case $app 'live popup visible' {
-            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 700
+            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 1700
             $ov = [D]::Overlay() -ne [IntPtr]::Zero
             Report $n 'live popup visible on error' $ov 'overlay' "overlay=$ov" ''
         }
+        # R2-154: the idle timer must fire after the LAST key whatever it was, also mid-word
+        # (composition still open) and after a comma; typing on hides the popup at once.
+        Run-Case $app 'live popup mid-word' {
+            [D]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 1700
+            $ov = [D]::Overlay() -ne [IntPtr]::Zero
+            Report $n 'live popup visible mid-word (no trailing space)' $ov 'overlay' "overlay=$ov" ''
+        }
+        Run-Case $app 'live popup after comma' {
+            [D]::Type('tooi tooi, '); Start-Sleep -Milliseconds 1700
+            $ov = [D]::Overlay() -ne [IntPtr]::Zero
+            Report $n 'live popup visible after comma' $ov 'overlay' "overlay=$ov" ''
+        }
+        Run-Case $app 'live popup hides on typing' {
+            [D]::Type('tooi tooi ddi '); Start-Sleep -Milliseconds 1700
+            $shown = [D]::Overlay() -ne [IntPtr]::Zero
+            [D]::Type('h'); Start-Sleep -Milliseconds 250
+            $hidden = [D]::Overlay() -eq [IntPtr]::Zero
+            Report $n 'live popup hides at once when typing resumes' ($shown -and $hidden) 'shown then hidden' "shown=$shown hidden=$hidden" ''
+        }
+        Run-Case $app 'live popup quiet while typing' {
+            $seen = $false
+            foreach ($w in @('tooi ', 'tooi ', 'ddi ', 'hocj ')) { [D]::Type($w); Start-Sleep -Milliseconds 400; if ([D]::Overlay() -ne [IntPtr]::Zero) { $seen = $true } }
+            Report $n 'no popup while typing continuously' (-not $seen) 'none' "seen=$seen" ''
+        }
+        Run-Case $app 'click fix-all mid-word' {
+            [D]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 1700
+            $info = [D]::ClickFixAll()
+            $r = WaitText $app $fixed.TrimEnd()
+            Report $n 'click Sua tat ca while the last word is still open' $r[0] $fixed.TrimEnd() $r[1] $info
+        }
+        Run-Case $app 'alt+1 mid-word' {
+            [D]::Type('tooi tooi ddi hocj'); Start-Sleep -Milliseconds 1700
+            $ov = [D]::Overlay() -ne [IntPtr]::Zero
+            [D]::Chord(0x12, 0x31)
+            $r = WaitText $app $fixed.TrimEnd()
+            Report $n 'Alt+1 applies suggestion while the last word is still open' $r[0] $fixed.TrimEnd() $r[1] "overlay=$ov"
+        }
         Run-Case $app 'click fix-all' {
-            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 700
+            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 1700
             $info = [D]::ClickFixAll()
             $r = WaitText $app $fixed
             Report $n 'click Sua tat ca' $r[0] $fixed $r[1] $info
         }
         Run-Case $app 'alt+1' {
-            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 700
+            [D]::Type('tooi tooi ddi hocj '); Start-Sleep -Milliseconds 1700
             $ov = [D]::Overlay() -ne [IntPtr]::Zero
             [D]::Chord(0x12, 0x31)
             $r = WaitText $app $fixed

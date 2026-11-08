@@ -1055,15 +1055,24 @@ pub fn check_text_min_words(
 /// L6 từ D16). Lọc xong rỗng → `None` (không popup cho lỗi ảo).
 #[cfg(windows)]
 pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<AssistCheck> {
-    let mut check = check_text_min_words(sentence, auto_capitalize, 1)?;
+    let check = check_text_min_words(sentence, auto_capitalize, 1)?;
+    retain_issues(check, |slot| {
+        !(slot.kind == textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE && slot.start == 0)
+    })
+}
+
+/// Giữ lại các lỗi thoả `keep`, dồn về đầu mảng; rỗng → `None` (không popup cho lỗi ảo).
+#[cfg(windows)]
+fn retain_issues(
+    mut check: AssistCheck,
+    keep: impl Fn(&textvn_ffi::ime_assist_issue_v1) -> bool,
+) -> Option<AssistCheck> {
     let n = check.result.count as usize;
     let mut kept = 0usize;
     for i in 0..n {
         // `slot` copy-out (struct FFI Copy) — tránh borrow khi ghi đè in-place.
         let slot = check.result.issues[i];
-        let is_l6_at_zero =
-            slot.kind == textvn_ffi::IME_ASSIST_KIND_LOWERCASE_SENTENCE && slot.start == 0;
-        if !is_l6_at_zero {
+        if keep(&slot) {
             check.result.issues[kept] = slot;
             kept += 1;
         }
@@ -1073,11 +1082,21 @@ pub fn check_text_fragment(sentence: &str, auto_capitalize: bool) -> Option<Assi
         *slot = zero;
     }
     check.result.count = kept as u32;
-    if kept == 0 {
-        None
-    } else {
-        Some(check)
+    (kept > 0).then_some(check)
+}
+
+/// Câu đang gõ dở kết thúc bằng dấu phẩy (người dùng vừa gõ `,` rồi dừng 1 s): "Dấu phẩy ở
+/// cuối câu" chỉ đúng với câu ĐÃ xong — báo lúc này là popup sai ngay sau mỗi dấu phẩy
+/// (R2-154). Các lỗi khác của câu vẫn giữ.
+#[cfg(windows)]
+fn without_pending_comma(check: AssistCheck) -> Option<AssistCheck> {
+    let pending = check.sentence.trim_end().ends_with(',');
+    if !pending {
+        return Some(check);
     }
+    retain_issues(check, |slot| {
+        slot.kind != textvn_ffi::IME_ASSIST_KIND_COMMA_AT_END
+    })
 }
 
 /// Chạy kiểm tra câu trong ngân sách [`CHECK_BUDGET_MS`] — **không** side effect
@@ -1111,7 +1130,7 @@ pub fn check_sentence_on_demand(shared: &crate::edit_session::TsfShared) -> Opti
     if began.elapsed().as_millis() > CHECK_BUDGET_MS {
         return None;
     }
-    let check = check_text_min_words(&sentence, auto_capitalize, 1);
+    let check = check_text_min_words(&sentence, auto_capitalize, 1).and_then(without_pending_comma);
     crate::trace::event(
         shared.tid,
         format_args!(

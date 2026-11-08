@@ -25,6 +25,7 @@
 | R2-151 | cao | Bộ chặn terminal chỉ có tác dụng trên macOS | Windows gửi role 0, Linux gửi BODY | Windows `is_terminal_exe` (+ gate khớp appdb), IBus input purpose, Fcitx5 Capability/`program()`; Mode EN đưa phím thẳng tới app trong terminal | Test compose, `test_field_detect.c` |
 | R2-152 | cao | macOS/Linux không lưu dữ liệu học, pending phình vô hạn, TextVN.app đè mất | Chỉ Windows có đường drain → tray | FFI `ime_style_profile_persist` (`atomic_write` 0600, xoá pending sau khi ghi); trần pending 2.000; `TextVNConfig.save` giữ dữ liệu trên đĩa | `style_merge.rs`, `r2_152_*` |
 | R2-153 | trung bình | macOS: Ctrl tap reset buffer câu; không self-heal/fail-open; học cặp sửa chưa áp | Lệch với Windows/Linux | Chỉ chốt marked, self-heal, `engine.reset()` khi áp lỗi, học sau khi áp | Test Swift + đọc code |
+| R2-154 | nghiêm trọng | Popup trợ lý không hiện khi dừng gõ 1 s (Windows) — phản hồi chủ repo sau 0.2.69 | `on_timer` dùng `ec = 0` giả; chỉ Space/`,`/`;`/`:` lên lịch; timer không bao giờ bị huỷ; E2E cũ chờ 700 ms; test cũ chỉ mô hình hoá (xem E38) | `PanelIdleSession` xin session thật; mọi phím gõ lên lịch lại kể cả composing; `reset_engine` huỷ timer; popup Ctrl+Shift+G được bảo vệ; áp sửa khi đang composing chốt rồi hẹn giờ; dấu phẩy treo không báo lỗi | `idle_popup_routing.rs` (11 test) + 6 ca E2E mới (`live popup *`, `* mid-word`) |
 | E36 | CI | `ci-linux/ci-deb/ci-aur` đỏ (`unused variable`) ở `ee321b34` | Sửa C không biên dịch được trên máy Windows dev | Sửa ngay; xem `project-common-errors.md` | Đẩy CI sớm mỗi đợt |
 
 ## 2. DFMEA (S/O/D 1–10, RPN sau khi sửa)
@@ -55,6 +56,9 @@
 | FFI thêm `ime_style_profile_persist` | Engine không I/O; đường ghi dùng chung của `config::doc` | ABI thêm 1 hàm, không đổi hàm cũ | `cli verify` 28 hàm, 2 header giống nhau |
 
 ## 4. Rủi ro còn lại (đã biết, chưa xử lý)
+
+- **Popup khi dừng gõ chỉ có trên Windows.** Linux (IBus/Fcitx5) và macOS hiện danh sách gợi ý
+  ngay tại phím kết câu/dấu cách (không có timer 1 s); chưa có popup sau khi dừng giữa từ.
 
 - **IBus với terminal Qt/X11** (Konsole, xterm, Alacritty): không gửi input purpose, IBus không
   cho biết tên app ⇒ vẫn coi là ô thường. Chỉ ảnh hưởng người bật `style_profile` hoặc

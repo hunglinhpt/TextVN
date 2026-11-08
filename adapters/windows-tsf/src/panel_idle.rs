@@ -31,6 +31,14 @@ thread_local! {
     static TIMER_HWND: RefCell<isize> = const { RefCell::new(0) };
 }
 
+/// Phím nào (re)lên lịch timer idle: MỌI phím gõ chữ/dấu câu/xoá — kể cả khi đang composing —
+/// khi tiếng Việt bật. Enter/Tab/Esc/Ctrl+Space/điều hướng KHÔNG đổi câu nên không đếm lại.
+/// Hàm thuần: bộ test `idle_popup_routing` khoá bảng này (R2-154).
+pub fn idle_arms(key: crate::compose::KeyKind, vi_enabled: bool) -> bool {
+    use crate::compose::KeyKind;
+    vi_enabled && matches!(key, KeyKind::Char(_) | KeyKind::Backspace)
+}
+
 /// Ghi hwnd dùng cho timer (gọi khi overlay tạo hwnd — như selection_check).
 #[cfg(windows)]
 pub fn register_timer_hwnd(hwnd: isize) {
@@ -118,11 +126,14 @@ pub fn on_timer() {
     let Some(shared) = weak.upgrade() else {
         return;
     };
-    // P9: on-demand check tái dùng đường đã kiểm chứng (AS-030):
-    // check câu hiện hành → show overlay nếu còn lỗi; không lỗi → im lặng.
-    let Some(check) = crate::assist::check_sentence_on_demand(&shared) else {
-        return;
-    };
-    let ec: u32 = 0;
-    let _ = crate::edit_session::show_assist_overlay_with_recheck(&shared, &ctx, ec, &check, true);
+    // P9: on-demand check tái dùng đường đã kiểm chứng (AS-030): check câu hiện hành →
+    // show overlay nếu còn lỗi; không lỗi → im lặng. Timer không có edit cookie ⇒ phải xin
+    // session (`ec = 0` làm `GetSelection` lỗi và popup không bao giờ hiện — R2-154).
+    let session: windows::Win32::UI::TextServices::ITfEditSession =
+        crate::edit_session::PanelIdleSession::new(shared.clone(), ctx.clone()).into();
+    let requested = crate::edit_session::request_sync_or_async(&ctx, shared.tid, &session);
+    crate::trace::event(
+        shared.tid,
+        format_args!("panel idle: session requested={requested}"),
+    );
 }
