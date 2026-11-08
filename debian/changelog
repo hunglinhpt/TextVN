@@ -1,3 +1,10 @@
+textvn (0.2.74-0ppa1) noble; urgency=medium
+
+  * Tự học (P7) + Dream RSI bật mặc định, có công tắt, số liệu và nút xóa
+    trong khung Trợ lý ngữ pháp (GTK4); Dream RSI lưu bền vững (R2-158).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 08 Nov 2026 23:55:00 +0700
+
 textvn (0.2.73-0ppa1) noble; urgency=medium
 
   * Trợ lý ngữ pháp bắt lỗi dấu thanh bằng từ điển âm tiết dựng sẵn

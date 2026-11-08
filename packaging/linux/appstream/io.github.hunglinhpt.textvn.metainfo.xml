@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.74" date="2026-11-08">
+      <description>
+        <p>Self-learning (personal vocabulary, accepted corrections) and the Dream RSI keystroke-savings figure are now ON by default and have a switch, a live summary and a "wipe learned data" button in the Grammar Assistant group of Settings on Windows, Linux and macOS. Dream RSI persists across sessions; junk typing is not learned; passwords and terminals are never learned.</p>
+      </description>
+    </release>
     <release version="0.2.73" date="2026-11-08">
       <description>
         <p>The grammar assistant now catches wrong tone marks (for example "chềt" instead of "chết") on every platform with a built-in syllable dictionary, without needing an operating-system dictionary. Loanwords, proper names and English words stay silent; "Fix all" skips ambiguous suggestions so it never swaps in the wrong tone.</p>

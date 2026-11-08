@@ -39,7 +39,11 @@ fn load_dictionary(paths: &[String]) -> Result<Box<dyn Dictionary>, String> {
         }
     }
     let bytes = builder.to_bytes();
-    let tmp = std::env::temp_dir().join(format!("textvn-cli-dic-{}.fst", std::process::id()));
+    // Tên RIÊNG mỗi lần gọi (pid + bộ đếm): các test chạy song song trong một tiến trình mà dùng
+    // chung một tên thì lần ghi sau cắt cụt file mà lần nạp trước đang mmap → SIGBUS (E44).
+    static SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = std::env::temp_dir().join(format!("textvn-cli-dic-{}-{seq}.fst", std::process::id()));
     std::fs::write(&tmp, &bytes).map_err(|e| format!("ghi FST tạm thất bại: {e}"))?;
     let dict = textvn_dict::load(&tmp).map_err(|e| format!("nạp FST tạm thất bại: {e}"));
     // Windows không xoá được file đang map — dọn best-effort, file nhỏ nên để lại cũng được.
