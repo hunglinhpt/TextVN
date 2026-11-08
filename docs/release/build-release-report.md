@@ -8,7 +8,7 @@
 | Đo | workspace test xanh · clippy -D warnings 0 (Windows + Linux target) · preflight 23/23 · `learning_curve` 5, `style_doc` 4, config `style_merge` 4, tray `style_merge` 1, ffi `p7_*` 1, C `test_style_learning_*`, Swift `testStyleLearningDefaultOnDecidedAndClear` |
 | Ghi chú giới hạn | Chưa chụp ảnh hộp thoại thật (tray chủ repo đang chạy); Backspace hoàn tác accept đã báo làm delta kế tiếp thiếu ≤ 1 accept; xóa dữ liệu không xóa phần pending còn trong RAM của engine (lượt drain sau có thể ghi lại vài từ vừa gõ) |
 | Phát hành | tag `v0.2.74` git-signed trên `05cf3df5`; CI 7/7 xanh trên commit gắn tag; release-candidate: `publish` đỏ lần đầu do tải cosign lỗi tạm (curl 22) → `gh run rerun --failed` xanh, **34 asset**; `gpg --verify SHA256SUMS.txt` Good signature, 4 `.asc` Good, hash 5 file khớp `SHA256SUMS.txt` |
-| Homebrew (B7b/B7d) | cask `version "0.2.74"` + `sha256` = mac zip `9ce4ec5dae67d5af…` (repo); sync-cask của tap đỏ do `github.com/releases/download` trả 504 diện rộng (cả v0.2.73) — chạy lại khi CDN hồi |
+| Homebrew (B7b/B7d) | cask `version "0.2.74"` + `sha256` = mac zip `9ce4ec5dae67d5af…` (repo); sync-cask [#42466246165](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42466246165) xanh ở lần thử thứ 4 (3 lần đầu đỏ vì `github.com/releases/download` trả 504 diện rộng, cả với v0.2.73 — sự cố CDN GitHub, không phải của bản phát hành); `Casks/textvn.rb` trên tap đúng version + hash |
 | approved (B7c) | `approved/v0.2.74/` — 18 file byte-identical, raw URL 200 |
 | AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.74 (sha `a836b6192fadcefc…`); `debian/changelog` 0.2.74-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
