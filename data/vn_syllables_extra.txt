@@ -1,0 +1,7 @@
+# Âm tiết tiếng Việt hiếm nhưng CÓ THẬT mà data/vn_syllables.txt (sinh tự động) thiếu.
+# Sửa tay; mỗi dòng một âm tiết thường, kiểu dấu cũ. Dùng bởi assist::syllables (P4-13) để luật
+# "sai dấu thanh" không báo nhầm từ đúng. Thêm khi gặp từ đúng bị báo (kèm test ở assist/src/syllables.rs).
+ngoạc
+ngoẹo
+nhại
+nhễu

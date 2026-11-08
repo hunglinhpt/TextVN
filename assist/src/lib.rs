@@ -15,6 +15,7 @@ pub mod fix;
 pub mod mask;
 pub mod phrases;
 pub mod rules;
+pub mod syllables;
 pub mod tokenize;
 
 pub use fix::{apply_auto_fixes, plan_sentence_fix, Fix, SentenceFixPlan};

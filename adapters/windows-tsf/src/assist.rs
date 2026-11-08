@@ -135,6 +135,9 @@ pub struct IssueView {
     /// `"b" == "B"` ⇒ rơi vào nhánh **XOÁ** ⇒ **mất 1 ký tự** (Q-2). Linux làm
     /// đúng (`adapters/linux-common/src/compose.c` — dùng `kind`).
     pub kind: u32,
+    /// Độ tin cậy 0..=100 của engine (P4-13): hành động **sửa hàng loạt** bỏ qua lỗi chính tả
+    /// mơ hồ (< `textvn_ffi::EXPLICIT_MIN_CONFIDENCE`); chọn-sửa một lỗi cụ thể thì vẫn áp.
+    pub confidence: u8,
 }
 
 impl IssueView {
@@ -669,7 +672,7 @@ where
     // `ime_assist_plan_sentence_fix` — cùng bản mà macOS/Linux đã dùng). Adapter
     // chỉ quy đổi `IssueView` (mô hình overlay) sang biên chung:
     // - `message` không đi vào kế hoạch (`plan_sentence_fix` chỉ xem `fix`);
-    // - `confidence` của Windows luôn 100 (IssueView không giữ).
+    // - `confidence` đi theo `IssueView` (P4-13) để "Sửa tất cả" bỏ qua gợi ý mơ hồ.
     let raws: Vec<textvn_ffi::PlanIssueRaw> = issues
         .iter()
         .map(|issue| textvn_ffi::PlanIssueRaw {
@@ -677,7 +680,7 @@ where
             start: issue.start,
             end: issue.end,
             auto_fixable: issue.auto_fixable,
-            confidence: 100,
+            confidence: issue.confidence,
             suggest: issue.suggestion.clone().unwrap_or_default(),
         })
         .collect();
@@ -890,6 +893,7 @@ fn issues_from_ffi(res: &textvn_ffi::ime_assist_result_v1, chars: &[char]) -> Ve
             suggestion: (!suggestion.is_empty()).then_some(suggestion),
             auto_fixable: raw.auto_fixable != 0,
             kind: raw.kind,
+            confidence: raw.confidence.min(100) as u8,
         });
     }
     issues
@@ -1350,6 +1354,7 @@ mod tests {
             suggestion: suggestion.map(str::to_string),
             auto_fixable: true,
             kind,
+            confidence: 100,
         }
     }
 

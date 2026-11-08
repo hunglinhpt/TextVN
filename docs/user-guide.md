@@ -242,7 +242,8 @@ tên đi tới ứng dụng. Chữ trong panel to hơn để dễ đọc.
 | Linux | **Ctrl + Space** | như trên | như trên | phím tới ứng dụng |
 
 - Sửa xong bấm phím tắt lần nữa là dự đoán tiếp theo câu đã sửa; **Ctrl + Z** (macOS **⌘ + Z**) trong 5 giây hoàn tác lần sửa.
-- Nút **Sửa tất cả** trên panel (Windows) cũng sửa cả lỗi chính tả có gợi ý. Lỗi cần viết lại câu (phủ định kép…) chỉ hiển thị, không tự sửa.
+- Nút **Sửa tất cả** trên panel (Windows) cũng sửa cả lỗi chính tả có gợi ý **khi chỉ có một cách sửa** (vd. `chềt` → `chết`). Từ có nhiều cách sửa (vd. `hõc` → `học` hay `hóc`) được hiển thị để bạn tự chọn, không bị sửa hàng loạt. Lỗi cần viết lại câu (phủ định kép…) chỉ hiển thị, không tự sửa.
+- **Báo sai dấu thanh** (từ 0.2.73): trợ lý có sẵn từ điển âm tiết trong máy (không cần từ điển của hệ điều hành) nên bắt được từ như `chềt`, `bẵt`. Từ mượn, tên riêng và chữ tiếng Anh không bị báo.
 - Chọn từng lỗi bằng phím (Windows): **Ctrl + Shift + G** mở panel ở chế độ chọn — ↑/↓ hoặc Tab chuyển lỗi, Enter sửa. **Alt + 1…3** áp gợi ý thứ n (mọi ứng dụng, kể cả Teams/Electron/Notepad++); **Esc** đóng.
 - Notepad++ và các ứng dụng Win32 cũ (IMM32) cũng sửa được, kể cả ô nhập kiểu WinForms/Delphi (phần mềm kế toán, hành chính — bản sau 0.2.48): TextVN đọc lại chữ trước con trỏ để xác minh trước khi sửa; ứng dụng không cho đọc thì không sửa gì.
 - **Alt + Space không phải phím của TextVN** (bản sau 0.2.47): tổ hợp này thuộc menu cửa sổ của Windows và các trình khởi chạy (PowerToys Run, Copilot, ChatGPT…), nên TextVN không bao giờ giữ nó. Ctrl + Alt + Space cũng hay là phím toàn cục của ứng dụng khác (ví dụ Claude desktop).

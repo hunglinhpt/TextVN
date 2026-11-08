@@ -245,3 +245,12 @@ Gate phát hiện: `cargo run -p textvn-cli -- sizes` (exit 1 khi size lệch 20
 `int32_t ime_style_profile_persist(ime_instance *inst, const uint8_t *path_utf8, size_t path_len)`
 
 Lưu dữ liệu học pending vào file `config.json` ở `path_utf8`: đường lưu của macOS/Linux (Windows gộp ở tray qua `Message::StyleUpdate`). Ghi nguyên tử, quyền 0600, fsync; pending chỉ bị xoá sau khi ghi xong nên ghi lỗi thì lần sau thử lại. Giữ nguyên mọi khoá khác của config. Không có gì để lưu (pending rỗng, `style_profile.enabled = false`, config hỏng) → `IME_OK`.
+
+## Ghi chú P4-13 — từ điển dấu thanh dựng sẵn (2026-11-08)
+
+`ime_assist_check`, `ime_assist_check_instance`, `ime_assist_check_v1` và `ime_assist_check_v1_with` khi
+**không** có provider OS dùng `textvn_assist::syllables::SyllableTones` (dữ liệu nhúng) thay vì `NoDictionary`:
+lỗi dấu thanh trên âm tiết đã biết được báo `IME_ASSIST_KIND_SPELLING` (chỉ gợi ý, `auto_fixable = 0`).
+`ime_assist_issue_v1.confidence`: **80** = đúng một thanh thay thế hợp lệ, **55** = nhiều ứng viên (mơ hồ),
+60 = provider OS. Hành động "Sửa tất cả" (`ime_assist_plan_sentence_fix_ex` với `IME_ASSIST_PLAN_EXPLICIT`) bỏ qua
+lỗi chính tả có `confidence < 60`. **Không đổi ABI** (không thêm/đổi hàm hay trường).

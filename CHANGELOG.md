@@ -9,6 +9,19 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Added
+- **Trợ lý ngữ pháp bắt lỗi dấu thanh trên cả 3 OS mà không cần từ điển hệ điều hành** (P4-13, R2-157):
+  `assist::syllables::SyllableTones` (dữ liệu `data/vn_syllables.txt` nhúng sẵn, 0 phụ thuộc) tra từng âm tiết
+  theo (khoá không dấu thanh, thanh); từ mượn/tên riêng/chữ Anh im lặng. Đo: lỗi dấu thanh tổng hợp **1,4 % →
+  99,1 %** (cận trên), báo nhầm **0,0 %** trên 981 câu sạch và 1/2.945 dòng văn xuôi của repo. Gợi ý một cách
+  sửa có `confidence 80`; nhiều cách (`hõc` → `học`/`hóc`) có `55` và **"Sửa tất cả" bỏ qua** để không đổi nhầm.
+- `textvn-cli assist check` mặc định dùng từ điển này (`--no-dict` = luật cũ); `tools/assist/tone_inject.py`;
+  `data/vn_syllables_extra.txt` (bổ sung tay âm tiết hiếm như `ngoạc`, `nhại` mà bản sinh thiếu).
+
+### Changed
+- Windows: `IssueView` giữ `confidence` (trước đó kế hoạch sửa luôn coi 100). Trait `Dictionary` thêm hai method có
+  mặc định (`confidence`, `cheap_suggest`); `Budgeted` không giới hạn số lần `suggest` của từ điển tra bộ nhớ.
+
 ### Fixed
 - **Trợ lý ngữ pháp hết báo nhầm từ láy còn sót** (P4-12b): `đi đi lại lại` / `ngày ngày đêm đêm` (láy bốn âm
   tiết AABB), `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`. Lỗi lặp từ thật vẫn bắt (`Nó đi đi học`, `Tôi tôi đi`).
@@ -19,7 +32,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 - `docs/release/BACKLOG-2026-11-08.md`: rà soát toàn bộ việc dở trong tài liệu kế hoạch, chia theo ai làm được;
   `P4-12-RECALL-REAL.md` §12: số đo `spelling` (hợp hai kiểu đặt dấu: FPR 0,4 %; lỗi dấu tổng hợp 1,5 % → 77,2 %).
 
-**English** — Unreleased: the grammar assistant no longer flags leftover reduplications (`đi đi lại lại` AABB,
+**English** — Unreleased: **the grammar assistant now catches wrong tone marks on all three OSes without an OS dictionary** (P4-13, R2-157): a built-in zero-dependency syllable dictionary (`data/vn_syllables.txt`, embedded) checks each syllable by (toneless key, tone); loanwords, proper names and English words stay silent. Measured: synthetic tone errors caught **1.4 % → 99.1 %** (upper bound), **0.0 %** false positives on 981 clean sentences and 1 of 2,945 prose lines of the repo's own docs. A single possible fix carries `confidence 80`; several (`hõc` → `học`/`hóc`) carry `55` and **"Fix all" skips them** so it never swaps in the wrong tone. `textvn-cli assist check` uses it by default (`--no-dict` = old rule); new `tools/assist/tone_inject.py`. Windows `IssueView` now keeps `confidence` (the fix plan used to assume 100); the `Dictionary` trait gained two defaulted methods. Also: the grammar assistant no longer flags leftover reduplications (`đi đi lại lại` AABB,
 `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`) while real repeated-word typos are still caught (P4-12b). Added
 measurement tooling only: `assist check --dic` (repeatable) plus `score_real.py --dic` and `kappa.py`, a full
 backlog review (`BACKLOG-2026-11-08.md`) and the `spelling` measurements in `P4-12-RECALL-REAL.md` §12 (union of

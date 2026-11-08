@@ -70,7 +70,7 @@ fn run_check(source: &str, sentence: bool, dict: &dyn Dictionary) -> Vec<Issue> 
 /// Số lỗi tối đa in ra mặc định (tránh flood stdout khi file lớn — Fassist-56).
 const MAX_PRINT_DEFAULT: usize = 50;
 
-/// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence] [--dic <file>]`
+/// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence] [--dic <file>] [--no-dict]`
 pub fn cmd_assist(rest: &[String]) -> i32 {
     // `assist` có subcommand `check` (args[2] = "check") và `score`.
     let rest = match rest.first().map(String::as_str) {
@@ -79,13 +79,13 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
         Some("show") => return cmd_show(&rest[1..]),
         Some(other) => {
             eprintln!("error: subcommand lạ `{other}` (chỉ hỗ trợ `check`, `score`)");
-            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence] [--dic <file>] [--no-dict]");
             eprintln!("      textvn-cli assist score --corpus <dir>");
             return 2;
         }
         None => {
             eprintln!("error: thiếu subcommand (`check` | `score`)");
-            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence] [--dic <file>] [--no-dict]");
             eprintln!("      textvn-cli assist score --corpus <dir>");
             return 2;
         }
@@ -98,6 +98,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
     let mut sentence = false;
     let mut max_print: usize = MAX_PRINT_DEFAULT;
     let mut dic: Vec<String> = Vec::new();
+    let mut no_dict = false;
 
     let mut i = 0usize;
     while i < rest.len() {
@@ -105,6 +106,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
             "--json" => json = true,
             "--fix" => fix = true,
             "--sentence" => sentence = true,
+            "--no-dict" => no_dict = true,
             "--dic" => {
                 i += 1;
                 match rest.get(i) {
@@ -137,7 +139,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
             }
             s if s.starts_with("--") => {
                 eprintln!("error: tham số lạ `{s}`");
-                eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+                eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence] [--dic <file>] [--no-dict]");
                 eprintln!("      textvn-cli assist check --file <path>");
                 return 2;
             }
@@ -152,6 +154,12 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
         i += 1;
     }
 
+    if no_dict && !dic.is_empty() {
+        eprintln!("error: --no-dict không dùng chung với --dic");
+        return 2;
+    }
+    // P4-13: mặc định = từ điển dấu thanh dựng sẵn của sản phẩm (đúng cái FFI dùng);
+    // `--no-dict` = bản cũ (không tra từ điển) để đo đối chứng; `--dic` = từ điển ngoài.
     let loaded = if dic.is_empty() {
         None
     } else {
@@ -163,7 +171,12 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
             }
         }
     };
-    let dict: &dyn Dictionary = loaded.as_deref().unwrap_or(&NoDictionary);
+    let builtin: &dyn Dictionary = if no_dict {
+        &NoDictionary
+    } else {
+        textvn_assist::syllables::SyllableTones::builtin()
+    };
+    let dict: &dyn Dictionary = loaded.as_deref().unwrap_or(builtin);
 
     match (text, file) {
         (Some(t), None) => run_text(&t, json, fix, sentence, max_print, dict),
@@ -180,7 +193,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
         }
         (None, None) => {
             eprintln!("error: thiếu câu cần kiểm tra");
-            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence]");
+            eprintln!("dùng: textvn-cli assist check \"<câu>\" [--json] [--fix] [--sentence] [--dic <file>] [--no-dict]");
             eprintln!("      textvn-cli assist check --file <path>");
             2
         }
@@ -678,6 +691,29 @@ mod dic_tests {
         assert!(issues
             .iter()
             .any(|i| i.kind == textvn_assist::IssueKind::Spelling));
+    }
+
+    /// P4-13: mặc định CLI = từ điển dấu thanh dựng sẵn của sản phẩm; `--no-dict` = luật cũ.
+    #[test]
+    fn builtin_default_flags_tone_error_and_no_dict_does_not() {
+        let issues = run_check(
+            "Hôm nay tôi chềt mệt",
+            true,
+            textvn_assist::syllables::SyllableTones::builtin(),
+        );
+        assert!(issues
+            .iter()
+            .any(|i| i.kind == textvn_assist::IssueKind::Spelling));
+        let none = run_check("Hôm nay tôi chềt mệt", true, &NoDictionary);
+        assert!(none
+            .iter()
+            .all(|i| i.kind != textvn_assist::IssueKind::Spelling));
+        // Cờ xung đột bị từ chối rõ ràng (exit 2), không im lặng chọn một.
+        let args: Vec<String> = ["check", "x", "--no-dict", "--dic", "a.dic"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(super::cmd_assist(&args), 2);
     }
 
     #[test]

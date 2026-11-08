@@ -239,7 +239,6 @@ verify: OK
 > 1. **Binary cũ.** `target/release/textvn-cli.exe` build 2026-10-20 vẫn tồn tại ⇒ nó báo `mãi mãi` là lỗi lặp từ (đã có whitelist từ Fassist-94) ⇒ đo ra FPR 0,6 % thay vì 0,5 % và `verify` FAIL giả. Script nay **ưu tiên binary `target/debug`** + **cảnh báo** nếu binary cũ hơn source (`assist/src`, `cli/src`).
 > 2. **Script bị xoá khỏi đĩa giữa chừng** do agent khác dọn file untracked ⇒ doc trỏ tới artifact không tồn tại. Bài học: **commit ngay** file đo/lạnh (không để untracked), và kiểm `Test-Path` trước khi chạy.
 
-
 **Tác động lên `assist score` toàn repo** (sau khi thêm 2 file):
 
 ```text
@@ -416,3 +415,42 @@ FPR ≤ 0,5 % trên `vi_real_clean.ass`, đo lại bằng `score_real.py --dic`.
 `python tools/assist/kappa.py annotator_a.tsv annotator_b.tsv` — Cohen's kappa cho "câu có lỗi?" và từng
 loại lỗi + danh sách dòng bất đồng; `--self-test` kiểm công thức. Quy trình: hai người gán nhãn **độc lập,
 không xem output engine**, cùng thứ tự dòng; kappa ≥ 0,8 mới chốt làm tập đo.
+
+## 13. P4-13 (2026-11-08) — `spelling` theo âm tiết đã vào sản phẩm
+
+**Thiết kế.** `assist::syllables::SyllableTones` (0 dependency, dữ liệu `data/vn_syllables.txt` nhúng bằng
+`include_str!`): mỗi âm tiết → (khoá không dấu thanh, thanh); khoá nào có trong dữ liệu thì chỉ chấp nhận các
+thanh có thật. Hệ quả: (1) hai kiểu đặt dấu `hòa`/`hoà` cùng qua (không báo kiểu dấu — việc của luật khác);
+(2) khoá lạ (từ mượn `ôtô`, tên riêng, `café`) **im lặng** — luật chỉ bắt *lỗi dấu thanh*, không phải "từ lạ";
+(3) gợi ý = các thanh còn lại hợp lệ, cặp hay nhầm (hỏi↔ngã, sắc↔nặng, huyền↔nặng) lên đầu rồi theo tần suất.
+`confidence` 80 khi chỉ có một ứng viên, 55 khi nhiều → "Sửa tất cả" (ngưỡng 60) chỉ áp ca chắc chắn;
+provider OS (60) giữ nguyên hành vi. Nối vào cả 4 điểm FFI khi không có provider OS ⇒ Windows/macOS/Linux
+đều dùng. CLI mặc định dùng cùng từ điển (`--no-dict` = luật cũ, `--dic` = từ điển ngoài).
+
+### 13.1 Số đo (cùng máy, build debug)
+
+| Phép đo | Luật cũ (`--no-dict`) | + `SyllableTones` |
+|---|---|---|
+| Recall 49 câu lỗi thật (§12.2 — không còn độc lập) | 83,7 % | 83,7 % (các câu lỗi đó không phải lỗi thanh) |
+| FPR 981 câu sạch (`vi_real_clean.ass`) | 0,0 % | **0,0 %** (khoá lạ im lặng; tốt hơn 0,4 % của phương án "từ điển đầy đủ") |
+| Báo nhầm trên văn xuôi tiếng Việt của chính repo (2.945 dòng docs/README/CHANGELOG) | — | 1 từ (`luột`) / 2.945 dòng = 0,03 % |
+| Lỗi dấu thanh tổng hợp (981 câu, seed 20261108, `tools/assist/tone_inject.py`) | 14/981 = **1,4 %** | 972/981 = **99,1 %** |
+
+Lưu ý khi so với §12.3 (77,2 %): phép đo đó chọn **mọi** từ (kể cả khoá lạ, từ ngắn) và dùng từ điển đầy
+đủ; phép đo mới chỉ tính từ có khoá đã biết nên là **cận trên** của lỗi dấu thanh thật. Hai số không mâu thuẫn.
+Giới hạn đã biết: sai CHỮ (`đưọc` — ọ thay ợ) làm khoá lạ ⇒ im lặng, vẫn do bảng `TYPOS`/`diacritic_typo` lo;
+từ < 3 ký tự bị bỏ qua; viết HOA toàn bộ coi là viết tắt.
+
+### 13.2 Thử nghiệm bị loại: "ngữ âm cho phép mọi thanh ở âm tiết mở"
+
+Dữ liệu thiếu vài âm tiết hiếm có thật (`ngoạc` trong "nguệch ngoạc", `nhại`, `ngoẹo`, `nhễu` — thử 266 từ hiếm:
+~5 % thiếu). Đã thử bù bằng luật ngữ âm (khép `p t c ch` chỉ sắc/nặng, còn lại đủ 6 thanh): hết báo nhầm nhưng
+recall tổng hợp **tụt 99,1 % → 20,1 %** vì nó cũng chấp nhận `cũa`, `khuỷ`… (không phải từ). Bỏ; thay bằng
+file bổ sung sửa tay `data/vn_syllables_extra.txt` (mỗi dòng một âm tiết, có test) — thêm khi gặp từ đúng bị báo.
+
+### 13.3 Test khoá
+
+`assist/tests/syllable_spelling.rs` (FPR ≤ 0,5 %, recall tổng hợp ≥ 95 % với LCG cố định và **chọn ca lỗi bằng cài đặt độc lập với từ điển** — không tự chứng minh, gợi ý hợp lệ/khác từ gốc/đúng
+hoa-thường, đầu vào bất thường 50.000 ký tự/NUL/NFD/RTL, trần 25 ms/câu), `assist/src/syllables.rs` (bất biến
+"mọi âm tiết trong dữ liệu đều hợp lệ", 80 vs 55), `ffi` (`builtin_dictionary_*`,
+`explicit_fix_all_skips_ambiguous_*`), `cli` (`builtin_default_*`).

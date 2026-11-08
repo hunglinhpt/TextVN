@@ -27,6 +27,7 @@
 | R2-153 | trung bình | macOS: Ctrl tap reset buffer câu; không self-heal/fail-open; học cặp sửa chưa áp | Lệch với Windows/Linux | Chỉ chốt marked, self-heal, `engine.reset()` khi áp lỗi, học sau khi áp | Test Swift + đọc code |
 | R2-154 | nghiêm trọng | Popup trợ lý không hiện khi dừng gõ 1 s (Windows) — phản hồi chủ repo sau 0.2.69 | `on_timer` dùng `ec = 0` giả; chỉ Space/`,`/`;`/`:` lên lịch; timer không bao giờ bị huỷ; E2E cũ chờ 700 ms; test cũ chỉ mô hình hoá (xem E38) | `PanelIdleSession` xin session thật; mọi phím gõ lên lịch lại kể cả composing; `reset_engine` huỷ timer; popup Ctrl+Shift+G được bảo vệ; áp sửa khi đang composing chốt rồi hẹn giờ; dấu phẩy treo không báo lỗi | `idle_popup_routing.rs` (11 test) + 6 ca E2E mới (`live popup *`, `* mid-word`) |
 | R2-155 | trung bình | Linux (IBus/Fcitx5) và macOS hiện danh sách gợi ý NGAY tại phím trigger (che vùng gõ, không debounce) — Windows đã là timer 1 s | R2-129 cũ chọn "hiện nhanh nhất"; P9 (Windows) đổi sang debounce mà hai nền tảng còn lại không đi theo | Timer 1 s: `g_timeout_add` (IBus), `EventSourceTime` gắn `TextVNState` (Fcitx5), `Timer` (macOS); mọi phím gõ/xoá ẩn danh sách + hẹn lại; trigger chỉ kiểm tra + tự sửa; `lc_assist_idle_arms` dùng chung. ci-linux đỏ một lần ở `541bd39c`: phím số/chữ trần không đóng danh sách sống IBus → thêm `clear_assist_ui` | `test_assist_idle_arms`, `testAssistIdleArmsBangPhim`, `e2e_ibus` 5 ca mới |
+| R2-157 | trung bình | Luật `spelling` im lặng hoàn toàn trong sản phẩm (không crate nào nối từ điển): lỗi dấu thanh như `chềt`, `bẵt` không bao giờ được báo (đo 1,4 % trên 981 lỗi tổng hợp) | `assist` chỉ có trait `Dictionary`; FFI luôn truyền `NoDictionary` khi không có provider OS, mà Windows thường không có `vi-VN` | `SyllableTones` (P4-13): từ điển nhóm theo (khoá không dấu thanh, thanh), dựng sẵn từ `data/vn_syllables.txt`; khoá lạ (từ mượn, tên riêng) im lặng; mơ hồ → confidence 55 và "Sửa tất cả" bỏ qua; Windows `IssueView.confidence` (trước đó cứng 100) | `assist/tests/syllable_spelling.rs` (FPR ≤ 0,5 %, recall cận trên ≥ 95 %, bất thường, hiệu năng), `ffi` 3 test, `dic_tests` |
 | E36 | CI | `ci-linux/ci-deb/ci-aur` đỏ (`unused variable`) ở `ee321b34` | Sửa C không biên dịch được trên máy Windows dev | Sửa ngay; xem `project-common-errors.md` | Đẩy CI sớm mỗi đợt |
 
 ## 2. DFMEA (S/O/D 1–10, RPN sau khi sửa)
@@ -44,6 +45,10 @@
 | Lưu cấu hình | Hai tiến trình cùng ghi | Mất một lượt học | 3 | 3 | 4 | 36 | Lần ghi sau đọc lại đĩa; pending chỉ xoá khi ghi xong |
 | Dream RSI | Số đo phóng đại | Gate G19 sai | 5 | 2 | 2 | 20 | `r2_147_tu_choi…` |
 | Hiệu năng | Gõ trễ khi ghost bật | Khó chịu | 6 | 1 | 2 | 12 | Cap trong `prediction_perf.rs` |
+| Chính tả dấu thanh (P4-13) | Báo nhầm từ đúng/từ mượn/tên riêng | Làm phiền, mất tin tưởng | 6 | 2 | 2 | 24 | Khoá lạ → im lặng; FPR 0,0 % trên 981 câu sạch + 1/2.945 dòng văn xuôi repo; cổng test ≤ 0,5 % |
+| Chính tả dấu thanh (P4-13) | "Sửa tất cả" áp nhầm thanh thứ nhất khi nhiều ứng viên | Đổi từ đúng thành từ sai | 7 | 3 | 2 | 42 | confidence 55 < 60 → bỏ qua ở `plan_issues_from_raw_ex`; chỉ áp khi có đúng một ứng viên (80) |
+| Chính tả dấu thanh (P4-13) | Dữ liệu âm tiết thiếu (từ hiếm) → báo nhầm | Gợi ý thừa | 3 | 3 | 3 | 27 | Chỉ gợi ý (không tự sửa, A1/D12); file bổ sung sửa tay `vn_syllables_extra.txt`; thử luật ngữ âm thay thế bị loại vì recall 99 % → 20 % (P4-12 §13.2); test bất biến "mọi âm tiết trong dữ liệu đều hợp lệ" |
+| Chính tả dấu thanh (P4-13) | Sai chữ (không phải thanh) → khoá lạ → im lặng | Bỏ sót | 3 | 4 | 4 | 48 | Chấp nhận (bảng `TYPOS` + `diacritic_typo` lo); ghi ở P4-12 §13 |
 
 ## 3. DRBFM — điểm thay đổi có chủ đích
 
@@ -55,6 +60,8 @@
 | Học khi chốt thay vì khi chèn | Chỉ học chữ người dùng giữ | Trễ một phím, drain sau phím kế | `r2_147_*` |
 | Mode EN Space không hoàn tất | Người dùng tắt tiếng Việt để gõ đúng chữ mình gõ | `suggest.trigger=tab_and_space` chỉ có tác dụng ở Mode VI | `r2_144_*` |
 | FFI thêm `ime_style_profile_persist` | Engine không I/O; đường ghi dùng chung của `config::doc` | ABI thêm 1 hàm, không đổi hàm cũ | `cli verify` 28 hàm, 2 header giống nhau |
+| FFI dùng `SyllableTones` thay `NoDictionary` | Sản phẩm bắt lỗi dấu mà không cần provider OS; provider OS (nếu có) vẫn đi trước | Binary +~60 KB (dữ liệu nhúng), nạp 1 lần ~ms | `builtin_dictionary_*` (ffi), `syllable_spelling.rs` |
+| `Dictionary::confidence` + `cheap_suggest` (trait mặc định 60 / false) | Phân biệt "chắc" và "mơ hồ" mà không đổi provider OS | Hai method có mặc định — không vỡ mã cũ; `Budgeted` chuyển tiếp | `dictionary_budget.rs` (8) vẫn xanh |
 
 ## 4. Rủi ro còn lại (đã biết, chưa xử lý)
 

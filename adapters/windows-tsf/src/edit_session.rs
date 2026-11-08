@@ -3063,6 +3063,7 @@ mod tests {
             suggestion: Some(",".to_string()),
             auto_fixable: true,
             kind: textvn_ffi::IME_ASSIST_KIND_SPACE_BEFORE_PUNCT,
+            confidence: 100,
         };
         let view =
             crate::assist::OverlayView::from_parts(sentence.chars().collect(), vec![issue], 1)

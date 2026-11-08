@@ -2,9 +2,11 @@
 //! AS-040 — từ lạ **không có trong từ điển** (chỉ gợi ý).
 //!
 //! Luật **chỉ gợi ý** (không tự sửa — Fassist-90): từ tiếng Việt có dấu mà từ
-//! điển không nhận là có thể sai chính tả → báo với `confidence = 60`, để
+//! điển không nhận là có thể sai chính tả → báo với `confidence` do từ điển quyết
+//! định (mặc định 60; [`SyllableTones`](crate::syllables::SyllableTones) trả 80/55), để
 //! người dùng quyết định. Khi chưa nạp từ điển ([`NoDictionary`](crate::dict::NoDictionary))
-//! luật này im lặng hoàn toàn — `check`/`check_sentence` giữ hành vi cũ.
+//! luật này im lặng hoàn toàn — `check`/`check_sentence` giữ hành vi cũ; sản phẩm (FFI) và CLI
+//! truyền từ điển dấu thanh dựng sẵn (P4-13).
 //!
 //! Bỏ qua để không báo động giả:
 //! - từ **< 3 ký tự** ("ơi", "eshop" rút gọn…) — trùng tên riêng/rút gọn quá dễ;
@@ -83,7 +85,12 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
         // Ngan sach suggest nam trong `Budgeted`: het ngan sach -> gợi ý rỗng
         // (fail-open), toan bo loi spelling van duoc bao o duoi.
         let suggestions = dict.suggest(&lower, MAX_SUGGESTIONS);
-        out.push(issue_suggestion(
+        let confidence = dict.confidence(&lower, &suggestions);
+        let suggestions = suggestions
+            .into_iter()
+            .map(|s: String| match_case(&word, &s))
+            .collect();
+        let mut issue = issue_suggestion(
             IssueKind::Spelling,
             Span {
                 start: tok.start,
@@ -91,7 +98,22 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             },
             format!("Có thể sai chính tả: \"{word}\""),
             suggestions,
-        ));
+        );
+        issue.confidence = confidence;
+        out.push(issue);
+    }
+}
+
+/// Chuyển kiểu hoa đầu từ của `original` sang gợi ý `s` (từ điển trả chữ thường): `Quẫn` → `Quân`.
+/// Từ hoa toàn bộ/hoa giữa từ đã bị loại ở cổng phía trên nên chỉ còn hai ca: thường hoặc Hoa-đầu.
+fn match_case(original: &str, s: &str) -> String {
+    if !original.chars().next().is_some_and(char::is_uppercase) {
+        return s.to_string();
+    }
+    let mut it = s.chars();
+    match it.next() {
+        Some(c) => c.to_uppercase().chain(it).collect(),
+        None => String::new(),
     }
 }
 

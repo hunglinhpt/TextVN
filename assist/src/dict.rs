@@ -26,6 +26,21 @@ pub trait Dictionary {
     ///
     /// Mang rong = khong goi y duoc (khong phai loi).
     fn suggest(&self, word: &str, limit: usize) -> Vec<String>;
+
+    /// Do tin cay (0..=100) cua loi spelling `word` voi cac goi y da co.
+    ///
+    /// Mac dinh 60 (nhu provider OS). Tu dien dung san (P4-13) tra cao hon khi
+    /// chi co mot cach sua (80) va thap hon khi mo ho (55) de hanh dong "sua
+    /// tat ca" khong ap goi y dau tien sai.
+    fn confidence(&self, _word: &str, _suggestions: &[String]) -> u8 {
+        60
+    }
+
+    /// `true` neu `suggest` re (tra cuu trong bo nho) → [`Budgeted`] khong gioi
+    /// han so lan goi. Provider OS (3–7 ms/lan) giu mac dinh `false`.
+    fn cheap_suggest(&self) -> bool {
+        false
+    }
 }
 
 /// Tu dien "rong" - dung khi khong nap duoc du lieu (hoac OS da co spellchecker).
@@ -109,10 +124,18 @@ impl<D: Dictionary + ?Sized> Dictionary for Budgeted<'_, D> {
         self.inner.contains(word)
     }
 
+    fn confidence(&self, word: &str, suggestions: &[String]) -> u8 {
+        self.inner.confidence(word, suggestions)
+    }
+
+    fn cheap_suggest(&self) -> bool {
+        self.inner.cheap_suggest()
+    }
+
     fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
         // Het ngan sach -> fail-open: tra rong ngay, khong cham `inner`
         // (P4-10 §5.1.4: thac im lang con hon bao sai).
-        if self.calls.get() >= self.max_suggest {
+        if !self.inner.cheap_suggest() && self.calls.get() >= self.max_suggest {
             return Vec::new();
         }
         let start = Instant::now();
@@ -165,6 +188,14 @@ impl<F: Dictionary> Dictionary for BridgeDict<F> {
         self.inner.contains(word)
     }
 
+    fn confidence(&self, word: &str, suggestions: &[String]) -> u8 {
+        self.inner.confidence(word, suggestions)
+    }
+
+    fn cheap_suggest(&self) -> bool {
+        self.inner.cheap_suggest()
+    }
+
     fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
         self.inner.suggest(word, limit)
     }
@@ -176,6 +207,14 @@ impl<F: Dictionary> Dictionary for BridgeDict<F> {
 impl<T: Dictionary + ?Sized> Dictionary for &T {
     fn contains(&self, word: &str) -> bool {
         (**self).contains(word)
+    }
+
+    fn confidence(&self, word: &str, suggestions: &[String]) -> u8 {
+        (**self).confidence(word, suggestions)
+    }
+
+    fn cheap_suggest(&self) -> bool {
+        (**self).cheap_suggest()
     }
 
     fn suggest(&self, word: &str, limit: usize) -> Vec<String> {

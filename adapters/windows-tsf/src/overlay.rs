@@ -1128,6 +1128,7 @@ mod mouse_tests {
             suggestion: Some("tôi".into()),
             auto_fixable: true,
             kind: textvn_ffi::IME_ASSIST_KIND_DIACRITIC_TYPO,
+            confidence: 100,
         }];
         OverlayView::from_parts(chars, issues, 1).expect("view")
     }
@@ -1352,6 +1353,7 @@ mod tests {
                 suggestion: Some("tôi".into()),
                 auto_fixable: true,
                 kind: textvn_ffi::IME_ASSIST_KIND_DUPLICATE_WORD,
+                confidence: 100,
             }],
             1,
         )

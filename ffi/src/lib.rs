@@ -966,6 +966,13 @@ pub extern "C" fn ime_assist_trigger_kind(ch: u32) -> u32 {
     }
 }
 
+/// Từ điển dấu thanh dựng sẵn (P4-13) — dùng khi KHÔNG có provider OS: sản phẩm không còn im
+/// lặng hoàn toàn với lỗi dấu (`quẩn`→`quân`…). Chỉ bắt lỗi dấu thanh trên khoá âm tiết đã biết,
+/// từ lạ/từ mượn im lặng (FPR 0,4 % trên corpus sạch). `&'static`, nạp một lần.
+fn builtin_dict() -> &'static textvn_assist::syllables::SyllableTones {
+    textvn_assist::syllables::SyllableTones::builtin()
+}
+
 /// Kiểm tra ngữ pháp chuỗi UTF-8 bất kỳ (D23).
 ///
 /// Caller cấp phát `out` trên stack với `out.abi_version = IME_ABI_VERSION`.
@@ -997,7 +1004,7 @@ pub extern "C" fn ime_assist_check(
         Err(_) => return IME_ERR_INVALID_ARG,
     };
     match catch_unwind(AssertUnwindSafe(|| {
-        let issues = textvn_assist::check_sentence(text);
+        let issues = textvn_assist::check_sentence_with(text, builtin_dict());
         fill_assist_result(&issues, out);
     })) {
         Ok(()) => IME_OK,
@@ -1033,11 +1040,7 @@ pub extern "C" fn ime_assist_check_instance(
                 let provider = CSpellProvider::new(*sp);
                 textvn_assist::check_sentence_with_style(&text, &provider, &personal)
             }
-            None => textvn_assist::check_sentence_with_style(
-                &text,
-                &textvn_assist::dict::NoDictionary,
-                &personal,
-            ),
+            None => textvn_assist::check_sentence_with_style(&text, builtin_dict(), &personal),
         };
         fill_assist_result(&issues, out);
     })) {
@@ -1123,7 +1126,7 @@ pub extern "C" fn ime_assist_glyph_len(
 
 /// Gắn provider spell-check của hệ điều hành vào instance (AS-042 · P4-10 §5.2).
 ///
-/// Truyền `provider = NULL` để hủy provider hiện tại (quay về `NoDictionary`).
+/// Truyền `provider = NULL` để hủy provider hiện tại (quay về từ điển dấu thanh dựng sẵn, P4-13).
 #[no_mangle]
 pub extern "C" fn ime_assist_set_spell_provider(
     inst: *mut ime_instance,
@@ -1194,7 +1197,7 @@ pub extern "C" fn ime_assist_check_v1(
         _ => return IME_OK, // fail-open: UTF-16 lệch → 0 issue, không panic
     };
     let count = match catch_unwind(AssertUnwindSafe(|| {
-        let issues = textvn_assist::check_sentence(&text);
+        let issues = textvn_assist::check_sentence_with(&text, builtin_dict());
         fill_assist_result(&issues, out);
         issues.len().min(IME_MAX_ASSIST_ISSUES)
     })) {
@@ -1208,7 +1211,7 @@ pub extern "C" fn ime_assist_check_v1(
 }
 
 /// Như [`ime_assist_check_v1`] nhưng nhận **provider từ điển OS** tùy chọn
-/// (D39 · P4-10 §5.2): `provider == NULL` ⇒ đường `NoDictionary` như cũ; ABI
+/// (D39 · P4-10 §5.2): `provider == NULL` ⇒ từ điển dấu thanh dựng sẵn (P4-13; trước đó `NoDictionary`); ABI
 /// lệch ⇒ `IME_ERR_ABI`. Provider chỉ mở khóa luật `spelling` (chỉ-gợi ý,
 /// confidence 60 — A1/D12: không tự sửa) trên từ tiếng Việt có dấu — mọi gate
 /// FPR khác nằm trong luật + adapter (cổng capability `vi-VN`, W2).
@@ -1258,7 +1261,7 @@ pub extern "C" fn ime_assist_check_v1_with(
     let count = match catch_unwind(AssertUnwindSafe(|| {
         let issues = match provider {
             Some(ref p) => textvn_assist::check_sentence_with(&text, p),
-            None => textvn_assist::check_sentence(&text),
+            None => textvn_assist::check_sentence_with(&text, builtin_dict()),
         };
         fill_assist_result(&issues, out);
         issues.len().min(IME_MAX_ASSIST_ISSUES)
@@ -1371,6 +1374,10 @@ pub struct PlanIssueRaw {
 /// sửa: chỉ lỗi objective (`auto_fixable`).
 pub const IME_ASSIST_PLAN_EXPLICIT: u32 = 1;
 
+/// Ngưỡng `confidence` tối thiểu để hành động chủ động ("Sửa tất cả") tự áp một lỗi chính tả
+/// (P4-13): provider OS = 60 (qua), tra cứu thanh duy nhất = 80 (qua), mơ hồ = 55 (bỏ qua).
+pub const EXPLICIT_MIN_CONFIDENCE: u8 = 60;
+
 /// Chữ thay span khi **người dùng chủ động** sửa một lỗi chỉ-gợi-ý (R2-131).
 ///
 /// Chỉ loại có cách sửa máy móc: chính tả (gợi ý đầu = từ thay thế) và dấu phẩy
@@ -1413,6 +1420,11 @@ pub fn plan_issues_from_raw_ex(
             let Some(text) = explicit_fix_text(raw.kind, &raw.suggest) else {
                 continue;
             };
+            // P4-13: gợi ý mơ hồ (confidence < 60, nhiều thanh khả dĩ) KHÔNG tự áp hàng loạt —
+            // người dùng chọn thủ công trong panel. Không áp cho dấu phẩy cuối câu.
+            if raw.kind == IME_ASSIST_KIND_SPELLING && raw.confidence < EXPLICIT_MIN_CONFIDENCE {
+                continue;
+            }
             if chars[start..end].iter().copied().eq(text.chars()) {
                 continue;
             }
@@ -2514,6 +2526,111 @@ mod tests {
             }
         }
         0
+    }
+
+    /// Chạy `ime_assist_check_v1` (không provider) trên chuỗi → (kind, start, end, suggest, confidence).
+    fn check_v1_issues(text: &str) -> Vec<(u32, usize, usize, String, u32)> {
+        let units: Vec<u16> = text.encode_utf16().collect();
+        let mut res = ime_assist_result_v1 {
+            abi_version: IME_ABI_VERSION,
+            count: 0,
+            issues: [unsafe { std::mem::zeroed() }; IME_MAX_ASSIST_ISSUES],
+        };
+        assert!(ime_assist_check_v1(units.as_ptr(), units.len() as i32, &mut res) >= 0);
+        (0..res.count as usize)
+            .map(|i| {
+                let it = &res.issues[i];
+                let sugg = unsafe { CStr::from_ptr(it.suggest.as_ptr()) }
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                (
+                    it.kind,
+                    it.start as usize,
+                    it.end as usize,
+                    sugg,
+                    it.confidence,
+                )
+            })
+            .collect()
+    }
+
+    /// P4-13: KHÔNG provider OS vẫn bắt lỗi dấu thanh bằng từ điển dựng sẵn.
+    #[test]
+    fn builtin_dictionary_flags_tone_errors_without_os_provider() {
+        // `chềt`: khoá `chêt` chỉ có thanh sắc (`chết`) → một ứng viên → confidence 80.
+        let issues = check_v1_issues("Hôm nay tôi chềt mệt rồi");
+        let sp: Vec<_> = issues
+            .iter()
+            .filter(|i| i.0 == IME_ASSIST_KIND_SPELLING)
+            .collect();
+        assert_eq!(sp.len(), 1, "{issues:?}");
+        assert_eq!((sp[0].1, sp[0].2), (12, 16));
+        assert_eq!(sp[0].3, "chết");
+        assert_eq!(sp[0].4, 80);
+        // Hoa đầu từ giữ nguyên kiểu hoa; thanh ngã/nặng nhiều ứng viên → 55.
+        let issues = check_v1_issues("Chềt rồi");
+        assert!(issues
+            .iter()
+            .any(|i| i.0 == IME_ASSIST_KIND_SPELLING && i.3 == "Chết"));
+        let issues = check_v1_issues("Tôi hõc bài");
+        let amb = issues
+            .iter()
+            .find(|i| i.0 == IME_ASSIST_KIND_SPELLING)
+            .expect("hõc phải bị báo");
+        assert_eq!(amb.4, 55, "nhiều thanh khả dĩ → mơ hồ");
+    }
+
+    /// P4-13: câu sạch + từ mượn/tên riêng/chữ Anh KHÔNG bị báo; đầu vào bất thường không panic.
+    #[test]
+    fn builtin_dictionary_is_silent_on_clean_and_abnormal_input() {
+        for clean in [
+            "Hôm nay trời đẹp, tôi đi học.",
+            "Anh đi ôtô còn em đi môtô.",
+            "Tôi ở Hà Nội, thích café sữa.",
+            "Quân hóa học ở tòa nhà mới.",
+            "",
+            "   ",
+            "\u{0}",
+            "Tôi tên Qua\u{0302}n", // NFD: nguyên âm + dấu kết hợp rời → khoá lạ → im lặng
+        ] {
+            let issues = check_v1_issues(clean);
+            assert!(
+                issues.iter().all(|i| i.0 != IME_ASSIST_KIND_SPELLING),
+                "{clean:?} → {issues:?}"
+            );
+        }
+        let long = "chềt ".repeat(2_000);
+        let _ = check_v1_issues(&long); // dài bất thường: không panic, bị chặn ở IME_MAX_ASSIST_ISSUES
+    }
+
+    /// P4-13: "Sửa tất cả" (explicit) chỉ áp gợi ý chính tả đủ chắc (confidence ≥ 60).
+    #[test]
+    fn explicit_fix_all_skips_ambiguous_spelling_but_applies_confident_ones() {
+        let sentence = "tôi chềt hõc";
+        let mk = |start, end, confidence, suggest: &str| PlanIssueRaw {
+            kind: IME_ASSIST_KIND_SPELLING,
+            start,
+            end,
+            auto_fixable: false,
+            confidence,
+            suggest: suggest.to_string(),
+        };
+        let plan = |raws: &[PlanIssueRaw]| plan_issues_from_raw_ex(sentence, raws, true);
+        assert_eq!(plan(&[mk(4, 8, 80, "chết")]).len(), 1, "một ứng viên → áp");
+        assert_eq!(plan(&[mk(9, 12, 55, "học")]).len(), 0, "mơ hồ → bỏ qua");
+        assert_eq!(
+            plan(&[mk(9, 12, 60, "học")]).len(),
+            1,
+            "provider OS = 60 → áp"
+        );
+        assert_eq!(
+            plan(&[mk(4, 8, 80, "chết"), mk(9, 12, 55, "học")]).len(),
+            1,
+            "trộn: chỉ áp ca chắc chắn"
+        );
+        // Không explicit thì không bao giờ áp lỗi chỉ-gợi-ý.
+        assert!(plan_issues_from_raw_ex(sentence, &[mk(4, 8, 80, "chết")], false).is_empty());
     }
 
     #[test]

@@ -31,7 +31,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 - **Hồ sơ phong cách người dùng (User Style Profile P7)**: Tự động ghi nhận từ vựng riêng và cặp sửa lỗi người dùng chấp nhận, học 100% offline, chỉ kích hoạt khi người dùng cho phép (opt-in G8), bảo vệ nghiêm ngặt quyền riêng tư.
 
 ### 3. Trợ lý Ngữ pháp & Ngữ cảnh On-Device (Grammarly-Grade Offline)
-- **Kiểm soát 15 nhóm lỗi toàn diện**: Bắt lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, viết hoa đầu câu, sai vị trí dấu thanh ("nghiã" → "nghĩa"), phủ định kép, phẩy sau liên từ, mạo từ tiếng Anh a/an, cặp từ dễ nhầm lẫn EN, đại từ "i", chính tả EN/VI, cảnh báo ngày tháng phi lý (31/02, 32/13 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ).
+- **Kiểm soát 15 nhóm lỗi toàn diện**: Bắt lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, viết hoa đầu câu, sai vị trí dấu thanh ("nghiã" → "nghĩa"), **sai dấu thanh theo từ điển âm tiết dựng sẵn ("chềt" → "chết", bắt 99% lỗi dấu thanh tổng hợp, 0% báo nhầm trên corpus sạch — không cần từ điển hệ điều hành)**, phủ định kép, phẩy sau liên từ, mạo từ tiếng Anh a/an, cặp từ dễ nhầm lẫn EN, đại từ "i", chính tả EN/VI, cảnh báo ngày tháng phi lý (31/02, 32/13 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ).
 - **Cơ chế Idle 1 giây trên cả 3 hệ điều hành**: Dừng gõ 1 giây → panel trợ lý tự động xuất hiện ngay tại con trỏ (caret), gạch chân đỏ chính xác từ sai kèm tổng số lỗi; gõ tiếp → panel lập tức ẩn đi để không làm gián đoạn dòng văn bản.
 - **Hai chế độ linh hoạt**: Chế độ *Chỉ gợi ý* (Mode 1) hoặc *Tự sửa lỗi an toàn* (Mode 2) tự động sửa lỗi khách quan và cho phép hoàn tác 1 chạm bằng Ctrl+Z trong vòng 5 giây.
 - **Tiêu chuẩn vàng không báo nhầm (0% FPR)**: Đạt tỷ lệ 0 % câu đúng bị báo nhầm trên tập kiểm định 981 câu tiếng Việt và 295 câu tiếng Anh ([P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
@@ -101,7 +101,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 - Emoji gõ tắt; số tiền `=1.550.00đ` → chữ Việt; bảo vệ công thức Excel và định danh lập trình.
 
 ### 4. Trợ Lý Ngữ Pháp Câu & Từ Ngữ Cảnh On-Device
-- 15 loại lỗi phát hiện tự động: lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (31/02, 32/13), số tiền phân cách hỗn loạn (1.250.00đ).
+- 15 loại lỗi phát hiện tự động: lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển âm tiết dựng sẵn), ngày tháng vô lý (31/02, 32/13), số tiền phân cách hỗn loạn (1.250.00đ).
 - Panel gợi ý khi **dừng gõ 1 giây** (cả 3 hệ điều hành): mọi phím gõ chữ/dấu câu/xoá hẹn lại đồng hồ, gõ tiếp là ẩn ngay, dừng đủ 1 s mới kiểm tra từ + câu rồi hiện (cả chế độ gợi ý lẫn sửa lỗi an toàn, kể cả sau `.` `,`); giữa từ đang gõ chỉ Windows hiện (Linux/macOS đợi từ chốt).
 - Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả".
 - Chế độ 1 chỉ gợi ý / Chế độ 2 tự sửa lỗi khách quan — hoàn tác Ctrl+Z trong 5 giây.
@@ -255,7 +255,7 @@ Tiếng Việt · English
 - **User Style Profile (P7)**: Automatically learns personal vocabulary and accepted correction pairs, 100% offline, strictly opt-in per privacy rule G8, with safe memory caps (200 words / 50 pairs).
 
 ### 3. On-Device Grammar & Context Assistant (Grammarly-Grade Offline)
-- **Comprehensive 15-Category Issue Detection**: Detects word repeats, 2–4-word phrase repeats, punctuation spacing, sentence capitalization, misplaced tone marks ("nghiã" → "nghĩa"), double negatives, post-conjunction commas, English a/an articles, easily-confused English pairs, lowercase pronoun "i", English/Vietnamese spelling, calendar-aware invalid dates (31/02, 32/13), and inconsistent money grouping (1.250.00đ).
+- **Comprehensive 15-Category Issue Detection**: Detects word repeats, 2–4-word phrase repeats, punctuation spacing, sentence capitalization, misplaced tone marks ("nghiã" → "nghĩa"), **wrong tone marks via a built-in syllable dictionary ("chềt" → "chết", 99% of synthetic tone errors caught, 0% false positives on the clean corpus — no OS dictionary needed)**, double negatives, post-conjunction commas, English a/an articles, easily-confused English pairs, lowercase pronoun "i", English/Vietnamese spelling, calendar-aware invalid dates (31/02, 32/13), and inconsistent money grouping (1.250.00đ).
 - **1-Second Idle Trigger Across All 3 OSes**: Pause typing for 1 second → assistant panel appears at the caret, with red underlines on errors and total issue count; resume typing → panel instantly dismisses without disrupting focus.
 - **Two Flexible Operating Modes**: *Suggest-Only* (Mode 1) for unobtrusive assistance or *Safe Auto-Fix* (Mode 2) for automatic correction of clear-cut errors with a 1-step Ctrl+Z undo window for 5 seconds.
 - **Zero False-Positive Standard (0% FPR)**: Verified 0 % false alarms on a curated benchmark of 981 Vietnamese and 295 English clean sentences ([P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
@@ -325,7 +325,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 - Emoji shortcuts; `=1.550.00đ` currency to Vietnamese words; Excel formula and programming identifier protection.
 
 ### 4. On-Device Grammar & Context Assistant
-- 15 issue types: word repeats, 2–4-word phrase repeats, punctuation spacing, sentence-case, diacritic typos, double negatives, end-of-sentence commas, post-conjunction commas, a/an articles, easily-confused English words, lowercase pronoun "i", English spelling (OS spell), Vietnamese spelling (dictionary), impossible dates (31/02, 32/13), inconsistent money grouping (1.250.00đ).
+- 15 issue types: word repeats, 2–4-word phrase repeats, punctuation spacing, sentence-case, diacritic typos, double negatives, end-of-sentence commas, post-conjunction commas, a/an articles, easily-confused English words, lowercase pronoun "i", English spelling (OS spell), Vietnamese spelling (built-in syllable dictionary), impossible dates (31/02, 32/13), inconsistent money grouping (1.250.00đ).
 - Suggestion panel on **1-second typing pause** across all 3 platforms: every keystroke/punctuation/backspace resets the timer, typing resumes hides it immediately, only a full 1-second pause checks the word + sentence and displays the panel (suggestion and safe auto-fix modes alike, including after `.` `,`); mid-word display is supported on Windows.
 - Mouse-clickable UI, Alt+1…3 shortcuts, Enter to apply "Fix All".
 - Mode 1 suggest-only / Mode 2 safe auto-fix with a 5-second Ctrl+Z undo window.
