@@ -1,17 +1,17 @@
 # Graph Report - TextVN  (2026-11-08)
 
 ## Corpus Check
-- 477 files · ~943,683 words
+- 482 files · ~954,121 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 320 file(s) not represented in the graph (top: .keys 248, (none) 15, .ass 12)
 
 ## Summary
-- 9607 nodes · 19250 edges · 518 communities (435 shown, 83 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 1323 edges (avg confidence: 0.87)
+- 9740 nodes · 19478 edges · 500 communities (426 shown, 74 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 1329 edges (avg confidence: 0.87)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `437c9e8f`
+- Built from commit: `e0ccf534`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,7 +20,7 @@
 - tsf-min/src/lib.rs
 - cli/src/replay.rs
 - config/src/lib.rs
-- edit_session.rs
+- TsfShared
 - abnormal_1000.rs
 - windows-hook/src/main.rs
 - Value
@@ -42,18 +42,18 @@
 - P0-2 — Hợp đồng FFI v1 (nguồn sự thật duy nhất)
 - P1-1 — TSF ADAPTER (Windows) — Solution chi tiết
 - P3-1 — IBUS ADAPTER (Linux) — Solution chi tiết
-- .DoEditSession
+- .new
 - engine.c
 - P2-1 — IMK ADAPTER (macOS) — Solution chi tiết
-- test_delete_surrounding.cpp
-- TsfShared
+- syllables.rs
+- selection_check.rs
 - P0-3 — Config schema · Preset (appdb) · Strategy model · IPC
 - P2-2 — CGEVENTTAP FALLBACK (macOS, opt-in) — Solution chi tiết
 - properties
 - store.rs
 - windows-hook/src/lib.rs
 - Chi tiết từng mục
-- string
+- stdio
 - settings_window.c
 - P0-4 — Test strategy · Định dạng corpus `.keys` · Replay simulator
 - properties
@@ -117,16 +117,16 @@
 - T3 — Field detect + AppDB (tuần 7–10) — dep: LNX-005
 - P3-REVIEW-LOG — Phần 3 (Linux)
 - Spike WIN-003 — Đăng ký TIP per-user, elevation scope, `InstallLayoutOrTip`
-- tone.rs
-- IpcServerAssistTests
+- push_key
+- IpcClient
 - env.md — Môi trường build Windows (WIN-001)
 - A2b — EventTap opt-in (tuần 8–11, song song) — dep: MAC-009
-- .new
+- EngineSession
 - ByteCursor<'a>
 - OverlayView
 - when
 - P1 — REVIEW LOG (Phần 1: Windows)
-- atomic
+- ObjGuard
 - entry
 - id
 - article_an.rs
@@ -142,8 +142,8 @@
 - windows
 - adr/README.md
 - tsf-min
-- sentence_grammar.rs
-- lc_plan
+- Issue
+- hotkey.rs
 - Attribution dữ liệu Tatoeba (CC BY 2.0 FR)
 - vni.rs
 - Ctx
@@ -157,8 +157,8 @@
 - tray/src/assist.rs
 - guids.rs
 - uia_spike.ps1
-- CandidateOverlay
-- do_register
+- cli/src/assist.rs
+- do_unregister
 - worker_main
 - autostart.rs
 - Spike WIN-005 — WH_KEYBOARD_LL + SendInput + UIA trên GHA (`spikes/hook-probe`)
@@ -166,18 +166,18 @@
 - tray/src/main.rs
 - menu.rs
 - SettingsController
-- Option
+- plan_sentence_auto_fix
 - ipc_client.c
 - P4-4 — Tận dụng năng lực check ngôn ngữ **có sẵn của OS/app** (OS-first) — nghiên cứu & thiết kế
 - os_macos.rs
-- svc.rs
+- idle_popup_routing.rs
 - mmap.rs
 - developer-guide.md
 - package_bootstrap.rs
 - win32-uia.lib.ps1
 - Dict
 - engine.cpp
-- Issue
+- assist/src/lib.rs
 - ipc_client.rs
 - bitset
 - verify_targets.ps1
@@ -196,10 +196,10 @@
 - rules_win.rs
 - P3-3 — X11 FALLBACK (Linux, opt-in) — Solution chi tiết
 - verify-evidence.md
-- with_ctx
+- DialogContext
 - dictionary_budget.rs
 - os_spell.rs
-- String
+- IpcServer
 - invariants.rs
 - P3-2 — FCITX5 ADDON (Linux) — Solution chi tiết
 - Diagnostics
@@ -213,9 +213,10 @@
 - dict/src/lib.rs
 - duplicate_word.rs
 - macro_text.rs
-- ConfigStore
+- SettingsView
 - trigger
 - AssistTests
+- phrases.rs
 - field-detect/src/lib.rs
 - e2e_ibus.c
 - generate_app_icons.py
@@ -224,7 +225,7 @@
 - e2e_fcitx5.py
 - ipc_server.rs
 - key_event.rs
-- check_mac_targets.rs
+- lc_modifier_toggle
 - os_windows.rs
 - install_linux.sh
 - uninstall_linux.sh
@@ -235,13 +236,13 @@
 - .new
 - en_spelling.rs
 - ffi/src/settings.rs
-- check_sentence
+- office_mixed_work.rs
 - foreground.rs
 - windows-tsf/src/replay.rs
 - Foundation
 - score_real.py
-- Option
-- IpcClient
+- Path
+- P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)
 - P4-8 — Baseline chất lượng engine `assist` (đo được) + công cụ `assist score`
 - Quy trình phát hành TextVN — bắt buộc cho mọi agent và contributor
 - properties
@@ -252,7 +253,7 @@
 - ime_conflict_1000.rs
 - Báo cáo dựng & kiểm thử — TextVN
 - remove_added_languages
-- .testDefaultConfig
+- AssistCheck
 - Dictionary
 - tsf-min/src/register.rs
 - TextVNAppTests
@@ -261,7 +262,7 @@
 - undo.rs
 - Kế hoạch ký số (code signing) — TextVN
 - gen_vocab.rs
-- en_confusions.rs
+- textBeforeCaretMatches
 - test-typing.ps1
 - env-mac — Môi trường build macOS (MAC-001)
 - A. WINDOWS
@@ -298,25 +299,25 @@
 - TextVN — Chỉ mục tài liệu & Giao thức Review
 - command
 - check_version_sync.rs
-- NSRange
-- ime_context
+- String
+- ConfigStore
 - P4-6 — Handoff AS-021 (FFI) + AS-022 (trigger): bản đồ & recipe để thi công
 - properties
-- IpcMessage
+- WinSpell
 - generate_store_art.py
 - fix.rs
 - worker_main
 - 3. Nhật ký finding
-- GhostText
+- ghost.rs
 - Nộp TextVN lên Microsoft Store (bản cài .exe — silent install)
 - verify-store-package.sh
-- Json
-- say
+- Option
+- tokenize.rs
 - rca_v57_adversarial.rs
 - Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon)
 - CodingKeys
-- ghost.rs
-- HKEY
+- mask.rs
+- wide
 - BÁO CÁO KIỂM TOÁN CHUYÊN SÂU & LỘ TRÌNH ĐẠT CHUẨN PRODUCTION VÀ KÝ SỐ TOÀN DIỆN (v0.2.19)
 - diacritic_style.rs
 - BÁO CÁO KIỂM TOÁN CHUYÊN SÂU & LỘ TRÌNH ĐẠT CHUẨN PRODUCTION VÀ KÝ SỐ TOÀN DIỆN (v0.2.19)
@@ -330,21 +331,21 @@
 - AppDb
 - verify-msix.py
 - number_vn.rs
-- ime_result_v1
+- abi_invariants.rs
 - Strategy
 - [0.2.3] — 2026-10-01
-- core
+- tip.rs
 - plan_key
 - gen_corpus_en_tatoeba.py
 - .run
 - macSpellContainsCallback
-- set_reg_value
+- do_register
 - 3.4. Điều tra chuyên sâu: Giải mã 3 lỗi từ chối của Microsoft Store (Silent Install, Add/Remove Programs, Bundleware) & Thiết kế bài test CI chuẩn xác theo kỳ vọng của Microsoft
 - CTextVNFFI/include/textvn_ffi.h
 - EngineOptions
 - trace.rs
 - style_profile
-- Trạng thái ký số macOS — Developer ID, notarization, stapling
+- atomic
 - package_family_full_names
 - OwnerRule
 - readme_numbers.rs
@@ -360,15 +361,15 @@
 - prepare-ppa.sh
 - 3.4.6. Điều tra chuyên sâu với Siêu dữ liệu Định danh đã xác thực: Product Name = "TextVN" & Publisher Display Name = "LinhBH.CoM"
 - T6 — Test & hardening (tuần 15–18)
-- Dictionary
+- kappa.py
 - Problem
 - Mapping
 - 3. Chính sách Quyền riêng tư & Luồng Dữ liệu (Privacy & Data Flow)
-- ime_result
-- unicodedata
+- AssistMode
+- tone_inject.py
 - press
 - 4. CHI TIẾT KIỂM TOÁN TỪNG DÒNG MÃ (MODULE-BY-MODULE AUDIT)
-- tray/src/settings.rs
+- .get
 - .CreateInstance
 - pipe_name
 - windowsandmessaging
@@ -393,7 +394,7 @@
 - unmark_as_unmark_tone
 - Vòng 11 — `v0.2.2`: đóng F3-13 (mở nhầm Cài đặt lúc login), F3-8 và nit
 - ViState
-- keymap
+- Rà soát backlog theo tài liệu kế hoạch — 2026-11-08
 - TextVN IPC v1
 - suggest_vn.rs
 - PLAN — Bộ gõ tiếng Việt mã nguồn mở thế hệ mới (Win · macOS · Linux)
@@ -405,11 +406,11 @@
 - IMPLEMENTATION STATUS — adapter macOS (Farch-4)
 - TSF typing overhaul — sửa lỗi "không gõ được tiếng Việt" + giảm heuristic AV
 - KeyKind
-- [0.2.71] — 2026-11-08
+- fuzz — L4 (P0-4 §1)
 - 3.4.5. Điều tra chuyên sâu lần nộp v0.2.21: Vì sao Store vẫn tiếp tục từ chối ở 3 bài kiểm tra dù đã sửa Publisher và nâng phiên bản?
 - claim_debounced
 - publish-aur.sh
-- corpus.rs
+- cli/build.rs
 - P3-7 — TASKS LINUX (WBS) — Nhận việc từng task
 - StageInfo
 - [0.2.38] — 2026-10-24
@@ -421,12 +422,12 @@
 - 3.1. Lỗi không đổi icon và không chuyển mode gõ khi bấm Ctrl + Shift trên cả 3 hệ điều hành
 - trigger_keys
 - windows-tsf/build.rs
-- P3-4 — AT-SPI FIELD DETECT & APP PRESET (Linux) — Solution chi tiết
+- [0.2.72] — 2026-11-08
 - corrections
 - Bản 0.2.2 — vá F3-13 (mở nhầm Cài đặt lúc login) + F3-8, nit
 - `docs/compat.md` — Ma trận tương thích app (L7, P0-4 §1)
 - P8/V55 — DFMEA + DRBFM: 5 fix phản hồi test thật của chủ repo (2026-11-05)
-- Frame
+- ComApartment
 - EventTapController
 - 4.3. Module Linux (Common IPC, IBus, Fcitx5, GTK4 Settings & Packaging)
 - 3. ĐIỀU TRA GỐC RỄ (ROOT-CAUSE ANALYSIS) CÁC LỖI TRỌNG YẾU ĐƯỢC NÊU
@@ -436,7 +437,7 @@
 - caps.rs
 - CTRL_TAP_MAX
 - ffi/build.rs
-- AppDelegate.swift
+- [0.2.40] — 2026-10-24
 - measure_assist_rss.ps1
 - Targets JSON — `tools/appcomptest/targets/` (WIN-061)
 - MACRO_LAYOUT
@@ -448,15 +449,15 @@
 - WORDLIST_LAYOUT
 - [0.2.66] — 2026-11-07
 - 4.1. Module Windows (TSF, Hook, Tray, CLI Register, Installer & MSIX)
-- [0.2.29] — 2026-10-10
+- [0.2.46] — 2026-10-26
 - English
 - x86probe
 - outputcharset
 - P4-2 — CROSS-REVIEW 2026-10-20: Rà soát chéo "Trợ lý ngữ pháp" (Phần 4) + phản hồi của agent A
-- [0.2.47] — 2026-10-26
+- Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được
 - Xác định ngôn ngữ khi gõ — ma trận xung đột và thứ tự ưu tiên
 - entries
-- [0.2.0] — 2026-09-30
+- Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath
 - P0-1 — Repo layout, crate responsibilities, Build/Test/CI workflow
 - 2. Windows — Spell Checking API (`spellcheck.h`, Win8+)
 - Bản 0.2.10 + 0.2.11 — toggle = activate bộ gõ, migration nâng cấp, publish hardening
@@ -464,12 +465,12 @@
 - [0.2.49] — 2026-10-26
 - [0.2.35] — 2026-10-23
 - Bản 0.2.13 + 0.2.14 — hoàn thiện 3 nền tảng, DPI theo màn hình, UI thống nhất
-- windows-hook/build.rs
-- module_instance
+- Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục
+- Bản 0.2.16 — portable tự chữa trên Win11 24H2+ (B7) + hết ghost khi gỡ (0.2.15)
 - auto_restore_english
-- [0.2.10] — 2026-10-03
+- Bản 0.2.31 — hoàn tất roadmap audit 3 nền tảng (A10, B7/B8/B9/B11/B12/B13, C1/C3/C7/C8/C9) + gate clippy-linux
 - Vec
-- [0.2.72] — 2026-11-08
+- [0.2.73] — 2026-11-08
 - [0.2.14] — 2026-10-03
 - [0.2.67] — 2026-11-07
 - vn_freq_data
@@ -481,49 +482,31 @@
 - [0.2.70] — 2026-11-08
 - 2. Kết quả kiểm thử
 - Bản 0.2.4 — hoàn tất code gate, chờ workflow phát hành
-- [0.2.12] — 2026-10-03
+- Bản 0.2.32 — rà soát toàn hệ thống sau 0.2.31 (R2-101…R2-115) + CI từng nền tảng
 - simple_telex.rs
 - P0 — REVIEW LOG (Phần 0: Nền tảng chung)
-- [0.2.15] — 2026-10-03
-- [0.2.16] — 2026-10-03
-- [0.2.26] — 2026-10-05
+- Bản 0.2.4 — đăng ký không cần admin + clean composition + Ctrl+Shift single-path
+- Bản 0.2.6 — chốt đăng ký TSF VI+EN, hết ghost registration
+- Bản 0.2.9 — từ điển EN cá nhân + quy tắc ưu tiên + preflight 17 gate
 - [0.2.42] — 2026-10-24
 - 3.4.7. Bước ngoặt lịch sử trên v0.2.24: Vượt qua hoàn toàn 3 bài kiểm tra Silent/ARP/Bundleware & Giải phẫu Thông báo Chính sách 10.2.9 (Security - Package Submissions)
-- [0.2.54] — 2026-10-30
-- [0.2.4] — 2026-10-01
-- [0.2.33] — 2026-10-18
 - [0.2.28] — 2026-10-10
 - [0.2.8] — 2026-10-02
 - [0.2.50] — 2026-10-28
 - [0.2.69] — 2026-11-08
-- [0.2.5] — 2026-10-02
 - [0.2.61] — 2026-11-03
-- [0.2.65] — 2026-11-06
 - Bản 0.2.8 — tự xác định EN/VI + Tab gợi ý + DPI đa màn hình + Store silent
-- [0.2.11] — 2026-10-03
-- [0.2.19] — 2026-10-04
-- [0.2.21] — 2026-10-04
-- [0.2.23] — 2026-10-05
-- [0.2.36] — 2026-10-23
-- [0.2.39] — 2026-10-24
-- [0.2.43] — 2026-10-25
-- [0.2.45] — 2026-10-25
-- [0.2.51] — 2026-10-28
-- [0.2.53] — 2026-10-29
-- [0.2.58] — 2026-10-31
-- [0.2.59] — 2026-10-31
-- .validate_hotkey
 
 ## God Nodes (most connected - your core abstractions)
 1. `TsfShared` - 103 edges
 2. `TextVNInputController` - 101 edges
 3. `Engine` - 94 edges
-4. `Báo cáo dựng & kiểm thử — TextVN` - 79 edges
-5. `Changelog` - 76 edges
+4. `Báo cáo dựng & kiểm thử — TextVN` - 80 edges
+5. `Changelog` - 78 edges
 6. `SvcManager` - 68 edges
 7. `AppDelegate` - 65 edges
-8. `Issue` - 63 edges
-9. `Ctx` - 58 edges
+8. `Issue` - 64 edges
+9. `Ctx` - 61 edges
 10. `TextVNEngine` - 51 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -543,7 +526,7 @@
 - 2-file cycle: `core/src/transform/vowel_table.rs -> core/src/transform/vowel_table_generated.rs -> core/src/transform/vowel_table.rs`
 - 2-file cycle: `dict/src/lib.rs -> dict/src/os_windows.rs -> dict/src/lib.rs`
 
-## Communities (518 total, 83 thin omitted)
+## Communities (500 total, 74 thin omitted)
 
 ### Community 0 - "core/src/lib.rs"
 Cohesion: 0.07
@@ -555,15 +538,15 @@ Nodes (50): ITfKeyEventSink, ClassFactory, ClassFactory_Impl, CLSID_TEXTVN_TIP, 
 
 ### Community 2 - "cli/src/replay.rs"
 Cohesion: 0.08
-Nodes (47): action_name(), adapter_profile(), AdapterProfile, build_json(), caps_bits(), Case, case_without_any_expectation_is_rejected(), Cmd (+39 more)
+Nodes (48): action_name(), adapter_profile(), AdapterProfile, build_json(), caps_bits(), Case, case_without_any_expectation_is_rejected(), Cmd (+40 more)
 
 ### Community 3 - "config/src/lib.rs"
 Cohesion: 0.04
 Nodes (61): assist_defaults_match_p4_0_section_7(), assist_full_block_parses(), ASSIST_TRIGGER_KEYS, AssistDisplay, AssistLanguage, AssistSettings, Config, ConfigError (+53 more)
 
-### Community 4 - "edit_session.rs"
-Cohesion: 0.07
-Nodes (49): AssistCheck, FixPlan, ActiveAssist, apply_display_attribute(), apply_plan(), apply_sentence_auto_fix(), ApplyAssistFixSession, ApplySentenceFixSession (+41 more)
+### Community 4 - "TsfShared"
+Cohesion: 0.08
+Nodes (63): FixPlan, ActiveAssist, apply_assist_suggestion(), apply_ctrl_tap_in_context(), apply_display_attribute(), apply_sentence_fix_all(), ApplyAssistFixSession, ApplyAssistUndoSession (+55 more)
 
 ### Community 5 - "abnormal_1000.rs"
 Cohesion: 0.06
@@ -579,15 +562,15 @@ Nodes (18): fmt, comment_trong_chuoi_khong_bi_cat(), Doc, hex_int_cho_bang_keyco
 
 ### Community 8 - "xtask/src/main.rs"
 Cohesion: 0.11
-Nodes (38): insert_nested(), banner(), emit(), format_rust(), gen_tables(), index_of(), key_char(), KEYMAP_MAC_OUT_RUST (+30 more)
+Nodes (37): banner(), emit(), format_rust(), gen_tables(), index_of(), key_char(), KEYMAP_MAC_OUT_RUST, KEYMAP_MAC_OUT_SWIFT (+29 more)
 
 ### Community 9 - "ffi/src/lib.rs"
 Cohesion: 0.03
-Nodes (120): assist_check_finds_vietnamese_issue(), assist_check_ignores_clean_or_english_text(), assist_check_instance_reads_sentence_buffer(), assist_check_v1_fail_open_on_empty_null_and_bad_utf16(), assist_check_v1_matches_utf8_path(), assist_check_v1_utf16_offset_is_char_not_utf16(), assist_plan_sentence_fix_happy_path(), assist_plan_sentence_fix_no_issues_and_rejects_bad_args() (+112 more)
+Nodes (129): remove_auto_capitalize_conflicts(), assist_check_finds_vietnamese_issue(), assist_check_ignores_clean_or_english_text(), assist_check_instance_reads_sentence_buffer(), assist_check_v1_fail_open_on_empty_null_and_bad_utf16(), assist_check_v1_matches_utf8_path(), assist_check_v1_utf16_offset_is_char_not_utf16(), assist_plan_sentence_fix_happy_path() (+121 more)
 
 ### Community 10 - "strategy/src/lib.rs"
-Cohesion: 0.06
-Nodes (25): ActionKind, Option, IME_CAP_FIELD_DETECT, IME_CAP_INJECT_VK, IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY (+17 more)
+Cohesion: 0.07
+Nodes (22): ActionKind, Option, IME_CAP_FIELD_DETECT, IME_CAP_INJECT_VK, IME_CAP_PREEDIT, IME_CAP_SELECTION, IME_FIELD_ADDRESS_BAR, IME_FIELD_BODY (+14 more)
 
 ### Community 11 - "vowel_table_generated.rs"
 Cohesion: 0.08
@@ -595,15 +578,15 @@ Nodes (27): BREVE, CIRCUMFLEX, HORN, is_marker(), REMOVE_MARKS_KEY, Option, STRO
 
 ### Community 12 - "bench/src/main.rs"
 Cohesion: 0.09
-Nodes (39): black_box, ime_instance_new(), ime_reload_config(), ime_set_context(), options_from_config(), set_error(), instant, textvn_field_detect (+31 more)
+Nodes (37): black_box, ime_context_v1, ime_set_context(), ime_strategy_resolve(), instant, textvn_field_detect, bench_dream_rsi(), bench_field_switch_resolve() (+29 more)
 
 ### Community 13 - "cli/src/register.rs"
 Cohesion: 0.06
-Nodes (37): authorization, CAT_DISPLAY_ATTRIBUTE_PROVIDER, CAT_IMMERSIVE, CAT_SYSTRAY, CAT_TIP_KEYBOARD, CLSID_INNER, clsid_key(), clsid_registry_key() (+29 more)
+Nodes (37): call_layout_or_tip(), call_layout_or_tip_spec(), CAT_DISPLAY_ATTRIBUTE_PROVIDER, CAT_IMMERSIVE, CAT_SYSTRAY, CAT_TIP_KEYBOARD, CLSID_INNER, clsid_key() (+29 more)
 
 ### Community 14 - "doc.rs"
 Cohesion: 0.10
-Nodes (31): atomic_write(), create_private_dir(), default_at(), defaults(), DocKind, invalid_values_are_rejected_without_changing_the_doc(), lookup_nested(), macros_text_round_trip_through_doc() (+23 more)
+Nodes (32): atomic_write(), create_private_dir(), default_at(), defaults(), DocKind, insert_nested(), invalid_values_are_rejected_without_changing_the_doc(), lookup_nested() (+24 more)
 
 ### Community 15 - "keymap.rs"
 Cohesion: 0.06
@@ -615,23 +598,23 @@ Nodes (48): abnormal_fuzz_tong_hop_bat_bien(), abnormal_ngoac_gach_ngang_tron_ch
 
 ### Community 17 - "validate.rs"
 Cohesion: 0.13
-Nodes (20): coda_after_nucleus_ok(), CODAS, decompose(), has_vowel(), is_valid_word(), lower_str(), NUCLEI, ONSETS (+12 more)
+Nodes (21): unmark(), coda_after_nucleus_ok(), CODAS, decompose(), has_vowel(), is_valid_word(), lower_str(), NUCLEI (+13 more)
 
 ### Community 18 - "macro.rs"
 Cohesion: 0.15
 Nodes (15): Emoji, emoji_glyph_is_multi_char(), apply_macro_case(), def(), emoji_tail_matches(), eq_ignore_case(), find(), macro_tail_matches() (+7 more)
 
 ### Community 19 - "telex.rs"
-Cohesion: 0.08
-Nodes (21): codas, char_idx(), circum_pair(), f(), fold(), fold_with(), fold_with_caps(), FoldState (+13 more)
+Cohesion: 0.07
+Nodes (20): codas, char_idx(), circum_pair(), f(), fold(), fold_with(), fold_with_caps(), FoldState (+12 more)
 
 ### Community 20 - "P1-2 — HOOK ADAPTER (Windows) — Solution chi tiết"
 Cohesion: 0.11
 Nodes (17): 10. Mapping task (chi tiết `P1-6-TASKS.md`), 11. Failure modes, 1. Quyết định & phạm vi, 2. Kiến trúc tiến trình, 3. Hook callback — luật bất biến, 4. Focus & field detect (không trong callback), 5.1 `BackspaceType`, 5.2 `SelectionReplace` (bug B1 — address bar/Excel) (+9 more)
 
 ### Community 21 - "windows-tsf/src/lib.rs"
-Cohesion: 0.03
-Nodes (62): mode1_display_enabled(), mode2_auto_fix_enabled(), after_request_edit_session(), classify_tsf_field(), config_file_path(), d16_auto_capitalize_theo_config(), DllCanUnloadNow(), DllGetClassObject() (+54 more)
+Cohesion: 0.05
+Nodes (49): after_request_edit_session(), classify_tsf_field(), DllCanUnloadNow(), DllGetClassObject(), EditSessionResult, engine_session_sentence_tail_and_glyph_len(), external_edit_clears_ownership_before_next_replace(), focus_generation_rejects_old_uia_result_and_stays_fail_safe() (+41 more)
 
 ### Community 22 - "restore_en.rs"
 Cohesion: 0.07
@@ -649,25 +632,25 @@ Nodes (17): 10. Playbook triển khai (mapping sang task — chi tiết ở `P1-
 Cohesion: 0.11
 Nodes (18): 10. Playbook triển khai (mapping `P3-7-TASKS.md`), 11. Chẩn đoán, 12. Failure modes, 1. Quyết định & capability, 2. Cấu trúc module & repo, 3. Vòng đời IBus, 4. State machine (giống `P1-1 §4`, preedit thay composition), 5.1 Translate `keyval` → `ime_key_v1` (SPIKE `LNX-004` — RL1) (+10 more)
 
-### Community 26 - ".DoEditSession"
-Cohesion: 0.09
-Nodes (19): apply_assist_undo(), ApplyAssistFixSession_Impl, ApplyAssistUndoSession_Impl, ApplySentenceFixSession_Impl, caret_at_composition_end(), clear_assist_undo_xoa_state(), CompSink_Impl, CtrlTapSession_Impl (+11 more)
+### Community 26 - ".new"
+Cohesion: 0.07
+Nodes (33): apply_assist_undo(), apply_plan(), apply_sentence_auto_fix(), ApplyAssistFixSession_Impl, ApplyAssistUndoSession_Impl, ApplySentenceFixSession_Impl, AssistRecallSession_Impl, backspace_shift() (+25 more)
 
 ### Community 27 - "engine.c"
 Cohesion: 0.12
-Nodes (52): lc_comp_apply(), lc_modifier_toggle_reset(), lc_plan_commit_text(), lc_log(), apply_assist_candidate(), apply_assist_undo(), assist_idle_arm(), assist_idle_cancel() (+44 more)
+Nodes (54): lc_comp_apply(), lc_modifier_toggle_reset(), lc_plan_commit_text(), lc_log(), lc_utf32_to_utf8(), apply_assist_candidate(), apply_assist_undo(), assist_idle_arm() (+46 more)
 
 ### Community 28 - "P2-1 — IMK ADAPTER (macOS) — Solution chi tiết"
 Cohesion: 0.11
 Nodes (17): 10. Playbook triển khai (mapping `P2-6-TASKS.md`), 11. Chẩn đoán, 12. Failure modes, 1. Quyết định & capability, 2. Cấu trúc bundle & repo, 3. Vòng đời IMK, 4. State machine (giống `P1-1 §4`, marked text thay composition), 5. Key flow (+9 more)
 
-### Community 29 - "test_delete_surrounding.cpp"
-Cohesion: 0.09
-Nodes (21): DeleteCall, offset, size, FakeInputContext, deletes, InputContext, string, string (+13 more)
+### Community 29 - "syllables.rs"
+Cohesion: 0.07
+Nodes (22): CONFIDENCE_AMBIGUOUS, CONFIDENCE_UNAMBIGUOUS, confusable(), DATA, decompose(), dict(), dong_bat_thuong_khong_panic(), EXTRA (+14 more)
 
-### Community 30 - "TsfShared"
-Cohesion: 0.13
-Nodes (25): after_trigger(), check_sentence(), TsfShared, ApplySelectionFixSession, DEBOUNCE_MS, get_selection_anchor(), is_selection_key_up(), MAX_SELECTION_CHARS (+17 more)
+### Community 30 - "selection_check.rs"
+Cohesion: 0.14
+Nodes (22): ApplySelectionFixSession, DEBOUNCE_MS, get_selection_anchor(), is_selection_key_up(), MAX_SELECTION_CHARS, MAX_TRANSCODE_CHARS, MIN_SELECTION_CHARS, on_key_up() (+14 more)
 
 ### Community 31 - "P0-3 — Config schema · Preset (appdb) · Strategy model · IPC"
 Cohesion: 0.12
@@ -686,16 +669,16 @@ Cohesion: 0.06
 Nodes (39): APP_ID, ARG_AUTOSTART, ARG_GUARD, ARG_INSTALL, ARG_RELAY, build_command_line(), decide_store_run_value(), guard_decision() (+31 more)
 
 ### Community 35 - "windows-hook/src/lib.rs"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (23): a_fast_callback_resets_slow_streak(), auto_only_processes_hook_owned_nonsecure_focus(), CallbackDecision, empty_result(), engine_never_transforms_when_policy_says_pass(), EngineOutcome, hook_db(), HookMode (+15 more)
 
 ### Community 36 - "Chi tiết từng mục"
 Cohesion: 0.13
 Nodes (14): #10 — SendInput đến app elevated (UIPI), #1 — `CoCreateInstance` trong DLL, #2 — `ITfKeystrokeMgr::AdviseKeyEventSink`, #3 — `GetStart` / `GetSelection` (+ finding), #4 — `StartComposition` → `SetText` → `EndComposition`, #5 — Bảng `OnTestKeyDown` vs `OnKeyDown`, #6 — Đăng ký scope=user không admin, #7 — Win+Space + `ActivateProfile` (+6 more)
 
-### Community 37 - "string"
-Cohesion: 0.05
-Nodes (61): lc_assist_expected_document_tail(), lc_text_ends_with(), utf8_last_char_len(), lc_detect_active_framework(), lc_env_check(), get_time_ms(), has_word_icase(), lc_classify_field() (+53 more)
+### Community 37 - "stdio"
+Cohesion: 0.06
+Nodes (46): lc_detect_active_framework(), lc_env_check(), get_time_ms(), has_word_icase(), lc_classify_field(), lc_field_detect(), lc_is_terminal_app(), str_contains_icase() (+38 more)
 
 ### Community 38 - "settings_window.c"
 Cohesion: 0.06
@@ -722,8 +705,8 @@ Cohesion: 0.29
 Nodes (11): all_cases(), CASES_PART1, CASES_PART2, CASES_PART3, CASES_PART4, CASES_PART5, CASES_PART6, CASES_PART7 (+3 more)
 
 ### Community 44 - "`ffi.v1` — TextVN engine C-ABI v1 (bản chú giải cho adapter)"
-Cohesion: 0.25
-Nodes (7): 1. Bất biến (P0-2 §0) — đọc trước khi viết adapter, 2. Header (nguyên văn — sinh từ `ffi/include/textvn_ffi.h`), 3. Chú giải: vòng đời chuẩn của adapter, 4. Lỗi thường gặp (rút từ bug B1–B13), 5. Khi nào phải bump `IME_ABI_VERSION`, `ffi.v1` — TextVN engine C-ABI v1 (bản chú giải cho adapter), `ime_style_profile_persist` (R2-152)
+Cohesion: 0.22
+Nodes (8): 1. Bất biến (P0-2 §0) — đọc trước khi viết adapter, 2. Header (nguyên văn — sinh từ `ffi/include/textvn_ffi.h`), 3. Chú giải: vòng đời chuẩn của adapter, 4. Lỗi thường gặp (rút từ bug B1–B13), 5. Khi nào phải bump `IME_ABI_VERSION`, `ffi.v1` — TextVN engine C-ABI v1 (bản chú giải cho adapter), Ghi chú P4-13 — từ điển dấu thanh dựng sẵn (2026-11-08), `ime_style_profile_persist` (R2-152)
 
 ### Community 45 - "P1-4 — UI, Config, IPC, Packaging & Release (Windows) — Solution chi tiết"
 Cohesion: 0.17
@@ -774,7 +757,7 @@ Cohesion: 0.14
 Nodes (24): abi_sizes(), build_pkzip(), check_instance_mutex(), check_pipe_listening(), collect_log_tail(), collect_report(), config_path(), crc32() (+16 more)
 
 ### Community 57 - "StrategyResolver"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (17): Key, StrategyResolver, .cacheCount, .hasAppdb, Bool, Data, Int, Int32 (+9 more)
 
 ### Community 58 - "P3-5 — TRAY, CONFIG, IPC, PACKAGING & RELEASE (Linux) — Solution chi tiết"
@@ -783,7 +766,7 @@ Nodes (10): 1. Tray — StatusNotifier/AppIndicator (`PLAN §3.6`), 2. IPC serve
 
 ### Community 59 - "compose.c"
 Cohesion: 0.08
-Nodes (42): lc_config_state, allow_macro_when_vi_off, assist_auto_fix, assist_mode, auto_capitalize, loaded, mtime_ns, size (+34 more)
+Nodes (44): lc_sentence_fix_plan, delete_glyphs, fixed_count, original_tail, replacement, ime_instance, file_stamp(), is_executable() (+36 more)
 
 ### Community 60 - "T1 — IBus core (tuần 3–6) — dep: LNX-002/003/004"
 Cohesion: 0.18
@@ -794,8 +777,8 @@ Cohesion: 0.02
 Nodes (91): hidpi, normalize_word_list, ABOUT_DETAILS, ABOUT_TAGLINE, about_text(), about_text_matches_every_platform(), ASSIST_AUTO_FIX_LABELS, ASSIST_MODE_LABELS (+83 more)
 
 ### Community 62 - "lc_compose.h"
-Cohesion: 0.05
-Nodes (44): lc_selection_info, byte_len, char_len, del_offset, start_byte, lc_sentence_fix_plan, delete_glyphs, fixed_count (+36 more)
+Cohesion: 0.06
+Nodes (30): lc_config_state, allow_macro_when_vi_off, assist_auto_fix, assist_mode, auto_capitalize, loaded, mtime_ns, size (+22 more)
 
 ### Community 63 - "appdb/src/lib.rs"
 Cohesion: 0.10
@@ -858,8 +841,8 @@ Cohesion: 0.22
 Nodes (8): 1. Mục tiêu phần Linux (exit condition), 2. Kiến trúc process (nhất quán `P1-0 §2` / `P2-0 §2`), 3. Workstream & file solution, 4. Lộ trình (slice Linux; tuần tính từ khi bắt đầu Phần 3), 5. Dependency graph, 6. Rủi ro & mitigation (riêng Linux), 7. Definition of Done cho PHẦN 3, P3-0 — LINUX MASTER PLAN (Phần 3)
 
 ### Community 78 - "TextVNInputController"
-Cohesion: 0.05
-Nodes (32): KeyEvent, AssistCandidate, TextTarget, Any, AssistIssue, AssistSettings, AssistUndoState, Bool (+24 more)
+Cohesion: 0.06
+Nodes (31): KeyEvent, AssistCandidate, SentenceFixPlan, TextTarget, Any, AssistSettings, AssistUndoState, Bool (+23 more)
 
 ### Community 79 - "predict.rs"
 Cohesion: 0.07
@@ -882,28 +865,28 @@ Cohesion: 0.25
 Nodes (8): LNX-050 · Tray SNI + menu 9 mục + single instance (M) — `P3-5 §1`, LNX-051 · IPC server + watcher + health (L) — `P3-5 §2/§4`, LNX-052 · Settings GTK4 6 tab + parity checklist (L) — `P3-5 §3`, LNX-053 · systemd user unit + config init + hot-reload (M), LNX-054 · `.deb` cài/gỡ sạch (L) — `P3-5 §5`, LNX-055 · `doctor` full (M) — `P3-5 §6`, LNX-056 · Update-notify + `.rpm` + AUR (M) — `P3-5 §7/§8`, T5 — Tray / Settings / Packaging (tuần 11–14)
 
 ### Community 84 - "panel_idle_1000.rs"
-Cohesion: 0.05
-Nodes (64): check_sentence_on_demand(), AUTOCORRECT, che_do_tat_thi_im_lang_o_moi_diem_dung(), dung_1s_o_che_do_goi_y_bao_loi_dung_cho(), dung_1s_o_che_do_sua_loi_an_toan_bao_loi_dung_cho(), feed(), HIGHLIGHT, lap_lai_cung_mot_diem_dung_cho_cung_ket_qua() (+56 more)
+Cohesion: 0.09
+Nodes (47): build_p1_a(), build_p1_b(), build_p1_c(), build_p2_ids(), clip(), feed(), IDLE_MS, is_sentence_trigger() (+39 more)
 
 ### Community 85 - "Equatable"
-Cohesion: 0.17
-Nodes (19): AssistDisplay, AssistSettings, .isOn, EmojiEntry, MacroEntry, .id, StyleCorrection, StyleProfileSettings (+11 more)
+Cohesion: 0.13
+Nodes (23): AssistDisplay, AssistSettings, .isOn, EmojiEntry, LoadError, corrupt, missing, MacroEntry (+15 more)
 
 ### Community 86 - "Oracle UniKey — dùng engine UniKey làm chuẩn đối chiếu (golden reference)"
 Cohesion: 0.20
 Nodes (9): 1. Kết quả kiểm tra môi trường Windows (WIN-007), 2. Cách lấy oracle, 3. Quy tắc chung, 4. Coverage yêu cầu & Tiến độ, Cách A (khuyến nghị cho CI/Linux): x-unikey CLI, Cách B: UniKey Windows trên VM/Desktop (Áp dụng cho WIN-007), Cách C (dự phòng): Bảng Unicode chuẩn + quy tắc chính tả tiếng Việt, Oracle UniKey — dùng engine UniKey làm chuẩn đối chiếu (golden reference) (+1 more)
 
 ### Community 87 - "OutputStrategy"
-Cohesion: 0.29
-Nodes (7): OutputStrategy, backspaceType, forwardAsCommit, passthrough, preedit, selectionReplace, Int64
+Cohesion: 0.20
+Nodes (8): OutputStrategy, backspaceType, forwardAsCommit, passthrough, preedit, selectionReplace, B14. [THẤP] Test gap: không có test apply `replace` với `strategy: .backspaceType`, Int64
 
 ### Community 88 - "textvn-common.sh"
 Cohesion: 0.10
 Nodes (47): put(), install.sh script, usage(), textvn-common.sh script, tv_check_package(), tv_err(), tv_fcitx5_env_addon_dirs(), tv_fcitx5_system_addon_dir() (+39 more)
 
 ### Community 89 - "test_compose.c"
-Cohesion: 0.10
-Nodes (44): lc_modifier_toggle, armed, ctrl_armed, ctrl_down_us, lc_modifier, lc_assist_idle_arms(), lc_modifier_ctrl_tap_up(), lc_modifier_toggle_down() (+36 more)
+Cohesion: 0.07
+Nodes (57): lc_comp, len, text, lc_key, ch, kind, lc_plan, delete_before (+49 more)
 
 ### Community 90 - "config.v1.schema.json"
 Cohesion: 0.25
@@ -915,7 +898,7 @@ Nodes (6): A. Repo · Git · Graphify, B. Build · Test · Script, C. Windows pl
 
 ### Community 92 - "super"
 Cohesion: 0.06
-Nodes (36): bat_dau_cau_thuong(), check(), is_sentence_start(), looks_like_code_or_list(), Vec, bat_cum_sai_va_giu_hoa_thuong(), check(), OFFICE_BIGRAMS (+28 more)
+Nodes (35): bat_dau_cau_thuong(), check(), is_sentence_start(), Vec, bat_cum_sai_va_giu_hoa_thuong(), check(), OFFICE_BIGRAMS, OFFICE_PHRASES (+27 more)
 
 ### Community 93 - "M2 — Field detect + AppDB (tuần 7–10) — dep: WIN-004, WIN-006"
 Cohesion: 0.29
@@ -949,13 +932,13 @@ Nodes (8): Code Review Round 1 — Đúng & Đủ (Mã nguồn C/C++), Code Revi
 Cohesion: 0.29
 Nodes (6): 1. Bảng scope — API nào cần elevation?, 2. Fallback đã chứng minh cho `--scope user`, 3. Kết quả verify Win+Space / registry, 4. Finding (bắt buộc áp cho impl), 5. Exit, Spike WIN-003 — Đăng ký TIP per-user, elevation scope, `InstallLayoutOrTip`
 
-### Community 101 - "tone.rs"
+### Community 101 - "push_key"
 Cohesion: 0.12
-Nodes (26): Horn, post_fixes(), promote_uo_pair(), apply_key(), apply_key_literal_when_no_vowel(), apply_key_tone_and_undo(), apply_tone(), chars() (+18 more)
+Nodes (28): vni_viqr_marks_after_whole_cluster(), Horn, post_fixes(), promote_uo_pair(), push_key(), apply_key(), apply_key_literal_when_no_vowel(), apply_key_tone_and_undo() (+20 more)
 
-### Community 102 - "IpcServerAssistTests"
-Cohesion: 0.12
-Nodes (12): IpcServerAssistTests, Any, Int, Int32, IpcServer, ack, pong, snapshot (+4 more)
+### Community 102 - "IpcClient"
+Cohesion: 0.03
+Nodes (66): IpcServerAssistTests, Any, Int, Int32, IpcServer, URL, AssistReportIssue, .json (+58 more)
 
 ### Community 103 - "env.md — Môi trường build Windows (WIN-001)"
 Cohesion: 0.33
@@ -965,9 +948,9 @@ Nodes (5): 1. Build host (máy dev), 2. Tools DoD (Handbook §4 mục 4), 3. B�
 Cohesion: 0.33
 Nodes (6): A2b — EventTap opt-in (tuần 8–11, song song) — dep: MAC-009, MAC-040 · Tap thread skeleton + owner check (M) — `P2-2 §2/§3`, MAC-041 · Callback + self-disable (M) — `P2-2 §3`, MAC-042 · Inject §5 (3 modes + marker + restore) (L), MAC-043 · Permission UX + revocation poll (M) — `P2-2 §4`, MAC-044 · Rule owner `imk|tap` + IPC sync (S, dep: MAC-034)
 
-### Community 105 - ".new"
-Cohesion: 0.12
-Nodes (28): apply_assist_suggestion(), apply_ctrl_tap_in_context(), apply_sentence_fix_all(), ApplyAssistUndoSession, AssistRecallSession, CompSink, CtrlTapSession, handle_overlay_mouse_action() (+20 more)
+### Community 105 - "EngineSession"
+Cohesion: 0.11
+Nodes (14): config_file_path(), d16_auto_capitalize_theo_config(), EngineSession, macro_when_vi_off_runs_engine_in_passthrough(), Drop, ime_instance, PathBuf, Result (+6 more)
 
 ### Community 106 - "ByteCursor<'a>"
 Cohesion: 0.33
@@ -975,7 +958,7 @@ Nodes (3): ByteCursor<'a>, Option, Self
 
 ### Community 107 - "OverlayView"
 Cohesion: 0.09
-Nodes (23): a2_double_space_va_space_after_punct_sua_dung(), a2_lap_tu_xoa_dung_lan_lap(), acceptance_dod_scenarios_1_to_7(), AssistUndoState, cau_dai_chi_ve_duoi_va_marker_lech_dung(), check_via_engine(), chon_loi_vong_tron_va_theo_so(), fix_candidate() (+15 more)
+Nodes (24): a2_double_space_va_space_after_punct_sua_dung(), a2_lap_tu_xoa_dung_lan_lap(), acceptance_dod_scenarios_1_to_7(), AssistUndoState, cau_dai_chi_ve_duoi_va_marker_lech_dung(), check_via_engine(), chon_loi_vong_tron_va_theo_so(), fix_candidate() (+16 more)
 
 ### Community 108 - "when"
 Cohesion: 0.33
@@ -985,9 +968,9 @@ Nodes (6): oneOf, field_role, when, additionalProperties, properties, type
 Cohesion: 0.40
 Nodes (4): Cross-check checklist (Review 2) — kết quả, P1 — REVIEW LOG (Phần 1: Windows), REVIEW 1 — *Đúng & Đủ* (2026-09-27), REVIEW 2 — *Nhất quán & Sẵn sàng* (2026-09-27)
 
-### Community 110 - "atomic"
-Cohesion: 0.16
-Nodes (13): ClassFactory, HR_CLASS_E_NOAGGREGATION, HR_E_POINTER, HR_S_OK, OBJECT_COUNT, ObjGuard, AtomicI32, Default (+5 more)
+### Community 110 - "ObjGuard"
+Cohesion: 0.33
+Nodes (5): ClassFactory, ObjGuard, Default, Drop, Self
 
 ### Community 111 - "entry"
 Cohesion: 0.50
@@ -1002,24 +985,24 @@ Cohesion: 0.10
 Nodes (16): A_DESPITE_VOWEL_LETTER, an_despite_consonant_letter(), bat_a_an_sai(), BOTH_OK, check(), en_issues(), expected_article(), NON_NOUN_FOLLOWERS (+8 more)
 
 ### Community 114 - "language.rs"
-Cohesion: 0.11
-Nodes (23): classify(), classify_tokens(), EN_FREQ_DATA, en_freq_words(), EN_FUNCTION_WORDS, EN_MIXED_INDICATORS, has_en_indicator(), has_en_indicator_tokens() (+15 more)
+Cohesion: 0.10
+Nodes (22): classify(), classify_tokens(), EN_FREQ_DATA, EN_FUNCTION_WORDS, EN_MIXED_INDICATORS, has_en_indicator(), has_en_indicator_tokens(), has_vn_lazy_hint() (+14 more)
 
 ### Community 115 - "MarkedState"
-Cohesion: 0.10
-Nodes (22): ApplyReplace, Int, Void, MarkedState, .graphemeCount, .isEmpty, .scalarCount, .utf16Count (+14 more)
+Cohesion: 0.08
+Nodes (25): ApplyReplace, Int, Void, MarkedState, .graphemeCount, .isEmpty, .scalarCount, .utf16Count (+17 more)
 
 ### Community 116 - "RoundTwoMacAppTests"
-Cohesion: 0.10
-Nodes (11): Int, Int32, URL, UninstallOutcome, cancelled, failed, succeeded, RoundTwoMacAppTests (+3 more)
+Cohesion: 0.09
+Nodes (11): Date, Int, Int32, URL, UninstallOutcome, cancelled, failed, succeeded (+3 more)
 
 ### Community 119 - "office_productivity.rs"
 Cohesion: 0.13
 Nodes (15): apply_outcome(), hd_cty_macros(), key_for_char(), office_auto_capitalize_across_sentences_and_newlines(), office_backspace_mid_word_and_continue_typing(), office_bilingual_sentences_auto_restore_cleanly(), office_custom_english_words_and_escape_restore(), office_legacy_charsets_keep_sentence_tail_and_glyph_len_synced() (+7 more)
 
 ### Community 120 - "SvcManager"
-Cohesion: 0.09
-Nodes (19): DocError, merge_from_json(), Result, effective_enabled(), AtomicBool, AtomicU64, BTreeMap, DiacriticStyle (+11 more)
+Cohesion: 0.06
+Nodes (38): DocError, apply_option_checkbox(), Result, merge_from_json(), Result, atomic_write_file(), corrupt_config_is_backed_up_not_lost(), default_config_dir() (+30 more)
 
 ### Community 121 - "style_profile.rs"
 Cohesion: 0.14
@@ -1027,15 +1010,15 @@ Nodes (21): c(), correction_for_linear(), CorrectionLookup, MAX_CORRECTIONS, MAX
 
 ### Community 122 - "P4-0 — MASTER PLAN: Trợ lý ngữ pháp tiếng Việt (Assist) cho TextVN"
 Cohesion: 0.06
-Nodes (30): 0. Tóm tắt điều hành, 11.1 Vòng 2 — "Nhất quán & Sẵn sàng" (đã xong ở v1), 11.2 Vòng 3–5 — review chuyên sâu (2026-10-20, 3 lượt: SA/QA → Audit → PO/BA/Design), 11.3 Vòng 6 — CROSS-REVIEW (agent B, 2026-10-20) + phản hồi agent A, 11.4 Vòng 7–9 — review **sau khi implement P4-1** (2026-10-20), 11.5 Kết luận các lượt review, 11.6 Vòng 8–10 — review **sau khi làm 4 spike** (2026-10-20) → `P4-3-SPIKES.md`, 11.7 Vòng 11 — review **bản đồ 13 call site** (chuẩn bị P4-2a, 2026-10-20) (+22 more)
+Nodes (31): 0. Tóm tắt điều hành, 10. Rủi ro & giảm thiểu (cập nhật sau vòng 3–5), 11.1 Vòng 2 — "Nhất quán & Sẵn sàng" (đã xong ở v1), 11.2 Vòng 3–5 — review chuyên sâu (2026-10-20, 3 lượt: SA/QA → Audit → PO/BA/Design), 11.3 Vòng 6 — CROSS-REVIEW (agent B, 2026-10-20) + phản hồi agent A, 11.4 Vòng 7–9 — review **sau khi implement P4-1** (2026-10-20), 11.5 Kết luận các lượt review, 11.6 Vòng 8–10 — review **sau khi làm 4 spike** (2026-10-20) → `P4-3-SPIKES.md` (+23 more)
 
-### Community 127 - "sentence_grammar.rs"
-Cohesion: 0.15
-Nodes (13): check_comma_after_conjunction(), check_en(), check_en_agreement(), check_vi(), EnCorrelativeClause, merge_contractions(), preserve_case(), push_delete_issue() (+5 more)
+### Community 127 - "Issue"
+Cohesion: 0.11
+Nodes (25): span_len(), Issue, Span, check(), Vec, check(), check_dates(), check_money() (+17 more)
 
-### Community 128 - "lc_plan"
-Cohesion: 0.10
-Nodes (27): lc_comp, len, text, lc_key, ch, kind, lc_plan, delete_before (+19 more)
+### Community 128 - "hotkey.rs"
+Cohesion: 0.14
+Nodes (23): pcwstr, registry, CTRL_SHIFT, current(), free_ctrl_shift(), freed_configuration_leaves_other_hotkeys_alone(), hk(), language_hotkey_on_ctrl_shift_is_freed_too() (+15 more)
 
 ### Community 129 - "Attribution dữ liệu Tatoeba (CC BY 2.0 FR)"
 Cohesion: 0.10
@@ -1046,12 +1029,12 @@ Cohesion: 0.08
 Nodes (25): apply_key, late_stroke(), fold(), marker_mark_index(), marker_to_tone(), n(), push_key(), DiacriticStyle (+17 more)
 
 ### Community 131 - "Ctx"
-Cohesion: 0.10
-Nodes (29): ABBREV_WORDS, compute_quote_parity(), Ctx, DEFAULT_SUGGEST_BUDGET, is_abbreviation_dot(), is_abbreviation_dot_at(), is_abbreviation_dot_digit_prefix(), is_abbreviation_word_dot() (+21 more)
+Cohesion: 0.09
+Nodes (27): check_confusions(), check_pronoun(), check_redundant_mix(), COMPARATIVES, COPULAS, in_quotes_span(), push_replace(), REDUNDANT_MIX_PAIRS (+19 more)
 
 ### Community 132 - "method/mod.rs"
-Cohesion: 0.18
-Nodes (18): base_keys(), f(), finish(), fix_uo(), fold(), fold_caps(), generated_key_tables_are_self_consistent(), is_word_char() (+10 more)
+Cohesion: 0.19
+Nodes (16): base_keys(), f(), finish(), fix_uo(), fold(), fold_caps(), generated_key_tables_are_self_consistent(), is_word_char() (+8 more)
 
 ### Community 133 - "Antivirus false positive (RW3) — Kaspersky flag build production"
 Cohesion: 0.12
@@ -1059,7 +1042,7 @@ Nodes (17): 10. Sự cố 2026-10-11 — Kaspersky cách ly bản cài từ Micr
 
 ### Community 134 - "ipc/src/lib.rs"
 Cohesion: 0.12
-Nodes (23): assist_messages_round_trip(), assist_report_decodes_minimal_payload(), assist_report_round_trip_has_no_sentence_text(), AssistIssue, candidate_pipe_names(), CodecError, decode_exact_frame(), encode_frame() (+15 more)
+Nodes (22): assist_messages_round_trip(), assist_report_decodes_minimal_payload(), assist_report_round_trip_has_no_sentence_text(), AssistIssue, candidate_pipe_names(), CodecError, decode_exact_frame(), encode_frame() (+14 more)
 
 ### Community 135 - "os_linux.rs"
 Cohesion: 0.16
@@ -1085,29 +1068,29 @@ Nodes (10): CLSID_TEXTVN_TIP, DISPATTR_TEXTVN, GUID_PRESERVED_ALT1, GUID_PRESERV
 Cohesion: 0.60
 Nodes (3): Log(), Measure-It(), Test-Target()
 
-### Community 144 - "CandidateOverlay"
-Cohesion: 0.10
-Nodes (23): ActionSink, CandidateOverlay, create_font(), measure(), metrics_for_hwnd(), overlay_creation_and_visibility(), overlay_shows_view_and_hides(), paint_overlay() (+15 more)
+### Community 144 - "cli/src/assist.rs"
+Cohesion: 0.14
+Nodes (22): ArcDict, builtin_default_flags_tone_error_and_no_dict_does_not(), cmd_assist(), cmd_score(), cmd_show(), data(), dic_flags_unknown_vietnamese_word_and_keeps_known_ones(), issue_json() (+14 more)
 
-### Community 145 - "do_register"
-Cohesion: 0.15
-Nodes (24): ctf_profile_key(), do_register(), do_status(), icon_path(), machine_profile_metadata_ok(), profile_is_enabled(), profile_metadata_ok(), reg_key_exists() (+16 more)
+### Community 145 - "do_unregister"
+Cohesion: 0.22
+Nodes (14): do_unregister(), icon_path(), reg_read_string(), register_wow64_mirror(), registration_owned_by(), registration_owned_by_dir(), Scope, unregister_tip() (+6 more)
 
 ### Community 147 - "worker_main"
 Cohesion: 0.27
 Nodes (10): en_us_neu_may_co_thi_provider_hoat_dong(), Job, Option, Receiver, SyncSender, spawn_worker(), store_support(), support_cached() (+2 more)
 
 ### Community 149 - "autostart.rs"
-Cohesion: 0.06
-Nodes (63): pcwstr, REG_SAM_FLAGS, registry, APP_RUN_VALUE_NAME, autostart_command(), autostart_disabled_by_user(), AUTOSTART_DISABLED_MARKER, autostart_disabled_marker_path() (+55 more)
+Cohesion: 0.11
+Nodes (40): REG_SAM_FLAGS, APP_RUN_VALUE_NAME, autostart_command(), autostart_disabled_by_user(), AUTOSTART_DISABLED_MARKER, autostart_disabled_marker_path(), autostart_effective(), autostart_suppressed_for() (+32 more)
 
 ### Community 150 - "Spike WIN-005 — WH_KEYBOARD_LL + SendInput + UIA trên GHA (`spikes/hook-probe`)"
 Cohesion: 0.33
 Nodes (5): 1. Bảng kết quả — Local vs GHA (n=1 mỗi dòng, 3 lần dispatch GHA), 2. Findings `S5-{n}` (không xóa), 3. Quyết định nightly (acceptance `P1-5 §1/§5`), 4. Reproduce, Spike WIN-005 — WH_KEYBOARD_LL + SendInput + UIA trên GHA (`spikes/hook-probe`)
 
 ### Community 151 - "Changelog"
-Cohesion: 0.05
-Nodes (40): [0.2.17] — 2026-10-03, [0.2.18] — 2026-10-03, [0.2.1] — 2026-09-30, [0.2.22] — 2026-10-04, [0.2.24] — 2026-10-05, [0.2.25] — 2026-10-05, [0.2.27] — 2026-10-07, [0.2.31] — 2026-10-11 (+32 more)
+Cohesion: 0.02
+Nodes (93): [0.2.10] — 2026-10-03, [0.2.11] — 2026-10-03, [0.2.16] — 2026-10-03, [0.2.17] — 2026-10-03, [0.2.18] — 2026-10-03, [0.2.19] — 2026-10-04, [0.2.1] — 2026-09-30, [0.2.21] — 2026-10-04 (+85 more)
 
 ### Community 153 - "tray/src/main.rs"
 Cohesion: 0.06
@@ -1118,16 +1101,16 @@ Cohesion: 0.10
 Nodes (26): HMENU, add_radio_menu_item(), ID_CURRENT_APP_TOGGLE, ID_DIACRITIC_NEW, ID_DIACRITIC_OLD, ID_EXIT, ID_HEALTH_STATUS, ID_HOOK_COMPAT_MODE (+18 more)
 
 ### Community 155 - "SettingsController"
-Cohesion: 0.17
-Nodes (9): AtomicBool, DiacriticStyle, Duration, Instant, MacroTrigger, Method, OutputCharset, settings_controller_modifies_draft_and_flushes() (+1 more)
+Cohesion: 0.11
+Nodes (18): Arc, AtomicBool, BTreeMap, DiacriticStyle, Duration, Instant, IpcServer, MacroTrigger (+10 more)
 
-### Community 156 - "Option"
-Cohesion: 0.15
-Nodes (19): all_issue_views_giu_du_hon_3_loi_cho_mode2_va_fix_all(), c_buf_to_string(), issue(), issues_from_ffi(), IssueView, kinds_of(), plan_sentence_auto_fix(), plan_sentence_auto_fix_bo_qua_loi_chi_goi_y() (+11 more)
+### Community 156 - "plan_sentence_auto_fix"
+Cohesion: 0.21
+Nodes (15): all_issue_views_giu_du_hon_3_loi_cho_mode2_va_fix_all(), c_buf_to_string(), issue(), issues_from_ffi(), IssueView, plan_sentence_auto_fix(), plan_sentence_auto_fix_bo_qua_loi_chi_goi_y(), plan_sentence_auto_fix_chi_sua_phan_duoi() (+7 more)
 
 ### Community 157 - "ipc_client.c"
-Cohesion: 0.12
-Nodes (45): lc_ipc_client, client_disconnect(), get_time_ms(), handle_ipc_message(), ipc_debug_enabled(), lc_ipc_client_check_config_reload(), lc_ipc_client_free(), lc_ipc_client_get_app_override() (+37 more)
+Cohesion: 0.15
+Nodes (40): lc_ipc_client, client_disconnect(), get_time_ms(), handle_ipc_message(), ipc_debug_enabled(), lc_ipc_client_check_config_reload(), lc_ipc_client_free(), lc_ipc_client_get_app_override() (+32 more)
 
 ### Community 158 - "P4-4 — Tận dụng năng lực check ngôn ngữ **có sẵn của OS/app** (OS-first) — nghiên cứu & thiết kế"
 Cohesion: 0.18
@@ -1137,9 +1120,9 @@ Nodes (10): 0. Kết luận 1 dòng, 1. API có sẵn — đã verify (2026-10-2
 Cohesion: 0.08
 Nodes (18): MAX_SUGGEST_RESULTS, ObjcObject, ObjcSelector, PROBE_TIMEOUT, Duration, SEL_AVAILABLE_LANGUAGES, SEL_CHECK_SPELLING, SEL_CLOSE_DOC (+10 more)
 
-### Community 160 - "svc.rs"
-Cohesion: 0.11
-Nodes (17): atomic_write_file(), corrupt_config_is_backed_up_not_lost(), default_config_dir(), failed_config_save_keeps_memory_and_version_unchanged(), failed_state_save_keeps_memory_and_version_unchanged(), migration_kill_switch_bat_lai_dung_mot_lan(), persist_keeps_unknown_keys_and_reset_keeps_macros(), Arc (+9 more)
+### Community 160 - "idle_popup_routing.rs"
+Cohesion: 0.13
+Nodes (16): AUTOCORRECT, che_do_tat_thi_im_lang_o_moi_diem_dung(), dung_1s_o_che_do_goi_y_bao_loi_dung_cho(), dung_1s_o_che_do_sua_loi_an_toan_bao_loi_dung_cho(), feed(), HIGHLIGHT, lap_lai_cung_mot_diem_dung_cho_cung_ket_qua(), OFF (+8 more)
 
 ### Community 162 - "mmap.rs"
 Cohesion: 0.10
@@ -1162,12 +1145,12 @@ Cohesion: 0.21
 Nodes (13): Dict, EnchantDict, handle_job(), raw_dict_check(), raw_dict_exists(), raw_dict_suggest(), raw_free_dict(), raw_free_string_list() (+5 more)
 
 ### Community 167 - "engine.cpp"
-Cohesion: 0.03
-Nodes (126): lc_assist_auto_capitalize_enabled(), lc_assist_filter_auto_capitalize(), lc_assist_debug_enabled(), lc_assist_is_active(), lc_fixed_sentence(), lc_is_transcode_hotkey(), lc_plan_sentence_fix_ex(), lc_preview_label() (+118 more)
+Cohesion: 0.02
+Nodes (149): lc_is_transcode_hotkey(), lc_preview_label(), lc_selection_slice(), lc_state_read_enabled(), lc_state_sync(), lc_state_write_enabled(), utf8_char_len(), test_state_file() (+141 more)
 
-### Community 168 - "Issue"
-Cohesion: 0.10
-Nodes (32): span_len(), check(), check_sentence_with(), check_sentence_with_kiem_tra_ca_dau_cau_va_spelling(), check_sentence_with_style(), check_with(), check_with_bao_tu_la_theo_tu_dien(), check_with_internal() (+24 more)
+### Community 168 - "assist/src/lib.rs"
+Cohesion: 0.07
+Nodes (35): abbrev_khong_nuot_tu_2_chu_cai_va_dau_cham_ngoac_kep(), check(), check_sentence_with(), check_sentence_with_kiem_tra_ca_dau_cau_va_spelling(), check_sentence_with_style(), check_with(), check_with_bao_tu_la_theo_tu_dien(), check_with_internal() (+27 more)
 
 ### Community 170 - "ipc_client.rs"
 Cohesion: 0.07
@@ -1178,32 +1161,32 @@ Cohesion: 0.38
 Nodes (10): Expand-Path(), Find-AppWindow(), Get-AppVersion(), Get-FixtureUri(), Get-ProcNameOfHwnd(), Get-ResolvedArgs(), New-ProfileDir(), Resolve-CommandPath() (+2 more)
 
 ### Community 173 - "overlay.rs"
-Cohesion: 0.06
-Nodes (41): COLOR_BG, COLOR_BORDER, COLOR_ERROR, COLOR_MUTED, COLOR_SELECTED_BG, COLOR_TEXT, dispatch_mouse_action(), HEADER_H (+33 more)
+Cohesion: 0.05
+Nodes (65): ActionSink, Anchor, CandidateOverlay, COLOR_BG, COLOR_BORDER, COLOR_ERROR, COLOR_MUTED, COLOR_SELECTED_BG (+57 more)
 
 ### Community 174 - "Performance Audit — TextVN Windows Platform"
 Cohesion: 0.11
 Nodes (17): 1. Non-Functional Requirements (NFR), 2. Phân tích hot path, 2a. WH_KEYBOARD_LL Hook Callback, 2b. TSF Key Event Sink, 2c. IPC Named Pipe, 3. CPU Usage Analysis, 4. Memory Footprint, 5. Startup Time Budget (+9 more)
 
 ### Community 175 - "HWND"
-Cohesion: 0.22
-Nodes (25): HGDIOBJ, apply_dpi_change(), close_macro_editor(), close_word_list_editor(), delete_ui_fonts(), dialog_wnd_proc(), get_chk(), layout_dialog_controls() (+17 more)
+Cohesion: 0.20
+Nodes (28): HGDIOBJ, apply_dpi_change(), close_macro_editor(), close_word_list_editor(), delete_ui_fonts(), dialog_wnd_proc(), get_chk(), layout_dialog_controls() (+20 more)
 
 ### Community 176 - "generate_tray_icons.py"
 Cohesion: 0.18
 Nodes (19): _centered_text(), create_us_icon(), create_vn_icon(), _draw_star(), generate_ico(), _letter_font(), main(), FreeTypeFont (+11 more)
 
 ### Community 177 - "P4-12 — Recall trên **văn bản thật** (bộ nhớ có nhãn) + FPR"
-Cohesion: 0.08
-Nodes (25): 10. Cập nhật 2026-10-23 — nâng recall `diacritic_typo` (đóng **D19**), 11. Cập nhật 2026-10-23 (vòng 23 — audit "như Grammarly"): FPR → 0 %, 1.1 Recall theo loại lỗi, 1.2 FPR theo loại (5 câu sạch bị gắn cờ trong mẫu), 1. Kết quả (số thật, chạy 2026-10-21), 2.1 Quần thể, 2.2 Lấy mẫu, 2.3 Gán nhãn tay (không lấy output engine) (+17 more)
+Cohesion: 0.06
+Nodes (34): 10. Cập nhật 2026-10-23 — nâng recall `diacritic_typo` (đóng **D19**), 11. Cập nhật 2026-10-23 (vòng 23 — audit "như Grammarly"): FPR → 0 %, 12.1 Số đo hiện tại (cùng 2 corpus, CLI debug rebuild), 12.2 Cảnh báo: recall 83,7 % KHÔNG còn là số độc lập, 12.3 Thí nghiệm bổ sung: spelling theo âm tiết bắt được gì mà bảng TYPOS không bắt?, 12.4 Công cụ cho P4-12c, 12. Cập nhật 2026-11-08 — đo `spelling` bằng từ điển (P4-12a) và cảnh báo quá khớp, 13.1 Số đo (cùng máy, build debug) (+26 more)
 
 ### Community 178 - "spelling.rs"
-Cohesion: 0.23
-Nodes (16): check(), check_text(), FakeDictionary, MAX_SUGGESTIONS, MIN_WORD_CHARS, ngan_sach_suggest_het_thi_tu_la_van_duoc_bao_khong_kem_goi_y(), no_dictionary_khong_bao_gi(), Dictionary (+8 more)
+Cohesion: 0.22
+Nodes (17): check(), check_text(), FakeDictionary, match_case(), MAX_SUGGESTIONS, MIN_WORD_CHARS, ngan_sach_suggest_het_thi_tu_la_van_duoc_bao_khong_kem_goi_y(), no_dictionary_khong_bao_gi() (+9 more)
 
 ### Community 179 - ".suggest"
 Cohesion: 0.09
-Nodes (31): [0.2.55] — 2026-10-30, Added, Fixed, 0. Kết luận 1 trang, 10. Phát hiện mới (đề xuất mã — **chờ chủ `P4-TASKS` cấp số**, không tự gán `Fassist-*`), 11. TL;DR cho người code, 1.1 Trait (nguồn: `assist/src/dict.rs`), 1.2 Luật tiêu thụ trait (nguồn: `assist/src/rules/spelling.rs`) (+23 more)
+Nodes (30): [0.2.55] — 2026-10-30, Added, Fixed, 0. Kết luận 1 trang, 10. Phát hiện mới (đề xuất mã — **chờ chủ `P4-TASKS` cấp số**, không tự gán `Fassist-*`), 11. TL;DR cho người code, 1.1 Trait (nguồn: `assist/src/dict.rs`), 1.2 Luật tiêu thụ trait (nguồn: `assist/src/rules/spelling.rs`) (+22 more)
 
 ### Community 180 - ".new"
 Cohesion: 0.16
@@ -1214,12 +1197,12 @@ Cohesion: 0.32
 Nodes (3): Sign-TextVNFile(), Write-Fail(), Write-Ok()
 
 ### Community 182 - "AppDelegate"
-Cohesion: 0.06
-Nodes (26): AppDelegate, .frontAppEnabled, .isVietnameseMode, .vietnameseModeEnabled, Bool, Date, IpcServer, NSMenu (+18 more)
+Cohesion: 0.07
+Nodes (23): AppDelegate, .frontAppEnabled, .isVietnameseMode, .vietnameseModeEnabled, Bool, IpcServer, NSMenu, NSObjectProtocol (+15 more)
 
 ### Community 183 - "sys"
-Cohesion: 0.14
-Nodes (15): Check relative markdown links trong docs/ + *.md goc. Chay local: python…, main(), tracked_iss(), Check API inject / giong malware bi cam (Farch-3). Chay local: python…, is_binary_file(), list_tracked_files(), main(), Path (+7 more)
+Cohesion: 0.11
+Nodes (19): Check relative markdown links trong docs/ + *.md goc. Chay local: python…, main(), tracked_iss(), Check API inject / giong malware bi cam (Farch-3). Chay local: python…, is_binary_file(), list_tracked_files(), main(), Path (+11 more)
 
 ### Community 184 - "P4-1 — Đánh giá Harper (Automattic/harper) + chọn engine ngữ pháp cho TextVN"
 Cohesion: 0.10
@@ -1233,45 +1216,45 @@ Nodes (12): address_or_search(), classify(), contains(), ControlType, known(), l
 Cohesion: 0.11
 Nodes (17): 10. Task (chi tiết `P3-7-TASKS.md`), 1. Quyết định & phạm vi, 2. Kiến trúc, 3. Bắt phím & callback (mirror `P1-2 §3`, `P2-2 §3`), 4. Feature detect (mirror `PLAN §5.3` — weak detection), 5.1 `BackspaceType`, 5.2 `SelectionReplace` (B1 — app không qua framework), 5.3 `ForwardAsCommit` — chèn không xóa (terminal X11 hiếm khi cần). (+9 more)
 
-### Community 188 - "with_ctx"
-Cohesion: 0.24
-Nodes (12): apply_option_checkbox(), DIALOG_CTX, DialogContext, Arc, FnOnce, IpcServer, Option, Result (+4 more)
+### Community 188 - "DialogContext"
+Cohesion: 0.33
+Nodes (7): DIALOG_CTX, DialogContext, Arc, IpcServer, Option, RwLock, show_settings_dialog()
 
 ### Community 189 - "dictionary_budget.rs"
 Cohesion: 0.18
 Nodes (16): bo_voc_dyn_dictionary_truc_tiep_giong_ctx_dict(), bridge_dict_chuyen_tiep_dung_contains_va_suggest(), bridge_dict_voi_no_dictionary_co_tich_cac_duoc(), budget_khong_cho_phep_vuot_max_suggest(), contains_di_qua_trong_suot_va_khong_ton_ngan_sach(), CountingDictionary, dict_cham_thoi_gian_do_duoc_tang_theo_so_lan_goi(), elapsed_do_duoc_thoi_gian_dung_cho_suggest() (+8 more)
 
 ### Community 190 - "os_spell.rs"
-Cohesion: 0.08
-Nodes (39): BREAKER_COOLDOWN_MS, breaker_trip_va_phuc_hoi(), CALL_TIMEOUT_MS, ComApartment, create_checkers(), EN_LANG_TAGS, first_error_start(), handle_job() (+31 more)
+Cohesion: 0.16
+Nodes (14): BREAKER_COOLDOWN_MS, breaker_trip_va_phuc_hoi(), CALL_TIMEOUT_MS, EN_LANG_TAGS, LANG_TAG, OS_PROVIDER, READY_TIMEOUT_MS, Duration (+6 more)
 
-### Community 191 - "String"
-Cohesion: 0.10
-Nodes (23): AssistMessageOutcome, assistReport, toggleAssist, violation, IpcServer, IpcServerDelegate, Any, Bool (+15 more)
+### Community 191 - "IpcServer"
+Cohesion: 0.11
+Nodes (18): AssistMessageOutcome, assistReport, toggleAssist, violation, IpcServer, IpcServerDelegate, Any, Bool (+10 more)
 
 ### Community 192 - "invariants.rs"
-Cohesion: 0.20
-Nodes (14): apply(), engine_never_overflows_result_or_eats_existing_text(), held_key_after_toned_word_keeps_previous_text(), key_event(), Lcg, letters(), PREFIX, KeyEvent (+6 more)
+Cohesion: 0.21
+Nodes (15): apply(), backspace_removes_exactly_one_visible_char(), engine_never_overflows_result_or_eats_existing_text(), held_key_after_toned_word_keeps_previous_text(), key_event(), Lcg, letters(), PREFIX (+7 more)
 
 ### Community 193 - "P3-2 — FCITX5 ADDON (Linux) — Solution chi tiết"
 Cohesion: 0.17
 Nodes (11): 10. Failure modes, 1. Quyết định & capability, 2. Cấu trúc module, 3. Vòng đời, 4. Key flow, 5. `apply_replace` (đối chiếu `P3-1 §6` — cùng semantics, API khác), 6. Link FFI từ C++ (RL10 — spike `LNX-003`), 7. Tương thích 2 adapter song song (điều phối IBus + Fcitx5) (+3 more)
 
 ### Community 194 - "Diagnostics"
-Cohesion: 0.09
-Nodes (16): Diagnostics, .crashCount, Date, DispatchSourceTimer, Int, TimeInterval, UInt64, KeyMapMacGenerated (+8 more)
+Cohesion: 0.14
+Nodes (9): Diagnostics, .crashCount, Date, DispatchSourceTimer, Int, TimeInterval, UInt64, Code Review Round 3 — Đúng & Đủ (Rà soát chi tiết từng dòng Carbon, IMK XPC, Protocol Invariants) (+1 more)
 
 ### Community 195 - "windows-tsf/src/assist.rs"
 Cohesion: 0.04
-Nodes (58): ASSIST_KIND_LOWERCASE_SENTENCE, assist_trigger(), AssistTrigger, can_apply_fix(), CHECK_BUDGET_MS, check_text(), check_text_fragment(), check_text_min_words() (+50 more)
+Nodes (46): ASSIST_KIND_LOWERCASE_SENTENCE, assist_trigger(), AssistTrigger, can_apply_fix(), CHECK_BUDGET_MS, claim_notify_slot(), CORPUS_L6_SENTENCE, FixPrecondition (+38 more)
 
 ### Community 196 - ".register"
 Cohesion: 0.11
-Nodes (18): MacSpellProvider, Bool, Int, MacSpellProviderTests, Ba nguyên nhân gốc, ba fixes, xác minh máy thật, Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được, Bản 0.2.4 — đăng ký không cần admin + clean composition + Ctrl+Shift single-path, Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath (+10 more)
+Nodes (19): MacSpellProvider, Bool, Int, MacSpellProviderTests, [0.2.12] — 2026-10-03, [0.2.15] — 2026-10-03, [0.2.26] — 2026-10-05, [0.2.5] — 2026-10-02 (+11 more)
 
 ### Community 197 - "time"
-Cohesion: 0.12
-Nodes (12): BridgeDict, Budgeted, Budgeted<'a, D>, budgeted_boc_no_dictionary_fail_open(), NoDictionary, Cell, Duration, F (+4 more)
+Cohesion: 0.07
+Nodes (17): BridgeDict, BridgeDict<F>, Budgeted, Budgeted<'a, D>, budgeted_boc_no_dictionary_fail_open(), Budgeted<'_, D>, Dictionary, NoDictionary (+9 more)
 
 ### Community 198 - "cli/src/main.rs"
 Cohesion: 0.16
@@ -1294,16 +1277,16 @@ Cohesion: 0.12
 Nodes (32): AsRef, builder, checksum_phat_hien_hong_data(), data_assist(), dic_dau_cu_chua_hoa_khong_chua_hoa_moi(), dic_dau_moi_chua_hoa_moi_khong_chua_hoa_cu(), dic_for_each_final_tra_tat_ca_tu(), dic_vi_dau_cu_khong_chua_tu_khong_co_trong_file() (+24 more)
 
 ### Community 203 - "duplicate_word.rs"
-Cohesion: 0.13
-Nodes (12): bat_lap_tu_thuong(), cau_mix_whitelist_theo_tu(), check(), EN_INTENTIONAL_REPEATS, INTENTIONAL_REPEATS, PRONOUN_CAP_FIRE, REPEAT3_FUNCTION_WORDS, repeats_before() (+4 more)
+Cohesion: 0.12
+Nodes (15): bat_lap_tu_thuong(), cau_mix_whitelist_theo_tu(), check(), EN_INTENTIONAL_REPEATS, INTENTIONAL_REPEATS, is_aabb(), is_compound_then_modal(), PRONOUN_CAP_FIRE (+7 more)
 
 ### Community 204 - "macro_text.rs"
 Cohesion: 0.13
 Nodes (18): blank_comment_and_crlf_lines_are_ignored(), entry(), error_codes_are_distinct_and_messages_non_empty(), escape(), EXPAND_MAX, format(), MacroLineError, MacroLineErrorKind (+10 more)
 
-### Community 205 - "ConfigStore"
+### Community 205 - "SettingsView"
 Cohesion: 0.09
-Nodes (25): ConfigStore, .config, Void, ActiveAlert, about, .alert, autostartFailed, .id (+17 more)
+Nodes (24): ActiveAlert, about, .alert, autostartFailed, .id, EnglishWordsSheet, .body, MacroEditorSheet (+16 more)
 
 ### Community 206 - "trigger"
 Cohesion: 0.18
@@ -1311,10 +1294,14 @@ Nodes (11): $comment, default, type, enabled, trigger, properties, $comment, def
 
 ### Community 207 - "AssistTests"
 Cohesion: 0.06
-Nodes (25): AssistIssue, AssistConfigParser, AssistDisplay, AssistSettings, .isAutoFixSafe, .isDisplayEnabled, .isHighlight, .isMode2AutoFix (+17 more)
+Nodes (28): AssistIssue, AssistConfigParser, AssistDisplay, assistKindName(), AssistSettings, .isAutoFixSafe, .isDisplayEnabled, .isHighlight (+20 more)
+
+### Community 208 - "phrases.rs"
+Cohesion: 0.16
+Nodes (18): drop_issues_in_protected(), EN_DATA, en_set(), is_fixed_phrase(), is_fixed_phrase_for(), is_lexical(), load(), MAX_PHRASE_WORDS (+10 more)
 
 ### Community 209 - "field-detect/src/lib.rs"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (19): K, CachedProbe, current_nonsecure_probe_can_use_capability_and_preset(), FieldContext, normalize_app_id(), pending_or_secure_context_never_transforms(), probe_cache_expires_and_can_be_invalidated(), ProbeCache (+11 more)
 
 ### Community 210 - "e2e_ibus.c"
@@ -1339,67 +1326,67 @@ Nodes (16): app_handles(), check(), clear(), ctrl_shift_tap(), ctrl_tap(), press
 
 ### Community 215 - "ipc_server.rs"
 Cohesion: 0.09
-Nodes (35): duration, filesystem, pipes, PSECURITY_DESCRIPTOR, read, SECURITY_ATTRIBUTES, broadcast_reaches_subscriber(), ClientSink (+27 more)
+Nodes (37): authorization, duration, filesystem, pipes, PSECURITY_DESCRIPTOR, read, SECURITY_ATTRIBUTES, broadcast_reaches_subscriber() (+29 more)
 
 ### Community 216 - "key_event.rs"
 Cohesion: 0.13
-Nodes (38): is_modifier_vk(), active_modifiers(), clears_assist_undo(), defer_to_key_down(), eaten_label(), end_composition(), guarded(), guarded_option() (+30 more)
+Nodes (37): is_modifier_vk(), active_modifiers(), clears_assist_undo(), defer_to_key_down(), eaten_label(), end_composition(), guarded(), guarded_option() (+29 more)
 
-### Community 217 - "check_mac_targets.rs"
-Cohesion: 0.18
-Nodes (21): APP_DB, appdb(), CI_APPS, collect_preset_ids(), FIELD_ROLES, good(), has_preset_id(), LOCATOR_KEYS (+13 more)
+### Community 217 - "lc_modifier_toggle"
+Cohesion: 0.13
+Nodes (18): lc_modifier_toggle, armed, ctrl_armed, ctrl_down_us, lc_modifier, lc_assist_idle_arms(), lc_modifier_ctrl_tap_up(), lc_modifier_toggle_down() (+10 more)
 
 ### Community 218 - "os_windows.rs"
 Cohesion: 0.08
 Nodes (44): CORRECTIVE_ACTION, cached_support(), collect_issues(), collect_suggestions(), create_checker(), create_factory(), en_us_neu_may_co_thi_provider_hoat_dong(), handle_job() (+36 more)
 
 ### Community 223 - "username_identity_1000.rs"
-Cohesion: 0.22
-Nodes (18): a1000_builder_deterministic_va_id_stable(), a1000_username_giu_nguyen_byte_identical(), apply_outcome(), build_cases(), cap(), Case, dd(), Expect (+10 more)
+Cohesion: 0.13
+Nodes (25): corpus_co_du_lop_hieu_biet(), corpus_files(), corpus_vi_basic_passes(), parse_corpus(), Path, PathBuf, Vec, a1000_builder_deterministic_va_id_stable() (+17 more)
 
 ### Community 224 - "test_assist_result.c"
-Cohesion: 0.16
-Nodes (21): ime_instance, check_corpus_sentence(), check_engine_autocapitalize_on(), count_candidates(), count_kind(), engine_with(), main(), set_issue() (+13 more)
+Cohesion: 0.21
+Nodes (21): jb_cstr(), jb_json_string(), jb_raw(), jb_u32(), lc_assist_auto_capitalize_enabled(), lc_assist_filter_auto_capitalize(), lc_assist_kind_name(), lc_assist_report_json() (+13 more)
 
 ### Community 225 - ".new"
 Cohesion: 0.13
 Nodes (17): contains_giua_cua_so_khong_reset_bo_dem(), en_us_neu_may_co_thi_provider_hoat_dong(), MacSpellChecker, phuong_thuc_tat_ca_fail_open_khong_panic(), AtomicUsize, Instant, Job, Mutex (+9 more)
 
 ### Community 226 - "en_spelling.rs"
-Cohesion: 0.17
-Nodes (22): all_caps_va_chu_hoa_giua_khong_bao(), am_tiet_viet_khong_dau_khong_bao(), base_dict(), cau_tieng_viet_khong_chay_luat(), check(), check_text(), damerau_distance(), EN_SENTENCE (+14 more)
+Cohesion: 0.15
+Nodes (24): all_caps_va_chu_hoa_giua_khong_bao(), am_tiet_viet_khong_dau_khong_bao(), base_dict(), cau_tieng_viet_khong_chay_luat(), check(), check_text(), damerau_distance(), EN_SENTENCE (+16 more)
 
 ### Community 227 - "ffi/src/settings.rs"
-Cohesion: 0.06
-Nodes (62): che_email(), che_url(), expand_non_space(), expand_word(), is_word_char(), masked_ranges(), masked_ranges_chars(), Vec (+54 more)
+Cohesion: 0.15
+Nodes (35): assist_nested_paths_round_trip(), c(), c_api_round_trip(), cstr(), doc_err(), english_words_text_round_trip(), HEADER, ime_settings (+27 more)
 
-### Community 228 - "check_sentence"
-Cohesion: 0.06
-Nodes (16): abbrev_khong_nuot_tu_2_chu_cai_va_dau_cham_ngoac_kep(), check_sentence(), crlf_va_tab_khong_panic(), ky_tu_nul_va_ky_tu_dieu_khien(), ky_tu_zero_width_va_combining(), script_la_va_huong_doc_khac(), url_email_va_ma_hoa_ky_la_trong_mask(), office_clean_emails_reports_and_masked_spans_zero_false_positives() (+8 more)
+### Community 228 - "office_mixed_work.rs"
+Cohesion: 0.04
+Nodes (15): check_sentence(), crlf_va_tab_khong_panic(), ky_tu_nul_va_ky_tu_dieu_khien(), ky_tu_zero_width_va_combining(), script_la_va_huong_doc_khac(), url_email_va_ma_hoa_ky_la_trong_mask(), office_clean_emails_reports_and_masked_spans_zero_false_positives(), office_sentence_end_to_end_auto_fix_plan() (+7 more)
 
 ### Community 229 - "foreground.rs"
 Cohesion: 0.14
 Nodes (17): accessibility, foregroundtracker, HWINEVENTHOOK, threading, app_id_from_image_path(), app_of_window(), ForegroundTracker, is_shell_window_class() (+9 more)
 
 ### Community 230 - "windows-tsf/src/replay.rs"
-Cohesion: 0.16
-Nodes (23): DeferredReplay, deliver(), HOPS, MODIFIER_POLL_MAX, MODIFIER_POLL_MS, modifiers_down(), Pending, prepare() (+15 more)
+Cohesion: 0.14
+Nodes (27): CLASS_NAME, DeferredReplay, deliver(), HOPS, MODIFIER_POLL_MAX, MODIFIER_POLL_MS, modifiers_down(), module_instance() (+19 more)
 
 ### Community 231 - "Foundation"
-Cohesion: 0.09
-Nodes (25): ApplyError, cannotDelete, rejected, assistKindName(), UInt32, KeyTranslatorError, noChar, noLayout (+17 more)
+Cohesion: 0.08
+Nodes (27): ImeError, invalidArg, ApplyError, cannotDelete, rejected, Bool, Int, TextCommandTarget (+19 more)
 
 ### Community 232 - "score_real.py"
+Cohesion: 0.14
+Nodes (24): main(), find_cli(), main(), measure(), newest_source_mtime(), Path, Canh bao neu binary CU hon source (do sai - Fassist-120)., Doc file corpus: '<cau>\\t<kind1,kind2>' -> [Row] (bo `~ ` nhu test Rust). (+16 more)
+
+### Community 233 - "Path"
+Cohesion: 0.19
+Nodes (15): append_log_line(), is_reparse_link(), log_rotates_when_larger_than_limit(), log_writer_checks_reparse_before_creating_dirs(), machine_scope_dll(), prepare_log_file(), program_files_roots(), resolve_dll_path() (+7 more)
+
+### Community 234 - "P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)"
 Cohesion: 0.11
-Nodes (30): 10. Rủi ro & giảm thiểu (cập nhật sau vòng 3–5), json, tempfile, load_pool(), main(), Path, Pool cau da loc (unique, thu tu goc)., find_cli() (+22 more)
-
-### Community 233 - "Option"
-Cohesion: 0.18
-Nodes (19): append_log_line(), is_reparse_link(), languages_added_marker_path(), log_rotates_when_larger_than_limit(), log_writer_checks_reparse_before_creating_dirs(), machine_scope_dll(), prepare_log_file(), reg_read_multi_sz() (+11 more)
-
-### Community 234 - "IpcClient"
-Cohesion: 0.20
-Nodes (7): IpcClient, IpcClientDelegate, DispatchSourceRead, DispatchSourceTimer, TimeInterval, Fixed, DispatchQueue
+Nodes (18): P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist), Tổng hợp finding theo trạng thái, VIỆC CỒN MỞ — bàn giao người đọc sau, VÒNG 12–14 — Nghiên cứu OS-first (P4-4-OS-NATIVE-ASSIST) — 2026-10-21, VÒNG 1 — Đánh giá Harper (vòng "Đúng & Đủ") — 2026-10-20, VÒNG 2 — Master plan "Nhất quán & Sẵn sàng" — 2026-10-20 (`P4-0` §11.1), VÒNG 35 — R1/R2/R3 (2026-10-27): audit 2 agent song song + đối kháng diff, VÒNG 39-40 — audit persona + đối kháng + 3 OS từng dòng (2026-10-29 → 2026-10-30) (+10 more)
 
 ### Community 235 - "P4-8 — Baseline chất lượng engine `assist` (đo được) + công cụ `assist score`"
 Cohesion: 0.12
@@ -1426,7 +1413,7 @@ Cohesion: 0.24
 Nodes (6): apply, apply(), expansion(), q(), Option, Vec
 
 ### Community 241 - "AutostartManager"
-Cohesion: 0.20
+Cohesion: 0.16
 Nodes (9): AutostartManager, Bool, URL, [0.2.2] — 2026-09-30, Changed, Fixed (macOS — ưu tiên bản này), Fixed (Windows), Housekeeping (+1 more)
 
 ### Community 242 - "ime_conflict_1000.rs"
@@ -1435,15 +1422,15 @@ Nodes (17): a200_is_plain_letter_matrix(), b300_engine_pass_mapping(), build_pla
 
 ### Community 243 - "Báo cáo dựng & kiểm thử — TextVN"
 Cohesion: 0.03
-Nodes (68): 1. Gói phát hành, 3. Lỗi tìm ra nhờ kiểm thử thật (đã sửa trong bản này), 4. Phạm vi chưa kiểm tự động, 5. Hiệu năng, 6. Tái lập, Báo cáo dựng & kiểm thử — TextVN, Bản 0.2.16 — portable tự chữa trên Win11 24H2+ (B7) + hết ghost khi gỡ (0.2.15), Bản 0.2.1 — phát hành pre-release đã xác minh (+60 more)
+Nodes (59): 1. Gói phát hành, 3. Lỗi tìm ra nhờ kiểm thử thật (đã sửa trong bản này), 4. Phạm vi chưa kiểm tự động, 5. Hiệu năng, 6. Tái lập, Báo cáo dựng & kiểm thử — TextVN, Bản 0.2.1 — phát hành pre-release đã xác minh, Bản 0.2.20 — CI xanh lại + validation vòng 3 (harness đúng như Microsoft) (+51 more)
 
 ### Community 244 - "remove_added_languages"
-Cohesion: 0.24
-Nodes (13): added_language_removable(), is_input_method_value(), languages_missing(), languages_without(), parse_languages_marker(), program_files_roots(), read_languages_added(), record_languages_added() (+5 more)
+Cohesion: 0.18
+Nodes (18): added_language_removable(), broadcast_international(), ctrl_shift_taken_by_windows(), is_input_method_value(), languages_added_marker_path(), languages_missing(), languages_without(), parse_languages_marker() (+10 more)
 
-### Community 245 - ".testDefaultConfig"
-Cohesion: 0.13
-Nodes (12): 0. Đọc trước khi làm bất cứ việc gì (trình tự), 1. Luật không được phá (vi phạm = task chưa xong), 2. Chiến lược phát hành — các mốc bắt buộc theo thứ tự, 3. Kiến trúc & ràng buộc kỹ thuật cốt lõi, AGENTS.md — luật bắt buộc cho MỌI agent làm việc trong repo TextVN, 0. Thiết kế tóm tắt (Design Intent), 1. DFMEA (Design Failure Mode and Effects Analysis), 2. DRBFM (Design Review Based on Failure Mode) (+4 more)
+### Community 245 - "AssistCheck"
+Cohesion: 0.22
+Nodes (16): after_trigger(), AssistCheck, check_sentence(), check_sentence_on_demand(), check_text(), check_text_fragment(), check_text_min_words(), d16_auto_capitalize_bat_thi_khong_con_loi_l6() (+8 more)
 
 ### Community 246 - "Dictionary"
 Cohesion: 0.23
@@ -1455,7 +1442,7 @@ Nodes (44): Cell, Default, GUID, IEnumTfDisplayAttributeInfo, ITfDisplayAttribut
 
 ### Community 248 - "TextVNAppTests"
 Cohesion: 0.08
-Nodes (11): LoadError, corrupt, missing, Result, URL, Data, TextVNAppTests, 1. Điều khiển & Tùy chọn gõ (+3 more)
+Nodes (13): Data, TextVNAppTests, 0. Đọc trước khi làm bất cứ việc gì (trình tự), 1. Luật không được phá (vi phạm = task chưa xong), 2. Chiến lược phát hành — các mốc bắt buộc theo thứ tự, 3. Kiến trúc & ràng buộc kỹ thuật cốt lõi, AGENTS.md — luật bắt buộc cho MỌI agent làm việc trong repo TextVN, 0. Thiết kế tóm tắt (Design Intent) (+5 more)
 
 ### Community 249 - "parse_ctrl_shift_marker"
 Cohesion: 0.20
@@ -1466,8 +1453,8 @@ Cohesion: 0.48
 Nodes (5): clear_doc(), read_doc(), say(), smoke-imk.sh script, type_keys()
 
 ### Community 251 - "undo.rs"
-Cohesion: 0.26
-Nodes (14): chars(), is_nucleus(), mark_cluster(), mark_horn(), mark_horn_pair_and_single(), mark_vowel(), mark_vowel_applies_and_undoes(), Marked (+6 more)
+Cohesion: 0.28
+Nodes (13): chars(), is_nucleus(), mark_cluster(), mark_horn(), mark_horn_pair_and_single(), mark_vowel(), mark_vowel_applies_and_undoes(), Marked (+5 more)
 
 ### Community 252 - "Kế hoạch ký số (code signing) — TextVN"
 Cohesion: 0.20
@@ -1477,9 +1464,9 @@ Nodes (10): 1. So sánh các đường chính thống (cập nhật 2026-10-02),
 Cohesion: 0.20
 Nodes (13): collections, diacriticstyle, normalize_tone, check_en_words10k(), EN_COMPOUND_GROUPS, gen_en_compounds(), gen_vn_compounds(), gen_vn_syllables() (+5 more)
 
-### Community 254 - "en_confusions.rs"
-Cohesion: 0.14
-Nodes (11): check_confusions(), check_pronoun(), check_redundant_mix(), COMPARATIVES, COPULAS, in_quotes_span(), push_replace(), REDUNDANT_MIX_PAIRS (+3 more)
+### Community 254 - "textBeforeCaretMatches"
+Cohesion: 0.19
+Nodes (13): lc_assist_expected_document_tail(), lc_text_ends_with(), utf8_last_char_len(), main(), test_ends_with(), test_expected_tail_committed(), test_expected_tail_fail_safe(), InputContext (+5 more)
 
 ### Community 255 - "test-typing.ps1"
 Cohesion: 0.36
@@ -1514,8 +1501,8 @@ Cohesion: 0.14
 Nodes (14): 4.2. Module macOS (IMK, CGEventTap, AppKit Menu Bar, Packaging & Entitlements), 4.4. Core Engine, FFI ABI, Restore English & Data, 4.5. CI/CD, Supply Chain, VirusTotal & Microsoft Store Validation, 4. CHI TIẾT KIỂM TOÁN TỪNG DÒNG MÃ (MODULE-BY-MODULE AUDIT), Phát hiện C-01: Hiệu năng quét từ điển `restore_en.rs`, Phát hiện C-02: Dung lượng tập từ vựng còn quá nhỏ, Phát hiện CI-01: Script ký số chưa được gắn vào quy trình Release, Phát hiện CI-02: Đóng gói Inno Setup Silent bỏ qua đăng ký TSF (+6 more)
 
 ### Community 264 - "AXSnapshot"
-Cohesion: 0.07
-Nodes (24): AXSnapshot, Entry, FieldContext, FieldDetect, FieldRole, FieldRules, Bool, Date (+16 more)
+Cohesion: 0.08
+Nodes (23): AXSnapshot, Entry, FieldContext, FieldDetect, FieldRole, FieldRules, Bool, Date (+15 more)
 
 ### Community 266 - "mem-check.sh"
 Cohesion: 0.83
@@ -1526,8 +1513,8 @@ Cohesion: 0.83
 Nodes (3): pid_of(), rss_kb(), soak.sh script
 
 ### Community 268 - "ime_result"
-Cohesion: 0.20
-Nodes (10): ime_result, abi_version, action, delete_count, flags, insert, insert_len, preedit (+2 more)
+Cohesion: 0.07
+Nodes (28): ime_context, abi_version, app_id, caps, element_name, enabled, field_role, hint (+20 more)
 
 ### Community 270 - "default"
 Cohesion: 0.12
@@ -1538,8 +1525,8 @@ Cohesion: 0.49
 Nodes (9): all_cases(), bs(), case(), CorpusCase, du_nhom_case_theo_p2_5(), imk(), Vec, tap() (+1 more)
 
 ### Community 291 - "ConfigWatcher"
-Cohesion: 0.23
-Nodes (7): ConfigWatcher, TimeInterval, URL, Void, DispatchSource, DispatchSourceFileSystemObject, DispatchWorkItem
+Cohesion: 0.18
+Nodes (8): ConfigWatcher, TimeInterval, URL, Void, DispatchSource, DispatchSourceFileSystemObject, DispatchWorkItem, Notification
 
 ### Community 292 - "path"
 Cohesion: 0.14
@@ -1557,13 +1544,13 @@ Nodes (14): find_rc_exe(), main(), Option, PathBuf, command, find_rc_exe(), main
 Cohesion: 0.22
 Nodes (12): check_site(), extract(), PLIST_KEY, repo_hien_tai_dong_bo(), Option, Result, run(), Site (+4 more)
 
-### Community 296 - "NSRange"
-Cohesion: 0.06
-Nodes (14): IMKTextTarget, Bool, Int, TextCommandTarget, NSRange, CapitalizeMockTarget, Bool, Int (+6 more)
+### Community 296 - "String"
+Cohesion: 0.07
+Nodes (14): IMKTextTarget, NSRange, String, .utf16Count, CapitalizeMockTarget, Bool, Int, AssistMockTarget (+6 more)
 
-### Community 297 - "ime_context"
-Cohesion: 0.22
-Nodes (9): ime_context, abi_version, app_id, caps, element_name, enabled, field_role, hint (+1 more)
+### Community 297 - "ConfigStore"
+Cohesion: 0.15
+Nodes (10): ConfigStore, .config, Void, B5. [TRUNG] Nút "Mặc định" xoá macros/english_words/emoji + tắt autostart âm thầm, 1. Điều khiển & Tùy chọn gõ, 2. Gõ tắt, 3. Hệ thống & nút, 4. Chưa có trên UI (chỉ sửa được trong file) (+2 more)
 
 ### Community 298 - "P4-6 — Handoff AS-021 (FFI) + AS-022 (trigger): bản đồ & recipe để thi công"
 Cohesion: 0.13
@@ -1573,17 +1560,17 @@ Nodes (14): 0. Chuỗi phụ thuộc (đã xong / sắp làm), 1.1 API công kha
 Cohesion: 0.11
 Nodes (18): properties, $comment, default, type, $comment, default, minimum, type (+10 more)
 
-### Community 300 - "IpcMessage"
-Cohesion: 0.12
-Nodes (19): AssistReportIssue, .json, IpcMessage, assistReport, configReload, crashReport, getSnapshot, hello (+11 more)
+### Community 300 - "WinSpell"
+Cohesion: 0.31
+Nodes (7): Job, Lang, millis_now(), AtomicU64, SyncSender, Vec, WinSpell
 
 ### Community 301 - "generate_store_art.py"
 Cohesion: 0.17
 Nodes (15): A16. [THẤP] `compose`/`replay` — (đã soát, chỉ ghi nhận) replay post đúng, math, pil, compose(), diag_gradient(), draw_star(), load_font(), main() (+7 more)
 
 ### Community 302 - "fix.rs"
-Cohesion: 0.08
-Nodes (26): apply_auto_fixes(), chi_giu_loi_can_sua(), Fix, plan_sentence_fix(), Option, Vec, select_non_overlapping_fixes(), SentenceFixPlan (+18 more)
+Cohesion: 0.11
+Nodes (16): apply_auto_fixes(), chi_giu_loi_can_sua(), Fix, plan_sentence_fix(), Option, Vec, select_non_overlapping_fixes(), SentenceFixPlan (+8 more)
 
 ### Community 303 - "worker_main"
 Cohesion: 0.18
@@ -1591,11 +1578,11 @@ Nodes (13): Job, Pool, raw_pool_pop(), raw_pool_push(), c_void, Drop, Receiver, 
 
 ### Community 304 - "3. Nhật ký finding"
 Cohesion: 0.13
-Nodes (14): 0. Kết luận, 1. Phương pháp, 2. Bằng chứng CI, 3.1 Microsoft Store / MSIX, 3.2 Bảo mật Windows, 3.3 QA Windows (tray, CLI, bộ cài), 3.5 Tiếng Việt / engine, 3.6 CI, ký số, phát hành (+6 more)
+Nodes (14): 0. Kết luận, 1. Phương pháp, 2. Bằng chứng CI, 3.1 Microsoft Store / MSIX, 3.2 Bảo mật Windows, 3.5 Tiếng Việt / engine, 3.6 CI, ký số, phát hành, 3.7 Kiểm trên máy Windows thật và rà soát đối kháng trước 0.2.28 (2026-10-10) (+6 more)
 
-### Community 305 - "GhostText"
-Cohesion: 0.18
-Nodes (10): ghost_wnd_proc(), GhostText, Cell, Default, Drop, HWND, LPARAM, LRESULT (+2 more)
+### Community 305 - "ghost.rs"
+Cohesion: 0.09
+Nodes (25): CLASS_NAME, COLOR_GHOST, COLOR_KEY, ghost_font(), ghost_wnd_proc(), GhostText, MAX_GHOST_CHARS, measure() (+17 more)
 
 ### Community 306 - "Nộp TextVN lên Microsoft Store (bản cài .exe — silent install)"
 Cohesion: 0.08
@@ -1605,33 +1592,33 @@ Nodes (24): Nộp TextVN lên Microsoft Store — gói MSIX, 0. Checklist S — 
 Cohesion: 0.60
 Nodes (4): die(), GNUPGHOME, verify-store-package.sh script, valid_sig()
 
-### Community 308 - "Json"
-Cohesion: 0.35
-Nodes (5): Json, P<'a>, Option, Result, run()
+### Community 308 - "Option"
+Cohesion: 0.23
+Nodes (11): create_checkers(), first_error_start(), handle_job(), Instant, ISpellChecker, Mutex, Option, Self (+3 more)
 
-### Community 309 - "say"
-Cohesion: 0.21
-Nodes (16): activate_for_session(), activate_tip(), active_profile_is_textvn(), call_layout_or_tip(), call_layout_or_tip_spec(), com_init(), delete_tree(), do_unregister() (+8 more)
+### Community 309 - "tokenize.rs"
+Cohesion: 0.30
+Nodes (11): chu_so_la_token_khac(), classify(), offset_la_ky_tu_unicode(), Item, Iterator, Vec, tach_dung_ba_token(), tokenize() (+3 more)
 
 ### Community 310 - "rca_v57_adversarial.rs"
 Cohesion: 0.35
 Nodes (14): adv1_peek_khong_hoc(), adv2_tab_accept_count_1(), adv3_drain_shape_json_chuan(), adv4_cycle_hoc_dung_candidate(), adv5_drain_2_lan_chi_pending_moi(), apply(), engine(), letter() (+6 more)
 
 ### Community 311 - "Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon)"
-Cohesion: 0.33
-Nodes (6): Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon), Icon — trả lời câu hỏi "Linux/macOS đã có icon như Windows chưa?", Kiểm chứng chạy trên host Windows (2026-10-01, sau toàn bộ thay đổi), Phát hành — v0.2.3 đã publish (release candidate, chưa ký số), Quy trình phát hành mới, Sửa theo audit vòng 1 — GitHub Actions (5 major + minors)
+Cohesion: 0.29
+Nodes (7): Bản 0.2.3 — icon đủ 3 nền tảng + audit sâu 2 vòng (code/CI/icon), Icon — trả lời câu hỏi "Linux/macOS đã có icon như Windows chưa?", Kiểm chứng chạy trên host Windows (2026-10-01, sau toàn bộ thay đổi), Phát hành — v0.2.3 đã publish (release candidate, chưa ký số), Quy trình phát hành mới, Sửa theo audit vòng 1 — GitHub Actions (5 major + minors), Sửa theo audit vòng 1 — đăng ký TSF (3 major + 7 minor)
 
 ### Community 312 - "CodingKeys"
 Cohesion: 0.13
 Nodes (15): CodingKeys, corrections, count, enabled, from, hide_on_auto_fix, idle_ms, max_total_bytes (+7 more)
 
-### Community 313 - "ghost.rs"
-Cohesion: 0.15
-Nodes (14): CLASS_NAME, COLOR_GHOST, COLOR_KEY, ghost_font(), MAX_GHOST_CHARS, measure(), COLORREF, HFONT (+6 more)
+### Community 313 - "mask.rs"
+Cohesion: 0.36
+Nodes (8): che_email(), che_url(), expand_non_space(), expand_word(), is_word_char(), masked_ranges(), masked_ranges_chars(), Vec
 
-### Community 315 - "HKEY"
-Cohesion: 0.26
-Nodes (12): ctrl_shift_taken_by_windows(), delete_reg_value(), enum_subkeys(), reg_read_named(), remove_ctf_assembly_defaults(), remove_input_method_override(), root_label(), HKEY (+4 more)
+### Community 315 - "wide"
+Cohesion: 0.19
+Nodes (20): delete_reg_value(), delete_tree(), enum_subkeys(), hkey_users_relative_paths_reach_the_loaded_hive(), is_service_profile_sid(), profile_metadata_ok(), reg_key_exists(), reg_read_dword() (+12 more)
 
 ### Community 316 - "BÁO CÁO KIỂM TOÁN CHUYÊN SÂU & LỘ TRÌNH ĐẠT CHUẨN PRODUCTION VÀ KÝ SỐ TOÀN DIỆN (v0.2.19)"
 Cohesion: 0.14
@@ -1650,8 +1637,8 @@ Cohesion: 0.25
 Nodes (7): Broker, EnchantBroker, raw_broker_free(), raw_broker_init(), raw_set_ordering(), resolve_tag(), Drop
 
 ### Community 320 - "ImeEngine"
-Cohesion: 0.04
-Nodes (38): Action, commit, pass, replace, restore, FFI, ImeEngine, ImeError (+30 more)
+Cohesion: 0.06
+Nodes (23): Action, commit, pass, replace, restore, FFI, ImeEngine, KeyOutcome (+15 more)
 
 ### Community 321 - ".inject"
 Cohesion: 0.50
@@ -1662,42 +1649,42 @@ Cohesion: 0.21
 Nodes (13): convert(), cp1252(), cp1258(), engine(), mojibake(), r2_139_bang_ma_cu_ve_bang_ma_dang_dung(), r2_139_go_lai_chu_go_nham_che_do_e(), r2_139_khoi_phuc_chu_la_cp1252_cp1258_va_ma_hoa_doi() (+5 more)
 
 ### Community 323 - "verify.rs"
-Cohesion: 0.10
-Nodes (33): abi_constants(), abi_exports(), abi_structs(), default_header(), define_boc_comment_va_bo_guard(), export_dao_thu_tu_bi_phat_hien(), export_rust_dung_thu_tu_header_that(), export_thieu_ham_bi_phat_hien() (+25 more)
+Cohesion: 0.06
+Nodes (59): abi_constants(), abi_exports(), abi_structs(), default_header(), define_boc_comment_va_bo_guard(), export_dao_thu_tu_bi_phat_hien(), export_rust_dung_thu_tu_header_that(), export_thieu_ham_bi_phat_hien() (+51 more)
 
 ### Community 324 - "phrase_repeat.rs"
-Cohesion: 0.11
-Nodes (9): bat_lap_cum_2_tu_suggestion_only(), check(), check_window(), EN_SKIP_WORDS, IMPERATIVE_AFTER, PHRASE_WHITELIST, Vec, VI_SKIP_WORDS (+1 more)
+Cohesion: 0.10
+Nodes (10): looks_like_code_or_list(), bat_lap_cum_2_tu_suggestion_only(), check(), check_window(), EN_SKIP_WORDS, IMPERATIVE_AFTER, PHRASE_WHITELIST, Vec (+2 more)
 
 ### Community 325 - "P3-6 — TEST PLAN (Linux) — Solution chi tiết"
 Cohesion: 0.20
 Nodes (9): 1. Ma trận test, 2. Corpus Linux — `corpus/linux/` (mục tiêu ≥ 300 case, định dạng `P0-4`), 3. App matrix Linux (20 app — đủ 3 framework), 4.1 Smoke (PR), 4. AT-SPI driver — `tools/linux/atspi-driver`, 6. Release gate (RC Linux), 7. Manual checklist (trước RC — ghi `docs/release/rc-checklist-linux.md`), 8. CI jobs (+1 more)
 
 ### Community 326 - "AppDb"
-Cohesion: 0.20
-Nodes (15): AppDb, b1_url_search_selection_replace(), body_preedit(), candidate_selection_replace(), caps_missing_downgrades(), db(), disabled_app_passthrough(), finder_rename_editbox() (+7 more)
+Cohesion: 0.17
+Nodes (16): AppDb, b1_url_search_selection_replace(), body_preedit(), candidate_selection_replace(), caps_missing_downgrades(), db(), disabled_app_passthrough(), finder_rename_editbox() (+8 more)
 
 ### Community 327 - "verify-msix.py"
-Cohesion: 0.15
-Nodes (13): os, struct, imports(), main(), check-pe-imports.py — chặn binary Windows phụ thuộc VC++ runtime (R2-18). TIP…, check(), main(), map_version() (+5 more)
+Cohesion: 0.24
+Nodes (9): os, check(), main(), map_version(), png_size(), verify-msix.py — kiểm gói .msix TRƯỚC khi nộp Partner Center (R2-09). makeappx…, 0.2.27 → 1.2.27.0 — phải khớp tools/win/build-msix.ps1 (R2-01)., xml_etree_elementtree (+1 more)
 
 ### Community 328 - "number_vn.rs"
 Cohesion: 0.15
 Nodes (11): civil_from_days(), days_since_epoch_now(), DIGITS, find_date_shorthand(), find_number_shorthand(), ngay_thang_nam_din_hinh(), read_triple(), read_vnd_words() (+3 more)
 
-### Community 329 - "ime_result_v1"
+### Community 329 - "abi_invariants.rs"
 Cohesion: 0.08
-Nodes (33): zeroed_result(), cstr, fill_result(), ime_key(), ime_key_v1, ime_result_v1, null_args_and_abi_errors_fail_open(), oversized_outcome_is_rejected_not_truncated() (+25 more)
+Nodes (29): cstr, ime_key_v1, ime_last_error(), ime_suggest(), ime_suggest_v1, abi_invariants_giu_duoi_input_ngau_nhien(), apply_doc(), assert_sane() (+21 more)
 
 ### Community 330 - "Strategy"
-Cohesion: 0.19
-Nodes (16): default_for_field, downgrade(), downgrade_without_cap(), inp(), resolve(), ResolveInput, Option, secure_field_role_passthrough() (+8 more)
+Cohesion: 0.14
+Nodes (19): default_for_field, downgrade(), downgrade_without_cap(), inp(), resolve(), ResolveInput, Option, secure_field_role_passthrough() (+11 more)
 
 ### Community 331 - "[0.2.3] — 2026-10-01"
 Cohesion: 0.33
 Nodes (6): [0.2.3] — 2026-10-01, Added, Changed (CI — audit GitHub Actions, 5 major), Fixed (Windows), Fixed (đăng ký TSF — audit vòng sâu, 3 major), Housekeeping
 
-### Community 332 - "core"
+### Community 332 - "tip.rs"
 Cohesion: 0.08
 Nodes (33): ASSIST_KEYS, current_exe_name(), Default, F, GUID, IEnumTfDisplayAttributeInfo, ITfContext, ITfDisplayAttributeInfo (+25 more)
 
@@ -1706,8 +1693,8 @@ Cohesion: 0.21
 Nodes (9): CompositionPlan, ctrl_space_plan_never_inserts_space_on_pass(), delete_beyond_composition_is_reported_not_guessed(), EngineStep, plan_invariant_unknown_action_is_fail_open(), plan_key(), Option, Vec (+1 more)
 
 ### Community 334 - "gen_corpus_en_tatoeba.py"
-Cohesion: 0.13
-Nodes (21): argparse, bz2, importlib_util, io, random, Sinh **ung vien** cho tap corpus van ban THAT co nhan (P4-12) + kiem chung tap…, clean_sentence(), fetch() (+13 more)
+Cohesion: 0.11
+Nodes (23): argparse, bz2, importlib_util, io, load_pool(), Path, Sinh **ung vien** cho tap corpus van ban THAT co nhan (P4-12) + kiem chung tap…, Pool cau da loc (unique, thu tu goc). (+15 more)
 
 ### Community 335 - ".run"
 Cohesion: 0.33
@@ -1717,9 +1704,9 @@ Nodes (5): ApplySelectionFixSession_Impl, ITfEditSession_Impl, Result, Selection
 Cohesion: 0.44
 Nodes (8): macSpellContainsCallback(), macSpellSuggestCallback(), CChar, Int32, UInt32, UnsafeMutableRawPointer, UnsafePointer, UnsafeMutablePointer
 
-### Community 337 - "set_reg_value"
-Cohesion: 0.22
-Nodes (10): broadcast_international(), ctf_category_keys(), ctf_layout_matches_tsf_registry_schema(), ctf_tip_key(), ensure_modern_language_list(), register_ctf_categories_per_user(), register_ctf_per_user(), RegValue (+2 more)
+### Community 337 - "do_register"
+Cohesion: 0.15
+Nodes (26): activate_for_session(), activate_tip(), active_profile_is_textvn(), com_init(), ctf_category_keys(), ctf_layout_matches_tsf_registry_schema(), ctf_profile_key(), ctf_tip_key() (+18 more)
 
 ### Community 338 - "3.4. Điều tra chuyên sâu: Giải mã 3 lỗi từ chối của Microsoft Store (Silent Install, Add/Remove Programs, Bundleware) & Thiết kế bài test CI chuẩn xác theo kỳ vọng của Microsoft"
 Cohesion: 0.18
@@ -1727,7 +1714,7 @@ Nodes (11): 3.4.1. Giải phẫu bản chất chuỗi lỗi (Dependency Chain) t
 
 ### Community 339 - "CTextVNFFI/include/textvn_ffi.h"
 Cohesion: 0.02
-Nodes (80): ime_assist_issue, auto_fixable, confidence, end, kind, message, start, suggest (+72 more)
+Nodes (81): ime_assist_issue, auto_fixable, confidence, end, kind, message, start, suggest (+73 more)
 
 ### Community 340 - "EngineOptions"
 Cohesion: 0.17
@@ -1741,9 +1728,9 @@ Nodes (10): enabled(), event(), File, Mutex, Option, sink(), Arguments, sync (+2
 Cohesion: 0.14
 Nodes (14): corrections, enabled, max_total_bytes, words, style_profile, suggest, additionalProperties, $comment (+6 more)
 
-### Community 343 - "Trạng thái ký số macOS — Developer ID, notarization, stapling"
-Cohesion: 0.40
-Nodes (5): 1. Tóm tắt, 2. Ảnh hưởng tới người dùng, 3. Tooling đã nối (chỉ chạy khi có secret), 4. Việc còn lại để bật (chủ repo), Trạng thái ký số macOS — Developer ID, notarization, stapling
+### Community 343 - "atomic"
+Cohesion: 0.28
+Nodes (8): HR_CLASS_E_NOAGGREGATION, HR_E_POINTER, HR_S_OK, OBJECT_COUNT, AtomicI32, HRESULT, atomic, com
 
 ### Community 344 - "package_family_full_names"
 Cohesion: 0.24
@@ -1762,8 +1749,8 @@ Cohesion: 0.10
 Nodes (20): 1. Công thái học Dream RSI & Kiểm chuẩn Hiệu năng (P10 / G19), 1. Kiến trúc In-Process thuần khiết & An toàn bộ nhớ tuyệt đối, 2. Hệ thống Dự đoán Ngữ cảnh Song ngữ & Công thái học Dream RSI (P10), 2. Mô hình Dự đoán Ngữ cảnh P6 & Hồ sơ Phong cách P7 (Corpora 41.313 mục), 3. Kiểu Gõ & Biến Đổi Âm Vị Học Chuẩn Mực, 3. Trợ lý Ngữ pháp & Ngữ cảnh On-Device (Grammarly-Grade Offline), 4. Di sản Chuẩn UniKey 20 Năm & Tiện ích Văn phòng Hiện đại, 4. Trợ Lý Ngữ Pháp Câu & Từ Ngữ Cảnh On-Device (+12 more)
 
 ### Community 348 - "P2-REVIEW-LOG — Phần 2 (macOS)"
-Cohesion: 0.14
-Nodes (14): Code Review Round 1 — Đúng & Đủ (Mã nguồn macOS App & Packaging), Code Review Round 2 — Nhất quán & Sẵn sàng (Kiểm thử, Autostart S5 & Residue S9), Code Review Round 4 — Nhất quán & Sẵn sàng (Toàn vẹn ABI, ARM64 Memory Alignment, Quality Gate), Kiểm chứng sau fix (Review 2 cuối), Kết quả kiểm tra sau fix, Kết quả tổng, P2-REVIEW-LOG — Phần 2 (macOS), Review 1 — Đúng & Đủ (+6 more)
+Cohesion: 0.09
+Nodes (21): KeyMapMacGenerated, NSMenu, (B) Windows / xtask / Linux — `R3-*`, Code Review Round 1 — Đúng & Đủ (Mã nguồn macOS App & Packaging), Code Review Round 2 — Nhất quán & Sẵn sàng (Kiểm thử, Autostart S5 & Residue S9), Code Review Round 4 — Nhất quán & Sẵn sàng (Toàn vẹn ABI, ARM64 Memory Alignment, Quality Gate), Kiểm chứng sau fix (Review 2 cuối), Kiểm chứng vòng 10 (host Windows, trước commit) (+13 more)
 
 ### Community 349 - "Ký số TextVN — Sigstore, GPG/PGP, OpenSSL và đường lên Microsoft Store"
 Cohesion: 0.17
@@ -1801,13 +1788,13 @@ Nodes (7): 1. Giải mã toàn diện lịch sử 10 vòng thử nghiệm thất
 Cohesion: 0.25
 Nodes (8): LNX-060 · AT-SPI driver `tools/linux/atspi-driver` (L) — `P3-6 §4`, LNX-061 · Targets JSON 12 app (cùng format 3 OS) (M), LNX-062 · Perf bench + `perf/baseline-linux.json` (M) — `P3-6 §5`, LNX-063 · Soak 24h script × 2 (X11 + Wayland VM) (M), LNX-064 · CI jobs linux + dist matrix (M) — `P3-6 §8`, LNX-065 · Fuzz + ASan/valgrind job (S), LNX-066 · Security + license checklist Phần 3 (M) — Handbook §8 + audit x11 (P3-3 §7), T6 — Test & hardening (tuần 15–18)
 
-### Community 359 - "Dictionary"
-Cohesion: 0.24
-Nodes (5): BridgeDict<F>, Budgeted<'_, D>, Dictionary, Vec, &T
+### Community 359 - "kappa.py"
+Cohesion: 0.36
+Nodes (8): kappa(), main(), Path, Cohen's kappa giua hai nguoi gan nhan (P4-12c, doc P4-12 §8). Moi file nhan la…, Cohen's kappa nhi phan. 1.0 neu hai nguoi hoan toan trung; 0 = ngang may rui., read(), report(), self_test()
 
 ### Community 360 - "Problem"
-Cohesion: 0.18
-Nodes (10): MacroRules, Problem, emptyExpansion, emptyTrigger, expansionTooLong, .message, triggerHasSpace, triggerTooLong (+2 more)
+Cohesion: 0.09
+Nodes (19): MacroRules, Problem, emptyExpansion, emptyTrigger, expansionTooLong, .message, triggerHasSpace, triggerTooLong (+11 more)
 
 ### Community 361 - "Mapping"
 Cohesion: 0.25
@@ -1817,9 +1804,13 @@ Nodes (4): Mapping, Drop, Sync, Send
 Cohesion: 0.22
 Nodes (8): 1. Tổng quan kiến trúc, 2.1 Không đóng gói tĩnh (No Static Linking), 2.2 Nguồn gốc Upstream, 2. Tuân thủ Giấy phép LGPL (Linux — enchant-2 & libspelling), 3.2 Phạm vi tiến trình (Process Boundaries), 3.3 Quyền kiểm soát & Kill-Switch, 3. Chính sách Quyền riêng tư & Luồng Dữ liệu (Privacy & Data Flow), Tuân thủ Giấy phép & Riêng tư — Các Nhà cung cấp Chính tả Hệ điều hành (OS Spellcheck Providers)
 
-### Community 363 - "ime_result"
-Cohesion: 0.20
-Nodes (10): ime_result, abi_version, action, delete_count, flags, insert, insert_len, preedit (+2 more)
+### Community 363 - "AssistMode"
+Cohesion: 0.25
+Nodes (4): mode1_display_enabled(), mode2_auto_fix_enabled(), AssistAutoFix, AssistMode
+
+### Community 364 - "tone_inject.py"
+Cohesion: 0.26
+Nodes (11): json, Random, tempfile, inject(), load_valid(), main(), Do recall cua luat `spelling` (dau thanh) bang LOI TONG HOP (P4-13). Lay cau…, Dat dau `tone` len nguyen am cuoi cua word (da bo dau thanh cu). (+3 more)
 
 ### Community 365 - "press"
 Cohesion: 0.48
@@ -1829,25 +1820,25 @@ Nodes (6): Doc, mode_en_english_completion_works_within_composition(), navigatio
 Cohesion: 0.13
 Nodes (15): 4.2. Module macOS (IMK, CGEventTap, AppKit Menu Bar, Packaging & Entitlements), 4.3. Module Linux (Common IPC, IBus, Fcitx5, GTK4 Settings & Packaging), 4.4. Core Engine, FFI ABI, Restore English & Data, 4.5. CI/CD, Supply Chain, VirusTotal & Microsoft Store Validation, 4. CHI TIẾT KIỂM TOÁN TỪNG DÒNG MÃ (MODULE-BY-MODULE AUDIT), Phát hiện C-01: Hiệu năng quét từ điển `restore_en.rs`, Phát hiện C-02: Dung lượng tập từ vựng còn quá nhỏ, Phát hiện CI-01: Script ký số chưa được gắn vào quy trình Release (+7 more)
 
-### Community 367 - "tray/src/settings.rs"
-Cohesion: 0.22
-Nodes (8): Arc, BTreeMap, IpcServer, Self, settings_controller_hotkey_conflict_validation(), settings_controller_per_app_state_management(), settings_controller_switches_tabs(), SettingsTab
+### Community 367 - ".get"
+Cohesion: 0.43
+Nodes (5): os_contains(), os_suggest(), provider_init_khong_panic_va_nhat_quan(), c_char, c_void
 
 ### Community 368 - ".CreateInstance"
 Cohesion: 0.22
 Nodes (8): ClassFactory_Impl, BOOL, c_void, GUID, IClassFactory_Impl, IUnknown, Ref, Result
 
 ### Community 370 - "windowsandmessaging"
-Cohesion: 0.18
-Nodes (12): gdi, libraryloader, setfocus, EDIT, main(), HWND, LPARAM, LRESULT (+4 more)
+Cohesion: 0.20
+Nodes (11): libraryloader, setfocus, EDIT, main(), HWND, LPARAM, LRESULT, Result (+3 more)
 
 ### Community 371 - "P4-11 — ĐO TÀI NGUYÊN ASSIST (F61) — TIP THẬT"
 Cohesion: 0.20
 Nodes (9): 1. Phương pháp, 2. Môi trường đo, 3.1 RSS ảnh DLL (phần **quy được** cho DLL), 3.2 Toàn tiến trình (giới hạn trên — **không** quy hết cho DLL), 3. Kết quả (2026-10-22), 4. So với budget (`P4-0-MASTER-PLAN.md` D25 · P4-0 §"Perf"), 5. Việc tiếp theo, 6. Dọn dẹp sau đo (đã làm) (+1 more)
 
 ### Community 373 - "audit_r2_142.rs"
-Cohesion: 0.36
-Nodes (5): cap_lien_tu_tuyen_tinh_tren_cau_dai(), cau_dung_khong_bi_sua(), fixes(), loi_that_van_bat_duoc(), Vec
+Cohesion: 0.19
+Nodes (8): check(), Vec, cap_lien_tu_tuyen_tinh_tren_cau_dai(), cau_dung_khong_bi_sua(), fixes(), loi_that_van_bat_duoc(), Vec, check_sentence
 
 ### Community 374 - "DictError"
 Cohesion: 0.12
@@ -1870,8 +1861,8 @@ Cohesion: 0.29
 Nodes (6): 1. Vòng 1 — SA / QA, 2. Vòng 2 — Audit (license) — **phát hiện nghiêm trọng**, 3. Vòng 3 — PO / QA (giá trị & phạm vi), 4. Kết luận & trạng thái, 5. Fassist-104 (major) — CI đỏ: **không được tự khai báo symbol `open`**, P4-9 — REVIEW (3 vòng) kết quả Agent Dict: từ điển tiếng Việt (AS-040/AS-041)
 
 ### Community 381 - "KeyTranslator"
-Cohesion: 0.10
-Nodes (16): AppInfo, .aboutMessage, .aboutTitle, UInt32, KeyTranslator, Data, KeyEvent, NSEvent (+8 more)
+Cohesion: 0.12
+Nodes (15): AppInfo, .aboutMessage, .aboutTitle, UInt32, KeyTranslator, Data, KeyEvent, NSEvent (+7 more)
 
 ### Community 384 - "P10 — Dream RSI: đo tiết kiệm phím của user nhờ prediction (vòng 58, G19)"
 Cohesion: 0.20
@@ -1882,8 +1873,8 @@ Cohesion: 0.20
 Nodes (9): 0. Tóm tắt kết luận, 1. S1 — TSF candidate list sau commit, 2. S2 — Đọc vị trí caret (precondition D12), 3. S3 — Nguồn từ điển tiếng Việt, 4. S4a — Chi phí per-process (đo thật, Windows x64), 5. S4b — `harper-core` cho tiếng Anh (v2, không chặn v1), 6. Quyết định mới từ spike, 7. Việc còn lại sau 4 spike (+1 more)
 
 ### Community 386 - "Common errors khi test spike Windows (WIN-002/003) — đừng lặp lại"
-Cohesion: 0.33
-Nodes (5): C. UIA & ứng dụng test, Common errors khi test spike Windows (WIN-002/003) — đừng lặp lại, D. Build & DLL, E. TSF API (đã mắc thật — xem chi tiết trong 2 file spec), F. Quy trình
+Cohesion: 0.29
+Nodes (6): A. PowerShell & C# interop, C. UIA & ứng dụng test, Common errors khi test spike Windows (WIN-002/003) — đừng lặp lại, D. Build & DLL, E. TSF API (đã mắc thật — xem chi tiết trong 2 file spec), F. Quy trình
 
 ### Community 387 - "Added"
 Cohesion: 0.33
@@ -1906,12 +1897,12 @@ Cohesion: 0.29
 Nodes (7): Audit tiếp diễn — TextVN, 2026-09-30, Giới hạn và rủi ro còn mở, Lệnh tái lập, Perf — job `perf regression` vẫn đỏ trên CI, **không phải** hồi quy, Ranh giới xác minh, Vòng 10 — delta từ `v0.2.0` đến `v0.2.1`, Vòng 11 — `v0.2.2`: đóng F3-13 (mở nhầm Cài đặt lúc login), F3-8 và nit
 
 ### Community 396 - "ViState"
-Cohesion: 0.11
-Nodes (12): IpcClient, TimeInterval, Bool, ViState, ViStateStore, AssistIpcTests, Bản 0.2.69 — audit toàn bộ tính năng mới, đồng bộ 3 OS (R2-140…R2-153, 2026-11-08), Bất biến mỗi target assert (không chỉ "không panic") (+4 more)
+Cohesion: 0.14
+Nodes (7): IpcClient, TimeInterval, Bool, ViState, ViStateStore, AssistIpcTests, Bản 0.2.69 — audit toàn bộ tính năng mới, đồng bộ 3 OS (R2-140…R2-153, 2026-11-08)
 
-### Community 397 - "keymap"
-Cohesion: 0.27
-Nodes (9): guint, lc_modifier, textvn_ibus_map_key(), textvn_ibus_modifier_kind(), textvn_ibus_mods(), guint, classify(), main() (+1 more)
+### Community 397 - "Rà soát backlog theo tài liệu kế hoạch — 2026-11-08"
+Cohesion: 0.29
+Nodes (6): 1. Đã xử lý trong lượt rà soát này, 2. Cần chủ repo / bên ngoài (agent không tự làm được), 3. Cần người / thiết bị thật, 4. Rủi ro/hoãn đã ghi (không đổi, chờ điều kiện), 5. Tính năng mới đáng làm tiếp (agent làm được) — theo thứ tự đề xuất, Rà soát backlog theo tài liệu kế hoạch — 2026-11-08
 
 ### Community 398 - "TextVN IPC v1"
 Cohesion: 0.33
@@ -1953,6 +1944,10 @@ Nodes (5): Còn mở (2026-10-09), IMPLEMENTATION STATUS — adapter macOS (Farc
 Cohesion: 0.40
 Nodes (4): 1. Nguyên nhân gốc (Findings — G6, giữ ID), 2. Mô hình composition (quyết định kiến trúc), 3. Giảm heuristic AV (bổ sung `antivirus-false-positive.md` §9), TSF typing overhaul — sửa lỗi "không gõ được tiếng Việt" + giảm heuristic AV
 
+### Community 409 - "fuzz — L4 (P0-4 §1)"
+Cohesion: 0.33
+Nodes (5): Bất biến mỗi target assert (không chỉ "không panic"), Chạy, fuzz — L4 (P0-4 §1), Kiểm chứng trên máy không có cargo-fuzz, Seed corpus
+
 ### Community 410 - "3.4.5. Điều tra chuyên sâu lần nộp v0.2.21: Vì sao Store vẫn tiếp tục từ chối ở 3 bài kiểm tra dù đã sửa Publisher và nâng phiên bản?"
 Cohesion: 0.33
 Nodes (6): 1. Bằng chứng mã nguồn: Gói nộp lên Partner Center THỰC CHẤT VẪN LÀ GÓI PER-USER (Chỉ ghi vào HKCU), 2. Cơ chế thực tế của Microsoft Store Validator: Tại sao HKCU luôn bị mù trong Sandbox?, 3.4.5. Điều tra chuyên sâu lần nộp v0.2.21: Vì sao Store vẫn tiếp tục từ chối ở 3 bài kiểm tra dù đã sửa Publisher và nâng phiên bản?, 3. Lỗ hổng định danh ký tự: Nguy cơ lệch Codepoint nghiêm trọng giữa "Linh βùi" và Partner Center, 4. Nghịch lý bế tắc (Catch-22) của gói Raw Win32 EXE trên Microsoft Store, 5. Khuyến nghị dứt điểm: Dừng nộp file `.exe` và chuyển ngay sang nộp gói MSIX Full-Trust
@@ -1961,9 +1956,9 @@ Nodes (6): 1. Bằng chứng mã nguồn: Gói nộp lên Partner Center THỰC 
 Cohesion: 0.40
 Nodes (5): claim_debounced(), LAST_GLOBAL_TOGGLE_MS, AtomicU64, system_millis(), try_claim_global_toggle()
 
-### Community 413 - "corpus.rs"
-Cohesion: 0.33
-Nodes (7): corpus_co_du_lop_hieu_biet(), corpus_files(), corpus_vi_basic_passes(), parse_corpus(), Path, PathBuf, Vec
+### Community 413 - "cli/build.rs"
+Cohesion: 0.50
+Nodes (4): find_rc_exe(), main(), Option, PathBuf
 
 ### Community 415 - "StageInfo"
 Cohesion: 0.29
@@ -1991,7 +1986,7 @@ Nodes (4): Báo cáo lỗ hổng bảo mật, Các phiên bản được hỗ tr
 
 ### Community 421 - "abnormal.rs"
 Cohesion: 0.04
-Nodes (4): EmptyDict, Dictionary, Vec, spelling_fail_open_voi_dict()
+Nodes (3): EmptyDict, Dictionary, Vec
 
 ### Community 422 - "3.1. Lỗi không đổi icon và không chuyển mode gõ khi bấm Ctrl + Shift trên cả 3 hệ điều hành"
 Cohesion: 0.22
@@ -2005,9 +2000,9 @@ Nodes (6): enum, trigger_keys, $comment, default, items, type
 Cohesion: 0.50
 Nodes (4): find_rc_exe(), main(), Option, PathBuf
 
-### Community 425 - "P3-4 — AT-SPI FIELD DETECT & APP PRESET (Linux) — Solution chi tiết"
-Cohesion: 0.20
-Nodes (9): 1. Nguồn `FieldContext` trên Linux, 2. Bảng AT-SPI → `IME_FIELD_*` (module trong `linux-common/src/field_detect.c`), 3. App preset mặc định — `data/appdb.default.json` (phần Linux), 4. Permission & fallback (RL4), 5. Module dùng chung `libtextvn-linux-common.a` (C), 6. Override & state (khớm `P0-3 §3.1` — path Linux), 7. Env matrix & detect framework (dùng cho `textvn doctor` — `PLAN §5.3`), 8. Test (+1 more)
+### Community 425 - "[0.2.72] — 2026-11-08"
+Cohesion: 0.50
+Nodes (4): [0.2.72] — 2026-11-08, Changed, Fixed, Tests
 
 ### Community 426 - "corrections"
 Cohesion: 0.20
@@ -2025,13 +2020,9 @@ Nodes (7): 0. Cách chạy 1 app (không bỏ qua bước này), 1. Windows (20 
 Cohesion: 0.25
 Nodes (7): F1 — "uong" tự thành "ương" (phá chuẩn UniKey 20 năm), F2 — xung đột OS-IME trên TSF-bypass apps (MobaXterm), F3 — username `truong.giap` bị bind, F4 — dead-key Windows (`Ctrl+'`, `Ctrl+` + letter…), F5 — panel popup hiện liên tục che vùng gõ, P8/V55 — DFMEA + DRBFM: 5 fix phản hồi test thật của chủ repo (2026-11-05), Tổng hợp gate tests mới (vòng 55)
 
-### Community 431 - "Frame"
-Cohesion: 0.25
-Nodes (5): Frame, frame, needMore, violation, Data
-
 ### Community 432 - "EventTapController"
 Cohesion: 0.05
-Nodes (36): CGFlagMapper, EventTapController, .currentFrontAppID, .isActive, .isSelfDisabled, Bool, Int, NSObjectProtocol (+28 more)
+Nodes (37): CGFlagMapper, EventTapController, .currentFrontAppID, .isActive, .isSelfDisabled, Bool, Int, NSObjectProtocol (+29 more)
 
 ### Community 433 - "4.3. Module Linux (Common IPC, IBus, Fcitx5, GTK4 Settings & Packaging)"
 Cohesion: 0.40
@@ -2057,9 +2048,9 @@ Nodes (4): is_closer(), is_sentence_end(), sentence_start(), starts()
 Cohesion: 0.50
 Nodes (4): find_rc_exe(), main(), Option, PathBuf
 
-### Community 441 - "AppDelegate.swift"
-Cohesion: 0.40
-Nodes (3): Cocoa, SwiftUI, TextVNAppLib
+### Community 441 - "[0.2.40] — 2026-10-24"
+Cohesion: 0.67
+Nodes (3): [0.2.40] — 2026-10-24, Added, Fixed
 
 ### Community 443 - "Targets JSON — `tools/appcomptest/targets/` (WIN-061)"
 Cohesion: 0.25
@@ -2089,9 +2080,9 @@ Nodes (4): [0.2.66] — 2026-11-07, Added, Changed, Fixed
 Cohesion: 0.29
 Nodes (7): 4.1. Module Windows (TSF, Hook, Tray, CLI Register, Installer & MSIX), Phát hiện W-01: Hook bàn phím toàn cục `WH_KEYBOARD_LL` trong Tray, Phát hiện W-02: Lỗ hổng nâng quyền Portable UAC, Phát hiện W-03: Sửa đổi Registry Windows Hotkey thiếu hoàn trả, Phát hiện W-04: Thiếu kiểm soát truy cập (DACL) trên Named Pipe IPC, Phát hiện W-05: Đóng gói MSIX và bài toán Full-Trust, Phát hiện W-06: Điểm mù kiến trúc 32-bit WOW64 — Zalo PC và toàn bộ ứng dụng x86 không thể nạp TSF DLL 64-bit
 
-### Community 453 - "[0.2.29] — 2026-10-10"
+### Community 453 - "[0.2.46] — 2026-10-26"
 Cohesion: 0.67
-Nodes (3): [0.2.29] — 2026-10-10, Changed, Fixed — gỡ cài đặt sạch (R2-99, R2-100)
+Nodes (3): [0.2.46] — 2026-10-26, Added, Fixed
 
 ### Community 454 - "English"
 Cohesion: 0.10
@@ -2101,9 +2092,9 @@ Nodes (20): 1. Dream RSI Ergonomic Metrics & Performance Benchmarks (P10 / G19),
 Cohesion: 0.22
 Nodes (8): 0. Kết luận của agent A sau khi verify lại từng fact, 1. Disposition 6 finding của agent B, 2. Finding mới của agent A (Fassist-38..45) — phát hiện khi review lại đề xuất của B, 3. Quyết định mới D21–D29 (bổ sung D1–D20), 4. Lộ trình cập nhật (chèn vào `P4-0` §8), 5. Trạng thái finding sau cross-review, 6. Liên kết, P4-2 — CROSS-REVIEW 2026-10-20: Rà soát chéo "Trợ lý ngữ pháp" (Phần 4) + phản hồi của agent A
 
-### Community 458 - "[0.2.47] — 2026-10-26"
+### Community 458 - "Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được"
 Cohesion: 0.67
-Nodes (3): [0.2.47] — 2026-10-26, Added, Fixed
+Nodes (3): Ba nguyên nhân gốc, ba fixes, xác minh máy thật, Bản 0.2.12 — hết lỗi nâng cấp DLL khoá + Win+Space store + xác minh máy thật gõ lại được, Phát hành — v0.2.12 đã publish
 
 ### Community 459 - "Xác định ngôn ngữ khi gõ — ma trận xung đột và thứ tự ưu tiên"
 Cohesion: 0.40
@@ -2113,9 +2104,9 @@ Nodes (5): 1. Thứ tự xử lý mỗi phím (engine `core/src/lib.rs`), 2. Th�
 Cohesion: 0.50
 Nodes (4): items, type, $ref, entries
 
-### Community 461 - "[0.2.0] — 2026-09-30"
-Cohesion: 0.25
-Nodes (8): [0.2.0] — 2026-09-30, Added, Added (macOS — Farch-4), Added (trước đó), Changed, Fixed, Fixed (review vòng 3 — trước tag v0.2.0), Known limitations
+### Community 461 - "Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath"
+Cohesion: 0.67
+Nodes (3): Bản 0.2.5 — vá bản portable (gạch chân) + pipeline ký SignPath, Ký số — SignPath opt-in, Phát hành — v0.2.5 đã publish (release candidate, chưa ký số)
 
 ### Community 462 - "P0-1 — Repo layout, crate responsibilities, Build/Test/CI workflow"
 Cohesion: 0.25
@@ -2145,29 +2136,21 @@ Nodes (3): [0.2.35] — 2026-10-23, Added, Fixed
 Cohesion: 0.50
 Nodes (4): 0.2.13 — EN/VI đa nền tảng + fix macOS nuốt từ điển, 0.2.14 — DPI gốc + UI thống nhất + common errors, Bản 0.2.13 + 0.2.14 — hoàn thiện 3 nền tảng, DPI theo màn hình, UI thống nhất, Phát hành + xác minh máy chủ repo
 
-### Community 469 - "windows-hook/build.rs"
-Cohesion: 0.50
-Nodes (4): find_rc_exe(), main(), Option, PathBuf
-
-### Community 470 - "module_instance"
-Cohesion: 0.50
-Nodes (4): CLASS_NAME, module_instance(), HINSTANCE, PCWSTR
+### Community 469 - "Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục"
+Cohesion: 0.67
+Nodes (3): Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục, Kiểm chứng E2E trên máy thật (2026-10-02, sau khi publish), Phát hành — v0.2.7 đã publish (release candidate, chưa ký số)
 
 ### Community 471 - "auto_restore_english"
 Cohesion: 0.50
 Nodes (4): $comment, default, type, auto_restore_english
 
-### Community 472 - "[0.2.10] — 2026-10-03"
-Cohesion: 0.50
-Nodes (4): [0.2.10] — 2026-10-03, Documented, Fixed, Tests
-
 ### Community 473 - "Vec"
 Cohesion: 0.18
 Nodes (9): Action, apply(), backspaces(), boundary_space_pass_with_default_caps(), mode_en_backspace_does_not_learn_incomplete_prefix(), PredictCycle, retype_chunk(), Vec (+1 more)
 
-### Community 474 - "[0.2.72] — 2026-11-08"
-Cohesion: 0.50
-Nodes (4): [0.2.72] — 2026-11-08, Changed, Fixed, Tests
+### Community 474 - "[0.2.73] — 2026-11-08"
+Cohesion: 0.40
+Nodes (5): [0.2.73] — 2026-11-08, Added, Added (công cụ đo, không đổi hành vi sản phẩm), Changed, Fixed
 
 ### Community 475 - "[0.2.14] — 2026-10-03"
 Cohesion: 0.50
@@ -2209,10 +2192,6 @@ Nodes (4): 2. Kết quả kiểm thử, Gõ thật trên Windows (mỗi kịch b
 Cohesion: 0.50
 Nodes (4): Bản 0.2.4 — hoàn tất code gate, chờ workflow phát hành, Gate trước tag 0.2.4, Tiếp tục audit ZCode — engine (2026-10-01), Tiếp tục audit ZCode — runtime chưa có bằng chứng production
 
-### Community 486 - "[0.2.12] — 2026-10-03"
-Cohesion: 0.67
-Nodes (3): [0.2.12] — 2026-10-03, Fixed (Windows), Known issue (ghi nhận từ máy chủ repo, 0.2.12 chưa xử lý được)
-
 ### Community 487 - "simple_telex.rs"
 Cohesion: 0.38
 Nodes (4): fold(), n(), DiacriticStyle, Vec
@@ -2221,18 +2200,6 @@ Nodes (4): fold(), n(), DiacriticStyle, Vec
 Cohesion: 0.33
 Nodes (5): Cross-check checklist (Review 2) — kết quả, P0 — REVIEW LOG (Phần 0: Nền tảng chung), REVIEW 1 — *Đúng & Đủ* (2026-09-27), REVIEW 2 — *Nhất quán & Sẵn sàng* (2026-09-27), Review tổng thể đợt 3 (full sweep 34 file docs + tiếp nhận scaffold) — 2026-09-27
 
-### Community 489 - "[0.2.15] — 2026-10-03"
-Cohesion: 0.67
-Nodes (3): [0.2.15] — 2026-10-03, Fixed (Windows), Verified — toàn bộ luồng portable "chạy ngay" (yêu cầu chủ repo)
-
-### Community 490 - "[0.2.16] — 2026-10-03"
-Cohesion: 0.67
-Nodes (3): [0.2.16] — 2026-10-03, Fixed (Windows) — portable "giải nén chạy ngay" hoạt động trên Win11 24H2+, Verified live trên máy thật (máy chủ repo, build 26300 — trường hợp từng fail)
-
-### Community 491 - "[0.2.26] — 2026-10-05"
-Cohesion: 0.67
-Nodes (3): [0.2.26] — 2026-10-05, Added (Windows) — hỗ trợ app 32-bit (Zalo/Office x86) — vòng 14, Fixed (Windows) — gỡ cài sạch 100% key layout (vòng 13, bắt thật + dọn live trên máy chủ repo)
-
 ### Community 492 - "[0.2.42] — 2026-10-24"
 Cohesion: 0.67
 Nodes (3): [0.2.42] — 2026-10-24, Added, Fixed
@@ -2240,18 +2207,6 @@ Nodes (3): [0.2.42] — 2026-10-24, Added, Fixed
 ### Community 493 - "3.4.7. Bước ngoặt lịch sử trên v0.2.24: Vượt qua hoàn toàn 3 bài kiểm tra Silent/ARP/Bundleware & Giải phẫu Thông báo Chính sách 10.2.9 (Security - Package Submissions)"
 Cohesion: 0.33
 Nodes (6): 1. Đánh giá thành quả: Đập tan hoàn toàn 3 lỗi kiểm duyệt tự động cố hữu, 2. Giải mã thông báo mới từ Store: Chính sách 10.2.9 (Security - Package Submissions), 3.4.7. Bước ngoặt lịch sử trên v0.2.24: Vượt qua hoàn toàn 3 bài kiểm tra Silent/ARP/Bundleware & Giải phẫu Thông báo Chính sách 10.2.9 (Security - Package Submissions), 3. Hai phương án xử lý do chính Microsoft đề xuất và lộ trình hành động chi tiết, Phương án 1: Ký số cho file EXE bằng chứng thư số tin cậy (Giữ luồng Win32 EXE), Phương án 2 (Khuyến nghị hàng đầu): Repackage sang MSIX Full-Trust (Microsoft Ký số Miễn phí)
-
-### Community 494 - "[0.2.54] — 2026-10-30"
-Cohesion: 0.67
-Nodes (3): [0.2.54] — 2026-10-30, Added, Fixed
-
-### Community 495 - "[0.2.4] — 2026-10-01"
-Cohesion: 0.67
-Nodes (3): [0.2.4] — 2026-10-01, Fixed, Verification
-
-### Community 496 - "[0.2.33] — 2026-10-18"
-Cohesion: 0.50
-Nodes (4): [0.2.33] — 2026-10-18, Added, Changed, Fixed
 
 ### Community 497 - "[0.2.28] — 2026-10-10"
 Cohesion: 0.40
@@ -2269,40 +2224,32 @@ Nodes (3): [0.2.50] — 2026-10-28, Added, Fixed
 Cohesion: 0.40
 Nodes (5): [0.2.69] — 2026-11-08, Added, Changed, Fixed, Performance
 
-### Community 501 - "[0.2.5] — 2026-10-02"
-Cohesion: 0.67
-Nodes (3): [0.2.5] — 2026-10-02, Added, Fixed (portable)
-
 ### Community 502 - "[0.2.61] — 2026-11-03"
 Cohesion: 0.67
 Nodes (3): [0.2.61] — 2026-11-03, Added, Fixed
-
-### Community 503 - "[0.2.65] — 2026-11-06"
-Cohesion: 0.67
-Nodes (3): [0.2.65] — 2026-11-06, Added, Fixed
 
 ### Community 504 - "Bản 0.2.8 — tự xác định EN/VI + Tab gợi ý + DPI đa màn hình + Store silent"
 Cohesion: 0.50
 Nodes (4): Bản 0.2.8 — tự xác định EN/VI + Tab gợi ý + DPI đa màn hình + Store silent, Giải pháp + bằng chứng kiểm thử, Phát hành — v0.2.8 đã publish (release candidate, chưa ký số), Sự cố trong phiên — tra trước khi lặp lại
 
 ## Knowledge Gaps
-- **2330 isolated node(s):** `kind`, `ch`, `text`, `len`, `delete_before` (+2325 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3770 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **83 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **2357 isolated node(s):** `kind`, `ch`, `text`, `len`, `delete_before` (+2352 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 3827 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **74 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `string` to `ImeEngine`, `engine.cpp`, `TextVNInputController`, `AssistTests`, `test_compose.c`, `Option`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
-- **Why does `plan_sentence_auto_fix()` connect `Option` to `OverlayView`, `windows-tsf/src/assist.rs`, `edit_session.rs`, `string`?**
-  _High betweenness centrality (0.103) - this node is a cross-community bridge._
-- **Why does `String` connect `String` to `AXSnapshot`, `ViState`, `ConfigWatcher`, `engine.cpp`, `NSRange`, `IpcMessage`, `EventTapController`, `.suggest`, `AppDelegate`, `CodingKeys`, `StrategyResolver`, `ImeEngine`, `.inject`, `.register`, `ConfigStore`, `TextVNInputController`, `AssistTests`, `Equatable`, `OwnerRule`, `IpcServerAssistTests`, `Foundation`, `Problem`, `IpcClient`, `AutostartManager`, `MarkedState`, `RoundTwoMacAppTests`, `TextVNAppTests`, `KeyTranslator`?**
-  _High betweenness centrality (0.086) - this node is a cross-community bridge._
+- **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `ImeEngine`, `compose.c`, `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `TextVNInputController`, `AssistTests`, `engine.c`, `plan_sentence_auto_fix`, `textBeforeCaretMatches`?**
+  _High betweenness centrality (0.102) - this node is a cross-community bridge._
+- **Why does `plan_sentence_auto_fix()` connect `plan_sentence_auto_fix` to `windows-tsf/src/assist.rs`, `engine.cpp`, `OverlayView`, `AssistCheck`, `.new`?**
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
+- **Why does `String` connect `String` to `AXSnapshot`, `ViState`, `ConfigWatcher`, `EventTapController`, `.suggest`, `AppDelegate`, `CodingKeys`, `StrategyResolver`, `IpcServer`, `ImeEngine`, `.inject`, `.register`, `SettingsView`, `TextVNInputController`, `AssistTests`, `Equatable`, `OwnerRule`, `IpcClient`, `Foundation`, `Problem`, `AutostartManager`, `MarkedState`, `RoundTwoMacAppTests`, `KeyTranslator`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**
-  _2330 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2357 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `core/src/lib.rs` be split into smaller, more focused modules?**
   _Cohesion score 0.0745945945945946 - nodes in this community are weakly interconnected._
 - **Should `tsf-min/src/lib.rs` be split into smaller, more focused modules?**
