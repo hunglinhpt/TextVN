@@ -122,7 +122,7 @@ chạy dưới account khác / sandbox non-elevated / SmartScreen chặn exe ch�
 
 ```
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.24/TextVN-setup-0.2.24-windows-x64-machine.exe
-SHA-256: d50a2a1bcbd4270be4d2db06c03537b7cc3c2ccdecbcf274f0c1cc0f08267a75
+SHA-256: 2d13f1d90ad86b1854d880133f9ab288f95a925d77ac1ae54d95057d6d695abc
 ```
 
 0.2.24 hoàn thiện nốt 3 khe hở phía gói mà rà dòng lần 3 tìm ra: entry ARP giờ
@@ -236,17 +236,17 @@ thời; một số luồng upload của Store xử lý kém loại URL này. Vì
 https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/<ver>/TextVN-setup-<ver-số>-windows-x64.exe
 ```
 
-Ví dụ **bản hiện hành v0.2.75** (bản máy — file nộp của đường EXE; ARP
+Ví dụ **bản hiện hành v0.2.76** (bản máy — file nộp của đường EXE; ARP
 `Publisher='LinhBH.CoM'`):
 
 ```
-https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.75/TextVN-setup-0.2.75-windows-x64-machine.exe
+https://raw.githubusercontent.com/hunglinhpt/TextVN/approved/v0.2.76/TextVN-setup-0.2.76-windows-x64-machine.exe
 SHA-256: 1fb3dfb89861929981723a18e80ffa1df527ef4bc8cedff118a36e761de16636
 ```
 
 (khớp `SHA256SUMS.txt` đã clearsign của release; chưa ký Authenticode nên vẫn bị policy
 10.2.9 chặn — đường EXE chỉ còn chờ SignPath Foundation. Gói MSIX nộp Store của cùng
-bản: `approved/v0.2.75/TextVN-0.2.75-windows-x64.msix` — xem `msix-submission.md`.)
+bản: `approved/v0.2.76/TextVN-0.2.76-windows-x64.msix` — xem `msix-submission.md`.)
 
 Cập nhật khi có bản mới được duyệt: chép các file Windows của tag (setup exe,
 `-machine.exe`, portable zip, `.msix`) kèm `.asc`/`.cosign.sig`/`.cosign.cert` của
