@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.72 — hàng nút có biểu tượng + gợi ý, Ẩn vào khay/Thoát, README chính xác (R2-156, E40/E41, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo: README mâu thuẫn số liệu/tính năng; nút "Cài & bật TSF" hết giá trị; nút "Đóng"/"Kết thúc" dễ hiểu nhầm. Windows: bỏ nút TSF + mã chẩn đoán `register.log`, đổi nhãn, biểu tượng Segoe UI Symbol + tooltip `TTM_ADDTOOLW`; Linux GTK4: icon + tooltip; macOS: `Label` + `.help`; README VI/EN viết lại; gate `readme_numbers.rs` |
+| Đo | workspace test xanh (tray 78, core `readme_numbers` 2) · clippy -D warnings 0 (Windows + Linux target) · CI 7/7 trên `1b717557` (ci-linux biên dịch GTK `-Werror`, ci-macos build Swift) · glyph U+2753/2139/2328/270E/21BA/2B07/23FB đủ trong Segoe UI Symbol |
+| Ghi chú giới hạn | Chưa chụp ảnh hộp thoại thật (tray của người dùng đang chạy — mutex đơn instance); kiểm bằng test layout (không chồng, không tràn) + CI |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.71 — danh sách gợi ý hiện khi dừng gõ trên Linux và macOS (R2-155, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

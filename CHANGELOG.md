@@ -7,6 +7,47 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.72] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Changed
+- **Bảng điều khiển: mọi nút có biểu tượng và gợi ý** (R2-156, E41) trên cả 3 nền tảng
+  (Windows tooltip, Linux GTK4 icon + tooltip, macOS `Label` + `.help`).
+- **Windows: "Đóng" → "Ẩn vào khay", "Kết thúc" → "Thoát"** — tên cũ khiến nhiều người tưởng "Đóng"
+  là tắt ứng dụng. Gợi ý giải thích rõ: *Ẩn vào khay* = đóng cửa sổ, TextVN vẫn chạy nền và bộ gõ vẫn
+  hoạt động (nút X và Esc cũng vậy); *Thoát* = tắt hẳn kể cả biểu tượng ở khay.
+- **Bỏ nút "Cài & bật TSF"**: tray tự đăng ký bộ gõ mỗi lần khởi động (lần đầu và khi lệch), nên nút
+  không còn giá trị; kèm mã hiển thị lỗi `register.log` chỉ phục vụ nút này. Hướng dẫn trong app và
+  `user-guide.md` đổi sang "thoát hẳn rồi mở lại / `textvn-cli doctor`".
+
+### Fixed
+- **README viết lại cho đúng tính năng và số liệu thật** (E40): tổng corpora 41.313 giờ liệt kê đủ
+  7 thành phần (trước đó các số cộng ra 37.967); khôi phục tiếng Anh mô tả đúng cơ chế (luật ngữ âm
+  Việt + 103 từ Anh dễ nhầm + 116 thuật ngữ + từ điển cá nhân) thay vì "từ điển 3000 từ"; Tab hoàn tất cần
+  `suggest.enabled` (mặc định tắt); Dream RSI 22%; panel dừng gõ 1 giây trên 3 OS. Hai bản VI/EN đồng bộ.
+- 0.2.70 lọt khối appstream/debian trùng — đã dọn ở 0.2.71 (E39).
+
+### Tests
+- Mới: `button_row_has_icons_hints_and_no_tsf_button` (Rust, Windows) và `core/tests/readme_numbers.rs`
+  (gate đối chiếu số corpora README với `data/` + cấm câu lỗi thời).
+
+**English** — 0.2.72: **every button in the settings window now has an icon and a hint** on all three
+platforms (R2-156, E41). On Windows **"Close" became "Hide to tray" and "Exit" became "Quit"** — the old
+names made people think Close quits the app; the hints spell it out: *Hide to tray* closes the window while
+TextVN keeps running and typing keeps working (the X button and Esc do the same), *Quit* stops TextVN
+including the tray icon. The **"Install & enable TSF" button is gone**: the tray registers the input method
+on every start (first run and whenever it drifted), so the button no longer had a purpose; in-app help and
+`user-guide.md` now say "quit and reopen / `textvn-cli doctor`". **README rewritten to match the shipped
+features and real data sizes** (E40): the 41,313 total now lists all seven components (they previously added
+up to 37,967), English restore describes the real mechanism (Vietnamese phonotactics + 103 easily-confused
+English words + 116 terms + personal dictionary) instead of a "3000-word dictionary", Tab completion needs
+`suggest.enabled` (off by default), Dream RSI is 22%, and the 1-second pause panel is described for all three
+OSes; VI and EN are in sync. 0.2.70 shipped a duplicate appstream/debian block, removed in 0.2.71 (E39).
+New tests: `button_row_has_icons_hints_and_no_tsf_button` (Rust, Windows) and `core/tests/readme_numbers.rs`
+(checks README corpora numbers against `data/` and bans stale claims).
+
 ## [0.2.71] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2824,7 +2865,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.71...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.72...HEAD
+[0.2.72]: https://github.com/hunglinhpt/TextVN/compare/v0.2.71...v0.2.72
 [0.2.71]: https://github.com/hunglinhpt/TextVN/compare/v0.2.70...v0.2.71
 [0.2.70]: https://github.com/hunglinhpt/TextVN/compare/v0.2.69...v0.2.70
 [0.2.69]: https://github.com/hunglinhpt/TextVN/compare/v0.2.68...v0.2.69

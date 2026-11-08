@@ -50,6 +50,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Nội dung chính |
 |---|---|
+| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Bảng điều khiển: mọi nút có **biểu tượng + gợi ý** (cả 3 OS); Windows đổi "Đóng/Kết thúc" thành **"Ẩn vào khay"/"Thoát"** để không ai tưởng Đóng là tắt ứng dụng, bỏ nút "Cài & bật TSF" (tray tự đăng ký) · README viết lại đúng tính năng và số liệu thật |
 | [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) và macOS: danh sách gợi ý của trợ lý **hiện khi dừng gõ 1 giây**, ẩn ngay khi gõ tiếp — cùng hành vi Windows 0.2.70; phím kết câu vẫn tự sửa ngay ở chế độ sửa lỗi an toàn |
 | [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: bảng trợ lý ngữ pháp **hiện lại khi dừng gõ 1 giây** (kể cả giữa từ, sau `.` `,`; chế độ gợi ý lẫn sửa lỗi an toàn) — sửa lỗi bộ hẹn giờ dùng edit cookie giả khiến bảng không bao giờ hiện từ 0.2.62 · "Sửa tất cả"/Alt+1…3 giữa từ không cắt đôi từ · E2E thật Edge 18/18 |
 | [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Audit toàn bộ tính năng mới (R2-140…R2-153, DFMEA/DRBFM): đồng bộ 3 OS — dự đoán Mode EN, `Ctrl` đơn, tự học lưu được trên macOS/Linux · nhận diện terminal Windows/Linux (giữ Tab cho shell, không học mật khẩu) · Telex không còn phá code/Markdown (`arr[0]`, `--force`) · trợ lý không sửa oan 40 mẫu câu đúng · `peek_completion` 225 → 75 µs · savings-rate 22% |
@@ -75,7 +76,7 @@ Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải và cài
 
-Bản mới nhất: **[GitHub Release v0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71)**
+Bản mới nhất: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)**
 (release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
 (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
 — cách kiểm: [signing.md](docs/release/signing.md).
@@ -307,6 +308,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Highlights |
 |---|---|
+| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Settings window: every button has an **icon + hint** (all 3 OSes); Windows renames "Close/Exit" to **"Hide to tray"/"Quit"** so nobody mistakes Close for quitting, drops the "Install & enable TSF" button (the tray registers itself) · README rewritten to match the shipped features and real data sizes |
 | [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) and macOS: the assistant suggestion list **appears when you pause typing for one second** and hides as soon as you type on — same as Windows 0.2.70; the end-of-sentence key still auto-corrects at once in safe-correction mode |
 | [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: the grammar assistant panel **appears again when you pause typing for one second** (also mid-word, after `.` `,`; suggestion and safe-correction modes) — fixes the idle timer using a fake edit cookie that made the panel never show since 0.2.62 · "Fix all"/Alt+1…3 mid-word no longer split the word · real-app E2E Edge 18/18 |
 | [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Full audit of new features (R2-140…R2-153, DFMEA/DRBFM): 3-OS parity — Mode EN prediction, standalone `Ctrl`, self-learning persisted on macOS/Linux · terminal detection on Windows/Linux (Tab stays with the shell, passwords never learned) · Telex no longer corrupts code/Markdown (`arr[0]`, `--force`) · assistant no longer rewrites 40 correct sentence patterns · `peek_completion` 225 → 75 µs · savings rate 22% |
@@ -332,7 +334,7 @@ Full details per release: [CHANGELOG.md](CHANGELOG.md).
 
 ## Download & install
 
-Latest release: **[GitHub Release v0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71)**
+Latest release: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)**
 (release candidate, built and tested by CI). **Every release file carries a GPG
 signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
 `SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
