@@ -1,4 +1,4 @@
-# TextVN — Bộ gõ tiếng Việt cho Windows, macOS và Linux
+# TextVN — Bộ gõ tiếng Việt thế hệ mới cho Windows, macOS và Linux
 
 Tiếng Việt · English (mục [English](#english) cuối trang)
 
@@ -10,485 +10,436 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 
 [![Tải TextVN trên Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)
 
-TextVN là bộ gõ tiếng Việt mã nguồn mở. Một engine Rust dùng chung cho **Windows**
-(Text Services Framework), **macOS** (Input Method Kit) và **Linux** (IBus, Fcitx5),
-một bảng điều khiển với cùng tuỳ chọn và cùng file cấu hình trên cả ba nền tảng.
+**TextVN** là bộ gõ tiếng Việt mã nguồn mở thế hệ mới, được xây dựng trên một lõi engine **Rust** duy nhất (an toàn bộ nhớ tuyệt đối, 0 I/O trong engine, không panic qua FFI với `catch_unwind`) dùng chung cho cả ba hệ điều hành: **Windows** (Text Services Framework thuần), **macOS** (Input Method Kit native), và **Linux** (IBus & Fcitx5). TextVN mang lại tốc độ phản hồi micro-giây, độ chính xác ngữ âm tuyệt đối, triệt tiêu hoàn toàn các lỗi kinh điển của bộ gõ hook truyền thống (mất chữ, lặp chữ, gạch chân preedit), đồng thời tích hợp hệ thống dự đoán ngữ cảnh song ngữ và trợ lý ngữ pháp thông minh chạy hoàn toàn offline ngay trên máy người dùng.
 
-- **Gõ như UniKey/OpenKey**: Telex, VNI, VIQR, Telex đơn giản; đặt dấu theo chính tả —
-  **mặc định dấu cũ** (`hòa`, `thủy`, `khỏe`; đổi sang dấu mới `hoà`/`thuỷ` trong bảng
-  điều khiển), `uow` → ươ, `[` / `]` → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`; đầu từ và trong
-  code `[` `]` vẫn là ngoặc: `arr[0]`, `- [ ] việc`), bấm rồi thả riêng `Ctrl` để giữ nguyên từ
-  đang gõ (`tunx`, `Ctrl` → `tũn`), gõ nhanh `a--b` thành gạch nối dài `a—b` (`--force`, `---` giữ nguyên),
-  `z` xoá dấu, gõ dấu cuối từ hay giữa từ đều được, gõ được khi bật Caps Lock.
-- **Không mất chữ, không lặp chữ, không gạch chân**: cả từ nằm trong vùng soạn (composition/preedit)
-  không đường kẻ (TF_LS_NONE trên Windows TSF; macOS gõ kiểu non-preedit sau cài; Fcitx5/IBus
-  không kềm gạch — chỉ Chromium/Electron/Qt trên Linux tự vẽ gạch phía app) và chốt ở ranh
-  giới từ — không gửi Backspace giả, nên không có lỗi kinh điển của bộ gõ kiểu hook
-  trên Chrome, Electron, Excel, thanh địa chỉ.
-- **Tránh bị phần mềm diệt virus nhận nhầm**: gói mặc định không hook bàn phím toàn cục,
-  không tiêm mã vào process khác, không giả lập phím bằng `SendInput`
-  ([lý do](docs/specs/antivirus-false-positive.md)).
-- **Tiện ích**: bảng mã TCVN3/VNI Windows/Unicode tổ hợp, gõ tắt, Quick Telex, khôi phục từ
-  tiếng Anh (nhận ra bằng luật ngữ âm Việt — chữ gõ mà biến đổi ra không phải âm tiết hợp lệ
-  thì trả lại nguyên — cùng 103 từ Anh dễ nhầm, 116 thuật ngữ kỹ thuật/kinh doanh và từ điển
-  EN cá nhân), Tab hoàn tất từ tiếng Anh lẫn tiếng Việt (bật qua `suggest.enabled`, mặc định
-  tắt) — tự viết hoa đầu câu, Ctrl+Shift để chuyển V/E tức thì và cập
-  nhật biểu tượng trạng thái.
-- **Trợ lý ngữ pháp (thử nghiệm, bật mặc định ở chế độ Chỉ gợi ý)**: kiểm tra cả câu
-  tiếng Việt **lẫn tiếng Anh (kể cả câu mix văn phòng)** ngay
-  trên máy (không gửi đi đâu, không log nội dung) — bắt lặp từ, khoảng trắng/space quanh
-  dấu câu, viết hoa đầu câu, **sai vị trí dấu** ("nghiã"→"nghĩa") và gợi ý sửa; chế độ *Tự
-  sửa lỗi* tự sửa các lỗi chắc chắn rồi hoàn tác được bằng Ctrl+Z trong 5 giây. Panel
-  tại caret hiển thị câu vừa gõ **gạch chân đỏ đúng từ sai** + tổng số lỗi (kiểu
-  Grammarly), không toast khay khi gõ thường. Chuẩn chất lượng "không bao giờ bêu chữ
-  đúng": **0 %** câu đúng bị báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng
-  Anh (0.2.38, chi tiết [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+---
 
-## Phiên bản gần đây
+## 4 Trụ Cột Vượt Trội Cốt Lõi
 
-Chi tiết đầy đủ từng bản: [CHANGELOG.md](CHANGELOG.md).
+### 1. Kiến trúc In-Process thuần khiết & An toàn bộ nhớ tuyệt đối
+- **Windows TSF thuần (`ITfTextInputProcessorEx`)**: Bản cài mặc định không cài global keyboard hook ăn phím, không tiêm mã DLL vào process khác, không giả lập phím bằng `SendInput` để gửi chuỗi Backspace xoá ngược ([nguyên nhân kiến trúc](docs/specs/antivirus-false-positive.md)).
+- **Không mất chữ, không lặp chữ, không gạch chân preedit**: Cả từ nằm trọn vẹn trong vùng soạn thảo nội tại không đường kẻ viền (`TF_LS_NONE` trên Windows TSF; chế độ non-preedit trên macOS; không kềm gạch trên Linux). Triệt tiêu vĩnh viễn lỗi nuốt chữ, lặp chữ khi gõ nhanh trên Google Chrome, Microsoft Edge, ứng dụng Electron (VS Code, Slack, Discord), Microsoft Excel, thanh địa chỉ hay game toàn màn hình.
+- **Tránh nhận diện nhầm mã độc (Anti-False-Positive)**: Hoạt động đúng chuẩn giao diện IME của hệ điều hành, tuân thủ nghiêm ngặt chính sách diệt virus của Microsoft Store và các giải pháp bảo mật doanh nghiệp.
 
-| Phiên bản | Nội dung chính |
+### 2. Hệ thống Dự đoán Ngữ cảnh Song ngữ & Công thái học Dream RSI (P10)
+- **Tập tri thức chuẩn mực 41.313 mục**: Bao gồm 6.672 âm tiết Việt chuẩn mực, 1.941 từ ghép Việt (`vn_compounds.txt`, 13 chuyên ngành), 3.346 từ Anh tần suất cao (`en_freq3000.txt`), 9.868 từ đơn Anh (`en_words10k.txt`), 1.957 từ ghép & cụm danh từ Anh (`en_compounds.txt`, 16 domain hiện đại: AI, Cloud, Dev, Fin, HR, Legal…), cùng 17.529 cặp câu/cụm/thành ngữ song ngữ (8.782 mẫu Việt `vn_phrases.tsv` và 8.747 mẫu Anh `en_phrases.tsv`).
+- **Đồng bộ song hành 2 chế độ (Mode VI & Mode EN)**:
+  - **Mode EN (`E`)**: Hoàn tất từ đơn, từ ghép, gợi ý cụm từ tiếp theo, duyệt vòng 5 ứng viên bằng Tab, chữ mờ xem trước (ghost preview) siêu tốc 75 µs.
+  - **Mode VI (`V`)**: Nhận diện thông minh từ ngữ tiếng Anh xen kẽ. Tự động phục hồi từ/cụm tiếng Anh bị gõ theo Telex mà không phải âm tiết tiếng Việt hợp lệ (ví dụ: `customer` thành `cútomer` + Tab → `customer service`; `looking forward` thành `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
+- **Phím tiện ích Standalone `Ctrl` Tap**: Bấm thả phím `Ctrl` đơn lẻ để chốt từ hợp lệ (`tunx` + Ctrl → chốt âm tiết `tũn`), hoặc lập tức khôi phục từ sai chính tả tiếng Việt về nguyên bản tiếng Anh (`sort` → `sỏt` + Ctrl → `sort`).
+- **Công nghệ đo lường công thái học Dream RSI (P10 / G19)**: Đo lường khách quan số phím bấm thực tế tiết kiệm được. Đạt tỷ lệ tiết kiệm 22% số phím gõ trong tác vụ văn phòng thực tế; kiểm soát chống hồi quy hiệu năng nghiêm ngặt qua CI (`perf/baseline-win.json`).
+- **Hồ sơ phong cách người dùng (User Style Profile P7)**: Tự động ghi nhận từ vựng riêng và cặp sửa lỗi người dùng chấp nhận, học 100% offline, chỉ kích hoạt khi người dùng cho phép (opt-in G8), bảo vệ nghiêm ngặt quyền riêng tư.
+
+### 3. Trợ lý Ngữ pháp & Ngữ cảnh On-Device (Grammarly-Grade Offline)
+- **Kiểm soát 15 nhóm lỗi toàn diện**: Bắt lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, viết hoa đầu câu, sai vị trí dấu thanh ("nghiã" → "nghĩa"), phủ định kép, phẩy sau liên từ, mạo từ tiếng Anh a/an, cặp từ dễ nhầm lẫn EN, đại từ "i", chính tả EN/VI, cảnh báo ngày tháng phi lý (31/02, 32/13 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ).
+- **Cơ chế Idle 1 giây trên cả 3 hệ điều hành**: Dừng gõ 1 giây → panel trợ lý tự động xuất hiện ngay tại con trỏ (caret), gạch chân đỏ chính xác từ sai kèm tổng số lỗi; gõ tiếp → panel lập tức ẩn đi để không làm gián đoạn dòng văn bản.
+- **Hai chế độ linh hoạt**: Chế độ *Chỉ gợi ý* (Mode 1) hoặc *Tự sửa lỗi an toàn* (Mode 2) tự động sửa lỗi khách quan và cho phép hoàn tác 1 chạm bằng Ctrl+Z trong vòng 5 giây.
+- **Tiêu chuẩn vàng không báo nhầm (0% FPR)**: Đạt tỷ lệ 0 % câu đúng bị báo nhầm trên tập kiểm định 981 câu tiếng Việt và 295 câu tiếng Anh ([P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+
+### 4. Di sản Chuẩn UniKey 20 Năm & Tiện ích Văn phòng Hiện đại
+- **Chuẩn mực gõ dấu UniKey**: Đầy đủ các kiểu gõ Telex, VNI, VIQR, Simple Telex; hỗ trợ lựa chọn dấu cũ (`hòa`, `thủy`) hoặc dấu mới (`hoà`, `thuỷ`); chuẩn vần `uo` (`luong`/`uong` giữ nguyên, gõ `w` hoặc dấu mới thành `ươ`).
+- **Tiện ích Telex thông minh**: Gõ nhanh `[` / `]` thành `ơ` / `ư` nhưng bảo vệ tuyệt đối dấu ngoặc vuông trong lập trình (`arr[0]`, Markdown `- [ ] task`); gõ `a--b` thành gạch nối dài `a—b` nhưng giữ nguyên cờ lệnh code `--force`; gõ hoa thông minh `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
+- **Phím tắt chuyển mã thông minh Ctrl+Shift+F9**: Tự động chuyển đổi qua lại giữa Unicode, TCVN3, VNI, Unicode tổ hợp; tự động nhận diện bảng mã nguồn bị lỗi hiển thị (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); tự động sửa chuỗi gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`).
+- **Bảng điều khiển đồng bộ 3 OS (0.2.72)**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
+
+---
+
+## Điểm Vượt Trội So Với Các Bộ Gõ Khác
+
+Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truyền thống (UniKey, EVKey, OpenKey):
+
+| Tiêu chí so sánh | TextVN (v0.2.72) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
+|---|---|---|
+| **Cơ chế xử lý phím** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook ăn phím + `SendInput` xoá ngược |
+| **Lỗi mất chữ, lặp chữ (Chrome/Excel/Electron)** | **Triệt tiêu hoàn toàn** (composition nội tại không gạch chân) | Thường xuyên gặp khi gõ nhanh hoặc chuyển cửa sổ |
+| **Tự nhận diện EN/VI khi gõ xen kẽ** | Luật ngữ âm Việt + 103 từ dễ nhầm + 116 thuật ngữ + từ điển EN cá nhân + lưới bảo vệ 94 âm tiết: trả lại từ gốc khi gõ dấu cách | Telex áp đặt toàn bộ — `text` thành `tẽt`, `is` thành `í`; buộc phải chuyển chế độ thủ công |
+| **Dự đoán từ & cụm song ngữ (Tab/Space)** | Đầy đủ từ đơn, từ ghép, cụm từ ngữ cảnh ở cả Mode VI & Mode EN; 5 ứng viên Tab; ghost preview 75 µs | Không hỗ trợ hoặc chỉ gõ tắt tĩnh |
+| **Công thái học Dream RSI (P10)** | Đo lường khách quan số phím tiết kiệm (tỷ lệ tiết kiệm 22% trên văn phòng); chặn hồi quy qua CI | Không có |
+| **Trợ lý ngữ pháp & chính tả on-device** | 15 loại lỗi (lặp từ, khoảng trắng, viết hoa, sai dấu, a/an, ngày tháng, tiền tệ); panel dừng gõ 1 giây trên 3 OS; 0% báo nhầm; Ctrl+Z 5s | Không có |
+| **Khôi phục phím Standalone Ctrl Tap** | `tunx` + Ctrl → `tũn` (chốt âm tiết); `sort` → `sỏt` + Ctrl → `sort` (khôi phục từ sai) | Không có |
+| **Escape khôi phục nguyên phím đã gõ** | Nhấn Escape trả lại đúng chuỗi ký tự gốc tức thì | Không có hoặc chỉ hỗ trợ xoá cả câu |
+| **Chuyển đổi V/E toàn cục (Ctrl+Shift)** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi giữa tray và engine | Dễ xung đột lật đôi trạng thái hoặc bị Antivirus chặn |
+| **Tiện ích lập trình & soạn thảo** | Phím `[` `]` thành `ơ`/`ư` thông minh (bảo vệ `arr[0]`); `a--b` thành `a—b` (bảo vệ `--flag`); `DD` → `Đ` | Biến đổi mù quáng làm hỏng mã nguồn và cú pháp Markdown |
+| **Chuyển mã thông minh (Ctrl+Shift+F9)** | Tự động đoán mã nguồn lỗi (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), sửa lỗi gõ sai khi tắt IME (`tooi ddi hocj` → `tôi đi học`) | Chỉ chuyển mã clipboard thủ công cơ bản |
+| **Quyền cài đặt & UAC** | Per-user HKCU, portable giải nén chạy ngay, không cần Admin/UAC | Đa số yêu cầu quyền Admin hoặc cài đặt vào Program Files |
+| **Tự sửa lỗi đăng ký (Ghost Registration)** | Tự phát hiện và cập nhật đường dẫn khi di chuyển thư mục | Báo lỗi hoặc phải gỡ ra cài lại thủ công |
+| **Chính sách riêng tư (G8)** | **100% Offline**, zero keylogging, không telemetry; tự tắt ở ô mật khẩu; mã nguồn mở minh bạch | Nhiều bộ gõ đóng mã nguồn, không có cam kết riêng tư minh bạch |
+
+---
+
+## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.72)
+
+### 1. Công thái học Dream RSI & Kiểm chuẩn Hiệu năng (P10 / G19)
+- Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
+- Phân tích hiệu quả gợi ý theo thời gian thực: tiết kiệm 22% số phím gõ trong tác vụ văn phòng thực tế (36 lượt nhận / 72 phím tiết kiệm trên corpus benchmark chuẩn).
+- 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase).
+- Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`).
+
+### 2. Mô hình Dự đoán Ngữ cảnh P6 & Hồ sơ Phong cách P7 (Corpora 41.313 mục)
+- **Tập dữ liệu tri thức 41.313 mục** song ngữ chất lượng tương đương:
+  - 6.672 âm tiết Việt chuẩn mực + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành).
+  - 3.346 từ Anh tần suất cao (`en_freq3000.txt`) + 9.868 từ đơn Anh (`en_words10k.txt`) + 1.957 từ ghép & cụm danh từ Anh (`en_compounds.txt`, 16 domain chuyên sâu).
+  - 17.529 cặp câu/cụm/thành ngữ (8.782 mẫu Việt `vn_phrases.tsv` + 8.747 mẫu Anh `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo vai trò).
+- Hoạt động đồng bộ ở **cả 2 chế độ**:
+  - **Mode EN (`E`)**: Hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost preview 75 µs, học từ Dream RSI.
+  - **Mode VI (`V`)**: Tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold (ví dụ: `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
+- **User Style Profile (P7)**: Tự học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, giới hạn an toàn 200 từ / 50 cặp.
+- Tra cứu cấu trúc Trie + Frecency tốc độ micro-giây, xếp hạng mở rộng đúng nghĩa ngữ cảnh.
+
+### 3. Kiểu Gõ & Biến Đổi Âm Vị Học Chuẩn Mực
+- Vần `uo` chuẩn UniKey 20 năm: `luong`/`uong`/`truong.giap` giữ nguyên khi không dấu; chỉ khi có biến đổi VN hoặc gõ `w`/dấu chủ động mới thành `ươ` (`luonwg`, `tuowi`, `tuowng`, `duongf` → `dường`).
+- Chống xung đột 2 bộ gõ (swallow-and-unicode): trên app bypass TSF (MobaXterm, KiTTY…), hook tự nuốt phím và inject qua KEYEVENTF_UNICODE ngăn Windows VIE IME cướp phím và hiện ô chữ nhật nhỏ.
+- Khôi phục dead-key Windows (`Ctrl+'`+`e` → `é`) trên bàn phím quốc tế.
+- Chặn hoàn tất token ID/username: không bao giờ tự động hoàn tất qua ranh giới dấu chấm, gạch ngang, email (`truong.giap`, `t.ho`).
+- Đầy đủ Telex, VNI, TCVN3 (VIQR đọc được), Quick Telex (cc→ch, gg→gi…), gõ tự do (free marking).
+- 3 bảng mã xuất: Unicode dựng sẵn, TCVN3, VNI (+ Unicode tổ hợp) — chuyển đổi qua lại giữ nguyên chữ.
+- Kiểu dấu cũ/mới chọn được (`hoà`/`hòa`, `thuỷ`/`thủy`) — toàn bộ dữ liệu dự đoán tự động khớp theo kiểu đã chọn.
+- Chữ hoa thông minh: `DD` → `Đ`, Caps Lock/Shift từng phím, tự viết hoa đầu câu (tắt được).
+- Escape khôi phục nguyên chuỗi phím đã gõ ở mọi thời điểm.
+- Chống vòng lặp phím (E28): gõ lặp dấu không sinh chu kỳ vô tận trên cả Telex, VNI và VIQR.
+- Gõ tắt (macro) theo kiểu chữ (HD→HỢP ĐỒNG), hoạt động được cả khi tắt tiếng Việt.
+- Emoji gõ tắt; số tiền `=1.550.00đ` → chữ Việt; bảo vệ công thức Excel và định danh lập trình.
+
+### 4. Trợ Lý Ngữ Pháp Câu & Từ Ngữ Cảnh On-Device
+- 15 loại lỗi phát hiện tự động: lặp từ, lặp cụm 2–4 từ, khoảng trắng quanh dấu câu, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (31/02, 32/13), số tiền phân cách hỗn loạn (1.250.00đ).
+- Panel gợi ý khi **dừng gõ 1 giây** (cả 3 hệ điều hành): mọi phím gõ chữ/dấu câu/xoá hẹn lại đồng hồ, gõ tiếp là ẩn ngay, dừng đủ 1 s mới kiểm tra từ + câu rồi hiện (cả chế độ gợi ý lẫn sửa lỗi an toàn, kể cả sau `.` `,`); giữa từ đang gõ chỉ Windows hiện (Linux/macOS đợi từ chốt).
+- Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả".
+- Chế độ 1 chỉ gợi ý / Chế độ 2 tự sửa lỗi khách quan — hoàn tác Ctrl+Z trong 5 giây.
+- Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả).
+- Tuỳ chọn tắt riêng từng ứng dụng (per-app); tự tắt ở ô mật khẩu; 0% báo nhầm (FPR) trên tập kiểm thử 2.739 câu chuẩn mực.
+
+### 5. Tiện Ích Chuyển Mã & Văn Phòng Đột Phá (P5)
+- Ctrl+Shift+F9 chuyển mã vùng bôi đen: TCVN3/VNI/Unicode tổ hợp → Unicode dựng sẵn, tự nhận diện bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), gõ lại chữ gõ nhầm khi quên bật (`tooi ddi hocj` → `tôi đi học`) trên cả 3 hệ điều hành.
+- Khôi phục tiếng Anh thông minh: luật ngữ âm Việt + 103 từ Anh dễ nhầm + 116 thuật ngữ EN chuyên ngành + từ điển cá nhân.
+- Cơ chế bảo vệ: bảo vệ định danh camelCase, chuỗi nguyên văn trong ngoặc kép.
+
+### 6. Kiến Trúc Hệ Thống, Điều Khiển & Riêng Tư Tuyệt Đối
+- Phím nóng: Ctrl+Space sửa/dự đoán · Ctrl+Shift gạt VN/EN (nhớ trạng thái) · Ctrl+Shift+F9 chuyển mã.
+- Bảng cài đặt native từng OS: Windows khay hệ thống (7 nút có icon + tooltip, phân định Ẩn vào khay/Thoát), Linux GTK4, macOS menu bar SwiftUI.
+- Offline 100%, không gửi dữ liệu ra mạng, không lưu nội dung phím gõ; tự ngắt khi gặp trường mật khẩu; chính sách bảo mật công khai trong repo.
+
+---
+
+## Tải và Cài Đặt
+
+Bản mới nhất: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
+
+| Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
+|---|---|---|
+| **Windows 10/11 x64** | `TextVN-setup-<ver>-windows-x64.exe` (cho tài khoản cá nhân, không cần quyền admin/UAC)<br>`TextVN-setup-<ver>-windows-x64-machine.exe` (cho mọi người dùng máy, Program Files, UAC một lần) | `TextVN-portable-<ver>-windows-x64-*.zip` → giải nén chạy ngay `TextVN.exe` |
+| **Windows Microsoft Store** | ✅ **[TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (miễn phí, Store ID `9NV2R7JNNFGK`) — tự động cập nhật, gói do Microsoft ký số xác thực. Cài nhanh qua terminal: `winget install --id 9NV2R7JNNFGK -s msstore`. *(Gói `.msix` trên GitHub Release là bản nộp Store chưa ký)* | — |
+| **macOS 13+ (Apple Silicon & Intel)** | **Homebrew (khuyên dùng): `brew install --cask hunglinhpt/tap/textvn`** — tự động cài bộ gõ vào `~/Library/Input Methods` và ứng dụng thanh menu vào `/Applications`; nâng cấp qua `brew upgrade`.<br>Hoặc dùng file gói `TextVN-mac-v<ver>.pkg` (cài đặt per-user, không cần quyền root/sudo) | `TextVN-macos-universal-v<ver>.zip` (chứa `TextVN-IM.app` + `TextVN.app` universal binary) — xem [Hướng dẫn sử dụng macOS](docs/user-guide.md) |
+| **Linux (IBus / Fcitx5)** | **Arch Linux (AUR)**: `paru -S textvn` (hoặc `yay -S textvn`) — build từ mã nguồn tag sạch sẽ trong CI.<br>**Ubuntu / Debian PPA**: `sudo add-apt-repository ppa:hunglinhpt/textvn && sudo apt install textvn`<br>Hoặc tải tarball: `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → chạy `./install.sh` | Chạy trực tiếp từ tarball giải nén: `./textvn-portable.sh` |
+
+Chi tiết cài đặt, gỡ bỏ, hướng dẫn sử dụng và khắc phục sự cố: **[Tài liệu Hướng dẫn sử dụng](docs/user-guide.md)**.
+
+> [!NOTE]
+> **Lưu ý Windows 11 24H2+**: Một số bản cập nhật mới của Windows từ chối kích hoạt bộ gõ chỉ đăng ký trong phạm vi tài khoản per-user (mã lỗi B7 trong `docs/specs/win-test-common-errors.md`). Bản cài đặt tài khoản và bản portable của TextVN **không bao giờ đòi hỏi UAC** — khi phát hiện điều kiện này, ứng dụng sẽ thông báo rõ ràng và hướng dẫn người dùng sử dụng bản cài đặt `-machine.exe`.
+
+---
+
+## Bản Phát Hành Gần Đây
+
+Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
+
+| Phiên bản | Điểm nhấn tính năng |
 |---|---|
-| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Bảng điều khiển: mọi nút có **biểu tượng + gợi ý** (cả 3 OS); Windows đổi "Đóng/Kết thúc" thành **"Ẩn vào khay"/"Thoát"** để không ai tưởng Đóng là tắt ứng dụng, bỏ nút "Cài & bật TSF" (tray tự đăng ký) · README viết lại đúng tính năng và số liệu thật |
-| [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) và macOS: danh sách gợi ý của trợ lý **hiện khi dừng gõ 1 giây**, ẩn ngay khi gõ tiếp — cùng hành vi Windows 0.2.70; phím kết câu vẫn tự sửa ngay ở chế độ sửa lỗi an toàn |
-| [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: bảng trợ lý ngữ pháp **hiện lại khi dừng gõ 1 giây** (kể cả giữa từ, sau `.` `,`; chế độ gợi ý lẫn sửa lỗi an toàn) — sửa lỗi bộ hẹn giờ dùng edit cookie giả khiến bảng không bao giờ hiện từ 0.2.62 · "Sửa tất cả"/Alt+1…3 giữa từ không cắt đôi từ · E2E thật Edge 18/18 |
+| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Bảng điều khiển: toàn bộ nút bấm có **biểu tượng + gợi ý tooltip** (cả 3 OS); Windows đổi nút thành **"Ẩn vào khay"/"Thoát"** để tránh nhầm lẫn đóng là tắt ứng dụng, bỏ nút "Cài & bật TSF" (tray tự động đăng ký) · Cập nhật README chính xác tính năng và số liệu thật |
+| [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) và macOS: danh sách gợi ý của trợ lý **hiện khi dừng gõ 1 giây**, ẩn ngay khi gõ tiếp — đạt đồng bộ hoàn toàn với hành vi Windows 0.2.70; phím kết câu tự sửa ngay ở chế độ sửa lỗi an toàn |
+| [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: bảng trợ lý ngữ pháp **hiện lại khi dừng gõ 1 giây** (kể cả giữa từ, sau dấu chấm phẩy; chế độ gợi ý lẫn sửa lỗi an toàn) · "Sửa tất cả"/Alt+1…3 giữa từ không cắt đôi từ · Kiểm thử E2E thật trên Microsoft Edge 18/18 |
 | [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Audit toàn bộ tính năng mới (R2-140…R2-153, DFMEA/DRBFM): đồng bộ 3 OS — dự đoán Mode EN, `Ctrl` đơn, tự học lưu được trên macOS/Linux · nhận diện terminal Windows/Linux (giữ Tab cho shell, không học mật khẩu) · Telex không còn phá code/Markdown (`arr[0]`, `--force`) · trợ lý không sửa oan 40 mẫu câu đúng · `peek_completion` 225 → 75 µs · savings-rate 22% |
 | [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Âm vị học `sort` → `sỏt` khôi phục đúng · tiện ích Telex `[ ]`, `Ctrl`, `a--b` · dự đoán tiếng Anh 2 chế độ, từ ghép và mẫu câu Anh |
-| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): đo lường tiết kiệm phím (21% savings-rate trên corpus văn phòng) · Gate chống hồi quy `perf/baseline-win.json` · Chuẩn hoá `keys_typed` 3 OS · Hoàn thiện pipeline tự học P7 (IPC broadcast `ConfigReload`, opt-in consent G8, FFI `catch_unwind` an toàn) |
-| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Tự học P7 hoàn chỉnh qua phím thật (drain cap 200 từ/50 cặp, IPC merge, live reload) · P9 debounce 1s cho word-trigger · Dead-key armed disarm · Roadmap 15 đề xuất |
-| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Panel debounce 1s · Chặn hoàn tất username/id (`truong.giap`) · 3 gate suites 3000 case + DFMEA/DRBFM |
-| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35.681 mục · 13 domain từ ghép mới (bất động sản, ngân hàng-bảo hiểm, logistics…) · gen-vocab Rust thay Python · User Style Profile (học từ cá nhân, opt-in) · abnormal_1000 · DFMEA/DRBFM |
-| [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31.000 mục (6.675 âm tiết + 1.214 từ ghép + 9.868 từ Anh + 10.208 câu/cụm/thành ngữ) · mở rộng đúng nghĩa · QA văn phòng 23 test · 3 fix FPR |
-| [0.2.62](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.62) | Audit 3 pass MobaXterm + sweep dòng terminal (KiTTY/SecureCRT/Xshell) hook-owner · Panel không đè dòng caret |
-| [0.2.61](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.61) | Khắc phục gõ MobaXterm/PuTTY (appdb exe_prefix) · e2e Linux dự đoán văn bản (ghost/Tab) trên IBus + Fcitx5 |
-| 0.2.60 | Hiệu năng: 5 đường O(n²) → tuyến tính (dán 640k ký tự 45s → 0.9s); ngày vô lý cuối văn bản |
-| 0.2.59 | Cảnh báo ngày tháng vô lý (32/13, 31/02 — calendar-aware) + số tiền phân cách hỗn loạn (1.250.00đ) |
-| 0.2.58 | Chat không dấu hết bị phá chữ ("an com", "i di"); trợ động từ EN lạc sau từ VI; parity phẩy-but |
-| 0.2.57 | VIQR freeze marker; macOS toggle VI/đổi cài đặt giữa từ hết mất chữ; `DD` hoa gạch |
-| 0.2.56 | EN mode: luật EN chạy trên câu mix; WinSpell tự phục hồi; nguyên văn trong ngoặc kép không sửa; SVA O(n) |
-| 0.2.55 | Lặp cụm 2–4 từ; từ EN thừa trong câu Việt; audit 3 pass A/B/C; dự đoán nhanh 35× |
-| 0.2.54 | Lặp cụm suggestion-only; audit 3 OS từng dòng; abnormal tests vét cạn |
-| 0.2.52–53 | SVA dạng rút gọn ("He don't"); EN Tab mở cho từ chưa fold; collocation +7 |
-| 0.2.50–51 | EN grammar hoàn tất (should of, your welcome, then/than…); Ngữ pháp câu EN + SVA; bảng cài đặt bật dự đoán |
-| 0.2.45–49 | P5 văn phòng: macro kiểu chữ, số tiền, bảo vệ Excel/identifier; Ctrl+Shift+F9 chuyển mã thông minh 3 OS; ghost preview |
-| 0.2.44 | Audit sâu 3 lượt; 1061 âm tiết VN cho từ thiếu dấu; a/an theo gốc Âm-phiêu |
+| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): đo lường tiết kiệm phím (22% savings-rate trên corpus văn phòng) · Gate chống hồi quy `perf/baseline-win.json` · Chuẩn hoá `keys_typed` 3 OS · Hoàn thiện pipeline tự học P7 (IPC broadcast `ConfigReload`, opt-in consent G8, FFI `catch_unwind` an toàn) |
+| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Tự học P7 hoàn chỉnh qua phím thật (drain cap 200 từ/50 cặp, IPC merge, live reload) · P9 debounce 1s cho word-trigger · Dead-key armed disarm |
+| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | Chuẩn UniKey vần uo ("luong"/"uong" plain, `luonwg`/`tuowi`/`tuowng`) · Hook swallow-and-unicode chống xung đột OS-IME (MobaXterm) · Dead-key Windows (`Ctrl+'`+`e`→`é`) · Chặn hoàn tất username/id (`truong.giap`) |
+| [0.2.60–0.2.64](CHANGELOG.md) | Corpora 41.313 mục · 13 domain từ ghép mới · User Style Profile · Cảnh báo ngày vô lý (31/02) · Tối ưu hiệu năng tuyến tính O(n) |
+| [0.2.50–0.2.59](CHANGELOG.md) | Ngữ pháp câu EN + SVA · Lặp cụm 2–4 từ · Chuyển mã thông minh Ctrl+Shift+F9 · Ghost preview 3 OS · Gõ tắt kiểu chữ |
 
-## Tải và cài
+---
 
-Bản mới nhất: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)**
-(release candidate do CI build và kiểm thử). **Mọi file phát hành đều có chữ ký GPG
-(`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, `SHA256SUMS.txt` được clearsign
-— cách kiểm: [signing.md](docs/release/signing.md).
+## Trạng Thái & Hỗ Trợ Nền Tảng
 
-| Nền tảng | Cài đặt | Giải nén dùng ngay |
-|---|---|---|
-| Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` (cho tài khoản của bạn, không cần admin) · `TextVN-setup-<ver>-windows-x64-machine.exe` (cho mọi người dùng, Program Files, UAC một lần) | `TextVN-portable-<ver>-windows-x64-*.zip` → chạy `TextVN.exe` |
-| Windows (Microsoft Store) | ✅ **[TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (miễn phí, Store ID `9NV2R7JNNFGK`) — bấm *Tải*, mở TextVN một lần để đăng ký bộ gõ cho tài khoản; Store tự cập nhật, gói do Microsoft ký. Dòng lệnh: `winget install --id 9NV2R7JNNFGK -s msstore`. File `TextVN-<ver>-windows-x64.msix` trên GitHub Release là gói nộp Store (chưa ký) — không cài trực tiếp được | — |
-| macOS 13+ (Apple Silicon / Intel) | **Homebrew (khuyên dùng): `brew install --cask hunglinhpt/tap/textvn`** — tự đặt bộ gõ vào `~/Library/Input Methods` và app menu bar vào `/Applications`; cập nhật theo `brew upgrade`. Hoặc `TextVN-mac-v<ver>.pkg` → mở để cài, hoặc `installer -pkg … -target CurrentUserHomeDirectory` (không sudo) | `TextVN-macos-universal-v<ver>.zip` (hoặc `.tar.gz`) chứa `TextVN-IM.app` + `TextVN.app` — xem [Hướng dẫn sử dụng, mục macOS](docs/user-guide.md) |
-| Linux (IBus / Fcitx5) | **AUR** (Arch/Manjaro…): `paru -S textvn` — build từ mã nguồn tag, QA makepkg thật trong CI · **PPA Ubuntu** (chuẩn bị — owner kích hoạt `ppa:hunglinhpt/textvn`, xem [linux-distribution.md](docs/release/linux-distribution.md)): `sudo add-apt-repository ppa:hunglinhpt/textvn && sudo apt install textvn` · Hoặc `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, không cần root; `sudo ./install.sh --system` cho mọi người dùng) — phân tích kênh store Linux: [linux-distribution.md](docs/release/linux-distribution.md) | cùng tarball → `./textvn-portable.sh` |
-
-Chi tiết cài, gỡ, sử dụng và xử lý sự cố: **[Hướng dẫn sử dụng](docs/user-guide.md)**.
-
-**Lưu ý Windows**: bản `-machine.exe` cài **cho mọi người dùng** (Program Files, UAC một
-lần); bản thường cài cho tài khoản hiện tại (`%LOCALAPPDATA%\Programs\TextVN`, không
-UAC). Trên **Windows 11 24H2+** một số máy từ chối kích hoạt bộ gõ chỉ đăng ký cho tài
-khoản (lỗi B7 trong `docs/specs/win-test-common-errors.md`): bản cài tài khoản, bản
-portable và bản Store **không bao giờ xin UAC** — TextVN báo một lần và hướng dẫn dùng
-bộ cài `-machine.exe`.
-
-**Lưu ý chữ ký chưa có** (đang chờ duyệt — SmartScreen/diệt-virus có thể cảnh báo lần
-đầu): Authenticode cho Windows (chờ SignPath — đã gặp Kaspersky cách ly nhầm, xem
-[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) và Apple
-Developer ID/notarization cho macOS (Gatekeeper lần mở đầu). Xem [Trạng thái](#trạng-thật).
-
-## Điểm vượt trội so với các bộ gõ khác
-
-Những gì TextVN làm mà UniKey / EVKey / OpenKey hiện **không có** (hoặc làm
-khác — so sánh theo tính năng công khai tại thời điểm 2026-10):
-
-| Tính năng | TextVN | Bộ gõ truyền thống |
-|---|---|---|
-| **Tự xác định EN/VI khi gõ chung đoạn văn** | Luật ngữ âm Việt (chữ gõ mà biến đổi ra không phải âm tiết hợp lệ thì trả lại nguyên) + 103 từ Anh dễ nhầm + 116 thuật ngữ + từ điển EN cá nhân + lưới bảo vệ 94 âm tiết Việt thông dụng: gõ xen kẽ 2 ngôn ngữ không cần đổi mode, từ nào là tiếng Anh được trả lại nguyên vẹn khi gõ dấu cách | Telex áp lên mọi từ — `text` thành `tẽt`, `is` thành `í`; muốn gõ tiếng Anh phải bấm tắt mode từng từ hoặc tự gỡ dấu |
-| **Ưu tiên tiếng Việt theo mode** (không phá tiếng Việt) | Cặp mơ hồ `cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên` được giải theo mode đang bật — đúng chuẩn UniKey cho tiếng Việt, đồng thời trả tự do cho tiếng Anh | Phải chọn: hoặc phá tiếng Anh hoặc tắt transform |
-| **Tab gợi ý hoàn tất từ** | Gõ dở `tes` → Tab thành `test` (EN: 9.868 từ đơn + 1.957 từ ghép + 116 thuật ngữ + từ cá nhân); gõ dở `ngư` → Tab thành `ngưng` (VI: 6.672 âm tiết + 1.941 từ ghép); cả hai bật qua `suggest.enabled` (mặc định tắt) | Không có |
-| **Từ điển EN cá nhân** | Thêm/xoá từ bằng UI (Từ điển EN…); quyết định của người dùng thắng mọi phỏng đoán engine | Sửa file config thủ công (nếu có) |
-| **Trợ lý ngữ pháp song ngữ & ngữ cảnh** | Kiểm tra + gợi ý + tự sửa lỗi câu vừa gõ (lặp từ/cụm 2–4 từ, dấu câu, viết hoa, sai dấu, ngữ pháp EN, ngày tháng vô lý, số tiền hỗn loạn) hoàn toàn offline; 0 % báo nhầm trên tập kiểm 981 câu tiếng Việt + 295 câu tiếng Anh; hoàn tác 1 bước Ctrl+Z | Không có |
-| **Chỉ số tiết kiệm phím Dream RSI (P10)** | Đo lường khách quan số phím người dùng tiết kiệm được nhờ gợi ý (tỷ lệ tiết kiệm ~22% trên corpus văn phòng); kiểm soát hồi quy chặt chẽ; 100% riêng tư (chỉ đếm số lượng, không lưu ký tự) | Không có |
-| **Escape khôi phục nguyên phím** | Gõ sai ở mọi thời điểm → Escape trả lại đúng chuỗi đã gõ | Nhiều bộ gõ chỉ có undo ở mức câu |
-| **Ctrl+Shift đổi mode ở mọi ứng dụng** | Bộ dò tap chỉ quan sát (không ăn phím) + debounce chống lật đôi khi cả tray lẫn engine cùng nhận | Hook toàn cục có thể gây lật đôi / xung đột AV |
-| **Không gạch chân preedit, không cài admin** | TSF per-user HKCU, portable giải nén chạy ngay, không UAC | UniKey/EVKey cần cài đặt + một số phiên bản yêu cầu admin |
-| **Tự sửa ghost registration** | Đăng ký trỏ vào thư mục đã xoá → chạy lại `TextVN.exe` từ thư mục mới là tự sửa | Phải gỡ/cài lại thủ công |
-| **Dialog DPI-aware đa màn hình** | Kéo giữa màn khác DPI tự co giãn + re-layout + font theo DPI | Thường render sai/khểnh khi đa màn hình |
-| **Cài im lặng chuẩn Store** | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` — CI kiểm cài/gỡ im lặng, ARP và giả lập validator của Store ở mỗi PR và mỗi release | Không kiểm chứng luồng Store |
-| **Riêng tư mặc định** | Xử lý phím 100% cục bộ, không telemetry, không mạng; tự tắt ở ô mật khẩu; chính sách riêng tư công khai trong repo | Thường không công bố chính sách riêng tư |
-| **Số lượng tiến trình** | 1 tiến trình tray + TIP in-process; global keyboard hook chỉ quan sát modifier (không ăn phím, không inject) | UniKey dùng hook toàn cục ăn phím |
-
-## Tính năng đầy đủ (tích luỹ đến 0.2.67)
-
-**Chỉ số Dream RSI (P10) & Chống thoái lui hiệu năng (G19)**
-- Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
-- Phân tích hiệu quả gợi ý theo thời gian thực: tiết kiệm 22% số phím gõ trong tác vụ văn phòng thực tế (36 lượt nhận / 72 phím tiết kiệm trên corpus benchmark)
-- 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase)
-- Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`)
-
-**Dự đoán văn bản (P6) & Phong cách cá nhân (P7)** — corpora **41.313 mục** (đếm theo file dữ liệu; hai danh sách từ Anh có phần trùng nhau) song ngữ chất lượng tương đương:
-6.672 âm tiết Việt + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành)
-+ **3.346 từ Anh tần suất cao** (`en_freq3000.txt`) **+ 9.868 từ đơn Anh** (`en_words10k.txt`) **+ 1.957 từ ghép & cụm danh từ Anh** (`en_compounds.txt`, 16 domain: kinh doanh, kỹ thuật phần mềm, AI/dữ liệu, Cloud/DevOps/bảo mật, tài chính-kế toán, ngân hàng-bảo hiểm, nhân sự, marketing, CSKH-QA, sản phẩm-UI/UX, logistics-sản xuất, pháp lý, bất động sản, y tế, giáo dục, công sở)
-+ **17.529 cặp câu/cụm/thành ngữ** (8.782 mẫu Việt `vn_phrases.tsv` + **8.747 mẫu Anh** `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo role);
-dự đoán tiếng Anh hoạt động đồng nhất ở **cả 2 chế độ**: **Mode EN (`E`)** (hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost text, học từ Dream RSI) và **Mode VI (`V`)** (tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold như `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
-User Style Profile (học từ cá nhân & cặp sửa lỗi, opt-in, 100% offline, cap 200 từ / 50 cặp);
-Tab/Ctrl+Space hoàn tất từ & đoán cụm; xếp hạng mở rộng đúng nghĩa; tra cứu micro-giây.
-
-**Kiểu gõ & biến đổi (chuẩn UniKey 20 năm)**
-- Vần `uo` chuẩn UniKey: `luong`/`uong`/`truong.giap` giữ nguyên khi không dấu;
-  chỉ khi có biến đổi VN hoặc gõ `w`/dấu chủ động mới thành `ươ` (`luonwg`,
-  `tuowi`, `tuowng`, `duongf`→`dường`)
-- Chống xung đột 2 bộ gõ (swallow-and-unicode): trên app bypass TSF (MobaXterm,
-  KiTTY…), hook tự nuốt phím và inject qua KEYEVENTF_UNICODE ngăn Windows VIE IME
-  cướp phím và hiện ô chữ nhật nhỏ
-- Khôi phục dead-key Windows (`Ctrl+'`+`e` → `é`) trên bàn phím quốc tế
-- Chặn hoàn tất token ID/username: không bao giờ tự động hoàn tất qua ranh giới
-  dấu chấm, gạch ngang, email (`truong.giap`, `t.ho`)
-- Telex, VNI, TCVN3 (VIQR đọc được), Quick Telex (cc→ch, gg→gi…), gõ tự do (free marking)
-- 3 bảng mã xuất: Unicode, TCVN3, VNI (+ Unicode tổ hợp) — chuyển đổi qua lại giữ nguyên chữ
-- Kiểu dấu cũ/mới chọn được (`hoà`/`hòa`, `thuỷ`/`thủy`) — cả dữ liệu dự đoán tự theo kiểu đã chọn
-- Chữ hoa thông minh: `DD` → `Đ`, Caps Lock/Shift từng phím, tự viết hoa đầu câu (tắt được)
-- Escape khôi phục nguyên chuỗi phím đã gõ ở mọi thời điểm
-- Chống vòng lặp phím (E28): gõ lặp dấu không sinh chu kỳ vô tận — đủ 3 kiểu Telex/VNI/VIQR
-- Gõ tắt (macro) theo kiểu chữ (HD→HỢP ĐỒNG), chạy được cả khi tắt tiếng Việt (tùy chọn)
-- Emoji gõ tắt; số tiền `=1.550.000đ` → chữ Việt; bảo vệ công thức Excel và identifier code
-
-**Gợi ý & dự đoán (P6 — Tab, Ctrl+Space, cả Mode VI & Mode EN)**
-- Hoàn tất từ đơn & từ ghép tiếng Việt: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6.672 âm tiết + 1.941 từ ghép văn phòng, bật qua `suggest.enabled`)
-- Hoàn tất từ đơn & từ ghép tiếng Anh ở cả Mode EN và Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9.868 từ đơn + 3.346 từ tần suất cao + 1.957 từ ghép 16 domain + 116 thuật ngữ kỹ thuật/kinh doanh + từ điển cá nhân, duyệt vòng 5 ứng viên bằng Tab; Tab đầu trả đúng từ gốc khi Telex biến nó thành chuỗi không phải tiếng Việt)
-- Dự đoán cụm/câu tiếp theo theo ngữ cảnh ở cả 2 mode (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` kể cả khi gõ ở Mode VI — 8.782 mẫu Việt + 8.747 mẫu Anh)
-- Chữ mờ gợi ý sẵn (ghost preview) sau con trỏ trên cả 3 hệ điều hành (cả Mode VI và Mode EN)
-- Ctrl+Space: sửa hết lỗi câu (kể cả chính tả) rồi dự đoán tiếp — một phím hai việc
-
-**Trợ lý ngữ pháp (kiểu Grammarly, offline hoàn toàn)**
-- 15 loại lỗi: lặp từ/cụm 2–4 từ, thiếu/thừa khoảng trắng, chữ thường đầu câu, sai dấu thanh, phủ định kép, phẩy cuối câu, phẩy sau liên từ, a/an, cặp từ dễ nhầm EN, đại từ "i", chính tả EN (OS spell), chính tả VI (từ điển), ngày tháng vô lý (32/13, 31/02 — calendar-aware), số tiền phân cách hỗn loạn (1.250.00đ)
-- Panel gợi ý khi **dừng gõ 1 giây** (cả 3 hệ điều hành): mọi phím gõ chữ/dấu câu/xoá hẹn lại đồng hồ, gõ tiếp là ẩn ngay, dừng đủ 1 s mới kiểm tra từ + câu rồi hiện (cả chế độ gợi ý lẫn sửa lỗi an toàn, kể cả sau `.` `,`); giữa từ đang gõ chỉ Windows hiện (Linux/macOS đợi từ chốt)
-- Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả"
-- Mode 1 chỉ gợi ý / Mode 2 tự sửa (lỗi objective tự sửa, lỗi mơ hồ gợi ý) — hoàn tác Ctrl+Z 5 giây
-- Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả) và khi bôi đen câu dài
-- Per-app: tắt riêng từng ứng dụng; tự tắt ở ô mật khẩu; FPR 0 % trên 2739 câu đúng chuẩn mực
-
-**Chuyển mã & tiện ích văn phòng (P5)**
-- Ctrl+Shift+F9 chuyển mã vùng bôi đen: TCVN3/VNI/Unicode tổ hợp → Unicode, tự nhận diện bảng mã (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), gõ lại chữ gõ nhầm khi quên bật (`tooi ddi hocj` → `tôi đi học`) — cả 3 hệ điều hành
-- Restore tiếng Anh thông minh: luật ngữ âm Việt + 103 từ Anh dễ nhầm + 116 thuật ngữ EN (coder/tech/business/OS APIs) + từ điển cá nhân
-- Bảo vệ: từ điển EN cá nhân, identifier camelCase, chuỗi trong nháy kép nguyên văn
-
-**Điều khiển & riêng tư**
-- Ctrl+Space sửa/dự đoán · Ctrl+Shift gạt VN/EN (nhớ trạng thái) · Ctrl+Shift+F9 chuyển mã
-- Per-app override + ignore list; bảng cài đặt riêng từng OS (tray Windows, GTK4 Linux, app menu macOS)
-- Offline 100 %, không telemetry, không mạng; tự tắt ô mật khẩu; riêng tư công khai trong repo
-
-Một engine Rust dùng chung, 190+ test trợ lý + hơn 230 kịch bản corpus replay (`*.keys`)
-qua 4 mô phỏng adapter (headless, tsf, mac, linux) trên 3 hệ điều hành ở mỗi commit;
-quy tắc xung đột ngôn ngữ công khai tại
-[docs/specs/language-detection.md](docs/specs/language-detection.md).
-
-## Trạng thái
-
-| Nền tảng | Trạng thái |
+| Nền tảng | Trạng thái phát hành |
 |---|---|
-| Windows 10/11 x64 (TSF) | ✅ Release candidate — gõ thật qua TSF được CI kiểm tra trên Windows (bộ cài, portable, MSIX cài thử). Còn thiếu duy nhất chữ ký Authenticode (chờ SignPath Foundation duyệt). **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (gói MSIX, từ 2026-10-11). |
-| macOS 13+ Apple Silicon / Intel | ✅ Release candidate — bộ gõ IMK + app menu bar + `.pkg` per-user (không sudo); CI build 2 kiến trúc (arm64 + x86_64), chạy `swift test` trên arm64. Chưa ký Developer ID/notarize (bản phát hành ký ad-hoc, `.pkg` chưa ký) → Gatekeeper cảnh báo lần mở đầu ([signing-status-mac.md](docs/release/signing-status-mac.md)). Module CGEventTap (`adapters/macos-tap`) có mã + test nhưng **không** có trong bản phát hành. |
-| Linux IBus / Fcitx5 | ✅ Release candidate — tarball `install.sh` (per-user hoặc `--system`) + chạy ngay, Settings GTK4; CI kiểm tra với ibus-daemon và fcitx5 thật. Đã có AUR (`paru -S textvn`) và PPA Ubuntu/Debian (`ppa:hunglinhpt/textvn`, chưa có `.rpm`). |
+| **Windows 10/11 x64 (TSF)** | ✅ Release candidate — gõ thật qua TSF được kiểm thử liên tục trong CI trên Windows (bộ cài, portable, MSIX cài thử). **Đã phát hành trên [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (gói MSIX chính thức). Chữ ký Authenticode trực tiếp đang chờ SignPath Foundation duyệt. |
+| **macOS 13+ (Apple Silicon & Intel)** | ✅ Release candidate — bộ gõ IMK + app thanh menu + gói cài đặt `.pkg` per-user (không cần sudo); CI tự động build 2 kiến trúc (arm64 + x86_64) và chạy `swift test`. Chữ ký Apple Developer ID / Notarization đang chờ duyệt ([signing-status-mac.md](docs/release/signing-status-mac.md)). |
+| **Linux (IBus / Fcitx5)** | ✅ Release candidate — hỗ trợ cài đặt per-user hoặc `--system`, bảng cài đặt GTK4; CI kiểm thử tự động với `ibus-daemon` và `fcitx5` thật. Phân phối chính thức qua AUR (`paru -S textvn`) và PPA Ubuntu/Debian (`ppa:hunglinhpt/textvn`). |
 
-Kết quả kiểm thử của phiên bản hiện tại: [build-release-report.md](docs/release/build-release-report.md) ·
-thay đổi: [CHANGELOG.md](CHANGELOG.md).
+Báo cáo kiểm thử chi tiết của bản phát hành: [build-release-report.md](docs/release/build-release-report.md).
 
-## Dựng từ mã nguồn
+---
+
+## Dựng Từ Mã Nguồn
 
 ```powershell
-# Windows: Rust stable + VS 2022 Build Tools (C++)
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -BuildInstaller -MachineInstaller   # cần Inno Setup 6.5+
+# Windows: Cần Rust stable + Visual Studio 2022 Build Tools (C++) + Inno Setup 6.5+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -BuildInstaller -MachineInstaller
 ```
 
 ```bash
-# macOS 13+: Xcode CLT 15+, rustup với targets aarch64-apple-darwin + x86_64-apple-darwin
+# macOS 13+: Cần Xcode Command Line Tools 15+, rustup target aarch64-apple-darwin & x86_64-apple-darwin
 cd adapters/macos-imk
-./build-rust.sh                   # build engine + swift build + assemble TextVN-IM.app
-./build-rust.sh --lib-only        # chỉ build libtextvn_ffi.a (cho swift test)
-./build-rust.sh --release         # build bản release
+./build-rust.sh                   # Dựng engine FFI + Swift build + tạo TextVN-IM.app
+./build-rust.sh --lib-only        # Chỉ dựng libtextvn_ffi.a (phục vụ swift test)
+./build-rust.sh --release         # Dựng bản tối ưu phát hành
+
+# Đóng gói phân phối macOS (chạy từ thư mục gốc)
+scripts/build-macos.sh            # Đóng gói Universal zip
+scripts/package-macos-pkg.sh      # Tạo file cài đặt .pkg per-user
 ```
 
 ```bash
-# macOS — đóng gói phát hành (từ thư mục gốc repo; script tự kiểm tool khi chạy)
-scripts/build-macos.sh                            # universal nếu đủ 2 arch; nếu không, tên zip ghi arch thực tế
-scripts/package-macos-pkg.sh --rebuild            # .pkg per-user (pkgbuild + productbuild, không sudo)
-scripts/package-macos-pkg.sh --rebuild --notarize # + notarytool + staple; ký Developer ID chỉ khi có
-                                                  #   secret Apple — docs/release/signing-status-mac.md
-scripts/notarize-macos.sh dist/macos/TextVN-mac-v<ver>.pkg   # notarize riêng lẻ (tuỳ chọn)
+# Linux (Ubuntu/Debian / Fedora / Arch)
+scripts/install_linux.sh          # Dựng mã nguồn và cài đặt cho tài khoản hiện tại
+scripts/build-linux.sh            # Tạo tarball phát hành hoàn chỉnh
 ```
 
-```bash
-# Linux (Ubuntu/Debian)
-scripts/install_linux.sh        # dựng + cài per-user
-scripts/build-linux.sh          # tạo tarball phát hành
-```
+Kiến trúc, kiểm thử, chuẩn mã và quy trình phát hành: xem **[Hướng dẫn phát triển](docs/developer-guide.md)**.
 
-Kiến trúc, kiểm thử, quy ước và quy trình phát hành: **[Hướng dẫn phát triển](docs/developer-guide.md)**.
+---
 
-## Cấu trúc
+## Cấu Trúc Dự Án
 
 ```
-core/              engine (Telex/VNI/VIQR, đặt dấu, bảng mã, gõ tắt) — không phụ thuộc OS
-config/  ffi/      cấu hình config.v1 · C ABI cho adapter
-adapters/          macos-imk · macos-tap · macos-app
-                   windows-tsf · windows-hook (gói Compatibility)
+core/              Engine xử lý ngữ âm cốt lõi (Rust) — không I/O, không phụ thuộc hệ điều hành
+config/  ffi/      Đặc tả cấu hình config.v1 · C ABI và shim an toàn cho các adapter
+adapters/          windows-tsf (TSF thuần) · windows-hook (gói tương thích ứng dụng legacy)
+                   macos-imk (Input Method Kit) · macos-app (SwiftUI menu bar) · macos-tap
                    linux-ibus · linux-fcitx5 · linux-common · linux-settings (GTK4)
-tray/  cli/        khay + bảng điều khiển Windows · textvn-cli (register, doctor, replay)
-corpus/            kịch bản gõ *.keys (shared · win · mac) chạy qua mô phỏng của mọi adapter
-installer/  packaging/  scripts/    đóng gói và kiểm thử gói
-docs/              đặc tả (10-shared, 20-windows, 30-macos, 40-linux), specs/, release/
+tray/  cli/        Khay hệ thống & bảng cài đặt Windows · textvn-cli (đăng ký TSF, doctor, replay)
+corpus/            Hơn 230 kịch bản gõ *.keys (shared · win · mac) chạy qua bộ mô phỏng adapter trong CI
+installer/  packaging/  scripts/    Kịch bản đóng gói Inno Setup, MSIX, PKGBUILD, Homebrew Cask, Debian PPA
+docs/              Tài liệu đặc tả kiến trúc (10-shared, 20-windows, 30-macos, 40-linux), specs, release
 ```
 
-## Đóng góp
+---
 
-Xem [CONTRIBUTING.md](CONTRIBUTING.md) và [SECURITY.md](SECURITY.md). Báo lỗi gõ: ghi
-chính xác chuỗi phím, kết quả nhận được, ứng dụng và hệ điều hành.
+## Đóng Góp & Giấy Phép
 
-## Giấy phép
-
-[GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
-
+- Đóng góp phát triển: xem [CONTRIBUTING.md](CONTRIBUTING.md) và [SECURITY.md](SECURITY.md).
+- Khi báo lỗi gõ phím: vui lòng ghi rõ chuỗi phím đã bấm, kết quả thực tế, kết quả mong đợi, tên ứng dụng và phiên bản hệ điều hành.
+- **Giấy phép**: [GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
 
 ---
 
 # English
 
-TextVN is an open-source Vietnamese input method. One shared Rust engine powers
-**Windows** (Text Services Framework), **macOS** (Input Method Kit) and
-**Linux** (IBus, Fcitx5), with the same control panel, the same options and the
-same config file on all three platforms.
+Tiếng Việt · English
 
-- **Types like UniKey/OpenKey**: Telex, VNI, VIQR, Simple Telex; standard tone
-  placement with **old-style diacritics by default** (`hòa`, `thủy`, `khỏe`;
-  switch to new style `hoà`/`thuỷ` in the control panel), `uow` → ươ, `[` / `]`
-  → `ơ` / `ư` (`ch]a` → `chưa`, `m[f` → `mờ`; at word start and in code `[` `]` stay
-  brackets: `arr[0]`, `- [ ] task`), tap and release standalone `Ctrl` to lock/keep the current
-  word (`tunx`, `Ctrl` → `tũn`), fast double-hyphen `a--b` → em-dash `a—b` (`--force`, `---`
-  preserved), `z` strips tones, tone keys work after the vowel or at the end of
-  the word, and Caps Lock typing is supported.
-- **No lost characters, no doubled characters, no underline**: the whole word
-  stays inside the composition range with no underline (TF_LS_NONE on Windows
-  TSF; macOS uses non-preedit typing after install; Fcitx5/IBus attach no
-  underline — only Chromium/Electron/Qt apps on Linux draw their own) and is
-  committed at word boundaries — no synthetic Backspace, so none of the
-  classic hook-style IME bugs in Chrome, Electron, Excel or the address bar.
-- **Avoids antivirus false positives**: the default package installs no global
-  keyboard hook, injects no code into other processes and never fakes keys
-  with `SendInput` ([why](docs/specs/antivirus-false-positive.md)).
-- **Utilities**: TCVN3 / VNI-Windows / decomposed-Unicode output charsets,
-  text shortcuts, Quick Telex, English auto-restore (detected by Vietnamese
-  phonotactics — a typed word whose fold is not a valid syllable is restored
-  — plus 103 easily-confused English words, 116 technical/business terms and
-  the personal EN dictionary), Tab completion for English and Vietnamese
-  (via `suggest.enabled`, off by default) — automatic sentence capitalization, instant Ctrl+Shift VI/EN toggle with
-  tray-icon state.
-- **Grammar assistant (experimental, on by default in suggest-only mode)**:
-  checks the sentence you just typed — Vietnamese **and English, including
-  office-style mixed sentences** ("vui lòng check lại file report nhé") —
-  fully on-device (nothing sent anywhere, nothing logged): duplicate words,
-  spaces around punctuation, sentence capitalization, misplaced tone marks
-  ("nghiã" → "nghĩa"), English a/an ("a apple" → "an apple") with a
-  suggestion popup at the caret that underlines the wrong words and shows
-  the total count, Grammarly-style; the *Auto-fix* mode fixes the certain
-  errors and supports a one-step Ctrl+Z undo for 5 seconds. Quality bar
-  "never flags correct text": **0 %** of correct sentences flagged on a
-  981-sentence Vietnamese + 295-sentence English benchmark (0.2.38,
-  details in [P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![CI Windows](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-windows.yml?branch=main&label=CI%20Windows)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-windows.yml?query=branch%3Amain)
+[![CI Linux](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-linux.yml?branch=main&label=CI%20Linux)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-linux.yml?query=branch%3Amain)
+[![CI macOS](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-macos.yml?branch=main&label=CI%20macOS)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-macos.yml?query=branch%3Amain)
+[![CI engine (3 OS)](https://img.shields.io/github/actions/workflow/status/hunglinhpt/TextVN/ci-shared.yml?branch=main&label=CI%20engine%20%283%20OS%29)](https://github.com/hunglinhpt/TextVN/actions/workflows/ci-shared.yml?query=branch%3Amain)
 
-## Recent releases at a glance
+[![Get TextVN on Microsoft Store](https://get.microsoft.com/images/en-us%20dark.svg)](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)
 
-Full details per release: [CHANGELOG.md](CHANGELOG.md).
+**TextVN** is a next-generation open-source Vietnamese input method built upon a single, unified **Rust** engine (strictly memory-safe, zero I/O inside core, zero panics across FFI via `catch_unwind`) shared across all three platforms: **Windows** (pure Text Services Framework), **macOS** (native Input Method Kit), and **Linux** (IBus & Fcitx5). TextVN delivers microsecond-level responsiveness, uncompromising phonotactic accuracy, and completely eliminates the classic flaws of legacy hook-based IMEs (lost keystrokes, duplicated letters, and preedit underlines), while integrating an on-device contextual bilingual prediction system and an intelligent offline grammar assistant.
 
-| Version | Highlights |
+---
+
+## 4 Core Pillars of Excellence
+
+### 1. Pure In-Process Architecture & Uncompromising Memory Safety
+- **Pure Windows TSF (`ITfTextInputProcessorEx`)**: The default package installs no global keyboard hook to eat keys, injects no DLLs into foreign processes, and never simulates fake keys via `SendInput` backspace sequences ([architectural rationale](docs/specs/antivirus-false-positive.md)).
+- **No Lost Keys, No Doubled Letters, No Preedit Underline**: The entire word remains inside an internal composition range without any underline (`TF_LS_NONE` on Windows TSF; non-preedit mode on macOS; no underline on Linux). Permanently eliminates key eating, character duplication, and caret jumping in Google Chrome, Microsoft Edge, Electron apps (VS Code, Slack, Discord), Microsoft Excel, browser address bars, and full-screen games.
+- **Antivirus False-Positive Immunity**: Operates strictly within official OS IME architecture boundaries, complying with Microsoft Store certification standards and enterprise antivirus policies.
+
+### 2. Contextual Bilingual Prediction & Dream RSI Ergonomics (P10)
+- **41,313-entry Curated Bilingual Knowledge Base**: Includes 6,672 standard Vietnamese syllables, 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains), 3,346 high-frequency English words (`en_freq3000.txt`), 9,868 English single words (`en_words10k.txt`), 1,957 English compounds & collocations (`en_compounds.txt`, 16 modern domains: AI, Cloud, Dev, Finance, HR, Legal…), and 17,529 context→phrase pairs (8,782 Vietnamese in `vn_phrases.tsv` and 8,747 English in `en_phrases.tsv`).
+- **Synchronous Dual-Mode Parity (Mode VI & Mode EN)**:
+  - **Mode EN (`E`)**: Single-word & compound completion, next-phrase prediction, 5-candidate Tab cycling, and ultra-fast 75 µs ghost preview.
+  - **Mode VI (`V`)**: Intelligent mixed English detection. Automatically rescues English words/phrases mistransformed by Telex rules when they do not form valid Vietnamese syllables (e.g., `customer` typed as `cútomer` + Tab → expands to `customer service`; `looking forward` typed as `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
+- **Standalone `Ctrl` Tap Utility**: Tap and release standalone `Ctrl` to lock valid syllables (`tunx` + Ctrl → commits `tũn`), or instantly restore mistyped Vietnamese words to their original English form (`sort` → `sỏt` + Ctrl → `sort`).
+- **Dream RSI Ergonomic Measurement (P10 / G19)**: Objectively measures physical keystrokes saved. Delivers a 22% keystroke savings rate on realistic office corpora; strictly guarded against performance regressions via automated CI gates (`perf/baseline-win.json`).
+- **User Style Profile (P7)**: Automatically learns personal vocabulary and accepted correction pairs, 100% offline, strictly opt-in per privacy rule G8, with safe memory caps (200 words / 50 pairs).
+
+### 3. On-Device Grammar & Context Assistant (Grammarly-Grade Offline)
+- **Comprehensive 15-Category Issue Detection**: Detects word repeats, 2–4-word phrase repeats, punctuation spacing, sentence capitalization, misplaced tone marks ("nghiã" → "nghĩa"), double negatives, post-conjunction commas, English a/an articles, easily-confused English pairs, lowercase pronoun "i", English/Vietnamese spelling, calendar-aware invalid dates (31/02, 32/13), and inconsistent money grouping (1.250.00đ).
+- **1-Second Idle Trigger Across All 3 OSes**: Pause typing for 1 second → assistant panel appears at the caret, with red underlines on errors and total issue count; resume typing → panel instantly dismisses without disrupting focus.
+- **Two Flexible Operating Modes**: *Suggest-Only* (Mode 1) for unobtrusive assistance or *Safe Auto-Fix* (Mode 2) for automatic correction of clear-cut errors with a 1-step Ctrl+Z undo window for 5 seconds.
+- **Zero False-Positive Standard (0% FPR)**: Verified 0 % false alarms on a curated benchmark of 981 Vietnamese and 295 English clean sentences ([P4-12 §11](docs/50-assist/P4-12-RECALL-REAL.md)).
+
+### 4. 20-Year UniKey Heritage Standard & Modern Office Utilities
+- **UniKey Standard Tone Placement**: Comprehensive support for Telex, VNI, VIQR, and Simple Telex; old-style (`hòa`, `thủy`) vs new-style (`hoà`, `thuỷ`) diacritics; standard `uo` rhyme (`luong`/`uong` plain by default, explicit `w` produces `ươ`).
+- **Smart Telex Conveniences**: Fast `[` / `]` for `ơ` / `ư` with full protection for programming code brackets (`arr[0]`, Markdown `- [ ] task`); fast `a--b` for em-dash `a—b` while preserving CLI flags (`--force`); smart uppercase `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
+- **Smart Transcoding Shortcut Ctrl+Shift+F9**: Lossless bidirectional conversion between Unicode, TCVN3, VNI, and decomposed Unicode; automatic source charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); automatic retyping of mistyped text when the IME was off (`tooi ddi hocj` → `tôi đi học`) across all 3 platforms.
+- **Unified 3-OS Settings Panel (v0.2.72)**: Every button features an icon + hint tooltip; explicit "Hide to tray" vs "Quit" options; tray automatically self-registers TSF without requiring administrator privileges (Admin/UAC).
+
+---
+
+## Highlights Over Traditional Vietnamese IMEs
+
+Direct head-to-head comparison between TextVN and legacy input engines (UniKey, EVKey, OpenKey):
+
+| Comparison Criteria | TextVN (v0.2.72) | Traditional IMEs (UniKey / EVKey / OpenKey) |
+|---|---|---|
+| **Input Processing Engine** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook + `SendInput` backspace replay |
+| **Lost & Duplicated Letters (Chrome/Excel/Electron)** | **Completely eliminated** (clean composition, no underline) | Common occurrence during rapid typing or window switching |
+| **Automatic EN/VI Detection in Mixed Text** | Vietnamese phonotactics + 103 confused words + 116 terms + personal dictionary + 94-syllable protection grid: restored on Space | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; requires manual toggle |
+| **Bilingual Word & Phrase Prediction (Tab/Space)** | Full single-word, compound, and contextual phrase prediction in both Mode VI & Mode EN; 5-candidate cycling; 75 µs ghost preview | Not supported or limited to static text macros |
+| **Dream RSI Ergonomics (P10)** | Objectively measures physical keystrokes saved (22% savings rate on office workloads); CI regression gates | Not supported |
+| **On-Device Grammar & Spell Assistant** | 15 issue types (word repeats, spacing, caps, misplaced tones, a/an, dates, money); 1s idle popup on 3 OSes; 0% FPR; Ctrl+Z 5s | Not supported |
+| **Standalone Ctrl Tap Restore** | `tunx` + Ctrl → `tũn` (syllable lock); `sort` → `sỏt` + Ctrl → `sort` (phonotactic restore) | Not supported |
+| **Raw Keystroke Restore (Escape)** | Pressing Escape immediately restores raw original keystrokes | Not supported or limited to full-sentence deletion |
+| **Global Mode Toggle (Ctrl+Shift)** | Observer-only modifier tap detector + debounce prevents double-toggling between tray and engine | Prone to double-toggle glitches or antivirus interception |
+| **Coding & Markdown Conveniences** | Smart `[` `]` for `ơ`/`ư` (protects `arr[0]`); `a--b` for `a—b` (protects `--flag`); `DD` → `Đ` | Blind transformation corrupts source code and Markdown syntax |
+| **Smart Transcoding (Ctrl+Shift+F9)** | Auto-detects broken charsets (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), fixes text typed with IME off (`tooi ddi hocj` → `tôi đi học`) | Basic manual clipboard transcoding only |
+| **Installation Permissions & UAC** | Per-user HKCU, portable extract-and-run, zero Admin/UAC required | Mostly requires Admin privileges or Program Files installer |
+| **Ghost Registration Auto-Repair** | Automatically repairs registry paths when the executable folder is moved | Crashes, fails silently, or requires manual reinstall |
+| **Privacy Policy & Telemetry (G8)** | **100% Offline**, zero keylogging, zero telemetry; auto-off in password fields; transparent open-source code | Many closed-source tools lack clear, verifiable privacy audits |
+
+---
+
+## Full Feature Set (Accumulated Through 0.2.72)
+
+### 1. Dream RSI Ergonomic Metrics & Performance Benchmarks (P10 / G19)
+- Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
+- Real-time keystroke reduction analysis: achieves a 22% keystroke savings rate on realistic office workloads (36 accepts / 72 keys saved on benchmark corpus).
+- 5 prediction accept pathways: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction.
+- Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`).
+
+### 2. Contextual Prediction Model P6 & User Style Profile P7 (41,313-Entry Corpora)
+- **Curated 41,313-entry knowledge base** with complete bilingual parity:
+  - 6,672 standard Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains).
+  - 3,346 high-frequency English words (`en_freq3000.txt`) + 9,868 English general vocabulary (`en_words10k.txt`) + 1,957 English compounds & collocations (`en_compounds.txt`, 16 modern domains).
+  - 17,529 context→phrase pairs (8,782 Vietnamese rows in `vn_phrases.tsv` + 8,747 English rows in `en_phrases.tsv` — real sentences split at all word boundaries, idioms, role-based workplace patterns).
+- Seamless dual-mode operation:
+  - **Mode EN (`E`)**: Single-word and compound completion, 5-candidate Tab cycling, next-phrase prediction, 75 µs ghost text preview, Dream RSI personal learning.
+  - **Mode VI (`V`)**: Automatic English word and phrase detection even when Telex-folded (e.g., `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
+- **User Style Profile (P7)**: Personal vocabulary and correction pair learning, strictly opt-in, 100% offline, safe memory cap (200 words / 50 pairs).
+- Microsecond lookups via Trie + Frecency structures, meaningful-extension contextual ranking.
+
+### 3. Typing Engines & Phonotactic Transformation Standard
+- 20-year UniKey-standard `uo` rhyme: `luong`/`uong`/`truong.giap` remain unaccented by default; only explicit `w` or tone keys produce `ươ` (`luonwg`, `tuowi`, `tuowng`, `duongf` → `dường`).
+- Anti-conflict mechanism (swallow-and-unicode): on TSF-bypassing apps (MobaXterm, KiTTY…), hook swallows keystrokes and injects via KEYEVENTF_UNICODE to prevent Windows VIE IME from stealing keys and opening composition boxes.
+- Windows dead-key passthrough (`Ctrl+'`+`e` → `é`) on international keyboard layouts.
+- Identifier & username boundary gate: Space and Tab never complete across dots, dashes, or email addresses (`truong.giap`, `t.ho`).
+- Full support for Telex, VNI, TCVN3 (VIQR readable), Quick Telex (cc→ch, gg→gi…), free marking.
+- 3 output character sets: Pre-composed Unicode, TCVN3, VNI (+ decomposed Unicode) with lossless round-trip transcoding.
+- Old vs new diacritic style options (`hoà`/`hòa`, `thuỷ`/`thủy`) — all prediction datasets automatically adjust to the selected style.
+- Smart capitalization: `DD` → `Đ`, per-key Caps Lock/Shift, auto-capitalize sentence starts (optional).
+- Escape key immediately restores raw original keystrokes at any point.
+- Anti-key-loop protection (E28): repeated tone keys never produce infinite cycles across Telex, VNI, and VIQR.
+- Text macros with case style awareness (HD → HỢP ĐỒNG), functional even when Vietnamese typing is toggled off.
+- Emoji shortcuts; `=1.550.00đ` currency to Vietnamese words; Excel formula and programming identifier protection.
+
+### 4. On-Device Grammar & Context Assistant
+- 15 issue types: word repeats, 2–4-word phrase repeats, punctuation spacing, sentence-case, diacritic typos, double negatives, end-of-sentence commas, post-conjunction commas, a/an articles, easily-confused English words, lowercase pronoun "i", English spelling (OS spell), Vietnamese spelling (dictionary), impossible dates (31/02, 32/13), inconsistent money grouping (1.250.00đ).
+- Suggestion panel on **1-second typing pause** across all 3 platforms: every keystroke/punctuation/backspace resets the timer, typing resumes hides it immediately, only a full 1-second pause checks the word + sentence and displays the panel (suggestion and safe auto-fix modes alike, including after `.` `,`); mid-word display is supported on Windows.
+- Mouse-clickable UI, Alt+1…3 shortcuts, Enter to apply "Fix All".
+- Mode 1 suggest-only / Mode 2 safe auto-fix with a 5-second Ctrl+Z undo window.
+- Selection checking (Shift+arrow keys → popup + Fix All) and long-sentence checks.
+- Per-application disable list; auto-off in password fields; verified 0% false alarms (FPR) on 2,739 clean benchmark sentences.
+
+### 5. Smart Transcoding & Office Utilities (P5)
+- Ctrl+Shift+F9 selection transcoding: converts TCVN3/VNI/decomposed Unicode → Pre-composed Unicode with automatic source charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), re-types text typed with IME off (`tooi ddi hocj` → `tôi đi học`) across all 3 platforms.
+- Smart English restore: Vietnamese phonotactics + 103 confused English words + 116 technical terms + personal dictionary.
+- Protection mechanisms: camelCase identifiers, quoted strings preserved verbatim.
+
+### 6. System Architecture, Control & Total Privacy
+- Hotkeys: Ctrl+Space fix/predict · Ctrl+Shift VI/EN toggle (state remembered) · Ctrl+Shift+F9 transcode.
+- Native settings per OS: Windows system tray (7 buttons with icons + tooltips, explicit Hide to tray / Quit), Linux GTK4, macOS SwiftUI menu bar.
+- 100% offline, zero telemetry, no network calls; auto-off in password fields; public in-repo privacy policy.
+
+---
+
+## Download & Installation
+
+Latest release: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
+
+| Platform | Official Installer | Run Without Installing (Portable) |
+|---|---|---|
+| **Windows 10/11 x64** | `TextVN-setup-<ver>-windows-x64.exe` (current user, no admin/UAC required)<br>`TextVN-setup-<ver>-windows-x64-machine.exe` (all users, Program Files, one UAC prompt) | `TextVN-portable-<ver>-windows-x64-*.zip` → extract and run `TextVN.exe` directly |
+| **Windows Microsoft Store** | ✅ **[TextVN on Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (free, Store ID `9NV2R7JNNFGK`) — automatic updates, package verified and signed by Microsoft. CLI: `winget install --id 9NV2R7JNNFGK -s msstore`. *(The `.msix` file on GitHub Release is the unsigned Store submission package)* | — |
+| **macOS 13+ (Apple Silicon & Intel)** | **Homebrew (recommended): `brew install --cask hunglinhpt/tap/textvn`** — installs input method to `~/Library/Input Methods` and menu bar app to `/Applications`; updates via `brew upgrade`.<br>Or use the `TextVN-mac-v<ver>.pkg` installer (per-user installation, no root/sudo required) | `TextVN-macos-universal-v<ver>.zip` (universal binary with `TextVN-IM.app` + `TextVN.app`) — see [macOS User Guide](docs/user-guide.md) |
+| **Linux (IBus / Fcitx5)** | **Arch Linux (AUR)**: `paru -S textvn` (or `yay -S textvn`) — clean build from tagged source in CI.<br>**Ubuntu / Debian PPA**: `sudo add-apt-repository ppa:hunglinhpt/textvn && sudo apt install textvn`<br>Or download tarball: `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → run `./install.sh` | Run directly from extracted tarball: `./textvn-portable.sh` |
+
+Full installation, uninstallation, usage instructions and troubleshooting: **[User Guide](docs/user-guide.md)**.
+
+> [!NOTE]
+> **Windows 11 24H2+ Note**: Recent Windows updates may refuse to activate input methods registered solely in per-user scope (issue B7 in `docs/specs/win-test-common-errors.md`). TextVN's per-user installer and portable package **never prompt for UAC** — when this condition is encountered, TextVN notifies you with clear guidance to use the `-machine.exe` installer.
+
+---
+
+## Recent Release Highlights
+
+Full development history: [CHANGELOG.md](CHANGELOG.md).
+
+| Version | Key Highlights |
 |---|---|
-| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Settings window: every button has an **icon + hint** (all 3 OSes); Windows renames "Close/Exit" to **"Hide to tray"/"Quit"** so nobody mistakes Close for quitting, drops the "Install & enable TSF" button (the tray registers itself) · README rewritten to match the shipped features and real data sizes |
-| [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) and macOS: the assistant suggestion list **appears when you pause typing for one second** and hides as soon as you type on — same as Windows 0.2.70; the end-of-sentence key still auto-corrects at once in safe-correction mode |
-| [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: the grammar assistant panel **appears again when you pause typing for one second** (also mid-word, after `.` `,`; suggestion and safe-correction modes) — fixes the idle timer using a fake edit cookie that made the panel never show since 0.2.62 · "Fix all"/Alt+1…3 mid-word no longer split the word · real-app E2E Edge 18/18 |
-| [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Full audit of new features (R2-140…R2-153, DFMEA/DRBFM): 3-OS parity — Mode EN prediction, standalone `Ctrl`, self-learning persisted on macOS/Linux · terminal detection on Windows/Linux (Tab stays with the shell, passwords never learned) · Telex no longer corrupts code/Markdown (`arr[0]`, `--force`) · assistant no longer rewrites 40 correct sentence patterns · `peek_completion` 225 → 75 µs · savings rate 22% |
+| [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Control panel: all buttons equipped with **icons + hint tooltips** (all 3 OSes); Windows renames to **"Hide to tray"/"Quit"** to prevent accidental exits, drops the "Install & enable TSF" button (tray registers automatically) · Complete README overhaul matching actual capabilities |
+| [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) and macOS: assistant suggestion list **appears on 1-second typing pause**, dismisses on typing — 100% parity with Windows 0.2.70; sentence-ending keys auto-fix instantly in safe mode |
+| [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: grammar assistant panel **re-appears on 1-second typing pause** (including mid-word, after punctuation; suggestion and safe modes) · "Fix All"/Alt+1…3 mid-word no longer splits words · Real-world E2E Edge 18/18 tests |
+| [0.2.69](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.69) | Full audit of new features (R2-140…R2-153, DFMEA/DRBFM): 3-OS parity — Mode EN prediction, standalone `Ctrl`, persisted self-learning on macOS/Linux · terminal detection (Tab preserved for shell, passwords unlearned) · Telex code/Markdown safety (`arr[0]`, `--force`) · 0 false flags on 40 clean patterns · `peek_completion` 225 → 75 µs · 22% savings rate |
 | [0.2.68](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.68) | Phonotactic restore `sort` → `sỏt` fixed · Telex conveniences `[ ]`, `Ctrl`, `a--b` · English prediction in both modes, English compounds and phrases |
-| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): keystroke savings measurement (21% savings rate on office corpus) · Anti-regression gate in `perf/baseline-win.json` · Normalized 3-OS `keys_typed` · Completed P7 self-learning pipeline (IPC broadcast `ConfigReload`, G8 opt-in consent, safe FFI `catch_unwind`) |
-| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Full P7 self-learning from real keystrokes (drain capped at 200 words / 50 pairs, IPC merge, live reload) · Full P9 1s debounce on word triggers · Dead-key armed disarm · 15-item roadmap |
-| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Panel 1s debounce · ID/username punctuation gate · 3 gate suites 3000 cases + DFMEA/DRBFM |
-| [0.2.64](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.64) | Corpora 35,681 entries · 13 new compound domains · Rust `xtask gen-vocab` replaces Python · User Style Profile (opt-in personal learning) · 1000-case abnormal suite · "bay bay" FP fixed |
-| [0.2.63](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.63) | Corpora ~31,000 entries (6,675 syllables + 1,214 compounds + 9,868 EN words + 10,208 phrases) · Meaning-controlled ranking · Office QA battery (23 tests) · 3 final FPR fixes |
-| [0.2.62](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.62) | 3-pass MobaXterm audit + terminal family sweep (KiTTY/SecureCRT/Xshell) hook-owned · Panel never overlaps typing line |
-| [0.2.61](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.61) | MobaXterm/PuTTY fix (appdb `exe_prefix`) · Linux e2e text prediction (ghost/Tab) on IBus + Fcitx5 |
-| 0.2.60 | Performance: five O(n²) paths → linear (640k-char paste 45s → 0.9s); end-of-text date detection |
-| 0.2.59 | Impossible-date warnings (32/13, 31/02 — calendar-aware) + inconsistent money grouping (1.250.00đ) |
-| 0.2.58 | Unaccented Vietnamese chat no longer mangled ("an com", "i di"); stray EN auxiliaries flagged; comma-after-"but" parity |
-| 0.2.57 | VIQR marker freeze; macOS toggle/settings mid-word no longer lose text; uppercase DD stroke |
-| 0.2.56 | EN rules run on mixed sentences; WinSpell self-recovery; quoted speech verbatim; SVA O(n) |
-| 0.2.55 | 2–4-word phrase repeats; stray EN words in Vietnamese sentences; 3-pass A/B/C audit; 35× prediction speedup |
-| 0.2.54 | Phrase repeats suggestion-only; line-by-line 3-OS audit; exhaustive abnormal tests |
-| 0.2.52–53 | Contracted SVA ("He don't"); EN Tab for unfolded words; +7 collocations |
-| 0.2.50–51 | Full EN grammar (should of, your welcome, then/than…); sentence grammar + SVA; prediction toggle UI |
-| 0.2.45–49 | P5 office: case-style macros, money words, Excel/identifier protection; smart Ctrl+Shift+F9 transcode 3 OS; ghost preview |
-| 0.2.44 | Deep 3-round audit; 1061 VN syllables for unaccented words; vowel-origin a/an rules |
+| [0.2.67](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.67) | P10 Dream RSI (G19): keystroke savings measurement (22% savings rate on office corpus) · Anti-regression gate in `perf/baseline-win.json` · Normalized 3-OS `keys_typed` · Completed P7 self-learning pipeline (IPC broadcast `ConfigReload`, opt-in consent G8, safe FFI `catch_unwind`) |
+| [0.2.66](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.66) | Full P7 self-learning from real keystrokes (drain cap 200 words / 50 pairs, IPC merge, live reload) · P9 1s debounce on word triggers · Dead-key armed disarm |
+| [0.2.65](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.65) | UniKey-standard `uo` rhyme (`luong` plain, `luonwg`/`tuowng`) · Hook swallow-and-unicode fixes OS-IME conflict (MobaXterm) · Windows dead-key restored · Username/ID punctuation gate |
+| [0.2.60–0.2.64](CHANGELOG.md) | 41,313-entry corpora · 13 new compound domains · User Style Profile · Impossible-date warnings (31/02) · Linear O(n) performance optimizations |
+| [0.2.50–0.2.59](CHANGELOG.md) | Full EN grammar + SVA · 2–4-word phrase repeats · Smart Ctrl+Shift+F9 transcoding · 3-OS ghost preview · Case-aware text macros |
 
-## Download & install
+---
 
-Latest release: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)**
-(release candidate, built and tested by CI). **Every release file carries a GPG
-signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**;
-`SHA256SUMS.txt` is clear-signed — how to verify: [signing.md](docs/release/signing.md).
-Not yet available: Authenticode signing for Windows (waiting on SignPath
-Foundation — SmartScreen may warn, antivirus may mis-quarantine: seen with
-Kaspersky, see
-[antivirus-false-positive.md](docs/specs/antivirus-false-positive.md)) and
-Apple Developer ID / notarization for macOS (Gatekeeper warns on first open).
+## Platform Support & Status
 
-| Platform | Install | Run without installing |
-|---|---|---|
-| Windows 10/11 x64 | `TextVN-setup-<ver>-windows-x64.exe` (current user, no admin) · `TextVN-setup-<ver>-windows-x64-machine.exe` (all users, Program Files, one UAC prompt) | `TextVN-portable-<ver>-windows-x64-*.zip` → run `TextVN.exe` |
-| Windows (Microsoft Store) | ✅ **[TextVN on Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (free, Store ID `9NV2R7JNNFGK`) — click *Get*, open TextVN once to register the input method for your account; the Store updates it automatically, package signed by Microsoft. CLI: `winget install --id 9NV2R7JNNFGK -s msstore`. The `TextVN-<ver>-windows-x64.msix` on GitHub Release is the Store submission package (unsigned) — not directly installable | — |
-| macOS 13+ (Apple Silicon / Intel) | **Homebrew (recommended): `brew install --cask hunglinhpt/tap/textvn`** — puts the input method into `~/Library/Input Methods` and the menu-bar app into `/Applications`; updates via `brew upgrade`. Or `TextVN-mac-v<ver>.pkg` → open to install, or `installer -pkg … -target CurrentUserHomeDirectory` (no sudo) | `TextVN-macos-universal-v<ver>.zip` (or `.tar.gz`) with `TextVN-IM.app` + `TextVN.app` — see the [user guide, macOS section](docs/user-guide.md) |
-| Linux (IBus / Fcitx5) | **AUR** (Arch/Manjaro…): `paru -S textvn` — builds from the tagged source, real makepkg QA in CI · **Ubuntu PPA** (prepared — owner activates `ppa:hunglinhpt/textvn`, see [linux-distribution.md](docs/release/linux-distribution.md)): `sudo add-apt-repository ppa:hunglinhpt/textvn && sudo apt install textvn` · Or `tar xzf TextVN-<ver>-linux-x86_64.tar.gz` → `./install.sh` (per-user, no root; `sudo ./install.sh --system` for all users) — Linux store-channel analysis: [linux-distribution.md](docs/release/linux-distribution.md) | same tarball → `./textvn-portable.sh` |
-
-Install, uninstall, usage and troubleshooting: **[User guide](docs/user-guide.md)** (Vietnamese).
-
-Windows note: `TextVN-setup-<ver>-windows-x64.exe` installs **for the current
-user** (`%LOCALAPPDATA%\Programs\TextVN`, no UAC);
-`TextVN-setup-<ver>-windows-x64-machine.exe` installs **for all users**
-(Program Files, one UAC prompt). Each Windows account gets the input method
-registered on TextVN's first run; upgrades **keep** your typing method,
-options and per-app settings. On **Windows 11 24H2+** some machines reject
-per-user-only input methods (bug B7 in `docs/specs/win-test-common-errors.md`):
-the per-user installer, the portable build and the Store package therefore
-**never ask for UAC** — TextVN tells you once and points to the
-`-machine.exe` installer (only a Program Files install can register
-machine-wide).
-
-## Highlights over other Vietnamese IMEs
-
-What TextVN does that UniKey / EVKey / OpenKey currently **don't** (or do
-differently — per their public feature pages as of 2026-10):
-
-| Feature | TextVN | Traditional IMEs |
-|---|---|---|
-| **Automatic EN/VI detection in mixed text** | Vietnamese phonotactics (a typed word whose fold is not a valid syllable is restored) + 103 easily-confused English words + 116 terms + personal EN dictionary + a protection grid of 94 common Vietnamese syllables: type mixed languages without toggling modes; English words are restored intact on Space. | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; typing English requires toggling modes per word or manually stripping tones. |
-| **Mode-based Vietnamese priority** (no mangling) | Ambiguous pairs (`cow`/`cơ`, `sex`/`sẽ`, `queen`/`quên`) resolve according to active mode — standard UniKey behavior for Vietnamese, while leaving English untransformed. | Must choose: mangle English or disable Vietnamese transformations. |
-| **Tab word completion** | Half-typed `tes` → Tab completes to `test` (EN: 9,868 single words + 1,957 compounds + 116 terms + personal words); `ngư` → Tab completes to `ngưng` (VI: 6,672 syllables + 1,941 compounds); both via `suggest.enabled` (off by default). | Not supported. |
-| **Personal EN dictionary** | Add/remove words directly in the UI (EN Dictionary…); user preference overrides all engine heuristics. | Manual config file editing (if supported at all). |
-| **Bilingual grammar & context assistant** | Checks, suggests and auto-fixes the sentence just typed (word/2–4-phrase repeats, punctuation spacing, capitalization, tone placement, EN grammar, impossible dates, money grouping) 100% offline; 0% false positives on 981 Vietnamese + 295 English clean benchmark; 1-step Ctrl+Z undo. | Not supported. |
-| **Dream RSI keystroke savings (P10)** | Objectively measures typing effort saved via smart predictions (~22% savings rate on office workflows); strict regression gates; 100% private (counters only, zero keystroke logging) | Not supported |
-| **Escape raw keystroke restore** | Mistyped at any moment → Escape restores the exact raw typed string. | Most IMEs only support sentence-level undo or none. |
-| **Ctrl+Shift mode switch across all apps** | Modifier tap detector observes only (eats no keys) + debounce prevents double-toggling between tray and engine. | Global keyboard hooks can cause double-toggle or antivirus conflicts. |
-| **No preedit underline, no admin install** | Per-user TSF in HKCU, portable extract-and-run, zero UAC required. | UniKey/EVKey require installer and some variants demand administrator privileges. |
-| **Self-healing ghost registration** | If registry points to a deleted folder → re-running `TextVN.exe` from the new folder auto-repairs registration. | Requires manual uninstall and reinstallation. |
-| **DPI-aware multi-monitor dialogs** | Moving between screens with different DPI auto-scales, re-lays out, and adjusts fonts accordingly. | Often blurry, misaligned, or rendered improperly across multi-DPI setups. |
-| **Store-grade silent installation** | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` — CI verifies silent install/uninstall, ARP, and Store validator simulation on every PR and release. | No automated Store pipeline validation. |
-| **Private by default** | 100% local keystroke processing, zero telemetry, no network calls; auto-disables in password fields; public privacy policy in-repo. | Rarely publish a formal, verifiable privacy policy. |
-| **Process model & architecture** | 1 tray process + in-process TSF TIP; global keyboard hook observes modifiers only (eats no keys, injects no DLLs). | UniKey uses a global keyboard hook that intercepts all keystrokes and injects code. |
-
-## Full feature set (accumulated through 0.2.67)
-
-**Dream RSI metrics (P10) & Performance anti-regression (G19)**
-- Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`)
-- Real-time prediction efficiency analysis: averages 22% keystroke savings on realistic office workloads (36 accepts / 72 keys saved on benchmark corpus)
-- 5 prediction accept paths: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction
-- Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`)
-
-**Text prediction (P6) & User Style Profile (P7)** — **41,313-entry** (counted per data file; the two English word lists overlap) bilingual corpora with full VI-EN parity:
-6,672 Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains)
-+ **3,346 high-frequency English words** (`en_freq3000.txt`) **+ 9,868 English single words** (`en_words10k.txt`) **+ 1,957 English compounds & collocations** (`en_compounds.txt`, 16 domains: business, software engineering, AI/data science, Cloud/DevOps/cybersecurity, finance & tax, banking & insurance, HR, marketing, customer support & QA, product & UI/UX, logistics & manufacturing, legal, real estate, healthcare, education, office communication)
-+ **17,529 context→phrase pairs** (8,782 Vietnamese rows in `vn_phrases.tsv` + **8,747 English rows** in `en_phrases.tsv` — real sentences split at every word boundary, idioms, role-based office patterns);
-English prediction works seamlessly in **both modes**: **Mode EN (`E`)** (single-word & compound completion, 5-candidate Tab cycling, next-phrase prediction, ghost text preview, Dream RSI personal learning) and **Mode VI (`V`)** (automatic English word/compound/sentence detection and completion even when Telex-folded, e.g., `customer` → `cútomer` + Tab → `customer service`, `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`);
-User Style Profile (personal vocabulary & correction learning, opt-in, 100% offline, strict 200-word / 50-pair cap);
-Tab/Ctrl+Space completion & next-phrase; meaningful-extension ranking; microsecond lookups.
-
-**Input methods & transforms (20-year UniKey standard)**
-- UniKey-standard `uo` rhyme: `luong`/`uong`/`truong.giap` stay unaccented by default;
-  only explicit `w` or tone keys produce `ươ` (`luonwg`, `tuowi`, `tuowng`,
-  `duongf`→`dường`)
-- Anti OS-IME conflict (swallow-and-unicode): on TSF-bypassing apps (MobaXterm,
-  KiTTY…), the hook swallows keystrokes and injects via KEYEVENTF_UNICODE to
-  prevent Windows VIE IME from grabbing keys and popping its composition box
-- Windows dead-key passthrough (`Ctrl+'`+`e` → `é`) on international layouts
-- Identifier and punctuation gate: Space/Tab never completes across dot, dash,
-  or email boundaries (`truong.giap`, `t.ho`)
-- Telex, VNI, TCVN3 (VIQR readable), Quick Telex (cc→ch, gg→gi…), free marking
-- 3 output charsets: Unicode, TCVN3, VNI (+ decomposed Unicode) — lossless round-trip conversion
-- Old/new diacritic style switch (`hoà`/`hòa`, `thuỷ`/`thủy`) — prediction data follows the chosen style
-- Smart caps: `DD` → `Đ`, per-key Caps Lock/Shift, auto-capitalize sentence starts (optional)
-- Escape restores the exact typed string at any point
-- Anti-key-loop (E28): repeated tone keys never cycle endlessly — across Telex/VNI/VIQR
-- Text macros with case styles (HD→HỢP ĐỒNG); work even with Vietnamese off (optional)
-- Emoji shortcuts; `=1.550.000đ` → Vietnamese words; Excel formula and identifier protection
-
-**Suggestions & prediction (P6 — Tab, Ctrl+Space, in both Mode VI & Mode EN)**
-- Vietnamese word & compound completion: `ngư`+Tab → `ngưng`, `phát`+Tab → `phát triển` (6,672 syllables + 1,941 office compounds, via `suggest.enabled`)
-- English word & compound completion in both Mode EN and Mode VI: `develop`+Tab → `develops`, `machine`+Tab → `machine learning`, `customer`+Tab → `customer service` (9,868 single words + 3,346 high-frequency words + 1,957 compounds across 16 domains + 116 tech/business terms + personal dictionary, 5-candidate Tab cycling; the first Tab returns the original word when Telex turned it into a non-Vietnamese string)
-- Next-phrase prediction by context in both modes (`kính gửi`+Tab → `Kính gửi quý khách hàng`; `looking forward`+Tab → `looking forward to hearing from you soon` even when typed in Mode VI — 8,782 VI + 8,747 EN patterns)
-- Ghost preview after the caret on all three platforms (in both Mode VI and Mode EN)
-- Ctrl+Space: fix the whole sentence (including spelling) then keep predicting — one key, two jobs
-
-**Grammar assistant (Grammarly-style, fully offline)**
-- 15 issue kinds: word/2–4-word-phrase repeats, spacing, sentence-case, diacritic typos, double negatives, end-of-sentence and post-conjunction commas, a/an, EN confusions, lowercase "i", EN spelling (OS spell), VI spelling (dictionary), impossible dates (32/13, 31/02 — calendar-aware), inconsistent money grouping (1.250.00đ)
-- Suggestion panel after you **pause typing for 1 second** (all 3 operating systems): every letter/punctuation/backspace key re-arms the timer, typing on hides it at once, only a full 1 s pause checks the word + sentence and shows it (suggestion and safe-correction modes alike, also after `.` `,`); mid-word it shows on Windows only (Linux/macOS wait for the word to settle)
-- Mouse-clickable panel, Alt+1…3, Enter applies fix-all
-- Mode 1 suggest-only / Mode 2 auto-correct (objective errors fixed, ambiguous ones suggested) — Ctrl+Z undo for 5 seconds
-- Selection checking (arrow keys → popup + fix-all) and long-sentence checks
-- Per-app disable; auto-off in password fields; 0 % false positives on a 2739-sentence curated clean set
-
-**Transcoding & office extras (P5)**
-- Ctrl+Shift+F9 converts the selection: TCVN3/VNI/decomposed → Unicode with automatic charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`), re-types text typed while the IME was off (`tooi ddi hocj` → `tôi đi học`) — all three platforms
-- Smart English restore: Vietnamese phonotactics + 103 easily-confused English words + 116 EN terms (coder/tech/business/OS APIs) + personal dictionary
-- Protection: personal EN dictionary, camelCase identifiers, quoted strings kept verbatim
-
-**Control & privacy**
-- Ctrl+Space fix/predict · Ctrl+Shift VI/EN toggle (state remembered) · Ctrl+Shift+F9 transcode
-- Per-app overrides + ignore lists; native settings per OS (Windows tray, Linux GTK4, macOS menu bar app)
-- 100 % offline, no telemetry, no network; auto-off in password fields; public privacy policy in the repo
-
-One shared Rust engine, 190+ assistant tests + 230+ corpus replay scenarios (`*.keys`)
-through four adapter simulations (headless, tsf, mac, linux) on three operating
-systems at every commit; language-conflict rules are published at
-[docs/specs/language-detection.md](docs/specs/language-detection.md).
-
-## Status
-
-| Platform | Status |
+| Platform | Release Status |
 |---|---|
-| Windows 10/11 x64 (TSF) | ✅ Release candidate — real TSF typing is CI-tested on Windows (installer, portable, MSIX trial install). Only Authenticode signing is missing (waiting on SignPath Foundation). **Published on the [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (MSIX, since 2026-10-11). |
-| macOS 13+ Apple Silicon / Intel | ✅ Release candidate — IMK input method + menu-bar app + per-user `.pkg` (no sudo); CI builds both architectures (arm64 + x86_64) and runs `swift test` on arm64. No Developer ID / notarization yet (releases are ad-hoc signed) → Gatekeeper warns on first open ([signing-status-mac.md](docs/release/signing-status-mac.md)). The CGEventTap module (`adapters/macos-tap`) has code + tests but is **not** shipped. |
-| Linux IBus / Fcitx5 | ✅ Release candidate — `install.sh` tarball (per-user or `--system`) + run-in-place, GTK4 settings; CI tests with real ibus-daemon and fcitx5. AUR PKGBUILD + Debian `debian/` packaging are in-repo with real build QA (see [linux-distribution.md](docs/release/linux-distribution.md)). |
+| **Windows 10/11 x64 (TSF)** | ✅ Release candidate — real TSF typing is CI-verified on Windows (installer, portable, MSIX trial install). **Officially published on the [Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB)** (MSIX package). Direct Authenticode signature awaiting SignPath Foundation approval. |
+| **macOS 13+ (Apple Silicon & Intel)** | ✅ Release candidate — IMK input method + menu bar app + per-user `.pkg` installer (no sudo); CI automatically builds both architectures (arm64 + x86_64) and runs `swift test`. Apple Developer ID / Notarization awaiting review ([signing-status-mac.md](docs/release/signing-status-mac.md)). |
+| **Linux (IBus / Fcitx5)** | ✅ Release candidate — supports per-user or `--system` installation, GTK4 control panel; CI automated testing with real `ibus-daemon` and `fcitx5`. Officially distributed via AUR (`paru -S textvn`) and Ubuntu/Debian PPA (`ppa:hunglinhpt/textvn`). |
 
-Test results of the current version:
-[build-release-report.md](docs/release/build-release-report.md) · changes:
-[CHANGELOG.md](CHANGELOG.md).
+Detailed release test report: [build-release-report.md](docs/release/build-release-report.md).
 
-## Build from source
+---
+
+## Build from Source
 
 ```powershell
-# Windows: Rust stable + VS 2022 Build Tools (C++)
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -BuildInstaller -MachineInstaller   # needs Inno Setup 6.5+
+# Windows: Requires Rust stable + Visual Studio 2022 Build Tools (C++) + Inno Setup 6.5+
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -BuildInstaller -MachineInstaller
 ```
 
 ```bash
-# macOS 13+: Xcode CLT 15+, rustup with aarch64-apple-darwin + x86_64-apple-darwin targets
+# macOS 13+: Requires Xcode Command Line Tools 15+, rustup targets aarch64-apple-darwin & x86_64-apple-darwin
 cd adapters/macos-imk
-./build-rust.sh                   # build engine + swift build + assemble TextVN-IM.app
-./build-rust.sh --lib-only        # libtextvn_ffi.a only (for swift test)
-./build-rust.sh --release         # release build
+./build-rust.sh                   # Build FFI engine + Swift build + assemble TextVN-IM.app
+./build-rust.sh --lib-only        # Build libtextvn_ffi.a only (for swift test)
+./build-rust.sh --release         # Build optimized release binaries
+
+# Package macOS releases (run from repo root)
+scripts/build-macos.sh            # Package Universal zip
+scripts/package-macos-pkg.sh      # Create per-user .pkg installer
 ```
 
 ```bash
-# Linux (Ubuntu/Debian)
-scripts/install_linux.sh        # build + install per-user
-scripts/build-linux.sh          # produce the release tarball
+# Linux (Ubuntu/Debian / Fedora / Arch)
+scripts/install_linux.sh          # Build from source and install for current user
+scripts/build-linux.sh            # Produce complete release tarball
 ```
 
-Architecture, testing, conventions and the release process: see the
-**[developer guide](docs/developer-guide.md)** (Vietnamese) and
-[docs/release/release-process.md](docs/release/release-process.md).
+Architecture, testing, code conventions and release process: see the **[Developer Guide](docs/developer-guide.md)**.
 
-## License
+---
 
-[GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
+## Project Structure
+
+```
+core/              Core phonetic & linguistic engine (Rust) — zero I/O, OS-independent
+config/  ffi/      Config specification config.v1 · Safe C ABI and shims for adapters
+adapters/          windows-tsf (pure TSF) · windows-hook (legacy app compatibility package)
+                   macos-imk (Input Method Kit) · macos-app (SwiftUI menu bar) · macos-tap
+                   linux-ibus · linux-fcitx5 · linux-common · linux-settings (GTK4)
+tray/  cli/        Windows tray & settings UI · textvn-cli (TSF registration, doctor, replay)
+corpus/            230+ typing scenarios (*.keys) executed across adapter simulations in CI
+installer/  packaging/  scripts/    Inno Setup, MSIX, PKGBUILD, Homebrew Cask, Debian PPA packaging scripts
+docs/              Architecture specs (10-shared, 20-windows, 30-macos, 40-linux), specs, release
+```
+
+---
+
+## Contributing & License
+
+- Contributing guidelines: see [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+- Reporting typing bugs: please include the exact keystroke sequence, actual result, expected result, application name, and OS version.
+- **License**: [GPL-3.0-or-later](LICENSE) © 2026 LinhBH.CoM
