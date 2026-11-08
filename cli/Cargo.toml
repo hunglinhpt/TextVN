@@ -14,6 +14,8 @@ textvn-ffi = { path = "../ffi" }
 textvn-config = { path = "../config" }
 textvn-ipc = { path = "../ipc" }
 textvn-assist = { path = "../assist" }
+# P4-12a: `assist check --dic` đo luật `spelling` với từ điển thật (chỉ CLI đo — sản phẩm chưa nối).
+textvn-dict = { path = "../dict" }
 serde_json = { workspace = true }
 # Chỉ phần thuần (`compose`) — mô phỏng TSF composition trong `replay --adapter tsf`.
 textvn-win-tsf = { path = "../adapters/windows-tsf" }

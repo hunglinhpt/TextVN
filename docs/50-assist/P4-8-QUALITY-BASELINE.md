@@ -141,8 +141,8 @@ Tu dien Viet duoc sinh thanh file FST v1 (char-level trie, mmap, 0 dependency) t
 | ID | Task | Trang thai | Ghi chu |
 |---|---|---|---|
 | AS-040 | Tu dien FST fallback tu `hunspell-vi` + attribution | ✅ xong | `dict/` crate (FST builder + reader + mmap, 0 dep); `.dic` du lieu (6.642 tu x 2 kieu dau); REUSE.toml da them attribution GPL-2.0-or-later; 6 test FST lookup tren du lieu thuc |
-| AS-041 | Gợi ý từ (edit distance âm tiết) | ⬜ chờ nhận | `Dictionary::suggest()` da khai bao o trait (`assist/src/dict.rs`); chua trien khai o `textvn-dict` |
-| AS-042 | Glue OS spellcheck provider | ⬜ chờ nhận | D32-D37 (OS-first); `Dictionary` trait la giao dien; adapter o FFI/adapter theo D32 |
+| AS-041 | Gợi ý từ (edit distance âm tiết) | ✅ xong (xem `P4-TASKS.md` AS-041) | `Reader::suggest` (Damerau-Levenshtein + skeleton) trong `dict/src/reader.rs`, test `suggest_dic_dau_moi_typos_chinh_xac` — dòng này từng stale |
+| AS-042 | Glue OS spellcheck provider | ✅ xong (xem `P4-TASKS.md` AS-042) | `dict/src/os_{windows,linux,macos}.rs`; Windows nối vào sản phẩm qua `adapters/windows-tsf/src/os_spell.rs` — dòng này từng stale |
 ## 6. Bằng chứng (để agent sau không phải đo lại)
 
 | Lệnh | Kết quả |

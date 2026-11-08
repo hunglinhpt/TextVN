@@ -130,6 +130,7 @@ dependencies = [
  "serde_json",
  "textvn-assist",
  "textvn-config",
+ "textvn-dict",
  "textvn-ffi",
  "textvn-ipc",
  "textvn-win-tsf",

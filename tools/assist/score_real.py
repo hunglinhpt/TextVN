@@ -146,6 +146,10 @@ def read_labelled(path: Path) -> list[Row]:
     return out
 
 
+# P4-12a: tu dien cho luat `spelling` (--dic <file.dic|.fst>); None = NoDictionary nhu truoc.
+DIC: list[str] = []
+
+
 def run_engine(cli: Path, sentences: list[str], sentence_mode: bool) -> list[set[str]]:
     """Chay engine 1 lan cho ca danh sach -> [set(kind)] theo thu tu cau."""
     if not sentences:
@@ -157,6 +161,8 @@ def run_engine(cli: Path, sentences: list[str], sentence_mode: bool) -> list[set
         cmd = [str(cli), "assist", "check", "--file", tmp_name, "--json"]
         if sentence_mode:
             cmd.append("--sentence")
+        for d in DIC:
+            cmd += ["--dic", d]
         proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
         if not proc.stdout.strip():
             raise SystemExit(
@@ -305,7 +311,11 @@ def main() -> int:
     ap.add_argument("--verify", action="store_true",
                     help="kiem chung tap nhan (dong cung phai khop engine) -> exit != 0 neu fail")
     ap.add_argument("--json", action="store_true", help="in ket qua dang JSON")
+    ap.add_argument("--dic", action="append", default=[],
+                    help="tu dien cho luat spelling (.dic hunspell hoac .fst), lap lai de hop - P4-12a")
     args = ap.parse_args()
+    global DIC
+    DIC = list(args.dic)
 
     cli = find_cli(args.cli)
     errors = read_labelled(ERRORS)

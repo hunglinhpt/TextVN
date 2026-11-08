@@ -14,6 +14,9 @@ pub(crate) const INTENTIONAL_REPEATS: &[&str] = &[
     // từ ghép đôi: "lâu lâu", "vội vội", "vàng vàng"… (Fassist-94)
     "lâu", "vội", "vàng", "chầm", "lẩn", "lầm", "cốp", "lốp", "ríu", "húp", "quẩy", "thong",
     "phèng", "sột", "tí",
+    // P4-12b (đo trên văn bản thật, doc P4-12 §4.3): tên con vật/tượng thanh/từ láy còn sót —
+    // "con tê tê", "ve ve kêu", "đần đần ra".
+    "tê", "ve", "đần",
     // Vòng 23 (audit "như Grammarly", đo FPR trên tập sạch Tatoeba): các từ
     // lặp hợp lệ còn sót — từ tượng thanh ("chộp chộp, bum bum"), cách nhấn
     // thế thao ("ở đâu đâu") và số từ + danh từ cùng hình ("năm năm trước" —
@@ -100,6 +103,43 @@ fn repeats_before(ctx: &Ctx, i: usize, lower: &str) -> bool {
         && ctx.token_text(&word).to_lowercase() == lower
 }
 
+/// Từ (lowercase) ở token `k` nếu là từ nối với token trước bằng ĐÚNG một dấu cách.
+fn spaced_word_at(ctx: &Ctx, k: usize) -> Option<String> {
+    if k == 0 || k >= ctx.tokens.len() {
+        return None;
+    }
+    let (gap, word) = (ctx.tokens[k - 1], ctx.tokens[k]);
+    (is_word(&word) && gap.kind == TokenKind::Space && gap.len() == 1)
+        .then(|| ctx.token_text(&word).to_lowercase())
+}
+
+/// Từ láy bốn âm tiết AABB — "đi đi lại lại", "ngày ngày đêm đêm": `tokens[i-2..=i]` là `A A` và ngay
+/// trước HOẶC ngay sau là `B B` (B ≠ A). Hai lần lặp đứng cạnh nhau là cấu trúc, không phải lỗi gõ.
+fn is_aabb(ctx: &Ctx, i: usize, lower: &str) -> bool {
+    let pair_after = || {
+        let b1 = spaced_word_at(ctx, i + 2)?;
+        let b2 = spaced_word_at(ctx, i + 4)?;
+        (b1 == b2 && b1 != lower).then_some(())
+    };
+    let pair_before = || {
+        let b2 = i.checked_sub(4).and_then(|k| spaced_word_at(ctx, k))?;
+        let b1 = i
+            .checked_sub(6)
+            .and_then(|k| ctx.token_text(&ctx.tokens[k]).to_lowercase().into())?;
+        (b1 == b2 && b2 != lower).then_some(())
+    };
+    pair_after().is_some() || pair_before().is_some()
+}
+
+/// "giàu có có thể mua nhà": "có" thứ nhất thuộc từ ghép "giàu có", "có" thứ hai mở "có thể" — hai
+/// từ khác nhau cùng hình, không phải lỗi lặp.
+fn is_compound_then_modal(ctx: &Ctx, i: usize, lower: &str) -> bool {
+    lower == "có"
+        && i >= 4
+        && spaced_word_at(ctx, i - 2).is_some()
+        && ctx.token_text(&ctx.tokens[i - 4]).to_lowercase() == "giàu"
+}
+
 /// Bat loi lap tu: hai tu lien tiep giong nhau, cach nhau dung mot khoang trang.
 pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
     // Token: [Word][Space][Word] - can nhin 2 token lui.
@@ -139,6 +179,9 @@ pub fn check(ctx: &Ctx, out: &mut Vec<Issue>) {
             );
         let vi_repeat = INTENTIONAL_REPEATS.contains(&lower.as_str()) && !after_en_determiner;
         if whitelist.contains(&lower.as_str()) || vi_repeat {
+            continue;
+        }
+        if is_aabb(ctx, i, &lower) || is_compound_then_modal(ctx, i, &lower) {
             continue;
         }
         // Vòng 24 (audit EN trap 18-19) — vòng 26 áp cho TỪ ASCII ở MỌI câu
@@ -247,6 +290,35 @@ mod tests {
     #[test]
     fn khong_bat_khi_khong_lap() {
         assert!(check("tôi đi học").is_empty());
+    }
+
+    /// P4-12b: từ láy/tượng thanh/từ ghép còn sót trong đo văn bản thật.
+    #[test]
+    fn p4_12b_tu_lay_aabb_va_tu_ghep_khong_bi_bao() {
+        for ok in [
+            "Nó đi đi lại lại cả buổi.",
+            "Ngày ngày đêm đêm họ làm việc.",
+            "Con tê tê rất hiếm.",
+            "Tiếng ve ve kêu suốt đêm.",
+            "Anh ta cứ đần đần ra.",
+            "Ông ấy giàu có có thể mua nhà.",
+        ] {
+            assert!(check(ok).is_empty(), "báo nhầm: {ok}");
+        }
+    }
+
+    /// P4-12b: lỗi gõ thật vẫn bị bắt — AABB chỉ miễn khi CÓ cặp thứ hai đứng cạnh.
+    #[test]
+    fn p4_12b_loi_lap_that_van_bat() {
+        for bad in [
+            "Nó đi đi học nhé.",
+            "Tôi tôi đi học.",
+            "Cái này này rất đẹp.",
+            "Bạn có có điều gì không?",
+            "Đi đi lại về nhà.",
+        ] {
+            assert_eq!(check(bad).len(), 1, "bỏ sót: {bad}");
+        }
     }
 
     /// Vòng 26 — câu mix văn phòng: whitelist theo TỪNG TỪ.

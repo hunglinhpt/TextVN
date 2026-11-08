@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Trợ lý ngữ pháp hết báo nhầm từ láy còn sót** (P4-12b): `đi đi lại lại` / `ngày ngày đêm đêm` (láy bốn âm
+  tiết AABB), `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`. Lỗi lặp từ thật vẫn bắt (`Nó đi đi học`, `Tôi tôi đi`).
+
+### Added (công cụ đo, không đổi hành vi sản phẩm)
+- `textvn-cli assist check --dic <file>` (lặp lại để hợp nhiều `.dic`, hoặc một `.fst`) để đo luật `spelling`
+  bằng từ điển thật; `tools/assist/score_real.py --dic`; `tools/assist/kappa.py` (Cohen's kappa cho P4-12c).
+- `docs/release/BACKLOG-2026-11-08.md`: rà soát toàn bộ việc dở trong tài liệu kế hoạch, chia theo ai làm được;
+  `P4-12-RECALL-REAL.md` §12: số đo `spelling` (hợp hai kiểu đặt dấu: FPR 0,4 %; lỗi dấu tổng hợp 1,5 % → 77,2 %).
+
+**English** — Unreleased: the grammar assistant no longer flags leftover reduplications (`đi đi lại lại` AABB,
+`tê tê`, `ve ve`, `đần đần`, `giàu có có thể`) while real repeated-word typos are still caught (P4-12b). Added
+measurement tooling only: `assist check --dic` (repeatable) plus `score_real.py --dic` and `kappa.py`, a full
+backlog review (`BACKLOG-2026-11-08.md`) and the `spelling` measurements in `P4-12-RECALL-REAL.md` §12 (union of
+both tone styles: 0.4 % false positives; synthetic tone errors caught 1.5 % → 77.2 % with a syllable dictionary).
+
 ## [0.2.72] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa

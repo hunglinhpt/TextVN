@@ -31,9 +31,9 @@
 |---|---|---|---|---|---|---|---|
 | 1 | Notepad (Win11) | body, undo, tắt IME | smoke | ✓ | ⬜ | | |
 | 2 | WordPad/Word 2019 | body + suggestions | B2 | ✓ | ⬜ | | |
-| 3 | VS Code | editor, multi-cursor | B7 | ✓ | ⬜ | | |
+| 3 | VS Code | editor, multi-cursor | B7 | ✓ | ⚠ | 2026-11-08 | agent — E2E SendInput (`e2e-assist-apps.ps1`): gõ, popup khi dừng gõ, sửa giữa từ, Ctrl+Space; **chưa** đủ 8 bước thủ công §0 |
 | 4 | Chrome | address bar, search, web form, contenteditable | B1 | ✓ | ⬜ | | |
-| 5 | Edge | address bar (Chromium khác UA) | B1 | ✓ | ⬜ | | |
+| 5 | Edge | address bar (Chromium khác UA) | B1 | ✓ | ⚠ | 2026-11-08 | agent — E2E 18/18 trên textarea `--app` (Chromium TSF); **chưa** thử address bar và 8 bước thủ công §0 |
 | 6 | Firefox | address bar (Gecko) | B1 | ✓ | ⬜ | | |
 | 7 | Excel | cell autocomplete, formula bar | B1 | ✓ | ⬜ | | |
 | 8 | Windows Terminal | terminal role | B8 | ✓ | ⬜ | | |

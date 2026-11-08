@@ -433,9 +433,9 @@ Mỗi pha: commit list tường minh → push → CI xanh → `graphify update .
 2. ✅ `docs/adr/README.md` — ADR-012 (tiền đề đã sửa) + **ADR-013** (buffer câu ở core + share immutable).
 3. ✅ `docs/00-INDEX.md` §1 + log; `PLAN.md` §2.3 (S1/S2/C1 → Phần 4); `verified-ops.md` B9/B10.
 4. ✅ **P4-1** — crate `assist/`: 6 module luật objective (7 mã) + L0 + `confidence` + `apply_auto_fixes` (char-space) + corpus **69 câu** + test tích hợp + `textvn-cli assist check` (`--json/--fix/--sentence/--file`) → **34 unit + 3 integration test xanh**, clippy 0 warning, `cargo deny` OK. Bằng chứng + task: `P4-TASKS.md` (AS-001…006).
-5. ⏳ **P4-1b** — spike S1 (TSF candidate list) · S2 (caret 3 OS) · S3 (từ điển VN) · **S4a** (per-process RSS — chặn P4-4) · S4b (EN, v2).
-6. ⏳ **P4-2a** — refactor core: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` (ADR-013).
-7. ⏳ **P4-2** — FFI `ime_assist_*` + trigger + toast + kill-switch.
+5. ✅ **P4-1b** (kết luận trong `P4-3-SPIKES.md`) — spike S1 (TSF candidate list) · S2 (caret 3 OS) · S3 (từ điển VN) · **S4a** (per-process RSS — chặn P4-4) · S4b (EN, v2).
+6. ✅ **P4-2a** (`Engine.sentence` + `Engine::glyph_len_of`, ADR-013) — refactor core: 13 call site `recent_replace` → 2 helper + `Engine.sentence` + `Engine::glyph_len_of` (ADR-013).
+7. ✅ **P4-2** (31 mục `ime_assist_*` trong `ffi/include/textvn_ffi.h`) — FFI `ime_assist_*` + trigger + toast + kill-switch.
 
 ---
 

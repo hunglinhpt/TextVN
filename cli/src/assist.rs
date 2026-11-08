@@ -6,12 +6,71 @@
 //! Không log, không ghi file, không network (S2/P2) — chỉ đọc chuỗi trên dòng
 //! lệnh (hoặc file) và in kết quả ra stdout.
 
-use textvn_assist::{apply_auto_fixes, check, check_sentence, Issue};
+use textvn_assist::dict::{Dictionary, NoDictionary};
+use textvn_assist::{apply_auto_fixes, check, check_sentence_with, check_with, Issue};
+
+/// Nạp từ điển cho `--dic <file>` (có thể lặp lại — hợp các file): `.fst` (mmap, chỉ một file) hoặc
+/// `.dic` (một từ/dòng, dòng đầu là số từ — dựng FST trong bộ nhớ). Hợp cả `vi-DauMoi.dic` lẫn
+/// `vi-DauCu.dic` là bắt buộc để đo công bằng: mỗi file chỉ chứa MỘT kiểu đặt dấu (`hoá`/`hóa`), nên
+/// dùng riêng một file báo nhầm mọi từ viết theo kiểu kia (P4-12a). Lỗi → thông báo, không panic.
+fn load_dictionary(paths: &[String]) -> Result<Box<dyn Dictionary>, String> {
+    if let [only] = paths {
+        if only.ends_with(".fst") {
+            return textvn_dict::load(only)
+                .map(|d| Box::new(ArcDict(d)) as Box<dyn Dictionary>)
+                .map_err(|e| format!("nạp `{only}` thất bại: {e}"));
+        }
+    }
+    let mut builder = textvn_dict::Builder::new();
+    for path in paths {
+        if path.ends_with(".fst") {
+            return Err("`.fst` không trộn được với `.dic` — chỉ truyền một file `.fst`".into());
+        }
+        let text =
+            std::fs::read_to_string(path).map_err(|e| format!("đọc `{path}` thất bại: {e}"))?;
+        // `.dic` kiểu Hunspell: dòng đầu là số từ; từ chuẩn hoá lowercase như `Reader::contains`.
+        for word in text
+            .lines()
+            .skip(1)
+            .map(str::trim)
+            .filter(|w| !w.is_empty())
+        {
+            builder.insert(&word.to_lowercase());
+        }
+    }
+    let bytes = builder.to_bytes();
+    let tmp = std::env::temp_dir().join(format!("textvn-cli-dic-{}.fst", std::process::id()));
+    std::fs::write(&tmp, &bytes).map_err(|e| format!("ghi FST tạm thất bại: {e}"))?;
+    let dict = textvn_dict::load(&tmp).map_err(|e| format!("nạp FST tạm thất bại: {e}"));
+    // Windows không xoá được file đang map — dọn best-effort, file nhỏ nên để lại cũng được.
+    let _ = std::fs::remove_file(&tmp);
+    dict.map(|d| Box::new(ArcDict(d)) as Box<dyn Dictionary>)
+}
+
+struct ArcDict(std::sync::Arc<textvn_dict::Dictionary>);
+
+impl Dictionary for ArcDict {
+    fn contains(&self, word: &str) -> bool {
+        self.0.contains(word)
+    }
+
+    fn suggest(&self, word: &str, limit: usize) -> Vec<String> {
+        self.0.suggest(word, limit)
+    }
+}
+
+fn run_check(source: &str, sentence: bool, dict: &dyn Dictionary) -> Vec<Issue> {
+    if sentence {
+        check_sentence_with(source, dict)
+    } else {
+        check_with(source, dict)
+    }
+}
 
 /// Số lỗi tối đa in ra mặc định (tránh flood stdout khi file lớn — Fassist-56).
 const MAX_PRINT_DEFAULT: usize = 50;
 
-/// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence]`
+/// `textvn-cli assist check <text>|--file <path> [--json] [--fix] [--sentence] [--dic <file>]`
 pub fn cmd_assist(rest: &[String]) -> i32 {
     // `assist` có subcommand `check` (args[2] = "check") và `score`.
     let rest = match rest.first().map(String::as_str) {
@@ -38,6 +97,7 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
     let mut fix = false;
     let mut sentence = false;
     let mut max_print: usize = MAX_PRINT_DEFAULT;
+    let mut dic: Vec<String> = Vec::new();
 
     let mut i = 0usize;
     while i < rest.len() {
@@ -45,6 +105,16 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
             "--json" => json = true,
             "--fix" => fix = true,
             "--sentence" => sentence = true,
+            "--dic" => {
+                i += 1;
+                match rest.get(i) {
+                    Some(p) => dic.push(p.clone()),
+                    None => {
+                        eprintln!("error: --dic cần đường dẫn .fst hoặc .dic");
+                        return 2;
+                    }
+                }
+            }
             "--max" => {
                 i += 1;
                 match rest.get(i).and_then(|s| s.parse::<usize>().ok()) {
@@ -82,10 +152,23 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
         i += 1;
     }
 
+    let loaded = if dic.is_empty() {
+        None
+    } else {
+        match load_dictionary(&dic) {
+            Ok(d) => Some(d),
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        }
+    };
+    let dict: &dyn Dictionary = loaded.as_deref().unwrap_or(&NoDictionary);
+
     match (text, file) {
-        (Some(t), None) => run_text(&t, json, fix, sentence, max_print),
+        (Some(t), None) => run_text(&t, json, fix, sentence, max_print, dict),
         (None, Some(path)) => match std::fs::read_to_string(&path) {
-            Ok(content) => run_file(&path, &content, json, fix, sentence, max_print),
+            Ok(content) => run_file(&path, &content, json, fix, sentence, max_print, dict),
             Err(e) => {
                 eprintln!("error: đọc file `{path}` thất bại: {e}");
                 2
@@ -105,12 +188,15 @@ pub fn cmd_assist(rest: &[String]) -> i32 {
 }
 
 /// Kiểm tra một chuỗi (một câu/đoạn).
-fn run_text(source: &str, json: bool, fix: bool, sentence: bool, max_print: usize) -> i32 {
-    let issues = if sentence {
-        check_sentence(source)
-    } else {
-        check(source)
-    };
+fn run_text(
+    source: &str,
+    json: bool,
+    fix: bool,
+    sentence: bool,
+    max_print: usize,
+    dict: &dyn Dictionary,
+) -> i32 {
+    let issues = run_check(source, sentence, dict);
 
     if json {
         println!("{}", to_json(&issues));
@@ -136,17 +222,14 @@ fn run_file(
     fix: bool,
     sentence: bool,
     max_print: usize,
+    dict: &dyn Dictionary,
 ) -> i32 {
     let mut all: Vec<(usize, Vec<Issue>)> = Vec::new();
     for (idx, line) in content.lines().enumerate() {
         if line.trim().is_empty() {
             continue;
         }
-        let issues = if sentence {
-            check_sentence(line)
-        } else {
-            check(line)
-        };
+        let issues = run_check(line, sentence, dict);
         if !issues.is_empty() {
             all.push((idx + 1, issues));
         }
@@ -546,4 +629,63 @@ fn cmd_score(rest: &[String]) -> i32 {
         }
     }
     0
+}
+
+#[cfg(test)]
+mod dic_tests {
+    use super::*;
+
+    fn data(name: &str) -> String {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("data")
+            .join("assist")
+            .join(name)
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// P4-12a: mỗi `.dic` chỉ chứa MỘT kiểu đặt dấu — dùng riêng một file báo nhầm mọi từ viết theo
+    /// kiểu kia (đo thật: FPR 2,2 % với DauMoi, 1,0 % với DauCu, 0,4 % khi hợp cả hai).
+    #[test]
+    fn single_style_dic_rejects_the_other_style_but_union_accepts_both() {
+        let moi = load_dictionary(&[data("vi-DauMoi.dic")]).expect("DauMoi");
+        let cu = load_dictionary(&[data("vi-DauCu.dic")]).expect("DauCu");
+        let both = load_dictionary(&[data("vi-DauMoi.dic"), data("vi-DauCu.dic")]).expect("union");
+        assert!(
+            moi.contains("hoá") != moi.contains("hóa"),
+            "DauMoi chỉ một kiểu"
+        );
+        assert!(
+            cu.contains("hoá") != cu.contains("hóa"),
+            "DauCu chỉ một kiểu"
+        );
+        assert!(both.contains("hoá") && both.contains("hóa"));
+        assert!(both.contains("tòa") && both.contains("toà"));
+    }
+
+    #[test]
+    fn dic_flags_unknown_vietnamese_word_and_keeps_known_ones() {
+        let both = load_dictionary(&[data("vi-DauMoi.dic"), data("vi-DauCu.dic")]).unwrap();
+        let issues = run_check("Tôi thích hóa học và khoá học", true, both.as_ref());
+        assert!(
+            issues
+                .iter()
+                .all(|i| i.kind != textvn_assist::IssueKind::Spelling),
+            "{issues:?}"
+        );
+        let issues = run_check("Tôi thích xyzáb nhiều lắm", true, both.as_ref());
+        assert!(issues
+            .iter()
+            .any(|i| i.kind == textvn_assist::IssueKind::Spelling));
+    }
+
+    #[test]
+    fn missing_or_mixed_dictionary_files_fail_cleanly() {
+        assert!(load_dictionary(&["khong-co-file.dic".to_string()]).is_err());
+        assert!(
+            load_dictionary(&["a.fst".to_string(), data("vi-DauMoi.dic")]).is_err(),
+            ".fst không trộn với .dic"
+        );
+    }
 }

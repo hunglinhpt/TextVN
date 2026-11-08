@@ -287,10 +287,10 @@ Mục tiêu: thay "một agent gán nhãn" bằng **người thật, độc lậ
 
 | ID | Task | Trạng thái |
 |---|---|---|
-| P4-12a | Nối `textvn-dict` (FST) vào `assist check`/`score` để đo `spelling` trên cùng 2 corpus | ⬜ chờ nhận |
-| P4-12b | Sửa FP `duplicate_word` (từ láy) + `sentence_repeat` (đại từ) + TYPOS "quyến/điếm" | ⬜ chờ nhận (Fassist-112/113) |
-| P4-12c | Tập độc lập 300 câu, 2 người gán nhãn, kappa | ⬜ chờ nhận (§8) |
-| P4-12d | Mở rộng quần thể sang văn bản dài/chat (không chỉ Tatoeba) | ⬜ chờ nhận |
+| P4-12a | Nối `textvn-dict` (FST) vào `assist check`/`score` để đo `spelling` trên cùng 2 corpus | ✅ xong 2026-11-08 — `textvn-cli assist check --dic <file>` (lặp lại để hợp) + `score_real.py --dic`; số đo ở §12 |
+| P4-12b | Sửa FP `duplicate_word` (từ láy) + `sentence_repeat` (đại từ) + TYPOS "quyến/điếm" | ✅ xong — TYPOS/đại từ từ vòng 23 (§11, FPR 0 %); từ láy còn sót (`đi đi lại lại`, `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`) sửa 2026-11-08, test `p4_12b_*` |
+| P4-12c | Tập độc lập 300 câu, 2 người gán nhãn, kappa | ⏸ **cần người** — công cụ `tools/assist/kappa.py` sẵn sàng (§12.3); việc gán nhãn độc lập không thể do agent tự làm |
+| P4-12d | Mở rộng quần thể sang văn bản dài/chat (không chỉ Tatoeba) | ⏸ **cần dữ liệu** — cần nguồn văn bản thật có giấy phép (chat/văn bản dài) do chủ repo cung cấp; không tự bịa |
 
 ---
 
@@ -370,3 +370,49 @@ recall): mọi lỗi còn bỏ sót đều thuộc nhóm "cần bằng chứng n
 ở §10. Hồi quy: `khong_beu_tu_hop_le_tung_o_bang_typos` +
 `cau_viet_hoa_toan_bo_van_la_tieng_viet` (mới), 2 corpus dòng mềm `~` được
 hóa cứng sau khi engine im lặng với chúng.
+
+## 12. Cập nhật 2026-11-08 — đo `spelling` bằng từ điển (P4-12a) và cảnh báo quá khớp
+
+### 12.1 Số đo hiện tại (cùng 2 corpus, CLI debug rebuild)
+
+| Cấu hình | Recall (49 câu lỗi) | FPR (981 câu sạch) | Ghi chú |
+|---|---|---|---|
+| Hiện tại, không từ điển (`NoDictionary`) | 83,7 % (41/49) | **0,0 %** (0 câu) | khớp §11 |
+| + `vi-DauMoi.dic` riêng | 83,7 % | 2,2 % (22 câu) | báo nhầm mọi từ viết theo kiểu dấu kia (`hóa`, `tòa`, `khóa`) |
+| + `vi-DauCu.dic` riêng | 83,7 % | 1,0 % (10 câu) | cùng lý do, chiều ngược lại |
+| + **hợp cả hai `.dic`** | 83,7 % | **0,4 %** (4 câu) | còn lại: từ mượn `ôtô`, `môtô`, `rơmoóc`, `hườn` |
+| + `vn_syllables.txt` (6.672 âm tiết, dữ liệu của repo) | 83,7 % | **0,4 %** (4 câu) | cùng 4 câu — **không phụ thuộc giấy phép hunspell** (ADR-014) |
+
+Kết luận: bài học "mỗi `.dic` chỉ chứa MỘT kiểu đặt dấu" là nguyên nhân gần như toàn bộ báo nhầm khi nối
+từ điển; khi hợp hai kiểu (hoặc dùng danh sách âm tiết của repo) FPR còn 0,4 %. Test khoá:
+`cli/src/assist.rs::dic_tests`.
+
+### 12.2 Cảnh báo: recall 83,7 % KHÔNG còn là số độc lập
+
+Bảng `TYPOS` đã được mở rộng (vòng 23…) đúng bằng các lỗi trong 21 câu "bỏ sót" của chính tập này
+(`đươc`, `mõi`, `luạn`, `khônf`…). Vì vậy 83,7 % đo **trên tập đã dùng để dựng luật** — thiên lên, và
+trên tập `--dic` cho thêm **0** ca. Con số 27 % của mẫu ngẫu nhiên (§4.4) cũng không còn tái lập được
+bằng tập này. Muốn biết recall thật phải có tập độc lập (P4-12c).
+
+### 12.3 Thí nghiệm bổ sung: spelling theo âm tiết bắt được gì mà bảng TYPOS không bắt?
+
+Bơm **893 lỗi dấu tổng hợp** (đổi/thêm một dấu thanh sao cho kết quả KHÔNG phải âm tiết hợp lệ) vào câu sạch
+(seed `20261108`), rồi chạy engine:
+
+| Cấu hình | Phát hiện |
+|---|---|
+| Luật hiện tại (bảng `TYPOS`) | **13 / 893 = 1,5 %** |
+| + luật `spelling` với `vn_syllables.txt` làm từ điển | **689 / 893 = 77,2 %** (FPR sạch vẫn 0,4 %) |
+
+Đây là ca tổng hợp (cận trên: lỗi người thật đa dạng hơn, từ <3 ký tự bị bỏ qua) nhưng chênh lệch 1,5 % →
+77,2 % cho thấy **nối luật `spelling` theo âm tiết vào sản phẩm** là cải thiện lớn nhất còn lại cho trợ lý.
+Sản phẩm hiện KHÔNG có crate nào phụ thuộc `textvn-dict` và Windows thường không có `vi-VN` của OS, nên
+`spelling` đang im lặng hoàn toàn. Đề xuất P4-13 (mục 5 trong `docs/release/BACKLOG-2026-11-08.md`):
+tra âm tiết theo **cả hai kiểu đặt dấu**, nguồn dữ liệu của repo (không dùng hunspell — ADR-014), ngưỡng
+FPR ≤ 0,5 % trên `vi_real_clean.ass`, đo lại bằng `score_real.py --dic`.
+
+### 12.4 Công cụ cho P4-12c
+
+`python tools/assist/kappa.py annotator_a.tsv annotator_b.tsv` — Cohen's kappa cho "câu có lỗi?" và từng
+loại lỗi + danh sách dòng bất đồng; `--self-test` kiểm công thức. Quy trình: hai người gán nhãn **độc lập,
+không xem output engine**, cùng thứ tự dòng; kappa ≥ 0,8 mới chốt làm tập đo.
