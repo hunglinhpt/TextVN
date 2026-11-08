@@ -7,7 +7,13 @@
 | Nội dung | Phản hồi chủ repo: README mâu thuẫn số liệu/tính năng; nút "Cài & bật TSF" hết giá trị; nút "Đóng"/"Kết thúc" dễ hiểu nhầm. Windows: bỏ nút TSF + mã chẩn đoán `register.log`, đổi nhãn, biểu tượng Segoe UI Symbol + tooltip `TTM_ADDTOOLW`; Linux GTK4: icon + tooltip; macOS: `Label` + `.help`; README VI/EN viết lại; gate `readme_numbers.rs` |
 | Đo | workspace test xanh (tray 78, core `readme_numbers` 2) · clippy -D warnings 0 (Windows + Linux target) · CI 7/7 trên `1b717557` (ci-linux biên dịch GTK `-Werror`, ci-macos build Swift) · glyph U+2753/2139/2328/270E/21BA/2B07/23FB đủ trong Segoe UI Symbol |
 | Ghi chú giới hạn | Chưa chụp ảnh hộp thoại thật (tray của người dùng đang chạy — mutex đơn instance); kiểm bằng test layout (không chồng, không tràn) + CI |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| CI trên commit gắn tag | `720b491e` (Verified) 7/7 xanh |
+| Release | [v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) tag ký GPG (Good signature) — release-candidate [#42449852884](https://github.com/hunglinhpt/TextVN/actions/runs/42449852884) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe, MSIX, mac zip khớp |
+| Checksums | machine exe `380e9bb1…f678` · MSIX `fc751820…f412` · mac zip `218c17ef…c6d7` · Linux `5dfead0e…47b8` · PKGBUILD archive `630045b2…29c8` |
+| Homebrew (B7b/B7d) | cask `version "0.2.72"` + `sha256` = mac zip — sync-cask [#42450950471](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42450950471) |
+| approved (B7c) | `approved/v0.2.72/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.72; `debian/changelog` 0.2.72-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.71 — danh sách gợi ý hiện khi dừng gõ trên Linux và macOS (R2-155, 2026-11-08)
 
