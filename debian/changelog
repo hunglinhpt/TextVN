@@ -1,3 +1,11 @@
+textvn (0.2.73-0ppa1) noble; urgency=medium
+
+  * Trợ lý ngữ pháp bắt lỗi dấu thanh bằng từ điển âm tiết dựng sẵn
+    (không cần từ điển hệ điều hành); "Sửa tất cả" bỏ qua gợi ý mơ hồ
+    (P4-13, R2-157).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 08 Nov 2026 23:55:00 +0700
+
 textvn (0.2.72-0ppa1) noble; urgency=medium
 
   * Bảng cài đặt: mọi nút có biểu tượng + gợi ý (GTK4); README viết lại

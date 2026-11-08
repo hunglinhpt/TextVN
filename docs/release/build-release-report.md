@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.73 — luật `spelling` theo âm tiết dựng sẵn (P4-13, R2-157, E42, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | `SyllableTones` (assist, 0 dep) nối 4 điểm FFI + CLI; `Dictionary::confidence/cheap_suggest`; Windows `IssueView.confidence`; "Sửa tất cả" bỏ qua gợi ý mơ hồ (< 60); `data/vn_syllables_extra.txt`; sửa từ láy còn sót (P4-12b); công cụ `--dic`/`kappa.py`/`tone_inject.py` |
+| Đo | lỗi dấu thanh tổng hợp 1,4 % → 99,1 % (cận trên, `tone_inject.py`); FPR 0,0 % / 981 câu sạch; 1/2.945 dòng văn xuôi repo; thử luật ngữ âm bị loại (99 % → 20 %) · preflight 23/23 · workspace test xanh · clippy -D warnings 0 (Windows + Linux target) |
+| Ghi chú giới hạn | Chưa chạy E2E app thật cho bản này (tray của chủ repo đang chạy — mutex đơn instance); logic nằm trong `ime_assist_check_*` có test FFI + corpus; sai CHỮ (không phải thanh) vẫn do `TYPOS`; từ < 3 ký tự bỏ qua |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.72 — hàng nút có biểu tượng + gợi ý, Ẩn vào khay/Thoát, README chính xác (R2-156, E40/E41, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

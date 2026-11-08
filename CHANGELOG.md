@@ -9,6 +9,11 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.73] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
 ### Added
 - **Trợ lý ngữ pháp bắt lỗi dấu thanh trên cả 3 OS mà không cần từ điển hệ điều hành** (P4-13, R2-157):
   `assist::syllables::SyllableTones` (dữ liệu `data/vn_syllables.txt` nhúng sẵn, 0 phụ thuộc) tra từng âm tiết
@@ -2896,7 +2901,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.72...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.73...HEAD
+[0.2.73]: https://github.com/hunglinhpt/TextVN/compare/v0.2.72...v0.2.73
 [0.2.72]: https://github.com/hunglinhpt/TextVN/compare/v0.2.71...v0.2.72
 [0.2.71]: https://github.com/hunglinhpt/TextVN/compare/v0.2.70...v0.2.71
 [0.2.70]: https://github.com/hunglinhpt/TextVN/compare/v0.2.69...v0.2.70

@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.73" date="2026-11-08">
+      <description>
+        <p>The grammar assistant now catches wrong tone marks (for example "chềt" instead of "chết") on every platform with a built-in syllable dictionary, without needing an operating-system dictionary. Loanwords, proper names and English words stay silent; "Fix all" skips ambiguous suggestions so it never swaps in the wrong tone.</p>
+      </description>
+    </release>
     <release version="0.2.72" date="2026-11-08">
       <description>
         <p>Settings window: every button has an icon and a hint, "Close" became "Hide to tray" and "Exit" became "Quit" on Windows so nobody mistakes Close for quitting, and the obsolete "Install and enable TSF" button is gone. README rewritten to match the shipped features and real dictionary sizes.</p>

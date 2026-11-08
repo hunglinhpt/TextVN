@@ -122,7 +122,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ## Tải và Cài Đặt
 
-Bản mới nhất: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
+Bản mới nhất: **[GitHub Release v0.2.73](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.73)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
 
 | Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
 |---|---|---|
@@ -144,6 +144,7 @@ Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Điểm nhấn tính năng |
 |---|---|
+| [0.2.73](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.73) | Trợ lý ngữ pháp **bắt lỗi dấu thanh** ("chềt" → "chết") bằng từ điển âm tiết dựng sẵn trên cả 3 OS — không cần từ điển hệ điều hành, 99% lỗi dấu thanh tổng hợp được bắt, 0% báo nhầm trên corpus sạch; "Sửa tất cả" bỏ qua gợi ý mơ hồ · sửa nhầm lặp từ láy còn sót |
 | [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Bảng điều khiển: toàn bộ nút bấm có **biểu tượng + gợi ý tooltip** (cả 3 OS); Windows đổi nút thành **"Ẩn vào khay"/"Thoát"** để tránh nhầm lẫn đóng là tắt ứng dụng, bỏ nút "Cài & bật TSF" (tray tự động đăng ký) · Cập nhật README chính xác tính năng và số liệu thật |
 | [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) và macOS: danh sách gợi ý của trợ lý **hiện khi dừng gõ 1 giây**, ẩn ngay khi gõ tiếp — đạt đồng bộ hoàn toàn với hành vi Windows 0.2.70; phím kết câu tự sửa ngay ở chế độ sửa lỗi an toàn |
 | [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: bảng trợ lý ngữ pháp **hiện lại khi dừng gõ 1 giây** (kể cả giữa từ, sau dấu chấm phẩy; chế độ gợi ý lẫn sửa lỗi an toàn) · "Sửa tất cả"/Alt+1…3 giữa từ không cắt đôi từ · Kiểm thử E2E thật trên Microsoft Edge 18/18 |
@@ -346,7 +347,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ## Download & Installation
 
-Latest release: **[GitHub Release v0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
+Latest release: **[GitHub Release v0.2.73](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.73)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
 
 | Platform | Official Installer | Run Without Installing (Portable) |
 |---|---|---|
@@ -368,6 +369,7 @@ Full development history: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Key Highlights |
 |---|---|
+| [0.2.73](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.73) | Grammar assistant **catches wrong tone marks** ("chềt" → "chết") with a built-in syllable dictionary on all 3 OSes — no OS dictionary needed, 99% of synthetic tone errors caught, 0% false positives on the clean corpus; "Fix all" skips ambiguous suggestions · leftover reduplication false positives fixed |
 | [0.2.72](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.72) | Control panel: all buttons equipped with **icons + hint tooltips** (all 3 OSes); Windows renames to **"Hide to tray"/"Quit"** to prevent accidental exits, drops the "Install & enable TSF" button (tray registers automatically) · Complete README overhaul matching actual capabilities |
 | [0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) | Linux (IBus/Fcitx5) and macOS: assistant suggestion list **appears on 1-second typing pause**, dismisses on typing — 100% parity with Windows 0.2.70; sentence-ending keys auto-fix instantly in safe mode |
 | [0.2.70](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.70) | Windows: grammar assistant panel **re-appears on 1-second typing pause** (including mid-word, after punctuation; suggestion and safe modes) · "Fix All"/Alt+1…3 mid-word no longer splits words · Real-world E2E Edge 18/18 tests |
