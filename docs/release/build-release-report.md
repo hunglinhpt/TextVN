@@ -7,7 +7,10 @@
 | Nội dung | `SyllableTones` (assist, 0 dep) nối 4 điểm FFI + CLI; `Dictionary::confidence/cheap_suggest`; Windows `IssueView.confidence`; "Sửa tất cả" bỏ qua gợi ý mơ hồ (< 60); `data/vn_syllables_extra.txt`; sửa từ láy còn sót (P4-12b); công cụ `--dic`/`kappa.py`/`tone_inject.py` |
 | Đo | lỗi dấu thanh tổng hợp 1,4 % → 99,1 % (cận trên, `tone_inject.py`); FPR 0,0 % / 981 câu sạch; 1/2.945 dòng văn xuôi repo; thử luật ngữ âm bị loại (99 % → 20 %) · preflight 23/23 · workspace test xanh · clippy -D warnings 0 (Windows + Linux target) |
 | Ghi chú giới hạn | Chưa chạy E2E app thật cho bản này (tray của chủ repo đang chạy — mutex đơn instance); logic nằm trong `ime_assist_check_*` có test FFI + corpus; sai CHỮ (không phải thanh) vẫn do `TYPOS`; từ < 3 ký tự bỏ qua |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| Phát hành | tag `v0.2.73` git-signed trên `300f22b4`; CI 7/7 xanh trên commit gắn tag; release-candidate xanh, **34 asset**; `gpg --verify SHA256SUMS.txt` Good signature (key `3921595A…A822`), 4 `.asc` Good, hash 5 file khớp `SHA256SUMS.txt` |
+| Homebrew (B7b/B7d) | cask `version "0.2.73"` + `sha256` = mac zip `4a61801ce575021a…` — sync-cask [#42460743183](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42460743183) xanh |
+| approved (B7c) | `approved/v0.2.73/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.73 (sha `68d7861ae7ae4d7a…`); `debian/changelog` 0.2.73-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.72 — hàng nút có biểu tượng + gợi ý, Ẩn vào khay/Thoát, README chính xác (R2-156, E40/E41, 2026-11-08)
 
