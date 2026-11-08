@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.71 — danh sách gợi ý hiện khi dừng gõ trên Linux và macOS (R2-155, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Parity với Windows 0.2.70: IBus `g_timeout_add`, Fcitx5 `EventSourceTime` (gắn `TextVNState`), macOS `Timer`; mọi phím gõ/xoá ẩn danh sách + hẹn lại 1 s, trigger chỉ kiểm tra + tự sửa. Giới hạn: bỏ qua khi còn preedit/marked (popup giữa từ chỉ Windows) |
+| Đo | workspace test xanh · clippy 0 (Windows + Linux target) · CI: ci-linux (build GCC `-Werror` + e2e IBus/Fcitx5 thật), ci-macos (Swift build + test x86_64/arm64) · `e2e_ibus` thêm 5 ca |
+| Sự cố trong phiên | ci-linux đỏ ở `541bd39c`: danh sách IBus không ẩn khi gõ số/chữ — sửa `ccfb5ad5` · E39: 0.2.70 lọt khối appstream/debian trùng — xoá ở bản này |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.70 — bảng trợ lý hiện lại khi dừng gõ 1 giây (R2-154 / E38, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

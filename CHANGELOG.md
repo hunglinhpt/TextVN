@@ -7,6 +7,35 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.71] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Changed
+- **Linux (IBus, Fcitx5) và macOS: danh sách gợi ý của trợ lý hiện khi bạn dừng gõ 1 giây**
+  (R2-155), cùng hành vi Windows từ 0.2.70. Trước đây danh sách hiện ngay tại phím cách/`,`/`.`
+  — che vùng đang gõ và không có độ trễ. Giờ mọi phím gõ chữ, dấu câu, xoá hẹn lại đồng hồ,
+  gõ tiếp là ẩn ngay; dừng 1 giây thì kiểm tra từ và câu rồi hiện. Phím kết câu vẫn tự sửa ngay
+  ở chế độ sửa lỗi an toàn (Mode 2). Chỉ chạy khi không còn từ đang gõ dở (preedit/marked):
+  chốt giữa chừng sẽ cắt đôi từ — popup giữa từ vẫn là riêng của Windows.
+
+### Tests
+- Mới: `test_assist_idle_arms` (C), `testAssistIdleArmsBangPhim` (Swift), `e2e_ibus` (không hiện
+  ngay tại phím trigger, hiện sau 1 giây, ẩn khi gõ tiếp, gõ liên tục không hiện, hiện sau dấu
+  phẩy).
+
+**English** — 0.2.71: on Linux (IBus, Fcitx5) and macOS the assistant's suggestion list now
+appears when you pause typing for one second (R2-155), matching Windows since 0.2.70. It used to
+show instantly at space/`,`/`.`, covering what you type with no delay. Now every typing key
+(letters, punctuation, backspace) re-arms a timer and typing on hides the list at once; after one
+second of silence the word and sentence are checked and the list shows. The end-of-sentence key
+still auto-corrects at once in safe-correction mode (Mode 2). It runs only when no word is in
+progress (preedit/marked) since settling mid-word would split it — the mid-word popup remains
+Windows-only. New tests: `test_assist_idle_arms` (C), `testAssistIdleArmsBangPhim` (Swift) and
+`e2e_ibus` (not shown at the trigger key, shown after one second, hidden when typing resumes,
+silent while typing continuously, shown after a comma).
+
 ## [0.2.70] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2795,7 +2824,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.70...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.71...HEAD
+[0.2.71]: https://github.com/hunglinhpt/TextVN/compare/v0.2.70...v0.2.71
 [0.2.70]: https://github.com/hunglinhpt/TextVN/compare/v0.2.69...v0.2.70
 [0.2.69]: https://github.com/hunglinhpt/TextVN/compare/v0.2.68...v0.2.69
 [0.2.65]: https://github.com/hunglinhpt/TextVN/compare/v0.2.64...v0.2.65

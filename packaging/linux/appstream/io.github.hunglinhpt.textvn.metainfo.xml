@@ -33,9 +33,9 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.2.70" date="2026-11-08">
+    <release version="0.2.71" date="2026-11-08">
       <description>
-        <p>Windows: the grammar assistant panel appears again when you pause typing for one second, also in the middle of a word and after a comma or full stop. Fixed a bug where the idle timer never produced a popup.</p>
+        <p>Linux (IBus and Fcitx5) and macOS: the suggestion list now appears when you pause typing for one second instead of right at the punctuation key, and hides as soon as you type on. Matches the Windows behaviour.</p>
       </description>
     </release>
     <release version="0.2.70" date="2026-11-08">
