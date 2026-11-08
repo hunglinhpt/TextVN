@@ -473,7 +473,8 @@ static void test_assist_mode_semantics(void) {
     /* Thiếu mode autocorrect (chỉ auto_fix=safe) ⇒ KHÔNG tự sửa. */
     assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_HIGHLIGHT, LC_ASSIST_AUTO_FIX_SAFE, 1) == 0);
     /* Thiếu auto_fix=safe ⇒ KHÔNG tự sửa. */
-    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_OFF, 1) == 0);
+    /* 0.2.75: auto_fix không còn quyết định — autocorrect luôn tự sửa an toàn. */
+    assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_OFF, 1) == 1);
     /* Trigger không phải kết thúc câu (space/,) ⇒ KHÔNG tự sửa. */
     assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_AUTOCORRECT, LC_ASSIST_AUTO_FIX_SAFE, 0) == 0);
     assert(lc_assist_should_auto_fix(LC_ASSIST_MODE_OFF, LC_ASSIST_AUTO_FIX_OFF, 1) == 0);

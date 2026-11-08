@@ -36,7 +36,9 @@ extern const char *const tv_method_values[TV_METHOD_COUNT];
 extern const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1];
 extern const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT];
 /* ssist.auto_fix (off | safe) — cùng nhãn với bảng Windows/macOS. */
-extern const char *const tv_assist_auto_fix_labels[TV_ASSIST_AUTO_FIX_COUNT + 1];
+/* Mô tả một dòng cho từng chế độ (cùng chữ Windows/macOS) hiện dưới ô Chế độ. */
+extern const char *const tv_assist_mode_hints[TV_ASSIST_MODE_COUNT];
+/* assist.auto_fix còn trong config cho tương thích nhưng không còn nút trong UI (0.2.75). */
 extern const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT];
 
 extern const char *const tv_help_text;

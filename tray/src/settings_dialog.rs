@@ -13,9 +13,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 #[cfg(windows)]
-use textvn_config::{
-    AssistAutoFix, AssistMode, DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset,
-};
+use textvn_config::{AssistMode, DiacriticStyle, DocError, MacroTrigger, Method, OutputCharset};
 
 #[cfg(windows)]
 use crate::autostart;
@@ -44,7 +42,7 @@ const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 /// Kích thước dưới đây là **vùng client**; khung cửa sổ tính bằng AdjustWindowRectEx
 /// để thanh tiêu đề dày/mỏng (theme, DPI) không cắt mất hàng nút cuối.
 const CLIENT_DESIGN_WIDTH: i32 = 900;
-const CLIENT_DESIGN_HEIGHT: i32 = 759;
+const CLIENT_DESIGN_HEIGHT: i32 = 798;
 const MACRO_DESIGN_WIDTH: i32 = 720;
 const MACRO_DESIGN_HEIGHT: i32 = 560;
 const COMPACT_SCALE: f64 = 2.0 / 3.0;
@@ -72,7 +70,7 @@ const ID_BTN_MACROS: isize = 2020;
 const ID_CHK_CTRL_SHIFT: isize = 2021;
 const ID_BTN_ENGLISH: isize = 2022;
 const ID_COMBO_ASSIST_MODE: isize = 2023;
-const ID_COMBO_ASSIST_AUTO_FIX: isize = 2024;
+const ID_LBL_ASSIST_HINT: isize = 4103;
 const ID_LBL_WORDLIST_HINT: isize = 4101;
 // P7/P10 (0.2.74): tự học + Dream RSI nằm trong khung Trợ lý ngữ pháp.
 const ID_CHK_STYLE: isize = 2026;
@@ -127,8 +125,15 @@ const CHARSET_LABELS: [&str; 4] = [
 const METHOD_LABELS: [&str; 4] = ["Telex", "VNI", "VIQR", "Telex đơn giản"];
 // CÙNG nhãn + thứ tự với Linux (`settings_model.c`) và macOS (`SettingsView.swift`) —
 // test `labels_match_linux_settings_panel` đối chiếu cả ba.
-const ASSIST_MODE_LABELS: [&str; 3] = ["Tắt", "Chỉ gợi ý", "Tự sửa lỗi"];
-const ASSIST_AUTO_FIX_LABELS: [&str; 2] = ["Tắt", "An toàn (lỗi khách quan)"];
+const ASSIST_MODE_LABELS: [&str; 3] = ["Tắt", "Chỉ gợi ý", "Tự sửa lỗi an toàn"];
+/// Mô tả một dòng cho từng chế độ (cùng chữ Windows/Linux/macOS — test
+/// `assist_mode_hints_match_every_platform`). Thay cho ô "Tự động sửa" từng đứng cạnh ô Chế độ:
+/// "Tự sửa lỗi an toàn" luôn chỉ sửa lỗi chắc chắn nên không cần lựa chọn thứ hai (0.2.75).
+pub const ASSIST_MODE_HINTS: [&str; 3] = [
+    "Không kiểm tra ngữ pháp và chính tả.",
+    "Dừng gõ 1 giây, panel hiện lỗi và gợi ý; bạn tự chọn có sửa hay không.",
+    "Như Chỉ gợi ý, và tự sửa lỗi chắc chắn (lặp từ, thừa dấu cách, viết hoa đầu câu…) khi bạn kết thúc câu; Ctrl+Z hoàn tác trong 5 giây.",
+];
 
 /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test
 /// `about_text_matches_every_platform`): một sản phẩm đa nền tảng, không còn câu
@@ -559,7 +564,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 36] = [
+const DIALOG_LAYOUT: [Ctl; 35] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -679,7 +684,7 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
         "BUTTON",
         "Trợ lý ngữ pháp",
         BS_GROUPBOX,
-        (15, 399, 870, 153),
+        (15, 399, 870, 192),
         ID_LBL_BASE + 7,
     ),
     ctl("STATIC", "Chế độ:", 0, (L, 437, 95, 30), ID_LBL_BASE + 8),
@@ -687,67 +692,55 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
         "COMBOBOX",
         "",
         CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0 | WS_GROUP.0,
-        (135, 434, 300, 200),
+        (135, 434, 735, 200),
         ID_COMBO_ASSIST_MODE,
     ),
-    ctl(
-        "STATIC",
-        "Tự động sửa:",
-        0,
-        (R, 437, 130, 30),
-        ID_LBL_BASE + 9,
-    ),
-    ctl(
-        "COMBOBOX",
-        "",
-        CBS_DROPDOWNLIST | WS_VSCROLL.0 | WS_TABSTOP.0,
-        (605, 434, 265, 200),
-        ID_COMBO_ASSIST_AUTO_FIX,
-    ),
+    // Một lựa chọn duy nhất ở trên; dòng này giải thích chế độ đang chọn (đổi theo lựa chọn).
+    ctl("STATIC", "", 0, (L, 474, 838, 30), ID_LBL_ASSIST_HINT),
     // Tự học (P7) + Dream RSI (P10): công tắt, nút xoá dữ liệu, dòng số liệu. Bật mặc định
     // (0.2.74); chỉ học trên máy này, không học ở ô mật khẩu/terminal.
     ctl(
         "BUTTON",
         STYLE_CHECKBOX_LABEL,
         CHK,
-        (L, 478, 600, 32),
+        (L, 517, 600, 32),
         ID_CHK_STYLE,
     ),
     ctl(
         "BUTTON",
         STYLE_CLEAR_LABEL,
         BTN,
-        (650, 474, 220, 38),
+        (650, 513, 220, 38),
         ID_BTN_STYLE_CLEAR,
     ),
-    ctl("STATIC", "", 0, (L, 518, 838, 28), ID_LBL_STYLE_STATS),
+    ctl("STATIC", "", 0, (L, 557, 838, 28), ID_LBL_STYLE_STATS),
     // 4. Hệ thống (chỉ Windows — Linux do IBus/Fcitx5 tự khởi động)
     ctl(
         "BUTTON",
         "Hệ thống",
         BS_GROUPBOX,
-        (15, 562, 870, 124),
+        (15, 601, 870, 124),
         ID_LBL_BASE + 6,
     ),
     ctl(
         "BUTTON",
         "Khởi động cùng Windows",
         CHK,
-        (L, 596, CW, 32),
+        (L, 635, CW, 32),
         ID_CHK_AUTOSTART,
     ),
     ctl(
         "BUTTON",
         "Bật hội thoại này khi khởi động",
         CHK,
-        (R, 596, 400, 32),
+        (R, 635, 400, 32),
         ID_CHK_SHOW_ON_STARTUP,
     ),
     ctl(
         "BUTTON",
         "Dành Ctrl + Shift cho TextVN (tắt phím đổi bàn phím của Windows)",
         CHK,
-        (L, 638, 830, 32),
+        (L, 677, 830, 32),
         ID_CHK_CTRL_SHIFT,
     ),
     // 5. Hàng nút: thông tin/công cụ (trái) · thao tác (phải). Mỗi nút có biểu tượng + gợi ý
@@ -757,21 +750,21 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
         "BUTTON",
         "\u{2753}  Hướng dẫn",
         BTN,
-        (15, 696, 118, 48),
+        (15, 735, 118, 48),
         ID_BTN_HELP,
     ),
     ctl(
         "BUTTON",
         "\u{2139}  Thông tin",
         BTN,
-        (139, 696, 112, 48),
+        (139, 735, 112, 48),
         ID_BTN_ABOUT,
     ),
     ctl(
         "BUTTON",
         "\u{2328}  Gõ tắt...",
         BTN,
-        (257, 696, 112, 48),
+        (257, 735, 112, 48),
         ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
@@ -779,14 +772,14 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
         "BUTTON",
         "\u{270E}  Từ điển EN...",
         BTN,
-        (375, 696, 140, 48),
+        (375, 735, 140, 48),
         ID_BTN_ENGLISH,
     ),
     ctl(
         "BUTTON",
         "\u{21BA}  Mặc định",
         BTN,
-        (521, 696, 100, 48),
+        (521, 735, 100, 48),
         ID_BTN_DEFAULT,
     ),
     // Ẩn vào khay đưa cửa sổ về khay (bộ gõ vẫn chạy); Thoát tắt hẳn ứng dụng.
@@ -794,14 +787,14 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
         "BUTTON",
         "\u{2B07}  Ẩn vào khay",
         BS_DEFPUSHBUTTON | WS_TABSTOP.0,
-        (632, 696, 150, 48),
+        (632, 735, 150, 48),
         ID_BTN_CLOSE,
     ),
     ctl(
         "BUTTON",
         "\u{23FB}  Thoát",
         BTN,
-        (788, 696, 98, 48),
+        (788, 735, 98, 48),
         ID_BTN_EXIT,
     ),
 ];
@@ -944,7 +937,6 @@ fn create_dialog_controls(parent: HWND, h_instance: HINSTANCE, dpi: i32) {
         (ID_COMBO_CHARSET, &CHARSET_LABELS[..]),
         (ID_COMBO_METHOD, &METHOD_LABELS[..]),
         (ID_COMBO_ASSIST_MODE, &ASSIST_MODE_LABELS[..]),
-        (ID_COMBO_ASSIST_AUTO_FIX, &ASSIST_AUTO_FIX_LABELS[..]),
     ] {
         for label in labels.iter() {
             let text_w = self::w(label);
@@ -1005,23 +997,7 @@ fn populate_controls_from_config(hwnd: HWND) {
             AssistMode::Autocorrect => 2,
         };
         send_dlg_msg(hwnd, ID_COMBO_ASSIST_MODE, CB_SETCURSEL, assist_mode_idx, 0);
-
-        let assist_fix_idx = match cfg.assist.auto_fix {
-            AssistAutoFix::Off => 0,
-            AssistAutoFix::Safe => 1,
-        };
-        send_dlg_msg(
-            hwnd,
-            ID_COMBO_ASSIST_AUTO_FIX,
-            CB_SETCURSEL,
-            assist_fix_idx,
-            0,
-        );
-
-        if let Ok(h_fix) = unsafe { GetDlgItem(Some(hwnd), ID_COMBO_ASSIST_AUTO_FIX as i32) } {
-            let enabled = cfg.assist.mode != AssistMode::Off;
-            let _ = unsafe { EnableWindow(h_fix, enabled) };
-        }
+        set_assist_hint(hwnd, assist_mode_idx);
     });
 }
 
@@ -1213,20 +1189,7 @@ unsafe extern "system" fn dialog_wnd_proc(
                         _ => AssistMode::Off,
                     };
                     let _ = save_config_change(hwnd, |ctx| ctx.svc.set_assist_mode(mode));
-                    if let Ok(h_fix) =
-                        unsafe { GetDlgItem(Some(hwnd), ID_COMBO_ASSIST_AUTO_FIX as i32) }
-                    {
-                        let _ = unsafe { EnableWindow(h_fix, mode != AssistMode::Off) };
-                    }
-                }
-                ID_COMBO_ASSIST_AUTO_FIX if notify_code == CBN_SELCHANGE => {
-                    let sel = send_dlg_msg(hwnd, ID_COMBO_ASSIST_AUTO_FIX, CB_GETCURSEL, 0, 0).0;
-                    let auto_fix = if sel == 1 {
-                        AssistAutoFix::Safe
-                    } else {
-                        AssistAutoFix::Off
-                    };
-                    let _ = save_config_change(hwnd, |ctx| ctx.svc.set_assist_auto_fix(auto_fix));
+                    set_assist_hint(hwnd, sel.clamp(0, 2) as usize);
                 }
                 ID_CHK_AUTOSTART => {
                     let checked = get_chk(hwnd, ID_CHK_AUTOSTART);
@@ -2002,6 +1965,15 @@ pub fn style_stats_text(
     )
 }
 
+/// Dòng mô tả dưới ô Chế độ theo chế độ đang chọn (0 = Tắt, 1 = Chỉ gợi ý, 2 = Tự sửa lỗi an toàn).
+#[cfg(windows)]
+fn set_assist_hint(hwnd: HWND, mode_idx: usize) {
+    let text = w(ASSIST_MODE_HINTS[mode_idx.min(ASSIST_MODE_HINTS.len() - 1)]);
+    if let Ok(h) = unsafe { GetDlgItem(Some(hwnd), ID_LBL_ASSIST_HINT as i32) } {
+        let _ = unsafe { SetWindowTextW(h, PCWSTR(text.as_ptr())) };
+    }
+}
+
 /// Cập nhật dòng số liệu + trạng thái nút xoá theo hồ sơ hiện tại.
 #[cfg(windows)]
 fn refresh_style_stats(hwnd: HWND, profile: &textvn_config::StyleProfileSettings) {
@@ -2062,7 +2034,7 @@ mod tests {
             ID_CHK_SHOW_ON_STARTUP,
             ID_BTN_MACROS,
             ID_COMBO_ASSIST_MODE,
-            ID_COMBO_ASSIST_AUTO_FIX,
+            ID_LBL_ASSIST_HINT,
             ID_CHK_STYLE,
             ID_BTN_STYLE_CLEAR,
             ID_LBL_STYLE_STATS,
@@ -2114,13 +2086,12 @@ mod tests {
             &CHARSET_LABELS[..],
             &METHOD_LABELS[..],
             &ASSIST_MODE_LABELS[..],
-            &ASSIST_AUTO_FIX_LABELS[..],
         ] {
             same_order(&linux, labels, &quoted, "Linux");
             same_order(macos, labels, &swift_text, "macOS");
         }
         // Khung + nhãn hàng của Trợ lý ngữ pháp (AS-060, parity-checklist §58).
-        for label in ["Trợ lý ngữ pháp", "Chế độ:", "Tự động sửa:"] {
+        for label in ["Trợ lý ngữ pháp", "Chế độ:"] {
             assert!(
                 linux.contains(&format!("\"{label}\"")),
                 "thiếu `{label}` (Linux)"
@@ -2171,6 +2142,28 @@ mod tests {
                 "nhãn `{label}` thiếu trong bảng cài đặt macOS"
             );
         }
+    }
+
+    /// 0.2.75: không còn ô "Tự động sửa" — ba chế độ có cùng mô tả trên 3 OS và không OS nào còn nhãn cũ.
+    #[test]
+    fn assist_mode_hints_match_every_platform() {
+        let linux = [
+            include_str!("../../adapters/linux-settings/src/settings_model.c"),
+            include_str!("../../adapters/linux-settings/src/settings_window.c"),
+        ]
+        .concat();
+        let mac = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
+        for hint in ASSIST_MODE_HINTS {
+            assert!(linux.contains(hint), "Linux thiếu mô tả `{hint}`");
+            assert!(mac.contains(hint), "macOS thiếu mô tả `{hint}`");
+        }
+        for src in [linux.as_str(), mac] {
+            assert!(!src.contains("Tự động sửa:"), "còn nhãn `Tự động sửa:`");
+            assert!(!src.contains("An toàn (lỗi khách quan)"));
+        }
+        #[cfg(windows)]
+        assert!(!DIALOG_LAYOUT.iter().any(|c| c.text == "Tự động sửa:"));
+        assert_eq!(ASSIST_MODE_LABELS[2], "Tự sửa lỗi an toàn");
     }
 
     /// Dòng số liệu tự học + Dream RSI: cùng định dạng 3 nền tảng (macOS dựng ở `ConfigModel.swift`).

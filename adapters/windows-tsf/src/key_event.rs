@@ -667,6 +667,24 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     };
 
     let key = KeyKind::classify_with_mods(vk, translate_key(vk, lparam), mods);
+    // R2-159: focus đang ở control KHÔNG nhập văn bản (danh sách file Explorer, cây thư mục, màn
+    // hình nền…) → không mở composition; phím tới app (type-ahead). Mở composition ở đây làm TSF vẽ
+    // khung `CiceroUIWndFrame` chứa chữ vừa gõ ở góc trái trên màn hình.
+    if !shared.is_composing() && key.needs_session_when_idle() {
+        if let Some(class) = focus_window_class() {
+            if crate::compose::is_non_text_window_class(&class) {
+                if trace::enabled() {
+                    // S2: chỉ ghi tên lớp cửa sổ (không phải nội dung gõ).
+                    trace::event(
+                        shared.tid,
+                        format_args!("skip non-text focus class={class}"),
+                    );
+                }
+                shared.reset_engine();
+                return false;
+            }
+        }
+    }
     if !shared.is_composing() && !key.needs_session_when_idle() {
         // Backspace/Esc/điều hướng khi không composing: chỉ cho engine dọn trạng thái.
         if let Ok(mut thread) = shared.thread.try_borrow_mut() {
@@ -722,6 +740,28 @@ pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
             let _ =
                 ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE);
         }
+    }
+}
+
+/// Tên lớp cửa sổ đang giữ focus bàn phím của thread UI hiện tại (`None` = không đọc được hoặc
+/// không có focus — khi đó coi là ô nhập như trước đây).
+#[cfg(windows)]
+fn focus_window_class() -> Option<String> {
+    use windows::Win32::System::Threading::GetCurrentThreadId;
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetGUIThreadInfo, GUITHREADINFO};
+    // SAFETY: chỉ đọc trạng thái GUI của thread hiện tại; buffer cục bộ đủ lớn.
+    unsafe {
+        let mut info = GUITHREADINFO {
+            cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+            ..Default::default()
+        };
+        GetGUIThreadInfo(GetCurrentThreadId(), &mut info).ok()?;
+        if info.hwndFocus.0.is_null() {
+            return None;
+        }
+        let mut buf = [0u16; 128];
+        let n = GetClassNameW(info.hwndFocus, &mut buf);
+        (n > 0).then(|| String::from_utf16_lossy(&buf[..n as usize]))
     }
 }
 

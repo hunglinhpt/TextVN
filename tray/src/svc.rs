@@ -390,7 +390,16 @@ impl SvcManager {
 
     /// Đổi chế độ Trợ lý ngữ pháp (off | highlight | autocorrect) (P4-0 §7).
     pub fn set_assist_mode(&self, mode: AssistMode) -> Result<u64, DocError> {
-        self.update_config(|c| c.assist.mode = mode)
+        self.update_config(|c| {
+            c.assist.mode = mode;
+            // 0.2.75: một lựa chọn duy nhất — "Tự sửa lỗi an toàn" luôn mức an toàn. Giữ `auto_fix`
+            // khớp chế độ cho bản cũ đọc cùng file (engine mới chỉ nhìn `mode`).
+            c.assist.auto_fix = if mode == AssistMode::Autocorrect {
+                AssistAutoFix::Safe
+            } else {
+                AssistAutoFix::Off
+            };
+        })
     }
 
     /// Đổi cấu hình tự động sửa lỗi objective (off | safe) (P4-0 §7).

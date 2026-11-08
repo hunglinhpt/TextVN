@@ -410,11 +410,11 @@ int lc_assist_is_active(int assist_enabled, int assist_mode) {
 }
 
 int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sentence_trigger) {
-    /* R-5 · P4-0 §4.3: Mode 2 = mode "autocorrect" AND auto_fix "safe",
-     * chỉ khi trigger KẾT THÚC CÂU (không phải space/,). */
-    return (assist_mode == LC_ASSIST_MODE_AUTOCORRECT) &&
-           (assist_auto_fix == LC_ASSIST_AUTO_FIX_SAFE) &&
-           (is_sentence_trigger != 0);
+    /* R-5 · P4-0 §4.3 (đổi 0.2.75): Mode 2 = mode "autocorrect" (luôn mức an toàn), chỉ khi
+     * trigger KẾT THÚC CÂU (không phải space/,). `assist_auto_fix` còn trong chữ ký cho tương thích
+     * nhưng không còn quyết định gì (UI chỉ còn lựa chọn Chế độ). */
+    (void)assist_auto_fix;
+    return (assist_mode == LC_ASSIST_MODE_AUTOCORRECT) && (is_sentence_trigger != 0);
 }
 
 int lc_assist_should_display(int assist_mode, int is_sentence_trigger) {

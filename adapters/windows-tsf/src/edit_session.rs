@@ -185,9 +185,7 @@ impl TsfShared {
             && self
                 .thread
                 .try_borrow()
-                .map(|t| {
-                    crate::assist::mode2_auto_fix_enabled(t.assist_mode(), t.assist_auto_fix())
-                })
+                .map(|t| crate::assist::mode2_auto_fix_enabled(t.assist_mode()))
                 .unwrap_or(false)
     }
 
@@ -1433,7 +1431,7 @@ pub(crate) fn recheck_after_fix(
         (
             thread.auto_capitalize(),
             thread.assist_display_hide_on_auto_fix(),
-            crate::assist::mode2_auto_fix_enabled(thread.assist_mode(), thread.assist_auto_fix()),
+            crate::assist::mode2_auto_fix_enabled(thread.assist_mode()),
         )
     };
     if was_auto_fix && mode2 && hide_on_auto_fix {
@@ -3019,27 +3017,18 @@ mod tests {
         assert!(shared.assist_undo.try_borrow().unwrap().is_none());
     }
 
-    /// R-5: ngữ nghĩa Mode 2 **duy nhất** cho 3 OS.
+    /// R-5: ngữ nghĩa Mode 2 **duy nhất** cho 3 OS — chỉ phụ thuộc `assist.mode` (0.2.75).
     #[test]
-    fn mode_2_chi_bat_khi_autocorrect_va_safe() {
-        use textvn_config::{AssistAutoFix, AssistMode};
+    fn mode_2_chi_phu_thuoc_che_do_autocorrect() {
+        use textvn_config::AssistMode;
         assert!(crate::assist::mode2_auto_fix_enabled(
-            AssistMode::Autocorrect,
-            AssistAutoFix::Safe
+            AssistMode::Autocorrect
         ));
-        // Thiếu 1 trong 2 ⇒ không tự sửa (highlight + safe vẫn chỉ gợi ý).
+        // highlight chỉ gợi ý; off tắt hẳn — `assist.auto_fix` không còn ảnh hưởng.
         assert!(!crate::assist::mode2_auto_fix_enabled(
-            AssistMode::Highlight,
-            AssistAutoFix::Safe
+            AssistMode::Highlight
         ));
-        assert!(!crate::assist::mode2_auto_fix_enabled(
-            AssistMode::Autocorrect,
-            AssistAutoFix::Off
-        ));
-        assert!(!crate::assist::mode2_auto_fix_enabled(
-            AssistMode::Off,
-            AssistAutoFix::Off
-        ));
+        assert!(!crate::assist::mode2_auto_fix_enabled(AssistMode::Off));
         // Mode 1 (điểm hiển thị) bật khi mode != off.
         assert!(crate::assist::mode1_display_enabled(AssistMode::Highlight));
         assert!(crate::assist::mode1_display_enabled(

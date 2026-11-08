@@ -262,25 +262,21 @@ public struct SettingsView: View {
                                 Picker("", selection: $store.config.assist.mode) {
                                     Text("Tắt").tag("off")
                                     Text("Chỉ gợi ý").tag("highlight")
-                                    Text("Tự sửa lỗi").tag("autocorrect")
+                                    Text("Tự sửa lỗi an toàn").tag("autocorrect")
                                 }
                                 .labelsHidden()
                                 .frame(maxWidth: .infinity)
-                                .onChange(of: store.config.assist.mode) { _ in persistAndNotify() }
-                            }
-                            HStack {
-                                Text("Tự động sửa:")
-                                    .frame(width: 80, alignment: .leading)
-                                    .font(.system(size: 12))
-                                Picker("", selection: $store.config.assist.auto_fix) {
-                                    Text("Tắt").tag("off")
-                                    Text("An toàn (lỗi khách quan)").tag("safe")
+                                .onChange(of: store.config.assist.mode) { newMode in
+                                    // Một lựa chọn duy nhất (0.2.75): "Tự sửa lỗi an toàn" luôn sửa ở mức an toàn;
+                                    // giữ `auto_fix` khớp chế độ cho bản cũ đọc cùng file.
+                                    store.config.assist.auto_fix = newMode == "autocorrect" ? "safe" : "off"
+                                    persistAndNotify()
                                 }
-                                .labelsHidden()
-                                .frame(maxWidth: .infinity)
-                                .disabled(store.config.assist.mode == "off")
-                                .onChange(of: store.config.assist.auto_fix) { _ in persistAndNotify() }
                             }
+                            Text(assistModeHint(store.config.assist.mode))
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                             // Tự học (P7) + Dream RSI (P10) — cùng nhãn/thứ tự với Windows & Linux.
                             HStack {
                                 Toggle("Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)", isOn: Binding(
@@ -354,6 +350,18 @@ public struct SettingsView: View {
         }
         .sheet(isPresented: $showEnglishSheet) {
             EnglishWordsSheet(store: store)
+        }
+    }
+
+    /// Mô tả một dòng cho từng chế độ trợ lý — CÙNG chữ với Windows/Linux (test parity trong `tray`).
+    private func assistModeHint(_ mode: String) -> String {
+        switch mode {
+        case "autocorrect":
+            return "Như Chỉ gợi ý, và tự sửa lỗi chắc chắn (lặp từ, thừa dấu cách, viết hoa đầu câu…) khi bạn kết thúc câu; Ctrl+Z hoàn tác trong 5 giây."
+        case "highlight":
+            return "Dừng gõ 1 giây, panel hiện lỗi và gợi ý; bạn tự chọn có sửa hay không."
+        default:
+            return "Không kiểm tra ngữ pháp và chính tả."
         }
     }
 

@@ -127,6 +127,47 @@ pub fn is_modifier_vk(vk: u32) -> bool {
     ) || (vk::LSHIFT..=vk::RMENU).contains(&vk)
 }
 
+/// Lớp cửa sổ của control **không nhập văn bản** (danh sách file, cây thư mục, thanh công cụ, màn
+/// hình nền…): TextVN không được mở composition ở đây. Nếu mở, TSF không có text extent nên vẽ
+/// khung `CiceroUIWndFrame` chứa chữ vừa gõ ở góc trái trên màn hình (chủ repo: bấm vào thư mục
+/// Explorer rồi gõ phím → hiện popup nhỏ ở góc trái — R2-159). Phím phải tới app (gõ để nhảy tới
+/// mục, type-ahead). So khớp không phân biệt hoa/thường; chỉ lớp control chuẩn của Windows/Explorer —
+/// ô nhập (Edit, RichEdit, ComboBox…) và app tự vẽ ô nhập KHÔNG nằm trong danh sách.
+pub fn is_non_text_window_class(class: &str) -> bool {
+    let mut c = class.to_ascii_lowercase();
+    // WinForms đổi tên lớp control chuẩn: `WindowsForms10.SysListView32.app.0.<hash>` → lấy phần giữa.
+    if let Some(rest) = c.strip_prefix("windowsforms10.") {
+        c = rest.split(".app.").next().unwrap_or(rest).to_string();
+    }
+    matches!(
+        c.as_str(),
+        "syslistview32"
+            | "systreeview32"
+            | "sysheader32"
+            | "systabcontrol32"
+            | "toolbarwindow32"
+            | "rebarwindow32"
+            | "msctls_statusbar32"
+            | "msctls_trackbar32"
+            | "msctls_updown32"
+            | "msctls_progress32"
+            | "shelldll_defview"
+            | "directuihwnd"
+            | "ctrlnotifysink"
+            | "progman"
+            | "workerw"
+            | "syslink"
+            | "button"
+            | "static"
+            | "scrollbar"
+            | "listbox"
+            | "combolbox"
+            | "#32769"
+            | "listview20wndclass"
+            | "treeview20wndclass"
+    )
+}
+
 /// App terminal theo tên exe (lowercase): Tab là của shell, phím phải tới app ngay (vim,
 /// less) và chữ gõ có thể là mật khẩu — không dự đoán, không học (R2-144/R2-145).
 pub fn is_terminal_exe(exe: &str) -> bool {
@@ -404,6 +445,48 @@ pub fn text_after(current: &[char], plan: &CompositionPlan) -> Vec<char> {
 
 #[cfg(test)]
 mod tests {
+    /// R2-159: control không nhập văn bản (danh sách/cây/nền Explorer) → phím phải tới app,
+    /// không mở composition (tránh khung Cicero ở góc trái màn hình).
+    #[test]
+    fn non_text_window_classes_are_recognised() {
+        for c in [
+            "SysListView32",
+            "DirectUIHWND",
+            "SHELLDLL_DefView",
+            "SysTreeView32",
+            "Progman",
+            "WorkerW",
+            "ToolbarWindow32",
+            "ListBox",
+            "#32769",
+            "syslistview32",
+            "WindowsForms10.SysListView32.app.0.141b42a_r6_ad1",
+            "WindowsForms10.SysTreeView32.app.0.141b42a_r6_ad1",
+            "WindowsForms10.BUTTON.app.0.141b42a_r6_ad1",
+        ] {
+            assert!(is_non_text_window_class(c), "{c}");
+        }
+        // Ô nhập và app tự vẽ ô nhập KHÔNG được chặn.
+        for c in [
+            "Edit",
+            "RichEdit20W",
+            "RICHEDIT50W",
+            "ComboBox",
+            "Scintilla",
+            "TEdit",
+            "Chrome_RenderWidgetHostHWND",
+            "Windows.UI.Core.CoreWindow",
+            "Notepad",
+            "SearchEditBoxWrapperClass",
+            "WindowsForms10.EDIT.app.0.141b42a_r6_ad1",
+            "WindowsForms10.RichEdit20W.app.0.141b42a_r6_ad1",
+            "WindowsForms10.Window.8.app.0.141b42a_r6_ad1",
+            "",
+        ] {
+            assert!(!is_non_text_window_class(c), "{c}");
+        }
+    }
+
     use super::*;
     use crate::EngineSession;
 

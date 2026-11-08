@@ -216,7 +216,7 @@ Bố cục chi tiết: [ui-spec.md](release/ui-spec.md).
 | Khởi động cùng Windows (macOS: Khởi động cùng OS) / Bật hội thoại này khi khởi động | Windows và macOS |
 | Gõ không gạch chân (Non-preedit) · Chạy ngầm trong menu bar | chỉ macOS |
 | Dành Ctrl + Shift cho TextVN | chỉ Windows: tắt phím tắt Ctrl + Shift đổi bàn phím của Windows để Ctrl + Shift luôn chuyển V/E; bỏ chọn thì trả lại cho Windows (đúng giá trị trước đó, gồm cả phím đổi ngôn ngữ) và TextVN không còn tự kéo bạn về TextVN khi Windows đổi bàn phím. Gỡ cài đặt cũng trả lại như vậy |
-| Trợ lý ngữ pháp → Chế độ · Tự động sửa | xem mục *Trợ lý ngữ pháp* ngay dưới bảng này (mặc định **Chỉ gợi ý** từ 0.2.38) |
+| Trợ lý ngữ pháp → Chế độ | xem mục *Trợ lý ngữ pháp* ngay dưới bảng này (mặc định **Chỉ gợi ý** từ 0.2.38) |
 
 Mọi thay đổi lưu ngay, không cần khởi động lại. **Mặc định** đưa mọi tuỳ chọn về ban đầu
 nhưng giữ nguyên bảng gõ tắt.
@@ -261,8 +261,9 @@ khay hệ thống).
 |---|---|---|
 | Chế độ | Tắt | không làm gì |
 | | Chỉ gợi ý | khi kết thúc câu (. ! ?) hiện danh sách gợi ý sửa, bạn tự chọn hoặc bỏ qua |
-| | Tự sửa lỗi | tự sửa các lỗi chắc chắn (lặp từ, thừa khoảng trắng trước/triếu sau dấu câu, viết hoa đầu câu, **sai vị trí dấu** như "nghiã"→"nghĩa") |
-| Tự động sửa | Tắt · An toàn (lỗi khách quan) | **Tự sửa lỗi chỉ hoạt động khi chọn đủ cả hai**: Chế độ = *Tự sửa lỗi* và Tự động sửa = *An toàn* |
+| | Tự sửa lỗi an toàn | tự sửa các lỗi chắc chắn (lặp từ, thừa khoảng trắng trước/triếu sau dấu câu, viết hoa đầu câu, **sai vị trí dấu** như "nghiã"→"nghĩa") |
+
+Từ 0.2.75 chỉ còn **một** lựa chọn *Chế độ* (bỏ ô *Tự động sửa* trước đây bắt chọn hai lần): *Tự sửa lỗi an toàn* luôn chỉ sửa lỗi chắc chắn. Dòng mô tả dưới ô Chế độ đổi theo lựa chọn.
 
 - Chỉ sửa khi con trỏ đang ở cuối câu và không bôi đen; không xác minh được văn bản trước con trỏ thì **không sửa gì** (an toàn hơn sửa nhầm).
 - Hoàn tác đúng một bước: bấm **Ctrl + Z** (macOS: **⌘ + Z**) trong vòng 5 giây sau khi tự sửa; sang phím khác hoặc quá 5 giây thì không hoàn tác bằng cách này.

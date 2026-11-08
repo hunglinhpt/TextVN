@@ -179,7 +179,6 @@ static void test_assist(tv_paths *p) {
     assert(tv_config_set_assist_auto_fix(p, -1) != 0);
     assert(strcmp(tv_assist_auto_fix_values[0], "off") == 0);
     assert(strcmp(tv_assist_auto_fix_values[1], "safe") == 0);
-    assert(tv_assist_auto_fix_labels[TV_ASSIST_AUTO_FIX_COUNT] == NULL);
     assert(tv_config_set_assist_auto_fix(p, 0) == 0);
 
     /* Đọc riêng từng key con bằng C API thật. */

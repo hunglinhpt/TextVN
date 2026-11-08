@@ -102,7 +102,7 @@ final class AssistTests: XCTestCase {
         let autoFixSettings = try JSONDecoder().decode(AssistSettings.self, from: Data(autoFixJson.utf8))
         XCTAssertTrue(autoFixSettings.isOn)
         XCTAssertTrue(autoFixSettings.isAutoFixSafe)
-        XCTAssertFalse(autoFixSettings.isMode2AutoFix)
+        XCTAssertFalse(autoFixSettings.isMode2AutoFix, "highlight chỉ gợi ý dù auto_fix=safe")
 
         let mode2Json = #"{"mode": "autocorrect", "auto_fix": "safe"}"#
         let mode2Settings = try JSONDecoder().decode(AssistSettings.self, from: Data(mode2Json.utf8))
@@ -526,12 +526,12 @@ final class AssistTests: XCTestCase {
         XCTAssertEqual(target.deletedCount, 0)
     }
 
-    /// R-5: Mode 2 chỉ bật khi mode "autocorrect" **và** auto_fix "safe".
+    /// R-5 (0.2.75): Mode 2 chỉ phụ thuộc mode "autocorrect"; `auto_fix` không còn quyết định.
     func testMode2RequiresAutocorrectAndSafe() {
         let highlightSafe = AssistSettings(mode: "highlight", auto_fix: "safe")
-        XCTAssertFalse(highlightSafe.isMode2AutoFix, "chỉ auto_fix=safe thì KHÔNG tự sửa")
+        XCTAssertFalse(highlightSafe.isMode2AutoFix, "highlight chỉ gợi ý")
         let autocorrectOff = AssistSettings(mode: "autocorrect", auto_fix: "off")
-        XCTAssertFalse(autocorrectOff.isMode2AutoFix, "chỉ mode=autocorrect thì KHÔNG tự sửa")
+        XCTAssertTrue(autocorrectOff.isMode2AutoFix, "autocorrect luôn tự sửa an toàn")
         let autocorrectSafe = AssistSettings(mode: "autocorrect", auto_fix: "safe")
         XCTAssertTrue(autocorrectSafe.isMode2AutoFix)
         // R-6: điểm hiển thị bật khi mode != off (kể cả ở Mode 2).

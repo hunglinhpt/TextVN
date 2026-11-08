@@ -270,7 +270,8 @@ pub fn default_assist_trigger_keys() -> Vec<String> {
 pub struct AssistSettings {
     /// Mức can thiệp (mặc định `highlight` — xem [`AssistSettings::default`]).
     pub mode: AssistMode,
-    /// Tự sửa lỗi objective (mặc định `off` — P4-0 §4.3).
+    /// **Không còn quyết định gì từ 0.2.75**: Mode 2 chỉ phụ thuộc `mode == autocorrect` (luôn mức an toàn).
+    /// Giữ trong config cho tương thích; UI tự đặt `safe` khi chọn "Tự sửa lỗi an toàn", `off` khi không.
     pub auto_fix: AssistAutoFix,
     /// Ngôn ngữ kiểm tra (v1 chỉ `vi`).
     pub language: AssistLanguage,

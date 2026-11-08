@@ -24,11 +24,13 @@ const char *const tv_method_values[TV_METHOD_COUNT] = {"telex", "vni", "viqr", "
 /* Trợ lý ngữ pháp (P4-0 §7): giá trị của `assist.mode`, cùng thứ tự enum của engine
  * (off / highlight / autocorrect). Nhãn hiển thị thống nhất với Windows. */
 const char *const tv_assist_mode_labels[TV_ASSIST_MODE_COUNT + 1] = {
-    "Tắt", "Chỉ gợi ý", "Tự sửa lỗi", NULL};
+    "Tắt", "Chỉ gợi ý", "Tự sửa lỗi an toàn", NULL};
 const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
     "off", "highlight", "autocorrect"};
-const char *const tv_assist_auto_fix_labels[TV_ASSIST_AUTO_FIX_COUNT + 1] = {
-    "Tắt", "An toàn (lỗi khách quan)", NULL};
+const char *const tv_assist_mode_hints[TV_ASSIST_MODE_COUNT] = {
+    "Không kiểm tra ngữ pháp và chính tả.",
+    "Dừng gõ 1 giây, panel hiện lỗi và gợi ý; bạn tự chọn có sửa hay không.",
+    "Như Chỉ gợi ý, và tự sửa lỗi chắc chắn (lặp từ, thừa dấu cách, viết hoa đầu câu…) khi bạn kết thúc câu; Ctrl+Z hoàn tác trong 5 giây."};
 const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {"off", "safe"};
 
 const char *const tv_help_text =

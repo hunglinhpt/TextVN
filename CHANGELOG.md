@@ -9,6 +9,36 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.75] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Fixed
+- **Windows: bấm vào thư mục (Explorer) hoặc chỗ không nhập được rồi gõ phím không còn hiện khung nhỏ ở góc
+  trái trên màn hình** (R2-159, E45; cùng họ xung đột với ca MobaXterm). TextVN mở composition ở cả
+  control không phải ô nhập (danh sách file, cây thư mục, màn hình nền) nên TSF vẽ khung chứa chữ vừa gõ ở
+  (0,0) và phím không tới app. Giờ khi chưa gõ dở mà focus ở control không nhập văn bản, phím đi thẳng tới app
+  (gõ để nhảy tới mục như thường). Ô nhập (`Edit`, `RichEdit`, `ComboBox`, trình soạn thảo, trình duyệt) không
+  bị ảnh hưởng.
+
+### Changed
+- **Trợ lý ngữ pháp chỉ còn MỘT lựa chọn "Chế độ"** trên cả 3 OS (chủ repo: bắt chọn hai lần — *Tự sửa lỗi* rồi *Tự động sửa = An toàn* — gây rối): bỏ ô *Tự động sửa*; chế độ thứ ba đổi tên **"Tự sửa lỗi an toàn"** và luôn chỉ sửa lỗi chắc chắn. Một dòng mô tả dưới ô Chế độ đổi theo lựa chọn (cùng chữ 3 OS). Bố cục khung được sắp lại: Chế độ + mô tả, rồi Tự học + Dream RSI. Khoá `assist.auto_fix` còn trong config nhưng không còn quyết định gì (UI tự đặt khớp chế độ); người đang để *Tự sửa lỗi* mà *Tự động sửa = Tắt* nay được tự sửa an toàn đúng như tên chế độ đã chọn.
+
+### Tests
+- Mới: `compose::tests::non_text_window_classes_are_recognised`, `non_text_focus_gate.rs` (hợp đồng nguồn) và
+  `tools/win/e2e-non-text-focus.ps1` (tái hiện bằng cửa sổ ListView riêng: bản 0.2.74 FAIL, kiểm cả khung Cicero
+  lẫn type-ahead).
+
+**English** — 0.2.75: **the Grammar Assistant now has a single "Mode" choice on all three platforms** (picking *Auto-fix* and then *Auto-fix = Safe* confused people): the *Auto-fix* dropdown is gone, the third mode is renamed **"Tự sửa lỗi an toàn" (safe auto-fix)** and only ever fixes clear-cut errors, a one-line description under the Mode box follows the choice (same text on all 3 OSes), and the group layout was reordered (Mode + description, then self-learning + Dream RSI); `assist.auto_fix` stays in the config but no longer decides anything. Also: **on Windows, clicking a folder (Explorer) or any non-input area and then typing no longer
+pops a small box in the top-left corner of the screen** (R2-159, E45; same family of conflicts as the MobaXterm
+case). TextVN opened a composition even in controls that are not text inputs (file lists, folder trees, the
+desktop), so TSF drew a frame with the typed letter at (0,0) and the key never reached the app. Now, when no word
+is in progress and the focused control is not a text input, keys go straight to the app (type-to-jump works as
+usual). Text inputs (`Edit`, `RichEdit`, `ComboBox`, editors, browsers) are unaffected. New tests:
+`non_text_window_classes_are_recognised`, `non_text_focus_gate.rs` and `tools/win/e2e-non-text-focus.ps1`
+(reproduces with its own ListView window: 0.2.74 fails on both the Cicero frame and type-ahead).
+
 ## [0.2.74] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2933,7 +2963,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...HEAD
+[0.2.75]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...v0.2.75
 [0.2.74]: https://github.com/hunglinhpt/TextVN/compare/v0.2.73...v0.2.74
 [0.2.73]: https://github.com/hunglinhpt/TextVN/compare/v0.2.72...v0.2.73
 [0.2.72]: https://github.com/hunglinhpt/TextVN/compare/v0.2.71...v0.2.72

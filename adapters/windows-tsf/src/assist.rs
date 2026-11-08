@@ -742,17 +742,15 @@ impl AssistUndoState {
     }
 }
 
-/// **Ngữ nghĩa Mode 2 duy nhất cho 3 OS** (R-5 · P4-0 §4.3):
-/// tự sửa cả câu chỉ bật khi `assist.mode == "autocorrect"` **và**
-/// `assist.auto_fix == "safe"` (chỉ luật objective — D7).
+/// **Ngữ nghĩa Mode 2 duy nhất cho 3 OS** (R-5 · P4-0 §4.3, đổi ở 0.2.75): tự sửa cả câu bật khi
+/// `assist.mode == "autocorrect"` — luôn ở mức **an toàn** (chỉ luật objective — D7). Khoá
+/// `assist.auto_fix` còn trong config cho tương thích nhưng KHÔNG còn quyết định gì (chủ repo:
+/// chọn hai lần "Tự sửa lỗi" rồi "An toàn" gây rối; UI chỉ còn một lựa chọn Chế độ).
 ///
 /// Hàm thuần — test được không cần TSF. macOS/Linux dùng cùng quy tắc (viết
 /// lại theo ngôn ngữ của từng adapter, cùng test).
-pub fn mode2_auto_fix_enabled(
-    mode: textvn_config::AssistMode,
-    auto_fix: textvn_config::AssistAutoFix,
-) -> bool {
-    mode == textvn_config::AssistMode::Autocorrect && auto_fix == textvn_config::AssistAutoFix::Safe
+pub fn mode2_auto_fix_enabled(mode: textvn_config::AssistMode) -> bool {
+    mode == textvn_config::AssistMode::Autocorrect
 }
 
 /// **Điểm hiển thị (Mode 1) bật khi `assist.mode != "off"`** (R-6 · P4-0 §4.3):

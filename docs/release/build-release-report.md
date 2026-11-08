@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.75 — không mở composition ở control không nhập văn bản (R2-159, E45, 2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo: bấm vào thư mục rồi gõ phím → khung nhỏ ở góc trái trên màn hình. Tái hiện bằng cửa sổ ListView riêng (`tools/win/e2e-non-text-focus.ps1`): bản 0.2.74 FAIL 2/2 (khung `CiceroUIWndFrame` `0,0,49,31`; type-ahead không chọn `Foxtrot`). Sửa: cổng `is_non_text_window_class` trước khi xin edit session khi chưa composing |
+| Đo | workspace test xanh · clippy -D warnings 0 · preflight 23/23 · `non_text_window_classes_are_recognised`, `non_text_focus_gate.rs` (2) |
+| Ghi chú giới hạn | Chưa chạy lại e2e trên BẢN ĐÃ CÀI có sửa (cài đặt là việc của chủ repo — chạy `tools\win\e2e-non-text-focus.ps1 -ForceVietnamese` sau khi cài); control không nhập văn bản của app bên thứ ba (lớp tự đặt) vẫn có thể hiện khung — xem audit §4 |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.74 — tự học + Dream RSI bật mặc định, có nút Cài đặt 3 OS (R2-158, E43, E44, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

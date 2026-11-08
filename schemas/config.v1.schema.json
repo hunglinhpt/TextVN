@@ -164,7 +164,7 @@
         "auto_fix": {
           "enum": ["off", "safe"],
           "default": "off",
-          "$comment": "P4-0 §4.3. safe = CHI tu sua luat objective (D7); loi mo ho luon chi goi y."
+          "$comment": "P4-0 §4.3. DEPRECATED tu 0.2.75: khong con quyet dinh gi - Mode 2 chi phu thuoc assist.mode = autocorrect (luon muc an toan: CHI tu sua luat objective, D7; loi mo ho luon chi goi y). UI dat safe khi chon autocorrect, off khi khong - de ban cu doc cung file."
         },
         "language": {
           "enum": ["vi", "en", "auto"],

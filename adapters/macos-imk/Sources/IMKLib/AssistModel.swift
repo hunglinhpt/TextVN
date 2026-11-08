@@ -106,10 +106,10 @@ public struct AssistSettings: Codable, Equatable {
     public var isHighlight: Bool { mode == "highlight" }
     public var isAutoFixSafe: Bool { auto_fix == "safe" }
 
-    /// R-5 (P4-0 §4.3): **Mode 2** (tự sửa cả câu) = `mode == "autocorrect"` **và**
-    /// `auto_fix == "safe"` — cùng ngữ nghĩa cho cả 3 OS (Windows/Linux dùng cùng
-    /// quy tắc). Chỉ cần `auto_fix == "safe"` là lệch ⇒ 1 config, 3 hành vi khác nhau.
-    public var isMode2AutoFix: Bool { mode == "autocorrect" && auto_fix == "safe" }
+    /// R-5 (P4-0 §4.3, đổi 0.2.75): **Mode 2** (tự sửa cả câu) = `mode == "autocorrect"` — luôn mức
+    /// an toàn; `auto_fix` còn trong config cho tương thích nhưng không còn quyết định gì. Cùng ngữ
+    /// nghĩa cho cả 3 OS (Windows/Linux dùng cùng quy tắc).
+    public var isMode2AutoFix: Bool { mode == "autocorrect" }
 
     /// R-6 (D11): **điểm hiển thị** (Mode 1) bật khi `mode != "off"` (ở Mode 2,
     /// lỗi *mơ hồ* vẫn phải hiện candidate — chỉ lỗi objective mới tự sửa).

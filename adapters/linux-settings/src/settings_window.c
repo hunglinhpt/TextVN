@@ -24,7 +24,7 @@ typedef struct TvWin {
     GtkWidget *dd_charset;
     GtkWidget *dd_method;
     GtkWidget *dd_assist_mode;
-    GtkWidget *dd_assist_fix;
+    GtkWidget *lbl_assist_hint; /* mô tả chế độ trợ lý đang chọn */
     GtkWidget *chk_enabled;
     GtkWidget *rad_new;
     GtkWidget *rad_old;
@@ -114,9 +114,8 @@ static void populate(TvWin *w) {
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_charset), (guint)s.charset);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_method), (guint)s.method);
     gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_assist_mode), (guint)s.assist_mode);
-    gtk_drop_down_set_selected(GTK_DROP_DOWN(w->dd_assist_fix), (guint)s.assist_auto_fix);
-    /* Tự động sửa chỉ có nghĩa khi Trợ lý bật (khớp Windows: làm mờ khi mode = Tắt). */
-    gtk_widget_set_sensitive(w->dd_assist_fix, s.assist_mode != 0);
+    if (s.assist_mode >= 0 && s.assist_mode < TV_ASSIST_MODE_COUNT)
+        gtk_label_set_text(GTK_LABEL(w->lbl_assist_hint), tv_assist_mode_hints[s.assist_mode]);
     set_active(w->chk_enabled, s.vi_enabled);
     set_active(s.new_diacritic ? w->rad_new : w->rad_old, 1);
     set_active(w->chk_restore, s.auto_restore_english);
@@ -152,10 +151,7 @@ static void on_dropdown(GtkDropDown *dd, GParamSpec *pspec, TvWin *w) {
     } else if (GTK_WIDGET(dd) == w->dd_assist_mode) {
         if (idx >= TV_ASSIST_MODE_COUNT) return;
         rc = tv_config_set_assist_mode(&w->paths, (int)idx);
-        gtk_widget_set_sensitive(w->dd_assist_fix, idx != 0);
-    } else if (GTK_WIDGET(dd) == w->dd_assist_fix) {
-        if (idx >= TV_ASSIST_AUTO_FIX_COUNT) return;
-        rc = tv_config_set_assist_auto_fix(&w->paths, (int)idx);
+        gtk_label_set_text(GTK_LABEL(w->lbl_assist_hint), tv_assist_mode_hints[idx]);
     } else {
         if (idx >= TV_METHOD_COUNT) return;
         rc = tv_config_set_str(&w->paths, "method", tv_method_values[idx]);
@@ -620,23 +616,37 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
 
     /* 3. Trợ lý ngữ pháp (AS-060) — cùng nhãn/thứ tự với Windows & macOS */
     GtkWidget *g3 = framed_grid(main_box, "Trợ lý ngữ pháp");
+    /* Một lựa chọn duy nhất Chế độ (0.2.75): chế độ tự sửa luôn chỉ sửa lỗi chắc chắn —
+     * không còn ô thứ hai gây nhầm. Dòng mô tả dưới ô giải thích chế độ đang chọn. */
     w->dd_assist_mode = labeled_dropdown(w, g3, "Chế độ:", tv_assist_mode_labels, 0, 0);
-    w->dd_assist_fix = labeled_dropdown(w, g3, "Tự động sửa:", tv_assist_auto_fix_labels, 1, 0);
+    {
+        /* Ô Chế độ chiếm cả hai cột (không còn ô thứ hai bên phải). */
+        GtkWidget *mode_row = gtk_widget_get_parent(w->dd_assist_mode);
+        g_object_ref(mode_row);
+        gtk_grid_remove(GTK_GRID(g3), mode_row);
+        gtk_grid_attach(GTK_GRID(g3), mode_row, 0, 0, 2, 1);
+        g_object_unref(mode_row);
+    }
+    w->lbl_assist_hint = gtk_label_new("");
+    gtk_label_set_xalign(GTK_LABEL(w->lbl_assist_hint), 0.0f);
+    gtk_label_set_wrap(GTK_LABEL(w->lbl_assist_hint), TRUE);
+    gtk_widget_add_css_class(w->lbl_assist_hint, "dim-label");
+    gtk_grid_attach(GTK_GRID(g3), w->lbl_assist_hint, 0, 1, 2, 1);
     /* Tự học (P7) + Dream RSI (P10) — cùng nhãn/thứ tự với Windows & macOS. Công tắt ghi qua
      * khoá `style_profile.enabled` (SettingsDoc tự đánh dấu `decided`). */
     w->chk_style = option(w, g3, "Tự học từ và cách sửa bạn hay dùng (chỉ trên máy này)",
-                          "style_profile.enabled", 0, 1);
+                          "style_profile.enabled", 0, 2);
     {
         GtkWidget *clear_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
         gtk_widget_set_halign(clear_row, GTK_ALIGN_END);
         w->btn_style_clear = button(clear_row, "edit-clear-symbolic", "Xóa dữ liệu đã học",
                                     "Xóa từ, cặp sửa và số liệu Dream RSI đã học trên máy này",
                                     G_CALLBACK(on_style_clear), w);
-        gtk_grid_attach(GTK_GRID(g3), clear_row, 1, 1, 1, 1);
+        gtk_grid_attach(GTK_GRID(g3), clear_row, 1, 2, 1, 1);
     }
     w->lbl_style_stats = gtk_label_new("");
     gtk_label_set_xalign(GTK_LABEL(w->lbl_style_stats), 0.0f);
-    gtk_grid_attach(GTK_GRID(g3), w->lbl_style_stats, 0, 2, 2, 1);
+    gtk_grid_attach(GTK_GRID(g3), w->lbl_style_stats, 0, 3, 2, 1);
 
     /* 4. Hàng nút: thông tin/công cụ (trái) · thao tác (phải) */
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
