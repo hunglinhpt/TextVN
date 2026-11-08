@@ -7,7 +7,13 @@
 | Nội dung | Parity với Windows 0.2.70: IBus `g_timeout_add`, Fcitx5 `EventSourceTime` (gắn `TextVNState`), macOS `Timer`; mọi phím gõ/xoá ẩn danh sách + hẹn lại 1 s, trigger chỉ kiểm tra + tự sửa. Giới hạn: bỏ qua khi còn preedit/marked (popup giữa từ chỉ Windows) |
 | Đo | workspace test xanh · clippy 0 (Windows + Linux target) · CI: ci-linux (build GCC `-Werror` + e2e IBus/Fcitx5 thật), ci-macos (Swift build + test x86_64/arm64) · `e2e_ibus` thêm 5 ca |
 | Sự cố trong phiên | ci-linux đỏ ở `541bd39c`: danh sách IBus không ẩn khi gõ số/chữ — sửa `ccfb5ad5` · E39: 0.2.70 lọt khối appstream/debian trùng — xoá ở bản này |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| CI trên commit gắn tag | `10eb7ea4` (Verified) 7/7 xanh |
+| Release | [v0.2.71](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.71) tag ký GPG (Good signature) — release-candidate [#42447799807](https://github.com/hunglinhpt/TextVN/actions/runs/42447799807) 4/4 job; **34 asset**, pre-release |
+| Ký số | `gpg --verify SHA256SUMS.txt` → Good signature; hash machine exe, MSIX, mac zip khớp |
+| Checksums | machine exe `a57885e3…df3f` · MSIX `756175af…efa6` · mac zip `5b6c932d…e53a` · Linux `a0481a64…fa8a` · PKGBUILD archive `b256b320…4f13` |
+| Homebrew (B7b/B7d) | cask `version "0.2.71"` + `sha256` = mac zip — sync-cask [#42448888621](https://github.com/hunglinhpt/homebrew-tap/actions/runs/42448888621) |
+| approved (B7c) | `approved/v0.2.71/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.71; `debian/changelog` 0.2.71-0ppa1 — `publish-aur.sh`, `prepare-ppa.sh --upload`, nộp MSIX Partner Center là bước của chủ repo |
 
 ## Bản 0.2.70 — bảng trợ lý hiện lại khi dừng gõ 1 giây (R2-154 / E38, 2026-11-08)
 
