@@ -11,6 +11,7 @@
 #include "surrounding_match.h"
 
 #include <fcitx-utils/capabilityflags.h>
+#include <fcitx-utils/event.h>
 #include <fcitx-utils/keysym.h>
 #include <fcitx-utils/misc.h>
 #include <fcitx-utils/utf8.h>
@@ -22,6 +23,7 @@
 #include <fcitx/text.h>
 #include <fcitx/userinterface.h>
 #include <fcitx/userinterfacemanager.h>
+#include <fcitx/instance.h>
 
 #include <dlfcn.h>
 
@@ -361,6 +363,7 @@ TextVNState::TextVNState(fcitx::InputContext *ic_) : ic(ic_) {
 }
 
 TextVNState::~TextVNState() {
+    assistIdle.reset();
     if (inst) ime_instance_free(inst);
 }
 
@@ -637,6 +640,31 @@ void TextVNEngine::syncState(TextVNState *st) {
     }
 }
 
+void TextVNEngine::assistIdleCancel(TextVNState *st) {
+    if (st) st->assistIdle.reset();
+}
+
+/* Chỉ khi không còn preedit mở: áp gợi ý xoá text đã commit bằng surrounding text, còn từ
+ * đang gõ dở nằm trong preedit — chốt giữa chừng sẽ cắt đôi từ (Windows có đường riêng). */
+void TextVNEngine::assistIdleArm(TextVNState *st) {
+    assistIdleCancel(st);
+    if (!st || !st->inst || !st->ic || !viEnabled_ ||
+        !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
+        return;
+    }
+    st->assistIdle = instance_->eventLoop().addTimeEvent(
+        CLOCK_MONOTONIC, fcitx::now(CLOCK_MONOTONIC) + LC_ASSIST_IDLE_MS * 1000ULL, 0,
+        [this, st](fcitx::EventSourceTime *, uint64_t) {
+            try {
+                if (viEnabled_ && st->inst && st->comp.len == 0) {
+                    (void)checkAndApplyAssist(st, 0, false, false, true);
+                }
+            } catch (...) {
+            }
+            return false; /* một lần */
+        });
+}
+
 void TextVNEngine::clearAssistUI(TextVNState *st) {
     if (!assistUiShowing_) return;
     assistUiShowing_ = false;
@@ -668,7 +696,7 @@ void TextVNEngine::syncAssistState(TextVNState *) {
 }
 
 bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
-                                      bool isSentenceTrigger, bool planEaten) {
+                                      bool isSentenceTrigger, bool planEaten, bool allowDisplay) {
     if (!st || !st->inst || !st->ic) return planEaten;
     const bool dbg = lc_assist_debug_enabled() != 0;
     if (!viEnabled_ || !lc_assist_is_active(assistEnabled_ ? 1 : 0, st->config.assist_mode)) {
@@ -816,6 +844,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
                 if (ipc_) {
                     lc_ipc_client_send_assist_report(ipc_, &res, fixPlan.fixed_count);
                 }
+                st->assistAutofixed = true;
                 return true; /* Consumed: replacement already contains trigger/fix */
             }
         }
@@ -824,7 +853,7 @@ bool TextVNEngine::checkAndApplyAssist(TextVNState *st, uint32_t triggerChar,
     /* Mode 1: highlight / suggestions (CandidateList & tooltip).
      * R2-129: danh sách SỐNG — hiện/cập nhật ở mọi điểm kiểm tra (ranh giới từ
      * lẫn kết thúc câu), ẩn khi câu sạch; không chiếm phím gõ (handleKey). */
-    if (lc_assist_should_display(st->config.assist_mode, isSentenceTrigger ? 1 : 0)) {
+    if (allowDisplay && lc_assist_should_display(st->config.assist_mode, isSentenceTrigger ? 1 : 0)) {
         try {
             auto candList = std::make_unique<fcitx::CommonCandidateList>();
             candList->setLayoutHint(fcitx::CandidateLayoutHint::Vertical);
@@ -966,6 +995,7 @@ void TextVNEngine::endWord(TextVNState *st, const fcitx::InputContextEvent &even
 void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
         auto *st = state(event.inputContext());
+        assistIdleCancel(st);
         endWord(st, event);
         if (st) lc_style_persist(st->inst);
     } catch (...) {
@@ -974,6 +1004,7 @@ void TextVNEngine::deactivate(const fcitx::InputMethodEntry &, fcitx::InputConte
 
 void TextVNEngine::reset(const fcitx::InputMethodEntry &, fcitx::InputContextEvent &event) {
     try {
+        assistIdleCancel(state(event.inputContext()));
         endWord(state(event.inputContext()), event);
     } catch (...) {
     }
@@ -1185,17 +1216,23 @@ bool TextVNEngine::handleKey(TextVNState *st, const fcitx::Key &key, fcitx::KeyS
     const uint32_t triggerKind = (k.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(k.ch) : IME_ASSIST_TRIGGER_NONE;
     if (triggerKind != IME_ASSIST_TRIGGER_NONE && viEnabled_ && st->comp.len == 0 && st->inst) {
         bool isSentence = (triggerKind == IME_ASSIST_TRIGGER_SENTENCE);
-        const bool eaten = checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0);
+        /* R2-155: phím trigger chỉ kiểm tra + tự sửa (Mode 2); danh sách hiện khi dừng gõ. */
+        st->assistAutofixed = false;
+        const bool eaten = checkAndApplyAssist(st, k.ch, isSentence, plan.eaten != 0, false);
+        if (st->assistAutofixed) {
+            st->assistAutofixed = false;
+            assistIdleCancel(st);
+        } else {
+            clearAssistUI(st); /* gõ tiếp là ẩn ngay; timer mới hiện lại sau 1 s */
+            assistIdleArm(st);
+        }
         updatePreview(st);
         return eaten;
     }
-    /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
-     * thì ẩn ngay, còn lỗi thì cập nhật). */
-    if (k.kind == LC_KEY_BACKSPACE && assistUiShowing_ && viEnabled_ && st->comp.len == 0 &&
-        st->inst) {
-        const bool eaten = checkAndApplyAssist(st, 0, false, plan.eaten != 0);
-        updatePreview(st);
-        return eaten;
+    /* R2-155: mọi phím gõ chữ/xoá ẩn danh sách đang hiện và hẹn lại timer idle. */
+    if (lc_assist_idle_arms(k.kind == LC_KEY_CHAR, k.kind == LC_KEY_BACKSPACE, viEnabled_ ? 1 : 0)) {
+        clearAssistUI(st);
+        assistIdleArm(st);
     }
 
     if (k.kind == LC_KEY_CHAR || k.kind == LC_KEY_BACKSPACE || k.kind == LC_KEY_TAB ||

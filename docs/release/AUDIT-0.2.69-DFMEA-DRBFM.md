@@ -57,8 +57,10 @@
 
 ## 4. Rủi ro còn lại (đã biết, chưa xử lý)
 
-- **Popup khi dừng gõ chỉ có trên Windows.** Linux (IBus/Fcitx5) và macOS hiện danh sách gợi ý
-  ngay tại phím kết câu/dấu cách (không có timer 1 s); chưa có popup sau khi dừng giữa từ.
+- **Popup khi dừng gõ giữa từ chỉ có trên Windows.** Linux (IBus/Fcitx5) và macOS (R2-155) hiện
+  danh sách sau khi dừng gõ 1 s ở ranh giới từ/dấu câu (không còn hiện ngay tại phím trigger),
+  nhưng khi từ đang gõ còn nằm trong preedit/marked thì timer bỏ qua: áp gợi ý xoá text đã
+  commit, chốt giữa chừng sẽ cắt đôi từ. Windows có `SettleThenFixSession` riêng cho việc này.
 
 - **IBus với terminal Qt/X11** (Konsole, xterm, Alacritty): không gửi input purpose, IBus không
   cho biết tên app ⇒ vẫn coi là ô thường. Chỉ ảnh hưởng người bật `style_profile` hoặc

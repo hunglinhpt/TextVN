@@ -9,6 +9,7 @@
 #ifndef TEXTVN_FCITX5_ENGINE_H
 #define TEXTVN_FCITX5_ENGINE_H
 
+#include <fcitx-utils/event.h>
 #include <fcitx/action.h>
 #include <fcitx/addonfactory.h>
 #include <fcitx/addonmanager.h>
@@ -45,6 +46,10 @@ public:
     int ctxEnabled = 1; /* ime_context_v1.enabled đã đẩy vào engine */
     bool ctxTerminal = false; /* field_role terminal đã đẩy vào engine */
     int terminalApp = -1;     /* -1 = chưa tra ic->program() (không đổi trong đời input context) */
+    /* R2-155: timer "dừng gõ 1 s" của danh sách gợi ý. Sống cùng input context: huỷ state là
+     * huỷ timer — callback không bao giờ chạm một `st` đã chết. */
+    std::unique_ptr<fcitx::EventSourceTime> assistIdle;
+    bool assistAutofixed = false; /* vừa tự sửa câu — không hẹn timer chồng lên */
     /* R-4 (AS-050): hoàn tác 1 bước sau tự sửa cả câu (Ctrl+Z trong 5 s).
      * `assistUndoReplacement` = text ĐÃ gõ lại — dùng để xác minh vùng sắp
      * xoá trước khi hoàn tác (fail-safe: không xác minh được ⇒ không xoá). */
@@ -90,7 +95,11 @@ private:
     void hidePreview(TextVNState *st);
     /* R2-131: bước "sửa hết" của phím tắt trợ lý (Ctrl+Space). */
     bool hotkeyFixSentence(TextVNState *st);
-    bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten);
+    bool checkAndApplyAssist(TextVNState *st, uint32_t triggerChar, bool isSentenceTrigger, bool planEaten,
+                             bool allowDisplay);
+    /* R2-155: dừng gõ đủ LC_ASSIST_IDLE_MS thì mới kiểm tra câu và hiện danh sách. */
+    void assistIdleCancel(TextVNState *st);
+    void assistIdleArm(TextVNState *st);
     /* R-4: Ctrl+Z hoàn tác tự sửa cả câu (1 bước, 5 s). */
     bool applyAssistUndo(TextVNState *st);
     void updateModeAction(fcitx::InputContext *ic);

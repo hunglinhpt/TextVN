@@ -203,6 +203,15 @@ int lc_assist_should_auto_fix(int assist_mode, int assist_auto_fix, int is_sente
  * câu sạch ⇒ adapter ẩn. `is_sentence_trigger` giữ cho ABI nội bộ — hàm thuần. */
 int lc_assist_should_display(int assist_mode, int is_sentence_trigger);
 
+/* R2-155 (parity Windows P9, chủ repo: "panel chỉ hiện khi dừng gõ ~1 giây"): danh sách gợi ý
+ * KHÔNG hiện ngay tại phím trigger — mọi phím gõ chữ/dấu câu/xoá hẹn lại timer, dừng đủ ngần
+ * này thì adapter mới kiểm tra câu và hiện; gõ tiếp là ẩn. Cùng trị số Windows/macOS. */
+#define LC_ASSIST_IDLE_MS 1000
+
+/* Phím nào hẹn lại timer idle (khớp `panel_idle::idle_arms` của Windows): chữ in được, dấu
+ * câu, xoá. `is_char`/`is_backspace` do adapter phân loại (lc_key_kind). */
+int lc_assist_idle_arms(int is_char, int is_backspace, int vi_enabled);
+
 /* R2-129: phím khi danh sách gợi ý SỐNG đang hiện (parity Windows `PopupKind::Live`)
  * — danh sách không chiếm phím gõ: chữ/số/cách/dấu câu/Backspace giữ danh sách
  * (`LC_LIVE_KEEP`, phím đi tiếp như thường); Esc đóng; Alt+1..3 áp gợi ý thứ n

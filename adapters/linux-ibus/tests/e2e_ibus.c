@@ -101,6 +101,16 @@ static void pump(void) {
     }
 }
 
+/* R2-155: dừng gõ `ms` mili giây (vòng chính của GLib chạy timer idle của engine). */
+static void idle_for(int ms) {
+    gint64 end = g_get_monotonic_time() + (gint64)ms * 1000;
+    while (g_get_monotonic_time() < end) {
+        while (g_main_context_iteration(NULL, FALSE)) {
+        }
+        g_usleep(5000);
+    }
+}
+
 static void app_handles(guint keyval) {
     /* App tự xử lý phím engine không nuốt. */
     if (keyval == IBUS_KEY_BackSpace) {
@@ -487,8 +497,16 @@ int main(void) {
                       "\"assist\":{\"mode\":\"highlight\"}}");
     g_lookup_candidates = 0;
     type(ic, "Tooi tooi ddi hocj.");
+    /* R2-155: không hiện ngay tại phím trigger — chỉ khi dừng gõ ~1 s. */
+    {
+        int immediate = g_lookup_candidates > 0;
+        printf("%s assist list is NOT shown at the trigger key (idle debounce)\n",
+               !immediate ? "PASS" : "FAIL");
+        ok &= !immediate;
+    }
+    idle_for(1400);
     ok &= (g_lookup_candidates > 0);
-    printf("%s assist Mode 1 (highlight) candidates=%u\n",
+    printf("%s assist Mode 1 (highlight) candidates after 1 s idle=%u\n",
            g_lookup_candidates > 0 ? "PASS" : "FAIL", g_lookup_candidates);
     clear(ic);
 
@@ -497,19 +515,54 @@ int main(void) {
     g_lookup_candidates = 0;
     g_lookup_visible = FALSE;
     type(ic, "Tooi tooi ddi ");
+    idle_for(1400);
     {
         int shown = g_lookup_visible && g_lookup_candidates > 0;
-        printf("%s assist live list shows at word boundary (R2-129)\n", shown ? "PASS" : "FAIL");
+        printf("%s assist live list shows after 1 s idle at a word boundary (R2-129/R2-155)\n",
+               shown ? "PASS" : "FAIL");
         ok &= shown;
     }
     type(ic, "1");
     ok &= check("live list: digit is typed", "Tôi tôi đi 1");
+    {
+        int hidden = !g_lookup_visible;
+        printf("%s assist live list hides at once when typing resumes (R2-155)\n",
+               hidden ? "PASS" : "FAIL");
+        ok &= hidden;
+    }
+    clear(ic);
+    /* Gõ liên tục (mỗi phím cách < 1 s) thì danh sách không bao giờ hiện. */
+    g_lookup_visible = FALSE;
+    {
+        const char *words[] = {"Tooi ", "tooi ", "ddi ", "hocj "};
+        int seen = 0;
+        for (int i = 0; i < 4; ++i) {
+            type(ic, words[i]);
+            idle_for(300);
+            if (g_lookup_visible) seen = 1;
+        }
+        printf("%s assist list stays hidden while typing continuously (R2-155)\n",
+               !seen ? "PASS" : "FAIL");
+        ok &= !seen;
+    }
     clear(ic);
     g_lookup_visible = FALSE;
     type(ic, "Tooi ddi hocj ");
+    idle_for(1400);
     printf("%s assist live list stays hidden for a clean sentence (R2-129)\n",
            !g_lookup_visible ? "PASS" : "FAIL");
     ok &= !g_lookup_visible;
+    clear(ic);
+    /* Sau dấu phẩy cũng kích hoạt (dừng 1 s). */
+    g_lookup_visible = FALSE;
+    g_lookup_candidates = 0;
+    type(ic, "Tooi tooi ddi hocj,");
+    idle_for(1400);
+    {
+        int shown = g_lookup_visible && g_lookup_candidates > 0;
+        printf("%s assist list shows after a comma + 1 s idle (R2-155)\n", shown ? "PASS" : "FAIL");
+        ok &= shown;
+    }
     clear(ic);
 
     g_push_surrounding = FALSE;

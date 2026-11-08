@@ -88,6 +88,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     private var assistUndo: AssistUndoState?
     /// Candidate panel của IMK cho Mode 1 (Highlight)
     private var candidatePanel: IMKCandidates?
+    /// R2-155 (parity Windows P9): hẹn giờ "dừng gõ 1 s" — bảng gợi ý chỉ hiện khi dừng gõ,
+    /// không hiện ngay tại phím trigger.
+    private var assistIdleTimer: Timer?
+    /// Cùng trị số Windows (`PANEL_IDLE_MS`) và Linux (`LC_ASSIST_IDLE_MS`).
+    static let assistIdleSeconds: TimeInterval = 1.0
     /// Danh sách gợi ý hiện tại cho candidate panel (kèm kế hoạch A2 — R-7)
     private var currentCandidates: [AssistCandidate] = []
     /// R2-134: phần chữ Tab SẼ nối thêm (xem trước dự đoán) đang hiện trong bảng
@@ -167,6 +172,7 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
 
     /// Mất focus → commit-before-hide (B13) + reset (P2-1 §3).
     public override func deactivateServer(_ sender: Any!) {
+        cancelAssistIdle()
         commitBeforeHide(sender)
         engine?.reset()
         persistStyleProfile()
@@ -395,8 +401,16 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // trước; không ⇒ engine dự đoán như Tab (engine luôn thấy Ctrl+Space);
         // không có gì ⇒ phím về app (Option+Space vẫn gõ được dấu cách cứng).
         hidePredictionPreview()
+        // R2-155: mọi phím gõ chữ/dấu câu/xoá ẩn bảng gợi ý đang hiện và hẹn lại timer idle.
+        if !keyEvent.isAssistHotkey(),
+           Self.assistIdleArms(ch: keyEvent.ch, vk: keyEvent.vk, viEnabled: viEnabled) {
+            candidatePanel?.hide()
+            currentCandidates.removeAll()
+            armAssistIdle()
+        }
         if keyEvent.isAssistHotkey(), isAssistActive(for: context.appID, explicit: true),
            hotkeyFixSentence(target: target) {
+            cancelAssistIdle()
             return true
         }
         let engineKey = keyEvent.isAltSpace() ? keyEvent.asCtrlSpace() : keyEvent
@@ -464,16 +478,14 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                     if let scalar = Unicode.Scalar(keyEvent.ch) {
                         target.insert(String(scalar), replacementRange: NSRange(location: NSNotFound, length: 0))
                     }
-                    processAssist(triggerKind: triggerKind, target: target, sender: sender)
+                    // R2-155: phím trigger chỉ kiểm tra + tự sửa (Mode 2); bảng hiện khi dừng gõ.
+                    if processAssist(triggerKind: triggerKind, target: target, sender: sender,
+                                     allowDisplay: false) {
+                        cancelAssistIdle()
+                    }
                     updatePredictionPreview()
                     return true
                 }
-            }
-            // R2-129: Backspace khi bảng gợi ý SỐNG đang hiện ⇒ kiểm tra lại câu
-            // (buffer câu của engine đã bỏ ký tự): sửa xong thì ẩn ngay.
-            if keyEvent.vk == Self.vkBack, marked.isEmpty, !currentCandidates.isEmpty,
-               isAssistActive(for: context.appID) {
-                processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
             }
             // Vòng 43 (Pass D2 F2): bất biến "phím .pass ⇒ composition đã đóng" —
             // parity Windows `CompositionPlan::pass_through(composing)` và Linux
@@ -496,10 +508,11 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
                 if marked.isEmpty, isAssistActive(for: context.appID) {
                     let triggerKind = CoreBridge.FFI.assistTriggerKind(ch: keyEvent.ch)
                     if triggerKind != FFI.assistTriggerNone {
-                        processAssist(triggerKind: triggerKind, target: target, sender: sender)
-                    } else if keyEvent.vk == Self.vkBack, !currentCandidates.isEmpty {
-                        // R2-129: Backspace khi bảng gợi ý sống đang hiện ⇒ kiểm tra lại.
-                        processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
+                        // R2-155: như trên — hiện bảng khi dừng gõ, không ngay tại phím trigger.
+                        if processAssist(triggerKind: triggerKind, target: target, sender: sender,
+                                         allowDisplay: false) {
+                            cancelAssistIdle()
+                        }
                     }
                 }
                 updatePredictionPreview()
@@ -1039,7 +1052,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
     }
 
     @discardableResult
-    func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil, isOnDemand: Bool = false) -> Bool {
+    func processAssist(triggerKind: UInt32, target: TextTarget, sender: Any? = nil,
+                       isOnDemand: Bool = false, allowDisplay: Bool = true) -> Bool {
         // Gate thứ 2 (defense in depth): kill-switch tắt ⇒ không check, không
         // hiện gợi ý, không tự sửa, không báo IPC.
         guard assistKillSwitchOn else { return false }
@@ -1121,7 +1135,8 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         // gõ (không chuyển phím vào panel) nên gõ tiếp bình thường. Tôn trọng
         // `hide_on_auto_fix` của Mode 2 ở điểm kết thúc câu (lúc tự sửa chạy).
         let hideInMode2 = assistSettings.isMode2AutoFix && assistSettings.display.hide_on_auto_fix
-        if assistSettings.isDisplayEnabled && (isOnDemand || !(hideInMode2 && isSentenceTrigger)) {
+        if allowDisplay && assistSettings.isDisplayEnabled
+            && (isOnDemand || !(hideInMode2 && isSentenceTrigger)) {
             let candidates = Self.buildCandidates(sentence: sentence, issues: issues, engine: engine)
             if !candidates.isEmpty {
                 currentCandidates = candidates
@@ -1139,6 +1154,39 @@ public final class TextVNInputController: IMKInputController, IpcClientDelegate 
         }
 
         return false
+    }
+
+    /// Phím nào hẹn lại timer idle (khớp `panel_idle::idle_arms` Windows và
+    /// `lc_assist_idle_arms` Linux): chữ in được, dấu câu, xoá — khi tiếng Việt bật.
+    static func assistIdleArms(ch: UInt32, vk: UInt32, viEnabled: Bool) -> Bool {
+        guard viEnabled else { return false }
+        return vk == vkBack || (ch >= 0x20 && ch != 0x7F)
+    }
+
+    func cancelAssistIdle() {
+        assistIdleTimer?.invalidate()
+        assistIdleTimer = nil
+    }
+
+    /// Dừng gõ đủ `assistIdleSeconds` thì kiểm tra câu và hiện bảng. Chỉ khi không còn marked
+    /// (từ đang gõ dở nằm trong marked text; áp gợi ý xoá text đã commit — chốt giữa chừng sẽ
+    /// cắt đôi từ, Windows có đường riêng).
+    func armAssistIdle() {
+        cancelAssistIdle()
+        guard assistKillSwitchOn else { return }
+        assistIdleTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.assistIdleSeconds, repeats: false
+        ) { [weak self] _ in
+            self?.assistIdleFired()
+        }
+    }
+
+    private func assistIdleFired() {
+        assistIdleTimer = nil
+        guard marked.isEmpty, let sender = client(), let target = clientTarget(sender) else { return }
+        let appID = Self.appID(for: Self.clientPid(sender))
+        guard isAssistActive(for: appID) else { return }
+        processAssist(triggerKind: FFI.assistTriggerWord, target: target, sender: sender)
     }
 
     /// R2-131: bước "sửa hết" của phím tắt trợ lý — câu có lỗi người dùng sửa

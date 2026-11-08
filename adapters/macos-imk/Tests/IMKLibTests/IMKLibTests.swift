@@ -1142,6 +1142,22 @@ final class AssistIpcTests: XCTestCase {
         )
     }
 
+    /// R2-155: bảng phím hẹn timer idle (khớp Windows `idle_arms`, Linux `lc_assist_idle_arms`).
+    func testAssistIdleArmsBangPhim() {
+        let arms = TextVNInputController.assistIdleArms
+        XCTAssertEqual(TextVNInputController.assistIdleSeconds, 1.0)
+        for ch in [UInt32(0x61), 0x5A, 0x30, 0x20, 0x2E, 0x2C, 0x3B, 0x3A, 0x21, 0x3F, 0x0111] {
+            XCTAssertTrue(arms(ch, 0, true), "ký tự \(ch) phải hẹn timer")
+        }
+        XCTAssertTrue(arms(0x08, TextVNInputController.vkBack, true), "xoá phải hẹn timer")
+        XCTAssertFalse(arms(0x0D, 0x24, true), "Enter không đổi câu")
+        XCTAssertFalse(arms(0x09, TextVNInputController.vkTab, true), "Tab không đổi câu")
+        XCTAssertFalse(arms(0x1B, 0x35, true), "Esc không đổi câu")
+        XCTAssertFalse(arms(0x1C, 0x7B, true), "mũi tên không đổi câu")
+        XCTAssertFalse(arms(0x7F, 0x75, true), "Delete xuôi không hẹn")
+        XCTAssertFalse(arms(0x61, 0, false), "tiếng Việt tắt thì không hẹn")
+    }
+
     func testTerminalTheoBundle() {
         XCTAssertTrue(TextVNInputController.isTerminalApp("com.apple.Terminal"))
         XCTAssertTrue(TextVNInputController.isTerminalApp("com.googlecode.iterm2"))

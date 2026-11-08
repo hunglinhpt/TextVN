@@ -508,7 +508,7 @@ static gboolean hotkey_fix_sentence(TextVNIbusEngine *self) {
  * `text_before_caret_matches`). */
 static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_char,
                                        gboolean is_sentence_trigger, gboolean plan_eaten,
-                                       const char *committed) {
+                                       const char *committed, gboolean allow_display) {
     if (!self || !self->inst) return plan_eaten;
     const int dbg = lc_assist_debug_enabled();
     if (dbg) {
@@ -642,12 +642,14 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
                 if (s_ipc) {
                     lc_ipc_client_send_assist_report(s_ipc, &res, fix_plan.fixed_count);
                 }
+                self->assist_autofixed = TRUE; /* không hẹn timer idle chồng lên */
                 return TRUE;
             }
         }
     }
 
-    if (lc_assist_should_display(self->config.assist_mode, is_sentence_trigger ? 1 : 0)) {
+    if (allow_display &&
+        lc_assist_should_display(self->config.assist_mode, is_sentence_trigger ? 1 : 0)) {
         if (!self->lookup_table) {
             self->lookup_table = ibus_lookup_table_new(3, 0, TRUE, TRUE);
             ibus_lookup_table_set_orientation(self->lookup_table, IBUS_ORIENTATION_VERTICAL);
@@ -712,6 +714,34 @@ static gboolean check_and_apply_assist(TextVNIbusEngine *self, uint32_t trigger_
     }
 
     return plan_eaten;
+}
+
+/* R2-155: timer idle — dừng gõ đủ LC_ASSIST_IDLE_MS thì kiểm tra câu rồi hiện danh sách.
+ * Chỉ khi không còn preedit mở: áp gợi ý xoá text đã commit bằng surrounding text, còn từ
+ * đang gõ dở nằm trong preedit — chốt giữa chừng sẽ cắt đôi từ (Windows có đường riêng). */
+static void assist_idle_cancel(TextVNIbusEngine *self) {
+    if (self->assist_idle_id != 0) {
+        g_source_remove(self->assist_idle_id);
+        self->assist_idle_id = 0;
+    }
+}
+
+static gboolean assist_idle_fire(gpointer data) {
+    TextVNIbusEngine *self = (TextVNIbusEngine *)data;
+    self->assist_idle_id = 0;
+    if (self->inst && !self->secure && s_vi_enabled && self->comp.len == 0) {
+        (void)check_and_apply_assist(self, 0, FALSE, FALSE, "", TRUE);
+    }
+    return G_SOURCE_REMOVE;
+}
+
+static void assist_idle_arm(TextVNIbusEngine *self) {
+    assist_idle_cancel(self);
+    if (!self->inst || self->secure || !s_vi_enabled ||
+        !lc_assist_is_active(s_assist_enabled ? 1 : 0, self->config.assist_mode)) {
+        return;
+    }
+    self->assist_idle_id = g_timeout_add(LC_ASSIST_IDLE_MS, assist_idle_fire, self);
 }
 
 static void push_context(TextVNIbusEngine *self, int enabled) {
@@ -808,6 +838,7 @@ static void textvn_ibus_engine_init(TextVNIbusEngine *self) {
 
 static void textvn_ibus_engine_finalize(GObject *object) {
     TextVNIbusEngine *self = (TextVNIbusEngine *)object;
+    assist_idle_cancel(self);
     clear_assist_ui(self);
     if (self->lookup_table) {
         g_clear_object(&self->lookup_table);
@@ -827,6 +858,7 @@ static void textvn_ibus_engine_finalize(GObject *object) {
 /* Quên từ đang gõ mà KHÔNG commit: preedit (PREEDIT_COMMIT) do ibus-daemon commit khi
  * client reset/mất focus — engine commit thêm sẽ thành chữ lặp (kiểm chứng e2e). */
 static void forget_word(TextVNIbusEngine *self) {
+    assist_idle_cancel(self);
     clear_assist_ui(self);
     self->assist_undo_valid = FALSE;
     self->comp.len = 0;
@@ -878,6 +910,7 @@ static void engine_reset(IBusEngine *engine) {
 }
 
 static void engine_disable(IBusEngine *engine) {
+    assist_idle_cancel((TextVNIbusEngine *)engine);
     finish_word((TextVNIbusEngine *)engine);
     IBUS_ENGINE_CLASS(textvn_ibus_engine_parent_class)->disable(engine);
 }
@@ -1109,18 +1142,22 @@ static gboolean engine_process_key_event(IBusEngine *engine, guint keyval, guint
     uint32_t trigger_kind = (key.kind == LC_KEY_CHAR) ? ime_assist_trigger_kind(key.ch) : IME_ASSIST_TRIGGER_NONE;
     if (trigger_kind != IME_ASSIST_TRIGGER_NONE && s_vi_enabled && self->comp.len == 0 && self->inst) {
         gboolean is_sentence = (trigger_kind == IME_ASSIST_TRIGGER_SENTENCE);
+        /* R2-155: phím trigger chỉ kiểm tra + tự sửa (Mode 2); danh sách hiện khi dừng gõ. */
+        self->assist_autofixed = FALSE;
         gboolean eaten = check_and_apply_assist(self, key.ch, is_sentence, plan.eaten ? TRUE : FALSE,
-                                                committed);
+                                                committed, FALSE);
+        if (self->assist_autofixed) {
+            self->assist_autofixed = FALSE;
+            assist_idle_cancel(self);
+        } else {
+            assist_idle_arm(self);
+        }
         update_preview(self);
         return eaten;
     }
-    /* R2-129: Backspace khi danh sách sống đang hiện ⇒ kiểm tra lại câu (sửa xong
-     * thì ẩn ngay, còn lỗi thì cập nhật). */
-    if (key.kind == LC_KEY_BACKSPACE && self->assist_ui_showing && s_vi_enabled &&
-        self->comp.len == 0 && self->inst) {
-        gboolean eaten = check_and_apply_assist(self, 0, FALSE, plan.eaten ? TRUE : FALSE, committed);
-        update_preview(self);
-        return eaten;
+    /* R2-155: mọi phím gõ chữ/xoá hẹn lại timer idle (danh sách đang hiện đã bị ẩn ở đầu hàm). */
+    if (lc_assist_idle_arms(key.kind == LC_KEY_CHAR, key.kind == LC_KEY_BACKSPACE, s_vi_enabled)) {
+        assist_idle_arm(self);
     }
 
     if (key.kind == LC_KEY_CHAR || key.kind == LC_KEY_BACKSPACE || key.kind == LC_KEY_TAB ||

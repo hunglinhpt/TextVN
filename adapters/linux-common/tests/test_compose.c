@@ -686,6 +686,16 @@ static void test_assist_hotkey_explicit_preview(void) {
     ime_instance_free(inst);
 }
 
+/* R2-155: bảng phím hẹn timer idle (khớp panel_idle::idle_arms Windows). */
+static void test_assist_idle_arms(void) {
+    assert(LC_ASSIST_IDLE_MS == 1000);
+    assert(lc_assist_idle_arms(1, 0, 1) == 1);  /* chữ/dấu câu */
+    assert(lc_assist_idle_arms(0, 1, 1) == 1);  /* xoá */
+    assert(lc_assist_idle_arms(0, 0, 1) == 0);  /* Enter/Tab/Esc/điều hướng */
+    assert(lc_assist_idle_arms(1, 0, 0) == 0);  /* tiếng Việt tắt */
+    assert(lc_assist_idle_arms(0, 1, 0) == 0);
+}
+
 static void test_modifier_ctrl_tap(void) {
     lc_modifier_toggle t = { 0 };
     /* Standalone Ctrl down then up */
@@ -830,6 +840,7 @@ int main(void) {
     test_composition_holds_whole_word();
     test_plan_edge_cases();
     test_modifier_toggle();
+    test_assist_idle_arms();
     test_modifier_ctrl_tap();
     test_engine_ctrl_tap();
     test_mode_en_prediction_passthrough();

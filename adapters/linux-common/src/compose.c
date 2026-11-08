@@ -426,6 +426,10 @@ int lc_assist_should_display(int assist_mode, int is_sentence_trigger) {
     return assist_mode != LC_ASSIST_MODE_OFF;
 }
 
+int lc_assist_idle_arms(int is_char, int is_backspace, int vi_enabled) {
+    return vi_enabled && (is_char || is_backspace);
+}
+
 int lc_assist_live_key(uint32_t keysym, int ctrl, int alt, int super) {
     /* Keysym X11 (IBus keyval == FcitxKeySym). */
     if (!ctrl && !alt && !super && keysym == 0xff1b) return LC_LIVE_CLOSE; /* Escape */
