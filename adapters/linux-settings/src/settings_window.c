@@ -629,7 +629,7 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     }
     w->lbl_assist_hint = gtk_label_new("");
     gtk_label_set_xalign(GTK_LABEL(w->lbl_assist_hint), 0.0f);
-    gtk_label_set_wrap(GTK_LABEL(w->lbl_assist_hint), TRUE);
+    gtk_label_set_ellipsize(GTK_LABEL(w->lbl_assist_hint), PANGO_ELLIPSIZE_END); /* một dòng */
     gtk_widget_add_css_class(w->lbl_assist_hint, "dim-label");
     gtk_grid_attach(GTK_GRID(g3), w->lbl_assist_hint, 0, 1, 2, 1);
     /* Tự học (P7) + Dream RSI (P10) — cùng nhãn/thứ tự với Windows & macOS. Công tắt ghi qua

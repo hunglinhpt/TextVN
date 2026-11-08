@@ -9,6 +9,22 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.76] — 2026-11-08
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Changed
+- **Dòng mô tả dưới ô *Chế độ* của Trợ lý ngữ pháp rút gọn về MỘT dòng** (chủ repo: chữ quá dài, không thấy
+  dòng thứ hai): *Không kiểm tra ngữ pháp và chính tả.* · *Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa.* ·
+  *Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác.* — cùng chữ trên Windows/Linux/macOS (Linux cắt bằng `…`,
+  macOS `lineLimit(1)`); test chặn mô tả dài quá 55 ký tự.
+
+**English** — 0.2.76: the hint under the Grammar Assistant *Mode* box is now a short **single line** (the old text
+was too long and the second line was never visible): *No grammar or spelling checks.* · *Pause 1 s: shows errors
+and suggestions, you choose.* · *Fixes only certain errors at sentence end; Ctrl+Z undoes.* (Vietnamese UI text,
+same on all three OSes); a test rejects hints longer than 55 characters.
+
 ## [0.2.75] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2963,7 +2979,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...HEAD
+[0.2.76]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...v0.2.76
 [0.2.75]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...v0.2.75
 [0.2.74]: https://github.com/hunglinhpt/TextVN/compare/v0.2.73...v0.2.74
 [0.2.73]: https://github.com/hunglinhpt/TextVN/compare/v0.2.72...v0.2.73

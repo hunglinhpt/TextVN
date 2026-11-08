@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.76 — dòng mô tả Chế độ gọn một dòng (2026-11-08)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo: dòng mô tả dưới ô Chế độ quá dài, không thấy dòng 2. Rút còn ≤ 55 ký tự/một dòng trên Windows/Linux/macOS (Linux cắt `…`, macOS `lineLimit(1)`); `assist_mode_hints_match_every_platform` chặn mô tả > 55 ký tự |
+| Đo | workspace test xanh · clippy -D warnings 0 · preflight 23/23 |
+| Ghi chú giới hạn | Chưa chụp ảnh hộp thoại thật (tray chủ repo đang chạy); kiểm bằng test độ dài + CI |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.75 — không mở composition ở control không nhập văn bản (R2-159, E45, 2026-11-08)
 
 | Hạng mục | Bằng chứng |

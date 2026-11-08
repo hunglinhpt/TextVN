@@ -99,7 +99,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-appdb"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde",
  "serde_json",
@@ -108,14 +108,14 @@ dependencies = [
 
 [[package]]
 name = "textvn-assist"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-core",
 ]
 
 [[package]]
 name = "textvn-bench"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-config",
  "textvn-core",
@@ -125,7 +125,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-cli"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde_json",
  "textvn-assist",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-config"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde",
  "serde_json",
@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-core"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde_json",
  "textvn-strategy",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-dict"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-assist",
  "windows",
@@ -164,7 +164,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-ffi"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-appdb",
  "textvn-assist",
@@ -175,7 +175,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-field-detect"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-appdb",
  "textvn-strategy",
@@ -183,7 +183,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-ipc"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde",
  "serde_json",
@@ -191,11 +191,11 @@ dependencies = [
 
 [[package]]
 name = "textvn-strategy"
-version = "0.2.75"
+version = "0.2.76"
 
 [[package]]
 name = "textvn-tray"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde",
  "serde_json",
@@ -209,7 +209,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-win-hook"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-appdb",
  "textvn-ffi",
@@ -222,7 +222,7 @@ dependencies = [
 
 [[package]]
 name = "textvn-win-tsf"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "serde_json",
  "textvn-appdb",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.2.75"
+version = "0.2.76"
 dependencies = [
  "textvn-core",
 ]

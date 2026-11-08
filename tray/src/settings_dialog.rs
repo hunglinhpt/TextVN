@@ -131,8 +131,8 @@ const ASSIST_MODE_LABELS: [&str; 3] = ["Tắt", "Chỉ gợi ý", "Tự sửa l�
 /// "Tự sửa lỗi an toàn" luôn chỉ sửa lỗi chắc chắn nên không cần lựa chọn thứ hai (0.2.75).
 pub const ASSIST_MODE_HINTS: [&str; 3] = [
     "Không kiểm tra ngữ pháp và chính tả.",
-    "Dừng gõ 1 giây, panel hiện lỗi và gợi ý; bạn tự chọn có sửa hay không.",
-    "Như Chỉ gợi ý, và tự sửa lỗi chắc chắn (lặp từ, thừa dấu cách, viết hoa đầu câu…) khi bạn kết thúc câu; Ctrl+Z hoàn tác trong 5 giây.",
+    "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa.",
+    "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác.",
 ];
 
 /// Popup "Thông tin" — CÙNG nội dung trên Windows/Linux/macOS (test
@@ -2154,6 +2154,10 @@ mod tests {
         .concat();
         let mac = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
         for hint in ASSIST_MODE_HINTS {
+            assert!(
+                hint.chars().count() <= 55,
+                "mô tả phải vừa MỘT dòng: `{hint}`"
+            );
             assert!(linux.contains(hint), "Linux thiếu mô tả `{hint}`");
             assert!(mac.contains(hint), "macOS thiếu mô tả `{hint}`");
         }

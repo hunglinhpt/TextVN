@@ -29,8 +29,8 @@ const char *const tv_assist_mode_values[TV_ASSIST_MODE_COUNT] = {
     "off", "highlight", "autocorrect"};
 const char *const tv_assist_mode_hints[TV_ASSIST_MODE_COUNT] = {
     "Không kiểm tra ngữ pháp và chính tả.",
-    "Dừng gõ 1 giây, panel hiện lỗi và gợi ý; bạn tự chọn có sửa hay không.",
-    "Như Chỉ gợi ý, và tự sửa lỗi chắc chắn (lặp từ, thừa dấu cách, viết hoa đầu câu…) khi bạn kết thúc câu; Ctrl+Z hoàn tác trong 5 giây."};
+    "Dừng gõ 1 giây: hiện lỗi và gợi ý, bạn tự chọn sửa.",
+    "Tự sửa lỗi chắc chắn khi hết câu; Ctrl+Z hoàn tác."};
 const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT] = {"off", "safe"};
 
 const char *const tv_help_text =
