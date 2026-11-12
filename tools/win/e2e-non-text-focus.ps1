@@ -37,6 +37,9 @@ public static class NT {
   [DllImport("user32.dll")] static extern int GetClassName(IntPtr h, StringBuilder s, int n);
   [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern IntPtr FindWindow(string c, string t);
+  public static string ClassOf(IntPtr h) { var s = new StringBuilder(256); GetClassName(h, s, 256); return s.ToString(); }
+  public static uint PidOf(IntPtr h) { uint p; GetWindowThreadProcessId(h, out p); return p; }
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte sc, uint fl, UIntPtr ex);
@@ -93,6 +96,20 @@ finally {
   if (-not $proc.HasExited) { [void]$proc.CloseMainWindow(); Start-Sleep -Milliseconds 800 }
   if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
 }
+# R2-161: thanh tac vu (Shell_TrayWnd, XAML) cung khong duoc mo composition. Luu y: explorer.exe nap TIP
+# luc dang nhap -> sau khi cai ban moi can dang xuat/dang nhap lai (hoac khoi dong lai explorer) moi co hieu luc.
+try {
+  $tray = [NT]::FindWindow('Shell_TrayWnd', [NullString]::Value)
+  if ($tray -ne [IntPtr]::Zero) {
+    [void][NT]::SetForegroundWindow($tray); Start-Sleep -Milliseconds 700
+    if ([NT]::ClassOf([NT]::GetForegroundWindow()) -eq 'Shell_TrayWnd') {
+      [NT]::keybd_event(0x46, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 60
+      [NT]::keybd_event(0x46, 0, 2, [UIntPtr]::Zero); Start-Sleep -Milliseconds 1500
+      $tf = [NT]::CiceroFrames([NT]::PidOf($tray))
+      if ($tf.Count -gt 0) { $fail += ('CiceroUIWndFrame hien ra khi go o thanh tac vu: ' + ($tf -join ';') + ' (neu vua cai ban moi: dang xuat/dang nhap lai de explorer nap TIP moi)') }
+    } else { Write-Output 'SKIP taskbar: khong dua duoc thanh tac vu len foreground' }
+  }
+} catch { Write-Output ('SKIP taskbar: ' + $_.Exception.Message) }
 $picked = if (Test-Path $sel) { (Get-Content $sel -Raw).Trim() } else { '' }
 if ($picked -ne 'Foxtrot') { $fail += ("type-ahead khong chon Foxtrot (chon: '" + $picked + "') - phim khong toi ListView") }
 if ($fail.Count -eq 0) { Write-Output 'PASS non-text focus: khong co khung Cicero, type-ahead chon dung'; exit 0 }

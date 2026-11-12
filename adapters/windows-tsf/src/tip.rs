@@ -213,6 +213,10 @@ impl Tip_Impl {
 
         let ipc = IpcClient::global(&exe_name);
         let shared = Rc::new(TsfShared::new(tid, ipc, thread));
+        // R2-161: terminal do hook sở hữu (MobaXterm…) không hỗ trợ composition inline → TIP nhường phím.
+        shared
+            .hook_owned
+            .set(crate::compose::is_hook_owned_exe(&exe_name));
         // Vòng 27: panel assist NHẬN chuột (nút "Sửa tất cả", click từ gạch
         // chân/dòng lỗi) — dispatch về edit_session qua Weak (không cycle Rc).
         {

@@ -1,5 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+## Bản 0.2.77 — MobaXterm + thanh tác vụ không còn khung góc trái (R2-161, E46, 2026-11-12)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Phản hồi chủ repo: MobaXterm/thanh tác vụ vẫn hiện khung nhỏ mũi tên xanh. Nguyên nhân: cơ chế "TSF nhường cho hook" chưa bao giờ được nối vào đường phím (`owns_engine` chỉ có trong test) + hook không đi kèm bản cài. Sửa: `is_hook_owned_exe` (appdb) + `hook_owned` nhường phím; kiểm lớp cửa sổ GỐC cho thanh tác vụ; file cờ `tsf-trace.on` để chẩn đoán process đã chạy sẵn |
+| Đo | tái hiện thanh tác vụ trên 0.2.76 (khung `0,0,38,24`); DLL dev trong tiến trình tên `MobaXterm.exe`: 0 khung Cicero, phím tới control (`foo`), trace `skip hook-owned app` · workspace test xanh · clippy 0 · preflight 23/23 |
+| Ghi chú giới hạn | Chưa có MobaXterm thật trên máy dev (dùng host mô phỏng theo tên exe); ca thanh tác vụ chưa kiểm sau sửa vì explorer nạp TIP lúc đăng nhập (khởi động lại explorer bị chặn) — cần cài rồi đăng xuất/đăng nhập, chạy `e2e-non-text-focus.ps1 -ForceVietnamese`; tiếng Việt trong terminal nhóm hook cần hook tương thích |
+| Phát hành | ⏳ điền sau tag (B6–B8) |
+
 ## Bản 0.2.76 — dòng mô tả Chế độ gọn một dòng (2026-11-08)
 
 | Hạng mục | Bằng chứng |

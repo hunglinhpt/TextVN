@@ -168,6 +168,45 @@ pub fn is_non_text_window_class(class: &str) -> bool {
     )
 }
 
+/// Lớp cửa sổ GỐC (top-level) không có ô nhập nào: thanh tác vụ, khay hệ thống, màn hình nền. Win11
+/// dựng thanh tác vụ bằng XAML (`Windows.UI.Input.InputSite.WindowClass` — lớp này cũng là ô nhập XAML
+/// ở nơi khác nên KHÔNG chặn theo lớp con) nhưng cửa sổ gốc của nó thì không bao giờ có ô nhập (R2-161).
+pub fn is_non_text_top_level_class(class: &str) -> bool {
+    matches!(
+        class.to_ascii_lowercase().as_str(),
+        "shell_traywnd"
+            | "shell_secondarytraywnd"
+            | "notifyiconoverflowwindow"
+            | "toplevelwindowforoverflowxamlisland"
+            | "tasklistthumbnailwnd"
+            | "tasklistoverlaywnd"
+            | "progman"
+            | "workerw"
+    )
+}
+
+/// App có `engine_owner = hook` + `ForwardAsCommit` đang bật trong appdb mặc định (MobaXterm, PuTTY,
+/// mintty, KiTTY, Tera Term, SecureCRT, Xshell…): terminal KHÔNG hỗ trợ composition inline — TIP mà
+/// dựng composition ở đó thì Windows vẽ khung nhỏ chứa chữ gõ ở góc trái màn hình (chủ repo: "ô nhỏ mũi
+/// tên xanh conflict" ở MobaXterm). TIP nhường (không ăn phím); bản cũ ghi "TSF nhường qua owns_engine"
+/// nhưng `owns_engine` không được gọi ở đường phím (R2-161). `exe` đã lowercase.
+pub fn is_hook_owned_exe(exe: &str) -> bool {
+    use std::sync::OnceLock;
+    use textvn_appdb::{AppDb, EngineOwner};
+    use textvn_strategy::Strategy;
+    static DB: OnceLock<Option<AppDb>> = OnceLock::new();
+    let db = DB.get_or_init(|| AppDb::parse(include_str!("../../../data/appdb.default.json")).ok());
+    // Role 0 = chưa biết: chỉ entry không gắn `when` (mọi role) mới khớp — cmd/pwsh theo role terminal
+    // không bị nhường (Windows Terminal/conhost hiện đại có composition inline).
+    db.as_ref()
+        .and_then(|db| db.preset_for(exe, 0))
+        .is_some_and(|p| {
+            p.engine_owner == Some(EngineOwner::Hook)
+                && p.strategy == Some(Strategy::ForwardAsCommit)
+                && p.enabled_default != Some(false)
+        })
+}
+
 /// App terminal theo tên exe (lowercase): Tab là của shell, phím phải tới app ngay (vim,
 /// less) và chữ gõ có thể là mật khẩu — không dự đoán, không học (R2-144/R2-145).
 pub fn is_terminal_exe(exe: &str) -> bool {
@@ -445,6 +484,60 @@ pub fn text_after(current: &[char], plan: &CompositionPlan) -> Vec<char> {
 
 #[cfg(test)]
 mod tests {
+    /// R2-161: thanh tác vụ/khay/màn hình nền (cửa sổ gốc) không có ô nhập; ô nhập XAML ở app khác thì có.
+    #[test]
+    fn non_text_top_level_classes() {
+        for c in [
+            "Shell_TrayWnd",
+            "Shell_SecondaryTrayWnd",
+            "Progman",
+            "WorkerW",
+            "NotifyIconOverflowWindow",
+        ] {
+            assert!(is_non_text_top_level_class(c), "{c}");
+        }
+        for c in [
+            "Notepad",
+            "CabinetWClass",
+            "Chrome_WidgetWin_1",
+            "Windows.UI.Core.CoreWindow",
+            "ApplicationFrameWindow",
+            "",
+        ] {
+            assert!(!is_non_text_top_level_class(c), "{c}");
+        }
+    }
+
+    /// R2-161: terminal không hỗ trợ composition inline do hook sở hữu → TIP nhường.
+    #[test]
+    fn hook_owned_terminals_are_yielded() {
+        for exe in [
+            "mobaxterm.exe",
+            "mobaxterm_personal_24.exe",
+            "putty.exe",
+            "mintty.exe",
+            "kitty.exe",
+            "ttermpro.exe",
+            "securecrt.exe",
+            "xshell.exe",
+        ] {
+            assert!(is_hook_owned_exe(exe), "{exe}");
+        }
+        // Không nhường: app thường, Windows Terminal (inline composition), cmd/pwsh theo role, game chat
+        // (hook chỉ bật khi người dùng cho phép — enabled_default=false).
+        for exe in [
+            "notepad.exe",
+            "code.exe",
+            "windowsterminal.exe",
+            "pwsh.exe",
+            "cmd.exe",
+            "cs2.exe",
+            "winword.exe",
+        ] {
+            assert!(!is_hook_owned_exe(exe), "{exe}");
+        }
+    }
+
     /// R2-159: control không nhập văn bản (danh sách/cây/nền Explorer) → phím phải tới app,
     /// không mở composition (tránh khung Cicero ở góc trái màn hình).
     #[test]

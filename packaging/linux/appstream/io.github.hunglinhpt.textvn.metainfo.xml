@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.77" date="2026-11-12">
+      <description>
+        <p>Windows: the small green-arrow box in the top-left corner no longer appears when you click into MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) or the taskbar and type. After installing, sign out and back in so explorer (taskbar) loads the new build.</p>
+      </description>
+    </release>
     <release version="0.2.76" date="2026-11-08">
       <description>
         <p>Grammar Assistant settings: the hint under the Mode box is now a short single line that reads fully on Windows, Linux and macOS.</p>

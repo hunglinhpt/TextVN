@@ -667,22 +667,42 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     };
 
     let key = KeyKind::classify_with_mods(vk, translate_key(vk, lparam), mods);
+    if trace::enabled() && !shared.is_composing() && key.needs_session_when_idle() {
+        trace_context_signals(shared, ctx);
+    }
     // R2-159: focus đang ở control KHÔNG nhập văn bản (danh sách file Explorer, cây thư mục, màn
     // hình nền…) → không mở composition; phím tới app (type-ahead). Mở composition ở đây làm TSF vẽ
     // khung `CiceroUIWndFrame` chứa chữ vừa gõ ở góc trái trên màn hình.
     if !shared.is_composing() && key.needs_session_when_idle() {
-        if let Some(class) = focus_window_class() {
-            if crate::compose::is_non_text_window_class(&class) {
-                if trace::enabled() {
-                    // S2: chỉ ghi tên lớp cửa sổ (không phải nội dung gõ).
-                    trace::event(
-                        shared.tid,
-                        format_args!("skip non-text focus class={class}"),
-                    );
-                }
-                shared.reset_engine();
-                return false;
+        // R2-161: terminal do hook sở hữu (MobaXterm, PuTTY…) không có composition inline → nhường.
+        if shared.hook_owned.get() {
+            if trace::enabled() {
+                trace::event(shared.tid, format_args!("skip hook-owned app"));
             }
+            shared.reset_engine();
+            return false;
+        }
+        let (class, root) = focus_window_classes();
+        let non_text = class
+            .as_deref()
+            .is_some_and(crate::compose::is_non_text_window_class)
+            || root
+                .as_deref()
+                .is_some_and(crate::compose::is_non_text_top_level_class);
+        if non_text {
+            if trace::enabled() {
+                // S2: chỉ ghi tên lớp cửa sổ (không phải nội dung gõ).
+                trace::event(
+                    shared.tid,
+                    format_args!(
+                        "skip non-text focus class={} root={}",
+                        class.as_deref().unwrap_or(""),
+                        root.as_deref().unwrap_or("")
+                    ),
+                );
+            }
+            shared.reset_engine();
+            return false;
         }
     }
     if !shared.is_composing() && !key.needs_session_when_idle() {
@@ -743,26 +763,93 @@ pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
     }
 }
 
-/// Tên lớp cửa sổ đang giữ focus bàn phím của thread UI hiện tại (`None` = không đọc được hoặc
-/// không có focus — khi đó coi là ô nhập như trước đây).
+/// Giá trị compartment kiểu số của một `ITfCompartmentMgr` (`None` = không đọc được / chưa đặt).
 #[cfg(windows)]
-fn focus_window_class() -> Option<String> {
+fn compartment_i32(mgr: &ITfCompartmentMgr, guid: &GUID) -> Option<i32> {
+    use windows::Win32::System::Variant::{VariantClear, VT_BOOL, VT_I4};
+    // SAFETY: đọc compartment của context trong callback key sink; VARIANT được VariantClear.
+    unsafe {
+        let compartment = mgr.GetCompartment(guid).ok()?;
+        let mut var = compartment.GetValue().ok()?;
+        let vt = var.Anonymous.Anonymous.vt;
+        let out = if vt == VT_I4 {
+            Some(var.Anonymous.Anonymous.Anonymous.lVal)
+        } else if vt == VT_BOOL {
+            Some(i32::from(
+                var.Anonymous.Anonymous.Anonymous.boolVal.as_bool(),
+            ))
+        } else {
+            None
+        };
+        let _ = VariantClear(&mut var);
+        out
+    }
+}
+
+/// Chẩn đoán (chỉ khi `TEXTVN_TSF_TRACE` bật; S2: không ghi nội dung gõ): tín hiệu của context +
+/// lớp cửa sổ focus tại phím chữ đầu tiên của một từ — để tìm dấu hiệu phân biệt "ô nhập thật" với
+/// "chỗ không nhập được" (thanh tác vụ, terminal MobaXterm) khi TSF vẫn đưa context cho TIP.
+#[cfg(windows)]
+fn trace_context_signals(shared: &TsfShared, ctx: Option<&ITfContext>) {
+    let class = focus_window_class().unwrap_or_default();
+    let Some(ctx) = ctx else {
+        trace::event(shared.tid, format_args!("ctx none class={class}"));
+        return;
+    };
+    let (stat, dynamic) = unsafe { ctx.GetStatus() }
+        .map(|st| (st.dwStaticFlags, st.dwDynamicFlags))
+        .unwrap_or((u32::MAX, u32::MAX));
+    let ctx_mgr = ctx.cast::<ITfCompartmentMgr>().ok();
+    let disabled = ctx_mgr
+        .as_ref()
+        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_KEYBOARD_DISABLED));
+    let empty = ctx_mgr
+        .as_ref()
+        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_EMPTYCONTEXT));
+    trace::event(
+        shared.tid,
+        format_args!(
+            "ctx class={class} static={stat:#x} dynamic={dynamic:#x} kbd_disabled={disabled:?} empty_ctx={empty:?}"
+        ),
+    );
+}
+
+/// Tên lớp cửa sổ đang giữ focus bàn phím của thread UI hiện tại và lớp của cửa sổ GỐC chứa nó
+/// (`None` = không đọc được / không có focus — khi đó coi là ô nhập như trước đây).
+#[cfg(windows)]
+fn focus_window_classes() -> (Option<String>, Option<String>) {
     use windows::Win32::System::Threading::GetCurrentThreadId;
-    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetGUIThreadInfo, GUITHREADINFO};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        GetAncestor, GetClassNameW, GetGUIThreadInfo, GA_ROOT, GUITHREADINFO,
+    };
     // SAFETY: chỉ đọc trạng thái GUI của thread hiện tại; buffer cục bộ đủ lớn.
     unsafe {
         let mut info = GUITHREADINFO {
             cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
             ..Default::default()
         };
-        GetGUIThreadInfo(GetCurrentThreadId(), &mut info).ok()?;
-        if info.hwndFocus.0.is_null() {
-            return None;
+        if GetGUIThreadInfo(GetCurrentThreadId(), &mut info).is_err() || info.hwndFocus.0.is_null()
+        {
+            return (None, None);
         }
-        let mut buf = [0u16; 128];
-        let n = GetClassNameW(info.hwndFocus, &mut buf);
-        (n > 0).then(|| String::from_utf16_lossy(&buf[..n as usize]))
+        let class_of = |hwnd: windows::Win32::Foundation::HWND| -> Option<String> {
+            if hwnd.0.is_null() {
+                return None;
+            }
+            let mut buf = [0u16; 128];
+            let n = GetClassNameW(hwnd, &mut buf);
+            (n > 0).then(|| String::from_utf16_lossy(&buf[..n as usize]))
+        };
+        (
+            class_of(info.hwndFocus),
+            class_of(GetAncestor(info.hwndFocus, GA_ROOT)),
+        )
     }
+}
+
+#[cfg(windows)]
+fn focus_window_class() -> Option<String> {
+    focus_window_classes().0
 }
 
 #[cfg(windows)]

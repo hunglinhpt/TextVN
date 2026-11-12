@@ -9,6 +9,37 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+## [0.2.77] — 2026-11-12
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Fixed
+- **MobaXterm (và PuTTY, mintty, KiTTY, Tera Term, SecureCRT, Xshell) không còn hiện khung nhỏ mũi tên xanh ở góc
+  trái màn hình khi click vào terminal rồi gõ** (R2-161, E46). Các terminal này không hỗ trợ composition inline;
+  thiết kế ghi "TSF nhường cho hook" nhưng cơ chế nhường không bao giờ được nối vào đường phím và hook tương thích
+  không đi kèm bản cài mặc định, nên TextVN vẫn dựng composition và Windows vẽ khung ở (0,0). Giờ TextVN nhường
+  phím cho nhóm app này. Lưu ý: tiếng Việt trong nhóm app này cần hook tương thích hoặc bộ gõ khác — khung lỗi
+  không còn.
+- **Thanh tác vụ Windows: bấm vào rồi gõ phím không còn hiện khung ở góc trái** (R2-161): kiểm thêm lớp cửa sổ gốc
+  (`Shell_TrayWnd`, khay, màn hình nền). **explorer.exe nạp bộ gõ lúc đăng nhập — sau khi cài cần đăng xuất/đăng nhập
+  lại (hoặc khởi động lại explorer) thì thanh tác vụ mới dùng bản mới.**
+
+### Added
+- Chẩn đoán: file cờ `%LOCALAPPDATA%\TextVN\tsf-trace.on` bật nhật ký TIP cho process nạp sau đó (explorer…), kèm dòng
+  tín hiệu context (chỉ tên lớp/cờ, không nội dung gõ); `e2e-non-text-focus.ps1` thêm ca thanh tác vụ.
+
+**English** — Unreleased: **MobaXterm (and PuTTY, mintty, KiTTY, Tera Term, SecureCRT, Xshell) no longer pop the small
+green-arrow box in the top-left corner after clicking into the terminal and typing** (R2-161, E46). These terminals have no
+inline composition; the design said "TSF yields to the hook" but the yielding was never wired into the key path and the
+compatibility hook is not in the default install, so TextVN still composed and Windows drew the frame at (0,0). TextVN now
+yields keys for this app group (Vietnamese typing there needs the compatibility hook or another input method — the broken
+box is gone). **The Windows taskbar no longer shows the box either** (root-window check: `Shell_TrayWnd`, tray, desktop);
+**explorer.exe loads the input method at sign-in, so sign out and back in (or restart explorer) after installing for the
+taskbar to use the new build.** Added a diagnostics flag file `%LOCALAPPDATA%\TextVN\tsf-trace.on` (logs only class names/flags)
+and a taskbar case in `e2e-non-text-focus.ps1`.
+
+
 ## [0.2.76] — 2026-11-08
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -2979,7 +3010,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...HEAD
+[0.2.77]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...v0.2.77
 [0.2.76]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...v0.2.76
 [0.2.75]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...v0.2.75
 [0.2.74]: https://github.com/hunglinhpt/TextVN/compare/v0.2.73...v0.2.74

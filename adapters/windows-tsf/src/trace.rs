@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Nhật ký chẩn đoán của key sink — TẮT mặc định, không tốn gì khi tắt.
 //!
-//! Bật bằng biến môi trường `TEXTVN_TSF_TRACE=<đường dẫn file>` cho process của app
+//! Bật bằng biến môi trường `TEXTVN_TSF_TRACE=<đường dẫn file>` (hoặc file cờ `%LOCALAPPDATA%/TextVN/tsf-trace.on`)
+//! cho process của app
 //! (app kế thừa từ launcher/phiên đăng nhập). Dùng khi báo lỗi "phím tới sai thứ tự",
 //! "Ctrl+Shift không chuyển" — thấy được pha nào (`test`/`down`/`up`) tới, kết quả
 //! eaten, context có phải CUAS (transitory) không.
@@ -15,7 +16,15 @@ use std::sync::{Mutex, OnceLock};
 fn sink() -> Option<&'static Mutex<std::fs::File>> {
     static SINK: OnceLock<Option<Mutex<std::fs::File>>> = OnceLock::new();
     SINK.get_or_init(|| {
-        let path = std::env::var_os("TEXTVN_TSF_TRACE")?;
+        // Bật bằng biến môi trường, HOẶC bằng file cờ `%LOCALAPPDATA%/TextVN/tsf-trace.on` (khi cần
+        // chẩn đoán process đã chạy sẵn như explorer/thanh tác vụ — không đặt được biến môi trường;
+        // log ghi `%LOCALAPPDATA%\TextVN/tsf-trace.log`). Chỉ đọc lúc process nạp TIP lần đầu.
+        let path = std::env::var_os("TEXTVN_TSF_TRACE").or_else(|| {
+            let dir = std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("TextVN");
+            dir.join("tsf-trace.on")
+                .is_file()
+                .then(|| dir.join("tsf-trace.log").into_os_string())
+        })?;
         std::fs::OpenOptions::new()
             .create(true)
             .append(true)

@@ -136,6 +136,9 @@ pub struct TsfShared {
     /// Phím/đích được giữ lại ở `OnTestKeyDown` để xử lý ở `OnKeyDown` (app
     /// IMM32/CUAS, xem `key_event::defer_to_key_down`).
     pub deferred_replay: Cell<Option<crate::replay::DeferredReplay>>,
+    /// App chủ là terminal do hook sở hữu, không hỗ trợ composition inline (MobaXterm, PuTTY…): TIP
+    /// nhường phím, không dựng composition (R2-161). Đặt một lần lúc Activate theo tên exe.
+    pub hook_owned: Cell<bool>,
     /// Phiên bản config đã nạp vào engine của thread này.
     pub config_seen: Cell<u64>,
     /// App/TSF kết thúc composition của ta (OnCompositionTerminated).
@@ -165,6 +168,7 @@ impl TsfShared {
             style_key_counter: Cell::new(0),
             pending_eaten_vk: Cell::new(None),
             deferred_replay: Cell::new(None),
+            hook_owned: Cell::new(false),
             config_seen: Cell::new(0),
             terminated: Cell::new(false),
             modifier_toggle: Cell::new(ModifierToggle::default()),
