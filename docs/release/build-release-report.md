@@ -7,7 +7,10 @@
 | Nội dung | Phản hồi chủ repo: MobaXterm/thanh tác vụ vẫn hiện khung nhỏ mũi tên xanh. Nguyên nhân: cơ chế "TSF nhường cho hook" chưa bao giờ được nối vào đường phím (`owns_engine` chỉ có trong test) + hook không đi kèm bản cài. Sửa: `is_hook_owned_exe` (appdb) + `hook_owned` nhường phím; kiểm lớp cửa sổ GỐC cho thanh tác vụ; file cờ `tsf-trace.on` để chẩn đoán process đã chạy sẵn |
 | Đo | tái hiện thanh tác vụ trên 0.2.76 (khung `0,0,38,24`); DLL dev trong tiến trình tên `MobaXterm.exe`: 0 khung Cicero, phím tới control (`foo`), trace `skip hook-owned app` · workspace test xanh · clippy 0 · preflight 23/23 |
 | Ghi chú giới hạn | Chưa có MobaXterm thật trên máy dev (dùng host mô phỏng theo tên exe); ca thanh tác vụ chưa kiểm sau sửa vì explorer nạp TIP lúc đăng nhập (khởi động lại explorer bị chặn) — cần cài rồi đăng xuất/đăng nhập, chạy `e2e-non-text-focus.ps1 -ForceVietnamese`; tiếng Việt trong terminal nhóm hook cần hook tương thích |
-| Phát hành | ⏳ điền sau tag (B6–B8) |
+| Phát hành | tag `v0.2.77` git-signed trên `eccd7a7a`; CI 7/7 xanh trên commit gắn tag; release-candidate xanh, **34 asset**; `gpg --verify SHA256SUMS.txt` Good signature, 4 `.asc` Good, hash khớp |
+| Homebrew (B7b/B7d) | cask `version "0.2.77"` + `sha256` = mac zip `17e508905b0f1afc…` — sync-cask [#43176741401](https://github.com/hunglinhpt/homebrew-tap/actions/runs/43176741401) xanh |
+| approved (B7c) | `approved/v0.2.77/` — 18 file byte-identical, raw URL 200 |
+| AUR / PPA / Store | PKGBUILD/.SRCINFO = archive v0.2.77 (sha `397cae2d91938d5c…`); `debian/changelog` 0.2.77-0ppa1 — bước của chủ repo |
 
 ## Bản 0.2.76 — dòng mô tả Chế độ gọn một dòng (2026-11-08)
 
