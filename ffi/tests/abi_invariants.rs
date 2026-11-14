@@ -436,8 +436,8 @@ fn config_paths_fail_open_va_khong_echo_text() {
             assert_eq!(sug.count, 0);
         }
         assert!((sug.count as usize) <= IME_MAX_SUGGEST);
-        for i in 0..sug.count as usize {
-            assert!((sug.lens[i] as usize) <= IME_MAX_TEXT);
+        for &len in sug.lens.iter().take(sug.count as usize) {
+            assert!((len as usize) <= IME_MAX_TEXT);
         }
 
         ime_instance_free(inst);
