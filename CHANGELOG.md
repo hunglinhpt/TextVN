@@ -7,7 +7,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [Unreleased]
+## [0.2.78] — 2026-11-14
 
 ### Fixed
 - **Backspace giữa từ không còn làm rơi phím lạ vào văn bản khi Space/ESC trả lại chuỗi gõ** (E47). Xoá một ký tự
@@ -3036,7 +3036,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...HEAD
+[0.2.78]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...v0.2.78
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...HEAD
 [0.2.77]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...v0.2.77
 [0.2.76]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...v0.2.76
 [0.2.75]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...v0.2.75

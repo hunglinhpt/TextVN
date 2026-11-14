@@ -122,7 +122,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ## Tải và Cài Đặt
 
-Bản mới nhất: **[GitHub Release v0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
+Bản mới nhất: **[GitHub Release v0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
 
 | Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
 |---|---|---|
@@ -144,7 +144,7 @@ Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Điểm nhấn tính năng |
 |---|---|
-| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (và PuTTY, mintty, Xshell, SecureCRT…) cùng thanh tác vụ **không còn hiện khung nhỏ mũi tên xanh ở góc trái** khi click vào rồi gõ phím (sau khi cài: đăng xuất/đăng nhập lại để explorer nạp bản mới) |
+| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Windows: MobaXterm (và PuTTY, mintty, Xshell, SecureCRT…) cùng thanh tác vụ **không còn hiện khung nhỏ mũi tên xanh ở góc trái** khi click vào rồi gõ phím (sau khi cài: đăng xuất/đăng nhập lại để explorer nạp bản mới) |
 | [0.2.76](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.76) | Cài đặt: dòng mô tả dưới ô **Chế độ** của Trợ lý ngữ pháp rút gọn về **một dòng** gọn dễ đọc trên cả 3 OS |
 | [0.2.75](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.75) | Windows: bấm vào thư mục (Explorer) hoặc chỗ không nhập được rồi gõ phím **không còn hiện khung nhỏ ở góc trái màn hình**; phím tới app đúng (gõ để nhảy tới mục) · ô nhập không bị ảnh hưởng · Trợ lý ngữ pháp chỉ còn **một** lựa chọn Chế độ (bỏ ô "Tự động sửa"), UI sắp lại |
 | [0.2.74](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.74) | **Tự học & Dream RSI bật mặc định** và có nút trong Cài đặt (cả 3 OS): công tắt, số liệu "Đã học: N từ · M cặp sửa | Dream RSI: tiết kiệm X% số phím", nút Xóa dữ liệu đã học; Dream RSI lưu bền qua các phiên · lọc rác bàn phím khi học · không học ở ô mật khẩu/terminal |
@@ -351,7 +351,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ## Download & Installation
 
-Latest release: **[GitHub Release v0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
+Latest release: **[GitHub Release v0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
 
 | Platform | Official Installer | Run Without Installing (Portable) |
 |---|---|---|
@@ -373,7 +373,7 @@ Full development history: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Key Highlights |
 |---|---|
-| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) and the taskbar **no longer pop the small green-arrow box in the top-left corner** when you click in and type (after installing: sign out and back in so explorer loads the new build) |
+| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Windows: MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) and the taskbar **no longer pop the small green-arrow box in the top-left corner** when you click in and type (after installing: sign out and back in so explorer loads the new build) |
 | [0.2.76](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.76) | Settings: the hint under the Grammar Assistant **Mode** box is now a short **single line** on all 3 OSes |
 | [0.2.75](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.75) | Windows: clicking a folder (Explorer) or any non-input area and then typing **no longer pops a small box in the top-left corner of the screen**; keys reach the app (type-to-jump works) · text inputs unaffected · Grammar Assistant has a **single** Mode choice ("Auto-fix" dropdown removed), UI reordered |
 | [0.2.74](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.74) | **Self-learning & Dream RSI are on by default** and have a switch in Settings (all 3 OSes): toggle, live "Learned: N words · M pairs | Dream RSI: X% keystrokes saved", a Wipe learned data button; Dream RSI persists across sessions · junk typing is not learned · never learns in password fields/terminals |

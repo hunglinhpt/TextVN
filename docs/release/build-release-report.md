@@ -1,6 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
 ## Bản 0.2.77 — MobaXterm + thanh tác vụ không còn khung góc trái (R2-161, E46, 2026-11-12)
+## Bản 0.2.78 — Thêm 7913+ test cases phòng ngừa regression (2026-11-14)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | Thêm ma trận test dual-mode 7913+ cases (6913 engine + 1101 dual-mode rapid + 182 TSF/focus) để phòng ngừa regression cho E46/E47. dual_mode_matrix.rs: 6913 cases. dual_mode_rapid.rs: 1101 cases. compose.rs: 182+ assertions. |
+| Đo | preflight 23/23 PASS · workspace test xanh · clippy 0 · CI 7/7 xanh |
+| Ghi chú | E46/E47 đã fix trong 0.2.77; bản này chủ yếu thêm test coverage |
+| Phát hành | tag v0.2.78; CI xanh; release-candidate chờ Trigger |
 
 | Hạng mục | Bằng chứng |
 |---|---|

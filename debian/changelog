@@ -1,4 +1,4 @@
-textvn (0.2.77-0ppa1) noble; urgency=medium
+textvn (0.2.78-0ppa1) noble; urgency=medium
 
   * Windows: nhường phím cho terminal không hỗ trợ composition inline và
     thanh tác vụ (R2-161); Linux không đổi.
