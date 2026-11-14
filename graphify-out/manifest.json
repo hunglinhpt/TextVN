@@ -216,9 +216,9 @@
     "semantic_hash": ""
   },
   "ffi/tests/abi_invariants.rs": {
-    "mtime": 1791617098.2966764,
-    "seen": 1791702628.1805217,
-    "ast_hash": "a285ee3390246882207d82836c76cf81",
+    "mtime": 1794621530.017604,
+    "seen": 1794656929.708551,
+    "ast_hash": "66c749e1c8b0134ad3558bc2f30e80fa",
     "semantic_hash": ""
   },
   "field-detect/Cargo.toml": {
@@ -1518,9 +1518,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/compose.rs": {
-    "mtime": 1794620983.1989276,
-    "seen": 1794621210.4129531,
-    "ast_hash": "a071cefe6e74b71f5597ea7e823e50dc",
+    "mtime": 1794647999.1640637,
+    "seen": 1794656929.6876807,
+    "ast_hash": "a29c44fe174712f5881b7c7494229fdd",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/replay.rs": {
@@ -3237,6 +3237,12 @@
     "mtime": 1794620972.5266273,
     "seen": 1794621210.4224763,
     "ast_hash": "8caced471ee74ae3ec6cd634b7ad9e31",
+    "semantic_hash": ""
+  },
+  "core/tests/dual_mode_rapid.rs": {
+    "mtime": 1794647999.5497303,
+    "seen": 1794656929.7055345,
+    "ast_hash": "ecc5351110d49a23ab0437408fbe8767",
     "semantic_hash": ""
   }
 }

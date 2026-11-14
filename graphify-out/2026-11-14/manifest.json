@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "core/src/buffer.rs": {
-    "mtime": 1792908640.584598,
-    "seen": 1792919822.6607544,
-    "ast_hash": "299d6e161f84dd002b5093c622c7e6e7",
+    "mtime": 1794620088.4095955,
+    "seen": 1794621210.4194705,
+    "ast_hash": "fa233af9c15799340275970cbef6cd84",
     "semantic_hash": ""
   },
   "core/src/keymap.rs": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1794125621.7004101,
-    "seen": 1794128358.841835,
-    "ast_hash": "708ce0cd545a59e6c85adf9865cccc78",
+    "mtime": 1794620142.3253982,
+    "seen": 1794621210.4194705,
+    "ast_hash": "9c971487e124e78a4997012bc8caaacb",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -702,9 +702,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-hook/src/lib.rs": {
-    "mtime": 1793897956.6436083,
-    "seen": 1793899092.9825203,
-    "ast_hash": "46c9d1ecb11601ae83d897e29722a401",
+    "mtime": 1794620975.4283893,
+    "seen": 1794621210.4129531,
+    "ast_hash": "f9cc2d1b1a2b74642fc898dfcc6ac013",
     "semantic_hash": ""
   },
   "fuzz/corpus/appdb_parse/basic.json": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1794467057.281509,
-    "seen": 1794469161.9424467,
-    "ast_hash": "89f94d52777ad409cb8ab4c4dd5da0bb",
+    "mtime": 1794621155.9580605,
+    "seen": 1794621210.4550085,
+    "ast_hash": "222b5249fa314ca23cab31e0e6724754",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "CHANGELOG.md": {
-    "mtime": 1794467057.344216,
-    "seen": 1794469161.9318936,
-    "ast_hash": "80db66c8a59b4be4f65d719a22b6e52a",
+    "mtime": 1794621145.1575065,
+    "seen": 1794621210.443003,
+    "ast_hash": "10088f03597a9602add360bf3f920e1f",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -1518,9 +1518,9 @@
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/compose.rs": {
-    "mtime": 1794466822.4957674,
-    "seen": 1794469161.9015882,
-    "ast_hash": "f43854237321abde5deab3d7d6e9e622",
+    "mtime": 1794620983.1989276,
+    "seen": 1794621210.4129531,
+    "ast_hash": "a071cefe6e74b71f5597ea7e823e50dc",
     "semantic_hash": ""
   },
   "adapters/windows-tsf/src/replay.rs": {
@@ -3231,6 +3231,12 @@
     "mtime": 1794466979.510242,
     "seen": 1794469161.9263606,
     "ast_hash": "24086ccfdfc7e061933ead2bf844ef93",
+    "semantic_hash": ""
+  },
+  "core/tests/dual_mode_matrix.rs": {
+    "mtime": 1794620972.5266273,
+    "seen": 1794621210.4224763,
+    "ast_hash": "8caced471ee74ae3ec6cd634b7ad9e31",
     "semantic_hash": ""
   }
 }
