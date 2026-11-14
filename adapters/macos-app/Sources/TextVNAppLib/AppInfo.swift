@@ -20,6 +20,17 @@ enum AppInfo {
     static var aboutTitle: String { "TextVN \(displayVersion)" }
     static var aboutMessage: String { "\(aboutTagline)\n\n\(aboutDetails)" }
 
-    /// URL Discussions để hướng dẫn và báo lỗi
+    /// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/Linux/macOS (nút trong cửa sổ
+    /// "Hướng dẫn"; test Rust `help_window_links_match_every_platform` đối chiếu).
     static let discussionsUrl = "https://github.com/hunglinhpt/TextVN/discussions"
+
+    static let helpTitle = "Hướng dẫn TextVN"
+    static let helpText =
+        "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space, "
+        + "hoặc dùng menu TextVN ở thanh menu.\n\n"
+        + "Telex: aa=â  aw=ă  ee=ê  oo=ô  ow=ơ  uw=ư  dd=đ;  s f r x j = sắc huyền hỏi ngã nặng;  z = xoá dấu.\n"
+        + "VNI: 1-5 = sắc huyền hỏi ngã nặng;  6 = mũ (â ê ô);  7 = móc (ơ ư);  8 = trăng (ă);  9 = đ;  0 = xoá dấu.\n"
+        + "Quick Telex: cc=ch  gg=gi  kk=kh  nn=ng  qq=qu  pp=ph  tt=th.\n\n"
+        + "Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi gõ, nhập chữ tắt rồi nhấn Tab (hoặc Space) để bung ra.\n\n"
+        + "Nếu chưa gõ được tiếng Việt: thêm TextVN trong Cài đặt hệ thống > Bàn phím > Nguồn nhập, rồi đăng xuất và đăng nhập lại."
 }

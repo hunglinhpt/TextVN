@@ -22,7 +22,8 @@ mod hook_app {
     use textvn_field_detect::SecurityState;
     use textvn_ipc::{decode_exact_frame, encode_frame, Message, MAX_FRAME_BYTES};
     use textvn_win_hook::{
-        CallbackDecision, EngineOutcome, HookEngine, HookMode, HookState, KeyEvent,
+        caps_toggle_step, classify_origin, keyboard_state_for, CallbackDecision, EngineOutcome,
+        HookEngine, HookMode, HookState, KeyEvent, KeyOrigin, INJECT_TAG,
     };
 
     use windows::core::*;
@@ -41,6 +42,8 @@ mod hook_app {
     static SHIFT_DOWN: AtomicBool = AtomicBool::new(false);
     static OTHER_KEY_DOWN: AtomicBool = AtomicBool::new(false);
     static LAST_TOGGLE_MS: AtomicU64 = AtomicU64::new(0);
+    static CAPS_TOGGLED: AtomicBool = AtomicBool::new(false);
+    static CAPS_HELD: AtomicBool = AtomicBool::new(false);
 
     static GLOBAL_ENABLED: AtomicBool = AtomicBool::new(true);
     static RELOAD_CONFIG_PENDING: AtomicBool = AtomicBool::new(false);
@@ -145,6 +148,12 @@ mod hook_app {
             });
         });
 
+        // Khởi tạo trạng thái Caps Lock ban đầu trước khi cài hook
+        CAPS_TOGGLED.store(
+            unsafe { (GetKeyState(VK_CAPITAL.0 as i32) & 1) != 0 },
+            Ordering::Release,
+        );
+
         // SAFETY: Cài đặt WH_KEYBOARD_LL hook trên desktop hiện tại
         let hook =
             unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(low_level_keyboard_proc), None, 0)? };
@@ -201,8 +210,15 @@ mod hook_app {
 
         let kbd = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
 
-        // 1. Loop guard: bỏ qua phím do phần mềm tự inject (LLKHF_INJECTED = 0x01)
-        if (kbd.flags.0 & 0x01) != 0 || IN_INJECTION.load(Ordering::Acquire) {
+        // 1. Loop guard (E48): chỉ phím THẬT mới được vào engine. LLKHF_INJECTED là 0x10 (0x01 là
+        // LLKHF_EXTENDED — bản cũ nhầm bit nên phím tự bơm tới callback SAU khi SendInput trả về
+        // bị engine nuốt lại → `Tex`+`x` nhân đôi). Phím của TextVN còn mang dwExtraInfo = INJECT_TAG.
+        if classify_origin(
+            kbd.flags.0,
+            kbd.dwExtraInfo,
+            IN_INJECTION.load(Ordering::Acquire),
+        ) != KeyOrigin::Physical
+        {
             return CallNextHookEx(None, code, wparam, lparam);
         }
 
@@ -225,6 +241,17 @@ mod hook_app {
 
         let is_down = wparam.0 == WM_KEYDOWN as usize || wparam.0 == WM_SYSKEYDOWN as usize;
         let is_up = wparam.0 == WM_KEYUP as usize || wparam.0 == WM_SYSKEYUP as usize;
+
+        if vk == VK_CAPITAL.0 as u32 && (is_down || is_up) {
+            let (t, h) = caps_toggle_step(
+                CAPS_TOGGLED.load(Ordering::Acquire),
+                CAPS_HELD.load(Ordering::Acquire),
+                vk,
+                is_down,
+            );
+            CAPS_TOGGLED.store(t, Ordering::Release);
+            CAPS_HELD.store(h, Ordering::Release);
+        }
 
         // Xử lý Hotkey chuyển đổi chế độ gõ Ctrl + Shift (chuẩn UniKey / EVKey)
         if is_down {
@@ -447,7 +474,7 @@ mod hook_app {
                             wScan: 0,
                             dwFlags: KEYBD_EVENT_FLAGS(0),
                             time: 0,
-                            dwExtraInfo: 0,
+                            dwExtraInfo: INJECT_TAG,
                         },
                     },
                 });
@@ -459,7 +486,7 @@ mod hook_app {
                             wScan: 0,
                             dwFlags: KEYEVENTF_KEYUP,
                             time: 0,
-                            dwExtraInfo: 0,
+                            dwExtraInfo: INJECT_TAG,
                         },
                     },
                 });
@@ -476,7 +503,7 @@ mod hook_app {
                         wScan: ch,
                         dwFlags: KEYEVENTF_UNICODE,
                         time: 0,
-                        dwExtraInfo: 0,
+                        dwExtraInfo: INJECT_TAG,
                     },
                 },
             });
@@ -488,7 +515,7 @@ mod hook_app {
                         wScan: ch,
                         dwFlags: KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
                         time: 0,
-                        dwExtraInfo: 0,
+                        dwExtraInfo: INJECT_TAG,
                     },
                 },
             });
@@ -519,19 +546,20 @@ mod hook_app {
 
     fn get_active_modifiers() -> u32 {
         let mut mods = 0u32;
-        // SAFETY: Đọc trạng thái message queue của thread hiện tại
+        // SAFETY: trạng thái phần cứng TỨC THỜI. `GetKeyState` đọc bảng của thread hook — trong
+        // callback WH_KEYBOARD_LL bảng này chưa cập nhật phím vừa bấm → gõ nhanh `VN` mất hoa (E48).
         unsafe {
-            if (GetKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0 {
+            if (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0 {
                 mods |= 0x1;
             }
-            if (GetKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0 {
+            if (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0 {
                 mods |= 0x2;
             }
-            if (GetKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0 {
+            if (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0 {
                 mods |= 0x4;
             }
-            if (GetKeyState(VK_LWIN.0 as i32) as u16 & 0x8000) != 0
-                || (GetKeyState(VK_RWIN.0 as i32) as u16 & 0x8000) != 0
+            if (GetAsyncKeyState(VK_LWIN.0 as i32) as u16 & 0x8000) != 0
+                || (GetAsyncKeyState(VK_RWIN.0 as i32) as u16 & 0x8000) != 0
             {
                 mods |= 0x8;
             }
@@ -544,11 +572,13 @@ mod hook_app {
     /// Delete thành '.', F1 thành 'p' và làm engine nuốt/biến đổi nhầm.
     fn vk_to_unicode(vk: u32, scan: u32) -> u32 {
         const TOUNICODE_NO_STATE_CHANGE: u32 = 0x4;
-        let mut kbd_state = [0u8; 256];
         let mut chars = [0u16; 8];
-        // SAFETY: buffer cố định trên stack; HKL của thread sở hữu cửa sổ foreground.
+        // SAFETY: buffer cố định trên stack; HKL của thread sở hữu cửa sổ foreground. Bảng phím
+        // dựng từ Shift THẬT + Caps tracking (không dùng GetKeyboardState — xem keyboard_state_for).
         let count = unsafe {
-            let _ = GetKeyboardState(&mut kbd_state);
+            let shift = (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0;
+            let caps = CAPS_TOGGLED.load(Ordering::Acquire);
+            let kbd_state = keyboard_state_for(shift, caps);
             let fg_thread = GetWindowThreadProcessId(GetForegroundWindow(), None);
             ToUnicodeEx(
                 vk,

@@ -305,6 +305,7 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
             if let Some(shared) = self.shared() {
                 crate::selection_check::cancel_pending();
                 end_composition(&shared, None);
+                shared.dead_key_armed.set(false);
                 shared.reset_engine();
                 shared.pending_eaten_vk.set(None);
                 shared.deferred_replay.set(None);
@@ -318,8 +319,36 @@ impl ITfThreadMgrEventSink_Impl for Tip_Impl {
         Ok(())
     }
 
-    fn OnPopContext(&self, _pic: Ref<'_, ITfContext>) -> Result<()> {
-        Ok(())
+    fn OnPopContext(&self, pic: Ref<'_, ITfContext>) -> Result<()> {
+        // E49: context bị pop giữa composition (đóng tab/control/X11 popup) → kết thúc
+        // composition thuộc context đó ngay thay vì để TSF/MSCTFIME UI treo khung (0,0).
+        run_guarded("OnPopContext", || {
+            if let Some(shared) = self.shared() {
+                let popped = pic.ok().ok();
+                let same_ctx = shared
+                    .composition
+                    .try_borrow()
+                    .ok()
+                    .and_then(|c| {
+                        c.as_ref()
+                            .map(|comp| unsafe { comp.GetRange().and_then(|r| r.GetContext()) })
+                    })
+                    .is_some_and(|ctx_res| match (ctx_res, popped) {
+                        (Ok(comp_ctx), Some(p)) => comp_ctx.as_raw() == p.as_raw(),
+                        (Err(_), _) => true, // composition đã mất range/context → dọn sạch
+                        _ => false,
+                    });
+                if same_ctx || (!shared.is_composing() && shared.dead_key_armed.get()) {
+                    crate::selection_check::cancel_pending();
+                    end_composition(&shared, popped);
+                    shared.dead_key_armed.set(false);
+                    shared.reset_engine();
+                    shared.pending_eaten_vk.set(None);
+                    shared.deferred_replay.set(None);
+                }
+            }
+            Ok(())
+        })
     }
 }
 

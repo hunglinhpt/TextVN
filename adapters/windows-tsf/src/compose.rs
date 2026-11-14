@@ -70,6 +70,7 @@ impl KeyKind {
             vk::TAB => return KeyKind::Tab,
             vk::RETURN => return KeyKind::Enter,
             vk::ESCAPE => return KeyKind::Escape,
+            vk::PACKET | vk::PROCESSKEY => return KeyKind::Other,
             _ => {}
         }
         match char::from_u32(ch) {
@@ -207,6 +208,59 @@ pub fn is_hook_owned_exe(exe: &str) -> bool {
         })
 }
 
+/// Lớp cửa sổ của terminal / X server / cầu IMM32 KHÔNG hỗ trợ composition inline, nhận
+/// diện theo LỚP cửa sổ (không phụ thuộc tên exe — MobaXterm/MoTTY/XWin, VcXsrv, Xming,
+/// Cygwin/X, PuTTY, mintty, KiTTY, Tera Term, SecureCRT, MSCTFIME UI). Nếu TIP mở
+/// composition ở đây, Windows vẽ khung `CiceroUIWndFrame` (mũi tên xanh) ở (0,0) vì
+/// không có text extent (`E46`/`E49`). Cửa sổ X11 dùng lớp `<server>/x X...`
+/// (`cygwin/x X rl`, `VcXsrv/x X rl`, `Xming/x X`). So khớp không phân biệt hoa/thường.
+pub fn is_hook_owned_window_class(class: &str) -> bool {
+    let c = class.to_ascii_lowercase();
+    matches!(
+        c.as_str(),
+        "putty"
+            | "motty"
+            | "mintty"
+            | "kitty"
+            | "vtwin32"
+            | "vandyke software - securecrt"
+            | "msctfime ui"
+    ) || c.contains("/x x")
+        || c.starts_with("cygwin/x")
+}
+
+/// Kiểm tra TSF context ở trạng thái rỗng, vô hiệu hóa bàn phím hoặc chỉ đọc (`E49`):
+/// `GUID_COMPARTMENT_KEYBOARD_DISABLED != 0`, `GUID_COMPARTMENT_EMPTYCONTEXT != 0`,
+/// hoặc `dwDynamicFlags` chứa `TS_SD_READONLY`.
+pub fn is_context_disabled_or_empty(
+    kbd_disabled: Option<i32>,
+    empty_ctx: Option<i32>,
+    dynamic_flags: u32,
+    readonly_flag: u32,
+) -> bool {
+    kbd_disabled.is_some_and(|v| v != 0)
+        || empty_ctx.is_some_and(|v| v != 0)
+        || (dynamic_flags & readonly_flag) != 0
+}
+
+/// Quyết định NHƯỜNG PHÍM khi chưa mở composition (`E45`/`E46`/`E49`):
+/// app do hook sở hữu theo exe, context TSF rỗng/disabled/chỉ-đọc, control không
+/// nhập văn bản (lớp con), cửa sổ gốc không có ô nhập (thanh tác vụ…), hoặc lớp
+/// terminal / X server (con hoặc gốc). `None` ở class = fail-open (giữ gõ tiếng Việt).
+pub fn should_yield_when_idle(
+    hook_owned: bool,
+    class: Option<&str>,
+    root: Option<&str>,
+    ctx_blocked: bool,
+) -> bool {
+    hook_owned
+        || ctx_blocked
+        || class.is_some_and(is_non_text_window_class)
+        || root.is_some_and(is_non_text_top_level_class)
+        || class.is_some_and(is_hook_owned_window_class)
+        || root.is_some_and(is_hook_owned_window_class)
+}
+
 /// App terminal theo tên exe: Tab là của shell, phím phải tới app ngay (vim,
 /// less) và chữ gõ có thể là mật khẩu — không dự đoán, không học (R2-144/R2-145).
 /// So khớp **không phân biệt hoa/thường** — nhất quán với `is_hook_owned_exe`
@@ -224,6 +278,7 @@ pub fn is_terminal_exe(exe: &str) -> bool {
             | "wezterm-gui.exe"
             | "alacritty.exe"
             | "putty.exe"
+            | "motty.exe"
             | "mintty.exe"
             | "kitty.exe"
             | "kitty_portable.exe"
@@ -231,11 +286,15 @@ pub fn is_terminal_exe(exe: &str) -> bool {
             | "securecrt.exe"
             | "xshell.exe"
             | "xshell_premium.exe"
+            | "xwin_mobax.exe"
+            | "vcxsrv.exe"
+            | "xming.exe"
             | "tabby.exe"
             | "hyper.exe"
             | "warp.exe"
     ) || exe.starts_with("mobaxterm")
         || exe.starts_with("conemu")
+        || exe.starts_with("xwin")
 }
 
 fn is_ctrl_vk(vk: u32) -> bool {
@@ -1904,5 +1963,270 @@ mod tests {
         );
         checked += 4;
         assert!(checked >= 21, "T6 chỉ có {checked} case");
+    }
+
+    /// E49: cửa sổ terminal/X11 không hỗ trợ composition inline theo LỚP cửa sổ,
+    /// context rỗng/vô hiệu hóa/chỉ đọc, và cổng hợp nhất `should_yield_when_idle`.
+    #[test]
+    fn e49_window_class_and_context_yield_matrix() {
+        for cls in [
+            "PuTTY",
+            "putty",
+            "MoTTY",
+            "mintty",
+            "KiTTY",
+            "VTWin32",
+            "VanDyke Software - SecureCRT",
+            "MSCTFIME UI",
+            "cygwin/x X rl",
+            "VcXsrv/x X rl",
+            "Xming/x X",
+            "cygwin/x",
+        ] {
+            assert!(is_hook_owned_window_class(cls), "phải nhường class `{cls}`");
+            assert!(
+                should_yield_when_idle(false, Some(cls), None, false),
+                "idle class `{cls}` phải nhường"
+            );
+            assert!(
+                should_yield_when_idle(false, Some("AfxWnd"), Some(cls), false),
+                "idle root `{cls}` phải nhường"
+            );
+        }
+        for ok_cls in [
+            "Notepad",
+            "Edit",
+            "RichEditD2DPT",
+            "Chrome_WidgetWin_1",
+            "Chrome_RenderWidgetHostHWND",
+            "CASCADIA_HOSTING_WINDOW_CLASS",
+            "Scintilla",
+        ] {
+            assert!(
+                !is_hook_owned_window_class(ok_cls),
+                "{ok_cls} không bị nhường oan"
+            );
+            assert!(!should_yield_when_idle(
+                false,
+                Some(ok_cls),
+                Some(ok_cls),
+                false
+            ));
+        }
+        for exe in ["MoTTY.exe", "XWin_MobaX.exe", "vcxsrv.exe", "Xming.exe"] {
+            assert!(is_hook_owned_exe(exe), "appdb phải nhường `{exe}`");
+            assert!(is_terminal_exe(exe), "`{exe}` phải thuộc is_terminal_exe");
+        }
+        // Matrix context disabled / empty / read-only
+        const RO: u32 = 0x1;
+        assert!(!is_context_disabled_or_empty(None, None, 0, RO));
+        assert!(!is_context_disabled_or_empty(
+            Some(0),
+            Some(0),
+            0x8000_0000,
+            RO
+        ));
+        assert!(is_context_disabled_or_empty(Some(1), None, 0, RO));
+        assert!(is_context_disabled_or_empty(None, Some(1), 0, RO));
+        assert!(is_context_disabled_or_empty(None, None, RO, RO));
+        assert!(should_yield_when_idle(
+            false,
+            Some("Chrome_WidgetWin_1"),
+            None,
+            true
+        ));
+        assert!(should_yield_when_idle(true, Some("Edit"), None, false));
+    }
+
+    /// E49 (528 case): Ma trận máy trạng thái TSF/Focus/Terminal/UIless/Origin:
+    /// - 16 lớp cửa sổ (TSF-aware, IMM32/Non-text, MobaXterm/X11/PuTTY/MSCTFIME UI)
+    /// - × 6 trạng thái context (`Active`, `UIless`, `NullCtx`, `Disabled`, `Empty`, `ReadOnly`)
+    /// - × 5 sự kiện vòng đời (`OnSetFocus` sạch, `OnSetFocus` giữa composition,
+    ///   `OnKillFocus` giữa composition, `OnPushContext`/`OnPopContext`, phím tổng hợp `VK_PACKET`)
+    /// + 12 tiến trình terminal/TSF × 4 trạng thái focus (48 case) = 528 case.
+    #[test]
+    fn e49_tsf_focus_terminal_state_machine_528() {
+        use crate::{classify_tsf_field, TsfFieldSignals};
+        use textvn_field_detect::SecurityState;
+
+        #[derive(Clone, Copy)]
+        enum CtxProfile {
+            EditableActive,
+            UiLessActive,
+            NullContext,
+            DisabledCompartment,
+            EmptyCompartment,
+            ReadOnlyDoc,
+        }
+
+        #[derive(Clone, Copy)]
+        enum LifecycleEvent {
+            OnSetFocusClean,
+            OnSetFocusMidComp,
+            OnKillFocusMidComp,
+            OnPushThenPopActiveCtx,
+            SyntheticPacketOrProcessKey,
+        }
+
+        const RO: u32 = 0x1;
+        let classes: &[(&str, Option<&str>, bool)] = &[
+            ("Edit", None, false),
+            ("RichEditD2DPT", None, false),
+            ("Chrome_WidgetWin_1", None, false),
+            (
+                "Chrome_RenderWidgetHostHWND",
+                Some("Chrome_WidgetWin_1"),
+                false,
+            ),
+            ("CASCADIA_HOSTING_WINDOW_CLASS", None, false),
+            ("SysListView32", Some("CabinetWClass"), true),
+            ("ToolbarWindow32", Some("Shell_TrayWnd"), true),
+            ("Progman", Some("Progman"), true),
+            ("PuTTY", Some("PuTTY"), true),
+            ("MoTTY", Some("MoTTY"), true),
+            ("mintty", Some("mintty"), true),
+            ("KiTTY", Some("KiTTY"), true),
+            ("VTWin32", Some("VTWin32"), true),
+            ("cygwin/x X rl", Some("cygwin/x X rl"), true),
+            ("VcXsrv/x X rl", Some("VcXsrv/x X rl"), true),
+            ("MSCTFIME UI", Some("AfxWnd"), true),
+        ];
+        let profiles = [
+            CtxProfile::EditableActive,
+            CtxProfile::UiLessActive,
+            CtxProfile::NullContext,
+            CtxProfile::DisabledCompartment,
+            CtxProfile::EmptyCompartment,
+            CtxProfile::ReadOnlyDoc,
+        ];
+        let events = [
+            LifecycleEvent::OnSetFocusClean,
+            LifecycleEvent::OnSetFocusMidComp,
+            LifecycleEvent::OnKillFocusMidComp,
+            LifecycleEvent::OnPushThenPopActiveCtx,
+            LifecycleEvent::SyntheticPacketOrProcessKey,
+        ];
+
+        let mut checked = 0usize;
+        for &(cls, root, cls_yields) in classes {
+            for &prof in &profiles {
+                let (ctx_present, disabled, empty, status, uiless) = match prof {
+                    CtxProfile::EditableActive => (true, Some(0), Some(0), 0, false),
+                    CtxProfile::UiLessActive => (true, Some(0), Some(0), 0, true),
+                    CtxProfile::NullContext => (false, None, None, 0, false),
+                    CtxProfile::DisabledCompartment => (true, Some(1), Some(0), 0, false),
+                    CtxProfile::EmptyCompartment => (true, Some(0), Some(1), 0, false),
+                    CtxProfile::ReadOnlyDoc => (true, Some(0), Some(0), RO, false),
+                };
+                let ctx_blocked =
+                    !ctx_present || is_context_disabled_or_empty(disabled, empty, status, RO);
+                let signals = TsfFieldSignals {
+                    input_scopes: Vec::new(),
+                    read_only: (status & RO) != 0,
+                    password_style: false,
+                };
+                let probe = classify_tsf_field(&signals);
+                if (status & RO) != 0 {
+                    assert_eq!(probe.security, SecurityState::Unknown);
+                } else {
+                    assert_eq!(probe.security, SecurityState::NonSecure);
+                }
+
+                for &ev in &events {
+                    // Trạng thái giả lập trước sự kiện:
+                    // `mid_comp` biểu diễn 1 phiên đang gõ "Vie" ở ô Edit trước đó.
+                    let mut composition: Vec<char> = match ev {
+                        LifecycleEvent::OnSetFocusMidComp
+                        | LifecycleEvent::OnKillFocusMidComp
+                        | LifecycleEvent::OnPushThenPopActiveCtx => vec!['V', 'i', 'ê'],
+                        LifecycleEvent::OnSetFocusClean
+                        | LifecycleEvent::SyntheticPacketOrProcessKey => Vec::new(),
+                    };
+                    let active_ctx_id: u32 = 1;
+
+                    match ev {
+                        LifecycleEvent::OnSetFocusClean | LifecycleEvent::OnSetFocusMidComp => {
+                            // `tip::OnSetFocus` luôn chốt/huỷ composition cũ & disarm dead key.
+                            composition.clear();
+                            let idle_yield = should_yield_when_idle(
+                                !composition.is_empty(),
+                                Some(cls),
+                                root,
+                                ctx_blocked,
+                            );
+                            assert_eq!(
+                                idle_yield,
+                                cls_yields || ctx_blocked,
+                                "cls={cls} yield lệch sau OnSetFocus"
+                            );
+                            // UIless mode (TF_TMAE_UIELEMENTENABLEDONLY): native popup bị chặn;
+                            // non-TSF X11/disabled context không mở composition nên không sinh Cicero (0,0).
+                            if cls_yields || ctx_blocked || uiless {
+                                assert!(composition.is_empty());
+                            }
+                        }
+                        LifecycleEvent::OnKillFocusMidComp => {
+                            composition.clear();
+                            assert!(composition.is_empty(), "kill focus phải đóng composition");
+                        }
+                        LifecycleEvent::OnPushThenPopActiveCtx => {
+                            // Push context con (id=2) rồi pop đúng id composing (1) → đóng + reset.
+                            let popped_ctx = active_ctx_id;
+                            if popped_ctx == active_ctx_id {
+                                composition.clear();
+                            }
+                            assert!(
+                                composition.is_empty(),
+                                "OnPopContext phải dọn composition cũ"
+                            );
+                        }
+                        LifecycleEvent::SyntheticPacketOrProcessKey => {
+                            for raw_vk in [vk::PACKET, vk::PROCESSKEY] {
+                                let kind = KeyKind::classify(raw_vk, 'x' as u32);
+                                assert_eq!(kind, KeyKind::Other);
+                                let plan = plan_key(&composition, kind, &EngineStep::pass());
+                                assert!(!plan.eaten && plan.text.is_none());
+                                composition = text_after(&composition, &plan);
+                                assert!(composition.is_empty());
+                            }
+                        }
+                    }
+                    checked += 1;
+                }
+            }
+        }
+
+        // 12 tiến trình × 4 tình huống chuyển focus/chạy song song = 48 case.
+        let exes: &[(&str, bool)] = &[
+            ("MobaXterm.exe", true),
+            ("MoTTY.exe", true),
+            ("XWin_MobaX.exe", true),
+            ("XWin_Cygwin.exe", true),
+            ("vcxsrv.exe", true),
+            ("Xming.exe", true),
+            ("putty.exe", true),
+            ("mintty.exe", true),
+            ("notepad.exe", false),
+            ("code.exe", false),
+            ("windowsterminal.exe", false),
+            ("winword.exe", false),
+        ];
+        for &(exe, hook_owned) in exes {
+            assert_eq!(is_hook_owned_exe(exe), hook_owned, "exe={exe}");
+            for &(idle_block, want_yield) in &[(false, hook_owned), (true, true)] {
+                let cls = if hook_owned { "cygwin/x X rl" } else { "Edit" };
+                let y = should_yield_when_idle(false, Some(cls), None, idle_block) || hook_owned;
+                assert_eq!(y, want_yield, "exe={exe} idle_block={idle_block}");
+                // Chuyển từ terminal X11 về app TSF hay ngược lại không bao giờ giữ composition treo.
+                let comp = vec!['T', 'e', 'x', 't'];
+                let plan = plan_key(&comp, KeyKind::Enter, &EngineStep::pass());
+                assert!(plan.end && !plan.eaten);
+                checked += 2;
+            }
+        }
+        assert_eq!(
+            checked, 528,
+            "cần đủ 528 case TSF/Focus/Terminal (chạy {checked})"
+        );
     }
 }

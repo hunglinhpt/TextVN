@@ -56,13 +56,37 @@ typedef struct TvWin {
 
 /* ---- Hộp thông báo (GTK 4.0) ---- */
 
-static void show_message(GtkWindow *parent, const char *title, const char *body) {
+static void show_message(GtkWindow *parent, const char *title, const char *body);
+
+/* Esc đóng cửa sổ (như Windows). */
+static void add_escape_closes(GtkWidget *window) {
+    GtkEventController *sc = gtk_shortcut_controller_new();
+    gtk_shortcut_controller_add_shortcut(
+        GTK_SHORTCUT_CONTROLLER(sc),
+        gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Escape, 0),
+                         gtk_named_action_new("window.close")));
+    gtk_widget_add_controller(window, sc);
+}
+
+/* Cửa sổ "Hướng dẫn": nút [Thảo luận] / [Báo lỗi] mở cùng URL với Windows/macOS. */
+static void on_help_link(GtkButton *b, GtkWindow *parent) {
+    (void)b;
+    GError *err = NULL;
+    if (!g_app_info_launch_default_for_uri(tv_discussions_url, NULL, &err)) {
+        show_message(parent, "Không mở được trình duyệt", tv_discussions_url);
+    }
+    if (err) g_error_free(err);
+}
+
+static void present_info_dialog(GtkWindow *parent, const char *title, const char *body,
+                                gboolean with_help_links) {
     GtkWidget *dlg = gtk_window_new();
     gtk_window_set_title(GTK_WINDOW(dlg), title);
     gtk_window_set_transient_for(GTK_WINDOW(dlg), parent);
     gtk_window_set_modal(GTK_WINDOW(dlg), TRUE);
     gtk_window_set_resizable(GTK_WINDOW(dlg), FALSE);
     gtk_window_set_destroy_with_parent(GTK_WINDOW(dlg), TRUE);
+    add_escape_closes(dlg);
 
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
     gtk_widget_set_margin_start(box, 18);
@@ -74,13 +98,33 @@ static void show_message(GtkWindow *parent, const char *title, const char *body)
     gtk_label_set_max_width_chars(GTK_LABEL(label), 70);
     gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
     gtk_box_append(GTK_BOX(box), label);
+
     GtkWidget *ok = gtk_button_new_with_label("Đóng");
-    gtk_widget_set_halign(ok, GTK_ALIGN_END);
     g_signal_connect_swapped(ok, "clicked", G_CALLBACK(gtk_window_destroy), dlg);
-    gtk_box_append(GTK_BOX(box), ok);
+    if (with_help_links) {
+        GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+        gtk_widget_set_halign(row, GTK_ALIGN_END);
+        GtkWidget *discuss = gtk_button_new_with_label("Thảo luận");
+        gtk_widget_set_tooltip_text(discuss, "Mở trang Thảo luận trên GitHub");
+        g_signal_connect(discuss, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
+        GtkWidget *report = gtk_button_new_with_label("Báo lỗi");
+        gtk_widget_set_tooltip_text(report, "Báo cáo sự cố trên GitHub");
+        g_signal_connect(report, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
+        gtk_box_append(GTK_BOX(row), discuss);
+        gtk_box_append(GTK_BOX(row), report);
+        gtk_box_append(GTK_BOX(row), ok);
+        gtk_box_append(GTK_BOX(box), row);
+    } else {
+        gtk_widget_set_halign(ok, GTK_ALIGN_END);
+        gtk_box_append(GTK_BOX(box), ok);
+    }
     gtk_window_set_child(GTK_WINDOW(dlg), box);
     gtk_window_set_default_widget(GTK_WINDOW(dlg), ok);
     gtk_window_present(GTK_WINDOW(dlg));
+}
+
+static void show_message(GtkWindow *parent, const char *title, const char *body) {
+    present_info_dialog(parent, title, body, FALSE);
 }
 
 static void save_failed(TvWin *w) {
@@ -89,16 +133,6 @@ static void save_failed(TvWin *w) {
                "Không ghi được cấu hình vào:\n%s\n\nKiểm tra quyền ghi thư mục ~/.config/TextVN.",
                w->paths.config);
     show_message(GTK_WINDOW(w->window), "TextVN", body);
-}
-
-/* Esc đóng cửa sổ (như Windows). */
-static void add_escape_closes(GtkWidget *window) {
-    GtkEventController *sc = gtk_shortcut_controller_new();
-    gtk_shortcut_controller_add_shortcut(
-        GTK_SHORTCUT_CONTROLLER(sc),
-        gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Escape, 0),
-                         gtk_named_action_new("window.close")));
-    gtk_widget_add_controller(window, sc);
 }
 
 /* ---- Đổ dữ liệu lên widget ---- */
@@ -228,7 +262,7 @@ static void on_default(GtkButton *b, TvWin *w) {
 
 static void on_help(GtkButton *b, TvWin *w) {
     (void)b;
-    show_message(GTK_WINDOW(w->window), "Hướng dẫn TextVN", tv_help_text);
+    present_info_dialog(GTK_WINDOW(w->window), "Hướng dẫn TextVN", tv_help_text, TRUE);
 }
 
 static void on_about(GtkButton *b, TvWin *w) {
@@ -237,22 +271,6 @@ static void on_about(GtkButton *b, TvWin *w) {
     g_snprintf(body, sizeof(body), "TextVN %s\n%s", TEXTVN_VERSION, tv_about_text);
     show_message(GTK_WINDOW(w->window), "Thông tin TextVN", body);
 }
-
-static void on_discuss(GtkButton *b, TvWin *w) {
-    (void)b;
-    (void)w;
-    const char *url = "https://github.com/hunglinhpt/TextVN/discussions";
-    if (g_app_info_launch_default_for_uri(url, NULL, NULL)) {
-        return;
-    }
-    show_message(GTK_WINDOW(w->window), "Lỗi", "Không thể mở URL trong trình duyệt.");
-}
-
-static void on_issues(GtkButton *b, TvWin *w) {
-    (void)b;
-    on_discuss(b, w);
-}
-
 
 static void on_close(GtkButton *b, TvWin *w) {
     (void)b;
@@ -669,10 +687,6 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     gtk_widget_set_margin_top(row, 4);
     button(row, "help-browser-symbolic", "Hướng dẫn",
            "Cách gõ Telex/VNI, gõ tắt và các phím tắt", G_CALLBACK(on_help), w);
-    button(row, "internet-discussion-symbolic", "Thảo luận",
-           "Mở trang Thảo luận trên GitHub", G_CALLBACK(on_discuss), w);
-    button(row, "dialog-warning-symbolic", "Báo lỗi",
-           "Báo cáo sự cố trên GitHub", G_CALLBACK(on_issues), w);
     button(row, "dialog-information-symbolic", "Thông tin",
            "Phiên bản và thông tin TextVN", G_CALLBACK(on_about), w);
     button(row, "input-keyboard-symbolic", "Gõ tắt...",

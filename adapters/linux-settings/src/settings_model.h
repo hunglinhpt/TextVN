@@ -43,6 +43,8 @@ extern const char *const tv_assist_auto_fix_values[TV_ASSIST_AUTO_FIX_COUNT];
 
 extern const char *const tv_help_text;
 extern const char *const tv_about_text;
+/* Trang Thảo luận / Báo lỗi — cùng URL 3 nền tảng (nút trong cửa sổ Hướng dẫn). */
+extern const char *const tv_discussions_url;
 
 /* Chỉ số của `value` trong `values`; không có → 0 (mặc định). */
 int tv_index_of(const char *const *values, int n, const char *value);

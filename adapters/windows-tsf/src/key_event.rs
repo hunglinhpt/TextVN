@@ -651,6 +651,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         || vk == vkc::PACKET
         || vk == vkc::PROCESSKEY
     {
+        shared.dead_key_armed.set(false);
         end_composition(shared, ctx);
         shared.reset_engine();
         return false;
@@ -661,6 +662,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
         shared.sync_config();
     }
     let Some(vi_on) = shared.engine_mode() else {
+        shared.dead_key_armed.set(false);
         end_composition(shared, ctx);
         shared.reset_engine();
         return false;
@@ -670,37 +672,39 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
     if trace::enabled() && !shared.is_composing() && key.needs_session_when_idle() {
         trace_context_signals(shared, ctx);
     }
-    // R2-159: focus đang ở control KHÔNG nhập văn bản (danh sách file Explorer, cây thư mục, màn
-    // hình nền…) → không mở composition; phím tới app (type-ahead). Mở composition ở đây làm TSF vẽ
-    // khung `CiceroUIWndFrame` chứa chữ vừa gõ ở góc trái trên màn hình.
+    // R2-159 / R2-161 / E49: focus đang ở control KHÔNG nhập văn bản, terminal/X11 do hook sở hữu,
+    // hoặc TSF context rỗng/disabled/chỉ đọc → không mở composition; phím tới app nguyên vẹn.
+    // Mở composition ở đó làm TSF/MSCTFIME UI vẽ khung `CiceroUIWndFrame` ở (0,0).
     if !shared.is_composing() && key.needs_session_when_idle() {
-        // R2-161: terminal do hook sở hữu (MobaXterm, PuTTY…) không có composition inline → nhường.
+        // R2-161: terminal do hook sở hữu theo exe (MobaXterm, MoTTY, PuTTY…) không có composition inline → nhường.
         if shared.hook_owned.get() {
             if trace::enabled() {
                 trace::event(shared.tid, format_args!("skip hook-owned app"));
             }
+            shared.dead_key_armed.set(false);
             shared.reset_engine();
             return false;
         }
         let (class, root) = focus_window_classes();
-        let non_text = class
-            .as_deref()
-            .is_some_and(crate::compose::is_non_text_window_class)
-            || root
-                .as_deref()
-                .is_some_and(crate::compose::is_non_text_top_level_class);
-        if non_text {
+        let ctx_blocked = context_blocks_typing(ctx);
+        if crate::compose::should_yield_when_idle(
+            false,
+            class.as_deref(),
+            root.as_deref(),
+            ctx_blocked,
+        ) {
             if trace::enabled() {
-                // S2: chỉ ghi tên lớp cửa sổ (không phải nội dung gõ).
+                // S2/G8: chỉ ghi tên lớp cửa sổ và cờ context (không bao giờ ghi nội dung gõ).
                 trace::event(
                     shared.tid,
                     format_args!(
-                        "skip non-text focus class={} root={}",
+                        "skip non-text focus class={} root={} ctx_blocked={ctx_blocked}",
                         class.as_deref().unwrap_or(""),
                         root.as_deref().unwrap_or("")
                     ),
                 );
             }
+            shared.dead_key_armed.set(false);
             shared.reset_engine();
             return false;
         }
@@ -739,6 +743,7 @@ fn handle_key(shared: &Rc<TsfShared>, ctx: Option<&ITfContext>, vk: u32, lparam:
 /// khi text đã commit (B2); không được thì xin session bất đồng bộ.
 #[cfg(windows)]
 pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
+    shared.dead_key_armed.set(false);
     hide_assist_overlay(shared);
     shared.ghost.hide();
     let Some(comp) = shared.take_composition() else {
@@ -752,13 +757,17 @@ pub fn end_composition(shared: &TsfShared, fallback_ctx: Option<&ITfContext>) {
             .ok()
             .or_else(|| fallback_ctx.cloned());
         let Some(ctx) = ctx else {
+            shared.reset_engine();
             return;
         };
         let session: ITfEditSession = EndCompositionSession::new(comp).into();
         let sync = ctx.RequestEditSession(shared.tid, &session, TF_ES_SYNC | TF_ES_READWRITE);
         if !matches!(sync, Ok(code) if code.is_ok()) {
-            let _ =
+            let async_res =
                 ctx.RequestEditSession(shared.tid, &session, TF_ES_ASYNCDONTCARE | TF_ES_READWRITE);
+            if !matches!(async_res, Ok(code) if code.is_ok()) {
+                shared.reset_engine();
+            }
         }
     }
 }
@@ -786,6 +795,32 @@ fn compartment_i32(mgr: &ITfCompartmentMgr, guid: &GUID) -> Option<i32> {
     }
 }
 
+/// Đọc trạng thái static/dynamic và 2 compartment chặn gõ từ `ITfContext` (dùng chung cho gate + trace).
+#[cfg(windows)]
+fn read_context_signals(ctx: &ITfContext) -> (u32, u32, Option<i32>, Option<i32>) {
+    // SAFETY: ctx hợp lệ trong callback key sink.
+    let (stat, dynamic) = unsafe { ctx.GetStatus() }
+        .map(|st| (st.dwStaticFlags, st.dwDynamicFlags))
+        .unwrap_or((0, 0));
+    let ctx_mgr = ctx.cast::<ITfCompartmentMgr>().ok();
+    let disabled = ctx_mgr
+        .as_ref()
+        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_KEYBOARD_DISABLED));
+    let empty = ctx_mgr
+        .as_ref()
+        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_EMPTYCONTEXT));
+    (stat, dynamic, disabled, empty)
+}
+
+/// E49: context rỗng, bàn phím bị vô hiệu hóa hoặc chỉ đọc → không mở composition mới.
+#[cfg(windows)]
+fn context_blocks_typing(ctx: Option<&ITfContext>) -> bool {
+    ctx.is_some_and(|c| {
+        let (_, dynamic, disabled, empty) = read_context_signals(c);
+        crate::compose::is_context_disabled_or_empty(disabled, empty, dynamic, TF_SD_READONLY)
+    })
+}
+
 /// Chẩn đoán (chỉ khi `TEXTVN_TSF_TRACE` bật; S2: không ghi nội dung gõ): tín hiệu của context +
 /// lớp cửa sổ focus tại phím chữ đầu tiên của một từ — để tìm dấu hiệu phân biệt "ô nhập thật" với
 /// "chỗ không nhập được" (thanh tác vụ, terminal MobaXterm) khi TSF vẫn đưa context cho TIP.
@@ -796,16 +831,7 @@ fn trace_context_signals(shared: &TsfShared, ctx: Option<&ITfContext>) {
         trace::event(shared.tid, format_args!("ctx none class={class}"));
         return;
     };
-    let (stat, dynamic) = unsafe { ctx.GetStatus() }
-        .map(|st| (st.dwStaticFlags, st.dwDynamicFlags))
-        .unwrap_or((u32::MAX, u32::MAX));
-    let ctx_mgr = ctx.cast::<ITfCompartmentMgr>().ok();
-    let disabled = ctx_mgr
-        .as_ref()
-        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_KEYBOARD_DISABLED));
-    let empty = ctx_mgr
-        .as_ref()
-        .and_then(|m| compartment_i32(m, &GUID_COMPARTMENT_EMPTYCONTEXT));
+    let (stat, dynamic, disabled, empty) = read_context_signals(ctx);
     trace::event(
         shared.tid,
         format_args!(

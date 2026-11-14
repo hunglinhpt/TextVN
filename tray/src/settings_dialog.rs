@@ -34,7 +34,7 @@ use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
-#[cfg(windows)]
+
 const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
 /// Bố cục được thiết kế trên lưới 900 đơn vị ngang, thu 2/3 rồi nhân DPI khi tạo
@@ -61,8 +61,6 @@ const ID_BTN_DEFAULT: isize = 2011;
 const ID_BTN_EXIT: isize = 2012;
 const ID_BTN_HELP: isize = 2013;
 const ID_BTN_ABOUT: isize = 2014;
-const ID_BTN_DISCUSS: isize = 2015;
-const ID_BTN_ISSUES: isize = 2028;
 const ID_CHK_AUTO_CAPITALIZE: isize = 2016;
 const ID_CHK_QUICK_TELEX: isize = 2017;
 const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
@@ -166,7 +164,10 @@ tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
 Nếu chưa gõ được tiếng Việt: TextVN tự đăng ký bộ gõ khi khởi động — thoát hẳn rồi mở lại, \
 chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli doctor`.";
 
+/// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/macOS/Linux (cửa sổ "Hướng dẫn").
+#[cfg(windows)]
 const DISCUSSIONS_URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
+
 static SETTINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 
 struct DialogContext {
@@ -206,22 +207,8 @@ pub fn show_settings_dialog(svc: Arc<SvcManager>, ipc: Arc<IpcServer>) {
 pub fn show_settings_dialog(_svc: Arc<SvcManager>, _ipc: Arc<IpcServer>) {
     println!("Cài đặt TextVN chỉ khả dụng trên Windows.");
 }
-#[cfg(windows)]
-fn open_url(url: &str) {
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
-    let file = w(url);
-    unsafe {
-        let _ = windows::Win32::UI::Shell::ShellExecuteW(
-            None,
-            w!("open"),
-            PCWSTR(file.as_ptr()),
-            None,
-            None,
-            SW_SHOWNORMAL,
-        );
-    }
-}
 
+#[cfg(windows)]
 fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
@@ -581,7 +568,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 36] = [
+const DIALOG_LAYOUT: [Ctl; 35] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -779,17 +766,10 @@ const DIALOG_LAYOUT: [Ctl; 36] = [
     ),
     ctl(
         "BUTTON",
-        "\u{1F4D6}  Thảo luận",
+        "\u{2328}  Gõ tắt...",
         BTN,
         (257, 735, 112, 48),
-        ID_BTN_DISCUSS,
-    ),
-    ctl(
-        "BUTTON",
-        "\u{26A0}  Báo lỗi",
-        BTN,
-        (375, 735, 112, 48),
-        ID_BTN_ISSUES,
+        ID_BTN_MACROS,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
     ctl(
@@ -850,11 +830,9 @@ fn layout_dialog_controls(parent: HWND, dpi: i32) {
 
 /// Gợi ý (tooltip) của hàng nút — người dùng phải phân biệt được "Ẩn vào khay" và "Thoát".
 #[cfg(windows)]
-const BUTTON_HINTS: [(isize, &str); 9] = [
+const BUTTON_HINTS: [(isize, &str); 7] = [
     (ID_BTN_HELP, "Cách gõ Telex/VNI, gõ tắt và các phím tắt"),
     (ID_BTN_ABOUT, "Phiên bản và thông tin TextVN"),
-    (ID_BTN_DISCUSS, "Mở trang Thảo luận trên GitHub"),
-    (ID_BTN_ISSUES, "Báo cáo sự cố trên GitHub"),
     (ID_BTN_MACROS, "Thêm/sửa gõ tắt (ví dụ hd = hợp đồng)"),
     (
         ID_BTN_ENGLISH,
@@ -1154,14 +1132,12 @@ unsafe extern "system" fn dialog_wnd_proc(
                     let _ = ShowWindow(hwnd, SW_HIDE);
                     PostQuitMessage(0);
                 }
-                ID_BTN_HELP => show_information(hwnd, "Hướng dẫn TextVN", HELP_TEXT),
+                ID_BTN_HELP => show_help(hwnd),
                 ID_BTN_ABOUT => show_information(
                     hwnd,
                     "Thông tin TextVN",
                     &about_text(env!("CARGO_PKG_VERSION")),
                 ),
-                ID_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
-                ID_BTN_ISSUES => open_url(DISCUSSIONS_URL),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
                 ID_BTN_STYLE_CLEAR => {
@@ -2035,6 +2011,84 @@ fn show_information(owner: HWND, title: &str, content: &str) {
     }
 }
 
+/// Mở URL bằng trình duyệt mặc định. Chỉ nhận `https://` (không bao giờ truyền
+/// chuỗi do người dùng nhập vào ShellExecute).
+#[cfg(windows)]
+fn open_url(url: &str) {
+    if !url.starts_with("https://") {
+        return;
+    }
+    let target = w(url);
+    // SAFETY: buffer NUL-terminated, sống suốt lời gọi đồng bộ.
+    unsafe {
+        let _ = windows::Win32::UI::Shell::ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(target.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+#[cfg(windows)]
+const HELP_BTN_DISCUSS: i32 = 1001;
+#[cfg(windows)]
+const HELP_BTN_REPORT: i32 = 1002;
+#[cfg(windows)]
+const HELP_BTN_CLOSE: i32 = 1003;
+
+/// Cửa sổ "Hướng dẫn": nội dung + nút [Thảo luận] [Báo lỗi] [Đóng] (TaskDialog; manifest
+/// đã bật Common Controls 6). Lỗi TaskDialog → rơi về MessageBox thường (không mất hướng dẫn).
+#[cfg(windows)]
+fn show_help(owner: HWND) {
+    use windows::Win32::UI::Controls::{
+        TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
+    };
+    let title = w("Hướng dẫn TextVN");
+    let content = w(&HELP_TEXT.replace("\r\n", "\n"));
+    let b_discuss = w("Thảo luận");
+    let b_report = w("Báo lỗi");
+    let b_close = w("Đóng");
+    let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_DISCUSS,
+            pszButtonText: PCWSTR(b_discuss.as_ptr()),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_REPORT,
+            pszButtonText: PCWSTR(b_report.as_ptr()),
+        },
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_CLOSE,
+            pszButtonText: PCWSTR(b_close.as_ptr()),
+        },
+    ];
+    let cfg = TASKDIALOGCONFIG {
+        cbSize: std::mem::size_of::<TASKDIALOGCONFIG>() as u32,
+        hwndParent: owner,
+        dwFlags: TDF_ALLOW_DIALOG_CANCELLATION,
+        pszWindowTitle: PCWSTR(title.as_ptr()),
+        pszContent: PCWSTR(content.as_ptr()),
+        cButtons: buttons.len() as u32,
+        pButtons: buttons.as_ptr(),
+        nDefaultButton: HELP_BTN_CLOSE,
+        ..Default::default()
+    };
+    let mut pressed: i32 = 0;
+    // SAFETY: mọi buffer/mảng trên stack sống suốt lời gọi modal đồng bộ.
+    let ok = unsafe { TaskDialogIndirect(&cfg, Some(&mut pressed), None, None) }.is_ok();
+    if !ok {
+        show_information(owner, "Hướng dẫn TextVN", HELP_TEXT);
+        return;
+    }
+    match pressed {
+        HELP_BTN_DISCUSS | HELP_BTN_REPORT => open_url(DISCUSSIONS_URL),
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2269,6 +2323,40 @@ mod tests {
                 "{os} còn câu giới thiệu riêng theo nền tảng"
             );
         }
+    }
+
+    /// Cửa sổ "Hướng dẫn" có nút Thảo luận + Báo lỗi trên CẢ 3 nền tảng, cùng URL; hàng nút
+    /// chính KHÔNG chứa chúng (hàng đã kín 900 đơn vị — lần thêm trước làm mất nút "Gõ tắt...").
+    #[test]
+    fn help_window_links_match_every_platform() {
+        const URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
+        let windows = include_str!("settings_dialog.rs");
+        let linux_model = include_str!("../../adapters/linux-settings/src/settings_model.c");
+        let linux_win = include_str!("../../adapters/linux-settings/src/settings_window.c");
+        let mac_info = include_str!("../../adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift");
+        let mac_view =
+            include_str!("../../adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift");
+        for (os, src) in [
+            ("Windows", windows),
+            ("Linux", linux_model),
+            ("macOS", mac_info),
+        ] {
+            assert!(src.contains(URL), "{os} thiếu URL Thảo luận");
+        }
+        for (os, src) in [
+            ("Windows", windows),
+            ("Linux", linux_win),
+            ("macOS", mac_view),
+        ] {
+            assert!(src.contains("\"Thảo luận\""), "{os} thiếu nút Thảo luận");
+            assert!(src.contains("\"Báo lỗi\""), "{os} thiếu nút Báo lỗi");
+        }
+        // Không còn nút riêng ở hàng nút chính (Windows/Linux) — chỉ nằm trong cửa sổ Hướng dẫn.
+        assert!(!windows.contains(concat!("ID_BTN_", "DISCUSS")));
+        assert!(!linux_win.contains("internet-discussion-symbolic"));
+        assert!(!linux_win.contains("on_discuss"));
+        // Hàng nút Windows vẫn đủ "Gõ tắt..." (hồi quy da4cdfe0).
+        assert!(windows.contains("Gõ tắt..."));
     }
 
     /// Hàng nút (0.2.72): mỗi nút có biểu tượng + gợi ý; "Ẩn vào khay" và "Thoát" không còn dễ

@@ -7,6 +7,72 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Windows MobaXterm / X11 / non-TSF focus & `CiceroUIWndFrame` (0,0) popup** (E49, bổ sung E46).
+  MobaXterm mở session SSH/X11 bằng các tiến trình con (`MoTTY.exe`, `XWin_MobaX.exe`, prefix `XWin*`,
+  cùng standalone X server `vcxsrv.exe`, `Xming.exe`) và lớp cửa sổ terminal/X11 (`MoTTY`, `PuTTY`,
+  `mintty`, `KiTTY`, `VTWin32`, `VanDyke Software - SecureCRT`, `MSCTFIME UI`, `cygwin/x*`, `*/x x*`).
+  TextVN nay nhường theo cả **exe lẫn lớp cửa sổ** (`appdb.default.json`, `is_hook_owned_window_class`,
+  `should_yield_when_idle`), kiểm tra `GUID_COMPARTMENT_KEYBOARD_DISABLED` / `GUID_COMPARTMENT_EMPTYCONTEXT` /
+  `TF_SD_READONLY` (`context_blocks_typing`) trước khi tạo `KeyEditSession`, chặn `vk::PACKET`/`vk::PROCESSKEY`
+  ngay trong `compose::KeyKind::classify`, đóng composition thuộc context bị pop trong `OnPopContext`, và
+  dọn `dead_key_armed` + `reset_engine()` kể cả khi `GetContext`/`RequestEditSession` thất bại.
+- **Sửa lỗi nhân đôi ký tự và mất hoa/thường trong chế độ tương thích kép TextVN/UniKey (`"TextVN"` → `"Texxtvn"`)** (E48).
+  (1) `windows-hook` trước đây kiểm sai bit `kbd.flags.0 & 0x01` (`LLKHF_EXTENDED` thay vì `LLKHF_INJECTED`
+  `0x10` / `LLKHF_LOWER_IL_INJECTED` `0x02`) và bơm `SendInput` với `dwExtraInfo = 0`, làm sự kiện
+  `VK_BACK`/`VK_PACKET` tổng hợp quay ngược vào engine; nay gắn `INJECT_TAG = 0x5456_4E48`, phân loại nguồn
+  qua `KeyOrigin` (`Physical` vs `OwnSynthetic` vs `ForeignInjected`), và đồng bộ Shift/Caps tức thì
+  bằng `keyboard_state_for` / `caps_toggle_step` / `GetAsyncKeyState(VK_SHIFT)`. (2) Trong `core/src/lib.rs`,
+  `auto_capitalize` trước đây đặt `auto_capped = true` ngay cả khi người dùng tự giữ Shift gõ chữ hoa
+  (`cap == c`, vd đầu câu `". TextVN"`), chặn `is_camel_case_transition('V')`; nay chỉ gắn `auto_capped`
+  khi `cap != c`.
+
+### Changed
+- **Đồng bộ nút Thảo luận & Báo lỗi vào cửa sổ "Hướng dẫn" trên cả 3 OS**. Đưa hai nút **[Thảo luận]** và
+  **[Báo lỗi]** (mở `https://github.com/hunglinhpt/TextVN/discussions`) vào bên trong cửa sổ *"Hướng dẫn"*
+  trên Windows (`TaskDialogIndirect`), macOS (`NSAlert`) và Linux (`present_info_dialog` GTK4); khôi phục
+  nút `Gõ tắt...` gọn trong hàng nút chính trên Windows.
+
+### Added
+- Bổ sung ma trận kiểm thử hồi quy mới cho E48/E49 gồm **1.447** case xác định (`819` case engine
+  `e48_sentence_start_and_dual_strategy_matrix_660` + `9` chuỗi `bug2_*`, `528` case máy trạng thái TSF/Focus/Terminal
+  `e49_tsf_focus_terminal_state_machine_528` + ma trận `e49_window_class_and_context_yield_matrix`, và `100`
+  case hook `e48_dual_mode_rapid_origin_matrix_140` + `e48_hook_origin_guard_prevents_textvn_duplication`).
+
+**English** — Unreleased:
+- **Fixed (E49, extending E46): Windows MobaXterm / X11 / non-TSF focus & `(0,0)` `CiceroUIWndFrame` popup.**
+  MobaXterm SSH/X11 sessions spawn child processes (`MoTTY.exe`, `XWin_MobaX.exe`, `XWin*` prefix, plus
+  standalone X servers `vcxsrv.exe`, `Xming.exe`) and terminal/X11 window classes (`MoTTY`, `PuTTY`, `mintty`,
+  `KiTTY`, `VTWin32`, `VanDyke Software - SecureCRT`, `MSCTFIME UI`, `cygwin/x*`, `*/x x*`). TextVN now yields
+  by both **executable and window class** (`appdb.default.json`, `is_hook_owned_window_class`,
+  `should_yield_when_idle`), checks `GUID_COMPARTMENT_KEYBOARD_DISABLED` / `GUID_COMPARTMENT_EMPTYCONTEXT` /
+  `TF_SD_READONLY` (`context_blocks_typing`) before requesting a `KeyEditSession`, rejects `vk::PACKET` /
+  `vk::PROCESSKEY` inside `compose::KeyKind::classify`, closes compositions belonging to popped contexts in
+  `OnPopContext`, and clears `dead_key_armed` + resets the engine even when `GetContext`/`RequestEditSession`
+  fails.
+- **Fixed (E48): Character duplication and case desynchronization in dual TextVN/UniKey mode (`"TextVN"` → `"Texxtvn"`).**
+  (1) `windows-hook` previously checked `kbd.flags.0 & 0x01` (`LLKHF_EXTENDED` instead of `LLKHF_INJECTED`
+  `0x10` / `LLKHF_LOWER_IL_INJECTED` `0x02`) and sent `SendInput` with `dwExtraInfo = 0`, allowing synthetic
+  `VK_BACK`/`VK_PACKET` events to re-enter the engine; it now tags injected inputs with `INJECT_TAG = 0x5456_4E48`,
+  routes via `KeyOrigin` (`Physical` vs `OwnSynthetic` vs `ForeignInjected`), and synchronizes Shift/Caps on
+  the headless hook thread using `keyboard_state_for` / `caps_toggle_step` / `GetAsyncKeyState(VK_SHIFT)`.
+  (2) In `core/src/lib.rs`, `auto_capitalize` previously set `auto_capped = true` even when the user
+  explicitly held Shift (`cap == c`, e.g., sentence-start `". TextVN"`), blocking `is_camel_case_transition('V')`;
+  `auto_capped` is now set only when `cap != c`.
+- **Changed: Discussions & Report Issue buttons inside the "Hướng dẫn" (Help) window across all 3 OSes.**
+  Moved **[Thảo luận]** and **[Báo lỗi]** linking to `https://github.com/hunglinhpt/TextVN/discussions` into
+  the Help dialog on Windows (`TaskDialogIndirect`), macOS (`NSAlert`), and Linux (GTK4 `present_info_dialog`),
+  restoring a compact main button row with `Gõ tắt...` on Windows.
+- **Added:** **1,447** deterministic regression test cases for E48/E49 (`819` core cases in
+  `e48_sentence_start_and_dual_strategy_matrix_660` + `bug2_*`, `528` simulated TSF/Focus/Terminal state-machine
+  cases in `e49_tsf_focus_terminal_state_machine_528` + `e49_window_class_and_context_yield_matrix`, and `100`
+  hook origin/case/Caps cases in `e48_dual_mode_rapid_origin_matrix_140` +
+  `e48_hook_origin_guard_prevents_textvn_duplication`).
+
+---
+
 ## [0.2.78] — 2026-11-14
 
 ### Fixed

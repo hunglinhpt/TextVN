@@ -161,6 +161,78 @@ pub fn is_plain_letter(event: &KeyEvent) -> bool {
         && event.mods & (MOD_CTRL | MOD_ALT | MOD_WIN | MOD_SUPER) == 0
 }
 
+/// Bit `KBDLLHOOKSTRUCT.flags` (WinUser.h). **E48**: bản cũ so `flags & 0x01` và ghi chú
+/// "LLKHF_INJECTED = 0x01" — 0x01 là `LLKHF_EXTENDED` (mũi tên, Delete, Ctrl/Alt phải, Enter số…),
+/// còn `LLKHF_INJECTED` là `0x10`. Hậu quả kép: (1) phím do chính hook bơm bằng `SendInput` không
+/// bao giờ bị nhận ra là "của mình" nếu hệ thống giao chúng cho callback SAU khi `SendInput` trả về
+/// (cờ `IN_INJECTION` đã hạ) → engine nuốt lại chữ vừa bơm: `Tex`+`x` thành `Texx`; (2) mọi phím
+/// mở rộng bị bỏ qua hoàn toàn (không reset từ khi con trỏ nhảy, Ctrl phải không tính hotkey).
+pub const LLKHF_EXTENDED: u32 = 0x01;
+pub const LLKHF_LOWER_IL_INJECTED: u32 = 0x02;
+pub const LLKHF_INJECTED: u32 = 0x10;
+pub const LLKHF_ALTDOWN: u32 = 0x20;
+pub const LLKHF_UP: u32 = 0x80;
+
+/// Dấu riêng của TextVN trong `KEYBDINPUT.dwExtraInfo` ("TVNH"): phím tổng hợp do hook bơm
+/// mang dấu này tới mọi callback — nguồn sự thật duy nhất, không phụ thuộc thời điểm hệ thống
+/// giao event (khác cờ `IN_INJECTION` chỉ đúng khi giao đồng bộ).
+pub const INJECT_TAG: usize = 0x5456_4E48;
+
+/// Nguồn gốc của một phím tới callback `WH_KEYBOARD_LL`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyOrigin {
+    /// Phím thật từ bàn phím — duy nhất đường này được vào engine.
+    Physical,
+    /// Phím tổng hợp do chính TextVN bơm (Backspace/Unicode) — không bao giờ vào lại engine.
+    OwnSynthetic,
+    /// Phím do phần mềm khác bơm (AutoHotkey, bàn phím ảo, điều khiển từ xa…) — pass nguyên.
+    ForeignInjected,
+}
+
+/// Phân loại nguồn phím từ `flags`/`dwExtraInfo` của `KBDLLHOOKSTRUCT` và cờ `IN_INJECTION`.
+/// Thứ tự ưu tiên: dấu của TextVN → bit injected → cờ đang bơm. Mọi giá trị ≠ `Physical` đều
+/// phải `CallNextHookEx` không qua engine.
+pub fn classify_origin(flags: u32, extra_info: usize, in_injection: bool) -> KeyOrigin {
+    if extra_info == INJECT_TAG || in_injection {
+        KeyOrigin::OwnSynthetic
+    } else if flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) != 0 {
+        KeyOrigin::ForeignInjected
+    } else {
+        KeyOrigin::Physical
+    }
+}
+
+/// `keyboard_state` 256 byte cho `ToUnicodeEx`: chỉ Shift (trạng thái THẬT của phần cứng) và
+/// Caps Lock (bit toggle). Bản cũ lấy `GetKeyboardState` của thread hook — trong callback
+/// `WH_KEYBOARD_LL` bảng này CHƯA cập nhật phím vừa bấm trước đó (hàng đợi của thread chưa bơm),
+/// nên gõ nhanh `VN` ra `vn` (mất hoa). Ctrl/Alt không đưa vào: chord đã bị chặn trước đó, và
+/// AltGr (Ctrl+Alt) không được làm đổi ký tự.
+pub fn keyboard_state_for(shift: bool, caps_toggled: bool) -> [u8; 256] {
+    let mut state = [0u8; 256];
+    if shift {
+        state[0x10] = 0x80; // VK_SHIFT
+        state[0xA0] = 0x80; // VK_LSHIFT
+    }
+    if caps_toggled {
+        state[0x14] = 0x01; // VK_CAPITAL (toggle bit)
+    }
+    state
+}
+
+/// Cập nhật trạng thái Caps Lock cục bộ theo sự kiện phím vật lý (`vk == VK_CAPITAL = 0x14`):
+/// chỉ đảo khi nhấn lần đầu (`!held`), bỏ qua auto-repeat khi giữ phím, nhả khi `is_down == false`.
+pub fn caps_toggle_step(toggled: bool, held: bool, vk: u32, is_down: bool) -> (bool, bool) {
+    if vk != 0x14 {
+        return (toggled, held);
+    }
+    if is_down {
+        let next_toggled = if held { toggled } else { !toggled };
+        (next_toggled, true)
+    } else {
+        (toggled, false)
+    }
+}
+
 fn empty_result() -> ime_result_v1 {
     ime_result_v1 {
         abi_version: 0,
@@ -733,5 +805,61 @@ mod tests {
         );
         checked += 1;
         assert_eq!(checked, 4 + HookState::MAX_SLOW_STREAK as usize + 1);
+    }
+
+    #[test]
+    fn e48_classify_origin_and_keyboard_state_truth_table() {
+        // Phím thật từ bàn phím, kể cả LLKHF_EXTENDED (Right Ctrl, mũi tên, Delete, Enter số)
+        for flags in [
+            0u32,
+            LLKHF_EXTENDED,
+            LLKHF_ALTDOWN,
+            LLKHF_UP,
+            LLKHF_EXTENDED | LLKHF_UP,
+        ] {
+            assert_eq!(
+                classify_origin(flags, 0, false),
+                KeyOrigin::Physical,
+                "flags={flags:#x} phải là Physical"
+            );
+        }
+        // Event tổng hợp do TextVN SendInput bơm (mang INJECT_TAG hoặc khi IN_INJECTION=true)
+        for flags in [LLKHF_INJECTED, LLKHF_INJECTED | LLKHF_UP, 0] {
+            assert_eq!(
+                classify_origin(flags, INJECT_TAG, false),
+                KeyOrigin::OwnSynthetic
+            );
+            assert_eq!(classify_origin(flags, 0, true), KeyOrigin::OwnSynthetic);
+        }
+        // Event do phần mềm khác bơm (LLKHF_INJECTED=0x10 / LLKHF_LOWER_IL_INJECTED=0x02)
+        for flags in [
+            LLKHF_INJECTED,
+            LLKHF_LOWER_IL_INJECTED,
+            LLKHF_INJECTED | LLKHF_EXTENDED,
+            LLKHF_INJECTED | LLKHF_UP,
+        ] {
+            assert_eq!(
+                classify_origin(flags, 0, false),
+                KeyOrigin::ForeignInjected,
+                "flags={flags:#x} phải bị chặn là ForeignInjected"
+            );
+        }
+        // keyboard_state_for chỉ đặt bit Shift và Caps toggle, sạch Ctrl/Alt
+        let s = keyboard_state_for(true, false);
+        assert_eq!(s[0x10], 0x80);
+        assert_eq!(s[0xA0], 0x80);
+        assert_eq!(s[0x14], 0x00);
+        assert_eq!(s[0x11], 0x00);
+        let sc = keyboard_state_for(true, true);
+        assert_eq!(sc[0x10], 0x80);
+        assert_eq!(sc[0x14], 0x01);
+
+        // caps_toggle_step: chỉ toggle khi nhấn Caps lần đầu (bỏ repeat)
+        let (t, h) = caps_toggle_step(false, false, 0x14, true);
+        assert_eq!((t, h), (true, true));
+        assert_eq!(caps_toggle_step(t, h, 0x14, true), (true, true)); // repeat không đảo
+        let (t, h) = caps_toggle_step(t, h, 0x14, false);
+        assert_eq!((t, h), (true, false));
+        assert_eq!(caps_toggle_step(t, h, 0x41, true), (true, false)); // phím khác bỏ qua
     }
 }

@@ -795,3 +795,240 @@ fn gate_dual_mode_rapid_case_count_at_least_600() {
         "ma trận dual-mode-rapid chỉ có {total} case — yêu cầu audit ≥ 600 case MỚI"
     );
 }
+
+#[test]
+fn bug2_sentence_start_explicit_shift_textvn_never_folds_or_desyncs() {
+    for prefix in ["", "Hello. ", "Line1\n"] {
+        for m in [Method::Telex, Method::SimpleTelex, Method::Vni] {
+            let mut opts = opts_for(m, false);
+            opts.auto_capitalize = true;
+            opts.auto_restore_english = true;
+            let full_keys: Vec<char> = format!("{prefix}TextVN ").chars().collect();
+            let got = type_string(&opts, &full_keys);
+            assert_eq!(
+                got,
+                format!("{prefix}TextVN "),
+                "{m:?} prefix={prefix:?}: Shift+T ở đầu câu phải giữ TextVN ngay"
+            );
+            // Giữa chừng TRƯỚC dấu cách cũng phải hiển thị TextVN (không nhấp nháy TẽtVN)
+            let mid_keys: Vec<char> = format!("{prefix}TextVN").chars().collect();
+            let mid = type_string(&opts, &mid_keys);
+            assert_eq!(
+                mid,
+                format!("{prefix}TextVN"),
+                "{m:?} prefix={prefix:?}: trước dấu cách không được thành TẽtVN"
+            );
+        }
+    }
+}
+
+/// E48 + Dual-Mode (≥ 660 case mới): kiểm chứng triệt để `auto_capped` không đè
+/// Shift tường minh đầu câu, bảo toàn hoa/thường trước & sau ranh giới trên mọi
+/// từ nhúng phím dấu, tương đương chiến lược TextVN (Preedit) vs UniKey
+/// (ForwardAsCommit/BackspaceType), backspace + gõ lại, và undo-tone.
+#[test]
+fn e48_sentence_start_and_dual_strategy_matrix_660() {
+    let mut checked = 0usize;
+    let upper_head_words = [
+        "TextVN", "TEXTVN", "TeXtVn", "Syntax", "Export", "Window", "Context", "Buffer", "Server",
+        "Driver", "Mouse", "House", "Telex", "Vni", "GitHub",
+    ];
+    let strategies = [
+        IME_STRATEGY_PREEDIT,
+        IME_STRATEGY_BACKSPACE_TYPE,
+        IME_STRATEGY_FORWARD_AS_COMMIT,
+    ];
+
+    // Trục A (540 case): 15 từ hoa đầu × 3 method × 2 cap × 3 prefix × 2 boundary.
+    for word in upper_head_words {
+        for m in [Method::Telex, Method::SimpleTelex, Method::Vni] {
+            for cap in [false, true] {
+                for prefix in ["", "a. ", "hi!\n"] {
+                    for boundary in [' ', '\n'] {
+                        let mut opts = opts_for(m, cap);
+                        opts.auto_restore_english = true;
+                        let mut e = Engine::new(opts);
+                        let mut buf = Vec::new();
+                        for pc in prefix.chars() {
+                            let down = key_event(pc, true);
+                            let o = e.key(&down);
+                            apply(&mut buf, &o.action, &down);
+                            let _ = e.key(&key_event(pc, false));
+                        }
+                        for (idx, wc) in word.chars().enumerate() {
+                            let down = key_event(wc, true);
+                            let o = e.key(&down);
+                            if idx == 0 {
+                                assert!(
+                                    matches!(o.action, Action::Pass),
+                                    "{m:?} cap={cap} {prefix:?} {word}: chữ hoa đầu `{wc}` không được auto_cap Replace"
+                                );
+                            }
+                            apply(&mut buf, &o.action, &down);
+                            let _ = e.key(&key_event(wc, false));
+                        }
+                        // Giữa từ trước ranh giới: mọi chữ hoa trong từ Camel/UPPER phải còn nguyên.
+                        let mid: String = buf.iter().collect();
+                        if matches!(word, "TextVN" | "TEXTVN" | "TeXtVn" | "GitHub") {
+                            assert_eq!(
+                                mid,
+                                format!("{prefix}{word}"),
+                                "{m:?} cap={cap} {prefix:?}: `{word}` bị đổi trước ranh giới"
+                            );
+                        }
+                        let bd = key_event(boundary, true);
+                        let bo = e.key(&bd);
+                        apply(&mut buf, &bo.action, &bd);
+                        let _ = e.key(&key_event(boundary, false));
+                        let got: String = buf.into_iter().collect();
+                        assert_eq!(
+                            got,
+                            format!("{prefix}{word}{boundary}"),
+                            "{m:?} cap={cap} {prefix:?}: `{word}` lệch ranh giới"
+                        );
+                        checked += 1;
+                        count_case();
+                    }
+                }
+            }
+        }
+    }
+
+    // Trục B (135 case): tương đương chiến lược Preedit (TextVN) vs
+    // BackspaceType/ForwardAsCommit (UniKey-style) ở đầu câu bật auto_capitalize.
+    for word in upper_head_words {
+        for m in [Method::Telex, Method::SimpleTelex, Method::Vni] {
+            let mut opts = opts_for(m, true);
+            opts.auto_restore_english = true;
+            let keys: Vec<char> = format!("Ok. {word} ").chars().collect();
+            let mut docs = Vec::with_capacity(strategies.len());
+            for strat in strategies {
+                let ctx = Context {
+                    enabled: true,
+                    secure: false,
+                    field_role: IME_FIELD_BODY,
+                    caps: 0,
+                    hint: strat,
+                };
+                docs.push(type_string_with_ctx(&opts, &keys, ctx));
+                checked += 1;
+                count_case();
+            }
+            assert!(
+                docs.windows(2).all(|w| w[0] == w[1]),
+                "{m:?} `{word}`: lệch giữa các chiến lược {docs:?}"
+            );
+            assert_eq!(docs[0], format!("Ok. {word} "));
+        }
+    }
+
+    // Trục C (72 case): Backspace xoá 1..2 ký tự rồi gõ lại giữa từ nhúng phím dấu.
+    let bs_words = [
+        ("TextVN", 2, "VN"),
+        ("Syntax", 2, "ax"),
+        ("Export", 2, "rt"),
+        ("Window", 2, "ow"),
+        ("Context", 2, "xt"),
+        ("Buffer", 1, "r"),
+        ("Server", 1, "r"),
+        ("Driver", 1, "r"),
+        ("Mouse", 2, "se"),
+        ("House", 2, "se"),
+        ("Telex", 1, "x"),
+        ("tExTvN", 2, "vN"),
+    ];
+    for (word, drop_n, retype) in bs_words {
+        let typed_str = format!("A. {word}{}{retype} ", "\u{8}".repeat(drop_n));
+        let keys: Vec<char> = typed_str.chars().collect();
+        for m in [Method::Telex, Method::SimpleTelex, Method::Vni] {
+            let mut opts = opts_for(m, true);
+            opts.auto_restore_english = true;
+            let ctx_pre = Context {
+                enabled: true,
+                secure: false,
+                field_role: IME_FIELD_BODY,
+                caps: 0,
+                hint: IME_STRATEGY_PREEDIT,
+            };
+            let ctx_uni = Context {
+                enabled: true,
+                secure: false,
+                field_role: IME_FIELD_BODY,
+                caps: 0,
+                hint: IME_STRATEGY_FORWARD_AS_COMMIT,
+            };
+            let doc_pre = type_string_with_ctx(&opts, &keys, ctx_pre);
+            let doc_uni = type_string_with_ctx(&opts, &keys, ctx_uni);
+            assert_eq!(
+                doc_pre, doc_uni,
+                "BS/retype `{word}` ({m:?}): Preedit vs ForwardAsCommit lệch"
+            );
+            checked += 2;
+            count_case();
+            count_case();
+        }
+    }
+
+    // Trục D (72 case): Undo-tone (dd→đ, ddd→dd, aa→â→aa, oo→ô→oo, ee→ê→ee, uw→ư→uw, ow→ơ→ow)
+    // × 2 biến thể hoa/thường × 3 chiến lược (giữ glyph tức thì & tương đương 3 chiến lược ở ranh giới).
+    let undo_pairs: &[(&str, &str)] = &[
+        ("dd", "đ"),
+        ("ddd", "dd"),
+        ("aa", "â"),
+        ("aaa", "aa"),
+        ("oo", "ô"),
+        ("ooo", "oo"),
+        ("ee", "ê"),
+        ("eee", "ee"),
+        ("uw", "ư"),
+        ("uww", "uw"),
+        ("ow", "ơ"),
+        ("oww", "ow"),
+    ];
+    for (typed, expect) in undo_pairs {
+        for title in [false, true] {
+            let cap_first = |s: &str| -> String {
+                let mut ch = s.chars();
+                match ch.next() {
+                    Some(c) => c.to_uppercase().chain(ch).collect(),
+                    None => String::new(),
+                }
+            };
+            let t = if title {
+                cap_first(typed)
+            } else {
+                typed.to_string()
+            };
+            let exp = if title {
+                cap_first(expect)
+            } else {
+                expect.to_string()
+            };
+            let mid_keys: Vec<char> = format!("A. {t}").chars().collect();
+            let end_keys: Vec<char> = format!("A. {t} ").chars().collect();
+            let mut end_docs = Vec::with_capacity(strategies.len());
+            for strat in strategies {
+                let mut opts = opts_for(Method::Telex, false);
+                opts.auto_restore_english = false;
+                let ctx = Context {
+                    enabled: true,
+                    secure: false,
+                    field_role: IME_FIELD_BODY,
+                    caps: 0,
+                    hint: strat,
+                };
+                let got_mid = type_string_with_ctx(&opts, &mid_keys, ctx.clone());
+                assert_eq!(got_mid, format!("A. {exp}"), "undo {t} strat={strat}");
+                end_docs.push(type_string_with_ctx(&opts, &end_keys, ctx));
+                checked += 1;
+                count_case();
+            }
+            assert!(
+                end_docs.windows(2).all(|w| w[0] == w[1]),
+                "undo {t} boundary lệch giữa 3 chiến lược: {end_docs:?}"
+            );
+        }
+    }
+
+    assert!(checked >= 660, "E48/Dual-mode chỉ chạy {checked} case");
+}

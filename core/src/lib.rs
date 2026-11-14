@@ -1571,14 +1571,19 @@ impl Engine {
 
         // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
         // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
+        // Nếu người dùng đã tự gõ chữ hoa (`cap == c`, ví dụ `. TextVN`), giữ nguyên
+        // không bật `auto_capped` để nhận diện camelCase (`OP-006`) vẫn giữ nguyên từ.
         let mut caps_fired = false;
         let c = if self.opts.auto_capitalize
             && self.word.is_empty()
             && post::caps::sentence_start(&self.recent)
         {
-            caps_fired = true;
-            self.word.auto_capped = true; // OP-006: camel không fire trên từ này
-            post::caps::capitalize(c)
+            let cap = post::caps::capitalize(c);
+            if cap != c {
+                caps_fired = true;
+                self.word.auto_capped = true; // OP-006: camel không fire trên từ engine vừa tự hoa
+            }
+            cap
         } else {
             c
         };

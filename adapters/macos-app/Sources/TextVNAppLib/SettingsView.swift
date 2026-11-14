@@ -80,6 +80,24 @@ public struct SettingsView: View {
         self.onExpandedChange = onExpandedChange
     }
 
+    /// Cửa sổ "Hướng dẫn": nội dung + [Thảo luận] [Báo lỗi] [Đóng] — cùng bố cục với
+    /// Windows (TaskDialog) và Linux (GTK). SwiftUI `Alert` chỉ hỗ trợ 2 nút nên dùng NSAlert.
+    private func showHelp() {
+        let alert = NSAlert()
+        alert.messageText = AppInfo.helpTitle
+        alert.informativeText = AppInfo.helpText
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Đóng")
+        alert.addButton(withTitle: "Thảo luận")
+        alert.addButton(withTitle: "Báo lỗi")
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn || response == .alertThirdButtonReturn,
+            let url = URL(string: AppInfo.discussionsUrl)
+        {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             // MARK: - 1. Compact Section
@@ -178,24 +196,12 @@ public struct SettingsView: View {
 
 
                     Button(action: {
-                        if let url = URL(string: AppInfo.discussionsUrl) {
-                            NSWorkspace.shared.open(url)
-                        }
+                        showHelp()
                     }) {
-                        Label("Hướng dẫn", systemImage: "book")
+                        Label("Hướng dẫn", systemImage: "questionmark.circle")
                             .frame(width: 100)
                     }
-                    .help("Mở trang Hướng dẫn và Thảo luận trên GitHub")
-
-                    Button(action: {
-                        if let url = URL(string: AppInfo.discussionsUrl) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Label("Báo lỗi", systemImage: "exclamationmark.triangle")
-                            .frame(width: 100)
-                    }
-                    .help("Báo cáo sự cố hoặc thảo luận trên GitHub")
+                    .help("Cách gõ Telex/VNI, gõ tắt, phím tắt; mở Thảo luận / Báo lỗi trên GitHub")
                 }
             }
 

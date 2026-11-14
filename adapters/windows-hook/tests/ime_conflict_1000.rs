@@ -333,3 +333,195 @@ fn meta_deterministic_counts() {
     assert_eq!(pass_unicode_shape_cases().len(), 200);
     assert_eq!(build_sequences().len(), 15);
 }
+
+#[test]
+fn e48_hook_origin_guard_prevents_textvn_duplication() {
+    use textvn_win_hook::{
+        classify_origin, KeyOrigin, INJECT_TAG, LLKHF_EXTENDED, LLKHF_INJECTED,
+        LLKHF_LOWER_IL_INJECTED, LLKHF_UP,
+    };
+
+    let mut engine = match hook_engine_available() {
+        Some(e) => e,
+        None => {
+            eprintln!("skip: FFI unavailable");
+            return;
+        }
+    };
+    let mut state = HookState::new(
+        "notepad.exe",
+        0,
+        HookMode::Always,
+        std::time::Duration::ZERO,
+    );
+    ready(&mut state);
+
+    let mut doc = Vec::<char>::new();
+    for ch in "TextVN".chars() {
+        let vk = ch.to_ascii_uppercase() as u32;
+        let mods = if ch.is_ascii_uppercase() { 0x1 } else { 0x0 };
+        let ev = key(vk, ch as u32, mods, true);
+        let mut result = unsafe { std::mem::zeroed::<textvn_ffi::ime_result_v1>() };
+        result.abi_version = textvn_ffi::IME_ABI_VERSION;
+        match engine.process(&state, ev, None, &mut result) {
+            EngineOutcome::PassUnicode | EngineOutcome::Pass => doc.push(ch),
+            EngineOutcome::Transform => {
+                let del = usize::from(result.delete_count);
+                assert!(del <= doc.len(), "TextVN: delete {del} > len {}", doc.len());
+                doc.truncate(doc.len() - del);
+                let len = usize::from(result.insert_len).min(result.insert.len());
+                doc.extend(
+                    result.insert[..len]
+                        .iter()
+                        .filter_map(|&u| char::from_u32(u)),
+                );
+                // Mọi event SendInput do Transform bơm (`VK_BACK`/`VK_PACKET`) tới sau khi
+                // IN_INJECTION hạ đều phải bị classify_origin loại khỏi engine (E48).
+                assert_ne!(
+                    classify_origin(LLKHF_INJECTED, INJECT_TAG, false),
+                    KeyOrigin::Physical
+                );
+                assert_ne!(
+                    classify_origin(LLKHF_INJECTED | LLKHF_UP, 0, false),
+                    KeyOrigin::Physical
+                );
+                assert_ne!(
+                    classify_origin(LLKHF_LOWER_IL_INJECTED, 0, false),
+                    KeyOrigin::Physical
+                );
+            }
+        }
+        // Phím mở rộng thật (Right Ctrl / Mũi tên) PHẢI là Physical dù LLKHF_EXTENDED = 0x01 bật.
+        assert_eq!(
+            classify_origin(LLKHF_EXTENDED, 0, false),
+            KeyOrigin::Physical
+        );
+    }
+    let rendered: String = doc.into_iter().collect();
+    assert_eq!(
+        rendered, "TextVN",
+        "E48: gõ TextVN qua HookEngine phải giữ nguyên TextVN, không ra Texxtvn"
+    );
+}
+
+#[test]
+fn e48_dual_mode_rapid_origin_matrix_140() {
+    use textvn_win_hook::{
+        caps_toggle_step, classify_origin, keyboard_state_for, KeyOrigin, INJECT_TAG,
+        LLKHF_EXTENDED, LLKHF_INJECTED, LLKHF_LOWER_IL_INJECTED, LLKHF_UP,
+    };
+
+    if hook_engine_available().is_none() {
+        eprintln!("skip: FFI unavailable");
+        return;
+    }
+    let words = [
+        "TextVN", "TEXTVN", "tExTvN", "syntax", "export", "window", "context", "buffer", "server",
+        "driver", "mouse", "house", "telex", "vni",
+    ];
+    let mut checked = 0usize;
+
+    // 14 từ × 2 kiểu đóng ranh giới (' ' / '\n') × 2 kịch bản xen sự kiện = 56 chuỗi.
+    for word in words {
+        for boundary in [' ', '\n'] {
+            for with_interleaved_injected in [false, true] {
+                let Some(mut local_engine) = hook_engine_available() else {
+                    return;
+                };
+                let mut state = HookState::new(
+                    "notepad.exe",
+                    0,
+                    HookMode::Always,
+                    std::time::Duration::ZERO,
+                );
+                ready(&mut state);
+                let mut doc = Vec::<char>::new();
+                let stream = format!("ok {word}{boundary}");
+                for ch in stream.chars() {
+                    let vk = if ch == '\n' {
+                        0x0D
+                    } else if ch == ' ' {
+                        0x20
+                    } else {
+                        ch.to_ascii_uppercase() as u32
+                    };
+                    let mods = if ch.is_ascii_uppercase() { 0x1 } else { 0x0 };
+                    let ev = key(vk, if ch == '\n' { 0 } else { ch as u32 }, mods, true);
+                    let mut result = unsafe { std::mem::zeroed::<textvn_ffi::ime_result_v1>() };
+                    result.abi_version = textvn_ffi::IME_ABI_VERSION;
+                    match local_engine.process(&state, ev, None, &mut result) {
+                        EngineOutcome::PassUnicode | EngineOutcome::Pass => doc.push(ch),
+                        EngineOutcome::Transform => {
+                            let del = usize::from(result.delete_count);
+                            assert!(del <= doc.len(), "{word}: delete {del} > len {}", doc.len());
+                            doc.truncate(doc.len() - del);
+                            let len = usize::from(result.insert_len).min(result.insert.len());
+                            doc.extend(
+                                result.insert[..len]
+                                    .iter()
+                                    .filter_map(|&u| char::from_u32(u)),
+                            );
+                        }
+                    }
+                    if with_interleaved_injected {
+                        assert_ne!(
+                            classify_origin(LLKHF_INJECTED, INJECT_TAG, false),
+                            KeyOrigin::Physical
+                        );
+                        assert_ne!(
+                            classify_origin(LLKHF_LOWER_IL_INJECTED | LLKHF_UP, 0, false),
+                            KeyOrigin::Physical
+                        );
+                        assert_eq!(
+                            classify_origin(LLKHF_EXTENDED, 0, false),
+                            KeyOrigin::Physical
+                        );
+                    }
+                }
+                let rendered: String = doc.into_iter().collect();
+                assert_eq!(
+                    rendered,
+                    format!("ok {word}{boundary}"),
+                    "E48 hook: `ok {word}` + {boundary:?} (interleave={with_interleaved_injected}) sai"
+                );
+                checked += 1;
+            }
+        }
+    }
+
+    // 84 tổ hợp bảng trạng thái keyboard_state_for & caps_toggle_step.
+    for shift in [false, true] {
+        for caps in [false, true] {
+            let ks = keyboard_state_for(shift, caps);
+            assert_eq!(ks[0x10], if shift { 0x80 } else { 0x00 });
+            assert_eq!(ks[0xA0], if shift { 0x80 } else { 0x00 });
+            assert_eq!(ks[0x14], if caps { 0x01 } else { 0x00 });
+            checked += 1;
+            for (vk, down) in [
+                (0x14u32, true),
+                (0x14, false),
+                (0x41, true),
+                (0xA0, true),
+                (0x1B, true),
+                (0x20, false),
+                (0x0D, true),
+                (0x08, true),
+                (0x70, true),
+                (0x11, true),
+            ] {
+                let (next_toggled, next_held) = caps_toggle_step(caps, false, vk, down);
+                if vk == 0x14 && down {
+                    assert_eq!(next_toggled, !caps);
+                    assert!(next_held);
+                } else if vk == 0x14 {
+                    assert_eq!(next_toggled, caps);
+                    assert!(!next_held);
+                } else {
+                    assert_eq!((next_toggled, next_held), (caps, false));
+                }
+                checked += 1;
+            }
+        }
+    }
+    assert!(checked >= 100, "E48 hook matrix chỉ chạy {checked} case");
+}
