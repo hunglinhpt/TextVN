@@ -19,4 +19,7 @@ enum AppInfo {
         "Phát triển bởi: LinhBH.CoM\nGiấy phép: GPL-3.0-or-later\nhttps://github.com/hunglinhpt/TextVN"
     static var aboutTitle: String { "TextVN \(displayVersion)" }
     static var aboutMessage: String { "\(aboutTagline)\n\n\(aboutDetails)" }
+
+    /// URL Discussions để hướng dẫn và báo lỗi
+    static let discussionsUrl = "https://github.com/hunglinhpt/TextVN/discussions"
 }
