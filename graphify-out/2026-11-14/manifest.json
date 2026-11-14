@@ -1050,9 +1050,9 @@
     "semantic_hash": ""
   },
   "tray/src/settings_dialog.rs": {
-    "mtime": 1794666422.6537046,
-    "seen": 1794666532.5765252,
-    "ast_hash": "81c05834898674623c20c586294a2a75",
+    "mtime": 1794666641.9175708,
+    "seen": 1794666678.4391525,
+    "ast_hash": "caca81bfb363256f1f72af3537cfbc93",
     "semantic_hash": ""
   },
   "adapters/linux-common/include/linux_common.h": {

@@ -18034,7 +18034,7 @@
       "file_type": "code",
       "norm_label": "ctl",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L549"
+      "source_location": "L545"
     },
     {
       "id": "assist_src_tokenize_token",
@@ -19128,7 +19128,7 @@
       "file_type": "code",
       "norm_label": "r",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L581"
+      "source_location": "L577"
     },
     {
       "id": "unsafecell",
@@ -38886,7 +38886,7 @@
       "file_type": "code",
       "norm_label": "apply_dpi_change()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L516"
+      "source_location": "L512"
     },
     {
       "id": "tray_src_settings_dialog_close_macro_editor",
@@ -38897,7 +38897,7 @@
       "file_type": "code",
       "norm_label": "close_macro_editor()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1647"
+      "source_location": "L1643"
     },
     {
       "id": "tray_src_settings_dialog_close_word_list_editor",
@@ -38908,7 +38908,7 @@
       "file_type": "code",
       "norm_label": "close_word_list_editor()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1899"
+      "source_location": "L1895"
     },
     {
       "id": "tray_src_settings_dialog_dialog_wnd_proc",
@@ -38919,7 +38919,7 @@
       "file_type": "code",
       "norm_label": "dialog_wnd_proc()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1141"
+      "source_location": "L1137"
     },
     {
       "id": "tray_src_settings_dialog_get_chk",
@@ -38930,7 +38930,7 @@
       "file_type": "code",
       "norm_label": "get_chk()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1093"
+      "source_location": "L1089"
     },
     {
       "id": "tray_src_settings_dialog_layout_dialog_controls",
@@ -38941,7 +38941,7 @@
       "file_type": "code",
       "norm_label": "layout_dialog_controls()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L834"
+      "source_location": "L830"
     },
     {
       "id": "tray_src_settings_dialog_macro_wnd_proc",
@@ -38952,7 +38952,7 @@
       "file_type": "code",
       "norm_label": "macro_wnd_proc()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1946"
+      "source_location": "L1942"
     },
     {
       "id": "tray_src_settings_dialog_populate_controls_from_config",
@@ -38963,7 +38963,7 @@
       "file_type": "code",
       "norm_label": "populate_controls_from_config()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L980"
+      "source_location": "L976"
     },
     {
       "id": "tray_src_settings_dialog_read_window_text",
@@ -38974,7 +38974,7 @@
       "file_type": "code",
       "norm_label": "read_window_text()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1566"
+      "source_location": "L1562"
     },
     {
       "id": "tray_src_settings_dialog_refresh_if_open",
@@ -38985,7 +38985,7 @@
       "file_type": "code",
       "norm_label": "refresh_if_open()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1038"
+      "source_location": "L1034"
     },
     {
       "id": "tray_src_settings_dialog_rs_fnonce",
@@ -39051,7 +39051,7 @@
       "file_type": "code",
       "norm_label": "save_config_change()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121"
+      "source_location": "L1117"
     },
     {
       "id": "tray_src_settings_dialog_save_macros",
@@ -39062,7 +39062,7 @@
       "file_type": "code",
       "norm_label": "save_macros()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1577"
+      "source_location": "L1573"
     },
     {
       "id": "tray_src_settings_dialog_save_word_list",
@@ -39073,7 +39073,7 @@
       "file_type": "code",
       "norm_label": "save_word_list()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1866"
+      "source_location": "L1862"
     },
     {
       "id": "tray_src_settings_dialog_send_dlg_msg",
@@ -39084,7 +39084,7 @@
       "file_type": "code",
       "norm_label": "send_dlg_msg()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1079"
+      "source_location": "L1075"
     },
     {
       "id": "tray_src_settings_dialog_set_assist_hint",
@@ -39095,7 +39095,7 @@
       "file_type": "code",
       "norm_label": "set_assist_hint()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2003"
+      "source_location": "L1999"
     },
     {
       "id": "tray_src_settings_dialog_set_chk",
@@ -39106,7 +39106,7 @@
       "file_type": "code",
       "norm_label": "set_chk()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1087"
+      "source_location": "L1083"
     },
     {
       "id": "tray_src_settings_dialog_show_information",
@@ -39117,7 +39117,7 @@
       "file_type": "code",
       "norm_label": "show_information()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2029"
+      "source_location": "L2025"
     },
     {
       "id": "tray_src_settings_dialog_with_ctx",
@@ -39139,7 +39139,7 @@
       "file_type": "code",
       "norm_label": "wordlist_wnd_proc()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1910"
+      "source_location": "L1906"
     },
     {
       "id": "scripts_generate_tray_icons",
@@ -41686,7 +41686,7 @@
       "file_type": "code",
       "norm_label": "apply_option_checkbox()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100"
+      "source_location": "L1096"
     },
     {
       "id": "tray_src_settings_dialog_dialog_ctx",
@@ -66920,7 +66920,7 @@
       "file_type": "code",
       "norm_label": "add_button_tooltips()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L885"
+      "source_location": "L881"
     },
     {
       "id": "tray_src_settings_dialog_center_on_work_area",
@@ -66931,7 +66931,7 @@
       "file_type": "code",
       "norm_label": "center_on_work_area()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L276"
+      "source_location": "L272"
     },
     {
       "id": "tray_src_settings_dialog_create_and_show_window",
@@ -66942,7 +66942,7 @@
       "file_type": "code",
       "norm_label": "create_and_show_window()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L336"
+      "source_location": "L332"
     },
     {
       "id": "tray_src_settings_dialog_create_control",
@@ -66953,7 +66953,7 @@
       "file_type": "code",
       "norm_label": "create_control()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L405"
+      "source_location": "L401"
     },
     {
       "id": "tray_src_settings_dialog_create_control_ex",
@@ -66964,7 +66964,7 @@
       "file_type": "code",
       "norm_label": "create_control_ex()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L431"
+      "source_location": "L427"
     },
     {
       "id": "tray_src_settings_dialog_create_dialog_controls",
@@ -66975,7 +66975,7 @@
       "file_type": "code",
       "norm_label": "create_dialog_controls()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L944"
+      "source_location": "L940"
     },
     {
       "id": "tray_src_settings_dialog_macro_ex_none",
@@ -66986,7 +66986,7 @@
       "file_type": "code",
       "norm_label": "macro_ex_none",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1338"
+      "source_location": "L1334"
     },
     {
       "id": "tray_src_settings_dialog_open_url",
@@ -66997,7 +66997,7 @@
       "file_type": "code",
       "norm_label": "open_url()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L213"
+      "source_location": "L211"
     },
     {
       "id": "tray_src_settings_dialog_register_class",
@@ -67008,7 +67008,7 @@
       "file_type": "code",
       "norm_label": "register_class()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L319"
+      "source_location": "L315"
     },
     {
       "id": "tray_src_settings_dialog_rs_hinstance",
@@ -67030,7 +67030,7 @@
       "file_type": "code",
       "norm_label": "show_macro_editor()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1446"
+      "source_location": "L1442"
     },
     {
       "id": "tray_src_settings_dialog_show_word_list_editor",
@@ -67041,7 +67041,7 @@
       "file_type": "code",
       "norm_label": "show_word_list_editor()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1760"
+      "source_location": "L1756"
     },
     {
       "id": "tray_src_settings_dialog_system_dpi",
@@ -67052,7 +67052,7 @@
       "file_type": "code",
       "norm_label": "system_dpi()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L240"
+      "source_location": "L236"
     },
     {
       "id": "tray_src_settings_dialog_to_crlf",
@@ -67063,7 +67063,7 @@
       "file_type": "code",
       "norm_label": "to_crlf()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1331"
+      "source_location": "L1327"
     },
     {
       "id": "tray_src_settings_dialog_w",
@@ -67074,7 +67074,7 @@
       "file_type": "code",
       "norm_label": "w()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L230"
+      "source_location": "L226"
     },
     {
       "id": "tray_src_settings_dialog_window_dpi",
@@ -67085,7 +67085,7 @@
       "file_type": "code",
       "norm_label": "window_dpi()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L263"
+      "source_location": "L259"
     },
     {
       "id": "tray_src_settings_dialog_window_size_for_client",
@@ -67096,7 +67096,7 @@
       "file_type": "code",
       "norm_label": "window_size_for_client()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L300"
+      "source_location": "L296"
     },
     {
       "id": "window_ex_style",
@@ -88063,7 +88063,7 @@
       "file_type": "code",
       "norm_label": "normalize_word_list()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1860"
+      "source_location": "L1856"
     },
     {
       "id": "tray_src_settings_dialog_rs_mutex",
@@ -88096,7 +88096,7 @@
       "file_type": "code",
       "norm_label": "ui_fonts",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L468"
+      "source_location": "L464"
     },
     {
       "id": "docs_40_linux_p3_7_tasks",
@@ -89495,7 +89495,7 @@
       "file_type": "code",
       "norm_label": "delete_ui_fonts()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L504"
+      "source_location": "L500"
     },
     {
       "id": "tray_src_settings_dialog_layout_macro_controls",
@@ -89506,7 +89506,7 @@
       "file_type": "code",
       "norm_label": "layout_macro_controls()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1423"
+      "source_location": "L1419"
     },
     {
       "id": "tray_src_settings_dialog_layout_wordlist_controls",
@@ -89517,7 +89517,7 @@
       "file_type": "code",
       "norm_label": "layout_wordlist_controls()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1737"
+      "source_location": "L1733"
     },
     {
       "id": "tray_src_settings_dialog_scaled_gui_font",
@@ -89528,7 +89528,7 @@
       "file_type": "code",
       "norm_label": "scaled_gui_font()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L472"
+      "source_location": "L468"
     },
     {
       "id": "tray_src_settings_dialog_set_font",
@@ -89539,7 +89539,7 @@
       "file_type": "code",
       "norm_label": "set_font()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L536"
+      "source_location": "L532"
     },
     {
       "id": "schemas_config_v1_schema_items_enum",
@@ -97780,7 +97780,7 @@
       "file_type": "code",
       "norm_label": "refresh_style_stats()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2012"
+      "source_location": "L2008"
     },
     {
       "id": "tray_src_settings_dialog_rs_rsitotals",
@@ -97813,7 +97813,7 @@
       "file_type": "code",
       "norm_label": "style_stats_text()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1989"
+      "source_location": "L1985"
     },
     {
       "id": "macroctl",
@@ -97835,7 +97835,7 @@
       "file_type": "code",
       "norm_label": "macro_layout",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1353"
+      "source_location": "L1349"
     },
     {
       "id": "docs_20_windows_p1_6_tasks_m1_tsf_core_tu\u1ea7n_3_6_dep_win_002_win_003",
@@ -98050,7 +98050,7 @@
       "file_type": "code",
       "norm_label": "wordlist_layout",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1691"
+      "source_location": "L1687"
     },
     {
       "id": "wordlistctl",
@@ -99017,7 +99017,7 @@
       "file_type": "code",
       "norm_label": "pre_translate_message()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1056"
+      "source_location": "L1052"
     },
     {
       "id": "systemtime",
@@ -100745,7 +100745,7 @@
       "file_type": "code",
       "norm_label": "about_text_matches_every_platform()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2248"
+      "source_location": "L2244"
     },
     {
       "id": "tray_src_settings_dialog_assist_mode_hints",
@@ -100767,7 +100767,7 @@
       "file_type": "code",
       "norm_label": "assist_mode_hints_match_every_platform()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2182"
+      "source_location": "L2178"
     },
     {
       "id": "tray_src_settings_dialog_assist_mode_labels",
@@ -100888,7 +100888,7 @@
       "file_type": "code",
       "norm_label": "btn",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L577"
+      "source_location": "L573"
     },
     {
       "id": "tray_src_settings_dialog_button_hints",
@@ -100899,7 +100899,7 @@
       "file_type": "code",
       "norm_label": "button_hints",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L858"
+      "source_location": "L854"
     },
     {
       "id": "tray_src_settings_dialog_button_row_has_icons_hints_and_no_tsf_button",
@@ -100910,7 +100910,7 @@
       "file_type": "code",
       "norm_label": "button_row_has_icons_hints_and_no_tsf_button()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2283"
+      "source_location": "L2279"
     },
     {
       "id": "tray_src_settings_dialog_cb_addstring",
@@ -100987,7 +100987,7 @@
       "file_type": "code",
       "norm_label": "chk",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L575"
+      "source_location": "L571"
     },
     {
       "id": "tray_src_settings_dialog_client_design_height",
@@ -101031,7 +101031,7 @@
       "file_type": "code",
       "norm_label": "control_ids_are_distinct()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2048"
+      "source_location": "L2044"
     },
     {
       "id": "tray_src_settings_dialog_crlf_conversion_round_trips",
@@ -101042,7 +101042,7 @@
       "file_type": "code",
       "norm_label": "crlf_conversion_round_trips()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2341"
+      "source_location": "L2337"
     },
     {
       "id": "tray_src_settings_dialog_cw",
@@ -101053,7 +101053,7 @@
       "file_type": "code",
       "norm_label": "cw",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L583"
+      "source_location": "L579"
     },
     {
       "id": "tray_src_settings_dialog_dialog_layout",
@@ -101064,7 +101064,7 @@
       "file_type": "code",
       "norm_label": "dialog_layout",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L589"
+      "source_location": "L585"
     },
     {
       "id": "tray_src_settings_dialog_discussions_url",
@@ -101328,7 +101328,7 @@
       "file_type": "code",
       "norm_label": "id_btn_wordlist_cancel",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1676"
+      "source_location": "L1672"
     },
     {
       "id": "tray_src_settings_dialog_id_btn_wordlist_save",
@@ -101339,7 +101339,7 @@
       "file_type": "code",
       "norm_label": "id_btn_wordlist_save",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1674"
+      "source_location": "L1670"
     },
     {
       "id": "tray_src_settings_dialog_id_chk_auto_capitalize",
@@ -101515,7 +101515,7 @@
       "file_type": "code",
       "norm_label": "id_edit_wordlist",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1672"
+      "source_location": "L1668"
     },
     {
       "id": "tray_src_settings_dialog_id_lbl_assist_hint",
@@ -101647,7 +101647,7 @@
       "file_type": "code",
       "norm_label": "l",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L579"
+      "source_location": "L575"
     },
     {
       "id": "tray_src_settings_dialog_labels_match_linux_settings_panel",
@@ -101658,7 +101658,7 @@
       "file_type": "code",
       "norm_label": "labels_match_linux_settings_panel()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2090"
+      "source_location": "L2086"
     },
     {
       "id": "tray_src_settings_dialog_macro_class_name",
@@ -101669,7 +101669,7 @@
       "file_type": "code",
       "norm_label": "macro_class_name",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1326"
+      "source_location": "L1322"
     },
     {
       "id": "tray_src_settings_dialog_macro_design_height",
@@ -101702,7 +101702,7 @@
       "file_type": "code",
       "norm_label": "macro_hwnd",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1328"
+      "source_location": "L1324"
     },
     {
       "id": "tray_src_settings_dialog_method_labels",
@@ -101724,7 +101724,7 @@
       "file_type": "code",
       "norm_label": "normalize_dedupes_and_drops_invalid()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2371"
+      "source_location": "L2367"
     },
     {
       "id": "tray_src_settings_dialog_normalize_empty_input_yields_empty_list",
@@ -101735,7 +101735,7 @@
       "file_type": "code",
       "norm_label": "normalize_empty_input_yields_empty_list()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2387"
+      "source_location": "L2383"
     },
     {
       "id": "tray_src_settings_dialog_normalize_trims_lowercases_and_skips_comments",
@@ -101746,7 +101746,7 @@
       "file_type": "code",
       "norm_label": "normalize_trims_lowercases_and_skips_comments()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2353"
+      "source_location": "L2349"
     },
     {
       "id": "tray_src_settings_dialog_rs_atomicisize",
@@ -101790,7 +101790,7 @@
       "file_type": "code",
       "norm_label": "style_checkbox_label",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1982"
+      "source_location": "L1978"
     },
     {
       "id": "tray_src_settings_dialog_style_clear_confirm",
@@ -101801,7 +101801,7 @@
       "file_type": "code",
       "norm_label": "style_clear_confirm",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1986"
+      "source_location": "L1982"
     },
     {
       "id": "tray_src_settings_dialog_style_clear_label",
@@ -101812,7 +101812,7 @@
       "file_type": "code",
       "norm_label": "style_clear_label",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1984"
+      "source_location": "L1980"
     },
     {
       "id": "tray_src_settings_dialog_style_stats_line_matches_every_platform",
@@ -101823,7 +101823,7 @@
       "file_type": "code",
       "norm_label": "style_stats_line_matches_every_platform()",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2208"
+      "source_location": "L2204"
     },
     {
       "id": "tray_src_settings_dialog_wordlist_class_name",
@@ -101834,7 +101834,7 @@
       "file_type": "code",
       "norm_label": "wordlist_class_name",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1664"
+      "source_location": "L1660"
     },
     {
       "id": "tray_src_settings_dialog_wordlist_design_height",
@@ -101845,7 +101845,7 @@
       "file_type": "code",
       "norm_label": "wordlist_design_height",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1670"
+      "source_location": "L1666"
     },
     {
       "id": "tray_src_settings_dialog_wordlist_design_width",
@@ -101856,7 +101856,7 @@
       "file_type": "code",
       "norm_label": "wordlist_design_width",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1668"
+      "source_location": "L1664"
     },
     {
       "id": "tray_src_settings_dialog_wordlist_hwnd",
@@ -101867,7 +101867,7 @@
       "file_type": "code",
       "norm_label": "wordlist_hwnd",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1666"
+      "source_location": "L1662"
     },
     {
       "id": "assist_src_rules_mod",
@@ -165753,7 +165753,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2255",
+      "source_location": "L2251",
       "weight": 1.0
     },
     {
@@ -165765,7 +165765,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L895",
+      "source_location": "L891",
       "weight": 1.0
     },
     {
@@ -165777,7 +165777,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L910",
+      "source_location": "L906",
       "weight": 1.0
     },
     {
@@ -165789,7 +165789,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L910",
+      "source_location": "L906",
       "weight": 1.0
     },
     {
@@ -165801,7 +165801,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L922",
+      "source_location": "L918",
       "weight": 1.0
     },
     {
@@ -165813,7 +165813,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L337",
+      "source_location": "L333",
       "weight": 1.0
     },
     {
@@ -165825,7 +165825,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L340",
+      "source_location": "L336",
       "weight": 1.0
     },
     {
@@ -165837,7 +165837,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L342",
+      "source_location": "L338",
       "weight": 1.0
     },
     {
@@ -165849,7 +165849,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L345",
+      "source_location": "L341",
       "weight": 1.0
     },
     {
@@ -165861,7 +165861,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L347",
+      "source_location": "L343",
       "weight": 1.0
     },
     {
@@ -165873,7 +165873,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L377",
+      "source_location": "L373",
       "weight": 1.0
     },
     {
@@ -165885,7 +165885,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L384",
+      "source_location": "L380",
       "weight": 1.0
     },
     {
@@ -165897,7 +165897,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L394",
+      "source_location": "L390",
       "weight": 1.0
     },
     {
@@ -165909,7 +165909,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L395",
+      "source_location": "L391",
       "weight": 1.0
     },
     {
@@ -165921,7 +165921,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L417",
+      "source_location": "L413",
       "weight": 1.0
     },
     {
@@ -165933,7 +165933,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L441",
+      "source_location": "L437",
       "weight": 1.0
     },
     {
@@ -165945,7 +165945,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L448",
+      "source_location": "L444",
       "weight": 1.0
     },
     {
@@ -165957,7 +165957,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L947",
+      "source_location": "L943",
       "weight": 1.0
     },
     {
@@ -165969,7 +165969,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L951",
+      "source_location": "L947",
       "weight": 1.0
     },
     {
@@ -165981,7 +165981,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L963",
+      "source_location": "L959",
       "weight": 1.0
     },
     {
@@ -165993,7 +165993,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L965",
+      "source_location": "L961",
       "weight": 1.0
     },
     {
@@ -166005,7 +166005,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L973",
+      "source_location": "L969",
       "weight": 1.0
     },
     {
@@ -166017,7 +166017,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L974",
+      "source_location": "L970",
       "weight": 1.0
     },
     {
@@ -166029,7 +166029,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L507",
+      "source_location": "L503",
       "weight": 1.0
     },
     {
@@ -166041,7 +166041,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1162",
+      "source_location": "L1158",
       "weight": 1.0
     },
     {
@@ -166053,7 +166053,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1166",
+      "source_location": "L1162",
       "weight": 1.0
     },
     {
@@ -166065,7 +166065,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1168",
+      "source_location": "L1164",
       "weight": 1.0
     },
     {
@@ -166077,7 +166077,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1170",
+      "source_location": "L1166",
       "weight": 1.0
     },
     {
@@ -166089,7 +166089,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1171",
+      "source_location": "L1167",
       "weight": 1.0
     },
     {
@@ -166101,7 +166101,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1174",
+      "source_location": "L1170",
       "weight": 1.0
     },
     {
@@ -166113,7 +166113,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1183",
+      "source_location": "L1179",
       "weight": 1.0
     },
     {
@@ -166125,7 +166125,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1185",
+      "source_location": "L1181",
       "weight": 1.0
     },
     {
@@ -166137,7 +166137,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1196",
+      "source_location": "L1192",
       "weight": 1.0
     },
     {
@@ -166149,7 +166149,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1225",
+      "source_location": "L1221",
       "weight": 1.0
     },
     {
@@ -166161,7 +166161,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1228",
+      "source_location": "L1224",
       "weight": 1.0
     },
     {
@@ -166173,7 +166173,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1236",
+      "source_location": "L1232",
       "weight": 1.0
     },
     {
@@ -166185,7 +166185,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1262",
+      "source_location": "L1258",
       "weight": 1.0
     },
     {
@@ -166197,12 +166197,24 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1279",
+      "source_location": "L1275",
       "weight": 1.0
     },
     {
       "source": "tray_src_settings_dialog_dialog_wnd_proc",
       "target": "tray_src_settings_dialog_rs_lresult",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1288",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog_dialog_wnd_proc",
+      "target": "tray_src_settings_dialog_apply_dpi_change",
       "relation": "calls",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -166214,18 +166226,6 @@
     },
     {
       "source": "tray_src_settings_dialog_dialog_wnd_proc",
-      "target": "tray_src_settings_dialog_apply_dpi_change",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1296",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog_dialog_wnd_proc",
       "target": "tray_src_settings_dialog_scaled_gui_font",
       "relation": "calls",
       "_origin": "ast",
@@ -166233,7 +166233,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1301",
+      "source_location": "L1297",
       "weight": 1.0
     },
     {
@@ -166245,7 +166245,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1301",
+      "source_location": "L1297",
       "weight": 1.0
     },
     {
@@ -166257,7 +166257,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1314",
+      "source_location": "L1310",
       "weight": 1.0
     },
     {
@@ -166269,7 +166269,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1094",
+      "source_location": "L1090",
       "weight": 1.0
     },
     {
@@ -166281,7 +166281,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1441",
+      "source_location": "L1437",
       "weight": 1.0
     },
     {
@@ -166293,7 +166293,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1441",
+      "source_location": "L1437",
       "weight": 1.0
     },
     {
@@ -166305,7 +166305,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1755",
+      "source_location": "L1751",
       "weight": 1.0
     },
     {
@@ -166317,7 +166317,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1755",
+      "source_location": "L1751",
       "weight": 1.0
     },
     {
@@ -166329,7 +166329,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1954",
+      "source_location": "L1950",
       "weight": 1.0
     },
     {
@@ -166341,7 +166341,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1955",
+      "source_location": "L1951",
       "weight": 1.0
     },
     {
@@ -166353,7 +166353,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1960",
+      "source_location": "L1956",
       "weight": 1.0
     },
     {
@@ -166365,7 +166365,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1961",
+      "source_location": "L1957",
       "weight": 1.0
     },
     {
@@ -166377,19 +166377,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L215",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog_populate_controls_from_config",
-      "target": "tray_src_settings_dialog_set_chk",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1000",
+      "source_location": "L213",
       "weight": 1.0
     },
     {
@@ -166401,7 +166389,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1008",
+      "source_location": "L1004",
       "weight": 1.0
     },
     {
@@ -166413,7 +166401,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1031",
+      "source_location": "L1027",
       "weight": 1.0
     },
     {
@@ -166425,7 +166413,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L981",
+      "source_location": "L977",
       "weight": 1.0
     },
     {
@@ -166437,7 +166425,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L990",
+      "source_location": "L986",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog_populate_controls_from_config",
+      "target": "tray_src_settings_dialog_set_chk",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L996",
       "weight": 1.0
     },
     {
@@ -166449,7 +166449,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1064",
+      "source_location": "L1060",
       "weight": 1.0
     },
     {
@@ -166461,7 +166461,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1043",
+      "source_location": "L1039",
       "weight": 1.0
     },
     {
@@ -166473,7 +166473,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1045",
+      "source_location": "L1041",
       "weight": 1.0
     },
     {
@@ -166485,7 +166485,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2013",
+      "source_location": "L2009",
       "weight": 1.0
     },
     {
@@ -166497,7 +166497,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2013",
+      "source_location": "L2009",
       "weight": 1.0
     },
     {
@@ -166509,7 +166509,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1125",
+      "source_location": "L1121",
       "weight": 1.0
     },
     {
@@ -166521,7 +166521,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1128",
+      "source_location": "L1124",
       "weight": 1.0
     },
     {
@@ -166533,7 +166533,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1129",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -166545,7 +166545,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1579",
+      "source_location": "L1575",
       "weight": 1.0
     },
     {
@@ -166557,7 +166557,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1580",
+      "source_location": "L1576",
       "weight": 1.0
     },
     {
@@ -166569,7 +166569,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1585",
+      "source_location": "L1581",
       "weight": 1.0
     },
     {
@@ -166581,7 +166581,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1604",
+      "source_location": "L1600",
       "weight": 1.0
     },
     {
@@ -166593,7 +166593,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1623",
+      "source_location": "L1619",
       "weight": 1.0
     },
     {
@@ -166605,7 +166605,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1623",
+      "source_location": "L1619",
       "weight": 1.0
     },
     {
@@ -166617,7 +166617,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1868",
+      "source_location": "L1864",
       "weight": 1.0
     },
     {
@@ -166629,7 +166629,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1869",
+      "source_location": "L1865",
       "weight": 1.0
     },
     {
@@ -166641,7 +166641,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1870",
+      "source_location": "L1866",
       "weight": 1.0
     },
     {
@@ -166653,7 +166653,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1879",
+      "source_location": "L1875",
       "weight": 1.0
     },
     {
@@ -166665,7 +166665,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L478",
+      "source_location": "L474",
       "weight": 1.0
     },
     {
@@ -166677,7 +166677,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1082",
+      "source_location": "L1078",
       "weight": 1.0
     },
     {
@@ -166689,7 +166689,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1082",
+      "source_location": "L1078",
       "weight": 1.0
     },
     {
@@ -166701,7 +166701,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2004",
+      "source_location": "L2000",
       "weight": 1.0
     },
     {
@@ -166713,7 +166713,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1089",
+      "source_location": "L1085",
       "weight": 1.0
     },
     {
@@ -166725,7 +166725,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L541",
+      "source_location": "L537",
       "weight": 1.0
     },
     {
@@ -166737,7 +166737,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L542",
+      "source_location": "L538",
       "weight": 1.0
     },
     {
@@ -166749,7 +166749,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2030",
+      "source_location": "L2026",
       "weight": 1.0
     },
     {
@@ -166761,7 +166761,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1449",
+      "source_location": "L1445",
       "weight": 1.0
     },
     {
@@ -166773,7 +166773,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1458",
+      "source_location": "L1454",
       "weight": 1.0
     },
     {
@@ -166785,7 +166785,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1468",
+      "source_location": "L1464",
       "weight": 1.0
     },
     {
@@ -166797,7 +166797,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1471",
+      "source_location": "L1467",
       "weight": 1.0
     },
     {
@@ -166809,7 +166809,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1473",
+      "source_location": "L1469",
       "weight": 1.0
     },
     {
@@ -166821,7 +166821,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1476",
+      "source_location": "L1472",
       "weight": 1.0
     },
     {
@@ -166833,7 +166833,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1477",
+      "source_location": "L1473",
       "weight": 1.0
     },
     {
@@ -166845,7 +166845,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1499",
+      "source_location": "L1495",
       "weight": 1.0
     },
     {
@@ -166857,7 +166857,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1518",
+      "source_location": "L1514",
       "weight": 1.0
     },
     {
@@ -166869,7 +166869,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1522",
+      "source_location": "L1518",
       "weight": 1.0
     },
     {
@@ -166881,7 +166881,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1532",
+      "source_location": "L1528",
       "weight": 1.0
     },
     {
@@ -166893,7 +166893,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1536",
+      "source_location": "L1532",
       "weight": 1.0
     },
     {
@@ -166905,7 +166905,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1541",
+      "source_location": "L1537",
       "weight": 1.0
     },
     {
@@ -166917,7 +166917,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1542",
+      "source_location": "L1538",
       "weight": 1.0
     },
     {
@@ -166929,7 +166929,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1553",
+      "source_location": "L1549",
       "weight": 1.0
     },
     {
@@ -166965,7 +166965,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1763",
+      "source_location": "L1759",
       "weight": 1.0
     },
     {
@@ -166977,7 +166977,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1772",
+      "source_location": "L1768",
       "weight": 1.0
     },
     {
@@ -166989,7 +166989,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1777",
+      "source_location": "L1773",
       "weight": 1.0
     },
     {
@@ -167001,7 +167001,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1780",
+      "source_location": "L1776",
       "weight": 1.0
     },
     {
@@ -167013,7 +167013,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1782",
+      "source_location": "L1778",
       "weight": 1.0
     },
     {
@@ -167025,7 +167025,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1785",
+      "source_location": "L1781",
       "weight": 1.0
     },
     {
@@ -167037,7 +167037,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1786",
+      "source_location": "L1782",
       "weight": 1.0
     },
     {
@@ -167049,7 +167049,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1808",
+      "source_location": "L1804",
       "weight": 1.0
     },
     {
@@ -167061,7 +167061,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1827",
+      "source_location": "L1823",
       "weight": 1.0
     },
     {
@@ -167073,7 +167073,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1830",
+      "source_location": "L1826",
       "weight": 1.0
     },
     {
@@ -167085,7 +167085,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1840",
+      "source_location": "L1836",
       "weight": 1.0
     },
     {
@@ -167097,7 +167097,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1848",
+      "source_location": "L1844",
       "weight": 1.0
     },
     {
@@ -167109,7 +167109,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1849",
+      "source_location": "L1845",
       "weight": 1.0
     },
     {
@@ -167121,7 +167121,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L268",
+      "source_location": "L264",
       "weight": 1.0
     },
     {
@@ -167133,7 +167133,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1918",
+      "source_location": "L1914",
       "weight": 1.0
     },
     {
@@ -167145,7 +167145,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1919",
+      "source_location": "L1915",
       "weight": 1.0
     },
     {
@@ -167157,7 +167157,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1924",
+      "source_location": "L1920",
       "weight": 1.0
     },
     {
@@ -167169,7 +167169,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1925",
+      "source_location": "L1921",
       "weight": 1.0
     },
     {
@@ -180465,7 +180465,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L589",
+      "source_location": "L585",
       "weight": 1.0
     },
     {
@@ -180489,7 +180489,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1338",
+      "source_location": "L1334",
       "weight": 1.0
     },
     {
@@ -180501,7 +180501,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1328",
+      "source_location": "L1324",
       "weight": 1.0
     },
     {
@@ -180513,7 +180513,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1353",
+      "source_location": "L1349",
       "weight": 1.0
     },
     {
@@ -180537,7 +180537,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L468",
+      "source_location": "L464",
       "weight": 1.0
     },
     {
@@ -180549,7 +180549,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1666",
+      "source_location": "L1662",
       "weight": 1.0
     },
     {
@@ -180561,7 +180561,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1691",
+      "source_location": "L1687",
       "weight": 1.0
     },
     {
@@ -187857,7 +187857,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100",
+      "source_location": "L1096",
       "weight": 1.0
     },
     {
@@ -187869,7 +187869,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100",
+      "source_location": "L1096",
       "weight": 1.0
     },
     {
@@ -187929,7 +187929,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -187965,7 +187965,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L468",
+      "source_location": "L464",
       "weight": 1.0
     },
     {
@@ -202029,7 +202029,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2045",
+      "source_location": "L2041",
       "weight": 1.0
     },
     {
@@ -202053,7 +202053,7 @@
       "confidence_score": 1.0,
       "context": "import",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2349",
+      "source_location": "L2345",
       "weight": 1.0
     },
     {
@@ -224001,7 +224001,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L885",
+      "source_location": "L881",
       "weight": 1.0
     },
     {
@@ -224013,7 +224013,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L885",
+      "source_location": "L881",
       "weight": 1.0
     },
     {
@@ -224025,7 +224025,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L516",
+      "source_location": "L512",
       "weight": 1.0
     },
     {
@@ -224037,7 +224037,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L516",
+      "source_location": "L512",
       "weight": 1.0
     },
     {
@@ -224049,7 +224049,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L516",
+      "source_location": "L512",
       "weight": 1.0
     },
     {
@@ -224061,7 +224061,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100",
+      "source_location": "L1096",
       "weight": 1.0
     },
     {
@@ -224073,7 +224073,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1647",
+      "source_location": "L1643",
       "weight": 1.0
     },
     {
@@ -224085,7 +224085,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1899",
+      "source_location": "L1895",
       "weight": 1.0
     },
     {
@@ -224097,7 +224097,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L405",
+      "source_location": "L401",
       "weight": 1.0
     },
     {
@@ -224109,7 +224109,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L431",
+      "source_location": "L427",
       "weight": 1.0
     },
     {
@@ -224121,7 +224121,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L431",
+      "source_location": "L427",
       "weight": 1.0
     },
     {
@@ -224133,7 +224133,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L944",
+      "source_location": "L940",
       "weight": 1.0
     },
     {
@@ -224145,7 +224145,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L944",
+      "source_location": "L940",
       "weight": 1.0
     },
     {
@@ -224157,7 +224157,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1141",
+      "source_location": "L1137",
       "weight": 1.0
     },
     {
@@ -224169,7 +224169,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1141",
+      "source_location": "L1137",
       "weight": 1.0
     },
     {
@@ -224181,7 +224181,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1141",
+      "source_location": "L1137",
       "weight": 1.0
     },
     {
@@ -224193,7 +224193,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1093",
+      "source_location": "L1089",
       "weight": 1.0
     },
     {
@@ -224205,7 +224205,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L834",
+      "source_location": "L830",
       "weight": 1.0
     },
     {
@@ -224217,7 +224217,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1423",
+      "source_location": "L1419",
       "weight": 1.0
     },
     {
@@ -224229,7 +224229,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1737",
+      "source_location": "L1733",
       "weight": 1.0
     },
     {
@@ -224241,7 +224241,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1946",
+      "source_location": "L1942",
       "weight": 1.0
     },
     {
@@ -224253,7 +224253,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1946",
+      "source_location": "L1942",
       "weight": 1.0
     },
     {
@@ -224265,7 +224265,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1946",
+      "source_location": "L1942",
       "weight": 1.0
     },
     {
@@ -224277,7 +224277,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L980",
+      "source_location": "L976",
       "weight": 1.0
     },
     {
@@ -224289,7 +224289,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1056",
+      "source_location": "L1052",
       "weight": 1.0
     },
     {
@@ -224301,7 +224301,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1566",
+      "source_location": "L1562",
       "weight": 1.0
     },
     {
@@ -224313,7 +224313,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2012",
+      "source_location": "L2008",
       "weight": 1.0
     },
     {
@@ -224325,7 +224325,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2012",
+      "source_location": "L2008",
       "weight": 1.0
     },
     {
@@ -224337,7 +224337,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L319",
+      "source_location": "L315",
       "weight": 1.0
     },
     {
@@ -224349,7 +224349,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L319",
+      "source_location": "L315",
       "weight": 1.0
     },
     {
@@ -224361,7 +224361,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -224373,7 +224373,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -224385,7 +224385,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -224397,7 +224397,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -224409,7 +224409,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1577",
+      "source_location": "L1573",
       "weight": 1.0
     },
     {
@@ -224421,7 +224421,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1866",
+      "source_location": "L1862",
       "weight": 1.0
     },
     {
@@ -224433,7 +224433,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1079",
+      "source_location": "L1075",
       "weight": 1.0
     },
     {
@@ -224445,7 +224445,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2003",
+      "source_location": "L1999",
       "weight": 1.0
     },
     {
@@ -224457,7 +224457,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1087",
+      "source_location": "L1083",
       "weight": 1.0
     },
     {
@@ -224469,7 +224469,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L536",
+      "source_location": "L532",
       "weight": 1.0
     },
     {
@@ -224481,7 +224481,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L536",
+      "source_location": "L532",
       "weight": 1.0
     },
     {
@@ -224493,7 +224493,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2029",
+      "source_location": "L2025",
       "weight": 1.0
     },
     {
@@ -224517,7 +224517,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1989",
+      "source_location": "L1985",
       "weight": 1.0
     },
     {
@@ -224529,7 +224529,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L263",
+      "source_location": "L259",
       "weight": 1.0
     },
     {
@@ -224541,7 +224541,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L300",
+      "source_location": "L296",
       "weight": 1.0
     },
     {
@@ -224577,7 +224577,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1910",
+      "source_location": "L1906",
       "weight": 1.0
     },
     {
@@ -224589,7 +224589,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1910",
+      "source_location": "L1906",
       "weight": 1.0
     },
     {
@@ -224601,7 +224601,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1910",
+      "source_location": "L1906",
       "weight": 1.0
     },
     {
@@ -238989,7 +238989,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100",
+      "source_location": "L1096",
       "weight": 1.0
     },
     {
@@ -239001,7 +239001,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L405",
+      "source_location": "L401",
       "weight": 1.0
     },
     {
@@ -239013,7 +239013,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L431",
+      "source_location": "L427",
       "weight": 1.0
     },
     {
@@ -239025,7 +239025,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1860",
+      "source_location": "L1856",
       "weight": 1.0
     },
     {
@@ -239037,7 +239037,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1079",
+      "source_location": "L1075",
       "weight": 1.0
     },
     {
@@ -239049,7 +239049,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L230",
+      "source_location": "L226",
       "weight": 1.0
     },
     {
@@ -308730,7 +308730,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1038",
+      "source_location": "L1034",
       "weight": 1.0
     },
     {
@@ -308763,7 +308763,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1056",
+      "source_location": "L1052",
       "weight": 1.0
     },
     {
@@ -308796,7 +308796,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1079",
+      "source_location": "L1075",
       "weight": 1.0
     },
     {
@@ -308818,7 +308818,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1087",
+      "source_location": "L1083",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_get_chk",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1089",
       "weight": 1.0
     },
     {
@@ -308834,13 +308845,13 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_get_chk",
+      "target": "tray_src_settings_dialog_apply_option_checkbox",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1093",
+      "source_location": "L1096",
       "weight": 1.0
     },
     {
@@ -308856,17 +308867,6 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_apply_option_checkbox",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1100",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_cb_setcursel",
       "relation": "contains",
       "_origin": "ast",
@@ -308874,6 +308874,17 @@
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
       "source_location": "L111",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_save_config_change",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1117",
       "weight": 1.0
     },
     {
@@ -308889,17 +308900,6 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_save_config_change",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1121",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_cbn_selchange",
       "relation": "contains",
       "_origin": "ast",
@@ -308911,6 +308911,17 @@
     },
     {
       "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_dialog_wnd_proc",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1137",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_em_setsel",
       "relation": "contains",
       "_origin": "ast",
@@ -308918,17 +308929,6 @@
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
       "source_location": "L114",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_dialog_wnd_proc",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1141",
       "weight": 1.0
     },
     {
@@ -309016,7 +309016,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1326",
+      "source_location": "L1322",
       "weight": 1.0
     },
     {
@@ -309027,7 +309027,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1328",
+      "source_location": "L1324",
       "weight": 1.0
     },
     {
@@ -309038,7 +309038,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1331",
+      "source_location": "L1327",
       "weight": 1.0
     },
     {
@@ -309049,7 +309049,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1338",
+      "source_location": "L1334",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_macro_layout",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1349",
       "weight": 1.0
     },
     {
@@ -309065,24 +309076,13 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_macro_layout",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1353",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_layout_macro_controls",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1423",
+      "source_location": "L1419",
       "weight": 1.0
     },
     {
@@ -309104,7 +309104,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1446",
+      "source_location": "L1442",
       "weight": 1.0
     },
     {
@@ -309137,7 +309137,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1566",
+      "source_location": "L1562",
       "weight": 1.0
     },
     {
@@ -309148,7 +309148,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1577",
+      "source_location": "L1573",
       "weight": 1.0
     },
     {
@@ -309170,7 +309170,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1647",
+      "source_location": "L1643",
       "weight": 1.0
     },
     {
@@ -309181,7 +309181,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1664",
+      "source_location": "L1660",
       "weight": 1.0
     },
     {
@@ -309192,7 +309192,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1666",
+      "source_location": "L1662",
       "weight": 1.0
     },
     {
@@ -309203,7 +309203,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1668",
+      "source_location": "L1664",
       "weight": 1.0
     },
     {
@@ -309214,7 +309214,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1670",
+      "source_location": "L1666",
       "weight": 1.0
     },
     {
@@ -309225,7 +309225,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1672",
+      "source_location": "L1668",
       "weight": 1.0
     },
     {
@@ -309236,7 +309236,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1674",
+      "source_location": "L1670",
       "weight": 1.0
     },
     {
@@ -309247,7 +309247,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1676",
+      "source_location": "L1672",
       "weight": 1.0
     },
     {
@@ -309258,7 +309258,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1691",
+      "source_location": "L1687",
       "weight": 1.0
     },
     {
@@ -309302,7 +309302,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1737",
+      "source_location": "L1733",
       "weight": 1.0
     },
     {
@@ -309313,7 +309313,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1760",
+      "source_location": "L1756",
       "weight": 1.0
     },
     {
@@ -309340,6 +309340,17 @@
     },
     {
       "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_normalize_word_list",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L1856",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_show_settings_dialog",
       "relation": "contains",
       "_origin": "ast",
@@ -309351,24 +309362,13 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_normalize_word_list",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1860",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_save_word_list",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1866",
+      "source_location": "L1862",
       "weight": 1.0
     },
     {
@@ -309379,7 +309379,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1899",
+      "source_location": "L1895",
       "weight": 1.0
     },
     {
@@ -309390,7 +309390,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1910",
+      "source_location": "L1906",
       "weight": 1.0
     },
     {
@@ -309401,7 +309401,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1946",
+      "source_location": "L1942",
       "weight": 1.0
     },
     {
@@ -309412,7 +309412,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1982",
+      "source_location": "L1978",
       "weight": 1.0
     },
     {
@@ -309423,7 +309423,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1984",
+      "source_location": "L1980",
       "weight": 1.0
     },
     {
@@ -309434,7 +309434,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1986",
+      "source_location": "L1982",
       "weight": 1.0
     },
     {
@@ -309445,7 +309445,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L1989",
+      "source_location": "L1985",
       "weight": 1.0
     },
     {
@@ -309456,7 +309456,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2003",
+      "source_location": "L1999",
       "weight": 1.0
     },
     {
@@ -309467,7 +309467,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2012",
+      "source_location": "L2008",
       "weight": 1.0
     },
     {
@@ -309478,7 +309478,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2029",
+      "source_location": "L2025",
       "weight": 1.0
     },
     {
@@ -309489,7 +309489,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2048",
+      "source_location": "L2044",
       "weight": 1.0
     },
     {
@@ -309500,7 +309500,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2090",
+      "source_location": "L2086",
       "weight": 1.0
     },
     {
@@ -309511,7 +309511,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L213",
+      "source_location": "L211",
       "weight": 1.0
     },
     {
@@ -309522,7 +309522,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2182",
+      "source_location": "L2178",
       "weight": 1.0
     },
     {
@@ -309533,7 +309533,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2208",
+      "source_location": "L2204",
       "weight": 1.0
     },
     {
@@ -309544,18 +309544,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2248",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_button_row_has_icons_hints_and_no_tsf_button",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2283",
+      "source_location": "L2244",
       "weight": 1.0
     },
     {
@@ -309566,7 +309555,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L230",
+      "source_location": "L226",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_button_row_has_icons_hints_and_no_tsf_button",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L2279",
       "weight": 1.0
     },
     {
@@ -309577,7 +309577,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2341",
+      "source_location": "L2337",
       "weight": 1.0
     },
     {
@@ -309588,29 +309588,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2353",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_normalize_dedupes_and_drops_invalid",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2371",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_normalize_empty_input_yields_empty_list",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L2387",
+      "source_location": "L2349",
       "weight": 1.0
     },
     {
@@ -309621,7 +309599,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L240",
+      "source_location": "L236",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_normalize_dedupes_and_drops_invalid",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L2367",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_normalize_empty_input_yields_empty_list",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L2383",
       "weight": 1.0
     },
     {
@@ -309632,7 +309632,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L263",
+      "source_location": "L259",
       "weight": 1.0
     },
     {
@@ -309643,7 +309643,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L276",
+      "source_location": "L272",
       "weight": 1.0
     },
     {
@@ -309654,7 +309654,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L300",
+      "source_location": "L296",
       "weight": 1.0
     },
     {
@@ -309665,7 +309665,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L319",
+      "source_location": "L315",
       "weight": 1.0
     },
     {
@@ -309676,7 +309676,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L336",
+      "source_location": "L332",
       "weight": 1.0
     },
     {
@@ -309698,7 +309698,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L405",
+      "source_location": "L401",
       "weight": 1.0
     },
     {
@@ -309709,7 +309709,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L431",
+      "source_location": "L427",
       "weight": 1.0
     },
     {
@@ -309742,6 +309742,17 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L464",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_scaled_gui_font",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
       "source_location": "L468",
       "weight": 1.0
     },
@@ -309754,17 +309765,6 @@
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
       "source_location": "L47",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_scaled_gui_font",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L472",
       "weight": 1.0
     },
     {
@@ -309797,7 +309797,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L504",
+      "source_location": "L500",
       "weight": 1.0
     },
     {
@@ -309808,7 +309808,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L516",
+      "source_location": "L512",
       "weight": 1.0
     },
     {
@@ -309841,7 +309841,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L536",
+      "source_location": "L532",
       "weight": 1.0
     },
     {
@@ -309863,7 +309863,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L549",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -309907,7 +309907,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L575",
+      "source_location": "L571",
       "weight": 1.0
     },
     {
@@ -309918,12 +309918,34 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L577",
+      "source_location": "L573",
       "weight": 1.0
     },
     {
       "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_l",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L575",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_r",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L577",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_cw",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -309945,35 +309967,13 @@
     },
     {
       "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_r",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L581",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_cw",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L583",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_dialog_layout",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L589",
+      "source_location": "L585",
       "weight": 1.0
     },
     {
@@ -310237,7 +310237,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L834",
+      "source_location": "L830",
       "weight": 1.0
     },
     {
@@ -310259,7 +310259,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L858",
+      "source_location": "L854",
       "weight": 1.0
     },
     {
@@ -310303,7 +310303,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L885",
+      "source_location": "L881",
       "weight": 1.0
     },
     {
@@ -310358,7 +310358,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L944",
+      "source_location": "L940",
       "weight": 1.0
     },
     {
@@ -310385,6 +310385,17 @@
     },
     {
       "source": "tray_src_settings_dialog",
+      "target": "tray_src_settings_dialog_populate_controls_from_config",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tray/src/settings_dialog.rs",
+      "source_location": "L976",
+      "weight": 1.0
+    },
+    {
+      "source": "tray_src_settings_dialog",
       "target": "tray_src_settings_dialog_bs_autoradiobutton",
       "relation": "contains",
       "_origin": "ast",
@@ -310392,17 +310403,6 @@
       "confidence_score": 1.0,
       "source_file": "tray/src/settings_dialog.rs",
       "source_location": "L98",
-      "weight": 1.0
-    },
-    {
-      "source": "tray_src_settings_dialog",
-      "target": "tray_src_settings_dialog_populate_controls_from_config",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tray/src/settings_dialog.rs",
-      "source_location": "L980",
       "weight": 1.0
     },
     {
@@ -347658,5 +347658,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "da4cdfe07adb7dd595cd586031caed19b21bdd05"
+  "built_at_commit": "17ae993c8cad8e81a90450a4cf1910d6e8c3999d"
 }
