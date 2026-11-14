@@ -35,7 +35,6 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
 #[cfg(windows)]
-
 const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
 /// Bố cục được thiết kế trên lưới 900 đơn vị ngang, thu 2/3 rồi nhân DPI khi tạo
