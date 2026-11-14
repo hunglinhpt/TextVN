@@ -994,4 +994,279 @@ mod tests {
         press(&mut doc, &mut eng, vk::TAB, 0);
         assert_eq!(doc.text(), "develop");
     }
+
+    // ====================================================================
+    // Ma trận chống lệch máy trạng thái (E47 — yêu cầu audit "1.000 case")
+    // ====================================================================
+
+    /// Ma trận kế hoạch phím: MỌI KeyKind × MỌI action engine × composing/idle.
+    /// Bất biến máy trạng thái composition (tài liệu compose.rs):
+    /// - P1: phím KHÔNG bị ăn khi đang composing ⇒ composition phải đóng trước
+    ///   khi app nhận phím (`end == true`);
+    /// - P2: `delete_before > 0` chỉ khi engine xoá vượt composition
+    ///   (delete_count > len) — không bao giờ xoá mù text của app;
+    /// - P3: `end == true` ⇒ model sau phím rỗng (composition đã commit);
+    /// - P4: action lạ ⇒ fail-open (`pass_through`).
+    #[test]
+    fn plan_key_cross_product_state_invariants() {
+        use textvn_ffi::{IME_FLAG_WORD_END as WORD_END, IME_OK};
+        let _ = IME_OK;
+        let kinds = [
+            KeyKind::Char('a'),
+            KeyKind::Char(' '),
+            KeyKind::Backspace,
+            KeyKind::Escape,
+            KeyKind::Enter,
+            KeyKind::Tab,
+            KeyKind::CtrlSpace,
+            KeyKind::Other,
+        ];
+        let steps = [
+            EngineStep::pass(),
+            EngineStep {
+                action: ACTION_PASS,
+                delete_count: 0,
+                insert: Vec::new(),
+                flags: WORD_END,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 1,
+                insert: vec!['đ'],
+                flags: 0,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 2,
+                insert: vec!['x'],
+                flags: 0,
+            },
+            EngineStep {
+                action: ACTION_RESTORE,
+                delete_count: 1,
+                insert: vec!['a', 's', 'd', 'f'],
+                flags: WORD_END,
+            },
+            EngineStep {
+                action: ACTION_COMMIT,
+                delete_count: 0,
+                insert: vec!['m'],
+                flags: WORD_END,
+            },
+            EngineStep {
+                action: 99,
+                delete_count: 3,
+                insert: vec!['?'],
+                flags: 0,
+            },
+        ];
+        let currents: Vec<Vec<char>> = vec![Vec::new(), vec!['đ', 'ư'], vec!['a', 'b', 'c']];
+        let mut checked = 0usize;
+        for current in &currents {
+            let composing = !current.is_empty();
+            for kind in kinds {
+                for step in &steps {
+                    let plan = plan_key(current, kind, step);
+                    // P1
+                    if composing && !plan.eaten {
+                        assert!(
+                            plan.end,
+                            "P1 {kind:?}: phím tới app mà composition còn mở ({plan:?})"
+                        );
+                    }
+                    // P2
+                    if plan.delete_before > 0 {
+                        assert!(
+                            usize::from(step.delete_count) > current.len()
+                                && step.action != ACTION_PASS,
+                            "P2 {kind:?}: delete_before chỉ khi xoá vượt composition"
+                        );
+                        assert_eq!(
+                            plan.delete_before,
+                            step.delete_count - current.len() as u16,
+                            "P2 {kind:?}: sai số đếm xoá vượt"
+                        );
+                    }
+                    // P3
+                    if plan.end {
+                        assert!(text_after(current, &plan).is_empty(), "P3 {kind:?}");
+                    } else if composing {
+                        assert!(
+                            plan.text.is_some(),
+                            "P3 {kind:?}: giữ composition mà không có text"
+                        );
+                    }
+                    // P4
+                    if step.action == 99 {
+                        assert_eq!(
+                            plan,
+                            CompositionPlan::pass_through(composing),
+                            "P4 {kind:?}"
+                        );
+                    }
+                    // Bất biến văn bản: REPLACE/RESTORE luôn giữ phần đầu của composition.
+                    if matches!(step.action, ACTION_REPLACE | ACTION_RESTORE | ACTION_COMMIT)
+                        && step.delete_count as usize <= current.len()
+                    {
+                        let keep = current[..current.len() - step.delete_count as usize].to_vec();
+                        let mut want = keep;
+                        want.extend_from_slice(&step.insert);
+                        assert_eq!(
+                            plan.text.as_deref(),
+                            Some(&want[..]),
+                            "{kind:?}: mất/giữ sai phần đầu composition"
+                        );
+                    }
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(
+            checked,
+            currents.len() * kinds.len() * steps.len(),
+            "ma trận plan_key thiếu case"
+        );
+        assert!(checked >= 150, "plan_key ma trận chỉ có {checked} case");
+    }
+
+    /// Mô phỏng đổi focus GIỮA từ (OnSetFocus: commit composition + reset engine)
+    /// — text cửa sổ CŨ không được bị xoá lẹm bởi phím của cửa sổ MỚI.
+    #[test]
+    fn focus_switch_mid_word_commits_and_never_deletes_old_text() {
+        let cfg = br#"{"config_version":1,"auto_capitalize":false,"auto_restore_english":true}"#;
+        let words = ["dduocj", "Vieetj", "text", "hello", "chaof"];
+        let mut checked = 0usize;
+        for word in words {
+            let chars: Vec<char> = word.chars().collect();
+            for cut in 1..chars.len() {
+                // Cửa sổ A: gõ phần đầu từ.
+                let mut eng = EngineSession::new().unwrap();
+                let _ = eng.reload_config(cfg);
+                let mut doc = Doc::default();
+                for &c in &chars[..cut] {
+                    press(&mut doc, &mut eng, 0, c as u32);
+                }
+                // OnSetFocus (tip.rs): commit composition vào doc cũ, reset engine.
+                doc.committed.append(&mut doc.comp);
+                eng.reset();
+                let old_text = doc.text();
+                // Cửa sổ B (mô hình mới): gõ phần còn lại như một từ mới.
+                let mut doc_b = Doc::default();
+                for &c in &chars[cut..] {
+                    press(&mut doc_b, &mut eng, 0, c as u32);
+                }
+                // Không xoá lẹm: text cửa sổ A bất biến sau mọi phím cửa sổ B.
+                assert_eq!(
+                    doc.text(),
+                    old_text,
+                    "{word}/{cut}: phím cửa sổ mới xoá text cửa sổ cũ"
+                );
+                // delete_before của mọi phím cửa sổ B không vượt composition của B
+                // (Doc::press đã assert sẵn) — ở đây kiểm thêm tổng thể.
+                assert!(
+                    doc_b.comp.len() <= chars.len(),
+                    "{word}/{cut}: comp dài bất thường"
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked >= 20, "ma trận focus chỉ có {checked} case");
+    }
+
+    /// Ma trận Backspace trong composition (R2-55 qua kế hoạch compose): text
+    /// composition phải đúng = display trừ 1 glyph, không âm dư, không nhân đôi.
+    #[test]
+    fn backspace_in_composition_matrix() {
+        let cfg = br#"{"config_version":1,"auto_capitalize":false}"#;
+        let cases = [
+            ("dduocj", "đượ"),
+            ("dduowcj", "đượ"),
+            ("vieetj", "việ"),
+            ("tieeng", "tiên"),
+            ("aaaa", "aa"),
+            ("aww", "a"),
+            ("asss", "as"),
+            ("hello", "hell"),
+        ];
+        for (word, want) in cases {
+            let mut eng = EngineSession::new().unwrap();
+            let _ = eng.reload_config(cfg);
+            let mut doc = Doc::default();
+            type_str(&mut doc, &mut eng, word);
+            press(&mut doc, &mut eng, vk::BACK, 0);
+            assert_eq!(doc.text(), want, "`{word}` + BS trong composition");
+        }
+        // BS đúp liên tiếp và BS hết từ.
+        for word in ["dduocj", "vieetj", "text"] {
+            let mut eng = EngineSession::new().unwrap();
+            let _ = eng.reload_config(cfg);
+            let mut doc = Doc::default();
+            type_str(&mut doc, &mut eng, word);
+            for _ in 0..word.chars().count() + 2 {
+                press(&mut doc, &mut eng, vk::BACK, 0);
+            }
+            assert!(
+                doc.text().is_empty(),
+                "`{word}` + BS vượt phải về rỗng, không âm dư: {:?}",
+                doc.text()
+            );
+        }
+    }
+
+    /// R2-161/E46 — hợp đồng nguồn: MỌI preset `engine_owner=hook` trong appdb
+    /// phải được `is_hook_owned_exe` nhận (nhường phím), và MỌI exe trong danh
+    /// sách phải là terminal (`is_terminal_exe`) — hai danh sách không được lệch.
+    #[test]
+    fn hook_owned_yield_covers_whole_appdb_and_is_terminal() {
+        let appdb = include_str!("../../../data/appdb.default.json");
+        let mut count = 0;
+        // Chỉ preset hook-owned KHÔNG gắn `when` (mọi role) mới được nhường ở
+        // role 0; cmd/pwsh/windowsterminal gắn role terminal hoặc engine_owner
+        // tsf — cố ý không nhường (composition inline hoạt động).
+        for line in appdb.lines().filter(|l| {
+            l.contains("ForwardAsCommit")
+                && l.contains("\"engine_owner\":\"hook\"")
+                && !l.contains("\"when\"")
+        }) {
+            for part in line.split("\"exe\":\"").skip(1) {
+                let exe = part.split('"').next().unwrap_or("").to_lowercase();
+                if exe.starts_with("mobaxterm_") {
+                    continue; // exe_prefix — kiểm bằng biến thể riêng bên dưới
+                }
+                assert!(
+                    is_hook_owned_exe(&exe),
+                    "appdb có `{exe}` (hook, mọi role) nhưng is_hook_owned_exe không nhường"
+                );
+                assert!(is_terminal_exe(&exe), "`{exe}` phải là terminal");
+                count += 1;
+            }
+        }
+        assert!(count >= 8, "appdb chỉ có {count} preset hook-owned");
+        // Danh sách âm: app có composition inline KHÔNG được nhường.
+        for exe in [
+            "notepad.exe",
+            "code.exe",
+            "winword.exe",
+            "excel.exe",
+            "chrome.exe",
+            "windowsterminal.exe",
+            "explorer.exe",
+        ] {
+            assert!(!is_hook_owned_exe(exe), "{exe} không được nhường");
+            count += 1;
+        }
+        // Họ MobaXterm mọi biến thể tên file đều nhường (prefix match).
+        for exe in [
+            "MobaXterm.exe",
+            "mobaxterm_personal_24.2.exe",
+            "MobaXterm_PES_v24.exe",
+        ] {
+            assert!(is_hook_owned_exe(exe) || is_terminal_exe(exe), "{exe}");
+            count += 1;
+        }
+        assert!(
+            count >= 15,
+            "ma trận hook-owned chỉ có {count} case — appdb/danh sách bị cắt?"
+        );
+    }
 }

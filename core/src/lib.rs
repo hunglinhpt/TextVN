@@ -792,7 +792,8 @@ impl Engine {
     /// có ký tự khác ở giữa (`m[n-1]`) do `restore_bracket_index` xử lý khi gặp `]`.
     fn bracket_word_is_code(&self, c: char) -> bool {
         let raw = &self.word.raw;
-        if !self.word.active {
+        if !self.word.active || self.word.rebuilt {
+            // E47: raw đã dựng lại (Backspace) — không có chuỗi gõ thật để trả.
             return false;
         }
         // `foo[bar]`: `[` dính sau định danh là chỉ mục, không phải ngoặc văn xuôi `[đây]`.
@@ -1877,8 +1878,14 @@ impl Engine {
     }
 
     /// Từ đang mở có nên trả về chuỗi gõ không (auto-restore tiếng Anh, bug B5).
+    ///
+    /// E47: raw do Backspace dựng lại (`keys_for`) là chuỗi phím **tổng hợp**,
+    /// không phải cái người dùng gõ — restore sẽ đưa phím lạ vào document
+    /// (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`). Từ đã dựng lại thì giữ nguyên
+    /// phần hiển thị trong document (close_word) — đúng cái người dùng đang thấy.
     fn restorable(&self) -> bool {
-        self.opts.auto_restore_english
+        !self.word.rebuilt
+            && self.opts.auto_restore_english
             && post::restore_en::should_restore(
                 &self.word.raw,
                 &self.word.display,
@@ -2534,6 +2541,18 @@ impl Engine {
         if !self.word.active {
             return Outcome::pass();
         }
+        // E47: raw đã bị Backspace dựng lại thành chuỗi tổng hợp — ESC không có
+        // "chuỗi đã gõ" thật để trả; giữ nguyên phần hiển thị trong document và
+        // trong buffer câu (không record — buffer câu đã đúng phần hiển thị),
+        // đóng từ; phím ESC vẫn bị nuốt để composition đóng sạch như ESC thường.
+        if self.word.rebuilt {
+            self.word.clear();
+            return Outcome {
+                action: Action::Commit { insert: Vec::new() },
+                preedit: Vec::new(),
+                flags: FLAG_CONSUMED | FLAG_WORD_END,
+            };
+        }
         let raw = self.word.raw.clone();
         let delete = self.word.owned as u16;
         self.word.clear();
@@ -2623,6 +2642,9 @@ impl Engine {
             self.word.raw = raw;
             self.word.display = target;
             self.word.owned = out.len();
+            // E47: raw giờ là chuỗi tổng hợp (keys_for) — cắm cờ để mọi đường
+            // restore (`restorable()`, ESC) không đưa chuỗi này vào document.
+            self.word.rebuilt = true;
             return Outcome {
                 action: Action::Replace {
                     delete_count: delete,

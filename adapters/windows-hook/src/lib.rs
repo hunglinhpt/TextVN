@@ -500,4 +500,238 @@ mod tests {
             EngineOutcome::Pass
         ));
     }
+
+    // ====================================================================
+    // Ma trận chống lệch máy trạng thái (E47 — yêu cầu audit "1.000 case")
+    // ====================================================================
+
+    /// Bảng chân lý ĐẦY ĐỦ của `HookState::decide`: mode × event × security ×
+    /// appdb. Phím injected/chord/secure/pending phải PASS tuyệt đối (fail-open)
+    /// — nguồn gốc "phím bị nuốt/không nuốt" của hook, ghim toàn ma trận.
+    #[test]
+    fn decide_full_truth_table() {
+        let db = hook_db(); // pwsh.exe → hook; notepad.exe → tsf
+        let modes = [HookMode::Off, HookMode::Auto, HookMode::Always];
+        let mut checked = 0usize;
+        let events: Vec<(&str, KeyEvent)> = vec![
+            (
+                "letter",
+                KeyEvent {
+                    key_down: true,
+                    vk: 'd' as u32,
+                    ch: 'd' as u32,
+                    ..Default::default()
+                },
+            ),
+            (
+                "key-up",
+                KeyEvent {
+                    key_down: false,
+                    vk: 'd' as u32,
+                    ch: 'd' as u32,
+                    ..Default::default()
+                },
+            ),
+            (
+                "injected",
+                KeyEvent {
+                    key_down: true,
+                    vk: 'd' as u32,
+                    ch: 'd' as u32,
+                    injected: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "chord",
+                KeyEvent {
+                    key_down: true,
+                    vk: 'd' as u32,
+                    ch: 'd' as u32,
+                    system_chord: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "modifier",
+                KeyEvent {
+                    key_down: true,
+                    vk: 0xA2,
+                    ..Default::default()
+                },
+            ),
+        ];
+        for mode in modes {
+            for (label, event) in events.iter().copied() {
+                // 3 trạng thái bảo mật: pending (mới focus), non-secure, secure.
+                let pending = HookState::new("pwsh.exe", 0, mode, Duration::ZERO);
+                assert_eq!(
+                    pending.decide(event, Some(&db)),
+                    CallbackDecision::Pass,
+                    "{mode:?}/{label}: focus pending phải PASS (fail-open)"
+                );
+                let mut nonsec = HookState::new("pwsh.exe", 0, mode, Duration::ZERO);
+                ready(&mut nonsec);
+                let mut secure = HookState::new("pwsh.exe", 0, mode, Duration::ZERO);
+                ready(&mut secure);
+                assert!(secure.publish_probe(
+                    secure.field_context().generation,
+                    IME_FIELD_BODY,
+                    SecurityState::Secure
+                ));
+                let want_nonsec = match (mode, label) {
+                    (HookMode::Off, _) | (_, "injected") | (_, "key-up") | (_, "chord") => {
+                        CallbackDecision::Pass
+                    }
+                    (_, "letter") | (_, "modifier") => CallbackDecision::Process,
+                    _ => CallbackDecision::Pass,
+                };
+                // Auto: appdb phải xếp hook sở hữu mới Process — pwsh.exe có preset.
+                assert_eq!(
+                    nonsec.decide(event, Some(&db)),
+                    want_nonsec,
+                    "{mode:?}/{label}: non-secure"
+                );
+                assert_eq!(
+                    secure.decide(event, Some(&db)),
+                    CallbackDecision::Pass,
+                    "{mode:?}/{label}: secure phải PASS (S3)"
+                );
+                checked += 3;
+            }
+        }
+        // Auto KHÔNG Process khi appdb không xếp hook sở hữu (notepad → tsf).
+        let mut notepad = HookState::new("notepad.exe", 0, HookMode::Auto, Duration::ZERO);
+        ready(&mut notepad);
+        assert_eq!(
+            notepad.decide(
+                KeyEvent {
+                    key_down: true,
+                    vk: 'd' as u32,
+                    ch: 'd' as u32,
+                    ..Default::default()
+                },
+                Some(&db)
+            ),
+            CallbackDecision::Pass
+        );
+        checked += 1;
+        assert_eq!(checked, 3 * 5 * 3 + 1, "truth table thiếu case");
+    }
+
+    /// Ma trận `is_plain_letter` — nguồn gốc PassUnicode (nuốt + inject lại
+    /// KEYEVENTF_UNICODE để chặn OS-IME composition box): chỉ letter thuần
+    /// key-down không Ctrl/Alt/Win mới đủ điều kiện.
+    #[test]
+    fn is_plain_letter_matrix() {
+        let mut checked = 0usize;
+        // VK trong khoảng A..Z với ch>0: letter thuần.
+        for vk in [0x41u32, 0x5Au32, 0x43u32] {
+            assert!(is_plain_letter(&KeyEvent {
+                key_down: true,
+                vk,
+                ch: vk,
+                ..Default::default()
+            }));
+            checked += 1;
+            // Ctrl/Alt/Win/Super là hotkey — KHÔNG plain letter.
+            for mods in [0x2u32, 0x4, 0x8, 0x20] {
+                assert!(!is_plain_letter(&KeyEvent {
+                    key_down: true,
+                    vk,
+                    ch: vk,
+                    mods,
+                    ..Default::default()
+                }));
+                checked += 1;
+            }
+            // Shift đơn chấp nhận (hoa/thường nằm trong ch).
+            assert!(is_plain_letter(&KeyEvent {
+                key_down: true,
+                vk,
+                ch: vk,
+                mods: 0x1,
+                ..Default::default()
+            }));
+            checked += 1;
+        }
+        // key-up / ch=0 / VK ngoài A..Z (số, OEM, F-key) không bao giờ là letter.
+        for event in [
+            KeyEvent {
+                key_down: false,
+                vk: 0x41,
+                ch: 0x41,
+                ..Default::default()
+            },
+            KeyEvent {
+                key_down: true,
+                vk: 0x41,
+                ch: 0,
+                ..Default::default()
+            },
+            KeyEvent {
+                key_down: true,
+                vk: 0x31, // '1'
+                ch: 0x31,
+                ..Default::default()
+            },
+            KeyEvent {
+                key_down: true,
+                vk: 0xBA, // OEM
+                ch: 0x3B,
+                ..Default::default()
+            },
+            KeyEvent {
+                key_down: true,
+                vk: 0x70, // F1
+                ch: 0,
+                ..Default::default()
+            },
+        ] {
+            assert!(!is_plain_letter(&event));
+            checked += 1;
+        }
+        assert_eq!(checked, 3 * 6 + 5, "is_plain_letter matrix thiếu case");
+    }
+
+    /// `record_callback_duration` ma trận: budget ≤ 2 ms reset streak; vượt
+    /// budget đếm dần; chạm ngưỡng tự tắt (không nuốt phím nữa — fail-open).
+    #[test]
+    fn callback_budget_matrix() {
+        let mut checked = 0usize;
+        for (elapsed, expect_process) in [
+            (Duration::ZERO, true),
+            (Duration::from_millis(2), true),
+            (Duration::from_millis(3), false),
+            (Duration::from_millis(100), false),
+        ] {
+            let mut state = HookState::new("pwsh.exe", 0, HookMode::Always, Duration::ZERO);
+            let d = state.record_callback_duration(elapsed);
+            assert_eq!(
+                d == CallbackDecision::Process,
+                expect_process,
+                "elapsed {elapsed:?}"
+            );
+            checked += 1;
+        }
+        // Chuỗi slow: PASS liên tục đến MAX_SLOW_STREAK thì SelfDisabled.
+        let mut state = HookState::new("pwsh.exe", 0, HookMode::Always, Duration::ZERO);
+        for i in 1..=HookState::MAX_SLOW_STREAK {
+            let d = state.record_callback_duration(Duration::from_millis(5));
+            if i < HookState::MAX_SLOW_STREAK {
+                assert_eq!(d, CallbackDecision::Pass);
+            } else {
+                assert_eq!(d, CallbackDecision::SelfDisabled);
+                assert!(state.is_disabled());
+            }
+            checked += 1;
+        }
+        // Đã disabled: mọi callback sau đều SelfDisabled.
+        assert_eq!(
+            state.record_callback_duration(Duration::ZERO),
+            CallbackDecision::SelfDisabled
+        );
+        checked += 1;
+        assert_eq!(checked, 4 + HookState::MAX_SLOW_STREAK as usize + 1);
+    }
 }

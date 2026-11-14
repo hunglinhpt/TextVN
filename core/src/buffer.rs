@@ -27,6 +27,13 @@ pub struct Word {
     /// transition không kích hoạt trên từ này ("bAn" sau dấu chấm: 'B' là
     /// của engine, 'A' giữa từ chỉ đi qua — R1-4 bổ sung khi implement).
     pub auto_capped: bool,
+    /// E47: `raw` KHÔNG còn là chuỗi phím người dùng đã gõ — Backspace giữa từ
+    /// đã dựng lại raw bằng [`crate::method::keys_for`] (chuỗi phím **tổng hợp**
+    /// gõ ra đúng phần hiển thị còn lại, ví dụ "đượ" → "dduwowj"). Chuỗi này chỉ
+    /// dùng để phím gõ tiếp vẫn biến đổi đúng (R2-55); KHÔNG được đưa vào
+    /// document qua đường restore (auto-restore EN, ESC, Ctrl tap) — người dùng
+    /// chưa bao giờ gõ những phím đó (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`).
+    pub rebuilt: bool,
 }
 
 impl Word {
@@ -39,6 +46,7 @@ impl Word {
         self.caps_lock = false;
         self.identifier = false;
         self.auto_capped = false;
+        self.rebuilt = false;
     }
 
     pub fn is_empty(&self) -> bool {

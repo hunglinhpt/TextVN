@@ -9,6 +9,32 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ## [Unreleased]
 
+### Fixed
+- **Backspace giữa từ không còn làm rơi phím lạ vào văn bản khi Space/ESC trả lại chuỗi gõ** (E47). Xoá một ký tự
+  đang hiển thị (R2-55) làm engine dựng lại chuỗi phím **tổng hợp** gõ ra đúng phần còn lại (`đượ` → `dduwowj`) —
+  chuỗi này đúng để gõ tiếp tiếng Việt, nhưng khi từ hoá ra không phải tiếng Việt và Space tự trả lại "chuỗi đã gõ"
+  thì document nhận chuỗi tổng hợp người dùng chưa bao giờ gõ: `dduocj ⌫ j` + Space ra `dduwowjj `, `wor ⌫ ld`
+  + Space ra `uwrld `. Giờ từ đã dựng lại raw thì giữ nguyên phần hiển thị người dùng đang thấy (Space/ESC/Ctrl-tap
+  không đổi glyph); từ chưa bị xoá vẫn trả đúng chuỗi gõ thật như cũ.
+
+### Added
+- Ma trận kiểm thử song ngữ TextVN/UniKey-style ≥ 1.000 case (thực tế 6.913 case engine + ~250 case adapter
+  TSF/hook): từ EN có phím dấu Telex/VNI nhúng (`text`, `server`, `mouse`… × 3 kiểu gõ × 3 biến thể hoa/thường),
+  bảo toàn hoa/thường (`TextVN`/`TEXTVN`/`tExTvN`), undo-tone (`dd`→`đ`, `aa`→`â`→`a`, `uww`→`uw`), backspace
+  xoá-nhập-lại nhanh (chống nhân đôi/mất chữ/phím lạ), bảng chân lý phím injected/chord/secure của hook và
+  bất biến máy trạng thái composition (phím không ăn ⇒ composition phải đóng trước).
+
+**English** — Unreleased: **Backspace mid-word no longer drops synthesized keys into the document when Space/ESC
+returns "what you typed"** (E47). Deleting one displayed character (R2-55) makes the engine rebuild a **synthetic**
+key sequence that types the remaining text (`đượ` → `dduwowj`) — correct for typing more Vietnamese, but when the
+word turns out non-Vietnamese and Space auto-restores "the typed string", the document received keys the user never
+typed: `dduocj ⌫ j` + Space produced `dduwowjj `, `wor ⌫ ld` + Space produced `uwrld `. Words whose raw was rebuilt
+now keep the exact on-screen text (Space/ESC/Ctrl-tap never change glyphs); words untouched by Backspace still
+restore the user's real keys. Added a TextVN/UniKey dual-style matrix of ≥ 1,000 cases (6,913 engine cases + ~250
+TSF/hook adapter cases): English words with embedded Telex/VNI keys × 3 methods × 3 case variants, case
+preservation, undo-tone goldens, rapid backspace/re-type (anti-duplication/anti-loss/anti-phantom), the hook's
+injected/chord/secure truth table, and composition state-machine invariants.
+
 ## [0.2.77] — 2026-11-12
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
