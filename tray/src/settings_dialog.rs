@@ -207,8 +207,6 @@ pub fn show_settings_dialog(svc: Arc<SvcManager>, ipc: Arc<IpcServer>) {
 pub fn show_settings_dialog(_svc: Arc<SvcManager>, _ipc: Arc<IpcServer>) {
     println!("Cài đặt TextVN chỉ khả dụng trên Windows.");
 }
-
-#[cfg(windows)]
 #[cfg(windows)]
 fn open_url(url: &str) {
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
@@ -224,8 +222,6 @@ fn open_url(url: &str) {
         );
     }
 }
-
-
 
 fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
