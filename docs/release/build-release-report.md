@@ -1,6 +1,14 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
-## Bản 0.2.77 — MobaXterm + thanh tác vụ không còn khung góc trái (R2-161, E46, 2026-11-12)
+## Bản 0.2.79 — Khắc phục E49 MobaXterm/X11 & E48 nhân đôi ký tự `"TextVN"`, đồng bộ nút Thảo luận/Báo lỗi trong Hướng dẫn (3 OS) (2026-11-14)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | (1) E49 (bổ sung E46): TSF nhường theo tiến trình con MobaXterm (`MoTTY.exe`, `XWin_MobaX.exe`, `XWin*`, `vcxsrv.exe`, `Xming.exe`) và lớp cửa sổ X11/TTY (`appdb.default.json`, `is_hook_owned_window_class`, `should_yield_when_idle`), kiểm `GUID_COMPARTMENT_KEYBOARD_DISABLED`/`EMPTYCONTEXT`/`TF_SD_READONLY` trước `KeyEditSession`, chặn `vk::PACKET`/`vk::PROCESSKEY`, dọn composition/`dead_key_armed` trong `OnPopContext`/`OnSetFocus`/`end_composition`. (2) E48: `windows-hook` kiểm đúng `LLKHF_INJECTED` (`0x10`) + `INJECT_TAG = 0x5456_4E48` (`KeyOrigin`), đồng bộ Shift/Caps tức thì; `core/src/lib.rs` chỉ gắn `auto_capped` khi `cap != c` (sửa `"TextVN" → "Texxtvn"`). (3) Đồng bộ **[Thảo luận]** & **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/discussions`) vào cửa sổ *Hướng dẫn* trên Windows/macOS/Linux. (4) Bổ sung **1.447** regression test cases mới. |
+| Đo | `cargo test --workspace --release` **1.152/1.152 passed** (`abnormal_1000` 4,34 s) · `clippy -D warnings` 0 · `check-version-sync` 15/15 · `check_reuse` 974/974 · `replay` win/tsf 134/134 + mac 170/170 · `ime_key` p50 662 ns · `dream-rsi` 22% (`72/318`, `36` accepts) *(lưu ý: `abnormal_1000` debug trên laptop dev Balanced 2,6 GHz mất ~63–64 s > 60 s; CI runner sạch chạy đầy đủ 3 OS)* |
+| Ghi chú giới hạn | Chưa có Authenticode (đang chờ SignPath Foundation) và Apple Developer ID/notarization (`docs/release/signing-status-mac.md`); môi trường Windows GUI local không thử trực tiếp MobaXterm → kiểm qua ma trận 1.447 test + CI Windows thật |
+| Phát hành | đang chạy CI 7/7 trên commit gắn tag trước khi tag `v0.2.79` |
+
 ## Bản 0.2.78 — Thêm 7913+ test cases phòng ngừa regression (2026-11-14)
 
 | Hạng mục | Bằng chứng |
@@ -8,7 +16,9 @@
 | Nội dung | Thêm ma trận test dual-mode 7913+ cases (6913 engine + 1101 dual-mode rapid + 182 TSF/focus) để phòng ngừa regression cho E46/E47. dual_mode_matrix.rs: 6913 cases. dual_mode_rapid.rs: 1101 cases. compose.rs: 182+ assertions. |
 | Đo | preflight 23/23 PASS · workspace test xanh · clippy 0 · CI 7/7 xanh |
 | Ghi chú | E46/E47 đã fix trong 0.2.77; bản này chủ yếu thêm test coverage |
-| Phát hành | tag v0.2.78; CI xanh; release-candidate chờ Trigger |
+| Phát hành | tag v0.2.78; [v0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78), 34 asset |
+
+## Bản 0.2.77 — MobaXterm + thanh tác vụ không còn khung góc trái (R2-161, E46, 2026-11-12)
 
 | Hạng mục | Bằng chứng |
 |---|---|

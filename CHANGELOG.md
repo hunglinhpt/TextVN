@@ -7,7 +7,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [Unreleased]
+## [0.2.79] — 2026-11-14
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
 
 ### Fixed
 - **Windows MobaXterm / X11 / non-TSF focus & `CiceroUIWndFrame` (0,0) popup** (E49, bổ sung E46).
@@ -41,7 +44,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   `e49_tsf_focus_terminal_state_machine_528` + ma trận `e49_window_class_and_context_yield_matrix`, và `100`
   case hook `e48_dual_mode_rapid_origin_matrix_140` + `e48_hook_origin_guard_prevents_textvn_duplication`).
 
-**English** — Unreleased:
+**English** — 0.2.79:
 - **Fixed (E49, extending E46): Windows MobaXterm / X11 / non-TSF focus & `(0,0)` `CiceroUIWndFrame` popup.**
   MobaXterm SSH/X11 sessions spawn child processes (`MoTTY.exe`, `XWin_MobaX.exe`, `XWin*` prefix, plus
   standalone X servers `vcxsrv.exe`, `Xming.exe`) and terminal/X11 window classes (`MoTTY`, `PuTTY`, `mintty`,
@@ -3102,8 +3105,9 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...HEAD
+[0.2.79]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...v0.2.79
 [0.2.78]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...v0.2.78
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...HEAD
 [0.2.77]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...v0.2.77
 [0.2.76]: https://github.com/hunglinhpt/TextVN/compare/v0.2.75...v0.2.76
 [0.2.75]: https://github.com/hunglinhpt/TextVN/compare/v0.2.74...v0.2.75

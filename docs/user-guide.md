@@ -397,7 +397,9 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Bản 0.2.47: Alt + Space bị TextVN dùng để sửa câu thay vì mở menu cửa sổ | Bản sau 0.2.47 bỏ Alt + Space khỏi TextVN theo yêu cầu (đụng menu cửa sổ và các trình khởi chạy) — phím tắt trợ lý chỉ còn **Ctrl + Space** (macOS **Option + Space**). Cập nhật lên bản mới. |
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
-Báo lỗi: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
+Thảo luận / hỏi đáp hoặc báo lỗi trực tiếp từ app: mở bảng điều khiển → **Hướng dẫn** → bấm
+**[Thảo luận]** hoặc **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/discussions`).
+Hoặc báo lỗi kèm chi tiết: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
 (ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm — Windows: file tạo bởi
 `textvn-cli doctor --export diag.zip` (xem nhanh trong cửa sổ: `textvn-cli doctor --pause` — lối
 tắt *Kiem tra he thong (TextVN Doctor)* trong Start menu của bản cài); macOS: thư mục `~/Library/Logs/TextVN/` (chỉ có log khi

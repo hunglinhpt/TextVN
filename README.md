@@ -40,7 +40,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 - **Chuẩn mực gõ dấu UniKey**: Đầy đủ các kiểu gõ Telex, VNI, VIQR, Simple Telex; hỗ trợ lựa chọn dấu cũ (`hòa`, `thủy`) hoặc dấu mới (`hoà`, `thuỷ`); chuẩn vần `uo` (`luong`/`uong` giữ nguyên, gõ `w` hoặc dấu mới thành `ươ`).
 - **Tiện ích Telex thông minh**: Gõ nhanh `[` / `]` thành `ơ` / `ư` nhưng bảo vệ tuyệt đối dấu ngoặc vuông trong lập trình (`arr[0]`, Markdown `- [ ] task`); gõ `a--b` thành gạch nối dài `a—b` nhưng giữ nguyên cờ lệnh code `--force`; gõ hoa thông minh `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
 - **Phím tắt chuyển mã thông minh Ctrl+Shift+F9**: Tự động chuyển đổi qua lại giữa Unicode, TCVN3, VNI, Unicode tổ hợp; tự động nhận diện bảng mã nguồn bị lỗi hiển thị (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); tự động sửa chuỗi gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`).
-- **Bảng điều khiển đồng bộ 3 OS (0.2.72)**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
+- **Bảng điều khiển đồng bộ 3 OS**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; cửa sổ *Hướng dẫn* tích hợp nút **Thảo luận** và **Báo lỗi** mở thẳng GitHub Discussions; tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
 
 ---
 
@@ -48,10 +48,11 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 
 Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truyền thống (UniKey, EVKey, OpenKey):
 
-| Tiêu chí so sánh | TextVN (v0.2.72) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
+| Tiêu chí so sánh | TextVN (v0.2.79) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Cơ chế xử lý phím** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook ăn phím + `SendInput` xoá ngược |
-| **Lỗi mất chữ, lặp chữ (Chrome/Excel/Electron)** | **Triệt tiêu hoàn toàn** (composition nội tại không gạch chân) | Thường xuyên gặp khi gõ nhanh hoặc chuyển cửa sổ |
+| **Lỗi mất chữ, lặp chữ (Chrome/Excel/Electron/Dual-Mode)** | **Triệt tiêu hoàn toàn** (composition nội tại không gạch chân; gắn cờ `INJECT_TAG` + `KeyOrigin` chặn vòng lặp phím giả, giữ nguyên `"TextVN"`) | Thường xuyên gặp khi gõ nhanh, gõ từ tiếng Anh hoa/thường lẫn dấu hoặc chuyển cửa sổ |
+| **Cô lập Terminal X11/SSH & Control không nhập chữ** | Tự động nhường TSF theo tiến trình con & lớp cửa sổ (`MoTTY`, `PuTTY`, `mintty`, `XWin*`), kiểm `EMPTYCONTEXT`/`READONLY` — **không còn khung mũi tên xanh góc trái `(0,0)`** | Tranh chấp với hệ thống IME của OS/X11 hoặc làm hỏng type-ahead trong Explorer |
 | **Tự nhận diện EN/VI khi gõ xen kẽ** | Luật ngữ âm Việt + 103 từ dễ nhầm + 116 thuật ngữ + từ điển EN cá nhân + lưới bảo vệ 94 âm tiết: trả lại từ gốc khi gõ dấu cách | Telex áp đặt toàn bộ — `text` thành `tẽt`, `is` thành `í`; buộc phải chuyển chế độ thủ công |
 | **Dự đoán từ & cụm song ngữ (Tab/Space)** | Đầy đủ từ đơn, từ ghép, cụm từ ngữ cảnh ở cả Mode VI & Mode EN; 5 ứng viên Tab; ghost preview 75 µs | Không hỗ trợ hoặc chỉ gõ tắt tĩnh |
 | **Công thái học Dream RSI (P10)** | Đo lường khách quan số phím tiết kiệm (tỷ lệ tiết kiệm 22% trên văn phòng); chặn hồi quy qua CI | Không có |
@@ -67,7 +68,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ---
 
-## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.72)
+## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.79)
 
 ### 1. Công thái học Dream RSI & Kiểm chuẩn Hiệu năng (P10 / G19)
 - Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
@@ -88,7 +89,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ### 3. Kiểu Gõ & Biến Đổi Âm Vị Học Chuẩn Mực
 - Vần `uo` chuẩn UniKey 20 năm: `luong`/`uong`/`truong.giap` giữ nguyên khi không dấu; chỉ khi có biến đổi VN hoặc gõ `w`/dấu chủ động mới thành `ươ` (`luonwg`, `tuowi`, `tuowng`, `duongf` → `dường`).
-- Chống xung đột 2 bộ gõ (swallow-and-unicode): trên app bypass TSF (MobaXterm, KiTTY…), hook tự nuốt phím và inject qua KEYEVENTF_UNICODE ngăn Windows VIE IME cướp phím và hiện ô chữ nhật nhỏ.
+- Chống xung đột 2 bộ gõ & cô lập Terminal (E46/E49): nhường TSF theo cả tiến trình con (`MoTTY.exe`, `XWin_MobaX.exe`, `XWin*`, `vcxsrv.exe`, `Xming.exe`) lẫn lớp cửa sổ (`MoTTY`, `PuTTY`, `mintty`, `KiTTY`, `MSCTFIME UI`, `cygwin/x*`), kiểm `EMPTYCONTEXT`/`KEYBOARD_DISABLED`/`READONLY` và dọn composition khi chuyển focus — loại bỏ khung góc trái `(0,0)`; trên app dùng hook, chuẩn hoá `LLKHF_INJECTED` + `INJECT_TAG` (`KeyOrigin`) và đồng bộ `auto_capped` đảm bảo chuỗi hỗn hợp `"TextVN"` không lặp phím hay mất chữ hoa (E48).
 - Khôi phục dead-key Windows (`Ctrl+'`+`e` → `é`) trên bàn phím quốc tế.
 - Chặn hoàn tất token ID/username: không bao giờ tự động hoàn tất qua ranh giới dấu chấm, gạch ngang, email (`truong.giap`, `t.ho`).
 - Đầy đủ Telex, VNI, TCVN3 (VIQR đọc được), Quick Telex (cc→ch, gg→gi…), gõ tự do (free marking).
@@ -115,14 +116,14 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ### 6. Kiến Trúc Hệ Thống, Điều Khiển & Riêng Tư Tuyệt Đối
 - Phím nóng: Ctrl+Space sửa/dự đoán · Ctrl+Shift gạt VN/EN (nhớ trạng thái) · Ctrl+Shift+F9 chuyển mã.
-- Bảng cài đặt native từng OS: Windows khay hệ thống (7 nút có icon + tooltip, phân định Ẩn vào khay/Thoát), Linux GTK4, macOS menu bar SwiftUI.
+- Bảng cài đặt native từng OS: Windows khay hệ thống (7 nút có icon + tooltip, phân định Ẩn vào khay/Thoát), Linux GTK4, macOS menu bar SwiftUI; cửa sổ **Hướng dẫn** trên cả 3 OS tích hợp nút **Thảo luận** và **Báo lỗi** (`https://github.com/hunglinhpt/TextVN/discussions`).
 - Offline 100%, không gửi dữ liệu ra mạng, không lưu nội dung phím gõ; tự ngắt khi gặp trường mật khẩu; chính sách bảo mật công khai trong repo.
 
 ---
 
 ## Tải và Cài Đặt
 
-Bản mới nhất: **[GitHub Release v0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md).
+Bản mới nhất: **[GitHub Release v0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79)** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md). *Lưu ý: Windows chưa ký Authenticode (chờ SignPath Foundation duyệt) và macOS chưa notarization ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
 |---|---|---|
@@ -144,7 +145,9 @@ Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Điểm nhấn tính năng |
 |---|---|
-| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Windows: MobaXterm (và PuTTY, mintty, Xshell, SecureCRT…) cùng thanh tác vụ **không còn hiện khung nhỏ mũi tên xanh ở góc trái** khi click vào rồi gõ phím (sau khi cài: đăng xuất/đăng nhập lại để explorer nạp bản mới) |
+| [0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79) | Windows: nhường TSF cả theo tiến trình con MobaXterm (`MoTTY.exe`, `XWin*`, `vcxsrv`, `Xming`) lẫn lớp cửa sổ X11/TTY và kiểm `EMPTYCONTEXT`/`READONLY` trước `KeyEditSession` (E49); sửa triệt để lỗi lặp chữ & mất hoa `"TextVN" → "Texxtvn"` bằng `LLKHF_INJECTED` + `INJECT_TAG`/`KeyOrigin` và guard `auto_capped` (E48) · Đưa nút **Thảo luận** & **Báo lỗi** (`GitHub Discussions`) vào cửa sổ *Hướng dẫn* trên cả 3 OS · Bổ sung **1.447** regression test |
+| [0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Sửa rơi phím lạ khi Backspace giữa từ rồi Space/ESC trả chuỗi gốc (E47) · Bổ sung 7.913+ test cases phòng ngừa hồi quy (dual-mode matrix, rapid origin/case, TSF state) |
+| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (và PuTTY, mintty, Xshell, SecureCRT…) cùng thanh tác vụ **không còn hiện khung nhỏ mũi tên xanh ở góc trái** khi click vào rồi gõ phím (sau khi cài: đăng xuất/đăng nhập lại để explorer nạp bản mới) |
 | [0.2.76](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.76) | Cài đặt: dòng mô tả dưới ô **Chế độ** của Trợ lý ngữ pháp rút gọn về **một dòng** gọn dễ đọc trên cả 3 OS |
 | [0.2.75](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.75) | Windows: bấm vào thư mục (Explorer) hoặc chỗ không nhập được rồi gõ phím **không còn hiện khung nhỏ ở góc trái màn hình**; phím tới app đúng (gõ để nhảy tới mục) · ô nhập không bị ảnh hưởng · Trợ lý ngữ pháp chỉ còn **một** lựa chọn Chế độ (bỏ ô "Tự động sửa"), UI sắp lại |
 | [0.2.74](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.74) | **Tự học & Dream RSI bật mặc định** và có nút trong Cài đặt (cả 3 OS): công tắt, số liệu "Đã học: N từ · M cặp sửa | Dream RSI: tiết kiệm X% số phím", nút Xóa dữ liệu đã học; Dream RSI lưu bền qua các phiên · lọc rác bàn phím khi học · không học ở ô mật khẩu/terminal |
@@ -269,7 +272,7 @@ Tiếng Việt · English
 - **UniKey Standard Tone Placement**: Comprehensive support for Telex, VNI, VIQR, and Simple Telex; old-style (`hòa`, `thủy`) vs new-style (`hoà`, `thuỷ`) diacritics; standard `uo` rhyme (`luong`/`uong` plain by default, explicit `w` produces `ươ`).
 - **Smart Telex Conveniences**: Fast `[` / `]` for `ơ` / `ư` with full protection for programming code brackets (`arr[0]`, Markdown `- [ ] task`); fast `a--b` for em-dash `a—b` while preserving CLI flags (`--force`); smart uppercase `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
 - **Smart Transcoding Shortcut Ctrl+Shift+F9**: Lossless bidirectional conversion between Unicode, TCVN3, VNI, and decomposed Unicode; automatic source charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); automatic retyping of mistyped text when the IME was off (`tooi ddi hocj` → `tôi đi học`) across all 3 platforms.
-- **Unified 3-OS Settings Panel (v0.2.72)**: Every button features an icon + hint tooltip; explicit "Hide to tray" vs "Quit" options; tray automatically self-registers TSF without requiring administrator privileges (Admin/UAC).
+- **Unified 3-OS Settings Panel**: Every button features an icon + hint tooltip; explicit "Hide to tray" vs "Quit" options; the *Help ("Hướng dẫn")* dialog integrates **Thảo luận** (Discussions) and **Báo lỗi** (Report Issue) buttons linking directly to GitHub Discussions; tray automatically self-registers TSF without requiring administrator privileges (Admin/UAC).
 
 ---
 
@@ -277,10 +280,11 @@ Tiếng Việt · English
 
 Direct head-to-head comparison between TextVN and legacy input engines (UniKey, EVKey, OpenKey):
 
-| Comparison Criteria | TextVN (v0.2.72) | Traditional IMEs (UniKey / EVKey / OpenKey) |
+| Comparison Criteria | TextVN (v0.2.79) | Traditional IMEs (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Input Processing Engine** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook + `SendInput` backspace replay |
-| **Lost & Duplicated Letters (Chrome/Excel/Electron)** | **Completely eliminated** (clean composition, no underline) | Common occurrence during rapid typing or window switching |
+| **Lost & Duplicated Letters (Chrome/Excel/Electron/Dual-Mode)** | **Completely eliminated** (clean composition, no underline; `INJECT_TAG` + `KeyOrigin` prevents synthetic loops and preserves `"TextVN"`) | Common occurrence during rapid typing, mixed-case English words, or window switching |
+| **X11/SSH Terminal & Non-Text Isolation** | Automatically yields TSF by child exe & window class (`MoTTY`, `PuTTY`, `mintty`, `XWin*`), checks `EMPTYCONTEXT`/`READONLY` — **no `(0,0)` green-arrow popup** | Conflicts with OS/X11 IME sub-systems or breaks Explorer type-ahead |
 | **Automatic EN/VI Detection in Mixed Text** | Vietnamese phonotactics + 103 confused words + 116 terms + personal dictionary + 94-syllable protection grid: restored on Space | Telex applies indiscriminately — `text` becomes `tẽt`, `is` becomes `í`; requires manual toggle |
 | **Bilingual Word & Phrase Prediction (Tab/Space)** | Full single-word, compound, and contextual phrase prediction in both Mode VI & Mode EN; 5-candidate cycling; 75 µs ghost preview | Not supported or limited to static text macros |
 | **Dream RSI Ergonomics (P10)** | Objectively measures physical keystrokes saved (22% savings rate on office workloads); CI regression gates | Not supported |
@@ -296,7 +300,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ---
 
-## Full Feature Set (Accumulated Through 0.2.72)
+## Full Feature Set (Accumulated Through 0.2.79)
 
 ### 1. Dream RSI Ergonomic Metrics & Performance Benchmarks (P10 / G19)
 - Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
@@ -317,7 +321,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ### 3. Typing Engines & Phonotactic Transformation Standard
 - 20-year UniKey-standard `uo` rhyme: `luong`/`uong`/`truong.giap` remain unaccented by default; only explicit `w` or tone keys produce `ươ` (`luonwg`, `tuowi`, `tuowng`, `duongf` → `dường`).
-- Anti-conflict mechanism (swallow-and-unicode): on TSF-bypassing apps (MobaXterm, KiTTY…), hook swallows keystrokes and injects via KEYEVENTF_UNICODE to prevent Windows VIE IME from stealing keys and opening composition boxes.
+- Dual-IME anti-conflict & Terminal isolation (E46/E49): yields TSF on both child processes (`MoTTY.exe`, `XWin_MobaX.exe`, `XWin*`, `vcxsrv.exe`, `Xming.exe`) and terminal/X11 window classes (`MoTTY`, `PuTTY`, `mintty`, `KiTTY`, `MSCTFIME UI`, `cygwin/x*`), guards `EMPTYCONTEXT`/`KEYBOARD_DISABLED`/`READONLY` contexts, and cleans composition on focus switches — eliminating `(0,0)` popup artifacts; in hook-backed apps, exact `LLKHF_INJECTED` + `INJECT_TAG` (`KeyOrigin`) and `auto_capped` guards keep mixed-case words like `"TextVN"` free of duplication and case loss (E48).
 - Windows dead-key passthrough (`Ctrl+'`+`e` → `é`) on international keyboard layouts.
 - Identifier & username boundary gate: Space and Tab never complete across dots, dashes, or email addresses (`truong.giap`, `t.ho`).
 - Full support for Telex, VNI, TCVN3 (VIQR readable), Quick Telex (cc→ch, gg→gi…), free marking.
@@ -344,14 +348,14 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ### 6. System Architecture, Control & Total Privacy
 - Hotkeys: Ctrl+Space fix/predict · Ctrl+Shift VI/EN toggle (state remembered) · Ctrl+Shift+F9 transcode.
-- Native settings per OS: Windows system tray (7 buttons with icons + tooltips, explicit Hide to tray / Quit), Linux GTK4, macOS SwiftUI menu bar.
+- Native settings per OS: Windows system tray (7 buttons with icons + tooltips, explicit Hide to tray / Quit), Linux GTK4, macOS SwiftUI menu bar; the **Help ("Hướng dẫn")** dialog on all 3 OSes embeds **Thảo luận** (Discussions) and **Báo lỗi** (Report Issue) buttons (`https://github.com/hunglinhpt/TextVN/discussions`).
 - 100% offline, zero telemetry, no network calls; auto-off in password fields; public in-repo privacy policy.
 
 ---
 
 ## Download & Installation
 
-Latest release: **[GitHub Release v0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md).
+Latest release: **[GitHub Release v0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79)** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md). *Note: Windows installers are not yet Authenticode-signed (awaiting SignPath Foundation approval) and macOS bundles are not yet notarized ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Platform | Official Installer | Run Without Installing (Portable) |
 |---|---|---|
@@ -373,7 +377,9 @@ Full development history: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Key Highlights |
 |---|---|
-| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Windows: MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) and the taskbar **no longer pop the small green-arrow box in the top-left corner** when you click in and type (after installing: sign out and back in so explorer loads the new build) |
+| [0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79) | Windows: yields TSF by both MobaXterm child executables (`MoTTY.exe`, `XWin*`, `vcxsrv`, `Xming`) and X11/TTY window classes plus `EMPTYCONTEXT`/`READONLY` guards before `KeyEditSession` (E49); fixes `"TextVN" → "Texxtvn"` duplication & case loss via `LLKHF_INJECTED` + `INJECT_TAG`/`KeyOrigin` and `auto_capped` guard (E48) · Moves **Thảo luận** & **Báo lỗi** (`GitHub Discussions`) buttons inside the Help (*Hướng dẫn*) window across all 3 OSes · Adds **1,447** regression tests |
+| [0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Fixes mid-word Backspace leaking synthetic keystrokes on Space/ESC raw restore (E47) · Adds 7,913+ regression test cases (dual-mode matrix, rapid origin/case, TSF state) |
+| [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) and the taskbar **no longer pop the small green-arrow box in the top-left corner** when you click in and type (after installing: sign out and back in so explorer loads the new build) |
 | [0.2.76](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.76) | Settings: the hint under the Grammar Assistant **Mode** box is now a short **single line** on all 3 OSes |
 | [0.2.75](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.75) | Windows: clicking a folder (Explorer) or any non-input area and then typing **no longer pops a small box in the top-left corner of the screen**; keys reach the app (type-to-jump works) · text inputs unaffected · Grammar Assistant has a **single** Mode choice ("Auto-fix" dropdown removed), UI reordered |
 | [0.2.74](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.74) | **Self-learning & Dream RSI are on by default** and have a switch in Settings (all 3 OSes): toggle, live "Learned: N words · M pairs | Dream RSI: X% keystrokes saved", a Wipe learned data button; Dream RSI persists across sessions · junk typing is not learned · never learns in password fields/terminals |

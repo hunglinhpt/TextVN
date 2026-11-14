@@ -1,3 +1,11 @@
+textvn (0.2.79-0ppa1) noble; urgency=medium
+
+  * Windows: MobaXterm/X11/non-TSF yield theo tiến trình con + lớp cửa sổ (E49)
+    và chặn phím giả/mất hoa chữ trong chế độ kép ("TextVN", E48); đồng bộ
+    nút Thảo luận & Báo lỗi trong cửa sổ Hướng dẫn trên cả 3 OS.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 14 Nov 2026 23:25:00 +0700
+
 textvn (0.2.78-0ppa1) noble; urgency=medium
 
   * Windows: nhường phím cho terminal không hỗ trợ composition inline và
