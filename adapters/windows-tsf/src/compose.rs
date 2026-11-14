@@ -207,11 +207,14 @@ pub fn is_hook_owned_exe(exe: &str) -> bool {
         })
 }
 
-/// App terminal theo tên exe (lowercase): Tab là của shell, phím phải tới app ngay (vim,
+/// App terminal theo tên exe: Tab là của shell, phím phải tới app ngay (vim,
 /// less) và chữ gõ có thể là mật khẩu — không dự đoán, không học (R2-144/R2-145).
+/// So khớp **không phân biệt hoa/thường** — nhất quán với `is_hook_owned_exe`
+/// (AppDb so khớp case-insensitive); caller quên lowercase vẫn đúng.
 pub fn is_terminal_exe(exe: &str) -> bool {
+    let exe = exe.to_ascii_lowercase();
     matches!(
-        exe,
+        exe.as_str(),
         "windowsterminal.exe"
             | "openconsole.exe"
             | "conhost.exe"
@@ -1268,5 +1271,638 @@ mod tests {
             count >= 15,
             "ma trận hook-owned chỉ có {count} case — appdb/danh sách bị cắt?"
         );
+    }
+
+    // ====================================================================
+    // Ma trận máy trạng thái TSF/focus mở rộng (audit ≥ 1.000 case MỚI —
+    // nhóm Bug 1: xung đột IME/TSF, khung nổi góc trái, focus chuyển nhanh)
+    // ====================================================================
+
+    /// T1 — cross-product mở rộng của `plan_key`: 5 trạng thái composition ×
+    /// 8 loại phím × 12 bước engine. Bất biến mới so với
+    /// `plan_key_cross_product_state_invariants`:
+    /// - P9: `ACTION_PASS` BỎ QUA `insert` của engine (không chèn phím lạ);
+    /// - P5 (nâng cấp): RESTORE/COMMIT + WORD_END với Enter/Tab → phím native
+    ///   bị nhả (`eaten=false`, ký tự `\n`/`\t` bị pop khỏi text commit) —
+    ///   Enter phải là phím Enter thật của app (chat gửi tin);
+    /// - P10: Space trong RESTORE/COMMIT commit CÙNG khối (eaten=true);
+    /// - P2 mở rộng cho current rỗng: `delete_before == delete_count`.
+    #[test]
+    fn plan_key_extended_cross_product_matrix() {
+        use textvn_ffi::IME_FLAG_WORD_END as WORD_END;
+        let currents: Vec<Vec<char>> = vec![
+            Vec::new(),
+            vec!['đ'],
+            vec!['đ', 'ư'],
+            vec!['a', 'b', 'c', 'd'],
+            vec!['T', 'ẽ', 'x', 't', 'V', 'N', 'x', 'j'],
+        ];
+        let kinds = [
+            KeyKind::Char('a'),
+            KeyKind::Char(' '),
+            KeyKind::Backspace,
+            KeyKind::Escape,
+            KeyKind::Enter,
+            KeyKind::Tab,
+            KeyKind::CtrlSpace,
+            KeyKind::Other,
+        ];
+        let steps: Vec<EngineStep> = vec![
+            EngineStep::pass(),
+            EngineStep {
+                action: ACTION_PASS,
+                delete_count: 0,
+                insert: vec!['q', 'z'],
+                flags: 0,
+            }, // P9: PASS phải bỏ qua insert
+            EngineStep {
+                action: ACTION_PASS,
+                delete_count: 0,
+                insert: Vec::new(),
+                flags: WORD_END,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 0,
+                insert: vec!['x'],
+                flags: 0,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 1,
+                insert: vec!['đ'],
+                flags: 0,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 2,
+                insert: vec!['ư', 'ơ'],
+                flags: 0,
+            },
+            EngineStep {
+                action: ACTION_REPLACE,
+                delete_count: 9,
+                insert: vec!['x'],
+                flags: 0,
+            }, // xoá vượt → delete_before
+            EngineStep {
+                action: ACTION_RESTORE,
+                delete_count: 2,
+                insert: vec!['t', 'e', 'x', ' '],
+                flags: WORD_END,
+            }, // ranh giới Space — commit cùng khối
+            EngineStep {
+                action: ACTION_RESTORE,
+                delete_count: 2,
+                insert: vec!['d', 'd', 'u', 'o', 'c', 'j', '\n'],
+                flags: WORD_END,
+            }, // ranh giới Enter — nhả phím native
+            EngineStep {
+                action: ACTION_COMMIT,
+                delete_count: 0,
+                insert: vec!['m'],
+                flags: WORD_END,
+            },
+            EngineStep {
+                action: ACTION_COMMIT,
+                delete_count: 0,
+                insert: vec!['h', 'e', 'l', 'l', 'o', '\t'],
+                flags: WORD_END,
+            }, // ranh giới Tab — nhả phím native
+            EngineStep {
+                action: 99,
+                delete_count: 3,
+                insert: vec!['?'],
+                flags: 0,
+            }, // action lạ — fail-open
+        ];
+        let mut checked = 0usize;
+        for current in &currents {
+            let composing = !current.is_empty();
+            for kind in kinds {
+                for step in &steps {
+                    let plan = plan_key(current, kind, step);
+                    // P1: phím tới app khi đang composing ⇒ composition phải đóng trước.
+                    if composing && !plan.eaten {
+                        assert!(plan.end, "P1 {kind:?}: {plan:?}");
+                    }
+                    // P2: delete_before chỉ khi xoá vượt composition; số đúng công thức.
+                    if plan.delete_before > 0 {
+                        assert!(
+                            usize::from(step.delete_count) > current.len()
+                                && step.action != ACTION_PASS,
+                            "P2 {kind:?}: delete_before không hợp lệ"
+                        );
+                        assert_eq!(
+                            plan.delete_before,
+                            step.delete_count - current.len() as u16,
+                            "P2 {kind:?}: sai số đếm xoá vượt"
+                        );
+                    } else if step.action != ACTION_PASS {
+                        assert!(
+                            usize::from(step.delete_count) <= current.len() || plan.text.is_none(),
+                            "P2 {kind:?}: xoá vượt mà delete_before = 0 — mất chữ của app"
+                        );
+                    }
+                    // P3: end ⇒ model rỗng sau phím (đã commit).
+                    if plan.end {
+                        assert!(text_after(current, &plan).is_empty(), "P3 {kind:?}");
+                    } else if composing {
+                        assert!(plan.text.is_some(), "P3 {kind:?}");
+                    }
+                    // P4: action lạ ⇒ pass_through.
+                    if step.action == 99 {
+                        assert_eq!(
+                            plan,
+                            CompositionPlan::pass_through(composing),
+                            "P4 {kind:?}"
+                        );
+                    }
+                    // P9: PASS bỏ qua insert của engine.
+                    if step.action == ACTION_PASS {
+                        if let Some(t) = &plan.text {
+                            assert!(
+                                step.insert.iter().all(|c| !t.contains(c)),
+                                "P9 {kind:?}: PASS chèn insert của engine vào composition"
+                            );
+                        }
+                    }
+                    // P5: RESTORE/COMMIT + WORD_END với Enter/Tab → nhả phím native.
+                    if step.word_end() && step.action != ACTION_REPLACE {
+                        let native = kind.native_boundary_char();
+                        let insert_ends_native =
+                            step.insert.last().is_some_and(|c| Some(*c) == native);
+                        match native {
+                            Some(b) if insert_ends_native => {
+                                assert!(
+                                    !plan.eaten && plan.end,
+                                    "P5 {kind:?}: phím native bị ăn — Enter phải tới app"
+                                );
+                                let t = plan.text.as_ref().expect("P5 text");
+                                assert!(
+                                    !t.contains(&b),
+                                    "P5 {kind:?}: ký tự native còn nằm trong text commit"
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                    // P10: Space trong RESTORE/COMMIT ở ranh giới → commit cùng khối (ăn phím).
+                    if step.word_end()
+                        && step.action != ACTION_REPLACE
+                        && matches!(kind, KeyKind::Char(' '))
+                        && step.insert.last() == Some(&' ')
+                    {
+                        assert!(
+                            plan.eaten,
+                            "P10: Space ranh giới phải commit cùng khối (đúng thứ tự CUAS)"
+                        );
+                    }
+                    // Bất biến văn bản: giữ phần đầu composition. RESTORE/COMMIT
+                    // + WORD_END với Enter/Tab: ký tự native bị pop (P5) — head
+                    // + insert TRỪ ký tự native cuối.
+                    if matches!(step.action, ACTION_REPLACE | ACTION_RESTORE | ACTION_COMMIT)
+                        && usize::from(step.delete_count) <= current.len()
+                    {
+                        let mut insert_want = step.insert.clone();
+                        if step.word_end()
+                            && step.action != ACTION_REPLACE
+                            && kind.native_boundary_char().is_some()
+                            && insert_want
+                                .last()
+                                .is_some_and(|&c| Some(c) == kind.native_boundary_char())
+                        {
+                            insert_want.pop();
+                        }
+                        let mut want =
+                            current[..current.len() - step.delete_count as usize].to_vec();
+                        want.extend_from_slice(&insert_want);
+                        assert_eq!(
+                            plan.text.as_deref(),
+                            Some(&want[..]),
+                            "{kind:?}: mất/giữ sai phần đầu composition"
+                        );
+                    }
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, currents.len() * kinds.len() * steps.len());
+        assert!(checked >= 400, "T1 chỉ có {checked} case");
+    }
+
+    /// T2 — focus chuyển NHANH GIỮA từ, 3 cửa sổ A→B→C (OnSetFocus commit +
+    /// reset mỗi lần): text cửa sổ cũ bất biến, cửa sổ mới gõ đúng như engine
+    /// mới tinh (không dư trạng thái, không xoá lẹm).
+    #[test]
+    fn focus_switch_rapid_three_window_matrix() {
+        let cfg = br#"{"config_version":1,"auto_capitalize":false,"auto_restore_english":true}"#;
+        let words = [
+            "dduocj", "Vieetj", "text", "hello", "chaof", "nguowif", "TextVN", "tieeng",
+        ];
+        let mut checked = 0usize;
+        for word in words {
+            let chars: Vec<char> = word.chars().collect();
+            for a in 1..chars.len() {
+                for b in (a + 1)..chars.len() {
+                    let mut eng = EngineSession::new().unwrap();
+                    let _ = eng.reload_config(cfg);
+                    // Cửa sổ A
+                    let mut doc_a = Doc::default();
+                    for &c in &chars[..a] {
+                        press(&mut doc_a, &mut eng, 0, c as u32);
+                    }
+                    doc_a.committed.append(&mut doc_a.comp);
+                    eng.reset();
+                    // Cửa sổ B
+                    let mut doc_b = Doc::default();
+                    for &c in &chars[a..b] {
+                        press(&mut doc_b, &mut eng, 0, c as u32);
+                    }
+                    doc_b.committed.append(&mut doc_b.comp);
+                    eng.reset();
+                    // Text cũ bất biến — chốt trước khi gõ cửa sổ C.
+                    let (sa, sb) = (doc_a.text(), doc_b.text());
+                    // Cửa sổ C (gõ ĐÚNG MỘT LẦN phần còn lại)
+                    let mut doc_c = Doc::default();
+                    for &c in &chars[b..] {
+                        press(&mut doc_c, &mut eng, 0, c as u32);
+                    }
+                    doc_c.committed.append(&mut doc_c.comp);
+                    assert_eq!(doc_a.text(), sa, "{word}/{a}/{b}: A bị đụng sau switch");
+                    assert_eq!(doc_b.text(), sb, "{word}/{a}/{b}: B bị đụng sau switch");
+                    // C phải gõ đúng như engine mới tinh gõ phần còn lại.
+                    let mut fresh = EngineSession::new().unwrap();
+                    let _ = fresh.reload_config(cfg);
+                    let mut doc_fresh = Doc::default();
+                    for &c in &chars[b..] {
+                        press(&mut doc_fresh, &mut fresh, 0, c as u32);
+                    }
+                    assert_eq!(
+                        doc_c.text(),
+                        doc_fresh.text(),
+                        "{word}/{a}/{b}: cửa sổ C lệch engine mới tinh — trạng thái mồ côi sau reset"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked >= 60, "T2 chỉ có {checked} case");
+    }
+
+    /// T3 — fuzz predicate lớp cửa sổ: biến thể WinForms hash, hoa/thường,
+    /// gần-nhưng-khác (SysListView32X…) — cho phép/cấm không được lệch.
+    #[test]
+    fn non_text_class_predicate_fuzz_matrix() {
+        let winforms_hashes = [
+            "141b42a_r6_ad1",
+            "2a8b8f9",
+            "3c9d2e1",
+            "4e0f3a2",
+            "5f1a4b3",
+            "6a2b5c4",
+            "7b3c6d5",
+            "8c4d7e6",
+            "9d5e8f7",
+            "ae6f908",
+            "bf70a19",
+            "c081b2a",
+        ];
+        let mut checked = 0usize;
+        // Positive: 24 lớp chuẩn × 3 biến thể hoa/thường.
+        let allow = [
+            "SysListView32",
+            "SysTreeView32",
+            "SysHeader32",
+            "SysTabControl32",
+            "ToolbarWindow32",
+            "ReBarWindow32",
+            "msctls_statusbar32",
+            "msctls_trackbar32",
+            "msctls_updown32",
+            "msctls_progress32",
+            "SHELLDLL_DefView",
+            "DirectUIHWND",
+            "CtrlNotifySink",
+            "Progman",
+            "WorkerW",
+            "SysLink",
+            "Button",
+            "Static",
+            "ScrollBar",
+            "ListBox",
+            "ComboLBox",
+            "#32769",
+            "ListView20WndClass",
+            "TreeView20WndClass",
+        ];
+        for c in allow {
+            for v in [c, &c.to_ascii_uppercase(), &c.to_ascii_lowercase()] {
+                assert!(
+                    is_non_text_window_class(v),
+                    "{v}: lớp non-text chuẩn không được nhận"
+                );
+                checked += 1;
+            }
+        }
+        // Positive: WinForms prefix với hash tuỳ ý → phần giữa quyết định.
+        for seg in [
+            "SysListView32",
+            "SysTreeView32",
+            "BUTTON",
+            "Static",
+            "ListBox",
+        ] {
+            for h in winforms_hashes {
+                let class = format!("WindowsForms10.{seg}.app.0.{h}");
+                assert!(
+                    is_non_text_window_class(&class),
+                    "{class}: hash WinForms không được phá predicate"
+                );
+                checked += 1;
+            }
+        }
+        // Positive: cửa sổ gốc (taskbar/desktop) × hoa/thường.
+        let roots = [
+            "Shell_TrayWnd",
+            "Shell_SecondaryTrayWnd",
+            "NotifyIconOverflowWindow",
+            "TopLevelWindowForOverflowXamlIsland",
+            "TaskListThumbnailWnd",
+            "TaskListOverlayWnd",
+            "Progman",
+            "WorkerW",
+        ];
+        for c in roots {
+            for v in [c, &c.to_ascii_uppercase()] {
+                assert!(is_non_text_top_level_class(v), "{v}: root non-text sai");
+                checked += 1;
+            }
+        }
+        // Negative: ô nhập thật + app tự vẽ ô nhập + gần-nhưng-khác.
+        let deny = [
+            "Edit",
+            "RichEdit20W",
+            "RICHEDIT50W",
+            "ComboBox",
+            "Scintilla",
+            "TEdit",
+            "Chrome_RenderWidgetHostHWND",
+            "Windows.UI.Core.CoreWindow",
+            "Notepad",
+            "SearchEditBoxWrapperClass",
+            "ApplicationFrameWindow",
+            "SysListView32X",
+            "SysListView321",
+            "XSysListView32",
+            "SysListView",
+            "SysTreeView32X",
+            "ToolbarWindow",
+            "ComboLBoxX",
+            "#32768",
+            "#32770",
+            "",
+        ];
+        for c in deny {
+            assert!(!is_non_text_window_class(c), "{c}: ô nhập bị chặn oan");
+            assert!(!is_non_text_top_level_class(c), "{c}: root bị chặn oan");
+            checked += 1;
+        }
+        // Negative: WinForms EDIT (ô nhập WinForms) không được chặn.
+        for h in winforms_hashes {
+            for seg in ["EDIT", "RichEdit20W", "Window.8"] {
+                let class = format!("WindowsForms10.{seg}.app.0.{h}");
+                assert!(!is_non_text_window_class(&class), "{class} bị chặn oan");
+                checked += 1;
+            }
+        }
+        assert!(checked >= 130, "T3 chỉ có {checked} case");
+    }
+
+    /// T4 — ngữ nghĩa role-0 của `is_hook_owned_exe`: entry appdb gắn `when`
+    /// (cmd/powershell/pwsh theo role terminal, mstsc, game chat) KHÔNG được
+    /// nhường ở role 0; `exe_prefix` phủ mọi biến thể tên file; hoa/thường
+    /// tên exe không đổi kết quả; hai danh sách hook-owned/terminal không lệch.
+    #[test]
+    fn hook_owned_role_zero_and_prefix_matrix() {
+        let appdb = include_str!("../../../data/appdb.default.json");
+        let mut checked = 0usize;
+        // Entry hook-owned CÓ `when` → role 0 (chưa biết field) KHÔNG nhường.
+        for line in appdb.lines().filter(|l| {
+            l.contains("ForwardAsCommit")
+                && l.contains("\"engine_owner\":\"hook\"")
+                && l.contains("\"when\"")
+        }) {
+            for part in line.split("\"exe\":\"").skip(1) {
+                let exe = part.split('"').next().unwrap_or("").to_lowercase();
+                assert!(
+                    !is_hook_owned_exe(&exe),
+                    "{exe}: gắn `when` nhưng bị nhường ở role 0 — lệch ngữ nghĩa role"
+                );
+                checked += 1;
+            }
+        }
+        // exe_prefix MobaXterm: mọi biến thể tên file (portable/PES/Personal) + hoa/thường.
+        for exe in [
+            "MobaXterm.exe",
+            "MOBAXTERM.EXE",
+            "mobaxterm_personal_24.2.exe",
+            "MobaXterm_PES_v24.exe",
+            "MobaXterm_PES_v25.1.exe",
+            "MobaXterm_Portable_v23.6.exe",
+        ] {
+            assert!(
+                is_hook_owned_exe(exe),
+                "{exe}: biến thể prefix không được nhường"
+            );
+            assert!(is_terminal_exe(exe), "{exe}: phải là terminal");
+            checked += 1;
+        }
+        // exe_prefix ConEmu — terminal nhưng KHÔNG hook-owned (engine_owner tsf
+        // trong appdb hoặc không có preset) — chỉ cross-check is_terminal_exe.
+        for exe in ["ConEmu64.exe", "conemu_x64.exe"] {
+            assert!(is_terminal_exe(exe), "{exe}: terminal list sai");
+            checked += 1;
+        }
+        // Hoa/thường exe không đổi kết quả cho cả hai phía.
+        for exe in ["PuTTY.exe", "MINTTY.EXE", "SecureCRT.exe", "XShell.exe"] {
+            assert!(is_hook_owned_exe(exe), "{exe}: hoa/thường lệch kết quả");
+            assert!(is_terminal_exe(exe), "{exe}: terminal list sai");
+            checked += 1;
+        }
+        // Negative mở rộng: app có composition inline.
+        for exe in [
+            "notepad.exe",
+            "code.exe",
+            "winword.exe",
+            "excel.exe",
+            "chrome.exe",
+            "msedge.exe",
+            "firefox.exe",
+            "explorer.exe",
+            "windowsterminal.exe",
+            "wezterm-gui.exe",
+            "alacritty.exe",
+            "tabby.exe",
+            "hyper.exe",
+        ] {
+            assert!(!is_hook_owned_exe(exe), "{exe} không được nhường");
+            checked += 1;
+        }
+        assert!(checked >= 25, "T4 chỉ có {checked} case");
+    }
+
+    /// T5 — máy trạng thái `ModifierToggle` (Ctrl+Shift switch / Ctrl-tap):
+    /// mọi thứ tự nhấn-nhả, can thiệp Alt, chord xen giữa, key-repeat, giữ lâu
+    /// — toggle phải búng ĐÚNG MỘT LẦN mỗi lần bấm hợp lệ, không bao giờ nuốt
+    /// phím modifier (xung đột input routing — nhóm Bug 1).
+    #[test]
+    fn modifier_toggle_rapid_sequence_matrix() {
+        use std::time::Instant;
+        let ctrl_keys = [vk::CONTROL, 0xA2, 0xA3];
+        let shift_keys = [vk::SHIFT, vk::LSHIFT, 0xA1];
+        let mut checked = 0usize;
+        // S1–S4: 2 thứ tự nhấn × 2 thứ tự nhả → đúng 1 lần fire.
+        for &ck in &ctrl_keys {
+            for &sk in &shift_keys {
+                // Shift↓ Ctrl↓ nhả Ctrl
+                let mut t = ModifierToggle::default();
+                t.on_key_down(sk, false, false, false);
+                assert!(!t.on_key_up(sk), "S1 shift nhả sớm khi ctrl chưa xuống");
+                t.on_key_down(ck, false, true, false);
+                assert!(t.on_key_up(ck), "S1: nhả Ctrl phải fire toggle");
+                assert!(!t.on_key_up(sk), "S1: nhả Shift sau đó KHÔNG fire lần 2");
+                checked += 1;
+                // Ctrl↓ Shift↓ nhả Shift
+                let mut t = ModifierToggle::default();
+                t.on_key_down(ck, false, false, false);
+                t.on_key_down(sk, true, false, false);
+                assert!(t.on_key_up(sk), "S2: nhả Shift phải fire toggle");
+                assert!(!t.on_key_up(ck), "S2: nhả Ctrl sau đó KHÔNG fire lần 2");
+                checked += 1;
+                // Alt giữ trong lúc bấm cặp → KHÔNG toggle (Alt+Shift+Ctrl là chord khác).
+                let mut t = ModifierToggle::default();
+                t.on_key_down(sk, false, false, true);
+                t.on_key_down(ck, false, true, true);
+                assert!(!t.on_key_up(ck), "S5: Alt giữ vẫn fire — sai");
+                assert!(!t.on_key_up(sk), "S5: Alt giữ vẫn fire — sai");
+                checked += 1;
+                // Key-repeat Ctrl: mốc giữ phải giữ nguyên (or()).
+                let mut t = ModifierToggle::default();
+                t.on_key_down(ck, false, false, false);
+                let now = Instant::now();
+                t.mark_ctrl_down(now);
+                t.mark_ctrl_down(now + std::time::Duration::from_millis(100));
+                assert!(
+                    !t.ctrl_held_too_long(now + std::time::Duration::from_millis(200)),
+                    "S9: repeat Ctrl phải giữ mốc lần bấm đầu"
+                );
+                assert!(
+                    t.ctrl_held_too_long(now + std::time::Duration::from_millis(450)),
+                    "S9: giữ > 400ms phải hết hạn tap (Ctrl+click)"
+                );
+                assert!(
+                    !t.on_key_up(ck),
+                    "S9: Ctrl tap đơn (không Shift) không fire switch"
+                );
+                checked += 1;
+                // Chord xen giữa: Shift↓ Ctrl↓ 'x'↓ → armed phải gỡ, nhả không fire.
+                let mut t = ModifierToggle::default();
+                t.on_key_down(sk, false, false, false);
+                t.on_key_down(ck, false, true, false);
+                t.on_key_down('X' as u32, true, true, false);
+                assert!(!t.on_key_up(ck), "S12: chord xen giữa vẫn fire — sai");
+                assert!(!t.on_key_up(sk), "S12: chord xen giữa vẫn fire — sai");
+                checked += 1;
+            }
+        }
+        // Hai lần bấm hợp lệ liên tiếp → đúng 2 fire.
+        let mut t = ModifierToggle::default();
+        let mut fires = 0;
+        for _ in 0..2 {
+            t.on_key_down(vk::SHIFT, false, false, false);
+            t.on_key_down(vk::CONTROL, false, true, false);
+            if t.on_key_up(vk::CONTROL) {
+                fires += 1;
+            }
+            if t.on_key_up(vk::SHIFT) {
+                fires += 1;
+            }
+        }
+        assert_eq!(fires, 2, "S6: 2 lần bấm phải đúng 2 fire, được {fires}");
+        checked += 1;
+        assert!(checked >= 16, "T5 chỉ có {checked} scenario");
+    }
+
+    /// T6 — ma trận phân loại phím: `classify` không bao giờ biến VK không
+    /// sinh ký tự thành chữ (F1 ≠ 'p'), ranh giới native chỉ Enter/Tab,
+    /// Ctrl+Space được nhận diện kể cả khi Caps bật.
+    #[test]
+    fn keykind_classify_boundary_matrix() {
+        use textvn_ffi::MOD_CAPS;
+        use textvn_ffi::MOD_CTRL;
+        let mut checked = 0usize;
+        let rows: &[(u32, u32, KeyKind)] = &[
+            (0x41, 'a' as u32, KeyKind::Char('a')),
+            (0x41, 0, KeyKind::Other),
+            (0x20, ' ' as u32, KeyKind::Char(' ')),
+            (0x20, 0, KeyKind::Other),
+            (vk::RETURN, 0, KeyKind::Enter),
+            (vk::RETURN, '\r' as u32, KeyKind::Enter),
+            (vk::TAB, 0, KeyKind::Tab),
+            (vk::TAB, '\t' as u32, KeyKind::Tab),
+            (vk::BACK, 0, KeyKind::Backspace),
+            (vk::BACK, 8, KeyKind::Backspace),
+            (vk::ESCAPE, 0, KeyKind::Escape),
+            (vk::ESCAPE, 0x1b, KeyKind::Escape),
+            (0x70, 0, KeyKind::Other),       // F1 ≠ 'p'
+            (0x2E, 0, KeyKind::Other),       // Delete ≠ '.'
+            (0x25, 0, KeyKind::Other),       // Left ≠ '%'
+            (vk::PACKET, 0, KeyKind::Other), // inject Unicode — Other
+            (vk::PROCESSKEY, 0, KeyKind::Other),
+        ];
+        for (vknum, ch, want) in rows {
+            assert_eq!(
+                &KeyKind::classify(*vknum, *ch),
+                want,
+                "classify {vknum:#x}/{ch}"
+            );
+            assert_eq!(
+                KeyKind::classify(*vknum, *ch).needs_session_when_idle(),
+                matches!(
+                    want,
+                    KeyKind::Char(_) | KeyKind::Enter | KeyKind::Tab | KeyKind::CtrlSpace
+                ),
+                "needs_session {vknum:#x}"
+            );
+            let native = matches!(want, KeyKind::Enter | KeyKind::Tab);
+            assert_eq!(
+                KeyKind::classify(*vknum, *ch)
+                    .native_boundary_char()
+                    .is_some(),
+                native,
+                "native_boundary {vknum:#x}"
+            );
+            checked += 1;
+        }
+        // Ctrl+Space (Text Prediction/Correct trigger): Ctrl thắng, Caps không cản.
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, 0, MOD_CTRL),
+            KeyKind::CtrlSpace
+        );
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, ' ' as u32, MOD_CTRL),
+            KeyKind::CtrlSpace
+        );
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, 0, MOD_CTRL | MOD_CAPS),
+            KeyKind::CtrlSpace
+        );
+        assert_eq!(
+            KeyKind::classify_with_mods(0x20, ' ' as u32, 0),
+            KeyKind::Char(' ')
+        );
+        checked += 4;
+        assert!(checked >= 21, "T6 chỉ có {checked} case");
     }
 }
