@@ -175,6 +175,27 @@ public struct SettingsView: View {
                             .frame(width: 100)
                     }
                     .help("Phiên bản và thông tin TextVN")
+
+
+                    Button(action: {
+                        if let url = URL(string: AppInfo.discussionsUrl) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Label("Hướng dẫn", systemImage: "book")
+                            .frame(width: 100)
+                    }
+                    .help("Mở trang Hướng dẫn và Thảo luận trên GitHub")
+
+                    Button(action: {
+                        if let url = URL(string: AppInfo.discussionsUrl) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Label("Báo lỗi", systemImage: "exclamationmark.triangle")
+                            .frame(width: 100)
+                    }
+                    .help("Báo cáo sự cố hoặc thảo luận trên GitHub")
                 }
             }
 

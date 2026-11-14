@@ -34,6 +34,7 @@ use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetDpiForWindow};
 use windows::Win32::UI::Input::KeyboardAndMouse::{EnableWindow, SetFocus};
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::*;
+#[cfg(windows)]
 
 const SETTINGS_CLASS_NAME: &str = "TextVNSettingsDialogClass";
 
@@ -61,6 +62,8 @@ const ID_BTN_DEFAULT: isize = 2011;
 const ID_BTN_EXIT: isize = 2012;
 const ID_BTN_HELP: isize = 2013;
 const ID_BTN_ABOUT: isize = 2014;
+const ID_BTN_DISCUSS: isize = 2015;
+const ID_BTN_ISSUES: isize = 2028;
 const ID_CHK_AUTO_CAPITALIZE: isize = 2016;
 const ID_CHK_QUICK_TELEX: isize = 2017;
 const ID_CHK_MACRO_WHEN_OFF: isize = 2018;
@@ -164,6 +167,7 @@ tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
 Nếu chưa gõ được tiếng Việt: TextVN tự đăng ký bộ gõ khi khởi động — thoát hẳn rồi mở lại, \
 chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli doctor`.";
 
+const DISCUSSIONS_URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
 static SETTINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 
 struct DialogContext {
@@ -205,6 +209,24 @@ pub fn show_settings_dialog(_svc: Arc<SvcManager>, _ipc: Arc<IpcServer>) {
 }
 
 #[cfg(windows)]
+#[cfg(windows)]
+fn open_url(url: &str) {
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let file = w(url);
+    unsafe {
+        let _ = windows::Win32::UI::Shell::ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(file.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+
+
 fn w(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
 }
@@ -564,7 +586,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 35] = [
+const DIALOG_LAYOUT: [Ctl; 36] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -762,10 +784,17 @@ const DIALOG_LAYOUT: [Ctl; 35] = [
     ),
     ctl(
         "BUTTON",
-        "\u{2328}  Gõ tắt...",
+        "\u{1F4D6}  Thảo luận",
         BTN,
         (257, 735, 112, 48),
-        ID_BTN_MACROS,
+        ID_BTN_DISCUSS,
+    ),
+    ctl(
+        "BUTTON",
+        "\u{26A0}  Báo lỗi",
+        BTN,
+        (375, 735, 112, 48),
+        ID_BTN_ISSUES,
     ),
     // Cùng vị trí tương đối như Linux (hàng nút, sau "Gõ tắt...") — 3 nền tảng thống nhất.
     ctl(
@@ -826,9 +855,11 @@ fn layout_dialog_controls(parent: HWND, dpi: i32) {
 
 /// Gợi ý (tooltip) của hàng nút — người dùng phải phân biệt được "Ẩn vào khay" và "Thoát".
 #[cfg(windows)]
-const BUTTON_HINTS: [(isize, &str); 7] = [
+const BUTTON_HINTS: [(isize, &str); 9] = [
     (ID_BTN_HELP, "Cách gõ Telex/VNI, gõ tắt và các phím tắt"),
     (ID_BTN_ABOUT, "Phiên bản và thông tin TextVN"),
+    (ID_BTN_DISCUSS, "Mở trang Thảo luận trên GitHub"),
+    (ID_BTN_ISSUES, "Báo cáo sự cố trên GitHub"),
     (ID_BTN_MACROS, "Thêm/sửa gõ tắt (ví dụ hd = hợp đồng)"),
     (
         ID_BTN_ENGLISH,
@@ -1134,6 +1165,8 @@ unsafe extern "system" fn dialog_wnd_proc(
                     "Thông tin TextVN",
                     &about_text(env!("CARGO_PKG_VERSION")),
                 ),
+                ID_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
+                ID_BTN_ISSUES => open_url(DISCUSSIONS_URL),
                 ID_BTN_MACROS => show_macro_editor(hwnd),
                 ID_BTN_ENGLISH => show_word_list_editor(hwnd),
                 ID_BTN_STYLE_CLEAR => {

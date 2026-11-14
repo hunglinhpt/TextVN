@@ -238,6 +238,22 @@ static void on_about(GtkButton *b, TvWin *w) {
     show_message(GTK_WINDOW(w->window), "Thông tin TextVN", body);
 }
 
+static void on_discuss(GtkButton *b, TvWin *w) {
+    (void)b;
+    (void)w;
+    const char *url = "https://github.com/hunglinhpt/TextVN/discussions";
+    if (g_app_info_launch_default_for_uri(url, NULL, NULL)) {
+        return;
+    }
+    show_message(GTK_WINDOW(w->window), "Lỗi", "Không thể mở URL trong trình duyệt.");
+}
+
+static void on_issues(GtkButton *b, TvWin *w) {
+    (void)b;
+    on_discuss(b, w);
+}
+
+
 static void on_close(GtkButton *b, TvWin *w) {
     (void)b;
     gtk_window_close(GTK_WINDOW(w->window));
@@ -653,6 +669,10 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
     gtk_widget_set_margin_top(row, 4);
     button(row, "help-browser-symbolic", "Hướng dẫn",
            "Cách gõ Telex/VNI, gõ tắt và các phím tắt", G_CALLBACK(on_help), w);
+    button(row, "internet-discussion-symbolic", "Thảo luận",
+           "Mở trang Thảo luận trên GitHub", G_CALLBACK(on_discuss), w);
+    button(row, "dialog-warning-symbolic", "Báo lỗi",
+           "Báo cáo sự cố trên GitHub", G_CALLBACK(on_issues), w);
     button(row, "dialog-information-symbolic", "Thông tin",
            "Phiên bản và thông tin TextVN", G_CALLBACK(on_about), w);
     button(row, "input-keyboard-symbolic", "Gõ tắt...",
