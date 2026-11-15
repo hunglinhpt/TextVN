@@ -202,7 +202,7 @@ scripts/install_linux.sh          # Dựng mã nguồn và cài đặt cho tài 
 scripts/build-linux.sh            # Tạo tarball phát hành hoàn chỉnh
 ```
 
-Kiến trúc, kiểm thử, chuẩn mã và quy trình phát hành: xem **[Hướng dẫn phát triển](docs/developer-guide.md)**.
+Kiến trúc, kiểm thử, chuẩn mã và quy trình phát hành: xem **[Hướng dẫn phát triển](docs/developer-guide.md)** · Dọn `target/` & tối ưu Cargo dev/test ([Cargo.toml](Cargo.toml)): chạy `scripts/clean-target.ps1` (chi tiết trong [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ---
 
@@ -434,7 +434,7 @@ scripts/install_linux.sh          # Build from source and install for current us
 scripts/build-linux.sh            # Produce complete release tarball
 ```
 
-Architecture, testing, code conventions and release process: see the **[Developer Guide](docs/developer-guide.md)**.
+Architecture, testing, code conventions and release process: see the **[Developer Guide](docs/developer-guide.md)** · Target cleanup & compact Cargo dev/test profiles ([Cargo.toml](Cargo.toml)): run `scripts/clean-target.ps1` (details in [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ---
 

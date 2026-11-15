@@ -67,7 +67,19 @@ cargo clippy --workspace -- -D warnings
 
 # REUSE compliance
 reuse lint
+
+# Kiểm tra nhanh & dọn target/ an toàn (khi nhiều branch/lần build)
+cargo check --workspace
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean-target.ps1 -DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clean-target.ps1
 ```
+
+#### Quản trị dung lượng `target/` & tối ưu Cargo
+
+- **Profile `dev`/`test` gọn mặc định (`Cargo.toml`)**: `[profile.dev]` và `[profile.test]` đặt `debug = "line-tables-only"`, `incremental = false`, và `[profile.*.package."*"] debug = 0`. Cấu hình này giữ nguyên `file:line` khi panic (`RUST_BACKTRACE=1`) nhưng tránh phình `.pdb` và cache `incremental/` hàng chục GB qua nhiều commit (`[profile.release]` giữ nguyên không đổi). Khi cần debug GUI/step-through cục bộ với biên dịch tăng dần, bật tạm `CARGO_INCREMENTAL=1`.
+- **Vì sao không bật `split-debuginfo = "unpacked"` toàn cục**: `x86_64-pc-windows-msvc` chỉ hỗ trợ `packed`, còn macOS đã mặc định `unpacked`. Trên Linux, lập trình viên có thể bật riêng qua `CARGO_PROFILE_DEV_SPLIT_DEBUGINFO=unpacked`.
+- **Dọn định kỳ bằng `scripts/clean-target.ps1`**: tự kiểm tra không có tiến trình `cargo` / `rustc` / `rust-analyzer` / `link` / `lld-link` đang giữ lock trước khi dọn; hỗ trợ `-Mode All` (mặc định `cargo clean`), `-Mode Incremental`, `-Mode StaleTriples`, `-Mode Sweep -SweepDays 14` (nếu đã cài `cargo-sweep`), `-DryRun` và `-Force`.
+- **`CARGO_TARGET_DIR` & `sccache`**: giữ mặc định `target/` riêng từng repo để `rust-analyzer` cách ly sạch và không tranh chấp lock khi chuyển branch (~0.22 GiB sau `cargo check`, ~1.15 GiB sau `cargo test --no-run`). Nếu làm nhiều Git worktree trên SSD riêng, có thể đặt biến môi trường user `RUSTC_WRAPPER=sccache` hoặc `CARGO_TARGET_DIR` dùng chung (tránh đặt cùng lúc để không xung đột lock trong IDE).
 
 ### 4. Commit message
 

@@ -15,3 +15,23 @@ repository = "https://github.com/hunglinhpt/TextVN"
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Target artifact governance: prevent multi-GB .pdb / incremental cache bloat on
+# dev/test builds while preserving file:line backtraces (RUST_BACKTRACE=1).
+# Local GUI debugging can opt into incremental linking via CARGO_INCREMENTAL=1.
+# Global `split-debuginfo = "unpacked"` is omitted because x86_64-pc-windows-msvc
+# only supports `packed` (macOS already defaults to `unpacked`; Linux devs can set
+# CARGO_PROFILE_DEV_SPLIT_DEBUGINFO=unpacked). [profile.release] stays unchanged.
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
+[profile.dev.package."*"]
+debug = 0
+
+[profile.test]
+debug = "line-tables-only"
+incremental = false
+
+[profile.test.package."*"]
+debug = 0
