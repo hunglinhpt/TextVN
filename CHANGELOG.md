@@ -7,6 +7,24 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [Unreleased]
+
+### Sửa lỗi / Fixed
+
+- **Sửa lỗi nhân đôi ký tự khi undo phím lặp trên chuỗi hỗn hợp & khóa identifier (`"TexxtVN"` → `"TextVN"`, E50).**
+  - Bổ sung theo dõi bước fold (`fold_with_caps_steps` / `fold_steps`) + `UndoTracker` (`fold_effective_caps`) và `apply_with_undo` (QuickTelex) trong `core/src/method/` và `core/src/post/quick_telex.rs`: tách chuỗi `effective_raw` chỉ đánh dấu `unambiguous_undo` cho các lần hủy tường minh (circumflex/horn/stroke/triple-key/QuickTelex), tránh hủy giả trên `'z'`/`'0'` hay một phím thanh `'s'|'f'|'r'` đơn (`"arr[0] "`, `"tooiszz "` giữ nguyên, `"passs "` → `"pass "`, `"aaa "` → `"aa "`).
+  - Guard `is_english_lexicon_word` trong `core/src/post/restore_en.rs` bỏ qua token đồng nhất ở danh sách 10k (`"aaa"`, `"ooo"`) mà vẫn giữ `"www"` (`en_freq3000`) và `"ieee"` (`en_words10k`).
+  - Trong `core/src/lib.rs`: `restore_source()` / `choose_restore_source()` dùng đồng bộ trên các đường khôi phục (`restore_raw`, `ctrl_tap`, `Ctrl+Space`, `on_boundary`, `restorable`, `try_*_complete`, `on_escape`); khi `self.word.identifier == true` (đã chuyển camelCase), `restore_source()` giữ nguyên `self.word.raw` đã chuẩn hóa, `camelCase` tính `next_raw` trước khi bật `identifier`, `restorable()` trả `false`, và `on_backspace` giữ `target.clone()` không gọi lại `method::keys_for`.
+  - Bổ sung hồi quy `e50_undo_repetition_and_texxtvn_matrix`, `e50_identifier_boundary_never_re_restores`, cập nhật `suite_d_undo_tone_and_double_key_golden` và siết chặt `Trục C/D` trong `dual_mode_rapid.rs`.
+
+**English** — Unreleased: **Eliminated resurrected duplicate undo keys on mixed-case identifiers and undo repetitions (`"TexxtVN"` → `"TextVN"`, E50).**
+- Added step-tracking fold (`fold_with_caps_steps` / `fold_steps`), `UndoTracker` (`fold_effective_caps`), and QuickTelex `apply_with_undo` in `core/src/method/` and `core/src/post/quick_telex.rs` so `choose_restore_source` strips explicitly undone duplicate modifier/stroke/circumflex/horn/QuickTelex keys while avoiding false positives on bare `'z'`/`'0'` or single `'s'|'f'|'r'` keys (`"arr[0] "` and `"tooiszz "` stay safe, while `"TexxtVN"`, `"teeeexxtVN"`, `"passs "`, `"aaa "`, `"d99 "`, `"a11 "` resolve cleanly).
+- Added `is_english_lexicon_word` in `core/src/post/restore_en.rs` (ignoring uniform 10k web-crawl artifacts like `"aaa"`/`"ooo"` while preserving `"www"` and `"ieee"`).
+- Wired `restore_source()` across restore/boundary/completion/escape paths in `core/src/lib.rs`, guarded `self.word.identifier` in `restore_source()` and `restorable()`, normalized `next_raw` before flipping `identifier` on camelCase transitions, and bypassed `method::keys_for` in `on_backspace` for identifiers (also preventing spurious `ACTION_RESTORE` on trailing boundaries such as `dduowcjdduocjTCP/`).
+- Added regression suites `e50_undo_repetition_and_texxtvn_matrix` and `e50_identifier_boundary_never_re_restores`, hardened `suite_d_undo_tone_and_double_key_golden`, and tightened `Trục C/D` in `core/tests/dual_mode_rapid.rs`.
+
+---
+
 ## [0.2.79] — 2026-11-14
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa

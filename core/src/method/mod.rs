@@ -78,6 +78,256 @@ pub fn fold_caps(
     out
 }
 
+/// Kết quả fold kèm chuỗi phím hiệu lực đã loại bỏ các cặp phím tạo-dấu-rồi-hoàn-tác (E50).
+pub(crate) struct FoldEffective {
+    pub effective_raw: Vec<char>,
+    pub unambiguous_undo: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct VowelMarks {
+    circ: Option<usize>,
+    horn: Option<usize>,
+}
+
+struct UndoTracker {
+    method: Method,
+    keep: Vec<bool>,
+    marks: Vec<VowelMarks>,
+    strokes: Vec<Option<usize>>,
+    tone_src: Option<usize>,
+    uo_confirm_w: Option<usize>,
+    standalone_src: Option<usize>,
+    unambiguous: bool,
+}
+
+impl UndoTracker {
+    fn new(method: Method, len: usize) -> Self {
+        Self {
+            method,
+            keep: vec![true; len],
+            marks: Vec::with_capacity(len),
+            strokes: Vec::with_capacity(len),
+            tone_src: None,
+            uo_confirm_w: None,
+            standalone_src: None,
+            unambiguous: false,
+        }
+    }
+
+    fn first_tone(s: &[char]) -> usize {
+        s.iter()
+            .find_map(|&ch| {
+                crate::transform::vowel_table::locate(ch)
+                    .map(|(_, t)| t)
+                    .filter(|&t| t > 0)
+            })
+            .unwrap_or(0)
+    }
+
+    fn has_uo_hook_pair(s: &[char]) -> bool {
+        use crate::transform::vowel_table::{locate, O_HOOK, U_HOOK};
+        s.windows(2).any(|w| {
+            matches!(locate(w[0]), Some((U_HOOK, _))) && matches!(locate(w[1]), Some((O_HOOK, _)))
+        })
+    }
+
+    fn is_horn_breve_key(method: Method, c: char) -> bool {
+        let lc = c.to_ascii_lowercase();
+        match method {
+            Method::Telex => matches!(lc, 'w' | '[' | ']'),
+            Method::SimpleTelex => lc == 'w',
+            Method::Vni => matches!(c, '7' | '8'),
+            Method::Viqr => matches!(c, '+' | '('),
+        }
+    }
+
+    fn step(&mut self, i: usize, c: char, before: &[char], after: &[char], raw: &[char]) {
+        use crate::transform::stroke::{is_plain_d, is_stroke};
+        use crate::transform::tone::is_vowel;
+        use crate::transform::vowel_table::{
+            locate, A, A_BREVE, A_CIRC, E, E_CIRC, O, O_CIRC, O_HOOK, U, U_HOOK,
+        };
+
+        let before_tone = Self::first_tone(before);
+        let after_tone = Self::first_tone(after);
+        if after_tone > 0 && after_tone != before_tone {
+            self.tone_src = Some(i);
+        } else if before_tone > 0 && after_tone == 0 {
+            if let Some(prev) = self.tone_src.take() {
+                self.keep[prev] = false;
+                let prev_ch = raw[prev].to_ascii_lowercase();
+                if after.len() == before.len() {
+                    // Phím xoá dấu ('z'/'0') tự triệt tiêu không đẩy ký tự.
+                    // Không bật `unambiguous`: để `tooiszz ` vẫn giữ chữ `z` literal
+                    // khi không phải âm tiết Việt, còn `toansz ` / `toi610 ` đã hợp lệ Việt.
+                    self.keep[i] = false;
+                } else if !matches!(prev_ch, 's' | 'f' | 'r') {
+                    // Undo cùng dấu không trùng phụ âm đôi EN phổ biến (x, j, VNI, VIQR).
+                    self.unambiguous = true;
+                }
+            } else if after.len() == before.len() {
+                self.keep[i] = false;
+            }
+        }
+
+        // Theo dõi `w` / `[` / `]` đứng riêng → `ư` / `ơ`, hoàn tác thành literal.
+        let reverted_standalone = after.len() == before.len()
+            && after.last().copied() == Some(c)
+            && before
+                .last()
+                .copied()
+                .is_some_and(|ch| matches!(ch, 'ư' | 'Ư' | 'ơ' | 'Ơ'));
+        if reverted_standalone {
+            if let Some(prev) = self.standalone_src.take() {
+                if raw[prev].eq_ignore_ascii_case(&c) {
+                    self.keep[prev] = false;
+                    self.unambiguous = true;
+                }
+            }
+        } else if after.len() == before.len() + 1
+            && self.method == Method::Telex
+            && ((c.eq_ignore_ascii_case(&'w')
+                && !before.iter().any(|&ch| is_vowel(ch))
+                && matches!(after.last(), Some('ư' | 'Ư')))
+                || matches!(
+                    (c, after.last()),
+                    ('[', Some('ơ' | 'Ơ')) | (']', Some('ư' | 'Ư'))
+                ))
+        {
+            self.standalone_src = Some(i);
+        } else if before != after {
+            self.standalone_src = None;
+        }
+
+        // Telex: `w` đầu xác nhận cặp `ươ` đã tự nâng trước đó (không đổi glyph).
+        if matches!(self.method, Method::Telex | Method::SimpleTelex)
+            && c.eq_ignore_ascii_case(&'w')
+            && after == before
+            && self.uo_confirm_w.is_none()
+            && Self::has_uo_hook_pair(before)
+        {
+            self.uo_confirm_w = Some(i);
+        }
+
+        let common = before.len().min(after.len());
+        for p in 0..common {
+            if !is_stroke(before[p]) && is_stroke(after[p]) {
+                self.strokes[p] = Some(i);
+            } else if is_stroke(before[p]) && is_plain_d(after[p]) {
+                if let Some(prev) = self.strokes[p].take() {
+                    self.keep[prev] = false;
+                    self.unambiguous = true;
+                }
+                if after.len() == before.len() {
+                    // VNI `d9d`: phím `d` thứ hai vừa gỡ gạch vừa không đẩy thêm.
+                    self.keep[i] = false;
+                    self.unambiguous = true;
+                }
+            }
+
+            if let (Some((be, _)), Some((ae, _))) = (locate(before[p]), locate(after[p])) {
+                if be != ae {
+                    if matches!(ae, A_CIRC | E_CIRC | O_CIRC) {
+                        self.marks[p].circ = Some(i);
+                        self.marks[p].horn = None;
+                    } else if matches!(be, A_CIRC | E_CIRC | O_CIRC) && matches!(ae, A | E | O) {
+                        if let Some(prev) = self.marks[p].circ.take() {
+                            self.keep[prev] = false;
+                            self.unambiguous = true;
+                        }
+                    } else if matches!(ae, A_BREVE | O_HOOK | U_HOOK) {
+                        if Self::is_horn_breve_key(self.method, c) {
+                            self.marks[p].horn = Some(i);
+                        }
+                        self.marks[p].circ = None;
+                    } else if matches!(be, A_BREVE | O_HOOK | U_HOOK) && matches!(ae, A | O | U) {
+                        if let Some(prev) = self.marks[p].horn.take() {
+                            self.keep[prev] = false;
+                            self.unambiguous = true;
+                        }
+                        if let Some(prev) = self.uo_confirm_w.take() {
+                            self.keep[prev] = false;
+                            self.unambiguous = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        while self.marks.len() < after.len() {
+            self.marks.push(VowelMarks::default());
+            self.strokes.push(None);
+        }
+    }
+}
+
+/// Fold và tính `effective_raw` bằng cách loại các phím tạo-dấu-rồi-hoàn-tác (E50), giữ nguyên
+/// đường nóng `fold_caps` không cấp phát thêm bộ nhớ.
+pub(crate) fn fold_effective_caps(
+    raw: &[char],
+    method: Method,
+    style: DiacriticStyle,
+    free_marking: bool,
+    caps_lock: bool,
+    quick_telex: bool,
+) -> FoldEffective {
+    let mut tracker = UndoTracker::new(method, raw.len());
+    let mut out = match method {
+        Method::Telex => {
+            telex::fold_with_caps_steps(raw, style, free_marking, true, caps_lock, |i, c, b, a| {
+                tracker.step(i, c, b, a, raw);
+            })
+        }
+        Method::SimpleTelex => {
+            telex::fold_with_caps_steps(raw, style, free_marking, false, caps_lock, |i, c, b, a| {
+                tracker.step(i, c, b, a, raw);
+            })
+        }
+        Method::Vni => vni::fold_steps(raw, style, free_marking, |i, c, b, a| {
+            tracker.step(i, c, b, a, raw);
+        }),
+        Method::Viqr => viqr::fold_steps(raw, style, free_marking, |i, c, b, a| {
+            tracker.step(i, c, b, a, raw);
+        }),
+    };
+    finish(&mut out, style);
+    if quick_telex
+        && matches!(method, Method::Telex | Method::SimpleTelex)
+        && crate::post::quick_telex::apply_with_undo(&mut out)
+    {
+        if let Some(&first) = raw.first() {
+            if let Some((idx, _)) = raw
+                .iter()
+                .enumerate()
+                .filter(|(_, ch)| ch.eq_ignore_ascii_case(&first))
+                .nth(2)
+            {
+                tracker.keep[idx] = false;
+                tracker.unambiguous = true;
+            }
+        }
+    }
+    let effective_raw: Vec<char> = raw
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &c)| tracker.keep[i].then_some(c))
+        .collect();
+    if effective_raw != raw
+        && raw.windows(3).any(|w| {
+            w[0].is_ascii_alphabetic()
+                && w[0].eq_ignore_ascii_case(&w[1])
+                && w[1].eq_ignore_ascii_case(&w[2])
+        })
+    {
+        tracker.unambiguous = true;
+    }
+    FoldEffective {
+        effective_raw,
+        unambiguous_undo: tracker.unambiguous,
+    }
+}
+
 /// Bước chuẩn hoá cuối của mọi lần fold: cặp `qư`/`ươ` cuối từ ([`fix_uo`]) rồi dời dấu thanh
 /// về đúng chỗ — dấu gõ trước rồi mới gõ tiếp chữ (`hoaf` + `n`, `thuyr` + `eenf`).
 pub fn finish(out: &mut [char], style: DiacriticStyle) {

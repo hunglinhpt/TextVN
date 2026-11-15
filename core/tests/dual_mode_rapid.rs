@@ -963,14 +963,21 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                 doc_pre, doc_uni,
                 "BS/retype `{word}` ({m:?}): Preedit vs ForwardAsCommit lệch"
             );
+            if word == "TextVN" {
+                assert_eq!(
+                    doc_pre,
+                    format!("A. {word} "),
+                    "E50: BS/retype `{word}` ({m:?}) không được nhân đôi/đổi dạng: `{doc_pre}`"
+                );
+            }
             checked += 2;
             count_case();
             count_case();
         }
     }
 
-    // Trục D (72 case): Undo-tone (dd→đ, ddd→dd, aa→â→aa, oo→ô→oo, ee→ê→ee, uw→ư→uw, ow→ơ→ow)
-    // × 2 biến thể hoa/thường × 3 chiến lược (giữ glyph tức thì & tương đương 3 chiến lược ở ranh giới).
+    // Trục D (144 case): Undo-tone (dd→đ, ddd→dd, aa→â→aa, oo→ô→oo, ee→ê→ee, uw→ư→uw, ow→ơ→ow)
+    // × 2 biến thể hoa/thường × 3 chiến lược × auto_restore_english ∈ {false, true}.
     let undo_pairs: &[(&str, &str)] = &[
         ("dd", "đ"),
         ("ddd", "dd"),
@@ -1006,10 +1013,107 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
             };
             let mid_keys: Vec<char> = format!("A. {t}").chars().collect();
             let end_keys: Vec<char> = format!("A. {t} ").chars().collect();
-            let mut end_docs = Vec::with_capacity(strategies.len());
+            for auto_restore in [false, true] {
+                let mut end_docs = Vec::with_capacity(strategies.len());
+                for strat in strategies {
+                    let mut opts = opts_for(Method::Telex, false);
+                    opts.auto_restore_english = auto_restore;
+                    let ctx = Context {
+                        enabled: true,
+                        secure: false,
+                        field_role: IME_FIELD_BODY,
+                        caps: 0,
+                        hint: strat,
+                    };
+                    let got_mid = type_string_with_ctx(&opts, &mid_keys, ctx.clone());
+                    assert_eq!(
+                        got_mid,
+                        format!("A. {exp}"),
+                        "undo {t} strat={strat} restore={auto_restore}"
+                    );
+                    let got_end = type_string_with_ctx(&opts, &end_keys, ctx);
+                    let expected_end = if auto_restore && *typed == "aa" {
+                        format!("A. {t} ")
+                    } else {
+                        format!("A. {exp} ")
+                    };
+                    assert_eq!(
+                        got_end, expected_end,
+                        "undo {t} boundary strat={strat} restore={auto_restore}"
+                    );
+                    end_docs.push(got_end);
+                    checked += 1;
+                    count_case();
+                }
+                assert!(
+                    end_docs.windows(2).all(|w| w[0] == w[1]),
+                    "undo {t} boundary lệch giữa 3 chiến lược: {end_docs:?}"
+                );
+            }
+        }
+    }
+
+    assert!(checked >= 732, "E48/Dual-mode chỉ chạy {checked} case");
+}
+
+#[test]
+fn e50_undo_repetition_and_texxtvn_matrix() {
+    let strategies = [
+        IME_STRATEGY_PREEDIT,
+        IME_STRATEGY_BACKSPACE_TYPE,
+        IME_STRATEGY_FORWARD_AS_COMMIT,
+    ];
+    let mut ran = 0usize;
+
+    // 1. Telex / SimpleTelex camelCase & undo-repetition across all 3 output strategies.
+    let telex_cases: &[(&str, &str)] = &[
+        ("TexxtVN", "TextVN"),
+        ("TexxtVN ", "TextVN "),
+        ("A. TexxtVN ", "A. TextVN "),
+        (". TexxtVN ", ". TextVN "),
+        (". texxtVN ", ". TextVN "),
+        ("texxtVN ", "textVN "),
+        ("texxTvN ", "texTvN "),
+        ("fixxVN ", "fixVN "),
+        ("boxxVN ", "boxVN "),
+        ("teeeVN ", "teeVN "),
+        ("teeeexxtVN ", "teeextVN "),
+        ("dddoBar ", "ddoBar "),
+        ("aaaFoo ", "aaFoo "),
+        ("awwBar ", "awBar "),
+        ("Texxt ", "Text "),
+        ("texxt ", "text "),
+        ("texx ", "tex "),
+        ("fixx ", "fix "),
+        ("maxx ", "max "),
+        ("boxx ", "box "),
+        ("syntaxx ", "syntax "),
+        ("passs ", "pass "),
+        ("classs ", "class "),
+        ("teee ", "tee "),
+        ("teeeexxt ", "teeext "),
+        ("beeef ", "beef "),
+        ("ddd ", "dd "),
+        ("dddo ", "ddo "),
+        ("aww ", "aw "),
+        ("uww ", "uw "),
+        ("oww ", "ow "),
+        ("uoww ", "uow "),
+        ("dduoww ", "dduow "),
+        ("m[[ ", "m[ "),
+        ("m]] ", "m] "),
+        ("ccc ", "cc "),
+    ];
+    for &(typed, want) in telex_cases {
+        let keys: Vec<char> = typed.chars().collect();
+        for quick_telex in [false, true] {
+            if typed == "ccc " && !quick_telex {
+                continue;
+            }
             for strat in strategies {
-                let mut opts = opts_for(Method::Telex, false);
-                opts.auto_restore_english = false;
+                let mut opts = opts_for(Method::Telex, true);
+                opts.quick_telex = quick_telex;
+                opts.auto_restore_english = true;
                 let ctx = Context {
                     enabled: true,
                     secure: false,
@@ -1017,18 +1121,278 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                     caps: 0,
                     hint: strat,
                 };
-                let got_mid = type_string_with_ctx(&opts, &mid_keys, ctx.clone());
-                assert_eq!(got_mid, format!("A. {exp}"), "undo {t} strat={strat}");
-                end_docs.push(type_string_with_ctx(&opts, &end_keys, ctx));
-                checked += 1;
-                count_case();
+                let got = type_string_with_ctx(&opts, &keys, ctx);
+                assert_eq!(
+                    got, want,
+                    "E50 Telex `{typed}` (quick={quick_telex}, strat={strat}) -> `{got}`"
+                );
+                ran += 1;
             }
-            assert!(
-                end_docs.windows(2).all(|w| w[0] == w[1]),
-                "undo {t} boundary lệch giữa 3 chiến lược: {end_docs:?}"
-            );
         }
     }
 
-    assert!(checked >= 660, "E48/Dual-mode chỉ chạy {checked} case");
+    // 2. VNI & VIQR undo-repetition.
+    let vni_cases: &[(&str, &str)] = &[
+        ("ve66 ", "ve6 "),
+        ("d99 ", "d9 "),
+        ("a11 ", "a1 "),
+        ("to77 ", "to7 "),
+        ("a88 ", "a8 "),
+        ("d9d ", "d "),
+    ];
+    for &(typed, want) in vni_cases {
+        let keys: Vec<char> = typed.chars().collect();
+        for strat in strategies {
+            let mut opts = opts_for(Method::Vni, false);
+            opts.auto_restore_english = true;
+            let ctx = Context {
+                enabled: true,
+                secure: false,
+                field_role: IME_FIELD_BODY,
+                caps: 0,
+                hint: strat,
+            };
+            assert_eq!(
+                type_string_with_ctx(&opts, &keys, ctx),
+                want,
+                "E50 VNI `{typed}` strat={strat}"
+            );
+            ran += 1;
+        }
+    }
+    let viqr_cases: &[(&str, &str)] = &[
+        ("hoa.. ", "hoa. "),
+        ("a^^ ", "a^ "),
+        ("o++ ", "o+ "),
+        ("a(( ", "a( "),
+        ("ddd ", "dd "),
+    ];
+    for &(typed, want) in viqr_cases {
+        let keys: Vec<char> = typed.chars().collect();
+        for strat in strategies {
+            let mut opts = opts_for(Method::Viqr, false);
+            opts.auto_restore_english = true;
+            let ctx = Context {
+                enabled: true,
+                secure: false,
+                field_role: IME_FIELD_BODY,
+                caps: 0,
+                hint: strat,
+            };
+            assert_eq!(
+                type_string_with_ctx(&opts, &keys, ctx),
+                want,
+                "E50 VIQR `{typed}` strat={strat}"
+            );
+            ran += 1;
+        }
+    }
+
+    // 3. Backspace + retype (E50 Root Cause 2: identifier keys_for synthesis & undo + BS).
+    let bs_e50_cases: &[(&str, &str)] = &[
+        ("TextVN\u{8}\u{8}VN ", "TextVN "),
+        ("tExTvN\u{8}\u{8}vN ", "tExTvN "),
+        ("useState\u{8}\u{8}\u{8}\u{8}\u{8}Case ", "useCase "),
+        ("use\u{8}eState ", "useState "),
+        ("Texxt\u{8}tVN ", "TextVN "),
+        ("Text\u{8}tVN ", "TextVN "),
+    ];
+    for &(typed, want) in bs_e50_cases {
+        let keys: Vec<char> = typed.chars().collect();
+        for strat in strategies {
+            let opts = opts_for(Method::Telex, true);
+            let ctx = Context {
+                enabled: true,
+                secure: false,
+                field_role: IME_FIELD_BODY,
+                caps: 0,
+                hint: strat,
+            };
+            assert_eq!(
+                type_string_with_ctx(&opts, &keys, ctx),
+                want,
+                "E50 BS `{}` strat={strat}",
+                typed.escape_debug()
+            );
+            ran += 1;
+        }
+    }
+
+    // 4. ESC, Ctrl-tap, Ctrl+Space must restore effective word, never duplicate "Texxt".
+    let restore_cases = [
+        ("Texxt", "Text", "esc", false, "Text"),
+        ("Texxt", "Text", "ctrl_tap", false, "Text"),
+        ("Texxt", "Text", "ctrl_space", true, "Text prediction"),
+        ("Texxtas", "Textá", "esc", false, "Textas"),
+        ("Texxtas", "Textá", "ctrl_tap", false, "Textas"),
+        ("Texxtas", "Textá", "ctrl_space", false, "Textas"),
+    ];
+    for &(input, mid, trigger, predict_on, want) in &restore_cases {
+        let mut opts = opts_for(Method::Telex, false);
+        opts.suggest_vn_complete = predict_on;
+        let mut e = Engine::new(opts);
+        let mut buf: Vec<char> = Vec::new();
+        for c in input.chars() {
+            let k = key_event(c, true);
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+            let _ = e.key(&key_event(c, false));
+        }
+        assert_eq!(buf.iter().collect::<String>(), mid);
+        match trigger {
+            "esc" => {
+                let k = KeyEvent {
+                    vk: keymap::vk::ESCAPE,
+                    key_down: true,
+                    ..Default::default()
+                };
+                let o = e.key(&k);
+                apply(&mut buf, &o.action, &k);
+            }
+            "ctrl_tap" => {
+                let kd = KeyEvent {
+                    vk: keymap::vk::CONTROL,
+                    key_down: true,
+                    ..Default::default()
+                };
+                let ku = KeyEvent {
+                    vk: keymap::vk::CONTROL,
+                    key_down: false,
+                    ..Default::default()
+                };
+                let _ = e.key(&kd);
+                let o = e.key(&ku);
+                apply(&mut buf, &o.action, &ku);
+            }
+            _ => {
+                let kd = KeyEvent {
+                    vk: keymap::vk::SPACE,
+                    ch: ' ' as u32,
+                    mods: keymap::MOD_CTRL,
+                    key_down: true,
+                    ..Default::default()
+                };
+                let o = e.key(&kd);
+                apply(&mut buf, &o.action, &kd);
+            }
+        }
+        assert_eq!(
+            buf.iter().collect::<String>(),
+            want,
+            "E50 `{input}` `{trigger}` (predict={predict_on}) resurrected duplicate x"
+        );
+        ran += 1;
+    }
+
+    // 5. CapsLock typing `T E X X T ` must yield `TEXT `.
+    {
+        let mut e = Engine::new(opts_for(Method::Telex, false));
+        let mut buf: Vec<char> = Vec::new();
+        for c in "TEXXT ".chars() {
+            let mut k = key_event(c, true);
+            if c.is_ascii_alphabetic() {
+                k.mods = keymap::MOD_CAPS;
+            }
+            let o = e.key(&k);
+            apply(&mut buf, &o.action, &k);
+            let _ = e.key(&KeyEvent {
+                key_down: false,
+                ..k
+            });
+        }
+        assert_eq!(buf.iter().collect::<String>(), "TEXT ");
+        ran += 1;
+    }
+
+    // 6. Contrast cases: genuine English double-letter words & code identifiers remain untouched.
+    let contrast_cases = [
+        "pass ",
+        "class ",
+        "process ",
+        "buffer ",
+        "current ",
+        "array ",
+        "arr[0] ",
+        "boss ",
+        "off ",
+        "ass ",
+        "buffered ",
+        "crossed ",
+        "referred ",
+        "forwarded ",
+        "bufferedSize ",
+        "className ",
+        "passWord ",
+        "www ",
+        "ieee ",
+        "postfix ",
+    ];
+    for typed in contrast_cases {
+        let keys: Vec<char> = typed.chars().collect();
+        for m in [Method::Telex, Method::SimpleTelex] {
+            let opts = opts_for(m, false);
+            assert_eq!(
+                type_string(&opts, &keys),
+                typed,
+                "E50 contrast regression ({m:?}) `{typed}`"
+            );
+            ran += 1;
+        }
+    }
+
+    assert!(ran >= 290, "E50 ran only {ran} cases");
+}
+
+#[test]
+fn e50_identifier_boundary_never_re_restores() {
+    // Sau khi từ đã khóa làm camelCase identifier (`self.word.identifier == true`),
+    // `display == raw` — ranh giới từ (`'/'`, `' '`, `'.'`) KHÔNG được chạy lại
+    // `choose_restore_source` / `Action::Restore` kẻo hai lần tách undo làm rớt ký tự
+    // giữa identifier (lỗi d300_end_to_end_sequences `[mix] '/'` ở `ime_conflict_1000`).
+    for auto_cap in [false, true] {
+        let opts = opts_for(Method::Telex, auto_cap);
+        for (typed, expect) in [
+            ("TexxtVN/", "TextVN/"),
+            ("TexxtVN ", "TextVN "),
+            ("aaaValue/", "aaValue/"),
+            ("passsValue/", "passValue/"),
+            ("TexxtVN.parse()", "TextVN.parse()"),
+        ] {
+            let keys: Vec<char> = typed.chars().collect();
+            for hint in [-1i64, 0, 1] {
+                let ctx = Context {
+                    hint,
+                    ..Default::default()
+                };
+                let got = type_string_with_ctx(&opts, &keys, ctx);
+                assert_eq!(
+                    got, expect,
+                    "E50 identifier boundary (auto_cap={auto_cap}, hint={hint}) `{typed}`"
+                );
+            }
+        }
+    }
+
+    // Chuỗi liền mạch giống `ime_conflict_1000::d300_end_to_end_sequences` (`dduocj` -> `TCP/IP`).
+    let opts = EngineOptions::default();
+    for hint in [-1i64, 0, 1] {
+        let mut e = Engine::new(opts.clone());
+        e.set_context(Context {
+            hint,
+            ..Default::default()
+        });
+        let stream = "chotoixembaivietnamviejtnamdduowcjdduocjTCP/IP 443";
+        for c in stream.chars() {
+            let k = key_event(c, true);
+            let out = e.key(&k);
+            if c == '/' {
+                assert!(
+                    !matches!(out.action, Action::Restore { .. }),
+                    "E50: '/' sau identifier TCP không được bắn Action::Restore (hint={hint}): {:?}",
+                    out.action
+                );
+            }
+            let _ = e.key(&key_event(c, false));
+        }
+    }
 }

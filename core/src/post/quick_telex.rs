@@ -21,25 +21,31 @@ fn expansion(c: char) -> Option<char> {
 
 /// Áp Quick Telex lên chuỗi hiển thị của từ đang gõ (sau fold).
 pub fn apply(display: &mut Vec<char>) {
+    let _ = apply_with_undo(display);
+}
+
+/// Áp Quick Telex và trả về `true` nếu vừa hoàn tác (`ccc` → `cc`, `ppp` → `pp`, …).
+pub fn apply_with_undo(display: &mut Vec<char>) -> bool {
     let (Some(&a), Some(&b)) = (display.first(), display.get(1)) else {
-        return;
+        return false;
     };
     if !a.eq_ignore_ascii_case(&b) {
-        return;
+        return false;
     }
     let Some(second) = expansion(a) else {
-        return;
+        return false;
     };
     if display.get(2).is_some_and(|c| c.eq_ignore_ascii_case(&a)) {
         // Hoàn tác: ba chữ giống nhau → giữ đúng hai chữ người dùng muốn.
         display.remove(2);
-        return;
+        return true;
     }
     display[1] = if b.is_ascii_uppercase() {
         second.to_ascii_uppercase()
     } else {
         second
     };
+    false
 }
 
 #[cfg(test)]

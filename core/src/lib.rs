@@ -658,7 +658,7 @@ impl Engine {
     /// tap, Ctrl+Space và ranh giới từ (RESTORE = REPLACE, P0-4 §3).
     fn restore_raw(&mut self, boundary: Option<char>) -> Outcome {
         let delete = self.word.owned as u16;
-        let mut insert = self.word.raw.clone();
+        let mut insert = self.restore_source();
         insert.extend(boundary);
         self.word.clear();
         // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
@@ -1275,6 +1275,44 @@ impl Engine {
         }
         display
     }
+
+    fn fold_effective_keys(&self, raw: &[char]) -> method::FoldEffective {
+        method::fold_effective_caps(
+            raw,
+            self.opts.method,
+            self.opts.diacritic_style,
+            self.opts.free_marking,
+            self.word.caps_lock,
+            self.opts.quick_telex,
+        )
+    }
+
+    /// Chọn chuỗi phím gốc hiệu lực cho đường restore/định danh (E50):
+    /// ưu tiên `raw` nếu bản thân nó là từ EN đã biết; ngược lại nếu vừa
+    /// trải qua hoàn tác dấu (`xx`→`x`, `ddd`→`dd`, `66`→`6`…) không trùng phụ âm
+    /// đôi EN hoặc kết quả sau lọc là từ EN chuẩn (`Texxt`→`Text`), trả bản
+    /// hiệu lực để không bao giờ hồi sinh phím đã hủy.
+    fn choose_restore_source(&self, raw: &[char]) -> Vec<char> {
+        let eff = self.fold_effective_keys(raw);
+        if eff.effective_raw == raw || !eff.unambiguous_undo {
+            return raw.to_vec();
+        }
+        let raw_s: String = raw.iter().collect();
+        if post::restore_en::is_english_lexicon_word(&raw_s, &self.opts.english_words) {
+            return raw.to_vec();
+        }
+        eff.effective_raw
+    }
+
+    fn restore_source(&self) -> Vec<char> {
+        // Khi đã khóa làm identifier (camelCase, `TextVN`…), `self.word.raw` đã được
+        // chuẩn hóa thành chuỗi định danh khớp document (`display == raw`) — không chạy
+        // lại `fold_effective_keys` kẻo hai lần tách undo làm rớt ký tự trên identifier.
+        if self.word.identifier {
+            return self.word.raw.clone();
+        }
+        self.choose_restore_source(&self.word.raw)
+    }
 }
 
 /// Xử lý 1 phím — luôn trả Outcome (fail-open do FFI đảm nhiệm, engine không panic).
@@ -1291,7 +1329,7 @@ impl Engine {
                         && !validate::is_valid_word(&self.word.display)
                         && self.restorable()
                     {
-                        let raw_str: String = self.word.raw.iter().collect();
+                        let raw_str: String = self.restore_source().iter().collect();
                         self.style_note_word(&raw_str);
                         return self.restore_raw(None);
                     }
@@ -1496,7 +1534,7 @@ impl Engine {
                     // (ví dụ `sort` -> `sỏt`) mà không khớp dự đoán nào,
                     // phải hoàn nguyên về từ tiếng Anh gốc trước khi nhả quyền sở hữu từ!
                     if self.word.active && self.restorable() {
-                        let raw_str: String = self.word.raw.iter().collect();
+                        let raw_str: String = self.restore_source().iter().collect();
                         self.style_note_word(&raw_str);
                         return self.restore_raw(None);
                     }
@@ -1606,6 +1644,19 @@ impl Engine {
         // còn giữ glyph precomposed trước fold — lệch sổ ("useState": doc "úe"
         // 2 glyph, delete 3 theo raw 3 phím) đã lọt qua test bisect OP-006.
         if !self.word.identifier && !self.word.auto_capped && self.is_camel_case_transition(c) {
+            if self.word.active {
+                // E50: đồng bộ `raw` về phần hiển thị/hiệu lực TRƯỚC khi bật
+                // `identifier` để không hồi sinh phím undo (`TexxtVN`) hoặc chuỗi
+                // `keys_for` tổng hợp sau Backspace (`Text`+BS*2+`VN`, E47).
+                let next_raw =
+                    if self.word.rebuilt && self.word.display.iter().all(|c| c.is_ascii()) {
+                        self.word.display.clone()
+                    } else {
+                        self.restore_source()
+                    };
+                self.word.raw = next_raw;
+                self.word.rebuilt = false;
+            }
             self.word.identifier = true;
         }
 
@@ -1842,7 +1893,7 @@ impl Engine {
         if self.style_enabled_for_learning() {
             let (current, sentence_cur_len) = if will_restore {
                 (
-                    self.word.raw.iter().collect::<String>(),
+                    self.restore_source().iter().collect::<String>(),
                     self.word.display.len(),
                 )
             } else if was_active {
@@ -1889,13 +1940,11 @@ impl Engine {
     /// (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`). Từ đã dựng lại thì giữ nguyên
     /// phần hiển thị trong document (close_word) — đúng cái người dùng đang thấy.
     fn restorable(&self) -> bool {
-        !self.word.rebuilt
-            && self.opts.auto_restore_english
-            && post::restore_en::should_restore(
-                &self.word.raw,
-                &self.word.display,
-                &self.opts.english_words,
-            )
+        if self.word.identifier || self.word.rebuilt || !self.opts.auto_restore_english {
+            return false;
+        }
+        let raw = self.restore_source();
+        post::restore_en::should_restore(&raw, &self.word.display, &self.opts.english_words)
     }
 
     /// Gạch nối dài từ hai dấu `-` (R2-141). Chỉ hai dạng văn xuôi: `a--b` (dính liền
@@ -2100,7 +2149,7 @@ impl Engine {
             .map(|c| post::predict::restyle(c, self.opts.diacritic_style))
             .collect();
         let completion = all_candidates[0].clone();
-        let raw_sample: String = self.word.raw.iter().collect();
+        let raw_sample: String = self.restore_source().iter().collect();
         let adapted = post::predict::adapt_capitalization(&raw_sample, &completion);
         let mut insert: Vec<char> = adapted.chars().collect();
         if let Some(c) = append {
@@ -2257,9 +2306,10 @@ impl Engine {
         // khôi phục từ cuối về `raw` để khớp chính xác bảng mẫu câu tiếng Anh `en_phrases.tsv`
         // và hoàn nguyên luôn từ đó trong cùng một `Action::Replace`!
         let restore_active_en = vi_on && self.word.active && self.restorable();
-        if restore_active_en {
+        let restore_raw_chars = restore_active_en.then(|| self.restore_source());
+        if let Some(ref raw_chars) = restore_raw_chars {
             let disp_str: String = self.word.display.iter().collect();
-            let raw_str: String = self.word.raw.iter().collect();
+            let raw_str: String = raw_chars.iter().collect();
             if let Some(prefix) = sentence_tail.strip_suffix(&disp_str) {
                 sentence_tail = format!("{prefix}{raw_str}");
             }
@@ -2294,8 +2344,8 @@ impl Engine {
         let (delete, insert) = if self.word.is_empty() {
             (0usize, phrase)
         } else if self.word.active {
-            let mut text = if restore_active_en {
-                self.word.raw.clone()
+            let mut text = if let Some(raw_chars) = restore_raw_chars {
+                raw_chars
             } else {
                 self.word.display.clone()
             };
@@ -2396,7 +2446,7 @@ impl Engine {
             if self.word.is_empty() || self.word.raw.len() < 2 {
                 return None;
             }
-            let typed_s: String = self.word.raw.iter().collect();
+            let typed_s: String = self.restore_source().iter().collect();
             if space_mode
                 && (post::restore_en::is_known_en_word(&typed_s.to_lowercase())
                     || (self.word.active && validate::is_valid_word(&self.word.display)))
@@ -2558,7 +2608,7 @@ impl Engine {
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
             };
         }
-        let raw = self.word.raw.clone();
+        let raw = self.restore_source();
         let delete = self.word.owned as u16;
         self.word.clear();
         // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
@@ -2615,11 +2665,19 @@ impl Engine {
                 self.record(Tail::Pop);
                 return Outcome::pass();
             }
-            let keys =
-                method::keys_for(&target, self.opts.method, self.opts.diacritic_style, |k| {
-                    self.fold_keys(k)
-                })
-                .filter(|k| k.len() <= MAX_WORD_KEYS);
+            let (keys, rebuilt) = if self.word.identifier {
+                // E50: trong chế độ định danh không bao giờ dùng `keys_for` tổng hợp
+                // (tránh biến `"TextVN"` sau BS thành `"Texxt"` khi gõ tiếp).
+                (Some(target.clone()), false)
+            } else {
+                (
+                    method::keys_for(&target, self.opts.method, self.opts.diacritic_style, |k| {
+                        self.fold_keys(k)
+                    })
+                    .filter(|k| k.len() <= MAX_WORD_KEYS),
+                    true,
+                )
+            };
             let Some(raw) = keys else {
                 // Không có chuỗi phím nào gõ ra đúng chữ còn lại (chữ literal hiếm như `uo`
                 // sau `uoww`): giữ chữ trong document, thôi sở hữu từ (như bung gõ tắt).
@@ -2649,7 +2707,7 @@ impl Engine {
             self.word.owned = out.len();
             // E47: raw giờ là chuỗi tổng hợp (keys_for) — cắm cờ để mọi đường
             // restore (`restorable()`, ESC) không đưa chuỗi này vào document.
-            self.word.rebuilt = true;
+            self.word.rebuilt = rebuilt;
             return Outcome {
                 action: Action::Replace {
                     delete_count: delete,

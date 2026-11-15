@@ -56,9 +56,47 @@ pub fn fold_with_caps(
     w_marker: bool,
     caps_lock: bool,
 ) -> Vec<char> {
+    fold_with_caps_impl::<false>(
+        raw,
+        style,
+        free_marking,
+        w_marker,
+        caps_lock,
+        |_, _, _, _| {},
+    )
+}
+
+pub(crate) fn fold_with_caps_steps(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    w_marker: bool,
+    caps_lock: bool,
+    on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
+    fold_with_caps_impl::<true>(raw, style, free_marking, w_marker, caps_lock, on_step)
+}
+
+fn fold_with_caps_impl<const TRACK: bool>(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    w_marker: bool,
+    caps_lock: bool,
+    mut on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
     let mut state = FoldState::default();
-    for &c in raw {
+    let mut before: Vec<char> = if TRACK {
+        Vec::with_capacity(raw.len())
+    } else {
+        Vec::new()
+    };
+    for (i, &c) in raw.iter().enumerate() {
+        if TRACK {
+            before.clear();
+            before.extend_from_slice(&out);
+        }
         push_key(
             &mut out,
             c,
@@ -68,6 +106,9 @@ pub fn fold_with_caps(
             caps_lock,
             &mut state,
         );
+        if TRACK {
+            on_step(i, c, &before, &out);
+        }
     }
     if w_marker && !caps_lock && raw.iter().any(|c| matches!(c, '[' | ']')) {
         upcase_bracket_word(raw, &mut out);

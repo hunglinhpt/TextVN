@@ -590,21 +590,21 @@ fn suite_d_undo_tone_and_double_key_golden() {
     for (keys, want) in telex_pairs {
         let opts = opts_for(Method::Telex, false);
         let got = type_string(&opts, &format!("{keys} ").chars().collect::<Vec<_>>());
-        // Ghim golden: fold chính là đích (từ VN hợp lệ không restore);
-        // ngoại lệ restore được liệt kê tường minh bên dưới.
+        // Ghim golden: fold chính là đích; mọi phím undo lặp (`ddd`, `aaa`, `eee`,
+        // `aww`, `axx`, `asss`…) KHÔNG được hồi sinh thành bản gốc dư phím ở ranh giới (E50).
+        // Chỉ các từ EN thật (`www`, `ass`), cặp s/f/r đơn mơ hồ (`aff`, `arr`) và `z` trước
+        // âm chưa hợp lệ (`vieetjz`) giữ chuỗi phím gõ.
         let raw: Vec<char> = keys.chars().collect();
         let folded_chars = method::fold(&raw, Method::Telex, old, true);
         let folded: String = folded_chars.iter().collect();
-        let expected = if restore_en::should_restore(&raw, &folded_chars, &[]) {
-            format!("{keys} ")
-        } else {
-            format!("{folded} ")
+        assert_eq!(folded, *want, "Telex golden fold `{keys}`");
+        let expected = match *keys {
+            // Chưa undo & không phải âm tiết Việt độc lập (`â`): restore EN.
+            // Từ EN thật (`www`, `ass`), cặp s/f/r đơn (`aff`, `arr`), `z` trước âm chưa hợp lệ: giữ raw.
+            "aa" | "www" | "ass" | "aff" | "arr" | "vieetjz" => format!("{keys} "),
+            _ => format!("{want} "),
         };
         assert_eq!(got, expected, "Telex golden `{keys}`");
-        // Fold phải đúng golden trừ khi restore (`z` gỡ dấu → literal).
-        if !restore_en::should_restore(&raw, &folded_chars, &[]) {
-            assert_eq!(folded, *want, "Telex golden fold `{keys}`");
-        }
     }
     let vni_pairs: &[(&str, &str)] = &[
         ("d9", "đ"),
@@ -628,15 +628,14 @@ fn suite_d_undo_tone_and_double_key_golden() {
         let raw: Vec<char> = keys.chars().collect();
         let folded_chars = method::fold(&raw, Method::Vni, old, true);
         let folded: String = folded_chars.iter().collect();
-        let expected = if restore_en::should_restore(&raw, &folded_chars, &[]) {
-            format!("{keys} ")
-        } else {
-            format!("{folded} ")
-        };
-        assert_eq!(got, expected, "VNI golden `{keys}`");
-        if !restore_en::should_restore(&raw, &folded_chars, &[]) {
+        if !matches!(*keys, "oo7" | "aw6") {
             assert_eq!(folded, *want, "VNI golden fold `{keys}`");
         }
+        let expected = match *keys {
+            "oo7" | "aw6" => format!("{keys} "),
+            _ => format!("{want} "),
+        };
+        assert_eq!(got, expected, "VNI golden `{keys}`");
     }
     // Simple Telex: `w` CHỈ là dấu sừng (UniKey vneHookAll) — không có `w` đứng riêng.
     for (keys, want) in [

@@ -43,11 +43,38 @@ pub fn marker_to_tone(c: char) -> Option<usize> {
 /// bị bỏ sót). State per-word: `fold` xử lý nguyên từ từ đầu nên state là
 /// biến cục bộ của 1 lần fold.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
+    fold_impl::<false>(raw, style, free_marking, |_, _, _, _| {})
+}
+
+pub(crate) fn fold_steps(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
+    fold_impl::<true>(raw, style, free_marking, on_step)
+}
+
+fn fold_impl<const TRACK: bool>(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    mut on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
     let mut undone_tone = [false; 6]; // index 1..=5 (0 bỏ)
     let mut undone_mark = [false; 3]; // ^ ( +
     let mut undone_stroke = false;
-    for &c in raw {
+    let mut before: Vec<char> = if TRACK {
+        Vec::with_capacity(raw.len())
+    } else {
+        Vec::new()
+    };
+    for (i, &c) in raw.iter().enumerate() {
+        if TRACK {
+            before.clear();
+            before.extend_from_slice(&out);
+        }
         push_key(
             &mut out,
             c,
@@ -57,6 +84,9 @@ pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char
             &mut undone_mark,
             &mut undone_stroke,
         );
+        if TRACK {
+            on_step(i, c, &before, &out);
+        }
     }
     out
 }

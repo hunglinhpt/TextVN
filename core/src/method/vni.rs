@@ -34,10 +34,40 @@ struct VniState {
 
 /// Fold chuỗi phím của một từ → chuỗi hiển thị.
 pub fn fold(raw: &[char], style: DiacriticStyle, free_marking: bool) -> Vec<char> {
+    fold_impl::<false>(raw, style, free_marking, |_, _, _, _| {})
+}
+
+pub(crate) fn fold_steps(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
+    fold_impl::<true>(raw, style, free_marking, on_step)
+}
+
+fn fold_impl<const TRACK: bool>(
+    raw: &[char],
+    style: DiacriticStyle,
+    free_marking: bool,
+    mut on_step: impl FnMut(usize, char, &[char], &[char]),
+) -> Vec<char> {
     let mut out: Vec<char> = Vec::with_capacity(raw.len());
     let mut state = VniState::default();
-    for &c in raw {
+    let mut before: Vec<char> = if TRACK {
+        Vec::with_capacity(raw.len())
+    } else {
+        Vec::new()
+    };
+    for (i, &c) in raw.iter().enumerate() {
+        if TRACK {
+            before.clear();
+            before.extend_from_slice(&out);
+        }
         push_key(&mut out, c, style, free_marking, &mut state);
+        if TRACK {
+            on_step(i, c, &before, &out);
+        }
     }
     out
 }

@@ -346,6 +346,24 @@ pub fn is_known_en_word(word: &str) -> bool {
     en_common_set().contains(needle.as_str()) || en_freq_set().contains(needle.as_str())
 }
 
+/// Từ có nằm trong bất kỳ nguồn từ vựng EN đã biết nào (common, freq3000, words10k, thuật ngữ
+/// tech/business hoặc danh sách `english_words` của người dùng) hay không (E50).
+pub(crate) fn is_english_lexicon_word(word: &str, english_words: &[String]) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    let needle = word.to_lowercase();
+    let uniform_chars = needle
+        .chars()
+        .next()
+        .is_some_and(|f| needle.chars().all(|c| c == f));
+    en_common_set().contains(needle.as_str())
+        || en_freq_set().contains(needle.as_str())
+        || (!uniform_chars && en_words10k_contains(&needle))
+        || is_tech_business_term(&needle)
+        || english_words.iter().any(|w| w.eq_ignore_ascii_case(word))
+}
+
 /// Có nên restore chuỗi gõ thay vì giữ kết quả transform?
 ///
 /// `true` khi: kết quả fold **không** là âm tiết Việt hợp lệ (nhánh 1); hoặc
