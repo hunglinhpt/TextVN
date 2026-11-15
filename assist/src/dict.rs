@@ -241,6 +241,7 @@ mod tests {
         assert_eq!(dict.suggest_calls(), 1);
         // Tu dien rong na~ gan nhu 0 thoi gian, nhung do that van > 0
         // (ca thoi gian do deu tich cong) - khong assert = ZERO.
-        assert!(dict.elapsed() < std::time::Duration::from_millis(1));
+        // Nguong 50 ms khop tests/dictionary_budget.rs de tranh flake do VM preemption tren CI.
+        assert!(dict.elapsed() < std::time::Duration::from_millis(50));
     }
 }
