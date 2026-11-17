@@ -7,7 +7,10 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [Unreleased]
+## [0.2.80] — 2026-11-18
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
 
 ### Thêm mới / Added
 
@@ -21,7 +24,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - **F-P10-3 Dream consolidation** ở `config::StyleProfileSettings::sanitize` (điểm hợp nhất dữ liệu thật): hồ sơ vượt 120 từ chỉ giữ 60 mục count-1 (nhiễu một-lần/typo lọt validator — idempotent, sort ổn định); count ≥ 256 giảm nửa toàn hồ sơ lúc persist (EMA-decay khớp engine trong phiên) — thói quen mới không bị đè vĩnh viễn bởi count tích luỹ cũ. Gate trong `config/tests/dream_consolidation.rs`.
 - **Nút Báo lỗi mở đúng issue tracker trên cả 3 OS**: `https://github.com/hunglinhpt/TextVN/issues` (khác nút Thảo luận mở Discussions) — Windows `TaskDialogIndirect` (`REPORT_ISSUE_URL`), macOS `NSAlert` (`AppInfo.reportIssueUrl`), Linux GTK4 `present_info_dialog` (`tv_issues_url`); khớp `<url type="bugtracker">` AppStream metainfo; gate đồng bộ URL trong `help_window_links_match_every_platform`.
 
-**English** — Unreleased:
+**English** — 0.2.80:
 - **New 11,165-row English workplace phrase/context table (`data/en_office_phrases.tsv`, P6 round 59).**
   - Five business groups: upward reporting (executive summaries, escalations, risk/blocker calls, RCA), downward management (delegation, unblocking, deadline check-ins, recognition), technology & systems (CI/CD, deploys, trade-offs, APIs), business ops & projects (stakeholder sign-off, action items, sprints, KPIs), and everyday conversational glue.
   - **Free Viet-Eng code-switching**: mixed Vietnamese-English keys (`mình sync lại` → `status`, `anh check giúp em` → `lỗi`, `fix đã được` → `verify`, `đã deploy lên` → `production`) live in the same table and fire in both VI and EN modes — contexts are plain strings, so any table matches when the context tail lines up.
@@ -3157,6 +3160,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...HEAD
+[0.2.80]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...v0.2.80
 [0.2.79]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...v0.2.79
 [0.2.78]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...v0.2.78
 [0.2.77]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...v0.2.77

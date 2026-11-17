@@ -1,3 +1,14 @@
+textvn (0.2.80-0ppa1) noble; urgency=medium
+
+  * Bảng câu văn phòng tiếng Anh 11.165 mẫu (báo cáo cấp trên, điều phối cấp
+    dưới, kỹ thuật, nghiệp vụ, hội thoại) + code-switch Việt-Anh, tổng corpora
+    53.955 mục / 30.171 cặp câu, lookup < 1 ms.
+  * Học cá nhân Dream RSI: recency boost, trigram 3 từ, Dream consolidation
+    prune nhiễu count-1 + EMA-decay >= 256.
+  * Nút Báo lỗi mở đúng issue tracker trên cả 3 OS (khác nút Thảo luận).
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Wed, 18 Nov 2026 09:30:00 +0700
+
 textvn (0.2.79-0ppa1) noble; urgency=medium
 
   * Windows: MobaXterm/X11/non-TSF yield theo tiến trình con + lớp cửa sổ (E49)
