@@ -56,6 +56,10 @@ const char *const tv_about_text =
 
 const char *const tv_discussions_url = "https://github.com/hunglinhpt/TextVN/discussions";
 
+/* Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
+ * khớp `<url type="bugtracker">` của AppStream metainfo. */
+const char *const tv_issues_url = "https://github.com/hunglinhpt/TextVN/issues";
+
 int tv_index_of(const char *const *values, int n, const char *value) {
     if (!value) return 0;
     for (int i = 0; i < n; ++i) {

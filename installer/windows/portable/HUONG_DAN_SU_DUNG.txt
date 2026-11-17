@@ -57,4 +57,4 @@ TextVN — Bộ gõ tiếng Việt (bản chạy ngay, không cần cài đặt)
      được dọn ở lần đăng nhập kế tiếp.
 
 Kiểm tra sự cố: chạy "textvn-cli.exe doctor --pause" trong thư mục này.
-Mã nguồn & báo lỗi: https://github.com/hunglinhpt/TextVN
+Mã nguồn: https://github.com/hunglinhpt/TextVN — Báo lỗi: https://github.com/hunglinhpt/TextVN/issues

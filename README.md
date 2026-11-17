@@ -22,7 +22,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 - **Tránh nhận diện nhầm mã độc (Anti-False-Positive)**: Hoạt động đúng chuẩn giao diện IME của hệ điều hành, tuân thủ nghiêm ngặt chính sách diệt virus của Microsoft Store và các giải pháp bảo mật doanh nghiệp.
 
 ### 2. Hệ thống Dự đoán Ngữ cảnh Song ngữ & Công thái học Dream RSI (P10)
-- **Tập tri thức chuẩn mực 41.313 mục**: Bao gồm 6.672 âm tiết Việt chuẩn mực, 1.941 từ ghép Việt (`vn_compounds.txt`, 13 chuyên ngành), 3.346 từ Anh tần suất cao (`en_freq3000.txt`), 9.868 từ đơn Anh (`en_words10k.txt`), 1.957 từ ghép & cụm danh từ Anh (`en_compounds.txt`, 16 domain hiện đại: AI, Cloud, Dev, Fin, HR, Legal…), cùng 17.529 cặp câu/cụm/thành ngữ song ngữ (8.782 mẫu Việt `vn_phrases.tsv` và 8.747 mẫu Anh `en_phrases.tsv`).
+- **Tập tri thức chuẩn mực 53.955 mục**: Bao gồm 6.672 âm tiết Việt chuẩn mực, 1.941 từ ghép Việt (`vn_compounds.txt`, 13 chuyên ngành), 3.346 từ Anh tần suất cao (`en_freq3000.txt`), 9.868 từ đơn Anh (`en_words10k.txt`), 1.957 từ ghép & cụm danh từ Anh (`en_compounds.txt`, 16 domain hiện đại: AI, Cloud, Dev, Fin, HR, Legal…), cùng 30.171 cặp câu/cụm/thành ngữ song ngữ (8.782 mẫu Việt `vn_phrases.tsv`, 10.224 mẫu Anh `en_phrases.tsv` và 11.165 mẫu câu văn phòng/thiếu số câu Anh `en_office_phrases.tsv`).
 - **Đồng bộ song hành 2 chế độ (Mode VI & Mode EN)**:
   - **Mode EN (`E`)**: Hoàn tất từ đơn, từ ghép, gợi ý cụm từ tiếp theo, duyệt vòng 5 ứng viên bằng Tab, chữ mờ xem trước (ghost preview) siêu tốc 75 µs.
   - **Mode VI (`V`)**: Nhận diện thông minh từ ngữ tiếng Anh xen kẽ. Tự động phục hồi từ/cụm tiếng Anh bị gõ theo Telex mà không phải âm tiết tiếng Việt hợp lệ (ví dụ: `customer` thành `cútomer` + Tab → `customer service`; `looking forward` thành `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
@@ -40,7 +40,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 - **Chuẩn mực gõ dấu UniKey**: Đầy đủ các kiểu gõ Telex, VNI, VIQR, Simple Telex; hỗ trợ lựa chọn dấu cũ (`hòa`, `thủy`) hoặc dấu mới (`hoà`, `thuỷ`); chuẩn vần `uo` (`luong`/`uong` giữ nguyên, gõ `w` hoặc dấu mới thành `ươ`).
 - **Tiện ích Telex thông minh**: Gõ nhanh `[` / `]` thành `ơ` / `ư` nhưng bảo vệ tuyệt đối dấu ngoặc vuông trong lập trình (`arr[0]`, Markdown `- [ ] task`); gõ `a--b` thành gạch nối dài `a—b` nhưng giữ nguyên cờ lệnh code `--force`; gõ hoa thông minh `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
 - **Phím tắt chuyển mã thông minh Ctrl+Shift+F9**: Tự động chuyển đổi qua lại giữa Unicode, TCVN3, VNI, Unicode tổ hợp; tự động nhận diện bảng mã nguồn bị lỗi hiển thị (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); tự động sửa chuỗi gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`).
-- **Bảng điều khiển đồng bộ 3 OS**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; cửa sổ *Hướng dẫn* tích hợp nút **Thảo luận** và **Báo lỗi** mở thẳng GitHub Discussions; tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
+- **Bảng điều khiển đồng bộ 3 OS**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; cửa sổ *Hướng dẫn* tích hợp nút **Thảo luận** (Discussions) và **Báo lỗi** (issue tracker `https://github.com/hunglinhpt/TextVN/issues`); tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
 
 ---
 
@@ -76,11 +76,11 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 - 5 đường nhận diện gợi ý: Tab hoàn tất tiếng Việt, Tab hoàn tất tiếng Anh/style-word, Space nhận từ, duyệt ứng viên (cycle), gợi ý cụm từ tiếp theo (next-phrase).
 - Chặn hồi quy tự động trong CI: mọi cải tiến gợi ý bắt buộc phải duy trì hoặc tăng tỷ lệ tiết kiệm phím so với baseline (`perf/baseline-win.json`).
 
-### 2. Mô hình Dự đoán Ngữ cảnh P6 & Hồ sơ Phong cách P7 (Corpora 41.313 mục)
-- **Tập dữ liệu tri thức 41.313 mục** song ngữ chất lượng tương đương:
+### 2. Mô hình Dự đoán Ngữ cảnh P6 & Hồ sơ Phong cách P7 (Corpora 53.955 mục)
+- **Tập dữ liệu tri thức 53.955 mục** song ngữ chất lượng tương đương:
   - 6.672 âm tiết Việt chuẩn mực + 1.941 từ ghép Việt (`vn_compounds.txt`, 13 domain chuyên ngành).
   - 3.346 từ Anh tần suất cao (`en_freq3000.txt`) + 9.868 từ đơn Anh (`en_words10k.txt`) + 1.957 từ ghép & cụm danh từ Anh (`en_compounds.txt`, 16 domain chuyên sâu).
-  - 17.529 cặp câu/cụm/thành ngữ (8.782 mẫu Việt `vn_phrases.tsv` + 8.747 mẫu Anh `en_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo vai trò).
+  - 30.171 cặp câu/cụm/thành ngữ (8.782 mẫu Việt `vn_phrases.tsv` + 10.224 mẫu Anh `en_phrases.tsv` + 11.165 mẫu câu văn phòng Anh `en_office_phrases.tsv` — câu thật chia mọi ranh giới từ, thành ngữ thật, mẫu câu công sở theo vai trò: báo cáo cấp trên, điều phối cấp dưới, kỹ thuật, nghiệp vụ & trộn Việt-Anh).
 - Hoạt động đồng bộ ở **cả 2 chế độ**:
   - **Mode EN (`E`)**: Hoàn tất từ đơn/từ ghép, duyệt vòng 5 ứng viên bằng Tab, đoán câu tiếp theo, ghost preview 75 µs, học từ Dream RSI.
   - **Mode VI (`V`)**: Tự động nhận diện từ/câu tiếng Anh kể cả khi bị Telex fold (ví dụ: `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
@@ -116,7 +116,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ### 6. Kiến Trúc Hệ Thống, Điều Khiển & Riêng Tư Tuyệt Đối
 - Phím nóng: Ctrl+Space sửa/dự đoán · Ctrl+Shift gạt VN/EN (nhớ trạng thái) · Ctrl+Shift+F9 chuyển mã.
-- Bảng cài đặt native từng OS: Windows khay hệ thống (7 nút có icon + tooltip, phân định Ẩn vào khay/Thoát), Linux GTK4, macOS menu bar SwiftUI; cửa sổ **Hướng dẫn** trên cả 3 OS tích hợp nút **Thảo luận** và **Báo lỗi** (`https://github.com/hunglinhpt/TextVN/discussions`).
+- Bảng cài đặt native từng OS: Windows khay hệ thống (7 nút có icon + tooltip, phân định Ẩn vào khay/Thoát), Linux GTK4, macOS menu bar SwiftUI; cửa sổ **Hướng dẫn** trên cả 3 OS tích hợp nút **Thảo luận** (`https://github.com/hunglinhpt/TextVN/discussions`) và **Báo lỗi** (`https://github.com/hunglinhpt/TextVN/issues`).
 - Offline 100%, không gửi dữ liệu ra mạng, không lưu nội dung phím gõ; tự ngắt khi gặp trường mật khẩu; chính sách bảo mật công khai trong repo.
 
 ---
@@ -254,7 +254,7 @@ Tiếng Việt · English
 - **Antivirus False-Positive Immunity**: Operates strictly within official OS IME architecture boundaries, complying with Microsoft Store certification standards and enterprise antivirus policies.
 
 ### 2. Contextual Bilingual Prediction & Dream RSI Ergonomics (P10)
-- **41,313-entry Curated Bilingual Knowledge Base**: Includes 6,672 standard Vietnamese syllables, 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains), 3,346 high-frequency English words (`en_freq3000.txt`), 9,868 English single words (`en_words10k.txt`), 1,957 English compounds & collocations (`en_compounds.txt`, 16 modern domains: AI, Cloud, Dev, Finance, HR, Legal…), and 17,529 context→phrase pairs (8,782 Vietnamese in `vn_phrases.tsv` and 8,747 English in `en_phrases.tsv`).
+- **53,955-entry Curated Bilingual Knowledge Base**: Includes 6,672 standard Vietnamese syllables, 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains), 3,346 high-frequency English words (`en_freq3000.txt`), 9,868 English single words (`en_words10k.txt`), 1,957 English compounds & collocations (`en_compounds.txt`, 16 modern domains: AI, Cloud, Dev, Finance, HR, Legal…), and 30,171 context→phrase pairs (8,782 Vietnamese in `vn_phrases.tsv`, 10,224 English in `en_phrases.tsv`, and 11,165 English workplace sentences in `en_office_phrases.tsv`).
 - **Synchronous Dual-Mode Parity (Mode VI & Mode EN)**:
   - **Mode EN (`E`)**: Single-word & compound completion, next-phrase prediction, 5-candidate Tab cycling, and ultra-fast 75 µs ghost preview.
   - **Mode VI (`V`)**: Intelligent mixed English detection. Automatically rescues English words/phrases mistransformed by Telex rules when they do not form valid Vietnamese syllables (e.g., `customer` typed as `cútomer` + Tab → expands to `customer service`; `looking forward` typed as `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
@@ -272,7 +272,7 @@ Tiếng Việt · English
 - **UniKey Standard Tone Placement**: Comprehensive support for Telex, VNI, VIQR, and Simple Telex; old-style (`hòa`, `thủy`) vs new-style (`hoà`, `thuỷ`) diacritics; standard `uo` rhyme (`luong`/`uong` plain by default, explicit `w` produces `ươ`).
 - **Smart Telex Conveniences**: Fast `[` / `]` for `ơ` / `ư` with full protection for programming code brackets (`arr[0]`, Markdown `- [ ] task`); fast `a--b` for em-dash `a—b` while preserving CLI flags (`--force`); smart uppercase `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
 - **Smart Transcoding Shortcut Ctrl+Shift+F9**: Lossless bidirectional conversion between Unicode, TCVN3, VNI, and decomposed Unicode; automatic source charset detection (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); automatic retyping of mistyped text when the IME was off (`tooi ddi hocj` → `tôi đi học`) across all 3 platforms.
-- **Unified 3-OS Settings Panel**: Every button features an icon + hint tooltip; explicit "Hide to tray" vs "Quit" options; the *Help ("Hướng dẫn")* dialog integrates **Thảo luận** (Discussions) and **Báo lỗi** (Report Issue) buttons linking directly to GitHub Discussions; tray automatically self-registers TSF without requiring administrator privileges (Admin/UAC).
+- **Unified 3-OS Settings Panel**: Every button features an icon + hint tooltip; explicit "Hide to tray" vs "Quit" options; the *Help ("Hướng dẫn")* dialog integrates **Thảo luận** (Discussions) and **Báo lỗi** (Report Issue → issue tracker `https://github.com/hunglinhpt/TextVN/issues`); tray automatically self-registers TSF without requiring administrator privileges (Admin/UAC).
 
 ---
 
@@ -308,11 +308,11 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 - 5 prediction accept pathways: Vietnamese word completion, English/style completion, Space-accept, candidate cycling, and multi-word next-phrase prediction.
 - Automated CI anti-regression gate: all prediction improvements must maintain or increase the keystroke savings rate against the baseline (`perf/baseline-win.json`).
 
-### 2. Contextual Prediction Model P6 & User Style Profile P7 (41,313-Entry Corpora)
-- **Curated 41,313-entry knowledge base** with complete bilingual parity:
+### 2. Contextual Prediction Model P6 & User Style Profile P7 (53,955-Entry Corpora)
+- **Curated 53,955-entry knowledge base** with complete bilingual parity:
   - 6,672 standard Vietnamese syllables + 1,941 Vietnamese compounds (`vn_compounds.txt`, 13 specialized domains).
   - 3,346 high-frequency English words (`en_freq3000.txt`) + 9,868 English general vocabulary (`en_words10k.txt`) + 1,957 English compounds & collocations (`en_compounds.txt`, 16 modern domains).
-  - 17,529 context→phrase pairs (8,782 Vietnamese rows in `vn_phrases.tsv` + 8,747 English rows in `en_phrases.tsv` — real sentences split at all word boundaries, idioms, role-based workplace patterns).
+  - 30,171 context→phrase pairs (8,782 Vietnamese rows in `vn_phrases.tsv` + 10,224 English rows in `en_phrases.tsv` + 11,165 English workplace rows in `en_office_phrases.tsv` — real sentences split at all word boundaries, idioms, role-based workplace patterns: upward reporting, downward management, tech, business ops & Viet-Eng code-switching).
 - Seamless dual-mode operation:
   - **Mode EN (`E`)**: Single-word and compound completion, 5-candidate Tab cycling, next-phrase prediction, 75 µs ghost text preview, Dream RSI personal learning.
   - **Mode VI (`V`)**: Automatic English word and phrase detection even when Telex-folded (e.g., `customer` → `cútomer` + Tab → `customer service`; `looking forward` → `looking fỏwad` + Tab → `looking forward to hearing from you soon`).
@@ -348,7 +348,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ### 6. System Architecture, Control & Total Privacy
 - Hotkeys: Ctrl+Space fix/predict · Ctrl+Shift VI/EN toggle (state remembered) · Ctrl+Shift+F9 transcode.
-- Native settings per OS: Windows system tray (7 buttons with icons + tooltips, explicit Hide to tray / Quit), Linux GTK4, macOS SwiftUI menu bar; the **Help ("Hướng dẫn")** dialog on all 3 OSes embeds **Thảo luận** (Discussions) and **Báo lỗi** (Report Issue) buttons (`https://github.com/hunglinhpt/TextVN/discussions`).
+- Native settings per OS: Windows system tray (7 buttons with icons + tooltips, explicit Hide to tray / Quit), Linux GTK4, macOS SwiftUI menu bar; the **Help ("Hướng dẫn")** dialog on all 3 OSes embeds **Thảo luận** (Discussions, `https://github.com/hunglinhpt/TextVN/discussions`) and **Báo lỗi** (Report Issue, `https://github.com/hunglinhpt/TextVN/issues`) buttons.
 - 100% offline, zero telemetry, no network calls; auto-off in password fields; public in-repo privacy policy.
 
 ---

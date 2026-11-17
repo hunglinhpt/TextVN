@@ -17,6 +17,9 @@
 //! (google-10000-english — CHỈ prediction, không đụng chính sách restore);
 //! tối ưu quét: binary search trên danh sách đã sắp + bucket theo byte cuối
 //! của khoá phrase + dedup HashSet — giữ NGUYÊN ngữ nghĩa xếp hạng cũ.
+//! Vòng 59: thêm `en_office_phrases.tsv` (≥ 10.000 hàng văn phòng — upward/
+//! downward/tech/business/everyday + bilingual Việt-Eng code-switch) —
+//! cùng cơ chế bucket byte-cuối, lookup vẫn < 1 ms (test `en_office_phrases_10k`).
 
 use crate::post::restore_en::{
     EN_COMMON_DATA, EN_FREQ_DATA, EN_WORDS_10K_DATA, TECH_BUSINESS_TERMS,
@@ -224,6 +227,12 @@ fn en_phrase_rows() -> &'static [PhraseRow] {
     CACHE.get_or_init(|| parse_phrase_rows(EN_PHRASES_DATA))
 }
 
+/// Hàng bảng văn phòng (vòng 59) — parse một lần như hai bảng cũ.
+fn office_phrase_rows() -> &'static [PhraseRow] {
+    static CACHE: OnceLock<Vec<PhraseRow>> = OnceLock::new();
+    CACHE.get_or_init(|| parse_phrase_rows(EN_OFFICE_PHRASES_DATA))
+}
+
 fn parse_phrase_rows(data: &'static str) -> Vec<PhraseRow> {
     data.lines()
         .filter_map(|line| {
@@ -248,17 +257,30 @@ fn parse_phrase_rows(data: &'static str) -> Vec<PhraseRow> {
         .collect()
 }
 
+/// Bảng phrase đang đánh bucket (vòng 59: thêm bảng văn phòng thứ ba).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PhraseTable {
+    Vn,
+    En,
+    Office,
+}
+
 /// Bucket các hàng phrase theo **byte cuối của khoá** (vòng 52): ngữ cảnh chỉ
 /// có thể khớp khoá mà kết thúc bằng đúng byte cuối của nó → mỗi call chỉ quét
 /// bucket tương ứng (giảm ~20-30× với ~10k hàng thay vì quét toàn bảng).
-/// Vòng 53: nhận cờ `vn` tường minh thay so-con-trỏ (an toàn khi một bảng rỗng).
+/// Vòng 53: nhận bảng tường minh thay so-con-trỏ (an toàn khi một bảng rỗng).
 fn phrase_buckets(
     rows: &'static [PhraseRow],
-    vn: bool,
+    table: PhraseTable,
 ) -> &'static std::collections::HashMap<u8, &'static [PhraseRow]> {
     static VN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
     static EN: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
-    let cache = if vn { &VN } else { &EN };
+    static OFFICE: OnceLock<std::collections::HashMap<u8, &'static [PhraseRow]>> = OnceLock::new();
+    let cache = match table {
+        PhraseTable::Vn => &VN,
+        PhraseTable::En => &EN,
+        PhraseTable::Office => &OFFICE,
+    };
     cache.get_or_init(|| {
         let mut groups: std::collections::HashMap<u8, Vec<PhraseRow>> =
             std::collections::HashMap::new();
@@ -314,6 +336,12 @@ pub const VN_PHRASES_DATA: &str = include_str!("../../../data/vn_phrases.tsv");
 
 /// Bảng ngữ cảnh cụm từ tiếp theo tiếng Anh (TSV: context \t prediction \t weight).
 pub const EN_PHRASES_DATA: &str = include_str!("../../../data/en_phrases.tsv");
+
+/// Bảng ngữ cảnh câu/cụm **văn phòng** tiếng Anh (vòng 59 — ≥ 10.000 hàng):
+/// upward reporting / downward management / tech / business / everyday glue /
+/// bilingual Viet-Eng code-switch (key Việt-Eng trộn → prediction tiếng Anh).
+/// Sinh bởi `scripts/gen_en_office_phrases.py` — KHÔNG sửa tay.
+pub const EN_OFFICE_PHRASES_DATA: &str = include_str!("../../../data/en_office_phrases.tsv");
 
 /// Ứng viên prefix với thông tin xếp hạng — giữ `&'static str` (vòng 52: không
 /// alloc String cho ứng viên bị loại; chỉ `take(limit)` cuối cùng mới cấp phát).
@@ -392,7 +420,20 @@ fn predict_impl(
     // Đủ cả VI lẫn EN (từ/cụm cá nhân học từ chính user gõ). Phải duyệt TRƯỚC
     // các bộ từ điển tĩnh (vn_syllables, vn_compounds, en_freq...) để từ người
     // dùng đã học không bị 'seen' chặn mất trạng thái personal=true.
-    for (pword, pcount) in personal {
+    // F-P10-1 (recency boost — vòng 59): `personal` giữ thứ tự **dùng gần nhất**
+    // (mới nhất cuối — engine recency touch mỗi lần gõ lại). Từ gõ lại gần đây
+    // nổi trên từ count cao nhưng lâu không dùng (EMA-recency thời gian thực,
+    // không cần trường giờ trong config — G8: chỉ từ + count).
+    let recency_boost = |from_end: usize| -> u32 {
+        if from_end < 12 {
+            12
+        } else if from_end < 24 {
+            6
+        } else {
+            0
+        }
+    };
+    for (i, (pword, pcount)) in personal.iter().enumerate() {
         if pword.chars().count() < 2 || same(pword) {
             continue;
         }
@@ -405,8 +446,12 @@ fn predict_impl(
                     exact_match: true,
                     char_count: pword.chars().count(),
                     // Boost theo count: 100 + min(count,30) — nổi trên mọi
-                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng.
-                    weight: 100u32.saturating_add((*pcount).min(30)),
+                    // nguồn tĩnh, từ dùng nhiều vẫn đứng trước từ ít dùng;
+                    // cộng thêm recency: từ vừa gõ lại (12 mục cuối) +12,
+                    // 24 mục cuối +6 (F-P10-1).
+                    weight: 100u32
+                        .saturating_add((*pcount).min(30))
+                        .saturating_add(recency_boost(personal.len() - 1 - i)),
                     ext: compound_ext(pword),
                     personal: true,
                 });
@@ -758,11 +803,18 @@ pub fn predict_next_phrase_matches_with_personal(
         }
     }
 
-    // 2. Khớp từ bảng tĩnh (VN / EN phrases)
+    // 2. Khớp từ bảng tĩnh (VN / EN / văn phòng EN — vòng 59)
     // Vòng 52 (perf): bucket theo byte cuối — chỉ quét các hàng có khả năng
-    // khớp (`ends_with` bắt buộc byte cuối trùng), thay vì toàn bộ ~10k hàng.
-    for (i, rows) in [vn_phrase_rows(), en_phrase_rows()].into_iter().enumerate() {
-        let buckets = phrase_buckets(rows, i == 0);
+    // khớp (`ends_with` bắt buộc byte cuối trùng), thay vì quét toàn bảng.
+    // Vòng 59: bảng văn phòng EN quét song song hai bảng cũ — context là chuỗi
+    // thuần nên bảng nào cũng khớp được ở cả hai mode (bilingual code-switch
+    // miễn phí: key trộn Việt-Eng sống trong bảng văn phòng).
+    for (table, rows) in [
+        (PhraseTable::Vn, vn_phrase_rows()),
+        (PhraseTable::En, en_phrase_rows()),
+        (PhraseTable::Office, office_phrase_rows()),
+    ] {
+        let buckets = phrase_buckets(rows, table);
         if let Some(&last) = context_lower.as_bytes().last() {
             if let Some(bucket) = buckets.get(&last) {
                 collect_phrase_matches(bucket, &context_lower, &mut matches);
@@ -1005,12 +1057,20 @@ mod tests {
     }
 
     /// Vòng 52 (data invariant): mọi hàng TSV đều parse được, prediction ≤ 60
-    /// ký tự (R1-2), khoá ≤ 60, không dòng rác.
+    /// ký tự (R1-2), khoá ≤ 60, không dòng rác. Vòng 59: bảng văn phòng ≥ 10.000.
     #[test]
     fn du_lieu_phrases_invariant() {
-        for (name, data) in [("vn", VN_PHRASES_DATA), ("en", EN_PHRASES_DATA)] {
+        for (name, data, min_rows) in [
+            ("vn", VN_PHRASES_DATA, 2000),
+            ("en", EN_PHRASES_DATA, 2000),
+            ("office", EN_OFFICE_PHRASES_DATA, 10_000),
+        ] {
             let rows = parse_phrase_rows(data);
-            assert!(rows.len() >= 2000, "{name}: quá ít hàng: {}", rows.len());
+            assert!(
+                rows.len() >= min_rows,
+                "{name}: quá ít hàng: {}",
+                rows.len()
+            );
             let mut uniq: Vec<&PhraseRow> = rows.iter().collect();
             uniq.sort();
             uniq.dedup();
@@ -1028,5 +1088,65 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Vòng 59 (office): 5 nhóm nghiệp vụ đều phủ + bilingual code-switch bắn.
+    #[test]
+    fn bang_van_phong_phu_5_nhom_va_bilingual() {
+        // Upward reporting — exec summary / escalation / risk
+        assert!(
+            predict_next_phrase_candidates("one key risk to highlight is", 3)
+                .first()
+                .is_some_and(|p| p.contains("the "))
+        );
+        assert!(!predict_next_phrase_candidates("here is a quick status update on", 3).is_empty());
+        assert!(
+            !predict_next_phrase_candidates("please find the executive summary below", 3)
+                .is_empty()
+        );
+        assert!(
+            !predict_next_phrase_candidates("escalating this blocker for your visibility", 3)
+                .is_empty()
+        );
+        // Downward management — delegation / unblock / recognition
+        assert!(!predict_next_phrase_candidates("could you please prioritize", 3).is_empty());
+        assert!(
+            !predict_next_phrase_candidates("what support do you need to unblock", 3).is_empty()
+        );
+        assert!(!predict_next_phrase_candidates("great job on delivering", 3).is_empty());
+        // Tech — RCA / CI / deploy
+        assert!(
+            !predict_next_phrase_candidates("the fix has been verified on ci and", 3).is_empty()
+        );
+        assert!(
+            !predict_next_phrase_candidates("deploying the hotfix to production", 3).is_empty()
+        );
+        // Business ops — action items / stakeholder / follow-up
+        assert!(
+            !predict_next_phrase_candidates("we need stakeholder sign off before", 3).is_empty()
+        );
+        assert!(
+            !predict_next_phrase_candidates("following up on our action items from", 3).is_empty()
+        );
+        // Everyday glue
+        assert!(!predict_next_phrase_candidates("thanks for flagging this", 3).is_empty());
+        assert!(!predict_next_phrase_candidates("please treat this as", 3).is_empty());
+        // Bilingual Việt-Eng code-switch — key trộn, prediction tiếng Anh giữa câu Việt.
+        let sw = predict_next_phrase_candidates("mình sync lại", 3);
+        assert!(
+            sw.first().is_some_and(|p| p.contains("status")),
+            "bilingual: mình sync lại => {sw:?}"
+        );
+        assert!(predict_next_phrase_candidates("anh check giúp em", 3)
+            .first()
+            .is_some_and(|p| p.starts_with("lỗi")));
+        assert!(predict_next_phrase_candidates("mình sẽ update", 3)
+            .first()
+            .is_some_and(|p| p.contains("timeline")));
+        assert!(predict_next_phrase_candidates("fix đã được", 3)
+            .first()
+            .is_some_and(|p| p.contains("verify")));
+        // Ranh giới trọn từ: không khớp giữa từ ("lại" ≠ khoá "mình sync lại").
+        assert!(predict_next_phrase_candidates("sync", 3).is_empty());
     }
 }

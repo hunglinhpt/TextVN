@@ -91,9 +91,14 @@ public struct SettingsView: View {
         alert.addButton(withTitle: "Thảo luận")
         alert.addButton(withTitle: "Báo lỗi")
         let response = alert.runModal()
-        if response == .alertSecondButtonReturn || response == .alertThirdButtonReturn,
-            let url = URL(string: AppInfo.discussionsUrl)
-        {
+        // Thảo luận mở Discussions; Báo lỗi mở đúng issue tracker (issues URL).
+        let target: String
+        switch response {
+        case .alertSecondButtonReturn: target = AppInfo.discussionsUrl
+        case .alertThirdButtonReturn: target = AppInfo.reportIssueUrl
+        default: return
+        }
+        if let url = URL(string: target) {
             NSWorkspace.shared.open(url)
         }
     }

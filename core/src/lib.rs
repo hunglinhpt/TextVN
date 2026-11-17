@@ -286,7 +286,9 @@ fn valid_style_text(s: &str) -> bool {
     if !(2..=32).contains(&n) {
         return false;
     }
-    if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 3 {
+    // Vòng 59: cho phép cụm cá nhân 4 từ (≤32 ký tự vẫn chặn đoạn văn G8) —
+    // bộ so khớp next-phrase P7 hỗ trợ 2-4 từ ("as per our discussion").
+    if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 4 {
         return false;
     }
     s.chars()
@@ -557,15 +559,23 @@ impl Engine {
         // từ mới mà không cần đợi host app drain và nạp lại cấu hình.
         let mut need_decay = false;
         let opts = Arc::make_mut(&mut self.opts);
-        if let Some(entry) = opts.style_words.iter_mut().find(|(w, _)| w == &lower) {
+        if let Some(pos) = opts.style_words.iter().position(|(w, _)| w == &lower) {
+            // F-P10-1 (recency touch — vòng 59): gõ lại từ cũ phải **làm mới vị trí**
+            // (đẩy về cuối danh sách). Thứ tự danh sách = thứ tự dùng gần nhất
+            // (mới nhất cuối) — phần CŨ khi hồ sơ đầy luôn là từ LÂU KHÔNG DÙNG,
+            // và prediction đọc vị trí để cộng boost recency (F-P10-1) mà không
+            // cần thêm trường giờ vào config (G8: chỉ từ + count).
+            let mut entry = opts.style_words.remove(pos);
             entry.1 = entry.1.saturating_add(1);
             if entry.1 >= 256 {
                 need_decay = true;
             }
+            opts.style_words.push(entry);
         } else {
             if opts.style_words.len() >= STYLE_SESSION_CAP {
                 // Đầy: thay từ ít dùng nhất trong phần CŨ của danh sách (thứ tự = thứ tự
-                // thêm) — từ vừa học không loại lẫn nhau. Trọng số chỉ giảm nửa sau mỗi
+                // **dùng gần nhất** sau recency touch F-P10-1 — từ vừa gõ lại không bao giờ
+                // nằm trong phần cũ). Trọng số chỉ giảm nửa sau mỗi
                 // `STYLE_AGE_EVERY` lần thay: giảm mỗi lần thì vài từ mới đủ xoá lịch sử
                 // của từ dùng nhiều nhất (R2-146).
                 let old = opts.style_words.len().saturating_sub(STYLE_FRESH_GUARD);
@@ -615,6 +625,26 @@ impl Engine {
             let phrase = format!("{prev} {current}");
             if valid_style_entry(&phrase) {
                 self.style_note_word(&phrase);
+            }
+            // F-P10-2 (vòng 59): học **trigram** `<prev2> <prev> <current>` — ngữ
+            // cảnh 2 từ dự đoán từ thứ 3 mạnh hơn bigram (next-phrase khớp khoá
+            // dài hơn trước nên trigram thắng khi có đủ ngữ cảnh). prev2 phải là
+            // token chữ trọn vẹn đứng NGAY trước prev (đúng 1 khoảng trắng giữa —
+            // có dấu câu/tab giữa là ngắt mạch văn, không học).
+            let prev_end = same_line.len() - prev.len();
+            if prev_end >= 2 && same_line.as_bytes()[prev_end - 1] == b' ' {
+                let head = same_line[..prev_end - 1].trim_end_matches(' ');
+                if let Some(prev2) = head.split_whitespace().last() {
+                    let word_like2 = prev2.chars().all(|ch| ch.is_alphabetic() || ch == '-')
+                        && !prev2.starts_with('-')
+                        && !prev2.ends_with('-');
+                    if word_like2 {
+                        let tri = format!("{prev2} {prev} {current}");
+                        if valid_style_entry(&tri) {
+                            self.style_note_word(&tri);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1888,8 +1918,8 @@ impl Engine {
         // P7 (vòng 54): học từ/cụm từ user GÕ XONG (word-end, USP bật) — khi
         // `will_restore` = true thì học chuỗi EN thật (`self.word.raw`), tuyệt đối
         // không học chuỗi bị Telex biến đổi sai cấu trúc (`self.word.display` như `sỏt`).
-        // G8: chỉ từ đơn/cụm ngắn <= 3 từ + count; secure check ở caller key() đã chặn ô mật khẩu
-        // (đường này không chạy khi secure — engine không nhận context secure).
+        // G8: chỉ từ đơn/cụm ngắn <= 4 từ + count (vòng 59); secure check ở caller key()
+        // đã chặn ô mật khẩu (đường này không chạy khi secure — engine không nhận context secure).
         if self.style_enabled_for_learning() {
             let (current, sentence_cur_len) = if will_restore {
                 (

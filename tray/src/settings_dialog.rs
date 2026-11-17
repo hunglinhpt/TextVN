@@ -168,6 +168,11 @@ chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli
 #[cfg(windows)]
 const DISCUSSIONS_URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
 
+/// Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
+/// khớp `<url type="bugtracker">` của AppStream metainfo.
+#[cfg(windows)]
+const REPORT_ISSUE_URL: &str = "https://github.com/hunglinhpt/TextVN/issues";
+
 static SETTINGS_HWND: AtomicIsize = AtomicIsize::new(0);
 
 struct DialogContext {
@@ -2084,7 +2089,8 @@ fn show_help(owner: HWND) {
         return;
     }
     match pressed {
-        HELP_BTN_DISCUSS | HELP_BTN_REPORT => open_url(DISCUSSIONS_URL),
+        HELP_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
+        HELP_BTN_REPORT => open_url(REPORT_ISSUE_URL),
         _ => {}
     }
 }
@@ -2330,6 +2336,8 @@ mod tests {
     #[test]
     fn help_window_links_match_every_platform() {
         const URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
+        // Nút **Báo lỗi** mở đúng issue tracker — không phải trang Thảo luận.
+        const ISSUES_URL: &str = "https://github.com/hunglinhpt/TextVN/issues";
         let windows = include_str!("settings_dialog.rs");
         let linux_model = include_str!("../../adapters/linux-settings/src/settings_model.c");
         let linux_win = include_str!("../../adapters/linux-settings/src/settings_window.c");
@@ -2342,6 +2350,10 @@ mod tests {
             ("macOS", mac_info),
         ] {
             assert!(src.contains(URL), "{os} thiếu URL Thảo luận");
+            assert!(
+                src.contains(ISSUES_URL),
+                "{os} thiếu URL issue tracker cho Báo lỗi"
+            );
         }
         for (os, src) in [
             ("Windows", windows),

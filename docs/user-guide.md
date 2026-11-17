@@ -398,7 +398,8 @@ thành `config.json.bak`. Gỡ cài đặt không xoá cấu hình.
 | Chữ gõ ra bị gạch chân cho tới hết từ | Bình thường: TextVN giữ từ đang gõ trong vùng soạn và chốt khi gõ dấu cách/dấu câu — cách an toàn nhất, không bao giờ xoá nhầm chữ của bạn. |
 
 Thảo luận / hỏi đáp hoặc báo lỗi trực tiếp từ app: mở bảng điều khiển → **Hướng dẫn** → bấm
-**[Thảo luận]** hoặc **[Báo lỗi]** (`https://github.com/hunglinhpt/TextVN/discussions`).
+**[Thảo luận]** (`https://github.com/hunglinhpt/TextVN/discussions`) hoặc **[Báo lỗi]**
+(`https://github.com/hunglinhpt/TextVN/issues`).
 Hoặc báo lỗi kèm chi tiết: <https://github.com/hunglinhpt/TextVN/issues> — ghi **chính xác chuỗi phím đã gõ**
 (ví dụ `dduocj` → ra `...`), ứng dụng, hệ điều hành, và đính kèm — Windows: file tạo bởi
 `textvn-cli doctor --export diag.zip` (xem nhanh trong cửa sổ: `textvn-cli doctor --pause` — lối

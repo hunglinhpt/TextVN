@@ -334,6 +334,15 @@ pub const STYLE_CORRECTION_CAP: usize = 50;
 pub const STYLE_ENTRY_MAX_CHARS: usize = 32;
 /// Trần tổng bytes của khối style khi serialize (code cấm vượt 16384 dù user chỉnh).
 pub const STYLE_MAX_TOTAL_BYTES: usize = 16 * 1024;
+/// Dream consolidation (F-P10-3 — vòng 59): hồ sơ **vượt** số từ này mới prune
+/// mục count-1 — hồ sơ mới/giữ nguyên không cắt để người dùng mới học được.
+pub const STYLE_ONEOFF_TRIGGER: usize = 120;
+/// Số mục count-1 giữ tối đa khi hồ sơ vượt trigger (sort count desc → phần
+/// giữ là đầu danh sách, thứ tự ổn định qua các lần parse — idempotent).
+pub const STYLE_ONEOFF_KEEP: usize = 60;
+/// Ngưỡng count giảm nửa toàn hồ sơ lúc persist (khớp engine: entry ≥ 256
+/// → halve — EMA xấp xỉ, thói quen mới không bị đè bởi count tích luỹ cũ).
+pub const STYLE_DECAY_AT: u32 = 256;
 
 /// Từ cá nhân: từ + số lần dùng.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -459,6 +468,24 @@ impl StyleProfileSettings {
             .collect();
         ws.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.word.cmp(&b.word)));
         ws.truncate(STYLE_WORD_CAP);
+        // Dream consolidation (F-P10-3 — vòng 59): mục count-1 là nhiễu một-lần
+        // (typo lọt qua validator âm vị học) — hồ sơ trưởng thành (> trigger)
+        // chỉ giữ STYLE_ONEOFF_KEEP mục count-1; count ≥ 2 luôn giữ. Idempotent:
+        // sort ổn định → cắt cùng một đuôi mỗi lần parse.
+        if ws.len() > STYLE_ONEOFF_TRIGGER {
+            // sort count desc → mục count-1 nằm liền ĐUÔI danh sách — đếm từ cuối.
+            let oneoff = ws.iter().rev().take_while(|w| w.count <= 1).count();
+            if oneoff > STYLE_ONEOFF_KEEP {
+                ws.truncate(ws.len() - (oneoff - STYLE_ONEOFF_KEEP));
+            }
+        }
+        // EMA-decay bền vững: count ≥ 256 → giảm nửa toàn hồ sơ lúc persist
+        // (khớp engine halve trong phiên) — term mới không bị count cũ đè vĩnh viễn.
+        if ws.iter().any(|w| w.count >= STYLE_DECAY_AT) {
+            for w in &mut ws {
+                w.count = (w.count / 2).max(1);
+            }
+        }
         self.words = ws;
         // Corrections — dedupe (from,to) cộng count, sort desc, prune.
         let mut cmap: BTreeMap<(String, String), u32> = BTreeMap::new();

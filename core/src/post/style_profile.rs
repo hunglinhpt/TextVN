@@ -7,6 +7,9 @@
 //! - **Dữ liệu lưu KHÔNG được phép quá lớn**: words ≤ 200, corrections ≤ 50,
 //!   mỗi từ ≤ 32 ký tự, tổng bytes của hai mảng ≤ 16 KB — kiểm + prune lúc
 //!   nhận dữ liệu (`sanitize`), không bao giờ fail-open tắt cả tính năng.
+//! - **Dream consolidation** (prune mục count-1 vượt quota, EMA-decay count ≥
+//!   256) sống ở crate `config` (`StyleProfileSettings::sanitize` — điểm hợp
+//!   nhất dữ liệu thật, F-P10-3 vòng 59); module này chỉ mô hình hoá + test.
 //! - **G8**: chỉ từ đơn + số đếm + cặp sai→đúng tối thiểu — không bao giờ
 //!   lưu đoạn văn/câu/dấu câu nội dung người dùng.
 //! - Kết hợp từ điển cá nhân `english_words` hiện có (đường riêng, không đụng
@@ -44,14 +47,17 @@ pub struct StyleProfile {
 
 /// Từ/cặp có hợp lệ để lưu không? — chặn G8 (đoạn văn), ký tự điều khiển,
 /// emoji/HTML, quá dài. Cho phép: chữ cái Unicode + dấu cách + `-` `'` `/`
-/// `.` `đ` (đã là alphabetic). Từ ghép 2-3 âm tiết là hợp lệ và hữu ích.
+/// `.` `đ` (đã là alphabetic). Từ ghép 2-3 âm tiết và cụm cá nhân 4 từ là hợp
+/// lệ và hữu ích (bộ so khớp next-phrase P7 hỗ trợ 2-4 từ; ≤32 ký tự vẫn chặn
+/// đoạn văn G8 — vòng 59 mở từ 3 lên 4 từ để cụm văn phòng
+/// "as per our discussion" / "an toàn thông tin" học được).
 fn valid_entry(s: &str) -> bool {
     let n = s.chars().count();
     if !(2..=MAX_ENTRY_CHARS).contains(&n) {
         return false;
     }
-    // Khoảng trắng cho phép TỐI ĐA 2 (từ ghép 3 âm tiết) — chặn đoạn văn G8.
-    if s.split_whitespace().count() > 3 {
+    // Khoảng trắng cho phép TỐI ĐA 3 (cụm 4 từ) — chặn đoạn văn G8.
+    if s.split_whitespace().count() > 4 {
         return false;
     }
     // Không có khoảng trắng đầu/cuối/kép (đã trim phía caller, giữ cứng).
@@ -223,13 +229,19 @@ mod tests {
                 "{bad}"
             );
         }
-        // Hợp lệ: từ đơn + từ ghép ≤3 âm ("an toàn thông tin" 4 từ bị loại).
+        // Hợp lệ: từ đơn + từ ghép ≤4 từ (vòng 59: cụm 4 từ học được — bộ so
+        // khớp next-phrase P7 đã hỗ trợ 2-4 từ).
         let p = StyleProfile::sanitize(
-            &w(&[("triển khai", 10), ("khả thi", 8), ("an toàn thông tin", 6)]),
+            &w(&[
+                ("triển khai", 10),
+                ("khả thi", 8),
+                ("an toàn thông tin", 6),
+                ("an toàn thông tin personal dữ liệu", 6),
+            ]),
             &[],
         )
         .unwrap();
-        assert_eq!(p.words.len(), 2);
+        assert_eq!(p.words.len(), 3);
     }
 
     #[test]

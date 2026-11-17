@@ -68,12 +68,15 @@ static void add_escape_closes(GtkWidget *window) {
     gtk_widget_add_controller(window, sc);
 }
 
-/* Cửa sổ "Hướng dẫn": nút [Thảo luận] / [Báo lỗi] mở cùng URL với Windows/macOS. */
-static void on_help_link(GtkButton *b, GtkWindow *parent) {
-    (void)b;
+/* Cửa sổ "Hướng dẫn": nút [Thảo luận] mở Discussions, nút [Báo lỗi] mở issue tracker —
+ * cùng cặp URL với Windows/macOS (param `url` nhận tv_discussions_url/tv_issues_url). */
+static void on_help_link(GtkButton *b, gpointer user_data) {
+    GtkWindow *parent = GTK_WINDOW(user_data);
+    const char *url = (const char *)g_object_get_data(G_OBJECT(b), "help-url");
+    if (!url) url = tv_discussions_url;
     GError *err = NULL;
-    if (!g_app_info_launch_default_for_uri(tv_discussions_url, NULL, &err)) {
-        show_message(parent, "Không mở được trình duyệt", tv_discussions_url);
+    if (!g_app_info_launch_default_for_uri(url, NULL, &err)) {
+        show_message(parent, "Không mở được trình duyệt", url);
     }
     if (err) g_error_free(err);
 }
@@ -106,9 +109,11 @@ static void present_info_dialog(GtkWindow *parent, const char *title, const char
         gtk_widget_set_halign(row, GTK_ALIGN_END);
         GtkWidget *discuss = gtk_button_new_with_label("Thảo luận");
         gtk_widget_set_tooltip_text(discuss, "Mở trang Thảo luận trên GitHub");
+        g_object_set_data_full(G_OBJECT(discuss), "help-url", g_strdup(tv_discussions_url), g_free);
         g_signal_connect(discuss, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
         GtkWidget *report = gtk_button_new_with_label("Báo lỗi");
         gtk_widget_set_tooltip_text(report, "Báo cáo sự cố trên GitHub");
+        g_object_set_data_full(G_OBJECT(report), "help-url", g_strdup(tv_issues_url), g_free);
         g_signal_connect(report, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
         gtk_box_append(GTK_BOX(row), discuss);
         gtk_box_append(GTK_BOX(row), report);

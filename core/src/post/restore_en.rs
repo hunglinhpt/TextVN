@@ -608,8 +608,21 @@ pub fn complete_word_candidates(
         cands.push((0, 0, i32::MIN, typed_lower.to_string()));
     }
 
-    // Tier 0: Từ cá nhân học được (Dream RSI style_words + english_words)
-    for (sw, count) in style_words {
+    // Tier 0: Từ cá nhân học được (Dream RSI style_words + english_words).
+    // F-P10-1 (vòng 59): `style_words` giữ thứ tự **dùng gần nhất** (mới nhất
+    // cuối — engine recency touch mỗi lần gõ lại) → cộng recency boost vào
+    // weight sort (12 mục cuối +12, 24 mục cuối +6) — từ vừa gõ lại nổi trên
+    // từ count cao nhưng lâu không dùng (EMA-recency, không thêm trường giờ — G8).
+    let n_style = style_words.len();
+    for (idx, (sw, count)) in style_words.iter().enumerate() {
+        let from_end = n_style - 1 - idx;
+        let recency: i32 = if from_end < 12 {
+            12
+        } else if from_end < 24 {
+            6
+        } else {
+            0
+        };
         let w = sw.trim().to_lowercase();
         if w.len() > typed_lower.len()
             && w.starts_with(typed_lower)
@@ -617,7 +630,7 @@ pub fn complete_word_candidates(
             && (!space_mode || !w.contains(' '))
             && seen.insert(w.clone())
         {
-            cands.push((0, w.len(), -((*count).min(1000) as i32), w));
+            cands.push((0, w.len(), -((*count).min(1000) as i32) - recency, w));
         }
     }
     for ew in english_words {

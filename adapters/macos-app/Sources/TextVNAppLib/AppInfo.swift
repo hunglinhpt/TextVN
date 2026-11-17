@@ -24,6 +24,10 @@ enum AppInfo {
     /// "Hướng dẫn"; test Rust `help_window_links_match_every_platform` đối chiếu).
     static let discussionsUrl = "https://github.com/hunglinhpt/TextVN/discussions"
 
+    /// Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
+    /// khớp `<url type="bugtracker">` của AppStream metainfo.
+    static let reportIssueUrl = "https://github.com/hunglinhpt/TextVN/issues"
+
     static let helpTitle = "Hướng dẫn TextVN"
     static let helpText =
         "Bật/tắt tiếng Việt: nhấn rồi nhả Ctrl + Shift (không kèm phím khác), hoặc Ctrl + Shift + Space, "

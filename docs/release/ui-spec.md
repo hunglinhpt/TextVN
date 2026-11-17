@@ -92,11 +92,13 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
   `adapters/linux-settings/src/settings_model.c` (`tv_about_text`) · macOS
   `adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift` (popup trong Settings và mục
   About của menu bar cùng đọc `AppInfo.aboutMessage`).
-- **Cửa sổ "Hướng dẫn"** — tích hợp hai nút **[Thảo luận]** và **[Báo lỗi]** mở URL
-  `https://github.com/hunglinhpt/TextVN/discussions` trên cả 3 nền tảng (test
-  `help_window_links_match_every_platform` đối chiếu đồng bộ). Windows dùng
-  `TaskDialogIndirect`, macOS dùng `NSAlert` (`AppInfo.discussionsUrl`), Linux dùng
-  `present_info_dialog` (GTK4).
+- **Cửa sổ "Hướng dẫn"** — tích hợp hai nút: **[Thảo luận]** mở
+  `https://github.com/hunglinhpt/TextVN/discussions`, **[Báo lỗi]** mở đúng issue
+  tracker `https://github.com/hunglinhpt/TextVN/issues` trên cả 3 nền tảng (test
+  `help_window_links_match_every_platform` đối chiếu đồng bộ cả hai URL). Windows dùng
+  `TaskDialogIndirect` (`REPORT_ISSUE_URL`), macOS dùng `NSAlert`
+  (`AppInfo.discussionsUrl` / `AppInfo.reportIssueUrl`), Linux dùng
+  `present_info_dialog` (GTK4 — `tv_discussions_url` / `tv_issues_url`).
 
 ## 4. Cửa sổ Gõ tắt
 

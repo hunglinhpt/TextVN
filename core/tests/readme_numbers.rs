@@ -54,6 +54,8 @@ fn readme_corpora_numbers_match_data_files() {
         count("en_compounds.txt"),
         count("vn_phrases.tsv"),
         count("en_phrases.tsv"),
+        // Vòng 59: bảng câu văn phòng EN (10k+) — bắt buộc khớp số README.
+        count("en_office_phrases.tsv"),
     ];
     let total: usize = parts.iter().sum();
     assert!(
@@ -74,7 +76,7 @@ fn readme_corpora_numbers_match_data_files() {
             comma(n)
         );
     }
-    let phrases = parts[5] + parts[6];
+    let phrases = parts[5] + parts[6] + parts[7];
     assert!(
         readme.contains(&format!("{} cặp", dot(phrases))),
         "tổng cặp câu (VI)"
