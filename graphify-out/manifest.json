@@ -66,9 +66,9 @@
     "semantic_hash": ""
   },
   "core/src/buffer.rs": {
-    "mtime": 1795148266.0606344,
-    "seen": 1795148752.439118,
-    "ast_hash": "0f38938fdb0a53c265f6ba01621962e0",
+    "mtime": 1795149017.9684088,
+    "seen": 1795149253.5952187,
+    "ast_hash": "c405e578208d261f65c5cc240199d85f",
     "semantic_hash": ""
   },
   "core/src/keymap.rs": {
@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1795148286.7032638,
-    "seen": 1795148752.440121,
-    "ast_hash": "62f2dfbe2aaf7d3b4113cc74066762e8",
+    "mtime": 1795149057.7072794,
+    "seen": 1795149253.5952187,
+    "ast_hash": "529d9db6e12c6b01c70b3c98cc3d161e",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -3273,6 +3273,12 @@
     "mtime": 1794963149.3090925,
     "seen": 1795148752.4526827,
     "ast_hash": "6f106841d831a5a889b8eed708df823a",
+    "semantic_hash": ""
+  },
+  "core/tests/e50_unikey_restore.rs": {
+    "mtime": 1795149164.6825585,
+    "seen": 1795149253.5982227,
+    "ast_hash": "30cd512b2a97fb0a37102e4c4ee5f241",
     "semantic_hash": ""
   }
 }
