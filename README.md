@@ -48,7 +48,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 
 Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truyền thống (UniKey, EVKey, OpenKey):
 
-| Tiêu chí so sánh | TextVN (v0.2.80) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
+| Tiêu chí so sánh | TextVN (v0.2.81) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Cơ chế xử lý phím** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook ăn phím + `SendInput` xoá ngược |
 | **Lỗi mất chữ, lặp chữ (Chrome/Excel/Electron/Dual-Mode)** | **Triệt tiêu hoàn toàn** (composition nội tại không gạch chân; gắn cờ `INJECT_TAG` + `KeyOrigin` chặn vòng lặp phím giả, giữ nguyên `"TextVN"`) | Thường xuyên gặp khi gõ nhanh, gõ từ tiếng Anh hoa/thường lẫn dấu hoặc chuyển cửa sổ |
@@ -68,7 +68,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ---
 
-## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.80)
+## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.81)
 
 ### 1. Công thái học Dream RSI & Kiểm chuẩn Hiệu năng (P10 / G19)
 - Tích hợp công nghệ đo lường công thái học Dream RSI: 4 chỉ số cốt lõi (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
@@ -123,7 +123,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ## Tải và Cài Đặt
 
-Bản mới nhất: **[GitHub Release v0.2.80](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.80)** — **bảng câu văn phòng tiếng Anh 11.165 mẫu (báo cáo cấp trên, điều phối cấp dưới, kỹ thuật, nghiệp vụ, hội thoại) + code-switch Việt–Anh miễn phí, tổng corpora 53.955 mục; học cá nhân Dream RSI nâng recency/trigram/consolidation** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md). *Lưu ý: Windows chưa ký Authenticode (chờ SignPath Foundation duyệt) và macOS chưa notarization ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
+Bản mới nhất: **[GitHub Release v0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81)** — **bảng câu văn phòng tiếng Anh 11.165 mẫu (báo cáo cấp trên, điều phối cấp dưới, kỹ thuật, nghiệp vụ, hội thoại) + code-switch Việt–Anh miễn phí, tổng corpora 53.955 mục; học cá nhân Dream RSI nâng recency/trigram/consolidation** (release candidate do CI build và kiểm thử tự động). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md). *Lưu ý: Windows chưa ký Authenticode (chờ SignPath Foundation duyệt) và macOS chưa notarization ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
 |---|---|---|
@@ -145,7 +145,7 @@ Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Điểm nhấn tính năng |
 |---|---|
-| [0.2.80](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.80) | **Bảng câu văn phòng tiếng Anh 11.165 mẫu** (báo cáo cấp trên, điều phối cấp dưới, kỹ thuật, nghiệp vụ, hội thoại) + **code-switch Việt–Anh** (`mình sync lại` + Tab → `status…`) bắn được ở cả 2 mode · Tổng corpora **53.955 mục / 30.171 cặp câu**, lookup < 1 ms · Học cá nhân Dream RSI: **recency boost** (từ vừa gõ lại thắng từ count cao lâu quán), **trigram 3 từ**, **Dream consolidation** prune nhiễu count-1 + EMA-decay ≥ 256 · Nút **Báo lỗi** mở đúng issue tracker trên cả 3 OS |
+| [0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81) | **Bảng câu văn phòng tiếng Anh 11.165 mẫu** (báo cáo cấp trên, điều phối cấp dưới, kỹ thuật, nghiệp vụ, hội thoại) + **code-switch Việt–Anh** (`mình sync lại` + Tab → `status…`) bắn được ở cả 2 mode · Tổng corpora **53.955 mục / 30.171 cặp câu**, lookup < 1 ms · Học cá nhân Dream RSI: **recency boost** (từ vừa gõ lại thắng từ count cao lâu quán), **trigram 3 từ**, **Dream consolidation** prune nhiễu count-1 + EMA-decay ≥ 256 · Nút **Báo lỗi** mở đúng issue tracker trên cả 3 OS |
 | [0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79) | Windows: nhường TSF cả theo tiến trình con MobaXterm (`MoTTY.exe`, `XWin*`, `vcxsrv`, `Xming`) lẫn lớp cửa sổ X11/TTY và kiểm `EMPTYCONTEXT`/`READONLY` trước `KeyEditSession` (E49); sửa triệt để lỗi lặp chữ & mất hoa `"TextVN" → "Texxtvn"` bằng `LLKHF_INJECTED` + `INJECT_TAG`/`KeyOrigin` và guard `auto_capped` (E48) · Đưa nút **Thảo luận** & **Báo lỗi** (`GitHub Discussions`) vào cửa sổ *Hướng dẫn* trên cả 3 OS · Bổ sung **1.447** regression test |
 | [0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Sửa rơi phím lạ khi Backspace giữa từ rồi Space/ESC trả chuỗi gốc (E47) · Bổ sung 7.913+ test cases phòng ngừa hồi quy (dual-mode matrix, rapid origin/case, TSF state) |
 | [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (và PuTTY, mintty, Xshell, SecureCRT…) cùng thanh tác vụ **không còn hiện khung nhỏ mũi tên xanh ở góc trái** khi click vào rồi gõ phím (sau khi cài: đăng xuất/đăng nhập lại để explorer nạp bản mới) |
@@ -281,7 +281,7 @@ Tiếng Việt · English
 
 Direct head-to-head comparison between TextVN and legacy input engines (UniKey, EVKey, OpenKey):
 
-| Comparison Criteria | TextVN (v0.2.80) | Traditional IMEs (UniKey / EVKey / OpenKey) |
+| Comparison Criteria | TextVN (v0.2.81) | Traditional IMEs (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Input Processing Engine** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook + `SendInput` backspace replay |
 | **Lost & Duplicated Letters (Chrome/Excel/Electron/Dual-Mode)** | **Completely eliminated** (clean composition, no underline; `INJECT_TAG` + `KeyOrigin` prevents synthetic loops and preserves `"TextVN"`) | Common occurrence during rapid typing, mixed-case English words, or window switching |
@@ -301,7 +301,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ---
 
-## Full Feature Set (Accumulated Through 0.2.80)
+## Full Feature Set (Accumulated Through 0.2.81)
 
 ### 1. Dream RSI Ergonomic Metrics & Performance Benchmarks (P10 / G19)
 - Integrated Dream RSI ergonomic measurement: 4 core metrics (`keys_typed`, `accepts`, `chars_saved`, `savings_rate_pct`).
@@ -356,7 +356,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ## Download & Installation
 
-Latest release: **[GitHub Release v0.2.80](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.80)** — **new 11,165-row English workplace phrase table (upward reporting, downward management, tech, business ops, everyday glue) with free Viet-Eng code-switching, total corpora 53,955 entries; Dream RSI personal learning upgraded with recency/trigram/consolidation** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md). *Note: Windows installers are not yet Authenticode-signed (awaiting SignPath Foundation approval) and macOS bundles are not yet notarized ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
+Latest release: **[GitHub Release v0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81)** — **new 11,165-row English workplace phrase table (upward reporting, downward management, tech, business ops, everyday glue) with free Viet-Eng code-switching, total corpora 53,955 entries; Dream RSI personal learning upgraded with recency/trigram/consolidation** (release candidate built and tested automatically by CI). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md). *Note: Windows installers are not yet Authenticode-signed (awaiting SignPath Foundation approval) and macOS bundles are not yet notarized ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Platform | Official Installer | Run Without Installing (Portable) |
 |---|---|---|
@@ -378,7 +378,7 @@ Full development history: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Key Highlights |
 |---|---|
-| [0.2.80](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.80) | **New 11,165-row English workplace phrase table** (upward reporting, downward management, tech, business ops, everyday glue) + **Viet-Eng code-switching** (`mình sync lại` + Tab → `status…`) firing in both modes · Total corpora **53,955 entries / 30,171 phrase pairs**, lookups < 1 ms · Dream RSI personal learning: **recency boost** (recently retyped words outrank stale high-count ones), **3-word trigrams**, **Dream consolidation** pruning one-off count-1 noise + EMA-decay ≥ 256 · **Report Issue** button opens the real issue tracker on all 3 OSes |
+| [0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81) | **New 11,165-row English workplace phrase table** (upward reporting, downward management, tech, business ops, everyday glue) + **Viet-Eng code-switching** (`mình sync lại` + Tab → `status…`) firing in both modes · Total corpora **53,955 entries / 30,171 phrase pairs**, lookups < 1 ms · Dream RSI personal learning: **recency boost** (recently retyped words outrank stale high-count ones), **3-word trigrams**, **Dream consolidation** pruning one-off count-1 noise + EMA-decay ≥ 256 · **Report Issue** button opens the real issue tracker on all 3 OSes |
 | [0.2.79](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.79) | Windows: yields TSF by both MobaXterm child executables (`MoTTY.exe`, `XWin*`, `vcxsrv`, `Xming`) and X11/TTY window classes plus `EMPTYCONTEXT`/`READONLY` guards before `KeyEditSession` (E49); fixes `"TextVN" → "Texxtvn"` duplication & case loss via `LLKHF_INJECTED` + `INJECT_TAG`/`KeyOrigin` and `auto_capped` guard (E48) · Moves **Thảo luận** & **Báo lỗi** (`GitHub Discussions`) buttons inside the Help (*Hướng dẫn*) window across all 3 OSes · Adds **1,447** regression tests |
 | [0.2.78](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.78) | Fixes mid-word Backspace leaking synthetic keystrokes on Space/ESC raw restore (E47) · Adds 7,913+ regression test cases (dual-mode matrix, rapid origin/case, TSF state) |
 | [0.2.77](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.77) | Windows: MobaXterm (and PuTTY, mintty, Xshell, SecureCRT…) and the taskbar **no longer pop the small green-arrow box in the top-left corner** when you click in and type (after installing: sign out and back in so explorer loads the new build) |

@@ -7,7 +7,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
-## [0.2.80] — 2026-11-18
+## [0.2.81] — 2026-11-18
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
 > notarization (`docs/release/signing.md`).
@@ -24,7 +24,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - **F-P10-3 Dream consolidation** ở `config::StyleProfileSettings::sanitize` (điểm hợp nhất dữ liệu thật): hồ sơ vượt 120 từ chỉ giữ 60 mục count-1 (nhiễu một-lần/typo lọt validator — idempotent, sort ổn định); count ≥ 256 giảm nửa toàn hồ sơ lúc persist (EMA-decay khớp engine trong phiên) — thói quen mới không bị đè vĩnh viễn bởi count tích luỹ cũ. Gate trong `config/tests/dream_consolidation.rs`.
 - **Nút Báo lỗi mở đúng issue tracker trên cả 3 OS**: `https://github.com/hunglinhpt/TextVN/issues` (khác nút Thảo luận mở Discussions) — Windows `TaskDialogIndirect` (`REPORT_ISSUE_URL`), macOS `NSAlert` (`AppInfo.reportIssueUrl`), Linux GTK4 `present_info_dialog` (`tv_issues_url`); khớp `<url type="bugtracker">` AppStream metainfo; gate đồng bộ URL trong `help_window_links_match_every_platform`.
 
-**English** — 0.2.80:
+**English** — 0.2.81:
 - **New 11,165-row English workplace phrase/context table (`data/en_office_phrases.tsv`, P6 round 59).**
   - Five business groups: upward reporting (executive summaries, escalations, risk/blocker calls, RCA), downward management (delegation, unblocking, deadline check-ins, recognition), technology & systems (CI/CD, deploys, trade-offs, APIs), business ops & projects (stakeholder sign-off, action items, sprints, KPIs), and everyday conversational glue.
   - **Free Viet-Eng code-switching**: mixed Vietnamese-English keys (`mình sync lại` → `status`, `anh check giúp em` → `lỗi`, `fix đã được` → `verify`, `đã deploy lên` → `production`) live in the same table and fire in both VI and EN modes — contexts are plain strings, so any table matches when the context tail lines up.
@@ -49,7 +49,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - Thêm `[profile.dev]`, `[profile.test]` (`debug = "line-tables-only"`, `incremental = false`) và `[profile.dev.package."*"]` / `[profile.test.package."*"]` (`debug = 0`) vào root `Cargo.toml` để chặn phình `.pdb`/`.bin`/`.o` (giảm từ ~72,5 GiB tích lũy về ~0,22 GiB sau `cargo check` / ~1,15 GiB sau `cargo test --no-run`) mà vẫn giữ `RUST_BACKTRACE=1` (`file:line`) và không đụng `[profile.release]`.
   - Bổ sung script `scripts/clean-target.ps1` (ASCII-only, chuẩn REUSE) kiểm tra tiến trình giữ lock (`cargo`/`rustc`/`rust-analyzer`/`link`/`lld-link`), hỗ trợ `-Mode All | Incremental | StaleTriples | Sweep`, `-DryRun` và đo dung lượng thu hồi; cập nhật hướng dẫn tối ưu (`CARGO_INCREMENTAL=1`, `CARGO_TARGET_DIR`, `sccache`) trong `CONTRIBUTING.md` và `README.md`.
 
-**English** — 0.2.80:
+**English** — 0.2.81:
 - **Eliminated resurrected duplicate undo keys on mixed-case identifiers and undo repetitions (`"TexxtVN"` → `"TextVN"`, E50).**
   - Added step-tracking fold (`fold_with_caps_steps` / `fold_steps`), `UndoTracker` (`fold_effective_caps`), and QuickTelex `apply_with_undo` in `core/src/method/` and `core/src/post/quick_telex.rs` so `choose_restore_source` strips explicitly undone duplicate modifier/stroke/circumflex/horn/QuickTelex keys while avoiding false positives on bare `'z'`/`'0'` or single `'s'|'f'|'r'` keys (`"arr[0] "` and `"tooiszz "` stay safe, while `"TexxtVN"`, `"teeeexxtVN"`, `"passs "`, `"aaa "`, `"d99 "`, `"a11 "` resolve cleanly).
   - Added `is_english_lexicon_word` in `core/src/post/restore_en.rs` (ignoring uniform 10k web-crawl artifacts like `"aaa"`/`"ooo"` while preserving `"www"` and `"ieee"`).
@@ -3160,7 +3160,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...HEAD
-[0.2.80]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...v0.2.80
+[0.2.81]: https://github.com/hunglinhpt/TextVN/compare/v0.2.79...v0.2.81
 [0.2.79]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...v0.2.79
 [0.2.78]: https://github.com/hunglinhpt/TextVN/compare/v0.2.77...v0.2.78
 [0.2.77]: https://github.com/hunglinhpt/TextVN/compare/v0.2.76...v0.2.77

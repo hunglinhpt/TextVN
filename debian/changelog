@@ -1,4 +1,4 @@
-textvn (0.2.80-0ppa1) noble; urgency=medium
+textvn (0.2.81-0ppa1) noble; urgency=medium
 
   * Bảng câu văn phòng tiếng Anh 11.165 mẫu (báo cáo cấp trên, điều phối cấp
     dưới, kỹ thuật, nghiệp vụ, hội thoại) + code-switch Việt-Anh, tổng corpora
