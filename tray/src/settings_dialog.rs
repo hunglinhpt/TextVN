@@ -833,7 +833,7 @@ fn layout_dialog_controls(parent: HWND, dpi: i32) {
     }
 }
 
-/// Gợi ý (tooltip) của hàng nút — người dùng phải phân biệt được "Ẩn vào khay" và "Thoát".
+/// Gợiý (tooltip) của hàng nút — người dùng phải phân biệt được "Ẩn vào khay" và "Thoát".
 #[cfg(windows)]
 const BUTTON_HINTS: [(isize, &str); 7] = [
     (ID_BTN_HELP, "Cách gõ Telex/VNI, gõ tắt và các phím tắt"),

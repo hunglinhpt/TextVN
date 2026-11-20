@@ -1188,7 +1188,9 @@ def main():
     ]
     for (key, pred), weight in sorted(rows.items()):
         lines.append(f"{key}\t{pred}\t{weight}")
-    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # newline="\n" — ép LF cả trên Windows (F-A2-1 audit vòng 59): mặc định
+    # write_text dịch \n theo os.linesep → CRLF lệch chuẩn với 2 bảng anh em.
+    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
     cats = {}
     for (key, _), _w in rows.items():

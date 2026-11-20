@@ -215,3 +215,95 @@ fn rsi_next_phrase_office_en_dung_cong_thuc() {
     // Trước Tab, các phím chữ đã được đếm: 34 chữ + 5 dấu cách = 39.
     assert_eq!(rsi0.keys_typed, 39, "34 chữ + 5 space = 39 phím thật");
 }
+
+/// F-A1-2 (audit vòng 59 — hồi quy): sau LOAD/ConfigReload thứ tự `style_words`
+/// là count-desc (sanitize sort lúc parse), KHÔNG phải recency — recency boost
+/// phải = 0 cho tới khi engine touch từ đó (push về cuối danh sách). Trước fix,
+/// +12 đổ vào entry ĐUÔI (count thấp nhất — nhiễu một-lần) ngay sau load, làm
+/// nhiễu thắng từ quen count trung bình.
+#[test]
+fn recency_khong_boost_danh_sach_count_desc_sau_load() {
+    let words =
+        || -> Vec<(String, u32)> { vec![("zzalpha".to_string(), 12), ("zzbeta".to_string(), 1)] };
+    let opts = |w: Vec<(String, u32)>| EngineOptions {
+        enabled: false,
+        suggest_vn_complete: true,
+        style_learning_enabled: true,
+        style_words: w,
+        ..Default::default()
+    };
+    let tab_insert = |e: &mut Engine| -> String {
+        let out = e.key(&tab());
+        match out.action {
+            textvn_core::Action::Replace { insert, .. }
+            | textvn_core::Action::Commit { insert } => insert.into_iter().collect(),
+            _ => String::new(),
+        }
+    };
+    // 1. Load mới (style_touches = 0): "zzalpha" count 12 (112) thắng "zzbeta"
+    //    count 1 (101) dù beta ở ĐUÔI danh sách — không entry nào được boost.
+    let mut e = Engine::new(opts(words()));
+    type_str(&mut e, "zz");
+    let ins = tab_insert(&mut e);
+    assert!(
+        ins.contains("zzalpha") && !ins.contains("zzbeta"),
+        "load mới không được boost đuôi count-desc: {ins}"
+    );
+    // 2. Touch "zzbeta" (push về cuối, style_touches = 1) rồi RELOAD NGAY
+    //    (set_options — thứ tự count-desc như sanitize ghi file): touches phải
+    //    về 0 ⇒ "zzalpha" thắng. Không reset ⇒ beta ở đuôi vẫn được boost
+    //    (113) và lật ngược alpha (112) — đúng bug F-A1-2.
+    let mut e = Engine::new(opts(words()));
+    e.style_note_word("zzbeta");
+    e.set_options(opts(words()));
+    type_str(&mut e, "zz");
+    let ins = tab_insert(&mut e);
+    assert!(
+        ins.contains("zzalpha") && !ins.contains("zzbeta"),
+        "sau reload không được boost đuôi count-desc: {ins}"
+    );
+    // 3. Đối chứng cùng thiết lập nhưng KHÔNG reload: touch beta giữ nguyên ⇒
+    //    beta được recency (103 + 12 = 115) và thắng alpha (112).
+    let mut e = Engine::new(opts(words()));
+    e.style_note_word("zzbeta");
+    type_str(&mut e, "zz");
+    let ins = tab_insert(&mut e);
+    assert!(
+        ins.contains("zzbeta") && !ins.contains("zzalpha"),
+        "từ vừa touch phải thắng recency: {ins}"
+    );
+}
+
+/// F-A1-3 (audit vòng 59 — hồi quy): đuôi dòng kết thúc whitespace Unicode
+/// (NBSP) không được sinh trigram rác `prev2 == prev` — NBSP phải được trim
+/// như whitespace để `prev` luôn là suffix thật của dòng.
+#[test]
+fn trigram_khong_hoc_rac_khi_duoi_dong_nbsp() {
+    let opts = EngineOptions {
+        enabled: false,
+        suggest_vn_complete: true,
+        style_learning_enabled: true,
+        ..Default::default()
+    };
+    let mut e = Engine::new(opts);
+    type_str(&mut e, "ab cd");
+    // NBSP cuối rồi space: phím ngay trước "ef" là ' ' (bigram gate qua), đuôi
+    // dòng trước prev là NBSP — trim cũ (' '/'\t') bỏ sót.
+    e.key(&KeyEvent::char_down('\u{00A0}'));
+    e.key(&space());
+    type_str(&mut e, "ef");
+    e.key(&space());
+    let drain = e.style_drain_json();
+    assert!(
+        drain.contains("\"word\":\"cd ef\""),
+        "bigram học qua NBSP như whitespace: {drain}"
+    );
+    assert!(
+        drain.contains("\"word\":\"ab cd ef\""),
+        "trigram đúng prev2 ('ab'): {drain}"
+    );
+    assert!(
+        !drain.contains("\"word\":\"cd cd ef\""),
+        "không học trigram rác prev2 == prev: {drain}"
+    );
+}

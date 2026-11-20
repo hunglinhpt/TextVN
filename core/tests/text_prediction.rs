@@ -693,7 +693,7 @@ fn test_personal_frecency_ranking_and_next_phrase_learning() {
     // 1. Frecency sorting: Từ cá nhân dùng nhiều (count 25) phải xếp trên từ ít dùng (count 1)
     // dù từ ít dùng ngắn hơn về số ký tự.
     let personal = vec![("khởi".to_string(), 1), ("khuyến".to_string(), 25)];
-    let preds = predict_prefix_candidates_with_personal("khu", true, 5, &personal);
+    let preds = predict_prefix_candidates_with_personal("khu", true, 5, &personal, 0);
     assert_eq!(
         preds.first().map(|s| s.as_str()),
         Some("khuyến"),

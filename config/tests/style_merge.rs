@@ -19,6 +19,33 @@ fn gop_va_giu_nguyen_khoa_khac() {
     assert_eq!(cfg.style_profile.corrections[0].to, "ngành");
 }
 
+/// F-A1-1 (audit vòng 59 — hồi quy): cụm cá nhân 4 từ (≤ 32 ký tự) phải được
+/// merge giữ nguyên qua persist — `valid_entry` của config phải đồng bộ luật
+/// 4 từ của core (`valid_style_text` vòng 59), không được vứt cụm lúc drain;
+/// ≥ 5 từ vẫn bị loại (G8).
+#[test]
+fn gop_giu_cum_4_tu_ca_nhan() {
+    let drain = r#"{"words":[{"word":"an toàn thông tin","count":3},{"word":"an toàn thông tin dữ liệu","count":3}],"corrections":[]}"#;
+    let merged = merge_style_drain(ON, drain).expect("cụm 4 từ phải merge được");
+    let cfg = parse_config(&merged).expect("config hợp lệ");
+    assert!(
+        cfg.style_profile
+            .words
+            .iter()
+            .any(|w| w.word == "an toàn thông tin"),
+        "cụm 4 từ bị valid_entry vứt lúc drain/parse: {:?}",
+        cfg.style_profile.words
+    );
+    assert!(
+        !cfg.style_profile
+            .words
+            .iter()
+            .any(|w| w.word.split_whitespace().count() > 4),
+        "không entry nào quá 4 từ (G8): {:?}",
+        cfg.style_profile.words
+    );
+}
+
 #[test]
 fn gop_hai_lan_cong_don() {
     let once = merge_style_drain(ON, DRAIN).unwrap();

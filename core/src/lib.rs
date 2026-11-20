@@ -254,6 +254,13 @@ pub struct Engine {
     probe: bool,
     /// Số lần thay từ khi hồ sơ phiên đầy — đủ `STYLE_AGE_EVERY` mới giảm trọng số.
     style_evictions: u16,
+    /// Số lần push vào `style_words` kể từ lần nạp options cuối (recency touch +
+    /// học từ mới — F-A1-2 audit vòng 59): `min(style_touches, len)` entry **cuối**
+    /// danh sách đúng bằng các từ đã được touch ⇒ chỉ chúng được hưởng recency
+    /// boost. Sau ConfigReload/load, thứ tự danh sách là count-desc (sanitize
+    /// sort) — KHÔNG phải recency — nên boost phải = 0 cho tới khi có touch mới,
+    /// nếu không +12/+6 đổ nhầm vào 12–24 từ count THẤP NHẤT (nhiễu).
+    style_touches: usize,
     /// Vừa đổi `a--` thành `a—`: ranh giới **ngay** phím kế tiếp không phải chữ ⇒ đó là
     /// code (`i--;`), trả lại `--` (R2-141). `em_dash_next` là cờ đặt ở phím này,
     /// chuyển sang `em_dash_tentative` đúng một phím.
@@ -473,6 +480,7 @@ impl Engine {
             style_pending: Arc::default(),
             probe: false,
             style_evictions: 0,
+            style_touches: 0,
             em_dash_tentative: false,
             em_dash_next: false,
             bracket_word: None,
@@ -571,6 +579,7 @@ impl Engine {
                 need_decay = true;
             }
             opts.style_words.push(entry);
+            self.style_touches = self.style_touches.saturating_add(1);
         } else {
             if opts.style_words.len() >= STYLE_SESSION_CAP {
                 // Đầy: thay từ ít dùng nhất trong phần CŨ của danh sách (thứ tự = thứ tự
@@ -594,6 +603,7 @@ impl Engine {
                 }
             }
             opts.style_words.push((lower, 1));
+            self.style_touches = self.style_touches.saturating_add(1);
         }
         if need_decay {
             for (_, c) in &mut opts.style_words {
@@ -611,7 +621,13 @@ impl Engine {
         }
         let lookback = before_idx.saturating_sub(40);
         let tail: String = self.sentence[lookback..before_idx].iter().collect();
-        let same_line = tail.trim_end_matches([' ', '\t']);
+        // Trim đuôi gồm cả whitespace Unicode (NBSP, U+3000…) — nếu chỉ trim
+        // ' '/'\t' thì `split_whitespace().last()` trả token KHÔNG phải suffix
+        // của `same_line` ⇒ prev_end rơi lệch, trigram học rác `prev2 == prev`
+        // (F-A1-3 audit vòng 59). Giữ `\n`/`\r`: học KHÔNG vượt ranh giới dòng.
+        let same_line = tail.trim_end_matches(|c: char| {
+            c == ' ' || c == '\t' || (c.is_whitespace() && c != '\n' && c != '\r')
+        });
         if same_line.ends_with(['\n', '\r']) {
             return;
         }
@@ -629,8 +645,9 @@ impl Engine {
             // F-P10-2 (vòng 59): học **trigram** `<prev2> <prev> <current>` — ngữ
             // cảnh 2 từ dự đoán từ thứ 3 mạnh hơn bigram (next-phrase khớp khoá
             // dài hơn trước nên trigram thắng khi có đủ ngữ cảnh). prev2 phải là
-            // token chữ trọn vẹn đứng NGAY trước prev (đúng 1 khoảng trắng giữa —
-            // có dấu câu/tab giữa là ngắt mạch văn, không học).
+            // token chữ trọn vẹn đứng trước prev: byte NGAY trước prev phải là
+            // đúng 1 khoảng trắng `' '` (tab trước prev = không học); GIỮA prev2
+            // và prev chỉ cần ranh giới whitespace (tab/nhiều dấu cách vẫn học).
             let prev_end = same_line.len() - prev.len();
             if prev_end >= 2 && same_line.as_bytes()[prev_end - 1] == b' ' {
                 let head = same_line[..prev_end - 1].trim_end_matches(' ');
@@ -686,10 +703,13 @@ impl Engine {
 
     /// Trả từ đang mở về chuỗi gõ (`boundary` nếu có đi theo sau) — dùng chung cho Ctrl
     /// tap, Ctrl+Space và ranh giới từ (RESTORE = REPLACE, P0-4 §3).
+    /// E50: đánh dấu từ đã được restore để skip rule Unikey nếu người dùng gõ tiếp theo style Unikey.
     fn restore_raw(&mut self, boundary: Option<char>) -> Outcome {
         let delete = self.word.owned as u16;
         let mut insert = self.restore_source();
         insert.extend(boundary);
+        // E50: đánh dấu từ đã được auto-restore theo rule mới
+        self.word.restored = true;
         self.word.clear();
         // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
         self.record(Tail::Replace {
@@ -952,6 +972,10 @@ impl Engine {
     pub fn set_options(&mut self, opts: EngineOptions) {
         self.settle_predict(true);
         self.opts = Arc::new(opts);
+        // F-A1-2 (audit vòng 59): thứ tự `style_words` mới nạp là count-desc
+        // (sanitize sort lúc parse) — recency chỉ sống trong phiên cũ ⇒ đếm
+        // touch về 0 để predict bỏ recency boost cho tới khi có touch mới.
+        self.style_touches = 0;
         self.word.clear();
         self.record(Tail::Clear);
     }
@@ -1969,8 +1993,10 @@ impl Engine {
     /// không phải cái người dùng gõ — restore sẽ đưa phím lạ vào document
     /// (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`). Từ đã dựng lại thì giữ nguyên
     /// phần hiển thị trong document (close_word) — đúng cái người dùng đang thấy.
+    /// E50: từ đã từng được auto-restore (`restored` = true) → skip restore cho
+    /// các phím tiếp theo để phục vụ thói quen người dùng Unikey lâu năm.
     fn restorable(&self) -> bool {
-        if self.word.identifier || self.word.rebuilt || !self.opts.auto_restore_english {
+        if self.word.identifier || self.word.rebuilt || self.word.restored || !self.opts.auto_restore_english {
             return false;
         }
         let raw = self.restore_source();
@@ -2167,6 +2193,7 @@ impl Engine {
             true,
             5,
             &self.opts.style_words,
+            self.style_touches,
         );
         let candidates = if !candidates.is_empty() {
             candidates
@@ -2532,6 +2559,7 @@ impl Engine {
                 &folded.to_lowercase(),
                 &self.opts.english_words,
                 &self.opts.style_words,
+                self.style_touches,
                 vi_on,
                 space_mode,
                 en_context,

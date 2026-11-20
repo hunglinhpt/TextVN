@@ -49,7 +49,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - Thêm `[profile.dev]`, `[profile.test]` (`debug = "line-tables-only"`, `incremental = false`) và `[profile.dev.package."*"]` / `[profile.test.package."*"]` (`debug = 0`) vào root `Cargo.toml` để chặn phình `.pdb`/`.bin`/`.o` (giảm từ ~72,5 GiB tích lũy về ~0,22 GiB sau `cargo check` / ~1,15 GiB sau `cargo test --no-run`) mà vẫn giữ `RUST_BACKTRACE=1` (`file:line`) và không đụng `[profile.release]`.
   - Bổ sung script `scripts/clean-target.ps1` (ASCII-only, chuẩn REUSE) kiểm tra tiến trình giữ lock (`cargo`/`rustc`/`rust-analyzer`/`link`/`lld-link`), hỗ trợ `-Mode All | Incremental | StaleTriples | Sweep`, `-DryRun` và đo dung lượng thu hồi; cập nhật hướng dẫn tối ưu (`CARGO_INCREMENTAL=1`, `CARGO_TARGET_DIR`, `sccache`) trong `CONTRIBUTING.md` và `README.md`.
 
-**English** — Unreleased:
+**English** — 0.2.80:
 - **Eliminated resurrected duplicate undo keys on mixed-case identifiers and undo repetitions (`"TexxtVN"` → `"TextVN"`, E50).**
   - Added step-tracking fold (`fold_with_caps_steps` / `fold_steps`), `UndoTracker` (`fold_effective_caps`), and QuickTelex `apply_with_undo` in `core/src/method/` and `core/src/post/quick_telex.rs` so `choose_restore_source` strips explicitly undone duplicate modifier/stroke/circumflex/horn/QuickTelex keys while avoiding false positives on bare `'z'`/`'0'` or single `'s'|'f'|'r'` keys (`"arr[0] "` and `"tooiszz "` stay safe, while `"TexxtVN"`, `"teeeexxtVN"`, `"passs "`, `"aaa "`, `"d99 "`, `"a11 "` resolve cleanly).
   - Added `is_english_lexicon_word` in `core/src/post/restore_en.rs` (ignoring uniform 10k web-crawl artifacts like `"aaa"`/`"ooo"` while preserving `"www"` and `"ieee"`).
@@ -147,7 +147,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   xoá-nhập-lại nhanh (chống nhân đôi/mất chữ/phím lạ), bảng chân lý phím injected/chord/secure của hook và
   bất biến máy trạng thái composition (phím không ăn ⇒ composition phải đóng trước).
 
-**English** — Unreleased: **Backspace mid-word no longer drops synthesized keys into the document when Space/ESC
+**English** — 0.2.78: **Backspace mid-word no longer drops synthesized keys into the document when Space/ESC
 returns "what you typed"** (E47). Deleting one displayed character (R2-55) makes the engine rebuild a **synthetic**
 key sequence that types the remaining text (`đượ` → `dduwowj`) — correct for typing more Vietnamese, but when the
 word turns out non-Vietnamese and Space auto-restores "the typed string", the document received keys the user never
@@ -178,7 +178,7 @@ injected/chord/secure truth table, and composition state-machine invariants.
 - Chẩn đoán: file cờ `%LOCALAPPDATA%\TextVN\tsf-trace.on` bật nhật ký TIP cho process nạp sau đó (explorer…), kèm dòng
   tín hiệu context (chỉ tên lớp/cờ, không nội dung gõ); `e2e-non-text-focus.ps1` thêm ca thanh tác vụ.
 
-**English** — Unreleased: **MobaXterm (and PuTTY, mintty, KiTTY, Tera Term, SecureCRT, Xshell) no longer pop the small
+**English** — 0.2.77: **MobaXterm (and PuTTY, mintty, KiTTY, Tera Term, SecureCRT, Xshell) no longer pop the small
 green-arrow box in the top-left corner after clicking into the terminal and typing** (R2-161, E46). These terminals have no
 inline composition; the design said "TSF yields to the hook" but the yielding was never wired into the key path and the
 compatibility hook is not in the default install, so TextVN still composed and Windows drew the frame at (0,0). TextVN now
@@ -257,7 +257,7 @@ usual). Text inputs (`Edit`, `RichEdit`, `ComboBox`, editors, browsers) are unaf
 ### Fixed
 - Test CLI `dic_tests` đôi khi chết `SIGBUS` trên Linux (ba test dùng chung một tên file FST tạm rồi mmap — lần ghi sau cắt cụt file đang map; E44). Tên file tạm giờ riêng mỗi lần gọi.
 
-**English** — Unreleased: **self-learning (P7) and Dream RSI now have a switch in Settings and are on by default**
+**English** — 0.2.74: **self-learning (P7) and Dream RSI now have a switch in Settings and are on by default**
 on all three platforms (R2-158, E43), in the *Grammar Assistant* group: a checkbox, a live line *Learned: N words ·
 M pairs | Dream RSI: X% keystrokes saved (K characters)* and a *Wipe learned data* button (with confirmation). Before,
 nothing in the UI could turn it on, so it never ran for real users. Dream RSI totals now persist across sessions
@@ -295,7 +295,7 @@ to defaults* keeps learned data. A CLI test (`dic_tests`) that occasionally died
 - `docs/release/BACKLOG-2026-11-08.md`: rà soát toàn bộ việc dở trong tài liệu kế hoạch, chia theo ai làm được;
   `P4-12-RECALL-REAL.md` §12: số đo `spelling` (hợp hai kiểu đặt dấu: FPR 0,4 %; lỗi dấu tổng hợp 1,5 % → 77,2 %).
 
-**English** — Unreleased: **the grammar assistant now catches wrong tone marks on all three OSes without an OS dictionary** (P4-13, R2-157): a built-in zero-dependency syllable dictionary (`data/vn_syllables.txt`, embedded) checks each syllable by (toneless key, tone); loanwords, proper names and English words stay silent. Measured: synthetic tone errors caught **1.4 % → 99.1 %** (upper bound), **0.0 %** false positives on 981 clean sentences and 1 of 2,945 prose lines of the repo's own docs. A single possible fix carries `confidence 80`; several (`hõc` → `học`/`hóc`) carry `55` and **"Fix all" skips them** so it never swaps in the wrong tone. `textvn-cli assist check` uses it by default (`--no-dict` = old rule); new `tools/assist/tone_inject.py`. Windows `IssueView` now keeps `confidence` (the fix plan used to assume 100); the `Dictionary` trait gained two defaulted methods. Also: the grammar assistant no longer flags leftover reduplications (`đi đi lại lại` AABB,
+**English** — 0.2.73: **the grammar assistant now catches wrong tone marks on all three OSes without an OS dictionary** (P4-13, R2-157): a built-in zero-dependency syllable dictionary (`data/vn_syllables.txt`, embedded) checks each syllable by (toneless key, tone); loanwords, proper names and English words stay silent. Measured: synthetic tone errors caught **1.4 % → 99.1 %** (upper bound), **0.0 %** false positives on 981 clean sentences and 1 of 2,945 prose lines of the repo's own docs. A single possible fix carries `confidence 80`; several (`hõc` → `học`/`hóc`) carry `55` and **"Fix all" skips them** so it never swaps in the wrong tone. `textvn-cli assist check` uses it by default (`--no-dict` = old rule); new `tools/assist/tone_inject.py`. Windows `IssueView` now keeps `confidence` (the fix plan used to assume 100); the `Dictionary` trait gained two defaulted methods. Also: the grammar assistant no longer flags leftover reduplications (`đi đi lại lại` AABB,
 `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`) while real repeated-word typos are still caught (P4-12b). Added
 measurement tooling only: `assist check --dic` (repeatable) plus `score_real.py --dic` and `kappa.py`, a full
 backlog review (`BACKLOG-2026-11-08.md`) and the `spelling` measurements in `P4-12-RECALL-REAL.md` §12 (union of
@@ -1316,7 +1316,7 @@ Notepad++ and VS Code (Electron) 44/44; Notepad/Word/Excel 28/28.
   cũ (dữ liệu đổi tên, từ điển ngừng phát hành, DLL cũ) mà giữ cài đặt và bộ gõ;
   cài cho tài khoản khi đã có bản cho mọi người dùng thì hỏi gỡ bằng quyền quản trị.
 
-**English** — Unreleased: bilingual text prediction (P6, opt-in via
+**English** — 0.2.46: bilingual text prediction (P6, opt-in via
 `suggest.enabled`): Tab or Ctrl+Space completes words/compounds and predicts the
 next phrase from context, repeated presses cycle candidates; Ctrl+Space with no
 prediction opens the grammar assistant on demand (Windows, macOS). Fixed:
@@ -3239,6 +3239,3 @@ git push origin v0.1.0
 [0.2.1]: https://github.com/hunglinhpt/TextVN/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/hunglinhpt/TextVN/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hunglinhpt/TextVN/releases/tag/v0.1.0
-[0.2.66]: https://github.com/hunglinhpt/TextVN/compare/v0.2.65...v0.2.66
-[0.2.67]: https://github.com/hunglinhpt/TextVN/compare/v0.2.66...v0.2.67
-[0.2.68]: https://github.com/hunglinhpt/TextVN/compare/v0.2.67...v0.2.68

@@ -554,6 +554,7 @@ pub fn complete_word_candidates(
     folded_lower: &str,
     english_words: &[String],
     style_words: &[(String, u32)],
+    style_touches: usize,
     vi_on: bool,
     space_mode: bool,
     en_context: bool,
@@ -613,10 +614,15 @@ pub fn complete_word_candidates(
     // cuối — engine recency touch mỗi lần gõ lại) → cộng recency boost vào
     // weight sort (12 mục cuối +12, 24 mục cuối +6) — từ vừa gõ lại nổi trên
     // từ count cao nhưng lâu không dùng (EMA-recency, không thêm trường giờ — G8).
+    // F-A1-2 (audit vòng 59): chỉ boost trong phạm vi `style_touches` entry cuối
+    // — sau ConfigReload thứ tự là count-desc (sanitize sort), boost đống
+    // count-thấp nhất = sai; đếm về 0 lúc nạp options ⇒ boost = 0 tới touch mới.
     let n_style = style_words.len();
     for (idx, (sw, count)) in style_words.iter().enumerate() {
         let from_end = n_style - 1 - idx;
-        let recency: i32 = if from_end < 12 {
+        let recency: i32 = if from_end >= style_touches {
+            0
+        } else if from_end < 12 {
             12
         } else if from_end < 24 {
             6

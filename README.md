@@ -39,7 +39,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 ### 4. Di sản Chuẩn UniKey 20 Năm & Tiện ích Văn phòng Hiện đại
 - **Chuẩn mực gõ dấu UniKey**: Đầy đủ các kiểu gõ Telex, VNI, VIQR, Simple Telex; hỗ trợ lựa chọn dấu cũ (`hòa`, `thủy`) hoặc dấu mới (`hoà`, `thuỷ`); chuẩn vần `uo` (`luong`/`uong` giữ nguyên, gõ `w` hoặc dấu mới thành `ươ`).
 - **Tiện ích Telex thông minh**: Gõ nhanh `[` / `]` thành `ơ` / `ư` nhưng bảo vệ tuyệt đối dấu ngoặc vuông trong lập trình (`arr[0]`, Markdown `- [ ] task`); gõ `a--b` thành gạch nối dài `a—b` nhưng giữ nguyên cờ lệnh code `--force`; gõ hoa thông minh `DD` → `Đ`; dead-key passthrough (`Ctrl+'`+`e` → `é`).
-- **Phím tắt chuyển mã thông minh Ctrl+Shift+F9**: Tự động chuyển đổi qua lại giữa Unicode, TCVN3, VNI, Unicode tổ hợp; tự động nhận diện bảng mã nguồn bị lỗi hiển thị (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); tự động sửa chuỗi gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`).
+- **Phím tắt chuyển mã thông minh Ctrl+Shift+F9**: Tự động chuyển đổi qua lại giữa Unicode, TCVN3, VNI, Unicode tổ hợp; tự động nhận diện bảng mã nguồn bị lỗi hiển thị (`Tiáº¿ng Viá»‡t` → `Tiếng Việt`); tự động sửa chuỗi gõ nhầm khi quên bật tiếng Việt (`tooi ddi hocj` → `tôi đi học`) trên cả 3 hệ điều hành.
 - **Bảng điều khiển đồng bộ 3 OS**: 100% nút bấm có biểu tượng và tooltip gợi ý; nút "Ẩn vào khay" và "Thoát" phân định rõ ràng; cửa sổ *Hướng dẫn* tích hợp nút **Thảo luận** (Discussions) và **Báo lỗi** (issue tracker `https://github.com/hunglinhpt/TextVN/issues`); tray tự động đăng ký TSF cho tài khoản mà không cần quyền quản trị (Admin/UAC).
 
 ---
@@ -106,7 +106,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 - Panel gợi ý khi **dừng gõ 1 giây** (cả 3 hệ điều hành): mọi phím gõ chữ/dấu câu/xoá hẹn lại đồng hồ, gõ tiếp là ẩn ngay, dừng đủ 1 s mới kiểm tra từ + câu rồi hiện (cả chế độ gợi ý lẫn sửa lỗi an toàn, kể cả sau `.` `,`); giữa từ đang gõ chỉ Windows hiện (Linux/macOS đợi từ chốt).
 - Panel hỗ trợ chuột bấm, Alt+1…3, Enter áp "Sửa tất cả".
 - Chế độ 1 chỉ gợi ý / Chế độ 2 tự sửa lỗi khách quan — hoàn tác Ctrl+Z trong 5 giây.
-- Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả).
+- Kiểm tra theo vùng bôi đen (Shift+mũi tên → popup + Sửa tất cả) và kiểm tra câu dài.
 - Tuỳ chọn tắt riêng từng ứng dụng (per-app); tự tắt ở ô mật khẩu; 0% báo nhầm (FPR) trên tập kiểm thử 2.739 câu chuẩn mực.
 
 ### 5. Tiện Ích Chuyển Mã & Văn Phòng Đột Phá (P5)
@@ -336,7 +336,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ### 4. On-Device Grammar & Context Assistant
 - 15 issue types: word repeats, 2–4-word phrase repeats, punctuation spacing, sentence-case, diacritic typos, double negatives, end-of-sentence commas, post-conjunction commas, a/an articles, easily-confused English words, lowercase pronoun "i", English spelling (OS spell), Vietnamese spelling (built-in syllable dictionary), impossible dates (31/02, 32/13), inconsistent money grouping (1.250.00đ).
-- Suggestion panel on **1-second typing pause** across all 3 platforms: every keystroke/punctuation/backspace resets the timer, typing resumes hides it immediately, only a full 1-second pause checks the word + sentence and displays the panel (suggestion and safe auto-fix modes alike, including after `.` `,`); mid-word display is supported on Windows.
+- Suggestion panel on **1-second typing pause** across all 3 platforms: every keystroke/punctuation/backspace resets the timer, typing resumes hides it immediately, only a full 1-second pause checks the word + sentence and displays the panel (suggestion and safe auto-fix modes alike, including after `.` `,`); mid-word display is supported on Windows (Linux/macOS wait for the word to be finalized).
 - Mouse-clickable UI, Alt+1…3 shortcuts, Enter to apply "Fix All".
 - Mode 1 suggest-only / Mode 2 safe auto-fix with a 5-second Ctrl+Z undo window.
 - Selection checking (Shift+arrow keys → popup + Fix All) and long-sentence checks.

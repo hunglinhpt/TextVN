@@ -33,7 +33,15 @@ pub struct Word {
     /// dùng để phím gõ tiếp vẫn biến đổi đúng (R2-55); KHÔNG được đưa vào
     /// document qua đường restore (auto-restore EN, ESC, Ctrl tap) — người dùng
     /// chưa bao giờ gõ những phím đó (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`).
+    /// E50: từ đã **từng restore theo rule mới** (auto-restore EN). Sau đó nếu
+    /// người dùng tiếp tục gõ thêm ký tự theo style Unikey, **skip rule Unikey**
     pub rebuilt: bool,
+    /// E50: từ đã **từng được auto-restore theo rule mới** (restore EN).
+    /// Sau restore, nếu người dùng tiếp tục gõ thêm ký tự theo style Unikey,
+    /// **skip rule Unikey** để phục vụ thói quen người dùng Unikey lâu năm:
+    /// - Nếu đã restore theo rule mới → skip rule Unikey
+    /// - Nếu đã tiếp tục gõ thêm theo style Unikey → check lại từ đúng, ko restore thêm
+    pub restored: bool,
 }
 
 impl Word {
@@ -47,6 +55,7 @@ impl Word {
         self.identifier = false;
         self.auto_capped = false;
         self.rebuilt = false;
+        self.restored = false;
     }
 
     pub fn is_empty(&self) -> bool {

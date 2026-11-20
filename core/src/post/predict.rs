@@ -364,19 +364,23 @@ struct PrefixCandidate {
 /// Trả về danh sách ứng viên (tối đa `limit`), xếp theo độ ưu tiên:
 /// khớp trực tiếp (có dấu) > độ dài ký tự ngắn hơn (hoàn tất âm tiết trước) > weight cao hơn.
 pub fn predict_prefix_candidates(typed_lower: &str, is_vi: bool, limit: usize) -> Vec<String> {
-    predict_prefix_candidates_with_personal(typed_lower, is_vi, limit, &[])
+    predict_prefix_candidates_with_personal(typed_lower, is_vi, limit, &[], 0)
 }
 
 /// P7 (vòng 54): như [`predict_prefix_candidates`] + ứng viên CÁ NHÂN
 /// (`style_profile.words` — (từ, count)) — `personal: true` xếp TOP.
 /// List rỗng → hành vi byte-for-byte cũ (0 hồi quy).
+/// `style_touches` = số entry CUỐI danh sách `personal` được engine touch kể từ
+/// lần nạp options (F-A1-2 audit vòng 59) — chỉ chúng có recency boost; ngoài
+/// phạm vi đó thứ tự là count-desc (sanitize sort sau load) và boost phải = 0.
 pub fn predict_prefix_candidates_with_personal(
     typed_lower: &str,
     is_vi: bool,
     limit: usize,
     personal: &[(String, u32)],
+    style_touches: usize,
 ) -> Vec<String> {
-    predict_impl(typed_lower, is_vi, limit, personal)
+    predict_impl(typed_lower, is_vi, limit, personal, style_touches)
 }
 
 fn predict_impl(
@@ -384,6 +388,7 @@ fn predict_impl(
     is_vi: bool,
     limit: usize,
     personal: &[(String, u32)],
+    style_touches: usize,
 ) -> Vec<String> {
     if typed_lower.chars().count() < 2 || limit == 0 {
         return Vec::new();
@@ -424,8 +429,13 @@ fn predict_impl(
     // (mới nhất cuối — engine recency touch mỗi lần gõ lại). Từ gõ lại gần đây
     // nổi trên từ count cao nhưng lâu không dùng (EMA-recency thời gian thực,
     // không cần trường giờ trong config — G8: chỉ từ + count).
-    let recency_boost = |from_end: usize| -> u32 {
-        if from_end < 12 {
+    // F-A1-2 (audit vòng 59): chỉ từ đã touch KỂ TỪ LẦN NẠP OPTIONS cuối được
+    // boost (`from_end < style_touches`) — sau ConfigReload thứ tự là count-desc
+    // (sanitize sort), không phải recency: boost đống count-thấp nhất = sai.
+    let recency_boost = |from_end: usize, touches: usize| -> u32 {
+        if from_end >= touches {
+            0
+        } else if from_end < 12 {
             12
         } else if from_end < 24 {
             6
@@ -451,7 +461,7 @@ fn predict_impl(
                     // 24 mục cuối +6 (F-P10-1).
                     weight: 100u32
                         .saturating_add((*pcount).min(30))
-                        .saturating_add(recency_boost(personal.len() - 1 - i)),
+                        .saturating_add(recency_boost(personal.len() - 1 - i, style_touches)),
                     ext: compound_ext(pword),
                     personal: true,
                 });
@@ -1057,7 +1067,10 @@ mod tests {
     }
 
     /// Vòng 52 (data invariant): mọi hàng TSV đều parse được, prediction ≤ 60
-    /// ký tự (R1-2), khoá ≤ 60, không dòng rác. Vòng 59: bảng văn phòng ≥ 10.000.
+    /// ký tự (R1-2), không dòng rác. Vòng 59: bảng văn phòng ≥ 10.000 + khoá
+    /// ≤ 60 (F-A2-2 audit vòng 59 — docstring hứa mà thiếu assert; bảng vn/en
+    /// cũ còn hàng legacy khoá dài hơn — F-A2-3, dọn trong vòng data kế tiếp
+    /// cùng đồng bộ số README). F-A2-1: không `\r` (script gen phải ghi LF).
     #[test]
     fn du_lieu_phrases_invariant() {
         for (name, data, min_rows) in [
@@ -1065,6 +1078,10 @@ mod tests {
             ("en", EN_PHRASES_DATA, 2000),
             ("office", EN_OFFICE_PHRASES_DATA, 10_000),
         ] {
+            assert!(
+                !data.contains('\r'),
+                "{name}: dữ liệu phải LF, thấy CRLF (F-A2-1)"
+            );
             let rows = parse_phrase_rows(data);
             assert!(
                 rows.len() >= min_rows,
@@ -1081,6 +1098,9 @@ mod tests {
                     pred.chars().count() <= 60,
                     "{name}: prediction > 60 ký tự: {pred}"
                 );
+                if name == "office" {
+                    assert!(key.chars().count() <= 60, "office: khoá > 60 ký tự: {key}");
+                }
                 assert!(weight > 0 && weight <= 100, "{name}: weight {weight}");
                 assert!(
                     !key.chars().any(|c| c.is_uppercase()),

@@ -436,13 +436,14 @@ impl StyleProfileSettings {
     }
 
     /// Từ/cặp có hợp lệ để lưu? — chặn G8 (đoạn văn), số, dấu câu, điều
-    /// khiển, emoji; cho phép chữ cái Unicode + dấu cách (tối đa 3 từ) + `-`.
+    /// khiển, emoji; cho phép chữ cái Unicode + dấu cách (tối đa 4 từ — vòng
+    /// 59 đồng bộ `valid_style_text` của core: cụm cá nhân 4 từ học được) + `-`.
     pub fn valid_entry(s: &str) -> bool {
         let n = s.chars().count();
         if !(2..=STYLE_ENTRY_MAX_CHARS).contains(&n) {
             return false;
         }
-        if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 3 {
+        if s != s.trim() || s.contains("  ") || s.split_whitespace().count() > 4 {
             return false;
         }
         s.chars()
