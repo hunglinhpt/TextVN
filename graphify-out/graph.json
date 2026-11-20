@@ -53431,14 +53431,14 @@
       "source_location": ""
     },
     {
-      "id": "changelog_0_2_80_2026_11_18",
-      "label": "[0.2.80] \u2014 2026-11-18",
+      "id": "changelog_0_2_81_2026_11_18",
+      "label": "[0.2.81] \u2014 2026-11-18",
       "_origin": "ast",
       "community": 232,
       "community_name": "verify",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "[0.2.80] \u2014 2026-11-18",
+      "norm_label": "[0.2.81] \u2014 2026-11-18",
       "source_file": "CHANGELOG.md",
       "source_location": "L10"
     },
@@ -75664,14 +75664,14 @@
       "source_location": "L169"
     },
     {
-      "id": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
-      "label": "T\u00ednh N\u0103ng \u0110\u1ea7y \u0110\u1ee7 (T\u00edch lu\u1ef9 \u0111\u1ebfn 0.2.80)",
+      "id": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
+      "label": "T\u00ednh N\u0103ng \u0110\u1ea7y \u0110\u1ee7 (T\u00edch lu\u1ef9 \u0111\u1ebfn 0.2.81)",
       "_origin": "ast",
       "community": 347,
       "community_name": "TextVN \u2014 B\u1ed9 g\u00f5 ti\u1ebfng Vi\u1ec7t th\u1ebf h\u1ec7 m\u1edbi cho Windows, macOS v\u00e0 Linux",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "tinh nang \u0111ay \u0111u (tich luy \u0111en 0.2.80)",
+      "norm_label": "tinh nang \u0111ay \u0111u (tich luy \u0111en 0.2.81)",
       "source_file": "README.md",
       "source_location": "L71"
     },
@@ -91813,14 +91813,14 @@
       "source_location": "L234"
     },
     {
-      "id": "readme_full_feature_set_accumulated_through_0_2_80",
-      "label": "Full Feature Set (Accumulated Through 0.2.80)",
+      "id": "readme_full_feature_set_accumulated_through_0_2_81",
+      "label": "Full Feature Set (Accumulated Through 0.2.81)",
       "_origin": "ast",
       "community": 454,
       "community_name": "English",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "full feature set (accumulated through 0.2.80)",
+      "norm_label": "full feature set (accumulated through 0.2.81)",
       "source_file": "README.md",
       "source_location": "L304"
     },
@@ -267546,7 +267546,7 @@
       "weight": 1.0
     },
     {
-      "source": "changelog_0_2_80_2026_11_18",
+      "source": "changelog_0_2_81_2026_11_18",
       "target": "changelog_th\u00eam_m\u1edbi_added",
       "relation": "contains",
       "_origin": "ast",
@@ -267557,7 +267557,7 @@
       "weight": 1.0
     },
     {
-      "source": "changelog_0_2_80_2026_11_18",
+      "source": "changelog_0_2_81_2026_11_18",
       "target": "changelog_s\u1eeda_l\u1ed7i_fixed",
       "relation": "contains",
       "_origin": "ast",
@@ -267568,7 +267568,7 @@
       "weight": 1.0
     },
     {
-      "source": "changelog_0_2_80_2026_11_18",
+      "source": "changelog_0_2_81_2026_11_18",
       "target": "changelog_thay_\u0111\u1ed5i_changed",
       "relation": "contains",
       "_origin": "ast",
@@ -267679,7 +267679,7 @@
     },
     {
       "source": "changelog_changelog",
-      "target": "changelog_0_2_80_2026_11_18",
+      "target": "changelog_0_2_81_2026_11_18",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -303946,7 +303946,7 @@
     },
     {
       "source": "readme_english",
-      "target": "readme_full_feature_set_accumulated_through_0_2_80",
+      "target": "readme_full_feature_set_accumulated_through_0_2_81",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -304022,7 +304022,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_1_dream_rsi_ergonomic_metrics_performance_benchmarks_p10_g19",
       "relation": "contains",
       "_origin": "ast",
@@ -304033,7 +304033,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_2_contextual_prediction_model_p6_user_style_profile_p7_53_955_entry_corpora",
       "relation": "contains",
       "_origin": "ast",
@@ -304044,7 +304044,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_3_typing_engines_phonotactic_transformation_standard",
       "relation": "contains",
       "_origin": "ast",
@@ -304055,7 +304055,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_4_on_device_grammar_context_assistant",
       "relation": "contains",
       "_origin": "ast",
@@ -304066,7 +304066,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_5_smart_transcoding_office_utilities_p5",
       "relation": "contains",
       "_origin": "ast",
@@ -304077,7 +304077,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_full_feature_set_accumulated_through_0_2_80",
+      "source": "readme_full_feature_set_accumulated_through_0_2_81",
       "target": "readme_6_system_architecture_control_total_privacy",
       "relation": "contains",
       "_origin": "ast",
@@ -304177,7 +304177,7 @@
     },
     {
       "source": "readme_textvn_b\u1ed9_g\u00f5_ti\u1ebfng_vi\u1ec7t_th\u1ebf_h\u1ec7_m\u1edbi_cho_windows_macos_v\u00e0_linux",
-      "target": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "target": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -304187,7 +304187,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_4_tr\u1ee3_l\u00fd_ng\u1eef_ph\u00e1p_c\u00e2u_t\u1eeb_ng\u1eef_c\u1ea3nh_on_device",
       "relation": "contains",
       "_origin": "ast",
@@ -304198,7 +304198,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_5_ti\u1ec7n_\u00edch_chuy\u1ec3n_m\u00e3_v\u0103n_ph\u00f2ng_\u0111\u1ed9t_ph\u00e1_p5",
       "relation": "contains",
       "_origin": "ast",
@@ -304209,7 +304209,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_6_ki\u1ebfn_tr\u00fac_h\u1ec7_th\u1ed1ng_\u0111i\u1ec1u_khi\u1ec3n_ri\u00eang_t\u01b0_tuy\u1ec7t_\u0111\u1ed1i",
       "relation": "contains",
       "_origin": "ast",
@@ -304220,7 +304220,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_1_c\u00f4ng_th\u00e1i_h\u1ecdc_dream_rsi_ki\u1ec3m_chu\u1ea9n_hi\u1ec7u_n\u0103ng_p10_g19",
       "relation": "contains",
       "_origin": "ast",
@@ -304231,7 +304231,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_2_m\u00f4_h\u00ecnh_d\u1ef1_\u0111o\u00e1n_ng\u1eef_c\u1ea3nh_p6_h\u1ed3_s\u01a1_phong_c\u00e1ch_p7_corpora_53_955_m\u1ee5c",
       "relation": "contains",
       "_origin": "ast",
@@ -304242,7 +304242,7 @@
       "weight": 1.0
     },
     {
-      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_80",
+      "source": "readme_t\u00ednh_n\u0103ng_\u0111\u1ea7y_\u0111\u1ee7_t\u00edch_lu\u1ef9_\u0111\u1ebfn_0_2_81",
       "target": "readme_3_ki\u1ec3u_g\u00f5_bi\u1ebfn_\u0111\u1ed5i_\u00e2m_v\u1ecb_h\u1ecdc_chu\u1ea9n_m\u1ef1c",
       "relation": "contains",
       "_origin": "ast",
@@ -352949,5 +352949,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "98ecdd6dc533405caa2455aa24ca8dd85df87e97"
+  "built_at_commit": "34a305fa5cb6526248a9ecc264ab89665a2d66e2"
 }

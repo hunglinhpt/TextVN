@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `98ecdd6d`
+- Built from commit: `34a305fa`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -1440,7 +1440,7 @@ Nodes (35): ImeError, ApplyError, cannotDelete, rejected, assistKindName(), UInt
 
 ### Community 232 - "verify"
 Cohesion: 0.12
-Nodes (28): [0.2.80] — 2026-11-18, Sửa lỗi / Fixed, Thay đổi / Changed, Thêm mới / Added, main(), find_cli(), main(), measure() (+20 more)
+Nodes (28): [0.2.81] — 2026-11-18, Sửa lỗi / Fixed, Thay đổi / Changed, Thêm mới / Added, main(), find_cli(), main(), measure() (+20 more)
 
 ### Community 233 - "Path"
 Cohesion: 0.19
@@ -2517,9 +2517,9 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `String` connect `String` to `ImeEngine`, `AXSnapshot`, `ViState`, `SettingsView`, `ConfigWatcher`, `EventTapController`, `.suggest`, `AppDelegate`, `CodingKeys`, `StrategyResolver`, `IpcServer`, `.register`, `IpcClient`, `TextVNInputController`, `Equatable`, `compose.c`, `RoundTwoMacAppTests`, `OwnerRule`, `IpcServerAssistTests`, `Foundation`, `MacroEntry`, `2. Nhật ký finding`, `AutostartManager`, `MarkedState`, `TextVNAppTests`, `KeyTranslator`?**
   _High betweenness centrality (0.096) - this node is a cross-community bridge._
 - **Why does `1. Danh sách lỗi (E-IDs)` connect `ImeEngine` to `.register`, `syllable_spelling.rs`, `engine.cpp`, `String`, `dual_mode_matrix.rs`, `cli/src/assist.rs`, `.suggest`?**
-  _High betweenness centrality (0.093) - this node is a cross-community bridge._
+  _High betweenness centrality (0.092) - this node is a cross-community bridge._
 - **Why does `VÒNG REVIEW AS-050 / AS-060 — 3 lượt (SA/QA → Audit → PO/UX) — 2026-10-21 (`R-1…R-14`)` connect `engine.cpp` to `ImeEngine`, `TextVNInputController`, `Option`, `P4 — REVIEW LOG (Phần 4: Trợ lý ngữ pháp — Assist)`, `compose.c`, `string`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**
