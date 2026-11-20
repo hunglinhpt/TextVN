@@ -272,6 +272,10 @@ pub struct Engine {
     bracket_word: Option<(Vec<char>, Vec<char>)>,
     /// Vừa học ứng viên: ranh giới Mode EN kế tiếp không học lại chính chữ đó.
     accepted_just_now: bool,
+    /// E50: từ vừa bị auto-restore theo rule mới. Nếu người dùng gõ tiếp theo style
+    /// Unikey, **skip rule Unikey** để phục vụ thói quen người dùng Unikey lâu năm.
+    /// Được đặt bởi `restore_raw()` và reset bởi `on_char()` khi bắt đầu word mới.
+    last_word_was_restored: bool,
 
     /// P10 — Dream RSI: counters đo hiệu quả prediction (vĩnh viễn theo
     /// engine instance; drain JSON xuất kèm StyleUpdate — không xóa).
@@ -485,6 +489,7 @@ impl Engine {
             em_dash_next: false,
             bracket_word: None,
             accepted_just_now: false,
+            last_word_was_restored: false,
             dream_rsi: DreamRsi::default(),
             rsi_reported: DreamRsi::default(),
             rsi_peeked: std::cell::Cell::new(DreamRsi::default()),
@@ -703,13 +708,13 @@ impl Engine {
 
     /// Trả từ đang mở về chuỗi gõ (`boundary` nếu có đi theo sau) — dùng chung cho Ctrl
     /// tap, Ctrl+Space và ranh giới từ (RESTORE = REPLACE, P0-4 §3).
-    /// E50: đánh dấu từ đã được restore để skip rule Unikey nếu người dùng gõ tiếp theo style Unikey.
+    /// E50: đánh dấu từ đã được auto-restore theo rule mới.
     fn restore_raw(&mut self, boundary: Option<char>) -> Outcome {
         let delete = self.word.owned as u16;
         let mut insert = self.restore_source();
         insert.extend(boundary);
         // E50: đánh dấu từ đã được auto-restore theo rule mới
-        self.word.restored = true;
+        self.last_word_was_restored = true;
         self.word.clear();
         // Document nhận đúng chuỗi gõ (không encode) → glyph = Unicode.
         self.record(Tail::Replace {
@@ -1661,6 +1666,12 @@ impl Engine {
             return Outcome::pass();
         }
 
+        // E50: bắt đầu từ mới — reset cờ "từ vừa restore" (chỉ có hiệu lực
+        // cho từ đầu tiên sau restore; gõ tiếp word mới sẽ không bị ảnh hưởng).
+        if self.word.is_empty() {
+            self.last_word_was_restored = false;
+        }
+
         // Auto-capitalize (P0-3 §1.1): chỉ áp cho **chữ đầu từ** ở đầu câu — sau `. ! ?` +
         // khoảng trắng hoặc Enter (R2-59: `google.com`, `3.5 kg` không phải đầu câu).
         // Nếu người dùng đã tự gõ chữ hoa (`cap == c`, ví dụ `. TextVN`), giữ nguyên
@@ -1993,10 +2004,15 @@ impl Engine {
     /// không phải cái người dùng gõ — restore sẽ đưa phím lạ vào document
     /// (`"dduocj⌫j"` + Space cũ ra `"dduwowjj"`). Từ đã dựng lại thì giữ nguyên
     /// phần hiển thị trong document (close_word) — đúng cái người dùng đang thấy.
-    /// E50: từ đã từng được auto-restore (`restored` = true) → skip restore cho
-    /// các phím tiếp theo để phục vụ thói quen người dùng Unikey lâu năm.
+    /// E50: từ **vừa** được auto-restore theo rule mới (`last_word_was_restored` = true)
+    /// → **skip rule Unikey**: không restore thêm nếu người dùng gõ tiếp theo style
+    /// Unikey để phục vụ thói quen người dùng Unikey lâu năm.
     fn restorable(&self) -> bool {
-        if self.word.identifier || self.word.rebuilt || self.word.restored || !self.opts.auto_restore_english {
+        if self.word.identifier
+            || self.word.rebuilt
+            || self.last_word_was_restored
+            || !self.opts.auto_restore_english
+        {
             return false;
         }
         let raw = self.restore_source();
