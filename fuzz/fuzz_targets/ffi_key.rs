@@ -182,7 +182,7 @@ fuzz_target!(|data: &[u8]| {
         delete_count: 0,
         insert_len: 0,
         preedit_len: 0,
-        _reserved: 0,
+        cursor_left: 0,
         flags: 0,
         insert: [0; IME_MAX_TEXT],
         preedit: [0; IME_MAX_TEXT],
@@ -195,7 +195,6 @@ fuzz_target!(|data: &[u8]| {
         key_down: 1,
         is_repeat: 0,
         is_injected: 0,
-        _reserved: 0,
     };
     let mut doc_len = 0usize;
     let mut sent = 0usize;

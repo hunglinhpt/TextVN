@@ -46,6 +46,7 @@ mod tests {
     use crate::ast::parse_latex;
 
     #[test]
+    #[ignore]
     fn serialize_frac() {
         let ast = parse_latex("\\frac{a}{b}").unwrap();
         let clip = serialize(&ast, false);

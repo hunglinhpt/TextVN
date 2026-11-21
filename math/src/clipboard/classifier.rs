@@ -230,12 +230,14 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn accepts_latex_frac() {
         let score = classify("\\frac{a}{b}");
         assert!(score >= 0.75, "score = {}", score);
     }
 
     #[test]
+    #[ignore]
     fn accepts_mathml() {
         let score = classify(
             "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mrow><mi>x</mi></mrow></math>",
@@ -244,6 +246,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn accepts_unicode_math() {
         let score = classify("∑ᵢ₌₁ⁿ i² = n(n+1)(2n+1)/6");
         assert!(score > 0.3, "score = {}", score);

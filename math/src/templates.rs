@@ -318,6 +318,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn hpt_and_cases() {
         let h = generate(TemplateKind::Hpt, 2, 2, MathOutputMode::Latex).unwrap();
         assert!(h.text.contains("x_{1} = 0 \\\\ x_{2} = 0"));

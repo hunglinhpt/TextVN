@@ -553,7 +553,7 @@ pub extern "C" fn ime_set_context(inst: *mut ime_instance, ctx: *const ime_conte
     // P11: app_id (C string, bounded 128 char) — math auto-bypass + smart paste.
     let app_id = unsafe {
         let cstr = if ctx.app_id.is_null() {
-            CStr::from_bytes_with_nul(b" ").unwrap()
+            c""
         } else {
             CStr::from_ptr(ctx.app_id)
         };
