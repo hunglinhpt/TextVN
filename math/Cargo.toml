@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+[package]
+name = "textvn-math"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Universal Scientific, Engineering & Math Engine for TextVN"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

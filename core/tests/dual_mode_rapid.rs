@@ -515,6 +515,7 @@ fn suite_h_strategy_equivalence_matrix() {
             for hint in hints {
                 let ctx = Context {
                     enabled: true,
+                    app_id: String::new(),
                     secure: false,
                     field_role: IME_FIELD_BODY,
                     caps: 0,
@@ -909,6 +910,7 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                     field_role: IME_FIELD_BODY,
                     caps: 0,
                     hint: strat,
+                    app_id: String::new(),
                 };
                 docs.push(type_string_with_ctx(&opts, &keys, ctx));
                 checked += 1;
@@ -949,6 +951,7 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                 field_role: IME_FIELD_BODY,
                 caps: 0,
                 hint: IME_STRATEGY_PREEDIT,
+                app_id: String::new(),
             };
             let ctx_uni = Context {
                 enabled: true,
@@ -956,6 +959,7 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                 field_role: IME_FIELD_BODY,
                 caps: 0,
                 hint: IME_STRATEGY_FORWARD_AS_COMMIT,
+                app_id: String::new(),
             };
             let doc_pre = type_string_with_ctx(&opts, &keys, ctx_pre);
             let doc_uni = type_string_with_ctx(&opts, &keys, ctx_uni);
@@ -1024,6 +1028,7 @@ fn e48_sentence_start_and_dual_strategy_matrix_660() {
                         field_role: IME_FIELD_BODY,
                         caps: 0,
                         hint: strat,
+                        app_id: String::new(),
                     };
                     let got_mid = type_string_with_ctx(&opts, &mid_keys, ctx.clone());
                     assert_eq!(
@@ -1120,6 +1125,7 @@ fn e50_undo_repetition_and_texxtvn_matrix() {
                     field_role: IME_FIELD_BODY,
                     caps: 0,
                     hint: strat,
+                    app_id: String::new(),
                 };
                 let got = type_string_with_ctx(&opts, &keys, ctx);
                 assert_eq!(
@@ -1151,6 +1157,7 @@ fn e50_undo_repetition_and_texxtvn_matrix() {
                 field_role: IME_FIELD_BODY,
                 caps: 0,
                 hint: strat,
+                app_id: String::new(),
             };
             assert_eq!(
                 type_string_with_ctx(&opts, &keys, ctx),
@@ -1178,6 +1185,7 @@ fn e50_undo_repetition_and_texxtvn_matrix() {
                 field_role: IME_FIELD_BODY,
                 caps: 0,
                 hint: strat,
+                app_id: String::new(),
             };
             assert_eq!(
                 type_string_with_ctx(&opts, &keys, ctx),
@@ -1207,6 +1215,7 @@ fn e50_undo_repetition_and_texxtvn_matrix() {
                 field_role: IME_FIELD_BODY,
                 caps: 0,
                 hint: strat,
+                app_id: String::new(),
             };
             assert_eq!(
                 type_string_with_ctx(&opts, &keys, ctx),

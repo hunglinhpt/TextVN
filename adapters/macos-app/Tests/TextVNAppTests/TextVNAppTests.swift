@@ -37,6 +37,16 @@ final class TextVNAppTests: XCTestCase {
         XCTAssertTrue(config.style_profile.words.isEmpty)
         XCTAssertTrue(config.style_profile.corrections.isEmpty)
         XCTAssertEqual(config.style_profile.max_total_bytes, 16384)
+        // P11 (math): mặc định TẮT hoàn toàn — hành vi gõ cũ giữ nguyên 100%.
+        XCTAssertFalse(config.math.enabled, "math mặc định tắt")
+        XCTAssertFalse(config.math.sticky_math_mode)
+        XCTAssertEqual(config.math.output_mode, "Normal")
+        XCTAssertEqual(config.math.leader_key, "`")
+        XCTAssertFalse(config.math.altgr_enabled)
+        XCTAssertTrue(config.math.clipboard_smart_paste)
+        XCTAssertEqual(config.math.chord_timeout_ms, 1500)
+        XCTAssertEqual(config.math.hotkeys.count, 4)
+        XCTAssertEqual(config.math, MathSettings(), "math = default struct đầy đủ")
     }
 
     /// Lưu từ bảng cài đặt macOS không được xoá `emoji[]` hay đổi `when: vi_on` của

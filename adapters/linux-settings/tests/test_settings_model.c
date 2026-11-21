@@ -80,6 +80,9 @@ static void test_defaults_when_missing(tv_paths *p) {
     /* P7: tự học BẬT mặc định từ 0.2.74 (khớp schema/config), chưa học gì. */
     assert(s.style_profile_enabled);
     assert(s.style_words == 0 && s.style_corrections == 0 && s.rsi_rate_pct == 0);
+    /* P11: math opt-in — mac dinh TAT (khop schema + Config::default 3 OS). */
+    assert(!s.math_enabled && !s.math_sticky && !s.math_altgr);
+    assert(s.math_smart_paste); /* clipboard_smart_paste = true mac dinh */
 }
 
 /* 0.2.74: file cũ (≤ 0.2.73) ghi enabled:false khi chưa từng chọn vẫn tính là BẬT; bấm công tắt

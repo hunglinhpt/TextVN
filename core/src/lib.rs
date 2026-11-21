@@ -16,6 +16,8 @@ pub mod validate;
 
 use std::sync::Arc;
 
+use textvn_math::{MathAction as MathActionKind, MathConfig, MathEngine, MathOutputMode};
+
 pub use keymap::KeyEvent;
 pub use method::Method;
 pub use post::emoji::Emoji;
@@ -75,6 +77,9 @@ pub struct Outcome {
     /// Chuỗi hoàn chỉnh adapter phải hiển thị (không phải delta).
     pub preedit: Vec<char>,
     pub flags: u32,
+    /// Math (P11): số bước mũi tên trái adapter cần bơm sau khi áp hành động
+    /// (TSF SetSelection hoặc synthetic VK_LEFT). 0 = không đụng con trỏ.
+    pub cursor_left: u16,
 }
 
 impl Outcome {
@@ -83,7 +88,179 @@ impl Outcome {
             action: Action::Pass,
             preedit: Vec::new(),
             flags: 0,
+            cursor_left: 0,
         }
+    }
+}
+
+// ============================================================
+// P11 — Math Engine hook (logic thuần nằm ở textvn-math; core chỉ
+// nối pipeline: treo tiếng Việt trong math span, commit tail, Dream RSI).
+// ============================================================
+impl Engine {
+    /// Phím boundary cho math: mở rộng `lias` / `	emplate` / `=expr=`.
+    fn is_math_boundary(c: char) -> bool {
+        matches!(
+            c,
+            ' ' | '\n' | '\t' | ',' | '.' | ';' | ':' | '!' | '?' | ')' | ']' | '"' | '\'' | '='
+        )
+    }
+
+    /// Xử lý phím qua math khi `math.enabled`. `None` = math không quan tâm,
+    /// pipeline tiếng Việt chạy như cũ.
+    fn math_key(&mut self, k: &KeyEvent) -> Option<Outcome> {
+        let c = k.printable()?;
+        // AltGr = Ctrl+Alt + ký tự (Windows); còn lại chord hệ thống → bỏ qua.
+        let is_altgr = k.mods == (keymap::MOD_CTRL | keymap::MOD_ALT);
+        let plain = k.mods
+            & (keymap::MOD_CTRL | keymap::MOD_ALT | keymap::MOD_SUPER | keymap::MOD_META)
+            == 0;
+        if !plain && !(is_altgr && self.opts.math.altgr_enabled) {
+            return None;
+        }
+        // Ô secure/mật khẩu: math tắt hẳn (G8 — không đụng dữ liệu nhạy cảm).
+        if self.secure() {
+            return None;
+        }
+        let guard = textvn_math::AppGuard {
+            is_mathtype: self.math_profile.is_mathtype,
+            is_word_equation: self.math_profile.is_word_equation,
+            altgr_blocked: false,
+        };
+        let in_math_span = self.math.context_fsm.in_math();
+        // 	ext{...} → tiếng Việt chạy bình thường (spec §3.4).
+        if self.math.context_fsm.in_text_span() {
+            return None;
+        }
+        // G19: phím gõ chữ thật qua math path (leader/chord bị nuốt) vẫn đếm
+        // keys_typed — không phá bộ đếm Dream RSI.
+        self.dream_rsi.keys_typed = self.dream_rsi.keys_typed.saturating_add(1);
+
+        let sticky = self.opts.math.sticky_math_mode;
+        let math_active = sticky || in_math_span;
+
+        if math_active {
+            // 1. Chord/AltGr/word — context FSM được feed bên trong.
+            if let Some(action) = self.math.process_char(c, 0, &guard) {
+                return self.math_outcome(action, c);
+            }
+            // 2. Boundary → alias/template/eval.
+            if Self::is_math_boundary(c) {
+                let mode = self.math_effective_mode();
+                if let Some(action) = self.math.process_boundary(c, mode, &guard) {
+                    return self.math_outcome(action, c);
+                }
+            }
+        } else {
+            // Chưa active: chỉ theo dõi ngữ cảnh để phát hiện vào $...$/egin{...}.
+            self.math.feed_context(c);
+        }
+
+        // Trong math span (ngoài 	ext{}): treo tiếng Việt — phím đi thẳng.
+        if in_math_span && plain {
+            self.word.clear();
+            return Some(Outcome::pass());
+        }
+        // Sticky ON + word đang là lệnh `\...`: treo Telex/VNI cho tới boundary.
+        if sticky && self.math.word_is_command() {
+            return Some(Outcome::pass());
+        }
+        None
+    }
+
+    /// Mode kết xuất thực tế: AutoByApp → theo app profile hiện tại.
+    fn math_effective_mode(&self) -> MathOutputMode {
+        if self.opts.math.output_mode == MathOutputMode::AutoByApp {
+            textvn_math::app_bridge::resolve_output_mode(&self.math_profile)
+        } else {
+            self.opts.math.output_mode
+        }
+    }
+
+    /// Ghi Dream RSI (G19): accept mới; chars_saved = emit − đã-gõ.
+    /// keys_typed đã đếm ở math_key — công thức đúng spec Dream RSI.
+    fn dream_rsi_note(&mut self, text: &str, keys_consumed: usize) {
+        let saved = text.chars().count().saturating_sub(keys_consumed) as u64;
+        self.dream_rsi.accepts = self.dream_rsi.accepts.saturating_add(1);
+        self.dream_rsi.chars_saved = self.dream_rsi.chars_saved.saturating_add(saved);
+    }
+
+    /// MathAction → Outcome: commit tail (glyph+unicode), RSI, con trỏ trái.
+    fn math_outcome(&mut self, action: MathActionKind, boundary: char) -> Option<Outcome> {
+        match action {
+            MathActionKind::Consume => Some(Outcome {
+                action: Action::Pass,
+                preedit: Vec::new(),
+                flags: FLAG_CONSUMED,
+                cursor_left: 0,
+            }),
+            MathActionKind::Emit {
+                text,
+                cursor_left_steps,
+                ..
+            } => {
+                self.dream_rsi_note(&text, 2);
+                self.math_commit(text, cursor_left_steps, 0, boundary)
+            }
+            MathActionKind::ReplaceBuffer {
+                delete_chars,
+                text,
+                cursor_left_steps,
+            } => {
+                self.dream_rsi_note(&text, delete_chars + 1);
+                self.math_commit(text, cursor_left_steps, delete_chars as u16, boundary)
+            }
+            MathActionKind::PassThrough => None,
+        }
+    }
+
+    /// Commit text math: cap MAX_TEXT (vượt → pass nguyên phím, an toàn tuyệt
+    /// đối — template lớn đi đường clipboard Smart Paste), record tail 2 buffer.
+    fn math_commit(
+        &mut self,
+        mut text: String,
+        cursor_left_steps: usize,
+        delete_chars: u16,
+        boundary: char,
+    ) -> Option<Outcome> {
+        // Nối ký tự boundary: space sau alias không double; punct giữ lại.
+        if boundary == ' ' {
+            if !text.ends_with(' ') {
+                text.push(' ');
+            }
+        } else if boundary != '\n' && boundary != '\t' {
+            text.push(boundary);
+        }
+        let unicode: Vec<char> = text.chars().collect();
+        if unicode.is_empty() || unicode.len() > MAX_TEXT {
+            return None;
+        }
+        let glyph = self.emit(&unicode);
+        if glyph.len() > MAX_TEXT {
+            return None;
+        }
+        self.word.clear();
+        self.record(Tail::Replace {
+            delete: usize::from(delete_chars),
+            glyph: &glyph,
+            unicode: &unicode,
+        });
+        let action = if delete_chars > 0 {
+            Action::Replace {
+                delete_count: delete_chars,
+                insert: unicode,
+            }
+        } else {
+            Action::Commit {
+                insert: unicode,
+            }
+        };
+        Some(Outcome {
+            action,
+            preedit: Vec::new(),
+            flags: FLAG_WORD_END,
+            cursor_left: cursor_left_steps.min(usize::from(u16::MAX)) as u16,
+        })
     }
 }
 
@@ -134,6 +311,9 @@ pub struct EngineOptions {
     /// P7: master-switch HỌC (riêng với dùng-dữ-đã-config) — ffi gate theo
     /// `style_profile.enabled`. Mặc định false (G8).
     pub style_learning_enabled: bool,
+    /// P11 — cấu hình Math Engine (`config.math`). Mặc định TẮT: hành vi
+    /// gõ cũ giữ nguyên 100% khi user không bật.
+    pub math: MathConfig,
 }
 
 impl EngineOptions {
@@ -168,6 +348,7 @@ impl Default for EngineOptions {
             style_words: Vec::new(),
             style_corrections: Vec::new(),
             style_learning_enabled: false,
+            math: MathConfig::default(),
         }
     }
 }
@@ -181,6 +362,9 @@ pub struct Context {
     pub caps: u32,
     /// Strategy adapter gợi ý; -1 = engine tự resolve.
     pub hint: i64,
+    /// P11 — exe/window-class của app đang focus (math auto-bypass + smart paste).
+    /// Rỗng khi adapter không điền — math dùng profile unknown (Unicode).
+    pub app_id: String,
 }
 
 impl Default for Context {
@@ -191,6 +375,7 @@ impl Default for Context {
             field_role: 0,
             caps: 0,
             hint: -1,
+            app_id: String::new(),
         }
     }
 }
@@ -245,6 +430,10 @@ pub struct Engine {
     /// ký tự Unicode khi engine xoá `delete` glyph khỏi document.
     sentence_widths: Vec<u8>,
     /// Vòng lặp Tab dự đoán từ/cụm từ (P6 Text Prediction).
+    /// P11 — Math Engine (chord/alias/eval/bypass). Mọi logic thuần ở textvn-math.
+    math: MathEngine,
+    /// P11 — profile app hiện tại (set_context điền; resolve AutoByApp + guard).
+    math_profile: textvn_math::AppProfile,
     last_predict: Option<PredictCycle>,
     /// P7 (vòng 54): dữ liệu học CÁ NHÂN pending (chỉ khi USP bật) —
     /// từ gõ xong + cặp user chấp nhận. Drain qua FFI rồi XÓA (G8: chỉ từ +
@@ -479,6 +668,7 @@ enum Tail<'a> {
 
 impl Engine {
     pub fn new(opts: EngineOptions) -> Engine {
+        let math_config = opts.math.clone();
         Engine {
             opts: Arc::new(opts),
             style_pending: Arc::default(),
@@ -500,6 +690,8 @@ impl Engine {
             sentence_widths: Vec::new(),
             last_predict: None,
             ctrl_tap_armed: false,
+            math: MathEngine::new(math_config),
+            math_profile: textvn_math::AppProfile::unknown(),
         }
     }
 
@@ -729,6 +921,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         }
     }
 
@@ -839,6 +1032,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -981,6 +1175,10 @@ impl Engine {
         // (sanitize sort lúc parse) — recency chỉ sống trong phiên cũ ⇒ đếm
         // touch về 0 để predict bỏ recency boost cho tới khi có touch mới.
         self.style_touches = 0;
+        // P11: math config đổi mới reset FSM math (giữ nguyên nếu chỉ đổi option khác).
+        if self.opts.math != self.math.config {
+            self.math.set_config(self.opts.math.clone());
+        }
         self.word.clear();
         self.record(Tail::Clear);
     }
@@ -1059,6 +1257,15 @@ impl Engine {
     }
 
     pub fn set_context(&mut self, ctx: Context) {
+        // P11: app đổi → profile math mới + reset FSM (zero stuck-chord khi chuyển app).
+        if ctx.app_id != self.ctx.app_id {
+            self.math_profile = if ctx.app_id.is_empty() {
+                textvn_math::AppProfile::unknown()
+            } else {
+                textvn_math::app_bridge::resolve_app(&ctx.app_id)
+            };
+            self.math.reset_all();
+        }
         self.ctx = ctx;
     }
 
@@ -1077,6 +1284,7 @@ impl Engine {
         self.settle_predict(true);
         self.bracket_word = None;
         self.word.clear();
+        self.math.reset_all();
         self.record(Tail::Clear);
     }
 
@@ -1135,6 +1343,13 @@ impl Engine {
             glyph: &glyph,
             unicode: &unicode,
         });
+        // P11: dựng lại ngữ cảnh math từ đuôi document ($...$ / \text{...} —
+        // chỉ 256 ký tự cuối, bounded, zero-alloc FSM).
+        if self.opts.math.enabled {
+            let start = unicode.len().saturating_sub(256);
+            let tail: String = unicode[start..].iter().collect();
+            self.math.context_fsm.feed_text(&tail);
+        }
     }
 
     /// Ghi nhận thay đổi đuôi document vào **cả hai** buffer (`recent` glyph +
@@ -1407,6 +1622,7 @@ impl Engine {
                         action: Action::Pass,
                         preedit: Vec::new(),
                         flags: FLAG_WORD_END,
+                        cursor_left: 0,
                     };
                 }
             }
@@ -1414,6 +1630,7 @@ impl Engine {
                 action: Action::Pass,
                 preedit: self.preedit(),
                 flags: 0,
+                cursor_left: 0,
             };
         }
         self.em_dash_tentative = std::mem::take(&mut self.em_dash_next);
@@ -1433,6 +1650,14 @@ impl Engine {
             return Outcome::pass();
         }
         self.ctrl_tap_armed = false;
+        // P11 Math Engine — fast-path: `enabled == false` chỉ tốn 1 đọc bool
+        // (SLA <5 µs, 0 alloc). Hook đứng TRƯỚC kiểm `is_chord` để AltGr
+        // (Ctrl+Alt + ký tự) còn được math xử lý trước khi bị coi là chord hệ thống.
+        if self.opts.math.enabled {
+            if let Some(out) = self.math_key(k) {
+                return out;
+            }
+        }
         if k.is_chord() && !k.is_ctrl_space() {
             // Ctrl+V/Ctrl+Z/Ctrl+←/Ctrl+Backspace/Alt+Tab… đổi text hoặc vị trí con trỏ mà
             // engine không thấy: bỏ quyền sở hữu từ đang gõ (như phím điều hướng — B7) để
@@ -1546,6 +1771,7 @@ impl Engine {
             self.note_pass(k);
             return Outcome {
                 flags: if boundary { FLAG_WORD_END } else { 0 },
+                cursor_left: 0,
                 ..Outcome::pass()
             };
         }
@@ -1605,6 +1831,7 @@ impl Engine {
                     self.word.clear();
                     return Outcome {
                         flags: FLAG_WORD_END,
+                        cursor_left: 0,
                         ..Outcome::pass()
                     };
                 }
@@ -1753,6 +1980,7 @@ impl Engine {
                     },
                     preedit: out,
                     flags: FLAG_CONSUMED,
+                    cursor_left: 0,
                 };
             }
             // Chưa active: các ký tự trước đã PASS — chữ này pass tiếp.
@@ -1789,6 +2017,7 @@ impl Engine {
                     },
                     preedit: Vec::new(),
                     flags: FLAG_CONSUMED,
+                    cursor_left: 0,
                 };
             }
             self.record(Tail::Replace {
@@ -1828,6 +2057,7 @@ impl Engine {
             },
             preedit: out,
             flags: FLAG_CONSUMED,
+            cursor_left: 0,
         }
     }
 
@@ -1939,6 +2169,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -2039,6 +2270,7 @@ impl Engine {
                 },
                 preedit: Vec::new(),
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
+                cursor_left: 0,
             }
         };
         let tail = self.recent.as_slice();
@@ -2122,6 +2354,7 @@ impl Engine {
                 action: Action::Pass,
                 preedit: Vec::new(),
                 flags: FLAG_WORD_END,
+                cursor_left: 0,
             };
         }
         match strategy {
@@ -2130,12 +2363,14 @@ impl Engine {
                 action: Action::Commit { insert: vec![c] },
                 preedit: Vec::new(),
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
+                cursor_left: 0,
             },
             // Các strategy khác: từ đã nằm trong document → chỉ cho `c` đi qua.
             _ => Outcome {
                 action: Action::Pass,
                 preedit: Vec::new(),
                 flags: FLAG_WORD_END,
+                cursor_left: 0,
             },
         }
     }
@@ -2278,6 +2513,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -2342,6 +2578,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -2468,6 +2705,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -2662,6 +2900,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         })
     }
 
@@ -2680,6 +2919,7 @@ impl Engine {
                 action: Action::Commit { insert: Vec::new() },
                 preedit: Vec::new(),
                 flags: FLAG_CONSUMED | FLAG_WORD_END,
+                cursor_left: 0,
             };
         }
         let raw = self.restore_source();
@@ -2698,6 +2938,7 @@ impl Engine {
             },
             preedit: Vec::new(),
             flags: FLAG_CONSUMED | FLAG_WORD_END,
+            cursor_left: 0,
         }
     }
 
@@ -2729,6 +2970,7 @@ impl Engine {
                     },
                     preedit: Vec::new(),
                     flags: FLAG_CONSUMED,
+                    cursor_left: 0,
                 };
             }
             let out = self.emit(&target);
@@ -2768,6 +3010,7 @@ impl Engine {
                     },
                     preedit: Vec::new(),
                     flags: FLAG_CONSUMED | FLAG_WORD_END,
+                    cursor_left: 0,
                 };
             };
             // `target` (Unicode) là nguồn buffer câu; `out` (glyph) là thứ app nhận.
@@ -2789,6 +3032,7 @@ impl Engine {
                 },
                 preedit: out,
                 flags: FLAG_CONSUMED,
+                cursor_left: 0,
             };
         }
         // Chưa activate: bỏ 1 ký tự đã gõ thẳng. Đuôi text `recent` bớt theo nên viết hoa

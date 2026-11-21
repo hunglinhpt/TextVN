@@ -88,6 +88,12 @@ typedef struct tv_snapshot {
     uint32_t style_corrections;
     uint32_t rsi_rate_pct;
     uint32_t rsi_chars_saved;
+    /* P11 Math Engine (opt-in — math.enabled, mặc định TẮT như schema):
+     * parity 3 OS — panel Linux phải đọc được state math của người dùng. */
+    int math_enabled;
+    int math_sticky;
+    int math_altgr;
+    int math_smart_paste;
 } tv_snapshot;
 
 void tv_snapshot_load(tv_snapshot *s, const tv_paths *p);

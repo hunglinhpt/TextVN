@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 # Alias nội bộ — package vẫn đúng tên chuẩn `textvn-strategy` (00-INDEX §4)
 strategy = { package = "textvn-strategy", path = "../strategy" }
+# Math engine (P11) — thuần logic, cùng không-IO bất biến với core.
+textvn-math = { path = "../math" }
 
 
 [dev-dependencies]

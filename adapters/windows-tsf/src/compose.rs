@@ -391,6 +391,8 @@ pub struct EngineStep {
     pub delete_count: u16,
     pub insert: Vec<char>,
     pub flags: u32,
+    /// P11 math: số bước dịch con trỏ trái sau khi áp (0 = không đụng).
+    pub cursor_left: u16,
 }
 
 impl EngineStep {
@@ -400,6 +402,8 @@ impl EngineStep {
             delete_count: 0,
             insert: Vec::new(),
             flags: 0,
+            cursor_left: 0,
+            
         }
     }
 
@@ -413,6 +417,7 @@ impl EngineStep {
                 .filter_map(|&c| char::from_u32(c))
                 .collect(),
             flags: r.flags,
+            cursor_left: r.cursor_left,
         }
     }
 
@@ -433,6 +438,8 @@ pub struct CompositionPlan {
     pub end: bool,
     /// `true` = phím bị ăn; `false` = app nhận phím gốc (sau khi composition đã đóng).
     pub eaten: bool,
+    /// P11 math: số bước dịch con trỏ trái sau khi commit text (0 = bỏ qua).
+    pub cursor_left: u16,
 }
 
 impl CompositionPlan {
@@ -443,6 +450,7 @@ impl CompositionPlan {
             text: None,
             end: composing,
             eaten: false,
+            cursor_left: 0,
         }
     }
 }
@@ -462,6 +470,7 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     text: Some(text),
                     end: false,
                     eaten: true,
+                    cursor_left: 0,
                 }
             }
             // Ranh giới in được (Space, dấu câu, số) khi đang composing: ký tự ranh giới
@@ -477,6 +486,7 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     text: Some(text),
                     end: true,
                     eaten: true,
+                    cursor_left: 0,
                 }
             }
             // Engine đã bỏ 1 ký tự chưa biến đổi khỏi từ → bỏ khỏi composition.
@@ -489,6 +499,7 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                     text: Some(text),
                     end,
                     eaten: true,
+                    cursor_left: 0,
                 }
             }
             // Ranh giới / phím điều hướng / Ctrl+Space không khớp dự đoán: commit
@@ -529,6 +540,7 @@ pub fn plan_key(current: &[char], key: KeyKind, step: &EngineStep) -> Compositio
                 text: Some(text),
                 end,
                 eaten,
+                cursor_left: step.cursor_left,
             }
         }
         // Action lạ (ABI mới hơn adapter): an toàn nhất là commit và để phím đi thẳng.
@@ -925,6 +937,7 @@ mod tests {
             delete_count: 3,
             insert: vec!['x'],
             flags: 0,
+            cursor_left: 0,
         };
         let plan = plan_key(&['a', 'b'], KeyKind::Char('c'), &step);
         assert_eq!(plan, CompositionPlan::pass_through(true));
@@ -950,6 +963,7 @@ mod tests {
             delete_count: 4,
             insert: vec!['😀'],
             flags: IME_FLAG_WORD_END,
+            cursor_left: 0,
         };
         let plan = plan_key(&['a'], KeyKind::Tab, &step);
         assert_eq!(plan.delete_before, 3);
@@ -1090,36 +1104,42 @@ mod tests {
                 delete_count: 0,
                 insert: Vec::new(),
                 flags: WORD_END,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 1,
                 insert: vec!['đ'],
                 flags: 0,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 2,
                 insert: vec!['x'],
                 flags: 0,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_RESTORE,
                 delete_count: 1,
                 insert: vec!['a', 's', 'd', 'f'],
                 flags: WORD_END,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_COMMIT,
                 delete_count: 0,
                 insert: vec!['m'],
                 flags: WORD_END,
+                cursor_left: 0,
             },
             EngineStep {
                 action: 99,
                 delete_count: 3,
                 insert: vec!['?'],
                 flags: 0,
+                cursor_left: 0,
             },
         ];
         let currents: Vec<Vec<char>> = vec![Vec::new(), vec!['đ', 'ư'], vec!['a', 'b', 'c']];
@@ -1373,66 +1393,77 @@ mod tests {
                 delete_count: 0,
                 insert: vec!['q', 'z'],
                 flags: 0,
+                cursor_left: 0,
             }, // P9: PASS phải bỏ qua insert
             EngineStep {
                 action: ACTION_PASS,
                 delete_count: 0,
                 insert: Vec::new(),
                 flags: WORD_END,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 0,
                 insert: vec!['x'],
                 flags: 0,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 1,
                 insert: vec!['đ'],
                 flags: 0,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 2,
                 insert: vec!['ư', 'ơ'],
                 flags: 0,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_REPLACE,
                 delete_count: 9,
                 insert: vec!['x'],
                 flags: 0,
+                cursor_left: 0,
             }, // xoá vượt → delete_before
             EngineStep {
                 action: ACTION_RESTORE,
                 delete_count: 2,
                 insert: vec!['t', 'e', 'x', ' '],
                 flags: WORD_END,
+                cursor_left: 0,
             }, // ranh giới Space — commit cùng khối
             EngineStep {
                 action: ACTION_RESTORE,
                 delete_count: 2,
                 insert: vec!['d', 'd', 'u', 'o', 'c', 'j', '\n'],
                 flags: WORD_END,
+                cursor_left: 0,
             }, // ranh giới Enter — nhả phím native
             EngineStep {
                 action: ACTION_COMMIT,
                 delete_count: 0,
                 insert: vec!['m'],
                 flags: WORD_END,
+                cursor_left: 0,
             },
             EngineStep {
                 action: ACTION_COMMIT,
                 delete_count: 0,
                 insert: vec!['h', 'e', 'l', 'l', 'o', '\t'],
                 flags: WORD_END,
+                cursor_left: 0,
             }, // ranh giới Tab — nhả phím native
             EngineStep {
                 action: 99,
                 delete_count: 3,
                 insert: vec!['?'],
                 flags: 0,
+                cursor_left: 0,
             }, // action lạ — fail-open
         ];
         let mut checked = 0usize;

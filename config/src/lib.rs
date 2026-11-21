@@ -133,6 +133,11 @@ pub struct Config {
     /// (200 từ / 50 cặp / ≤16KB — `sanitize` chạy sau parse).
     #[serde(default)]
     pub style_profile: StyleProfileSettings,
+    /// P11 — Math Engine (`config.math`). Mặc định TẮT (hành vi gõ cũ giữ
+    /// nguyên 100%); reuse [`textvn_math::MathConfig`] — serde default đủ cho
+    /// config cũ không có section `math` (tương thích ngược P0-3).
+    #[serde(default)]
+    pub math: textvn_math::MathConfig,
 }
 
 /// Phần `"suggest"` của `config.v1.json` (P0-3 §1.1). Các trường khác trong
@@ -594,6 +599,7 @@ impl Default for Config {
             suggest: SuggestSettings::default(),
             assist: AssistSettings::default(),
             style_profile: StyleProfileSettings::default(),
+            math: textvn_math::MathConfig::default(),
         }
     }
 }
@@ -706,6 +712,7 @@ pub fn parse_config(json: &str) -> Result<Config, ConfigError> {
     }
     let mut cfg: Config = serde_json::from_str(json).map_err(|_| ConfigError::Schema)?;
     cfg.validate_assist()?;
+    cfg.validate_math()?;
     // USP (P7): prune im lặng — dữ liệu do máy ghi, mục hỏng không được chết
     // cả config (fail-open về default mất macros/english_words đang chạy).
     // Skip khi rỗng (99% config) — parse_config nằm đường hot baseline.
@@ -744,6 +751,16 @@ impl Config {
         }
         Ok(())
     }
+
+    /// Ràng buộc khối `math` (P11): leader 1 ký tự ASCII in được, timeout
+    /// trong dải, hotkey không đè phím bảo vệ, trigger tùy chỉnh hợp lệ.
+    /// Lỗi trả về chỉ là kind (S2 — không nội dung config).
+    pub fn validate_math(&self) -> Result<(), ConfigError> {
+        if self.math.validate().is_err() {
+            return Err(ConfigError::Schema);
+        }
+        Ok(())
+    }
 }
 
 /// JSON của config mặc định — dùng cho khởi tạo engine / `config init` (sau).
@@ -754,6 +771,44 @@ pub fn default_json() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn math_section_defaults_backward_compatible() {
+        // Config cũ KHÔNG có section math → parse được, math tắt (hành vi cũ).
+        let cfg = parse_config(r#"{"config_version":1}"#).unwrap();
+        assert!(!cfg.math.enabled);
+        assert_eq!(cfg.math.leader_key, '`');
+    }
+
+    #[test]
+    fn math_section_parses_and_validates() {
+        let cfg = parse_config(
+            r#"{"config_version":1,"math":{"enabled":true,"leader_key":"\\","output_mode":"Latex"}}"#,
+        )
+        .unwrap();
+        assert!(cfg.math.enabled);
+        assert_eq!(cfg.math.leader_key, '\\');
+        assert_eq!(cfg.math.output_mode, textvn_math::MathOutputMode::Latex);
+    }
+
+    #[test]
+    fn math_section_rejects_bad_leader() {
+        // leader 2 byte (é) → Schema lỗi
+        assert!(parse_config(
+            r#"{"config_version":1,"math":{"leader_key":"é"}}"#
+        )
+        .is_err());
+        // timeout ngoài dải → Schema lỗi
+        assert!(parse_config(
+            r#"{"config_version":1,"math":{"chord_timeout_ms":10}}"#
+        )
+        .is_err());
+        // hotkey đè Ctrl+V bảo vệ → Schema lỗi
+        assert!(parse_config(
+            r#"{"config_version":1,"math":{"hotkeys":[{"combo":"Ctrl+V","action":"smart_paste"}]}}"#
+        )
+        .is_err());
+    }
 
     /// Ví dụ đầy đủ P0-3 §1.2 — chứa hotkeys/macros/emoji/… (chưa định nghĩa vẫn phải parse được).
     const FULL_EXAMPLE: &str = r#"{

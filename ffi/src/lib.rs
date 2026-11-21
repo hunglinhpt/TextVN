@@ -130,7 +130,10 @@ pub struct ime_result_v1 {
     pub delete_count: u16,
     pub insert_len: u16,
     pub preedit_len: u16,
-    pub _reserved: u16,
+    /// P11 math: số bước mũi tên trái adapter cần dịch con trỏ sau khi áp
+    /// hành động (TSF SetSelection / synthetic VK_LEFT). 0 = không đụng con trỏ.
+    /// Dùng vị trí `_reserved` cũ — kích thước struct giữ nguyên 532 (P0-2 §6).
+    pub cursor_left: u16,
     pub flags: u32,
     pub insert: [u32; IME_MAX_TEXT],
     pub preedit: [u32; IME_MAX_TEXT],
@@ -401,6 +404,9 @@ fn options_from_config(cfg: &Config) -> EngineOptions {
             .collect(),
         // `config.english_words[]` — danh sách từ EN giữ nguyên (opt-in, xem core/post/restore_en.rs)
         english_words: cfg.english_words.clone(),
+        // P11 — Math Engine: reuse nguyên khối `math` của config (serde default
+        // đủ; MathConfig: Clone + PartialEq cho set_options so-sánh).
+        math: cfg.math.clone(),
         // P7 (vòng 54): User Style Profile — từ cá nhân (boost) + cặp sai→đúng
         // (suggestion-only). Rỗng khi `style_profile.enabled == false`.
         style_words: if cfg.style_profile.effective_enabled() {
@@ -544,12 +550,25 @@ pub extern "C" fn ime_set_context(inst: *mut ime_instance, ctx: *const ime_conte
         set_error(inst, "invalid field_role");
         return IME_ERR_INVALID_ARG;
     }
+    // P11: app_id (C string, bounded 128 char) — math auto-bypass + smart paste.
+    let app_id = unsafe {
+        let cstr = if ctx.app_id.is_null() {
+            CStr::from_bytes_with_nul(b" ").unwrap()
+        } else {
+            CStr::from_ptr(ctx.app_id)
+        };
+        cstr.to_string_lossy()
+            .chars()
+            .take(128)
+            .collect::<String>()
+    };
     let core_ctx = Context {
         enabled: ctx.enabled != 0,
         secure: ctx.secure != 0,
         field_role: ctx.field_role,
         caps: ctx.caps,
         hint: ctx.hint,
+        app_id,
     };
     match catch_unwind(AssertUnwindSafe(|| inst.engine.set_context(core_ctx))) {
         Ok(()) => IME_OK,
@@ -652,6 +671,7 @@ fn fill_result(result: &mut ime_result_v1, outcome: &Outcome) -> bool {
     result.insert_len = insert.len() as u16;
     result.preedit_len = preedit.len() as u16;
     result.flags = outcome.flags;
+    result.cursor_left = outcome.cursor_left;
     result.insert[..insert.len()].copy_from_slice(&insert);
     result.preedit[..preedit.len()].copy_from_slice(&preedit);
     true
@@ -1793,7 +1813,7 @@ mod tests {
         assert_eq!(offset_of!(ime_result_v1, delete_count), 8);
         assert_eq!(offset_of!(ime_result_v1, insert_len), 10);
         assert_eq!(offset_of!(ime_result_v1, preedit_len), 12);
-        assert_eq!(offset_of!(ime_result_v1, _reserved), 14);
+        assert_eq!(offset_of!(ime_result_v1, cursor_left), 14);
         assert_eq!(offset_of!(ime_result_v1, flags), 16);
         assert_eq!(offset_of!(ime_result_v1, insert), 20);
         assert_eq!(offset_of!(ime_result_v1, preedit), 20 + 64 * 4);
@@ -1889,6 +1909,7 @@ mod tests {
             },
             preedit: Vec::new(),
             flags: 0,
+            cursor_left: 0,
         };
         assert!(!fill_result(&mut r, &too_long));
         let fits = Outcome {
@@ -1898,6 +1919,7 @@ mod tests {
             },
             preedit: vec!['a'; IME_MAX_TEXT],
             flags: 0,
+            cursor_left: 0,
         };
         assert!(fill_result(&mut r, &fits));
         assert_eq!(usize::from(r.insert_len), IME_MAX_TEXT);

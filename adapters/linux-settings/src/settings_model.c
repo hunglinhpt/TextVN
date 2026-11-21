@@ -150,6 +150,11 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->style_corrections = get_u32(s, "style_profile.corrections_count", 0);
         out->rsi_rate_pct = get_u32(s, "style_profile.rsi_rate_pct", 0);
         out->rsi_chars_saved = get_u32(s, "style_profile.rsi.chars_saved", 0);
+        /* P11: math opt-in — thiếu khoá = TẮT (khớp schema + 3 OS). */
+        out->math_enabled = get_bool(s, "math.enabled", 0);
+        out->math_sticky = get_bool(s, "math.sticky_math_mode", 0);
+        out->math_altgr = get_bool(s, "math.altgr_enabled", 0);
+        out->math_smart_paste = get_bool(s, "math.clipboard_smart_paste", 1);
         out->config_was_corrupt = ime_settings_was_corrupt(s);
         ime_settings_free(s);
     } else {
@@ -164,6 +169,10 @@ void tv_snapshot_load(tv_snapshot *out, const tv_paths *p) {
         out->auto_capitalize = 1;
         out->suggest_enabled = 0;      /* dự đoán opt-in — TẮT mặc định */
         out->style_profile_enabled = 1; /* tự học BẬT mặc định (0.2.74) */
+        out->math_enabled = 0;         /* P11: math opt-in — TẮT mặc định */
+        out->math_sticky = 0;
+        out->math_altgr = 0;
+        out->math_smart_paste = 1;
     }
     out->vi_enabled = lc_state_read_enabled(p->state, 1);
 }

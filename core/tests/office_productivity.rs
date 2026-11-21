@@ -499,6 +499,7 @@ fn office_field_roles_and_strategy_resolution() {
             | strategy::IME_CAP_SELECTION
             | strategy::IME_CAP_FIELD_DETECT,
         hint: strategy::IME_STRATEGY_SELECTION_REPLACE,
+        app_id: String::new(),
         ..Default::default()
     });
     assert_eq!(e.strategy(), Strategy::SelectionReplace);
@@ -509,6 +510,7 @@ fn office_field_roles_and_strategy_resolution() {
         field_role: strategy::IME_FIELD_BODY,
         caps: strategy::IME_CAP_PREEDIT | strategy::IME_CAP_FIELD_DETECT,
         hint: strategy::IME_STRATEGY_PREEDIT,
+        app_id: String::new(),
         ..Default::default()
     });
     assert_eq!(e.strategy(), Strategy::Preedit);

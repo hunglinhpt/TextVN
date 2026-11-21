@@ -522,6 +522,7 @@ impl KeyEditSession {
                         text: Some(current.clone()),
                         end: true,
                         eaten: false,
+                        cursor_left: 0,
                     };
                     match apply_plan(&self.shared, &self.ctx, ec, &sel, comp, &plan) {
                         Ok(()) => {
@@ -2479,6 +2480,8 @@ fn apply_plan(
             if plan.end {
                 if let Some(c) = comp.take() {
                     if let Ok(range) = c.GetRange() {
+                        // P11 math: dịch con trỏ trái N ký tự (path TSF-Aware spec §3.2).
+                        shift_caret_left(ctx, ec, &range, plan.cursor_left);
                         set_caret_after(ctx, ec, &range);
                     }
                     let _ = c.EndComposition(ec);
@@ -2638,6 +2641,26 @@ fn tsf_caret_anchor(ctx: &ITfContext, ec: u32) -> Option<Anchor> {
 
 /// Đặt caret (selection rỗng) ngay sau `range`.
 #[cfg(windows)]
+/// P11 math — dịch con trỏ trái `steps` ký tự sau khi commit text math
+/// (con trỏ rơi vào placeholder đầu tiên của template `rac{}{}`).
+/// Path TSF-Aware: ShiftStart âm trên range caret rồi để set_caret_after
+/// đặt selection. Lỗi → bỏ qua lặng lẽ (không bao giờ hỏng document).
+pub(crate) fn shift_caret_left(_ctx: &ITfContext, ec: u32, range: &ITfRange, steps: u16) {
+    if steps == 0 {
+        return;
+    }
+    // SAFETY: gọi trong edit session với `ec` hợp lệ (cùng lưới set_caret_after).
+    unsafe {
+        let Ok(caret) = range.Clone() else { return };
+        if caret.Collapse(ec, TF_ANCHOR_END).is_err() {
+            return;
+        }
+        let n = -(i32::from(steps.min(16)));
+        let mut shifted: i32 = 0;
+        let _ = caret.ShiftStart(ec, n, &mut shifted, std::ptr::null());
+    }
+}
+
 pub(crate) fn set_caret_after(ctx: &ITfContext, ec: u32, range: &ITfRange) {
     // SAFETY: gọi trong edit session; ManuallyDrop được giải phóng thủ công bên dưới.
     unsafe {

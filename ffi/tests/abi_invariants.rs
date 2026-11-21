@@ -49,7 +49,7 @@ fn new_result() -> ime_result_v1 {
         delete_count: 0,
         insert_len: 0,
         preedit_len: 0,
-        _reserved: 0,
+        cursor_left: 0,
         flags: 0,
         insert: [0; IME_MAX_TEXT],
         preedit: [0; IME_MAX_TEXT],

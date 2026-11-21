@@ -144,6 +144,7 @@ version = "0.2.82"
 dependencies = [
  "serde",
  "serde_json",
+ "textvn-math",
 ]
 
 [[package]]
@@ -151,6 +152,7 @@ name = "textvn-core"
 version = "0.2.82"
 dependencies = [
  "serde_json",
+ "textvn-math",
  "textvn-strategy",
 ]
 
@@ -183,6 +185,14 @@ dependencies = [
 
 [[package]]
 name = "textvn-ipc"
+version = "0.2.82"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "textvn-math"
 version = "0.2.82"
 dependencies = [
  "serde",

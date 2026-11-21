@@ -8,3 +8,5 @@ license.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+# P11 — cấu hình Math Engine: reuse MathConfig của crate math (G15, không copy).
+textvn-math = { path = "../math" }
