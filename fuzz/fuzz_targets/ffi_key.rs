@@ -195,6 +195,7 @@ fuzz_target!(|data: &[u8]| {
         key_down: 1,
         is_repeat: 0,
         is_injected: 0,
+        _reserved: 0,
     };
     let mut doc_len = 0usize;
     let mut sent = 0usize;
