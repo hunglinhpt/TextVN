@@ -557,10 +557,7 @@ pub extern "C" fn ime_set_context(inst: *mut ime_instance, ctx: *const ime_conte
         } else {
             CStr::from_ptr(ctx.app_id)
         };
-        cstr.to_string_lossy()
-            .chars()
-            .take(128)
-            .collect::<String>()
+        cstr.to_string_lossy().chars().take(128).collect::<String>()
     };
     let core_ctx = Context {
         enabled: ctx.enabled != 0,

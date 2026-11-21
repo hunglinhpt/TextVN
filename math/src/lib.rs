@@ -1,23 +1,25 @@
+#![allow(warnings)]
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! TextVN Math Engine — Universal Scientific, Engineering & Math Engine
 
+pub mod app_bridge;
+pub mod ast;
+pub mod chords;
+pub mod clipboard;
 pub mod config;
 pub mod context;
-pub mod chords;
-pub mod lexicon;
-pub mod templates;
-pub mod ast;
 pub mod converter;
 pub mod eval;
-pub mod clipboard;
-pub mod app_bridge;
+pub mod lexicon;
+pub mod templates;
 
-pub use app_bridge::{AppProfile, AppFormatKind, resolve_output_mode};
-pub use config::{MathConfig, MathOutputMode, MathAction, Discipline, HudHint};
-pub use chords::{ChordFsm, ChordState, AppGuard};
+pub use app_bridge::{resolve_output_mode, AppFormatKind, AppProfile};
+pub use chords::{AppGuard, ChordFsm, ChordState};
+pub use config::{Discipline, HudHint, MathAction, MathConfig, MathOutputMode};
 pub use context::{MathContextFsm, SpanKind};
 
 /// Public facade orchestrator
+#[derive(Clone)]
 pub struct MathEngine {
     pub config: MathConfig,
     pub chord_fsm: ChordFsm,
@@ -43,7 +45,12 @@ impl MathEngine {
     }
 
     /// Process a boundary character (space, enter, etc.)
-    pub fn process_boundary(&mut self, c: char, mode: MathOutputMode, guard: &AppGuard) -> Option<MathAction> {
+    pub fn process_boundary(
+        &mut self,
+        c: char,
+        mode: MathOutputMode,
+        guard: &AppGuard,
+    ) -> Option<MathAction> {
         // Check for inline eval (= expr =)
         // Stub: return None for now
         let _ = (c, mode, guard);

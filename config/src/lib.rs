@@ -794,15 +794,9 @@ mod tests {
     #[test]
     fn math_section_rejects_bad_leader() {
         // leader 2 byte (é) → Schema lỗi
-        assert!(parse_config(
-            r#"{"config_version":1,"math":{"leader_key":"é"}}"#
-        )
-        .is_err());
+        assert!(parse_config(r#"{"config_version":1,"math":{"leader_key":"é"}}"#).is_err());
         // timeout ngoài dải → Schema lỗi
-        assert!(parse_config(
-            r#"{"config_version":1,"math":{"chord_timeout_ms":10}}"#
-        )
-        .is_err());
+        assert!(parse_config(r#"{"config_version":1,"math":{"chord_timeout_ms":10}}"#).is_err());
         // hotkey đè Ctrl+V bảo vệ → Schema lỗi
         assert!(parse_config(
             r#"{"config_version":1,"math":{"hotkeys":[{"combo":"Ctrl+V","action":"smart_paste"}]}}"#

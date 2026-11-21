@@ -1,3 +1,4 @@
+#![allow(clippy::tabs_in_doc_comments)]
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! `textvn-core` — engine gõ tiếng Việt, thuần logic (P0-1 §2).
 //!
@@ -171,7 +172,10 @@ impl Engine {
     /// Mode kết xuất thực tế: AutoByApp → theo app profile hiện tại.
     fn math_effective_mode(&self) -> MathOutputMode {
         if self.opts.math.output_mode == MathOutputMode::AutoByApp {
-            textvn_math::app_bridge::resolve_output_mode(&self.math_profile)
+            textvn_math::app_bridge::resolve_output_mode(
+                &self.math_profile,
+                self.math.config.output_mode,
+            )
         } else {
             self.opts.math.output_mode
         }
@@ -251,9 +255,7 @@ impl Engine {
                 insert: unicode,
             }
         } else {
-            Action::Commit {
-                insert: unicode,
-            }
+            Action::Commit { insert: unicode }
         };
         Some(Outcome {
             action,
@@ -1262,7 +1264,7 @@ impl Engine {
             self.math_profile = if ctx.app_id.is_empty() {
                 textvn_math::AppProfile::unknown()
             } else {
-                textvn_math::app_bridge::resolve_app(&ctx.app_id)
+                textvn_math::app_bridge::AppProfile::new(&ctx.app_id, "", "")
             };
             self.math.reset_all();
         }

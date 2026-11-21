@@ -230,9 +230,20 @@ pub enum AppFormatKind {
 pub struct AppProfile {
     pub format: AppFormatKind,
     pub name: String,
+    pub is_mathtype: bool,
+    pub is_word_equation: bool,
 }
 
 impl AppProfile {
+    pub fn unknown() -> Self {
+        Self {
+            format: AppFormatKind::Unicode,
+            name: String::new(),
+            is_mathtype: false,
+            is_word_equation: false,
+        }
+    }
+
     pub fn new(process_name: &str, window_class: &str, window_title: &str) -> Self {
         let cat = resolve_app(process_name, window_class, window_title);
         let format = match cat {
@@ -242,9 +253,12 @@ impl AppProfile {
             AppCategory::Terminal => AppFormatKind::Unicode,
             AppCategory::Unknown => AppFormatKind::Unicode,
         };
+        let is_mathtype = cat == AppCategory::OfficeEquation;
         Self {
             format,
             name: process_name.to_string(),
+            is_mathtype,
+            is_word_equation: is_mathtype,
         }
     }
 }
@@ -258,4 +272,14 @@ pub fn resolve_output_mode(profile: &AppProfile, current: MathOutputMode) -> Mat
         AppFormatKind::Typst => MathOutputMode::Typst,
     }
     .max(current)
+}
+
+/// Wrapper: resolve app with single app_id string
+pub fn resolve_app_by_id(app_id: &str) -> AppCategory {
+    resolve_app(app_id, "", "")
+}
+
+/// Wrapper: resolve output mode with just profile
+pub fn resolve_output_mode_simple(profile: &AppProfile) -> MathOutputMode {
+    resolve_output_mode(profile, MathOutputMode::Normal)
 }

@@ -54,7 +54,10 @@ impl MathContextFsm {
         if self.depth < MAX_STACK {
             self.stack[self.depth] = kind;
             self.depth += 1;
-            if matches!(kind, SpanKind::Math | SpanKind::InlineMath | SpanKind::BlockMath) {
+            if matches!(
+                kind,
+                SpanKind::Math | SpanKind::InlineMath | SpanKind::BlockMath
+            ) {
                 self.in_math = true;
             }
         }
@@ -103,12 +106,17 @@ impl MathContextFsm {
             return token[2..].chars().all(|c| c == '0' || c == '1');
         }
         let lower = token.to_ascii_lowercase();
-        for prefix in ["u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64", "i128", "f32", "f64", "usize", "isize"] {
+        for prefix in [
+            "u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64", "i128", "f32", "f64",
+            "usize", "isize",
+        ] {
             if lower == prefix {
                 return true;
             }
         }
-        if token.chars().all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
+        if token
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
             && token.contains('_')
             && token.chars().next().is_some_and(|c| c.is_ascii_uppercase())
         {

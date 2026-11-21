@@ -403,7 +403,6 @@ impl EngineStep {
             insert: Vec::new(),
             flags: 0,
             cursor_left: 0,
-            
         }
     }
 
