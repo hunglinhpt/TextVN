@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.83" date="2026-11-21">
+      <description>
+        <p>Universal Scientific, Engineering &amp; Math Engine (new textvn-math crate, 100% cross-platform core): multi-layer leader-key/dead-key chord FSM with deterministic priority chain and exact cursor repositioning; smart formula clipboard intelligence with bidirectional LaTeX ↔ Presentation MathML ↔ Clean Unicode ↔ Typst conversion, hard anti-false-positive classifier and OS privacy-marker honoring; 6-discipline scientific &amp; engineering lexicon with Vietnamese aliases; parametric templates (\matNxM, \hptN); safe inline evaluator; zero-corruption auto-bypass inside $...$, \text{...} and code tokens; per-app output resolution protecting MathType/Word native shortcuts. CI fixes: NUL-byte CStr literal in ffi, fuzz target field names, removed stray debug scripts.</p>
+      </description>
+    </release>
     <release version="0.2.82" date="2026-11-18">
       <description>
         <p>New English workplace phrase table with 11,165 rows across five business groups (upward reporting, downward management, tech and systems, business operations, everyday glue) plus Vietnamese-English code-switching contexts, wired into next-phrase prediction with last-byte bucketing that keeps lookups under one millisecond (total corpora now 53,955 entries, 30,171 phrase pairs). Personal learning upgrade: recently retyped words get a recency boost over stale high-count words, trigram (three-word) contexts are learned alongside bigrams, and idle-time consolidation prunes one-off noise entries and halves counts once they exceed 256 so new habits always surface. The Report Issue button now opens the real issue tracker (github.com/hunglinhpt/TextVN/issues) on all three platforms, matching the AppStream bugtracker URL.</p>

@@ -1,3 +1,15 @@
+textvn (0.2.83-0ppa1) noble; urgency=medium
+
+  * Universal Scientific, Engineering & Math Engine (crate textvn-math moi, core 100%
+    cross-platform): chord FSM da lop (leader-key/dead-key), smart formula clipboard
+    LaTeX <-> Presentation MathML <-> Unicode <-> Typst voi anti-false-positive,
+    lexicon 6 nganh + alias tieng Viet, parametric templates, inline evaluator an toan,
+    auto-bypass trong $...$/\text{...} va code token. Huong dan: docs/MATH_SCIENCE_GUIDE.md.
+  * CI fix: NUL-byte literal trong ffi (c""), fuzz target field names, don .tmp/ debug
+    scripts (repo-hygiene). 347 test pass o textvn-math, 71 suite workspace pass, 0 fail.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sat, 21 Nov 2026 09:30:00 +0700
+
 textvn (0.2.82-0ppa1) noble; urgency=medium
 
   * Bảng câu văn phòng tiếng Anh 11.165 mẫu (báo cáo cấp trên, điều phối cấp

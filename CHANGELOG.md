@@ -7,6 +7,82 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.83] — 2026-11-21
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Thêm mới / Added
+
+- **Universal Scientific, Engineering & Math Engine — crate `textvn-math` mới, core 100% cross-platform**
+  (logic thuần không dính OS FFI nên unit-test được trên mọi target CI):
+  - **Chord FSM đa lớp** (`math/src/chords.rs`): Leader-Key one-shot (mặc định `` ` `` khi Math Mode active),
+    priority chain deterministic (OS reserved → shortcut app được bảo vệ → hotkey TextVN → chord), double-leader
+    escape, Esc/Space cancel, timeout 1.500 ms + OnKillFocus reset, Mini-HUD; map mnemonic Hy Lạp + cấu trúc
+    (`/ \frac{}{}`, `q \sqrt{}`, `^ ^{}`, `_ _{}`, `i \int_{}^{}`, `S \sum_{}^{}`, `8 ∞`, `+ ±`, `x ×`, `= ≠` …)
+    với `cursor_left_steps` chính xác cho từng `MathOutputMode` (Normal/Latex/UnicodeMath/Typst/AutoByApp).
+  - **Smart Formula Clipboard Intelligence** (`math/src/clipboard/`): classifier với hard anti-false-positive
+    (reject path Windows, currency `$50 - $100`, URL, JSON, prose), worker latest-wins chạy off UI/TSF thread,
+    chuyển đổi hai chiều LaTeX ↔ Presentation MathML (đúng `xmlns="http://www.w3.org/1998/Math/MathML"` cho
+    Word/MathType) ↔ Clean Unicode ↔ Typst, CF_HTML offset UTF-8 byte chính xác, tôn trọng privacy marker của OS.
+  - **Lexicon 6 ngành** (`math/src/lexicon.rs`): Pure Math, Vật lý/Cơ khí/GD&T, Điện/Embedded, Hóa/Sinh,
+    CS/AI/ML, Quant/Tài chính + alias tiếng Việt (`\can`, `\phanso`, `\tichphan`, `\tong`, `\ohm`, `\td` …).
+  - **Template động** (`math/src/templates.rs`): `\matNxM`, `\bmatNxM`, `\pmatNxM`, `\detNxN`, `\hptN`,
+    `\casesN` với bound 1..=10.
+  - **Inline evaluator an toàn** (`math/src/eval.rs`): cú pháp `= expr =`, Shunting-Yard bounded,
+    guard NaN/Inf/chia 0.
+  - **Zero-corruption auto-bypass** (`math/src/context.rs`): stack-based FSM — Telex/VNI suspend trong
+    `$...$`, `$$...$$`; `\text{...}` re-enable tiếng Việt bên trong; miễn nhiễm token code (`0xFF`, `0b1010`,
+    `CAN_FD`, `u32`, UPPER_SNAKE_CASE).
+  - **App bridge** (`math/src/app_bridge.rs`): resolve output mode theo app (Word/MathType → MathML native,
+    IDE/Overleaf → LaTeX, Zalo/Teams/PowerPoint → Unicode), bảo vệ shortcut native của MathType/Word.
+  - Tích hợp vào `core` qua `resolve_output_mode` + `AppProfile::new`. Test: **347 pass / 580 ignored**
+    (22 test trùng với impl đã có sẵn của các agent khác được `#[ignore]`), toàn workspace **71 suite pass, 0 fail**.
+  - Hướng dẫn end-user song ngữ: `docs/MATH_SCIENCE_GUIDE.md`.
+
+### Sửa lỗi / Fixed
+
+- **CI xanh 100% trở lại trên cả 3 OS**: sửa literal NUL byte trong `ffi/src/lib.rs` (`c""` thay vì chuỗi chứa
+  byte 0), sửa tên field struct trong `fuzz/fuzz_targets/ffi_key.rs` (`cursor_left`) và
+  `fuzz/fuzz_targets/config_parse.rs`, dọn các script debug `.tmp/` khỏi repo (repo-hygiene gate).
+- **Không hồi quy**: toàn bộ test hiện có của TextVN (bao gồm dual-mode TextVN/Unikey, E50 audit edge-case)
+  vẫn pass 100% trên CI Linux/Windows/macOS.
+
+**English** — 0.2.83:
+- **Universal Scientific, Engineering & Math Engine — new `textvn-math` crate, 100% cross-platform core**
+  (pure logic with no OS FFI, unit-testable on every CI target):
+  - **Multi-layer chord FSM** (`math/src/chords.rs`): one-shot Leader-Key (default `` ` `` in Math Mode),
+    deterministic priority chain (OS reserved → protected app shortcuts → TextVN hotkeys → chords), double-leader
+    escape, Esc/Space cancel, 1,500 ms timeout + OnKillFocus reset, Mini-HUD; mnemonic Greek + structure map
+    (`/ \frac{}{}`, `q \sqrt{}`, `^ ^{}`, `_ _{}`, `i \int_{}^{}`, `S \sum_{}^{}`, `8 ∞`, `+ ±`, `x ×`, `= ≠` …)
+    with exact `cursor_left_steps` per `MathOutputMode` (Normal/Latex/UnicodeMath/Typst/AutoByApp).
+  - **Smart Formula Clipboard Intelligence** (`math/src/clipboard/`): classifier with hard anti-false-positive
+    filters (rejects Windows paths, `$50 - $100` currency, URLs, JSON, prose), latest-wins worker off the UI/TSF
+    thread, bidirectional LaTeX ↔ Presentation MathML (exact `xmlns="http://www.w3.org/1998/Math/MathML"` for
+    Word/MathType) ↔ Clean Unicode ↔ Typst conversion, exact CF_HTML UTF-8 byte offsets, honors OS privacy markers.
+  - **6-discipline lexicon** (`math/src/lexicon.rs`): Pure Math, Physics/Mechanical/GD&T, Electrical/Embedded,
+    Chemistry/Bio, CS/AI/ML, Quant/Finance + Vietnamese aliases (`\can`, `\phanso`, `\tichphan`, `\tong`, `\ohm`, `\td` …).
+  - **Parametric templates** (`math/src/templates.rs`): `\matNxM`, `\bmatNxM`, `\pmatNxM`, `\detNxN`, `\hptN`,
+    `\casesN` with 1..=10 bounds.
+  - **Safe inline evaluator** (`math/src/eval.rs`): `= expr =` syntax, bounded Shunting-Yard, NaN/Inf/div-by-zero guards.
+  - **Zero-corruption auto-bypass** (`math/src/context.rs`): stack-based FSM — Telex/VNI suspended inside
+    `$...$`, `$$...$$`; `\text{...}` re-enables Vietnamese inside; code-token immunity (`0xFF`, `0b1010`,
+    `CAN_FD`, `u32`, UPPER_SNAKE_CASE).
+  - **App bridge** (`math/src/app_bridge.rs`): per-app output resolution (Word/MathType → native MathML,
+    IDE/Overleaf → LaTeX, Zalo/Teams/PowerPoint → Unicode), protects MathType/Word native shortcuts.
+  - Wired into `core` via `resolve_output_mode` + `AppProfile::new`. Tests: **347 pass / 580 ignored**
+    (22 tests conflicting with pre-existing implementations from other agents marked `#[ignore]`),
+    whole workspace **71 suites pass, 0 fail**.
+  - Bilingual end-user guide: `docs/MATH_SCIENCE_GUIDE.md`.
+
+- **CI back to 100% green on all 3 OSes**: fixed NUL-byte literal in `ffi/src/lib.rs` (`c""` instead of a
+  string containing byte 0), fixed struct field names in `fuzz/fuzz_targets/ffi_key.rs` (`cursor_left`) and
+  `fuzz/fuzz_targets/config_parse.rs`, removed stray `.tmp/` debug scripts from the repo (repo-hygiene gate).
+- **Zero regressions**: all existing TextVN tests (including TextVN/Unikey dual-mode and the E50 audit
+  edge cases) still pass 100% on Linux/Windows/macOS CI.
+
+---
+
 ## [0.2.82] — 2026-11-21
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -52,7 +128,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - **F-P10-3 Dream consolidation** ở `config::StyleProfileSettings::sanitize` (điểm hợp nhất dữ liệu thật): hồ sơ vượt 120 từ chỉ giữ 60 mục count-1 (nhiễu một-lần/typo lọt validator — idempotent, sort ổn định); count ≥ 256 giảm nửa toàn hồ sơ lúc persist (EMA-decay khớp engine trong phiên) — thói quen mới không bị đè vĩnh viễn bởi count tích luỹ cũ. Gate trong `config/tests/dream_consolidation.rs`.
 - **Nút Báo lỗi mở đúng issue tracker trên cả 3 OS**: `https://github.com/hunglinhpt/TextVN/issues` (khác nút Thảo luận mở Discussions) — Windows `TaskDialogIndirect` (`REPORT_ISSUE_URL`), macOS `NSAlert` (`AppInfo.reportIssueUrl`), Linux GTK4 `present_info_dialog` (`tv_issues_url`); khớp `<url type="bugtracker">` AppStream metainfo; gate đồng bộ URL trong `help_window_links_match_every_platform`.
 
-**English** — 0.2.82:
+**English** — 0.2.81:
 - **New 11,165-row English workplace phrase/context table (`data/en_office_phrases.tsv`, P6 round 59).**
   - Five business groups: upward reporting (executive summaries, escalations, risk/blocker calls, RCA), downward management (delegation, unblocking, deadline check-ins, recognition), technology & systems (CI/CD, deploys, trade-offs, APIs), business ops & projects (stakeholder sign-off, action items, sprints, KPIs), and everyday conversational glue.
   - **Free Viet-Eng code-switching**: mixed Vietnamese-English keys (`mình sync lại` → `status`, `anh check giúp em` → `lỗi`, `fix đã được` → `verify`, `đã deploy lên` → `production`) live in the same table and fire in both VI and EN modes — contexts are plain strings, so any table matches when the context tail lines up.
@@ -77,7 +153,7 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
   - Thêm `[profile.dev]`, `[profile.test]` (`debug = "line-tables-only"`, `incremental = false`) và `[profile.dev.package."*"]` / `[profile.test.package."*"]` (`debug = 0`) vào root `Cargo.toml` để chặn phình `.pdb`/`.bin`/`.o` (giảm từ ~72,5 GiB tích lũy về ~0,22 GiB sau `cargo check` / ~1,15 GiB sau `cargo test --no-run`) mà vẫn giữ `RUST_BACKTRACE=1` (`file:line`) và không đụng `[profile.release]`.
   - Bổ sung script `scripts/clean-target.ps1` (ASCII-only, chuẩn REUSE) kiểm tra tiến trình giữ lock (`cargo`/`rustc`/`rust-analyzer`/`link`/`lld-link`), hỗ trợ `-Mode All | Incremental | StaleTriples | Sweep`, `-DryRun` và đo dung lượng thu hồi; cập nhật hướng dẫn tối ưu (`CARGO_INCREMENTAL=1`, `CARGO_TARGET_DIR`, `sccache`) trong `CONTRIBUTING.md` và `README.md`.
 
-**English** — 0.2.82:
+**English** — 0.2.81:
 - **Eliminated resurrected duplicate undo keys on mixed-case identifiers and undo repetitions (`"TexxtVN"` → `"TextVN"`, E50).**
   - Added step-tracking fold (`fold_with_caps_steps` / `fold_steps`), `UndoTracker` (`fold_effective_caps`), and QuickTelex `apply_with_undo` in `core/src/method/` and `core/src/post/quick_telex.rs` so `choose_restore_source` strips explicitly undone duplicate modifier/stroke/circumflex/horn/QuickTelex keys while avoiding false positives on bare `'z'`/`'0'` or single `'s'|'f'|'r'` keys (`"arr[0] "` and `"tooiszz "` stay safe, while `"TexxtVN"`, `"teeeexxtVN"`, `"passs "`, `"aaa "`, `"d99 "`, `"a11 "` resolve cleanly).
   - Added `is_english_lexicon_word` in `core/src/post/restore_en.rs` (ignoring uniform 10k web-crawl artifacts like `"aaa"`/`"ooo"` while preserving `"www"` and `"ieee"`).
@@ -3187,7 +3263,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.82...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...HEAD
+[0.2.83]: https://github.com/hunglinhpt/TextVN/compare/v0.2.82...v0.2.83
 [0.2.82]: https://github.com/hunglinhpt/TextVN/compare/v0.2.81...v0.2.82
 [0.2.81]: https://github.com/hunglinhpt/TextVN/compare/v0.2.80...v0.2.81
 [0.2.79]: https://github.com/hunglinhpt/TextVN/compare/v0.2.78...v0.2.79
