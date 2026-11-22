@@ -33,7 +33,7 @@
 | **Trích dẫn (citation)** | *Tatoeba contributors. Tatoeba — tập câu ví dụ tiếng Việt. <https://tatoeba.org/>. Xuất bản theo CC BY 2.0 FR.* |
 
 > **Ghi chú về tính tái lập:** export Tatoeba được làm mới hằng tuần ⇒ chạy lại
-> `tools/assist/gen_corpus_tatoeba.py` ở một ngày khác sẽ ra tập câu **không giống hệt**.
+> `cargo xtask assist-gen-vi-tatoeba` (E59, nguyên là script Python đã xoá) ở một ngày khác sẽ ra tập câu **không giống hệt**.
 > Bản dùng cho các số đo đã ghi trong repo là snapshot **2026-10-21**.
 
 ---
@@ -80,7 +80,7 @@ nêu rõ các thay đổi đã làm (§5) + không đặt thêm ràng buộc nà
 | `corpus/assist/vi_tatoeba_clean.ass` | 1.500 câu sạch (mọi dòng có tiền tố `~ `) | 1.500 | `LicenseRef-Tatoeba` |
 | `corpus/assist/vi_real_clean.ass` | 981 câu đã rà soát (976 dòng assert cứng + 5 dòng `~`) | 981 | `LicenseRef-Tatoeba` |
 | `corpus/assist/vi_real_errors.ass` | 49 câu có lỗi thật (28 dòng assert cứng + 21 dòng `~`) | 49 | `LicenseRef-Tatoeba` |
-| `corpus/assist/en_real_clean.ass` | 295 câu tiếng Anh sạch đã rà soát (đều assert cứng; sinh bởi `gen_corpus_en_tatoeba.py`, seed `20261023`, snapshot 2026-10-24) | 295 | `LicenseRef-Tatoeba` |
+| `corpus/assist/en_real_clean.ass` | 295 câu tiếng Anh sạch đã rà soát (đều assert cứng; sinh bởi `cargo xtask assist-gen-en-tatoeba`, seed `20261023`, snapshot 2026-10-24) | 295 | `LicenseRef-Tatoeba` |
 
 ⇒ **2.825 dòng dữ liệu** (có overlap giữa các file VI: cả 3 đều lấy từ cùng quần thể đã lọc).
 
@@ -130,7 +130,7 @@ SPDX-License-Identifier = "LicenseRef-Tatoeba"
 
 ## 5. Thay đổi đã làm với dữ liệu (CC BY yêu cầu phải nêu "đã sửa")
 
-1. **Lọc (filter)** — hàm `clean_sentence()` trong [`../../tools/assist/gen_corpus_tatoeba.py`](../../tools/assist/gen_corpus_tatoeba.py):
+1. **Lọc (filter)** — hàm `vi_clean_sentence()` trong [`../../xtask/src/assist_tools.rs`](../../xtask/src/assist_tools.rs) (E59):
    - bỏ khoảng trắng đầu/cuối câu;
    - giữ câu dài **25–200 ký tự**;
    - bỏ câu chứa `http`, `<`, `>`, `|`;
@@ -138,7 +138,7 @@ SPDX-License-Identifier = "LicenseRef-Tatoeba"
    - giữ câu có **≥ 35 % chữ cái có dấu** tiếng Việt (loại câu không phải tiếng Việt);
    - bỏ **trùng lặp** (so sánh nguyên văn), giữ nguyên thứ tự gốc.
    ⇒ Quần thể sau lọc: **5.092 câu**; file `vi_tatoeba_clean.ass` lấy **1.500 câu đầu**.
-2. **Chọn mẫu** — [`../../tools/assist/build_real_corpus.py`](../../tools/assist/build_real_corpus.py):
+2. **Chọn mẫu** — `cargo xtask assist-build-candidates` (module [`../../xtask/src/assist_tools.rs`](../../xtask/src/assist_tools.rs), E59):
    mẫu ngẫu nhiên **đều 1.000/5.092 câu**, seed cố định `20261021`, sắp xếp lại ⇒ tái lập 100 %.
    Từ mẫu này tách ra **tập lỗi** (49 câu) và **tập sạch** (981 câu).
 3. **Gán nhãn (tay, KHÔNG theo output engine)**:
@@ -154,7 +154,7 @@ SPDX-License-Identifier = "LicenseRef-Tatoeba"
    - `vi_real_errors.ass` — 49 câu có lỗi thật.
 5. **KHÔNG sửa nội dung câu**: không sửa chính tả, không thêm/bớt dấu câu, không dịch.
    Chỉ thêm tiền tố `~ ` và cột nhãn ⇒ **văn bản câu giữ nguyên** so với Tatoeba.
-6. **Pipeline EN (2026-10-24)** — [`../../tools/assist/gen_corpus_en_tatoeba.py`](../../tools/assist/gen_corpus_en_tatoeba.py):
+6. **Pipeline EN (2026-10-24)** — `cargo xtask assist-gen-en-tatoeba` (module [`../../xtask/src/assist_tools.rs`](../../xtask/src/assist_tools.rs), E59):
    lọc 20–120 ký tự, bỏ URL/ký tự đặc biệt/dấu nháy kép/viết tắt gây bẫy tách câu (a.m./U.S./Mr.)/
    "i" viết thường rời rạc/lỗi cơ học (khoảng trắng, dấu câu, lặp từ ngoài whitelist `that/had/very`);
    quần thể sau lọc **234.292 câu**; chọn mẫu ngẫu nhiên seed `20261023` (300 → bỏ 5 câu sau rà soát tay
@@ -170,8 +170,8 @@ và không nhúng vào sản phẩm:
 
 | Mục đích | Công cụ | Tài liệu kết quả |
 |---|---|---|
-| Đo **FPR** (false-positive rate) của bộ luật trên **văn bản thật** | `tools/assist/score_real.py` · `cargo run -p textvn-cli -- assist score --corpus corpus/assist` | [`../50-assist/P4-8-QUALITY-BASELINE.md`](../50-assist/P4-8-QUALITY-BASELINE.md) §2.3 |
-| Đo **recall** trên tập lỗi **có nhãn tay** + kiểm chứng tập nhãn | `tools/assist/build_real_corpus.py --verify` · `tools/assist/score_real.py --verify` | [`../50-assist/P4-12-RECALL-REAL.md`](../50-assist/P4-12-RECALL-REAL.md) |
+| Đo **FPR** (false-positive rate) của bộ luật trên **văn bản thật** | `cargo xtask assist-score` (E59) · `cargo run -p textvn-cli -- assist score --corpus corpus/assist` | [`../50-assist/P4-8-QUALITY-BASELINE.md`](../50-assist/P4-8-QUALITY-BASELINE.md) §2.3 |
+| Đo **recall** trên tập lỗi **có nhãn tay** + kiểm chứng tập nhãn | `cargo xtask assist-build-candidates --verify` · `cargo xtask assist-score --verify` (E59) | [`../50-assist/P4-12-RECALL-REAL.md`](../50-assist/P4-12-RECALL-REAL.md) |
 
 > Corpus này **không** dùng để huấn luyện bất kỳ mô hình nào (TextVN v1 không có mô hình học
 > từ corpus) và **không** được nhúng vào binary phát hành.
@@ -209,7 +209,7 @@ tham chiếu `corpus/`. ⇒ **Corpus chỉ nằm trong kho mã nguồn (git), kh
 | 1 | Thêm mục "Dữ liệu bên thứ ba" (bản attribution §1) vào **README** + **CHANGELOG** + `build-release-report.md` | CC BY yêu cầu attribution ở **nơi phát hành**; hiện repo mới chỉ có attribution ở tầng kỹ thuật | Checklist B4 trong [`../release/release-process.md`](../release/release-process.md) |
 | 2 | Nếu bao gồm corpus trong gói ⇒ làm mục 3 ở §7 | Bắt buộc theo CC BY | Khi có quyết định đóng gói corpus |
 | 3 | Tra tên tác giả theo `id câu` nếu phát hành lại **từng câu riêng lẻ** | Export không chứa tên tác giả | Khi có quyết định phát hành lại từng câu |
-| 4 | Ghi nhận "sửa" cụ thể trong từng lần tái sinh corpus (ngày + seed) | Export đổi hằng tuần | Mỗi lần chạy `gen_corpus_tatoeba.py` |
+| 4 | Ghi nhận "sửa" cụ thể trong từng lần tái sinh corpus (ngày + seed) | Export đổi hằng tuần | Mỗi lần chạy `cargo xtask assist-gen-vi-tatoeba` |
 
 ---
 
@@ -222,6 +222,4 @@ tham chiếu `corpus/`. ⇒ **Corpus chỉ nằm trong kho mã nguồn (git), kh
 | [`naming-check.md`](naming-check.md) | Báo cáo compliance khác (tên/namespace) |
 | [`../50-assist/P4-12-RECALL-REAL.md`](../50-assist/P4-12-RECALL-REAL.md) §2.1 | Nguồn + cách lấy mẫu + quy ước `~` |
 | [`../50-assist/P4-8-QUALITY-BASELINE.md`](../50-assist/P4-8-QUALITY-BASELINE.md) §2.3 | Kết quả đo FPR trên 1.500 câu Tatoeba |
-| [`../../tools/assist/gen_corpus_tatoeba.py`](../../tools/assist/gen_corpus_tatoeba.py) | Script sinh corpus VI (URL export + bộ lọc) |
-| [`../../tools/assist/gen_corpus_en_tatoeba.py`](../../tools/assist/gen_corpus_en_tatoeba.py) | Script sinh corpus EN (URL export + bộ lọc + seed + `EXCLUDE_IDS`) |
-| [`../../tools/assist/build_real_corpus.py`](../../tools/assist/build_real_corpus.py) | Script sinh tập có nhãn (seed `20261021`) |
+| [`../../xtask/src/assist_tools.rs`](../../xtask/src/assist_tools.rs) | Công cụ sinh corpus VI/EN `cargo xtask assist-gen-*-tatoeba` (URL export + bộ lọc + seed + `EXCLUDE_IDS` — E59 thay script Python) |

@@ -14,6 +14,7 @@
 //! crate `cbindgen` + nightly. Header hiện do người viết giữ tay và CI kiểm bằng
 //! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
+mod assist_tools;
 mod check_mac_targets;
 mod check_version_sync;
 mod gen_en_phrases;
@@ -94,6 +95,13 @@ fn main() -> ExitCode {
         "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
         "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
         "check-ibus-component" => linux_tools::check_ibus_component(&args[1..]),
+        // Port tools/assist/*.py (E59) — đo recall/FPR + sinh corpus assist.
+        "assist-kappa"
+        | "assist-score"
+        | "assist-tone-inject"
+        | "assist-build-candidates"
+        | "assist-gen-vi-tatoeba"
+        | "assist-gen-en-tatoeba" => assist_tools::cli(&args),
         "preflight" => preflight::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
@@ -128,6 +136,12 @@ fn usage() -> &'static str {
      cargo xtask ascii-ps1        # .ps1 ASCII-only (G7/A5)
      cargo xtask check-pe-imports <file...> # PE khong phu thuoc VC++ runtime (R2-18)
      cargo xtask verify-msix <file.msix> [flags] # luat Partner Center + payload (R2-09)
+     cargo xtask assist-kappa <a.tsv> <b.tsv>   # Cohen's kappa 2 nguoi gan nhan (E59)
+     cargo xtask assist-score [--verify] [--json] # recall/FPR corpus assist (E59)
+     cargo xtask assist-tone-inject             # loi tong hop do luat dau thanh (E59)
+     cargo xtask assist-build-candidates        # sinh ung vien corpus assist (E59)
+     cargo xtask assist-gen-vi-tatoeba          # sinh corpus VI tu Tatoeba (E59)
+     cargo xtask assist-gen-en-tatoeba          # sinh corpus EN tu Tatoeba (E59)
      cargo xtask preflight        # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
      cargo xtask help\n"
 }

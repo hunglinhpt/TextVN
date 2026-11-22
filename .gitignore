@@ -60,8 +60,5 @@ id_ed25519*
 *.rev
 
 
-# Cache du lieu tai ve (khong commit)
-tools/assist/.cache/
-
-# Ung vien corpus sinh boi tools/assist/build_real_corpus.py (can ra soat tay truoc)
-tools/assist/.out/
+# Cache du lieu tai ve + ung vien corpus (can ra soat tay truoc) — E59:
+# sinh boi `cargo xtask assist-build-candidates|assist-gen-*-tatoeba` vao target/assist-out/

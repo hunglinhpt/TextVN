@@ -365,7 +365,9 @@ dependencies = [
 name = "xtask"
 version = "0.2.85"
 dependencies = [
+ "textvn-assist",
  "textvn-core",
+ "textvn-dict",
 ]
 
 [[package]]

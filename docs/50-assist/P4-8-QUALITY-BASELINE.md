@@ -103,7 +103,7 @@ Ngoài câu mẫu tổng hợp, đã sinh corpus sạch từ **chính tài liệ
 
 ## 2.3 Vong 4 (2026-10-21) - do tren **1.500 cau that** (Tatoeba) -> 4 loi engine that
 
-**Nguon moi:** `tools/assist/gen_corpus_tatoeba.py` -> `corpus/assist/vi_tatoeba_clean.ass` (Tatoeba `vie_sentences.tsv.bz2`, license **CC BY 2.0 FR** -> attribution bat buoc). Loc: 25-200 ky tu · >=35% chu co dau · bo URL/HTML -> **1.500 cau**.
+**Nguon moi:** `cargo xtask assist-gen-vi-tatoeba` (E59 — thay script Python) -> `corpus/assist/vi_tatoeba_clean.ass` (Tatoeba `vie_sentences.tsv.bz2`, license **CC BY 2.0 FR** -> attribution bat buoc). Loc: 25-200 ky tu · >=35% chu co dau · bo URL/HTML -> **1.500 cau**.
 
 Tien to `~ ` = *cau sach **co the** chua loi that* (van ban nguoi that) -> test **khong** assert "khong loi" cho chung; `assist score` van tinh vao mau so FPR (Fassist-97).
 

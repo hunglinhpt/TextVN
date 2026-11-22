@@ -3,9 +3,11 @@
 - **Ngày:** 2026-10-21 · **Phần:** 4 — P4 · **Trạng thái:** đo lần đầu trên văn bản thật
 - **Câu hỏi:** trước P4-12 ta chỉ biết **FPR 0,8 %** trên 1.500 câu Tatoeba; **chưa biết recall** vì chưa có tập lỗi thật **có nhãn**. Doc này tạo tập đó, ghim engine, và đo.
 - **Cross-ref:** `P4-8-QUALITY-BASELINE.md` §2.3 (FPR 0,8 %) · `P4-0-MASTER-PLAN.md` §2 (D19) · `P4-1-harper-evaluation.md` §5 (bộ luật) · `P4-TASKS.md`
-- **Artifact:** `corpus/assist/vi_real_errors.ass` · `corpus/assist/vi_real_clean.ass` · `tools/assist/build_real_corpus.py` · `tools/assist/score_real.py`
+- **Artifact:** `corpus/assist/vi_real_errors.ass` · `corpus/assist/vi_real_clean.ass` · `cargo xtask assist-build-candidates` · `cargo xtask assist-score` (E59)
 
 ---
+
+> **E59 (2026-11-22):** các script `tools/assist/*.py` đã được port sang `cargo xtask assist-*` (module `xtask/src/assist_tools.rs`) và xoá khỏi repo. Lệnh dưới đây đã đổi tên tương ứng; số liệu đo cũ vẫn đúng vì cùng engine (`textvn-assist`) — bản port gọi engine **trong tiến trình** (bỏ hẳn rủi ro binary CLI cũ, Fassist-120).
 
 ## 1. Kết quả (số thật, chạy 2026-10-21)
 
@@ -52,7 +54,7 @@ Engine ghim: `target/debug/textvn-cli.exe` (xem §6 — **không** dùng binary 
 ### 2.1 Quần thể
 
 - Nguồn: **Tatoeba** `vie_sentences.tsv.bz2` (CC BY 2.0 FR — attribution bắt buộc; attribution thật nằm ở `docs/compliance/tatoeba-attribution.md` + `LICENSES/LicenseRef-Tatoeba.txt` + header của 3 file corpus Tatoeba).
-- Dùng **đúng bộ lọc** của `gen_corpus_tatoeba.py` (`clean_sentence`) ⇒ **5.092 câu** duy nhất (không phải 1.500 câu của `vi_tatoeba_clean.ass`: file đó chỉ lấy 1.500 câu đầu).
+- Dùng **đúng bộ lọc** của `assist-gen-vi-tatoeba` (`vi_clean_sentence` trong `xtask/src/assist_tools.rs`) ⇒ **5.092 câu** duy nhất (không phải 1.500 câu của `vi_tatoeba_clean.ass`: file đó chỉ lấy 1.500 câu đầu).
 - Vì sao mở rộng quần thể: 1.500 câu đầu chỉ có **25 câu bị engine gắn cờ** — không đủ để đo recall. Toàn bộ 5.092 câu cho **50 câu bị gắn cờ**.
 
 ### 2.2 Lấy mẫu
@@ -70,16 +72,16 @@ Với **từng câu**, tác giả đọc và quyết định:
 | Nhóm | Điều kiện | Cách ghi |
 |---|---|---|
 | `DETECTED` (28) | có lỗi objective **và** engine báo đúng loại | `<câu>\t<kind>` — test corpus **assert cứng** |
-| `MISSED` (21) | có lỗi objective **nhưng** engine không báo | `~ <câu>\t<kind>` — dòng **mềm**, test bỏ qua, `assist score`/`score_real.py` vẫn tính recall |
+| `MISSED` (21) | có lỗi objective **nhưng** engine không báo | `~ <câu>\t<kind>` — dòng **mềm**, test bỏ qua, `assist score`/`assist-score` vẫn tính recall |
 | `EXCLUDED` (3) | có lỗi nhưng quy ước tranh cãi / không chắc | không đưa vào file nào |
 | `OUT_OF_SCOPE` (5) | lỗi **ngoài** bộ luật (sai phụ âm, hoa/thường giữa từ…) | không đưa vào tập sạch |
 
 - **Không** gán nhãn máy móc theo engine: 21/49 câu lỗi là do đọc mà tìm ra, engine **không** báo.
-- Câu không chắc ⇒ **loại**, không đoán. Đã loại **3 câu** khỏi tập lỗi và **5 câu** khỏi tập sạch (danh sách trong `build_real_corpus.py`).
+- Câu không chắc ⇒ **loại**, không đoán. Đã loại **3 câu** khỏi tập lỗi và **5 câu** khỏi tập sạch (danh sách trong `assist-build-candidates` (E59)).
 
 ### 2.4 Kiểm chứng "bộ nhớ" bằng chính engine
 
-`python tools/assist/build_real_corpus.py --verify` đối chiếu **từng dòng** với engine:
+`cargo xtask assist-build-candidates --verify` đối chiếu **từng dòng** với engine:
 
 - 28 dòng `DETECTED`: output engine phải **đúng bằng** nhãn (cả thứ tự).
 - 21 dòng `MISSED`: engine phải **không** báo gì (nếu báo thì nhãn sai).
@@ -193,13 +195,13 @@ Tập lỗi **có chủ đích** chứa **toàn bộ** 28 câu engine bắt đư
 cargo build -p textvn-cli -j 2
 
 # 2. Sinh lại 2 corpus (tất định; --verify đối chiếu từng dòng với engine)
-python tools/assist/build_real_corpus.py --verify
+cargo xtask assist-build-candidates --verify
 #    errors: 49 cau (28 engine bat dung, 21 engine bo sot)
 #    clean : 981 cau (mau 1000/5092, loai 3 cau khong chac + 5 ngoai pham vi)
 #    verify: OK
 
 # 3. Đo recall theo loại + FPR
-python tools/assist/score_real.py
+cargo xtask assist-score
 ```
 
 Kết quả lần chạy (dán nguyên, script hiện tại):
@@ -227,13 +229,13 @@ Loai loi tren tap sach (nguon FPR):
 **Kiểm chứng tập nhãn (bộ nhớ):**
 
 ```text
-$ python tools/assist/score_real.py --verify
+$ cargo xtask assist-score --verify
 verify: OK
 ```
 
 `--verify` kiểm: dòng **cứng** trong file lỗi phải khớp **đúng** loại lỗi engine báo; dòng **cứng** trong file sạch phải **0 issue** ⇒ lệch ⇒ exit ≠ 0.
 
-**Bằng chứng tái lập:** chạy `python tools/assist/score_real.py` **2 lần** (cùng binary, cùng file) → output **byte-identical** (đã `Compare-Object`). Script không dùng randomness; corpus sinh bằng seed cố định.
+**Bằng chứng tái lập:** chạy `cargo xtask assist-score` **2 lần** (cùng binary, cùng file) → output **byte-identical** (đã `Compare-Object`). Script không dùng randomness; corpus sinh bằng seed cố định.
 
 > **Fassist-120 — 2 bẫy đo sai đã gặp (đừng lặp lại):**
 > 1. **Binary cũ.** `target/release/textvn-cli.exe` build 2026-10-20 vẫn tồn tại ⇒ nó báo `mãi mãi` là lỗi lặp từ (đã có whitelist từ Fassist-94) ⇒ đo ra FPR 0,6 % thay vì 0,5 % và `verify` FAIL giả. Script nay **ưu tiên binary `target/debug`** + **cảnh báo** nếu binary cũ hơn source (`assist/src`, `cli/src`).
@@ -259,7 +261,7 @@ diacritic_typo: 19/40 = 47.5%
 | **Fassist-112** | major | `duplicate_word` báo oan **12 câu** từ láy/tăng nghĩa ("mãi mãi", "năm năm", "nhẹ nhẹ", "tê tê", "đần đần", "ve ve", "đi đi", "có có") | Đề xuất: mở `INTENTIONAL_REPEATS` + whitelist từ láy; thêm ca vào `vi_real_clean.ass` (đã có `~`) |
 | **Fassist-113** | major | `sentence_repeat` báo oan **4/4 ca** khi lặp **đại từ** ở ranh giới câu; `diacritic_typo` báo oan "quyến rũ"/"gái điếm" do bảng TYPOS quá rộng | Đề xuất: loại đại từ khỏi L9; bỏ `quyến`, `điếm` khỏi TYPOS (đúng như Fassist-96 đã làm với "trường"/"yêu") |
 | **Fassist-114** | major | Giả định "300–600 câu lỗi trong 1.500 câu Tatoeba" **không đúng**: cả 5.092 câu chỉ có ~1,1 % lỗi objective; engine gắn cờ 50 câu (1,0 %) | Ghi nhận; muốn ≥ 300 lỗi phải có **nguồn khác** (văn bản người dùng thật, bài viết có lỗi) — xem §8 |
-| **Fassist-115** | minor | `assist score` coi câu sạch có `~` là "ứng viên", **không** tính FPR; còn `score_real.py` tính FPR ⇒ hai công cụ lệch nhau | Ghi nhận; `score_real.py` là công cụ đúng cho FPR văn bản thật (doc này), `assist score` giữ nguyên cho corpus tổng hợp |
+| **Fassist-115** | minor | `assist score` coi câu sạch có `~` là "ứng viên", **không** tính FPR; còn `assist-score` tính FPR ⇒ hai công cụ lệch nhau | Ghi nhận; `score_real.py` là công cụ đúng cho FPR văn bản thật (doc này), `assist score` giữ nguyên cho corpus tổng hợp |
 | **Fassist-116** | minor | Binary `release` cũ và `debug` mới cho kết quả khác nhau trên cùng câu (`mãi mãi`) | Ghi nhận; luôn `cargo build` trước khi đo và ghim `--cli`; không dùng binary cũ để so sánh |
 
 ---
@@ -278,7 +280,7 @@ Mục tiêu: thay "một agent gán nhãn" bằng **người thật, độc lậ
    - **FPR trên mẫu ngẫu nhiên đều** (đo có báo oan không).
    Không trộn hai tập, không suy recall từ tập có chủ đích.
 5. **Gate CI đề xuất:** recall ≥ 80 % trên tập lỗi (sau khi nối từ điển) · FPR ≤ 2 % trên mẫu đều · precision ≥ 70 % trên câu bị gắn cờ. Chỉ bật gate khi mỗi loại luật có **≥ 30 ca**.
-6. **Định kỳ:** mỗi bản phát hành chạy lại `score_real.py` + so với baseline này; ghi số vào `build-release-report.md`.
+6. **Định kỳ:** mỗi bản phát hành chạy lại `cargo xtask assist-score` + so với baseline này; ghi số vào `build-release-report.md`.
 
 ---
 
@@ -286,9 +288,9 @@ Mục tiêu: thay "một agent gán nhãn" bằng **người thật, độc lậ
 
 | ID | Task | Trạng thái |
 |---|---|---|
-| P4-12a | Nối `textvn-dict` (FST) vào `assist check`/`score` để đo `spelling` trên cùng 2 corpus | ✅ xong 2026-11-08 — `textvn-cli assist check --dic <file>` (lặp lại để hợp) + `score_real.py --dic`; số đo ở §12 |
+| P4-12a | Nối `textvn-dict` (FST) vào `assist check`/`score` để đo `spelling` trên cùng 2 corpus | ✅ xong 2026-11-08 — `textvn-cli assist check --dic <file>` (lặp lại để hợp) + `cargo xtask assist-score --dic`; số đo ở §12 |
 | P4-12b | Sửa FP `duplicate_word` (từ láy) + `sentence_repeat` (đại từ) + TYPOS "quyến/điếm" | ✅ xong — TYPOS/đại từ từ vòng 23 (§11, FPR 0 %); từ láy còn sót (`đi đi lại lại`, `tê tê`, `ve ve`, `đần đần`, `giàu có có thể`) sửa 2026-11-08, test `p4_12b_*` |
-| P4-12c | Tập độc lập 300 câu, 2 người gán nhãn, kappa | ⏸ **cần người** — công cụ `tools/assist/kappa.py` sẵn sàng (§12.3); việc gán nhãn độc lập không thể do agent tự làm |
+| P4-12c | Tập độc lập 300 câu, 2 người gán nhãn, kappa | ⏸ **cần người** — công cụ `cargo xtask assist-kappa` sẵn sàng (§12.3); việc gán nhãn độc lập không thể do agent tự làm |
 | P4-12d | Mở rộng quần thể sang văn bản dài/chat (không chỉ Tatoeba) | ⏸ **cần dữ liệu** — cần nguồn văn bản thật có giấy phép (chat/văn bản dài) do chủ repo cung cấp; không tự bịa |
 
 ---
@@ -322,7 +324,7 @@ bỏ sót** trên corpus thật đều là `diacritic_typo`.
    `khong_bao_ten_khong_dau` (bộ lọc chống FP cho tên riêng không dấu),
    `khong_doan_khi_hai_bien_the_deu_hop_le`, `bat_ca_cau_corpus_that_moi_nhat`.
 
-**Số đo trước/sau** (cùng 2 corpus, cùng máy, `python tools/assist/score_real.py`,
+**Số đo trước/sau** (cùng 2 corpus, cùng máy, `cargo xtask assist-score`,
 CLI debug rebuild **trước** khi đo — Fassist-120):
 
 | Chỉ số | Trước (baseline §2) | Sau (2026-10-23) | Gate D19 |
@@ -355,7 +357,7 @@ Chứng minh bằng probe 5/5 câu đúng đều bị bêu + auto-fix sai. Đồ
 sung 4 từ lặp hợp lệ còn sót ("năm năm trước", "ở đâu đâu", "chộp chộp,
 bum bum") và gate L0 nhận **chữ hoa có dấu** (câu all-caps).
 
-**Số đo sau vòng 23** (cùng 2 corpus, `python tools/assist/score_real.py`,
+**Số đo sau vòng 23** (cùng 2 corpus, `cargo xtask assist-score`,
 CLI rebuild trước khi đo):
 
 | Chỉ số | Trước (§10) | Sau vòng 23 | Ghi chú |
@@ -408,11 +410,11 @@ Bơm **893 lỗi dấu tổng hợp** (đổi/thêm một dấu thanh sao cho k�
 Sản phẩm hiện KHÔNG có crate nào phụ thuộc `textvn-dict` và Windows thường không có `vi-VN` của OS, nên
 `spelling` đang im lặng hoàn toàn. Đề xuất P4-13 (mục 5 trong `docs/release/BACKLOG-2026-11-08.md`):
 tra âm tiết theo **cả hai kiểu đặt dấu**, nguồn dữ liệu của repo (không dùng hunspell — ADR-014), ngưỡng
-FPR ≤ 0,5 % trên `vi_real_clean.ass`, đo lại bằng `score_real.py --dic`.
+FPR ≤ 0,5 % trên `vi_real_clean.ass`, đo lại bằng `cargo xtask assist-score --dic`.
 
 ### 12.4 Công cụ cho P4-12c
 
-`python tools/assist/kappa.py annotator_a.tsv annotator_b.tsv` — Cohen's kappa cho "câu có lỗi?" và từng
+`cargo xtask assist-kappa annotator_a.tsv annotator_b.tsv` — Cohen's kappa cho "câu có lỗi?" và từng
 loại lỗi + danh sách dòng bất đồng; `--self-test` kiểm công thức. Quy trình: hai người gán nhãn **độc lập,
 không xem output engine**, cùng thứ tự dòng; kappa ≥ 0,8 mới chốt làm tập đo.
 
@@ -434,7 +436,7 @@ provider OS (60) giữ nguyên hành vi. Nối vào cả 4 điểm FFI khi khôn
 | Recall 49 câu lỗi thật (§12.2 — không còn độc lập) | 83,7 % | 83,7 % (các câu lỗi đó không phải lỗi thanh) |
 | FPR 981 câu sạch (`vi_real_clean.ass`) | 0,0 % | **0,0 %** (khoá lạ im lặng; tốt hơn 0,4 % của phương án "từ điển đầy đủ") |
 | Báo nhầm trên văn xuôi tiếng Việt của chính repo (2.945 dòng docs/README/CHANGELOG) | — | 1 từ (`luột`) / 2.945 dòng = 0,03 % |
-| Lỗi dấu thanh tổng hợp (981 câu, seed 20261108, `tools/assist/tone_inject.py`) | 14/981 = **1,4 %** | 972/981 = **99,1 %** |
+| Lỗi dấu thanh tổng hợp (981 câu, seed 20261108, `cargo xtask assist-tone-inject`) | 14/981 = **1,4 %** | 972/981 = **99,1 %** |
 
 Lưu ý khi so với §12.3 (77,2 %): phép đo đó chọn **mọi** từ (kể cả khoá lạ, từ ngắn) và dùng từ điển đầy
 đủ; phép đo mới chỉ tính từ có khoá đã biết nên là **cận trên** của lỗi dấu thanh thật. Hai số không mâu thuẫn.
