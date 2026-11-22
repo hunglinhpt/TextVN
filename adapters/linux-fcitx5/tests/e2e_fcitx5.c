@@ -258,15 +258,36 @@ static void ctrl_set_current_im(const char *name) {
         dbus_message_unref(reply);
 }
 
-/* Property CurrentInputMethod (s) qua org.freedesktop.DBus.Properties.Get. */
+/* Property CurrentInputMethod (s) qua org.freedesktop.DBus.Properties.Get.
+ * Best-effort (E59 hotfix 5): một số chế độ chạy fcitx5 không export property
+ * Controller1 → KHÔNG die; verify IM đang active bằng chính kiểm Telex đầu
+ * tiên (check "telex dduocj+space") — đúng nghĩa e2e hơn property probe. */
 static char *ctrl_current_im(void) {
-    DBusMessage *reply = method_call(CTRL_PATH, PROPS_IFACE, "Get",
-                                     DBUS_TYPE_STRING, &(const char *){CTRL_IFACE},
-                                     DBUS_TYPE_STRING,
-                                     &(const char *){"CurrentInputMethod"},
-                                     DBUS_TYPE_INVALID);
+    const char *iface = CTRL_IFACE;
+    const char *prop = "CurrentInputMethod";
+    DBusError err;
+    dbus_error_init(&err);
+    DBusMessage *msg =
+        dbus_message_new_method_call(FCITX_NAME, CTRL_PATH, PROPS_IFACE, "Get");
+    if (!msg)
+        die("Get", "không tạo được method call (OOM?)");
+    DBusMessageIter args;
+    dbus_message_iter_init_append(msg, &args);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &iface);
+    dbus_message_iter_append_basic(&args, DBUS_TYPE_STRING, &prop);
+    DBusMessage *reply = dbus_connection_send_with_reply_and_block(
+        conn, msg, CALL_TIMEOUT_MS, &err);
+    dbus_message_unref(msg);
     static char cur[128];
     cur[0] = '\0';
+    if (dbus_error_is_set(&err)) {
+        fprintf(stderr, "e2e_fcitx5: CurrentInputMethod non-read (%s) — dựa kiểm Telex\n",
+                err.message);
+        dbus_error_free(&err);
+        return cur;
+    }
+    if (!reply)
+        return cur;
     DBusMessageIter iter;
     if (dbus_message_iter_init(reply, &iter) &&
         dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_VARIANT) {
@@ -275,7 +296,8 @@ static char *ctrl_current_im(void) {
         if (dbus_message_iter_get_arg_type(&var) == DBUS_TYPE_STRING) {
             const char *s = NULL;
             dbus_message_iter_get_basic(&var, &s);
-            snprintf(cur, sizeof cur, "%s", s ? s : "");
+            if (s)
+                snprintf(cur, sizeof cur, "%s", s);
         }
     }
     dbus_message_unref(reply);
@@ -548,9 +570,14 @@ int main(void) {
     ctrl_set_current_im("textvn");
     pump(0.3);
     const char *cur = ctrl_current_im();
-    if (strcmp(cur, "textvn") != 0) {
+    if (cur[0] != '\0' && strcmp(cur, "textvn") != 0) {
         fprintf(stderr, "e2e_fcitx5: không kích hoạt được IM textvn: %s\n", cur);
         return 1;
+    }
+    if (cur[0] == '\0') {
+        fprintf(stderr,
+                "e2e_fcitx5: property CurrentInputMethod không đọc được — "
+                "verify IM textvn bằng kiểm Telex ngay dưới đây\n");
     }
 
     /* ---- Telex cơ bản + preedit + Enter + Backspace ---- */
