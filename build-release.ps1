@@ -213,7 +213,7 @@ Write-Ok "Build release DONE"
 Write-Step "Check PE imports (khong phu thuoc VC++ runtime)"
 $PeFiles = @("$ReleaseDir\TextVN.exe", "$ReleaseDir\textvn-cli.exe", "$ReleaseDir\textvn_win_tsf.dll", "$ReleaseDir\textvn-tsf-x86.dll")
 if ($IncludeCompatibilityHook) { $PeFiles += "$ReleaseDir\textvn-hook.exe" }
-# E59: check-pe-imports la cong cu Rust (`cargo xtask`) — khong can Python.
+# E59: check-pe-imports is a Rust tool (`cargo xtask`) - no Python needed.
 cargo run -q --manifest-path "$PSScriptRoot\Cargo.toml" -p xtask -- check-pe-imports @PeFiles
 if ($LASTEXITCODE -ne 0) { Write-Fail "PE con phu thuoc VC++ runtime (xem tren)" }
 $ReleaseChecks["pe_static_crt"] = "passed"
