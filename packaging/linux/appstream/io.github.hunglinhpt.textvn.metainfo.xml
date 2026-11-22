@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.84" date="2026-11-22">
+      <description>
+        <p>Post-0.2.83 audit-fix loop: E55 Dream RSI keys_typed double-count on math pass-through fixed and math state fully reset when the Math &amp; Science toggle is switched OFF; E56 FCA — MathEngine now really expands lexicon aliases (\can), parametric templates (\matNxM, \hptN) and safe inline evaluator (=expr=) at word boundaries via a bounded word buffer; R2-162/R2-163 — removed unused crate dependencies, added math/** to the ci-macos path filter so macOS gates run on math-only commits; needless_bool expression rewrites for CI clippy rust-1.100. Verification: 73 workspace test suites pass 100%, clippy -D warnings clean with zero warnings on Linux, x86_64-pc-windows-msvc and Apple Darwin targets, cargo fmt clean, CI green on all workflows (ci-shared, ci-windows, ci-linux, ci-macos, repo-hygiene).</p>
+      </description>
+    </release>
     <release version="0.2.83" date="2026-11-21">
       <description>
         <p>Universal Scientific, Engineering &amp; Math Engine (new textvn-math crate, 100% cross-platform core): multi-layer leader-key/dead-key chord FSM with deterministic priority chain and exact cursor repositioning; smart formula clipboard intelligence with bidirectional LaTeX ↔ Presentation MathML ↔ Clean Unicode ↔ Typst conversion, hard anti-false-positive classifier and OS privacy-marker honoring; 6-discipline scientific &amp; engineering lexicon with Vietnamese aliases; parametric templates (\matNxM, \hptN); safe inline evaluator; zero-corruption auto-bypass inside $...$, \text{...} and code tokens; per-app output resolution protecting MathType/Word native shortcuts. CI fixes: NUL-byte CStr literal in ffi, fuzz target field names, removed stray debug scripts.</p>

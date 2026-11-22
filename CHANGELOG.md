@@ -7,6 +7,84 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.84] — 2026-11-22
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Sửa lỗi / Fixed
+
+- **E55 — Dream RSI `keys_typed` bị đếm 2 lần khi Math & Science bật mà phím pass-through**
+  (`core/src/lib.rs`): `math_key` tăng counter vô điều kiện ở đầu hàm, nhưng khi trả `None` pipeline
+  chính vẫn đếm tiếp. FCA: bọc `math_key_inner`, chỉ tăng counter khi math thực sự nhận phím (trả `Some`);
+  khi tắt Math & Science qua `set_options` (toggle ở UI/tray) gọi `math.reset_all()` để dọn sạch chord/HUD/context
+  và pass-through 100%. Test hồi quy: `core/tests/p11_math_toggle.rs`.
+- **E56 — `MathEngine::process_boundary`/`word_is_command` là stub nên alias/template/eval không bao giờ bung**
+  (`math/src/lib.rs`): facade thiếu word buffer. FCA: thêm `word_buf` (bounded 64) — `process_char`/`feed_context`
+  nuôi word, `process_boundary` bung alias (`\can` + space), template động (`\mat3x3`, `\hpt2`) qua
+  `chords::expand_lexicon_word` và inline eval (`=2+3=`) qua `eval`; `math_commit` không append lại dấu `=`
+  (fix lỗi `5=`). Test hồi quy: `math/tests/engine_boundary_fca.rs` (7 test) + `core/tests/p11_math_toggle.rs` (8 test).
+- **R2-162 — dọn dependency thừa gây ra warning manifest của cargo**: `textvn-math` chuyển `serde_json` sang
+  `[dev-dependencies]`; xoá `textvn-appdb`/`textvn-strategy` thừa khỏi `textvn-tray`; `textvn-ipc` chuyển vào
+  `[target.'cfg(windows)'.dependencies]` ở `textvn-win-hook`/`textvn-win-tsf`/`textvn-cli`. Quét sạch bằng
+  `cargo +nightly check --workspace --all-targets` trên cả 4 target (Linux, windows-msvc x64, darwin arm64/x64).
+- **R2-163 — vá lỗ hổng parity CI 3 nền tảng**: `ci-macos.yml` thiếu `math/**` trong path filter trong khi
+  `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`),
+  nên commit sửa math-only không chạy gate macOS. Đã thêm `"math/**"` vào cả `push` lẫn `pull_request`.
+- **CI clippy rust-1.100 báo `needless_bool`** ở `math/src/clipboard/classifier.rs`, `math/src/context.rs`,
+  `math/src/app_bridge.rs` — đổi `if guard { return bool; } <bool literal>` thành biểu thức bool thuần; xác minh
+  bằng clippy nightly 0.1.100 (tương đương CI) `-D warnings` sạch 0 warning trên Linux + `x86_64-pc-windows-msvc`.
+
+### Kiểm thử / Testing
+
+- Toàn workspace **73 test suite pass 100% (0 fail)**; `textvn-math` 347 pass + 7 FCA boundary pass.
+- `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean trên Linux,
+  cross-check `x86_64-pc-windows-msvc` và Apple Darwin targets; `cargo xtask check-version-sync` ok (15 chỗ = 0.2.84).
+- CI xanh 100% trên mọi workflow của commit phát hành: `ci-shared`, `ci-windows`, `ci-linux`, `ci-macos`,
+  `repo-hygiene` (xem `docs/release/build-release-report.md` mục 0.2.84).
+
+---
+
+**English** — 0.2.84:
+
+### Fixed
+
+- **E55 — Dream RSI `keys_typed` double-counted when Math & Science is ON and the key passes through**
+  (`core/src/lib.rs`): `math_key` bumped the counter unconditionally at entry, but when it returned `None`
+  the main pipeline counted again. FCA: wrapped `math_key_inner`, counting only when math actually consumed
+  the key (returned `Some`); switching Math & Science OFF via `set_options` (UI/tray toggle) now calls
+  `math.reset_all()` to clear chord/HUD/context state and guarantee 100% pass-through. Regression tests:
+  `core/tests/p11_math_toggle.rs`.
+- **E56 — `MathEngine::process_boundary`/`word_is_command` were stubs, so aliases/templates/eval never expanded**
+  (`math/src/lib.rs`): the facade had no word buffer. FCA: added a bounded `word_buf` (cap 64) —
+  `process_char`/`feed_context` feed the word, `process_boundary` expands aliases (`\can` + space),
+  parametric templates (`\mat3x3`, `\hpt2`) via `chords::expand_lexicon_word` and inline eval (`=2+3=`) via
+  `eval`; `math_commit` no longer re-appends the `=` boundary (fixes the `5=` bug). Regression tests:
+  `math/tests/engine_boundary_fca.rs` (7 tests) + `core/tests/p11_math_toggle.rs` (8 tests).
+- **R2-162 — cleaned unused dependencies causing cargo manifest warnings**: `serde_json` moved to
+  `[dev-dependencies]` in `textvn-math`; unused `textvn-appdb`/`textvn-strategy` removed from `textvn-tray`;
+  `textvn-ipc` moved into `[target.'cfg(windows)'.dependencies]` in `textvn-win-hook`/`textvn-win-tsf`/`textvn-cli`.
+  Verified clean with `cargo +nightly check --workspace --all-targets` on all 4 targets (Linux, windows-msvc x64,
+  darwin arm64/x64).
+- **R2-163 — closed a 3-platform CI parity gap**: `ci-macos.yml` was missing `math/**` in its path filter even
+  though `textvn-math` is a dependency of `textvn-core` and gets compiled into the macOS staticlib
+  (`ffi -> core -> math`), so math-only commits never ran the macOS gates. Added `"math/**"` to both `push`
+  and `pull_request` paths.
+- **CI clippy rust-1.100 flagged `needless_bool`** in `math/src/clipboard/classifier.rs`, `math/src/context.rs`,
+  `math/src/app_bridge.rs` — rewrote `if guard { return bool; } <bool literal>` as plain boolean expressions;
+  verified with clippy nightly 0.1.100 (CI-equivalent) `-D warnings` clean, zero warnings on Linux and
+  `x86_64-pc-windows-msvc`.
+
+### Testing
+
+- Whole workspace **73 test suites pass 100% (0 failures)**; `textvn-math` 347 pass + 7 boundary-FCA pass.
+- `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean on Linux,
+  cross-checked `x86_64-pc-windows-msvc` and Apple Darwin targets; `cargo xtask check-version-sync` ok (15 sites = 0.2.84).
+- CI 100% green on every workflow of the release commit: `ci-shared`, `ci-windows`, `ci-linux`, `ci-macos`,
+  `repo-hygiene` (see `docs/release/build-release-report.md`, section 0.2.84).
+
+---
+
 ## [0.2.83] — 2026-11-21
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3264,6 +3342,7 @@ git push origin v0.1.0
 ```
 
 [Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...HEAD
+[0.2.84]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...v0.2.84
 [0.2.83]: https://github.com/hunglinhpt/TextVN/compare/v0.2.82...v0.2.83
 [0.2.82]: https://github.com/hunglinhpt/TextVN/compare/v0.2.81...v0.2.82
 [0.2.81]: https://github.com/hunglinhpt/TextVN/compare/v0.2.80...v0.2.81

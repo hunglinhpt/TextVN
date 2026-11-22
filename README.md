@@ -48,7 +48,7 @@ Tiếng Việt · English (mục [English](#english) cuối trang)
 
 Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truyền thống (UniKey, EVKey, OpenKey):
 
-| Tiêu chí so sánh | TextVN (v0.2.83) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
+| Tiêu chí so sánh | TextVN (v0.2.84) | Bộ gõ truyền thống (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Cơ chế xử lý phím** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook ăn phím + `SendInput` xoá ngược |
 | **Lỗi mất chữ, lặp chữ (Chrome/Excel/Electron/Dual-Mode)** | **Triệt tiêu hoàn toàn** (composition nội tại không gạch chân; gắn cờ `INJECT_TAG` + `KeyOrigin` chặn vòng lặp phím giả, giữ nguyên `"TextVN"`) | Thường xuyên gặp khi gõ nhanh, gõ từ tiếng Anh hoa/thường lẫn dấu hoặc chuyển cửa sổ |
@@ -68,7 +68,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ---
 
-## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.83)
+## Tính Năng Đầy Đủ (Tích luỹ đến 0.2.84)
 
 ### 0. Universal Scientific, Engineering & Math Engine (mới ở 0.2.83 — crate `textvn-math`)
 - **Chord FSM đa lớp**: Leader-Key one-shot (`` ` `` khi Math Mode active), priority chain deterministic, double-leader escape, timeout/OnKillFocus reset, map mnemonic Hy Lạp + cấu trúc (`/ \frac{}{}`, `q \sqrt{}`, `i \int`, `S \sum`, `8 ∞` …) với `cursor_left_steps` chính xác cho từng output mode.
@@ -129,7 +129,7 @@ Bảng so sánh đối đầu trực tiếp giữa TextVN và các bộ gõ truy
 
 ## Tải và Cài Đặt
 
-Bản mới nhất: **[GitHub Release v0.2.83](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.83)** — **Universal Scientific, Engineering & Math Engine (crate `textvn-math` mới): chord FSM đa lớp (leader-key/dead-key), smart formula clipboard LaTeX↔Presentation MathML↔Unicode↔Typst với chống false-positive, lexicon 6 ngành khoa học/kỹ thuật + alias tiếng Việt, template động (`\matNxM`, `\hptN`), inline evaluator an toàn, auto-bypass zero-corruption trong `$...$`/`\text{...}` và code token** (release candidate do CI build và kiểm thử tự động: 347 test pass ở `textvn-math`, 71 suite workspace pass 100% trên cả 3 OS). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md). *Lưu ý: Windows chưa ký Authenticode (chờ SignPath Foundation duyệt) và macOS chưa notarization ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
+Bản mới nhất: **[GitHub Release v0.2.84](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.84)** — **Vòng audit-fix triệt để sau 0.2.83: E55 fix đếm đúp `keys_typed` (Dream RSI) khi Math & Science bật + pass-through và reset sạch state khi tắt toggle; E56 FCA cho `MathEngine` bung thật alias (`\can`), template động (`\mat3x3`) và inline eval (`=2+3=`) ở boundary; R2-162 dọn dependency thừa (0 warning manifest trên cả 4 target), R2-163 vá lỗ hổng parity CI macOS (thêm `math/**` vào path filter), needless_bool fix cho CI clippy rust-1.100** (release candidate do CI build và kiểm thử tự động: 73 suite workspace pass 100% (0 fail), clippy `-D warnings` sạch 0 warning trên Linux + windows-msvc + darwin, CI xanh 100% cả 5 workflow `ci-shared`/`ci-windows`/`ci-linux`/`ci-macos`/`repo-hygiene`). **Mọi file phát hành đều có chữ ký GPG (`.asc`) và Sigstore (`.cosign.sig` + `.cosign.cert`)**, file kiểm tra `SHA256SUMS.txt` được clearsign — hướng dẫn kiểm tra: [signing.md](docs/release/signing.md). *Lưu ý: Windows chưa ký Authenticode (chờ SignPath Foundation duyệt) và macOS chưa notarization ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Nền tảng | Cài đặt chính thức | Dùng ngay không cần cài đặt |
 |---|---|---|
@@ -151,6 +151,7 @@ Chi tiết đầy đủ lịch sử phát triển: [CHANGELOG.md](CHANGELOG.md).
 
 | Phiên bản | Điểm nhấn tính năng |
 |---|---|
+| [0.2.84](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.84) | **Audit-fix loop triệt để**: E55 (keys_typed double-count khi math pass-through + reset state khi toggle OFF), E56 (FCA bung alias/template/inline-eval ở boundary qua word_buf thật), R2-162 (dọn dep thừa, 0 warning manifest cả 4 target), R2-163 (vá parity gap ci-macos: thêm `math/**`), needless_bool cho CI clippy 1.100 · Test: 73 suite workspace pass 100%, clippy 0 warning Linux+windows-msvc+darwin, CI xanh cả 5 workflow |
 | [0.2.83](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.83) | **Universal Scientific, Engineering & Math Engine (crate `textvn-math`)**: chord FSM đa lớp, smart formula clipboard (LaTeX↔Presentation MathML↔Unicode↔Typst, chống false-positive, tôn trọng privacy marker), lexicon 6 ngành + alias Việt, template động, inline evaluator, auto-bypass `$...$`/`\text{...}`/code token · Test: 347 pass ở `textvn-math`, 71 suite workspace · Hướng dẫn: `docs/MATH_SCIENCE_GUIDE.md` |
 | [0.2.82](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.82) | **E50 audit hoàn chỉnh**: bổ sung 6 test edge-case kiểm chứng logic "sau auto-restore thì skip rule Unikey" không hồi quy (restore từ EN liên tiếp, gõ không space, từ Việt sau restore, Unikey `dd`→`đ`, không restore khi không cần) · File test: `core/tests/e50_audit_edge.rs` |
 | [0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81) | **Fix triệt để E50**: lỗi "đang định gõ đất → ra đata, space ra ddat / Task space ra Tassk" do cờ `restored` trong Word bị `clear()` xóa ngay — chuyển sang `Engine::last_word_was_restored`, skip rule Unikey sau auto-restore để phục vụ thói quen người dùng Unikey lâu năm · 4 regression test `e50_unikey_restore.rs` |
@@ -289,7 +290,7 @@ Tiếng Việt · English
 
 Direct head-to-head comparison between TextVN and legacy input engines (UniKey, EVKey, OpenKey):
 
-| Comparison Criteria | TextVN (v0.2.83) | Traditional IMEs (UniKey / EVKey / OpenKey) |
+| Comparison Criteria | TextVN (v0.2.84) | Traditional IMEs (UniKey / EVKey / OpenKey) |
 |---|---|---|
 | **Input Processing Engine** | In-process TSF (Windows), native IMK (macOS), IBus/Fcitx5 (Linux) | Global keyboard hook + `SendInput` backspace replay |
 | **Lost & Duplicated Letters (Chrome/Excel/Electron/Dual-Mode)** | **Completely eliminated** (clean composition, no underline; `INJECT_TAG` + `KeyOrigin` prevents synthetic loops and preserves `"TextVN"`) | Common occurrence during rapid typing, mixed-case English words, or window switching |
@@ -309,7 +310,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ---
 
-## Full Feature Set (Accumulated Through 0.2.83)
+## Full Feature Set (Accumulated Through 0.2.84)
 
 ### 0. Universal Scientific, Engineering & Math Engine (new in 0.2.83 — `textvn-math` crate)
 - **Multi-layer chord FSM**: one-shot Leader-Key (`` ` `` in Math Mode), deterministic priority chain, double-leader escape, timeout/OnKillFocus reset, mnemonic Greek + structure map (`/ \frac{}{}`, `q \sqrt{}`, `i \int`, `S \sum`, `8 ∞` …) with exact `cursor_left_steps` per output mode.
@@ -370,7 +371,7 @@ Direct head-to-head comparison between TextVN and legacy input engines (UniKey, 
 
 ## Download & Installation
 
-Latest release: **[GitHub Release v0.2.83](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.83)** — **Universal Scientific, Engineering & Math Engine (new `textvn-math` crate): multi-layer chord FSM (leader-key/dead-key), smart formula clipboard LaTeX↔Presentation MathML↔Unicode↔Typst with anti-false-positive classifier, 6-discipline scientific lexicon + Vietnamese aliases, parametric templates (`\matNxM`, `\hptN`), safe inline evaluator, zero-corruption auto-bypass inside `$...$`/`\text{...}` and code tokens** (release candidate built and tested automatically by CI: 347 tests pass in `textvn-math`, 71 workspace suites pass 100% on all 3 OSes). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md). *Note: Windows installers are not yet Authenticode-signed (awaiting SignPath Foundation approval) and macOS bundles are not yet notarized ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
+Latest release: **[GitHub Release v0.2.84](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.84)** — **Thorough post-0.2.83 audit-fix loop: E55 fixes double-counted `keys_typed` (Dream RSI) when Math & Science is ON and the key passes through plus a full state reset when the toggle is switched OFF; E56 FCA makes `MathEngine` really expand aliases (`\can`), parametric templates (`\mat3x3`) and inline eval (`=2+3=`) at word boundaries; R2-162 removes unused dependencies (0 manifest warnings on all 4 targets), R2-163 closes the macOS CI parity gap (adds `math/**` to the path filter), needless_bool fixes for CI clippy rust-1.100** (release candidate built and tested automatically by CI: 73 workspace suites pass 100% (0 fail), clippy `-D warnings` clean with 0 warnings on Linux + windows-msvc + darwin, CI 100% green on all 5 workflows `ci-shared`/`ci-windows`/`ci-linux`/`ci-macos`/`repo-hygiene`). **Every release artifact carries a GPG signature (`.asc`) and a Sigstore signature (`.cosign.sig` + `.cosign.cert`)**; `SHA256SUMS.txt` is clear-signed — verification guide: [signing.md](docs/release/signing.md). *Note: Windows installers are not yet Authenticode-signed (awaiting SignPath Foundation approval) and macOS bundles are not yet notarized ([signing-status-mac.md](docs/release/signing-status-mac.md)).*
 
 | Platform | Official Installer | Run Without Installing (Portable) |
 |---|---|---|
@@ -392,6 +393,7 @@ Full development history: [CHANGELOG.md](CHANGELOG.md).
 
 | Version | Key Highlights |
 |---|---|
+| [0.2.84](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.84) | **Thorough audit-fix loop**: E55 (keys_typed double-count on math pass-through + state reset when toggle OFF), E56 (FCA expanding aliases/templates/inline-eval at boundaries via a real word_buf), R2-162 (unused-dep cleanup, 0 manifest warnings on all 4 targets), R2-163 (close the ci-macos parity gap: add `math/**`), needless_bool for CI clippy 1.100 · Tests: 73 workspace suites pass 100%, clippy 0 warnings on Linux+windows-msvc+darwin, CI green on all 5 workflows |
 | [0.2.83](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.83) | **Universal Scientific, Engineering & Math Engine (`textvn-math` crate)**: multi-layer chord FSM, smart formula clipboard (LaTeX↔Presentation MathML↔Unicode↔Typst, anti-false-positive, honors privacy markers), 6-discipline lexicon + Vietnamese aliases, parametric templates, inline evaluator, auto-bypass in `$...$`/`\text{...}`/code tokens · Tests: 347 pass in `textvn-math`, 71 workspace suites · Guide: `docs/MATH_SCIENCE_GUIDE.md` |
 | [0.2.82](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.82) | **E50 audit complete**: adds 6 edge-case tests verifying "skip Unikey rule after auto-restore" has no regressions (consecutive EN restores, typing without space, Vietnamese after restore, Unikey `dd`→`đ`, no restore when unneeded) · Test file: `core/tests/e50_audit_edge.rs` |
 | [0.2.81](https://github.com/hunglinhpt/TextVN/releases/tag/v0.2.81) | **E50 fixed thoroughly**: the "typing đất → đata, space → ddat / Task space → Tassk" bug was caused by the `restored` flag in Word being cleared immediately by `clear()` — moved to `Engine::last_word_was_restored`, skip Unikey rule after auto-restore to preserve long-time Unikey user habits · 4 regression tests in `e50_unikey_restore.rs` |

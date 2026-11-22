@@ -1,3 +1,9 @@
+textvn (0.2.84-0ppa1) noble; urgency=medium
+
+  * Audit-fix loop sau 0.2.83: E55 (keys_typed dem 2 lan khi math bat + pass-through; reset math state khi toggle OFF), E56 (FCA: MathEngine process_boundary/word_is_command bung alias \can, template \matNxM va inline eval =expr= qua word_buf that), R2-162/R2-163 (don dep thua khoi cac crate, them math/** vao path filter ci-macos), needless_bool cho CI clippy rust-1.100. 73 test suite workspace pass 100%, clippy 0 warning tren Linux + windows-msvc + darwin.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 22 Nov 2026 14:00:00 +0700
+
 textvn (0.2.83-0ppa1) noble; urgency=medium
 
   * Universal Scientific, Engineering & Math Engine (crate textvn-math moi, core 100%
