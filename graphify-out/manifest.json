@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1795336426.5294564,
-    "seen": 1795336452.0358884,
-    "ast_hash": "2db038f9fbfb5c5b784986c3bd17ccba",
+    "mtime": 1795337317.7529352,
+    "seen": 1795337333.824373,
+    "ast_hash": "f55aa9b4c3e323736790a834a8101269",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -1956,9 +1956,9 @@
     "semantic_hash": ""
   },
   "docs/release/release-process.md": {
-    "mtime": 1795313934.0228324,
-    "seen": 1795314565.7932308,
-    "ast_hash": "4e6631e74a4c54048055a179da73685f",
+    "mtime": 1795337308.3362842,
+    "seen": 1795337333.8253534,
+    "ast_hash": "694167a0524edfffec44c072a9c33790",
     "semantic_hash": ""
   },
   "packaging/macos/icons/TextVN-1024.png": {
