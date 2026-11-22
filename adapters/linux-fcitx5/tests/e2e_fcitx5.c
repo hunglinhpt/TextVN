@@ -513,7 +513,7 @@ int main(void) {
         for (size_t i = 0; i < sizeof pairs / sizeof pairs[0]; i++) {
             DBusMessageIter entry;
             if (!dbus_message_iter_open_container(&arr, DBUS_TYPE_DICT_ENTRY,
-                                                  "ss", &entry))
+                                                  NULL, &entry))
                 die("CreateInputContext", "open entry");
             dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &pairs[i][0]);
             dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &pairs[i][1]);
