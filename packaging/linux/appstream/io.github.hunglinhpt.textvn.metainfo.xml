@@ -33,6 +33,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.85" date="2026-11-22">
+      <description>
+        <p>Rolling audit 0.2.79..HEAD over the Math Engine, fully closed. E57 — MathEngine word-buffer/boundary FCA: Backspace, caret movement and HOME/END now flush the math word buffer through the core math_key hook; the delete_chars off-by-one that ate one character before the word is fixed; =expr= words are recognized as commands so Vietnamese composition no longer sticks inside the inline calculator; boundary characters inside the eval span are preserved so =sin(0)= expands correctly; a failed eval closes the span immediately. E58 — 22 real bugs hidden behind #[ignore] tests are fixed and every ignored test is now un-ignored into the default CI gate (AST closing-brace parsing broke \frac{}{}, \sqrt{} and nested groups; evaluator pi/e constants, right-associative ^ and correct unary-minus semantics; clipboard classifier floors for whole-block LaTeX and closed MathML plus full Unicode sub/superscript ranges; lexicon deduplicated to 1504 entries with Vietnamese element aliases and SI prefix collision handling). Verification: 75 workspace test suites pass 100% with textvn-math at 927 tests and 0 ignored; cargo fmt and clippy -D warnings clean; CI 100% green on every workflow.</p>
+      </description>
+    </release>
     <release version="0.2.84" date="2026-11-22">
       <description>
         <p>Post-0.2.83 audit-fix loop: E55 Dream RSI keys_typed double-count on math pass-through fixed and math state fully reset when the Math &amp; Science toggle is switched OFF; E56 FCA — MathEngine now really expands lexicon aliases (\can), parametric templates (\matNxM, \hptN) and safe inline evaluator (=expr=) at word boundaries via a bounded word buffer; R2-162/R2-163 — removed unused crate dependencies, added math/** to the ci-macos path filter so macOS gates run on math-only commits; needless_bool expression rewrites for CI clippy rust-1.100. Verification: 73 workspace test suites pass 100%, clippy -D warnings clean with zero warnings on Linux, x86_64-pc-windows-msvc and Apple Darwin targets, cargo fmt clean, CI green on all workflows (ci-shared, ci-windows, ci-linux, ci-macos, repo-hygiene).</p>

@@ -7,6 +7,82 @@ và dự án này tuân thủ [Semantic Versioning](https://semver.org/spec/v2.0
 
 ---
 
+## [0.2.85] — 2026-11-22
+
+> Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
+> notarization (`docs/release/signing.md`).
+
+### Sửa lỗi / Fixed
+
+- **E57 — `MathEngine` word-buffer/boundary lệch trạng thái với phím điều hướng** (`math/src/lib.rs`,
+  `core/src/lib.rs`): core `math_key` chưa đồng bộ Backspace/caret — word buffer của math façade giữ chữ
+  sau khi người dùng xoá/di chuyển con trỏ, làm alias/template bung sai chỗ. FCA: thêm `process_backspace()`
+  (pop word_buf + reset chord FSM) và `caret_moved()` (clear word_buf), hook `math_key_inner` với
+  BACK/LEFT/RIGHT/UP/DOWN/DELETE/HOME/END; sửa off-by-one `delete_chars` ăn lấn 1 ký tự trước word;
+  `word_is_command()` công nhận cả word `=expr=` (Telex không còn "treo" trong inline evaluator);
+  giữ ký tự boundary trong eval span (`=sin(0)=` bung đúng, không còn mất `)`); eval thất bại chốt span
+  ngay lập tức. Test hồi quy: `math/tests/e57_word_sync_fca.rs` (7 test) + `core/tests/e57_math_sync.rs`
+  (5 test).
+- **E58 — 22 lỗi thật bị che bởi `#[ignore]`, phát hiện bằng `--include-ignored`** (audit cuốn chiếu
+  0.2.79..HEAD trên `textvn-math`): `ast.rs` nuốt `}` thành operator làm `\frac{}{}`/`\sqrt{}`/nested
+  group vỡ cấu trúc; `eval.rs` không hiểu `pi`/`e` là hằng số 0-đối-số, `^` chưa right-assoc (2^3^2),
+  unary minus sai precedence (−2^2); `classifier.rs` chặn oan LaTeX nguyên khối + MathML khép kín,
+  thiếu dải Unicode sub/superscript (U+1D62-1D6A, 2070-209F, 00B2/B3/B9); `lexicon.rs` entry trùng
+  "pi", xung đột 3 combo pico (`pm`/`pH`/`ps`) resolved bằng `SI_EXCLUDED`, alias nguyên tố dùng tên VI,
+  tổng 1504 entry sau dedup + thêm bảng EXTRA 150 entry. **FCA chống tái diễn: toàn bộ 560 test
+  `si_group!` macro (từng `#[ignore]`) đã un-ignored vào gate CI mặc định — `textvn-math` 927 test,
+  0 ignored, không còn test nào nằm ngoài gate.**
+- **R2-164**: ghi nhận heredoc qua bash làm bóc lớp backslash khi sinh docs (appstream/debian) → dùng
+  script file Python + `chr(92)`; đã có mục trong `docs/specs/project-common-errors.md`.
+
+### Kiểm thử / Testing
+
+- Toàn workspace **75 test suite pass 100% (0 fail)**; `textvn-math` 927 pass, 0 ignored (gate mặc định).
+- `cargo fmt --all --check` clean; `cargo clippy` stable + nightly 0.1.100 `-D warnings` sạch 0 warning
+  trên host, `x86_64-pc-windows-msvc` và darwin; `cargo xtask check-version-sync` ok (15 chỗ = 0.2.85).
+- CI xanh 100% trên mọi workflow của commit phát hành: `ci-shared`, `ci-windows`, `ci-linux`, `ci-macos`,
+  `repo-hygiene` (xem `docs/release/build-release-report.md` mục 0.2.85).
+
+---
+
+**English** — 0.2.85:
+
+### Fixed
+
+- **E57 — `MathEngine` word-buffer/boundary desync with navigation keys** (`math/src/lib.rs`,
+  `core/src/lib.rs`): the core `math_key` hook did not sync Backspace/caret movement, so the math façade
+  word buffer kept stale characters after the user deleted or moved the caret, expanding aliases/templates
+  at the wrong place. FCA: added `process_backspace()` (pop word_buf + reset chord FSM) and
+  `caret_moved()` (clear word_buf), hooked `math_key_inner` for BACK/LEFT/RIGHT/UP/DOWN/DELETE/HOME/END;
+  fixed the `delete_chars` off-by-one that ate one character before the word; `word_is_command()` now
+  recognizes `=expr=` words (Vietnamese composition no longer sticks inside the inline calculator);
+  boundary characters inside the eval span are preserved (`=sin(0)=` expands correctly); a failed eval
+  closes the span immediately. Regression tests: `math/tests/e57_word_sync_fca.rs` (7 tests) +
+  `core/tests/e57_math_sync.rs` (5 tests).
+- **E58 — 22 real bugs hidden behind `#[ignore]`, exposed via `--include-ignored`** (rolling audit
+  0.2.79..HEAD over `textvn-math`): `ast.rs` swallowed `}` as an operator, breaking `\frac{}{}`,
+  `\sqrt{}` and nested groups; `eval.rs` did not treat `pi`/`e` as zero-arg constants, `^` was not
+  right-associative (2^3^2) and unary minus had the wrong precedence (−2^2); `classifier.rs` wrongly
+  rejected whole-block LaTeX and closed MathML and missed Unicode sub/superscript ranges
+  (U+1D62-1D6A, 2070-209F, 00B2/B3/B9); `lexicon.rs` had a duplicate "pi" entry, conflicting pico
+  combos (`pm`/`pH`/`ps`) resolved via `SI_EXCLUDED`, element aliases switched to Vietnamese names,
+  1504 entries after dedup plus a 150-entry EXTRA table. **Recurrence-prevention FCA: all 560
+  `si_group!` macro tests (previously `#[ignore]`) are un-ignored into the default CI gate —
+  `textvn-math` at 927 tests, 0 ignored, no test left outside the gate.**
+- **R2-164**: recorded that piping Python through a bash heredoc strips backslash layers when generating
+  docs (appstream/debian) → switched to a Python script file + `chr(92)`; documented in
+  `docs/specs/project-common-errors.md`.
+
+### Testing
+
+- Whole workspace **75 test suites pass 100% (0 failures)**; `textvn-math` 927 pass, 0 ignored (default gate).
+- `cargo fmt --all --check` clean; `cargo clippy` stable + nightly 0.1.100 with `-D warnings` clean with
+  zero warnings on the host, `x86_64-pc-windows-msvc` and darwin; `cargo xtask check-version-sync` ok (15 sites = 0.2.85).
+- CI 100% green on every workflow of the release commit: `ci-shared`, `ci-windows`, `ci-linux`, `ci-macos`,
+  `repo-hygiene` (see `docs/release/build-release-report.md`, section 0.2.85).
+
+---
+
 ## [0.2.84] — 2026-11-22
 
 > Release candidate — mọi file đã ký GPG + Sigstore; Windows chưa có Authenticode, macOS chưa
@@ -3341,7 +3417,8 @@ git tag -a v0.1.0 -m "Release 0.1.0"
 git push origin v0.1.0
 ```
 
-[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...HEAD
+[Unreleased]: https://github.com/hunglinhpt/TextVN/compare/v0.2.85...HEAD
+[0.2.85]: https://github.com/hunglinhpt/TextVN/compare/v0.2.84...v0.2.85
 [0.2.84]: https://github.com/hunglinhpt/TextVN/compare/v0.2.83...v0.2.84
 [0.2.83]: https://github.com/hunglinhpt/TextVN/compare/v0.2.82...v0.2.83
 [0.2.82]: https://github.com/hunglinhpt/TextVN/compare/v0.2.81...v0.2.82

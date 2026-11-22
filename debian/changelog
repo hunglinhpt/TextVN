@@ -1,3 +1,17 @@
+textvn (0.2.85-0ppa1) noble; urgency=medium
+
+  * Audit loop 0.2.79..HEAD tron ven (E40, E50, textvn-math): E58 FCA phan bon — thang bo toan bo #[ignore]
+    (560 test sinh tu si_group macro vao gate mac dinh CI); E58 phan 1-3 — fix 22 loi that duoi #[ignore]
+    (ast parse '}' cho \frac{}{}/\sqrt{}/nested group; eval pi/e hang so + '^' right-assoc + unary
+    precedence; classifier floor LaTeX nguyen khoi + MathML khep kin + dai Unicode sub/sup;
+    lexicon dedup ve 1504 entry, SI_EXCLUDED, alias tieng Viet nguyen to); E57 — word-buffer/boundary
+    dong bo Backspace/caret/HOME/END qua core math_key hook, sua off-by-one delete_chars,
+    word_is_command gom =expr=, giu boundary chars trong eval span (=sin(0)= bung dung), chot span khi
+    eval fail. 75 test suite workspace pass 100%; textvn-math 927 test, 0 ignored; fmt + clippy -D
+    warnings sach; CI 100% xanh tren moi workflow cua commit phat hanh.
+
+ -- Linh Bui Hung <hunglinhpt@gmail.com>  Sun, 22 Nov 2026 22:00:00 +0700
+
 textvn (0.2.84-0ppa1) noble; urgency=medium
 
   * Audit-fix loop sau 0.2.83: E55 (keys_typed dem 2 lan khi math bat + pass-through; reset math state khi toggle OFF), E56 (FCA: MathEngine process_boundary/word_is_command bung alias \can, template \matNxM va inline eval =expr= qua word_buf that), R2-162/R2-163 (don dep thua khoi cac crate, them math/** vao path filter ci-macos), needless_bool cho CI clippy rust-1.100. 73 test suite workspace pass 100%, clippy 0 warning tren Linux + windows-msvc + darwin.

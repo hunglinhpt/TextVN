@@ -13,6 +13,18 @@
 
 > **R2-163 (2026-11-22, vòng audit CI parity):** `ci-macos.yml` có path filter nhưng thiếu `math/**` — trong khi `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`), nên một commit sửa math-only (vd `2ddbd771`) KHÔNG kích hoạt ci-macos → gap parity 3 nền tảng. FCA: thêm `"math/**"` vào cả `push` lẫn `pull_request` paths của `ci-macos.yml` (YAML parse ok). Từ commit này, mọi sửa đổi ở `math/` đều chạy đủ gate macOS. Cùng vòng: ci-linux báo `unused dependency textvn-ipc` ở `textvn-cli` (chỉ dùng trong khối `cfg(windows)` của `doctor.rs`) → chuyển sang `[target.'cfg(windows)'.dependencies]`; quét lại cả 4 target (linux, windows-msvc x64, darwin arm64/x64) bằng `cargo +nightly check --workspace --all-targets` không còn warning manifest nào.
 
+## Bản 0.2.85 — Audit cuốn chiếu 0.2.79..HEAD khép sạch Math Engine: E57 word-buffer FCA + E58 (22 lỗi thật dưới `#[ignore]`, un-ignore toàn bộ vào gate) (2026-11-22)
+
+| Hạng mục | Bằng chứng |
+|---|---|
+| Nội dung | (1) **E57** (`math/src/lib.rs`, `core/src/lib.rs`, `core/src/keymap.rs`): core `math_key` chưa đồng bộ phím điều hướng → FCA: `process_backspace()` (pop `word_buf` + reset chord FSM), `caret_moved()` (clear `word_buf`), hook `math_key_inner` BACK/LEFT/RIGHT/UP/DOWN/DELETE/HOME/END (thêm `HOME:0x24`/`END:0x23` vào keymap); `delete_chars` off-by-one ăn lấn 1 ký tự trước word; `word_is_command()` gom cả word `=expr=`; giữ boundary chars trong eval span (`=sin(0)=` bung đúng); eval fail chốt span ngay. Test: `math/tests/e57_word_sync_fca.rs` (7) + `core/tests/e57_math_sync.rs` (5). (2) **E58**: 22 test `#[ignore]` che 22 lỗi thật, phát hiện bằng `cargo test -- --include-ignored` — fix impl: `ast.rs` `}` → None (`\frac{}{}`/`\sqrt{}`/nested), `eval.rs` pi/e hằng số 0-đối-số + `^` right-assoc (2^3^2=512) + unary precedence 4, `classifier.rs` floor 0.85 LaTeX nguyên khối/MathML khép kín + dải Unicode sub/sup (U+1D62-1D6A, 2070-209F, 00B2/B3/B9) + weight cap 0.35, `lexicon.rs` dedup "pi", `SI_EXCLUDED` (pm/pH/ps), element alias = tên VI, bảng EXTRA_MATH 150 entry → tổng **1504 entry**, alias `vc`/`ohm`. (3) **E58 FCA chống tái diễn**: un-ignored 560 test sinh từ macro `si_group!` (đã viết lại assert trên const nhóm) vào gate CI mặc định — `textvn-math` **927 test, 0 ignored**. (4) **R2-164**: heredoc bash bóc lớp backslash khi sinh docs → script file Python + `chr(92)` (ghi `project-common-errors.md`).Docs phát hành: CHANGELOG 0.2.85 song ngữ VI+EN + compare link, README "Bản mới nhất" + bảng version (VI/EN 1:1), appstream `<release version="0.2.85">` đứng đầu, `debian/changelog` `0.2.85-0ppa1`, PKGBUILD/.SRCINFO `pkgver=0.2.85`. |
+| Đo (gate A local) | `cargo fmt --all --check` 0 diff · clippy stable + nightly 0.1.100 `-D warnings` 0 warning (host + `x86_64-pc-windows-msvc` + darwin) · `cargo test --workspace` **75 suite ok, 0 fail** · `textvn-math --lib` **927 pass, 0 ignored** (367→927 sau un-ignore; verify thêm `--include-ignored` 927/927) · `cargo xtask check-version-sync` **15/15 = 0.2.85** |
+| CI (B3) | *(điền sau khi CI commit phát hành xanh — B8)* |
+| Phát hành | *(điền sau tag/publish — B8)* |
+| Homebrew (B7b/B7d) | *(điền sau B7b — B8)* |
+| approved (B7c) | *(điền sau sync — B8)* |
+| AUR / PPA / Store | *(điền sau B7e — B8)* |
+
 ## Bản 0.2.84 — Vòng audit-fix triệt để sau 0.2.83: E55 + E56 FCA + R2-162/R2-163 + needless_bool cho CI clippy 1.100 (2026-11-22)
 
 | Hạng mục | Bằng chứng |
