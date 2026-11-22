@@ -84,7 +84,7 @@ Entry gồm: thao tác cụ thể (có lệnh/đường dẫn), kết quả (ng�
 
 | Agent | Vùng |
 |---|---|
-| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/workflows/hook-spike.yml`, `.github/scripts/` |
+| Agent Windows / spike | `adapters/windows-*`, `spikes/`, `tools/win/`, `docs/specs/*spike*.md`, `docs/specs/win-test-common-errors.md`, `docs/specs/verified-ops.md`, `.github/workflows/repo-hygiene.yml`, `.github/workflows/hook-spike.yml`, `xtask/src/hygiene.rs` + `xtask/src/win_tools.rs` (gate hygiene kiểm Windows — E59) |
 | Agent core/FFI | `core/`, `ffi/`, `cli/`, `config/`, `strategy/`, `corpus/`, `appdb/`, `.github/workflows/ci-shared.yml` |
 | Chung (vẫn áp G11 khi có WIP) | `PLAN.md`, `docs/00-*`, `docs/01-*`, `docs/20-windows/*` (ngoài spike specs), `docs/specs/*` còn lại |
 
@@ -199,10 +199,10 @@ bắt buộc đọc trước khi tag bất kỳ version nào.**
 | 2 | File tạm/debug không được commit | `*.log *.bak *.tmp *.swp *.orig *.rej`, `.DS_Store`, `Thumbs.db`, `desktop.ini`, prefix `dbg_/debug_/tmp_/temp_` |
 | 3 | `.ps1` ASCII-only | G7 / common-errors A5 |
 | 4 | Secret / token / private key | `ghp_…`/`gho_…`, `github_pat_…`, `AKIA…`, `-----BEGIN … PRIVATE KEY-----` |
-| 5 | Markdown link tương đối không hỏng | `docs/**/*.md` + `PLAN.md` → `.github/scripts/check_doc_links.py` (chạy local được: `python .github/scripts/check_doc_links.py`) |
+| 5 | Markdown link tương đối không hỏng | `docs/**/*.md` + `PLAN.md` → `cargo xtask hygiene-docs` (bản Rust trong `xtask/src/hygiene.rs` — E59 thay `.github/scripts/check_doc_links.py`) |
 | 6 | File quy trình bắt buộc tồn tại | `00-WORKFLOW`, `00-INDEX`, `01-AGENT-HANDBOOK`, `verified-ops`, `win-test-common-errors`, `PLAN.md` |
 | 7 | File > 1.5MB không được commit | loại `graphify-out/` (graph auto) |
-| 8 | API inject / hook non-LL bị cấm | `.github/scripts/check_no_injection_apis.py` — chính sách `docs/specs/antivirus-false-positive.md` §8 (**Farch-3**); chạy local: `python .github/scripts/check_no_injection_apis.py` |
+| 8 | API inject / hook non-LL bị cấm | `cargo xtask hygiene-apis` (bản Rust trong `xtask/src/hygiene.rs` — E59 thay `.github/scripts/check_no_injection_apis.py`) — chính sách `docs/specs/antivirus-false-positive.md` §8 (**Farch-3**) |
 
 > **Không** kiểm tra tham chiếu dạng `` `code` `` (ví dụ `` `docs/specs/uia-spike.md` ``): hiện đa số là file "kế hoạch chưa tạo" → false positive. Audit dạng này để lại bước sau (check tùy chọn qua `workflow_dispatch`).
 

@@ -155,14 +155,13 @@ jobs:
             plutil -lint "$f"
           done
           # plutil/CFPropertyList nuốt được XML sai well-formed (vd hai dấu gạch
-          # liền nhau trong comment) — parser strict thì không (review R3 F3-11).
-          python3 - $files <<'PY'
-          import plistlib, sys
-          for f in sys.argv[1:]:
-              with open(f, "rb") as fh:
-                  plistlib.load(fh)
-              print("ok  strict", f)
-          PY
+          # liền nhau trong comment) — xmllint strict thì không (review R3 F3-11;
+          # từ E59 thay heredoc python3 bằng xmllint — macOS có sẵn /usr/bin/xmllint,
+          # không mang thêm runtime ngôn ngữ vào CI).
+          for f in $files; do
+            xmllint --noout "$f"
+            echo "ok  strict $f"
+          done
 
       - name: Info.plist IMK keys khớp giữa 2 bản (lệch = input source không hiện)
         run: |

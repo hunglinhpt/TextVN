@@ -26,8 +26,6 @@ IDENTITY="${3:-}"
 RELEASE_FPR="3921595ABC961199F15303B6C45B84D0C7F4A822"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 KEY="${RELEASE_PUBKEY:-$ROOT/docs/release/signing/gpg-release-key.asc}"
-PY="${PYTHON:-python3}"
-command -v "$PY" >/dev/null 2>&1 || PY=python
 COSIGN="${COSIGN:-cosign}"
 REPO="${GITHUB_REPOSITORY:-hunglinhpt/TextVN}"
 
@@ -91,6 +89,7 @@ fi
 
 args=("$MSIX" --expect-version "$VERSION" --require-store-identity)
 [ -n "$IDENTITY" ] && args+=(--expect-name "$IDENTITY")
-"$PY" "$ROOT/tools/win/verify-msix.py" "${args[@]}" || die "gói không đạt luật Store (verify-msix.py)"
+# E59: verify-msix là bản Rust (`cargo xtask verify-msix`) — không còn .py.
+cargo run -q --manifest-path "$ROOT/Cargo.toml" -p xtask -- verify-msix "${args[@]}" || die "gói không đạt luật Store (xtask verify-msix)"
 
 echo "sha256=$have"

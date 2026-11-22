@@ -60,6 +60,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      # verify-store-package.sh gọi `cargo xtask verify-msix` (E59: bản Rust
+      # thay verify-msix.py) — job này cần toolchain để build xtask.
+      - uses: dtolnay/rust-toolchain@stable
       - name: Install cosign (Sigstore)
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - name: Resolve release tag and mode

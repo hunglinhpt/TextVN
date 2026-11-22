@@ -76,11 +76,13 @@ cargo run -q -p textvn-cli -- replay corpus/shared corpus/win --adapter tsf
 
 # A5. (nếu đụng packaging/CI) syntax + schema
 bash -n scripts/*.sh packaging/linux/*.sh        # shell
-python -c "import yaml,glob; [yaml.safe_load(open(f,encoding='utf-8')) for f in glob.glob('.github/workflows/*.yml')]"
+# E59: cấm Python trong repo — kiểm YAML qua ruby (cùng họ công cụ đã dùng cho
+# `ruby -c` cask; máy thiếu ruby thì bỏ qua, CI vẫn chặn thật).
+ruby -ryaml -e 'Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f) }'
 
-# A6. (nếu đụng docs) link + inject check như repo-hygiene
-python .github/scripts/check_doc_links.py
-python .github/scripts/check_no_injection_apis.py
+# A6. (nếu đụng docs) link + inject check như repo-hygiene — bản Rust trong xtask (E59)
+cargo run -q -p xtask -- hygiene-docs
+cargo run -q -p xtask -- hygiene-apis
 
 # A7. Cross-check Linux trên host Windows (E9): bắt lỗi cfg(windows) mà clippy
 # Windows không nhìn thấy — BẮT BUỘC khi đụng cfg-gate/import liên platform.

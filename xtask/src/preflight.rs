@@ -16,8 +16,6 @@ struct Step {
     /// Gate này chặn loại lỗi nào (dẫn sự cố thật đã gặp nếu có).
     guards: &'static str,
     argv: &'static [&'static str],
-    /// Dùng `python` hay `python3` (Windows không có python3 luôn sẵn).
-    python_alt: bool,
     /// True = thiếu chương trình local chỉ SKIP (CI ubuntu vẫn chặn thật).
     optional: bool,
 }
@@ -27,7 +25,6 @@ const STEPS: &[Step] = &[
         name: "fmt",
         guards: "định dạng code — rustfmt job",
         argv: &["cargo", "fmt", "--all", "--check"],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -42,7 +39,6 @@ const STEPS: &[Step] = &[
             "-D",
             "warnings",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -58,7 +54,6 @@ const STEPS: &[Step] = &[
             "--target",
             "x86_64-unknown-linux-gnu",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -68,28 +63,24 @@ const STEPS: &[Step] = &[
             "cargo", "clippy", "--workspace", "--exclude", "textvn-win-hook",
             "--all-targets", "--target", "x86_64-unknown-linux-gnu", "--", "-D", "warnings",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "test",
         guards: "unit + integration toàn workspace",
         argv: &["cargo", "test", "--workspace"],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "verify-abi",
         guards: "header C khớp code Rust + sizeof/offset (P0-2 §6)",
         argv: &["cargo", "run", "-q", "-p", "textvn-cli", "--", "verify"],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "sizes",
         guards: "IME ABI 20/532 — đổi struct phải bump ABI",
         argv: &["cargo", "run", "-q", "-p", "textvn-cli", "--", "sizes"],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -108,7 +99,6 @@ const STEPS: &[Step] = &[
             "--adapter",
             "win",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -127,7 +117,6 @@ const STEPS: &[Step] = &[
             "--adapter",
             "tsf",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -146,7 +135,6 @@ const STEPS: &[Step] = &[
             "--adapter",
             "mac",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -156,14 +144,12 @@ const STEPS: &[Step] = &[
             "cargo", "run", "-q", "-p", "textvn-cli", "--", "replay",
             "corpus/shared", "--adapter", "linux",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "check-tables",
         guards: "bảng keymap sinh ra khớp generator",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "check-tables"],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -178,7 +164,6 @@ const STEPS: &[Step] = &[
             "--",
             "check-win-corpus",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -193,7 +178,6 @@ const STEPS: &[Step] = &[
             "--",
             "check-mac-corpus",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -208,7 +192,6 @@ const STEPS: &[Step] = &[
             "--",
             "check-version-sync",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
@@ -225,14 +208,12 @@ const STEPS: &[Step] = &[
             "check",
             "perf/baseline-win.json",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "hygiene-apis",
         guards: "API giống malware bị cấm (Farch-3 / AV policy)",
-        argv: &[".github/scripts/check_no_injection_apis.py"],
-        python_alt: true,
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-apis"],
         optional: false,
     },
     Step {
@@ -242,63 +223,40 @@ const STEPS: &[Step] = &[
             "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
             "tools/win/validate-store-package.ps1", "-AllowSkip",
         ],
-        python_alt: false,
         optional: false,
     },
     Step {
         name: "iss-tabs",
         guards: ".iss không chứa TAB — escape backslash-t bị ghi thành TAB phá pattern/đường dẫn (B12/B13; ISCC không bắt)",
-        argv: &[".github/scripts/check_iss_tabs.py"],
-        python_alt: true,
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "iss-tabs"],
         optional: false,
     },
     Step {
         name: "ascii-ps1",
         guards: ".ps1 ASCII-only (G7/A5) — PowerShell 5.1 đọc ANSI, ký tự ngoài ASCII phá cú pháp (sự cố test-portable.ps1 2026-10-03)",
-        argv: &[".github/scripts/check_ps1_ascii.py"],
-        python_alt: true,
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "ascii-ps1"],
         optional: false,
     },
     Step {
         name: "hygiene-docs",
         guards: "link markdown nội bộ không hỏng",
-        argv: &[".github/scripts/check_doc_links.py"],
-        python_alt: true,
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-docs"],
         optional: false,
     },
     Step {
         name: "hygiene-secrets",
         guards: "chặn rò rỉ private key, token, secret vào git repo",
-        argv: &[".github/scripts/check_no_secrets.py"],
-        python_alt: true,
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-secrets"],
         optional: false,
     },
     Step {
         name: "homebrew",
         guards: "cask Ruby hợp lệ + sha256 đúng định dạng (B7b)",
         argv: &["ruby", "-c", "packaging/homebrew/textvn.rb"],
-        python_alt: false,
         // Windows local thường không có ruby — SKIP nếu thiếu (CI ubuntu chặn).
         optional: true,
     },
 ];
-
-fn python_runner() -> &'static str {
-    static PY: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
-    PY.get_or_init(|| {
-        for candidate in ["python", "python3"] {
-            if Command::new(candidate)
-                .arg("--version")
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
-            {
-                return candidate;
-            }
-        }
-        "python"
-    })
-}
 
 pub fn run() -> Result<(), String> {
     println!("preflight — mirror các gate CI, chạy trước khi commit/tag");
@@ -313,13 +271,9 @@ pub fn run() -> Result<(), String> {
             step.name,
             step.guards
         );
-        let status = if step.python_alt {
-            Command::new(python_runner()).arg(step.argv[0]).status()
-        } else {
-            let mut cmd = Command::new(step.argv[0]);
-            cmd.args(&step.argv[1..]);
-            cmd.status()
-        };
+        let mut cmd = Command::new(step.argv[0]);
+        cmd.args(&step.argv[1..]);
+        let status = cmd.status();
         match status {
             Ok(s) if s.success() => println!("PASS"),
             Ok(s) => {

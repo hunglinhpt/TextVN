@@ -96,7 +96,7 @@ jobs:
           ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
           extra=()
           if [ -n "${MSIX_IDENTITY_NAME:-}" ]; then extra+=(--require-store-identity); fi
-          python tools/win/verify-msix.py dist/TextVN-*-windows-x64.msix --expect-version "$ver" "${extra[@]}"
+          cargo run -q -p xtask -- verify-msix dist/TextVN-*-windows-x64.msix --expect-version "$ver" "${extra[@]}"
       # R2-77: CHINH goi sap phat hanh phai chay that (cai ky tam, mo app, go goi)
       # - khong chi dua vao lan ci-shared truoc do.
       - name: MSIX sideload (cai that, mo app, go goi)

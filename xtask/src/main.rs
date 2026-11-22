@@ -21,10 +21,12 @@ mod gen_mac_corpus;
 mod gen_vn_phrases;
 mod gen_vocab;
 mod gen_win_corpus;
+mod hygiene;
 mod mac_corpus_cases;
 mod preflight;
 mod toml;
 mod win_corpus_cases;
+mod win_tools;
 
 use std::fs;
 use std::path::Path;
@@ -81,6 +83,15 @@ fn main() -> ExitCode {
         "check-mac-corpus" => gen_mac_corpus::run(false),
         "check-mac-targets" => check_mac_targets::run(),
         "check-version-sync" => check_version_sync::run(),
+        // Gate hygiene — bản Rust thay .github/scripts/*.py (E59).
+        "hygiene-docs" => hygiene::docs_links(),
+        "hygiene-secrets" => hygiene::no_secrets(),
+        "hygiene-apis" => hygiene::no_injection_apis(),
+        "iss-tabs" => hygiene::iss_tabs(),
+        "ascii-ps1" => hygiene::ascii_ps1(),
+        // Công cụ kiểm Windows release — thay tools/win/*.py (E59).
+        "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
+        "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
         "preflight" => preflight::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());
@@ -108,6 +119,13 @@ fn usage() -> &'static str {
      cargo xtask check-mac-corpus # kiểm tra corpus/mac/*.keys có khớp chuẩn\n  \
      cargo xtask check-mac-targets # kiểm tra tools/mac/targets/*.json (MAC-061)\n  \
      cargo xtask check-version-sync # mọi chỗ ghi version tay khớp Cargo.toml\n  \
+     cargo xtask hygiene-docs     # link markdown noi bo khong hong
+     cargo xtask hygiene-secrets  # secret/token/private key khong duoc commit
+     cargo xtask hygiene-apis     # API inject/giong malware bi cam (Farch-3)
+     cargo xtask iss-tabs         # .iss khong chua TAB (B12/B13)
+     cargo xtask ascii-ps1        # .ps1 ASCII-only (G7/A5)
+     cargo xtask check-pe-imports <file...> # PE khong phu thuoc VC++ runtime (R2-18)
+     cargo xtask verify-msix <file.msix> [flags] # luat Partner Center + payload (R2-09)
      cargo xtask preflight        # chạy đủ gate CI cục bộ — bắt buộc xanh trước commit/tag\n  \
      cargo xtask help\n"
 }

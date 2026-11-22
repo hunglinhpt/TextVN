@@ -23,12 +23,16 @@ jobs:
   hygiene:
     name: repo hygiene (8 checks)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           # Job chỉ đọc — không để token nằm lại .git/config của runner.
           persist-credentials: false
+
+      # Gate từ v0.2.86+ đều là `cargo xtask <cmd>` (bản Rust thay
+      # .github/scripts/*.py — E59 policy không-Python) — cần toolchain.
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: 1. conflict marker còn sót
         run: |
@@ -49,13 +53,13 @@ jobs:
           echo "OK"
 
       - name: 3. .ps1 ASCII-only (G7 / common-errors A5)
-        run: python3 .github/scripts/check_ps1_ascii.py
+        run: cargo run -q -p xtask -- ascii-ps1
 
       - name: 4. secret / token / private key
-        run: python3 .github/scripts/check_no_secrets.py
+        run: cargo run -q -p xtask -- hygiene-secrets
 
       - name: 5. markdown link tương đối không hỏng
-        run: python3 .github/scripts/check_doc_links.py
+        run: cargo run -q -p xtask -- hygiene-docs
 
       - name: 6. file quy trình bắt buộc tồn tại
         run: |
@@ -86,10 +90,10 @@ jobs:
           echo "OK"
 
       - name: 8. API inject / giong malware bi cam (Farch-3)
-        run: python3 .github/scripts/check_no_injection_apis.py
+        run: cargo run -q -p xtask -- hygiene-apis
 
       - name: 9a. .iss khong chua TAB (escape backslash-t bi ghi sai — B12/B13)
-        run: python3 .github/scripts/check_iss_tabs.py
+        run: cargo run -q -p xtask -- iss-tabs
 
       - name: 9. Homebrew cask syntax + checksum format (B7b)
         run: |

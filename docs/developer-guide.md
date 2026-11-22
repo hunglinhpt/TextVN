@@ -75,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1    
 
 Gói mặc định **TSF-only**; `-IncludeCompatibilityHook` thêm hook legacy. Mọi binary Windows
 link CRT tĩnh (`.cargo/config.toml` `+crt-static` — không cần VC++ redist); `build-release.ps1`
-kiểm bảng import PE bằng `tools/win/check-pe-imports.py` và fail nếu còn phụ thuộc runtime.
+kiểm bảng import PE bằng `cargo xtask check-pe-imports <file.exe...>` (E59: bản Rust thay `tools/win/check-pe-imports.py`) và fail nếu còn phụ thuộc runtime.
 Ký Authenticode: `-SigningCertificateThumbprint <SHA1>` (cert local) hoặc SignPath khi có
 `SIGNPATH_API_TOKEN` (`docs/release/code-signing-plan.md`). Trên Linux có thể kiểm tra code
 Windows: `cargo clippy --target x86_64-pc-windows-msvc --workspace --all-targets` (CI chạy đúng
@@ -142,7 +142,7 @@ scripts/build-linux.sh          # dist/TextVN-<ver>-linux-<arch>.tar.gz (+ .sha2
 | Linux e2e | `scripts/e2e-linux.sh` | ibus-daemon + fcitx5 thật: gõ, focus-out, reset, Ctrl+Shift, state.json, gõ tắt, Caps Lock, ô mật khẩu |
 | Gói Linux | `scripts/test-linux-package.sh dist/TextVN-*.tar.gz` | cài → gõ → gỡ sạch; portable (thư mục chỉ đọc) → gõ → stop; × IBus + Fcitx5 |
 | Gói Windows | CI job *Windows package* (`installer/windows/tests/*.ps1`) | build-release, zip portable và Inno Setup (per-user + `/ALLUSERS` + bản `-machine.exe`): đăng ký TSF, gõ thật bằng SendInput vào Notepad (IMM32/CUAS) và WordPad (TSF-aware), gỡ sạch; Store validation (silent/ARP/bundleware + giả lập validator) |
-| Gói MSIX | `tools/win/build-msix.ps1` → `tools/win/verify-msix.py` → `installer/windows/tests/test-msix-sideload.ps1` | luật manifest của Partner Center; cài gói ký tạm, mở app, kiểm từ ngoài gói (stage-out, TIP HKCU, Run), gỡ gói → guard dọn sạch |
+| Gói MSIX | `tools/win/build-msix.ps1` → `cargo xtask verify-msix` (E59, thay `verify-msix.py`) → `installer/windows/tests/test-msix-sideload.ps1` | luật manifest của Partner Center; cài gói ký tạm, mở app, kiểm từ ngoài gói (stage-out, TIP HKCU, Run), gỡ gói → guard dọn sạch |
 | C sanitizer | job `linux-common tests (ASan + UBSan)` | lỗi bộ nhớ/UB trong IPC client, compose, utf của `linux-common` |
 | Bảng điều khiển Linux | `ctest` trong `target/linux-adapters/settings` | `settings_model` (vá khoá, gõ tắt, file hỏng) |
 | Trợ lý ngữ pháp | `cargo test -p textvn-assist` · `cargo run -p textvn-cli -- assist check "<câu>" [--json] [--fix] [--sentence]` (`--file <path>` kiểm từng dòng) | luật objective (lặp từ, khoảng trắng, viết hoa…), offset **ký tự Unicode** (không phải byte), corpus `corpus/assist/*.ass`; xem [P4-TASKS.md](50-assist/P4-TASKS.md) |
@@ -172,7 +172,7 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
   arm64, corpus mac, ZIP/PKG candidate. `repo-hygiene`: 10 check sạch repo.
 - `.ps1` chỉ ASCII (chuỗi tiếng Việt trong script: `[regex]::Unescape('đ...')`).
 - Không dùng API tiêm mã/hook toàn cục ngoài gói Compatibility
-  (`.github/scripts/check_no_injection_apis.py`, lý do: `docs/specs/antivirus-false-positive.md`).
+  (gate `cargo xtask hygiene-apis` — E59 thay cho `.github/scripts/` cũ, lý do: `docs/specs/antivirus-false-positive.md`).
 - REUSE: mọi file có SPDX (tự động qua `REUSE.toml`); file bên thứ ba khai báo riêng
   (ví dụ `installer/windows/languages/Vietnamese.isl` — `LicenseRef-InnoSetup`).
 - Log không bao giờ chứa nội dung phím gõ (S2).
@@ -192,7 +192,7 @@ Chạy thử bảng điều khiển GTK không cần màn hình: `gtk4-broadwayd
 2. `CHANGELOG.md`, [build-release-report.md](release/build-release-report.md) (điền số liệu
    kiểm thử thật của lần build).
 3. Windows: CI (`release.yml`, job `windows`) chạy `build-release.ps1 -BuildInstaller` rồi
-   dựng bản `-machine.exe` và gói MSIX (build → `verify-msix.py` → cài thử sideload). Khi có
+   dựng bản `-machine.exe` và gói MSIX (build → `cargo xtask verify-msix` (E59) → cài thử sideload). Khi có
    secret `SIGNPATH_*`, mọi PE và cả hai bộ cài được ký Authenticode qua
    `tools/win/sign-signpath.ps1` (SignPath Foundation — **đang chờ duyệt**);
    `-SigningCertificateThumbprint` chỉ dành cho máy có chứng chỉ riêng. `RELEASE_REPORT.json`

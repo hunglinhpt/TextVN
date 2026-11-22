@@ -13,8 +13,8 @@
 | **Trang Store** | ✅ [TextVN trên Microsoft Store](https://apps.microsoft.com/store/detail/9NV2R7JNNFGK?cid=DevShareMCLPCB) — miễn phí, mục Năng suất, x64, nhà phát hành `LinhBH.CoM` | API catalog Store (`storeedgefd.dsx.mp.microsoft.com/v9.0/products/9NV2R7JNNFGK`, đọc 2026-10-12): `ReleaseDateUtc 2026-10-11T14:43:50Z`, `LastUpdateDateUtc 2026-10-12T06:26:34Z`, PFN `23651Linhi.TextVN_qgnrpq341n182`. winget: `winget install --id 9NV2R7JNNFGK -s msstore` (installer `msstore`, scope user) |
 | Cài thật từ Store | ✅ / ⚠️ | 2026-10-11 21:54 máy chủ repo cài `23651Linhi.TextVN_1.2.29.0` từ `msixbundle` Store phát (AppXDeploymentServer: thành công, hash gói khớp asset release v0.2.29). Trên máy đó Kaspersky 21.26 cách ly các tệp đã stage ra AppData ~2 phút sau lần mở đầu, và Windows 11 build 26300 từ chối `ActivateProfile` per-user (B7) — `docs/specs/antivirus-false-positive.md` §10 |
 | Kênh Store chạy thật ngoài container MSIX | ✅ | CI `ci-windows` › *MSIX sideload*: cài gói ký tạm → mở app → từ shell ngoài gói thấy bản stage, TIP HKCU, tray chạy, Run; gỡ gói → guard dọn sạch (`installer/windows/tests/test-msix-sideload.ps1`) |
-| Manifest đúng luật Partner Center | ✅ | `tools/win/verify-msix.py` chạy trong CI: Version phần đầu ≠ 0, Publisher, DisplayName, PublisherDisplayName, mô tả tiếng Việt không mojibake, ảnh đúng kích thước, payload đủ |
-| Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `tools/win/check-pe-imports.py` trong `build-release.ps1` |
+| Manifest đúng luật Partner Center | ✅ | `cargo xtask verify-msix` (E59, thay `tools/win/verify-msix.py`) chạy trong CI: Version phần đầu ≠ 0, Publisher, DisplayName, PublisherDisplayName, mô tả tiếng Việt không mojibake, ảnh đúng kích thước, payload đủ |
+| Binary không phụ thuộc VC++ redist | ✅ | `+crt-static` + `cargo xtask check-pe-imports` (E59, thay `.py`) |
 | Nộp bản cập nhật tự động (GitHub Actions) | ⏳ workflow sẵn sàng, chờ chủ tài khoản cài app Entra + 4 secret | `.github/workflows/store-publish.yml` — kiểm chữ ký/hash/identity rồi `msstore publish` lên `9NV2R7JNNFGK` (§7) |
 | `Publisher` | ✅ `CN=1A703CAB-3E18-4E4D-8FD8-E1D54FC67545` | Partner Center › Account settings › Windows publisher ID |
 | `PublisherDisplayName` | ✅ `LinhBH.CoM` | Partner Center › Publisher display name |
@@ -115,7 +115,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File build-release.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\win\build-msix.ps1 `
   -IdentityName "<Package/Identity/Name>" -RequireStoreIdentity
 #   (lựa chọn B: thêm  -DisplayName "<tên đã reserve>")
-python tools\win\verify-msix.py dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
+cargo run --manifest-path tools\win\..\..\Cargo.toml -q -p xtask -- verify-msix dist\TextVN-<ver>-windows-x64.msix --expect-version <ver> --require-store-identity
 ```
 
 **Version:** Partner Center từ chối Identity Version có phần đầu bằng 0 → gói map
@@ -181,7 +181,7 @@ hành vi chi tiết đối chiếu mã nguồn [microsoft/msstore-cli v0.4.3](ht
 
 #| Job | Máy | Secret | Việc |
 |---|---|---|---|
-| `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `verify-msix.py --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`) |
+| `verify` | ubuntu-24.04 | không | Tag dạng `vA.B.C`, release đã công khai → tải `TextVN-<ver>-windows-x64.msix` + `.asc` + `.cosign.sig/.cert` + `SHA256SUMS.txt` → `tools/release/verify-store-package.sh`: chữ ký GPG của gói và của `SHA256SUMS.txt` do khoá phát hành `3921595A…` ký (public key lấy từ checkout, không lấy bản đính kèm release), SHA-256 khớp, Sigstore đúng `release.yml@refs/tags/<tag>` của repo này, `cargo xtask verify-msix --require-store-identity --expect-name <MSIX_IDENTITY_NAME>` (Version `(A+1).B.C.0`, E59) |
 | `submit` | windows-2022, environment `microsoft-store` | 4 secret | Kiểm lại SHA-256 gói nhận từ `verify` → tải CLI `msstore` bản ghim (version + SHA-256) → `msstore reconfigure` (kiểm luôn đăng nhập) → tắt telemetry CLI → **đọc trạng thái Store** (submission đang chờ/đã phát hành, version gói) và chặn sớm → `msstore publish <msix> --appId 9NV2R7JNNFGK` (chế độ `draft` thêm `--noCommit`; `check` bỏ qua) → `msstore submission status` + tóm tắt run |
 
 Ba chế độ (ô `mode` khi chạy tay; mặc định `check`):
