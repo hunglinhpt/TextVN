@@ -392,7 +392,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     // MARK: - Actions
 
-    @objc public     /// P11: bật/tắt Math & Science từ menu bar — ghi config + broadcast ConfigReload
+    /// P11: bật/tắt Math & Science từ menu bar — ghi config + broadcast ConfigReload
     /// cho IMK nạp lại ngay; SettingsView đang mở tự đồng bộ vì cùng đọc configStore.
     @objc func toggleMathMode(_ sender: NSMenuItem) {
         configStore.config.math.enabled.toggle()
@@ -401,7 +401,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         sender.state = configStore.config.math.enabled ? .on : .off
     }
 
-func toggleVietnameseMode() {
+    @objc public func toggleVietnameseMode() {
         isVietnameseMode.toggle()
         configStore.config.enabled = isVietnameseMode
         configStore.persist()

@@ -250,7 +250,7 @@ public struct SettingsView: View {
                             // menu bar (configStore.config.math.enabled) nên 2 UI luôn khớp.
                             Toggle("Math & Science", isOn: $store.config.math.enabled)
                                 .onChange(of: store.config.math.enabled) { _ in persistAndNotify() }
-                                .help("Gõ ký hiệu & công thức khoa học (leader `, lệnh \can \ps, Smart Paste). Mặc định TẮT, gõ thường không đổi.")
+                                .help("Gõ ký hiệu & công thức khoa học (leader `, lệnh \\can \\ps, Smart Paste). Mặc định TẮT, gõ thường không đổi.")
                             HStack {
                                 Toggle("Gõ tắt cả khi tắt tiếng Việt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }
