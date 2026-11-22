@@ -2209,7 +2209,6 @@ macro_rules! si_group {
             // nhường nghĩa cho entry quan trọng hơn qua SI_EXCLUDED ở all_slices,
             // nên lookup toàn cục không còn đảm bảo cho mọi combo.
             $( #[test]
-            #[ignore]
             fn $uid() {
                 let trig = concat!($psym, $usym);
                 let en = &super::$uid;
