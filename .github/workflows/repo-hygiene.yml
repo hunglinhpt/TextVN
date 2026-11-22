@@ -55,7 +55,7 @@ jobs:
       - name: 3. .ps1 ASCII-only (G7 / common-errors A5)
         run: cargo run -q -p xtask -- ascii-ps1
 
-      - name: 3b. E59: repo không chứa file Python (AGENTS.md language policy)
+      - name: "3b. Không file Python trong repo (E59 — AGENTS.md language policy)"
         run: cargo run -q -p xtask -- no-python
 
       - name: 4. secret / token / private key

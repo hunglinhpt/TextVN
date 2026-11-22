@@ -52,7 +52,7 @@ pub fn cli(args: &[String]) -> Result<(), String> {
     }
 }
 
-fn repo_root() -> PathBuf {
+pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap_or(Path::new("."))
