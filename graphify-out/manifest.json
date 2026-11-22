@@ -12,8 +12,8 @@
     "semantic_hash": ""
   },
   "appdb/Cargo.toml": {
-    "mtime": 1795313933.721707,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7389894,
+    "seen": 1795326979.7225554,
     "ast_hash": "3c611c68fc7a764162787732a81004e8",
     "semantic_hash": ""
   },
@@ -24,8 +24,8 @@
     "semantic_hash": ""
   },
   "cli/Cargo.toml": {
-    "mtime": 1795313933.7633533,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.739159,
+    "seen": 1795326979.726202,
     "ast_hash": "8be2e135bf2d4d1fcb0ce071e35c56c7",
     "semantic_hash": ""
   },
@@ -48,8 +48,8 @@
     "semantic_hash": ""
   },
   "config/Cargo.toml": {
-    "mtime": 1795313933.7721596,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7392244,
+    "seen": 1795326979.7272027,
     "ast_hash": "03bc426e2afea59baffa2bda1da3c4d2",
     "semantic_hash": ""
   },
@@ -60,8 +60,8 @@
     "semantic_hash": ""
   },
   "core/Cargo.toml": {
-    "mtime": 1795313933.7781587,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.739285,
+    "seen": 1795326979.7272027,
     "ast_hash": "e17bd1fc8baa8e905cefed00ea9f9280",
     "semantic_hash": ""
   },
@@ -198,8 +198,8 @@
     "semantic_hash": ""
   },
   "ffi/Cargo.toml": {
-    "mtime": 1795313934.0348814,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7394085,
+    "seen": 1795326979.7327576,
     "ast_hash": "6c099c30adbdd86b994b764297f0f8a6",
     "semantic_hash": ""
   },
@@ -222,8 +222,8 @@
     "semantic_hash": ""
   },
   "field-detect/Cargo.toml": {
-    "mtime": 1795313934.0388823,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.73947,
+    "seen": 1795326979.733766,
     "ast_hash": "3ad3b868df0ee59627ee74dbbadd4a3c",
     "semantic_hash": ""
   },
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   "fuzz/Cargo.toml": {
-    "mtime": 1795313934.0418863,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7395296,
+    "seen": 1795326979.733766,
     "ast_hash": "1ac687119006c14cbe510a065d02b0ce",
     "semantic_hash": ""
   },
@@ -264,8 +264,8 @@
     "semantic_hash": ""
   },
   "ipc/Cargo.toml": {
-    "mtime": 1795313935.4416344,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7395952,
+    "seen": 1795326979.7352557,
     "ast_hash": "fa83fa74e1f0536acfde0bcc341ba4de",
     "semantic_hash": ""
   },
@@ -312,8 +312,8 @@
     "semantic_hash": ""
   },
   "strategy/Cargo.toml": {
-    "mtime": 1795313935.6818893,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7397153,
+    "seen": 1795326979.7402613,
     "ast_hash": "78c67f1f98347f28ac779cdfe0c58402",
     "semantic_hash": ""
   },
@@ -354,8 +354,8 @@
     "semantic_hash": ""
   },
   "xtask/Cargo.toml": {
-    "mtime": 1795313935.7429547,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.739839,
+    "seen": 1795326979.7472603,
     "ast_hash": "97b160d9b76726812b0b0aaa72d74983",
     "semantic_hash": ""
   },
@@ -816,9 +816,9 @@
     "semantic_hash": ""
   },
   "tray/Cargo.toml": {
-    "mtime": 1795326188.712996,
-    "seen": 1795326380.8031895,
-    "ast_hash": "9d6144e8be654f5d9ad4f8d0f56952ba",
+    "mtime": 1795326880.7397742,
+    "seen": 1795326979.7452602,
+    "ast_hash": "c40e06e612db02691dff3a0b39d4e0b9",
     "semantic_hash": ""
   },
   "docs/specs/hook-spike.md": {
@@ -2370,8 +2370,8 @@
     "semantic_hash": ""
   },
   "assist/Cargo.toml": {
-    "mtime": 1795313933.7267022,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7390907,
+    "seen": 1795326979.7225554,
     "ast_hash": "d368161fad5462bd0771ef581d0e989a",
     "semantic_hash": ""
   },
@@ -2538,8 +2538,8 @@
     "semantic_hash": ""
   },
   "dict/Cargo.toml": {
-    "mtime": 1795313933.9469573,
-    "seen": 1795314565.7932308,
+    "mtime": 1795326880.7393448,
+    "seen": 1795326979.732219,
     "ast_hash": "2c947ebe7c16c1ac776d2710899a3e3a",
     "semantic_hash": ""
   },
@@ -3294,15 +3294,15 @@
     "semantic_hash": ""
   },
   "math/Cargo.toml": {
-    "mtime": 1795326188.712996,
-    "seen": 1795326380.792791,
+    "mtime": 1795326880.7396576,
+    "seen": 1795326979.7352557,
     "ast_hash": "f65dde4dc135e0bd61faf27b64892936",
     "semantic_hash": ""
   },
   "math/src/app_bridge.rs": {
-    "mtime": 1795313935.4506714,
-    "seen": 1795314565.7932308,
-    "ast_hash": "e0bda1d3682511562528d4d7536c2adb",
+    "mtime": 1795326556.3803468,
+    "seen": 1795326979.7352557,
+    "ast_hash": "eadd0f293495f22af52a5f825beece14",
     "semantic_hash": ""
   },
   "math/src/ast.rs": {
@@ -3318,9 +3318,9 @@
     "semantic_hash": ""
   },
   "math/src/clipboard/classifier.rs": {
-    "mtime": 1795313935.4865708,
-    "seen": 1795314565.7932308,
-    "ast_hash": "6f9a933c0ab445b54c25479dfefd370d",
+    "mtime": 1795326522.2352374,
+    "seen": 1795326979.7352557,
+    "ast_hash": "80473a878addc669ceceea36484e6223",
     "semantic_hash": ""
   },
   "math/src/clipboard/mod.rs": {
@@ -3348,9 +3348,9 @@
     "semantic_hash": ""
   },
   "math/src/context.rs": {
-    "mtime": 1795313935.5041492,
-    "seen": 1795314565.7932308,
-    "ast_hash": "5f414f55e87962228f5427c86d7c7e05",
+    "mtime": 1795326522.2352374,
+    "seen": 1795326979.7362616,
+    "ast_hash": "6f29753c95384873eef28d212122b7a2",
     "semantic_hash": ""
   },
   "math/src/converter.rs": {
