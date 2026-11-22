@@ -1830,9 +1830,9 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci-macos.yml": {
-    "mtime": 1795313933.6022224,
-    "seen": 1795314565.7932308,
-    "ast_hash": "8691e9f5d023f1efbd0d6b76b79cb2f0",
+    "mtime": 1795327516.2931142,
+    "seen": 1795327545.5363884,
+    "ast_hash": "021d158d60683df46f44f5d5056601a3",
     "semantic_hash": ""
   },
   "LICENSES/LicenseRef-InnoSetup.txt": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1795326350.1232362,
-    "seen": 1795326380.8165193,
-    "ast_hash": "aab10f6ac23fcf8fee522d24c2c44bb3",
+    "mtime": 1795327525.035956,
+    "seen": 1795327545.5453887,
+    "ast_hash": "d8da33a7950519212e26a55c4218b71e",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
