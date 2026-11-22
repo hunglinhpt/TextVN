@@ -1344,9 +1344,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift": {
-    "mtime": 1795323421.4457302,
-    "seen": 1795323742.09733,
-    "ast_hash": "4a31f74c7f51549310858908e9fb9987",
+    "mtime": 1795324171.9279292,
+    "seen": 1795324232.5818322,
+    "ast_hash": "e7bde152526d20f7990e7950d2f9b1b4",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/AppInfo.swift": {
@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
-    "mtime": 1795323389.156507,
-    "seen": 1795323742.099346,
-    "ast_hash": "ecc861c67f750cbefe94e286000a6924",
+    "mtime": 1795324171.9269297,
+    "seen": 1795324232.5818322,
+    "ast_hash": "8f0e328f7d5446256228351cab03df37",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNApp/main.swift": {
