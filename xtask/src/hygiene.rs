@@ -549,6 +549,28 @@ pub fn ascii_ps1() -> Result<(), String> {
     }
 }
 
+/// E59: repo KHÔNG được chứa file Python (policy ngôn ngữ AGENTS.md — chỉ Rust +
+/// C/C++/Swift native). Quét cả file track lẫn file mới chưa track (không bị
+/// gitignore) — chặn tái diễn việc agent thêm .py như 18 file lịch sử (E59).
+/// Fixture/exception: KHÔNG có — mọi nhu cầu đo lường/sinh dữ liệu đã port
+/// sang `cargo xtask` (assist-*, gen-*, check-*).
+pub fn no_python() -> Result<(), String> {
+    let files = git_list(Some("*.py"))?;
+    if files.is_empty() {
+        println!("check_no_python: OK (không file .py nào trong repo)");
+        Ok(())
+    } else {
+        let mut msg = String::from(
+            "E59: repo không được chứa file Python (AGENTS.md language policy). \
+             Port sang cargo xtask (xem ledger E59 - docs/specs/project-common-errors.md):",
+        );
+        for p in &files {
+            msg.push_str(&format!("\n  {p}"));
+        }
+        Err(msg)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

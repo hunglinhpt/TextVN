@@ -175,7 +175,7 @@ Mọi bug (code / doc / script) đi đúng 5 bước, bỏ bước nào cũng kh
 
 | Workflow | File | Chủ | Chạy khi | Việc làm |
 |---|---|---|---|---|
-| `repo-hygiene` | `.github/workflows/repo-hygiene.yml` | Agent Windows/spike | push `main` + PR + dispatch | 8 check "sạch" (§12.2) — **không** build Rust |
+| `repo-hygiene` | `.github/workflows/repo-hygiene.yml` | Agent Windows/spike | push `main` + PR + dispatch | 9 check "sạch" (§12.2, E59 +`no-python`) — cần toolchain build xtask |
 | `hook-spike` | `.github/workflows/hook-spike.yml` | Agent Windows/spike | **chỉ dispatch** | WIN-005: probe WH_KEYBOARD_LL + SendInput + UIA trên `windows-latest` (verify RW5, `P1-5 §1`) — không gate PR |
 | `ci-shared` | `.github/workflows/ci-shared.yml` | Agent core/FFI | push `main` + PR + dispatch | Rust CI: fmt · clippy · abi-sizes · check-tables · verify header · perf · cargo-deny · reuse · **test 3 OS** · replay 3 OS · fuzz |
 | `ci-windows` | `.github/workflows/ci-windows.yml` | Agent Windows | push `main` + PR + dispatch | clippy target Windows (gồm hook) · gói Windows chạy thật: portable + Inno (per-user, machine, nâng cấp khi tray chạy) gõ TSF thật, Store validation, MSIX build + verify + sideload (tách khỏi `ci-shared` 2026-10-11) |
@@ -191,13 +191,14 @@ pre-release draft-first. **Quy trình đầy đủ (checklist local trước —
 bộ docs bắt buộc, xử lý sự cố) = `docs/release/release-process.md` (G16, G18) —
 bắt buộc đọc trước khi tag bất kỳ version nào.**
 
-### 12.2 8 check của `repo-hygiene`
+### 12.2 9 check của `repo-hygiene`
 
 | # | Check | Chi tiết |
 |---|---|---|
 | 1 | Conflict marker còn sót | `^<<<<<<< ` / `^>>>>>>> ` (loại `graphify-out/`) |
 | 2 | File tạm/debug không được commit | `*.log *.bak *.tmp *.swp *.orig *.rej`, `.DS_Store`, `Thumbs.db`, `desktop.ini`, prefix `dbg_/debug_/tmp_/temp_` |
-| 3 | `.ps1` ASCII-only | G7 / common-errors A5 |
+| 3 | `.ps1` ASCII-only | `cargo xtask ascii-ps1` (G7 / common-errors A5) |
+| 3b | **Không file Python trong repo** (E59) | `cargo xtask no-python` — quét cached + untracked `*.py`; tất cả tooling đã port `cargo xtask` (AGENTS.md language policy) |
 | 4 | Secret / token / private key | `ghp_…`/`gho_…`, `github_pat_…`, `AKIA…`, `-----BEGIN … PRIVATE KEY-----` |
 | 5 | Markdown link tương đối không hỏng | `docs/**/*.md` + `PLAN.md` → `cargo xtask hygiene-docs` (bản Rust trong `xtask/src/hygiene.rs` — E59 thay `.github/scripts/check_doc_links.py`) |
 | 6 | File quy trình bắt buộc tồn tại | `00-WORKFLOW`, `00-INDEX`, `01-AGENT-HANDBOOK`, `verified-ops`, `win-test-common-errors`, `PLAN.md` |

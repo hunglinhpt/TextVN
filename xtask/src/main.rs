@@ -102,6 +102,7 @@ fn main() -> ExitCode {
         "hygiene-apis" => hygiene::no_injection_apis(),
         "iss-tabs" => hygiene::iss_tabs(),
         "ascii-ps1" => hygiene::ascii_ps1(),
+        "no-python" => hygiene::no_python(),
         // Công cụ kiểm Windows release — thay tools/win/*.py (E59).
         "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
         "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
@@ -145,6 +146,7 @@ fn usage() -> &'static str {
      cargo xtask hygiene-apis     # API inject/giong malware bi cam (Farch-3)
      cargo xtask iss-tabs         # .iss khong chua TAB (B12/B13)
      cargo xtask ascii-ps1        # .ps1 ASCII-only (G7/A5)
+     cargo xtask no-python       # E59: khong duoc them file .py vao repo
      cargo xtask check-pe-imports <file...> # PE khong phu thuoc VC++ runtime (R2-18)
      cargo xtask verify-msix <file.msix> [flags] # luat Partner Center + payload (R2-09)
      cargo xtask assist-kappa <a.tsv> <b.tsv>   # Cohen's kappa 2 nguoi gan nhan (E59)

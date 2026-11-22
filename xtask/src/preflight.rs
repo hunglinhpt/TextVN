@@ -238,6 +238,12 @@ const STEPS: &[Step] = &[
         optional: false,
     },
     Step {
+        name: "no-python",
+        guards: "E59: repo không được chứa file .py (AGENTS.md language policy — mọi tool đã port sang cargo xtask)",
+        argv: &["cargo", "run", "-q", "-p", "xtask", "--", "no-python"],
+        optional: false,
+    },
+    Step {
         name: "hygiene-docs",
         guards: "link markdown nội bộ không hỏng",
         argv: &["cargo", "run", "-q", "-p", "xtask", "--", "hygiene-docs"],
