@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1eb32b9c`
+- Built from commit: `4a3e7e65`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2479,11 +2479,11 @@ Nodes (3): Bản 0.2.7 — Ctrl+Shift đổi mode + icon toàn cục, Kiểm ch�
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `String` connect `String` to `ImeEngine`, `ViState`, `ConfigStore`, `ConfigWatcher`, `.inject`, `EventTapController`, `.suggest`, `AppDelegate`, `CodingKeys`, `StrategyResolver`, `IpcServer`, `.register`, `AssistTests`, `TextVNInputController`, `AXSnapshot`, `Equatable`, `compose.c`, `OwnerRule`, `TextVNConfig`, `IpcServerAssistTests`, `IpcClient`, `Foundation`, `Problem`, `AutostartManager`, `MarkedState`, `TextVNAppTests`, `KeyTranslator`?**
-  _High betweenness centrality (0.105) - this node is a cross-community bridge._
+  _High betweenness centrality (0.104) - this node is a cross-community bridge._
 - **Why does `1. Danh sách lỗi (E-IDs)` connect `AssistTests` to `test_delete_surrounding.cpp`, `.register`, `String`, `Issue`, `dual_mode_matrix.rs`, `fix.rs`, `.suggest`?**
-  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **Why does `load_dictionary()` connect `fix.rs` to `AssistTests`?**
-  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+  _High betweenness centrality (0.059) - this node is a cross-community bridge._
 - **Are the 18 inferred relationships involving `TextVNInputController` (e.g. with `KeyTranslator` and `MarkedState`) actually correct?**
   _`TextVNInputController` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `kind`, `ch`, `text` to the rest of the system?**

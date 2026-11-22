@@ -4934,7 +4934,7 @@
       "file_type": "code",
       "norm_label": ".togglemathmode()",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift",
-      "source_location": "L395"
+      "source_location": "L397"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_appdelegate_appdelegate_togglevietnamesemode",
@@ -219942,7 +219942,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift",
-      "source_location": "L395",
+      "source_location": "L397",
       "weight": 1.0
     },
     {
@@ -337045,7 +337045,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/AppDelegate.swift",
-      "source_location": "L395",
+      "source_location": "L397",
       "weight": 1.0
     },
     {
@@ -370016,5 +370016,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "1eb32b9c083d3546bfeb9b80a07fd818cde22302"
+  "built_at_commit": "4a3e7e657ace0335869844bb09eb912c38f6f9b7"
 }
