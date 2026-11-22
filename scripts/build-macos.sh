@@ -127,8 +127,8 @@ if [ -f "$ROOT/packaging/macos/uninstall-check.sh" ]; then
 fi
 
 # Icon .icns — menu Input Sources + Finder/Spotlight hiện icon cho input source
-# và 2 bundle. PNG nguồn được commit (sinh bằng `scripts/generate_app_icons.py`
-# từ resources/icons/textvn_v.svg); ưu tiên 1024 để mức 512@2x không phải phóng to.
+# và 2 bundle. PNG nguồn được commit (sinh bằng `cargo xtask gen-app-icons` —
+# E59 thay generate_app_icons.py; từ resources/icons/textvn_v.svg); ưu tiên 1024 để mức 512@2x không phải phóng to.
 ICON_SRC="$ROOT/packaging/macos/icons/TextVN-1024.png"
 [ -f "$ICON_SRC" ] || ICON_SRC="$ROOT/packaging/macos/icons/TextVN-512.png"
 if [ -f "$ICON_SRC" ]; then

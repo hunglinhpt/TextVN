@@ -139,7 +139,7 @@ File: Windows `%APPDATA%\TextVN\`, macOS `~/Library/Application Support/TextVN/`
 | Trạng thái **E** (tiếng Anh) | Badge chữ E, màu xanh dương #0288D1 | Windows `textvn_e.ico`; Linux `textvn_e.svg/png`; macOS "[E]" + tint `systemBlue` |
 | Lỗi | — | macOS tint `systemOrange` (riêng macOS) |
 
-Sinh lại PNG/ICNS: `python scripts/generate_app_icons.py` (nguồn sự thật là 2 SVG).
+Sinh lại PNG/ICNS: `cargo xtask gen-app-icons` (E59 thay script Python; nguồn sự thật là 2 SVG, glyph chữ là vector dựng sẵn trong `xtask/src/art_icons.rs` — deterministic mọi máy)
 
 ## 8. Trợ lý ngữ pháp — panel cạnh con trỏ (Assist)
 

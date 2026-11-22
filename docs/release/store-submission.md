@@ -22,7 +22,7 @@
 | S1 | Bản phát hành đủ 34 asset: 8 artifact (portable zip, setup exe, setup `-machine.exe`, `*.msix`, Linux tar.gz, mac pkg/zip/tar.gz) + `SHA256SUMS.txt` (clearsign) + `gpg-release-key.asc` + `.asc`/`.cosign.sig`/`.cosign.cert` cho từng artifact; CI 4/4 job xanh | ✔ | `release.yml` publish validate + `signing.md` |
 | S2 | **Store package validation** (silent / ARP / bundleware / uninstall) PASS trên runner sạch | ✔ | `tools/win/validate-store-package.ps1` — chạy trong `ci-shared` + `release.yml` + `cargo xtask preflight` |
 | S3 | Setup exe được đưa lên branch `approved` tại `vX.Y.Z/` (raw URL 200) | ✔ | quy trình B7c + `curl -sI` kiểm 200 |
-| S4 | Ảnh listing đủ: box art 1:1 ≥1080px + poster 2:3 + ít nhất 1 screenshot ≥1366×768 | ✔ | `store/art/` + `store/screenshots/` (generator: `scripts/generate_store_art.py`) |
+| S4 | Ảnh listing đủ: box art 1:1 ≥1080px + poster 2:3 + ít nhất 1 screenshot ≥1366×768 | ✔ | `store/art/` + `store/screenshots/` (generator: `cargo xtask gen-store-art` — E59) |
 | S5 | Ô switches = `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` (KHÔNG `/ALLUSERS`, KHÔNG `/CURRENTUSER`) | ✔ | mục §1a |
 | S6 | KHÔNG tích "Installer runs in silent mode but does not require switches" | ✔ | mục §1b |
 | S7 | Languages: Vietnamese + English; App type: Desktop | ✔ | mục §1c/§1d |
@@ -211,7 +211,7 @@ nộp gói `.msix` (§2c).
 ## 2a. Ảnh listing (Box art / Poster art)
 
 Ảnh cho phần **Store listing** (khác tile trong gói MSIX):
-`store/art/` (sinh bằng `python scripts/generate_store_art.py` — nền đỏ cờ VN +
+`store/art/` (sinh bằng `cargo xtask gen-store-art` — E59 — nền đỏ cờ VN +
 sao vàng + chữ V trắng, đồng bộ icon mode tiếng Việt [V]).
 
 | Ô trong Partner Center | File | Kích thước | Ghi chú |

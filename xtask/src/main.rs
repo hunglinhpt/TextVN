@@ -14,9 +14,12 @@
 //! crate `cbindgen` + nightly. Header hiện do người viết giữ tay và CI kiểm bằng
 //! `textvn sizes` + `ffi/tests/abi_invariants.rs` (ghi rõ ở `docs/00-INDEX §5`).
 
+mod art_icons;
 mod assist_tools;
 mod check_mac_targets;
 mod check_version_sync;
+mod en_office;
+mod gen_en_office_data;
 mod gen_en_phrases;
 mod gen_mac_corpus;
 mod gen_vn_phrases;
@@ -25,6 +28,7 @@ mod gen_win_corpus;
 mod hygiene;
 mod linux_tools;
 mod mac_corpus_cases;
+mod png;
 mod preflight;
 mod toml;
 mod win_corpus_cases;
@@ -76,6 +80,13 @@ fn main() -> ExitCode {
     let result = match cmd {
         "gen-tables" => gen_tables(true),
         "check-tables" => gen_tables(false),
+        // E59: gen en_office_phrases.tsv thay scripts/gen_en_office_phrases.py.
+        "gen-en-office" => en_office::run(true),
+        "check-en-office" => en_office::run(false),
+        // E59: port 3 script sinh icon/art (Pillow -> PNG thuần std).
+        "gen-app-icons" => art_icons::gen_app_icons_cli(&args[1..]),
+        "gen-store-art" => art_icons::gen_store_art_cli(&args[1..]),
+        "gen-tray-icons" => art_icons::gen_tray_icons_cli(&args[1..]),
         "gen-en-phrases" => gen_en_phrases::run(),
         "gen-vn-phrases" => gen_vn_phrases::run(),
         "gen-vocab" => gen_vocab::run(),

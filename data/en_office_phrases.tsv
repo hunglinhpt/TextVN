@@ -1,7 +1,7 @@
 # en_office_phrases.tsv — ngữ cảnh cụm từ/câu tiếng Anh văn phòng (P6,
 # vòng 59): upward reporting / downward management / tech / business /
 # everyday glue / bilingual Viet-Eng code-switch. Sinh bởi
-# scripts/gen_en_office_phrases.py — KHÔNG sửa tay.
+# `cargo xtask gen-en-office` (E59 — thay scripts/gen_en_office_phrases.py) — KHÔNG sửa tay.
 # context_lower	predicted_phrase	weight
 a quick update on	the outstanding action items	86
 action items from today	are captured in the doc	78
