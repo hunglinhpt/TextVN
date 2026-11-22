@@ -72,15 +72,15 @@
     "semantic_hash": ""
   },
   "core/src/keymap.rs": {
-    "mtime": 1795313933.780666,
-    "seen": 1795314565.7932308,
-    "ast_hash": "51b6cedce1bac9db9fff53ac56dd4e58",
+    "mtime": 1795332028.1931968,
+    "seen": 1795332772.6974654,
+    "ast_hash": "6044fc529de15e78a1471e7c045268a3",
     "semantic_hash": ""
   },
   "core/src/lib.rs": {
-    "mtime": 1795325533.7410092,
-    "seen": 1795326380.7852645,
-    "ast_hash": "8d597c1f05624d2091897f54489e1b16",
+    "mtime": 1795332024.936887,
+    "seen": 1795332772.6984947,
+    "ast_hash": "e60645fcaf745bc047e811247827bbc9",
     "semantic_hash": ""
   },
   "core/src/method/keys_generated.rs": {
@@ -768,9 +768,9 @@
     "semantic_hash": ""
   },
   "docs/specs/project-common-errors.md": {
-    "mtime": 1795326350.1202416,
-    "seen": 1795326380.8186405,
-    "ast_hash": "1f147ea7f3d98d74ac18a6798ef3c2c2",
+    "mtime": 1795332693.385879,
+    "seen": 1795332772.7560902,
+    "ast_hash": "76cf87d5fd7e5d22e6f0ce396816583a",
     "semantic_hash": ""
   },
   "docs/specs/uia-spike.md": {
@@ -1860,9 +1860,9 @@
     "semantic_hash": ""
   },
   "docs/release/build-release-report.md": {
-    "mtime": 1795330605.6645029,
-    "seen": 1795330632.3694718,
-    "ast_hash": "00cbd72e2d8ca1d1344490dfbfd68b76",
+    "mtime": 1795332703.7917912,
+    "seen": 1795332772.7540877,
+    "ast_hash": "600de295845de82435215275af20bd48",
     "semantic_hash": ""
   },
   "docs/release/cross-platform-audit-2026-09-30.md": {
@@ -3306,9 +3306,9 @@
     "semantic_hash": ""
   },
   "math/src/ast.rs": {
-    "mtime": 1795313935.4650373,
-    "seen": 1795314565.7932308,
-    "ast_hash": "983255249d305b7c24ccc765819809a3",
+    "mtime": 1795332196.6690695,
+    "seen": 1795332772.7185676,
+    "ast_hash": "b90137c2b8ab1a968cf0f6c3d31452aa",
     "semantic_hash": ""
   },
   "math/src/chords.rs": {
@@ -3318,9 +3318,9 @@
     "semantic_hash": ""
   },
   "math/src/clipboard/classifier.rs": {
-    "mtime": 1795326522.2352374,
-    "seen": 1795326979.7352557,
-    "ast_hash": "80473a878addc669ceceea36484e6223",
+    "mtime": 1795332196.6700704,
+    "seen": 1795332772.7185676,
+    "ast_hash": "52db58aa6ea20d804f0ee43014b15dfa",
     "semantic_hash": ""
   },
   "math/src/clipboard/mod.rs": {
@@ -3330,9 +3330,9 @@
     "semantic_hash": ""
   },
   "math/src/clipboard/serializer.rs": {
-    "mtime": 1795313935.4941454,
-    "seen": 1795314565.7932308,
-    "ast_hash": "c71a9c3da8ec6f8e6cb2408d820362de",
+    "mtime": 1795332196.6700704,
+    "seen": 1795332772.71958,
+    "ast_hash": "8f92872dae0189094fe5432e74ab3815",
     "semantic_hash": ""
   },
   "math/src/clipboard/windows.rs": {
@@ -3354,33 +3354,33 @@
     "semantic_hash": ""
   },
   "math/src/converter.rs": {
-    "mtime": 1795325613.4566936,
-    "seen": 1795326380.7938454,
-    "ast_hash": "1b330443a7fb7f75414dd29449bc6f47",
+    "mtime": 1795332196.6710694,
+    "seen": 1795332772.71958,
+    "ast_hash": "1a14735bafcba075b45370732f1ff4ec",
     "semantic_hash": ""
   },
   "math/src/eval.rs": {
-    "mtime": 1795325327.01591,
-    "seen": 1795326380.7938454,
-    "ast_hash": "9b8fa1e7b02c2f785bdd5161bd098ef2",
+    "mtime": 1795332196.6690695,
+    "seen": 1795332772.71958,
+    "ast_hash": "8aa4f3c06c6a3c87784cc10d4770a00b",
     "semantic_hash": ""
   },
   "math/src/lexicon.rs": {
-    "mtime": 1795325608.4926643,
-    "seen": 1795326380.7938454,
-    "ast_hash": "1f3e564478c57053bba5301c11452814",
+    "mtime": 1795332214.1631374,
+    "seen": 1795332772.71958,
+    "ast_hash": "ba764c176afd9817c1582084a3411a63",
     "semantic_hash": ""
   },
   "math/src/lib.rs": {
-    "mtime": 1795326144.4346302,
-    "seen": 1795326380.7938454,
-    "ast_hash": "413a59403fa8bdff97e4ead20e84f2fe",
+    "mtime": 1795332411.0619838,
+    "seen": 1795332772.71958,
+    "ast_hash": "c036c2ec64a2dc3d404270ab4e20428c",
     "semantic_hash": ""
   },
   "math/src/templates.rs": {
-    "mtime": 1795325737.8529518,
-    "seen": 1795326380.7938454,
-    "ast_hash": "3d37b92b7b7a9a4622977dfe2ff869ed",
+    "mtime": 1795332196.6760707,
+    "seen": 1795332772.71958,
+    "ast_hash": "31007abb90eaa5d0316b4ed5ba0cb0f0",
     "semantic_hash": ""
   },
   "docs/MATH_SCIENCE_GUIDE.md": {
@@ -3396,9 +3396,21 @@
     "semantic_hash": ""
   },
   "math/tests/engine_boundary_fca.rs": {
-    "mtime": 1795325677.5908904,
-    "seen": 1795326380.7938454,
-    "ast_hash": "b1d5c79257ab95b64a41fb2c6c7423fe",
+    "mtime": 1795332545.6947193,
+    "seen": 1795332772.71958,
+    "ast_hash": "0b38d6615c23a26860684d9a195ed676",
+    "semantic_hash": ""
+  },
+  "core/tests/e57_math_sync.rs": {
+    "mtime": 1795332213.9649124,
+    "seen": 1795332772.706225,
+    "ast_hash": "59fe79a1f474a4f01fa3756a052080e3",
+    "semantic_hash": ""
+  },
+  "math/tests/e57_word_sync_fca.rs": {
+    "mtime": 1795332230.5605295,
+    "seen": 1795332772.71958,
+    "ast_hash": "f843eceb64ad8af02b8fb6a3eb957c29",
     "semantic_hash": ""
   }
 }
