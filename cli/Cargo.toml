@@ -12,7 +12,6 @@ path = "src/main.rs"
 [dependencies]
 textvn-ffi = { path = "../ffi" }
 textvn-config = { path = "../config" }
-textvn-ipc = { path = "../ipc" }
 textvn-assist = { path = "../assist" }
 # P4-12a: `assist check --dic` đo luật `spelling` với từ điển thật (chỉ CLI đo — sản phẩm chưa nối).
 textvn-dict = { path = "../dict" }
@@ -21,6 +20,8 @@ serde_json = { workspace = true }
 textvn-win-tsf = { path = "../adapters/windows-tsf" }
 
 [target.'cfg(windows)'.dependencies]
+# R2-162: textvn-ipc chỉ dùng trong khối cfg(windows) của doctor.rs (pipe check)
+textvn-ipc = { path = "../ipc" }
 windows-core = "0.61"
 windows = { version = "0.61", features = [
     "Win32_Storage_FileSystem",
