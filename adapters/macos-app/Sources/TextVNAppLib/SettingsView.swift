@@ -99,7 +99,8 @@ public struct SettingsView: View {
         switch response {
         case .alertSecondButtonReturn: target = AppInfo.discussionsUrl
         case .alertThirdButtonReturn: target = AppInfo.mathGuideUrl
-        case .alertFourthButtonReturn: target = AppInfo.reportIssueUrl
+        // Nút thứ 4 không có hằng Swift sẵn — dùng rawValue 1003.
+        case NSApplication.ModalResponse(rawValue: 1003): target = AppInfo.reportIssueUrl
         default: return
         }
         if let url = URL(string: target) {
