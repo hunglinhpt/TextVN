@@ -500,24 +500,26 @@ int main(void) {
     if (!up)
         die("wait_service", "fcitx5 không lên DBus");
 
-    /* CreateInputContext: (a{ss}) → (o, s). */
+    /* CreateInputContext: (a(ss)) → (o, s). PORT 1:1 python:
+     * im.CreateInputContext([("program", "textvn-e2e"), ("display", "x11:")])
+     * — danh sách TUPLE (struct), KHÔNG phải dict a{ss}. */
     DBusMessage *msg =
         dbus_message_new_method_call(FCITX_NAME, IM_PATH, IM_IFACE,
                                      "CreateInputContext");
     {
         DBusMessageIter iter, arr;
         dbus_message_iter_init_append(msg, &iter);
-        if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "{ss}", &arr))
+        if (!dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(ss)", &arr))
             die("CreateInputContext", "open array");
         const char *pairs[][2] = {{"program", "textvn-e2e"}, {"display", "x11:"}};
         for (size_t i = 0; i < sizeof pairs / sizeof pairs[0]; i++) {
-            DBusMessageIter entry;
-            if (!dbus_message_iter_open_container(&arr, DBUS_TYPE_DICT_ENTRY,
-                                                  NULL, &entry))
-                die("CreateInputContext", "open entry");
-            dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &pairs[i][0]);
-            dbus_message_iter_append_basic(&entry, DBUS_TYPE_STRING, &pairs[i][1]);
-            dbus_message_iter_close_container(&arr, &entry);
+            DBusMessageIter stru;
+            if (!dbus_message_iter_open_container(&arr, DBUS_TYPE_STRUCT,
+                                                  NULL, &stru))
+                die("CreateInputContext", "open struct (ss)");
+            dbus_message_iter_append_basic(&stru, DBUS_TYPE_STRING, &pairs[i][0]);
+            dbus_message_iter_append_basic(&stru, DBUS_TYPE_STRING, &pairs[i][1]);
+            dbus_message_iter_close_container(&arr, &stru);
         }
         if (!dbus_message_iter_close_container(&iter, &arr))
             die("CreateInputContext", "close array");
