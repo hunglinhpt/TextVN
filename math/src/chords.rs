@@ -958,6 +958,7 @@ mod tests {
     macro_rules! greek_case {
         ($name:ident, $key:literal, $want:literal) => {
             #[test]
+            #[allow(non_snake_case)] // tên test theo phím Hy Lạp (gk_W, gk_Su...)
             fn $name() {
                 let mut f = armed();
                 assert_eq!(text_of(&mut f, $key, 100), $want);

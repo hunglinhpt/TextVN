@@ -2207,6 +2207,17 @@ mod tests {
             same_order(&linux, labels, &quoted, "Linux");
             same_order(macos, labels, &swift_text, "macOS");
         }
+        // P11: checkbox "Math & Science" trong "Tùy chọn gõ" phải có đủ trên 3 nền tảng.
+        for (os, src) in [("Linux", linux.as_str()), ("macOS", macos)] {
+            assert!(
+                src.contains("Math & Science"),
+                "thiếu checkbox Math & Science ({os})"
+            );
+        }
+        assert!(
+            include_str!("settings_dialog.rs").contains("Math & Science"),
+            "thiếu checkbox Math & Science (Windows)"
+        );
         // Khung + nhãn hàng của Trợ lý ngữ pháp (AS-060, parity-checklist §58).
         for label in ["Trợ lý ngữ pháp", "Chế độ:"] {
             assert!(

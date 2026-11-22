@@ -1,4 +1,3 @@
-#![allow(warnings)]
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! TextVN Math Engine — Universal Scientific, Engineering & Math Engine
 
@@ -26,7 +25,21 @@ pub struct MathEngine {
     pub context_fsm: MathContextFsm,
     pub guard: AppGuard,
     pub profile: AppProfile,
+    /// Word đang gõ (bounded 64 ký tự) để mở rộng alias/template/inline-eval ở
+    /// boundary — nguồn sự thật duy nhất cho `word_is_command` và `process_boundary`.
+    word_buf: String,
 }
+
+/// Ký tự kết thúc word (boundary) — khớp `Engine::is_math_boundary` ở core.
+fn is_word_boundary(c: char) -> bool {
+    matches!(
+        c,
+        ' ' | '\n' | '\t' | ',' | '.' | ';' | ':' | '!' | '?' | ')' | ']' | '"' | '\'' | '='
+    )
+}
+
+/// Cap word buffer — quá dài thì bỏ word (an toàn, không unbounded).
+const MAX_WORD_BUF: usize = 64;
 
 impl MathEngine {
     pub fn new(config: MathConfig) -> Self {
@@ -36,39 +49,132 @@ impl MathEngine {
             guard: AppGuard::default(),
             profile: AppProfile::default(),
             config,
+            word_buf: String::new(),
+        }
+    }
+
+    /// Đưa 1 ký tự vào word buffer: whitespace/boundary → ngắt word; `=` giữ lại
+    /// (phục vụ inline eval `=expr=`).
+    fn push_word_char(&mut self, c: char) {
+        // Word đang là inline eval (`= ...` chưa khép) thì giữ nguyên qua boundary,
+        // kể cả space — chỉ `=` thứ hai (đóng) mới tính kết quả.
+        if self.word_buf.starts_with('=') {
+            self.word_buf.push(c);
+            if self.word_buf.len() > MAX_WORD_BUF {
+                self.word_buf.clear();
+            }
+            return;
+        }
+        if c.is_whitespace() || (is_word_boundary(c) && c != '=') {
+            self.word_buf.clear();
+            return;
+        }
+        self.word_buf.push(c);
+        if self.word_buf.len() > MAX_WORD_BUF {
+            self.word_buf.clear();
         }
     }
 
     /// Process a character key through the math engine
     pub fn process_char(&mut self, c: char, now_ms: u64, guard: &AppGuard) -> Option<MathAction> {
-        self.chord_fsm.process(c, now_ms, guard)
+        let action = self.chord_fsm.process(c, now_ms, guard);
+        match &action {
+            // Chord nuốt/emit → word hiện tại kết thúc.
+            Some(_) => self.word_buf.clear(),
+            // Boundary (space, punctuation...) KHÔNG push ở đây — core gọi
+            // process_boundary ngay sau với cùng ký tự; push sẽ clear word trước khi
+            // kịp bung alias. Chỉ `=` (mở/đóng inline eval) và ký tự thường mới vào word.
+            None => {
+                if c == '=' || !is_word_boundary(c) {
+                    self.push_word_char(c);
+                }
+            }
+        }
+        // Inline eval `=expr=`: khi word khép kín bởi `=` thứ hai → tính ngay tại
+        // process_char (core gọi process_char trước process_boundary với mọi phím).
+        if action.is_none()
+            && self.word_buf.len() >= 2
+            && c == '='
+            && self.word_buf.starts_with('=')
+            && self.word_buf.ends_with('=')
+        {
+            // Hỗ trợ cả `=2+3=` (không space) và `= 2+3 =` (delimited có space).
+            let inner = &self.word_buf[1..self.word_buf.len() - 1];
+            let v =
+                crate::eval::eval(inner).or_else(|| crate::eval::eval_delimited(&self.word_buf));
+            if let Some(v) = v {
+                let del = self.word_buf.chars().count();
+                let text = crate::eval::format_value(v);
+                self.word_buf.clear();
+                return Some(MathAction::ReplaceBuffer {
+                    delete_chars: del,
+                    text,
+                    cursor_left_steps: 0,
+                });
+            }
+        }
+        action
     }
 
-    /// Process a boundary character (space, enter, etc.)
+    /// Process a boundary character (space, enter, punctuation...):
+    /// mở rộng alias/template khi word đang là lệnh `\...` (`\can`, `\mat3x3`...).
     pub fn process_boundary(
         &mut self,
         c: char,
         mode: MathOutputMode,
         guard: &AppGuard,
     ) -> Option<MathAction> {
-        // Check for inline eval (= expr =)
-        // Stub: return None for now
-        let _ = (c, mode, guard);
+        let word = std::mem::take(&mut self.word_buf);
+        if guard.blocks_chords() {
+            return None;
+        }
+        // Inline eval chưa khép: giữ word lại chờ `=` đóng — kể cả `=` MỞ đầu
+        // (word == "=") và mọi boundary khác (space...).
+        if word.starts_with('=') && (c != '=' || word.len() == 1) {
+            self.word_buf = word;
+            return None;
+        }
+        // Fallback eval nếu `=` kết thúc đến qua đường boundary.
+        if c == '=' && word.starts_with('=') {
+            let candidate = format!("{word}=");
+            let inner = &word[1..];
+            let v = crate::eval::eval(inner).or_else(|| crate::eval::eval_delimited(&candidate));
+            if let Some(v) = v {
+                let del = candidate.chars().count();
+                let text = crate::eval::format_value(v);
+                return Some(MathAction::ReplaceBuffer {
+                    delete_chars: del,
+                    text,
+                    cursor_left_steps: 0,
+                });
+            }
+        }
+        if word.starts_with('\\') && word.len() > 1 {
+            let cfg = self.config.clone();
+            if let Some(action) = chords::expand_lexicon_word(&word, mode, |t| {
+                cfg.custom_output(t).map(str::to_string)
+            }) {
+                return Some(action);
+            }
+        }
         None
     }
 
-    /// Feed context character (for delimiter tracking)
+    /// Feed context character (for delimiter tracking + word tracking khi math chưa active)
     pub fn feed_context(&mut self, c: char) {
         self.context_fsm.feed_text_char(c);
+        self.push_word_char(c);
     }
 
-    /// Check if current word is a math command (starts with \)
+    /// Word đang gõ có phải lệnh math (`\...`) không — core dùng để treo Telex
+    /// khi sticky mode (spec: sticky + word là command → pass-through tới boundary).
     pub fn word_is_command(&self) -> bool {
-        false // stub
+        self.word_buf.starts_with('\\')
     }
 
-    /// Set new config
+    /// Set new config — dựng lại chord FSM với leader/timeout mới.
     pub fn set_config(&mut self, config: MathConfig) {
+        self.chord_fsm = ChordFsm::new(&config);
         self.config = config;
     }
 
@@ -76,5 +182,6 @@ impl MathEngine {
     pub fn reset_all(&mut self) {
         self.chord_fsm.reset();
         self.context_fsm = MathContextFsm::new();
+        self.word_buf.clear();
     }
 }

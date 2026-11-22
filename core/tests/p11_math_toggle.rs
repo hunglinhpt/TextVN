@@ -24,7 +24,7 @@ fn type_keys(e: &mut Engine, keys: &str, buf: &mut Vec<char>) {
                 delete_count,
                 insert,
             } => {
-                buf.truncate(buf.len() - delete_count as usize);
+                buf.truncate(buf.len().saturating_sub(delete_count as usize));
                 buf.extend(insert);
             }
             Action::Commit { insert } => buf.extend(insert),
@@ -127,4 +127,40 @@ fn math_span_suspends_telex_and_counts_once() {
     assert_eq!(s, "$aa");
     let after = e.dream_rsi_snapshot().keys_typed;
     assert_eq!(after - before, 3, "3 phím ($ a a) đếm đúng 1 lần mỗi phím");
+}
+
+/// P11 FCA: sticky math + gõ `\can` + space → bung alias lexicon (ReplaceBuffer).
+#[test]
+fn math_sticky_boundary_expands_alias() {
+    let mut o = opts_with_math(true);
+    o.math.sticky_math_mode = true;
+    let mut e = Engine::new(o);
+    let s = type_and_get_with(&mut e, "\\can ");
+    let entry = textvn_math::lexicon::lookup_token("can").unwrap();
+    assert_eq!(
+        s,
+        format!("{} ", entry.unicode),
+        "alias phải bung ở boundary"
+    );
+}
+
+/// P11 FCA: sticky math + `=2+3=` → tính inline ra "5".
+#[test]
+fn math_sticky_inline_eval() {
+    let mut o = opts_with_math(true);
+    o.math.sticky_math_mode = true;
+    let mut e = Engine::new(o);
+    let s = type_and_get_with(&mut e, "=2+3=");
+    assert_eq!(s, "5");
+}
+
+/// P11 FCA: sticky + word đang là lệnh `\...` → Telex treo (pass-through) tới boundary.
+#[test]
+fn math_sticky_command_suspends_telex() {
+    let mut o = opts_with_math(true);
+    o.math.sticky_math_mode = true;
+    let mut e = Engine::new(o);
+    // gõ `\aa` — nếu Telex chạy sẽ thành `\â`; treo thì giữ nguyên `\aa`
+    let s = type_and_get_with(&mut e, "\\aa");
+    assert_eq!(s, "\\aa", "trong command math, Telex phải bị treo");
 }

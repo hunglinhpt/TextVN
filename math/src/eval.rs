@@ -278,6 +278,19 @@ pub fn eval(expr: &str) -> Option<f64> {
     }
 }
 
+/// Format kết quả eval ra text gọn: số nguyên không có `.0`, số thực dùng repr ngắn
+/// nhất; NaN/Inf không bao giờ tới đây (eval đã guard), nhưng vẫn chặn an toàn.
+pub fn format_value(v: f64) -> String {
+    if !v.is_finite() {
+        return String::from("NaN");
+    }
+    if v.fract() == 0.0 && v.abs() < 1e15 {
+        format!("{}", v as i64)
+    } else {
+        format!("{v}")
+    }
+}
+
 /// Check if input is wrapped in (= ... =) delimiters and evaluate inner expression
 pub fn eval_delimited(input: &str) -> Option<f64> {
     let trimmed = input.trim();

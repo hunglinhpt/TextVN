@@ -10,7 +10,6 @@ publish = false
 textvn-appdb = { path = "../../appdb" }
 textvn-field-detect = { path = "../../field-detect" }
 textvn-ffi = { path = "../../ffi" }
-textvn-ipc = { path = "../../ipc" }
 textvn-strategy = { path = "../../strategy" }
 
 [[bin]]
@@ -18,6 +17,7 @@ name = "textvn-hook"
 path = "src/main.rs"
 
 [target.'cfg(windows)'.dependencies]
+textvn-ipc = { path = "../../ipc" }
 windows-core = "0.61"
 windows = { version = "0.61", features = [
     "Win32_Foundation",

@@ -107,21 +107,12 @@ impl Discipline {
 }
 
 /// Tổ hợp phím toàn cục do TextVN quản lý (user remap được).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HotkeySpec {
     /// Chuỗi như "Ctrl+Alt+M" — adapter đăng ký theo nền tảng.
     pub combo: String,
     /// Tên hành động: `cycle_mode` | `toggle_sticky` | `smart_paste` | `palette`.
     pub action: String,
-}
-
-impl Default for HotkeySpec {
-    fn default() -> Self {
-        Self {
-            combo: String::new(),
-            action: String::new(),
-        }
-    }
 }
 
 /// Cấu hình math (`config.math`) — mọi field có default nên config cũ
@@ -355,9 +346,11 @@ mod tests {
 
     #[test]
     fn serde_roundtrip_preserves_fields() {
-        let mut cfg = MathConfig::default();
-        cfg.enabled = true;
-        cfg.output_mode = MathOutputMode::Typst;
+        let mut cfg = MathConfig {
+            enabled: true,
+            output_mode: MathOutputMode::Typst,
+            ..MathConfig::default()
+        };
         cfg.set_leader_key('\\').unwrap();
         let json = serde_json::to_string(&cfg).unwrap();
         let back: MathConfig = serde_json::from_str(&json).unwrap();

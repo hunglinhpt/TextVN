@@ -2189,6 +2189,8 @@ greek_table! {
 // ============================================================
 macro_rules! si_group {
     ($pid:ident, $psym:literal, $plat:literal, $pen:literal, $pvi:literal, $units:tt) => {
+        // Bảng sinh tự động: tên module/const giữ nguyên để khớp ký hiệu vật lý (si_M, u_meter...).
+        #[allow(non_snake_case, non_upper_case_globals)]
         mod $pid {
             use super::{MathEntry, Discipline};
             si_group!(@consts $psym, $plat, $pen, $pvi, $units);
@@ -7006,7 +7008,7 @@ pub fn lookup_prefix(prefix: &str, limit: usize) -> Vec<&'static MathEntry> {
         .copied()
         .take_while(|e| e.trigger.starts_with(prefix))
         .collect();
-    out.sort_by(|a, b| b.base_weight.cmp(&a.base_weight));
+    out.sort_by_key(|e| std::cmp::Reverse(e.base_weight));
     out.truncate(limit);
     out
 }
@@ -7047,7 +7049,7 @@ pub fn score_entry(entry: &MathEntry, query: &str, ctx: &ScoreContext) -> f32 {
         score += 100.0;
     } else if entry.trigger.starts_with(query) {
         score += 60.0;
-    } else if entry.aliases.iter().any(|a| *a == query) {
+    } else if entry.aliases.contains(&query) {
         score += 80.0; // ExactAliasBonus
     } else if entry.aliases.iter().any(|a| a.starts_with(query)) {
         score += 40.0;

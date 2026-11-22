@@ -180,7 +180,7 @@ public final class IpcServer {
             }
 
             // Set non-blocking
-            var flags = fcntl(fd, F_GETFL, 0)
+            let flags = fcntl(fd, F_GETFL, 0)
             _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
             var addr = sockaddr_un()
@@ -232,7 +232,7 @@ public final class IpcServer {
             listenSource = nil
             listenFd = -1
 
-            for (cfd, source) in clientSources {
+            for (_, source) in clientSources {
                 source.cancel()
             }
             clientSources.removeAll()
@@ -275,7 +275,7 @@ public final class IpcServer {
                 continue
             }
 
-            var flags = fcntl(clientFd, F_GETFL, 0)
+            let flags = fcntl(clientFd, F_GETFL, 0)
             _ = fcntl(clientFd, F_SETFL, flags | O_NONBLOCK)
 
             let clientSource = DispatchSource.makeReadSource(fileDescriptor: clientFd, queue: queue)

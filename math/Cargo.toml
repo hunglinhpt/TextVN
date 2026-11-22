@@ -9,4 +9,6 @@ description = "Universal Scientific, Engineering & Math Engine for TextVN"
 
 [dependencies]
 serde = { workspace = true }
+
+[dev-dependencies]
 serde_json = { workspace = true }

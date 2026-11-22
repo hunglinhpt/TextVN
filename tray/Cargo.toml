@@ -11,7 +11,6 @@ name = "TextVN"
 path = "src/main.rs"
 
 [dependencies]
-textvn-appdb = { path = "../appdb" }
 textvn-config = { path = "../config" }
 textvn-ipc = { path = "../ipc" }
 textvn-strategy = { path = "../strategy" }

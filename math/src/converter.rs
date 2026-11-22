@@ -85,7 +85,7 @@ fn node_to_mathml(node: &MathNode) -> String {
             format!("<mtable>{}</mtable>", trs.join(""))
         }
         MathNode::Func(name, args) => {
-            let args_str: Vec<String> = args.iter().map(|a| node_to_mathml(a)).collect();
+            let args_str: Vec<String> = args.iter().map(node_to_mathml).collect();
             format!(
                 "<mrow><mi>{}</mi><mo>(</mo>{}<mo>)</mo></mrow>",
                 xml_escape(name),
@@ -94,7 +94,7 @@ fn node_to_mathml(node: &MathNode) -> String {
         }
         MathNode::Text(s) => format!("<mtext>{}</mtext>", xml_escape(s)),
         MathNode::Seq(nodes) => {
-            let inner: Vec<String> = nodes.iter().map(|n| node_to_mathml(n)).collect();
+            let inner: Vec<String> = nodes.iter().map(node_to_mathml).collect();
             format!("<mrow>{}</mrow>", inner.join(""))
         }
         MathNode::Chem(s) => format!("<mtext>{}</mtext>", xml_escape(s)),
@@ -296,8 +296,6 @@ pub fn cf_html(body: &str) -> String {
     let html_end = "<!--EndFragment--></body></html>";
 
     // Calculate offsets in bytes
-    let start_html = header.len() + 0; // placeholder, will compute properly
-    let _ = start_html;
 
     let start_fragment_offset = header.len() + html_start.len();
     let end_fragment_offset = start_fragment_offset + body.len();

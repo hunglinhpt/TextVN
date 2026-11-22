@@ -1,5 +1,7 @@
 # Báo cáo dựng & kiểm thử — TextVN
 
+> **R2-162 (2026-11-21, vòng audit P11 UI):** cargo (CI) cảnh báo `unused dependency`: `textvn-math` dùng `serde_json` chỉ ở `cfg(test)` → chuyển sang `[dev-dependencies]`; `textvn-tray` khai báo `textvn-appdb` nhưng không dùng anywhere → xoá; `textvn-win-hook`/`textvn-win-tsf` dùng `textvn-ipc` chỉ trong code `cfg(windows)` → chuyển vào `[target.'cfg(windows)'.dependencies]`. Xác minh cả 2 target: `cargo check --workspace --all-targets` (Linux) và `--target x86_64-pc-windows-msvc` đều xanh. Swift: xoá 3 warning ở `IpcServer.swift` (`var flags`→`let`, `cfd`→`_`).
+
 ## Bản 0.2.83 — Universal Scientific, Engineering & Math Engine (crate `textvn-math`) + sửa lỗi CI (E52/E53/E54) (2026-11-21)
 
 | Hạng mục | Bằng chứng |

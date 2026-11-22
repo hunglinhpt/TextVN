@@ -53,28 +53,24 @@ pub fn parse_trigger(word: &str) -> Option<(TemplateKind, usize, usize)> {
     }
     // Tách phần chữ đầu (mat/bmat/pmat/det/hpt/cases) — không phân biệt hoa/thường
     let lower = w.to_ascii_lowercase();
-    let (kind, dims): (TemplateKind, &str) = if let Some(d) = lower.strip_prefix("bmat") {
-        (TemplateKind::BMat, d)
-    } else if let Some(d) = lower.strip_prefix("pmat") {
-        (TemplateKind::PMat, d)
-    } else if let Some(d) = lower.strip_prefix("mat") {
-        (TemplateKind::Mat, d)
-    } else if let Some(d) = lower.strip_prefix("det") {
-        (TemplateKind::Det, d)
-    } else if let Some(d) = lower.strip_prefix("hpt") {
-        (TemplateKind::Hpt, d)
-    } else if let Some(d) = lower.strip_prefix("cases") {
-        (TemplateKind::Cases, d)
-    } else {
-        return None;
+    // Bảng tiền tố theo thứ tự ưu tiên (bmat/pmat phải trước mat).
+    const KINDS: &[(&str, TemplateKind)] = &[
+        ("bmat", TemplateKind::BMat),
+        ("pmat", TemplateKind::PMat),
+        ("mat", TemplateKind::Mat),
+        ("det", TemplateKind::Det),
+        ("hpt", TemplateKind::Hpt),
+        ("cases", TemplateKind::Cases),
+    ];
+    let Some(&(prefix, kind)) = KINDS.iter().find(|(p, _)| lower.starts_with(p)) else {
+        return None; // không khớp template nào
     };
+    let dims = &lower[prefix.len()..];
     // dims: "" → mặc định 2; "N" → (N,N); "NxM"
     let (n, m) = if dims.is_empty() {
         (2, 2)
     } else if let Some((a, b)) = dims.split_once('x') {
-        let n: usize = a.parse().ok()?;
-        let m: usize = b.parse().ok()?;
-        (n, m)
+        (a.parse::<usize>().ok()?, b.parse::<usize>().ok()?)
     } else {
         let n: usize = dims.parse().ok()?;
         (n, n)

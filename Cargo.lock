@@ -209,7 +209,6 @@ version = "0.2.83"
 dependencies = [
  "serde",
  "serde_json",
- "textvn-appdb",
  "textvn-config",
  "textvn-ipc",
  "textvn-strategy",

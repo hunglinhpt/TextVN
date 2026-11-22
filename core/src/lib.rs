@@ -242,7 +242,9 @@ impl Engine {
             if !text.ends_with(' ') {
                 text.push(' ');
             }
-        } else if boundary != '\n' && boundary != '\t' {
+        } else if boundary != '\n' && boundary != '\t' && boundary != '=' {
+            // Ngoại lệ: `=` là delimiter ĐÓNG của inline eval (=expr=) — đã tính
+            // trong delete_chars, không append lại (tránh `=2+3=` → `5=`).
             text.push(boundary);
         }
         let unicode: Vec<char> = text.chars().collect();
