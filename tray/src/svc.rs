@@ -378,6 +378,18 @@ impl SvcManager {
         self.update_config(|c| c.suggest.enabled = enable)
     }
 
+    /// P11: bật/tắt Math & Science (`math.enabled` — opt-in, mặc định TẮT).
+    /// Nguồn sự thật duy nhất: lưu config → broadcast ConfigReload để TSF/hook
+    /// nạp lại; UI (checkbox + tray) đọc từ đây nên không bao giờ lệch.
+    pub fn set_math_enabled(&self, enable: bool) -> Result<u64, DocError> {
+        self.update_config(|c| c.math.enabled = enable)
+    }
+
+    /// P11: Math & Science đang bật hay không (đọc từ config — cùng nguồn với UI).
+    pub fn is_math_enabled(&self) -> bool {
+        self.config().math.enabled
+    }
+
     /// Cho phép gõ tắt cả khi đang tắt tiếng Việt.
     pub fn set_allow_macro_when_vi_off(&self, enable: bool) -> Result<u64, DocError> {
         self.update_config(|c| c.allow_macro_when_vi_off = enable)

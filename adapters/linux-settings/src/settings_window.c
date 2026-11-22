@@ -34,6 +34,7 @@ typedef struct TvWin {
     GtkWidget *chk_quick;
     GtkWidget *chk_macro_off;
     GtkWidget *chk_suggest;
+    GtkWidget *chk_math; /* P11: Math & Science (\"math.enabled\") */
     GtkWidget *chk_style;        /* P7 tự học (bật mặc định từ 0.2.74) */
     GtkWidget *btn_style_clear;  /* xoá dữ liệu đã học */
     GtkWidget *lbl_style_stats;  /* "Đã học: … | Dream RSI: …" */
@@ -107,6 +108,12 @@ static void present_info_dialog(GtkWindow *parent, const char *title, const char
     if (with_help_links) {
         GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         gtk_widget_set_halign(row, GTK_ALIGN_END);
+        /* P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận. */
+        GtkWidget *math = gtk_button_new_with_label("Math & Science");
+        gtk_widget_set_tooltip_text(math, "Mở tài liệu hướng dẫn Math & Science trên GitHub");
+        g_object_set_data_full(G_OBJECT(math), "help-url", g_strdup(tv_math_guide_url), g_free);
+        g_signal_connect(math, "clicked", G_CALLBACK(on_help_link), GTK_WINDOW(dlg));
+        gtk_box_append(GTK_BOX(row), math);
         GtkWidget *discuss = gtk_button_new_with_label("Thảo luận");
         gtk_widget_set_tooltip_text(discuss, "Mở trang Thảo luận trên GitHub");
         g_object_set_data_full(G_OBJECT(discuss), "help-url", g_strdup(tv_discussions_url), g_free);
@@ -163,6 +170,7 @@ static void populate(TvWin *w) {
     set_active(w->chk_quick, s.quick_telex);
     set_active(w->chk_macro_off, s.allow_macro_when_vi_off);
     set_active(w->chk_suggest, s.suggest_enabled);
+    set_active(w->chk_math, s.math_enabled);
     set_active(w->chk_style, s.style_profile_enabled);
     {
         /* Cùng định dạng với Windows (`style_stats_text`) và macOS. */
@@ -652,6 +660,8 @@ GtkWidget *textvn_settings_window_create(GtkApplication *app, const char *custom
      * Thiếu toggle này trên Linux làm dự đoán KHÔNG THỂ bật (bug 0.2.49). */
     w->chk_suggest =
         option(w, g2, "Gợi ý hoàn tất từ (Tab / Ctrl+Space)", "suggest.enabled", 0, 4);
+    /* P11: Math & Science — cột phải cùng hàng với "Gợi ý hoàn tất từ" (parity Windows). */
+    w->chk_math = option(w, g2, "Math & Science", "math.enabled", 1, 4);
 
     /* 3. Trợ lý ngữ pháp (AS-060) — cùng nhãn/thứ tự với Windows & macOS */
     GtkWidget *g3 = framed_grid(main_box, "Trợ lý ngữ pháp");

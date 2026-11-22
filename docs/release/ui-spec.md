@@ -57,6 +57,7 @@ tuỳ chọn**; các hàng riêng của macOS (`Khởi động cùng OS`, `Gõ k
 | Tự viết hoa chữ đầu câu | `config.auto_capitalize` | bật |
 | Quick Telex | `config.quick_telex` | tắt |
 | Gõ tắt cả khi tắt tiếng Việt | `config.allow_macro_when_vi_off` | tắt |
+| Math & Science (P11) | `config.math.enabled` — checkbox trong "Tùy chọn gõ" + mục menu khay/menu bar (ngay dưới "Trợ lý ngữ pháp" ở Windows) + nút trong Hướng dẫn | **tắt** |
 | Khởi động cùng Windows | `HKCU\…\Run\TextVN` | tắt |
 | Bật hội thoại này khi khởi động | `config.show_dialog_on_startup` | bật |
 | Dành Ctrl + Shift cho TextVN | `HKCU\Keyboard Layout\Toggle` (`Layout Hotkey`/`Language Hotkey` ≠ Ctrl + Shift) — cài đặt của Windows, không nằm trong config | bộ cài chọn sẵn |

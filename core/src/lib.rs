@@ -109,7 +109,19 @@ impl Engine {
 
     /// Xử lý phím qua math khi `math.enabled`. `None` = math không quan tâm,
     /// pipeline tiếng Việt chạy như cũ.
+    ///
+    /// G19: `keys_typed` chỉ đếm đúng 1 lần cho mỗi phím gõ chữ thật — ở đây chỉ
+    /// đếm khi math **thực sự nhận** phím (trả `Some`); nếu trả `None` thì pipeline
+    /// chính tự đếm ở dưới (tránh double-count khi math bật mà pass-through).
     fn math_key(&mut self, k: &KeyEvent) -> Option<Outcome> {
+        let out = self.math_key_inner(k);
+        if out.is_some() {
+            self.dream_rsi.keys_typed = self.dream_rsi.keys_typed.saturating_add(1);
+        }
+        out
+    }
+
+    fn math_key_inner(&mut self, k: &KeyEvent) -> Option<Outcome> {
         let c = k.printable()?;
         // AltGr = Ctrl+Alt + ký tự (Windows); còn lại chord hệ thống → bỏ qua.
         let is_altgr = k.mods == (keymap::MOD_CTRL | keymap::MOD_ALT);
@@ -133,9 +145,7 @@ impl Engine {
         if self.math.context_fsm.in_text_span() {
             return None;
         }
-        // G19: phím gõ chữ thật qua math path (leader/chord bị nuốt) vẫn đếm
-        // keys_typed — không phá bộ đếm Dream RSI.
-        self.dream_rsi.keys_typed = self.dream_rsi.keys_typed.saturating_add(1);
+        // (keys_typed được đếm ở math_key khi trả Some — xem G19 note ở trên.)
 
         let sticky = self.opts.math.sticky_math_mode;
         let math_active = sticky || in_math_span;
@@ -1179,7 +1189,14 @@ impl Engine {
         self.style_touches = 0;
         // P11: math config đổi mới reset FSM math (giữ nguyên nếu chỉ đổi option khác).
         if self.opts.math != self.math.config {
+            let was_enabled = self.math.config.enabled;
+            let now_enabled = self.opts.math.enabled;
             self.math.set_config(self.opts.math.clone());
+            // Tắt math (enabled true→false): dọn sạch mọi state armed (chord/HUD/
+            // context) để pass-through 100% ngay lập tức, không để sót chord treo.
+            if was_enabled && !now_enabled {
+                self.math.reset_all();
+            }
         }
         self.word.clear();
         self.record(Tail::Clear);

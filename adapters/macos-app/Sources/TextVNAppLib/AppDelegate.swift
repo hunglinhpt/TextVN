@@ -307,6 +307,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
         appItem.isEnabled = lastFrontAppID != nil
         menu.addItem(appItem)
 
+        // 6b. Math & Science (P11) — checkable, nguồn sự thật duy nhất là
+        // `configStore.config.math.enabled` (SettingsView đọc/ghi cùng khoá → luôn khớp).
+        let mathItem = NSMenuItem(
+            title: "Math & Science",
+            action: #selector(toggleMathMode(_:)),
+            keyEquivalent: ""
+        )
+        mathItem.target = self
+        mathItem.state = configStore.config.math.enabled ? .on : .off
+        menu.addItem(mathItem)
+
         // 7. Cài đặt...
         let settingsItem = NSMenuItem(title: "Cài đặt...", action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
@@ -381,7 +392,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, IpcServerDelega
 
     // MARK: - Actions
 
-    @objc public func toggleVietnameseMode() {
+    @objc public     /// P11: bật/tắt Math & Science từ menu bar — ghi config + broadcast ConfigReload
+    /// cho IMK nạp lại ngay; SettingsView đang mở tự đồng bộ vì cùng đọc configStore.
+    @objc func toggleMathMode(_ sender: NSMenuItem) {
+        configStore.config.math.enabled.toggle()
+        configStore.persist()
+        IpcServer.shared.broadcastConfigReload(version: UInt64(Date().timeIntervalSince1970))
+        sender.state = configStore.config.math.enabled ? .on : .off
+    }
+
+func toggleVietnameseMode() {
         isVietnameseMode.toggle()
         configStore.config.enabled = isVietnameseMode
         configStore.persist()

@@ -74,6 +74,7 @@ const ID_LBL_ASSIST_HINT: isize = 4103;
 const ID_LBL_WORDLIST_HINT: isize = 4101;
 // P7/P10 (0.2.74): tự học + Dream RSI nằm trong khung Trợ lý ngữ pháp.
 const ID_CHK_STYLE: isize = 2026;
+const ID_CHK_MATH: isize = 2028;
 const ID_BTN_STYLE_CLEAR: isize = 2027;
 const ID_LBL_STYLE_STATS: isize = 4102;
 // ID cho STATIC/GROUPBOX (không tương tác) — cần để re-layout theo DPI (WM_DPICHANGED).
@@ -161,12 +162,19 @@ Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi g�
 (hoặc Space) để bung ra.\r\n\r\n\
 Ẩn vào khay: đóng cửa sổ này nhưng TextVN vẫn chạy nền (bộ gõ vẫn hoạt động); mở lại từ biểu \
 tượng ở khay. Thoát: tắt hẳn TextVN.\r\n\r\n\
+Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ hoặc chuột phải icon khay → mục \"Math & Science\". Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste công thức), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\r\n\r\n\
 Nếu chưa gõ được tiếng Việt: TextVN tự đăng ký bộ gõ khi khởi động — thoát hẳn rồi mở lại, \
 chọn TextVN trong danh sách bộ gõ (Win + Space), hoặc chạy `textvn-cli doctor`.";
 
 /// Trang Thảo luận / Báo lỗi — CÙNG URL trên Windows/macOS/Linux (cửa sổ "Hướng dẫn").
 #[cfg(windows)]
 const DISCUSSIONS_URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
+
+/// P11 — nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu hướng dẫn
+/// (cùng URL trên cả 3 OS — test `help_window_links_match_every_platform` đối chiếu).
+#[cfg(windows)]
+const MATH_GUIDE_URL: &str =
+    "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
 
 /// Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
 /// khớp `<url type="bugtracker">` của AppStream metainfo.
@@ -573,7 +581,7 @@ const CW: i32 = 420; // bề rộng một ô trong cột
 /// Dùng ở MỌI lần tạo control VÀ khi re-layout sau WM_DPICHANGED — sửa một chỗ.
 /// Thứ tự trong mảng = thứ tự Tab; WS_GROUP mở nhóm radio mới.
 #[cfg(windows)]
-const DIALOG_LAYOUT: [Ctl; 35] = [
+const DIALOG_LAYOUT: [Ctl; 36] = [
     // 1. Điều khiển
     ctl(
         "BUTTON",
@@ -685,8 +693,17 @@ const DIALOG_LAYOUT: [Ctl; 35] = [
         "BUTTON",
         "Gợi ý hoàn tất từ (Tab / Ctrl+Space)",
         CHK,
-        (L, 344, 830, 32),
+        (L, 344, CW, 32),
         ID_CHK_SUGGEST,
+    ),
+    // P11: Math & Science — checkbox trong "Tùy chọn gõ", cột phải cùng hàng với
+    // "Gợi ý hoàn tất từ" (không nới khung, không cắt nhãn ở DPI nhỏ).
+    ctl(
+        "BUTTON",
+        "Math & Science",
+        CHK,
+        (R, 344, 400, 32),
+        ID_CHK_MATH,
     ),
     // 3. Trợ lý ngữ pháp
     ctl(
@@ -982,6 +999,7 @@ fn populate_controls_from_config(hwnd: HWND) {
         set_chk(hwnd, ID_CHK_QUICK_TELEX, cfg.quick_telex);
         set_chk(hwnd, ID_CHK_MACRO_WHEN_OFF, cfg.allow_macro_when_vi_off);
         set_chk(hwnd, ID_CHK_SUGGEST, cfg.suggest.enabled);
+        set_chk(hwnd, ID_CHK_MATH, cfg.math.enabled);
         set_chk(hwnd, ID_CHK_STYLE, cfg.style_profile.effective_enabled());
         refresh_style_stats(hwnd, &cfg.style_profile);
         set_chk(
@@ -1086,6 +1104,7 @@ fn apply_option_checkbox(
         ID_CHK_AUTO_CAPITALIZE => svc.set_auto_capitalize(checked),
         ID_CHK_QUICK_TELEX => svc.set_quick_telex(checked),
         ID_CHK_SUGGEST => svc.set_suggest_enabled(checked),
+        ID_CHK_MATH => svc.set_math_enabled(checked),
         ID_CHK_STYLE => svc.set_style_learning(checked),
         ID_CHK_MACRO_WHEN_OFF => svc.set_allow_macro_when_vi_off(checked),
         ID_CHK_SHOW_ON_STARTUP => svc.set_show_dialog_on_startup(checked),
@@ -2038,6 +2057,8 @@ fn open_url(url: &str) {
 }
 
 #[cfg(windows)]
+const HELP_BTN_MATH: i32 = 1000;
+#[cfg(windows)]
 const HELP_BTN_DISCUSS: i32 = 1001;
 #[cfg(windows)]
 const HELP_BTN_REPORT: i32 = 1002;
@@ -2053,10 +2074,16 @@ fn show_help(owner: HWND) {
     };
     let title = w("Hướng dẫn TextVN");
     let content = w(&HELP_TEXT.replace("\r\n", "\n"));
+    let b_math = w("Math & Science");
     let b_discuss = w("Thảo luận");
     let b_report = w("Báo lỗi");
     let b_close = w("Đóng");
+    // P11: nút Math & Science đứng ngay bên TRÁI nút Thảo luận.
     let buttons = [
+        TASKDIALOG_BUTTON {
+            nButtonID: HELP_BTN_MATH,
+            pszButtonText: PCWSTR(b_math.as_ptr()),
+        },
         TASKDIALOG_BUTTON {
             nButtonID: HELP_BTN_DISCUSS,
             pszButtonText: PCWSTR(b_discuss.as_ptr()),
@@ -2089,6 +2116,7 @@ fn show_help(owner: HWND) {
         return;
     }
     match pressed {
+        HELP_BTN_MATH => open_url(MATH_GUIDE_URL),
         HELP_BTN_DISCUSS => open_url(DISCUSSIONS_URL),
         HELP_BTN_REPORT => open_url(REPORT_ISSUE_URL),
         _ => {}
@@ -2124,6 +2152,7 @@ mod tests {
             ID_COMBO_ASSIST_MODE,
             ID_LBL_ASSIST_HINT,
             ID_CHK_STYLE,
+            ID_CHK_MATH,
             ID_BTN_STYLE_CLEAR,
             ID_LBL_STYLE_STATS,
             ID_EDIT_MACROS,
@@ -2338,6 +2367,9 @@ mod tests {
         const URL: &str = "https://github.com/hunglinhpt/TextVN/discussions";
         // Nút **Báo lỗi** mở đúng issue tracker — không phải trang Thảo luận.
         const ISSUES_URL: &str = "https://github.com/hunglinhpt/TextVN/issues";
+        // P11: nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu guide.
+        const MATH_GUIDE_URL: &str =
+            "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
         let windows = include_str!("settings_dialog.rs");
         let linux_model = include_str!("../../adapters/linux-settings/src/settings_model.c");
         let linux_win = include_str!("../../adapters/linux-settings/src/settings_window.c");
@@ -2354,6 +2386,10 @@ mod tests {
                 src.contains(ISSUES_URL),
                 "{os} thiếu URL issue tracker cho Báo lỗi"
             );
+            assert!(
+                src.contains(MATH_GUIDE_URL),
+                "{os} thiếu URL Math & Science guide"
+            );
         }
         for (os, src) in [
             ("Windows", windows),
@@ -2362,7 +2398,44 @@ mod tests {
         ] {
             assert!(src.contains("\"Thảo luận\""), "{os} thiếu nút Thảo luận");
             assert!(src.contains("\"Báo lỗi\""), "{os} thiếu nút Báo lỗi");
+            // P11: nút Math & Science trong cửa sổ Hướng dẫn, ngay bên trái Thảo luận.
+            assert!(
+                src.contains("Math & Science"),
+                "{os} thiếu nút Math & Science"
+            );
         }
+        // Thứ tự nút trong hàng nút Hướng dẫn: Math & Science đứng ngay bên TRÁI Thảo luận.
+        // (marker theo từng OS vì nhãn "Math & Science" còn xuất hiện ở cả bảng cài đặt)
+        let math_marker = |src: &str| {
+            src.find("HELP_BTN_MATH")
+                .map(|_| src.find("nButtonID: HELP_BTN_MATH").unwrap())
+        };
+        assert!(
+            windows.find("nButtonID: HELP_BTN_MATH").unwrap()
+                < windows.find("nButtonID: HELP_BTN_DISCUSS").unwrap(),
+            "Windows: nút Math & Science phải trước nút Thảo luận"
+        );
+        let _ = math_marker;
+        assert!(
+            linux_win
+                .find("gtk_button_new_with_label(\"Math & Science\")")
+                .unwrap()
+                < linux_win
+                    .find("gtk_button_new_with_label(\"Thảo luận\")")
+                    .unwrap(),
+            "Linux: nút Math & Science phải trước nút Thảo luận"
+        );
+        // macOS NSAlert hiển thị nút theo thứ tự ngược lại mã nguồn: muốn Math & Science
+        // nằm bên TRÁI Thảo luận thì phải addButton SAU Thảo luận.
+        assert!(
+            mac_view
+                .find("addButton(withTitle: \"Thảo luận\")")
+                .unwrap()
+                < mac_view
+                    .find("addButton(withTitle: \"Math & Science\")")
+                    .unwrap(),
+            "macOS: addButton Math & Science phải sau Thảo luận (để hiện bên trái)"
+        );
         // Không còn nút riêng ở hàng nút chính (Windows/Linux) — chỉ nằm trong cửa sổ Hướng dẫn.
         assert!(!windows.contains(concat!("ID_BTN_", "DISCUSS")));
         assert!(!linux_win.contains("internet-discussion-symbolic"));

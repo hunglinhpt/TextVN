@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Menu khay hệ thống 9 mục cho TextVN Tray (WIN-050 — P1-4 §1).
+//! Menu khay hệ thống 10 mục cho TextVN Tray (WIN-050 — P1-4 §1, P11 bổ sung mục 5b).
 //!
 //! Định nghĩa đầy đủ 9 mục menu chuột phải theo bảng chuẩn:
 //! 1. Bật/Tắt gõ tiếng Việt (toggle global)
@@ -7,6 +7,8 @@
 //! 3. Dấu (Chuẩn mới / Cổ điển)
 //! 4. Cửa sổ đang gõ (Tên app foreground + enable riêng)
 //! 5. Game / Compat mode (bật/tắt hook)
+//!
+//! Bổ sung: Trợ lý ngữ pháp (kill-switch, mục 5b) và Math & Science (P11, mục 5c — ngay dưới "Trợ lý ngữ pháp").
 //! 6. Cài đặt... (Mở Settings GUI)
 //! 7. Sức khỏe / Trạng thái (Health submenu: Engine, Hook, Pipe, Version)
 //! 8. Gỡ cài đặt (bản cài: `unins000.exe`; bản Store: dọn phần ngoài gói rồi mở Cài đặt ›
@@ -36,6 +38,7 @@ pub const ID_DIACRITIC_OLD: u32 = 1021;
 pub const ID_CURRENT_APP_TOGGLE: u32 = 1030;
 pub const ID_HOOK_COMPAT_MODE: u32 = 1040;
 pub const ID_TOGGLE_ASSIST: u32 = 1045;
+pub const ID_TOGGLE_MATH: u32 = 1046;
 pub const ID_OPEN_SETTINGS: u32 = 1050;
 pub const ID_HEALTH_STATUS: u32 = 1060;
 pub const ID_UNINSTALL: u32 = 1070;
@@ -197,6 +200,25 @@ impl TrayMenu {
                 PCWSTR(w(assist_label).as_ptr()),
             );
 
+            // 5c. Math & Science (P11) — ngay dưới "Trợ lý ngữ pháp", checkmark theo
+            // `math.enabled` (nguồn sự thật: config; UI chính cũng đọc cùng khoá).
+            let math_enabled = self.svc.is_math_enabled();
+            let math_label = if math_enabled {
+                "Math & Science (Đang bật)"
+            } else {
+                "Math & Science (Đang tắt)"
+            };
+            let mut math_flags = MF_STRING;
+            if math_enabled {
+                math_flags |= MF_CHECKED;
+            }
+            let _ = AppendMenuW(
+                menu,
+                math_flags,
+                ID_TOGGLE_MATH as usize,
+                PCWSTR(w(math_label).as_ptr()),
+            );
+
             let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
             // 6. Cài đặt...
@@ -320,6 +342,29 @@ impl TrayMenu {
                     "Đã tắt Trợ lý ngữ pháp"
                 };
                 crate::show_tray_notification("TextVN", msg);
+            }
+            ID_TOGGLE_MATH => {
+                // P11: toggle `math.enabled` — lưu config + ConfigReload để engine
+                // nạp lại ngay; cửa sổ Cài đặt đang mở tự refresh qua refresh_if_open.
+                let next = !self.svc.is_math_enabled();
+                match self.svc.set_math_enabled(next) {
+                    Ok(ver) => {
+                        self.ipc.broadcast_config_reload(ver);
+                        crate::settings_dialog::refresh_if_open();
+                        let msg = if next {
+                            "Đã bật Math & Science"
+                        } else {
+                            "Đã tắt Math & Science"
+                        };
+                        crate::show_tray_notification("TextVN", msg);
+                    }
+                    Err(_) => {
+                        crate::show_tray_notification(
+                            "TextVN",
+                            "Không lưu được cấu hình — giữ nguyên trạng thái cũ",
+                        );
+                    }
+                }
             }
             ID_OPEN_SETTINGS => {
                 crate::settings_dialog::show_settings_dialog(self.svc.clone(), self.ipc.clone());
@@ -475,6 +520,7 @@ mod tests {
             ID_CURRENT_APP_TOGGLE,
             ID_HOOK_COMPAT_MODE,
             ID_TOGGLE_ASSIST,
+            ID_TOGGLE_MATH,
             ID_OPEN_SETTINGS,
             ID_HEALTH_STATUS,
             ID_UNINSTALL,
@@ -484,6 +530,6 @@ mod tests {
         for id in ids {
             assert!(set.insert(id), "Duplicate menu ID: {id}");
         }
-        assert_eq!(ids.len(), 14);
+        assert_eq!(ids.len(), 15);
     }
 }

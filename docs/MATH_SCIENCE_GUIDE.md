@@ -12,8 +12,8 @@
 
 | Bước | Thao tác | Ghi chú |
 |---|---|---|
-| 1 | Mở `config.v1.json`, thêm section `"math": { "enabled": true }` | Mặc định **TẮT** — hành vi gõ cũ giữ nguyên 100% |
-| 2 | Khởi động lại TextVN (hoặc ConfigReload qua khay hệ thống) | Engine nạp `math` section |
+| 1 | **UI (khuyến nghị):** checkbox `Math & Science` trong mục "Tùy chọn gõ" của cửa sổ Cài đặt (3 OS), hoặc chuột phải icon khay/menu bar → mục `Math & Science` (ngay dưới "Trợ lý ngữ pháp" ở Windows) | Lưu ngay vào `config.math.enabled`, engine nạp lại tức thì — không cần khởi động lại. Mặc định **TẮT** — hành vi gõ cũ giữ nguyên 100% |
+| 2 | (Tuỳ chọn) chỉnh tay `config.v1.json`: `"math": { "enabled": true }` rồi ConfigReload | Tương đương bước 1 |
 | 3 | Sticky Math Mode: `"sticky_math_mode": true` | Chords hoạt động ở **mọi** app, không cần trong `$...$` |
 
 Tổ hợp phím toàn cục (đều remap được qua `math.hotkeys[]`):
@@ -141,8 +141,8 @@ Payload > 64 KB bị loại trước khi parse; công thức giữ **chỉ trong
 
 | Step | Action | Note |
 |---|---|---|
-| 1 | Open `config.v1.json`, add `"math": { "enabled": true }` | Default **OFF** — legacy typing behavior unchanged 100% |
-| 2 | Restart TextVN (or ConfigReload from tray) | Engine loads the `math` section |
+| 1 | **UI (recommended):** the `Math & Science` checkbox in the Settings window's "Tùy chọn gõ" section (all 3 OS), or right-click the tray/menu-bar icon → `Math & Science` item (directly below "Trợ lý ngữ pháp" on Windows) | Saves to `config.math.enabled` instantly and the engine reloads immediately — no restart needed. Default **OFF** — legacy typing behavior unchanged 100% |
+| 2 | (Optional) hand-edit `config.v1.json`: `"math": { "enabled": true }` then ConfigReload | Equivalent to step 1 |
 | 3 | Sticky Math Mode: `"sticky_math_mode": true` | Chords work in **any** app, no `$...$` needed |
 
 Global hotkeys (all remappable via `math.hotkeys[]`):

@@ -89,13 +89,17 @@ public struct SettingsView: View {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Đóng")
         alert.addButton(withTitle: "Thảo luận")
+        // P11: nút Math & Science — NSAlert hiển thị theo thứ tự ngược mã nguồn nên
+        // add SAU "Thảo luận" để nút nằm ngay bên TRÁI Thảo luận.
+        alert.addButton(withTitle: "Math & Science")
         alert.addButton(withTitle: "Báo lỗi")
         let response = alert.runModal()
-        // Thảo luận mở Discussions; Báo lỗi mở đúng issue tracker (issues URL).
+        // Thảo luận mở Discussions; Math & Science mở tài liệu guide; Báo lỗi mở issues URL.
         let target: String
         switch response {
         case .alertSecondButtonReturn: target = AppInfo.discussionsUrl
-        case .alertThirdButtonReturn: target = AppInfo.reportIssueUrl
+        case .alertThirdButtonReturn: target = AppInfo.mathGuideUrl
+        case .alertFourthButtonReturn: target = AppInfo.reportIssueUrl
         default: return
         }
         if let url = URL(string: target) {
@@ -242,6 +246,11 @@ public struct SettingsView: View {
                             // trước 0.2.50 thiếu toggle này làm dự đoán KHÔNG THỂ bật.
                             Toggle("Gợi ý hoàn tất từ (Tab / Ctrl+Space)", isOn: $store.config.suggest.enabled)
                                 .onChange(of: store.config.suggest.enabled) { _ in persistAndNotify() }
+                            // P11: Math & Science (mặc định TẮT — math.enabled). Cùng nguồn với
+                            // menu bar (configStore.config.math.enabled) nên 2 UI luôn khớp.
+                            Toggle("Math & Science", isOn: $store.config.math.enabled)
+                                .onChange(of: store.config.math.enabled) { _ in persistAndNotify() }
+                                .help("Gõ ký hiệu & công thức khoa học (leader `, lệnh \can \ps, Smart Paste). Mặc định TẮT, gõ thường không đổi.")
                             HStack {
                                 Toggle("Gõ tắt cả khi tắt tiếng Việt", isOn: $store.config.allow_macro_when_vi_off)
                                     .onChange(of: store.config.allow_macro_when_vi_off) { _ in persistAndNotify() }

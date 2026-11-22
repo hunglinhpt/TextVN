@@ -47,6 +47,8 @@ extern const char *const tv_about_text;
  * Báo lỗi mở đúng issue tracker (`tv_issues_url`), Thảo luận mở Discussions. */
 extern const char *const tv_discussions_url;
 extern const char *const tv_issues_url;
+/* P11 — URL tài liệu Math & Science cho nút trong cửa sổ Hướng dẫn (cùng URL 3 OS). */
+extern const char *const tv_math_guide_url;
 
 /* Chỉ số của `value` trong `values`; không có → 0 (mặc định). */
 int tv_index_of(const char *const *values, int n, const char *value);

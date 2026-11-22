@@ -451,6 +451,13 @@ mod tests {
         assert_eq!(ime_settings_was_corrupt(s), 0);
         assert_eq!(ime_settings_get_bool(s, c("quick_telex").as_ptr()), 0);
         assert_eq!(ime_settings_get_bool(s, c("nope").as_ptr()), -1);
+        // P11: `math.enabled` đọc/ghi qua đường lồng dấu chấm — mặc định TẮT (UI toggle).
+        assert_eq!(ime_settings_get_bool(s, c("math.enabled").as_ptr()), 0);
+        assert_eq!(
+            ime_settings_set_bool(s, c("math.enabled").as_ptr(), 1),
+            IME_OK
+        );
+        assert_eq!(ime_settings_get_bool(s, c("math.enabled").as_ptr()), 1);
         assert_eq!(
             ime_settings_set_bool(s, c("quick_telex").as_ptr(), 1),
             IME_OK

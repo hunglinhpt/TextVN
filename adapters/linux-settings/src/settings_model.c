@@ -43,6 +43,7 @@ const char *const tv_help_text =
     "Quick Telex: cc=ch  gg=gi  kk=kh  nn=ng  qq=qu  pp=ph  tt=th.\n\n"
     "Gõ tắt: bấm [Gõ tắt...], mỗi dòng ghi  gõ tắt = nội dung; khi gõ, nhập chữ tắt rồi "
     "nhấn Tab (hoặc Space) để bung ra.\n\n"
+    "Math & Science (mặc định TẮT): bật/tắt ở Tùy chọn gõ trong cửa sổ này. Khi TẮT: gõ Việt/Anh thường 100% không đổi. Khi BẬT: phím leader ` gõ ký hiệu/công thức (`a = α, `/` = phân số), lệnh gõ tắt `\\can` `\\ps` `\\tp`; trong `$...$` hoặc `\\text{...}` tiếng Việt tự treo. Hotkeys: Ctrl+Alt+M (đổi chế độ xuất), Ctrl+Shift+M (sticky math), Ctrl+Alt+V (Smart Paste công thức), Ctrl+Alt+Space (palette). Chi tiết: nút [Math & Science].\n\n"
     "Nếu chưa gõ được tiếng Việt: thêm TextVN vào danh sách bộ gõ của IBus (ibus-setup) "
     "hoặc Fcitx5 (fcitx5-configtool), rồi đăng xuất và đăng nhập lại.";
 
@@ -59,6 +60,11 @@ const char *const tv_discussions_url = "https://github.com/hunglinhpt/TextVN/dis
 /* Nút **Báo lỗi** mở đúng issue tracker (khác Thảo luận): cùng URL trên cả 3 OS —
  * khớp `<url type="bugtracker">` của AppStream metainfo. */
 const char *const tv_issues_url = "https://github.com/hunglinhpt/TextVN/issues";
+
+/* P11 — nút **Math & Science** trong cửa sổ Hướng dẫn mở đúng tài liệu guide
+ * (cùng URL trên cả 3 OS — test Rust `help_window_links_match_every_platform`). */
+const char *const tv_math_guide_url =
+    "https://github.com/hunglinhpt/TextVN/blob/main/docs/MATH_SCIENCE_GUIDE.md";
 
 int tv_index_of(const char *const *values, int n, const char *value) {
     if (!value) return 0;
