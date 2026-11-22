@@ -114,15 +114,11 @@ impl MathContextFsm {
                 return true;
             }
         }
-        if token
+        token
             .chars()
             .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit())
             && token.contains('_')
             && token.chars().next().is_some_and(|c| c.is_ascii_uppercase())
-        {
-            return true;
-        }
-        false
     }
 
     pub fn depth(&self) -> usize {

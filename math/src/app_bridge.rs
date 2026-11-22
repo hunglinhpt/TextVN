@@ -83,24 +83,17 @@ pub fn best_mode_for_app(app: AppCategory, preferred: MathOutputMode) -> MathOut
 /// Protected shortcuts that must NEVER be intercepted in certain apps
 pub fn is_protected_shortcut(app: AppCategory, ctrl: bool, alt: bool, key: char) -> bool {
     // Global: never hijack Ctrl+A/C/V/X/Z/Y/S
-    if ctrl && !alt {
-        let k = key.to_ascii_lowercase();
-        if matches!(k, 'a' | 'c' | 'v' | 'x' | 'z' | 'y' | 's') {
-            return true;
-        }
-    }
-
+    let global_edit = ctrl
+        && !alt
+        && matches!(
+            key.to_ascii_lowercase(),
+            'a' | 'c' | 'v' | 'x' | 'z' | 'y' | 's'
+        );
     // MathType / Word equation: never intercept native shortcuts
-    if app == AppCategory::OfficeEquation {
-        if ctrl && matches!(key.to_ascii_lowercase(), 'f' | 'r' | 'h' | 'l' | 'g' | 'i') {
-            return true;
-        }
-        if alt && (key == '\\' || key == '=') {
-            return true;
-        }
-    }
-
-    false
+    let office_native = app == AppCategory::OfficeEquation
+        && ((ctrl && matches!(key.to_ascii_lowercase(), 'f' | 'r' | 'h' | 'l' | 'g' | 'i'))
+            || (alt && (key == '\\' || key == '=')));
+    global_edit || office_native
 }
 
 /// Dream RSI ranking — FinalScore formula

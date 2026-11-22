@@ -156,11 +156,7 @@ pub fn is_hard_reject(input: &str) -> bool {
     }
 
     // Non-MathML XML/HTML
-    if trimmed.starts_with("<") && !trimmed.contains("<math") {
-        return true;
-    }
-
-    false
+    trimmed.starts_with('<') && !trimmed.contains("<math")
 }
 
 /// Check if string is a currency span like $50 - $100

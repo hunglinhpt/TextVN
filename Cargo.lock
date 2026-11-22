@@ -211,7 +211,6 @@ dependencies = [
  "serde_json",
  "textvn-config",
  "textvn-ipc",
- "textvn-strategy",
  "windows",
  "windows-core",
 ]
