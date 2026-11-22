@@ -324,7 +324,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn mathml_frac() {
         let ast = parse_latex("\\frac{a}{b}").unwrap();
         let ml = to_mathml(&ast, false);
@@ -341,7 +340,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn unicode_frac() {
         let ast = parse_latex("\\frac{1}{2}").unwrap();
         assert_eq!(to_unicode(&ast), "1/2");
@@ -361,7 +359,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn latex_roundtrip() {
         let ast = parse_latex("\\frac{a}{b}").unwrap();
         let tex = to_latex(&ast);
@@ -369,7 +366,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn typst_frac() {
         let ast = parse_latex("\\frac{a}{b}").unwrap();
         assert_eq!(to_typst(&ast), "frac(a, b)");

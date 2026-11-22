@@ -56,6 +56,12 @@ pub fn classify(input: &str) -> f32 {
         ],
     );
     score += (latex_commands as f32 * 0.15).min(0.45);
+    // E57: chuỗi LaTeX nguyên khối (trim bắt đầu bằng `\` + ít nhất 1 command
+    // đã biết) gần như chắc chắn là công thức — floor 0.85 (trước đây `rac{a}{b}`
+    // chỉ đạt 0.2 < ngưỡng 0.75 → Smart Paste không bao giờ nhận).
+    if latex_commands >= 1 && input.trim_start().starts_with('\\') {
+        score = score.max(0.85);
+    }
 
     // Math delimiters
     if input.contains('$') {
@@ -65,18 +71,21 @@ pub fn classify(input: &str) -> f32 {
         score += 0.15;
     }
 
-    // Unicode math symbols
+    // Unicode math symbols — 0.06/ký tự, cap 0.35 (E57: chuỗi như `∑ᵢ₌₁ⁿ i²`
+    // trước đây chỉ đếm 2/6 ký tự vì dải sub/superscript hẹp).
     let unicode_math = chars.iter().filter(|c| is_unicode_math(**c)).count();
-    score += (unicode_math as f32 * 0.02).min(0.2);
+    score += (unicode_math as f32 * 0.06).min(0.35);
 
     // Superscript/subscript notation
     if input.contains('^') || input.contains('_') {
         score += 0.1;
     }
 
-    // MathML
+    // MathML: khối <math xmlns=…>…</math> khép kín là công thức chắc chắn (E57:
+    // trước đây chỉ +0.5 → đúng định dạng MathML vẫn bị chặn dưới ngưỡng 0.75).
     if input.contains("<math") && input.contains("Math/MathML") {
-        score += 0.5;
+        let boost = if input.contains("</math>") { 0.85 } else { 0.5 };
+        score = score.max(boost);
     }
 
     // Balanced braces (math structure indicator)
@@ -180,7 +189,11 @@ fn is_unicode_math(c: char) -> bool {
         'α' | 'β' | 'γ' | 'δ' | 'ε' | 'φ' | 'ρ' | 'Δ' | '∇' | '∂' | '∀' | '∃' |
         '∈' | '∉' | '⊂' | '∪' | '∩' | '∅' | '±' | '×' | '÷' | '·' | '≠' | '≈' |
         '≤' | '≥' | '∝' | '∠' | '⊥' | '∥' | '⇒' | '⇔' | '∧' | '∨' | '¬' | '⊕' | '⊗' |
-        '₀'..='₉' | '⁰'..='⁹' | '⏥' | '⌖' | 'Γ' | 'Θ' | 'Λ' | 'Ξ' | 'Φ' | 'Ψ' | 'Σ'
+        // E57: mở đủ dải Unicode sub/superscript — charset cũ bỏ sót `ᵢ` `₌`
+        // `ⁿ` `²` `³` (U+00B2/B3/B9, U+2070–U+209F) nên công thức Unicode
+        // mật độ cao vẫn bị chấm điểm thấp.
+        '₀'..='₟' | '\u{2070}'..='\u{209F}' | '\u{00B2}' | '\u{00B3}' | '\u{00B9}' | '\u{1D62}'..='\u{1D6A}' |
+        '⏥' | '⌖' | 'Γ' | 'Θ' | 'Λ' | 'Ξ' | 'Φ' | 'Ψ' | 'Σ'
     )
 }
 
@@ -226,14 +239,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn accepts_latex_frac() {
         let score = classify("\\frac{a}{b}");
         assert!(score >= 0.75, "score = {}", score);
     }
 
     #[test]
-    #[ignore]
     fn accepts_mathml() {
         let score = classify(
             "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mrow><mi>x</mi></mrow></math>",
@@ -242,7 +253,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn accepts_unicode_math() {
         let score = classify("∑ᵢ₌₁ⁿ i² = n(n+1)(2n+1)/6");
         assert!(score > 0.3, "score = {}", score);

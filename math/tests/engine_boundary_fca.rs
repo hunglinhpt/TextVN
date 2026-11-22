@@ -82,7 +82,9 @@ fn inline_eval_compact_syntax() {
         MathAction::ReplaceBuffer {
             delete_chars, text, ..
         } => {
-            assert_eq!(delete_chars, 5);
+            // E57b: `=` đóng là keystroke bị consume (chưa vào document) —
+            // delete đúng 4 ký tự đã commit `=2+3`; đếm 5 sẽ xóa lấn text trước.
+            assert_eq!(delete_chars, 4);
             assert_eq!(text, "5");
         }
         other => panic!("{other:?}"),
@@ -102,7 +104,8 @@ fn inline_eval_spaced_syntax() {
 #[test]
 fn eval_div_zero_stays_literal() {
     let mut e = engine_sticky();
-    // 1/0 → None → không action nào, word được giữ nguyên để boundary dọn
+    // E57e: 1/0 → eval fail → KHÔNG action; span bị chốt ngay (word clear)
+    // để Telex không bị treo vĩnh viễn — boundary kế tiếp cũng không có gì để bung.
     assert!(type_chars(&mut e, "=1/0=").is_none());
     let guard = AppGuard::default();
     assert!(e

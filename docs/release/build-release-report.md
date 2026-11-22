@@ -2,6 +2,15 @@
 
 > **R2-162 (2026-11-21, vòng audit P11 UI):** cargo (CI) cảnh báo `unused dependency`: `textvn-math` dùng `serde_json` chỉ ở `cfg(test)` → chuyển sang `[dev-dependencies]`; `textvn-tray` khai báo `textvn-appdb` nhưng không dùng anywhere → xoá; `textvn-win-hook`/`textvn-win-tsf` dùng `textvn-ipc` chỉ trong code `cfg(windows)` → chuyển vào `[target.'cfg(windows)'.dependencies]`. Xác minh cả 2 target: `cargo check --workspace --all-targets` (Linux) và `--target x86_64-pc-windows-msvc` đều xanh. Swift: xoá 3 warning ở `IpcServer.swift` (`var flags`→`let`, `cfd`→`_`). Bổ sung 2026-11-22: `textvn-tray` vẫn khai báo `textvn-strategy` nhưng không dùng → xoá khỏi `tray/Cargo.toml` (cargo manifest warning biến mất, xác minh `cargo +nightly clippy --workspace --all-targets` không còn in warning manifest nào). CI clippy rust-1.100 báo thêm `needless_bool` ở `math/src/clipboard/classifier.rs:159`, `math/src/context.rs:117`, `math/src/app_bridge.rs` → đổi `if guard { return bool; } <bool literal>` thành biểu thức bool thuần; chạy bằng clippy nightly 0.1.100 (tương đương CI) cả Linux + `x86_64-pc-windows-msvc` đều `-D warnings` sạch.
 
+> **R2-164 (2026-11-22, vòng audit cuốn chiếu 0.2.79→HEAD — math engine):** Deep audit phần
+> Math Engine phát hiện **E57 (5 lỗi word/boundary)** và **E58 (22 test `#[ignore]` che giấu 22 lỗi thật)**:
+> AST parser nuốt `}` (`rac`/`\sqrt`/nested braces vỡ), eval sai `pi`/`e`/`^` right-assoc/unary, classifier từ chối
+> công thức cơ bản (LaTeX 0.2/MathML 0.5 < ngưỡng 0.75 → Smart Clipboard chết), lexicon trùng trigger/alias +
+> 1358 < 1500 entry, test typo (`}}` sót escape / alias chứa space). FCA đầy đủ ở `docs/specs/project-common-errors.md`
+> (E57/E58). Giờ đây 927/927 test math xanh khi `--include-ignored`; 22 test đã un-ignore thành gate CI vĩnh viễn;
+> workspace **75 suite ok** (+2 file test mới `e57_word_sync_fca`, `e57_math_sync`); fmt+clippy (stable+nightly
+> 0.1.100) 0 warning trên Linux/windows-msvc/darwin.
+
 > **R2-163 (2026-11-22, vòng audit CI parity):** `ci-macos.yml` có path filter nhưng thiếu `math/**` — trong khi `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`), nên một commit sửa math-only (vd `2ddbd771`) KHÔNG kích hoạt ci-macos → gap parity 3 nền tảng. FCA: thêm `"math/**"` vào cả `push` lẫn `pull_request` paths của `ci-macos.yml` (YAML parse ok). Từ commit này, mọi sửa đổi ở `math/` đều chạy đủ gate macOS. Cùng vòng: ci-linux báo `unused dependency textvn-ipc` ở `textvn-cli` (chỉ dùng trong khối `cfg(windows)` của `doctor.rs`) → chuyển sang `[target.'cfg(windows)'.dependencies]`; quét lại cả 4 target (linux, windows-msvc x64, darwin arm64/x64) bằng `cargo +nightly check --workspace --all-targets` không còn warning manifest nào.
 
 ## Bản 0.2.84 — Vòng audit-fix triệt để sau 0.2.83: E55 + E56 FCA + R2-162/R2-163 + needless_bool cho CI clippy 1.100 (2026-11-22)

@@ -129,6 +129,10 @@ impl<'a> LatexParser<'a> {
                 self.depth -= 1;
                 Some(MathNode::Group(Box::new(inner)))
             }
+            // E57: `}` là KÝ TỰ KẾT THÚC của nhóm đang mở — dừng atom (không nuốt
+            // thành Op). Trước đây `rac{a}{b}` cho `Seq([Ident(a), Op("}")])`
+            // vì parse() bên trong nuốt `}` như Op → Frac/Sqrt/nested braces vỡ.
+            '}' => None,
             '^' => {
                 self.next();
                 // handled by caller as postfix
@@ -293,7 +297,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn parse_frac() {
         let ast = parse_latex("\\frac{a}{b}").unwrap();
         match ast {
@@ -306,7 +309,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn parse_sqrt() {
         let ast = parse_latex("\\sqrt{x}").unwrap();
         match ast {
@@ -340,7 +342,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn nested_braces() {
         let ast = parse_latex("{{x}}").unwrap();
         match ast {

@@ -122,6 +122,29 @@ impl Engine {
     }
 
     fn math_key_inner(&mut self, k: &KeyEvent) -> Option<Outcome> {
+        // E57a: đồng bộ word math với Backspace/caret — word_buf của MathEngine
+        // chỉ được nuôi qua `process_char`/`feed_context`, trước đây Backspace
+        // hoặc phím di chuyển caret làm nó lệch document (bung sai lệnh /
+        // ReplaceBuffer delete lấn text phía trước người dùng).
+        if k.key_down {
+            match k.vk {
+                keymap::vk::BACK => {
+                    self.math.process_backspace();
+                    return None;
+                }
+                keymap::vk::LEFT
+                | keymap::vk::RIGHT
+                | keymap::vk::UP
+                | keymap::vk::DOWN
+                | keymap::vk::DELETE
+                | keymap::vk::HOME
+                | keymap::vk::END => {
+                    self.math.caret_moved();
+                    return None;
+                }
+                _ => {}
+            }
+        }
         let c = k.printable()?;
         // AltGr = Ctrl+Alt + ký tự (Windows); còn lại chord hệ thống → bỏ qua.
         let is_altgr = k.mods == (keymap::MOD_CTRL | keymap::MOD_ALT);

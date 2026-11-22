@@ -84,8 +84,11 @@ impl MathEngine {
             // Boundary (space, punctuation...) KHÔNG push ở đây — core gọi
             // process_boundary ngay sau với cùng ký tự; push sẽ clear word trước khi
             // kịp bung alias. Chỉ `=` (mở/đóng inline eval) và ký tự thường mới vào word.
+            // E57d: khi eval span đang MỞ (word bắt đầu `=`), boundary chars
+            // (`)`, `,`, `.`…) vẫn phải vào word — `=sin(0)=` trước đây mất `)`
+            // → eval("sin(0") = None → không bao giờ bung.
             None => {
-                if c == '=' || !is_word_boundary(c) {
+                if c == '=' || !is_word_boundary(c) || self.word_buf.starts_with('=') {
                     self.push_word_char(c);
                 }
             }
@@ -103,7 +106,10 @@ impl MathEngine {
             let v =
                 crate::eval::eval(inner).or_else(|| crate::eval::eval_delimited(&self.word_buf));
             if let Some(v) = v {
-                let del = self.word_buf.chars().count();
+                // E57b: '=' dong la keystroke HIEN TAI (bi consume, chua vao
+                // document) -- delete chi tinh cac ky tu da commit (=2+3 = 4).
+                // Truoc day del = 5 khien adapter that xoa lan 1 ky tu truoc word.
+                let del = self.word_buf.chars().count().saturating_sub(1);
                 let text = crate::eval::format_value(v);
                 self.word_buf.clear();
                 return Some(MathAction::ReplaceBuffer {
@@ -112,6 +118,10 @@ impl MathEngine {
                     cursor_left_steps: 0,
                 });
             }
+            // E57e: eval thất bại — CHỐT span thay vì để word kẹt (=max(1,2)=
+            // không phải hàm hợp lệ). Trước đây word "=..." không bao giờ được
+            // xoá → `word_is_command` treo Telex vĩnh viễn trong sticky mode.
+            self.word_buf.clear();
         }
         action
     }
@@ -140,7 +150,8 @@ impl MathEngine {
             let inner = &word[1..];
             let v = crate::eval::eval(inner).or_else(|| crate::eval::eval_delimited(&candidate));
             if let Some(v) = v {
-                let del = candidate.chars().count();
+                // E57b: '=' cua keystroke hien tai bi consume -- khong dem.
+                let del = word.chars().count();
                 let text = crate::eval::format_value(v);
                 return Some(MathAction::ReplaceBuffer {
                     delete_chars: del,
@@ -169,13 +180,32 @@ impl MathEngine {
     /// Word đang gõ có phải lệnh math (`\...`) không — core dùng để treo Telex
     /// khi sticky mode (spec: sticky + word là command → pass-through tới boundary).
     pub fn word_is_command(&self) -> bool {
-        self.word_buf.starts_with('\\')
+        // E57c: từ lệnh là `\...` HOẶC inline-eval `=expr=` đang gõ —
+        // cả hai đều cần Telex bị treo (sticky mode) để chữ không bị fold
+        // (`=sin(0)=` sẽ thành `=sín(0)=` nếu để Telex xử lý `s` sau `i`).
+        self.word_buf.starts_with('\\') || self.word_buf.starts_with('=')
     }
 
     /// Set new config — dựng lại chord FSM với leader/timeout mới.
     pub fn set_config(&mut self, config: MathConfig) {
         self.chord_fsm = ChordFsm::new(&config);
         self.config = config;
+    }
+
+    /// E57a: Backspace -- xoa 1 ky tu cuoi khoi word dang theo doi. Khong co lenh
+    /// nay, `\\can` + Backspace + go tiep de lai word_buf lech document:
+    /// boundary ke tiep bung sai lenh (hoac te hon: ReplaceBuffer delete lan
+    /// vao text phia truoc, mat ky tu cua nguoi dung).
+    pub fn process_backspace(&mut self) {
+        self.word_buf.pop();
+        // Leader dang armed ma Backspace -> huy chord (zero stuck-state).
+        self.chord_fsm.reset();
+    }
+
+    /// E57a: caret nhay cho khac (mui ten/Home/End/Delete/chuot) -- vi tri trong
+    /// word khong con tuong ung -> xoa sach word dang theo doi thay vi doan mo.
+    pub fn caret_moved(&mut self) {
+        self.word_buf.clear();
     }
 
     /// Reset all state

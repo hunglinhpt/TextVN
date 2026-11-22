@@ -83,8 +83,18 @@ fn precedence(op: char) -> u8 {
         '+' | '-' => 1,
         '*' | '/' | '%' => 2,
         '^' => 3,
+        // Unary plus/minus: precedence cao nhất — áp TRƯỚC mọi toán tử nhị phân
+        // (`-5+3` = -2), nhưng khi gặp '^' thì KHÔNG pop (break) để `-2^2` = -(2^2) = -4.
+        'u' => 4,
         _ => 0,
     }
+}
+
+/// Pop unary 'u' từ op stack: đổi dấu đỉnh output. `None` nếu thiếu operand.
+fn apply_unary(output: &mut Vec<f64>) -> Option<()> {
+    let a = output.pop()?;
+    output.push(-a);
+    Some(())
 }
 
 fn apply_op(op: char, a: f64, b: f64) -> Option<f64> {
@@ -172,8 +182,18 @@ pub fn eval(expr: &str) -> Option<f64> {
                 expect_operand = false;
             }
             Tok::Func(f) => {
-                ops.push(Tok::Func(f));
-                expect_operand = true;
+                // Hằng số không đối số: pi / e — đẩy giá trị ngay (E57: trước đây
+                // được đẩy vào op stack rồi pop() đòi operand → eval("pi") = None).
+                if *f == "pi" || *f == "e" {
+                    if !expect_operand {
+                        return None; // "2pi" không hợp lệ (cần toán tử)
+                    }
+                    output.push(apply_func(f, 0.0)?);
+                    expect_operand = false;
+                } else {
+                    ops.push(Tok::Func(f));
+                    expect_operand = true;
+                }
             }
             Tok::Op(c) => {
                 if expect_operand {
@@ -190,16 +210,26 @@ pub fn eval(expr: &str) -> Option<f64> {
                         return None;
                     }
                 }
+                // '^' kết hợp PHẢI (right-assoc: 2^3^2 = 2^(3^2) = 512, E57):
+                // pop khi precedence(top) > current, hoặc == nhưng KHÔNG phải '^'.
+                let right_assoc = *c == '^';
                 while let Some(top) = ops.last() {
                     match top {
-                        Tok::Op(top_op) if precedence(*top_op) >= precedence(*c) => {
+                        Tok::Op(top_op)
+                            if precedence(*top_op) > precedence(*c)
+                                || (!right_assoc && precedence(*top_op) == precedence(*c)) =>
+                        {
                             let top = ops.pop().unwrap();
-                            if let Tok::Op(o) = top {
+                            if let Tok::Op('u') = top {
+                                apply_unary(&mut output)?;
+                            } else if let Tok::Op(o) = top {
                                 let b = output.pop()?;
                                 let a = output.pop()?;
                                 output.push(apply_op(o, a, b)?);
                             }
                         }
+                        // `-2^2` = -(2^2): 'u' giữ trên stack khi push '^' (E57)
+                        Tok::Op('u') if *c == '^' => break,
                         Tok::Func(_) => {
                             let f = ops.pop().unwrap();
                             if let Tok::Func(name) = f {
@@ -229,6 +259,9 @@ pub fn eval(expr: &str) -> Option<f64> {
                 while let Some(top) = ops.pop() {
                     match top {
                         Tok::LParen => break,
+                        Tok::Op('u') => {
+                            apply_unary(&mut output)?;
+                        }
                         Tok::Op(o) => {
                             let b = output.pop()?;
                             let a = output.pop()?;
@@ -318,7 +351,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn precedence() {
         assert_eq!(eval("2+3*4"), Some(14.0));
         assert_eq!(eval("(2+3)*4"), Some(20.0));
@@ -326,7 +358,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn functions() {
         assert_eq!(eval("sqrt(16)"), Some(4.0));
         assert!((eval("sin(0)").unwrap() - 0.0).abs() < 1e-10);
@@ -359,7 +390,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn negative_numbers() {
         assert_eq!(eval("-5+3"), Some(-2.0));
         assert_eq!(eval("3*-2"), Some(-6.0));

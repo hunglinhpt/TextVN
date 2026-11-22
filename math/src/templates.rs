@@ -314,12 +314,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn hpt_and_cases() {
         let h = generate(TemplateKind::Hpt, 2, 2, MathOutputMode::Latex).unwrap();
         assert!(h.text.contains("x_{1} = 0 \\\\ x_{2} = 0"));
         let c = generate(TemplateKind::Cases, 3, 3, MathOutputMode::Latex).unwrap();
-        assert!(c.text.contains("\\text{khi }} x = 1"));
+        // E58: test cũ bảo `\\text{khi }} x = 1` — typo `}}` sót từ escape format!
+        // (`}}` chỉ hợp trong format! macro, không phải chuỗi thường). Impl phát
+        // đúng `\text{khi } x = 1` — LaTeX hợp lệ.
+        assert!(c.text.contains("\\text{khi } x = 1"));
         let h = generate(TemplateKind::Hpt, 2, 2, MathOutputMode::Typst).unwrap();
         assert!(h.text.starts_with("cases(x_"));
     }

@@ -24,6 +24,9 @@ pub mod vk {
     pub const RIGHT: u32 = 0x27;
     pub const DOWN: u32 = 0x28;
     pub const DELETE: u32 = 0x2E;
+    /// Home/End (E57a — caret nhảy làm word math mất tương ứng vị trí).
+    pub const HOME: u32 = 0x24;
+    pub const END: u32 = 0x23;
     pub const LWIN: u32 = 0x5B;
     pub const RWIN: u32 = 0x5C;
     pub const F1: u32 = 0x70; // F1..F12 = 0x70..0x7B
