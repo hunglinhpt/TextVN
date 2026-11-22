@@ -2,6 +2,8 @@
 
 > **R2-162 (2026-11-21, vòng audit P11 UI):** cargo (CI) cảnh báo `unused dependency`: `textvn-math` dùng `serde_json` chỉ ở `cfg(test)` → chuyển sang `[dev-dependencies]`; `textvn-tray` khai báo `textvn-appdb` nhưng không dùng anywhere → xoá; `textvn-win-hook`/`textvn-win-tsf` dùng `textvn-ipc` chỉ trong code `cfg(windows)` → chuyển vào `[target.'cfg(windows)'.dependencies]`. Xác minh cả 2 target: `cargo check --workspace --all-targets` (Linux) và `--target x86_64-pc-windows-msvc` đều xanh. Swift: xoá 3 warning ở `IpcServer.swift` (`var flags`→`let`, `cfd`→`_`). Bổ sung 2026-11-22: `textvn-tray` vẫn khai báo `textvn-strategy` nhưng không dùng → xoá khỏi `tray/Cargo.toml` (cargo manifest warning biến mất, xác minh `cargo +nightly clippy --workspace --all-targets` không còn in warning manifest nào). CI clippy rust-1.100 báo thêm `needless_bool` ở `math/src/clipboard/classifier.rs:159`, `math/src/context.rs:117`, `math/src/app_bridge.rs` → đổi `if guard { return bool; } <bool literal>` thành biểu thức bool thuần; chạy bằng clippy nightly 0.1.100 (tương đương CI) cả Linux + `x86_64-pc-windows-msvc` đều `-D warnings` sạch.
 
+> **R2-163 (2026-11-22, vòng audit CI parity):** `ci-macos.yml` có path filter nhưng thiếu `math/**` — trong khi `textvn-math` là dependency của `textvn-core` và được compile vào staticlib macOS (`ffi -> core -> math`), nên một commit sửa math-only (vd `2ddbd771`) KHÔNG kích hoạt ci-macos → gap parity 3 nền tảng. FCA: thêm `"math/**"` vào cả `push` lẫn `pull_request` paths của `ci-macos.yml` (YAML parse ok). Từ commit này, mọi sửa đổi ở `math/` đều chạy đủ gate macOS.
+
 ## Bản 0.2.83 — Universal Scientific, Engineering & Math Engine (crate `textvn-math`) + sửa lỗi CI (E52/E53/E54) (2026-11-21)
 
 | Hạng mục | Bằng chứng |

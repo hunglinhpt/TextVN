@@ -25,6 +25,10 @@ on:
       - "corpus/mac/**"
       - "corpus/shared/**"
       - "core/**"
+      # R2-163: `textvn-math` là dep của core -> được compile vào staticlib macOS
+      # (ffi -> core -> math) nhưng thiếu trong path filter nên sửa math-only không
+      # kích hoạt ci-macos. Thêm vào cả push lẫn pull_request.
+      - "math/**"
       # `dict/**` + `assist/**`: bước "Build textvn-dict với feature os-macos"
       # ở job engine-static chỉ có tác dụng nếu sửa 2 crate này cũng chạy workflow.
       - "dict/**"
@@ -53,6 +57,10 @@ on:
       - "corpus/mac/**"
       - "corpus/shared/**"
       - "core/**"
+      # R2-163: `textvn-math` là dep của core -> được compile vào staticlib macOS
+      # (ffi -> core -> math) nhưng thiếu trong path filter nên sửa math-only không
+      # kích hoạt ci-macos. Thêm vào cả push lẫn pull_request.
+      - "math/**"
       # `dict/**` + `assist/**`: bước "Build textvn-dict với feature os-macos"
       # ở job engine-static chỉ có tác dụng nếu sửa 2 crate này cũng chạy workflow.
       - "dict/**"
