@@ -3,19 +3,12 @@
 # Build + unit test + kiểm thử đầu-cuối adapter Linux với ibus-daemon / fcitx5 THẬT.
 #
 # Cần: cargo, cmake, pkg-config, libibus-1.0-dev, libfcitx5core-dev, fcitx5-modules-dev,
-#      ibus, fcitx5, dbus (dbus-run-session), python3-dbus, python3-gi.
+#      ibus, fcitx5, dbus (dbus-run-session), libdbus-1-dev (client e2e của fcitx5 — E59).
 # Dùng: scripts/e2e-linux.sh [build-dir]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="${1:-$ROOT/target/linux-adapters}"
-# python3 của distro (python3-dbus chỉ build cho interpreter hệ thống).
-PY="${PYTHON:-}"
-if [[ -z "$PY" ]]; then
-    for c in /usr/bin/python3 /usr/bin/python3.*; do
-        if [[ -x "$c" ]] && "$c" -c 'import dbus, gi' 2>/dev/null; then PY="$c"; break; fi
-    done
-fi
 
 echo "== build engine (staticlib)"
 cargo build --release -p textvn-ffi --manifest-path "$ROOT/Cargo.toml"
@@ -76,21 +69,17 @@ P
     fcitx5 --disable=all --enable=dbus,dbusfrontend,keyboard,textvn >"$t/fcitx5.log" 2>&1 &
     local daemon=$!
     local rc=0
-    "$PY" "$ROOT/adapters/linux-fcitx5/tests/e2e_fcitx5.py" || rc=$?
+    # E59: client e2e là binary C (libdbus) — không cần interpreter Python.
+    "$BUILD/fcitx5/e2e_fcitx5" || rc=$?
     kill "$daemon" 2>/dev/null || true
     [[ $rc -eq 0 ]] || cat "$t/fcitx5.log"
     return $rc
 }
 
 export -f run_ibus run_fcitx5
-export BUILD ROOT PY
+export BUILD ROOT
 echo "== e2e ibus-daemon"
 dbus-run-session -- bash -c run_ibus
-if [[ -n "$PY" ]]; then
-    echo "== e2e fcitx5"
-    dbus-run-session -- bash -c run_fcitx5
-else
-    echo "!! bỏ qua e2e fcitx5: không có python3 kèm python3-dbus/python3-gi" >&2
-    exit 1
-fi
+echo "== e2e fcitx5"
+dbus-run-session -- bash -c run_fcitx5
 echo "== Linux adapters: OK"

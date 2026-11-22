@@ -75,3 +75,12 @@ add_executable(test_fcitx5_surrounding_match tests/test_surrounding_match.cpp)
 target_compile_options(test_fcitx5_surrounding_match PRIVATE ${TEXTVN_FCITX5_WARN} -UNDEBUG)
 target_link_libraries(test_fcitx5_surrounding_match PRIVATE textvn-fcitx5-core)
 add_test(NAME test_fcitx5_surrounding_match COMMAND test_fcitx5_surrounding_match)
+
+# Kiểm thử đầu-cuối với fcitx5 thật — chạy qua scripts/e2e-linux.sh (E59:
+# bản C thay e2e_fcitx5.py — client libdbus-1 vào portal org.fcitx.Fcitx).
+# KHÔNG add_test: cần dbus-run-session + fcitx5 thật (scripts/e2e-linux.sh).
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(DBUS REQUIRED IMPORTED_TARGET dbus-1)
+add_executable(e2e_fcitx5 tests/e2e_fcitx5.c)
+target_compile_options(e2e_fcitx5 PRIVATE ${TEXTVN_FCITX5_WARN})
+target_link_libraries(e2e_fcitx5 PRIVATE PkgConfig::DBUS)

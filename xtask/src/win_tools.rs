@@ -235,13 +235,13 @@ fn png_size(data: &[u8]) -> Option<(u32, u32)> {
 // localname trong manifest này). Parser bắt được XML sai well-formed mà
 // plutil/CFPropertyList nuốt được (mục đích của check).
 
-struct Xml {
+pub(crate) struct Xml {
     /// local name sau dấu ':' (không cần bàn tới namespace).
-    name: String,
-    attrs: Vec<(String, String)>,
-    children: Vec<Xml>,
+    pub(crate) name: String,
+    pub(crate) attrs: Vec<(String, String)>,
+    pub(crate) children: Vec<Xml>,
     /// Text ghép trực tiếp (như `findtext` của ElementTree).
-    text: String,
+    pub(crate) text: String,
 }
 
 impl Xml {
@@ -251,10 +251,10 @@ impl Xml {
             .find(|(k, _)| k.split(':').next_back() == Some(name))
             .map(|(_, v)| v.as_str())
     }
-    fn child(&self, name: &str) -> Option<&Xml> {
+    pub(crate) fn child(&self, name: &str) -> Option<&Xml> {
         self.children.iter().find(|c| c.name == name)
     }
-    fn descendants<'a>(&'a self, out: &mut Vec<&'a Xml>) {
+    pub(crate) fn descendants<'a>(&'a self, out: &mut Vec<&'a Xml>) {
         for c in &self.children {
             out.push(c);
             c.descendants(out);
@@ -266,7 +266,7 @@ fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
     hay.windows(needle.len()).position(|w| w == needle)
 }
 
-fn local_name(tag: &str) -> String {
+pub(crate) fn local_name(tag: &str) -> String {
     tag.split(':').next_back().unwrap_or(tag).to_string()
 }
 
@@ -314,7 +314,7 @@ fn decode_entities(s: &str) -> String {
     out
 }
 
-fn parse_xml(src: &str) -> Result<Xml, String> {
+pub(crate) fn parse_xml(src: &str) -> Result<Xml, String> {
     let src = src.trim_start_matches(char::from_u32(0xFEFF).unwrap());
     let bytes = src.as_bytes();
     let mut i = 0usize;

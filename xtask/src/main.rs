@@ -22,6 +22,7 @@ mod gen_vn_phrases;
 mod gen_vocab;
 mod gen_win_corpus;
 mod hygiene;
+mod linux_tools;
 mod mac_corpus_cases;
 mod preflight;
 mod toml;
@@ -92,6 +93,7 @@ fn main() -> ExitCode {
         // Công cụ kiểm Windows release — thay tools/win/*.py (E59).
         "check-pe-imports" => win_tools::check_pe_imports_cli(&args[1..]),
         "verify-msix" => win_tools::verify_msix_cli(&args[1..]),
+        "check-ibus-component" => linux_tools::check_ibus_component(&args[1..]),
         "preflight" => preflight::run(),
         "help" | "--help" | "-h" => {
             print!("{}", usage());

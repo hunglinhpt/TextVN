@@ -164,7 +164,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cmake pkg-config \
             libibus-1.0-dev libfcitx5core-dev libfcitx5utils-dev fcitx5-modules-dev \
-            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus python3-dbus python3-gi
+            libgtk-4-dev ibus fcitx5 fcitx5-modules dbus libdbus-1-dev
       - name: Build and test Linux candidate
         run: |
           cargo run -q -p xtask -- check-version-sync

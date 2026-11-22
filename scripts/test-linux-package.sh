@@ -8,7 +8,7 @@
 #   B. Chạy ngay: giải nén vào thư mục CHỈ ĐỌC → textvn-portable.sh → gõ tiếng Việt
 #                 → textvn-portable.sh stop → không để lại gì trong HOME.
 #
-# Gõ bằng chính client e2e (tests/e2e_ibus, tests/e2e_fcitx5.py) — nên cần build adapter
+# Gõ bằng chính client e2e (tests/e2e_ibus, tests/e2e_fcitx5 — C, E59) — nên cần build adapter
 # trước (scripts/e2e-linux.sh hoặc scripts/build-linux.sh).
 
 set -euo pipefail
@@ -18,16 +18,10 @@ TARBALL="$(realpath "${1:?cần đường dẫn tarball}")"
 BUILD="${2:-$ROOT/target/linux-adapters}"
 E2E_IBUS="$BUILD/ibus/e2e_ibus"
 [[ -x "$E2E_IBUS" ]] || { echo "thiếu $E2E_IBUS — chạy scripts/e2e-linux.sh trước" >&2; exit 1; }
-PY=""
-for cand in python3 /usr/bin/python3 /usr/bin/python3.*; do
-    if command -v "$cand" >/dev/null 2>&1 &&
-        "$cand" -c 'import dbus, gi' >/dev/null 2>&1; then
-        PY="$(command -v "$cand")"
-        break
-    fi
-done
-[[ -n "$PY" ]] || { echo "cần python3 có dbus + gi cho e2e Fcitx5" >&2; exit 1; }
-export ROOT TARBALL BUILD E2E_IBUS PY
+E2E_FCITX5="$BUILD/fcitx5/e2e_fcitx5"
+[[ -x "$E2E_FCITX5" ]] || { echo "thiếu $E2E_FCITX5 — chạy scripts/e2e-linux.sh trước (E59: client C thay .py)" >&2; exit 1; }
+XTASK=(cargo run -q --manifest-path "$ROOT/Cargo.toml" -p xtask --)
+export ROOT TARBALL BUILD E2E_IBUS E2E_FCITX5
 
 # Môi trường HOME tạm như một người dùng mới; gsettings giả để kiểm tra bước "thêm bộ gõ".
 new_home() {
@@ -153,7 +147,7 @@ scenario_install() {
     else
         fcitx5 --disable=all --enable=dbus,dbusfrontend,keyboard,textvn >"$t/d.log" 2>&1 &
         daemon_pid=$!
-        "$PY" "$ROOT/adapters/linux-fcitx5/tests/e2e_fcitx5.py" >"$t/e2e.log" 2>&1 || rc=$?
+        "$E2E_FCITX5" >"$t/e2e.log" 2>&1 || rc=$?
     fi
     stop_session_daemon
     sleep 1
@@ -242,7 +236,7 @@ scenario_portable() {
             fail "portable stop khi chua bat da sua profile Fcitx5"
         "$pkg/textvn-portable.sh" --fcitx5 >"$t/p.log" 2>&1 || { cat "$t/p.log"; fail "textvn-portable.sh --fcitx5"; }
         grep -qx 'Name=textvn' "$XDG_CONFIG_HOME/fcitx5/profile" || fail "portable không thêm textvn vào nhóm Fcitx5"
-        "$PY" "$ROOT/adapters/linux-fcitx5/tests/e2e_fcitx5.py" >"$t/e2e.log" 2>&1 || rc=$?
+        "$E2E_FCITX5" >"$t/e2e.log" 2>&1 || rc=$?
     fi
     [[ $rc -eq 0 ]] || { cat "$t/p.log" "$t/e2e.log" "$t/d.log"; fail "gõ ở chế độ portable ($fw)"; }
     tail -n1 "$t/e2e.log"
@@ -364,13 +358,8 @@ unit_ibus_component() {
                 "$t/"'$HOME/`x`#y'; do
         tv_ibus_component "$t" "$base/lib/textvn/textvn-ibus-engine" "$base/bin/textvn-settings" \
             > "$t/out.xml"
-        python3 -I - "$t/out.xml" "$base" <<'PYEOF' || fail "component IBus sai với đường dẫn: $base"
-import shlex, sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
-base = sys.argv[2]
-assert shlex.split(root.find("exec").text) == [base + "/lib/textvn/textvn-ibus-engine", "--ibus"]
-assert shlex.split(root.find("engines/engine/setup").text) == [base + "/bin/textvn-settings"]
-PYEOF
+        "${XTASK[@]}" check-ibus-component "$t/out.xml" "$base" \
+            || fail "component IBus sai với đường dẫn: $base"
     done
     # Đường dẫn thường: component GIỮ NGUYÊN dạng không trích dẫn như trước.
     tv_ibus_component "$t" /usr/lib/textvn/textvn-ibus-engine /usr/bin/textvn-settings |
