@@ -1374,9 +1374,9 @@
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift": {
-    "mtime": 1795324171.9269297,
-    "seen": 1795324232.5818322,
-    "ast_hash": "8f0e328f7d5446256228351cab03df37",
+    "mtime": 1795324499.6301785,
+    "seen": 1795324525.699334,
+    "ast_hash": "d3242cb7d7941e737a5fdc317a392f92",
     "semantic_hash": ""
   },
   "adapters/macos-app/Sources/TextVNApp/main.swift": {

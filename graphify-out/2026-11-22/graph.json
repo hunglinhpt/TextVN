@@ -1613,7 +1613,7 @@
       "file_type": "code",
       "norm_label": "englishwordssheet",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L441"
+      "source_location": "L442"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_macroeditorsheet",
@@ -1626,7 +1626,7 @@
       "file_type": "code",
       "norm_label": "macroeditorsheet",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L507"
+      "source_location": "L508"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_radiobutton",
@@ -1639,7 +1639,7 @@
       "file_type": "code",
       "norm_label": "radiobutton",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L418"
+      "source_location": "L419"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_settingsview",
@@ -12470,7 +12470,7 @@
       "file_type": "code",
       "norm_label": ".persistandnotify()",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L446"
+      "source_location": "L447"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_macroeditorsheet_persistandnotify",
@@ -12482,7 +12482,7 @@
       "file_type": "code",
       "norm_label": ".persistandnotify()",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L519"
+      "source_location": "L520"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_settingsview_assistmodehint",
@@ -12494,7 +12494,7 @@
       "file_type": "code",
       "norm_label": ".assistmodehint()",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L398"
+      "source_location": "L399"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_settingsview_init",
@@ -12518,7 +12518,7 @@
       "file_type": "code",
       "norm_label": ".persistandnotify()",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L409"
+      "source_location": "L410"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_settingsview_showhelp",
@@ -12543,10 +12543,16 @@
             "line": "L96"
           },
           {
+            "callee": "ModalResponse",
+            "receiver_type": "NSApplication",
+            "lang": "swift",
+            "line": "L103"
+          },
+          {
             "callee": "open",
             "receiver_type": "NSWorkspace",
             "lang": "swift",
-            "line": "L106"
+            "line": "L107"
           }
         ]
       },
@@ -25071,7 +25077,7 @@
       "file_type": "code",
       "norm_label": ".body",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L524"
+      "source_location": "L525"
     },
     {
       "id": "core_src_post_style_profile",
@@ -103930,7 +103936,7 @@
       "file_type": "code",
       "norm_label": ".body",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L451"
+      "source_location": "L452"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_macroeditorsheet_trimmedexpand",
@@ -103941,7 +103947,7 @@
       "file_type": "code",
       "norm_label": ".trimmedexpand",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L514"
+      "source_location": "L515"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_macroeditorsheet_trimmedtrigger",
@@ -103952,7 +103958,7 @@
       "file_type": "code",
       "norm_label": ".trimmedtrigger",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L513"
+      "source_location": "L514"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_radiobutton_body",
@@ -103963,7 +103969,7 @@
       "file_type": "code",
       "norm_label": ".body",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L423"
+      "source_location": "L424"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_settingsview_body",
@@ -103974,7 +103980,7 @@
       "file_type": "code",
       "norm_label": ".body",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L110"
+      "source_location": "L111"
     },
     {
       "id": "adapters_macos_app_sources_textvnapplib_settingsview_swift_bool",
@@ -128094,7 +128100,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L467",
+      "source_location": "L468",
       "weight": 1.0
     },
     {
@@ -128106,7 +128112,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L544",
+      "source_location": "L545",
       "weight": 1.0
     },
     {
@@ -128118,7 +128124,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L561",
+      "source_location": "L562",
       "weight": 1.0
     },
     {
@@ -128130,7 +128136,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L563",
+      "source_location": "L564",
       "weight": 1.0
     },
     {
@@ -128142,7 +128148,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L111",
+      "source_location": "L112",
       "weight": 1.0
     },
     {
@@ -128154,7 +128160,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L131",
+      "source_location": "L132",
       "weight": 1.0
     },
     {
@@ -128166,7 +128172,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L190",
+      "source_location": "L191",
       "weight": 1.0
     },
     {
@@ -128178,7 +128184,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L208",
+      "source_location": "L209",
       "weight": 1.0
     },
     {
@@ -128190,7 +128196,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L276",
+      "source_location": "L277",
       "weight": 1.0
     },
     {
@@ -128202,7 +128208,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L317",
+      "source_location": "L318",
       "weight": 1.0
     },
     {
@@ -128214,7 +128220,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L383",
+      "source_location": "L384",
       "weight": 1.0
     },
     {
@@ -128226,7 +128232,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L390",
+      "source_location": "L391",
       "weight": 1.0
     },
     {
@@ -128238,7 +128244,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L393",
+      "source_location": "L394",
       "weight": 1.0
     },
     {
@@ -185838,7 +185844,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L442",
+      "source_location": "L443",
       "weight": 1.0
     },
     {
@@ -185850,7 +185856,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L444",
+      "source_location": "L445",
       "weight": 1.0
     },
     {
@@ -185862,7 +185868,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L508",
+      "source_location": "L509",
       "weight": 1.0
     },
     {
@@ -185874,7 +185880,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L510",
+      "source_location": "L511",
       "weight": 1.0
     },
     {
@@ -185886,7 +185892,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L419",
+      "source_location": "L420",
       "weight": 1.0
     },
     {
@@ -185898,7 +185904,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L420",
+      "source_location": "L421",
       "weight": 1.0
     },
     {
@@ -185910,7 +185916,7 @@
       "confidence_score": 1.0,
       "context": "field",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L421",
+      "source_location": "L422",
       "weight": 1.0
     },
     {
@@ -240225,7 +240231,7 @@
         "swift_plain_return": true
       },
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L398",
+      "source_location": "L399",
       "weight": 1.0
     },
     {
@@ -261893,7 +261899,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L418",
+      "source_location": "L419",
       "weight": 1.0
     },
     {
@@ -261904,7 +261910,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L441",
+      "source_location": "L442",
       "weight": 1.0
     },
     {
@@ -261915,7 +261921,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L507",
+      "source_location": "L508",
       "weight": 1.0
     },
     {
@@ -334955,7 +334961,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L441",
+      "source_location": "L442",
       "weight": 1.0
     },
     {
@@ -334966,7 +334972,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L507",
+      "source_location": "L508",
       "weight": 1.0
     },
     {
@@ -334977,7 +334983,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L418",
+      "source_location": "L419",
       "weight": 1.0
     },
     {
@@ -338222,7 +338228,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L446",
+      "source_location": "L447",
       "weight": 1.0
     },
     {
@@ -338233,7 +338239,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L451",
+      "source_location": "L452",
       "weight": 1.0
     },
     {
@@ -338244,7 +338250,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L513",
+      "source_location": "L514",
       "weight": 1.0
     },
     {
@@ -338255,7 +338261,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L514",
+      "source_location": "L515",
       "weight": 1.0
     },
     {
@@ -338266,7 +338272,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L519",
+      "source_location": "L520",
       "weight": 1.0
     },
     {
@@ -338277,7 +338283,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L524",
+      "source_location": "L525",
       "weight": 1.0
     },
     {
@@ -338288,7 +338294,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L423",
+      "source_location": "L424",
       "weight": 1.0
     },
     {
@@ -338299,7 +338305,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L110",
+      "source_location": "L111",
       "weight": 1.0
     },
     {
@@ -338310,7 +338316,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L398",
+      "source_location": "L399",
       "weight": 1.0
     },
     {
@@ -338321,7 +338327,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L409",
+      "source_location": "L410",
       "weight": 1.0
     },
     {
@@ -353499,7 +353505,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L447",
+      "source_location": "L448",
       "weight": 1.0
     },
     {
@@ -353511,7 +353517,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L520",
+      "source_location": "L521",
       "weight": 1.0
     },
     {
@@ -353523,7 +353529,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L189",
+      "source_location": "L190",
       "weight": 1.0
     },
     {
@@ -353535,7 +353541,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L366",
+      "source_location": "L367",
       "weight": 1.0
     },
     {
@@ -353547,7 +353553,7 @@
       "confidence_score": 0.8,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L410",
+      "source_location": "L411",
       "weight": 1.0
     },
     {
@@ -359679,7 +359685,7 @@
       "confidence_score": 0.85,
       "context": "call",
       "source_file": "adapters/macos-app/Sources/TextVNAppLib/SettingsView.swift",
-      "source_location": "L564",
+      "source_location": "L565",
       "weight": 1.0
     },
     {
@@ -370016,5 +370022,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "4a3e7e657ace0335869844bb09eb912c38f6f9b7"
+  "built_at_commit": "e6cefbad46ad2de1f028ff03ef2a0eac7e75acc6"
 }
